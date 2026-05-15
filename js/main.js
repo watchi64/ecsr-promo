@@ -1,23 +1,27 @@
+/*
+ * Promo ECSR — Application propriétaire.
+ * © 2026 watchi64 — Tous droits réservés. Voir LICENSE.
+ */
 import { getSetting, setSetting } from "./db.js";
 import { sha256, toast } from "./utils.js";
 import { icon } from "./icons.js";
+import { initAuth, onAdminChange } from "./auth-admin.js";
 import { renderDashboard } from "./views/dashboard.js";
 import { renderPlanning } from "./views/planning.js";
 import { renderPassages } from "./views/passages.js";
+import { renderNotes } from "./views/notes.js";
+import { renderRessources } from "./views/ressources.js";
 import { renderConfig } from "./views/config.js";
 
 const STORAGE_KEY = "ecsr_auth";
 
-// ===== Auth gate =====
+// ===== Auth gate (mot de passe partagé) =====
 
 async function checkAuth() {
   const storedHash = await getSetting("password_hash");
   const localHash = localStorage.getItem(STORAGE_KEY);
 
-  if (!storedHash) {
-    showInitialPasswordSetup();
-    return false;
-  }
+  if (!storedHash) { showInitialPasswordSetup(); return false; }
   if (localHash === storedHash) return true;
   showGate(storedHash);
   return false;
@@ -64,7 +68,7 @@ function showGate(storedHash) {
   const submit = document.getElementById("gate-submit");
   const error = document.getElementById("gate-error");
 
-  subtitle.textContent = "Mot de passe partagé";
+  subtitle.textContent = "Mot de passe partagé de la promo";
   input.placeholder = "••••••••";
   submit.textContent = "Entrer";
   error.classList.add("hidden");
@@ -91,13 +95,15 @@ function showGate(storedHash) {
   input.onkeydown = (e) => { if (e.key === "Enter") handler(); };
 }
 
-// ===== Tabs (avec icônes SVG injectées) =====
+// ===== Tabs =====
 
 const TABS = [
-  { route: "dashboard", label: "Tableau de bord", icon: "dashboard" },
-  { route: "planning",  label: "Planning",        icon: "calendar"  },
-  { route: "passages",  label: "Passages",        icon: "list"      },
-  { route: "config",    label: "Config",          icon: "settings"  },
+  { route: "dashboard",  label: "Tableau de bord", icon: "dashboard" },
+  { route: "planning",   label: "Planning",        icon: "calendar"  },
+  { route: "passages",   label: "Passages",        icon: "list"      },
+  { route: "notes",      label: "Notes",           icon: "chair"     },
+  { route: "ressources", label: "Ressources",      icon: "signpost"  },
+  { route: "config",     label: "Config",          icon: "settings"  },
 ];
 
 function renderTabs() {
@@ -119,10 +125,12 @@ function renderTabs() {
 // ===== Router =====
 
 const routes = {
-  dashboard: renderDashboard,
-  planning: renderPlanning,
-  passages: renderPassages,
-  config: renderConfig,
+  dashboard:  renderDashboard,
+  planning:   renderPlanning,
+  passages:   renderPassages,
+  notes:      renderNotes,
+  ressources: renderRessources,
+  config:     renderConfig,
 };
 
 async function navigate() {
@@ -143,8 +151,6 @@ async function navigate() {
 
 window.addEventListener("hashchange", navigate);
 
-// ===== Init =====
-
 function setupRefreshBtn() {
   const btn = document.getElementById("refresh-btn");
   btn.innerHTML = "";
@@ -155,6 +161,9 @@ function setupRefreshBtn() {
 async function init() {
   renderTabs();
   setupRefreshBtn();
+  await initAuth();
+  // Re-render la vue courante quand le statut admin change
+  onAdminChange(() => navigate());
   if (!location.hash) location.hash = "#/dashboard";
   await navigate();
 }

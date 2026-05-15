@@ -168,3 +168,113 @@ export async function setSetting(key, value) {
     .upsert({ key, value, updated_at: new Date().toISOString() });
   if (error) throw error;
 }
+
+// === Compétences ===
+
+export async function listCompetences() {
+  const { data, error } = await supabase.from("competences").select("*").order("ordre");
+  if (error) throw error;
+  return data;
+}
+
+// === Évaluations ===
+
+export async function listEvaluations(filters = {}) {
+  let q = supabase
+    .from("evaluations")
+    .select("*, stagiaire:stagiaires!stagiaire_id(prenom), competence:competences!competence_code(libelle)")
+    .order("date_eval", { ascending: false })
+    .order("id", { ascending: false });
+  if (filters.stagiaire_id) q = q.eq("stagiaire_id", filters.stagiaire_id);
+  if (filters.type) q = q.eq("type", filters.type);
+  const { data, error } = await q;
+  if (error) throw error;
+  return data;
+}
+
+export async function addEvaluation(e) {
+  const { data, error } = await supabase.from("evaluations").insert(e).select().single();
+  if (error) throw error;
+  return data;
+}
+
+export async function updateEvaluation(id, e) {
+  const { error } = await supabase.from("evaluations").update(e).eq("id", id);
+  if (error) throw error;
+}
+
+export async function deleteEvaluation(id) {
+  const { error } = await supabase.from("evaluations").delete().eq("id", id);
+  if (error) throw error;
+}
+
+export async function listAuditForEvaluation(evaluation_id) {
+  const { data, error } = await supabase
+    .from("evaluations_audit")
+    .select("*")
+    .eq("evaluation_id", evaluation_id)
+    .order("changed_at", { ascending: false });
+  if (error) throw error;
+  return data;
+}
+
+export async function listRecentAudit(limit = 50) {
+  const { data, error } = await supabase
+    .from("evaluations_audit")
+    .select("*")
+    .order("changed_at", { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return data;
+}
+
+// === Ressources ===
+
+export async function listRessources() {
+  const { data, error } = await supabase
+    .from("ressources")
+    .select("*")
+    .order("categorie")
+    .order("ordre");
+  if (error) throw error;
+  return data;
+}
+
+export async function addRessource(r) {
+  const { error } = await supabase.from("ressources").insert(r);
+  if (error) throw error;
+}
+
+export async function updateRessource(id, r) {
+  const { error } = await supabase.from("ressources").update(r).eq("id", id);
+  if (error) throw error;
+}
+
+export async function deleteRessource(id) {
+  const { error } = await supabase.from("ressources").delete().eq("id", id);
+  if (error) throw error;
+}
+
+// === Auth (Supabase magic link) ===
+
+export async function getCurrentUser() {
+  const { data } = await supabase.auth.getUser();
+  return data?.user ?? null;
+}
+
+export async function signInWithMagicLink(email) {
+  const { error } = await supabase.auth.signInWithOtp({
+    email,
+    options: { emailRedirectTo: window.location.origin + window.location.pathname }
+  });
+  if (error) throw error;
+}
+
+export async function signOut() {
+  const { error } = await supabase.auth.signOut();
+  if (error) throw error;
+}
+
+export function onAuthChange(callback) {
+  return supabase.auth.onAuthStateChange((event, session) => callback(session?.user ?? null));
+}

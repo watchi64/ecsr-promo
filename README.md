@@ -1,55 +1,62 @@
-# 🚗 Promo ECSR — Suivi des passages
+# Promo ECSR — Suivi des passages
 
-App web pour gérer le planning et le suivi des passages de la formation TP ECSR (Enseignant de la Conduite et de la Sécurité Routière).
+Application web propriétaire dédiée à la gestion pédagogique d'une promotion en formation TP ECSR (Enseignant de la Conduite et de la Sécurité Routière).
 
-## 🎯 Pages
+**© 2026 watchi64 — Tous droits réservés.** Voir [LICENSE](./LICENSE) pour les conditions d'utilisation.
 
-- **📊 Tableau de bord** — qui doit passer cette semaine, priorités auto-calculées
-- **📅 Planning de la semaine** — saisie facile avec dropdowns multi-select, navigation entre semaines
-- **📝 Passages** — historique complet, filtres, ajout/suppression
-- **⚙️ Config** — gestion des stagiaires, profs, mot de passe
+---
 
-## 🔒 Accès
+## Vue d'ensemble
 
-L'app est protégée par un **mot de passe partagé** (à définir au premier accès).
-Mot de passe stocké côté serveur (hash SHA-256), session locale dans le navigateur.
+L'app couvre :
 
-## 🛠 Stack
+| Module | Rôle |
+|---|---|
+| **Tableau de bord** | Synthèse temps réel des passages, priorités calculées automatiquement |
+| **Planning** | Planning hebdomadaire avec activités, profs, pédagogue & élèves |
+| **Passages** | Historique complet des passages (salle, voiture, bonus, absences) |
+| **Notes** | Évaluations par thème (1-57), compétence (C1-C4) ou contrôle, avec historique des modifications |
+| **Ressources** | Bibliothèque curée de liens utiles (Légifrance, REMC, etc.) |
+| **Config** | Gestion des stagiaires, formateurs et mot de passe partagé |
 
-- HTML / CSS / vanilla JS (modules ES)
-- Backend : Supabase (Postgres + REST + Realtime)
-- Hébergé sur GitHub Pages
+## Stack
 
-## 📦 Déploiement
+- **Front** : HTML / CSS / JS vanilla (modules ES), typo Geist, design system custom
+- **Backend** : Supabase (PostgreSQL 17 + REST + Realtime + Auth magic link)
+- **Hébergement** : GitHub Pages (statique)
 
-L'app est statique : pousser sur GitHub, activer GitHub Pages, c'est tout.
+## Niveaux d'accès
 
-Les credentials Supabase publics (URL + clé anon) sont dans `js/config.js`.
-La sécurité repose sur :
-- Le mot de passe partagé (gate côté client)
-- Les Row Level Security policies Supabase (toutes les opérations passent par l'anon role)
+1. **Mot de passe partagé** (tier 1) — accès en lecture/écriture pour la promo : tableau de bord, planning, passages, notes (lecture), ressources (lecture).
+2. **Connexion admin** (tier 2, Supabase magic link) — débloque l'édition des notes et des ressources. Toutes les modifications de notes sont auditées (qui, quand, quoi).
 
-## 🏗 Schéma BDD
+## Sécurité
 
-5 tables :
-- `stagiaires` (id, prenom, ordre)
-- `profs` (id, nom, ordre)
-- `passages` (date, stagiaire, type, résultat, remplaçant, origine)
-- `planning_entries` (semaine_lundi, day_index, half_day, slot, activité, prof, sujet, pédagogue, élèves[], notes)
-- `settings` (key/value pour password_hash, cohort_name, etc.)
+- Mot de passe partagé hashé en SHA-256 côté serveur (table `settings`).
+- Row Level Security activé sur toutes les tables.
+- Audit trail automatique sur les évaluations (`evaluations_audit`, triggers Postgres).
+- Auth admin via OTP email (Supabase Auth) — pas de mot de passe à stocker.
 
-## 🔄 Auto-sync Planning → Tableau de bord
+## Schéma BDD
 
-Quand quelqu'un est assigné comme **"Passe au tableau"** dans une activité Pédagogie salle, il est **automatiquement compté** comme passage Salle effectué dans le Tableau de bord — pas de bouton, pas d'action manuelle, c'est en temps réel.
-
-L'historique permanent est stocké dans `passages`. Pour archiver les pédagogues de la semaine au moment de passer à la semaine suivante : feature à venir (bouton "Archiver la semaine").
-
-## 🧑‍💻 Dev local
-
-L'app étant statique avec des modules ES, il faut un serveur HTTP local :
-
-```bash
-cd ecsr-promo
-python -m http.server 5500
-# Ouvrir http://localhost:5500
 ```
+stagiaires              (id, prenom, ordre)
+profs                   (id, nom, ordre)
+competences             (code, libelle, ordre)            -- C1, C2, C3, C4
+passages                (date, stagiaire_id, type, resultat, origine, …)
+planning_entries        (semaine_lundi, day_index, half_day, slot, …)
+evaluations             (stagiaire_id, type, theme_numero, competence_code, controle_libelle, note, …)
+evaluations_audit       (evaluation_id, action, before_data, after_data, changed_by_email, …)
+ressources              (titre, url, description, categorie, …)
+settings                (key/value)
+```
+
+---
+
+## Propriété intellectuelle
+
+Ce projet — design, code, architecture, schéma de données, contenu pédagogique — constitue une œuvre originale protégée par le droit d'auteur.
+
+**Pour toute demande de licence commerciale** (intégration en école de conduite, déploiement pour un réseau, monétisation, etc.) : misterwatchi@gmail.com
+
+Voir [LICENSE](./LICENSE).
