@@ -1,5 +1,6 @@
 import { getSetting, setSetting } from "./db.js";
 import { sha256, toast } from "./utils.js";
+import { icon } from "./icons.js";
 import { renderDashboard } from "./views/dashboard.js";
 import { renderPlanning } from "./views/planning.js";
 import { renderPassages } from "./views/passages.js";
@@ -14,15 +15,10 @@ async function checkAuth() {
   const localHash = localStorage.getItem(STORAGE_KEY);
 
   if (!storedHash) {
-    // Pas de mot de passe défini → premier accès : on demande de le définir
     showInitialPasswordSetup();
     return false;
   }
-
-  if (localHash === storedHash) {
-    return true;
-  }
-
+  if (localHash === storedHash) return true;
   showGate(storedHash);
   return false;
 }
@@ -34,7 +30,7 @@ function showInitialPasswordSetup() {
   const submit = document.getElementById("gate-submit");
   const error = document.getElementById("gate-error");
 
-  subtitle.textContent = "Premier accès — Définir le mot de passe de la promo";
+  subtitle.textContent = "Premier accès — définissez le mot de passe partagé";
   input.placeholder = "Minimum 4 caractères";
   submit.textContent = "Définir et entrer";
   error.classList.add("hidden");
@@ -57,7 +53,6 @@ function showInitialPasswordSetup() {
     document.getElementById("app").classList.remove("hidden");
     init();
   };
-
   submit.onclick = handler;
   input.onkeydown = (e) => { if (e.key === "Enter") handler(); };
 }
@@ -69,7 +64,7 @@ function showGate(storedHash) {
   const submit = document.getElementById("gate-submit");
   const error = document.getElementById("gate-error");
 
-  subtitle.textContent = "Mot de passe de la promo";
+  subtitle.textContent = "Mot de passe partagé";
   input.placeholder = "••••••••";
   submit.textContent = "Entrer";
   error.classList.add("hidden");
@@ -92,9 +87,33 @@ function showGate(storedHash) {
       input.focus();
     }
   };
-
   submit.onclick = handler;
   input.onkeydown = (e) => { if (e.key === "Enter") handler(); };
+}
+
+// ===== Tabs (avec icônes SVG injectées) =====
+
+const TABS = [
+  { route: "dashboard", label: "Tableau de bord", icon: "dashboard" },
+  { route: "planning",  label: "Planning",        icon: "calendar"  },
+  { route: "passages",  label: "Passages",        icon: "list"      },
+  { route: "config",    label: "Config",          icon: "settings"  },
+];
+
+function renderTabs() {
+  const nav = document.getElementById("tabs");
+  nav.innerHTML = "";
+  TABS.forEach((t) => {
+    const a = document.createElement("a");
+    a.href = "#/" + t.route;
+    a.className = "tab";
+    a.dataset.route = t.route;
+    a.appendChild(icon[t.icon]());
+    const span = document.createElement("span");
+    span.textContent = t.label;
+    a.appendChild(span);
+    nav.appendChild(a);
+  });
 }
 
 // ===== Router =====
@@ -124,11 +143,18 @@ async function navigate() {
 
 window.addEventListener("hashchange", navigate);
 
-document.getElementById("refresh-btn").addEventListener("click", () => navigate());
-
 // ===== Init =====
 
+function setupRefreshBtn() {
+  const btn = document.getElementById("refresh-btn");
+  btn.innerHTML = "";
+  btn.appendChild(icon.refresh());
+  btn.addEventListener("click", () => navigate());
+}
+
 async function init() {
+  renderTabs();
+  setupRefreshBtn();
   if (!location.hash) location.hash = "#/dashboard";
   await navigate();
 }

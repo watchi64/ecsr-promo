@@ -5,44 +5,48 @@ import {
   getSetting, setSetting,
 } from "../db.js";
 import { el, clear, toast, sha256 } from "../utils.js";
+import { icon } from "../icons.js";
 
-async function renderSection(title, items, type, container) {
-  const wrap = el("div", { class: "config-section" });
-  wrap.appendChild(el("h3", {}, title));
+async function renderListSection(title, items, type, container) {
+  const section = el("section", { class: "config-section" });
+
+  section.appendChild(el("div", { class: "config-section-head" },
+    el("h3", {}, title),
+    el("span", { class: "count" }, items.length + " entrée" + (items.length > 1 ? "s" : ""))
+  ));
 
   const list = el("ul", { class: "config-list" });
   items.forEach((it) => {
     const input = el("input", { type: "text", value: it.prenom || it.nom });
     input.addEventListener("blur", async () => {
       const v = input.value.trim();
-      if (!v) return;
+      if (!v || v === (it.prenom || it.nom)) return;
       try {
         if (type === "stagiaire") await updateStagiaire(it.id, v);
         else await updateProf(it.id, v);
         toast("Mis à jour", "success");
       } catch (e) { toast(e.message, "error"); }
     });
-    const li = el("li", {},
-      input,
-      el("button", {
-        class: "btn small danger",
-        onClick: async () => {
-          if (!confirm(`Supprimer ${it.prenom || it.nom} ?`)) return;
-          try {
-            if (type === "stagiaire") await deleteStagiaire(it.id);
-            else await deleteProf(it.id);
-            toast("Supprimé", "success");
-            await rerender(container);
-          } catch (e) { toast(e.message, "error"); }
-        }
-      }, "🗑")
-    );
-    list.appendChild(li);
-  });
-  wrap.appendChild(list);
+    input.addEventListener("keydown", (e) => { if (e.key === "Enter") input.blur(); });
 
-  const addInput = el("input", { type: "text", placeholder: type === "stagiaire" ? "Prénom du nouveau stagiaire" : "Nom du nouveau prof" });
-  const addBtn = el("button", { class: "btn primary", style: "width:auto", onClick: async () => {
+    const delBtn = el("button", { class: "btn small danger icon-only", "aria-label": "Supprimer" });
+    delBtn.appendChild(icon.trash());
+    delBtn.addEventListener("click", async () => {
+      if (!confirm(`Supprimer ${it.prenom || it.nom} ?`)) return;
+      try {
+        if (type === "stagiaire") await deleteStagiaire(it.id);
+        else await deleteProf(it.id);
+        toast("Supprimé", "success");
+        await rerender(container);
+      } catch (e) { toast(e.message, "error"); }
+    });
+
+    list.appendChild(el("li", {}, input, delBtn));
+  });
+  section.appendChild(list);
+
+  const addInput = el("input", { type: "text", placeholder: type === "stagiaire" ? "Prénom" : "Nom" });
+  const addBtn = el("button", { class: "btn accent", onClick: async () => {
     const v = addInput.value.trim();
     if (!v) return;
     try {
@@ -52,24 +56,29 @@ async function renderSection(title, items, type, container) {
       toast("Ajouté", "success");
       await rerender(container);
     } catch (e) { toast(e.message, "error"); }
-  }}, "➕ Ajouter");
-  wrap.appendChild(el("div", { class: "config-add" }, addInput, addBtn));
+  }}, icon.plus(), "Ajouter");
+  addInput.addEventListener("keydown", (e) => { if (e.key === "Enter") addBtn.click(); });
 
-  return wrap;
+  section.appendChild(el("div", { class: "config-add" }, addInput, addBtn));
+
+  return section;
 }
 
-async function renderPasswordSection(container) {
-  const wrap = el("div", { class: "config-section" });
-  wrap.appendChild(el("h3", {}, "🔒 Mot de passe de la promo"));
-  wrap.appendChild(el("p", { class: "muted", style: "margin-top:0" },
-    "Mot de passe partagé. Toute personne ayant ce mot de passe peut accéder à l'app. À changer si compromis."
+async function renderPasswordSection() {
+  const section = el("section", { class: "config-section" });
+
+  section.appendChild(el("div", { class: "config-section-head" },
+    el("h3", {}, "Mot de passe partagé")
+  ));
+  section.appendChild(el("p", { class: "muted", style: "margin:0 0 1rem;font-size:0.88rem" },
+    "Toute personne qui dispose de ce mot de passe peut accéder à l'app. À renouveler si compromis."
   ));
 
-  const oldInput = el("input", { type: "password", placeholder: "Mot de passe actuel (ou laisser vide si jamais défini)" });
-  const newInput = el("input", { type: "password", placeholder: "Nouveau mot de passe" });
-  const confirmInput = el("input", { type: "password", placeholder: "Confirmer le nouveau mot de passe" });
+  const oldInput = el("input", { type: "password", placeholder: "Actuel" });
+  const newInput = el("input", { type: "password", placeholder: "Nouveau (min. 4 caractères)" });
+  const confirmInput = el("input", { type: "password", placeholder: "Confirmer" });
 
-  const submitBtn = el("button", { class: "btn primary", style: "width:auto", onClick: async () => {
+  const submitBtn = el("button", { class: "btn primary", onClick: async () => {
     const currentHash = await getSetting("password_hash");
     if (currentHash) {
       const oldHash = await sha256(oldInput.value);
@@ -79,7 +88,7 @@ async function renderPasswordSection(container) {
       }
     }
     if (!newInput.value || newInput.value.length < 4) {
-      toast("Le nouveau mot de passe doit faire au moins 4 caractères", "error");
+      toast("Minimum 4 caractères", "error");
       return;
     }
     if (newInput.value !== confirmInput.value) {
@@ -91,16 +100,16 @@ async function renderPasswordSection(container) {
     localStorage.setItem("ecsr_auth", newHash);
     toast("Mot de passe mis à jour", "success");
     oldInput.value = newInput.value = confirmInput.value = "";
-  }}, "Enregistrer");
+  }}, icon.check(), "Mettre à jour");
 
-  wrap.appendChild(el("div", { class: "modal-form" },
+  section.appendChild(el("div", { class: "modal-form" },
     el("div", { class: "field" }, el("label", {}, "Mot de passe actuel"), oldInput),
     el("div", { class: "field" }, el("label", {}, "Nouveau mot de passe"), newInput),
-    el("div", { class: "field" }, el("label", {}, "Confirmer"), confirmInput),
-    submitBtn
+    el("div", { class: "field" }, el("label", {}, "Confirmer le nouveau mot de passe"), confirmInput),
+    el("div", { style: "margin-top:0.25rem" }, submitBtn)
   ));
 
-  return wrap;
+  return section;
 }
 
 async function rerender(container) {
@@ -111,13 +120,18 @@ async function rerender(container) {
 
   clear(container);
   container.appendChild(el("div", { class: "view-header" },
-    el("h2", {}, "⚙️ Configuration"),
-    el("p", { class: "subtitle" }, "Gérer la liste des stagiaires, profs, et le mot de passe d'accès.")
+    el("div", { class: "view-header-text" },
+      el("p", { class: "eyebrow" }, "Réglages"),
+      el("h2", {}, "Configuration"),
+      el("p", { class: "subtitle" }, "Gérer la liste des stagiaires et formateurs, et le mot de passe d'accès partagé."),
+    ),
   ));
 
-  container.appendChild(await renderSection("👥 Stagiaires", stagiaires, "stagiaire", container));
-  container.appendChild(await renderSection("🎓 Formateurs (Profs)", profs, "prof", container));
-  container.appendChild(await renderPasswordSection(container));
+  const grid = el("div", { class: "config-grid" });
+  grid.appendChild(await renderListSection("Stagiaires", stagiaires, "stagiaire", container));
+  grid.appendChild(await renderListSection("Formateurs", profs, "prof", container));
+  grid.appendChild(await renderPasswordSection());
+  container.appendChild(grid);
 }
 
 export async function renderConfig(container) {

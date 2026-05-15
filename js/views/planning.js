@@ -1,15 +1,16 @@
 import { listStagiaires, listProfs, getPlanning, upsertPlanningEntry, getSetting, setSetting } from "../db.js";
 import { el, clear, isoDate, getMonday, addDays, formatDayShort, debounce, toast } from "../utils.js";
+import { icon } from "../icons.js";
 import { ACTIVITES, JOURS, HALF_DAYS } from "../config.js";
 
 let stagiaires = [];
 let profs = [];
-let entries = {}; // keyed by "d-half-slot"
+let entries = {};
 let semaineLundi = null;
+let currentContainer = null;
 
 const debouncedSave = {};
-
-function entryKey(d, half, slot) { return `${d}-${half}-${slot}`; }
+const entryKey = (d, half, slot) => `${d}-${half}-${slot}`;
 
 async function saveEntry(d, half, slot, patch) {
   const key = entryKey(d, half, slot);
@@ -30,7 +31,6 @@ async function saveEntry(d, half, slot, patch) {
   };
   try {
     await upsertPlanningEntry(payload);
-    // Update slot color
     const slotEl = document.querySelector(`[data-slotkey="${key}"]`);
     if (slotEl) slotEl.dataset.activite = payload.activite || "";
   } catch (e) {
@@ -39,18 +39,16 @@ async function saveEntry(d, half, slot, patch) {
   }
 }
 
-function selectFromList(items, currentVal, onChange, options = {}) {
+function selectFromList(items, currentVal, onChange, placeholder = "—") {
   const sel = el("select");
-  const placeholder = el("option", { value: "" }, options.placeholder || "—");
-  sel.appendChild(placeholder);
+  sel.appendChild(el("option", { value: "" }, placeholder));
   items.forEach((it) => {
     const opt = el("option", { value: String(it.value) }, it.label);
     if (String(currentVal) === String(it.value)) opt.selected = true;
     sel.appendChild(opt);
   });
   sel.addEventListener("change", () => {
-    const v = sel.value;
-    onChange(v === "" ? null : v);
+    onChange(sel.value === "" ? null : sel.value);
   });
   return sel;
 }
@@ -118,69 +116,97 @@ function chipsSelect(allStagiaires, currentIds, onChange) {
 function renderSlot(d, half, slot) {
   const key = entryKey(d, half, slot);
   const entry = entries[key] || {};
+
   const slotEl = el("div", {
-    class: "planning-slot" + (slot === 1 ? " parallele" : ""),
+    class: "p-slot" + (slot === 1 ? " parallele" : ""),
     dataset: { slotkey: key, activite: entry.activite || "" }
   });
 
+  // Marker (principal / parallèle)
+  const marker = el("div", { class: "p-slot-marker" }, slot === 0 ? "•" : "↳");
+  slotEl.appendChild(marker);
+
   // Activité
-  const activiteCell = el("div", { class: "planning-cell" });
-  activiteCell.appendChild(selectFromList(
-    ACTIVITES.map((a) => ({ value: a, label: a })),
-    entry.activite,
-    (v) => saveEntry(d, half, slot, { activite: v }),
-    { placeholder: "Activité…" }
+  slotEl.appendChild(el("div", { class: "p-cell" },
+    selectFromList(
+      ACTIVITES.map((a) => ({ value: a, label: a })),
+      entry.activite,
+      (v) => saveEntry(d, half, slot, { activite: v }),
+      "Activité…"
+    )
   ));
-  slotEl.appendChild(activiteCell);
 
   // Prof
-  const profCell = el("div", { class: "planning-cell" });
-  profCell.appendChild(selectFromList(
-    profs.map((p) => ({ value: p.id, label: p.nom })),
-    entry.prof_id,
-    (v) => saveEntry(d, half, slot, { prof_id: v ? Number(v) : null }),
-    { placeholder: "Prof…" }
+  slotEl.appendChild(el("div", { class: "p-cell" },
+    selectFromList(
+      profs.map((p) => ({ value: p.id, label: p.nom })),
+      entry.prof_id,
+      (v) => saveEntry(d, half, slot, { prof_id: v ? Number(v) : null }),
+      "Prof…"
+    )
   ));
-  slotEl.appendChild(profCell);
 
   // Sujet
-  const sujetCell = el("div", { class: "planning-cell" });
-  const sujetInput = el("input", { type: "text", placeholder: "Sujet / Thème", value: entry.sujet || "" });
+  const sujetInput = el("input", { type: "text", placeholder: "Sujet / thème", value: entry.sujet || "" });
   if (!debouncedSave[key + "-sujet"]) {
     debouncedSave[key + "-sujet"] = debounce((v) => saveEntry(d, half, slot, { sujet: v }), 500);
   }
   sujetInput.addEventListener("input", () => debouncedSave[key + "-sujet"](sujetInput.value));
-  sujetCell.appendChild(sujetInput);
-  slotEl.appendChild(sujetCell);
+  slotEl.appendChild(el("div", { class: "p-cell" }, sujetInput));
 
   // Pédagogue
-  const pedaCell = el("div", { class: "planning-cell pedagogue-cell" });
-  pedaCell.appendChild(selectFromList(
-    stagiaires.map((s) => ({ value: s.id, label: s.prenom })),
-    entry.pedagogue_id,
-    (v) => saveEntry(d, half, slot, { pedagogue_id: v ? Number(v) : null }),
-    { placeholder: "Passe au tableau…" }
+  slotEl.appendChild(el("div", { class: "p-cell pedagogue-cell" },
+    selectFromList(
+      stagiaires.map((s) => ({ value: s.id, label: s.prenom })),
+      entry.pedagogue_id,
+      (v) => saveEntry(d, half, slot, { pedagogue_id: v ? Number(v) : null }),
+      "Au tableau…"
+    )
   ));
-  slotEl.appendChild(pedaCell);
 
-  // Élèves (chips)
-  const elevesCell = el("div", { class: "planning-cell" });
-  elevesCell.appendChild(chipsSelect(stagiaires, entry.eleves_ids || [], (ids) => {
-    saveEntry(d, half, slot, { eleves_ids: ids });
-  }));
-  slotEl.appendChild(elevesCell);
+  // Élèves
+  slotEl.appendChild(el("div", { class: "p-cell" },
+    chipsSelect(stagiaires, entry.eleves_ids || [], (ids) => {
+      saveEntry(d, half, slot, { eleves_ids: ids });
+    })
+  ));
 
   // Notes
-  const notesCell = el("div", { class: "planning-cell" });
   const notesInput = el("input", { type: "text", placeholder: "Notes", value: entry.notes || "" });
   if (!debouncedSave[key + "-notes"]) {
     debouncedSave[key + "-notes"] = debounce((v) => saveEntry(d, half, slot, { notes: v }), 500);
   }
   notesInput.addEventListener("input", () => debouncedSave[key + "-notes"](notesInput.value));
-  notesCell.appendChild(notesInput);
-  slotEl.appendChild(notesCell);
+  slotEl.appendChild(el("div", { class: "p-cell" }, notesInput));
 
   return slotEl;
+}
+
+function renderDayCard(d, monday) {
+  const date = addDays(monday, d);
+  const card = el("article", { class: "p-day-card" });
+
+  // Day header
+  const header = el("div", { class: "p-day-head" },
+    el("span", { class: "p-day-name" }, JOURS[d]),
+    el("span", { class: "p-day-date" }, formatDayShort(date)),
+  );
+  card.appendChild(header);
+
+  HALF_DAYS.forEach((half) => {
+    const section = el("div", { class: "p-half " + half.key });
+    section.appendChild(el("div", { class: "p-half-head" },
+      el("span", { class: "p-half-tag " + half.key }, half.short),
+      el("span", { class: "p-half-hours" }, half.label),
+    ));
+    const slots = el("div", { class: "p-slots" });
+    slots.appendChild(renderSlot(d, half.key, 0));
+    slots.appendChild(renderSlot(d, half.key, 1));
+    section.appendChild(slots);
+    card.appendChild(section);
+  });
+
+  return card;
 }
 
 async function changeWeek(dateStr) {
@@ -189,8 +215,6 @@ async function changeWeek(dateStr) {
   await loadPlanning();
   renderInto(currentContainer);
 }
-
-let currentContainer = null;
 
 async function loadPlanning() {
   const data = await getPlanning(semaineLundi);
@@ -205,82 +229,55 @@ function renderInto(container) {
   clear(container);
 
   const monday = new Date(semaineLundi + "T00:00:00");
+  const longLabel = monday.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
+
+  container.appendChild(el("div", { class: "view-header" },
+    el("div", { class: "view-header-text" },
+      el("p", { class: "eyebrow" }, "Édition · Semaine du " + longLabel),
+      el("h2", {}, "Planning de la semaine"),
+      el("p", { class: "subtitle" }, "Sélectionne les activités, profs et stagiaires. Tout s'enregistre automatiquement."),
+    ),
+  ));
 
   // Week bar
+  const prevBtn = el("button", { class: "btn small icon-only", "aria-label": "Semaine précédente" });
+  prevBtn.appendChild(icon.chevronLeft());
+  prevBtn.addEventListener("click", () => changeWeek(isoDate(addDays(monday, -7))));
+
+  const nextBtn = el("button", { class: "btn small icon-only", "aria-label": "Semaine suivante" });
+  nextBtn.appendChild(icon.chevronRight());
+  nextBtn.addEventListener("click", () => changeWeek(isoDate(addDays(monday, 7))));
+
   const dateInput = el("input", { type: "date", value: semaineLundi });
   dateInput.addEventListener("change", () => {
     let d = new Date(dateInput.value + "T00:00:00");
     d = getMonday(d);
     changeWeek(isoDate(d));
   });
-  const prevBtn = el("button", { class: "btn small", onClick: () => changeWeek(isoDate(addDays(monday, -7))) }, "← Semaine précédente");
-  const nextBtn = el("button", { class: "btn small", onClick: () => changeWeek(isoDate(addDays(monday, 7))) }, "Semaine suivante →");
 
-  container.appendChild(el("div", { class: "view-header" },
-    el("h2", {}, "📅 Planning de la semaine"),
-    el("p", { class: "subtitle" }, "1 ligne = activité principale  ·  2ᵉ ligne (grisée) = activité en parallèle. Tout s'enregistre automatiquement.")
-  ));
+  const todayBtn = el("button", { class: "btn small" }, "Cette semaine");
+  todayBtn.addEventListener("click", () => changeWeek(isoDate(getMonday(new Date()))));
 
   container.appendChild(el("div", { class: "week-bar" },
-    el("strong", {}, "Semaine du :"),
+    el("span", { class: "week-bar-label" }, "Semaine du"),
     dateInput,
     prevBtn,
-    nextBtn
+    nextBtn,
+    todayBtn,
   ));
 
-  const grid = el("div", { class: "planning-grid" });
-
-  // Header row
-  grid.appendChild(el("div", { class: "planning-day-cell", style: "background:#1F4E78;color:white" }, "Jour"));
-  grid.appendChild(el("div", { class: "planning-day-cell", style: "background:#1F4E78;color:white" }, "Demi-journée"));
-  const headSlots = el("div", { class: "planning-slots" });
-  const headSlot = el("div", { class: "planning-slot", style: "background:#1F4E78;color:white;font-weight:600" });
-  ["Activité", "Prof", "Sujet / Thème", "Passe au tableau", "Élèves", "Notes"].forEach((h) => {
-    headSlot.appendChild(el("div", { class: "planning-cell", style: "color:white;justify-content:center;font-size:0.85rem;text-transform:uppercase" }, h));
-  });
-  headSlots.appendChild(headSlot);
-  grid.appendChild(headSlots);
-
   // Days
-  JOURS.forEach((jourName, d) => {
-    const date = addDays(monday, d);
+  const wrap = el("div", { class: "p-days" });
+  JOURS.forEach((_, d) => wrap.appendChild(renderDayCard(d, monday)));
+  container.appendChild(wrap);
 
-    const dayCell = el("div", { class: "planning-day-cell" },
-      el("span", { class: "day-name" }, jourName),
-      el("span", { class: "day-date" }, formatDayShort(date))
-    );
-
-    HALF_DAYS.forEach((half, idx) => {
-      if (idx === 0) {
-        // place dayCell only once spanning both halves via grid: simpler to render twice
-        const dc = el("div", { class: "planning-day-cell" },
-          el("span", { class: "day-name" }, jourName),
-          el("span", { class: "day-date" }, formatDayShort(date))
-        );
-        grid.appendChild(dc);
-      } else {
-        // empty cell to align row
-        grid.appendChild(el("div", { class: "planning-day-cell" }));
-      }
-      const halfCell = el("div", { class: "planning-half-cell " + half.key },
-        el("span", {}, half.short),
-        el("small", { style: "font-weight:400;opacity:0.8;font-size:0.7rem" }, half.label)
-      );
-      grid.appendChild(halfCell);
-      const slotsWrap = el("div", { class: "planning-slots" });
-      slotsWrap.appendChild(renderSlot(d, half.key, 0));
-      slotsWrap.appendChild(renderSlot(d, half.key, 1));
-      grid.appendChild(slotsWrap);
-    });
-  });
-
-  container.appendChild(grid);
-
-  // Légende
-  container.appendChild(el("p", { class: "muted", style: "margin-top:1rem;font-size:0.88rem" },
-    "💡 Cours / Contrôle : tout le monde présent → Élèves vide. ",
-    "🟡 Pédagogie salle : mettre dans « Passe au tableau » le stagiaire qui anime (compté auto dans le Tableau de bord), et dans Élèves les autres. ",
-    "Voiture : Prof + 2 élèves."
+  // Helper
+  container.appendChild(el("div", { class: "planning-helper" },
+    el("strong", {}, "Comment remplir"), " — ",
+    "1ʳᵉ ligne ", el("span", { style: "color:var(--accent);font-weight:600" }, "•"), " principal, ",
+    "2ᵉ ligne ", el("span", { style: "color:var(--text-muted)" }, "↳"), " activité en parallèle (sinon laisser vide).  ",
+    "Cours / Contrôle = tout le monde présent, Élèves vide.  ",
+    "Pédagogie salle = mettre dans « Au tableau » le stagiaire qui anime (compté dans le Tableau de bord automatiquement)."
   ));
 }
 

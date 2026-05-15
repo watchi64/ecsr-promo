@@ -1,11 +1,13 @@
 import { listStagiaires, listPassages, addPassage, deletePassage } from "../db.js";
 import { el, clear, isoDate, formatDate, toast } from "../utils.js";
+import { icon } from "../icons.js";
 import { TYPES, RESULTATS } from "../config.js";
 
 let stagiaires = [];
 let passages = [];
 let filterStagiaire = "";
 let filterType = "";
+let filterResultat = "";
 
 function openAddModal(onSaved) {
   const today = isoDate(new Date());
@@ -20,13 +22,13 @@ function openAddModal(onSaved) {
   TYPES.forEach((t) => typeSel.appendChild(el("option", { value: t }, t)));
 
   const resultatSel = el("select");
-  RESULTATS.forEach((r) => resultatSel.appendChild(el("option", { value: r.value }, r.icon + " " + r.value)));
+  RESULTATS.forEach((r) => resultatSel.appendChild(el("option", { value: r.value }, r.value)));
 
   const remplacantSel = el("select");
-  remplacantSel.appendChild(el("option", { value: "" }, "— (aucun)"));
+  remplacantSel.appendChild(el("option", { value: "" }, "—"));
   stagiaires.forEach((s) => remplacantSel.appendChild(el("option", { value: s.id }, s.prenom)));
 
-  const commentInput = el("input", { type: "text", placeholder: "Commentaire (optionnel)" });
+  const commentInput = el("input", { type: "text", placeholder: "Optionnel" });
 
   async function save() {
     if (!stagiaireSel.value) { toast("Choisir un stagiaire", "error"); return; }
@@ -40,29 +42,31 @@ function openAddModal(onSaved) {
         commentaire: commentInput.value || null,
         origine: "Manuel",
       });
-      toast("Passage ajouté", "success");
+      toast("Passage enregistré", "success");
       backdrop.remove();
       onSaved();
     } catch (e) {
       console.error(e);
-      toast("Erreur : " + e.message, "error");
+      toast(e.message, "error");
     }
   }
 
+  const cancelBtn = el("button", { class: "btn ghost", onClick: () => backdrop.remove() }, "Annuler");
+  const saveBtn = el("button", { class: "btn primary", onClick: save },
+    icon.check(), "Enregistrer"
+  );
+
   const modal = el("div", { class: "modal" },
-    el("h3", {}, "➕ Ajouter un passage"),
+    el("h3", {}, "Ajouter un passage"),
     el("div", { class: "modal-form" },
       el("div", { class: "field" }, el("label", {}, "Date"), dateInput),
       el("div", { class: "field" }, el("label", {}, "Stagiaire"), stagiaireSel),
       el("div", { class: "field" }, el("label", {}, "Type"), typeSel),
       el("div", { class: "field" }, el("label", {}, "Résultat"), resultatSel),
-      el("div", { class: "field" }, el("label", {}, "Remplacé par (si absence)"), remplacantSel),
+      el("div", { class: "field" }, el("label", {}, "Remplacé par"), remplacantSel),
       el("div", { class: "field" }, el("label", {}, "Commentaire"), commentInput),
     ),
-    el("div", { class: "modal-actions" },
-      el("button", { class: "btn outline", onClick: () => backdrop.remove() }, "Annuler"),
-      el("button", { class: "btn primary", style: "width:auto", onClick: save }, "Enregistrer")
-    )
+    el("div", { class: "modal-actions" }, cancelBtn, saveBtn)
   );
 
   backdrop.appendChild(modal);
@@ -70,50 +74,66 @@ function openAddModal(onSaved) {
   document.body.appendChild(backdrop);
 }
 
+function resultTag(resultat) {
+  const r = RESULTATS.find((x) => x.value === resultat);
+  return el("span", { class: "tag " + (r?.color || "") }, resultat);
+}
+
 function renderTable(container) {
   let filtered = passages;
   if (filterStagiaire) filtered = filtered.filter((p) => p.stagiaire_id === Number(filterStagiaire));
-  if (filterType) filtered = filtered.filter((p) => p.type === filterType);
+  if (filterType)     filtered = filtered.filter((p) => p.type === filterType);
+  if (filterResultat) filtered = filtered.filter((p) => p.resultat === filterResultat);
 
+  if (filtered.length === 0) {
+    return el("div", { style: "padding:3rem 1rem;text-align:center;color:var(--text-muted)" },
+      el("p", {}, "Aucun passage à afficher."),
+      el("p", { class: "faint", style: "font-size:0.85rem" }, "Modifie les filtres ou ajoute un passage.")
+    );
+  }
+
+  const wrap = el("div", { class: "passages-table-wrap" });
   const table = el("table", { class: "passages-table" });
-  const thead = el("thead");
-  thead.appendChild(el("tr", {},
-    el("th", {}, "Date"),
-    el("th", {}, "Stagiaire"),
-    el("th", {}, "Type"),
-    el("th", {}, "Résultat"),
-    el("th", {}, "Remplacé par"),
-    el("th", {}, "Origine"),
-    el("th", {}, "")
+  table.appendChild(el("thead", {},
+    el("tr", {},
+      el("th", {}, "Date"),
+      el("th", {}, "Stagiaire"),
+      el("th", {}, "Type"),
+      el("th", {}, "Résultat"),
+      el("th", {}, "Remplacé par"),
+      el("th", {}, "Origine"),
+      el("th", { style: "width:50px" }, "")
+    )
   ));
-  table.appendChild(thead);
 
   const tbody = el("tbody");
   filtered.forEach((p) => {
-    const res = RESULTATS.find((r) => r.value === p.resultat) || { icon: "", color: "" };
+    const delBtn = el("button", {
+      class: "btn small danger icon-only",
+      "aria-label": "Supprimer",
+      onClick: async () => {
+        if (!confirm(`Supprimer ce passage ?`)) return;
+        await deletePassage(p.id);
+        toast("Supprimé", "success");
+        await reload(container);
+      }
+    });
+    delBtn.appendChild(icon.trash());
+
     const tr = el("tr", {},
-      el("td", {}, formatDate(p.date)),
+      el("td", { class: "date" }, formatDate(p.date)),
       el("td", {}, p.stagiaire?.prenom || "?"),
       el("td", {}, el("span", { class: "tag " + (p.type === "Salle" ? "salle" : "voiture") }, p.type)),
-      el("td", {}, el("span", { class: "tag " + res.color }, res.icon + " " + p.resultat)),
-      el("td", {}, p.remplacant?.prenom || ""),
+      el("td", {}, resultTag(p.resultat)),
+      el("td", { class: "muted" }, p.remplacant?.prenom || "—"),
       el("td", {}, el("span", { class: "tag " + (p.origine === "Manuel" ? "origine-manuel" : "origine-auto") }, p.origine)),
-      el("td", {},
-        el("button", {
-          class: "btn small danger",
-          onClick: async () => {
-            if (!confirm("Supprimer ce passage ?")) return;
-            await deletePassage(p.id);
-            toast("Supprimé", "success");
-            await reload(container);
-          }
-        }, "🗑")
-      )
+      el("td", {}, delBtn)
     );
     tbody.appendChild(tr);
   });
   table.appendChild(tbody);
-  return table;
+  wrap.appendChild(table);
+  return wrap;
 }
 
 async function reload(container) {
@@ -123,10 +143,6 @@ async function reload(container) {
 
 function rerender(container) {
   clear(container);
-  container.appendChild(el("div", { class: "view-header" },
-    el("h2", {}, "📝 Passages — historique"),
-    el("p", { class: "subtitle" }, passages.length + " passages enregistrés")
-  ));
 
   const stagiaireFilter = el("select");
   stagiaireFilter.appendChild(el("option", { value: "" }, "Tous les stagiaires"));
@@ -146,9 +162,30 @@ function rerender(container) {
   });
   typeFilter.addEventListener("change", () => { filterType = typeFilter.value; rerender(container); });
 
+  const resFilter = el("select");
+  resFilter.appendChild(el("option", { value: "" }, "Tous les résultats"));
+  RESULTATS.forEach((r) => {
+    const opt = el("option", { value: r.value }, r.value);
+    if (filterResultat === r.value) opt.selected = true;
+    resFilter.appendChild(opt);
+  });
+  resFilter.addEventListener("change", () => { filterResultat = resFilter.value; rerender(container); });
+
+  const addBtn = el("button", { class: "btn primary", onClick: () => openAddModal(() => reload(container)) },
+    icon.plus(), "Ajouter"
+  );
+
+  container.appendChild(el("div", { class: "view-header" },
+    el("div", { class: "view-header-text" },
+      el("p", { class: "eyebrow" }, passages.length + " entrées au total"),
+      el("h2", {}, "Historique des passages"),
+      el("p", { class: "subtitle" }, "Tous les passages enregistrés — manuels ou synchronisés depuis le planning."),
+    ),
+    addBtn
+  ));
+
   container.appendChild(el("div", { class: "passages-toolbar" },
-    el("div", { class: "passages-filters" }, stagiaireFilter, typeFilter),
-    el("button", { class: "btn primary", style: "width:auto", onClick: () => openAddModal(() => reload(container)) }, "➕ Ajouter un passage")
+    el("div", { class: "passages-filters" }, stagiaireFilter, typeFilter, resFilter)
   ));
 
   container.appendChild(renderTable(container));
