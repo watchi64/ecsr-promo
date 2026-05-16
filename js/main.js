@@ -20,10 +20,19 @@ const STORAGE_KEY = "ecsr_auth";
 // ===== Auth gate (mot de passe partagé) =====
 
 async function checkAuth() {
-  const storedHash = await getSetting("password_hash");
+  let storedHash = null;
+  try {
+    storedHash = await getSetting("password_hash");
+  } catch (e) {
+    console.error("checkAuth: getSetting failed", e);
+  }
   const localHash = localStorage.getItem(STORAGE_KEY);
 
-  if (!storedHash) { showInitialPasswordSetup(); return false; }
+  // storedHash null OU chaîne vide = aucun mot de passe défini → premier accès
+  if (!storedHash || storedHash.length === 0) {
+    showInitialPasswordSetup();
+    return false;
+  }
   if (localHash === storedHash) return true;
   showGate(storedHash);
   return false;
@@ -39,6 +48,7 @@ function showInitialPasswordSetup() {
   subtitle.textContent = "Premier accès — définissez le mot de passe partagé";
   input.placeholder = "Minimum 4 caractères";
   submit.textContent = "Définir et entrer";
+  submit.type = "button";
   error.classList.add("hidden");
 
   gate.classList.remove("hidden");
@@ -52,15 +62,27 @@ function showInitialPasswordSetup() {
       error.classList.remove("hidden");
       return;
     }
-    const hash = await sha256(v);
-    await setSetting("password_hash", hash);
-    localStorage.setItem(STORAGE_KEY, hash);
-    gate.classList.add("hidden");
-    document.getElementById("app").classList.remove("hidden");
-    init();
+    error.classList.add("hidden");
+    submit.disabled = true;
+    const originalLabel = submit.textContent;
+    submit.textContent = "Enregistrement…";
+    try {
+      const hash = await sha256(v);
+      await setSetting("password_hash", hash);
+      localStorage.setItem(STORAGE_KEY, hash);
+      gate.classList.add("hidden");
+      document.getElementById("app").classList.remove("hidden");
+      await init();
+    } catch (e) {
+      console.error("Gate setup error:", e);
+      error.textContent = "Erreur : " + (e?.message || e);
+      error.classList.remove("hidden");
+      submit.disabled = false;
+      submit.textContent = originalLabel;
+    }
   };
   submit.onclick = handler;
-  input.onkeydown = (e) => { if (e.key === "Enter") handler(); };
+  input.onkeydown = (e) => { if (e.key === "Enter") { e.preventDefault(); handler(); } };
 }
 
 function showGate(storedHash) {
@@ -73,6 +95,7 @@ function showGate(storedHash) {
   subtitle.textContent = "Mot de passe partagé de la promo";
   input.placeholder = "••••••••";
   submit.textContent = "Entrer";
+  submit.type = "button";
   error.classList.add("hidden");
 
   gate.classList.remove("hidden");
@@ -81,20 +104,36 @@ function showGate(storedHash) {
 
   const handler = async () => {
     const v = input.value;
-    const hash = await sha256(v);
-    if (hash === storedHash) {
-      localStorage.setItem(STORAGE_KEY, hash);
-      gate.classList.add("hidden");
-      document.getElementById("app").classList.remove("hidden");
-      init();
-    } else {
+    if (!v) return;
+    error.classList.add("hidden");
+    submit.disabled = true;
+    const originalLabel = submit.textContent;
+    submit.textContent = "Vérification…";
+    try {
+      const hash = await sha256(v);
+      if (hash === storedHash) {
+        localStorage.setItem(STORAGE_KEY, hash);
+        gate.classList.add("hidden");
+        document.getElementById("app").classList.remove("hidden");
+        await init();
+      } else {
+        error.textContent = "Mot de passe incorrect";
+        error.classList.remove("hidden");
+        input.value = "";
+        input.focus();
+        submit.disabled = false;
+        submit.textContent = originalLabel;
+      }
+    } catch (e) {
+      console.error("Gate login error:", e);
+      error.textContent = "Erreur : " + (e?.message || e);
       error.classList.remove("hidden");
-      input.value = "";
-      input.focus();
+      submit.disabled = false;
+      submit.textContent = originalLabel;
     }
   };
   submit.onclick = handler;
-  input.onkeydown = (e) => { if (e.key === "Enter") handler(); };
+  input.onkeydown = (e) => { if (e.key === "Enter") { e.preventDefault(); handler(); } };
 }
 
 // ===== Tabs =====
