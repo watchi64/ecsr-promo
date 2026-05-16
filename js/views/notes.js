@@ -13,7 +13,7 @@ let themesOfficiels = [];  // les 57 thèmes du référentiel (chargés en + pou
 
 let filterStagiaire = "";
 let filterType = "";
-let viewMode = "tableau";  // "liste" ou "tableau"
+let currentEvalDate = null;  // Date appliquée aux nouvelles notes saisies dans la matrice
 
 const TYPES_EVAL = ["Thème", "Compétence", "Contrôle"];
 
@@ -324,24 +324,115 @@ function cellColorClass(ratio) {
   return "great";
 }
 
-function openCellEditor(stagiaireId, fixedFields, container) {
+// Édition inline d'une cellule : remplace le contenu par un input et sauvegarde au blur/Enter
+function inlineCellEdit(td, stagiaireId, fixedFields, container) {
   // fixedFields : { type, theme_numero?, competence_code?, controle_libelle? }
-  // Cherche s'il y a déjà une eval pour cette intersection
   let existing = null;
   if (fixedFields.type === "Thème" && fixedFields.theme_numero != null) {
     existing = noteForStagiaireTheme(stagiaireId, fixedFields.theme_numero);
   } else if (fixedFields.type === "Compétence" && fixedFields.competence_code) {
     existing = noteForStagiaireCompetence(stagiaireId, fixedFields.competence_code);
   }
-  // Pré-remplit avec fixed + stagiaire
-  const prefilled = existing || {
-    stagiaire_id: stagiaireId,
-    ...fixedFields,
-    note: null,
-    note_max: 20,
-    date_eval: isoDate(new Date()),
-  };
-  openEditModal(prefilled, () => reload(container));
+
+  // Sauvegarde l'état visuel actuel
+  const originalText = td.textContent;
+  const originalClass = td.className;
+
+  const input = el("input", {
+    type: "number",
+    min: 0,
+    max: 20,
+    step: "0.25",
+    class: "matrice-inline-input",
+    value: existing?.note != null ? String(existing.note) : "",
+    placeholder: "/20",
+  });
+
+  td.textContent = "";
+  td.appendChild(input);
+  input.focus();
+  input.select();
+
+  let cancelled = false;
+  async function save() {
+    if (cancelled) return;
+    cancelled = true;
+    const raw = input.value.trim();
+    // Cas 1 : champ vide
+    if (raw === "") {
+      // Si existing, propose la suppression
+      if (existing) {
+        if (!confirm("Effacer cette note ?")) {
+          td.textContent = originalText;
+          td.className = originalClass;
+          return;
+        }
+        try {
+          await deleteEvaluation(existing.id);
+          toast("Note effacée", "success");
+          await reload(container);
+        } catch (e) { toast(e.message, "error"); restore(); }
+        return;
+      }
+      // Cellule vide, input vide → restore
+      td.textContent = originalText;
+      td.className = originalClass;
+      return;
+    }
+
+    const note = Number(raw);
+    if (isNaN(note) || note < 0 || note > 20) {
+      toast("Note entre 0 et 20", "error");
+      restore();
+      return;
+    }
+    // Pas de changement si la note est identique
+    if (existing && Number(existing.note) === note) {
+      td.textContent = originalText;
+      td.className = originalClass;
+      return;
+    }
+
+    const email = getAdminEmail();
+    try {
+      if (existing) {
+        await updateEvaluation(existing.id, {
+          note,
+          note_max: 20,
+          date_eval: currentEvalDate,
+          updated_by_email: email,
+        });
+      } else {
+        await addEvaluation({
+          stagiaire_id: stagiaireId,
+          ...fixedFields,
+          note,
+          note_max: 20,
+          date_eval: currentEvalDate,
+          created_by_email: email,
+          updated_by_email: email,
+        });
+      }
+      await reload(container);
+    } catch (e) {
+      toast(e.message, "error");
+      restore();
+    }
+  }
+
+  function restore() {
+    td.textContent = originalText;
+    td.className = originalClass;
+  }
+
+  input.addEventListener("blur", save);
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { e.preventDefault(); input.blur(); }
+    else if (e.key === "Escape") {
+      cancelled = true;
+      restore();
+    }
+  });
 }
 
 function renderMatrice(container) {
@@ -412,7 +503,7 @@ function renderMatrice(container) {
       }
       if (admin) {
         td.classList.add("editable");
-        td.addEventListener("click", () => openCellEditor(s.id, { type: "Compétence", competence_code: c.key }, container));
+        td.addEventListener("click", () => inlineCellEdit(td, s.id, { type: "Compétence", competence_code: c.key }, container));
       }
       tr.appendChild(td);
     });
@@ -428,7 +519,14 @@ function renderMatrice(container) {
       }
       if (admin) {
         td.classList.add("editable");
-        td.addEventListener("click", () => openCellEditor(s.id, { type: "Thème", theme_numero: n }, container));
+        td.addEventListener("click", () => {
+          const theme = themesByNum.get(n);
+          inlineCellEdit(td, s.id, {
+            type: "Thème",
+            theme_numero: n,
+            theme_titre: theme ? theme.titre : null,
+          }, container);
+        });
       }
       tr.appendChild(td);
     }
@@ -446,60 +544,40 @@ function rerender(container) {
 
   const admin = isAdmin();
 
-  const stagiaireFilter = el("select");
-  stagiaireFilter.appendChild(el("option", { value: "" }, "Tous les stagiaires"));
-  stagiaires.forEach((s) => {
-    const opt = el("option", { value: s.id }, s.prenom);
-    if (String(filterStagiaire) === String(s.id)) opt.selected = true;
-    stagiaireFilter.appendChild(opt);
-  });
-  stagiaireFilter.addEventListener("change", () => { filterStagiaire = stagiaireFilter.value; rerender(container); });
-
-  const typeFilter = el("select");
-  typeFilter.appendChild(el("option", { value: "" }, "Tous les types"));
-  TYPES_EVAL.forEach((t) => {
-    const opt = el("option", { value: t }, t);
-    if (filterType === t) opt.selected = true;
-    typeFilter.appendChild(opt);
-  });
-  typeFilter.addEventListener("change", () => { filterType = typeFilter.value; rerender(container); });
-
-  const addBtn = el("button", { class: "btn primary", onClick: () => openEditModal(null, () => reload(container)) },
-    icon.plus(), "Ajouter une note");
+  // Initialise la date courante si pas encore définie
+  if (!currentEvalDate) currentEvalDate = isoDate(new Date());
 
   container.appendChild(el("div", { class: "view-header" },
     el("div", { class: "view-header-text" },
       el("p", { class: "eyebrow" }, evaluations.length + " note" + (evaluations.length > 1 ? "s" : "") + " enregistrée" + (evaluations.length > 1 ? "s" : "")),
       el("h2", {}, "Notes & évaluations"),
-      el("p", { class: "subtitle" }, "Notes par thème, par compétence (C1-C4 + REMC + Matrice GDE) et contrôles. Vue tableau matrice ou liste historique."),
+      el("p", { class: "subtitle" }, "Tableau matrice : stagiaires × thèmes/compétences. Clique une cellule pour saisir la note."),
     ),
-    admin ? addBtn : el("span", { class: "muted", style: "font-size:0.85rem" }, "Lecture seule. Connexion admin requise pour modifier."),
+    admin ? null : el("span", { class: "muted", style: "font-size:0.85rem" }, "Lecture seule. Connexion admin requise pour modifier."),
   ));
 
-  // Toggle Tableau / Liste
-  const toggleWrap = el("div", { class: "notes-toggle" });
-  ["tableau", "liste"].forEach((mode) => {
-    const btn = el("button", {
-      class: "notes-toggle-btn" + (viewMode === mode ? " active" : ""),
-      onClick: () => { viewMode = mode; rerender(container); }
-    }, mode === "tableau" ? "Tableau matrice" : "Liste historique");
-    toggleWrap.appendChild(btn);
-  });
-  container.appendChild(toggleWrap);
+  if (admin) {
+    // Barre date globale : toutes les notes saisies prendront cette date
+    const dateInput = el("input", { type: "date", value: currentEvalDate });
+    dateInput.addEventListener("change", () => {
+      currentEvalDate = dateInput.value || isoDate(new Date());
+    });
+    const todayBtn = el("button", { class: "btn small", onClick: () => {
+      currentEvalDate = isoDate(new Date());
+      dateInput.value = currentEvalDate;
+    }}, "Aujourd'hui");
 
-  if (viewMode === "tableau") {
-    if (admin) {
-      container.appendChild(el("p", { class: "muted", style: "font-size:0.85rem;margin:0.5rem 0 1rem" },
-        "Clique sur n'importe quelle cellule pour ajouter ou modifier la note."
-      ));
-    }
-    container.appendChild(renderMatrice(container));
-  } else {
-    container.appendChild(el("div", { class: "passages-toolbar" },
-      el("div", { class: "passages-filters" }, stagiaireFilter, typeFilter)
+    container.appendChild(el("div", { class: "matrice-toolbar" },
+      el("span", { class: "matrice-toolbar-label" }, "Date des notes saisies :"),
+      dateInput,
+      todayBtn,
+      el("span", { class: "matrice-toolbar-hint muted" },
+        "→ clique une cellule, tape une note (0-20), Entrée pour valider. Esc pour annuler."
+      ),
     ));
-    container.appendChild(renderTable(container));
   }
+
+  container.appendChild(renderMatrice(container));
 }
 
 export async function renderNotes(container) {
