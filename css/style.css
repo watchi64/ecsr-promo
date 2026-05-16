@@ -1097,10 +1097,174 @@ h3 {
 
 /* === Themes view === */
 
-.themes-list {
+/* === Pills de navigation entre familles === */
+
+.theme-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0 0 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.theme-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.85rem;
+  background: var(--bg-elev);
+  border: 1.5px solid var(--line);
+  border-radius: 22px;
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-soft);
+  cursor: pointer;
+  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.theme-pill:hover { border-color: var(--line-strong); color: var(--text); }
+.theme-pill.active {
+  background: var(--bg-deep);
+  border-color: var(--bg-deep);
+  color: #F5E8D0;
+}
+.theme-pill.active .theme-pill-count {
+  background: rgba(245, 232, 208, 0.18);
+  color: #F5E8D0;
+}
+
+.theme-pill-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  padding: 0 0.4rem;
+  height: 18px;
+  background: var(--bg-subtle);
+  color: var(--text-muted);
+  border-radius: 9px;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+/* === Section par famille === */
+
+.theme-section {
   background: var(--bg-elev);
   border: 1px solid var(--line);
   border-radius: var(--r-lg);
+  margin-bottom: 1.5rem;
+  overflow: hidden;
+}
+
+.theme-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  padding: 1.1rem 1.4rem 0.85rem;
+  border-bottom: 1px solid var(--line);
+  flex-wrap: wrap;
+}
+
+.theme-section-title-wrap { min-width: 200px; }
+
+.theme-section-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.45rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--text);
+  line-height: 1.1;
+}
+
+.theme-section-subtitle {
+  margin: 0.2rem 0 0;
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.theme-section-stats {
+  display: flex;
+  gap: 1.25rem;
+}
+
+.theme-section-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  line-height: 1;
+}
+
+.theme-section-stat-value {
+  font-family: var(--font-mono);
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.theme-section-stat-label {
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  margin-top: 0.2rem;
+}
+
+/* Couleurs distinctes par famille */
+.theme-section-themes-officiels      .theme-section-title { color: var(--text); }
+.theme-section-competences-formateur .theme-section-title { color: var(--accent); }
+.theme-section-competences-conduite  .theme-section-title { color: #4D7C0F; }
+.theme-section-notions-pedagogiques  .theme-section-title { color: var(--c-wait); }
+
+/* Pills couleurs */
+.theme-pill.theme-pill-competences-formateur.active { background: var(--accent); border-color: var(--accent); }
+.theme-pill.theme-pill-competences-conduite.active  { background: #4D7C0F; border-color: #4D7C0F; }
+.theme-pill.theme-pill-notions-pedagogiques.active  { background: var(--c-wait); border-color: var(--c-wait); }
+
+/* === Barre de progression === */
+
+.theme-progress-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.5rem 1.4rem 0.85rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.theme-progress {
+  flex: 1;
+  height: 6px;
+  background: var(--bg-subtle);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.theme-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--c-go));
+  border-radius: 3px;
+  transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.theme-progress-label {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-soft);
+  min-width: 44px;
+  text-align: right;
+}
+
+.themes-list {
+  background: transparent;
+  border: none;
+  border-radius: 0;
   overflow: hidden;
 }
 
