@@ -12,6 +12,7 @@ import { el, clear, toast, sha256 } from "../utils.js";
 import { icon } from "../icons.js";
 import { isAdmin, getAdminEmail, refreshAllowedEmails, getAllowedEmails } from "../auth-admin.js";
 import { setAccent, getAccent } from "../accent-switcher.js";
+import { getStoredWho, openIdentityPicker } from "../identity.js";
 
 const ACCENTS = [
   { key: "brique",     label: "Brique",     hex: "#B91C1C", note: "racing vintage" },
@@ -23,45 +24,68 @@ const ACCENTS = [
 // ====== SECTION Sécurité ======
 
 async function renderSecuritySection(rerender) {
+  const admin = isAdmin();
   const section = el("section", { class: "param-section" });
   section.appendChild(el("div", { class: "param-section-head" },
     el("div", { class: "param-icon" }, icon.shield()),
     el("div", {},
       el("h3", {}, "Sécurité"),
-      el("p", { class: "muted" }, "Mot de passe partagé pour la promo et liste des admins autorisés."),
+      el("p", { class: "muted" }, "Mot de passe partagé et liste des admins autorisés."),
     ),
   ));
 
-  // Mot de passe partagé
-  const oldInput = el("input", { type: "password", placeholder: "Actuel" });
-  const newInput = el("input", { type: "password", placeholder: "Nouveau (min. 4 caractères)" });
-  const confirmInput = el("input", { type: "password", placeholder: "Confirmer" });
+  // Mot de passe partagé — admin only
+  if (admin) {
+    const oldInput = el("input", { type: "password", placeholder: "Actuel" });
+    const newInput = el("input", { type: "password", placeholder: "Nouveau (min. 4 caractères)" });
+    const confirmInput = el("input", { type: "password", placeholder: "Confirmer" });
 
-  const passBtn = el("button", { class: "btn primary", onClick: async () => {
-    const currentHash = await getSetting("password_hash");
-    if (currentHash) {
-      const oldHash = await sha256(oldInput.value);
-      if (oldHash !== currentHash) { toast("Mot de passe actuel incorrect", "error"); return; }
-    }
-    if (!newInput.value || newInput.value.length < 4) { toast("Min. 4 caractères", "error"); return; }
-    if (newInput.value !== confirmInput.value) { toast("Les mots de passe ne correspondent pas", "error"); return; }
-    const newHash = await sha256(newInput.value);
-    await setSetting("password_hash", newHash);
-    localStorage.setItem("ecsr_auth", newHash);
-    toast("Mot de passe mis à jour", "success");
-    oldInput.value = newInput.value = confirmInput.value = "";
-  }}, icon.check(), "Mettre à jour");
+    const passBtn = el("button", { class: "btn primary", onClick: async () => {
+      const currentHash = await getSetting("password_hash");
+      if (currentHash) {
+        const oldHash = await sha256(oldInput.value);
+        if (oldHash !== currentHash) { toast("Mot de passe actuel incorrect", "error"); return; }
+      }
+      if (!newInput.value || newInput.value.length < 4) { toast("Min. 4 caractères", "error"); return; }
+      if (newInput.value !== confirmInput.value) { toast("Les mots de passe ne correspondent pas", "error"); return; }
+      const newHash = await sha256(newInput.value);
+      await setSetting("password_hash", newHash);
+      localStorage.setItem("ecsr_auth", newHash);
+      toast("Mot de passe mis à jour", "success");
+      oldInput.value = newInput.value = confirmInput.value = "";
+    }}, icon.check(), "Mettre à jour");
 
-  section.appendChild(el("div", { class: "param-block" },
-    el("h4", {}, "Mot de passe partagé"),
-    el("p", { class: "muted" }, "Permet à toute la promo d'entrer dans l'app."),
-    el("div", { class: "modal-form" },
-      el("div", { class: "field" }, el("label", {}, "Mot de passe actuel"), oldInput),
-      el("div", { class: "field" }, el("label", {}, "Nouveau"), newInput),
-      el("div", { class: "field" }, el("label", {}, "Confirmer"), confirmInput),
-      el("div", { style: "margin-top:0.3rem" }, passBtn),
+    section.appendChild(el("div", { class: "param-block" },
+      el("h4", {}, "Mot de passe partagé"),
+      el("p", { class: "muted" }, "Permet à toute la promo d'entrer dans l'app."),
+      el("div", { class: "modal-form" },
+        el("div", { class: "field" }, el("label", {}, "Mot de passe actuel"), oldInput),
+        el("div", { class: "field" }, el("label", {}, "Nouveau"), newInput),
+        el("div", { class: "field" }, el("label", {}, "Confirmer"), confirmInput),
+        el("div", { style: "margin-top:0.3rem" }, passBtn),
+      ),
+    ));
+  } else {
+    section.appendChild(el("div", { class: "param-block param-locked" },
+      el("h4", {}, "Mot de passe partagé"),
+      el("p", { class: "muted" }, "🔒 Seul un admin peut le modifier."),
+    ));
+  }
+
+  // Identité (mon prénom) — accessible à tous
+  const who = getStoredWho();
+  const identitySection = el("div", { class: "param-block" },
+    el("h4", {}, "Mon identité"),
+    el("p", { class: "muted" }, "Le nom utilisé pour signer tes ajouts de passages."),
+    el("div", { style: "display:flex;align-items:center;gap:0.7rem;" },
+      el("span", { class: "param-identity-chip" }, who || "Anonyme"),
+      el("button", { class: "btn small", onClick: async () => {
+        await openIdentityPicker(true);
+        rerender();
+      }}, "Changer"),
     ),
-  ));
+  );
+  section.appendChild(identitySection);
 
   // === Admins autorisés ===
   const admins = await getAllowedEmails();
@@ -173,12 +197,13 @@ function renderAppearanceSection() {
 // ====== SECTION Promo (stagiaires + profs) ======
 
 async function renderPromoSection(rerender) {
+  const admin = isAdmin();
   const section = el("section", { class: "param-section" });
   section.appendChild(el("div", { class: "param-section-head" },
     el("div", { class: "param-icon" }, icon.users()),
     el("div", {},
       el("h3", {}, "Promo"),
-      el("p", { class: "muted" }, "Gérer la liste des stagiaires et formateurs."),
+      el("p", { class: "muted" }, admin ? "Gérer la liste des stagiaires et formateurs." : "Liste des stagiaires et formateurs. Édition admin only."),
     ),
   ));
 
@@ -193,19 +218,21 @@ async function renderPromoSection(rerender) {
 
     const list = el("ul", { class: "config-list" });
     items.forEach((it) => {
-      const input = el("input", { type: "text", value: it.prenom || it.nom });
-      input.addEventListener("blur", async () => {
-        const v = input.value.trim();
-        if (!v || v === (it.prenom || it.nom)) return;
-        try {
-          if (type === "stagiaire") await updateStagiaire(it.id, v);
-          else await updateProf(it.id, v);
-          toast("Mis à jour", "success");
-        } catch (e) { toast(e.message, "error"); }
-      });
-      input.addEventListener("keydown", (e) => { if (e.key === "Enter") input.blur(); });
+      const input = el("input", { type: "text", value: it.prenom || it.nom, readonly: admin ? undefined : true });
+      if (admin) {
+        input.addEventListener("blur", async () => {
+          const v = input.value.trim();
+          if (!v || v === (it.prenom || it.nom)) return;
+          try {
+            if (type === "stagiaire") await updateStagiaire(it.id, v);
+            else await updateProf(it.id, v);
+            toast("Mis à jour", "success");
+          } catch (e) { toast(e.message, "error"); }
+        });
+        input.addEventListener("keydown", (e) => { if (e.key === "Enter") input.blur(); });
+      }
 
-      const delBtn = el("button", {
+      const delBtn = admin ? el("button", {
         class: "btn small danger icon-only", "aria-label": "Supprimer",
         onClick: async () => {
           if (!confirm(`Supprimer ${it.prenom || it.nom} ?`)) return;
@@ -216,27 +243,28 @@ async function renderPromoSection(rerender) {
             rerender();
           } catch (e) { toast(e.message, "error"); }
         }
-      });
-      delBtn.appendChild(icon.trash());
+      }, icon.trash()) : null;
 
       list.appendChild(el("li", {}, input, delBtn));
     });
     wrap.appendChild(list);
 
-    const addInput = el("input", { type: "text", placeholder: type === "stagiaire" ? "Prénom" : "Nom" });
-    const addBtn = el("button", { class: "btn accent", onClick: async () => {
-      const v = addInput.value.trim();
-      if (!v) return;
-      try {
-        if (type === "stagiaire") await addStagiaire(v);
-        else await addProf(v);
-        addInput.value = "";
-        toast("Ajouté", "success");
-        rerender();
-      } catch (e) { toast(e.message, "error"); }
-    }}, icon.plus(), "Ajouter");
-    addInput.addEventListener("keydown", (e) => { if (e.key === "Enter") addBtn.click(); });
-    wrap.appendChild(el("div", { class: "config-add" }, addInput, addBtn));
+    if (admin) {
+      const addInput = el("input", { type: "text", placeholder: type === "stagiaire" ? "Prénom" : "Nom" });
+      const addBtn = el("button", { class: "btn accent", onClick: async () => {
+        const v = addInput.value.trim();
+        if (!v) return;
+        try {
+          if (type === "stagiaire") await addStagiaire(v);
+          else await addProf(v);
+          addInput.value = "";
+          toast("Ajouté", "success");
+          rerender();
+        } catch (e) { toast(e.message, "error"); }
+      }}, icon.plus(), "Ajouter");
+      addInput.addEventListener("keydown", (e) => { if (e.key === "Enter") addBtn.click(); });
+      wrap.appendChild(el("div", { class: "config-add" }, addInput, addBtn));
+    }
     return wrap;
   }
 

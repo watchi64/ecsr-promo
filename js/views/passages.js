@@ -1,7 +1,9 @@
-import { listStagiaires, listPassages, addPassage, deletePassage } from "../db.js";
+import { listStagiaires, listPassages, addPassage, deletePassage, listRecentPassagesAudit } from "../db.js";
 import { el, clear, isoDate, formatDate, toast } from "../utils.js";
 import { icon } from "../icons.js";
 import { TYPES, RESULTATS } from "../config.js";
+import { isAdmin, getAdminEmail } from "../auth-admin.js";
+import { getCurrentWho } from "../identity.js";
 
 let stagiaires = [];
 let passages = [];
@@ -33,6 +35,7 @@ function openAddModal(onSaved) {
   async function save() {
     if (!stagiaireSel.value) { toast("Choisir un stagiaire", "error"); return; }
     try {
+      const who = getCurrentWho(getAdminEmail());
       await addPassage({
         date: dateInput.value,
         stagiaire_id: Number(stagiaireSel.value),
@@ -41,6 +44,8 @@ function openAddModal(onSaved) {
         remplacant_id: remplacantSel.value ? Number(remplacantSel.value) : null,
         commentaire: commentInput.value || null,
         origine: "Manuel",
+        created_by_who: who,
+        updated_by_who: who,
       });
       toast("Passage enregistré", "success");
       backdrop.remove();
@@ -101,7 +106,7 @@ function renderTable(container) {
       el("th", {}, "Type"),
       el("th", {}, "Résultat"),
       el("th", {}, "Remplacé par"),
-      el("th", {}, "Origine"),
+      el("th", {}, "Ajouté par"),
       el("th", { style: "width:50px" }, "")
     )
   ));
@@ -120,13 +125,16 @@ function renderTable(container) {
     });
     delBtn.appendChild(icon.trash());
 
+    const whoLabel = p.created_by_who || (p.origine === "Auto Planning" ? "Auto" : "—");
+    const isAdmin_ = whoLabel.includes("@");
+
     const tr = el("tr", {},
       el("td", { class: "date" }, formatDate(p.date)),
       el("td", {}, p.stagiaire?.prenom || "?"),
       el("td", {}, el("span", { class: "tag " + (p.type === "Salle" ? "salle" : "voiture") }, p.type)),
       el("td", {}, resultTag(p.resultat)),
       el("td", { class: "muted" }, p.remplacant?.prenom || "—"),
-      el("td", {}, el("span", { class: "tag " + (p.origine === "Manuel" ? "origine-manuel" : "origine-auto") }, p.origine)),
+      el("td", {}, el("span", { class: "tag who" + (isAdmin_ ? " admin" : "") }, whoLabel)),
       el("td", {}, delBtn)
     );
     tbody.appendChild(tr);
@@ -139,6 +147,60 @@ function renderTable(container) {
 async function reload(container) {
   passages = await listPassages();
   rerender(container);
+}
+
+async function openAuditModal() {
+  const backdrop = el("div", { class: "modal-backdrop" });
+  const modal = el("div", { class: "modal", style: "max-width:680px" });
+  modal.appendChild(el("h3", {}, "Historique des modifications"));
+  modal.appendChild(el("p", { class: "muted", style: "margin:0 0 1rem;font-size:0.88rem" },
+    "100 dernières actions (ajout / modification / suppression) sur les passages."
+  ));
+
+  const list = el("div", { class: "audit-list" });
+  list.appendChild(el("div", { class: "loading" }, "Chargement"));
+  modal.appendChild(list);
+  modal.appendChild(el("div", { class: "modal-actions" },
+    el("button", { class: "btn ghost", onClick: () => backdrop.remove() }, "Fermer")
+  ));
+  backdrop.appendChild(modal);
+  backdrop.addEventListener("click", (e) => { if (e.target === backdrop) backdrop.remove(); });
+  document.body.appendChild(backdrop);
+
+  try {
+    const audit = await listRecentPassagesAudit(100);
+    clear(list);
+    if (audit.length === 0) {
+      list.appendChild(el("p", { class: "muted" }, "Aucune modification encore."));
+      return;
+    }
+    audit.forEach((a) => {
+      const time = new Date(a.changed_at).toLocaleString("fr-FR");
+      const who = a.changed_by_who || "Anonyme";
+      const actLabel = a.action === "insert" ? "Création" : a.action === "update" ? "Modification" : "Suppression";
+
+      let summary = "";
+      const data = a.after_data || a.before_data || {};
+      if (data) {
+        const stagId = data.stagiaire_id;
+        const stag = stagiaires.find((s) => s.id === stagId);
+        const stagName = stag ? stag.prenom : `#${stagId}`;
+        summary = `${stagName} · ${data.type} · ${data.resultat}`;
+      }
+
+      list.appendChild(el("div", { class: "audit-item " + a.action },
+        el("div", { class: "audit-head" },
+          el("span", { class: "audit-action " + a.action }, actLabel),
+          el("span", { class: "audit-time" }, time),
+        ),
+        el("div", { class: "audit-meta" }, "par ", el("strong", {}, who)),
+        el("div", { class: "audit-summary" }, summary),
+      ));
+    });
+  } catch (e) {
+    clear(list);
+    list.appendChild(el("p", { class: "error" }, "Erreur : " + e.message));
+  }
 }
 
 function rerender(container) {
@@ -175,13 +237,17 @@ function rerender(container) {
     icon.plus(), "Ajouter"
   );
 
+  const histBtn = el("button", { class: "btn ghost", onClick: () => openAuditModal() },
+    icon.clock(), "Historique"
+  );
+
   container.appendChild(el("div", { class: "view-header" },
     el("div", { class: "view-header-text" },
       el("p", { class: "eyebrow" }, passages.length + " entrées au total"),
       el("h2", {}, "Historique des passages"),
-      el("p", { class: "subtitle" }, "Tous les passages enregistrés — manuels ou synchronisés depuis le planning."),
+      el("p", { class: "subtitle" }, "Tous les passages — modifiables par tout le monde. Chaque action est tracée."),
     ),
-    addBtn
+    el("div", { style: "display:flex;gap:0.5rem;flex-wrap:wrap" }, histBtn, addBtn),
   ));
 
   container.appendChild(el("div", { class: "passages-toolbar" },

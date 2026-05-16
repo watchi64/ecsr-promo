@@ -279,6 +279,18 @@ export async function listRecentAudit(limit = 50) {
   return data;
 }
 
+// === Audit passages (historique qui a modifié quoi) ===
+
+export async function listRecentPassagesAudit(limit = 100) {
+  const { data, error } = await supabase
+    .from("passages_audit")
+    .select("*")
+    .order("changed_at", { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return data;
+}
+
 // === Ressources ===
 
 export async function listRessources() {

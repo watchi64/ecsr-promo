@@ -7,6 +7,7 @@ import { sha256, toast } from "./utils.js";
 import { icon } from "./icons.js";
 import { initAuth, onAdminChange } from "./auth-admin.js";
 import { loadAccent, renderAccentSwitcher } from "./accent-switcher.js";
+import { ensureIdentity } from "./identity.js";
 import { renderDashboard } from "./views/dashboard.js";
 import { renderPlanning } from "./views/planning.js";
 import { renderPassages } from "./views/passages.js";
@@ -216,10 +217,12 @@ function setupAccentSwitcher() {
 
 async function init() {
   loadAccent();
+  await initAuth();
+  // Identifier le visiteur AVANT d'afficher l'app (sauf si déjà admin)
+  await ensureIdentity();
   renderTabs();
   setupRefreshBtn();
   setupAccentSwitcher();
-  await initAuth();
   onAdminChange(() => navigate());
   if (!location.hash) location.hash = "#/dashboard";
   await navigate();

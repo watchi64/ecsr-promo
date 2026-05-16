@@ -1412,6 +1412,47 @@ h3 {
 .tag.origine-auto { background: var(--act-cours); color: #1E40AF; border-color: var(--act-cours-border); }
 .tag.origine-manuel { background: transparent; color: var(--text-muted); border-color: var(--line); }
 
+.tag.who {
+  background: var(--bg-subtle);
+  color: var(--text-soft);
+  border-color: var(--line);
+  font-family: var(--font);
+}
+.tag.who.admin {
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  border-color: var(--accent-soft-2);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+}
+
+.param-locked {
+  padding: 0.85rem 1rem;
+  background: var(--bg-subtle);
+  border-radius: var(--r);
+  border-left: 3px solid var(--text-faint);
+}
+.param-locked h4 { color: var(--text-muted); }
+.param-locked p { margin: 0; font-size: 0.85rem; }
+
+.param-identity-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.35rem 0.8rem;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 0.92rem;
+}
+
+.audit-summary {
+  font-size: 0.85rem;
+  color: var(--text-soft);
+  margin-top: 0.25rem;
+  font-family: var(--font-mono);
+}
+
 /* ============================================================
    Config
    ============================================================ */
@@ -2119,6 +2160,65 @@ h3 {
   display: flex;
   gap: 0.25rem;
   align-self: flex-start;
+}
+
+/* ============================================================
+   Read-only mode (lecture seule pour Planning quand non-admin)
+   ============================================================ */
+
+.read-only select,
+.read-only input,
+.read-only .chips-display {
+  pointer-events: none;
+  background: transparent !important;
+  border-color: transparent !important;
+  cursor: default !important;
+}
+.read-only select { background-image: none !important; padding-right: 0.4rem !important; }
+.read-only .p-add-suite,
+.read-only .p-add-parallele-mini,
+.read-only .p-lane-delete,
+.read-only .chips-display .x,
+.read-only .p-half-head.editable { display: none !important; }
+.read-only .p-half-head { cursor: default; }
+.read-only .p-half-head.editable:hover { background: var(--bg-subtle); }
+
+/* ============================================================
+   Identity picker (qui es-tu ? après gate)
+   ============================================================ */
+
+.identity-modal { max-width: 480px; }
+.identity-modal h3 {
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  margin: 0 0 0.35rem;
+}
+
+.identity-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.4rem;
+  margin: 0.5rem 0 0;
+}
+
+.identity-card {
+  padding: 0.55rem 0.4rem;
+  background: var(--bg);
+  border: 1.5px solid var(--line);
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.88rem;
+  color: var(--text);
+  font-weight: 500;
+  transition: all 0.15s;
+}
+.identity-card:hover { border-color: var(--line-strong); background: var(--bg-subtle); }
+.identity-card.selected {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  font-weight: 600;
 }
 
 /* ============================================================

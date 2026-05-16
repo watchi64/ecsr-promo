@@ -7,6 +7,7 @@ import {
 import { el, clear, isoDate, getMonday, addDays, formatDayShort, debounce, toast } from "../utils.js";
 import { icon } from "../icons.js";
 import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS } from "../config.js";
+import { isAdmin } from "../auth-admin.js";
 
 let stagiaires = [];
 let profs = [];
@@ -625,14 +626,21 @@ function renderInto(container) {
   currentContainer = container;
   clear(container);
 
+  const admin = isAdmin();
+  container.classList.toggle("read-only", !admin);
+
   const monday = new Date(semaineLundi + "T00:00:00");
   const longLabel = monday.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
 
   container.appendChild(el("div", { class: "view-header" },
     el("div", { class: "view-header-text" },
-      el("p", { class: "eyebrow" }, "Édition · Semaine du " + longLabel),
+      el("p", { class: "eyebrow" }, (admin ? "Édition" : "Consultation") + " · Semaine du " + longLabel),
       el("h2", {}, "Planning de la semaine"),
-      el("p", { class: "subtitle" }, "Ajoute des créneaux à la suite (dans le temps) ou en parallèle (même horaire). Le champ Sujet propose les 57 thèmes et notions pédagogiques."),
+      el("p", { class: "subtitle" },
+        admin
+          ? "Sélectionne les activités, profs et stagiaires. Tout s'enregistre automatiquement."
+          : "Lecture seule — connexion admin requise pour modifier."
+      ),
     ),
   ));
 
