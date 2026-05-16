@@ -6,6 +6,7 @@ import { getSetting, setSetting } from "./db.js";
 import { sha256, toast } from "./utils.js";
 import { icon } from "./icons.js";
 import { initAuth, onAdminChange } from "./auth-admin.js";
+import { loadAccent, renderAccentSwitcher } from "./accent-switcher.js";
 import { renderDashboard } from "./views/dashboard.js";
 import { renderPlanning } from "./views/planning.js";
 import { renderPassages } from "./views/passages.js";
@@ -161,11 +162,25 @@ function setupRefreshBtn() {
   btn.addEventListener("click", () => navigate());
 }
 
+function setupAccentSwitcher() {
+  const slot = document.getElementById("accent-slot");
+  if (!slot) {
+    const adminSlot = document.getElementById("admin-slot");
+    const wrap = document.createElement("div");
+    wrap.id = "accent-slot";
+    adminSlot.parentElement.insertBefore(wrap, adminSlot);
+  }
+  const target = document.getElementById("accent-slot");
+  target.innerHTML = "";
+  target.appendChild(renderAccentSwitcher());
+}
+
 async function init() {
+  loadAccent();
   renderTabs();
   setupRefreshBtn();
+  setupAccentSwitcher();
   await initAuth();
-  // Re-render la vue courante quand le statut admin change
   onAdminChange(() => navigate());
   if (!location.hash) location.hash = "#/dashboard";
   await navigate();

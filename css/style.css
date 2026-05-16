@@ -1,63 +1,96 @@
 /* ============================================================
-   ECSR Promo — Design system v2
-   Geist + warm zinc neutrals + emerald accent.
-   Premium, sober, mobile-first.
+   TP ECSR — Design system v3
+   Crème ivoire + espresso + accent racing.
+   Inspiration : darb + Good Luck Racing + Auto Trade.
    ============================================================ */
 
+/* Self-host Canela (Commercial Type — display serif) */
+@font-face {
+  font-family: "Canela";
+  src: url("fonts/canela_light.otf") format("opentype");
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Canela";
+  src: url("fonts/canela_roman.otf") format("opentype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Canela";
+  src: url("fonts/canela_bold.otf") format("opentype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
-  /* Neutrals — warm zinc */
-  --bg: #FAFAF9;
-  --bg-elev: #FFFFFF;
-  --bg-subtle: #F4F4F3;
-  --bg-deep: #0F1419;
+  /* --- Neutrals — crème chaud + espresso warm --- */
+  --bg:        #F5E8D0;
+  --bg-elev:   #FAF1DC;
+  --bg-soft:   #F0DDBE;
+  --bg-subtle: #EDDFC1;
+  --bg-deep:   #1A1612;
 
-  --line: #E7E5E4;
-  --line-strong: #D6D3D1;
+  --line:        #E0CFA6;
+  --line-strong: #C9B486;
+  --line-faint:  #EBDDB8;
 
-  --text: #0F1419;
-  --text-soft: #44403C;
-  --text-muted: #78716C;
-  --text-faint: #A8A29E;
+  --text:       #1A1612;
+  --text-soft:  #5C4836;
+  --text-muted: #8A7458;
+  --text-faint: #B5A07F;
 
-  /* Accent — emerald, desaturated */
-  --accent: #047857;
-  --accent-soft: #ECFDF5;
-  --accent-strong: #065F46;
+  /* --- Accent racing (commuté via [data-accent="..."]) --- */
+  --accent:        #B91C1C;
+  --accent-strong: #991B1B;
+  --accent-soft:   #FDECEC;
+  --accent-soft-2: #F9D9D9;
 
-  /* Status — calibrated, not vibrant */
-  --c-go: #047857;
-  --c-go-soft: #ECFDF5;
-  --c-wait: #B45309;
-  --c-wait-soft: #FFFBEB;
-  --c-stop: #B91C1C;
-  --c-stop-soft: #FEF2F2;
+  /* --- Statuts traffic-light --- */
+  --c-stop:      #B91C1C;
+  --c-stop-soft: #FDECEC;
+  --c-wait:      #B45309;
+  --c-wait-soft: #FBEACB;
+  --c-go:        #4D7C0F;
+  --c-go-soft:   #ECF6D5;
 
-  /* Activity tints (subtle) */
-  --act-cours: #EFF6FF;
-  --act-cours-border: #BFDBFE;
-  --act-peda: #FEFCE8;
-  --act-peda-border: #FDE68A;
-  --act-voiture: #F0FDF4;
-  --act-voiture-border: #BBF7D0;
-  --act-controle: #FFF7ED;
-  --act-controle-border: #FED7AA;
+  /* --- Tints d'activités (chaudes) --- */
+  --act-cours:          #E8E1F0;
+  --act-cours-border:   #D6CCE3;
+  --act-peda:           #F4DDB0;
+  --act-peda-border:    #DEC58A;
+  --act-voiture:        #DDE4C2;
+  --act-voiture-border: #C5CFA1;
+  --act-controle:       #F4C7A4;
+  --act-controle-border:#DEAB83;
 
-  /* Radii */
+  /* --- Radii --- */
   --r-xs: 4px;
   --r-sm: 6px;
-  --r: 10px;
+  --r:    10px;
   --r-lg: 14px;
   --r-xl: 20px;
 
-  /* Shadows (tinted, soft) */
-  --shadow-1: 0 1px 2px rgba(15, 20, 25, 0.04), 0 1px 1px rgba(15, 20, 25, 0.03);
-  --shadow-2: 0 4px 12px -2px rgba(15, 20, 25, 0.05), 0 2px 4px rgba(15, 20, 25, 0.03);
-  --shadow-3: 0 20px 40px -15px rgba(15, 20, 25, 0.08), 0 4px 12px rgba(15, 20, 25, 0.04);
+  /* --- Shadows tintées warm --- */
+  --shadow-1: 0 1px 2px rgba(60, 40, 20, 0.04), 0 1px 1px rgba(60, 40, 20, 0.03);
+  --shadow-2: 0 4px 12px -2px rgba(60, 40, 20, 0.06), 0 2px 4px rgba(60, 40, 20, 0.03);
+  --shadow-3: 0 20px 40px -15px rgba(60, 40, 20, 0.12), 0 4px 12px rgba(60, 40, 20, 0.05);
 
-  /* Type */
-  --font: "Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, sans-serif;
-  --font-mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  /* --- Typographies --- */
+  --font-display: "Canela", "Cormorant Garamond", "Playfair Display", Georgia, serif;
+  --font:         "Outfit", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, sans-serif;
+  --font-mono:    "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
 }
+
+/* --- Presets accent racing (palette switcher) --- */
+[data-accent="brique"]    { --accent: #B91C1C; --accent-strong: #991B1B; --accent-soft: #FDECEC; --accent-soft-2: #F9D9D9; }
+[data-accent="ferrari"]   { --accent: #DC2626; --accent-strong: #B91C1C; --accent-soft: #FEE2E2; --accent-soft-2: #FECACA; }
+[data-accent="oxblood"]   { --accent: #7F1D1D; --accent-strong: #5F1414; --accent-soft: #F1D9D9; --accent-soft-2: #E2BABA; }
+[data-accent="terracotta"]{ --accent: #C2410C; --accent-strong: #9A330A; --accent-soft: #FBE6D3; --accent-soft-2: #F5CFB2; }
 
 /* ============================================================
    Reset & globals
@@ -77,7 +110,12 @@ html, body {
   -webkit-font-smoothing: antialiased;
   -webkit-text-size-adjust: 100%;
   text-rendering: optimizeLegibility;
-  font-feature-settings: "ss01", "cv11";
+}
+
+h1, h2, h3, .display {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.01em;
 }
 
 a { color: inherit; text-decoration: none; }
@@ -87,12 +125,22 @@ a { color: inherit; text-decoration: none; }
 .muted { color: var(--text-muted); }
 .faint { color: var(--text-faint); }
 .eyebrow {
-  font-size: 0.72rem;
-  font-weight: 500;
-  letter-spacing: 0.12em;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--text-muted);
+  color: var(--accent);
   margin: 0 0 0.5rem;
+}
+.eyebrow::before {
+  content: "";
+  width: 18px;
+  height: 1.5px;
+  background: var(--accent);
+  display: inline-block;
 }
 .error { color: var(--c-stop); font-size: 0.88rem; margin: 0.5rem 0 0; }
 
@@ -146,32 +194,28 @@ a { color: inherit; text-decoration: none; }
   border: 1px solid var(--line);
   border-radius: var(--r-lg);
   padding: 2.2rem;
-  max-width: 380px;
+  max-width: 400px;
   width: 100%;
   box-shadow: var(--shadow-3);
   text-align: left;
 }
 
-.gate-mark {
-  width: 44px;
-  height: 44px;
-  border-radius: var(--r-sm);
-  background: var(--accent-soft);
-  color: var(--accent);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 1.25rem;
+.gate-logo {
+  display: block;
+  width: 130px;
+  height: auto;
+  margin: 0 0 1.5rem;
+  filter: brightness(0) saturate(100%);  /* assure noir pur sur crème */
 }
-
-.gate-mark svg { width: 22px; height: 22px; }
 
 .gate-card h1 {
   margin: 0 0 0.35rem;
-  font-size: 1.7rem;
-  font-weight: 600;
+  font-family: var(--font-display);
+  font-size: 2.4rem;
+  font-weight: 700;
   letter-spacing: -0.02em;
-  line-height: 1.1;
+  line-height: 1;
+  color: var(--text);
 }
 
 .gate-card .muted { margin: 0 0 1.5rem; font-size: 0.9rem; }
@@ -230,18 +274,28 @@ a { color: inherit; text-decoration: none; }
 .btn:active { transform: translateY(1px) scale(0.99); }
 
 .btn.primary {
-  background: var(--bg-deep);
-  color: white;
-  border-color: var(--bg-deep);
+  background: var(--accent);
+  color: #FAF1DC;
+  border-color: var(--accent);
 }
 .btn.primary:hover {
-  background: #1F2937;
-  border-color: #1F2937;
+  background: var(--accent-strong);
+  border-color: var(--accent-strong);
+}
+
+.btn.dark {
+  background: var(--bg-deep);
+  color: #F5E8D0;
+  border-color: var(--bg-deep);
+}
+.btn.dark:hover {
+  background: #2A211C;
+  border-color: #2A211C;
 }
 
 .btn.accent {
   background: var(--accent);
-  color: white;
+  color: #FAF1DC;
   border-color: var(--accent);
 }
 .btn.accent:hover { background: var(--accent-strong); border-color: var(--accent-strong); }
@@ -295,52 +349,28 @@ a { color: inherit; text-decoration: none; }
   top: 0;
   z-index: 10;
   background: var(--bg-deep);
-  color: white;
+  color: #F5E8D0;
   display: grid;
   grid-template-columns: auto 1fr auto;
   align-items: center;
   gap: 1.5rem;
-  padding: 0.75rem 1.5rem;
-  border-bottom: 1px solid rgba(255,255,255,0.06);
+  padding: 0.6rem 1.5rem;
+  border-bottom: 1px solid rgba(245, 232, 208, 0.08);
 }
 
 .brand {
   display: flex;
   align-items: center;
-  gap: 0.7rem;
-  color: white;
+  color: inherit;
+  flex-shrink: 0;
 }
 
-.brand-mark {
-  width: 36px;
-  height: 36px;
-  border-radius: var(--r-sm);
-  background: rgba(4, 120, 87, 0.15);
-  color: #6EE7B7;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.brand-mark svg { width: 20px; height: 20px; }
-
-.brand-text {
-  display: flex;
-  flex-direction: column;
-  line-height: 1.1;
-}
-
-.brand-title {
-  font-weight: 600;
-  font-size: 0.98rem;
-  letter-spacing: -0.01em;
-}
-
-.brand-sub {
-  font-size: 0.72rem;
-  color: rgba(255,255,255,0.5);
-  letter-spacing: 0.04em;
-  font-weight: 400;
+.brand-logo {
+  height: 38px;
+  width: auto;
+  display: block;
+  /* logo SVG est noir → on l'inverse pour le rendre crème sur fond espresso */
+  filter: invert(1) brightness(0.95) sepia(0.15);
 }
 
 .tabs {
@@ -355,7 +385,7 @@ a { color: inherit; text-decoration: none; }
   gap: 0.45rem;
   padding: 0.5rem 0.85rem;
   border-radius: var(--r-sm);
-  color: rgba(255,255,255,0.65);
+  color: rgba(245, 232, 208, 0.55);
   font-size: 0.88rem;
   font-weight: 500;
   cursor: pointer;
@@ -363,15 +393,17 @@ a { color: inherit; text-decoration: none; }
   border: none;
   background: transparent;
   font-family: inherit;
+  text-decoration: none;
 }
 
 .tab .icon { width: 16px; height: 16px; }
 
-.tab:hover { color: white; background: rgba(255,255,255,0.06); }
+.tab:hover { color: #F5E8D0; background: rgba(245, 232, 208, 0.07); }
 .tab.active {
-  color: white;
-  background: rgba(255,255,255,0.1);
+  color: #F5E8D0;
+  background: rgba(245, 232, 208, 0.12);
 }
+.tab.active .icon { color: var(--accent); }
 
 /* ============================================================
    Main view
@@ -385,10 +417,28 @@ main {
 
 h2 {
   margin: 0;
-  font-size: 1.65rem;
-  font-weight: 600;
-  letter-spacing: -0.02em;
-  line-height: 1.1;
+  font-family: var(--font-display);
+  font-size: 2.2rem;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  line-height: 1.05;
+  color: var(--text);
+}
+
+h3 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.view-header h2::after {
+  content: "";
+  display: block;
+  width: 42px;
+  height: 3px;
+  background: var(--accent);
+  margin-top: 0.55rem;
+  border-radius: 2px;
 }
 
 .view-header {
@@ -1550,6 +1600,97 @@ h2 {
   align-items: center;
   gap: 0.5rem;
 }
+
+/* ============================================================
+   Accent switcher (palette racing)
+   ============================================================ */
+
+.accent-switcher {
+  position: relative;
+}
+
+.accent-trigger {
+  background: rgba(245, 232, 208, 0.06);
+  border: 1px solid rgba(245, 232, 208, 0.12);
+  cursor: pointer;
+  padding: 0.45rem;
+  border-radius: var(--r-sm);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+.accent-trigger:hover { background: rgba(245, 232, 208, 0.12); }
+
+.accent-trigger .accent-swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(245, 232, 208, 0.8);
+  display: inline-block;
+}
+
+.accent-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 0.5rem;
+  box-shadow: var(--shadow-3);
+  min-width: 220px;
+  z-index: 50;
+  animation: accent-pop-in 0.15s ease-out;
+}
+
+@keyframes accent-pop-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.accent-popover-title {
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin: 0.3rem 0.5rem 0.5rem;
+}
+
+.accent-option {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.4rem 0.55rem;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+  transition: background 0.12s;
+}
+.accent-option:hover { background: var(--bg-subtle); }
+.accent-option.selected { background: var(--accent-soft); border-color: var(--accent); }
+
+.accent-option .accent-swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  flex-shrink: 0;
+}
+
+.accent-info {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+  min-width: 0;
+}
+.accent-label { font-weight: 500; font-size: 0.88rem; color: var(--text); }
+.accent-note { font-size: 0.74rem; color: var(--text-muted); }
 
 .admin-login-btn {
   background: rgba(255,255,255,0.05);
