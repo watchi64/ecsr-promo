@@ -39,6 +39,8 @@ export const icon = {
   star:       () => svg('<path d="m12 2 3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2Z"/>'),
   pause:      () => svg('<path d="M10 4H6v16h4V4ZM18 4h-4v16h4V4Z"/>'),
   chair:      () => svg('<path d="M6 19v3M18 19v3M5 12h14a0 0 0 0 1 0 0v3a4 4 0 0 1-4 4H9a4 4 0 0 1-4-4v-3a0 0 0 0 1 0 0ZM7 12V5a3 3 0 1 1 6 0v7M17 12V5a3 3 0 1 0-6 0"/>'),
+  // Lucide history (Passages = log historique)
+  history:    () => svg('<path d="M3 12a9 9 0 1 0 9-9 9.74 9.74 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/>'),
   // Lucide officiel : car
   car:        () => svg('<path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><path d="M9 17h6"/><circle cx="17" cy="17" r="2"/>'),
   // Lucide officiel : presentation (tableau / salle de cours)

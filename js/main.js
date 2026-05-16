@@ -143,7 +143,7 @@ const TABS = [
   { route: "dashboard",  label: "Tableau de bord", icon: "dashboard" },
   { route: "planning",   label: "Planning",        icon: "calendar"  },
   { route: "themes",     label: "Thèmes",          icon: "list"      },
-  { route: "passages",   label: "Passages",        icon: "chair"     },
+  { route: "passages",   label: "Passages",        icon: "history"   },
   { route: "notes",      label: "Notes",           icon: "edu"       },
   { route: "ressources", label: "Ressources",      icon: "signpost"  },
   { route: "config",     label: "Paramètres",      icon: "settings"  },
