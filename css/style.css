@@ -708,7 +708,9 @@ h2 {
 
 .p-slot {
   display: grid;
-  grid-template-columns: 30px 140px 110px 1fr 150px 1fr 160px;
+  grid-template-columns: 28px 150px 110px 1fr auto auto 1fr 32px;
+  grid-auto-columns: minmax(140px, 1fr);
+  grid-auto-flow: column;
   align-items: stretch;
   border-top: 1px dashed var(--line);
   min-height: 44px;
@@ -731,11 +733,6 @@ h2 {
   user-select: none;
 }
 
-.p-slot.parallele .p-slot-marker {
-  color: var(--text-faint);
-  font-size: 0.85rem;
-}
-
 .p-cell {
   padding: 0.35rem 0.5rem;
   display: flex;
@@ -745,6 +742,51 @@ h2 {
 }
 
 .p-cell:last-child { border-right: none; }
+
+.p-slot-delete {
+  border: none;
+  background: transparent;
+  color: var(--text-faint);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0;
+  padding: 0 0.4rem;
+  transition: background 0.15s, color 0.15s;
+}
+
+.p-slot-delete:hover {
+  background: var(--c-stop-soft);
+  color: var(--c-stop);
+}
+
+.p-slot-delete .icon { width: 14px; height: 14px; }
+
+.p-add-slot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.7rem;
+  background: transparent;
+  border: 1px dashed var(--line);
+  border-top: none;
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.p-add-slot:hover {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.p-add-slot .icon { width: 14px; height: 14px; }
 
 .p-slot[data-activite="Cours"]              { background: var(--act-cours); }
 .p-slot[data-activite="Pédagogie salle"]    { background: var(--act-peda); }
@@ -1529,9 +1571,122 @@ h2 {
    Responsive
    ============================================================ */
 
+/* ============================================================
+   Print / PDF (planning)
+   ============================================================ */
+
+@page {
+  size: A4 landscape;
+  margin: 12mm 10mm;
+}
+
+@media print {
+  body.printing-planning {
+    background: white;
+    color: #000;
+  }
+  body.printing-planning #gate,
+  body.printing-planning .topbar,
+  body.printing-planning .week-bar,
+  body.printing-planning .planning-helper,
+  body.printing-planning #toast,
+  body.printing-planning .p-add-slot,
+  body.printing-planning .p-slot-delete,
+  body.printing-planning .view-header .eyebrow,
+  body.printing-planning .view-header .subtitle {
+    display: none !important;
+  }
+  body.printing-planning main {
+    padding: 0 !important;
+    max-width: none;
+  }
+  body.printing-planning .view-header { margin-bottom: 0.5rem; }
+  body.printing-planning .view-header h2 {
+    font-size: 1.05rem;
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+  }
+  body.printing-planning .view-header h2::after {
+    content: " — semaine du " attr(data-week);
+    font-weight: 400;
+    color: #555;
+    font-size: 0.95em;
+  }
+  body.printing-planning .p-days {
+    display: block;
+    gap: 0;
+  }
+  body.printing-planning .p-day-card {
+    border: 1px solid #999;
+    border-radius: 4px;
+    margin-bottom: 4px;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+  body.printing-planning .p-day-head {
+    background: #1F2937 !important;
+    color: white !important;
+    padding: 0.3rem 0.6rem !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+  body.printing-planning .p-day-name { font-size: 0.85rem; }
+  body.printing-planning .p-day-date { font-size: 0.78rem; }
+  body.printing-planning .p-half-head {
+    padding: 0.2rem 0.6rem !important;
+    font-size: 0.72rem;
+  }
+  body.printing-planning .p-half-tag {
+    padding: 0.05rem 0.35rem;
+    font-size: 0.6rem;
+    border: 1px solid #999;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+  body.printing-planning .p-half-tag.matin { background: #FEF3C7 !important; color: #78350F !important; }
+  body.printing-planning .p-half-tag.aprem { background: #DBEAFE !important; color: #1E3A8A !important; }
+  body.printing-planning .p-slot {
+    grid-template-columns: 14px 110px 90px 1fr auto auto 1fr;
+    min-height: 26px;
+    font-size: 0.72rem;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+  body.printing-planning .p-slot .p-cell { padding: 0.15rem 0.4rem; }
+  body.printing-planning .p-slot select,
+  body.printing-planning .p-slot input {
+    border: none !important;
+    background: transparent !important;
+    padding: 0 !important;
+    font-size: 0.72rem;
+    appearance: none;
+    color: #000;
+  }
+  body.printing-planning .p-slot select::-webkit-appearance { appearance: none; }
+  body.printing-planning .chips-display { padding: 0 !important; min-height: 16px; }
+  body.printing-planning .chip {
+    padding: 1px 4px;
+    font-size: 0.62rem;
+    background: #F3F4F6 !important;
+    border-color: #ccc !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+  body.printing-planning .chips-placeholder { display: none; }
+  body.printing-planning .chips-dropdown { display: none !important; }
+  body.printing-planning .p-slot[data-activite="Cours"]              { background: #EFF6FF !important; }
+  body.printing-planning .p-slot[data-activite="Pédagogie salle"]    { background: #FEFCE8 !important; }
+  body.printing-planning .p-slot[data-activite="Voiture (conduite)"] { background: #F0FDF4 !important; }
+  body.printing-planning .p-slot[data-activite="Contrôle"]           { background: #FFF7ED !important; }
+}
+
+/* ============================================================
+   Responsive
+   ============================================================ */
+
 @media (max-width: 1100px) {
   .p-slot {
-    grid-template-columns: 28px 130px 100px 1fr 140px 1fr 140px;
+    grid-template-columns: 28px 130px 100px 1fr auto auto 1fr 28px;
   }
 }
 

@@ -134,6 +134,11 @@ export async function deletePlanningEntry(semaine_lundi, day_index, half_day, sl
   if (error) throw error;
 }
 
+export async function deletePlanningEntryById(id) {
+  const { error } = await supabase.from("planning_entries").delete().eq("id", id);
+  if (error) throw error;
+}
+
 // Pédagogues du planning courant (pour ajouter au compteur Tableau de bord)
 export async function getPedagogueCountsFromPlanning(semaine_lundi) {
   const { data, error } = await supabase

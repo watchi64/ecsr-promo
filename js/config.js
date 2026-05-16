@@ -17,6 +17,18 @@ export const ACTIVITES = [
   "Autre",
 ];
 
+// Champs affichés selon le type d'activité.
+// Ordre = ordre d'affichage. Les champs absents sont masqués pour ce slot.
+export const ACTIVITY_SHAPES = {
+  // activité non choisie : affichage minimal pour inviter à sélectionner
+  "":                   ["activite", "prof", "sujet", "notes"],
+  "Cours":              ["activite", "prof", "sujet", "notes"],
+  "Pédagogie salle":    ["activite", "prof", "sujet", "pedagogue", "eleves", "notes"],
+  "Voiture (conduite)": ["activite", "prof", "sujet", "eleves", "notes"],
+  "Contrôle":           ["activite", "prof", "sujet", "notes"],
+  "Autre":              ["activite", "prof", "sujet", "pedagogue", "eleves", "notes"],
+};
+
 export const JOURS = ["LUNDI", "MARDI", "MERCREDI", "JEUDI", "VENDREDI"];
 export const HALF_DAYS = [
   { key: "matin", label: "9h00 — 12h30", short: "MATIN" },
