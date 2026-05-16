@@ -48,7 +48,7 @@ function showInitialPasswordSetup() {
   const submit = document.getElementById("gate-submit");
   const error = document.getElementById("gate-error");
 
-  subtitle.textContent = "Premier accès — définissez le mot de passe partagé";
+  subtitle.textContent = "Premier accès : définissez le mot de passe partagé";
   input.placeholder = "Minimum 4 caractères";
   submit.textContent = "Définir et entrer";
   submit.type = "button";

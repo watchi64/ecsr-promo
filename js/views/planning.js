@@ -29,7 +29,7 @@ function metaFor(d, half) {
 }
 
 function timesLabel(meta) {
-  return `${meta.start_time.replace(":", "h")} — ${meta.end_time.replace(":", "h")}`;
+  return `${meta.start_time.replace(":", "h")} à ${meta.end_time.replace(":", "h")}`;
 }
 
 function pauseLabel(meta) {
@@ -290,7 +290,7 @@ function sujetAutocomplete(currentValue, onChange) {
     }
     matches = matches.slice(0, 12);
     if (matches.length === 0) {
-      dropdown.appendChild(el("div", { class: "sujet-ac-empty muted" }, "Aucun thème — saisis ton propre sujet"));
+      dropdown.appendChild(el("div", { class: "sujet-ac-empty muted" }, "Aucun thème trouvé. Saisis ton propre sujet."));
       return;
     }
     matches.forEach((t) => {
@@ -591,7 +591,7 @@ function openHalfMetaEditor(d, half, anchorEl) {
   }
 
   const modal = el("div", { class: "modal" },
-    el("h3", {}, `Horaires — ${JOURS[d].toLowerCase()} ${halfLabel}`),
+    el("h3", {}, `Horaires · ${JOURS[d].toLowerCase()} ${halfLabel}`),
     el("div", { class: "modal-form" },
       el("div", { style: "display:grid;grid-template-columns:1fr 1fr;gap:0.6rem" },
         el("div", { class: "field" }, el("label", {}, "Début"), startInput),
@@ -639,7 +639,7 @@ function renderInto(container) {
       el("p", { class: "subtitle" },
         admin
           ? "Sélectionne les activités, profs et stagiaires. Tout s'enregistre automatiquement."
-          : "Lecture seule — connexion admin requise pour modifier."
+          : "Lecture seule. Connexion admin requise pour modifier."
       ),
     ),
   ));
@@ -805,7 +805,7 @@ function buildPrintHtml(monday) {
   root.appendChild(grid);
 
   // Footer
-  root.appendChild(el("div", { class: "pp-footer" }, "Promo ECSR — généré le " + new Date().toLocaleDateString("fr-FR")));
+  root.appendChild(el("div", { class: "pp-footer" }, "Promo ECSR · généré le " + new Date().toLocaleDateString("fr-FR")));
 
   return root;
 }

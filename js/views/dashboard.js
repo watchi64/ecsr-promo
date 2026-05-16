@@ -132,7 +132,7 @@ export async function renderDashboard(container) {
     el("div", { class: "view-header-text" },
       el("p", { class: "eyebrow" }, "Semaine du " + new Date(monday + "T00:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "long" })),
       el("h2", {}, "Tableau de bord"),
-      el("p", { class: "subtitle" }, "Qui doit passer en priorité — calculé à partir de l'historique et du planning en cours."),
+      el("p", { class: "subtitle" }, "Qui doit passer en priorité. Calculé à partir de l'historique et du planning en cours."),
     ),
   ));
 
@@ -163,8 +163,8 @@ export async function renderDashboard(container) {
   container.appendChild(grid);
 
   container.appendChild(el("div", { class: "dashboard-legend" },
-    el("span", {}, el("span", { class: "dot", style: "background:var(--c-stop)" }), "À prioriser — n'a pas encore eu l'occasion de passer"),
-    el("span", {}, el("span", { class: "dot", style: "background:var(--c-wait)" }), "Opportunité ratée — a déjà eu sa chance (absence/refus)"),
-    el("span", {}, el("span", { class: "dot", style: "background:var(--c-go)" }), "À jour — au niveau du groupe"),
+    el("span", {}, el("span", { class: "dot", style: "background:var(--c-stop)" }), "À prioriser : n'a pas encore eu l'occasion de passer"),
+    el("span", {}, el("span", { class: "dot", style: "background:var(--c-wait)" }), "Opportunité ratée : a déjà eu sa chance (absence/refus)"),
+    el("span", {}, el("span", { class: "dot", style: "background:var(--c-go)" }), "À jour : au niveau du groupe"),
   ));
 }

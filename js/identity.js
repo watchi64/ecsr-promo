@@ -31,7 +31,7 @@ export function openIdentityPicker(forceChange = false) {
     const backdrop = el("div", { class: "modal-backdrop" });
 
     let selected = forceChange ? "" : (getStoredWho() || "");
-    const customInput = el("input", { type: "text", placeholder: "Autre — ton prénom" });
+    const customInput = el("input", { type: "text", placeholder: "Autre prénom" });
 
     const buildList = () => {
       const grid = el("div", { class: "identity-grid" });

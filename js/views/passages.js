@@ -49,7 +49,7 @@ function openAddModal(onSaved) {
 
     // Garde-fou : non-admin ne peut pas rétro-dater de plus de 2 jours
     if (!admin && dateInput.value < minDateForNonAdmin) {
-      toast("Date trop ancienne — limite de 2 jours en arrière (admin uniquement pour les dates plus anciennes)", "error", 4000);
+      toast("Date trop ancienne. Limite de 2 jours en arrière (admin uniquement pour les dates plus anciennes).", "error", 4000);
       return;
     }
     if (dateInput.value > today) {
@@ -278,7 +278,7 @@ function rerender(container) {
     el("div", { class: "view-header-text" },
       el("p", { class: "eyebrow" }, passages.length + " entrées au total"),
       el("h2", {}, "Historique des passages"),
-      el("p", { class: "subtitle" }, "Tous les passages — modifiables par tout le monde. Chaque action est tracée."),
+      el("p", { class: "subtitle" }, "Tous les passages. Modifiables par tout le monde. Chaque action est tracée."),
     ),
     el("div", { style: "display:flex;gap:0.5rem;flex-wrap:wrap" }, histBtn, addBtn),
   ));

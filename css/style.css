@@ -2730,10 +2730,11 @@ h3 {
   display: grid;
   grid-template-columns: 60px 1fr;
   gap: 1.2rem;
-  padding: 1.25rem 1.4rem;
+  padding: 1.4rem 1.6rem;
   background: var(--bg-elev);
   border: 1px solid var(--line);
   border-radius: var(--r-lg);
+  align-items: start;
 }
 
 .home-rule-badge {
@@ -2745,20 +2746,27 @@ h3 {
   align-items: center;
   justify-content: center;
   font-size: 1.6rem;
+  flex-shrink: 0;
+}
+
+.home-rule-content {
+  min-width: 0;
 }
 
 .home-rule h3 {
   font-family: var(--font);
   font-weight: 600;
-  font-size: 1.1rem;
-  margin: 0 0 0.4rem;
+  font-size: 1.15rem;
+  margin: 0 0 0.5rem;
   color: var(--text);
+  line-height: 1.25;
 }
 
-.home-rule p { margin: 0 0 0.5rem; color: var(--text-soft); font-size: 0.92rem; line-height: 1.5; }
+.home-rule p { margin: 0 0 0.6rem; color: var(--text-soft); font-size: 0.95rem; line-height: 1.55; }
+.home-rule p:last-child { margin-bottom: 0; }
 
-.home-rule ul { margin: 0.4rem 0 0; padding-left: 1.2rem; color: var(--text-soft); font-size: 0.9rem; }
-.home-rule ul li { margin-bottom: 0.2rem; }
+.home-rule ul { margin: 0.5rem 0 0; padding-left: 1.2rem; color: var(--text-soft); font-size: 0.92rem; line-height: 1.5; }
+.home-rule ul li { margin-bottom: 0.25rem; }
 
 .home-priority-grid {
   display: grid;

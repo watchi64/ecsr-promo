@@ -11,7 +11,7 @@ export const THEMES = [
   {
     key: "creme",
     label: "Crème racing",
-    note: "Le défaut — chaud, vintage",
+    note: "Le défaut, chaud et vintage",
     preview: { bg: "#F5E8D0", surface: "#FAF1DC", text: "#1A1612", accent: "#B91C1C" },
   },
   {

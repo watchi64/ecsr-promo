@@ -31,6 +31,6 @@ export const ACTIVITY_SHAPES = {
 
 export const JOURS = ["LUNDI", "MARDI", "MERCREDI", "JEUDI", "VENDREDI"];
 export const HALF_DAYS = [
-  { key: "matin", label: "9h00 — 12h30", short: "MATIN" },
-  { key: "aprem", label: "13h30 — 17h00", short: "APRÈS-MIDI" },
+  { key: "matin", label: "9h00 à 12h30", short: "MATIN" },
+  { key: "aprem", label: "13h30 à 17h00", short: "APRÈS-MIDI" },
 ];

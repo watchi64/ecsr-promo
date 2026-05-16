@@ -13,7 +13,7 @@ import { icon } from "../icons.js";
 import { isAdmin, getAdminEmail, refreshAllowedEmails, getAllowedEmails } from "../auth-admin.js";
 import { setAccent, getAccent } from "../accent-switcher.js";
 import { setTheme, getTheme, THEMES } from "../theme-switcher.js";
-import { getStoredWho, openIdentityPicker } from "../identity.js";
+import { getStoredWho } from "../identity.js";
 
 const ACCENTS = [
   { key: "brique",     label: "Brique",     hex: "#B91C1C", note: "racing vintage" },
@@ -73,17 +73,13 @@ async function renderSecuritySection(rerender) {
     ));
   }
 
-  // Identité (mon prénom) — accessible à tous
+  // Identité (mon prénom) — affichage seul, pas modifiable
   const who = getStoredWho();
   const identitySection = el("div", { class: "param-block" },
     el("h4", {}, "Mon identité"),
-    el("p", { class: "muted" }, "Le nom utilisé pour signer tes ajouts de passages."),
+    el("p", { class: "muted" }, "Le nom utilisé pour signer tes ajouts de passages. Choisi lors du premier accès, il ne peut pas être modifié ensuite."),
     el("div", { style: "display:flex;align-items:center;gap:0.7rem;" },
       el("span", { class: "param-identity-chip" }, who || "Anonyme"),
-      el("button", { class: "btn small", onClick: async () => {
-        await openIdentityPicker(true);
-        rerender();
-      }}, "Changer"),
     ),
   );
   section.appendChild(identitySection);
@@ -327,7 +323,7 @@ function renderInfoSection() {
   section.appendChild(el("div", { class: "param-block" },
     el("dl", { class: "info-list" },
       el("dt", {}, "Application"),
-      el("dd", {}, "TP ECSR — Promo & suivi des passages"),
+      el("dd", {}, "TP ECSR : Promo & suivi des passages"),
       el("dt", {}, "Auteur"),
       el("dd", {}, "watchi64 · misterwatchi@gmail.com"),
       el("dt", {}, "Licence"),

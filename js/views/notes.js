@@ -27,10 +27,10 @@ function noteColor(note, max) {
 function describeEval(e) {
   if (e.type === "Thème") {
     const num = e.theme_numero ? `Thème ${String(e.theme_numero).padStart(2, "0")}` : "Thème";
-    return e.theme_titre ? `${num} — ${e.theme_titre}` : num;
+    return e.theme_titre ? `${num} · ${e.theme_titre}` : num;
   }
   if (e.type === "Compétence") {
-    return e.competence_code ? `${e.competence_code} — ${e.competence?.libelle?.split(",")[0] || ""}` : "Compétence";
+    return e.competence_code ? `${e.competence_code} · ${e.competence?.libelle?.split(",")[0] || ""}` : "Compétence";
   }
   if (e.type === "Contrôle") {
     return e.controle_libelle || "Contrôle";
@@ -64,7 +64,7 @@ function openEditModal(existing, onSaved) {
   const compSel = el("select");
   compSel.appendChild(el("option", { value: "" }, "—"));
   competences.forEach((c) => {
-    const opt = el("option", { value: c.code }, `${c.code} — ${c.libelle.slice(0, 60)}${c.libelle.length > 60 ? "…" : ""}`);
+    const opt = el("option", { value: c.code }, `${c.code} · ${c.libelle.slice(0, 60)}${c.libelle.length > 60 ? "…" : ""}`);
     if (existing?.competence_code === c.code) opt.selected = true;
     compSel.appendChild(opt);
   });
@@ -313,7 +313,7 @@ function rerender(container) {
       el("h2", {}, "Notes & évaluations"),
       el("p", { class: "subtitle" }, "Notes par thème, par compétence (C1-C4), et contrôles. Historique complet par note."),
     ),
-    admin ? addBtn : el("span", { class: "muted", style: "font-size:0.85rem" }, "Lecture seule — connexion admin requise pour modifier"),
+    admin ? addBtn : el("span", { class: "muted", style: "font-size:0.85rem" }, "Lecture seule. Connexion admin requise pour modifier."),
   ));
 
   container.appendChild(el("div", { class: "passages-toolbar" },
