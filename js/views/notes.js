@@ -1,5 +1,5 @@
 import {
-  listStagiaires, listCompetences, listEvaluations,
+  listStagiaires, listCompetences, listEvaluations, listThemes,
   addEvaluation, updateEvaluation, deleteEvaluation, listAuditForEvaluation,
 } from "../db.js";
 import { el, clear, isoDate, formatDate, toast } from "../utils.js";
@@ -9,6 +9,7 @@ import { getAdminEmail, isAdmin } from "../auth-admin.js";
 let stagiaires = [];
 let competences = [];
 let evaluations = [];
+let themesOfficiels = [];  // les 57 thèmes du référentiel (chargés en + pour les titres dans la matrice)
 
 let filterStagiaire = "";
 let filterType = "";
@@ -348,6 +349,14 @@ function renderMatrice(container) {
   const wrap = el("div", { class: "matrice-wrap" });
   const table = el("table", { class: "matrice-table" });
 
+  // Liste des thèmes officiels présents en DB (par numero 1..57)
+  const themesByNum = new Map();
+  themesOfficiels.forEach((t) => {
+    if (t.numero != null) themesByNum.set(t.numero, t);
+  });
+  const themeNumbers = [];
+  for (let n = 1; n <= 57; n++) themeNumbers.push(n);
+
   // Header row
   const thead = el("thead");
   const headRow1 = el("tr");
@@ -356,9 +365,18 @@ function renderMatrice(container) {
   MATRIX_SPECIAL_COLS.forEach((c) => {
     headRow1.appendChild(el("th", { class: "m-th-spe", title: c.tooltip }, c.label));
   });
-  for (let n = 1; n <= 57; n++) {
-    headRow1.appendChild(el("th", { class: "m-th-theme", title: "Thème " + n }, String(n)));
-  }
+  themeNumbers.forEach((n) => {
+    const theme = themesByNum.get(n);
+    const title = theme ? theme.titre : `Thème ${n}`;
+    const numStr = String(n).padStart(2, "0");
+    const th = el("th", { class: "m-th-theme", title: `Thème ${numStr} : ${title}` },
+      el("div", { class: "m-th-theme-label" },
+        el("span", { class: "m-th-theme-num" }, numStr),
+        el("span", { class: "m-th-theme-title" }, title),
+      )
+    );
+    headRow1.appendChild(th);
+  });
   thead.appendChild(headRow1);
   table.appendChild(thead);
 
@@ -487,8 +505,10 @@ function rerender(container) {
 export async function renderNotes(container) {
   clear(container);
   container.appendChild(el("div", { class: "loading" }, "Chargement"));
-  [stagiaires, competences, evaluations] = await Promise.all([
-    listStagiaires(), listCompetences(), listEvaluations()
+  let allThemes;
+  [stagiaires, competences, evaluations, allThemes] = await Promise.all([
+    listStagiaires(), listCompetences(), listEvaluations(), listThemes()
   ]);
+  themesOfficiels = allThemes.filter((t) => t.type === "theme" && t.numero != null);
   rerender(container);
 }
