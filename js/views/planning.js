@@ -270,18 +270,69 @@ function chipsSelect(allStagiaires, currentIds, onChange) {
   return wrap;
 }
 
-// Autocomplete Sujet/Thème — input texte avec suggestions issues de la table themes
-function sujetAutocomplete(currentValue, onChange) {
-  const wrap = el("div", { class: "sujet-ac" });
-  const input = el("input", { type: "text", placeholder: "Sujet / thème…", value: currentValue || "" });
+// Sujet multi-thèmes : chips inline + autocomplete continue (virgule ou Enter pour valider).
+// Stocké en DB comme chaîne "Thème A, Thème B".
+function parseSujet(val) {
+  if (!val) return [];
+  return String(val).split(",").map((s) => s.trim()).filter(Boolean);
+}
+function joinSujet(arr) { return arr.join(", "); }
+
+function sujetMultiSelect(currentValue, onChange) {
+  const wrap = el("div", { class: "sujet-ac sujet-multi" });
+  const chipsBox = el("div", { class: "sujet-chips" });
+  const input = el("input", {
+    type: "text",
+    class: "sujet-chip-input",
+    placeholder: "Ajouter un thème…",
+  });
   const dropdown = el("div", { class: "sujet-ac-dropdown hidden" });
+
+  let selected = parseSujet(currentValue);
+
+  function commit() { onChange(joinSujet(selected)); }
+
+  function renderChips() {
+    clear(chipsBox);
+    selected.forEach((titre, idx) => {
+      const t = themes.find((x) => x.titre === titre);
+      const chip = el("span", { class: "sujet-chip" + (t ? " has-num" : "") });
+      if (t && t.numero != null) {
+        chip.appendChild(el("span", { class: "sujet-chip-num" }, String(t.numero).padStart(2, "0")));
+      }
+      chip.appendChild(el("span", { class: "sujet-chip-label" }, titre));
+      chip.appendChild(el("button", {
+        class: "sujet-chip-x", type: "button", "aria-label": "Retirer",
+        onClick: (ev) => {
+          ev.stopPropagation();
+          selected.splice(idx, 1);
+          renderChips();
+          commit();
+        }
+      }, "×"));
+      chipsBox.appendChild(chip);
+    });
+    chipsBox.appendChild(input);
+    if (selected.length === 0) input.placeholder = "Sujet / thème…";
+    else input.placeholder = "+";
+  }
+
+  function addLabel(label) {
+    const v = label.trim();
+    if (!v) return;
+    if (!selected.includes(v)) selected.push(v);
+    input.value = "";
+    renderChips();
+    commit();
+    renderSuggestions("");
+  }
 
   function renderSuggestions(query) {
     clear(dropdown);
     const q = query.trim().toLowerCase();
-    let matches = themes;
+    let matches = themes.filter((t) => !selected.includes(t.titre));
     if (q) {
-      matches = themes.filter((t) => {
+      matches = matches.filter((t) => {
         const numStr = t.numero != null ? String(t.numero) : "";
         return t.titre.toLowerCase().includes(q)
             || numStr.includes(q)
@@ -290,7 +341,8 @@ function sujetAutocomplete(currentValue, onChange) {
     }
     matches = matches.slice(0, 12);
     if (matches.length === 0) {
-      dropdown.appendChild(el("div", { class: "sujet-ac-empty muted" }, "Aucun thème trouvé. Saisis ton propre sujet."));
+      dropdown.appendChild(el("div", { class: "sujet-ac-empty muted" },
+        q ? "Aucun thème. Tape virgule ou Entrée pour l'ajouter tel quel." : "Plus de thèmes à ajouter."));
       return;
     }
     matches.forEach((t) => {
@@ -303,10 +355,9 @@ function sujetAutocomplete(currentValue, onChange) {
       item.appendChild(el("span", { class: "sujet-ac-titre" }, t.titre));
       item.appendChild(el("span", { class: "sujet-ac-cat muted" }, t.categorie || ""));
       item.addEventListener("mousedown", (ev) => {
-        ev.preventDefault();  // évite que blur ferme avant le click
-        input.value = t.titre;
-        dropdown.classList.add("hidden");
-        onChange(t.titre);
+        ev.preventDefault();
+        addLabel(t.titre);
+        input.focus();
       });
       dropdown.appendChild(item);
     });
@@ -320,24 +371,33 @@ function sujetAutocomplete(currentValue, onChange) {
     setTimeout(() => dropdown.classList.add("hidden"), 150);
   });
   input.addEventListener("input", () => {
-    renderSuggestions(input.value);
-    debouncedSujetSave(onChange, input.value);
+    const v = input.value;
+    // virgule = valider
+    if (v.endsWith(",")) {
+      addLabel(v.slice(0, -1));
+      renderSuggestions("");
+      return;
+    }
+    renderSuggestions(v);
   });
   input.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") { dropdown.classList.add("hidden"); input.blur(); }
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (input.value.trim()) addLabel(input.value);
+    } else if (e.key === "Backspace" && input.value === "" && selected.length > 0) {
+      selected.pop();
+      renderChips();
+      commit();
+    } else if (e.key === "Escape") {
+      dropdown.classList.add("hidden");
+      input.blur();
+    }
   });
 
-  wrap.appendChild(input);
+  wrap.appendChild(chipsBox);
   wrap.appendChild(dropdown);
+  renderChips();
   return wrap;
-}
-
-const _sujetDebouncers = new WeakMap();
-function debouncedSujetSave(onChange, val) {
-  if (!_sujetDebouncers.has(onChange)) {
-    _sujetDebouncers.set(onChange, debounce((v) => onChange(v), 500));
-  }
-  _sujetDebouncers.get(onChange)(val);
 }
 
 // === Rendu d'une cellule (un lane d'un slot) ===
@@ -351,11 +411,9 @@ function renderLaneCell(entry) {
 
   const shape = ACTIVITY_SHAPES[entry.activite || ""] || ACTIVITY_SHAPES[""];
 
-  const rows = el("div", { class: "p-lane-rows" });
-
-  // Ligne 1 : Activité + Prof + trash
-  const r1 = el("div", { class: "p-lane-row" });
-  r1.appendChild(el("div", { class: "p-lane-field activite-field" },
+  // === Header strip : activité + prof + delete ===
+  const header = el("div", { class: "p-lane-header" });
+  header.appendChild(el("div", { class: "p-lane-activite-wrap" },
     selectFromList(
       ACTIVITES.map((a) => ({ value: a, label: a })),
       entry.activite,
@@ -364,7 +422,7 @@ function renderLaneCell(entry) {
     )
   ));
   if (shape.includes("prof")) {
-    r1.appendChild(el("div", { class: "p-lane-field prof-field" },
+    header.appendChild(el("div", { class: "p-lane-prof-wrap" },
       selectFromList(
         profs.map((p) => ({ value: p.id, label: p.nom })),
         entry.prof_id,
@@ -378,56 +436,56 @@ function renderLaneCell(entry) {
     onClick: () => deleteCell(entry)
   });
   trashBtn.appendChild(icon.trash());
-  r1.appendChild(trashBtn);
-  rows.appendChild(r1);
+  header.appendChild(trashBtn);
+  cell.appendChild(header);
 
-  // Ligne 2 : Sujet (autocomplete)
+  const body = el("div", { class: "p-lane-body" });
+
+  // === Sujet : mis en avant ===
   if (shape.includes("sujet")) {
-    const sujetWrap = sujetAutocomplete(entry.sujet, (v) => saveEntry(lid, { sujet: v }));
-    rows.appendChild(el("div", { class: "p-lane-row" },
-      el("div", { class: "p-lane-field full" }, sujetWrap)
-    ));
+    const sujetWrap = sujetMultiSelect(entry.sujet, (v) => saveEntry(lid, { sujet: v }));
+    body.appendChild(el("div", { class: "p-lane-sujet" }, sujetWrap));
   }
 
-  // Ligne 3 : Pédagogue (si applicable)
-  if (shape.includes("pedagogue")) {
-    rows.appendChild(el("div", { class: "p-lane-row" },
-      el("div", { class: "p-lane-field full pedagogue-cell" },
+  // === Participants : pédagogue + élèves côte à côte avec labels ===
+  const hasPedagogue = shape.includes("pedagogue");
+  const hasEleves = shape.includes("eleves");
+  if (hasPedagogue || hasEleves) {
+    const participants = el("div", { class: "p-lane-participants" });
+    if (hasPedagogue) {
+      participants.appendChild(el("div", { class: "p-lane-role pedagogue" },
+        el("span", { class: "p-lane-role-label" }, "Au tableau"),
         selectFromList(
           stagiaires.map((s) => ({ value: s.id, label: s.prenom })),
           entry.pedagogue_id,
           (v) => saveEntry(lid, { pedagogue_id: v ? Number(v) : null }),
-          "Au tableau…"
+          "—"
         )
-      )
-    ));
-  }
-
-  // Ligne 4 : Élèves (si applicable)
-  if (shape.includes("eleves")) {
-    rows.appendChild(el("div", { class: "p-lane-row" },
-      el("div", { class: "p-lane-field full" },
+      ));
+    }
+    if (hasEleves) {
+      participants.appendChild(el("div", { class: "p-lane-role eleves" },
+        el("span", { class: "p-lane-role-label" }, "Élèves"),
         chipsSelect(stagiaires, entry.eleves_ids || [], (ids) => {
           saveEntry(lid, { eleves_ids: ids });
         })
-      )
-    ));
+      ));
+    }
+    body.appendChild(participants);
   }
 
-  // Ligne 5 : Notes
+  // === Notes : discret, en bas ===
   if (shape.includes("notes")) {
-    const notesInput = el("input", { type: "text", placeholder: "Notes", value: entry.notes || "" });
+    const notesInput = el("input", { type: "text", class: "p-lane-notes-input", placeholder: "Notes (optionnel)", value: entry.notes || "" });
     const key = lid + "-notes";
     if (!debouncedSave[key]) {
       debouncedSave[key] = debounce((v) => saveEntry(lid, { notes: v }), 500);
     }
     notesInput.addEventListener("input", () => debouncedSave[key](notesInput.value));
-    rows.appendChild(el("div", { class: "p-lane-row" },
-      el("div", { class: "p-lane-field full" }, notesInput)
-    ));
+    body.appendChild(el("div", { class: "p-lane-notes" }, notesInput));
   }
 
-  cell.appendChild(rows);
+  cell.appendChild(body);
   return cell;
 }
 

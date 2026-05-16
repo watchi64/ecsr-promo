@@ -10,18 +10,22 @@ let filterCategorie = "";
 let search = "";
 
 const STATUTS = [
-  { value: "À faire",  color: "todo"     },
-  { value: "En cours", color: "doing"    },
-  { value: "Fait",     color: "done"     },
+  { value: "À faire", color: "todo" },
+  { value: "Fait",    color: "done" },
 ];
 
-function nextStatut(current) {
-  const idx = STATUTS.findIndex((s) => s.value === current);
-  return STATUTS[(idx + 1) % STATUTS.length].value;
+function normalizeStatut(s) {
+  // Migration douce : "En cours" historique → traité comme "À faire"
+  if (s === "Fait") return "Fait";
+  return "À faire";
 }
 
-async function cycleStatut(theme, container) {
-  const newStatut = nextStatut(theme.statut);
+function toggleStatut(current) {
+  return normalizeStatut(current) === "Fait" ? "À faire" : "Fait";
+}
+
+async function cycleStatut(theme, container, chipEl) {
+  const newStatut = toggleStatut(theme.statut);
   const patch = {
     statut: newStatut,
     updated_by_email: getAdminEmail(),
@@ -30,10 +34,61 @@ async function cycleStatut(theme, container) {
   try {
     await updateTheme(theme.id, patch);
     Object.assign(theme, patch);
-    rerender(container);
+    // Update in-place sans rerender complet (évite le scroll jump)
+    updateThemeRowInPlace(theme, chipEl);
   } catch (e) {
     toast(e.message, "error");
   }
+}
+
+function updateThemeRowInPlace(theme, chipEl) {
+  const row = chipEl?.closest(".theme-row");
+  if (!row) return;
+  const newColor = normalizeStatut(theme.statut) === "Fait" ? "done" : "todo";
+  row.classList.remove("todo", "done", "doing");
+  row.classList.add(newColor);
+  chipEl.classList.remove("todo", "done", "doing");
+  chipEl.classList.add(newColor);
+  // Update text inside chip
+  const dot = chipEl.querySelector(".theme-statut-dot");
+  clear(chipEl);
+  if (dot) chipEl.appendChild(dot);
+  else chipEl.appendChild(el("span", { class: "theme-statut-dot" }));
+  chipEl.appendChild(document.createTextNode(theme.statut));
+  // Update date column (4th child : .theme-date)
+  const dateEl = row.querySelector(".theme-date");
+  if (dateEl) {
+    clear(dateEl);
+    if (theme.date_fait) {
+      dateEl.classList.remove("muted");
+      dateEl.appendChild(document.createTextNode(formatDate(theme.date_fait)));
+    } else {
+      dateEl.classList.add("muted");
+      dateEl.appendChild(document.createTextNode("—"));
+    }
+  }
+}
+
+function openThemeModal(theme) {
+  const backdrop = el("div", { class: "modal-backdrop" });
+  const num = theme.numero ? String(theme.numero).padStart(2, "0") : null;
+  const modal = el("div", { class: "modal theme-modal" },
+    el("div", { class: "theme-modal-head" },
+      num ? el("span", { class: "theme-modal-num" }, num) : null,
+      el("h3", { class: "theme-modal-titre" }, theme.titre),
+    ),
+    theme.categorie ? el("p", { class: "muted theme-modal-cat" }, theme.categorie) : null,
+    el("div", { class: "theme-modal-placeholder" },
+      el("p", {}, "Contenu pédagogique à venir : cours, QCM, exercices, supports."),
+      el("p", { class: "muted", style: "font-size:0.82rem" }, "Cette zone affichera les ressources liées au thème dès qu'elles seront disponibles."),
+    ),
+    el("div", { class: "modal-actions" },
+      el("button", { class: "btn primary", onClick: () => backdrop.remove() }, "Fermer"),
+    ),
+  );
+  backdrop.appendChild(modal);
+  backdrop.addEventListener("click", (e) => { if (e.target === backdrop) backdrop.remove(); });
+  document.body.appendChild(backdrop);
 }
 
 function debouncedNoteSave(theme) {
@@ -53,17 +108,22 @@ function debouncedNoteSave(theme) {
 function renderThemeRow(theme, container) {
   const admin = isAdmin();
   const num = theme.numero ? String(theme.numero).padStart(2, "0") : "—";
-  const statutObj = STATUTS.find((s) => s.value === theme.statut) || STATUTS[0];
+  const statutNorm = normalizeStatut(theme.statut);
+  const color = statutNorm === "Fait" ? "done" : "todo";
 
-  // Statut chip cliquable (admin only)
+  // Statut chip cliquable (admin only) — toggle binaire
   const statutChip = el(admin ? "button" : "span", {
-    class: "theme-statut " + statutObj.color + (admin ? " clickable" : ""),
-    title: admin ? "Cliquer pour changer le statut" : ""
+    class: "theme-statut " + color + (admin ? " clickable" : ""),
+    type: admin ? "button" : undefined,
+    title: admin ? "Cliquer pour basculer fait / à faire" : ""
   },
     el("span", { class: "theme-statut-dot" }),
-    theme.statut
+    statutNorm
   );
-  if (admin) statutChip.addEventListener("click", () => cycleStatut(theme, container));
+  if (admin) statutChip.addEventListener("click", (ev) => {
+    ev.preventDefault();
+    cycleStatut(theme, container, statutChip);
+  });
 
   // Notes (toujours visible, mais readonly si pas admin)
   const notesInput = el("input", {
@@ -97,10 +157,16 @@ function renderThemeRow(theme, container) {
     delBtn.appendChild(icon.trash());
   }
 
-  return el("div", { class: "theme-row " + statutObj.color, dataset: { id: theme.id } },
+  const titreBtn = el("button", {
+    class: "theme-titre-link", type: "button",
+    title: "Voir le contenu du thème",
+    onClick: () => openThemeModal(theme),
+  }, theme.titre);
+
+  return el("div", { class: "theme-row " + color, dataset: { id: theme.id } },
     el("span", { class: "theme-num" }, num),
     el("div", { class: "theme-titre-block" },
-      el("span", { class: "theme-titre" }, theme.titre),
+      titreBtn,
       theme.categorie ? el("span", { class: "theme-cat" }, theme.categorie) : null,
     ),
     statutChip,
@@ -115,7 +181,7 @@ function uniqueCategories(list) {
 }
 
 function matchesFilters(t) {
-  if (filterStatut    && t.statut    !== filterStatut)    return false;
+  if (filterStatut    && normalizeStatut(t.statut) !== filterStatut) return false;
   if (filterType      && t.type      !== filterType)      return false;
   if (filterCategorie && t.categorie !== filterCategorie) return false;
   if (search) {
@@ -199,9 +265,8 @@ let activeFamille = "all";  // "all" ou clé de famille
 
 function familleStats(items) {
   const total = items.length;
-  const fait = items.filter((t) => t.statut === "Fait").length;
-  const enCours = items.filter((t) => t.statut === "En cours").length;
-  return { total, fait, enCours, aFaire: total - fait - enCours, pct: total ? Math.round(fait / total * 100) : 0 };
+  const fait = items.filter((t) => normalizeStatut(t.statut) === "Fait").length;
+  return { total, fait, aFaire: total - fait, pct: total ? Math.round(fait / total * 100) : 0 };
 }
 
 function rerender(container) {
@@ -276,7 +341,7 @@ function rerender(container) {
   famillesToShow.forEach((f) => {
     // Filtre interne par search + statut
     const items = f.items.filter((t) => {
-      if (filterStatut && t.statut !== filterStatut) return false;
+      if (filterStatut && normalizeStatut(t.statut) !== filterStatut) return false;
       if (search) {
         const q = search.toLowerCase();
         const inTitle = t.titre.toLowerCase().includes(q);
@@ -303,10 +368,6 @@ function rerender(container) {
         el("div", { class: "theme-section-stat" },
           el("span", { class: "theme-section-stat-value" }, String(stats.fait)),
           el("span", { class: "theme-section-stat-label" }, "Faits"),
-        ),
-        el("div", { class: "theme-section-stat" },
-          el("span", { class: "theme-section-stat-value" }, String(stats.enCours)),
-          el("span", { class: "theme-section-stat-label" }, "En cours"),
         ),
         el("div", { class: "theme-section-stat" },
           el("span", { class: "theme-section-stat-value" }, String(stats.aFaire)),
