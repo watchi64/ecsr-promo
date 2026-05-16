@@ -15,7 +15,19 @@ function openAddModal(onSaved) {
   const today = isoDate(new Date());
   const backdrop = el("div", { class: "modal-backdrop" });
 
-  const dateInput = el("input", { type: "date", value: today });
+  // Non-admins : date min = aujourd'hui - 2 jours (anti backdating)
+  const admin = isAdmin();
+  const minDateForNonAdmin = (() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 2);
+    return isoDate(d);
+  })();
+  const dateInput = el("input", {
+    type: "date",
+    value: today,
+    max: today,
+    min: admin ? undefined : minDateForNonAdmin,
+  });
   const stagiaireSel = el("select");
   stagiaireSel.appendChild(el("option", { value: "" }, "—"));
   stagiaires.forEach((s) => stagiaireSel.appendChild(el("option", { value: s.id }, s.prenom)));
@@ -34,6 +46,17 @@ function openAddModal(onSaved) {
 
   async function save() {
     if (!stagiaireSel.value) { toast("Choisir un stagiaire", "error"); return; }
+
+    // Garde-fou : non-admin ne peut pas rétro-dater de plus de 2 jours
+    if (!admin && dateInput.value < minDateForNonAdmin) {
+      toast("Date trop ancienne — limite de 2 jours en arrière (admin uniquement pour les dates plus anciennes)", "error", 4000);
+      return;
+    }
+    if (dateInput.value > today) {
+      toast("Pas de date future", "error");
+      return;
+    }
+
     try {
       const who = getCurrentWho(getAdminEmail());
       await addPassage({
@@ -61,10 +84,20 @@ function openAddModal(onSaved) {
     icon.check(), "Enregistrer"
   );
 
+  const dateField = el("div", { class: "field" },
+    el("label", {}, "Date"),
+    dateInput,
+  );
+  if (!admin) {
+    dateField.appendChild(el("small", { class: "field-hint muted" },
+      "Tu peux ajouter des passages des 2 derniers jours. Pour les dates plus anciennes, un admin doit s'en charger."
+    ));
+  }
+
   const modal = el("div", { class: "modal" },
     el("h3", {}, "Ajouter un passage"),
     el("div", { class: "modal-form" },
-      el("div", { class: "field" }, el("label", {}, "Date"), dateInput),
+      dateField,
       el("div", { class: "field" }, el("label", {}, "Stagiaire"), stagiaireSel),
       el("div", { class: "field" }, el("label", {}, "Type"), typeSel),
       el("div", { class: "field" }, el("label", {}, "Résultat"), resultatSel),
