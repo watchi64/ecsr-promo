@@ -9,12 +9,12 @@
  * isAdmin() + getAdminEmail() utilisés par les vues.
  */
 
-import { getCurrentUser, signInWithMagicLink, signOut, onAuthChange, getSetting } from "./db.js";
+import { getCurrentUser, signInWithMagicLink, signOut, onAuthChange, listAdmins } from "./db.js";
 import { el, toast } from "./utils.js";
 import { icon } from "./icons.js";
 
 let currentUser = null;
-let allowedEmails = null;  // null = not loaded, [] = empty (mode ouvert)
+let allowedEmails = null;  // null = pas encore charge ; [] = liste vide
 const listeners = new Set();
 
 export function isAdmin() { return !!currentUser; }
@@ -22,9 +22,10 @@ export function getAdminEmail() { return currentUser?.email || null; }
 
 async function loadAllowedEmails() {
   try {
-    const raw = await getSetting("admin_emails");
-    allowedEmails = raw ? JSON.parse(raw) : [];
-  } catch {
+    const admins = await listAdmins();
+    allowedEmails = admins.map((a) => a.email.toLowerCase());
+  } catch (e) {
+    console.error("loadAllowedEmails failed", e);
     allowedEmails = [];
   }
   return allowedEmails;
@@ -126,7 +127,12 @@ function openLoginModal() {
     status.className = "muted";
     try {
       await signInWithMagicLink(v);
-      status.innerHTML = "Lien envoyé à <strong>" + v + "</strong>. Vérifiez votre boîte (et les spams).";
+      status.textContent = "";
+      status.appendChild(document.createTextNode("Lien envoyé à "));
+      const strong = document.createElement("strong");
+      strong.textContent = v;
+      status.appendChild(strong);
+      status.appendChild(document.createTextNode(". Vérifiez votre boîte (et les spams)."));
       status.className = "";
       status.style.color = "var(--accent)";
     } catch (e) {

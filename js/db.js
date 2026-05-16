@@ -318,6 +318,32 @@ export async function deleteRessource(id) {
   if (error) throw error;
 }
 
+// === Admins (table dédiée, RLS serveur-side) ===
+
+export async function listAdmins() {
+  const { data, error } = await supabase
+    .from("admins")
+    .select("*")
+    .order("added_at");
+  if (error) throw error;
+  return data;
+}
+
+export async function addAdmin(email, addedBy = null) {
+  const { error } = await supabase
+    .from("admins")
+    .insert({ email: email.toLowerCase().trim(), added_by: addedBy });
+  if (error) throw error;
+}
+
+export async function removeAdmin(email) {
+  const { error } = await supabase
+    .from("admins")
+    .delete()
+    .eq("email", email.toLowerCase().trim());
+  if (error) throw error;
+}
+
 // === Auth (Supabase magic link) ===
 
 export async function getCurrentUser() {

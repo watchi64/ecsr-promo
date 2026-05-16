@@ -7,6 +7,7 @@ import {
   addStagiaire, updateStagiaire, deleteStagiaire,
   addProf, updateProf, deleteProf,
   getSetting, setSetting,
+  listAdmins, addAdmin, removeAdmin,
 } from "../db.js";
 import { el, clear, toast, sha256 } from "../utils.js";
 import { icon } from "../icons.js";
@@ -84,45 +85,37 @@ async function renderSecuritySection(rerender) {
   );
   section.appendChild(identitySection);
 
-  // === Admins autorisés ===
-  const admins = await getAllowedEmails();
+  // === Admins autorisés (table dédiée, RLS serveur) ===
+  const adminsList = await listAdmins();
+  const adminEmails = adminsList.map((a) => a.email.toLowerCase());
   const currentEmail = getAdminEmail();
   const adminBlock = el("div", { class: "param-block" });
   adminBlock.appendChild(el("h4", {}, "Admins autorisés"));
   adminBlock.appendChild(el("p", { class: "muted" },
-    admins.length === 0
-      ? "⚠️ Liste vide → mode ouvert. N'importe qui peut se connecter en admin. Ajoute des emails pour restreindre."
-      : "Seuls ces emails peuvent se connecter en admin (magic link)."
+    adminsList.length === 0
+      ? "⚠️ Liste vide. Personne ne peut se connecter en admin."
+      : "Seuls ces emails peuvent se connecter en admin (magic link). Les écritures sensibles sont vérifiées côté serveur."
   ));
 
-  if (admins.length === 0 && isAdmin()) {
-    const lockBtn = el("button", { class: "btn primary", onClick: async () => {
-      await setSetting("admin_emails", JSON.stringify([currentEmail]));
-      await refreshAllowedEmails();
-      toast("Liste fermée à ton email seul", "success");
-      rerender();
-    }}, icon.lock(), "Fermer aux admins listés (commencer avec mon email)");
-    adminBlock.appendChild(lockBtn);
-  }
-
   const list = el("ul", { class: "admin-list" });
-  admins.forEach((email) => {
+  adminsList.forEach((a) => {
     const item = el("li", { class: "admin-item" },
       icon.mail(),
-      el("span", { class: "admin-email-text" }, email),
-      email === currentEmail ? el("span", { class: "admin-you" }, "vous") : null,
+      el("span", { class: "admin-email-text" }, a.email),
+      a.email === currentEmail ? el("span", { class: "admin-you" }, "vous") : null,
       isAdmin() ? el("button", {
         class: "btn small danger icon-only",
         "aria-label": "Retirer",
         onClick: async () => {
-          if (admins.length === 1 && email === currentEmail) {
-            if (!confirm("Tu es le dernier admin. Te retirer = mode ouvert (n'importe qui pourra se connecter). Continuer ?")) return;
-          } else if (!confirm(`Retirer ${email} de la liste des admins ?`)) return;
-          const next = admins.filter((e) => e !== email);
-          await setSetting("admin_emails", JSON.stringify(next));
-          await refreshAllowedEmails();
-          toast("Email retiré", "success");
-          rerender();
+          if (adminsList.length === 1 && a.email === currentEmail) {
+            if (!confirm("Tu es le dernier admin. Te retirer fermera la porte à toutes les écritures admin (la RLS bloquera tout). Vraiment continuer ?")) return;
+          } else if (!confirm(`Retirer ${a.email} de la liste des admins ?`)) return;
+          try {
+            await removeAdmin(a.email);
+            await refreshAllowedEmails();
+            toast("Email retiré", "success");
+            rerender();
+          } catch (e) { toast(e.message, "error"); }
         }
       }, icon.trash()) : null,
     );
@@ -135,12 +128,14 @@ async function renderSecuritySection(rerender) {
     const addBtn = el("button", { class: "btn accent", onClick: async () => {
       const v = newEmailInput.value.trim().toLowerCase();
       if (!v || !v.includes("@")) { toast("Email invalide", "error"); return; }
-      if (admins.map((e) => e.toLowerCase()).includes(v)) { toast("Email déjà dans la liste", "error"); return; }
-      await setSetting("admin_emails", JSON.stringify([...admins, v]));
-      await refreshAllowedEmails();
-      newEmailInput.value = "";
-      toast("Email ajouté", "success");
-      rerender();
+      if (adminEmails.includes(v)) { toast("Email déjà dans la liste", "error"); return; }
+      try {
+        await addAdmin(v, currentEmail);
+        await refreshAllowedEmails();
+        newEmailInput.value = "";
+        toast("Email ajouté", "success");
+        rerender();
+      } catch (e) { toast(e.message, "error"); }
     }}, icon.plus(), "Autoriser");
     newEmailInput.addEventListener("keydown", (e) => { if (e.key === "Enter") addBtn.click(); });
     adminBlock.appendChild(el("div", { class: "config-add" }, newEmailInput, addBtn));

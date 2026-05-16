@@ -192,8 +192,12 @@ async function navigate() {
     await routes[route](view);
   } catch (e) {
     console.error(e);
-    view.innerHTML = `<p class="error">Erreur : ${e.message}</p>`;
-    toast(e.message, "error");
+    view.innerHTML = "";
+    const errP = document.createElement("p");
+    errP.className = "error";
+    errP.textContent = "Erreur : " + (e?.message || e);
+    view.appendChild(errP);
+    toast(e?.message || String(e), "error");
   }
 }
 
