@@ -67,7 +67,15 @@ export function el(tag, attrs = {}, ...children) {
   }
   for (const c of children.flat()) {
     if (c === null || c === undefined || c === false) continue;
-    node.appendChild(typeof c === "string" ? document.createTextNode(c) : c);
+    // Convertit tout primitif (string, number, boolean true) en TextNode
+    if (typeof c === "string" || typeof c === "number" || typeof c === "boolean") {
+      node.appendChild(document.createTextNode(String(c)));
+    } else if (c instanceof Node) {
+      node.appendChild(c);
+    } else {
+      // Fallback safe : tout autre objet/array imbriqué (déjà flatté par .flat())
+      node.appendChild(document.createTextNode(String(c)));
+    }
   }
   return node;
 }
