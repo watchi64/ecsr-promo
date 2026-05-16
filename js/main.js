@@ -11,6 +11,7 @@ import { renderPlanning } from "./views/planning.js";
 import { renderPassages } from "./views/passages.js";
 import { renderNotes } from "./views/notes.js";
 import { renderRessources } from "./views/ressources.js";
+import { renderThemes } from "./views/themes.js";
 import { renderConfig } from "./views/config.js";
 
 const STORAGE_KEY = "ecsr_auth";
@@ -100,8 +101,9 @@ function showGate(storedHash) {
 const TABS = [
   { route: "dashboard",  label: "Tableau de bord", icon: "dashboard" },
   { route: "planning",   label: "Planning",        icon: "calendar"  },
-  { route: "passages",   label: "Passages",        icon: "list"      },
-  { route: "notes",      label: "Notes",           icon: "chair"     },
+  { route: "themes",     label: "Thèmes",          icon: "list"      },
+  { route: "passages",   label: "Passages",        icon: "chair"     },
+  { route: "notes",      label: "Notes",           icon: "edu"       },
   { route: "ressources", label: "Ressources",      icon: "signpost"  },
   { route: "config",     label: "Config",          icon: "settings"  },
 ];
@@ -127,6 +129,7 @@ function renderTabs() {
 const routes = {
   dashboard:  renderDashboard,
   planning:   renderPlanning,
+  themes:     renderThemes,
   passages:   renderPassages,
   notes:      renderNotes,
   ressources: renderRessources,

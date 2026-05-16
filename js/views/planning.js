@@ -1,5 +1,5 @@
 import {
-  listStagiaires, listProfs, getPlanning,
+  listStagiaires, listProfs, listThemes, getPlanning,
   upsertPlanningEntry, deletePlanningEntryById,
   getSetting, setSetting,
 } from "../db.js";
@@ -9,22 +9,31 @@ import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS } from "../config.js";
 
 let stagiaires = [];
 let profs = [];
-let entries = [];  // tableau de planning_entries (avec id) au lieu d'objet keyed
+let themes = [];
+let entries = [];
 let semaineLundi = null;
 let currentContainer = null;
 
 const debouncedSave = {};
 
 function entriesFor(d, half) {
-  return entries
-    .filter((e) => e.day_index === d && e.half_day === half)
-    .sort((a, b) => a.slot - b.slot);
+  return entries.filter((e) => e.day_index === d && e.half_day === half);
 }
 
-function nextSlotNumber(d, half) {
+// On groupe par "slot" (ordre temporel). Dans chaque slot, plusieurs "lane" (parallèle).
+function rowsFor(d, half) {
   const list = entriesFor(d, half);
-  if (list.length === 0) return 0;
-  return Math.max(...list.map((e) => e.slot)) + 1;
+  const slotsByNumber = new Map();
+  list.forEach((e) => {
+    if (!slotsByNumber.has(e.slot)) slotsByNumber.set(e.slot, []);
+    slotsByNumber.get(e.slot).push(e);
+  });
+  return [...slotsByNumber.entries()]
+    .sort(([a], [b]) => a - b)
+    .map(([slot, items]) => ({
+      slot,
+      lanes: items.sort((a, b) => a.lane - b.lane),
+    }));
 }
 
 async function saveEntry(localId, patch) {
@@ -37,6 +46,7 @@ async function saveEntry(localId, patch) {
     day_index: entry.day_index,
     half_day: entry.half_day,
     slot: entry.slot,
+    lane: entry.lane ?? 0,
     activite: entry.activite ?? null,
     prof_id: entry.prof_id ?? null,
     sujet: entry.sujet ?? null,
@@ -47,13 +57,12 @@ async function saveEntry(localId, patch) {
 
   try {
     await upsertPlanningEntry(payload);
-    // Mise à jour dataset activité sur le slot (pour CSS)
-    const slotEl = document.querySelector(`[data-lid="${localId}"]`);
-    if (slotEl) slotEl.dataset.activite = payload.activite || "";
-    // Si on a changé l'activité, on re-render le slot pour appliquer la nouvelle shape
-    if (patch.activite !== undefined && slotEl) {
-      const newSlot = renderSlot(entry);
-      slotEl.replaceWith(newSlot);
+    const cellEl = document.querySelector(`[data-lid="${localId}"]`);
+    if (cellEl) cellEl.dataset.activite = payload.activite || "";
+    // Si on change l'activité, on re-render la cellule (shape change)
+    if (patch.activite !== undefined && cellEl) {
+      const newCell = renderLaneCell(entry);
+      cellEl.replaceWith(newCell);
     }
   } catch (e) {
     console.error(e);
@@ -61,26 +70,87 @@ async function saveEntry(localId, patch) {
   }
 }
 
-async function addSlot(d, half) {
-  const slot = nextSlotNumber(d, half);
-  const payload = {
-    semaine_lundi: semaineLundi,
-    day_index: d, half_day: half, slot,
-    activite: null, prof_id: null, sujet: null, pedagogue_id: null, eleves_ids: [], notes: null,
-  };
-  try {
+async function addSlotAfter(d, half, afterSlot) {
+  // Décale les slots suivants pour insérer juste après
+  const list = entriesFor(d, half);
+  const toShift = list.filter((e) => e.slot > afterSlot);
+  // Pour éviter conflits unique : shift en deux temps via slot temporaire
+  for (const e of toShift) {
+    const payload = {
+      semaine_lundi: e.semaine_lundi, day_index: e.day_index,
+      half_day: e.half_day, slot: e.slot + 1000, lane: e.lane,
+      activite: e.activite, prof_id: e.prof_id, sujet: e.sujet,
+      pedagogue_id: e.pedagogue_id, eleves_ids: e.eleves_ids, notes: e.notes,
+    };
+    // Insertion à nouvelle position
     await upsertPlanningEntry(payload);
-    // Recharge pour récupérer l'id généré
+    // Delete ancien
+    if (e.id) await deletePlanningEntryById(e.id);
+  }
+  // Renomme les slot temp
+  for (const e of toShift) {
+    const newSlot = e.slot + 1;  // anciennement slot+1000, on veut +1 par rapport à l'original
+    // ré-upsert
+    const payload = {
+      semaine_lundi: e.semaine_lundi, day_index: e.day_index,
+      half_day: e.half_day, slot: newSlot, lane: e.lane,
+      activite: e.activite, prof_id: e.prof_id, sujet: e.sujet,
+      pedagogue_id: e.pedagogue_id, eleves_ids: e.eleves_ids, notes: e.notes,
+    };
+    await upsertPlanningEntry(payload);
+    // Supprime version temp
+    await deletePlanningEntryById(undefined); // skip, géré au reload
+  }
+  // Nouveau slot
+  await upsertPlanningEntry({
+    semaine_lundi: semaineLundi, day_index: d, half_day: half,
+    slot: afterSlot + 1, lane: 0,
+    activite: null, prof_id: null, sujet: null,
+    pedagogue_id: null, eleves_ids: [], notes: null,
+  });
+  await loadPlanning();
+  renderInto(currentContainer);
+}
+
+// Version simplifiée : ajoute en fin de séquence (la plupart des cas)
+async function addSlotEnd(d, half) {
+  const list = entriesFor(d, half);
+  const nextSlot = list.length === 0 ? 0 : Math.max(...list.map((e) => e.slot)) + 1;
+  try {
+    await upsertPlanningEntry({
+      semaine_lundi: semaineLundi, day_index: d, half_day: half,
+      slot: nextSlot, lane: 0,
+      activite: null, prof_id: null, sujet: null,
+      pedagogue_id: null, eleves_ids: [], notes: null,
+    });
     await loadPlanning();
     renderInto(currentContainer);
   } catch (e) {
     console.error(e);
-    toast("Erreur création slot", "error");
+    toast("Erreur création créneau", "error");
   }
 }
 
-async function deleteSlot(entry) {
-  // Empêche de supprimer s'il ne reste qu'un seul slot pour cette demi-journée
+async function addLaneInSlot(d, half, slot) {
+  const lanesInSlot = entries.filter((e) => e.day_index === d && e.half_day === half && e.slot === slot);
+  const nextLane = lanesInSlot.length === 0 ? 0 : Math.max(...lanesInSlot.map((e) => e.lane)) + 1;
+  try {
+    await upsertPlanningEntry({
+      semaine_lundi: semaineLundi, day_index: d, half_day: half,
+      slot, lane: nextLane,
+      activite: null, prof_id: null, sujet: null,
+      pedagogue_id: null, eleves_ids: [], notes: null,
+    });
+    await loadPlanning();
+    renderInto(currentContainer);
+  } catch (e) {
+    console.error(e);
+    toast("Erreur création parallèle", "error");
+  }
+}
+
+async function deleteCell(entry) {
+  // Empêche de supprimer s'il ne reste qu'une cellule pour cette demi-journée
   const list = entriesFor(entry.day_index, entry.half_day);
   if (list.length <= 1) {
     toast("Au moins une activité par demi-journée", "error");
@@ -97,7 +167,7 @@ async function deleteSlot(entry) {
   }
 }
 
-// === Composants de saisie ===
+// === Composants ===
 
 function selectFromList(items, currentVal, onChange, placeholder = "—") {
   const sel = el("select");
@@ -115,7 +185,6 @@ function chipsSelect(allStagiaires, currentIds, onChange) {
   const wrap = el("div", { class: "chips-select" });
   const display = el("div", { class: "chips-display", tabindex: "0" });
   const dropdown = el("div", { class: "chips-dropdown hidden" });
-
   let selected = [...(currentIds || [])];
 
   function render() {
@@ -169,22 +238,92 @@ function chipsSelect(allStagiaires, currentIds, onChange) {
   return wrap;
 }
 
-// === Render slot (dynamique selon activité) ===
+// Autocomplete Sujet/Thème — input texte avec suggestions issues de la table themes
+function sujetAutocomplete(currentValue, onChange) {
+  const wrap = el("div", { class: "sujet-ac" });
+  const input = el("input", { type: "text", placeholder: "Sujet / thème…", value: currentValue || "" });
+  const dropdown = el("div", { class: "sujet-ac-dropdown hidden" });
 
-function renderSlot(entry) {
+  function renderSuggestions(query) {
+    clear(dropdown);
+    const q = query.trim().toLowerCase();
+    let matches = themes;
+    if (q) {
+      matches = themes.filter((t) => {
+        const numStr = t.numero != null ? String(t.numero) : "";
+        return t.titre.toLowerCase().includes(q)
+            || numStr.includes(q)
+            || (t.categorie || "").toLowerCase().includes(q);
+      });
+    }
+    matches = matches.slice(0, 12);
+    if (matches.length === 0) {
+      dropdown.appendChild(el("div", { class: "sujet-ac-empty muted" }, "Aucun thème — saisis ton propre sujet"));
+      return;
+    }
+    matches.forEach((t) => {
+      const item = el("div", { class: "sujet-ac-item " + t.type });
+      if (t.numero != null) {
+        item.appendChild(el("span", { class: "sujet-ac-num" }, String(t.numero).padStart(2, "0")));
+      } else {
+        item.appendChild(el("span", { class: "sujet-ac-num notion" }, "·"));
+      }
+      item.appendChild(el("span", { class: "sujet-ac-titre" }, t.titre));
+      item.appendChild(el("span", { class: "sujet-ac-cat muted" }, t.categorie || ""));
+      item.addEventListener("mousedown", (ev) => {
+        ev.preventDefault();  // évite que blur ferme avant le click
+        input.value = t.titre;
+        dropdown.classList.add("hidden");
+        onChange(t.titre);
+      });
+      dropdown.appendChild(item);
+    });
+  }
+
+  input.addEventListener("focus", () => {
+    renderSuggestions(input.value);
+    dropdown.classList.remove("hidden");
+  });
+  input.addEventListener("blur", () => {
+    setTimeout(() => dropdown.classList.add("hidden"), 150);
+  });
+  input.addEventListener("input", () => {
+    renderSuggestions(input.value);
+    debouncedSujetSave(onChange, input.value);
+  });
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") { dropdown.classList.add("hidden"); input.blur(); }
+  });
+
+  wrap.appendChild(input);
+  wrap.appendChild(dropdown);
+  return wrap;
+}
+
+const _sujetDebouncers = new WeakMap();
+function debouncedSujetSave(onChange, val) {
+  if (!_sujetDebouncers.has(onChange)) {
+    _sujetDebouncers.set(onChange, debounce((v) => onChange(v), 500));
+  }
+  _sujetDebouncers.get(onChange)(val);
+}
+
+// === Rendu d'une cellule (un lane d'un slot) ===
+
+function renderLaneCell(entry) {
   const lid = entry._lid;
-  const slotEl = el("div", {
-    class: "p-slot",
+  const cell = el("div", {
+    class: "p-lane-cell",
     dataset: { lid, activite: entry.activite || "" }
   });
 
-  // Marker (toujours visible)
-  slotEl.appendChild(el("div", { class: "p-slot-marker" }, "•"));
-
   const shape = ACTIVITY_SHAPES[entry.activite || ""] || ACTIVITY_SHAPES[""];
 
-  // Activité (toujours présente — sinon comment changer ?)
-  slotEl.appendChild(el("div", { class: "p-cell p-cell-activite" },
+  const rows = el("div", { class: "p-lane-rows" });
+
+  // Ligne 1 : Activité + Prof + trash
+  const r1 = el("div", { class: "p-lane-row" });
+  r1.appendChild(el("div", { class: "p-lane-field activite-field" },
     selectFromList(
       ACTIVITES.map((a) => ({ value: a, label: a })),
       entry.activite,
@@ -192,10 +331,8 @@ function renderSlot(entry) {
       "Choisir activité…"
     )
   ));
-
-  // Prof
   if (shape.includes("prof")) {
-    slotEl.appendChild(el("div", { class: "p-cell" },
+    r1.appendChild(el("div", { class: "p-lane-field prof-field" },
       selectFromList(
         profs.map((p) => ({ value: p.id, label: p.nom })),
         entry.prof_id,
@@ -204,40 +341,48 @@ function renderSlot(entry) {
       )
     ));
   }
+  const trashBtn = el("button", {
+    class: "p-lane-delete", "aria-label": "Supprimer",
+    onClick: () => deleteCell(entry)
+  });
+  trashBtn.appendChild(icon.trash());
+  r1.appendChild(trashBtn);
+  rows.appendChild(r1);
 
-  // Sujet
+  // Ligne 2 : Sujet (autocomplete)
   if (shape.includes("sujet")) {
-    const sujetInput = el("input", { type: "text", placeholder: "Sujet / thème", value: entry.sujet || "" });
-    const key = lid + "-sujet";
-    if (!debouncedSave[key]) {
-      debouncedSave[key] = debounce((v) => saveEntry(lid, { sujet: v }), 500);
-    }
-    sujetInput.addEventListener("input", () => debouncedSave[key](sujetInput.value));
-    slotEl.appendChild(el("div", { class: "p-cell" }, sujetInput));
+    const sujetWrap = sujetAutocomplete(entry.sujet, (v) => saveEntry(lid, { sujet: v }));
+    rows.appendChild(el("div", { class: "p-lane-row" },
+      el("div", { class: "p-lane-field full" }, sujetWrap)
+    ));
   }
 
-  // Pédagogue (uniquement si shape l'inclut)
+  // Ligne 3 : Pédagogue (si applicable)
   if (shape.includes("pedagogue")) {
-    slotEl.appendChild(el("div", { class: "p-cell pedagogue-cell" },
-      selectFromList(
-        stagiaires.map((s) => ({ value: s.id, label: s.prenom })),
-        entry.pedagogue_id,
-        (v) => saveEntry(lid, { pedagogue_id: v ? Number(v) : null }),
-        "Au tableau…"
+    rows.appendChild(el("div", { class: "p-lane-row" },
+      el("div", { class: "p-lane-field full pedagogue-cell" },
+        selectFromList(
+          stagiaires.map((s) => ({ value: s.id, label: s.prenom })),
+          entry.pedagogue_id,
+          (v) => saveEntry(lid, { pedagogue_id: v ? Number(v) : null }),
+          "Au tableau…"
+        )
       )
     ));
   }
 
-  // Élèves (uniquement si shape l'inclut)
+  // Ligne 4 : Élèves (si applicable)
   if (shape.includes("eleves")) {
-    slotEl.appendChild(el("div", { class: "p-cell" },
-      chipsSelect(stagiaires, entry.eleves_ids || [], (ids) => {
-        saveEntry(lid, { eleves_ids: ids });
-      })
+    rows.appendChild(el("div", { class: "p-lane-row" },
+      el("div", { class: "p-lane-field full" },
+        chipsSelect(stagiaires, entry.eleves_ids || [], (ids) => {
+          saveEntry(lid, { eleves_ids: ids });
+        })
+      )
     ));
   }
 
-  // Notes
+  // Ligne 5 : Notes
   if (shape.includes("notes")) {
     const notesInput = el("input", { type: "text", placeholder: "Notes", value: entry.notes || "" });
     const key = lid + "-notes";
@@ -245,24 +390,48 @@ function renderSlot(entry) {
       debouncedSave[key] = debounce((v) => saveEntry(lid, { notes: v }), 500);
     }
     notesInput.addEventListener("input", () => debouncedSave[key](notesInput.value));
-    slotEl.appendChild(el("div", { class: "p-cell" }, notesInput));
+    rows.appendChild(el("div", { class: "p-lane-row" },
+      el("div", { class: "p-lane-field full" }, notesInput)
+    ));
   }
 
-  // Trash
-  const trashBtn = el("button", {
-    class: "p-slot-delete", "aria-label": "Supprimer ce créneau",
-    onClick: () => deleteSlot(entry)
-  });
-  trashBtn.appendChild(icon.trash());
-  slotEl.appendChild(trashBtn);
+  cell.appendChild(rows);
+  return cell;
+}
 
+// === Rendu d'un slot (rangée = série, contient N lanes en parallèle) ===
+
+function renderSlotRow(d, half, row) {
+  const slotEl = el("div", { class: "p-slot-row" });
+
+  // Marqueur du slot
+  slotEl.appendChild(el("div", { class: "p-slot-marker" },
+    el("span", { class: "p-slot-num" }, String(row.slot + 1))
+  ));
+
+  // Lanes
+  const lanes = el("div", { class: "p-lanes" });
+  row.lanes.forEach((entry) => {
+    lanes.appendChild(renderLaneCell(entry));
+  });
+
+  // Bouton "+ Parallèle" à la fin des lanes
+  const addParBtn = el("button", {
+    class: "p-add-parallele",
+    title: "Ajouter une activité en parallèle (même créneau horaire)",
+    onClick: () => addLaneInSlot(d, half, row.slot)
+  });
+  addParBtn.appendChild(icon.plus());
+  addParBtn.appendChild(el("span", { class: "label" }, "Parallèle"));
+  lanes.appendChild(addParBtn);
+
+  slotEl.appendChild(lanes);
   return slotEl;
 }
 
 function renderDayCard(d, monday) {
   const date = addDays(monday, d);
   const card = el("article", { class: "p-day-card" });
-
   card.appendChild(el("div", { class: "p-day-head" },
     el("span", { class: "p-day-name" }, JOURS[d]),
     el("span", { class: "p-day-date" }, formatDayShort(date)),
@@ -274,24 +443,26 @@ function renderDayCard(d, monday) {
       el("span", { class: "p-half-tag " + half.key }, half.short),
       el("span", { class: "p-half-hours" }, half.label),
     ));
-    const slots = el("div", { class: "p-slots" });
-    const list = entriesFor(d, half.key);
-    list.forEach((entry) => slots.appendChild(renderSlot(entry)));
 
-    // Bouton + Ajouter un créneau
-    const addBtn = el("button", { class: "p-add-slot", onClick: () => addSlot(d, half.key) });
-    addBtn.appendChild(icon.plus());
-    addBtn.appendChild(document.createTextNode("Ajouter un créneau"));
-    slots.appendChild(addBtn);
+    const slotsWrap = el("div", { class: "p-slots-wrap" });
+    const rows = rowsFor(d, half.key);
+    rows.forEach((row) => slotsWrap.appendChild(renderSlotRow(d, half.key, row)));
 
-    section.appendChild(slots);
+    // Bouton "+ À la suite" (ajoute un nouveau slot après le dernier)
+    const addSuiteBtn = el("button", {
+      class: "p-add-suite",
+      title: "Ajouter un créneau à la suite (après dans le temps)",
+      onClick: () => addSlotEnd(d, half.key),
+    });
+    addSuiteBtn.appendChild(icon.plus());
+    addSuiteBtn.appendChild(document.createTextNode("Ajouter un créneau à la suite"));
+    slotsWrap.appendChild(addSuiteBtn);
+
+    section.appendChild(slotsWrap);
     card.appendChild(section);
   });
-
   return card;
 }
-
-// === Charge & assure le minimum de slots (1 matin + 1 aprem par jour) ===
 
 async function ensureMinimumSlots() {
   const toCreate = [];
@@ -299,8 +470,10 @@ async function ensureMinimumSlots() {
     for (const half of HALF_DAYS) {
       if (entriesFor(d, half.key).length === 0) {
         toCreate.push({
-          semaine_lundi: semaineLundi, day_index: d, half_day: half.key, slot: 0,
-          activite: null, prof_id: null, sujet: null, pedagogue_id: null, eleves_ids: [], notes: null,
+          semaine_lundi: semaineLundi, day_index: d, half_day: half.key,
+          slot: 0, lane: 0,
+          activite: null, prof_id: null, sujet: null,
+          pedagogue_id: null, eleves_ids: [], notes: null,
         });
       }
     }
@@ -326,8 +499,6 @@ async function changeWeek(dateStr) {
   renderInto(currentContainer);
 }
 
-// === Render principal ===
-
 function renderInto(container) {
   currentContainer = container;
   clear(container);
@@ -339,11 +510,11 @@ function renderInto(container) {
     el("div", { class: "view-header-text" },
       el("p", { class: "eyebrow" }, "Édition · Semaine du " + longLabel),
       el("h2", {}, "Planning de la semaine"),
-      el("p", { class: "subtitle" }, "Au moins une activité par demi-journée. Ajoute des créneaux en parallèle si besoin. Tout s'enregistre automatiquement."),
+      el("p", { class: "subtitle" }, "Ajoute des créneaux à la suite (dans le temps) ou en parallèle (même horaire). Le champ Sujet propose les 57 thèmes et notions pédagogiques."),
     ),
   ));
 
-  // Toolbar : semaine + actions
+  // Toolbar semaine
   const prevBtn = el("button", { class: "btn small icon-only", "aria-label": "Semaine précédente",
     onClick: () => changeWeek(isoDate(addDays(monday, -7))) });
   prevBtn.appendChild(icon.chevronLeft());
@@ -368,29 +539,21 @@ function renderInto(container) {
 
   container.appendChild(el("div", { class: "week-bar" },
     el("span", { class: "week-bar-label" }, "Semaine du"),
-    dateInput,
-    prevBtn,
-    nextBtn,
-    todayBtn,
+    dateInput, prevBtn, nextBtn, todayBtn,
     el("span", { style: "flex:1" }),
     printBtn,
   ));
 
-  // Cards
   const wrap = el("div", { class: "p-days" });
   JOURS.forEach((_, d) => wrap.appendChild(renderDayCard(d, monday)));
   container.appendChild(wrap);
 
   container.appendChild(el("div", { class: "planning-helper" },
-    el("strong", {}, "Activités modulables"), " — clic sur ", el("span", { style: "color:var(--accent);font-weight:600" }, "+"),
-    " pour ajouter un créneau en parallèle, ",
-    el("span", { style: "color:var(--c-stop)" }, "🗑"),
-    " pour en retirer un (min. 1 par demi-journée). ",
-    "Les colonnes « Au tableau » et « Élèves » apparaissent automatiquement quand tu sélectionnes Pédagogie salle ou Voiture."
+    el("strong", {}, "À la suite "), "↓ = nouveau créneau dans le temps (après celui qui précède). ",
+    el("strong", {}, "Parallèle "), "→ = autre activité au même horaire (ex: voiture qui tourne pendant un cours). ",
+    "Au moins 1 créneau par demi-journée. Min. 1 lane (rangée) → bouton « Parallèle » l'étoffe."
   ));
 }
-
-// === Export print ===
 
 function printPlanning() {
   document.body.classList.add("printing-planning");
@@ -402,7 +565,9 @@ export async function renderPlanning(container) {
   clear(container);
   container.appendChild(el("div", { class: "loading" }, "Chargement"));
 
-  [stagiaires, profs] = await Promise.all([listStagiaires(), listProfs()]);
+  [stagiaires, profs, themes] = await Promise.all([
+    listStagiaires(), listProfs(), listThemes(),
+  ]);
   semaineLundi = (await getSetting("current_week_lundi")) || isoDate(getMonday(new Date()));
   await loadPlanning();
   await ensureMinimumSlots();

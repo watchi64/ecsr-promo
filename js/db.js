@@ -119,18 +119,19 @@ export async function getPlanning(semaine_lundi) {
 }
 
 export async function upsertPlanningEntry(entry) {
-  // entry must have semaine_lundi, day_index, half_day, slot + champs à mettre à jour
+  // entry doit contenir semaine_lundi, day_index, half_day, slot, lane + champs
+  if (entry.lane == null) entry.lane = 0;
   const { error } = await supabase
     .from("planning_entries")
-    .upsert(entry, { onConflict: "semaine_lundi,day_index,half_day,slot" });
+    .upsert(entry, { onConflict: "semaine_lundi,day_index,half_day,slot,lane" });
   if (error) throw error;
 }
 
-export async function deletePlanningEntry(semaine_lundi, day_index, half_day, slot) {
+export async function deletePlanningEntry(semaine_lundi, day_index, half_day, slot, lane = 0) {
   const { error } = await supabase
     .from("planning_entries")
     .delete()
-    .match({ semaine_lundi, day_index, half_day, slot });
+    .match({ semaine_lundi, day_index, half_day, slot, lane });
   if (error) throw error;
 }
 
@@ -171,6 +172,33 @@ export async function setSetting(key, value) {
   const { error } = await supabase
     .from("settings")
     .upsert({ key, value, updated_at: new Date().toISOString() });
+  if (error) throw error;
+}
+
+// === Thèmes (57 + notions pédagogiques) ===
+
+export async function listThemes() {
+  const { data, error } = await supabase
+    .from("themes")
+    .select("*")
+    .order("type")    // theme avant notion
+    .order("ordre");
+  if (error) throw error;
+  return data;
+}
+
+export async function updateTheme(id, patch) {
+  const { error } = await supabase.from("themes").update(patch).eq("id", id);
+  if (error) throw error;
+}
+
+export async function addTheme(t) {
+  const { error } = await supabase.from("themes").insert(t);
+  if (error) throw error;
+}
+
+export async function deleteTheme(id) {
+  const { error } = await supabase.from("themes").delete().eq("id", id);
   if (error) throw error;
 }
 
