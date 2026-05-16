@@ -1,6 +1,7 @@
 import {
   listStagiaires, listProfs, listThemes, getPlanning,
   upsertPlanningEntry, deletePlanningEntryById,
+  getHalfMetaForWeek, upsertHalfMeta,
   getSetting, setSetting,
 } from "../db.js";
 import { el, clear, isoDate, getMonday, addDays, formatDayShort, debounce, toast } from "../utils.js";
@@ -11,8 +12,38 @@ let stagiaires = [];
 let profs = [];
 let themes = [];
 let entries = [];
+let halfMetas = [];  // [{semaine_lundi, day_index, half_day, start_time, end_time, pause_start, pause_minutes}]
 let semaineLundi = null;
 let currentContainer = null;
+
+// Défauts horaires si pas de meta en DB
+const DEFAULT_HALF_META = {
+  matin: { start_time: "09:00", end_time: "12:30", pause_start: "10:45", pause_minutes: 20 },
+  aprem: { start_time: "13:30", end_time: "17:00", pause_start: "15:15", pause_minutes: 20 },
+};
+
+function metaFor(d, half) {
+  return halfMetas.find((m) => m.day_index === d && m.half_day === half)
+      || { day_index: d, half_day: half, ...DEFAULT_HALF_META[half] };
+}
+
+function timesLabel(meta) {
+  return `${meta.start_time.replace(":", "h")} — ${meta.end_time.replace(":", "h")}`;
+}
+
+function pauseLabel(meta) {
+  if (!meta.pause_start) return null;
+  const end = addMinutes(meta.pause_start, meta.pause_minutes);
+  return `Pause ${meta.pause_start.replace(":", "h")}-${end.replace(":", "h")}`;
+}
+
+function addMinutes(timeStr, mins) {
+  const [h, m] = timeStr.split(":").map(Number);
+  const total = h * 60 + m + mins;
+  const hh = Math.floor(total / 60).toString().padStart(2, "0");
+  const mm = (total % 60).toString().padStart(2, "0");
+  return `${hh}:${mm}`;
+}
 
 const debouncedSave = {};
 
@@ -415,14 +446,13 @@ function renderSlotRow(d, half, row) {
     lanes.appendChild(renderLaneCell(entry));
   });
 
-  // Bouton "+ Parallèle" à la fin des lanes
+  // Mini bouton "+" pour ajouter en parallèle (compact, vertical)
   const addParBtn = el("button", {
-    class: "p-add-parallele",
-    title: "Ajouter une activité en parallèle (même créneau horaire)",
+    class: "p-add-parallele-mini",
+    title: "Ajouter une activité en parallèle (même horaire)",
     onClick: () => addLaneInSlot(d, half, row.slot)
   });
   addParBtn.appendChild(icon.plus());
-  addParBtn.appendChild(el("span", { class: "label" }, "Parallèle"));
   lanes.appendChild(addParBtn);
 
   slotEl.appendChild(lanes);
@@ -438,24 +468,38 @@ function renderDayCard(d, monday) {
   ));
 
   HALF_DAYS.forEach((half) => {
+    const meta = metaFor(d, half.key);
+    const pauseLbl = pauseLabel(meta);
+
     const section = el("div", { class: "p-half " + half.key });
-    section.appendChild(el("div", { class: "p-half-head" },
-      el("span", { class: "p-half-tag " + half.key }, half.short),
-      el("span", { class: "p-half-hours" }, half.label),
-    ));
+
+    // Header cliquable
+    const headBtn = el("button", {
+      class: "p-half-head editable",
+      title: "Modifier les horaires et la pause",
+      onClick: () => openHalfMetaEditor(d, half.key, headBtn),
+    });
+    headBtn.appendChild(el("span", { class: "p-half-tag " + half.key }, half.short));
+    headBtn.appendChild(el("span", { class: "p-half-hours" }, timesLabel(meta)));
+    if (pauseLbl) {
+      headBtn.appendChild(el("span", { class: "p-half-pause" },
+        el("span", { class: "pause-dot" }), pauseLbl
+      ));
+    }
+    section.appendChild(headBtn);
 
     const slotsWrap = el("div", { class: "p-slots-wrap" });
     const rows = rowsFor(d, half.key);
     rows.forEach((row) => slotsWrap.appendChild(renderSlotRow(d, half.key, row)));
 
-    // Bouton "+ À la suite" (ajoute un nouveau slot après le dernier)
+    // Bouton "+ À la suite"
     const addSuiteBtn = el("button", {
       class: "p-add-suite",
-      title: "Ajouter un créneau à la suite (après dans le temps)",
+      title: "Ajouter un créneau à la suite",
       onClick: () => addSlotEnd(d, half.key),
     });
     addSuiteBtn.appendChild(icon.plus());
-    addSuiteBtn.appendChild(document.createTextNode("Ajouter un créneau à la suite"));
+    addSuiteBtn.appendChild(document.createTextNode("À la suite"));
     slotsWrap.appendChild(addSuiteBtn);
 
     section.appendChild(slotsWrap);
@@ -486,9 +530,87 @@ async function ensureMinimumSlots() {
 }
 
 async function loadPlanning() {
-  const data = await getPlanning(semaineLundi);
+  const [data, metas] = await Promise.all([
+    getPlanning(semaineLundi),
+    getHalfMetaForWeek(semaineLundi),
+  ]);
   let counter = 0;
   entries = data.map((row) => ({ ...row, _lid: "lid-" + (++counter) }));
+  halfMetas = metas;
+}
+
+async function saveHalfMeta(d, half, patch) {
+  const existing = metaFor(d, half);
+  const merged = { ...existing, ...patch };
+  const payload = {
+    semaine_lundi: semaineLundi,
+    day_index: d,
+    half_day: half,
+    start_time: merged.start_time,
+    end_time: merged.end_time,
+    pause_start: merged.pause_start || null,
+    pause_minutes: merged.pause_minutes ?? 20,
+  };
+  try {
+    await upsertHalfMeta(payload);
+    // Met à jour le cache local
+    const idx = halfMetas.findIndex((m) => m.day_index === d && m.half_day === half);
+    if (idx >= 0) Object.assign(halfMetas[idx], payload);
+    else halfMetas.push(payload);
+    renderInto(currentContainer);
+  } catch (e) {
+    console.error(e);
+    toast("Erreur sauvegarde horaires", "error");
+  }
+}
+
+function openHalfMetaEditor(d, half, anchorEl) {
+  const meta = metaFor(d, half);
+  const backdrop = el("div", { class: "modal-backdrop" });
+
+  const startInput = el("input", { type: "time", value: meta.start_time });
+  const endInput = el("input", { type: "time", value: meta.end_time });
+  const pauseInput = el("input", { type: "time", value: meta.pause_start || "" });
+  const pauseMinInput = el("input", { type: "number", min: 0, max: 60, value: meta.pause_minutes || 20 });
+
+  const halfLabel = half === "matin" ? "matin" : "après-midi";
+
+  async function save() {
+    await saveHalfMeta(d, half, {
+      start_time: startInput.value || (half === "matin" ? "09:00" : "13:30"),
+      end_time: endInput.value || (half === "matin" ? "12:30" : "17:00"),
+      pause_start: pauseInput.value || null,
+      pause_minutes: Number(pauseMinInput.value) || 20,
+    });
+    backdrop.remove();
+  }
+
+  async function clearPause() {
+    pauseInput.value = "";
+  }
+
+  const modal = el("div", { class: "modal" },
+    el("h3", {}, `Horaires — ${JOURS[d].toLowerCase()} ${halfLabel}`),
+    el("div", { class: "modal-form" },
+      el("div", { style: "display:grid;grid-template-columns:1fr 1fr;gap:0.6rem" },
+        el("div", { class: "field" }, el("label", {}, "Début"), startInput),
+        el("div", { class: "field" }, el("label", {}, "Fin"),   endInput),
+      ),
+      el("hr", { style: "border:none;border-top:1px solid var(--line);margin:0.25rem 0" }),
+      el("p", { class: "muted", style: "margin:0;font-size:0.82rem" }, "Pause (laisser vide = pas de pause)"),
+      el("div", { style: "display:grid;grid-template-columns:1fr 100px;gap:0.6rem" },
+        el("div", { class: "field" }, el("label", {}, "Début pause"), pauseInput),
+        el("div", { class: "field" }, el("label", {}, "Durée (min)"), pauseMinInput),
+      ),
+    ),
+    el("div", { class: "modal-actions" },
+      el("button", { class: "btn ghost", onClick: () => backdrop.remove() }, "Annuler"),
+      el("button", { class: "btn primary", onClick: save }, icon.check(), "Enregistrer"),
+    )
+  );
+  backdrop.appendChild(modal);
+  backdrop.addEventListener("click", (e) => { if (e.target === backdrop) backdrop.remove(); });
+  document.body.appendChild(backdrop);
 }
 
 async function changeWeek(dateStr) {
@@ -555,10 +677,146 @@ function renderInto(container) {
   ));
 }
 
+// === Rendu print 1 page (DOM dédié, compact, vide masqué) ===
+
+function nonEmpty(v) {
+  return v != null && String(v).trim() !== "";
+}
+
+function lookupProf(id) { return profs.find((p) => p.id === id)?.nom || ""; }
+function lookupStagiaire(id) { return stagiaires.find((s) => s.id === id)?.prenom || ""; }
+
+function entryHasContent(e) {
+  return nonEmpty(e.activite) || nonEmpty(e.sujet) || nonEmpty(e.notes)
+      || e.prof_id || e.pedagogue_id || (e.eleves_ids && e.eleves_ids.length);
+}
+
+function printEntryCell(e) {
+  const cell = el("div", { class: "pp-cell", dataset: { activite: e.activite || "" } });
+
+  // Ligne titre : activité + prof
+  const header = el("div", { class: "pp-cell-head" });
+  if (nonEmpty(e.activite)) {
+    header.appendChild(el("span", { class: "pp-act" }, e.activite));
+  } else {
+    header.appendChild(el("span", { class: "pp-act muted" }, "—"));
+  }
+  if (e.prof_id) {
+    header.appendChild(el("span", { class: "pp-prof" }, lookupProf(e.prof_id)));
+  }
+  cell.appendChild(header);
+
+  // Sujet
+  if (nonEmpty(e.sujet)) {
+    cell.appendChild(el("div", { class: "pp-sujet" }, e.sujet));
+  }
+
+  // Pédagogue (Au tableau)
+  if (e.pedagogue_id) {
+    cell.appendChild(el("div", { class: "pp-line" },
+      el("span", { class: "pp-key" }, "Au tableau : "),
+      el("span", { class: "pp-val" }, lookupStagiaire(e.pedagogue_id))
+    ));
+  }
+
+  // Élèves
+  if (e.eleves_ids && e.eleves_ids.length) {
+    cell.appendChild(el("div", { class: "pp-line" },
+      el("span", { class: "pp-key" }, "Élèves : "),
+      el("span", { class: "pp-val" }, e.eleves_ids.map(lookupStagiaire).filter(Boolean).join(", "))
+    ));
+  }
+
+  // Notes
+  if (nonEmpty(e.notes)) {
+    cell.appendChild(el("div", { class: "pp-line pp-notes" }, e.notes));
+  }
+
+  return cell;
+}
+
+function buildPrintHtml(monday) {
+  const root = el("div", { class: "print-root" });
+
+  // En-tête
+  const semaineLabel = monday.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
+  root.appendChild(el("div", { class: "pp-header" },
+    el("div", { class: "pp-title" }, "Planning de la semaine"),
+    el("div", { class: "pp-week" }, "Semaine du " + semaineLabel),
+  ));
+
+  // Grille 5 jours × 2 demi-journées
+  const grid = el("div", { class: "pp-grid" });
+
+  JOURS.forEach((jour, d) => {
+    const date = addDays(monday, d);
+    const dayCol = el("div", { class: "pp-day" });
+
+    dayCol.appendChild(el("div", { class: "pp-day-head" },
+      el("span", { class: "pp-day-name" }, jour),
+      el("span", { class: "pp-day-date" }, formatDayShort(date)),
+    ));
+
+    HALF_DAYS.forEach((half) => {
+      const meta = metaFor(d, half.key);
+      const pauseLbl = pauseLabel(meta);
+
+      const halfBlock = el("div", { class: "pp-half " + half.key });
+
+      // Header demi-journée
+      const head = el("div", { class: "pp-half-head" });
+      head.appendChild(el("span", { class: "pp-half-tag " + half.key }, half.short.slice(0, 3).toUpperCase()));
+      head.appendChild(el("span", { class: "pp-half-hours" }, timesLabel(meta)));
+      if (pauseLbl) head.appendChild(el("span", { class: "pp-half-pause" }, "· " + pauseLbl));
+      halfBlock.appendChild(head);
+
+      // Slots non vides
+      const rows = rowsFor(d, half.key)
+        .map((row) => ({
+          slot: row.slot,
+          lanes: row.lanes.filter(entryHasContent),
+        }))
+        .filter((row) => row.lanes.length > 0);
+
+      if (rows.length === 0) {
+        halfBlock.appendChild(el("div", { class: "pp-empty" }, "—"));
+      } else {
+        rows.forEach((row) => {
+          const rowEl = el("div", { class: "pp-row" });
+          row.lanes.forEach((e) => rowEl.appendChild(printEntryCell(e)));
+          halfBlock.appendChild(rowEl);
+        });
+      }
+
+      dayCol.appendChild(halfBlock);
+    });
+
+    grid.appendChild(dayCol);
+  });
+
+  root.appendChild(grid);
+
+  // Footer
+  root.appendChild(el("div", { class: "pp-footer" }, "Promo ECSR — généré le " + new Date().toLocaleDateString("fr-FR")));
+
+  return root;
+}
+
 function printPlanning() {
+  const monday = new Date(semaineLundi + "T00:00:00");
+  const printContainer = document.createElement("div");
+  printContainer.id = "print-container";
+  printContainer.appendChild(buildPrintHtml(monday));
+  document.body.appendChild(printContainer);
   document.body.classList.add("printing-planning");
-  window.print();
-  setTimeout(() => document.body.classList.remove("printing-planning"), 500);
+
+  setTimeout(() => {
+    window.print();
+    setTimeout(() => {
+      document.body.classList.remove("printing-planning");
+      printContainer.remove();
+    }, 500);
+  }, 100);
 }
 
 export async function renderPlanning(container) {

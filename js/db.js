@@ -140,6 +140,24 @@ export async function deletePlanningEntryById(id) {
   if (error) throw error;
 }
 
+// === Planning half-day metadata (horaires + pause) ===
+
+export async function getHalfMetaForWeek(semaine_lundi) {
+  const { data, error } = await supabase
+    .from("planning_half_meta")
+    .select("*")
+    .eq("semaine_lundi", semaine_lundi);
+  if (error) throw error;
+  return data;
+}
+
+export async function upsertHalfMeta(meta) {
+  const { error } = await supabase
+    .from("planning_half_meta")
+    .upsert(meta, { onConflict: "semaine_lundi,day_index,half_day" });
+  if (error) throw error;
+}
+
 // Pédagogues du planning courant (pour ajouter au compteur Tableau de bord)
 export async function getPedagogueCountsFromPlanning(semaine_lundi) {
   const { data, error } = await supabase
