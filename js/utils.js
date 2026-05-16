@@ -1,8 +1,13 @@
 // === Date helpers ===
 
 export function isoDate(d) {
+  // Format YYYY-MM-DD en heure LOCALE (pas UTC).
+  // Évite le bug timezone qui décalait d'un jour en arrière en France (UTC+1/+2).
   if (!(d instanceof Date)) d = new Date(d);
-  return d.toISOString().slice(0, 10);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
 }
 
 export function parseDate(str) {
