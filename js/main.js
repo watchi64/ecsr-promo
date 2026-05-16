@@ -106,7 +106,7 @@ const TABS = [
   { route: "passages",   label: "Passages",        icon: "chair"     },
   { route: "notes",      label: "Notes",           icon: "edu"       },
   { route: "ressources", label: "Ressources",      icon: "signpost"  },
-  { route: "config",     label: "Config",          icon: "settings"  },
+  { route: "config",     label: "Paramètres",      icon: "settings"  },
 ];
 
 function renderTabs() {

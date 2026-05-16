@@ -1,3 +1,7 @@
+/*
+ * Vue Paramètres (anciennement Config).
+ * 4 sections : Sécurité (mot de passe + admins) · Apparence · Promo · Infos.
+ */
 import {
   listStagiaires, listProfs,
   addStagiaire, updateStagiaire, deleteStagiaire,
@@ -6,95 +10,41 @@ import {
 } from "../db.js";
 import { el, clear, toast, sha256 } from "../utils.js";
 import { icon } from "../icons.js";
+import { isAdmin, getAdminEmail, refreshAllowedEmails, getAllowedEmails } from "../auth-admin.js";
+import { setAccent, getAccent } from "../accent-switcher.js";
 
-async function renderListSection(title, items, type, container) {
-  const section = el("section", { class: "config-section" });
+const ACCENTS = [
+  { key: "brique",     label: "Brique",     hex: "#B91C1C", note: "racing vintage" },
+  { key: "ferrari",    label: "Ferrari",    hex: "#DC2626", note: "vif" },
+  { key: "oxblood",    label: "Oxblood",    hex: "#7F1D1D", note: "luxe, cuir" },
+  { key: "terracotta", label: "Terracotta", hex: "#C2410C", note: "argile chaude" },
+];
 
-  section.appendChild(el("div", { class: "config-section-head" },
-    el("h3", {}, title),
-    el("span", { class: "count" }, items.length + " entrée" + (items.length > 1 ? "s" : ""))
+// ====== SECTION Sécurité ======
+
+async function renderSecuritySection(rerender) {
+  const section = el("section", { class: "param-section" });
+  section.appendChild(el("div", { class: "param-section-head" },
+    el("div", { class: "param-icon" }, icon.shield()),
+    el("div", {},
+      el("h3", {}, "Sécurité"),
+      el("p", { class: "muted" }, "Mot de passe partagé pour la promo et liste des admins autorisés."),
+    ),
   ));
 
-  const list = el("ul", { class: "config-list" });
-  items.forEach((it) => {
-    const input = el("input", { type: "text", value: it.prenom || it.nom });
-    input.addEventListener("blur", async () => {
-      const v = input.value.trim();
-      if (!v || v === (it.prenom || it.nom)) return;
-      try {
-        if (type === "stagiaire") await updateStagiaire(it.id, v);
-        else await updateProf(it.id, v);
-        toast("Mis à jour", "success");
-      } catch (e) { toast(e.message, "error"); }
-    });
-    input.addEventListener("keydown", (e) => { if (e.key === "Enter") input.blur(); });
-
-    const delBtn = el("button", { class: "btn small danger icon-only", "aria-label": "Supprimer" });
-    delBtn.appendChild(icon.trash());
-    delBtn.addEventListener("click", async () => {
-      if (!confirm(`Supprimer ${it.prenom || it.nom} ?`)) return;
-      try {
-        if (type === "stagiaire") await deleteStagiaire(it.id);
-        else await deleteProf(it.id);
-        toast("Supprimé", "success");
-        await rerender(container);
-      } catch (e) { toast(e.message, "error"); }
-    });
-
-    list.appendChild(el("li", {}, input, delBtn));
-  });
-  section.appendChild(list);
-
-  const addInput = el("input", { type: "text", placeholder: type === "stagiaire" ? "Prénom" : "Nom" });
-  const addBtn = el("button", { class: "btn accent", onClick: async () => {
-    const v = addInput.value.trim();
-    if (!v) return;
-    try {
-      if (type === "stagiaire") await addStagiaire(v);
-      else await addProf(v);
-      addInput.value = "";
-      toast("Ajouté", "success");
-      await rerender(container);
-    } catch (e) { toast(e.message, "error"); }
-  }}, icon.plus(), "Ajouter");
-  addInput.addEventListener("keydown", (e) => { if (e.key === "Enter") addBtn.click(); });
-
-  section.appendChild(el("div", { class: "config-add" }, addInput, addBtn));
-
-  return section;
-}
-
-async function renderPasswordSection() {
-  const section = el("section", { class: "config-section" });
-
-  section.appendChild(el("div", { class: "config-section-head" },
-    el("h3", {}, "Mot de passe partagé")
-  ));
-  section.appendChild(el("p", { class: "muted", style: "margin:0 0 1rem;font-size:0.88rem" },
-    "Toute personne qui dispose de ce mot de passe peut accéder à l'app. À renouveler si compromis."
-  ));
-
+  // Mot de passe partagé
   const oldInput = el("input", { type: "password", placeholder: "Actuel" });
   const newInput = el("input", { type: "password", placeholder: "Nouveau (min. 4 caractères)" });
   const confirmInput = el("input", { type: "password", placeholder: "Confirmer" });
 
-  const submitBtn = el("button", { class: "btn primary", onClick: async () => {
+  const passBtn = el("button", { class: "btn primary", onClick: async () => {
     const currentHash = await getSetting("password_hash");
     if (currentHash) {
       const oldHash = await sha256(oldInput.value);
-      if (oldHash !== currentHash) {
-        toast("Mot de passe actuel incorrect", "error");
-        return;
-      }
+      if (oldHash !== currentHash) { toast("Mot de passe actuel incorrect", "error"); return; }
     }
-    if (!newInput.value || newInput.value.length < 4) {
-      toast("Minimum 4 caractères", "error");
-      return;
-    }
-    if (newInput.value !== confirmInput.value) {
-      toast("Les mots de passe ne correspondent pas", "error");
-      return;
-    }
+    if (!newInput.value || newInput.value.length < 4) { toast("Min. 4 caractères", "error"); return; }
+    if (newInput.value !== confirmInput.value) { toast("Les mots de passe ne correspondent pas", "error"); return; }
     const newHash = await sha256(newInput.value);
     await setSetting("password_hash", newHash);
     localStorage.setItem("ecsr_auth", newHash);
@@ -102,35 +52,250 @@ async function renderPasswordSection() {
     oldInput.value = newInput.value = confirmInput.value = "";
   }}, icon.check(), "Mettre à jour");
 
-  section.appendChild(el("div", { class: "modal-form" },
-    el("div", { class: "field" }, el("label", {}, "Mot de passe actuel"), oldInput),
-    el("div", { class: "field" }, el("label", {}, "Nouveau mot de passe"), newInput),
-    el("div", { class: "field" }, el("label", {}, "Confirmer le nouveau mot de passe"), confirmInput),
-    el("div", { style: "margin-top:0.25rem" }, submitBtn)
+  section.appendChild(el("div", { class: "param-block" },
+    el("h4", {}, "Mot de passe partagé"),
+    el("p", { class: "muted" }, "Permet à toute la promo d'entrer dans l'app."),
+    el("div", { class: "modal-form" },
+      el("div", { class: "field" }, el("label", {}, "Mot de passe actuel"), oldInput),
+      el("div", { class: "field" }, el("label", {}, "Nouveau"), newInput),
+      el("div", { class: "field" }, el("label", {}, "Confirmer"), confirmInput),
+      el("div", { style: "margin-top:0.3rem" }, passBtn),
+    ),
   ));
 
+  // === Admins autorisés ===
+  const admins = await getAllowedEmails();
+  const currentEmail = getAdminEmail();
+  const adminBlock = el("div", { class: "param-block" });
+  adminBlock.appendChild(el("h4", {}, "Admins autorisés"));
+  adminBlock.appendChild(el("p", { class: "muted" },
+    admins.length === 0
+      ? "⚠️ Liste vide → mode ouvert. N'importe qui peut se connecter en admin. Ajoute des emails pour restreindre."
+      : "Seuls ces emails peuvent se connecter en admin (magic link)."
+  ));
+
+  if (admins.length === 0 && isAdmin()) {
+    const lockBtn = el("button", { class: "btn primary", onClick: async () => {
+      await setSetting("admin_emails", JSON.stringify([currentEmail]));
+      await refreshAllowedEmails();
+      toast("Liste fermée à ton email seul", "success");
+      rerender();
+    }}, icon.lock(), "Fermer aux admins listés (commencer avec mon email)");
+    adminBlock.appendChild(lockBtn);
+  }
+
+  const list = el("ul", { class: "admin-list" });
+  admins.forEach((email) => {
+    const item = el("li", { class: "admin-item" },
+      icon.mail(),
+      el("span", { class: "admin-email-text" }, email),
+      email === currentEmail ? el("span", { class: "admin-you" }, "vous") : null,
+      isAdmin() ? el("button", {
+        class: "btn small danger icon-only",
+        "aria-label": "Retirer",
+        onClick: async () => {
+          if (admins.length === 1 && email === currentEmail) {
+            if (!confirm("Tu es le dernier admin. Te retirer = mode ouvert (n'importe qui pourra se connecter). Continuer ?")) return;
+          } else if (!confirm(`Retirer ${email} de la liste des admins ?`)) return;
+          const next = admins.filter((e) => e !== email);
+          await setSetting("admin_emails", JSON.stringify(next));
+          await refreshAllowedEmails();
+          toast("Email retiré", "success");
+          rerender();
+        }
+      }, icon.trash()) : null,
+    );
+    list.appendChild(item);
+  });
+  adminBlock.appendChild(list);
+
+  if (isAdmin()) {
+    const newEmailInput = el("input", { type: "email", placeholder: "email@exemple.fr" });
+    const addBtn = el("button", { class: "btn accent", onClick: async () => {
+      const v = newEmailInput.value.trim().toLowerCase();
+      if (!v || !v.includes("@")) { toast("Email invalide", "error"); return; }
+      if (admins.map((e) => e.toLowerCase()).includes(v)) { toast("Email déjà dans la liste", "error"); return; }
+      await setSetting("admin_emails", JSON.stringify([...admins, v]));
+      await refreshAllowedEmails();
+      newEmailInput.value = "";
+      toast("Email ajouté", "success");
+      rerender();
+    }}, icon.plus(), "Autoriser");
+    newEmailInput.addEventListener("keydown", (e) => { if (e.key === "Enter") addBtn.click(); });
+    adminBlock.appendChild(el("div", { class: "config-add" }, newEmailInput, addBtn));
+  } else {
+    adminBlock.appendChild(el("p", { class: "muted", style: "font-style:italic;margin-top:0.5rem;font-size:0.85rem" },
+      "Connecte-toi en mode admin pour modifier cette liste."
+    ));
+  }
+
+  section.appendChild(adminBlock);
   return section;
 }
+
+// ====== SECTION Apparence ======
+
+function renderAppearanceSection() {
+  const section = el("section", { class: "param-section" });
+  section.appendChild(el("div", { class: "param-section-head" },
+    el("div", { class: "param-icon" }, icon.palette()),
+    el("div", {},
+      el("h3", {}, "Apparence"),
+      el("p", { class: "muted" }, "Couleur d'accent du site. Choix mémorisé sur ton navigateur."),
+    ),
+  ));
+
+  const current = getAccent();
+  const grid = el("div", { class: "accent-grid" });
+  ACCENTS.forEach((p) => {
+    const card = el("button", {
+      class: "accent-card" + (p.key === current ? " selected" : ""),
+      dataset: { key: p.key },
+      onClick: () => {
+        setAccent(p.key);
+        grid.querySelectorAll(".accent-card").forEach((n) => n.classList.toggle("selected", n.dataset.key === p.key));
+        toast("Accent : " + p.label, "success", 1200);
+        // refresh small swatch in topbar
+        const topSwatch = document.querySelector(".accent-trigger .accent-swatch");
+        if (topSwatch) topSwatch.style.background = p.hex;
+      },
+    },
+      el("span", { class: "accent-card-swatch", style: `background: ${p.hex}` }),
+      el("span", { class: "accent-card-label" }, p.label),
+      el("span", { class: "accent-card-note muted" }, p.note),
+    );
+    grid.appendChild(card);
+  });
+  section.appendChild(grid);
+  return section;
+}
+
+// ====== SECTION Promo (stagiaires + profs) ======
+
+async function renderPromoSection(rerender) {
+  const section = el("section", { class: "param-section" });
+  section.appendChild(el("div", { class: "param-section-head" },
+    el("div", { class: "param-icon" }, icon.users()),
+    el("div", {},
+      el("h3", {}, "Promo"),
+      el("p", { class: "muted" }, "Gérer la liste des stagiaires et formateurs."),
+    ),
+  ));
+
+  const [stagiaires, profs] = await Promise.all([listStagiaires(), listProfs()]);
+
+  function renderList(items, type) {
+    const wrap = el("div", { class: "param-block" });
+    wrap.appendChild(el("div", { class: "block-head" },
+      el("h4", {}, type === "stagiaire" ? "Stagiaires" : "Formateurs"),
+      el("span", { class: "count" }, items.length + " entrée" + (items.length > 1 ? "s" : "")),
+    ));
+
+    const list = el("ul", { class: "config-list" });
+    items.forEach((it) => {
+      const input = el("input", { type: "text", value: it.prenom || it.nom });
+      input.addEventListener("blur", async () => {
+        const v = input.value.trim();
+        if (!v || v === (it.prenom || it.nom)) return;
+        try {
+          if (type === "stagiaire") await updateStagiaire(it.id, v);
+          else await updateProf(it.id, v);
+          toast("Mis à jour", "success");
+        } catch (e) { toast(e.message, "error"); }
+      });
+      input.addEventListener("keydown", (e) => { if (e.key === "Enter") input.blur(); });
+
+      const delBtn = el("button", {
+        class: "btn small danger icon-only", "aria-label": "Supprimer",
+        onClick: async () => {
+          if (!confirm(`Supprimer ${it.prenom || it.nom} ?`)) return;
+          try {
+            if (type === "stagiaire") await deleteStagiaire(it.id);
+            else await deleteProf(it.id);
+            toast("Supprimé", "success");
+            rerender();
+          } catch (e) { toast(e.message, "error"); }
+        }
+      });
+      delBtn.appendChild(icon.trash());
+
+      list.appendChild(el("li", {}, input, delBtn));
+    });
+    wrap.appendChild(list);
+
+    const addInput = el("input", { type: "text", placeholder: type === "stagiaire" ? "Prénom" : "Nom" });
+    const addBtn = el("button", { class: "btn accent", onClick: async () => {
+      const v = addInput.value.trim();
+      if (!v) return;
+      try {
+        if (type === "stagiaire") await addStagiaire(v);
+        else await addProf(v);
+        addInput.value = "";
+        toast("Ajouté", "success");
+        rerender();
+      } catch (e) { toast(e.message, "error"); }
+    }}, icon.plus(), "Ajouter");
+    addInput.addEventListener("keydown", (e) => { if (e.key === "Enter") addBtn.click(); });
+    wrap.appendChild(el("div", { class: "config-add" }, addInput, addBtn));
+    return wrap;
+  }
+
+  section.appendChild(renderList(stagiaires, "stagiaire"));
+  section.appendChild(renderList(profs, "prof"));
+  return section;
+}
+
+// ====== SECTION Infos ======
+
+function renderInfoSection() {
+  const section = el("section", { class: "param-section" });
+  section.appendChild(el("div", { class: "param-section-head" },
+    el("div", { class: "param-icon" }, icon.info()),
+    el("div", {},
+      el("h3", {}, "Informations"),
+      el("p", { class: "muted" }, "À propos de l'app TP ECSR."),
+    ),
+  ));
+
+  section.appendChild(el("div", { class: "param-block" },
+    el("dl", { class: "info-list" },
+      el("dt", {}, "Application"),
+      el("dd", {}, "TP ECSR — Promo & suivi des passages"),
+      el("dt", {}, "Auteur"),
+      el("dd", {}, "watchi64 · misterwatchi@gmail.com"),
+      el("dt", {}, "Licence"),
+      el("dd", {}, "Propriétaire. Voir LICENSE dans le repo."),
+      el("dt", {}, "Repo"),
+      el("dd", {}, el("a", { href: "https://github.com/watchi64/ecsr-promo", target: "_blank" }, "github.com/watchi64/ecsr-promo")),
+    )
+  ));
+  return section;
+}
+
+// ====== Render principal ======
 
 async function rerender(container) {
   clear(container);
   container.appendChild(el("div", { class: "loading" }, "Chargement"));
 
-  const [stagiaires, profs] = await Promise.all([listStagiaires(), listProfs()]);
+  const sections = await Promise.all([
+    renderSecuritySection(() => rerender(container)),
+    Promise.resolve(renderAppearanceSection()),
+    renderPromoSection(() => rerender(container)),
+    Promise.resolve(renderInfoSection()),
+  ]);
 
   clear(container);
   container.appendChild(el("div", { class: "view-header" },
     el("div", { class: "view-header-text" },
-      el("p", { class: "eyebrow" }, "Réglages"),
-      el("h2", {}, "Configuration"),
-      el("p", { class: "subtitle" }, "Gérer la liste des stagiaires et formateurs, et le mot de passe d'accès partagé."),
+      el("p", { class: "eyebrow" }, "Système"),
+      el("h2", {}, "Paramètres"),
+      el("p", { class: "subtitle" }, "Sécurité, apparence, gestion de la promo, infos. Connecte-toi en mode admin pour modifier la liste."),
     ),
   ));
 
-  const grid = el("div", { class: "config-grid" });
-  grid.appendChild(await renderListSection("Stagiaires", stagiaires, "stagiaire", container));
-  grid.appendChild(await renderListSection("Formateurs", profs, "prof", container));
-  grid.appendChild(await renderPasswordSection());
+  const grid = el("div", { class: "param-grid" });
+  sections.forEach((s) => grid.appendChild(s));
   container.appendChild(grid);
 }
 
