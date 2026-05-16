@@ -12,8 +12,17 @@ let evaluations = [];
 
 let filterStagiaire = "";
 let filterType = "";
+let viewMode = "tableau";  // "liste" ou "tableau"
 
 const TYPES_EVAL = ["Thème", "Compétence", "Contrôle"];
+
+// Colonnes "spéciales" du tableau matrice (en plus des 57 thèmes)
+const MATRIX_SPECIAL_COLS = [
+  { key: "C1",   label: "C1",   tooltip: "Compétence formateur C1 — Accueillir & sensibiliser SR" },
+  { key: "C2",   label: "C2",   tooltip: "Compétence formateur C2 — Concevoir & animer" },
+  { key: "REMC", label: "REMC", tooltip: "REMC — Vision globale du référentiel mobilité citoyenne" },
+  { key: "MGDE", label: "GDE",  tooltip: "Matrice GDE — Goals for Driver Education" },
+];
 
 function noteColor(note, max) {
   if (note == null || max == null) return "muted";
@@ -281,6 +290,139 @@ async function reload(container) {
   rerender(container);
 }
 
+// === Tableau matrice : lignes stagiaires × colonnes (synthèse + 57 thèmes) ===
+
+function noteForStagiaireCompetence(stagId, code) {
+  // Dernière évaluation de type 'Compétence' avec competence_code matching
+  const matches = evaluations
+    .filter((e) => e.stagiaire_id === stagId && e.type === "Compétence" && e.competence_code === code)
+    .sort((a, b) => new Date(b.date_eval) - new Date(a.date_eval));
+  return matches[0] || null;
+}
+
+function noteForStagiaireTheme(stagId, themeNum) {
+  // Dernière évaluation de type 'Thème' avec theme_numero matching
+  const matches = evaluations
+    .filter((e) => e.stagiaire_id === stagId && e.type === "Thème" && e.theme_numero === themeNum)
+    .sort((a, b) => new Date(b.date_eval) - new Date(a.date_eval));
+  return matches[0] || null;
+}
+
+function noteMatrixCell(evaluation) {
+  if (!evaluation) return null;
+  const note = Number(evaluation.note);
+  const max = Number(evaluation.note_max) || 20;
+  return { note, max, ratio: note / max, eval: evaluation };
+}
+
+function cellColorClass(ratio) {
+  if (ratio == null) return "empty";
+  if (ratio < 0.4) return "bad";
+  if (ratio < 0.6) return "warn";
+  if (ratio < 0.8) return "ok";
+  return "great";
+}
+
+function openCellEditor(stagiaireId, fixedFields, container) {
+  // fixedFields : { type, theme_numero?, competence_code?, controle_libelle? }
+  // Cherche s'il y a déjà une eval pour cette intersection
+  let existing = null;
+  if (fixedFields.type === "Thème" && fixedFields.theme_numero != null) {
+    existing = noteForStagiaireTheme(stagiaireId, fixedFields.theme_numero);
+  } else if (fixedFields.type === "Compétence" && fixedFields.competence_code) {
+    existing = noteForStagiaireCompetence(stagiaireId, fixedFields.competence_code);
+  }
+  // Pré-remplit avec fixed + stagiaire
+  const prefilled = existing || {
+    stagiaire_id: stagiaireId,
+    ...fixedFields,
+    note: null,
+    note_max: 20,
+    date_eval: isoDate(new Date()),
+  };
+  openEditModal(prefilled, () => reload(container));
+}
+
+function renderMatrice(container) {
+  // Construction des colonnes : Prénom, Moy, [4 spéciales], [57 thèmes]
+  const wrap = el("div", { class: "matrice-wrap" });
+  const table = el("table", { class: "matrice-table" });
+
+  // Header row
+  const thead = el("thead");
+  const headRow1 = el("tr");
+  headRow1.appendChild(el("th", { class: "m-th-name sticky" }, "Stagiaire"));
+  headRow1.appendChild(el("th", { class: "m-th-avg" }, "Moy."));
+  MATRIX_SPECIAL_COLS.forEach((c) => {
+    headRow1.appendChild(el("th", { class: "m-th-spe", title: c.tooltip }, c.label));
+  });
+  for (let n = 1; n <= 57; n++) {
+    headRow1.appendChild(el("th", { class: "m-th-theme", title: "Thème " + n }, String(n)));
+  }
+  thead.appendChild(headRow1);
+  table.appendChild(thead);
+
+  // Body rows
+  const tbody = el("tbody");
+  const admin = isAdmin();
+
+  stagiaires.forEach((s) => {
+    const tr = el("tr");
+
+    // Colonne prénom (sticky)
+    tr.appendChild(el("td", { class: "m-td-name sticky" }, s.prenom));
+
+    // Moyenne globale
+    const allEvals = evaluations.filter((e) => e.stagiaire_id === s.id && e.note != null && e.note_max);
+    if (allEvals.length > 0) {
+      const avg = allEvals.reduce((sum, e) => sum + (Number(e.note) / Number(e.note_max)) * 20, 0) / allEvals.length;
+      const rounded = Math.round(avg * 10) / 10;
+      const cls = cellColorClass(avg / 20);
+      tr.appendChild(el("td", { class: "m-td-avg " + cls, title: allEvals.length + " évaluations" }, String(rounded)));
+    } else {
+      tr.appendChild(el("td", { class: "m-td-avg empty" }, ""));
+    }
+
+    // Colonnes spéciales (C1, C2, REMC, MGDE)
+    MATRIX_SPECIAL_COLS.forEach((c) => {
+      const ev = noteForStagiaireCompetence(s.id, c.key);
+      const cell = noteMatrixCell(ev);
+      const td = el("td", { class: "m-td-cell " + (cell ? cellColorClass(cell.ratio) : "empty") });
+      if (cell) {
+        td.textContent = String(cell.note);
+        td.title = `${c.label} : ${cell.note}/${cell.max} le ${formatDate(cell.eval.date_eval)}`;
+      }
+      if (admin) {
+        td.classList.add("editable");
+        td.addEventListener("click", () => openCellEditor(s.id, { type: "Compétence", competence_code: c.key }, container));
+      }
+      tr.appendChild(td);
+    });
+
+    // 57 colonnes thèmes
+    for (let n = 1; n <= 57; n++) {
+      const ev = noteForStagiaireTheme(s.id, n);
+      const cell = noteMatrixCell(ev);
+      const td = el("td", { class: "m-td-cell " + (cell ? cellColorClass(cell.ratio) : "empty") });
+      if (cell) {
+        td.textContent = String(cell.note);
+        td.title = `Thème ${n} : ${cell.note}/${cell.max} le ${formatDate(cell.eval.date_eval)}`;
+      }
+      if (admin) {
+        td.classList.add("editable");
+        td.addEventListener("click", () => openCellEditor(s.id, { type: "Thème", theme_numero: n }, container));
+      }
+      tr.appendChild(td);
+    }
+
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+  wrap.appendChild(table);
+
+  return wrap;
+}
+
 function rerender(container) {
   clear(container);
 
@@ -311,16 +453,35 @@ function rerender(container) {
     el("div", { class: "view-header-text" },
       el("p", { class: "eyebrow" }, evaluations.length + " note" + (evaluations.length > 1 ? "s" : "") + " enregistrée" + (evaluations.length > 1 ? "s" : "")),
       el("h2", {}, "Notes & évaluations"),
-      el("p", { class: "subtitle" }, "Notes par thème, par compétence (C1-C4), et contrôles. Historique complet par note."),
+      el("p", { class: "subtitle" }, "Notes par thème, par compétence (C1-C4 + REMC + Matrice GDE) et contrôles. Vue tableau matrice ou liste historique."),
     ),
     admin ? addBtn : el("span", { class: "muted", style: "font-size:0.85rem" }, "Lecture seule. Connexion admin requise pour modifier."),
   ));
 
-  container.appendChild(el("div", { class: "passages-toolbar" },
-    el("div", { class: "passages-filters" }, stagiaireFilter, typeFilter)
-  ));
+  // Toggle Tableau / Liste
+  const toggleWrap = el("div", { class: "notes-toggle" });
+  ["tableau", "liste"].forEach((mode) => {
+    const btn = el("button", {
+      class: "notes-toggle-btn" + (viewMode === mode ? " active" : ""),
+      onClick: () => { viewMode = mode; rerender(container); }
+    }, mode === "tableau" ? "Tableau matrice" : "Liste historique");
+    toggleWrap.appendChild(btn);
+  });
+  container.appendChild(toggleWrap);
 
-  container.appendChild(renderTable(container));
+  if (viewMode === "tableau") {
+    if (admin) {
+      container.appendChild(el("p", { class: "muted", style: "font-size:0.85rem;margin:0.5rem 0 1rem" },
+        "Clique sur n'importe quelle cellule pour ajouter ou modifier la note."
+      ));
+    }
+    container.appendChild(renderMatrice(container));
+  } else {
+    container.appendChild(el("div", { class: "passages-toolbar" },
+      el("div", { class: "passages-filters" }, stagiaireFilter, typeFilter)
+    ));
+    container.appendChild(renderTable(container));
+  }
 }
 
 export async function renderNotes(container) {

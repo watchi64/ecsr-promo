@@ -2351,6 +2351,151 @@ h3 {
 .tag.eval-type-controle   { background: var(--act-controle); color: #9A3412; border-color: var(--act-controle-border); }
 
 /* ============================================================
+   Notes — Toggle Liste/Tableau + Matrice
+   ============================================================ */
+
+.notes-toggle {
+  display: inline-flex;
+  gap: 0.25rem;
+  background: var(--bg-subtle);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 0.2rem;
+  margin: 0 0 0.85rem;
+}
+
+.notes-toggle-btn {
+  border: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-soft);
+  padding: 0.4rem 0.9rem;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.notes-toggle-btn:hover { color: var(--text); }
+.notes-toggle-btn.active {
+  background: var(--bg-elev);
+  color: var(--accent);
+  box-shadow: var(--shadow-1);
+}
+
+/* Matrice */
+
+.matrice-wrap {
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  overflow: auto;
+  max-width: 100%;
+  /* Hauteur max pour scroller verticalement si beaucoup de stagiaires */
+  max-height: calc(100vh - 280px);
+}
+
+.matrice-table {
+  border-collapse: separate;
+  border-spacing: 0;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  width: max-content;
+  min-width: 100%;
+}
+
+.matrice-table th,
+.matrice-table td {
+  padding: 0.3rem 0.4rem;
+  text-align: center;
+  border-bottom: 1px solid var(--line-faint);
+  border-right: 1px solid var(--line-faint);
+  white-space: nowrap;
+  background: var(--bg-elev);
+}
+
+.matrice-table thead th {
+  background: var(--bg-subtle);
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  font-weight: 600;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.5rem 0.4rem;
+}
+
+/* Sticky première colonne (prénom) */
+.matrice-table .sticky {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--bg-elev);
+  text-align: left;
+  font-family: var(--font);
+  font-weight: 600;
+  padding-left: 0.8rem;
+  padding-right: 0.8rem;
+  min-width: 100px;
+  box-shadow: 1px 0 0 var(--line);
+}
+
+.matrice-table thead .sticky {
+  z-index: 3;
+  background: var(--bg-subtle);
+}
+
+/* Colonnes spéciales : séparateur visuel */
+.matrice-table .m-th-spe,
+.matrice-table .m-td-cell:nth-child(-n+6) {
+  /* avg + 4 spe = colonnes 2 à 6 */
+}
+
+.matrice-table th.m-th-avg,
+.matrice-table th.m-th-spe {
+  background: var(--bg-soft);
+  color: var(--text);
+  font-family: var(--font);
+}
+
+.matrice-table th.m-th-theme {
+  min-width: 28px;
+  font-family: var(--font-mono);
+}
+
+.matrice-table .m-td-avg {
+  font-weight: 700;
+  border-right: 2px solid var(--line);
+}
+
+.matrice-table .m-td-cell.editable {
+  cursor: pointer;
+  transition: transform 0.1s, box-shadow 0.1s;
+}
+.matrice-table .m-td-cell.editable:hover {
+  transform: scale(1.15);
+  z-index: 1;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  position: relative;
+}
+
+/* Couleurs par note ratio */
+.matrice-table .empty { color: var(--text-faint); background: transparent; }
+.matrice-table .empty.editable:hover::after { content: "+"; }
+.matrice-table .bad    { background: var(--c-stop-soft); color: var(--c-stop); font-weight: 600; }
+.matrice-table .warn   { background: var(--c-wait-soft); color: var(--c-wait); font-weight: 600; }
+.matrice-table .ok     { background: var(--act-cours); color: #1E40AF; font-weight: 600; }
+.matrice-table .great  { background: var(--c-go-soft); color: var(--c-go); font-weight: 700; }
+
+/* Border droite plus marquée après la dernière colonne spéciale (GDE) pour séparer des thèmes */
+.matrice-table th:nth-child(6),
+.matrice-table td:nth-child(6) {
+  border-right: 2px solid var(--line);
+}
+
+/* ============================================================
    Audit log
    ============================================================ */
 
