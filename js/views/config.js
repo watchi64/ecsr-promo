@@ -11,7 +11,7 @@ import {
 } from "../db.js";
 import { el, clear, toast, sha256 } from "../utils.js";
 import { icon } from "../icons.js";
-import { isAdmin, getAdminEmail, refreshAllowedEmails, getAllowedEmails } from "../auth-admin.js";
+import { isAdmin, getAdminEmail, refreshAllowedEmails } from "../auth-admin.js";
 import { setAccent, getAccent } from "../accent-switcher.js";
 import { setTheme, getTheme, THEMES } from "../theme-switcher.js";
 import { getStoredWho } from "../identity.js";

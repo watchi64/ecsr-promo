@@ -81,11 +81,6 @@ export async function addPassage(p) {
   if (error) throw error;
 }
 
-export async function updatePassage(id, p) {
-  const { error } = await supabase.from("passages").update(p).eq("id", id);
-  if (error) throw error;
-}
-
 export async function deletePassage(id) {
   const { error } = await supabase.from("passages").delete().eq("id", id);
   if (error) throw error;
@@ -124,14 +119,6 @@ export async function upsertPlanningEntry(entry) {
   const { error } = await supabase
     .from("planning_entries")
     .upsert(entry, { onConflict: "semaine_lundi,day_index,half_day,slot,lane" });
-  if (error) throw error;
-}
-
-export async function deletePlanningEntry(semaine_lundi, day_index, half_day, slot, lane = 0) {
-  const { error } = await supabase
-    .from("planning_entries")
-    .delete()
-    .match({ semaine_lundi, day_index, half_day, slot, lane });
   if (error) throw error;
 }
 
@@ -265,16 +252,6 @@ export async function listAuditForEvaluation(evaluation_id) {
     .select("*")
     .eq("evaluation_id", evaluation_id)
     .order("changed_at", { ascending: false });
-  if (error) throw error;
-  return data;
-}
-
-export async function listRecentAudit(limit = 50) {
-  const { data, error } = await supabase
-    .from("evaluations_audit")
-    .select("*")
-    .order("changed_at", { ascending: false })
-    .limit(limit);
   if (error) throw error;
   return data;
 }
