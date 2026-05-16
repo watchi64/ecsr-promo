@@ -24,14 +24,6 @@ export async function renderHome(container) {
         el("a", { href: "#/planning", class: "btn ghost" }, icon.calendar(), "Voir le planning"),
       ),
     ),
-    el("div", { class: "home-hero-visual" },
-      el("img", {
-        class: "home-hero-image",
-        src: "assets/images/panneaux-fr-banner.png",
-        alt: "Panneaux de signalisation routière française stylisés",
-        loading: "lazy",
-      }),
-    ),
   );
   container.appendChild(hero);
 
