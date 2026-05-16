@@ -12,6 +12,7 @@ import { el, clear, toast, sha256 } from "../utils.js";
 import { icon } from "../icons.js";
 import { isAdmin, getAdminEmail, refreshAllowedEmails, getAllowedEmails } from "../auth-admin.js";
 import { setAccent, getAccent } from "../accent-switcher.js";
+import { setTheme, getTheme, THEMES } from "../theme-switcher.js";
 import { getStoredWho, openIdentityPicker } from "../identity.js";
 
 const ACCENTS = [
@@ -165,8 +166,47 @@ function renderAppearanceSection() {
     el("div", { class: "param-icon" }, icon.palette()),
     el("div", {},
       el("h3", {}, "Apparence"),
-      el("p", { class: "muted" }, "Couleur d'accent du site. Choix mémorisé sur ton navigateur."),
+      el("p", { class: "muted" }, "Thème global + couleur d'accent. Mémorisé sur ton navigateur."),
     ),
+  ));
+
+  // === THÈMES (palettes complètes) ===
+  section.appendChild(el("div", { class: "param-block" },
+    el("h4", {}, "Thème"),
+    el("p", { class: "muted" }, "Palette complète : fond, surfaces, texte, accent. Aperçu en direct."),
+  ));
+
+  const currentTheme = getTheme();
+  const themeGrid = el("div", { class: "theme-grid" });
+  THEMES.forEach((t) => {
+    const card = el("button", {
+      class: "theme-card" + (t.key === currentTheme ? " selected" : ""),
+      dataset: { key: t.key },
+      onClick: () => {
+        setTheme(t.key);
+        themeGrid.querySelectorAll(".theme-card").forEach((n) =>
+          n.classList.toggle("selected", n.dataset.key === t.key)
+        );
+        toast("Thème : " + t.label, "success", 1200);
+      },
+    },
+      // Mockup de prévisualisation : 4 bandes de couleur
+      el("div", { class: "theme-card-preview", style: `background: ${t.preview.bg}` },
+        el("span", { class: "tp-bar tp-surface", style: `background: ${t.preview.surface}` }),
+        el("span", { class: "tp-bar tp-text",    style: `background: ${t.preview.text}` }),
+        el("span", { class: "tp-bar tp-accent",  style: `background: ${t.preview.accent}` }),
+      ),
+      el("span", { class: "theme-card-label" }, t.label),
+      el("span", { class: "theme-card-note muted" }, t.note),
+    );
+    themeGrid.appendChild(card);
+  });
+  section.appendChild(themeGrid);
+
+  // === ACCENT (couleur du rouge) ===
+  section.appendChild(el("div", { class: "param-block" },
+    el("h4", { style: "margin-top:1.5rem" }, "Accent"),
+    el("p", { class: "muted" }, "La couleur qui s'utilise pour les CTA, statuts urgents, eyebrows."),
   ));
 
   const current = getAccent();
@@ -179,7 +219,6 @@ function renderAppearanceSection() {
         setAccent(p.key);
         grid.querySelectorAll(".accent-card").forEach((n) => n.classList.toggle("selected", n.dataset.key === p.key));
         toast("Accent : " + p.label, "success", 1200);
-        // refresh small swatch in topbar
         const topSwatch = document.querySelector(".accent-trigger .accent-swatch");
         if (topSwatch) topSwatch.style.background = p.hex;
       },

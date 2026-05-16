@@ -7,7 +7,9 @@ import { sha256, toast } from "./utils.js";
 import { icon } from "./icons.js";
 import { initAuth, onAdminChange } from "./auth-admin.js";
 import { loadAccent, renderAccentSwitcher } from "./accent-switcher.js";
+import { loadTheme } from "./theme-switcher.js";
 import { ensureIdentity } from "./identity.js";
+import { renderHome } from "./views/home.js";
 import { renderDashboard } from "./views/dashboard.js";
 import { renderPlanning } from "./views/planning.js";
 import { renderPassages } from "./views/passages.js";
@@ -140,6 +142,7 @@ function showGate(storedHash) {
 // ===== Tabs =====
 
 const TABS = [
+  { route: "home",       label: "Accueil",         icon: "info"      },
   { route: "dashboard",  label: "Tableau de bord", icon: "dashboard" },
   { route: "planning",   label: "Planning",        icon: "calendar"  },
   { route: "themes",     label: "Thèmes",          icon: "list"      },
@@ -168,6 +171,7 @@ function renderTabs() {
 // ===== Router =====
 
 const routes = {
+  home:       renderHome,
   dashboard:  renderDashboard,
   planning:   renderPlanning,
   themes:     renderThemes,
@@ -216,6 +220,7 @@ function setupAccentSwitcher() {
 }
 
 async function init() {
+  loadTheme();
   loadAccent();
   await initAuth();
   // Identifier le visiteur AVANT d'afficher l'app (sauf si déjà admin)
@@ -229,6 +234,9 @@ async function init() {
 }
 
 (async () => {
+  // Applique le thème avant tout pour éviter le flash crème par défaut
+  loadTheme();
+  loadAccent();
   const ok = await checkAuth();
   if (ok) {
     document.getElementById("app").classList.remove("hidden");

@@ -1,4 +1,4 @@
-import { listStagiaires, getStats, getPedagogueCountsFromPlanning, getSetting } from "../db.js";
+import { listStagiaires, listEvaluations, getStats, getPedagogueCountsFromPlanning, getSetting } from "../db.js";
 import { el, clear, isoDate, getMonday } from "../utils.js";
 import { icon } from "../icons.js";
 
@@ -16,7 +16,26 @@ function priorityLabel(stat, maxEffectif) {
 }
 
 function labelText(key) {
-  return { "a-prioriser": "À prioriser", "peut-attendre": "Peut attendre", "a-jour": "À jour" }[key];
+  return { "a-prioriser": "À prioriser", "peut-attendre": "Opportunité ratée", "a-jour": "À jour" }[key];
+}
+
+/** Moyenne pondérée /20 des évaluations d'un stagiaire. null si pas d'évaluations notées. */
+function computeAverage(evaluations, stagiaireId) {
+  const evals = evaluations.filter((e) =>
+    e.stagiaire_id === stagiaireId && e.note != null && e.note_max
+  );
+  if (evals.length === 0) return null;
+  // Pondération : ramène chaque note sur 20, puis moyenne arithmétique
+  const total = evals.reduce((sum, e) => sum + (Number(e.note) / Number(e.note_max)) * 20, 0);
+  return Math.round((total / evals.length) * 10) / 10;  // 1 décimale
+}
+
+function avgColor(avg) {
+  if (avg == null) return "muted";
+  if (avg < 8) return "bad";
+  if (avg < 12) return "warn";
+  if (avg < 16) return "ok";
+  return "great";
 }
 
 function cardClass(salleKey, voitureKey) {
@@ -32,9 +51,20 @@ function buildStatPill(iconFn, stat) {
   return pill;
 }
 
-function renderCard(s, statsSalle, statsVoiture, prioSalle, prioVoiture) {
+function renderCard(s, statsSalle, statsVoiture, prioSalle, prioVoiture, avg, nbEvals) {
   return el("article", { class: "dashboard-card " + cardClass(prioSalle, prioVoiture) },
-    el("h3", { class: "name" }, s.prenom),
+    el("div", { class: "card-head" },
+      el("h3", { class: "name" }, s.prenom),
+      // Moyenne pill
+      avg != null
+        ? el("span", { class: "avg-pill " + avgColor(avg), title: nbEvals + " évaluation(s)" },
+            el("span", { class: "avg-num" }, String(avg)),
+            el("span", { class: "avg-max" }, "/20"),
+          )
+        : el("span", { class: "avg-pill muted", title: "Aucune évaluation" },
+            el("span", { class: "avg-num" }, "—"),
+          ),
+    ),
     el("div", { class: "dashboard-stats" },
       buildStatPill(icon.presentation, statsSalle),
       buildStatPill(icon.car,          statsVoiture),
@@ -58,10 +88,11 @@ export async function renderDashboard(container) {
   clear(container);
   container.appendChild(el("div", { class: "loading" }, "Chargement"));
 
-  const [stagiaires, stats, semaineLundi] = await Promise.all([
+  const [stagiaires, stats, semaineLundi, evaluations] = await Promise.all([
     listStagiaires(),
     getStats(),
     getSetting("current_week_lundi"),
+    listEvaluations(),
   ]);
 
   const monday = semaineLundi || isoDate(getMonday(new Date()));
@@ -83,7 +114,9 @@ export async function renderDashboard(container) {
     const prioVoiture = priorityLabel(vo, maxVoiture);
     const cls = cardClass(prioSalle, prioVoiture);
     const score = { urgent: 0, warn: 1, ok: 2 }[cls];
-    return { s, sa, vo, prioSalle, prioVoiture, score };
+    const avg = computeAverage(evaluations, s.id);
+    const nbEvals = evaluations.filter((e) => e.stagiaire_id === s.id && e.note != null).length;
+    return { s, sa, vo, prioSalle, prioVoiture, score, avg, nbEvals };
   });
   enriched.sort((a, b) => a.score - b.score || a.s.ordre - b.s.ordre);
 
@@ -111,7 +144,7 @@ export async function renderDashboard(container) {
     ),
     el("div", { class: "stat-block" },
       el("span", { class: "value" }, String(stats_summary.warn)),
-      el("span", { class: "label" }, "Peut attendre"),
+      el("span", { class: "label" }, "Opportunité ratée"),
     ),
     el("div", { class: "stat-block" },
       el("span", { class: "value" }, String(stats_summary.ok)),
@@ -124,14 +157,14 @@ export async function renderDashboard(container) {
   ));
 
   const grid = el("div", { class: "dashboard-grid" });
-  enriched.forEach(({ s, sa, vo, prioSalle, prioVoiture }) => {
-    grid.appendChild(renderCard(s, sa, vo, prioSalle, prioVoiture));
+  enriched.forEach(({ s, sa, vo, prioSalle, prioVoiture, avg, nbEvals }) => {
+    grid.appendChild(renderCard(s, sa, vo, prioSalle, prioVoiture, avg, nbEvals));
   });
   container.appendChild(grid);
 
   container.appendChild(el("div", { class: "dashboard-legend" },
     el("span", {}, el("span", { class: "dot", style: "background:var(--c-stop)" }), "À prioriser — n'a pas encore eu l'occasion de passer"),
-    el("span", {}, el("span", { class: "dot", style: "background:var(--c-wait)" }), "Peut attendre — a déjà eu une opportunité"),
+    el("span", {}, el("span", { class: "dot", style: "background:var(--c-wait)" }), "Opportunité ratée — a déjà eu sa chance (absence/refus)"),
     el("span", {}, el("span", { class: "dot", style: "background:var(--c-go)" }), "À jour — au niveau du groupe"),
   ));
 }
