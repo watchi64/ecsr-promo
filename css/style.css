@@ -2821,13 +2821,59 @@ h3 {
    ============================================================ */
 
 .home-hero {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2rem;
   align-items: center;
-  text-align: center;
   padding: 2.5rem 1rem 3rem;
   border-bottom: 1px solid var(--line);
   margin-bottom: 3rem;
+}
+
+@media (min-width: 880px) {
+  .home-hero {
+    grid-template-columns: 1.1fr 1fr;
+    gap: 3rem;
+    padding: 3.5rem 1.5rem 4rem;
+  }
+}
+
+.home-hero-content {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+  max-width: 560px;
+}
+
+@media (max-width: 879px) {
+  .home-hero-content {
+    align-items: center;
+    text-align: center;
+    margin: 0 auto;
+  }
+}
+
+.home-hero-visual {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.home-hero-image {
+  width: 100%;
+  max-width: 600px;
+  height: auto;
+  display: block;
+  /* Très subtile drop-shadow pour ancrer l'image sur le fond crème */
+  filter: drop-shadow(0 12px 24px rgba(60, 40, 20, 0.10));
+  /* Fade subtil sur les bords pour fondre avec le fond */
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, black 8%, black 100%);
+  mask-image: linear-gradient(to right, transparent 0%, black 8%, black 100%);
+}
+
+@media (max-width: 879px) {
+  .home-hero-image { max-width: 400px; }
 }
 
 .home-hero-logo {
@@ -2869,7 +2915,9 @@ h3 {
   display: flex;
   gap: 0.7rem;
   flex-wrap: wrap;
-  justify-content: center;
+}
+@media (max-width: 879px) {
+  .home-cta { justify-content: center; }
 }
 .home-cta .btn { padding: 0.7rem 1.3rem; font-size: 0.95rem; }
 

@@ -11,16 +11,26 @@ export async function renderHome(container) {
 
   // === Hero ===
   const hero = el("section", { class: "home-hero" },
-    el("img", { class: "home-hero-logo", src: "assets/logo/tpecsr-logo.svg", alt: "TP ECSR" }),
-    el("p", { class: "eyebrow home-eyebrow" }, "Suivi de promotion · Promo 2026"),
-    el("h1", { class: "home-title" }, "Une formation TP ECSR ", el("em", {}, "tenue à jour")),
-    el("p", { class: "home-lead" },
-      "Centraliser le planning, suivre les passages en salle et en voiture, "
-      + "noter les évaluations et garder un historique propre. Tout au même endroit, accessible à toute la promo."
+    el("div", { class: "home-hero-content" },
+      el("img", { class: "home-hero-logo", src: "assets/logo/tpecsr-logo.svg", alt: "TP ECSR" }),
+      el("p", { class: "eyebrow home-eyebrow" }, "Suivi de promotion · Promo 2026"),
+      el("h1", { class: "home-title" }, "Une formation TP ECSR ", el("em", {}, "tenue à jour")),
+      el("p", { class: "home-lead" },
+        "Centraliser le planning, suivre les passages en salle et en voiture, "
+        + "noter les évaluations et garder un historique propre. Tout au même endroit, accessible à toute la promo."
+      ),
+      el("div", { class: "home-cta" },
+        el("a", { href: "#/dashboard", class: "btn primary" }, icon.dashboard(), "Aller au tableau de bord"),
+        el("a", { href: "#/planning", class: "btn ghost" }, icon.calendar(), "Voir le planning"),
+      ),
     ),
-    el("div", { class: "home-cta" },
-      el("a", { href: "#/dashboard", class: "btn primary" }, icon.dashboard(), "Aller au tableau de bord"),
-      el("a", { href: "#/planning", class: "btn ghost" }, icon.calendar(), "Voir le planning"),
+    el("div", { class: "home-hero-visual" },
+      el("img", {
+        class: "home-hero-image",
+        src: "assets/images/panneaux-fr-banner.png",
+        alt: "Panneaux de signalisation routière française stylisés",
+        loading: "lazy",
+      }),
     ),
   );
   container.appendChild(hero);
