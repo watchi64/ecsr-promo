@@ -13,7 +13,6 @@ import { el, clear, toast, sha256 } from "../utils.js";
 import { icon } from "../icons.js";
 import { isAdmin, getAdminEmail, refreshAllowedEmails } from "../auth-admin.js";
 import { setAccent, getAccent } from "../accent-switcher.js";
-import { setTheme, getTheme, THEMES } from "../theme-switcher.js";
 import { getStoredWho } from "../identity.js";
 
 const ACCENTS = [
@@ -157,46 +156,13 @@ function renderAppearanceSection() {
     el("div", { class: "param-icon" }, icon.palette()),
     el("div", {},
       el("h3", {}, "Apparence"),
-      el("p", { class: "muted" }, "Thème global + couleur d'accent. Mémorisé sur ton navigateur."),
+      el("p", { class: "muted" }, "Couleur d'accent (CTA, statuts). Mémorisée sur ton navigateur."),
     ),
   ));
 
-  // === THÈMES (palettes complètes) ===
-  section.appendChild(el("div", { class: "param-block" },
-    el("h4", {}, "Thème"),
-    el("p", { class: "muted" }, "Palette complète : fond, surfaces, texte, accent. Aperçu en direct."),
-  ));
-
-  const currentTheme = getTheme();
-  const themeGrid = el("div", { class: "theme-grid" });
-  THEMES.forEach((t) => {
-    const card = el("button", {
-      class: "theme-card" + (t.key === currentTheme ? " selected" : ""),
-      dataset: { key: t.key },
-      onClick: () => {
-        setTheme(t.key);
-        themeGrid.querySelectorAll(".theme-card").forEach((n) =>
-          n.classList.toggle("selected", n.dataset.key === t.key)
-        );
-        toast("Thème : " + t.label, "success", 1200);
-      },
-    },
-      // Mockup de prévisualisation : 4 bandes de couleur
-      el("div", { class: "theme-card-preview", style: `background: ${t.preview.bg}` },
-        el("span", { class: "tp-bar tp-surface", style: `background: ${t.preview.surface}` }),
-        el("span", { class: "tp-bar tp-text",    style: `background: ${t.preview.text}` }),
-        el("span", { class: "tp-bar tp-accent",  style: `background: ${t.preview.accent}` }),
-      ),
-      el("span", { class: "theme-card-label" }, t.label),
-      el("span", { class: "theme-card-note muted" }, t.note),
-    );
-    themeGrid.appendChild(card);
-  });
-  section.appendChild(themeGrid);
-
   // === ACCENT (couleur du rouge) ===
   section.appendChild(el("div", { class: "param-block" },
-    el("h4", { style: "margin-top:1.5rem" }, "Accent"),
+    el("h4", {}, "Accent"),
     el("p", { class: "muted" }, "La couleur qui s'utilise pour les CTA, statuts urgents, eyebrows."),
   ));
 

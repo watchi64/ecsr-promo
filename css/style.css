@@ -28,21 +28,21 @@
 }
 
 :root {
-  /* --- Neutrals — crème chaud + espresso warm --- */
-  --bg:        #F5E8D0;
-  --bg-elev:   #FAF1DC;
-  --bg-soft:   #F0DDBE;
-  --bg-subtle: #EDDFC1;
-  --bg-deep:   #1A1612;
+  /* --- Neutrals — Mint éditorial (seul thème actif) --- */
+  --bg:        #F1F4F0;
+  --bg-elev:   #FBFCFA;
+  --bg-soft:   #E7ECE3;
+  --bg-subtle: #EAEFE6;
+  --bg-deep:   #14201C;
 
-  --line:        #E0CFA6;
-  --line-strong: #C9B486;
-  --line-faint:  #EBDDB8;
+  --line:        #D8DED2;
+  --line-strong: #B7C0AA;
+  --line-faint:  #E2E7DA;
 
-  --text:       #1A1612;
-  --text-soft:  #5C4836;
-  --text-muted: #8A7458;
-  --text-faint: #B5A07F;
+  --text:       #1F2924;
+  --text-soft:  #46554A;
+  --text-muted: #6E7A6F;
+  --text-faint: #9DA89A;
 
   /* --- Accent racing (commuté via [data-accent="..."]) --- */
   --accent:        #B91C1C;
@@ -92,106 +92,6 @@
 [data-accent="oxblood"]   { --accent: #7F1D1D; --accent-strong: #5F1414; --accent-soft: #F1D9D9; --accent-soft-2: #E2BABA; }
 [data-accent="terracotta"]{ --accent: #C2410C; --accent-strong: #9A330A; --accent-soft: #FBE6D3; --accent-soft-2: #F5CFB2; }
 
-/* ============================================================
-   Thèmes complets (palette switcher)
-   ============================================================ */
-
-/* Charcoal — sombre, moderne, premium */
-[data-theme="charcoal"] {
-  --bg:        #1A1612;
-  --bg-elev:   #2A211C;
-  --bg-soft:   #322620;
-  --bg-subtle: #251D18;
-  --bg-deep:   #0F0C0A;
-  --line:        #3D2F25;
-  --line-strong: #5C4634;
-  --line-faint:  #2F241D;
-  --text:       #F5E8D0;
-  --text-soft:  #C9B486;
-  --text-muted: #8A7458;
-  --text-faint: #65523F;
-  --accent: #E1B454; --accent-strong: #C19840; --accent-soft: #3A2F1A; --accent-soft-2: #50421F;
-  --c-stop: #F87171; --c-stop-soft: #3A1D1D;
-  --c-wait: #F59E0B; --c-wait-soft: #3A2812;
-  --c-go: #84CC16; --c-go-soft: #1F2A12;
-  --act-cours:          #2E2B35;
-  --act-peda:           #3A301A;
-  --act-voiture:        #1E2812;
-  --act-controle:       #382418;
-  --act-cours-border:   #443E50;
-  --act-peda-border:    #5C4A2B;
-  --act-voiture-border: #2E3F1C;
-  --act-controle-border:#553722;
-}
-
-/* Mint éditorial — frais, contemporain */
-[data-theme="mint"] {
-  --bg:        #F1F4F0;
-  --bg-elev:   #FBFCFA;
-  --bg-soft:   #E7ECE3;
-  --bg-subtle: #EAEFE6;
-  --bg-deep:   #14201C;
-  --line:        #D8DED2;
-  --line-strong: #B7C0AA;
-  --line-faint:  #E2E7DA;
-  --text:       #1F2924;
-  --text-soft:  #46554A;
-  --text-muted: #6E7A6F;
-  --text-faint: #9DA89A;
-  --accent: #6B7F4E; --accent-strong: #556641; --accent-soft: #EAEFD9; --accent-soft-2: #D8E1C0;
-  --c-go: #6B7F4E; --c-go-soft: #EAEFD9;
-}
-
-/* Sahara — désert doré, terre */
-[data-theme="sahara"] {
-  --bg:        #F0E4CF;
-  --bg-elev:   #F8EFDC;
-  --bg-soft:   #E9DAB9;
-  --bg-subtle: #ECDCBB;
-  --bg-deep:   #3A2A14;
-  --line:        #DFCFAB;
-  --line-strong: #C2AC7B;
-  --line-faint:  #EAD9B4;
-  --text:       #3A2A14;
-  --text-soft:  #6B4F2B;
-  --text-muted: #97774B;
-  --text-faint: #B59874;
-  --accent: #A0522D; --accent-strong: #7F3F22; --accent-soft: #F0DAC2; --accent-soft-2: #E2B996;
-}
-
-/* Nordique — bleu froid, scandinave */
-[data-theme="nordic"] {
-  --bg:        #F2F4F7;
-  --bg-elev:   #FFFFFF;
-  --bg-soft:   #E5E9EE;
-  --bg-subtle: #EAEDF1;
-  --bg-deep:   #1B2638;
-  --line:        #D9DEE5;
-  --line-strong: #B5BFCC;
-  --line-faint:  #E5E9EE;
-  --text:       #1B2638;
-  --text-soft:  #44546A;
-  --text-muted: #6B7A91;
-  --text-faint: #9CA8B8;
-  --accent: #3D5A80; --accent-strong: #2E4660; --accent-soft: #DCE5EE; --accent-soft-2: #BECFE0;
-}
-
-/* Rose poudré — doux, éditorial chic */
-[data-theme="rose"] {
-  --bg:        #F7EBE6;
-  --bg-elev:   #FDF6F2;
-  --bg-soft:   #EFDDD3;
-  --bg-subtle: #F2E0D8;
-  --bg-deep:   #2A1A1F;
-  --line:        #E5CCC0;
-  --line-strong: #C9A28F;
-  --line-faint:  #EDD9CD;
-  --text:       #2A1A1F;
-  --text-soft:  #5C3D45;
-  --text-muted: #8A6A72;
-  --text-faint: #B89BA1;
-  --accent: #A8324A; --accent-strong: #862636; --accent-soft: #F4DCE2; --accent-soft-2: #ECC2CC;
-}
 
 /* ============================================================
    Reset & globals
