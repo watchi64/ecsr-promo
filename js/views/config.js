@@ -12,15 +12,7 @@ import {
 import { el, clear, toast, sha256 } from "../utils.js";
 import { icon } from "../icons.js";
 import { isAdmin, getAdminEmail, refreshAllowedEmails } from "../auth-admin.js";
-import { setAccent, getAccent } from "../accent-switcher.js";
 import { getStoredWho } from "../identity.js";
-
-const ACCENTS = [
-  { key: "brique",     label: "Brique",     hex: "#B91C1C", note: "racing vintage" },
-  { key: "ferrari",    label: "Ferrari",    hex: "#DC2626", note: "vif" },
-  { key: "oxblood",    label: "Oxblood",    hex: "#7F1D1D", note: "luxe, cuir" },
-  { key: "terracotta", label: "Terracotta", hex: "#C2410C", note: "argile chaude" },
-];
 
 // ====== SECTION Sécurité ======
 
@@ -148,48 +140,6 @@ async function renderSecuritySection(rerender) {
   return section;
 }
 
-// ====== SECTION Apparence ======
-
-function renderAppearanceSection() {
-  const section = el("section", { class: "param-section" });
-  section.appendChild(el("div", { class: "param-section-head" },
-    el("div", { class: "param-icon" }, icon.palette()),
-    el("div", {},
-      el("h3", {}, "Apparence"),
-      el("p", { class: "muted" }, "Couleur d'accent (CTA, statuts). Mémorisée sur ton navigateur."),
-    ),
-  ));
-
-  // === ACCENT (couleur du rouge) ===
-  section.appendChild(el("div", { class: "param-block" },
-    el("h4", {}, "Accent"),
-    el("p", { class: "muted" }, "La couleur qui s'utilise pour les CTA, statuts urgents, eyebrows."),
-  ));
-
-  const current = getAccent();
-  const grid = el("div", { class: "accent-grid" });
-  ACCENTS.forEach((p) => {
-    const card = el("button", {
-      class: "accent-card" + (p.key === current ? " selected" : ""),
-      dataset: { key: p.key },
-      onClick: () => {
-        setAccent(p.key);
-        grid.querySelectorAll(".accent-card").forEach((n) => n.classList.toggle("selected", n.dataset.key === p.key));
-        toast("Accent : " + p.label, "success", 1200);
-        const topSwatch = document.querySelector(".accent-trigger .accent-swatch");
-        if (topSwatch) topSwatch.style.background = p.hex;
-      },
-    },
-      el("span", { class: "accent-card-swatch", style: `background: ${p.hex}` }),
-      el("span", { class: "accent-card-label" }, p.label),
-      el("span", { class: "accent-card-note muted" }, p.note),
-    );
-    grid.appendChild(card);
-  });
-  section.appendChild(grid);
-  return section;
-}
-
 // ====== SECTION Promo (stagiaires + profs) ======
 
 async function renderPromoSection(rerender) {
@@ -304,7 +254,6 @@ async function rerender(container) {
 
   const sections = await Promise.all([
     renderSecuritySection(() => rerender(container)),
-    Promise.resolve(renderAppearanceSection()),
     renderPromoSection(() => rerender(container)),
     Promise.resolve(renderInfoSection()),
   ]);
@@ -314,7 +263,7 @@ async function rerender(container) {
     el("div", { class: "view-header-text" },
       el("p", { class: "eyebrow" }, "Système"),
       el("h2", {}, "Paramètres"),
-      el("p", { class: "subtitle" }, "Sécurité, apparence, gestion de la promo, infos. Connecte-toi en mode admin pour modifier la liste."),
+      el("p", { class: "subtitle" }, "Sécurité, gestion de la promo, infos. Connecte-toi en mode admin pour modifier la liste."),
     ),
   ));
 

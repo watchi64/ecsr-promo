@@ -44,11 +44,11 @@
   --text-muted: #6E7A6F;
   --text-faint: #9DA89A;
 
-  /* --- Accent racing (commuté via [data-accent="..."]) --- */
-  --accent:        #B91C1C;
-  --accent-strong: #991B1B;
-  --accent-soft:   #FDECEC;
-  --accent-soft-2: #F9D9D9;
+  /* --- Accent (vert mint) --- */
+  --accent:        #6B7F4E;
+  --accent-strong: #556641;
+  --accent-soft:   #EAEFD9;
+  --accent-soft-2: #D8E1C0;
 
   /* --- Statuts traffic-light --- */
   --c-stop:      #B91C1C;
@@ -86,11 +86,6 @@
   --font-mono:    "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
 }
 
-/* --- Presets accent racing (palette switcher) --- */
-[data-accent="brique"]    { --accent: #B91C1C; --accent-strong: #991B1B; --accent-soft: #FDECEC; --accent-soft-2: #F9D9D9; }
-[data-accent="ferrari"]   { --accent: #DC2626; --accent-strong: #B91C1C; --accent-soft: #FEE2E2; --accent-soft-2: #FECACA; }
-[data-accent="oxblood"]   { --accent: #7F1D1D; --accent-strong: #5F1414; --accent-soft: #F1D9D9; --accent-soft-2: #E2BABA; }
-[data-accent="terracotta"]{ --accent: #C2410C; --accent-strong: #9A330A; --accent-soft: #FBE6D3; --accent-soft-2: #F5CFB2; }
 
 
 /* ============================================================
