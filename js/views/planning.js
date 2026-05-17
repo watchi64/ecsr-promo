@@ -525,6 +525,7 @@ function renderDayCard(d, monday) {
     el("span", { class: "p-day-name" }, JOURS[d]),
     el("span", { class: "p-day-date" }, formatDayShort(date)),
   ));
+  const content = el("div", { class: "p-day-content" });
 
   HALF_DAYS.forEach((half) => {
     const meta = metaFor(d, half.key);
@@ -562,8 +563,9 @@ function renderDayCard(d, monday) {
     slotsWrap.appendChild(addSuiteBtn);
 
     section.appendChild(slotsWrap);
-    card.appendChild(section);
+    content.appendChild(section);
   });
+  card.appendChild(content);
   return card;
 }
 
