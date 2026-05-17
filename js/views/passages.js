@@ -58,7 +58,7 @@ function openAddModal(onSaved) {
     }
 
     try {
-      const who = getCurrentWho(getAdminEmail());
+      const who = getCurrentWho();
       await addPassage({
         date: dateInput.value,
         stagiaire_id: Number(stagiaireSel.value),

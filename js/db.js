@@ -295,30 +295,61 @@ export async function deleteRessource(id) {
   if (error) throw error;
 }
 
-// === Admins (table dédiée, RLS serveur-side) ===
+// === User profiles (whitelist email → stagiaire/prof + rôle) ===
 
-export async function listAdmins() {
+export async function listUserProfiles() {
   const { data, error } = await supabase
-    .from("admins")
+    .from("user_profiles")
     .select("*")
-    .order("added_at");
+    .order("invited_at");
   if (error) throw error;
   return data;
 }
 
-export async function addAdmin(email, addedBy = null) {
-  const { error } = await supabase
-    .from("admins")
-    .insert({ email: email.toLowerCase().trim(), added_by: addedBy });
+export async function getMyProfile() {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user?.email) return null;
+  const { data, error } = await supabase
+    .from("user_profiles")
+    .select("*")
+    .eq("email", user.email.toLowerCase())
+    .maybeSingle();
   if (error) throw error;
+  return data;
 }
 
-export async function removeAdmin(email) {
+export async function deleteUserProfile(email) {
   const { error } = await supabase
-    .from("admins")
+    .from("user_profiles")
     .delete()
     .eq("email", email.toLowerCase().trim());
   if (error) throw error;
+}
+
+// Appelle l'Edge Function pour envoyer une invitation (magic link Supabase).
+export async function inviteUser({ email, role, stagiaire_id = null, prof_id = null }) {
+  const { data, error } = await supabase.functions.invoke("invite-user", {
+    body: { email, role, stagiaire_id, prof_id },
+  });
+  if (error) {
+    // L'Edge Function renvoie { error: "..." } en cas d'échec ; le SDK le wrap.
+    const msg = data?.error || error.message || "Erreur invitation";
+    throw new Error(msg);
+  }
+  if (data?.error) throw new Error(data.error);
+  return data;
+}
+
+// === Compat : ancienne table admins (lecture seule pour debug) ===
+
+export async function listAdmins() {
+  const { data, error } = await supabase
+    .from("user_profiles")
+    .select("*")
+    .eq("role", "admin")
+    .order("invited_at");
+  if (error) throw error;
+  return data;
 }
 
 // === Auth (Supabase magic link) ===

@@ -1,75 +1,102 @@
 /**
- * Couche d'authentification admin (au-dessus du gate mot de passe partagé).
+ * Auth profile-aware (post-refonte invitation).
  *
  * Modèle :
- *  - Tier 1 — gate mot de passe : tout le monde (lecture)
- *  - Tier 2 — Supabase Auth (magic link) : profs/admins (édition des notes & ressources)
+ *  - Tout le monde se connecte via magic link Supabase.
+ *  - À la connexion, on lit user_profiles pour récupérer le rôle
+ *    (stagiaire / prof / admin) et la personne liée (stagiaire_id ou prof_id).
+ *  - isAdmin() / isProf() / isStagiaire() : checks de rôle.
+ *  - getProfile() : la row complète user_profiles.
  *
- * Le module garde une référence à l'utilisateur courant et expose
- * isAdmin() + getAdminEmail() utilisés par les vues.
+ * Conservé : nom du module + signatures pour limiter la casse.
  */
 
-import { getCurrentUser, signInWithMagicLink, signOut, onAuthChange, listAdmins } from "./db.js";
+import {
+  getCurrentUser, signInWithMagicLink, signOut, onAuthChange,
+  getMyProfile, listStagiaires, listProfs,
+} from "./db.js";
 import { el, toast } from "./utils.js";
 import { icon } from "./icons.js";
 
-let currentUser = null;
-let allowedEmails = null;  // null = pas encore charge ; [] = liste vide
+let currentUser = null;     // Supabase auth user
+let currentProfile = null;  // row user_profiles
+let stagiaires = null;
+let profs = null;
 const listeners = new Set();
 
-export function isAdmin() { return !!currentUser; }
+// === Getters publics ===
+
+export function isAuth()        { return !!currentUser && !!currentProfile; }
+export function isAdmin()       { return currentProfile?.role === "admin"; }
+export function isProf()        { return currentProfile?.role === "prof"; }
+export function isStagiaire()   { return currentProfile?.role === "stagiaire"; }
 export function getAdminEmail() { return currentUser?.email || null; }
+export function getProfile()    { return currentProfile; }
 
-async function loadAllowedEmails() {
-  try {
-    const admins = await listAdmins();
-    allowedEmails = admins.map((a) => a.email.toLowerCase());
-  } catch (e) {
-    console.error("loadAllowedEmails failed", e);
-    allowedEmails = [];
+/** Renvoie le prénom lié au profil (stagiaire ou prof), ou l'email pour admin pur. */
+export function getProfileWho() {
+  if (!currentProfile) return null;
+  if (currentProfile.stagiaire_id && stagiaires) {
+    const s = stagiaires.find((x) => x.id === currentProfile.stagiaire_id);
+    if (s) return s.prenom;
   }
-  return allowedEmails;
+  if (currentProfile.prof_id && profs) {
+    const p = profs.find((x) => x.id === currentProfile.prof_id);
+    if (p) return p.nom;
+  }
+  return currentUser?.email || null;
 }
 
-export async function getAllowedEmails() {
-  if (allowedEmails === null) await loadAllowedEmails();
-  return allowedEmails;
+// === Lifecycle ===
+
+async function loadDirectories() {
+  try {
+    [stagiaires, profs] = await Promise.all([listStagiaires(), listProfs()]);
+  } catch (e) {
+    console.error("loadDirectories failed", e);
+    stagiaires = stagiaires || [];
+    profs = profs || [];
+  }
 }
 
-export function isEmailAllowed(email) {
-  if (!email) return false;
-  if (!allowedEmails || allowedEmails.length === 0) return true;  // mode ouvert si liste vide
-  return allowedEmails.map((e) => e.toLowerCase()).includes(email.toLowerCase());
-}
-
-export async function refreshAllowedEmails() {
-  await loadAllowedEmails();
+async function refreshProfile() {
+  try {
+    currentProfile = await getMyProfile();
+  } catch (e) {
+    console.error("refreshProfile failed", e);
+    currentProfile = null;
+  }
 }
 
 export async function initAuth() {
-  await loadAllowedEmails();
+  await loadDirectories();
   currentUser = await getCurrentUser();
-
-  // Vérifie si l'utilisateur déjà connecté est toujours autorisé
-  if (currentUser && !isEmailAllowed(currentUser.email)) {
-    await signOut();
-    currentUser = null;
-    toast("Votre email n'est plus autorisé en mode admin", "error");
+  if (currentUser) {
+    await refreshProfile();
+    if (!currentProfile) {
+      // Connecté mais pas dans user_profiles → kick out
+      await signOut();
+      currentUser = null;
+      toast("Ton compte n'est plus autorisé. Demande une invitation.", "error", 5000);
+    }
   }
 
   onAuthChange(async (user) => {
-    if (user && !isEmailAllowed(user.email)) {
-      await signOut();
-      currentUser = null;
-      toast("Email non autorisé. Demande à un admin de t'ajouter à la liste.", "error", 4000);
-      updateAdminBadge();
-      return;
-    }
     currentUser = user;
-    listeners.forEach((cb) => cb(user));
-    updateAdminBadge();
+    if (user) {
+      await refreshProfile();
+      if (!currentProfile) {
+        await signOut();
+        currentUser = null;
+        toast("Email non invité. Demande à un admin de te whitelister.", "error", 5000);
+      }
+    } else {
+      currentProfile = null;
+    }
+    listeners.forEach((cb) => cb(currentUser, currentProfile));
+    updateBadge();
   });
-  updateAdminBadge();
+  updateBadge();
 }
 
 export function onAdminChange(cb) {
@@ -77,109 +104,55 @@ export function onAdminChange(cb) {
   return () => listeners.delete(cb);
 }
 
-// === UI : badge dans la topbar + modal de connexion ===
+// Compat avec ancien code qui importait ces fonctions.
+export async function refreshAllowedEmails() { /* no-op, géré via user_profiles + RLS */ }
 
-function updateAdminBadge() {
+// === UI : badge dans la topbar ===
+
+function updateBadge() {
   const slot = document.getElementById("admin-slot");
   if (!slot) return;
   slot.innerHTML = "";
+  if (!currentUser) return;
 
-  if (currentUser) {
-    const badge = el("button", { class: "admin-badge", onClick: openAdminMenu },
-      el("span", { class: "admin-dot" }),
-      el("span", { class: "admin-email" }, currentUser.email),
-    );
-    slot.appendChild(badge);
-  } else {
-    const btn = el("button", { class: "admin-login-btn", onClick: openLoginModal });
-    btn.appendChild(icon.settings());
-    btn.appendChild(document.createTextNode("Mode admin"));
-    slot.appendChild(btn);
-  }
+  const who = getProfileWho() || currentUser.email;
+  const roleLabel =
+    currentProfile?.role === "admin"     ? "admin" :
+    currentProfile?.role === "prof"      ? "prof" :
+    currentProfile?.role === "stagiaire" ? "stagiaire" : "";
+
+  const badge = el("button", { class: "admin-badge", onClick: openProfileMenu },
+    el("span", { class: "admin-dot " + (currentProfile?.role || "") }),
+    el("span", { class: "admin-email" }, who),
+    roleLabel ? el("span", { class: "admin-role" }, roleLabel) : null,
+  );
+  slot.appendChild(badge);
 }
 
-function openLoginModal() {
+function openProfileMenu() {
   const backdrop = el("div", { class: "modal-backdrop" });
-
-  const emailInput = el("input", { type: "email", placeholder: "votre.email@exemple.fr", required: true });
-  const openMode = !allowedEmails || allowedEmails.length === 0;
-  const info = el("p", { class: "muted", style: "font-size:0.88rem;margin:0 0 1rem" },
-    openMode
-      ? "Mode ouvert (aucun admin défini). La première personne qui se connecte pourra configurer la liste des admins autorisés dans Paramètres."
-      : "Seuls les emails autorisés peuvent recevoir le lien. Si tu n'es pas dans la liste, demande à un admin existant."
-  );
-
-  const status = el("p", { style: "min-height:1.2em;font-size:0.88rem;margin:0.5rem 0 0" });
-
-  async function sendLink() {
-    const v = emailInput.value.trim();
-    if (!v) return;
-
-    // Vérifie la whitelist côté client (rejet immédiat si email non autorisé)
-    await refreshAllowedEmails();
-    if (!isEmailAllowed(v)) {
-      status.innerHTML = "Cet email n'est pas dans la liste des admins autorisés.<br>Demande à un admin de t'ajouter.";
-      status.style.color = "var(--c-stop)";
-      return;
-    }
-
-    status.textContent = "Envoi en cours…";
-    status.className = "muted";
-    try {
-      await signInWithMagicLink(v);
-      status.textContent = "";
-      status.appendChild(document.createTextNode("Lien envoyé à "));
-      const strong = document.createElement("strong");
-      strong.textContent = v;
-      status.appendChild(strong);
-      status.appendChild(document.createTextNode(". Vérifiez votre boîte (et les spams)."));
-      status.className = "";
-      status.style.color = "var(--accent)";
-    } catch (e) {
-      console.error(e);
-      status.textContent = "Erreur : " + e.message;
-      status.style.color = "var(--c-stop)";
-    }
-  }
-
-  const cancelBtn = el("button", { class: "btn ghost", onClick: () => backdrop.remove() }, "Fermer");
-  const sendBtn = el("button", { class: "btn primary", onClick: sendLink }, icon.check(), "Envoyer le lien");
-  emailInput.addEventListener("keydown", (e) => { if (e.key === "Enter") sendBtn.click(); });
-
-  const modal = el("div", { class: "modal" },
-    el("h3", {}, "Connexion admin"),
-    info,
-    el("div", { class: "modal-form" },
-      el("div", { class: "field" }, el("label", {}, "Adresse email"), emailInput),
-    ),
-    status,
-    el("div", { class: "modal-actions" }, cancelBtn, sendBtn)
-  );
-  backdrop.appendChild(modal);
-  backdrop.addEventListener("click", (e) => { if (e.target === backdrop) backdrop.remove(); });
-  document.body.appendChild(backdrop);
-  setTimeout(() => emailInput.focus(), 100);
-}
-
-function openAdminMenu() {
-  const backdrop = el("div", { class: "modal-backdrop" });
-
   const logoutBtn = el("button", { class: "btn danger full", onClick: async () => {
     await signOut();
     backdrop.remove();
     toast("Déconnecté", "success");
+    // Le hashchange + onAuthChange rechargeront le gate
+    location.reload();
   }}, "Se déconnecter");
 
-  const closeBtn = el("button", { class: "btn ghost", onClick: () => backdrop.remove() }, "Fermer");
-
   const modal = el("div", { class: "modal" },
-    el("h3", {}, "Mode admin"),
-    el("p", { class: "muted", style: "margin:0 0 1rem;font-size:0.9rem" }, "Connecté en tant que ", el("strong", {}, currentUser.email)),
+    el("h3", {}, "Mon compte"),
+    el("p", { class: "muted", style: "margin:0 0 0.4rem;font-size:0.9rem" },
+      "Connecté en tant que ", el("strong", {}, currentUser.email)),
     el("p", { class: "muted", style: "margin:0 0 1.2rem;font-size:0.85rem" },
-      "Vous pouvez ajouter, modifier et supprimer les notes & ressources. Toutes les modifications sont tracées dans l'historique."
+      "Rôle : ", el("strong", {}, currentProfile?.role || "?"),
+      currentProfile && (currentProfile.stagiaire_id || currentProfile.prof_id)
+        ? el("span", {}, " · profil : ", el("strong", {}, getProfileWho() || "?"))
+        : null,
     ),
     logoutBtn,
-    el("div", { class: "modal-actions" }, closeBtn)
+    el("div", { class: "modal-actions" },
+      el("button", { class: "btn ghost", onClick: () => backdrop.remove() }, "Fermer"),
+    )
   );
   backdrop.appendChild(modal);
   backdrop.addEventListener("click", (e) => { if (e.target === backdrop) backdrop.remove(); });

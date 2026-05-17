@@ -1555,6 +1555,84 @@ h3 {
   text-align: center;
 }
 .theme-modal-placeholder p { margin: 0.3rem 0; }
+
+/* === Invite form (Paramètres → Accès) === */
+.invite-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin-top: 0.6rem;
+}
+.invite-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto 1fr;
+  align-items: center;
+  gap: 0.5rem 0.6rem;
+}
+.invite-row label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-faint);
+  font-weight: 600;
+}
+.invite-row select,
+.invite-row input[type="email"] {
+  border: 1px solid var(--line);
+  background: var(--bg-elev);
+  border-radius: var(--r-sm);
+  padding: 0.4rem 0.55rem;
+  font-family: inherit;
+  font-size: 0.88rem;
+  color: var(--text);
+}
+.invite-row select:focus,
+.invite-row input[type="email"]:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+.invite-row .btn {
+  grid-column: 4;
+  justify-self: end;
+}
+@media (max-width: 720px) {
+  .invite-row {
+    grid-template-columns: 1fr;
+  }
+  .invite-row .btn { grid-column: 1; justify-self: stretch; }
+}
+
+/* === Role pills (liste invités) === */
+.role-pill {
+  display: inline-block;
+  font-size: 0.66rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 2px 8px;
+  border-radius: 999px;
+  min-width: 70px;
+  text-align: center;
+}
+.role-pill.role-admin     { background: var(--accent-soft);   color: var(--accent-strong); }
+.role-pill.role-prof      { background: var(--c-wait-soft);   color: var(--c-wait); }
+.role-pill.role-stagiaire { background: var(--bg-subtle);     color: var(--text-muted); }
+
+/* === Badge topbar avec rôle === */
+.admin-role {
+  font-size: 0.66rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-faint);
+  padding: 2px 6px;
+  background: var(--bg-subtle);
+  border-radius: 999px;
+}
+.admin-dot.admin     { background: var(--accent); }
+.admin-dot.prof      { background: var(--c-wait); }
+.admin-dot.stagiaire { background: var(--text-muted); }
 .theme-cat { font-size: 0.7rem; color: var(--text-muted); }
 
 .theme-statut {

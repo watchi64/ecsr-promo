@@ -2,13 +2,12 @@
  * Promo ECSR — Application propriétaire.
  * © 2026 watchi64 — Tous droits réservés. Voir LICENSE.
  */
-import { getSetting, setSetting } from "./db.js";
-import { sha256, toast } from "./utils.js";
+import { signInWithMagicLink, getCurrentUser } from "./db.js";
+import { toast } from "./utils.js";
 import { icon } from "./icons.js";
-import { initAuth, onAdminChange } from "./auth-admin.js";
-import { loadAccent, renderAccentSwitcher } from "./accent-switcher.js";
+import { initAuth, onAdminChange, isAuth } from "./auth-admin.js";
+import { loadAccent } from "./accent-switcher.js";
 import { loadTheme } from "./theme-switcher.js";
-import { ensureIdentity } from "./identity.js";
 import { renderHome } from "./views/home.js";
 import { renderDashboard } from "./views/dashboard.js";
 import { renderPlanning } from "./views/planning.js";
@@ -18,40 +17,24 @@ import { renderRessources } from "./views/ressources.js";
 import { renderThemes } from "./views/themes.js";
 import { renderConfig } from "./views/config.js";
 
-const STORAGE_KEY = "ecsr_auth";
+// ===== Gate : email magic link =====
 
-// ===== Auth gate (mot de passe partagé) =====
-
-async function checkAuth() {
-  let storedHash = null;
-  try {
-    storedHash = await getSetting("password_hash");
-  } catch (e) {
-    console.error("checkAuth: getSetting failed", e);
-  }
-  const localHash = localStorage.getItem(STORAGE_KEY);
-
-  // storedHash null OU chaîne vide = aucun mot de passe défini → premier accès
-  if (!storedHash || storedHash.length === 0) {
-    showInitialPasswordSetup();
-    return false;
-  }
-  if (localHash === storedHash) return true;
-  showGate(storedHash);
-  return false;
-}
-
-function showInitialPasswordSetup() {
+function showGate() {
   const gate = document.getElementById("gate");
   const subtitle = document.getElementById("gate-subtitle");
   const input = document.getElementById("gate-input");
   const submit = document.getElementById("gate-submit");
   const error = document.getElementById("gate-error");
 
-  subtitle.textContent = "Premier accès : définissez le mot de passe partagé";
-  input.placeholder = "Minimum 4 caractères";
-  submit.textContent = "Définir et entrer";
+  // Reconfigure le gate pour email
+  input.type = "email";
+  input.placeholder = "ton.email@exemple.fr";
+  input.value = "";
+  input.autocomplete = "email";
+  subtitle.textContent = "Connecte-toi avec ton email (un lien magique te sera envoyé)";
+  submit.textContent = "Recevoir le lien";
   submit.type = "button";
+  submit.disabled = false;
   error.classList.add("hidden");
 
   gate.classList.remove("hidden");
@@ -59,84 +42,41 @@ function showInitialPasswordSetup() {
   input.focus();
 
   const handler = async () => {
-    const v = input.value;
-    if (!v || v.length < 4) {
-      error.textContent = "Minimum 4 caractères";
+    const email = input.value.trim();
+    if (!email || !/^\S+@\S+\.\S+$/.test(email)) {
+      error.textContent = "Email invalide";
       error.classList.remove("hidden");
       return;
     }
     error.classList.add("hidden");
     submit.disabled = true;
-    const originalLabel = submit.textContent;
-    submit.textContent = "Enregistrement…";
+    const original = submit.textContent;
+    submit.textContent = "Envoi…";
     try {
-      const hash = await sha256(v);
-      await setSetting("password_hash", hash);
-      localStorage.setItem(STORAGE_KEY, hash);
-      gate.classList.add("hidden");
-      document.getElementById("app").classList.remove("hidden");
-      await init();
+      await signInWithMagicLink(email);
+      subtitle.textContent = "Mail envoyé à " + email;
+      input.style.display = "none";
+      submit.style.display = "none";
+      const ok = document.createElement("p");
+      ok.className = "muted";
+      ok.style.cssText = "margin-top:1rem;font-size:0.9rem";
+      ok.textContent = "Ouvre le mail (et vérifie les spams). Tu peux fermer cet onglet, le lien marche partout.";
+      error.parentElement.insertBefore(ok, error);
     } catch (e) {
-      console.error("Gate setup error:", e);
+      console.error("Gate login error:", e);
       error.textContent = "Erreur : " + (e?.message || e);
       error.classList.remove("hidden");
       submit.disabled = false;
-      submit.textContent = originalLabel;
+      submit.textContent = original;
     }
   };
   submit.onclick = handler;
   input.onkeydown = (e) => { if (e.key === "Enter") { e.preventDefault(); handler(); } };
 }
 
-function showGate(storedHash) {
-  const gate = document.getElementById("gate");
-  const subtitle = document.getElementById("gate-subtitle");
-  const input = document.getElementById("gate-input");
-  const submit = document.getElementById("gate-submit");
-  const error = document.getElementById("gate-error");
-
-  subtitle.textContent = "Mot de passe partagé de la promo";
-  input.placeholder = "••••••••";
-  submit.textContent = "Entrer";
-  submit.type = "button";
-  error.classList.add("hidden");
-
-  gate.classList.remove("hidden");
-  document.getElementById("app").classList.add("hidden");
-  input.focus();
-
-  const handler = async () => {
-    const v = input.value;
-    if (!v) return;
-    error.classList.add("hidden");
-    submit.disabled = true;
-    const originalLabel = submit.textContent;
-    submit.textContent = "Vérification…";
-    try {
-      const hash = await sha256(v);
-      if (hash === storedHash) {
-        localStorage.setItem(STORAGE_KEY, hash);
-        gate.classList.add("hidden");
-        document.getElementById("app").classList.remove("hidden");
-        await init();
-      } else {
-        error.textContent = "Mot de passe incorrect";
-        error.classList.remove("hidden");
-        input.value = "";
-        input.focus();
-        submit.disabled = false;
-        submit.textContent = originalLabel;
-      }
-    } catch (e) {
-      console.error("Gate login error:", e);
-      error.textContent = "Erreur : " + (e?.message || e);
-      error.classList.remove("hidden");
-      submit.disabled = false;
-      submit.textContent = originalLabel;
-    }
-  };
-  submit.onclick = handler;
-  input.onkeydown = (e) => { if (e.key === "Enter") { e.preventDefault(); handler(); } };
+function hideGate() {
+  document.getElementById("gate").classList.add("hidden");
+  document.getElementById("app").classList.remove("hidden");
 }
 
 // ===== Tabs =====
@@ -185,7 +125,10 @@ async function navigate() {
   const hash = location.hash.replace(/^#\//, "") || "dashboard";
   const route = routes[hash] ? hash : "dashboard";
   document.querySelectorAll(".tab").forEach((t) => {
-    t.classList.toggle("active", t.dataset.route === route);
+    const active = t.dataset.route === route;
+    t.classList.toggle("active", active);
+    if (active) t.setAttribute("aria-current", "page");
+    else t.removeAttribute("aria-current");
   });
   const view = document.getElementById("view");
   try {
@@ -210,40 +153,37 @@ function setupRefreshBtn() {
   btn.addEventListener("click", () => navigate());
 }
 
-function setupAccentSwitcher() {
-  const slot = document.getElementById("accent-slot");
-  if (!slot) {
-    const adminSlot = document.getElementById("admin-slot");
-    const wrap = document.createElement("div");
-    wrap.id = "accent-slot";
-    adminSlot.parentElement.insertBefore(wrap, adminSlot);
-  }
-  const target = document.getElementById("accent-slot");
-  target.innerHTML = "";
-  target.appendChild(renderAccentSwitcher());
-}
-
-async function init() {
-  loadTheme();
-  loadAccent();
-  await initAuth();
-  // Identifier le visiteur AVANT d'afficher l'app (sauf si déjà admin)
-  await ensureIdentity();
+async function bootApp() {
+  hideGate();
   renderTabs();
   setupRefreshBtn();
-  setupAccentSwitcher();
   onAdminChange(() => navigate());
   if (!location.hash) location.hash = "#/dashboard";
   await navigate();
 }
 
 (async () => {
-  // Applique le thème avant tout pour éviter le flash crème par défaut
   loadTheme();
   loadAccent();
-  const ok = await checkAuth();
-  if (ok) {
-    document.getElementById("app").classList.remove("hidden");
-    await init();
+  await initAuth();
+  if (isAuth()) {
+    await bootApp();
+  } else {
+    // Pas connecté → gate.
+    // Si l'URL contient ?code=... (callback magic link), Supabase a déjà handle ;
+    // un onAuthChange va déclencher le boot automatiquement.
+    showGate();
+    // Surveille le moment où l'auth devient valide pour basculer.
+    const watch = setInterval(async () => {
+      if (isAuth()) {
+        clearInterval(watch);
+        await bootApp();
+      } else {
+        const u = await getCurrentUser();
+        if (u) {
+          // user connecté mais profile pas encore prêt → on attend
+        }
+      }
+    }, 800);
   }
 })();

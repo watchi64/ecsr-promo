@@ -1,142 +1,162 @@
 /*
- * Vue Paramètres (anciennement Config).
- * 4 sections : Sécurité (mot de passe + admins) · Apparence · Promo · Infos.
+ * Vue Paramètres.
+ * 3 sections : Accès & invitations · Promo · Infos.
  */
 import {
   listStagiaires, listProfs,
   addStagiaire, updateStagiaire, deleteStagiaire,
   addProf, updateProf, deleteProf,
-  getSetting, setSetting,
-  listAdmins, addAdmin, removeAdmin,
+  listUserProfiles, deleteUserProfile, inviteUser,
 } from "../db.js";
-import { el, clear, toast, sha256 } from "../utils.js";
+import { el, clear, toast } from "../utils.js";
 import { icon } from "../icons.js";
-import { isAdmin, getAdminEmail, refreshAllowedEmails } from "../auth-admin.js";
-import { getStoredWho } from "../identity.js";
+import { isAdmin, getAdminEmail } from "../auth-admin.js";
 
-// ====== SECTION Sécurité ======
+// ====== SECTION Accès & invitations ======
 
-async function renderSecuritySection(rerender) {
+async function renderAccessSection(rerender) {
   const admin = isAdmin();
+  const currentEmail = getAdminEmail();
   const section = el("section", { class: "param-section" });
   section.appendChild(el("div", { class: "param-section-head" },
     el("div", { class: "param-icon" }, icon.shield()),
     el("div", {},
-      el("h3", {}, "Sécurité"),
-      el("p", { class: "muted" }, "Mot de passe partagé et liste des admins autorisés."),
+      el("h3", {}, "Accès & invitations"),
+      el("p", { class: "muted" }, "Personnes invitées à utiliser l'app (stagiaires, profs, admins)."),
     ),
   ));
 
-  // Mot de passe partagé — admin only
+  const [profiles, stagiaires, profs] = await Promise.all([
+    listUserProfiles(), listStagiaires(), listProfs(),
+  ]);
+
+  // === Form d'invitation (admin only) ===
   if (admin) {
-    const oldInput = el("input", { type: "password", placeholder: "Actuel" });
-    const newInput = el("input", { type: "password", placeholder: "Nouveau (min. 4 caractères)" });
-    const confirmInput = el("input", { type: "password", placeholder: "Confirmer" });
+    const inviteBlock = el("div", { class: "param-block" });
+    inviteBlock.appendChild(el("h4", {}, "Inviter une personne"));
+    inviteBlock.appendChild(el("p", { class: "muted" },
+      "Choisis le rôle et la personne, puis entre son email. Elle recevra un lien magique pour se connecter."));
 
-    const passBtn = el("button", { class: "btn primary", onClick: async () => {
-      const currentHash = await getSetting("password_hash");
-      if (currentHash) {
-        const oldHash = await sha256(oldInput.value);
-        if (oldHash !== currentHash) { toast("Mot de passe actuel incorrect", "error"); return; }
+    const roleSel = el("select", { class: "invite-role" });
+    [
+      { v: "stagiaire", l: "Stagiaire" },
+      { v: "prof",      l: "Formateur (prof)" },
+      { v: "admin",     l: "Admin" },
+    ].forEach((o) => roleSel.appendChild(el("option", { value: o.v }, o.l)));
+
+    const personSel = el("select", { class: "invite-person" });
+    function refreshPersonOptions() {
+      clear(personSel);
+      const role = roleSel.value;
+      if (role === "admin") {
+        personSel.appendChild(el("option", { value: "" }, "— (pas de personne liée)"));
+        personSel.disabled = true;
+        return;
       }
-      if (!newInput.value || newInput.value.length < 4) { toast("Min. 4 caractères", "error"); return; }
-      if (newInput.value !== confirmInput.value) { toast("Les mots de passe ne correspondent pas", "error"); return; }
-      const newHash = await sha256(newInput.value);
-      await setSetting("password_hash", newHash);
-      localStorage.setItem("ecsr_auth", newHash);
-      toast("Mot de passe mis à jour", "success");
-      oldInput.value = newInput.value = confirmInput.value = "";
-    }}, icon.check(), "Mettre à jour");
+      personSel.disabled = false;
+      personSel.appendChild(el("option", { value: "" }, "— Choisir —"));
+      const list = role === "stagiaire" ? stagiaires : profs;
+      const taken = new Set(profiles
+        .filter((p) => role === "stagiaire" ? p.stagiaire_id : p.prof_id)
+        .map((p) => role === "stagiaire" ? p.stagiaire_id : p.prof_id));
+      list.forEach((it) => {
+        const isTaken = taken.has(it.id);
+        const label = (it.prenom || it.nom) + (isTaken ? " (déjà invité)" : "");
+        const opt = el("option", { value: String(it.id) }, label);
+        if (isTaken) opt.disabled = true;
+        personSel.appendChild(opt);
+      });
+    }
+    roleSel.addEventListener("change", refreshPersonOptions);
+    refreshPersonOptions();
 
-    section.appendChild(el("div", { class: "param-block" },
-      el("h4", {}, "Mot de passe partagé"),
-      el("p", { class: "muted" }, "Permet à toute la promo d'entrer dans l'app."),
-      el("div", { class: "modal-form" },
-        el("div", { class: "field" }, el("label", {}, "Mot de passe actuel"), oldInput),
-        el("div", { class: "field" }, el("label", {}, "Nouveau"), newInput),
-        el("div", { class: "field" }, el("label", {}, "Confirmer"), confirmInput),
-        el("div", { style: "margin-top:0.3rem" }, passBtn),
+    const emailInput = el("input", { type: "email", placeholder: "email@exemple.fr", class: "invite-email" });
+
+    const sendBtn = el("button", { class: "btn accent" }, icon.mail(), "Envoyer l'invitation");
+    sendBtn.addEventListener("click", async () => {
+      const email = emailInput.value.trim().toLowerCase();
+      const role = roleSel.value;
+      const personId = personSel.value ? Number(personSel.value) : null;
+      if (!email || !/^\S+@\S+\.\S+$/.test(email)) { toast("Email invalide", "error"); return; }
+      if (role !== "admin" && !personId) { toast("Choisis la personne à lier", "error"); return; }
+
+      sendBtn.disabled = true;
+      sendBtn.textContent = "Envoi…";
+      try {
+        await inviteUser({
+          email, role,
+          stagiaire_id: role === "stagiaire" ? personId : null,
+          prof_id:      role === "prof"      ? personId : null,
+        });
+        toast("Invitation envoyée à " + email, "success", 3500);
+        emailInput.value = "";
+        rerender();
+      } catch (e) {
+        toast("Erreur : " + e.message, "error", 5000);
+      } finally {
+        sendBtn.disabled = false;
+        sendBtn.textContent = "";
+        sendBtn.appendChild(icon.mail());
+        sendBtn.appendChild(document.createTextNode("Envoyer l'invitation"));
+      }
+    });
+    emailInput.addEventListener("keydown", (e) => { if (e.key === "Enter") sendBtn.click(); });
+
+    inviteBlock.appendChild(el("div", { class: "invite-form" },
+      el("div", { class: "invite-row" },
+        el("label", {}, "Rôle"), roleSel,
+        el("label", {}, "Personne"), personSel,
+      ),
+      el("div", { class: "invite-row" },
+        el("label", {}, "Email"), emailInput,
+        sendBtn,
       ),
     ));
-  } else {
-    section.appendChild(el("div", { class: "param-block param-locked" },
-      el("h4", {}, "Mot de passe partagé"),
-      el("p", { class: "muted" }, "🔒 Seul un admin peut le modifier."),
-    ));
+    section.appendChild(inviteBlock);
   }
 
-  // Identité (mon prénom) — affichage seul, pas modifiable
-  const who = getStoredWho();
-  const identitySection = el("div", { class: "param-block" },
-    el("h4", {}, "Mon identité"),
-    el("p", { class: "muted" }, "Le nom utilisé pour signer tes ajouts de passages. Choisi lors du premier accès, il ne peut pas être modifié ensuite."),
-    el("div", { style: "display:flex;align-items:center;gap:0.7rem;" },
-      el("span", { class: "param-identity-chip" }, who || "Anonyme"),
-    ),
-  );
-  section.appendChild(identitySection);
-
-  // === Admins autorisés (table dédiée, RLS serveur) ===
-  const adminsList = await listAdmins();
-  const adminEmails = adminsList.map((a) => a.email.toLowerCase());
-  const currentEmail = getAdminEmail();
-  const adminBlock = el("div", { class: "param-block" });
-  adminBlock.appendChild(el("h4", {}, "Admins autorisés"));
-  adminBlock.appendChild(el("p", { class: "muted" },
-    adminsList.length === 0
-      ? "⚠️ Liste vide. Personne ne peut se connecter en admin."
-      : "Seuls ces emails peuvent se connecter en admin (magic link). Les écritures sensibles sont vérifiées côté serveur."
-  ));
-
-  const list = el("ul", { class: "admin-list" });
-  adminsList.forEach((a) => {
-    const item = el("li", { class: "admin-item" },
-      icon.mail(),
-      el("span", { class: "admin-email-text" }, a.email),
-      a.email === currentEmail ? el("span", { class: "admin-you" }, "vous") : null,
-      isAdmin() ? el("button", {
-        class: "btn small danger icon-only",
-        "aria-label": "Retirer",
-        onClick: async () => {
-          if (adminsList.length === 1 && a.email === currentEmail) {
-            if (!confirm("Tu es le dernier admin. Te retirer fermera la porte à toutes les écritures admin (la RLS bloquera tout). Vraiment continuer ?")) return;
-          } else if (!confirm(`Retirer ${a.email} de la liste des admins ?`)) return;
-          try {
-            await removeAdmin(a.email);
-            await refreshAllowedEmails();
-            toast("Email retiré", "success");
-            rerender();
-          } catch (e) { toast(e.message, "error"); }
+  // === Liste des invités ===
+  const listBlock = el("div", { class: "param-block" });
+  listBlock.appendChild(el("h4", {}, `Personnes avec accès (${profiles.length})`));
+  if (profiles.length === 0) {
+    listBlock.appendChild(el("p", { class: "muted" }, "Personne pour l'instant. Invite quelqu'un ci-dessus."));
+  } else {
+    const list = el("ul", { class: "admin-list" });
+    profiles
+      .slice()
+      .sort((a, b) => (a.role || "").localeCompare(b.role) || a.email.localeCompare(b.email))
+      .forEach((p) => {
+        let who = "";
+        if (p.stagiaire_id) {
+          const s = stagiaires.find((x) => x.id === p.stagiaire_id);
+          if (s) who = s.prenom;
+        } else if (p.prof_id) {
+          const pr = profs.find((x) => x.id === p.prof_id);
+          if (pr) who = pr.nom;
         }
-      }, icon.trash()) : null,
-    );
-    list.appendChild(item);
-  });
-  adminBlock.appendChild(list);
-
-  if (isAdmin()) {
-    const newEmailInput = el("input", { type: "email", placeholder: "email@exemple.fr" });
-    const addBtn = el("button", { class: "btn accent", onClick: async () => {
-      const v = newEmailInput.value.trim().toLowerCase();
-      if (!v || !v.includes("@")) { toast("Email invalide", "error"); return; }
-      if (adminEmails.includes(v)) { toast("Email déjà dans la liste", "error"); return; }
-      try {
-        await addAdmin(v, currentEmail);
-        await refreshAllowedEmails();
-        newEmailInput.value = "";
-        toast("Email ajouté", "success");
-        rerender();
-      } catch (e) { toast(e.message, "error"); }
-    }}, icon.plus(), "Autoriser");
-    newEmailInput.addEventListener("keydown", (e) => { if (e.key === "Enter") addBtn.click(); });
-    adminBlock.appendChild(el("div", { class: "config-add" }, newEmailInput, addBtn));
-  } else {
-    adminBlock.appendChild(el("p", { class: "muted", style: "font-style:italic;margin-top:0.5rem;font-size:0.85rem" },
-      "Connecte-toi en mode admin pour modifier cette liste."
-    ));
+        const item = el("li", { class: "admin-item" },
+          el("span", { class: "role-pill role-" + p.role }, p.role),
+          el("span", { class: "admin-email-text" }, p.email),
+          who ? el("span", { class: "admin-you" }, who) : null,
+          p.email === currentEmail ? el("span", { class: "admin-you" }, "vous") : null,
+          (admin && p.email !== currentEmail) ? el("button", {
+            class: "btn small danger icon-only", "aria-label": "Retirer l'accès",
+            onClick: async () => {
+              if (!confirm(`Retirer l'accès de ${p.email} ?`)) return;
+              try {
+                await deleteUserProfile(p.email);
+                toast("Accès retiré", "success");
+                rerender();
+              } catch (e) { toast(e.message, "error"); }
+            }
+          }, icon.trash()) : null,
+        );
+        list.appendChild(item);
+      });
+    listBlock.appendChild(list);
   }
+  section.appendChild(listBlock);
 
-  section.appendChild(adminBlock);
   return section;
 }
 
@@ -253,7 +273,7 @@ async function rerender(container) {
   container.appendChild(el("div", { class: "loading" }, "Chargement"));
 
   const sections = await Promise.all([
-    renderSecuritySection(() => rerender(container)),
+    renderAccessSection(() => rerender(container)),
     renderPromoSection(() => rerender(container)),
     Promise.resolve(renderInfoSection()),
   ]);
@@ -263,7 +283,7 @@ async function rerender(container) {
     el("div", { class: "view-header-text" },
       el("p", { class: "eyebrow" }, "Système"),
       el("h2", {}, "Paramètres"),
-      el("p", { class: "subtitle" }, "Sécurité, gestion de la promo, infos. Connecte-toi en mode admin pour modifier la liste."),
+      el("p", { class: "subtitle" }, "Accès, gestion de la promo, infos. Connecte-toi en admin pour inviter ou modifier."),
     ),
   ));
 
