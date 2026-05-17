@@ -2,6 +2,39 @@ import { listStagiaires, listEvaluations, getStats, getPedagogueCountsFromPlanni
 import { el, clear, isoDate, getMonday } from "../utils.js";
 import { icon } from "../icons.js";
 
+const SORT_OPTIONS = [
+  { key: "priorite",   label: "Priorité de passage" },
+  { key: "alpha",      label: "Alphabétique" },
+  { key: "note-desc",  label: "Note : meilleure d'abord" },
+  { key: "note-asc",   label: "Note : plus faible d'abord" },
+  { key: "passages",   label: "Plus de passages d'abord" },
+];
+
+let currentSort = localStorage.getItem("ecsr_dash_sort") || "priorite";
+
+function sortEnriched(list, mode) {
+  const arr = list.slice();
+  switch (mode) {
+    case "alpha":
+      arr.sort((a, b) => a.s.prenom.localeCompare(b.s.prenom, "fr"));
+      break;
+    case "note-desc":
+      arr.sort((a, b) => (b.avg ?? -1) - (a.avg ?? -1) || a.s.prenom.localeCompare(b.s.prenom, "fr"));
+      break;
+    case "note-asc":
+      arr.sort((a, b) => (a.avg ?? 99) - (b.avg ?? 99) || a.s.prenom.localeCompare(b.s.prenom, "fr"));
+      break;
+    case "passages":
+      arr.sort((a, b) => (b.sa.effectif + b.vo.effectif) - (a.sa.effectif + a.vo.effectif));
+      break;
+    case "priorite":
+    default:
+      arr.sort((a, b) => a.score - b.score || a.s.ordre - b.s.ordre);
+      break;
+  }
+  return arr;
+}
+
 function statForType(s, type, pedaCount = 0) {
   const e = (s?.[type]?.["Effectué"] || 0) + (type === "Salle" ? pedaCount : 0);
   const b = s?.[type]?.["Bonus"] || 0;
@@ -118,7 +151,6 @@ export async function renderDashboard(container) {
     const nbEvals = evaluations.filter((e) => e.stagiaire_id === s.id && e.note != null).length;
     return { s, sa, vo, prioSalle, prioVoiture, score, avg, nbEvals };
   });
-  enriched.sort((a, b) => a.score - b.score || a.s.ordre - b.s.ordre);
 
   const stats_summary = {
     urgent: enriched.filter((x) => x.score === 0).length,
@@ -134,6 +166,27 @@ export async function renderDashboard(container) {
       el("h2", {}, "Tableau de bord"),
       el("p", { class: "subtitle" }, "Qui doit passer en priorité. Calculé à partir de l'historique et du planning en cours."),
     ),
+  ));
+
+  // Toolbar de tri
+  const sortSel = el("select", { class: "dash-sort" });
+  SORT_OPTIONS.forEach((o) => {
+    const opt = el("option", { value: o.key }, o.label);
+    if (o.key === currentSort) opt.selected = true;
+    sortSel.appendChild(opt);
+  });
+  sortSel.addEventListener("change", () => {
+    currentSort = sortSel.value;
+    localStorage.setItem("ecsr_dash_sort", currentSort);
+    const sorted = sortEnriched(enriched, currentSort);
+    clear(grid);
+    sorted.forEach(({ s, sa, vo, prioSalle, prioVoiture, avg, nbEvals }) => {
+      grid.appendChild(renderCard(s, sa, vo, prioSalle, prioVoiture, avg, nbEvals));
+    });
+  });
+  container.appendChild(el("div", { class: "dash-toolbar" },
+    el("label", {}, "Trier par"),
+    sortSel,
   ));
 
   // Sommaire
@@ -157,7 +210,7 @@ export async function renderDashboard(container) {
   ));
 
   const grid = el("div", { class: "dashboard-grid" });
-  enriched.forEach(({ s, sa, vo, prioSalle, prioVoiture, avg, nbEvals }) => {
+  sortEnriched(enriched, currentSort).forEach(({ s, sa, vo, prioSalle, prioVoiture, avg, nbEvals }) => {
     grid.appendChild(renderCard(s, sa, vo, prioSalle, prioVoiture, avg, nbEvals));
   });
   container.appendChild(grid);

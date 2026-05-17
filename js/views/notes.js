@@ -15,6 +15,49 @@ let filterStagiaire = "";
 let filterType = "";
 let currentEvalDate = null;  // Date appliquée aux nouvelles notes saisies dans la matrice
 
+const NOTES_SORT_OPTIONS = [
+  { key: "default",   label: "Ordre par défaut" },
+  { key: "alpha",     label: "Alphabétique" },
+  { key: "avg-desc",  label: "Moyenne : meilleure d'abord" },
+  { key: "avg-asc",   label: "Moyenne : plus faible d'abord" },
+  { key: "nb-desc",   label: "Nombre de notes : plus d'abord" },
+];
+
+let currentNotesSort = localStorage.getItem("ecsr_notes_sort") || "default";
+
+function stagiaireAvg(stagiaireId) {
+  const evs = evaluations.filter((e) => e.stagiaire_id === stagiaireId && e.note != null && e.note_max);
+  if (evs.length === 0) return null;
+  return evs.reduce((sum, e) => sum + (Number(e.note) / Number(e.note_max)) * 20, 0) / evs.length;
+}
+
+function stagiaireNbNotes(stagiaireId) {
+  return evaluations.filter((e) => e.stagiaire_id === stagiaireId && e.note != null).length;
+}
+
+function sortStagiaires(list, mode) {
+  const arr = list.slice();
+  switch (mode) {
+    case "alpha":
+      arr.sort((a, b) => a.prenom.localeCompare(b.prenom, "fr"));
+      break;
+    case "avg-desc":
+      arr.sort((a, b) => (stagiaireAvg(b.id) ?? -1) - (stagiaireAvg(a.id) ?? -1) || a.prenom.localeCompare(b.prenom, "fr"));
+      break;
+    case "avg-asc":
+      arr.sort((a, b) => (stagiaireAvg(a.id) ?? 99) - (stagiaireAvg(b.id) ?? 99) || a.prenom.localeCompare(b.prenom, "fr"));
+      break;
+    case "nb-desc":
+      arr.sort((a, b) => stagiaireNbNotes(b.id) - stagiaireNbNotes(a.id));
+      break;
+    case "default":
+    default:
+      arr.sort((a, b) => (a.ordre ?? 0) - (b.ordre ?? 0));
+      break;
+  }
+  return arr;
+}
+
 const TYPES_EVAL = ["Thème", "Compétence", "Contrôle"];
 
 // Colonnes "spéciales" du tableau matrice (en plus des 57 thèmes)
@@ -475,7 +518,7 @@ function renderMatrice(container) {
   const tbody = el("tbody");
   const admin = isAdmin();
 
-  stagiaires.forEach((s) => {
+  sortStagiaires(stagiaires, currentNotesSort).forEach((s) => {
     const tr = el("tr");
 
     // Colonne prénom (sticky)
@@ -556,6 +599,19 @@ function rerender(container) {
     admin ? null : el("span", { class: "muted", style: "font-size:0.85rem" }, "Lecture seule. Connexion admin requise pour modifier."),
   ));
 
+  // Tri (toujours visible)
+  const sortSel = el("select", { class: "notes-sort" });
+  NOTES_SORT_OPTIONS.forEach((o) => {
+    const opt = el("option", { value: o.key }, o.label);
+    if (o.key === currentNotesSort) opt.selected = true;
+    sortSel.appendChild(opt);
+  });
+  sortSel.addEventListener("change", () => {
+    currentNotesSort = sortSel.value;
+    localStorage.setItem("ecsr_notes_sort", currentNotesSort);
+    rerender(container);
+  });
+
   if (admin) {
     // Barre date globale : toutes les notes saisies prendront cette date
     const dateInput = el("input", { type: "date", value: currentEvalDate });
@@ -568,12 +624,19 @@ function rerender(container) {
     }}, "Aujourd'hui");
 
     container.appendChild(el("div", { class: "matrice-toolbar" },
-      el("span", { class: "matrice-toolbar-label" }, "Date des notes saisies :"),
+      el("span", { class: "matrice-toolbar-label" }, "Trier :"),
+      sortSel,
+      el("span", { class: "matrice-toolbar-label", style: "margin-left:1rem" }, "Date des notes :"),
       dateInput,
       todayBtn,
       el("span", { class: "matrice-toolbar-hint muted" },
-        "→ clique une cellule, tape une note (0-20), Entrée pour valider. Esc pour annuler."
+        "→ clique une cellule, tape une note (0-20), Entrée valide, Esc annule."
       ),
+    ));
+  } else {
+    container.appendChild(el("div", { class: "matrice-toolbar" },
+      el("span", { class: "matrice-toolbar-label" }, "Trier :"),
+      sortSel,
     ));
   }
 

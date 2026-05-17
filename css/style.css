@@ -1663,6 +1663,47 @@ h3 {
 .admin-dot.admin     { background: var(--accent); }
 .admin-dot.prof      { background: var(--c-wait); }
 .admin-dot.stagiaire { background: var(--text-muted); }
+
+/* === Toolbar tri (dashboard, notes) === */
+.dash-toolbar,
+.matrice-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.dash-toolbar {
+  margin: 0.4rem 0 1rem;
+  padding: 0.5rem 0.7rem;
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+}
+.dash-toolbar label,
+.matrice-toolbar-label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-faint);
+  font-weight: 600;
+}
+.dash-sort,
+.notes-sort {
+  border: 1px solid var(--line);
+  background: var(--bg-elev);
+  border-radius: var(--r-sm);
+  padding: 0.3rem 0.5rem;
+  font-family: inherit;
+  font-size: 0.85rem;
+  color: var(--text);
+  cursor: pointer;
+}
+.dash-sort:focus,
+.notes-sort:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
 .theme-cat { font-size: 0.7rem; color: var(--text-muted); }
 
 .theme-statut {
