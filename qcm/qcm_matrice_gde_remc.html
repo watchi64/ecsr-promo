@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QCM — Matrice GDE & REMC</title>
+<style>
+  :root {
+    --primary:#6b7f4e;--primary-dark:#556641;--success:#057a55;--danger:#c81e1e;
+    --bg:#f9fafb;--card:#fff;--text:#111827;--muted:#6b7280;--border:#e5e7eb;--radius:12px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);
+    min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:24px 16px;}
+  header{text-align:center;margin-bottom:32px;max-width:700px;width:100%;}
+  .badge{display:inline-block;background:#eaefd9;color:#3d4a2b;font-size:12px;font-weight:600;
+    letter-spacing:.05em;text-transform:uppercase;padding:4px 12px;border-radius:99px;margin-bottom:10px;}
+  h1{font-size:1.6rem;font-weight:700;margin-bottom:6px;}
+  header p{color:var(--muted);font-size:.95rem;}
+  .progress-wrap{max-width:700px;width:100%;margin-bottom:20px;}
+  .progress-info{display:flex;justify-content:space-between;font-size:.85rem;color:var(--muted);margin-bottom:6px;}
+  .progress-bar{height:8px;background:var(--border);border-radius:99px;overflow:hidden;}
+  .progress-fill{height:100%;background:var(--primary);border-radius:99px;transition:width .4s ease;}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);
+    padding:28px 32px;max-width:700px;width:100%;box-shadow:0 1px 4px rgba(0,0,0,.06);}
+  @media (max-width:600px){.card{padding:20px 18px;}}
+  .question-num{font-size:.8rem;font-weight:600;color:var(--muted);text-transform:uppercase;
+    letter-spacing:.08em;margin-bottom:10px;}
+  .question-text{font-size:1.1rem;font-weight:600;line-height:1.5;margin-bottom:20px;}
+  .choices{display:flex;flex-direction:column;gap:10px;}
+  .choice{display:flex;align-items:flex-start;gap:12px;padding:14px 16px;
+    border:2px solid var(--border);border-radius:10px;cursor:pointer;
+    transition:border-color .15s,background .15s;font-size:.97rem;line-height:1.4;user-select:none;}
+  .choice:hover:not(.disabled){border-color:var(--primary);background:#f3f6e9;}
+  .choice-letter{flex-shrink:0;width:28px;height:28px;border-radius:50%;background:var(--bg);
+    border:2px solid var(--border);display:flex;align-items:center;justify-content:center;
+    font-weight:700;font-size:.82rem;transition:background .15s,border-color .15s,color .15s;}
+  .choice.correct{border-color:var(--success);background:#f0fdf4;}
+  .choice.correct .choice-letter{background:var(--success);border-color:var(--success);color:#fff;}
+  .choice.wrong{border-color:var(--danger);background:#fef2f2;}
+  .choice.wrong .choice-letter{background:var(--danger);border-color:var(--danger);color:#fff;}
+  .choice.disabled{cursor:default;}
+  .explanation{margin-top:18px;padding:14px 16px;border-radius:10px;font-size:.92rem;
+    line-height:1.5;display:none;}
+  .explanation.ok{background:#f0fdf4;border-left:4px solid var(--success);color:#065f46;}
+  .explanation.ko{background:#fef2f2;border-left:4px solid var(--danger);color:#7f1d1d;}
+  .btn-next{margin-top:22px;width:100%;padding:14px;background:var(--primary);color:#fff;
+    border:none;border-radius:10px;font-size:1rem;font-weight:600;cursor:pointer;display:none;
+    transition:background .15s;}
+  .btn-next:hover{background:var(--primary-dark);}
+  #results{display:none;text-align:center;}
+  .score-circle{width:140px;height:140px;border-radius:50%;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;margin:0 auto 24px;font-size:2.2rem;font-weight:800;
+    border:8px solid var(--primary);color:var(--primary);}
+  .score-circle small{font-size:.85rem;font-weight:500;color:var(--muted);}
+  #results h2{font-size:1.4rem;margin-bottom:8px;}
+  #results > p{color:var(--muted);margin-bottom:24px;}
+  .recap{text-align:left;margin-top:16px;border-top:1px solid var(--border);}
+  .recap-item{display:flex;align-items:center;gap:10px;padding:10px 0;
+    border-bottom:1px solid var(--border);font-size:.88rem;}
+  .dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+  .dot.ok{background:var(--success);}
+  .dot.ko{background:var(--danger);}
+  .btn-restart{margin-top:28px;padding:14px 32px;background:var(--primary);color:#fff;
+    border:none;border-radius:10px;font-size:1rem;font-weight:600;cursor:pointer;
+    transition:background .15s;}
+  .btn-restart:hover{background:var(--primary-dark);}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="badge">Formation TP ECSR</div>
+  <h1>Matrice GDE &amp; REMC</h1>
+  <p>20 questions · Révision formateur</p>
+</header>
+
+<div class="progress-wrap">
+  <div class="progress-info">
+    <span id="prog-label">Question 1 / 20</span>
+    <span id="score-label">Score : 0</span>
+  </div>
+  <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+</div>
+
+<div class="card">
+  <div id="quiz">
+    <div class="question-num" id="q-num">Question 1</div>
+    <div class="question-text" id="q-text"></div>
+    <div class="choices" id="choices"></div>
+    <div class="explanation" id="explanation"></div>
+    <button class="btn-next" id="btn-next" type="button">Question suivante →</button>
+  </div>
+
+  <div id="results">
+    <div class="score-circle"><span id="r-score"></span><small id="r-pct"></small></div>
+    <h2 id="r-mention"></h2>
+    <p id="r-desc"></p>
+    <div class="recap" id="recap"></div>
+    <button class="btn-restart" id="btn-restart" type="button">🔄 Recommencer</button>
+  </div>
+</div>
+
+<script>
+const questions = [
+  {
+    q: "Qui sont les auteurs de la Matrice GDE (Goals for Driver Education) ?",
+    choices: ["Piaget et Wallon", "Hatakka, Keskinen, Gregersen, Glad et Hernetkoski", "Le ministère de l'Intérieur français", "La Commission européenne"],
+    answer: 1,
+    exp: "La GDE a été développée à la fin des années 1990 par Hatakka, Keskinen, Gregersen, Glad et Hernetkoski dans le cadre du projet européen GADGET. Elle a influencé directement le REMC français."
+  },
+  {
+    q: "Combien de niveaux hiérarchiques compte la Matrice GDE ?",
+    choices: ["2 niveaux", "3 niveaux", "4 niveaux", "5 niveaux"],
+    answer: 2,
+    exp: "La GDE structure l'apprentissage en 4 niveaux, du plus technique (manœuvre) au plus contextuel (buts de vie)."
+  },
+  {
+    q: "Quel est le niveau le plus élevé de la Matrice GDE ?",
+    choices: ["Manœuvre du véhicule", "Maîtrise des situations de conduite", "Buts du déplacement et contexte", "Buts de vie et compétences pour la vie"],
+    answer: 3,
+    exp: "Niveau 4 (sommet) : buts de vie et compétences pour la vie. Style de vie, motivations, gestion des émotions, pression sociale. Ce niveau influence tous les autres."
+  },
+  {
+    q: "Le niveau 1 de la Matrice GDE (base de la pyramide) concerne :",
+    choices: ["La manœuvre du véhicule (compétences techniques)", "Le code de la route", "La planification du trajet", "Les motivations personnelles"],
+    answer: 0,
+    exp: "Niveau 1 = manœuvre du véhicule : démarrer, freiner, embrayer, tenir le volant, utiliser les commandes. Base technique, indispensable mais insuffisante seule."
+  },
+  {
+    q: "Combien de dimensions transversales complètent les 4 niveaux de la GDE ?",
+    choices: ["2 dimensions", "3 dimensions", "4 dimensions", "5 dimensions"],
+    answer: 1,
+    exp: "3 dimensions transversales : (1) Connaissances et savoir-faire, (2) Facteurs augmentant le risque, (3) Autoévaluation. Chacune s'applique aux 4 niveaux : matrice 4×3."
+  },
+  {
+    q: "À quoi sert la dimension « autoévaluation » dans la Matrice GDE ?",
+    choices: ["À évaluer l'élève par le formateur", "À mesurer la note finale du permis", "À ce que le conducteur prenne conscience de ses propres limites", "À comparer les élèves entre eux"],
+    answer: 2,
+    exp: "L'autoévaluation = se connaître soi-même : ses limites, ses biais, ses réactions sous stress. C'est la dimension la plus innovante de la GDE et celle qui distingue les conducteurs experts."
+  },
+  {
+    q: "Dans la logique GDE, les niveaux supérieurs (3 et 4) influencent…",
+    choices: ["Uniquement les autres conducteurs", "Rien, ils sont indépendants", "Les niveaux inférieurs (1 et 2)", "Seulement les examens"],
+    answer: 2,
+    exp: "Approche descendante : les motivations (4) déterminent les choix de trajet (3), qui déterminent les situations rencontrées (2), qui mobilisent les manœuvres (1). Un conducteur fatigué ou pressé compromet tous les niveaux du dessous."
+  },
+  {
+    q: "Selon la GDE, un conducteur techniquement excellent mais avec une mauvaise hygiène de vie est exposé à un risque…",
+    choices: ["Faible : ses compétences techniques compensent", "Élevé : ses lacunes au niveau 4 contaminent les niveaux inférieurs", "Nul : la technique suffit", "Identique à un conducteur moyen"],
+    answer: 1,
+    exp: "C'est précisément le constat qui a fait émerger la GDE : la majorité des accidents graves ne sont pas dus à un manque de compétences techniques, mais à des défaillances aux niveaux supérieurs (style de vie, prise de risque, mauvaise autoévaluation)."
+  },
+  {
+    q: "Quelle est la source réglementaire du REMC ?",
+    choices: ["Décret du 1er janvier 2020", "Arrêté du 13 mai 2013, modifié", "Loi du 5 juillet 1985", "Directive européenne 2006/126"],
+    answer: 1,
+    exp: "Le REMC est défini par l'arrêté du 13 mai 2013 relatif à l'apprentissage de la conduite des véhicules à moteur. Il a remplacé le PNF (Programme National de Formation)."
+  },
+  {
+    q: "Combien de compétences fondamentales structurent le REMC ?",
+    choices: ["3 compétences", "4 compétences", "7 compétences", "12 compétences"],
+    answer: 1,
+    exp: "Le REMC s'organise autour de 4 compétences qui guident l'apprentissage de la conduite, du véhicule à l'arrêt jusqu'à la conduite autonome citoyenne."
+  },
+  {
+    q: "Quelle est la Compétence 1 du REMC ?",
+    choices: ["Conduire sur autoroute", "Maîtriser le maniement du véhicule dans un trafic faible ou nul", "Connaître la signalisation", "Adopter une éco-conduite"],
+    answer: 1,
+    exp: "C1 = Maîtriser le maniement du véhicule dans un trafic faible ou nul. Démarrage, manœuvres, connaissance du véhicule, rôle de futur conducteur."
+  },
+  {
+    q: "Quelle est la Compétence 2 du REMC ?",
+    choices: ["Conduite de nuit uniquement", "Réparer son véhicule", "Appréhender la route et circuler dans des conditions normales", "Conduire un véhicule lourd"],
+    answer: 2,
+    exp: "C2 = Appréhender la route et circuler dans des conditions normales. Adapter sa conduite, connaître les règles, partager la route avec les autres usagers."
+  },
+  {
+    q: "Quelle est la Compétence 3 du REMC ?",
+    choices: ["Circuler dans des conditions difficiles et partager la route", "Présenter son examen théorique", "Repeindre sa voiture", "Voyager à l'étranger"],
+    answer: 0,
+    exp: "C3 = Circuler dans des conditions difficiles et partager la route. Vitesse, intersections, dépassements, conditions dégradées (nuit, intempéries, autoroute, montagne, tunnel)."
+  },
+  {
+    q: "Quelle est la Compétence 4 du REMC ?",
+    choices: ["Conduire vite et économique", "Pratiquer une conduite autonome, sûre et économique", "Devenir moniteur d'auto-école", "Réussir le permis poids lourd"],
+    answer: 1,
+    exp: "C4 = Pratiquer une conduite autonome, sûre et économique. Itinéraires en autonomie, voyages longue distance, comportements à risque, éco-conduite, citoyenneté. C'est la compétence qui s'aligne avec les niveaux 3 et 4 de la Matrice GDE."
+  },
+  {
+    q: "Quelle est la note minimale pour réussir l'examen théorique général (ETG) ?",
+    choices: ["30/40", "32/40", "35/40", "38/40"],
+    answer: 2,
+    exp: "35 bonnes réponses sur 40 (87,5 %). Examen d'environ 30 minutes, QCM avec image + énoncé. Validité 5 ans, dans la limite de 5 présentations à l'examen pratique."
+  },
+  {
+    q: "Quelle est la durée totale de l'examen pratique du permis B ?",
+    choices: ["20 minutes", "32 minutes", "45 minutes", "1 heure"],
+    answer: 1,
+    exp: "32 minutes au total, accueil et bilan inclus. Environ 25 minutes de conduite effective + accueil + bilan d'évaluation."
+  },
+  {
+    q: "Quelle est la note minimale requise pour réussir l'examen pratique du permis B ?",
+    choices: ["17/31", "20/31", "25/31", "28/31"],
+    answer: 1,
+    exp: "20/31 minimum et aucune note éliminatoire (E). 9 compétences évaluées avec notation A (3 pts), B (2 pts), C (1 pt) ou E (éliminatoire)."
+  },
+  {
+    q: "Quelle est la durée du permis probatoire pour un candidat en filière traditionnelle ?",
+    choices: ["1 an", "2 ans", "3 ans", "5 ans"],
+    answer: 2,
+    exp: "Permis probatoire de 3 ans en filière classique (2 ans en conduite accompagnée AAC). Capital initial de 6 points, augmenté chaque année si pas d'infraction (jusqu'à 12 points)."
+  },
+  {
+    q: "À quoi correspond la Phase 2 du REMC ?",
+    choices: ["Le permis poids lourd", "La formation initiale en auto-école", "Le suivi post-permis (période probatoire)", "La récupération de points"],
+    answer: 2,
+    exp: "Phase 2 = suivi post-permis pendant la période probatoire (3 ans). Inclut le rendez-vous post-permis facultatif, les stages éventuels, et la consolidation des compétences. La Phase 1 est la formation initiale."
+  },
+  {
+    q: "Comment la Compétence 4 du REMC se relie-t-elle à la Matrice GDE ?",
+    choices: ["Elle ne correspond à rien dans la GDE", "Elle correspond uniquement au niveau 1 GDE", "Elle s'aligne avec les niveaux 3 et 4 GDE", "Elle remplace la GDE"],
+    answer: 2,
+    exp: "La C4 (conduite autonome, sûre, économique, citoyenne) couvre les niveaux 3 et 4 de la GDE : planification d'un trajet long (niveau 3), motivations et style de vie éco-responsable (niveau 4). Apport décisif du REMC français par rapport aux référentiels antérieurs purement techniques."
+  }
+];
+
+let current = 0, score = 0, answered = [];
+const letters = ['A','B','C','D'];
+
+function renderQuestion() {
+  const q = questions[current];
+  document.getElementById('q-num').textContent = 'Question ' + (current + 1);
+  document.getElementById('q-text').textContent = q.q;
+  document.getElementById('prog-label').textContent = 'Question ' + (current + 1) + ' / ' + questions.length;
+  document.getElementById('score-label').textContent = 'Score : ' + score;
+  document.getElementById('progress-fill').style.width = ((current / questions.length) * 100) + '%';
+
+  const choicesEl = document.getElementById('choices');
+  choicesEl.textContent = '';
+  q.choices.forEach(function(text, i) {
+    const div = document.createElement('div');
+    div.className = 'choice';
+    const letter = document.createElement('div');
+    letter.className = 'choice-letter';
+    letter.textContent = letters[i];
+    const span = document.createElement('span');
+    span.textContent = text;
+    div.appendChild(letter);
+    div.appendChild(span);
+    div.addEventListener('click', function() { selectAnswer(i); });
+    choicesEl.appendChild(div);
+  });
+
+  const exp = document.getElementById('explanation');
+  exp.style.display = 'none';
+  exp.className = 'explanation';
+  exp.textContent = '';
+
+  const btn = document.getElementById('btn-next');
+  btn.style.display = 'none';
+  btn.textContent = current < questions.length - 1 ? 'Question suivante →' : 'Voir les résultats →';
+}
+
+function selectAnswer(idx) {
+  const q = questions[current];
+  const allChoices = document.querySelectorAll('.choice');
+  allChoices.forEach(function(c) { c.classList.add('disabled'); c.style.pointerEvents = 'none'; });
+
+  const correct = q.answer === idx;
+  if (correct) score++;
+  answered.push({ correct: correct, qText: q.q });
+
+  allChoices[q.answer].classList.add('correct');
+  if (!correct) allChoices[idx].classList.add('wrong');
+
+  const exp = document.getElementById('explanation');
+  exp.className = 'explanation ' + (correct ? 'ok' : 'ko');
+  exp.textContent = (correct ? '✅ Bonne réponse ! ' : '❌ Mauvaise réponse. La bonne réponse était ' + letters[q.answer] + '. ' + q.choices[q.answer] + '. ') + q.exp;
+  exp.style.display = 'block';
+
+  document.getElementById('score-label').textContent = 'Score : ' + score;
+  document.getElementById('btn-next').style.display = 'block';
+}
+
+document.getElementById('btn-next').addEventListener('click', function() {
+  current++;
+  if (current < questions.length) {
+    renderQuestion();
+  } else {
+    showResults();
+  }
+});
+
+function showResults() {
+  document.getElementById('progress-fill').style.width = '100%';
+  document.getElementById('prog-label').textContent = 'Terminé !';
+  document.getElementById('score-label').textContent = 'Score : ' + score;
+  document.getElementById('quiz').style.display = 'none';
+
+  const pct = Math.round((score / questions.length) * 100);
+  document.getElementById('r-score').textContent = score + '/' + questions.length;
+  document.getElementById('r-pct').textContent = pct + ' %';
+  document.getElementById('r-mention').textContent = pct >= 80 ? '🎉 Excellent !' : pct >= 60 ? '👍 Bien !' : '📚 À retravailler';
+  document.getElementById('r-desc').textContent = 'Tu as obtenu ' + score + ' bonne' + (score > 1 ? 's' : '') + ' réponse' + (score > 1 ? 's' : '') + ' sur ' + questions.length + ' questions.';
+
+  const recap = document.getElementById('recap');
+  recap.textContent = '';
+  answered.forEach(function(a, i) {
+    const item = document.createElement('div');
+    item.className = 'recap-item';
+    const dot = document.createElement('div');
+    dot.className = 'dot ' + (a.correct ? 'ok' : 'ko');
+    const label = document.createElement('span');
+    const short = a.qText.length > 72 ? a.qText.substring(0, 72) + '…' : a.qText;
+    label.textContent = 'Q' + (i + 1) + '. ' + short;
+    item.appendChild(dot);
+    item.appendChild(label);
+    recap.appendChild(item);
+  });
+
+  document.getElementById('results').style.display = 'block';
+}
+
+document.getElementById('btn-restart').addEventListener('click', function() {
+  current = 0; score = 0; answered = [];
+  document.getElementById('results').style.display = 'none';
+  document.getElementById('quiz').style.display = 'block';
+  renderQuestion();
+});
+
+renderQuestion();
+</script>
+</body>
+</html>
