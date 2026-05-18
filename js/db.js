@@ -327,9 +327,9 @@ export async function deleteUserProfile(email) {
 }
 
 // Appelle l'Edge Function pour envoyer une invitation (magic link Supabase).
-export async function inviteUser({ email, role, stagiaire_id = null, prof_id = null }) {
+export async function inviteUser({ email, role, stagiaire_id = null, prof_id = null, is_admin = false }) {
   const { data, error } = await supabase.functions.invoke("invite-user", {
-    body: { email, role, stagiaire_id, prof_id },
+    body: { email, role, stagiaire_id, prof_id, is_admin },
   });
   if (error) {
     // L'Edge Function renvoie { error: "..." } en cas d'échec ; le SDK le wrap.

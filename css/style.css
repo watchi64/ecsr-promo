@@ -1656,6 +1656,31 @@ h3 {
 .role-pill.role-prof      { background: var(--c-wait-soft);   color: var(--c-wait); }
 .role-pill.role-stagiaire { background: var(--bg-subtle);     color: var(--text-muted); }
 
+.role-pills {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-start;
+}
+
+.invite-admin-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.88rem;
+  color: var(--text);
+  cursor: pointer;
+  padding: 0.3rem 0;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.invite-admin-toggle input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: var(--accent);
+}
+
 /* === Badge topbar avec rôle === */
 .admin-role {
   font-size: 0.66rem;

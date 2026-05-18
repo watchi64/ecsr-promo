@@ -72,6 +72,17 @@ async function renderAccessSection(rerender) {
 
     const emailInput = el("input", { type: "email", placeholder: "email@exemple.fr", class: "invite-email" });
 
+    const adminCheck = el("input", { type: "checkbox", id: "invite-also-admin" });
+    const adminLabel = el("label", {
+      for: "invite-also-admin", class: "invite-admin-toggle",
+    }, adminCheck, " Aussi administrateur");
+    function updateAdminToggleVisibility() {
+      adminLabel.style.display = roleSel.value === "admin" ? "none" : "";
+      if (roleSel.value === "admin") adminCheck.checked = false;
+    }
+    roleSel.addEventListener("change", updateAdminToggleVisibility);
+    updateAdminToggleVisibility();
+
     const sendBtn = el("button", { class: "btn accent" }, icon.mail(), "Envoyer l'invitation");
     sendBtn.addEventListener("click", async () => {
       const email = emailInput.value.trim().toLowerCase();
@@ -87,9 +98,11 @@ async function renderAccessSection(rerender) {
           email, role,
           stagiaire_id: role === "stagiaire" ? personId : null,
           prof_id:      role === "prof"      ? personId : null,
+          is_admin:     role === "admin" ? true : adminCheck.checked,
         });
         toast("Invitation envoyée à " + email, "success", 3500);
         emailInput.value = "";
+        adminCheck.checked = false;
         rerender();
       } catch (e) {
         toast("Erreur : " + e.message, "error", 5000);
@@ -111,6 +124,7 @@ async function renderAccessSection(rerender) {
         el("label", {}, "Email"), emailInput,
         sendBtn,
       ),
+      adminLabel,
     ));
     section.appendChild(inviteBlock);
   }
@@ -134,8 +148,12 @@ async function renderAccessSection(rerender) {
           const pr = profs.find((x) => x.id === p.prof_id);
           if (pr) who = pr.nom;
         }
-        const item = el("li", { class: "admin-item" },
+        const pills = el("div", { class: "role-pills" },
           el("span", { class: "role-pill role-" + p.role }, p.role),
+          (p.is_admin && p.role !== "admin") ? el("span", { class: "role-pill role-admin" }, "admin") : null,
+        );
+        const item = el("li", { class: "admin-item" },
+          pills,
           el("span", { class: "admin-email-text" }, p.email),
           who ? el("span", { class: "admin-you" }, who) : null,
           p.email === currentEmail ? el("span", { class: "admin-you" }, "vous") : null,

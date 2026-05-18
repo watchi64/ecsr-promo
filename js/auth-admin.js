@@ -27,7 +27,7 @@ const listeners = new Set();
 // === Getters publics ===
 
 export function isAuth()        { return !!currentUser && !!currentProfile; }
-export function isAdmin()       { return currentProfile?.role === "admin"; }
+export function isAdmin()       { return !!currentProfile?.is_admin; }
 export function isProf()        { return currentProfile?.role === "prof"; }
 export function isStagiaire()   { return currentProfile?.role === "stagiaire"; }
 export function getAdminEmail() { return currentUser?.email || null; }
