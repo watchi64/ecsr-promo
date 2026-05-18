@@ -274,14 +274,14 @@ function renderInfoSection() {
     el("div", { class: "param-icon" }, icon.info()),
     el("div", {},
       el("h3", {}, "Informations"),
-      el("p", { class: "muted" }, "À propos de l'app TP ECSR."),
+      el("p", { class: "muted" }, "À propos de TP ECSR App."),
     ),
   ));
 
   section.appendChild(el("div", { class: "param-block" },
     el("dl", { class: "info-list" },
       el("dt", {}, "Application"),
-      el("dd", {}, "TP ECSR : Promo & suivi des passages"),
+      el("dd", {}, "TP ECSR App"),
       el("dt", {}, "Auteur"),
       el("dd", {}, "watchi64 · misterwatchi@gmail.com"),
       el("dt", {}, "Licence"),
