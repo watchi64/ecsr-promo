@@ -91,26 +91,35 @@ async function renderAccessSection(rerender) {
       if (!email || !/^\S+@\S+\.\S+$/.test(email)) { toast("Email invalide", "error"); return; }
       if (role !== "admin" && !personId) { toast("Choisis la personne à lier", "error"); return; }
 
+      const restoreBtn = () => {
+        sendBtn.disabled = false;
+        sendBtn.textContent = "";
+        sendBtn.appendChild(icon.mail());
+        sendBtn.appendChild(document.createTextNode("Envoyer l'invitation"));
+      };
+
       sendBtn.disabled = true;
       sendBtn.textContent = "Envoi…";
       try {
-        await inviteUser({
+        const invitePromise = inviteUser({
           email, role,
           stagiaire_id: role === "stagiaire" ? personId : null,
           prof_id:      role === "prof"      ? personId : null,
           is_admin:     role === "admin" ? true : adminCheck.checked,
         });
+        // Timeout de 15s pour éviter le hang infini
+        await Promise.race([
+          invitePromise,
+          new Promise((_, reject) => setTimeout(() => reject(new Error("Délai dépassé (15s). Réseau lent ou rate-limit Supabase atteint (4 mails/h sur le SMTP par défaut).")), 15000)),
+        ]);
         toast("Invitation envoyée à " + email, "success", 3500);
         emailInput.value = "";
         adminCheck.checked = false;
         rerender();
       } catch (e) {
-        toast("Erreur : " + e.message, "error", 5000);
+        toast("Erreur : " + e.message, "error", 6000);
       } finally {
-        sendBtn.disabled = false;
-        sendBtn.textContent = "";
-        sendBtn.appendChild(icon.mail());
-        sendBtn.appendChild(document.createTextNode("Envoyer l'invitation"));
+        restoreBtn();
       }
     });
     emailInput.addEventListener("keydown", (e) => { if (e.key === "Enter") sendBtn.click(); });
