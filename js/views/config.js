@@ -41,19 +41,12 @@ async function renderAccessSection(rerender) {
     [
       { v: "stagiaire", l: "Stagiaire" },
       { v: "prof",      l: "Formateur (prof)" },
-      { v: "admin",     l: "Admin" },
     ].forEach((o) => roleSel.appendChild(el("option", { value: o.v }, o.l)));
 
     const personSel = el("select", { class: "invite-person" });
     function refreshPersonOptions() {
       clear(personSel);
       const role = roleSel.value;
-      if (role === "admin") {
-        personSel.appendChild(el("option", { value: "" }, "— (pas de personne liée)"));
-        personSel.disabled = true;
-        return;
-      }
-      personSel.disabled = false;
       personSel.appendChild(el("option", { value: "" }, "— Choisir —"));
       const list = role === "stagiaire" ? stagiaires : profs;
       const taken = new Set(profiles
@@ -76,12 +69,6 @@ async function renderAccessSection(rerender) {
     const adminLabel = el("label", {
       for: "invite-also-admin", class: "invite-admin-toggle",
     }, adminCheck, " Aussi administrateur");
-    function updateAdminToggleVisibility() {
-      adminLabel.style.display = roleSel.value === "admin" ? "none" : "";
-      if (roleSel.value === "admin") adminCheck.checked = false;
-    }
-    roleSel.addEventListener("change", updateAdminToggleVisibility);
-    updateAdminToggleVisibility();
 
     const sendBtn = el("button", { class: "btn accent" }, icon.mail(), "Envoyer l'invitation");
     sendBtn.addEventListener("click", async () => {
@@ -89,7 +76,7 @@ async function renderAccessSection(rerender) {
       const role = roleSel.value;
       const personId = personSel.value ? Number(personSel.value) : null;
       if (!email || !/^\S+@\S+\.\S+$/.test(email)) { toast("Email invalide", "error"); return; }
-      if (role !== "admin" && !personId) { toast("Choisis la personne à lier", "error"); return; }
+      if (!personId) { toast("Choisis la personne à lier", "error"); return; }
 
       const restoreBtn = () => {
         sendBtn.disabled = false;

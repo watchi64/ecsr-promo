@@ -1,7 +1,15 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { SUPABASE_URL, SUPABASE_KEY } from "./config.js";
 
-export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
+  auth: {
+    persistSession: true,         // garde la session dans localStorage
+    autoRefreshToken: true,       // renouvelle le token automatiquement
+    detectSessionInUrl: true,     // parse le hash après redirect (callback magic link historique)
+    storage: window.localStorage, // explicite : pas de sessionStorage volatile
+    storageKey: "ecsr_supabase_session",
+  },
+});
 
 // === Stagiaires & Profs ===
 
