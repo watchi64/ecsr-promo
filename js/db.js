@@ -359,22 +359,23 @@ export async function getCurrentUser() {
   return data?.user ?? null;
 }
 
-export async function signInWithMagicLink(email) {
-  const { error } = await supabase.auth.signInWithOtp({
-    email,
-    options: { emailRedirectTo: window.location.origin + window.location.pathname }
+export async function signInWithPassword(email, password) {
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email: email.trim().toLowerCase(),
+    password,
   });
   if (error) throw error;
+  return data;
 }
 
-export async function signInWithGoogle() {
-  const { error } = await supabase.auth.signInWithOAuth({
-    provider: "google",
-    options: {
-      redirectTo: window.location.origin + window.location.pathname,
-    },
+export async function signUpWithPassword(email, password) {
+  const { data, error } = await supabase.auth.signUp({
+    email: email.trim().toLowerCase(),
+    password,
   });
   if (error) throw error;
+  // Si la confirmation par email est désactivée, on a déjà une session ici.
+  return data;
 }
 
 export async function signOut() {

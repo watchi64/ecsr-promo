@@ -2,7 +2,7 @@
  * Promo ECSR — Application propriétaire.
  * © 2026 watchi64 — Tous droits réservés. Voir LICENSE.
  */
-import { signInWithMagicLink, signInWithGoogle, getCurrentUser } from "./db.js";
+import { signInWithPassword, signUpWithPassword, getCurrentUser } from "./db.js";
 import { toast } from "./utils.js";
 import { icon } from "./icons.js";
 import { initAuth, onAdminChange, isAuth } from "./auth-admin.js";
@@ -21,75 +21,85 @@ import { renderConfig } from "./views/config.js";
 
 function showGate() {
   const gate = document.getElementById("gate");
+  const tabSignin = document.getElementById("gate-tab-signin");
+  const tabSignup = document.getElementById("gate-tab-signup");
   const subtitle = document.getElementById("gate-subtitle");
-  const input = document.getElementById("gate-input");
+  const emailInput = document.getElementById("gate-email");
+  const passwordInput = document.getElementById("gate-password");
   const submit = document.getElementById("gate-submit");
   const error = document.getElementById("gate-error");
+  const hint = document.getElementById("gate-hint");
 
-  // Reconfigure le gate pour email
-  input.type = "email";
-  input.placeholder = "ton.email@exemple.fr";
-  input.value = "";
-  input.autocomplete = "email";
-  subtitle.textContent = "Connecte-toi avec ton email (un lien magique te sera envoyé)";
-  submit.textContent = "Recevoir le lien";
-  submit.type = "button";
-  submit.disabled = false;
-  error.classList.add("hidden");
+  let mode = "signin";  // "signin" | "signup"
 
   gate.classList.remove("hidden");
   document.getElementById("app").classList.add("hidden");
-  input.focus();
+
+  function setMode(next) {
+    mode = next;
+    tabSignin.classList.toggle("active", mode === "signin");
+    tabSignup.classList.toggle("active", mode === "signup");
+    if (mode === "signin") {
+      subtitle.textContent = "Entre ton email et ton mot de passe.";
+      submit.textContent = "Se connecter";
+      passwordInput.autocomplete = "current-password";
+      hint.textContent = "Pas encore inscrit ? Bascule sur « Créer un compte » (ton email doit être whitelisté).";
+    } else {
+      subtitle.textContent = "Crée ton compte : email (whitelisté par un admin) + choisis un mot de passe.";
+      submit.textContent = "Créer mon compte";
+      passwordInput.autocomplete = "new-password";
+      hint.textContent = "Tu dois avoir été invité au préalable. Sinon l'inscription sera refusée.";
+    }
+    error.classList.add("hidden");
+    submit.disabled = false;
+  }
+
+  tabSignin.onclick = () => setMode("signin");
+  tabSignup.onclick = () => setMode("signup");
+  setMode("signin");
+  emailInput.focus();
 
   const handler = async () => {
-    const email = input.value.trim();
+    const email = emailInput.value.trim();
+    const password = passwordInput.value;
     if (!email || !/^\S+@\S+\.\S+$/.test(email)) {
       error.textContent = "Email invalide";
+      error.classList.remove("hidden");
+      return;
+    }
+    if (!password || password.length < 6) {
+      error.textContent = "Mot de passe : 6 caractères minimum";
       error.classList.remove("hidden");
       return;
     }
     error.classList.add("hidden");
     submit.disabled = true;
     const original = submit.textContent;
-    submit.textContent = "Envoi…";
+    submit.textContent = mode === "signup" ? "Création…" : "Connexion…";
     try {
-      await signInWithMagicLink(email);
-      subtitle.textContent = "Mail envoyé à " + email;
-      input.style.display = "none";
-      submit.style.display = "none";
-      const ok = document.createElement("p");
-      ok.className = "muted";
-      ok.style.cssText = "margin-top:1rem;font-size:0.9rem";
-      ok.textContent = "Ouvre le mail (et vérifie les spams). Tu peux fermer cet onglet, le lien marche partout.";
-      error.parentElement.insertBefore(ok, error);
+      if (mode === "signup") {
+        await signUpWithPassword(email, password);
+      } else {
+        await signInWithPassword(email, password);
+      }
+      // initAuth() est déjà câblé via onAuthChange ; le polling watch bootera l'app.
     } catch (e) {
-      console.error("Gate login error:", e);
-      error.textContent = "Erreur : " + (e?.message || e);
+      console.error("Gate auth error:", e);
+      let msg = e?.message || String(e);
+      // Messages Supabase plus parlants
+      if (/Invalid login credentials/i.test(msg)) msg = "Email ou mot de passe incorrect.";
+      else if (/User already registered/i.test(msg)) msg = "Cet email a déjà un compte. Bascule sur « Connexion ».";
+      else if (/non autorisé/i.test(msg) || /Database error/i.test(msg)) msg = "Email non whitelisté. Demande à un admin de t'inviter d'abord.";
+      error.textContent = msg;
       error.classList.remove("hidden");
       submit.disabled = false;
       submit.textContent = original;
     }
   };
   submit.onclick = handler;
-  input.onkeydown = (e) => { if (e.key === "Enter") { e.preventDefault(); handler(); } };
-
-  // Bouton Google
-  const googleBtn = document.getElementById("gate-google");
-  if (googleBtn) {
-    googleBtn.onclick = async () => {
-      error.classList.add("hidden");
-      googleBtn.disabled = true;
-      try {
-        await signInWithGoogle();
-        // Le navigateur va rediriger vers Google.
-      } catch (e) {
-        console.error("Google sign-in error:", e);
-        error.textContent = "Erreur Google : " + (e?.message || e);
-        error.classList.remove("hidden");
-        googleBtn.disabled = false;
-      }
-    };
-  }
+  const onEnter = (e) => { if (e.key === "Enter") { e.preventDefault(); handler(); } };
+  emailInput.onkeydown = onEnter;
+  passwordInput.onkeydown = onEnter;
 }
 
 function hideGate() {
