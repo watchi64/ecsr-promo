@@ -821,7 +821,341 @@ function rerender(container) {
   }
 
   container.appendChild(renderMatrice(container));
-  container.appendChild(renderAveragesChart());
+  container.appendChild(renderSynthese());
+  container.appendChild(renderChartsSection());
+}
+
+// === Helpers stats ===
+
+function ratedEvals() {
+  return evaluations.filter((e) => e.note != null && e.note_max);
+}
+
+function evalScore20(e) {
+  return (Number(e.note) / Number(e.note_max)) * 20;
+}
+
+function median(values) {
+  if (values.length === 0) return null;
+  const sorted = values.slice().sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+}
+
+function avgColorHex(avg) {
+  if (avg == null) return "#D5D5D5";
+  const ratio = avg / 20;
+  if (ratio < 0.4) return "#DC2626";
+  if (ratio < 0.6) return "#D97706";
+  if (ratio < 0.8) return "#65A30D";
+  return "#3F7012";
+}
+
+function cellColorClassFromAvg(avg) {
+  if (avg == null) return "empty";
+  return cellColorClass(avg / 20);
+}
+
+/** Moyenne classe par thème : { num, titre, avg, count } */
+function themeStats() {
+  const out = [];
+  themesOfficiels.forEach((t) => {
+    if (t.numero == null) return;
+    const notes = evaluations
+      .filter((e) => e.type === "Thème" && e.theme_numero === t.numero && e.note != null && e.note_max)
+      .map(evalScore20);
+    if (notes.length === 0) return;
+    const avg = notes.reduce((a, b) => a + b, 0) / notes.length;
+    out.push({ num: t.numero, titre: t.titre, avg, med: median(notes), count: notes.length });
+  });
+  return out;
+}
+
+// === Section Synthèse ===
+
+function renderSynthese() {
+  const rated = ratedEvals();
+  const scores = rated.map(evalScore20);
+  const classAvg = scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : null;
+  const classMed = median(scores);
+  const below10 = scores.filter((s) => s < 10).length;
+
+  const wrap = el("section", { class: "notes-synthese" },
+    el("h3", { class: "notes-chart-title" }, "Synthèse classe"),
+  );
+
+  // KPIs
+  const kpis = el("div", { class: "notes-kpis" });
+  function kpi(label, value, cls) {
+    return el("div", { class: "notes-kpi " + (cls || "") },
+      el("span", { class: "notes-kpi-value" }, value),
+      el("span", { class: "notes-kpi-label" }, label),
+    );
+  }
+  kpis.appendChild(kpi("Moyenne classe", classAvg != null ? (Math.round(classAvg * 10) / 10) + " /20" : "—", cellColorClassFromAvg(classAvg)));
+  kpis.appendChild(kpi("Médiane", classMed != null ? (Math.round(classMed * 10) / 10) + " /20" : "—", cellColorClassFromAvg(classMed)));
+  kpis.appendChild(kpi("Notes saisies", String(rated.length)));
+  kpis.appendChild(kpi("Notes < 10/20", String(below10), below10 > 0 ? "bad" : "ok"));
+  wrap.appendChild(kpis);
+
+  // Top 3 thèmes faibles + solides
+  const stats = themeStats();
+  if (stats.length === 0) {
+    wrap.appendChild(el("p", { class: "muted", style: "margin-top:1rem" }, "Pas encore assez de notes par thème pour ranker."));
+    return wrap;
+  }
+
+  const weak = stats.slice().sort((a, b) => a.avg - b.avg).slice(0, 3);
+  const strong = stats.slice().sort((a, b) => b.avg - a.avg).slice(0, 3);
+
+  function themeCard(t) {
+    const avgR = Math.round(t.avg * 10) / 10;
+    return el("div", { class: "theme-stat-card " + cellColorClassFromAvg(t.avg) },
+      el("span", { class: "theme-stat-num" }, String(t.num).padStart(2, "0")),
+      el("div", { class: "theme-stat-body" },
+        el("span", { class: "theme-stat-title" }, t.titre || `Thème ${t.num}`),
+        el("span", { class: "theme-stat-meta" },
+          el("strong", { style: "color:" + avgColorHex(t.avg) }, avgR + "/20"),
+          " · médiane ", String(Math.round(t.med * 10) / 10),
+          " · ", t.count, " note" + (t.count > 1 ? "s" : ""),
+        ),
+      )
+    );
+  }
+
+  wrap.appendChild(el("div", { class: "notes-rankings" },
+    el("div", { class: "ranking-block" },
+      el("h4", { class: "ranking-title weak" }, "🔻 3 thèmes les plus faibles"),
+      el("p", { class: "muted ranking-sub" }, "À retravailler en priorité"),
+      ...weak.map(themeCard),
+    ),
+    el("div", { class: "ranking-block" },
+      el("h4", { class: "ranking-title strong" }, "🔺 3 thèmes les plus solides"),
+      el("p", { class: "muted ranking-sub" }, "Acquis confirmés"),
+      ...strong.map(themeCard),
+    ),
+  ));
+
+  return wrap;
+}
+
+// === Section Graphiques (tabs) ===
+
+let chartView = "stagiaires";  // "stagiaires" | "themes" | "distribution"
+
+function renderChartsSection() {
+  const wrap = el("section", { class: "notes-chart" });
+  wrap.appendChild(el("h3", { class: "notes-chart-title" }, "Graphiques"));
+
+  const tabs = el("div", { class: "chart-tabs" });
+  [
+    { key: "stagiaires",   label: "Par stagiaire" },
+    { key: "themes",       label: "Par thème" },
+    { key: "distribution", label: "Distribution" },
+  ].forEach((t) => {
+    const btn = el("button", {
+      class: "chart-tab" + (chartView === t.key ? " active" : ""),
+      type: "button",
+      onClick: () => { chartView = t.key; wrap.replaceWith(renderChartsSection()); }
+    }, t.label);
+    tabs.appendChild(btn);
+  });
+  wrap.appendChild(tabs);
+
+  const body = el("div", { class: "notes-chart-svg-wrap" });
+  if (chartView === "stagiaires")        body.appendChild(buildAveragesChartSvg());
+  else if (chartView === "themes")       body.appendChild(buildThemesChartSvg());
+  else if (chartView === "distribution") body.appendChild(buildDistributionChartSvg());
+  wrap.appendChild(body);
+
+  return wrap;
+}
+
+// Le bar chart par stagiaire (extrait pour réutiliser dans les onglets)
+function buildAveragesChartSvg() {
+  return renderAveragesChartInner();
+}
+
+function renderAveragesChartInner() {
+  // Code repris de renderAveragesChart mais retourne seulement le SVG
+  const sorted = sortStagiaires(stagiaires, "avg-desc");
+  const data = sorted.map((s) => {
+    const evs = evaluations.filter((e) => e.stagiaire_id === s.id && e.note != null && e.note_max);
+    const avg = evs.length === 0 ? null : evs.reduce((sum, e) => sum + evalScore20(e), 0) / evs.length;
+    return { name: displayName(s), avg, count: evs.length, anon: isStagiaireAnonymous(s.id) };
+  });
+  return horizontalBarChart(data, 22);
+}
+
+function buildThemesChartSvg() {
+  const stats = themeStats().sort((a, b) => a.avg - b.avg);  // pire en haut
+  const data = stats.map((t) => ({
+    name: String(t.num).padStart(2, "0") + " · " + (t.titre || ""),
+    avg: t.avg, count: t.count,
+  }));
+  if (data.length === 0) {
+    const empty = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    empty.setAttribute("viewBox", "0 0 200 40");
+    return empty;
+  }
+  return horizontalBarChart(data, 18, 200);
+}
+
+function buildDistributionChartSvg() {
+  const rated = ratedEvals();
+  const buckets = [
+    { min: 0,  max: 4,  label: "0–4",   count: 0, color: "#991B1B" },
+    { min: 4,  max: 8,  label: "4–8",   count: 0, color: "#DC2626" },
+    { min: 8,  max: 12, label: "8–12",  count: 0, color: "#D97706" },
+    { min: 12, max: 16, label: "12–16", count: 0, color: "#65A30D" },
+    { min: 16, max: 20.01, label: "16–20", count: 0, color: "#3F7012" },
+  ];
+  rated.forEach((e) => {
+    const s = evalScore20(e);
+    for (const b of buckets) if (s >= b.min && s < b.max) { b.count++; break; }
+  });
+  const max = Math.max(1, ...buckets.map((b) => b.count));
+
+  const svgNS = "http://www.w3.org/2000/svg";
+  const W = 720, H = 280, padL = 30, padR = 30, padT = 30, padB = 50;
+  const chartW = W - padL - padR;
+  const chartH = H - padT - padB;
+  const barW = chartW / buckets.length - 16;
+
+  const svg = document.createElementNS(svgNS, "svg");
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  svg.setAttribute("class", "notes-chart-svg");
+
+  // Axe Y graduations
+  const yTicks = 4;
+  for (let i = 0; i <= yTicks; i++) {
+    const val = Math.round((max / yTicks) * i);
+    const y = padT + chartH - (val / max) * chartH;
+    const line = document.createElementNS(svgNS, "line");
+    line.setAttribute("x1", padL); line.setAttribute("x2", W - padR);
+    line.setAttribute("y1", y); line.setAttribute("y2", y);
+    line.setAttribute("stroke", i === 0 ? "#B7C0AA" : "#E2E7DA");
+    if (i !== 0) line.setAttribute("stroke-dasharray", "2,3");
+    svg.appendChild(line);
+    const tx = document.createElementNS(svgNS, "text");
+    tx.setAttribute("x", padL - 6); tx.setAttribute("y", y + 3);
+    tx.setAttribute("text-anchor", "end"); tx.setAttribute("font-size", "10");
+    tx.setAttribute("fill", "#8A7458");
+    tx.textContent = String(val);
+    svg.appendChild(tx);
+  }
+
+  // Bars
+  buckets.forEach((b, i) => {
+    const cx = padL + (chartW / buckets.length) * i + (chartW / buckets.length) / 2;
+    const h = (b.count / max) * chartH;
+    const x = cx - barW / 2;
+    const y = padT + chartH - h;
+
+    const rect = document.createElementNS(svgNS, "rect");
+    rect.setAttribute("x", x); rect.setAttribute("y", y);
+    rect.setAttribute("width", barW); rect.setAttribute("height", h);
+    rect.setAttribute("rx", 4); rect.setAttribute("fill", b.color);
+    svg.appendChild(rect);
+
+    const txVal = document.createElementNS(svgNS, "text");
+    txVal.setAttribute("x", cx); txVal.setAttribute("y", y - 6);
+    txVal.setAttribute("text-anchor", "middle"); txVal.setAttribute("font-size", "12");
+    txVal.setAttribute("font-weight", "700"); txVal.setAttribute("fill", "#1F2924");
+    txVal.textContent = String(b.count);
+    svg.appendChild(txVal);
+
+    const txLab = document.createElementNS(svgNS, "text");
+    txLab.setAttribute("x", cx); txLab.setAttribute("y", padT + chartH + 18);
+    txLab.setAttribute("text-anchor", "middle"); txLab.setAttribute("font-size", "11");
+    txLab.setAttribute("fill", "#46554A");
+    txLab.textContent = b.label;
+    svg.appendChild(txLab);
+  });
+
+  // Axe X label
+  const xLabel = document.createElementNS(svgNS, "text");
+  xLabel.setAttribute("x", W / 2); xLabel.setAttribute("y", H - 8);
+  xLabel.setAttribute("text-anchor", "middle"); xLabel.setAttribute("font-size", "11");
+  xLabel.setAttribute("fill", "#8A7458");
+  xLabel.textContent = "Tranches de note / 20";
+  svg.appendChild(xLabel);
+
+  return svg;
+}
+
+function horizontalBarChart(data, barHeight = 22, labelWidth = 100) {
+  const width = 720;
+  const barGap = 8;
+  const padTop = 30, padBottom = 30;
+  const chartHeight = padTop + data.length * (barHeight + barGap) + padBottom;
+  const chartWidth = width - labelWidth - 70;
+
+  const svgNS = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(svgNS, "svg");
+  svg.setAttribute("viewBox", `0 0 ${width} ${chartHeight}`);
+  svg.setAttribute("class", "notes-chart-svg");
+
+  [0, 5, 10, 15, 20].forEach((val) => {
+    const x = labelWidth + (val / 20) * chartWidth;
+    const line = document.createElementNS(svgNS, "line");
+    line.setAttribute("x1", x); line.setAttribute("x2", x);
+    line.setAttribute("y1", padTop - 8); line.setAttribute("y2", chartHeight - padBottom + 4);
+    line.setAttribute("stroke", val === 10 ? "#B7C0AA" : "#E2E7DA");
+    if (val !== 10) line.setAttribute("stroke-dasharray", "2,3");
+    svg.appendChild(line);
+
+    const tx = document.createElementNS(svgNS, "text");
+    tx.setAttribute("x", x); tx.setAttribute("y", padTop - 12);
+    tx.setAttribute("text-anchor", "middle"); tx.setAttribute("font-size", "10");
+    tx.setAttribute("fill", "#8A7458");
+    tx.textContent = String(val);
+    svg.appendChild(tx);
+  });
+
+  data.forEach((d, i) => {
+    const y = padTop + i * (barHeight + barGap);
+
+    const label = document.createElementNS(svgNS, "text");
+    label.setAttribute("x", labelWidth - 8); label.setAttribute("y", y + barHeight / 2 + 4);
+    label.setAttribute("text-anchor", "end"); label.setAttribute("font-size", "10");
+    label.setAttribute("font-weight", d.anon ? "400" : "600");
+    label.setAttribute("fill", d.anon ? "#8A7458" : "#1F2924");
+    // Trunc label si trop long
+    const lbl = (d.name || "").length > 24 ? (d.name.substring(0, 22) + "…") : d.name;
+    label.textContent = lbl;
+    svg.appendChild(label);
+
+    const track = document.createElementNS(svgNS, "rect");
+    track.setAttribute("x", labelWidth); track.setAttribute("y", y);
+    track.setAttribute("width", chartWidth); track.setAttribute("height", barHeight);
+    track.setAttribute("rx", 4); track.setAttribute("fill", "#F0F0EC");
+    svg.appendChild(track);
+
+    if (d.avg != null) {
+      const w = Math.max(2, (d.avg / 20) * chartWidth);
+      const bar = document.createElementNS(svgNS, "rect");
+      bar.setAttribute("x", labelWidth); bar.setAttribute("y", y);
+      bar.setAttribute("width", w); bar.setAttribute("height", barHeight);
+      bar.setAttribute("rx", 4); bar.setAttribute("fill", avgColorHex(d.avg));
+      svg.appendChild(bar);
+
+      const val = document.createElementNS(svgNS, "text");
+      val.setAttribute("x", labelWidth + w + 6); val.setAttribute("y", y + barHeight / 2 + 4);
+      val.setAttribute("font-size", "10"); val.setAttribute("font-weight", "700");
+      val.setAttribute("fill", "#1F2924");
+      val.textContent = (Math.round(d.avg * 10) / 10).toString() + (d.count != null ? ` · ${d.count}n` : "");
+      svg.appendChild(val);
+    } else {
+      const val = document.createElementNS(svgNS, "text");
+      val.setAttribute("x", labelWidth + 10); val.setAttribute("y", y + barHeight / 2 + 4);
+      val.setAttribute("font-size", "10"); val.setAttribute("fill", "#9DA89A");
+      val.textContent = "Aucune note";
+      svg.appendChild(val);
+    }
+  });
+
+  return svg;
 }
 
 export async function renderNotes(container) {
