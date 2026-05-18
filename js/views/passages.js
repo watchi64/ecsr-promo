@@ -1,6 +1,7 @@
 import { listStagiaires, listPassages, addPassage, deletePassage, listRecentPassagesAudit } from "../db.js";
 import { el, clear, isoDate, formatDate, toast, displayStagiaire } from "../utils.js";
 import { icon } from "../icons.js";
+import { recordUndo } from "../undo.js";
 import { TYPES, RESULTATS } from "../config.js";
 import { isAdmin, getAdminEmail } from "../auth-admin.js";
 import { getCurrentWho } from "../identity.js";
@@ -59,7 +60,7 @@ function openAddModal(onSaved) {
 
     try {
       const who = getCurrentWho();
-      await addPassage({
+      const inserted = await addPassage({
         date: dateInput.value,
         stagiaire_id: Number(stagiaireSel.value),
         type: typeSel.value,
@@ -70,7 +71,10 @@ function openAddModal(onSaved) {
         created_by_who: who,
         updated_by_who: who,
       });
-      toast("Passage enregistré", "success");
+      toast("Passage enregistré · Ctrl+Z pour annuler", "success", 2400);
+      if (inserted?.id) {
+        recordUndo("passage ajouté", async () => { await deletePassage(inserted.id); });
+      }
       backdrop.remove();
       onSaved();
     } catch (e) {
@@ -151,8 +155,12 @@ function renderTable(container) {
       "aria-label": "Supprimer",
       onClick: async () => {
         if (!confirm(`Supprimer ce passage ?`)) return;
+        const snapshot = { ...p };
+        delete snapshot.id; delete snapshot.created_at; delete snapshot.updated_at;
+        delete snapshot.stagiaire; delete snapshot.remplacant;
         await deletePassage(p.id);
-        toast("Supprimé", "success");
+        toast("Passage supprimé · Ctrl+Z pour annuler", "success", 2400);
+        recordUndo("passage supprimé", async () => { await addPassage(snapshot); });
         await reload(container);
       }
     });

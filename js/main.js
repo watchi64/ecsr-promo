@@ -16,6 +16,7 @@ import { renderNotes } from "./views/notes.js";
 import { renderRessources } from "./views/ressources.js";
 import { renderThemes } from "./views/themes.js";
 import { renderConfig } from "./views/config.js";
+import { initUndoKeyboard } from "./undo.js";
 
 // ===== Gate : email magic link =====
 
@@ -186,6 +187,7 @@ async function bootApp() {
   renderTabs();
   setupRefreshBtn();
   onAdminChange(() => navigate());
+  initUndoKeyboard();
   if (!location.hash) location.hash = "#/dashboard";
   await navigate();
 }

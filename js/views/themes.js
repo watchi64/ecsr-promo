@@ -2,6 +2,7 @@ import { listThemes, updateTheme, addTheme, deleteTheme } from "../db.js";
 import { el, clear, isoDate, formatDate, toast, debounce } from "../utils.js";
 import { icon } from "../icons.js";
 import { isAdmin, getAdminEmail } from "../auth-admin.js";
+import { recordUndo } from "../undo.js";
 
 let themes = [];
 let filterStatut = "";
@@ -26,6 +27,8 @@ function toggleStatut(current) {
 
 async function cycleStatut(theme, container, chipEl) {
   const newStatut = toggleStatut(theme.statut);
+  const prevStatut = theme.statut;
+  const prevDate = theme.date_fait;
   const patch = {
     statut: newStatut,
     updated_by_email: getAdminEmail(),
@@ -36,6 +39,11 @@ async function cycleStatut(theme, container, chipEl) {
     Object.assign(theme, patch);
     // Update in-place sans rerender complet (évite le scroll jump)
     updateThemeRowInPlace(theme, chipEl);
+    recordUndo("statut thème", async () => {
+      await updateTheme(theme.id, { statut: prevStatut, date_fait: prevDate });
+      theme.statut = prevStatut;
+      theme.date_fait = prevDate;
+    });
   } catch (e) {
     toast(e.message, "error");
   }
@@ -78,6 +86,8 @@ function openDateEditor(theme, anchorEl, container) {
   });
 
   async function save(newDate) {
+    const prevDate = theme.date_fait;
+    const prevStatut = theme.statut;
     try {
       await updateTheme(theme.id, {
         date_fait: newDate || null,
@@ -86,6 +96,11 @@ function openDateEditor(theme, anchorEl, container) {
       });
       theme.date_fait = newDate || null;
       if (newDate) theme.statut = "Fait";
+      recordUndo("date thème", async () => {
+        await updateTheme(theme.id, { date_fait: prevDate, statut: prevStatut });
+        theme.date_fait = prevDate;
+        theme.statut = prevStatut;
+      });
       // Mise à jour locale : le label affiche la nouvelle date sans tout rerender
       anchorEl.textContent = newDate ? formatDate(newDate) : "+ date";
       anchorEl.classList.toggle("muted", !newDate);

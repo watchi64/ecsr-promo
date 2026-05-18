@@ -85,8 +85,9 @@ export async function listPassages(filters = {}) {
 }
 
 export async function addPassage(p) {
-  const { error } = await supabase.from("passages").insert(p);
+  const { data, error } = await supabase.from("passages").insert(p).select().single();
   if (error) throw error;
+  return data;
 }
 
 export async function deletePassage(id) {

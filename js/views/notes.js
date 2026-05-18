@@ -6,6 +6,7 @@ import {
 import { el, clear, isoDate, formatDate, toast, displayStagiaire, compareByNom } from "../utils.js";
 import { icon } from "../icons.js";
 import { getAdminEmail, isAdmin } from "../auth-admin.js";
+import { recordUndo } from "../undo.js";
 
 let userProfiles = [];  // pour résoudre l'anonymat par stagiaire_id
 
@@ -439,12 +440,18 @@ function inlineCellEdit(td, stagiaireId, fixedFields, container) {
           return;
         }
         try {
+          const snapshot = { ...existing };
           await deleteEvaluation(existing.id);
           // Met à jour localement + DOM en place (pas de rerender complet)
           evaluations = evaluations.filter((x) => x.id !== existing.id);
           td.textContent = "";
           td.className = "m-td-cell empty" + (isAdmin() ? " editable" : "");
-          toast("Note effacée", "success", 1200);
+          toast("Note effacée · Ctrl+Z pour annuler", "success", 2200);
+          recordUndo("note effacée", async () => {
+            const { id, created_at, updated_at, ...payload } = snapshot;
+            const re = await addEvaluation(payload);
+            evaluations.push(re || snapshot);
+          });
           refreshAnalyticsInPlace(container);
         } catch (e) { toast(e.message, "error"); restore(); }
         return;
@@ -471,6 +478,9 @@ function inlineCellEdit(td, stagiaireId, fixedFields, container) {
     const email = getAdminEmail();
     try {
       if (existing) {
+        const prevNote = existing.note;
+        const prevMax = existing.note_max;
+        const prevDate = existing.date_eval;
         await updateEvaluation(existing.id, {
           note,
           note_max: 20,
@@ -480,8 +490,13 @@ function inlineCellEdit(td, stagiaireId, fixedFields, container) {
         existing.note = note;
         existing.note_max = 20;
         existing.date_eval = currentEvalDate;
+        const id = existing.id;
+        recordUndo("note modifiée", async () => {
+          await updateEvaluation(id, { note: prevNote, note_max: prevMax, date_eval: prevDate });
+          const ev = evaluations.find((x) => x.id === id);
+          if (ev) { ev.note = prevNote; ev.note_max = prevMax; ev.date_eval = prevDate; }
+        });
       } else {
-        // Insert via Supabase, on récupère l'id pour l'avoir en local
         const newRow = {
           stagiaire_id: stagiaireId,
           ...fixedFields,
@@ -493,6 +508,13 @@ function inlineCellEdit(td, stagiaireId, fixedFields, container) {
         };
         const inserted = await addEvaluation(newRow);
         evaluations.push(inserted || newRow);
+        const insertedId = inserted?.id;
+        recordUndo("note ajoutée", async () => {
+          if (insertedId) {
+            await deleteEvaluation(insertedId);
+            evaluations = evaluations.filter((x) => x.id !== insertedId);
+          }
+        });
       }
       // Met à jour la cellule en place (sans détruire les autres inputs)
       const ratio = note / 20;
