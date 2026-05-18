@@ -33,9 +33,9 @@ async function renderAccessSection(rerender) {
   // === Form d'invitation (admin only) ===
   if (admin) {
     const inviteBlock = el("div", { class: "param-block" });
-    inviteBlock.appendChild(el("h4", {}, "Inviter une personne"));
+    inviteBlock.appendChild(el("h4", {}, "Autoriser une personne"));
     inviteBlock.appendChild(el("p", { class: "muted" },
-      "Choisis le rôle et la personne, puis entre son email. Elle recevra un lien magique pour se connecter."));
+      "Choisis le rôle et la personne, entre son email. Aucun mail n'est envoyé : tu lui partages l'URL toi-même, puis elle crée son compte avec son email + un mdp."));
 
     const roleSel = el("select", { class: "invite-role" });
     [
@@ -70,7 +70,7 @@ async function renderAccessSection(rerender) {
       for: "invite-also-admin", class: "invite-admin-toggle",
     }, adminCheck, " Aussi administrateur");
 
-    const sendBtn = el("button", { class: "btn accent" }, icon.mail(), "Envoyer l'invitation");
+    const sendBtn = el("button", { class: "btn accent" }, icon.plus(), "Ajouter à la whitelist");
     sendBtn.addEventListener("click", async () => {
       const email = emailInput.value.trim().toLowerCase();
       const role = roleSel.value;
@@ -81,8 +81,8 @@ async function renderAccessSection(rerender) {
       const restoreBtn = () => {
         sendBtn.disabled = false;
         sendBtn.textContent = "";
-        sendBtn.appendChild(icon.mail());
-        sendBtn.appendChild(document.createTextNode("Envoyer l'invitation"));
+        sendBtn.appendChild(icon.plus());
+        sendBtn.appendChild(document.createTextNode("Ajouter à la whitelist"));
       };
 
       sendBtn.disabled = true;
@@ -99,7 +99,7 @@ async function renderAccessSection(rerender) {
           invitePromise,
           new Promise((_, reject) => setTimeout(() => reject(new Error("Délai dépassé (15s). Réseau lent ou rate-limit Supabase atteint (4 mails/h sur le SMTP par défaut).")), 15000)),
         ]);
-        toast("Invitation envoyée à " + email, "success", 3500);
+        toast("Ajouté à la whitelist : " + email + ". Partage-lui l'URL.", "success", 4500);
         emailInput.value = "";
         adminCheck.checked = false;
         rerender();
@@ -109,6 +109,15 @@ async function renderAccessSection(rerender) {
         restoreBtn();
       }
     });
+
+    function restoreBtnInitial() {
+      sendBtn.disabled = false;
+      sendBtn.textContent = "";
+      sendBtn.appendChild(icon.plus());
+      sendBtn.appendChild(document.createTextNode("Ajouter à la whitelist"));
+    }
+    // Sécurise l'état initial du label
+    setTimeout(restoreBtnInitial, 0);
     emailInput.addEventListener("keydown", (e) => { if (e.key === "Enter") sendBtn.click(); });
 
     inviteBlock.appendChild(el("div", { class: "invite-form" },
