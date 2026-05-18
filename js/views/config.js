@@ -92,7 +92,7 @@ async function renderAccessSection(rerender) {
           email, role,
           stagiaire_id: role === "stagiaire" ? personId : null,
           prof_id:      role === "prof"      ? personId : null,
-          is_admin:     role === "admin" ? true : adminCheck.checked,
+          is_admin:     adminCheck.checked,
         });
         // Timeout de 15s pour éviter le hang infini
         await Promise.race([
