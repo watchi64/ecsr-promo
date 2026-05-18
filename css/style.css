@@ -1140,6 +1140,23 @@ h3 {
 }
 .p-dice-btn:active { transform: rotate(360deg) scale(0.92); transition: transform 0.4s; }
 
+/* Petit sélecteur compagnon "1/2/3" du dé Voiture */
+.p-dice-count {
+  flex: 0 0 auto;
+  height: 30px;
+  border: 1px solid var(--line);
+  background: var(--bg-elev);
+  border-radius: var(--r-sm);
+  padding: 0 0.4rem 0 0.55rem;
+  font-family: var(--font-mono);
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--text);
+  cursor: pointer;
+  align-self: center;
+}
+.p-dice-count:focus { outline: none; border-color: var(--accent); }
+
 .p-lane-notes {
   padding: 0 0.6rem 0.45rem;
 }

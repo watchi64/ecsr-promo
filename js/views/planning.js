@@ -181,21 +181,35 @@ async function addLaneInSlot(d, half, slot) {
   }
 }
 
-// === Tirage aléatoire d'élèves pour Pédagogie salle ===
-// Exclut : le pédagogue courant + tous les stagiaires déjà mobilisés (pédagogue OU élève)
-// dans une autre Pédagogie salle de la même semaine.
+// === Tirage aléatoire (Pédagogue, élèves Pédagogie salle, élèves Voiture) ===
+// Règle commune : pas de doublon dans la semaine pour la même activité.
+
+function shuffle(arr) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+/** IDs déjà mobilisés dans la semaine pour une activité donnée (sauf l'entry courante). */
+function busyIdsForActivity(activite, currentLid, { includePedagogue = true, includeEleves = true } = {}) {
+  const busy = new Set();
+  entries.forEach((e) => {
+    if (e.activite !== activite) return;
+    if (e._lid === currentLid) return;
+    if (includePedagogue && e.pedagogue_id) busy.add(e.pedagogue_id);
+    if (includeEleves) (e.eleves_ids || []).forEach((id) => busy.add(id));
+  });
+  return busy;
+}
+
 async function randomFillEleves(lid) {
   const entry = entries.find((e) => e._lid === lid);
   if (!entry) return;
 
-  const busy = new Set();
-  entries.forEach((e) => {
-    if (e.activite !== "Pédagogie salle") return;
-    if (e._lid === lid) return;  // l'entry courante : ses élèves vont être remplacés
-    if (e.pedagogue_id) busy.add(e.pedagogue_id);
-    (e.eleves_ids || []).forEach((id) => busy.add(id));
-  });
-  // Le pédagogue de cette cellule ne peut pas être son propre élève
+  const busy = busyIdsForActivity("Pédagogie salle", lid);
   if (entry.pedagogue_id) busy.add(entry.pedagogue_id);
 
   const candidates = stagiaires.filter((s) => !busy.has(s.id));
@@ -203,23 +217,54 @@ async function randomFillEleves(lid) {
     toast("Plus aucun stagiaire disponible cette semaine", "error", 3500);
     return;
   }
-
-  // Shuffle Fisher-Yates
-  const pool = candidates.slice();
-  for (let i = pool.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [pool[i], pool[j]] = [pool[j], pool[i]];
-  }
-  const picked = pool.slice(0, 4).map((s) => s.id);
+  const picked = shuffle(candidates).slice(0, 4).map((s) => s.id);
 
   if (picked.length < 4) {
-    toast(`Seulement ${picked.length} stagiaire(s) disponible(s) (pas de doublon dans la semaine)`, "info", 3500);
+    toast(`Seulement ${picked.length} stagiaire(s) disponible(s)`, "info", 3500);
   } else {
     toast("4 élèves tirés au hasard", "success", 1500);
   }
-
   await saveEntry(lid, { eleves_ids: picked });
-  // Re-render pour rafraîchir l'affichage des chips
+  renderInto(currentContainer);
+}
+
+async function randomFillPedagogue(lid) {
+  const entry = entries.find((e) => e._lid === lid);
+  if (!entry) return;
+
+  // Exclut tout pédagogue déjà désigné cette semaine + les élèves de cette cellule
+  const busy = busyIdsForActivity("Pédagogie salle", lid, { includeEleves: false });
+  (entry.eleves_ids || []).forEach((id) => busy.add(id));
+
+  const candidates = stagiaires.filter((s) => !busy.has(s.id));
+  if (candidates.length === 0) {
+    toast("Tous les stagiaires sont déjà passés au tableau cette semaine", "error", 3500);
+    return;
+  }
+  const picked = candidates[Math.floor(Math.random() * candidates.length)];
+  await saveEntry(lid, { pedagogue_id: picked.id });
+  renderInto(currentContainer);
+  toast(displayStagiaire(picked) + " désigné(e) au tableau", "success", 1800);
+}
+
+async function randomFillVoitureEleves(lid, count) {
+  const entry = entries.find((e) => e._lid === lid);
+  if (!entry) return;
+
+  const busy = busyIdsForActivity("Voiture (conduite)", lid, { includePedagogue: false });
+
+  const candidates = stagiaires.filter((s) => !busy.has(s.id));
+  if (candidates.length === 0) {
+    toast("Plus aucun stagiaire disponible en voiture cette semaine", "error", 3500);
+    return;
+  }
+  const picked = shuffle(candidates).slice(0, count).map((s) => s.id);
+  if (picked.length < count) {
+    toast(`Seulement ${picked.length} stagiaire(s) disponible(s)`, "info", 3500);
+  } else {
+    toast(`${count} élève(s) en voiture tiré(s) au hasard`, "success", 1500);
+  }
+  await saveEntry(lid, { eleves_ids: picked });
   renderInto(currentContainer);
 }
 
@@ -499,15 +544,25 @@ function renderLaneCell(entry) {
   if (hasPedagogue || hasEleves) {
     const participants = el("div", { class: "p-lane-participants" });
     if (hasPedagogue) {
-      participants.appendChild(el("div", { class: "p-lane-role pedagogue" },
-        el("span", { class: "p-lane-role-label" }, "Au tableau"),
-        selectFromList(
-          stagiaires.map((s) => ({ value: s.id, label: displayStagiaire(s) })),
-          entry.pedagogue_id,
-          (v) => saveEntry(lid, { pedagogue_id: v ? Number(v) : null }),
-          "—"
-        )
+      const pedaRole = el("div", { class: "p-lane-role pedagogue" });
+      pedaRole.appendChild(el("span", { class: "p-lane-role-label" }, "Au tableau"));
+      pedaRole.appendChild(selectFromList(
+        stagiaires.map((s) => ({ value: s.id, label: displayStagiaire(s) })),
+        entry.pedagogue_id,
+        (v) => saveEntry(lid, { pedagogue_id: v ? Number(v) : null }),
+        "—"
       ));
+      // Bouton tirage aléatoire du pédagogue (Pédagogie salle uniquement)
+      if (entry.activite === "Pédagogie salle") {
+        const diceBtn = el("button", {
+          class: "p-dice-btn",
+          type: "button",
+          title: "Tirer 1 stagiaire au hasard (parmi ceux qui n'ont pas encore été au tableau cette semaine)",
+          onClick: () => randomFillPedagogue(lid),
+        }, "🎲");
+        pedaRole.appendChild(diceBtn);
+      }
+      participants.appendChild(pedaRole);
     }
     if (hasEleves) {
       const eleveRole = el("div", { class: "p-lane-role eleves" });
@@ -515,14 +570,30 @@ function renderLaneCell(entry) {
       eleveRole.appendChild(chipsSelect(stagiaires, entry.eleves_ids || [], (ids) => {
         saveEntry(lid, { eleves_ids: ids });
       }));
-      // Bouton tirage aléatoire pour Pédagogie salle (4 élèves sans doublon dans la semaine)
       if (entry.activite === "Pédagogie salle") {
+        // Pédagogie salle : 4 élèves au hasard, sans doublon
         const diceBtn = el("button", {
           class: "p-dice-btn",
           type: "button",
           title: "Tirer 4 élèves au hasard (sans doublon dans la semaine)",
           onClick: () => randomFillEleves(lid),
         }, "🎲");
+        eleveRole.appendChild(diceBtn);
+      } else if (entry.activite === "Voiture (conduite)") {
+        // Voiture : 1 à 3 élèves au choix
+        const countSel = el("select", { class: "p-dice-count", title: "Nombre d'élèves à tirer" });
+        [1, 2, 3].forEach((n) => {
+          const opt = el("option", { value: String(n) }, String(n));
+          if (n === 3) opt.selected = true;
+          countSel.appendChild(opt);
+        });
+        const diceBtn = el("button", {
+          class: "p-dice-btn",
+          type: "button",
+          title: "Tirer N élèves au hasard (sans doublon dans la semaine)",
+          onClick: () => randomFillVoitureEleves(lid, Number(countSel.value)),
+        }, "🎲");
+        eleveRole.appendChild(countSel);
         eleveRole.appendChild(diceBtn);
       }
       participants.appendChild(eleveRole);
