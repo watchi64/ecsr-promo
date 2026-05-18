@@ -771,6 +771,54 @@ h3 {
     border-bottom: 1px solid var(--line);
     padding: 0.5rem 1rem;
   }
+
+  /* === Anti-zoom iOS : tous les inputs/selects à 16px === */
+  .p-lane-activite-wrap select,
+  .p-lane-prof-wrap select,
+  .p-lane-role.pedagogue select,
+  .p-lane-notes-input,
+  .sujet-chip-input,
+  .sujet-multi .sujet-chips {
+    font-size: 16px !important;
+  }
+
+  /* Touch targets plus confortables */
+  .p-lane-activite-wrap select,
+  .p-lane-prof-wrap select,
+  .p-lane-role.pedagogue select {
+    min-height: 40px;
+    padding-top: 0.55rem;
+    padding-bottom: 0.55rem;
+  }
+  .p-lane-header { min-height: 44px; }
+  .p-lane-prof-wrap { max-width: 130px; }
+
+  /* Plus d'air dans les cellules */
+  .p-lane-sujet { padding: 0.5rem 0.6rem 0.4rem; }
+  .p-lane-participants { padding: 0.4rem 0.6rem 0.5rem; gap: 0.4rem; }
+  .p-lane-role { min-height: 40px; }
+  .p-lane-role-label { font-size: 0.62rem; min-width: 64px; }
+
+  /* Notes : placeholder discret, taille input correcte */
+  .p-lane-notes { padding: 0 0.6rem 0.55rem; }
+  .p-lane-notes-input {
+    font-size: 16px;
+    padding: 0.4rem 0.5rem;
+  }
+  .p-lane-notes-input::placeholder { font-size: 0.78rem; }
+
+  /* Boutons + parallèle et + à la suite : plus tapables */
+  .p-add-parallele-mini { width: 40px; }
+  .p-add-suite { padding: 0.55rem 0.7rem; }
+
+  /* Bouton suppression cellule : plus accessible */
+  .p-lane-delete { padding: 0 0.7rem; }
+  .p-lane-delete .icon { width: 16px; height: 16px; }
+
+  /* Chips sujet : largeur input correcte sans pousser hors écran */
+  .sujet-chip-input { min-width: 100px; flex: 1 1 100px; }
+  .sujet-chip { font-size: 0.95rem; padding: 0.22rem 0.55rem; }
+  .sujet-chip-label { max-width: 180px; }
 }
 
 .p-half-head {

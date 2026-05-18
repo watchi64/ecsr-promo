@@ -285,6 +285,10 @@ function sujetMultiSelect(currentValue, onChange) {
     type: "text",
     class: "sujet-chip-input",
     placeholder: "Ajouter un thème…",
+    autocomplete: "off",
+    autocorrect: "off",
+    autocapitalize: "off",
+    spellcheck: "false",
   });
   const dropdown = el("div", { class: "sujet-ac-dropdown hidden" });
 
@@ -476,7 +480,7 @@ function renderLaneCell(entry) {
 
   // === Notes : discret, en bas ===
   if (shape.includes("notes")) {
-    const notesInput = el("input", { type: "text", class: "p-lane-notes-input", placeholder: "Notes (optionnel)", value: entry.notes || "" });
+    const notesInput = el("input", { type: "text", class: "p-lane-notes-input", placeholder: "+ note", value: entry.notes || "", autocomplete: "off" });
     const key = lid + "-notes";
     if (!debouncedSave[key]) {
       debouncedSave[key] = debounce((v) => saveEntry(lid, { notes: v }), 500);
