@@ -7,10 +7,11 @@ import {
   addStagiaire, updateStagiaire, deleteStagiaire,
   addProf, updateProf, deleteProf,
   listUserProfiles, deleteUserProfile, inviteUser,
+  setMyAnonymousNotes,
 } from "../db.js";
 import { el, clear, toast } from "../utils.js";
 import { icon } from "../icons.js";
-import { isAdmin, getAdminEmail } from "../auth-admin.js";
+import { isAdmin, getAdminEmail, getProfile } from "../auth-admin.js";
 
 // ====== SECTION Accès & invitations ======
 
@@ -183,6 +184,54 @@ async function renderAccessSection(rerender) {
   return section;
 }
 
+// ====== SECTION Mes préférences ======
+
+function renderMyPreferencesSection(rerender) {
+  const profile = getProfile();
+  if (!profile) return null;  // pas affichée si pas de profil
+
+  const section = el("section", { class: "param-section" });
+  section.appendChild(el("div", { class: "param-section-head" },
+    el("div", { class: "param-icon" }, icon.user ? icon.user() : icon.users()),
+    el("div", {},
+      el("h3", {}, "Mes préférences"),
+      el("p", { class: "muted" }, "Réglages personnels visibles uniquement par toi."),
+    ),
+  ));
+
+  const block = el("div", { class: "param-block" });
+  block.appendChild(el("h4", {}, "Anonymat dans le tableau de notes"));
+  block.appendChild(el("p", { class: "muted" },
+    "Si activé, ton prénom est remplacé par « Anonyme » dans le tableau et les graphiques de la page Notes, et tu es placé(e) en fin de liste. Les admins continuent de voir ton vrai prénom (besoin d'évaluation)."));
+
+  const checkbox = el("input", { type: "checkbox", id: "pref-anon" });
+  if (profile.anonymous_notes) checkbox.checked = true;
+
+  const label = el("label", { for: "pref-anon", class: "invite-admin-toggle" },
+    checkbox,
+    " Masquer mon prénom dans les notes",
+  );
+
+  checkbox.addEventListener("change", async () => {
+    const wanted = checkbox.checked;
+    checkbox.disabled = true;
+    try {
+      await setMyAnonymousNotes(wanted);
+      profile.anonymous_notes = wanted;
+      toast(wanted ? "Tu apparais maintenant en Anonyme." : "Ton prénom est à nouveau visible.", "success");
+    } catch (e) {
+      toast("Erreur : " + e.message, "error");
+      checkbox.checked = !wanted;
+    } finally {
+      checkbox.disabled = false;
+    }
+  });
+
+  block.appendChild(label);
+  section.appendChild(block);
+  return section;
+}
+
 // ====== SECTION Promo (stagiaires + profs) ======
 
 async function renderPromoSection(rerender) {
@@ -305,6 +354,7 @@ async function rerender(container) {
   try {
     const sections = await withTimeout(Promise.all([
       renderAccessSection(() => rerender(container)),
+      Promise.resolve(renderMyPreferencesSection(() => rerender(container))),
       renderPromoSection(() => rerender(container)),
       Promise.resolve(renderInfoSection()),
     ]), 12000, "Paramètres");
@@ -319,7 +369,7 @@ async function rerender(container) {
     ));
 
     const grid = el("div", { class: "param-grid" });
-    sections.forEach((s) => grid.appendChild(s));
+    sections.filter(Boolean).forEach((s) => grid.appendChild(s));
     container.appendChild(grid);
   } catch (e) {
     console.error("Paramètres : erreur de chargement", e);

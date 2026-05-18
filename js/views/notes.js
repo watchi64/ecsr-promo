@@ -1,10 +1,13 @@
 import {
   listStagiaires, listCompetences, listEvaluations, listThemes,
   addEvaluation, updateEvaluation, deleteEvaluation, listAuditForEvaluation,
+  listUserProfiles,
 } from "../db.js";
 import { el, clear, isoDate, formatDate, toast } from "../utils.js";
 import { icon } from "../icons.js";
 import { getAdminEmail, isAdmin } from "../auth-admin.js";
+
+let userProfiles = [];  // pour résoudre l'anonymat par stagiaire_id
 
 let stagiaires = [];
 let competences = [];
@@ -35,8 +38,22 @@ function stagiaireNbNotes(stagiaireId) {
   return evaluations.filter((e) => e.stagiaire_id === stagiaireId && e.note != null).length;
 }
 
+function isStagiaireAnonymous(stagiaireId) {
+  return userProfiles.some((p) => p.stagiaire_id === stagiaireId && p.anonymous_notes);
+}
+
+function displayName(s) {
+  // Les admins voient toujours le vrai nom (besoin métier : noter, repérer).
+  // Les autres voient "Anonyme" si la personne a coché le flag.
+  if (isAdmin()) return s.prenom;
+  return isStagiaireAnonymous(s.id) ? "Anonyme" : s.prenom;
+}
+
 function sortStagiaires(list, mode) {
-  const arr = list.slice();
+  // Les anonymes sont toujours en fin, peu importe le tri
+  const anonymous = list.filter((s) => isStagiaireAnonymous(s.id));
+  const visible = list.filter((s) => !isStagiaireAnonymous(s.id));
+  const arr = visible.slice();
   switch (mode) {
     case "alpha":
       arr.sort((a, b) => a.prenom.localeCompare(b.prenom, "fr"));
@@ -55,7 +72,9 @@ function sortStagiaires(list, mode) {
       arr.sort((a, b) => (a.ordre ?? 0) - (b.ordre ?? 0));
       break;
   }
-  return arr;
+  // anonymes à la fin, dans l'ordre par défaut
+  anonymous.sort((a, b) => (a.ordre ?? 0) - (b.ordre ?? 0));
+  return [...arr, ...anonymous];
 }
 
 const TYPES_EVAL = ["Thème", "Compétence", "Contrôle"];
@@ -330,7 +349,7 @@ function renderTable(container) {
 }
 
 async function reload(container) {
-  evaluations = await listEvaluations();
+  [evaluations, userProfiles] = await Promise.all([listEvaluations(), listUserProfiles()]);
   rerender(container);
 }
 
@@ -676,12 +695,13 @@ function renderMatrice(container) {
   sortStagiaires(stagiaires, currentNotesSort).forEach((s) => {
     const tr = el("tr");
 
-    // Colonne prénom (sticky) — cliquable pour ouvrir la vue détaillée (utile mobile)
+    // Colonne prénom (sticky) — cliquable pour ouvrir la vue détaillée
+    const visibleName = displayName(s);
     const nameBtn = el("button", {
-      class: "m-name-btn", type: "button",
-      title: "Voir toutes les notes de " + s.prenom,
+      class: "m-name-btn" + (isStagiaireAnonymous(s.id) ? " anon" : ""), type: "button",
+      title: isStagiaireAnonymous(s.id) ? "Profil anonyme" : "Voir toutes les notes de " + s.prenom,
       onClick: () => openStagiaireDetail(s, themeByNumLocal, container),
-    }, s.prenom);
+    }, visibleName);
     tr.appendChild(el("td", { class: "m-td-name sticky" }, nameBtn));
 
     // Moyenne globale
@@ -801,15 +821,128 @@ function rerender(container) {
   }
 
   container.appendChild(renderMatrice(container));
+  container.appendChild(renderAveragesChart());
 }
 
 export async function renderNotes(container) {
   clear(container);
   container.appendChild(el("div", { class: "loading" }, "Chargement"));
   let allThemes;
-  [stagiaires, competences, evaluations, allThemes] = await Promise.all([
-    listStagiaires(), listCompetences(), listEvaluations(), listThemes()
+  [stagiaires, competences, evaluations, allThemes, userProfiles] = await Promise.all([
+    listStagiaires(), listCompetences(), listEvaluations(), listThemes(), listUserProfiles(),
   ]);
   themesOfficiels = allThemes.filter((t) => t.type === "theme" && t.numero != null);
   rerender(container);
+}
+
+// === Graphique de synthèse : moyennes par stagiaire (SVG bar chart) ===
+
+function renderAveragesChart() {
+  const sorted = sortStagiaires(stagiaires, "avg-desc");
+  const data = sorted.map((s) => {
+    const evs = evaluations.filter((e) => e.stagiaire_id === s.id && e.note != null && e.note_max);
+    const avg = evs.length === 0 ? null
+      : evs.reduce((sum, e) => sum + (Number(e.note) / Number(e.note_max)) * 20, 0) / evs.length;
+    return { name: displayName(s), avg, count: evs.length, anon: isStagiaireAnonymous(s.id) };
+  });
+
+  const width = 720;
+  const labelWidth = 90;
+  const barHeight = 22;
+  const barGap = 8;
+  const padTop = 30;
+  const padBottom = 30;
+  const chartHeight = padTop + data.length * (barHeight + barGap) + padBottom;
+  const chartWidth = width - labelWidth - 50;
+
+  const svgNS = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(svgNS, "svg");
+  svg.setAttribute("viewBox", `0 0 ${width} ${chartHeight}`);
+  svg.setAttribute("class", "notes-chart-svg");
+  svg.setAttribute("role", "img");
+  svg.setAttribute("aria-label", "Moyennes par stagiaire");
+
+  function avgColor(avg) {
+    if (avg == null) return "#D5D5D5";
+    const ratio = avg / 20;
+    if (ratio < 0.4) return "#DC2626";
+    if (ratio < 0.6) return "#D97706";
+    if (ratio < 0.8) return "#65A30D";
+    return "#3F7012";
+  }
+
+  // Axe vertical : graduations 0, 5, 10, 15, 20
+  [0, 5, 10, 15, 20].forEach((val) => {
+    const x = labelWidth + (val / 20) * chartWidth;
+    const line = document.createElementNS(svgNS, "line");
+    line.setAttribute("x1", x); line.setAttribute("x2", x);
+    line.setAttribute("y1", padTop - 8); line.setAttribute("y2", chartHeight - padBottom + 4);
+    line.setAttribute("stroke", val === 10 ? "#B7C0AA" : "#E2E7DA");
+    line.setAttribute("stroke-dasharray", val === 10 ? "" : "2,3");
+    svg.appendChild(line);
+
+    const tx = document.createElementNS(svgNS, "text");
+    tx.setAttribute("x", x); tx.setAttribute("y", padTop - 12);
+    tx.setAttribute("text-anchor", "middle");
+    tx.setAttribute("font-size", "10");
+    tx.setAttribute("fill", "#8A7458");
+    tx.textContent = String(val);
+    svg.appendChild(tx);
+  });
+
+  data.forEach((d, i) => {
+    const y = padTop + i * (barHeight + barGap);
+
+    // Label
+    const label = document.createElementNS(svgNS, "text");
+    label.setAttribute("x", labelWidth - 8); label.setAttribute("y", y + barHeight / 2 + 4);
+    label.setAttribute("text-anchor", "end");
+    label.setAttribute("font-size", "11");
+    label.setAttribute("font-weight", d.anon ? "400" : "600");
+    label.setAttribute("fill", d.anon ? "#8A7458" : "#1F2924");
+    label.textContent = d.name;
+    svg.appendChild(label);
+
+    // Track (gris)
+    const track = document.createElementNS(svgNS, "rect");
+    track.setAttribute("x", labelWidth); track.setAttribute("y", y);
+    track.setAttribute("width", chartWidth); track.setAttribute("height", barHeight);
+    track.setAttribute("rx", 4); track.setAttribute("fill", "#F0F0EC");
+    svg.appendChild(track);
+
+    if (d.avg != null) {
+      // Bar
+      const w = Math.max(2, (d.avg / 20) * chartWidth);
+      const bar = document.createElementNS(svgNS, "rect");
+      bar.setAttribute("x", labelWidth); bar.setAttribute("y", y);
+      bar.setAttribute("width", w); bar.setAttribute("height", barHeight);
+      bar.setAttribute("rx", 4); bar.setAttribute("fill", avgColor(d.avg));
+      svg.appendChild(bar);
+
+      // Value
+      const val = document.createElementNS(svgNS, "text");
+      const valX = labelWidth + w + 6;
+      val.setAttribute("x", valX); val.setAttribute("y", y + barHeight / 2 + 4);
+      val.setAttribute("font-size", "11");
+      val.setAttribute("font-family", "var(--font-mono)");
+      val.setAttribute("font-weight", "700");
+      val.setAttribute("fill", "#1F2924");
+      val.textContent = (Math.round(d.avg * 10) / 10).toString() + " / 20";
+      svg.appendChild(val);
+    } else {
+      const val = document.createElementNS(svgNS, "text");
+      val.setAttribute("x", labelWidth + 10); val.setAttribute("y", y + barHeight / 2 + 4);
+      val.setAttribute("font-size", "10");
+      val.setAttribute("fill", "#9DA89A");
+      val.textContent = "Aucune note";
+      svg.appendChild(val);
+    }
+  });
+
+  const wrap = el("section", { class: "notes-chart" },
+    el("h3", { class: "notes-chart-title" }, "Moyennes par stagiaire"),
+    el("p", { class: "muted notes-chart-sub" }, "Trié par moyenne décroissante. Les profils anonymes apparaissent en fin de liste."),
+    el("div", { class: "notes-chart-svg-wrap" }, svg),
+  );
+  return wrap;
 }

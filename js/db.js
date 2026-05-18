@@ -314,6 +314,11 @@ export async function listUserProfiles() {
   return data;
 }
 
+export async function setMyAnonymousNotes(val) {
+  const { error } = await supabase.rpc("set_my_anonymous_notes", { val: !!val });
+  if (error) throw error;
+}
+
 export async function getMyProfile() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user?.email) return null;

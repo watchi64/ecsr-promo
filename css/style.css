@@ -3054,10 +3054,20 @@ button.theme-date.editable.muted { color: var(--text-faint); }
 /* Couleurs par note ratio */
 .matrice-table .empty { color: var(--text-faint); background: transparent; }
 .matrice-table .empty.editable:hover::after { content: "+"; }
-.matrice-table .bad    { background: var(--c-stop-soft); color: var(--c-stop); font-weight: 600; }
-.matrice-table .warn   { background: var(--c-wait-soft); color: var(--c-wait); font-weight: 600; }
-.matrice-table .ok     { background: var(--act-cours); color: #1E40AF; font-weight: 600; }
-.matrice-table .great  { background: var(--c-go-soft); color: var(--c-go); font-weight: 700; }
+.matrice-table .bad    { background: #FCD9D9; color: #991B1B; font-weight: 700; }
+.matrice-table .warn   { background: #FBE5C1; color: #92400E; font-weight: 700; }
+.matrice-table .ok     { background: #DBE9C4; color: #3F6212; font-weight: 700; }
+.matrice-table .great  { background: #BFE0A6; color: #2C5212; font-weight: 800; }
+
+/* Alternance des lignes pour bien repérer chaque stagiaire */
+.matrice-table tbody tr:nth-child(even) td { background: var(--bg-subtle); }
+.matrice-table tbody tr:nth-child(even) td.sticky { background: var(--bg-soft); }
+.matrice-table tbody tr:nth-child(even) td.bad   { background: #FCD9D9; }
+.matrice-table tbody tr:nth-child(even) td.warn  { background: #FBE5C1; }
+.matrice-table tbody tr:nth-child(even) td.ok    { background: #DBE9C4; }
+.matrice-table tbody tr:nth-child(even) td.great { background: #BFE0A6; }
+.matrice-table tbody tr:nth-child(odd) td.sticky { background: var(--bg-elev); }
+.matrice-table tbody tr:hover td.sticky { background: var(--accent-soft); }
 
 /* Border droite plus marquée après la dernière colonne spéciale (GDE) pour séparer des thèmes */
 .matrice-table th:nth-child(6),
@@ -3074,6 +3084,30 @@ button.theme-date.editable.muted { color: var(--text-faint); }
   .matrice-table .m-th-theme-label { max-height: 150px; }
   .matrice-table th.m-th-avg, .matrice-table th.m-th-spe { font-size: 0.65rem; }
   .matrice-wrap { max-height: calc(100vh - 220px); }
+}
+
+/* === Graphique synthèse Notes === */
+.notes-chart {
+  margin-top: 2.2rem;
+  padding: 1.2rem 1.4rem 1.4rem;
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+}
+.notes-chart-title {
+  margin: 0 0 0.2rem;
+  font-size: 1rem;
+  font-weight: 600;
+  font-family: var(--font);
+}
+.notes-chart-sub { margin: 0 0 1rem; font-size: 0.82rem; }
+.notes-chart-svg-wrap { overflow-x: auto; }
+.notes-chart-svg { width: 100%; min-width: 540px; height: auto; display: block; }
+
+.m-name-btn.anon {
+  font-style: italic;
+  color: var(--text-muted);
+  font-weight: 500;
 }
 
 /* === Vue détaillée stagiaire (modale) === */
