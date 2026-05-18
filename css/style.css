@@ -1119,6 +1119,27 @@ h3 {
 .p-lane-role.eleves { align-items: flex-start; padding-top: 1px; }
 .p-lane-role.eleves > .chips-select { flex: 1; }
 
+/* Bouton tirage aléatoire (dé) — discret, à côté des chips élèves */
+.p-dice-btn {
+  flex: 0 0 auto;
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  padding: 0.18rem 0.45rem;
+  font-size: 1.05rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, transform 0.12s;
+  height: 30px;
+  align-self: center;
+}
+.p-dice-btn:hover {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  transform: rotate(15deg);
+}
+.p-dice-btn:active { transform: rotate(360deg) scale(0.92); transition: transform 0.4s; }
+
 .p-lane-notes {
   padding: 0 0.6rem 0.45rem;
 }

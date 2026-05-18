@@ -181,6 +181,48 @@ async function addLaneInSlot(d, half, slot) {
   }
 }
 
+// === Tirage aléatoire d'élèves pour Pédagogie salle ===
+// Exclut : le pédagogue courant + tous les stagiaires déjà mobilisés (pédagogue OU élève)
+// dans une autre Pédagogie salle de la même semaine.
+async function randomFillEleves(lid) {
+  const entry = entries.find((e) => e._lid === lid);
+  if (!entry) return;
+
+  const busy = new Set();
+  entries.forEach((e) => {
+    if (e.activite !== "Pédagogie salle") return;
+    if (e._lid === lid) return;  // l'entry courante : ses élèves vont être remplacés
+    if (e.pedagogue_id) busy.add(e.pedagogue_id);
+    (e.eleves_ids || []).forEach((id) => busy.add(id));
+  });
+  // Le pédagogue de cette cellule ne peut pas être son propre élève
+  if (entry.pedagogue_id) busy.add(entry.pedagogue_id);
+
+  const candidates = stagiaires.filter((s) => !busy.has(s.id));
+  if (candidates.length === 0) {
+    toast("Plus aucun stagiaire disponible cette semaine", "error", 3500);
+    return;
+  }
+
+  // Shuffle Fisher-Yates
+  const pool = candidates.slice();
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  const picked = pool.slice(0, 4).map((s) => s.id);
+
+  if (picked.length < 4) {
+    toast(`Seulement ${picked.length} stagiaire(s) disponible(s) (pas de doublon dans la semaine)`, "info", 3500);
+  } else {
+    toast("4 élèves tirés au hasard", "success", 1500);
+  }
+
+  await saveEntry(lid, { eleves_ids: picked });
+  // Re-render pour rafraîchir l'affichage des chips
+  renderInto(currentContainer);
+}
+
 async function deleteCell(entry) {
   // Empêche de supprimer s'il ne reste qu'une cellule pour cette demi-journée
   const list = entriesFor(entry.day_index, entry.half_day);
@@ -468,12 +510,22 @@ function renderLaneCell(entry) {
       ));
     }
     if (hasEleves) {
-      participants.appendChild(el("div", { class: "p-lane-role eleves" },
-        el("span", { class: "p-lane-role-label" }, "Élèves"),
-        chipsSelect(stagiaires, entry.eleves_ids || [], (ids) => {
-          saveEntry(lid, { eleves_ids: ids });
-        })
-      ));
+      const eleveRole = el("div", { class: "p-lane-role eleves" });
+      eleveRole.appendChild(el("span", { class: "p-lane-role-label" }, "Élèves"));
+      eleveRole.appendChild(chipsSelect(stagiaires, entry.eleves_ids || [], (ids) => {
+        saveEntry(lid, { eleves_ids: ids });
+      }));
+      // Bouton tirage aléatoire pour Pédagogie salle (4 élèves sans doublon dans la semaine)
+      if (entry.activite === "Pédagogie salle") {
+        const diceBtn = el("button", {
+          class: "p-dice-btn",
+          type: "button",
+          title: "Tirer 4 élèves au hasard (sans doublon dans la semaine)",
+          onClick: () => randomFillEleves(lid),
+        }, "🎲");
+        eleveRole.appendChild(diceBtn);
+      }
+      participants.appendChild(eleveRole);
     }
     body.appendChild(participants);
   }
