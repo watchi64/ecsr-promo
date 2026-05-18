@@ -478,6 +478,158 @@ function inlineCellEdit(td, stagiaireId, fixedFields, container) {
   });
 }
 
+// === Vue détaillée d'un stagiaire (modale, idéale mobile) ===
+
+function openStagiaireDetail(stagiaire, themeByNum, container) {
+  const admin = isAdmin();
+  const backdrop = el("div", { class: "modal-backdrop" });
+
+  function buildBody() {
+    const body = el("div", { class: "sd-body" });
+
+    // Moyenne
+    const allEvals = evaluations.filter((e) => e.stagiaire_id === stagiaire.id && e.note != null && e.note_max);
+    if (allEvals.length > 0) {
+      const avg = allEvals.reduce((sum, e) => sum + (Number(e.note) / Number(e.note_max)) * 20, 0) / allEvals.length;
+      const rounded = Math.round(avg * 10) / 10;
+      const cls = cellColorClass(avg / 20);
+      body.appendChild(el("div", { class: "sd-avg " + cls },
+        el("span", { class: "sd-avg-num" }, String(rounded)),
+        el("span", { class: "sd-avg-max" }, "/20"),
+        el("span", { class: "sd-avg-count muted" }, allEvals.length + " note" + (allEvals.length > 1 ? "s" : "")),
+      ));
+    } else {
+      body.appendChild(el("div", { class: "sd-avg empty" }, el("span", { class: "muted" }, "Aucune note pour l'instant")));
+    }
+
+    function row(label, sublabel, ev, fixedFields) {
+      const r = el("div", { class: "sd-row" });
+      r.appendChild(el("div", { class: "sd-label" },
+        el("span", { class: "sd-label-main" }, label),
+        sublabel ? el("span", { class: "sd-label-sub muted" }, sublabel) : null,
+      ));
+      const valueWrap = el("div", { class: "sd-value" });
+      if (ev && ev.note != null) {
+        const ratio = Number(ev.note) / (Number(ev.note_max) || 20);
+        const cls = cellColorClass(ratio);
+        valueWrap.appendChild(el("span", { class: "sd-note " + cls }, String(ev.note)));
+      } else {
+        valueWrap.appendChild(el("span", { class: "sd-note empty" }, "—"));
+      }
+      if (admin) {
+        valueWrap.classList.add("editable");
+        valueWrap.title = "Cliquer pour modifier";
+        valueWrap.addEventListener("click", () => {
+          startInlineEditInModal(valueWrap, stagiaire.id, fixedFields, container, backdrop);
+        });
+      }
+      r.appendChild(valueWrap);
+      return r;
+    }
+
+    // Section : Compétences clés
+    body.appendChild(el("h4", { class: "sd-section-title" }, "Compétences"));
+    MATRIX_SPECIAL_COLS.forEach((c) => {
+      const ev = noteForStagiaireCompetence(stagiaire.id, c.key);
+      body.appendChild(row(c.label, c.tooltip, ev, { type: "Compétence", competence_code: c.key }));
+    });
+
+    // Section : Thèmes 57
+    body.appendChild(el("h4", { class: "sd-section-title" }, "Thèmes du référentiel"));
+    for (let n = 1; n <= 57; n++) {
+      const ev = noteForStagiaireTheme(stagiaire.id, n);
+      const theme = themeByNum.get(n);
+      const numStr = String(n).padStart(2, "0");
+      const title = theme ? theme.titre : `Thème ${n}`;
+      body.appendChild(row(numStr + " · " + title, null, ev, {
+        type: "Thème",
+        theme_numero: n,
+        theme_titre: theme ? theme.titre : null,
+      }));
+    }
+
+    return body;
+  }
+
+  const modal = el("div", { class: "modal sd-modal" },
+    el("div", { class: "sd-head" },
+      el("h3", {}, stagiaire.prenom),
+      el("p", { class: "muted", style: "margin:0;font-size:0.85rem" },
+        admin ? "Clique sur une note pour la modifier." : "Lecture seule."),
+    ),
+    buildBody(),
+    el("div", { class: "modal-actions" },
+      el("button", { class: "btn primary", onClick: () => backdrop.remove() }, "Fermer"),
+    )
+  );
+  backdrop.appendChild(modal);
+  backdrop.addEventListener("click", (e) => { if (e.target === backdrop) backdrop.remove(); });
+  document.body.appendChild(backdrop);
+}
+
+// Édition inline dans la modale détail (similaire à la cellule matrice)
+function startInlineEditInModal(valueWrap, stagiaireId, fixedFields, container, backdrop) {
+  let existing = null;
+  if (fixedFields.type === "Thème" && fixedFields.theme_numero != null) {
+    existing = noteForStagiaireTheme(stagiaireId, fixedFields.theme_numero);
+  } else if (fixedFields.type === "Compétence" && fixedFields.competence_code) {
+    existing = noteForStagiaireCompetence(stagiaireId, fixedFields.competence_code);
+  }
+  const originalHtml = valueWrap.innerHTML;
+  const input = el("input", {
+    type: "number", min: 0, max: 20, step: "0.25",
+    class: "matrice-inline-input sd-edit-input",
+    value: existing?.note != null ? String(existing.note) : "",
+    placeholder: "/20",
+  });
+  valueWrap.innerHTML = "";
+  valueWrap.appendChild(input);
+  input.focus(); input.select();
+
+  let done = false;
+  async function commit() {
+    if (done) return; done = true;
+    const raw = input.value.trim();
+    if (raw === "") {
+      if (existing && confirm("Effacer cette note ?")) {
+        try { await deleteEvaluation(existing.id); toast("Note effacée", "success"); }
+        catch (e) { toast(e.message, "error"); }
+      }
+      backdrop.remove();
+      await reload(container);
+      return;
+    }
+    const note = Number(raw);
+    if (isNaN(note) || note < 0 || note > 20) {
+      toast("Note entre 0 et 20", "error");
+      valueWrap.innerHTML = originalHtml;
+      return;
+    }
+    const email = getAdminEmail();
+    try {
+      if (existing) {
+        await updateEvaluation(existing.id, { note, note_max: 20, date_eval: currentEvalDate, updated_by_email: email });
+      } else {
+        await addEvaluation({
+          stagiaire_id: stagiaireId, ...fixedFields,
+          note, note_max: 20, date_eval: currentEvalDate,
+          created_by_email: email, updated_by_email: email,
+        });
+      }
+      backdrop.remove();
+      await reload(container);
+    } catch (e) {
+      toast(e.message, "error");
+      valueWrap.innerHTML = originalHtml;
+    }
+  }
+  input.addEventListener("blur", commit);
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { e.preventDefault(); input.blur(); }
+    else if (e.key === "Escape") { done = true; valueWrap.innerHTML = originalHtml; }
+  });
+}
+
 function renderMatrice(container) {
   // Construction des colonnes : Prénom, Moy, [4 spéciales], [57 thèmes]
   const wrap = el("div", { class: "matrice-wrap" });
@@ -518,11 +670,19 @@ function renderMatrice(container) {
   const tbody = el("tbody");
   const admin = isAdmin();
 
+  // Construction d'un Map themes par numero pour la modale détail
+  const themeByNumLocal = themesByNum;
+
   sortStagiaires(stagiaires, currentNotesSort).forEach((s) => {
     const tr = el("tr");
 
-    // Colonne prénom (sticky)
-    tr.appendChild(el("td", { class: "m-td-name sticky" }, s.prenom));
+    // Colonne prénom (sticky) — cliquable pour ouvrir la vue détaillée (utile mobile)
+    const nameBtn = el("button", {
+      class: "m-name-btn", type: "button",
+      title: "Voir toutes les notes de " + s.prenom,
+      onClick: () => openStagiaireDetail(s, themeByNumLocal, container),
+    }, s.prenom);
+    tr.appendChild(el("td", { class: "m-td-name sticky" }, nameBtn));
 
     // Moyenne globale
     const allEvals = evaluations.filter((e) => e.stagiaire_id === s.id && e.note != null && e.note_max);

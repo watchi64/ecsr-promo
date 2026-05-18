@@ -2822,16 +2822,37 @@ h3 {
 .matrice-table .sticky {
   position: sticky;
   left: 0;
-  z-index: 1;
+  z-index: 2;
   background: var(--bg-elev);
   text-align: left;
   font-family: var(--font);
   font-weight: 600;
-  padding-left: 0.8rem;
-  padding-right: 0.8rem;
-  min-width: 100px;
-  box-shadow: 1px 0 0 var(--line);
+  padding-left: 0.7rem;
+  padding-right: 0.7rem;
+  min-width: 92px;
+  max-width: 110px;
+  box-shadow: 2px 0 4px -2px rgba(0,0,0,0.08);
 }
+.matrice-table tbody .sticky { z-index: 1; }
+.matrice-table thead .sticky { z-index: 4; }
+
+/* Bouton prénom dans la cellule sticky */
+.m-name-btn {
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  font-weight: 600;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  width: 100%;
+  border-radius: 3px;
+  transition: color 0.12s;
+}
+.m-name-btn:hover { color: var(--accent); }
+.m-name-btn:focus { outline: 2px solid var(--accent-soft); outline-offset: 2px; }
 
 .matrice-table thead .sticky {
   z-index: 3;
@@ -2932,6 +2953,113 @@ h3 {
 .matrice-table th:nth-child(6),
 .matrice-table td:nth-child(6) {
   border-right: 2px solid var(--line);
+}
+
+/* Mobile : tightening */
+@media (max-width: 720px) {
+  .matrice-table { font-size: 0.74rem; }
+  .matrice-table th, .matrice-table td { padding: 0.25rem 0.3rem; }
+  .matrice-table .sticky { min-width: 78px; max-width: 92px; padding-left: 0.5rem; padding-right: 0.5rem; }
+  .matrice-table th.m-th-theme { width: 28px; min-width: 28px; max-width: 28px; height: 160px; }
+  .matrice-table .m-th-theme-label { max-height: 150px; }
+  .matrice-table th.m-th-avg, .matrice-table th.m-th-spe { font-size: 0.65rem; }
+  .matrice-wrap { max-height: calc(100vh - 220px); }
+}
+
+/* === Vue détaillée stagiaire (modale) === */
+.sd-modal { max-width: 540px; width: 100%; }
+.sd-head { margin-bottom: 0.8rem; }
+.sd-head h3 {
+  margin: 0 0 0.3rem;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 1.7rem;
+}
+.sd-body {
+  max-height: 60vh;
+  overflow-y: auto;
+  padding-right: 0.3rem;
+  margin: 0 -0.25rem 1rem;
+}
+.sd-avg {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  padding: 0.7rem 0.9rem;
+  background: var(--bg-subtle);
+  border-radius: var(--r);
+  margin-bottom: 1rem;
+}
+.sd-avg.bad    { background: var(--c-stop-soft); }
+.sd-avg.warn   { background: var(--c-wait-soft); }
+.sd-avg.ok     { background: var(--act-cours); }
+.sd-avg.great  { background: var(--c-go-soft); }
+.sd-avg-num { font-family: var(--font-mono); font-size: 2rem; font-weight: 700; line-height: 1; }
+.sd-avg-max { font-family: var(--font-mono); font-size: 1rem; color: var(--text-muted); }
+.sd-avg-count { margin-left: auto; font-size: 0.78rem; }
+.sd-avg.empty { padding: 1rem; justify-content: center; }
+
+.sd-section-title {
+  margin: 1.2rem 0 0.5rem;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.sd-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 0.6rem;
+  border-radius: var(--r-sm);
+  border-bottom: 1px solid var(--line-faint);
+}
+.sd-row:hover { background: var(--bg-subtle); }
+
+.sd-label { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.sd-label-main { font-size: 0.88rem; font-weight: 500; line-height: 1.3; }
+.sd-label-sub  { font-size: 0.72rem; line-height: 1.2; }
+
+.sd-value {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  min-width: 44px;
+  justify-content: flex-end;
+}
+.sd-value.editable { cursor: pointer; }
+.sd-value.editable:hover .sd-note { transform: scale(1.1); }
+.sd-note {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  height: 32px;
+  padding: 0 0.5rem;
+  border-radius: var(--r-sm);
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 0.9rem;
+  transition: transform 0.12s;
+}
+.sd-note.empty { background: var(--bg-subtle); color: var(--text-faint); font-weight: 400; }
+.sd-note.bad    { background: var(--c-stop-soft); color: var(--c-stop); }
+.sd-note.warn   { background: var(--c-wait-soft); color: var(--c-wait); }
+.sd-note.ok     { background: var(--act-cours); color: #1E40AF; }
+.sd-note.great  { background: var(--c-go-soft); color: var(--c-go); }
+.sd-edit-input {
+  width: 60px;
+  height: 32px;
+  border: 2px solid var(--accent);
+  border-radius: var(--r-sm);
+  background: var(--bg-elev);
+  text-align: center;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--text);
 }
 
 /* ============================================================
