@@ -353,6 +353,15 @@ async function reload(container) {
   rerender(container);
 }
 
+// Rafraîchit uniquement les panneaux Synthèse + Graphiques, sans toucher à la matrice
+// (préserve les autres inputs ouverts pendant qu'on enchaîne les notes)
+function refreshAnalyticsInPlace(container) {
+  const oldSynth = container.querySelector(".notes-synthese");
+  const oldChart = container.querySelector(".notes-chart");
+  if (oldSynth) oldSynth.replaceWith(renderSynthese());
+  if (oldChart) oldChart.replaceWith(renderChartsSection());
+}
+
 // === Tableau matrice : lignes stagiaires × colonnes (synthèse + 57 thèmes) ===
 
 function noteForStagiaireCompetence(stagId, code) {
@@ -431,8 +440,12 @@ function inlineCellEdit(td, stagiaireId, fixedFields, container) {
         }
         try {
           await deleteEvaluation(existing.id);
-          toast("Note effacée", "success");
-          await reload(container);
+          // Met à jour localement + DOM en place (pas de rerender complet)
+          evaluations = evaluations.filter((x) => x.id !== existing.id);
+          td.textContent = "";
+          td.className = "m-td-cell empty" + (isAdmin() ? " editable" : "");
+          toast("Note effacée", "success", 1200);
+          refreshAnalyticsInPlace(container);
         } catch (e) { toast(e.message, "error"); restore(); }
         return;
       }
@@ -464,8 +477,12 @@ function inlineCellEdit(td, stagiaireId, fixedFields, container) {
           date_eval: currentEvalDate,
           updated_by_email: email,
         });
+        existing.note = note;
+        existing.note_max = 20;
+        existing.date_eval = currentEvalDate;
       } else {
-        await addEvaluation({
+        // Insert via Supabase, on récupère l'id pour l'avoir en local
+        const newRow = {
           stagiaire_id: stagiaireId,
           ...fixedFields,
           note,
@@ -473,9 +490,15 @@ function inlineCellEdit(td, stagiaireId, fixedFields, container) {
           date_eval: currentEvalDate,
           created_by_email: email,
           updated_by_email: email,
-        });
+        };
+        const inserted = await addEvaluation(newRow);
+        evaluations.push(inserted || newRow);
       }
-      await reload(container);
+      // Met à jour la cellule en place (sans détruire les autres inputs)
+      const ratio = note / 20;
+      td.textContent = String(note);
+      td.className = "m-td-cell " + cellColorClass(ratio) + (isAdmin() ? " editable" : "");
+      refreshAnalyticsInPlace(container);
     } catch (e) {
       toast(e.message, "error");
       restore();
