@@ -1696,6 +1696,44 @@ h3 {
 .admin-dot.prof      { background: var(--c-wait); }
 .admin-dot.stagiaire { background: var(--text-muted); }
 
+/* === Bouton Google sur le gate === */
+.btn-google {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.7rem 1rem;
+  background: #fff;
+  color: #1f1f1f;
+  border: 1px solid #dadce0;
+  border-radius: var(--r-sm);
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, box-shadow 0.15s;
+  margin-bottom: 0.85rem;
+}
+.btn-google:hover { background: #f8f9fa; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+.btn-google:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.gate-sep {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0.6rem 0 0.85rem;
+  color: var(--text-faint);
+  font-size: 0.78rem;
+}
+.gate-sep::before,
+.gate-sep::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
+
 /* === État erreur Paramètres (timeout / réseau) === */
 .param-error {
   background: var(--bg-elev);

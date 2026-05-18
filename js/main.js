@@ -2,7 +2,7 @@
  * Promo ECSR — Application propriétaire.
  * © 2026 watchi64 — Tous droits réservés. Voir LICENSE.
  */
-import { signInWithMagicLink, getCurrentUser } from "./db.js";
+import { signInWithMagicLink, signInWithGoogle, getCurrentUser } from "./db.js";
 import { toast } from "./utils.js";
 import { icon } from "./icons.js";
 import { initAuth, onAdminChange, isAuth } from "./auth-admin.js";
@@ -72,6 +72,24 @@ function showGate() {
   };
   submit.onclick = handler;
   input.onkeydown = (e) => { if (e.key === "Enter") { e.preventDefault(); handler(); } };
+
+  // Bouton Google
+  const googleBtn = document.getElementById("gate-google");
+  if (googleBtn) {
+    googleBtn.onclick = async () => {
+      error.classList.add("hidden");
+      googleBtn.disabled = true;
+      try {
+        await signInWithGoogle();
+        // Le navigateur va rediriger vers Google.
+      } catch (e) {
+        console.error("Google sign-in error:", e);
+        error.textContent = "Erreur Google : " + (e?.message || e);
+        error.classList.remove("hidden");
+        googleBtn.disabled = false;
+      }
+    };
+  }
 }
 
 function hideGate() {
