@@ -12,7 +12,7 @@
  */
 
 import {
-  getCurrentUser, signInWithMagicLink, signOut, onAuthChange,
+  getCurrentUser, signOut, onAuthChange,
   getMyProfile, listStagiaires, listProfs,
 } from "./db.js";
 import { el, toast } from "./utils.js";
