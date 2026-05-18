@@ -3,7 +3,7 @@ import {
   addEvaluation, updateEvaluation, deleteEvaluation, listAuditForEvaluation,
   listUserProfiles,
 } from "../db.js";
-import { el, clear, isoDate, formatDate, toast } from "../utils.js";
+import { el, clear, isoDate, formatDate, toast, displayStagiaire, compareByNom } from "../utils.js";
 import { icon } from "../icons.js";
 import { getAdminEmail, isAdmin } from "../auth-admin.js";
 
@@ -45,8 +45,8 @@ function isStagiaireAnonymous(stagiaireId) {
 function displayName(s) {
   // Les admins voient toujours le vrai nom (besoin métier : noter, repérer).
   // Les autres voient "Anonyme" si la personne a coché le flag.
-  if (isAdmin()) return s.prenom;
-  return isStagiaireAnonymous(s.id) ? "Anonyme" : s.prenom;
+  if (isAdmin()) return displayStagiaire(s);
+  return isStagiaireAnonymous(s.id) ? "Anonyme" : displayStagiaire(s);
 }
 
 function sortStagiaires(list, mode) {
@@ -56,13 +56,13 @@ function sortStagiaires(list, mode) {
   const arr = visible.slice();
   switch (mode) {
     case "alpha":
-      arr.sort((a, b) => a.prenom.localeCompare(b.prenom, "fr"));
+      arr.sort(compareByNom);
       break;
     case "avg-desc":
-      arr.sort((a, b) => (stagiaireAvg(b.id) ?? -1) - (stagiaireAvg(a.id) ?? -1) || a.prenom.localeCompare(b.prenom, "fr"));
+      arr.sort((a, b) => (stagiaireAvg(b.id) ?? -1) - (stagiaireAvg(a.id) ?? -1) || compareByNom(a, b));
       break;
     case "avg-asc":
-      arr.sort((a, b) => (stagiaireAvg(a.id) ?? 99) - (stagiaireAvg(b.id) ?? 99) || a.prenom.localeCompare(b.prenom, "fr"));
+      arr.sort((a, b) => (stagiaireAvg(a.id) ?? 99) - (stagiaireAvg(b.id) ?? 99) || compareByNom(a, b));
       break;
     case "nb-desc":
       arr.sort((a, b) => stagiaireNbNotes(b.id) - stagiaireNbNotes(a.id));
@@ -117,7 +117,7 @@ function openEditModal(existing, onSaved) {
   const stagiaireSel = el("select");
   stagiaireSel.appendChild(el("option", { value: "" }, "—"));
   stagiaires.forEach((s) => {
-    const opt = el("option", { value: s.id }, s.prenom);
+    const opt = el("option", { value: s.id }, displayStagiaire(s));
     if (existing && existing.stagiaire_id === s.id) opt.selected = true;
     stagiaireSel.appendChild(opt);
   });
@@ -699,7 +699,7 @@ function renderMatrice(container) {
     const visibleName = displayName(s);
     const nameBtn = el("button", {
       class: "m-name-btn" + (isStagiaireAnonymous(s.id) ? " anon" : ""), type: "button",
-      title: isStagiaireAnonymous(s.id) ? "Profil anonyme" : "Voir toutes les notes de " + s.prenom,
+      title: isStagiaireAnonymous(s.id) ? "Profil anonyme" : "Voir toutes les notes de " + displayStagiaire(s),
       onClick: () => openStagiaireDetail(s, themeByNumLocal, container),
     }, visibleName);
     tr.appendChild(el("td", { class: "m-td-name sticky" }, nameBtn));

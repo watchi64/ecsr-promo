@@ -84,6 +84,25 @@ export function clear(node) {
   while (node.firstChild) node.removeChild(node.firstChild);
 }
 
+// === Affichage stagiaire / prof ===
+
+/** Renvoie l'affichage court : "V. Timy" (initiale du nom + prénom). */
+export function displayStagiaire(s) {
+  if (!s) return "";
+  const initial = s.nom ? s.nom.trim().charAt(0).toUpperCase() + "." : "";
+  return initial ? `${initial} ${s.prenom}` : s.prenom;
+}
+
+/** Compare deux stagiaires par nom de famille (alphabétique), fallback prénom. */
+export function compareByNom(a, b) {
+  const na = (a.nom || "").trim();
+  const nb = (b.nom || "").trim();
+  if (na && nb) return na.localeCompare(nb, "fr");
+  if (na && !nb) return -1;
+  if (!na && nb) return 1;
+  return (a.prenom || "").localeCompare(b.prenom || "", "fr");
+}
+
 // === Crypto ===
 
 export async function sha256(str) {

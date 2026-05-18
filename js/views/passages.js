@@ -1,5 +1,5 @@
 import { listStagiaires, listPassages, addPassage, deletePassage, listRecentPassagesAudit } from "../db.js";
-import { el, clear, isoDate, formatDate, toast } from "../utils.js";
+import { el, clear, isoDate, formatDate, toast, displayStagiaire } from "../utils.js";
 import { icon } from "../icons.js";
 import { TYPES, RESULTATS } from "../config.js";
 import { isAdmin, getAdminEmail } from "../auth-admin.js";
@@ -30,7 +30,7 @@ function openAddModal(onSaved) {
   });
   const stagiaireSel = el("select");
   stagiaireSel.appendChild(el("option", { value: "" }, "—"));
-  stagiaires.forEach((s) => stagiaireSel.appendChild(el("option", { value: s.id }, s.prenom)));
+  stagiaires.forEach((s) => stagiaireSel.appendChild(el("option", { value: s.id }, displayStagiaire(s))));
 
   const typeSel = el("select");
   TYPES.forEach((t) => typeSel.appendChild(el("option", { value: t }, t)));
@@ -40,7 +40,7 @@ function openAddModal(onSaved) {
 
   const remplacantSel = el("select");
   remplacantSel.appendChild(el("option", { value: "" }, "—"));
-  stagiaires.forEach((s) => remplacantSel.appendChild(el("option", { value: s.id }, s.prenom)));
+  stagiaires.forEach((s) => remplacantSel.appendChild(el("option", { value: s.id }, displayStagiaire(s))));
 
   const commentInput = el("input", { type: "text", placeholder: "Optionnel" });
 
@@ -163,10 +163,10 @@ function renderTable(container) {
 
     const tr = el("tr", {},
       el("td", { class: "date" }, formatDate(p.date)),
-      el("td", {}, p.stagiaire?.prenom || "?"),
+      el("td", {}, p.stagiaire ? displayStagiaire(p.stagiaire) : "?"),
       el("td", {}, el("span", { class: "tag " + (p.type === "Salle" ? "salle" : "voiture") }, p.type)),
       el("td", {}, resultTag(p.resultat)),
-      el("td", { class: "muted" }, p.remplacant?.prenom || "—"),
+      el("td", { class: "muted" }, p.remplacant ? displayStagiaire(p.remplacant) : "—"),
       el("td", {}, el("span", { class: "tag who" + (isAdmin_ ? " admin" : "") }, whoLabel)),
       el("td", {}, delBtn)
     );
@@ -217,7 +217,7 @@ async function openAuditModal() {
       if (data) {
         const stagId = data.stagiaire_id;
         const stag = stagiaires.find((s) => s.id === stagId);
-        const stagName = stag ? stag.prenom : `#${stagId}`;
+        const stagName = stag ? displayStagiaire(stag) : `#${stagId}`;
         summary = `${stagName} · ${data.type} · ${data.resultat}`;
       }
 
@@ -242,7 +242,7 @@ function rerender(container) {
   const stagiaireFilter = el("select");
   stagiaireFilter.appendChild(el("option", { value: "" }, "Tous les stagiaires"));
   stagiaires.forEach((s) => {
-    const opt = el("option", { value: s.id }, s.prenom);
+    const opt = el("option", { value: s.id }, displayStagiaire(s));
     if (String(filterStagiaire) === String(s.id)) opt.selected = true;
     stagiaireFilter.appendChild(opt);
   });

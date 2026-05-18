@@ -1,5 +1,5 @@
 import { listStagiaires, listEvaluations, getStats, getPedagogueCountsFromPlanning, getSetting } from "../db.js";
-import { el, clear, isoDate, getMonday } from "../utils.js";
+import { el, clear, isoDate, getMonday, displayStagiaire, compareByNom } from "../utils.js";
 import { icon } from "../icons.js";
 
 const SORT_OPTIONS = [
@@ -16,13 +16,13 @@ function sortEnriched(list, mode) {
   const arr = list.slice();
   switch (mode) {
     case "alpha":
-      arr.sort((a, b) => a.s.prenom.localeCompare(b.s.prenom, "fr"));
+      arr.sort((a, b) => compareByNom(a.s, b.s));
       break;
     case "note-desc":
-      arr.sort((a, b) => (b.avg ?? -1) - (a.avg ?? -1) || a.s.prenom.localeCompare(b.s.prenom, "fr"));
+      arr.sort((a, b) => (b.avg ?? -1) - (a.avg ?? -1) || compareByNom(a.s, b.s));
       break;
     case "note-asc":
-      arr.sort((a, b) => (a.avg ?? 99) - (b.avg ?? 99) || a.s.prenom.localeCompare(b.s.prenom, "fr"));
+      arr.sort((a, b) => (a.avg ?? 99) - (b.avg ?? 99) || compareByNom(a.s, b.s));
       break;
     case "passages":
       arr.sort((a, b) => (b.sa.effectif + b.vo.effectif) - (a.sa.effectif + a.vo.effectif));
@@ -87,7 +87,7 @@ function buildStatPill(iconFn, stat) {
 function renderCard(s, statsSalle, statsVoiture, prioSalle, prioVoiture, avg, nbEvals) {
   return el("article", { class: "dashboard-card " + cardClass(prioSalle, prioVoiture) },
     el("div", { class: "card-head" },
-      el("h3", { class: "name" }, s.prenom),
+      el("h3", { class: "name" }, displayStagiaire(s)),
       // Moyenne pill
       avg != null
         ? el("span", { class: "avg-pill " + avgColor(avg), title: nbEvals + " évaluation(s)" },

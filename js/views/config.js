@@ -9,7 +9,7 @@ import {
   listUserProfiles, deleteUserProfile, inviteUser,
   setMyAnonymousNotes,
 } from "../db.js";
-import { el, clear, toast } from "../utils.js";
+import { el, clear, toast, displayStagiaire } from "../utils.js";
 import { icon } from "../icons.js";
 import { isAdmin, getAdminEmail, getProfile } from "../auth-admin.js";
 
@@ -55,7 +55,8 @@ async function renderAccessSection(rerender) {
         .map((p) => role === "stagiaire" ? p.stagiaire_id : p.prof_id));
       list.forEach((it) => {
         const isTaken = taken.has(it.id);
-        const label = (it.prenom || it.nom) + (isTaken ? " (déjà invité)" : "");
+        const baseLabel = it.prenom ? (it.nom ? `${it.nom} ${it.prenom}` : it.prenom) : it.nom;
+        const label = baseLabel + (isTaken ? " (déjà invité)" : "");
         const opt = el("option", { value: String(it.id) }, label);
         if (isTaken) opt.disabled = true;
         personSel.appendChild(opt);
@@ -149,7 +150,7 @@ async function renderAccessSection(rerender) {
         let who = "";
         if (p.stagiaire_id) {
           const s = stagiaires.find((x) => x.id === p.stagiaire_id);
-          if (s) who = s.prenom;
+          if (s) who = displayStagiaire(s);
         } else if (p.prof_id) {
           const pr = profs.find((x) => x.id === p.prof_id);
           if (pr) who = pr.nom;

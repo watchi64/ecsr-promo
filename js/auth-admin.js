@@ -15,7 +15,7 @@ import {
   getCurrentUser, signOut, onAuthChange,
   getMyProfile, listStagiaires, listProfs,
 } from "./db.js";
-import { el, toast } from "./utils.js";
+import { el, toast, displayStagiaire } from "./utils.js";
 import { icon } from "./icons.js";
 
 let currentUser = null;     // Supabase auth user
@@ -38,7 +38,7 @@ export function getProfileWho() {
   if (!currentProfile) return null;
   if (currentProfile.stagiaire_id && stagiaires) {
     const s = stagiaires.find((x) => x.id === currentProfile.stagiaire_id);
-    if (s) return s.prenom;
+    if (s) return displayStagiaire(s);
   }
   if (currentProfile.prof_id && profs) {
     const p = profs.find((x) => x.id === currentProfile.prof_id);

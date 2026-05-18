@@ -4,7 +4,7 @@ import {
   getHalfMetaForWeek, upsertHalfMeta,
   getSetting, setSetting,
 } from "../db.js";
-import { el, clear, isoDate, getMonday, addDays, formatDayShort, debounce, toast } from "../utils.js";
+import { el, clear, isoDate, getMonday, addDays, formatDayShort, debounce, toast, displayStagiaire } from "../utils.js";
 import { icon } from "../icons.js";
 import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS } from "../config.js";
 import { isAdmin } from "../auth-admin.js";
@@ -228,7 +228,7 @@ function chipsSelect(allStagiaires, currentIds, onChange) {
         const s = allStagiaires.find((x) => x.id === id);
         if (!s) return;
         display.appendChild(el("span", { class: "chip" },
-          s.prenom,
+          displayStagiaire(s),
           el("span", { class: "x", onClick: (ev) => {
             ev.stopPropagation();
             selected = selected.filter((x) => x !== id);
@@ -249,7 +249,7 @@ function chipsSelect(allStagiaires, currentIds, onChange) {
           render();
           onChange([...selected]);
         }
-      }, s.prenom));
+      }, displayStagiaire(s)));
     });
   }
 
@@ -460,7 +460,7 @@ function renderLaneCell(entry) {
       participants.appendChild(el("div", { class: "p-lane-role pedagogue" },
         el("span", { class: "p-lane-role-label" }, "Au tableau"),
         selectFromList(
-          stagiaires.map((s) => ({ value: s.id, label: s.prenom })),
+          stagiaires.map((s) => ({ value: s.id, label: displayStagiaire(s) })),
           entry.pedagogue_id,
           (v) => saveEntry(lid, { pedagogue_id: v ? Number(v) : null }),
           "—"
@@ -756,7 +756,10 @@ function nonEmpty(v) {
 }
 
 function lookupProf(id) { return profs.find((p) => p.id === id)?.nom || ""; }
-function lookupStagiaire(id) { return stagiaires.find((s) => s.id === id)?.prenom || ""; }
+function lookupStagiaire(id) {
+  const s = stagiaires.find((x) => x.id === id);
+  return s ? displayStagiaire(s) : "";
+}
 
 function entryHasContent(e) {
   return nonEmpty(e.activite) || nonEmpty(e.sujet) || nonEmpty(e.notes)
