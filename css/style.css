@@ -1671,6 +1671,20 @@ h3 {
 .admin-dot.prof      { background: var(--c-wait); }
 .admin-dot.stagiaire { background: var(--text-muted); }
 
+/* === État erreur Paramètres (timeout / réseau) === */
+.param-error {
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 1.5rem;
+  text-align: center;
+  margin: 1rem 0;
+}
+.param-error p {
+  margin: 0 0 1rem;
+  color: var(--text-muted);
+}
+
 /* === Toolbar tri (dashboard, notes) === */
 .dash-toolbar,
 .matrice-toolbar {

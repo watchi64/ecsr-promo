@@ -268,28 +268,52 @@ function renderInfoSection() {
 
 // ====== Render principal ======
 
+function withTimeout(promise, ms, label) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error(`Timeout : ${label} (${ms / 1000}s)`)), ms)),
+  ]);
+}
+
 async function rerender(container) {
   clear(container);
   container.appendChild(el("div", { class: "loading" }, "Chargement"));
 
-  const sections = await Promise.all([
-    renderAccessSection(() => rerender(container)),
-    renderPromoSection(() => rerender(container)),
-    Promise.resolve(renderInfoSection()),
-  ]);
+  try {
+    const sections = await withTimeout(Promise.all([
+      renderAccessSection(() => rerender(container)),
+      renderPromoSection(() => rerender(container)),
+      Promise.resolve(renderInfoSection()),
+    ]), 12000, "Paramètres");
 
-  clear(container);
-  container.appendChild(el("div", { class: "view-header" },
-    el("div", { class: "view-header-text" },
-      el("p", { class: "eyebrow" }, "Système"),
-      el("h2", {}, "Paramètres"),
-      el("p", { class: "subtitle" }, "Accès, gestion de la promo, infos. Connecte-toi en admin pour inviter ou modifier."),
-    ),
-  ));
+    clear(container);
+    container.appendChild(el("div", { class: "view-header" },
+      el("div", { class: "view-header-text" },
+        el("p", { class: "eyebrow" }, "Système"),
+        el("h2", {}, "Paramètres"),
+        el("p", { class: "subtitle" }, "Accès, gestion de la promo, infos. Connecte-toi en admin pour inviter ou modifier."),
+      ),
+    ));
 
-  const grid = el("div", { class: "param-grid" });
-  sections.forEach((s) => grid.appendChild(s));
-  container.appendChild(grid);
+    const grid = el("div", { class: "param-grid" });
+    sections.forEach((s) => grid.appendChild(s));
+    container.appendChild(grid);
+  } catch (e) {
+    console.error("Paramètres : erreur de chargement", e);
+    clear(container);
+    container.appendChild(el("div", { class: "view-header" },
+      el("div", { class: "view-header-text" },
+        el("h2", {}, "Paramètres"),
+      ),
+    ));
+    container.appendChild(el("div", { class: "param-error" },
+      el("p", {}, "Le chargement a échoué. " + (e.message || "")),
+      el("button", {
+        class: "btn primary",
+        onClick: () => rerender(container),
+      }, "Réessayer"),
+    ));
+  }
 }
 
 export async function renderConfig(container) {
