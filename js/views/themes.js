@@ -69,6 +69,70 @@ function updateThemeRowInPlace(theme, chipEl) {
   }
 }
 
+function openDateEditor(theme, anchorEl, container) {
+  const backdrop = el("div", { class: "modal-backdrop" });
+  const dateInput = el("input", {
+    type: "date",
+    value: theme.date_fait || isoDate(new Date()),
+    style: "width:100%",
+  });
+
+  async function save(newDate) {
+    try {
+      await updateTheme(theme.id, {
+        date_fait: newDate || null,
+        statut: newDate ? "Fait" : theme.statut,
+        updated_by_email: getAdminEmail(),
+      });
+      theme.date_fait = newDate || null;
+      if (newDate) theme.statut = "Fait";
+      // Mise à jour locale : le label affiche la nouvelle date sans tout rerender
+      anchorEl.textContent = newDate ? formatDate(newDate) : "+ date";
+      anchorEl.classList.toggle("muted", !newDate);
+      // Si on a posé une date, statut devient Fait → couleur ligne / chip
+      if (newDate) {
+        const row = anchorEl.closest(".theme-row");
+        if (row) {
+          row.classList.remove("todo", "doing");
+          row.classList.add("done");
+          const chip = row.querySelector(".theme-statut");
+          if (chip) {
+            chip.classList.remove("todo", "doing");
+            chip.classList.add("done");
+            const dot = chip.querySelector(".theme-statut-dot");
+            chip.textContent = "";
+            if (dot) chip.appendChild(dot);
+            else chip.appendChild(el("span", { class: "theme-statut-dot" }));
+            chip.appendChild(document.createTextNode("Fait"));
+          }
+        }
+      }
+      backdrop.remove();
+      toast("Date mise à jour", "success", 1500);
+    } catch (e) {
+      toast(e.message, "error");
+    }
+  }
+
+  const modal = el("div", { class: "modal", style: "max-width:360px" },
+    el("h3", {}, "Date du thème"),
+    el("p", { class: "muted", style: "margin:0 0 0.8rem;font-size:0.85rem" },
+      "Quand le thème a-t-il été traité ? Définir une date force le statut à « Fait »."),
+    el("div", { class: "modal-form" },
+      el("div", { class: "field" }, el("label", {}, "Date"), dateInput),
+    ),
+    el("div", { class: "modal-actions" },
+      el("button", { class: "btn ghost", onClick: () => backdrop.remove() }, "Annuler"),
+      theme.date_fait ? el("button", { class: "btn danger", onClick: () => save(null) }, "Effacer") : null,
+      el("button", { class: "btn primary", onClick: () => save(dateInput.value) }, icon.check(), "Enregistrer"),
+    )
+  );
+  backdrop.appendChild(modal);
+  backdrop.addEventListener("click", (e) => { if (e.target === backdrop) backdrop.remove(); });
+  document.body.appendChild(backdrop);
+  setTimeout(() => dateInput.focus(), 80);
+}
+
 function openThemeModal(theme) {
   const backdrop = el("div", { class: "modal-backdrop" });
   const num = theme.numero ? String(theme.numero).padStart(2, "0") : null;
@@ -137,10 +201,23 @@ function renderThemeRow(theme, container) {
     notesInput.addEventListener("input", () => debouncedNoteSave(theme)(notesInput.value));
   }
 
-  // Date
-  const dateLabel = theme.date_fait
-    ? el("span", { class: "theme-date" }, formatDate(theme.date_fait))
-    : el("span", { class: "theme-date muted" }, "—");
+  // Date — éditable si admin
+  let dateLabel;
+  if (admin) {
+    dateLabel = el("button", {
+      class: "theme-date editable" + (theme.date_fait ? "" : " muted"),
+      type: "button",
+      title: "Modifier la date",
+      onClick: (ev) => {
+        ev.preventDefault();
+        openDateEditor(theme, dateLabel, container);
+      },
+    }, theme.date_fait ? formatDate(theme.date_fait) : "+ date");
+  } else {
+    dateLabel = theme.date_fait
+      ? el("span", { class: "theme-date" }, formatDate(theme.date_fait))
+      : el("span", { class: "theme-date muted" }, "—");
+  }
 
   // Delete (admin notion seulement, jamais sur thèmes officiels)
   let delBtn = null;

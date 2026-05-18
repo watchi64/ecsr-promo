@@ -1870,6 +1870,56 @@ h3 {
 .theme-row.done .theme-titre { text-decoration: line-through; opacity: 0.55; }
 
 .theme-date { font-family: var(--font-mono); font-size: 0.78rem; color: var(--text-soft); }
+button.theme-date.editable {
+  background: transparent;
+  border: 1px dashed transparent;
+  border-radius: var(--r-sm);
+  padding: 0.2rem 0.4rem;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+}
+button.theme-date.editable:hover { background: var(--bg-subtle); border-color: var(--line); }
+button.theme-date.editable.muted { color: var(--text-faint); }
+
+/* === Mobile : restructure des lignes thème === */
+@media (max-width: 720px) {
+  .theme-row {
+    grid-template-columns: 36px 1fr auto;
+    grid-template-areas:
+      "num titre statut"
+      "num meta meta";
+    gap: 0.3rem 0.55rem;
+    padding: 0.7rem 0.7rem;
+    align-items: start;
+  }
+  .theme-row .theme-num { grid-area: num; align-self: center; }
+  .theme-row .theme-titre-block { grid-area: titre; min-width: 0; }
+  .theme-row .theme-statut { grid-area: statut; align-self: start; }
+  /* La date et les notes vivent en bas dans une zone "meta" */
+  .theme-row > .theme-date,
+  .theme-row > button.theme-date,
+  .theme-row > .theme-notes {
+    grid-area: meta;
+  }
+  .theme-row .theme-notes {
+    grid-column: 1 / -1;
+    grid-row: 3;
+    margin-top: 0.35rem;
+    font-size: 16px;        /* anti-zoom iOS */
+    padding: 0.5rem 0.6rem;
+  }
+  .theme-row > .theme-date,
+  .theme-row > button.theme-date {
+    grid-row: 2;
+    justify-self: start;
+    font-size: 0.78rem;
+  }
+  /* Bouton supprimer notion : sur la 4ème "ligne" si présent */
+  .theme-row > .btn.danger { grid-column: 3; grid-row: 1; }
+
+  /* On masque l'en-tête de tableau (les libellés N°, THÈME, STATUT...) sur mobile */
+  .theme-row.theme-header { display: none; }
+}
 
 .theme-notes {
   width: 100%;
