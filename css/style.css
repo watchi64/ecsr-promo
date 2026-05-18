@@ -948,21 +948,24 @@ h3 {
 /* === Lanes (parallèle au sein d'un slot) === */
 
 .p-lanes {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
   gap: 0.4rem;
   align-items: stretch;
 }
 .p-lanes > .p-lane-cell {
-  flex: 1 1 280px;
-  min-width: 240px;
+  min-width: 0;
 }
 
-/* Mobile : stack vertical */
+/* Mobile : stack vertical (grille à 1 colonne pour tout sauf le bouton "+") */
 @media (max-width: 760px) {
+  .p-lanes {
+    grid-template-columns: 1fr 40px !important;
+  }
   .p-lanes > .p-lane-cell {
-    flex: 1 1 100%;
-    min-width: 0;
+    grid-column: 1 !important;
+  }
+  .p-lanes > .p-add-parallele-mini {
+    grid-column: 2 !important;
   }
 }
 

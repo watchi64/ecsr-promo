@@ -495,7 +495,7 @@ function renderLaneCell(entry) {
 
 // === Rendu d'un slot (rangée = série, contient N lanes en parallèle) ===
 
-function renderSlotRow(d, half, row) {
+function renderSlotRow(d, half, row, maxLanes) {
   const slotEl = el("div", { class: "p-slot-row" });
 
   // Marqueur du slot
@@ -503,18 +503,25 @@ function renderSlotRow(d, half, row) {
     el("span", { class: "p-slot-num" }, String(row.slot + 1))
   ));
 
-  // Lanes
+  // Lanes — grid à `maxLanes` colonnes (+ une colonne fine pour le bouton parallèle)
   const lanes = el("div", { class: "p-lanes" });
+  // Grid template : N colonnes de cellules de même largeur + 1 colonne 40px pour le "+"
+  lanes.style.gridTemplateColumns = `repeat(${maxLanes}, minmax(0, 1fr)) 40px`;
+
   row.lanes.forEach((entry) => {
-    lanes.appendChild(renderLaneCell(entry));
+    const cell = renderLaneCell(entry);
+    // Place la cellule dans la colonne correspondant à son lane index
+    cell.style.gridColumn = String((entry.lane ?? 0) + 1);
+    lanes.appendChild(cell);
   });
 
-  // Mini bouton "+" pour ajouter en parallèle (compact, vertical)
+  // Bouton "+" en parallèle : dernière colonne, prend toutes les lignes
   const addParBtn = el("button", {
     class: "p-add-parallele-mini",
     title: "Ajouter une activité en parallèle (même horaire)",
     onClick: () => addLaneInSlot(d, half, row.slot)
   });
+  addParBtn.style.gridColumn = String(maxLanes + 1);
   addParBtn.appendChild(icon.plus());
   lanes.appendChild(addParBtn);
 
@@ -554,7 +561,11 @@ function renderDayCard(d, monday) {
 
     const slotsWrap = el("div", { class: "p-slots-wrap" });
     const rows = rowsFor(d, half.key);
-    rows.forEach((row) => slotsWrap.appendChild(renderSlotRow(d, half.key, row)));
+    // Calcule combien de "colonnes parallèles" maximum dans cette demi-journée
+    // = max(lane index + 1) parmi toutes les entries de la demi-journée
+    const allLanes = rows.flatMap((r) => r.lanes.map((e) => e.lane ?? 0));
+    const maxLanes = Math.max(1, ...allLanes.map((l) => l + 1));
+    rows.forEach((row) => slotsWrap.appendChild(renderSlotRow(d, half.key, row, maxLanes)));
 
     // Bouton "+ À la suite"
     const addSuiteBtn = el("button", {
