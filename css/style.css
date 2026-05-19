@@ -1142,6 +1142,101 @@ h3 {
 }
 
 /* ============================================================
+   Contacts (admin, urgences)
+   ============================================================ */
+
+.contacts-section {
+  margin-bottom: 2.5rem;
+  padding: 1.2rem 1.4rem 1.4rem;
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+}
+.contacts-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.3rem;
+}
+.contacts-section-head h3 { margin: 0; }
+.contacts-section-sub { margin: 0 0 1rem; font-size: 0.85rem; }
+
+.contacts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 0.7rem;
+}
+
+.contact-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.9rem 1rem;
+  background: var(--bg-subtle);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--r-sm);
+  transition: box-shadow 0.15s, transform 0.15s;
+}
+.contact-card:hover { box-shadow: var(--shadow-1); transform: translateY(-1px); }
+
+.contact-card.contact-cat-urgence { border-left-color: var(--c-stop); }
+.contact-card.contact-cat-autre   { border-left-color: var(--c-wait); }
+
+.contact-head { display: flex; flex-direction: column; gap: 2px; }
+.contact-name {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text);
+}
+.contact-role { margin: 0; font-size: 0.78rem; line-height: 1.3; }
+
+.contact-links {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+.contact-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  text-decoration: none;
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  font-weight: 600;
+  padding: 0.3rem 0.5rem;
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  transition: border-color 0.15s, background 0.15s;
+}
+.contact-link:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+.contact-link-icon { font-size: 0.95rem; }
+
+.contact-note {
+  margin: 0;
+  font-size: 0.78rem;
+  font-style: italic;
+  color: var(--text-muted);
+  line-height: 1.35;
+}
+
+.contact-actions {
+  position: absolute;
+  top: 0.4rem;
+  right: 0.4rem;
+  display: flex;
+  gap: 0.2rem;
+}
+
+/* ============================================================
    Calendrier (agenda)
    ============================================================ */
 
