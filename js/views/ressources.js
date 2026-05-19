@@ -130,12 +130,6 @@ function openContactModal(existing, onSaved) {
   const phoneInput = el("input", { type: "tel", placeholder: "04 12 34 56 78", value: existing?.phone || "" });
   const emailInput = el("input", { type: "email", placeholder: "email@ecf-sps.fr", value: existing?.email || "" });
   const noteInput = el("input", { type: "text", placeholder: "Note (ex. si X et Y indisponibles)", value: existing?.note || "" });
-  const catSel = el("select");
-  ["admin", "urgence", "autre"].forEach((c) => {
-    const opt = el("option", { value: c }, c.charAt(0).toUpperCase() + c.slice(1));
-    if ((existing?.category || "admin") === c) opt.selected = true;
-    catSel.appendChild(opt);
-  });
 
   async function save() {
     if (!prenomInput.value.trim()) { toast("Prénom requis", "error"); return; }
@@ -145,7 +139,7 @@ function openContactModal(existing, onSaved) {
       phone: phoneInput.value.trim() || null,
       email: emailInput.value.trim() || null,
       note: noteInput.value.trim() || null,
-      category: catSel.value,
+      category: existing?.category || "admin",
     };
     try {
       if (isNew) {
@@ -173,12 +167,11 @@ function openContactModal(existing, onSaved) {
     el("div", { class: "modal-form" },
       el("div", { class: "field" }, el("label", {}, "Prénom"), prenomInput),
       el("div", { class: "field" }, el("label", {}, "Rôle"), roleInput),
-      el("div", { style: "display:grid;grid-template-columns:1fr 1fr;gap:0.6rem" },
+      el("div", { class: "field-pair" },
         el("div", { class: "field" }, el("label", {}, "Téléphone"), phoneInput),
         el("div", { class: "field" }, el("label", {}, "Email"), emailInput),
       ),
       el("div", { class: "field" }, el("label", {}, "Note"), noteInput),
-      el("div", { class: "field" }, el("label", {}, "Catégorie"), catSel),
     ),
     el("div", { class: "modal-actions" },
       el("button", { class: "btn ghost", onClick: () => backdrop.remove() }, "Annuler"),

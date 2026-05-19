@@ -1236,6 +1236,18 @@ h3 {
   gap: 0.2rem;
 }
 
+/* Pair de champs côte à côte qui se replient sur mobile */
+.field-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.6rem;
+}
+.field-pair > .field { min-width: 0; }
+.field-pair input { width: 100%; min-width: 0; }
+@media (max-width: 540px) {
+  .field-pair { grid-template-columns: 1fr; }
+}
+
 /* ============================================================
    Calendrier (agenda)
    ============================================================ */
