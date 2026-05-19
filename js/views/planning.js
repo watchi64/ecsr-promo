@@ -575,24 +575,41 @@ function renderLaneCell(entry) {
         const diceBtn = el("button", {
           class: "p-dice-btn",
           type: "button",
+          "aria-label": "Tirer 4 élèves au hasard",
           title: "Tirer 4 élèves au hasard (sans doublon dans la semaine)",
           onClick: () => randomFillEleves(lid),
-        }, "🎲 ", el("span", { class: "p-dice-label" }, "Tirer 4"));
+        }, "🎲");
         eleveCol.appendChild(el("div", { class: "p-eleves-dice-toolbar" }, diceBtn));
       } else if (entry.activite === "Voiture (conduite)") {
-        const countSel = el("select", { class: "p-dice-count", title: "Nombre d'élèves à tirer" });
-        [1, 2, 3].forEach((n) => {
-          const opt = el("option", { value: String(n) }, String(n));
-          if (n === 3) opt.selected = true;
-          countSel.appendChild(opt);
-        });
+        // Bouton 🎲 seul : ouvre un mini-picker (1/2/3) au clic
+        const wrap = el("div", { class: "p-dice-picker-wrap" });
         const diceBtn = el("button", {
           class: "p-dice-btn",
           type: "button",
-          title: "Tirer N élèves au hasard (sans doublon dans la semaine)",
-          onClick: () => randomFillVoitureEleves(lid, Number(countSel.value)),
-        }, "🎲 ", el("span", { class: "p-dice-label" }, "Tirer"));
-        eleveCol.appendChild(el("div", { class: "p-eleves-dice-toolbar" }, countSel, diceBtn));
+          "aria-label": "Tirer des élèves",
+          title: "Tirer des élèves voiture",
+        }, "🎲");
+        const picker = el("div", { class: "p-dice-picker hidden" });
+        [1, 2, 3].forEach((n) => {
+          picker.appendChild(el("button", {
+            class: "p-dice-option", type: "button",
+            onClick: (ev) => {
+              ev.stopPropagation();
+              picker.classList.add("hidden");
+              randomFillVoitureEleves(lid, n);
+            },
+          }, String(n)));
+        });
+        diceBtn.addEventListener("click", (ev) => {
+          ev.stopPropagation();
+          picker.classList.toggle("hidden");
+        });
+        document.addEventListener("click", (ev) => {
+          if (!wrap.contains(ev.target)) picker.classList.add("hidden");
+        });
+        wrap.appendChild(diceBtn);
+        wrap.appendChild(picker);
+        eleveCol.appendChild(el("div", { class: "p-eleves-dice-toolbar" }, wrap));
       }
       eleveRole.appendChild(eleveCol);
       participants.appendChild(eleveRole);

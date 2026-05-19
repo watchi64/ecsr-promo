@@ -1725,22 +1725,36 @@ h3 {
 }
 .p-dice-btn:active { transform: rotate(360deg) scale(0.92); transition: transform 0.4s; }
 
-/* Petit sélecteur compagnon "1/2/3" du dé Voiture */
-.p-dice-count {
-  flex: 0 0 auto;
-  height: 30px;
-  border: 1px solid var(--line);
+/* Picker compact 1/2/3 (Voiture) qui sort du bouton 🎲 */
+.p-dice-picker-wrap { position: relative; display: inline-block; }
+.p-dice-picker {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  display: flex;
+  gap: 2px;
+  padding: 3px;
   background: var(--bg-elev);
+  border: 1px solid var(--line);
   border-radius: var(--r-sm);
-  padding: 0 0.4rem 0 0.55rem;
+  box-shadow: var(--shadow-2);
+  z-index: 60;
+}
+.p-dice-picker.hidden { display: none; }
+.p-dice-option {
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: var(--bg-subtle);
+  border-radius: var(--r-sm);
   font-family: var(--font-mono);
-  font-size: 0.88rem;
-  font-weight: 700;
+  font-size: 0.95rem;
+  font-weight: 800;
   color: var(--text);
   cursor: pointer;
-  align-self: center;
+  transition: background 0.12s, color 0.12s;
 }
-.p-dice-count:focus { outline: none; border-color: var(--accent); }
+.p-dice-option:hover { background: var(--accent); color: white; }
 
 .p-lane-notes {
   padding: 0 0.6rem 0.45rem;
