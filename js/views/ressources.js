@@ -250,8 +250,6 @@ function rerender(container) {
   clear(container);
 
   const admin = isAdmin();
-  const addBtn = el("button", { class: "btn primary", onClick: () => openEditModal(null, () => reload(container)) },
-    icon.plus(), "Ajouter une ressource");
 
   container.appendChild(el("div", { class: "view-header" },
     el("div", { class: "view-header-text" },
@@ -259,7 +257,6 @@ function rerender(container) {
       el("h2", {}, "Ressources & contacts"),
       el("p", { class: "subtitle" }, "Contacts administration (absences, justificatifs) + textes officiels & sites pédagogiques."),
     ),
-    admin ? addBtn : null,
   ));
 
   // === Section Contacts ===
@@ -293,13 +290,28 @@ function rerender(container) {
   const cats = CATEGORIES_ORDER.filter((c) => grouped[c]);
   Object.keys(grouped).forEach((c) => { if (!cats.includes(c)) cats.push(c); });
 
-  cats.forEach((cat) => {
-    const section = el("section", { class: "ressource-section" },
-      el("h3", { class: "ressource-section-title" }, cat),
-      el("div", { class: "ressource-grid" }, ...grouped[cat].map((r) => renderRessourceCard(r, () => reload(container))))
-    );
-    container.appendChild(section);
-  });
+  // En-tête de la zone ressources (avec bouton "Ajouter" à droite, admin only)
+  container.appendChild(el("div", { class: "contacts-section-head", style: "margin-top:1.5rem" },
+    el("h3", { class: "ressource-section-title", style: "margin:0" }, "📚 Ressources externes"),
+    admin ? el("button", {
+      class: "btn small accent",
+      onClick: () => openEditModal(null, () => reload(container)),
+    }, icon.plus(), "Ajouter une ressource") : null,
+  ));
+  container.appendChild(el("p", { class: "muted contacts-section-sub", style: "margin-bottom:1rem" },
+    "Liens vers les textes officiels, référentiels, sites pédagogiques."));
+
+  if (cats.length === 0) {
+    container.appendChild(el("p", { class: "muted", style: "padding:1rem;text-align:center" }, "Aucune ressource pour l'instant."));
+  } else {
+    cats.forEach((cat) => {
+      const section = el("section", { class: "ressource-section" },
+        el("h4", { class: "ressource-section-title", style: "font-size:0.85rem;margin-top:1.4rem" }, cat),
+        el("div", { class: "ressource-grid" }, ...grouped[cat].map((r) => renderRessourceCard(r, () => reload(container))))
+      );
+      container.appendChild(section);
+    });
+  }
 }
 
 async function reload(container) {
