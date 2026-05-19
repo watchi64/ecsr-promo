@@ -1119,6 +1119,28 @@ h3 {
 .p-lane-role.eleves { align-items: flex-start; padding-top: 1px; }
 .p-lane-role.eleves > .chips-select { flex: 1; }
 
+/* Élèves : chips au-dessus, toolbar dé en-dessous (évite que les chips se compriment) */
+.p-lane-eleves-col {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+.p-lane-eleves-col > .chips-select { width: 100%; }
+.p-eleves-dice-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding-top: 0.15rem;
+  border-top: 1px dashed rgba(0,0,0,0.06);
+}
+.p-dice-label {
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
 /* Bouton tirage aléatoire (dé) — discret, à côté des chips élèves */
 .p-dice-btn {
   flex: 0 0 auto;

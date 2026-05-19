@@ -567,20 +567,19 @@ function renderLaneCell(entry) {
     if (hasEleves) {
       const eleveRole = el("div", { class: "p-lane-role eleves" });
       eleveRole.appendChild(el("span", { class: "p-lane-role-label" }, "Élèves"));
-      eleveRole.appendChild(chipsSelect(stagiaires, entry.eleves_ids || [], (ids) => {
+      const eleveCol = el("div", { class: "p-lane-eleves-col" });
+      eleveCol.appendChild(chipsSelect(stagiaires, entry.eleves_ids || [], (ids) => {
         saveEntry(lid, { eleves_ids: ids });
       }));
       if (entry.activite === "Pédagogie salle") {
-        // Pédagogie salle : 4 élèves au hasard, sans doublon
         const diceBtn = el("button", {
           class: "p-dice-btn",
           type: "button",
           title: "Tirer 4 élèves au hasard (sans doublon dans la semaine)",
           onClick: () => randomFillEleves(lid),
-        }, "🎲");
-        eleveRole.appendChild(diceBtn);
+        }, "🎲 ", el("span", { class: "p-dice-label" }, "Tirer 4"));
+        eleveCol.appendChild(el("div", { class: "p-eleves-dice-toolbar" }, diceBtn));
       } else if (entry.activite === "Voiture (conduite)") {
-        // Voiture : 1 à 3 élèves au choix
         const countSel = el("select", { class: "p-dice-count", title: "Nombre d'élèves à tirer" });
         [1, 2, 3].forEach((n) => {
           const opt = el("option", { value: String(n) }, String(n));
@@ -592,10 +591,10 @@ function renderLaneCell(entry) {
           type: "button",
           title: "Tirer N élèves au hasard (sans doublon dans la semaine)",
           onClick: () => randomFillVoitureEleves(lid, Number(countSel.value)),
-        }, "🎲");
-        eleveRole.appendChild(countSel);
-        eleveRole.appendChild(diceBtn);
+        }, "🎲 ", el("span", { class: "p-dice-label" }, "Tirer"));
+        eleveCol.appendChild(el("div", { class: "p-eleves-dice-toolbar" }, countSel, diceBtn));
       }
+      eleveRole.appendChild(eleveCol);
       participants.appendChild(eleveRole);
     }
     body.appendChild(participants);
