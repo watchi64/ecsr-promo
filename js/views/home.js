@@ -25,9 +25,27 @@ const TYPE_EMOJI = {
   examen: "📝", stage: "🏢", formation: "🎓", ferie: "🌴", autre: "📌",
 };
 
+// Événements considérés comme "majeurs" (countdown principal)
+const MAJOR_TYPES = new Set(["examen", "stage"]);
+
 function eventDateShort(e) {
   if (!e.date_end || e.date_end === e.date_start) return formatDate(e.date_start);
   return `${formatDate(e.date_start)} → ${formatDate(e.date_end)}`;
+}
+
+function daysUntil(dateStr) {
+  const d = parseDate(dateStr);
+  d.setHours(0, 0, 0, 0);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return Math.round((d - today) / 86400000);
+}
+
+function countdownLabel(days) {
+  if (days === 0) return "Aujourd'hui";
+  if (days === 1) return "Demain";
+  if (days < 0) return null;
+  return `J − ${days}`;
 }
 
 export async function renderHome(container) {
@@ -41,12 +59,21 @@ export async function renderHome(container) {
     : profile?.role === "stagiaire" ? "Stagiaire" : null;
 
   const today = new Date();
-  const todayLong = today.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
+  const todayDayNum = today.getDate();
+  const todayMonth = today.toLocaleDateString("fr-FR", { month: "long" });
+  const todayWeekday = today.toLocaleDateString("fr-FR", { weekday: "long" });
+  const todayYear = today.getFullYear();
 
-  // === Hero / salutation ===
+  // === Hero / salutation + date du jour ===
   container.appendChild(el("section", { class: "home-hero-v2" },
-    el("img", { class: "home-hero-logo", src: "assets/logo/tpecsr-logo.svg", alt: "TP ECSR" }),
-    el("p", { class: "eyebrow home-eyebrow" }, "Promo 2026 · " + todayLong),
+    el("div", { class: "home-today-strip" },
+      el("div", { class: "home-today-pill" },
+        el("span", { class: "home-today-weekday" }, todayWeekday),
+        el("span", { class: "home-today-num" }, String(todayDayNum)),
+        el("span", { class: "home-today-month" }, todayMonth + " " + todayYear),
+      ),
+      el("img", { class: "home-hero-logo", src: "assets/logo/tpecsr-logo.svg", alt: "TP ECSR" }),
+    ),
     el("h1", { class: "home-title-v2" },
       greetingByHour() + ", ",
       el("em", {}, who || "stagiaire"),
@@ -96,20 +123,50 @@ export async function renderHome(container) {
   // Charge l'agenda en arrière-plan
   try {
     const events = await listAgendaEvents();
-    const upcoming = events.filter((e) => !isPast(e)).slice(0, 3);
+    const upcoming = events.filter((e) => !isPast(e));
+
+    // Compteur principal : prochain événement majeur (examen ou stage)
+    const nextMajor = upcoming.find((e) => MAJOR_TYPES.has(e.type));
+    if (nextMajor) {
+      const days = daysUntil(nextMajor.date_start);
+      const countdownEl = el("section", { class: "home-countdown" },
+        el("div", { class: "home-countdown-icon" }, TYPE_EMOJI[nextMajor.type] || "📌"),
+        el("div", { class: "home-countdown-body" },
+          el("span", { class: "home-countdown-label muted" }, "Prochain événement majeur"),
+          el("span", { class: "home-countdown-title" }, nextMajor.title),
+          el("span", { class: "home-countdown-date muted" }, eventDateShort(nextMajor)),
+        ),
+        el("div", { class: "home-countdown-pill " + (days === 0 ? "today" : days <= 7 ? "soon" : "later") },
+          el("span", { class: "home-countdown-num" },
+            days === 0 ? "0" : days === 1 ? "1" : String(days),
+          ),
+          el("span", { class: "home-countdown-unit" },
+            days === 0 ? "Aujourd'hui !" : days === 1 ? "jour" : "jours",
+          ),
+        ),
+      );
+      // Insère le compteur juste avant les tuiles
+      const tiles = container.querySelector(".home-tiles");
+      if (tiles) container.insertBefore(countdownEl, tiles);
+    }
+
+    // Liste des 3 prochains événements (peu importe le type)
+    const next3 = upcoming.slice(0, 3);
     const listEl = container.querySelector("#home-agenda-list");
     if (listEl) {
       clear(listEl);
-      if (upcoming.length === 0) {
+      if (next3.length === 0) {
         listEl.appendChild(el("p", { class: "muted home-empty-line" },
           "Aucun événement à venir. " + (admin ? "Ajoute-en depuis l'onglet Calendrier." : "Reste à l'affût."),
         ));
       } else {
-        upcoming.forEach((e) => {
+        next3.forEach((e) => {
           const start = parseDate(e.date_start);
-          const isToday = e.date_start <= isoDate(today) && (e.date_end || e.date_start) >= isoDate(today);
+          const days = daysUntil(e.date_start);
+          const isTodayE = e.date_start <= isoDate(today) && (e.date_end || e.date_start) >= isoDate(today);
+          const label = countdownLabel(days);
           listEl.appendChild(el("a", {
-            class: "home-event" + (isToday ? " today" : ""),
+            class: "home-event" + (isTodayE ? " today" : ""),
             href: "#/calendrier",
           },
             el("div", { class: "home-event-date" },
@@ -125,7 +182,7 @@ export async function renderHome(container) {
                 e.location ? " · 📍 " + e.location : "",
               ),
             ),
-            isToday ? el("span", { class: "agenda-today-pill" }, "Aujourd'hui") : null,
+            label ? el("span", { class: "home-event-countdown" + (days === 0 ? " today" : days <= 7 ? " soon" : "") }, label) : null,
           ));
         });
       }

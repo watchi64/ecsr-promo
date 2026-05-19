@@ -1146,14 +1146,149 @@ h3 {
    ============================================================ */
 
 .home-hero-v2 {
-  padding: 2.5rem 0 2rem;
+  padding: 1.5rem 0 2rem;
   border-bottom: 1px solid var(--line);
   margin-bottom: 2rem;
 }
 .home-hero-v2 .home-hero-logo {
-  width: 64px;
-  height: 64px;
-  margin-bottom: 1rem;
+  width: 56px;
+  height: 56px;
+}
+
+/* Bandeau date du jour */
+.home-today-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.2rem;
+}
+.home-today-pill {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  padding: 0.5rem 0.9rem;
+  background: var(--bg-deep);
+  color: var(--bg);
+  border-radius: 999px;
+  font-family: var(--font-mono);
+}
+.home-today-weekday {
+  font-size: 0.78rem;
+  text-transform: capitalize;
+  opacity: 0.75;
+}
+.home-today-num {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: var(--accent);
+  letter-spacing: -0.02em;
+}
+.home-today-month {
+  font-size: 0.8rem;
+  opacity: 0.85;
+}
+
+/* Compteur principal (prochain événement majeur) */
+.home-countdown {
+  display: grid;
+  grid-template-columns: 56px 1fr auto;
+  gap: 0.9rem;
+  align-items: center;
+  padding: 1rem 1.2rem;
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--accent);
+  border-radius: var(--r);
+  margin-bottom: 1.5rem;
+}
+.home-countdown-icon {
+  font-size: 2rem;
+  text-align: center;
+  background: var(--accent-soft);
+  border-radius: var(--r-sm);
+  padding: 0.4rem;
+  line-height: 1;
+}
+.home-countdown-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.home-countdown-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 700;
+}
+.home-countdown-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--text);
+}
+.home-countdown-date {
+  font-size: 0.78rem;
+  font-family: var(--font-mono);
+}
+.home-countdown-pill {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0.6rem 0.9rem;
+  border-radius: var(--r-sm);
+  background: var(--bg-subtle);
+  min-width: 70px;
+  text-align: center;
+}
+.home-countdown-num {
+  font-family: var(--font-mono);
+  font-size: 1.8rem;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--text);
+}
+.home-countdown-unit {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+.home-countdown-pill.today  { background: var(--c-stop-soft); }
+.home-countdown-pill.today  .home-countdown-num { color: var(--c-stop); }
+.home-countdown-pill.soon   { background: var(--c-wait-soft); }
+.home-countdown-pill.soon   .home-countdown-num { color: var(--c-wait); }
+.home-countdown-pill.later  { background: var(--c-go-soft); }
+.home-countdown-pill.later  .home-countdown-num { color: var(--c-go); }
+
+/* Compteur J-N à côté de chaque event */
+.home-event-countdown {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 800;
+  padding: 0.3rem 0.55rem;
+  border-radius: var(--r-sm);
+  background: var(--bg-subtle);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.home-event-countdown.today { background: var(--c-stop); color: white; }
+.home-event-countdown.soon  { background: var(--c-wait-soft); color: var(--c-wait); }
+
+@media (max-width: 600px) {
+  .home-countdown {
+    grid-template-columns: 44px 1fr auto;
+    padding: 0.8rem 0.9rem;
+    gap: 0.6rem;
+  }
+  .home-countdown-icon { font-size: 1.5rem; }
+  .home-countdown-title { font-size: 0.95rem; }
+  .home-countdown-pill { padding: 0.4rem 0.65rem; min-width: 56px; }
+  .home-countdown-num { font-size: 1.4rem; }
+  .home-today-num { font-size: 1.2rem; }
 }
 .home-title-v2 {
   font-family: var(--font-display);
