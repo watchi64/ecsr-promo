@@ -16,6 +16,7 @@ import { renderNotes } from "./views/notes.js";
 import { renderRessources } from "./views/ressources.js";
 import { renderThemes } from "./views/themes.js";
 import { renderConfig } from "./views/config.js";
+import { renderCalendrier } from "./views/calendrier.js";
 import { initUndoKeyboard } from "./undo.js";
 
 // ===== Gate : email magic link =====
@@ -114,6 +115,7 @@ const TABS = [
   { route: "home",       label: "Accueil",         icon: "info"      },
   { route: "dashboard",  label: "Tableau de bord", icon: "dashboard" },
   { route: "planning",   label: "Planning",        icon: "calendar"  },
+  { route: "calendrier", label: "Calendrier",      icon: "clock"     },
   { route: "themes",     label: "Thèmes",          icon: "list"      },
   { route: "passages",   label: "Passages",        icon: "history"   },
   { route: "notes",      label: "Notes",           icon: "edu"       },
@@ -143,6 +145,7 @@ const routes = {
   home:       renderHome,
   dashboard:  renderDashboard,
   planning:   renderPlanning,
+  calendrier: renderCalendrier,
   themes:     renderThemes,
   passages:   renderPassages,
   notes:      renderNotes,

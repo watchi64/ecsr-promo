@@ -304,6 +304,43 @@ export async function deleteRessource(id) {
   if (error) throw error;
 }
 
+// === Agenda (dates importantes : examens, stages, etc.) ===
+
+export async function listAgendaEvents() {
+  const { data, error } = await supabase
+    .from("agenda_events")
+    .select("*")
+    .order("date_start");
+  if (error) throw error;
+  return data;
+}
+
+export async function addAgendaEvent(payload) {
+  const { data, error } = await supabase
+    .from("agenda_events")
+    .insert(payload)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function updateAgendaEvent(id, patch) {
+  const { error } = await supabase
+    .from("agenda_events")
+    .update(patch)
+    .eq("id", id);
+  if (error) throw error;
+}
+
+export async function deleteAgendaEvent(id) {
+  const { error } = await supabase
+    .from("agenda_events")
+    .delete()
+    .eq("id", id);
+  if (error) throw error;
+}
+
 // === User profiles (whitelist email → stagiaire/prof + rôle) ===
 
 export async function listUserProfiles() {
