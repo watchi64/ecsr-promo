@@ -2744,6 +2744,25 @@ button.theme-date.editable.muted { color: var(--text-faint); }
   border: 1px solid var(--line);
   border-radius: var(--r-lg);
   padding: 1.5rem 1.6rem;
+  min-width: 0;
+  overflow: hidden;
+}
+.param-section * { min-width: 0; }
+.param-section input,
+.param-section select { max-width: 100%; }
+
+@media (max-width: 600px) {
+  .param-section { padding: 1.1rem 0.9rem; }
+  .param-section-head { grid-template-columns: 36px 1fr; gap: 0.6rem; }
+  .param-section h3 { font-size: 1.2rem; }
+  .admin-item {
+    grid-template-columns: auto 1fr auto;
+    gap: 0.4rem;
+  }
+  .admin-item .admin-email-text {
+    font-size: 0.78rem;
+    word-break: break-all;
+  }
 }
 
 .param-section-head {

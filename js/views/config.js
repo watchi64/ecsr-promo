@@ -41,7 +41,7 @@ async function renderAccessSection(rerender) {
     const roleSel = el("select", { class: "invite-role" });
     [
       { v: "stagiaire", l: "Stagiaire" },
-      { v: "prof",      l: "Formateur (prof)" },
+      { v: "prof",      l: "Formateur" },
     ].forEach((o) => roleSel.appendChild(el("option", { value: o.v }, o.l)));
 
     const personSel = el("select", { class: "invite-person" });
