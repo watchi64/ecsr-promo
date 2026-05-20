@@ -26,7 +26,7 @@ export const ACTIVITY_SHAPES = {
   "Pédagogie salle":    ["activite", "prof", "sujet", "pedagogue", "eleves", "notes"],
   "Voiture (conduite)": ["activite", "prof", "sujet", "eleves", "notes"],
   "Contrôle":           ["activite", "prof", "sujet", "notes"],
-  "Autre":              ["activite", "prof", "sujet", "pedagogue", "eleves", "notes"],
+  "Autre":              ["activite", "prof", "notes"],
 };
 
 export const JOURS = ["LUNDI", "MARDI", "MERCREDI", "JEUDI", "VENDREDI"];
