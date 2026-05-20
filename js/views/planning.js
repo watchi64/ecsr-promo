@@ -335,7 +335,7 @@ function profChipsSelect(allProfs, currentIds, onChange) {
   function render() {
     clear(display);
     if (selected.length === 0) {
-      display.appendChild(el("span", { class: "p-prof-placeholder" }, "Prof…"));
+      display.appendChild(el("span", { class: "p-prof-placeholder" }, "Formateur…"));
     } else {
       selected.forEach((id) => {
         const p = allProfs.find((x) => x.id === id);
