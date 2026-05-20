@@ -63,6 +63,25 @@ function isToday(e) {
   return e.date_start <= today && (e.date_end || e.date_start) >= today;
 }
 
+// Nombre de jours avant le DÉBUT de l'événement (négatif si déjà commencé/passé)
+function daysUntilStart(e) {
+  const d = parseDate(e.date_start);
+  d.setHours(0, 0, 0, 0);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return Math.round((d - today) / 86400000);
+}
+
+// Badge "jours restants" : null si déjà commencé/passé
+function countdownInfo(e) {
+  if (isToday(e)) return { text: "Aujourd'hui", cls: "today" };
+  const days = daysUntilStart(e);
+  if (days < 0) return null;       // déjà commencé ou passé
+  if (days === 0) return { text: "Aujourd'hui", cls: "today" };
+  if (days === 1) return { text: "Demain", cls: "soon" };
+  return { text: `J − ${days}`, cls: days <= 7 ? "soon" : "later" };
+}
+
 function openEventModal(existing, onSaved) {
   const isNew = !existing;
   const backdrop = el("div", { class: "modal-backdrop" });
@@ -183,10 +202,13 @@ function renderEventCard(e, admin, onChanged) {
 
   // Corps
   const body = el("div", { class: "agenda-body" });
+  const cd = countdownInfo(e);
   const header = el("div", { class: "agenda-head" },
     el("span", { class: "agenda-emoji" }, type.emoji),
     el("h4", { class: "agenda-title" }, e.title),
-    today ? el("span", { class: "agenda-today-pill" }, "Aujourd'hui") : null,
+    (cd && cd.cls === "today")
+      ? el("span", { class: "agenda-today-pill" }, "Aujourd'hui")
+      : (cd ? el("span", { class: "agenda-countdown " + cd.cls }, cd.text) : null),
   );
   body.appendChild(header);
 

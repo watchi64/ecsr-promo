@@ -1737,6 +1737,18 @@ h3 {
   padding: 2px 8px;
   border-radius: 999px;
 }
+.agenda-countdown {
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  font-weight: 800;
+  padding: 2px 9px;
+  border-radius: 999px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.agenda-countdown.today { background: var(--c-stop); color: white; }
+.agenda-countdown.soon  { background: var(--c-wait-soft); color: var(--c-wait); }
+.agenda-countdown.later { background: var(--c-go-soft); color: var(--c-go); }
 .agenda-meta { font-size: 0.82rem; color: var(--text-muted); font-family: var(--font-mono); }
 .agenda-meta-duration { font-style: italic; }
 .agenda-desc { margin: 0.3rem 0 0; font-size: 0.88rem; color: var(--text-soft); line-height: 1.4; }
