@@ -2595,38 +2595,43 @@ button.theme-date.editable.muted { color: var(--text-faint); }
 /* === Mobile : restructure des lignes thème === */
 @media (max-width: 720px) {
   .theme-row {
-    grid-template-columns: 36px 1fr auto;
+    grid-template-columns: 36px 1fr auto auto;
     grid-template-areas:
-      "num titre statut"
-      "num meta meta";
-    gap: 0.3rem 0.55rem;
+      "num titre statut del"
+      "num meta meta meta";
+    gap: 0.3rem 0.4rem;
     padding: 0.7rem 0.7rem;
     align-items: start;
   }
   .theme-row .theme-num { grid-area: num; align-self: center; }
   .theme-row .theme-titre-block { grid-area: titre; min-width: 0; }
-  .theme-row .theme-statut { grid-area: statut; align-self: start; }
+  .theme-row .theme-statut { grid-area: statut; align-self: center; justify-self: end; }
+  /* Bouton supprimer notion : placé dans sa propre colonne à droite du statut */
+  .theme-row > .btn.danger {
+    grid-area: del;
+    align-self: center;
+  }
+  /* Si pas de delBtn, le span vide ne prend pas de place */
+  .theme-row > span:empty {
+    grid-area: del;
+    display: none;
+  }
   /* La date et les notes vivent en bas dans une zone "meta" */
   .theme-row > .theme-date,
-  .theme-row > button.theme-date,
-  .theme-row > .theme-notes {
+  .theme-row > button.theme-date {
     grid-area: meta;
+    grid-row: 2;
+    grid-column: 2 / -1;
+    justify-self: start;
+    font-size: 0.78rem;
   }
   .theme-row .theme-notes {
-    grid-column: 1 / -1;
+    grid-column: 2 / -1;
     grid-row: 3;
     margin-top: 0.35rem;
     font-size: 16px;        /* anti-zoom iOS */
     padding: 0.5rem 0.6rem;
   }
-  .theme-row > .theme-date,
-  .theme-row > button.theme-date {
-    grid-row: 2;
-    justify-self: start;
-    font-size: 0.78rem;
-  }
-  /* Bouton supprimer notion : sur la 4ème "ligne" si présent */
-  .theme-row > .btn.danger { grid-column: 3; grid-row: 1; }
 
   /* On masque l'en-tête de tableau (les libellés N°, THÈME, STATUT...) sur mobile */
   .theme-row.theme-header { display: none; }
