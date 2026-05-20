@@ -81,7 +81,8 @@ async function saveEntry(localId, patch) {
     slot: entry.slot,
     lane: entry.lane ?? 0,
     activite: entry.activite ?? null,
-    prof_id: entry.prof_id ?? null,
+    prof_id: entry.prof_ids && entry.prof_ids.length ? entry.prof_ids[0] : null,  // legacy compat (1er prof)
+    prof_ids: entry.prof_ids ?? [],
     sujet: entry.sujet ?? null,
     pedagogue_id: entry.pedagogue_id ?? null,
     eleves_ids: entry.eleves_ids ?? [],
@@ -324,6 +325,67 @@ function selectFromList(items, currentVal, onChange, placeholder = "—") {
   return sel;
 }
 
+// Select profs multi-choix : compact, fond bg-subtle pour bien se distinguer dans le header
+function profChipsSelect(allProfs, currentIds, onChange) {
+  const wrap = el("div", { class: "p-prof-multi" });
+  const display = el("div", { class: "p-prof-display", tabindex: "0" });
+  const dropdown = el("div", { class: "p-prof-dropdown hidden" });
+  let selected = [...(currentIds || [])];
+
+  function render() {
+    clear(display);
+    if (selected.length === 0) {
+      display.appendChild(el("span", { class: "p-prof-placeholder" }, "Prof…"));
+    } else {
+      selected.forEach((id) => {
+        const p = allProfs.find((x) => x.id === id);
+        if (!p) return;
+        display.appendChild(el("span", { class: "p-prof-chip" },
+          p.nom,
+          el("span", {
+            class: "p-prof-x",
+            onClick: (ev) => {
+              ev.stopPropagation();
+              selected = selected.filter((x) => x !== id);
+              render();
+              onChange([...selected]);
+            },
+          }, "×"),
+        ));
+      });
+    }
+    clear(dropdown);
+    allProfs.forEach((p) => {
+      dropdown.appendChild(el("div", {
+        class: "p-prof-dropdown-item" + (selected.includes(p.id) ? " selected" : ""),
+        onClick: (ev) => {
+          ev.stopPropagation();
+          if (selected.includes(p.id)) selected = selected.filter((x) => x !== p.id);
+          else selected = [...selected, p.id];
+          render();
+          onChange([...selected]);
+        },
+      }, p.nom));
+    });
+  }
+
+  display.addEventListener("click", () => {
+    dropdown.classList.toggle("hidden");
+    display.classList.toggle("open");
+  });
+  document.addEventListener("click", (e) => {
+    if (!wrap.contains(e.target)) {
+      dropdown.classList.add("hidden");
+      display.classList.remove("open");
+    }
+  });
+
+  wrap.appendChild(display);
+  wrap.appendChild(dropdown);
+  render();
+  return wrap;
+}
+
 function chipsSelect(allStagiaires, currentIds, onChange) {
   const wrap = el("div", { class: "chips-select" });
   const display = el("div", { class: "chips-display", tabindex: "0" });
@@ -540,12 +602,9 @@ function renderLaneCell(entry) {
   ));
   if (shape.includes("prof")) {
     header.appendChild(el("div", { class: "p-lane-prof-wrap" },
-      selectFromList(
-        profs.map((p) => ({ value: p.id, label: p.nom })),
-        entry.prof_id,
-        (v) => saveEntry(lid, { prof_id: v ? Number(v) : null }),
-        "Prof…"
-      )
+      profChipsSelect(profs, entry.prof_ids || [], (ids) => {
+        saveEntry(lid, { prof_ids: ids });
+      })
     ));
   }
   const trashBtn = el("button", {
@@ -782,7 +841,12 @@ async function loadPlanning() {
     getHalfMetaForWeek(semaineLundi),
   ]);
   let counter = 0;
-  entries = data.map((row) => ({ ...row, _lid: "lid-" + (++counter) }));
+  entries = data.map((row) => {
+    // Compat ascendante : si prof_ids vide mais prof_id présent, on l'utilise
+    let prof_ids = row.prof_ids;
+    if ((!prof_ids || prof_ids.length === 0) && row.prof_id) prof_ids = [row.prof_id];
+    return { ...row, prof_ids: prof_ids || [], _lid: "lid-" + (++counter) };
+  });
   halfMetas = metas;
 }
 
@@ -945,7 +1009,8 @@ function lookupStagiaire(id) {
 
 function entryHasContent(e) {
   return nonEmpty(e.activite) || nonEmpty(e.sujet) || nonEmpty(e.notes)
-      || e.prof_id || e.pedagogue_id || (e.eleves_ids && e.eleves_ids.length);
+      || (e.prof_ids && e.prof_ids.length) || e.prof_id
+      || e.pedagogue_id || (e.eleves_ids && e.eleves_ids.length);
 }
 
 function printEntryCell(e) {
@@ -958,8 +1023,9 @@ function printEntryCell(e) {
   } else {
     header.appendChild(el("span", { class: "pp-act muted" }, "—"));
   }
-  if (e.prof_id) {
-    header.appendChild(el("span", { class: "pp-prof" }, lookupProf(e.prof_id)));
+  const profIds = (e.prof_ids && e.prof_ids.length) ? e.prof_ids : (e.prof_id ? [e.prof_id] : []);
+  if (profIds.length) {
+    header.appendChild(el("span", { class: "pp-prof" }, profIds.map(lookupProf).filter(Boolean).join(" · ")));
   }
   cell.appendChild(header);
 
