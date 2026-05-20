@@ -1,6 +1,21 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { SUPABASE_URL, SUPABASE_KEY } from "./config.js";
 
+// fetch avec timeout : sans ça, une requête peut rester pendue indéfiniment
+// (réseau mobile instable) → "Chargement" infini. Avec, elle échoue proprement après 15s.
+function fetchWithTimeout(input, init = {}) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000);
+  // Si un signal externe existe déjà (rare), on le respecte aussi
+  const externalSignal = init.signal;
+  if (externalSignal) {
+    if (externalSignal.aborted) controller.abort();
+    else externalSignal.addEventListener("abort", () => controller.abort(), { once: true });
+  }
+  return fetch(input, { ...init, signal: controller.signal })
+    .finally(() => clearTimeout(timeoutId));
+}
+
 export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
   auth: {
     persistSession: true,         // garde la session dans localStorage
@@ -8,6 +23,9 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
     detectSessionInUrl: true,     // parse le hash après redirect (callback magic link historique)
     storage: window.localStorage, // explicite : pas de sessionStorage volatile
     storageKey: "ecsr_supabase_session",
+  },
+  global: {
+    fetch: fetchWithTimeout,
   },
 });
 

@@ -4715,6 +4715,33 @@ button.theme-date.editable.muted { color: var(--text-faint); }
   font-size: 0.92rem;
 }
 
+/* État d'erreur de vue (timeout réseau, etc.) avec bouton Réessayer */
+.view-error-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  text-align: center;
+  padding: 3rem 1.5rem;
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  margin: 1rem auto;
+  max-width: 440px;
+}
+.view-error-title {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text);
+}
+.view-error-sub {
+  margin: 0 0 0.6rem;
+  font-size: 0.88rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
 .loading::before {
   content: "";
   width: 14px;

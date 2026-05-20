@@ -175,11 +175,26 @@ async function navigate() {
   } catch (e) {
     console.error(e);
     view.innerHTML = "";
-    const errP = document.createElement("p");
-    errP.className = "error";
-    errP.textContent = "Erreur : " + (e?.message || e);
-    view.appendChild(errP);
-    toast(e?.message || String(e), "error");
+    const isTimeout = /abort|timeout|network|fetch/i.test(e?.message || String(e));
+    const box = document.createElement("div");
+    box.className = "view-error-box";
+    const h = document.createElement("p");
+    h.className = "view-error-title";
+    h.textContent = isTimeout ? "Connexion trop lente" : "Une erreur est survenue";
+    const sub = document.createElement("p");
+    sub.className = "view-error-sub";
+    sub.textContent = isTimeout
+      ? "Le serveur n'a pas répondu à temps. Vérifie ta connexion et réessaie."
+      : "Détail : " + (e?.message || e);
+    const retry = document.createElement("button");
+    retry.className = "btn primary";
+    retry.textContent = "Réessayer";
+    retry.addEventListener("click", () => navigate());
+    box.appendChild(h);
+    box.appendChild(sub);
+    box.appendChild(retry);
+    view.appendChild(box);
+    toast(isTimeout ? "Connexion trop lente, réessaie" : (e?.message || String(e)), "error");
   }
 }
 
