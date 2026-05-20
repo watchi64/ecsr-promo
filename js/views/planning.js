@@ -47,6 +47,7 @@ function addMinutes(timeStr, mins) {
 }
 
 const debouncedSave = {};
+const pendingSaves = new Set();
 
 function entriesFor(d, half) {
   return entries.filter((e) => e.day_index === d && e.half_day === half);
@@ -87,19 +88,24 @@ async function saveEntry(localId, patch) {
     notes: entry.notes ?? null,
   };
 
-  try {
-    await upsertPlanningEntry(payload);
-    const cellEl = document.querySelector(`[data-lid="${localId}"]`);
-    if (cellEl) cellEl.dataset.activite = payload.activite || "";
-    // Si on change l'activité, on re-render la cellule (shape change)
-    if (patch.activite !== undefined && cellEl) {
-      const newCell = renderLaneCell(entry);
-      cellEl.replaceWith(newCell);
+  // Track la promesse pour que flushPendingInputs puisse l'attendre avant un re-render
+  const p = (async () => {
+    try {
+      await upsertPlanningEntry(payload);
+      const cellEl = document.querySelector(`[data-lid="${localId}"]`);
+      if (cellEl) cellEl.dataset.activite = payload.activite || "";
+      if (patch.activite !== undefined && cellEl) {
+        const newCell = renderLaneCell(entry);
+        cellEl.replaceWith(newCell);
+      }
+    } catch (e) {
+      console.error(e);
+      toast("Erreur d'enregistrement", "error");
     }
-  } catch (e) {
-    console.error(e);
-    toast("Erreur d'enregistrement", "error");
-  }
+  })();
+  pendingSaves.add(p);
+  p.finally(() => pendingSaves.delete(p));
+  return p;
 }
 
 async function addSlotAfter(d, half, afterSlot) {
@@ -144,14 +150,19 @@ async function addSlotAfter(d, half, afterSlot) {
   renderInto(currentContainer);
 }
 
-// Force le blur de l'input actif pour déclencher les saves pending,
-// puis attend que les promises asynchrones aient eu le temps de s'exécuter.
+// Force le blur de l'input actif (déclenche les saves pendant blur),
+// puis attend que TOUTES les promesses de save en cours soient résolues.
 async function flushPendingInputs() {
   const active = document.activeElement;
   if (active && active !== document.body && typeof active.blur === "function") {
     active.blur();
-    // 80ms = laisse le temps aux saves async lancés depuis blur de partir
-    await new Promise((resolve) => setTimeout(resolve, 80));
+  }
+  // Microtask + délai court pour laisser les handlers blur asynchrones
+  // ajouter leurs promesses dans pendingSaves.
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  // Maintenant on attend que TOUS les saves en cours se terminent (vraie DB round-trip).
+  if (pendingSaves.size > 0) {
+    await Promise.all([...pendingSaves]);
   }
 }
 
