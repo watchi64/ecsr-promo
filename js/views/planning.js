@@ -109,48 +109,6 @@ async function saveEntry(localId, patch) {
   return p;
 }
 
-async function addSlotAfter(d, half, afterSlot) {
-  // Décale les slots suivants pour insérer juste après
-  const list = entriesFor(d, half);
-  const toShift = list.filter((e) => e.slot > afterSlot);
-  // Pour éviter conflits unique : shift en deux temps via slot temporaire
-  for (const e of toShift) {
-    const payload = {
-      semaine_lundi: e.semaine_lundi, day_index: e.day_index,
-      half_day: e.half_day, slot: e.slot + 1000, lane: e.lane,
-      activite: e.activite, prof_id: e.prof_id, sujet: e.sujet,
-      pedagogue_id: e.pedagogue_id, eleves_ids: e.eleves_ids, notes: e.notes,
-    };
-    // Insertion à nouvelle position
-    await upsertPlanningEntry(payload);
-    // Delete ancien
-    if (e.id) await deletePlanningEntryById(e.id);
-  }
-  // Renomme les slot temp
-  for (const e of toShift) {
-    const newSlot = e.slot + 1;  // anciennement slot+1000, on veut +1 par rapport à l'original
-    // ré-upsert
-    const payload = {
-      semaine_lundi: e.semaine_lundi, day_index: e.day_index,
-      half_day: e.half_day, slot: newSlot, lane: e.lane,
-      activite: e.activite, prof_id: e.prof_id, sujet: e.sujet,
-      pedagogue_id: e.pedagogue_id, eleves_ids: e.eleves_ids, notes: e.notes,
-    };
-    await upsertPlanningEntry(payload);
-    // Supprime version temp
-    await deletePlanningEntryById(undefined); // skip, géré au reload
-  }
-  // Nouveau slot
-  await upsertPlanningEntry({
-    semaine_lundi: semaineLundi, day_index: d, half_day: half,
-    slot: afterSlot + 1, lane: 0,
-    activite: null, prof_id: null, sujet: null,
-    pedagogue_id: null, eleves_ids: [], notes: null,
-  });
-  await loadPlanning();
-  renderInto(currentContainer);
-}
-
 // Force le blur de l'input actif (déclenche les saves pendant blur),
 // puis attend que TOUTES les promesses de save en cours soient résolues.
 async function flushPendingInputs() {

@@ -420,18 +420,6 @@ export async function inviteUser({ email, role, stagiaire_id = null, prof_id = n
   return data;
 }
 
-// === Compat : ancienne table admins (lecture seule pour debug) ===
-
-export async function listAdmins() {
-  const { data, error } = await supabase
-    .from("user_profiles")
-    .select("*")
-    .eq("role", "admin")
-    .order("invited_at");
-  if (error) throw error;
-  return data;
-}
-
 // === Auth (Supabase magic link) ===
 
 export async function getCurrentUser() {

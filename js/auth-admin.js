@@ -69,9 +69,10 @@ async function refreshProfile() {
 }
 
 export async function initAuth() {
-  await loadDirectories();
   currentUser = await getCurrentUser();
   if (currentUser) {
+    // Les annuaires ne sont lisibles qu'authentifié (RLS) → charger après l'auth.
+    await loadDirectories();
     await refreshProfile();
     if (!currentProfile) {
       // Connecté mais pas dans user_profiles → kick out
@@ -84,6 +85,7 @@ export async function initAuth() {
   onAuthChange(async (user) => {
     currentUser = user;
     if (user) {
+      await loadDirectories();
       await refreshProfile();
       if (!currentProfile) {
         await signOut();

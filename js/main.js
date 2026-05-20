@@ -69,8 +69,15 @@ function showGate() {
       error.classList.remove("hidden");
       return;
     }
-    if (!password || password.length < 6) {
-      error.textContent = "Mot de passe : 6 caractères minimum";
+    if (!password) {
+      error.textContent = "Mot de passe requis";
+      error.classList.remove("hidden");
+      return;
+    }
+    // Longueur minimale exigée seulement à la création (la connexion valide
+    // le vrai mot de passe côté serveur).
+    if (mode === "signup" && password.length < 8) {
+      error.textContent = "Mot de passe : 8 caractères minimum";
       error.classList.remove("hidden");
       return;
     }

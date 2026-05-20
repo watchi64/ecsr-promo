@@ -122,6 +122,7 @@ function resultTag(resultat) {
 }
 
 function renderTable(container) {
+  const admin = isAdmin();
   let filtered = passages;
   if (filterStagiaire) filtered = filtered.filter((p) => p.stagiaire_id === Number(filterStagiaire));
   if (filterType)     filtered = filtered.filter((p) => p.type === filterType);
@@ -144,13 +145,14 @@ function renderTable(container) {
       el("th", {}, "Résultat"),
       el("th", {}, "Remplacé par"),
       el("th", {}, "Ajouté par"),
-      el("th", { style: "width:50px" }, "")
+      admin ? el("th", { style: "width:50px" }, "") : null
     )
   ));
 
   const tbody = el("tbody");
   filtered.forEach((p) => {
-    const delBtn = el("button", {
+    // Suppression réservée aux admins (RLS : seul is_admin() peut DELETE).
+    const delBtn = admin ? el("button", {
       class: "btn small danger icon-only",
       "aria-label": "Supprimer",
       onClick: async () => {
@@ -163,8 +165,8 @@ function renderTable(container) {
         recordUndo("passage supprimé", async () => { await addPassage(snapshot); });
         await reload(container);
       }
-    });
-    delBtn.appendChild(icon.trash());
+    }) : null;
+    if (delBtn) delBtn.appendChild(icon.trash());
 
     const whoLabel = p.created_by_who || (p.origine === "Auto Planning" ? "Auto" : "—");
     const isAdmin_ = whoLabel.includes("@");
@@ -176,7 +178,7 @@ function renderTable(container) {
       el("td", {}, resultTag(p.resultat)),
       el("td", { class: "muted" }, p.remplacant ? displayStagiaire(p.remplacant) : "—"),
       el("td", {}, el("span", { class: "tag who" + (isAdmin_ ? " admin" : "") }, whoLabel)),
-      el("td", {}, delBtn)
+      admin ? el("td", {}, delBtn) : null
     );
     tbody.appendChild(tr);
   });
@@ -286,7 +288,7 @@ function rerender(container) {
     el("div", { class: "view-header-text" },
       el("p", { class: "eyebrow" }, passages.length + " entrées au total"),
       el("h2", {}, "Historique des passages"),
-      el("p", { class: "subtitle" }, "Tous les passages. Modifiables par tout le monde. Chaque action est tracée."),
+      el("p", { class: "subtitle" }, "Tous les passages. Ajout ouvert à tous, suppression réservée aux admins. Chaque action est tracée."),
     ),
     el("div", { style: "display:flex;gap:0.5rem;flex-wrap:wrap" }, histBtn, addBtn),
   ));
