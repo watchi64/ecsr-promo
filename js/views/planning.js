@@ -144,8 +144,20 @@ async function addSlotAfter(d, half, afterSlot) {
   renderInto(currentContainer);
 }
 
+// Force le blur de l'input actif pour déclencher les saves pending,
+// puis attend que les promises asynchrones aient eu le temps de s'exécuter.
+async function flushPendingInputs() {
+  const active = document.activeElement;
+  if (active && active !== document.body && typeof active.blur === "function") {
+    active.blur();
+    // 80ms = laisse le temps aux saves async lancés depuis blur de partir
+    await new Promise((resolve) => setTimeout(resolve, 80));
+  }
+}
+
 // Version simplifiée : ajoute en fin de séquence (la plupart des cas)
 async function addSlotEnd(d, half) {
+  await flushPendingInputs();
   const list = entriesFor(d, half);
   const nextSlot = list.length === 0 ? 0 : Math.max(...list.map((e) => e.slot)) + 1;
   try {
@@ -164,6 +176,7 @@ async function addSlotEnd(d, half) {
 }
 
 async function addLaneInSlot(d, half, slot) {
+  await flushPendingInputs();
   const lanesInSlot = entries.filter((e) => e.day_index === d && e.half_day === half && e.slot === slot);
   const nextLane = lanesInSlot.length === 0 ? 0 : Math.max(...lanesInSlot.map((e) => e.lane)) + 1;
   try {
@@ -460,6 +473,8 @@ function sujetMultiSelect(currentValue, onChange) {
   });
   input.addEventListener("blur", () => {
     setTimeout(() => dropdown.classList.add("hidden"), 150);
+    // Auto-commit du texte en cours (avant perte de focus = avant un éventuel add lane)
+    if (input.value.trim()) addLabel(input.value);
   });
   input.addEventListener("input", () => {
     const v = input.value;
@@ -625,6 +640,12 @@ function renderLaneCell(entry) {
       debouncedSave[key] = debounce((v) => saveEntry(lid, { notes: v }), 500);
     }
     notesInput.addEventListener("input", () => debouncedSave[key](notesInput.value));
+    // Sur blur, sauvegarde immédiate (annule le debounce) pour éviter la perte avant un re-render
+    notesInput.addEventListener("blur", () => {
+      if (notesInput.value !== (entry.notes || "")) {
+        saveEntry(lid, { notes: notesInput.value });
+      }
+    });
     body.appendChild(el("div", { class: "p-lane-notes" }, notesInput));
   }
 
