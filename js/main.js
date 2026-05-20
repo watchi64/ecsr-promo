@@ -2,7 +2,7 @@
  * Promo ECSR — Application propriétaire.
  * © 2026 watchi64 — Tous droits réservés. Voir LICENSE.
  */
-import { signInWithPassword, signUpWithPassword, getCurrentUser } from "./db.js";
+import { signInWithPassword, signUpWithPassword, getCurrentUser, invalidateCache } from "./db.js";
 import { toast } from "./utils.js";
 import { icon } from "./icons.js";
 import { initAuth, onAdminChange, isAuth } from "./auth-admin.js";
@@ -204,7 +204,11 @@ function setupRefreshBtn() {
   const btn = document.getElementById("refresh-btn");
   btn.innerHTML = "";
   btn.appendChild(icon.refresh());
-  btn.addEventListener("click", () => navigate());
+  btn.addEventListener("click", () => {
+    // Force le rechargement réel : vide le cache des données de référence
+    invalidateCache();
+    navigate();
+  });
 }
 
 async function bootApp() {

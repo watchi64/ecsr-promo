@@ -29,24 +29,47 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
   },
 });
 
-// === Stagiaires & Profs ===
+// === Cache mémoire des données de référence (changent quasi jamais) ===
+// Évite de re-télécharger stagiaires/profs/thèmes/compétences à chaque navigation.
+// Invalidé explicitement lors des écritures sur ces tables.
+const _cache = new Map();
+const _cacheExpiry = new Map();
+const CACHE_TTL = 10 * 60 * 1000;  // 10 min de sécurité (en plus de l'invalidation sur write)
 
-export async function listStagiaires() {
-  const { data, error } = await supabase
-    .from("stagiaires")
-    .select("*")
-    .order("ordre");
-  if (error) throw error;
+async function cachedQuery(key, fetcher) {
+  const now = Date.now();
+  if (_cache.has(key) && (_cacheExpiry.get(key) || 0) > now) {
+    return _cache.get(key);
+  }
+  const data = await fetcher();
+  _cache.set(key, data);
+  _cacheExpiry.set(key, now + CACHE_TTL);
   return data;
 }
 
+export function invalidateCache(key) {
+  if (key) { _cache.delete(key); _cacheExpiry.delete(key); }
+  else { _cache.clear(); _cacheExpiry.clear(); }
+}
+
+// === Stagiaires & Profs ===
+
+export async function listStagiaires() {
+  return cachedQuery("stagiaires", async () => {
+    const { data, error } = await supabase
+      .from("stagiaires").select("*").order("ordre");
+    if (error) throw error;
+    return data;
+  });
+}
+
 export async function listProfs() {
-  const { data, error } = await supabase
-    .from("profs")
-    .select("*")
-    .order("ordre");
-  if (error) throw error;
-  return data;
+  return cachedQuery("profs", async () => {
+    const { data, error } = await supabase
+      .from("profs").select("*").order("ordre");
+    if (error) throw error;
+    return data;
+  });
 }
 
 export async function addStagiaire(prenom) {
@@ -58,16 +81,19 @@ export async function addStagiaire(prenom) {
   const ordre = (max?.[0]?.ordre || 0) + 1;
   const { error } = await supabase.from("stagiaires").insert({ prenom, ordre });
   if (error) throw error;
+  invalidateCache("stagiaires");
 }
 
 export async function updateStagiaire(id, prenom) {
   const { error } = await supabase.from("stagiaires").update({ prenom }).eq("id", id);
   if (error) throw error;
+  invalidateCache("stagiaires");
 }
 
 export async function deleteStagiaire(id) {
   const { error } = await supabase.from("stagiaires").delete().eq("id", id);
   if (error) throw error;
+  invalidateCache("stagiaires");
 }
 
 export async function addProf(nom) {
@@ -79,16 +105,19 @@ export async function addProf(nom) {
   const ordre = (max?.[0]?.ordre || 0) + 1;
   const { error } = await supabase.from("profs").insert({ nom, ordre });
   if (error) throw error;
+  invalidateCache("profs");
 }
 
 export async function updateProf(id, nom) {
   const { error } = await supabase.from("profs").update({ nom }).eq("id", id);
   if (error) throw error;
+  invalidateCache("profs");
 }
 
 export async function deleteProf(id) {
   const { error } = await supabase.from("profs").delete().eq("id", id);
   if (error) throw error;
+  invalidateCache("profs");
 }
 
 // === Passages ===
@@ -210,36 +239,43 @@ export async function setSetting(key, value) {
 // === Thèmes (57 + notions pédagogiques) ===
 
 export async function listThemes() {
-  const { data, error } = await supabase
-    .from("themes")
-    .select("*")
-    .order("type")    // theme avant notion
-    .order("ordre");
-  if (error) throw error;
-  return data;
+  return cachedQuery("themes", async () => {
+    const { data, error } = await supabase
+      .from("themes")
+      .select("*")
+      .order("type")    // theme avant notion
+      .order("ordre");
+    if (error) throw error;
+    return data;
+  });
 }
 
 export async function updateTheme(id, patch) {
   const { error } = await supabase.from("themes").update(patch).eq("id", id);
   if (error) throw error;
+  invalidateCache("themes");
 }
 
 export async function addTheme(t) {
   const { error } = await supabase.from("themes").insert(t);
   if (error) throw error;
+  invalidateCache("themes");
 }
 
 export async function deleteTheme(id) {
   const { error } = await supabase.from("themes").delete().eq("id", id);
   if (error) throw error;
+  invalidateCache("themes");
 }
 
 // === Compétences ===
 
 export async function listCompetences() {
-  const { data, error } = await supabase.from("competences").select("*").order("ordre");
-  if (error) throw error;
-  return data;
+  return cachedQuery("competences", async () => {
+    const { data, error } = await supabase.from("competences").select("*").order("ordre");
+    if (error) throw error;
+    return data;
+  });
 }
 
 // === Évaluations ===
