@@ -1,6 +1,6 @@
 # PROJECT_NOTES.md — TP ECSR App
 
-> **Fichier de reprise pour future session Claude.** Maintenu manuellement, à mettre à jour quand une décision structurante change. Daté : **2026-05-20**.
+> **Fichier de reprise pour future session Claude.** Maintenu manuellement, à mettre à jour quand une décision structurante change. Daté : **2026-05-21**.
 
 ## TL;DR
 
@@ -8,7 +8,7 @@ Web app de suivi de promotion **TP ECSR Nîmes 2026** (15 stagiaires + 3 formate
 
 - URL : **https://watchi64.github.io/ecsr-promo/**
 - Repo : `github.com/watchi64/ecsr-promo` (public)
-- Local : `C:\Users\watch\Dev\ECSR\ecsr-promo`
+- Local : `C:\Users\watch\Dev\ECSR\TP_ECSR_App`
 - Dossier formation (cours/QCM) : `C:\Users\watch\Dev\ECSR\` (séparé du repo app)
 
 **Focus actuel** : que ça fonctionne parfaitement pour la promo CCP1+CCP2 2026. Long terme envisagé : vendre à d'autres centres TP ECSR (pas activé).
@@ -24,7 +24,7 @@ Web app de suivi de promotion **TP ECSR Nîmes 2026** (15 stagiaires + 3 formate
 | Typo | Canela (display, self-hosted .otf) + Outfit (Google Fonts body) + Geist Mono (numéros) |
 | Logo | `assets/logo/tpecsr-logo.svg` (capsule TP) — SVG seul, le PNG a été supprimé |
 | Palette | Mint éditorial unique (`:root`), accent vert `#6B7F4E`. Plus de switcher thème/accent |
-| Cache-bust | `?v=YYYYMMDDx` sur `style.css` et `main.js` dans `index.html`, à bumper à chaque deploy |
+| Cache-bust | **Automatique** : hook `pre-commit` → `scripts/cache-bust.js` pose un token `?v=AAAAMMJJx` uniforme sur `index.html` + tous les imports JS |
 | Bootstrap admin | `misterwatchi@gmail.com` (compte admin + lié au stagiaire Timy id=15) |
 
 ## Auth & permissions — refonte du 18 mai
@@ -123,7 +123,7 @@ Vérifie le JWT de l'appelant, check `is_admin = true` en lecture service_role, 
 - ✅ Couleurs notes/cellules : rouge → vert (4 paliers)
 - ✅ Activité « Autre » : minimal (activité + formateur + note seulement)
 - ✅ Vert mint **partout** (un seul thème, un seul accent)
-- ✅ Cache-bust manuel `?v=YYYYMMDDx` sur main.js et style.css à chaque deploy
+- ✅ Cache-bust **automatique** (hook `pre-commit`) : token `?v=AAAAMMJJx` uniforme sur `index.html` + tous les imports JS
 - ❌ Pas de gamification (badges, XP) — public adulte
 - ❌ Pas de framework — vanilla suffit
 - ❌ Pas de Google OAuth (testé, retiré, jugé non nécessaire)
@@ -151,9 +151,17 @@ Vérifie le JWT de l'appelant, check `is_admin = true` en lecture service_role, 
 
 Câblé via `recordUndo(label, undoFn)` après chaque écriture. Sur Ctrl+Z, déclenche `hashchange` pour rafraîchir la vue. Inputs natifs (sauf number) gardent leur undo Browser.
 
-### Cache-bust sur les modules ES
+### Cache-bust des modules ES (automatisé le 21 mai)
 
-iOS Safari et autres caches mobiles agressifs servent les vieux modules même quand `?v=...` est bumpé sur le module entrypoint. **Pratique** : à chaque déploiement où le user signale « ça change pas », bumper l'extrémité du suffixe (`a → b → c…`) dans index.html. Au prochain refresh, le bundle complet est re-fetché.
+**Problème résolu** : `index.html` ne versionnait que `main.js`. Les ~19 modules importés (`import ... from "./db.js"`…) n'avaient pas de `?v=`, donc restaient en cache jusqu'à ~10 min après un deploy (max-age GitHub Pages). Import map écartée : inline → bloquée par le CSP `script-src` (pas de `'unsafe-inline'`) ; externe → pas fiable sur iOS Safari.
+
+**Solution** : `scripts/cache-bust.js` (Node, zéro dépendance) pose un token `?v=AAAAMMJJx` **uniforme** sur `index.html` + tous les imports relatifs de `js/`. Token unique par passage : indispensable, sinon un module importé sous deux `?v=` différents serait chargé deux fois (état dupliqué).
+
+**Déclenchement automatique** : le hook `.githooks/pre-commit` (activé via `git config core.hooksPath .githooks`) lance le script dès qu'un fichier `js/` ou `css/` entre dans un commit, puis re-stage les fichiers. Plus rien à bumper à la main.
+
+- Lancement manuel : `node scripts/cache-bust.js` (token imposé possible : `node scripts/cache-bust.js 20260521b`).
+- Après un `git clone` neuf : refaire `git config core.hooksPath .githooks` (le hook est versionné, pas la config git locale).
+- Court-circuiter ponctuellement : `git commit --no-verify`.
 
 ## Comment travailler sur ce projet (workflow)
 
@@ -162,7 +170,7 @@ iOS Safari et autres caches mobiles agressifs servent les vieux modules même qu
 3. **Edge Functions via MCP `deploy_edge_function`** — nécessite confirmation user explicite
 4. **Communication FR**, récap court après chaque livraison, tableaux markdown, gras sur l'essentiel
 5. **AskUserQuestion** uniquement pour les décisions structurantes (nouvelle table, refonte vue, choix d'archi). Sinon **trancher seul** et avancer
-6. **Bumper `?v=…`** dans index.html à chaque commit qui touche JS/CSS
+6. **Cache-bust automatique** : le hook `pre-commit` pose le token `?v=` sur index.html + tous les modules JS, rien à bumper manuellement
 7. **Vérifier `git log`** pour les derniers commits avant d'attaquer
 8. **Pour les bugs « ça marche pas »**, vérifier d'abord avec `curl` ce qui est servi en prod avant d'accuser le code
 

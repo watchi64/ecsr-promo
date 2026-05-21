@@ -3,11 +3,11 @@ import {
   upsertPlanningEntry, deletePlanningEntryById,
   getHalfMetaForWeek, upsertHalfMeta,
   getSetting, setSetting,
-} from "../db.js";
-import { el, clear, isoDate, getMonday, addDays, formatDayShort, debounce, toast, displayStagiaire } from "../utils.js";
-import { icon } from "../icons.js";
-import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS } from "../config.js";
-import { isAdmin } from "../auth-admin.js";
+} from "../db.js?v=20260521a";
+import { el, clear, isoDate, getMonday, addDays, formatDayShort, debounce, toast, displayStagiaire } from "../utils.js?v=20260521a";
+import { icon } from "../icons.js?v=20260521a";
+import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS } from "../config.js?v=20260521a";
+import { isAdmin } from "../auth-admin.js?v=20260521a";
 
 let stagiaires = [];
 let profs = [];

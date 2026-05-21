@@ -1,0 +1,13 @@
+#!/bin/sh
+# Cache-busting automatique.
+# Si un fichier js/ ou css/ entre dans le commit, (re)pose un token ?v=
+# uniforme sur index.html + tous les imports JS, puis re-stage les fichiers.
+# Desactiver ponctuellement : git commit --no-verify
+if git diff --cached --name-only | grep -qE '^(js/.*\.js|css/.*\.css)$'; then
+  echo "[pre-commit] cache-bust : assets JS/CSS modifies, re-versionnage..."
+  if ! node scripts/cache-bust.js --staged; then
+    echo "[pre-commit] echec de cache-bust.js -- commit annule." >&2
+    exit 1
+  fi
+fi
+exit 0
