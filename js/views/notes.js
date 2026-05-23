@@ -2,11 +2,11 @@ import {
   listStagiaires, listCompetences, listEvaluations, listThemes,
   addEvaluation, updateEvaluation, deleteEvaluation, listAuditForEvaluation,
   listUserProfiles,
-} from "../db.js?v=20260523d";
-import { el, clear, isoDate, formatDate, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260523d";
-import { icon } from "../icons.js?v=20260523d";
-import { getAdminEmail, isAdmin } from "../auth-admin.js?v=20260523d";
-import { recordUndo } from "../undo.js?v=20260523d";
+} from "../db.js?v=20260523e";
+import { el, clear, isoDate, formatDate, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260523e";
+import { icon } from "../icons.js?v=20260523e";
+import { getAdminEmail, isAdmin } from "../auth-admin.js?v=20260523e";
+import { recordUndo } from "../undo.js?v=20260523e";
 
 let userProfiles = [];  // pour résoudre l'anonymat par stagiaire_id
 
@@ -495,22 +495,24 @@ function inlineCellEdit(td, stagiaireId, fixedFields, container) {
     inputmode: "decimal",
     enterkeyhint: "done",
     class: "matrice-inline-input",
-    style: "flex:1;min-width:0;",
+    style: "width:100%;min-width:0;box-sizing:border-box;",
     value: existing?.note != null ? String(existing.note) : "",
-    placeholder: "/20 ou X/Y",
+    placeholder: "/20",
   });
-  // Bouton Valider visible pendant l'édition. Indispensable mobile : le clavier
-  // décimal iOS n'a pas de touche Done, sans ce bouton le blur ne se déclenche jamais.
+  // Bouton Valider en overlay flottant SOUS la cellule (position absolute).
+  // Indispensable mobile : le clavier décimal iOS n'a pas de touche Done, sans
+  // ce bouton le blur ne se déclenche jamais. L'overlay évite de déborder dans
+  // les cellules voisines (matrice très étroite).
   const saveBtn = el("button", {
     type: "button",
     class: "matrice-inline-ok",
     "aria-label": "Valider",
-    style: "padding:0 6px;background:var(--accent,#6B7F4E);color:#fff;border:0;cursor:pointer;font-size:0.85em;border-radius:3px;flex:0 0 auto;",
-  }, "✓");
+    style: "position:absolute;top:calc(100% + 2px);left:50%;transform:translateX(-50%);padding:4px 14px;background:var(--accent,#6B7F4E);color:#fff;border:0;cursor:pointer;font-size:0.8em;line-height:1;border-radius:4px;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,0.18);white-space:nowrap;font-weight:600;",
+  }, "✓ OK");
   saveBtn.addEventListener("mousedown", (e) => e.preventDefault());
   saveBtn.addEventListener("click", (e) => { e.stopPropagation(); input.blur(); });
   const editor = el("div", { class: "matrice-inline-editor",
-    style: "display:flex;gap:2px;align-items:stretch;width:100%;white-space:nowrap;" });
+    style: "position:relative;width:100%;" });
   editor.addEventListener("click", (e) => e.stopPropagation());
   editor.appendChild(input);
   editor.appendChild(saveBtn);
