@@ -2,11 +2,11 @@ import {
   listStagiaires, listCompetences, listEvaluations, listThemes,
   addEvaluation, updateEvaluation, deleteEvaluation, listAuditForEvaluation,
   listUserProfiles,
-} from "../db.js?v=20260523c";
-import { el, clear, isoDate, formatDate, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260523c";
-import { icon } from "../icons.js?v=20260523c";
-import { getAdminEmail, isAdmin } from "../auth-admin.js?v=20260523c";
-import { recordUndo } from "../undo.js?v=20260523c";
+} from "../db.js?v=20260523d";
+import { el, clear, isoDate, formatDate, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260523d";
+import { icon } from "../icons.js?v=20260523d";
+import { getAdminEmail, isAdmin } from "../auth-admin.js?v=20260523d";
+import { recordUndo } from "../undo.js?v=20260523d";
 
 let userProfiles = [];  // pour résoudre l'anonymat par stagiaire_id
 
@@ -430,6 +430,49 @@ function cellColorClass(ratio) {
   return "great";
 }
 
+// === Dégradé continu pour les cellules de la matrice ===
+// Interpolation linéaire RGB entre 9 stops sur l'échelle 0..20.
+// Chaque dixième de point a une teinte unique (~1 couleur / 0.1).
+// Pêche/terracotta pour les notes basses, vert mint pour le haut. Pas de rouge vif.
+const NOTE_STOPS = [
+  { n: 0,  bg: [232, 195, 168], fg: [105, 60, 30] },
+  { n: 5,  bg: [241, 219, 200], fg: [122, 79, 48] },
+  { n: 8,  bg: [246, 232, 200], fg: [138, 102, 40] },
+  { n: 10, bg: [248, 240, 205], fg: [138, 115, 40] },
+  { n: 12, bg: [234, 234, 200], fg: [120, 110, 50] },
+  { n: 14, bg: [221, 235, 198], fg: [95, 115, 55] },
+  { n: 16, bg: [206, 230, 184], fg: [75, 110, 40] },
+  { n: 18, bg: [188, 224, 168], fg: [55, 95, 25] },
+  { n: 20, bg: [165, 215, 142], fg: [40, 80, 18] },
+];
+function noteGradient(noteSur20) {
+  const v = Math.max(0, Math.min(20, Number(noteSur20) || 0));
+  let i = 0;
+  while (i < NOTE_STOPS.length - 1 && NOTE_STOPS[i + 1].n < v) i++;
+  if (i >= NOTE_STOPS.length - 1) {
+    const s = NOTE_STOPS[NOTE_STOPS.length - 1];
+    return { bg: `rgb(${s.bg.join(",")})`, fg: `rgb(${s.fg.join(",")})` };
+  }
+  const a = NOTE_STOPS[i], b = NOTE_STOPS[i + 1];
+  const t = (v - a.n) / (b.n - a.n);
+  const lerp = (x, y) => Math.round(x + (y - x) * t);
+  return {
+    bg: `rgb(${lerp(a.bg[0], b.bg[0])},${lerp(a.bg[1], b.bg[1])},${lerp(a.bg[2], b.bg[2])})`,
+    fg: `rgb(${lerp(a.fg[0], b.fg[0])},${lerp(a.fg[1], b.fg[1])},${lerp(a.fg[2], b.fg[2])})`,
+  };
+}
+function applyNoteCellStyle(td, noteSur20) {
+  const c = noteGradient(noteSur20);
+  td.style.background = c.bg;
+  td.style.color = c.fg;
+  td.style.fontWeight = "700";
+}
+function clearNoteCellStyle(td) {
+  td.style.background = "";
+  td.style.color = "";
+  td.style.fontWeight = "";
+}
+
 // Édition inline d'une cellule : remplace le contenu par un input et sauvegarde au blur/Enter
 function inlineCellEdit(td, stagiaireId, fixedFields, container) {
   // fixedFields : { type, theme_numero?, competence_code?, controle_libelle? }
@@ -443,6 +486,9 @@ function inlineCellEdit(td, stagiaireId, fixedFields, container) {
   // Sauvegarde l'état visuel actuel
   const originalText = td.textContent;
   const originalClass = td.className;
+  const originalBg = td.style.background;
+  const originalColor = td.style.color;
+  const originalFontWeight = td.style.fontWeight;
 
   const input = el("input", {
     type: "text",
@@ -495,6 +541,7 @@ function inlineCellEdit(td, stagiaireId, fixedFields, container) {
           evaluations = evaluations.filter((x) => x.id !== existing.id);
           td.textContent = "";
           td.className = "m-td-cell empty" + (isAdmin() ? " editable" : "");
+          clearNoteCellStyle(td);
           toast("Note effacée · Ctrl+Z pour annuler", "success", 2200);
           recordUndo("note effacée", async () => {
             const { id, created_at, updated_at, ...payload } = snapshot;
@@ -570,9 +617,9 @@ function inlineCellEdit(td, stagiaireId, fixedFields, container) {
         });
       }
       // Met à jour la cellule en place (sans détruire les autres inputs)
-      const ratio = note / 20;
       td.textContent = String(note);
-      td.className = "m-td-cell " + cellColorClass(ratio) + (isAdmin() ? " editable" : "");
+      td.className = "m-td-cell" + (isAdmin() ? " editable" : "");
+      applyNoteCellStyle(td, note);
       refreshAnalyticsInPlace(container);
     } catch (e) {
       toast(e.message, "error");
@@ -583,6 +630,9 @@ function inlineCellEdit(td, stagiaireId, fixedFields, container) {
   function restore() {
     td.textContent = originalText;
     td.className = originalClass;
+    td.style.background = originalBg;
+    td.style.color = originalColor;
+    td.style.fontWeight = originalFontWeight;
   }
 
   input.addEventListener("blur", save);
@@ -824,8 +874,9 @@ function renderMatrice(container) {
     if (allEvals.length > 0) {
       const avg = allEvals.reduce((sum, e) => sum + (Number(e.note) / Number(e.note_max)) * 20, 0) / allEvals.length;
       const rounded = Math.round(avg * 10) / 10;
-      const cls = cellColorClass(avg / 20);
-      tr.appendChild(el("td", { class: "m-td-avg " + cls, title: allEvals.length + " évaluations" }, String(rounded)));
+      const tdAvg = el("td", { class: "m-td-avg", title: allEvals.length + " évaluations" }, String(rounded));
+      applyNoteCellStyle(tdAvg, avg);
+      tr.appendChild(tdAvg);
     } else {
       tr.appendChild(el("td", { class: "m-td-avg empty" }, ""));
     }
@@ -834,8 +885,9 @@ function renderMatrice(container) {
     MATRIX_SPECIAL_COLS.forEach((c) => {
       const ev = noteForStagiaireCompetence(s.id, c.key);
       const cell = noteMatrixCell(ev);
-      const td = el("td", { class: "m-td-cell " + (cell ? cellColorClass(cell.ratio) : "empty") });
+      const td = el("td", { class: "m-td-cell" + (cell ? "" : " empty") });
       if (cell) {
+        applyNoteCellStyle(td, cell.ratio * 20);
         td.textContent = String(cell.note);
         td.title = `${c.label} : ${cell.note}/${cell.max} le ${formatDate(cell.eval.date_eval)}`;
       }
@@ -850,8 +902,9 @@ function renderMatrice(container) {
     for (let n = 1; n <= 57; n++) {
       const ev = noteForStagiaireTheme(s.id, n);
       const cell = noteMatrixCell(ev);
-      const td = el("td", { class: "m-td-cell " + (cell ? cellColorClass(cell.ratio) : "empty") });
+      const td = el("td", { class: "m-td-cell" + (cell ? "" : " empty") });
       if (cell) {
+        applyNoteCellStyle(td, cell.ratio * 20);
         td.textContent = String(cell.note);
         td.title = `Thème ${n} : ${cell.note}/${cell.max} le ${formatDate(cell.eval.date_eval)}`;
       }
