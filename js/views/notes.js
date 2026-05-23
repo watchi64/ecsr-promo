@@ -2,11 +2,11 @@ import {
   listStagiaires, listCompetences, listEvaluations, listThemes,
   addEvaluation, updateEvaluation, deleteEvaluation, listAuditForEvaluation,
   listUserProfiles,
-} from "../db.js?v=20260521a";
-import { el, clear, isoDate, formatDate, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260521a";
-import { icon } from "../icons.js?v=20260521a";
-import { getAdminEmail, isAdmin } from "../auth-admin.js?v=20260521a";
-import { recordUndo } from "../undo.js?v=20260521a";
+} from "../db.js?v=20260523a";
+import { el, clear, isoDate, formatDate, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260523a";
+import { icon } from "../icons.js?v=20260523a";
+import { getAdminEmail, isAdmin } from "../auth-admin.js?v=20260523a";
+import { recordUndo } from "../undo.js?v=20260523a";
 
 let userProfiles = [];  // pour résoudre l'anonymat par stagiaire_id
 
@@ -28,6 +28,27 @@ const NOTES_SORT_OPTIONS = [
 ];
 
 let currentNotesSort = localStorage.getItem("ecsr_notes_sort") || "default";
+
+// Parse une saisie de note. Deux formats acceptés :
+//   - "X/Y"  → convertit en (X/Y)*20, arrondi à 0.1, stocke note_max=20.
+//   - "X"    → note sur 20 directe (validé 0..20).
+// Retour : null si vide, { error } si invalide, sinon { note, note_max, converted, original? }.
+function parseNoteInput(raw) {
+  const s = String(raw ?? "").trim().replace(",", ".");
+  if (s === "") return null;
+  const m = s.match(/^(\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)$/);
+  if (m) {
+    const x = Number(m[1]), y = Number(m[2]);
+    if (!(y > 0)) return { error: "Le diviseur doit être supérieur à 0" };
+    if (x < 0 || x > y) return { error: `Note entre 0 et ${y}` };
+    const note = Math.round((x / y) * 20 * 10) / 10;
+    return { note, note_max: 20, converted: true, original: `${m[1]}/${m[2]}` };
+  }
+  const n = Number(s);
+  if (!isFinite(n)) return { error: "Saisie invalide (attendu : nombre ou X/Y)" };
+  if (n < 0 || n > 20) return { error: "Note entre 0 et 20" };
+  return { note: n, note_max: 20, converted: false };
+}
 
 function stagiaireAvg(stagiaireId) {
   const evs = evaluations.filter((e) => e.stagiaire_id === stagiaireId && e.note != null && e.note_max);
@@ -156,7 +177,7 @@ function openEditModal(existing, onSaved) {
   typeSel.addEventListener("change", updateConditional);
   updateConditional();
 
-  const noteInput = el("input", { type: "number", min: 0, step: "0.25", placeholder: "Ex. 14.5", value: existing?.note ?? "" });
+  const noteInput = el("input", { type: "text", inputmode: "decimal", placeholder: "Ex. 14.5 ou 10/12", value: existing?.note ?? "" });
   const noteMaxInput = el("input", { type: "number", min: 1, step: "0.5", value: existing?.note_max ?? 20 });
   const dateInput = el("input", { type: "date", value: existing?.date_eval || isoDate(new Date()) });
   const obsInput = el("input", { type: "text", placeholder: "Observation (optionnel)", value: existing?.observation || "" });
@@ -165,6 +186,19 @@ function openEditModal(existing, onSaved) {
     if (!stagiaireSel.value) { toast("Choisir un stagiaire", "error"); return; }
     if (!typeSel.value) { toast("Choisir un type", "error"); return; }
 
+    // Parse de la note : accepte "X" ou "X/Y" (auto-converti en /20).
+    // Si format X/Y détecté, on force note_max=20 (override du champ Max).
+    let noteVal = null, noteMaxVal = Number(noteMaxInput.value);
+    if (noteInput.value.trim() !== "") {
+      const parsed = parseNoteInput(noteInput.value);
+      if (parsed?.error) { toast(parsed.error, "error"); return; }
+      noteVal = parsed.note;
+      if (parsed.converted) {
+        noteMaxVal = 20;
+        toast(`${parsed.original} → ${parsed.note}/20`, "success", 1800);
+      }
+    }
+
     const payload = {
       stagiaire_id: Number(stagiaireSel.value),
       type: typeSel.value,
@@ -172,8 +206,8 @@ function openEditModal(existing, onSaved) {
       theme_titre: typeSel.value === "Thème" ? (themeTitre.value || null) : null,
       competence_code: typeSel.value === "Compétence" ? (compSel.value || null) : null,
       controle_libelle: typeSel.value === "Contrôle" ? (controleLib.value || null) : null,
-      note: noteInput.value === "" ? null : Number(noteInput.value),
-      note_max: Number(noteMaxInput.value),
+      note: noteVal,
+      note_max: noteMaxVal,
       observation: obsInput.value || null,
       date_eval: dateInput.value,
     };
@@ -411,13 +445,11 @@ function inlineCellEdit(td, stagiaireId, fixedFields, container) {
   const originalClass = td.className;
 
   const input = el("input", {
-    type: "number",
-    min: 0,
-    max: 20,
-    step: "0.25",
+    type: "text",
+    inputmode: "decimal",
     class: "matrice-inline-input",
     value: existing?.note != null ? String(existing.note) : "",
-    placeholder: "/20",
+    placeholder: "/20 ou X/Y",
   });
 
   td.textContent = "";
@@ -462,14 +494,18 @@ function inlineCellEdit(td, stagiaireId, fixedFields, container) {
       return;
     }
 
-    const note = Number(raw);
-    if (isNaN(note) || note < 0 || note > 20) {
-      toast("Note entre 0 et 20", "error");
+    const parsed = parseNoteInput(raw);
+    if (!parsed || parsed.error) {
+      toast(parsed?.error || "Note invalide", "error");
       restore();
       return;
     }
-    // Pas de changement si la note est identique
-    if (existing && Number(existing.note) === note) {
+    const note = parsed.note;
+    if (parsed.converted) {
+      toast(`${parsed.original} → ${note}/20`, "success", 1800);
+    }
+    // Pas de changement si la note est identique (et /20)
+    if (existing && Number(existing.note) === note && Number(existing.note_max) === 20) {
       td.textContent = originalText;
       td.className = originalClass;
       return;
@@ -641,10 +677,10 @@ function startInlineEditInModal(valueWrap, stagiaireId, fixedFields, container, 
   }
   const originalHtml = valueWrap.innerHTML;
   const input = el("input", {
-    type: "number", min: 0, max: 20, step: "0.25",
+    type: "text", inputmode: "decimal",
     class: "matrice-inline-input sd-edit-input",
     value: existing?.note != null ? String(existing.note) : "",
-    placeholder: "/20",
+    placeholder: "/20 ou X/Y",
   });
   valueWrap.innerHTML = "";
   valueWrap.appendChild(input);
@@ -663,11 +699,15 @@ function startInlineEditInModal(valueWrap, stagiaireId, fixedFields, container, 
       await reload(container);
       return;
     }
-    const note = Number(raw);
-    if (isNaN(note) || note < 0 || note > 20) {
-      toast("Note entre 0 et 20", "error");
+    const parsed = parseNoteInput(raw);
+    if (!parsed || parsed.error) {
+      toast(parsed?.error || "Note invalide", "error");
       valueWrap.innerHTML = originalHtml;
       return;
+    }
+    const note = parsed.note;
+    if (parsed.converted) {
+      toast(`${parsed.original} → ${note}/20`, "success", 1800);
     }
     const email = getAdminEmail();
     try {
