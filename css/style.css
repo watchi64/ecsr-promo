@@ -51,8 +51,8 @@
   --accent-soft-2: #D8E1C0;
 
   /* --- Statuts traffic-light --- */
-  --c-stop:      #B91C1C;
-  --c-stop-soft: #FDECEC;
+  --c-stop:      #A05A3D;
+  --c-stop-soft: #F6E4D7;
   --c-wait:      #B45309;
   --c-wait-soft: #FBEACB;
   --c-go:        #4D7C0F;
@@ -3791,7 +3791,7 @@ button.theme-date.editable.muted { color: var(--text-faint); }
 /* Couleurs par note ratio */
 .matrice-table .empty { color: var(--text-faint); background: transparent; }
 .matrice-table .empty.editable:hover::after { content: "+"; }
-.matrice-table .bad    { background: #FCD9D9; color: #991B1B; font-weight: 700; }
+.matrice-table .bad    { background: #F1DBC8; color: #7A4F30; font-weight: 700; }
 .matrice-table .warn   { background: #FBE5C1; color: #92400E; font-weight: 700; }
 .matrice-table .ok     { background: #DBE9C4; color: #3F6212; font-weight: 700; }
 .matrice-table .great  { background: #BFE0A6; color: #2C5212; font-weight: 800; }
@@ -3799,7 +3799,7 @@ button.theme-date.editable.muted { color: var(--text-faint); }
 /* Alternance des lignes pour bien repérer chaque stagiaire */
 .matrice-table tbody tr:nth-child(even) td { background: var(--bg-subtle); }
 .matrice-table tbody tr:nth-child(even) td.sticky { background: var(--bg-soft); }
-.matrice-table tbody tr:nth-child(even) td.bad   { background: #FCD9D9; }
+.matrice-table tbody tr:nth-child(even) td.bad   { background: #F1DBC8; }
 .matrice-table tbody tr:nth-child(even) td.warn  { background: #FBE5C1; }
 .matrice-table tbody tr:nth-child(even) td.ok    { background: #DBE9C4; }
 .matrice-table tbody tr:nth-child(even) td.great { background: #BFE0A6; }
@@ -3899,8 +3899,8 @@ button.theme-date.editable.muted { color: var(--text-faint); }
   color: var(--text-muted);
   font-weight: 600;
 }
-.notes-kpi.bad   { background: #FCD9D9; }
-.notes-kpi.bad   .notes-kpi-value { color: #991B1B; }
+.notes-kpi.bad   { background: #F1DBC8; }
+.notes-kpi.bad   .notes-kpi-value { color: #7A4F30; }
 .notes-kpi.warn  { background: #FBE5C1; }
 .notes-kpi.warn  .notes-kpi-value { color: #92400E; }
 .notes-kpi.ok    { background: #DBE9C4; }
@@ -3923,7 +3923,7 @@ button.theme-date.editable.muted { color: var(--text-faint); }
   font-size: 0.9rem;
   font-weight: 700;
 }
-.ranking-title.weak   { color: #B91C1C; }
+.ranking-title.weak   { color: #A05A3D; }
 .ranking-title.strong { color: #3F6212; }
 .ranking-sub { margin: -0.2rem 0 0.3rem; font-size: 0.75rem; }
 
@@ -3936,7 +3936,7 @@ button.theme-date.editable.muted { color: var(--text-faint); }
   border-radius: var(--r-sm);
   background: var(--bg-subtle);
 }
-.theme-stat-card.bad   { background: #FCD9D9; }
+.theme-stat-card.bad   { background: #F1DBC8; }
 .theme-stat-card.warn  { background: #FBE5C1; }
 .theme-stat-card.ok    { background: #DBE9C4; }
 .theme-stat-card.great { background: #BFE0A6; }
