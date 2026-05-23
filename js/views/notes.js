@@ -2,11 +2,11 @@ import {
   listStagiaires, listCompetences, listEvaluations, listThemes,
   addEvaluation, updateEvaluation, deleteEvaluation, listAuditForEvaluation,
   listUserProfiles,
-} from "../db.js?v=20260523e";
-import { el, clear, isoDate, formatDate, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260523e";
-import { icon } from "../icons.js?v=20260523e";
-import { getAdminEmail, isAdmin } from "../auth-admin.js?v=20260523e";
-import { recordUndo } from "../undo.js?v=20260523e";
+} from "../db.js?v=20260523f";
+import { el, clear, isoDate, formatDate, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260523f";
+import { icon } from "../icons.js?v=20260523f";
+import { getAdminEmail, isAdmin } from "../auth-admin.js?v=20260523f";
+import { recordUndo } from "../undo.js?v=20260523f";
 
 let userProfiles = [];  // pour résoudre l'anonymat par stagiaire_id
 
@@ -476,6 +476,9 @@ function clearNoteCellStyle(td) {
 // Édition inline d'une cellule : remplace le contenu par un input et sauvegarde au blur/Enter
 function inlineCellEdit(td, stagiaireId, fixedFields, container) {
   // fixedFields : { type, theme_numero?, competence_code?, controle_libelle? }
+  // Garde-fou : pas de second popover si la cellule est déjà en édition.
+  if (td.querySelector(".matrice-popover")) return;
+
   let existing = null;
   if (fixedFields.type === "Thème" && fixedFields.theme_numero != null) {
     existing = noteForStagiaireTheme(stagiaireId, fixedFields.theme_numero);
@@ -483,42 +486,59 @@ function inlineCellEdit(td, stagiaireId, fixedFields, container) {
     existing = noteForStagiaireCompetence(stagiaireId, fixedFields.competence_code);
   }
 
-  // Sauvegarde l'état visuel actuel
+  // Sauvegarde l'état visuel : la valeur courante reste affichée derrière le popover.
   const originalText = td.textContent;
   const originalClass = td.className;
   const originalBg = td.style.background;
   const originalColor = td.style.color;
   const originalFontWeight = td.style.fontWeight;
+  const originalPosition = td.style.position;
+  const originalZIndex = td.style.zIndex;
 
+  // Cellule active : position:relative pour ancrer le popover absolute, z-index
+  // pour que le popover passe au-dessus des cellules voisines.
+  td.style.position = "relative";
+  td.style.zIndex = "10";
+
+  // === Popover d'édition ===
+  // Identique desktop & mobile. Input large (90 px) → on voit ce qu'on tape,
+  // même à 5+ caractères ("10/12"). Boutons OK et Annuler explicites pour
+  // tout device (le clavier décimal iOS n'a pas de touche Done).
   const input = el("input", {
     type: "text",
     inputmode: "decimal",
     enterkeyhint: "done",
     class: "matrice-inline-input",
-    style: "width:100%;min-width:0;box-sizing:border-box;",
+    style: "width:90px;padding:6px 8px;font-size:0.95em;border:1px solid #ccc;border-radius:4px;outline:none;background:#fff;color:#222;",
     value: existing?.note != null ? String(existing.note) : "",
-    placeholder: "/20",
+    placeholder: "/20 ou X/Y",
   });
-  // Bouton Valider en overlay flottant SOUS la cellule (position absolute).
-  // Indispensable mobile : le clavier décimal iOS n'a pas de touche Done, sans
-  // ce bouton le blur ne se déclenche jamais. L'overlay évite de déborder dans
-  // les cellules voisines (matrice très étroite).
-  const saveBtn = el("button", {
+  const okBtn = el("button", {
     type: "button",
-    class: "matrice-inline-ok",
     "aria-label": "Valider",
-    style: "position:absolute;top:calc(100% + 2px);left:50%;transform:translateX(-50%);padding:4px 14px;background:var(--accent,#6B7F4E);color:#fff;border:0;cursor:pointer;font-size:0.8em;line-height:1;border-radius:4px;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,0.18);white-space:nowrap;font-weight:600;",
+    style: "padding:7px 12px;background:var(--accent,#6B7F4E);color:#fff;border:0;cursor:pointer;font-size:0.85em;line-height:1;border-radius:4px;font-weight:600;white-space:nowrap;",
   }, "✓ OK");
-  saveBtn.addEventListener("mousedown", (e) => e.preventDefault());
-  saveBtn.addEventListener("click", (e) => { e.stopPropagation(); input.blur(); });
-  const editor = el("div", { class: "matrice-inline-editor",
-    style: "position:relative;width:100%;" });
-  editor.addEventListener("click", (e) => e.stopPropagation());
-  editor.appendChild(input);
-  editor.appendChild(saveBtn);
+  const cancelBtn = el("button", {
+    type: "button",
+    "aria-label": "Annuler",
+    style: "padding:7px 10px;background:#fff;color:#666;border:1px solid #ccc;cursor:pointer;font-size:0.85em;line-height:1;border-radius:4px;",
+  }, "✕");
+  okBtn.addEventListener("mousedown", (e) => e.preventDefault());
+  okBtn.addEventListener("click", (e) => { e.stopPropagation(); input.blur(); });
+  // Cancel : mousedown AVANT le blur de l'input, pour pouvoir annuler proprement.
+  cancelBtn.addEventListener("mousedown", (e) => { e.preventDefault(); cancelled = true; });
+  cancelBtn.addEventListener("click", (e) => { e.stopPropagation(); restore(); });
 
-  td.textContent = "";
-  td.appendChild(editor);
+  const popover = el("div", {
+    class: "matrice-popover",
+    style: "position:absolute;top:calc(100% + 6px);left:0;z-index:200;background:#fff;border:1px solid #ddd;border-radius:8px;padding:8px;box-shadow:0 6px 20px rgba(0,0,0,0.18);display:flex;gap:6px;align-items:center;white-space:nowrap;",
+  });
+  popover.addEventListener("click", (e) => e.stopPropagation());
+  popover.appendChild(input);
+  popover.appendChild(okBtn);
+  popover.appendChild(cancelBtn);
+
+  td.appendChild(popover);
   input.focus();
   input.select();
 
@@ -544,6 +564,8 @@ function inlineCellEdit(td, stagiaireId, fixedFields, container) {
           td.textContent = "";
           td.className = "m-td-cell empty" + (isAdmin() ? " editable" : "");
           clearNoteCellStyle(td);
+          td.style.position = originalPosition;
+          td.style.zIndex = originalZIndex;
           toast("Note effacée · Ctrl+Z pour annuler", "success", 2200);
           recordUndo("note effacée", async () => {
             const { id, created_at, updated_at, ...payload } = snapshot;
@@ -555,8 +577,7 @@ function inlineCellEdit(td, stagiaireId, fixedFields, container) {
         return;
       }
       // Cellule vide, input vide → restore
-      td.textContent = originalText;
-      td.className = originalClass;
+      restore();
       return;
     }
 
@@ -572,8 +593,7 @@ function inlineCellEdit(td, stagiaireId, fixedFields, container) {
     }
     // Pas de changement si la note est identique (et /20)
     if (existing && Number(existing.note) === note && Number(existing.note_max) === 20) {
-      td.textContent = originalText;
-      td.className = originalClass;
+      restore();
       return;
     }
 
@@ -622,6 +642,8 @@ function inlineCellEdit(td, stagiaireId, fixedFields, container) {
       td.textContent = String(note);
       td.className = "m-td-cell" + (isAdmin() ? " editable" : "");
       applyNoteCellStyle(td, note);
+      td.style.position = originalPosition;
+      td.style.zIndex = originalZIndex;
       refreshAnalyticsInPlace(container);
     } catch (e) {
       toast(e.message, "error");
@@ -630,11 +652,11 @@ function inlineCellEdit(td, stagiaireId, fixedFields, container) {
   }
 
   function restore() {
-    td.textContent = originalText;
-    td.className = originalClass;
-    td.style.background = originalBg;
-    td.style.color = originalColor;
-    td.style.fontWeight = originalFontWeight;
+    if (popover.parentNode === td) td.removeChild(popover);
+    td.style.position = originalPosition;
+    td.style.zIndex = originalZIndex;
+    // textContent / className / bg / color / fontWeight non modifiés par l'édition
+    // (le popover est un overlay) → rien d'autre à restaurer.
   }
 
   input.addEventListener("blur", save);
