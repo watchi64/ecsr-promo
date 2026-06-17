@@ -1,5 +1,5 @@
-export const SUPABASE_URL = "https://dacqponglpeuscbgwfqn.supabase.co";
-export const SUPABASE_KEY = "sb_publishable_1V70A1UAFFGPigcgYkOcdw_sZAE_yCn";
+export const SUPABASE_URL = "https://crpduennbqaemhfaywrz.supabase.co";
+export const SUPABASE_KEY = "sb_publishable_Zcs0L_GW3PR7aOciVZa1PA_RABMaQ0W";
 
 export const TYPES = ["Salle", "Voiture"];
 export const RESULTATS = [
