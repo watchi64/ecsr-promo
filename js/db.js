@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20260617a";
+import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20260625a";
 
 // fetch avec timeout : sans ça, une requête peut rester pendue indéfiniment
 // (réseau mobile instable) → "Chargement" infini. Avec, elle échoue proprement après 15s.
@@ -54,10 +54,15 @@ export function invalidateCache(key) {
 
 // === Stagiaires & Profs ===
 
-export async function listStagiaires() {
-  return cachedQuery("stagiaires", async () => {
-    const { data, error } = await supabase
-      .from("stagiaires").select("*").order("ordre");
+// Par défaut, ne renvoie que les stagiaires actifs (les abandons sont masqués
+// partout : planning, notes, passages, liste d'invitation). Passer
+// { includeInactive: true } pour récupérer aussi les abandons (gestion admin).
+export async function listStagiaires({ includeInactive = false } = {}) {
+  const key = includeInactive ? "stagiaires_all" : "stagiaires";
+  return cachedQuery(key, async () => {
+    let q = supabase.from("stagiaires").select("*").order("ordre");
+    if (!includeInactive) q = q.eq("actif", true);
+    const { data, error } = await q;
     if (error) throw error;
     return data;
   });
@@ -82,18 +87,21 @@ export async function addStagiaire(prenom) {
   const { error } = await supabase.from("stagiaires").insert({ prenom, ordre });
   if (error) throw error;
   invalidateCache("stagiaires");
+  invalidateCache("stagiaires_all");
 }
 
 export async function updateStagiaire(id, prenom) {
   const { error } = await supabase.from("stagiaires").update({ prenom }).eq("id", id);
   if (error) throw error;
   invalidateCache("stagiaires");
+  invalidateCache("stagiaires_all");
 }
 
 export async function deleteStagiaire(id) {
   const { error } = await supabase.from("stagiaires").delete().eq("id", id);
   if (error) throw error;
   invalidateCache("stagiaires");
+  invalidateCache("stagiaires_all");
 }
 
 export async function addProf(nom) {
