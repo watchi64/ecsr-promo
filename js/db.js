@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20260626b";
+import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20260626c";
 
 // fetch avec timeout : sans ça, une requête peut rester pendue indéfiniment
 // (réseau mobile instable) → "Chargement" infini. Avec, elle échoue proprement après 15s.
@@ -141,6 +141,12 @@ export async function listPassages(filters = {}) {
 
 export async function addPassage(p) {
   const { data, error } = await supabase.from("passages").insert(p).select().single();
+  if (error) throw error;
+  return data;
+}
+
+export async function updatePassage(id, patch) {
+  const { data, error } = await supabase.from("passages").update(patch).eq("id", id).select().single();
   if (error) throw error;
   return data;
 }

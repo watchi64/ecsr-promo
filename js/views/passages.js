@@ -1,10 +1,10 @@
-import { listStagiaires, listPassages, addPassage, deletePassage, listRecentPassagesAudit } from "../db.js?v=20260626b";
-import { el, clear, isoDate, formatDate, toast, displayStagiaire } from "../utils.js?v=20260626b";
-import { icon } from "../icons.js?v=20260626b";
-import { recordUndo } from "../undo.js?v=20260626b";
-import { TYPES, RESULTATS } from "../config.js?v=20260626b";
-import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260626b";
-import { getCurrentWho } from "../identity.js?v=20260626b";
+import { listStagiaires, listPassages, addPassage, updatePassage, deletePassage, listRecentPassagesAudit } from "../db.js?v=20260626c";
+import { el, clear, isoDate, formatDate, toast, displayStagiaire } from "../utils.js?v=20260626c";
+import { icon } from "../icons.js?v=20260626c";
+import { recordUndo } from "../undo.js?v=20260626c";
+import { TYPES, RESULTATS } from "../config.js?v=20260626c";
+import { isAdmin, getProfile } from "../auth-admin.js?v=20260626c";
+import { getCurrentWho } from "../identity.js?v=20260626c";
 
 let stagiaires = [];
 let passages = [];
@@ -12,68 +12,68 @@ let filterStagiaire = "";
 let filterType = "";
 let filterResultat = "";
 
-function openAddModal(onSaved) {
+// existing = null => ajout ; existing = passage => modification.
+function openAddModal(onSaved, existing = null) {
   const today = isoDate(new Date());
+  const admin = isAdmin();
   const backdrop = el("div", { class: "modal-backdrop" });
 
-  // Non-admins : date min = aujourd'hui - 2 jours (anti backdating)
-  const admin = isAdmin();
-  const minDateForNonAdmin = (() => {
-    const d = new Date();
-    d.setDate(d.getDate() - 2);
-    return isoDate(d);
-  })();
   const dateInput = el("input", {
     type: "date",
-    value: today,
+    value: existing ? existing.date : today,
     max: today,
-    min: admin ? undefined : minDateForNonAdmin,
   });
   const stagiaireSel = el("select");
   stagiaireSel.appendChild(el("option", { value: "" }, "—"));
   stagiaires.forEach((s) => stagiaireSel.appendChild(el("option", { value: s.id }, displayStagiaire(s))));
+  if (existing) {
+    stagiaireSel.value = String(existing.stagiaire_id);
+    // En édition, un non-admin ne peut pas réattribuer le passage à un autre stagiaire
+    if (!admin) stagiaireSel.disabled = true;
+  }
 
   const typeSel = el("select");
   TYPES.forEach((t) => typeSel.appendChild(el("option", { value: t }, t)));
+  if (existing) typeSel.value = existing.type;
 
   const resultatSel = el("select");
   RESULTATS.forEach((r) => resultatSel.appendChild(el("option", { value: r.value }, r.value)));
+  if (existing) resultatSel.value = existing.resultat;
 
   const remplacantSel = el("select");
   remplacantSel.appendChild(el("option", { value: "" }, "—"));
   stagiaires.forEach((s) => remplacantSel.appendChild(el("option", { value: s.id }, displayStagiaire(s))));
+  if (existing && existing.remplacant_id) remplacantSel.value = String(existing.remplacant_id);
 
-  const commentInput = el("input", { type: "text", placeholder: "Optionnel" });
+  const commentInput = el("input", { type: "text", placeholder: "Optionnel", value: existing?.commentaire || "" });
 
   async function save() {
     if (!stagiaireSel.value) { toast("Choisir un stagiaire", "error"); return; }
+    if (dateInput.value > today) { toast("Pas de date future", "error"); return; }
 
-    // Garde-fou : non-admin ne peut pas rétro-dater de plus de 2 jours
-    if (!admin && dateInput.value < minDateForNonAdmin) {
-      toast("Date trop ancienne. Limite de 2 jours en arrière (admin uniquement pour les dates plus anciennes).", "error", 4000);
-      return;
-    }
-    if (dateInput.value > today) {
-      toast("Pas de date future", "error");
-      return;
-    }
-
+    const who = getCurrentWho();
+    const fields = {
+      date: dateInput.value,
+      stagiaire_id: Number(stagiaireSel.value),
+      type: typeSel.value,
+      resultat: resultatSel.value,
+      remplacant_id: remplacantSel.value ? Number(remplacantSel.value) : null,
+      commentaire: commentInput.value || null,
+    };
     try {
-      const who = getCurrentWho();
-      const inserted = await addPassage({
-        date: dateInput.value,
-        stagiaire_id: Number(stagiaireSel.value),
-        type: typeSel.value,
-        resultat: resultatSel.value,
-        remplacant_id: remplacantSel.value ? Number(remplacantSel.value) : null,
-        commentaire: commentInput.value || null,
-        origine: "Manuel",
-        created_by_who: who,
-        updated_by_who: who,
-      });
-      toast("Passage enregistré · Ctrl+Z pour annuler", "success", 2400);
-      if (inserted?.id) {
-        recordUndo("passage ajouté", async () => { await deletePassage(inserted.id); });
+      if (existing) {
+        const prev = {
+          date: existing.date, stagiaire_id: existing.stagiaire_id, type: existing.type,
+          resultat: existing.resultat, remplacant_id: existing.remplacant_id,
+          commentaire: existing.commentaire, updated_by_who: existing.updated_by_who,
+        };
+        await updatePassage(existing.id, { ...fields, updated_by_who: who });
+        toast("Passage modifié · Ctrl+Z pour annuler", "success", 2400);
+        recordUndo("passage modifié", async () => { await updatePassage(existing.id, prev); });
+      } else {
+        const inserted = await addPassage({ ...fields, origine: "Manuel", created_by_who: who, updated_by_who: who });
+        toast("Passage enregistré · Ctrl+Z pour annuler", "success", 2400);
+        if (inserted?.id) recordUndo("passage ajouté", async () => { await deletePassage(inserted.id); });
       }
       backdrop.remove();
       onSaved();
@@ -92,14 +92,9 @@ function openAddModal(onSaved) {
     el("label", {}, "Date"),
     dateInput,
   );
-  if (!admin) {
-    dateField.appendChild(el("small", { class: "field-hint muted" },
-      "Tu peux ajouter des passages des 2 derniers jours. Pour les dates plus anciennes, un admin doit s'en charger."
-    ));
-  }
 
   const modal = el("div", { class: "modal" },
-    el("h3", {}, "Ajouter un passage"),
+    el("h3", {}, existing ? "Modifier un passage" : "Ajouter un passage"),
     el("div", { class: "modal-form" },
       dateField,
       el("div", { class: "field" }, el("label", {}, "Stagiaire"), stagiaireSel),
@@ -123,6 +118,8 @@ function resultTag(resultat) {
 
 function renderTable(container) {
   const admin = isAdmin();
+  const myStagiaireId = getProfile()?.stagiaire_id ?? null;
+  const showActions = admin || myStagiaireId != null;
   let filtered = passages;
   if (filterStagiaire) filtered = filtered.filter((p) => p.stagiaire_id === Number(filterStagiaire));
   if (filterType)     filtered = filtered.filter((p) => p.type === filterType);
@@ -145,7 +142,7 @@ function renderTable(container) {
       el("th", {}, "Résultat"),
       el("th", {}, "Remplacé par"),
       el("th", {}, "Ajouté par"),
-      admin ? el("th", { style: "width:50px" }, "") : null
+      showActions ? el("th", { style: "width:84px" }, "") : null
     )
   ));
 
@@ -168,6 +165,14 @@ function renderTable(container) {
     }) : null;
     if (delBtn) delBtn.appendChild(icon.trash());
 
+    // Modification : admin partout, sinon seulement ses propres passages (sa fiche stagiaire).
+    const editable = admin || (myStagiaireId != null && p.stagiaire_id === myStagiaireId);
+    const editBtn = editable ? el("button", {
+      class: "btn small ghost icon-only",
+      "aria-label": "Modifier",
+      onClick: () => openAddModal(() => reload(container), p),
+    }, "✎") : null;
+
     const whoLabel = p.created_by_who || (p.origine === "Planning" ? "Auto" : "—");
     const isAdmin_ = whoLabel.includes("@");
 
@@ -178,7 +183,7 @@ function renderTable(container) {
       el("td", {}, resultTag(p.resultat)),
       el("td", { class: "muted" }, p.remplacant ? displayStagiaire(p.remplacant) : "—"),
       el("td", {}, el("span", { class: "tag who" + (isAdmin_ ? " admin" : "") }, whoLabel)),
-      admin ? el("td", {}, delBtn) : null
+      showActions ? el("td", {}, el("span", { style: "display:inline-flex; gap:0.3rem" }, editBtn, delBtn)) : null
     );
     tbody.appendChild(tr);
   });
