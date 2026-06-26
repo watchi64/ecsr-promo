@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20260625a";
+import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20260626a";
 
 // fetch avec timeout : sans ça, une requête peut rester pendue indéfiniment
 // (réseau mobile instable) → "Chargement" infini. Avec, elle échoue proprement après 15s.
@@ -150,6 +150,33 @@ export async function deletePassage(id) {
   if (error) throw error;
 }
 
+// Insertion groupée de passages (validation d'une semaine de planning).
+export async function addPassagesBatch(rows) {
+  if (!rows || rows.length === 0) return [];
+  const { data, error } = await supabase.from("passages").insert(rows).select();
+  if (error) throw error;
+  return data;
+}
+
+// Suppression groupée (pour annuler une validation via Ctrl+Z).
+export async function deletePassagesBatch(ids) {
+  if (!ids || ids.length === 0) return;
+  const { error } = await supabase.from("passages").delete().in("id", ids);
+  if (error) throw error;
+}
+
+// Passages existants sur une plage de dates : sert à dédoublonner la validation hebdo
+// (un stagiaire déjà saisi, manuel ou auto, ne doit pas être recréé).
+export async function getPassagesInRange(dateFrom, dateTo) {
+  const { data, error } = await supabase
+    .from("passages")
+    .select("stagiaire_id, type, date")
+    .gte("date", dateFrom)
+    .lte("date", dateTo);
+  if (error) throw error;
+  return data;
+}
+
 // Stats agrégées par stagiaire (pour Dashboard)
 export async function getStats() {
   const { data, error } = await supabase
@@ -209,17 +236,43 @@ export async function upsertHalfMeta(meta) {
   if (error) throw error;
 }
 
-// Pédagogues du planning courant (pour ajouter au compteur Tableau de bord)
+// Pédagogues du planning courant (pour ajouter au compteur Tableau de bord).
+// Dédoublonné contre les passages Salle déjà enregistrés ce jour-là : sinon, une fois la
+// semaine validée (« Valider la semaine »), le pédagogue serait compté deux fois
+// (une via le passage créé, une via ce bump planning).
 export async function getPedagogueCountsFromPlanning(semaine_lundi) {
   const { data, error } = await supabase
     .from("planning_entries")
-    .select("pedagogue_id")
+    .select("day_index, pedagogue_id")
     .eq("semaine_lundi", semaine_lundi)
     .eq("activite", "Pédagogie salle")
     .not("pedagogue_id", "is", null);
   if (error) throw error;
+
+  // Date locale (YYYY-MM-DD) du lundi + day_index, sans décalage timezone.
+  const monday = new Date(semaine_lundi + "T00:00:00");
+  const dayIso = (di) => {
+    const d = new Date(monday);
+    d.setDate(d.getDate() + di);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  };
+
+  // Passages Salle déjà saisis cette semaine : ces (stagiaire, jour) ne sont plus bumpés.
+  const { data: pass, error: perr } = await supabase
+    .from("passages")
+    .select("stagiaire_id, date")
+    .eq("type", "Salle")
+    .gte("date", semaine_lundi)
+    .lte("date", dayIso(4));
+  if (perr) throw perr;
+  const counted = new Set((pass || []).map((p) => p.stagiaire_id + "|" + p.date));
+
   const counts = {};
   data.forEach((row) => {
+    if (counted.has(row.pedagogue_id + "|" + dayIso(row.day_index))) return;
     counts[row.pedagogue_id] = (counts[row.pedagogue_id] || 0) + 1;
   });
   return counts;

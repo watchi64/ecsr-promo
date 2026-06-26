@@ -721,7 +721,9 @@ h3 {
   background: var(--bg-elev);
   border: 1px solid var(--line);
   border-radius: var(--r);
-  overflow: hidden;
+  /* Pas d'overflow:hidden ici : il clippait les dropdowns (sujet, élèves,
+     formateur) qui s'ouvrent vers le bas et débordent sur le jour suivant.
+     Les coins arrondis sont gérés par le border-radius des enfants. */
   transition: border-color 0.15s;
   display: grid;
   grid-template-columns: 78px 1fr;
@@ -741,6 +743,8 @@ h3 {
   color: white;
   text-align: center;
   border-right: 1px solid var(--line);
+  border-top-left-radius: calc(var(--r) - 1px);
+  border-bottom-left-radius: calc(var(--r) - 1px);
 }
 
 .p-day-name {
@@ -768,6 +772,11 @@ h3 {
 }
 .p-half + .p-half {
   border-top: 1px solid var(--line);
+}
+/* Coin haut-droit de la carte jour : bandeau bg-subtle de la 1re demi-journée
+   (compense le retrait de overflow:hidden sur .p-day-card). */
+.p-day-content > .p-half:first-child .p-half-head {
+  border-top-right-radius: calc(var(--r) - 1px);
 }
 
 @media (max-width: 720px) {
@@ -2826,6 +2835,64 @@ button.theme-date.editable.muted { color: var(--text-faint); }
 }
 
 .planning-helper strong { color: var(--text); font-weight: 600; }
+
+/* === Valider la semaine (planning -> passages) === */
+.valider-modal { max-width: 460px; width: 100%; }
+.valider-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  max-height: 52vh;
+  overflow-y: auto;
+  margin: 0.2rem 0 0.9rem;
+  padding-right: 0.2rem;
+}
+.valider-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.45rem 0.55rem;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--bg-elev);
+  cursor: pointer;
+}
+.valider-row-top {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+.valider-rempl { align-self: stretch; margin-left: 1.7rem; }
+.valider-rempl.hidden { display: none; }
+.valider-row input[type="checkbox"] { width: 16px; height: 16px; flex-shrink: 0; accent-color: var(--accent); }
+.valider-row-main { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.valider-row-name { font-weight: 600; font-size: 0.9rem; }
+.valider-row-meta { font-size: 0.76rem; color: var(--text-muted); }
+.valider-res {
+  flex-shrink: 0;
+  padding: 0.22rem 0.35rem;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--bg-elev);
+  font-family: inherit;
+  font-size: 0.82rem;
+}
+.valider-row.already { opacity: 0.6; background: var(--bg-subtle); cursor: default; }
+.valider-done { font-size: 0.76rem; color: var(--text-muted); font-style: italic; flex-shrink: 0; }
+.valider-already-head {
+  margin-top: 0.5rem;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+/* État désactivé générique des boutons (retour visuel pendant une action async) */
+.btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+  pointer-events: none;
+}
 
 /* ============================================================
    Passages

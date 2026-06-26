@@ -3,11 +3,14 @@ import {
   upsertPlanningEntry, deletePlanningEntryById,
   getHalfMetaForWeek, upsertHalfMeta,
   getSetting, setSetting,
-} from "../db.js?v=20260625a";
-import { el, clear, isoDate, getMonday, addDays, formatDayShort, debounce, toast, displayStagiaire } from "../utils.js?v=20260625a";
-import { icon } from "../icons.js?v=20260625a";
-import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS } from "../config.js?v=20260625a";
-import { isAdmin } from "../auth-admin.js?v=20260625a";
+  addPassagesBatch, deletePassagesBatch, getPassagesInRange,
+} from "../db.js?v=20260626a";
+import { el, clear, isoDate, getMonday, addDays, formatDayShort, debounce, toast, displayStagiaire } from "../utils.js?v=20260626a";
+import { icon } from "../icons.js?v=20260626a";
+import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260626a";
+import { isAdmin } from "../auth-admin.js?v=20260626a";
+import { recordUndo } from "../undo.js?v=20260626a";
+import { getCurrentWho } from "../identity.js?v=20260626a";
 
 let stagiaires = [];
 let profs = [];
@@ -97,6 +100,9 @@ async function saveEntry(localId, patch) {
       if (cellEl) cellEl.dataset.activite = payload.activite || "";
       if (patch.activite !== undefined && cellEl) {
         const newCell = renderLaneCell(entry);
+        // Conserve le positionnement en grille, sinon la cellule retombe en colonne 1
+        // (auto-placement) et chevauche les lanes parallèles jusqu'au prochain re-render.
+        newCell.style.gridColumn = String((entry.lane ?? 0) + 1);
         cellEl.replaceWith(newCell);
       }
     } catch (e) {
@@ -176,82 +182,95 @@ function shuffle(arr) {
   return a;
 }
 
-/** IDs déjà mobilisés dans la semaine pour une activité donnée (sauf l'entry courante). */
-function busyIdsForActivity(activite, currentLid, { includePedagogue = true, includeEleves = true } = {}) {
-  const busy = new Set();
+/**
+ * Compte, pour la semaine courante, le nb d'apparitions de chaque stagiaire dans un rôle
+ * d'une activité, en excluant un créneau (celui qu'on remplit). role = "pedagogue" | "eleve".
+ * Sert à prioriser ceux qui sont passés le moins de fois dans ce rôle cette semaine.
+ */
+function roleCounts(activite, role, exceptLid) {
+  const counts = {};
   entries.forEach((e) => {
     if (e.activite !== activite) return;
-    if (e._lid === currentLid) return;
-    if (includePedagogue && e.pedagogue_id) busy.add(e.pedagogue_id);
-    if (includeEleves) (e.eleves_ids || []).forEach((id) => busy.add(id));
+    if (e._lid === exceptLid) return;
+    if (role === "pedagogue") {
+      if (e.pedagogue_id != null) counts[e.pedagogue_id] = (counts[e.pedagogue_id] || 0) + 1;
+    } else {
+      (e.eleves_ids || []).forEach((id) => { counts[id] = (counts[id] || 0) + 1; });
+    }
   });
-  return busy;
+  return counts;
 }
 
+// Élèves salle : 1 à 2 passages/semaine. Priorise les moins servis, plafond DUR à 2.
+// Rôle indépendant du tableau : un pédagogue peut être élève d'un AUTRE créneau.
 async function randomFillEleves(lid) {
   const entry = entries.find((e) => e._lid === lid);
   if (!entry) return;
 
-  const busy = busyIdsForActivity("Pédagogie salle", lid);
-  if (entry.pedagogue_id) busy.add(entry.pedagogue_id);
-
-  const candidates = stagiaires.filter((s) => !busy.has(s.id));
-  if (candidates.length === 0) {
-    toast("Plus aucun stagiaire disponible cette semaine", "error", 3500);
+  const eleveCount = roleCounts("Pédagogie salle", "eleve", lid);
+  // Plafond 2 ailleurs (le créneau courant est exclu du compte), jamais le pédagogue du créneau
+  const eligible = stagiaires.filter((s) =>
+    (eleveCount[s.id] || 0) < 2 && s.id !== entry.pedagogue_id
+  );
+  if (eligible.length === 0) {
+    toast("Tout le monde a déjà fait ses 2 passages élève cette semaine", "info", 3500);
     return;
   }
-  const picked = shuffle(candidates).slice(0, 4).map((s) => s.id);
+  // Mélange puis tri stable par nb de passages croissant => priorité aux moins servis
+  const ordered = shuffle(eligible).sort((a, b) => (eleveCount[a.id] || 0) - (eleveCount[b.id] || 0));
+  const picked = ordered.slice(0, 4).map((s) => s.id);
 
-  if (picked.length < 4) {
-    toast(`Seulement ${picked.length} stagiaire(s) disponible(s)`, "info", 3500);
-  } else {
-    toast("4 élèves tirés au hasard", "success", 1500);
-  }
+  toast(picked.length < 4
+    ? `${picked.length} élève(s) tiré(s) · priorité aux moins passés`
+    : "4 élèves tirés · priorité aux moins passés", "success", 1600);
   await saveEntry(lid, { eleves_ids: picked });
   renderInto(currentContainer);
 }
 
+// Au tableau (pédagogue salle) : ~1 passage/semaine. Priorise les moins servis (souple :
+// peut aller à 2 si besoin). Seul interdit : être pédagogue ET élève du même créneau.
 async function randomFillPedagogue(lid) {
   const entry = entries.find((e) => e._lid === lid);
   if (!entry) return;
 
-  // Exclut tout pédagogue déjà désigné cette semaine + les élèves de cette cellule
-  const busy = busyIdsForActivity("Pédagogie salle", lid, { includeEleves: false });
-  (entry.eleves_ids || []).forEach((id) => busy.add(id));
-
-  const candidates = stagiaires.filter((s) => !busy.has(s.id));
-  if (candidates.length === 0) {
-    toast("Tous les stagiaires sont déjà passés au tableau cette semaine", "error", 3500);
+  const pedaCount = roleCounts("Pédagogie salle", "pedagogue", lid);
+  const inCell = new Set(entry.eleves_ids || []);
+  const eligible = stagiaires.filter((s) => !inCell.has(s.id));
+  if (eligible.length === 0) {
+    toast("Aucun stagiaire éligible (tous élèves de ce créneau)", "info", 3500);
     return;
   }
-  const picked = candidates[Math.floor(Math.random() * candidates.length)];
+  const ordered = shuffle(eligible).sort((a, b) => (pedaCount[a.id] || 0) - (pedaCount[b.id] || 0));
+  const picked = ordered[0];
   await saveEntry(lid, { pedagogue_id: picked.id });
   renderInto(currentContainer);
   toast(displayStagiaire(picked) + " désigné(e) au tableau", "success", 1800);
 }
 
+// Voiture : priorise les moins passés en voiture cette semaine, sans plafond hebdo.
 async function randomFillVoitureEleves(lid, count) {
   const entry = entries.find((e) => e._lid === lid);
   if (!entry) return;
 
-  const busy = busyIdsForActivity("Voiture (conduite)", lid, { includePedagogue: false });
-
-  const candidates = stagiaires.filter((s) => !busy.has(s.id));
-  if (candidates.length === 0) {
-    toast("Plus aucun stagiaire disponible en voiture cette semaine", "error", 3500);
+  const voitCount = roleCounts("Voiture (conduite)", "eleve", lid);
+  const eligible = stagiaires.slice();
+  if (eligible.length === 0) {
+    toast("Aucun stagiaire", "error", 3000);
     return;
   }
-  const picked = shuffle(candidates).slice(0, count).map((s) => s.id);
-  if (picked.length < count) {
-    toast(`Seulement ${picked.length} stagiaire(s) disponible(s)`, "info", 3500);
-  } else {
-    toast(`${count} élève(s) en voiture tiré(s) au hasard`, "success", 1500);
-  }
+  const ordered = shuffle(eligible).sort((a, b) => (voitCount[a.id] || 0) - (voitCount[b.id] || 0));
+  const picked = ordered.slice(0, count).map((s) => s.id);
+
+  toast(picked.length < count
+    ? `${picked.length} élève(s) en voiture tiré(s) · priorité aux moins passés`
+    : `${count} élève(s) en voiture tiré(s) · priorité aux moins passés`, "success", 1600);
   await saveEntry(lid, { eleves_ids: picked });
   renderInto(currentContainer);
 }
 
 async function deleteCell(entry) {
+  // Commit les saisies en cours avant le re-render complet (sinon une note/sujet en attente est perdu)
+  await flushPendingInputs();
   // Empêche de supprimer s'il ne reste qu'une cellule pour cette demi-journée
   const list = entriesFor(entry.day_index, entry.half_day);
   if (list.length <= 1) {
@@ -854,10 +873,6 @@ function openHalfMetaEditor(d, half, anchorEl) {
     backdrop.remove();
   }
 
-  async function clearPause() {
-    pauseInput.value = "";
-  }
-
   const modal = el("div", { class: "modal" },
     el("h3", {}, `Horaires · ${JOURS[d].toLowerCase()} ${halfLabel}`),
     el("div", { class: "modal-form" },
@@ -888,6 +903,210 @@ async function changeWeek(dateStr) {
   await loadPlanning();
   await ensureMinimumSlots();
   renderInto(currentContainer);
+}
+
+// === Valider la semaine : transforme le planning des jours écoulés en passages ===
+// Salle -> 1 passage Salle pour le pédagogue. Voiture -> 1 passage Voiture par élève.
+// Écran de confirmation : résultat « Effectué » par défaut, ajustable, dédoublonné.
+function openValiderSemaineModal() {
+  const monday = new Date(semaineLundi + "T00:00:00");
+  const todayIso = isoDate(new Date());
+  const activeIds = new Set(stagiaires.map((s) => s.id));
+
+  // 1. Candidats depuis le planning, jours écoulés uniquement (date du jour <= aujourd'hui)
+  const raw = [];
+  entries.forEach((e) => {
+    const dateIso = isoDate(addDays(monday, e.day_index));
+    if (dateIso > todayIso) return;
+    if (e.activite === "Pédagogie salle" && e.pedagogue_id && activeIds.has(e.pedagogue_id)) {
+      raw.push({ stagiaire_id: e.pedagogue_id, type: "Salle", date: dateIso, day_index: e.day_index });
+    } else if (e.activite === "Voiture (conduite)") {
+      (e.eleves_ids || []).forEach((id) => {
+        if (activeIds.has(id)) raw.push({ stagiaire_id: id, type: "Voiture", date: dateIso, day_index: e.day_index });
+      });
+    }
+  });
+
+  // Dédoublonnage par (stagiaire + type + JOUR) : au plus 1 passage par stagiaire,
+  // par type et par jour. Conséquence assumée : 2 sessions voiture le même jour
+  // (matin + après-midi) comptent pour 1. La table passages est au grain jour
+  // (pas de demi-journée), donc on ne peut pas distinguer plus finement ; pour un
+  // 2e passage le même jour, l'ajouter à la main dans l'onglet Passages.
+  const seen = new Set();
+  const candidates = raw.filter((c) => {
+    const k = c.stagiaire_id + "|" + c.type + "|" + c.date;
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+
+  if (candidates.length === 0) {
+    toast("Rien à valider : aucune pédagogie salle ni voiture sur les jours écoulés de cette semaine.", "info", 4500);
+    return;
+  }
+
+  // 2. Dédoublonnage contre les passages déjà existants (manuel ou auto) sur la semaine
+  const friday = isoDate(addDays(monday, 4));
+  getPassagesInRange(semaineLundi, friday).then((existing) => {
+    const existKey = new Set(existing.map((p) => p.stagiaire_id + "|" + p.type + "|" + p.date));
+    const keyOf = (c) => c.stagiaire_id + "|" + c.type + "|" + c.date;
+    const toCreate = candidates.filter((c) => !existKey.has(keyOf(c)));
+    const already = candidates.filter((c) => existKey.has(keyOf(c)));
+    if (toCreate.length === 0) {
+      toast("Tout est déjà enregistré pour cette semaine (" + already.length + " passage(s)).", "info", 4500);
+      return;
+    }
+    renderValiderModal(toCreate, already, existKey);
+  }).catch((e) => {
+    console.error(e);
+    toast("Erreur lecture des passages existants", "error");
+  });
+}
+
+function renderValiderModal(toCreate, already, existKey) {
+  const backdrop = el("div", { class: "modal-backdrop" });
+  const nameOf = (id) => {
+    const s = stagiaires.find((x) => x.id === id);
+    return s ? displayStagiaire(s) : "?";
+  };
+  const dayLabel = (di) => {
+    const j = JOURS[di] || "";
+    return j.charAt(0) + j.slice(1).toLowerCase();
+  };
+
+  const rowState = toCreate.map(() => ({ include: true, resultat: "Effectué", remplacant_id: null }));
+  const list = el("div", { class: "valider-list" });
+
+  toCreate.forEach((c, i) => {
+    const cb = el("input", { type: "checkbox", "aria-label": "Inclure " + nameOf(c.stagiaire_id) + " " + dayLabel(c.day_index) + " " + c.type });
+    cb.checked = true;
+    cb.addEventListener("change", () => { rowState[i].include = cb.checked; });
+
+    const resSel = el("select", { class: "valider-res" });
+    RESULTATS.forEach((r) => {
+      const opt = el("option", { value: r.value }, r.icon + " " + r.value);
+      if (r.value === "Effectué") opt.selected = true;
+      resSel.appendChild(opt);
+    });
+
+    // Sélecteur « remplacé par » : visible seulement sur Absence. Le remplaçant
+    // choisi sera crédité d'un passage Effectué (même type, même jour).
+    const remplSel = el("select", { class: "valider-res valider-rempl hidden", "aria-label": "Remplacé par" });
+    remplSel.appendChild(el("option", { value: "" }, "— remplacé par —"));
+    stagiaires
+      .filter((s) => s.id !== c.stagiaire_id)
+      .forEach((s) => remplSel.appendChild(el("option", { value: s.id }, displayStagiaire(s))));
+    remplSel.addEventListener("change", () => {
+      rowState[i].remplacant_id = remplSel.value ? Number(remplSel.value) : null;
+    });
+
+    resSel.addEventListener("change", () => {
+      rowState[i].resultat = resSel.value;
+      if (resSel.value === "Absence") {
+        remplSel.classList.remove("hidden");
+      } else {
+        remplSel.classList.add("hidden");
+        remplSel.value = "";
+        rowState[i].remplacant_id = null;
+      }
+    });
+
+    const top = el("div", { class: "valider-row-top" },
+      cb,
+      el("span", { class: "valider-row-main" },
+        el("span", { class: "valider-row-name" }, nameOf(c.stagiaire_id)),
+        el("span", { class: "valider-row-meta" }, dayLabel(c.day_index) + " · " + c.type),
+      ),
+      resSel,
+    );
+    const row = el("div", { class: "valider-row" }, top, remplSel);
+    // Clic sur la ligne (hors selects et hors case) = bascule la case
+    row.addEventListener("click", (ev) => {
+      if (ev.target === resSel || resSel.contains(ev.target)) return;
+      if (ev.target === remplSel || remplSel.contains(ev.target)) return;
+      if (ev.target === cb) return;
+      cb.checked = !cb.checked;
+      rowState[i].include = cb.checked;
+    });
+    list.appendChild(row);
+  });
+
+  if (already.length) {
+    list.appendChild(el("div", { class: "valider-already-head" }, already.length + " déjà enregistré(s), ignoré(s)"));
+    already.forEach((c) => {
+      list.appendChild(el("div", { class: "valider-row already" },
+        el("div", { class: "valider-row-top" },
+          el("span", { class: "valider-row-main" },
+            el("span", { class: "valider-row-name" }, nameOf(c.stagiaire_id)),
+            el("span", { class: "valider-row-meta" }, dayLabel(c.day_index) + " · " + c.type),
+          ),
+          el("span", { class: "valider-done" }, "déjà fait"),
+        ),
+      ));
+    });
+  }
+
+  const cancelBtn = el("button", { class: "btn ghost", onClick: () => backdrop.remove() }, "Annuler");
+  const saveBtn = el("button", { class: "btn primary" }, icon.check(), "Enregistrer");
+
+  async function save() {
+    const who = getCurrentWho();
+    const rows = [];
+    const batchKeys = new Set();  // évite les doublons intra-lot (ex: remplaçant déjà candidat)
+    const addRow = (stagiaire_id, type, date, resultat, remplacant_id) => {
+      const key = stagiaire_id + "|" + type + "|" + date;
+      if (existKey.has(key) || batchKeys.has(key)) return;
+      batchKeys.add(key);
+      rows.push({
+        date, stagiaire_id, type, resultat,
+        remplacant_id: remplacant_id || null,
+        origine: "Planning",
+        semaine_lundi: semaineLundi,
+        created_by_who: who,
+        updated_by_who: who,
+      });
+    };
+
+    toCreate.forEach((c, i) => {
+      const st = rowState[i];
+      if (!st.include) return;
+      const rempl = st.resultat === "Absence" ? st.remplacant_id : null;
+      addRow(c.stagiaire_id, c.type, c.date, st.resultat, rempl);
+      // Absence + remplaçant => le remplaçant est crédité d'un Effectué (même type, même jour)
+      if (rempl) addRow(rempl, c.type, c.date, "Effectué", null);
+    });
+
+    if (rows.length === 0) { toast("Aucun passage à enregistrer", "info"); return; }
+    try {
+      saveBtn.disabled = true;
+      saveBtn.textContent = "Enregistrement…";
+      const inserted = await addPassagesBatch(rows);
+      toast(inserted.length + " passage(s) enregistré(s) · Ctrl+Z pour annuler", "success", 2800);
+      const ids = inserted.map((p) => p.id);
+      recordUndo("validation de la semaine", async () => { await deletePassagesBatch(ids); });
+      backdrop.remove();
+    } catch (e) {
+      console.error(e);
+      saveBtn.disabled = false;
+      clear(saveBtn);
+      saveBtn.appendChild(icon.check());
+      saveBtn.appendChild(document.createTextNode("Enregistrer"));
+      toast(e.message || "Erreur enregistrement", "error", 4000);
+    }
+  }
+  saveBtn.addEventListener("click", save);
+
+  const modal = el("div", { class: "modal valider-modal" },
+    el("h3", {}, "Valider la semaine"),
+    el("p", { class: "muted", style: "margin:0 0 0.6rem; font-size:0.85rem;" },
+      "Passages déduits du planning des jours écoulés. Résultat « Effectué » par défaut : sur une absence, indique qui a remplacé (le remplaçant est crédité). Décoche pour exclure."),
+    list,
+    el("div", { class: "modal-actions" }, cancelBtn, saveBtn),
+  );
+
+  backdrop.appendChild(modal);
+  backdrop.addEventListener("click", (e) => { if (e.target === backdrop) backdrop.remove(); });
+  document.body.appendChild(backdrop);
 }
 
 function renderInto(container) {
@@ -935,12 +1154,20 @@ function renderInto(container) {
   printBtn.appendChild(icon.list());
   printBtn.appendChild(document.createTextNode("Imprimer / PDF"));
 
-  container.appendChild(el("div", { class: "week-bar" },
+  const weekBar = el("div", { class: "week-bar" },
     el("span", { class: "week-bar-label" }, "Semaine du"),
     dateInput, prevBtn, nextBtn, todayBtn,
     el("span", { style: "flex:1" }),
-    printBtn,
-  ));
+  );
+  // Valider la semaine : admin uniquement, sur une semaine au moins partiellement écoulée
+  if (admin && semaineLundi <= isoDate(new Date())) {
+    const validBtn = el("button", { class: "btn small primary", onClick: () => openValiderSemaineModal() });
+    validBtn.appendChild(icon.check());
+    validBtn.appendChild(document.createTextNode("Valider la semaine"));
+    weekBar.appendChild(validBtn);
+  }
+  weekBar.appendChild(printBtn);
+  container.appendChild(weekBar);
 
   const wrap = el("div", { class: "p-days" });
   JOURS.forEach((_, d) => wrap.appendChild(renderDayCard(d, monday)));
@@ -992,19 +1219,21 @@ function printEntryCell(e) {
     cell.appendChild(el("div", { class: "pp-sujet" }, e.sujet));
   }
 
-  // Pédagogue (Au tableau)
-  if (e.pedagogue_id) {
+  // Pédagogue (Au tableau) : seulement si le nom se résout (évite un label orphelin si l'id n'existe plus)
+  const pedaName = e.pedagogue_id ? lookupStagiaire(e.pedagogue_id) : "";
+  if (pedaName) {
     cell.appendChild(el("div", { class: "pp-line" },
       el("span", { class: "pp-key" }, "Au tableau : "),
-      el("span", { class: "pp-val" }, lookupStagiaire(e.pedagogue_id))
+      el("span", { class: "pp-val" }, pedaName)
     ));
   }
 
-  // Élèves
-  if (e.eleves_ids && e.eleves_ids.length) {
+  // Élèves : seulement si au moins un nom se résout
+  const eleveNames = (e.eleves_ids || []).map(lookupStagiaire).filter(Boolean);
+  if (eleveNames.length) {
     cell.appendChild(el("div", { class: "pp-line" },
       el("span", { class: "pp-key" }, "Élèves : "),
-      el("span", { class: "pp-val" }, e.eleves_ids.map(lookupStagiaire).filter(Boolean).join(", "))
+      el("span", { class: "pp-val" }, eleveNames.join(", "))
     ));
   }
 

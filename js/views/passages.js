@@ -1,10 +1,10 @@
-import { listStagiaires, listPassages, addPassage, deletePassage, listRecentPassagesAudit } from "../db.js?v=20260625a";
-import { el, clear, isoDate, formatDate, toast, displayStagiaire } from "../utils.js?v=20260625a";
-import { icon } from "../icons.js?v=20260625a";
-import { recordUndo } from "../undo.js?v=20260625a";
-import { TYPES, RESULTATS } from "../config.js?v=20260625a";
-import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260625a";
-import { getCurrentWho } from "../identity.js?v=20260625a";
+import { listStagiaires, listPassages, addPassage, deletePassage, listRecentPassagesAudit } from "../db.js?v=20260626a";
+import { el, clear, isoDate, formatDate, toast, displayStagiaire } from "../utils.js?v=20260626a";
+import { icon } from "../icons.js?v=20260626a";
+import { recordUndo } from "../undo.js?v=20260626a";
+import { TYPES, RESULTATS } from "../config.js?v=20260626a";
+import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260626a";
+import { getCurrentWho } from "../identity.js?v=20260626a";
 
 let stagiaires = [];
 let passages = [];
@@ -168,7 +168,7 @@ function renderTable(container) {
     }) : null;
     if (delBtn) delBtn.appendChild(icon.trash());
 
-    const whoLabel = p.created_by_who || (p.origine === "Auto Planning" ? "Auto" : "—");
+    const whoLabel = p.created_by_who || (p.origine === "Planning" ? "Auto" : "—");
     const isAdmin_ = whoLabel.includes("@");
 
     const tr = el("tr", {},
