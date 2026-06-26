@@ -3,14 +3,14 @@ import {
   upsertPlanningEntry, deletePlanningEntryById,
   getHalfMetaForWeek, upsertHalfMeta,
   getSetting, setSetting,
-  addPassagesBatch, deletePassagesBatch, getPassagesInRange,
-} from "../db.js?v=20260626a";
-import { el, clear, isoDate, getMonday, addDays, formatDayShort, debounce, toast, displayStagiaire } from "../utils.js?v=20260626a";
-import { icon } from "../icons.js?v=20260626a";
-import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260626a";
-import { isAdmin } from "../auth-admin.js?v=20260626a";
-import { recordUndo } from "../undo.js?v=20260626a";
-import { getCurrentWho } from "../identity.js?v=20260626a";
+  addPassagesBatch, deletePassagesBatch, getPassagesInRange, updateTheme,
+} from "../db.js?v=20260626b";
+import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire } from "../utils.js?v=20260626b";
+import { icon } from "../icons.js?v=20260626b";
+import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260626b";
+import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260626b";
+import { recordUndo } from "../undo.js?v=20260626b";
+import { getCurrentWho } from "../identity.js?v=20260626b";
 
 let stagiaires = [];
 let profs = [];
@@ -940,30 +940,45 @@ function openValiderSemaineModal() {
     return true;
   });
 
-  if (candidates.length === 0) {
-    toast("Rien à valider : aucune pédagogie salle ni voiture sur les jours écoulés de cette semaine.", "info", 4500);
+  // 2. Thèmes présents dans les sujets des jours écoulés, pas encore « Fait ».
+  // date_fait = date du créneau (la plus ancienne si le thème apparaît plusieurs fois).
+  const themeByDate = new Map();
+  entries.forEach((e) => {
+    const dateIso = isoDate(addDays(monday, e.day_index));
+    if (dateIso > todayIso) return;
+    parseSujet(e.sujet).forEach((titre) => {
+      const t = themes.find((x) => x.titre === titre);
+      if (!t || t.statut === "Fait") return;  // texte libre non rattaché ou déjà fait : ignoré
+      const prev = themeByDate.get(t.id);
+      if (!prev || dateIso < prev.date) themeByDate.set(t.id, { theme: t, date: dateIso });
+    });
+  });
+  const themeCandidates = [...themeByDate.values()];
+
+  if (candidates.length === 0 && themeCandidates.length === 0) {
+    toast("Rien à valider : aucune pédagogie, voiture ni thème sur les jours écoulés de cette semaine.", "info", 4500);
     return;
   }
 
-  // 2. Dédoublonnage contre les passages déjà existants (manuel ou auto) sur la semaine
+  // 3. Dédoublonnage des passages contre l'existant (manuel ou auto) sur la semaine
   const friday = isoDate(addDays(monday, 4));
   getPassagesInRange(semaineLundi, friday).then((existing) => {
     const existKey = new Set(existing.map((p) => p.stagiaire_id + "|" + p.type + "|" + p.date));
     const keyOf = (c) => c.stagiaire_id + "|" + c.type + "|" + c.date;
     const toCreate = candidates.filter((c) => !existKey.has(keyOf(c)));
     const already = candidates.filter((c) => existKey.has(keyOf(c)));
-    if (toCreate.length === 0) {
+    if (toCreate.length === 0 && themeCandidates.length === 0) {
       toast("Tout est déjà enregistré pour cette semaine (" + already.length + " passage(s)).", "info", 4500);
       return;
     }
-    renderValiderModal(toCreate, already, existKey);
+    renderValiderModal(toCreate, already, existKey, themeCandidates);
   }).catch((e) => {
     console.error(e);
     toast("Erreur lecture des passages existants", "error");
   });
 }
 
-function renderValiderModal(toCreate, already, existKey) {
+function renderValiderModal(toCreate, already, existKey, themeCandidates) {
   const backdrop = el("div", { class: "modal-backdrop" });
   const nameOf = (id) => {
     const s = stagiaires.find((x) => x.id === id);
@@ -975,6 +990,7 @@ function renderValiderModal(toCreate, already, existKey) {
   };
 
   const rowState = toCreate.map(() => ({ include: true, resultat: "Effectué", remplacant_id: null }));
+  const themeState = (themeCandidates || []).map(() => ({ include: true }));
   const list = el("div", { class: "valider-list" });
 
   toCreate.forEach((c, i) => {
@@ -1046,6 +1062,32 @@ function renderValiderModal(toCreate, already, existKey) {
     });
   }
 
+  // Section « Thèmes traités » : marque les thèmes du planning comme Fait à la date du créneau
+  if (themeCandidates && themeCandidates.length) {
+    list.appendChild(el("div", { class: "valider-already-head" }, "Thèmes traités (" + themeCandidates.length + ")"));
+    themeCandidates.forEach((tc, i) => {
+      const cb = el("input", { type: "checkbox", "aria-label": "Marquer « " + tc.theme.titre + " » traité" });
+      cb.checked = true;
+      cb.addEventListener("change", () => { themeState[i].include = cb.checked; });
+      const numBadge = tc.theme.numero != null ? String(tc.theme.numero).padStart(2, "0") + " · " : "";
+      const row = el("div", { class: "valider-row" },
+        el("div", { class: "valider-row-top" },
+          cb,
+          el("span", { class: "valider-row-main" },
+            el("span", { class: "valider-row-name" }, numBadge + tc.theme.titre),
+            el("span", { class: "valider-row-meta" }, "Traité le " + formatDate(tc.date)),
+          ),
+        ),
+      );
+      row.addEventListener("click", (ev) => {
+        if (ev.target === cb) return;
+        cb.checked = !cb.checked;
+        themeState[i].include = cb.checked;
+      });
+      list.appendChild(row);
+    });
+  }
+
   const cancelBtn = el("button", { class: "btn ghost", onClick: () => backdrop.remove() }, "Annuler");
   const saveBtn = el("button", { class: "btn primary" }, icon.check(), "Enregistrer");
 
@@ -1076,14 +1118,43 @@ function renderValiderModal(toCreate, already, existKey) {
       if (rempl) addRow(rempl, c.type, c.date, "Effectué", null);
     });
 
-    if (rows.length === 0) { toast("Aucun passage à enregistrer", "info"); return; }
+    const themesToMark = (themeCandidates || []).filter((tc, i) => themeState[i].include);
+
+    if (rows.length === 0 && themesToMark.length === 0) { toast("Rien à enregistrer (tout décoché)", "info"); return; }
     try {
       saveBtn.disabled = true;
       saveBtn.textContent = "Enregistrement…";
-      const inserted = await addPassagesBatch(rows);
-      toast(inserted.length + " passage(s) enregistré(s) · Ctrl+Z pour annuler", "success", 2800);
-      const ids = inserted.map((p) => p.id);
-      recordUndo("validation de la semaine", async () => { await deletePassagesBatch(ids); });
+
+      let insertedIds = [];
+      if (rows.length) {
+        const inserted = await addPassagesBatch(rows);
+        insertedIds = inserted.map((p) => p.id);
+      }
+
+      // Marque les thèmes « Fait » à la date du créneau ; mémorise l'état pour Ctrl+Z.
+      const themeUndo = [];
+      const email = getAdminEmail();
+      for (const tc of themesToMark) {
+        const prev = { statut: tc.theme.statut, date_fait: tc.theme.date_fait };
+        await updateTheme(tc.theme.id, { statut: "Fait", date_fait: tc.date, updated_by_email: email });
+        tc.theme.statut = "Fait";
+        tc.theme.date_fait = tc.date;  // maj en mémoire pour ne pas le re-proposer
+        themeUndo.push({ theme: tc.theme, prev });
+      }
+
+      const parts = [];
+      if (insertedIds.length) parts.push(insertedIds.length + " passage(s)");
+      if (themesToMark.length) parts.push(themesToMark.length + " thème(s)");
+      toast(parts.join(" + ") + " enregistré(s) · Ctrl+Z pour annuler", "success", 2800);
+
+      recordUndo("validation de la semaine", async () => {
+        if (insertedIds.length) await deletePassagesBatch(insertedIds);
+        for (const u of themeUndo) {
+          await updateTheme(u.theme.id, { statut: u.prev.statut, date_fait: u.prev.date_fait });
+          u.theme.statut = u.prev.statut;
+          u.theme.date_fait = u.prev.date_fait;
+        }
+      });
       backdrop.remove();
     } catch (e) {
       console.error(e);
@@ -1099,7 +1170,7 @@ function renderValiderModal(toCreate, already, existKey) {
   const modal = el("div", { class: "modal valider-modal" },
     el("h3", {}, "Valider la semaine"),
     el("p", { class: "muted", style: "margin:0 0 0.6rem; font-size:0.85rem;" },
-      "Passages déduits du planning des jours écoulés. Résultat « Effectué » par défaut : sur une absence, indique qui a remplacé (le remplaçant est crédité). Décoche pour exclure."),
+      "Passages et thèmes déduits du planning des jours écoulés. Résultat « Effectué » par défaut : sur une absence, indique qui a remplacé (le remplaçant est crédité). Décoche pour exclure."),
     list,
     el("div", { class: "modal-actions" }, cancelBtn, saveBtn),
   );

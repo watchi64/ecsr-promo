@@ -1,8 +1,8 @@
-import { listThemes, updateTheme, addTheme, deleteTheme } from "../db.js?v=20260626a";
-import { el, clear, isoDate, formatDate, toast, debounce } from "../utils.js?v=20260626a";
-import { icon } from "../icons.js?v=20260626a";
-import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260626a";
-import { recordUndo } from "../undo.js?v=20260626a";
+import { listThemes, updateTheme, addTheme, deleteTheme } from "../db.js?v=20260626b";
+import { el, clear, isoDate, formatDate, toast, debounce } from "../utils.js?v=20260626b";
+import { icon } from "../icons.js?v=20260626b";
+import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260626b";
+import { recordUndo } from "../undo.js?v=20260626b";
 
 let themes = [];
 let filterStatut = "";
