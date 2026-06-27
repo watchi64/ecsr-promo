@@ -4,13 +4,13 @@ import {
   getHalfMetaForWeek, upsertHalfMeta,
   getSetting, setSetting,
   addPassagesBatch, deletePassagesBatch, getPassagesInRange, updateTheme,
-} from "../db.js?v=20260626c";
-import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire } from "../utils.js?v=20260626c";
-import { icon } from "../icons.js?v=20260626c";
-import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260626c";
-import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260626c";
-import { recordUndo } from "../undo.js?v=20260626c";
-import { getCurrentWho } from "../identity.js?v=20260626c";
+} from "../db.js?v=20260627b";
+import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire } from "../utils.js?v=20260627b";
+import { icon } from "../icons.js?v=20260627b";
+import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260627b";
+import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260627b";
+import { recordUndo } from "../undo.js?v=20260627b";
+import { getCurrentWho } from "../identity.js?v=20260627b";
 
 let stagiaires = [];
 let profs = [];
@@ -72,12 +72,11 @@ function rowsFor(d, half) {
     }));
 }
 
-async function saveEntry(localId, patch) {
-  const entry = entries.find((e) => e._lid === localId);
-  if (!entry) return;
-  Object.assign(entry, patch);
-
-  const payload = {
+// Construit le payload d'upsert (clé de conflit = semaine,jour,demi-journée,slot,lane).
+// La position (slot/lane) identifie la ligne en base : on ne la change jamais lors
+// d'un échange — c'est le contenu qu'on permute (cf. swapEntries).
+function entryUpsertPayload(entry) {
+  return {
     semaine_lundi: semaineLundi,
     day_index: entry.day_index,
     half_day: entry.half_day,
@@ -91,6 +90,14 @@ async function saveEntry(localId, patch) {
     eleves_ids: entry.eleves_ids ?? [],
     notes: entry.notes ?? null,
   };
+}
+
+async function saveEntry(localId, patch) {
+  const entry = entries.find((e) => e._lid === localId);
+  if (!entry) return;
+  Object.assign(entry, patch);
+
+  const payload = entryUpsertPayload(entry);
 
   // Track la promesse pour que flushPendingInputs puisse l'attendre avant un re-render
   const p = (async () => {
@@ -168,6 +175,195 @@ async function addLaneInSlot(d, half, slot) {
     console.error(e);
     toast("Erreur création parallèle", "error");
   }
+}
+
+// === Échange de deux cartes (drag & drop) ===
+// On permute le CONTENU des deux cartes (pas leur position en base) : les lignes
+// gardent leur (slot, lane), donc aucun conflit avec la contrainte d'unicité, et on
+// réutilise l'upsert existant. Visuellement = un déplacement. Undo via Ctrl+Z.
+const SWAP_FIELDS = ["activite", "prof_ids", "prof_id", "sujet", "pedagogue_id", "eleves_ids", "notes"];
+
+function snapshotFields(entry) {
+  const o = {};
+  SWAP_FIELDS.forEach((f) => { o[f] = entry[f]; });
+  return o;
+}
+
+async function swapEntries(lidA, lidB, opts = {}) {
+  await flushPendingInputs();
+  const a = entries.find((e) => e._lid === lidA);
+  const b = entries.find((e) => e._lid === lidB);
+  if (!a || !b || a === b) return;
+
+  const beforeA = snapshotFields(a);
+  const beforeB = snapshotFields(b);
+  // Permute le contenu en mémoire
+  SWAP_FIELDS.forEach((f) => { const t = a[f]; a[f] = b[f]; b[f] = t; });
+
+  const persistBoth = () => Promise.all([
+    upsertPlanningEntry(entryUpsertPayload(a)),
+    upsertPlanningEntry(entryUpsertPayload(b)),
+  ]);
+
+  try {
+    await persistBoth();
+    renderInto(currentContainer);
+    toast(opts.toast || "Cartes échangées · Ctrl+Z pour annuler", "success", 2000);
+    recordUndo(opts.undoLabel || "échange de cartes", async () => {
+      Object.assign(a, beforeA);
+      Object.assign(b, beforeB);
+      await persistBoth();
+      renderInto(currentContainer);
+    });
+  } catch (e) {
+    console.error(e);
+    // Revert mémoire si l'enregistrement échoue
+    Object.assign(a, beforeA);
+    Object.assign(b, beforeB);
+    renderInto(currentContainer);
+    toast("Erreur lors de l'échange", "error");
+  }
+}
+
+// Confirmation (friction) avant un déplacement vers une AUTRE demi-journée / un autre
+// jour, pour éviter les déplacements par inadvertance. Retourne true si on continue.
+function confirmCrossMove(sourceLid, targetLid) {
+  const src = entries.find((e) => e._lid === sourceLid);
+  const tgt = entries.find((e) => e._lid === targetLid);
+  if (!src || !tgt) return false;
+  const jour = (JOURS[tgt.day_index] || "").toLowerCase();
+  const demi = tgt.half_day === "matin" ? "matin" : "après-midi";
+  const srcLabel = src.activite || "cette carte";
+  return tgt.activite
+    ? confirm(`Échanger « ${srcLabel} » avec « ${tgt.activite} » (${jour} ${demi}) ?`)
+    : confirm(`Déplacer « ${srcLabel} » vers ${jour} ${demi} ?`);
+}
+
+// --- Contrôleur de glisser-déposer (Pointer Events, souris + tactile) ---
+// Glisser depuis la poignée d'une carte ; lâcher sur une autre carte => échange.
+// Même demi-journée : direct. Autre demi-journée / autre jour : confirmation (friction),
+// cible surlignée en ambre « Déplacer ici ». Hors d'une cible => annulé.
+let dragState = null;
+
+function beginCardDrag(ev, sourceLid, sourceCell) {
+  if (!isAdmin()) return;
+  if (ev.pointerType === "mouse" && ev.button !== 0) return;
+  ev.preventDefault();
+  const handleEl = ev.currentTarget;
+  dragState = {
+    sourceLid, sourceCell,
+    sourceHalf: sourceCell.closest(".p-half"),
+    handleEl,
+    pointerId: ev.pointerId,
+    startX: ev.clientX, startY: ev.clientY,
+    lastX: ev.clientX, lastY: ev.clientY,
+    grabDX: 0, grabDY: 0,
+    active: false, ghost: null, target: null, scrollTimer: null,
+  };
+  try { handleEl.setPointerCapture(ev.pointerId); } catch (_) {}
+  handleEl.addEventListener("pointermove", onDragMove);
+  handleEl.addEventListener("pointerup", onDragEnd);
+  handleEl.addEventListener("pointercancel", onDragEnd);
+}
+
+function activateDrag() {
+  const s = dragState;
+  s.active = true;
+  document.body.classList.add("p-dragging-active");
+  s.sourceCell.classList.add("p-drag-source");
+  const rect = s.sourceCell.getBoundingClientRect();
+  s.grabDX = s.lastX - rect.left;
+  s.grabDY = s.lastY - rect.top;
+  const ghost = s.sourceCell.cloneNode(true);
+  ghost.classList.add("p-drag-ghost");
+  ghost.style.width = rect.width + "px";
+  positionGhost();
+  document.body.appendChild(ghost);
+  s.ghost = ghost;
+  // Autoscroll quand le doigt approche du haut/bas de l'écran
+  s.scrollTimer = setInterval(() => {
+    if (!dragState || !dragState.active) return;
+    const y = dragState.lastY, edge = 72, step = 14;
+    if (y < edge) window.scrollBy(0, -step);
+    else if (y > window.innerHeight - edge) window.scrollBy(0, step);
+    updateDropTarget();
+  }, 16);
+}
+
+function positionGhost() {
+  const s = dragState;
+  if (!s.ghost) return;
+  s.ghost.style.left = (s.lastX - s.grabDX) + "px";
+  s.ghost.style.top = (s.lastY - s.grabDY) + "px";
+}
+
+function updateDropTarget() {
+  const s = dragState;
+  if (!s) return;
+  const under = document.elementFromPoint(s.lastX, s.lastY);
+  let cell = under ? under.closest(".p-lane-cell") : null;
+  if (cell === s.sourceCell) cell = null;  // pas soi-même
+  if (cell !== s.target) {
+    if (s.target) s.target.classList.remove("p-drop-target", "cross");
+    s.target = cell;
+    if (cell) {
+      cell.classList.add("p-drop-target");
+      // Cible dans une autre demi-journée / un autre jour => style « déplacer »
+      if (cell.closest(".p-half") !== s.sourceHalf) cell.classList.add("cross");
+    }
+  }
+}
+
+function onDragMove(ev) {
+  const s = dragState;
+  if (!s) return;
+  s.lastX = ev.clientX;
+  s.lastY = ev.clientY;
+  if (!s.active) {
+    if (Math.hypot(ev.clientX - s.startX, ev.clientY - s.startY) < 6) return;
+    activateDrag();
+  }
+  ev.preventDefault();
+  positionGhost();
+  updateDropTarget();
+}
+
+function onDragEnd() {
+  const s = dragState;
+  if (!s) return;
+  const target = s.target;
+  const sourceLid = s.sourceLid;
+  const sourceHalf = s.sourceHalf;
+  cleanupDrag();
+  if (!target) return;
+  const targetLid = target.dataset.lid;
+  if (!targetLid || targetLid === sourceLid) return;
+  const crossHalf = target.closest(".p-half") !== sourceHalf;
+  if (crossHalf) {
+    // Friction : confirmation avant un déplacement vers une autre demi-journée / jour
+    if (!confirmCrossMove(sourceLid, targetLid)) return;
+    swapEntries(sourceLid, targetLid, {
+      toast: "Carte déplacée · Ctrl+Z pour annuler",
+      undoLabel: "déplacement de carte",
+    });
+  } else {
+    swapEntries(sourceLid, targetLid);
+  }
+}
+
+function cleanupDrag() {
+  const s = dragState;
+  if (!s) return;
+  if (s.scrollTimer) clearInterval(s.scrollTimer);
+  if (s.ghost) s.ghost.remove();
+  if (s.target) s.target.classList.remove("p-drop-target");
+  s.sourceCell.classList.remove("p-drag-source");
+  document.body.classList.remove("p-dragging-active");
+  try { s.handleEl.releasePointerCapture(s.pointerId); } catch (_) {}
+  s.handleEl.removeEventListener("pointermove", onDragMove);
+  s.handleEl.removeEventListener("pointerup", onDragEnd);
+  s.handleEl.removeEventListener("pointercancel", onDragEnd);
+  dragState = null;
 }
 
 // === Tirage aléatoire (Pédagogue, élèves Pédagogie salle, élèves Voiture) ===
@@ -567,8 +763,17 @@ function renderLaneCell(entry) {
 
   const shape = ACTIVITY_SHAPES[entry.activite || ""] || ACTIVITY_SHAPES[""];
 
-  // === Header strip : activité + prof + delete ===
+  // === Header strip : poignée + activité + prof + delete ===
   const header = el("div", { class: "p-lane-header" });
+  // Poignée de glisse (échange de cartes par drag & drop) — masquée en lecture seule via CSS
+  const dragHandle = el("button", {
+    class: "p-lane-drag", type: "button",
+    "aria-label": "Glisser pour échanger avec une autre carte",
+    title: "Glisser pour échanger avec une autre carte de la demi-journée",
+  });
+  dragHandle.appendChild(icon.grip());
+  dragHandle.addEventListener("pointerdown", (ev) => beginCardDrag(ev, lid, cell));
+  header.appendChild(dragHandle);
   header.appendChild(el("div", { class: "p-lane-activite-wrap" },
     selectFromList(
       ACTIVITES.map((a) => ({ value: a, label: a })),
@@ -711,7 +916,8 @@ function renderSlotRow(d, half, row, maxLanes) {
   ));
 
   // Lanes — grid à `maxLanes` colonnes (+ une colonne fine pour le bouton parallèle)
-  const lanes = el("div", { class: "p-lanes" });
+  // `has-parallel` : 2+ activités au même horaire → encadrées en groupe sur mobile.
+  const lanes = el("div", { class: "p-lanes" + (row.lanes.length > 1 ? " has-parallel" : "") });
   // Grid template : N colonnes de cellules de même largeur + 1 colonne 40px pour le "+"
   lanes.style.gridTemplateColumns = `repeat(${maxLanes}, minmax(0, 1fr)) 40px`;
 
@@ -722,7 +928,8 @@ function renderSlotRow(d, half, row, maxLanes) {
     lanes.appendChild(cell);
   });
 
-  // Bouton "+" en parallèle : dernière colonne, prend toutes les lignes
+  // Bouton "+" en parallèle : barre verticale au bout sur desktop, bouton labellisé
+  // pleine largeur sous le créneau sur mobile (le label est masqué en desktop via CSS).
   const addParBtn = el("button", {
     class: "p-add-parallele-mini",
     title: "Ajouter une activité en parallèle (même horaire)",
@@ -730,6 +937,7 @@ function renderSlotRow(d, half, row, maxLanes) {
   });
   addParBtn.style.gridColumn = String(maxLanes + 1);
   addParBtn.appendChild(icon.plus());
+  addParBtn.appendChild(el("span", { class: "p-add-parallele-label" }, "En parallèle"));
   lanes.appendChild(addParBtn);
 
   slotEl.appendChild(lanes);

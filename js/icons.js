@@ -50,4 +50,6 @@ export const icon = {
   chevronRight:() => svg('<path d="m9 18 6-6-6-6"/>'),
   clock:      () => svg('<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>'),
   signpost:   () => svg('<path d="M12 3v18M5 7h14l-3 4 3 4H5l3-4-3-4Z"/>'),
+  // Poignée de glisse (dots-six-vertical) — drag handle des cartes planning
+  grip:       () => svg('<circle cx="9" cy="5" r="1" fill="currentColor"/><circle cx="9" cy="12" r="1" fill="currentColor"/><circle cx="9" cy="19" r="1" fill="currentColor"/><circle cx="15" cy="5" r="1" fill="currentColor"/><circle cx="15" cy="12" r="1" fill="currentColor"/><circle cx="15" cy="19" r="1" fill="currentColor"/>'),
 };

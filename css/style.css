@@ -965,17 +965,53 @@ h3 {
   min-width: 0;
 }
 
-/* Mobile : stack vertical (grille à 1 colonne pour tout sauf le bouton "+") */
+/* Mobile : cartes empilées sur une colonne. Les activités d'un même créneau
+   (parallèle = même horaire) sont regroupées dans un cadre accent avec un label
+   « en même temps », pour les distinguer nettement des créneaux « à la suite ».
+   Le « + » parallèle devient un vrai bouton labellisé sous le créneau. */
 @media (max-width: 760px) {
   .p-lanes {
-    grid-template-columns: 1fr 40px !important;
+    grid-template-columns: 1fr !important;
+    gap: 0.4rem;
   }
   .p-lanes > .p-lane-cell {
     grid-column: 1 !important;
   }
+  /* « + En parallèle » : bouton pleine largeur sous les cartes du créneau */
   .p-lanes > .p-add-parallele-mini {
-    grid-column: 2 !important;
+    grid-column: 1 / -1 !important;
+    width: auto;
+    min-height: 38px;
+    gap: 0.35rem;
   }
+  /* Sélecteur plus spécifique que la règle desktop `.p-add-parallele-label{display:none}`
+     (qui suit dans le fichier) pour gagner la cascade sur mobile. */
+  .p-add-parallele-mini .p-add-parallele-label {
+    display: inline;
+    font-size: 0.74rem;
+    font-weight: 600;
+  }
+
+  /* Cadre « en même temps » : seulement quand 2+ activités en parallèle */
+  .p-lanes.has-parallel {
+    border: 1.5px solid var(--accent);
+    background: var(--bg-subtle);
+    border-radius: var(--r);
+    padding: 0.45rem;
+  }
+  .p-lanes.has-parallel::before {
+    content: "∥ En même temps";
+    grid-column: 1 / -1;
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--accent);
+    padding: 0 0.1rem;
+  }
+
+  /* Espacement net entre créneaux séquentiels (à la suite) */
+  .p-slots-wrap { gap: 0.7rem; }
 }
 
 .p-lane-cell {
@@ -1923,6 +1959,74 @@ h3 {
 .p-lane-delete:hover { background: var(--c-stop-soft); color: var(--c-stop); }
 .p-lane-delete .icon { width: 12px; height: 12px; }
 
+/* === Drag & drop des cartes (échange dans la demi-journée) === */
+.p-lane-drag {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 0.3rem;
+  border: none;
+  background: transparent;
+  color: var(--text-faint);
+  cursor: grab;
+  touch-action: none;        /* glisser depuis la poignée ne déclenche pas le scroll */
+  transition: color 0.15s;
+}
+.p-lane-drag:hover { color: var(--accent); }
+.p-lane-drag:active { cursor: grabbing; }
+.p-lane-drag .icon { width: 16px; height: 16px; }
+.read-only .p-lane-drag { display: none !important; }
+
+/* Carte source pendant le glisser */
+.p-drag-source { opacity: 0.35; }
+
+/* Fantôme qui suit le doigt / curseur */
+.p-drag-ghost {
+  position: fixed;
+  z-index: 9999;
+  margin: 0;
+  pointer-events: none;       /* laisse elementFromPoint « voir » la carte sous le fantôme */
+  opacity: 0.95;
+  transform: rotate(1.5deg);
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.25);
+  border-radius: var(--r);
+  border: 1px solid var(--accent);
+}
+
+/* Cible de dépôt valide surlignée */
+.p-drop-target {
+  outline: 2px dashed var(--accent);
+  outline-offset: 2px;
+}
+.p-drop-target::after {
+  content: "Échanger ici";
+  position: absolute;
+  top: 5px;
+  right: 6px;
+  font-size: 0.56rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--accent);
+  background: var(--bg-elev);
+  padding: 1px 5px;
+  border-radius: 4px;
+  pointer-events: none;
+  z-index: 3;
+}
+
+/* Cible dans une AUTRE demi-journée / un autre jour : déplacement (friction),
+   surligné en ambre pour le distinguer de l'échange intra-demi-journée. */
+.p-drop-target.cross { outline-color: var(--c-wait); }
+.p-drop-target.cross::after { content: "Déplacer ici"; color: var(--c-wait); }
+
+body.p-dragging-active {
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: grabbing;
+}
+
 /* === Add buttons === */
 
 /* Bouton parallèle compact — barre verticale au bout */
@@ -1948,6 +2052,9 @@ h3 {
   border-style: solid;
 }
 .p-add-parallele-mini .icon { width: 14px; height: 14px; }
+/* Label « En parallèle » : masqué en desktop (barre verticale icône seule),
+   affiché sur mobile où le bouton devient pleine largeur (cf. media query). */
+.p-add-parallele-label { display: none; }
 
 .p-add-suite {
   display: flex;
