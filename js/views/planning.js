@@ -4,13 +4,13 @@ import {
   getHalfMetaForWeek, upsertHalfMeta,
   getSetting, setSetting,
   addPassagesBatch, deletePassagesBatch, getPassagesInRange, updateTheme,
-} from "../db.js?v=20260627c";
-import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire } from "../utils.js?v=20260627c";
-import { icon } from "../icons.js?v=20260627c";
-import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260627c";
-import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260627c";
-import { recordUndo } from "../undo.js?v=20260627c";
-import { getCurrentWho } from "../identity.js?v=20260627c";
+} from "../db.js?v=20260627j";
+import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire } from "../utils.js?v=20260627j";
+import { icon } from "../icons.js?v=20260627j";
+import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260627j";
+import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260627j";
+import { recordUndo } from "../undo.js?v=20260627j";
+import { getCurrentWho } from "../identity.js?v=20260627j";
 
 let stagiaires = [];
 let profs = [];
@@ -88,6 +88,10 @@ function entryUpsertPayload(entry) {
     sujet: entry.sujet ?? null,
     pedagogue_id: entry.pedagogue_id ?? null,
     eleves_ids: entry.eleves_ids ?? [],
+    // Pédagogie salle 2e groupe (un seul créneau peut faire tourner 2 tableaux)
+    pedagogue_id_2: entry.pedagogue_id_2 ?? null,
+    eleves_ids_2: entry.eleves_ids_2 ?? [],
+    salle_double: entry.salle_double ?? false,
     notes: entry.notes ?? null,
   };
 }
@@ -181,7 +185,7 @@ async function addLaneInSlot(d, half, slot) {
 // On permute le CONTENU des deux cartes (pas leur position en base) : les lignes
 // gardent leur (slot, lane), donc aucun conflit avec la contrainte d'unicité, et on
 // réutilise l'upsert existant. Visuellement = un déplacement. Undo via Ctrl+Z.
-const SWAP_FIELDS = ["activite", "prof_ids", "prof_id", "sujet", "pedagogue_id", "eleves_ids", "notes"];
+const SWAP_FIELDS = ["activite", "prof_ids", "prof_id", "sujet", "pedagogue_id", "eleves_ids", "pedagogue_id_2", "eleves_ids_2", "salle_double", "notes"];
 
 function snapshotFields(entry) {
   const o = {};
@@ -385,44 +389,59 @@ function shuffle(arr) {
  */
 function roleCounts(activite, role, exceptLid) {
   const counts = {};
+  const bump = (id) => { if (id != null) counts[id] = (counts[id] || 0) + 1; };
   entries.forEach((e) => {
     if (e.activite !== activite) return;
     if (e._lid === exceptLid) return;
     if (role === "pedagogue") {
-      if (e.pedagogue_id != null) counts[e.pedagogue_id] = (counts[e.pedagogue_id] || 0) + 1;
+      bump(e.pedagogue_id);
+      if (e.salle_double) bump(e.pedagogue_id_2);   // 2e tableau seulement si 2 groupes actifs
     } else {
-      (e.eleves_ids || []).forEach((id) => { counts[id] = (counts[id] || 0) + 1; });
+      (e.eleves_ids || []).forEach(bump);
+      if (e.salle_double) (e.eleves_ids_2 || []).forEach(bump);  // 2e groupe seulement si actif
     }
   });
   return counts;
 }
 
-// Ids des stagiaires déjà placés (au tableau OU comme élève, toute activité) dans le
-// MÊME créneau horaire = même slot, donc les cartes EN PARALLÈLE. Sert à interdire qu'une
-// personne soit à deux endroits en même temps (élève + tableau, salle + voiture, etc.).
-// `excludeRole` ("eleve" | "pedagogue") ignore le rôle de la cellule courante qu'on est
-// en train de (re)remplir, pour ne pas se bloquer soi-même.
-function slotOccupants(entry, excludeRole) {
+// Ids des stagiaires déjà placés dans le MÊME créneau et VRAIMENT en même temps que le champ
+// qu'on remplit. Les 2 groupes d'une carte salle sont SÉQUENTIELS (l'un après l'autre) : sur
+// la carte courante, seul l'AUTRE rôle du MÊME groupe bloque (tableau ≠ ses élèves). Donc une
+// personne peut être élève au groupe 1 puis tableau / élève au groupe 2. Les AUTRES cartes du
+// créneau (voiture, etc.) sont simultanées => elles bloquent en entier (2 groupes compris).
+// exceptField ∈ "pedagogue" | "eleves" | "pedagogue_2" | "eleves_2"
+const SAME_GROUP_BLOCK = {
+  pedagogue:   "eleves_ids",
+  eleves:      "pedagogue_id",
+  pedagogue_2: "eleves_ids_2",
+  eleves_2:    "pedagogue_id_2",
+};
+function slotOccupants(entry, exceptField) {
   const ids = new Set();
+  const add = (v) => { if (Array.isArray(v)) v.forEach((id) => ids.add(id)); else if (v != null) ids.add(v); };
   entries.forEach((e) => {
     if (e.day_index !== entry.day_index || e.half_day !== entry.half_day || e.slot !== entry.slot) return;
-    const isCurrent = e._lid === entry._lid;
-    if (!(isCurrent && excludeRole === "pedagogue") && e.pedagogue_id != null) ids.add(e.pedagogue_id);
-    if (!(isCurrent && excludeRole === "eleve")) (e.eleves_ids || []).forEach((id) => ids.add(id));
+    if (e._lid === entry._lid) {
+      add(e[SAME_GROUP_BLOCK[exceptField]]);  // même groupe, l'autre rôle uniquement
+    } else {
+      add(e.pedagogue_id);
+      add(e.eleves_ids);
+      if (e.salle_double) { add(e.pedagogue_id_2); add(e.eleves_ids_2); }
+    }
   });
   return ids;
 }
 
-// Élèves salle : priorise les moins passés, SANS plafond bloquant (on peut re-placer en
-// fin de semaine quand tout le monde est déjà passé). Exclut quiconque est déjà sur le même
-// créneau (tableau de cette carte ou carte parallèle) — pas deux endroits à la fois.
-// Rôle indépendant du tableau sur les AUTRES créneaux : un pédagogue peut être élève ailleurs.
-async function randomFillEleves(lid) {
+// Élèves salle (groupe 1 ou 2) : priorise les moins passés, SANS plafond bloquant (re-placement
+// possible en fin de semaine). Exclut quiconque est déjà sur le même créneau (l'autre groupe, le
+// tableau, une carte parallèle). Comptage indépendant entre tableau et élève sur les AUTRES créneaux.
+async function randomFillEleves(lid, group = 1) {
   const entry = entries.find((e) => e._lid === lid);
   if (!entry) return;
 
+  const field = group === 2 ? "eleves_ids_2" : "eleves_ids";
   const eleveCount = roleCounts("Pédagogie salle", "eleve", lid);
-  const blocked = slotOccupants(entry, "eleve");
+  const blocked = slotOccupants(entry, group === 2 ? "eleves_2" : "eleves");
   const eligible = stagiaires.filter((s) => !blocked.has(s.id));
   if (eligible.length === 0) {
     toast("Aucun stagiaire disponible sur ce créneau", "info", 3000);
@@ -435,19 +454,19 @@ async function randomFillEleves(lid) {
   toast(picked.length < 4
     ? `${picked.length} élève(s) tiré(s) · priorité aux moins passés`
     : "4 élèves tirés · priorité aux moins passés", "success", 1600);
-  await saveEntry(lid, { eleves_ids: picked });
+  await saveEntry(lid, { [field]: picked });
   renderInto(currentContainer);
 }
 
-// Au tableau (pédagogue salle) : ~1 passage/semaine, le plus rigoureux (toujours le moins
-// passé au tableau). Exclut quiconque est déjà sur le même créneau (élève de cette carte ou
-// d'une carte parallèle) — pas deux endroits à la fois.
-async function randomFillPedagogue(lid) {
+// Au tableau (groupe 1 ou 2) : le plus rigoureux (toujours le moins passé au tableau). Exclut
+// quiconque est déjà sur le même créneau (élèves, autre tableau, carte parallèle).
+async function randomFillPedagogue(lid, group = 1) {
   const entry = entries.find((e) => e._lid === lid);
   if (!entry) return;
 
+  const field = group === 2 ? "pedagogue_id_2" : "pedagogue_id";
   const pedaCount = roleCounts("Pédagogie salle", "pedagogue", lid);
-  const blocked = slotOccupants(entry, "pedagogue");
+  const blocked = slotOccupants(entry, group === 2 ? "pedagogue_2" : "pedagogue");
   const eligible = stagiaires.filter((s) => !blocked.has(s.id));
   if (eligible.length === 0) {
     toast("Aucun stagiaire disponible sur ce créneau", "info", 3000);
@@ -455,7 +474,7 @@ async function randomFillPedagogue(lid) {
   }
   const ordered = shuffle(eligible).sort((a, b) => (pedaCount[a.id] || 0) - (pedaCount[b.id] || 0));
   const picked = ordered[0];
-  await saveEntry(lid, { pedagogue_id: picked.id });
+  await saveEntry(lid, { [field]: picked.id });
   renderInto(currentContainer);
   toast(displayStagiaire(picked) + " désigné(e) au tableau", "success", 1800);
 }
@@ -467,7 +486,7 @@ async function randomFillVoitureEleves(lid, count) {
   if (!entry) return;
 
   const voitCount = roleCounts("Voiture (conduite)", "eleve", lid);
-  const blocked = slotOccupants(entry, "eleve");
+  const blocked = slotOccupants(entry, "eleves");
   const eligible = stagiaires.filter((s) => !blocked.has(s.id));
   if (eligible.length === 0) {
     toast("Aucun stagiaire disponible sur ce créneau", "info", 3000);
@@ -483,15 +502,132 @@ async function randomFillVoitureEleves(lid, count) {
   renderInto(currentContainer);
 }
 
+// === Placement automatique de toute la semaine ===
+// Remplit tableaux (1/groupe) + élèves (salle : 4/groupe, voiture : 2) selon la priorité
+// « moins passés », équilibré sur la semaine, anti-doublon par créneau, abandons ignorés.
+// Profs / sujets / notes ne sont JAMAIS touchés. Deux temps : tant qu'il reste des places
+// vides on ne remplit QUE les vides (respecte le manuel) ; quand tout est placé, un clic
+// propose de tout remélanger (re-tirage complet, avec confirmation). Undo via Ctrl+Z.
+function snapshotPlacement(e) {
+  return {
+    pedagogue_id: e.pedagogue_id ?? null,
+    eleves_ids: [...(e.eleves_ids || [])],
+    pedagogue_id_2: e.pedagogue_id_2 ?? null,
+    eleves_ids_2: [...(e.eleves_ids_2 || [])],
+  };
+}
+
+function placementEmpties(e) {
+  const out = [];
+  if (e.activite === "Pédagogie salle") {
+    if (e.pedagogue_id == null) out.push("t1");
+    if (!(e.eleves_ids && e.eleves_ids.length)) out.push("e1");
+    if (e.salle_double) {
+      if (e.pedagogue_id_2 == null) out.push("t2");
+      if (!(e.eleves_ids_2 && e.eleves_ids_2.length)) out.push("e2");
+    }
+  } else if (e.activite === "Voiture (conduite)") {
+    if (!(e.eleves_ids && e.eleves_ids.length)) out.push("v");
+  }
+  return out;
+}
+
+async function autoPlaceWeek() {
+  await flushPendingInputs();
+  const targets = entries.filter((e) =>
+    e.activite === "Pédagogie salle" || e.activite === "Voiture (conduite)");
+  if (targets.length === 0) {
+    toast("Aucune Pédagogie salle ni Voiture à placer cette semaine", "info", 3500);
+    return;
+  }
+
+  const reroll = !targets.some((e) => placementEmpties(e).length > 0);
+  if (reroll && !confirm("Toute la semaine est déjà placée.\n\nTout remélanger (tableaux + élèves) ? Tes ajustements manuels seront écrasés.")) return;
+
+  const before = targets.map((e) => ({ e, snap: snapshotPlacement(e) }));
+
+  // Compteurs par rôle (équité). En remélange on repart de zéro ; en remplissage on amorce
+  // avec l'existant pour équilibrer autour des places déjà occupées.
+  const tab = {}, salleEl = {}, voit = {};
+  const bump = (m, id) => { if (id != null) m[id] = (m[id] || 0) + 1; };
+
+  if (reroll) {
+    targets.forEach((e) => { e.pedagogue_id = null; e.eleves_ids = []; e.pedagogue_id_2 = null; e.eleves_ids_2 = []; });
+  } else {
+    targets.forEach((e) => {
+      if (e.activite === "Pédagogie salle") {
+        bump(tab, e.pedagogue_id); (e.eleves_ids || []).forEach((id) => bump(salleEl, id));
+        if (e.salle_double) { bump(tab, e.pedagogue_id_2); (e.eleves_ids_2 || []).forEach((id) => bump(salleEl, id)); }
+      } else {
+        (e.eleves_ids || []).forEach((id) => bump(voit, id));
+      }
+    });
+  }
+
+  const halfRank = (h) => (h === "matin" ? 0 : 1);
+  const ordered = targets.slice().sort((a, b) =>
+    a.day_index - b.day_index ||
+    halfRank(a.half_day) - halfRank(b.half_day) ||
+    a.slot - b.slot ||
+    (a.lane ?? 0) - (b.lane ?? 0));
+
+  const pickLeast = (countMap, blocked, n) =>
+    shuffle(stagiaires.filter((s) => !blocked.has(s.id)))
+      .sort((a, b) => (countMap[a.id] || 0) - (countMap[b.id] || 0))
+      .slice(0, n).map((s) => s.id);
+
+  let unfilled = 0;
+  for (const e of ordered) {
+    if (e.activite === "Pédagogie salle") {
+      for (const g of (e.salle_double ? [1, 2] : [1])) {
+        const pField = g === 2 ? "pedagogue_id_2" : "pedagogue_id";
+        const eField = g === 2 ? "eleves_ids_2" : "eleves_ids";
+        if (e[pField] == null) {  // tableau vide => 1 personne (la moins passée au tableau)
+          const pick = pickLeast(tab, slotOccupants(e, g === 2 ? "pedagogue_2" : "pedagogue"), 1)[0];
+          if (pick != null) { e[pField] = pick; bump(tab, pick); } else unfilled++;
+        }
+        if (!(e[eField] && e[eField].length)) {  // élèves vides => 4
+          const pick = pickLeast(salleEl, slotOccupants(e, g === 2 ? "eleves_2" : "eleves"), 4);
+          e[eField] = pick; pick.forEach((id) => bump(salleEl, id));
+          unfilled += 4 - pick.length;
+        }
+      }
+    } else if (!(e.eleves_ids && e.eleves_ids.length)) {  // Voiture, élèves vides => 2
+      const pick = pickLeast(voit, slotOccupants(e, "eleves"), 2);
+      e.eleves_ids = pick; pick.forEach((id) => bump(voit, id));
+      unfilled += 2 - pick.length;
+    }
+  }
+
+  // N'enregistre que les cartes réellement modifiées
+  const changed = before.filter(({ e, snap }) =>
+    e.pedagogue_id !== snap.pedagogue_id ||
+    e.pedagogue_id_2 !== snap.pedagogue_id_2 ||
+    JSON.stringify(e.eleves_ids || []) !== JSON.stringify(snap.eleves_ids) ||
+    JSON.stringify(e.eleves_ids_2 || []) !== JSON.stringify(snap.eleves_ids_2)
+  ).map((x) => x.e);
+
+  try {
+    await Promise.all(changed.map((e) => upsertPlanningEntry(entryUpsertPayload(e))));
+    renderInto(currentContainer);
+    toast(`Semaine placée${unfilled ? ` · ${unfilled} place(s) non remplie(s)` : ""} · Ctrl+Z pour annuler`, "success", 3000);
+    recordUndo("placement auto de la semaine", async () => {
+      before.forEach(({ e, snap }) => Object.assign(e, snap));
+      await Promise.all(changed.map((e) => upsertPlanningEntry(entryUpsertPayload(e))));
+      renderInto(currentContainer);
+    });
+  } catch (err) {
+    console.error(err);
+    before.forEach(({ e, snap }) => Object.assign(e, snap));
+    renderInto(currentContainer);
+    toast("Erreur lors du placement", "error");
+  }
+}
+
 async function deleteCell(entry) {
   // Commit les saisies en cours avant le re-render complet (sinon une note/sujet en attente est perdu)
   await flushPendingInputs();
-  // Empêche de supprimer s'il ne reste qu'une cellule pour cette demi-journée
-  const list = entriesFor(entry.day_index, entry.half_day);
-  if (list.length <= 1) {
-    toast("Au moins une activité par demi-journée", "error");
-    return;
-  }
+  // Une demi-journée peut rester vide : on autorise la suppression de n'importe quelle activité.
   if (!confirm("Supprimer ce créneau ?")) return;
   try {
     if (entry.id) await deletePlanningEntryById(entry.id);
@@ -578,7 +714,60 @@ function profChipsSelect(allProfs, currentIds, onChange) {
   return wrap;
 }
 
-function chipsSelect(allStagiaires, currentIds, onChange) {
+// Badge « nb de passages cette semaine dans ce rôle » (0 = prioritaire, mis en avant).
+function prioBadge(n) {
+  return el("span", { class: "prio-count" + (n === 0 ? " zero" : ""), title: "passages cette semaine dans ce rôle" }, String(n));
+}
+// Légende affichée en tête des menus de sélection de personne.
+function prioLegend() {
+  return el("div", { class: "prio-legend" }, "Passages cette semaine · 0 = prioritaire");
+}
+
+// Sélecteur d'UNE personne (tableau) : même habillage que les chips élèves / profs, trié par
+// priorité (moins passés en tête) avec compteur. counts (optionnel) = map id -> nb de passages.
+function personSelect(allStagiaires, currentId, onChange, counts, placeholder = "—") {
+  const wrap = el("div", { class: "person-select" });
+  const display = el("div", { class: "person-display", tabindex: "0" });
+  const dropdown = el("div", { class: "chips-dropdown person-dropdown hidden" });
+  let value = currentId ?? null;
+
+  const close = () => { dropdown.classList.add("hidden"); display.classList.remove("open"); };
+
+  function render() {
+    clear(display);
+    const s = value != null ? allStagiaires.find((x) => x.id === value) : null;
+    display.appendChild(s
+      ? el("span", { class: "person-value" }, displayStagiaire(s))
+      : el("span", { class: "person-placeholder" }, placeholder));
+
+    clear(dropdown);
+    if (counts) dropdown.appendChild(prioLegend());
+    const none = el("div", { class: "person-item" + (value == null ? " selected" : "") },
+      el("span", { class: "person-item-name person-none" }, placeholder));
+    none.addEventListener("click", (ev) => { ev.stopPropagation(); value = null; onChange(null); render(); close(); });
+    dropdown.appendChild(none);
+    const ordered = counts ? allStagiaires.slice().sort((a, b) => (counts[a.id] || 0) - (counts[b.id] || 0)) : allStagiaires;
+    ordered.forEach((s) => {
+      const item = el("div", { class: "person-item" + (value === s.id ? " selected" : "") },
+        el("span", { class: "person-item-name" }, displayStagiaire(s)));
+      if (counts) item.appendChild(prioBadge(counts[s.id] || 0));
+      item.addEventListener("click", (ev) => { ev.stopPropagation(); value = s.id; onChange(s.id); render(); close(); });
+      dropdown.appendChild(item);
+    });
+  }
+
+  display.addEventListener("click", () => { dropdown.classList.toggle("hidden"); display.classList.toggle("open"); });
+  document.addEventListener("click", (e) => { if (!wrap.contains(e.target)) close(); });
+
+  wrap.appendChild(display);
+  wrap.appendChild(dropdown);
+  render();
+  return wrap;
+}
+
+// counts (optionnel) : map id -> nb de passages dans le rôle cette semaine. Si fourni, le
+// menu est trié par priorité (moins passés en tête) et affiche le compteur à côté de chaque nom.
+function chipsSelect(allStagiaires, currentIds, onChange, counts) {
   const wrap = el("div", { class: "chips-select" });
   const display = el("div", { class: "chips-display", tabindex: "0" });
   const dropdown = el("div", { class: "chips-dropdown hidden" });
@@ -604,8 +793,13 @@ function chipsSelect(allStagiaires, currentIds, onChange) {
       });
     }
     clear(dropdown);
-    allStagiaires.forEach((s) => {
-      dropdown.appendChild(el("div", {
+    if (counts) dropdown.appendChild(prioLegend());
+    // Tri par priorité (moins passés en tête) si on a les compteurs
+    const ordered = counts
+      ? allStagiaires.slice().sort((a, b) => (counts[a.id] || 0) - (counts[b.id] || 0))
+      : allStagiaires;
+    ordered.forEach((s) => {
+      const item = el("div", {
         class: "chips-dropdown-item" + (selected.includes(s.id) ? " selected" : ""),
         onClick: (ev) => {
           ev.stopPropagation();
@@ -614,7 +808,9 @@ function chipsSelect(allStagiaires, currentIds, onChange) {
           render();
           onChange([...selected]);
         }
-      }, displayStagiaire(s)));
+      }, displayStagiaire(s));
+      if (counts) item.appendChild(prioBadge(counts[s.id] || 0));
+      dropdown.appendChild(item);
     });
   }
 
@@ -773,6 +969,51 @@ function sujetMultiSelect(currentValue, onChange) {
 
 // === Rendu d'une cellule (un lane d'un slot) ===
 
+// Bloc « Au tableau » d'un groupe (1 ou 2) d'une carte Pédagogie salle.
+function buildTableauRole(entry, lid, group) {
+  const field = group === 2 ? "pedagogue_id_2" : "pedagogue_id";
+  const exceptField = group === 2 ? "pedagogue_2" : "pedagogue";
+  const currentVal = entry[field] ?? null;
+  const pedaRole = el("div", { class: "p-lane-role pedagogue" });
+  pedaRole.appendChild(el("span", { class: "p-lane-role-label" }, "Au tableau"));
+  // Filtre + sélecteur trié par priorité (personSelect gère le tri et le compteur).
+  const blocked = slotOccupants(entry, exceptField);
+  const counts = roleCounts("Pédagogie salle", "pedagogue", lid);
+  const options = stagiaires.filter((s) => !blocked.has(s.id) || s.id === currentVal);
+  pedaRole.appendChild(personSelect(
+    options, currentVal, (id) => saveEntry(lid, { [field]: id }), counts, "—"
+  ));
+  pedaRole.appendChild(el("button", {
+    class: "p-dice-btn", type: "button",
+    title: "Tirer 1 stagiaire au tableau (le moins passé cette semaine)",
+    onClick: () => randomFillPedagogue(lid, group),
+  }, "🎲"));
+  return pedaRole;
+}
+
+// Bloc « Élèves » d'un groupe (1 ou 2) d'une carte Pédagogie salle.
+function buildElevesRoleSalle(entry, lid, group) {
+  const field = group === 2 ? "eleves_ids_2" : "eleves_ids";
+  const exceptField = group === 2 ? "eleves_2" : "eleves";
+  const current = entry[field] || [];
+  const eleveRole = el("div", { class: "p-lane-role eleves" });
+  eleveRole.appendChild(el("span", { class: "p-lane-role-label" }, "Élèves"));
+  const eleveCol = el("div", { class: "p-lane-eleves-col" });
+  const blocked = slotOccupants(entry, exceptField);
+  const counts = roleCounts("Pédagogie salle", "eleve", lid);
+  const options = stagiaires.filter((s) => !blocked.has(s.id) || current.includes(s.id));
+  eleveCol.appendChild(chipsSelect(options, current, (ids) => saveEntry(lid, { [field]: ids }), counts));
+  eleveCol.appendChild(el("div", { class: "p-eleves-dice-toolbar" },
+    el("button", {
+      class: "p-dice-btn", type: "button",
+      "aria-label": "Tirer 4 élèves au hasard", title: "Tirer 4 élèves (priorité aux moins passés)",
+      onClick: () => randomFillEleves(lid, group),
+    }, "🎲")
+  ));
+  eleveRole.appendChild(eleveCol);
+  return eleveRole;
+}
+
 function renderLaneCell(entry) {
   const lid = entry._lid;
   const cell = el("div", {
@@ -797,7 +1038,12 @@ function renderLaneCell(entry) {
     selectFromList(
       ACTIVITES.map((a) => ({ value: a, label: a })),
       entry.activite,
-      (v) => saveEntry(lid, { activite: v }),
+      (v) => {
+        // Passer à Pédagogie salle => 2 groupes par défaut (cas le plus courant)
+        const patch = { activite: v };
+        if (v === "Pédagogie salle" && entry.activite !== "Pédagogie salle") patch.salle_double = true;
+        saveEntry(lid, patch);
+      },
       "Choisir activité…"
     )
   ));
@@ -824,88 +1070,80 @@ function renderLaneCell(entry) {
     body.appendChild(el("div", { class: "p-lane-sujet" }, sujetWrap));
   }
 
-  // === Participants : pédagogue + élèves côte à côte avec labels ===
-  const hasPedagogue = shape.includes("pedagogue");
-  const hasEleves = shape.includes("eleves");
-  if (hasPedagogue || hasEleves) {
+  // === Participants ===
+  if (entry.activite === "Pédagogie salle") {
+    // Pédagogie salle : 1 ou 2 groupes (2 tableaux qui tournent en même temps).
+    const double = !!entry.salle_double;
+    const toggle = el("div", { class: "p-salle-toggle" });
+    [[1, "1 groupe"], [2, "2 groupes"]].forEach(([n, label]) => {
+      const active = (n === 2) === double;
+      toggle.appendChild(el("button", {
+        class: "p-salle-toggle-btn" + (active ? " active" : ""),
+        type: "button",
+        onClick: () => {
+          if (active) return;            // déjà dans cet état
+          saveEntry(lid, { salle_double: n === 2 });  // garde les données du groupe 2 si on repasse à 1
+          renderInto(currentContainer);
+        },
+      }, label));
+    });
+    body.appendChild(el("div", { class: "p-salle-groupes" }, toggle));
+
+    const g1 = el("div", { class: "p-lane-participants p-salle-group" });
+    if (double) g1.appendChild(el("div", { class: "p-salle-group-tag" }, "Groupe 1"));
+    g1.appendChild(buildTableauRole(entry, lid, 1));
+    g1.appendChild(buildElevesRoleSalle(entry, lid, 1));
+    body.appendChild(g1);
+
+    if (double) {
+      const g2 = el("div", { class: "p-lane-participants p-salle-group" });
+      g2.appendChild(el("div", { class: "p-salle-group-tag" }, "Groupe 2"));
+      g2.appendChild(buildTableauRole(entry, lid, 2));
+      g2.appendChild(buildElevesRoleSalle(entry, lid, 2));
+      body.appendChild(g2);
+    }
+  } else if (shape.includes("eleves")) {
+    // Voiture (conduite) : élèves seuls, avec mini-picker 1/2/3.
     const participants = el("div", { class: "p-lane-participants" });
-    if (hasPedagogue) {
-      const pedaRole = el("div", { class: "p-lane-role pedagogue" });
-      pedaRole.appendChild(el("span", { class: "p-lane-role-label" }, "Au tableau"));
-      // Filtre : pas quelqu'un déjà placé sur ce créneau (mais on garde le choix actuel visible)
-      const pedaBlocked = slotOccupants(entry, "pedagogue");
-      const pedaOptions = stagiaires.filter((s) => !pedaBlocked.has(s.id) || s.id === entry.pedagogue_id);
-      pedaRole.appendChild(selectFromList(
-        pedaOptions.map((s) => ({ value: s.id, label: displayStagiaire(s) })),
-        entry.pedagogue_id,
-        (v) => saveEntry(lid, { pedagogue_id: v ? Number(v) : null }),
-        "—"
-      ));
-      // Bouton tirage aléatoire du pédagogue (Pédagogie salle uniquement)
-      if (entry.activite === "Pédagogie salle") {
-        const diceBtn = el("button", {
-          class: "p-dice-btn",
-          type: "button",
-          title: "Tirer 1 stagiaire au hasard (parmi ceux qui n'ont pas encore été au tableau cette semaine)",
-          onClick: () => randomFillPedagogue(lid),
-        }, "🎲");
-        pedaRole.appendChild(diceBtn);
-      }
-      participants.appendChild(pedaRole);
+    const eleveRole = el("div", { class: "p-lane-role eleves" });
+    eleveRole.appendChild(el("span", { class: "p-lane-role-label" }, "Élèves"));
+    const eleveCol = el("div", { class: "p-lane-eleves-col" });
+    const eleveBlocked = slotOccupants(entry, "eleves");
+    const voitCounts = roleCounts("Voiture (conduite)", "eleve", lid);
+    const eleveOptions = stagiaires.filter((s) => !eleveBlocked.has(s.id) || (entry.eleves_ids || []).includes(s.id));
+    eleveCol.appendChild(chipsSelect(eleveOptions, entry.eleves_ids || [], (ids) => {
+      saveEntry(lid, { eleves_ids: ids });
+    }, voitCounts));
+    if (entry.activite === "Voiture (conduite)") {
+      const wrap = el("div", { class: "p-dice-picker-wrap" });
+      const diceBtn = el("button", {
+        class: "p-dice-btn", type: "button",
+        "aria-label": "Tirer des élèves", title: "Tirer des élèves voiture",
+      }, "🎲");
+      const picker = el("div", { class: "p-dice-picker hidden" });
+      [1, 2, 3].forEach((n) => {
+        picker.appendChild(el("button", {
+          class: "p-dice-option", type: "button",
+          onClick: (ev) => {
+            ev.stopPropagation();
+            picker.classList.add("hidden");
+            randomFillVoitureEleves(lid, n);
+          },
+        }, String(n)));
+      });
+      diceBtn.addEventListener("click", (ev) => {
+        ev.stopPropagation();
+        picker.classList.toggle("hidden");
+      });
+      document.addEventListener("click", (ev) => {
+        if (!wrap.contains(ev.target)) picker.classList.add("hidden");
+      });
+      wrap.appendChild(diceBtn);
+      wrap.appendChild(picker);
+      eleveCol.appendChild(el("div", { class: "p-eleves-dice-toolbar" }, wrap));
     }
-    if (hasEleves) {
-      const eleveRole = el("div", { class: "p-lane-role eleves" });
-      eleveRole.appendChild(el("span", { class: "p-lane-role-label" }, "Élèves"));
-      const eleveCol = el("div", { class: "p-lane-eleves-col" });
-      // Filtre : pas quelqu'un déjà placé sur ce créneau (mais on garde les choix actuels visibles)
-      const eleveBlocked = slotOccupants(entry, "eleve");
-      const eleveOptions = stagiaires.filter((s) => !eleveBlocked.has(s.id) || (entry.eleves_ids || []).includes(s.id));
-      eleveCol.appendChild(chipsSelect(eleveOptions, entry.eleves_ids || [], (ids) => {
-        saveEntry(lid, { eleves_ids: ids });
-      }));
-      if (entry.activite === "Pédagogie salle") {
-        const diceBtn = el("button", {
-          class: "p-dice-btn",
-          type: "button",
-          "aria-label": "Tirer 4 élèves au hasard",
-          title: "Tirer 4 élèves au hasard (sans doublon dans la semaine)",
-          onClick: () => randomFillEleves(lid),
-        }, "🎲");
-        eleveCol.appendChild(el("div", { class: "p-eleves-dice-toolbar" }, diceBtn));
-      } else if (entry.activite === "Voiture (conduite)") {
-        // Bouton 🎲 seul : ouvre un mini-picker (1/2/3) au clic
-        const wrap = el("div", { class: "p-dice-picker-wrap" });
-        const diceBtn = el("button", {
-          class: "p-dice-btn",
-          type: "button",
-          "aria-label": "Tirer des élèves",
-          title: "Tirer des élèves voiture",
-        }, "🎲");
-        const picker = el("div", { class: "p-dice-picker hidden" });
-        [1, 2, 3].forEach((n) => {
-          picker.appendChild(el("button", {
-            class: "p-dice-option", type: "button",
-            onClick: (ev) => {
-              ev.stopPropagation();
-              picker.classList.add("hidden");
-              randomFillVoitureEleves(lid, n);
-            },
-          }, String(n)));
-        });
-        diceBtn.addEventListener("click", (ev) => {
-          ev.stopPropagation();
-          picker.classList.toggle("hidden");
-        });
-        document.addEventListener("click", (ev) => {
-          if (!wrap.contains(ev.target)) picker.classList.add("hidden");
-        });
-        wrap.appendChild(diceBtn);
-        wrap.appendChild(picker);
-        eleveCol.appendChild(el("div", { class: "p-eleves-dice-toolbar" }, wrap));
-      }
-      eleveRole.appendChild(eleveCol);
-      participants.appendChild(eleveRole);
-    }
+    eleveRole.appendChild(eleveCol);
+    participants.appendChild(eleveRole);
     body.appendChild(participants);
   }
 
@@ -1024,27 +1262,6 @@ function renderDayCard(d, monday) {
   return card;
 }
 
-async function ensureMinimumSlots() {
-  const toCreate = [];
-  for (let d = 0; d < 5; d++) {
-    for (const half of HALF_DAYS) {
-      if (entriesFor(d, half.key).length === 0) {
-        toCreate.push({
-          semaine_lundi: semaineLundi, day_index: d, half_day: half.key,
-          slot: 0, lane: 0,
-          activite: null, prof_id: null, sujet: null,
-          pedagogue_id: null, eleves_ids: [], notes: null,
-        });
-      }
-    }
-  }
-  if (toCreate.length === 0) return;
-  for (const p of toCreate) {
-    try { await upsertPlanningEntry(p); } catch (e) { console.error(e); }
-  }
-  await loadPlanning();
-}
-
 async function loadPlanning() {
   const [data, metas] = await Promise.all([
     getPlanning(semaineLundi),
@@ -1134,7 +1351,6 @@ async function changeWeek(dateStr) {
   semaineLundi = dateStr;
   await setSetting("current_week_lundi", dateStr);
   await loadPlanning();
-  await ensureMinimumSlots();
   renderInto(currentContainer);
 }
 
@@ -1151,8 +1367,14 @@ function openValiderSemaineModal() {
   entries.forEach((e) => {
     const dateIso = isoDate(addDays(monday, e.day_index));
     if (dateIso > todayIso) return;
-    if (e.activite === "Pédagogie salle" && e.pedagogue_id && activeIds.has(e.pedagogue_id)) {
-      raw.push({ stagiaire_id: e.pedagogue_id, type: "Salle", date: dateIso, day_index: e.day_index });
+    if (e.activite === "Pédagogie salle") {
+      if (e.pedagogue_id && activeIds.has(e.pedagogue_id)) {
+        raw.push({ stagiaire_id: e.pedagogue_id, type: "Salle", date: dateIso, day_index: e.day_index });
+      }
+      // 2e tableau (si la carte a 2 groupes) = un 2e passage Salle
+      if (e.salle_double && e.pedagogue_id_2 && activeIds.has(e.pedagogue_id_2)) {
+        raw.push({ stagiaire_id: e.pedagogue_id_2, type: "Salle", date: dateIso, day_index: e.day_index });
+      }
     } else if (e.activite === "Voiture (conduite)") {
       (e.eleves_ids || []).forEach((id) => {
         if (activeIds.has(id)) raw.push({ stagiaire_id: id, type: "Voiture", date: dateIso, day_index: e.day_index });
@@ -1463,6 +1685,14 @@ function renderInto(container) {
     dateInput, prevBtn, nextBtn, todayBtn,
     el("span", { style: "flex:1" }),
   );
+  // Placer la semaine : tirage global (tableaux + élèves de toute la semaine), admin uniquement
+  if (admin) {
+    const placeBtn = el("button", { class: "btn small",
+      title: "Placer automatiquement tableaux et élèves de toute la semaine (priorité aux moins passés)",
+      onClick: () => autoPlaceWeek() });
+    placeBtn.appendChild(document.createTextNode("🎲 Placer la semaine"));
+    weekBar.appendChild(placeBtn);
+  }
   // Valider la semaine : admin uniquement, sur une semaine au moins partiellement écoulée
   if (admin && semaineLundi <= isoDate(new Date())) {
     const validBtn = el("button", { class: "btn small primary", onClick: () => openValiderSemaineModal() });
@@ -1499,7 +1729,8 @@ function lookupStagiaire(id) {
 function entryHasContent(e) {
   return nonEmpty(e.activite) || nonEmpty(e.sujet) || nonEmpty(e.notes)
       || (e.prof_ids && e.prof_ids.length) || e.prof_id
-      || e.pedagogue_id || (e.eleves_ids && e.eleves_ids.length);
+      || e.pedagogue_id || (e.eleves_ids && e.eleves_ids.length)
+      || (e.salle_double && (e.pedagogue_id_2 || (e.eleves_ids_2 && e.eleves_ids_2.length)));
 }
 
 function printEntryCell(e) {
@@ -1523,22 +1754,23 @@ function printEntryCell(e) {
     cell.appendChild(el("div", { class: "pp-sujet" }, e.sujet));
   }
 
-  // Pédagogue (Au tableau) : seulement si le nom se résout (évite un label orphelin si l'id n'existe plus)
-  const pedaName = e.pedagogue_id ? lookupStagiaire(e.pedagogue_id) : "";
-  if (pedaName) {
-    cell.appendChild(el("div", { class: "pp-line" },
-      el("span", { class: "pp-key" }, "Au tableau : "),
-      el("span", { class: "pp-val" }, pedaName)
-    ));
-  }
-
-  // Élèves : seulement si au moins un nom se résout
-  const eleveNames = (e.eleves_ids || []).map(lookupStagiaire).filter(Boolean);
-  if (eleveNames.length) {
-    cell.appendChild(el("div", { class: "pp-line" },
-      el("span", { class: "pp-key" }, "Élèves : "),
-      el("span", { class: "pp-val" }, eleveNames.join(", "))
-    ));
+  // Au tableau + Élèves (avec un 2e groupe si la carte salle a 2 groupes actifs).
+  // Noms seulement s'ils se résolvent (évite un label orphelin si l'id n'existe plus).
+  const addRole = (key, val) => {
+    if (nonEmpty(val)) cell.appendChild(el("div", { class: "pp-line" },
+      el("span", { class: "pp-key" }, key + " : "),
+      el("span", { class: "pp-val" }, val)));
+  };
+  const nameOf = (id) => (id ? lookupStagiaire(id) : "");
+  const namesOf = (ids) => (ids || []).map(lookupStagiaire).filter(Boolean).join(", ");
+  if (e.activite === "Pédagogie salle" && e.salle_double) {
+    addRole("Au tableau G1", nameOf(e.pedagogue_id));
+    addRole("Élèves G1", namesOf(e.eleves_ids));
+    addRole("Au tableau G2", nameOf(e.pedagogue_id_2));
+    addRole("Élèves G2", namesOf(e.eleves_ids_2));
+  } else {
+    addRole("Au tableau", nameOf(e.pedagogue_id));
+    addRole("Élèves", namesOf(e.eleves_ids));
   }
 
   // Notes
@@ -1642,6 +1874,5 @@ export async function renderPlanning(container) {
   ]);
   semaineLundi = (await getSetting("current_week_lundi")) || isoDate(getMonday(new Date()));
   await loadPlanning();
-  await ensureMinimumSlots();
   renderInto(container);
 }
