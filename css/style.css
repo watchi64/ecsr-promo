@@ -5105,20 +5105,28 @@ button.theme-date.editable.muted { color: var(--text-faint); }
 #print-container { display: none; }
 
 @media print {
-  body.printing-planning > *:not(#print-container) { display: none !important; }
-  body.printing-planning { background: white; color: #000; }
-  body.printing-planning #print-container { display: block; }
+  body.planning-printable > *:not(#print-container) { display: none !important; }
+  body.planning-printable { background: white; color: #000; }
+  body.planning-printable #print-container { display: block; }
+  /* Le conteneur d'impression mappe sur toute la zone imprimable de la page A4. */
+  html, body.planning-printable { height: auto; }
 
-  /* Reset */
-  body.printing-planning .print-root,
-  body.printing-planning .print-root * {
+  /* Reset — police chargée par l'app (Outfit) pour un rendu identique sur tous les OS,
+     au lieu d'un fallback système (-apple-system → SF/Segoe/Roboto selon l'appareil). */
+  body.planning-printable .print-root,
+  body.planning-printable .print-root * {
     color: #000;
-    font-family: "Geist", -apple-system, sans-serif;
+    font-family: "Outfit", -apple-system, "Segoe UI", Roboto, sans-serif;
   }
 
   .print-root {
     width: 100%;
     max-width: 100%;
+    /* Remplit la hauteur d'une A4 paysage (210mm − 2×7mm de marge ≈ 196mm ; on garde
+       une petite réserve pour ne jamais déborder sur une 2e page). */
+    min-height: 189mm;
+    display: flex;
+    flex-direction: column;
     page-break-after: avoid;
   }
 
@@ -5142,14 +5150,20 @@ button.theme-date.editable.muted { color: var(--text-faint); }
     font-variant: small-caps;
   }
 
-  /* Grille 5 colonnes de jours, 2 demi-journées par jour */
+  /* Grille 5 colonnes de jours, 2 demi-journées par jour.
+     flex:1 + lignes en minmax(0,1fr) → la grille absorbe la hauteur restante et
+     les colonnes-jours s'étirent jusqu'en bas de la page (occupe l'espace). */
   .pp-grid {
+    flex: 1 1 auto;
     display: grid;
     grid-template-columns: repeat(5, 1fr);
+    grid-template-rows: minmax(0, 1fr);
     gap: 2mm;
   }
 
   .pp-day {
+    display: flex;
+    flex-direction: column;
     border: 0.7px solid #444;
     border-radius: 2mm;
     overflow: hidden;
@@ -5160,15 +5174,15 @@ button.theme-date.editable.muted { color: var(--text-faint); }
   .pp-day-head {
     background: #1F2937 !important;
     color: white !important;
-    padding: 1.2mm 2mm;
+    padding: 1.6mm 2.4mm;
     display: flex;
     justify-content: space-between;
     align-items: baseline;
     print-color-adjust: exact;
     -webkit-print-color-adjust: exact;
   }
-  .pp-day-head .pp-day-name { font-size: 8.5pt; font-weight: 600; color: white !important; }
-  .pp-day-head .pp-day-date { font-size: 7pt; color: rgba(255,255,255,0.65) !important; }
+  .pp-day-head .pp-day-name { font-size: 11pt; font-weight: 600; color: white !important; }
+  .pp-day-head .pp-day-date { font-size: 8.5pt; color: rgba(255,255,255,0.7) !important; }
 
   .pp-half { border-top: 0.5px solid #999; }
   .pp-half:first-child { border-top: none; }
@@ -5177,10 +5191,10 @@ button.theme-date.editable.muted { color: var(--text-faint); }
     display: flex;
     align-items: center;
     gap: 1.5mm;
-    padding: 0.8mm 2mm;
+    padding: 1mm 2.2mm;
     background: #F4F4F3 !important;
     border-bottom: 0.4px solid #ccc;
-    font-size: 6.5pt;
+    font-size: 8.3pt;
     print-color-adjust: exact;
     -webkit-print-color-adjust: exact;
     flex-wrap: wrap;
@@ -5188,16 +5202,16 @@ button.theme-date.editable.muted { color: var(--text-faint); }
   .pp-half-tag {
     font-weight: 700;
     letter-spacing: 0.06em;
-    padding: 0.2mm 1mm;
+    padding: 0.4mm 1.4mm;
     border-radius: 1mm;
-    font-size: 6pt;
+    font-size: 7.8pt;
     print-color-adjust: exact;
     -webkit-print-color-adjust: exact;
   }
   .pp-half-tag.matin { background: #FEF3C7 !important; color: #78350F !important; }
   .pp-half-tag.aprem { background: #DBEAFE !important; color: #1E3A8A !important; }
-  .pp-half-hours { font-family: "Geist Mono", monospace; color: #555; font-size: 6.5pt; }
-  .pp-half-pause { color: #B45309 !important; font-weight: 500; font-size: 6.2pt; }
+  .pp-half-hours { font-family: "Geist Mono", monospace; color: #555; font-size: 8.3pt; }
+  .pp-half-pause { color: #B45309 !important; font-weight: 500; font-size: 7.8pt; }
 
   /* Slots : empilés verticalement dans une demi-journée */
   .pp-row {
@@ -5210,9 +5224,9 @@ button.theme-date.editable.muted { color: var(--text-faint); }
   .pp-row:last-child { border-bottom: none; }
 
   .pp-cell {
-    padding: 1.5mm 2mm;
-    font-size: 6.5pt;
-    line-height: 1.3;
+    padding: 1.5mm 2.2mm;
+    font-size: 8.7pt;
+    line-height: 1.27;
     border-right: 0.3px dashed #ccc;
     min-width: 0;
   }
@@ -5226,25 +5240,29 @@ button.theme-date.editable.muted { color: var(--text-faint); }
     display: flex;
     justify-content: space-between;
     align-items: baseline;
-    gap: 1mm;
+    gap: 0.5mm 1.5mm;
     margin-bottom: 0.5mm;
+    flex-wrap: wrap;
   }
-  .pp-act { font-weight: 700; font-size: 7pt; letter-spacing: -0.01em; }
+  .pp-act { font-weight: 700; font-size: 9.6pt; letter-spacing: -0.01em; min-width: 0; overflow-wrap: anywhere; }
   .pp-act.muted { color: #aaa; font-weight: 400; }
-  .pp-prof { font-size: 6pt; color: #555; font-style: italic; white-space: nowrap; }
+  .pp-prof { font-size: 8.3pt; color: #555; font-style: italic; }
 
-  .pp-sujet { font-size: 6.5pt; color: #1F2937; line-height: 1.25; margin-bottom: 0.5mm; }
-  .pp-line { font-size: 6pt; line-height: 1.25; color: #333; }
-  .pp-key { color: #999; }
+  /* Les longs contenus (noms multiples, sujets) cassent au lieu de déborder/être rognés. */
+  .pp-sujet, .pp-line, .pp-val, .pp-notes { overflow-wrap: anywhere; }
+
+  .pp-sujet { font-size: 8.7pt; color: #1F2937; line-height: 1.24; margin-bottom: 0.6mm; }
+  .pp-line { font-size: 8.3pt; line-height: 1.25; color: #333; }
+  .pp-key { color: #777; }
   .pp-val { color: #000; }
-  .pp-notes { color: #555; font-style: italic; margin-top: 0.5mm; }
+  .pp-notes { color: #555; font-style: italic; margin-top: 0.6mm; }
 
-  .pp-empty { padding: 1.5mm 2mm; color: #ccc; font-size: 6pt; font-style: italic; }
+  .pp-empty { padding: 1.7mm 2.2mm; color: #bbb; font-size: 8.3pt; font-style: italic; }
 
   .pp-footer {
-    margin-top: 4mm;
+    margin-top: 3mm;
     text-align: right;
-    font-size: 6pt;
+    font-size: 8.5pt;
     color: #999;
     font-style: italic;
   }

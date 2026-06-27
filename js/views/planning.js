@@ -4,13 +4,13 @@ import {
   getHalfMetaForWeek, upsertHalfMeta,
   getSetting, setSetting,
   addPassagesBatch, deletePassagesBatch, getPassagesInRange, updateTheme,
-} from "../db.js?v=20260627j";
-import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire } from "../utils.js?v=20260627j";
-import { icon } from "../icons.js?v=20260627j";
-import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260627j";
-import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260627j";
-import { recordUndo } from "../undo.js?v=20260627j";
-import { getCurrentWho } from "../identity.js?v=20260627j";
+} from "../db.js?v=20260627k";
+import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire } from "../utils.js?v=20260627k";
+import { icon } from "../icons.js?v=20260627k";
+import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260627k";
+import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260627k";
+import { recordUndo } from "../undo.js?v=20260627k";
+import { getCurrentWho } from "../identity.js?v=20260627k";
 
 let stagiaires = [];
 let profs = [];
@@ -100,6 +100,12 @@ async function saveEntry(localId, patch) {
   const entry = entries.find((e) => e._lid === localId);
   if (!entry) return;
   Object.assign(entry, patch);
+
+  // Garde le DOM d'impression caché en phase avec CHAQUE édition en place. Beaucoup
+  // d'éditions (sujet, élèves, profs, note, activité) ne passent pas par renderInto,
+  // et iOS Safari ne déclenche pas `beforeprint` : sans ça, un Partage→Imprimer après
+  // une saisie imprimerait un planning périmé. No-op hors planning.
+  syncPrintTargetIfMounted();
 
   const payload = entryUpsertPayload(entry);
 
@@ -1712,6 +1718,9 @@ function renderInto(container) {
     el("strong", {}, "Parallèle "), "→ = autre activité au même horaire (ex: voiture qui tourne pendant un cours). ",
     "Au moins 1 créneau par demi-journée. Min. 1 lane (rangée) → bouton « Parallèle » l'étoffe."
   ));
+
+  // Monte/rafraîchit le DOM d'impression dédié (caché à l'écran, utilisé par @media print).
+  mountPrintTarget();
 }
 
 // === Rendu print 1 page (DOM dédié, compact, vide masqué) ===
@@ -1848,21 +1857,70 @@ function buildPrintHtml(monday) {
   return root;
 }
 
-function printPlanning() {
-  const monday = new Date(semaineLundi + "T00:00:00");
-  const printContainer = document.createElement("div");
-  printContainer.id = "print-container";
-  printContainer.appendChild(buildPrintHtml(monday));
-  document.body.appendChild(printContainer);
-  document.body.classList.add("printing-planning");
+// Le DOM d'impression dédié (#print-container) est monté EN PERMANENCE tant qu'on
+// est sur le planning, caché à l'écran via `#print-container{display:none}`. La
+// bascule écran↔impression est faite uniquement par `@media print` + la classe
+// `planning-printable` posée sur <body>. Avantage : ça marche pour TOUS les chemins
+// d'impression (bouton, Cmd/Ctrl+P, partage→Imprimer iOS, Chrome Android), et il n'y
+// a plus de course critique (l'ancien setTimeout retirait le DOM pendant que l'aperçu
+// iOS se générait encore → l'app entière s'imprimait sur ~10 pages).
 
-  setTimeout(() => {
-    window.print();
-    setTimeout(() => {
-      document.body.classList.remove("printing-planning");
-      printContainer.remove();
-    }, 500);
-  }, 100);
+let printBeforeprintBound = false;
+
+function ensurePrintContainer() {
+  let c = document.getElementById("print-container");
+  if (!c) {
+    c = document.createElement("div");
+    c.id = "print-container";
+    document.body.appendChild(c);
+  }
+  return c;
+}
+
+// (Re)génère le contenu compact 1 page A4 paysage depuis les données de la semaine courante.
+function refreshPrintTarget() {
+  if (!semaineLundi) return;
+  const c = ensurePrintContainer();
+  const monday = new Date(semaineLundi + "T00:00:00");
+  c.innerHTML = "";
+  c.appendChild(buildPrintHtml(monday));
+  document.body.classList.add("planning-printable");
+}
+
+// Rafraîchit le DOM d'impression UNIQUEMENT s'il est déjà monté (= on est sur le planning).
+// Évite qu'un save différé (note debouncée) qui tombe après avoir quitté la vue ne
+// ressuscite la cible d'impression sur une autre vue.
+function syncPrintTargetIfMounted() {
+  if (document.body.classList.contains("planning-printable")) refreshPrintTarget();
+}
+
+function mountPrintTarget() {
+  refreshPrintTarget();
+  if (!printBeforeprintBound) {
+    // Rafraîchit le DOM d'impression juste avant un print natif, pour qu'il reflète
+    // toujours les dernières éditions. Deux déclencheurs complémentaires :
+    //  - `beforeprint` : desktop (Chrome/Edge/Firefox/Safari macOS) + Ctrl/Cmd+P.
+    //  - changement de `matchMedia('print')` : seul signal émis par iOS Safari/WebKit,
+    //    qui n'implémente pas `beforeprint` → couvre le Partage→Imprimer sur iPhone.
+    window.addEventListener("beforeprint", syncPrintTargetIfMounted);
+    const mq = window.matchMedia("print");
+    const onMq = (e) => { if (e.matches) syncPrintTargetIfMounted(); };
+    if (mq.addEventListener) mq.addEventListener("change", onMq);
+    else if (mq.addListener) mq.addListener(onMq); // anciens Safari
+    printBeforeprintBound = true;
+  }
+}
+
+// Appelé par le routeur en quittant le planning : on retire la cible d'impression
+// pour qu'un print natif depuis une autre vue n'imprime pas un planning périmé.
+export function teardownPrintTarget() {
+  document.getElementById("print-container")?.remove();
+  document.body.classList.remove("planning-printable");
+}
+
+function printPlanning() {
+  refreshPrintTarget();
+  window.print();
 }
 
 export async function renderPlanning(container) {
