@@ -4,13 +4,13 @@ import {
   getHalfMetaForWeek, upsertHalfMeta,
   getSetting, setSetting,
   addPassagesBatch, deletePassagesBatch, getPassagesInRange, updateTheme,
-} from "../db.js?v=20260627b";
-import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire } from "../utils.js?v=20260627b";
-import { icon } from "../icons.js?v=20260627b";
-import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260627b";
-import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260627b";
-import { recordUndo } from "../undo.js?v=20260627b";
-import { getCurrentWho } from "../identity.js?v=20260627b";
+} from "../db.js?v=20260627c";
+import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire } from "../utils.js?v=20260627c";
+import { icon } from "../icons.js?v=20260627c";
+import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260627c";
+import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260627c";
+import { recordUndo } from "../undo.js?v=20260627c";
+import { getCurrentWho } from "../identity.js?v=20260627c";
 
 let stagiaires = [];
 let profs = [];
@@ -397,19 +397,35 @@ function roleCounts(activite, role, exceptLid) {
   return counts;
 }
 
-// Élèves salle : 1 à 2 passages/semaine. Priorise les moins servis, plafond DUR à 2.
-// Rôle indépendant du tableau : un pédagogue peut être élève d'un AUTRE créneau.
+// Ids des stagiaires déjà placés (au tableau OU comme élève, toute activité) dans le
+// MÊME créneau horaire = même slot, donc les cartes EN PARALLÈLE. Sert à interdire qu'une
+// personne soit à deux endroits en même temps (élève + tableau, salle + voiture, etc.).
+// `excludeRole` ("eleve" | "pedagogue") ignore le rôle de la cellule courante qu'on est
+// en train de (re)remplir, pour ne pas se bloquer soi-même.
+function slotOccupants(entry, excludeRole) {
+  const ids = new Set();
+  entries.forEach((e) => {
+    if (e.day_index !== entry.day_index || e.half_day !== entry.half_day || e.slot !== entry.slot) return;
+    const isCurrent = e._lid === entry._lid;
+    if (!(isCurrent && excludeRole === "pedagogue") && e.pedagogue_id != null) ids.add(e.pedagogue_id);
+    if (!(isCurrent && excludeRole === "eleve")) (e.eleves_ids || []).forEach((id) => ids.add(id));
+  });
+  return ids;
+}
+
+// Élèves salle : priorise les moins passés, SANS plafond bloquant (on peut re-placer en
+// fin de semaine quand tout le monde est déjà passé). Exclut quiconque est déjà sur le même
+// créneau (tableau de cette carte ou carte parallèle) — pas deux endroits à la fois.
+// Rôle indépendant du tableau sur les AUTRES créneaux : un pédagogue peut être élève ailleurs.
 async function randomFillEleves(lid) {
   const entry = entries.find((e) => e._lid === lid);
   if (!entry) return;
 
   const eleveCount = roleCounts("Pédagogie salle", "eleve", lid);
-  // Plafond 2 ailleurs (le créneau courant est exclu du compte), jamais le pédagogue du créneau
-  const eligible = stagiaires.filter((s) =>
-    (eleveCount[s.id] || 0) < 2 && s.id !== entry.pedagogue_id
-  );
+  const blocked = slotOccupants(entry, "eleve");
+  const eligible = stagiaires.filter((s) => !blocked.has(s.id));
   if (eligible.length === 0) {
-    toast("Tout le monde a déjà fait ses 2 passages élève cette semaine", "info", 3500);
+    toast("Aucun stagiaire disponible sur ce créneau", "info", 3000);
     return;
   }
   // Mélange puis tri stable par nb de passages croissant => priorité aux moins servis
@@ -423,17 +439,18 @@ async function randomFillEleves(lid) {
   renderInto(currentContainer);
 }
 
-// Au tableau (pédagogue salle) : ~1 passage/semaine. Priorise les moins servis (souple :
-// peut aller à 2 si besoin). Seul interdit : être pédagogue ET élève du même créneau.
+// Au tableau (pédagogue salle) : ~1 passage/semaine, le plus rigoureux (toujours le moins
+// passé au tableau). Exclut quiconque est déjà sur le même créneau (élève de cette carte ou
+// d'une carte parallèle) — pas deux endroits à la fois.
 async function randomFillPedagogue(lid) {
   const entry = entries.find((e) => e._lid === lid);
   if (!entry) return;
 
   const pedaCount = roleCounts("Pédagogie salle", "pedagogue", lid);
-  const inCell = new Set(entry.eleves_ids || []);
-  const eligible = stagiaires.filter((s) => !inCell.has(s.id));
+  const blocked = slotOccupants(entry, "pedagogue");
+  const eligible = stagiaires.filter((s) => !blocked.has(s.id));
   if (eligible.length === 0) {
-    toast("Aucun stagiaire éligible (tous élèves de ce créneau)", "info", 3500);
+    toast("Aucun stagiaire disponible sur ce créneau", "info", 3000);
     return;
   }
   const ordered = shuffle(eligible).sort((a, b) => (pedaCount[a.id] || 0) - (pedaCount[b.id] || 0));
@@ -443,15 +460,17 @@ async function randomFillPedagogue(lid) {
   toast(displayStagiaire(picked) + " désigné(e) au tableau", "success", 1800);
 }
 
-// Voiture : priorise les moins passés en voiture cette semaine, sans plafond hebdo.
+// Voiture : priorise les moins passés en voiture, sans plafond. Exclut quiconque est déjà
+// sur le même créneau (carte parallèle, ex. salle) — pas deux endroits à la fois.
 async function randomFillVoitureEleves(lid, count) {
   const entry = entries.find((e) => e._lid === lid);
   if (!entry) return;
 
   const voitCount = roleCounts("Voiture (conduite)", "eleve", lid);
-  const eligible = stagiaires.slice();
+  const blocked = slotOccupants(entry, "eleve");
+  const eligible = stagiaires.filter((s) => !blocked.has(s.id));
   if (eligible.length === 0) {
-    toast("Aucun stagiaire", "error", 3000);
+    toast("Aucun stagiaire disponible sur ce créneau", "info", 3000);
     return;
   }
   const ordered = shuffle(eligible).sort((a, b) => (voitCount[a.id] || 0) - (voitCount[b.id] || 0));
@@ -813,8 +832,11 @@ function renderLaneCell(entry) {
     if (hasPedagogue) {
       const pedaRole = el("div", { class: "p-lane-role pedagogue" });
       pedaRole.appendChild(el("span", { class: "p-lane-role-label" }, "Au tableau"));
+      // Filtre : pas quelqu'un déjà placé sur ce créneau (mais on garde le choix actuel visible)
+      const pedaBlocked = slotOccupants(entry, "pedagogue");
+      const pedaOptions = stagiaires.filter((s) => !pedaBlocked.has(s.id) || s.id === entry.pedagogue_id);
       pedaRole.appendChild(selectFromList(
-        stagiaires.map((s) => ({ value: s.id, label: displayStagiaire(s) })),
+        pedaOptions.map((s) => ({ value: s.id, label: displayStagiaire(s) })),
         entry.pedagogue_id,
         (v) => saveEntry(lid, { pedagogue_id: v ? Number(v) : null }),
         "—"
@@ -835,7 +857,10 @@ function renderLaneCell(entry) {
       const eleveRole = el("div", { class: "p-lane-role eleves" });
       eleveRole.appendChild(el("span", { class: "p-lane-role-label" }, "Élèves"));
       const eleveCol = el("div", { class: "p-lane-eleves-col" });
-      eleveCol.appendChild(chipsSelect(stagiaires, entry.eleves_ids || [], (ids) => {
+      // Filtre : pas quelqu'un déjà placé sur ce créneau (mais on garde les choix actuels visibles)
+      const eleveBlocked = slotOccupants(entry, "eleve");
+      const eleveOptions = stagiaires.filter((s) => !eleveBlocked.has(s.id) || (entry.eleves_ids || []).includes(s.id));
+      eleveCol.appendChild(chipsSelect(eleveOptions, entry.eleves_ids || [], (ids) => {
         saveEntry(lid, { eleves_ids: ids });
       }));
       if (entry.activite === "Pédagogie salle") {

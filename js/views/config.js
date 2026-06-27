@@ -4,14 +4,14 @@
  */
 import {
   listStagiaires, listProfs,
-  addStagiaire, updateStagiaire, deleteStagiaire,
+  addStagiaire, updateStagiaire, deleteStagiaire, setStagiaireActif,
   addProf, updateProf, deleteProf,
   listUserProfiles, deleteUserProfile, inviteUser,
   setMyAnonymousNotes,
-} from "../db.js?v=20260627b";
-import { el, clear, toast, displayStagiaire } from "../utils.js?v=20260627b";
-import { icon } from "../icons.js?v=20260627b";
-import { isAdmin, getAdminEmail, getProfile } from "../auth-admin.js?v=20260627b";
+} from "../db.js?v=20260627c";
+import { el, clear, toast, displayStagiaire } from "../utils.js?v=20260627c";
+import { icon } from "../icons.js?v=20260627c";
+import { isAdmin, getAdminEmail, getProfile } from "../auth-admin.js?v=20260627c";
 
 // ====== SECTION Accès & invitations ======
 
@@ -246,7 +246,11 @@ async function renderPromoSection(rerender) {
     ),
   ));
 
-  const [stagiaires, profs] = await Promise.all([listStagiaires(), listProfs()]);
+  const [allStagiaires, profs] = await Promise.all([
+    listStagiaires({ includeInactive: true }), listProfs(),
+  ]);
+  const stagiairesActifs = allStagiaires.filter((s) => s.actif !== false);
+  const stagiairesAbandon = allStagiaires.filter((s) => s.actif === false);
 
   function renderList(items, type) {
     const wrap = el("div", { class: "param-block" });
@@ -271,20 +275,37 @@ async function renderPromoSection(rerender) {
         input.addEventListener("keydown", (e) => { if (e.key === "Enter") input.blur(); });
       }
 
-      const delBtn = admin ? el("button", {
-        class: "btn small danger icon-only", "aria-label": "Supprimer",
-        onClick: async () => {
-          if (!confirm(`Supprimer ${it.prenom || it.nom} ?`)) return;
-          try {
-            if (type === "stagiaire") await deleteStagiaire(it.id);
-            else await deleteProf(it.id);
-            toast("Supprimé", "success");
-            rerender();
-          } catch (e) { toast(e.message, "error"); }
-        }
-      }, icon.trash()) : null;
+      // Stagiaire : « Abandon » (désactivation douce, données conservées).
+      // Prof : suppression directe (pas de notion d'abandon).
+      let actionBtn = null;
+      if (admin && type === "stagiaire") {
+        actionBtn = el("button", {
+          class: "btn small ghost abandon-btn",
+          title: "Marquer en abandon : masqué partout (planning, dés, notes), données conservées",
+          onClick: async () => {
+            if (!confirm(`Marquer ${it.prenom} en abandon ?\n\nIl/elle disparaît du planning, des dés et des notes. Les données restent conservées et réactivables.`)) return;
+            try {
+              await setStagiaireActif(it.id, false);
+              toast(`${it.prenom} marqué(e) en abandon`, "success");
+              rerender();
+            } catch (e) { toast(e.message, "error"); }
+          }
+        }, "Abandon");
+      } else if (admin) {
+        actionBtn = el("button", {
+          class: "btn small danger icon-only", "aria-label": "Supprimer",
+          onClick: async () => {
+            if (!confirm(`Supprimer ${it.nom} ?`)) return;
+            try {
+              await deleteProf(it.id);
+              toast("Supprimé", "success");
+              rerender();
+            } catch (e) { toast(e.message, "error"); }
+          }
+        }, icon.trash());
+      }
 
-      list.appendChild(el("li", {}, input, delBtn));
+      list.appendChild(el("li", {}, input, actionBtn));
     });
     wrap.appendChild(list);
 
@@ -307,7 +328,52 @@ async function renderPromoSection(rerender) {
     return wrap;
   }
 
-  section.appendChild(renderList(stagiaires, "stagiaire"));
+  // Bloc des abandons : réactivation, ou suppression définitive (réservée ici pour
+  // éviter toute perte de données accidentelle depuis la liste active).
+  function renderAbandons(items) {
+    const wrap = el("div", { class: "param-block abandons-block" });
+    wrap.appendChild(el("div", { class: "block-head" },
+      el("h4", {}, "Abandons"),
+      el("span", { class: "count" }, items.length + " stagiaire" + (items.length > 1 ? "s" : "")),
+    ));
+    wrap.appendChild(el("p", { class: "muted abandons-hint" },
+      "Masqués du planning, des dés et des notes. Données conservées pour d'éventuelles statistiques."));
+    const list = el("ul", { class: "config-list" });
+    items.forEach((it) => {
+      const reactiverBtn = el("button", {
+        class: "btn small accent",
+        onClick: async () => {
+          try {
+            await setStagiaireActif(it.id, true);
+            toast(`${it.prenom} réactivé(e)`, "success");
+            rerender();
+          } catch (e) { toast(e.message, "error"); }
+        }
+      }, "Réactiver");
+      const delBtn = el("button", {
+        class: "btn small danger icon-only",
+        "aria-label": "Supprimer définitivement",
+        title: "Supprimer définitivement (irréversible, efface les données)",
+        onClick: async () => {
+          if (!confirm(`Supprimer DÉFINITIVEMENT ${it.prenom} ?\n\nIrréversible : efface ses données. Pour seulement le masquer, garde-le en abandon.`)) return;
+          try {
+            await deleteStagiaire(it.id);
+            toast("Supprimé définitivement", "success");
+            rerender();
+          } catch (e) { toast(e.message, "error"); }
+        }
+      }, icon.trash());
+      list.appendChild(el("li", { class: "abandon-row" },
+        el("span", { class: "abandon-name" }, it.prenom),
+        reactiverBtn, delBtn,
+      ));
+    });
+    wrap.appendChild(list);
+    return wrap;
+  }
+
+  section.appendChild(renderList(stagiairesActifs, "stagiaire"));
+  if (admin && stagiairesAbandon.length) section.appendChild(renderAbandons(stagiairesAbandon));
   section.appendChild(renderList(profs, "prof"));
   return section;
 }

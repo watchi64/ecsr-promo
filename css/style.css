@@ -3416,6 +3416,16 @@ button.theme-date.editable.muted { color: var(--text-faint); }
 
 .config-list li:last-child { border-bottom: none; }
 
+/* Abandons (stagiaires désactivés, données conservées) */
+.config-list .abandon-name {
+  flex: 1;
+  padding: 0.4rem 0.6rem;
+  color: var(--text-muted);
+  font-size: 0.92rem;
+}
+.abandons-block .abandons-hint { margin: 0 0 0.5rem; font-size: 0.82rem; }
+.abandon-btn { color: var(--text-muted); }
+
 .config-list input {
   flex: 1;
   padding: 0.4rem 0.6rem;

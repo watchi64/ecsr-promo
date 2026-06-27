@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20260627b";
+import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20260627c";
 
 // fetch avec timeout : sans ça, une requête peut rester pendue indéfiniment
 // (réseau mobile instable) → "Chargement" infini. Avec, elle échoue proprement après 15s.
@@ -99,6 +99,16 @@ export async function updateStagiaire(id, prenom) {
 
 export async function deleteStagiaire(id) {
   const { error } = await supabase.from("stagiaires").delete().eq("id", id);
+  if (error) throw error;
+  invalidateCache("stagiaires");
+  invalidateCache("stagiaires_all");
+}
+
+// Désactivation douce (abandon) : la ligne reste en base (historique / stats futures)
+// mais le stagiaire est masqué partout (planning, dés, notes, passages) car
+// listStagiaires() ne renvoie que actif = true. actif=false => abandon, true => réactivé.
+export async function setStagiaireActif(id, actif) {
+  const { error } = await supabase.from("stagiaires").update({ actif }).eq("id", id);
   if (error) throw error;
   invalidateCache("stagiaires");
   invalidateCache("stagiaires_all");
