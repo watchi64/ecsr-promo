@@ -5099,36 +5099,50 @@ button.theme-date.editable.muted { color: var(--text-faint); }
 
 @page {
   size: A4 landscape;
-  margin: 7mm;
+  margin: 6mm;
 }
 
-#print-container { display: none; }
+/* DOM d'impression rendu EN PERMANENCE, hors écran, pour rester MESURABLE : la mise à
+   l'échelle automatique (fitPrintToPage en JS) a besoin de la hauteur réelle du contenu,
+   impossible à obtenir avec display:none. Les règles de mise en page s'appliquent donc en
+   continu au conteneur (caché hors écran) ; @media print ne fait plus que le basculer. */
+#print-container {
+  position: fixed;
+  left: -9999px;          /* hors écran (px fixe : robuste quel que soit le viewport) */
+  top: 0;
+  /* Largeur FIXE (pas 100 %) : la mesure hors écran se fait à la MÊME largeur que
+     l'impression → l'échelle calculée est exacte. 270mm ≤ largeur imprimable A4 paysage
+     même avec les marges latérales d'iOS Safari (~271mm) → jamais de rognage horizontal. */
+  width: 270mm;
+  /* JS fixe une hauteur explicite (= hauteur VISUELLE après scale) ; overflow:hidden rend
+     cette hauteur autoritaire pour la pagination d'impression, car `transform: scale` ne
+     réduit pas la boîte de layout (sinon certains navigateurs pagineraient sur la taille
+     non-scalée → 2 pages malgré le rendu réduit). */
+  overflow: hidden;
+  pointer-events: none;
+}
 
-@media print {
-  body.planning-printable > *:not(#print-container) { display: none !important; }
-  body.planning-printable { background: white; color: #000; }
-  body.planning-printable #print-container { display: block; }
-  /* Le conteneur d'impression mappe sur toute la zone imprimable de la page A4. */
-  html, body.planning-printable { height: auto; }
+/* Reset — police chargée par l'app (Outfit) → rendu identique sur tous les OS. */
+#print-container .print-root,
+#print-container .print-root * {
+  color: #000;
+  font-family: "Outfit", -apple-system, "Segoe UI", Roboto, sans-serif;
+}
 
-  /* Reset — police chargée par l'app (Outfit) pour un rendu identique sur tous les OS,
-     au lieu d'un fallback système (-apple-system → SF/Segoe/Roboto selon l'appareil). */
-  body.planning-printable .print-root,
-  body.planning-printable .print-root * {
-    color: #000;
-    font-family: "Outfit", -apple-system, "Segoe UI", Roboto, sans-serif;
-  }
-
-  .print-root {
-    width: 100%;
-    max-width: 100%;
-    /* Remplit la hauteur d'une A4 paysage (210mm − 2×7mm de marge ≈ 196mm ; on garde
-       une petite réserve pour ne jamais déborder sur une 2e page). */
-    min-height: 189mm;
-    display: flex;
-    flex-direction: column;
-    page-break-after: avoid;
-  }
+.print-root {
+  width: 100%;
+  /* Pas de max-width : fitPrintToPage pré-élargit (>100%) avant de scaler pour garder la
+     pleine largeur ; un max-width:100% l'écraserait. */
+  /* Hauteur CIBLE conservatrice (= PRINT_FIT_MM côté JS). Doit tenir même avec les marges
+     ET les en-têtes/pieds ajoutés par certains navigateurs (iOS Safari : date, URL, n° de
+     page) qu'on ne contrôle pas en CSS. JS met le contenu à l'échelle pour ne jamais
+     dépasser cette hauteur → 1 seule page partout, automatiquement. */
+  min-height: 162mm;
+  display: flex;
+  flex-direction: column;
+  transform-origin: top left;
+  page-break-after: avoid;
+}
 
   /* En-tête */
   .pp-header {
@@ -5272,6 +5286,21 @@ button.theme-date.editable.muted { color: var(--text-faint); }
     font-size: 8.5pt;
     color: #999;
     font-style: italic;
+  }
+
+/* Bascule écran → impression : on masque l'app et on remet le conteneur d'impression
+   (sinon caché hors écran) en flux normal, pleine largeur imprimable. La mise à l'échelle
+   (transform sur .print-root) est posée en inline par JS et persiste ici. */
+@media print {
+  body.planning-printable > *:not(#print-container) { display: none !important; }
+  body.planning-printable { background: #fff; }
+  html, body.planning-printable { height: auto; }
+  body.planning-printable #print-container {
+    position: static;
+    left: auto;
+    top: auto;
+    margin: 0 auto;        /* largeur fixe (270mm) centrée dans la zone imprimable */
+    pointer-events: auto;
   }
 }
 

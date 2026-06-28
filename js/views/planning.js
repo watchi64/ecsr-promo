@@ -4,13 +4,13 @@ import {
   getHalfMetaForWeek, upsertHalfMeta,
   getSetting, setSetting,
   addPassagesBatch, deletePassagesBatch, getPassagesInRange, updateTheme,
-} from "../db.js?v=20260628e";
-import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire } from "../utils.js?v=20260628e";
-import { icon } from "../icons.js?v=20260628e";
-import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260628e";
-import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260628e";
-import { recordUndo } from "../undo.js?v=20260628e";
-import { getCurrentWho } from "../identity.js?v=20260628e";
+} from "../db.js?v=20260629b";
+import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire } from "../utils.js?v=20260629b";
+import { icon } from "../icons.js?v=20260629b";
+import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260629b";
+import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260629b";
+import { recordUndo } from "../undo.js?v=20260629b";
+import { getCurrentWho } from "../identity.js?v=20260629b";
 
 let stagiaires = [];
 let profs = [];
@@ -1918,34 +1918,84 @@ function buildPrintHtml(monday) {
   return root;
 }
 
-// Le DOM d'impression dédié (#print-container) est monté EN PERMANENCE tant qu'on
-// est sur le planning, caché à l'écran via `#print-container{display:none}`. La
-// bascule écran↔impression est faite uniquement par `@media print` + la classe
-// `planning-printable` posée sur <body>. Avantage : ça marche pour TOUS les chemins
-// d'impression (bouton, Cmd/Ctrl+P, partage→Imprimer iOS, Chrome Android), et il n'y
-// a plus de course critique (l'ancien setTimeout retirait le DOM pendant que l'aperçu
+// Le DOM d'impression dédié (#print-container) est monté EN PERMANENCE tant qu'on est sur
+// le planning, rendu HORS ÉCRAN (position:fixed, left:-200vw) mais bien dans le layout
+// (donc MESURABLE — indispensable pour la mise à l'échelle auto). La bascule écran↔impression
+// est faite uniquement par `@media print` + la classe `planning-printable` sur <body>.
+// Avantage : marche pour TOUS les chemins (bouton, Cmd/Ctrl+P, Partage→Imprimer iOS, Chrome
+// Android), sans course critique (l'ancien setTimeout retirait le DOM pendant que l'aperçu
 // iOS se générait encore → l'app entière s'imprimait sur ~10 pages).
 
 let printBeforeprintBound = false;
+
+// Hauteur CIBLE du contenu imprimé (mm). DOIT rester en phase avec `.print-root{min-height}`
+// en CSS. Choisie conservatrice : elle tient même quand le navigateur ajoute ses propres
+// marges + en-têtes/pieds (iOS Safari : date, URL, n° de page) qu'on ne contrôle pas en CSS.
+const PRINT_FIT_MM = 162;
 
 function ensurePrintContainer() {
   let c = document.getElementById("print-container");
   if (!c) {
     c = document.createElement("div");
     c.id = "print-container";
+    c.setAttribute("aria-hidden", "true");
     document.body.appendChild(c);
   }
   return c;
 }
 
-// (Re)génère le contenu compact 1 page A4 paysage depuis les données de la semaine courante.
+// Met le contenu à l'échelle pour qu'il ne dépasse JAMAIS PRINT_FIT_MM en hauteur → garantit
+// 1 seule page sur tout support, automatiquement (équivaut à régler « Mise à l'échelle » à la
+// main, mais calculé). Remplit aussi la pleine largeur : on pré-élargit la `.print-root`
+// (>100 %) avant le scale, mais comme un layout plus large se raccourcit (moins de retours à
+// la ligne), on dichotomie le facteur d'échelle pour que la hauteur APRÈS scale atteigne pile
+// la cible tout en gardant la pleine largeur (largeur×scale = 100 %).
+function fitPrintToPage(root) {
+  const pxPerMm = 96 / 25.4;
+  const target = PRINT_FIT_MM * pxPerMm;
+  const container = root.parentElement;
+  root.style.transformOrigin = "top left";
+  root.style.transform = "none";
+  root.style.width = "100%";
+  container.style.height = "";   // mesure à l'état naturel
+  // Conteneur rendu hors écran (≠ display:none) → hauteur réelle mesurable.
+  const h0 = root.getBoundingClientRect().height;
+
+  if (h0 > target + 1) {
+    // scale ∈ ]lo, 1] : à scale=1 le contenu est trop haut ; plus scale baisse, plus on
+    // élargit (width = 100/scale %) et plus le contenu re-mesuré raccourcit. On cherche le
+    // plus GRAND scale dont la hauteur effective tient dans la cible.
+    let lo = target / h0;   // borne basse sûre (hauteur ≤ cible à ce scale, même sans élargir)
+    let hi = 1;
+    let best = lo;
+    for (let i = 0; i < 7; i++) {
+      const s = (lo + hi) / 2;
+      root.style.width = (100 / s) + "%";
+      const rendered = root.getBoundingClientRect().height * s;   // hauteur effective après scale(s)
+      if (rendered > target) hi = s;        // encore trop haut → réduire le scale
+      else { best = s; lo = s; }            // tient → tenter plus grand
+    }
+    root.style.width = (100 / best) + "%";
+    root.style.transform = "scale(" + best + ")";
+  }
+
+  // Fixe la hauteur du conteneur à la hauteur VISUELLE (après scale) : avec overflow:hidden,
+  // c'est CETTE hauteur qui fait foi pour la pagination d'impression (transform ne réduit pas
+  // la boîte de layout). Sans ça, certains navigateurs pagineraient sur la taille non-scalée.
+  container.style.height = Math.ceil(root.getBoundingClientRect().height) + "px";
+}
+
+// (Re)génère le contenu compact 1 page A4 paysage depuis les données de la semaine courante,
+// puis le met à l'échelle pour tenir sur une page.
 function refreshPrintTarget() {
   if (!semaineLundi) return;
   const c = ensurePrintContainer();
   const monday = new Date(semaineLundi + "T00:00:00");
   c.innerHTML = "";
-  c.appendChild(buildPrintHtml(monday));
+  const root = buildPrintHtml(monday);
+  c.appendChild(root);
   document.body.classList.add("planning-printable");
+  fitPrintToPage(root);
 }
 
 // Rafraîchit le DOM d'impression UNIQUEMENT s'il est déjà monté (= on est sur le planning).
@@ -1968,6 +2018,9 @@ function mountPrintTarget() {
     const onMq = (e) => { if (e.matches) syncPrintTargetIfMounted(); };
     if (mq.addEventListener) mq.addEventListener("change", onMq);
     else if (mq.addListener) mq.addListener(onMq); // anciens Safari
+    // La 1re mesure peut tomber AVANT le chargement de la police Outfit → hauteur (donc
+    // échelle) erronée. On re-calcule une fois les polices prêtes.
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(syncPrintTargetIfMounted);
     printBeforeprintBound = true;
   }
 }
