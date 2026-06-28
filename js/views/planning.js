@@ -4,13 +4,13 @@ import {
   getHalfMetaForWeek, upsertHalfMeta,
   getSetting, setSetting,
   addPassagesBatch, deletePassagesBatch, getPassagesInRange, updateTheme,
-} from "../db.js?v=20260629b";
-import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire } from "../utils.js?v=20260629b";
-import { icon } from "../icons.js?v=20260629b";
-import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260629b";
-import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260629b";
-import { recordUndo } from "../undo.js?v=20260629b";
-import { getCurrentWho } from "../identity.js?v=20260629b";
+} from "../db.js?v=20260629f";
+import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire } from "../utils.js?v=20260629f";
+import { icon } from "../icons.js?v=20260629f";
+import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260629f";
+import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260629f";
+import { recordUndo } from "../undo.js?v=20260629f";
+import { getCurrentWho } from "../identity.js?v=20260629f";
 
 let stagiaires = [];
 let profs = [];
@@ -1928,10 +1928,14 @@ function buildPrintHtml(monday) {
 
 let printBeforeprintBound = false;
 
-// Hauteur CIBLE du contenu imprimé (mm). DOIT rester en phase avec `.print-root{min-height}`
-// en CSS. Choisie conservatrice : elle tient même quand le navigateur ajoute ses propres
-// marges + en-têtes/pieds (iOS Safari : date, URL, n° de page) qu'on ne contrôle pas en CSS.
-const PRINT_FIT_MM = 162;
+// Hauteur CIBLE du contenu imprimé (mm), PAR PLATEFORME. iOS Safari ajoute des marges +
+// en-têtes/pieds (date, URL, n° de page) NON contrôlables en CSS → la zone imprimable réelle
+// y est bien plus petite (~157mm, déduite du « 82 % » qu'il fallait régler à la main sur
+// iPhone : 192×0,82) que sur desktop (~196mm). On vise donc plus bas sur iOS.
+// ⚠️ Si ça déborde ENCORE sur un vrai iPhone, baisser PRINT_FIT_IOS.
+const IS_IOS = /iPad|iPhone|iPod/.test(navigator.userAgent)
+            || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+const PRINT_FIT_MM = IS_IOS ? 148 : 180;
 
 function ensurePrintContainer() {
   let c = document.getElementById("print-container");
@@ -1944,12 +1948,12 @@ function ensurePrintContainer() {
   return c;
 }
 
-// Met le contenu à l'échelle pour qu'il ne dépasse JAMAIS PRINT_FIT_MM en hauteur → garantit
-// 1 seule page sur tout support, automatiquement (équivaut à régler « Mise à l'échelle » à la
-// main, mais calculé). Remplit aussi la pleine largeur : on pré-élargit la `.print-root`
-// (>100 %) avant le scale, mais comme un layout plus large se raccourcit (moins de retours à
-// la ligne), on dichotomie le facteur d'échelle pour que la hauteur APRÈS scale atteigne pile
-// la cible tout en gardant la pleine largeur (largeur×scale = 100 %).
+// Réduit le contenu pour qu'il ne dépasse JAMAIS PRINT_FIT_MM de hauteur → 1 seule page,
+// automatiquement (= régler « Mise à l'échelle » à la main, mais calculé). On utilise
+// `transform: scale` : sa taille est reflétée de façon FIABLE par getBoundingClientRect (au
+// contraire de `zoom`, dont l'interaction avec les largeurs en % casse la mesure). On
+// dichotomie en pré-élargissant la largeur pour rester pleine largeur (largeur×scale = 100 %),
+// car un layout plus large se raccourcit.
 function fitPrintToPage(root) {
   const pxPerMm = 96 / 25.4;
   const target = PRINT_FIT_MM * pxPerMm;
@@ -1957,31 +1961,29 @@ function fitPrintToPage(root) {
   root.style.transformOrigin = "top left";
   root.style.transform = "none";
   root.style.width = "100%";
-  container.style.height = "";   // mesure à l'état naturel
+  container.style.height = "";
   // Conteneur rendu hors écran (≠ display:none) → hauteur réelle mesurable.
   const h0 = root.getBoundingClientRect().height;
 
   if (h0 > target + 1) {
-    // scale ∈ ]lo, 1] : à scale=1 le contenu est trop haut ; plus scale baisse, plus on
-    // élargit (width = 100/scale %) et plus le contenu re-mesuré raccourcit. On cherche le
-    // plus GRAND scale dont la hauteur effective tient dans la cible.
-    let lo = target / h0;   // borne basse sûre (hauteur ≤ cible à ce scale, même sans élargir)
-    let hi = 1;
-    let best = lo;
+    // scale ∈ ]lo, 1] : plus le scale baisse, plus on élargit (width = 100/scale %) → contenu
+    // plus court. On cherche le plus GRAND scale dont la hauteur effective tient dans la cible.
+    let lo = target / h0, hi = 1, best = lo;
     for (let i = 0; i < 7; i++) {
       const s = (lo + hi) / 2;
       root.style.width = (100 / s) + "%";
       const rendered = root.getBoundingClientRect().height * s;   // hauteur effective après scale(s)
-      if (rendered > target) hi = s;        // encore trop haut → réduire le scale
-      else { best = s; lo = s; }            // tient → tenter plus grand
+      if (rendered > target) hi = s;
+      else { best = s; lo = s; }
     }
     root.style.width = (100 / best) + "%";
     root.style.transform = "scale(" + best + ")";
   }
 
-  // Fixe la hauteur du conteneur à la hauteur VISUELLE (après scale) : avec overflow:hidden,
-  // c'est CETTE hauteur qui fait foi pour la pagination d'impression (transform ne réduit pas
-  // la boîte de layout). Sans ça, certains navigateurs pagineraient sur la taille non-scalée.
+  // VERROU de pagination : `transform` ne réduit pas la BOÎTE de layout → on fixe la hauteur du
+  // conteneur à la hauteur VISUELLE (scalée, fiable via getBoundingClientRect) + overflow:hidden.
+  // C'est du modèle de boîte basique (height + overflow) → respecté par TOUS les moteurs, iOS
+  // Safari compris → la page se découpe sur ~PRINT_FIT_MM = 1 seule page.
   container.style.height = Math.ceil(root.getBoundingClientRect().height) + "px";
 }
 

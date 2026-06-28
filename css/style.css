@@ -5133,14 +5133,12 @@ button.theme-date.editable.muted { color: var(--text-faint); }
   width: 100%;
   /* Pas de max-width : fitPrintToPage pré-élargit (>100%) avant de scaler pour garder la
      pleine largeur ; un max-width:100% l'écraserait. */
-  /* Hauteur CIBLE conservatrice (= PRINT_FIT_MM côté JS). Doit tenir même avec les marges
-     ET les en-têtes/pieds ajoutés par certains navigateurs (iOS Safari : date, URL, n° de
-     page) qu'on ne contrôle pas en CSS. JS met le contenu à l'échelle pour ne jamais
-     dépasser cette hauteur → 1 seule page partout, automatiquement. */
-  min-height: 162mm;
+  /* Plancher de hauteur (évite un rendu minuscule sur une semaine quasi vide). La hauteur
+     CIBLE réelle est gérée en JS (PRINT_FIT_MM, par plateforme) qui réduit le contenu via
+     `zoom` pour ne jamais dépasser → 1 seule page partout, automatiquement. */
+  min-height: 140mm;
   display: flex;
   flex-direction: column;
-  transform-origin: top left;
   page-break-after: avoid;
 }
 
