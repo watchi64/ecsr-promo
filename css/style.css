@@ -5158,7 +5158,7 @@ button.theme-date.editable.muted { color: var(--text-faint); }
     display: grid;
     grid-template-columns: repeat(5, 1fr);
     grid-template-rows: minmax(0, 1fr);
-    gap: 2mm;
+    gap: 0.8mm;   /* écart minimal entre jours : les bordures suffisent → colonnes plus larges */
   }
 
   .pp-day {
@@ -5252,10 +5252,17 @@ button.theme-date.editable.muted { color: var(--text-faint); }
   .pp-sujet, .pp-line, .pp-val, .pp-notes { overflow-wrap: anywhere; }
 
   .pp-sujet { font-size: 8.7pt; color: #1F2937; line-height: 1.24; margin-bottom: 0.6mm; }
+  /* Thèmes abordés : un par ligne, numéro en tête (gras, accent mint). */
+  .pp-theme { display: flex; gap: 1.2mm; align-items: baseline; }
+  .pp-theme + .pp-theme { margin-top: 0.3mm; }
+  .pp-theme-num { flex: none; font-weight: 700; color: #6B7F4E !important; font-variant-numeric: tabular-nums; }
+  .pp-theme-titre { min-width: 0; overflow-wrap: anywhere; }
   .pp-line { font-size: 8.3pt; line-height: 1.25; color: #333; }
   .pp-key { color: #777; }
   .pp-val { color: #000; }
   .pp-notes { color: #555; font-style: italic; margin-top: 0.6mm; }
+  /* Élèves listés un par ligne, légèrement indentés sous leur label. */
+  .pp-eleve { padding-left: 2.4mm; color: #000; }
 
   .pp-empty { padding: 1.7mm 2.2mm; color: #bbb; font-size: 8.3pt; font-style: italic; }
 

@@ -4,13 +4,13 @@ import {
   getHalfMetaForWeek, upsertHalfMeta,
   getSetting, setSetting,
   addPassagesBatch, deletePassagesBatch, getPassagesInRange, updateTheme,
-} from "../db.js?v=20260627k";
-import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire } from "../utils.js?v=20260627k";
-import { icon } from "../icons.js?v=20260627k";
-import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260627k";
-import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260627k";
-import { recordUndo } from "../undo.js?v=20260627k";
-import { getCurrentWho } from "../identity.js?v=20260627k";
+} from "../db.js?v=20260628e";
+import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire } from "../utils.js?v=20260628e";
+import { icon } from "../icons.js?v=20260628e";
+import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260628e";
+import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260628e";
+import { recordUndo } from "../undo.js?v=20260628e";
+import { getCurrentWho } from "../identity.js?v=20260628e";
 
 let stagiaires = [];
 let profs = [];
@@ -410,6 +410,24 @@ function roleCounts(activite, role, exceptLid) {
   return counts;
 }
 
+// Rôles EFFECTIFS d'un créneau selon la FORME de son activité (ACTIVITY_SHAPES).
+// Quand on change l'activité d'un créneau, la donnée des rôles (tableau/élèves) reste
+// stockée — pratique si on rebascule l'activité — mais un rôle absent de la forme courante
+// (ex. élèves restés sur un Cours, ou « au tableau » resté sur une Voiture) ne doit JAMAIS
+// être affiché ni utilisé. Source unique de vérité, utilisée par l'impression et le blocage
+// de créneau (la validation et les compteurs filtrent déjà par activité).
+function entryShape(e) { return ACTIVITY_SHAPES[e.activite || ""] || ACTIVITY_SHAPES[""]; }
+function effPedagogueId(e, group = 1) {
+  if (!entryShape(e).includes("pedagogue")) return null;
+  if (group === 2) return e.salle_double ? (e.pedagogue_id_2 ?? null) : null;
+  return e.pedagogue_id ?? null;
+}
+function effElevesIds(e, group = 1) {
+  if (!entryShape(e).includes("eleves")) return [];
+  if (group === 2) return e.salle_double ? (e.eleves_ids_2 || []) : [];
+  return e.eleves_ids || [];
+}
+
 // Ids des stagiaires déjà placés dans le MÊME créneau et VRAIMENT en même temps que le champ
 // qu'on remplit. Les 2 groupes d'une carte salle sont SÉQUENTIELS (l'un après l'autre) : sur
 // la carte courante, seul l'AUTRE rôle du MÊME groupe bloque (tableau ≠ ses élèves). Donc une
@@ -430,9 +448,12 @@ function slotOccupants(entry, exceptField) {
     if (e._lid === entry._lid) {
       add(e[SAME_GROUP_BLOCK[exceptField]]);  // même groupe, l'autre rôle uniquement
     } else {
-      add(e.pedagogue_id);
-      add(e.eleves_ids);
-      if (e.salle_double) { add(e.pedagogue_id_2); add(e.eleves_ids_2); }
+      // Autre carte simultanée : bloque ses rôles EFFECTIFS (selon sa forme), pour
+      // ignorer une donnée périmée laissée par un changement d'activité.
+      add(effPedagogueId(e, 1));
+      add(effElevesIds(e, 1));
+      add(effPedagogueId(e, 2));
+      add(effElevesIds(e, 2));
     }
   });
   return ids;
@@ -1735,14 +1756,35 @@ function lookupStagiaire(id) {
   return s ? displayStagiaire(s) : "";
 }
 
-function entryHasContent(e) {
-  return nonEmpty(e.activite) || nonEmpty(e.sujet) || nonEmpty(e.notes)
-      || (e.prof_ids && e.prof_ids.length) || e.prof_id
-      || e.pedagogue_id || (e.eleves_ids && e.eleves_ids.length)
-      || (e.salle_double && (e.pedagogue_id_2 || (e.eleves_ids_2 && e.eleves_ids_2.length)));
+// Prénoms portés par AU MOINS 2 stagiaires (normalisés) → il faut garder l'initiale du
+// nom pour les distinguer. Recalculé à chaque impression (liste ~15 stagiaires).
+function ambiguousPrenoms() {
+  const count = {};
+  stagiaires.forEach((s) => {
+    const p = (s.prenom || "").trim().toLowerCase();
+    if (p) count[p] = (count[p] || 0) + 1;
+  });
+  return new Set(Object.keys(count).filter((p) => count[p] >= 2));
 }
 
-function printEntryCell(e) {
+// Nom affiché à l'impression : PRÉNOM SEUL, sauf si le prénom est ambigu (partagé par un
+// autre stagiaire) → « Initiale. Prénom » (displayStagiaire) pour lever le doute.
+function printName(id, ambig) {
+  const s = stagiaires.find((x) => x.id === id);
+  if (!s) return "";
+  const p = (s.prenom || "").trim().toLowerCase();
+  return (p && ambig.has(p)) ? displayStagiaire(s) : (s.prenom || displayStagiaire(s));
+}
+
+function entryHasContent(e) {
+  const hasPed = effPedagogueId(e, 1) != null || effPedagogueId(e, 2) != null;
+  const hasEl = effElevesIds(e, 1).length > 0 || effElevesIds(e, 2).length > 0;
+  return nonEmpty(e.activite) || (entryShape(e).includes("sujet") && nonEmpty(e.sujet)) || nonEmpty(e.notes)
+      || (e.prof_ids && e.prof_ids.length) || e.prof_id
+      || hasPed || hasEl;
+}
+
+function printEntryCell(e, ambig) {
   const cell = el("div", { class: "pp-cell", dataset: { activite: e.activite || "" } });
 
   // Ligne titre : activité + prof
@@ -1758,28 +1800,46 @@ function printEntryCell(e) {
   }
   cell.appendChild(header);
 
-  // Sujet
-  if (nonEmpty(e.sujet)) {
-    cell.appendChild(el("div", { class: "pp-sujet" }, e.sujet));
+  // Sujet → thèmes abordés, chacun préfixé de son NUMÉRO s'il est rattaché à un thème
+  // connu (sinon texte libre sans numéro), un par ligne. (« Autre » n'a pas de sujet.)
+  if (entryShape(e).includes("sujet") && nonEmpty(e.sujet)) {
+    const box = el("div", { class: "pp-sujet" });
+    parseSujet(e.sujet).forEach((titre) => {
+      const t = themes.find((x) => x.titre === titre);
+      const line = el("div", { class: "pp-theme" });
+      if (t && t.numero != null) {
+        line.appendChild(el("span", { class: "pp-theme-num" }, String(t.numero).padStart(2, "0")));
+      }
+      line.appendChild(el("span", { class: "pp-theme-titre" }, titre));
+      box.appendChild(line);
+    });
+    cell.appendChild(box);
   }
 
-  // Au tableau + Élèves (avec un 2e groupe si la carte salle a 2 groupes actifs).
-  // Noms seulement s'ils se résolvent (évite un label orphelin si l'id n'existe plus).
-  const addRole = (key, val) => {
-    if (nonEmpty(val)) cell.appendChild(el("div", { class: "pp-line" },
+  // Au tableau + Élèves — rôles EFFECTIFS selon la forme de l'activité (ignore une donnée
+  // périmée d'un rôle absent du type courant : ex. élèves restés sur un Cours, « au tableau »
+  // resté sur une Voiture). Noms seulement s'ils se résolvent (évite un label orphelin).
+  // « Au tableau » (1 personne) reste en ligne ; les élèves sont listés UN PAR LIGNE.
+  const addTableau = (key, id) => {
+    const n = id ? printName(id, ambig) : "";
+    if (nonEmpty(n)) cell.appendChild(el("div", { class: "pp-line" },
       el("span", { class: "pp-key" }, key + " : "),
-      el("span", { class: "pp-val" }, val)));
+      el("span", { class: "pp-val" }, n)));
   };
-  const nameOf = (id) => (id ? lookupStagiaire(id) : "");
-  const namesOf = (ids) => (ids || []).map(lookupStagiaire).filter(Boolean).join(", ");
+  const addEleves = (key, ids) => {
+    const names = (ids || []).map((id) => printName(id, ambig)).filter(Boolean);
+    if (!names.length) return;
+    cell.appendChild(el("div", { class: "pp-line" }, el("span", { class: "pp-key" }, key + " :")));
+    names.forEach((n) => cell.appendChild(el("div", { class: "pp-line pp-eleve" }, n)));
+  };
   if (e.activite === "Pédagogie salle" && e.salle_double) {
-    addRole("Au tableau G1", nameOf(e.pedagogue_id));
-    addRole("Élèves G1", namesOf(e.eleves_ids));
-    addRole("Au tableau G2", nameOf(e.pedagogue_id_2));
-    addRole("Élèves G2", namesOf(e.eleves_ids_2));
+    addTableau("Au tableau G1", effPedagogueId(e, 1));
+    addEleves("Élèves G1", effElevesIds(e, 1));
+    addTableau("Au tableau G2", effPedagogueId(e, 2));
+    addEleves("Élèves G2", effElevesIds(e, 2));
   } else {
-    addRole("Au tableau", nameOf(e.pedagogue_id));
-    addRole("Élèves", namesOf(e.eleves_ids));
+    addTableau("Au tableau", effPedagogueId(e, 1));
+    addEleves("Élèves", effElevesIds(e, 1));
   }
 
   // Notes
@@ -1792,6 +1852,7 @@ function printEntryCell(e) {
 
 function buildPrintHtml(monday) {
   const root = el("div", { class: "print-root" });
+  const ambig = ambiguousPrenoms();  // prénoms à désambiguïser (gardent l'initiale)
 
   // En-tête
   const semaineLabel = monday.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
@@ -1838,7 +1899,7 @@ function buildPrintHtml(monday) {
       } else {
         rows.forEach((row) => {
           const rowEl = el("div", { class: "pp-row" });
-          row.lanes.forEach((e) => rowEl.appendChild(printEntryCell(e)));
+          row.lanes.forEach((e) => rowEl.appendChild(printEntryCell(e, ambig)));
           halfBlock.appendChild(rowEl);
         });
       }
