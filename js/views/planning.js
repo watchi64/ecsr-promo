@@ -4,13 +4,13 @@ import {
   getHalfMetaForWeek, upsertHalfMeta,
   getSetting, setSetting,
   addPassagesBatch, deletePassagesBatch, getPassagesInRange, updateTheme,
-} from "../db.js?v=20260629j";
-import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire } from "../utils.js?v=20260629j";
-import { icon } from "../icons.js?v=20260629j";
-import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260629j";
-import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260629j";
-import { recordUndo } from "../undo.js?v=20260629j";
-import { getCurrentWho } from "../identity.js?v=20260629j";
+} from "../db.js?v=20260629l";
+import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire } from "../utils.js?v=20260629l";
+import { icon } from "../icons.js?v=20260629l";
+import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260629l";
+import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260629l";
+import { recordUndo } from "../undo.js?v=20260629l";
+import { getCurrentWho } from "../identity.js?v=20260629l";
 
 let stagiaires = [];
 let profs = [];
@@ -1928,15 +1928,17 @@ function buildPrintHtml(monday) {
 
 let printBeforeprintBound = false;
 
-// Dimensions CIBLES du contenu imprimé (mm), PAR PLATEFORME. iOS Safari applique des marges
-// (latérales ET hautes/basses) + en-têtes/pieds (date, URL, n° de page) NON contrôlables en
-// CSS → sa zone imprimable réelle est plus PETITE en hauteur (~157mm vs ~196mm desktop) ET en
-// largeur (270mm rognait la colonne Vendredi → marges latérales iOS plus larges que prévu).
-// ⚠️ Si ça déborde/rogne ENCORE sur un vrai iPhone, baisser la valeur iOS correspondante.
-const IS_IOS = /iPad|iPhone|iPod/.test(navigator.userAgent)
-            || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-const PRINT_FIT_MM = IS_IOS ? 148 : 180;     // hauteur cible
-const PRINT_WIDTH_MM = IS_IOS ? 230 : 270;   // largeur (zone imprimable iOS encore plus étroite)
+// Dimensions CIBLES du contenu imprimé (mm), PAR PLATEFORME. Les navigateurs MOBILES (iOS
+// Safari ET Android Chrome) ajoutent des marges (latérales ET hautes/basses) + en-têtes/pieds
+// (date, URL, n° de page) NON contrôlables en CSS → leur zone imprimable réelle est plus PETITE
+// (hauteur ~157mm et largeur ~235mm) que sur desktop (~196 × ~285mm). On vise donc plus bas sur
+// mobile. Valeurs CONFIRMÉES sur iPhone réel (230×148 → planning entier, 1 page à 100 %) ;
+// appliquées aussi à Android (zone ≈ ou plus large qu'iOS → tient à coup sûr).
+// ⚠️ Si ça déborde/rogne ENCORE sur un mobile, baisser la valeur mobile correspondante.
+const IS_MOBILE = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
+               || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1); // iPad iOS 13+
+const PRINT_FIT_MM = IS_MOBILE ? 148 : 180;     // hauteur cible
+const PRINT_WIDTH_MM = IS_MOBILE ? 230 : 270;   // largeur (zone imprimable mobile plus étroite)
 
 function ensurePrintContainer() {
   let c = document.getElementById("print-container");
