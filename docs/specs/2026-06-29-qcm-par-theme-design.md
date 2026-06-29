@@ -165,11 +165,12 @@ Fichiers fournis (Downloads, 2026-06-29) :
 
 | Fichier | Rattachement `themes` | Questions | Sections |
 |---|---|---|---|
-| `Evaluation C1 type QCU.docx` | `REMC C1 — Maîtriser le maniement du véhicule` (id 80) | 20 | Démarrer/s'arrêter, Tenir le volant, Boîte de vitesses, Doser frein/accélérateur, Regarder/avertir |
-| `QCU QR CODE Utilisation rationnelle du véhicule.docx` | **à confirmer** (REMC C4 conduite économique, ou thème numéroté éco-conduite) | 12 | Embrayage, Freinage, Boîte de vitesses |
+| `Evaluation C1 type QCU.docx` | `REMC C1 — Maîtriser le maniement du véhicule` (id 80, `numero` null) | 20 | Démarrer/s'arrêter, Tenir le volant, Boîte de vitesses, Doser frein/accélérateur, Regarder/avertir |
+| `QCU QR CODE Utilisation rationnelle du véhicule.docx` | **Thème #48 « Utilisation rationnelle du véhicule »** (numéroté, catégorie Mécanique) | 12 | Embrayage, Freinage, Boîte de vitesses |
 
-- Chaque question a 4 vraies options + « Je ne sais pas. ».
-- **Les bonnes réponses ne sont PAS marquées dans les .docx** : import des questions + options avec `is_correct = false` partout, puis **Hocine valide les bonnes réponses dans l'éditeur**. Option : pré-cocher des suggestions clairement étiquetées « à valider » pour accélérer (ne jamais présenter une suggestion comme officielle).
+- Chaque question a 4 vraies options + « Je ne sais pas. » (jamais correcte).
+- **Les bonnes réponses sont marquées en gras dans les .docx** : exactement une option en gras par question. L'import lit le formatage des runs (`<w:b>`) et pose `is_correct = true` sur l'option en gras. Réponses issues du document du formateur (aucune invention). Une relecture finale par Hocine dans l'éditeur reste possible.
+- Conséquence rattachement : « Util. rationnelle » étant numéroté (#48), son examen **mirrorera dans `evaluations`** ; « C1 » (REMC, `numero` null) restera en `qcm_attempts` seul (visible dans la vue Thèmes).
 
 ## 9. Découpage en lots
 
@@ -197,8 +198,8 @@ Fichiers fournis (Downloads, 2026-06-29) :
 
 ## 10. Points ouverts / risques
 
-- **Bonnes réponses à valider** par Hocine (32 questions). Bloquant pour que l'examen ait du sens ; l'entraînement peut démarrer avec corrections provisoires si étiquetées.
-- **Rattachement du 2e QCM** (« Utilisation rationnelle ») à confirmer : REMC C4 ou un thème numéroté.
+- **Bonnes réponses** : résolu. Marquées en gras dans les docx d'Hocine (1 par question), lues à l'import. Relecture finale possible dans l'éditeur.
+- **Rattachements** : résolu. « C1 » → `REMC C1` (id 80, non numéroté) ; « Util. rationnelle » → thème **#48** (numéroté, donc miroir `evaluations`).
 - **Calcul moyenne de classe sans fuite** : via vue/RPC agrégée (les stagiaires ne doivent pas pouvoir lire les `note_20` individuelles des autres).
 - **Arrondi note_20** : `round(score/total*20, 1)` ; affichage entier si rond.
 - **`unique (theme_id)` sur `qcm`** : un seul QCM par thème en v1. Si besoin de plusieurs QCM par thème plus tard, lever la contrainte.
