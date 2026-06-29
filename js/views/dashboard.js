@@ -1,6 +1,6 @@
-import { listStagiaires, listEvaluations, getStats, getPedagogueCountsFromPlanning, getSetting } from "../db.js?v=20260629l";
-import { el, clear, isoDate, getMonday, displayStagiaire, compareByNom } from "../utils.js?v=20260629l";
-import { icon } from "../icons.js?v=20260629l";
+import { listStagiaires, listEvaluations, getStats, getSetting } from "../db.js?v=20260629n";
+import { el, clear, isoDate, getMonday, displayStagiaire, compareByNom } from "../utils.js?v=20260629n";
+import { icon } from "../icons.js?v=20260629n";
 
 const SORT_OPTIONS = [
   { key: "priorite",   label: "Priorité de passage" },
@@ -38,8 +38,10 @@ function sortEnriched(list, mode) {
 
 // prio = "tours utilisés" = passages faits (+ bonus) + refus/absences. Un refus compte comme un
 // tour : il fait perdre la place de prioritaire, mais le vrai compteur (effectif) reste plus bas.
-function statForType(s, type, pedaCount = 0) {
-  const e = (s?.[type]?.["Effectué"] || 0) + (type === "Salle" ? pedaCount : 0);
+// Comptés UNIQUEMENT depuis les passages enregistrés (table `passages`, via « Valider la
+// semaine » ou saisie manuelle) — le planning seul ne compte pas → suivi sans ambiguïté.
+function statForType(s, type) {
+  const e = s?.[type]?.["Effectué"] || 0;
   const b = s?.[type]?.["Bonus"] || 0;
   const a = s?.[type]?.["Absence"] || 0;
   return { effectif: e, bonus: b, absence: a, prio: e + b + a };
@@ -127,6 +129,9 @@ function explainPanel(objSalle, objVoiture) {
     el("summary", {}, "Comment la priorité est calculée ?"),
     el("div", { class: "dash-explain-body" },
       el("p", {},
+        el("strong", {}, "Les passages se comptent à « Valider la semaine »."),
+        " Placer quelqu'un dans le planning, c'est planifier — ça ne compte pas tant que la semaine n'est pas validée. Le tableau de bord n'affiche que les passages enregistrés."),
+      el("p", {},
         el("strong", {}, "Objectif = moyenne de la classe"),
         ` (cette semaine : Salle ${objSalle}, Voiture ${objVoiture}). Au niveau ou au-dessus → `,
         el("em", {}, "à jour"), ". En dessous → ", el("em", {}, "à prioriser"),
@@ -153,20 +158,19 @@ export async function renderDashboard(container) {
   ]);
 
   const monday = semaineLundi || isoDate(getMonday(new Date()));
-  const pedaCounts = await getPedagogueCountsFromPlanning(monday);
 
   // Objectif par type = moyenne de classe du compteur de priorité (faits + bonus + refus), arrondie.
   const n = stagiaires.length || 1;
   let sumSalle = 0, sumVoiture = 0;
   stagiaires.forEach((s) => {
-    sumSalle += statForType(stats[s.id], "Salle", pedaCounts[s.id] || 0).prio;
+    sumSalle += statForType(stats[s.id], "Salle").prio;
     sumVoiture += statForType(stats[s.id], "Voiture").prio;
   });
   const objSalle = Math.round(sumSalle / n);
   const objVoiture = Math.round(sumVoiture / n);
 
   const enriched = stagiaires.map((s) => {
-    const sa = statForType(stats[s.id], "Salle", pedaCounts[s.id] || 0);
+    const sa = statForType(stats[s.id], "Salle");
     const vo = statForType(stats[s.id], "Voiture");
     const prioSalle = priorityLabel(sa.prio, objSalle);
     const prioVoiture = priorityLabel(vo.prio, objVoiture);

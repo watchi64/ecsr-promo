@@ -4,13 +4,13 @@ import {
   getHalfMetaForWeek, upsertHalfMeta,
   getSetting, setSetting,
   addPassagesBatch, deletePassagesBatch, getPassagesInRange, updateTheme,
-} from "../db.js?v=20260629l";
-import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire } from "../utils.js?v=20260629l";
-import { icon } from "../icons.js?v=20260629l";
-import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260629l";
-import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260629l";
-import { recordUndo } from "../undo.js?v=20260629l";
-import { getCurrentWho } from "../identity.js?v=20260629l";
+} from "../db.js?v=20260629n";
+import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire } from "../utils.js?v=20260629n";
+import { icon } from "../icons.js?v=20260629n";
+import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260629n";
+import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260629n";
+import { recordUndo } from "../undo.js?v=20260629n";
+import { getCurrentWho } from "../identity.js?v=20260629n";
 
 let stagiaires = [];
 let profs = [];
@@ -741,13 +741,15 @@ function profChipsSelect(allProfs, currentIds, onChange) {
   return wrap;
 }
 
-// Badge « nb de passages cette semaine dans ce rôle » (0 = prioritaire, mis en avant).
+// Badge « nb de fois déjà placé(e) cette semaine dans ce rôle AU PLANNING » (0 = prioritaire).
+// NB : c'est le PLAN, pas un passage enregistré — les passages ne se comptent qu'à « Valider
+// la semaine ». Sert juste à équilibrer les placements de la semaine en cours.
 function prioBadge(n) {
-  return el("span", { class: "prio-count" + (n === 0 ? " zero" : ""), title: "passages cette semaine dans ce rôle" }, String(n));
+  return el("span", { class: "prio-count" + (n === 0 ? " zero" : ""), title: "déjà placé(e) cette semaine au planning (≠ passage validé)" }, String(n));
 }
 // Légende affichée en tête des menus de sélection de personne.
 function prioLegend() {
-  return el("div", { class: "prio-legend" }, "Passages cette semaine · 0 = prioritaire");
+  return el("div", { class: "prio-legend" }, "Déjà placé(e) cette semaine au planning · 0 = à prioriser");
 }
 
 // Sélecteur d'UNE personne (tableau) : même habillage que les chips élèves / profs, trié par
