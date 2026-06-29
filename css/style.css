@@ -5170,7 +5170,7 @@ button.theme-date.editable.muted { color: var(--text-faint); }
     display: grid;
     grid-template-columns: repeat(5, 1fr);
     grid-template-rows: minmax(0, 1fr);
-    gap: 0.8mm;   /* écart minimal entre jours : les bordures suffisent → colonnes plus larges */
+    gap: 0.3mm;   /* écart quasi nul entre jours : les bordures suffisent → colonnes plus larges */
   }
 
   .pp-day {

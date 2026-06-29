@@ -4,13 +4,13 @@ import {
   getHalfMetaForWeek, upsertHalfMeta,
   getSetting, setSetting,
   addPassagesBatch, deletePassagesBatch, getPassagesInRange, updateTheme,
-} from "../db.js?v=20260629h";
-import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire } from "../utils.js?v=20260629h";
-import { icon } from "../icons.js?v=20260629h";
-import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260629h";
-import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260629h";
-import { recordUndo } from "../undo.js?v=20260629h";
-import { getCurrentWho } from "../identity.js?v=20260629h";
+} from "../db.js?v=20260629j";
+import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire } from "../utils.js?v=20260629j";
+import { icon } from "../icons.js?v=20260629j";
+import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260629j";
+import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260629j";
+import { recordUndo } from "../undo.js?v=20260629j";
+import { getCurrentWho } from "../identity.js?v=20260629j";
 
 let stagiaires = [];
 let profs = [];
@@ -1936,7 +1936,7 @@ let printBeforeprintBound = false;
 const IS_IOS = /iPad|iPhone|iPod/.test(navigator.userAgent)
             || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 const PRINT_FIT_MM = IS_IOS ? 148 : 180;     // hauteur cible
-const PRINT_WIDTH_MM = IS_IOS ? 245 : 270;   // largeur (zone imprimable iOS plus étroite)
+const PRINT_WIDTH_MM = IS_IOS ? 230 : 270;   // largeur (zone imprimable iOS encore plus étroite)
 
 function ensurePrintContainer() {
   let c = document.getElementById("print-container");
