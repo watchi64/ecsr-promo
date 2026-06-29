@@ -3950,8 +3950,10 @@ button.theme-date.editable.muted { color: var(--text-faint); }
   border-radius: var(--r);
   overflow: auto;
   max-width: 100%;
-  /* Hauteur max pour scroller verticalement si beaucoup de stagiaires */
-  max-height: calc(100vh - 280px);
+  /* La matrice tient dans la fenêtre et scrolle EN INTERNE (et non au niveau de la page) :
+     ainsi l'en-tête sticky reste toujours visible, y compris pour atteindre les dernières
+     lignes. La synthèse est en dessous (on scrolle la page pour l'atteindre). */
+  max-height: calc(100vh - 320px);
 }
 
 .matrice-table {
@@ -4045,11 +4047,15 @@ button.theme-date.editable.muted { color: var(--text-faint); }
   width: 34px;
   min-width: 34px;
   max-width: 34px;
-  height: 220px;          /* place pour le titre vertical */
+  height: 160px;          /* place pour le titre vertical (réduite : moins de « gros bloc ») */
   vertical-align: bottom;
   padding: 0.4rem 0;
   background: var(--bg-subtle);
-  position: relative;
+  /* DOIT rester sticky (comme thead th) sinon les thèmes défilent et disparaissent au scroll,
+     ne laissant que les en-têtes de gauche (eux sticky) → effet « gros bloc » vide. */
+  position: sticky;
+  top: 0;
+  z-index: 2;
 }
 
 .matrice-table .m-th-theme-label {
@@ -4065,7 +4071,7 @@ button.theme-date.editable.muted { color: var(--text-faint); }
   line-height: 1.2;
   margin: 0 auto;
   padding-bottom: 0.4rem;
-  max-height: 210px;
+  max-height: 150px;
   overflow: hidden;
 }
 
