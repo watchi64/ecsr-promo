@@ -1,9 +1,9 @@
-import { listThemes, updateTheme, addTheme, deleteTheme, listQcmIndex } from "../db.js?v=20260630g";
-import { el, clear, isoDate, formatDate, toast, debounce } from "../utils.js?v=20260630g";
-import { icon } from "../icons.js?v=20260630g";
-import { isAdmin, getAdminEmail, isFounder, getViewAs } from "../auth-admin.js?v=20260630g";
-import { recordUndo } from "../undo.js?v=20260630g";
-import { openQcmEntrainement } from "./qcm.js?v=20260630g";
+import { listThemes, updateTheme, addTheme, deleteTheme, listQcmIndex } from "../db.js?v=20260630h";
+import { el, clear, isoDate, formatDate, toast, debounce } from "../utils.js?v=20260630h";
+import { icon } from "../icons.js?v=20260630h";
+import { isAdmin, getAdminEmail, isFounder, getViewAs } from "../auth-admin.js?v=20260630h";
+import { recordUndo } from "../undo.js?v=20260630h";
+import { openQcmEntrainement } from "./qcm.js?v=20260630h";
 
 let themes = [];
 let qcmByTheme = new Map();  // theme_id -> { id, nb_questions, published, ... }
@@ -93,6 +93,7 @@ async function cycleStatut(theme, container, chipEl) {
     Object.assign(theme, patch);
     // Update in-place sans rerender complet (évite le scroll jump)
     updateThemeRowInPlace(theme, chipEl);
+    refreshStatsInPlace(container);
     recordUndo("statut thème", async () => {
       await updateTheme(theme.id, { statut: prevStatut, date_fait: prevDate });
       theme.statut = prevStatut;
@@ -176,6 +177,7 @@ function openDateEditor(theme, anchorEl, container) {
           }
         }
       }
+      refreshStatsInPlace(container);
       backdrop.remove();
       toast("Date mise à jour", "success", 1500);
     } catch (e) {
@@ -417,6 +419,42 @@ function familleStats(items) {
   const total = items.length;
   const fait = items.filter((t) => normalizeStatut(t.statut) === "Fait").length;
   return { total, fait, aFaire: total - fait, pct: total ? Math.round(fait / total * 100) : 0 };
+}
+
+// Items visibles d'une famille selon les filtres courants (même logique que rerender).
+function visibleFamilleItems(f) {
+  return themes.filter(f.match).filter((t) => {
+    if (filterStatut && normalizeStatut(t.statut) !== filterStatut) return false;
+    if (search) {
+      const q = search.toLowerCase();
+      const inTitle = t.titre.toLowerCase().includes(q);
+      const inNum = t.numero != null && String(t.numero).includes(q);
+      const inCat = (t.categorie || "").toLowerCase().includes(q);
+      if (!inTitle && !inNum && !inCat) return false;
+    }
+    return true;
+  });
+}
+
+// Recalcule en place les stats des sections (Faits / À faire / barre + %) et
+// l'eyebrow global, sans rerender complet (préserve scroll + inputs ouverts).
+// Corrige le décalage : la ligne se mettait à jour mais pas l'en-tête de section.
+function refreshStatsInPlace(container) {
+  FAMILLES.forEach((f) => {
+    const section = container.querySelector(".theme-section-" + f.key);
+    if (!section) return;
+    const stats = familleStats(visibleFamilleItems(f));
+    const vals = section.querySelectorAll(".theme-section-stat-value");
+    if (vals[0]) vals[0].textContent = String(stats.fait);
+    if (vals[1]) vals[1].textContent = String(stats.aFaire);
+    const fill = section.querySelector(".theme-progress-fill");
+    if (fill) fill.style.width = stats.pct + "%";
+    const label = section.querySelector(".theme-progress-label");
+    if (label) label.textContent = stats.pct + "%";
+  });
+  const tp = familleStats(themes.filter((t) => t.type === "theme"));
+  const eyebrow = container.querySelector(".view-header .eyebrow");
+  if (eyebrow) eyebrow.textContent = tp.fait + " / " + tp.total + " thèmes officiels terminés";
 }
 
 function rerender(container) {
