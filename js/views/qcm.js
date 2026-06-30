@@ -3,9 +3,9 @@
  * Lot 1 : mode "entraînement" (libre, correction immédiate, non comptée).
  * L'examen (tirage N, une passe, note) viendra en Lot 2.
  */
-import { el, clear, toast } from "../utils.js?v=20260630h";
-import { icon } from "../icons.js?v=20260630h";
-import { getQcmFull, insertQcmAttempt, getMyProfile } from "../db.js?v=20260630h";
+import { el, clear, toast } from "../utils.js?v=20260630i";
+import { icon } from "../icons.js?v=20260630i";
+import { getQcmFull, insertQcmAttempt, getMyProfile } from "../db.js?v=20260630i";
 
 function shuffle(arr) {
   const a = arr.slice();
@@ -87,6 +87,9 @@ function runEntrainement(theme, full, questions) {
 
     const card = el("div", { class: "qcm-card" });
     card.appendChild(el("p", { class: "qcm-question" }, q.enonce));
+    if (q.image_url) {
+      card.appendChild(el("img", { class: "qcm-question-img", src: q.image_url, alt: "Illustration de la question", loading: "lazy" }));
+    }
 
     const choices = el("div", { class: "qcm-choices" });
     let answered = false;
@@ -154,6 +157,7 @@ function runEntrainement(theme, full, questions) {
         el("span", { class: "qcm-recap-mark" }, ok ? "✓" : "✗"),
         el("div", { class: "qcm-recap-body" },
           el("p", { class: "qcm-recap-q" }, `${i + 1}. ${q.enonce}`),
+          q.image_url ? el("img", { class: "qcm-recap-img", src: q.image_url, alt: "", loading: "lazy" }) : null,
           ok ? null : el("p", { class: "qcm-recap-a" }, "Bonne réponse : " + (correctOpt ? correctOpt.texte : "")),
         ),
       ));
