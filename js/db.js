@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20260629q";
+import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20260630b";
 
 // fetch avec timeout : sans ça, une requête peut rester pendue indéfiniment
 // (réseau mobile instable) → "Chargement" infini. Avec, elle échoue proprement après 15s.
@@ -301,6 +301,47 @@ export async function deleteTheme(id) {
   const { error } = await supabase.from("themes").delete().eq("id", id);
   if (error) throw error;
   invalidateCache("themes");
+}
+
+// === QCM (par thème) ===
+
+// Index léger des QCM : un par thème, avec le nombre de questions.
+// Sert à afficher l'accès QCM sur la liste des thèmes sans tout charger.
+export async function listQcmIndex() {
+  return cachedQuery("qcm_index", async () => {
+    const { data, error } = await supabase
+      .from("qcm")
+      .select("id, theme_id, titre, published, exam_nb_questions, exam_pass_20, qcm_questions(count)");
+    if (error) throw error;
+    return (data || []).map((q) => ({
+      ...q,
+      nb_questions: q.qcm_questions?.[0]?.count ?? 0,
+    }));
+  });
+}
+
+// QCM complet (questions + options) pour le player, trié par ordre.
+export async function getQcmFull(qcmId) {
+  const { data, error } = await supabase
+    .from("qcm")
+    .select("*, questions:qcm_questions(*, options:qcm_options(*))")
+    .eq("id", qcmId)
+    .single();
+  if (error) throw error;
+  (data.questions || []).sort((a, b) => a.ordre - b.ordre);
+  (data.questions || []).forEach((q) => (q.options || []).sort((a, b) => a.ordre - b.ordre));
+  return data;
+}
+
+// Enregistre une tentative (entraînement ou examen). Renvoie la ligne créée.
+export async function insertQcmAttempt(payload) {
+  const { data, error } = await supabase
+    .from("qcm_attempts")
+    .insert(payload)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
 }
 
 // === Compétences ===

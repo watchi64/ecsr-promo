@@ -1,10 +1,10 @@
-import { listStagiaires, listPassages, addPassage, updatePassage, deletePassage, listRecentPassagesAudit } from "../db.js?v=20260629q";
-import { el, clear, isoDate, formatDate, toast, displayStagiaire } from "../utils.js?v=20260629q";
-import { icon } from "../icons.js?v=20260629q";
-import { recordUndo } from "../undo.js?v=20260629q";
-import { TYPES, RESULTATS } from "../config.js?v=20260629q";
-import { isAdmin, getProfile } from "../auth-admin.js?v=20260629q";
-import { getCurrentWho } from "../identity.js?v=20260629q";
+import { listStagiaires, listPassages, addPassage, updatePassage, deletePassage, listRecentPassagesAudit } from "../db.js?v=20260630b";
+import { el, clear, isoDate, formatDate, toast, displayStagiaire } from "../utils.js?v=20260630b";
+import { icon } from "../icons.js?v=20260630b";
+import { recordUndo } from "../undo.js?v=20260630b";
+import { TYPES, RESULTATS } from "../config.js?v=20260630b";
+import { isAdmin, getProfile } from "../auth-admin.js?v=20260630b";
+import { getCurrentWho } from "../identity.js?v=20260630b";
 
 let stagiaires = [];
 let passages = [];

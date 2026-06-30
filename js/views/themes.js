@@ -1,10 +1,56 @@
-import { listThemes, updateTheme, addTheme, deleteTheme } from "../db.js?v=20260629q";
-import { el, clear, isoDate, formatDate, toast, debounce } from "../utils.js?v=20260629q";
-import { icon } from "../icons.js?v=20260629q";
-import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260629q";
-import { recordUndo } from "../undo.js?v=20260629q";
+import { listThemes, updateTheme, addTheme, deleteTheme, listQcmIndex } from "../db.js?v=20260630b";
+import { el, clear, isoDate, formatDate, toast, debounce } from "../utils.js?v=20260630b";
+import { icon } from "../icons.js?v=20260630b";
+import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260630b";
+import { recordUndo } from "../undo.js?v=20260630b";
+import { openQcmEntrainement } from "./qcm.js?v=20260630b";
 
 let themes = [];
+let qcmByTheme = new Map();  // theme_id -> { id, nb_questions, published, ... }
+
+async function loadQcmIndex() {
+  try {
+    const list = await listQcmIndex();
+    qcmByTheme = new Map(list.filter((q) => q.nb_questions > 0).map((q) => [q.theme_id, q]));
+  } catch (e) {
+    qcmByTheme = new Map();  // dégradation douce : on n'affiche simplement pas de QCM
+  }
+}
+
+// Puce d'accès rapide à l'entraînement (sous le titre du thème).
+function qcmHintEl(theme, qcm) {
+  return el("button", {
+    class: "theme-qcm-hint", type: "button",
+    title: "Lancer l'entraînement QCM",
+    onClick: (ev) => { ev.preventDefault(); ev.stopPropagation(); openQcmEntrainement(theme, qcm); },
+  }, icon.play(), `Entraînement · ${qcm.nb_questions} questions`);
+}
+
+// Bloc QCM dans la modale thème (remplace le placeholder quand un QCM existe).
+function themeQcmBlock(theme) {
+  const qcm = qcmByTheme.get(theme.id);
+  if (!qcm) {
+    return el("div", { class: "theme-modal-placeholder" },
+      el("p", {}, "Contenu pédagogique à venir : cours, QCM, exercices, supports."),
+      el("p", { class: "muted", style: "font-size:0.82rem" }, "Cette zone affichera les ressources liées au thème dès qu'elles seront disponibles."),
+    );
+  }
+  return el("div", { class: "theme-qcm-block" },
+    el("div", { class: "theme-qcm-block-head" },
+      el("span", { class: "theme-qcm-block-icon" }, icon.quiz()),
+      el("div", { style: "min-width:0" },
+        el("p", { class: "theme-qcm-block-title" }, "QCM disponible"),
+        el("p", { class: "muted", style: "font-size:0.82rem;margin:0" },
+          `${qcm.nb_questions} questions` + (qcm.published ? "" : " · examen non publié")),
+      ),
+    ),
+    el("button", { class: "btn primary", type: "button",
+      onClick: (ev) => { ev.preventDefault(); openQcmEntrainement(theme, qcm); },
+    }, icon.play(), "Lancer l'entraînement"),
+    el("p", { class: "muted", style: "font-size:0.78rem;text-align:center;margin:0.5rem 0 0" },
+      "L'entraînement est libre et ne compte pas dans les notes."),
+  );
+}
 let filterStatut = "";
 let filterType = "";
 let filterCategorie = "";
@@ -157,10 +203,7 @@ function openThemeModal(theme) {
       el("h3", { class: "theme-modal-titre" }, theme.titre),
     ),
     theme.categorie ? el("p", { class: "muted theme-modal-cat" }, theme.categorie) : null,
-    el("div", { class: "theme-modal-placeholder" },
-      el("p", {}, "Contenu pédagogique à venir : cours, QCM, exercices, supports."),
-      el("p", { class: "muted", style: "font-size:0.82rem" }, "Cette zone affichera les ressources liées au thème dès qu'elles seront disponibles."),
-    ),
+    themeQcmBlock(theme),
     el("div", { class: "modal-actions" },
       el("button", { class: "btn primary", onClick: () => backdrop.remove() }, "Fermer"),
     ),
@@ -260,6 +303,7 @@ function renderThemeRow(theme, container) {
     el("div", { class: "theme-titre-block" },
       titreBtn,
       theme.categorie ? el("span", { class: "theme-cat" }, theme.categorie) : null,
+      (() => { const q = qcmByTheme.get(theme.id); return q ? qcmHintEl(theme, q) : null; })(),
     ),
     statutChip,
     dateLabel,
@@ -520,6 +564,7 @@ function rerender(container) {
 
 async function reload(container) {
   themes = await listThemes();
+  await loadQcmIndex();
   rerender(container);
 }
 
@@ -527,5 +572,6 @@ export async function renderThemes(container) {
   clear(container);
   container.appendChild(el("div", { class: "loading" }, "Chargement"));
   themes = await listThemes();
+  await loadQcmIndex();
   rerender(container);
 }

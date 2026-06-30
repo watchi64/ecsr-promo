@@ -52,4 +52,10 @@ export const icon = {
   signpost:   () => svg('<path d="M12 3v18M5 7h14l-3 4 3 4H5l3-4-3-4Z"/>'),
   // Poignée de glisse (dots-six-vertical) — drag handle des cartes planning
   grip:       () => svg('<circle cx="9" cy="5" r="1" fill="currentColor"/><circle cx="9" cy="12" r="1" fill="currentColor"/><circle cx="9" cy="19" r="1" fill="currentColor"/><circle cx="15" cy="5" r="1" fill="currentColor"/><circle cx="15" cy="12" r="1" fill="currentColor"/><circle cx="15" cy="19" r="1" fill="currentColor"/>'),
+  // Lucide play — lancer un QCM
+  play:       () => svg('<path d="M6 3v18l15-9Z"/>'),
+  // Lucide list-checks — QCM / questionnaire
+  quiz:       () => svg('<path d="M10 6h11M10 12h11M10 18h11M3 6l1.5 1.5L7 5M3 13l1.5 1.5L7 12M3 19l1.5 1.5L7 18"/>'),
+  // Lucide x — fermer un overlay plein écran
+  close:      () => svg('<path d="M18 6 6 18M6 6l12 12"/>'),
 };
