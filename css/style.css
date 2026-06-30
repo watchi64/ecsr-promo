@@ -5402,6 +5402,21 @@ button.theme-date.editable.muted { color: var(--text-faint); }
 .theme-qcm-hint:hover { background: var(--accent-soft-2); border-color: var(--accent); }
 .theme-qcm-hint .icon { width: 13px; height: 13px; }
 
+/* Colonne QCM dédiée (vue Thèmes, fondateur uniquement via .qcm-on) */
+.theme-qcm-cell { display: flex; align-items: center; min-width: 0; }
+.theme-qcm-cell .theme-qcm-hint { align-self: center; margin-top: 0; }
+.themes-list.qcm-on .theme-row {
+  grid-template-columns: 50px 1fr 120px 80px 1.1fr 92px 36px;
+}
+@media (max-width: 720px) {
+  /* On garde la mise en page mobile (grid-areas héritées) ; on neutralise juste
+     la grille 7 colonnes desktop et on place la cellule QCM sous les notes. */
+  .themes-list.qcm-on .theme-row { grid-template-columns: 36px 1fr auto auto; }
+  .themes-list.qcm-on .theme-row .theme-qcm-cell {
+    grid-column: 2 / -1; grid-row: 4; justify-self: start; margin-top: 0.4rem;
+  }
+}
+
 /* Bloc QCM dans la modale thème */
 .theme-qcm-block {
   background: var(--accent-soft);

@@ -1,9 +1,9 @@
-import { listThemes, updateTheme, addTheme, deleteTheme, listQcmIndex } from "../db.js?v=20260630f";
-import { el, clear, isoDate, formatDate, toast, debounce } from "../utils.js?v=20260630f";
-import { icon } from "../icons.js?v=20260630f";
-import { isAdmin, getAdminEmail, isFounder, getViewAs } from "../auth-admin.js?v=20260630f";
-import { recordUndo } from "../undo.js?v=20260630f";
-import { openQcmEntrainement } from "./qcm.js?v=20260630f";
+import { listThemes, updateTheme, addTheme, deleteTheme, listQcmIndex } from "../db.js?v=20260630g";
+import { el, clear, isoDate, formatDate, toast, debounce } from "../utils.js?v=20260630g";
+import { icon } from "../icons.js?v=20260630g";
+import { isAdmin, getAdminEmail, isFounder, getViewAs } from "../auth-admin.js?v=20260630g";
+import { recordUndo } from "../undo.js?v=20260630g";
+import { openQcmEntrainement } from "./qcm.js?v=20260630g";
 
 let themes = [];
 let qcmByTheme = new Map();  // theme_id -> { id, nb_questions, published, ... }
@@ -25,13 +25,13 @@ async function loadQcmIndex() {
   }
 }
 
-// Puce d'accès rapide à l'entraînement (sous le titre du thème).
+// Puce compacte de la colonne QCM : ▶ + nombre de questions.
 function qcmHintEl(theme, qcm) {
   return el("button", {
     class: "theme-qcm-hint", type: "button",
-    title: "Lancer l'entraînement QCM",
+    title: `Lancer l'entraînement (${qcm.nb_questions} questions)`,
     onClick: (ev) => { ev.preventDefault(); ev.stopPropagation(); openQcmEntrainement(theme, qcm); },
-  }, icon.play(), `Entraînement · ${qcm.nb_questions} questions`);
+  }, icon.play(), `${qcm.nb_questions} Q`);
 }
 
 // Bloc QCM dans la modale thème (remplace le placeholder quand un QCM existe).
@@ -306,16 +306,22 @@ function renderThemeRow(theme, container) {
     onClick: () => openThemeModal(theme),
   }, theme.titre);
 
+  // Colonne QCM (fondateur seulement) : cellule dédiée à droite, jamais sous le titre.
+  const qcm = qcmByTheme.get(theme.id);
+  const qcmCell = canSeeQcm()
+    ? el("div", { class: "theme-qcm-cell" }, qcm ? qcmHintEl(theme, qcm) : null)
+    : null;
+
   return el("div", { class: "theme-row " + color, dataset: { id: theme.id } },
     el("span", { class: "theme-num" }, num),
     el("div", { class: "theme-titre-block" },
       titreBtn,
       theme.categorie ? el("span", { class: "theme-cat" }, theme.categorie) : null,
-      (() => { const q = qcmByTheme.get(theme.id); return q ? qcmHintEl(theme, q) : null; })(),
     ),
     statutChip,
     dateLabel,
     notesInput,
+    qcmCell,
     delBtn || el("span"),
   );
 }
@@ -532,13 +538,14 @@ function rerender(container) {
     }
 
     // Liste des thèmes/notions, sous-groupée par catégorie si c'est une famille avec sous-cats (thèmes officiels)
-    const list = el("div", { class: "themes-list" });
+    const list = el("div", { class: "themes-list" + (canSeeQcm() ? " qcm-on" : "") });
     list.appendChild(el("div", { class: "theme-row theme-header" },
       el("span", { class: "theme-num" }, "N°"),
       el("span", {}, "Thème"),
       el("span", {}, "Statut"),
       el("span", {}, "Fait le"),
       el("span", {}, "Notes"),
+      canSeeQcm() ? el("span", {}, "QCM") : null,
       el("span", {}),
     ));
 
