@@ -14,9 +14,9 @@
 import {
   getCurrentUser, signOut, onAuthChange,
   getMyProfile, listStagiaires, listProfs,
-} from "./db.js?v=20260630d";
-import { el, toast, displayStagiaire } from "./utils.js?v=20260630d";
-import { icon } from "./icons.js?v=20260630d";
+} from "./db.js?v=20260630e";
+import { el, toast, displayStagiaire } from "./utils.js?v=20260630e";
+import { icon } from "./icons.js?v=20260630e";
 
 let currentUser = null;     // Supabase auth user
 let currentProfile = null;  // row user_profiles
@@ -24,14 +24,55 @@ let stagiaires = null;
 let profs = null;
 const listeners = new Set();
 
+// Aperçu fondateur « Voir en tant que » : un fondateur (is_founder) peut simuler
+// le rendu d'un autre rôle (prof / stagiaire) SANS perdre ses droits réels.
+// C'est purement UI : la session reste celle du fondateur (RLS inchangée).
+const VIEW_AS_KEY = "ecsr_view_as";
+let viewAs = null;  // null = rôle réel ; "prof" | "stagiaire" = aperçu
+
 // === Getters publics ===
 
 export function isAuth()        { return !!currentUser && !!currentProfile; }
-export function isAdmin()       { return !!currentProfile?.is_admin; }
-export function isProf()        { return currentProfile?.role === "prof"; }
-export function isStagiaire()   { return currentProfile?.role === "stagiaire"; }
+export function isFounder()     { return !!currentProfile?.is_founder; }
+export function getViewAs()     { return isFounder() ? viewAs : null; }
 export function getAdminEmail() { return currentUser?.email || null; }
 export function getProfile()    { return currentProfile; }
+
+// En aperçu (fondateur uniquement), les checks de rôle renvoient le rôle SIMULÉ.
+export function isAdmin() {
+  if (getViewAs()) return false;            // aperçu prof/stagiaire => jamais admin
+  return !!currentProfile?.is_admin;
+}
+export function isProf() {
+  const v = getViewAs();
+  if (v) return v === "prof";
+  return currentProfile?.role === "prof";
+}
+export function isStagiaire() {
+  const v = getViewAs();
+  if (v) return v === "stagiaire";
+  return currentProfile?.role === "stagiaire";
+}
+
+// Charge l'aperçu mémorisé (ignoré si l'utilisateur n'est pas fondateur).
+function loadViewAs() {
+  try {
+    const v = localStorage.getItem(VIEW_AS_KEY);
+    viewAs = (isFounder() && (v === "prof" || v === "stagiaire")) ? v : null;
+  } catch (e) { viewAs = null; }
+}
+
+// Pose l'aperçu et re-render l'app. role : "admin" (réel/fondateur) | "prof" | "stagiaire".
+export function setViewAs(role) {
+  if (!isFounder()) return;
+  viewAs = (role === "prof" || role === "stagiaire") ? role : null;
+  try {
+    if (viewAs) localStorage.setItem(VIEW_AS_KEY, viewAs);
+    else localStorage.removeItem(VIEW_AS_KEY);
+  } catch (e) { /* ignore */ }
+  listeners.forEach((cb) => cb(currentUser, currentProfile));  // déclenche navigate()
+  updateBadge();
+}
 
 /** Renvoie le prénom lié au profil (stagiaire ou prof), ou l'email pour admin pur. */
 export function getProfileWho() {
@@ -66,6 +107,7 @@ async function refreshProfile() {
     console.error("refreshProfile failed", e);
     currentProfile = null;
   }
+  loadViewAs();
 }
 
 export async function initAuth() {
@@ -115,7 +157,7 @@ function updateBadge() {
   const slot = document.getElementById("admin-slot");
   if (!slot) return;
   slot.innerHTML = "";
-  if (!currentUser) return;
+  if (!currentUser) { updateImpersonationBanner(); return; }
 
   const who = getProfileWho() || currentUser.email;
   const roleLabel =
@@ -129,6 +171,42 @@ function updateBadge() {
     roleLabel ? el("span", { class: "admin-role" }, roleLabel) : null,
   );
   slot.appendChild(badge);
+  updateImpersonationBanner();
+}
+
+// Bandeau permanent quand un fondateur est en aperçu d'un autre rôle.
+function updateImpersonationBanner() {
+  const v = getViewAs();
+  let banner = document.getElementById("impersonation-banner");
+  if (!v) { if (banner) banner.remove(); return; }
+  const label = v === "prof" ? "Formateur" : "Stagiaire";
+  if (!banner) {
+    banner = el("div", { id: "impersonation-banner", class: "impersonation-banner" });
+    document.body.appendChild(banner);
+  }
+  banner.innerHTML = "";
+  banner.appendChild(el("span", { class: "imp-eye", "aria-hidden": "true" }, "👁"));
+  banner.appendChild(el("span", { class: "imp-text" }, "Aperçu : ", el("strong", {}, label)));
+  banner.appendChild(el("button", { class: "imp-back", type: "button",
+    onClick: () => setViewAs("admin") }, "Revenir fondateur"));
+}
+
+// Sélecteur « Voir en tant que » (fondateur uniquement) ; null sinon.
+function buildViewAsBlock(onPick) {
+  if (!isFounder()) return null;
+  const current = getViewAs() || "admin";
+  const seg = el("div", { class: "view-as-seg" });
+  [["admin", "Fondateur"], ["prof", "Formateur"], ["stagiaire", "Stagiaire"]].forEach(([val, lab]) => {
+    seg.appendChild(el("button", {
+      class: "view-as-btn" + (current === val ? " active" : ""),
+      type: "button",
+      onClick: () => { setViewAs(val); if (onPick) onPick(); },
+    }, lab));
+  });
+  return el("div", { class: "view-as-block" },
+    el("p", { class: "muted", style: "margin:0 0 0.4rem;font-size:0.82rem" }, "Voir en tant que (aperçu)"),
+    seg,
+  );
 }
 
 function openProfileMenu() {
@@ -151,6 +229,7 @@ function openProfileMenu() {
         ? el("span", {}, " · profil : ", el("strong", {}, getProfileWho() || "?"))
         : null,
     ),
+    buildViewAsBlock(() => backdrop.remove()),
     logoutBtn,
     el("div", { class: "modal-actions" },
       el("button", { class: "btn ghost", onClick: () => backdrop.remove() }, "Fermer"),
