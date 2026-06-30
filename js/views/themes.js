@@ -1,14 +1,22 @@
-import { listThemes, updateTheme, addTheme, deleteTheme, listQcmIndex } from "../db.js?v=20260630e";
-import { el, clear, isoDate, formatDate, toast, debounce } from "../utils.js?v=20260630e";
-import { icon } from "../icons.js?v=20260630e";
-import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260630e";
-import { recordUndo } from "../undo.js?v=20260630e";
-import { openQcmEntrainement } from "./qcm.js?v=20260630e";
+import { listThemes, updateTheme, addTheme, deleteTheme, listQcmIndex } from "../db.js?v=20260630f";
+import { el, clear, isoDate, formatDate, toast, debounce } from "../utils.js?v=20260630f";
+import { icon } from "../icons.js?v=20260630f";
+import { isAdmin, getAdminEmail, isFounder, getViewAs } from "../auth-admin.js?v=20260630f";
+import { recordUndo } from "../undo.js?v=20260630f";
+import { openQcmEntrainement } from "./qcm.js?v=20260630f";
 
 let themes = [];
 let qcmByTheme = new Map();  // theme_id -> { id, nb_questions, published, ... }
 
+// Phase dev : le QCM n'est visible que par le fondateur en vue réelle.
+// En aperçu « Voir en tant que … », il disparaît (= ce que verra un élève).
+// La RLS (lecture QCM = fondateur) double cette restriction côté serveur.
+function canSeeQcm() {
+  return isFounder() && !getViewAs();
+}
+
 async function loadQcmIndex() {
+  if (!canSeeQcm()) { qcmByTheme = new Map(); return; }
   try {
     const list = await listQcmIndex();
     qcmByTheme = new Map(list.filter((q) => q.nb_questions > 0).map((q) => [q.theme_id, q]));
