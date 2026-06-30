@@ -4595,6 +4595,7 @@ button.theme-date.editable.muted { color: var(--text-faint); }
 .read-only .p-add-parallele-mini,
 .read-only .p-lane-delete,
 .read-only .chips-display .x,
+.read-only .sujet-chip-x,
 .read-only .p-dice-btn,
 .read-only .p-eleves-dice-toolbar,
 .read-only .p-dice-picker-wrap,
