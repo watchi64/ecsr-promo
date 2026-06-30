@@ -4,13 +4,13 @@ import {
   getHalfMetaForWeek, upsertHalfMeta,
   getSetting, setSetting,
   addPassagesBatch, deletePassagesBatch, getPassagesInRange, updateTheme,
-} from "../db.js?v=20260630b";
-import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire } from "../utils.js?v=20260630b";
-import { icon } from "../icons.js?v=20260630b";
-import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260630b";
-import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260630b";
-import { recordUndo } from "../undo.js?v=20260630b";
-import { getCurrentWho } from "../identity.js?v=20260630b";
+} from "../db.js?v=20260630c";
+import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire } from "../utils.js?v=20260630c";
+import { icon } from "../icons.js?v=20260630c";
+import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260630c";
+import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260630c";
+import { recordUndo } from "../undo.js?v=20260630c";
+import { getCurrentWho } from "../identity.js?v=20260630c";
 
 let stagiaires = [];
 let profs = [];
@@ -97,6 +97,10 @@ function entryUpsertPayload(entry) {
 }
 
 async function saveEntry(localId, patch) {
+  // Garde d'accès : seuls les admins (formateurs) écrivent le planning. Backstop
+  // si un contrôle d'édition fuit en lecture seule (la RLS bloque déjà côté serveur,
+  // mais on évite ici la mutation locale optimiste + le toast d'erreur trompeur).
+  if (!isAdmin()) return;
   const entry = entries.find((e) => e._lid === localId);
   if (!entry) return;
   Object.assign(entry, patch);
@@ -652,6 +656,7 @@ async function autoPlaceWeek() {
 }
 
 async function deleteCell(entry) {
+  if (!isAdmin()) return;  // garde d'accès : suppression réservée aux admins (formateurs)
   // Commit les saisies en cours avant le re-render complet (sinon une note/sujet en attente est perdu)
   await flushPendingInputs();
   // Une demi-journée peut rester vide : on autorise la suppression de n'importe quelle activité.
