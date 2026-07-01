@@ -5698,3 +5698,17 @@ body.qcm-open { overflow: hidden; }
 .theme-exam-draw-line { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; font-size: 0.9rem; }
 .theme-exam-draw-line input { width: 70px; }
 .theme-exam-or { text-align: center; color: var(--text-muted); font-size: 0.78rem; margin: 0.5rem 0; text-transform: uppercase; letter-spacing: 0.05em; }
+
+/* Cellule QCM de la liste (bouton + mes notes) + fiche QCM dédiée */
+.theme-qcm-cell2 { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-width: 0; }
+.qcm-note-pills { display: flex; gap: 4px; flex-wrap: wrap; }
+.qcm-note-pill { font-size: 0.66rem; font-weight: 700; border-radius: 999px; padding: 1px 6px; white-space: nowrap; }
+.qcm-note-pill.exam { background: var(--accent-soft-2); color: var(--accent-strong); }
+.qcm-note-pill.train { background: var(--bg-subtle); color: var(--text-muted); }
+.qcm-sheet-body { display: flex; flex-direction: column; }
+.qcm-sheet-notes {
+  display: flex; flex-direction: column; gap: 0.35rem; margin-bottom: 0.9rem;
+  padding: 0.6rem 0.8rem; background: var(--bg-elev); border: 1px solid var(--line); border-radius: 10px;
+}
+.qcm-note-line { display: flex; justify-content: space-between; align-items: baseline; font-size: 0.9rem; }
+.qcm-note-line strong { color: var(--accent-strong); }

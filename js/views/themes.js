@@ -1,12 +1,14 @@
-import { listThemes, updateTheme, addTheme, deleteTheme, listQcmIndex, getQcmFull, publishQcm, unpublishQcm, setExamDraw, listExamAttempts, resetExamAttempt } from "../db.js?v=20260701f";
-import { el, clear, isoDate, formatDate, toast, debounce } from "../utils.js?v=20260701f";
-import { icon } from "../icons.js?v=20260701f";
-import { isAdmin, getAdminEmail, isFounder, getViewAs, isProf, isStagiaire } from "../auth-admin.js?v=20260701f";
-import { recordUndo } from "../undo.js?v=20260701f";
-import { openQcmEntrainement, openQcmExamen } from "./qcm.js?v=20260701f";
+import { listThemes, updateTheme, addTheme, deleteTheme, listQcmIndex, getQcmFull, publishQcm, unpublishQcm, setExamDraw, listExamAttempts, resetExamAttempt, listMyQcmAttempts } from "../db.js?v=20260701g";
+import { el, clear, isoDate, formatDate, toast, debounce } from "../utils.js?v=20260701g";
+import { icon } from "../icons.js?v=20260701g";
+import { isAdmin, getAdminEmail, isFounder, getViewAs, isProf, isStagiaire } from "../auth-admin.js?v=20260701g";
+import { recordUndo } from "../undo.js?v=20260701g";
+import { openQcmEntrainement, openQcmExamen } from "./qcm.js?v=20260701g";
 
 let themes = [];
 let qcmByTheme = new Map();  // theme_id -> { id, nb_questions, published, ... }
+let myExamByQcm = new Map();   // qcm_id -> ma dernière tentative examen
+let myTrainByQcm = new Map();  // qcm_id -> ma dernière tentative entraînement
 
 // Phase dev : le QCM n'est visible que par le fondateur en vue réelle.
 // En aperçu « Voir en tant que … », il disparaît (= ce que verra un élève).
@@ -16,22 +18,34 @@ function canSeeQcm() {
 }
 
 async function loadQcmIndex() {
-  if (!canSeeQcm()) { qcmByTheme = new Map(); return; }
+  if (!canSeeQcm()) { qcmByTheme = new Map(); myExamByQcm = new Map(); myTrainByQcm = new Map(); return; }
   try {
-    const list = await listQcmIndex();
+    const [list, attempts] = await Promise.all([listQcmIndex(), listMyQcmAttempts()]);
     qcmByTheme = new Map(list.filter((q) => q.nb_questions > 0).map((q) => [q.theme_id, q]));
+    myExamByQcm = new Map();
+    myTrainByQcm = new Map();
+    for (const a of attempts) {  // tri desc : la 1re rencontre par (qcm, mode) est la plus récente
+      const map = a.mode === "examen" ? myExamByQcm : myTrainByQcm;
+      if (!map.has(a.qcm_id)) map.set(a.qcm_id, a);
+    }
   } catch (e) {
-    qcmByTheme = new Map();  // dégradation douce : on n'affiche simplement pas de QCM
+    qcmByTheme = new Map(); myExamByQcm = new Map(); myTrainByQcm = new Map();
   }
 }
 
-// Puce compacte de la colonne QCM : ▶ + nombre de questions.
-function qcmHintEl(theme, qcm) {
-  return el("button", {
-    class: "theme-qcm-hint", type: "button",
-    title: `Lancer l'entraînement (${qcm.nb_questions} questions)`,
-    onClick: (ev) => { ev.preventDefault(); ev.stopPropagation(); openQcmEntrainement(theme, qcm); },
-  }, icon.play(), `${qcm.nb_questions} Q`);
+// Cellule QCM de la liste : bouton d'ouverture de la fiche + mes notes (examen / entraînement).
+function qcmCellEl(theme, qcm) {
+  const btn = el("button", {
+    class: "theme-qcm-hint", type: "button", title: "Ouvrir le QCM",
+    onClick: (ev) => { ev.preventDefault(); ev.stopPropagation(); openQcmSheet(theme, qcm); },
+  }, icon.quiz(), "QCM");
+  const exam = myExamByQcm.get(qcm.id);
+  const train = myTrainByQcm.get(qcm.id);
+  const pills = [];
+  if (exam) pills.push(el("span", { class: "qcm-note-pill exam", title: "Note d'examen" }, `Ex ${exam.note_20}/20`));
+  if (train) pills.push(el("span", { class: "qcm-note-pill train", title: "Dernier entraînement" }, `Entr. ${train.note_20}/20`));
+  return el("div", { class: "theme-qcm-cell2" }, btn,
+    pills.length ? el("div", { class: "qcm-note-pills" }, ...pills) : null);
 }
 
 // Tire n éléments au hasard (ordre aléatoire). n falsy ou >= longueur => tout.
@@ -46,47 +60,59 @@ function sampleN(arr, n) {
 
 function canManageExam() { return isAdmin() || isProf(); }
 
-// Bloc QCM dans la modale thème (remplace le placeholder quand un QCM existe).
-function themeQcmBlock(theme) {
-  const qcm = qcmByTheme.get(theme.id);
-  if (!qcm) {
-    return el("div", { class: "theme-modal-placeholder" },
-      el("p", {}, "Contenu pédagogique à venir : cours, QCM, exercices, supports."),
-      el("p", { class: "muted", style: "font-size:0.82rem" }, "Cette zone affichera les ressources liées au thème dès qu'elles seront disponibles."),
-    );
-  }
-  const block = el("div", { class: "theme-qcm-block" },
-    el("div", { class: "theme-qcm-block-head" },
-      el("span", { class: "theme-qcm-block-icon" }, icon.quiz()),
-      el("div", { style: "min-width:0" },
-        el("p", { class: "theme-qcm-block-title" }, "QCM disponible"),
-        el("p", { class: "muted", style: "font-size:0.82rem;margin:0" },
-          `${qcm.nb_questions} questions` + (qcm.published ? " · examen en ligne" : " · examen non publié")),
-      ),
-    ),
-    el("button", { class: "btn primary", type: "button",
-      onClick: (ev) => { ev.preventDefault(); openQcmEntrainement(theme, qcm); },
-    }, icon.play(), "Lancer l'entraînement"),
-    el("p", { class: "muted", style: "font-size:0.78rem;text-align:center;margin:0.5rem 0 0" },
-      "L'entraînement est libre et ne compte pas dans les notes."),
-  );
+// Fiche QCM dédiée, ouverte depuis la colonne QCM de la liste.
+// Regroupe : mes notes, l'entraînement, l'examen (stagiaire) et la gestion (formateur).
+function openQcmSheet(theme, qcm) {
+  const backdrop = el("div", { class: "modal-backdrop" });
+  const exam = myExamByQcm.get(qcm.id);
+  const train = myTrainByQcm.get(qcm.id);
+  const body = el("div", { class: "qcm-sheet-body" });
 
-  // Entrée examen (stagiaire) : visible si publié.
-  if (isStagiaire() && qcm.published) {
-    block.appendChild(el("div", { class: "theme-exam-entry" },
-      el("button", { class: "btn accent", type: "button",
-        onClick: (ev) => { ev.preventDefault(); openQcmExamen(theme, qcm); },
-      }, "Passer l'examen"),
-      el("p", { class: "muted", style: "font-size:0.78rem;text-align:center;margin:0.4rem 0 0" },
-        "Une seule passe, chronométrée, notée sur 20."),
+  // Mes notes (stagiaire) : examen + dernier entraînement.
+  if (isStagiaire() && (exam || train)) {
+    body.appendChild(el("div", { class: "qcm-sheet-notes" },
+      el("div", { class: "qcm-note-line" },
+        el("span", {}, "Note d'examen"), el("strong", {}, exam ? `${exam.note_20}/20` : "—")),
+      el("div", { class: "qcm-note-line" },
+        el("span", {}, "Dernier entraînement"), el("strong", {}, train ? `${train.note_20}/20` : "—")),
     ));
   }
 
-  // Panneau formateur : publier / dépublier / régénérer / réinitialiser.
-  if (canManageExam()) {
-    block.appendChild(themeExamPanel(theme, qcm));
+  // S'entraîner (tout le monde).
+  body.appendChild(el("button", { class: "btn primary full", type: "button",
+    onClick: () => { backdrop.remove(); openQcmEntrainement(theme, qcm); } }, icon.play(), "S'entraîner"));
+  body.appendChild(el("p", { class: "muted", style: "font-size:0.78rem;text-align:center;margin:0.35rem 0 0" },
+    "Libre, illimité, ne compte pas dans les notes."));
+
+  // Passer l'examen (stagiaire).
+  if (isStagiaire()) {
+    if (qcm.published) {
+      body.appendChild(el("button", { class: "btn accent full", type: "button", style: "margin-top:0.9rem",
+        onClick: () => { backdrop.remove(); openQcmExamen(theme, qcm); } }, "Passer l'examen"));
+      body.appendChild(el("p", { class: "muted", style: "font-size:0.78rem;text-align:center;margin:0.35rem 0 0" },
+        "Une seule passe, chronométrée, notée sur 20."));
+    } else {
+      body.appendChild(el("p", { class: "muted", style: "text-align:center;margin:0.9rem 0 0;font-size:0.82rem" },
+        "L'examen n'est pas encore en ligne."));
+    }
   }
-  return block;
+
+  // Gestion formateur (publier / tirage / tentatives).
+  if (canManageExam()) body.appendChild(themeExamPanel(theme, qcm));
+
+  const modal = el("div", { class: "modal theme-modal" },
+    el("div", { class: "theme-modal-head" },
+      theme.numero ? el("span", { class: "theme-modal-num" }, String(theme.numero).padStart(2, "0")) : null,
+      el("h3", { class: "theme-modal-titre" }, "QCM · " + theme.titre),
+    ),
+    body,
+    el("div", { class: "modal-actions" },
+      el("button", { class: "btn ghost", onClick: () => backdrop.remove() }, "Fermer"),
+    ),
+  );
+  backdrop.appendChild(modal);
+  backdrop.addEventListener("click", (e) => { if (e.target === backdrop) backdrop.remove(); });
+  document.body.appendChild(backdrop);
 }
 
 // Panneau formateur pour piloter l'examen d'un QCM (dans la modale thème).
@@ -466,7 +492,11 @@ function openThemeModal(theme) {
       el("h3", { class: "theme-modal-titre" }, theme.titre),
     ),
     theme.categorie ? el("p", { class: "muted theme-modal-cat" }, theme.categorie) : null,
-    themeQcmBlock(theme),
+    el("div", { class: "theme-modal-placeholder" },
+      el("p", {}, "Contenu pédagogique à venir : cours, exercices, supports."),
+      el("p", { class: "muted", style: "font-size:0.82rem" },
+        "Le QCM (entraînement et examen) est accessible depuis la colonne QCM de la liste."),
+    ),
     el("div", { class: "modal-actions" },
       el("button", { class: "btn primary", onClick: () => backdrop.remove() }, "Fermer"),
     ),
@@ -564,7 +594,7 @@ function renderThemeRow(theme, container) {
   // Colonne QCM (fondateur seulement) : cellule dédiée à droite, jamais sous le titre.
   const qcm = qcmByTheme.get(theme.id);
   const qcmCell = canSeeQcm()
-    ? el("div", { class: "theme-qcm-cell" }, qcm ? qcmHintEl(theme, qcm) : null)
+    ? el("div", { class: "theme-qcm-cell" }, qcm ? qcmCellEl(theme, qcm) : null)
     : null;
 
   return el("div", { class: "theme-row " + color, dataset: { id: theme.id } },

@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20260701f";
+import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20260701g";
 
 // fetch avec timeout : sans ça, une requête peut rester pendue indéfiniment
 // (réseau mobile instable) → "Chargement" infini. Avec, elle échoue proprement après 15s.
@@ -387,6 +387,17 @@ export async function setExamDraw(qcmId, { examQuestionIds, drawMode, nbQuestion
     .eq("id", qcmId);
   if (error) throw error;
   invalidateCache("qcm_index");
+}
+
+// Toutes mes tentatives (RLS : mes lignes only), triées récent -> ancien.
+// Sert à afficher ma note d'examen et mon dernier entraînement par thème.
+export async function listMyQcmAttempts() {
+  const { data, error } = await supabase
+    .from("qcm_attempts")
+    .select("qcm_id, mode, note_20, finished_at")
+    .order("finished_at", { ascending: false });
+  if (error) throw error;
+  return data || [];
 }
 
 // Ma tentative examen pour ce QCM (RLS : mes lignes uniquement). null si aucune.
