@@ -3,9 +3,9 @@
  * Lot 1 : mode "entraînement" (libre, correction immédiate, non comptée).
  * L'examen (tirage N, une passe, note) viendra en Lot 2.
  */
-import { el, clear, toast, formatDate } from "../utils.js?v=20260701g";
-import { icon } from "../icons.js?v=20260701g";
-import { getQcmFull, insertQcmAttempt, getMyProfile, getMyExamAttempt } from "../db.js?v=20260701g";
+import { el, clear, toast, formatDate } from "../utils.js?v=20260701h";
+import { icon } from "../icons.js?v=20260701h";
+import { getQcmFull, insertQcmAttempt, getMyProfile, getMyExamAttempt } from "../db.js?v=20260701h";
 
 function shuffle(arr) {
   const a = arr.slice();
@@ -188,6 +188,7 @@ function runEntrainement(theme, full, questions) {
           answers,
           started_at: startedAt,
         });
+        window.dispatchEvent(new CustomEvent("qcm-attempt-saved", { detail: { qcm_id: full.id, mode: "entrainement", note_20: note20 } }));
       }
     } catch (e) {
       console.warn("QCM : tentative non enregistrée:", e?.message || e);
@@ -444,6 +445,7 @@ function runExam(theme, full, questions, profile) {
     } catch (e) {
       saveError = e?.message || String(e);
     }
+    if (!saveError) window.dispatchEvent(new CustomEvent("qcm-attempt-saved", { detail: { qcm_id: full.id, mode: "examen", note_20: note20 } }));
     renderResults(score, note20, timedOut, saveError);
   }
 

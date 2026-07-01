@@ -5712,3 +5712,33 @@ body.qcm-open { overflow: hidden; }
 }
 .qcm-note-line { display: flex; justify-content: space-between; align-items: baseline; font-size: 0.9rem; }
 .qcm-note-line strong { color: var(--accent-strong); }
+
+/* Grandes cartes de notes (fiche QCM) : lacunes visibles d'un coup d'œil */
+.qcm-note-cards { display: flex; gap: 0.6rem; margin-bottom: 1rem; }
+.qcm-note-card {
+  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 0.9rem 0.5rem; border-radius: 12px; border: 1px solid var(--line); background: var(--bg-elev);
+}
+.qcm-note-card-val { font-size: 1.7rem; font-weight: 800; line-height: 1; }
+.qcm-note-card-lab { font-size: 0.72rem; color: var(--text-muted); text-align: center; }
+.qcm-note-card.n-great { background: var(--c-go-soft); border-color: var(--c-go-soft); }
+.qcm-note-card.n-great .qcm-note-card-val { color: var(--c-go); }
+.qcm-note-card.n-ok { background: var(--accent-soft); border-color: var(--accent-soft); }
+.qcm-note-card.n-ok .qcm-note-card-val { color: var(--accent-strong); }
+.qcm-note-card.n-mid { background: #FBEEDD; border-color: #FBEEDD; }
+.qcm-note-card.n-mid .qcm-note-card-val { color: #B67A3D; }
+.qcm-note-card.n-low { background: var(--c-stop-soft); border-color: var(--c-stop-soft); }
+.qcm-note-card.n-low .qcm-note-card-val { color: var(--c-stop); }
+.qcm-note-card.n-none .qcm-note-card-val { color: var(--text-muted); }
+
+/* Pills de note colorées (cellule QCM de la liste) */
+.qcm-note-pill.n-great { background: var(--c-go-soft); color: var(--c-go); }
+.qcm-note-pill.n-ok { background: var(--accent-soft); color: var(--accent-strong); }
+.qcm-note-pill.n-mid { background: #FBEEDD; color: #B67A3D; }
+.qcm-note-pill.n-low { background: var(--c-stop-soft); color: var(--c-stop); }
+
+/* Modale « Modifier l'examen » (formateur) */
+.config-section { margin-bottom: 0.9rem; }
+.config-label { margin: 0 0 0.4rem; font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.03em; color: var(--text-muted); font-weight: 700; }
+.config-field { display: flex; flex-direction: column; gap: 4px; font-size: 0.8rem; color: var(--text-muted); font-weight: 600; max-width: 220px; }
+.config-field input { width: 100%; }

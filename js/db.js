@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20260701g";
+import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20260701h";
 
 // fetch avec timeout : sans ça, une requête peut rester pendue indéfiniment
 // (réseau mobile instable) → "Chargement" infini. Avec, elle échoue proprement après 15s.
@@ -384,6 +384,16 @@ export async function setExamDraw(qcmId, { examQuestionIds, drawMode, nbQuestion
       exam_nb_questions: nbQuestions ?? null,
       updated_at: new Date().toISOString(),
     })
+    .eq("id", qcmId);
+  if (error) throw error;
+  invalidateCache("qcm_index");
+}
+
+// Met à jour la config d'examen (questions gelées, temps, mode) sans changer l'état de publication.
+export async function updateExamConfig(qcmId, patch) {
+  const { error } = await supabase
+    .from("qcm")
+    .update({ ...patch, updated_at: new Date().toISOString() })
     .eq("id", qcmId);
   if (error) throw error;
   invalidateCache("qcm_index");

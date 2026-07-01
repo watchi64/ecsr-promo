@@ -1,14 +1,22 @@
-import { listThemes, updateTheme, addTheme, deleteTheme, listQcmIndex, getQcmFull, publishQcm, unpublishQcm, setExamDraw, listExamAttempts, resetExamAttempt, listMyQcmAttempts } from "../db.js?v=20260701g";
-import { el, clear, isoDate, formatDate, toast, debounce } from "../utils.js?v=20260701g";
-import { icon } from "../icons.js?v=20260701g";
-import { isAdmin, getAdminEmail, isFounder, getViewAs, isProf, isStagiaire } from "../auth-admin.js?v=20260701g";
-import { recordUndo } from "../undo.js?v=20260701g";
-import { openQcmEntrainement, openQcmExamen } from "./qcm.js?v=20260701g";
+import { listThemes, updateTheme, addTheme, deleteTheme, listQcmIndex, getQcmFull, publishQcm, unpublishQcm, updateExamConfig, listExamAttempts, resetExamAttempt, listMyQcmAttempts, getMyProfile, listEvaluations } from "../db.js?v=20260701h";
+import { el, clear, isoDate, formatDate, toast, debounce } from "../utils.js?v=20260701h";
+import { icon } from "../icons.js?v=20260701h";
+import { isAdmin, getAdminEmail, isFounder, getViewAs, isProf, isStagiaire } from "../auth-admin.js?v=20260701h";
+import { recordUndo } from "../undo.js?v=20260701h";
+import { openQcmEntrainement, openQcmExamen } from "./qcm.js?v=20260701h";
 
 let themes = [];
 let qcmByTheme = new Map();  // theme_id -> { id, nb_questions, published, ... }
-let myExamByQcm = new Map();   // qcm_id -> ma dernière tentative examen
-let myTrainByQcm = new Map();  // qcm_id -> ma dernière tentative entraînement
+let myExamByQcm = new Map();       // qcm_id -> ma dernière tentative examen (QCM)
+let myTrainByQcm = new Map();      // qcm_id -> ma dernière tentative entraînement
+let myNoteByThemeNum = new Map();  // theme_numero -> ma note officielle (matrice Notes)
+let lastContainer = null;          // pour rafraîchir la liste après un QCM
+
+// Après un QCM (entraînement ou examen), recharge la liste pour mettre à jour mes notes.
+window.addEventListener("qcm-attempt-saved", async () => {
+  if (!lastContainer) return;
+  try { await reload(lastContainer); } catch (e) { /* refresh silencieux */ }
+});
 
 // Phase dev : le QCM n'est visible que par le fondateur en vue réelle.
 // En aperçu « Voir en tant que … », il disparaît (= ce que verra un élève).
@@ -18,9 +26,14 @@ function canSeeQcm() {
 }
 
 async function loadQcmIndex() {
-  if (!canSeeQcm()) { qcmByTheme = new Map(); myExamByQcm = new Map(); myTrainByQcm = new Map(); return; }
+  if (!canSeeQcm()) { qcmByTheme = new Map(); myExamByQcm = new Map(); myTrainByQcm = new Map(); myNoteByThemeNum = new Map(); return; }
   try {
-    const [list, attempts] = await Promise.all([listQcmIndex(), listMyQcmAttempts()]);
+    const profile = await getMyProfile();
+    const [list, attempts, evals] = await Promise.all([
+      listQcmIndex(),
+      listMyQcmAttempts(),
+      profile?.stagiaire_id ? listEvaluations({ stagiaire_id: profile.stagiaire_id }) : Promise.resolve([]),
+    ]);
     qcmByTheme = new Map(list.filter((q) => q.nb_questions > 0).map((q) => [q.theme_id, q]));
     myExamByQcm = new Map();
     myTrainByQcm = new Map();
@@ -28,22 +41,50 @@ async function loadQcmIndex() {
       const map = a.mode === "examen" ? myExamByQcm : myTrainByQcm;
       if (!map.has(a.qcm_id)) map.set(a.qcm_id, a);
     }
+    myNoteByThemeNum = new Map();
+    for (const e of evals) {  // listEvaluations triée date desc : 1re = plus récente
+      if (e.type === "Thème" && e.theme_numero != null && e.note != null && !myNoteByThemeNum.has(e.theme_numero)) {
+        myNoteByThemeNum.set(e.theme_numero, e);
+      }
+    }
   } catch (e) {
-    qcmByTheme = new Map(); myExamByQcm = new Map(); myTrainByQcm = new Map();
+    qcmByTheme = new Map(); myExamByQcm = new Map(); myTrainByQcm = new Map(); myNoteByThemeNum = new Map();
   }
 }
 
-// Cellule QCM de la liste : bouton d'ouverture de la fiche + mes notes (examen / entraînement).
+// Ma note "officielle" pour un thème : matrice Notes si numéroté, sinon la tentative examen du QCM.
+function myThemeNote(theme, qcm) {
+  if (theme.numero != null) {
+    const e = myNoteByThemeNum.get(theme.numero);
+    return e ? Math.round((Number(e.note) / Number(e.note_max || 20)) * 20 * 10) / 10 : null;
+  }
+  const ex = myExamByQcm.get(qcm.id);
+  return ex ? Number(ex.note_20) : null;
+}
+function myTrainNote(qcm) {
+  const t = myTrainByQcm.get(qcm.id);
+  return t ? Number(t.note_20) : null;
+}
+// Palier de couleur d'une note /20 (pêche -> vert).
+function noteClass(n) {
+  if (n == null) return "none";
+  if (n >= 16) return "great";
+  if (n >= 12) return "ok";
+  if (n >= 8) return "mid";
+  return "low";
+}
+
+// Cellule QCM de la liste : bouton d'ouverture de la fiche + mes notes (colorées).
 function qcmCellEl(theme, qcm) {
   const btn = el("button", {
     class: "theme-qcm-hint", type: "button", title: "Ouvrir le QCM",
     onClick: (ev) => { ev.preventDefault(); ev.stopPropagation(); openQcmSheet(theme, qcm); },
   }, icon.quiz(), "QCM");
-  const exam = myExamByQcm.get(qcm.id);
-  const train = myTrainByQcm.get(qcm.id);
+  const note = myThemeNote(theme, qcm);
+  const train = myTrainNote(qcm);
   const pills = [];
-  if (exam) pills.push(el("span", { class: "qcm-note-pill exam", title: "Note d'examen" }, `Ex ${exam.note_20}/20`));
-  if (train) pills.push(el("span", { class: "qcm-note-pill train", title: "Dernier entraînement" }, `Entr. ${train.note_20}/20`));
+  if (note != null) pills.push(el("span", { class: "qcm-note-pill n-" + noteClass(note), title: "Ma note" }, `${note}/20`));
+  if (train != null) pills.push(el("span", { class: "qcm-note-pill train", title: "Dernier entraînement" }, `Entr. ${train}/20`));
   return el("div", { class: "theme-qcm-cell2" }, btn,
     pills.length ? el("div", { class: "qcm-note-pills" }, ...pills) : null);
 }
@@ -64,17 +105,21 @@ function canManageExam() { return isAdmin() || isProf(); }
 // Regroupe : mes notes, l'entraînement, l'examen (stagiaire) et la gestion (formateur).
 function openQcmSheet(theme, qcm) {
   const backdrop = el("div", { class: "modal-backdrop" });
-  const exam = myExamByQcm.get(qcm.id);
-  const train = myTrainByQcm.get(qcm.id);
+  const note = myThemeNote(theme, qcm);
+  const train = myTrainNote(qcm);
   const body = el("div", { class: "qcm-sheet-body" });
 
-  // Mes notes (stagiaire) : examen + dernier entraînement.
-  if (isStagiaire() && (exam || train)) {
-    body.appendChild(el("div", { class: "qcm-sheet-notes" },
-      el("div", { class: "qcm-note-line" },
-        el("span", {}, "Note d'examen"), el("strong", {}, exam ? `${exam.note_20}/20` : "—")),
-      el("div", { class: "qcm-note-line" },
-        el("span", {}, "Dernier entraînement"), el("strong", {}, train ? `${train.note_20}/20` : "—")),
+  // Zone notes (stagiaire) : deux grandes cartes colorées, lacunes visibles d'un coup d'œil.
+  if (isStagiaire()) {
+    body.appendChild(el("div", { class: "qcm-note-cards" },
+      el("div", { class: "qcm-note-card n-" + noteClass(note) },
+        el("span", { class: "qcm-note-card-val" }, note != null ? `${note}/20` : "—"),
+        el("span", { class: "qcm-note-card-lab" }, "Ma note d'examen"),
+      ),
+      el("div", { class: "qcm-note-card n-" + noteClass(train) },
+        el("span", { class: "qcm-note-card-val" }, train != null ? `${train}/20` : "—"),
+        el("span", { class: "qcm-note-card-lab" }, "Dernier entraînement"),
+      ),
     ));
   }
 
@@ -115,226 +160,208 @@ function openQcmSheet(theme, qcm) {
   document.body.appendChild(backdrop);
 }
 
-// Panneau formateur pour piloter l'examen d'un QCM (dans la modale thème).
+// Panneau formateur : statut + deux actions (Publier/Dépublier, Modifier).
+// « Modifier » ouvre une modale regroupant temps, questions (au hasard / à la main) et tentatives.
 function themeExamPanel(theme, qcm) {
   const panel = el("div", { class: "theme-exam-panel" });
-
   const status = el("p", { class: "theme-exam-status" });
+  const actions = el("div", { class: "theme-exam-actions" });
+
   function refreshStatus() {
     clear(status);
     const on = !!qcm.published;
     const frozenN = Array.isArray(qcm.exam_question_ids) ? qcm.exam_question_ids.length : null;
     status.appendChild(el("span", { class: "exam-badge " + (on ? "on" : "off") }, on ? "En ligne" : "Brouillon"));
-    if (on) {
-      status.appendChild(el("span", { class: "muted", style: "font-size:0.8rem" },
-        ` ${frozenN ?? qcm.nb_questions} questions · ${qcm.exam_seconds_per_question || 30}s/question`
-        + (qcm.exam_draw_mode === "manual" ? " · sélection manuelle" : " · tirage aléatoire")));
-    }
-    draftControls.style.display = on ? "none" : "";
-    liveControls.style.display = on ? "" : "none";
+    status.appendChild(el("span", { class: "muted", style: "font-size:0.8rem" },
+      ` ${frozenN ?? qcm.nb_questions} questions · ${qcm.exam_seconds_per_question || 30}s/question`
+      + (qcm.exam_draw_mode === "manual" ? " · sélection manuelle" : " · tirage aléatoire")));
+
+    clear(actions);
+    actions.appendChild(on
+      ? el("button", { class: "btn danger", type: "button", onClick: doUnpublish }, "Dépublier")
+      : el("button", { class: "btn primary", type: "button", onClick: doPublishNow }, "Publier"));
+    actions.appendChild(el("button", { class: "btn ghost", type: "button", onClick: openConfig }, "Modifier"));
   }
 
-  // Temps par question : seul réglage global. Il n'y a pas de seuil de réussite.
-  const secInput = el("input", { type: "number", min: 5, max: 300, step: 5, value: qcm.exam_seconds_per_question ?? 30 });
-  // Nombre de questions à tirer : placé directement dans l'action « au hasard ».
-  const nbInput = el("input", { type: "number", min: 1, max: qcm.nb_questions, placeholder: "toutes",
-    value: qcm.exam_nb_questions ?? "" });
-
-  // Applique une publication (ou régénération) avec un set d'ids donné.
-  async function doPublish(examQuestionIds, drawMode) {
-    const secs = Number(secInput.value) || 30;
-    const nb = drawMode === "manual" ? examQuestionIds.length : (nbInput.value ? Number(nbInput.value) : null);
+  // Publier : met en ligne avec la config actuelle (gèle toutes les questions si aucun tirage défini).
+  async function doPublishNow() {
     try {
-      await publishQcm(qcm.id, {
-        examQuestionIds, drawMode, nbQuestions: nb,
-        secondsPerQuestion: secs, email: getAdminEmail(),
-      });
-      Object.assign(qcm, {
-        published: true, exam_question_ids: examQuestionIds, exam_draw_mode: drawMode,
-        exam_nb_questions: nb, exam_seconds_per_question: secs,
-      });
-      if (drawMode === "manual") nbInput.value = examQuestionIds.length;
-      toast(`Examen en ligne : ${examQuestionIds.length} questions, identiques pour toute la promo.`, "success");
-      refreshStatus();
-    } catch (e) {
-      toast("Publication impossible : " + (e?.message || e), "error");
-    }
-  }
-
-  // Tirage aléatoire : charge la banque, échantillonne N, publie.
-  async function publishRandom() {
-    try {
-      const full = await getQcmFull(qcm.id);
-      const qs = (full.questions || []).filter((q) => (q.options || []).length > 0);
-      const nb = nbInput.value ? Number(nbInput.value) : null;
-      const ids = sampleN(qs, nb).map((q) => q.id);
-      if (ids.length === 0) { toast("Aucune question exploitable.", "error"); return; }
-      await doPublish(ids, "random");
-    } catch (e) {
-      toast("Tirage impossible : " + (e?.message || e), "error");
-    }
-  }
-
-  // Sélection manuelle : modale de cases à cocher, ordre = ordre des questions.
-  async function chooseManual() {
-    let full;
-    try { full = await getQcmFull(qcm.id); }
-    catch (e) { toast("Chargement impossible : " + (e?.message || e), "error"); return; }
-    const qs = (full.questions || []).filter((q) => (q.options || []).length > 0);
-    const preset = new Set(Array.isArray(qcm.exam_question_ids) ? qcm.exam_question_ids : []);
-    const backdrop = el("div", { class: "modal-backdrop" });
-    const list = el("div", { class: "exam-pick-list" });
-    const countEl = el("span", { class: "muted", style: "font-size:0.82rem;margin-left:auto" });
-    function updateCount() {
-      countEl.textContent = `${list.querySelectorAll("input[type=checkbox]:checked").length} / ${qs.length} sélectionnées`;
-    }
-    qs.forEach((q, i) => {
-      const cb = el("input", { type: "checkbox" });
-      cb.checked = preset.has(q.id);
-      cb.dataset.qid = String(q.id);
-      cb.addEventListener("change", updateCount);
-      list.appendChild(el("label", { class: "exam-pick-item" }, cb,
-        el("span", {}, `${i + 1}. ${q.enonce}`)));
-    });
-    function setAll(v) { list.querySelectorAll("input[type=checkbox]").forEach((c) => { c.checked = v; }); updateCount(); }
-    const modal = el("div", { class: "modal" },
-      el("h3", {}, "Choisir les questions de l'examen"),
-      el("p", { class: "muted", style: "font-size:0.85rem" }, "Coche les questions à inclure. L'ordre suivra l'ordre des questions."),
-      el("div", { style: "display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;margin:0.2rem 0 0.5rem" },
-        el("button", { class: "btn ghost", type: "button", style: "padding:0.35rem 0.7rem;font-size:0.82rem;flex:0 0 auto", onClick: () => setAll(true) }, "Tout cocher"),
-        el("button", { class: "btn ghost", type: "button", style: "padding:0.35rem 0.7rem;font-size:0.82rem;flex:0 0 auto", onClick: () => setAll(false) }, "Tout décocher"),
-        countEl,
-      ),
-      list,
-      el("div", { class: "modal-actions" },
-        el("button", { class: "btn ghost", type: "button", onClick: () => backdrop.remove() }, "Annuler"),
-        el("button", { class: "btn primary", type: "button", onClick: async () => {
-          const ids = qs.filter((q) => list.querySelector(`input[data-qid="${q.id}"]`).checked).map((q) => q.id);
-          if (ids.length === 0) { toast("Sélectionne au moins une question.", "error"); return; }
-          backdrop.remove();
-          await doPublish(ids, "manual");
-        } }, "Publier cette sélection"),
-      ),
-    );
-    updateCount();
-    backdrop.appendChild(modal);
-    backdrop.addEventListener("click", (e) => { if (e.target === backdrop) backdrop.remove(); });
-    document.body.appendChild(backdrop);
-  }
-
-  // Régénère le tirage (aléatoire) après contrôle « 0 tentative ».
-  async function regenerate() {
-    try {
-      const attempts = await listExamAttempts(qcm.id);
-      if (attempts.length > 0) {
-        toast(`${attempts.length} stagiaire(s) ont déjà passé l'examen. Réinitialise-les avant de régénérer.`, "error");
-        return;
+      let ids = Array.isArray(qcm.exam_question_ids) ? qcm.exam_question_ids : null;
+      if (!ids || !ids.length) {
+        const full = await getQcmFull(qcm.id);
+        ids = (full.questions || []).filter((q) => (q.options || []).length > 0).map((q) => q.id);
       }
-      const full = await getQcmFull(qcm.id);
-      const qs = (full.questions || []).filter((q) => (q.options || []).length > 0);
-      const nb = qcm.exam_nb_questions ?? (nbInput.value ? Number(nbInput.value) : null);
-      const ids = sampleN(qs, nb).map((q) => q.id);
-      await setExamDraw(qcm.id, { examQuestionIds: ids, drawMode: "random", nbQuestions: nb });
-      Object.assign(qcm, { exam_question_ids: ids, exam_draw_mode: "random", exam_nb_questions: nb });
-      toast(`Nouveau tirage de ${ids.length} questions.`, "success");
+      await publishQcm(qcm.id, {
+        examQuestionIds: ids, drawMode: qcm.exam_draw_mode || "random",
+        nbQuestions: qcm.exam_nb_questions ?? null, secondsPerQuestion: qcm.exam_seconds_per_question ?? 30,
+        email: getAdminEmail(),
+      });
+      Object.assign(qcm, { published: true, exam_question_ids: ids });
+      toast(`Examen en ligne : ${ids.length} questions.`, "success");
       refreshStatus();
-    } catch (e) {
-      toast("Régénération impossible : " + (e?.message || e), "error");
-    }
+    } catch (e) { toast("Publication impossible : " + (e?.message || e), "error"); }
   }
 
   async function doUnpublish() {
     try {
       await unpublishQcm(qcm.id);
       qcm.published = false;
-      toast("Examen dépublié.", "success");
+      toast("Examen repassé en brouillon.", "success");
       refreshStatus();
-    } catch (e) {
-      toast("Dépublication impossible : " + (e?.message || e), "error");
-    }
+    } catch (e) { toast("Dépublication impossible : " + (e?.message || e), "error"); }
   }
 
-  // Modale de gestion des tentatives (réinitialisation par stagiaire).
-  async function manageAttempts() {
-    let attempts;
-    try { attempts = await listExamAttempts(qcm.id); }
-    catch (e) { toast("Chargement impossible : " + (e?.message || e), "error"); return; }
-    const backdrop = el("div", { class: "modal-backdrop" });
-    const body = el("div", { class: "exam-attempts-list" });
-    function fill() {
-      clear(body);
-      if (attempts.length === 0) {
-        body.appendChild(el("p", { class: "muted" }, "Aucune tentative pour l'instant."));
-        return;
-      }
-      attempts.forEach((a) => {
-        const row = el("div", { class: "exam-attempt-row" },
-          el("span", {}, (a.stagiaire?.prenom || `Stagiaire ${a.stagiaire_id}`) + ` — ${a.note_20}/20`),
-          el("button", { class: "btn danger", type: "button", onClick: async () => {
-            if (!window.confirm("Réinitialiser cette tentative ? La note sera supprimée.")) return;
-            try {
-              await resetExamAttempt(qcm.id, a.stagiaire_id);
-              attempts = attempts.filter((x) => x.id !== a.id);
-              toast("Tentative réinitialisée.", "success");
-              fill();
-            } catch (e) {
-              toast("Réinitialisation impossible : " + (e?.message || e), "error");
-            }
-          } }, "Réinitialiser"),
-        );
-        body.appendChild(row);
-      });
+  // Avertit si des tentatives existent avant de changer le tirage (risque d'incohérence).
+  async function confirmDrawChange() {
+    let attempts = [];
+    try { attempts = await listExamAttempts(qcm.id); } catch (e) { /* ignore */ }
+    if (attempts.length > 0) {
+      return window.confirm(`${attempts.length} stagiaire(s) ont déjà passé l'examen. Changer les questions rendra leur passage incohérent. Continuer ?`);
     }
-    fill();
+    return true;
+  }
+
+  // Modale « Modifier » : temps, questions (au hasard / à la main), tentatives.
+  function openConfig() {
+    const bd = el("div", { class: "modal-backdrop" });
+    const summary = el("p", { class: "muted", style: "font-size:0.82rem;margin:0 0 0.6rem" });
+    function refreshSummary() {
+      const frozenN = Array.isArray(qcm.exam_question_ids) ? qcm.exam_question_ids.length : qcm.nb_questions;
+      summary.textContent = `Actuel : ${frozenN} questions · ${qcm.exam_seconds_per_question || 30}s/question · `
+        + (qcm.exam_draw_mode === "manual" ? "sélection manuelle" : "tirage aléatoire");
+    }
+    refreshSummary();
+
+    const secInput = el("input", { type: "number", min: 5, max: 300, step: 5, value: qcm.exam_seconds_per_question ?? 30 });
+    secInput.addEventListener("change", async () => {
+      const secs = Number(secInput.value) || 30;
+      try {
+        await updateExamConfig(qcm.id, { exam_seconds_per_question: secs });
+        qcm.exam_seconds_per_question = secs;
+        toast("Temps mis à jour.", "success"); refreshStatus(); refreshSummary();
+      } catch (e) { toast("Impossible : " + (e?.message || e), "error"); }
+    });
+
+    const nbInput = el("input", { type: "number", min: 1, max: qcm.nb_questions, placeholder: "toutes", value: qcm.exam_nb_questions ?? "" });
+    async function drawRandom() {
+      if (!(await confirmDrawChange())) return;
+      try {
+        const full = await getQcmFull(qcm.id);
+        const qs = (full.questions || []).filter((q) => (q.options || []).length > 0);
+        const nb = nbInput.value ? Number(nbInput.value) : null;
+        const ids = sampleN(qs, nb).map((q) => q.id);
+        if (!ids.length) { toast("Aucune question exploitable.", "error"); return; }
+        await updateExamConfig(qcm.id, { exam_question_ids: ids, exam_draw_mode: "random", exam_nb_questions: nb });
+        Object.assign(qcm, { exam_question_ids: ids, exam_draw_mode: "random", exam_nb_questions: nb });
+        toast(`Tirage aléatoire de ${ids.length} questions.`, "success"); refreshStatus(); refreshSummary();
+      } catch (e) { toast("Impossible : " + (e?.message || e), "error"); }
+    }
+
+    async function chooseManual() {
+      if (!(await confirmDrawChange())) return;
+      let full;
+      try { full = await getQcmFull(qcm.id); }
+      catch (e) { toast("Chargement impossible : " + (e?.message || e), "error"); return; }
+      const qs = (full.questions || []).filter((q) => (q.options || []).length > 0);
+      const preset = new Set(Array.isArray(qcm.exam_question_ids) ? qcm.exam_question_ids : []);
+      const backdrop = el("div", { class: "modal-backdrop" });
+      const list = el("div", { class: "exam-pick-list" });
+      const countEl = el("span", { class: "muted", style: "font-size:0.82rem;margin-left:auto" });
+      function updateCount() { countEl.textContent = `${list.querySelectorAll("input[type=checkbox]:checked").length} / ${qs.length} sélectionnées`; }
+      qs.forEach((q, i) => {
+        const cb = el("input", { type: "checkbox" });
+        cb.checked = preset.has(q.id); cb.dataset.qid = String(q.id);
+        cb.addEventListener("change", updateCount);
+        list.appendChild(el("label", { class: "exam-pick-item" }, cb, el("span", {}, `${i + 1}. ${q.enonce}`)));
+      });
+      function setAll(v) { list.querySelectorAll("input[type=checkbox]").forEach((c) => { c.checked = v; }); updateCount(); }
+      const modal2 = el("div", { class: "modal" },
+        el("h3", {}, "Choisir les questions"),
+        el("p", { class: "muted", style: "font-size:0.85rem" }, "Coche les questions. L'ordre suit l'ordre des questions."),
+        el("div", { style: "display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;margin:0.2rem 0 0.5rem" },
+          el("button", { class: "btn ghost", type: "button", style: "padding:0.35rem 0.7rem;font-size:0.82rem;flex:0 0 auto", onClick: () => setAll(true) }, "Tout cocher"),
+          el("button", { class: "btn ghost", type: "button", style: "padding:0.35rem 0.7rem;font-size:0.82rem;flex:0 0 auto", onClick: () => setAll(false) }, "Tout décocher"),
+          countEl,
+        ),
+        list,
+        el("div", { class: "modal-actions" },
+          el("button", { class: "btn ghost", type: "button", onClick: () => backdrop.remove() }, "Annuler"),
+          el("button", { class: "btn primary", type: "button", onClick: async () => {
+            const ids = qs.filter((q) => list.querySelector(`input[data-qid="${q.id}"]`).checked).map((q) => q.id);
+            if (!ids.length) { toast("Sélectionne au moins une question.", "error"); return; }
+            try {
+              await updateExamConfig(qcm.id, { exam_question_ids: ids, exam_draw_mode: "manual", exam_nb_questions: ids.length });
+              Object.assign(qcm, { exam_question_ids: ids, exam_draw_mode: "manual", exam_nb_questions: ids.length });
+              backdrop.remove();
+              toast(`Sélection de ${ids.length} questions.`, "success"); refreshStatus(); refreshSummary();
+            } catch (e) { toast("Impossible : " + (e?.message || e), "error"); }
+          } }, "Valider la sélection"),
+        ),
+      );
+      updateCount();
+      backdrop.appendChild(modal2);
+      backdrop.addEventListener("click", (e) => { if (e.target === backdrop) backdrop.remove(); });
+      document.body.appendChild(backdrop);
+    }
+
+    async function manageAttempts() {
+      let attempts;
+      try { attempts = await listExamAttempts(qcm.id); }
+      catch (e) { toast("Chargement impossible : " + (e?.message || e), "error"); return; }
+      const backdrop = el("div", { class: "modal-backdrop" });
+      const bodyA = el("div", { class: "exam-attempts-list" });
+      function fill() {
+        clear(bodyA);
+        if (!attempts.length) { bodyA.appendChild(el("p", { class: "muted" }, "Aucune tentative pour l'instant.")); return; }
+        attempts.forEach((a) => {
+          bodyA.appendChild(el("div", { class: "exam-attempt-row" },
+            el("span", {}, (a.stagiaire?.prenom || `Stagiaire ${a.stagiaire_id}`) + ` — ${a.note_20}/20`),
+            el("button", { class: "btn danger", type: "button", onClick: async () => {
+              if (!window.confirm("Réinitialiser cette tentative ? La note sera supprimée.")) return;
+              try { await resetExamAttempt(qcm.id, a.stagiaire_id); attempts = attempts.filter((x) => x.id !== a.id); toast("Tentative réinitialisée.", "success"); fill(); }
+              catch (e) { toast("Réinitialisation impossible : " + (e?.message || e), "error"); }
+            } }, "Réinitialiser"),
+          ));
+        });
+      }
+      fill();
+      const modal3 = el("div", { class: "modal" },
+        el("h3", {}, "Tentatives d'examen"), bodyA,
+        el("div", { class: "modal-actions" }, el("button", { class: "btn ghost", type: "button", onClick: () => backdrop.remove() }, "Fermer")),
+      );
+      backdrop.appendChild(modal3);
+      backdrop.addEventListener("click", (e) => { if (e.target === backdrop) backdrop.remove(); });
+      document.body.appendChild(backdrop);
+    }
+
     const modal = el("div", { class: "modal" },
-      el("h3", {}, "Tentatives d'examen"),
-      body,
+      el("h3", {}, "Modifier l'examen"),
+      summary,
+      el("div", { class: "config-section" },
+        el("label", { class: "config-field" }, el("span", {}, "Temps par question (s)"), secInput),
+      ),
+      el("div", { class: "config-section" },
+        el("p", { class: "config-label" }, "Questions de l'examen"),
+        el("div", { class: "theme-exam-draw-line" }, el("span", {}, "Tirer"), nbInput, el("span", {}, `au hasard (sur ${qcm.nb_questions})`)),
+        el("button", { class: "btn ghost full", type: "button", style: "margin-top:0.4rem", onClick: drawRandom }, "Tirer au hasard"),
+        el("button", { class: "btn ghost full", type: "button", style: "margin-top:0.4rem", onClick: chooseManual }, "Choisir à la main"),
+      ),
+      el("div", { class: "config-section" },
+        el("p", { class: "config-label" }, "Tentatives des stagiaires"),
+        el("button", { class: "btn ghost full", type: "button", onClick: manageAttempts }, "Gérer les tentatives"),
+      ),
       el("div", { class: "modal-actions" },
-        el("button", { class: "btn ghost", type: "button", onClick: () => backdrop.remove() }, "Fermer"),
+        el("button", { class: "btn primary", type: "button", onClick: () => bd.remove() }, "Fermer"),
       ),
     );
-    backdrop.appendChild(modal);
-    backdrop.addEventListener("click", (e) => { if (e.target === backdrop) backdrop.remove(); });
-    document.body.appendChild(backdrop);
+    bd.appendChild(modal);
+    bd.addEventListener("click", (e) => { if (e.target === bd) bd.remove(); });
+    document.body.appendChild(bd);
   }
-
-  // Contrôles quand l'examen est en BROUILLON : le mettre en ligne.
-  const draftControls = el("div", { class: "theme-exam-draft" },
-    el("div", { class: "theme-exam-config" },
-      el("label", {}, "Temps par question (s)", secInput),
-    ),
-    el("p", { class: "muted", style: "font-size:0.78rem;margin:0.2rem 0 0.6rem" },
-      "Mettre en ligne fige le tirage : tous les stagiaires passent exactement les mêmes questions."),
-    el("div", { class: "theme-exam-draw" },
-      el("div", { class: "theme-exam-draw-line" },
-        el("span", {}, "Tirer"), nbInput,
-        el("span", {}, `questions au hasard (sur ${qcm.nb_questions})`),
-      ),
-      el("button", { class: "btn primary", type: "button", onClick: publishRandom }, "Tirer au hasard et mettre en ligne"),
-      el("p", { class: "muted", style: "font-size:0.76rem;margin:0.4rem 0 0" },
-        "Questions tirées au sort puis gelées. Laisse le champ vide pour prendre toutes les questions."),
-    ),
-    el("p", { class: "theme-exam-or" }, "ou"),
-    el("div", { class: "theme-exam-draw" },
-      el("button", { class: "btn ghost", type: "button", onClick: chooseManual }, "Choisir les questions à la main"),
-      el("p", { class: "muted", style: "font-size:0.76rem;margin:0.4rem 0 0" },
-        "Tu coches exactement les questions de l'examen (même set pour tous)."),
-    ),
-  );
-
-  // Contrôles quand l'examen est EN LIGNE : le gérer.
-  const liveControls = el("div", { class: "theme-exam-live" },
-    el("button", { class: "btn ghost", type: "button", onClick: regenerate }, "Re-tirer au hasard"),
-    el("button", { class: "btn ghost", type: "button", onClick: manageAttempts }, "Gérer les tentatives"),
-    el("button", { class: "btn danger", type: "button", onClick: doUnpublish }, "Repasser en brouillon"),
-    el("p", { class: "muted", style: "font-size:0.76rem;margin:0.4rem 0 0" },
-      "Pour changer le temps ou le mode de tirage, repasse en brouillon puis republie."),
-  );
 
   panel.appendChild(el("p", { class: "theme-exam-panel-title" }, "Examen (formateur)"));
   panel.appendChild(status);
-  panel.appendChild(draftControls);
-  panel.appendChild(liveControls);
+  panel.appendChild(actions);
   refreshStatus();
   return panel;
 }
@@ -905,6 +932,7 @@ async function reload(container) {
 }
 
 export async function renderThemes(container) {
+  lastContainer = container;
   clear(container);
   container.appendChild(el("div", { class: "loading" }, "Chargement"));
   themes = await listThemes();
