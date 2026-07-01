@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20260630i";
+import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20260701a";
 
 // fetch avec timeout : sans ça, une requête peut rester pendue indéfiniment
 // (réseau mobile instable) → "Chargement" infini. Avec, elle échoue proprement après 15s.
@@ -311,7 +311,7 @@ export async function listQcmIndex() {
   return cachedQuery("qcm_index", async () => {
     const { data, error } = await supabase
       .from("qcm")
-      .select("id, theme_id, titre, published, exam_nb_questions, exam_pass_20, qcm_questions(count)");
+      .select("id, theme_id, titre, published, published_by_email, published_at, exam_nb_questions, exam_pass_20, exam_seconds_per_question, exam_draw_mode, exam_question_ids, qcm_questions(count)");
     if (error) throw error;
     return (data || []).map((q) => ({
       ...q,
@@ -342,6 +342,89 @@ export async function insertQcmAttempt(payload) {
     .single();
   if (error) throw error;
   return data;
+}
+
+// Publie l'examen d'un QCM et gèle le tirage (formateur/admin). email = auteur.
+export async function publishQcm(qcmId, { examQuestionIds, drawMode, nbQuestions, pass20, secondsPerQuestion, email }) {
+  const now = new Date().toISOString();
+  const { error } = await supabase
+    .from("qcm")
+    .update({
+      published: true,
+      published_by_email: email ?? null,
+      published_at: now,
+      exam_question_ids: examQuestionIds,
+      exam_draw_mode: drawMode,
+      exam_nb_questions: nbQuestions ?? null,
+      exam_pass_20: pass20,
+      exam_seconds_per_question: secondsPerQuestion ?? 30,
+      updated_at: now,
+    })
+    .eq("id", qcmId);
+  if (error) throw error;
+  invalidateCache("qcm_index");
+}
+
+// Dépublie l'examen (conserve le tirage gelé).
+export async function unpublishQcm(qcmId) {
+  const { error } = await supabase
+    .from("qcm")
+    .update({ published: false, updated_at: new Date().toISOString() })
+    .eq("id", qcmId);
+  if (error) throw error;
+  invalidateCache("qcm_index");
+}
+
+// Régénère le tirage gelé sans toucher à l'état de publication.
+export async function setExamDraw(qcmId, { examQuestionIds, drawMode, nbQuestions }) {
+  const { error } = await supabase
+    .from("qcm")
+    .update({
+      exam_question_ids: examQuestionIds,
+      exam_draw_mode: drawMode,
+      exam_nb_questions: nbQuestions ?? null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", qcmId);
+  if (error) throw error;
+  invalidateCache("qcm_index");
+}
+
+// Ma tentative examen pour ce QCM (RLS : mes lignes uniquement). null si aucune.
+export async function getMyExamAttempt(qcmId) {
+  const { data, error } = await supabase
+    .from("qcm_attempts")
+    .select("*")
+    .eq("qcm_id", qcmId)
+    .eq("mode", "examen")
+    .order("finished_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+// Tentatives examen de ce QCM (admin/formateur) : sélecteur de réinit + garde régénération.
+export async function listExamAttempts(qcmId) {
+  const { data, error } = await supabase
+    .from("qcm_attempts")
+    .select("id, stagiaire_id, note_20, finished_at, stagiaire:stagiaires!stagiaire_id(prenom)")
+    .eq("qcm_id", qcmId)
+    .eq("mode", "examen")
+    .order("finished_at", { ascending: false });
+  if (error) throw error;
+  return data || [];
+}
+
+// Réinitialise l'examen d'un stagiaire (admin) : supprime sa tentative (cascade -> miroir evaluations).
+export async function resetExamAttempt(qcmId, stagiaireId) {
+  const { error } = await supabase
+    .from("qcm_attempts")
+    .delete()
+    .eq("qcm_id", qcmId)
+    .eq("stagiaire_id", stagiaireId)
+    .eq("mode", "examen");
+  if (error) throw error;
 }
 
 // === Compétences ===
