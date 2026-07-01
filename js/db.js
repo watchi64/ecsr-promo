@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20260701d";
+import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20260701e";
 
 // fetch avec timeout : sans ça, une requête peut rester pendue indéfiniment
 // (réseau mobile instable) → "Chargement" infini. Avec, elle échoue proprement après 15s.
@@ -345,7 +345,7 @@ export async function insertQcmAttempt(payload) {
 }
 
 // Publie l'examen d'un QCM et gèle le tirage (formateur/admin). email = auteur.
-export async function publishQcm(qcmId, { examQuestionIds, drawMode, nbQuestions, pass20, secondsPerQuestion, email }) {
+export async function publishQcm(qcmId, { examQuestionIds, drawMode, nbQuestions, secondsPerQuestion, email }) {
   const now = new Date().toISOString();
   const { error } = await supabase
     .from("qcm")
@@ -356,7 +356,6 @@ export async function publishQcm(qcmId, { examQuestionIds, drawMode, nbQuestions
       exam_question_ids: examQuestionIds,
       exam_draw_mode: drawMode,
       exam_nb_questions: nbQuestions ?? null,
-      exam_pass_20: pass20,
       exam_seconds_per_question: secondsPerQuestion ?? 30,
       updated_at: now,
     })

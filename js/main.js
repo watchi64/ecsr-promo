@@ -2,22 +2,22 @@
  * Promo ECSR — Application propriétaire.
  * © 2026 watchi64 — Tous droits réservés. Voir LICENSE.
  */
-import { signInWithPassword, signUpWithPassword, getCurrentUser, invalidateCache } from "./db.js?v=20260701d";
-import { toast } from "./utils.js?v=20260701d";
-import { icon } from "./icons.js?v=20260701d";
-import { initAuth, onAdminChange, isAuth } from "./auth-admin.js?v=20260701d";
-import { loadAccent } from "./accent-switcher.js?v=20260701d";
-import { loadTheme } from "./theme-switcher.js?v=20260701d";
-import { renderHome } from "./views/home.js?v=20260701d";
-import { renderDashboard } from "./views/dashboard.js?v=20260701d";
-import { renderPlanning, teardownPrintTarget } from "./views/planning.js?v=20260701d";
-import { renderPassages } from "./views/passages.js?v=20260701d";
-import { renderNotes } from "./views/notes.js?v=20260701d";
-import { renderRessources } from "./views/ressources.js?v=20260701d";
-import { renderThemes } from "./views/themes.js?v=20260701d";
-import { renderConfig } from "./views/config.js?v=20260701d";
-import { renderCalendrier } from "./views/calendrier.js?v=20260701d";
-import { initUndoKeyboard } from "./undo.js?v=20260701d";
+import { signInWithPassword, signUpWithPassword, getCurrentUser, invalidateCache } from "./db.js?v=20260701e";
+import { toast } from "./utils.js?v=20260701e";
+import { icon } from "./icons.js?v=20260701e";
+import { initAuth, onAdminChange, isAuth } from "./auth-admin.js?v=20260701e";
+import { loadAccent } from "./accent-switcher.js?v=20260701e";
+import { loadTheme } from "./theme-switcher.js?v=20260701e";
+import { renderHome } from "./views/home.js?v=20260701e";
+import { renderDashboard } from "./views/dashboard.js?v=20260701e";
+import { renderPlanning, teardownPrintTarget } from "./views/planning.js?v=20260701e";
+import { renderPassages } from "./views/passages.js?v=20260701e";
+import { renderNotes } from "./views/notes.js?v=20260701e";
+import { renderRessources } from "./views/ressources.js?v=20260701e";
+import { renderThemes } from "./views/themes.js?v=20260701e";
+import { renderConfig } from "./views/config.js?v=20260701e";
+import { renderCalendrier } from "./views/calendrier.js?v=20260701e";
+import { initUndoKeyboard } from "./undo.js?v=20260701e";
 
 // ===== Gate : email magic link =====
 
@@ -170,6 +170,12 @@ async function navigate() {
     else t.removeAttribute("aria-current");
   });
   const view = document.getElementById("view");
+  // Le conteneur #view est partagé entre toutes les vues. On réinitialise l'état
+  // qu'une vue précédente a pu y laisser, sinon il contamine la suivante.
+  // Cas concret : le planning pose « read-only » sur #view (non-admin) et ne le
+  // retirait jamais → « .read-only select { pointer-events: none } » gelait ensuite
+  // le tri des Notes, les filtres, etc. Le planning re-pose la classe à son rendu.
+  view.classList.remove("read-only");
   // En quittant le planning, on retire sa cible d'impression (re-montée par renderPlanning).
   teardownPrintTarget();
   try {

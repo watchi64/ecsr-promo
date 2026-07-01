@@ -1,9 +1,9 @@
-import { listThemes, updateTheme, addTheme, deleteTheme, listQcmIndex, getQcmFull, publishQcm, unpublishQcm, setExamDraw, listExamAttempts, resetExamAttempt } from "../db.js?v=20260701d";
-import { el, clear, isoDate, formatDate, toast, debounce } from "../utils.js?v=20260701d";
-import { icon } from "../icons.js?v=20260701d";
-import { isAdmin, getAdminEmail, isFounder, getViewAs, isProf, isStagiaire } from "../auth-admin.js?v=20260701d";
-import { recordUndo } from "../undo.js?v=20260701d";
-import { openQcmEntrainement, openQcmExamen } from "./qcm.js?v=20260701d";
+import { listThemes, updateTheme, addTheme, deleteTheme, listQcmIndex, getQcmFull, publishQcm, unpublishQcm, setExamDraw, listExamAttempts, resetExamAttempt } from "../db.js?v=20260701e";
+import { el, clear, isoDate, formatDate, toast, debounce } from "../utils.js?v=20260701e";
+import { icon } from "../icons.js?v=20260701e";
+import { isAdmin, getAdminEmail, isFounder, getViewAs, isProf, isStagiaire } from "../auth-admin.js?v=20260701e";
+import { recordUndo } from "../undo.js?v=20260701e";
+import { openQcmEntrainement, openQcmExamen } from "./qcm.js?v=20260701e";
 
 let themes = [];
 let qcmByTheme = new Map();  // theme_id -> { id, nb_questions, published, ... }
@@ -101,37 +101,34 @@ function themeExamPanel(theme, qcm) {
     status.appendChild(el("span", { class: "exam-badge " + (on ? "on" : "off") }, on ? "En ligne" : "Brouillon"));
     if (on) {
       status.appendChild(el("span", { class: "muted", style: "font-size:0.8rem" },
-        ` ${frozenN ?? qcm.nb_questions} questions · seuil ${qcm.exam_pass_20}/20 · ${qcm.exam_seconds_per_question || 30}s/q`
+        ` ${frozenN ?? qcm.nb_questions} questions · ${qcm.exam_seconds_per_question || 30}s/question`
         + (qcm.exam_draw_mode === "manual" ? " · sélection manuelle" : " · tirage aléatoire")));
     }
+    draftControls.style.display = on ? "none" : "";
+    liveControls.style.display = on ? "" : "none";
   }
 
-  // Réglages (pré-remplis depuis la config courante).
+  // Temps par question : seul réglage global. Il n'y a pas de seuil de réussite.
+  const secInput = el("input", { type: "number", min: 5, max: 300, step: 5, value: qcm.exam_seconds_per_question ?? 30 });
+  // Nombre de questions à tirer : placé directement dans l'action « au hasard ».
   const nbInput = el("input", { type: "number", min: 1, max: qcm.nb_questions, placeholder: "toutes",
     value: qcm.exam_nb_questions ?? "" });
-  const passInput = el("input", { type: "number", min: 0, max: 20, step: "0.5", value: qcm.exam_pass_20 ?? 12 });
-  const secInput = el("input", { type: "number", min: 5, max: 300, step: 5, value: qcm.exam_seconds_per_question ?? 30 });
-  const settings = el("div", { class: "theme-exam-settings" },
-    el("label", {}, "Questions (N)", nbInput),
-    el("label", {}, "Seuil /20", passInput),
-    el("label", {}, "Secondes/question", secInput),
-  );
 
   // Applique une publication (ou régénération) avec un set d'ids donné.
   async function doPublish(examQuestionIds, drawMode) {
-    const pass = Number(passInput.value) || 12;
     const secs = Number(secInput.value) || 30;
-    const nb = nbInput.value ? Number(nbInput.value) : null;
+    const nb = drawMode === "manual" ? examQuestionIds.length : (nbInput.value ? Number(nbInput.value) : null);
     try {
       await publishQcm(qcm.id, {
-        examQuestionIds, drawMode, nbQuestions: nb, pass20: pass,
+        examQuestionIds, drawMode, nbQuestions: nb,
         secondsPerQuestion: secs, email: getAdminEmail(),
       });
       Object.assign(qcm, {
         published: true, exam_question_ids: examQuestionIds, exam_draw_mode: drawMode,
-        exam_nb_questions: nb, exam_pass_20: pass, exam_seconds_per_question: secs,
+        exam_nb_questions: nb, exam_seconds_per_question: secs,
       });
-      toast(`Examen publié (${examQuestionIds.length} questions).`, "success");
+      if (drawMode === "manual") nbInput.value = examQuestionIds.length;
+      toast(`Examen en ligne : ${examQuestionIds.length} questions, identiques pour toute la promo.`, "success");
       refreshStatus();
     } catch (e) {
       toast("Publication impossible : " + (e?.message || e), "error");
@@ -263,18 +260,43 @@ function themeExamPanel(theme, qcm) {
     document.body.appendChild(backdrop);
   }
 
-  const actions = el("div", { class: "theme-exam-actions" },
-    el("button", { class: "btn primary", type: "button", onClick: publishRandom }, "Tirer au hasard et publier"),
-    el("button", { class: "btn ghost", type: "button", onClick: chooseManual }, "Choisir les questions"),
-    el("button", { class: "btn ghost", type: "button", onClick: regenerate }, "Régénérer le tirage"),
+  // Contrôles quand l'examen est en BROUILLON : le mettre en ligne.
+  const draftControls = el("div", { class: "theme-exam-draft" },
+    el("div", { class: "theme-exam-config" },
+      el("label", {}, "Temps par question (s)", secInput),
+    ),
+    el("p", { class: "muted", style: "font-size:0.78rem;margin:0.2rem 0 0.6rem" },
+      "Mettre en ligne fige le tirage : tous les stagiaires passent exactement les mêmes questions."),
+    el("div", { class: "theme-exam-draw" },
+      el("div", { class: "theme-exam-draw-line" },
+        el("span", {}, "Tirer"), nbInput,
+        el("span", {}, `questions au hasard (sur ${qcm.nb_questions})`),
+      ),
+      el("button", { class: "btn primary", type: "button", onClick: publishRandom }, "Tirer au hasard et mettre en ligne"),
+      el("p", { class: "muted", style: "font-size:0.76rem;margin:0.4rem 0 0" },
+        "Questions tirées au sort puis gelées. Laisse le champ vide pour prendre toutes les questions."),
+    ),
+    el("p", { class: "theme-exam-or" }, "ou"),
+    el("div", { class: "theme-exam-draw" },
+      el("button", { class: "btn ghost", type: "button", onClick: chooseManual }, "Choisir les questions à la main"),
+      el("p", { class: "muted", style: "font-size:0.76rem;margin:0.4rem 0 0" },
+        "Tu coches exactement les questions de l'examen (même set pour tous)."),
+    ),
+  );
+
+  // Contrôles quand l'examen est EN LIGNE : le gérer.
+  const liveControls = el("div", { class: "theme-exam-live" },
+    el("button", { class: "btn ghost", type: "button", onClick: regenerate }, "Re-tirer au hasard"),
     el("button", { class: "btn ghost", type: "button", onClick: manageAttempts }, "Gérer les tentatives"),
-    el("button", { class: "btn ghost", type: "button", onClick: doUnpublish }, "Dépublier"),
+    el("button", { class: "btn danger", type: "button", onClick: doUnpublish }, "Repasser en brouillon"),
+    el("p", { class: "muted", style: "font-size:0.76rem;margin:0.4rem 0 0" },
+      "Pour changer le temps ou le mode de tirage, repasse en brouillon puis republie."),
   );
 
   panel.appendChild(el("p", { class: "theme-exam-panel-title" }, "Examen (formateur)"));
   panel.appendChild(status);
-  panel.appendChild(settings);
-  panel.appendChild(actions);
+  panel.appendChild(draftControls);
+  panel.appendChild(liveControls);
   refreshStatus();
   return panel;
 }

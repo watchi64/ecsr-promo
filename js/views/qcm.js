@@ -3,9 +3,9 @@
  * Lot 1 : mode "entraînement" (libre, correction immédiate, non comptée).
  * L'examen (tirage N, une passe, note) viendra en Lot 2.
  */
-import { el, clear, toast, formatDate } from "../utils.js?v=20260701d";
-import { icon } from "../icons.js?v=20260701d";
-import { getQcmFull, insertQcmAttempt, getMyProfile, getMyExamAttempt } from "../db.js?v=20260701d";
+import { el, clear, toast, formatDate } from "../utils.js?v=20260701e";
+import { icon } from "../icons.js?v=20260701e";
+import { getQcmFull, insertQcmAttempt, getMyProfile, getMyExamAttempt } from "../db.js?v=20260701e";
 
 function shuffle(arr) {
   const a = arr.slice();
@@ -273,12 +273,11 @@ export async function openQcmExamen(theme, qcmMeta) {
 // Écran « déjà passé » (blocage sauf réinitialisation formateur).
 function showExamBlocked(theme, full, attempt) {
   const { player, close } = examOverlay();
-  const passed = Number(attempt.note_20) >= Number(full.exam_pass_20 ?? 12);
   player.appendChild(examHeader(theme, close));
   player.appendChild(el("div", { class: "qcm-results" },
     el("div", { class: "qcm-score-circle" },
       el("span", { class: "qcm-score-big" }, `${attempt.note_20}/20`),
-      el("small", {}, passed ? "Réussi" : "À retravailler"),
+      el("small", {}, "sur 20"),
     ),
     el("p", { class: "qcm-results-sub" }, "Tu as déjà passé cet examen."),
     el("p", { class: "qcm-head-sub", style: "text-align:center" },
@@ -303,7 +302,6 @@ function runExamPrescreen(theme, full, questions, profile) {
     el("ul", { class: "qcm-prescreen-list" },
       el("li", {}, `${total} questions`),
       el("li", {}, `Durée : ${fmtTime(budget)} (${secondsPer} s par question)`),
-      el("li", {}, `Seuil de réussite : ${full.exam_pass_20}/20`),
       el("li", {}, "Une seule passe. Aucune correction avant la fin."),
     ),
     el("p", { class: "qcm-results-sub", style: "font-size:0.82rem" },
@@ -452,13 +450,12 @@ function runExam(theme, full, questions, profile) {
   function renderResults(score, note20, timedOut, saveError) {
     clear(player);
     player.appendChild(examHeader(theme, close));
-    const passed = note20 >= Number(full.exam_pass_20 ?? 12);
     player.appendChild(el("div", { class: "qcm-results" },
       el("div", { class: "qcm-score-circle" },
         el("span", { class: "qcm-score-big" }, `${score}/${total}`),
         el("small", {}, `${note20}/20`),
       ),
-      el("p", { class: "qcm-results-sub" }, passed ? "Réussi" : "À retravailler"),
+      el("p", { class: "qcm-results-sub" }, "Examen terminé."),
       timedOut ? el("p", { class: "qcm-head-sub", style: "text-align:center" },
         "Temps écoulé : l'examen a été remis automatiquement.") : null,
       saveError ? el("p", { class: "qcm-explain ko" }, "Note non enregistrée : " + saveError) : null,

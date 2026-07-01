@@ -5624,7 +5624,7 @@ body.qcm-open { overflow: hidden; }
   border-radius: 10px; padding: 0.6rem 0.8rem; font-size: 0.92rem;
 }
 
-.qcm-choice.selected { border-color: var(--accent); background: var(--accent-soft); }
+.qcm-choice.selected { border-color: var(--accent); background: var(--accent-soft-2); box-shadow: inset 0 0 0 1px var(--accent); }
 .qcm-choice.selected .qcm-choice-letter { background: var(--accent); border-color: var(--accent); color: #fff; }
 
 .qcm-exam-nav { display: flex; gap: 0.6rem; margin-top: 1rem; }
@@ -5679,3 +5679,22 @@ body.qcm-open { overflow: hidden; }
   display: flex; align-items: center; justify-content: space-between; gap: 0.6rem;
   font-size: 0.9rem; padding: 0.4rem 0; border-bottom: 1px solid var(--line-faint);
 }
+
+/* Panneau formateur : mise en ligne (brouillon) vs gestion (en ligne) */
+.theme-exam-draft { display: flex; flex-direction: column; }
+.theme-exam-live { display: flex; flex-direction: column; gap: 0.45rem; }
+.theme-exam-live .btn { width: 100%; }
+.theme-exam-config { margin-bottom: 0.2rem; }
+.theme-exam-config label {
+  display: flex; flex-direction: column; gap: 3px; max-width: 200px;
+  font-size: 0.72rem; color: var(--text-muted); font-weight: 600;
+}
+.theme-exam-config input { width: 100%; }
+.theme-exam-draw {
+  background: var(--bg-elev); border: 1px solid var(--line);
+  border-radius: 10px; padding: 0.7rem 0.8rem;
+}
+.theme-exam-draw .btn { width: 100%; margin-top: 0.5rem; }
+.theme-exam-draw-line { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; font-size: 0.9rem; }
+.theme-exam-draw-line input { width: 70px; }
+.theme-exam-or { text-align: center; color: var(--text-muted); font-size: 0.78rem; margin: 0.5rem 0; text-transform: uppercase; letter-spacing: 0.05em; }
