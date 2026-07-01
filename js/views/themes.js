@@ -1,9 +1,9 @@
-import { listThemes, updateTheme, addTheme, deleteTheme, listQcmIndex, getQcmFull, publishQcm, unpublishQcm, setExamDraw, listExamAttempts, resetExamAttempt } from "../db.js?v=20260701e";
-import { el, clear, isoDate, formatDate, toast, debounce } from "../utils.js?v=20260701e";
-import { icon } from "../icons.js?v=20260701e";
-import { isAdmin, getAdminEmail, isFounder, getViewAs, isProf, isStagiaire } from "../auth-admin.js?v=20260701e";
-import { recordUndo } from "../undo.js?v=20260701e";
-import { openQcmEntrainement, openQcmExamen } from "./qcm.js?v=20260701e";
+import { listThemes, updateTheme, addTheme, deleteTheme, listQcmIndex, getQcmFull, publishQcm, unpublishQcm, setExamDraw, listExamAttempts, resetExamAttempt } from "../db.js?v=20260701f";
+import { el, clear, isoDate, formatDate, toast, debounce } from "../utils.js?v=20260701f";
+import { icon } from "../icons.js?v=20260701f";
+import { isAdmin, getAdminEmail, isFounder, getViewAs, isProf, isStagiaire } from "../auth-admin.js?v=20260701f";
+import { recordUndo } from "../undo.js?v=20260701f";
+import { openQcmEntrainement, openQcmExamen } from "./qcm.js?v=20260701f";
 
 let themes = [];
 let qcmByTheme = new Map();  // theme_id -> { id, nb_questions, published, ... }
@@ -158,16 +158,27 @@ function themeExamPanel(theme, qcm) {
     const preset = new Set(Array.isArray(qcm.exam_question_ids) ? qcm.exam_question_ids : []);
     const backdrop = el("div", { class: "modal-backdrop" });
     const list = el("div", { class: "exam-pick-list" });
+    const countEl = el("span", { class: "muted", style: "font-size:0.82rem;margin-left:auto" });
+    function updateCount() {
+      countEl.textContent = `${list.querySelectorAll("input[type=checkbox]:checked").length} / ${qs.length} sélectionnées`;
+    }
     qs.forEach((q, i) => {
       const cb = el("input", { type: "checkbox" });
       cb.checked = preset.has(q.id);
       cb.dataset.qid = String(q.id);
+      cb.addEventListener("change", updateCount);
       list.appendChild(el("label", { class: "exam-pick-item" }, cb,
         el("span", {}, `${i + 1}. ${q.enonce}`)));
     });
+    function setAll(v) { list.querySelectorAll("input[type=checkbox]").forEach((c) => { c.checked = v; }); updateCount(); }
     const modal = el("div", { class: "modal" },
       el("h3", {}, "Choisir les questions de l'examen"),
       el("p", { class: "muted", style: "font-size:0.85rem" }, "Coche les questions à inclure. L'ordre suivra l'ordre des questions."),
+      el("div", { style: "display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;margin:0.2rem 0 0.5rem" },
+        el("button", { class: "btn ghost", type: "button", style: "padding:0.35rem 0.7rem;font-size:0.82rem;flex:0 0 auto", onClick: () => setAll(true) }, "Tout cocher"),
+        el("button", { class: "btn ghost", type: "button", style: "padding:0.35rem 0.7rem;font-size:0.82rem;flex:0 0 auto", onClick: () => setAll(false) }, "Tout décocher"),
+        countEl,
+      ),
       list,
       el("div", { class: "modal-actions" },
         el("button", { class: "btn ghost", type: "button", onClick: () => backdrop.remove() }, "Annuler"),
@@ -179,6 +190,7 @@ function themeExamPanel(theme, qcm) {
         } }, "Publier cette sélection"),
       ),
     );
+    updateCount();
     backdrop.appendChild(modal);
     backdrop.addEventListener("click", (e) => { if (e.target === backdrop) backdrop.remove(); });
     document.body.appendChild(backdrop);
