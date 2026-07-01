@@ -5703,6 +5703,17 @@ body.qcm-open { overflow: hidden; }
 .theme-qcm-cell2 { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; min-width: 0; padding: 5px 0; }
 .qcm-note-pills { display: flex; flex-direction: column; gap: 5px; align-items: flex-start; }
 .qcm-note-pill { font-size: 0.74rem; font-weight: 700; border-radius: 999px; padding: 3px 10px; white-space: nowrap; }
+/* Notes de la cellule en texte étiqueté (plus de pastilles répétées) */
+.qcm-cell-notes { display: flex; flex-direction: column; gap: 3px; align-self: stretch; }
+.qcm-cell-note-row { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; font-size: 0.72rem; line-height: 1.25; }
+.qcm-cell-note-lab { color: var(--text-muted); }
+.qcm-cell-note-val { font-weight: 700; font-variant-numeric: tabular-nums; }
+.qcm-cell-note-val.is-muted { color: var(--text-muted); font-weight: 600; }
+.qcm-cell-note-val.n-great { color: var(--c-go); }
+.qcm-cell-note-val.n-ok { color: var(--accent-strong); }
+.qcm-cell-note-val.n-mid { color: #B67A3D; }
+.qcm-cell-note-val.n-low { color: var(--c-stop); }
+.qcm-cell-note-val.n-none { color: var(--text-muted); }
 .qcm-note-pill.exam { background: var(--accent-soft-2); color: var(--accent-strong); }
 .qcm-note-pill.train { background: var(--bg-subtle); color: var(--text-muted); }
 .qcm-sheet-body { display: flex; flex-direction: column; }

@@ -1,9 +1,9 @@
-import { listThemes, updateTheme, addTheme, deleteTheme, listQcmIndex, getQcmFull, publishQcm, unpublishQcm, updateExamConfig, listExamAttempts, resetExamAttempt, listMyQcmAttempts, getMyProfile, listEvaluations } from "../db.js?v=20260701i";
-import { el, clear, isoDate, formatDate, toast, debounce } from "../utils.js?v=20260701i";
-import { icon } from "../icons.js?v=20260701i";
-import { isAdmin, getAdminEmail, isFounder, getViewAs, isProf, isStagiaire } from "../auth-admin.js?v=20260701i";
-import { recordUndo } from "../undo.js?v=20260701i";
-import { openQcmEntrainement, openQcmExamen } from "./qcm.js?v=20260701i";
+import { listThemes, updateTheme, addTheme, deleteTheme, listQcmIndex, getQcmFull, publishQcm, unpublishQcm, updateExamConfig, listExamAttempts, resetExamAttempt, listMyQcmAttempts, getMyProfile, listEvaluations } from "../db.js?v=20260701j";
+import { el, clear, isoDate, formatDate, toast, debounce } from "../utils.js?v=20260701j";
+import { icon } from "../icons.js?v=20260701j";
+import { isAdmin, getAdminEmail, isFounder, getViewAs, isProf, isStagiaire } from "../auth-admin.js?v=20260701j";
+import { recordUndo } from "../undo.js?v=20260701j";
+import { openQcmEntrainement, openQcmExamen } from "./qcm.js?v=20260701j";
 
 let themes = [];
 let qcmByTheme = new Map();  // theme_id -> { id, nb_questions, published, ... }
@@ -74,7 +74,8 @@ function noteClass(n) {
   return "low";
 }
 
-// Cellule QCM de la liste : bouton d'ouverture de la fiche + mes notes (colorées).
+// Cellule QCM de la liste : un bouton d'ouverture + les notes en texte étiqueté
+// (une seule forme = le bouton ; les notes sont nommées, valeur colorée selon le score).
 function qcmCellEl(theme, qcm) {
   const btn = el("button", {
     class: "theme-qcm-hint", type: "button", title: "Ouvrir le QCM",
@@ -82,11 +83,19 @@ function qcmCellEl(theme, qcm) {
   }, icon.quiz(), "QCM");
   const note = myThemeNote(theme, qcm);
   const train = myTrainNote(qcm);
-  const pills = [];
-  if (note != null) pills.push(el("span", { class: "qcm-note-pill n-" + noteClass(note), title: "Ma note" }, `${note}/20`));
-  if (train != null) pills.push(el("span", { class: "qcm-note-pill train", title: "Dernier entraînement" }, `Entr. ${train}/20`));
-  return el("div", { class: "theme-qcm-cell2" }, btn,
-    pills.length ? el("div", { class: "qcm-note-pills" }, ...pills) : null);
+  const cell = el("div", { class: "theme-qcm-cell2" }, btn);
+  if (note != null || train != null) {
+    const row = (lab, val, colored) => el("div", { class: "qcm-cell-note-row" },
+      el("span", { class: "qcm-cell-note-lab" }, lab),
+      el("span", { class: "qcm-cell-note-val " + (colored ? "n-" + noteClass(val) : "is-muted") },
+        val != null ? `${val}/20` : "—"),
+    );
+    cell.appendChild(el("div", { class: "qcm-cell-notes" },
+      row("Examen", note, true),
+      row("Entraîn.", train, false),
+    ));
+  }
+  return cell;
 }
 
 // Tire n éléments au hasard (ordre aléatoire). n falsy ou >= longueur => tout.
