@@ -1,9 +1,9 @@
-import { listThemes, updateTheme, addTheme, deleteTheme, listQcmIndex, getQcmFull, publishQcm, unpublishQcm, updateExamConfig, listExamAttempts, resetExamAttempt, listMyQcmAttempts, getMyProfile, listEvaluations } from "../db.js?v=20260701k";
-import { el, clear, isoDate, formatDate, toast, debounce } from "../utils.js?v=20260701k";
-import { icon } from "../icons.js?v=20260701k";
-import { isAdmin, getAdminEmail, isFounder, getViewAs, isProf, isStagiaire } from "../auth-admin.js?v=20260701k";
-import { recordUndo } from "../undo.js?v=20260701k";
-import { openQcmEntrainement, openQcmExamen } from "./qcm.js?v=20260701k";
+import { listThemes, updateTheme, addTheme, deleteTheme, listQcmIndex, getQcmFull, publishQcm, unpublishQcm, updateExamConfig, listExamAttempts, resetExamAttempt, listMyQcmAttempts, getMyProfile, listEvaluations } from "../db.js?v=20260701l";
+import { el, clear, isoDate, formatDate, toast, debounce } from "../utils.js?v=20260701l";
+import { icon } from "../icons.js?v=20260701l";
+import { isAdmin, getAdminEmail, isFounder, getViewAs, isProf, isStagiaire } from "../auth-admin.js?v=20260701l";
+import { recordUndo } from "../undo.js?v=20260701l";
+import { openQcmEntrainement, openQcmExamen } from "./qcm.js?v=20260701l";
 
 let themes = [];
 let qcmByTheme = new Map();  // theme_id -> { id, nb_questions, published, ... }

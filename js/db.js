@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20260701k";
+import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20260701l";
 
 // fetch avec timeout : sans ça, une requête peut rester pendue indéfiniment
 // (réseau mobile instable) → "Chargement" infini. Avec, elle échoue proprement après 15s.
@@ -445,6 +445,80 @@ export async function resetExamAttempt(qcmId, stagiaireId) {
     .eq("stagiaire_id", stagiaireId)
     .eq("mode", "examen");
   if (error) throw error;
+}
+
+// --- Éditeur de QCM (formateur / admin) ---
+
+// Renvoie l'id du QCM du thème, en le créant s'il n'existe pas encore.
+export async function getOrCreateQcm(themeId, titre, email) {
+  const { data: existing, error: selErr } = await supabase
+    .from("qcm").select("id").eq("theme_id", themeId).maybeSingle();
+  if (selErr) throw selErr;
+  if (existing) return existing.id;
+  const { data, error } = await supabase
+    .from("qcm").insert({ theme_id: themeId, titre, created_by_email: email }).select("id").single();
+  if (error) throw error;
+  invalidateCache("qcm_index");
+  return data.id;
+}
+
+// Crée ou met à jour une question + remplace ses options. Renvoie l'id de la question.
+export async function saveQcmQuestion(qcmId, q) {
+  const row = {
+    qcm_id: qcmId,
+    section: q.section || null,
+    enonce: q.enonce,
+    explication: q.explication || null,
+    ordre: q.ordre ?? 0,
+    image_url: q.image_url ?? null,
+  };
+  let questionId = q.id;
+  if (questionId) {
+    const { error } = await supabase.from("qcm_questions").update(row).eq("id", questionId);
+    if (error) throw error;
+  } else {
+    const { data, error } = await supabase.from("qcm_questions").insert(row).select("id").single();
+    if (error) throw error;
+    questionId = data.id;
+  }
+  // Remplace les options (simple et robuste pour l'édition).
+  const { error: delErr } = await supabase.from("qcm_options").delete().eq("question_id", questionId);
+  if (delErr) throw delErr;
+  const opts = (q.options || [])
+    .filter((o) => (o.texte || "").trim() !== "")
+    .map((o, i) => ({ question_id: questionId, texte: o.texte.trim(), is_correct: !!o.is_correct, ordre: i }));
+  if (opts.length) {
+    const { error: insErr } = await supabase.from("qcm_options").insert(opts);
+    if (insErr) throw insErr;
+  }
+  invalidateCache("qcm_index");
+  return questionId;
+}
+
+// Supprime une question (cascade -> options).
+export async function deleteQcmQuestion(questionId) {
+  const { error } = await supabase.from("qcm_questions").delete().eq("id", questionId);
+  if (error) throw error;
+  invalidateCache("qcm_index");
+}
+
+// Réordonne des questions : liste de { id, ordre }.
+export async function reorderQcmQuestions(pairs) {
+  for (const p of pairs) {
+    const { error } = await supabase.from("qcm_questions").update({ ordre: p.ordre }).eq("id", p.id);
+    if (error) throw error;
+  }
+  invalidateCache("qcm_index");
+}
+
+// Upload d'une image de question vers le bucket public qcm-images. Renvoie l'URL publique.
+export async function uploadQcmImage(file, qcmId, questionId) {
+  const ext = ((file.name || "img").split(".").pop() || "png").toLowerCase();
+  const path = `qcm${qcmId}/q${questionId || "new"}-${Date.now()}.${ext}`;
+  const { error } = await supabase.storage.from("qcm-images").upload(path, file, { upsert: true, contentType: file.type || undefined });
+  if (error) throw error;
+  const { data } = supabase.storage.from("qcm-images").getPublicUrl(path);
+  return data.publicUrl;
 }
 
 // === Compétences ===
