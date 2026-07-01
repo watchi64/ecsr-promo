@@ -5386,27 +5386,27 @@ button.theme-date.editable.muted { color: var(--text-faint); }
 .theme-qcm-hint {
   display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
+  gap: 0.4rem;
   align-self: flex-start;
-  margin-top: 3px;
-  padding: 2px 9px 2px 6px;
+  margin-top: 0;
+  padding: 5px 12px;
   border: 1px solid var(--accent-soft-2);
   background: var(--accent-soft);
   color: var(--accent-strong);
   border-radius: 999px;
-  font-size: 0.72rem;
+  font-size: 0.78rem;
   font-weight: 600;
   cursor: pointer;
   transition: background 0.12s, border-color 0.12s;
 }
 .theme-qcm-hint:hover { background: var(--accent-soft-2); border-color: var(--accent); }
-.theme-qcm-hint .icon { width: 13px; height: 13px; }
+.theme-qcm-hint .icon { width: 15px; height: 15px; }
 
 /* Colonne QCM dédiée (vue Thèmes, fondateur uniquement via .qcm-on) */
 .theme-qcm-cell { display: flex; align-items: center; min-width: 0; }
 .theme-qcm-cell .theme-qcm-hint { align-self: center; margin-top: 0; }
 .themes-list.qcm-on .theme-row {
-  grid-template-columns: 50px 1fr 120px 80px 1.1fr 92px 36px;
+  grid-template-columns: 50px 1fr 120px 80px 1fr 122px 36px;
 }
 @media (max-width: 720px) {
   /* On garde la mise en page mobile (grid-areas héritées) ; on neutralise juste
@@ -5700,9 +5700,9 @@ body.qcm-open { overflow: hidden; }
 .theme-exam-or { text-align: center; color: var(--text-muted); font-size: 0.78rem; margin: 0.5rem 0; text-transform: uppercase; letter-spacing: 0.05em; }
 
 /* Cellule QCM de la liste (bouton + mes notes) + fiche QCM dédiée */
-.theme-qcm-cell2 { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-width: 0; }
-.qcm-note-pills { display: flex; gap: 4px; flex-wrap: wrap; }
-.qcm-note-pill { font-size: 0.66rem; font-weight: 700; border-radius: 999px; padding: 1px 6px; white-space: nowrap; }
+.theme-qcm-cell2 { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; min-width: 0; padding: 5px 0; }
+.qcm-note-pills { display: flex; flex-direction: column; gap: 5px; align-items: flex-start; }
+.qcm-note-pill { font-size: 0.74rem; font-weight: 700; border-radius: 999px; padding: 3px 10px; white-space: nowrap; }
 .qcm-note-pill.exam { background: var(--accent-soft-2); color: var(--accent-strong); }
 .qcm-note-pill.train { background: var(--bg-subtle); color: var(--text-muted); }
 .qcm-sheet-body { display: flex; flex-direction: column; }
