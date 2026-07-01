@@ -5596,3 +5596,86 @@ body.qcm-open { overflow: hidden; }
   cursor: pointer; white-space: nowrap;
 }
 .impersonation-banner .imp-back:hover { background: var(--accent-strong); }
+
+/* === Examen (Lot 2) === */
+.qcm-badge.exam { background: var(--c-stop-soft); color: var(--c-stop); }
+
+.qcm-timer {
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  font-size: 1.05rem;
+  color: var(--accent-strong);
+  background: var(--accent-soft);
+  border-radius: 999px;
+  padding: 4px 12px;
+  align-self: center;
+}
+.qcm-timer.low { color: var(--c-stop); background: var(--c-stop-soft); }
+
+.qcm-prescreen { text-align: center; padding: 0.6rem 0; }
+.qcm-prescreen-title { font-size: 1.1rem; font-weight: 700; margin: 0 0 0.9rem; }
+.qcm-prescreen-list {
+  list-style: none; padding: 0; margin: 0 auto 0.9rem; max-width: 320px;
+  text-align: left; display: flex; flex-direction: column; gap: 0.5rem;
+}
+.qcm-prescreen-list li {
+  background: var(--bg-elev); border: 1px solid var(--line);
+  border-radius: 10px; padding: 0.6rem 0.8rem; font-size: 0.92rem;
+}
+
+.qcm-choice.selected { border-color: var(--accent); background: var(--accent-soft); }
+.qcm-choice.selected .qcm-choice-letter { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+.qcm-exam-nav { display: flex; gap: 0.6rem; margin-top: 1rem; }
+.qcm-exam-nav .btn { flex: 1; }
+.qcm-exam-nav .btn:disabled { opacity: 0.45; cursor: default; }
+
+.qcm-exam-grid {
+  display: flex; flex-wrap: wrap; gap: 6px; margin-top: 0.9rem;
+  justify-content: center;
+}
+.qcm-grid-dot {
+  width: 30px; height: 30px; border-radius: 8px;
+  border: 1px solid var(--line); background: var(--bg-elev);
+  font-size: 0.8rem; font-weight: 600; cursor: pointer; color: var(--text-muted);
+}
+.qcm-grid-dot.done { border-color: var(--accent); color: var(--accent-strong); background: var(--accent-soft); }
+.qcm-grid-dot.current { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* Panneau formateur dans la modale thème */
+.theme-exam-entry { margin-top: 0.9rem; padding-top: 0.9rem; border-top: 1px solid var(--line-faint); }
+.theme-exam-entry .btn { width: 100%; }
+
+.theme-exam-panel { margin-top: 1rem; padding-top: 0.9rem; border-top: 1px dashed var(--line); }
+.theme-exam-panel-title {
+  margin: 0 0 0.5rem; font-size: 0.74rem; text-transform: uppercase;
+  letter-spacing: 0.04em; color: var(--text-muted); font-weight: 700;
+}
+.theme-exam-status { margin: 0 0 0.6rem; display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
+.exam-badge {
+  font-size: 0.72rem; font-weight: 700; border-radius: 999px; padding: 2px 9px;
+  text-transform: uppercase; letter-spacing: 0.03em;
+}
+.exam-badge.on  { background: var(--c-go-soft); color: var(--c-go); }
+.exam-badge.off { background: var(--bg-subtle); color: var(--text-muted); }
+
+.theme-exam-settings { display: flex; gap: 0.5rem; margin-bottom: 0.6rem; flex-wrap: wrap; }
+.theme-exam-settings label {
+  display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 90px;
+  font-size: 0.72rem; color: var(--text-muted); font-weight: 600;
+}
+.theme-exam-settings input { width: 100%; }
+
+.theme-exam-actions { display: flex; flex-direction: column; gap: 0.45rem; }
+.theme-exam-actions .btn { width: 100%; }
+
+.exam-pick-list { max-height: 50vh; overflow-y: auto; display: flex; flex-direction: column; gap: 0.35rem; margin: 0.5rem 0; }
+.exam-pick-item { display: flex; gap: 0.5rem; align-items: flex-start; font-size: 0.88rem; padding: 0.35rem; }
+.exam-pick-item input { margin-top: 3px; flex-shrink: 0; }
+
+.exam-attempts-list { display: flex; flex-direction: column; gap: 0.4rem; margin: 0.5rem 0; }
+.exam-attempt-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 0.6rem;
+  font-size: 0.9rem; padding: 0.4rem 0; border-bottom: 1px solid var(--line-faint);
+}
