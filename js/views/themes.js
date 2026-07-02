@@ -1,9 +1,9 @@
-import { listThemes, updateTheme, addTheme, deleteTheme, listQcmIndex, getQcmFull, publishQcm, unpublishQcm, updateExamConfig, listExamAttempts, resetExamAttempt, listMyQcmAttempts, getMyProfile, listEvaluations } from "../db.js?v=20260702b";
-import { el, clear, isoDate, formatDate, toast, debounce } from "../utils.js?v=20260702b";
-import { icon } from "../icons.js?v=20260702b";
-import { isAdmin, getAdminEmail, isFounder, getViewAs, isProf, isStagiaire } from "../auth-admin.js?v=20260702b";
-import { recordUndo } from "../undo.js?v=20260702b";
-import { openQcmEntrainement, openQcmExamen } from "./qcm.js?v=20260702b";
+import { listThemes, updateTheme, addTheme, deleteTheme, listQcmIndex, getQcmFull, publishQcm, unpublishQcm, updateExamConfig, listExamAttempts, resetExamAttempt, listMyQcmAttempts, getMyProfile, listEvaluations, getOrCreateQcm, saveQcmQuestion, deleteQcmQuestion, reorderQcmQuestions, uploadQcmImage } from "../db.js?v=20260702c";
+import { el, clear, isoDate, formatDate, toast, debounce } from "../utils.js?v=20260702c";
+import { icon } from "../icons.js?v=20260702c";
+import { isAdmin, getAdminEmail, isFounder, getViewAs, isProf, isStagiaire } from "../auth-admin.js?v=20260702c";
+import { recordUndo } from "../undo.js?v=20260702c";
+import { openQcmEntrainement, openQcmExamen } from "./qcm.js?v=20260702c";
 
 let themes = [];
 let qcmByTheme = new Map();  // theme_id -> { id, nb_questions, published, ... }
@@ -98,6 +98,16 @@ function qcmCellEl(theme, qcm) {
   return cell;
 }
 
+// Cellule QCM d'un thème sans banque : entrée « Créer QCM » (formateur), ouvre l'éditeur vide.
+function createQcmCellEl(theme) {
+  return el("div", { class: "theme-qcm-cell2" },
+    el("button", {
+      class: "theme-qcm-hint create", type: "button", title: "Créer le QCM de ce thème",
+      onClick: (ev) => { ev.preventDefault(); ev.stopPropagation(); openQcmEditor(theme, null); },
+    }, icon.plus(), "Créer QCM"),
+  );
+}
+
 // Tire n éléments au hasard (ordre aléatoire). n falsy ou >= longueur => tout.
 function sampleN(arr, n) {
   const a = arr.slice();
@@ -151,7 +161,9 @@ function openQcmSheet(theme, qcm) {
     }
   }
 
-  // Gestion formateur (publier / tirage / tentatives).
+  // Gestion formateur (éditer la banque, publier / tirage / tentatives).
+  // « Éditer les questions » est dans la modale « Modifier » ; l'éditeur s'ouvre par-dessus
+  // cette fiche (qui reste dessous pour le retour).
   if (canManageExam()) body.appendChild(themeExamPanel(theme, qcm));
 
   const modal = el("div", { class: "modal theme-modal" },
@@ -170,7 +182,8 @@ function openQcmSheet(theme, qcm) {
 }
 
 // Panneau formateur : statut + deux actions (Publier/Dépublier, Modifier).
-// « Modifier » ouvre une modale regroupant temps, questions (au hasard / à la main) et tentatives.
+// « Modifier » ouvre une modale regroupant l'édition de la banque, les questions
+// (au hasard / à la main), le temps et les tentatives.
 function themeExamPanel(theme, qcm) {
   const panel = el("div", { class: "theme-exam-panel" });
   const status = el("p", { class: "theme-exam-status" });
@@ -343,17 +356,31 @@ function themeExamPanel(theme, qcm) {
       document.body.appendChild(backdrop);
     }
 
+    // Ouvre l'éditeur de la banque : ferme la modale « Modifier » mais LAISSE la fiche QCM
+    // dessous (z-index:200). L'éditeur (z-index:1000) s'ouvre au premier plan ; à sa fermeture
+    // le formateur retombe sur la fiche QCM (son point de départ), pas sur la liste nue.
+    function editQuestions() {
+      bd.remove();
+      openQcmEditor(theme, qcm.id);
+    }
+
+    // Sections groupées par sujet : d'abord le contenu (banque + tirage qui en dépend),
+    // puis les paramètres de passation (temps), puis la gestion (tentatives).
     const modal = el("div", { class: "modal" },
       el("h3", {}, "Modifier l'examen"),
       summary,
       el("div", { class: "config-section" },
-        el("label", { class: "config-field" }, el("span", {}, "Temps par question (s)"), secInput),
+        el("p", { class: "config-label" }, "Banque de questions"),
+        el("button", { class: "btn ghost full", type: "button", onClick: editQuestions }, icon.quiz(), "Éditer les questions"),
       ),
       el("div", { class: "config-section" },
         el("p", { class: "config-label" }, "Questions de l'examen"),
         el("div", { class: "theme-exam-draw-line" }, el("span", {}, "Tirer"), nbInput, el("span", {}, `au hasard (sur ${qcm.nb_questions})`)),
         el("button", { class: "btn ghost full", type: "button", style: "margin-top:0.4rem", onClick: drawRandom }, "Tirer au hasard"),
         el("button", { class: "btn ghost full", type: "button", style: "margin-top:0.4rem", onClick: chooseManual }, "Choisir à la main"),
+      ),
+      el("div", { class: "config-section" },
+        el("label", { class: "config-field" }, el("span", {}, "Temps par question (s)"), secInput),
       ),
       el("div", { class: "config-section" },
         el("p", { class: "config-label" }, "Tentatives des stagiaires"),
@@ -373,6 +400,274 @@ function themeExamPanel(theme, qcm) {
   panel.appendChild(actions);
   refreshStatus();
   return panel;
+}
+
+// === Éditeur de QCM (formateur) ===
+
+// Éditeur plein écran de la banque de questions d'un thème.
+// qcmId null => on crée (ou récupère) la ligne qcm du thème à l'ouverture.
+async function openQcmEditor(theme, qcmId) {
+  if (qcmId == null) {
+    try {
+      qcmId = await getOrCreateQcm(theme.id, theme.titre, getAdminEmail());
+    } catch (e) {
+      toast("Création du QCM impossible : " + (e?.message || e), "error");
+      return;
+    }
+  }
+
+  const overlay = el("div", { class: "qcm-overlay" });
+  const panel = el("div", { class: "qcm-player qcm-editor" });
+  overlay.appendChild(panel);
+  document.body.appendChild(overlay);
+  document.body.classList.add("qcm-open");
+
+  let dirty = false;  // une modif a-t-elle eu lieu ? (pour rafraîchir la vue Thèmes en sortie)
+
+  function close() {
+    overlay.remove();
+    document.body.classList.remove("qcm-open");
+    // La banque a changé (nb_questions, existence) : rafraîchir la liste des thèmes.
+    if (dirty && lastContainer) { reload(lastContainer).catch(() => { /* refresh silencieux */ }); }
+  }
+  overlay.addEventListener("click", (e) => { if (e.target === overlay) close(); });
+
+  const numPrefix = theme.numero ? String(theme.numero).padStart(2, "0") + " · " : "";
+  const onSaved = () => { dirty = true; reloadEditor(); };
+
+  // En-tête minimal avec bouton fermer, réutilisé par l'écran d'erreur (toujours une sortie).
+  function editorHead(sub) {
+    return el("div", { class: "qcm-head" },
+      el("div", { class: "qcm-head-text" },
+        el("span", { class: "qcm-badge" }, "Éditer"),
+        el("p", { class: "qcm-head-title" }, numPrefix + theme.titre),
+        sub ? el("p", { class: "qcm-head-sub" }, sub) : null,
+      ),
+      el("button", { class: "qcm-close", type: "button", "aria-label": "Fermer", onClick: close }, icon.close()),
+    );
+  }
+
+  async function reloadEditor() {
+    let full;
+    try {
+      full = await getQcmFull(qcmId);
+    } catch (e) {
+      clear(panel);
+      panel.appendChild(editorHead(null));
+      panel.appendChild(el("p", { class: "muted", style: "padding:2rem 0;text-align:center" },
+        "Chargement impossible : " + (e?.message || e)));
+      panel.appendChild(el("div", { class: "qcm-actions" },
+        el("button", { class: "btn primary", type: "button", onClick: close }, "Fermer"),
+      ));
+      return;
+    }
+    renderEditor(full);
+  }
+
+  function renderEditor(full) {
+    clear(panel);
+    const questions = full.questions || [];
+
+    panel.appendChild(editorHead(questions.length + " question" + (questions.length > 1 ? "s" : "")));
+
+    const list = el("div", { class: "qcm-editor-list" });
+    if (!questions.length) {
+      list.appendChild(el("p", { class: "muted", style: "text-align:center;padding:1.5rem 0" },
+        "Aucune question pour l'instant. Ajoute la première ci-dessous."));
+    }
+    questions.forEach((q, i) => list.appendChild(questionCard(q, i, questions)));
+    panel.appendChild(list);
+
+    panel.appendChild(el("div", { class: "qcm-actions" },
+      el("button", { class: "btn primary full", type: "button",
+        onClick: () => openQuestionForm(qcmId, null, questions.length, onSaved) },
+        icon.plus(), "Ajouter une question"),
+    ));
+  }
+
+  function questionCard(q, i, questions) {
+    const correctCount = (q.options || []).filter((o) => o.is_correct).length;
+    const card = el("div", { class: "qcm-editor-card" });
+
+    card.appendChild(el("div", { class: "qcm-editor-card-head" },
+      el("span", { class: "qcm-editor-card-num" }, String(i + 1)),
+      q.section ? el("span", { class: "qcm-editor-section" }, q.section) : null,
+      correctCount > 1 ? el("span", { class: "qcm-editor-multi" }, "Plusieurs réponses") : null,
+      el("div", { class: "qcm-editor-card-order" },
+        el("button", { class: "btn small ghost", type: "button", title: "Monter",
+          disabled: i === 0 || undefined, onClick: () => moveQuestion(questions, i, -1) }, "↑"),
+        el("button", { class: "btn small ghost", type: "button", title: "Descendre",
+          disabled: i === questions.length - 1 || undefined, onClick: () => moveQuestion(questions, i, 1) }, "↓"),
+      ),
+    ));
+
+    card.appendChild(el("p", { class: "qcm-editor-enonce" }, q.enonce));
+    if (q.image_url) {
+      card.appendChild(el("img", { class: "qcm-editor-thumb", src: q.image_url, alt: "", loading: "lazy" }));
+    }
+
+    const opts = el("ul", { class: "qcm-editor-opts" });
+    (q.options || []).forEach((o) => {
+      opts.appendChild(el("li", { class: "qcm-editor-opt" + (o.is_correct ? " correct" : "") },
+        el("span", { class: "qcm-editor-opt-mark" }, o.is_correct ? "✓" : ""),
+        el("span", { class: "qcm-editor-opt-text" }, o.texte),
+      ));
+    });
+    card.appendChild(opts);
+
+    card.appendChild(el("div", { class: "qcm-editor-card-actions" },
+      el("button", { class: "btn ghost small", type: "button",
+        onClick: () => openQuestionForm(qcmId, q, q.ordre, onSaved) }, "Éditer"),
+      el("button", { class: "btn danger small", type: "button",
+        onClick: () => removeQuestion(q) }, "Supprimer"),
+    ));
+    return card;
+  }
+
+  // ↑/↓ : réordonne en renormalisant ordre = position (robuste même si les ordres sont égaux/à trous).
+  async function moveQuestion(questions, i, dir) {
+    const j = i + dir;
+    if (j < 0 || j >= questions.length) return;
+    const arr = questions.slice();
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+    try {
+      await reorderQcmQuestions(arr.map((q, k) => ({ id: q.id, ordre: k })));
+      dirty = true;
+      await reloadEditor();
+    } catch (e) {
+      toast("Réordonnancement impossible : " + (e?.message || e), "error");
+    }
+  }
+
+  async function removeQuestion(q) {
+    if (!window.confirm("Supprimer cette question ?")) return;
+    try {
+      await deleteQcmQuestion(q.id);
+      dirty = true;
+      toast("Question supprimée.", "success");
+      await reloadEditor();
+    } catch (e) {
+      toast("Suppression impossible : " + (e?.message || e), "error");
+    }
+  }
+
+  panel.appendChild(el("div", { class: "loading" }, "Chargement"));
+  reloadEditor();
+}
+
+// Modale de création / édition d'une question (multi-réponses).
+// nextOrdre = ordre à donner à une nouvelle question (ignoré en édition).
+function openQuestionForm(qcmId, question, nextOrdre, onSaved) {
+  const isEdit = !!question;
+  let pendingImageUrl = question?.image_url ?? null;
+
+  const backdrop = el("div", { class: "modal-backdrop" });
+
+  const sectionInput = el("input", { type: "text", placeholder: "Section (optionnel)", value: question?.section || "" });
+  const enonceInput = el("textarea", { rows: 3, placeholder: "Énoncé de la question" }, question?.enonce || "");
+  const explicInput = el("textarea", { rows: 2, placeholder: "Explication affichée après réponse (optionnel)" }, question?.explication || "");
+
+  // Image : aperçu + bouton retirer, ou rien.
+  const imgPreview = el("div", { class: "qcm-form-img" });
+  function renderImg() {
+    clear(imgPreview);
+    if (!pendingImageUrl) return;
+    imgPreview.appendChild(el("img", { class: "qcm-editor-thumb", src: pendingImageUrl, alt: "" }));
+    imgPreview.appendChild(el("button", { class: "btn ghost small", type: "button",
+      onClick: () => { pendingImageUrl = null; renderImg(); } }, "Retirer l'image"));
+  }
+  renderImg();
+
+  const fileInput = el("input", { type: "file", accept: "image/*" });
+  fileInput.addEventListener("change", async () => {
+    const file = fileInput.files && fileInput.files[0];
+    if (!file) return;
+    try {
+      pendingImageUrl = await uploadQcmImage(file, qcmId, question?.id);
+      renderImg();
+      toast("Image ajoutée.", "success");
+    } catch (e) {
+      toast("Upload impossible : " + (e?.message || e), "error");
+    } finally {
+      fileInput.value = "";
+    }
+  });
+
+  // Options : lignes dynamiques (texte + case « bonne réponse » + retirer).
+  const optsWrap = el("div", { class: "qcm-form-opts" });
+  function addOptionRow(opt) {
+    const cb = el("input", { type: "checkbox" });
+    if (opt?.is_correct) cb.checked = true;
+    const txt = el("input", { type: "text", class: "qcm-form-opt-text", placeholder: "Texte de la réponse", value: opt?.texte || "" });
+    const del = el("button", { class: "btn ghost small icon-only", type: "button", "aria-label": "Retirer la réponse" });
+    del.appendChild(icon.trash());
+    const row = el("div", { class: "qcm-form-opt" },
+      el("label", { class: "qcm-form-opt-check", title: "Bonne réponse" }, cb),
+      txt, del,
+    );
+    del.addEventListener("click", () => row.remove());
+    optsWrap.appendChild(row);
+  }
+  const initialOpts = (question?.options && question.options.length) ? question.options : [null, null];
+  initialOpts.forEach((o) => addOptionRow(o));
+
+  async function save() {
+    const enonce = enonceInput.value.trim();
+    if (!enonce) { toast("L'énoncé est requis.", "error"); return; }
+    const options = [...optsWrap.querySelectorAll(".qcm-form-opt")].map((row) => ({
+      texte: row.querySelector("input[type=text]").value.trim(),
+      is_correct: row.querySelector("input[type=checkbox]").checked,
+    })).filter((o) => o.texte !== "");
+    if (options.length < 2) { toast("Ajoute au moins deux réponses.", "error"); return; }
+    if (!options.some((o) => o.is_correct)) { toast("Coche au moins une bonne réponse.", "error"); return; }
+
+    const q = {
+      id: question?.id,
+      section: sectionInput.value.trim() || null,
+      enonce,
+      explication: explicInput.value.trim() || null,
+      image_url: pendingImageUrl,
+      ordre: question?.ordre ?? nextOrdre,
+      options,
+    };
+    try {
+      await saveQcmQuestion(qcmId, q);
+      backdrop.remove();
+      toast("Question enregistrée.", "success");
+      onSaved();
+    } catch (e) {
+      toast("Enregistrement impossible : " + (e?.message || e), "error");
+    }
+  }
+
+  const modal = el("div", { class: "modal qcm-form-modal" },
+    el("h3", {}, isEdit ? "Modifier la question" : "Nouvelle question"),
+    el("div", { class: "qcm-form-body" },
+      el("div", { class: "field" }, el("label", {}, "Section"), sectionInput),
+      el("div", { class: "field" }, el("label", {}, "Énoncé"), enonceInput),
+      el("div", { class: "field" }, el("label", {}, "Explication"), explicInput),
+      el("div", { class: "field" },
+        el("label", {}, "Image"),
+        imgPreview,
+        fileInput,
+      ),
+      el("div", { class: "field" },
+        el("label", {}, "Réponses"),
+        el("p", { class: "muted", style: "font-size:0.78rem;margin:0 0 0.4rem" },
+          "Coche chaque bonne réponse. Une ou plusieurs bonnes réponses possibles."),
+        optsWrap,
+        el("button", { class: "btn ghost small", type: "button", onClick: () => addOptionRow() }, icon.plus(), "Ajouter une réponse"),
+      ),
+    ),
+    el("div", { class: "modal-actions" },
+      el("button", { class: "btn ghost", type: "button", onClick: () => backdrop.remove() }, "Annuler"),
+      el("button", { class: "btn primary", type: "button", onClick: save }, icon.check(), "Enregistrer"),
+    ),
+  );
+  backdrop.appendChild(modal);
+  backdrop.addEventListener("click", (e) => { if (e.target === backdrop) backdrop.remove(); });
+  document.body.appendChild(backdrop);
+  setTimeout(() => enonceInput.focus(), 80);
 }
 let filterStatut = "";
 let filterType = "";
@@ -630,7 +925,8 @@ function renderThemeRow(theme, container) {
   // Colonne QCM (fondateur seulement) : cellule dédiée à droite, jamais sous le titre.
   const qcm = qcmByTheme.get(theme.id);
   const qcmCell = canSeeQcm()
-    ? el("div", { class: "theme-qcm-cell" }, qcm ? qcmCellEl(theme, qcm) : null)
+    ? el("div", { class: "theme-qcm-cell" },
+        qcm ? qcmCellEl(theme, qcm) : (canManageExam() ? createQcmCellEl(theme) : null))
     : null;
 
   return el("div", { class: "theme-row " + color, dataset: { id: theme.id } },
