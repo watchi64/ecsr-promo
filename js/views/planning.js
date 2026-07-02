@@ -4,13 +4,13 @@ import {
   getHalfMetaForWeek, upsertHalfMeta,
   getSetting, setSetting,
   addPassagesBatch, deletePassagesBatch, getPassagesInRange, updateTheme,
-} from "../db.js?v=20260702b";
-import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire } from "../utils.js?v=20260702b";
-import { icon } from "../icons.js?v=20260702b";
-import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260702b";
-import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260702b";
-import { recordUndo } from "../undo.js?v=20260702b";
-import { getCurrentWho } from "../identity.js?v=20260702b";
+} from "../db.js?v=20260702c";
+import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire } from "../utils.js?v=20260702c";
+import { icon } from "../icons.js?v=20260702c";
+import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260702c";
+import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260702c";
+import { recordUndo } from "../undo.js?v=20260702c";
+import { getCurrentWho } from "../identity.js?v=20260702c";
 
 let stagiaires = [];
 let profs = [];
@@ -1383,7 +1383,13 @@ function openHalfMetaEditor(d, half, anchorEl) {
 
 async function changeWeek(dateStr) {
   semaineLundi = dateStr;
-  await setSetting("current_week_lundi", dateStr);
+  // La « semaine affichée » est persistée comme réglage GLOBAL de la promo (table settings,
+  // écriture admin-only en RLS) : c'est la semaine que tout le monde retrouve à l'ouverture.
+  // Les non-admins naviguent donc en LOCAL uniquement — persister ici levait une erreur RLS
+  // qui court-circuitait loadPlanning/renderInto → navigation bloquée pour les stagiaires
+  // (bug Gaëlle 2026-07-02), alors qu'un stagiaire ne doit de toute façon pas déplacer la
+  // semaine courante de toute la promo.
+  if (isAdmin()) await setSetting("current_week_lundi", dateStr);
   await loadPlanning();
   renderInto(currentContainer);
 }
