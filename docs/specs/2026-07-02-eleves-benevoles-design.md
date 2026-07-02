@@ -54,9 +54,9 @@ Fonction SECURITY DEFINER accessible à tout `authenticated`, retournant uniquem
 ### Carte « Voiture (conduite) » (planning.js)
 
 - `ACTIVITY_SHAPES["Voiture (conduite)"]` gagne un champ `benevoles`, affiché après `eleves` : chips de sélection piochant dans la banque.
-- Sélecteur : bénévoles actifs, ceux dispos sur le jour + demi-journée du créneau remontent en tête avec un marqueur de dispo ; un bénévole déjà placé sur une autre carte de la même demi-journée est exclu (même esprit que les élèves moniteurs).
+- Sélecteur : bénévoles actifs, ceux dispos sur le jour + demi-journée du créneau remontent en tête avec un marqueur de dispo ; un bénévole déjà placé sur une autre carte du même créneau (cartes parallèles = simultanées) est exclu, comme les élèves moniteurs. Les slots successifs restent permis : un bénévole reste souvent la demi-journée entière et change d'élève moniteur.
 - Admin : édition complète. Stagiaire : lecture seule, prénoms visibles (résolus via la RPC `benevoles_noms()`), contrôles masqués par le mécanisme `.read-only` existant + garde `isAdmin()` dans `saveEntry`.
-- Impression (`printEntryCell`) : les bénévoles apparaissent sous les élèves moniteurs, un par ligne, en italique avec le suffixe « (bén.) » pour les distinguer sans manger la largeur de colonne (~56mm).
+- Impression (`printEntryCell`) : les bénévoles apparaissent sous les élèves moniteurs, groupés sous une ligne « Bénévoles : », un par ligne en italique (le groupement rend un suffixe inutile et préserve la largeur de colonne ~56mm).
 - Le dé « Placer la semaine » (`autoPlaceWeek`) ne place jamais de bénévoles.
 - « Valider la semaine » et la table `passages` ignorent totalement les bénévoles.
 
