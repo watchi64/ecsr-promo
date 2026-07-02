@@ -5,13 +5,13 @@ import {
   getSetting, setSetting,
   addPassagesBatch, deletePassagesBatch, getPassagesInRange, updateTheme,
   listBenevoles, listBenevolesNoms,
-} from "../db.js?v=20260702e";
-import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260702e";
-import { icon } from "../icons.js?v=20260702e";
-import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260702e";
-import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260702e";
-import { recordUndo } from "../undo.js?v=20260702e";
-import { getCurrentWho } from "../identity.js?v=20260702e";
+} from "../db.js?v=20260702f";
+import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260702f";
+import { icon } from "../icons.js?v=20260702f";
+import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260702f";
+import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260702f";
+import { recordUndo } from "../undo.js?v=20260702f";
+import { getCurrentWho } from "../identity.js?v=20260702f";
 
 let stagiaires = [];
 let profs = [];
@@ -826,7 +826,10 @@ function personSelect(allStagiaires, currentId, onChange, counts, placeholder = 
 
 // counts (optionnel) : map id -> nb de passages dans le rôle cette semaine. Si fourni, le
 // menu est trié par priorité (moins passés en tête) et affiche le compteur à côté de chaque nom.
-function chipsSelect(allStagiaires, currentIds, onChange, counts) {
+// opts (optionnel) : { labelFn, placeholder, itemBadge } pour réutiliser le composant avec
+// d'autres listes que les stagiaires (ex. bénévoles : badge « dispo » à la place du compteur).
+function chipsSelect(allStagiaires, currentIds, onChange, counts, opts = {}) {
+  const { labelFn = displayStagiaire, placeholder = "Élèves…", itemBadge = null } = opts;
   const wrap = el("div", { class: "chips-select" });
   const display = el("div", { class: "chips-display", tabindex: "0" });
   const dropdown = el("div", { class: "chips-dropdown hidden" });
@@ -835,13 +838,13 @@ function chipsSelect(allStagiaires, currentIds, onChange, counts) {
   function render() {
     clear(display);
     if (selected.length === 0) {
-      display.appendChild(el("span", { class: "chips-placeholder" }, "Élèves…"));
+      display.appendChild(el("span", { class: "chips-placeholder" }, placeholder));
     } else {
       selected.forEach((id) => {
         const s = allStagiaires.find((x) => x.id === id);
         if (!s) return;
         display.appendChild(el("span", { class: "chip" },
-          displayStagiaire(s),
+          labelFn(s),
           el("span", { class: "x", onClick: (ev) => {
             ev.stopPropagation();
             selected = selected.filter((x) => x !== id);
@@ -867,8 +870,9 @@ function chipsSelect(allStagiaires, currentIds, onChange, counts) {
           render();
           onChange([...selected]);
         }
-      }, displayStagiaire(s));
+      }, labelFn(s));
       if (counts) item.appendChild(prioBadge(counts[s.id] || 0));
+      if (itemBadge) { const badge = itemBadge(s); if (badge) item.appendChild(badge); }
       dropdown.appendChild(item);
     });
   }
@@ -1203,6 +1207,32 @@ function renderLaneCell(entry) {
     }
     eleveRole.appendChild(eleveCol);
     participants.appendChild(eleveRole);
+
+    // Bénévoles (volontaires conduite) : chips depuis la banque, dispos du jour en tête.
+    // Côté stagiaire, `benevoles` vient de la RPC ({id, display}) : pas de dispos ni
+    // d'actif → tri stable, pas de badge, chips en lecture seule comme les élèves.
+    if (shape.includes("benevoles")) {
+      const bnvRole = el("div", { class: "p-lane-role benevoles" });
+      bnvRole.appendChild(el("span", { class: "p-lane-role-label" }, "Bénévoles"));
+      const currentBnv = entry.benevoles_ids || [];
+      const taken = benevoleSlotOccupants(entry);
+      // Actifs non pris sur le créneau (+ ceux déjà sélectionnés, même retirés depuis),
+      // dispos du jour en tête puis alphabétique.
+      const bnvOptions = benevoles
+        .filter((b) => (b.actif !== false && !taken.has(b.id)) || currentBnv.includes(b.id))
+        .sort((a, b) =>
+          (isBenevoleDispo(a, entry) ? 0 : 1) - (isBenevoleDispo(b, entry) ? 0 : 1)
+          || compareByNom(a, b));
+      bnvRole.appendChild(chipsSelect(bnvOptions, currentBnv,
+        (ids) => saveEntry(lid, { benevoles_ids: ids }), null, {
+          labelFn: (b) => b.display,
+          placeholder: "Bénévoles…",
+          itemBadge: (b) => isBenevoleDispo(b, entry)
+            ? el("span", { class: "bnv-dispo-badge" }, "dispo") : null,
+        }));
+      participants.appendChild(bnvRole);
+    }
+
     body.appendChild(participants);
   }
 

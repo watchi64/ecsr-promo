@@ -2982,6 +2982,17 @@ button.theme-date.editable.muted { color: var(--text-faint); }
 }
 .chips-dropdown-item:hover { background: var(--bg-subtle); }
 .chips-dropdown-item.selected { background: var(--accent-soft); color: var(--accent-strong); font-weight: 500; }
+/* Bénévoles (voiture) : badge « dispo » dans le menu déroulant */
+.bnv-dispo-badge {
+  margin-left: auto;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  padding: 0 0.45rem;
+  flex: none;
+}
 .chips-dropdown-item::before {
   content: "";
   width: 14px;
