@@ -2,22 +2,22 @@
  * Promo ECSR — Application propriétaire.
  * © 2026 watchi64 — Tous droits réservés. Voir LICENSE.
  */
-import { signInWithPassword, signUpWithPassword, getCurrentUser, invalidateCache } from "./db.js?v=20260702c";
-import { toast } from "./utils.js?v=20260702c";
-import { icon } from "./icons.js?v=20260702c";
-import { initAuth, onAdminChange, isAuth } from "./auth-admin.js?v=20260702c";
-import { loadAccent } from "./accent-switcher.js?v=20260702c";
-import { loadTheme } from "./theme-switcher.js?v=20260702c";
-import { renderHome } from "./views/home.js?v=20260702c";
-import { renderDashboard } from "./views/dashboard.js?v=20260702c";
-import { renderPlanning, teardownPrintTarget } from "./views/planning.js?v=20260702c";
-import { renderPassages } from "./views/passages.js?v=20260702c";
-import { renderNotes } from "./views/notes.js?v=20260702c";
-import { renderRessources } from "./views/ressources.js?v=20260702c";
-import { renderThemes } from "./views/themes.js?v=20260702c";
-import { renderConfig } from "./views/config.js?v=20260702c";
-import { renderCalendrier } from "./views/calendrier.js?v=20260702c";
-import { initUndoKeyboard } from "./undo.js?v=20260702c";
+import { signInWithPassword, signUpWithPassword, getCurrentUser, invalidateCache } from "./db.js?v=20260702d";
+import { toast } from "./utils.js?v=20260702d";
+import { icon } from "./icons.js?v=20260702d";
+import { initAuth, onAdminChange, isAuth } from "./auth-admin.js?v=20260702d";
+import { loadAccent } from "./accent-switcher.js?v=20260702d";
+import { loadTheme } from "./theme-switcher.js?v=20260702d";
+import { renderHome } from "./views/home.js?v=20260702d";
+import { renderDashboard } from "./views/dashboard.js?v=20260702d";
+import { renderPlanning, teardownPrintTarget } from "./views/planning.js?v=20260702d";
+import { renderPassages } from "./views/passages.js?v=20260702d";
+import { renderNotes } from "./views/notes.js?v=20260702d";
+import { renderRessources } from "./views/ressources.js?v=20260702d";
+import { renderThemes } from "./views/themes.js?v=20260702d";
+import { renderConfig } from "./views/config.js?v=20260702d";
+import { renderCalendrier } from "./views/calendrier.js?v=20260702d";
+import { initUndoKeyboard } from "./undo.js?v=20260702d";
 
 // ===== Gate : email magic link =====
 

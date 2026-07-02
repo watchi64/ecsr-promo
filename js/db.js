@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20260702c";
+import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20260702d";
 
 // fetch avec timeout : sans ça, une requête peut rester pendue indéfiniment
 // (réseau mobile instable) → "Chargement" infini. Avec, elle échoue proprement après 15s.
@@ -461,6 +461,52 @@ export async function updateContact(id, patch) {
 export async function deleteContact(id) {
   const { error } = await supabase.from("contacts").delete().eq("id", id);
   if (error) throw error;
+}
+
+// === Élèves bénévoles (banque voiture conduite) ===
+// Table RLS admin-only (le téléphone ne doit jamais transiter vers un stagiaire).
+// Les non-admins passent par la RPC benevoles_noms() (SECURITY DEFINER) qui
+// n'expose que id + nom d'affichage, inactifs compris (vieilles semaines lisibles).
+
+export async function listBenevoles() {
+  return cachedQuery("benevoles", async () => {
+    const { data, error } = await supabase
+      .from("benevoles").select("*").order("nom").order("prenom");
+    if (error) throw error;
+    return data;
+  });
+}
+
+export async function listBenevolesNoms() {
+  return cachedQuery("benevoles_noms", async () => {
+    const { data, error } = await supabase.rpc("benevoles_noms");
+    if (error) throw error;
+    return data;
+  });
+}
+
+export async function addBenevole(payload) {
+  const { data, error } = await supabase.from("benevoles").insert(payload).select().single();
+  if (error) throw error;
+  invalidateCache("benevoles");
+  invalidateCache("benevoles_noms");
+  return data;
+}
+
+export async function updateBenevole(id, patch) {
+  const { error } = await supabase.from("benevoles").update(patch).eq("id", id);
+  if (error) throw error;
+  invalidateCache("benevoles");
+  invalidateCache("benevoles_noms");
+}
+
+// Retrait doux : la ligne reste en base (les vieilles semaines gardent leurs noms),
+// le bénévole disparaît des sélecteurs et de la liste active.
+export async function setBenevoleActif(id, actif) {
+  const { error } = await supabase.from("benevoles").update({ actif }).eq("id", id);
+  if (error) throw error;
+  invalidateCache("benevoles");
+  invalidateCache("benevoles_noms");
 }
 
 // === Agenda (dates importantes : examens, stages, etc.) ===
