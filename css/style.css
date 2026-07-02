@@ -3705,6 +3705,46 @@ button.theme-date.editable.muted { color: var(--text-faint); }
 }
 
 /* ============================================================
+   Panneau Élèves bénévoles (banque voiture, formateurs/admins)
+   ============================================================ */
+
+.bnv-modal { max-width: 680px; width: min(680px, calc(100vw - 2rem)); max-height: 88vh; overflow-y: auto; }
+.bnv-intro { margin: 0.1rem 0 0.8rem; font-size: 0.85rem; }
+.bnv-toolbar { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.9rem; }
+.bnv-filter-label { font-size: 0.82rem; color: var(--text-muted); }
+.bnv-toolbar select { max-width: 11rem; }
+.bnv-empty { margin: 1rem 0; }
+.bnv-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.75rem;
+  padding: 0.65rem 0.2rem; border-top: 1px solid var(--line); }
+.bnv-row.inactive { opacity: 0.65; }
+.bnv-name { font-weight: 600; }
+.bnv-meta { font-size: 0.82rem; color: var(--text-muted); margin-top: 0.1rem; }
+.bnv-badges { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.35rem; }
+.bnv-badge { font-size: 0.7rem; border: 1px solid var(--accent); color: var(--accent);
+  border-radius: 999px; padding: 0.05rem 0.5rem; }
+.bnv-badge.empty { border-color: var(--line); color: var(--text-muted); font-style: italic; }
+.bnv-note { font-size: 0.78rem; color: var(--text-muted); font-style: italic; margin-top: 0.25rem; }
+.bnv-side { display: flex; flex-direction: column; align-items: flex-end; gap: 0.4rem; flex: none; }
+.bnv-tel { font-family: var(--font-mono); font-size: 0.85rem; color: var(--accent);
+  text-decoration: none; white-space: nowrap; }
+.bnv-tel:hover { text-decoration: underline; }
+.bnv-retires { margin-top: 1rem; }
+.bnv-retires summary { cursor: pointer; font-size: 0.85rem; color: var(--text-muted); }
+.bnv-form-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
+.bnv-form-3col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.6rem; }
+.bnv-dispo-grid { display: grid; grid-template-columns: 3rem 1fr 1fr; gap: 0.25rem 0.5rem;
+  align-items: center; }
+.bnv-dispo-head { font-size: 0.75rem; color: var(--text-muted); text-align: center; }
+.bnv-dispo-jour { font-size: 0.8rem; font-weight: 600; }
+.bnv-dispo-cell { display: flex; justify-content: center; padding: 0.15rem 0; cursor: pointer; }
+.bnv-remove { color: #A05A3D; }
+@media (max-width: 560px) {
+  .bnv-form-2col, .bnv-form-3col { grid-template-columns: 1fr; }
+  .bnv-row { flex-direction: column; }
+  .bnv-side { flex-direction: row; align-items: center; }
+}
+
+/* ============================================================
    Admin badge & login
    ============================================================ */
 

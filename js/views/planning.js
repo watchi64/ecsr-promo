@@ -5,13 +5,14 @@ import {
   getSetting, setSetting,
   addPassagesBatch, deletePassagesBatch, getPassagesInRange, updateTheme,
   listBenevoles, listBenevolesNoms,
-} from "../db.js?v=20260702g";
-import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260702g";
-import { icon } from "../icons.js?v=20260702g";
-import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260702g";
-import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260702g";
-import { recordUndo } from "../undo.js?v=20260702g";
-import { getCurrentWho } from "../identity.js?v=20260702g";
+} from "../db.js?v=20260702i";
+import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260702i";
+import { icon } from "../icons.js?v=20260702i";
+import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260702i";
+import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260702i";
+import { recordUndo } from "../undo.js?v=20260702i";
+import { getCurrentWho } from "../identity.js?v=20260702i";
+import { openBenevolesPanel } from "./benevoles.js?v=20260702i";
 
 let stagiaires = [];
 let profs = [];
@@ -1791,6 +1792,16 @@ function renderInto(container) {
     dateInput, prevBtn, nextBtn, todayBtn,
     el("span", { style: "flex:1" }),
   );
+  // Banque d'élèves bénévoles (voiture) : gestion réservée aux formateurs/admins
+  if (admin) {
+    const bnvBtn = el("button", { class: "btn small",
+      title: "Banque d'élèves bénévoles (voiture) : fiches, dispos, téléphones",
+      onClick: () => openBenevolesPanel({ onClose: async () => {
+        benevoles = await loadBenevoles();
+        renderInto(currentContainer);
+      }}) }, "Bénévoles");
+    weekBar.appendChild(bnvBtn);
+  }
   // Placer la semaine : tirage global (tableaux + élèves de toute la semaine), admin uniquement
   if (admin) {
     const placeBtn = el("button", { class: "btn small",
