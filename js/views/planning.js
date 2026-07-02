@@ -4,17 +4,19 @@ import {
   getHalfMetaForWeek, upsertHalfMeta,
   getSetting, setSetting,
   addPassagesBatch, deletePassagesBatch, getPassagesInRange, updateTheme,
-} from "../db.js?v=20260702d";
-import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire } from "../utils.js?v=20260702d";
-import { icon } from "../icons.js?v=20260702d";
-import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260702d";
-import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260702d";
-import { recordUndo } from "../undo.js?v=20260702d";
-import { getCurrentWho } from "../identity.js?v=20260702d";
+  listBenevoles, listBenevolesNoms,
+} from "../db.js?v=20260702e";
+import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260702e";
+import { icon } from "../icons.js?v=20260702e";
+import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260702e";
+import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260702e";
+import { recordUndo } from "../undo.js?v=20260702e";
+import { getCurrentWho } from "../identity.js?v=20260702e";
 
 let stagiaires = [];
 let profs = [];
 let themes = [];
+let benevoles = [];  // admin : lignes complètes + display ; sinon : {id, display} via RPC
 let entries = [];
 let halfMetas = [];  // [{semaine_lundi, day_index, half_day, start_time, end_time, pause_start, pause_minutes}]
 let semaineLundi = null;
@@ -92,6 +94,7 @@ function entryUpsertPayload(entry) {
     pedagogue_id_2: entry.pedagogue_id_2 ?? null,
     eleves_ids_2: entry.eleves_ids_2 ?? [],
     salle_double: entry.salle_double ?? false,
+    benevoles_ids: entry.benevoles_ids ?? [],
     notes: entry.notes ?? null,
   };
 }
@@ -195,7 +198,7 @@ async function addLaneInSlot(d, half, slot) {
 // On permute le CONTENU des deux cartes (pas leur position en base) : les lignes
 // gardent leur (slot, lane), donc aucun conflit avec la contrainte d'unicité, et on
 // réutilise l'upsert existant. Visuellement = un déplacement. Undo via Ctrl+Z.
-const SWAP_FIELDS = ["activite", "prof_ids", "prof_id", "sujet", "pedagogue_id", "eleves_ids", "pedagogue_id_2", "eleves_ids_2", "salle_double", "notes"];
+const SWAP_FIELDS = ["activite", "prof_ids", "prof_id", "sujet", "pedagogue_id", "eleves_ids", "pedagogue_id_2", "eleves_ids_2", "salle_double", "benevoles_ids", "notes"];
 
 function snapshotFields(entry) {
   const o = {};
@@ -430,6 +433,28 @@ function effElevesIds(e, group = 1) {
   if (!entryShape(e).includes("eleves")) return [];
   if (group === 2) return e.salle_double ? (e.eleves_ids_2 || []) : [];
   return e.eleves_ids || [];
+}
+function effBenevolesIds(e) {
+  if (!entryShape(e).includes("benevoles")) return [];
+  return e.benevoles_ids || [];
+}
+
+// Bénévoles déjà placés sur une AUTRE carte du même créneau (cartes parallèles =
+// simultanées : pas deux voitures à la fois). Les slots successifs restent permis :
+// un bénévole reste souvent toute la demi-journée et change d'élève moniteur.
+function benevoleSlotOccupants(entry) {
+  const ids = new Set();
+  entries.forEach((e) => {
+    if (e.day_index !== entry.day_index || e.half_day !== entry.half_day || e.slot !== entry.slot) return;
+    if (e._lid === entry._lid) return;
+    effBenevolesIds(e).forEach((id) => ids.add(id));
+  });
+  return ids;
+}
+
+// Dispo récurrente du bénévole sur le jour + demi-journée d'une carte.
+function isBenevoleDispo(b, entry) {
+  return (b.dispos?.[JOURS[entry.day_index]] || []).includes(entry.half_day);
 }
 
 // Ids des stagiaires déjà placés dans le MÊME créneau et VRAIMENT en même temps que le champ
@@ -1296,6 +1321,17 @@ function renderDayCard(d, monday) {
   return card;
 }
 
+// Banque des bénévoles pour les sélecteurs et l'affichage des cartes voiture.
+// Admin : table complète (dispos, actif...). Stagiaire : RPC noms seulement
+// (la table est RLS admin-only, téléphone jamais transmis).
+async function loadBenevoles() {
+  if (isAdmin()) {
+    const list = await listBenevoles();
+    return list.map((b) => ({ ...b, display: displayStagiaire(b) }));
+  }
+  return await listBenevolesNoms();
+}
+
 async function loadPlanning() {
   const [data, metas] = await Promise.all([
     getPlanning(semaineLundi),
@@ -2097,8 +2133,8 @@ export async function renderPlanning(container) {
   clear(container);
   container.appendChild(el("div", { class: "loading" }, "Chargement"));
 
-  [stagiaires, profs, themes] = await Promise.all([
-    listStagiaires(), listProfs(), listThemes(),
+  [stagiaires, profs, themes, benevoles] = await Promise.all([
+    listStagiaires(), listProfs(), listThemes(), loadBenevoles(),
   ]);
   semaineLundi = (await getSetting("current_week_lundi")) || isoDate(getMonday(new Date()));
   await loadPlanning();

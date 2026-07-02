@@ -24,7 +24,7 @@ export const ACTIVITY_SHAPES = {
   "":                   ["activite", "prof", "sujet", "notes"],
   "Cours":              ["activite", "prof", "sujet", "notes"],
   "Pédagogie salle":    ["activite", "prof", "sujet", "pedagogue", "eleves", "notes"],
-  "Voiture (conduite)": ["activite", "prof", "sujet", "eleves", "notes"],
+  "Voiture (conduite)": ["activite", "prof", "sujet", "eleves", "benevoles", "notes"],
   "Contrôle":           ["activite", "prof", "sujet", "notes"],
   "Autre":              ["activite", "prof", "notes"],
 };
