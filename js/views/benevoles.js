@@ -3,17 +3,75 @@
 // bouton d'ouverture n'est rendu que pour eux et la table est RLS admin-only (le
 // téléphone ne transite jamais vers un stagiaire). Ouvert depuis la barre semaine
 // du Planning.
-import { listBenevoles, addBenevole, updateBenevole, setBenevoleActif } from "../db.js?v=20260702i";
-import { el, clear, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260702i";
-import { JOURS } from "../config.js?v=20260702i";
+import { listBenevoles, addBenevole, updateBenevole, setBenevoleActif } from "../db.js?v=20260702j";
+import { el, clear, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260702j";
+import { JOURS } from "../config.js?v=20260702j";
 
 const JOURS_COURTS = ["Lun", "Mar", "Mer", "Jeu", "Ven"];
 const DEMI = [
   { key: "matin", label: "matin", court: "m" },
   { key: "aprem", label: "après-midi", court: "am" },
 ];
-const NIVEAUX = ["C1", "C2", "C3", "C4"];
+// Compétences REMC (permis B) avec leurs sous-compétences : intitulés alignés sur la
+// table themes (type notion, préfixe « REMC Cx.y »). Le niveau stocké en base est le
+// CODE seul (« C1 », « C1.4 »...), le libellé est résolu à l'affichage via nivLabel().
+const COMPETENCES_REMC = [
+  { code: "C1", titre: "Maîtriser le maniement du véhicule dans un trafic faible ou nul",
+    sous: [
+      ["C1.1", "Connaître les principaux organes et commandes, vérifications intérieures/extérieures"],
+      ["C1.2", "Entrer, s'installer au poste de conduite et en sortir"],
+      ["C1.3", "Tenir, tourner le volant et maintenir la trajectoire"],
+      ["C1.4", "Démarrer et s'arrêter"],
+      ["C1.5", "Doser l'accélération et le freinage à diverses allures"],
+      ["C1.6", "Utiliser la boîte de vitesses"],
+      ["C1.7", "Diriger la voiture en avant, en ligne droite et en courbe (allure et trajectoire)"],
+      ["C1.8", "Regarder autour de soi et avertir"],
+      ["C1.9", "Effectuer une marche arrière et un demi-tour en sécurité"],
+    ] },
+  { code: "C2", titre: "Appréhender la route et circuler dans des conditions normales",
+    sous: [
+      ["C2.1", "Connaître les principales règles de circulation et la signalisation"],
+      ["C2.2", "Tenir compte de la signalisation verticale et horizontale"],
+      ["C2.3", "Rechercher les indices utiles"],
+      ["C2.4", "Utiliser toutes les commandes"],
+      ["C2.5", "Adapter sa vitesse aux situations"],
+      ["C2.6", "Choisir la voie de circulation"],
+      ["C2.7", "Maintenir les distances de sécurité"],
+      ["C2.8", "Franchir les différents types d'intersection et y changer de direction"],
+    ] },
+  { code: "C3", titre: "Circuler dans des conditions difficiles et partager la route",
+    sous: [
+      ["C3.1", "Évaluer et maintenir les distances de sécurité"],
+      ["C3.2", "Croiser, dépasser, être dépassé"],
+      ["C3.3", "Passer les virages et conduire en déclivité"],
+      ["C3.4", "Connaître et respecter les autres usagers (respect et courtoisie)"],
+      ["C3.5", "S'insérer, circuler et sortir d'une voie rapide"],
+      ["C3.6", "Conduire dans une file de véhicule et dans une circulation dense"],
+      ["C3.7", "Conduire quand l'adhérence et la visibilité sont réduites"],
+    ] },
+  { code: "C4", titre: "Pratiquer une conduite autonome, sûre et économique",
+    sous: [
+      ["C4.1", "Suivre un itinéraire de façon autonome"],
+      ["C4.2", "Préparer et effectuer un voyage longue distance en autonomie"],
+      ["C4.3", "Connaître les principaux facteurs de risque au volant et recommandations"],
+      ["C4.4", "Comportements en cas d'accident : protéger, alerter, secourir"],
+      ["C4.5", "Faire l'expérience des aides à la conduite (régulateur, limiteur, ABS, navigation)"],
+      ["C4.6", "Notions sur l'entretien, le dépannage et les situations d'urgence"],
+      ["C4.7", "Pratiquer l'éco-conduite"],
+    ] },
+];
 const BOITES = ["Manuelle", "Automatique"];
+
+// « C1.4 » -> « C1.4 · Démarrer et s'arrêter » ; « C1 » -> « C1 · Maîtriser le maniement... »
+function nivLabel(code) {
+  if (!code) return "";
+  for (const c of COMPETENCES_REMC) {
+    if (c.code === code) return `${c.code} · ${c.titre}`;
+    const s = c.sous.find(([sc]) => sc === code);
+    if (s) return `${s[0]} · ${s[1]}`;
+  }
+  return code;  // valeur inconnue : on affiche telle quelle
+}
 
 function jourLong(j) { return j.charAt(0) + j.slice(1).toLowerCase(); }
 
@@ -31,7 +89,7 @@ function dispoBadges(b) {
 }
 
 function metaLine(b) {
-  const parts = [b.niveau, b.boite, (b.heures != null && b.heures !== "") ? `${b.heures}h` : null, b.auto_ecole]
+  const parts = [b.boite, (b.heures != null && b.heures !== "") ? `${b.heures}h` : null, b.auto_ecole]
     .filter((v) => v != null && String(v).trim() !== "");
   return parts.join(" · ");
 }
@@ -96,6 +154,7 @@ export function openBenevolesPanel({ onClose } = {}) {
       const row = el("div", { class: "bnv-row" });
       const info = el("div", { class: "bnv-info" });
       info.appendChild(el("div", { class: "bnv-name" }, displayStagiaire(b)));
+      if (b.niveau) info.appendChild(el("div", { class: "bnv-niveau" }, nivLabel(b.niveau)));
       const meta = metaLine(b);
       if (meta) info.appendChild(el("div", { class: "bnv-meta" }, meta));
       info.appendChild(dispoBadges(b));
@@ -141,9 +200,16 @@ export function openBenevolesPanel({ onClose } = {}) {
     const dispoNoteIn = el("input", { type: "text", value: b?.dispo_note || "", autocomplete: "off", placeholder: "à partir de 17h, pas pendant ses exams…" });
     const notesIn = el("input", { type: "text", value: b?.notes || "", autocomplete: "off" });
 
-    const niveauSel = el("select");
+    // Niveau : compétence globale (C1..C4) ou sous-compétence précise (C1.4...),
+    // groupées par compétence. C1 et C2 sont les plus utilisées (début de formation).
+    const niveauSel = el("select", { class: "bnv-niveau-select" });
     niveauSel.appendChild(el("option", { value: "" }, "Niveau…"));
-    NIVEAUX.forEach((n) => niveauSel.appendChild(el("option", { value: n }, n)));
+    COMPETENCES_REMC.forEach((c) => {
+      const group = el("optgroup", { label: `${c.code} · ${c.titre}` });
+      group.appendChild(el("option", { value: c.code }, `${c.code} (global)`));
+      c.sous.forEach(([code, titre]) => group.appendChild(el("option", { value: code }, `${code} · ${titre}`)));
+      niveauSel.appendChild(group);
+    });
     niveauSel.value = b?.niveau || "";
 
     const boiteSel = el("select");
@@ -172,12 +238,12 @@ export function openBenevolesPanel({ onClose } = {}) {
 
     async function save() {
       const prenom = prenomIn.value.trim();
-      const nom = nomIn.value.trim();
-      if (!prenom || !nom) { toast("Prénom et nom obligatoires", "error"); return; }
+      if (!prenom) { toast("Prénom obligatoire", "error"); return; }
       const dispos = {};
       JOURS.forEach((j) => { if (dispoState[j].size) dispos[j] = [...dispoState[j]]; });
       const payload = {
-        prenom, nom,
+        prenom,
+        nom: nomIn.value.trim() || null,
         telephone: telIn.value.trim() || null,
         niveau: niveauSel.value || null,
         boite: boiteSel.value || null,
@@ -202,7 +268,7 @@ export function openBenevolesPanel({ onClose } = {}) {
     const form = el("div", { class: "modal-form" },
       el("div", { class: "bnv-form-2col" },
         el("div", { class: "field" }, el("label", {}, "Prénom *"), prenomIn),
-        el("div", { class: "field" }, el("label", {}, "Nom *"), nomIn)),
+        el("div", { class: "field" }, el("label", {}, "Nom (optionnel)"), nomIn)),
       el("div", { class: "bnv-form-2col" },
         el("div", { class: "field" }, el("label", {}, "Téléphone (visible formateurs)"), telIn),
         el("div", { class: "field" }, el("label", {}, "Auto-école d'origine"), autoEcoleIn)),

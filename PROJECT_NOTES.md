@@ -94,7 +94,7 @@ Liste : ALEXER Audrick, ANKPRA Gaëlle, AQUILA Céline, BAILLY Mickael, BLANC Ju
 | `passages`, `passages_audit` | passages salle/voiture avec who tracking |
 | `evaluations`, `evaluations_audit` | notes (type Thème/Compétence/Contrôle) |
 | `planning_entries` | + nouvelle colonne **`prof_ids INTEGER[]`** (multi-formateurs). `prof_id` legacy conservé synchronisé au 1er. + **`benevoles_ids INTEGER[]`** (élèves bénévoles voiture, 02/07/2026) |
-| `benevoles` | banque d'élèves bénévoles (voiture conduite) : identité, **téléphone**, niveau REMC C1-C4, boîte, heures faites, auto-école d'origine, `dispos jsonb` (grille hebdo LUNDI..VENDREDI x matin/aprem), `actif` (retrait doux). **RLS entièrement `is_admin()`** : invisible pour les stagiaires, téléphone jamais transmis |
+| `benevoles` | banque d'élèves bénévoles (voiture conduite) : prénom (seul champ obligatoire), nom optionnel, **téléphone**, `niveau` = code compétence/sous-compétence REMC (« C1 », « C1.4 »... libellés résolus par `nivLabel()` dans benevoles.js), boîte, heures faites, auto-école d'origine, `dispos jsonb` (grille hebdo LUNDI..VENDREDI x matin/aprem), `actif` (retrait doux). **RLS entièrement `is_admin()`** : invisible pour les stagiaires, téléphone jamais transmis. Seed 02/07/2026 : 9 bénévoles de la semaine du 6 juillet (Assiya, Chahinez + 7 via contact « Sophie ») liés aux cartes Voiture |
 | `planning_half_meta` | horaires + pause par demi-journée par semaine |
 | `ressources` | liens curés |
 | `contacts` | admin/urgence/autre — pré-rempli Myriam/Séverine/Fanny |

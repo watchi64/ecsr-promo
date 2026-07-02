@@ -3718,6 +3718,8 @@ button.theme-date.editable.muted { color: var(--text-faint); }
   padding: 0.65rem 0.2rem; border-top: 1px solid var(--line); }
 .bnv-row.inactive { opacity: 0.65; }
 .bnv-name { font-weight: 600; }
+.bnv-niveau { font-size: 0.8rem; color: var(--accent-strong); font-weight: 500; margin-top: 0.1rem; }
+.bnv-niveau-select { max-width: 100%; }
 .bnv-meta { font-size: 0.82rem; color: var(--text-muted); margin-top: 0.1rem; }
 .bnv-badges { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.35rem; }
 .bnv-badge { font-size: 0.7rem; border: 1px solid var(--accent); color: var(--accent);
