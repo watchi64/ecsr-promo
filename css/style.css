@@ -5297,6 +5297,8 @@ button.theme-date.editable.muted { color: var(--text-faint); }
   .pp-notes { color: #555; font-style: italic; margin-top: 0.6mm; }
   /* Élèves listés un par ligne, légèrement indentés sous leur label. */
   .pp-eleve { padding-left: 2.4mm; color: #000; }
+  /* Bénévoles (voiture) : italique pour les distinguer des élèves moniteurs. */
+  .pp-benevole { font-style: italic; color: #333; }
 
   .pp-empty { padding: 1.7mm 2.2mm; color: #bbb; font-size: 8.3pt; font-style: italic; }
 

@@ -5,13 +5,13 @@ import {
   getSetting, setSetting,
   addPassagesBatch, deletePassagesBatch, getPassagesInRange, updateTheme,
   listBenevoles, listBenevolesNoms,
-} from "../db.js?v=20260702f";
-import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260702f";
-import { icon } from "../icons.js?v=20260702f";
-import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260702f";
-import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260702f";
-import { recordUndo } from "../undo.js?v=20260702f";
-import { getCurrentWho } from "../identity.js?v=20260702f";
+} from "../db.js?v=20260702g";
+import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260702g";
+import { icon } from "../icons.js?v=20260702g";
+import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260702g";
+import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260702g";
+import { recordUndo } from "../undo.js?v=20260702g";
+import { getCurrentWho } from "../identity.js?v=20260702g";
 
 let stagiaires = [];
 let profs = [];
@@ -1830,6 +1830,7 @@ function nonEmpty(v) {
 }
 
 function lookupProf(id) { return profs.find((p) => p.id === id)?.nom || ""; }
+function lookupBenevole(id) { return benevoles.find((b) => b.id === id)?.display || ""; }
 function lookupStagiaire(id) {
   const s = stagiaires.find((x) => x.id === id);
   return s ? displayStagiaire(s) : "";
@@ -1860,7 +1861,7 @@ function entryHasContent(e) {
   const hasEl = effElevesIds(e, 1).length > 0 || effElevesIds(e, 2).length > 0;
   return nonEmpty(e.activite) || (entryShape(e).includes("sujet") && nonEmpty(e.sujet)) || nonEmpty(e.notes)
       || (e.prof_ids && e.prof_ids.length) || e.prof_id
-      || hasPed || hasEl;
+      || hasPed || hasEl || effBenevolesIds(e).length > 0;
 }
 
 function printEntryCell(e, ambig) {
@@ -1919,6 +1920,14 @@ function printEntryCell(e, ambig) {
   } else {
     addTableau("Au tableau", effPedagogueId(e, 1));
     addEleves("Élèves", effElevesIds(e, 1));
+  }
+
+  // Bénévoles (voiture) : sous les élèves moniteurs, en italique. Format « N. Prénom »
+  // (banque séparée : pas de dédoublonnage avec les prénoms des stagiaires).
+  const bnvNames = effBenevolesIds(e).map(lookupBenevole).filter(Boolean);
+  if (bnvNames.length) {
+    cell.appendChild(el("div", { class: "pp-line" }, el("span", { class: "pp-key" }, "Bénévoles :")));
+    bnvNames.forEach((n) => cell.appendChild(el("div", { class: "pp-line pp-eleve pp-benevole" }, n)));
   }
 
   // Notes
