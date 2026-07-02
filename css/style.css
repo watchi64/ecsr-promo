@@ -5146,7 +5146,7 @@ button.theme-date.editable.muted { color: var(--text-faint); }
      pleine largeur ; un max-width:100% l'écraserait. */
   /* Plancher de hauteur (évite un rendu minuscule sur une semaine quasi vide). La hauteur
      CIBLE réelle est gérée en JS (PRINT_FIT_MM, par plateforme) qui réduit le contenu via
-     `zoom` pour ne jamais dépasser → 1 seule page partout, automatiquement. */
+     `transform: scale` pour ne jamais dépasser → 1 seule page partout, automatiquement. */
   min-height: 140mm;
   display: flex;
   flex-direction: column;
@@ -5296,6 +5296,13 @@ button.theme-date.editable.muted { color: var(--text-faint); }
     color: #999;
     font-style: italic;
   }
+  /* Ligne diagnostic (remplie par fitPrintToPage) : volontairement quasi invisible sur le
+     papier, mais lisible sur une photo de l'aperçu pour débugger une machine à distance. */
+  .pp-diag {
+    color: #c9c9c9;
+    font-size: 6.5pt;
+    font-style: normal;
+  }
 
 /* Bascule écran → impression : on masque l'app et on remet le conteneur d'impression
    (sinon caché hors écran) en flux normal, pleine largeur imprimable. La mise à l'échelle
@@ -5310,6 +5317,11 @@ button.theme-date.editable.muted { color: var(--text-faint); }
     top: auto;
     margin: 0 auto;        /* largeur fixe (270mm) centrée dans la zone imprimable */
     pointer-events: auto;
+    /* Hauteur de coupe calculée par le MOTEUR au moment du print (mm → px du contexte
+       d'impression), indépendante du px figé côté écran : même si le rendu print diffère
+       de la mesure écran (polices, pilote…), la coupe reste au budget par plateforme
+       (--print-clip posé par ensurePrintContainer) → headroom + toujours 1 seule page. */
+    height: var(--print-clip, 188mm) !important;
   }
 }
 

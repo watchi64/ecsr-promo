@@ -4,13 +4,13 @@ import {
   getHalfMetaForWeek, upsertHalfMeta,
   getSetting, setSetting,
   addPassagesBatch, deletePassagesBatch, getPassagesInRange, updateTheme,
-} from "../db.js?v=20260702a";
-import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire } from "../utils.js?v=20260702a";
-import { icon } from "../icons.js?v=20260702a";
-import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260702a";
-import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260702a";
-import { recordUndo } from "../undo.js?v=20260702a";
-import { getCurrentWho } from "../identity.js?v=20260702a";
+} from "../db.js?v=20260702b";
+import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire } from "../utils.js?v=20260702b";
+import { icon } from "../icons.js?v=20260702b";
+import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260702b";
+import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260702b";
+import { recordUndo } from "../undo.js?v=20260702b";
+import { getCurrentWho } from "../identity.js?v=20260702b";
 
 let stagiaires = [];
 let profs = [];
@@ -1919,8 +1919,12 @@ function buildPrintHtml(monday) {
 
   root.appendChild(grid);
 
-  // Footer
-  root.appendChild(el("div", { class: "pp-footer" }, "Promo ECSR · généré le " + new Date().toLocaleDateString("fr-FR")));
+  // Footer (+ emplacement de la ligne diagnostic, remplie par fitPrintToPage APRÈS mesure
+  // pour ne pas fausser le calcul d'échelle).
+  root.appendChild(el("div", { class: "pp-footer" },
+    "Promo ECSR · généré le " + new Date().toLocaleDateString("fr-FR"),
+    el("span", { class: "pp-diag" }),
+  ));
 
   return root;
 }
@@ -1946,6 +1950,11 @@ const IS_MOBILE = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
                || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1); // iPad iOS 13+
 const PRINT_FIT_MM = IS_MOBILE ? 148 : 180;     // hauteur cible
 const PRINT_WIDTH_MM = IS_MOBILE ? 230 : 270;   // largeur (zone imprimable mobile plus étroite)
+// Hauteur de COUPE (mm) : un peu AU-DESSUS de la cible (headroom) mais SOUS la zone
+// imprimable → si le rendu print réel sort plus haut que la mesure écran (polices chargées
+// entre-temps, métriques du pilote d'imprimante… — vu sur le PC d'Hocine : planning rogné),
+// l'écart est absorbé au lieu de couper le contenu, et la page reste UNIQUE quoi qu'il arrive.
+const PRINT_CLIP_MM = IS_MOBILE ? 152 : 188;
 
 function ensurePrintContainer() {
   let c = document.getElementById("print-container");
@@ -1954,6 +1963,9 @@ function ensurePrintContainer() {
     c.id = "print-container";
     c.setAttribute("aria-hidden", "true");
     c.style.width = PRINT_WIDTH_MM + "mm";   // largeur par plateforme (CSS = simple fallback)
+    // Hauteur de coupe lue par le CSS @media print (var(--print-clip)) : appliquée par le
+    // MOTEUR au moment du print → indépendante de tout px figé côté écran.
+    c.style.setProperty("--print-clip", PRINT_CLIP_MM + "mm");
     document.body.appendChild(c);
   }
   return c;
@@ -1976,6 +1988,7 @@ function fitPrintToPage(root) {
   // Conteneur rendu hors écran (≠ display:none) → hauteur réelle mesurable.
   const h0 = root.getBoundingClientRect().height;
 
+  let scale = 1;
   if (h0 > target + 1) {
     // scale ∈ ]lo, 1] : plus le scale baisse, plus on élargit (width = 100/scale %) → contenu
     // plus court. On cherche le plus GRAND scale dont la hauteur effective tient dans la cible.
@@ -1989,13 +2002,30 @@ function fitPrintToPage(root) {
     }
     root.style.width = (100 / best) + "%";
     root.style.transform = "scale(" + best + ")";
+    scale = best;
   }
 
-  // VERROU de pagination : `transform` ne réduit pas la BOÎTE de layout → on fixe la hauteur du
-  // conteneur à la hauteur VISUELLE (scalée, fiable via getBoundingClientRect) + overflow:hidden.
-  // C'est du modèle de boîte basique (height + overflow) → respecté par TOUS les moteurs, iOS
-  // Safari compris → la page se découpe sur ~PRINT_FIT_MM = 1 seule page.
-  container.style.height = Math.ceil(root.getBoundingClientRect().height) + "px";
+  // VERROU de pagination : `transform` ne réduit pas la BOÎTE de layout → hauteur explicite
+  // + overflow:hidden. Version robuste : hauteur de coupe FIXE (PRINT_CLIP_MM, budget par
+  // plateforme), INDÉPENDANTE de la mesure. Avant : hauteur = mesure exacte → tout écart
+  // mesure écran ↔ rendu print réel (polices, pilote…) rognait le bas du planning (bug PC
+  // Hocine 2026-07-02). Le contenu vise PRINT_FIT_MM, la coupe est à PRINT_CLIP_MM → headroom.
+  // En print, c'est le CSS (height: var(--print-clip) !important) qui fait foi, sans JS.
+  container.style.height = Math.ceil(PRINT_CLIP_MM * pxPerMm) + "px";
+
+  // Ligne diagnostic imprimée (discrète, dans le footer) : quand une impression sort mal sur
+  // une machine qu'on n'a pas sous la main, une simple photo de l'aperçu donne les conditions
+  // exactes du calcul (échelle, hauteurs, viewport, zoom, navigateur, état des polices).
+  const diag = root.querySelector(".pp-diag");
+  if (diag) {
+    const m = navigator.userAgent.match(/(Edg|OPR|CriOS|Chrome|Firefox|Version)\/(\d+)/);
+    const brow = m ? (m[1] === "Version" ? "Safari" : m[1]) + " " + m[2] : "?";
+    diag.textContent = " · [" + Math.round(scale * 100) + "% · "
+      + Math.round(h0 / pxPerMm) + "→" + Math.round(root.getBoundingClientRect().height / pxPerMm)
+      + "/" + PRINT_CLIP_MM + "mm · " + window.innerWidth + "×" + window.innerHeight
+      + " @" + (window.devicePixelRatio || 1).toFixed(2) + " · " + brow
+      + " · pol " + (document.fonts && document.fonts.status === "loaded" ? "ok" : "…") + "]";
+  }
 }
 
 // (Re)génère le contenu compact 1 page A4 paysage depuis les données de la semaine courante,
@@ -2045,7 +2075,14 @@ export function teardownPrintTarget() {
   document.body.classList.remove("planning-printable");
 }
 
-function printPlanning() {
+async function printPlanning() {
+  // Attend (borné à 1,5 s) le chargement des polices avant de mesurer : mesurer avec la
+  // police de repli puis rendre l'aperçu avec Outfit chargée entre-temps = hauteurs
+  // différentes → risque de coupe. Si le CDN fonts est bloqué, on imprime quand même
+  // (repli utilisé de façon cohérente à la mesure ET au rendu).
+  if (document.fonts && document.fonts.status !== "loaded") {
+    await Promise.race([document.fonts.ready, new Promise((r) => setTimeout(r, 1500))]);
+  }
   refreshPrintTarget();
   window.print();
 }
