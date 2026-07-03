@@ -66,7 +66,7 @@ Accueil · Tableau de bord · Planning · Calendrier · Thèmes · Passages · N
 
 - **Accueil** : refonte 19 mai. Salutation perso « Bonjour, V. Timy », pill date du jour, **bloc compteur J−N du prochain événement majeur** (examen/stage), 3 prochains événements (depuis agenda), 7 tuiles raccourcis, infos courtes (« Ctrl+Z annule », « ajout passage limité à 2 jours »…). Plus de mention mdp partagé / identité au 1er accès (obsolète).
 - **Dashboard** : cards stagiaires compactes (215px), pill moyenne /20, badges priorité « À prioriser » / « Opportunité ratée » / « À jour » (PAS « Peut attendre »). Tri : priorité (défaut), alpha, note ↑/↓, passages ↓.
-- **Planning** : jours empilés vertical, **jour en colonne gauche sticky** (78px), demi-journées avec horaires modulables. Lanes parallèles **alignées en colonnes** (lane index = grid-column). Cellule = strip header (activité bold + **multi-formateurs en chips** + delete) → sujet en **chips multi-thèmes** (autocomplete) → participants (Au tableau / Élèves) → notes discrètes. **Boutons 🎲** pour tirages aléatoires : 4 élèves auto en Pédagogie salle, 1-3 élèves en Voiture (popover 1/2/3), 1 pédagogue au tableau. Tous excluent les doublons dans la semaine. Print PDF 1 page.
+- **Planning** : jours empilés vertical, **jour en colonne gauche sticky** (78px), demi-journées avec horaires modulables. Lanes parallèles **alignées en colonnes** (lane index = grid-column). Cellule = strip header (activité bold + **multi-formateurs en chips** + delete) → sujet en **chips multi-thèmes** (autocomplete) → participants (Au tableau / Élèves) → notes discrètes. **Boutons 🎲** pour tirages aléatoires : 4 élèves auto en Pédagogie salle, 1-3 élèves en Voiture (popover 1/2/3), 1 pédagogue au tableau. Tous excluent les doublons dans la semaine. Print PDF 1 page. **Élèves bénévoles** (02/07/2026) : bouton « Bénévoles » (admin) dans la barre semaine → panneau banque (fiches, dispos hebdo, filtre « qui est dispo jeudi matin », tel cliquable, retrait doux) ; champ chips « Bénévoles » sur les cartes Voiture (dispos du jour en tête + badge « dispo », exclusion des cartes parallèles du même créneau) ; impression sous « Bénévoles : » en italique. Côté stagiaire : noms via RPC `benevoles_noms()` uniquement, banque et téléphones invisibles (RLS).
 - **Calendrier** : 9 événements 2026 déjà insérés (Formation CCP1 30/03→21/09, stages 26/05, 03/08, Examens CCP1 22-25/09, Formation CCP2 28/09→07/12, stages 12/10, 26/10, 16/11, Examens CCP2 08-11/12). Types : examen/stage/formation/férié/autre, chacun couleur dédiée. Filtres « À venir » / « Tout ». Vue par mois.
 - **Thèmes** : 4 sections en pills (Tout / Thèmes 57 / TP ECSR 12 / REMC 35 / Notions 2). Statut **binaire** (À faire ↔ Fait), pas « En cours ». Clic prénom titre = modal « Contenu à venir ». Date éditable côté admin via modale (force statut à Fait). Mobile : 2 lignes + corbeille (sur notions) en 4e col pour éviter chevauchement.
 - **Passages** : table avec colonne « Ajouté par », filter, modal audit. Anti-backdating date ≥ J−2 pour non-admin (RLS + JS).
@@ -93,7 +93,8 @@ Liste : ALEXER Audrick, ANKPRA Gaëlle, AQUILA Céline, BAILLY Mickael, BLANC Ju
 | `competences` | C1-C4 (TP ECSR) + REMC + MGDE |
 | `passages`, `passages_audit` | passages salle/voiture avec who tracking |
 | `evaluations`, `evaluations_audit` | notes (type Thème/Compétence/Contrôle) |
-| `planning_entries` | + nouvelle colonne **`prof_ids INTEGER[]`** (multi-formateurs). `prof_id` legacy conservé synchronisé au 1er |
+| `planning_entries` | + nouvelle colonne **`prof_ids INTEGER[]`** (multi-formateurs). `prof_id` legacy conservé synchronisé au 1er. + **`benevoles_ids INTEGER[]`** (élèves bénévoles voiture, 02/07/2026) |
+| `benevoles` | banque d'élèves bénévoles (voiture conduite) : prénom (seul champ obligatoire), nom optionnel, **téléphone**, `niveau` = code compétence/sous-compétence REMC (« C1 », « C1.4 »... libellés résolus par `nivLabel()` dans benevoles.js), boîte, heures faites, auto-école d'origine, `dispos jsonb` (grille hebdo LUNDI..VENDREDI x matin/aprem), `actif` (retrait doux). **RLS entièrement `is_admin()`** : invisible pour les stagiaires, téléphone jamais transmis. Seed 02/07/2026 : 9 bénévoles de la semaine du 6 juillet (Assiya, Chahinez + 7 via contact « Sophie ») liés aux cartes Voiture |
 | `planning_half_meta` | horaires + pause par demi-journée par semaine |
 | `ressources` | liens curés |
 | `contacts` | admin/urgence/autre — pré-rempli Myriam/Séverine/Fanny |
@@ -106,6 +107,7 @@ Liste : ALEXER Audrick, ANKPRA Gaëlle, AQUILA Céline, BAILLY Mickael, BLANC Ju
 - `is_admin()` SECURITY DEFINER : lit `user_profiles.is_admin` via JWT email
 - `enforce_whitelist_signup()` BEFORE INSERT ON auth.users : bloque si email pas dans user_profiles + auto-confirme email
 - `set_my_anonymous_notes(val)` SECURITY DEFINER : RPC perso
+- `benevoles_noms()` SECURITY DEFINER : seule surface bénévoles côté stagiaire — retourne uniquement `id` + `display` (« N. Prénom », inactifs compris pour que les vieilles semaines restent lisibles). Le planning l'utilise quand `isAdmin()` est faux
 - Triggers `audit_passages`, `audit_evaluations` : INSERT/UPDATE/DELETE → row dans `*_audit`, identité depuis `auth.jwt()->>email`
 - Trigger `agenda_touch_updated`, `contacts_touch_updated` : updated_at auto
 

@@ -2,26 +2,26 @@ import {
   listStagiaires, listCompetences, listEvaluations, listThemes,
   addEvaluation, updateEvaluation, deleteEvaluation, listAuditForEvaluation,
   listUserProfiles,
-} from "../db.js?v=20260703a";
-import { el, clear, isoDate, formatDate, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260703a";
-import { icon } from "../icons.js?v=20260703a";
-import { getAdminEmail, isAdmin } from "../auth-admin.js?v=20260703a";
-import { recordUndo } from "../undo.js?v=20260703a";
+} from "../db.js?v=20260703b";
+import { el, clear, isoDate, formatDate, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260703b";
+import { icon } from "../icons.js?v=20260703b";
+import { getAdminEmail, isAdmin } from "../auth-admin.js?v=20260703b";
+import { recordUndo } from "../undo.js?v=20260703b";
 
-let userProfiles = [];  // pour résoudre l'anonymat par stagiaire_id
+let userProfiles = [];  // pour rÃ©soudre l'anonymat par stagiaire_id
 
 let stagiaires = [];
 let competences = [];
 let evaluations = [];
-let themesOfficiels = [];  // les 57 thèmes du référentiel (chargés en + pour les titres dans la matrice)
+let themesOfficiels = [];  // les 57 thÃ¨mes du rÃ©fÃ©rentiel (chargÃ©s en + pour les titres dans la matrice)
 
 let filterStagiaire = "";
 let filterType = "";
-let currentEvalDate = null;  // Date appliquée aux nouvelles notes saisies dans la matrice
+let currentEvalDate = null;  // Date appliquÃ©e aux nouvelles notes saisies dans la matrice
 
 const NOTES_SORT_OPTIONS = [
-  { key: "default",   label: "Ordre par défaut" },
-  { key: "alpha",     label: "Alphabétique" },
+  { key: "default",   label: "Ordre par dÃ©faut" },
+  { key: "alpha",     label: "AlphabÃ©tique" },
   { key: "avg-desc",  label: "Moyenne : meilleure d'abord" },
   { key: "avg-asc",   label: "Moyenne : plus faible d'abord" },
   { key: "nb-desc",   label: "Nombre de notes : plus d'abord" },
@@ -29,9 +29,9 @@ const NOTES_SORT_OPTIONS = [
 
 let currentNotesSort = localStorage.getItem("ecsr_notes_sort") || "default";
 
-// Parse une saisie de note. Deux formats acceptés :
-//   - "X/Y"  → convertit en (X/Y)*20, arrondi à 0.1, stocke note_max=20.
-//   - "X"    → note sur 20 directe (validé 0..20).
+// Parse une saisie de note. Deux formats acceptÃ©s :
+//   - "X/Y"  â†’ convertit en (X/Y)*20, arrondi Ã  0.1, stocke note_max=20.
+//   - "X"    â†’ note sur 20 directe (validÃ© 0..20).
 // Retour : null si vide, { error } si invalide, sinon { note, note_max, converted, original? }.
 function parseNoteInput(raw) {
   const s = String(raw ?? "").trim().replace(",", ".");
@@ -39,7 +39,7 @@ function parseNoteInput(raw) {
   const m = s.match(/^(\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)$/);
   if (m) {
     const x = Number(m[1]), y = Number(m[2]);
-    if (!(y > 0)) return { error: "Le diviseur doit être supérieur à 0" };
+    if (!(y > 0)) return { error: "Le diviseur doit Ãªtre supÃ©rieur Ã  0" };
     if (x < 0 || x > y) return { error: `Note entre 0 et ${y}` };
     const note = Math.round((x / y) * 20 * 10) / 10;
     return { note, note_max: 20, converted: true, original: `${m[1]}/${m[2]}` };
@@ -65,8 +65,8 @@ function isStagiaireAnonymous(stagiaireId) {
 }
 
 function displayName(s) {
-  // Les admins voient toujours le vrai nom (besoin métier : noter, repérer).
-  // Les autres voient "Anonyme" si la personne a coché le flag.
+  // Les admins voient toujours le vrai nom (besoin mÃ©tier : noter, repÃ©rer).
+  // Les autres voient "Anonyme" si la personne a cochÃ© le flag.
   if (isAdmin()) return displayStagiaire(s);
   return isStagiaireAnonymous(s.id) ? "Anonyme" : displayStagiaire(s);
 }
@@ -94,19 +94,19 @@ function sortStagiaires(list, mode) {
       arr.sort((a, b) => (a.ordre ?? 0) - (b.ordre ?? 0));
       break;
   }
-  // anonymes à la fin, dans l'ordre par défaut
+  // anonymes Ã  la fin, dans l'ordre par dÃ©faut
   anonymous.sort((a, b) => (a.ordre ?? 0) - (b.ordre ?? 0));
   return [...arr, ...anonymous];
 }
 
-const TYPES_EVAL = ["Thème", "Compétence", "Contrôle"];
+const TYPES_EVAL = ["ThÃ¨me", "CompÃ©tence", "ContrÃ´le"];
 
-// Colonnes "spéciales" du tableau matrice (en plus des 57 thèmes)
+// Colonnes "spÃ©ciales" du tableau matrice (en plus des 57 thÃ¨mes)
 const MATRIX_SPECIAL_COLS = [
-  { key: "C1",   label: "C1",   tooltip: "Compétence formateur C1 — Accueillir & sensibiliser SR" },
-  { key: "C2",   label: "C2",   tooltip: "Compétence formateur C2 — Concevoir & animer" },
-  { key: "REMC", label: "REMC", tooltip: "REMC — Vision globale du référentiel mobilité citoyenne" },
-  { key: "MGDE", label: "GDE",  tooltip: "Matrice GDE — Goals for Driver Education" },
+  { key: "C1",   label: "C1",   tooltip: "CompÃ©tence formateur C1 â€” Accueillir & sensibiliser SR" },
+  { key: "C2",   label: "C2",   tooltip: "CompÃ©tence formateur C2 â€” Concevoir & animer" },
+  { key: "REMC", label: "REMC", tooltip: "REMC â€” Vision globale du rÃ©fÃ©rentiel mobilitÃ© citoyenne" },
+  { key: "MGDE", label: "GDE",  tooltip: "Matrice GDE â€” Goals for Driver Education" },
 ];
 
 function noteColor(note, max) {
@@ -119,17 +119,17 @@ function noteColor(note, max) {
 }
 
 function describeEval(e) {
-  if (e.type === "Thème") {
-    const num = e.theme_numero ? `Thème ${String(e.theme_numero).padStart(2, "0")}` : "Thème";
-    return e.theme_titre ? `${num} · ${e.theme_titre}` : num;
+  if (e.type === "ThÃ¨me") {
+    const num = e.theme_numero ? `ThÃ¨me ${String(e.theme_numero).padStart(2, "0")}` : "ThÃ¨me";
+    return e.theme_titre ? `${num} Â· ${e.theme_titre}` : num;
   }
-  if (e.type === "Compétence") {
-    return e.competence_code ? `${e.competence_code} · ${e.competence?.libelle?.split(",")[0] || ""}` : "Compétence";
+  if (e.type === "CompÃ©tence") {
+    return e.competence_code ? `${e.competence_code} Â· ${e.competence?.libelle?.split(",")[0] || ""}` : "CompÃ©tence";
   }
-  if (e.type === "Contrôle") {
-    return e.controle_libelle || "Contrôle";
+  if (e.type === "ContrÃ´le") {
+    return e.controle_libelle || "ContrÃ´le";
   }
-  return "—";
+  return "â€”";
 }
 
 function openEditModal(existing, onSaved) {
@@ -137,7 +137,7 @@ function openEditModal(existing, onSaved) {
   const backdrop = el("div", { class: "modal-backdrop" });
 
   const stagiaireSel = el("select");
-  stagiaireSel.appendChild(el("option", { value: "" }, "—"));
+  stagiaireSel.appendChild(el("option", { value: "" }, "â€”"));
   stagiaires.forEach((s) => {
     const opt = el("option", { value: s.id }, displayStagiaire(s));
     if (existing && existing.stagiaire_id === s.id) opt.selected = true;
@@ -151,28 +151,28 @@ function openEditModal(existing, onSaved) {
     typeSel.appendChild(opt);
   });
 
-  // Champs conditionnels (thème / compétence / contrôle)
+  // Champs conditionnels (thÃ¨me / compÃ©tence / contrÃ´le)
   const themeNum = el("input", { type: "number", min: 1, max: 57, placeholder: "1-57", value: existing?.theme_numero || "" });
-  const themeTitre = el("input", { type: "text", placeholder: "Titre du thème (optionnel)", value: existing?.theme_titre || "" });
+  const themeTitre = el("input", { type: "text", placeholder: "Titre du thÃ¨me (optionnel)", value: existing?.theme_titre || "" });
 
   const compSel = el("select");
-  compSel.appendChild(el("option", { value: "" }, "—"));
+  compSel.appendChild(el("option", { value: "" }, "â€”"));
   competences.forEach((c) => {
-    const opt = el("option", { value: c.code }, `${c.code} · ${c.libelle.slice(0, 60)}${c.libelle.length > 60 ? "…" : ""}`);
+    const opt = el("option", { value: c.code }, `${c.code} Â· ${c.libelle.slice(0, 60)}${c.libelle.length > 60 ? "â€¦" : ""}`);
     if (existing?.competence_code === c.code) opt.selected = true;
     compSel.appendChild(opt);
   });
 
   const controleLib = el("input", { type: "text", placeholder: "Ex. Matrice GDE + REMC", value: existing?.controle_libelle || "" });
 
-  const themeField = el("div", { class: "field" }, el("label", {}, "Numéro de thème"), themeNum, el("label", { style: "margin-top:0.5rem" }, "Titre"), themeTitre);
-  const compField = el("div", { class: "field" }, el("label", {}, "Compétence"), compSel);
-  const controleField = el("div", { class: "field" }, el("label", {}, "Libellé du contrôle"), controleLib);
+  const themeField = el("div", { class: "field" }, el("label", {}, "NumÃ©ro de thÃ¨me"), themeNum, el("label", { style: "margin-top:0.5rem" }, "Titre"), themeTitre);
+  const compField = el("div", { class: "field" }, el("label", {}, "CompÃ©tence"), compSel);
+  const controleField = el("div", { class: "field" }, el("label", {}, "LibellÃ© du contrÃ´le"), controleLib);
 
   function updateConditional() {
-    themeField.style.display = typeSel.value === "Thème" ? "" : "none";
-    compField.style.display = typeSel.value === "Compétence" ? "" : "none";
-    controleField.style.display = typeSel.value === "Contrôle" ? "" : "none";
+    themeField.style.display = typeSel.value === "ThÃ¨me" ? "" : "none";
+    compField.style.display = typeSel.value === "CompÃ©tence" ? "" : "none";
+    controleField.style.display = typeSel.value === "ContrÃ´le" ? "" : "none";
   }
   typeSel.addEventListener("change", updateConditional);
   updateConditional();
@@ -187,7 +187,7 @@ function openEditModal(existing, onSaved) {
     if (!typeSel.value) { toast("Choisir un type", "error"); return; }
 
     // Parse de la note : accepte "X" ou "X/Y" (auto-converti en /20).
-    // Si format X/Y détecté, on force note_max=20 (override du champ Max).
+    // Si format X/Y dÃ©tectÃ©, on force note_max=20 (override du champ Max).
     let noteVal = null, noteMaxVal = Number(noteMaxInput.value);
     if (noteInput.value.trim() !== "") {
       const parsed = parseNoteInput(noteInput.value);
@@ -195,17 +195,17 @@ function openEditModal(existing, onSaved) {
       noteVal = parsed.note;
       if (parsed.converted) {
         noteMaxVal = 20;
-        toast(`${parsed.original} → ${parsed.note}/20`, "success", 1800);
+        toast(`${parsed.original} â†’ ${parsed.note}/20`, "success", 1800);
       }
     }
 
     const payload = {
       stagiaire_id: Number(stagiaireSel.value),
       type: typeSel.value,
-      theme_numero: typeSel.value === "Thème" && themeNum.value ? Number(themeNum.value) : null,
-      theme_titre: typeSel.value === "Thème" ? (themeTitre.value || null) : null,
-      competence_code: typeSel.value === "Compétence" ? (compSel.value || null) : null,
-      controle_libelle: typeSel.value === "Contrôle" ? (controleLib.value || null) : null,
+      theme_numero: typeSel.value === "ThÃ¨me" && themeNum.value ? Number(themeNum.value) : null,
+      theme_titre: typeSel.value === "ThÃ¨me" ? (themeTitre.value || null) : null,
+      competence_code: typeSel.value === "CompÃ©tence" ? (compSel.value || null) : null,
+      controle_libelle: typeSel.value === "ContrÃ´le" ? (controleLib.value || null) : null,
       note: noteVal,
       note_max: noteMaxVal,
       observation: obsInput.value || null,
@@ -217,11 +217,11 @@ function openEditModal(existing, onSaved) {
         payload.created_by_email = email;
         payload.updated_by_email = email;
         await addEvaluation(payload);
-        toast("Note enregistrée", "success");
+        toast("Note enregistrÃ©e", "success");
       } else {
         payload.updated_by_email = email;
         await updateEvaluation(existing.id, payload);
-        toast("Note mise à jour", "success");
+        toast("Note mise Ã  jour", "success");
       }
       backdrop.remove();
       onSaved();
@@ -238,7 +238,7 @@ function openEditModal(existing, onSaved) {
     el("h3", {}, isNew ? "Ajouter une note" : "Modifier la note"),
     el("div", { class: "modal-form" },
       el("div", { class: "field" }, el("label", {}, "Stagiaire"), stagiaireSel),
-      el("div", { class: "field" }, el("label", {}, "Type d'évaluation"), typeSel),
+      el("div", { class: "field" }, el("label", {}, "Type d'Ã©valuation"), typeSel),
       themeField,
       compField,
       controleField,
@@ -269,7 +269,7 @@ async function openHistoryModal(evaluation_id) {
       const author = a.changed_by_email || "Anonyme";
       const item = el("div", { class: "audit-item " + a.action },
         el("div", { class: "audit-head" },
-          el("span", { class: "audit-action " + a.action }, a.action === "insert" ? "Création" : a.action === "update" ? "Modification" : "Suppression"),
+          el("span", { class: "audit-action " + a.action }, a.action === "insert" ? "CrÃ©ation" : a.action === "update" ? "Modification" : "Suppression"),
           el("span", { class: "audit-time" }, time),
         ),
         el("div", { class: "audit-meta" }, "par ", el("strong", {}, author)),
@@ -281,9 +281,9 @@ async function openHistoryModal(evaluation_id) {
           if (JSON.stringify(a.before_data[k]) !== JSON.stringify(a.after_data[k])) {
             diffs.push(el("div", { class: "audit-diff" },
               el("span", { class: "audit-field" }, k),
-              el("span", { class: "audit-before" }, String(a.before_data[k] ?? "—")),
-              el("span", { class: "audit-arrow" }, "→"),
-              el("span", { class: "audit-after" }, String(a.after_data[k] ?? "—")),
+              el("span", { class: "audit-before" }, String(a.before_data[k] ?? "â€”")),
+              el("span", { class: "audit-arrow" }, "â†’"),
+              el("span", { class: "audit-after" }, String(a.after_data[k] ?? "â€”")),
             ));
           }
         });
@@ -311,8 +311,8 @@ function renderTable(container) {
 
   if (filtered.length === 0) {
     return el("div", { style: "padding:3rem 1rem;text-align:center;color:var(--text-muted)" },
-      el("p", {}, "Aucune note enregistrée."),
-      isAdmin() ? el("p", { class: "faint", style: "font-size:0.85rem" }, "Clique sur « Ajouter une note » pour commencer.") : null,
+      el("p", {}, "Aucune note enregistrÃ©e."),
+      isAdmin() ? el("p", { class: "faint", style: "font-size:0.85rem" }, "Clique sur Â« Ajouter une note Â» pour commencer.") : null,
     );
   }
 
@@ -323,7 +323,7 @@ function renderTable(container) {
       el("th", {}, "Date"),
       el("th", {}, "Stagiaire"),
       el("th", {}, "Type"),
-      el("th", {}, "Évaluation"),
+      el("th", {}, "Ã‰valuation"),
       el("th", {}, "Note"),
       el("th", {}, "Observation"),
       el("th", { style: "width:120px" }, ""),
@@ -333,7 +333,7 @@ function renderTable(container) {
   filtered.forEach((e) => {
     const noteCell = el("td", {},
       e.note == null
-        ? el("span", { class: "muted" }, "—")
+        ? el("span", { class: "muted" }, "â€”")
         : el("span", { class: "note-pill " + noteColor(e.note, e.note_max) },
             el("span", { class: "note-num" }, String(e.note)),
             el("span", { class: "note-max" }, "/" + (e.note_max ?? 20))
@@ -360,7 +360,7 @@ function renderTable(container) {
         onClick: async () => {
           if (!confirm("Supprimer cette note ?")) return;
           await deleteEvaluation(e.id);
-          toast("Supprimée", "success");
+          toast("SupprimÃ©e", "success");
           await reload(container);
         }
       });
@@ -371,7 +371,7 @@ function renderTable(container) {
     tbody.appendChild(el("tr", {},
       el("td", { class: "date" }, formatDate(e.date_eval)),
       el("td", {}, e.stagiaire?.prenom || "?"),
-      el("td", {}, el("span", { class: "tag eval-type-" + (e.type === "Thème" ? "theme" : e.type === "Compétence" ? "competence" : "controle") }, e.type)),
+      el("td", {}, el("span", { class: "tag eval-type-" + (e.type === "ThÃ¨me" ? "theme" : e.type === "CompÃ©tence" ? "competence" : "controle") }, e.type)),
       el("td", {}, describeEval(e)),
       noteCell,
       el("td", { class: "muted", style: "max-width:300px" }, e.observation || ""),
@@ -388,8 +388,8 @@ async function reload(container) {
   rerender(container);
 }
 
-// Rafraîchit uniquement les panneaux Synthèse + Graphiques, sans toucher à la matrice
-// (préserve les autres inputs ouverts pendant qu'on enchaîne les notes)
+// RafraÃ®chit uniquement les panneaux SynthÃ¨se + Graphiques, sans toucher Ã  la matrice
+// (prÃ©serve les autres inputs ouverts pendant qu'on enchaÃ®ne les notes)
 function refreshAnalyticsInPlace(container) {
   const oldSynth = container.querySelector(".notes-synthese");
   const oldChart = container.querySelector(".notes-chart");
@@ -397,20 +397,20 @@ function refreshAnalyticsInPlace(container) {
   if (oldChart) oldChart.replaceWith(renderChartsSection());
 }
 
-// === Tableau matrice : lignes stagiaires × colonnes (synthèse + 57 thèmes) ===
+// === Tableau matrice : lignes stagiaires Ã— colonnes (synthÃ¨se + 57 thÃ¨mes) ===
 
 function noteForStagiaireCompetence(stagId, code) {
-  // Dernière évaluation de type 'Compétence' avec competence_code matching
+  // DerniÃ¨re Ã©valuation de type 'CompÃ©tence' avec competence_code matching
   const matches = evaluations
-    .filter((e) => e.stagiaire_id === stagId && e.type === "Compétence" && e.competence_code === code)
+    .filter((e) => e.stagiaire_id === stagId && e.type === "CompÃ©tence" && e.competence_code === code)
     .sort((a, b) => new Date(b.date_eval) - new Date(a.date_eval));
   return matches[0] || null;
 }
 
 function noteForStagiaireTheme(stagId, themeNum) {
-  // Dernière évaluation de type 'Thème' avec theme_numero matching
+  // DerniÃ¨re Ã©valuation de type 'ThÃ¨me' avec theme_numero matching
   const matches = evaluations
-    .filter((e) => e.stagiaire_id === stagId && e.type === "Thème" && e.theme_numero === themeNum)
+    .filter((e) => e.stagiaire_id === stagId && e.type === "ThÃ¨me" && e.theme_numero === themeNum)
     .sort((a, b) => new Date(b.date_eval) - new Date(a.date_eval));
   return matches[0] || null;
 }
@@ -430,10 +430,10 @@ function cellColorClass(ratio) {
   return "great";
 }
 
-// === Dégradé continu pour les cellules de la matrice ===
-// Interpolation linéaire RGB entre 9 stops sur l'échelle 0..20.
-// Chaque dixième de point a une teinte unique (~1 couleur / 0.1).
-// Pêche/terracotta pour les notes basses, vert mint pour le haut. Pas de rouge vif.
+// === DÃ©gradÃ© continu pour les cellules de la matrice ===
+// Interpolation linÃ©aire RGB entre 9 stops sur l'Ã©chelle 0..20.
+// Chaque dixiÃ¨me de point a une teinte unique (~1 couleur / 0.1).
+// PÃªche/terracotta pour les notes basses, vert mint pour le haut. Pas de rouge vif.
 const NOTE_STOPS = [
   { n: 0,  bg: [232, 195, 168], fg: [105, 60, 30] },
   { n: 5,  bg: [241, 219, 200], fg: [122, 79, 48] },
@@ -473,20 +473,20 @@ function clearNoteCellStyle(td) {
   td.style.fontWeight = "";
 }
 
-// Édition inline d'une cellule : remplace le contenu par un input et sauvegarde au blur/Enter
+// Ã‰dition inline d'une cellule : remplace le contenu par un input et sauvegarde au blur/Enter
 function inlineCellEdit(td, stagiaireId, fixedFields, container) {
   // fixedFields : { type, theme_numero?, competence_code?, controle_libelle? }
-  // Garde-fou : pas de second popover si la cellule est déjà en édition.
+  // Garde-fou : pas de second popover si la cellule est dÃ©jÃ  en Ã©dition.
   if (td.querySelector(".matrice-popover")) return;
 
   let existing = null;
-  if (fixedFields.type === "Thème" && fixedFields.theme_numero != null) {
+  if (fixedFields.type === "ThÃ¨me" && fixedFields.theme_numero != null) {
     existing = noteForStagiaireTheme(stagiaireId, fixedFields.theme_numero);
-  } else if (fixedFields.type === "Compétence" && fixedFields.competence_code) {
+  } else if (fixedFields.type === "CompÃ©tence" && fixedFields.competence_code) {
     existing = noteForStagiaireCompetence(stagiaireId, fixedFields.competence_code);
   }
 
-  // Sauvegarde l'état visuel : la valeur courante reste affichée derrière le popover.
+  // Sauvegarde l'Ã©tat visuel : la valeur courante reste affichÃ©e derriÃ¨re le popover.
   const originalText = td.textContent;
   const originalClass = td.className;
   const originalBg = td.style.background;
@@ -500,10 +500,10 @@ function inlineCellEdit(td, stagiaireId, fixedFields, container) {
   td.style.position = "relative";
   td.style.zIndex = "10";
 
-  // === Popover d'édition ===
-  // Identique desktop & mobile. Input large (90 px) → on voit ce qu'on tape,
-  // même à 5+ caractères ("10/12"). Boutons OK et Annuler explicites pour
-  // tout device (le clavier décimal iOS n'a pas de touche Done).
+  // === Popover d'Ã©dition ===
+  // Identique desktop & mobile. Input large (90 px) â†’ on voit ce qu'on tape,
+  // mÃªme Ã  5+ caractÃ¨res ("10/12"). Boutons OK et Annuler explicites pour
+  // tout device (le clavier dÃ©cimal iOS n'a pas de touche Done).
   const input = el("input", {
     type: "text",
     inputmode: "decimal",
@@ -517,12 +517,12 @@ function inlineCellEdit(td, stagiaireId, fixedFields, container) {
     type: "button",
     "aria-label": "Valider",
     style: "padding:7px 12px;background:var(--accent,#6B7F4E);color:#fff;border:0;cursor:pointer;font-size:0.85em;line-height:1;border-radius:4px;font-weight:600;white-space:nowrap;",
-  }, "✓ OK");
+  }, "âœ“ OK");
   const cancelBtn = el("button", {
     type: "button",
     "aria-label": "Annuler",
     style: "padding:7px 10px;background:#fff;color:#666;border:1px solid #ccc;cursor:pointer;font-size:0.85em;line-height:1;border-radius:4px;",
-  }, "✕");
+  }, "âœ•");
   okBtn.addEventListener("mousedown", (e) => e.preventDefault());
   okBtn.addEventListener("click", (e) => { e.stopPropagation(); input.blur(); });
   // Cancel : mousedown AVANT le blur de l'input, pour pouvoir annuler proprement.
@@ -559,15 +559,15 @@ function inlineCellEdit(td, stagiaireId, fixedFields, container) {
         try {
           const snapshot = { ...existing };
           await deleteEvaluation(existing.id);
-          // Met à jour localement + DOM en place (pas de rerender complet)
+          // Met Ã  jour localement + DOM en place (pas de rerender complet)
           evaluations = evaluations.filter((x) => x.id !== existing.id);
           td.textContent = "";
           td.className = "m-td-cell empty" + (isAdmin() ? " editable" : "");
           clearNoteCellStyle(td);
           td.style.position = originalPosition;
           td.style.zIndex = originalZIndex;
-          toast("Note effacée · Ctrl+Z pour annuler", "success", 2200);
-          recordUndo("note effacée", async () => {
+          toast("Note effacÃ©e Â· Ctrl+Z pour annuler", "success", 2200);
+          recordUndo("note effacÃ©e", async () => {
             const { id, created_at, updated_at, ...payload } = snapshot;
             const re = await addEvaluation(payload);
             evaluations.push(re || snapshot);
@@ -576,7 +576,7 @@ function inlineCellEdit(td, stagiaireId, fixedFields, container) {
         } catch (e) { toast(e.message, "error"); restore(); }
         return;
       }
-      // Cellule vide, input vide → restore
+      // Cellule vide, input vide â†’ restore
       restore();
       return;
     }
@@ -589,7 +589,7 @@ function inlineCellEdit(td, stagiaireId, fixedFields, container) {
     }
     const note = parsed.note;
     if (parsed.converted) {
-      toast(`${parsed.original} → ${note}/20`, "success", 1800);
+      toast(`${parsed.original} â†’ ${note}/20`, "success", 1800);
     }
     // Pas de changement si la note est identique (et /20)
     if (existing && Number(existing.note) === note && Number(existing.note_max) === 20) {
@@ -613,7 +613,7 @@ function inlineCellEdit(td, stagiaireId, fixedFields, container) {
         existing.note_max = 20;
         existing.date_eval = currentEvalDate;
         const id = existing.id;
-        recordUndo("note modifiée", async () => {
+        recordUndo("note modifiÃ©e", async () => {
           await updateEvaluation(id, { note: prevNote, note_max: prevMax, date_eval: prevDate });
           const ev = evaluations.find((x) => x.id === id);
           if (ev) { ev.note = prevNote; ev.note_max = prevMax; ev.date_eval = prevDate; }
@@ -631,14 +631,14 @@ function inlineCellEdit(td, stagiaireId, fixedFields, container) {
         const inserted = await addEvaluation(newRow);
         evaluations.push(inserted || newRow);
         const insertedId = inserted?.id;
-        recordUndo("note ajoutée", async () => {
+        recordUndo("note ajoutÃ©e", async () => {
           if (insertedId) {
             await deleteEvaluation(insertedId);
             evaluations = evaluations.filter((x) => x.id !== insertedId);
           }
         });
       }
-      // Met à jour la cellule en place (sans détruire les autres inputs)
+      // Met Ã  jour la cellule en place (sans dÃ©truire les autres inputs)
       td.textContent = String(note);
       td.className = "m-td-cell" + (isAdmin() ? " editable" : "");
       applyNoteCellStyle(td, note);
@@ -655,8 +655,8 @@ function inlineCellEdit(td, stagiaireId, fixedFields, container) {
     if (popover.parentNode === td) td.removeChild(popover);
     td.style.position = originalPosition;
     td.style.zIndex = originalZIndex;
-    // textContent / className / bg / color / fontWeight non modifiés par l'édition
-    // (le popover est un overlay) → rien d'autre à restaurer.
+    // textContent / className / bg / color / fontWeight non modifiÃ©s par l'Ã©dition
+    // (le popover est un overlay) â†’ rien d'autre Ã  restaurer.
   }
 
   input.addEventListener("blur", save);
@@ -669,7 +669,7 @@ function inlineCellEdit(td, stagiaireId, fixedFields, container) {
   });
 }
 
-// === Vue détaillée d'un stagiaire (modale, idéale mobile) ===
+// === Vue dÃ©taillÃ©e d'un stagiaire (modale, idÃ©ale mobile) ===
 
 function openStagiaireDetail(stagiaire, themeByNum, container) {
   const admin = isAdmin();
@@ -705,7 +705,7 @@ function openStagiaireDetail(stagiaire, themeByNum, container) {
         const cls = cellColorClass(ratio);
         valueWrap.appendChild(el("span", { class: "sd-note " + cls }, String(ev.note)));
       } else {
-        valueWrap.appendChild(el("span", { class: "sd-note empty" }, "—"));
+        valueWrap.appendChild(el("span", { class: "sd-note empty" }, "â€”"));
       }
       if (admin) {
         valueWrap.classList.add("editable");
@@ -718,22 +718,22 @@ function openStagiaireDetail(stagiaire, themeByNum, container) {
       return r;
     }
 
-    // Section : Compétences clés
-    body.appendChild(el("h4", { class: "sd-section-title" }, "Compétences"));
+    // Section : CompÃ©tences clÃ©s
+    body.appendChild(el("h4", { class: "sd-section-title" }, "CompÃ©tences"));
     MATRIX_SPECIAL_COLS.forEach((c) => {
       const ev = noteForStagiaireCompetence(stagiaire.id, c.key);
-      body.appendChild(row(c.label, c.tooltip, ev, { type: "Compétence", competence_code: c.key }));
+      body.appendChild(row(c.label, c.tooltip, ev, { type: "CompÃ©tence", competence_code: c.key }));
     });
 
-    // Section : Thèmes 57
-    body.appendChild(el("h4", { class: "sd-section-title" }, "Thèmes du référentiel"));
+    // Section : ThÃ¨mes 57
+    body.appendChild(el("h4", { class: "sd-section-title" }, "ThÃ¨mes du rÃ©fÃ©rentiel"));
     for (let n = 1; n <= 57; n++) {
       const ev = noteForStagiaireTheme(stagiaire.id, n);
       const theme = themeByNum.get(n);
       const numStr = String(n).padStart(2, "0");
-      const title = theme ? theme.titre : `Thème ${n}`;
-      body.appendChild(row(numStr + " · " + title, null, ev, {
-        type: "Thème",
+      const title = theme ? theme.titre : `ThÃ¨me ${n}`;
+      body.appendChild(row(numStr + " Â· " + title, null, ev, {
+        type: "ThÃ¨me",
         theme_numero: n,
         theme_titre: theme ? theme.titre : null,
       }));
@@ -758,12 +758,12 @@ function openStagiaireDetail(stagiaire, themeByNum, container) {
   document.body.appendChild(backdrop);
 }
 
-// Édition inline dans la modale détail (similaire à la cellule matrice)
+// Ã‰dition inline dans la modale dÃ©tail (similaire Ã  la cellule matrice)
 function startInlineEditInModal(valueWrap, stagiaireId, fixedFields, container, backdrop) {
   let existing = null;
-  if (fixedFields.type === "Thème" && fixedFields.theme_numero != null) {
+  if (fixedFields.type === "ThÃ¨me" && fixedFields.theme_numero != null) {
     existing = noteForStagiaireTheme(stagiaireId, fixedFields.theme_numero);
-  } else if (fixedFields.type === "Compétence" && fixedFields.competence_code) {
+  } else if (fixedFields.type === "CompÃ©tence" && fixedFields.competence_code) {
     existing = noteForStagiaireCompetence(stagiaireId, fixedFields.competence_code);
   }
   const originalHtml = valueWrap.innerHTML;
@@ -779,7 +779,7 @@ function startInlineEditInModal(valueWrap, stagiaireId, fixedFields, container, 
     class: "matrice-inline-ok",
     "aria-label": "Valider",
     style: "padding:0 10px;background:var(--accent,#6B7F4E);color:#fff;border:0;cursor:pointer;font-size:0.9em;border-radius:3px;",
-  }, "✓");
+  }, "âœ“");
   saveBtn.addEventListener("mousedown", (e) => e.preventDefault());
   saveBtn.addEventListener("click", (e) => { e.stopPropagation(); input.blur(); });
   const editor = el("div", { class: "matrice-inline-editor",
@@ -796,7 +796,7 @@ function startInlineEditInModal(valueWrap, stagiaireId, fixedFields, container, 
     const raw = input.value.trim();
     if (raw === "") {
       if (existing && confirm("Effacer cette note ?")) {
-        try { await deleteEvaluation(existing.id); toast("Note effacée", "success"); }
+        try { await deleteEvaluation(existing.id); toast("Note effacÃ©e", "success"); }
         catch (e) { toast(e.message, "error"); }
       }
       backdrop.remove();
@@ -811,7 +811,7 @@ function startInlineEditInModal(valueWrap, stagiaireId, fixedFields, container, 
     }
     const note = parsed.note;
     if (parsed.converted) {
-      toast(`${parsed.original} → ${note}/20`, "success", 1800);
+      toast(`${parsed.original} â†’ ${note}/20`, "success", 1800);
     }
     const email = getAdminEmail();
     try {
@@ -839,11 +839,11 @@ function startInlineEditInModal(valueWrap, stagiaireId, fixedFields, container, 
 }
 
 function renderMatrice(container) {
-  // Construction des colonnes : Prénom, Moy, [4 spéciales], [57 thèmes]
+  // Construction des colonnes : PrÃ©nom, Moy, [4 spÃ©ciales], [57 thÃ¨mes]
   const wrap = el("div", { class: "matrice-wrap" });
   const table = el("table", { class: "matrice-table" });
 
-  // Liste des thèmes officiels présents en DB (par numero 1..57)
+  // Liste des thÃ¨mes officiels prÃ©sents en DB (par numero 1..57)
   const themesByNum = new Map();
   themesOfficiels.forEach((t) => {
     if (t.numero != null) themesByNum.set(t.numero, t);
@@ -861,9 +861,9 @@ function renderMatrice(container) {
   });
   themeNumbers.forEach((n) => {
     const theme = themesByNum.get(n);
-    const title = theme ? theme.titre : `Thème ${n}`;
+    const title = theme ? theme.titre : `ThÃ¨me ${n}`;
     const numStr = String(n).padStart(2, "0");
-    const th = el("th", { class: "m-th-theme", title: `Thème ${numStr} : ${title}` },
+    const th = el("th", { class: "m-th-theme", title: `ThÃ¨me ${numStr} : ${title}` },
       el("div", { class: "m-th-theme-label" },
         el("span", { class: "m-th-theme-num" }, numStr),
         el("span", { class: "m-th-theme-title" }, title),
@@ -878,13 +878,13 @@ function renderMatrice(container) {
   const tbody = el("tbody");
   const admin = isAdmin();
 
-  // Construction d'un Map themes par numero pour la modale détail
+  // Construction d'un Map themes par numero pour la modale dÃ©tail
   const themeByNumLocal = themesByNum;
 
   sortStagiaires(stagiaires, currentNotesSort).forEach((s) => {
     const tr = el("tr");
 
-    // Colonne prénom (sticky) — cliquable pour ouvrir la vue détaillée
+    // Colonne prÃ©nom (sticky) â€” cliquable pour ouvrir la vue dÃ©taillÃ©e
     const visibleName = displayName(s);
     const nameBtn = el("button", {
       class: "m-name-btn" + (isStagiaireAnonymous(s.id) ? " anon" : ""), type: "button",
@@ -898,14 +898,14 @@ function renderMatrice(container) {
     if (allEvals.length > 0) {
       const avg = allEvals.reduce((sum, e) => sum + (Number(e.note) / Number(e.note_max)) * 20, 0) / allEvals.length;
       const rounded = Math.round(avg * 10) / 10;
-      const tdAvg = el("td", { class: "m-td-avg", title: allEvals.length + " évaluations" }, String(rounded));
+      const tdAvg = el("td", { class: "m-td-avg", title: allEvals.length + " Ã©valuations" }, String(rounded));
       applyNoteCellStyle(tdAvg, avg);
       tr.appendChild(tdAvg);
     } else {
       tr.appendChild(el("td", { class: "m-td-avg empty" }, ""));
     }
 
-    // Colonnes spéciales (C1, C2, REMC, MGDE)
+    // Colonnes spÃ©ciales (C1, C2, REMC, MGDE)
     MATRIX_SPECIAL_COLS.forEach((c) => {
       const ev = noteForStagiaireCompetence(s.id, c.key);
       const cell = noteMatrixCell(ev);
@@ -917,12 +917,12 @@ function renderMatrice(container) {
       }
       if (admin) {
         td.classList.add("editable");
-        td.addEventListener("click", () => inlineCellEdit(td, s.id, { type: "Compétence", competence_code: c.key }, container));
+        td.addEventListener("click", () => inlineCellEdit(td, s.id, { type: "CompÃ©tence", competence_code: c.key }, container));
       }
       tr.appendChild(td);
     });
 
-    // 57 colonnes thèmes
+    // 57 colonnes thÃ¨mes
     for (let n = 1; n <= 57; n++) {
       const ev = noteForStagiaireTheme(s.id, n);
       const cell = noteMatrixCell(ev);
@@ -930,14 +930,14 @@ function renderMatrice(container) {
       if (cell) {
         applyNoteCellStyle(td, cell.ratio * 20);
         td.textContent = String(cell.note);
-        td.title = `Thème ${n} : ${cell.note}/${cell.max} le ${formatDate(cell.eval.date_eval)}`;
+        td.title = `ThÃ¨me ${n} : ${cell.note}/${cell.max} le ${formatDate(cell.eval.date_eval)}`;
       }
       if (admin) {
         td.classList.add("editable");
         td.addEventListener("click", () => {
           const theme = themesByNum.get(n);
           inlineCellEdit(td, s.id, {
-            type: "Thème",
+            type: "ThÃ¨me",
             theme_numero: n,
             theme_titre: theme ? theme.titre : null,
           }, container);
@@ -959,14 +959,14 @@ function rerender(container) {
 
   const admin = isAdmin();
 
-  // Initialise la date courante si pas encore définie
+  // Initialise la date courante si pas encore dÃ©finie
   if (!currentEvalDate) currentEvalDate = isoDate(new Date());
 
   container.appendChild(el("div", { class: "view-header" },
     el("div", { class: "view-header-text" },
-      el("p", { class: "eyebrow" }, evaluations.length + " note" + (evaluations.length > 1 ? "s" : "") + " enregistrée" + (evaluations.length > 1 ? "s" : "")),
-      el("h2", {}, "Notes & évaluations"),
-      el("p", { class: "subtitle" }, "Tableau matrice : stagiaires × thèmes/compétences. Clique une cellule pour saisir la note."),
+      el("p", { class: "eyebrow" }, evaluations.length + " note" + (evaluations.length > 1 ? "s" : "") + " enregistrÃ©e" + (evaluations.length > 1 ? "s" : "")),
+      el("h2", {}, "Notes & Ã©valuations"),
+      el("p", { class: "subtitle" }, "Tableau matrice : stagiaires Ã— thÃ¨mes/compÃ©tences. Clique une cellule pour saisir la note."),
     ),
     admin ? null : el("span", { class: "muted", style: "font-size:0.85rem" }, "Lecture seule. Connexion admin requise pour modifier."),
   ));
@@ -1002,7 +1002,7 @@ function rerender(container) {
       dateInput,
       todayBtn,
       el("span", { class: "matrice-toolbar-hint muted" },
-        "→ clique une cellule, tape une note (0-20), Entrée valide, Esc annule."
+        "â†’ clique une cellule, tape une note (0-20), EntrÃ©e valide, Esc annule."
       ),
     ));
   } else {
@@ -1048,13 +1048,13 @@ function cellColorClassFromAvg(avg) {
   return cellColorClass(avg / 20);
 }
 
-/** Moyenne classe par thème : { num, titre, avg, count } */
+/** Moyenne classe par thÃ¨me : { num, titre, avg, count } */
 function themeStats() {
   const out = [];
   themesOfficiels.forEach((t) => {
     if (t.numero == null) return;
     const notes = evaluations
-      .filter((e) => e.type === "Thème" && e.theme_numero === t.numero && e.note != null && e.note_max)
+      .filter((e) => e.type === "ThÃ¨me" && e.theme_numero === t.numero && e.note != null && e.note_max)
       .map(evalScore20);
     if (notes.length === 0) return;
     const avg = notes.reduce((a, b) => a + b, 0) / notes.length;
@@ -1063,7 +1063,7 @@ function themeStats() {
   return out;
 }
 
-// === Section Synthèse ===
+// === Section SynthÃ¨se ===
 
 function renderSynthese() {
   const rated = ratedEvals();
@@ -1073,7 +1073,7 @@ function renderSynthese() {
   const below10 = scores.filter((s) => s < 10).length;
 
   const wrap = el("section", { class: "notes-synthese" },
-    el("h3", { class: "notes-chart-title" }, "Synthèse classe"),
+    el("h3", { class: "notes-chart-title" }, "SynthÃ¨se classe"),
   );
 
   // KPIs
@@ -1084,16 +1084,16 @@ function renderSynthese() {
       el("span", { class: "notes-kpi-label" }, label),
     );
   }
-  kpis.appendChild(kpi("Moyenne classe", classAvg != null ? (Math.round(classAvg * 10) / 10) + " /20" : "—", cellColorClassFromAvg(classAvg)));
-  kpis.appendChild(kpi("Médiane", classMed != null ? (Math.round(classMed * 10) / 10) + " /20" : "—", cellColorClassFromAvg(classMed)));
+  kpis.appendChild(kpi("Moyenne classe", classAvg != null ? (Math.round(classAvg * 10) / 10) + " /20" : "â€”", cellColorClassFromAvg(classAvg)));
+  kpis.appendChild(kpi("MÃ©diane", classMed != null ? (Math.round(classMed * 10) / 10) + " /20" : "â€”", cellColorClassFromAvg(classMed)));
   kpis.appendChild(kpi("Notes saisies", String(rated.length)));
   kpis.appendChild(kpi("Notes < 10/20", String(below10), below10 > 0 ? "bad" : "ok"));
   wrap.appendChild(kpis);
 
-  // Top 3 thèmes faibles + solides
+  // Top 3 thÃ¨mes faibles + solides
   const stats = themeStats();
   if (stats.length === 0) {
-    wrap.appendChild(el("p", { class: "muted", style: "margin-top:1rem" }, "Pas encore assez de notes par thème pour ranker."));
+    wrap.appendChild(el("p", { class: "muted", style: "margin-top:1rem" }, "Pas encore assez de notes par thÃ¨me pour ranker."));
     return wrap;
   }
 
@@ -1105,11 +1105,11 @@ function renderSynthese() {
     return el("div", { class: "theme-stat-card " + cellColorClassFromAvg(t.avg) },
       el("span", { class: "theme-stat-num" }, String(t.num).padStart(2, "0")),
       el("div", { class: "theme-stat-body" },
-        el("span", { class: "theme-stat-title" }, t.titre || `Thème ${t.num}`),
+        el("span", { class: "theme-stat-title" }, t.titre || `ThÃ¨me ${t.num}`),
         el("span", { class: "theme-stat-meta" },
           el("strong", { style: "color:" + avgColorHex(t.avg) }, avgR + "/20"),
-          " · médiane ", String(Math.round(t.med * 10) / 10),
-          " · ", t.count, " note" + (t.count > 1 ? "s" : ""),
+          " Â· mÃ©diane ", String(Math.round(t.med * 10) / 10),
+          " Â· ", t.count, " note" + (t.count > 1 ? "s" : ""),
         ),
       )
     );
@@ -1117,13 +1117,13 @@ function renderSynthese() {
 
   wrap.appendChild(el("div", { class: "notes-rankings" },
     el("div", { class: "ranking-block" },
-      el("h4", { class: "ranking-title weak" }, "🔻 3 thèmes les plus faibles"),
-      el("p", { class: "muted ranking-sub" }, "À retravailler en priorité"),
+      el("h4", { class: "ranking-title weak" }, "ðŸ”» 3 thÃ¨mes les plus faibles"),
+      el("p", { class: "muted ranking-sub" }, "Ã€ retravailler en prioritÃ©"),
       ...weak.map(themeCard),
     ),
     el("div", { class: "ranking-block" },
-      el("h4", { class: "ranking-title strong" }, "🔺 3 thèmes les plus solides"),
-      el("p", { class: "muted ranking-sub" }, "Acquis confirmés"),
+      el("h4", { class: "ranking-title strong" }, "ðŸ”º 3 thÃ¨mes les plus solides"),
+      el("p", { class: "muted ranking-sub" }, "Acquis confirmÃ©s"),
       ...strong.map(themeCard),
     ),
   ));
@@ -1142,7 +1142,7 @@ function renderChartsSection() {
   const tabs = el("div", { class: "chart-tabs" });
   [
     { key: "stagiaires",   label: "Par stagiaire" },
-    { key: "themes",       label: "Par thème" },
+    { key: "themes",       label: "Par thÃ¨me" },
     { key: "distribution", label: "Distribution" },
   ].forEach((t) => {
     const btn = el("button", {
@@ -1163,7 +1163,7 @@ function renderChartsSection() {
   return wrap;
 }
 
-// Le bar chart par stagiaire (extrait pour réutiliser dans les onglets)
+// Le bar chart par stagiaire (extrait pour rÃ©utiliser dans les onglets)
 function buildAveragesChartSvg() {
   return renderAveragesChartInner();
 }
@@ -1182,7 +1182,7 @@ function renderAveragesChartInner() {
 function buildThemesChartSvg() {
   const stats = themeStats().sort((a, b) => a.avg - b.avg);  // pire en haut
   const data = stats.map((t) => ({
-    name: String(t.num).padStart(2, "0") + " · " + (t.titre || ""),
+    name: String(t.num).padStart(2, "0") + " Â· " + (t.titre || ""),
     avg: t.avg, count: t.count,
   }));
   if (data.length === 0) {
@@ -1196,11 +1196,11 @@ function buildThemesChartSvg() {
 function buildDistributionChartSvg() {
   const rated = ratedEvals();
   const buckets = [
-    { min: 0,  max: 4,  label: "0–4",   count: 0, color: "#991B1B" },
-    { min: 4,  max: 8,  label: "4–8",   count: 0, color: "#DC2626" },
-    { min: 8,  max: 12, label: "8–12",  count: 0, color: "#D97706" },
-    { min: 12, max: 16, label: "12–16", count: 0, color: "#65A30D" },
-    { min: 16, max: 20.01, label: "16–20", count: 0, color: "#3F7012" },
+    { min: 0,  max: 4,  label: "0â€“4",   count: 0, color: "#991B1B" },
+    { min: 4,  max: 8,  label: "4â€“8",   count: 0, color: "#DC2626" },
+    { min: 8,  max: 12, label: "8â€“12",  count: 0, color: "#D97706" },
+    { min: 12, max: 16, label: "12â€“16", count: 0, color: "#65A30D" },
+    { min: 16, max: 20.01, label: "16â€“20", count: 0, color: "#3F7012" },
   ];
   rated.forEach((e) => {
     const s = evalScore20(e);
@@ -1314,7 +1314,7 @@ function horizontalBarChart(data, barHeight = 22, labelWidth = 100) {
     label.setAttribute("font-weight", d.anon ? "400" : "600");
     label.setAttribute("fill", d.anon ? "#8A7458" : "#1F2924");
     // Trunc label si trop long
-    const lbl = (d.name || "").length > 24 ? (d.name.substring(0, 22) + "…") : d.name;
+    const lbl = (d.name || "").length > 24 ? (d.name.substring(0, 22) + "â€¦") : d.name;
     label.textContent = lbl;
     svg.appendChild(label);
 
@@ -1336,7 +1336,7 @@ function horizontalBarChart(data, barHeight = 22, labelWidth = 100) {
       val.setAttribute("x", labelWidth + w + 6); val.setAttribute("y", y + barHeight / 2 + 4);
       val.setAttribute("font-size", "10"); val.setAttribute("font-weight", "700");
       val.setAttribute("fill", "#1F2924");
-      val.textContent = (Math.round(d.avg * 10) / 10).toString() + (d.count != null ? ` · ${d.count}n` : "");
+      val.textContent = (Math.round(d.avg * 10) / 10).toString() + (d.count != null ? ` Â· ${d.count}n` : "");
       svg.appendChild(val);
     } else {
       const val = document.createElementNS(svgNS, "text");
@@ -1361,7 +1361,7 @@ export async function renderNotes(container) {
   rerender(container);
 }
 
-// === Graphique de synthèse : moyennes par stagiaire (SVG bar chart) ===
+// === Graphique de synthÃ¨se : moyennes par stagiaire (SVG bar chart) ===
 
 function renderAveragesChart() {
   const sorted = sortStagiaires(stagiaires, "avg-desc");
@@ -1467,7 +1467,7 @@ function renderAveragesChart() {
 
   const wrap = el("section", { class: "notes-chart" },
     el("h3", { class: "notes-chart-title" }, "Moyennes par stagiaire"),
-    el("p", { class: "muted notes-chart-sub" }, "Trié par moyenne décroissante. Les profils anonymes apparaissent en fin de liste."),
+    el("p", { class: "muted notes-chart-sub" }, "TriÃ© par moyenne dÃ©croissante. Les profils anonymes apparaissent en fin de liste."),
     el("div", { class: "notes-chart-svg-wrap" }, svg),
   );
   return wrap;

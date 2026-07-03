@@ -1,9 +1,9 @@
 /**
- * Système d'undo global (Ctrl+Z / Cmd+Z).
- * Stack en mémoire (perdu au reload). Max 30 actions.
- * Chaque action est { label, undoFn } : la fonction sait défaire l'opération.
+ * SystÃ¨me d'undo global (Ctrl+Z / Cmd+Z).
+ * Stack en mÃ©moire (perdu au reload). Max 30 actions.
+ * Chaque action est { label, undoFn } : la fonction sait dÃ©faire l'opÃ©ration.
  */
-import { toast } from "./utils.js?v=20260703a";
+import { toast } from "./utils.js?v=20260703b";
 
 const stack = [];
 const MAX = 30;
@@ -17,15 +17,15 @@ export function recordUndo(label, undoFn) {
 
 export async function undoLast() {
   if (stack.length === 0) {
-    toast("Rien à annuler", "info", 1400);
+    toast("Rien Ã  annuler", "info", 1400);
     return false;
   }
   const action = stack.pop();
   runningUndo = true;
   try {
     await action.undoFn();
-    toast("↶ " + action.label + " annulé", "success", 2000);
-    // Force le rendu actuel à se rafraîchir
+    toast("â†¶ " + action.label + " annulÃ©", "success", 2000);
+    // Force le rendu actuel Ã  se rafraÃ®chir
     window.dispatchEvent(new HashChangeEvent("hashchange"));
     return true;
   } catch (e) {
@@ -43,11 +43,11 @@ export function initUndoKeyboard() {
   document.addEventListener("keydown", (e) => {
     const isUndo = (e.ctrlKey || e.metaKey) && !e.shiftKey && (e.key === "z" || e.key === "Z");
     if (!isUndo) return;
-    // Ne pas piéger si l'utilisateur est dans un champ texte (sauf nos inputs note matrice qui sont gérables)
+    // Ne pas piÃ©ger si l'utilisateur est dans un champ texte (sauf nos inputs note matrice qui sont gÃ©rables)
     const t = e.target;
     if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) {
       // Exception : les inputs de type number/date n'ont pas d'undo natif utile, et nos modales
-      // perdent leur valeur de toute façon si reload. On laisse le natif pour les input texte/email.
+      // perdent leur valeur de toute faÃ§on si reload. On laisse le natif pour les input texte/email.
       if (t.tagName === "INPUT" && ["number"].includes(t.type)) {
         // L'undo natif d'un input number n'est pas utile, on prend la main
         e.preventDefault();

@@ -1,23 +1,23 @@
 /**
- * Vue Calendrier — dates importantes (examens, stages, formations, etc.).
- * Lecture publique, écriture admin only.
+ * Vue Calendrier â€” dates importantes (examens, stages, formations, etc.).
+ * Lecture publique, Ã©criture admin only.
  */
 import {
   listAgendaEvents, addAgendaEvent, updateAgendaEvent, deleteAgendaEvent,
-} from "../db.js?v=20260703a";
-import { el, clear, isoDate, formatDate, formatLongDate, parseDate, toast } from "../utils.js?v=20260703a";
-import { icon } from "../icons.js?v=20260703a";
-import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260703a";
-import { recordUndo } from "../undo.js?v=20260703a";
+} from "../db.js?v=20260703b";
+import { el, clear, isoDate, formatDate, formatLongDate, parseDate, toast } from "../utils.js?v=20260703b";
+import { icon } from "../icons.js?v=20260703b";
+import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260703b";
+import { recordUndo } from "../undo.js?v=20260703b";
 
 let events = [];
 
 const EVENT_TYPES = [
-  { key: "examen",    label: "Examen",     emoji: "📝", color: "examen"    },
-  { key: "stage",     label: "Stage",      emoji: "🏢", color: "stage"     },
-  { key: "formation", label: "Formation",  emoji: "🎓", color: "formation" },
-  { key: "ferie",     label: "Férié / pause", emoji: "🌴", color: "ferie"   },
-  { key: "autre",     label: "Autre",      emoji: "📌", color: "autre"     },
+  { key: "examen",    label: "Examen",     emoji: "ðŸ“", color: "examen"    },
+  { key: "stage",     label: "Stage",      emoji: "ðŸ¢", color: "stage"     },
+  { key: "formation", label: "Formation",  emoji: "ðŸŽ“", color: "formation" },
+  { key: "ferie",     label: "FÃ©riÃ© / pause", emoji: "ðŸŒ´", color: "ferie"   },
+  { key: "autre",     label: "Autre",      emoji: "ðŸ“Œ", color: "autre"     },
 ];
 
 const TYPE_MAP = Object.fromEntries(EVENT_TYPES.map((t) => [t.key, t]));
@@ -63,7 +63,7 @@ function isToday(e) {
   return e.date_start <= today && (e.date_end || e.date_start) >= today;
 }
 
-// Nombre de jours avant le DÉBUT de l'événement (négatif si déjà commencé/passé)
+// Nombre de jours avant le DÃ‰BUT de l'Ã©vÃ©nement (nÃ©gatif si dÃ©jÃ  commencÃ©/passÃ©)
 function daysUntilStart(e) {
   const d = parseDate(e.date_start);
   d.setHours(0, 0, 0, 0);
@@ -72,14 +72,14 @@ function daysUntilStart(e) {
   return Math.round((d - today) / 86400000);
 }
 
-// Badge "jours restants" : null si déjà commencé/passé
+// Badge "jours restants" : null si dÃ©jÃ  commencÃ©/passÃ©
 function countdownInfo(e) {
   if (isToday(e)) return { text: "Aujourd'hui", cls: "today" };
   const days = daysUntilStart(e);
-  if (days < 0) return null;       // déjà commencé ou passé
+  if (days < 0) return null;       // dÃ©jÃ  commencÃ© ou passÃ©
   if (days === 0) return { text: "Aujourd'hui", cls: "today" };
   if (days === 1) return { text: "Demain", cls: "soon" };
-  return { text: `J − ${days}`, cls: days <= 7 ? "soon" : "later" };
+  return { text: `J âˆ’ ${days}`, cls: days <= 7 ? "soon" : "later" };
 }
 
 function openEventModal(existing, onSaved) {
@@ -95,7 +95,7 @@ function openEventModal(existing, onSaved) {
 
   const titleInput = el("input", {
     type: "text",
-    placeholder: "Ex. Examen théorique général (ETG)",
+    placeholder: "Ex. Examen thÃ©orique gÃ©nÃ©ral (ETG)",
     value: existing?.title || "",
   });
 
@@ -110,16 +110,16 @@ function openEventModal(existing, onSaved) {
 
   const descInput = el("textarea", {
     rows: 3,
-    placeholder: "Notes complémentaires (facultatif)",
+    placeholder: "Notes complÃ©mentaires (facultatif)",
   });
   descInput.value = existing?.description || "";
 
   async function save() {
     const title = titleInput.value.trim();
     if (!title) { toast("Titre requis", "error"); return; }
-    if (!startInput.value) { toast("Date de début requise", "error"); return; }
+    if (!startInput.value) { toast("Date de dÃ©but requise", "error"); return; }
     if (endInput.value && endInput.value < startInput.value) {
-      toast("La date de fin doit être après le début", "error"); return;
+      toast("La date de fin doit Ãªtre aprÃ¨s le dÃ©but", "error"); return;
     }
 
     const payload = {
@@ -135,21 +135,21 @@ function openEventModal(existing, onSaved) {
       if (isNew) {
         payload.created_by_email = getAdminEmail();
         const inserted = await addAgendaEvent(payload);
-        toast("Événement ajouté · Ctrl+Z pour annuler", "success", 2400);
+        toast("Ã‰vÃ©nement ajoutÃ© Â· Ctrl+Z pour annuler", "success", 2400);
         if (inserted?.id) {
-          recordUndo("événement ajouté", async () => { await deleteAgendaEvent(inserted.id); });
+          recordUndo("Ã©vÃ©nement ajoutÃ©", async () => { await deleteAgendaEvent(inserted.id); });
         }
       } else {
         const prev = { ...existing };
         await updateAgendaEvent(existing.id, payload);
-        recordUndo("événement modifié", async () => {
+        recordUndo("Ã©vÃ©nement modifiÃ©", async () => {
           await updateAgendaEvent(existing.id, {
             type: prev.type, title: prev.title,
             date_start: prev.date_start, date_end: prev.date_end,
             location: prev.location, description: prev.description,
           });
         });
-        toast("Événement mis à jour", "success", 1800);
+        toast("Ã‰vÃ©nement mis Ã  jour", "success", 1800);
       }
       backdrop.remove();
       onSaved();
@@ -160,12 +160,12 @@ function openEventModal(existing, onSaved) {
   }
 
   const modal = el("div", { class: "modal" },
-    el("h3", {}, isNew ? "Nouvel événement" : "Modifier l'événement"),
+    el("h3", {}, isNew ? "Nouvel Ã©vÃ©nement" : "Modifier l'Ã©vÃ©nement"),
     el("div", { class: "modal-form" },
       el("div", { class: "field" }, el("label", {}, "Type"), typeSel),
       el("div", { class: "field" }, el("label", {}, "Titre"), titleInput),
       el("div", { style: "display:grid;grid-template-columns:1fr 1fr;gap:0.6rem" },
-        el("div", { class: "field" }, el("label", {}, "Début"), startInput),
+        el("div", { class: "field" }, el("label", {}, "DÃ©but"), startInput),
         el("div", { class: "field" }, el("label", {}, "Fin (optionnel)"), endInput),
       ),
       el("div", { class: "field" }, el("label", {}, "Lieu"), locInput),
@@ -215,8 +215,8 @@ function renderEventCard(e, admin, onChanged) {
   const meta = el("div", { class: "agenda-meta" });
   meta.appendChild(el("span", { class: "agenda-meta-date" }, eventDateLabel(e)));
   const dur = eventDuration(e);
-  if (dur) meta.appendChild(el("span", { class: "agenda-meta-duration" }, " · " + dur));
-  if (e.location) meta.appendChild(el("span", { class: "agenda-meta-loc" }, " · 📍 " + e.location));
+  if (dur) meta.appendChild(el("span", { class: "agenda-meta-duration" }, " Â· " + dur));
+  if (e.location) meta.appendChild(el("span", { class: "agenda-meta-loc" }, " Â· ðŸ“ " + e.location));
   body.appendChild(meta);
 
   if (e.description) {
@@ -239,13 +239,13 @@ function renderEventCard(e, admin, onChanged) {
       class: "btn small danger icon-only",
       "aria-label": "Supprimer",
       onClick: async () => {
-        if (!confirm(`Supprimer « ${e.title} » ?`)) return;
+        if (!confirm(`Supprimer Â« ${e.title} Â» ?`)) return;
         try {
           const snapshot = { ...e };
           delete snapshot.id; delete snapshot.created_at; delete snapshot.updated_at;
           await deleteAgendaEvent(e.id);
-          toast("Supprimé · Ctrl+Z pour annuler", "success", 2400);
-          recordUndo("événement supprimé", async () => { await addAgendaEvent(snapshot); });
+          toast("SupprimÃ© Â· Ctrl+Z pour annuler", "success", 2400);
+          recordUndo("Ã©vÃ©nement supprimÃ©", async () => { await addAgendaEvent(snapshot); });
           onChanged();
         } catch (err) { toast(err.message, "error"); }
       }
@@ -266,22 +266,22 @@ function rerender(container) {
 
   container.appendChild(el("div", { class: "view-header" },
     el("div", { class: "view-header-text" },
-      el("p", { class: "eyebrow" }, events.length + " événement" + (events.length > 1 ? "s" : "") + " au calendrier"),
+      el("p", { class: "eyebrow" }, events.length + " Ã©vÃ©nement" + (events.length > 1 ? "s" : "") + " au calendrier"),
       el("h2", {}, "Calendrier"),
-      el("p", { class: "subtitle" }, "Dates importantes : examens, stages, formations, fériés."),
+      el("p", { class: "subtitle" }, "Dates importantes : examens, stages, formations, fÃ©riÃ©s."),
     ),
     admin ? el("button", {
       class: "btn primary",
       onClick: () => openEventModal(null, () => reload(container)),
-    }, icon.plus(), "Ajouter un événement") : null,
+    }, icon.plus(), "Ajouter un Ã©vÃ©nement") : null,
   ));
 
-  // Filtre passés / à venir
+  // Filtre passÃ©s / Ã  venir
   const filterBar = el("div", { class: "agenda-filters" },
     el("button", {
       class: "filter-pill" + (!showPast ? " active" : ""),
       onClick: () => { showPast = false; rerender(container); },
-    }, "À venir"),
+    }, "Ã€ venir"),
     el("button", {
       class: "filter-pill" + (showPast ? " active" : ""),
       onClick: () => { showPast = true; rerender(container); },
@@ -293,8 +293,8 @@ function rerender(container) {
 
   if (filtered.length === 0) {
     container.appendChild(el("div", { class: "agenda-empty" },
-      el("p", {}, showPast ? "Aucun événement enregistré." : "Aucun événement à venir."),
-      admin ? el("p", { class: "muted" }, "Clique « Ajouter un événement » pour commencer.") : null,
+      el("p", {}, showPast ? "Aucun Ã©vÃ©nement enregistrÃ©." : "Aucun Ã©vÃ©nement Ã  venir."),
+      admin ? el("p", { class: "muted" }, "Clique Â« Ajouter un Ã©vÃ©nement Â» pour commencer.") : null,
     ));
     return;
   }

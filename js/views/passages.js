@@ -1,10 +1,10 @@
-import { listStagiaires, listPassages, addPassage, updatePassage, deletePassage, listRecentPassagesAudit } from "../db.js?v=20260703a";
-import { el, clear, isoDate, formatDate, toast, displayStagiaire } from "../utils.js?v=20260703a";
-import { icon } from "../icons.js?v=20260703a";
-import { recordUndo } from "../undo.js?v=20260703a";
-import { TYPES, RESULTATS } from "../config.js?v=20260703a";
-import { isAdmin, getProfile } from "../auth-admin.js?v=20260703a";
-import { getCurrentWho } from "../identity.js?v=20260703a";
+import { listStagiaires, listPassages, addPassage, updatePassage, deletePassage, listRecentPassagesAudit } from "../db.js?v=20260703b";
+import { el, clear, isoDate, formatDate, toast, displayStagiaire } from "../utils.js?v=20260703b";
+import { icon } from "../icons.js?v=20260703b";
+import { recordUndo } from "../undo.js?v=20260703b";
+import { TYPES, RESULTATS } from "../config.js?v=20260703b";
+import { isAdmin, getProfile } from "../auth-admin.js?v=20260703b";
+import { getCurrentWho } from "../identity.js?v=20260703b";
 
 let stagiaires = [];
 let passages = [];
@@ -24,11 +24,11 @@ function openAddModal(onSaved, existing = null) {
     max: today,
   });
   const stagiaireSel = el("select");
-  stagiaireSel.appendChild(el("option", { value: "" }, "—"));
+  stagiaireSel.appendChild(el("option", { value: "" }, "â€”"));
   stagiaires.forEach((s) => stagiaireSel.appendChild(el("option", { value: s.id }, displayStagiaire(s))));
   if (existing) {
     stagiaireSel.value = String(existing.stagiaire_id);
-    // En édition, un non-admin ne peut pas réattribuer le passage à un autre stagiaire
+    // En Ã©dition, un non-admin ne peut pas rÃ©attribuer le passage Ã  un autre stagiaire
     if (!admin) stagiaireSel.disabled = true;
   }
 
@@ -41,7 +41,7 @@ function openAddModal(onSaved, existing = null) {
   if (existing) resultatSel.value = existing.resultat;
 
   const remplacantSel = el("select");
-  remplacantSel.appendChild(el("option", { value: "" }, "—"));
+  remplacantSel.appendChild(el("option", { value: "" }, "â€”"));
   stagiaires.forEach((s) => remplacantSel.appendChild(el("option", { value: s.id }, displayStagiaire(s))));
   if (existing && existing.remplacant_id) remplacantSel.value = String(existing.remplacant_id);
 
@@ -68,12 +68,12 @@ function openAddModal(onSaved, existing = null) {
           commentaire: existing.commentaire, updated_by_who: existing.updated_by_who,
         };
         await updatePassage(existing.id, { ...fields, updated_by_who: who });
-        toast("Passage modifié · Ctrl+Z pour annuler", "success", 2400);
-        recordUndo("passage modifié", async () => { await updatePassage(existing.id, prev); });
+        toast("Passage modifiÃ© Â· Ctrl+Z pour annuler", "success", 2400);
+        recordUndo("passage modifiÃ©", async () => { await updatePassage(existing.id, prev); });
       } else {
         const inserted = await addPassage({ ...fields, origine: "Manuel", created_by_who: who, updated_by_who: who });
-        toast("Passage enregistré · Ctrl+Z pour annuler", "success", 2400);
-        if (inserted?.id) recordUndo("passage ajouté", async () => { await deletePassage(inserted.id); });
+        toast("Passage enregistrÃ© Â· Ctrl+Z pour annuler", "success", 2400);
+        if (inserted?.id) recordUndo("passage ajoutÃ©", async () => { await deletePassage(inserted.id); });
       }
       backdrop.remove();
       onSaved();
@@ -99,8 +99,8 @@ function openAddModal(onSaved, existing = null) {
       dateField,
       el("div", { class: "field" }, el("label", {}, "Stagiaire"), stagiaireSel),
       el("div", { class: "field" }, el("label", {}, "Type"), typeSel),
-      el("div", { class: "field" }, el("label", {}, "Résultat"), resultatSel),
-      el("div", { class: "field" }, el("label", {}, "Remplacé par"), remplacantSel),
+      el("div", { class: "field" }, el("label", {}, "RÃ©sultat"), resultatSel),
+      el("div", { class: "field" }, el("label", {}, "RemplacÃ© par"), remplacantSel),
       el("div", { class: "field" }, el("label", {}, "Commentaire"), commentInput),
     ),
     el("div", { class: "modal-actions" }, cancelBtn, saveBtn)
@@ -127,7 +127,7 @@ function renderTable(container) {
 
   if (filtered.length === 0) {
     return el("div", { style: "padding:3rem 1rem;text-align:center;color:var(--text-muted)" },
-      el("p", {}, "Aucun passage à afficher."),
+      el("p", {}, "Aucun passage Ã  afficher."),
       el("p", { class: "faint", style: "font-size:0.85rem" }, "Modifie les filtres ou ajoute un passage.")
     );
   }
@@ -139,16 +139,16 @@ function renderTable(container) {
       el("th", {}, "Date"),
       el("th", {}, "Stagiaire"),
       el("th", {}, "Type"),
-      el("th", {}, "Résultat"),
-      el("th", {}, "Remplacé par"),
-      el("th", {}, "Ajouté par"),
+      el("th", {}, "RÃ©sultat"),
+      el("th", {}, "RemplacÃ© par"),
+      el("th", {}, "AjoutÃ© par"),
       showActions ? el("th", { style: "width:84px" }, "") : null
     )
   ));
 
   const tbody = el("tbody");
   filtered.forEach((p) => {
-    // Suppression réservée aux admins (RLS : seul is_admin() peut DELETE).
+    // Suppression rÃ©servÃ©e aux admins (RLS : seul is_admin() peut DELETE).
     const delBtn = admin ? el("button", {
       class: "btn small danger icon-only",
       "aria-label": "Supprimer",
@@ -158,8 +158,8 @@ function renderTable(container) {
         delete snapshot.id; delete snapshot.created_at; delete snapshot.updated_at;
         delete snapshot.stagiaire; delete snapshot.remplacant;
         await deletePassage(p.id);
-        toast("Passage supprimé · Ctrl+Z pour annuler", "success", 2400);
-        recordUndo("passage supprimé", async () => { await addPassage(snapshot); });
+        toast("Passage supprimÃ© Â· Ctrl+Z pour annuler", "success", 2400);
+        recordUndo("passage supprimÃ©", async () => { await addPassage(snapshot); });
         await reload(container);
       }
     }) : null;
@@ -171,9 +171,9 @@ function renderTable(container) {
       class: "btn small ghost icon-only",
       "aria-label": "Modifier",
       onClick: () => openAddModal(() => reload(container), p),
-    }, "✎") : null;
+    }, "âœŽ") : null;
 
-    const whoLabel = p.created_by_who || (p.origine === "Planning" ? "Auto" : "—");
+    const whoLabel = p.created_by_who || (p.origine === "Planning" ? "Auto" : "â€”");
     const isAdmin_ = whoLabel.includes("@");
 
     const tr = el("tr", {},
@@ -181,7 +181,7 @@ function renderTable(container) {
       el("td", {}, p.stagiaire ? displayStagiaire(p.stagiaire) : "?"),
       el("td", {}, el("span", { class: "tag " + (p.type === "Salle" ? "salle" : "voiture") }, p.type)),
       el("td", {}, resultTag(p.resultat)),
-      el("td", { class: "muted" }, p.remplacant ? displayStagiaire(p.remplacant) : "—"),
+      el("td", { class: "muted" }, p.remplacant ? displayStagiaire(p.remplacant) : "â€”"),
       el("td", {}, el("span", { class: "tag who" + (isAdmin_ ? " admin" : "") }, whoLabel)),
       showActions ? el("td", {}, el("span", { style: "display:inline-flex; gap:0.3rem" }, editBtn, delBtn)) : null
     );
@@ -202,7 +202,7 @@ async function openAuditModal() {
   const modal = el("div", { class: "modal", style: "max-width:680px" });
   modal.appendChild(el("h3", {}, "Historique des modifications"));
   modal.appendChild(el("p", { class: "muted", style: "margin:0 0 1rem;font-size:0.88rem" },
-    "100 dernières actions (ajout / modification / suppression) sur les passages."
+    "100 derniÃ¨res actions (ajout / modification / suppression) sur les passages."
   ));
 
   const list = el("div", { class: "audit-list" });
@@ -225,7 +225,7 @@ async function openAuditModal() {
     audit.forEach((a) => {
       const time = new Date(a.changed_at).toLocaleString("fr-FR");
       const who = a.changed_by_who || "Anonyme";
-      const actLabel = a.action === "insert" ? "Création" : a.action === "update" ? "Modification" : "Suppression";
+      const actLabel = a.action === "insert" ? "CrÃ©ation" : a.action === "update" ? "Modification" : "Suppression";
 
       let summary = "";
       const data = a.after_data || a.before_data || {};
@@ -233,7 +233,7 @@ async function openAuditModal() {
         const stagId = data.stagiaire_id;
         const stag = stagiaires.find((s) => s.id === stagId);
         const stagName = stag ? displayStagiaire(stag) : `#${stagId}`;
-        summary = `${stagName} · ${data.type} · ${data.resultat}`;
+        summary = `${stagName} Â· ${data.type} Â· ${data.resultat}`;
       }
 
       list.appendChild(el("div", { class: "audit-item " + a.action },
@@ -273,7 +273,7 @@ function rerender(container) {
   typeFilter.addEventListener("change", () => { filterType = typeFilter.value; rerender(container); });
 
   const resFilter = el("select");
-  resFilter.appendChild(el("option", { value: "" }, "Tous les résultats"));
+  resFilter.appendChild(el("option", { value: "" }, "Tous les rÃ©sultats"));
   RESULTATS.forEach((r) => {
     const opt = el("option", { value: r.value }, r.value);
     if (filterResultat === r.value) opt.selected = true;
@@ -291,9 +291,9 @@ function rerender(container) {
 
   container.appendChild(el("div", { class: "view-header" },
     el("div", { class: "view-header-text" },
-      el("p", { class: "eyebrow" }, passages.length + " entrées au total"),
+      el("p", { class: "eyebrow" }, passages.length + " entrÃ©es au total"),
       el("h2", {}, "Historique des passages"),
-      el("p", { class: "subtitle" }, "Tous les passages. Ajout ouvert à tous, suppression réservée aux admins. Chaque action est tracée."),
+      el("p", { class: "subtitle" }, "Tous les passages. Ajout ouvert Ã  tous, suppression rÃ©servÃ©e aux admins. Chaque action est tracÃ©e."),
     ),
     el("div", { style: "display:flex;gap:0.5rem;flex-wrap:wrap" }, histBtn, addBtn),
   ));
