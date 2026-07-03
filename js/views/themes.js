@@ -1,16 +1,16 @@
-import { listThemes, updateTheme, addTheme, deleteTheme, listQcmIndex } from "../db.js?v=20260703b";
-import { el, clear, isoDate, formatDate, toast, debounce } from "../utils.js?v=20260703b";
-import { icon } from "../icons.js?v=20260703b";
-import { isAdmin, getAdminEmail, isFounder, getViewAs } from "../auth-admin.js?v=20260703b";
-import { recordUndo } from "../undo.js?v=20260703b";
-import { openQcmEntrainement } from "./qcm.js?v=20260703b";
+import { listThemes, updateTheme, addTheme, deleteTheme, listQcmIndex } from "../db.js?v=20260703c";
+import { el, clear, isoDate, formatDate, toast, debounce } from "../utils.js?v=20260703c";
+import { icon } from "../icons.js?v=20260703c";
+import { isAdmin, getAdminEmail, isFounder, getViewAs } from "../auth-admin.js?v=20260703c";
+import { recordUndo } from "../undo.js?v=20260703c";
+import { openQcmEntrainement } from "./qcm.js?v=20260703c";
 
 let themes = [];
 let qcmByTheme = new Map();  // theme_id -> { id, nb_questions, published, ... }
 
-// Phase dev : le QCM n'est visible que par le fondateur en vue rÃ©elle.
-// En aperÃ§u Â« Voir en tant que â€¦ Â», il disparaÃ®t (= ce que verra un Ã©lÃ¨ve).
-// La RLS (lecture QCM = fondateur) double cette restriction cÃ´tÃ© serveur.
+// Phase dev : le QCM n'est visible que par le fondateur en vue réelle.
+// En aperçu « Voir en tant que … », il disparaît (= ce que verra un élève).
+// La RLS (lecture QCM = fondateur) double cette restriction côté serveur.
 function canSeeQcm() {
   return isFounder() && !getViewAs();
 }
@@ -21,26 +21,26 @@ async function loadQcmIndex() {
     const list = await listQcmIndex();
     qcmByTheme = new Map(list.filter((q) => q.nb_questions > 0).map((q) => [q.theme_id, q]));
   } catch (e) {
-    qcmByTheme = new Map();  // dÃ©gradation douce : on n'affiche simplement pas de QCM
+    qcmByTheme = new Map();  // dégradation douce : on n'affiche simplement pas de QCM
   }
 }
 
-// Puce compacte de la colonne QCM : â–¶ + nombre de questions.
+// Puce compacte de la colonne QCM : ▶ + nombre de questions.
 function qcmHintEl(theme, qcm) {
   return el("button", {
     class: "theme-qcm-hint", type: "button",
-    title: `Lancer l'entraÃ®nement (${qcm.nb_questions} questions)`,
+    title: `Lancer l'entraînement (${qcm.nb_questions} questions)`,
     onClick: (ev) => { ev.preventDefault(); ev.stopPropagation(); openQcmEntrainement(theme, qcm); },
   }, icon.play(), `${qcm.nb_questions} Q`);
 }
 
-// Bloc QCM dans la modale thÃ¨me (remplace le placeholder quand un QCM existe).
+// Bloc QCM dans la modale thème (remplace le placeholder quand un QCM existe).
 function themeQcmBlock(theme) {
   const qcm = qcmByTheme.get(theme.id);
   if (!qcm) {
     return el("div", { class: "theme-modal-placeholder" },
-      el("p", {}, "Contenu pÃ©dagogique Ã  venir : cours, QCM, exercices, supports."),
-      el("p", { class: "muted", style: "font-size:0.82rem" }, "Cette zone affichera les ressources liÃ©es au thÃ¨me dÃ¨s qu'elles seront disponibles."),
+      el("p", {}, "Contenu pédagogique à venir : cours, QCM, exercices, supports."),
+      el("p", { class: "muted", style: "font-size:0.82rem" }, "Cette zone affichera les ressources liées au thème dès qu'elles seront disponibles."),
     );
   }
   return el("div", { class: "theme-qcm-block" },
@@ -49,14 +49,14 @@ function themeQcmBlock(theme) {
       el("div", { style: "min-width:0" },
         el("p", { class: "theme-qcm-block-title" }, "QCM disponible"),
         el("p", { class: "muted", style: "font-size:0.82rem;margin:0" },
-          `${qcm.nb_questions} questions` + (qcm.published ? "" : " Â· examen non publiÃ©")),
+          `${qcm.nb_questions} questions` + (qcm.published ? "" : " · examen non publié")),
       ),
     ),
     el("button", { class: "btn primary", type: "button",
       onClick: (ev) => { ev.preventDefault(); openQcmEntrainement(theme, qcm); },
-    }, icon.play(), "Lancer l'entraÃ®nement"),
+    }, icon.play(), "Lancer l'entraînement"),
     el("p", { class: "muted", style: "font-size:0.78rem;text-align:center;margin:0.5rem 0 0" },
-      "L'entraÃ®nement est libre et ne compte pas dans les notes."),
+      "L'entraînement est libre et ne compte pas dans les notes."),
   );
 }
 let filterStatut = "";
@@ -65,18 +65,18 @@ let filterCategorie = "";
 let search = "";
 
 const STATUTS = [
-  { value: "Ã€ faire", color: "todo" },
+  { value: "À faire", color: "todo" },
   { value: "Fait",    color: "done" },
 ];
 
 function normalizeStatut(s) {
-  // Migration douce : "En cours" historique â†’ traitÃ© comme "Ã€ faire"
+  // Migration douce : "En cours" historique → traité comme "À faire"
   if (s === "Fait") return "Fait";
-  return "Ã€ faire";
+  return "À faire";
 }
 
 function toggleStatut(current) {
-  return normalizeStatut(current) === "Fait" ? "Ã€ faire" : "Fait";
+  return normalizeStatut(current) === "Fait" ? "À faire" : "Fait";
 }
 
 async function cycleStatut(theme, container, chipEl) {
@@ -91,10 +91,10 @@ async function cycleStatut(theme, container, chipEl) {
   try {
     await updateTheme(theme.id, patch);
     Object.assign(theme, patch);
-    // Update in-place sans rerender complet (Ã©vite le scroll jump)
+    // Update in-place sans rerender complet (évite le scroll jump)
     updateThemeRowInPlace(theme, chipEl);
     refreshStatsInPlace(container);
-    recordUndo("statut thÃ¨me", async () => {
+    recordUndo("statut thème", async () => {
       await updateTheme(theme.id, { statut: prevStatut, date_fait: prevDate });
       theme.statut = prevStatut;
       theme.date_fait = prevDate;
@@ -127,7 +127,7 @@ function updateThemeRowInPlace(theme, chipEl) {
       dateEl.appendChild(document.createTextNode(formatDate(theme.date_fait)));
     } else {
       dateEl.classList.add("muted");
-      dateEl.appendChild(document.createTextNode("â€”"));
+      dateEl.appendChild(document.createTextNode("—"));
     }
   }
 }
@@ -151,15 +151,15 @@ function openDateEditor(theme, anchorEl, container) {
       });
       theme.date_fait = newDate || null;
       if (newDate) theme.statut = "Fait";
-      recordUndo("date thÃ¨me", async () => {
+      recordUndo("date thème", async () => {
         await updateTheme(theme.id, { date_fait: prevDate, statut: prevStatut });
         theme.date_fait = prevDate;
         theme.statut = prevStatut;
       });
-      // Mise Ã  jour locale : le label affiche la nouvelle date sans tout rerender
+      // Mise à jour locale : le label affiche la nouvelle date sans tout rerender
       anchorEl.textContent = newDate ? formatDate(newDate) : "+ date";
       anchorEl.classList.toggle("muted", !newDate);
-      // Si on a posÃ© une date, statut devient Fait â†’ couleur ligne / chip
+      // Si on a posé une date, statut devient Fait → couleur ligne / chip
       if (newDate) {
         const row = anchorEl.closest(".theme-row");
         if (row) {
@@ -179,16 +179,16 @@ function openDateEditor(theme, anchorEl, container) {
       }
       refreshStatsInPlace(container);
       backdrop.remove();
-      toast("Date mise Ã  jour", "success", 1500);
+      toast("Date mise à jour", "success", 1500);
     } catch (e) {
       toast(e.message, "error");
     }
   }
 
   const modal = el("div", { class: "modal", style: "max-width:360px" },
-    el("h3", {}, "Date du thÃ¨me"),
+    el("h3", {}, "Date du thème"),
     el("p", { class: "muted", style: "margin:0 0 0.8rem;font-size:0.85rem" },
-      "Quand le thÃ¨me a-t-il Ã©tÃ© traitÃ© ? DÃ©finir une date force le statut Ã  Â« Fait Â»."),
+      "Quand le thème a-t-il été traité ? Définir une date force le statut à « Fait »."),
     el("div", { class: "modal-form" },
       el("div", { class: "field" }, el("label", {}, "Date"), dateInput),
     ),
@@ -239,15 +239,15 @@ function debouncedNoteSave(theme) {
 
 function renderThemeRow(theme, container) {
   const admin = isAdmin();
-  const num = theme.numero ? String(theme.numero).padStart(2, "0") : "â€”";
+  const num = theme.numero ? String(theme.numero).padStart(2, "0") : "—";
   const statutNorm = normalizeStatut(theme.statut);
   const color = statutNorm === "Fait" ? "done" : "todo";
 
-  // Statut chip cliquable (admin only) â€” toggle binaire
+  // Statut chip cliquable (admin only) — toggle binaire
   const statutChip = el(admin ? "button" : "span", {
     class: "theme-statut " + color + (admin ? " clickable" : ""),
     type: admin ? "button" : undefined,
-    title: admin ? "Cliquer pour basculer fait / Ã  faire" : ""
+    title: admin ? "Cliquer pour basculer fait / à faire" : ""
   },
     el("span", { class: "theme-statut-dot" }),
     statutNorm
@@ -261,7 +261,7 @@ function renderThemeRow(theme, container) {
   const notesInput = el("input", {
     type: "text",
     class: "theme-notes",
-    placeholder: admin ? "Notes pÃ©dagogiquesâ€¦" : "",
+    placeholder: admin ? "Notes pédagogiques…" : "",
     value: theme.notes || "",
     readonly: !admin || undefined,
   });
@@ -269,7 +269,7 @@ function renderThemeRow(theme, container) {
     notesInput.addEventListener("input", () => debouncedNoteSave(theme)(notesInput.value));
   }
 
-  // Date â€” Ã©ditable si admin
+  // Date — éditable si admin
   let dateLabel;
   if (admin) {
     dateLabel = el("button", {
@@ -284,16 +284,16 @@ function renderThemeRow(theme, container) {
   } else {
     dateLabel = theme.date_fait
       ? el("span", { class: "theme-date" }, formatDate(theme.date_fait))
-      : el("span", { class: "theme-date muted" }, "â€”");
+      : el("span", { class: "theme-date muted" }, "—");
   }
 
-  // Delete (admin notion seulement, jamais sur thÃ¨mes officiels)
+  // Delete (admin notion seulement, jamais sur thèmes officiels)
   let delBtn = null;
   if (admin && theme.type === "notion") {
     delBtn = el("button", {
       class: "btn small danger icon-only", "aria-label": "Supprimer la notion",
       onClick: async () => {
-        if (!confirm(`Supprimer la notion Â« ${theme.titre} Â» ?`)) return;
+        if (!confirm(`Supprimer la notion « ${theme.titre} » ?`)) return;
         await deleteTheme(theme.id);
         themes = themes.filter((t) => t.id !== theme.id);
         rerender(container);
@@ -304,11 +304,11 @@ function renderThemeRow(theme, container) {
 
   const titreBtn = el("button", {
     class: "theme-titre-link", type: "button",
-    title: "Voir le contenu du thÃ¨me",
+    title: "Voir le contenu du thème",
     onClick: () => openThemeModal(theme),
   }, theme.titre);
 
-  // Colonne QCM (fondateur seulement) : cellule dÃ©diÃ©e Ã  droite, jamais sous le titre.
+  // Colonne QCM (fondateur seulement) : cellule dédiée à droite, jamais sous le titre.
   const qcm = qcmByTheme.get(theme.id);
   const qcmCell = canSeeQcm()
     ? el("div", { class: "theme-qcm-cell" }, qcm ? qcmHintEl(theme, qcm) : null)
@@ -350,7 +350,7 @@ function openAddNotionModal(onSaved) {
   const backdrop = el("div", { class: "modal-backdrop" });
 
   const titreInput = el("input", { type: "text", placeholder: "Ex. Matrice GDE" });
-  const catInput = el("input", { type: "text", placeholder: "CatÃ©gorie (optionnel)", value: "Notion pÃ©dagogique" });
+  const catInput = el("input", { type: "text", placeholder: "Catégorie (optionnel)", value: "Notion pédagogique" });
 
   async function save() {
     if (!titreInput.value.trim()) { toast("Le titre est requis", "error"); return; }
@@ -362,17 +362,17 @@ function openAddNotionModal(onSaved) {
         ordre: 999,
         updated_by_email: getAdminEmail(),
       });
-      toast("Notion ajoutÃ©e", "success");
+      toast("Notion ajoutée", "success");
       backdrop.remove();
       onSaved();
     } catch (e) { toast(e.message, "error"); }
   }
 
   const modal = el("div", { class: "modal" },
-    el("h3", {}, "Ajouter une notion pÃ©dagogique"),
+    el("h3", {}, "Ajouter une notion pédagogique"),
     el("div", { class: "modal-form" },
       el("div", { class: "field" }, el("label", {}, "Titre"), titreInput),
-      el("div", { class: "field" }, el("label", {}, "CatÃ©gorie"), catInput),
+      el("div", { class: "field" }, el("label", {}, "Catégorie"), catInput),
     ),
     el("div", { class: "modal-actions" },
       el("button", { class: "btn ghost", onClick: () => backdrop.remove() }, "Annuler"),
@@ -384,36 +384,36 @@ function openAddNotionModal(onSaved) {
   document.body.appendChild(backdrop);
 }
 
-// MÃ©ta de prÃ©sentation par "famille" (groupe top-level dans la nav)
-// L'ordre ici dÃ©termine l'ordre d'affichage.
+// Méta de présentation par "famille" (groupe top-level dans la nav)
+// L'ordre ici détermine l'ordre d'affichage.
 const FAMILLES = [
   {
     key: "themes-officiels",
-    label: "ThÃ¨mes officiels",
-    short: "ThÃ¨mes",
+    label: "Thèmes officiels",
+    short: "Thèmes",
     match: (t) => t.type === "theme",
   },
   {
     key: "competences-formateur",
-    label: "CompÃ©tences formateur (TP ECSR)",
+    label: "Compétences formateur (TP ECSR)",
     short: "TP ECSR",
-    match: (t) => t.type === "notion" && t.categorie === "CompÃ©tence formateur (TP ECSR)",
+    match: (t) => t.type === "notion" && t.categorie === "Compétence formateur (TP ECSR)",
   },
   {
     key: "competences-conduite",
-    label: "CompÃ©tences conduite (REMC)",
+    label: "Compétences conduite (REMC)",
     short: "REMC",
-    match: (t) => t.type === "notion" && t.categorie === "CompÃ©tence conduite (REMC)",
+    match: (t) => t.type === "notion" && t.categorie === "Compétence conduite (REMC)",
   },
   {
     key: "notions-pedagogiques",
-    label: "Notions pÃ©dagogiques",
+    label: "Notions pédagogiques",
     short: "Notions",
-    match: (t) => t.type === "notion" && t.categorie === "Notion pÃ©dagogique",
+    match: (t) => t.type === "notion" && t.categorie === "Notion pédagogique",
   },
 ];
 
-let activeFamille = "all";  // "all" ou clÃ© de famille
+let activeFamille = "all";  // "all" ou clé de famille
 
 function familleStats(items) {
   const total = items.length;
@@ -421,7 +421,7 @@ function familleStats(items) {
   return { total, fait, aFaire: total - fait, pct: total ? Math.round(fait / total * 100) : 0 };
 }
 
-// Items visibles d'une famille selon les filtres courants (mÃªme logique que rerender).
+// Items visibles d'une famille selon les filtres courants (même logique que rerender).
 function visibleFamilleItems(f) {
   return themes.filter(f.match).filter((t) => {
     if (filterStatut && normalizeStatut(t.statut) !== filterStatut) return false;
@@ -436,9 +436,9 @@ function visibleFamilleItems(f) {
   });
 }
 
-// Recalcule en place les stats des sections (Faits / Ã€ faire / barre + %) et
-// l'eyebrow global, sans rerender complet (prÃ©serve scroll + inputs ouverts).
-// Corrige le dÃ©calage : la ligne se mettait Ã  jour mais pas l'en-tÃªte de section.
+// Recalcule en place les stats des sections (Faits / À faire / barre + %) et
+// l'eyebrow global, sans rerender complet (préserve scroll + inputs ouverts).
+// Corrige le décalage : la ligne se mettait à jour mais pas l'en-tête de section.
 function refreshStatsInPlace(container) {
   FAMILLES.forEach((f) => {
     const section = container.querySelector(".theme-section-" + f.key);
@@ -454,7 +454,7 @@ function refreshStatsInPlace(container) {
   });
   const tp = familleStats(themes.filter((t) => t.type === "theme"));
   const eyebrow = container.querySelector(".view-header .eyebrow");
-  if (eyebrow) eyebrow.textContent = tp.fait + " / " + tp.total + " thÃ¨mes officiels terminÃ©s";
+  if (eyebrow) eyebrow.textContent = tp.fait + " / " + tp.total + " thèmes officiels terminés";
 }
 
 function rerender(container) {
@@ -468,15 +468,15 @@ function rerender(container) {
     return { ...f, items, stats: familleStats(items) };
   }).filter((f) => f.items.length > 0);
 
-  // Stats globales (uniquement thÃ¨mes officiels)
+  // Stats globales (uniquement thèmes officiels)
   const themesOfficiels = themes.filter((t) => t.type === "theme");
   const totalProgress = familleStats(themesOfficiels);
 
   container.appendChild(el("div", { class: "view-header" },
     el("div", { class: "view-header-text" },
-      el("p", { class: "eyebrow" }, totalProgress.fait + " / " + totalProgress.total + " thÃ¨mes officiels terminÃ©s"),
-      el("h2", {}, "ThÃ¨mes & progression"),
-      el("p", { class: "subtitle" }, "RÃ©fÃ©rentiel officiel ECF (57 thÃ¨mes) + compÃ©tences TP ECSR (formateur) + compÃ©tences REMC (conduite) + notions pÃ©dagogiques."),
+      el("p", { class: "eyebrow" }, totalProgress.fait + " / " + totalProgress.total + " thèmes officiels terminés"),
+      el("h2", {}, "Thèmes & progression"),
+      el("p", { class: "subtitle" }, "Référentiel officiel ECF (57 thèmes) + compétences TP ECSR (formateur) + compétences REMC (conduite) + notions pédagogiques."),
     ),
     admin ? el("button", { class: "btn primary", onClick: () => openAddNotionModal(() => reload(container)) },
       icon.plus(), "Ajouter une notion"
@@ -503,8 +503,8 @@ function rerender(container) {
   });
   container.appendChild(pillsWrap);
 
-  // Filtres supplÃ©mentaires (recherche + statut + catÃ©gorie fine)
-  const searchInput = el("input", { type: "search", placeholder: "Rechercherâ€¦", value: search });
+  // Filtres supplémentaires (recherche + statut + catégorie fine)
+  const searchInput = el("input", { type: "search", placeholder: "Rechercher…", value: search });
   searchInput.addEventListener("input", debounce(() => { search = searchInput.value; rerender(container); }, 200));
 
   const statutSel = el("select");
@@ -520,7 +520,7 @@ function rerender(container) {
     el("div", { class: "passages-filters" }, searchInput, statutSel),
   ));
 
-  // DÃ©termine les familles Ã  afficher (active ou toutes)
+  // Détermine les familles à afficher (active ou toutes)
   const famillesToShow = activeFamille === "all"
     ? famillesData
     : famillesData.filter((f) => f.key === activeFamille);
@@ -550,7 +550,7 @@ function rerender(container) {
     section.appendChild(el("div", { class: "theme-section-head" },
       el("div", { class: "theme-section-title-wrap" },
         el("h3", { class: "theme-section-title" }, f.label),
-        el("p", { class: "muted theme-section-subtitle" }, items.length + " entrÃ©e" + (items.length > 1 ? "s" : "")),
+        el("p", { class: "muted theme-section-subtitle" }, items.length + " entrée" + (items.length > 1 ? "s" : "")),
       ),
       el("div", { class: "theme-section-stats" },
         el("div", { class: "theme-section-stat" },
@@ -559,7 +559,7 @@ function rerender(container) {
         ),
         el("div", { class: "theme-section-stat" },
           el("span", { class: "theme-section-stat-value" }, String(stats.aFaire)),
-          el("span", { class: "theme-section-stat-label" }, "Ã€ faire"),
+          el("span", { class: "theme-section-stat-label" }, "À faire"),
         ),
       ),
     ));
@@ -575,11 +575,11 @@ function rerender(container) {
       ));
     }
 
-    // Liste des thÃ¨mes/notions, sous-groupÃ©e par catÃ©gorie si c'est une famille avec sous-cats (thÃ¨mes officiels)
+    // Liste des thèmes/notions, sous-groupée par catégorie si c'est une famille avec sous-cats (thèmes officiels)
     const list = el("div", { class: "themes-list" + (canSeeQcm() ? " qcm-on" : "") });
     list.appendChild(el("div", { class: "theme-row theme-header" },
-      el("span", { class: "theme-num" }, "NÂ°"),
-      el("span", {}, "ThÃ¨me"),
+      el("span", { class: "theme-num" }, "N°"),
+      el("span", {}, "Thème"),
       el("span", {}, "Statut"),
       el("span", {}, "Fait le"),
       el("span", {}, "Notes"),
@@ -587,17 +587,17 @@ function rerender(container) {
       el("span", {}),
     ));
 
-    // Sous-groupage par catÃ©gorie uniquement pour les thÃ¨mes officiels (qui ont 11 sous-catÃ©gories)
+    // Sous-groupage par catégorie uniquement pour les thèmes officiels (qui ont 11 sous-catégories)
     const needsSubGroup = f.key === "themes-officiels";
     if (needsSubGroup) {
       const grouped = {};
       items.forEach((t) => {
-        const key = t.categorie || "Sans catÃ©gorie";
+        const key = t.categorie || "Sans catégorie";
         if (!grouped[key]) grouped[key] = [];
         grouped[key].push(t);
       });
       Object.entries(grouped).forEach(([cat, gItems]) => {
-        list.appendChild(el("div", { class: "theme-group-head" }, cat, el("span", { class: "muted" }, " Â· " + gItems.length)));
+        list.appendChild(el("div", { class: "theme-group-head" }, cat, el("span", { class: "muted" }, " · " + gItems.length)));
         gItems.forEach((t) => list.appendChild(renderThemeRow(t, container)));
       });
     } else {
@@ -608,10 +608,10 @@ function rerender(container) {
     container.appendChild(section);
   });
 
-  // Aucun rÃ©sultat
+  // Aucun résultat
   const anyShown = famillesToShow.some((f) => f.items.length > 0);
   if (!anyShown) {
-    container.appendChild(el("p", { class: "muted", style: "padding:2rem 0;text-align:center" }, "Aucun thÃ¨me ne correspond aux filtres."));
+    container.appendChild(el("p", { class: "muted", style: "padding:2rem 0;text-align:center" }, "Aucun thème ne correspond aux filtres."));
   }
 }
 

@@ -1,23 +1,23 @@
 /*
- * Promo ECSR â€” Application propriÃ©taire.
- * Â© 2026 watchi64 â€” Tous droits rÃ©servÃ©s. Voir LICENSE.
+ * Promo ECSR — Application propriétaire.
+ * © 2026 watchi64 — Tous droits réservés. Voir LICENSE.
  */
-import { signInWithPassword, signUpWithPassword, getCurrentUser, invalidateCache } from "./db.js?v=20260703b";
-import { toast } from "./utils.js?v=20260703b";
-import { icon } from "./icons.js?v=20260703b";
-import { initAuth, onAdminChange, isAuth } from "./auth-admin.js?v=20260703b";
-import { loadAccent } from "./accent-switcher.js?v=20260703b";
-import { loadTheme } from "./theme-switcher.js?v=20260703b";
-import { renderHome } from "./views/home.js?v=20260703b";
-import { renderDashboard } from "./views/dashboard.js?v=20260703b";
-import { renderPlanning, teardownPrintTarget } from "./views/planning.js?v=20260703b";
-import { renderPassages } from "./views/passages.js?v=20260703b";
-import { renderNotes } from "./views/notes.js?v=20260703b";
-import { renderRessources } from "./views/ressources.js?v=20260703b";
-import { renderThemes } from "./views/themes.js?v=20260703b";
-import { renderConfig } from "./views/config.js?v=20260703b";
-import { renderCalendrier } from "./views/calendrier.js?v=20260703b";
-import { initUndoKeyboard } from "./undo.js?v=20260703b";
+import { signInWithPassword, signUpWithPassword, getCurrentUser, invalidateCache } from "./db.js?v=20260703c";
+import { toast } from "./utils.js?v=20260703c";
+import { icon } from "./icons.js?v=20260703c";
+import { initAuth, onAdminChange, isAuth } from "./auth-admin.js?v=20260703c";
+import { loadAccent } from "./accent-switcher.js?v=20260703c";
+import { loadTheme } from "./theme-switcher.js?v=20260703c";
+import { renderHome } from "./views/home.js?v=20260703c";
+import { renderDashboard } from "./views/dashboard.js?v=20260703c";
+import { renderPlanning, teardownPrintTarget } from "./views/planning.js?v=20260703c";
+import { renderPassages } from "./views/passages.js?v=20260703c";
+import { renderNotes } from "./views/notes.js?v=20260703c";
+import { renderRessources } from "./views/ressources.js?v=20260703c";
+import { renderThemes } from "./views/themes.js?v=20260703c";
+import { renderConfig } from "./views/config.js?v=20260703c";
+import { renderCalendrier } from "./views/calendrier.js?v=20260703c";
+import { initUndoKeyboard } from "./undo.js?v=20260703c";
 
 // ===== Gate : email magic link =====
 
@@ -45,12 +45,12 @@ function showGate() {
       subtitle.textContent = "Entre ton email et ton mot de passe.";
       submit.textContent = "Se connecter";
       passwordInput.autocomplete = "current-password";
-      hint.textContent = "Pas encore inscrit ? Bascule sur Â« CrÃ©er un compte Â» (ton email doit Ãªtre whitelistÃ©).";
+      hint.textContent = "Pas encore inscrit ? Bascule sur « Créer un compte » (ton email doit être whitelisté).";
     } else {
-      subtitle.textContent = "CrÃ©e ton compte : email (whitelistÃ© par un admin) + choisis un mot de passe.";
-      submit.textContent = "CrÃ©er mon compte";
+      subtitle.textContent = "Crée ton compte : email (whitelisté par un admin) + choisis un mot de passe.";
+      submit.textContent = "Créer mon compte";
       passwordInput.autocomplete = "new-password";
-      hint.textContent = "Tu dois avoir Ã©tÃ© invitÃ© au prÃ©alable. Sinon l'inscription sera refusÃ©e.";
+      hint.textContent = "Tu dois avoir été invité au préalable. Sinon l'inscription sera refusée.";
     }
     error.classList.add("hidden");
     submit.disabled = false;
@@ -74,31 +74,31 @@ function showGate() {
       error.classList.remove("hidden");
       return;
     }
-    // Longueur minimale exigÃ©e seulement Ã  la crÃ©ation (la connexion valide
-    // le vrai mot de passe cÃ´tÃ© serveur).
+    // Longueur minimale exigée seulement à la création (la connexion valide
+    // le vrai mot de passe côté serveur).
     if (mode === "signup" && password.length < 8) {
-      error.textContent = "Mot de passe : 8 caractÃ¨res minimum";
+      error.textContent = "Mot de passe : 8 caractères minimum";
       error.classList.remove("hidden");
       return;
     }
     error.classList.add("hidden");
     submit.disabled = true;
     const original = submit.textContent;
-    submit.textContent = mode === "signup" ? "CrÃ©ationâ€¦" : "Connexionâ€¦";
+    submit.textContent = mode === "signup" ? "Création…" : "Connexion…";
     try {
       if (mode === "signup") {
         await signUpWithPassword(email, password);
       } else {
         await signInWithPassword(email, password);
       }
-      // initAuth() est dÃ©jÃ  cÃ¢blÃ© via onAuthChange ; le polling watch bootera l'app.
+      // initAuth() est déjà câblé via onAuthChange ; le polling watch bootera l'app.
     } catch (e) {
       console.error("Gate auth error:", e);
       let msg = e?.message || String(e);
       // Messages Supabase plus parlants
       if (/Invalid login credentials/i.test(msg)) msg = "Email ou mot de passe incorrect.";
-      else if (/User already registered/i.test(msg)) msg = "Cet email a dÃ©jÃ  un compte. Bascule sur Â« Connexion Â».";
-      else if (/non autorisÃ©/i.test(msg) || /Database error/i.test(msg)) msg = "Email non whitelistÃ©. Demande Ã  un admin de t'inviter d'abord.";
+      else if (/User already registered/i.test(msg)) msg = "Cet email a déjà un compte. Bascule sur « Connexion ».";
+      else if (/non autorisé/i.test(msg) || /Database error/i.test(msg)) msg = "Email non whitelisté. Demande à un admin de t'inviter d'abord.";
       error.textContent = msg;
       error.classList.remove("hidden");
       submit.disabled = false;
@@ -123,11 +123,11 @@ const TABS = [
   { route: "dashboard",  label: "Tableau de bord", icon: "dashboard" },
   { route: "planning",   label: "Planning",        icon: "calendar"  },
   { route: "calendrier", label: "Calendrier",      icon: "clock"     },
-  { route: "themes",     label: "ThÃ¨mes",          icon: "list"      },
+  { route: "themes",     label: "Thèmes",          icon: "list"      },
   { route: "passages",   label: "Passages",        icon: "history"   },
   { route: "notes",      label: "Notes",           icon: "edu"       },
   { route: "ressources", label: "Ressources",      icon: "signpost"  },
-  { route: "config",     label: "ParamÃ¨tres",      icon: "settings"  },
+  { route: "config",     label: "Paramètres",      icon: "settings"  },
 ];
 
 function renderTabs() {
@@ -170,13 +170,13 @@ async function navigate() {
     else t.removeAttribute("aria-current");
   });
   const view = document.getElementById("view");
-  // Le conteneur #view est partagÃ© entre toutes les vues. On rÃ©initialise l'Ã©tat
-  // qu'une vue prÃ©cÃ©dente a pu y laisser, sinon il contamine la suivante.
-  // Cas concret : le planning pose Â« read-only Â» sur #view (non-admin) et ne le
-  // retirait jamais â†’ Â« .read-only select { pointer-events: none } Â» gelait ensuite
-  // le tri des Notes, les filtres, etc. Le planning re-pose la classe Ã  son rendu.
+  // Le conteneur #view est partagé entre toutes les vues. On réinitialise l'état
+  // qu'une vue précédente a pu y laisser, sinon il contamine la suivante.
+  // Cas concret : le planning pose « read-only » sur #view (non-admin) et ne le
+  // retirait jamais → « .read-only select { pointer-events: none } » gelait ensuite
+  // le tri des Notes, les filtres, etc. Le planning re-pose la classe à son rendu.
   view.classList.remove("read-only");
-  // En quittant le planning, on retire sa cible d'impression (re-montÃ©e par renderPlanning).
+  // En quittant le planning, on retire sa cible d'impression (re-montée par renderPlanning).
   teardownPrintTarget();
   try {
     await routes[route](view);
@@ -192,17 +192,17 @@ async function navigate() {
     const sub = document.createElement("p");
     sub.className = "view-error-sub";
     sub.textContent = isTimeout
-      ? "Le serveur n'a pas rÃ©pondu Ã  temps. VÃ©rifie ta connexion et rÃ©essaie."
-      : "DÃ©tail : " + (e?.message || e);
+      ? "Le serveur n'a pas répondu à temps. Vérifie ta connexion et réessaie."
+      : "Détail : " + (e?.message || e);
     const retry = document.createElement("button");
     retry.className = "btn primary";
-    retry.textContent = "RÃ©essayer";
+    retry.textContent = "Réessayer";
     retry.addEventListener("click", () => navigate());
     box.appendChild(h);
     box.appendChild(sub);
     box.appendChild(retry);
     view.appendChild(box);
-    toast(isTimeout ? "Connexion trop lente, rÃ©essaie" : (e?.message || String(e)), "error");
+    toast(isTimeout ? "Connexion trop lente, réessaie" : (e?.message || String(e)), "error");
   }
 }
 
@@ -213,7 +213,7 @@ function setupRefreshBtn() {
   btn.innerHTML = "";
   btn.appendChild(icon.refresh());
   btn.addEventListener("click", () => {
-    // Force le rechargement rÃ©el : vide le cache des donnÃ©es de rÃ©fÃ©rence
+    // Force le rechargement réel : vide le cache des données de référence
     invalidateCache();
     navigate();
   });
@@ -236,11 +236,11 @@ async function bootApp() {
   if (isAuth()) {
     await bootApp();
   } else {
-    // Pas connectÃ© â†’ gate.
-    // Si l'URL contient ?code=... (callback magic link), Supabase a dÃ©jÃ  handle ;
-    // un onAuthChange va dÃ©clencher le boot automatiquement.
+    // Pas connecté → gate.
+    // Si l'URL contient ?code=... (callback magic link), Supabase a déjà handle ;
+    // un onAuthChange va déclencher le boot automatiquement.
     showGate();
-    // Surveille le moment oÃ¹ l'auth devient valide pour basculer.
+    // Surveille le moment où l'auth devient valide pour basculer.
     const watch = setInterval(async () => {
       if (isAuth()) {
         clearInterval(watch);
@@ -248,7 +248,7 @@ async function bootApp() {
       } else {
         const u = await getCurrentUser();
         if (u) {
-          // user connectÃ© mais profile pas encore prÃªt â†’ on attend
+          // user connecté mais profile pas encore prêt → on attend
         }
       }
     }, 800);

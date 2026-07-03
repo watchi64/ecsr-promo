@@ -1,11 +1,11 @@
 /*
- * QCM â€” player plein Ã©cran.
- * Lot 1 : mode "entraÃ®nement" (libre, correction immÃ©diate, non comptÃ©e).
+ * QCM — player plein écran.
+ * Lot 1 : mode "entraînement" (libre, correction immédiate, non comptée).
  * L'examen (tirage N, une passe, note) viendra en Lot 2.
  */
-import { el, clear, toast } from "../utils.js?v=20260703b";
-import { icon } from "../icons.js?v=20260703b";
-import { getQcmFull, insertQcmAttempt, getMyProfile } from "../db.js?v=20260703b";
+import { el, clear, toast } from "../utils.js?v=20260703c";
+import { icon } from "../icons.js?v=20260703c";
+import { getQcmFull, insertQcmAttempt, getMyProfile } from "../db.js?v=20260703c";
 
 function shuffle(arr) {
   const a = arr.slice();
@@ -20,7 +20,7 @@ function letter(i) {
   return String.fromCharCode(65 + i); // A, B, C, D, E
 }
 
-// Point d'entrÃ©e : ouvre l'entraÃ®nement d'un QCM pour un thÃ¨me donnÃ©.
+// Point d'entrée : ouvre l'entraînement d'un QCM pour un thème donné.
 export async function openQcmEntrainement(theme, qcmMeta) {
   let full;
   try {
@@ -57,13 +57,13 @@ function runEntrainement(theme, full, questions) {
   // Fermeture au clic sur le fond (hors du player)
   overlay.addEventListener("click", (e) => { if (e.target === overlay) close(); });
 
-  const numPrefix = theme.numero ? String(theme.numero).padStart(2, "0") + " Â· " : "";
+  const numPrefix = theme.numero ? String(theme.numero).padStart(2, "0") + " · " : "";
   const headTitle = numPrefix + theme.titre;
 
   function header(sub) {
     return el("div", { class: "qcm-head" },
       el("div", { class: "qcm-head-text" },
-        el("span", { class: "qcm-badge" }, "EntraÃ®nement"),
+        el("span", { class: "qcm-badge" }, "Entraînement"),
         el("p", { class: "qcm-head-title" }, headTitle),
         sub ? el("p", { class: "qcm-head-sub" }, sub) : null,
       ),
@@ -95,7 +95,7 @@ function runEntrainement(theme, full, questions) {
     let answered = false;
 
     const nextBtn = el("button", { class: "btn primary qcm-next", type: "button", style: "display:none" },
-      idx + 1 < total ? "Question suivante" : "Voir le rÃ©sultat");
+      idx + 1 < total ? "Question suivante" : "Voir le résultat");
     nextBtn.addEventListener("click", () => {
       if (idx + 1 < total) { idx++; renderQuestion(); }
       else renderResults();
@@ -146,7 +146,7 @@ function runEntrainement(theme, full, questions) {
         el("small", {}, `${note20}/20`),
       ),
       el("p", { class: "qcm-results-sub" },
-        pct >= 100 ? "Sans faute, bravo." : pct >= 60 ? "Bien, continue Ã  rÃ©viser." : "Ã€ retravailler."),
+        pct >= 100 ? "Sans faute, bravo." : pct >= 60 ? "Bien, continue à réviser." : "À retravailler."),
     ));
 
     const recap = el("div", { class: "qcm-recap" });
@@ -154,11 +154,11 @@ function runEntrainement(theme, full, questions) {
       const correctOpt = q.options.find((o) => o.is_correct);
       const ok = correctOpt && answers[q.id] === correctOpt.id;
       recap.appendChild(el("div", { class: "qcm-recap-item " + (ok ? "ok" : "ko") },
-        el("span", { class: "qcm-recap-mark" }, ok ? "âœ“" : "âœ—"),
+        el("span", { class: "qcm-recap-mark" }, ok ? "✓" : "✗"),
         el("div", { class: "qcm-recap-body" },
           el("p", { class: "qcm-recap-q" }, `${i + 1}. ${q.enonce}`),
           q.image_url ? el("img", { class: "qcm-recap-img", src: q.image_url, alt: "", loading: "lazy" }) : null,
-          ok ? null : el("p", { class: "qcm-recap-a" }, "Bonne rÃ©ponse : " + (correctOpt ? correctOpt.texte : "")),
+          ok ? null : el("p", { class: "qcm-recap-a" }, "Bonne réponse : " + (correctOpt ? correctOpt.texte : "")),
         ),
       ));
     });
@@ -173,8 +173,8 @@ function runEntrainement(theme, full, questions) {
       } }, "Recommencer"),
     ));
 
-    // Enregistre la tentative d'entraÃ®nement si l'utilisateur est un stagiaire liÃ©.
-    // Non bloquant : l'entraÃ®nement reste utile mÃªme si l'Ã©criture Ã©choue.
+    // Enregistre la tentative d'entraînement si l'utilisateur est un stagiaire lié.
+    // Non bloquant : l'entraînement reste utile même si l'écriture échoue.
     try {
       const profile = await getMyProfile();
       if (profile?.stagiaire_id) {
@@ -190,7 +190,7 @@ function runEntrainement(theme, full, questions) {
         });
       }
     } catch (e) {
-      console.warn("QCM : tentative non enregistrÃ©e:", e?.message || e);
+      console.warn("QCM : tentative non enregistrée:", e?.message || e);
     }
   }
 

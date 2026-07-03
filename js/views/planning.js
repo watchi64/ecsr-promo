@@ -5,25 +5,25 @@ import {
   getSetting, setSetting,
   addPassagesBatch, deletePassagesBatch, getPassagesInRange, updateTheme,
   listBenevoles, listBenevolesNoms,
-} from "../db.js?v=20260703b";
-import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260703b";
-import { icon } from "../icons.js?v=20260703b";
-import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260703b";
-import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260703b";
-import { recordUndo } from "../undo.js?v=20260703b";
-import { getCurrentWho } from "../identity.js?v=20260703b";
-import { openBenevolesPanel } from "./benevoles.js?v=20260703b";
+} from "../db.js?v=20260703c";
+import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260703c";
+import { icon } from "../icons.js?v=20260703c";
+import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260703c";
+import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260703c";
+import { recordUndo } from "../undo.js?v=20260703c";
+import { getCurrentWho } from "../identity.js?v=20260703c";
+import { openBenevolesPanel } from "./benevoles.js?v=20260703c";
 
 let stagiaires = [];
 let profs = [];
 let themes = [];
-let benevoles = [];  // admin : lignes complÃ¨tes + display ; sinon : {id, display} via RPC
+let benevoles = [];  // admin : lignes complètes + display ; sinon : {id, display} via RPC
 let entries = [];
 let halfMetas = [];  // [{semaine_lundi, day_index, half_day, start_time, end_time, pause_start, pause_minutes}]
 let semaineLundi = null;
 let currentContainer = null;
 
-// DÃ©fauts horaires si pas de meta en DB
+// Défauts horaires si pas de meta en DB
 const DEFAULT_HALF_META = {
   matin: { start_time: "09:00", end_time: "12:30", pause_start: "10:45", pause_minutes: 20 },
   aprem: { start_time: "13:30", end_time: "17:00", pause_start: "15:15", pause_minutes: 20 },
@@ -35,7 +35,7 @@ function metaFor(d, half) {
 }
 
 function timesLabel(meta) {
-  return `${meta.start_time.replace(":", "h")} Ã  ${meta.end_time.replace(":", "h")}`;
+  return `${meta.start_time.replace(":", "h")} à ${meta.end_time.replace(":", "h")}`;
 }
 
 function pauseLabel(meta) {
@@ -59,7 +59,7 @@ function entriesFor(d, half) {
   return entries.filter((e) => e.day_index === d && e.half_day === half);
 }
 
-// On groupe par "slot" (ordre temporel). Dans chaque slot, plusieurs "lane" (parallÃ¨le).
+// On groupe par "slot" (ordre temporel). Dans chaque slot, plusieurs "lane" (parallèle).
 function rowsFor(d, half) {
   const list = entriesFor(d, half);
   const slotsByNumber = new Map();
@@ -75,9 +75,9 @@ function rowsFor(d, half) {
     }));
 }
 
-// Construit le payload d'upsert (clÃ© de conflit = semaine,jour,demi-journÃ©e,slot,lane).
+// Construit le payload d'upsert (clé de conflit = semaine,jour,demi-journée,slot,lane).
 // La position (slot/lane) identifie la ligne en base : on ne la change jamais lors
-// d'un Ã©change â€” c'est le contenu qu'on permute (cf. swapEntries).
+// d'un échange — c'est le contenu qu'on permute (cf. swapEntries).
 function entryUpsertPayload(entry) {
   return {
     semaine_lundi: semaineLundi,
@@ -91,7 +91,7 @@ function entryUpsertPayload(entry) {
     sujet: entry.sujet ?? null,
     pedagogue_id: entry.pedagogue_id ?? null,
     eleves_ids: entry.eleves_ids ?? [],
-    // PÃ©dagogie salle 2e groupe (un seul crÃ©neau peut faire tourner 2 tableaux)
+    // Pédagogie salle 2e groupe (un seul créneau peut faire tourner 2 tableaux)
     pedagogue_id_2: entry.pedagogue_id_2 ?? null,
     eleves_ids_2: entry.eleves_ids_2 ?? [],
     salle_double: entry.salle_double ?? false,
@@ -101,18 +101,18 @@ function entryUpsertPayload(entry) {
 }
 
 async function saveEntry(localId, patch) {
-  // Garde d'accÃ¨s : seuls les admins (formateurs) Ã©crivent le planning. Backstop
-  // si un contrÃ´le d'Ã©dition fuit en lecture seule (la RLS bloque dÃ©jÃ  cÃ´tÃ© serveur,
-  // mais on Ã©vite ici la mutation locale optimiste + le toast d'erreur trompeur).
+  // Garde d'accès : seuls les admins (formateurs) écrivent le planning. Backstop
+  // si un contrôle d'édition fuit en lecture seule (la RLS bloque déjà côté serveur,
+  // mais on évite ici la mutation locale optimiste + le toast d'erreur trompeur).
   if (!isAdmin()) return;
   const entry = entries.find((e) => e._lid === localId);
   if (!entry) return;
   Object.assign(entry, patch);
 
-  // Garde le DOM d'impression cachÃ© en phase avec CHAQUE Ã©dition en place. Beaucoup
-  // d'Ã©ditions (sujet, Ã©lÃ¨ves, profs, note, activitÃ©) ne passent pas par renderInto,
-  // et iOS Safari ne dÃ©clenche pas `beforeprint` : sans Ã§a, un Partageâ†’Imprimer aprÃ¨s
-  // une saisie imprimerait un planning pÃ©rimÃ©. No-op hors planning.
+  // Garde le DOM d'impression caché en phase avec CHAQUE édition en place. Beaucoup
+  // d'éditions (sujet, élèves, profs, note, activité) ne passent pas par renderInto,
+  // et iOS Safari ne déclenche pas `beforeprint` : sans ça, un Partage→Imprimer après
+  // une saisie imprimerait un planning périmé. No-op hors planning.
   syncPrintTargetIfMounted();
 
   const payload = entryUpsertPayload(entry);
@@ -126,7 +126,7 @@ async function saveEntry(localId, patch) {
       if (patch.activite !== undefined && cellEl) {
         const newCell = renderLaneCell(entry);
         // Conserve le positionnement en grille, sinon la cellule retombe en colonne 1
-        // (auto-placement) et chevauche les lanes parallÃ¨les jusqu'au prochain re-render.
+        // (auto-placement) et chevauche les lanes parallèles jusqu'au prochain re-render.
         newCell.style.gridColumn = String((entry.lane ?? 0) + 1);
         cellEl.replaceWith(newCell);
       }
@@ -140,14 +140,14 @@ async function saveEntry(localId, patch) {
   return p;
 }
 
-// Force le blur de l'input actif (dÃ©clenche les saves pendant blur),
-// puis attend que TOUTES les promesses de save en cours soient rÃ©solues.
+// Force le blur de l'input actif (déclenche les saves pendant blur),
+// puis attend que TOUTES les promesses de save en cours soient résolues.
 async function flushPendingInputs() {
   const active = document.activeElement;
   if (active && active !== document.body && typeof active.blur === "function") {
     active.blur();
   }
-  // Microtask + dÃ©lai court pour laisser les handlers blur asynchrones
+  // Microtask + délai court pour laisser les handlers blur asynchrones
   // ajouter leurs promesses dans pendingSaves.
   await new Promise((resolve) => setTimeout(resolve, 50));
   // Maintenant on attend que TOUS les saves en cours se terminent (vraie DB round-trip).
@@ -156,7 +156,7 @@ async function flushPendingInputs() {
   }
 }
 
-// Version simplifiÃ©e : ajoute en fin de sÃ©quence (la plupart des cas)
+// Version simplifiée : ajoute en fin de séquence (la plupart des cas)
 async function addSlotEnd(d, half) {
   await flushPendingInputs();
   const list = entriesFor(d, half);
@@ -172,7 +172,7 @@ async function addSlotEnd(d, half) {
     renderInto(currentContainer);
   } catch (e) {
     console.error(e);
-    toast("Erreur crÃ©ation crÃ©neau", "error");
+    toast("Erreur création créneau", "error");
   }
 }
 
@@ -191,14 +191,14 @@ async function addLaneInSlot(d, half, slot) {
     renderInto(currentContainer);
   } catch (e) {
     console.error(e);
-    toast("Erreur crÃ©ation parallÃ¨le", "error");
+    toast("Erreur création parallèle", "error");
   }
 }
 
-// === Ã‰change de deux cartes (drag & drop) ===
+// === Échange de deux cartes (drag & drop) ===
 // On permute le CONTENU des deux cartes (pas leur position en base) : les lignes
-// gardent leur (slot, lane), donc aucun conflit avec la contrainte d'unicitÃ©, et on
-// rÃ©utilise l'upsert existant. Visuellement = un dÃ©placement. Undo via Ctrl+Z.
+// gardent leur (slot, lane), donc aucun conflit avec la contrainte d'unicité, et on
+// réutilise l'upsert existant. Visuellement = un déplacement. Undo via Ctrl+Z.
 const SWAP_FIELDS = ["activite", "prof_ids", "prof_id", "sujet", "pedagogue_id", "eleves_ids", "pedagogue_id_2", "eleves_ids_2", "salle_double", "benevoles_ids", "notes"];
 
 function snapshotFields(entry) {
@@ -215,7 +215,7 @@ async function swapEntries(lidA, lidB, opts = {}) {
 
   const beforeA = snapshotFields(a);
   const beforeB = snapshotFields(b);
-  // Permute le contenu en mÃ©moire
+  // Permute le contenu en mémoire
   SWAP_FIELDS.forEach((f) => { const t = a[f]; a[f] = b[f]; b[f] = t; });
 
   const persistBoth = () => Promise.all([
@@ -226,8 +226,8 @@ async function swapEntries(lidA, lidB, opts = {}) {
   try {
     await persistBoth();
     renderInto(currentContainer);
-    toast(opts.toast || "Cartes Ã©changÃ©es Â· Ctrl+Z pour annuler", "success", 2000);
-    recordUndo(opts.undoLabel || "Ã©change de cartes", async () => {
+    toast(opts.toast || "Cartes échangées · Ctrl+Z pour annuler", "success", 2000);
+    recordUndo(opts.undoLabel || "échange de cartes", async () => {
       Object.assign(a, beforeA);
       Object.assign(b, beforeB);
       await persistBoth();
@@ -235,32 +235,32 @@ async function swapEntries(lidA, lidB, opts = {}) {
     });
   } catch (e) {
     console.error(e);
-    // Revert mÃ©moire si l'enregistrement Ã©choue
+    // Revert mémoire si l'enregistrement échoue
     Object.assign(a, beforeA);
     Object.assign(b, beforeB);
     renderInto(currentContainer);
-    toast("Erreur lors de l'Ã©change", "error");
+    toast("Erreur lors de l'échange", "error");
   }
 }
 
-// Confirmation (friction) avant un dÃ©placement vers une AUTRE demi-journÃ©e / un autre
-// jour, pour Ã©viter les dÃ©placements par inadvertance. Retourne true si on continue.
+// Confirmation (friction) avant un déplacement vers une AUTRE demi-journée / un autre
+// jour, pour éviter les déplacements par inadvertance. Retourne true si on continue.
 function confirmCrossMove(sourceLid, targetLid) {
   const src = entries.find((e) => e._lid === sourceLid);
   const tgt = entries.find((e) => e._lid === targetLid);
   if (!src || !tgt) return false;
   const jour = (JOURS[tgt.day_index] || "").toLowerCase();
-  const demi = tgt.half_day === "matin" ? "matin" : "aprÃ¨s-midi";
+  const demi = tgt.half_day === "matin" ? "matin" : "après-midi";
   const srcLabel = src.activite || "cette carte";
   return tgt.activite
-    ? confirm(`Ã‰changer Â« ${srcLabel} Â» avec Â« ${tgt.activite} Â» (${jour} ${demi}) ?`)
-    : confirm(`DÃ©placer Â« ${srcLabel} Â» vers ${jour} ${demi} ?`);
+    ? confirm(`Échanger « ${srcLabel} » avec « ${tgt.activite} » (${jour} ${demi}) ?`)
+    : confirm(`Déplacer « ${srcLabel} » vers ${jour} ${demi} ?`);
 }
 
-// --- ContrÃ´leur de glisser-dÃ©poser (Pointer Events, souris + tactile) ---
-// Glisser depuis la poignÃ©e d'une carte ; lÃ¢cher sur une autre carte => Ã©change.
-// MÃªme demi-journÃ©e : direct. Autre demi-journÃ©e / autre jour : confirmation (friction),
-// cible surlignÃ©e en ambre Â« DÃ©placer ici Â». Hors d'une cible => annulÃ©.
+// --- Contrôleur de glisser-déposer (Pointer Events, souris + tactile) ---
+// Glisser depuis la poignée d'une carte ; lâcher sur une autre carte => échange.
+// Même demi-journée : direct. Autre demi-journée / autre jour : confirmation (friction),
+// cible surlignée en ambre « Déplacer ici ». Hors d'une cible => annulé.
 let dragState = null;
 
 function beginCardDrag(ev, sourceLid, sourceCell) {
@@ -298,7 +298,7 @@ function activateDrag() {
   positionGhost();
   document.body.appendChild(ghost);
   s.ghost = ghost;
-  // Autoscroll quand le doigt approche du haut/bas de l'Ã©cran
+  // Autoscroll quand le doigt approche du haut/bas de l'écran
   s.scrollTimer = setInterval(() => {
     if (!dragState || !dragState.active) return;
     const y = dragState.lastY, edge = 72, step = 14;
@@ -320,13 +320,13 @@ function updateDropTarget() {
   if (!s) return;
   const under = document.elementFromPoint(s.lastX, s.lastY);
   let cell = under ? under.closest(".p-lane-cell") : null;
-  if (cell === s.sourceCell) cell = null;  // pas soi-mÃªme
+  if (cell === s.sourceCell) cell = null;  // pas soi-même
   if (cell !== s.target) {
     if (s.target) s.target.classList.remove("p-drop-target", "cross");
     s.target = cell;
     if (cell) {
       cell.classList.add("p-drop-target");
-      // Cible dans une autre demi-journÃ©e / un autre jour => style Â« dÃ©placer Â»
+      // Cible dans une autre demi-journée / un autre jour => style « déplacer »
       if (cell.closest(".p-half") !== s.sourceHalf) cell.classList.add("cross");
     }
   }
@@ -358,11 +358,11 @@ function onDragEnd() {
   if (!targetLid || targetLid === sourceLid) return;
   const crossHalf = target.closest(".p-half") !== sourceHalf;
   if (crossHalf) {
-    // Friction : confirmation avant un dÃ©placement vers une autre demi-journÃ©e / jour
+    // Friction : confirmation avant un déplacement vers une autre demi-journée / jour
     if (!confirmCrossMove(sourceLid, targetLid)) return;
     swapEntries(sourceLid, targetLid, {
-      toast: "Carte dÃ©placÃ©e Â· Ctrl+Z pour annuler",
-      undoLabel: "dÃ©placement de carte",
+      toast: "Carte déplacée · Ctrl+Z pour annuler",
+      undoLabel: "déplacement de carte",
     });
   } else {
     swapEntries(sourceLid, targetLid);
@@ -384,8 +384,8 @@ function cleanupDrag() {
   dragState = null;
 }
 
-// === Tirage alÃ©atoire (PÃ©dagogue, Ã©lÃ¨ves PÃ©dagogie salle, Ã©lÃ¨ves Voiture) ===
-// RÃ¨gle commune : pas de doublon dans la semaine pour la mÃªme activitÃ©.
+// === Tirage aléatoire (Pédagogue, élèves Pédagogie salle, élèves Voiture) ===
+// Règle commune : pas de doublon dans la semaine pour la même activité.
 
 function shuffle(arr) {
   const a = arr.slice();
@@ -397,9 +397,9 @@ function shuffle(arr) {
 }
 
 /**
- * Compte, pour la semaine courante, le nb d'apparitions de chaque stagiaire dans un rÃ´le
- * d'une activitÃ©, en excluant un crÃ©neau (celui qu'on remplit). role = "pedagogue" | "eleve".
- * Sert Ã  prioriser ceux qui sont passÃ©s le moins de fois dans ce rÃ´le cette semaine.
+ * Compte, pour la semaine courante, le nb d'apparitions de chaque stagiaire dans un rôle
+ * d'une activité, en excluant un créneau (celui qu'on remplit). role = "pedagogue" | "eleve".
+ * Sert à prioriser ceux qui sont passés le moins de fois dans ce rôle cette semaine.
  */
 function roleCounts(activite, role, exceptLid) {
   const counts = {};
@@ -418,12 +418,12 @@ function roleCounts(activite, role, exceptLid) {
   return counts;
 }
 
-// RÃ´les EFFECTIFS d'un crÃ©neau selon la FORME de son activitÃ© (ACTIVITY_SHAPES).
-// Quand on change l'activitÃ© d'un crÃ©neau, la donnÃ©e des rÃ´les (tableau/Ã©lÃ¨ves) reste
-// stockÃ©e â€” pratique si on rebascule l'activitÃ© â€” mais un rÃ´le absent de la forme courante
-// (ex. Ã©lÃ¨ves restÃ©s sur un Cours, ou Â« au tableau Â» restÃ© sur une Voiture) ne doit JAMAIS
-// Ãªtre affichÃ© ni utilisÃ©. Source unique de vÃ©ritÃ©, utilisÃ©e par l'impression et le blocage
-// de crÃ©neau (la validation et les compteurs filtrent dÃ©jÃ  par activitÃ©).
+// Rôles EFFECTIFS d'un créneau selon la FORME de son activité (ACTIVITY_SHAPES).
+// Quand on change l'activité d'un créneau, la donnée des rôles (tableau/élèves) reste
+// stockée — pratique si on rebascule l'activité — mais un rôle absent de la forme courante
+// (ex. élèves restés sur un Cours, ou « au tableau » resté sur une Voiture) ne doit JAMAIS
+// être affiché ni utilisé. Source unique de vérité, utilisée par l'impression et le blocage
+// de créneau (la validation et les compteurs filtrent déjà par activité).
 function entryShape(e) { return ACTIVITY_SHAPES[e.activite || ""] || ACTIVITY_SHAPES[""]; }
 function effPedagogueId(e, group = 1) {
   if (!entryShape(e).includes("pedagogue")) return null;
@@ -440,9 +440,9 @@ function effBenevolesIds(e) {
   return e.benevoles_ids || [];
 }
 
-// BÃ©nÃ©voles dÃ©jÃ  placÃ©s sur une AUTRE carte du mÃªme crÃ©neau (cartes parallÃ¨les =
-// simultanÃ©es : pas deux voitures Ã  la fois). Les slots successifs restent permis :
-// un bÃ©nÃ©vole reste souvent toute la demi-journÃ©e et change d'Ã©lÃ¨ve moniteur.
+// Bénévoles déjà placés sur une AUTRE carte du même créneau (cartes parallèles =
+// simultanées : pas deux voitures à la fois). Les slots successifs restent permis :
+// un bénévole reste souvent toute la demi-journée et change d'élève moniteur.
 function benevoleSlotOccupants(entry) {
   const ids = new Set();
   entries.forEach((e) => {
@@ -453,17 +453,17 @@ function benevoleSlotOccupants(entry) {
   return ids;
 }
 
-// Dispo rÃ©currente du bÃ©nÃ©vole sur le jour + demi-journÃ©e d'une carte.
+// Dispo récurrente du bénévole sur le jour + demi-journée d'une carte.
 function isBenevoleDispo(b, entry) {
   return (b.dispos?.[JOURS[entry.day_index]] || []).includes(entry.half_day);
 }
 
-// Ids des stagiaires dÃ©jÃ  placÃ©s dans le MÃŠME crÃ©neau et VRAIMENT en mÃªme temps que le champ
-// qu'on remplit. Les 2 groupes d'une carte salle sont SÃ‰QUENTIELS (l'un aprÃ¨s l'autre) : sur
-// la carte courante, seul l'AUTRE rÃ´le du MÃŠME groupe bloque (tableau â‰  ses Ã©lÃ¨ves). Donc une
-// personne peut Ãªtre Ã©lÃ¨ve au groupe 1 puis tableau / Ã©lÃ¨ve au groupe 2. Les AUTRES cartes du
-// crÃ©neau (voiture, etc.) sont simultanÃ©es => elles bloquent en entier (2 groupes compris).
-// exceptField âˆˆ "pedagogue" | "eleves" | "pedagogue_2" | "eleves_2"
+// Ids des stagiaires déjà placés dans le MÊME créneau et VRAIMENT en même temps que le champ
+// qu'on remplit. Les 2 groupes d'une carte salle sont SÉQUENTIELS (l'un après l'autre) : sur
+// la carte courante, seul l'AUTRE rôle du MÊME groupe bloque (tableau ≠ ses élèves). Donc une
+// personne peut être élève au groupe 1 puis tableau / élève au groupe 2. Les AUTRES cartes du
+// créneau (voiture, etc.) sont simultanées => elles bloquent en entier (2 groupes compris).
+// exceptField ∈ "pedagogue" | "eleves" | "pedagogue_2" | "eleves_2"
 const SAME_GROUP_BLOCK = {
   pedagogue:   "eleves_ids",
   eleves:      "pedagogue_id",
@@ -476,10 +476,10 @@ function slotOccupants(entry, exceptField) {
   entries.forEach((e) => {
     if (e.day_index !== entry.day_index || e.half_day !== entry.half_day || e.slot !== entry.slot) return;
     if (e._lid === entry._lid) {
-      add(e[SAME_GROUP_BLOCK[exceptField]]);  // mÃªme groupe, l'autre rÃ´le uniquement
+      add(e[SAME_GROUP_BLOCK[exceptField]]);  // même groupe, l'autre rôle uniquement
     } else {
-      // Autre carte simultanÃ©e : bloque ses rÃ´les EFFECTIFS (selon sa forme), pour
-      // ignorer une donnÃ©e pÃ©rimÃ©e laissÃ©e par un changement d'activitÃ©.
+      // Autre carte simultanée : bloque ses rôles EFFECTIFS (selon sa forme), pour
+      // ignorer une donnée périmée laissée par un changement d'activité.
       add(effPedagogueId(e, 1));
       add(effElevesIds(e, 1));
       add(effPedagogueId(e, 2));
@@ -489,55 +489,55 @@ function slotOccupants(entry, exceptField) {
   return ids;
 }
 
-// Ã‰lÃ¨ves salle (groupe 1 ou 2) : priorise les moins passÃ©s, SANS plafond bloquant (re-placement
-// possible en fin de semaine). Exclut quiconque est dÃ©jÃ  sur le mÃªme crÃ©neau (l'autre groupe, le
-// tableau, une carte parallÃ¨le). Comptage indÃ©pendant entre tableau et Ã©lÃ¨ve sur les AUTRES crÃ©neaux.
+// Élèves salle (groupe 1 ou 2) : priorise les moins passés, SANS plafond bloquant (re-placement
+// possible en fin de semaine). Exclut quiconque est déjà sur le même créneau (l'autre groupe, le
+// tableau, une carte parallèle). Comptage indépendant entre tableau et élève sur les AUTRES créneaux.
 async function randomFillEleves(lid, group = 1) {
   const entry = entries.find((e) => e._lid === lid);
   if (!entry) return;
 
   const field = group === 2 ? "eleves_ids_2" : "eleves_ids";
-  const eleveCount = roleCounts("PÃ©dagogie salle", "eleve", lid);
+  const eleveCount = roleCounts("Pédagogie salle", "eleve", lid);
   const blocked = slotOccupants(entry, group === 2 ? "eleves_2" : "eleves");
   const eligible = stagiaires.filter((s) => !blocked.has(s.id));
   if (eligible.length === 0) {
-    toast("Aucun stagiaire disponible sur ce crÃ©neau", "info", 3000);
+    toast("Aucun stagiaire disponible sur ce créneau", "info", 3000);
     return;
   }
-  // MÃ©lange puis tri stable par nb de passages croissant => prioritÃ© aux moins servis
+  // Mélange puis tri stable par nb de passages croissant => priorité aux moins servis
   const ordered = shuffle(eligible).sort((a, b) => (eleveCount[a.id] || 0) - (eleveCount[b.id] || 0));
   const picked = ordered.slice(0, 4).map((s) => s.id);
 
   toast(picked.length < 4
-    ? `${picked.length} Ã©lÃ¨ve(s) tirÃ©(s) Â· prioritÃ© aux moins passÃ©s`
-    : "4 Ã©lÃ¨ves tirÃ©s Â· prioritÃ© aux moins passÃ©s", "success", 1600);
+    ? `${picked.length} élève(s) tiré(s) · priorité aux moins passés`
+    : "4 élèves tirés · priorité aux moins passés", "success", 1600);
   await saveEntry(lid, { [field]: picked });
   renderInto(currentContainer);
 }
 
-// Au tableau (groupe 1 ou 2) : le plus rigoureux (toujours le moins passÃ© au tableau). Exclut
-// quiconque est dÃ©jÃ  sur le mÃªme crÃ©neau (Ã©lÃ¨ves, autre tableau, carte parallÃ¨le).
+// Au tableau (groupe 1 ou 2) : le plus rigoureux (toujours le moins passé au tableau). Exclut
+// quiconque est déjà sur le même créneau (élèves, autre tableau, carte parallèle).
 async function randomFillPedagogue(lid, group = 1) {
   const entry = entries.find((e) => e._lid === lid);
   if (!entry) return;
 
   const field = group === 2 ? "pedagogue_id_2" : "pedagogue_id";
-  const pedaCount = roleCounts("PÃ©dagogie salle", "pedagogue", lid);
+  const pedaCount = roleCounts("Pédagogie salle", "pedagogue", lid);
   const blocked = slotOccupants(entry, group === 2 ? "pedagogue_2" : "pedagogue");
   const eligible = stagiaires.filter((s) => !blocked.has(s.id));
   if (eligible.length === 0) {
-    toast("Aucun stagiaire disponible sur ce crÃ©neau", "info", 3000);
+    toast("Aucun stagiaire disponible sur ce créneau", "info", 3000);
     return;
   }
   const ordered = shuffle(eligible).sort((a, b) => (pedaCount[a.id] || 0) - (pedaCount[b.id] || 0));
   const picked = ordered[0];
   await saveEntry(lid, { [field]: picked.id });
   renderInto(currentContainer);
-  toast(displayStagiaire(picked) + " dÃ©signÃ©(e) au tableau", "success", 1800);
+  toast(displayStagiaire(picked) + " désigné(e) au tableau", "success", 1800);
 }
 
-// Voiture : priorise les moins passÃ©s en voiture, sans plafond. Exclut quiconque est dÃ©jÃ 
-// sur le mÃªme crÃ©neau (carte parallÃ¨le, ex. salle) â€” pas deux endroits Ã  la fois.
+// Voiture : priorise les moins passés en voiture, sans plafond. Exclut quiconque est déjà
+// sur le même créneau (carte parallèle, ex. salle) — pas deux endroits à la fois.
 async function randomFillVoitureEleves(lid, count) {
   const entry = entries.find((e) => e._lid === lid);
   if (!entry) return;
@@ -546,25 +546,25 @@ async function randomFillVoitureEleves(lid, count) {
   const blocked = slotOccupants(entry, "eleves");
   const eligible = stagiaires.filter((s) => !blocked.has(s.id));
   if (eligible.length === 0) {
-    toast("Aucun stagiaire disponible sur ce crÃ©neau", "info", 3000);
+    toast("Aucun stagiaire disponible sur ce créneau", "info", 3000);
     return;
   }
   const ordered = shuffle(eligible).sort((a, b) => (voitCount[a.id] || 0) - (voitCount[b.id] || 0));
   const picked = ordered.slice(0, count).map((s) => s.id);
 
   toast(picked.length < count
-    ? `${picked.length} Ã©lÃ¨ve(s) en voiture tirÃ©(s) Â· prioritÃ© aux moins passÃ©s`
-    : `${count} Ã©lÃ¨ve(s) en voiture tirÃ©(s) Â· prioritÃ© aux moins passÃ©s`, "success", 1600);
+    ? `${picked.length} élève(s) en voiture tiré(s) · priorité aux moins passés`
+    : `${count} élève(s) en voiture tiré(s) · priorité aux moins passés`, "success", 1600);
   await saveEntry(lid, { eleves_ids: picked });
   renderInto(currentContainer);
 }
 
 // === Placement automatique de toute la semaine ===
-// Remplit tableaux (1/groupe) + Ã©lÃ¨ves (salle : 4/groupe, voiture : 2) selon la prioritÃ©
-// Â« moins passÃ©s Â», Ã©quilibrÃ© sur la semaine, anti-doublon par crÃ©neau, abandons ignorÃ©s.
-// Profs / sujets / notes ne sont JAMAIS touchÃ©s. Deux temps : tant qu'il reste des places
-// vides on ne remplit QUE les vides (respecte le manuel) ; quand tout est placÃ©, un clic
-// propose de tout remÃ©langer (re-tirage complet, avec confirmation). Undo via Ctrl+Z.
+// Remplit tableaux (1/groupe) + élèves (salle : 4/groupe, voiture : 2) selon la priorité
+// « moins passés », équilibré sur la semaine, anti-doublon par créneau, abandons ignorés.
+// Profs / sujets / notes ne sont JAMAIS touchés. Deux temps : tant qu'il reste des places
+// vides on ne remplit QUE les vides (respecte le manuel) ; quand tout est placé, un clic
+// propose de tout remélanger (re-tirage complet, avec confirmation). Undo via Ctrl+Z.
 function snapshotPlacement(e) {
   return {
     pedagogue_id: e.pedagogue_id ?? null,
@@ -576,7 +576,7 @@ function snapshotPlacement(e) {
 
 function placementEmpties(e) {
   const out = [];
-  if (e.activite === "PÃ©dagogie salle") {
+  if (e.activite === "Pédagogie salle") {
     if (e.pedagogue_id == null) out.push("t1");
     if (!(e.eleves_ids && e.eleves_ids.length)) out.push("e1");
     if (e.salle_double) {
@@ -592,19 +592,19 @@ function placementEmpties(e) {
 async function autoPlaceWeek() {
   await flushPendingInputs();
   const targets = entries.filter((e) =>
-    e.activite === "PÃ©dagogie salle" || e.activite === "Voiture (conduite)");
+    e.activite === "Pédagogie salle" || e.activite === "Voiture (conduite)");
   if (targets.length === 0) {
-    toast("Aucune PÃ©dagogie salle ni Voiture Ã  placer cette semaine", "info", 3500);
+    toast("Aucune Pédagogie salle ni Voiture à placer cette semaine", "info", 3500);
     return;
   }
 
   const reroll = !targets.some((e) => placementEmpties(e).length > 0);
-  if (reroll && !confirm("Toute la semaine est dÃ©jÃ  placÃ©e.\n\nTout remÃ©langer (tableaux + Ã©lÃ¨ves) ? Tes ajustements manuels seront Ã©crasÃ©s.")) return;
+  if (reroll && !confirm("Toute la semaine est déjà placée.\n\nTout remélanger (tableaux + élèves) ? Tes ajustements manuels seront écrasés.")) return;
 
   const before = targets.map((e) => ({ e, snap: snapshotPlacement(e) }));
 
-  // Compteurs par rÃ´le (Ã©quitÃ©). En remÃ©lange on repart de zÃ©ro ; en remplissage on amorce
-  // avec l'existant pour Ã©quilibrer autour des places dÃ©jÃ  occupÃ©es.
+  // Compteurs par rôle (équité). En remélange on repart de zéro ; en remplissage on amorce
+  // avec l'existant pour équilibrer autour des places déjà occupées.
   const tab = {}, salleEl = {}, voit = {};
   const bump = (m, id) => { if (id != null) m[id] = (m[id] || 0) + 1; };
 
@@ -612,7 +612,7 @@ async function autoPlaceWeek() {
     targets.forEach((e) => { e.pedagogue_id = null; e.eleves_ids = []; e.pedagogue_id_2 = null; e.eleves_ids_2 = []; });
   } else {
     targets.forEach((e) => {
-      if (e.activite === "PÃ©dagogie salle") {
+      if (e.activite === "Pédagogie salle") {
         bump(tab, e.pedagogue_id); (e.eleves_ids || []).forEach((id) => bump(salleEl, id));
         if (e.salle_double) { bump(tab, e.pedagogue_id_2); (e.eleves_ids_2 || []).forEach((id) => bump(salleEl, id)); }
       } else {
@@ -635,28 +635,28 @@ async function autoPlaceWeek() {
 
   let unfilled = 0;
   for (const e of ordered) {
-    if (e.activite === "PÃ©dagogie salle") {
+    if (e.activite === "Pédagogie salle") {
       for (const g of (e.salle_double ? [1, 2] : [1])) {
         const pField = g === 2 ? "pedagogue_id_2" : "pedagogue_id";
         const eField = g === 2 ? "eleves_ids_2" : "eleves_ids";
-        if (e[pField] == null) {  // tableau vide => 1 personne (la moins passÃ©e au tableau)
+        if (e[pField] == null) {  // tableau vide => 1 personne (la moins passée au tableau)
           const pick = pickLeast(tab, slotOccupants(e, g === 2 ? "pedagogue_2" : "pedagogue"), 1)[0];
           if (pick != null) { e[pField] = pick; bump(tab, pick); } else unfilled++;
         }
-        if (!(e[eField] && e[eField].length)) {  // Ã©lÃ¨ves vides => 4
+        if (!(e[eField] && e[eField].length)) {  // élèves vides => 4
           const pick = pickLeast(salleEl, slotOccupants(e, g === 2 ? "eleves_2" : "eleves"), 4);
           e[eField] = pick; pick.forEach((id) => bump(salleEl, id));
           unfilled += 4 - pick.length;
         }
       }
-    } else if (!(e.eleves_ids && e.eleves_ids.length)) {  // Voiture, Ã©lÃ¨ves vides => 2
+    } else if (!(e.eleves_ids && e.eleves_ids.length)) {  // Voiture, élèves vides => 2
       const pick = pickLeast(voit, slotOccupants(e, "eleves"), 2);
       e.eleves_ids = pick; pick.forEach((id) => bump(voit, id));
       unfilled += 2 - pick.length;
     }
   }
 
-  // N'enregistre que les cartes rÃ©ellement modifiÃ©es
+  // N'enregistre que les cartes réellement modifiées
   const changed = before.filter(({ e, snap }) =>
     e.pedagogue_id !== snap.pedagogue_id ||
     e.pedagogue_id_2 !== snap.pedagogue_id_2 ||
@@ -667,7 +667,7 @@ async function autoPlaceWeek() {
   try {
     await Promise.all(changed.map((e) => upsertPlanningEntry(entryUpsertPayload(e))));
     renderInto(currentContainer);
-    toast(`Semaine placÃ©e${unfilled ? ` Â· ${unfilled} place(s) non remplie(s)` : ""} Â· Ctrl+Z pour annuler`, "success", 3000);
+    toast(`Semaine placée${unfilled ? ` · ${unfilled} place(s) non remplie(s)` : ""} · Ctrl+Z pour annuler`, "success", 3000);
     recordUndo("placement auto de la semaine", async () => {
       before.forEach(({ e, snap }) => Object.assign(e, snap));
       await Promise.all(changed.map((e) => upsertPlanningEntry(entryUpsertPayload(e))));
@@ -682,11 +682,11 @@ async function autoPlaceWeek() {
 }
 
 async function deleteCell(entry) {
-  if (!isAdmin()) return;  // garde d'accÃ¨s : suppression rÃ©servÃ©e aux admins (formateurs)
+  if (!isAdmin()) return;  // garde d'accès : suppression réservée aux admins (formateurs)
   // Commit les saisies en cours avant le re-render complet (sinon une note/sujet en attente est perdu)
   await flushPendingInputs();
-  // Une demi-journÃ©e peut rester vide : on autorise la suppression de n'importe quelle activitÃ©.
-  if (!confirm("Supprimer ce crÃ©neau ?")) return;
+  // Une demi-journée peut rester vide : on autorise la suppression de n'importe quelle activité.
+  if (!confirm("Supprimer ce créneau ?")) return;
   try {
     if (entry.id) await deletePlanningEntryById(entry.id);
     entries = entries.filter((e) => e._lid !== entry._lid);
@@ -699,7 +699,7 @@ async function deleteCell(entry) {
 
 // === Composants ===
 
-function selectFromList(items, currentVal, onChange, placeholder = "â€”") {
+function selectFromList(items, currentVal, onChange, placeholder = "—") {
   const sel = el("select");
   sel.appendChild(el("option", { value: "" }, placeholder));
   items.forEach((it) => {
@@ -721,7 +721,7 @@ function profChipsSelect(allProfs, currentIds, onChange) {
   function render() {
     clear(display);
     if (selected.length === 0) {
-      display.appendChild(el("span", { class: "p-prof-placeholder" }, "Formateurâ€¦"));
+      display.appendChild(el("span", { class: "p-prof-placeholder" }, "Formateur…"));
     } else {
       selected.forEach((id) => {
         const p = allProfs.find((x) => x.id === id);
@@ -736,7 +736,7 @@ function profChipsSelect(allProfs, currentIds, onChange) {
               render();
               onChange([...selected]);
             },
-          }, "Ã—"),
+          }, "×"),
         ));
       });
     }
@@ -772,20 +772,20 @@ function profChipsSelect(allProfs, currentIds, onChange) {
   return wrap;
 }
 
-// Badge Â« nb de fois dÃ©jÃ  placÃ©(e) cette semaine dans ce rÃ´le AU PLANNING Â» (0 = prioritaire).
-// NB : c'est le PLAN, pas un passage enregistrÃ© â€” les passages ne se comptent qu'Ã  Â« Valider
-// la semaine Â». Sert juste Ã  Ã©quilibrer les placements de la semaine en cours.
+// Badge « nb de fois déjà placé(e) cette semaine dans ce rôle AU PLANNING » (0 = prioritaire).
+// NB : c'est le PLAN, pas un passage enregistré — les passages ne se comptent qu'à « Valider
+// la semaine ». Sert juste à équilibrer les placements de la semaine en cours.
 function prioBadge(n) {
-  return el("span", { class: "prio-count" + (n === 0 ? " zero" : ""), title: "dÃ©jÃ  placÃ©(e) cette semaine au planning (â‰  passage validÃ©)" }, String(n));
+  return el("span", { class: "prio-count" + (n === 0 ? " zero" : ""), title: "déjà placé(e) cette semaine au planning (≠ passage validé)" }, String(n));
 }
-// LÃ©gende affichÃ©e en tÃªte des menus de sÃ©lection de personne.
+// Légende affichée en tête des menus de sélection de personne.
 function prioLegend() {
-  return el("div", { class: "prio-legend" }, "DÃ©jÃ  placÃ©(e) cette semaine au planning Â· 0 = Ã  prioriser");
+  return el("div", { class: "prio-legend" }, "Déjà placé(e) cette semaine au planning · 0 = à prioriser");
 }
 
-// SÃ©lecteur d'UNE personne (tableau) : mÃªme habillage que les chips Ã©lÃ¨ves / profs, triÃ© par
-// prioritÃ© (moins passÃ©s en tÃªte) avec compteur. counts (optionnel) = map id -> nb de passages.
-function personSelect(allStagiaires, currentId, onChange, counts, placeholder = "â€”") {
+// Sélecteur d'UNE personne (tableau) : même habillage que les chips élèves / profs, trié par
+// priorité (moins passés en tête) avec compteur. counts (optionnel) = map id -> nb de passages.
+function personSelect(allStagiaires, currentId, onChange, counts, placeholder = "—") {
   const wrap = el("div", { class: "person-select" });
   const display = el("div", { class: "person-display", tabindex: "0" });
   const dropdown = el("div", { class: "chips-dropdown person-dropdown hidden" });
@@ -825,12 +825,12 @@ function personSelect(allStagiaires, currentId, onChange, counts, placeholder = 
   return wrap;
 }
 
-// counts (optionnel) : map id -> nb de passages dans le rÃ´le cette semaine. Si fourni, le
-// menu est triÃ© par prioritÃ© (moins passÃ©s en tÃªte) et affiche le compteur Ã  cÃ´tÃ© de chaque nom.
-// opts (optionnel) : { labelFn, placeholder, itemBadge } pour rÃ©utiliser le composant avec
-// d'autres listes que les stagiaires (ex. bÃ©nÃ©voles : badge Â« dispo Â» Ã  la place du compteur).
+// counts (optionnel) : map id -> nb de passages dans le rôle cette semaine. Si fourni, le
+// menu est trié par priorité (moins passés en tête) et affiche le compteur à côté de chaque nom.
+// opts (optionnel) : { labelFn, placeholder, itemBadge } pour réutiliser le composant avec
+// d'autres listes que les stagiaires (ex. bénévoles : badge « dispo » à la place du compteur).
 function chipsSelect(allStagiaires, currentIds, onChange, counts, opts = {}) {
-  const { labelFn = displayStagiaire, placeholder = "Ã‰lÃ¨vesâ€¦", itemBadge = null } = opts;
+  const { labelFn = displayStagiaire, placeholder = "Élèves…", itemBadge = null } = opts;
   const wrap = el("div", { class: "chips-select" });
   const display = el("div", { class: "chips-display", tabindex: "0" });
   const dropdown = el("div", { class: "chips-dropdown hidden" });
@@ -851,13 +851,13 @@ function chipsSelect(allStagiaires, currentIds, onChange, counts, opts = {}) {
             selected = selected.filter((x) => x !== id);
             render();
             onChange([...selected]);
-          }}, "Ã—")
+          }}, "×")
         ));
       });
     }
     clear(dropdown);
     if (counts) dropdown.appendChild(prioLegend());
-    // Tri par prioritÃ© (moins passÃ©s en tÃªte) si on a les compteurs
+    // Tri par priorité (moins passés en tête) si on a les compteurs
     const ordered = counts
       ? allStagiaires.slice().sort((a, b) => (counts[a.id] || 0) - (counts[b.id] || 0))
       : allStagiaires;
@@ -895,8 +895,8 @@ function chipsSelect(allStagiaires, currentIds, onChange, counts, opts = {}) {
   return wrap;
 }
 
-// Sujet multi-thÃ¨mes : chips inline + autocomplete continue (virgule ou Enter pour valider).
-// StockÃ© en DB comme chaÃ®ne "ThÃ¨me A, ThÃ¨me B".
+// Sujet multi-thèmes : chips inline + autocomplete continue (virgule ou Enter pour valider).
+// Stocké en DB comme chaîne "Thème A, Thème B".
 function parseSujet(val) {
   if (!val) return [];
   return String(val).split(",").map((s) => s.trim()).filter(Boolean);
@@ -909,7 +909,7 @@ function sujetMultiSelect(currentValue, onChange) {
   const input = el("input", {
     type: "text",
     class: "sujet-chip-input",
-    placeholder: "Ajouter un thÃ¨meâ€¦",
+    placeholder: "Ajouter un thème…",
     autocomplete: "off",
     autocorrect: "off",
     autocapitalize: "off",
@@ -938,11 +938,11 @@ function sujetMultiSelect(currentValue, onChange) {
           renderChips();
           commit();
         }
-      }, "Ã—"));
+      }, "×"));
       chipsBox.appendChild(chip);
     });
     chipsBox.appendChild(input);
-    if (selected.length === 0) input.placeholder = "Sujet / thÃ¨meâ€¦";
+    if (selected.length === 0) input.placeholder = "Sujet / thème…";
     else input.placeholder = "+";
   }
 
@@ -971,7 +971,7 @@ function sujetMultiSelect(currentValue, onChange) {
     matches = matches.slice(0, 12);
     if (matches.length === 0) {
       dropdown.appendChild(el("div", { class: "sujet-ac-empty muted" },
-        q ? "Aucun thÃ¨me. Tape virgule ou EntrÃ©e pour l'ajouter tel quel." : "Plus de thÃ¨mes Ã  ajouter."));
+        q ? "Aucun thème. Tape virgule ou Entrée pour l'ajouter tel quel." : "Plus de thèmes à ajouter."));
       return;
     }
     matches.forEach((t) => {
@@ -979,7 +979,7 @@ function sujetMultiSelect(currentValue, onChange) {
       if (t.numero != null) {
         item.appendChild(el("span", { class: "sujet-ac-num" }, String(t.numero).padStart(2, "0")));
       } else {
-        item.appendChild(el("span", { class: "sujet-ac-num notion" }, "Â·"));
+        item.appendChild(el("span", { class: "sujet-ac-num notion" }, "·"));
       }
       item.appendChild(el("span", { class: "sujet-ac-titre" }, t.titre));
       item.appendChild(el("span", { class: "sujet-ac-cat muted" }, t.categorie || ""));
@@ -998,7 +998,7 @@ function sujetMultiSelect(currentValue, onChange) {
   });
   input.addEventListener("blur", () => {
     setTimeout(() => dropdown.classList.add("hidden"), 150);
-    // Auto-commit du texte en cours (avant perte de focus = avant un Ã©ventuel add lane)
+    // Auto-commit du texte en cours (avant perte de focus = avant un éventuel add lane)
     if (input.value.trim()) addLabel(input.value);
   });
   input.addEventListener("input", () => {
@@ -1033,46 +1033,46 @@ function sujetMultiSelect(currentValue, onChange) {
 
 // === Rendu d'une cellule (un lane d'un slot) ===
 
-// Bloc Â« Au tableau Â» d'un groupe (1 ou 2) d'une carte PÃ©dagogie salle.
+// Bloc « Au tableau » d'un groupe (1 ou 2) d'une carte Pédagogie salle.
 function buildTableauRole(entry, lid, group) {
   const field = group === 2 ? "pedagogue_id_2" : "pedagogue_id";
   const exceptField = group === 2 ? "pedagogue_2" : "pedagogue";
   const currentVal = entry[field] ?? null;
   const pedaRole = el("div", { class: "p-lane-role pedagogue" });
   pedaRole.appendChild(el("span", { class: "p-lane-role-label" }, "Au tableau"));
-  // Filtre + sÃ©lecteur triÃ© par prioritÃ© (personSelect gÃ¨re le tri et le compteur).
+  // Filtre + sélecteur trié par priorité (personSelect gère le tri et le compteur).
   const blocked = slotOccupants(entry, exceptField);
-  const counts = roleCounts("PÃ©dagogie salle", "pedagogue", lid);
+  const counts = roleCounts("Pédagogie salle", "pedagogue", lid);
   const options = stagiaires.filter((s) => !blocked.has(s.id) || s.id === currentVal);
   pedaRole.appendChild(personSelect(
-    options, currentVal, (id) => saveEntry(lid, { [field]: id }), counts, "â€”"
+    options, currentVal, (id) => saveEntry(lid, { [field]: id }), counts, "—"
   ));
   pedaRole.appendChild(el("button", {
     class: "p-dice-btn", type: "button",
-    title: "Tirer 1 stagiaire au tableau (le moins passÃ© cette semaine)",
+    title: "Tirer 1 stagiaire au tableau (le moins passé cette semaine)",
     onClick: () => randomFillPedagogue(lid, group),
-  }, "ðŸŽ²"));
+  }, "🎲"));
   return pedaRole;
 }
 
-// Bloc Â« Ã‰lÃ¨ves Â» d'un groupe (1 ou 2) d'une carte PÃ©dagogie salle.
+// Bloc « Élèves » d'un groupe (1 ou 2) d'une carte Pédagogie salle.
 function buildElevesRoleSalle(entry, lid, group) {
   const field = group === 2 ? "eleves_ids_2" : "eleves_ids";
   const exceptField = group === 2 ? "eleves_2" : "eleves";
   const current = entry[field] || [];
   const eleveRole = el("div", { class: "p-lane-role eleves" });
-  eleveRole.appendChild(el("span", { class: "p-lane-role-label" }, "Ã‰lÃ¨ves"));
+  eleveRole.appendChild(el("span", { class: "p-lane-role-label" }, "Élèves"));
   const eleveCol = el("div", { class: "p-lane-eleves-col" });
   const blocked = slotOccupants(entry, exceptField);
-  const counts = roleCounts("PÃ©dagogie salle", "eleve", lid);
+  const counts = roleCounts("Pédagogie salle", "eleve", lid);
   const options = stagiaires.filter((s) => !blocked.has(s.id) || current.includes(s.id));
   eleveCol.appendChild(chipsSelect(options, current, (ids) => saveEntry(lid, { [field]: ids }), counts));
   eleveCol.appendChild(el("div", { class: "p-eleves-dice-toolbar" },
     el("button", {
       class: "p-dice-btn", type: "button",
-      "aria-label": "Tirer 4 Ã©lÃ¨ves au hasard", title: "Tirer 4 Ã©lÃ¨ves (prioritÃ© aux moins passÃ©s)",
+      "aria-label": "Tirer 4 élèves au hasard", title: "Tirer 4 élèves (priorité aux moins passés)",
       onClick: () => randomFillEleves(lid, group),
-    }, "ðŸŽ²")
+    }, "🎲")
   ));
   eleveRole.appendChild(eleveCol);
   return eleveRole;
@@ -1087,13 +1087,13 @@ function renderLaneCell(entry) {
 
   const shape = ACTIVITY_SHAPES[entry.activite || ""] || ACTIVITY_SHAPES[""];
 
-  // === Header strip : poignÃ©e + activitÃ© + prof + delete ===
+  // === Header strip : poignée + activité + prof + delete ===
   const header = el("div", { class: "p-lane-header" });
-  // PoignÃ©e de glisse (Ã©change de cartes par drag & drop) â€” masquÃ©e en lecture seule via CSS
+  // Poignée de glisse (échange de cartes par drag & drop) — masquée en lecture seule via CSS
   const dragHandle = el("button", {
     class: "p-lane-drag", type: "button",
-    "aria-label": "Glisser pour Ã©changer avec une autre carte",
-    title: "Glisser pour Ã©changer avec une autre carte de la demi-journÃ©e",
+    "aria-label": "Glisser pour échanger avec une autre carte",
+    title: "Glisser pour échanger avec une autre carte de la demi-journée",
   });
   dragHandle.appendChild(icon.grip());
   dragHandle.addEventListener("pointerdown", (ev) => beginCardDrag(ev, lid, cell));
@@ -1103,12 +1103,12 @@ function renderLaneCell(entry) {
       ACTIVITES.map((a) => ({ value: a, label: a })),
       entry.activite,
       (v) => {
-        // Passer Ã  PÃ©dagogie salle => 2 groupes par dÃ©faut (cas le plus courant)
+        // Passer à Pédagogie salle => 2 groupes par défaut (cas le plus courant)
         const patch = { activite: v };
-        if (v === "PÃ©dagogie salle" && entry.activite !== "PÃ©dagogie salle") patch.salle_double = true;
+        if (v === "Pédagogie salle" && entry.activite !== "Pédagogie salle") patch.salle_double = true;
         saveEntry(lid, patch);
       },
-      "Choisir activitÃ©â€¦"
+      "Choisir activité…"
     )
   ));
   if (shape.includes("prof")) {
@@ -1135,8 +1135,8 @@ function renderLaneCell(entry) {
   }
 
   // === Participants ===
-  if (entry.activite === "PÃ©dagogie salle") {
-    // PÃ©dagogie salle : 1 ou 2 groupes (2 tableaux qui tournent en mÃªme temps).
+  if (entry.activite === "Pédagogie salle") {
+    // Pédagogie salle : 1 ou 2 groupes (2 tableaux qui tournent en même temps).
     const double = !!entry.salle_double;
     const toggle = el("div", { class: "p-salle-toggle" });
     [[1, "1 groupe"], [2, "2 groupes"]].forEach(([n, label]) => {
@@ -1145,8 +1145,8 @@ function renderLaneCell(entry) {
         class: "p-salle-toggle-btn" + (active ? " active" : ""),
         type: "button",
         onClick: () => {
-          if (active) return;            // dÃ©jÃ  dans cet Ã©tat
-          saveEntry(lid, { salle_double: n === 2 });  // garde les donnÃ©es du groupe 2 si on repasse Ã  1
+          if (active) return;            // déjà dans cet état
+          saveEntry(lid, { salle_double: n === 2 });  // garde les données du groupe 2 si on repasse à 1
           renderInto(currentContainer);
         },
       }, label));
@@ -1167,10 +1167,10 @@ function renderLaneCell(entry) {
       body.appendChild(g2);
     }
   } else if (shape.includes("eleves")) {
-    // Voiture (conduite) : Ã©lÃ¨ves seuls, avec mini-picker 1/2/3.
+    // Voiture (conduite) : élèves seuls, avec mini-picker 1/2/3.
     const participants = el("div", { class: "p-lane-participants" });
     const eleveRole = el("div", { class: "p-lane-role eleves" });
-    eleveRole.appendChild(el("span", { class: "p-lane-role-label" }, "Ã‰lÃ¨ves"));
+    eleveRole.appendChild(el("span", { class: "p-lane-role-label" }, "Élèves"));
     const eleveCol = el("div", { class: "p-lane-eleves-col" });
     const eleveBlocked = slotOccupants(entry, "eleves");
     const voitCounts = roleCounts("Voiture (conduite)", "eleve", lid);
@@ -1182,8 +1182,8 @@ function renderLaneCell(entry) {
       const wrap = el("div", { class: "p-dice-picker-wrap" });
       const diceBtn = el("button", {
         class: "p-dice-btn", type: "button",
-        "aria-label": "Tirer des Ã©lÃ¨ves", title: "Tirer des Ã©lÃ¨ves voiture",
-      }, "ðŸŽ²");
+        "aria-label": "Tirer des élèves", title: "Tirer des élèves voiture",
+      }, "🎲");
       const picker = el("div", { class: "p-dice-picker hidden" });
       [1, 2, 3].forEach((n) => {
         picker.appendChild(el("button", {
@@ -1209,16 +1209,16 @@ function renderLaneCell(entry) {
     eleveRole.appendChild(eleveCol);
     participants.appendChild(eleveRole);
 
-    // BÃ©nÃ©voles (volontaires conduite) : chips depuis la banque, dispos du jour en tÃªte.
-    // CÃ´tÃ© stagiaire, `benevoles` vient de la RPC ({id, display}) : pas de dispos ni
-    // d'actif â†’ tri stable, pas de badge, chips en lecture seule comme les Ã©lÃ¨ves.
+    // Bénévoles (volontaires conduite) : chips depuis la banque, dispos du jour en tête.
+    // Côté stagiaire, `benevoles` vient de la RPC ({id, display}) : pas de dispos ni
+    // d'actif → tri stable, pas de badge, chips en lecture seule comme les élèves.
     if (shape.includes("benevoles")) {
       const bnvRole = el("div", { class: "p-lane-role benevoles" });
-      bnvRole.appendChild(el("span", { class: "p-lane-role-label" }, "BÃ©nÃ©voles"));
+      bnvRole.appendChild(el("span", { class: "p-lane-role-label" }, "Bénévoles"));
       const currentBnv = entry.benevoles_ids || [];
       const taken = benevoleSlotOccupants(entry);
-      // Actifs non pris sur le crÃ©neau (+ ceux dÃ©jÃ  sÃ©lectionnÃ©s, mÃªme retirÃ©s depuis),
-      // dispos du jour en tÃªte puis alphabÃ©tique.
+      // Actifs non pris sur le créneau (+ ceux déjà sélectionnés, même retirés depuis),
+      // dispos du jour en tête puis alphabétique.
       const bnvOptions = benevoles
         .filter((b) => (b.actif !== false && !taken.has(b.id)) || currentBnv.includes(b.id))
         .sort((a, b) =>
@@ -1227,7 +1227,7 @@ function renderLaneCell(entry) {
       bnvRole.appendChild(chipsSelect(bnvOptions, currentBnv,
         (ids) => saveEntry(lid, { benevoles_ids: ids }), null, {
           labelFn: (b) => b.display,
-          placeholder: "BÃ©nÃ©volesâ€¦",
+          placeholder: "Bénévoles…",
           itemBadge: (b) => isBenevoleDispo(b, entry)
             ? el("span", { class: "bnv-dispo-badge" }, "dispo") : null,
         }));
@@ -1245,7 +1245,7 @@ function renderLaneCell(entry) {
       debouncedSave[key] = debounce((v) => saveEntry(lid, { notes: v }), 500);
     }
     notesInput.addEventListener("input", () => debouncedSave[key](notesInput.value));
-    // Sur blur, sauvegarde immÃ©diate (annule le debounce) pour Ã©viter la perte avant un re-render
+    // Sur blur, sauvegarde immédiate (annule le debounce) pour éviter la perte avant un re-render
     notesInput.addEventListener("blur", () => {
       if (notesInput.value !== (entry.notes || "")) {
         saveEntry(lid, { notes: notesInput.value });
@@ -1258,7 +1258,7 @@ function renderLaneCell(entry) {
   return cell;
 }
 
-// === Rendu d'un slot (rangÃ©e = sÃ©rie, contient N lanes en parallÃ¨le) ===
+// === Rendu d'un slot (rangée = série, contient N lanes en parallèle) ===
 
 function renderSlotRow(d, half, row, maxLanes) {
   const slotEl = el("div", { class: "p-slot-row" });
@@ -1268,29 +1268,29 @@ function renderSlotRow(d, half, row, maxLanes) {
     el("span", { class: "p-slot-num" }, String(row.slot + 1))
   ));
 
-  // Lanes â€” grid Ã  `maxLanes` colonnes (+ une colonne fine pour le bouton parallÃ¨le)
-  // `has-parallel` : 2+ activitÃ©s au mÃªme horaire â†’ encadrÃ©es en groupe sur mobile.
+  // Lanes — grid à `maxLanes` colonnes (+ une colonne fine pour le bouton parallèle)
+  // `has-parallel` : 2+ activités au même horaire → encadrées en groupe sur mobile.
   const lanes = el("div", { class: "p-lanes" + (row.lanes.length > 1 ? " has-parallel" : "") });
-  // Grid template : N colonnes de cellules de mÃªme largeur + 1 colonne 40px pour le "+"
+  // Grid template : N colonnes de cellules de même largeur + 1 colonne 40px pour le "+"
   lanes.style.gridTemplateColumns = `repeat(${maxLanes}, minmax(0, 1fr)) 40px`;
 
   row.lanes.forEach((entry) => {
     const cell = renderLaneCell(entry);
-    // Place la cellule dans la colonne correspondant Ã  son lane index
+    // Place la cellule dans la colonne correspondant à son lane index
     cell.style.gridColumn = String((entry.lane ?? 0) + 1);
     lanes.appendChild(cell);
   });
 
-  // Bouton "+" en parallÃ¨le : barre verticale au bout sur desktop, bouton labellisÃ©
-  // pleine largeur sous le crÃ©neau sur mobile (le label est masquÃ© en desktop via CSS).
+  // Bouton "+" en parallèle : barre verticale au bout sur desktop, bouton labellisé
+  // pleine largeur sous le créneau sur mobile (le label est masqué en desktop via CSS).
   const addParBtn = el("button", {
     class: "p-add-parallele-mini",
-    title: "Ajouter une activitÃ© en parallÃ¨le (mÃªme horaire)",
+    title: "Ajouter une activité en parallèle (même horaire)",
     onClick: () => addLaneInSlot(d, half, row.slot)
   });
   addParBtn.style.gridColumn = String(maxLanes + 1);
   addParBtn.appendChild(icon.plus());
-  addParBtn.appendChild(el("span", { class: "p-add-parallele-label" }, "En parallÃ¨le"));
+  addParBtn.appendChild(el("span", { class: "p-add-parallele-label" }, "En parallèle"));
   lanes.appendChild(addParBtn);
 
   slotEl.appendChild(lanes);
@@ -1329,20 +1329,20 @@ function renderDayCard(d, monday) {
 
     const slotsWrap = el("div", { class: "p-slots-wrap" });
     const rows = rowsFor(d, half.key);
-    // Calcule combien de "colonnes parallÃ¨les" maximum dans cette demi-journÃ©e
-    // = max(lane index + 1) parmi toutes les entries de la demi-journÃ©e
+    // Calcule combien de "colonnes parallèles" maximum dans cette demi-journée
+    // = max(lane index + 1) parmi toutes les entries de la demi-journée
     const allLanes = rows.flatMap((r) => r.lanes.map((e) => e.lane ?? 0));
     const maxLanes = Math.max(1, ...allLanes.map((l) => l + 1));
     rows.forEach((row) => slotsWrap.appendChild(renderSlotRow(d, half.key, row, maxLanes)));
 
-    // Bouton "+ Ã€ la suite"
+    // Bouton "+ À la suite"
     const addSuiteBtn = el("button", {
       class: "p-add-suite",
-      title: "Ajouter un crÃ©neau Ã  la suite",
+      title: "Ajouter un créneau à la suite",
       onClick: () => addSlotEnd(d, half.key),
     });
     addSuiteBtn.appendChild(icon.plus());
-    addSuiteBtn.appendChild(document.createTextNode("Ã€ la suite"));
+    addSuiteBtn.appendChild(document.createTextNode("À la suite"));
     slotsWrap.appendChild(addSuiteBtn);
 
     section.appendChild(slotsWrap);
@@ -1352,9 +1352,9 @@ function renderDayCard(d, monday) {
   return card;
 }
 
-// Banque des bÃ©nÃ©voles pour les sÃ©lecteurs et l'affichage des cartes voiture.
-// Admin : table complÃ¨te (dispos, actif...). Stagiaire : RPC noms seulement
-// (la table est RLS admin-only, tÃ©lÃ©phone jamais transmis).
+// Banque des bénévoles pour les sélecteurs et l'affichage des cartes voiture.
+// Admin : table complète (dispos, actif...). Stagiaire : RPC noms seulement
+// (la table est RLS admin-only, téléphone jamais transmis).
 async function loadBenevoles() {
   if (isAdmin()) {
     const list = await listBenevoles();
@@ -1370,7 +1370,7 @@ async function loadPlanning() {
   ]);
   let counter = 0;
   entries = data.map((row) => {
-    // Compat ascendante : si prof_ids vide mais prof_id prÃ©sent, on l'utilise
+    // Compat ascendante : si prof_ids vide mais prof_id présent, on l'utilise
     let prof_ids = row.prof_ids;
     if ((!prof_ids || prof_ids.length === 0) && row.prof_id) prof_ids = [row.prof_id];
     return { ...row, prof_ids: prof_ids || [], _lid: "lid-" + (++counter) };
@@ -1392,7 +1392,7 @@ async function saveHalfMeta(d, half, patch) {
   };
   try {
     await upsertHalfMeta(payload);
-    // Met Ã  jour le cache local
+    // Met à jour le cache local
     const idx = halfMetas.findIndex((m) => m.day_index === d && m.half_day === half);
     if (idx >= 0) Object.assign(halfMetas[idx], payload);
     else halfMetas.push(payload);
@@ -1412,7 +1412,7 @@ function openHalfMetaEditor(d, half, anchorEl) {
   const pauseInput = el("input", { type: "time", value: meta.pause_start || "" });
   const pauseMinInput = el("input", { type: "number", min: 0, max: 60, value: meta.pause_minutes || 20 });
 
-  const halfLabel = half === "matin" ? "matin" : "aprÃ¨s-midi";
+  const halfLabel = half === "matin" ? "matin" : "après-midi";
 
   async function save() {
     await saveHalfMeta(d, half, {
@@ -1425,17 +1425,17 @@ function openHalfMetaEditor(d, half, anchorEl) {
   }
 
   const modal = el("div", { class: "modal" },
-    el("h3", {}, `Horaires Â· ${JOURS[d].toLowerCase()} ${halfLabel}`),
+    el("h3", {}, `Horaires · ${JOURS[d].toLowerCase()} ${halfLabel}`),
     el("div", { class: "modal-form" },
       el("div", { style: "display:grid;grid-template-columns:1fr 1fr;gap:0.6rem" },
-        el("div", { class: "field" }, el("label", {}, "DÃ©but"), startInput),
+        el("div", { class: "field" }, el("label", {}, "Début"), startInput),
         el("div", { class: "field" }, el("label", {}, "Fin"),   endInput),
       ),
       el("hr", { style: "border:none;border-top:1px solid var(--line);margin:0.25rem 0" }),
       el("p", { class: "muted", style: "margin:0;font-size:0.82rem" }, "Pause (laisser vide = pas de pause)"),
       el("div", { style: "display:grid;grid-template-columns:1fr 100px;gap:0.6rem" },
-        el("div", { class: "field" }, el("label", {}, "DÃ©but pause"), pauseInput),
-        el("div", { class: "field" }, el("label", {}, "DurÃ©e (min)"), pauseMinInput),
+        el("div", { class: "field" }, el("label", {}, "Début pause"), pauseInput),
+        el("div", { class: "field" }, el("label", {}, "Durée (min)"), pauseMinInput),
       ),
     ),
     el("div", { class: "modal-actions" },
@@ -1450,31 +1450,31 @@ function openHalfMetaEditor(d, half, anchorEl) {
 
 async function changeWeek(dateStr) {
   semaineLundi = dateStr;
-  // La Â« semaine affichÃ©e Â» est persistÃ©e comme rÃ©glage GLOBAL de la promo (table settings,
-  // Ã©criture admin-only en RLS) : c'est la semaine que tout le monde retrouve Ã  l'ouverture.
-  // Les non-admins naviguent donc en LOCAL uniquement â€” persister ici levait une erreur RLS
-  // qui court-circuitait loadPlanning/renderInto â†’ navigation bloquÃ©e pour les stagiaires
-  // (bug GaÃ«lle 2026-07-02), alors qu'un stagiaire ne doit de toute faÃ§on pas dÃ©placer la
+  // La « semaine affichée » est persistée comme réglage GLOBAL de la promo (table settings,
+  // écriture admin-only en RLS) : c'est la semaine que tout le monde retrouve à l'ouverture.
+  // Les non-admins naviguent donc en LOCAL uniquement — persister ici levait une erreur RLS
+  // qui court-circuitait loadPlanning/renderInto → navigation bloquée pour les stagiaires
+  // (bug Gaëlle 2026-07-02), alors qu'un stagiaire ne doit de toute façon pas déplacer la
   // semaine courante de toute la promo.
   if (isAdmin()) await setSetting("current_week_lundi", dateStr);
   await loadPlanning();
   renderInto(currentContainer);
 }
 
-// === Valider la semaine : transforme le planning des jours Ã©coulÃ©s en passages ===
-// Salle -> 1 passage Salle pour le pÃ©dagogue. Voiture -> 1 passage Voiture par Ã©lÃ¨ve.
-// Ã‰cran de confirmation : rÃ©sultat Â« EffectuÃ© Â» par dÃ©faut, ajustable, dÃ©doublonnÃ©.
+// === Valider la semaine : transforme le planning des jours écoulés en passages ===
+// Salle -> 1 passage Salle pour le pédagogue. Voiture -> 1 passage Voiture par élève.
+// Écran de confirmation : résultat « Effectué » par défaut, ajustable, dédoublonné.
 function openValiderSemaineModal() {
   const monday = new Date(semaineLundi + "T00:00:00");
   const todayIso = isoDate(new Date());
   const activeIds = new Set(stagiaires.map((s) => s.id));
 
-  // 1. Candidats depuis le planning, jours Ã©coulÃ©s uniquement (date du jour <= aujourd'hui)
+  // 1. Candidats depuis le planning, jours écoulés uniquement (date du jour <= aujourd'hui)
   const raw = [];
   entries.forEach((e) => {
     const dateIso = isoDate(addDays(monday, e.day_index));
     if (dateIso > todayIso) return;
-    if (e.activite === "PÃ©dagogie salle") {
+    if (e.activite === "Pédagogie salle") {
       if (e.pedagogue_id && activeIds.has(e.pedagogue_id)) {
         raw.push({ stagiaire_id: e.pedagogue_id, type: "Salle", date: dateIso, day_index: e.day_index });
       }
@@ -1489,11 +1489,11 @@ function openValiderSemaineModal() {
     }
   });
 
-  // DÃ©doublonnage par (stagiaire + type + JOUR) : au plus 1 passage par stagiaire,
-  // par type et par jour. ConsÃ©quence assumÃ©e : 2 sessions voiture le mÃªme jour
-  // (matin + aprÃ¨s-midi) comptent pour 1. La table passages est au grain jour
-  // (pas de demi-journÃ©e), donc on ne peut pas distinguer plus finement ; pour un
-  // 2e passage le mÃªme jour, l'ajouter Ã  la main dans l'onglet Passages.
+  // Dédoublonnage par (stagiaire + type + JOUR) : au plus 1 passage par stagiaire,
+  // par type et par jour. Conséquence assumée : 2 sessions voiture le même jour
+  // (matin + après-midi) comptent pour 1. La table passages est au grain jour
+  // (pas de demi-journée), donc on ne peut pas distinguer plus finement ; pour un
+  // 2e passage le même jour, l'ajouter à la main dans l'onglet Passages.
   const seen = new Set();
   const candidates = raw.filter((c) => {
     const k = c.stagiaire_id + "|" + c.type + "|" + c.date;
@@ -1502,15 +1502,15 @@ function openValiderSemaineModal() {
     return true;
   });
 
-  // 2. ThÃ¨mes prÃ©sents dans les sujets des jours Ã©coulÃ©s, pas encore Â« Fait Â».
-  // date_fait = date du crÃ©neau (la plus ancienne si le thÃ¨me apparaÃ®t plusieurs fois).
+  // 2. Thèmes présents dans les sujets des jours écoulés, pas encore « Fait ».
+  // date_fait = date du créneau (la plus ancienne si le thème apparaît plusieurs fois).
   const themeByDate = new Map();
   entries.forEach((e) => {
     const dateIso = isoDate(addDays(monday, e.day_index));
     if (dateIso > todayIso) return;
     parseSujet(e.sujet).forEach((titre) => {
       const t = themes.find((x) => x.titre === titre);
-      if (!t || t.statut === "Fait") return;  // texte libre non rattachÃ© ou dÃ©jÃ  fait : ignorÃ©
+      if (!t || t.statut === "Fait") return;  // texte libre non rattaché ou déjà fait : ignoré
       const prev = themeByDate.get(t.id);
       if (!prev || dateIso < prev.date) themeByDate.set(t.id, { theme: t, date: dateIso });
     });
@@ -1518,11 +1518,11 @@ function openValiderSemaineModal() {
   const themeCandidates = [...themeByDate.values()];
 
   if (candidates.length === 0 && themeCandidates.length === 0) {
-    toast("Rien Ã  valider : aucune pÃ©dagogie, voiture ni thÃ¨me sur les jours Ã©coulÃ©s de cette semaine.", "info", 4500);
+    toast("Rien à valider : aucune pédagogie, voiture ni thème sur les jours écoulés de cette semaine.", "info", 4500);
     return;
   }
 
-  // 3. DÃ©doublonnage des passages contre l'existant (manuel ou auto) sur la semaine
+  // 3. Dédoublonnage des passages contre l'existant (manuel ou auto) sur la semaine
   const friday = isoDate(addDays(monday, 4));
   getPassagesInRange(semaineLundi, friday).then((existing) => {
     const existKey = new Set(existing.map((p) => p.stagiaire_id + "|" + p.type + "|" + p.date));
@@ -1530,7 +1530,7 @@ function openValiderSemaineModal() {
     const toCreate = candidates.filter((c) => !existKey.has(keyOf(c)));
     const already = candidates.filter((c) => existKey.has(keyOf(c)));
     if (toCreate.length === 0 && themeCandidates.length === 0) {
-      toast("Tout est dÃ©jÃ  enregistrÃ© pour cette semaine (" + already.length + " passage(s)).", "info", 4500);
+      toast("Tout est déjà enregistré pour cette semaine (" + already.length + " passage(s)).", "info", 4500);
       return;
     }
     renderValiderModal(toCreate, already, existKey, themeCandidates);
@@ -1551,7 +1551,7 @@ function renderValiderModal(toCreate, already, existKey, themeCandidates) {
     return j.charAt(0) + j.slice(1).toLowerCase();
   };
 
-  const rowState = toCreate.map(() => ({ include: true, resultat: "EffectuÃ©", remplacant_id: null }));
+  const rowState = toCreate.map(() => ({ include: true, resultat: "Effectué", remplacant_id: null }));
   const themeState = (themeCandidates || []).map(() => ({ include: true }));
   const list = el("div", { class: "valider-list" });
 
@@ -1563,14 +1563,14 @@ function renderValiderModal(toCreate, already, existKey, themeCandidates) {
     const resSel = el("select", { class: "valider-res" });
     RESULTATS.forEach((r) => {
       const opt = el("option", { value: r.value }, r.icon + " " + r.value);
-      if (r.value === "EffectuÃ©") opt.selected = true;
+      if (r.value === "Effectué") opt.selected = true;
       resSel.appendChild(opt);
     });
 
-    // SÃ©lecteur Â« remplacÃ© par Â» : visible seulement sur Absence. Le remplaÃ§ant
-    // choisi sera crÃ©ditÃ© d'un passage EffectuÃ© (mÃªme type, mÃªme jour).
-    const remplSel = el("select", { class: "valider-res valider-rempl hidden", "aria-label": "RemplacÃ© par" });
-    remplSel.appendChild(el("option", { value: "" }, "â€” remplacÃ© par â€”"));
+    // Sélecteur « remplacé par » : visible seulement sur Absence. Le remplaçant
+    // choisi sera crédité d'un passage Effectué (même type, même jour).
+    const remplSel = el("select", { class: "valider-res valider-rempl hidden", "aria-label": "Remplacé par" });
+    remplSel.appendChild(el("option", { value: "" }, "— remplacé par —"));
     stagiaires
       .filter((s) => s.id !== c.stagiaire_id)
       .forEach((s) => remplSel.appendChild(el("option", { value: s.id }, displayStagiaire(s))));
@@ -1593,7 +1593,7 @@ function renderValiderModal(toCreate, already, existKey, themeCandidates) {
       cb,
       el("span", { class: "valider-row-main" },
         el("span", { class: "valider-row-name" }, nameOf(c.stagiaire_id)),
-        el("span", { class: "valider-row-meta" }, dayLabel(c.day_index) + " Â· " + c.type),
+        el("span", { class: "valider-row-meta" }, dayLabel(c.day_index) + " · " + c.type),
       ),
       resSel,
     );
@@ -1610,34 +1610,34 @@ function renderValiderModal(toCreate, already, existKey, themeCandidates) {
   });
 
   if (already.length) {
-    list.appendChild(el("div", { class: "valider-already-head" }, already.length + " dÃ©jÃ  enregistrÃ©(s), ignorÃ©(s)"));
+    list.appendChild(el("div", { class: "valider-already-head" }, already.length + " déjà enregistré(s), ignoré(s)"));
     already.forEach((c) => {
       list.appendChild(el("div", { class: "valider-row already" },
         el("div", { class: "valider-row-top" },
           el("span", { class: "valider-row-main" },
             el("span", { class: "valider-row-name" }, nameOf(c.stagiaire_id)),
-            el("span", { class: "valider-row-meta" }, dayLabel(c.day_index) + " Â· " + c.type),
+            el("span", { class: "valider-row-meta" }, dayLabel(c.day_index) + " · " + c.type),
           ),
-          el("span", { class: "valider-done" }, "dÃ©jÃ  fait"),
+          el("span", { class: "valider-done" }, "déjà fait"),
         ),
       ));
     });
   }
 
-  // Section Â« ThÃ¨mes traitÃ©s Â» : marque les thÃ¨mes du planning comme Fait Ã  la date du crÃ©neau
+  // Section « Thèmes traités » : marque les thèmes du planning comme Fait à la date du créneau
   if (themeCandidates && themeCandidates.length) {
-    list.appendChild(el("div", { class: "valider-already-head" }, "ThÃ¨mes traitÃ©s (" + themeCandidates.length + ")"));
+    list.appendChild(el("div", { class: "valider-already-head" }, "Thèmes traités (" + themeCandidates.length + ")"));
     themeCandidates.forEach((tc, i) => {
-      const cb = el("input", { type: "checkbox", "aria-label": "Marquer Â« " + tc.theme.titre + " Â» traitÃ©" });
+      const cb = el("input", { type: "checkbox", "aria-label": "Marquer « " + tc.theme.titre + " » traité" });
       cb.checked = true;
       cb.addEventListener("change", () => { themeState[i].include = cb.checked; });
-      const numBadge = tc.theme.numero != null ? String(tc.theme.numero).padStart(2, "0") + " Â· " : "";
+      const numBadge = tc.theme.numero != null ? String(tc.theme.numero).padStart(2, "0") + " · " : "";
       const row = el("div", { class: "valider-row" },
         el("div", { class: "valider-row-top" },
           cb,
           el("span", { class: "valider-row-main" },
             el("span", { class: "valider-row-name" }, numBadge + tc.theme.titre),
-            el("span", { class: "valider-row-meta" }, "TraitÃ© le " + formatDate(tc.date)),
+            el("span", { class: "valider-row-meta" }, "Traité le " + formatDate(tc.date)),
           ),
         ),
       );
@@ -1656,7 +1656,7 @@ function renderValiderModal(toCreate, already, existKey, themeCandidates) {
   async function save() {
     const who = getCurrentWho();
     const rows = [];
-    const batchKeys = new Set();  // Ã©vite les doublons intra-lot (ex: remplaÃ§ant dÃ©jÃ  candidat)
+    const batchKeys = new Set();  // évite les doublons intra-lot (ex: remplaçant déjà candidat)
     const addRow = (stagiaire_id, type, date, resultat, remplacant_id) => {
       const key = stagiaire_id + "|" + type + "|" + date;
       if (existKey.has(key) || batchKeys.has(key)) return;
@@ -1676,16 +1676,16 @@ function renderValiderModal(toCreate, already, existKey, themeCandidates) {
       if (!st.include) return;
       const rempl = st.resultat === "Absence" ? st.remplacant_id : null;
       addRow(c.stagiaire_id, c.type, c.date, st.resultat, rempl);
-      // Absence + remplaÃ§ant => le remplaÃ§ant est crÃ©ditÃ© d'un EffectuÃ© (mÃªme type, mÃªme jour)
-      if (rempl) addRow(rempl, c.type, c.date, "EffectuÃ©", null);
+      // Absence + remplaçant => le remplaçant est crédité d'un Effectué (même type, même jour)
+      if (rempl) addRow(rempl, c.type, c.date, "Effectué", null);
     });
 
     const themesToMark = (themeCandidates || []).filter((tc, i) => themeState[i].include);
 
-    if (rows.length === 0 && themesToMark.length === 0) { toast("Rien Ã  enregistrer (tout dÃ©cochÃ©)", "info"); return; }
+    if (rows.length === 0 && themesToMark.length === 0) { toast("Rien à enregistrer (tout décoché)", "info"); return; }
     try {
       saveBtn.disabled = true;
-      saveBtn.textContent = "Enregistrementâ€¦";
+      saveBtn.textContent = "Enregistrement…";
 
       let insertedIds = [];
       if (rows.length) {
@@ -1693,21 +1693,21 @@ function renderValiderModal(toCreate, already, existKey, themeCandidates) {
         insertedIds = inserted.map((p) => p.id);
       }
 
-      // Marque les thÃ¨mes Â« Fait Â» Ã  la date du crÃ©neau ; mÃ©morise l'Ã©tat pour Ctrl+Z.
+      // Marque les thèmes « Fait » à la date du créneau ; mémorise l'état pour Ctrl+Z.
       const themeUndo = [];
       const email = getAdminEmail();
       for (const tc of themesToMark) {
         const prev = { statut: tc.theme.statut, date_fait: tc.theme.date_fait };
         await updateTheme(tc.theme.id, { statut: "Fait", date_fait: tc.date, updated_by_email: email });
         tc.theme.statut = "Fait";
-        tc.theme.date_fait = tc.date;  // maj en mÃ©moire pour ne pas le re-proposer
+        tc.theme.date_fait = tc.date;  // maj en mémoire pour ne pas le re-proposer
         themeUndo.push({ theme: tc.theme, prev });
       }
 
       const parts = [];
       if (insertedIds.length) parts.push(insertedIds.length + " passage(s)");
-      if (themesToMark.length) parts.push(themesToMark.length + " thÃ¨me(s)");
-      toast(parts.join(" + ") + " enregistrÃ©(s) Â· Ctrl+Z pour annuler", "success", 2800);
+      if (themesToMark.length) parts.push(themesToMark.length + " thème(s)");
+      toast(parts.join(" + ") + " enregistré(s) · Ctrl+Z pour annuler", "success", 2800);
 
       recordUndo("validation de la semaine", async () => {
         if (insertedIds.length) await deletePassagesBatch(insertedIds);
@@ -1732,7 +1732,7 @@ function renderValiderModal(toCreate, already, existKey, themeCandidates) {
   const modal = el("div", { class: "modal valider-modal" },
     el("h3", {}, "Valider la semaine"),
     el("p", { class: "muted", style: "margin:0 0 0.6rem; font-size:0.85rem;" },
-      "Passages et thÃ¨mes dÃ©duits du planning des jours Ã©coulÃ©s. RÃ©sultat Â« EffectuÃ© Â» par dÃ©faut : sur une absence, indique qui a remplacÃ© (le remplaÃ§ant est crÃ©ditÃ©). DÃ©coche pour exclure."),
+      "Passages et thèmes déduits du planning des jours écoulés. Résultat « Effectué » par défaut : sur une absence, indique qui a remplacé (le remplaçant est crédité). Décoche pour exclure."),
     list,
     el("div", { class: "modal-actions" }, cancelBtn, saveBtn),
   );
@@ -1754,18 +1754,18 @@ function renderInto(container) {
 
   container.appendChild(el("div", { class: "view-header" },
     el("div", { class: "view-header-text" },
-      el("p", { class: "eyebrow" }, (admin ? "Ã‰dition" : "Consultation") + " Â· Semaine du " + longLabel),
+      el("p", { class: "eyebrow" }, (admin ? "Édition" : "Consultation") + " · Semaine du " + longLabel),
       el("h2", {}, "Planning de la semaine"),
       el("p", { class: "subtitle" },
         admin
-          ? "SÃ©lectionne les activitÃ©s, profs et stagiaires. Tout s'enregistre automatiquement."
+          ? "Sélectionne les activités, profs et stagiaires. Tout s'enregistre automatiquement."
           : "Lecture seule. Connexion admin requise pour modifier."
       ),
     ),
   ));
 
   // Toolbar semaine
-  const prevBtn = el("button", { class: "btn small icon-only", "aria-label": "Semaine prÃ©cÃ©dente",
+  const prevBtn = el("button", { class: "btn small icon-only", "aria-label": "Semaine précédente",
     onClick: () => changeWeek(isoDate(addDays(monday, -7))) });
   prevBtn.appendChild(icon.chevronLeft());
 
@@ -1792,25 +1792,25 @@ function renderInto(container) {
     dateInput, prevBtn, nextBtn, todayBtn,
     el("span", { style: "flex:1" }),
   );
-  // Banque d'Ã©lÃ¨ves bÃ©nÃ©voles (voiture) : gestion rÃ©servÃ©e aux formateurs/admins
+  // Banque d'élèves bénévoles (voiture) : gestion réservée aux formateurs/admins
   if (admin) {
     const bnvBtn = el("button", { class: "btn small",
-      title: "Banque d'Ã©lÃ¨ves bÃ©nÃ©voles (voiture) : fiches, dispos, tÃ©lÃ©phones",
+      title: "Banque d'élèves bénévoles (voiture) : fiches, dispos, téléphones",
       onClick: () => openBenevolesPanel({ onClose: async () => {
         benevoles = await loadBenevoles();
         renderInto(currentContainer);
-      }}) }, "BÃ©nÃ©voles");
+      }}) }, "Bénévoles");
     weekBar.appendChild(bnvBtn);
   }
-  // Placer la semaine : tirage global (tableaux + Ã©lÃ¨ves de toute la semaine), admin uniquement
+  // Placer la semaine : tirage global (tableaux + élèves de toute la semaine), admin uniquement
   if (admin) {
     const placeBtn = el("button", { class: "btn small",
-      title: "Placer automatiquement tableaux et Ã©lÃ¨ves de toute la semaine (prioritÃ© aux moins passÃ©s)",
+      title: "Placer automatiquement tableaux et élèves de toute la semaine (priorité aux moins passés)",
       onClick: () => autoPlaceWeek() });
-    placeBtn.appendChild(document.createTextNode("ðŸŽ² Placer la semaine"));
+    placeBtn.appendChild(document.createTextNode("🎲 Placer la semaine"));
     weekBar.appendChild(placeBtn);
   }
-  // Valider la semaine : admin uniquement, sur une semaine au moins partiellement Ã©coulÃ©e
+  // Valider la semaine : admin uniquement, sur une semaine au moins partiellement écoulée
   if (admin && semaineLundi <= isoDate(new Date())) {
     const validBtn = el("button", { class: "btn small primary", onClick: () => openValiderSemaineModal() });
     validBtn.appendChild(icon.check());
@@ -1825,16 +1825,16 @@ function renderInto(container) {
   container.appendChild(wrap);
 
   container.appendChild(el("div", { class: "planning-helper" },
-    el("strong", {}, "Ã€ la suite "), "â†“ = nouveau crÃ©neau dans le temps (aprÃ¨s celui qui prÃ©cÃ¨de). ",
-    el("strong", {}, "ParallÃ¨le "), "â†’ = autre activitÃ© au mÃªme horaire (ex: voiture qui tourne pendant un cours). ",
-    "Au moins 1 crÃ©neau par demi-journÃ©e. Min. 1 lane (rangÃ©e) â†’ bouton Â« ParallÃ¨le Â» l'Ã©toffe."
+    el("strong", {}, "À la suite "), "↓ = nouveau créneau dans le temps (après celui qui précède). ",
+    el("strong", {}, "Parallèle "), "→ = autre activité au même horaire (ex: voiture qui tourne pendant un cours). ",
+    "Au moins 1 créneau par demi-journée. Min. 1 lane (rangée) → bouton « Parallèle » l'étoffe."
   ));
 
-  // Monte/rafraÃ®chit le DOM d'impression dÃ©diÃ© (cachÃ© Ã  l'Ã©cran, utilisÃ© par @media print).
+  // Monte/rafraîchit le DOM d'impression dédié (caché à l'écran, utilisé par @media print).
   mountPrintTarget();
 }
 
-// === Rendu print 1 page (DOM dÃ©diÃ©, compact, vide masquÃ©) ===
+// === Rendu print 1 page (DOM dédié, compact, vide masqué) ===
 
 function nonEmpty(v) {
   return v != null && String(v).trim() !== "";
@@ -1847,8 +1847,8 @@ function lookupStagiaire(id) {
   return s ? displayStagiaire(s) : "";
 }
 
-// PrÃ©noms portÃ©s par AU MOINS 2 stagiaires (normalisÃ©s) â†’ il faut garder l'initiale du
-// nom pour les distinguer. RecalculÃ© Ã  chaque impression (liste ~15 stagiaires).
+// Prénoms portés par AU MOINS 2 stagiaires (normalisés) → il faut garder l'initiale du
+// nom pour les distinguer. Recalculé à chaque impression (liste ~15 stagiaires).
 function ambiguousPrenoms() {
   const count = {};
   stagiaires.forEach((s) => {
@@ -1858,8 +1858,8 @@ function ambiguousPrenoms() {
   return new Set(Object.keys(count).filter((p) => count[p] >= 2));
 }
 
-// Nom affichÃ© Ã  l'impression : PRÃ‰NOM SEUL, sauf si le prÃ©nom est ambigu (partagÃ© par un
-// autre stagiaire) â†’ Â« Initiale. PrÃ©nom Â» (displayStagiaire) pour lever le doute.
+// Nom affiché à l'impression : PRÉNOM SEUL, sauf si le prénom est ambigu (partagé par un
+// autre stagiaire) → « Initiale. Prénom » (displayStagiaire) pour lever le doute.
 function printName(id, ambig) {
   const s = stagiaires.find((x) => x.id === id);
   if (!s) return "";
@@ -1878,21 +1878,21 @@ function entryHasContent(e) {
 function printEntryCell(e, ambig) {
   const cell = el("div", { class: "pp-cell", dataset: { activite: e.activite || "" } });
 
-  // Ligne titre : activitÃ© + prof
+  // Ligne titre : activité + prof
   const header = el("div", { class: "pp-cell-head" });
   if (nonEmpty(e.activite)) {
     header.appendChild(el("span", { class: "pp-act" }, e.activite));
   } else {
-    header.appendChild(el("span", { class: "pp-act muted" }, "â€”"));
+    header.appendChild(el("span", { class: "pp-act muted" }, "—"));
   }
   const profIds = (e.prof_ids && e.prof_ids.length) ? e.prof_ids : (e.prof_id ? [e.prof_id] : []);
   if (profIds.length) {
-    header.appendChild(el("span", { class: "pp-prof" }, profIds.map(lookupProf).filter(Boolean).join(" Â· ")));
+    header.appendChild(el("span", { class: "pp-prof" }, profIds.map(lookupProf).filter(Boolean).join(" · ")));
   }
   cell.appendChild(header);
 
-  // Sujet â†’ thÃ¨mes abordÃ©s, chacun prÃ©fixÃ© de son NUMÃ‰RO s'il est rattachÃ© Ã  un thÃ¨me
-  // connu (sinon texte libre sans numÃ©ro), un par ligne. (Â« Autre Â» n'a pas de sujet.)
+  // Sujet → thèmes abordés, chacun préfixé de son NUMÉRO s'il est rattaché à un thème
+  // connu (sinon texte libre sans numéro), un par ligne. (« Autre » n'a pas de sujet.)
   if (entryShape(e).includes("sujet") && nonEmpty(e.sujet)) {
     const box = el("div", { class: "pp-sujet" });
     parseSujet(e.sujet).forEach((titre) => {
@@ -1907,10 +1907,10 @@ function printEntryCell(e, ambig) {
     cell.appendChild(box);
   }
 
-  // Au tableau + Ã‰lÃ¨ves â€” rÃ´les EFFECTIFS selon la forme de l'activitÃ© (ignore une donnÃ©e
-  // pÃ©rimÃ©e d'un rÃ´le absent du type courant : ex. Ã©lÃ¨ves restÃ©s sur un Cours, Â« au tableau Â»
-  // restÃ© sur une Voiture). Noms seulement s'ils se rÃ©solvent (Ã©vite un label orphelin).
-  // Â« Au tableau Â» (1 personne) reste en ligne ; les Ã©lÃ¨ves sont listÃ©s UN PAR LIGNE.
+  // Au tableau + Élèves — rôles EFFECTIFS selon la forme de l'activité (ignore une donnée
+  // périmée d'un rôle absent du type courant : ex. élèves restés sur un Cours, « au tableau »
+  // resté sur une Voiture). Noms seulement s'ils se résolvent (évite un label orphelin).
+  // « Au tableau » (1 personne) reste en ligne ; les élèves sont listés UN PAR LIGNE.
   const addTableau = (key, id) => {
     const n = id ? printName(id, ambig) : "";
     if (nonEmpty(n)) cell.appendChild(el("div", { class: "pp-line" },
@@ -1923,21 +1923,21 @@ function printEntryCell(e, ambig) {
     cell.appendChild(el("div", { class: "pp-line" }, el("span", { class: "pp-key" }, key + " :")));
     names.forEach((n) => cell.appendChild(el("div", { class: "pp-line pp-eleve" }, n)));
   };
-  if (e.activite === "PÃ©dagogie salle" && e.salle_double) {
+  if (e.activite === "Pédagogie salle" && e.salle_double) {
     addTableau("Au tableau G1", effPedagogueId(e, 1));
-    addEleves("Ã‰lÃ¨ves G1", effElevesIds(e, 1));
+    addEleves("Élèves G1", effElevesIds(e, 1));
     addTableau("Au tableau G2", effPedagogueId(e, 2));
-    addEleves("Ã‰lÃ¨ves G2", effElevesIds(e, 2));
+    addEleves("Élèves G2", effElevesIds(e, 2));
   } else {
     addTableau("Au tableau", effPedagogueId(e, 1));
-    addEleves("Ã‰lÃ¨ves", effElevesIds(e, 1));
+    addEleves("Élèves", effElevesIds(e, 1));
   }
 
-  // BÃ©nÃ©voles (voiture) : sous les Ã©lÃ¨ves moniteurs, en italique. Format Â« N. PrÃ©nom Â»
-  // (banque sÃ©parÃ©e : pas de dÃ©doublonnage avec les prÃ©noms des stagiaires).
+  // Bénévoles (voiture) : sous les élèves moniteurs, en italique. Format « N. Prénom »
+  // (banque séparée : pas de dédoublonnage avec les prénoms des stagiaires).
   const bnvNames = effBenevolesIds(e).map(lookupBenevole).filter(Boolean);
   if (bnvNames.length) {
-    cell.appendChild(el("div", { class: "pp-line" }, el("span", { class: "pp-key" }, "BÃ©nÃ©voles :")));
+    cell.appendChild(el("div", { class: "pp-line" }, el("span", { class: "pp-key" }, "Bénévoles :")));
     bnvNames.forEach((n) => cell.appendChild(el("div", { class: "pp-line pp-eleve pp-benevole" }, n)));
   }
 
@@ -1951,16 +1951,16 @@ function printEntryCell(e, ambig) {
 
 function buildPrintHtml(monday) {
   const root = el("div", { class: "print-root" });
-  const ambig = ambiguousPrenoms();  // prÃ©noms Ã  dÃ©sambiguÃ¯ser (gardent l'initiale)
+  const ambig = ambiguousPrenoms();  // prénoms à désambiguïser (gardent l'initiale)
 
-  // En-tÃªte
+  // En-tête
   const semaineLabel = monday.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
   root.appendChild(el("div", { class: "pp-header" },
     el("div", { class: "pp-title" }, "Planning de la semaine"),
     el("div", { class: "pp-week" }, "Semaine du " + semaineLabel),
   ));
 
-  // Grille 5 jours Ã— 2 demi-journÃ©es
+  // Grille 5 jours × 2 demi-journées
   const grid = el("div", { class: "pp-grid" });
 
   JOURS.forEach((jour, d) => {
@@ -1978,11 +1978,11 @@ function buildPrintHtml(monday) {
 
       const halfBlock = el("div", { class: "pp-half " + half.key });
 
-      // Header demi-journÃ©e
+      // Header demi-journée
       const head = el("div", { class: "pp-half-head" });
       head.appendChild(el("span", { class: "pp-half-tag " + half.key }, half.short.slice(0, 3).toUpperCase()));
       head.appendChild(el("span", { class: "pp-half-hours" }, timesLabel(meta)));
-      if (pauseLbl) head.appendChild(el("span", { class: "pp-half-pause" }, "Â· " + pauseLbl));
+      if (pauseLbl) head.appendChild(el("span", { class: "pp-half-pause" }, "· " + pauseLbl));
       halfBlock.appendChild(head);
 
       // Slots non vides
@@ -1994,7 +1994,7 @@ function buildPrintHtml(monday) {
         .filter((row) => row.lanes.length > 0);
 
       if (rows.length === 0) {
-        halfBlock.appendChild(el("div", { class: "pp-empty" }, "â€”"));
+        halfBlock.appendChild(el("div", { class: "pp-empty" }, "—"));
       } else {
         rows.forEach((row) => {
           const rowEl = el("div", { class: "pp-row" });
@@ -2011,41 +2011,41 @@ function buildPrintHtml(monday) {
 
   root.appendChild(grid);
 
-  // Footer (+ emplacement de la ligne diagnostic, remplie par fitPrintToPage APRÃˆS mesure
-  // pour ne pas fausser le calcul d'Ã©chelle).
+  // Footer (+ emplacement de la ligne diagnostic, remplie par fitPrintToPage APRÈS mesure
+  // pour ne pas fausser le calcul d'échelle).
   root.appendChild(el("div", { class: "pp-footer" },
-    "Promo ECSR Â· gÃ©nÃ©rÃ© le " + new Date().toLocaleDateString("fr-FR"),
+    "Promo ECSR · généré le " + new Date().toLocaleDateString("fr-FR"),
     el("span", { class: "pp-diag" }),
   ));
 
   return root;
 }
 
-// Le DOM d'impression dÃ©diÃ© (#print-container) est montÃ© EN PERMANENCE tant qu'on est sur
-// le planning, rendu HORS Ã‰CRAN (position:fixed, left:-200vw) mais bien dans le layout
-// (donc MESURABLE â€” indispensable pour la mise Ã  l'Ã©chelle auto). La bascule Ã©cranâ†”impression
+// Le DOM d'impression dédié (#print-container) est monté EN PERMANENCE tant qu'on est sur
+// le planning, rendu HORS ÉCRAN (position:fixed, left:-200vw) mais bien dans le layout
+// (donc MESURABLE — indispensable pour la mise à l'échelle auto). La bascule écran↔impression
 // est faite uniquement par `@media print` + la classe `planning-printable` sur <body>.
-// Avantage : marche pour TOUS les chemins (bouton, Cmd/Ctrl+P, Partageâ†’Imprimer iOS, Chrome
-// Android), sans course critique (l'ancien setTimeout retirait le DOM pendant que l'aperÃ§u
-// iOS se gÃ©nÃ©rait encore â†’ l'app entiÃ¨re s'imprimait sur ~10 pages).
+// Avantage : marche pour TOUS les chemins (bouton, Cmd/Ctrl+P, Partage→Imprimer iOS, Chrome
+// Android), sans course critique (l'ancien setTimeout retirait le DOM pendant que l'aperçu
+// iOS se générait encore → l'app entière s'imprimait sur ~10 pages).
 
 let printBeforeprintBound = false;
 
-// Dimensions CIBLES du contenu imprimÃ© (mm), PAR PLATEFORME. Les navigateurs MOBILES (iOS
-// Safari ET Android Chrome) ajoutent des marges (latÃ©rales ET hautes/basses) + en-tÃªtes/pieds
-// (date, URL, nÂ° de page) NON contrÃ´lables en CSS â†’ leur zone imprimable rÃ©elle est plus PETITE
-// (hauteur ~157mm et largeur ~235mm) que sur desktop (~196 Ã— ~285mm). On vise donc plus bas sur
-// mobile. Valeurs CONFIRMÃ‰ES sur iPhone rÃ©el (230Ã—148 â†’ planning entier, 1 page Ã  100 %) ;
-// appliquÃ©es aussi Ã  Android (zone â‰ˆ ou plus large qu'iOS â†’ tient Ã  coup sÃ»r).
-// âš ï¸ Si Ã§a dÃ©borde/rogne ENCORE sur un mobile, baisser la valeur mobile correspondante.
+// Dimensions CIBLES du contenu imprimé (mm), PAR PLATEFORME. Les navigateurs MOBILES (iOS
+// Safari ET Android Chrome) ajoutent des marges (latérales ET hautes/basses) + en-têtes/pieds
+// (date, URL, n° de page) NON contrôlables en CSS → leur zone imprimable réelle est plus PETITE
+// (hauteur ~157mm et largeur ~235mm) que sur desktop (~196 × ~285mm). On vise donc plus bas sur
+// mobile. Valeurs CONFIRMÉES sur iPhone réel (230×148 → planning entier, 1 page à 100 %) ;
+// appliquées aussi à Android (zone ≈ ou plus large qu'iOS → tient à coup sûr).
+// ⚠️ Si ça déborde/rogne ENCORE sur un mobile, baisser la valeur mobile correspondante.
 const IS_MOBILE = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
                || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1); // iPad iOS 13+
 const PRINT_FIT_MM = IS_MOBILE ? 148 : 180;     // hauteur cible
-const PRINT_WIDTH_MM = IS_MOBILE ? 230 : 270;   // largeur (zone imprimable mobile plus Ã©troite)
+const PRINT_WIDTH_MM = IS_MOBILE ? 230 : 270;   // largeur (zone imprimable mobile plus étroite)
 // Hauteur de COUPE (mm) : un peu AU-DESSUS de la cible (headroom) mais SOUS la zone
-// imprimable â†’ si le rendu print rÃ©el sort plus haut que la mesure Ã©cran (polices chargÃ©es
-// entre-temps, mÃ©triques du pilote d'imprimanteâ€¦ â€” vu sur le PC d'Hocine : planning rognÃ©),
-// l'Ã©cart est absorbÃ© au lieu de couper le contenu, et la page reste UNIQUE quoi qu'il arrive.
+// imprimable → si le rendu print réel sort plus haut que la mesure écran (polices chargées
+// entre-temps, métriques du pilote d'imprimante… — vu sur le PC d'Hocine : planning rogné),
+// l'écart est absorbé au lieu de couper le contenu, et la page reste UNIQUE quoi qu'il arrive.
 const PRINT_CLIP_MM = IS_MOBILE ? 152 : 188;
 
 function ensurePrintContainer() {
@@ -2055,19 +2055,19 @@ function ensurePrintContainer() {
     c.id = "print-container";
     c.setAttribute("aria-hidden", "true");
     c.style.width = PRINT_WIDTH_MM + "mm";   // largeur par plateforme (CSS = simple fallback)
-    // Hauteur de coupe lue par le CSS @media print (var(--print-clip)) : appliquÃ©e par le
-    // MOTEUR au moment du print â†’ indÃ©pendante de tout px figÃ© cÃ´tÃ© Ã©cran.
+    // Hauteur de coupe lue par le CSS @media print (var(--print-clip)) : appliquée par le
+    // MOTEUR au moment du print → indépendante de tout px figé côté écran.
     c.style.setProperty("--print-clip", PRINT_CLIP_MM + "mm");
     document.body.appendChild(c);
   }
   return c;
 }
 
-// RÃ©duit le contenu pour qu'il ne dÃ©passe JAMAIS PRINT_FIT_MM de hauteur â†’ 1 seule page,
-// automatiquement (= rÃ©gler Â« Mise Ã  l'Ã©chelle Â» Ã  la main, mais calculÃ©). On utilise
-// `transform: scale` : sa taille est reflÃ©tÃ©e de faÃ§on FIABLE par getBoundingClientRect (au
+// Réduit le contenu pour qu'il ne dépasse JAMAIS PRINT_FIT_MM de hauteur → 1 seule page,
+// automatiquement (= régler « Mise à l'échelle » à la main, mais calculé). On utilise
+// `transform: scale` : sa taille est reflétée de façon FIABLE par getBoundingClientRect (au
 // contraire de `zoom`, dont l'interaction avec les largeurs en % casse la mesure). On
-// dichotomie en prÃ©-Ã©largissant la largeur pour rester pleine largeur (largeurÃ—scale = 100 %),
+// dichotomie en pré-élargissant la largeur pour rester pleine largeur (largeur×scale = 100 %),
 // car un layout plus large se raccourcit.
 function fitPrintToPage(root) {
   const pxPerMm = 96 / 25.4;
@@ -2077,18 +2077,18 @@ function fitPrintToPage(root) {
   root.style.transform = "none";
   root.style.width = "100%";
   container.style.height = "";
-  // Conteneur rendu hors Ã©cran (â‰  display:none) â†’ hauteur rÃ©elle mesurable.
+  // Conteneur rendu hors écran (≠ display:none) → hauteur réelle mesurable.
   const h0 = root.getBoundingClientRect().height;
 
   let scale = 1;
   if (h0 > target + 1) {
-    // scale âˆˆ ]lo, 1] : plus le scale baisse, plus on Ã©largit (width = 100/scale %) â†’ contenu
+    // scale ∈ ]lo, 1] : plus le scale baisse, plus on élargit (width = 100/scale %) → contenu
     // plus court. On cherche le plus GRAND scale dont la hauteur effective tient dans la cible.
     let lo = target / h0, hi = 1, best = lo;
     for (let i = 0; i < 7; i++) {
       const s = (lo + hi) / 2;
       root.style.width = (100 / s) + "%";
-      const rendered = root.getBoundingClientRect().height * s;   // hauteur effective aprÃ¨s scale(s)
+      const rendered = root.getBoundingClientRect().height * s;   // hauteur effective après scale(s)
       if (rendered > target) hi = s;
       else { best = s; lo = s; }
     }
@@ -2097,31 +2097,31 @@ function fitPrintToPage(root) {
     scale = best;
   }
 
-  // VERROU de pagination : `transform` ne rÃ©duit pas la BOÃŽTE de layout â†’ hauteur explicite
+  // VERROU de pagination : `transform` ne réduit pas la BOÎTE de layout → hauteur explicite
   // + overflow:hidden. Version robuste : hauteur de coupe FIXE (PRINT_CLIP_MM, budget par
-  // plateforme), INDÃ‰PENDANTE de la mesure. Avant : hauteur = mesure exacte â†’ tout Ã©cart
-  // mesure Ã©cran â†” rendu print rÃ©el (polices, piloteâ€¦) rognait le bas du planning (bug PC
-  // Hocine 2026-07-02). Le contenu vise PRINT_FIT_MM, la coupe est Ã  PRINT_CLIP_MM â†’ headroom.
+  // plateforme), INDÉPENDANTE de la mesure. Avant : hauteur = mesure exacte → tout écart
+  // mesure écran ↔ rendu print réel (polices, pilote…) rognait le bas du planning (bug PC
+  // Hocine 2026-07-02). Le contenu vise PRINT_FIT_MM, la coupe est à PRINT_CLIP_MM → headroom.
   // En print, c'est le CSS (height: var(--print-clip) !important) qui fait foi, sans JS.
   container.style.height = Math.ceil(PRINT_CLIP_MM * pxPerMm) + "px";
 
-  // Ligne diagnostic imprimÃ©e (discrÃ¨te, dans le footer) : quand une impression sort mal sur
-  // une machine qu'on n'a pas sous la main, une simple photo de l'aperÃ§u donne les conditions
-  // exactes du calcul (Ã©chelle, hauteurs, viewport, zoom, navigateur, Ã©tat des polices).
+  // Ligne diagnostic imprimée (discrète, dans le footer) : quand une impression sort mal sur
+  // une machine qu'on n'a pas sous la main, une simple photo de l'aperçu donne les conditions
+  // exactes du calcul (échelle, hauteurs, viewport, zoom, navigateur, état des polices).
   const diag = root.querySelector(".pp-diag");
   if (diag) {
     const m = navigator.userAgent.match(/(Edg|OPR|CriOS|Chrome|Firefox|Version)\/(\d+)/);
     const brow = m ? (m[1] === "Version" ? "Safari" : m[1]) + " " + m[2] : "?";
-    diag.textContent = " Â· [" + Math.round(scale * 100) + "% Â· "
-      + Math.round(h0 / pxPerMm) + "â†’" + Math.round(root.getBoundingClientRect().height / pxPerMm)
-      + "/" + PRINT_CLIP_MM + "mm Â· " + window.innerWidth + "Ã—" + window.innerHeight
-      + " @" + (window.devicePixelRatio || 1).toFixed(2) + " Â· " + brow
-      + " Â· pol " + (document.fonts && document.fonts.status === "loaded" ? "ok" : "â€¦") + "]";
+    diag.textContent = " · [" + Math.round(scale * 100) + "% · "
+      + Math.round(h0 / pxPerMm) + "→" + Math.round(root.getBoundingClientRect().height / pxPerMm)
+      + "/" + PRINT_CLIP_MM + "mm · " + window.innerWidth + "×" + window.innerHeight
+      + " @" + (window.devicePixelRatio || 1).toFixed(2) + " · " + brow
+      + " · pol " + (document.fonts && document.fonts.status === "loaded" ? "ok" : "…") + "]";
   }
 }
 
-// (Re)gÃ©nÃ¨re le contenu compact 1 page A4 paysage depuis les donnÃ©es de la semaine courante,
-// puis le met Ã  l'Ã©chelle pour tenir sur une page.
+// (Re)génère le contenu compact 1 page A4 paysage depuis les données de la semaine courante,
+// puis le met à l'échelle pour tenir sur une page.
 function refreshPrintTarget() {
   if (!semaineLundi) return;
   const c = ensurePrintContainer();
@@ -2133,8 +2133,8 @@ function refreshPrintTarget() {
   fitPrintToPage(root);
 }
 
-// RafraÃ®chit le DOM d'impression UNIQUEMENT s'il est dÃ©jÃ  montÃ© (= on est sur le planning).
-// Ã‰vite qu'un save diffÃ©rÃ© (note debouncÃ©e) qui tombe aprÃ¨s avoir quittÃ© la vue ne
+// Rafraîchit le DOM d'impression UNIQUEMENT s'il est déjà monté (= on est sur le planning).
+// Évite qu'un save différé (note debouncée) qui tombe après avoir quitté la vue ne
 // ressuscite la cible d'impression sur une autre vue.
 function syncPrintTargetIfMounted() {
   if (document.body.classList.contains("planning-printable")) refreshPrintTarget();
@@ -2143,35 +2143,35 @@ function syncPrintTargetIfMounted() {
 function mountPrintTarget() {
   refreshPrintTarget();
   if (!printBeforeprintBound) {
-    // RafraÃ®chit le DOM d'impression juste avant un print natif, pour qu'il reflÃ¨te
-    // toujours les derniÃ¨res Ã©ditions. Deux dÃ©clencheurs complÃ©mentaires :
+    // Rafraîchit le DOM d'impression juste avant un print natif, pour qu'il reflète
+    // toujours les dernières éditions. Deux déclencheurs complémentaires :
     //  - `beforeprint` : desktop (Chrome/Edge/Firefox/Safari macOS) + Ctrl/Cmd+P.
-    //  - changement de `matchMedia('print')` : seul signal Ã©mis par iOS Safari/WebKit,
-    //    qui n'implÃ©mente pas `beforeprint` â†’ couvre le Partageâ†’Imprimer sur iPhone.
+    //  - changement de `matchMedia('print')` : seul signal émis par iOS Safari/WebKit,
+    //    qui n'implémente pas `beforeprint` → couvre le Partage→Imprimer sur iPhone.
     window.addEventListener("beforeprint", syncPrintTargetIfMounted);
     const mq = window.matchMedia("print");
     const onMq = (e) => { if (e.matches) syncPrintTargetIfMounted(); };
     if (mq.addEventListener) mq.addEventListener("change", onMq);
     else if (mq.addListener) mq.addListener(onMq); // anciens Safari
-    // La 1re mesure peut tomber AVANT le chargement de la police Outfit â†’ hauteur (donc
-    // Ã©chelle) erronÃ©e. On re-calcule une fois les polices prÃªtes.
+    // La 1re mesure peut tomber AVANT le chargement de la police Outfit → hauteur (donc
+    // échelle) erronée. On re-calcule une fois les polices prêtes.
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(syncPrintTargetIfMounted);
     printBeforeprintBound = true;
   }
 }
 
-// AppelÃ© par le routeur en quittant le planning : on retire la cible d'impression
-// pour qu'un print natif depuis une autre vue n'imprime pas un planning pÃ©rimÃ©.
+// Appelé par le routeur en quittant le planning : on retire la cible d'impression
+// pour qu'un print natif depuis une autre vue n'imprime pas un planning périmé.
 export function teardownPrintTarget() {
   document.getElementById("print-container")?.remove();
   document.body.classList.remove("planning-printable");
 }
 
 async function printPlanning() {
-  // Attend (bornÃ© Ã  1,5 s) le chargement des polices avant de mesurer : mesurer avec la
-  // police de repli puis rendre l'aperÃ§u avec Outfit chargÃ©e entre-temps = hauteurs
-  // diffÃ©rentes â†’ risque de coupe. Si le CDN fonts est bloquÃ©, on imprime quand mÃªme
-  // (repli utilisÃ© de faÃ§on cohÃ©rente Ã  la mesure ET au rendu).
+  // Attend (borné à 1,5 s) le chargement des polices avant de mesurer : mesurer avec la
+  // police de repli puis rendre l'aperçu avec Outfit chargée entre-temps = hauteurs
+  // différentes → risque de coupe. Si le CDN fonts est bloqué, on imprime quand même
+  // (repli utilisé de façon cohérente à la mesure ET au rendu).
   if (document.fonts && document.fonts.status !== "loaded") {
     await Promise.race([document.fonts.ready, new Promise((r) => setTimeout(r, 1500))]);
   }

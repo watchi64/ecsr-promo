@@ -1,12 +1,12 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20260703b";
+import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20260703c";
 
-// fetch avec timeout : sans Ã§a, une requÃªte peut rester pendue indÃ©finiment
-// (rÃ©seau mobile instable) â†’ "Chargement" infini. Avec, elle Ã©choue proprement aprÃ¨s 15s.
+// fetch avec timeout : sans ça, une requête peut rester pendue indéfiniment
+// (réseau mobile instable) → "Chargement" infini. Avec, elle échoue proprement après 15s.
 function fetchWithTimeout(input, init = {}) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 15000);
-  // Si un signal externe existe dÃ©jÃ  (rare), on le respecte aussi
+  // Si un signal externe existe déjà (rare), on le respecte aussi
   const externalSignal = init.signal;
   if (externalSignal) {
     if (externalSignal.aborted) controller.abort();
@@ -20,7 +20,7 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
   auth: {
     persistSession: true,         // garde la session dans localStorage
     autoRefreshToken: true,       // renouvelle le token automatiquement
-    detectSessionInUrl: true,     // reliquat magic link (retirÃ©) : inoffensif, conservÃ© par prudence
+    detectSessionInUrl: true,     // reliquat magic link (retiré) : inoffensif, conservé par prudence
     storage: window.localStorage, // explicite : pas de sessionStorage volatile
     storageKey: "ecsr_supabase_session",
   },
@@ -29,12 +29,12 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
   },
 });
 
-// === Cache mÃ©moire des donnÃ©es de rÃ©fÃ©rence (changent quasi jamais) ===
-// Ã‰vite de re-tÃ©lÃ©charger stagiaires/profs/thÃ¨mes/compÃ©tences Ã  chaque navigation.
-// InvalidÃ© explicitement lors des Ã©critures sur ces tables.
+// === Cache mémoire des données de référence (changent quasi jamais) ===
+// Évite de re-télécharger stagiaires/profs/thèmes/compétences à chaque navigation.
+// Invalidé explicitement lors des écritures sur ces tables.
 const _cache = new Map();
 const _cacheExpiry = new Map();
-const CACHE_TTL = 10 * 60 * 1000;  // 10 min de sÃ©curitÃ© (en plus de l'invalidation sur write)
+const CACHE_TTL = 10 * 60 * 1000;  // 10 min de sécurité (en plus de l'invalidation sur write)
 
 async function cachedQuery(key, fetcher) {
   const now = Date.now();
@@ -54,9 +54,9 @@ export function invalidateCache(key) {
 
 // === Stagiaires & Profs ===
 
-// Par dÃ©faut, ne renvoie que les stagiaires actifs (les abandons sont masquÃ©s
+// Par défaut, ne renvoie que les stagiaires actifs (les abandons sont masqués
 // partout : planning, notes, passages, liste d'invitation). Passer
-// { includeInactive: true } pour rÃ©cupÃ©rer aussi les abandons (gestion admin).
+// { includeInactive: true } pour récupérer aussi les abandons (gestion admin).
 export async function listStagiaires({ includeInactive = false } = {}) {
   const key = includeInactive ? "stagiaires_all" : "stagiaires";
   return cachedQuery(key, async () => {
@@ -104,9 +104,9 @@ export async function deleteStagiaire(id) {
   invalidateCache("stagiaires_all");
 }
 
-// DÃ©sactivation douce (abandon) : la ligne reste en base (historique / stats futures)
-// mais le stagiaire est masquÃ© partout (planning, dÃ©s, notes, passages) car
-// listStagiaires() ne renvoie que actif = true. actif=false => abandon, true => rÃ©activÃ©.
+// Désactivation douce (abandon) : la ligne reste en base (historique / stats futures)
+// mais le stagiaire est masqué partout (planning, dés, notes, passages) car
+// listStagiaires() ne renvoie que actif = true. actif=false => abandon, true => réactivé.
 export async function setStagiaireActif(id, actif) {
   const { error } = await supabase.from("stagiaires").update({ actif }).eq("id", id);
   if (error) throw error;
@@ -166,7 +166,7 @@ export async function deletePassage(id) {
   if (error) throw error;
 }
 
-// Insertion groupÃ©e de passages (validation d'une semaine de planning).
+// Insertion groupée de passages (validation d'une semaine de planning).
 export async function addPassagesBatch(rows) {
   if (!rows || rows.length === 0) return [];
   const { data, error } = await supabase.from("passages").insert(rows).select();
@@ -174,15 +174,15 @@ export async function addPassagesBatch(rows) {
   return data;
 }
 
-// Suppression groupÃ©e (pour annuler une validation via Ctrl+Z).
+// Suppression groupée (pour annuler une validation via Ctrl+Z).
 export async function deletePassagesBatch(ids) {
   if (!ids || ids.length === 0) return;
   const { error } = await supabase.from("passages").delete().in("id", ids);
   if (error) throw error;
 }
 
-// Passages existants sur une plage de dates : sert Ã  dÃ©doublonner la validation hebdo
-// (un stagiaire dÃ©jÃ  saisi, manuel ou auto, ne doit pas Ãªtre recrÃ©Ã©).
+// Passages existants sur une plage de dates : sert à dédoublonner la validation hebdo
+// (un stagiaire déjà saisi, manuel ou auto, ne doit pas être recréé).
 export async function getPassagesInRange(dateFrom, dateTo) {
   const { data, error } = await supabase
     .from("passages")
@@ -193,7 +193,7 @@ export async function getPassagesInRange(dateFrom, dateTo) {
   return data;
 }
 
-// Stats agrÃ©gÃ©es par stagiaire (pour Dashboard)
+// Stats agrégées par stagiaire (pour Dashboard)
 export async function getStats() {
   const { data, error } = await supabase
     .from("passages")
@@ -271,7 +271,7 @@ export async function setSetting(key, value) {
   if (error) throw error;
 }
 
-// === ThÃ¨mes (57 + notions pÃ©dagogiques) ===
+// === Thèmes (57 + notions pédagogiques) ===
 
 export async function listThemes() {
   return cachedQuery("themes", async () => {
@@ -303,10 +303,10 @@ export async function deleteTheme(id) {
   invalidateCache("themes");
 }
 
-// === QCM (par thÃ¨me) ===
+// === QCM (par thème) ===
 
-// Index lÃ©ger des QCM : un par thÃ¨me, avec le nombre de questions.
-// Sert Ã  afficher l'accÃ¨s QCM sur la liste des thÃ¨mes sans tout charger.
+// Index léger des QCM : un par thème, avec le nombre de questions.
+// Sert à afficher l'accès QCM sur la liste des thèmes sans tout charger.
 export async function listQcmIndex() {
   return cachedQuery("qcm_index", async () => {
     const { data, error } = await supabase
@@ -320,7 +320,7 @@ export async function listQcmIndex() {
   });
 }
 
-// QCM complet (questions + options) pour le player, triÃ© par ordre.
+// QCM complet (questions + options) pour le player, trié par ordre.
 export async function getQcmFull(qcmId) {
   const { data, error } = await supabase
     .from("qcm")
@@ -333,7 +333,7 @@ export async function getQcmFull(qcmId) {
   return data;
 }
 
-// Enregistre une tentative (entraÃ®nement ou examen). Renvoie la ligne crÃ©Ã©e.
+// Enregistre une tentative (entraînement ou examen). Renvoie la ligne créée.
 export async function insertQcmAttempt(payload) {
   const { data, error } = await supabase
     .from("qcm_attempts")
@@ -344,7 +344,7 @@ export async function insertQcmAttempt(payload) {
   return data;
 }
 
-// === CompÃ©tences ===
+// === Compétences ===
 
 export async function listCompetences() {
   return cachedQuery("competences", async () => {
@@ -354,7 +354,7 @@ export async function listCompetences() {
   });
 }
 
-// === Ã‰valuations ===
+// === Évaluations ===
 
 export async function listEvaluations(filters = {}) {
   let q = supabase
@@ -395,7 +395,7 @@ export async function listAuditForEvaluation(evaluation_id) {
   return data;
 }
 
-// === Audit passages (historique qui a modifiÃ© quoi) ===
+// === Audit passages (historique qui a modifié quoi) ===
 
 export async function listRecentPassagesAudit(limit = 100) {
   const { data, error } = await supabase
@@ -463,8 +463,8 @@ export async function deleteContact(id) {
   if (error) throw error;
 }
 
-// === Ã‰lÃ¨ves bÃ©nÃ©voles (banque voiture conduite) ===
-// Table RLS admin-only (le tÃ©lÃ©phone ne doit jamais transiter vers un stagiaire).
+// === Élèves bénévoles (banque voiture conduite) ===
+// Table RLS admin-only (le téléphone ne doit jamais transiter vers un stagiaire).
 // Les non-admins passent par la RPC benevoles_noms() (SECURITY DEFINER) qui
 // n'expose que id + nom d'affichage, inactifs compris (vieilles semaines lisibles).
 
@@ -501,7 +501,7 @@ export async function updateBenevole(id, patch) {
 }
 
 // Retrait doux : la ligne reste en base (les vieilles semaines gardent leurs noms),
-// le bÃ©nÃ©vole disparaÃ®t des sÃ©lecteurs et de la liste active.
+// le bénévole disparaît des sélecteurs et de la liste active.
 export async function setBenevoleActif(id, actif) {
   const { error } = await supabase.from("benevoles").update({ actif }).eq("id", id);
   if (error) throw error;
@@ -546,7 +546,7 @@ export async function deleteAgendaEvent(id) {
   if (error) throw error;
 }
 
-// === User profiles (whitelist email â†’ stagiaire/prof + rÃ´le) ===
+// === User profiles (whitelist email → stagiaire/prof + rôle) ===
 
 export async function listUserProfiles() {
   const { data, error } = await supabase
@@ -588,7 +588,7 @@ export async function inviteUser({ email, role, stagiaire_id = null, prof_id = n
     body: { email, role, stagiaire_id, prof_id, is_admin },
   });
   if (error) {
-    // L'Edge Function renvoie { error: "..." } en cas d'Ã©chec ; le SDK le wrap.
+    // L'Edge Function renvoie { error: "..." } en cas d'échec ; le SDK le wrap.
     const msg = data?.error || error.message || "Erreur invitation";
     throw new Error(msg);
   }
@@ -618,7 +618,7 @@ export async function signUpWithPassword(email, password) {
     password,
   });
   if (error) throw error;
-  // Si la confirmation par email est dÃ©sactivÃ©e, on a dÃ©jÃ  une session ici.
+  // Si la confirmation par email est désactivée, on a déjà une session ici.
   return data;
 }
 

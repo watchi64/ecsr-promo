@@ -1,6 +1,6 @@
 /*
- * Vue ParamÃ¨tres.
- * 3 sections : AccÃ¨s & invitations Â· Promo Â· Infos.
+ * Vue Paramètres.
+ * 3 sections : Accès & invitations · Promo · Infos.
  */
 import {
   listStagiaires, listProfs,
@@ -8,12 +8,12 @@ import {
   addProf, updateProf, deleteProf,
   listUserProfiles, deleteUserProfile, inviteUser,
   setMyAnonymousNotes,
-} from "../db.js?v=20260703b";
-import { el, clear, toast, displayStagiaire } from "../utils.js?v=20260703b";
-import { icon } from "../icons.js?v=20260703b";
-import { isAdmin, getAdminEmail, getProfile } from "../auth-admin.js?v=20260703b";
+} from "../db.js?v=20260703c";
+import { el, clear, toast, displayStagiaire } from "../utils.js?v=20260703c";
+import { icon } from "../icons.js?v=20260703c";
+import { isAdmin, getAdminEmail, getProfile } from "../auth-admin.js?v=20260703c";
 
-// ====== SECTION AccÃ¨s & invitations ======
+// ====== SECTION Accès & invitations ======
 
 async function renderAccessSection(rerender) {
   const admin = isAdmin();
@@ -22,8 +22,8 @@ async function renderAccessSection(rerender) {
   section.appendChild(el("div", { class: "param-section-head" },
     el("div", { class: "param-icon" }, icon.shield()),
     el("div", {},
-      el("h3", {}, "AccÃ¨s & invitations"),
-      el("p", { class: "muted" }, "Personnes invitÃ©es Ã  utiliser l'app (stagiaires, profs, admins)."),
+      el("h3", {}, "Accès & invitations"),
+      el("p", { class: "muted" }, "Personnes invitées à utiliser l'app (stagiaires, profs, admins)."),
     ),
   ));
 
@@ -36,7 +36,7 @@ async function renderAccessSection(rerender) {
     const inviteBlock = el("div", { class: "param-block" });
     inviteBlock.appendChild(el("h4", {}, "Autoriser une personne"));
     inviteBlock.appendChild(el("p", { class: "muted" },
-      "Choisis le rÃ´le et la personne, entre son email. Aucun mail n'est envoyÃ© : tu lui partages l'URL toi-mÃªme, puis elle crÃ©e son compte avec son email + un mdp."));
+      "Choisis le rôle et la personne, entre son email. Aucun mail n'est envoyé : tu lui partages l'URL toi-même, puis elle crée son compte avec son email + un mdp."));
 
     const roleSel = el("select", { class: "invite-role" });
     [
@@ -48,7 +48,7 @@ async function renderAccessSection(rerender) {
     function refreshPersonOptions() {
       clear(personSel);
       const role = roleSel.value;
-      personSel.appendChild(el("option", { value: "" }, "â€” Choisir â€”"));
+      personSel.appendChild(el("option", { value: "" }, "— Choisir —"));
       const list = role === "stagiaire" ? stagiaires : profs;
       const taken = new Set(profiles
         .filter((p) => role === "stagiaire" ? p.stagiaire_id : p.prof_id)
@@ -56,7 +56,7 @@ async function renderAccessSection(rerender) {
       list.forEach((it) => {
         const isTaken = taken.has(it.id);
         const baseLabel = it.prenom ? (it.nom ? `${it.nom} ${it.prenom}` : it.prenom) : it.nom;
-        const label = baseLabel + (isTaken ? " (dÃ©jÃ  invitÃ©)" : "");
+        const label = baseLabel + (isTaken ? " (déjà invité)" : "");
         const opt = el("option", { value: String(it.id) }, label);
         if (isTaken) opt.disabled = true;
         personSel.appendChild(opt);
@@ -72,23 +72,23 @@ async function renderAccessSection(rerender) {
       for: "invite-also-admin", class: "invite-admin-toggle",
     }, adminCheck, " Aussi administrateur");
 
-    const sendBtn = el("button", { class: "btn accent" }, icon.plus(), "Ajouter Ã  la whitelist");
+    const sendBtn = el("button", { class: "btn accent" }, icon.plus(), "Ajouter à la whitelist");
     sendBtn.addEventListener("click", async () => {
       const email = emailInput.value.trim().toLowerCase();
       const role = roleSel.value;
       const personId = personSel.value ? Number(personSel.value) : null;
       if (!email || !/^\S+@\S+\.\S+$/.test(email)) { toast("Email invalide", "error"); return; }
-      if (!personId) { toast("Choisis la personne Ã  lier", "error"); return; }
+      if (!personId) { toast("Choisis la personne à lier", "error"); return; }
 
       const restoreBtn = () => {
         sendBtn.disabled = false;
         sendBtn.textContent = "";
         sendBtn.appendChild(icon.plus());
-        sendBtn.appendChild(document.createTextNode("Ajouter Ã  la whitelist"));
+        sendBtn.appendChild(document.createTextNode("Ajouter à la whitelist"));
       };
 
       sendBtn.disabled = true;
-      sendBtn.textContent = "Envoiâ€¦";
+      sendBtn.textContent = "Envoi…";
       try {
         const invitePromise = inviteUser({
           email, role,
@@ -96,12 +96,12 @@ async function renderAccessSection(rerender) {
           prof_id:      role === "prof"      ? personId : null,
           is_admin:     adminCheck.checked,
         });
-        // Timeout de 15s pour Ã©viter le hang infini
+        // Timeout de 15s pour éviter le hang infini
         await Promise.race([
           invitePromise,
-          new Promise((_, reject) => setTimeout(() => reject(new Error("DÃ©lai dÃ©passÃ© (15s). RÃ©seau lent ou rate-limit Supabase atteint (4 mails/h sur le SMTP par dÃ©faut).")), 15000)),
+          new Promise((_, reject) => setTimeout(() => reject(new Error("Délai dépassé (15s). Réseau lent ou rate-limit Supabase atteint (4 mails/h sur le SMTP par défaut).")), 15000)),
         ]);
-        toast("AjoutÃ© Ã  la whitelist : " + email + ". Partage-lui l'URL.", "success", 4500);
+        toast("Ajouté à la whitelist : " + email + ". Partage-lui l'URL.", "success", 4500);
         emailInput.value = "";
         adminCheck.checked = false;
         rerender();
@@ -116,15 +116,15 @@ async function renderAccessSection(rerender) {
       sendBtn.disabled = false;
       sendBtn.textContent = "";
       sendBtn.appendChild(icon.plus());
-      sendBtn.appendChild(document.createTextNode("Ajouter Ã  la whitelist"));
+      sendBtn.appendChild(document.createTextNode("Ajouter à la whitelist"));
     }
-    // SÃ©curise l'Ã©tat initial du label
+    // Sécurise l'état initial du label
     setTimeout(restoreBtnInitial, 0);
     emailInput.addEventListener("keydown", (e) => { if (e.key === "Enter") sendBtn.click(); });
 
     inviteBlock.appendChild(el("div", { class: "invite-form" },
       el("div", { class: "invite-row" },
-        el("label", {}, "RÃ´le"), roleSel,
+        el("label", {}, "Rôle"), roleSel,
         el("label", {}, "Personne"), personSel,
       ),
       el("div", { class: "invite-row" },
@@ -136,9 +136,9 @@ async function renderAccessSection(rerender) {
     section.appendChild(inviteBlock);
   }
 
-  // === Liste des invitÃ©s ===
+  // === Liste des invités ===
   const listBlock = el("div", { class: "param-block" });
-  listBlock.appendChild(el("h4", {}, `Personnes avec accÃ¨s (${profiles.length})`));
+  listBlock.appendChild(el("h4", {}, `Personnes avec accès (${profiles.length})`));
   if (profiles.length === 0) {
     listBlock.appendChild(el("p", { class: "muted" }, "Personne pour l'instant. Invite quelqu'un ci-dessus."));
   } else {
@@ -165,12 +165,12 @@ async function renderAccessSection(rerender) {
           who ? el("span", { class: "admin-you" }, who) : null,
           p.email === currentEmail ? el("span", { class: "admin-you" }, "vous") : null,
           (admin && p.email !== currentEmail) ? el("button", {
-            class: "btn small danger icon-only", "aria-label": "Retirer l'accÃ¨s",
+            class: "btn small danger icon-only", "aria-label": "Retirer l'accès",
             onClick: async () => {
-              if (!confirm(`Retirer l'accÃ¨s de ${p.email} ?`)) return;
+              if (!confirm(`Retirer l'accès de ${p.email} ?`)) return;
               try {
                 await deleteUserProfile(p.email);
-                toast("AccÃ¨s retirÃ©", "success");
+                toast("Accès retiré", "success");
                 rerender();
               } catch (e) { toast(e.message, "error"); }
             }
@@ -185,32 +185,32 @@ async function renderAccessSection(rerender) {
   return section;
 }
 
-// ====== SECTION Mes prÃ©fÃ©rences ======
+// ====== SECTION Mes préférences ======
 
 function renderMyPreferencesSection(rerender) {
   const profile = getProfile();
-  if (!profile) return null;  // pas affichÃ©e si pas de profil
+  if (!profile) return null;  // pas affichée si pas de profil
 
   const section = el("section", { class: "param-section" });
   section.appendChild(el("div", { class: "param-section-head" },
     el("div", { class: "param-icon" }, icon.user ? icon.user() : icon.users()),
     el("div", {},
-      el("h3", {}, "Mes prÃ©fÃ©rences"),
-      el("p", { class: "muted" }, "RÃ©glages personnels visibles uniquement par toi."),
+      el("h3", {}, "Mes préférences"),
+      el("p", { class: "muted" }, "Réglages personnels visibles uniquement par toi."),
     ),
   ));
 
   const block = el("div", { class: "param-block" });
   block.appendChild(el("h4", {}, "Anonymat dans le tableau de notes"));
   block.appendChild(el("p", { class: "muted" },
-    "Si activÃ©, ton prÃ©nom est remplacÃ© par Â« Anonyme Â» dans le tableau et les graphiques de la page Notes, et tu es placÃ©(e) en fin de liste. Les admins continuent de voir ton vrai prÃ©nom (besoin d'Ã©valuation)."));
+    "Si activé, ton prénom est remplacé par « Anonyme » dans le tableau et les graphiques de la page Notes, et tu es placé(e) en fin de liste. Les admins continuent de voir ton vrai prénom (besoin d'évaluation)."));
 
   const checkbox = el("input", { type: "checkbox", id: "pref-anon" });
   if (profile.anonymous_notes) checkbox.checked = true;
 
   const label = el("label", { for: "pref-anon", class: "invite-admin-toggle" },
     checkbox,
-    " Masquer mon prÃ©nom dans les notes",
+    " Masquer mon prénom dans les notes",
   );
 
   checkbox.addEventListener("change", async () => {
@@ -219,7 +219,7 @@ function renderMyPreferencesSection(rerender) {
     try {
       await setMyAnonymousNotes(wanted);
       profile.anonymous_notes = wanted;
-      toast(wanted ? "Tu apparais maintenant en Anonyme." : "Ton prÃ©nom est Ã  nouveau visible.", "success");
+      toast(wanted ? "Tu apparais maintenant en Anonyme." : "Ton prénom est à nouveau visible.", "success");
     } catch (e) {
       toast("Erreur : " + e.message, "error");
       checkbox.checked = !wanted;
@@ -242,7 +242,7 @@ async function renderPromoSection(rerender) {
     el("div", { class: "param-icon" }, icon.users()),
     el("div", {},
       el("h3", {}, "Promo"),
-      el("p", { class: "muted" }, admin ? "GÃ©rer la liste des stagiaires et formateurs." : "Liste des stagiaires et formateurs. Ã‰dition admin only."),
+      el("p", { class: "muted" }, admin ? "Gérer la liste des stagiaires et formateurs." : "Liste des stagiaires et formateurs. Édition admin only."),
     ),
   ));
 
@@ -256,7 +256,7 @@ async function renderPromoSection(rerender) {
     const wrap = el("div", { class: "param-block" });
     wrap.appendChild(el("div", { class: "block-head" },
       el("h4", {}, type === "stagiaire" ? "Stagiaires" : "Formateurs"),
-      el("span", { class: "count" }, items.length + " entrÃ©e" + (items.length > 1 ? "s" : "")),
+      el("span", { class: "count" }, items.length + " entrée" + (items.length > 1 ? "s" : "")),
     ));
 
     const list = el("ul", { class: "config-list" });
@@ -269,24 +269,24 @@ async function renderPromoSection(rerender) {
           try {
             if (type === "stagiaire") await updateStagiaire(it.id, v);
             else await updateProf(it.id, v);
-            toast("Mis Ã  jour", "success");
+            toast("Mis à jour", "success");
           } catch (e) { toast(e.message, "error"); }
         });
         input.addEventListener("keydown", (e) => { if (e.key === "Enter") input.blur(); });
       }
 
-      // Stagiaire : Â« Abandon Â» (dÃ©sactivation douce, donnÃ©es conservÃ©es).
+      // Stagiaire : « Abandon » (désactivation douce, données conservées).
       // Prof : suppression directe (pas de notion d'abandon).
       let actionBtn = null;
       if (admin && type === "stagiaire") {
         actionBtn = el("button", {
           class: "btn small ghost abandon-btn",
-          title: "Marquer en abandon : masquÃ© partout (planning, dÃ©s, notes), donnÃ©es conservÃ©es",
+          title: "Marquer en abandon : masqué partout (planning, dés, notes), données conservées",
           onClick: async () => {
-            if (!confirm(`Marquer ${it.prenom} en abandon ?\n\nIl/elle disparaÃ®t du planning, des dÃ©s et des notes. Les donnÃ©es restent conservÃ©es et rÃ©activables.`)) return;
+            if (!confirm(`Marquer ${it.prenom} en abandon ?\n\nIl/elle disparaît du planning, des dés et des notes. Les données restent conservées et réactivables.`)) return;
             try {
               await setStagiaireActif(it.id, false);
-              toast(`${it.prenom} marquÃ©(e) en abandon`, "success");
+              toast(`${it.prenom} marqué(e) en abandon`, "success");
               rerender();
             } catch (e) { toast(e.message, "error"); }
           }
@@ -298,7 +298,7 @@ async function renderPromoSection(rerender) {
             if (!confirm(`Supprimer ${it.nom} ?`)) return;
             try {
               await deleteProf(it.id);
-              toast("SupprimÃ©", "success");
+              toast("Supprimé", "success");
               rerender();
             } catch (e) { toast(e.message, "error"); }
           }
@@ -310,7 +310,7 @@ async function renderPromoSection(rerender) {
     wrap.appendChild(list);
 
     if (admin) {
-      const addInput = el("input", { type: "text", placeholder: type === "stagiaire" ? "PrÃ©nom" : "Nom" });
+      const addInput = el("input", { type: "text", placeholder: type === "stagiaire" ? "Prénom" : "Nom" });
       const addBtn = el("button", { class: "btn accent", onClick: async () => {
         const v = addInput.value.trim();
         if (!v) return;
@@ -318,7 +318,7 @@ async function renderPromoSection(rerender) {
           if (type === "stagiaire") await addStagiaire(v);
           else await addProf(v);
           addInput.value = "";
-          toast("AjoutÃ©", "success");
+          toast("Ajouté", "success");
           rerender();
         } catch (e) { toast(e.message, "error"); }
       }}, icon.plus(), "Ajouter");
@@ -328,8 +328,8 @@ async function renderPromoSection(rerender) {
     return wrap;
   }
 
-  // Bloc des abandons : rÃ©activation, ou suppression dÃ©finitive (rÃ©servÃ©e ici pour
-  // Ã©viter toute perte de donnÃ©es accidentelle depuis la liste active).
+  // Bloc des abandons : réactivation, ou suppression définitive (réservée ici pour
+  // éviter toute perte de données accidentelle depuis la liste active).
   function renderAbandons(items) {
     const wrap = el("div", { class: "param-block abandons-block" });
     wrap.appendChild(el("div", { class: "block-head" },
@@ -337,7 +337,7 @@ async function renderPromoSection(rerender) {
       el("span", { class: "count" }, items.length + " stagiaire" + (items.length > 1 ? "s" : "")),
     ));
     wrap.appendChild(el("p", { class: "muted abandons-hint" },
-      "MasquÃ©s du planning, des dÃ©s et des notes. DonnÃ©es conservÃ©es pour d'Ã©ventuelles statistiques."));
+      "Masqués du planning, des dés et des notes. Données conservées pour d'éventuelles statistiques."));
     const list = el("ul", { class: "config-list" });
     items.forEach((it) => {
       const reactiverBtn = el("button", {
@@ -345,20 +345,20 @@ async function renderPromoSection(rerender) {
         onClick: async () => {
           try {
             await setStagiaireActif(it.id, true);
-            toast(`${it.prenom} rÃ©activÃ©(e)`, "success");
+            toast(`${it.prenom} réactivé(e)`, "success");
             rerender();
           } catch (e) { toast(e.message, "error"); }
         }
-      }, "RÃ©activer");
+      }, "Réactiver");
       const delBtn = el("button", {
         class: "btn small danger icon-only",
-        "aria-label": "Supprimer dÃ©finitivement",
-        title: "Supprimer dÃ©finitivement (irrÃ©versible, efface les donnÃ©es)",
+        "aria-label": "Supprimer définitivement",
+        title: "Supprimer définitivement (irréversible, efface les données)",
         onClick: async () => {
-          if (!confirm(`Supprimer DÃ‰FINITIVEMENT ${it.prenom} ?\n\nIrrÃ©versible : efface ses donnÃ©es. Pour seulement le masquer, garde-le en abandon.`)) return;
+          if (!confirm(`Supprimer DÉFINITIVEMENT ${it.prenom} ?\n\nIrréversible : efface ses données. Pour seulement le masquer, garde-le en abandon.`)) return;
           try {
             await deleteStagiaire(it.id);
-            toast("SupprimÃ© dÃ©finitivement", "success");
+            toast("Supprimé définitivement", "success");
             rerender();
           } catch (e) { toast(e.message, "error"); }
         }
@@ -386,7 +386,7 @@ function renderInfoSection() {
     el("div", { class: "param-icon" }, icon.info()),
     el("div", {},
       el("h3", {}, "Informations"),
-      el("p", { class: "muted" }, "Ã€ propos de TP ECSR App."),
+      el("p", { class: "muted" }, "À propos de TP ECSR App."),
     ),
   ));
 
@@ -395,9 +395,9 @@ function renderInfoSection() {
       el("dt", {}, "Application"),
       el("dd", {}, "TP ECSR App"),
       el("dt", {}, "Auteur"),
-      el("dd", {}, "watchi64 Â· misterwatchi@gmail.com"),
+      el("dd", {}, "watchi64 · misterwatchi@gmail.com"),
       el("dt", {}, "Licence"),
-      el("dd", {}, "PropriÃ©taire. Voir LICENSE dans le repo."),
+      el("dd", {}, "Propriétaire. Voir LICENSE dans le repo."),
       el("dt", {}, "Repo"),
       el("dd", {}, el("a", { href: "https://github.com/watchi64/ecsr-promo", target: "_blank" }, "github.com/watchi64/ecsr-promo")),
     )
@@ -424,14 +424,14 @@ async function rerender(container) {
       Promise.resolve(renderMyPreferencesSection(() => rerender(container))),
       renderPromoSection(() => rerender(container)),
       Promise.resolve(renderInfoSection()),
-    ]), 12000, "ParamÃ¨tres");
+    ]), 12000, "Paramètres");
 
     clear(container);
     container.appendChild(el("div", { class: "view-header" },
       el("div", { class: "view-header-text" },
-        el("p", { class: "eyebrow" }, "SystÃ¨me"),
-        el("h2", {}, "ParamÃ¨tres"),
-        el("p", { class: "subtitle" }, "AccÃ¨s, gestion de la promo, infos. Connecte-toi en admin pour inviter ou modifier."),
+        el("p", { class: "eyebrow" }, "Système"),
+        el("h2", {}, "Paramètres"),
+        el("p", { class: "subtitle" }, "Accès, gestion de la promo, infos. Connecte-toi en admin pour inviter ou modifier."),
       ),
     ));
 
@@ -439,19 +439,19 @@ async function rerender(container) {
     sections.filter(Boolean).forEach((s) => grid.appendChild(s));
     container.appendChild(grid);
   } catch (e) {
-    console.error("ParamÃ¨tres : erreur de chargement", e);
+    console.error("Paramètres : erreur de chargement", e);
     clear(container);
     container.appendChild(el("div", { class: "view-header" },
       el("div", { class: "view-header-text" },
-        el("h2", {}, "ParamÃ¨tres"),
+        el("h2", {}, "Paramètres"),
       ),
     ));
     container.appendChild(el("div", { class: "param-error" },
-      el("p", {}, "Le chargement a Ã©chouÃ©. " + (e.message || "")),
+      el("p", {}, "Le chargement a échoué. " + (e.message || "")),
       el("button", {
         class: "btn primary",
         onClick: () => rerender(container),
-      }, "RÃ©essayer"),
+      }, "Réessayer"),
     ));
   }
 }
