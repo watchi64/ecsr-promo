@@ -4,13 +4,13 @@ import {
   getHalfMetaForWeek, upsertHalfMeta,
   getSetting, setSetting,
   addPassagesBatch, deletePassagesBatch, getPassagesInRange, updateTheme,
-} from "../db.js?v=20260702c";
-import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire } from "../utils.js?v=20260702c";
-import { icon } from "../icons.js?v=20260702c";
-import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260702c";
-import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260702c";
-import { recordUndo } from "../undo.js?v=20260702c";
-import { getCurrentWho } from "../identity.js?v=20260702c";
+} from "../db.js?v=20260703a";
+import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire } from "../utils.js?v=20260703a";
+import { icon } from "../icons.js?v=20260703a";
+import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260703a";
+import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260703a";
+import { recordUndo } from "../undo.js?v=20260703a";
+import { getCurrentWho } from "../identity.js?v=20260703a";
 
 let stagiaires = [];
 let profs = [];

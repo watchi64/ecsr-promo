@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20260702c";
+import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20260703a";
 
 // fetch avec timeout : sans ça, une requête peut rester pendue indéfiniment
 // (réseau mobile instable) → "Chargement" infini. Avec, elle échoue proprement après 15s.
@@ -20,7 +20,7 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
   auth: {
     persistSession: true,         // garde la session dans localStorage
     autoRefreshToken: true,       // renouvelle le token automatiquement
-    detectSessionInUrl: true,     // parse le hash après redirect (callback magic link historique)
+    detectSessionInUrl: true,     // reliquat magic link (retiré) : inoffensif, conservé par prudence
     storage: window.localStorage, // explicite : pas de sessionStorage volatile
     storageKey: "ecsr_supabase_session",
   },

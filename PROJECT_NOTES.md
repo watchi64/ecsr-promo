@@ -1,6 +1,6 @@
 # PROJECT_NOTES.md — TP ECSR App
 
-> **Fichier de reprise pour future session Claude.** Maintenu manuellement, à mettre à jour quand une décision structurante change. Daté : **2026-05-21**.
+> **Fichier de reprise pour future session Claude.** Maintenu manuellement, à mettre à jour quand une décision structurante change. Daté : **2026-05-21**, backend mis à jour le 03/07/2026.
 
 ## TL;DR
 
@@ -18,7 +18,7 @@ Web app de suivi de promotion **TP ECSR Nîmes 2026** (15 stagiaires + 3 formate
 | | |
 |---|---|
 | Frontend | HTML/CSS/JS vanilla, modules ES, **pas de framework** (refus assumé) |
-| Backend | Supabase Postgres, project `dacqponglpeuscbgwfqn` (eu-west-3 Paris) |
+| Backend | Supabase Postgres, project `crpduennbqaemhfaywrz` (eu-west-3 Paris, org Timy Studio — migré le 17/06/2026 depuis dacqponglpeuscbgwfqn) |
 | Edge Function | `invite-user` (deploy via MCP `mcp__800314df__deploy_edge_function`) |
 | Hébergement | GitHub Pages, branche `main` |
 | Typo | Canela (display, self-hosted .otf) + Outfit (Google Fonts body) + Geist Mono (numéros) |
@@ -166,7 +166,7 @@ Câblé via `recordUndo(label, undoFn)` après chaque écriture. Sur Ctrl+Z, dé
 ## Comment travailler sur ce projet (workflow)
 
 1. **Toujours commit + push après chaque feature significative** (le user n'aime pas les pauses « tu veux que je commit ? »)
-2. **Migrations Supabase via MCP `mcp__800314df__apply_migration`** (project_id `dacqponglpeuscbgwfqn`), JAMAIS de SQL en local
+2. **Migrations Supabase via MCP `mcp__800314df__apply_migration`** (project_id `crpduennbqaemhfaywrz`), JAMAIS de SQL en local
 3. **Edge Functions via MCP `deploy_edge_function`** — nécessite confirmation user explicite
 4. **Communication FR**, récap court après chaque livraison, tableaux markdown, gras sur l'essentiel
 5. **AskUserQuestion** uniquement pour les décisions structurantes (nouvelle table, refonte vue, choix d'archi). Sinon **trancher seul** et avancer
