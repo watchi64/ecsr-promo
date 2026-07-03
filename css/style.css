@@ -4652,10 +4652,11 @@ button.theme-date.editable.muted { color: var(--text-faint); }
 .read-only .p-dice-btn,
 .read-only .p-eleves-dice-toolbar,
 .read-only .p-dice-picker-wrap,
-.read-only .p-dice-picker,
-.read-only .p-half-head.editable { display: none !important; }
+.read-only .p-dice-picker { display: none !important; }
+/* Le bandeau de demi-journée (MATIN/APRÈS-MIDI + horaires + pause) reste VISIBLE en
+   lecture seule : le JS rend un div statique (non éditable) aux non-admins.
+   Ne jamais le re-masquer ici — sans lui les demi-journées sont indistinguables. */
 .read-only .p-half-head { cursor: default; }
-.read-only .p-half-head.editable:hover { background: var(--bg-subtle); }
 
 /* ============================================================
    Identity picker (qui es-tu ? après gate)

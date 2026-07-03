@@ -5,14 +5,14 @@ import {
   getSetting, setSetting,
   addPassagesBatch, deletePassagesBatch, getPassagesInRange, updateTheme,
   listBenevoles, listBenevolesNoms,
-} from "../db.js?v=20260703c";
-import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260703c";
-import { icon } from "../icons.js?v=20260703c";
-import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260703c";
-import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260703c";
-import { recordUndo } from "../undo.js?v=20260703c";
-import { getCurrentWho } from "../identity.js?v=20260703c";
-import { openBenevolesPanel } from "./benevoles.js?v=20260703c";
+} from "../db.js?v=20260703d";
+import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260703d";
+import { icon } from "../icons.js?v=20260703d";
+import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260703d";
+import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260703d";
+import { recordUndo } from "../undo.js?v=20260703d";
+import { getCurrentWho } from "../identity.js?v=20260703d";
+import { openBenevolesPanel } from "./benevoles.js?v=20260703d";
 
 let stagiaires = [];
 let profs = [];
@@ -1312,12 +1312,17 @@ function renderDayCard(d, monday) {
 
     const section = el("div", { class: "p-half " + half.key });
 
-    // Header cliquable
-    const headBtn = el("button", {
-      class: "p-half-head editable",
-      title: "Modifier les horaires et la pause",
-      onClick: () => openHalfMetaEditor(d, half.key, headBtn),
-    });
+    // Header : bouton d'édition des horaires pour les admins ; simple bandeau statique
+    // pour les autres. NE PAS le masquer en lecture seule : il porte MATIN/APRÈS-MIDI,
+    // les horaires et la pause — sans lui, les demi-journées sont indistinguables
+    // (bug élèves 2026-07-03, ancien `.read-only .p-half-head.editable { display:none }`).
+    const headBtn = isAdmin()
+      ? el("button", {
+          class: "p-half-head editable",
+          title: "Modifier les horaires et la pause",
+          onClick: () => openHalfMetaEditor(d, half.key, headBtn),
+        })
+      : el("div", { class: "p-half-head" });
     headBtn.appendChild(el("span", { class: "p-half-tag " + half.key }, half.short));
     headBtn.appendChild(el("span", { class: "p-half-hours" }, timesLabel(meta)));
     if (pauseLbl) {
