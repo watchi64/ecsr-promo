@@ -3,9 +3,9 @@
 // bouton d'ouverture n'est rendu que pour eux et la table est RLS admin-only (le
 // téléphone ne transite jamais vers un stagiaire). Ouvert depuis la barre semaine
 // du Planning.
-import { listBenevoles, addBenevole, updateBenevole, setBenevoleActif } from "../db.js?v=20260705b";
-import { el, clear, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260705b";
-import { JOURS } from "../config.js?v=20260705b";
+import { listBenevoles, addBenevole, updateBenevole, setBenevoleActif } from "../db.js?v=20260705c";
+import { el, clear, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260705c";
+import { JOURS } from "../config.js?v=20260705c";
 
 const JOURS_COURTS = ["Lun", "Mar", "Mer", "Jeu", "Ven"];
 const DEMI = [

@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20260705b";
+import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20260705c";
 
 // fetch avec timeout : sans ça, une requête peut rester pendue indéfiniment
 // (réseau mobile instable) → "Chargement" infini. Avec, elle échoue proprement après 15s.
@@ -507,6 +507,68 @@ export async function setBenevoleActif(id, actif) {
   if (error) throw error;
   invalidateCache("benevoles");
   invalidateCache("benevoles_noms");
+}
+
+// === Auto-écoles partenaires (banque de contacts, RLS admin-only) ===
+
+export async function listAutoEcoles() {
+  return cachedQuery("auto_ecoles", async () => {
+    const { data, error } = await supabase
+      .from("auto_ecoles").select("*").order("nom");
+    if (error) throw error;
+    return data;
+  });
+}
+
+export async function addAutoEcole(payload) {
+  const { data, error } = await supabase.from("auto_ecoles").insert(payload).select().single();
+  if (error) throw error;
+  invalidateCache("auto_ecoles");
+  return data;
+}
+
+export async function updateAutoEcole(id, patch) {
+  const { error } = await supabase.from("auto_ecoles").update(patch).eq("id", id);
+  if (error) throw error;
+  invalidateCache("auto_ecoles");
+}
+
+export async function setAutoEcoleActif(id, actif) {
+  const { error } = await supabase.from("auto_ecoles").update({ actif }).eq("id", id);
+  if (error) throw error;
+  invalidateCache("auto_ecoles");
+}
+
+// === Suivi des venues des bénévoles ===
+// Les venues sont DÉDUITES du planning (cartes Voiture où le bénévole est placé),
+// jamais stockées. Seuls les commentaires vivent dans benevole_suivi.
+
+// Toutes les cartes portant au moins un bénévole (pour compter les venues et
+// construire la fiche de suivi). Pas de cache : le planning bouge tout le temps.
+export async function listVenuesBenevoles() {
+  const { data, error } = await supabase
+    .from("planning_entries")
+    .select("semaine_lundi, day_index, half_day, sujet, eleves_ids, benevoles_ids")
+    .neq("benevoles_ids", "{}")
+    .order("semaine_lundi", { ascending: false })
+    .order("day_index", { ascending: true });
+  if (error) throw error;
+  return data;
+}
+
+export async function listSuiviBenevole(benevole_id) {
+  const { data, error } = await supabase
+    .from("benevole_suivi").select("*").eq("benevole_id", benevole_id);
+  if (error) throw error;
+  return data;
+}
+
+export async function upsertSuiviBenevole(payload) {
+  const { error } = await supabase
+    .from("benevole_suivi")
+    .upsert({ ...payload, updated_at: new Date().toISOString() },
+            { onConflict: "benevole_id,semaine_lundi,day_index,half_day" });
+  if (error) throw error;
 }
 
 // === Agenda (dates importantes : examens, stages, etc.) ===
