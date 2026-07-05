@@ -1,9 +1,9 @@
-import { listThemes, updateTheme, addTheme, deleteTheme, listQcmIndex } from "../db.js?v=20260705e";
-import { el, clear, isoDate, formatDate, toast, debounce } from "../utils.js?v=20260705e";
-import { icon } from "../icons.js?v=20260705e";
-import { isAdmin, getAdminEmail, isFounder, getViewAs } from "../auth-admin.js?v=20260705e";
-import { recordUndo } from "../undo.js?v=20260705e";
-import { openQcmEntrainement } from "./qcm.js?v=20260705e";
+import { listThemes, updateTheme, addTheme, deleteTheme, listQcmIndex } from "../db.js?v=20260705g";
+import { el, clear, isoDate, formatDate, toast, debounce } from "../utils.js?v=20260705g";
+import { icon } from "../icons.js?v=20260705g";
+import { isAdmin, getAdminEmail, isFounder, getViewAs } from "../auth-admin.js?v=20260705g";
+import { recordUndo } from "../undo.js?v=20260705g";
+import { openQcmEntrainement } from "./qcm.js?v=20260705g";
 
 let themes = [];
 let qcmByTheme = new Map();  // theme_id -> { id, nb_questions, published, ... }

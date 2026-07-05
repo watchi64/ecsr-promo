@@ -3759,6 +3759,16 @@ button.theme-date.editable.muted { color: var(--text-faint); }
 .bnv-affilie-niv { font-size: 0.72rem; color: var(--accent-strong); border: 1px solid var(--accent-soft-2);
   border-radius: 999px; padding: 0 0.4rem; }
 .bnv-affilie .bnv-tel { margin-left: auto; }
+/* Nom cliquable (ouvre la fiche du bénévole, retour fiche école) */
+.bnv-linklike { background: none; border: none; padding: 0; font: inherit; font-weight: 500;
+  color: var(--accent-strong); cursor: pointer; text-decoration: underline;
+  text-underline-offset: 2px; text-decoration-color: var(--accent-soft-2); }
+.bnv-linklike:hover { text-decoration-color: var(--accent); }
+/* Désaffilier (le bénévole reste dans la banque) */
+.bnv-affilie-x { background: none; border: none; color: #A05A3D; font-size: 1.05rem;
+  cursor: pointer; padding: 0 0.3rem; line-height: 1; flex: none; }
+/* Sélecteur d'affiliation (existant ou + Nouveau bénévole) */
+.bnv-affilie-add { margin-top: 0.5rem; max-width: 100%; }
 /* Suivi des venues (fiche bénévole) */
 .bnv-suivi { margin-top: 1rem; border-top: 1px solid var(--line); padding-top: 0.7rem; }
 .bnv-venue { padding: 0.45rem 0; border-bottom: 1px dashed var(--line-faint); }

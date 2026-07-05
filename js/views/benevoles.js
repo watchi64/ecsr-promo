@@ -7,11 +7,11 @@
 // les commentaires vivent dans benevole_suivi. Ouvert depuis la barre semaine du Planning.
 import {
   listBenevoles, addBenevole, updateBenevole, setBenevoleActif,
-  listAutoEcoles, addAutoEcole, updateAutoEcole, setAutoEcoleActif,
+  listAutoEcoles, addAutoEcole, updateAutoEcole, setAutoEcoleActif, deleteAutoEcole,
   listVenuesBenevoles, listSuiviBenevole, upsertSuiviBenevole, listStagiaires,
-} from "../db.js?v=20260705e";
-import { el, clear, toast, displayStagiaire, compareByNom, isoDate, addDays, formatDayShort } from "../utils.js?v=20260705e";
-import { JOURS } from "../config.js?v=20260705e";
+} from "../db.js?v=20260705g";
+import { el, clear, toast, displayStagiaire, compareByNom, isoDate, addDays, formatDayShort } from "../utils.js?v=20260705g";
+import { JOURS } from "../config.js?v=20260705g";
 
 const JOURS_COURTS = ["Lun", "Mar", "Mer", "Jeu", "Ven"];
 const DEMI = [
@@ -370,19 +370,54 @@ export function openBenevolesPanel({ onClose } = {}) {
       el("div", { class: "field" }, el("label", {}, "Notes"), notesIn),
     ));
 
-    // Ses bénévoles : l'outil « reprendre contact avec ses élèves »
+    // Ses bénévoles : l'outil « reprendre contact avec ses élèves ». Gestion
+    // complète depuis la fiche : ouvrir une fiche (nom cliquable, avec retour ici),
+    // désaffilier (×), affilier un existant ou en créer un déjà affilié.
     if (a) {
+      // Rouvre cette fiche avec des données fraîches après une écriture
+      const reopenEcole = () => {
+        const fresh = ecoles.find((x) => x.id === a.id);
+        if (fresh) renderEcoleForm(fresh, onSaved);
+        else { tab = "ecoles"; render(); }
+      };
+
       const affilies = list.filter((b) => b.auto_ecole_id === a.id && b.actif !== false).sort(compareByNom);
       const bloc = el("div", { class: "bnv-affilies" });
       bloc.appendChild(el("div", { class: "bnv-affilies-titre" }, `Ses bénévoles (${affilies.length})`));
       if (!affilies.length) bloc.appendChild(el("p", { class: "muted bnv-empty" }, "Aucun bénévole affilié."));
       affilies.forEach((b) => {
         const line = el("div", { class: "bnv-affilie" },
-          el("span", { class: "bnv-affilie-nom" }, displayStagiaire(b)));
+          el("button", { class: "bnv-affilie-nom bnv-linklike", type: "button",
+            title: "Ouvrir la fiche de " + displayStagiaire(b),
+            onClick: () => renderForm(b, null, reopenEcole) }, displayStagiaire(b)));
         if (b.niveau) line.appendChild(el("span", { class: "bnv-affilie-niv" }, b.niveau));
         const tel = telLink(b.telephone); if (tel) line.appendChild(tel);
+        line.appendChild(el("button", { class: "bnv-affilie-x", type: "button",
+          title: "Désaffilier de cette auto-école (reste dans la banque)",
+          onClick: async () => {
+            if (!confirm(`Désaffilier ${displayStagiaire(b)} de ${a.nom} ? (reste dans la banque)`)) return;
+            try { await updateBenevole(b.id, { auto_ecole_id: null }); dirty = true; await reload(); reopenEcole(); }
+            catch (e) { console.error(e); toast("Erreur d'enregistrement", "error"); }
+          }}, "×"));
         bloc.appendChild(line);
       });
+
+      // Affilier un bénévole existant (ceux d'une autre auto-école sont déplaçables)
+      // ou en créer un nouveau, déjà rattaché à cette auto-école.
+      const affSel = el("select", { class: "bnv-affilie-add" });
+      affSel.appendChild(el("option", { value: "" }, "Affilier un bénévole…"));
+      list.filter((x) => x.actif !== false && x.auto_ecole_id !== a.id).sort(compareByNom)
+        .forEach((x) => affSel.appendChild(el("option", { value: String(x.id) },
+          displayStagiaire(x) + (x.auto_ecole_id ? ` (${ecoleNom(x.auto_ecole_id)})` : ""))));
+      affSel.appendChild(el("option", { value: "__new" }, "+ Nouveau bénévole"));
+      affSel.addEventListener("change", async () => {
+        const val = affSel.value;
+        if (!val) return;
+        if (val === "__new") { renderForm(null, { auto_ecole_id: a.id }, reopenEcole); return; }
+        try { await updateBenevole(Number(val), { auto_ecole_id: a.id }); dirty = true; await reload(); reopenEcole(); }
+        catch (e) { console.error(e); toast("Erreur d'enregistrement", "error"); }
+      });
+      bloc.appendChild(affSel);
       modal.appendChild(bloc);
     }
 
@@ -394,6 +429,17 @@ export function openBenevolesPanel({ onClose } = {}) {
         catch (e) { console.error(e); toast("Erreur d'enregistrement", "error"); }
       }}, "Retirer"));
     }
+    if (a) {
+      actions.appendChild(el("button", { class: "btn ghost bnv-remove", onClick: async () => {
+        const nb = list.filter((x) => x.auto_ecole_id === a.id).length;  // inactifs compris
+        const msg = nb
+          ? `Supprimer définitivement ${a.nom} ?\n\nSes ${nb} bénévole(s) resteront dans la banque, sans auto-école.`
+          : `Supprimer définitivement ${a.nom} ?`;
+        if (!confirm(msg)) return;
+        try { await deleteAutoEcole(a.id); dirty = true; await reload(); tab = "ecoles"; render(); }
+        catch (e) { console.error(e); toast("Erreur de suppression", "error"); }
+      }}, "Supprimer"));
+    }
     actions.appendChild(el("span", { style: "flex:1" }));
     actions.appendChild(el("button", { class: "btn ghost", onClick: () => (onSaved ? onSaved(null) : render()) }, "Annuler"));
     actions.appendChild(el("button", { class: "btn primary", onClick: save }, "Enregistrer"));
@@ -403,8 +449,11 @@ export function openBenevolesPanel({ onClose } = {}) {
   // === Fiche bénévole ===
   // draft (optionnel) : valeurs en cours de saisie, pour restaurer le formulaire au
   // retour du flux « + Nouvelle auto-école » sans perdre ce qui était déjà rempli.
-  function renderForm(b, draft) {
+  function renderForm(b, draft, returnTo) {
     clear(modal);
+    // returnTo (optionnel) : où revenir après enregistrer/annuler/retirer
+    // (ex. fiche auto-école qui a ouvert cette fiche). Par défaut : l'onglet courant.
+    const done = () => (returnTo ? returnTo() : render());
     modal.appendChild(el("h3", {}, b ? "Modifier " + displayStagiaire(b) : "Nouveau bénévole"));
 
     const v = (champ, defaut) => (draft && champ in draft ? draft[champ] : defaut);
@@ -479,7 +528,7 @@ export function openBenevolesPanel({ onClose } = {}) {
       const d = collectDraft();
       renderEcoleForm(null, (saved) => {
         if (saved) d.auto_ecole_id = saved.id;
-        renderForm(b, d);
+        renderForm(b, d, returnTo);
       });
     });
 
@@ -505,7 +554,7 @@ export function openBenevolesPanel({ onClose } = {}) {
         else await addBenevole(payload);
         dirty = true;
         await reload();
-        render();
+        done();
       } catch (e) {
         console.error(e);
         toast("Erreur d'enregistrement", "error");
@@ -599,12 +648,12 @@ export function openBenevolesPanel({ onClose } = {}) {
       actions.appendChild(el("button", { class: "btn ghost bnv-remove", onClick: async () => {
         if (!confirm(`Retirer ${displayStagiaire(b)} de la banque ? (réactivable ensuite)`)) return;
         try {
-          await setBenevoleActif(b.id, false); dirty = true; await reload(); render();
+          await setBenevoleActif(b.id, false); dirty = true; await reload(); done();
         } catch (e) { console.error(e); toast("Erreur d'enregistrement", "error"); }
       }}, "Retirer de la banque"));
     }
     actions.appendChild(el("span", { style: "flex:1" }));
-    actions.appendChild(el("button", { class: "btn ghost", onClick: () => render() }, "Annuler"));
+    actions.appendChild(el("button", { class: "btn ghost", onClick: done }, "Annuler"));
     actions.appendChild(el("button", { class: "btn primary", onClick: save }, "Enregistrer"));
     modal.appendChild(actions);
   }

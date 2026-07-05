@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20260705e";
+import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20260705g";
 
 // fetch avec timeout : sans ça, une requête peut rester pendue indéfiniment
 // (réseau mobile instable) → "Chargement" infini. Avec, elle échoue proprement après 15s.
@@ -537,6 +537,18 @@ export async function setAutoEcoleActif(id, actif) {
   const { error } = await supabase.from("auto_ecoles").update({ actif }).eq("id", id);
   if (error) throw error;
   invalidateCache("auto_ecoles");
+}
+
+// Suppression définitive : désaffilie d'abord ses bénévoles (la FK n'a pas de
+// ON DELETE), qui restent dans la banque sans auto-école.
+export async function deleteAutoEcole(id) {
+  const { error: e1 } = await supabase.from("benevoles")
+    .update({ auto_ecole_id: null }).eq("auto_ecole_id", id);
+  if (e1) throw e1;
+  const { error } = await supabase.from("auto_ecoles").delete().eq("id", id);
+  if (error) throw error;
+  invalidateCache("auto_ecoles");
+  invalidateCache("benevoles");
 }
 
 // === Suivi des venues des bénévoles ===
