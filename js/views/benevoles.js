@@ -1,11 +1,17 @@
-// Panneau « Élèves bénévoles » : banque des volontaires qui viennent conduire avec
-// les élèves moniteurs (activité Voiture conduite). Réservé formateur/admin : le
-// bouton d'ouverture n'est rendu que pour eux et la table est RLS admin-only (le
-// téléphone ne transite jamais vers un stagiaire). Ouvert depuis la barre semaine
-// du Planning.
-import { listBenevoles, addBenevole, updateBenevole, setBenevoleActif } from "../db.js?v=20260705c";
-import { el, clear, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260705c";
-import { JOURS } from "../config.js?v=20260705c";
+// Panneau « Élèves bénévoles et partenaires » : banque des volontaires qui viennent
+// conduire avec les élèves moniteurs (activité Voiture conduite) + banque des
+// auto-écoles partenaires (contacts pour en recruter) + fiche de suivi des venues.
+// Réservé formateur/admin : le bouton d'ouverture n'est rendu que pour eux et les
+// tables sont RLS admin-only (téléphones jamais transmis aux stagiaires). Les venues
+// ne sont pas stockées : déduites du planning (cartes portant le bénévole), seuls
+// les commentaires vivent dans benevole_suivi. Ouvert depuis la barre semaine du Planning.
+import {
+  listBenevoles, addBenevole, updateBenevole, setBenevoleActif,
+  listAutoEcoles, addAutoEcole, updateAutoEcole, setAutoEcoleActif,
+  listVenuesBenevoles, listSuiviBenevole, upsertSuiviBenevole, listStagiaires,
+} from "../db.js?v=20260705e";
+import { el, clear, toast, displayStagiaire, compareByNom, isoDate, addDays, formatDayShort } from "../utils.js?v=20260705e";
+import { JOURS } from "../config.js?v=20260705e";
 
 const JOURS_COURTS = ["Lun", "Mar", "Mer", "Jeu", "Ven"];
 const DEMI = [
@@ -88,15 +94,14 @@ function dispoBadges(b) {
   return wrap;
 }
 
-function metaLine(b) {
-  const parts = [b.boite, (b.heures != null && b.heures !== "") ? `${b.heures}h` : null, b.auto_ecole]
-    .filter((v) => v != null && String(v).trim() !== "");
-  return parts.join(" · ");
-}
-
 function telLink(tel) {
   if (!tel || !String(tel).trim()) return null;
   return el("a", { class: "bnv-tel", href: "tel:" + String(tel).replace(/[^+\d]/g, "") }, tel);
+}
+
+function mailLink(email) {
+  if (!email || !String(email).trim()) return null;
+  return el("a", { class: "bnv-tel", href: "mailto:" + String(email).trim() }, email);
 }
 
 export function openBenevolesPanel({ onClose } = {}) {
@@ -105,11 +110,83 @@ export function openBenevolesPanel({ onClose } = {}) {
   backdrop.appendChild(modal);
 
   let list = [];
+  let ecoles = [];
+  let venues = [];        // cartes planning portant des bénévoles (venues déduites)
+  let stagiaires = [];    // pour nommer les élèves moniteurs dans le suivi
+  let tab = "benevoles";  // "benevoles" | "ecoles"
   let filtre = { jour: "", demi: "" };
   let dirty = false;  // au moins une écriture => le planning recharge sa banque à la fermeture
 
   const close = () => { backdrop.remove(); if (dirty && onClose) onClose(); };
   backdrop.addEventListener("click", (e) => { if (e.target === backdrop) close(); });
+
+  async function reload() {
+    [list, ecoles, venues, stagiaires] = await Promise.all([
+      listBenevoles(), listAutoEcoles(), listVenuesBenevoles(), listStagiaires(),
+    ]);
+  }
+
+  function ecoleNom(id) { return ecoles.find((a) => a.id === id)?.nom || ""; }
+  function stagiaireNom(id) {
+    const s = stagiaires.find((x) => x.id === id);
+    return s ? displayStagiaire(s) : "";
+  }
+
+  function metaLine(b, nbVenues) {
+    const parts = [
+      b.boite,
+      (b.heures != null && b.heures !== "") ? `${b.heures}h` : null,
+      ecoleNom(b.auto_ecole_id) || null,
+      nbVenues ? `${nbVenues} venue${nbVenues > 1 ? "s" : ""}` : null,
+    ].filter((v) => v != null && String(v).trim() !== "");
+    return parts.join(" · ");
+  }
+
+  // Venues d'un bénévole : regroupe les cartes planning par demi-journée
+  // (plusieurs créneaux successifs la même demi-journée = une seule venue).
+  function venuesFor(benevoleId) {
+    const map = new Map();  // clé "semaine|jour|demi" -> venue
+    venues.forEach((e) => {
+      if (!(e.benevoles_ids || []).includes(benevoleId)) return;
+      const key = `${e.semaine_lundi}|${e.day_index}|${e.half_day}`;
+      if (!map.has(key)) {
+        map.set(key, { semaine_lundi: e.semaine_lundi, day_index: e.day_index,
+          half_day: e.half_day, eleves: new Set(), sujets: new Set() });
+      }
+      const vn = map.get(key);
+      (e.eleves_ids || []).forEach((id) => vn.eleves.add(id));
+      if (e.sujet && String(e.sujet).trim()) vn.sujets.add(String(e.sujet).trim());
+    });
+    return [...map.values()].sort((a, b) =>
+      b.semaine_lundi.localeCompare(a.semaine_lundi) || b.day_index - a.day_index
+      || (b.half_day === "aprem" ? 1 : 0) - (a.half_day === "aprem" ? 1 : 0));
+  }
+
+  function venueCount(benevoleId) { return venuesFor(benevoleId).length; }
+
+  function venueDate(vn) {
+    const monday = new Date(vn.semaine_lundi + "T00:00:00");
+    return addDays(monday, vn.day_index);
+  }
+
+  function venueLabel(dayIndex, date, half) {
+    return `${JOURS_COURTS[dayIndex]} ${formatDayShort(date)} ${half === "matin" ? "matin" : "après-midi"}`;
+  }
+
+  // === Onglets ===
+
+  function renderTabs() {
+    const tabs = el("div", { class: "bnv-tabs" });
+    [["benevoles", "Bénévoles"], ["ecoles", "Auto-écoles"]].forEach(([key, label]) => {
+      tabs.appendChild(el("button", {
+        class: "bnv-tab" + (tab === key ? " active" : ""), type: "button",
+        onClick: () => { if (tab !== key) { tab = key; render(); } },
+      }, label));
+    });
+    return tabs;
+  }
+
+  function render() { if (tab === "ecoles") renderEcoles(); else renderList(); }
 
   function matchesFiltre(b) {
     const d = b.dispos || {};
@@ -119,9 +196,12 @@ export function openBenevolesPanel({ onClose } = {}) {
     return true;
   }
 
+  // === Onglet Bénévoles ===
+
   function renderList() {
     clear(modal);
-    modal.appendChild(el("h3", {}, "Élèves bénévoles"));
+    modal.appendChild(el("h3", {}, "Élèves bénévoles et partenaires"));
+    modal.appendChild(renderTabs());
     modal.appendChild(el("p", { class: "muted bnv-intro" },
       "Volontaires qui viennent conduire avec les élèves moniteurs. Visible uniquement par les formateurs/admins."));
 
@@ -155,7 +235,7 @@ export function openBenevolesPanel({ onClose } = {}) {
       const info = el("div", { class: "bnv-info" });
       info.appendChild(el("div", { class: "bnv-name" }, displayStagiaire(b)));
       if (b.niveau) info.appendChild(el("div", { class: "bnv-niveau" }, nivLabel(b.niveau)));
-      const meta = metaLine(b);
+      const meta = metaLine(b, venueCount(b.id));
       if (meta) info.appendChild(el("div", { class: "bnv-meta" }, meta));
       info.appendChild(dispoBadges(b));
       if (b.dispo_note) info.appendChild(el("div", { class: "bnv-note" }, b.dispo_note));
@@ -177,7 +257,7 @@ export function openBenevolesPanel({ onClose } = {}) {
           el("div", { class: "bnv-side" },
             el("button", { class: "btn small ghost", onClick: async () => {
               try {
-                await setBenevoleActif(b.id, true); dirty = true; await reload(); renderList();
+                await setBenevoleActif(b.id, true); dirty = true; await reload(); render();
               } catch (e) { console.error(e); toast("Erreur d'enregistrement", "error"); }
             }}, "Réactiver"))));
       });
@@ -188,17 +268,153 @@ export function openBenevolesPanel({ onClose } = {}) {
       el("button", { class: "btn ghost", onClick: close }, "Fermer")));
   }
 
-  function renderForm(b) {
+  // === Onglet Auto-écoles ===
+
+  function renderEcoles() {
+    clear(modal);
+    modal.appendChild(el("h3", {}, "Élèves bénévoles et partenaires"));
+    modal.appendChild(renderTabs());
+    modal.appendChild(el("p", { class: "muted bnv-intro" },
+      "Auto-écoles partenaires : les contacts à appeler pour trouver des élèves bénévoles."));
+
+    const addBtn = el("button", { class: "btn small primary", onClick: () => renderEcoleForm(null) }, "+ Ajouter");
+    modal.appendChild(el("div", { class: "bnv-toolbar" }, el("span", { style: "flex:1" }), addBtn));
+
+    const tri = (a, b) => (a.nom || "").localeCompare(b.nom || "", "fr");
+    const actives = ecoles.filter((a) => a.actif !== false).sort(tri);
+    const retirees = ecoles.filter((a) => a.actif === false).sort(tri);
+
+    if (!actives.length) {
+      modal.appendChild(el("p", { class: "muted bnv-empty" }, "Aucune auto-école partenaire pour l'instant."));
+    }
+    actives.forEach((a) => {
+      const affilies = list.filter((b) => b.auto_ecole_id === a.id && b.actif !== false);
+      const row = el("div", { class: "bnv-row" });
+      const info = el("div", { class: "bnv-info" });
+      info.appendChild(el("div", { class: "bnv-name" }, a.nom));
+      const metaParts = [a.referent, affilies.length ? `${affilies.length} bénévole${affilies.length > 1 ? "s" : ""}` : null]
+        .filter(Boolean).join(" · ");
+      if (metaParts) info.appendChild(el("div", { class: "bnv-meta" }, metaParts));
+      if (a.notes) info.appendChild(el("div", { class: "bnv-note" }, a.notes));
+      row.appendChild(info);
+      const side = el("div", { class: "bnv-side" });
+      const tel = telLink(a.telephone); if (tel) side.appendChild(tel);
+      const mail = mailLink(a.email); if (mail) side.appendChild(mail);
+      side.appendChild(el("button", { class: "btn small ghost", onClick: () => renderEcoleForm(a) }, "Modifier"));
+      row.appendChild(side);
+      modal.appendChild(row);
+    });
+
+    if (retirees.length) {
+      const det = el("details", { class: "bnv-retires" });
+      det.appendChild(el("summary", {}, `Retirées (${retirees.length})`));
+      retirees.forEach((a) => {
+        det.appendChild(el("div", { class: "bnv-row inactive" },
+          el("div", { class: "bnv-info" }, el("div", { class: "bnv-name" }, a.nom)),
+          el("div", { class: "bnv-side" },
+            el("button", { class: "btn small ghost", onClick: async () => {
+              try { await setAutoEcoleActif(a.id, true); dirty = true; await reload(); render(); }
+              catch (e) { console.error(e); toast("Erreur d'enregistrement", "error"); }
+            }}, "Réactiver"))));
+      });
+      modal.appendChild(det);
+    }
+
+    modal.appendChild(el("div", { class: "modal-actions" },
+      el("button", { class: "btn ghost", onClick: close }, "Fermer")));
+  }
+
+  // Fiche auto-école. onSaved (optionnel) sert au flux « + Nouvelle auto-école »
+  // depuis la fiche bénévole : appelé avec la fiche créée (ou null si annulation)
+  // au lieu de revenir à la liste.
+  function renderEcoleForm(a, onSaved) {
+    clear(modal);
+    modal.appendChild(el("h3", {}, a ? "Modifier " + a.nom : "Nouvelle auto-école"));
+
+    const nomIn = el("input", { type: "text", value: a?.nom || "", autocomplete: "off" });
+    const referentIn = el("input", { type: "text", value: a?.referent || "", autocomplete: "off", placeholder: "Sophie…" });
+    const telIn = el("input", { type: "tel", value: a?.telephone || "", autocomplete: "off", placeholder: "06 12 34 56 78" });
+    const emailIn = el("input", { type: "email", value: a?.email || "", autocomplete: "off" });
+    const adresseIn = el("input", { type: "text", value: a?.adresse || "", autocomplete: "off" });
+    const notesIn = el("input", { type: "text", value: a?.notes || "", autocomplete: "off" });
+
+    async function save() {
+      const nom = nomIn.value.trim();
+      if (!nom) { toast("Nom obligatoire", "error"); return; }
+      const payload = {
+        nom,
+        referent: referentIn.value.trim() || null,
+        telephone: telIn.value.trim() || null,
+        email: emailIn.value.trim() || null,
+        adresse: adresseIn.value.trim() || null,
+        notes: notesIn.value.trim() || null,
+      };
+      try {
+        let saved = a;
+        if (a) await updateAutoEcole(a.id, payload);
+        else saved = await addAutoEcole(payload);
+        dirty = true;
+        await reload();
+        if (onSaved) onSaved(saved); else render();
+      } catch (e) { console.error(e); toast("Erreur d'enregistrement", "error"); }
+    }
+
+    modal.appendChild(el("div", { class: "modal-form" },
+      el("div", { class: "bnv-form-2col" },
+        el("div", { class: "field" }, el("label", {}, "Nom *"), nomIn),
+        el("div", { class: "field" }, el("label", {}, "Référent (qui appeler)"), referentIn)),
+      el("div", { class: "bnv-form-2col" },
+        el("div", { class: "field" }, el("label", {}, "Téléphone"), telIn),
+        el("div", { class: "field" }, el("label", {}, "Email"), emailIn)),
+      el("div", { class: "field" }, el("label", {}, "Adresse"), adresseIn),
+      el("div", { class: "field" }, el("label", {}, "Notes"), notesIn),
+    ));
+
+    // Ses bénévoles : l'outil « reprendre contact avec ses élèves »
+    if (a) {
+      const affilies = list.filter((b) => b.auto_ecole_id === a.id && b.actif !== false).sort(compareByNom);
+      const bloc = el("div", { class: "bnv-affilies" });
+      bloc.appendChild(el("div", { class: "bnv-affilies-titre" }, `Ses bénévoles (${affilies.length})`));
+      if (!affilies.length) bloc.appendChild(el("p", { class: "muted bnv-empty" }, "Aucun bénévole affilié."));
+      affilies.forEach((b) => {
+        const line = el("div", { class: "bnv-affilie" },
+          el("span", { class: "bnv-affilie-nom" }, displayStagiaire(b)));
+        if (b.niveau) line.appendChild(el("span", { class: "bnv-affilie-niv" }, b.niveau));
+        const tel = telLink(b.telephone); if (tel) line.appendChild(tel);
+        bloc.appendChild(line);
+      });
+      modal.appendChild(bloc);
+    }
+
+    const actions = el("div", { class: "modal-actions" });
+    if (a && a.actif !== false) {
+      actions.appendChild(el("button", { class: "btn ghost bnv-remove", onClick: async () => {
+        if (!confirm(`Retirer ${a.nom} des partenaires ? (réactivable ensuite)`)) return;
+        try { await setAutoEcoleActif(a.id, false); dirty = true; await reload(); render(); }
+        catch (e) { console.error(e); toast("Erreur d'enregistrement", "error"); }
+      }}, "Retirer"));
+    }
+    actions.appendChild(el("span", { style: "flex:1" }));
+    actions.appendChild(el("button", { class: "btn ghost", onClick: () => (onSaved ? onSaved(null) : render()) }, "Annuler"));
+    actions.appendChild(el("button", { class: "btn primary", onClick: save }, "Enregistrer"));
+    modal.appendChild(actions);
+  }
+
+  // === Fiche bénévole ===
+  // draft (optionnel) : valeurs en cours de saisie, pour restaurer le formulaire au
+  // retour du flux « + Nouvelle auto-école » sans perdre ce qui était déjà rempli.
+  function renderForm(b, draft) {
     clear(modal);
     modal.appendChild(el("h3", {}, b ? "Modifier " + displayStagiaire(b) : "Nouveau bénévole"));
 
-    const prenomIn = el("input", { type: "text", value: b?.prenom || "", autocomplete: "off" });
-    const nomIn = el("input", { type: "text", value: b?.nom || "", autocomplete: "off" });
-    const telIn = el("input", { type: "tel", value: b?.telephone || "", autocomplete: "off", placeholder: "06 12 34 56 78" });
-    const heuresIn = el("input", { type: "number", min: "0", step: "0.5", value: b?.heures ?? "" });
-    const autoEcoleIn = el("input", { type: "text", value: b?.auto_ecole || "", autocomplete: "off", placeholder: "ECF Nîmes…" });
-    const dispoNoteIn = el("input", { type: "text", value: b?.dispo_note || "", autocomplete: "off", placeholder: "à partir de 17h, pas pendant ses exams…" });
-    const notesIn = el("input", { type: "text", value: b?.notes || "", autocomplete: "off" });
+    const v = (champ, defaut) => (draft && champ in draft ? draft[champ] : defaut);
+
+    const prenomIn = el("input", { type: "text", value: v("prenom", b?.prenom || ""), autocomplete: "off" });
+    const nomIn = el("input", { type: "text", value: v("nom", b?.nom || ""), autocomplete: "off" });
+    const telIn = el("input", { type: "tel", value: v("telephone", b?.telephone || ""), autocomplete: "off", placeholder: "06 12 34 56 78" });
+    const heuresIn = el("input", { type: "number", min: "0", step: "0.5", value: v("heures", b?.heures ?? "") });
+    const dispoNoteIn = el("input", { type: "text", value: v("dispo_note", b?.dispo_note || ""), autocomplete: "off", placeholder: "à partir de 17h, pas pendant ses exams…" });
+    const notesIn = el("input", { type: "text", value: v("notes", b?.notes || ""), autocomplete: "off" });
 
     // Niveau : compétence globale (C1..C4) ou sous-compétence précise (C1.4...),
     // groupées par compétence. C1 et C2 sont les plus utilisées (début de formation).
@@ -210,16 +426,27 @@ export function openBenevolesPanel({ onClose } = {}) {
       c.sous.forEach(([code, titre]) => group.appendChild(el("option", { value: code }, `${code} · ${titre}`)));
       niveauSel.appendChild(group);
     });
-    niveauSel.value = b?.niveau || "";
+    niveauSel.value = v("niveau", b?.niveau || "");
 
     const boiteSel = el("select");
     boiteSel.appendChild(el("option", { value: "" }, "Boîte…"));
     BOITES.forEach((x) => boiteSel.appendChild(el("option", { value: x }, x)));
-    boiteSel.value = b?.boite || "";
+    boiteSel.value = v("boite", b?.boite || "");
+
+    // Affiliation : select depuis la banque + création à la volée pendant un appel
+    const ecoleSel = el("select");
+    ecoleSel.appendChild(el("option", { value: "" }, "Auto-école…"));
+    ecoles.filter((x) => x.actif !== false)
+      .sort((x, y) => (x.nom || "").localeCompare(y.nom || "", "fr"))
+      .forEach((x) => ecoleSel.appendChild(el("option", { value: String(x.id) }, x.nom)));
+    ecoleSel.appendChild(el("option", { value: "__new" }, "+ Nouvelle auto-école"));
+    const ecoleInit = v("auto_ecole_id", b?.auto_ecole_id ?? null);
+    ecoleSel.value = ecoleInit != null && ecoleInit !== "" ? String(ecoleInit) : "";
 
     // Grille de dispos récurrentes : 5 jours x 2 demi-journées
+    const dispoSource = v("dispos", b?.dispos);
     const dispoState = {};
-    JOURS.forEach((j) => { dispoState[j] = new Set(b?.dispos?.[j] || []); });
+    JOURS.forEach((j) => { dispoState[j] = new Set(dispoSource?.[j] || []); });
     const grid = el("div", { class: "bnv-dispo-grid" });
     grid.appendChild(el("span", {}, ""));
     DEMI.forEach((d) => grid.appendChild(el("span", { class: "bnv-dispo-head" }, d.label)));
@@ -236,6 +463,26 @@ export function openBenevolesPanel({ onClose } = {}) {
       });
     });
 
+    function collectDraft() {
+      const dispos = {};
+      JOURS.forEach((j) => { if (dispoState[j].size) dispos[j] = [...dispoState[j]]; });
+      return {
+        prenom: prenomIn.value, nom: nomIn.value, telephone: telIn.value,
+        niveau: niveauSel.value, boite: boiteSel.value, heures: heuresIn.value,
+        auto_ecole_id: ecoleSel.value && ecoleSel.value !== "__new" ? Number(ecoleSel.value) : null,
+        dispos, dispo_note: dispoNoteIn.value, notes: notesIn.value,
+      };
+    }
+
+    ecoleSel.addEventListener("change", () => {
+      if (ecoleSel.value !== "__new") return;
+      const d = collectDraft();
+      renderEcoleForm(null, (saved) => {
+        if (saved) d.auto_ecole_id = saved.id;
+        renderForm(b, d);
+      });
+    });
+
     async function save() {
       const prenom = prenomIn.value.trim();
       if (!prenom) { toast("Prénom obligatoire", "error"); return; }
@@ -248,7 +495,7 @@ export function openBenevolesPanel({ onClose } = {}) {
         niveau: niveauSel.value || null,
         boite: boiteSel.value || null,
         heures: heuresIn.value === "" ? null : Number(heuresIn.value),
-        auto_ecole: autoEcoleIn.value.trim() || null,
+        auto_ecole_id: ecoleSel.value && ecoleSel.value !== "__new" ? Number(ecoleSel.value) : null,
         dispos,
         dispo_note: dispoNoteIn.value.trim() || null,
         notes: notesIn.value.trim() || null,
@@ -258,7 +505,7 @@ export function openBenevolesPanel({ onClose } = {}) {
         else await addBenevole(payload);
         dirty = true;
         await reload();
-        renderList();
+        render();
       } catch (e) {
         console.error(e);
         toast("Erreur d'enregistrement", "error");
@@ -271,7 +518,7 @@ export function openBenevolesPanel({ onClose } = {}) {
         el("div", { class: "field" }, el("label", {}, "Nom (optionnel)"), nomIn)),
       el("div", { class: "bnv-form-2col" },
         el("div", { class: "field" }, el("label", {}, "Téléphone (visible formateurs)"), telIn),
-        el("div", { class: "field" }, el("label", {}, "Auto-école d'origine"), autoEcoleIn)),
+        el("div", { class: "field" }, el("label", {}, "Auto-école d'origine"), ecoleSel)),
       el("div", { class: "field" }, el("label", {}, "Niveau"), niveauSel),
       el("div", { class: "bnv-form-2col" },
         el("div", { class: "field" }, el("label", {}, "Boîte"), boiteSel),
@@ -282,26 +529,89 @@ export function openBenevolesPanel({ onClose } = {}) {
     );
     modal.appendChild(form);
 
+    // === Suivi des venues (bénévole existant) : déduit du planning, commentaire
+    // par venue passée (upsert benevole_suivi au blur). ===
+    if (b) {
+      const suiviBloc = el("div", { class: "bnv-suivi" });
+      suiviBloc.appendChild(el("div", { class: "bnv-affilies-titre" }, "Suivi des venues"));
+      suiviBloc.appendChild(el("p", { class: "muted bnv-empty" }, "Chargement du suivi…"));
+      modal.appendChild(suiviBloc);
+
+      listSuiviBenevole(b.id).then((rows) => {
+        clear(suiviBloc);
+        suiviBloc.appendChild(el("div", { class: "bnv-affilies-titre" }, "Suivi des venues"));
+        const comByKey = new Map(rows.map((r) => [`${r.semaine_lundi}|${r.day_index}|${r.half_day}`, r]));
+        const vns = venuesFor(b.id);
+        const todayIso = isoDate(new Date());
+
+        if (!vns.length && !rows.length) {
+          suiviBloc.appendChild(el("p", { class: "muted bnv-empty" }, "Aucune venue planifiée pour l'instant."));
+        }
+
+        vns.forEach((vn) => {
+          const key = `${vn.semaine_lundi}|${vn.day_index}|${vn.half_day}`;
+          const date = venueDate(vn);
+          const futur = isoDate(date) > todayIso;
+          const head = el("div", { class: "bnv-venue-head" },
+            el("span", { class: "bnv-venue-date" }, venueLabel(vn.day_index, date, vn.half_day)));
+          const noms = [...vn.eleves].map(stagiaireNom).filter(Boolean).join(", ");
+          if (noms) head.appendChild(el("span", { class: "bnv-venue-avec" }, "avec " + noms));
+          if (futur) head.appendChild(el("span", { class: "bnv-venue-futur" }, "à venir"));
+          const venueEl = el("div", { class: "bnv-venue" }, head);
+          if (vn.sujets.size) venueEl.appendChild(el("div", { class: "bnv-venue-sujet" }, [...vn.sujets].join(", ")));
+          if (!futur) {
+            const com = comByKey.get(key);
+            const input = el("input", { type: "text", class: "bnv-venue-com",
+              placeholder: "+ commentaire de séance", value: com?.commentaire || "", autocomplete: "off" });
+            input.addEventListener("blur", async () => {
+              const val = input.value.trim();
+              if (val === (com?.commentaire || "")) return;
+              try {
+                await upsertSuiviBenevole({ benevole_id: b.id, semaine_lundi: vn.semaine_lundi,
+                  day_index: vn.day_index, half_day: vn.half_day, commentaire: val || null });
+                if (com) com.commentaire = val;
+                else comByKey.set(key, { semaine_lundi: vn.semaine_lundi, day_index: vn.day_index,
+                  half_day: vn.half_day, commentaire: val });
+              } catch (e) { console.error(e); toast("Erreur d'enregistrement", "error"); }
+            });
+            venueEl.appendChild(input);
+          }
+          suiviBloc.appendChild(venueEl);
+        });
+
+        // Commentaires dont le créneau a disparu du planning
+        const vnKeys = new Set(vns.map((vn) => `${vn.semaine_lundi}|${vn.day_index}|${vn.half_day}`));
+        rows.filter((r) => r.commentaire && !vnKeys.has(`${r.semaine_lundi}|${r.day_index}|${r.half_day}`))
+          .forEach((r) => {
+            const monday = new Date(r.semaine_lundi + "T00:00:00");
+            const date = addDays(monday, r.day_index);
+            suiviBloc.appendChild(el("div", { class: "bnv-venue orpheline" },
+              el("div", { class: "bnv-venue-head" },
+                el("span", { class: "bnv-venue-date" }, venueLabel(r.day_index, date, r.half_day)),
+                el("span", { class: "bnv-venue-futur" }, "créneau retiré du planning")),
+              el("div", { class: "bnv-venue-sujet" }, r.commentaire)));
+          });
+      }).catch((e) => { console.error(e); });
+    }
+
     const actions = el("div", { class: "modal-actions" });
     if (b && b.actif !== false) {
       actions.appendChild(el("button", { class: "btn ghost bnv-remove", onClick: async () => {
         if (!confirm(`Retirer ${displayStagiaire(b)} de la banque ? (réactivable ensuite)`)) return;
         try {
-          await setBenevoleActif(b.id, false); dirty = true; await reload(); renderList();
+          await setBenevoleActif(b.id, false); dirty = true; await reload(); render();
         } catch (e) { console.error(e); toast("Erreur d'enregistrement", "error"); }
       }}, "Retirer de la banque"));
     }
     actions.appendChild(el("span", { style: "flex:1" }));
-    actions.appendChild(el("button", { class: "btn ghost", onClick: renderList }, "Annuler"));
+    actions.appendChild(el("button", { class: "btn ghost", onClick: () => render() }, "Annuler"));
     actions.appendChild(el("button", { class: "btn primary", onClick: save }, "Enregistrer"));
     modal.appendChild(actions);
   }
 
-  async function reload() { list = await listBenevoles(); }
-
   modal.appendChild(el("div", { class: "loading" }, "Chargement"));
   document.body.appendChild(backdrop);
-  reload().then(renderList).catch((e) => {
+  reload().then(render).catch((e) => {
     console.error(e);
     clear(modal);
     modal.appendChild(el("p", { class: "muted" }, "Erreur de chargement de la banque."));

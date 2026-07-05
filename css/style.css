@@ -3709,6 +3709,12 @@ button.theme-date.editable.muted { color: var(--text-faint); }
    ============================================================ */
 
 .bnv-modal { max-width: 680px; width: min(680px, calc(100vw - 2rem)); max-height: 88vh; overflow-y: auto; }
+/* Onglets du panneau (Bénévoles / Auto-écoles) */
+.bnv-tabs { display: flex; gap: 0.4rem; margin: 0.2rem 0 0.9rem; }
+.bnv-tab { border: 1px solid var(--line); border-radius: 999px; padding: 0.3rem 0.95rem;
+  background: transparent; cursor: pointer; font-size: 0.85rem; color: var(--text-muted); }
+.bnv-tab.active { background: var(--accent-soft); border-color: var(--accent);
+  color: var(--accent-strong); font-weight: 600; }
 .bnv-intro { margin: 0.1rem 0 0.8rem; font-size: 0.85rem; }
 .bnv-toolbar { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.9rem; }
 .bnv-filter-label { font-size: 0.82rem; color: var(--text-muted); }
@@ -3744,6 +3750,26 @@ button.theme-date.editable.muted { color: var(--text-faint); }
 .bnv-dispo-jour { font-size: 0.8rem; font-weight: 600; }
 .bnv-dispo-cell { display: flex; justify-content: center; padding: 0.15rem 0; cursor: pointer; }
 .bnv-remove { color: #A05A3D; }
+/* Bénévoles affiliés sur la fiche auto-école */
+.bnv-affilies { margin-top: 1rem; border-top: 1px solid var(--line); padding-top: 0.7rem; }
+.bnv-affilies-titre { font-size: 0.8rem; font-weight: 600; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 0.4rem; }
+.bnv-affilie { display: flex; align-items: center; gap: 0.6rem; padding: 0.3rem 0; }
+.bnv-affilie-nom { font-weight: 500; }
+.bnv-affilie-niv { font-size: 0.72rem; color: var(--accent-strong); border: 1px solid var(--accent-soft-2);
+  border-radius: 999px; padding: 0 0.4rem; }
+.bnv-affilie .bnv-tel { margin-left: auto; }
+/* Suivi des venues (fiche bénévole) */
+.bnv-suivi { margin-top: 1rem; border-top: 1px solid var(--line); padding-top: 0.7rem; }
+.bnv-venue { padding: 0.45rem 0; border-bottom: 1px dashed var(--line-faint); }
+.bnv-venue-head { display: flex; align-items: baseline; gap: 0.5rem; flex-wrap: wrap; }
+.bnv-venue-date { font-weight: 600; font-size: 0.85rem; }
+.bnv-venue-avec { font-size: 0.8rem; color: var(--text-muted); }
+.bnv-venue-futur { font-size: 0.7rem; border: 1px solid var(--line-strong); color: var(--text-muted);
+  border-radius: 999px; padding: 0 0.45rem; }
+.bnv-venue-sujet { font-size: 0.8rem; color: var(--accent-strong); margin-top: 0.15rem; }
+.bnv-venue-com { width: 100%; margin-top: 0.3rem; font-size: 0.82rem; }
+.bnv-venue.orpheline { opacity: 0.75; }
 @media (max-width: 560px) {
   .bnv-form-2col { grid-template-columns: 1fr; }
   .bnv-row { flex-direction: column; }
