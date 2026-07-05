@@ -1,6 +1,6 @@
-import { listStagiaires, listEvaluations, getStats, getSetting } from "../db.js?v=20260703d";
-import { el, clear, isoDate, getMonday, displayStagiaire, compareByNom } from "../utils.js?v=20260703d";
-import { icon } from "../icons.js?v=20260703d";
+import { listStagiaires, listEvaluations, getStats, getSetting } from "../db.js?v=20260705b";
+import { el, clear, isoDate, getMonday, displayStagiaire, compareByNom } from "../utils.js?v=20260705b";
+import { icon } from "../icons.js?v=20260705b";
 
 const SORT_OPTIONS = [
   { key: "priorite",   label: "Priorité de passage" },

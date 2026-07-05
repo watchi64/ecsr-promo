@@ -3,9 +3,9 @@
 // bouton d'ouverture n'est rendu que pour eux et la table est RLS admin-only (le
 // téléphone ne transite jamais vers un stagiaire). Ouvert depuis la barre semaine
 // du Planning.
-import { listBenevoles, addBenevole, updateBenevole, setBenevoleActif } from "../db.js?v=20260703d";
-import { el, clear, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260703d";
-import { JOURS } from "../config.js?v=20260703d";
+import { listBenevoles, addBenevole, updateBenevole, setBenevoleActif } from "../db.js?v=20260705b";
+import { el, clear, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260705b";
+import { JOURS } from "../config.js?v=20260705b";
 
 const JOURS_COURTS = ["Lun", "Mar", "Mer", "Jeu", "Ven"];
 const DEMI = [
@@ -272,8 +272,8 @@ export function openBenevolesPanel({ onClose } = {}) {
       el("div", { class: "bnv-form-2col" },
         el("div", { class: "field" }, el("label", {}, "Téléphone (visible formateurs)"), telIn),
         el("div", { class: "field" }, el("label", {}, "Auto-école d'origine"), autoEcoleIn)),
-      el("div", { class: "bnv-form-3col" },
-        el("div", { class: "field" }, el("label", {}, "Niveau"), niveauSel),
+      el("div", { class: "field" }, el("label", {}, "Niveau"), niveauSel),
+      el("div", { class: "bnv-form-2col" },
         el("div", { class: "field" }, el("label", {}, "Boîte"), boiteSel),
         el("div", { class: "field" }, el("label", {}, "Heures faites"), heuresIn)),
       el("div", { class: "field" }, el("label", {}, "Disponibilités récurrentes"), grid),
