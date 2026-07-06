@@ -9,9 +9,9 @@ import {
   listBenevoles, addBenevole, updateBenevole, setBenevoleActif,
   listAutoEcoles, addAutoEcole, updateAutoEcole, setAutoEcoleActif, deleteAutoEcole,
   listVenuesBenevoles, listSuiviBenevole, upsertSuiviBenevole, listStagiaires,
-} from "../db.js?v=20260705g";
-import { el, clear, toast, displayStagiaire, compareByNom, isoDate, addDays, formatDayShort } from "../utils.js?v=20260705g";
-import { JOURS } from "../config.js?v=20260705g";
+} from "../db.js?v=20260706b";
+import { el, clear, toast, displayStagiaire, compareByNom, isoDate, addDays, formatDayShort } from "../utils.js?v=20260706b";
+import { JOURS } from "../config.js?v=20260706b";
 
 const JOURS_COURTS = ["Lun", "Mar", "Mer", "Jeu", "Ven"];
 const DEMI = [
@@ -101,7 +101,9 @@ function telLink(tel) {
 
 function mailLink(email) {
   if (!email || !String(email).trim()) return null;
-  return el("a", { class: "bnv-tel", href: "mailto:" + String(email).trim() }, email);
+  // bnv-mail : contrairement au téléphone (court, insécable), un email peut être
+  // long → il doit pouvoir se couper pour ne jamais faire déborder la modale.
+  return el("a", { class: "bnv-tel bnv-mail", href: "mailto:" + String(email).trim() }, email);
 }
 
 export function openBenevolesPanel({ onClose } = {}) {

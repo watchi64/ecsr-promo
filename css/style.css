@@ -3736,9 +3736,12 @@ button.theme-date.editable.muted { color: var(--text-faint); }
   border-radius: 999px; padding: 0.05rem 0.5rem; }
 .bnv-badge.empty { border-color: var(--line); color: var(--text-muted); font-style: italic; }
 .bnv-note { font-size: 0.78rem; color: var(--text-muted); font-style: italic; margin-top: 0.25rem; }
-.bnv-side { display: flex; flex-direction: column; align-items: flex-end; gap: 0.4rem; flex: none; }
+.bnv-side { display: flex; flex-direction: column; align-items: flex-end; gap: 0.4rem;
+  flex: 0 1 auto; min-width: 0; }
 .bnv-tel { font-family: var(--font-mono); font-size: 0.85rem; color: var(--accent);
   text-decoration: none; white-space: nowrap; }
+/* Email : peut être long → autorisé à se couper (le téléphone reste insécable) */
+.bnv-mail { white-space: normal; overflow-wrap: anywhere; text-align: right; max-width: 100%; }
 .bnv-tel:hover { text-decoration: underline; }
 .bnv-retires { margin-top: 1rem; }
 .bnv-retires summary { cursor: pointer; font-size: 0.85rem; color: var(--text-muted); }
@@ -3748,13 +3751,14 @@ button.theme-date.editable.muted { color: var(--text-faint); }
   align-items: center; }
 .bnv-dispo-head { font-size: 0.75rem; color: var(--text-muted); text-align: center; }
 .bnv-dispo-jour { font-size: 0.8rem; font-weight: 600; }
-.bnv-dispo-cell { display: flex; justify-content: center; padding: 0.15rem 0; cursor: pointer; }
+.bnv-dispo-cell { display: flex; justify-content: center; padding: 0.35rem 0; cursor: pointer; }
+.bnv-dispo-cell input { width: 19px; height: 19px; accent-color: var(--accent); cursor: pointer; }
 .bnv-remove { color: #A05A3D; }
 /* Bénévoles affiliés sur la fiche auto-école */
 .bnv-affilies { margin-top: 1rem; border-top: 1px solid var(--line); padding-top: 0.7rem; }
 .bnv-affilies-titre { font-size: 0.8rem; font-weight: 600; color: var(--text-muted);
   text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 0.4rem; }
-.bnv-affilie { display: flex; align-items: center; gap: 0.6rem; padding: 0.3rem 0; }
+.bnv-affilie { display: flex; align-items: center; gap: 0.6rem; padding: 0.3rem 0; flex-wrap: wrap; }
 .bnv-affilie-nom { font-weight: 500; }
 .bnv-affilie-niv { font-size: 0.72rem; color: var(--accent-strong); border: 1px solid var(--accent-soft-2);
   border-radius: 999px; padding: 0 0.4rem; }
@@ -3764,9 +3768,10 @@ button.theme-date.editable.muted { color: var(--text-faint); }
   color: var(--accent-strong); cursor: pointer; text-decoration: underline;
   text-underline-offset: 2px; text-decoration-color: var(--accent-soft-2); }
 .bnv-linklike:hover { text-decoration-color: var(--accent); }
-/* Désaffilier (le bénévole reste dans la banque) */
-.bnv-affilie-x { background: none; border: none; color: #A05A3D; font-size: 1.05rem;
-  cursor: pointer; padding: 0 0.3rem; line-height: 1; flex: none; }
+/* Désaffilier (le bénévole reste dans la banque). Padding généreux + marges
+   négatives : zone tactile ~40px sans gonfler la hauteur de ligne. */
+.bnv-affilie-x { background: none; border: none; color: #A05A3D; font-size: 1.15rem;
+  cursor: pointer; padding: 0.5rem 0.85rem; margin: -0.5rem -0.35rem -0.5rem 0; line-height: 1; flex: none; }
 /* Sélecteur d'affiliation (existant ou + Nouveau bénévole) */
 .bnv-affilie-add { margin-top: 0.5rem; max-width: 100%; }
 /* Suivi des venues (fiche bénévole) */
@@ -3783,7 +3788,8 @@ button.theme-date.editable.muted { color: var(--text-faint); }
 @media (max-width: 560px) {
   .bnv-form-2col { grid-template-columns: 1fr; }
   .bnv-row { flex-direction: column; }
-  .bnv-side { flex-direction: row; align-items: center; }
+  .bnv-side { flex-direction: row; align-items: center; flex-wrap: wrap; max-width: 100%; }
+  .bnv-mail { text-align: left; }
 }
 
 /* ============================================================
