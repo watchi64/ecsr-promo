@@ -15,9 +15,9 @@
 import {
   getCurrentUser, signOut, onAuthChange,
   getMyProfile, listStagiaires, listProfs,
-} from "./db.js?v=20260706b";
-import { el, toast, displayStagiaire } from "./utils.js?v=20260706b";
-import { icon } from "./icons.js?v=20260706b";
+} from "./db.js?v=20260706d";
+import { el, toast, displayStagiaire } from "./utils.js?v=20260706d";
+import { icon } from "./icons.js?v=20260706d";
 
 let currentUser = null;     // Supabase auth user
 let currentProfile = null;  // row user_profiles
@@ -41,7 +41,13 @@ export function getProfile()    { return currentProfile; }
 
 // En aperçu (fondateur uniquement), les checks de rôle renvoient le rôle SIMULÉ.
 export function isAdmin() {
-  if (getViewAs()) return false;            // aperçu prof/stagiaire => jamais admin
+  const v = getViewAs();
+  // Dans ce modèle, un formateur EST admin (invité avec la coche admin) : l'aperçu
+  // « Formateur » doit donc montrer l'UI d'édition (boutons Bénévoles / Placer /
+  // Valider, planning éditable), comme pour un vrai formateur. Seul l'aperçu
+  // « Stagiaire » est non-admin. (Bug remonté le 2026-07-06 : l'aperçu Formateur
+  // affichait le planning en lecture seule sans les boutons.)
+  if (v) return v === "prof";
   return !!currentProfile?.is_admin;
 }
 export function isProf() {
