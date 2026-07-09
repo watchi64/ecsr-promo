@@ -778,6 +778,48 @@ h3 {
   border-bottom-left-radius: calc(var(--r) - 1px);
 }
 
+/* Bouton désactiver / réactiver un jour (dans l'en-tête, admin) */
+.p-day-toggle {
+  margin-top: 0.3rem;
+  padding: 2px 7px;
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 999px;
+  cursor: pointer;
+}
+.p-day-toggle:hover { background: rgba(255, 255, 255, 0.25); }
+
+/* Jour désactivé / férié : carte grisée + bandeau, aucune activité */
+.p-day-card.off { opacity: 0.72; }
+.p-day-card.off .p-day-head { background: var(--text-faint); }
+.p-day-off-banner {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  padding: 1.4rem 1rem;
+  background: repeating-linear-gradient(45deg, var(--bg-subtle), var(--bg-subtle) 10px, var(--bg-deep-soft, var(--bg-elev)) 10px, var(--bg-deep-soft, var(--bg-elev)) 20px);
+  color: var(--text-muted);
+  text-align: center;
+}
+.p-day-off-tag {
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: var(--text-faint);
+  color: white;
+}
+.p-day-off-label { font-size: 0.95rem; font-weight: 700; color: var(--text); }
+
 .p-day-name {
   font-weight: 700;
   font-size: 0.78rem;
@@ -1161,6 +1203,21 @@ h3 {
   opacity: 0.7;
 }
 .p-prof-x:hover { background: var(--c-wait); color: white; opacity: 1; }
+/* Chips « Autre » (formateur externe) et « Groupe (autonomie) » : distincts des vrais profs */
+.p-prof-chip.autre { background: var(--bg-subtle); color: var(--text); }
+.p-prof-chip.autonomie { background: var(--accent-soft); color: var(--accent-strong); }
+/* Séparateur + options spéciales du menu formateur */
+.p-prof-dropdown-sep { height: 1px; background: var(--line); margin: 4px 6px; }
+.p-prof-dropdown-item.special { font-style: italic; }
+.p-prof-autre-row { display: flex; gap: 4px; padding: 4px 6px; }
+.p-prof-autre-input {
+  flex: 1; min-width: 0; padding: 3px 6px; font-size: 0.8rem;
+  border: 1px solid var(--line); border-radius: 6px; background: var(--bg-elev); color: var(--text);
+}
+.p-prof-autre-ok {
+  flex: none; width: 26px; border: 1px solid var(--line); border-radius: 6px;
+  background: var(--accent-soft); color: var(--accent-strong); font-weight: 700; cursor: pointer;
+}
 .p-prof-dropdown {
   position: absolute;
   top: calc(100% + 4px);
@@ -5293,6 +5350,30 @@ button.theme-date.editable.muted { color: var(--text-faint); }
     page-break-inside: avoid;
     break-inside: avoid;
   }
+
+  /* Jour désactivé / férié à l'impression : grisé, bandeau, aucune activité */
+  .pp-day.off .pp-day-head { background: #9CA3AF !important; }
+  .pp-day-off {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1.2mm;
+    padding: 6mm 2mm;
+    background: #F3F4F6 !important;
+    color: #6B7280 !important;
+    text-align: center;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+  .pp-day-off .pp-day-off-tag {
+    font-size: 7.5pt; font-weight: 800; letter-spacing: 0.1em;
+    padding: 0.4mm 2mm; border-radius: 1mm;
+    background: #6B7280 !important; color: #fff !important;
+    print-color-adjust: exact; -webkit-print-color-adjust: exact;
+  }
+  .pp-day-off > span:last-child { font-size: 9pt; font-weight: 700; color: #374151 !important; }
 
   .pp-day-head {
     background: #1F2937 !important;

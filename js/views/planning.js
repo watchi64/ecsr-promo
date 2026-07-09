@@ -2,17 +2,18 @@ import {
   listStagiaires, listProfs, listThemes, getPlanning,
   upsertPlanningEntry, deletePlanningEntryById,
   getHalfMetaForWeek, upsertHalfMeta,
+  getJoursOff, setJourOff, deleteJourOff,
   getSetting, setSetting,
   addPassagesBatch, deletePassagesBatch, getPassagesInRange, updateTheme,
   listBenevoles, listBenevolesNoms,
-} from "../db.js?v=20260709a";
-import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260709a";
-import { icon } from "../icons.js?v=20260709a";
-import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260709a";
-import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260709a";
-import { recordUndo } from "../undo.js?v=20260709a";
-import { getCurrentWho } from "../identity.js?v=20260709a";
-import { openBenevolesPanel } from "./benevoles.js?v=20260709a";
+} from "../db.js?v=20260709b";
+import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260709b";
+import { icon } from "../icons.js?v=20260709b";
+import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260709b";
+import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260709b";
+import { recordUndo } from "../undo.js?v=20260709b";
+import { getCurrentWho } from "../identity.js?v=20260709b";
+import { openBenevolesPanel } from "./benevoles.js?v=20260709b";
 
 let stagiaires = [];
 let profs = [];
@@ -20,6 +21,8 @@ let themes = [];
 let benevoles = [];  // admin : lignes complètes + display ; sinon : {id, display} via RPC
 let entries = [];
 let halfMetas = [];  // [{semaine_lundi, day_index, half_day, start_time, end_time, pause_start, pause_minutes}]
+let joursOff = [];   // [{day_index, label}] jours désactivés manuellement de la semaine affichée
+let autresProfsMem = [];  // noms de formateurs « Autre » déjà saisis (mémorisés, réutilisables)
 let semaineLundi = null;
 let currentContainer = null;
 
@@ -32,6 +35,71 @@ const DEFAULT_HALF_META = {
 function metaFor(d, half) {
   return halfMetas.find((m) => m.day_index === d && m.half_day === half)
       || { day_index: d, half_day: half, ...DEFAULT_HALF_META[half] };
+}
+
+// === Jours fériés français (calculés, pas stockés) + jours désactivés manuellement ===
+
+// Dimanche de Pâques (algorithme de Meeus/Butcher) → base des fériés mobiles.
+function easterSunday(year) {
+  const a = year % 19, b = Math.floor(year / 100), c = year % 100;
+  const d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25);
+  const g = Math.floor((b - f + 1) / 3), h = (19 * a + b - d - g + 15) % 30;
+  const i = Math.floor(c / 4), k = c % 4, l = (32 + 2 * e + 2 * i - h - k) % 7;
+  const m = Math.floor((a + 11 * h + 22 * l) / 451);
+  const month = Math.floor((h + l - 7 * m + 114) / 31);   // 3 = mars, 4 = avril
+  const day = ((h + l - 7 * m + 114) % 31) + 1;
+  return new Date(year, month - 1, day);
+}
+
+// Map "AAAA-MM-JJ" -> libellé, pour une année. Fériés nationaux métropole.
+const _holidayCache = {};
+function frenchHolidays(year) {
+  if (_holidayCache[year]) return _holidayCache[year];
+  const map = {};
+  const add = (dt, label) => { map[isoDate(dt)] = label; };
+  add(new Date(year, 0, 1), "Jour de l'an");
+  add(new Date(year, 4, 1), "Fête du Travail");
+  add(new Date(year, 4, 8), "Victoire 1945");
+  add(new Date(year, 6, 14), "Fête nationale");
+  add(new Date(year, 7, 15), "Assomption");
+  add(new Date(year, 10, 1), "Toussaint");
+  add(new Date(year, 10, 11), "Armistice");
+  add(new Date(year, 11, 25), "Noël");
+  const easter = easterSunday(year);
+  add(addDays(easter, 1), "Lundi de Pâques");
+  add(addDays(easter, 39), "Ascension");
+  add(addDays(easter, 50), "Lundi de Pentecôte");
+  _holidayCache[year] = map;
+  return map;
+}
+
+// État d'un jour : off (désactivé), son libellé, et s'il est manuel (donc réactivable en 1 clic)
+// ou automatique (férié calculé — pas de ligne en base).
+function dayOffInfo(dayIndex, monday) {
+  const manual = joursOff.find((j) => j.day_index === dayIndex);
+  if (manual) return { off: true, label: manual.label || "Désactivé", manual: true };
+  const date = addDays(monday, dayIndex);
+  const holiday = frenchHolidays(date.getFullYear())[isoDate(date)];
+  if (holiday) return { off: true, label: holiday, manual: false, ferie: true };
+  return { off: false };
+}
+
+// Raccourci : un jour de la semaine affichée est-il désactivé (manuel ou férié) ?
+function dayIsOff(dayIndex) {
+  if (!semaineLundi) return false;
+  return dayOffInfo(dayIndex, new Date(semaineLundi + "T00:00:00")).off;
+}
+
+// === Mémoire des formateurs « Autre » (réutilisation) ===
+function autresProfsSuggestions() {
+  const set = new Set(autresProfsMem);
+  entries.forEach((e) => { if (e.prof_autre) set.add(e.prof_autre); });
+  return [...set].sort((a, b) => a.localeCompare(b));
+}
+function rememberAutreProf(name) {
+  if (!name || autresProfsMem.includes(name)) return;
+  autresProfsMem = [...autresProfsMem, name].slice(-50);   // borne raisonnable
+  setSetting("profs_autres", autresProfsMem).catch(() => {});
 }
 
 function timesLabel(meta) {
@@ -88,6 +156,8 @@ function entryUpsertPayload(entry) {
     activite: entry.activite ?? null,
     prof_id: entry.prof_ids && entry.prof_ids.length ? entry.prof_ids[0] : null,  // legacy compat (1er prof)
     prof_ids: entry.prof_ids ?? [],
+    prof_autre: entry.prof_autre ?? null,        // formateur externe (nom libre)
+    autonomie: entry.autonomie ?? false,          // groupe en autonomie (aucun formateur)
     sujet: entry.sujet ?? null,
     pedagogue_id: entry.pedagogue_id ?? null,
     eleves_ids: entry.eleves_ids ?? [],
@@ -199,7 +269,7 @@ async function addLaneInSlot(d, half, slot) {
 // On permute le CONTENU des deux cartes (pas leur position en base) : les lignes
 // gardent leur (slot, lane), donc aucun conflit avec la contrainte d'unicité, et on
 // réutilise l'upsert existant. Visuellement = un déplacement. Undo via Ctrl+Z.
-const SWAP_FIELDS = ["activite", "prof_ids", "prof_id", "sujet", "pedagogue_id", "eleves_ids", "pedagogue_id_2", "eleves_ids_2", "salle_double", "benevoles_ids", "notes"];
+const SWAP_FIELDS = ["activite", "prof_ids", "prof_id", "prof_autre", "autonomie", "sujet", "pedagogue_id", "eleves_ids", "pedagogue_id_2", "eleves_ids_2", "salle_double", "benevoles_ids", "notes"];
 
 function snapshotFields(entry) {
   const o = {};
@@ -592,7 +662,8 @@ function placementEmpties(e) {
 async function autoPlaceWeek() {
   await flushPendingInputs();
   const targets = entries.filter((e) =>
-    e.activite === "Pédagogie salle" || e.activite === "Voiture (conduite)");
+    (e.activite === "Pédagogie salle" || e.activite === "Voiture (conduite)")
+    && !dayIsOff(e.day_index));   // ne place rien sur un jour désactivé/férié
   if (targets.length === 0) {
     toast("Aucune Pédagogie salle ni Voiture à placer cette semaine", "info", 3500);
     return;
@@ -712,34 +783,47 @@ function selectFromList(items, currentVal, onChange, placeholder = "—") {
 }
 
 // Select profs multi-choix : compact, fond bg-subtle pour bien se distinguer dans le header
-function profChipsSelect(allProfs, currentIds, onChange) {
+// Multi-select formateur : profs réels (table profs) + « Autre » (nom libre, mémorisé pour
+// réutilisation) + « Groupe (autonomie) » (le groupe bosse seul, aucun formateur).
+// Écrit directement dans l'entry via saveEntry (prof_ids / prof_autre / autonomie).
+function profChipsSelect(allProfs, entry, lid) {
   const wrap = el("div", { class: "p-prof-multi" });
   const display = el("div", { class: "p-prof-display", tabindex: "0" });
   const dropdown = el("div", { class: "p-prof-dropdown hidden" });
-  let selected = [...(currentIds || [])];
+  let selected = [...(entry.prof_ids || [])];
+  const listId = "prof-autre-list-" + lid;
+
+  const chipX = (onClick) => el("span", { class: "p-prof-x", onClick: (ev) => { ev.stopPropagation(); onClick(); } }, "×");
 
   function render() {
     clear(display);
-    if (selected.length === 0) {
+    const hasAny = selected.length > 0 || entry.prof_autre || entry.autonomie;
+    if (!hasAny) {
       display.appendChild(el("span", { class: "p-prof-placeholder" }, "Formateur…"));
     } else {
       selected.forEach((id) => {
         const p = allProfs.find((x) => x.id === id);
         if (!p) return;
-        display.appendChild(el("span", { class: "p-prof-chip" },
-          p.nom,
-          el("span", {
-            class: "p-prof-x",
-            onClick: (ev) => {
-              ev.stopPropagation();
-              selected = selected.filter((x) => x !== id);
-              render();
-              onChange([...selected]);
-            },
-          }, "×"),
-        ));
+        display.appendChild(el("span", { class: "p-prof-chip" }, p.nom, chipX(() => {
+          selected = selected.filter((x) => x !== id);
+          saveEntry(lid, { prof_ids: [...selected] });
+          render();
+        })));
       });
+      if (entry.prof_autre) {
+        display.appendChild(el("span", { class: "p-prof-chip autre" }, entry.prof_autre, chipX(() => {
+          saveEntry(lid, { prof_autre: null });
+          render();
+        })));
+      }
+      if (entry.autonomie) {
+        display.appendChild(el("span", { class: "p-prof-chip autonomie" }, "Groupe (autonomie)", chipX(() => {
+          saveEntry(lid, { autonomie: false });
+          render();
+        })));
+      }
     }
+
     clear(dropdown);
     allProfs.forEach((p) => {
       dropdown.appendChild(el("div", {
@@ -748,11 +832,43 @@ function profChipsSelect(allProfs, currentIds, onChange) {
           ev.stopPropagation();
           if (selected.includes(p.id)) selected = selected.filter((x) => x !== p.id);
           else selected = [...selected, p.id];
+          saveEntry(lid, { prof_ids: [...selected] });
           render();
-          onChange([...selected]);
         },
       }, p.nom));
     });
+    dropdown.appendChild(el("div", { class: "p-prof-dropdown-sep" }));
+    // « Groupe (autonomie) »
+    dropdown.appendChild(el("div", {
+      class: "p-prof-dropdown-item special" + (entry.autonomie ? " selected" : ""),
+      onClick: (ev) => {
+        ev.stopPropagation();
+        saveEntry(lid, { autonomie: !entry.autonomie });
+        render();
+      },
+    }, "Groupe (autonomie)"));
+    // « Autre » : champ nom libre + suggestions (noms déjà utilisés)
+    const nameInput = el("input", {
+      type: "text", class: "p-prof-autre-input", placeholder: "Autre formateur — nom…",
+      list: listId, autocomplete: "off", autocorrect: "off", autocapitalize: "words", spellcheck: "false",
+    });
+    const commitAutre = () => {
+      const name = nameInput.value.trim();
+      if (!name) return;
+      saveEntry(lid, { prof_autre: name });
+      rememberAutreProf(name);
+      nameInput.value = "";
+      render();
+    };
+    nameInput.addEventListener("click", (e) => e.stopPropagation());
+    nameInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") { e.preventDefault(); commitAutre(); }
+    });
+    const okBtn = el("button", { class: "p-prof-autre-ok", type: "button",
+      onClick: (ev) => { ev.stopPropagation(); commitAutre(); } }, "+");
+    const dl = el("datalist", { id: listId });
+    autresProfsSuggestions().forEach((n) => dl.appendChild(el("option", { value: n })));
+    dropdown.appendChild(el("div", { class: "p-prof-autre-row" }, nameInput, okBtn, dl));
   }
 
   display.addEventListener("click", () => {
@@ -1116,9 +1232,7 @@ function renderLaneCell(entry) {
   ));
   if (shape.includes("prof")) {
     header.appendChild(el("div", { class: "p-lane-prof-wrap" },
-      profChipsSelect(profs, entry.prof_ids || [], (ids) => {
-        saveEntry(lid, { prof_ids: ids });
-      })
+      profChipsSelect(profs, entry, lid)
     ));
   }
   const trashBtn = el("button", {
@@ -1302,11 +1416,33 @@ function renderSlotRow(d, half, row, maxLanes) {
 
 function renderDayCard(d, monday) {
   const date = addDays(monday, d);
-  const card = el("article", { class: "p-day-card" });
-  card.appendChild(el("div", { class: "p-day-head" },
+  const off = dayOffInfo(d, monday);
+  const admin = isAdmin();
+  const card = el("article", { class: "p-day-card" + (off.off ? " off" : "") });
+
+  const head = el("div", { class: "p-day-head" },
     el("span", { class: "p-day-name" }, JOURS[d]),
     el("span", { class: "p-day-date" }, formatDayShort(date)),
-  ));
+  );
+  // Toggle désactiver / réactiver (admin). Un férié auto (non manuel) reste simplement grisé.
+  if (admin && off.off && off.manual) {
+    head.appendChild(el("button", { class: "p-day-toggle", type: "button",
+      title: "Réactiver ce jour", onClick: () => enableDay(d) }, "Réactiver"));
+  } else if (admin && !off.off) {
+    head.appendChild(el("button", { class: "p-day-toggle", type: "button",
+      title: "Désactiver ce jour (férié, vacances, pont…)", onClick: () => disableDay(d) }, "Désactiver"));
+  }
+  card.appendChild(head);
+
+  // Jour désactivé : bandeau + aucune activité (les cartes restent conservées en base).
+  if (off.off) {
+    card.appendChild(el("div", { class: "p-day-off-banner" },
+      el("span", { class: "p-day-off-tag" }, off.ferie ? "FÉRIÉ" : "FERMÉ"),
+      el("span", { class: "p-day-off-label" }, off.label),
+    ));
+    return card;
+  }
+
   const content = el("div", { class: "p-day-content" });
 
   HALF_DAYS.forEach((half) => {
@@ -1372,9 +1508,10 @@ async function loadBenevoles() {
 }
 
 async function loadPlanning() {
-  const [data, metas] = await Promise.all([
+  const [data, metas, offs] = await Promise.all([
     getPlanning(semaineLundi),
     getHalfMetaForWeek(semaineLundi),
+    getJoursOff(semaineLundi),
   ]);
   let counter = 0;
   entries = data.map((row) => {
@@ -1384,6 +1521,7 @@ async function loadPlanning() {
     return { ...row, prof_ids: prof_ids || [], _lid: "lid-" + (++counter) };
   });
   halfMetas = metas;
+  joursOff = offs || [];
 }
 
 async function saveHalfMeta(d, half, patch) {
@@ -1469,6 +1607,34 @@ async function changeWeek(dateStr) {
   renderInto(currentContainer);
 }
 
+// Désactive un jour (férié, vacances, pont, formation externe…) : grisé, aucune activité
+// affichée, exclu du placement auto et de la validation. Les cartes restent en base.
+async function disableDay(d) {
+  if (!isAdmin()) return;
+  const monday = new Date(semaineLundi + "T00:00:00");
+  const info = dayOffInfo(d, monday);
+  const def = info.ferie ? info.label : "Vacances";
+  const label = prompt("Désactiver « " + JOURS[d] + " » — libellé (ex. Vacances, Pont, Férié…) :", def);
+  if (label === null) return;   // annulé
+  try {
+    await setJourOff(semaineLundi, d, label.trim() || "Désactivé", getCurrentWho());
+    await loadPlanning();
+    renderInto(currentContainer);
+    toast(JOURS[d] + " désactivé · Ctrl+Z pour annuler", "success", 2400);
+    recordUndo("jour désactivé", async () => { await deleteJourOff(semaineLundi, d); await loadPlanning(); renderInto(currentContainer); });
+  } catch (e) { toast("Erreur : " + e.message, "error"); }
+}
+
+async function enableDay(d) {
+  if (!isAdmin()) return;
+  try {
+    await deleteJourOff(semaineLundi, d);
+    await loadPlanning();
+    renderInto(currentContainer);
+    toast(JOURS[d] + " réactivé", "success");
+  } catch (e) { toast("Erreur : " + e.message, "error"); }
+}
+
 // === Valider la semaine : transforme le planning des jours écoulés en passages ===
 // Salle -> 1 passage Salle pour le pédagogue. Voiture -> 1 passage Voiture par élève.
 // Écran de confirmation : résultat « Effectué » par défaut, ajustable, dédoublonné.
@@ -1482,6 +1648,7 @@ function openValiderSemaineModal() {
   entries.forEach((e) => {
     const dateIso = isoDate(addDays(monday, e.day_index));
     if (dateIso > todayIso) return;
+    if (dayIsOff(e.day_index)) return;   // jour désactivé/férié : aucun passage validé
     if (e.activite === "Pédagogie salle") {
       if (e.pedagogue_id && activeIds.has(e.pedagogue_id)) {
         raw.push({ stagiaire_id: e.pedagogue_id, type: "Salle", date: dateIso, day_index: e.day_index });
@@ -1894,8 +2061,11 @@ function printEntryCell(e, ambig) {
     header.appendChild(el("span", { class: "pp-act muted" }, "—"));
   }
   const profIds = (e.prof_ids && e.prof_ids.length) ? e.prof_ids : (e.prof_id ? [e.prof_id] : []);
-  if (profIds.length) {
-    header.appendChild(el("span", { class: "pp-prof" }, profIds.map(lookupProf).filter(Boolean).join(" · ")));
+  const profParts = profIds.map(lookupProf).filter(Boolean);
+  if (e.prof_autre) profParts.push(e.prof_autre);
+  if (e.autonomie) profParts.push("Autonomie");
+  if (profParts.length) {
+    header.appendChild(el("span", { class: "pp-prof" }, profParts.join(" · ")));
   }
   cell.appendChild(header);
 
@@ -1973,12 +2143,23 @@ function buildPrintHtml(monday) {
 
   JOURS.forEach((jour, d) => {
     const date = addDays(monday, d);
-    const dayCol = el("div", { class: "pp-day" });
+    const off = dayOffInfo(d, monday);
+    const dayCol = el("div", { class: "pp-day" + (off.off ? " off" : "") });
 
     dayCol.appendChild(el("div", { class: "pp-day-head" },
       el("span", { class: "pp-day-name" }, jour),
       el("span", { class: "pp-day-date" }, formatDayShort(date)),
     ));
+
+    // Jour désactivé/férié : bandeau, aucune activité imprimée.
+    if (off.off) {
+      dayCol.appendChild(el("div", { class: "pp-day-off" },
+        el("span", { class: "pp-day-off-tag" }, off.ferie ? "FÉRIÉ" : "FERMÉ"),
+        el("span", {}, off.label),
+      ));
+      grid.appendChild(dayCol);
+      return;
+    }
 
     HALF_DAYS.forEach((half) => {
       const meta = metaFor(d, half.key);
@@ -2194,6 +2375,7 @@ export async function renderPlanning(container) {
   [stagiaires, profs, themes, benevoles] = await Promise.all([
     listStagiaires(), listProfs(), listThemes(), loadBenevoles(),
   ]);
+  autresProfsMem = (await getSetting("profs_autres")) || [];
   semaineLundi = (await getSetting("current_week_lundi")) || isoDate(getMonday(new Date()));
   await loadPlanning();
   renderInto(container);

@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20260709a";
+import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20260709b";
 
 // fetch avec timeout : sans ça, une requête peut rester pendue indéfiniment
 // (réseau mobile instable) → "Chargement" infini. Avec, elle échoue proprement après 15s.
@@ -249,6 +249,41 @@ export async function upsertHalfMeta(meta) {
   const { error } = await supabase
     .from("planning_half_meta")
     .upsert(meta, { onConflict: "semaine_lundi,day_index,half_day" });
+  if (error) throw error;
+}
+
+// === Jours désactivés / fériés (planning_jours_off) ===
+
+export async function getJoursOff(semaine_lundi) {
+  // Résilient : si la table n'existe pas encore (migration pas appliquée), on renvoie []
+  // au lieu de casser le chargement du planning.
+  try {
+    const { data, error } = await supabase
+      .from("planning_jours_off")
+      .select("*")
+      .eq("semaine_lundi", semaine_lundi);
+    if (error) throw error;
+    return data;
+  } catch (e) {
+    console.warn("getJoursOff indisponible (migration manquante ?)", e?.message || e);
+    return [];
+  }
+}
+
+export async function setJourOff(semaine_lundi, day_index, label, who) {
+  const { error } = await supabase
+    .from("planning_jours_off")
+    .upsert({ semaine_lundi, day_index, label: label ?? null, created_by_who: who ?? null },
+            { onConflict: "semaine_lundi,day_index" });
+  if (error) throw error;
+}
+
+export async function deleteJourOff(semaine_lundi, day_index) {
+  const { error } = await supabase
+    .from("planning_jours_off")
+    .delete()
+    .eq("semaine_lundi", semaine_lundi)
+    .eq("day_index", day_index);
   if (error) throw error;
 }
 
