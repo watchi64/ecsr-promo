@@ -1227,6 +1227,21 @@ h3 {
   flex: none; width: 26px; border: 1px solid var(--line); border-radius: 6px;
   background: var(--accent-soft); color: var(--accent-strong); font-weight: 700; cursor: pointer;
 }
+/* Suggestions « Autre » : noms déjà utilisés, clic = réutiliser, × = oublier */
+.p-prof-autre-sugg { display: flex; flex-wrap: wrap; gap: 4px; padding: 0 6px 6px; }
+.p-prof-autre-tag {
+  display: inline-flex; align-items: center; gap: 2px;
+  padding: 1px 2px 1px 7px; font-size: 0.75rem;
+  background: var(--bg-subtle); border: 1px solid var(--line); border-radius: 8px;
+}
+.p-prof-autre-tag-name { cursor: pointer; color: var(--text); }
+.p-prof-autre-tag-name:hover { color: var(--accent-strong); }
+.p-prof-autre-tag-x {
+  cursor: pointer; width: 15px; height: 15px; line-height: 1;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 50%; color: var(--text-faint); font-size: 0.9em;
+}
+.p-prof-autre-tag-x:hover { background: var(--c-wait, #b45309); color: #fff; }
 .p-prof-dropdown {
   position: absolute;
   top: calc(100% + 4px);

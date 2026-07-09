@@ -6,14 +6,14 @@ import {
   getSetting, setSetting,
   addPassagesBatch, deletePassagesBatch, getPassagesInRange, updateTheme,
   listBenevoles, listBenevolesNoms,
-} from "../db.js?v=20260709e";
-import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260709e";
-import { icon } from "../icons.js?v=20260709e";
-import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260709e";
-import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260709e";
-import { recordUndo } from "../undo.js?v=20260709e";
-import { getCurrentWho } from "../identity.js?v=20260709e";
-import { openBenevolesPanel } from "./benevoles.js?v=20260709e";
+} from "../db.js?v=20260709f";
+import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260709f";
+import { icon } from "../icons.js?v=20260709f";
+import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260709f";
+import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260709f";
+import { recordUndo } from "../undo.js?v=20260709f";
+import { getCurrentWho } from "../identity.js?v=20260709f";
+import { openBenevolesPanel } from "./benevoles.js?v=20260709f";
 
 let stagiaires = [];
 let profs = [];
@@ -109,6 +109,11 @@ function autresProfsSuggestions() {
 function rememberAutreProf(name) {
   if (!name || autresProfsMem.includes(name)) return;
   autresProfsMem = [...autresProfsMem, name].slice(-50);   // borne raisonnable
+  setSetting("profs_autres", JSON.stringify(autresProfsMem)).catch(() => {});
+}
+function forgetAutreProf(name) {
+  if (!autresProfsMem.includes(name)) return;
+  autresProfsMem = autresProfsMem.filter((n) => n !== name);
   setSetting("profs_autres", JSON.stringify(autresProfsMem)).catch(() => {});
 }
 
@@ -801,7 +806,6 @@ function profChipsSelect(allProfs, entry, lid) {
   const display = el("div", { class: "p-prof-display", tabindex: "0" });
   const dropdown = el("div", { class: "p-prof-dropdown hidden" });
   let selected = [...(entry.prof_ids || [])];
-  const listId = "prof-autre-list-" + lid;
 
   const chipX = (onClick) => el("span", { class: "p-prof-x", onClick: (ev) => { ev.stopPropagation(); onClick(); } }, "×");
 
@@ -857,13 +861,13 @@ function profChipsSelect(allProfs, entry, lid) {
         render();
       },
     }, "Groupe (autonomie)"));
-    // « Autre » : champ nom libre + suggestions (noms déjà utilisés)
+    // « Autre » : champ nom libre
     const nameInput = el("input", {
       type: "text", class: "p-prof-autre-input", placeholder: "Autre formateur — nom…",
-      list: listId, autocomplete: "off", autocorrect: "off", autocapitalize: "words", spellcheck: "false",
+      autocomplete: "off", autocorrect: "off", autocapitalize: "words", spellcheck: "false",
     });
-    const commitAutre = () => {
-      const name = nameInput.value.trim();
+    const commitAutre = (v) => {
+      const name = (v ?? nameInput.value).trim();
       if (!name) return;
       saveEntry(lid, { prof_autre: name });
       rememberAutreProf(name);
@@ -876,9 +880,22 @@ function profChipsSelect(allProfs, entry, lid) {
     });
     const okBtn = el("button", { class: "p-prof-autre-ok", type: "button",
       onClick: (ev) => { ev.stopPropagation(); commitAutre(); } }, "+");
-    const dl = el("datalist", { id: listId });
-    autresProfsSuggestions().forEach((n) => dl.appendChild(el("option", { value: n })));
-    dropdown.appendChild(el("div", { class: "p-prof-autre-row" }, nameInput, okBtn, dl));
+    dropdown.appendChild(el("div", { class: "p-prof-autre-row" }, nameInput, okBtn));
+
+    // Noms déjà utilisés : clic = réutiliser, × = oublier (retire de la mémoire).
+    const suggs = autresProfsSuggestions();
+    if (suggs.length) {
+      const sw = el("div", { class: "p-prof-autre-sugg" });
+      suggs.forEach((n) => {
+        const tag = el("span", { class: "p-prof-autre-tag" });
+        tag.appendChild(el("span", { class: "p-prof-autre-tag-name",
+          onClick: (ev) => { ev.stopPropagation(); commitAutre(n); } }, n));
+        tag.appendChild(el("span", { class: "p-prof-autre-tag-x", title: "Oublier ce nom",
+          onClick: (ev) => { ev.stopPropagation(); forgetAutreProf(n); render(); } }, "×"));
+        sw.appendChild(tag);
+      });
+      dropdown.appendChild(sw);
+    }
   }
 
   display.addEventListener("click", () => {
