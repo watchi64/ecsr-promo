@@ -58,4 +58,6 @@ export const icon = {
   quiz:       () => svg('<path d="M10 6h11M10 12h11M10 18h11M3 6l1.5 1.5L7 5M3 13l1.5 1.5L7 12M3 19l1.5 1.5L7 18"/>'),
   // Lucide x — fermer un overlay plein écran
   close:      () => svg('<path d="M18 6 6 18M6 6l12 12"/>'),
+  // Lucide ban (rond barré) — désactiver un jour du planning
+  ban:        () => svg('<circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/>'),
 };

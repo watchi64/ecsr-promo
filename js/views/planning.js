@@ -6,14 +6,14 @@ import {
   getSetting, setSetting,
   addPassagesBatch, deletePassagesBatch, getPassagesInRange, updateTheme,
   listBenevoles, listBenevolesNoms,
-} from "../db.js?v=20260709c";
-import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260709c";
-import { icon } from "../icons.js?v=20260709c";
-import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260709c";
-import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260709c";
-import { recordUndo } from "../undo.js?v=20260709c";
-import { getCurrentWho } from "../identity.js?v=20260709c";
-import { openBenevolesPanel } from "./benevoles.js?v=20260709c";
+} from "../db.js?v=20260709d";
+import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260709d";
+import { icon } from "../icons.js?v=20260709d";
+import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260709d";
+import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260709d";
+import { recordUndo } from "../undo.js?v=20260709d";
+import { getCurrentWho } from "../identity.js?v=20260709d";
+import { openBenevolesPanel } from "./benevoles.js?v=20260709d";
 
 let stagiaires = [];
 let profs = [];
@@ -1424,13 +1424,18 @@ function renderDayCard(d, monday) {
     el("span", { class: "p-day-name" }, JOURS[d]),
     el("span", { class: "p-day-date" }, formatDayShort(date)),
   );
-  // Toggle désactiver / réactiver (admin). Un férié auto (non manuel) reste simplement grisé.
+  // Toggle désactiver / réactiver (admin) : petite icône discrète. Un férié auto (non
+  // manuel) reste simplement grisé, sans bouton.
   if (admin && off.off && off.manual) {
-    head.appendChild(el("button", { class: "p-day-toggle", type: "button",
-      title: "Réactiver ce jour", onClick: () => enableDay(d) }, "Réactiver"));
+    const reBtn = el("button", { class: "p-day-toggle", type: "button",
+      "aria-label": "Réactiver ce jour", title: "Réactiver ce jour", onClick: () => enableDay(d) });
+    reBtn.appendChild(icon.refresh());
+    head.appendChild(reBtn);
   } else if (admin && !off.off) {
-    head.appendChild(el("button", { class: "p-day-toggle", type: "button",
-      title: "Désactiver ce jour (férié, vacances, pont…)", onClick: () => disableDay(d) }, "Désactiver"));
+    const offBtn = el("button", { class: "p-day-toggle", type: "button",
+      "aria-label": "Désactiver ce jour", title: "Désactiver ce jour (férié, vacances, pont…)", onClick: () => disableDay(d) });
+    offBtn.appendChild(icon.ban());
+    head.appendChild(offBtn);
   }
   card.appendChild(head);
 
