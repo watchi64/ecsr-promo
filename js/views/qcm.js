@@ -3,9 +3,9 @@
  * Lot 1 : mode "entraînement" (libre, correction immédiate, non comptée).
  * L'examen (tirage N, une passe, note) viendra en Lot 2.
  */
-import { el, clear, toast } from "../utils.js?v=20260709d";
-import { icon } from "../icons.js?v=20260709d";
-import { getQcmFull, insertQcmAttempt, getMyProfile } from "../db.js?v=20260709d";
+import { el, clear, toast } from "../utils.js?v=20260709e";
+import { icon } from "../icons.js?v=20260709e";
+import { getQcmFull, insertQcmAttempt, getMyProfile } from "../db.js?v=20260709e";
 
 function shuffle(arr) {
   const a = arr.slice();

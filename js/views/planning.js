@@ -6,14 +6,14 @@ import {
   getSetting, setSetting,
   addPassagesBatch, deletePassagesBatch, getPassagesInRange, updateTheme,
   listBenevoles, listBenevolesNoms,
-} from "../db.js?v=20260709d";
-import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260709d";
-import { icon } from "../icons.js?v=20260709d";
-import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260709d";
-import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260709d";
-import { recordUndo } from "../undo.js?v=20260709d";
-import { getCurrentWho } from "../identity.js?v=20260709d";
-import { openBenevolesPanel } from "./benevoles.js?v=20260709d";
+} from "../db.js?v=20260709e";
+import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260709e";
+import { icon } from "../icons.js?v=20260709e";
+import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260709e";
+import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260709e";
+import { recordUndo } from "../undo.js?v=20260709e";
+import { getCurrentWho } from "../identity.js?v=20260709e";
+import { openBenevolesPanel } from "./benevoles.js?v=20260709e";
 
 let stagiaires = [];
 let profs = [];
@@ -91,15 +91,25 @@ function dayIsOff(dayIndex) {
 }
 
 // === Mémoire des formateurs « Autre » (réutilisation) ===
+// La colonne settings.value stocke du TEXTE : on (dé)sérialise la liste en JSON pour ne
+// pas qu'un tableau s'y transforme en chaîne et soit itéré caractère par caractère
+// (bug datalist « Autre » 2026-07-09).
+function parseAutresProfs(raw) {
+  if (Array.isArray(raw)) return raw.filter((x) => typeof x === "string");
+  if (typeof raw === "string" && raw.trim()) {
+    try { const v = JSON.parse(raw); if (Array.isArray(v)) return v.filter((x) => typeof x === "string"); } catch (e) { /* ignore */ }
+  }
+  return [];
+}
 function autresProfsSuggestions() {
-  const set = new Set(autresProfsMem);
+  const set = new Set(Array.isArray(autresProfsMem) ? autresProfsMem : []);
   entries.forEach((e) => { if (e.prof_autre) set.add(e.prof_autre); });
   return [...set].sort((a, b) => a.localeCompare(b));
 }
 function rememberAutreProf(name) {
   if (!name || autresProfsMem.includes(name)) return;
   autresProfsMem = [...autresProfsMem, name].slice(-50);   // borne raisonnable
-  setSetting("profs_autres", autresProfsMem).catch(() => {});
+  setSetting("profs_autres", JSON.stringify(autresProfsMem)).catch(() => {});
 }
 
 function timesLabel(meta) {
@@ -2380,7 +2390,7 @@ export async function renderPlanning(container) {
   [stagiaires, profs, themes, benevoles] = await Promise.all([
     listStagiaires(), listProfs(), listThemes(), loadBenevoles(),
   ]);
-  autresProfsMem = (await getSetting("profs_autres")) || [];
+  autresProfsMem = parseAutresProfs(await getSetting("profs_autres"));
   semaineLundi = (await getSetting("current_week_lundi")) || isoDate(getMonday(new Date()));
   await loadPlanning();
   renderInto(container);
