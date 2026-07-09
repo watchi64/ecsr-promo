@@ -1,11 +1,12 @@
 /*
  * QCM — player plein écran.
- * Lot 1 : mode "entraînement" (libre, correction immédiate, non comptée).
- * L'examen (tirage N, une passe, note) viendra en Lot 2.
+ * Entraînement (libre, correction à la validation, non comptée) + Examen (tirage N, une passe, note).
+ * Multi-réponses : une question peut avoir plusieurs bonnes réponses.
+ * Juste = ensemble coché == ensemble des bonnes réponses (toutes les bonnes, aucune fausse).
  */
-import { el, clear, toast, formatDate } from "../utils.js?v=20260702c";
-import { icon } from "../icons.js?v=20260702c";
-import { getQcmFull, insertQcmAttempt, getMyProfile, getMyExamAttempt } from "../db.js?v=20260702c";
+import { el, clear, toast, formatDate } from "../utils.js?v=20260709a";
+import { icon } from "../icons.js?v=20260709a";
+import { getQcmFull, insertQcmAttempt, getMyProfile, getMyExamAttempt } from "../db.js?v=20260709a";
 
 function shuffle(arr) {
   const a = arr.slice();
@@ -20,6 +21,44 @@ function letter(i) {
   return String.fromCharCode(65 + i); // A, B, C, D, E
 }
 
+// Ids des bonnes réponses d'une question.
+function correctIds(q) {
+  return (q.options || []).filter((o) => o.is_correct).map((o) => o.id);
+}
+
+// Vrai si l'ensemble coché == l'ensemble des bonnes réponses (toutes les bonnes, aucune fausse).
+// Une question à 1 seule bonne réponse en est le cas particulier. `chosen` = tableau d'ids
+// (accepte aussi un id scalaire ou null pour compat d'anciennes tentatives).
+export function isAnswerCorrect(chosen, q) {
+  const correct = correctIds(q);
+  if (correct.length === 0) return false;  // question sans bonne réponse (donnée invalide) : jamais juste
+  const set = Array.isArray(chosen) ? chosen : (chosen != null ? [chosen] : []);
+  return set.length === correct.length && correct.every((id) => set.includes(id));
+}
+
+// Libellé joint des bonnes réponses (recap).
+function correctLabel(q) {
+  return (q.options || []).filter((o) => o.is_correct).map((o) => o.texte).join(" · ");
+}
+
+// Récapitulatif commun (entraînement + examen) : coché == attendu, sinon liste des bonnes réponses.
+function buildRecap(questions, answers) {
+  const recap = el("div", { class: "qcm-recap" });
+  questions.forEach((q, i) => {
+    const ok = isAnswerCorrect(answers[q.id], q);
+    const multi = correctIds(q).length > 1;
+    recap.appendChild(el("div", { class: "qcm-recap-item " + (ok ? "ok" : "ko") },
+      el("span", { class: "qcm-recap-mark" }, ok ? "✓" : "✗"),
+      el("div", { class: "qcm-recap-body" },
+        el("p", { class: "qcm-recap-q" }, `${i + 1}. ${q.enonce}`),
+        q.image_url ? el("img", { class: "qcm-recap-img", src: q.image_url, alt: "", loading: "lazy" }) : null,
+        ok ? null : el("p", { class: "qcm-recap-a" }, (multi ? "Bonnes réponses : " : "Bonne réponse : ") + correctLabel(q)),
+      ),
+    ));
+  });
+  return recap;
+}
+
 // Point d'entrée : ouvre l'entraînement d'un QCM pour un thème donné.
 export async function openQcmEntrainement(theme, qcmMeta) {
   let full;
@@ -29,7 +68,8 @@ export async function openQcmEntrainement(theme, qcmMeta) {
     toast("Impossible de charger le QCM : " + (e?.message || e), "error");
     return;
   }
-  const questions = (full.questions || []).filter((q) => (q.options || []).length > 0);
+  // Exclut aussi les questions sans bonne réponse (donnée invalide, non scorable).
+  const questions = (full.questions || []).filter((q) => (q.options || []).length > 0 && correctIds(q).length > 0);
   if (questions.length === 0) {
     toast("Ce QCM n'a pas encore de questions.", "error");
     return;
@@ -38,11 +78,11 @@ export async function openQcmEntrainement(theme, qcmMeta) {
 }
 
 function runEntrainement(theme, full, questions) {
-  const startedAt = new Date().toISOString();
+  let startedAt = new Date().toISOString();
   const total = questions.length;
   let idx = 0;
   let score = 0;
-  const answers = {}; // question_id -> option_id choisi
+  const answers = {}; // question_id -> tableau d'ids d'options cochées
 
   const overlay = el("div", { class: "qcm-overlay" });
   const player = el("div", { class: "qcm-player" });
@@ -87,13 +127,18 @@ function runEntrainement(theme, full, questions) {
 
     const card = el("div", { class: "qcm-card" });
     card.appendChild(el("p", { class: "qcm-question" }, q.enonce));
+    if (correctIds(q).length > 1) {
+      card.appendChild(el("p", { class: "qcm-multi-hint" }, "Plusieurs réponses possibles."));
+    }
     if (q.image_url) {
       card.appendChild(el("img", { class: "qcm-question-img", src: q.image_url, alt: "Illustration de la question", loading: "lazy" }));
     }
 
     const choices = el("div", { class: "qcm-choices" });
     let answered = false;
+    const selected = new Set();  // ids cochés avant validation
 
+    const validateBtn = el("button", { class: "btn primary qcm-next", type: "button" }, "Valider");
     const nextBtn = el("button", { class: "btn primary qcm-next", type: "button", style: "display:none" },
       idx + 1 < total ? "Question suivante" : "Voir le résultat");
     nextBtn.addEventListener("click", () => {
@@ -107,28 +152,39 @@ function runEntrainement(theme, full, questions) {
         el("span", { class: "qcm-choice-text" }, opt.texte),
       );
       choice.addEventListener("click", () => {
-        if (answered) return;
-        answered = true;
-        answers[q.id] = opt.id;
-        if (opt.is_correct) score++;
-        choices.querySelectorAll(".qcm-choice").forEach((c, ci) => {
-          c.classList.add("disabled");
-          if (q.options[ci].is_correct) c.classList.add("correct");
-        });
-        if (!opt.is_correct) choice.classList.add("wrong");
-        if (q.explication) {
-          card.insertBefore(
-            el("div", { class: "qcm-explain " + (opt.is_correct ? "ok" : "ko") }, q.explication),
-            nextBtn
-          );
-        }
-        nextBtn.style.display = "";
-        nextBtn.focus();
+        if (answered) return;  // avant validation : on coche/décoche librement
+        if (selected.has(opt.id)) { selected.delete(opt.id); choice.classList.remove("selected"); }
+        else { selected.add(opt.id); choice.classList.add("selected"); }
       });
       choices.appendChild(choice);
     });
 
+    validateBtn.addEventListener("click", () => {
+      if (answered) return;
+      if (selected.size === 0) { toast("Sélectionne au moins une réponse.", "info"); return; }
+      answered = true;
+      const chosen = [...selected];
+      answers[q.id] = chosen;
+      const ok = isAnswerCorrect(chosen, q);
+      if (ok) score++;
+      // Marque toutes les bonnes en vert, et les cochées-fausses en rouge.
+      choices.querySelectorAll(".qcm-choice").forEach((c, ci) => {
+        c.classList.add("disabled");
+        c.classList.remove("selected");
+        const o = q.options[ci];
+        if (o.is_correct) c.classList.add("correct");
+        else if (selected.has(o.id)) c.classList.add("wrong");
+      });
+      if (q.explication) {
+        card.insertBefore(el("div", { class: "qcm-explain " + (ok ? "ok" : "ko") }, q.explication), validateBtn);
+      }
+      validateBtn.style.display = "none";
+      nextBtn.style.display = "";
+      nextBtn.focus({ preventScroll: true });  // garde le focus clavier sans repositionner l'overlay
+    });
+
     card.appendChild(choices);
+    card.appendChild(validateBtn);
     card.appendChild(nextBtn);
     player.appendChild(card);
     overlay.scrollTop = 0;
@@ -149,25 +205,13 @@ function runEntrainement(theme, full, questions) {
         pct >= 100 ? "Sans faute, bravo." : pct >= 60 ? "Bien, continue à réviser." : "À retravailler."),
     ));
 
-    const recap = el("div", { class: "qcm-recap" });
-    questions.forEach((q, i) => {
-      const correctOpt = q.options.find((o) => o.is_correct);
-      const ok = correctOpt && answers[q.id] === correctOpt.id;
-      recap.appendChild(el("div", { class: "qcm-recap-item " + (ok ? "ok" : "ko") },
-        el("span", { class: "qcm-recap-mark" }, ok ? "✓" : "✗"),
-        el("div", { class: "qcm-recap-body" },
-          el("p", { class: "qcm-recap-q" }, `${i + 1}. ${q.enonce}`),
-          q.image_url ? el("img", { class: "qcm-recap-img", src: q.image_url, alt: "", loading: "lazy" }) : null,
-          ok ? null : el("p", { class: "qcm-recap-a" }, "Bonne réponse : " + (correctOpt ? correctOpt.texte : "")),
-        ),
-      ));
-    });
-    player.appendChild(recap);
+    player.appendChild(buildRecap(questions, answers));
 
     player.appendChild(el("div", { class: "qcm-actions" },
       el("button", { class: "btn ghost", type: "button", onClick: close }, "Fermer"),
       el("button", { class: "btn primary", type: "button", onClick: () => {
         idx = 0; score = 0;
+        startedAt = new Date().toISOString();  // nouvelle partie : nouvel horodatage de départ
         for (const k in answers) delete answers[k];
         renderQuestion();
       } }, "Recommencer"),
@@ -251,7 +295,7 @@ export async function openQcmExamen(theme, qcmMeta) {
   let questions = frozen.length
     ? frozen.map((id) => byId.get(id)).filter(Boolean)
     : (full.questions || []);
-  questions = questions.filter((q) => (q.options || []).length > 0);
+  questions = questions.filter((q) => (q.options || []).length > 0 && correctIds(q).length > 0);
   if (questions.length === 0) {
     toast("Cet examen n'a pas de questions exploitables.", "error");
     return;
@@ -324,9 +368,10 @@ function runExam(theme, full, questions, profile) {
   const secondsPer = full.exam_seconds_per_question || 30;
   let remaining = secondsPer * total;
   let submitted = false;
-  const answers = {}; // question_id -> option_id choisi
+  const answers = {}; // question_id -> tableau d'ids d'options cochées
   // Ordre des options mélangé une fois par question, stable pendant la passe.
   const optOrder = new Map(questions.map((q) => [q.id, shuffle(q.options || [])]));
+  const countAnswered = () => questions.filter((qq) => (answers[qq.id] || []).length > 0).length;
 
   const { overlay, player, close: rawClose } = examOverlay(false);
   let idx = 0;
@@ -350,34 +395,50 @@ function runExam(theme, full, questions, profile) {
     clear(player);
     player.appendChild(examHeader(theme, requestClose, timerEl));
 
-    const answeredCount = Object.keys(answers).length;
+    const answeredSpan = el("span", {}, `${countAnswered()} / ${total} répondues`);
+    const progressFill = el("div", { class: "qcm-progress-fill", style: `width:${Math.round((countAnswered() / total) * 100)}%` });
     player.appendChild(el("div", { class: "qcm-progress-wrap" },
       el("div", { class: "qcm-progress-info" },
         el("span", {}, `Question ${idx + 1} / ${total}`),
-        el("span", {}, `${answeredCount} / ${total} répondues`),
+        answeredSpan,
       ),
-      el("div", { class: "qcm-progress" },
-        el("div", { class: "qcm-progress-fill", style: `width:${Math.round((answeredCount / total) * 100)}%` })),
+      el("div", { class: "qcm-progress" }, progressFill),
     ));
 
     const q = questions[idx];
     const card = el("div", { class: "qcm-card" });
     if (q.section) card.appendChild(el("p", { class: "qcm-head-sub" }, q.section));
     card.appendChild(el("p", { class: "qcm-question" }, q.enonce));
+    if (correctIds(q).length > 1) {
+      card.appendChild(el("p", { class: "qcm-multi-hint" }, "Plusieurs réponses possibles."));
+    }
     if (q.image_url) {
       card.appendChild(el("img", { class: "qcm-question-img", src: q.image_url, alt: "Illustration de la question", loading: "lazy" }));
     }
 
+    // Le dot de grille de la question courante, mis à jour en place au toggle.
+    let currentDot = null;
+    function syncAfterToggle() {
+      answeredSpan.textContent = `${countAnswered()} / ${total} répondues`;
+      progressFill.style.width = `${Math.round((countAnswered() / total) * 100)}%`;
+      if (currentDot) currentDot.classList.toggle("done", (answers[q.id] || []).length > 0);
+    }
+
     const choices = el("div", { class: "qcm-choices" });
     (optOrder.get(q.id) || []).forEach((opt, i) => {
-      const selected = answers[q.id] === opt.id;
-      const choice = el("button", { class: "qcm-choice" + (selected ? " selected" : ""), type: "button" },
+      const isSel = (answers[q.id] || []).includes(opt.id);
+      const choice = el("button", { class: "qcm-choice" + (isSel ? " selected" : ""), type: "button" },
         el("span", { class: "qcm-choice-letter" }, letter(i)),
         el("span", { class: "qcm-choice-text" }, opt.texte),
       );
       choice.addEventListener("click", () => {
-        answers[q.id] = opt.id; // pas de correction : on mémorise et on rafraîchit
-        renderQuestion();
+        // Toggle multi EN PLACE (pas de re-render : garde le focus clavier et la position).
+        const arr = answers[q.id] || [];
+        const pos = arr.indexOf(opt.id);
+        if (pos >= 0) arr.splice(pos, 1); else arr.push(opt.id);
+        if (arr.length) answers[q.id] = arr; else delete answers[q.id];
+        choice.classList.toggle("selected");
+        syncAfterToggle();
       });
       choices.appendChild(choice);
     });
@@ -395,9 +456,10 @@ function runExam(theme, full, questions, profile) {
     const grid = el("div", { class: "qcm-exam-grid" });
     questions.forEach((qq, i) => {
       const dot = el("button", {
-        class: "qcm-grid-dot" + (i === idx ? " current" : "") + (answers[qq.id] != null ? " done" : ""),
+        class: "qcm-grid-dot" + (i === idx ? " current" : "") + ((answers[qq.id] || []).length > 0 ? " done" : ""),
         type: "button", onClick: () => { idx = i; renderQuestion(); },
       }, String(i + 1));
+      if (i === idx) currentDot = dot;
       grid.appendChild(dot);
     });
     player.appendChild(grid);
@@ -409,7 +471,7 @@ function runExam(theme, full, questions, profile) {
   }
 
   function confirmFinish() {
-    const answeredCount = Object.keys(answers).length;
+    const answeredCount = countAnswered();
     const msg = answeredCount < total
       ? `Il te reste ${total - answeredCount} question(s) sans réponse. Terminer quand même ?`
       : "Terminer et enregistrer ta note ?";
@@ -423,9 +485,7 @@ function runExam(theme, full, questions, profile) {
 
     let score = 0;
     questions.forEach((q) => {
-      const chosen = answers[q.id];
-      const correct = (q.options || []).find((o) => o.is_correct);
-      if (correct && chosen === correct.id) score += 1;
+      if (isAnswerCorrect(answers[q.id], q)) score += 1;
     });
     const note20 = Math.round((score / total) * 20 * 10) / 10;
 
@@ -463,20 +523,7 @@ function runExam(theme, full, questions, profile) {
       saveError ? el("p", { class: "qcm-explain ko" }, "Note non enregistrée : " + saveError) : null,
     ));
 
-    const recap = el("div", { class: "qcm-recap" });
-    questions.forEach((q, i) => {
-      const correctOpt = (q.options || []).find((o) => o.is_correct);
-      const ok = correctOpt && answers[q.id] === correctOpt.id;
-      recap.appendChild(el("div", { class: "qcm-recap-item " + (ok ? "ok" : "ko") },
-        el("span", { class: "qcm-recap-mark" }, ok ? "✓" : "✗"),
-        el("div", { class: "qcm-recap-body" },
-          el("p", { class: "qcm-recap-q" }, `${i + 1}. ${q.enonce}`),
-          q.image_url ? el("img", { class: "qcm-recap-img", src: q.image_url, alt: "", loading: "lazy" }) : null,
-          ok ? null : el("p", { class: "qcm-recap-a" }, "Bonne réponse : " + (correctOpt ? correctOpt.texte : "")),
-        ),
-      ));
-    });
-    player.appendChild(recap);
+    player.appendChild(buildRecap(questions, answers));
     player.appendChild(el("div", { class: "qcm-actions" },
       el("button", { class: "btn primary", type: "button", onClick: close }, "Fermer"),
     ));
