@@ -242,8 +242,23 @@ le bug Emilie.
 
 ---
 
+## 6bis. Jours désactivés / fériés (ajouté 2026-07-09)
+
+Depuis le 2026-07-09, un jour de la semaine peut être **désactivé** (férié français
+calculé côté client, ou désactivation manuelle via la table `planning_jours_off`).
+Le helper `dayIsOff(dayIndex)` (planning.js) renvoie `true` pour ces jours.
+
+**Le moteur DOIT ignorer ces jours** : `autoPlaceWeek` filtre déjà ses `targets` avec
+`&& !dayIsOff(e.day_index)`, et la validation hebdo saute ces jours (`if (dayIsOff(e.day_index)) return`).
+Tout nouveau moteur/dé doit conserver ce filtre — ne jamais placer ni compter un rôle
+sur un jour désactivé. `joursOff` est chargé dans `loadPlanning` (state module), les
+fériés via `frenchHolidays(year)` (dates fixes + Pâques). Nouvelles colonnes
+`planning_entries.prof_autre` / `autonomie` : neutres pour le placement (jamais mutées),
+juste à préserver via `entryUpsertPayload` (déjà le cas).
+
 ## 7. Invariants à préserver (issus du code, vérifiés)
 
+0. **Ne jamais placer sur un jour désactivé/férié** (`dayIsOff`) — cf. §6bis.
 1. Ne remplir que les vides hors reroll confirmé ; liste partielle jamais complétée.
 2. Seuls `pedagogue_id(_2)`/`eleves_ids(_2)` mutés — jamais profs/sujets/notes/activité/`salle_double`/`benevoles_ids`.
 3. Abandons ignorés (toujours tirer dans le module `stagiaires`).
