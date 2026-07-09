@@ -5,14 +5,14 @@ import {
   getSetting, setSetting,
   addPassagesBatch, deletePassagesBatch, getPassagesInRange, updateTheme,
   listBenevoles, listBenevolesNoms,
-} from "../db.js?v=20260706d";
-import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260706d";
-import { icon } from "../icons.js?v=20260706d";
-import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260706d";
-import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260706d";
-import { recordUndo } from "../undo.js?v=20260706d";
-import { getCurrentWho } from "../identity.js?v=20260706d";
-import { openBenevolesPanel } from "./benevoles.js?v=20260706d";
+} from "../db.js?v=20260709a";
+import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260709a";
+import { icon } from "../icons.js?v=20260709a";
+import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260709a";
+import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260709a";
+import { recordUndo } from "../undo.js?v=20260709a";
+import { getCurrentWho } from "../identity.js?v=20260709a";
+import { openBenevolesPanel } from "./benevoles.js?v=20260709a";
 
 let stagiaires = [];
 let profs = [];
@@ -922,7 +922,11 @@ function sujetMultiSelect(currentValue, onChange) {
   function commit() { onChange(joinSujet(selected)); }
 
   function renderChips() {
-    clear(chipsBox);
+    // NE PAS clear(chipsBox) : ça détacherait l'input du DOM, ce qui lui fait perdre
+    // le focus → le dropdown se ferme et l'autocomplétion « ne marche plus » après
+    // l'ajout d'un thème (bug 2026-07-09). On retire uniquement les chips existantes
+    // et on insère les nouvelles AVANT l'input, qui reste en place et gardé focus.
+    chipsBox.querySelectorAll(".sujet-chip").forEach((c) => c.remove());
     selected.forEach((titre, idx) => {
       const t = themes.find((x) => x.titre === titre);
       const chip = el("span", { class: "sujet-chip" + (t ? " has-num" : "") });
@@ -939,11 +943,9 @@ function sujetMultiSelect(currentValue, onChange) {
           commit();
         }
       }, "×"));
-      chipsBox.appendChild(chip);
+      chipsBox.insertBefore(chip, input);
     });
-    chipsBox.appendChild(input);
-    if (selected.length === 0) input.placeholder = "Sujet / thème…";
-    else input.placeholder = "+";
+    input.placeholder = selected.length === 0 ? "Sujet / thème…" : "+";
   }
 
   function addLabel(label) {
@@ -1025,6 +1027,7 @@ function sujetMultiSelect(currentValue, onChange) {
     }
   });
 
+  chipsBox.appendChild(input);   // l'input reste dans le DOM en permanence (jamais détaché)
   wrap.appendChild(chipsBox);
   wrap.appendChild(dropdown);
   renderChips();
