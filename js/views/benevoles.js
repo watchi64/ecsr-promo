@@ -9,9 +9,9 @@ import {
   listBenevoles, addBenevole, updateBenevole, setBenevoleActif,
   listAutoEcoles, addAutoEcole, updateAutoEcole, setAutoEcoleActif, deleteAutoEcole,
   listVenuesBenevoles, listSuiviBenevole, upsertSuiviBenevole, listStagiaires,
-} from "../db.js?v=20260710b";
-import { el, clear, toast, displayStagiaire, compareByNom, isoDate, addDays, formatDayShort } from "../utils.js?v=20260710b";
-import { JOURS } from "../config.js?v=20260710b";
+} from "../db.js?v=20260710c";
+import { el, clear, toast, displayStagiaire, compareByNom, isoDate, addDays, formatDayShort } from "../utils.js?v=20260710c";
+import { JOURS } from "../config.js?v=20260710c";
 
 const JOURS_COURTS = ["Lun", "Mar", "Mer", "Jeu", "Ven"];
 const DEMI = [
@@ -21,7 +21,7 @@ const DEMI = [
 // Compétences REMC (permis B) avec leurs sous-compétences : intitulés alignés sur la
 // table themes (type notion, préfixe « REMC Cx.y »). Le niveau stocké en base est le
 // CODE seul (« C1 », « C1.4 »...), le libellé est résolu à l'affichage via nivLabel().
-const COMPETENCES_REMC = [
+export const COMPETENCES_REMC = [
   { code: "C1", titre: "Maîtriser le maniement du véhicule dans un trafic faible ou nul",
     sous: [
       ["C1.1", "Connaître les principaux organes et commandes, vérifications intérieures/extérieures"],
@@ -69,7 +69,7 @@ const COMPETENCES_REMC = [
 const BOITES = ["Manuelle", "Automatique"];
 
 // « C1.4 » -> « C1.4 · Démarrer et s'arrêter » ; « C1 » -> « C1 · Maîtriser le maniement... »
-function nivLabel(code) {
+export function nivLabel(code) {
   if (!code) return "";
   for (const c of COMPETENCES_REMC) {
     if (c.code === code) return `${c.code} · ${c.titre}`;

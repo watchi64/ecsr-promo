@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20260710b";
+import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20260710c";
 
 // fetch avec timeout : sans ça, une requête peut rester pendue indéfiniment
 // (réseau mobile instable) → "Chargement" infini. Avec, elle échoue proprement après 15s.
@@ -738,4 +738,42 @@ export async function signOut() {
 
 export function onAuthChange(callback) {
   return supabase.auth.onAuthStateChange((event, session) => callback(session?.user ?? null));
+}
+
+// === Fiches de suivi (souhaits compétences permis B + besoins) ===
+
+export async function listFiches() {
+  const { data, error } = await supabase.from("fiches_suivi").select("*");
+  if (error) throw error;
+  return data;
+}
+
+export async function upsertFiche({ stagiaire_id, souhaits, besoins, updated_by_who }) {
+  const { error } = await supabase
+    .from("fiches_suivi")
+    .upsert(
+      { stagiaire_id, souhaits, besoins, updated_by_who, updated_at: new Date().toISOString() },
+      { onConflict: "stagiaire_id" }
+    );
+  if (error) throw error;
+}
+
+// Agrégats voiture par stagiaire pour le placement : nb de séances avec élève,
+// répartition par formateur. Les absences/reports ne comptent pas comme exposition.
+// avec_eleve NULL (historique inconnu) ne compte PAS comme « avec élève ».
+export async function getVoitureAggregats() {
+  const { data, error } = await supabase
+    .from("passages")
+    .select("stagiaire_id, prof_id, avec_eleve, resultat")
+    .eq("type", "Voiture");
+  if (error) throw error;
+  const map = {};
+  data.forEach((p) => {
+    if (p.resultat === "Absence" || p.resultat === "Report") return;
+    const m = map[p.stagiaire_id] || (map[p.stagiaire_id] = { total: 0, avecEleve: 0, byProf: {} });
+    m.total++;
+    if (p.avec_eleve === true) m.avecEleve++;
+    if (p.prof_id != null) m.byProf[p.prof_id] = (m.byProf[p.prof_id] || 0) + 1;
+  });
+  return map;
 }
