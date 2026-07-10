@@ -4132,8 +4132,12 @@ button.theme-date.editable.muted { color: var(--text-faint); }
   max-width: 100%;
   /* La matrice tient dans la fenêtre et scrolle EN INTERNE (et non au niveau de la page) :
      ainsi l'en-tête sticky reste toujours visible, y compris pour atteindre les dernières
-     lignes. La synthèse est en dessous (on scrolle la page pour l'atteindre). */
-  max-height: calc(100vh - 320px);
+     lignes. La synthèse est en dessous (on scrolle la page pour l'atteindre).
+     min-height = plancher : sur un écran court ou zoomé, « 100vh - X » devenait minuscule
+     (l'en-tête vertical très haut ne laissait que ~3 lignes). Le plancher garantit une
+     hauteur utilisable, la page scrolle si besoin. dvh = hauteur viewport dynamique (mobile). */
+  max-height: calc(100dvh - 230px);
+  min-height: 460px;
 }
 
 .matrice-table {
@@ -4327,7 +4331,7 @@ button.theme-date.editable.muted { color: var(--text-faint); }
   .matrice-table th.m-th-theme { width: 28px; min-width: 28px; max-width: 28px; height: 160px; }
   .matrice-table .m-th-theme-label { max-height: 150px; }
   .matrice-table th.m-th-avg, .matrice-table th.m-th-spe { font-size: 0.65rem; }
-  .matrice-wrap { max-height: calc(100vh - 220px); }
+  .matrice-wrap { max-height: calc(100dvh - 180px); min-height: 340px; }
 }
 
 /* === Graphique synthèse Notes === */

@@ -1,6 +1,7 @@
-import { listStagiaires, listEvaluations, getStats, getSetting } from "../db.js?v=20260709f";
-import { el, clear, isoDate, getMonday, displayStagiaire, compareByNom } from "../utils.js?v=20260709f";
-import { icon } from "../icons.js?v=20260709f";
+import { listStagiaires, listEvaluations, getStats, getSetting } from "../db.js?v=20260710a";
+import { el, clear, isoDate, getMonday, displayStagiaire, compareByNom } from "../utils.js?v=20260710a";
+import { icon } from "../icons.js?v=20260710a";
+import { renderPassages } from "./passages.js?v=20260710a";
 
 const SORT_OPTIONS = [
   { key: "priorite",   label: "Priorité de passage" },
@@ -84,10 +85,7 @@ function cardClass(salleKey, voitureKey) {
 }
 
 function buildStatPill(iconFn, stat) {
-  const pill = el("span", { class: "stat-pill" }, iconFn(), String(stat.effectif));
-  if (stat.bonus > 0) pill.appendChild(el("span", { class: "add" }, "+" + stat.bonus + "★"));
-  if (stat.absence > 0) pill.appendChild(el("span", { class: "miss" }, stat.absence + "✕"));
-  return pill;
+  return el("span", { class: "stat-pill" }, iconFn(), String(stat.effectif));
 }
 
 function priorityBadge(scope, key, retard, stat, objectif) {
@@ -140,8 +138,6 @@ function explainPanel(objSalle, objVoiture) {
         el("strong", {}, "Un refus ou une absence compte comme un tour utilisé."),
         " Il fait perdre sa place de prioritaire — refuser n'est donc pas « gratuit ». Mais le vrai compteur de passages, lui, reste en dessous : on redevient prioritaire dès que la classe avance. ",
         el("strong", {}, "On rattrape son retard, le refus a juste coûté un tour.")),
-      el("p", { class: "muted" },
-        "Sur les compteurs : ✕ = refus / absence (comptés dans la priorité) · ★ = passage bonus."),
     ),
   );
 }
@@ -247,6 +243,11 @@ export async function renderDashboard(container) {
   container.appendChild(el("div", { class: "dashboard-legend" },
     el("span", {}, el("span", { class: "dot", style: "background:var(--c-stop)" }), "À prioriser : sous la moyenne (le nombre = retard)"),
     el("span", {}, el("span", { class: "dot", style: "background:var(--c-go)" }), "À jour : au niveau du groupe (≥ moyenne)"),
-    el("span", {}, "✕ = refus/absence (compté comme un tour) · ★ = bonus"),
   ));
+
+  // Historique des passages : fusionné dans le même onglet (c'est la même donnée
+  // vue autrement — priorités au-dessus, détail des passages en dessous).
+  const passagesSection = el("section", { style: "margin-top:2.5rem" });
+  container.appendChild(passagesSection);
+  await renderPassages(passagesSection);
 }
