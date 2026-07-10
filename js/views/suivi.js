@@ -2,11 +2,11 @@
 // saisis par le stagiaire lui-même (fiche fiches_suivi) ; historique voiture en
 // lecture seule (dérivé des passages). Les admins voient la liste de toutes les
 // fiches et peuvent éditer celle de n'importe quel stagiaire.
-import { listStagiaires, listFiches, upsertFiche, getVoitureAggregats, listProfs } from "../db.js?v=20260710f";
-import { el, clear, toast, displayStagiaire } from "../utils.js?v=20260710f";
-import { isAdmin, getProfile } from "../auth-admin.js?v=20260710f";
-import { getCurrentWho } from "../identity.js?v=20260710f";
-import { COMPETENCES_REMC } from "./benevoles.js?v=20260710f";
+import { listStagiaires, listFiches, upsertFiche, getVoitureAggregats, listProfs } from "../db.js?v=20260710g";
+import { el, clear, toast, displayStagiaire } from "../utils.js?v=20260710g";
+import { isAdmin, getProfile } from "../auth-admin.js?v=20260710g";
+import { getCurrentWho } from "../identity.js?v=20260710g";
+import { COMPETENCES_REMC } from "./benevoles.js?v=20260710g";
 
 let stagiaires = [];
 let fiches = [];       // rows fiches_suivi

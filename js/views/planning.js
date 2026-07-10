@@ -6,14 +6,15 @@ import {
   getSetting, setSetting,
   addPassagesBatch, deletePassagesBatch, getPassagesInRange, updateTheme,
   listBenevoles, listBenevolesNoms,
-} from "../db.js?v=20260710f";
-import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260710f";
-import { icon } from "../icons.js?v=20260710f";
-import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260710f";
-import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260710f";
-import { recordUndo } from "../undo.js?v=20260710f";
-import { getCurrentWho } from "../identity.js?v=20260710f";
-import { openBenevolesPanel } from "./benevoles.js?v=20260710f";
+  getVoitureAggregats, listFiches,
+} from "../db.js?v=20260710g";
+import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260710g";
+import { icon } from "../icons.js?v=20260710g";
+import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260710g";
+import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260710g";
+import { recordUndo } from "../undo.js?v=20260710g";
+import { getCurrentWho } from "../identity.js?v=20260710g";
+import { openBenevolesPanel } from "./benevoles.js?v=20260710g";
 
 let stagiaires = [];
 let profs = [];
@@ -23,6 +24,8 @@ let entries = [];
 let halfMetas = [];  // [{semaine_lundi, day_index, half_day, start_time, end_time, pause_start, pause_minutes}]
 let joursOff = [];   // [{day_index, label}] jours désactivés manuellement de la semaine affichée
 let autresProfsMem = [];  // noms de formateurs « Autre » déjà saisis (mémorisés, réutilisables)
+let voitureStats = {};   // getVoitureAggregats() : { [stagiaire_id]: { total, avecEleve, byProf } }
+let fichesSuivi = [];    // rows fiches_suivi (souhaits par stagiaire)
 let semaineLundi = null;
 let currentContainer = null;
 
@@ -583,6 +586,40 @@ function slotOccupants(entry, exceptField) {
   return ids;
 }
 
+// === Score de priorité voiture (v2) ===
+// Ordre lexicographique croissant :
+//  [0] séances avec élève (historique passages avec_eleve=true + placements de la semaine
+//      sur des créneaux avec bénévoles) — critère principal (équité d'exposition) ;
+//  [1] match souhaits × niveau des bénévoles du créneau (0 = matche, 1 = neutre) ;
+//  [2] passages déjà faits avec le prof du créneau (variété formateur) ;
+//  [3] total placements voiture de la semaine (équilibre intra-semaine).
+// Le shuffle préalable conserve l'aléa entre ex æquo.
+function matchesSouhait(souhait, niveau) {
+  return niveau === souhait || niveau.startsWith(souhait + ".") || souhait.startsWith(niveau + ".");
+}
+function voitureScore(stagiaireId, entry, weekAvecEleve, weekVoit) {
+  const agg = voitureStats[stagiaireId] || { avecEleve: 0, byProf: {} };
+  const avecEleve = agg.avecEleve + (weekAvecEleve[stagiaireId] || 0);
+
+  let match = 1;
+  const niveaux = (entry.benevoles_ids || [])
+    .map((id) => benevoles.find((b) => b.id === id)?.niveau)
+    .filter(Boolean);
+  if (niveaux.length) {
+    const souhaits = fichesSuivi.find((f) => f.stagiaire_id === stagiaireId)?.souhaits || [];
+    if (souhaits.some((w) => niveaux.some((n) => matchesSouhait(w, n)))) match = 0;
+  }
+
+  const profId = entry.prof_ids && entry.prof_ids.length ? entry.prof_ids[0] : (entry.prof_id ?? null);
+  const profCount = profId != null ? (agg.byProf[profId] || 0) : 0;
+
+  return [avecEleve, match, profCount, weekVoit[stagiaireId] || 0];
+}
+function cmpScores(a, b) {
+  for (let i = 0; i < a.length; i++) { if (a[i] !== b[i]) return a[i] - b[i]; }
+  return 0;
+}
+
 // Élèves salle (groupe 1 ou 2) : priorise les moins passés, SANS plafond bloquant (re-placement
 // possible en fin de semaine). Exclut quiconque est déjà sur le même créneau (l'autre groupe, le
 // tableau, une carte parallèle). Comptage indépendant entre tableau et élève sur les AUTRES créneaux.
@@ -636,19 +673,28 @@ async function randomFillVoitureEleves(lid, count) {
   const entry = entries.find((e) => e._lid === lid);
   if (!entry) return;
 
-  const voitCount = roleCounts("Voiture (conduite)", "eleve", lid);
+  // Compteurs de la semaine en cours (mêmes définitions que autoPlaceWeek)
+  const voit = {}, voitAvecEleve = {};
+  entries.forEach((e) => {
+    if (e.activite !== ACT_VOITURE || e._lid === lid) return;
+    (e.eleves_ids || []).forEach((id) => {
+      voit[id] = (voit[id] || 0) + 1;
+      if ((e.benevoles_ids || []).length) voitAvecEleve[id] = (voitAvecEleve[id] || 0) + 1;
+    });
+  });
+
   const blocked = slotOccupants(entry, "eleves");
   const eligible = stagiaires.filter((s) => !blocked.has(s.id));
   if (eligible.length === 0) {
     toast("Aucun stagiaire disponible sur ce créneau", "info", 3000);
     return;
   }
-  const ordered = shuffle(eligible).sort((a, b) => (voitCount[a.id] || 0) - (voitCount[b.id] || 0));
-  const picked = ordered.slice(0, count).map((s) => s.id);
+  const picked = shuffle(eligible)
+    .map((s) => ({ id: s.id, score: voitureScore(s.id, entry, voitAvecEleve, voit) }))
+    .sort((a, b) => cmpScores(a.score, b.score))
+    .slice(0, count).map((x) => x.id);
 
-  toast(picked.length < count
-    ? `${picked.length} élève(s) en voiture tiré(s) · priorité aux moins passés`
-    : `${count} élève(s) en voiture tiré(s) · priorité aux moins passés`, "success", 1600);
+  toast(`${picked.length} élève(s) en voiture tiré(s) · priorité aux moins exposés`, "success", 1600);
   await saveEntry(lid, { eleves_ids: picked });
   renderInto(currentContainer);
 }
@@ -700,7 +746,7 @@ async function autoPlaceWeek() {
 
   // Compteurs par rôle (équité). En remélange on repart de zéro ; en remplissage on amorce
   // avec l'existant pour équilibrer autour des places déjà occupées.
-  const tab = {}, salleEl = {}, voit = {};
+  const tab = {}, salleEl = {}, voit = {}, voitAvecEleve = {};
   const bump = (m, id) => { if (id != null) m[id] = (m[id] || 0) + 1; };
 
   if (reroll) {
@@ -711,7 +757,10 @@ async function autoPlaceWeek() {
         bump(tab, e.pedagogue_id); (e.eleves_ids || []).forEach((id) => bump(salleEl, id));
         if (e.salle_double) { bump(tab, e.pedagogue_id_2); (e.eleves_ids_2 || []).forEach((id) => bump(salleEl, id)); }
       } else {
-        (e.eleves_ids || []).forEach((id) => bump(voit, id));
+        (e.eleves_ids || []).forEach((id) => {
+          bump(voit, id);
+          if ((e.benevoles_ids || []).length) bump(voitAvecEleve, id);
+        });
       }
     });
   }
@@ -745,8 +794,16 @@ async function autoPlaceWeek() {
         }
       }
     } else if (!(e.eleves_ids && e.eleves_ids.length)) {  // Voiture, élèves vides => 2
-      const pick = pickLeast(voit, slotOccupants(e, "eleves"), 2);
-      e.eleves_ids = pick; pick.forEach((id) => bump(voit, id));
+      const blocked = slotOccupants(e, "eleves");
+      const pick = shuffle(stagiaires.filter((s) => !blocked.has(s.id)))
+        .map((s) => ({ id: s.id, score: voitureScore(s.id, e, voitAvecEleve, voit) }))
+        .sort((a, b) => cmpScores(a.score, b.score))
+        .slice(0, 2).map((x) => x.id);
+      e.eleves_ids = pick;
+      pick.forEach((id) => {
+        bump(voit, id);
+        if ((e.benevoles_ids || []).length) bump(voitAvecEleve, id);
+      });
       unfilled += 2 - pick.length;
     }
   }
@@ -2467,6 +2524,12 @@ export async function renderPlanning(container) {
   [stagiaires, profs, themes, benevoles] = await Promise.all([
     listStagiaires(), listProfs(), listThemes(), loadBenevoles(),
   ]);
+  try {
+    [voitureStats, fichesSuivi] = await Promise.all([getVoitureAggregats(), listFiches()]);
+  } catch (e) {
+    console.warn("stats voiture / fiches indisponibles (migration manquante ?)", e?.message || e);
+    voitureStats = {}; fichesSuivi = [];
+  }
   autresProfsMem = parseAutresProfs(await getSetting("profs_autres"));
   semaineLundi = (await getSetting("current_week_lundi")) || isoDate(getMonday(new Date()));
   await loadPlanning();
