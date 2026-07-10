@@ -5819,3 +5819,25 @@ body.qcm-open { overflow: hidden; }
   cursor: pointer; white-space: nowrap;
 }
 .impersonation-banner .imp-back:hover { background: var(--accent-strong); }
+
+/* ============================================================
+   Vue Mon suivi
+   ============================================================ */
+.suivi-histo { background: var(--bg-subtle); border-radius: var(--r); padding: 0.9rem 1.1rem; margin-bottom: 1.1rem; }
+.suivi-histo h4, .suivi-editor h4 { margin: 0 0 0.4rem; }
+.suivi-comp { border: 1px solid var(--line); border-radius: var(--r-sm); padding: 0.45rem 0.7rem; margin-bottom: 0.5rem; }
+.suivi-comp summary { cursor: pointer; }
+.suivi-souscomp { display: block; padding: 0.25rem 0 0.25rem 1.6rem; }
+.suivi-editor textarea {
+  width: 100%; box-sizing: border-box; font-family: inherit; font-size: 0.92rem;
+  padding: 0.6rem 0.75rem; border: 1px solid var(--line); border-radius: var(--r-sm);
+  background: var(--bg-elev); color: var(--text); resize: vertical;
+}
+.suivi-editor textarea:focus { outline: none; border-color: var(--accent); }
+.suivi-admin-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 0.8rem; }
+.suivi-card { border: 1px solid var(--line); border-radius: var(--r); padding: 0.8rem 1rem; cursor: pointer; background: var(--bg-elev); transition: border-color 0.15s; }
+.suivi-card:hover { border-color: var(--accent); }
+.suivi-card-head { display: flex; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.4rem; }
+.suivi-card-tags { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-bottom: 0.4rem; }
+.suivi-card-tags .tag { background: var(--accent-soft); color: var(--accent-strong); }
+.suivi-card-besoins { margin: 0; font-size: 0.88rem; color: var(--text-muted); }
