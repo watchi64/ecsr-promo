@@ -6,14 +6,14 @@ import {
   getSetting, setSetting,
   addPassagesBatch, deletePassagesBatch, getPassagesInRange, updateTheme,
   listBenevoles, listBenevolesNoms,
-} from "../db.js?v=20260710a";
-import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260710a";
-import { icon } from "../icons.js?v=20260710a";
-import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260710a";
-import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260710a";
-import { recordUndo } from "../undo.js?v=20260710a";
-import { getCurrentWho } from "../identity.js?v=20260710a";
-import { openBenevolesPanel } from "./benevoles.js?v=20260710a";
+} from "../db.js?v=20260710b";
+import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260710b";
+import { icon } from "../icons.js?v=20260710b";
+import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260710b";
+import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260710b";
+import { recordUndo } from "../undo.js?v=20260710b";
+import { getCurrentWho } from "../identity.js?v=20260710b";
+import { openBenevolesPanel } from "./benevoles.js?v=20260710b";
 
 let stagiaires = [];
 let profs = [];
@@ -555,16 +555,25 @@ const SAME_GROUP_BLOCK = {
   pedagogue_2: "eleves_ids_2",
   eleves_2:    "pedagogue_id_2",
 };
+const ACT_VOITURE = "Voiture (conduite)";
 function slotOccupants(entry, exceptField) {
   const ids = new Set();
   const add = (v) => { if (Array.isArray(v)) v.forEach((id) => ids.add(id)); else if (v != null) ids.add(v); };
+  // Une Voiture (conduite) s'étale sur TOUTE la demi-journée (la conduite tourne en continu).
+  // Donc deux cartes d'une même demi-journée, même sur des créneaux différents, se
+  // chevauchent dès que l'une des deux est une voiture → on bloque la personne (règle
+  // 2026-07-10 : élève voiture = occupé toute la demi-journée, ne peut pas être aussi en salle).
+  const entryIsVoiture = entry.activite === ACT_VOITURE;
   entries.forEach((e) => {
-    if (e.day_index !== entry.day_index || e.half_day !== entry.half_day || e.slot !== entry.slot) return;
+    if (e.day_index !== entry.day_index || e.half_day !== entry.half_day) return;  // même demi-journée
     if (e._lid === entry._lid) {
-      add(e[SAME_GROUP_BLOCK[exceptField]]);  // même groupe, l'autre rôle uniquement
-    } else {
-      // Autre carte simultanée : bloque ses rôles EFFECTIFS (selon sa forme), pour
-      // ignorer une donnée périmée laissée par un changement d'activité.
+      add(e[SAME_GROUP_BLOCK[exceptField]]);  // même carte : même groupe, l'autre rôle uniquement
+      return;
+    }
+    // Bloque si simultané : même créneau, OU l'une des deux cartes est une voiture (chevauche
+    // toute la demi-journée). On bloque ses rôles EFFECTIFS (selon sa forme), pour ignorer une
+    // donnée périmée laissée par un changement d'activité.
+    if (e.slot === entry.slot || entryIsVoiture || e.activite === ACT_VOITURE) {
       add(effPedagogueId(e, 1));
       add(effElevesIds(e, 1));
       add(effPedagogueId(e, 2));
