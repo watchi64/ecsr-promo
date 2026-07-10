@@ -130,8 +130,12 @@ source de vérité pour blocage, comptage, sélection).
 
 ### 5.1 Contraintes DURES (jamais relâchées ; candidat filtré du pool)
 
-- **D1 — Occupation simultanée intra-slot** : `slotOccupants` inchangé (même triplet,
-  toutes lanes, rôles effectifs ; slots successifs ne bloquent pas).
+- **D1 — Occupation simultanée** : `slotOccupants` (mis à jour 2026-07-10). Bloque au sein
+  du même triplet `(day, half, slot)` (toutes lanes, rôles effectifs) **ET**, sur les autres
+  slots de la même demi-journée, dès que l'une des deux cartes est une **Voiture (conduite)**
+  — car la conduite tourne en continu sur toute la demi-journée (un élève voiture ne peut
+  pas être aussi en salle sur un créneau suivant). Symétrique. Les slots successifs
+  salle↔salle (aucune voiture) ne se bloquent toujours pas.
 - **D2 — Exclusion croisée carte salle double (R3, NOUVEAU)** : sur une carte
   `salle_double`, interdits : tableau G1 ↔ élève G2, élève G1 ↔ tableau G2, et
   tableau G1 = tableau G2. (Élève G1 + élève G2 même carte = pénalité souple, pas dur.)
