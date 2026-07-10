@@ -7,14 +7,14 @@ import {
   addPassagesBatch, deletePassagesBatch, getPassagesInRange, updateTheme,
   listBenevoles, listBenevolesNoms,
   getVoitureAggregats, listFiches,
-} from "../db.js?v=20260710h";
-import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260710h";
-import { icon } from "../icons.js?v=20260710h";
-import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260710h";
-import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260710h";
-import { recordUndo } from "../undo.js?v=20260710h";
-import { getCurrentWho } from "../identity.js?v=20260710h";
-import { openBenevolesPanel } from "./benevoles.js?v=20260710h";
+} from "../db.js?v=20260710i";
+import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260710i";
+import { icon } from "../icons.js?v=20260710i";
+import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260710i";
+import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260710i";
+import { recordUndo } from "../undo.js?v=20260710i";
+import { getCurrentWho } from "../identity.js?v=20260710i";
+import { openBenevolesPanel } from "./benevoles.js?v=20260710i";
 
 let stagiaires = [];
 let profs = [];
@@ -676,7 +676,7 @@ async function randomFillVoitureEleves(lid, count) {
   // Compteurs de la semaine en cours (mêmes définitions que autoPlaceWeek)
   const voit = {}, voitAvecEleve = {};
   entries.forEach((e) => {
-    if (e.activite !== ACT_VOITURE || e._lid === lid) return;
+    if (e.activite !== ACT_VOITURE || e._lid === lid || dayIsOff(e.day_index)) return;
     (e.eleves_ids || []).forEach((id) => {
       voit[id] = (voit[id] || 0) + 1;
       if ((e.benevoles_ids || []).length) voitAvecEleve[id] = (voitAvecEleve[id] || 0) + 1;
@@ -2008,6 +2008,11 @@ function renderValiderModal(toCreate, already, existKey, themeCandidates) {
         const inserted = await addPassagesBatch(rows);
         insertedIds = inserted.map((p) => p.id);
       }
+
+      // Les nouveaux passages changent l'équité : rafraîchit les stats du placement.
+      try {
+        [voitureStats, fichesSuivi] = await Promise.all([getVoitureAggregats(), listFiches()]);
+      } catch (e) { console.warn("rafraîchissement stats voiture impossible", e?.message || e); }
 
       // Marque les thèmes « Fait » à la date du créneau ; mémorise l'état pour Ctrl+Z.
       const themeUndo = [];
