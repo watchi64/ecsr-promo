@@ -2,11 +2,11 @@
 // saisis par le stagiaire lui-même (fiche fiches_suivi) ; historique voiture en
 // lecture seule (dérivé des passages). Les admins voient la liste de toutes les
 // fiches et peuvent éditer celle de n'importe quel stagiaire.
-import { listStagiaires, listFiches, upsertFiche, getVoitureAggregats, listProfs } from "../db.js?v=20260710g";
-import { el, clear, toast, displayStagiaire } from "../utils.js?v=20260710g";
-import { isAdmin, getProfile } from "../auth-admin.js?v=20260710g";
-import { getCurrentWho } from "../identity.js?v=20260710g";
-import { COMPETENCES_REMC } from "./benevoles.js?v=20260710g";
+import { listStagiaires, listFiches, upsertFiche, getVoitureAggregats, listProfs } from "../db.js?v=20260710h";
+import { el, clear, toast, displayStagiaire } from "../utils.js?v=20260710h";
+import { isAdmin, getProfile } from "../auth-admin.js?v=20260710h";
+import { getCurrentWho } from "../identity.js?v=20260710h";
+import { COMPETENCES_REMC } from "./benevoles.js?v=20260710h";
 
 let stagiaires = [];
 let fiches = [];       // rows fiches_suivi
@@ -128,6 +128,11 @@ function rerender(container) {
   if (myStagiaireId != null) {
     container.appendChild(renderHistorique(myStagiaireId));
     container.appendChild(renderFicheEditor(myStagiaireId, () => rerender(container)));
+    // Un admin également lié à un stagiaire voit AUSSI la liste de toutes les fiches.
+    if (admin) {
+      container.appendChild(el("h3", { style: "margin-top:1.5rem" }, "Toutes les fiches"));
+      container.appendChild(renderAdminList(container));
+    }
     return;
   }
   if (admin) { container.appendChild(renderAdminList(container)); return; }
