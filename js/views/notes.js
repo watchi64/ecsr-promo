@@ -2,11 +2,11 @@ import {
   listStagiaires, listCompetences, listEvaluations, listThemes,
   addEvaluation, updateEvaluation, deleteEvaluation, listAuditForEvaluation,
   listUserProfiles,
-} from "../db.js?v=20260710c";
-import { el, clear, isoDate, formatDate, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260710c";
-import { icon } from "../icons.js?v=20260710c";
-import { getAdminEmail, isAdmin } from "../auth-admin.js?v=20260710c";
-import { recordUndo } from "../undo.js?v=20260710c";
+} from "../db.js?v=20260710d";
+import { el, clear, isoDate, formatDate, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260710d";
+import { icon } from "../icons.js?v=20260710d";
+import { getAdminEmail, isAdmin } from "../auth-admin.js?v=20260710d";
+import { recordUndo } from "../undo.js?v=20260710d";
 
 let userProfiles = [];  // pour résoudre l'anonymat par stagiaire_id
 

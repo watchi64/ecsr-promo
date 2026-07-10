@@ -6,14 +6,14 @@ import {
   getSetting, setSetting,
   addPassagesBatch, deletePassagesBatch, getPassagesInRange, updateTheme,
   listBenevoles, listBenevolesNoms,
-} from "../db.js?v=20260710c";
-import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260710c";
-import { icon } from "../icons.js?v=20260710c";
-import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260710c";
-import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260710c";
-import { recordUndo } from "../undo.js?v=20260710c";
-import { getCurrentWho } from "../identity.js?v=20260710c";
-import { openBenevolesPanel } from "./benevoles.js?v=20260710c";
+} from "../db.js?v=20260710d";
+import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260710d";
+import { icon } from "../icons.js?v=20260710d";
+import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260710d";
+import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260710d";
+import { recordUndo } from "../undo.js?v=20260710d";
+import { getCurrentWho } from "../identity.js?v=20260710d";
+import { openBenevolesPanel } from "./benevoles.js?v=20260710d";
 
 let stagiaires = [];
 let profs = [];
@@ -773,6 +773,39 @@ async function autoPlaceWeek() {
     before.forEach(({ e, snap }) => Object.assign(e, snap));
     renderInto(currentContainer);
     toast("Erreur lors du placement", "error");
+  }
+}
+
+// === Vider les placements de la semaine (admin) ===
+// Retire tableaux + élèves salle + élèves voiture de TOUTES les cartes de la semaine.
+// Conserve : activités, profs, sujets, notes, bénévoles, horaires, jours off. Undo Ctrl+Z.
+async function clearWeekPlacements() {
+  await flushPendingInputs();
+  const targets = entries.filter((e) =>
+    e.pedagogue_id != null || e.pedagogue_id_2 != null ||
+    (e.eleves_ids && e.eleves_ids.length) || (e.eleves_ids_2 && e.eleves_ids_2.length));
+  if (targets.length === 0) {
+    toast("Aucun stagiaire placé cette semaine", "info", 3000);
+    return;
+  }
+  if (!confirm("⚠️ Retirer TOUS les stagiaires placés cette semaine (tableaux, salle, voiture) ?\n\nLes bénévoles, profs, sujets et notes sont conservés.")) return;
+
+  const before = targets.map((e) => ({ e, snap: snapshotPlacement(e) }));
+  targets.forEach((e) => { e.pedagogue_id = null; e.pedagogue_id_2 = null; e.eleves_ids = []; e.eleves_ids_2 = []; });
+  try {
+    await Promise.all(targets.map((e) => upsertPlanningEntry(entryUpsertPayload(e))));
+    renderInto(currentContainer);
+    toast("Placements vidés · Ctrl+Z pour annuler", "success", 3000);
+    recordUndo("vidage des placements", async () => {
+      before.forEach(({ e, snap }) => Object.assign(e, snap));
+      await Promise.all(targets.map((e) => upsertPlanningEntry(entryUpsertPayload(e))));
+      renderInto(currentContainer);
+    });
+  } catch (err) {
+    console.error(err);
+    before.forEach(({ e, snap }) => Object.assign(e, snap));
+    renderInto(currentContainer);
+    toast("Erreur lors du vidage", "error");
   }
 }
 
@@ -2025,6 +2058,14 @@ function renderInto(container) {
       onClick: () => autoPlaceWeek() });
     placeBtn.appendChild(document.createTextNode("🎲 Placer la semaine"));
     weekBar.appendChild(placeBtn);
+  }
+  // Vider les placements : retire tous les stagiaires placés (admin uniquement)
+  if (admin) {
+    const clearBtn = el("button", { class: "btn small danger",
+      title: "Retirer tous les stagiaires placés cette semaine (bénévoles, profs, sujets et notes conservés)",
+      onClick: () => clearWeekPlacements() });
+    clearBtn.appendChild(document.createTextNode("🧹 Vider les placements"));
+    weekBar.appendChild(clearBtn);
   }
   // Valider la semaine : admin uniquement, sur une semaine au moins partiellement écoulée
   if (admin && semaineLundi <= isoDate(new Date())) {
