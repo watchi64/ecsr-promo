@@ -6,14 +6,14 @@ import {
   getSetting, setSetting,
   addPassagesBatch, deletePassagesBatch, getPassagesInRange, updateTheme,
   listBenevoles, listBenevolesNoms,
-} from "../db.js?v=20260710d";
-import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260710d";
-import { icon } from "../icons.js?v=20260710d";
-import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260710d";
-import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260710d";
-import { recordUndo } from "../undo.js?v=20260710d";
-import { getCurrentWho } from "../identity.js?v=20260710d";
-import { openBenevolesPanel } from "./benevoles.js?v=20260710d";
+} from "../db.js?v=20260710e";
+import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260710e";
+import { icon } from "../icons.js?v=20260710e";
+import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260710e";
+import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260710e";
+import { recordUndo } from "../undo.js?v=20260710e";
+import { getCurrentWho } from "../identity.js?v=20260710e";
+import { openBenevolesPanel } from "./benevoles.js?v=20260710e";
 
 let stagiaires = [];
 let profs = [];
@@ -1719,21 +1719,23 @@ function openValiderSemaineModal() {
 
   // 1. Candidats depuis le planning, jours écoulés uniquement (date du jour <= aujourd'hui)
   const raw = [];
+  const profOf = (e) => (e.prof_ids && e.prof_ids.length ? e.prof_ids[0] : (e.prof_id ?? null));
   entries.forEach((e) => {
     const dateIso = isoDate(addDays(monday, e.day_index));
     if (dateIso > todayIso) return;
     if (dayIsOff(e.day_index)) return;   // jour désactivé/férié : aucun passage validé
     if (e.activite === "Pédagogie salle") {
       if (e.pedagogue_id && activeIds.has(e.pedagogue_id)) {
-        raw.push({ stagiaire_id: e.pedagogue_id, type: "Salle", date: dateIso, day_index: e.day_index });
+        raw.push({ stagiaire_id: e.pedagogue_id, type: "Salle", date: dateIso, day_index: e.day_index, prof_id: profOf(e), avec_eleve: null });
       }
       // 2e tableau (si la carte a 2 groupes) = un 2e passage Salle
       if (e.salle_double && e.pedagogue_id_2 && activeIds.has(e.pedagogue_id_2)) {
-        raw.push({ stagiaire_id: e.pedagogue_id_2, type: "Salle", date: dateIso, day_index: e.day_index });
+        raw.push({ stagiaire_id: e.pedagogue_id_2, type: "Salle", date: dateIso, day_index: e.day_index, prof_id: profOf(e), avec_eleve: null });
       }
     } else if (e.activite === "Voiture (conduite)") {
+      const avecEleve = (e.benevoles_ids || []).length > 0;
       (e.eleves_ids || []).forEach((id) => {
-        if (activeIds.has(id)) raw.push({ stagiaire_id: id, type: "Voiture", date: dateIso, day_index: e.day_index });
+        if (activeIds.has(id)) raw.push({ stagiaire_id: id, type: "Voiture", date: dateIso, day_index: e.day_index, prof_id: profOf(e), avec_eleve: avecEleve });
       });
     }
   });
@@ -1743,12 +1745,19 @@ function openValiderSemaineModal() {
   // (matin + après-midi) comptent pour 1. La table passages est au grain jour
   // (pas de demi-journée), donc on ne peut pas distinguer plus finement ; pour un
   // 2e passage le même jour, l'ajouter à la main dans l'onglet Passages.
-  const seen = new Set();
-  const candidates = raw.filter((c) => {
+  // Fusion (au lieu d'un simple dédoublonnage) : avec_eleve en OR, premier prof_id non nul gagne.
+  const seenMap = new Map();
+  const candidates = [];
+  raw.forEach((c) => {
     const k = c.stagiaire_id + "|" + c.type + "|" + c.date;
-    if (seen.has(k)) return false;
-    seen.add(k);
-    return true;
+    const prev = seenMap.get(k);
+    if (prev) {
+      if (c.avec_eleve === true) prev.avec_eleve = true;
+      if (prev.prof_id == null) prev.prof_id = c.prof_id;
+      return;
+    }
+    seenMap.set(k, c);
+    candidates.push(c);
   });
 
   // 2. Thèmes présents dans les sujets des jours écoulés, pas encore « Fait ».
@@ -1906,13 +1915,14 @@ function renderValiderModal(toCreate, already, existKey, themeCandidates) {
     const who = getCurrentWho();
     const rows = [];
     const batchKeys = new Set();  // évite les doublons intra-lot (ex: remplaçant déjà candidat)
-    const addRow = (stagiaire_id, type, date, resultat, remplacant_id) => {
+    const addRow = (stagiaire_id, type, date, resultat, remplacant_id, prof_id = null, avec_eleve = null) => {
       const key = stagiaire_id + "|" + type + "|" + date;
       if (existKey.has(key) || batchKeys.has(key)) return;
       batchKeys.add(key);
       rows.push({
         date, stagiaire_id, type, resultat,
         remplacant_id: remplacant_id || null,
+        prof_id, avec_eleve,
         origine: "Planning",
         semaine_lundi: semaineLundi,
         created_by_who: who,
@@ -1924,9 +1934,9 @@ function renderValiderModal(toCreate, already, existKey, themeCandidates) {
       const st = rowState[i];
       if (!st.include) return;
       const rempl = st.resultat === "Absence" ? st.remplacant_id : null;
-      addRow(c.stagiaire_id, c.type, c.date, st.resultat, rempl);
+      addRow(c.stagiaire_id, c.type, c.date, st.resultat, rempl, c.prof_id, c.avec_eleve);
       // Absence + remplaçant => le remplaçant est crédité d'un Effectué (même type, même jour)
-      if (rempl) addRow(rempl, c.type, c.date, "Effectué", null);
+      if (rempl) addRow(rempl, c.type, c.date, "Effectué", null, c.prof_id, c.avec_eleve);
     });
 
     const themesToMark = (themeCandidates || []).filter((tc, i) => themeState[i].include);
