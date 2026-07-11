@@ -7,14 +7,14 @@ import {
   addPassagesBatch, deletePassagesBatch, getPassagesInRange, updateTheme,
   listBenevoles, listBenevolesNoms,
   getVoitureAggregats, listFiches, getSalleAggregats,
-} from "../db.js?v=20260711h";
-import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260711h";
-import { icon } from "../icons.js?v=20260711h";
-import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260711h";
-import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260711h";
-import { recordUndo } from "../undo.js?v=20260711h";
-import { getCurrentWho } from "../identity.js?v=20260711h";
-import { openBenevolesPanel } from "./benevoles.js?v=20260711h";
+} from "../db.js?v=20260711i";
+import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260711i";
+import { icon } from "../icons.js?v=20260711i";
+import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260711i";
+import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260711i";
+import { recordUndo } from "../undo.js?v=20260711i";
+import { getCurrentWho } from "../identity.js?v=20260711i";
+import { openBenevolesPanel } from "./benevoles.js?v=20260711i";
 
 let stagiaires = [];
 let profs = [];
@@ -746,9 +746,11 @@ async function randomFillVoitureEleves(lid, count) {
 // === Placement automatique de toute la semaine ===
 // Remplit tableaux (1/groupe) + élèves (salle : 4/groupe, voiture : 2) selon la priorité
 // « moins passés », équilibré sur la semaine, anti-doublon par créneau, abandons ignorés.
-// Profs / sujets / notes ne sont JAMAIS touchés. Deux temps : tant qu'il reste des places
-// vides on ne remplit QUE les vides (respecte le manuel) ; quand tout est placé, un clic
-// propose de tout remélanger (re-tirage complet, avec confirmation). Undo via Ctrl+Z.
+// Élèves salle : équité stricte intra-semaine (écart max 1 entre stagiaires, passe de
+// rééquilibrage post-placement ; deux jours d'affilée autorisés). Profs / sujets / notes
+// ne sont JAMAIS touchés. Deux temps : tant qu'il reste des places vides on ne remplit QUE
+// les vides (respecte le manuel) ; quand tout est placé, un clic propose de tout remélanger
+// (re-tirage complet, avec confirmation). Undo via Ctrl+Z.
 function snapshotPlacement(e) {
   return {
     pedagogue_id: e.pedagogue_id ?? null,
@@ -865,6 +867,41 @@ async function autoPlaceWeek() {
       });
       unfilled += 2 - pick.length;
     }
+  }
+
+  // Rééquilibrage élèves salle : écart max 1 entre stagiaires sur la semaine
+  // (règle 2026-07-11). On échange tant qu'un stagiaire a ≥2 placements de plus
+  // qu'un autre et qu'un swap est physiquement possible (blocages respectés).
+  for (let guard = 0; guard < 100; guard++) {
+    const counts = {};
+    stagiaires.forEach((s) => { counts[s.id] = 0; });
+    targets.forEach((e) => {
+      if (e.activite !== "Pédagogie salle") return;
+      (effElevesIds(e, 1) || []).forEach((id) => { if (id in counts) counts[id]++; });
+      (effElevesIds(e, 2) || []).forEach((id) => { if (id in counts) counts[id]++; });
+    });
+    const ids = Object.keys(counts).map(Number);
+    if (!ids.length) break;
+    const maxId = ids.reduce((a, b) => (counts[b] > counts[a] ? b : a));
+    const minId = ids.reduce((a, b) => (counts[b] < counts[a] ? b : a));
+    if (counts[maxId] - counts[minId] <= 1) break;
+
+    let swapped = false;
+    for (const e of targets) {
+      if (e.activite !== "Pédagogie salle") continue;
+      for (const g of (e.salle_double ? [1, 2] : [1])) {
+        const field = g === 2 ? "eleves_ids_2" : "eleves_ids";
+        const list = e[field] || [];
+        if (!list.includes(maxId)) continue;
+        const blocked = slotOccupants(e, g === 2 ? "eleves_2" : "eleves");
+        if (blocked.has(minId)) continue;
+        e[field] = list.map((id) => (id === maxId ? minId : id));
+        swapped = true;
+        break;
+      }
+      if (swapped) break;
+    }
+    if (!swapped) break;  // plus aucun échange possible (blocages) : on laisse en l'état
   }
 
   // N'enregistre que les cartes réellement modifiées
