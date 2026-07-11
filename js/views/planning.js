@@ -7,14 +7,14 @@ import {
   addPassagesBatch, deletePassagesBatch, getPassagesInRange, updateTheme,
   listBenevoles, listBenevolesNoms,
   getVoitureAggregats, listFiches, getSalleAggregats,
-} from "../db.js?v=20260711i";
-import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260711i";
-import { icon } from "../icons.js?v=20260711i";
-import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260711i";
-import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260711i";
-import { recordUndo } from "../undo.js?v=20260711i";
-import { getCurrentWho } from "../identity.js?v=20260711i";
-import { openBenevolesPanel } from "./benevoles.js?v=20260711i";
+} from "../db.js?v=20260711j";
+import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260711j";
+import { icon } from "../icons.js?v=20260711j";
+import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260711j";
+import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260711j";
+import { recordUndo } from "../undo.js?v=20260711j";
+import { getCurrentWho } from "../identity.js?v=20260711j";
+import { openBenevolesPanel } from "./benevoles.js?v=20260711j";
 
 let stagiaires = [];
 let profs = [];
@@ -674,8 +674,8 @@ async function randomFillEleves(lid, group = 1) {
   const picked = ordered.slice(0, 4).map((s) => s.id);
 
   toast(picked.length < 4
-    ? `${picked.length} élève(s) tiré(s) · priorité aux moins passés`
-    : "4 élèves tirés · priorité aux moins passés", "success", 1600);
+    ? `${picked.length} stagiaire(s) tiré(s) · priorité aux moins passés`
+    : "4 stagiaires tirés · priorité aux moins passés", "success", 1600);
   await saveEntry(lid, { [field]: picked });
   renderInto(currentContainer);
 }
@@ -738,7 +738,7 @@ async function randomFillVoitureEleves(lid, count) {
     .sort((a, b) => cmpScores(a.score, b.score))
     .slice(0, count).map((x) => x.id);
 
-  toast(`${picked.length} élève(s) en voiture tiré(s) · priorité aux moins exposés`, "success", 1600);
+  toast(`${picked.length} stagiaire(s) en voiture tiré(s) · priorité aux moins exposés`, "success", 1600);
   await saveEntry(lid, { eleves_ids: picked });
   renderInto(currentContainer);
 }
@@ -786,7 +786,7 @@ async function autoPlaceWeek() {
   }
 
   const reroll = !targets.some((e) => placementEmpties(e).length > 0);
-  if (reroll && !confirm("Toute la semaine est déjà placée.\n\nTout remélanger (tableaux + élèves) ? Tes ajustements manuels seront écrasés.")) return;
+  if (reroll && !confirm("Toute la semaine est déjà placée.\n\nTout remélanger (tableaux + stagiaires) ? Tes ajustements manuels seront écrasés.")) return;
   if (!reroll) {
     const cartes = targets.filter((e) => placementEmpties(e).length > 0).length;
     if (!confirm(`Placer automatiquement la semaine ?\n\n${cartes} carte(s) à compléter (priorité aux moins passés / moins exposés). Ctrl+Z pour annuler ensuite.`)) return;
@@ -1168,7 +1168,7 @@ function personSelect(allStagiaires, currentId, onChange, counts, placeholder = 
 // opts (optionnel) : { labelFn, placeholder, itemBadge } pour réutiliser le composant avec
 // d'autres listes que les stagiaires (ex. bénévoles : badge « dispo » à la place du compteur).
 function chipsSelect(allStagiaires, currentIds, onChange, counts, opts = {}) {
-  const { labelFn = displayStagiaire, placeholder = "Élèves…", itemBadge = null, chipTitleFn = null } = opts;
+  const { labelFn = displayStagiaire, placeholder = "Stagiaires…", itemBadge = null, chipTitleFn = null } = opts;
   const wrap = el("div", { class: "chips-select" });
   const display = el("div", { class: "chips-display", tabindex: "0" });
   const dropdown = el("div", { class: "chips-dropdown hidden" });
@@ -1404,7 +1404,7 @@ function buildElevesRoleSalle(entry, lid, group) {
   const exceptField = group === 2 ? "eleves_2" : "eleves";
   const current = entry[field] || [];
   const eleveRole = el("div", { class: "p-lane-role eleves" });
-  eleveRole.appendChild(el("span", { class: "p-lane-role-label" }, "Élèves"));
+  eleveRole.appendChild(el("span", { class: "p-lane-role-label", title: "Ils jouent le rôle des élèves" }, "Stagiaires"));
   const eleveCol = el("div", { class: "p-lane-eleves-col" });
   const blocked = slotOccupants(entry, exceptField);
   const counts = roleCounts("Pédagogie salle", "eleve", lid);
@@ -1413,7 +1413,7 @@ function buildElevesRoleSalle(entry, lid, group) {
   eleveCol.appendChild(el("div", { class: "p-eleves-dice-toolbar" },
     el("button", {
       class: "p-dice-btn", type: "button",
-      "aria-label": "Tirer 4 élèves au hasard", title: "Tirer 4 élèves (priorité aux moins passés)",
+      "aria-label": "Tirer 4 stagiaires au hasard", title: "Tirer 4 stagiaires (priorité aux moins passés)",
       onClick: () => randomFillEleves(lid, group),
     }, "🎲")
   ));
@@ -1511,7 +1511,7 @@ function renderLaneCell(entry) {
     // Voiture (conduite) : élèves seuls, avec mini-picker 1/2/3.
     const participants = el("div", { class: "p-lane-participants" });
     const eleveRole = el("div", { class: "p-lane-role eleves" });
-    eleveRole.appendChild(el("span", { class: "p-lane-role-label" }, "Élèves"));
+    eleveRole.appendChild(el("span", { class: "p-lane-role-label" }, "Stagiaires"));
     const eleveCol = el("div", { class: "p-lane-eleves-col" });
     const eleveBlocked = slotOccupants(entry, "eleves");
     const voitCounts = roleCounts("Voiture (conduite)", "eleve", lid);
@@ -1519,13 +1519,13 @@ function renderLaneCell(entry) {
     eleveCol.appendChild(chipsSelect(eleveOptions, entry.eleves_ids || [], (ids) => {
       saveEntry(lid, { eleves_ids: ids });
     }, voitCounts, {
-      chipTitleFn: (id) => `${voitureStats[id]?.avecEleve || 0} séance(s) avec élève au compteur`,
+      chipTitleFn: (id) => `${voitureStats[id]?.avecEleve || 0} séance(s) avec élève bénévole au compteur`,
     }));
     if (entry.activite === "Voiture (conduite)") {
       const wrap = el("div", { class: "p-dice-picker-wrap" });
       const diceBtn = el("button", {
         class: "p-dice-btn", type: "button",
-        "aria-label": "Tirer des élèves", title: "Tirer des élèves voiture",
+        "aria-label": "Tirer des stagiaires", title: "Tirer des stagiaires voiture",
       }, "🎲");
       const picker = el("div", { class: "p-dice-picker hidden" });
       [1, 2, 3].forEach((n) => {
@@ -1557,7 +1557,7 @@ function renderLaneCell(entry) {
     // d'actif → tri stable, pas de badge, chips en lecture seule comme les élèves.
     if (shape.includes("benevoles")) {
       const bnvRole = el("div", { class: "p-lane-role benevoles" });
-      bnvRole.appendChild(el("span", { class: "p-lane-role-label" }, "Bénévoles"));
+      bnvRole.appendChild(el("span", { class: "p-lane-role-label" }, "Élèves bénévoles"));
       const currentBnv = entry.benevoles_ids || [];
       const taken = benevoleSlotOccupants(entry);
       // Actifs non pris sur le créneau (+ ceux déjà sélectionnés, même retirés depuis),
@@ -1570,7 +1570,7 @@ function renderLaneCell(entry) {
       bnvRole.appendChild(chipsSelect(bnvOptions, currentBnv,
         (ids) => saveEntry(lid, { benevoles_ids: ids }), null, {
           labelFn: (b) => b.display,
-          placeholder: "Bénévoles…",
+          placeholder: "Élèves bénévoles…",
           itemBadge: (b) => isBenevoleDispo(b, entry)
             ? el("span", { class: "bnv-dispo-badge" }, "dispo") : null,
         }));
@@ -2182,13 +2182,13 @@ function renderInto(container) {
       onClick: () => openBenevolesPanel({ onClose: async () => {
         benevoles = await loadBenevoles();
         renderInto(currentContainer);
-      }}) }, "Bénévoles");
+      }}) }, "Élèves bénévoles");
     weekBar.appendChild(bnvBtn);
   }
   // Placer la semaine : tirage global (tableaux + élèves de toute la semaine), admin uniquement
   if (admin) {
     const placeBtn = el("button", { class: "btn small",
-      title: "Placer automatiquement tableaux et élèves de toute la semaine (priorité aux moins passés)",
+      title: "Placer automatiquement tableaux et stagiaires de toute la semaine (priorité aux moins passés)",
       onClick: () => autoPlaceWeek() });
     placeBtn.appendChild(document.createTextNode("🎲 Placer la semaine"));
     weekBar.appendChild(placeBtn);
@@ -2319,19 +2319,19 @@ function printEntryCell(e, ambig) {
   };
   if (e.activite === "Pédagogie salle" && e.salle_double) {
     addTableau("Au tableau G1", effPedagogueId(e, 1));
-    addEleves("Élèves G1", effElevesIds(e, 1));
+    addEleves("Stagiaires G1", effElevesIds(e, 1));
     addTableau("Au tableau G2", effPedagogueId(e, 2));
-    addEleves("Élèves G2", effElevesIds(e, 2));
+    addEleves("Stagiaires G2", effElevesIds(e, 2));
   } else {
     addTableau("Au tableau", effPedagogueId(e, 1));
-    addEleves("Élèves", effElevesIds(e, 1));
+    addEleves("Stagiaires", effElevesIds(e, 1));
   }
 
   // Bénévoles (voiture) : sous les élèves moniteurs, en italique. Format « N. Prénom »
   // (banque séparée : pas de dédoublonnage avec les prénoms des stagiaires).
   const bnvNames = effBenevolesIds(e).map(lookupBenevole).filter(Boolean);
   if (bnvNames.length) {
-    cell.appendChild(el("div", { class: "pp-line" }, el("span", { class: "pp-key" }, "Bénévoles :")));
+    cell.appendChild(el("div", { class: "pp-line" }, el("span", { class: "pp-key" }, "Élèves bénévoles :")));
     bnvNames.forEach((n) => cell.appendChild(el("div", { class: "pp-line pp-eleve pp-benevole" }, n)));
   }
 

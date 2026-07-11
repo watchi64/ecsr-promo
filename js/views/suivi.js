@@ -2,11 +2,11 @@
 // saisis par le stagiaire lui-même (fiche fiches_suivi) ; historique voiture en
 // lecture seule (dérivé des passages). Les admins voient la liste de toutes les
 // fiches et peuvent éditer celle de n'importe quel stagiaire.
-import { listStagiaires, listFiches, upsertFiche, getVoitureAggregats, listProfs } from "../db.js?v=20260711i";
-import { el, clear, toast, displayStagiaire, formatDate } from "../utils.js?v=20260711i";
-import { isAdmin, getProfile } from "../auth-admin.js?v=20260711i";
-import { getCurrentWho } from "../identity.js?v=20260711i";
-import { COMPETENCES_REMC } from "./benevoles.js?v=20260711i";
+import { listStagiaires, listFiches, upsertFiche, getVoitureAggregats, listProfs } from "../db.js?v=20260711j";
+import { el, clear, toast, displayStagiaire, formatDate } from "../utils.js?v=20260711j";
+import { isAdmin, getProfile } from "../auth-admin.js?v=20260711j";
+import { getCurrentWho } from "../identity.js?v=20260711j";
+import { COMPETENCES_REMC } from "./benevoles.js?v=20260711j";
 
 let stagiaires = [];
 let fiches = [];       // rows fiches_suivi
@@ -23,7 +23,7 @@ function renderHistorique(sid) {
     .join(" · ") || "—";
   return el("div", { class: "suivi-histo" },
     el("h4", {}, "Historique voiture"),
-    el("p", {}, `${a.total} passage(s) · dont ${a.avecEleve} avec élève`),
+    el("p", {}, `${a.total} passage(s) · dont ${a.avecEleve} avec élève bénévole`),
     el("p", { class: "muted" }, "Formateurs : " + profLine),
     el("p", { class: "muted" }, "Dernier passage : " + (a.lastDate ? formatDate(a.lastDate) : "—")),
   );
@@ -88,7 +88,7 @@ function renderAdminList(container) {
     const card = el("div", { class: "suivi-card" },
       el("div", { class: "suivi-card-head" },
         el("strong", {}, displayStagiaire(s)),
-        el("span", { class: "muted" }, `${a.total} passages · ${a.avecEleve} avec élève`),
+        el("span", { class: "muted" }, `${a.total} passages · ${a.avecEleve} avec élève bénévole`),
       ),
       el("div", { class: "suivi-card-tags" }, ...(tags.length ? tags : [el("span", { class: "faint" }, "aucun souhait coché")])),
       el("p", { class: "suivi-card-besoins" }, fiche.besoins || "—"),
