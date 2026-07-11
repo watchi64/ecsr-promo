@@ -1,7 +1,7 @@
-import { listStagiaires, listEvaluations, getPlanning, getHalfMetaForWeek, getSetting } from "../db.js?v=20260712b";
-import { el, clear, isoDate, getMonday, addDays, formatDate, displayStagiaire, compareByNom } from "../utils.js?v=20260712b";
-import { HALF_DAYS } from "../config.js?v=20260712b";
-import { isAdmin, getProfile } from "../auth-admin.js?v=20260712b";
+import { listStagiaires, listEvaluations, getPlanning, getHalfMetaForWeek, getSetting } from "../db.js?v=20260712c";
+import { el, clear, isoDate, getMonday, addDays, formatDate, displayStagiaire, compareByNom } from "../utils.js?v=20260712c";
+import { HALF_DAYS } from "../config.js?v=20260712c";
+import { isAdmin, getProfile } from "../auth-admin.js?v=20260712c";
 
 const HALF_ORDER = { matin: 0, aprem: 1 };
 
@@ -98,6 +98,80 @@ function renderPassagesSection(items) {
   return section;
 }
 
+function avgTier(v) {
+  if (v < 8) return "bad";
+  if (v < 12) return "warn";
+  if (v < 16) return "ok";
+  return "great";
+}
+
+const SVGNS = "http://www.w3.org/2000/svg";
+function svgEl(tag, attrs = {}) {
+  const n = document.createElementNS(SVGNS, tag);
+  Object.entries(attrs).forEach(([k, v]) => n.setAttribute(k, v));
+  return n;
+}
+
+// evals : triés par date croissante, chacun a { norm, note, note_max, date_eval, competence?, type? }
+function buildChart(evals) {
+  const W = 640, H = 280, padL = 40, padR = 16, padT = 16, padB = 48;
+  const innerW = W - padL - padR, innerH = H - padT - padB;
+  const n = evals.length;
+  const x = (i) => padL + (n === 1 ? innerW / 2 : (innerW * i) / (n - 1));
+  const y = (v) => padT + innerH * (1 - v / 20);
+
+  const svg = svgEl("svg", { viewBox: `0 0 ${W} ${H}`, class: "ms-chart", role: "img" });
+
+  [0, 5, 10, 15, 20].forEach((v) => {
+    const gy = y(v);
+    svg.appendChild(svgEl("line", { x1: padL, x2: W - padR, y1: gy, y2: gy, class: "ms-grid" }));
+    const lbl = svgEl("text", { x: padL - 6, y: gy + 4, "text-anchor": "end", class: "ms-axis-label" });
+    lbl.textContent = String(v);
+    svg.appendChild(lbl);
+  });
+
+  // Courbe = moyenne cumulée
+  let sum = 0;
+  const avgPts = evals.map((e, i) => { sum += e.norm; return `${x(i)},${y(sum / (i + 1))}`; });
+  svg.appendChild(svgEl("polyline", { points: avgPts.join(" "), class: "ms-avg-line" }));
+
+  // Points = notes individuelles + libellés de date
+  evals.forEach((e, i) => {
+    const c = svgEl("circle", { cx: x(i), cy: y(e.norm), r: 5, class: "ms-pt " + avgTier(e.norm) });
+    const title = svgEl("title");
+    const lib = e.competence?.libelle || e.type || "Évaluation";
+    title.textContent = `${lib} · ${e.note}/${e.note_max} (${e.norm.toFixed(1)}/20) · ${formatDate(e.date_eval)}`;
+    c.appendChild(title);
+    svg.appendChild(c);
+
+    const dl = svgEl("text", { x: x(i), y: H - padB + 18, "text-anchor": "middle", class: "ms-axis-label small" });
+    dl.textContent = formatDate(e.date_eval);
+    svg.appendChild(dl);
+  });
+
+  return svg;
+}
+
+function renderChartSection(evaluations) {
+  const section = el("section", { class: "ms-section" },
+    el("h3", { class: "ms-section-title" }, "Mon évolution"));
+  const noted = (evaluations || [])
+    .filter((e) => e.note != null && e.note_max)
+    .map((e) => ({ ...e, norm: (Number(e.note) / Number(e.note_max)) * 20 }))
+    .sort((a, b) => String(a.date_eval).localeCompare(String(b.date_eval)) || (a.id - b.id));
+  if (noted.length === 0) {
+    section.appendChild(el("p", { class: "muted ms-empty" }, "Pas encore d'évaluation notée."));
+    return section;
+  }
+  const wrap = el("div", { class: "ms-chart-wrap" });
+  wrap.appendChild(buildChart(noted));
+  section.appendChild(wrap);
+  const avg = Math.round((noted.reduce((s, e) => s + e.norm, 0) / noted.length) * 10) / 10;
+  section.appendChild(el("p", { class: "ms-chart-legend muted" },
+    `Moyenne actuelle : ${avg}/20 · ${noted.length} évaluation(s)`));
+  return section;
+}
+
 export async function renderMonSuivi(container) {
   clear(container);
   container.appendChild(el("div", { class: "loading" }, "Chargement"));
@@ -130,9 +204,13 @@ export async function renderMonSuivi(container) {
       return;
     }
     body.appendChild(el("div", { class: "loading" }, "Chargement"));
-    const items = await loadUpcoming(id);
+    const [items, evaluations] = await Promise.all([
+      loadUpcoming(id),
+      listEvaluations({ stagiaire_id: id }),
+    ]);
     clear(body);
     body.appendChild(renderPassagesSection(items));
+    body.appendChild(renderChartSection(evaluations));
   }
 
   if (needSelector) {
