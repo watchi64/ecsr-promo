@@ -8,10 +8,10 @@ import {
   addProf, updateProf, deleteProf,
   listUserProfiles, deleteUserProfile, inviteUser,
   setMyAnonymousNotes,
-} from "../db.js?v=20260712b";
-import { el, clear, toast, displayStagiaire } from "../utils.js?v=20260712b";
-import { icon } from "../icons.js?v=20260712b";
-import { isAdmin, getAdminEmail, getProfile } from "../auth-admin.js?v=20260712b";
+} from "../db.js?v=20260712c";
+import { el, clear, toast, displayStagiaire } from "../utils.js?v=20260712c";
+import { icon } from "../icons.js?v=20260712c";
+import { isAdmin, getAdminEmail, getProfile } from "../auth-admin.js?v=20260712c";
 
 // ====== SECTION Accès & invitations ======
 
