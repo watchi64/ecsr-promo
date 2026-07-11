@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20260710i";
+import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20260711a";
 
 // fetch avec timeout : sans ça, une requête peut rester pendue indéfiniment
 // (réseau mobile instable) → "Chargement" infini. Avec, elle échoue proprement après 15s.
@@ -764,16 +764,17 @@ export async function upsertFiche({ stagiaire_id, souhaits, besoins, updated_by_
 export async function getVoitureAggregats() {
   const { data, error } = await supabase
     .from("passages")
-    .select("stagiaire_id, prof_id, avec_eleve, resultat")
+    .select("stagiaire_id, prof_id, avec_eleve, resultat, date")
     .eq("type", "Voiture");
   if (error) throw error;
   const map = {};
   data.forEach((p) => {
     if (p.resultat === "Absence" || p.resultat === "Report") return;
-    const m = map[p.stagiaire_id] || (map[p.stagiaire_id] = { total: 0, avecEleve: 0, byProf: {} });
+    const m = map[p.stagiaire_id] || (map[p.stagiaire_id] = { total: 0, avecEleve: 0, byProf: {}, lastDate: null });
     m.total++;
     if (p.avec_eleve === true) m.avecEleve++;
     if (p.prof_id != null) m.byProf[p.prof_id] = (m.byProf[p.prof_id] || 0) + 1;
+    if (!m.lastDate || p.date > m.lastDate) m.lastDate = p.date;
   });
   return map;
 }

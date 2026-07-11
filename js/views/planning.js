@@ -7,14 +7,14 @@ import {
   addPassagesBatch, deletePassagesBatch, getPassagesInRange, updateTheme,
   listBenevoles, listBenevolesNoms,
   getVoitureAggregats, listFiches,
-} from "../db.js?v=20260710i";
-import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260710i";
-import { icon } from "../icons.js?v=20260710i";
-import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260710i";
-import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260710i";
-import { recordUndo } from "../undo.js?v=20260710i";
-import { getCurrentWho } from "../identity.js?v=20260710i";
-import { openBenevolesPanel } from "./benevoles.js?v=20260710i";
+} from "../db.js?v=20260711a";
+import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260711a";
+import { icon } from "../icons.js?v=20260711a";
+import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260711a";
+import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260711a";
+import { recordUndo } from "../undo.js?v=20260711a";
+import { getCurrentWho } from "../identity.js?v=20260711a";
+import { openBenevolesPanel } from "./benevoles.js?v=20260711a";
 
 let stagiaires = [];
 let profs = [];
@@ -1072,7 +1072,7 @@ function personSelect(allStagiaires, currentId, onChange, counts, placeholder = 
 // opts (optionnel) : { labelFn, placeholder, itemBadge } pour réutiliser le composant avec
 // d'autres listes que les stagiaires (ex. bénévoles : badge « dispo » à la place du compteur).
 function chipsSelect(allStagiaires, currentIds, onChange, counts, opts = {}) {
-  const { labelFn = displayStagiaire, placeholder = "Élèves…", itemBadge = null } = opts;
+  const { labelFn = displayStagiaire, placeholder = "Élèves…", itemBadge = null, chipTitleFn = null } = opts;
   const wrap = el("div", { class: "chips-select" });
   const display = el("div", { class: "chips-display", tabindex: "0" });
   const dropdown = el("div", { class: "chips-dropdown hidden" });
@@ -1086,7 +1086,7 @@ function chipsSelect(allStagiaires, currentIds, onChange, counts, opts = {}) {
       selected.forEach((id) => {
         const s = allStagiaires.find((x) => x.id === id);
         if (!s) return;
-        display.appendChild(el("span", { class: "chip" },
+        const chip = el("span", { class: "chip" },
           labelFn(s),
           el("span", { class: "x", onClick: (ev) => {
             ev.stopPropagation();
@@ -1094,7 +1094,9 @@ function chipsSelect(allStagiaires, currentIds, onChange, counts, opts = {}) {
             render();
             onChange([...selected]);
           }}, "×")
-        ));
+        );
+        if (chipTitleFn) chip.setAttribute("title", chipTitleFn(id));
+        display.appendChild(chip);
       });
     }
     clear(dropdown);
@@ -1420,7 +1422,9 @@ function renderLaneCell(entry) {
     const eleveOptions = stagiaires.filter((s) => !eleveBlocked.has(s.id) || (entry.eleves_ids || []).includes(s.id));
     eleveCol.appendChild(chipsSelect(eleveOptions, entry.eleves_ids || [], (ids) => {
       saveEntry(lid, { eleves_ids: ids });
-    }, voitCounts));
+    }, voitCounts, {
+      chipTitleFn: (id) => `${voitureStats[id]?.avecEleve || 0} séance(s) avec élève au compteur`,
+    }));
     if (entry.activite === "Voiture (conduite)") {
       const wrap = el("div", { class: "p-dice-picker-wrap" });
       const diceBtn = el("button", {

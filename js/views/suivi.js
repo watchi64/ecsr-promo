@@ -2,11 +2,11 @@
 // saisis par le stagiaire lui-même (fiche fiches_suivi) ; historique voiture en
 // lecture seule (dérivé des passages). Les admins voient la liste de toutes les
 // fiches et peuvent éditer celle de n'importe quel stagiaire.
-import { listStagiaires, listFiches, upsertFiche, getVoitureAggregats, listProfs } from "../db.js?v=20260710i";
-import { el, clear, toast, displayStagiaire } from "../utils.js?v=20260710i";
-import { isAdmin, getProfile } from "../auth-admin.js?v=20260710i";
-import { getCurrentWho } from "../identity.js?v=20260710i";
-import { COMPETENCES_REMC } from "./benevoles.js?v=20260710i";
+import { listStagiaires, listFiches, upsertFiche, getVoitureAggregats, listProfs } from "../db.js?v=20260711a";
+import { el, clear, toast, displayStagiaire, formatDate } from "../utils.js?v=20260711a";
+import { isAdmin, getProfile } from "../auth-admin.js?v=20260711a";
+import { getCurrentWho } from "../identity.js?v=20260711a";
+import { COMPETENCES_REMC } from "./benevoles.js?v=20260711a";
 
 let stagiaires = [];
 let fiches = [];       // rows fiches_suivi
@@ -17,7 +17,7 @@ const ficheOf = (sid) => fiches.find((f) => f.stagiaire_id === sid) || { stagiai
 
 // --- Historique lecture seule (calculé depuis passages) ---
 function renderHistorique(sid) {
-  const a = aggregats[sid] || { total: 0, avecEleve: 0, byProf: {} };
+  const a = aggregats[sid] || { total: 0, avecEleve: 0, byProf: {}, lastDate: null };
   const profLine = Object.entries(a.byProf)
     .map(([pid, n]) => `${profs.find((p) => p.id === Number(pid))?.nom || "?"} ×${n}`)
     .join(" · ") || "—";
@@ -25,6 +25,7 @@ function renderHistorique(sid) {
     el("h4", {}, "Historique voiture"),
     el("p", {}, `${a.total} passage(s) · dont ${a.avecEleve} avec élève`),
     el("p", { class: "muted" }, "Formateurs : " + profLine),
+    el("p", { class: "muted" }, "Dernier passage : " + (a.lastDate ? formatDate(a.lastDate) : "—")),
   );
 }
 
@@ -66,7 +67,7 @@ function renderFicheEditor(sid, onSaved) {
       fiches = await listFiches();
       if (onSaved) onSaved();
     } catch (e) { console.error(e); toast(e.message, "error"); }
-  } }, "Enregistrer ma fiche");
+  } }, "Enregistrer la fiche");
 
   return el("div", { class: "suivi-editor" },
     el("h4", {}, "Compétences du permis B (C1–C4) que je veux travailler"),
