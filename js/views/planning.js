@@ -7,14 +7,14 @@ import {
   addPassagesBatch, deletePassagesBatch, getPassagesInRange, updateTheme,
   listBenevoles, listBenevolesNoms,
   getVoitureAggregats, listFiches, getSalleAggregats,
-} from "../db.js?v=20260711j";
-import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260711j";
-import { icon } from "../icons.js?v=20260711j";
-import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260711j";
-import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260711j";
-import { recordUndo } from "../undo.js?v=20260711j";
-import { getCurrentWho } from "../identity.js?v=20260711j";
-import { openBenevolesPanel } from "./benevoles.js?v=20260711j";
+} from "../db.js?v=20260711k";
+import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260711k";
+import { icon } from "../icons.js?v=20260711k";
+import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260711k";
+import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260711k";
+import { recordUndo } from "../undo.js?v=20260711k";
+import { getCurrentWho } from "../identity.js?v=20260711k";
+import { openBenevolesPanel } from "./benevoles.js?v=20260711k";
 
 let stagiaires = [];
 let profs = [];
@@ -547,42 +547,66 @@ function isBenevoleDispo(b, entry) {
   return (b.dispos?.[JOURS[entry.day_index]] || []).includes(entry.half_day);
 }
 
-// Ids des stagiaires déjà placés dans le MÊME créneau et VRAIMENT en même temps que le champ
-// qu'on remplit. Sur la carte courante, une personne ne peut apparaître qu'UNE fois, tous
-// groupes confondus (tableau G1/G2, élèves G1/G2) : les 2 groupes sont séquentiels mais la
-// carte représente la même demi-séance — pas de double rôle sur une même carte (fix 2026-07-11 :
-// V. Timy aux deux tableaux, mêmes élèves dans les 2 groupes). Les AUTRES cartes du créneau
-// (voiture, etc.) sont simultanées => elles bloquent en entier (2 groupes compris).
+// Ids des stagiaires déjà placés « en conflit » avec le champ qu'on remplit.
+//
+// Modèle temporel des groupes (règle 2026-07-11) : sur un créneau, tous les GROUPES 1
+// des cartes salle tournent EN PARALLÈLE, puis tous les GROUPES 2. Les vagues sont
+// donc séquentielles : une personne peut apparaître dans les deux vagues (élève G1
+// puis élève G2, tableau G1 puis élève G2…), mais UNE SEULE FOIS PAR VAGUE, toutes
+// cartes du créneau confondues. Deux exceptions inter-vagues :
+//  - élève G1 → tableau G2 : INTERDIT (pas le temps de préparer son animation) ;
+//  - tableau G1 → tableau G2 : INTERDIT (pas deux animations d'affilée).
+// Une carte salle « 1 groupe » occupe tout le créneau (les deux vagues).
+// Une Voiture (conduite) s'étale sur TOUTE la demi-journée (règle 2026-07-10) :
+// ses stagiaires sont indisponibles pour les deux vagues de tous les créneaux,
+// et réciproquement.
 // exceptField ∈ "pedagogue" | "eleves" | "pedagogue_2" | "eleves_2"
 const ACT_VOITURE = "Voiture (conduite)";
+const FIELD_WAVE = { pedagogue: 1, eleves: 1, pedagogue_2: 2, eleves_2: 2 };
 function slotOccupants(entry, exceptField) {
   const ids = new Set();
   const add = (v) => { if (Array.isArray(v)) v.forEach((id) => ids.add(id)); else if (v != null) ids.add(v); };
-  // Une Voiture (conduite) s'étale sur TOUTE la demi-journée (la conduite tourne en continu).
-  // Donc deux cartes d'une même demi-journée, même sur des créneaux différents, se
-  // chevauchent dès que l'une des deux est une voiture → on bloque la personne (règle
-  // 2026-07-10 : élève voiture = occupé toute la demi-journée, ne peut pas être aussi en salle).
   const entryIsVoiture = entry.activite === ACT_VOITURE;
+  const wave = FIELD_WAVE[exceptField] || 1;
+
   entries.forEach((e) => {
     if (e.day_index !== entry.day_index || e.half_day !== entry.half_day) return;  // même demi-journée
-    if (e._lid === entry._lid) {
-      // Même carte : une personne ne peut y apparaître qu'une fois, tous groupes
-      // confondus (tableau G1/G2, élèves G1/G2) — on exclut seulement le champ
-      // qu'on est en train de (re)remplir.
-      if (exceptField !== "pedagogue")   add(effPedagogueId(e, 1));
-      if (exceptField !== "eleves")      add(effElevesIds(e, 1));
-      if (exceptField !== "pedagogue_2") add(effPedagogueId(e, 2));
-      if (exceptField !== "eleves_2")    add(effElevesIds(e, 2));
+    const sameCard = e._lid === entry._lid;
+    const eIsVoiture = e.activite === ACT_VOITURE;
+
+    // Chevauchement voiture : toute la demi-journée, toutes vagues confondues.
+    if (eIsVoiture || entryIsVoiture) {
+      if (sameCard) return;  // sa propre carte voiture : rien à bloquer (on remplit "eleves")
+      add(effPedagogueId(e, 1)); add(effElevesIds(e, 1));
+      add(effPedagogueId(e, 2)); add(effElevesIds(e, 2));
       return;
     }
-    // Bloque si simultané : même créneau, OU l'une des deux cartes est une voiture (chevauche
-    // toute la demi-journée). On bloque ses rôles EFFECTIFS (selon sa forme), pour ignorer une
-    // donnée périmée laissée par un changement d'activité.
-    if (e.slot === entry.slot || entryIsVoiture || e.activite === ACT_VOITURE) {
-      add(effPedagogueId(e, 1));
+
+    // Cartes non-voiture : seuls les créneaux identiques se chevauchent.
+    if (!sameCard && e.slot !== entry.slot) return;
+
+    // 1. Occupants de MA vague (une personne max par vague, toutes cartes du créneau).
+    //    Une carte sans 2e groupe actif occupe tout le créneau → son G1 bloque les 2 vagues.
+    const skipOwn = (field) => sameCard && field === exceptField;
+    if (wave === 1 || !e.salle_double) {
+      if (!skipOwn("pedagogue")) add(effPedagogueId(e, 1));
+      if (!skipOwn("eleves"))    add(effElevesIds(e, 1));
+    }
+    if (wave === 2) {
+      if (!skipOwn("pedagogue_2")) add(effPedagogueId(e, 2));
+      if (!skipOwn("eleves_2"))    add(effElevesIds(e, 2));
+    }
+
+    // 2. Règles inter-vagues (toutes cartes du créneau, y compris la courante) :
+    //    remplir un tableau G2 → bloqué pour les élèves G1 (préparation) et les
+    //    tableaux G1 (pas deux animations d'affilée) ; symétriquement, remplir un
+    //    rôle G1 (tableau ou élèves) bloque le tableau G2 déjà placé.
+    if (exceptField === "pedagogue_2") {
       add(effElevesIds(e, 1));
+      add(effPedagogueId(e, 1));
+    }
+    if (exceptField === "pedagogue" || exceptField === "eleves") {
       add(effPedagogueId(e, 2));
-      add(effElevesIds(e, 2));
     }
   });
   return ids;
