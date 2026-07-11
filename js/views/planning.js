@@ -7,14 +7,14 @@ import {
   addPassagesBatch, deletePassagesBatch, getPassagesInRange, updateTheme,
   listBenevoles, listBenevolesNoms,
   getVoitureAggregats, listFiches, getSalleAggregats,
-} from "../db.js?v=20260711k";
-import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260711k";
-import { icon } from "../icons.js?v=20260711k";
-import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260711k";
-import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260711k";
-import { recordUndo } from "../undo.js?v=20260711k";
-import { getCurrentWho } from "../identity.js?v=20260711k";
-import { openBenevolesPanel } from "./benevoles.js?v=20260711k";
+} from "../db.js?v=20260711l";
+import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260711l";
+import { icon } from "../icons.js?v=20260711l";
+import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260711l";
+import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260711l";
+import { recordUndo } from "../undo.js?v=20260711l";
+import { getCurrentWho } from "../identity.js?v=20260711l";
+import { openBenevolesPanel } from "./benevoles.js?v=20260711l";
 
 let stagiaires = [];
 let profs = [];
@@ -858,39 +858,56 @@ async function autoPlaceWeek() {
   const couvert = (id) => ((voit[id] || 0) + (tab[id] || 0)) > 0 ? 1 : 0;
 
   let unfilled = 0;
+
+  // Un tableau (groupe g) : couverture d'abord, puis moins passé au tableau (historique
+  // Salle salleStats inclus), départage intra-semaine (tab).
+  const fillTableau = (e, g) => {
+    const pField = g === 2 ? "pedagogue_id_2" : "pedagogue_id";
+    if (e[pField] != null) return;
+    const pick = shuffle(stagiaires.filter((s) => !slotOccupants(e, g === 2 ? "pedagogue_2" : "pedagogue").has(s.id)))
+      .map((s) => ({ id: s.id, score: [couvert(s.id), (salleStats[s.id] || 0) + (tab[s.id] || 0), tab[s.id] || 0] }))
+      .sort((a, b) => cmpScores(a.score, b.score))[0]?.id ?? null;
+    if (pick != null) { e[pField] = pick; bump(tab, pick); } else unfilled++;
+  };
+  // Les 4 élèves d'un groupe g : les moins passés en élève salle, blocages du créneau respectés.
+  const fillElevesSalle = (e, g) => {
+    const eField = g === 2 ? "eleves_ids_2" : "eleves_ids";
+    if (e[eField] && e[eField].length) return;
+    const pick = pickLeast(salleEl, slotOccupants(e, g === 2 ? "eleves_2" : "eleves"), 4);
+    e[eField] = pick; pick.forEach((id) => bump(salleEl, id));
+    unfilled += 4 - pick.length;
+  };
+  // Les 2 stagiaires d'une voiture : score voiture v2 préfixé par la couverture.
+  const fillVoiture = (e) => {
+    if (e.eleves_ids && e.eleves_ids.length) return;
+    const pick = shuffle(stagiaires.filter((s) => !slotOccupants(e, "eleves").has(s.id)))
+      .map((s) => ({ id: s.id, score: [couvert(s.id), ...voitureScore(s.id, e, voitAvecEleve, voit, voitDays)] }))
+      .sort((a, b) => cmpScores(a.score, b.score))
+      .slice(0, 2).map((x) => x.id);
+    e.eleves_ids = pick;
+    pick.forEach((id) => {
+      bump(voit, id);
+      if ((e.benevoles_ids || []).length) bump(voitAvecEleve, id);
+      (voitDays[id] ||= new Set()).add(e.day_index);
+    });
+    unfilled += 2 - pick.length;
+  };
+
+  // Passe 1 : voiture + TOUS les tableaux salle. On réserve les rares stagiaires libres
+  // de la vague 1 pour l'animation AVANT que les élèves ne les consomment — sinon, sur un
+  // créneau à 2 cartes salle, un tableau G2 pouvait se retrouver sans candidat (règle des
+  // vagues : un élève de la vague 1 ne peut pas animer en vague 2 ; constat 2026-07-11).
   for (const e of ordered) {
     if (e.activite === "Pédagogie salle") {
-      for (const g of (e.salle_double ? [1, 2] : [1])) {
-        const pField = g === 2 ? "pedagogue_id_2" : "pedagogue_id";
-        const eField = g === 2 ? "eleves_ids_2" : "eleves_ids";
-        if (e[pField] == null) {  // tableau vide => 1 personne : priorité à qui n'a encore
-          // aucun passage cette semaine (couverture), puis la moins passée au tableau,
-          // HISTORIQUE des passages Salle inclus (salleStats), départage intra-semaine (tab)
-          const pick = shuffle(stagiaires.filter((s) => !slotOccupants(e, g === 2 ? "pedagogue_2" : "pedagogue").has(s.id)))
-            .map((s) => ({ id: s.id, score: [couvert(s.id), (salleStats[s.id] || 0) + (tab[s.id] || 0), tab[s.id] || 0] }))
-            .sort((a, b) => cmpScores(a.score, b.score))[0]?.id ?? null;
-          if (pick != null) { e[pField] = pick; bump(tab, pick); } else unfilled++;
-        }
-        if (!(e[eField] && e[eField].length)) {  // élèves vides => 4
-          const pick = pickLeast(salleEl, slotOccupants(e, g === 2 ? "eleves_2" : "eleves"), 4);
-          e[eField] = pick; pick.forEach((id) => bump(salleEl, id));
-          unfilled += 4 - pick.length;
-        }
-      }
-    } else if (!(e.eleves_ids && e.eleves_ids.length)) {  // Voiture, élèves vides => 2
-      const blocked = slotOccupants(e, "eleves");
-      const pick = shuffle(stagiaires.filter((s) => !blocked.has(s.id)))
-        .map((s) => ({ id: s.id, score: [couvert(s.id), ...voitureScore(s.id, e, voitAvecEleve, voit, voitDays)] }))
-        .sort((a, b) => cmpScores(a.score, b.score))
-        .slice(0, 2).map((x) => x.id);
-      e.eleves_ids = pick;
-      pick.forEach((id) => {
-        bump(voit, id);
-        if ((e.benevoles_ids || []).length) bump(voitAvecEleve, id);
-        (voitDays[id] ||= new Set()).add(e.day_index);
-      });
-      unfilled += 2 - pick.length;
+      for (const g of (e.salle_double ? [1, 2] : [1])) fillTableau(e, g);
+    } else {
+      fillVoiture(e);
     }
+  }
+  // Passe 2 : élèves salle, une fois tous les tableaux fixés (plus aucun coin possible).
+  for (const e of ordered) {
+    if (e.activite !== "Pédagogie salle") continue;
+    for (const g of (e.salle_double ? [1, 2] : [1])) fillElevesSalle(e, g);
   }
 
   // Rééquilibrage élèves salle : écart max 1 entre stagiaires sur la semaine
