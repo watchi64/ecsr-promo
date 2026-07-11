@@ -7,14 +7,14 @@ import {
   addPassagesBatch, deletePassagesBatch, getPassagesInRange, updateTheme,
   listBenevoles, listBenevolesNoms,
   getVoitureAggregats, listFiches,
-} from "../db.js?v=20260711d";
-import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260711d";
-import { icon } from "../icons.js?v=20260711d";
-import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260711d";
-import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260711d";
-import { recordUndo } from "../undo.js?v=20260711d";
-import { getCurrentWho } from "../identity.js?v=20260711d";
-import { openBenevolesPanel } from "./benevoles.js?v=20260711d";
+} from "../db.js?v=20260711e";
+import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260711e";
+import { icon } from "../icons.js?v=20260711e";
+import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260711e";
+import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260711e";
+import { recordUndo } from "../undo.js?v=20260711e";
+import { getCurrentWho } from "../identity.js?v=20260711e";
+import { openBenevolesPanel } from "./benevoles.js?v=20260711e";
 
 let stagiaires = [];
 let profs = [];
@@ -588,16 +588,19 @@ function slotOccupants(entry, exceptField) {
 
 // === Score de priorité voiture (v2) ===
 // Ordre lexicographique croissant :
-//  [0] séances avec élève (historique passages avec_eleve=true + placements de la semaine
+//  [0] plafond souple : déclasse (sans exclure) qui a déjà 2 placements voiture cette semaine ;
+//  [1] anti jours consécutifs : déclasse qui a déjà une voiture le même jour, la veille
+//      ou le lendemain (voitDays = jours de placement voiture par stagiaire) ;
+//  [2] séances avec élève (historique passages avec_eleve=true + placements de la semaine
 //      sur des créneaux avec bénévoles) — critère principal (équité d'exposition) ;
-//  [1] match souhaits × niveau des bénévoles du créneau (0 = matche, 1 = neutre) ;
-//  [2] passages déjà faits avec le prof du créneau (variété formateur) ;
-//  [3] total placements voiture de la semaine (équilibre intra-semaine).
+//  [3] match souhaits × niveau des bénévoles du créneau (0 = matche, 1 = neutre) ;
+//  [4] passages déjà faits avec le prof du créneau (variété formateur) ;
+//  [5] total placements voiture de la semaine (équilibre intra-semaine).
 // Le shuffle préalable conserve l'aléa entre ex æquo.
 function matchesSouhait(souhait, niveau) {
   return niveau === souhait || niveau.startsWith(souhait + ".") || souhait.startsWith(niveau + ".");
 }
-function voitureScore(stagiaireId, entry, weekAvecEleve, weekVoit) {
+function voitureScore(stagiaireId, entry, weekAvecEleve, weekVoit, voitDays) {
   const agg = voitureStats[stagiaireId] || { avecEleve: 0, byProf: {} };
   const avecEleve = agg.avecEleve + (weekAvecEleve[stagiaireId] || 0);
 
@@ -613,7 +616,17 @@ function voitureScore(stagiaireId, entry, weekAvecEleve, weekVoit) {
   const profId = entry.prof_ids && entry.prof_ids.length ? entry.prof_ids[0] : (entry.prof_id ?? null);
   const profCount = profId != null ? (agg.byProf[profId] || 0) : 0;
 
-  return [avecEleve, match, profCount, weekVoit[stagiaireId] || 0];
+  const days = voitDays[stagiaireId];
+  const hasAdjacentDay = !!days && (days.has(entry.day_index) || days.has(entry.day_index - 1) || days.has(entry.day_index + 1));
+
+  return [
+    (weekVoit[stagiaireId] || 0) >= 2 ? 1 : 0,             // [0] plafond : 2 voitures/semaine max (souple)
+    hasAdjacentDay ? 1 : 0,                                 // [1] éviter même jour / veille / lendemain
+    avecEleve,                                              // [2] équité d'exposition (critère principal)
+    match,                                                  // [3] souhaits × niveau bénévole
+    profCount,                                              // [4] variété formateur
+    weekVoit[stagiaireId] || 0,                             // [5] équilibre intra-semaine
+  ];
 }
 function cmpScores(a, b) {
   for (let i = 0; i < a.length; i++) { if (a[i] !== b[i]) return a[i] - b[i]; }
@@ -667,19 +680,20 @@ async function randomFillPedagogue(lid, group = 1) {
   toast(displayStagiaire(picked) + " désigné(e) au tableau", "success", 1800);
 }
 
-// Voiture : priorise les moins passés en voiture, sans plafond. Exclut quiconque est déjà
-// sur le même créneau (carte parallèle, ex. salle) — pas deux endroits à la fois.
+// Voiture : score v2 (plafond souple 2/semaine, anti jours consécutifs, équité d'exposition).
+// Exclut quiconque est déjà sur le même créneau (carte parallèle, ex. salle) — pas deux endroits à la fois.
 async function randomFillVoitureEleves(lid, count) {
   const entry = entries.find((e) => e._lid === lid);
   if (!entry) return;
 
   // Compteurs de la semaine en cours (mêmes définitions que autoPlaceWeek)
-  const voit = {}, voitAvecEleve = {};
+  const voit = {}, voitAvecEleve = {}, voitDays = {};
   entries.forEach((e) => {
     if (e.activite !== ACT_VOITURE || e._lid === lid || dayIsOff(e.day_index)) return;
     (e.eleves_ids || []).forEach((id) => {
       voit[id] = (voit[id] || 0) + 1;
       if ((e.benevoles_ids || []).length) voitAvecEleve[id] = (voitAvecEleve[id] || 0) + 1;
+      (voitDays[id] ||= new Set()).add(e.day_index);
     });
   });
 
@@ -690,7 +704,7 @@ async function randomFillVoitureEleves(lid, count) {
     return;
   }
   const picked = shuffle(eligible)
-    .map((s) => ({ id: s.id, score: voitureScore(s.id, entry, voitAvecEleve, voit) }))
+    .map((s) => ({ id: s.id, score: voitureScore(s.id, entry, voitAvecEleve, voit, voitDays) }))
     .sort((a, b) => cmpScores(a.score, b.score))
     .slice(0, count).map((x) => x.id);
 
@@ -751,6 +765,7 @@ async function autoPlaceWeek() {
   // Compteurs par rôle (équité). En remélange on repart de zéro ; en remplissage on amorce
   // avec l'existant pour équilibrer autour des places déjà occupées.
   const tab = {}, salleEl = {}, voit = {}, voitAvecEleve = {};
+  const voitDays = {};   // { [stagiaireId]: Set<day_index> } — jours déjà en voiture cette semaine
   const bump = (m, id) => { if (id != null) m[id] = (m[id] || 0) + 1; };
 
   if (reroll) {
@@ -764,6 +779,7 @@ async function autoPlaceWeek() {
         (e.eleves_ids || []).forEach((id) => {
           bump(voit, id);
           if ((e.benevoles_ids || []).length) bump(voitAvecEleve, id);
+          (voitDays[id] ||= new Set()).add(e.day_index);
         });
       }
     });
@@ -800,13 +816,14 @@ async function autoPlaceWeek() {
     } else if (!(e.eleves_ids && e.eleves_ids.length)) {  // Voiture, élèves vides => 2
       const blocked = slotOccupants(e, "eleves");
       const pick = shuffle(stagiaires.filter((s) => !blocked.has(s.id)))
-        .map((s) => ({ id: s.id, score: voitureScore(s.id, e, voitAvecEleve, voit) }))
+        .map((s) => ({ id: s.id, score: voitureScore(s.id, e, voitAvecEleve, voit, voitDays) }))
         .sort((a, b) => cmpScores(a.score, b.score))
         .slice(0, 2).map((x) => x.id);
       e.eleves_ids = pick;
       pick.forEach((id) => {
         bump(voit, id);
         if ((e.benevoles_ids || []).length) bump(voitAvecEleve, id);
+        (voitDays[id] ||= new Set()).add(e.day_index);
       });
       unfilled += 2 - pick.length;
     }
