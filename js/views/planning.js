@@ -7,14 +7,14 @@ import {
   addPassagesBatch, deletePassagesBatch, getPassagesInRange, updateTheme,
   listBenevoles, listBenevolesNoms,
   getVoitureAggregats, listFiches, getSalleAggregats,
-} from "../db.js?v=20260711m";
-import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260711m";
-import { icon } from "../icons.js?v=20260711m";
-import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260711m";
-import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260711m";
-import { recordUndo } from "../undo.js?v=20260711m";
-import { getCurrentWho } from "../identity.js?v=20260711m";
-import { openBenevolesPanel } from "./benevoles.js?v=20260711m";
+} from "../db.js?v=20260711n";
+import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260711n";
+import { icon } from "../icons.js?v=20260711n";
+import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260711n";
+import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260711n";
+import { recordUndo } from "../undo.js?v=20260711n";
+import { getCurrentWho } from "../identity.js?v=20260711n";
+import { openBenevolesPanel } from "./benevoles.js?v=20260711n";
 
 let stagiaires = [];
 let profs = [];
@@ -2218,7 +2218,7 @@ function buildRulesNote() {
   ));
 
   body.appendChild(el("p", { class: "planning-rules-foot" },
-    "S'il reste des places vides après un placement, c'est qu'il n'y a pas assez de stagiaires disponibles pour ce créneau (ex. deux salles à 2 groupes en même temps = 20 places pour 13 stagiaires). C'est normal, pas un bug."
+    "Le placement fait tourner les stagiaires entre les deux vagues (groupes 1 puis groupes 2), donc un créneau se remplit normalement en entier — même avec deux salles à 2 groupes. Un groupe ne peut se retrouver plus court que si trop peu de stagiaires sont disponibles (en gros, moins de 10 présents) ; c'est alors logique, pas un bug."
   ));
 
   details.appendChild(body);
