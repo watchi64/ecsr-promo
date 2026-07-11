@@ -7,14 +7,14 @@ import {
   addPassagesBatch, deletePassagesBatch, getPassagesInRange, updateTheme,
   listBenevoles, listBenevolesNoms,
   getVoitureAggregats, listFiches,
-} from "../db.js?v=20260711c";
-import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260711c";
-import { icon } from "../icons.js?v=20260711c";
-import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260711c";
-import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260711c";
-import { recordUndo } from "../undo.js?v=20260711c";
-import { getCurrentWho } from "../identity.js?v=20260711c";
-import { openBenevolesPanel } from "./benevoles.js?v=20260711c";
+} from "../db.js?v=20260711d";
+import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260711d";
+import { icon } from "../icons.js?v=20260711d";
+import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260711d";
+import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260711d";
+import { recordUndo } from "../undo.js?v=20260711d";
+import { getCurrentWho } from "../identity.js?v=20260711d";
+import { openBenevolesPanel } from "./benevoles.js?v=20260711d";
 
 let stagiaires = [];
 let profs = [];
@@ -741,6 +741,10 @@ async function autoPlaceWeek() {
 
   const reroll = !targets.some((e) => placementEmpties(e).length > 0);
   if (reroll && !confirm("Toute la semaine est déjà placée.\n\nTout remélanger (tableaux + élèves) ? Tes ajustements manuels seront écrasés.")) return;
+  if (!reroll) {
+    const cartes = targets.filter((e) => placementEmpties(e).length > 0).length;
+    if (!confirm(`Placer automatiquement la semaine ?\n\n${cartes} carte(s) à compléter (priorité aux moins passés / moins exposés). Ctrl+Z pour annuler ensuite.`)) return;
+  }
 
   const before = targets.map((e) => ({ e, snap: snapshotPlacement(e) }));
 
