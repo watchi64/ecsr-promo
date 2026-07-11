@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20260711e";
+import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20260711f";
 
 // fetch avec timeout : sans ça, une requête peut rester pendue indéfiniment
 // (réseau mobile instable) → "Chargement" infini. Avec, elle échoue proprement après 15s.
@@ -775,6 +775,22 @@ export async function getVoitureAggregats() {
     if (p.avec_eleve === true) m.avecEleve++;
     if (p.prof_id != null) m.byProf[p.prof_id] = (m.byProf[p.prof_id] || 0) + 1;
     if (!m.lastDate || p.date > m.lastDate) m.lastDate = p.date;
+  });
+  return map;
+}
+
+// Agrégats Salle (passages au tableau) par stagiaire, pour le tirage des tableaux.
+// Absences/reports exclus, comme pour la voiture.
+export async function getSalleAggregats() {
+  const { data, error } = await supabase
+    .from("passages")
+    .select("stagiaire_id, resultat")
+    .eq("type", "Salle");
+  if (error) throw error;
+  const map = {};
+  data.forEach((p) => {
+    if (p.resultat === "Absence" || p.resultat === "Report") return;
+    map[p.stagiaire_id] = (map[p.stagiaire_id] || 0) + 1;
   });
   return map;
 }

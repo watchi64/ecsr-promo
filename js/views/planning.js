@@ -6,15 +6,15 @@ import {
   getSetting, setSetting,
   addPassagesBatch, deletePassagesBatch, getPassagesInRange, updateTheme,
   listBenevoles, listBenevolesNoms,
-  getVoitureAggregats, listFiches,
-} from "../db.js?v=20260711e";
-import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260711e";
-import { icon } from "../icons.js?v=20260711e";
-import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260711e";
-import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260711e";
-import { recordUndo } from "../undo.js?v=20260711e";
-import { getCurrentWho } from "../identity.js?v=20260711e";
-import { openBenevolesPanel } from "./benevoles.js?v=20260711e";
+  getVoitureAggregats, listFiches, getSalleAggregats,
+} from "../db.js?v=20260711f";
+import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260711f";
+import { icon } from "../icons.js?v=20260711f";
+import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260711f";
+import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260711f";
+import { recordUndo } from "../undo.js?v=20260711f";
+import { getCurrentWho } from "../identity.js?v=20260711f";
+import { openBenevolesPanel } from "./benevoles.js?v=20260711f";
 
 let stagiaires = [];
 let profs = [];
@@ -26,6 +26,7 @@ let joursOff = [];   // [{day_index, label}] jours désactivés manuellement de 
 let autresProfsMem = [];  // noms de formateurs « Autre » déjà saisis (mémorisés, réutilisables)
 let voitureStats = {};   // getVoitureAggregats() : { [stagiaire_id]: { total, avecEleve, byProf } }
 let fichesSuivi = [];    // rows fiches_suivi (souhaits par stagiaire)
+let salleStats = {};     // getSalleAggregats() : { [stagiaire_id]: nb passages Salle historiques }
 let semaineLundi = null;
 let currentContainer = null;
 
@@ -659,8 +660,9 @@ async function randomFillEleves(lid, group = 1) {
   renderInto(currentContainer);
 }
 
-// Au tableau (groupe 1 ou 2) : le plus rigoureux (toujours le moins passé au tableau). Exclut
-// quiconque est déjà sur le même créneau (élèves, autre tableau, carte parallèle).
+// Au tableau (groupe 1 ou 2) : le moins passé au tableau, HISTORIQUE des passages Salle inclus
+// (salleStats), départagé par le compteur intra-semaine. Exclut quiconque est déjà sur le
+// même créneau (élèves, autre tableau, carte parallèle).
 async function randomFillPedagogue(lid, group = 1) {
   const entry = entries.find((e) => e._lid === lid);
   if (!entry) return;
@@ -673,11 +675,13 @@ async function randomFillPedagogue(lid, group = 1) {
     toast("Aucun stagiaire disponible sur ce créneau", "info", 3000);
     return;
   }
-  const ordered = shuffle(eligible).sort((a, b) => (pedaCount[a.id] || 0) - (pedaCount[b.id] || 0));
-  const picked = ordered[0];
+  const ordered = shuffle(eligible)
+    .map((s) => ({ s, score: [(salleStats[s.id] || 0) + (pedaCount[s.id] || 0), pedaCount[s.id] || 0] }))
+    .sort((a, b) => cmpScores(a.score, b.score));
+  const picked = ordered[0].s;
   await saveEntry(lid, { [field]: picked.id });
   renderInto(currentContainer);
-  toast(displayStagiaire(picked) + " désigné(e) au tableau", "success", 1800);
+  toast(displayStagiaire(picked) + " désigné(e) au tableau · priorité au moins passé (historique inclus)", "success", 1800);
 }
 
 // Voiture : score v2 (plafond souple 2/semaine, anti jours consécutifs, équité d'exposition).
@@ -803,8 +807,11 @@ async function autoPlaceWeek() {
       for (const g of (e.salle_double ? [1, 2] : [1])) {
         const pField = g === 2 ? "pedagogue_id_2" : "pedagogue_id";
         const eField = g === 2 ? "eleves_ids_2" : "eleves_ids";
-        if (e[pField] == null) {  // tableau vide => 1 personne (la moins passée au tableau)
-          const pick = pickLeast(tab, slotOccupants(e, g === 2 ? "pedagogue_2" : "pedagogue"), 1)[0];
+        if (e[pField] == null) {  // tableau vide => 1 personne : la moins passée au tableau,
+          // HISTORIQUE des passages Salle inclus (salleStats), départage intra-semaine (tab)
+          const pick = shuffle(stagiaires.filter((s) => !slotOccupants(e, g === 2 ? "pedagogue_2" : "pedagogue").has(s.id)))
+            .map((s) => ({ id: s.id, score: [(salleStats[s.id] || 0) + (tab[s.id] || 0), tab[s.id] || 0] }))
+            .sort((a, b) => cmpScores(a.score, b.score))[0]?.id ?? null;
           if (pick != null) { e[pField] = pick; bump(tab, pick); } else unfilled++;
         }
         if (!(e[eField] && e[eField].length)) {  // élèves vides => 4
@@ -1998,7 +2005,7 @@ function renderValiderModal(toCreate, already, existKey, themeCandidates) {
 
       // Les nouveaux passages changent l'équité : rafraîchit les stats du placement.
       try {
-        [voitureStats, fichesSuivi] = await Promise.all([getVoitureAggregats(), listFiches()]);
+        [voitureStats, fichesSuivi, salleStats] = await Promise.all([getVoitureAggregats(), listFiches(), getSalleAggregats()]);
       } catch (e) { console.warn("rafraîchissement stats voiture impossible", e?.message || e); }
 
       // Marque les thèmes « Fait » à la date du créneau ; mémorise l'état pour Ctrl+Z.
@@ -2517,10 +2524,10 @@ export async function renderPlanning(container) {
     listStagiaires(), listProfs(), listThemes(), loadBenevoles(),
   ]);
   try {
-    [voitureStats, fichesSuivi] = await Promise.all([getVoitureAggregats(), listFiches()]);
+    [voitureStats, fichesSuivi, salleStats] = await Promise.all([getVoitureAggregats(), listFiches(), getSalleAggregats()]);
   } catch (e) {
     console.warn("stats voiture / fiches indisponibles (migration manquante ?)", e?.message || e);
-    voitureStats = {}; fichesSuivi = [];
+    voitureStats = {}; fichesSuivi = []; salleStats = {};
   }
   autresProfsMem = parseAutresProfs(await getSetting("profs_autres"));
   semaineLundi = (await getSetting("current_week_lundi")) || isoDate(getMonday(new Date()));
