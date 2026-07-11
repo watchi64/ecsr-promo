@@ -1,29 +1,23 @@
-import { listStagiaires, listEvaluations, getStats, getSetting } from "../db.js?v=20260710b";
-import { el, clear, isoDate, getMonday, displayStagiaire, compareByNom } from "../utils.js?v=20260710b";
-import { icon } from "../icons.js?v=20260710b";
-import { renderPassages } from "./passages.js?v=20260710b";
+import { listStagiaires, listEvaluations, getStats, getSetting } from "../db.js?v=20260712a";
+import { el, clear, isoDate, getMonday, displayStagiaire, compareByNom } from "../utils.js?v=20260712a";
+import { icon } from "../icons.js?v=20260712a";
+import { renderPassages } from "./passages.js?v=20260712a";
 
 const SORT_OPTIONS = [
   { key: "priorite",   label: "Priorité de passage" },
   { key: "alpha",      label: "Alphabétique" },
-  { key: "note-desc",  label: "Note : meilleure d'abord" },
-  { key: "note-asc",   label: "Note : plus faible d'abord" },
   { key: "passages",   label: "Plus de passages d'abord" },
 ];
 
-let currentSort = localStorage.getItem("ecsr_dash_sort") || "priorite";
+const VALID_SORTS = new Set(SORT_OPTIONS.map((o) => o.key));
+let currentSort = localStorage.getItem("ecsr_dash_sort");
+if (!VALID_SORTS.has(currentSort)) currentSort = "priorite";
 
 function sortEnriched(list, mode) {
   const arr = list.slice();
   switch (mode) {
     case "alpha":
       arr.sort((a, b) => compareByNom(a.s, b.s));
-      break;
-    case "note-desc":
-      arr.sort((a, b) => (b.avg ?? -1) - (a.avg ?? -1) || compareByNom(a.s, b.s));
-      break;
-    case "note-asc":
-      arr.sort((a, b) => (a.avg ?? 99) - (b.avg ?? 99) || compareByNom(a.s, b.s));
       break;
     case "passages":
       arr.sort((a, b) => (b.sa.effectif + b.vo.effectif) - (a.sa.effectif + a.vo.effectif));
