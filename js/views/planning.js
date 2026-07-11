@@ -7,14 +7,14 @@ import {
   addPassagesBatch, deletePassagesBatch, getPassagesInRange, updateTheme,
   listBenevoles, listBenevolesNoms,
   getVoitureAggregats, listFiches, getSalleAggregats,
-} from "../db.js?v=20260711g";
-import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260711g";
-import { icon } from "../icons.js?v=20260711g";
-import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260711g";
-import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260711g";
-import { recordUndo } from "../undo.js?v=20260711g";
-import { getCurrentWho } from "../identity.js?v=20260711g";
-import { openBenevolesPanel } from "./benevoles.js?v=20260711g";
+} from "../db.js?v=20260711h";
+import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260711h";
+import { icon } from "../icons.js?v=20260711h";
+import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260711h";
+import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260711h";
+import { recordUndo } from "../undo.js?v=20260711h";
+import { getCurrentWho } from "../identity.js?v=20260711h";
+import { openBenevolesPanel } from "./benevoles.js?v=20260711h";
 
 let stagiaires = [];
 let profs = [];
@@ -548,17 +548,12 @@ function isBenevoleDispo(b, entry) {
 }
 
 // Ids des stagiaires déjà placés dans le MÊME créneau et VRAIMENT en même temps que le champ
-// qu'on remplit. Les 2 groupes d'une carte salle sont SÉQUENTIELS (l'un après l'autre) : sur
-// la carte courante, seul l'AUTRE rôle du MÊME groupe bloque (tableau ≠ ses élèves). Donc une
-// personne peut être élève au groupe 1 puis tableau / élève au groupe 2. Les AUTRES cartes du
-// créneau (voiture, etc.) sont simultanées => elles bloquent en entier (2 groupes compris).
+// qu'on remplit. Sur la carte courante, une personne ne peut apparaître qu'UNE fois, tous
+// groupes confondus (tableau G1/G2, élèves G1/G2) : les 2 groupes sont séquentiels mais la
+// carte représente la même demi-séance — pas de double rôle sur une même carte (fix 2026-07-11 :
+// V. Timy aux deux tableaux, mêmes élèves dans les 2 groupes). Les AUTRES cartes du créneau
+// (voiture, etc.) sont simultanées => elles bloquent en entier (2 groupes compris).
 // exceptField ∈ "pedagogue" | "eleves" | "pedagogue_2" | "eleves_2"
-const SAME_GROUP_BLOCK = {
-  pedagogue:   "eleves_ids",
-  eleves:      "pedagogue_id",
-  pedagogue_2: "eleves_ids_2",
-  eleves_2:    "pedagogue_id_2",
-};
 const ACT_VOITURE = "Voiture (conduite)";
 function slotOccupants(entry, exceptField) {
   const ids = new Set();
@@ -571,7 +566,13 @@ function slotOccupants(entry, exceptField) {
   entries.forEach((e) => {
     if (e.day_index !== entry.day_index || e.half_day !== entry.half_day) return;  // même demi-journée
     if (e._lid === entry._lid) {
-      add(e[SAME_GROUP_BLOCK[exceptField]]);  // même carte : même groupe, l'autre rôle uniquement
+      // Même carte : une personne ne peut y apparaître qu'une fois, tous groupes
+      // confondus (tableau G1/G2, élèves G1/G2) — on exclut seulement le champ
+      // qu'on est en train de (re)remplir.
+      if (exceptField !== "pedagogue")   add(effPedagogueId(e, 1));
+      if (exceptField !== "eleves")      add(effElevesIds(e, 1));
+      if (exceptField !== "pedagogue_2") add(effPedagogueId(e, 2));
+      if (exceptField !== "eleves_2")    add(effElevesIds(e, 2));
       return;
     }
     // Bloque si simultané : même créneau, OU l'une des deux cartes est une voiture (chevauche
