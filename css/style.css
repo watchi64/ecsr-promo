@@ -3198,22 +3198,13 @@ button.theme-date.editable.muted { color: var(--text-faint); }
   align-items: center;
   gap: 0.6rem;
 }
-.valider-rempl { align-self: stretch; margin-left: 1.7rem; }
-.valider-rempl.hidden { display: none; }
 .valider-row input[type="checkbox"] { width: 16px; height: 16px; flex-shrink: 0; accent-color: var(--accent); }
 .valider-row-main { display: flex; flex-direction: column; flex: 1; min-width: 0; }
 .valider-row-name { font-weight: 600; font-size: 0.9rem; }
 .valider-row-meta { font-size: 0.76rem; color: var(--text-muted); }
-.valider-res {
-  flex-shrink: 0;
-  padding: 0.22rem 0.35rem;
-  border: 1px solid var(--line);
-  border-radius: var(--r-sm);
-  background: var(--bg-elev);
-  font-family: inherit;
-  font-size: 0.82rem;
-}
 .valider-row.already { opacity: 0.6; background: var(--bg-subtle); cursor: default; }
+.valider-summary-head { margin: 0 0 0.5rem; font-size: 0.85rem; }
+.valider-row.valider-summary { cursor: default; }
 .valider-done { font-size: 0.76rem; color: var(--text-muted); font-style: italic; flex-shrink: 0; }
 .valider-already-head {
   margin-top: 0.5rem;

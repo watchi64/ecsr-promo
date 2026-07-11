@@ -7,14 +7,14 @@ import {
   addPassagesBatch, deletePassagesBatch, getPassagesInRange, updateTheme,
   listBenevoles, listBenevolesNoms,
   getVoitureAggregats, listFiches,
-} from "../db.js?v=20260711a";
-import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260711a";
-import { icon } from "../icons.js?v=20260711a";
-import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260711a";
-import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260711a";
-import { recordUndo } from "../undo.js?v=20260711a";
-import { getCurrentWho } from "../identity.js?v=20260711a";
-import { openBenevolesPanel } from "./benevoles.js?v=20260711a";
+} from "../db.js?v=20260711b";
+import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260711b";
+import { icon } from "../icons.js?v=20260711b";
+import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260711b";
+import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260711b";
+import { recordUndo } from "../undo.js?v=20260711b";
+import { getCurrentWho } from "../identity.js?v=20260711b";
+import { openBenevolesPanel } from "./benevoles.js?v=20260711b";
 
 let stagiaires = [];
 let profs = [];
@@ -1870,78 +1870,34 @@ function renderValiderModal(toCreate, already, existKey, themeCandidates) {
     return j.charAt(0) + j.slice(1).toLowerCase();
   };
 
-  const rowState = toCreate.map(() => ({ include: true, resultat: "Effectué", remplacant_id: null }));
   const themeState = (themeCandidates || []).map(() => ({ include: true }));
   const list = el("div", { class: "valider-list" });
 
-  toCreate.forEach((c, i) => {
-    const cb = el("input", { type: "checkbox", "aria-label": "Inclure " + nameOf(c.stagiaire_id) + " " + dayLabel(c.day_index) + " " + c.type });
-    cb.checked = true;
-    cb.addEventListener("change", () => { rowState[i].include = cb.checked; });
+  // Récapitulatif compact en lecture seule : le planning fait foi, tous les
+  // candidats sont enregistrés en résultat "Effectué" sans étape de confirmation.
+  const headText = [el("strong", {}, toCreate.length + " passage(s)"), " seront enregistrés (résultat : Effectué)."];
+  if (already.length) headText.push(" " + already.length + " déjà enregistré(s).");
+  list.appendChild(el("p", { class: "valider-summary-head" }, ...headText));
 
-    const resSel = el("select", { class: "valider-res" });
-    RESULTATS.forEach((r) => {
-      const opt = el("option", { value: r.value }, r.icon + " " + r.value);
-      if (r.value === "Effectué") opt.selected = true;
-      resSel.appendChild(opt);
-    });
-
-    // Sélecteur « remplacé par » : visible seulement sur Absence. Le remplaçant
-    // choisi sera crédité d'un passage Effectué (même type, même jour).
-    const remplSel = el("select", { class: "valider-res valider-rempl hidden", "aria-label": "Remplacé par" });
-    remplSel.appendChild(el("option", { value: "" }, "— remplacé par —"));
-    stagiaires
-      .filter((s) => s.id !== c.stagiaire_id)
-      .forEach((s) => remplSel.appendChild(el("option", { value: s.id }, displayStagiaire(s))));
-    remplSel.addEventListener("change", () => {
-      rowState[i].remplacant_id = remplSel.value ? Number(remplSel.value) : null;
-    });
-
-    resSel.addEventListener("change", () => {
-      rowState[i].resultat = resSel.value;
-      if (resSel.value === "Absence") {
-        remplSel.classList.remove("hidden");
-      } else {
-        remplSel.classList.add("hidden");
-        remplSel.value = "";
-        rowState[i].remplacant_id = null;
-      }
-    });
-
-    const top = el("div", { class: "valider-row-top" },
-      cb,
-      el("span", { class: "valider-row-main" },
-        el("span", { class: "valider-row-name" }, nameOf(c.stagiaire_id)),
-        el("span", { class: "valider-row-meta" }, dayLabel(c.day_index) + " · " + c.type),
-      ),
-      resSel,
-    );
-    const row = el("div", { class: "valider-row" }, top, remplSel);
-    // Clic sur la ligne (hors selects et hors case) = bascule la case
-    row.addEventListener("click", (ev) => {
-      if (ev.target === resSel || resSel.contains(ev.target)) return;
-      if (ev.target === remplSel || remplSel.contains(ev.target)) return;
-      if (ev.target === cb) return;
-      cb.checked = !cb.checked;
-      rowState[i].include = cb.checked;
-    });
-    list.appendChild(row);
+  const dayGroups = new Map(); // day_index -> { Voiture: string[], Salle: string[] }
+  toCreate.forEach((c) => {
+    if (!dayGroups.has(c.day_index)) dayGroups.set(c.day_index, { Voiture: [], Salle: [] });
+    dayGroups.get(c.day_index)[c.type].push(nameOf(c.stagiaire_id));
   });
-
-  if (already.length) {
-    list.appendChild(el("div", { class: "valider-already-head" }, already.length + " déjà enregistré(s), ignoré(s)"));
-    already.forEach((c) => {
-      list.appendChild(el("div", { class: "valider-row already" },
-        el("div", { class: "valider-row-top" },
-          el("span", { class: "valider-row-main" },
-            el("span", { class: "valider-row-name" }, nameOf(c.stagiaire_id)),
-            el("span", { class: "valider-row-meta" }, dayLabel(c.day_index) + " · " + c.type),
-          ),
-          el("span", { class: "valider-done" }, "déjà fait"),
+  [...dayGroups.keys()].sort((a, b) => a - b).forEach((di) => {
+    const g = dayGroups.get(di);
+    const segments = [];
+    if (g.Voiture.length) segments.push("Voiture : " + g.Voiture.join(", "));
+    if (g.Salle.length) segments.push("Salle : " + g.Salle.join(", "));
+    list.appendChild(el("div", { class: "valider-row valider-summary" },
+      el("div", { class: "valider-row-top" },
+        el("span", { class: "valider-row-main" },
+          el("span", { class: "valider-row-name" }, dayLabel(di)),
+          el("span", { class: "valider-row-meta" }, segments.join(" — ")),
         ),
-      ));
-    });
-  }
+      ),
+    ));
+  });
 
   // Section « Thèmes traités » : marque les thèmes du planning comme Fait à la date du créneau
   if (themeCandidates && themeCandidates.length) {
@@ -1991,18 +1947,13 @@ function renderValiderModal(toCreate, already, existKey, themeCandidates) {
       });
     };
 
-    toCreate.forEach((c, i) => {
-      const st = rowState[i];
-      if (!st.include) return;
-      const rempl = st.resultat === "Absence" ? st.remplacant_id : null;
-      addRow(c.stagiaire_id, c.type, c.date, st.resultat, rempl, c.prof_id, c.avec_eleve);
-      // Absence + remplaçant => le remplaçant est crédité d'un Effectué (même type, même jour)
-      if (rempl) addRow(rempl, c.type, c.date, "Effectué", null, c.prof_id, c.avec_eleve);
+    toCreate.forEach((c) => {
+      addRow(c.stagiaire_id, c.type, c.date, "Effectué", null, c.prof_id, c.avec_eleve);
     });
 
     const themesToMark = (themeCandidates || []).filter((tc, i) => themeState[i].include);
 
-    if (rows.length === 0 && themesToMark.length === 0) { toast("Rien à enregistrer (tout décoché)", "info"); return; }
+    if (rows.length === 0 && themesToMark.length === 0) { toast("Rien à enregistrer", "info"); return; }
     try {
       saveBtn.disabled = true;
       saveBtn.textContent = "Enregistrement…";
@@ -2057,7 +2008,7 @@ function renderValiderModal(toCreate, already, existKey, themeCandidates) {
   const modal = el("div", { class: "modal valider-modal" },
     el("h3", {}, "Valider la semaine"),
     el("p", { class: "muted", style: "margin:0 0 0.6rem; font-size:0.85rem;" },
-      "Passages et thèmes déduits du planning des jours écoulés. Résultat « Effectué » par défaut : sur une absence, indique qui a remplacé (le remplaçant est crédité). Décoche pour exclure."),
+      "Passages déduits du planning des jours écoulés — le planning fait foi. Une absence ou un cas particulier ? Corrige ensuite dans l'onglet Passages."),
     list,
     el("div", { class: "modal-actions" }, cancelBtn, saveBtn),
   );
