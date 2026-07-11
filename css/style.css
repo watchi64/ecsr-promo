@@ -5819,3 +5819,40 @@ body.qcm-open { overflow: hidden; }
   cursor: pointer; white-space: nowrap;
 }
 .impersonation-banner .imp-back:hover { background: var(--accent-strong); }
+
+/* ===== Mon suivi ===== */
+.ms-selector-wrap { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.75rem; }
+.ms-selector { padding: 0.4rem 0.6rem; }
+.ms-body { display: flex; flex-direction: column; gap: 2rem; margin-top: 1.5rem; }
+.ms-section-title { margin: 0 0 0.9rem; font-size: 1.05rem; }
+.ms-empty { padding: 1.5rem 0; }
+
+.ms-passage-list { display: flex; flex-direction: column; gap: 0.6rem; }
+.ms-passage {
+  display: flex; justify-content: space-between; align-items: center; gap: 1rem;
+  padding: 0.75rem 1rem; border: 1px solid var(--line); border-radius: 12px;
+  background: var(--bg-elev);
+}
+.ms-passage.past { opacity: 0.5; }
+.ms-passage.today { border-color: var(--accent); }
+.ms-passage.next { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+.ms-passage-when { display: flex; flex-direction: column; gap: 0.15rem; }
+.ms-passage-day { font-weight: 600; }
+.ms-passage-half { font-size: 0.85rem; }
+.ms-passage-meta { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+.ms-passage-sujet { font-size: 0.85rem; }
+.ms-passage-badge { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; }
+.ms-passage-badge.today, .ms-passage-badge.next { color: var(--accent-strong); font-weight: 600; }
+
+.ms-chart-wrap { width: 100%; overflow-x: auto; }
+.ms-chart { width: 100%; max-width: 640px; height: auto; display: block; }
+.ms-grid { stroke: var(--line); stroke-width: 1; }
+.ms-axis-label { fill: var(--text-muted); font-size: 12px; }
+.ms-axis-label.small { font-size: 10px; }
+.ms-avg-line { fill: none; stroke: var(--accent); stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
+.ms-pt { stroke: var(--bg-elev); stroke-width: 1.5; }
+.ms-pt.bad   { fill: var(--c-stop); }
+.ms-pt.warn  { fill: #C98A2B; }
+.ms-pt.ok    { fill: #7BA23C; }
+.ms-pt.great { fill: var(--c-go); }
+.ms-chart-legend { margin: 0.5rem 0 0; font-size: 0.85rem; }
