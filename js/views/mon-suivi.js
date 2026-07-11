@@ -1,7 +1,7 @@
-import { listStagiaires, listEvaluations, getPlanning, getHalfMetaForWeek, getSetting } from "../db.js?v=20260712c";
-import { el, clear, isoDate, getMonday, addDays, formatDate, displayStagiaire, compareByNom } from "../utils.js?v=20260712c";
-import { HALF_DAYS } from "../config.js?v=20260712c";
-import { isAdmin, getProfile } from "../auth-admin.js?v=20260712c";
+import { listStagiaires, listEvaluations, getPlanning, getHalfMetaForWeek, getSetting } from "../db.js?v=20260712d";
+import { el, clear, isoDate, getMonday, addDays, formatDate, displayStagiaire, compareByNom } from "../utils.js?v=20260712d";
+import { HALF_DAYS } from "../config.js?v=20260712d";
+import { isAdmin, getProfile } from "../auth-admin.js?v=20260712d";
 
 const HALF_ORDER = { matin: 0, aprem: 1 };
 
@@ -118,7 +118,7 @@ function buildChart(evals) {
   const innerW = W - padL - padR, innerH = H - padT - padB;
   const n = evals.length;
   const x = (i) => padL + (n === 1 ? innerW / 2 : (innerW * i) / (n - 1));
-  const y = (v) => padT + innerH * (1 - v / 20);
+  const y = (v) => padT + innerH * (1 - Math.max(0, Math.min(20, v)) / 20);
 
   const svg = svgEl("svg", { viewBox: `0 0 ${W} ${H}`, class: "ms-chart", role: "img" });
 
@@ -136,6 +136,7 @@ function buildChart(evals) {
   svg.appendChild(svgEl("polyline", { points: avgPts.join(" "), class: "ms-avg-line" }));
 
   // Points = notes individuelles + libellés de date
+  const labelStep = Math.ceil(n / 12);
   evals.forEach((e, i) => {
     const c = svgEl("circle", { cx: x(i), cy: y(e.norm), r: 5, class: "ms-pt " + avgTier(e.norm) });
     const title = svgEl("title");
@@ -144,9 +145,11 @@ function buildChart(evals) {
     c.appendChild(title);
     svg.appendChild(c);
 
-    const dl = svgEl("text", { x: x(i), y: H - padB + 18, "text-anchor": "middle", class: "ms-axis-label small" });
-    dl.textContent = formatDate(e.date_eval);
-    svg.appendChild(dl);
+    if (i % labelStep === 0 || i === n - 1) {
+      const dl = svgEl("text", { x: x(i), y: H - padB + 18, "text-anchor": "middle", class: "ms-axis-label small" });
+      dl.textContent = formatDate(e.date_eval);
+      svg.appendChild(dl);
+    }
   });
 
   return svg;
