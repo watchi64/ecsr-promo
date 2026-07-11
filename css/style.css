@@ -3205,6 +3205,10 @@ button.theme-date.editable.muted { color: var(--text-faint); }
 .valider-row.already { opacity: 0.6; background: var(--bg-subtle); cursor: default; }
 .valider-summary-head { margin: 0 0 0.5rem; font-size: 0.85rem; }
 .valider-row.valider-summary { cursor: default; }
+.valider-section { display: flex; flex-direction: column; gap: 0.3rem; margin-top: 0.9rem; }
+.valider-section:first-of-type { margin-top: 0; }
+.valider-section-head { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.4rem; }
+.valider-section-count { font-size: 0.8rem; font-weight: 600; color: var(--text-muted); }
 .valider-done { font-size: 0.76rem; color: var(--text-muted); font-style: italic; flex-shrink: 0; }
 .valider-already-head {
   margin-top: 0.5rem;

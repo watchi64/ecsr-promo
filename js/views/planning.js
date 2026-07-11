@@ -7,14 +7,14 @@ import {
   addPassagesBatch, deletePassagesBatch, getPassagesInRange, updateTheme,
   listBenevoles, listBenevolesNoms,
   getVoitureAggregats, listFiches,
-} from "../db.js?v=20260711b";
-import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260711b";
-import { icon } from "../icons.js?v=20260711b";
-import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260711b";
-import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260711b";
-import { recordUndo } from "../undo.js?v=20260711b";
-import { getCurrentWho } from "../identity.js?v=20260711b";
-import { openBenevolesPanel } from "./benevoles.js?v=20260711b";
+} from "../db.js?v=20260711c";
+import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260711c";
+import { icon } from "../icons.js?v=20260711c";
+import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260711c";
+import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260711c";
+import { recordUndo } from "../undo.js?v=20260711c";
+import { getCurrentWho } from "../identity.js?v=20260711c";
+import { openBenevolesPanel } from "./benevoles.js?v=20260711c";
 
 let stagiaires = [];
 let profs = [];
@@ -1879,24 +1879,35 @@ function renderValiderModal(toCreate, already, existKey, themeCandidates) {
   if (already.length) headText.push(" " + already.length + " déjà enregistré(s).");
   list.appendChild(el("p", { class: "valider-summary-head" }, ...headText));
 
-  const dayGroups = new Map(); // day_index -> { Voiture: string[], Salle: string[] }
-  toCreate.forEach((c) => {
-    if (!dayGroups.has(c.day_index)) dayGroups.set(c.day_index, { Voiture: [], Salle: [] });
-    dayGroups.get(c.day_index)[c.type].push(nameOf(c.stagiaire_id));
-  });
-  [...dayGroups.keys()].sort((a, b) => a - b).forEach((di) => {
-    const g = dayGroups.get(di);
-    const segments = [];
-    if (g.Voiture.length) segments.push("Voiture : " + g.Voiture.join(", "));
-    if (g.Salle.length) segments.push("Salle : " + g.Salle.join(", "));
-    list.appendChild(el("div", { class: "valider-row valider-summary" },
-      el("div", { class: "valider-row-top" },
-        el("span", { class: "valider-row-main" },
-          el("span", { class: "valider-row-name" }, dayLabel(di)),
-          el("span", { class: "valider-row-meta" }, segments.join(" — ")),
-        ),
+  // Deux sections distinctes Voiture puis Salle, chacune avec sa pastille
+  // colorée et ses lignes par jour, pour une séparation visuelle nette.
+  ["Voiture", "Salle"].forEach((type) => {
+    const ofType = toCreate.filter((c) => c.type === type);
+    if (!ofType.length) return;
+
+    const byDay = new Map(); // day_index -> noms
+    ofType.forEach((c) => {
+      if (!byDay.has(c.day_index)) byDay.set(c.day_index, []);
+      byDay.get(c.day_index).push(nameOf(c.stagiaire_id));
+    });
+
+    const section = el("div", { class: "valider-section" },
+      el("div", { class: "valider-section-head" },
+        el("span", { class: "tag " + (type === "Salle" ? "salle" : "voiture") }, type),
+        el("span", { class: "valider-section-count" }, ofType.length + " passage(s)"),
       ),
-    ));
+    );
+    [...byDay.keys()].sort((a, b) => a - b).forEach((di) => {
+      section.appendChild(el("div", { class: "valider-row valider-summary" },
+        el("div", { class: "valider-row-top" },
+          el("span", { class: "valider-row-main" },
+            el("span", { class: "valider-row-name" }, dayLabel(di)),
+            el("span", { class: "valider-row-meta" }, byDay.get(di).join(", ")),
+          ),
+        ),
+      ));
+    });
+    list.appendChild(section);
   });
 
   // Section « Thèmes traités » : marque les thèmes du planning comme Fait à la date du créneau
