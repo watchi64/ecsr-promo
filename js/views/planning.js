@@ -7,14 +7,14 @@ import {
   addPassagesBatch, deletePassagesBatch, getPassagesInRange, updateTheme,
   listBenevoles, listBenevolesNoms,
   getVoitureAggregats, listFiches, getSalleAggregats,
-} from "../db.js?v=20260711l";
-import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260711l";
-import { icon } from "../icons.js?v=20260711l";
-import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260711l";
-import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260711l";
-import { recordUndo } from "../undo.js?v=20260711l";
-import { getCurrentWho } from "../identity.js?v=20260711l";
-import { openBenevolesPanel } from "./benevoles.js?v=20260711l";
+} from "../db.js?v=20260711m";
+import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260711m";
+import { icon } from "../icons.js?v=20260711m";
+import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260711m";
+import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260711m";
+import { recordUndo } from "../undo.js?v=20260711m";
+import { getCurrentWho } from "../identity.js?v=20260711m";
+import { openBenevolesPanel } from "./benevoles.js?v=20260711m";
 
 let stagiaires = [];
 let profs = [];
@@ -2166,6 +2166,65 @@ function renderValiderModal(toCreate, already, existKey, themeCandidates) {
   document.body.appendChild(backdrop);
 }
 
+// Mémo des règles de placement, en langage simple, lisible par toute la promo.
+// ⚠️ À tenir à jour à chaque évolution des règles du planning.
+function buildRulesNote() {
+  const details = el("details", { class: "planning-rules" });
+  const li = (...c) => el("li", {}, ...c);
+  const b = (t) => el("strong", {}, t);
+  details.appendChild(el("summary", {}, "ℹ️ Comment marche le placement automatique ? (à lire)"));
+  const body = el("div", { class: "planning-rules-body" });
+
+  body.appendChild(el("p", {},
+    b("Les mots : "), "les 13 personnes de la promo sont des ", b("stagiaires"),
+    ". En salle, un stagiaire anime « au tableau » et 4 stagiaires « font les élèves ». ",
+    "En voiture, le seul vrai élève est ", b("l'élève bénévole"), " (un apprenti conducteur réel)."
+  ));
+
+  body.appendChild(el("p", {}, b("Les groupes = deux vagues.")));
+  body.appendChild(el("ul", {},
+    li("Tous les ", b("groupes 1"), " tournent en même temps, puis tous les ", b("groupes 2"), "."),
+    li("Un stagiaire peut donc apparaître dans les deux vagues (ex. élève en G1 puis élève en G2)."),
+    li("Interdit : être élève en G1 ", b("puis"), " au tableau en G2 (il faut le temps de préparer son animation) — ni deux animations d'affilée."),
+    li("Une personne au plus une fois par vague. Une carte « 1 groupe » occupe tout le créneau."),
+  ));
+
+  body.appendChild(el("p", {}, b("Places voiture (priorité, dans l'ordre) :")));
+  body.appendChild(el("ul", {},
+    li("D'abord ceux qui n'ont encore ", b("aucun passage"), " cette semaine (chacun au moins une place voiture ou tableau)."),
+    li("Maximum ", b("2 voitures par semaine"), " par stagiaire, et jamais deux jours d'affilée."),
+    li("Priorité à qui a fait le ", b("moins de séances avec un élève bénévole"), " (on rattrape le retard)."),
+    li("On favorise un bénévole dont le niveau correspond à ce que le stagiaire veut travailler (fiche « Mon suivi »)."),
+    li("À égalité, on varie les formateurs, puis c'est le hasard."),
+    li("Une voiture occupe toute la demi-journée : ce stagiaire n'est placé nulle part ailleurs sur cette demi-journée."),
+  ));
+
+  body.appendChild(el("p", {}, b("Au tableau (salle) :")));
+  body.appendChild(el("ul", {},
+    li("D'abord ceux qui n'ont encore aucun passage cette semaine, puis les moins passés au tableau (retard des semaines passées compté)."),
+  ));
+
+  body.appendChild(el("p", {}, b("Stagiaires qui font les élèves (salle) :")));
+  body.appendChild(el("ul", {},
+    li("Toujours ", b("4 par groupe"), " quand c'est possible."),
+    li("Réparti au plus juste : ", b("un écart de 1 maximum"), " entre stagiaires sur la semaine. Deux jours d'affilée autorisés."),
+  ));
+
+  body.appendChild(el("p", {}, b("Les boutons :")));
+  body.appendChild(el("ul", {},
+    li(b("🎲 Placer la semaine"), " : remplit les tableaux d'abord, puis les élèves (demande confirmation, annulable par Ctrl+Z)."),
+    li(b("🧹 Vider les placements"), " : retire tous les stagiaires de la semaine, mais garde activités, formateurs, sujets, notes et élèves bénévoles."),
+    li(b("Valider la semaine"), " : le planning fait foi — tout est enregistré comme « effectué ». Une absence ou un cas particulier ? Corrige ensuite dans l'onglet Passages."),
+  ));
+
+  body.appendChild(el("p", { class: "planning-rules-foot" },
+    "S'il reste des places vides après un placement, c'est qu'il n'y a pas assez de stagiaires disponibles pour ce créneau (ex. deux salles à 2 groupes en même temps = 20 places pour 13 stagiaires). C'est normal, pas un bug."
+  ));
+
+  details.appendChild(body);
+  return details;
+}
+
 function renderInto(container) {
   currentContainer = container;
   clear(container);
@@ -2251,6 +2310,7 @@ function renderInto(container) {
   }
   weekBar.appendChild(printBtn);
   container.appendChild(weekBar);
+  container.appendChild(buildRulesNote());
 
   const wrap = el("div", { class: "p-days" });
   JOURS.forEach((_, d) => wrap.appendChild(renderDayCard(d, monday)));

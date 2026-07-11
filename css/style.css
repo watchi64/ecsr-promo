@@ -5836,3 +5836,13 @@ body.qcm-open { overflow: hidden; }
 .suivi-card-tags { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-bottom: 0.4rem; }
 .suivi-card-tags .tag { background: var(--accent-soft); color: var(--accent-strong); }
 .suivi-card-besoins { margin: 0; font-size: 0.88rem; color: var(--text-muted); }
+
+/* === Mémo des règles de placement (planning) === */
+.planning-rules { margin: 0.6rem 0 0.2rem; background: var(--bg-subtle); border: 1px solid var(--line); border-radius: var(--r); padding: 0.55rem 0.9rem; font-size: 0.9rem; }
+.planning-rules > summary { cursor: pointer; font-weight: 600; color: var(--text-muted); list-style: none; }
+.planning-rules > summary::-webkit-details-marker { display: none; }
+.planning-rules[open] > summary { margin-bottom: 0.5rem; color: var(--text); }
+.planning-rules-body p { margin: 0.55rem 0 0.2rem; }
+.planning-rules-body ul { margin: 0.1rem 0 0.4rem; padding-left: 1.2rem; }
+.planning-rules-body li { margin: 0.15rem 0; line-height: 1.4; }
+.planning-rules-foot { margin-top: 0.7rem; padding-top: 0.5rem; border-top: 1px dashed var(--line); color: var(--text-muted); font-style: italic; }
