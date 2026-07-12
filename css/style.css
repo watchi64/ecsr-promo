@@ -5856,3 +5856,11 @@ body.qcm-open { overflow: hidden; }
 .ms-pt.ok    { fill: #7BA23C; }
 .ms-pt.great { fill: var(--c-go); }
 .ms-chart-legend { margin: 0.5rem 0 0; font-size: 0.85rem; }
+
+/* ===== Mon suivi — fiche souhaits + historique ===== */
+.suivi-histo { background: var(--bg-subtle); border-radius: var(--r); padding: 0.9rem 1.1rem; }
+.suivi-comps { margin-top: 0.25rem; }
+.suivi-comp { border: 1px solid var(--line); border-radius: var(--r-sm); padding: 0.45rem 0.7rem; margin-bottom: 0.5rem; }
+.suivi-comp summary { cursor: pointer; }
+.suivi-comp-main { font-weight: 600; }
+.suivi-souscomp { display: block; padding: 0.25rem 0 0.25rem 1.6rem; }
