@@ -1,11 +1,11 @@
 import {
   listRessources, addRessource, updateRessource, deleteRessource,
   listContacts, addContact, updateContact, deleteContact,
-} from "../db.js?v=20260712i";
-import { el, clear, toast } from "../utils.js?v=20260712i";
-import { icon } from "../icons.js?v=20260712i";
-import { isAdmin } from "../auth-admin.js?v=20260712i";
-import { recordUndo } from "../undo.js?v=20260712i";
+} from "../db.js?v=20260712k";
+import { el, clear, toast } from "../utils.js?v=20260712k";
+import { icon } from "../icons.js?v=20260712k";
+import { isAdmin } from "../auth-admin.js?v=20260712k";
+import { recordUndo } from "../undo.js?v=20260712k";
 
 let ressources = [];
 let contacts = [];

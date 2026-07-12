@@ -565,25 +565,6 @@ h3 {
   gap: 0.5rem;
 }
 
-.avg-pill {
-  display: inline-flex;
-  align-items: baseline;
-  padding: 0.2rem 0.55rem;
-  border-radius: 999px;
-  font-family: var(--font-mono);
-  font-weight: 700;
-  font-size: 0.95rem;
-  flex-shrink: 0;
-}
-.avg-pill .avg-num { letter-spacing: -0.01em; }
-.avg-pill .avg-max { font-size: 0.7rem; opacity: 0.6; font-weight: 400; margin-left: 1px; }
-
-.avg-pill.great { background: var(--c-go-soft); color: var(--c-go); }
-.avg-pill.ok    { background: var(--accent-soft); color: var(--accent); }
-.avg-pill.warn  { background: var(--c-wait-soft); color: var(--c-wait); }
-.avg-pill.bad   { background: var(--c-stop-soft); color: var(--c-stop); }
-.avg-pill.muted { background: var(--bg-subtle); color: var(--text-muted); font-weight: 400; }
-
 .dashboard-stats {
   display: flex;
   gap: 0.4rem;
