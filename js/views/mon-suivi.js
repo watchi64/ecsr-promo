@@ -1,9 +1,18 @@
-import { listStagiaires, listEvaluations, getPlanning, getHalfMetaForWeek, getJoursOff, getSetting } from "../db.js?v=20260712g";
-import { el, clear, isoDate, getMonday, addDays, formatDate, displayStagiaire, compareByNom } from "../utils.js?v=20260712g";
-import { HALF_DAYS } from "../config.js?v=20260712g";
-import { isAdmin, getProfile } from "../auth-admin.js?v=20260712g";
+import { listStagiaires, listEvaluations, getPlanning, getHalfMetaForWeek, getJoursOff, getSetting,
+         listFiches, upsertFiche, getVoitureAggregats, listProfs } from "../db.js?v=20260712h";
+import { el, clear, isoDate, getMonday, addDays, formatDate, displayStagiaire, compareByNom, toast } from "../utils.js?v=20260712h";
+import { HALF_DAYS } from "../config.js?v=20260712h";
+import { isAdmin, getProfile } from "../auth-admin.js?v=20260712h";
+import { getCurrentWho } from "../identity.js?v=20260712h";
+import { COMPETENCES_REMC } from "./benevoles.js?v=20260712h";
 
 const HALF_ORDER = { matin: 0, aprem: 1 };
+
+// Fiches/agrégats/profs : chargés une fois par rendu (indépendants de l'élève sélectionné).
+let fiches = [];
+let aggregats = {};
+let profs = [];
+const ficheOf = (sid) => fiches.find((f) => f.stagiaire_id === sid) || { stagiaire_id: sid, souhaits: [] };
 
 function halfLabel(half) { return half === "matin" ? "Matin" : "Après-midi"; }
 function fmtTime(t) { return t ? String(t).slice(0, 5) : null; }        // "09:00:00" -> "09:00"
@@ -216,6 +225,58 @@ function renderChartSection(evaluations) {
   return section;
 }
 
+function renderFicheSection(id, onSaved) {
+  const fiche = ficheOf(id);
+  const selected = new Set(fiche.souhaits || []);
+
+  const section = el("section", { class: "ms-section" },
+    el("h3", { class: "ms-section-title" }, "Mes souhaits de compétences (permis B)"));
+
+  const comps = el("div", { class: "suivi-comps" });
+  COMPETENCES_REMC.forEach((c) => {
+    const det = el("details", { class: "suivi-comp" });
+    const mainCb = el("input", { type: "checkbox" });
+    mainCb.checked = selected.has(c.code);
+    mainCb.addEventListener("change", () => { mainCb.checked ? selected.add(c.code) : selected.delete(c.code); });
+    mainCb.addEventListener("click", (ev) => ev.stopPropagation());  // ne pas replier l'accordéon
+    det.appendChild(el("summary", {}, el("label", { class: "suivi-comp-main" }, mainCb, ` ${c.code} · ${c.titre}`)));
+    c.sous.forEach(([code, libelle]) => {
+      const cb = el("input", { type: "checkbox" });
+      cb.checked = selected.has(code);
+      cb.addEventListener("change", () => { cb.checked ? selected.add(code) : selected.delete(code); });
+      det.appendChild(el("label", { class: "suivi-souscomp" }, cb, ` ${code} · ${libelle}`));
+    });
+    comps.appendChild(det);
+  });
+  section.appendChild(comps);
+
+  const saveBtn = el("button", { class: "btn primary", onClick: async () => {
+    try {
+      await upsertFiche({ stagiaire_id: id, souhaits: [...selected].sort(), updated_by_who: getCurrentWho() });
+      toast("Souhaits enregistrés", "success", 2000);
+      fiches = await listFiches();
+      if (onSaved) onSaved();
+    } catch (e) { console.error(e); toast(e.message, "error"); }
+  } }, "Enregistrer mes souhaits");
+  section.appendChild(el("div", { style: "margin-top:0.75rem" }, saveBtn));
+
+  return section;
+}
+
+function renderHistoriqueSection(id) {
+  const a = aggregats[id] || { total: 0, avecEleve: 0, byProf: {} };
+  const profLine = Object.entries(a.byProf)
+    .map(([pid, n]) => `${profs.find((p) => p.id === Number(pid))?.nom || "?"} ×${n}`)
+    .join(" · ") || "—";
+  return el("section", { class: "ms-section" },
+    el("h3", { class: "ms-section-title" }, "Historique voiture"),
+    el("div", { class: "suivi-histo" },
+      el("p", {}, `${a.total} passage(s) · dont ${a.avecEleve} avec élève`),
+      el("p", { class: "muted" }, "Formateurs : " + profLine),
+    ),
+  );
+}
+
 export async function renderMonSuivi(container) {
   clear(container);
   container.appendChild(el("div", { class: "loading" }, "Chargement"));
@@ -224,6 +285,10 @@ export async function renderMonSuivi(container) {
   const needSelector = isAdmin() || myId == null;
 
   let stagiaires = [];
+  const [fichesData, aggregatsData, profsData] = await Promise.all([
+    listFiches(), getVoitureAggregats(), listProfs(),
+  ]);
+  fiches = fichesData; aggregats = aggregatsData; profs = profsData;
   if (needSelector) stagiaires = (await listStagiaires()).slice().sort(compareByNom);
   const selectedId = myId ?? (stagiaires[0]?.id ?? null);
 
@@ -254,6 +319,8 @@ export async function renderMonSuivi(container) {
     ]);
     clear(body);
     body.appendChild(renderPassagesSection(items));
+    body.appendChild(renderFicheSection(id, () => renderFor(id)));
+    body.appendChild(renderHistoriqueSection(id));
     body.appendChild(renderChartSection(evaluations));
   }
 
