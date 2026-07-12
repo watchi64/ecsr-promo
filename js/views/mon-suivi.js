@@ -1,7 +1,7 @@
-import { listStagiaires, listEvaluations, getPlanning, getHalfMetaForWeek, getSetting } from "../db.js?v=20260712e";
-import { el, clear, isoDate, getMonday, addDays, formatDate, displayStagiaire, compareByNom } from "../utils.js?v=20260712e";
-import { HALF_DAYS } from "../config.js?v=20260712e";
-import { isAdmin, getProfile } from "../auth-admin.js?v=20260712e";
+import { listStagiaires, listEvaluations, getPlanning, getHalfMetaForWeek, getJoursOff, getSetting } from "../db.js?v=20260712f";
+import { el, clear, isoDate, getMonday, addDays, formatDate, displayStagiaire, compareByNom } from "../utils.js?v=20260712f";
+import { HALF_DAYS } from "../config.js?v=20260712f";
+import { isAdmin, getProfile } from "../auth-admin.js?v=20260712f";
 
 const HALF_ORDER = { matin: 0, aprem: 1 };
 
@@ -20,11 +20,52 @@ function dayDateLabel(date) {
   return capitalize(date.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" }));
 }
 
+// Jours fériés français (calculés) + jours désactivés manuellement — même logique que le planning.
+function easterSunday(year) {
+  const a = year % 19, b = Math.floor(year / 100), c = year % 100;
+  const d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25);
+  const g = Math.floor((b - f + 1) / 3), h = (19 * a + b - d - g + 15) % 30;
+  const i = Math.floor(c / 4), k = c % 4, l = (32 + 2 * e + 2 * i - h - k) % 7;
+  const m = Math.floor((a + 11 * h + 22 * l) / 451);
+  const month = Math.floor((h + l - 7 * m + 114) / 31);
+  const day = ((h + l - 7 * m + 114) % 31) + 1;
+  return new Date(year, month - 1, day);
+}
+
+const _holidayCache = {};
+function frenchHolidays(year) {
+  if (_holidayCache[year]) return _holidayCache[year];
+  const map = {};
+  const add = (dt, label) => { map[isoDate(dt)] = label; };
+  add(new Date(year, 0, 1), "Jour de l'an");
+  add(new Date(year, 4, 1), "Fête du Travail");
+  add(new Date(year, 4, 8), "Victoire 1945");
+  add(new Date(year, 6, 14), "Fête nationale");
+  add(new Date(year, 7, 15), "Assomption");
+  add(new Date(year, 10, 1), "Toussaint");
+  add(new Date(year, 10, 11), "Armistice");
+  add(new Date(year, 11, 25), "Noël");
+  const easter = easterSunday(year);
+  add(addDays(easter, 1), "Lundi de Pâques");
+  add(addDays(easter, 39), "Ascension");
+  add(addDays(easter, 50), "Lundi de Pentecôte");
+  _holidayCache[year] = map;
+  return map;
+}
+
+// Un jour (index 0..n) de la semaine commençant à `monday` est-il désactivé (manuel) ou férié ?
+function dayIsOff(joursOff, monday, day_index) {
+  if ((joursOff || []).some((j) => j.day_index === day_index)) return true;
+  const date = addDays(monday, day_index);
+  return Boolean(frenchHolidays(date.getFullYear())[isoDate(date)]);
+}
+
 // Applique la MÊME règle métier que « Valider la semaine » :
 // Pédagogie salle -> pédagogue au tableau = Salle ; Voiture (conduite) -> chaque élève = Voiture.
-function extractMyPassages(entries, metas, monday, id) {
+function extractMyPassages(entries, metas, monday, id, joursOff) {
   const out = [];
   (entries || []).forEach((e) => {
+    if (dayIsOff(joursOff, monday, e.day_index)) return;
     let type = null;
     if (e.activite === "Pédagogie salle" &&
         (e.pedagogue_id === id || (e.salle_double && e.pedagogue_id_2 === id))) {
@@ -49,12 +90,12 @@ async function loadUpcoming(id) {
   const monday1 = new Date(mondayIso + "T00:00:00");
   const nextIso = isoDate(addDays(monday1, 7));
   const monday2 = new Date(nextIso + "T00:00:00");
-  const [e1, m1, e2, m2] = await Promise.all([
-    getPlanning(mondayIso), getHalfMetaForWeek(mondayIso),
-    getPlanning(nextIso),   getHalfMetaForWeek(nextIso),
+  const [e1, m1, off1, e2, m2, off2] = await Promise.all([
+    getPlanning(mondayIso), getHalfMetaForWeek(mondayIso), getJoursOff(mondayIso),
+    getPlanning(nextIso),   getHalfMetaForWeek(nextIso),   getJoursOff(nextIso),
   ]);
-  let items = extractMyPassages(e1, m1, monday1, id);
-  if (e2 && e2.length) items = items.concat(extractMyPassages(e2, m2, monday2, id));
+  let items = extractMyPassages(e1, m1, monday1, id, off1);
+  if (e2 && e2.length) items = items.concat(extractMyPassages(e2, m2, monday2, id, off2));
   items.sort((a, b) =>
     a.iso.localeCompare(b.iso) ||
     (HALF_ORDER[a.half_day] - HALF_ORDER[b.half_day]) ||
