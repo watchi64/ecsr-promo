@@ -15,9 +15,9 @@
 import {
   getCurrentUser, signOut, onAuthChange,
   getMyProfile, listStagiaires, listProfs,
-} from "./db.js?v=20260712f";
-import { el, toast, displayStagiaire } from "./utils.js?v=20260712f";
-import { icon } from "./icons.js?v=20260712f";
+} from "./db.js?v=20260712g";
+import { el, toast, displayStagiaire } from "./utils.js?v=20260712g";
+import { icon } from "./icons.js?v=20260712g";
 
 let currentUser = null;     // Supabase auth user
 let currentProfile = null;  // row user_profiles

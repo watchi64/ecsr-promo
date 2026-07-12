@@ -1,7 +1,7 @@
-import { listStagiaires, listEvaluations, getPlanning, getHalfMetaForWeek, getJoursOff, getSetting } from "../db.js?v=20260712f";
-import { el, clear, isoDate, getMonday, addDays, formatDate, displayStagiaire, compareByNom } from "../utils.js?v=20260712f";
-import { HALF_DAYS } from "../config.js?v=20260712f";
-import { isAdmin, getProfile } from "../auth-admin.js?v=20260712f";
+import { listStagiaires, listEvaluations, getPlanning, getHalfMetaForWeek, getJoursOff, getSetting } from "../db.js?v=20260712g";
+import { el, clear, isoDate, getMonday, addDays, formatDate, displayStagiaire, compareByNom } from "../utils.js?v=20260712g";
+import { HALF_DAYS } from "../config.js?v=20260712g";
+import { isAdmin, getProfile } from "../auth-admin.js?v=20260712g";
 
 const HALF_ORDER = { matin: 0, aprem: 1 };
 
