@@ -1,12 +1,12 @@
 // Vue EPCF (formateurs/admin) : liste des stagiaires × trames, saisie de grille,
 // vue classe. Les stagiaires n'y ont pas accès (garde + onglet masqué + RLS).
 
-import { listStagiaires, listProfs, listEpcf, upsertEpcf } from "../db.js?v=20260714e";
-import { el, clear, isoDate, formatDate, displayStagiaire, compareByNom, toast } from "../utils.js?v=20260714e";
-import { isAdmin, isProf, getProfile } from "../auth-admin.js?v=20260714e";
-import { getCurrentWho } from "../identity.js?v=20260714e";
-import { EPCF_TRAMES, NOTE_LABELS, NOTE_VALUES } from "../epcf-trames.js?v=20260714e";
-import { phaseScoreFromMoyennes } from "../epcf-restitution.js?v=20260714e";
+import { listStagiaires, listProfs, listEpcf, upsertEpcf } from "../db.js?v=20260714f";
+import { el, clear, isoDate, formatDate, displayStagiaire, compareByNom, toast } from "../utils.js?v=20260714f";
+import { isAdmin, isProf, getProfile } from "../auth-admin.js?v=20260714f";
+import { getCurrentWho } from "../identity.js?v=20260714f";
+import { EPCF_TRAMES, NOTE_LABELS, NOTE_VALUES } from "../epcf-trames.js?v=20260714f";
+import { phaseScoreFromMoyennes } from "../epcf-restitution.js?v=20260714f";
 
 let stagiaires = [];
 let profs = [];
@@ -185,16 +185,19 @@ function showForm(body, stagiaire, trameKey, existing) {
         commentaire: commentTa.value.trim() || null,
         updated_by_who: getCurrentWho(),
       });
-      toast("Évaluation enregistrée", "success", 2000);
-      evals = await listEpcf();
-      dirty = false;
-      showListe(body);
     } catch (e) {
       console.error(e);
       toast(e?.message || String(e), "error");
       saveBtn.disabled = false;
       saveBtn.textContent = prev;
+      return;
     }
+    // L'éval est écrite : plus de retour en arrière possible sur ce bouton.
+    toast("Évaluation enregistrée", "success", 2000);
+    dirty = false;
+    try { evals = await listEpcf(); }
+    catch (e) { console.error(e); }   // liste potentiellement périmée, la nav la rechargera
+    showListe(body);
   } }, "Enregistrer l'évaluation");
   body.appendChild(el("div", { class: "epcf-actions" }, saveBtn));
 }
