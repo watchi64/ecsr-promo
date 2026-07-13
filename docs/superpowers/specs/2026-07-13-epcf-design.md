@@ -24,9 +24,11 @@ Décisions actées avec l'utilisateur (13/07) :
   détail par critère est affiché sous le radar).
 - Saisie dans un **onglet « EPCF »** réservé profs/admin ; restitution stagiaire dans **Mon suivi**.
 - Lot 1 = base seule. Auto-éval, superposition historique et export PDF jury = lot 2.
-- Dans Mon suivi : la section « Mes souhaits de compétences (permis B) » est **retirée**
-  (l'EPCF la remplace comme outil de suivi personnalisé) ; le champ « Mes besoins du
-  moment » est **conservé** (parole de l'élève, complémentaire du regard formateur).
+- Dans Mon suivi : la section fiche (« Mes souhaits de compétences (permis B) ») est
+  **retirée entièrement** — l'EPCF la remplace comme outil de suivi personnalisé.
+  Le champ « Mes besoins du moment » (prototype du 13/07 matin) est **mis de côté**
+  (décision 13/07 soir) : l'auto-évaluation EPCF (lot 2) portera la parole de l'élève.
+  Patch de sauvegarde : `ECSR/backups/besoins_prof_tooltip_2026-07-13.patch`.
 
 ## 2. Les trames (contenu officiel de la grille d'Hocine)
 
@@ -214,12 +216,12 @@ Nouvelle section « **Mes EPCF** » (entre les passages à venir et l'historique
 
 ### Modifications de Mon suivi (même lot)
 
-- **Retrait** de la section « Mes souhaits de compétences (permis B) » (les checkboxes
-  REMC). Le champ « **Mes besoins du moment** » (textarea) est **conservé**, avec son
-  bouton d'enregistrement (libellé ajusté : « Enregistrer mes besoins »).
+- **Retrait complet** de la section fiche (`renderFicheSection`) : checkboxes souhaits
+  ET bouton d'enregistrement. Le chargement `listFiches`/`upsertFiche` disparaît de la
+  vue ; les fonctions restent dans db.js (réutilisables). Les colonnes `souhaits` et
+  `besoins` et leurs données restent en base — retrait purement UI.
 - Avant retrait, vérifier qu'aucune autre vue ne consomme `fiches_suivi.souhaits`
-  (la vue Bénévoles / placement auto notamment). La colonne DB et les données restent
-  en place — retrait purement UI.
+  (la vue Bénévoles / placement auto notamment).
 
 ## 6. Accès aux données (db.js)
 
