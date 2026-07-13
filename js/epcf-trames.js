@@ -104,7 +104,7 @@ export const EPCF_TRAMES = {
       },
       {
         code: "EVAL", court: "Évaluations",
-        titre: "Évaluation générale statique · Évaluation spécifique statique · Évaluation finale",
+        titre: "Évaluations statiques · Évaluation finale",
         competenceTP: "4 — Évaluer le degré d'acquisition des compétences des apprenants",
         criteres: [
           { code: "EVAL1", libelle: "Explique-t-il l'intérêt de l'évaluation ?" },
