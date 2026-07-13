@@ -1,9 +1,9 @@
 import { listStagiaires, listEvaluations, getPlanning, getHalfMetaForWeek, getJoursOff, getSetting,
-         getVoitureAggregats, listProfs, listEpcf, getEpcfMoyennes } from "../db.js?v=20260714d";
-import { el, clear, isoDate, getMonday, addDays, formatDate, displayStagiaire, compareByNom } from "../utils.js?v=20260714d";
-import { HALF_DAYS } from "../config.js?v=20260714d";
-import { isAdmin, getProfile } from "../auth-admin.js?v=20260714d";
-import { renderEpcfTrameSection } from "../epcf-restitution.js?v=20260714d";
+         getVoitureAggregats, listProfs, listEpcf, getEpcfMoyennes } from "../db.js?v=20260714e";
+import { el, clear, isoDate, getMonday, addDays, formatDate, displayStagiaire, compareByNom } from "../utils.js?v=20260714e";
+import { HALF_DAYS } from "../config.js?v=20260714e";
+import { isAdmin, getProfile } from "../auth-admin.js?v=20260714e";
+import { renderEpcfTrameSection } from "../epcf-restitution.js?v=20260714e";
 
 const HALF_ORDER = { matin: 0, aprem: 1 };
 
@@ -295,14 +295,12 @@ export async function renderMonSuivi(container) {
   container.appendChild(body);
 
   // Garde anti-race : chaque rendu obtient un jeton ; après l'await, si un rendu plus
-  // récent a démarré (changement d'élève, ré-affichage post-save), on abandonne pour ne
-  // pas écraser le corps avec les données d'un élève qui n'est plus sélectionné.
+  // récent a démarré (changement d'élève), on abandonne pour ne pas écraser le corps
+  // avec les données d'un élève qui n'est plus sélectionné.
   let renderToken = 0;
-  let currentId = selectedId;
 
   async function renderFor(id) {
     const token = ++renderToken;
-    currentId = id;
     clear(body);
     if (id == null) {
       body.appendChild(el("p", { class: "muted" }, "Aucun stagiaire sélectionné."));
