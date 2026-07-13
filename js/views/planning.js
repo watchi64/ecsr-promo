@@ -6,14 +6,14 @@ import {
   getSetting, setSetting,
   addPassagesBatch, deletePassagesBatch, getPassagesInRange, updateTheme,
   listBenevoles, listBenevolesNoms,
-} from "../db.js?v=20260713g";
-import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260713g";
-import { icon } from "../icons.js?v=20260713g";
-import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260713g";
-import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260713g";
-import { recordUndo } from "../undo.js?v=20260713g";
-import { getCurrentWho } from "../identity.js?v=20260713g";
-import { openBenevolesPanel } from "./benevoles.js?v=20260713g";
+} from "../db.js?v=20260713h";
+import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260713h";
+import { icon } from "../icons.js?v=20260713h";
+import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260713h";
+import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260713h";
+import { recordUndo } from "../undo.js?v=20260713h";
+import { getCurrentWho } from "../identity.js?v=20260713h";
+import { openBenevolesPanel } from "./benevoles.js?v=20260713h";
 
 let stagiaires = [];
 let profs = [];
