@@ -1,18 +1,17 @@
 import { listStagiaires, listEvaluations, getPlanning, getHalfMetaForWeek, getJoursOff, getSetting,
-         listFiches, upsertFiche, getVoitureAggregats, listProfs } from "../db.js?v=20260713n";
-import { el, clear, isoDate, getMonday, addDays, formatDate, displayStagiaire, compareByNom, toast } from "../utils.js?v=20260713n";
-import { HALF_DAYS } from "../config.js?v=20260713n";
-import { isAdmin, getProfile } from "../auth-admin.js?v=20260713n";
-import { getCurrentWho } from "../identity.js?v=20260713n";
-import { COMPETENCES_REMC } from "./benevoles.js?v=20260713n";
+         getVoitureAggregats, listProfs, listEpcf, getEpcfMoyennes } from "../db.js?v=20260714a";
+import { el, clear, isoDate, getMonday, addDays, formatDate, displayStagiaire, compareByNom } from "../utils.js?v=20260714a";
+import { HALF_DAYS } from "../config.js?v=20260714a";
+import { isAdmin, getProfile } from "../auth-admin.js?v=20260714a";
+import { renderEpcfTrameSection } from "../epcf-restitution.js?v=20260714a";
 
 const HALF_ORDER = { matin: 0, aprem: 1 };
 
-// Fiches/agrégats/profs : chargés une fois par rendu (indépendants de l'élève sélectionné).
-let fiches = [];
+// Agrégats/profs/moyennes EPCF : chargés une fois par rendu (indépendants de l'élève sélectionné).
 let aggregats = {};
 let profs = [];
-const ficheOf = (sid) => fiches.find((f) => f.stagiaire_id === sid) || { stagiaire_id: sid, souhaits: [] };
+let moySalle = [];
+let moyVehicule = [];
 
 // Noms des formateurs d'un passage : prof_ids (résolus via `profs`) + prof_autre (texte libre).
 function profNamesFor(prof_ids, prof_autre) {
@@ -252,57 +251,6 @@ function renderChartSection(evaluations) {
   return section;
 }
 
-function renderFicheSection(id, onSaved) {
-  const fiche = ficheOf(id);
-  const selected = new Set(fiche.souhaits || []);
-
-  const section = el("section", { class: "ms-section" },
-    el("h3", { class: "ms-section-title" }, "Mes souhaits de compétences (permis B)"));
-
-  const comps = el("div", { class: "suivi-comps" });
-  COMPETENCES_REMC.forEach((c) => {
-    const det = el("details", { class: "suivi-comp" });
-    const mainCb = el("input", { type: "checkbox" });
-    mainCb.checked = selected.has(c.code);
-    mainCb.setAttribute("aria-label", `${c.code} ${c.titre}`);
-    mainCb.addEventListener("change", () => { mainCb.checked ? selected.add(c.code) : selected.delete(c.code); });
-    mainCb.addEventListener("click", (ev) => ev.stopPropagation());  // cocher ne (dé)plie pas l'accordéon
-    // Case + titre en frères directs du <summary> (le titre N'enveloppe PAS la case) :
-    // cliquer le titre déplie l'accordéon, cliquer la case coche uniquement.
-    det.appendChild(el("summary", { class: "suivi-comp-summary" },
-      mainCb, el("span", { class: "suivi-comp-main" }, ` ${c.code} · ${c.titre}`)));
-    c.sous.forEach(([code, libelle]) => {
-      const cb = el("input", { type: "checkbox" });
-      cb.checked = selected.has(code);
-      cb.addEventListener("change", () => { cb.checked ? selected.add(code) : selected.delete(code); });
-      det.appendChild(el("label", { class: "suivi-souscomp" }, cb, ` ${code} · ${libelle}`));
-    });
-    comps.appendChild(det);
-  });
-  section.appendChild(comps);
-
-  const saveBtn = el("button", { class: "btn primary", onClick: async () => {
-    saveBtn.disabled = true;                       // évite double-clic et fenêtre de race pendant le save
-    const prevLabel = saveBtn.textContent;
-    saveBtn.textContent = "Enregistrement…";
-    try {
-      await upsertFiche({ stagiaire_id: id, souhaits: [...selected].sort(), updated_by_who: getCurrentWho() });
-      toast("Souhaits enregistrés", "success", 2000);
-      fiches = await listFiches();
-      if (onSaved) onSaved();                       // ré-affiche la section (ce bouton est alors remplacé)
-      else { saveBtn.disabled = false; saveBtn.textContent = prevLabel; }
-    } catch (e) {
-      console.error(e);
-      toast(e.message, "error");
-      saveBtn.disabled = false;                     // pas de ré-affichage sur erreur : on réactive
-      saveBtn.textContent = prevLabel;
-    }
-  } }, "Enregistrer mes souhaits");
-  section.appendChild(el("div", { style: "margin-top:0.75rem" }, saveBtn));
-
-  return section;
-}
-
 function renderHistoriqueSection(id) {
   const a = aggregats[id] || { total: 0, avecEleve: 0, byProf: {} };
   const profLine = Object.entries(a.byProf)
@@ -325,10 +273,10 @@ export async function renderMonSuivi(container) {
   const needSelector = isAdmin() || myId == null;
 
   let stagiaires = [];
-  const [fichesData, aggregatsData, profsData] = await Promise.all([
-    listFiches(), getVoitureAggregats(), listProfs(),
+  const [aggregatsData, profsData, moySalleData, moyVehiculeData] = await Promise.all([
+    getVoitureAggregats(), listProfs(), getEpcfMoyennes("salle"), getEpcfMoyennes("vehicule"),
   ]);
-  fiches = fichesData; aggregats = aggregatsData; profs = profsData;
+  aggregats = aggregatsData; profs = profsData; moySalle = moySalleData; moyVehicule = moyVehiculeData;
   if (needSelector) stagiaires = (await listStagiaires()).slice().sort(compareByNom);
   const selectedId = myId ?? (stagiaires[0]?.id ?? null);
 
@@ -361,17 +309,21 @@ export async function renderMonSuivi(container) {
       return;
     }
     body.appendChild(el("div", { class: "loading" }, "Chargement"));
-    const [items, evaluations] = await Promise.all([
+    const [items, evaluations, epcfEvals] = await Promise.all([
       loadUpcoming(id),
       listEvaluations({ stagiaire_id: id }),
+      listEpcf({ stagiaire_id: id }),
     ]);
     if (token !== renderToken) return;   // un rendu plus récent a pris la main
     clear(body);
     body.appendChild(renderPassagesSection(items));
-    // Après un enregistrement, on ré-affiche l'élève COURANT (currentId), pas l'id figé au
-    // moment du rendu : si l'admin a changé de sélection pendant la sauvegarde, on n'affiche
-    // pas l'ancien élève sous un sélecteur qui en montre un autre.
-    body.appendChild(renderFicheSection(id, () => renderFor(currentId)));
+    const epcfSection = el("section", { class: "ms-section" },
+      el("h3", { class: "ms-section-title" }, "Mes EPCF"));
+    epcfSection.appendChild(renderEpcfTrameSection("salle",
+      epcfEvals.filter((e) => e.trame === "salle"), moySalle));
+    epcfSection.appendChild(renderEpcfTrameSection("vehicule",
+      epcfEvals.filter((e) => e.trame === "vehicule"), moyVehicule));
+    body.appendChild(epcfSection);
     body.appendChild(renderHistoriqueSection(id));
     body.appendChild(renderChartSection(evaluations));
   }
