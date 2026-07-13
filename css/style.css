@@ -5904,11 +5904,15 @@ body.qcm-open { overflow: hidden; }
 .epcf-classe-lib { font-size: 0.85rem; }
 .epcf-classe-phase td { background: var(--bg-subtle); }
 
-/* ===== EPCF — responsive mobile (même seuil que .passages-table-wrap) ===== */
+/* ===== EPCF — responsive mobile. Bloc SÉPARÉ du @media principal (plus haut dans le
+   fichier) : placé APRÈS les règles EPCF pour gagner la cascade à spécificité égale.
+   Toute règle mobile EPCF doit venir ICI, jamais dans le @media principal (sinon la
+   règle d'ici l'écraserait silencieusement). Même seuil maison : 760px. ===== */
 @media (max-width: 760px) {
   .epcf-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
   .epcf-cell { white-space: normal; }
   .epcf-cell .btn { margin: 0.2rem 0.3rem 0 0; }
   .epcf-form-row { flex-direction: column; align-items: flex-start; gap: 0.35rem; }
   .epcf-seg { align-self: flex-end; }
+  .epcf-radar-label { font-size: 14px; }  /* unités du viewBox : compense l'échelle ~0.8 à 375px → ~11px affichés */
 }

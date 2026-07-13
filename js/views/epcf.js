@@ -1,12 +1,12 @@
 // Vue EPCF (formateurs/admin) : liste des stagiaires × trames, saisie de grille,
 // vue classe. Les stagiaires n'y ont pas accès (garde + onglet masqué + RLS).
 
-import { listStagiaires, listProfs, listEpcf, upsertEpcf } from "../db.js?v=20260714c";
-import { el, clear, isoDate, formatDate, displayStagiaire, compareByNom, toast } from "../utils.js?v=20260714c";
-import { isAdmin, isProf, getProfile } from "../auth-admin.js?v=20260714c";
-import { getCurrentWho } from "../identity.js?v=20260714c";
-import { EPCF_TRAMES, NOTE_LABELS, NOTE_VALUES } from "../epcf-trames.js?v=20260714c";
-import { phaseScoreFromMoyennes } from "../epcf-restitution.js?v=20260714c";
+import { listStagiaires, listProfs, listEpcf, upsertEpcf } from "../db.js?v=20260714d";
+import { el, clear, isoDate, formatDate, displayStagiaire, compareByNom, toast } from "../utils.js?v=20260714d";
+import { isAdmin, isProf, getProfile } from "../auth-admin.js?v=20260714d";
+import { getCurrentWho } from "../identity.js?v=20260714d";
+import { EPCF_TRAMES, NOTE_LABELS, NOTE_VALUES } from "../epcf-trames.js?v=20260714d";
+import { phaseScoreFromMoyennes } from "../epcf-restitution.js?v=20260714d";
 
 let stagiaires = [];
 let profs = [];
