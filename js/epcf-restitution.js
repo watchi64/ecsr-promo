@@ -1,8 +1,8 @@
 // Restitution EPCF : scoring des phases, radar SVG, section réutilisable
 // (affichée dans Mon suivi ; réutilisable ailleurs).
 
-import { el, clear, formatDate } from "./utils.js?v=20260713j";
-import { EPCF_TRAMES, NOTE_VALUES, NOTE_LABELS } from "./epcf-trames.js?v=20260713j";
+import { el, clear, formatDate } from "./utils.js?v=20260713k";
+import { EPCF_TRAMES, NOTE_VALUES, NOTE_LABELS } from "./epcf-trames.js?v=20260713k";
 
 const SVGNS = "http://www.w3.org/2000/svg";
 function svgEl(tag, attrs = {}) {

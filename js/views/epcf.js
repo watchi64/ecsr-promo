@@ -1,11 +1,11 @@
 // Vue EPCF (formateurs/admin) : liste des stagiaires × trames, saisie de grille,
 // vue classe. Les stagiaires n'y ont pas accès (garde + onglet masqué + RLS).
 
-import { listStagiaires, listProfs, listEpcf, upsertEpcf } from "../db.js?v=20260713j";
-import { el, clear, isoDate, formatDate, displayStagiaire, compareByNom, toast } from "../utils.js?v=20260713j";
-import { isAdmin, isProf, getProfile } from "../auth-admin.js?v=20260713j";
-import { getCurrentWho } from "../identity.js?v=20260713j";
-import { EPCF_TRAMES, NOTE_LABELS } from "../epcf-trames.js?v=20260713j";
+import { listStagiaires, listProfs, listEpcf, upsertEpcf } from "../db.js?v=20260713k";
+import { el, clear, isoDate, formatDate, displayStagiaire, compareByNom, toast } from "../utils.js?v=20260713k";
+import { isAdmin, isProf, getProfile } from "../auth-admin.js?v=20260713k";
+import { getCurrentWho } from "../identity.js?v=20260713k";
+import { EPCF_TRAMES, NOTE_LABELS } from "../epcf-trames.js?v=20260713k";
 
 let stagiaires = [];
 let profs = [];
@@ -84,9 +84,13 @@ function showForm(body, stagiaire, trameKey, existing) {
   const trame = EPCF_TRAMES[trameKey];
   const scores = { ...(existing?.scores || {}) };
   const compSel = new Set(existing?.competences_acquises || []);
+  let dirty = false;
 
   body.appendChild(el("div", { class: "epcf-form-head" },
-    el("button", { class: "btn small ghost", onClick: () => showListe(body) }, "← Retour"),
+    el("button", { class: "btn small ghost", onClick: () => {
+      if (dirty && !confirm("Abandonner la saisie en cours ?")) return;
+      showListe(body);
+    } }, "← Retour"),
     el("h3", {}, `${trame.label} — ${displayStagiaire(stagiaire)}`),
   ));
 
@@ -99,10 +103,16 @@ function showForm(body, stagiaire, trameKey, existing) {
     metaInputs[f.key] = inp;
     metaWrap.appendChild(el("div", { class: "field" }, el("label", {}, f.label), inp));
   });
+  // Évaluateur facultatif. En édition, on respecte la valeur stockée (y compris null) ;
+  // en création, pré-rempli avec le prof connecté s'il en est un (le fondateur admin
+  // n'a pas de prof_id → option vide, pas d'attribution silencieuse au premier prof).
+  const preset = existing ? existing.evaluateur_prof_id : (getProfile()?.prof_id ?? null);
   const evalSel = el("select");
+  const optVide = el("option", { value: "" }, "—");
+  if (preset == null) optVide.selected = true;
+  evalSel.appendChild(optVide);
   profs.forEach((p) => {
     const o = el("option", { value: String(p.id) }, p.nom);
-    const preset = existing?.evaluateur_prof_id ?? getProfile()?.prof_id;
     if (p.id === preset) o.selected = true;
     evalSel.appendChild(o);
   });
@@ -125,6 +135,7 @@ function showForm(body, stagiaire, trameKey, existing) {
         b.addEventListener("click", () => {
           if (scores[c.code] === note) delete scores[c.code];
           else scores[c.code] = note;
+          dirty = true;
           sync();
         });
         btns[note] = b;
@@ -140,7 +151,7 @@ function showForm(body, stagiaire, trameKey, existing) {
   trame.competences.forEach((code) => {
     const cb = el("input", { type: "checkbox" });
     cb.checked = compSel.has(code);
-    cb.addEventListener("change", () => { cb.checked ? compSel.add(code) : compSel.delete(code); });
+    cb.addEventListener("change", () => { cb.checked ? compSel.add(code) : compSel.delete(code); dirty = true; });
     compWrap.appendChild(el("label", { class: "epcf-comp-cb" }, cb, " " + code));
   });
   body.appendChild(compWrap);
@@ -148,9 +159,12 @@ function showForm(body, stagiaire, trameKey, existing) {
   const commentTa = el("textarea", { rows: "4", class: "epcf-commentaire-ta", placeholder: "Commentaire global…" });
   commentTa.value = existing?.commentaire || "";
   body.appendChild(el("div", { class: "epcf-form-comment" }, el("h4", {}, "Commentaire global"), commentTa));
+  [dateInput, ...Object.values(metaInputs), commentTa].forEach((n) => n.addEventListener("input", () => { dirty = true; }));
+  evalSel.addEventListener("change", () => { dirty = true; });
 
   const saveBtn = el("button", { class: "btn primary", onClick: async () => {
     if (Object.keys(scores).length === 0) { toast("Renseigne au moins un critère", "error"); return; }
+    if (!dateInput.value) { toast("Renseigne la date", "error"); return; }
     saveBtn.disabled = true;
     const prev = saveBtn.textContent;
     saveBtn.textContent = "Enregistrement…";
@@ -172,10 +186,11 @@ function showForm(body, stagiaire, trameKey, existing) {
       });
       toast("Évaluation enregistrée", "success", 2000);
       evals = await listEpcf();
+      dirty = false;
       showListe(body);
     } catch (e) {
       console.error(e);
-      toast(e.message, "error");
+      toast(e?.message || String(e), "error");
       saveBtn.disabled = false;
       saveBtn.textContent = prev;
     }
