@@ -1,8 +1,8 @@
 // Restitution EPCF : scoring des phases, radar SVG, section réutilisable
 // (affichée dans Mon suivi ; réutilisable ailleurs).
 
-import { el, clear, formatDate } from "./utils.js?v=20260713h";
-import { EPCF_TRAMES, NOTE_VALUES, NOTE_LABELS } from "./epcf-trames.js?v=20260713h";
+import { el, clear, formatDate } from "./utils.js?v=20260713i";
+import { EPCF_TRAMES, NOTE_VALUES, NOTE_LABELS } from "./epcf-trames.js?v=20260713i";
 
 const SVGNS = "http://www.w3.org/2000/svg";
 function svgEl(tag, attrs = {}) {
@@ -24,7 +24,7 @@ export function phaseScore(section, scores) {
 // `moyenne` est sur 0..2 (A=2) et peut arriver en string (numeric PostgREST).
 export function phaseScoreFromMoyennes(section, moyennes) {
   const byCode = Object.fromEntries((moyennes || []).map((m) => [m.critere, Number(m.moyenne)]));
-  const vals = section.criteres.map((c) => byCode[c.code]).filter((v) => v !== undefined);
+  const vals = section.criteres.map((c) => byCode[c.code]).filter((v) => Number.isFinite(v));
   if (!vals.length) return null;
   return vals.reduce((s, v) => s + v, 0) / (vals.length * 2);
 }
@@ -32,12 +32,15 @@ export function phaseScoreFromMoyennes(section, moyennes) {
 // Radar SVG. axes = [libellés courts] ; series = [{ values: [0..1|null], className }].
 // Une phase non renseignée est tracée à 0 (le détail dessous fait foi).
 export function buildRadar(axes, series, size = 340) {
-  const cx = size / 2, cy = size / 2 + 4, R = size * 0.32;
+  const padX = 40;                          // marge horizontale pour les labels des axes latéraux
+  const W = size + 2 * padX;                // 420, aligné sur le max-width CSS du wrap
+  const cx = W / 2, cy = size / 2 + 4, R = size * 0.32;
   const n = axes.length;
   const ang = (i) => -Math.PI / 2 + (2 * Math.PI * i) / n;
   const px = (i, f) => cx + Math.cos(ang(i)) * R * f;
   const py = (i, f) => cy + Math.sin(ang(i)) * R * f;
-  const svg = svgEl("svg", { viewBox: `0 0 ${size} ${size}`, class: "epcf-radar", role: "img" });
+  const svg = svgEl("svg", { viewBox: `0 0 ${W} ${size}`, class: "epcf-radar", role: "img",
+    "aria-label": "Radar EPCF" });
   [0.25, 0.5, 0.75, 1].forEach((f) => {
     const pts = Array.from({ length: n }, (_, i) => `${px(i, f)},${py(i, f)}`).join(" ");
     svg.appendChild(svgEl("polygon", { points: pts, class: "epcf-radar-ring" }));
@@ -90,6 +93,7 @@ export function renderEpcfDetail(trameKey, evalRow) {
 
 // Section complète pour UNE trame : radar (éval choisie vs moyenne groupe) + détail.
 // evals : évals du stagiaire pour cette trame, triées desc (listEpcf). moyennes : RPC.
+// ATTENTION : moyennes DOIT venir de getEpcfMoyennes(trameKey) — les codes critères collisionnent entre trames.
 export function renderEpcfTrameSection(trameKey, evals, moyennes) {
   const trame = EPCF_TRAMES[trameKey];
   const section = el("div", { class: "epcf-resti" },
