@@ -5888,6 +5888,8 @@ body.qcm-open { overflow: hidden; }
 .epcf-chip.NA { background: rgba(160, 90, 61, 0.18); color: var(--c-stop); }
 .epcf-chip.vide { background: var(--bg-subtle); color: var(--text-muted); }
 
+.epcf-actions { margin: 1rem 0 2rem; }
+.epcf-detail { margin-top: 0.5rem; }
 .epcf-detail-section { margin-top: 0.9rem; }
 .epcf-detail-title { margin: 0 0 0.4rem; font-size: 0.9rem; }
 .epcf-detail-tp { font-weight: 400; font-size: 0.8rem; }

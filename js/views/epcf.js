@@ -1,12 +1,12 @@
 // Vue EPCF (formateurs/admin) : liste des stagiaires × trames, saisie de grille,
 // vue classe. Les stagiaires n'y ont pas accès (garde + onglet masqué + RLS).
 
-import { listStagiaires, listProfs, listEpcf, upsertEpcf } from "../db.js?v=20260714b";
-import { el, clear, isoDate, formatDate, displayStagiaire, compareByNom, toast } from "../utils.js?v=20260714b";
-import { isAdmin, isProf, getProfile } from "../auth-admin.js?v=20260714b";
-import { getCurrentWho } from "../identity.js?v=20260714b";
-import { EPCF_TRAMES, NOTE_LABELS, NOTE_VALUES } from "../epcf-trames.js?v=20260714b";
-import { phaseScoreFromMoyennes } from "../epcf-restitution.js?v=20260714b";
+import { listStagiaires, listProfs, listEpcf, upsertEpcf } from "../db.js?v=20260714c";
+import { el, clear, isoDate, formatDate, displayStagiaire, compareByNom, toast } from "../utils.js?v=20260714c";
+import { isAdmin, isProf, getProfile } from "../auth-admin.js?v=20260714c";
+import { getCurrentWho } from "../identity.js?v=20260714c";
+import { EPCF_TRAMES, NOTE_LABELS, NOTE_VALUES } from "../epcf-trames.js?v=20260714c";
+import { phaseScoreFromMoyennes } from "../epcf-restitution.js?v=20260714c";
 
 let stagiaires = [];
 let profs = [];
@@ -75,7 +75,7 @@ function showListe(body) {
   });
   table.appendChild(tbody);
   body.appendChild(el("div", { class: "epcf-table-wrap" }, table));
-  body.appendChild(el("div", { style: "margin-top:1rem" },
+  body.appendChild(el("div", { class: "epcf-actions" },
     el("button", { class: "btn ghost", onClick: () => showClasse(body) }, "Vue classe (moyennes)")));
 }
 
@@ -196,7 +196,7 @@ function showForm(body, stagiaire, trameKey, existing) {
       saveBtn.textContent = prev;
     }
   } }, "Enregistrer l'évaluation");
-  body.appendChild(el("div", { style: "margin:1rem 0 2rem" }, saveBtn));
+  body.appendChild(el("div", { class: "epcf-actions" }, saveBtn));
 }
 
 // Tier couleur d'une moyenne 0..2 (frontières : ≥1.5 acquis, ≥0.8 à renforcer).
@@ -209,7 +209,7 @@ function tierOf(moyenne) {
 function showClasse(body) {
   clear(body);
   body.appendChild(el("div", { class: "epcf-form-head" },
-    el("button", { class: "btn ghost sm", onClick: () => showListe(body) }, "← Retour"),
+    el("button", { class: "btn ghost small", onClick: () => showListe(body) }, "← Retour"),
     el("h3", {}, "Vue classe — moyennes"),
   ));
 

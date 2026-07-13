@@ -2,23 +2,23 @@
  * Promo ECSR — Application propriétaire.
  * © 2026 watchi64 — Tous droits réservés. Voir LICENSE.
  */
-import { signInWithPassword, signUpWithPassword, getCurrentUser, invalidateCache } from "./db.js?v=20260714b";
-import { toast } from "./utils.js?v=20260714b";
-import { icon } from "./icons.js?v=20260714b";
-import { initAuth, onAdminChange, isAuth, isAdmin, isProf } from "./auth-admin.js?v=20260714b";
-import { loadAccent } from "./accent-switcher.js?v=20260714b";
-import { loadTheme } from "./theme-switcher.js?v=20260714b";
-import { renderHome } from "./views/home.js?v=20260714b";
-import { renderDashboard } from "./views/dashboard.js?v=20260714b";
-import { renderMonSuivi } from "./views/mon-suivi.js?v=20260714b";
-import { renderPlanning, teardownPrintTarget } from "./views/planning.js?v=20260714b";
-import { renderNotes } from "./views/notes.js?v=20260714b";
-import { renderRessources } from "./views/ressources.js?v=20260714b";
-import { renderThemes } from "./views/themes.js?v=20260714b";
-import { renderConfig } from "./views/config.js?v=20260714b";
-import { renderCalendrier } from "./views/calendrier.js?v=20260714b";
-import { renderEpcf } from "./views/epcf.js?v=20260714b";
-import { initUndoKeyboard } from "./undo.js?v=20260714b";
+import { signInWithPassword, signUpWithPassword, getCurrentUser, invalidateCache } from "./db.js?v=20260714c";
+import { toast } from "./utils.js?v=20260714c";
+import { icon } from "./icons.js?v=20260714c";
+import { initAuth, onAdminChange, isAuth, isAdmin, isProf } from "./auth-admin.js?v=20260714c";
+import { loadAccent } from "./accent-switcher.js?v=20260714c";
+import { loadTheme } from "./theme-switcher.js?v=20260714c";
+import { renderHome } from "./views/home.js?v=20260714c";
+import { renderDashboard } from "./views/dashboard.js?v=20260714c";
+import { renderMonSuivi } from "./views/mon-suivi.js?v=20260714c";
+import { renderPlanning, teardownPrintTarget } from "./views/planning.js?v=20260714c";
+import { renderNotes } from "./views/notes.js?v=20260714c";
+import { renderRessources } from "./views/ressources.js?v=20260714c";
+import { renderThemes } from "./views/themes.js?v=20260714c";
+import { renderConfig } from "./views/config.js?v=20260714c";
+import { renderCalendrier } from "./views/calendrier.js?v=20260714c";
+import { renderEpcf } from "./views/epcf.js?v=20260714c";
+import { initUndoKeyboard } from "./undo.js?v=20260714c";
 
 // ===== Gate : email magic link =====
 
