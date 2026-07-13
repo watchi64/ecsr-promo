@@ -186,9 +186,11 @@ cette table introduit le pattern strict qui servira de référence.
 
 ### Onglet « EPCF » — visible profs/admin uniquement (`isProf() || isAdmin()`)
 
-1. **Liste** : tableau des stagiaires actifs × 2 trames, statut (« évalué le JJ/MM » /
-   « à évaluer »), boutons Évaluer / Modifier (modifier = rouvrir la dernière éval ;
-   « Nouvelle évaluation » possible même si une existe déjà).
+1. **Liste** : tableau des stagiaires actifs × 2 trames, statut (« évalué le
+   JJ/MM/AAAA » / « à évaluer »), boutons Évaluer / Modifier (modifier = rouvrir la
+   dernière éval ; « Nouvelle évaluation » possible même si une existe déjà).
+   L'évaluateur est facultatif (option « — ») ; pré-rempli avec le prof connecté
+   s'il en est un.
 2. **Formulaire de saisie** : méta (date, thème ou niveau élève cobaye, durée),
    sections dépliées avec 3 boutons segmentés **A / R / NA** par critère (état
    « non renseigné » par défaut, re-cliquer désélectionne), cases compétences acquises,
@@ -232,8 +234,10 @@ Nouvelles fonctions : `listEpcf(filters)` (RLS filtre naturellement pour un stag
 
 - Critères non renseignés : exclus des moyennes (pas comptés comme 0).
 - Éval vide (0 critère renseigné) : refusée à la sauvegarde avec message.
-- Stagiaire hors effectif (Tatiana) : apparaît dans la liste formateur tant qu'elle est
-  dans `stagiaires` — pas de traitement spécial au lot 1.
+- Stagiaire hors effectif (abandon, ex. Tatiana) : masqué de la liste formateur comme
+  partout dans l'app (`listStagiaires()` ne renvoie que les actifs — comportement
+  délibéré app-wide) ; ses éventuelles évals restent en base. (Amendé le 13/07 en
+  revue : la formulation initiale contredisait le comportement standard de l'app.)
 - Le « Voir en tant que » fondateur ne simule PAS la RLS (UI seulement) : la
   confidentialité doit être testée avec un vrai compte stagiaire.
 
