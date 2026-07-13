@@ -61,4 +61,6 @@ export const icon = {
   close:      () => svg('<path d="M18 6 6 18M6 6l12 12"/>'),
   // Lucide ban (rond barré) — désactiver un jour du planning
   ban:        () => svg('<circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/>'),
+  // Lucide clipboard-check — onglet EPCF
+  clipboard:  () => svg('<rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m9 13 2 2 4-4"/>'),
 };

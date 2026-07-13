@@ -2,22 +2,23 @@
  * Promo ECSR — Application propriétaire.
  * © 2026 watchi64 — Tous droits réservés. Voir LICENSE.
  */
-import { signInWithPassword, signUpWithPassword, getCurrentUser, invalidateCache } from "./db.js?v=20260713m";
-import { toast } from "./utils.js?v=20260713m";
-import { icon } from "./icons.js?v=20260713m";
-import { initAuth, onAdminChange, isAuth } from "./auth-admin.js?v=20260713m";
-import { loadAccent } from "./accent-switcher.js?v=20260713m";
-import { loadTheme } from "./theme-switcher.js?v=20260713m";
-import { renderHome } from "./views/home.js?v=20260713m";
-import { renderDashboard } from "./views/dashboard.js?v=20260713m";
-import { renderMonSuivi } from "./views/mon-suivi.js?v=20260713m";
-import { renderPlanning, teardownPrintTarget } from "./views/planning.js?v=20260713m";
-import { renderNotes } from "./views/notes.js?v=20260713m";
-import { renderRessources } from "./views/ressources.js?v=20260713m";
-import { renderThemes } from "./views/themes.js?v=20260713m";
-import { renderConfig } from "./views/config.js?v=20260713m";
-import { renderCalendrier } from "./views/calendrier.js?v=20260713m";
-import { initUndoKeyboard } from "./undo.js?v=20260713m";
+import { signInWithPassword, signUpWithPassword, getCurrentUser, invalidateCache } from "./db.js?v=20260713n";
+import { toast } from "./utils.js?v=20260713n";
+import { icon } from "./icons.js?v=20260713n";
+import { initAuth, onAdminChange, isAuth, isAdmin, isProf } from "./auth-admin.js?v=20260713n";
+import { loadAccent } from "./accent-switcher.js?v=20260713n";
+import { loadTheme } from "./theme-switcher.js?v=20260713n";
+import { renderHome } from "./views/home.js?v=20260713n";
+import { renderDashboard } from "./views/dashboard.js?v=20260713n";
+import { renderMonSuivi } from "./views/mon-suivi.js?v=20260713n";
+import { renderPlanning, teardownPrintTarget } from "./views/planning.js?v=20260713n";
+import { renderNotes } from "./views/notes.js?v=20260713n";
+import { renderRessources } from "./views/ressources.js?v=20260713n";
+import { renderThemes } from "./views/themes.js?v=20260713n";
+import { renderConfig } from "./views/config.js?v=20260713n";
+import { renderCalendrier } from "./views/calendrier.js?v=20260713n";
+import { renderEpcf } from "./views/epcf.js?v=20260713n";
+import { initUndoKeyboard } from "./undo.js?v=20260713n";
 
 // ===== Gate : email magic link =====
 
@@ -122,6 +123,7 @@ const TABS = [
   { route: "home",       label: "Accueil",         icon: "info"      },
   { route: "dashboard",  label: "Tableau de bord", icon: "dashboard" },
   { route: "mon-suivi",  label: "Mon suivi",       icon: "progress"  },
+  { route: "epcf",       label: "EPCF",            icon: "clipboard", visible: () => isAdmin() || isProf() },
   { route: "planning",   label: "Planning",        icon: "calendar"  },
   { route: "calendrier", label: "Calendrier",      icon: "clock"     },
   { route: "themes",     label: "Thèmes",          icon: "list"      },
@@ -133,7 +135,7 @@ const TABS = [
 function renderTabs() {
   const nav = document.getElementById("tabs");
   nav.innerHTML = "";
-  TABS.forEach((t) => {
+  TABS.filter((t) => !t.visible || t.visible()).forEach((t) => {
     const a = document.createElement("a");
     a.href = "#/" + t.route;
     a.className = "tab";
@@ -152,6 +154,7 @@ const routes = {
   home:       renderHome,
   dashboard:  renderDashboard,
   "mon-suivi": renderMonSuivi,
+  epcf:       renderEpcf,
   planning:   renderPlanning,
   calendrier: renderCalendrier,
   themes:     renderThemes,
@@ -223,7 +226,7 @@ async function bootApp() {
   hideGate();
   renderTabs();
   setupRefreshBtn();
-  onAdminChange(() => navigate());
+  onAdminChange(() => { renderTabs(); navigate(); });
   initUndoKeyboard();
   if (!location.hash) location.hash = "#/dashboard";
   await navigate();

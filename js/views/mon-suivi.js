@@ -1,10 +1,10 @@
 import { listStagiaires, listEvaluations, getPlanning, getHalfMetaForWeek, getJoursOff, getSetting,
-         listFiches, upsertFiche, getVoitureAggregats, listProfs } from "../db.js?v=20260713m";
-import { el, clear, isoDate, getMonday, addDays, formatDate, displayStagiaire, compareByNom, toast } from "../utils.js?v=20260713m";
-import { HALF_DAYS } from "../config.js?v=20260713m";
-import { isAdmin, getProfile } from "../auth-admin.js?v=20260713m";
-import { getCurrentWho } from "../identity.js?v=20260713m";
-import { COMPETENCES_REMC } from "./benevoles.js?v=20260713m";
+         listFiches, upsertFiche, getVoitureAggregats, listProfs } from "../db.js?v=20260713n";
+import { el, clear, isoDate, getMonday, addDays, formatDate, displayStagiaire, compareByNom, toast } from "../utils.js?v=20260713n";
+import { HALF_DAYS } from "../config.js?v=20260713n";
+import { isAdmin, getProfile } from "../auth-admin.js?v=20260713n";
+import { getCurrentWho } from "../identity.js?v=20260713n";
+import { COMPETENCES_REMC } from "./benevoles.js?v=20260713n";
 
 const HALF_ORDER = { matin: 0, aprem: 1 };
 
