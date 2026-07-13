@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20260713e";
+import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20260713f";
 
 // fetch avec timeout : sans ça, une requête peut rester pendue indéfiniment
 // (réseau mobile instable) → "Chargement" infini. Avec, elle échoue proprement après 15s.
@@ -466,6 +466,51 @@ export async function listAuditForEvaluation(evaluation_id) {
     .select("*")
     .eq("evaluation_id", evaluation_id)
     .order("changed_at", { ascending: false });
+  if (error) throw error;
+  return data;
+}
+
+// === EPCF (évaluations en cours de formation) ===
+
+export async function listEpcf(filters = {}) {
+  let q = supabase
+    .from("epcf_evaluations")
+    .select("*, evaluateur:profs!evaluateur_prof_id(nom), stagiaire:stagiaires!stagiaire_id(prenom, nom)")
+    .order("date_eval", { ascending: false })
+    .order("id", { ascending: false });
+  if (filters.stagiaire_id) q = q.eq("stagiaire_id", filters.stagiaire_id);
+  if (filters.trame) q = q.eq("trame", filters.trame);
+  const { data, error } = await q;
+  if (error) throw error;
+  return data;
+}
+
+// Insert (pas d'id) ou update (id fourni). Renvoie la ligne écrite.
+export async function upsertEpcf(evalRow) {
+  const payload = { ...evalRow, updated_at: new Date().toISOString() };
+  delete payload.evaluateur;   // colonnes jointes par listEpcf, pas des colonnes de la table
+  delete payload.stagiaire;
+  let q;
+  if (payload.id) {
+    const id = payload.id;
+    delete payload.id;
+    q = supabase.from("epcf_evaluations").update(payload).eq("id", id).select().single();
+  } else {
+    q = supabase.from("epcf_evaluations").insert(payload).select().single();
+  }
+  const { data, error } = await q;
+  if (error) throw error;
+  return data;
+}
+
+export async function deleteEpcf(id) {
+  const { error } = await supabase.from("epcf_evaluations").delete().eq("id", id);
+  if (error) throw error;
+}
+
+// Moyennes du groupe par critère (RPC SECURITY DEFINER — agrégats seuls).
+export async function getEpcfMoyennes(trame) {
+  const { data, error } = await supabase.rpc("epcf_moyennes", { p_trame: trame });
   if (error) throw error;
   return data;
 }
