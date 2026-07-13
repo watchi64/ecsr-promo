@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20260713a";
+import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20260713b";
 
 // fetch avec timeout : sans ça, une requête peut rester pendue indéfiniment
 // (réseau mobile instable) → "Chargement" infini. Avec, elle échoue proprement après 15s.
@@ -219,13 +219,15 @@ export async function listFiches() {
 // N'écrit QUE souhaits : on n'inclut pas `besoins` dans le payload, donc l'upsert
 // PostgREST (ON CONFLICT) ne met à jour que souhaits/updated_* et préserve les
 // `besoins` des 13 fiches existantes.
-export async function upsertFiche({ stagiaire_id, souhaits, updated_by_who }) {
+export async function upsertFiche({ stagiaire_id, souhaits, besoins, updated_by_who }) {
+  // On n'écrit QUE les colonnes explicitement fournies : un appel qui passe seulement
+  // `souhaits` ne doit pas effacer `besoins` (et inversement) sur les fiches existantes.
+  const payload = { stagiaire_id, updated_by_who, updated_at: new Date().toISOString() };
+  if (souhaits !== undefined) payload.souhaits = souhaits;
+  if (besoins !== undefined) payload.besoins = besoins;
   const { error } = await supabase
     .from("fiches_suivi")
-    .upsert(
-      { stagiaire_id, souhaits, updated_by_who, updated_at: new Date().toISOString() },
-      { onConflict: "stagiaire_id" }
-    );
+    .upsert(payload, { onConflict: "stagiaire_id" });
   if (error) throw error;
 }
 

@@ -5822,6 +5822,7 @@ body.qcm-open { overflow: hidden; }
 .ms-passage-half { font-size: 0.85rem; }
 .ms-passage-meta { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
 .ms-passage-sujet { font-size: 0.85rem; }
+.ms-passage-prof { font-size: 0.85rem; }
 .ms-passage-badge { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; }
 .ms-passage-badge.today, .ms-passage-badge.next { color: var(--accent-strong); font-weight: 600; }
 

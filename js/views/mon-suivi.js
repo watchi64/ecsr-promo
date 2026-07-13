@@ -1,10 +1,10 @@
 import { listStagiaires, listEvaluations, getPlanning, getHalfMetaForWeek, getJoursOff, getSetting,
-         listFiches, upsertFiche, getVoitureAggregats, listProfs } from "../db.js?v=20260713a";
-import { el, clear, isoDate, getMonday, addDays, formatDate, displayStagiaire, compareByNom, toast } from "../utils.js?v=20260713a";
-import { HALF_DAYS } from "../config.js?v=20260713a";
-import { isAdmin, getProfile } from "../auth-admin.js?v=20260713a";
-import { getCurrentWho } from "../identity.js?v=20260713a";
-import { COMPETENCES_REMC } from "./benevoles.js?v=20260713a";
+         listFiches, upsertFiche, getVoitureAggregats, listProfs } from "../db.js?v=20260713b";
+import { el, clear, isoDate, getMonday, addDays, formatDate, displayStagiaire, compareByNom, toast } from "../utils.js?v=20260713b";
+import { HALF_DAYS } from "../config.js?v=20260713b";
+import { isAdmin, getProfile } from "../auth-admin.js?v=20260713b";
+import { getCurrentWho } from "../identity.js?v=20260713b";
+import { COMPETENCES_REMC } from "./benevoles.js?v=20260713b";
 
 const HALF_ORDER = { matin: 0, aprem: 1 };
 
@@ -13,6 +13,15 @@ let fiches = [];
 let aggregats = {};
 let profs = [];
 const ficheOf = (sid) => fiches.find((f) => f.stagiaire_id === sid) || { stagiaire_id: sid, souhaits: [] };
+
+// Noms des formateurs d'un passage : prof_ids (résolus via `profs`) + prof_autre (texte libre).
+function profNamesFor(prof_ids, prof_autre) {
+  const names = (prof_ids || [])
+    .map((pid) => profs.find((p) => p.id === Number(pid))?.nom)
+    .filter(Boolean);
+  if (prof_autre) names.push(prof_autre);
+  return names;
+}
 
 function halfLabel(half) { return half === "matin" ? "Matin" : "Après-midi"; }
 function fmtTime(t) { return t ? String(t).slice(0, 5) : null; }        // "09:00:00" -> "09:00"
@@ -84,10 +93,12 @@ function extractMyPassages(entries, metas, monday, id, joursOff) {
     }
     if (!type) return;
     const date = addDays(monday, e.day_index);
+    const prof_ids = (e.prof_ids && e.prof_ids.length) ? e.prof_ids : (e.prof_id ? [e.prof_id] : []);
     out.push({
       iso: isoDate(date), date, day_index: e.day_index, half_day: e.half_day,
       slot: e.slot ?? 0, type, sujet: e.sujet || null,
       horaire: horaireFor(metas, e.day_index, e.half_day),
+      profs: profNamesFor(prof_ids, e.prof_autre),
     });
   });
   return out;
@@ -139,6 +150,9 @@ function renderPassagesSection(items) {
       ),
       el("div", { class: "ms-passage-meta" },
         el("span", { class: "tag " + (it.type === "Salle" ? "salle" : "voiture") }, it.type),
+        it.profs && it.profs.length
+          ? el("span", { class: "ms-passage-prof muted" }, "avec " + it.profs.join(", "))
+          : null,
         it.sujet ? el("span", { class: "ms-passage-sujet muted" }, it.sujet) : null,
         badge,
       ),
@@ -153,6 +167,19 @@ function avgTier(v) {
   if (v < 12) return "warn";
   if (v < 16) return "ok";
   return "great";
+}
+
+// Libellé « thème / compétence / contrôle abordé » d'une évaluation (même logique que la vue Notes).
+function describeEval(e) {
+  if (e.type === "Thème") {
+    const num = e.theme_numero ? `Thème ${String(e.theme_numero).padStart(2, "0")}` : "Thème";
+    return e.theme_titre ? `${num} · ${e.theme_titre}` : num;
+  }
+  if (e.type === "Compétence") {
+    return e.competence_code ? `${e.competence_code} · ${e.competence?.libelle?.split(",")[0] || ""}` : "Compétence";
+  }
+  if (e.type === "Contrôle") return e.controle_libelle || "Contrôle";
+  return "Évaluation";
 }
 
 const SVGNS = "http://www.w3.org/2000/svg";
@@ -190,7 +217,7 @@ function buildChart(evals) {
   evals.forEach((e, i) => {
     const c = svgEl("circle", { cx: x(i), cy: y(e.norm), r: 5, class: "ms-pt " + avgTier(e.norm) });
     const title = svgEl("title");
-    const lib = e.competence?.libelle || e.type || "Évaluation";
+    const lib = describeEval(e);
     title.textContent = `${lib} · ${e.note}/${e.note_max} (${e.norm.toFixed(1)}/20) · ${formatDate(e.date_eval)}`;
     c.appendChild(title);
     svg.appendChild(c);
