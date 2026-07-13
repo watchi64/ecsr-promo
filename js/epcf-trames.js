@@ -1,6 +1,15 @@
 // Trames EPCF (grilles d'évaluation officielles d'Hocine, CCP1 — 09/07/2026).
-// NE PAS modifier une version publiée : toute évolution de la grille = version++
-// (les évals stockées portent trame_version et se réaffichent avec leur définition).
+//
+// VERSIONNAGE — règle stricte : une version publiée ne se modifie JAMAIS en place
+// (des évals en base portent trame_version et doivent réafficher leur définition).
+// Pour faire évoluer une grille : (1) copier l'objet actuel sous un export d'archive
+// (ex. EPCF_TRAMES_V1), (2) créer la nouvelle définition avec version: 2,
+// (3) faire résoudre le rendu par (trame, trame_version). Tant qu'il n'existe
+// qu'une version, EPCF_TRAMES[trame] suffit.
+//
+// UNICITÉ DES CODES : les codes critères (EVAL1, BILEV2…) ne sont uniques que
+// PAR trame — jamais globalement (EVAL4 salle ≠ EVAL4 véhicule). Tout helper de
+// lookup doit prendre (trame, code), jamais un code seul.
 
 export const NOTE_VALUES = { A: 2, R: 1, NA: 0 };
 export const NOTE_LABELS = { A: "Acquis", R: "À renforcer", NA: "Non acquis" };
