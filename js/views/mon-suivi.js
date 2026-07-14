@@ -1,10 +1,10 @@
 import { listStagiaires, listEvaluations, getPlanning, getHalfMetaForWeek, getJoursOff, getSetting,
-         getVoitureAggregats, listProfs, listEpcf, getEpcfMoyennes } from "../db.js?v=20260714m";
-import { el, clear, isoDate, getMonday, addDays, formatDate, displayStagiaire, compareByNom } from "../utils.js?v=20260714m";
-import { HALF_DAYS } from "../config.js?v=20260714m";
-import { isAdmin, getProfile } from "../auth-admin.js?v=20260714m";
-import { renderEpcfTrameSection } from "../epcf-restitution.js?v=20260714m";
-import { renderSubTabs } from "../subtabs.js?v=20260714m";
+         getVoitureAggregats, listProfs, listEpcf, getEpcfMoyennes } from "../db.js?v=20260714n";
+import { el, clear, isoDate, getMonday, addDays, formatDate, displayStagiaire, compareByNom } from "../utils.js?v=20260714n";
+import { HALF_DAYS } from "../config.js?v=20260714n";
+import { isAdmin, getProfile } from "../auth-admin.js?v=20260714n";
+import { renderEpcfTrameSection } from "../epcf-restitution.js?v=20260714n";
+import { renderSubTabs } from "../subtabs.js?v=20260714n";
 
 const HALF_ORDER = { matin: 0, aprem: 1 };
 
@@ -190,15 +190,48 @@ function svgEl(tag, attrs = {}) {
 }
 
 // evals : triés par date croissante, chacun a { norm, note, note_max, date_eval, competence?, type? }
+// Regroupe les évals (déjà triées par date) par mois calendaire contigu.
+function groupByMonth(evals) {
+  const groups = [];
+  evals.forEach((e, i) => {
+    const d = new Date(String(e.date_eval) + "T00:00:00");
+    const key = d.getFullYear() + "-" + d.getMonth();
+    const last = groups[groups.length - 1];
+    if (last && last.key === key) { last.end = i; }
+    else groups.push({ key, start: i, end: i,
+      label: capitalize(d.toLocaleDateString("fr-FR", { month: "short", year: "2-digit" })) });
+  });
+  return groups;
+}
+
+// Graphe SVG maison. Largeur dynamique (espace mini par point → scroll horizontal
+// si beaucoup d'évals). Bandes de fond alternées par mois + un libellé de mois
+// centré sous chaque bande (fini les dates qui se chevauchent). Chaque point porte
+// des data-* lus par le tooltip stylé branché dans renderChartSection.
 function buildChart(evals) {
-  const W = 640, H = 280, padL = 40, padR = 16, padT = 16, padB = 48;
-  const innerW = W - padL - padR, innerH = H - padT - padB;
+  const H = 280, padL = 40, padR = 16, padT = 16, padB = 40;
   const n = evals.length;
-  const x = (i) => padL + (n === 1 ? innerW / 2 : (innerW * i) / (n - 1));
+  const innerW = Math.max(540, (n - 1) * 26);       // 26 px mini entre deux points
+  const W = padL + padR + innerW, innerH = H - padT - padB;
+  const x = (i) => padL + (n <= 1 ? innerW / 2 : (innerW * i) / (n - 1));
   const y = (v) => padT + innerH * (1 - Math.max(0, Math.min(20, v)) / 20);
 
-  const svg = svgEl("svg", { viewBox: `0 0 ${W} ${H}`, class: "ms-chart", role: "img" });
+  const svg = svgEl("svg", { viewBox: `0 0 ${W} ${H}`, width: String(W), height: String(H),
+    class: "ms-chart", role: "img", "aria-label": "Graphe d'évolution des notes" });
 
+  // Bandes mensuelles (colonnes alternées) + libellé de mois
+  const months = groupByMonth(evals);
+  months.forEach((m, mi) => {
+    const left = m.start === 0 ? padL : (x(m.start) + x(m.start - 1)) / 2;
+    const right = m.end === n - 1 ? (W - padR) : (x(m.end) + x(m.end + 1)) / 2;
+    if (mi % 2 === 1) svg.appendChild(svgEl("rect",
+      { x: left, y: padT, width: Math.max(0, right - left), height: innerH, class: "ms-month-band" }));
+    const lbl = svgEl("text", { x: (left + right) / 2, y: H - padB + 20, "text-anchor": "middle", class: "ms-axis-label small" });
+    lbl.textContent = m.label;
+    svg.appendChild(lbl);
+  });
+
+  // Grille + axe Y
   [0, 5, 10, 15, 20].forEach((v) => {
     const gy = y(v);
     svg.appendChild(svgEl("line", { x1: padL, x2: W - padR, y1: gy, y2: gy, class: "ms-grid" }));
@@ -212,21 +245,15 @@ function buildChart(evals) {
   const avgPts = evals.map((e, i) => { sum += e.norm; return `${x(i)},${y(sum / (i + 1))}`; });
   svg.appendChild(svgEl("polyline", { points: avgPts.join(" "), class: "ms-avg-line" }));
 
-  // Points = notes individuelles + libellés de date
-  const labelStep = Math.ceil(n / 12);
+  // Points
   evals.forEach((e, i) => {
-    const c = svgEl("circle", { cx: x(i), cy: y(e.norm), r: 5, class: "ms-pt " + avgTier(e.norm) });
-    const title = svgEl("title");
-    const lib = describeEval(e);
-    title.textContent = `${lib} · ${e.note}/${e.note_max} (${e.norm.toFixed(1)}/20) · ${formatDate(e.date_eval)}`;
-    c.appendChild(title);
-    svg.appendChild(c);
-
-    if (i % labelStep === 0 || i === n - 1) {
-      const dl = svgEl("text", { x: x(i), y: H - padB + 18, "text-anchor": "middle", class: "ms-axis-label small" });
-      dl.textContent = formatDate(e.date_eval);
-      svg.appendChild(dl);
-    }
+    svg.appendChild(svgEl("circle", {
+      cx: x(i), cy: y(e.norm), r: 5, class: "ms-pt " + avgTier(e.norm),
+      "data-lib": describeEval(e),
+      "data-note": `${e.note}/${e.note_max}`,
+      "data-norm": e.norm.toFixed(1),
+      "data-date": formatDate(e.date_eval),
+    }));
   });
 
   return svg;
@@ -243,9 +270,43 @@ function renderChartSection(evaluations) {
     section.appendChild(el("p", { class: "muted ms-empty" }, "Pas encore d'évaluation notée."));
     return section;
   }
+  // Conteneur positionné : le graphe scrolle horizontalement à l'intérieur (wrap),
+  // le tooltip est posé au niveau de l'outer pour ne pas être coupé par l'overflow.
+  const outer = el("div", { class: "ms-chart-outer" });
   const wrap = el("div", { class: "ms-chart-wrap" });
-  wrap.appendChild(buildChart(noted));
-  section.appendChild(wrap);
+  const svg = buildChart(noted);
+  const tip = el("div", { class: "ms-tip" });
+  tip.style.display = "none";
+  wrap.appendChild(svg);
+  outer.appendChild(wrap);
+  outer.appendChild(tip);
+
+  const showTip = (c) => {
+    tip.replaceChildren(
+      el("div", { class: "ms-tip-lib" }, c.getAttribute("data-lib")),
+      el("div", { class: "ms-tip-note" }, `${c.getAttribute("data-note")} · ${c.getAttribute("data-norm")}/20`),
+      el("div", { class: "ms-tip-date" }, c.getAttribute("data-date")),
+    );
+    const r = c.getBoundingClientRect(), o = outer.getBoundingClientRect();
+    tip.style.left = (r.left - o.left + r.width / 2) + "px";
+    // Pas la place au-dessus (point haut) → on bascule le tooltip sous le point.
+    const below = (r.top - o.top) < 60;
+    tip.classList.toggle("below", below);
+    tip.style.top = ((below ? r.bottom : r.top) - o.top) + "px";
+    tip.style.display = "block";
+    c.classList.add("hover");
+  };
+  const hideTip = (c) => { tip.style.display = "none"; if (c) c.classList.remove("hover"); };
+  svg.addEventListener("mouseover", (ev) => {
+    const c = ev.target;
+    if (c.classList && c.classList.contains("ms-pt")) showTip(c);
+  });
+  svg.addEventListener("mouseout", (ev) => {
+    const c = ev.target;
+    if (c.classList && c.classList.contains("ms-pt")) hideTip(c);
+  });
+
+  section.appendChild(outer);
   const avg = Math.round((noted.reduce((s, e) => s + e.norm, 0) / noted.length) * 10) / 10;
   section.appendChild(el("p", { class: "ms-chart-legend muted" },
     `Moyenne actuelle : ${avg}/20 · ${noted.length} évaluation(s)`));
@@ -254,16 +315,45 @@ function renderChartSection(evaluations) {
 
 function renderHistoriqueSection(id) {
   const a = aggregats[id] || { total: 0, avecEleve: 0, byProf: {} };
-  const profLine = Object.entries(a.byProf)
-    .map(([pid, n]) => `${profs.find((p) => p.id === Number(pid))?.nom || "?"} ×${n}`)
-    .join(" · ") || "—";
-  return el("section", { class: "ms-section" },
-    el("h3", { class: "ms-section-title" }, "Historique voiture"),
-    el("div", { class: "suivi-histo" },
-      el("p", {}, `${a.total} passage(s) · dont ${a.avecEleve} avec élève`),
-      el("p", { class: "muted" }, "Formateurs : " + profLine),
-    ),
-  );
+  const section = el("section", { class: "ms-section" },
+    el("h3", { class: "ms-section-title" }, "Historique voiture"));
+  if (!a.total) {
+    section.appendChild(el("p", { class: "muted ms-empty" }, "Aucun passage voiture pour l'instant."));
+    return section;
+  }
+  const aVide = Math.max(0, a.total - a.avecEleve);
+  const pctVide = a.total ? Math.round((aVide / a.total) * 100) : 0;
+  const tile = (v, l) => el("div", { class: "histo-stat" },
+    el("div", { class: "histo-stat-value" }, String(v)),
+    el("div", { class: "histo-stat-label" }, l));
+
+  const card = el("div", { class: "suivi-histo" },
+    el("div", { class: "histo-stats" },
+      tile(a.total, "passages"),
+      tile(a.avecEleve, "avec élève"),
+      tile(aVide, "à vide"),
+      tile(pctVide + "%", "taux à vide"),
+    ));
+
+  const rows = Object.entries(a.byProf)
+    .map(([pid, k]) => ({ nom: profs.find((p) => p.id === Number(pid))?.nom || "?", n: k }))
+    .sort((x, y) => y.n - x.n);
+  if (rows.length) {
+    const maxN = Math.max(1, ...rows.map((r) => r.n));
+    card.appendChild(el("p", { class: "histo-profs-title" }, "Répartition par formateur"));
+    const list = el("div", { class: "histo-profs" });
+    rows.forEach((r) => {
+      list.appendChild(el("div", { class: "histo-prof-row" },
+        el("span", { class: "histo-prof-nom" }, r.nom),
+        el("span", { class: "histo-prof-bar" },
+          el("span", { class: "histo-prof-bar-fill", style: `width:${Math.round((r.n / maxN) * 100)}%` })),
+        el("span", { class: "histo-prof-n muted" }, "×" + r.n),
+      ));
+    });
+    card.appendChild(list);
+  }
+  section.appendChild(card);
+  return section;
 }
 
 export async function renderMonSuivi(container) {

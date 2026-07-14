@@ -5826,18 +5826,52 @@ body.qcm-open { overflow: hidden; }
 .ms-passage-badge { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; }
 .ms-passage-badge.today, .ms-passage-badge.next { color: var(--accent-strong); font-weight: 600; }
 
+.ms-chart-outer { position: relative; }
 .ms-chart-wrap { width: 100%; overflow-x: auto; }
-.ms-chart { width: 100%; max-width: 640px; height: auto; display: block; }
+.ms-chart { display: block; height: auto; max-width: none; }   /* largeur en px via attribut → scroll si large */
+.ms-month-band { fill: var(--bg-subtle); opacity: 0.55; }
 .ms-grid { stroke: var(--line); stroke-width: 1; }
 .ms-axis-label { fill: var(--text-muted); font-size: 12px; }
 .ms-axis-label.small { font-size: 10px; }
 .ms-avg-line { fill: none; stroke: var(--accent); stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
-.ms-pt { stroke: var(--bg-elev); stroke-width: 1.5; }
+.ms-pt { stroke: var(--bg-elev); stroke-width: 1.5; cursor: pointer; }
 .ms-pt.bad   { fill: var(--c-stop); }
 .ms-pt.warn  { fill: #C98A2B; }
 .ms-pt.ok    { fill: #7BA23C; }
 .ms-pt.great { fill: var(--c-go); }
+.ms-pt.hover { stroke: var(--text); stroke-width: 2.5; }
 .ms-chart-legend { margin: 0.5rem 0 0; font-size: 0.85rem; }
+
+/* Tooltip stylé du graphe (suit le point survolé) */
+.ms-tip {
+  position: absolute;
+  transform: translate(-50%, calc(-100% - 10px));
+  background: var(--text);
+  color: var(--bg-elev);
+  padding: 0.4rem 0.6rem;
+  border-radius: var(--r-sm);
+  font-size: 0.78rem;
+  line-height: 1.35;
+  max-width: 240px;
+  pointer-events: none;
+  z-index: 5;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+}
+.ms-tip.below { transform: translate(-50%, 12px); }
+.ms-tip-lib { font-weight: 600; }
+.ms-tip-date { opacity: 0.7; margin-top: 0.1rem; }
+
+/* Historique voiture : tuiles + barres par formateur */
+.histo-stats { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-bottom: 0.9rem; }
+.histo-stat { background: var(--bg-elev); border: 1px solid var(--line); border-radius: var(--r-sm); padding: 0.5rem 0.8rem; min-width: 5rem; }
+.histo-stat-value { font-size: 1.3rem; font-weight: 700; }
+.histo-stat-label { font-size: 0.78rem; color: var(--text-muted); }
+.histo-profs-title { font-size: 0.85rem; font-weight: 600; margin: 0.2rem 0 0.5rem; }
+.histo-prof-row { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.35rem; }
+.histo-prof-nom { flex: 0 0 5.5rem; font-size: 0.88rem; }
+.histo-prof-bar { flex: 1; height: 8px; background: var(--bg-subtle); border-radius: 999px; overflow: hidden; }
+.histo-prof-bar-fill { display: block; height: 100%; background: var(--accent); border-radius: 999px; }
+.histo-prof-n { flex: 0 0 auto; font-size: 0.82rem; }
 
 /* ===== Mon suivi — historique ===== */
 .suivi-histo { background: var(--bg-subtle); border-radius: var(--r); padding: 0.9rem 1.1rem; }
