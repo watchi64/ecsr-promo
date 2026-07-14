@@ -1,12 +1,12 @@
 // Vue EPCF (formateurs/admin) : liste des stagiaires × trames, saisie de grille,
 // vue classe. Les stagiaires n'y ont pas accès (garde + onglet masqué + RLS).
 
-import { listStagiaires, listProfs, listEpcf, upsertEpcf } from "../db.js?v=20260714g";
-import { el, clear, isoDate, formatDate, displayStagiaire, compareByNom, toast } from "../utils.js?v=20260714g";
-import { isAdmin, isProf, getProfile } from "../auth-admin.js?v=20260714g";
-import { getCurrentWho } from "../identity.js?v=20260714g";
-import { EPCF_TRAMES, NOTE_LABELS, NOTE_VALUES } from "../epcf-trames.js?v=20260714g";
-import { phaseScoreFromMoyennes } from "../epcf-restitution.js?v=20260714g";
+import { listStagiaires, listProfs, listEpcf, upsertEpcf } from "../db.js?v=20260714h";
+import { el, clear, isoDate, formatDate, displayStagiaire, compareByNom, toast } from "../utils.js?v=20260714h";
+import { isAdmin, isProf, getProfile } from "../auth-admin.js?v=20260714h";
+import { getCurrentWho } from "../identity.js?v=20260714h";
+import { EPCF_TRAMES, NOTE_LABELS, NOTE_VALUES } from "../epcf-trames.js?v=20260714h";
+import { phaseScoreFromMoyennes } from "../epcf-restitution.js?v=20260714h";
 
 let stagiaires = [];
 let profs = [];
@@ -35,6 +35,9 @@ export async function renderEpcf(container, opts = {}) {
   [stagiaires, profs, evals] = await Promise.all([
     listStagiaires(), listProfs(), listEpcf(),
   ]);
+  // Rendu embarqué (sous-onglet) : si l'utilisateur a changé d'onglet pendant le
+  // chargement, on ne touche pas au panneau (il affiche déjà autre chose).
+  if (opts.isActive && !opts.isActive()) return;
   stagiaires = stagiaires.slice().sort(compareByNom);
   clear(container);
 

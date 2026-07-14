@@ -2,7 +2,7 @@
 // Une barre segmentée + un panneau qui bascule au clic. Le rendu de chaque
 // onglet est paresseux (appelé à l'activation), donc on peut y mettre du lourd.
 
-import { el, clear } from "./utils.js?v=20260714g";
+import { el, clear } from "./utils.js?v=20260714h";
 
 // tabs = [{ key, label, render(panel) }].
 // opts.activeKey : onglet initial ; opts.storageKey : mémorise le dernier onglet choisi.
@@ -19,8 +19,11 @@ export function renderSubTabs(tabs, opts = {}) {
   if (!tabs.some((t) => t.key === current)) current = tabs[0] && tabs[0].key;
 
   const buttons = {};
+  let gen = 0;   // jeton d'activation : permet à un rendu asynchrone de savoir s'il est
+                 // toujours le rendu courant (sinon il doit s'abstenir d'écrire le panneau).
   function activate(key) {
     current = key;
+    const myGen = ++gen;
     if (storageKey) { try { localStorage.setItem(storageKey, key); } catch (e) { /* ignore */ } }
     Object.entries(buttons).forEach(([k, b]) => {
       const on = k === key;
@@ -29,7 +32,7 @@ export function renderSubTabs(tabs, opts = {}) {
     });
     clear(panel);
     const tab = tabs.find((t) => t.key === key);
-    if (tab) tab.render(panel);
+    if (tab) tab.render(panel, { isActive: () => current === key && gen === myGen });
   }
 
   tabs.forEach((t) => {

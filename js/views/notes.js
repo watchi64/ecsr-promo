@@ -2,13 +2,13 @@ import {
   listStagiaires, listCompetences, listEvaluations, listThemes,
   addEvaluation, updateEvaluation, deleteEvaluation, listAuditForEvaluation,
   listUserProfiles,
-} from "../db.js?v=20260714g";
-import { el, clear, isoDate, formatDate, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260714g";
-import { icon } from "../icons.js?v=20260714g";
-import { getAdminEmail, isAdmin, isProf } from "../auth-admin.js?v=20260714g";
-import { recordUndo } from "../undo.js?v=20260714g";
-import { renderSubTabs } from "../subtabs.js?v=20260714g";
-import { renderEpcf } from "./epcf.js?v=20260714g";
+} from "../db.js?v=20260714h";
+import { el, clear, isoDate, formatDate, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260714h";
+import { icon } from "../icons.js?v=20260714h";
+import { getAdminEmail, isAdmin, isProf } from "../auth-admin.js?v=20260714h";
+import { recordUndo } from "../undo.js?v=20260714h";
+import { renderSubTabs } from "../subtabs.js?v=20260714h";
+import { renderEpcf } from "./epcf.js?v=20260714h";
 
 let userProfiles = [];  // pour résoudre l'anonymat par stagiaire_id
 
@@ -1031,7 +1031,16 @@ function rerender(container) {
     // Sous-onglets : Matrice (notes) · EPCF (grilles formateur, vue classe + saisie).
     container.appendChild(renderSubTabs([
       { key: "matrice", label: "Matrice", render: buildMatricePanel },
-      { key: "epcf", label: "EPCF", render: (p) => { renderEpcf(p, { embedded: true }); } },
+      { key: "epcf", label: "EPCF", render: (p, ctx) => {
+          renderEpcf(p, { embedded: true, isActive: ctx && ctx.isActive })
+            .catch((e) => {
+              console.error(e);
+              if (!ctx || ctx.isActive()) {
+                clear(p);
+                p.appendChild(el("p", { class: "muted" }, "Erreur de chargement de l'espace EPCF. Reviens sur l'onglet pour réessayer."));
+              }
+            });
+        } },
     ], { storageKey: "ecsr_notes_subtab" }));
   } else {
     // Stagiaire (lecture seule) : pas d'espace EPCF ici → matrice directe.
