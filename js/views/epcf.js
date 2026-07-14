@@ -1,12 +1,12 @@
 // Vue EPCF (formateurs/admin) : liste des stagiaires × trames, saisie de grille,
 // vue classe. Les stagiaires n'y ont pas accès (garde + onglet masqué + RLS).
 
-import { listStagiaires, listProfs, listEpcf, upsertEpcf, getEpcfMoyennes } from "../db.js?v=20260714i";
-import { el, clear, isoDate, formatDate, displayStagiaire, compareByNom, toast } from "../utils.js?v=20260714i";
-import { isAdmin, isProf, getProfile } from "../auth-admin.js?v=20260714i";
-import { getCurrentWho } from "../identity.js?v=20260714i";
-import { EPCF_TRAMES, NOTE_LABELS } from "../epcf-trames.js?v=20260714i";
-import { renderEpcfTrameSection, renderEpcfClasse } from "../epcf-restitution.js?v=20260714i";
+import { listStagiaires, listProfs, listEpcf, upsertEpcf, getEpcfMoyennes } from "../db.js?v=20260714j";
+import { el, clear, isoDate, formatDate, displayStagiaire, compareByNom, toast } from "../utils.js?v=20260714j";
+import { isAdmin, isProf, getProfile } from "../auth-admin.js?v=20260714j";
+import { getCurrentWho } from "../identity.js?v=20260714j";
+import { EPCF_TRAMES, NOTE_LABELS } from "../epcf-trames.js?v=20260714j";
+import { renderEpcfTrameSection, renderEpcfClasse } from "../epcf-restitution.js?v=20260714j";
 
 let stagiaires = [];
 let profs = [];
@@ -212,8 +212,12 @@ function showForm(body, stagiaire, trameKey, existing) {
     // L'éval est écrite : plus de retour en arrière possible sur ce bouton.
     toast("Évaluation enregistrée", "success", 2000);
     dirty = false;
-    try { evals = await listEpcf(); }
-    catch (e) { console.error(e); }   // liste potentiellement périmée, la nav la rechargera
+    // Rafraîchit la liste ET les moyennes (sinon la « Vue classe » ignorerait la
+    // nouvelle éval jusqu'au prochain rechargement de la vue).
+    try {
+      const [ev, mS, mV] = await Promise.all([listEpcf(), getEpcfMoyennes("salle"), getEpcfMoyennes("vehicule")]);
+      evals = ev; moyByTrame = { salle: mS, vehicule: mV };
+    } catch (e) { console.error(e); }   // données potentiellement périmées, la nav les rechargera
     showListe(body);
   } }, "Enregistrer l'évaluation");
   body.appendChild(el("div", { class: "epcf-actions" }, saveBtn));
