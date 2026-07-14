@@ -1,12 +1,12 @@
 // Vue EPCF (formateurs/admin) : liste des stagiaires × trames, saisie de grille,
 // vue classe. Les stagiaires n'y ont pas accès (garde + onglet masqué + RLS).
 
-import { listStagiaires, listProfs, listEpcf, upsertEpcf, getEpcfMoyennes } from "../db.js?v=20260714k";
-import { el, clear, isoDate, formatDate, displayStagiaire, compareByNom, toast } from "../utils.js?v=20260714k";
-import { isAdmin, isProf, getProfile } from "../auth-admin.js?v=20260714k";
-import { getCurrentWho } from "../identity.js?v=20260714k";
-import { EPCF_TRAMES, NOTE_LABELS } from "../epcf-trames.js?v=20260714k";
-import { renderEpcfTrameSection, renderEpcfClasse } from "../epcf-restitution.js?v=20260714k";
+import { listStagiaires, listProfs, listEpcf, upsertEpcf, getEpcfMoyennes } from "../db.js?v=20260714l";
+import { el, clear, isoDate, formatDate, displayStagiaire, compareByNom, toast } from "../utils.js?v=20260714l";
+import { isAdmin, isProf, getProfile } from "../auth-admin.js?v=20260714l";
+import { getCurrentWho } from "../identity.js?v=20260714l";
+import { EPCF_TRAMES, NOTE_LABELS } from "../epcf-trames.js?v=20260714l";
+import { renderEpcfTrameSection, renderEpcfClasse } from "../epcf-restitution.js?v=20260714l";
 
 let stagiaires = [];
 let profs = [];
@@ -23,16 +23,26 @@ function evalsFor(sid, trameKey) {
 // de Notes) → on n'affiche pas le view-header (le parent a déjà le sien).
 export async function renderEpcf(container, opts = {}) {
   clear(container);
-  if (!isAdmin() && !isProf()) {
+  container.appendChild(el("div", { class: "loading" }, "Chargement"));
+  const formateur = isAdmin() || isProf();
+
+  // Stagiaire : pas de saisie ni de liste — seulement la vue classe (moyennes
+  // agrégées, k-anonymisées). La RPC getEpcfMoyennes est autorisée à tout connecté.
+  if (!formateur) {
+    const [mSalle, mVehicule] = await Promise.all([getEpcfMoyennes("salle"), getEpcfMoyennes("vehicule")]);
+    if (opts.isActive && !opts.isActive()) return;
+    clear(container);
     if (!opts.embedded) {
       container.appendChild(el("div", { class: "view-header" },
         el("div", { class: "view-header-text" }, el("h2", {}, "EPCF"))));
     }
-    container.appendChild(el("p", { class: "muted" },
-      "Espace réservé aux formateurs. Tes résultats EPCF sont dans l'onglet Mon suivi."));
+    const body = el("div", { class: "epcf-body" });
+    container.appendChild(body);
+    body.appendChild(el("h3", { class: "epcf-resti-title" }, "Moyennes de la classe"));
+    renderEpcfClasse(body, { salle: mSalle, vehicule: mVehicule });
     return;
   }
-  container.appendChild(el("div", { class: "loading" }, "Chargement"));
+
   const [stagiairesData, profsData, evalsData, mSalle, mVehicule] = await Promise.all([
     listStagiaires(), listProfs(), listEpcf(), getEpcfMoyennes("salle"), getEpcfMoyennes("vehicule"),
   ]);
@@ -70,10 +80,12 @@ function showListe(body) {
   const tbody = el("tbody");
   stagiaires.forEach((s) => {
     const hasAny = evals.some((e) => e.stagiaire_id === s.id);
-    const nameCell = el("td", { class: "epcf-name-cell" },
+    // display:flex directement sur un <td> casse le border-collapse (traits
+    // désalignés dans la colonne) → on met le flex sur un <div> interne.
+    const nameCell = el("td", {}, el("div", { class: "epcf-name-cell" },
       el("span", { class: "epcf-name" }, displayStagiaire(s)),
       hasAny ? el("button", { class: "btn small ghost", onClick: () => showConsult(body, s) }, "Voir") : null,
-    );
+    ));
     const tr = el("tr", {}, nameCell);
     TRAME_KEYS.forEach((k) => {
       const list = evalsFor(s.id, k);

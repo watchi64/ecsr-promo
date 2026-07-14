@@ -5930,9 +5930,6 @@ body.qcm-open { overflow: hidden; }
 .epcf-classe-phase td { background: var(--bg-subtle); }
 .epcf-name-cell { display: flex; align-items: center; gap: 0.6rem; justify-content: space-between; }
 .epcf-name { font-weight: 500; }
-.epcf-classe-details { margin-top: 1.6rem; border-top: 1px solid var(--line); padding-top: 0.6rem; }
-.epcf-classe-details > summary { cursor: pointer; font-weight: 600; color: var(--accent); padding: 0.3rem 0; }
-.epcf-classe-details[open] > summary { margin-bottom: 0.8rem; }
 
 /* ===== EPCF — responsive mobile. Bloc SÉPARÉ du @media principal (plus haut dans le
    fichier) : placé APRÈS les règles EPCF pour gagner la cascade à spécificité égale.

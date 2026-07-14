@@ -1,10 +1,10 @@
 import { listStagiaires, listEvaluations, getPlanning, getHalfMetaForWeek, getJoursOff, getSetting,
-         getVoitureAggregats, listProfs, listEpcf, getEpcfMoyennes } from "../db.js?v=20260714k";
-import { el, clear, isoDate, getMonday, addDays, formatDate, displayStagiaire, compareByNom } from "../utils.js?v=20260714k";
-import { HALF_DAYS } from "../config.js?v=20260714k";
-import { isAdmin, getProfile } from "../auth-admin.js?v=20260714k";
-import { renderEpcfTrameSection, renderEpcfClasse } from "../epcf-restitution.js?v=20260714k";
-import { renderSubTabs } from "../subtabs.js?v=20260714k";
+         getVoitureAggregats, listProfs, listEpcf, getEpcfMoyennes } from "../db.js?v=20260714l";
+import { el, clear, isoDate, getMonday, addDays, formatDate, displayStagiaire, compareByNom } from "../utils.js?v=20260714l";
+import { HALF_DAYS } from "../config.js?v=20260714l";
+import { isAdmin, getProfile } from "../auth-admin.js?v=20260714l";
+import { renderEpcfTrameSection } from "../epcf-restitution.js?v=20260714l";
+import { renderSubTabs } from "../subtabs.js?v=20260714l";
 
 const HALF_ORDER = { matin: 0, aprem: 1 };
 
@@ -325,12 +325,6 @@ export async function renderMonSuivi(container) {
             epcfEvals.filter((e) => e.trame === "salle"), moySalle));
           p.appendChild(renderEpcfTrameSection("vehicule",
             epcfEvals.filter((e) => e.trame === "vehicule"), moyVehicule));
-          // Vue classe (moyennes du groupe) — repliée, accessible à tout le monde.
-          const classeBox = el("div");
-          renderEpcfClasse(classeBox, { salle: moySalle, vehicule: moyVehicule });
-          p.appendChild(el("details", { class: "epcf-classe-details" },
-            el("summary", {}, "Moyennes de la classe"),
-            classeBox));
         } },
       { key: "evolution", label: "Évolution", render: (p) => {
           p.appendChild(renderHistoriqueSection(id));

@@ -2,13 +2,13 @@ import {
   listStagiaires, listCompetences, listEvaluations, listThemes,
   addEvaluation, updateEvaluation, deleteEvaluation, listAuditForEvaluation,
   listUserProfiles,
-} from "../db.js?v=20260714k";
-import { el, clear, isoDate, formatDate, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260714k";
-import { icon } from "../icons.js?v=20260714k";
-import { getAdminEmail, isAdmin, isProf } from "../auth-admin.js?v=20260714k";
-import { recordUndo } from "../undo.js?v=20260714k";
-import { renderSubTabs } from "../subtabs.js?v=20260714k";
-import { renderEpcf } from "./epcf.js?v=20260714k";
+} from "../db.js?v=20260714l";
+import { el, clear, isoDate, formatDate, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260714l";
+import { icon } from "../icons.js?v=20260714l";
+import { getAdminEmail, isAdmin } from "../auth-admin.js?v=20260714l";
+import { recordUndo } from "../undo.js?v=20260714l";
+import { renderSubTabs } from "../subtabs.js?v=20260714l";
+import { renderEpcf } from "./epcf.js?v=20260714l";
 
 let userProfiles = [];  // pour résoudre l'anonymat par stagiaire_id
 
@@ -1027,25 +1027,22 @@ function rerender(container) {
     panel.appendChild(renderChartsSection());
   };
 
-  if (admin || isProf()) {
-    // Sous-onglets : Matrice (notes) · EPCF (grilles formateur, vue classe + saisie).
-    container.appendChild(renderSubTabs([
-      { key: "matrice", label: "Matrice", render: buildMatricePanel },
-      { key: "epcf", label: "EPCF", render: (p, ctx) => {
-          renderEpcf(p, { embedded: true, isActive: ctx && ctx.isActive })
-            .catch((e) => {
-              console.error(e);
-              if (!ctx || ctx.isActive()) {
-                clear(p);
-                p.appendChild(el("p", { class: "muted" }, "Erreur de chargement de l'espace EPCF. Reviens sur l'onglet pour réessayer."));
-              }
-            });
-        } },
-    ], { storageKey: "ecsr_notes_subtab" }));
-  } else {
-    // Stagiaire (lecture seule) : pas d'espace EPCF ici → matrice directe.
-    buildMatricePanel(container);
-  }
+  // Sous-onglets Matrice · EPCF pour TOUT LE MONDE. renderEpcf s'adapte au rôle :
+  // formateur/admin → liste + saisie + vue classe ; stagiaire → vue classe (moyennes)
+  // uniquement. La matrice reste en lecture seule pour les stagiaires.
+  container.appendChild(renderSubTabs([
+    { key: "matrice", label: "Matrice", render: buildMatricePanel },
+    { key: "epcf", label: "EPCF", render: (p, ctx) => {
+        renderEpcf(p, { embedded: true, isActive: ctx && ctx.isActive })
+          .catch((e) => {
+            console.error(e);
+            if (!ctx || ctx.isActive()) {
+              clear(p);
+              p.appendChild(el("p", { class: "muted" }, "Erreur de chargement de l'espace EPCF. Reviens sur l'onglet pour réessayer."));
+            }
+          });
+      } },
+  ], { storageKey: "ecsr_notes_subtab" }));
 }
 
 // === Helpers stats ===
