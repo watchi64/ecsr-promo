@@ -1,10 +1,10 @@
 import { listStagiaires, listEvaluations, getPlanning, getHalfMetaForWeek, getJoursOff, getSetting,
-         getVoitureAggregats, listProfs, listEpcf, getEpcfMoyennes } from "../db.js?v=20260714n";
-import { el, clear, isoDate, getMonday, addDays, formatDate, displayStagiaire, compareByNom } from "../utils.js?v=20260714n";
-import { HALF_DAYS } from "../config.js?v=20260714n";
-import { isAdmin, getProfile } from "../auth-admin.js?v=20260714n";
-import { renderEpcfTrameSection } from "../epcf-restitution.js?v=20260714n";
-import { renderSubTabs } from "../subtabs.js?v=20260714n";
+         getVoitureAggregats, listProfs, listEpcf, getEpcfMoyennes } from "../db.js?v=20260714o";
+import { el, clear, isoDate, getMonday, addDays, formatDate, displayStagiaire, compareByNom } from "../utils.js?v=20260714o";
+import { HALF_DAYS } from "../config.js?v=20260714o";
+import { isAdmin, getProfile } from "../auth-admin.js?v=20260714o";
+import { renderEpcfTrameSection } from "../epcf-restitution.js?v=20260714o";
+import { renderSubTabs } from "../subtabs.js?v=20260714o";
 
 const HALF_ORDER = { matin: 0, aprem: 1 };
 
@@ -211,7 +211,10 @@ function groupByMonth(evals) {
 function buildChart(evals) {
   const H = 280, padL = 40, padR = 16, padT = 16, padB = 40;
   const n = evals.length;
-  const innerW = Math.max(540, (n - 1) * 26);       // 26 px mini entre deux points
+  const months = groupByMonth(evals);
+  // Largeur mini : 26 px/point ET 46 px/mois (sinon, avec ~1 éval/mois, les bandes
+  // deviennent plus étroites que le libellé de mois → chevauchement).
+  const innerW = Math.max(540, months.length * 46, (n - 1) * 26);
   const W = padL + padR + innerW, innerH = H - padT - padB;
   const x = (i) => padL + (n <= 1 ? innerW / 2 : (innerW * i) / (n - 1));
   const y = (v) => padT + innerH * (1 - Math.max(0, Math.min(20, v)) / 20);
@@ -220,15 +223,18 @@ function buildChart(evals) {
     class: "ms-chart", role: "img", "aria-label": "Graphe d'évolution des notes" });
 
   // Bandes mensuelles (colonnes alternées) + libellé de mois
-  const months = groupByMonth(evals);
   months.forEach((m, mi) => {
     const left = m.start === 0 ? padL : (x(m.start) + x(m.start - 1)) / 2;
     const right = m.end === n - 1 ? (W - padR) : (x(m.end) + x(m.end + 1)) / 2;
     if (mi % 2 === 1) svg.appendChild(svgEl("rect",
       { x: left, y: padT, width: Math.max(0, right - left), height: innerH, class: "ms-month-band" }));
-    const lbl = svgEl("text", { x: (left + right) / 2, y: H - padB + 20, "text-anchor": "middle", class: "ms-axis-label small" });
-    lbl.textContent = m.label;
-    svg.appendChild(lbl);
+    // Libellé toujours affiché pour le 1er et le dernier mois (bandes de bord =
+    // demi-largeur) ; pour les mois du milieu, seulement si la bande est assez large.
+    if (mi === 0 || mi === months.length - 1 || right - left >= 30) {
+      const lbl = svgEl("text", { x: (left + right) / 2, y: H - padB + 20, "text-anchor": "middle", class: "ms-axis-label small" });
+      lbl.textContent = m.label;
+      svg.appendChild(lbl);
+    }
   });
 
   // Grille + axe Y
