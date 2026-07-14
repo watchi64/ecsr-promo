@@ -5842,6 +5842,30 @@ body.qcm-open { overflow: hidden; }
 /* ===== Mon suivi — historique ===== */
 .suivi-histo { background: var(--bg-subtle); border-radius: var(--r); padding: 0.9rem 1.1rem; }
 
+/* ===== Sous-onglets (navigation interne à une vue : Mon suivi, Notes…) ===== */
+.subtabs-bar {
+  display: flex;
+  gap: 0.3rem;
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 1.2rem;
+}
+.subtab {
+  appearance: none;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  padding: 0.5rem 0.9rem;
+  font: inherit;
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.subtab:hover { color: var(--text); }
+.subtab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
 /* ===== EPCF ===== */
 .epcf-table-wrap { background: var(--bg-elev); border: 1px solid var(--line); border-radius: var(--r-lg); overflow: hidden; }
 .epcf-table { width: 100%; border-collapse: collapse; }
@@ -5890,7 +5914,8 @@ body.qcm-open { overflow: hidden; }
 
 .epcf-actions { margin: 1rem 0 2rem; }
 .epcf-detail { margin-top: 0.5rem; }
-.epcf-detail-section { margin-top: 0.9rem; }
+/* border-left transparent par défaut ; la couleur de phase est posée en inline (JS). */
+.epcf-detail-section { margin-top: 0.9rem; border-left: 3px solid transparent; padding-left: 0.7rem; }
 .epcf-detail-title { margin: 0 0 0.4rem; font-size: 0.9rem; }
 .epcf-detail-tp { font-weight: 400; font-size: 0.8rem; }
 .epcf-detail-row { display: flex; align-items: baseline; gap: 0.6rem; padding: 0.2rem 0; font-size: 0.88rem; }

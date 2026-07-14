@@ -14,6 +14,19 @@
 export const NOTE_VALUES = { A: 2, R: 1, NA: 0 };
 export const NOTE_LABELS = { A: "Acquis", R: "À renforcer", NA: "Non acquis" };
 
+// Couleur par phase/bloc de compétence (clé = code de section). Sert à distinguer
+// visuellement les blocs sur le radar et le détail. Teintes CHOISIES HORS
+// vert/ambre/rouge pour ne pas entrer en conflit avec les notes A/R/NA.
+export const EPCF_PHASE_COLORS = {
+  PREP:  "#5E81AC",  // bleu       (salle — préparation)
+  ANIM:  "#A3799F",  // mauve      (salle — animation)
+  COND:  "#4F8FA6",  // bleu-canard(véhicule — animation conduite)
+  EVAL:  "#8C6BB1",  // violet     (partagé salle/véhicule — évaluations)
+  BILEV: "#6C88C4",  // bleu clair (partagé — bilan & objectif)
+  BILAN: "#9C7B5A",  // taupe      (partagé — bilan final)
+  PERC:  "#3F9C8E",  // teal       (véhicule — perception C7)
+};
+
 export const EPCF_TRAMES = {
   salle: {
     version: 1,

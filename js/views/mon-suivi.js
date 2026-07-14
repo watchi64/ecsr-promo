@@ -1,9 +1,10 @@
 import { listStagiaires, listEvaluations, getPlanning, getHalfMetaForWeek, getJoursOff, getSetting,
-         getVoitureAggregats, listProfs, listEpcf, getEpcfMoyennes } from "../db.js?v=20260714f";
-import { el, clear, isoDate, getMonday, addDays, formatDate, displayStagiaire, compareByNom } from "../utils.js?v=20260714f";
-import { HALF_DAYS } from "../config.js?v=20260714f";
-import { isAdmin, getProfile } from "../auth-admin.js?v=20260714f";
-import { renderEpcfTrameSection } from "../epcf-restitution.js?v=20260714f";
+         getVoitureAggregats, listProfs, listEpcf, getEpcfMoyennes } from "../db.js?v=20260714g";
+import { el, clear, isoDate, getMonday, addDays, formatDate, displayStagiaire, compareByNom } from "../utils.js?v=20260714g";
+import { HALF_DAYS } from "../config.js?v=20260714g";
+import { isAdmin, getProfile } from "../auth-admin.js?v=20260714g";
+import { renderEpcfTrameSection } from "../epcf-restitution.js?v=20260714g";
+import { renderSubTabs } from "../subtabs.js?v=20260714g";
 
 const HALF_ORDER = { matin: 0, aprem: 1 };
 
@@ -314,16 +315,22 @@ export async function renderMonSuivi(container) {
     ]);
     if (token !== renderToken) return;   // un rendu plus récent a pris la main
     clear(body);
-    body.appendChild(renderPassagesSection(items));
-    const epcfSection = el("section", { class: "ms-section" },
-      el("h3", { class: "ms-section-title" }, "Mes EPCF"));
-    epcfSection.appendChild(renderEpcfTrameSection("salle",
-      epcfEvals.filter((e) => e.trame === "salle"), moySalle));
-    epcfSection.appendChild(renderEpcfTrameSection("vehicule",
-      epcfEvals.filter((e) => e.trame === "vehicule"), moyVehicule));
-    body.appendChild(epcfSection);
-    body.appendChild(renderHistoriqueSection(id));
-    body.appendChild(renderChartSection(evaluations));
+    // Sous-onglets : Passages · EPCF · Évolution. Le rendu de chaque onglet est
+    // paresseux ; toutes les données sont déjà chargées (closures ci-dessus).
+    body.appendChild(renderSubTabs([
+      { key: "passages", label: "Passages",
+        render: (p) => p.appendChild(renderPassagesSection(items)) },
+      { key: "epcf", label: "EPCF", render: (p) => {
+          p.appendChild(renderEpcfTrameSection("salle",
+            epcfEvals.filter((e) => e.trame === "salle"), moySalle));
+          p.appendChild(renderEpcfTrameSection("vehicule",
+            epcfEvals.filter((e) => e.trame === "vehicule"), moyVehicule));
+        } },
+      { key: "evolution", label: "Évolution", render: (p) => {
+          p.appendChild(renderHistoriqueSection(id));
+          p.appendChild(renderChartSection(evaluations));
+        } },
+    ], { storageKey: "ecsr_monsuivi_subtab" }));
   }
 
   if (needSelector) {

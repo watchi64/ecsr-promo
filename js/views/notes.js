@@ -2,11 +2,13 @@ import {
   listStagiaires, listCompetences, listEvaluations, listThemes,
   addEvaluation, updateEvaluation, deleteEvaluation, listAuditForEvaluation,
   listUserProfiles,
-} from "../db.js?v=20260714f";
-import { el, clear, isoDate, formatDate, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260714f";
-import { icon } from "../icons.js?v=20260714f";
-import { getAdminEmail, isAdmin } from "../auth-admin.js?v=20260714f";
-import { recordUndo } from "../undo.js?v=20260714f";
+} from "../db.js?v=20260714g";
+import { el, clear, isoDate, formatDate, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260714g";
+import { icon } from "../icons.js?v=20260714g";
+import { getAdminEmail, isAdmin, isProf } from "../auth-admin.js?v=20260714g";
+import { recordUndo } from "../undo.js?v=20260714g";
+import { renderSubTabs } from "../subtabs.js?v=20260714g";
+import { renderEpcf } from "./epcf.js?v=20260714g";
 
 let userProfiles = [];  // pour résoudre l'anonymat par stagiaire_id
 
@@ -984,6 +986,7 @@ function rerender(container) {
     rerender(container);
   });
 
+  let toolbar;
   if (admin) {
     // Barre date globale : toutes les notes saisies prendront cette date
     const dateInput = el("input", { type: "date", value: currentEvalDate });
@@ -995,7 +998,7 @@ function rerender(container) {
       dateInput.value = currentEvalDate;
     }}, "Aujourd'hui");
 
-    container.appendChild(el("div", { class: "matrice-toolbar" },
+    toolbar = el("div", { class: "matrice-toolbar" },
       el("span", { class: "matrice-toolbar-label" }, "Trier :"),
       sortSel,
       el("span", { class: "matrice-toolbar-label", style: "margin-left:1rem" }, "Date des notes :"),
@@ -1004,17 +1007,36 @@ function rerender(container) {
       el("span", { class: "matrice-toolbar-hint muted" },
         "→ clique une cellule, tape une note (0-20), Entrée valide, Esc annule."
       ),
-    ));
+    );
   } else {
-    container.appendChild(el("div", { class: "matrice-toolbar" },
+    toolbar = el("div", { class: "matrice-toolbar" },
       el("span", { class: "matrice-toolbar-label" }, "Trier :"),
       sortSel,
-    ));
+    );
   }
 
-  container.appendChild(renderMatrice(container));
-  container.appendChild(renderSynthese());
-  container.appendChild(renderChartsSection());
+  // Panneau « Matrice » = barre d'outils + tableau + synthèse + graphiques.
+  // On passe le `container` de la vue (pas le panneau) à renderMatrice : les
+  // éditions de cellule appellent refreshAnalyticsInPlace(container), qui
+  // retrouve .notes-synthese/.notes-chart par querySelector — ils restent des
+  // descendants du container, dans le panneau.
+  const buildMatricePanel = (panel) => {
+    panel.appendChild(toolbar);
+    panel.appendChild(renderMatrice(container));
+    panel.appendChild(renderSynthese());
+    panel.appendChild(renderChartsSection());
+  };
+
+  if (admin || isProf()) {
+    // Sous-onglets : Matrice (notes) · EPCF (grilles formateur, vue classe + saisie).
+    container.appendChild(renderSubTabs([
+      { key: "matrice", label: "Matrice", render: buildMatricePanel },
+      { key: "epcf", label: "EPCF", render: (p) => { renderEpcf(p, { embedded: true }); } },
+    ], { storageKey: "ecsr_notes_subtab" }));
+  } else {
+    // Stagiaire (lecture seule) : pas d'espace EPCF ici → matrice directe.
+    buildMatricePanel(container);
+  }
 }
 
 // === Helpers stats ===

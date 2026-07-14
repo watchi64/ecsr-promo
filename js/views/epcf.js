@@ -1,12 +1,12 @@
 // Vue EPCF (formateurs/admin) : liste des stagiaires × trames, saisie de grille,
 // vue classe. Les stagiaires n'y ont pas accès (garde + onglet masqué + RLS).
 
-import { listStagiaires, listProfs, listEpcf, upsertEpcf } from "../db.js?v=20260714f";
-import { el, clear, isoDate, formatDate, displayStagiaire, compareByNom, toast } from "../utils.js?v=20260714f";
-import { isAdmin, isProf, getProfile } from "../auth-admin.js?v=20260714f";
-import { getCurrentWho } from "../identity.js?v=20260714f";
-import { EPCF_TRAMES, NOTE_LABELS, NOTE_VALUES } from "../epcf-trames.js?v=20260714f";
-import { phaseScoreFromMoyennes } from "../epcf-restitution.js?v=20260714f";
+import { listStagiaires, listProfs, listEpcf, upsertEpcf } from "../db.js?v=20260714g";
+import { el, clear, isoDate, formatDate, displayStagiaire, compareByNom, toast } from "../utils.js?v=20260714g";
+import { isAdmin, isProf, getProfile } from "../auth-admin.js?v=20260714g";
+import { getCurrentWho } from "../identity.js?v=20260714g";
+import { EPCF_TRAMES, NOTE_LABELS, NOTE_VALUES } from "../epcf-trames.js?v=20260714g";
+import { phaseScoreFromMoyennes } from "../epcf-restitution.js?v=20260714g";
 
 let stagiaires = [];
 let profs = [];
@@ -18,11 +18,15 @@ function evalsFor(sid, trameKey) {
   return evals.filter((e) => e.stagiaire_id === sid && e.trame === trameKey);
 }
 
-export async function renderEpcf(container) {
+// opts.embedded : true quand la vue est rendue DANS une autre vue (sous-onglet EPCF
+// de Notes) → on n'affiche pas le view-header (le parent a déjà le sien).
+export async function renderEpcf(container, opts = {}) {
   clear(container);
   if (!isAdmin() && !isProf()) {
-    container.appendChild(el("div", { class: "view-header" },
-      el("div", { class: "view-header-text" }, el("h2", {}, "EPCF"))));
+    if (!opts.embedded) {
+      container.appendChild(el("div", { class: "view-header" },
+        el("div", { class: "view-header-text" }, el("h2", {}, "EPCF"))));
+    }
     container.appendChild(el("p", { class: "muted" },
       "Espace réservé aux formateurs. Tes résultats EPCF sont dans l'onglet Mon suivi."));
     return;
@@ -34,13 +38,15 @@ export async function renderEpcf(container) {
   stagiaires = stagiaires.slice().sort(compareByNom);
   clear(container);
 
-  container.appendChild(el("div", { class: "view-header" },
-    el("div", { class: "view-header-text" },
-      el("p", { class: "eyebrow" }, "Formateurs"),
-      el("h2", {}, "EPCF"),
-      el("p", { class: "subtitle" }, "Évaluations en cours de formation — grilles CCP1 salle et véhicule."),
-    ),
-  ));
+  if (!opts.embedded) {
+    container.appendChild(el("div", { class: "view-header" },
+      el("div", { class: "view-header-text" },
+        el("p", { class: "eyebrow" }, "Formateurs"),
+        el("h2", {}, "EPCF"),
+        el("p", { class: "subtitle" }, "Évaluations en cours de formation — grilles CCP1 salle et véhicule."),
+      ),
+    ));
+  }
 
   const body = el("div", { class: "epcf-body" });
   container.appendChild(body);

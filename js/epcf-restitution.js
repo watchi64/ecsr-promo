@@ -1,8 +1,8 @@
 // Restitution EPCF : scoring des phases, radar SVG, section réutilisable
 // (affichée dans Mon suivi ; réutilisable ailleurs).
 
-import { el, clear, formatDate } from "./utils.js?v=20260714f";
-import { EPCF_TRAMES, NOTE_VALUES, NOTE_LABELS } from "./epcf-trames.js?v=20260714f";
+import { el, clear, formatDate } from "./utils.js?v=20260714g";
+import { EPCF_TRAMES, NOTE_VALUES, NOTE_LABELS, EPCF_PHASE_COLORS } from "./epcf-trames.js?v=20260714g";
 
 const SVGNS = "http://www.w3.org/2000/svg";
 function svgEl(tag, attrs = {}) {
@@ -29,7 +29,7 @@ export function phaseScoreFromMoyennes(section, moyennes) {
   return vals.reduce((s, v) => s + v, 0) / (vals.length * 2);
 }
 
-// Radar SVG. axes = [libellés courts] ; series = [{ values: [0..1|null], className }].
+// Radar SVG. axes = [libellé] OU [{ label, color }] ; series = [{ values: [0..1|null], className }].
 // Une phase non renseignée est tracée à 0 (le détail dessous fait foi).
 export function buildRadar(axes, series, size = 340) {
   const padX = 40;                          // marge horizontale pour les labels des axes latéraux
@@ -46,13 +46,18 @@ export function buildRadar(axes, series, size = 340) {
     svg.appendChild(svgEl("polygon", { points: pts, class: "epcf-radar-ring" }));
   });
   axes.forEach((a, i) => {
-    svg.appendChild(svgEl("line", { x1: cx, y1: cy, x2: px(i, 1), y2: py(i, 1), class: "epcf-radar-spoke" }));
+    const label = typeof a === "string" ? a : a.label;
+    const color = typeof a === "object" && a.color ? a.color : null;
+    const spoke = svgEl("line", { x1: cx, y1: cy, x2: px(i, 1), y2: py(i, 1), class: "epcf-radar-spoke" });
+    if (color) spoke.setAttribute("stroke", color);
+    svg.appendChild(spoke);
     const c = Math.cos(ang(i));
     const t = svgEl("text", {
       x: px(i, 1.14), y: py(i, 1.14), class: "epcf-radar-label",
       "text-anchor": Math.abs(c) < 0.3 ? "middle" : (c > 0 ? "start" : "end"),
     });
-    t.textContent = a;
+    if (color) t.setAttribute("fill", color);
+    t.textContent = label;
     svg.appendChild(t);
   });
   series.forEach((s) => {
@@ -67,9 +72,14 @@ export function renderEpcfDetail(trameKey, evalRow) {
   const trame = EPCF_TRAMES[trameKey];
   const wrap = el("div", { class: "epcf-detail" });
   trame.sections.forEach((sec) => {
+    const color = EPCF_PHASE_COLORS[sec.code] || null;
     const box = el("div", { class: "epcf-detail-section" },
       el("h5", { class: "epcf-detail-title" }, sec.titre,
         sec.competenceTP ? el("span", { class: "muted epcf-detail-tp" }, " — " + sec.competenceTP) : null));
+    if (color) {
+      box.style.borderLeftColor = color;
+      box.querySelector(".epcf-detail-title").style.color = color;
+    }
     sec.criteres.forEach((c) => {
       const note = evalRow.scores?.[c.code];
       box.appendChild(el("div", { class: "epcf-detail-row" },
@@ -107,7 +117,7 @@ export function renderEpcfTrameSection(trameKey, evals, moyennes) {
 
   const show = (evalRow) => {
     clear(body);
-    const axes = trame.sections.map((s) => s.court);
+    const axes = trame.sections.map((s) => ({ label: s.court, color: EPCF_PHASE_COLORS[s.code] }));
     const serieMoi = { values: trame.sections.map((s) => phaseScore(s, evalRow.scores)), className: "moi" };
     const series = [serieMoi];
     const maxEffectif = Math.max(0, ...(moyennes || []).map((m) => m.effectif));
