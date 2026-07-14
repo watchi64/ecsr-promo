@@ -1,16 +1,17 @@
 // Vue EPCF (formateurs/admin) : liste des stagiaires × trames, saisie de grille,
 // vue classe. Les stagiaires n'y ont pas accès (garde + onglet masqué + RLS).
 
-import { listStagiaires, listProfs, listEpcf, upsertEpcf } from "../db.js?v=20260714h";
-import { el, clear, isoDate, formatDate, displayStagiaire, compareByNom, toast } from "../utils.js?v=20260714h";
-import { isAdmin, isProf, getProfile } from "../auth-admin.js?v=20260714h";
-import { getCurrentWho } from "../identity.js?v=20260714h";
-import { EPCF_TRAMES, NOTE_LABELS, NOTE_VALUES } from "../epcf-trames.js?v=20260714h";
-import { phaseScoreFromMoyennes } from "../epcf-restitution.js?v=20260714h";
+import { listStagiaires, listProfs, listEpcf, upsertEpcf, getEpcfMoyennes } from "../db.js?v=20260714i";
+import { el, clear, isoDate, formatDate, displayStagiaire, compareByNom, toast } from "../utils.js?v=20260714i";
+import { isAdmin, isProf, getProfile } from "../auth-admin.js?v=20260714i";
+import { getCurrentWho } from "../identity.js?v=20260714i";
+import { EPCF_TRAMES, NOTE_LABELS } from "../epcf-trames.js?v=20260714i";
+import { renderEpcfTrameSection, renderEpcfClasse } from "../epcf-restitution.js?v=20260714i";
 
 let stagiaires = [];
 let profs = [];
 let evals = [];   // toutes les évals (les profs/admin lisent tout via RLS)
+let moyByTrame = { salle: [], vehicule: [] };   // agrégats RPC (vue classe + série groupe)
 
 const TRAME_KEYS = ["salle", "vehicule"];
 
@@ -32,9 +33,11 @@ export async function renderEpcf(container, opts = {}) {
     return;
   }
   container.appendChild(el("div", { class: "loading" }, "Chargement"));
-  [stagiaires, profs, evals] = await Promise.all([
-    listStagiaires(), listProfs(), listEpcf(),
+  const [stagiairesData, profsData, evalsData, mSalle, mVehicule] = await Promise.all([
+    listStagiaires(), listProfs(), listEpcf(), getEpcfMoyennes("salle"), getEpcfMoyennes("vehicule"),
   ]);
+  stagiaires = stagiairesData; profs = profsData; evals = evalsData;
+  moyByTrame = { salle: mSalle, vehicule: mVehicule };
   // Rendu embarqué (sous-onglet) : si l'utilisateur a changé d'onglet pendant le
   // chargement, on ne touche pas au panneau (il affiche déjà autre chose).
   if (opts.isActive && !opts.isActive()) return;
@@ -66,7 +69,12 @@ function showListe(body) {
   )));
   const tbody = el("tbody");
   stagiaires.forEach((s) => {
-    const tr = el("tr", {}, el("td", {}, displayStagiaire(s)));
+    const hasAny = evals.some((e) => e.stagiaire_id === s.id);
+    const nameCell = el("td", { class: "epcf-name-cell" },
+      el("span", { class: "epcf-name" }, displayStagiaire(s)),
+      hasAny ? el("button", { class: "btn small ghost", onClick: () => showConsult(body, s) }, "Voir") : null,
+    );
+    const tr = el("tr", {}, nameCell);
     TRAME_KEYS.forEach((k) => {
       const list = evalsFor(s.id, k);
       const cell = el("td", { class: "epcf-cell" });
@@ -211,67 +219,27 @@ function showForm(body, stagiaire, trameKey, existing) {
   body.appendChild(el("div", { class: "epcf-actions" }, saveBtn));
 }
 
-// Tier couleur d'une moyenne 0..2 (frontières : ≥1.5 acquis, ≥0.8 à renforcer).
-function tierOf(moyenne) {
-  return moyenne >= 1.5 ? "A" : moyenne >= 0.8 ? "R" : "NA";
+// --- Consultation (lecture seule) des derniers résultats d'un élève : les 2 radars
+// (salle + véhicule) + détail, sans passer par le formulaire d'édition. ---
+function showConsult(body, stagiaire) {
+  clear(body);
+  body.appendChild(el("div", { class: "epcf-form-head" },
+    el("button", { class: "btn small ghost", onClick: () => showListe(body) }, "← Retour"),
+    el("h3", {}, "Résultats — " + displayStagiaire(stagiaire)),
+  ));
+  TRAME_KEYS.forEach((trameKey) => {
+    body.appendChild(renderEpcfTrameSection(trameKey,
+      evals.filter((e) => e.stagiaire_id === stagiaire.id && e.trame === trameKey),
+      moyByTrame[trameKey]));
+  });
 }
 
-// --- Vue classe : moyennes par critère et par phase (dernière éval formateur
-// de chaque stagiaire, contexte EPCF) — même sémantique que le RPC epcf_moyennes ---
+// --- Vue classe : moyennes par phase et critère (agrégats RPC, réutilisable). ---
 function showClasse(body) {
   clear(body);
   body.appendChild(el("div", { class: "epcf-form-head" },
-    el("button", { class: "btn ghost small", onClick: () => showListe(body) }, "← Retour"),
+    el("button", { class: "btn small ghost", onClick: () => showListe(body) }, "← Retour"),
     el("h3", {}, "Vue classe — moyennes"),
   ));
-
-  TRAME_KEYS.forEach((trameKey) => {
-    const trame = EPCF_TRAMES[trameKey];
-    // dernière éval formateur par stagiaire (evals est déjà triée desc par listEpcf)
-    const seen = new Set();
-    const dernieres = evals.filter((e) => {
-      if (e.trame !== trameKey || e.contexte !== "EPCF" || e.auto_eval) return false;
-      if (seen.has(e.stagiaire_id)) return false;
-      seen.add(e.stagiaire_id);
-      return true;
-    });
-    const box = el("div", { class: "epcf-classe-trame" },
-      el("h4", {}, `${trame.label} — ${dernieres.length} stagiaire(s) évalué(s)`));
-    if (!dernieres.length) {
-      box.appendChild(el("p", { class: "muted" }, "Aucune évaluation."));
-      body.appendChild(box);
-      return;
-    }
-    // moyennes par critère (0..2), même sémantique que le RPC epcf_moyennes
-    const moyennes = [];
-    trame.sections.forEach((sec) => sec.criteres.forEach((c) => {
-      const vals = dernieres.map((e) => NOTE_VALUES[e.scores?.[c.code]]).filter((v) => v !== undefined);
-      if (vals.length) moyennes.push({ critere: c.code, moyenne: vals.reduce((s, v) => s + v, 0) / vals.length, effectif: vals.length });
-    }));
-    const byCode = Object.fromEntries(moyennes.map((m) => [m.critere, m]));
-
-    const table = el("table", { class: "epcf-table classe" });
-    table.appendChild(el("thead", {}, el("tr", {},
-      el("th", {}, "Critère"), el("th", {}, "Moyenne /2"), el("th", {}, "Évalués"))));
-    const tbody = el("tbody");
-    trame.sections.forEach((sec) => {
-      const ps = phaseScoreFromMoyennes(sec, moyennes);
-      tbody.appendChild(el("tr", { class: "epcf-classe-phase" },
-        el("td", {}, el("strong", {}, sec.court)),
-        el("td", {}, ps == null ? el("strong", {}, "—")
-          : el("span", { class: "epcf-chip " + tierOf(ps * 2) }, el("strong", {}, (ps * 2).toFixed(2)))),
-        el("td", {}, "")));
-      sec.criteres.forEach((c) => {
-        const m = byCode[c.code];
-        const tier = m ? tierOf(m.moyenne) : "";
-        tbody.appendChild(el("tr", {},
-          el("td", { class: "epcf-classe-lib" }, c.libelle),
-          el("td", {}, el("span", { class: "epcf-chip " + (tier || "vide") }, m ? m.moyenne.toFixed(2) : "—")),
-          el("td", { class: "muted" }, m ? String(m.effectif) : "")));
-      });
-    });
-    table.appendChild(tbody);
-    box.appendChild(el("div", { class: "epcf-table-wrap" }, table));
-    body.appendChild(box);
-  });
+  renderEpcfClasse(body, moyByTrame);
 }

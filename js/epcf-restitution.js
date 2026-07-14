@@ -1,8 +1,8 @@
 // Restitution EPCF : scoring des phases, radar SVG, section réutilisable
 // (affichée dans Mon suivi ; réutilisable ailleurs).
 
-import { el, clear, formatDate } from "./utils.js?v=20260714h";
-import { EPCF_TRAMES, NOTE_VALUES, NOTE_LABELS, EPCF_PHASE_COLORS } from "./epcf-trames.js?v=20260714h";
+import { el, clear, formatDate } from "./utils.js?v=20260714i";
+import { EPCF_TRAMES, NOTE_VALUES, NOTE_LABELS, EPCF_PHASE_COLORS } from "./epcf-trames.js?v=20260714i";
 
 const SVGNS = "http://www.w3.org/2000/svg";
 function svgEl(tag, attrs = {}) {
@@ -149,4 +149,57 @@ export function renderEpcfTrameSection(trameKey, evals, moyennes) {
   }
   show(evals[0]);
   return section;
+}
+
+// Tier couleur d'une moyenne 0..2 (frontières : ≥1.5 acquis, ≥0.8 à renforcer).
+export function tierOf(moyenne) {
+  return moyenne >= 1.5 ? "A" : moyenne >= 0.8 ? "R" : "NA";
+}
+
+// Vue classe : moyennes par phase et par critère, pour chaque trame, à partir des
+// agrégats de la RPC getEpcfMoyennes. Ne montre QUE des moyennes (aucune donnée
+// individuelle) → affichable par n'importe quel compte connecté.
+// moyennesByTrame = { salle: [{critere,moyenne,effectif}], vehicule: [...] }.
+export function renderEpcfClasse(container, moyennesByTrame) {
+  ["salle", "vehicule"].forEach((trameKey) => {
+    const trame = EPCF_TRAMES[trameKey];
+    const moyennes = (moyennesByTrame && moyennesByTrame[trameKey]) || [];
+    const nEval = Math.max(0, ...moyennes.map((m) => Number(m.effectif) || 0));
+    const box = el("div", { class: "epcf-classe-trame" },
+      el("h4", {}, `${trame.label} — ${nEval} stagiaire(s) évalué(s)`));
+    if (!moyennes.length) {
+      box.appendChild(el("p", { class: "muted" }, "Aucune évaluation."));
+      container.appendChild(box);
+      return;
+    }
+    const byCode = Object.fromEntries(moyennes.map((m) =>
+      [m.critere, { moyenne: Number(m.moyenne), effectif: Number(m.effectif) }]));
+
+    const table = el("table", { class: "epcf-table classe" });
+    table.appendChild(el("thead", {}, el("tr", {},
+      el("th", {}, "Critère"), el("th", {}, "Moyenne /2"), el("th", {}, "Évalués"))));
+    const tbody = el("tbody");
+    trame.sections.forEach((sec) => {
+      const ps = phaseScoreFromMoyennes(sec, moyennes);   // 0..1
+      const color = EPCF_PHASE_COLORS[sec.code] || null;
+      const phaseCell = el("td", {}, el("strong", {}, sec.court));
+      if (color) phaseCell.style.color = color;
+      tbody.appendChild(el("tr", { class: "epcf-classe-phase" },
+        phaseCell,
+        el("td", {}, ps == null ? el("strong", {}, "—")
+          : el("span", { class: "epcf-chip " + tierOf(ps * 2) }, el("strong", {}, (ps * 2).toFixed(2)))),
+        el("td", {}, "")));
+      sec.criteres.forEach((c) => {
+        const m = byCode[c.code];
+        const tier = m ? tierOf(m.moyenne) : "";
+        tbody.appendChild(el("tr", {},
+          el("td", { class: "epcf-classe-lib" }, c.libelle),
+          el("td", {}, el("span", { class: "epcf-chip " + (tier || "vide") }, m ? m.moyenne.toFixed(2) : "—")),
+          el("td", { class: "muted" }, m ? String(m.effectif) : "")));
+      });
+    });
+    table.appendChild(tbody);
+    box.appendChild(el("div", { class: "epcf-table-wrap" }, table));
+    container.appendChild(box);
+  });
 }
