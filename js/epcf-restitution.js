@@ -1,8 +1,8 @@
 // Restitution EPCF : scoring des phases, radar SVG, section réutilisable
 // (affichée dans Mon suivi ; réutilisable ailleurs).
 
-import { el, clear, formatDate } from "./utils.js?v=20260714j";
-import { EPCF_TRAMES, NOTE_VALUES, NOTE_LABELS, EPCF_PHASE_COLORS } from "./epcf-trames.js?v=20260714j";
+import { el, clear, formatDate } from "./utils.js?v=20260714k";
+import { EPCF_TRAMES, NOTE_VALUES, NOTE_LABELS, EPCF_PHASE_COLORS } from "./epcf-trames.js?v=20260714k";
 
 const SVGNS = "http://www.w3.org/2000/svg";
 function svgEl(tag, attrs = {}) {
@@ -163,12 +163,22 @@ export function tierOf(moyenne) {
 export function renderEpcfClasse(container, moyennesByTrame) {
   ["salle", "vehicule"].forEach((trameKey) => {
     const trame = EPCF_TRAMES[trameKey];
-    const moyennes = (moyennesByTrame && moyennesByTrame[trameKey]) || [];
-    const nEval = Math.max(0, ...moyennes.map((m) => Number(m.effectif) || 0));
+    const all = (moyennesByTrame && moyennesByTrame[trameKey]) || [];
+    const nEval = Math.max(0, ...all.map((m) => Number(m.effectif) || 0));
     const box = el("div", { class: "epcf-classe-trame" },
       el("h4", {}, `${trame.label} — ${nEval} stagiaire(s) évalué(s)`));
-    if (!moyennes.length) {
+    if (!all.length) {
       box.appendChild(el("p", { class: "muted" }, "Aucune évaluation."));
+      container.appendChild(box);
+      return;
+    }
+    // k-anonymat : cette vue est affichée aussi aux stagiaires → on n'expose une
+    // moyenne que si AU MOINS 2 stagiaires ont ce critère (même seuil que la série
+    // groupe du radar). Sinon la « moyenne » serait la note exacte d'une personne.
+    const moyennes = all.filter((m) => Number(m.effectif) >= 2);
+    if (!moyennes.length) {
+      box.appendChild(el("p", { class: "muted" },
+        "Pas encore assez d'évaluations pour une moyenne de groupe (2 minimum)."));
       container.appendChild(box);
       return;
     }

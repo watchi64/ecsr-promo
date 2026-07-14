@@ -1,12 +1,12 @@
 // Vue EPCF (formateurs/admin) : liste des stagiaires × trames, saisie de grille,
 // vue classe. Les stagiaires n'y ont pas accès (garde + onglet masqué + RLS).
 
-import { listStagiaires, listProfs, listEpcf, upsertEpcf, getEpcfMoyennes } from "../db.js?v=20260714j";
-import { el, clear, isoDate, formatDate, displayStagiaire, compareByNom, toast } from "../utils.js?v=20260714j";
-import { isAdmin, isProf, getProfile } from "../auth-admin.js?v=20260714j";
-import { getCurrentWho } from "../identity.js?v=20260714j";
-import { EPCF_TRAMES, NOTE_LABELS } from "../epcf-trames.js?v=20260714j";
-import { renderEpcfTrameSection, renderEpcfClasse } from "../epcf-restitution.js?v=20260714j";
+import { listStagiaires, listProfs, listEpcf, upsertEpcf, getEpcfMoyennes } from "../db.js?v=20260714k";
+import { el, clear, isoDate, formatDate, displayStagiaire, compareByNom, toast } from "../utils.js?v=20260714k";
+import { isAdmin, isProf, getProfile } from "../auth-admin.js?v=20260714k";
+import { getCurrentWho } from "../identity.js?v=20260714k";
+import { EPCF_TRAMES, NOTE_LABELS } from "../epcf-trames.js?v=20260714k";
+import { renderEpcfTrameSection, renderEpcfClasse } from "../epcf-restitution.js?v=20260714k";
 
 let stagiaires = [];
 let profs = [];
