@@ -1,12 +1,15 @@
-// Vue EPCF (formateurs/admin) : liste des stagiaires × trames, saisie de grille,
-// vue classe. Les stagiaires n'y ont pas accès (garde + onglet masqué + RLS).
+// Vue EPCF, rendue en sous-onglet de Notes. S'adapte au rôle :
+//  - formateur/admin : liste des stagiaires × trames, saisie de grille, consultation
+//    par élève, vue classe ;
+//  - stagiaire : vue classe (moyennes agrégées, k-anonymisées) uniquement.
+// La saisie reste protégée par la RLS (INSERT/UPDATE réservés aux profs/admin).
 
-import { listStagiaires, listProfs, listEpcf, upsertEpcf, getEpcfMoyennes } from "../db.js?v=20260714l";
-import { el, clear, isoDate, formatDate, displayStagiaire, compareByNom, toast } from "../utils.js?v=20260714l";
-import { isAdmin, isProf, getProfile } from "../auth-admin.js?v=20260714l";
-import { getCurrentWho } from "../identity.js?v=20260714l";
-import { EPCF_TRAMES, NOTE_LABELS } from "../epcf-trames.js?v=20260714l";
-import { renderEpcfTrameSection, renderEpcfClasse } from "../epcf-restitution.js?v=20260714l";
+import { listStagiaires, listProfs, listEpcf, upsertEpcf, getEpcfMoyennes } from "../db.js?v=20260714m";
+import { el, clear, isoDate, formatDate, displayStagiaire, compareByNom, toast } from "../utils.js?v=20260714m";
+import { isAdmin, isProf, getProfile } from "../auth-admin.js?v=20260714m";
+import { getCurrentWho } from "../identity.js?v=20260714m";
+import { EPCF_TRAMES, NOTE_LABELS } from "../epcf-trames.js?v=20260714m";
+import { renderEpcfTrameSection, renderEpcfClasse } from "../epcf-restitution.js?v=20260714m";
 
 let stagiaires = [];
 let profs = [];

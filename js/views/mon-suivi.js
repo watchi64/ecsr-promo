@@ -1,10 +1,10 @@
 import { listStagiaires, listEvaluations, getPlanning, getHalfMetaForWeek, getJoursOff, getSetting,
-         getVoitureAggregats, listProfs, listEpcf, getEpcfMoyennes } from "../db.js?v=20260714l";
-import { el, clear, isoDate, getMonday, addDays, formatDate, displayStagiaire, compareByNom } from "../utils.js?v=20260714l";
-import { HALF_DAYS } from "../config.js?v=20260714l";
-import { isAdmin, getProfile } from "../auth-admin.js?v=20260714l";
-import { renderEpcfTrameSection } from "../epcf-restitution.js?v=20260714l";
-import { renderSubTabs } from "../subtabs.js?v=20260714l";
+         getVoitureAggregats, listProfs, listEpcf, getEpcfMoyennes } from "../db.js?v=20260714m";
+import { el, clear, isoDate, getMonday, addDays, formatDate, displayStagiaire, compareByNom } from "../utils.js?v=20260714m";
+import { HALF_DAYS } from "../config.js?v=20260714m";
+import { isAdmin, getProfile } from "../auth-admin.js?v=20260714m";
+import { renderEpcfTrameSection } from "../epcf-restitution.js?v=20260714m";
+import { renderSubTabs } from "../subtabs.js?v=20260714m";
 
 const HALF_ORDER = { matin: 0, aprem: 1 };
 
