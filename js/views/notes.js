@@ -2,13 +2,13 @@ import {
   listStagiaires, listCompetences, listEvaluations, listThemes,
   addEvaluation, updateEvaluation, deleteEvaluation, listAuditForEvaluation,
   listUserProfiles,
-} from "../db.js?v=20260714o";
-import { el, clear, isoDate, formatDate, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260714o";
-import { icon } from "../icons.js?v=20260714o";
-import { getAdminEmail, isAdmin } from "../auth-admin.js?v=20260714o";
-import { recordUndo } from "../undo.js?v=20260714o";
-import { renderSubTabs } from "../subtabs.js?v=20260714o";
-import { renderEpcf } from "./epcf.js?v=20260714o";
+} from "../db.js?v=20260715a";
+import { el, clear, isoDate, formatDate, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260715a";
+import { icon } from "../icons.js?v=20260715a";
+import { getAdminEmail, isAdmin } from "../auth-admin.js?v=20260715a";
+import { recordUndo } from "../undo.js?v=20260715a";
+import { renderSubTabs } from "../subtabs.js?v=20260715a";
+import { renderEpcf } from "./epcf.js?v=20260715a";
 
 let userProfiles = [];  // pour résoudre l'anonymat par stagiaire_id
 

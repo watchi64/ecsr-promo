@@ -5845,7 +5845,8 @@ body.qcm-open { overflow: hidden; }
 /* Tooltip stylé du graphe (suit le point survolé) */
 .ms-tip {
   position: absolute;
-  transform: translate(-50%, calc(-100% - 10px));
+  /* Horizontal : géré + clampé en JS (left en px). Ici, décalage vertical seul. */
+  transform: translateY(calc(-100% - 10px));
   background: var(--text);
   color: var(--bg-elev);
   padding: 0.4rem 0.6rem;
@@ -5857,7 +5858,7 @@ body.qcm-open { overflow: hidden; }
   z-index: 5;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
 }
-.ms-tip.below { transform: translate(-50%, 12px); }
+.ms-tip.below { transform: translateY(12px); }
 .ms-tip-lib { font-weight: 600; }
 .ms-tip-date { opacity: 0.7; margin-top: 0.1rem; }
 

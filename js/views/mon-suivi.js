@@ -1,10 +1,10 @@
 import { listStagiaires, listEvaluations, getPlanning, getHalfMetaForWeek, getJoursOff, getSetting,
-         getVoitureAggregats, listProfs, listEpcf, getEpcfMoyennes } from "../db.js?v=20260714o";
-import { el, clear, isoDate, getMonday, addDays, formatDate, displayStagiaire, compareByNom } from "../utils.js?v=20260714o";
-import { HALF_DAYS } from "../config.js?v=20260714o";
-import { isAdmin, getProfile } from "../auth-admin.js?v=20260714o";
-import { renderEpcfTrameSection } from "../epcf-restitution.js?v=20260714o";
-import { renderSubTabs } from "../subtabs.js?v=20260714o";
+         getVoitureAggregats, listProfs, listEpcf, getEpcfMoyennes } from "../db.js?v=20260715a";
+import { el, clear, isoDate, getMonday, addDays, formatDate, displayStagiaire, compareByNom } from "../utils.js?v=20260715a";
+import { HALF_DAYS } from "../config.js?v=20260715a";
+import { isAdmin, getProfile } from "../auth-admin.js?v=20260715a";
+import { renderEpcfTrameSection } from "../epcf-restitution.js?v=20260715a";
+import { renderSubTabs } from "../subtabs.js?v=20260715a";
 
 const HALF_ORDER = { matin: 0, aprem: 1 };
 
@@ -293,13 +293,18 @@ function renderChartSection(evaluations) {
       el("div", { class: "ms-tip-note" }, `${c.getAttribute("data-note")} · ${c.getAttribute("data-norm")}/20`),
       el("div", { class: "ms-tip-date" }, c.getAttribute("data-date")),
     );
+    // Affiché d'abord pour pouvoir mesurer sa largeur réelle avant de le clamper.
+    tip.style.display = "block";
     const r = c.getBoundingClientRect(), o = outer.getBoundingClientRect();
-    tip.style.left = (r.left - o.left + r.width / 2) + "px";
+    // Centre sur le point, puis clampé dans le conteneur visible pour ne pas
+    // déborder à gauche (1er point) ni à droite (dernier point).
+    const M = 6, tipW = tip.offsetWidth;
+    const center = r.left - o.left + r.width / 2;
+    tip.style.left = Math.max(M, Math.min(center - tipW / 2, o.width - tipW - M)) + "px";
     // Pas la place au-dessus (point haut) → on bascule le tooltip sous le point.
     const below = (r.top - o.top) < 60;
     tip.classList.toggle("below", below);
     tip.style.top = ((below ? r.bottom : r.top) - o.top) + "px";
-    tip.style.display = "block";
     c.classList.add("hover");
   };
   const hideTip = (c) => { tip.style.display = "none"; if (c) c.classList.remove("hover"); };
