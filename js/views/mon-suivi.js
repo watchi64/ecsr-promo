@@ -1,10 +1,10 @@
 import { listStagiaires, listEvaluations, getPlanning, getHalfMetaForWeek, getJoursOff, getSetting,
-         getVoitureAggregats, listProfs, listEpcf, getEpcfMoyennes } from "../db.js?v=20260715a";
-import { el, clear, isoDate, getMonday, addDays, formatDate, displayStagiaire, compareByNom } from "../utils.js?v=20260715a";
-import { HALF_DAYS } from "../config.js?v=20260715a";
-import { isAdmin, getProfile } from "../auth-admin.js?v=20260715a";
-import { renderEpcfTrameSection } from "../epcf-restitution.js?v=20260715a";
-import { renderSubTabs } from "../subtabs.js?v=20260715a";
+         getVoitureAggregats, listProfs, listEpcf, getEpcfMoyennes, listThemes } from "../db.js?v=20260716a";
+import { el, clear, isoDate, getMonday, addDays, formatDate, displayStagiaire, compareByNom } from "../utils.js?v=20260716a";
+import { HALF_DAYS } from "../config.js?v=20260716a";
+import { isAdmin, getProfile } from "../auth-admin.js?v=20260716a";
+import { renderEpcfTrameSection } from "../epcf-restitution.js?v=20260716a";
+import { renderSubTabs } from "../subtabs.js?v=20260716a";
 
 const HALF_ORDER = { matin: 0, aprem: 1 };
 
@@ -13,6 +13,18 @@ let aggregats = {};
 let profs = [];
 let moySalle = [];
 let moyVehicule = [];
+// Titre de thème (normalisé) -> numéro, construit depuis les 57 thèmes officiels.
+// Sert à retrouver le numéro quand la ligne d'éval ne le porte pas (ou quand un
+// « Contrôle » a pour intitulé un thème officiel).
+let themeNumByTitre = {};
+
+function normTitre(s) {
+  return String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+}
+function themeNumFor(titre) {
+  const n = themeNumByTitre[normTitre(titre)];
+  return n == null ? null : n;
+}
 
 // Noms des formateurs d'un passage : prof_ids (résolus via `profs`) + prof_autre (texte libre).
 function profNamesFor(prof_ids, prof_autre) {
@@ -172,13 +184,22 @@ function avgTier(v) {
 // Libellé « thème / compétence / contrôle abordé » d'une évaluation (même logique que la vue Notes).
 function describeEval(e) {
   if (e.type === "Thème") {
-    const num = e.theme_numero ? `Thème ${String(e.theme_numero).padStart(2, "0")}` : "Thème";
+    // Le numéro peut manquer sur la ligne : on le retrouve via le titre dans les 57 thèmes.
+    const n = e.theme_numero ?? themeNumFor(e.theme_titre);
+    const num = n ? `Thème ${String(n).padStart(2, "0")}` : "Thème";
     return e.theme_titre ? `${num} · ${e.theme_titre}` : num;
   }
   if (e.type === "Compétence") {
     return e.competence_code ? `${e.competence_code} · ${e.competence?.libelle?.split(",")[0] || ""}` : "Compétence";
   }
-  if (e.type === "Contrôle") return e.controle_libelle || "Contrôle";
+  if (e.type === "Contrôle") {
+    // Un contrôle porte parfois l'intitulé d'un thème officiel → on affiche son numéro.
+    // Sinon on préfixe « Contrôle » : le sujet n'est pas un des 57 thèmes, il n'a donc
+    // pas de numéro (et l'absence de numéro n'a plus l'air d'un oubli).
+    const n = themeNumFor(e.controle_libelle);
+    if (n) return `Thème ${String(n).padStart(2, "0")} · ${e.controle_libelle}`;
+    return e.controle_libelle ? `Contrôle · ${e.controle_libelle}` : "Contrôle";
+  }
   return "Évaluation";
 }
 
@@ -251,10 +272,18 @@ function buildChart(evals) {
   const avgPts = evals.map((e, i) => { sum += e.norm; return `${x(i)},${y(sum / (i + 1))}`; });
   svg.appendChild(svgEl("polyline", { points: avgPts.join(" "), class: "ms-avg-line" }));
 
-  // Points
+  // Points visibles (pointer-events désactivés en CSS : ce sont les cibles
+  // invisibles ci-dessous qui reçoivent survol et tap).
   evals.forEach((e, i) => {
     svg.appendChild(svgEl("circle", {
-      cx: x(i), cy: y(e.norm), r: 5, class: "ms-pt " + avgTier(e.norm),
+      cx: x(i), cy: y(e.norm), r: 5, class: "ms-pt " + avgTier(e.norm), "data-i": String(i),
+    }));
+  });
+  // Cibles de survol/tap, transparentes et plus larges (r=12) : un point de 5px
+  // est intappable au doigt. Elles portent les données lues par le tooltip.
+  evals.forEach((e, i) => {
+    svg.appendChild(svgEl("circle", {
+      cx: x(i), cy: y(e.norm), r: 12, class: "ms-pt-hit", "data-i": String(i),
       "data-lib": describeEval(e),
       "data-note": `${e.note}/${e.note_max}`,
       "data-norm": e.norm.toFixed(1),
@@ -287,11 +316,14 @@ function renderChartSection(evaluations) {
   outer.appendChild(wrap);
   outer.appendChild(tip);
 
-  const showTip = (c) => {
+  // Le point visible correspondant à une cible de tap (même data-i).
+  const dotFor = (hit) => svg.querySelector('.ms-pt[data-i="' + hit.getAttribute("data-i") + '"]');
+  const showTip = (hit) => {
+    const c = dotFor(hit) || hit;
     tip.replaceChildren(
-      el("div", { class: "ms-tip-lib" }, c.getAttribute("data-lib")),
-      el("div", { class: "ms-tip-note" }, `${c.getAttribute("data-note")} · ${c.getAttribute("data-norm")}/20`),
-      el("div", { class: "ms-tip-date" }, c.getAttribute("data-date")),
+      el("div", { class: "ms-tip-lib" }, hit.getAttribute("data-lib")),
+      el("div", { class: "ms-tip-note" }, `${hit.getAttribute("data-note")} · ${hit.getAttribute("data-norm")}/20`),
+      el("div", { class: "ms-tip-date" }, hit.getAttribute("data-date")),
     );
     // Affiché d'abord pour pouvoir mesurer sa largeur réelle avant de le clamper.
     tip.style.display = "block";
@@ -307,14 +339,31 @@ function renderChartSection(evaluations) {
     tip.style.top = ((below ? r.bottom : r.top) - o.top) + "px";
     c.classList.add("hover");
   };
-  const hideTip = (c) => { tip.style.display = "none"; if (c) c.classList.remove("hover"); };
+  const clearHover = (hit) => { const d = hit && dotFor(hit); if (d) d.classList.remove("hover"); };
+  const hideTip = (hit) => { tip.style.display = "none"; clearHover(hit); };
+  const isHit = (n) => n && n.classList && n.classList.contains("ms-pt-hit");
+
+  // Sur mobile il n'y a pas de survol : un tap « épingle » le tooltip, qui reste
+  // affiché jusqu'au tap suivant (autre point, ou fond du graphe).
+  let pinned = null;
   svg.addEventListener("mouseover", (ev) => {
-    const c = ev.target;
-    if (c.classList && c.classList.contains("ms-pt")) showTip(c);
+    if (!isHit(ev.target) || pinned) return;
+    showTip(ev.target);
   });
   svg.addEventListener("mouseout", (ev) => {
-    const c = ev.target;
-    if (c.classList && c.classList.contains("ms-pt")) hideTip(c);
+    if (!isHit(ev.target) || pinned) return;
+    hideTip(ev.target);
+  });
+  svg.addEventListener("click", (ev) => {
+    if (isHit(ev.target)) {
+      if (pinned === ev.target) { hideTip(pinned); pinned = null; return; }   // re-tap : ferme
+      if (pinned) clearHover(pinned);
+      pinned = ev.target;
+      showTip(pinned);
+    } else if (pinned) {                        // tap sur le fond du graphe : ferme
+      hideTip(pinned);
+      pinned = null;
+    }
   });
 
   section.appendChild(outer);
@@ -375,10 +424,14 @@ export async function renderMonSuivi(container) {
   const needSelector = isAdmin() || myId == null;
 
   let stagiaires = [];
-  const [aggregatsData, profsData, moySalleData, moyVehiculeData] = await Promise.all([
-    getVoitureAggregats(), listProfs(), getEpcfMoyennes("salle"), getEpcfMoyennes("vehicule"),
+  const [aggregatsData, profsData, moySalleData, moyVehiculeData, themesData] = await Promise.all([
+    getVoitureAggregats(), listProfs(), getEpcfMoyennes("salle"), getEpcfMoyennes("vehicule"), listThemes(),
   ]);
   aggregats = aggregatsData; profs = profsData; moySalle = moySalleData; moyVehicule = moyVehiculeData;
+  themeNumByTitre = {};
+  (themesData || []).forEach((t) => {
+    if (t.type === "theme" && t.numero != null && t.titre) themeNumByTitre[normTitre(t.titre)] = t.numero;
+  });
   if (needSelector) stagiaires = (await listStagiaires()).slice().sort(compareByNom);
   const selectedId = myId ?? (stagiaires[0]?.id ?? null);
 

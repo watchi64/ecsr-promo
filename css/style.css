@@ -5834,7 +5834,10 @@ body.qcm-open { overflow: hidden; }
 .ms-axis-label { fill: var(--text-muted); font-size: 12px; }
 .ms-axis-label.small { font-size: 10px; }
 .ms-avg-line { fill: none; stroke: var(--accent); stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
-.ms-pt { stroke: var(--bg-elev); stroke-width: 1.5; cursor: pointer; }
+/* Le point visible ne capte rien : c'est .ms-pt-hit (transparent, plus large) qui
+   reçoit survol et tap — indispensable pour viser au doigt sur mobile. */
+.ms-pt { stroke: var(--bg-elev); stroke-width: 1.5; pointer-events: none; }
+.ms-pt-hit { fill: transparent; stroke: none; cursor: pointer; }
 .ms-pt.bad   { fill: var(--c-stop); }
 .ms-pt.warn  { fill: #C98A2B; }
 .ms-pt.ok    { fill: #7BA23C; }
