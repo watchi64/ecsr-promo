@@ -209,46 +209,6 @@ export async function getStats() {
   return map;
 }
 
-// === Fiches de suivi (souhaits de compétences permis B) ===
-export async function listFiches() {
-  const { data, error } = await supabase.from("fiches_suivi").select("*");
-  if (error) throw error;
-  return data;
-}
-
-// N'écrit QUE souhaits : on n'inclut pas `besoins` dans le payload, donc l'upsert
-// PostgREST (ON CONFLICT) ne met à jour que souhaits/updated_* et préserve les
-// `besoins` des 13 fiches existantes.
-export async function upsertFiche({ stagiaire_id, souhaits, besoins, updated_by_who }) {
-  // On n'écrit QUE les colonnes explicitement fournies : un appel qui passe seulement
-  // `souhaits` ne doit pas effacer `besoins` (et inversement) sur les fiches existantes.
-  const payload = { stagiaire_id, updated_by_who, updated_at: new Date().toISOString() };
-  if (souhaits !== undefined) payload.souhaits = souhaits;
-  if (besoins !== undefined) payload.besoins = besoins;
-  const { error } = await supabase
-    .from("fiches_suivi")
-    .upsert(payload, { onConflict: "stagiaire_id" });
-  if (error) throw error;
-}
-
-// Agrégats voiture par stagiaire (historique lecture seule). Ignore Absence/Report.
-export async function getVoitureAggregats() {
-  const { data, error } = await supabase
-    .from("passages")
-    .select("stagiaire_id, prof_id, avec_eleve, resultat")
-    .eq("type", "Voiture");
-  if (error) throw error;
-  const map = {};
-  data.forEach((p) => {
-    if (p.resultat === "Absence" || p.resultat === "Report") return;
-    const m = map[p.stagiaire_id] || (map[p.stagiaire_id] = { total: 0, avecEleve: 0, byProf: {} });
-    m.total++;
-    if (p.avec_eleve === true) m.avecEleve++;
-    if (p.prof_id != null) m.byProf[p.prof_id] = (m.byProf[p.prof_id] || 0) + 1;
-  });
-  return map;
-}
-
 // === Planning ===
 
 export async function getPlanning(semaine_lundi) {
@@ -836,12 +796,14 @@ export async function listFiches() {
 }
 
 export async function upsertFiche({ stagiaire_id, souhaits, besoins, updated_by_who }) {
+  // On n'écrit QUE les colonnes explicitement fournies : un appel qui passe seulement
+  // `souhaits` ne doit pas effacer `besoins` (et inversement) sur les fiches existantes.
+  const payload = { stagiaire_id, updated_by_who, updated_at: new Date().toISOString() };
+  if (souhaits !== undefined) payload.souhaits = souhaits;
+  if (besoins !== undefined) payload.besoins = besoins;
   const { error } = await supabase
     .from("fiches_suivi")
-    .upsert(
-      { stagiaire_id, souhaits, besoins, updated_by_who, updated_at: new Date().toISOString() },
-      { onConflict: "stagiaire_id" }
-    );
+    .upsert(payload, { onConflict: "stagiaire_id" });
   if (error) throw error;
 }
 
