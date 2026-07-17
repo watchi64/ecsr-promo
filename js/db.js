@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20260711n";
+import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20260717c";
 
 // fetch avec timeout : sans ça, une requête peut rester pendue indéfiniment
 // (réseau mobile instable) → "Chargement" infini. Avec, elle échoue proprement après 15s.
@@ -205,6 +205,46 @@ export async function getStats() {
     if (!map[key]) map[key] = { Salle: {}, Voiture: {} };
     const r = p.resultat;
     map[key][p.type][r] = (map[key][p.type][r] || 0) + 1;
+  });
+  return map;
+}
+
+// === Fiches de suivi (souhaits de compétences permis B) ===
+export async function listFiches() {
+  const { data, error } = await supabase.from("fiches_suivi").select("*");
+  if (error) throw error;
+  return data;
+}
+
+// N'écrit QUE souhaits : on n'inclut pas `besoins` dans le payload, donc l'upsert
+// PostgREST (ON CONFLICT) ne met à jour que souhaits/updated_* et préserve les
+// `besoins` des 13 fiches existantes.
+export async function upsertFiche({ stagiaire_id, souhaits, besoins, updated_by_who }) {
+  // On n'écrit QUE les colonnes explicitement fournies : un appel qui passe seulement
+  // `souhaits` ne doit pas effacer `besoins` (et inversement) sur les fiches existantes.
+  const payload = { stagiaire_id, updated_by_who, updated_at: new Date().toISOString() };
+  if (souhaits !== undefined) payload.souhaits = souhaits;
+  if (besoins !== undefined) payload.besoins = besoins;
+  const { error } = await supabase
+    .from("fiches_suivi")
+    .upsert(payload, { onConflict: "stagiaire_id" });
+  if (error) throw error;
+}
+
+// Agrégats voiture par stagiaire (historique lecture seule). Ignore Absence/Report.
+export async function getVoitureAggregats() {
+  const { data, error } = await supabase
+    .from("passages")
+    .select("stagiaire_id, prof_id, avec_eleve, resultat")
+    .eq("type", "Voiture");
+  if (error) throw error;
+  const map = {};
+  data.forEach((p) => {
+    if (p.resultat === "Absence" || p.resultat === "Report") return;
+    const m = map[p.stagiaire_id] || (map[p.stagiaire_id] = { total: 0, avecEleve: 0, byProf: {} });
+    m.total++;
+    if (p.avec_eleve === true) m.avecEleve++;
+    if (p.prof_id != null) m.byProf[p.prof_id] = (m.byProf[p.prof_id] || 0) + 1;
   });
   return map;
 }
@@ -426,6 +466,53 @@ export async function listAuditForEvaluation(evaluation_id) {
     .select("*")
     .eq("evaluation_id", evaluation_id)
     .order("changed_at", { ascending: false });
+  if (error) throw error;
+  return data;
+}
+
+// === EPCF (évaluations en cours de formation) ===
+
+export async function listEpcf(filters = {}) {
+  let q = supabase
+    .from("epcf_evaluations")
+    .select("*, evaluateur:profs!evaluateur_prof_id(nom), stagiaire:stagiaires!stagiaire_id(prenom, nom)")
+    .order("date_eval", { ascending: false })
+    .order("id", { ascending: false });
+  if (filters.stagiaire_id) q = q.eq("stagiaire_id", filters.stagiaire_id);
+  if (filters.trame) q = q.eq("trame", filters.trame);
+  const { data, error } = await q;
+  if (error) throw error;
+  return data;
+}
+
+// Insert (pas d'id) ou update (id fourni). Renvoie la ligne écrite.
+export async function upsertEpcf(evalRow) {
+  const payload = { ...evalRow, updated_at: new Date().toISOString() };
+  delete payload.evaluateur;   // colonnes jointes par listEpcf, pas des colonnes de la table
+  delete payload.stagiaire;
+  delete payload.created_by;   // colonnes d'audit : jamais réécrites par un update
+  delete payload.created_at;
+  let q;
+  if (payload.id) {
+    const id = payload.id;
+    delete payload.id;
+    q = supabase.from("epcf_evaluations").update(payload).eq("id", id).select().single();
+  } else {
+    q = supabase.from("epcf_evaluations").insert(payload).select().single();
+  }
+  const { data, error } = await q;
+  if (error) throw error;
+  return data;
+}
+
+export async function deleteEpcf(id) {
+  const { error } = await supabase.from("epcf_evaluations").delete().eq("id", id);
+  if (error) throw error;
+}
+
+// Moyennes du groupe par critère (RPC SECURITY DEFINER — agrégats seuls).
+export async function getEpcfMoyennes(trame) {
+  const { data, error } = await supabase.rpc("epcf_moyennes", { p_trame: trame });
   if (error) throw error;
   return data;
 }

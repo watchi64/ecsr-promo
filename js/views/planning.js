@@ -7,14 +7,14 @@ import {
   addPassagesBatch, deletePassagesBatch, getPassagesInRange, updateTheme,
   listBenevoles, listBenevolesNoms,
   getVoitureAggregats, listFiches, getSalleAggregats,
-} from "../db.js?v=20260711n";
-import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260711n";
-import { icon } from "../icons.js?v=20260711n";
-import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260711n";
-import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260711n";
-import { recordUndo } from "../undo.js?v=20260711n";
-import { getCurrentWho } from "../identity.js?v=20260711n";
-import { openBenevolesPanel } from "./benevoles.js?v=20260711n";
+} from "../db.js?v=20260717c";
+import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260717c";
+import { icon } from "../icons.js?v=20260717c";
+import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260717c";
+import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260717c";
+import { recordUndo } from "../undo.js?v=20260717c";
+import { getCurrentWho } from "../identity.js?v=20260717c";
+import { openBenevolesPanel } from "./benevoles.js?v=20260717c";
 
 let stagiaires = [];
 let profs = [];
@@ -1278,9 +1278,25 @@ function chipsSelect(allStagiaires, currentIds, onChange, counts, opts = {}) {
 
 // Sujet multi-thèmes : chips inline + autocomplete continue (virgule ou Enter pour valider).
 // Stocké en DB comme chaîne "Thème A, Thème B".
+// ⚠️ Certains titres de thèmes contiennent des virgules (ex. 03 « Stationnement, arrêt,
+// immobilisation ») : un split naïf sur "," les découpe en plusieurs chips. On recolle donc
+// les fragments consécutifs qui reforment le titre d'un thème CONNU (greedy, le plus long
+// d'abord). Le texte libre à virgules reste découpé (impossible à désambiguïser).
 function parseSujet(val) {
   if (!val) return [];
-  return String(val).split(",").map((s) => s.trim()).filter(Boolean);
+  const parts = String(val).split(",").map((s) => s.trim()).filter(Boolean);
+  const known = new Set((themes || []).map((t) => t.titre));
+  const out = [];
+  let i = 0;
+  while (i < parts.length) {
+    let merged = false;
+    for (let j = parts.length; j > i + 1; j--) {
+      const candidate = parts.slice(i, j).join(", ");
+      if (known.has(candidate)) { out.push(candidate); i = j; merged = true; break; }
+    }
+    if (!merged) { out.push(parts[i]); i++; }
+  }
+  return out;
 }
 function joinSujet(arr) { return arr.join(", "); }
 

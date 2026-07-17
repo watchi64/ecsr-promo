@@ -565,25 +565,6 @@ h3 {
   gap: 0.5rem;
 }
 
-.avg-pill {
-  display: inline-flex;
-  align-items: baseline;
-  padding: 0.2rem 0.55rem;
-  border-radius: 999px;
-  font-family: var(--font-mono);
-  font-weight: 700;
-  font-size: 0.95rem;
-  flex-shrink: 0;
-}
-.avg-pill .avg-num { letter-spacing: -0.01em; }
-.avg-pill .avg-max { font-size: 0.7rem; opacity: 0.6; font-weight: 400; margin-left: 1px; }
-
-.avg-pill.great { background: var(--c-go-soft); color: var(--c-go); }
-.avg-pill.ok    { background: var(--accent-soft); color: var(--accent); }
-.avg-pill.warn  { background: var(--c-wait-soft); color: var(--c-wait); }
-.avg-pill.bad   { background: var(--c-stop-soft); color: var(--c-stop); }
-.avg-pill.muted { background: var(--bg-subtle); color: var(--text-muted); font-weight: 400; }
-
 .dashboard-stats {
   display: flex;
   gap: 0.4rem;
@@ -5815,28 +5796,6 @@ body.qcm-open { overflow: hidden; }
 }
 .impersonation-banner .imp-back:hover { background: var(--accent-strong); }
 
-/* ============================================================
-   Vue Mon suivi
-   ============================================================ */
-.suivi-histo { background: var(--bg-subtle); border-radius: var(--r); padding: 0.9rem 1.1rem; margin-bottom: 1.1rem; }
-.suivi-histo h4, .suivi-editor h4 { margin: 0 0 0.4rem; }
-.suivi-comp { border: 1px solid var(--line); border-radius: var(--r-sm); padding: 0.45rem 0.7rem; margin-bottom: 0.5rem; }
-.suivi-comp summary { cursor: pointer; }
-.suivi-souscomp { display: block; padding: 0.25rem 0 0.25rem 1.6rem; }
-.suivi-editor textarea {
-  width: 100%; box-sizing: border-box; font-family: inherit; font-size: 0.92rem;
-  padding: 0.6rem 0.75rem; border: 1px solid var(--line); border-radius: var(--r-sm);
-  background: var(--bg-elev); color: var(--text); resize: vertical;
-}
-.suivi-editor textarea:focus { outline: none; border-color: var(--accent); }
-.suivi-admin-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 0.8rem; }
-.suivi-card { border: 1px solid var(--line); border-radius: var(--r); padding: 0.8rem 1rem; cursor: pointer; background: var(--bg-elev); transition: border-color 0.15s; }
-.suivi-card:hover { border-color: var(--accent); }
-.suivi-card-head { display: flex; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.4rem; }
-.suivi-card-tags { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-bottom: 0.4rem; }
-.suivi-card-tags .tag { background: var(--accent-soft); color: var(--accent-strong); }
-.suivi-card-besoins { margin: 0; font-size: 0.88rem; color: var(--text-muted); }
-
 /* === Mémo des règles de placement (planning) === */
 .planning-rules { margin: 0.6rem 0 0.2rem; background: var(--bg-subtle); border: 1px solid var(--line); border-radius: var(--r); padding: 0.55rem 0.9rem; font-size: 0.9rem; }
 .planning-rules > summary { cursor: pointer; font-weight: 600; color: var(--text-muted); list-style: none; }
@@ -5846,3 +5805,184 @@ body.qcm-open { overflow: hidden; }
 .planning-rules-body ul { margin: 0.1rem 0 0.4rem; padding-left: 1.2rem; }
 .planning-rules-body li { margin: 0.15rem 0; line-height: 1.4; }
 .planning-rules-foot { margin-top: 0.7rem; padding-top: 0.5rem; border-top: 1px dashed var(--line); color: var(--text-muted); font-style: italic; }
+
+/* ===== Mon suivi ===== */
+.ms-selector-wrap { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.75rem; }
+.ms-selector { padding: 0.4rem 0.6rem; }
+.ms-body { display: flex; flex-direction: column; gap: 2rem; margin-top: 1.5rem; }
+.ms-section-title { margin: 0 0 0.9rem; font-size: 1.05rem; }
+.ms-empty { padding: 1.5rem 0; }
+
+.ms-passage-list { display: flex; flex-direction: column; gap: 0.6rem; }
+.ms-passage {
+  display: flex; justify-content: space-between; align-items: center; gap: 1rem;
+  padding: 0.75rem 1rem; border: 1px solid var(--line); border-radius: 12px;
+  background: var(--bg-elev);
+}
+.ms-passage.past { opacity: 0.5; }
+.ms-passage.today { border-color: var(--accent); }
+.ms-passage.next { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+.ms-passage-when { display: flex; flex-direction: column; gap: 0.15rem; }
+.ms-passage-day { font-weight: 600; }
+.ms-passage-half { font-size: 0.85rem; }
+.ms-passage-meta { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+.ms-passage-sujet { font-size: 0.85rem; }
+.ms-passage-prof { font-size: 0.85rem; }
+.ms-passage-badge { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; }
+.ms-passage-badge.today, .ms-passage-badge.next { color: var(--accent-strong); font-weight: 600; }
+
+.ms-chart-outer { position: relative; }
+.ms-chart-wrap { width: 100%; overflow-x: auto; }
+.ms-chart { display: block; height: auto; max-width: none; }   /* largeur en px via attribut → scroll si large */
+.ms-month-band { fill: var(--bg-subtle); opacity: 0.55; }
+.ms-grid { stroke: var(--line); stroke-width: 1; }
+.ms-axis-label { fill: var(--text-muted); font-size: 12px; }
+.ms-axis-label.small { font-size: 10px; }
+.ms-avg-line { fill: none; stroke: var(--accent); stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
+/* Le point visible ne capte rien : c'est .ms-pt-hit (transparent, plus large) qui
+   reçoit survol et tap — indispensable pour viser au doigt sur mobile. */
+.ms-pt { stroke: var(--bg-elev); stroke-width: 1.5; pointer-events: none; }
+.ms-pt-hit { fill: transparent; stroke: none; cursor: pointer; }
+.ms-pt.bad   { fill: var(--c-stop); }
+.ms-pt.warn  { fill: #C98A2B; }
+.ms-pt.ok    { fill: #7BA23C; }
+.ms-pt.great { fill: var(--c-go); }
+.ms-pt.hover { stroke: var(--text); stroke-width: 2.5; }
+.ms-chart-legend { margin: 0.5rem 0 0; font-size: 0.85rem; }
+
+/* Tooltip stylé du graphe (suit le point survolé) */
+.ms-tip {
+  position: absolute;
+  /* Horizontal : géré + clampé en JS (left en px). Ici, décalage vertical seul. */
+  transform: translateY(calc(-100% - 10px));
+  background: var(--text);
+  color: var(--bg-elev);
+  padding: 0.4rem 0.6rem;
+  border-radius: var(--r-sm);
+  font-size: 0.78rem;
+  line-height: 1.35;
+  max-width: 240px;
+  pointer-events: none;
+  z-index: 5;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+}
+.ms-tip.below { transform: translateY(12px); }
+.ms-tip-lib { font-weight: 600; }
+.ms-tip-date { opacity: 0.7; margin-top: 0.1rem; }
+
+/* Historique voiture : tuiles + barres par formateur */
+.histo-stats { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-bottom: 0.9rem; }
+.histo-stat { background: var(--bg-elev); border: 1px solid var(--line); border-radius: var(--r-sm); padding: 0.5rem 0.8rem; min-width: 5rem; }
+.histo-stat-value { font-size: 1.3rem; font-weight: 700; }
+.histo-stat-label { font-size: 0.78rem; color: var(--text-muted); }
+.histo-profs-title { font-size: 0.85rem; font-weight: 600; margin: 0.2rem 0 0.5rem; }
+.histo-prof-row { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.35rem; }
+.histo-prof-nom { flex: 0 0 5.5rem; font-size: 0.88rem; }
+.histo-prof-bar { flex: 1; height: 8px; background: var(--bg-subtle); border-radius: 999px; overflow: hidden; }
+.histo-prof-bar-fill { display: block; height: 100%; background: var(--accent); border-radius: 999px; }
+.histo-prof-n { flex: 0 0 auto; font-size: 0.82rem; }
+
+/* ===== Mon suivi — historique ===== */
+.suivi-histo { background: var(--bg-subtle); border-radius: var(--r); padding: 0.9rem 1.1rem; }
+
+/* ===== Sous-onglets (navigation interne à une vue : Mon suivi, Notes…) ===== */
+.subtabs-bar {
+  display: flex;
+  gap: 0.3rem;
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 1.2rem;
+}
+.subtab {
+  appearance: none;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  padding: 0.5rem 0.9rem;
+  font: inherit;
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.subtab:hover { color: var(--text); }
+.subtab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* ===== EPCF ===== */
+.epcf-table-wrap { background: var(--bg-elev); border: 1px solid var(--line); border-radius: var(--r-lg); overflow: hidden; }
+.epcf-table { width: 100%; border-collapse: collapse; }
+.epcf-table th, .epcf-table td { padding: 0.5rem 0.6rem; border-bottom: 1px solid var(--line); text-align: left; }
+.epcf-cell { white-space: nowrap; }
+.epcf-cell .btn { margin-left: 0.5rem; }
+.epcf-statut { font-size: 0.82rem; margin-right: 0.4rem; }
+.epcf-statut.ok { color: var(--c-go); }
+
+.epcf-form-head { display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; }
+.epcf-form-head h3 { margin: 0; }
+.epcf-form-meta { display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 1rem; }
+.epcf-form-meta .field { display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.85rem; }
+.epcf-form-meta input, .epcf-form-meta select { padding: 0.4rem 0.6rem; border: 1px solid var(--line); border-radius: var(--r-sm); font: inherit; background: var(--bg-elev); color: var(--text); }
+.epcf-form-section, .epcf-form-comment { border: 1px solid var(--line); border-radius: var(--r-sm); padding: 0.7rem 0.9rem; margin-bottom: 0.8rem; }
+.epcf-form-section h4, .epcf-form-comment h4 { margin: 0 0 0.6rem; font-size: 0.95rem; }
+.epcf-form-row { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 0.3rem 0; border-top: 1px dashed var(--line); }
+.epcf-form-row:first-of-type { border-top: none; }
+.epcf-form-lib { flex: 1; font-size: 0.9rem; }
+.epcf-seg { display: flex; gap: 0.25rem; flex-shrink: 0; }
+.epcf-seg-btn { padding: 0.25rem 0.55rem; font-size: 0.78rem; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--bg-elev); color: var(--text-muted); cursor: pointer; }
+.epcf-seg-btn.active.A  { background: var(--c-go);  border-color: var(--c-go);  color: #fff; }
+.epcf-seg-btn.active.R  { background: #C98A2B;      border-color: #C98A2B;      color: #fff; }
+.epcf-seg-btn.active.NA { background: var(--c-stop); border-color: var(--c-stop); color: #fff; }
+.epcf-form-comps { margin: 0.8rem 0; }
+.epcf-comp-cb { margin-right: 1.2rem; }
+.epcf-commentaire-ta { width: 100%; box-sizing: border-box; resize: vertical; padding: 0.5rem 0.7rem; border: 1px solid var(--line); border-radius: var(--r-sm); font: inherit; background: var(--bg-elev); color: var(--text); }
+
+.epcf-radar-wrap { max-width: 420px; margin: 0 auto; }
+.epcf-radar { width: 100%; height: auto; display: block; }
+.epcf-radar-ring { fill: none; stroke: var(--line); }
+.epcf-radar-spoke { stroke: var(--line); }
+.epcf-radar-label { fill: var(--text-muted); font-size: 11px; }
+.epcf-radar-serie.moi { fill: rgba(107, 127, 78, 0.25); stroke: var(--accent); stroke-width: 2; }
+.epcf-radar-serie.groupe { fill: none; stroke: var(--text-muted); stroke-width: 1.5; stroke-dasharray: 4 3; }
+.epcf-legende { text-align: center; font-size: 0.82rem; }
+.epcf-leg { display: inline-block; width: 14px; height: 3px; vertical-align: middle; margin-right: 4px; }
+.epcf-leg.moi { background: var(--accent); }
+.epcf-leg.groupe { background: var(--text-muted); }
+
+.epcf-chip { display: inline-block; min-width: 5.5rem; text-align: center; padding: 0.1rem 0.5rem; border-radius: 999px; font-size: 0.75rem; font-weight: 600; }
+.epcf-chip.A  { background: rgba(77, 124, 15, 0.18); color: var(--c-go); }
+.epcf-chip.R  { background: rgba(201, 138, 43, 0.18); color: #C98A2B; }
+.epcf-chip.NA { background: rgba(160, 90, 61, 0.18); color: var(--c-stop); }
+.epcf-chip.vide { background: var(--bg-subtle); color: var(--text-muted); }
+
+.epcf-actions { margin: 1rem 0 2rem; }
+.epcf-detail { margin-top: 0.5rem; }
+/* border-left transparent par défaut ; la couleur de phase est posée en inline (JS). */
+.epcf-detail-section { margin-top: 0.9rem; border-left: 3px solid transparent; padding-left: 0.7rem; }
+.epcf-detail-title { margin: 0 0 0.4rem; font-size: 0.9rem; }
+.epcf-detail-tp { font-weight: 400; font-size: 0.8rem; }
+.epcf-detail-row { display: flex; align-items: baseline; gap: 0.6rem; padding: 0.2rem 0; font-size: 0.88rem; }
+.epcf-comps, .epcf-commentaire { margin-top: 0.8rem; font-size: 0.9rem; }
+.epcf-resti { margin-bottom: 1.6rem; }
+.epcf-resti-title { margin: 0 0 0.5rem; }
+.epcf-eval-select-wrap { margin-bottom: 0.6rem; }
+.epcf-eval-select { padding: 0.4rem 0.6rem; border: 1px solid var(--line); border-radius: var(--r-sm); font: inherit; background: var(--bg-elev); color: var(--text); }
+.epcf-eval-meta { font-size: 0.82rem; }
+.epcf-classe-trame { margin-bottom: 2rem; }
+.epcf-classe-lib { font-size: 0.85rem; }
+.epcf-classe-phase td { background: var(--bg-subtle); }
+.epcf-name-cell { display: flex; align-items: center; gap: 0.6rem; justify-content: space-between; }
+.epcf-name { font-weight: 500; }
+
+/* ===== EPCF — responsive mobile. Bloc SÉPARÉ du @media principal (plus haut dans le
+   fichier) : placé APRÈS les règles EPCF pour gagner la cascade à spécificité égale.
+   Toute règle mobile EPCF doit venir ICI, jamais dans le @media principal (sinon la
+   règle d'ici l'écraserait silencieusement). Même seuil maison : 760px. ===== */
+@media (max-width: 760px) {
+  .epcf-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .epcf-cell { white-space: normal; }
+  .epcf-cell .btn { margin: 0.2rem 0.3rem 0 0; }
+  .epcf-form-row { flex-direction: column; align-items: flex-start; gap: 0.35rem; }
+  .epcf-seg { align-self: flex-end; }
+  .epcf-radar-label { font-size: 14px; }  /* unités du viewBox : compense l'échelle ~0.8 à 375px → ~11px affichés */
+}

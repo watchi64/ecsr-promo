@@ -1,29 +1,23 @@
-import { listStagiaires, listEvaluations, getStats, getSetting } from "../db.js?v=20260711n";
-import { el, clear, isoDate, getMonday, displayStagiaire, compareByNom } from "../utils.js?v=20260711n";
-import { icon } from "../icons.js?v=20260711n";
-import { renderPassages } from "./passages.js?v=20260711n";
+import { listStagiaires, getStats, getSetting } from "../db.js?v=20260717c";
+import { el, clear, isoDate, getMonday, displayStagiaire, compareByNom } from "../utils.js?v=20260717c";
+import { icon } from "../icons.js?v=20260717c";
+import { renderPassages } from "./passages.js?v=20260717c";
 
 const SORT_OPTIONS = [
   { key: "priorite",   label: "Priorité de passage" },
   { key: "alpha",      label: "Alphabétique" },
-  { key: "note-desc",  label: "Note : meilleure d'abord" },
-  { key: "note-asc",   label: "Note : plus faible d'abord" },
   { key: "passages",   label: "Plus de passages d'abord" },
 ];
 
-let currentSort = localStorage.getItem("ecsr_dash_sort") || "priorite";
+const VALID_SORTS = new Set(SORT_OPTIONS.map((o) => o.key));
+let currentSort = localStorage.getItem("ecsr_dash_sort");
+if (!VALID_SORTS.has(currentSort)) currentSort = "priorite";
 
 function sortEnriched(list, mode) {
   const arr = list.slice();
   switch (mode) {
     case "alpha":
       arr.sort((a, b) => compareByNom(a.s, b.s));
-      break;
-    case "note-desc":
-      arr.sort((a, b) => (b.avg ?? -1) - (a.avg ?? -1) || compareByNom(a.s, b.s));
-      break;
-    case "note-asc":
-      arr.sort((a, b) => (a.avg ?? 99) - (b.avg ?? 99) || compareByNom(a.s, b.s));
       break;
     case "passages":
       arr.sort((a, b) => (b.sa.effectif + b.vo.effectif) - (a.sa.effectif + a.vo.effectif));
@@ -62,24 +56,6 @@ function badgeTitle(stat, objectif) {
   return `Compté ${stat.prio} (${detail}) · objectif ${objectif}`;
 }
 
-/** Moyenne pondérée /20 des évaluations d'un stagiaire. null si pas d'évaluations notées. */
-function computeAverage(evaluations, stagiaireId) {
-  const evals = evaluations.filter((e) =>
-    e.stagiaire_id === stagiaireId && e.note != null && e.note_max
-  );
-  if (evals.length === 0) return null;
-  const total = evals.reduce((sum, e) => sum + (Number(e.note) / Number(e.note_max)) * 20, 0);
-  return Math.round((total / evals.length) * 10) / 10;
-}
-
-function avgColor(avg) {
-  if (avg == null) return "muted";
-  if (avg < 8) return "bad";
-  if (avg < 12) return "warn";
-  if (avg < 16) return "ok";
-  return "great";
-}
-
 function cardClass(salleKey, voitureKey) {
   return (salleKey === "a-prioriser" || voitureKey === "a-prioriser") ? "urgent" : "ok";
 }
@@ -98,18 +74,10 @@ function priorityBadge(scope, key, retard, stat, objectif) {
 }
 
 function renderCard(x, objSalle, objVoiture) {
-  const { s, sa, vo, prioSalle, prioVoiture, retardSalle, retardVoiture, avg, nbEvals } = x;
+  const { s, sa, vo, prioSalle, prioVoiture, retardSalle, retardVoiture } = x;
   return el("article", { class: "dashboard-card " + cardClass(prioSalle, prioVoiture) },
     el("div", { class: "card-head" },
       el("h3", { class: "name" }, displayStagiaire(s)),
-      avg != null
-        ? el("span", { class: "avg-pill " + avgColor(avg), title: nbEvals + " évaluation(s)" },
-            el("span", { class: "avg-num" }, String(avg)),
-            el("span", { class: "avg-max" }, "/20"),
-          )
-        : el("span", { class: "avg-pill muted", title: "Aucune évaluation" },
-            el("span", { class: "avg-num" }, "—"),
-          ),
     ),
     el("div", { class: "dashboard-stats" },
       buildStatPill(icon.presentation, sa),
@@ -146,11 +114,10 @@ export async function renderDashboard(container) {
   clear(container);
   container.appendChild(el("div", { class: "loading" }, "Chargement"));
 
-  const [stagiaires, stats, semaineLundi, evaluations] = await Promise.all([
+  const [stagiaires, stats, semaineLundi] = await Promise.all([
     listStagiaires(),
     getStats(),
     getSetting("current_week_lundi"),
-    listEvaluations(),
   ]);
 
   const monday = semaineLundi || isoDate(getMonday(new Date()));
@@ -173,9 +140,7 @@ export async function renderDashboard(container) {
     const retardSalle = Math.max(0, objSalle - sa.prio);
     const retardVoiture = Math.max(0, objVoiture - vo.prio);
     const score = retardSalle + retardVoiture;  // tri priorité : plus de retard d'abord
-    const avg = computeAverage(evaluations, s.id);
-    const nbEvals = evaluations.filter((e) => e.stagiaire_id === s.id && e.note != null).length;
-    return { s, sa, vo, prioSalle, prioVoiture, retardSalle, retardVoiture, score, avg, nbEvals };
+    return { s, sa, vo, prioSalle, prioVoiture, retardSalle, retardVoiture, score };
   });
 
   const summary = {
