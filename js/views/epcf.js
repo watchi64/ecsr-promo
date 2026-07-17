@@ -4,12 +4,12 @@
 //  - stagiaire : vue classe (moyennes agrégées, k-anonymisées) uniquement.
 // La saisie reste protégée par la RLS (INSERT/UPDATE réservés aux profs/admin).
 
-import { listStagiaires, listProfs, listEpcf, upsertEpcf, getEpcfMoyennes } from "../db.js?v=20260716a";
-import { el, clear, isoDate, formatDate, displayStagiaire, compareByNom, toast } from "../utils.js?v=20260716a";
-import { isAdmin, isProf, getProfile } from "../auth-admin.js?v=20260716a";
-import { getCurrentWho } from "../identity.js?v=20260716a";
-import { EPCF_TRAMES, NOTE_LABELS } from "../epcf-trames.js?v=20260716a";
-import { renderEpcfTrameSection, renderEpcfClasse } from "../epcf-restitution.js?v=20260716a";
+import { listStagiaires, listProfs, listEpcf, upsertEpcf, getEpcfMoyennes } from "../db.js?v=20260717a";
+import { el, clear, isoDate, formatDate, displayStagiaire, compareByNom, toast } from "../utils.js?v=20260717a";
+import { isAdmin, isProf, getProfile } from "../auth-admin.js?v=20260717a";
+import { getCurrentWho } from "../identity.js?v=20260717a";
+import { EPCF_TRAMES, NOTE_LABELS } from "../epcf-trames.js?v=20260717a";
+import { renderEpcfTrameSection, renderEpcfClasse } from "../epcf-restitution.js?v=20260717a";
 
 let stagiaires = [];
 let profs = [];
