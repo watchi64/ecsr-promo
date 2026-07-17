@@ -1,13 +1,36 @@
 #!/bin/sh
-# Cache-busting automatique.
-# Si un fichier js/ ou css/ entre dans le commit, (re)pose un token ?v=
+# Cache-busting automatique — UNIQUEMENT sur main.
+# Si un fichier js/ ou css/ entre dans un commit sur main, (re)pose un token ?v=
 # uniforme sur index.html + tous les imports JS, puis re-stage les fichiers.
+#
+# Sur les branches de feature le token reste fige (herite de main) : sinon chaque
+# branche re-tamponne les ~96 lignes ?v= de son cote et les merges vers main
+# produisent des conflits de bruit pur (mesure 2026-07-16 : 6 fichiers sur 17 en
+# conflit lot2->main n'avaient QUE des diffs de token). Le re-versionnage se fait
+# au moment de la release sur main ; le hook pre-push verifie qu'il n'est pas oublie.
 # Desactiver ponctuellement : git commit --no-verify
-if git diff --cached --name-only | grep -qE '^(js/.*\.js|css/.*\.css)$'; then
+BRANCH=$(git rev-parse --abbrev-ref HEAD)
+if [ "$BRANCH" = "main" ] && git diff --cached --name-only | grep -qE '^(js/.*\.js|css/.*\.css)$'; then
   echo "[pre-commit] cache-bust : assets JS/CSS modifies, re-versionnage..."
   if ! node scripts/cache-bust.js --staged; then
     echo "[pre-commit] echec de cache-bust.js -- commit annule." >&2
     exit 1
   fi
+fi
+
+# Garde-fou encodage : refuse tout fichier texte double-encode (UTF-8 relu en cp1252
+# puis re-sauve : "e" accent aigu devient "A tilde + copyright", etc.). Incident reel :
+# merge benevoles 2026-07-03 (5e8794d) corrige par transcodage inverse -- resolution de
+# conflits via un outil Windows sans -Encoding utf8. Signatures cherchees : \xC3\x83 et
+# \xC3\x82 suivis d'un octet (jamais presents dans du francais UTF-8 legitime).
+SIG1=$(printf '\303\203'); SIG2=$(printf '\303\202\302')   # octets UTF-8 de "A tilde" / "A circonflexe + C2"
+BAD=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(js|css|html|md)$' | while read -r f; do
+  if git show ":$f" | grep -q -e "$SIG1" -e "$SIG2"; then echo "$f"; fi
+done)
+if [ -n "$BAD" ]; then
+  echo "[pre-commit] ENCODAGE CASSE (mojibake) detecte dans :" >&2
+  echo "$BAD" >&2
+  echo "[pre-commit] Fichier UTF-8 relu/reecrit en cp1252 ? Repare l'encodage avant de commit." >&2
+  exit 1
 fi
 exit 0

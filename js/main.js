@@ -2,22 +2,22 @@
  * Promo ECSR — Application propriétaire.
  * © 2026 watchi64 — Tous droits réservés. Voir LICENSE.
  */
-import { signInWithPassword, signUpWithPassword, getCurrentUser, invalidateCache } from "./db.js?v=20260709a";
-import { toast } from "./utils.js?v=20260709a";
-import { icon } from "./icons.js?v=20260709a";
-import { initAuth, onAdminChange, isAuth } from "./auth-admin.js?v=20260709a";
-import { loadAccent } from "./accent-switcher.js?v=20260709a";
-import { loadTheme } from "./theme-switcher.js?v=20260709a";
-import { renderHome } from "./views/home.js?v=20260709a";
-import { renderDashboard } from "./views/dashboard.js?v=20260709a";
-import { renderPlanning, teardownPrintTarget } from "./views/planning.js?v=20260709a";
-import { renderPassages } from "./views/passages.js?v=20260709a";
-import { renderNotes } from "./views/notes.js?v=20260709a";
-import { renderRessources } from "./views/ressources.js?v=20260709a";
-import { renderThemes } from "./views/themes.js?v=20260709a";
-import { renderConfig } from "./views/config.js?v=20260709a";
-import { renderCalendrier } from "./views/calendrier.js?v=20260709a";
-import { initUndoKeyboard } from "./undo.js?v=20260709a";
+import { signInWithPassword, signUpWithPassword, getCurrentUser, invalidateCache } from "./db.js?v=20260717d";
+import { toast } from "./utils.js?v=20260717d";
+import { icon } from "./icons.js?v=20260717d";
+import { initAuth, onAdminChange, isAuth } from "./auth-admin.js?v=20260717d";
+import { loadAccent } from "./accent-switcher.js?v=20260717d";
+import { loadTheme } from "./theme-switcher.js?v=20260717d";
+import { renderHome } from "./views/home.js?v=20260717d";
+import { renderDashboard } from "./views/dashboard.js?v=20260717d";
+import { renderMonSuivi } from "./views/mon-suivi.js?v=20260717d";
+import { renderPlanning, teardownPrintTarget } from "./views/planning.js?v=20260717d";
+import { renderNotes } from "./views/notes.js?v=20260717d";
+import { renderRessources } from "./views/ressources.js?v=20260717d";
+import { renderThemes } from "./views/themes.js?v=20260717d";
+import { renderConfig } from "./views/config.js?v=20260717d";
+import { renderCalendrier } from "./views/calendrier.js?v=20260717d";
+import { initUndoKeyboard } from "./undo.js?v=20260717d";
 
 // ===== Gate : email magic link =====
 
@@ -121,10 +121,10 @@ function hideGate() {
 const TABS = [
   { route: "home",       label: "Accueil",         icon: "info"      },
   { route: "dashboard",  label: "Tableau de bord", icon: "dashboard" },
+  { route: "mon-suivi",  label: "Mon suivi",       icon: "progress"  },
   { route: "planning",   label: "Planning",        icon: "calendar"  },
   { route: "calendrier", label: "Calendrier",      icon: "clock"     },
   { route: "themes",     label: "Thèmes",          icon: "list"      },
-  { route: "passages",   label: "Passages",        icon: "history"   },
   { route: "notes",      label: "Notes",           icon: "edu"       },
   { route: "ressources", label: "Ressources",      icon: "signpost"  },
   { route: "config",     label: "Paramètres",      icon: "settings"  },
@@ -133,7 +133,7 @@ const TABS = [
 function renderTabs() {
   const nav = document.getElementById("tabs");
   nav.innerHTML = "";
-  TABS.forEach((t) => {
+  TABS.filter((t) => !t.visible || t.visible()).forEach((t) => {
     const a = document.createElement("a");
     a.href = "#/" + t.route;
     a.className = "tab";
@@ -151,10 +151,10 @@ function renderTabs() {
 const routes = {
   home:       renderHome,
   dashboard:  renderDashboard,
+  "mon-suivi": renderMonSuivi,
   planning:   renderPlanning,
   calendrier: renderCalendrier,
   themes:     renderThemes,
-  passages:   renderPassages,
   notes:      renderNotes,
   ressources: renderRessources,
   config:     renderConfig,
@@ -223,7 +223,7 @@ async function bootApp() {
   hideGate();
   renderTabs();
   setupRefreshBtn();
-  onAdminChange(() => navigate());
+  onAdminChange(() => { renderTabs(); navigate(); });
   initUndoKeyboard();
   if (!location.hash) location.hash = "#/dashboard";
   await navigate();

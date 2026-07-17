@@ -2,21 +2,31 @@ import {
   listStagiaires, listProfs, listThemes, getPlanning,
   upsertPlanningEntry, deletePlanningEntryById,
   getHalfMetaForWeek, upsertHalfMeta,
+  getJoursOff, setJourOff, deleteJourOff,
   getSetting, setSetting,
   addPassagesBatch, deletePassagesBatch, getPassagesInRange, updateTheme,
-} from "../db.js?v=20260709a";
-import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire } from "../utils.js?v=20260709a";
-import { icon } from "../icons.js?v=20260709a";
-import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260709a";
-import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260709a";
-import { recordUndo } from "../undo.js?v=20260709a";
-import { getCurrentWho } from "../identity.js?v=20260709a";
+  listBenevoles, listBenevolesNoms,
+  getVoitureAggregats, listFiches, getSalleAggregats,
+} from "../db.js?v=20260717d";
+import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260717d";
+import { icon } from "../icons.js?v=20260717d";
+import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260717d";
+import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260717d";
+import { recordUndo } from "../undo.js?v=20260717d";
+import { getCurrentWho } from "../identity.js?v=20260717d";
+import { openBenevolesPanel } from "./benevoles.js?v=20260717d";
 
 let stagiaires = [];
 let profs = [];
 let themes = [];
+let benevoles = [];  // admin : lignes complètes + display ; sinon : {id, display} via RPC
 let entries = [];
 let halfMetas = [];  // [{semaine_lundi, day_index, half_day, start_time, end_time, pause_start, pause_minutes}]
+let joursOff = [];   // [{day_index, label}] jours désactivés manuellement de la semaine affichée
+let autresProfsMem = [];  // noms de formateurs « Autre » déjà saisis (mémorisés, réutilisables)
+let voitureStats = {};   // getVoitureAggregats() : { [stagiaire_id]: { total, avecEleve, byProf } }
+let fichesSuivi = [];    // rows fiches_suivi (souhaits par stagiaire)
+let salleStats = {};     // getSalleAggregats() : { [stagiaire_id]: nb passages Salle historiques }
 let semaineLundi = null;
 let currentContainer = null;
 
@@ -29,6 +39,86 @@ const DEFAULT_HALF_META = {
 function metaFor(d, half) {
   return halfMetas.find((m) => m.day_index === d && m.half_day === half)
       || { day_index: d, half_day: half, ...DEFAULT_HALF_META[half] };
+}
+
+// === Jours fériés français (calculés, pas stockés) + jours désactivés manuellement ===
+
+// Dimanche de Pâques (algorithme de Meeus/Butcher) → base des fériés mobiles.
+function easterSunday(year) {
+  const a = year % 19, b = Math.floor(year / 100), c = year % 100;
+  const d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25);
+  const g = Math.floor((b - f + 1) / 3), h = (19 * a + b - d - g + 15) % 30;
+  const i = Math.floor(c / 4), k = c % 4, l = (32 + 2 * e + 2 * i - h - k) % 7;
+  const m = Math.floor((a + 11 * h + 22 * l) / 451);
+  const month = Math.floor((h + l - 7 * m + 114) / 31);   // 3 = mars, 4 = avril
+  const day = ((h + l - 7 * m + 114) % 31) + 1;
+  return new Date(year, month - 1, day);
+}
+
+// Map "AAAA-MM-JJ" -> libellé, pour une année. Fériés nationaux métropole.
+const _holidayCache = {};
+function frenchHolidays(year) {
+  if (_holidayCache[year]) return _holidayCache[year];
+  const map = {};
+  const add = (dt, label) => { map[isoDate(dt)] = label; };
+  add(new Date(year, 0, 1), "Jour de l'an");
+  add(new Date(year, 4, 1), "Fête du Travail");
+  add(new Date(year, 4, 8), "Victoire 1945");
+  add(new Date(year, 6, 14), "Fête nationale");
+  add(new Date(year, 7, 15), "Assomption");
+  add(new Date(year, 10, 1), "Toussaint");
+  add(new Date(year, 10, 11), "Armistice");
+  add(new Date(year, 11, 25), "Noël");
+  const easter = easterSunday(year);
+  add(addDays(easter, 1), "Lundi de Pâques");
+  add(addDays(easter, 39), "Ascension");
+  add(addDays(easter, 50), "Lundi de Pentecôte");
+  _holidayCache[year] = map;
+  return map;
+}
+
+// État d'un jour : off (désactivé), son libellé, et s'il est manuel (donc réactivable en 1 clic)
+// ou automatique (férié calculé — pas de ligne en base).
+function dayOffInfo(dayIndex, monday) {
+  const manual = joursOff.find((j) => j.day_index === dayIndex);
+  if (manual) return { off: true, label: manual.label || "Désactivé", manual: true };
+  const date = addDays(monday, dayIndex);
+  const holiday = frenchHolidays(date.getFullYear())[isoDate(date)];
+  if (holiday) return { off: true, label: holiday, manual: false, ferie: true };
+  return { off: false };
+}
+
+// Raccourci : un jour de la semaine affichée est-il désactivé (manuel ou férié) ?
+function dayIsOff(dayIndex) {
+  if (!semaineLundi) return false;
+  return dayOffInfo(dayIndex, new Date(semaineLundi + "T00:00:00")).off;
+}
+
+// === Mémoire des formateurs « Autre » (réutilisation) ===
+// La colonne settings.value stocke du TEXTE : on (dé)sérialise la liste en JSON pour ne
+// pas qu'un tableau s'y transforme en chaîne et soit itéré caractère par caractère
+// (bug datalist « Autre » 2026-07-09).
+function parseAutresProfs(raw) {
+  if (Array.isArray(raw)) return raw.filter((x) => typeof x === "string");
+  if (typeof raw === "string" && raw.trim()) {
+    try { const v = JSON.parse(raw); if (Array.isArray(v)) return v.filter((x) => typeof x === "string"); } catch (e) { /* ignore */ }
+  }
+  return [];
+}
+function autresProfsSuggestions() {
+  const set = new Set(Array.isArray(autresProfsMem) ? autresProfsMem : []);
+  entries.forEach((e) => { if (e.prof_autre) set.add(e.prof_autre); });
+  return [...set].sort((a, b) => a.localeCompare(b));
+}
+function rememberAutreProf(name) {
+  if (!name || autresProfsMem.includes(name)) return;
+  autresProfsMem = [...autresProfsMem, name].slice(-50);   // borne raisonnable
+  setSetting("profs_autres", JSON.stringify(autresProfsMem)).catch(() => {});
+}
+function forgetAutreProf(name) {
+  if (!autresProfsMem.includes(name)) return;
+  autresProfsMem = autresProfsMem.filter((n) => n !== name);
+  setSetting("profs_autres", JSON.stringify(autresProfsMem)).catch(() => {});
 }
 
 function timesLabel(meta) {
@@ -85,6 +175,8 @@ function entryUpsertPayload(entry) {
     activite: entry.activite ?? null,
     prof_id: entry.prof_ids && entry.prof_ids.length ? entry.prof_ids[0] : null,  // legacy compat (1er prof)
     prof_ids: entry.prof_ids ?? [],
+    prof_autre: entry.prof_autre ?? null,        // formateur externe (nom libre)
+    autonomie: entry.autonomie ?? false,          // groupe en autonomie (aucun formateur)
     sujet: entry.sujet ?? null,
     pedagogue_id: entry.pedagogue_id ?? null,
     eleves_ids: entry.eleves_ids ?? [],
@@ -92,6 +184,7 @@ function entryUpsertPayload(entry) {
     pedagogue_id_2: entry.pedagogue_id_2 ?? null,
     eleves_ids_2: entry.eleves_ids_2 ?? [],
     salle_double: entry.salle_double ?? false,
+    benevoles_ids: entry.benevoles_ids ?? [],
     notes: entry.notes ?? null,
   };
 }
@@ -195,7 +288,7 @@ async function addLaneInSlot(d, half, slot) {
 // On permute le CONTENU des deux cartes (pas leur position en base) : les lignes
 // gardent leur (slot, lane), donc aucun conflit avec la contrainte d'unicité, et on
 // réutilise l'upsert existant. Visuellement = un déplacement. Undo via Ctrl+Z.
-const SWAP_FIELDS = ["activite", "prof_ids", "prof_id", "sujet", "pedagogue_id", "eleves_ids", "pedagogue_id_2", "eleves_ids_2", "salle_double", "notes"];
+const SWAP_FIELDS = ["activite", "prof_ids", "prof_id", "prof_autre", "autonomie", "sujet", "pedagogue_id", "eleves_ids", "pedagogue_id_2", "eleves_ids_2", "salle_double", "benevoles_ids", "notes"];
 
 function snapshotFields(entry) {
   const o = {};
@@ -431,36 +524,158 @@ function effElevesIds(e, group = 1) {
   if (group === 2) return e.salle_double ? (e.eleves_ids_2 || []) : [];
   return e.eleves_ids || [];
 }
+function effBenevolesIds(e) {
+  if (!entryShape(e).includes("benevoles")) return [];
+  return e.benevoles_ids || [];
+}
 
-// Ids des stagiaires déjà placés dans le MÊME créneau et VRAIMENT en même temps que le champ
-// qu'on remplit. Les 2 groupes d'une carte salle sont SÉQUENTIELS (l'un après l'autre) : sur
-// la carte courante, seul l'AUTRE rôle du MÊME groupe bloque (tableau ≠ ses élèves). Donc une
-// personne peut être élève au groupe 1 puis tableau / élève au groupe 2. Les AUTRES cartes du
-// créneau (voiture, etc.) sont simultanées => elles bloquent en entier (2 groupes compris).
+// Bénévoles déjà placés sur une AUTRE carte du même créneau (cartes parallèles =
+// simultanées : pas deux voitures à la fois). Les slots successifs restent permis :
+// un bénévole reste souvent toute la demi-journée et change d'élève moniteur.
+function benevoleSlotOccupants(entry) {
+  const ids = new Set();
+  entries.forEach((e) => {
+    if (e.day_index !== entry.day_index || e.half_day !== entry.half_day || e.slot !== entry.slot) return;
+    if (e._lid === entry._lid) return;
+    effBenevolesIds(e).forEach((id) => ids.add(id));
+  });
+  return ids;
+}
+
+// Dispo récurrente du bénévole sur le jour + demi-journée d'une carte.
+function isBenevoleDispo(b, entry) {
+  return (b.dispos?.[JOURS[entry.day_index]] || []).includes(entry.half_day);
+}
+
+// Ids des stagiaires déjà placés « en conflit » avec le champ qu'on remplit.
+//
+// Modèle temporel des groupes (règle 2026-07-11) : sur un créneau, tous les GROUPES 1
+// des cartes salle tournent EN PARALLÈLE, puis tous les GROUPES 2. Les vagues sont
+// donc séquentielles : une personne peut apparaître dans les deux vagues (élève G1
+// puis élève G2, tableau G1 puis élève G2…), mais UNE SEULE FOIS PAR VAGUE, toutes
+// cartes du créneau confondues. Deux exceptions inter-vagues :
+//  - élève G1 → tableau G2 : INTERDIT (pas le temps de préparer son animation) ;
+//  - tableau G1 → tableau G2 : INTERDIT (pas deux animations d'affilée).
+// Une carte salle « 1 groupe » occupe tout le créneau (les deux vagues).
+// Une Voiture (conduite) s'étale sur TOUTE la demi-journée (règle 2026-07-10) :
+// ses stagiaires sont indisponibles pour les deux vagues de tous les créneaux,
+// et réciproquement.
 // exceptField ∈ "pedagogue" | "eleves" | "pedagogue_2" | "eleves_2"
-const SAME_GROUP_BLOCK = {
-  pedagogue:   "eleves_ids",
-  eleves:      "pedagogue_id",
-  pedagogue_2: "eleves_ids_2",
-  eleves_2:    "pedagogue_id_2",
-};
+const ACT_VOITURE = "Voiture (conduite)";
+const FIELD_WAVE = { pedagogue: 1, eleves: 1, pedagogue_2: 2, eleves_2: 2 };
 function slotOccupants(entry, exceptField) {
   const ids = new Set();
   const add = (v) => { if (Array.isArray(v)) v.forEach((id) => ids.add(id)); else if (v != null) ids.add(v); };
+  const entryIsVoiture = entry.activite === ACT_VOITURE;
+  const wave = FIELD_WAVE[exceptField] || 1;
+
   entries.forEach((e) => {
-    if (e.day_index !== entry.day_index || e.half_day !== entry.half_day || e.slot !== entry.slot) return;
-    if (e._lid === entry._lid) {
-      add(e[SAME_GROUP_BLOCK[exceptField]]);  // même groupe, l'autre rôle uniquement
-    } else {
-      // Autre carte simultanée : bloque ses rôles EFFECTIFS (selon sa forme), pour
-      // ignorer une donnée périmée laissée par un changement d'activité.
-      add(effPedagogueId(e, 1));
+    if (e.day_index !== entry.day_index || e.half_day !== entry.half_day) return;  // même demi-journée
+    const sameCard = e._lid === entry._lid;
+    const eIsVoiture = e.activite === ACT_VOITURE;
+
+    // Chevauchement voiture : toute la demi-journée, toutes vagues confondues.
+    if (eIsVoiture || entryIsVoiture) {
+      if (sameCard) return;  // sa propre carte voiture : rien à bloquer (on remplit "eleves")
+      add(effPedagogueId(e, 1)); add(effElevesIds(e, 1));
+      add(effPedagogueId(e, 2)); add(effElevesIds(e, 2));
+      return;
+    }
+
+    // Cartes non-voiture : seuls les créneaux identiques se chevauchent.
+    if (!sameCard && e.slot !== entry.slot) return;
+
+    // 1. Occupants de MA vague (une personne max par vague, toutes cartes du créneau).
+    //    Une carte sans 2e groupe actif occupe tout le créneau → son G1 bloque les 2 vagues.
+    const skipOwn = (field) => sameCard && field === exceptField;
+    if (wave === 1 || !e.salle_double) {
+      if (!skipOwn("pedagogue")) add(effPedagogueId(e, 1));
+      if (!skipOwn("eleves"))    add(effElevesIds(e, 1));
+    }
+    if (wave === 2) {
+      if (!skipOwn("pedagogue_2")) add(effPedagogueId(e, 2));
+      if (!skipOwn("eleves_2"))    add(effElevesIds(e, 2));
+    }
+
+    // 2. Règles inter-vagues (toutes cartes du créneau, y compris la courante) :
+    //    remplir un tableau G2 → bloqué pour les élèves G1 (préparation) et les
+    //    tableaux G1 (pas deux animations d'affilée) ; symétriquement, remplir un
+    //    rôle G1 (tableau ou élèves) bloque le tableau G2 déjà placé.
+    if (exceptField === "pedagogue_2") {
       add(effElevesIds(e, 1));
+      add(effPedagogueId(e, 1));
+    }
+    if (exceptField === "pedagogue" || exceptField === "eleves") {
       add(effPedagogueId(e, 2));
-      add(effElevesIds(e, 2));
     }
   });
   return ids;
+}
+
+// === Score de priorité voiture (v2) ===
+// Aux points d'appel, le tuple est PRÉFIXÉ par le critère « couverture » (0 = pas encore de
+// passage voiture OU tableau cette semaine → prioritaire) : chacun a au moins 1 passage
+// hebdo dans la mesure du possible. Ordre lexicographique croissant du tuple final :
+//  [0] couverture : déclasse qui a déjà ≥1 passage (voiture élève ou tableau) cette semaine ;
+//  [1] plafond souple : déclasse (sans exclure) qui a déjà 2 placements voiture cette semaine ;
+//  [2] anti jours consécutifs : déclasse qui a déjà une voiture le même jour, la veille
+//      ou le lendemain (voitDays = jours de placement voiture par stagiaire) ;
+//  [3] séances avec élève (historique passages avec_eleve=true + placements de la semaine
+//      sur des créneaux avec bénévoles) — critère principal (équité d'exposition) ;
+//  [4] match souhaits × niveau des bénévoles du créneau (0 = matche, 1 = neutre) ;
+//  [5] passages déjà faits avec le prof du créneau (variété formateur) ;
+//  [6] total placements voiture de la semaine (équilibre intra-semaine).
+// Le shuffle préalable conserve l'aléa entre ex æquo.
+function matchesSouhait(souhait, niveau) {
+  return niveau === souhait || niveau.startsWith(souhait + ".") || souhait.startsWith(niveau + ".");
+}
+function voitureScore(stagiaireId, entry, weekAvecEleve, weekVoit, voitDays) {
+  const agg = voitureStats[stagiaireId] || { avecEleve: 0, byProf: {} };
+  const avecEleve = agg.avecEleve + (weekAvecEleve[stagiaireId] || 0);
+
+  let match = 1;
+  const niveaux = (entry.benevoles_ids || [])
+    .map((id) => benevoles.find((b) => b.id === id)?.niveau)
+    .filter(Boolean);
+  if (niveaux.length) {
+    const souhaits = fichesSuivi.find((f) => f.stagiaire_id === stagiaireId)?.souhaits || [];
+    if (souhaits.some((w) => niveaux.some((n) => matchesSouhait(w, n)))) match = 0;
+  }
+
+  const profId = entry.prof_ids && entry.prof_ids.length ? entry.prof_ids[0] : (entry.prof_id ?? null);
+  const profCount = profId != null ? (agg.byProf[profId] || 0) : 0;
+
+  const days = voitDays[stagiaireId];
+  const hasAdjacentDay = !!days && (days.has(entry.day_index) || days.has(entry.day_index - 1) || days.has(entry.day_index + 1));
+
+  return [
+    (weekVoit[stagiaireId] || 0) >= 2 ? 1 : 0,             // [0] plafond : 2 voitures/semaine max (souple)
+    hasAdjacentDay ? 1 : 0,                                 // [1] éviter même jour / veille / lendemain
+    avecEleve,                                              // [2] équité d'exposition (critère principal)
+    match,                                                  // [3] souhaits × niveau bénévole
+    profCount,                                              // [4] variété formateur
+    weekVoit[stagiaireId] || 0,                             // [5] équilibre intra-semaine
+  ];
+}
+function cmpScores(a, b) {
+  for (let i = 0; i < a.length; i++) { if (a[i] !== b[i]) return a[i] - b[i]; }
+  return 0;
+}
+
+// Placements générateurs de passage (voiture élève + tableau) de la semaine, par stagiaire.
+// Exclut jours off et la carte cible. Sert au critère « au moins 1 passage chacun ».
+function weekPassageCounts(excludeLid) {
+  const counts = {};
+  const bump = (id) => { if (id != null) counts[id] = (counts[id] || 0) + 1; };
+  entries.forEach((e) => {
+    if (e._lid === excludeLid || dayIsOff(e.day_index)) return;
+    if (e.activite === ACT_VOITURE) (e.eleves_ids || []).forEach(bump);
+    else if (e.activite === "Pédagogie salle") {
+      bump(e.pedagogue_id);
+      if (e.salle_double) bump(e.pedagogue_id_2);
+    }
+  });
+  return counts;
 }
 
 // Élèves salle (groupe 1 ou 2) : priorise les moins passés, SANS plafond bloquant (re-placement
@@ -483,52 +698,71 @@ async function randomFillEleves(lid, group = 1) {
   const picked = ordered.slice(0, 4).map((s) => s.id);
 
   toast(picked.length < 4
-    ? `${picked.length} élève(s) tiré(s) · priorité aux moins passés`
-    : "4 élèves tirés · priorité aux moins passés", "success", 1600);
+    ? `${picked.length} stagiaire(s) tiré(s) · priorité aux moins passés`
+    : "4 stagiaires tirés · priorité aux moins passés", "success", 1600);
   await saveEntry(lid, { [field]: picked });
   renderInto(currentContainer);
 }
 
-// Au tableau (groupe 1 ou 2) : le plus rigoureux (toujours le moins passé au tableau). Exclut
-// quiconque est déjà sur le même créneau (élèves, autre tableau, carte parallèle).
+// Au tableau (groupe 1 ou 2) : priorité à qui n'a encore AUCUN passage (voiture ou tableau)
+// cette semaine, puis le moins passé au tableau, HISTORIQUE des passages Salle inclus
+// (salleStats), départagé par le compteur intra-semaine. Exclut quiconque est déjà sur le
+// même créneau (élèves, autre tableau, carte parallèle).
 async function randomFillPedagogue(lid, group = 1) {
   const entry = entries.find((e) => e._lid === lid);
   if (!entry) return;
 
   const field = group === 2 ? "pedagogue_id_2" : "pedagogue_id";
   const pedaCount = roleCounts("Pédagogie salle", "pedagogue", lid);
+  const passCounts = weekPassageCounts(lid);
+  const couvert = (id) => (passCounts[id] || 0) > 0 ? 1 : 0;
   const blocked = slotOccupants(entry, group === 2 ? "pedagogue_2" : "pedagogue");
   const eligible = stagiaires.filter((s) => !blocked.has(s.id));
   if (eligible.length === 0) {
     toast("Aucun stagiaire disponible sur ce créneau", "info", 3000);
     return;
   }
-  const ordered = shuffle(eligible).sort((a, b) => (pedaCount[a.id] || 0) - (pedaCount[b.id] || 0));
-  const picked = ordered[0];
+  const ordered = shuffle(eligible)
+    .map((s) => ({ s, score: [couvert(s.id), (salleStats[s.id] || 0) + (pedaCount[s.id] || 0), pedaCount[s.id] || 0] }))
+    .sort((a, b) => cmpScores(a.score, b.score));
+  const picked = ordered[0].s;
   await saveEntry(lid, { [field]: picked.id });
   renderInto(currentContainer);
-  toast(displayStagiaire(picked) + " désigné(e) au tableau", "success", 1800);
+  toast(displayStagiaire(picked) + " désigné(e) au tableau · priorité au moins passé (historique inclus)", "success", 1800);
 }
 
-// Voiture : priorise les moins passés en voiture, sans plafond. Exclut quiconque est déjà
-// sur le même créneau (carte parallèle, ex. salle) — pas deux endroits à la fois.
+// Voiture : score v2 (couverture « 1 passage chacun », plafond souple 2/semaine, anti jours
+// consécutifs, équité d'exposition). Exclut quiconque est déjà sur le même créneau (carte
+// parallèle, ex. salle) — pas deux endroits à la fois.
 async function randomFillVoitureEleves(lid, count) {
   const entry = entries.find((e) => e._lid === lid);
   if (!entry) return;
 
-  const voitCount = roleCounts("Voiture (conduite)", "eleve", lid);
+  // Compteurs de la semaine en cours (mêmes définitions que autoPlaceWeek)
+  const voit = {}, voitAvecEleve = {}, voitDays = {};
+  entries.forEach((e) => {
+    if (e.activite !== ACT_VOITURE || e._lid === lid || dayIsOff(e.day_index)) return;
+    (e.eleves_ids || []).forEach((id) => {
+      voit[id] = (voit[id] || 0) + 1;
+      if ((e.benevoles_ids || []).length) voitAvecEleve[id] = (voitAvecEleve[id] || 0) + 1;
+      (voitDays[id] ||= new Set()).add(e.day_index);
+    });
+  });
+
   const blocked = slotOccupants(entry, "eleves");
   const eligible = stagiaires.filter((s) => !blocked.has(s.id));
   if (eligible.length === 0) {
     toast("Aucun stagiaire disponible sur ce créneau", "info", 3000);
     return;
   }
-  const ordered = shuffle(eligible).sort((a, b) => (voitCount[a.id] || 0) - (voitCount[b.id] || 0));
-  const picked = ordered.slice(0, count).map((s) => s.id);
+  const passCounts = weekPassageCounts(lid);
+  const couvert = (id) => (passCounts[id] || 0) > 0 ? 1 : 0;
+  const picked = shuffle(eligible)
+    .map((s) => ({ id: s.id, score: [couvert(s.id), ...voitureScore(s.id, entry, voitAvecEleve, voit, voitDays)] }))
+    .sort((a, b) => cmpScores(a.score, b.score))
+    .slice(0, count).map((x) => x.id);
 
-  toast(picked.length < count
-    ? `${picked.length} élève(s) en voiture tiré(s) · priorité aux moins passés`
-    : `${count} élève(s) en voiture tiré(s) · priorité aux moins passés`, "success", 1600);
+  toast(`${picked.length} stagiaire(s) en voiture tiré(s) · priorité aux moins exposés`, "success", 1600);
   await saveEntry(lid, { eleves_ids: picked });
   renderInto(currentContainer);
 }
@@ -536,9 +770,11 @@ async function randomFillVoitureEleves(lid, count) {
 // === Placement automatique de toute la semaine ===
 // Remplit tableaux (1/groupe) + élèves (salle : 4/groupe, voiture : 2) selon la priorité
 // « moins passés », équilibré sur la semaine, anti-doublon par créneau, abandons ignorés.
-// Profs / sujets / notes ne sont JAMAIS touchés. Deux temps : tant qu'il reste des places
-// vides on ne remplit QUE les vides (respecte le manuel) ; quand tout est placé, un clic
-// propose de tout remélanger (re-tirage complet, avec confirmation). Undo via Ctrl+Z.
+// Élèves salle : équité stricte intra-semaine (écart max 1 entre stagiaires, passe de
+// rééquilibrage post-placement ; deux jours d'affilée autorisés). Profs / sujets / notes
+// ne sont JAMAIS touchés. Deux temps : tant qu'il reste des places vides on ne remplit QUE
+// les vides (respecte le manuel) ; quand tout est placé, un clic propose de tout remélanger
+// (re-tirage complet, avec confirmation). Undo via Ctrl+Z.
 function snapshotPlacement(e) {
   return {
     pedagogue_id: e.pedagogue_id ?? null,
@@ -566,20 +802,26 @@ function placementEmpties(e) {
 async function autoPlaceWeek() {
   await flushPendingInputs();
   const targets = entries.filter((e) =>
-    e.activite === "Pédagogie salle" || e.activite === "Voiture (conduite)");
+    (e.activite === "Pédagogie salle" || e.activite === "Voiture (conduite)")
+    && !dayIsOff(e.day_index));   // ne place rien sur un jour désactivé/férié
   if (targets.length === 0) {
     toast("Aucune Pédagogie salle ni Voiture à placer cette semaine", "info", 3500);
     return;
   }
 
   const reroll = !targets.some((e) => placementEmpties(e).length > 0);
-  if (reroll && !confirm("Toute la semaine est déjà placée.\n\nTout remélanger (tableaux + élèves) ? Tes ajustements manuels seront écrasés.")) return;
+  if (reroll && !confirm("Toute la semaine est déjà placée.\n\nTout remélanger (tableaux + stagiaires) ? Tes ajustements manuels seront écrasés.")) return;
+  if (!reroll) {
+    const cartes = targets.filter((e) => placementEmpties(e).length > 0).length;
+    if (!confirm(`Placer automatiquement la semaine ?\n\n${cartes} carte(s) à compléter (priorité aux moins passés / moins exposés). Ctrl+Z pour annuler ensuite.`)) return;
+  }
 
   const before = targets.map((e) => ({ e, snap: snapshotPlacement(e) }));
 
   // Compteurs par rôle (équité). En remélange on repart de zéro ; en remplissage on amorce
   // avec l'existant pour équilibrer autour des places déjà occupées.
-  const tab = {}, salleEl = {}, voit = {};
+  const tab = {}, salleEl = {}, voit = {}, voitAvecEleve = {};
+  const voitDays = {};   // { [stagiaireId]: Set<day_index> } — jours déjà en voiture cette semaine
   const bump = (m, id) => { if (id != null) m[id] = (m[id] || 0) + 1; };
 
   if (reroll) {
@@ -590,7 +832,11 @@ async function autoPlaceWeek() {
         bump(tab, e.pedagogue_id); (e.eleves_ids || []).forEach((id) => bump(salleEl, id));
         if (e.salle_double) { bump(tab, e.pedagogue_id_2); (e.eleves_ids_2 || []).forEach((id) => bump(salleEl, id)); }
       } else {
-        (e.eleves_ids || []).forEach((id) => bump(voit, id));
+        (e.eleves_ids || []).forEach((id) => {
+          bump(voit, id);
+          if ((e.benevoles_ids || []).length) bump(voitAvecEleve, id);
+          (voitDays[id] ||= new Set()).add(e.day_index);
+        });
       }
     });
   }
@@ -607,27 +853,96 @@ async function autoPlaceWeek() {
       .sort((a, b) => (countMap[a.id] || 0) - (countMap[b.id] || 0))
       .slice(0, n).map((s) => s.id);
 
+  // Couverture : 0 = pas encore de passage (voiture élève ou tableau) cette semaine → prioritaire.
+  // Favorise « au moins 1 passage chacun » avant de resservir qui que ce soit.
+  const couvert = (id) => ((voit[id] || 0) + (tab[id] || 0)) > 0 ? 1 : 0;
+
   let unfilled = 0;
+
+  // Un tableau (groupe g) : couverture d'abord, puis moins passé au tableau (historique
+  // Salle salleStats inclus), départage intra-semaine (tab).
+  const fillTableau = (e, g) => {
+    const pField = g === 2 ? "pedagogue_id_2" : "pedagogue_id";
+    if (e[pField] != null) return;
+    const pick = shuffle(stagiaires.filter((s) => !slotOccupants(e, g === 2 ? "pedagogue_2" : "pedagogue").has(s.id)))
+      .map((s) => ({ id: s.id, score: [couvert(s.id), (salleStats[s.id] || 0) + (tab[s.id] || 0), tab[s.id] || 0] }))
+      .sort((a, b) => cmpScores(a.score, b.score))[0]?.id ?? null;
+    if (pick != null) { e[pField] = pick; bump(tab, pick); } else unfilled++;
+  };
+  // Les 4 élèves d'un groupe g : les moins passés en élève salle, blocages du créneau respectés.
+  const fillElevesSalle = (e, g) => {
+    const eField = g === 2 ? "eleves_ids_2" : "eleves_ids";
+    if (e[eField] && e[eField].length) return;
+    const pick = pickLeast(salleEl, slotOccupants(e, g === 2 ? "eleves_2" : "eleves"), 4);
+    e[eField] = pick; pick.forEach((id) => bump(salleEl, id));
+    unfilled += 4 - pick.length;
+  };
+  // Les 2 stagiaires d'une voiture : score voiture v2 préfixé par la couverture.
+  const fillVoiture = (e) => {
+    if (e.eleves_ids && e.eleves_ids.length) return;
+    const pick = shuffle(stagiaires.filter((s) => !slotOccupants(e, "eleves").has(s.id)))
+      .map((s) => ({ id: s.id, score: [couvert(s.id), ...voitureScore(s.id, e, voitAvecEleve, voit, voitDays)] }))
+      .sort((a, b) => cmpScores(a.score, b.score))
+      .slice(0, 2).map((x) => x.id);
+    e.eleves_ids = pick;
+    pick.forEach((id) => {
+      bump(voit, id);
+      if ((e.benevoles_ids || []).length) bump(voitAvecEleve, id);
+      (voitDays[id] ||= new Set()).add(e.day_index);
+    });
+    unfilled += 2 - pick.length;
+  };
+
+  // Passe 1 : voiture + TOUS les tableaux salle. On réserve les rares stagiaires libres
+  // de la vague 1 pour l'animation AVANT que les élèves ne les consomment — sinon, sur un
+  // créneau à 2 cartes salle, un tableau G2 pouvait se retrouver sans candidat (règle des
+  // vagues : un élève de la vague 1 ne peut pas animer en vague 2 ; constat 2026-07-11).
   for (const e of ordered) {
     if (e.activite === "Pédagogie salle") {
-      for (const g of (e.salle_double ? [1, 2] : [1])) {
-        const pField = g === 2 ? "pedagogue_id_2" : "pedagogue_id";
-        const eField = g === 2 ? "eleves_ids_2" : "eleves_ids";
-        if (e[pField] == null) {  // tableau vide => 1 personne (la moins passée au tableau)
-          const pick = pickLeast(tab, slotOccupants(e, g === 2 ? "pedagogue_2" : "pedagogue"), 1)[0];
-          if (pick != null) { e[pField] = pick; bump(tab, pick); } else unfilled++;
-        }
-        if (!(e[eField] && e[eField].length)) {  // élèves vides => 4
-          const pick = pickLeast(salleEl, slotOccupants(e, g === 2 ? "eleves_2" : "eleves"), 4);
-          e[eField] = pick; pick.forEach((id) => bump(salleEl, id));
-          unfilled += 4 - pick.length;
-        }
-      }
-    } else if (!(e.eleves_ids && e.eleves_ids.length)) {  // Voiture, élèves vides => 2
-      const pick = pickLeast(voit, slotOccupants(e, "eleves"), 2);
-      e.eleves_ids = pick; pick.forEach((id) => bump(voit, id));
-      unfilled += 2 - pick.length;
+      for (const g of (e.salle_double ? [1, 2] : [1])) fillTableau(e, g);
+    } else {
+      fillVoiture(e);
     }
+  }
+  // Passe 2 : élèves salle, une fois tous les tableaux fixés (plus aucun coin possible).
+  for (const e of ordered) {
+    if (e.activite !== "Pédagogie salle") continue;
+    for (const g of (e.salle_double ? [1, 2] : [1])) fillElevesSalle(e, g);
+  }
+
+  // Rééquilibrage élèves salle : écart max 1 entre stagiaires sur la semaine
+  // (règle 2026-07-11). On échange tant qu'un stagiaire a ≥2 placements de plus
+  // qu'un autre et qu'un swap est physiquement possible (blocages respectés).
+  for (let guard = 0; guard < 100; guard++) {
+    const counts = {};
+    stagiaires.forEach((s) => { counts[s.id] = 0; });
+    targets.forEach((e) => {
+      if (e.activite !== "Pédagogie salle") return;
+      (effElevesIds(e, 1) || []).forEach((id) => { if (id in counts) counts[id]++; });
+      (effElevesIds(e, 2) || []).forEach((id) => { if (id in counts) counts[id]++; });
+    });
+    const ids = Object.keys(counts).map(Number);
+    if (!ids.length) break;
+    const maxId = ids.reduce((a, b) => (counts[b] > counts[a] ? b : a));
+    const minId = ids.reduce((a, b) => (counts[b] < counts[a] ? b : a));
+    if (counts[maxId] - counts[minId] <= 1) break;
+
+    let swapped = false;
+    for (const e of targets) {
+      if (e.activite !== "Pédagogie salle") continue;
+      for (const g of (e.salle_double ? [1, 2] : [1])) {
+        const field = g === 2 ? "eleves_ids_2" : "eleves_ids";
+        const list = e[field] || [];
+        if (!list.includes(maxId)) continue;
+        const blocked = slotOccupants(e, g === 2 ? "eleves_2" : "eleves");
+        if (blocked.has(minId)) continue;
+        e[field] = list.map((id) => (id === maxId ? minId : id));
+        swapped = true;
+        break;
+      }
+      if (swapped) break;
+    }
+    if (!swapped) break;  // plus aucun échange possible (blocages) : on laisse en l'état
   }
 
   // N'enregistre que les cartes réellement modifiées
@@ -652,6 +967,39 @@ async function autoPlaceWeek() {
     before.forEach(({ e, snap }) => Object.assign(e, snap));
     renderInto(currentContainer);
     toast("Erreur lors du placement", "error");
+  }
+}
+
+// === Vider les placements de la semaine (admin) ===
+// Retire tableaux + élèves salle + élèves voiture de TOUTES les cartes de la semaine.
+// Conserve : activités, profs, sujets, notes, bénévoles, horaires, jours off. Undo Ctrl+Z.
+async function clearWeekPlacements() {
+  await flushPendingInputs();
+  const targets = entries.filter((e) =>
+    e.pedagogue_id != null || e.pedagogue_id_2 != null ||
+    (e.eleves_ids && e.eleves_ids.length) || (e.eleves_ids_2 && e.eleves_ids_2.length));
+  if (targets.length === 0) {
+    toast("Aucun stagiaire placé cette semaine", "info", 3000);
+    return;
+  }
+  if (!confirm("⚠️ Retirer TOUS les stagiaires placés cette semaine (tableaux, salle, voiture) ?\n\nLes bénévoles, profs, sujets et notes sont conservés.")) return;
+
+  const before = targets.map((e) => ({ e, snap: snapshotPlacement(e) }));
+  targets.forEach((e) => { e.pedagogue_id = null; e.pedagogue_id_2 = null; e.eleves_ids = []; e.eleves_ids_2 = []; });
+  try {
+    await Promise.all(targets.map((e) => upsertPlanningEntry(entryUpsertPayload(e))));
+    renderInto(currentContainer);
+    toast("Placements vidés · Ctrl+Z pour annuler", "success", 3000);
+    recordUndo("vidage des placements", async () => {
+      before.forEach(({ e, snap }) => Object.assign(e, snap));
+      await Promise.all(targets.map((e) => upsertPlanningEntry(entryUpsertPayload(e))));
+      renderInto(currentContainer);
+    });
+  } catch (err) {
+    console.error(err);
+    before.forEach(({ e, snap }) => Object.assign(e, snap));
+    renderInto(currentContainer);
+    toast("Erreur lors du vidage", "error");
   }
 }
 
@@ -686,34 +1034,46 @@ function selectFromList(items, currentVal, onChange, placeholder = "—") {
 }
 
 // Select profs multi-choix : compact, fond bg-subtle pour bien se distinguer dans le header
-function profChipsSelect(allProfs, currentIds, onChange) {
+// Multi-select formateur : profs réels (table profs) + « Autre » (nom libre, mémorisé pour
+// réutilisation) + « Groupe (autonomie) » (le groupe bosse seul, aucun formateur).
+// Écrit directement dans l'entry via saveEntry (prof_ids / prof_autre / autonomie).
+function profChipsSelect(allProfs, entry, lid) {
   const wrap = el("div", { class: "p-prof-multi" });
   const display = el("div", { class: "p-prof-display", tabindex: "0" });
   const dropdown = el("div", { class: "p-prof-dropdown hidden" });
-  let selected = [...(currentIds || [])];
+  let selected = [...(entry.prof_ids || [])];
+
+  const chipX = (onClick) => el("span", { class: "p-prof-x", onClick: (ev) => { ev.stopPropagation(); onClick(); } }, "×");
 
   function render() {
     clear(display);
-    if (selected.length === 0) {
+    const hasAny = selected.length > 0 || entry.prof_autre || entry.autonomie;
+    if (!hasAny) {
       display.appendChild(el("span", { class: "p-prof-placeholder" }, "Formateur…"));
     } else {
       selected.forEach((id) => {
         const p = allProfs.find((x) => x.id === id);
         if (!p) return;
-        display.appendChild(el("span", { class: "p-prof-chip" },
-          p.nom,
-          el("span", {
-            class: "p-prof-x",
-            onClick: (ev) => {
-              ev.stopPropagation();
-              selected = selected.filter((x) => x !== id);
-              render();
-              onChange([...selected]);
-            },
-          }, "×"),
-        ));
+        display.appendChild(el("span", { class: "p-prof-chip" }, p.nom, chipX(() => {
+          selected = selected.filter((x) => x !== id);
+          saveEntry(lid, { prof_ids: [...selected] });
+          render();
+        })));
       });
+      if (entry.prof_autre) {
+        display.appendChild(el("span", { class: "p-prof-chip autre" }, entry.prof_autre, chipX(() => {
+          saveEntry(lid, { prof_autre: null });
+          render();
+        })));
+      }
+      if (entry.autonomie) {
+        display.appendChild(el("span", { class: "p-prof-chip autonomie" }, "Groupe (autonomie)", chipX(() => {
+          saveEntry(lid, { autonomie: false });
+          render();
+        })));
+      }
     }
+
     clear(dropdown);
     allProfs.forEach((p) => {
       dropdown.appendChild(el("div", {
@@ -722,11 +1082,56 @@ function profChipsSelect(allProfs, currentIds, onChange) {
           ev.stopPropagation();
           if (selected.includes(p.id)) selected = selected.filter((x) => x !== p.id);
           else selected = [...selected, p.id];
+          saveEntry(lid, { prof_ids: [...selected] });
           render();
-          onChange([...selected]);
         },
       }, p.nom));
     });
+    dropdown.appendChild(el("div", { class: "p-prof-dropdown-sep" }));
+    // « Groupe (autonomie) »
+    dropdown.appendChild(el("div", {
+      class: "p-prof-dropdown-item special" + (entry.autonomie ? " selected" : ""),
+      onClick: (ev) => {
+        ev.stopPropagation();
+        saveEntry(lid, { autonomie: !entry.autonomie });
+        render();
+      },
+    }, "Groupe (autonomie)"));
+    // « Autre » : champ nom libre
+    const nameInput = el("input", {
+      type: "text", class: "p-prof-autre-input", placeholder: "Autre formateur — nom…",
+      autocomplete: "off", autocorrect: "off", autocapitalize: "words", spellcheck: "false",
+    });
+    const commitAutre = (v) => {
+      const name = (v ?? nameInput.value).trim();
+      if (!name) return;
+      saveEntry(lid, { prof_autre: name });
+      rememberAutreProf(name);
+      nameInput.value = "";
+      render();
+    };
+    nameInput.addEventListener("click", (e) => e.stopPropagation());
+    nameInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") { e.preventDefault(); commitAutre(); }
+    });
+    const okBtn = el("button", { class: "p-prof-autre-ok", type: "button",
+      onClick: (ev) => { ev.stopPropagation(); commitAutre(); } }, "+");
+    dropdown.appendChild(el("div", { class: "p-prof-autre-row" }, nameInput, okBtn));
+
+    // Noms déjà utilisés : clic = réutiliser, × = oublier (retire de la mémoire).
+    const suggs = autresProfsSuggestions();
+    if (suggs.length) {
+      const sw = el("div", { class: "p-prof-autre-sugg" });
+      suggs.forEach((n) => {
+        const tag = el("span", { class: "p-prof-autre-tag" });
+        tag.appendChild(el("span", { class: "p-prof-autre-tag-name",
+          onClick: (ev) => { ev.stopPropagation(); commitAutre(n); } }, n));
+        tag.appendChild(el("span", { class: "p-prof-autre-tag-x", title: "Oublier ce nom",
+          onClick: (ev) => { ev.stopPropagation(); forgetAutreProf(n); render(); } }, "×"));
+        sw.appendChild(tag);
+      });
+      dropdown.appendChild(sw);
+    }
   }
 
   display.addEventListener("click", () => {
@@ -801,7 +1206,10 @@ function personSelect(allStagiaires, currentId, onChange, counts, placeholder = 
 
 // counts (optionnel) : map id -> nb de passages dans le rôle cette semaine. Si fourni, le
 // menu est trié par priorité (moins passés en tête) et affiche le compteur à côté de chaque nom.
-function chipsSelect(allStagiaires, currentIds, onChange, counts) {
+// opts (optionnel) : { labelFn, placeholder, itemBadge } pour réutiliser le composant avec
+// d'autres listes que les stagiaires (ex. bénévoles : badge « dispo » à la place du compteur).
+function chipsSelect(allStagiaires, currentIds, onChange, counts, opts = {}) {
+  const { labelFn = displayStagiaire, placeholder = "Stagiaires…", itemBadge = null, chipTitleFn = null } = opts;
   const wrap = el("div", { class: "chips-select" });
   const display = el("div", { class: "chips-display", tabindex: "0" });
   const dropdown = el("div", { class: "chips-dropdown hidden" });
@@ -810,20 +1218,22 @@ function chipsSelect(allStagiaires, currentIds, onChange, counts) {
   function render() {
     clear(display);
     if (selected.length === 0) {
-      display.appendChild(el("span", { class: "chips-placeholder" }, "Élèves…"));
+      display.appendChild(el("span", { class: "chips-placeholder" }, placeholder));
     } else {
       selected.forEach((id) => {
         const s = allStagiaires.find((x) => x.id === id);
         if (!s) return;
-        display.appendChild(el("span", { class: "chip" },
-          displayStagiaire(s),
+        const chip = el("span", { class: "chip" },
+          labelFn(s),
           el("span", { class: "x", onClick: (ev) => {
             ev.stopPropagation();
             selected = selected.filter((x) => x !== id);
             render();
             onChange([...selected]);
           }}, "×")
-        ));
+        );
+        if (chipTitleFn) chip.setAttribute("title", chipTitleFn(id));
+        display.appendChild(chip);
       });
     }
     clear(dropdown);
@@ -842,8 +1252,9 @@ function chipsSelect(allStagiaires, currentIds, onChange, counts) {
           render();
           onChange([...selected]);
         }
-      }, displayStagiaire(s));
+      }, labelFn(s));
       if (counts) item.appendChild(prioBadge(counts[s.id] || 0));
+      if (itemBadge) { const badge = itemBadge(s); if (badge) item.appendChild(badge); }
       dropdown.appendChild(item);
     });
   }
@@ -867,9 +1278,25 @@ function chipsSelect(allStagiaires, currentIds, onChange, counts) {
 
 // Sujet multi-thèmes : chips inline + autocomplete continue (virgule ou Enter pour valider).
 // Stocké en DB comme chaîne "Thème A, Thème B".
+// ⚠️ Certains titres de thèmes contiennent des virgules (ex. 03 « Stationnement, arrêt,
+// immobilisation ») : un split naïf sur "," les découpe en plusieurs chips. On recolle donc
+// les fragments consécutifs qui reforment le titre d'un thème CONNU (greedy, le plus long
+// d'abord). Le texte libre à virgules reste découpé (impossible à désambiguïser).
 function parseSujet(val) {
   if (!val) return [];
-  return String(val).split(",").map((s) => s.trim()).filter(Boolean);
+  const parts = String(val).split(",").map((s) => s.trim()).filter(Boolean);
+  const known = new Set((themes || []).map((t) => t.titre));
+  const out = [];
+  let i = 0;
+  while (i < parts.length) {
+    let merged = false;
+    for (let j = parts.length; j > i + 1; j--) {
+      const candidate = parts.slice(i, j).join(", ");
+      if (known.has(candidate)) { out.push(candidate); i = j; merged = true; break; }
+    }
+    if (!merged) { out.push(parts[i]); i++; }
+  }
+  return out;
 }
 function joinSujet(arr) { return arr.join(", "); }
 
@@ -894,7 +1321,7 @@ function sujetMultiSelect(currentValue, onChange) {
   function renderChips() {
     // NE PAS clear(chipsBox) : ça détacherait l'input du DOM, ce qui lui fait perdre
     // le focus → le dropdown se ferme et l'autocomplétion « ne marche plus » après
-    // l'ajout d'un thème (bug 2026-07-03). On retire uniquement les chips existantes
+    // l'ajout d'un thème (bug 2026-07-09). On retire uniquement les chips existantes
     // et on insère les nouvelles AVANT l'input, qui reste en place et gardé focus.
     chipsBox.querySelectorAll(".sujet-chip").forEach((c) => c.remove());
     selected.forEach((titre, idx) => {
@@ -1034,7 +1461,7 @@ function buildElevesRoleSalle(entry, lid, group) {
   const exceptField = group === 2 ? "eleves_2" : "eleves";
   const current = entry[field] || [];
   const eleveRole = el("div", { class: "p-lane-role eleves" });
-  eleveRole.appendChild(el("span", { class: "p-lane-role-label" }, "Élèves"));
+  eleveRole.appendChild(el("span", { class: "p-lane-role-label", title: "Ils jouent le rôle des élèves" }, "Stagiaires"));
   const eleveCol = el("div", { class: "p-lane-eleves-col" });
   const blocked = slotOccupants(entry, exceptField);
   const counts = roleCounts("Pédagogie salle", "eleve", lid);
@@ -1043,7 +1470,7 @@ function buildElevesRoleSalle(entry, lid, group) {
   eleveCol.appendChild(el("div", { class: "p-eleves-dice-toolbar" },
     el("button", {
       class: "p-dice-btn", type: "button",
-      "aria-label": "Tirer 4 élèves au hasard", title: "Tirer 4 élèves (priorité aux moins passés)",
+      "aria-label": "Tirer 4 stagiaires au hasard", title: "Tirer 4 stagiaires (priorité aux moins passés)",
       onClick: () => randomFillEleves(lid, group),
     }, "🎲")
   ));
@@ -1086,9 +1513,7 @@ function renderLaneCell(entry) {
   ));
   if (shape.includes("prof")) {
     header.appendChild(el("div", { class: "p-lane-prof-wrap" },
-      profChipsSelect(profs, entry.prof_ids || [], (ids) => {
-        saveEntry(lid, { prof_ids: ids });
-      })
+      profChipsSelect(profs, entry, lid)
     ));
   }
   const trashBtn = el("button", {
@@ -1143,19 +1568,21 @@ function renderLaneCell(entry) {
     // Voiture (conduite) : élèves seuls, avec mini-picker 1/2/3.
     const participants = el("div", { class: "p-lane-participants" });
     const eleveRole = el("div", { class: "p-lane-role eleves" });
-    eleveRole.appendChild(el("span", { class: "p-lane-role-label" }, "Élèves"));
+    eleveRole.appendChild(el("span", { class: "p-lane-role-label" }, "Stagiaires"));
     const eleveCol = el("div", { class: "p-lane-eleves-col" });
     const eleveBlocked = slotOccupants(entry, "eleves");
     const voitCounts = roleCounts("Voiture (conduite)", "eleve", lid);
     const eleveOptions = stagiaires.filter((s) => !eleveBlocked.has(s.id) || (entry.eleves_ids || []).includes(s.id));
     eleveCol.appendChild(chipsSelect(eleveOptions, entry.eleves_ids || [], (ids) => {
       saveEntry(lid, { eleves_ids: ids });
-    }, voitCounts));
+    }, voitCounts, {
+      chipTitleFn: (id) => `${voitureStats[id]?.avecEleve || 0} séance(s) avec élève bénévole au compteur`,
+    }));
     if (entry.activite === "Voiture (conduite)") {
       const wrap = el("div", { class: "p-dice-picker-wrap" });
       const diceBtn = el("button", {
         class: "p-dice-btn", type: "button",
-        "aria-label": "Tirer des élèves", title: "Tirer des élèves voiture",
+        "aria-label": "Tirer des stagiaires", title: "Tirer des stagiaires voiture",
       }, "🎲");
       const picker = el("div", { class: "p-dice-picker hidden" });
       [1, 2, 3].forEach((n) => {
@@ -1181,6 +1608,32 @@ function renderLaneCell(entry) {
     }
     eleveRole.appendChild(eleveCol);
     participants.appendChild(eleveRole);
+
+    // Bénévoles (volontaires conduite) : chips depuis la banque, dispos du jour en tête.
+    // Côté stagiaire, `benevoles` vient de la RPC ({id, display}) : pas de dispos ni
+    // d'actif → tri stable, pas de badge, chips en lecture seule comme les élèves.
+    if (shape.includes("benevoles")) {
+      const bnvRole = el("div", { class: "p-lane-role benevoles" });
+      bnvRole.appendChild(el("span", { class: "p-lane-role-label" }, "Élèves bénévoles"));
+      const currentBnv = entry.benevoles_ids || [];
+      const taken = benevoleSlotOccupants(entry);
+      // Actifs non pris sur le créneau (+ ceux déjà sélectionnés, même retirés depuis),
+      // dispos du jour en tête puis alphabétique.
+      const bnvOptions = benevoles
+        .filter((b) => (b.actif !== false && !taken.has(b.id)) || currentBnv.includes(b.id))
+        .sort((a, b) =>
+          (isBenevoleDispo(a, entry) ? 0 : 1) - (isBenevoleDispo(b, entry) ? 0 : 1)
+          || compareByNom(a, b));
+      bnvRole.appendChild(chipsSelect(bnvOptions, currentBnv,
+        (ids) => saveEntry(lid, { benevoles_ids: ids }), null, {
+          labelFn: (b) => b.display,
+          placeholder: "Élèves bénévoles…",
+          itemBadge: (b) => isBenevoleDispo(b, entry)
+            ? el("span", { class: "bnv-dispo-badge" }, "dispo") : null,
+        }));
+      participants.appendChild(bnvRole);
+    }
+
     body.appendChild(participants);
   }
 
@@ -1246,11 +1699,38 @@ function renderSlotRow(d, half, row, maxLanes) {
 
 function renderDayCard(d, monday) {
   const date = addDays(monday, d);
-  const card = el("article", { class: "p-day-card" });
-  card.appendChild(el("div", { class: "p-day-head" },
+  const off = dayOffInfo(d, monday);
+  const admin = isAdmin();
+  const card = el("article", { class: "p-day-card" + (off.off ? " off" : "") });
+
+  const head = el("div", { class: "p-day-head" },
     el("span", { class: "p-day-name" }, JOURS[d]),
     el("span", { class: "p-day-date" }, formatDayShort(date)),
-  ));
+  );
+  // Toggle désactiver / réactiver (admin) : petite icône discrète. Un férié auto (non
+  // manuel) reste simplement grisé, sans bouton.
+  if (admin && off.off && off.manual) {
+    const reBtn = el("button", { class: "p-day-toggle", type: "button",
+      "aria-label": "Réactiver ce jour", title: "Réactiver ce jour", onClick: () => enableDay(d) });
+    reBtn.appendChild(icon.refresh());
+    head.appendChild(reBtn);
+  } else if (admin && !off.off) {
+    const offBtn = el("button", { class: "p-day-toggle", type: "button",
+      "aria-label": "Désactiver ce jour", title: "Désactiver ce jour (férié, vacances, pont…)", onClick: () => disableDay(d) });
+    offBtn.appendChild(icon.ban());
+    head.appendChild(offBtn);
+  }
+  card.appendChild(head);
+
+  // Jour désactivé : bandeau + aucune activité (les cartes restent conservées en base).
+  if (off.off) {
+    card.appendChild(el("div", { class: "p-day-off-banner" },
+      el("span", { class: "p-day-off-tag" }, off.ferie ? "FÉRIÉ" : "FERMÉ"),
+      el("span", { class: "p-day-off-label" }, off.label),
+    ));
+    return card;
+  }
+
   const content = el("div", { class: "p-day-content" });
 
   HALF_DAYS.forEach((half) => {
@@ -1259,12 +1739,17 @@ function renderDayCard(d, monday) {
 
     const section = el("div", { class: "p-half " + half.key });
 
-    // Header cliquable
-    const headBtn = el("button", {
-      class: "p-half-head editable",
-      title: "Modifier les horaires et la pause",
-      onClick: () => openHalfMetaEditor(d, half.key, headBtn),
-    });
+    // Header : bouton d'édition des horaires pour les admins ; simple bandeau statique
+    // pour les autres. NE PAS le masquer en lecture seule : il porte MATIN/APRÈS-MIDI,
+    // les horaires et la pause — sans lui, les demi-journées sont indistinguables
+    // (bug élèves 2026-07-03, ancien `.read-only .p-half-head.editable { display:none }`).
+    const headBtn = isAdmin()
+      ? el("button", {
+          class: "p-half-head editable",
+          title: "Modifier les horaires et la pause",
+          onClick: () => openHalfMetaEditor(d, half.key, headBtn),
+        })
+      : el("div", { class: "p-half-head" });
     headBtn.appendChild(el("span", { class: "p-half-tag " + half.key }, half.short));
     headBtn.appendChild(el("span", { class: "p-half-hours" }, timesLabel(meta)));
     if (pauseLbl) {
@@ -1299,10 +1784,22 @@ function renderDayCard(d, monday) {
   return card;
 }
 
+// Banque des bénévoles pour les sélecteurs et l'affichage des cartes voiture.
+// Admin : table complète (dispos, actif...). Stagiaire : RPC noms seulement
+// (la table est RLS admin-only, téléphone jamais transmis).
+async function loadBenevoles() {
+  if (isAdmin()) {
+    const list = await listBenevoles();
+    return list.map((b) => ({ ...b, display: displayStagiaire(b) }));
+  }
+  return await listBenevolesNoms();
+}
+
 async function loadPlanning() {
-  const [data, metas] = await Promise.all([
+  const [data, metas, offs] = await Promise.all([
     getPlanning(semaineLundi),
     getHalfMetaForWeek(semaineLundi),
+    getJoursOff(semaineLundi),
   ]);
   let counter = 0;
   entries = data.map((row) => {
@@ -1312,6 +1809,7 @@ async function loadPlanning() {
     return { ...row, prof_ids: prof_ids || [], _lid: "lid-" + (++counter) };
   });
   halfMetas = metas;
+  joursOff = offs || [];
 }
 
 async function saveHalfMeta(d, half, patch) {
@@ -1397,6 +1895,34 @@ async function changeWeek(dateStr) {
   renderInto(currentContainer);
 }
 
+// Désactive un jour (férié, vacances, pont, formation externe…) : grisé, aucune activité
+// affichée, exclu du placement auto et de la validation. Les cartes restent en base.
+async function disableDay(d) {
+  if (!isAdmin()) return;
+  const monday = new Date(semaineLundi + "T00:00:00");
+  const info = dayOffInfo(d, monday);
+  const def = info.ferie ? info.label : "Vacances";
+  const label = prompt("Désactiver « " + JOURS[d] + " » — libellé (ex. Vacances, Pont, Férié…) :", def);
+  if (label === null) return;   // annulé
+  try {
+    await setJourOff(semaineLundi, d, label.trim() || "Désactivé", getCurrentWho());
+    await loadPlanning();
+    renderInto(currentContainer);
+    toast(JOURS[d] + " désactivé · Ctrl+Z pour annuler", "success", 2400);
+    recordUndo("jour désactivé", async () => { await deleteJourOff(semaineLundi, d); await loadPlanning(); renderInto(currentContainer); });
+  } catch (e) { toast("Erreur : " + e.message, "error"); }
+}
+
+async function enableDay(d) {
+  if (!isAdmin()) return;
+  try {
+    await deleteJourOff(semaineLundi, d);
+    await loadPlanning();
+    renderInto(currentContainer);
+    toast(JOURS[d] + " réactivé", "success");
+  } catch (e) { toast("Erreur : " + e.message, "error"); }
+}
+
 // === Valider la semaine : transforme le planning des jours écoulés en passages ===
 // Salle -> 1 passage Salle pour le pédagogue. Voiture -> 1 passage Voiture par élève.
 // Écran de confirmation : résultat « Effectué » par défaut, ajustable, dédoublonné.
@@ -1407,20 +1933,23 @@ function openValiderSemaineModal() {
 
   // 1. Candidats depuis le planning, jours écoulés uniquement (date du jour <= aujourd'hui)
   const raw = [];
+  const profOf = (e) => (e.prof_ids && e.prof_ids.length ? e.prof_ids[0] : (e.prof_id ?? null));
   entries.forEach((e) => {
     const dateIso = isoDate(addDays(monday, e.day_index));
     if (dateIso > todayIso) return;
+    if (dayIsOff(e.day_index)) return;   // jour désactivé/férié : aucun passage validé
     if (e.activite === "Pédagogie salle") {
       if (e.pedagogue_id && activeIds.has(e.pedagogue_id)) {
-        raw.push({ stagiaire_id: e.pedagogue_id, type: "Salle", date: dateIso, day_index: e.day_index });
+        raw.push({ stagiaire_id: e.pedagogue_id, type: "Salle", date: dateIso, day_index: e.day_index, prof_id: profOf(e), avec_eleve: null });
       }
       // 2e tableau (si la carte a 2 groupes) = un 2e passage Salle
       if (e.salle_double && e.pedagogue_id_2 && activeIds.has(e.pedagogue_id_2)) {
-        raw.push({ stagiaire_id: e.pedagogue_id_2, type: "Salle", date: dateIso, day_index: e.day_index });
+        raw.push({ stagiaire_id: e.pedagogue_id_2, type: "Salle", date: dateIso, day_index: e.day_index, prof_id: profOf(e), avec_eleve: null });
       }
     } else if (e.activite === "Voiture (conduite)") {
+      const avecEleve = (e.benevoles_ids || []).length > 0;
       (e.eleves_ids || []).forEach((id) => {
-        if (activeIds.has(id)) raw.push({ stagiaire_id: id, type: "Voiture", date: dateIso, day_index: e.day_index });
+        if (activeIds.has(id)) raw.push({ stagiaire_id: id, type: "Voiture", date: dateIso, day_index: e.day_index, prof_id: profOf(e), avec_eleve: avecEleve });
       });
     }
   });
@@ -1430,12 +1959,19 @@ function openValiderSemaineModal() {
   // (matin + après-midi) comptent pour 1. La table passages est au grain jour
   // (pas de demi-journée), donc on ne peut pas distinguer plus finement ; pour un
   // 2e passage le même jour, l'ajouter à la main dans l'onglet Passages.
-  const seen = new Set();
-  const candidates = raw.filter((c) => {
+  // Fusion (au lieu d'un simple dédoublonnage) : avec_eleve en OR, premier prof_id non nul gagne.
+  const seenMap = new Map();
+  const candidates = [];
+  raw.forEach((c) => {
     const k = c.stagiaire_id + "|" + c.type + "|" + c.date;
-    if (seen.has(k)) return false;
-    seen.add(k);
-    return true;
+    const prev = seenMap.get(k);
+    if (prev) {
+      if (c.avec_eleve === true) prev.avec_eleve = true;
+      if (prev.prof_id == null) prev.prof_id = c.prof_id;
+      return;
+    }
+    seenMap.set(k, c);
+    candidates.push(c);
   });
 
   // 2. Thèmes présents dans les sujets des jours écoulés, pas encore « Fait ».
@@ -1487,78 +2023,45 @@ function renderValiderModal(toCreate, already, existKey, themeCandidates) {
     return j.charAt(0) + j.slice(1).toLowerCase();
   };
 
-  const rowState = toCreate.map(() => ({ include: true, resultat: "Effectué", remplacant_id: null }));
   const themeState = (themeCandidates || []).map(() => ({ include: true }));
   const list = el("div", { class: "valider-list" });
 
-  toCreate.forEach((c, i) => {
-    const cb = el("input", { type: "checkbox", "aria-label": "Inclure " + nameOf(c.stagiaire_id) + " " + dayLabel(c.day_index) + " " + c.type });
-    cb.checked = true;
-    cb.addEventListener("change", () => { rowState[i].include = cb.checked; });
+  // Récapitulatif compact en lecture seule : le planning fait foi, tous les
+  // candidats sont enregistrés en résultat "Effectué" sans étape de confirmation.
+  const headText = [el("strong", {}, toCreate.length + " passage(s)"), " seront enregistrés (résultat : Effectué)."];
+  if (already.length) headText.push(" " + already.length + " déjà enregistré(s).");
+  list.appendChild(el("p", { class: "valider-summary-head" }, ...headText));
 
-    const resSel = el("select", { class: "valider-res" });
-    RESULTATS.forEach((r) => {
-      const opt = el("option", { value: r.value }, r.icon + " " + r.value);
-      if (r.value === "Effectué") opt.selected = true;
-      resSel.appendChild(opt);
+  // Deux sections distinctes Voiture puis Salle, chacune avec sa pastille
+  // colorée et ses lignes par jour, pour une séparation visuelle nette.
+  ["Voiture", "Salle"].forEach((type) => {
+    const ofType = toCreate.filter((c) => c.type === type);
+    if (!ofType.length) return;
+
+    const byDay = new Map(); // day_index -> noms
+    ofType.forEach((c) => {
+      if (!byDay.has(c.day_index)) byDay.set(c.day_index, []);
+      byDay.get(c.day_index).push(nameOf(c.stagiaire_id));
     });
 
-    // Sélecteur « remplacé par » : visible seulement sur Absence. Le remplaçant
-    // choisi sera crédité d'un passage Effectué (même type, même jour).
-    const remplSel = el("select", { class: "valider-res valider-rempl hidden", "aria-label": "Remplacé par" });
-    remplSel.appendChild(el("option", { value: "" }, "— remplacé par —"));
-    stagiaires
-      .filter((s) => s.id !== c.stagiaire_id)
-      .forEach((s) => remplSel.appendChild(el("option", { value: s.id }, displayStagiaire(s))));
-    remplSel.addEventListener("change", () => {
-      rowState[i].remplacant_id = remplSel.value ? Number(remplSel.value) : null;
-    });
-
-    resSel.addEventListener("change", () => {
-      rowState[i].resultat = resSel.value;
-      if (resSel.value === "Absence") {
-        remplSel.classList.remove("hidden");
-      } else {
-        remplSel.classList.add("hidden");
-        remplSel.value = "";
-        rowState[i].remplacant_id = null;
-      }
-    });
-
-    const top = el("div", { class: "valider-row-top" },
-      cb,
-      el("span", { class: "valider-row-main" },
-        el("span", { class: "valider-row-name" }, nameOf(c.stagiaire_id)),
-        el("span", { class: "valider-row-meta" }, dayLabel(c.day_index) + " · " + c.type),
+    const section = el("div", { class: "valider-section" },
+      el("div", { class: "valider-section-head" },
+        el("span", { class: "tag " + (type === "Salle" ? "salle" : "voiture") }, type),
+        el("span", { class: "valider-section-count" }, ofType.length + " passage(s)"),
       ),
-      resSel,
     );
-    const row = el("div", { class: "valider-row" }, top, remplSel);
-    // Clic sur la ligne (hors selects et hors case) = bascule la case
-    row.addEventListener("click", (ev) => {
-      if (ev.target === resSel || resSel.contains(ev.target)) return;
-      if (ev.target === remplSel || remplSel.contains(ev.target)) return;
-      if (ev.target === cb) return;
-      cb.checked = !cb.checked;
-      rowState[i].include = cb.checked;
-    });
-    list.appendChild(row);
-  });
-
-  if (already.length) {
-    list.appendChild(el("div", { class: "valider-already-head" }, already.length + " déjà enregistré(s), ignoré(s)"));
-    already.forEach((c) => {
-      list.appendChild(el("div", { class: "valider-row already" },
+    [...byDay.keys()].sort((a, b) => a - b).forEach((di) => {
+      section.appendChild(el("div", { class: "valider-row valider-summary" },
         el("div", { class: "valider-row-top" },
           el("span", { class: "valider-row-main" },
-            el("span", { class: "valider-row-name" }, nameOf(c.stagiaire_id)),
-            el("span", { class: "valider-row-meta" }, dayLabel(c.day_index) + " · " + c.type),
+            el("span", { class: "valider-row-name" }, dayLabel(di)),
+            el("span", { class: "valider-row-meta" }, byDay.get(di).join(", ")),
           ),
-          el("span", { class: "valider-done" }, "déjà fait"),
         ),
       ));
     });
-  }
+    list.appendChild(section);
+  });
 
   // Section « Thèmes traités » : marque les thèmes du planning comme Fait à la date du créneau
   if (themeCandidates && themeCandidates.length) {
@@ -1593,13 +2096,14 @@ function renderValiderModal(toCreate, already, existKey, themeCandidates) {
     const who = getCurrentWho();
     const rows = [];
     const batchKeys = new Set();  // évite les doublons intra-lot (ex: remplaçant déjà candidat)
-    const addRow = (stagiaire_id, type, date, resultat, remplacant_id) => {
+    const addRow = (stagiaire_id, type, date, resultat, remplacant_id, prof_id = null, avec_eleve = null) => {
       const key = stagiaire_id + "|" + type + "|" + date;
       if (existKey.has(key) || batchKeys.has(key)) return;
       batchKeys.add(key);
       rows.push({
         date, stagiaire_id, type, resultat,
         remplacant_id: remplacant_id || null,
+        prof_id, avec_eleve,
         origine: "Planning",
         semaine_lundi: semaineLundi,
         created_by_who: who,
@@ -1607,18 +2111,13 @@ function renderValiderModal(toCreate, already, existKey, themeCandidates) {
       });
     };
 
-    toCreate.forEach((c, i) => {
-      const st = rowState[i];
-      if (!st.include) return;
-      const rempl = st.resultat === "Absence" ? st.remplacant_id : null;
-      addRow(c.stagiaire_id, c.type, c.date, st.resultat, rempl);
-      // Absence + remplaçant => le remplaçant est crédité d'un Effectué (même type, même jour)
-      if (rempl) addRow(rempl, c.type, c.date, "Effectué", null);
+    toCreate.forEach((c) => {
+      addRow(c.stagiaire_id, c.type, c.date, "Effectué", null, c.prof_id, c.avec_eleve);
     });
 
     const themesToMark = (themeCandidates || []).filter((tc, i) => themeState[i].include);
 
-    if (rows.length === 0 && themesToMark.length === 0) { toast("Rien à enregistrer (tout décoché)", "info"); return; }
+    if (rows.length === 0 && themesToMark.length === 0) { toast("Rien à enregistrer", "info"); return; }
     try {
       saveBtn.disabled = true;
       saveBtn.textContent = "Enregistrement…";
@@ -1628,6 +2127,11 @@ function renderValiderModal(toCreate, already, existKey, themeCandidates) {
         const inserted = await addPassagesBatch(rows);
         insertedIds = inserted.map((p) => p.id);
       }
+
+      // Les nouveaux passages changent l'équité : rafraîchit les stats du placement.
+      try {
+        [voitureStats, fichesSuivi, salleStats] = await Promise.all([getVoitureAggregats(), listFiches(), getSalleAggregats()]);
+      } catch (e) { console.warn("rafraîchissement stats voiture impossible", e?.message || e); }
 
       // Marque les thèmes « Fait » à la date du créneau ; mémorise l'état pour Ctrl+Z.
       const themeUndo = [];
@@ -1668,7 +2172,7 @@ function renderValiderModal(toCreate, already, existKey, themeCandidates) {
   const modal = el("div", { class: "modal valider-modal" },
     el("h3", {}, "Valider la semaine"),
     el("p", { class: "muted", style: "margin:0 0 0.6rem; font-size:0.85rem;" },
-      "Passages et thèmes déduits du planning des jours écoulés. Résultat « Effectué » par défaut : sur une absence, indique qui a remplacé (le remplaçant est crédité). Décoche pour exclure."),
+      "Passages déduits du planning des jours écoulés — le planning fait foi. Une absence ou un cas particulier ? Corrige ensuite dans l'onglet Passages."),
     list,
     el("div", { class: "modal-actions" }, cancelBtn, saveBtn),
   );
@@ -1676,6 +2180,65 @@ function renderValiderModal(toCreate, already, existKey, themeCandidates) {
   backdrop.appendChild(modal);
   backdrop.addEventListener("click", (e) => { if (e.target === backdrop) backdrop.remove(); });
   document.body.appendChild(backdrop);
+}
+
+// Mémo des règles de placement, en langage simple, lisible par toute la promo.
+// ⚠️ À tenir à jour à chaque évolution des règles du planning.
+function buildRulesNote() {
+  const details = el("details", { class: "planning-rules" });
+  const li = (...c) => el("li", {}, ...c);
+  const b = (t) => el("strong", {}, t);
+  details.appendChild(el("summary", {}, "ℹ️ Comment marche le placement automatique ? (à lire)"));
+  const body = el("div", { class: "planning-rules-body" });
+
+  body.appendChild(el("p", {},
+    b("Les mots : "), "les 13 personnes de la promo sont des ", b("stagiaires"),
+    ". En salle, un stagiaire anime « au tableau » et 4 stagiaires « font les élèves ». ",
+    "En voiture, le seul vrai élève est ", b("l'élève bénévole"), " (un apprenti conducteur réel)."
+  ));
+
+  body.appendChild(el("p", {}, b("Les groupes = deux vagues.")));
+  body.appendChild(el("ul", {},
+    li("Tous les ", b("groupes 1"), " tournent en même temps, puis tous les ", b("groupes 2"), "."),
+    li("Un stagiaire peut donc apparaître dans les deux vagues (ex. élève en G1 puis élève en G2)."),
+    li("Interdit : être élève en G1 ", b("puis"), " au tableau en G2 (il faut le temps de préparer son animation) — ni deux animations d'affilée."),
+    li("Une personne au plus une fois par vague. Une carte « 1 groupe » occupe tout le créneau."),
+  ));
+
+  body.appendChild(el("p", {}, b("Places voiture (priorité, dans l'ordre) :")));
+  body.appendChild(el("ul", {},
+    li("D'abord ceux qui n'ont encore ", b("aucun passage"), " cette semaine (chacun au moins une place voiture ou tableau)."),
+    li("Maximum ", b("2 voitures par semaine"), " par stagiaire, et jamais deux jours d'affilée."),
+    li("Priorité à qui a fait le ", b("moins de séances avec un élève bénévole"), " (on rattrape le retard)."),
+    li("On favorise un bénévole dont le niveau correspond à ce que le stagiaire veut travailler (fiche « Mon suivi »)."),
+    li("À égalité, on varie les formateurs, puis c'est le hasard."),
+    li("Une voiture occupe toute la demi-journée : ce stagiaire n'est placé nulle part ailleurs sur cette demi-journée."),
+  ));
+
+  body.appendChild(el("p", {}, b("Au tableau (salle) :")));
+  body.appendChild(el("ul", {},
+    li("D'abord ceux qui n'ont encore aucun passage cette semaine, puis les moins passés au tableau (retard des semaines passées compté)."),
+  ));
+
+  body.appendChild(el("p", {}, b("Stagiaires qui font les élèves (salle) :")));
+  body.appendChild(el("ul", {},
+    li("Toujours ", b("4 par groupe"), " quand c'est possible."),
+    li("Réparti au plus juste : ", b("un écart de 1 maximum"), " entre stagiaires sur la semaine. Deux jours d'affilée autorisés."),
+  ));
+
+  body.appendChild(el("p", {}, b("Les boutons :")));
+  body.appendChild(el("ul", {},
+    li(b("🎲 Placer la semaine"), " : remplit les tableaux d'abord, puis les élèves (demande confirmation, annulable par Ctrl+Z)."),
+    li(b("🧹 Vider les placements"), " : retire tous les stagiaires de la semaine, mais garde activités, formateurs, sujets, notes et élèves bénévoles."),
+    li(b("Valider la semaine"), " : le planning fait foi — tout est enregistré comme « effectué ». Une absence ou un cas particulier ? Corrige ensuite dans l'onglet Passages."),
+  ));
+
+  body.appendChild(el("p", { class: "planning-rules-foot" },
+    "Le placement fait tourner les stagiaires entre les deux vagues (groupes 1 puis groupes 2), donc un créneau se remplit normalement en entier — même avec deux salles à 2 groupes. Un groupe ne peut se retrouver plus court que si trop peu de stagiaires sont disponibles (en gros, moins de 10 présents) ; c'est alors logique, pas un bug."
+  ));
+
+  details.appendChild(body);
+  return details;
 }
 
 function renderInto(container) {
@@ -1728,13 +2291,31 @@ function renderInto(container) {
     dateInput, prevBtn, nextBtn, todayBtn,
     el("span", { style: "flex:1" }),
   );
+  // Banque d'élèves bénévoles (voiture) : gestion réservée aux formateurs/admins
+  if (admin) {
+    const bnvBtn = el("button", { class: "btn small",
+      title: "Banque d'élèves bénévoles (voiture) : fiches, dispos, téléphones",
+      onClick: () => openBenevolesPanel({ onClose: async () => {
+        benevoles = await loadBenevoles();
+        renderInto(currentContainer);
+      }}) }, "Élèves bénévoles");
+    weekBar.appendChild(bnvBtn);
+  }
   // Placer la semaine : tirage global (tableaux + élèves de toute la semaine), admin uniquement
   if (admin) {
     const placeBtn = el("button", { class: "btn small",
-      title: "Placer automatiquement tableaux et élèves de toute la semaine (priorité aux moins passés)",
+      title: "Placer automatiquement tableaux et stagiaires de toute la semaine (priorité aux moins passés)",
       onClick: () => autoPlaceWeek() });
     placeBtn.appendChild(document.createTextNode("🎲 Placer la semaine"));
     weekBar.appendChild(placeBtn);
+  }
+  // Vider les placements : retire tous les stagiaires placés (admin uniquement)
+  if (admin) {
+    const clearBtn = el("button", { class: "btn small danger",
+      title: "Retirer tous les stagiaires placés cette semaine (bénévoles, profs, sujets et notes conservés)",
+      onClick: () => clearWeekPlacements() });
+    clearBtn.appendChild(document.createTextNode("🧹 Vider les placements"));
+    weekBar.appendChild(clearBtn);
   }
   // Valider la semaine : admin uniquement, sur une semaine au moins partiellement écoulée
   if (admin && semaineLundi <= isoDate(new Date())) {
@@ -1745,6 +2326,7 @@ function renderInto(container) {
   }
   weekBar.appendChild(printBtn);
   container.appendChild(weekBar);
+  container.appendChild(buildRulesNote());
 
   const wrap = el("div", { class: "p-days" });
   JOURS.forEach((_, d) => wrap.appendChild(renderDayCard(d, monday)));
@@ -1767,6 +2349,7 @@ function nonEmpty(v) {
 }
 
 function lookupProf(id) { return profs.find((p) => p.id === id)?.nom || ""; }
+function lookupBenevole(id) { return benevoles.find((b) => b.id === id)?.display || ""; }
 function lookupStagiaire(id) {
   const s = stagiaires.find((x) => x.id === id);
   return s ? displayStagiaire(s) : "";
@@ -1797,7 +2380,7 @@ function entryHasContent(e) {
   const hasEl = effElevesIds(e, 1).length > 0 || effElevesIds(e, 2).length > 0;
   return nonEmpty(e.activite) || (entryShape(e).includes("sujet") && nonEmpty(e.sujet)) || nonEmpty(e.notes)
       || (e.prof_ids && e.prof_ids.length) || e.prof_id
-      || hasPed || hasEl;
+      || hasPed || hasEl || effBenevolesIds(e).length > 0;
 }
 
 function printEntryCell(e, ambig) {
@@ -1811,8 +2394,11 @@ function printEntryCell(e, ambig) {
     header.appendChild(el("span", { class: "pp-act muted" }, "—"));
   }
   const profIds = (e.prof_ids && e.prof_ids.length) ? e.prof_ids : (e.prof_id ? [e.prof_id] : []);
-  if (profIds.length) {
-    header.appendChild(el("span", { class: "pp-prof" }, profIds.map(lookupProf).filter(Boolean).join(" · ")));
+  const profParts = profIds.map(lookupProf).filter(Boolean);
+  if (e.prof_autre) profParts.push(e.prof_autre);
+  if (e.autonomie) profParts.push("Autonomie");
+  if (profParts.length) {
+    header.appendChild(el("span", { class: "pp-prof" }, profParts.join(" · ")));
   }
   cell.appendChild(header);
 
@@ -1850,12 +2436,20 @@ function printEntryCell(e, ambig) {
   };
   if (e.activite === "Pédagogie salle" && e.salle_double) {
     addTableau("Au tableau G1", effPedagogueId(e, 1));
-    addEleves("Élèves G1", effElevesIds(e, 1));
+    addEleves("Stagiaires G1", effElevesIds(e, 1));
     addTableau("Au tableau G2", effPedagogueId(e, 2));
-    addEleves("Élèves G2", effElevesIds(e, 2));
+    addEleves("Stagiaires G2", effElevesIds(e, 2));
   } else {
     addTableau("Au tableau", effPedagogueId(e, 1));
-    addEleves("Élèves", effElevesIds(e, 1));
+    addEleves("Stagiaires", effElevesIds(e, 1));
+  }
+
+  // Bénévoles (voiture) : sous les élèves moniteurs, en italique. Format « N. Prénom »
+  // (banque séparée : pas de dédoublonnage avec les prénoms des stagiaires).
+  const bnvNames = effBenevolesIds(e).map(lookupBenevole).filter(Boolean);
+  if (bnvNames.length) {
+    cell.appendChild(el("div", { class: "pp-line" }, el("span", { class: "pp-key" }, "Élèves bénévoles :")));
+    bnvNames.forEach((n) => cell.appendChild(el("div", { class: "pp-line pp-eleve pp-benevole" }, n)));
   }
 
   // Notes
@@ -1882,12 +2476,23 @@ function buildPrintHtml(monday) {
 
   JOURS.forEach((jour, d) => {
     const date = addDays(monday, d);
-    const dayCol = el("div", { class: "pp-day" });
+    const off = dayOffInfo(d, monday);
+    const dayCol = el("div", { class: "pp-day" + (off.off ? " off" : "") });
 
     dayCol.appendChild(el("div", { class: "pp-day-head" },
       el("span", { class: "pp-day-name" }, jour),
       el("span", { class: "pp-day-date" }, formatDayShort(date)),
     ));
+
+    // Jour désactivé/férié : bandeau, aucune activité imprimée.
+    if (off.off) {
+      dayCol.appendChild(el("div", { class: "pp-day-off" },
+        el("span", { class: "pp-day-off-tag" }, off.ferie ? "FÉRIÉ" : "FERMÉ"),
+        el("span", {}, off.label),
+      ));
+      grid.appendChild(dayCol);
+      return;
+    }
 
     HALF_DAYS.forEach((half) => {
       const meta = metaFor(d, half.key);
@@ -2100,9 +2705,16 @@ export async function renderPlanning(container) {
   clear(container);
   container.appendChild(el("div", { class: "loading" }, "Chargement"));
 
-  [stagiaires, profs, themes] = await Promise.all([
-    listStagiaires(), listProfs(), listThemes(),
+  [stagiaires, profs, themes, benevoles] = await Promise.all([
+    listStagiaires(), listProfs(), listThemes(), loadBenevoles(),
   ]);
+  try {
+    [voitureStats, fichesSuivi, salleStats] = await Promise.all([getVoitureAggregats(), listFiches(), getSalleAggregats()]);
+  } catch (e) {
+    console.warn("stats voiture / fiches indisponibles (migration manquante ?)", e?.message || e);
+    voitureStats = {}; fichesSuivi = []; salleStats = {};
+  }
+  autresProfsMem = parseAutresProfs(await getSetting("profs_autres"));
   semaineLundi = (await getSetting("current_week_lundi")) || isoDate(getMonday(new Date()));
   await loadPlanning();
   renderInto(container);

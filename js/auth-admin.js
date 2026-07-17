@@ -2,7 +2,8 @@
  * Auth profile-aware (post-refonte invitation).
  *
  * Modèle :
- *  - Tout le monde se connecte via magic link Supabase.
+ *  - Tout le monde se connecte via email + mot de passe Supabase
+ *    (whitelist user_profiles, cf. refonte du 18 mai — plus de magic link).
  *  - À la connexion, on lit user_profiles pour récupérer le rôle
  *    (stagiaire / prof / admin) et la personne liée (stagiaire_id ou prof_id).
  *  - isAdmin() / isProf() / isStagiaire() : checks de rôle.
@@ -14,9 +15,9 @@
 import {
   getCurrentUser, signOut, onAuthChange,
   getMyProfile, listStagiaires, listProfs,
-} from "./db.js?v=20260709a";
-import { el, toast, displayStagiaire } from "./utils.js?v=20260709a";
-import { icon } from "./icons.js?v=20260709a";
+} from "./db.js?v=20260717d";
+import { el, toast, displayStagiaire } from "./utils.js?v=20260717d";
+import { icon } from "./icons.js?v=20260717d";
 
 let currentUser = null;     // Supabase auth user
 let currentProfile = null;  // row user_profiles
@@ -40,7 +41,13 @@ export function getProfile()    { return currentProfile; }
 
 // En aperçu (fondateur uniquement), les checks de rôle renvoient le rôle SIMULÉ.
 export function isAdmin() {
-  if (getViewAs()) return false;            // aperçu prof/stagiaire => jamais admin
+  const v = getViewAs();
+  // Dans ce modèle, un formateur EST admin (invité avec la coche admin) : l'aperçu
+  // « Formateur » doit donc montrer l'UI d'édition (boutons Bénévoles / Placer /
+  // Valider, planning éditable), comme pour un vrai formateur. Seul l'aperçu
+  // « Stagiaire » est non-admin. (Bug remonté le 2026-07-06 : l'aperçu Formateur
+  // affichait le planning en lecture seule sans les boutons.)
+  if (v) return v === "prof";
   return !!currentProfile?.is_admin;
 }
 export function isProf() {

@@ -2,10 +2,10 @@
  * Page d'accueil — version actualisée après les refontes (auth, calendrier, contacts).
  * Affichage personnalisé : salutation + prochains événements + raccourcis.
  */
-import { listAgendaEvents } from "../db.js?v=20260709a";
-import { el, clear, parseDate, formatDate, isoDate } from "../utils.js?v=20260709a";
-import { icon } from "../icons.js?v=20260709a";
-import { isAdmin, getProfile, getProfileWho } from "../auth-admin.js?v=20260709a";
+import { listAgendaEvents } from "../db.js?v=20260717d";
+import { el, clear, parseDate, formatDate, isoDate } from "../utils.js?v=20260717d";
+import { icon } from "../icons.js?v=20260717d";
+import { isAdmin, getProfile, getProfileWho } from "../auth-admin.js?v=20260717d";
 
 function greetingByHour() {
   const h = new Date().getHours();
@@ -86,11 +86,10 @@ export async function renderHome(container) {
 
   // === Raccourcis principaux (tuiles) ===
   const tiles = [
-    { route: "dashboard",  icon: "dashboard",    title: "Tableau de bord",  desc: "Qui doit passer en priorité" },
+    { route: "dashboard",  icon: "dashboard",    title: "Tableau de bord",  desc: "Priorités & historique des passages" },
     { route: "planning",   icon: "calendar",     title: "Planning",         desc: "Cette semaine, créneaux & tirages" },
     { route: "calendrier", icon: "clock",        title: "Calendrier",       desc: "Examens, stages, dates clés" },
     { route: "themes",     icon: "list",         title: "Thèmes",           desc: "57 thèmes & progression" },
-    { route: "passages",   icon: "history",      title: "Passages",         desc: "Historique salle / voiture" },
     { route: "notes",      icon: "edu",          title: "Notes",            desc: "Matrice & synthèse classe" },
     { route: "ressources", icon: "signpost",     title: "Ressources",       desc: "Contacts & liens utiles" },
   ];

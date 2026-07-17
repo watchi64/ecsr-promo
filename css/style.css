@@ -565,25 +565,6 @@ h3 {
   gap: 0.5rem;
 }
 
-.avg-pill {
-  display: inline-flex;
-  align-items: baseline;
-  padding: 0.2rem 0.55rem;
-  border-radius: 999px;
-  font-family: var(--font-mono);
-  font-weight: 700;
-  font-size: 0.95rem;
-  flex-shrink: 0;
-}
-.avg-pill .avg-num { letter-spacing: -0.01em; }
-.avg-pill .avg-max { font-size: 0.7rem; opacity: 0.6; font-weight: 400; margin-left: 1px; }
-
-.avg-pill.great { background: var(--c-go-soft); color: var(--c-go); }
-.avg-pill.ok    { background: var(--accent-soft); color: var(--accent); }
-.avg-pill.warn  { background: var(--c-wait-soft); color: var(--c-wait); }
-.avg-pill.bad   { background: var(--c-stop-soft); color: var(--c-stop); }
-.avg-pill.muted { background: var(--bg-subtle); color: var(--text-muted); font-weight: 400; }
-
 .dashboard-stats {
   display: flex;
   gap: 0.4rem;
@@ -777,6 +758,57 @@ h3 {
   border-top-left-radius: calc(var(--r) - 1px);
   border-bottom-left-radius: calc(var(--r) - 1px);
 }
+
+/* Lien discret « désactiver / réactiver » un jour (en-tête, admin) : volontairement
+   léger pour ne pas alourdir le bandeau vertical du jour. */
+.p-day-toggle {
+  margin-top: 0.35rem;
+  padding: 3px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.38);
+  background: none;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: color 0.12s ease, background 0.12s ease;
+}
+.p-day-toggle:hover {
+  color: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.12);
+}
+.p-day-toggle .icon {
+  width: 14px;
+  height: 14px;
+  display: block;
+}
+
+/* Jour désactivé / férié : carte grisée + bandeau, aucune activité */
+.p-day-card.off { opacity: 0.72; }
+.p-day-card.off .p-day-head { background: var(--text-faint); }
+.p-day-off-banner {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  padding: 1.4rem 1rem;
+  background: repeating-linear-gradient(45deg, var(--bg-subtle), var(--bg-subtle) 10px, var(--bg-deep-soft, var(--bg-elev)) 10px, var(--bg-deep-soft, var(--bg-elev)) 20px);
+  color: var(--text-muted);
+  text-align: center;
+}
+.p-day-off-tag {
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: var(--text-faint);
+  color: white;
+}
+.p-day-off-label { font-size: 0.95rem; font-weight: 700; color: var(--text); }
 
 .p-day-name {
   font-weight: 700;
@@ -1161,6 +1193,36 @@ h3 {
   opacity: 0.7;
 }
 .p-prof-x:hover { background: var(--c-wait); color: white; opacity: 1; }
+/* Chips « Autre » (formateur externe) et « Groupe (autonomie) » : distincts des vrais profs */
+.p-prof-chip.autre { background: var(--bg-subtle); color: var(--text); }
+.p-prof-chip.autonomie { background: var(--accent-soft); color: var(--accent-strong); }
+/* Séparateur + options spéciales du menu formateur */
+.p-prof-dropdown-sep { height: 1px; background: var(--line); margin: 4px 6px; }
+.p-prof-dropdown-item.special { font-style: italic; }
+.p-prof-autre-row { display: flex; gap: 4px; padding: 4px 6px; }
+.p-prof-autre-input {
+  flex: 1; min-width: 0; padding: 3px 6px; font-size: 0.8rem;
+  border: 1px solid var(--line); border-radius: 6px; background: var(--bg-elev); color: var(--text);
+}
+.p-prof-autre-ok {
+  flex: none; width: 26px; border: 1px solid var(--line); border-radius: 6px;
+  background: var(--accent-soft); color: var(--accent-strong); font-weight: 700; cursor: pointer;
+}
+/* Suggestions « Autre » : noms déjà utilisés, clic = réutiliser, × = oublier */
+.p-prof-autre-sugg { display: flex; flex-wrap: wrap; gap: 4px; padding: 0 6px 6px; }
+.p-prof-autre-tag {
+  display: inline-flex; align-items: center; gap: 2px;
+  padding: 1px 2px 1px 7px; font-size: 0.75rem;
+  background: var(--bg-subtle); border: 1px solid var(--line); border-radius: 8px;
+}
+.p-prof-autre-tag-name { cursor: pointer; color: var(--text); }
+.p-prof-autre-tag-name:hover { color: var(--accent-strong); }
+.p-prof-autre-tag-x {
+  cursor: pointer; width: 15px; height: 15px; line-height: 1;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 50%; color: var(--text-faint); font-size: 0.9em;
+}
+.p-prof-autre-tag-x:hover { background: var(--c-wait, #b45309); color: #fff; }
 .p-prof-dropdown {
   position: absolute;
   top: calc(100% + 4px);
@@ -2982,6 +3044,17 @@ button.theme-date.editable.muted { color: var(--text-faint); }
 }
 .chips-dropdown-item:hover { background: var(--bg-subtle); }
 .chips-dropdown-item.selected { background: var(--accent-soft); color: var(--accent-strong); font-weight: 500; }
+/* Bénévoles (voiture) : badge « dispo » dans le menu déroulant */
+.bnv-dispo-badge {
+  margin-left: auto;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  padding: 0 0.45rem;
+  flex: none;
+}
 .chips-dropdown-item::before {
   content: "";
   width: 14px;
@@ -3106,22 +3179,17 @@ button.theme-date.editable.muted { color: var(--text-faint); }
   align-items: center;
   gap: 0.6rem;
 }
-.valider-rempl { align-self: stretch; margin-left: 1.7rem; }
-.valider-rempl.hidden { display: none; }
 .valider-row input[type="checkbox"] { width: 16px; height: 16px; flex-shrink: 0; accent-color: var(--accent); }
 .valider-row-main { display: flex; flex-direction: column; flex: 1; min-width: 0; }
 .valider-row-name { font-weight: 600; font-size: 0.9rem; }
 .valider-row-meta { font-size: 0.76rem; color: var(--text-muted); }
-.valider-res {
-  flex-shrink: 0;
-  padding: 0.22rem 0.35rem;
-  border: 1px solid var(--line);
-  border-radius: var(--r-sm);
-  background: var(--bg-elev);
-  font-family: inherit;
-  font-size: 0.82rem;
-}
 .valider-row.already { opacity: 0.6; background: var(--bg-subtle); cursor: default; }
+.valider-summary-head { margin: 0 0 0.5rem; font-size: 0.85rem; }
+.valider-row.valider-summary { cursor: default; }
+.valider-section { display: flex; flex-direction: column; gap: 0.3rem; margin-top: 0.9rem; }
+.valider-section:first-of-type { margin-top: 0; }
+.valider-section-head { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.4rem; }
+.valider-section-count { font-size: 0.8rem; font-weight: 600; color: var(--text-muted); }
 .valider-done { font-size: 0.76rem; color: var(--text-muted); font-style: italic; flex-shrink: 0; }
 .valider-already-head {
   margin-top: 0.5rem;
@@ -3694,6 +3762,94 @@ button.theme-date.editable.muted { color: var(--text-faint); }
 }
 
 /* ============================================================
+   Panneau Élèves bénévoles (banque voiture, formateurs/admins)
+   ============================================================ */
+
+.bnv-modal { max-width: 680px; width: min(680px, calc(100vw - 2rem)); max-height: 88vh; overflow-y: auto; }
+/* Onglets du panneau (Bénévoles / Auto-écoles) */
+.bnv-tabs { display: flex; gap: 0.4rem; margin: 0.2rem 0 0.9rem; }
+.bnv-tab { border: 1px solid var(--line); border-radius: 999px; padding: 0.3rem 0.95rem;
+  background: transparent; cursor: pointer; font-size: 0.85rem; color: var(--text-muted); }
+.bnv-tab.active { background: var(--accent-soft); border-color: var(--accent);
+  color: var(--accent-strong); font-weight: 600; }
+.bnv-intro { margin: 0.1rem 0 0.8rem; font-size: 0.85rem; }
+.bnv-toolbar { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.9rem; }
+.bnv-filter-label { font-size: 0.82rem; color: var(--text-muted); }
+.bnv-toolbar select { max-width: 11rem; }
+.bnv-empty { margin: 1rem 0; }
+.bnv-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.75rem;
+  padding: 0.65rem 0.2rem; border-top: 1px solid var(--line); }
+.bnv-row.inactive { opacity: 0.65; }
+.bnv-name { font-weight: 600; }
+.bnv-niveau { font-size: 0.8rem; color: var(--accent-strong); font-weight: 500; margin-top: 0.1rem; }
+/* Anti-débordement : le select Niveau a des options très longues (sous-compétences
+   REMC) → sans min-width:0, sa largeur intrinsèque force la colonne de grille et la
+   modale gagne un ascenseur horizontal (colonne Boîte hors champ). */
+.bnv-modal .field { min-width: 0; }
+.bnv-modal .field input, .bnv-modal .field select { width: 100%; min-width: 0; }
+.bnv-meta { font-size: 0.82rem; color: var(--text-muted); margin-top: 0.1rem; }
+.bnv-badges { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.35rem; }
+.bnv-badge { font-size: 0.7rem; border: 1px solid var(--accent); color: var(--accent);
+  border-radius: 999px; padding: 0.05rem 0.5rem; }
+.bnv-badge.empty { border-color: var(--line); color: var(--text-muted); font-style: italic; }
+.bnv-note { font-size: 0.78rem; color: var(--text-muted); font-style: italic; margin-top: 0.25rem; }
+.bnv-side { display: flex; flex-direction: column; align-items: flex-end; gap: 0.4rem;
+  flex: 0 1 auto; min-width: 0; }
+.bnv-tel { font-family: var(--font-mono); font-size: 0.85rem; color: var(--accent);
+  text-decoration: none; white-space: nowrap; }
+/* Email : peut être long → autorisé à se couper (le téléphone reste insécable) */
+.bnv-mail { white-space: normal; overflow-wrap: anywhere; text-align: right; max-width: 100%; }
+.bnv-tel:hover { text-decoration: underline; }
+.bnv-retires { margin-top: 1rem; }
+.bnv-retires summary { cursor: pointer; font-size: 0.85rem; color: var(--text-muted); }
+.bnv-form-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
+.bnv-form-2col > .field { min-width: 0; }
+.bnv-dispo-grid { display: grid; grid-template-columns: 3rem 1fr 1fr; gap: 0.25rem 0.5rem;
+  align-items: center; }
+.bnv-dispo-head { font-size: 0.75rem; color: var(--text-muted); text-align: center; }
+.bnv-dispo-jour { font-size: 0.8rem; font-weight: 600; }
+.bnv-dispo-cell { display: flex; justify-content: center; padding: 0.35rem 0; cursor: pointer; }
+.bnv-dispo-cell input { width: 19px; height: 19px; accent-color: var(--accent); cursor: pointer; }
+.bnv-remove { color: #A05A3D; }
+/* Bénévoles affiliés sur la fiche auto-école */
+.bnv-affilies { margin-top: 1rem; border-top: 1px solid var(--line); padding-top: 0.7rem; }
+.bnv-affilies-titre { font-size: 0.8rem; font-weight: 600; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 0.4rem; }
+.bnv-affilie { display: flex; align-items: center; gap: 0.6rem; padding: 0.3rem 0; flex-wrap: wrap; }
+.bnv-affilie-nom { font-weight: 500; }
+.bnv-affilie-niv { font-size: 0.72rem; color: var(--accent-strong); border: 1px solid var(--accent-soft-2);
+  border-radius: 999px; padding: 0 0.4rem; }
+.bnv-affilie .bnv-tel { margin-left: auto; }
+/* Nom cliquable (ouvre la fiche du bénévole, retour fiche école) */
+.bnv-linklike { background: none; border: none; padding: 0; font: inherit; font-weight: 500;
+  color: var(--accent-strong); cursor: pointer; text-decoration: underline;
+  text-underline-offset: 2px; text-decoration-color: var(--accent-soft-2); }
+.bnv-linklike:hover { text-decoration-color: var(--accent); }
+/* Désaffilier (le bénévole reste dans la banque). Padding généreux + marges
+   négatives : zone tactile ~40px sans gonfler la hauteur de ligne. */
+.bnv-affilie-x { background: none; border: none; color: #A05A3D; font-size: 1.15rem;
+  cursor: pointer; padding: 0.5rem 0.85rem; margin: -0.5rem -0.35rem -0.5rem 0; line-height: 1; flex: none; }
+/* Sélecteur d'affiliation (existant ou + Nouveau bénévole) */
+.bnv-affilie-add { margin-top: 0.5rem; max-width: 100%; }
+/* Suivi des venues (fiche bénévole) */
+.bnv-suivi { margin-top: 1rem; border-top: 1px solid var(--line); padding-top: 0.7rem; }
+.bnv-venue { padding: 0.45rem 0; border-bottom: 1px dashed var(--line-faint); }
+.bnv-venue-head { display: flex; align-items: baseline; gap: 0.5rem; flex-wrap: wrap; }
+.bnv-venue-date { font-weight: 600; font-size: 0.85rem; }
+.bnv-venue-avec { font-size: 0.8rem; color: var(--text-muted); }
+.bnv-venue-futur { font-size: 0.7rem; border: 1px solid var(--line-strong); color: var(--text-muted);
+  border-radius: 999px; padding: 0 0.45rem; }
+.bnv-venue-sujet { font-size: 0.8rem; color: var(--accent-strong); margin-top: 0.15rem; }
+.bnv-venue-com { width: 100%; margin-top: 0.3rem; font-size: 0.82rem; }
+.bnv-venue.orpheline { opacity: 0.75; }
+@media (max-width: 560px) {
+  .bnv-form-2col { grid-template-columns: 1fr; }
+  .bnv-row { flex-direction: column; }
+  .bnv-side { flex-direction: row; align-items: center; flex-wrap: wrap; max-width: 100%; }
+  .bnv-mail { text-align: left; }
+}
+
+/* ============================================================
    Admin badge & login
    ============================================================ */
 
@@ -3952,8 +4108,12 @@ button.theme-date.editable.muted { color: var(--text-faint); }
   max-width: 100%;
   /* La matrice tient dans la fenêtre et scrolle EN INTERNE (et non au niveau de la page) :
      ainsi l'en-tête sticky reste toujours visible, y compris pour atteindre les dernières
-     lignes. La synthèse est en dessous (on scrolle la page pour l'atteindre). */
-  max-height: calc(100vh - 320px);
+     lignes. La synthèse est en dessous (on scrolle la page pour l'atteindre).
+     min-height = plancher : sur un écran court ou zoomé, « 100vh - X » devenait minuscule
+     (l'en-tête vertical très haut ne laissait que ~3 lignes). Le plancher garantit une
+     hauteur utilisable, la page scrolle si besoin. dvh = hauteur viewport dynamique (mobile). */
+  max-height: calc(100dvh - 230px);
+  min-height: 460px;
 }
 
 .matrice-table {
@@ -4147,7 +4307,7 @@ button.theme-date.editable.muted { color: var(--text-faint); }
   .matrice-table th.m-th-theme { width: 28px; min-width: 28px; max-width: 28px; height: 160px; }
   .matrice-table .m-th-theme-label { max-height: 150px; }
   .matrice-table th.m-th-avg, .matrice-table th.m-th-spe { font-size: 0.65rem; }
-  .matrice-wrap { max-height: calc(100vh - 220px); }
+  .matrice-wrap { max-height: calc(100dvh - 180px); min-height: 340px; }
 }
 
 /* === Graphique synthèse Notes === */
@@ -4599,10 +4759,11 @@ button.theme-date.editable.muted { color: var(--text-faint); }
 .read-only .p-dice-btn,
 .read-only .p-eleves-dice-toolbar,
 .read-only .p-dice-picker-wrap,
-.read-only .p-dice-picker,
-.read-only .p-half-head.editable { display: none !important; }
+.read-only .p-dice-picker { display: none !important; }
+/* Le bandeau de demi-journée (MATIN/APRÈS-MIDI + horaires + pause) reste VISIBLE en
+   lecture seule : le JS rend un div statique (non éditable) aux non-admins.
+   Ne jamais le re-masquer ici — sans lui les demi-journées sont indistinguables. */
 .read-only .p-half-head { cursor: default; }
-.read-only .p-half-head.editable:hover { background: var(--bg-subtle); }
 
 /* ============================================================
    Identity picker (qui es-tu ? après gate)
@@ -5194,6 +5355,30 @@ button.theme-date.editable.muted { color: var(--text-faint); }
     break-inside: avoid;
   }
 
+  /* Jour désactivé / férié à l'impression : grisé, bandeau, aucune activité */
+  .pp-day.off .pp-day-head { background: #9CA3AF !important; }
+  .pp-day-off {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1.2mm;
+    padding: 6mm 2mm;
+    background: #F3F4F6 !important;
+    color: #6B7280 !important;
+    text-align: center;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+  .pp-day-off .pp-day-off-tag {
+    font-size: 7.5pt; font-weight: 800; letter-spacing: 0.1em;
+    padding: 0.4mm 2mm; border-radius: 1mm;
+    background: #6B7280 !important; color: #fff !important;
+    print-color-adjust: exact; -webkit-print-color-adjust: exact;
+  }
+  .pp-day-off > span:last-child { font-size: 9pt; font-weight: 700; color: #374151 !important; }
+
   .pp-day-head {
     background: #1F2937 !important;
     color: white !important;
@@ -5286,6 +5471,8 @@ button.theme-date.editable.muted { color: var(--text-faint); }
   .pp-notes { color: #555; font-style: italic; margin-top: 0.6mm; }
   /* Élèves listés un par ligne, légèrement indentés sous leur label. */
   .pp-eleve { padding-left: 2.4mm; color: #000; }
+  /* Bénévoles (voiture) : italique pour les distinguer des élèves moniteurs. */
+  .pp-benevole { font-style: italic; color: #333; }
 
   .pp-empty { padding: 1.7mm 2.2mm; color: #bbb; font-size: 8.3pt; font-style: italic; }
 
@@ -5765,3 +5952,194 @@ body.qcm-open { overflow: hidden; }
 .config-label { margin: 0 0 0.4rem; font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.03em; color: var(--text-muted); font-weight: 700; }
 .config-field { display: flex; flex-direction: column; gap: 4px; font-size: 0.8rem; color: var(--text-muted); font-weight: 600; max-width: 220px; }
 .config-field input { width: 100%; }
+
+/* === Mémo des règles de placement (planning) === */
+.planning-rules { margin: 0.6rem 0 0.2rem; background: var(--bg-subtle); border: 1px solid var(--line); border-radius: var(--r); padding: 0.55rem 0.9rem; font-size: 0.9rem; }
+.planning-rules > summary { cursor: pointer; font-weight: 600; color: var(--text-muted); list-style: none; }
+.planning-rules > summary::-webkit-details-marker { display: none; }
+.planning-rules[open] > summary { margin-bottom: 0.5rem; color: var(--text); }
+.planning-rules-body p { margin: 0.55rem 0 0.2rem; }
+.planning-rules-body ul { margin: 0.1rem 0 0.4rem; padding-left: 1.2rem; }
+.planning-rules-body li { margin: 0.15rem 0; line-height: 1.4; }
+.planning-rules-foot { margin-top: 0.7rem; padding-top: 0.5rem; border-top: 1px dashed var(--line); color: var(--text-muted); font-style: italic; }
+
+/* ===== Mon suivi ===== */
+.ms-selector-wrap { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.75rem; }
+.ms-selector { padding: 0.4rem 0.6rem; }
+.ms-body { display: flex; flex-direction: column; gap: 2rem; margin-top: 1.5rem; }
+.ms-section-title { margin: 0 0 0.9rem; font-size: 1.05rem; }
+.ms-empty { padding: 1.5rem 0; }
+
+.ms-passage-list { display: flex; flex-direction: column; gap: 0.6rem; }
+.ms-passage {
+  display: flex; justify-content: space-between; align-items: center; gap: 1rem;
+  padding: 0.75rem 1rem; border: 1px solid var(--line); border-radius: 12px;
+  background: var(--bg-elev);
+}
+.ms-passage.past { opacity: 0.5; }
+.ms-passage.today { border-color: var(--accent); }
+.ms-passage.next { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+.ms-passage-when { display: flex; flex-direction: column; gap: 0.15rem; }
+.ms-passage-day { font-weight: 600; }
+.ms-passage-half { font-size: 0.85rem; }
+.ms-passage-meta { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+.ms-passage-sujet { font-size: 0.85rem; }
+.ms-passage-prof { font-size: 0.85rem; }
+.ms-passage-badge { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; }
+.ms-passage-badge.today, .ms-passage-badge.next { color: var(--accent-strong); font-weight: 600; }
+
+.ms-chart-outer { position: relative; }
+.ms-chart-wrap { width: 100%; overflow-x: auto; }
+.ms-chart { display: block; height: auto; max-width: none; }   /* largeur en px via attribut → scroll si large */
+.ms-month-band { fill: var(--bg-subtle); opacity: 0.55; }
+.ms-grid { stroke: var(--line); stroke-width: 1; }
+.ms-axis-label { fill: var(--text-muted); font-size: 12px; }
+.ms-axis-label.small { font-size: 10px; }
+.ms-avg-line { fill: none; stroke: var(--accent); stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
+/* Le point visible ne capte rien : c'est .ms-pt-hit (transparent, plus large) qui
+   reçoit survol et tap — indispensable pour viser au doigt sur mobile. */
+.ms-pt { stroke: var(--bg-elev); stroke-width: 1.5; pointer-events: none; }
+.ms-pt-hit { fill: transparent; stroke: none; cursor: pointer; }
+.ms-pt.bad   { fill: var(--c-stop); }
+.ms-pt.warn  { fill: #C98A2B; }
+.ms-pt.ok    { fill: #7BA23C; }
+.ms-pt.great { fill: var(--c-go); }
+.ms-pt.hover { stroke: var(--text); stroke-width: 2.5; }
+.ms-chart-legend { margin: 0.5rem 0 0; font-size: 0.85rem; }
+
+/* Tooltip stylé du graphe (suit le point survolé) */
+.ms-tip {
+  position: absolute;
+  /* Horizontal : géré + clampé en JS (left en px). Ici, décalage vertical seul. */
+  transform: translateY(calc(-100% - 10px));
+  background: var(--text);
+  color: var(--bg-elev);
+  padding: 0.4rem 0.6rem;
+  border-radius: var(--r-sm);
+  font-size: 0.78rem;
+  line-height: 1.35;
+  max-width: 240px;
+  pointer-events: none;
+  z-index: 5;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+}
+.ms-tip.below { transform: translateY(12px); }
+.ms-tip-lib { font-weight: 600; }
+.ms-tip-date { opacity: 0.7; margin-top: 0.1rem; }
+
+/* Historique voiture : tuiles + barres par formateur */
+.histo-stats { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-bottom: 0.9rem; }
+.histo-stat { background: var(--bg-elev); border: 1px solid var(--line); border-radius: var(--r-sm); padding: 0.5rem 0.8rem; min-width: 5rem; }
+.histo-stat-value { font-size: 1.3rem; font-weight: 700; }
+.histo-stat-label { font-size: 0.78rem; color: var(--text-muted); }
+.histo-profs-title { font-size: 0.85rem; font-weight: 600; margin: 0.2rem 0 0.5rem; }
+.histo-prof-row { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.35rem; }
+.histo-prof-nom { flex: 0 0 5.5rem; font-size: 0.88rem; }
+.histo-prof-bar { flex: 1; height: 8px; background: var(--bg-subtle); border-radius: 999px; overflow: hidden; }
+.histo-prof-bar-fill { display: block; height: 100%; background: var(--accent); border-radius: 999px; }
+.histo-prof-n { flex: 0 0 auto; font-size: 0.82rem; }
+
+/* ===== Mon suivi — historique ===== */
+.suivi-histo { background: var(--bg-subtle); border-radius: var(--r); padding: 0.9rem 1.1rem; }
+
+/* ===== Sous-onglets (navigation interne à une vue : Mon suivi, Notes…) ===== */
+.subtabs-bar {
+  display: flex;
+  gap: 0.3rem;
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 1.2rem;
+}
+.subtab {
+  appearance: none;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  padding: 0.5rem 0.9rem;
+  font: inherit;
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.subtab:hover { color: var(--text); }
+.subtab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* ===== EPCF ===== */
+.epcf-table-wrap { background: var(--bg-elev); border: 1px solid var(--line); border-radius: var(--r-lg); overflow: hidden; }
+.epcf-table { width: 100%; border-collapse: collapse; }
+.epcf-table th, .epcf-table td { padding: 0.5rem 0.6rem; border-bottom: 1px solid var(--line); text-align: left; }
+.epcf-cell { white-space: nowrap; }
+.epcf-cell .btn { margin-left: 0.5rem; }
+.epcf-statut { font-size: 0.82rem; margin-right: 0.4rem; }
+.epcf-statut.ok { color: var(--c-go); }
+
+.epcf-form-head { display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; }
+.epcf-form-head h3 { margin: 0; }
+.epcf-form-meta { display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 1rem; }
+.epcf-form-meta .field { display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.85rem; }
+.epcf-form-meta input, .epcf-form-meta select { padding: 0.4rem 0.6rem; border: 1px solid var(--line); border-radius: var(--r-sm); font: inherit; background: var(--bg-elev); color: var(--text); }
+.epcf-form-section, .epcf-form-comment { border: 1px solid var(--line); border-radius: var(--r-sm); padding: 0.7rem 0.9rem; margin-bottom: 0.8rem; }
+.epcf-form-section h4, .epcf-form-comment h4 { margin: 0 0 0.6rem; font-size: 0.95rem; }
+.epcf-form-row { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 0.3rem 0; border-top: 1px dashed var(--line); }
+.epcf-form-row:first-of-type { border-top: none; }
+.epcf-form-lib { flex: 1; font-size: 0.9rem; }
+.epcf-seg { display: flex; gap: 0.25rem; flex-shrink: 0; }
+.epcf-seg-btn { padding: 0.25rem 0.55rem; font-size: 0.78rem; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--bg-elev); color: var(--text-muted); cursor: pointer; }
+.epcf-seg-btn.active.A  { background: var(--c-go);  border-color: var(--c-go);  color: #fff; }
+.epcf-seg-btn.active.R  { background: #C98A2B;      border-color: #C98A2B;      color: #fff; }
+.epcf-seg-btn.active.NA { background: var(--c-stop); border-color: var(--c-stop); color: #fff; }
+.epcf-form-comps { margin: 0.8rem 0; }
+.epcf-comp-cb { margin-right: 1.2rem; }
+.epcf-commentaire-ta { width: 100%; box-sizing: border-box; resize: vertical; padding: 0.5rem 0.7rem; border: 1px solid var(--line); border-radius: var(--r-sm); font: inherit; background: var(--bg-elev); color: var(--text); }
+
+.epcf-radar-wrap { max-width: 420px; margin: 0 auto; }
+.epcf-radar { width: 100%; height: auto; display: block; }
+.epcf-radar-ring { fill: none; stroke: var(--line); }
+.epcf-radar-spoke { stroke: var(--line); }
+.epcf-radar-label { fill: var(--text-muted); font-size: 11px; }
+.epcf-radar-serie.moi { fill: rgba(107, 127, 78, 0.25); stroke: var(--accent); stroke-width: 2; }
+.epcf-radar-serie.groupe { fill: none; stroke: var(--text-muted); stroke-width: 1.5; stroke-dasharray: 4 3; }
+.epcf-legende { text-align: center; font-size: 0.82rem; }
+.epcf-leg { display: inline-block; width: 14px; height: 3px; vertical-align: middle; margin-right: 4px; }
+.epcf-leg.moi { background: var(--accent); }
+.epcf-leg.groupe { background: var(--text-muted); }
+
+.epcf-chip { display: inline-block; min-width: 5.5rem; text-align: center; padding: 0.1rem 0.5rem; border-radius: 999px; font-size: 0.75rem; font-weight: 600; }
+.epcf-chip.A  { background: rgba(77, 124, 15, 0.18); color: var(--c-go); }
+.epcf-chip.R  { background: rgba(201, 138, 43, 0.18); color: #C98A2B; }
+.epcf-chip.NA { background: rgba(160, 90, 61, 0.18); color: var(--c-stop); }
+.epcf-chip.vide { background: var(--bg-subtle); color: var(--text-muted); }
+
+.epcf-actions { margin: 1rem 0 2rem; }
+.epcf-detail { margin-top: 0.5rem; }
+/* border-left transparent par défaut ; la couleur de phase est posée en inline (JS). */
+.epcf-detail-section { margin-top: 0.9rem; border-left: 3px solid transparent; padding-left: 0.7rem; }
+.epcf-detail-title { margin: 0 0 0.4rem; font-size: 0.9rem; }
+.epcf-detail-tp { font-weight: 400; font-size: 0.8rem; }
+.epcf-detail-row { display: flex; align-items: baseline; gap: 0.6rem; padding: 0.2rem 0; font-size: 0.88rem; }
+.epcf-comps, .epcf-commentaire { margin-top: 0.8rem; font-size: 0.9rem; }
+.epcf-resti { margin-bottom: 1.6rem; }
+.epcf-resti-title { margin: 0 0 0.5rem; }
+.epcf-eval-select-wrap { margin-bottom: 0.6rem; }
+.epcf-eval-select { padding: 0.4rem 0.6rem; border: 1px solid var(--line); border-radius: var(--r-sm); font: inherit; background: var(--bg-elev); color: var(--text); }
+.epcf-eval-meta { font-size: 0.82rem; }
+.epcf-classe-trame { margin-bottom: 2rem; }
+.epcf-classe-lib { font-size: 0.85rem; }
+.epcf-classe-phase td { background: var(--bg-subtle); }
+.epcf-name-cell { display: flex; align-items: center; gap: 0.6rem; justify-content: space-between; }
+.epcf-name { font-weight: 500; }
+
+/* ===== EPCF — responsive mobile. Bloc SÉPARÉ du @media principal (plus haut dans le
+   fichier) : placé APRÈS les règles EPCF pour gagner la cascade à spécificité égale.
+   Toute règle mobile EPCF doit venir ICI, jamais dans le @media principal (sinon la
+   règle d'ici l'écraserait silencieusement). Même seuil maison : 760px. ===== */
+@media (max-width: 760px) {
+  .epcf-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .epcf-cell { white-space: normal; }
+  .epcf-cell .btn { margin: 0.2rem 0.3rem 0 0; }
+  .epcf-form-row { flex-direction: column; align-items: flex-start; gap: 0.35rem; }
+  .epcf-seg { align-self: flex-end; }
+  .epcf-radar-label { font-size: 14px; }  /* unités du viewBox : compense l'échelle ~0.8 à 375px → ~11px affichés */
+}

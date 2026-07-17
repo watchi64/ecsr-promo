@@ -10,19 +10,17 @@
     script-src 'self' https://esm.sh;
     connect-src 'self' https://*.supabase.co https://esm.sh;
     img-src 'self' data: https://*.supabase.co;
-    style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
-    font-src 'self' https://fonts.gstatic.com data:;
+    style-src 'self' 'unsafe-inline';
+    font-src 'self' data:;
     base-uri 'self';
     form-action 'self';
     frame-ancestors 'none';
   ">
   <title>TP ECSR App</title>
 
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
-
-  <link rel="stylesheet" href="css/style.css?v=20260709a" />
+  <!-- Polices auto-hébergées (RGPD : aucun appel Google Fonts) -->
+  <link rel="stylesheet" href="css/fonts.css?v=20260717d" />
+  <link rel="stylesheet" href="css/style.css?v=20260717d" />
   <link rel="icon" href="assets/logo/tpecsr-logo.svg" type="image/svg+xml" />
 </head>
 <body>
@@ -69,6 +67,6 @@
     <div id="toast" class="toast hidden"></div>
   </div>
 
-  <script type="module" src="js/main.js?v=20260709a"></script>
+  <script type="module" src="js/main.js?v=20260717d"></script>
 </body>
 </html>

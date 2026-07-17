@@ -26,6 +26,7 @@ function svg(d, viewBox = "0 0 24 24") {
 
 export const icon = {
   dashboard:  () => svg('<path d="M3 13h8V3H3v10Zm0 8h8v-6H3v6Zm10 0h8V11h-8v10Zm0-18v6h8V3h-8Z"/>'),
+  progress:   () => svg('<path d="M16 7h6v6"/><path d="m22 7-8.5 8.5-5-5L2 17"/>'),
   calendar:   () => svg('<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 9h18M8 3v4M16 3v4"/>'),
   list:       () => svg('<path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/>'),
   // Lucide graduation-cap (Notes / Évaluations)
@@ -58,4 +59,8 @@ export const icon = {
   quiz:       () => svg('<path d="M10 6h11M10 12h11M10 18h11M3 6l1.5 1.5L7 5M3 13l1.5 1.5L7 12M3 19l1.5 1.5L7 18"/>'),
   // Lucide x — fermer un overlay plein écran
   close:      () => svg('<path d="M18 6 6 18M6 6l12 12"/>'),
+  // Lucide ban (rond barré) — désactiver un jour du planning
+  ban:        () => svg('<circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/>'),
+  // Lucide clipboard-check — onglet EPCF
+  clipboard:  () => svg('<rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m9 13 2 2 4-4"/>'),
 };

@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20260709a";
+import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20260717d";
 
 // fetch avec timeout : sans ça, une requête peut rester pendue indéfiniment
 // (réseau mobile instable) → "Chargement" infini. Avec, elle échoue proprement après 15s.
@@ -20,7 +20,7 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
   auth: {
     persistSession: true,         // garde la session dans localStorage
     autoRefreshToken: true,       // renouvelle le token automatiquement
-    detectSessionInUrl: true,     // parse le hash après redirect (callback magic link historique)
+    detectSessionInUrl: true,     // reliquat magic link (retiré) : inoffensif, conservé par prudence
     storage: window.localStorage, // explicite : pas de sessionStorage volatile
     storageKey: "ecsr_supabase_session",
   },
@@ -249,6 +249,41 @@ export async function upsertHalfMeta(meta) {
   const { error } = await supabase
     .from("planning_half_meta")
     .upsert(meta, { onConflict: "semaine_lundi,day_index,half_day" });
+  if (error) throw error;
+}
+
+// === Jours désactivés / fériés (planning_jours_off) ===
+
+export async function getJoursOff(semaine_lundi) {
+  // Résilient : si la table n'existe pas encore (migration pas appliquée), on renvoie []
+  // au lieu de casser le chargement du planning.
+  try {
+    const { data, error } = await supabase
+      .from("planning_jours_off")
+      .select("*")
+      .eq("semaine_lundi", semaine_lundi);
+    if (error) throw error;
+    return data;
+  } catch (e) {
+    console.warn("getJoursOff indisponible (migration manquante ?)", e?.message || e);
+    return [];
+  }
+}
+
+export async function setJourOff(semaine_lundi, day_index, label, who) {
+  const { error } = await supabase
+    .from("planning_jours_off")
+    .upsert({ semaine_lundi, day_index, label: label ?? null, created_by_who: who ?? null },
+            { onConflict: "semaine_lundi,day_index" });
+  if (error) throw error;
+}
+
+export async function deleteJourOff(semaine_lundi, day_index) {
+  const { error } = await supabase
+    .from("planning_jours_off")
+    .delete()
+    .eq("semaine_lundi", semaine_lundi)
+    .eq("day_index", day_index);
   if (error) throw error;
 }
 
@@ -572,6 +607,53 @@ export async function listAuditForEvaluation(evaluation_id) {
   return data;
 }
 
+// === EPCF (évaluations en cours de formation) ===
+
+export async function listEpcf(filters = {}) {
+  let q = supabase
+    .from("epcf_evaluations")
+    .select("*, evaluateur:profs!evaluateur_prof_id(nom), stagiaire:stagiaires!stagiaire_id(prenom, nom)")
+    .order("date_eval", { ascending: false })
+    .order("id", { ascending: false });
+  if (filters.stagiaire_id) q = q.eq("stagiaire_id", filters.stagiaire_id);
+  if (filters.trame) q = q.eq("trame", filters.trame);
+  const { data, error } = await q;
+  if (error) throw error;
+  return data;
+}
+
+// Insert (pas d'id) ou update (id fourni). Renvoie la ligne écrite.
+export async function upsertEpcf(evalRow) {
+  const payload = { ...evalRow, updated_at: new Date().toISOString() };
+  delete payload.evaluateur;   // colonnes jointes par listEpcf, pas des colonnes de la table
+  delete payload.stagiaire;
+  delete payload.created_by;   // colonnes d'audit : jamais réécrites par un update
+  delete payload.created_at;
+  let q;
+  if (payload.id) {
+    const id = payload.id;
+    delete payload.id;
+    q = supabase.from("epcf_evaluations").update(payload).eq("id", id).select().single();
+  } else {
+    q = supabase.from("epcf_evaluations").insert(payload).select().single();
+  }
+  const { data, error } = await q;
+  if (error) throw error;
+  return data;
+}
+
+export async function deleteEpcf(id) {
+  const { error } = await supabase.from("epcf_evaluations").delete().eq("id", id);
+  if (error) throw error;
+}
+
+// Moyennes du groupe par critère (RPC SECURITY DEFINER — agrégats seuls).
+export async function getEpcfMoyennes(trame) {
+  const { data, error } = await supabase.rpc("epcf_moyennes", { p_trame: trame });
+  if (error) throw error;
+  return data;
+}
+
 // === Audit passages (historique qui a modifié quoi) ===
 
 export async function listRecentPassagesAudit(limit = 100) {
@@ -637,6 +719,126 @@ export async function updateContact(id, patch) {
 
 export async function deleteContact(id) {
   const { error } = await supabase.from("contacts").delete().eq("id", id);
+  if (error) throw error;
+}
+
+// === Élèves bénévoles (banque voiture conduite) ===
+// Table RLS admin-only (le téléphone ne doit jamais transiter vers un stagiaire).
+// Les non-admins passent par la RPC benevoles_noms() (SECURITY DEFINER) qui
+// n'expose que id + nom d'affichage, inactifs compris (vieilles semaines lisibles).
+
+export async function listBenevoles() {
+  return cachedQuery("benevoles", async () => {
+    const { data, error } = await supabase
+      .from("benevoles").select("*").order("nom").order("prenom");
+    if (error) throw error;
+    return data;
+  });
+}
+
+export async function listBenevolesNoms() {
+  return cachedQuery("benevoles_noms", async () => {
+    const { data, error } = await supabase.rpc("benevoles_noms");
+    if (error) throw error;
+    return data;
+  });
+}
+
+export async function addBenevole(payload) {
+  const { data, error } = await supabase.from("benevoles").insert(payload).select().single();
+  if (error) throw error;
+  invalidateCache("benevoles");
+  invalidateCache("benevoles_noms");
+  return data;
+}
+
+export async function updateBenevole(id, patch) {
+  const { error } = await supabase.from("benevoles").update(patch).eq("id", id);
+  if (error) throw error;
+  invalidateCache("benevoles");
+  invalidateCache("benevoles_noms");
+}
+
+// Retrait doux : la ligne reste en base (les vieilles semaines gardent leurs noms),
+// le bénévole disparaît des sélecteurs et de la liste active.
+export async function setBenevoleActif(id, actif) {
+  const { error } = await supabase.from("benevoles").update({ actif }).eq("id", id);
+  if (error) throw error;
+  invalidateCache("benevoles");
+  invalidateCache("benevoles_noms");
+}
+
+// === Auto-écoles partenaires (banque de contacts, RLS admin-only) ===
+
+export async function listAutoEcoles() {
+  return cachedQuery("auto_ecoles", async () => {
+    const { data, error } = await supabase
+      .from("auto_ecoles").select("*").order("nom");
+    if (error) throw error;
+    return data;
+  });
+}
+
+export async function addAutoEcole(payload) {
+  const { data, error } = await supabase.from("auto_ecoles").insert(payload).select().single();
+  if (error) throw error;
+  invalidateCache("auto_ecoles");
+  return data;
+}
+
+export async function updateAutoEcole(id, patch) {
+  const { error } = await supabase.from("auto_ecoles").update(patch).eq("id", id);
+  if (error) throw error;
+  invalidateCache("auto_ecoles");
+}
+
+export async function setAutoEcoleActif(id, actif) {
+  const { error } = await supabase.from("auto_ecoles").update({ actif }).eq("id", id);
+  if (error) throw error;
+  invalidateCache("auto_ecoles");
+}
+
+// Suppression définitive : désaffilie d'abord ses bénévoles (la FK n'a pas de
+// ON DELETE), qui restent dans la banque sans auto-école.
+export async function deleteAutoEcole(id) {
+  const { error: e1 } = await supabase.from("benevoles")
+    .update({ auto_ecole_id: null }).eq("auto_ecole_id", id);
+  if (e1) throw e1;
+  const { error } = await supabase.from("auto_ecoles").delete().eq("id", id);
+  if (error) throw error;
+  invalidateCache("auto_ecoles");
+  invalidateCache("benevoles");
+}
+
+// === Suivi des venues des bénévoles ===
+// Les venues sont DÉDUITES du planning (cartes Voiture où le bénévole est placé),
+// jamais stockées. Seuls les commentaires vivent dans benevole_suivi.
+
+// Toutes les cartes portant au moins un bénévole (pour compter les venues et
+// construire la fiche de suivi). Pas de cache : le planning bouge tout le temps.
+export async function listVenuesBenevoles() {
+  const { data, error } = await supabase
+    .from("planning_entries")
+    .select("semaine_lundi, day_index, half_day, sujet, eleves_ids, benevoles_ids")
+    .neq("benevoles_ids", "{}")
+    .order("semaine_lundi", { ascending: false })
+    .order("day_index", { ascending: true });
+  if (error) throw error;
+  return data;
+}
+
+export async function listSuiviBenevole(benevole_id) {
+  const { data, error } = await supabase
+    .from("benevole_suivi").select("*").eq("benevole_id", benevole_id);
+  if (error) throw error;
+  return data;
+}
+
+export async function upsertSuiviBenevole(payload) {
+  const { error } = await supabase
+    .from("benevole_suivi")
+    .upsert({ ...payload, updated_at: new Date().toISOString() },
+            { onConflict: "benevole_id,semaine_lundi,day_index,half_day" });
   if (error) throw error;
 }
 
@@ -760,4 +962,61 @@ export async function signOut() {
 
 export function onAuthChange(callback) {
   return supabase.auth.onAuthStateChange((event, session) => callback(session?.user ?? null));
+}
+
+// === Fiches de suivi (souhaits compétences permis B + besoins) ===
+
+export async function listFiches() {
+  const { data, error } = await supabase.from("fiches_suivi").select("*");
+  if (error) throw error;
+  return data;
+}
+
+export async function upsertFiche({ stagiaire_id, souhaits, besoins, updated_by_who }) {
+  // On n'écrit QUE les colonnes explicitement fournies : un appel qui passe seulement
+  // `souhaits` ne doit pas effacer `besoins` (et inversement) sur les fiches existantes.
+  const payload = { stagiaire_id, updated_by_who, updated_at: new Date().toISOString() };
+  if (souhaits !== undefined) payload.souhaits = souhaits;
+  if (besoins !== undefined) payload.besoins = besoins;
+  const { error } = await supabase
+    .from("fiches_suivi")
+    .upsert(payload, { onConflict: "stagiaire_id" });
+  if (error) throw error;
+}
+
+// Agrégats voiture par stagiaire pour le placement : nb de séances avec élève,
+// répartition par formateur. Les absences/reports ne comptent pas comme exposition.
+// avec_eleve NULL (historique inconnu) ne compte PAS comme « avec élève ».
+export async function getVoitureAggregats() {
+  const { data, error } = await supabase
+    .from("passages")
+    .select("stagiaire_id, prof_id, avec_eleve, resultat, date")
+    .eq("type", "Voiture");
+  if (error) throw error;
+  const map = {};
+  data.forEach((p) => {
+    if (p.resultat === "Absence" || p.resultat === "Report") return;
+    const m = map[p.stagiaire_id] || (map[p.stagiaire_id] = { total: 0, avecEleve: 0, byProf: {}, lastDate: null });
+    m.total++;
+    if (p.avec_eleve === true) m.avecEleve++;
+    if (p.prof_id != null) m.byProf[p.prof_id] = (m.byProf[p.prof_id] || 0) + 1;
+    if (!m.lastDate || p.date > m.lastDate) m.lastDate = p.date;
+  });
+  return map;
+}
+
+// Agrégats Salle (passages au tableau) par stagiaire, pour le tirage des tableaux.
+// Absences/reports exclus, comme pour la voiture.
+export async function getSalleAggregats() {
+  const { data, error } = await supabase
+    .from("passages")
+    .select("stagiaire_id, resultat")
+    .eq("type", "Salle");
+  if (error) throw error;
+  const map = {};
+  data.forEach((p) => {
+    if (p.resultat === "Absence" || p.resultat === "Report") return;
+    map[p.stagiaire_id] = (map[p.stagiaire_id] || 0) + 1;
+  });
+  return map;
 }
