@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<!-- Banc d'essai visuel du livret EPCF officiel (non déployé, jamais lié depuis l'app).
+     Rend le document seul, remplit un jeu de données témoin, permet de tester
+     l'aperçu d'impression sans authentification. -->
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <title>Banc d'essai — Livret EPCF</title>
+  <link rel="stylesheet" href="css/livret.css?v=20260718d" />
+  <style>
+    body { margin: 20px; background: #e8e8e4; font-family: sans-serif; }
+    .bench-bar { margin-bottom: 14px; display: flex; gap: 10px; align-items: center; }
+    @page { size: A4 portrait; margin: 0; }
+    @media print {
+      body { margin: 0; background: #fff; }
+      .bench-bar { display: none; }
+      .lv-page { page-break-after: always; box-shadow: none !important; margin: 0 !important; }
+      .lv-page:last-child { page-break-after: auto; }
+    }
+  </style>
+</head>
+<body>
+  <div class="bench-bar">
+    <strong>Banc d'essai livret EPCF</strong>
+    <button id="fill">Remplir données témoin</button>
+    <button id="empty">Vider</button>
+    <button id="print">Imprimer</button>
+    <span id="report" style="font-size:13px;color:#555"></span>
+  </div>
+  <div id="host"></div>
+  <script type="module">
+    import { buildDocHTML, fillData, collectData, wireDocEditing } from "./js/views/epcf-livret.js?v=20260718d";
+    const host = document.getElementById("host");
+    const doc = document.createElement("div");
+    doc.className = "lv-doc lv-screen lv-edit";
+    doc.innerHTML = buildDocHTML();
+    host.appendChild(doc);
+    window.__changes = 0;
+    wireDocEditing(doc, () => { window.__changes++; });
+
+    const SAMPLE = {
+      organisme: "ECF BOUSCAREN",
+      lieu: "ECF Pro by SPS, Nîmes",
+      "civ.m": true, nom: "VALDIVIA", prenom: "Timy", naissance: "01/01/1990",
+      "at1.e1.desc": "Examen blanc CCP1 : animation d'une séance collective de formation à la sécurité routière (thème 22, feux du véhicule), groupe de 6 apprenants.",
+      "at1.e1.date": "21/07/2026",
+      "at1.e1.c1": true, "at1.e1.c2": true, "at1.e1.c4": true,
+      "at1.e2.desc": "Séance individuelle de formation à la conduite, boulevard urbain et giratoires, évaluation du degré d'acquisition.",
+      "at1.e2.date": "22/07/2026",
+      "at1.e2.c3": true, "at1.e2.c4": true, "at1.e2.c7": true,
+      "at1.ok": true,
+      "at1.f1.nom": "Hocine KARA", "at1.f1.date": "23/07/2026",
+      "at2.e1.desc": "Animation d'une action de sensibilisation au risque routier en entreprise.",
+      "at2.e1.date": "10/11/2026", "at2.e1.c2": true, "at2.e1.c3": true,
+      "at2.ko": true,
+      "at2.attention": "Points d'attention : gestion du temps de l'animation à consolider.\nDeuxième ligne de précision pour tester le multi-lignes.",
+      "syn.at1.oui": true, "syn.at2.non": true,
+      "syn.obs": "Observations de synthèse du parcours.",
+      "syn.f1.nom": "Hocine KARA", "syn.f1.date": "08/12/2026",
+      "syn.rep.nom": "ECF BOUSCAREN", "syn.rep.date": "08/12/2026",
+      "syn.remise": "08/12/2026",
+    };
+    document.getElementById("fill").onclick = () => { fillData(doc, SAMPLE); report(); };
+    document.getElementById("empty").onclick = () => { fillData(doc, {}); report(); };
+    document.getElementById("print").onclick = () => window.print();
+
+    function report() {
+      const pages = doc.querySelectorAll(".lv-page");
+      const widths = [...pages].map((p) => p.offsetWidth);
+      const heights = [...pages].map((p) => p.offsetHeight);
+      const overflow = [...pages].filter((p) => p.scrollHeight > p.clientHeight + 2).length;
+      const data = collectData(doc);
+      document.getElementById("report").textContent =
+        `${pages.length} pages · ${widths[0]}px × ${heights[0]}px · débordements: ${overflow} · champs remplis: ${Object.keys(data).length}`;
+      window.__bench = { pages: pages.length, overflow, data };
+    }
+    report();
+  </script>
+</body>
+</html>

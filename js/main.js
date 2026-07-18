@@ -12,6 +12,7 @@ import { renderHome } from "./views/home.js?v=20260718d";
 import { renderDashboard } from "./views/dashboard.js?v=20260718d";
 import { renderMonSuivi } from "./views/mon-suivi.js?v=20260718d";
 import { renderPlanning, teardownPrintTarget } from "./views/planning.js?v=20260718d";
+import { teardownLivretPrint } from "./views/epcf-livret.js?v=20260718d";
 import { renderNotes } from "./views/notes.js?v=20260718d";
 import { renderRessources } from "./views/ressources.js?v=20260718d";
 import { renderThemes } from "./views/themes.js?v=20260718d";
@@ -178,6 +179,8 @@ async function navigate() {
   view.classList.remove("read-only");
   // En quittant le planning, on retire sa cible d'impression (re-montée par renderPlanning).
   teardownPrintTarget();
+  // Idem pour le livret EPCF (re-monté à l'ouverture d'un livret).
+  teardownLivretPrint();
   try {
     await routes[route](view);
   } catch (e) {

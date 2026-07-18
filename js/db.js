@@ -647,6 +647,42 @@ export async function deleteEpcf(id) {
   if (error) throw error;
 }
 
+// === Livret officiel EPCF (document ministère TP-01303, 1 livret / stagiaire) ===
+
+// Index léger : la RLS limite déjà chacun à ce qu'il a le droit de voir
+// (formateur/admin = tous, stagiaire = le sien).
+export async function listEpcfLivrets() {
+  const { data, error } = await supabase
+    .from("epcf_livrets")
+    .select("id, stagiaire_id, data, updated_at");
+  if (error) throw error;
+  return data;
+}
+
+export async function getEpcfLivret(stagiaireId) {
+  const { data, error } = await supabase
+    .from("epcf_livrets")
+    .select("*")
+    .eq("stagiaire_id", stagiaireId)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+// Upsert par stagiaire (contrainte UNIQUE stagiaire_id côté base).
+export async function upsertEpcfLivret({ stagiaire_id, data, updated_by_who }) {
+  const { data: row, error } = await supabase
+    .from("epcf_livrets")
+    .upsert(
+      { stagiaire_id, data, updated_by_who, updated_at: new Date().toISOString() },
+      { onConflict: "stagiaire_id" },
+    )
+    .select()
+    .single();
+  if (error) throw error;
+  return row;
+}
+
 // Moyennes du groupe par critère (RPC SECURITY DEFINER — agrégats seuls).
 export async function getEpcfMoyennes(trame) {
   const { data, error } = await supabase.rpc("epcf_moyennes", { p_trame: trame });
