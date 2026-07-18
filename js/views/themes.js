@@ -124,47 +124,54 @@ function canManageExam() { return isAdmin() || isProf(); }
 // Regroupe : mes notes, l'entraînement, l'examen (stagiaire) et la gestion (formateur).
 function openQcmSheet(theme, qcm) {
   const backdrop = el("div", { class: "modal-backdrop" });
-  const note = myThemeNote(theme, qcm);
-  const train = myTrainNote(qcm);
   const body = el("div", { class: "qcm-sheet-body" });
 
-  // Zone notes (stagiaire) : deux grandes cartes colorées, lacunes visibles d'un coup d'œil.
-  if (isStagiaire()) {
-    body.appendChild(el("div", { class: "qcm-note-cards" },
-      el("div", { class: "qcm-note-card n-" + noteClass(note) },
-        el("span", { class: "qcm-note-card-val" }, note != null ? `${note}/20` : "—"),
-        el("span", { class: "qcm-note-card-lab" }, "Ma note d'examen"),
-      ),
-      el("div", { class: "qcm-note-card n-" + noteClass(train) },
-        el("span", { class: "qcm-note-card-val" }, train != null ? `${train}/20` : "—"),
-        el("span", { class: "qcm-note-card-lab" }, "Dernier entraînement"),
-      ),
-    ));
-  }
+  // Corps re-rendable : re-appelé après Publier/Dépublier pour que le bloc
+  // stagiaire (Passer l'examen / « pas encore en ligne ») suive qcm.published.
+  function renderBody() {
+    clear(body);
+    const note = myThemeNote(theme, qcm);
+    const train = myTrainNote(qcm);
 
-  // S'entraîner (tout le monde).
-  body.appendChild(el("button", { class: "btn primary full", type: "button",
-    onClick: () => { backdrop.remove(); openQcmEntrainement(theme, qcm); } }, icon.play(), "S'entraîner"));
-  body.appendChild(el("p", { class: "muted", style: "font-size:0.78rem;text-align:center;margin:0.35rem 0 0" },
-    "Libre, illimité, ne compte pas dans les notes."));
-
-  // Passer l'examen (stagiaire).
-  if (isStagiaire()) {
-    if (qcm.published) {
-      body.appendChild(el("button", { class: "btn accent full", type: "button", style: "margin-top:0.9rem",
-        onClick: () => { backdrop.remove(); openQcmExamen(theme, qcm); } }, "Passer l'examen"));
-      body.appendChild(el("p", { class: "muted", style: "font-size:0.78rem;text-align:center;margin:0.35rem 0 0" },
-        "Une seule passe, chronométrée, notée sur 20."));
-    } else {
-      body.appendChild(el("p", { class: "muted", style: "text-align:center;margin:0.9rem 0 0;font-size:0.82rem" },
-        "L'examen n'est pas encore en ligne."));
+    // Zone notes (stagiaire) : deux grandes cartes colorées, lacunes visibles d'un coup d'œil.
+    if (isStagiaire()) {
+      body.appendChild(el("div", { class: "qcm-note-cards" },
+        el("div", { class: "qcm-note-card n-" + noteClass(note) },
+          el("span", { class: "qcm-note-card-val" }, note != null ? `${note}/20` : "—"),
+          el("span", { class: "qcm-note-card-lab" }, "Ma note d'examen"),
+        ),
+        el("div", { class: "qcm-note-card n-" + noteClass(train) },
+          el("span", { class: "qcm-note-card-val" }, train != null ? `${train}/20` : "—"),
+          el("span", { class: "qcm-note-card-lab" }, "Dernier entraînement"),
+        ),
+      ));
     }
-  }
 
-  // Gestion formateur (éditer la banque, publier / tirage / tentatives).
-  // « Éditer les questions » est dans la modale « Modifier » ; l'éditeur s'ouvre par-dessus
-  // cette fiche (qui reste dessous pour le retour).
-  if (canManageExam()) body.appendChild(themeExamPanel(theme, qcm));
+    // S'entraîner (tout le monde).
+    body.appendChild(el("button", { class: "btn primary full", type: "button",
+      onClick: () => { backdrop.remove(); openQcmEntrainement(theme, qcm); } }, icon.play(), "S'entraîner"));
+    body.appendChild(el("p", { class: "muted", style: "font-size:0.78rem;text-align:center;margin:0.35rem 0 0" },
+      "Libre, illimité, ne compte pas dans les notes."));
+
+    // Passer l'examen (stagiaire).
+    if (isStagiaire()) {
+      if (qcm.published) {
+        body.appendChild(el("button", { class: "btn accent full", type: "button", style: "margin-top:0.9rem",
+          onClick: () => { backdrop.remove(); openQcmExamen(theme, qcm); } }, "Passer l'examen"));
+        body.appendChild(el("p", { class: "muted", style: "font-size:0.78rem;text-align:center;margin:0.35rem 0 0" },
+          "Une seule passe, chronométrée, notée sur 20."));
+      } else {
+        body.appendChild(el("p", { class: "muted", style: "text-align:center;margin:0.9rem 0 0;font-size:0.82rem" },
+          "L'examen n'est pas encore en ligne."));
+      }
+    }
+
+    // Gestion formateur (éditer la banque, publier / tirage / tentatives).
+    // « Éditer les questions » est dans la modale « Modifier » ; l'éditeur s'ouvre par-dessus
+    // cette fiche (qui reste dessous pour le retour).
+    if (canManageExam()) body.appendChild(themeExamPanel(theme, qcm, renderBody));
+  }
+  renderBody();
 
   const modal = el("div", { class: "modal theme-modal" },
     el("div", { class: "theme-modal-head" },
@@ -184,7 +191,9 @@ function openQcmSheet(theme, qcm) {
 // Panneau formateur : statut + deux actions (Publier/Dépublier, Modifier).
 // « Modifier » ouvre une modale regroupant l'édition de la banque, les questions
 // (au hasard / à la main), le temps et les tentatives.
-function themeExamPanel(theme, qcm) {
+// onPublishChange : re-rend la fiche entière après Publier/Dépublier (le panneau
+// courant est alors remplacé — ne plus toucher à ses nœuds après l'appel).
+function themeExamPanel(theme, qcm, onPublishChange) {
   const panel = el("div", { class: "theme-exam-panel" });
   const status = el("p", { class: "theme-exam-status" });
   const actions = el("div", { class: "theme-exam-actions" });
@@ -220,7 +229,7 @@ function themeExamPanel(theme, qcm) {
       });
       Object.assign(qcm, { published: true, exam_question_ids: ids });
       toast(`Examen en ligne : ${ids.length} questions.`, "success");
-      refreshStatus();
+      if (onPublishChange) onPublishChange(); else refreshStatus();
     } catch (e) { toast("Publication impossible : " + (e?.message || e), "error"); }
   }
 
@@ -229,7 +238,7 @@ function themeExamPanel(theme, qcm) {
       await unpublishQcm(qcm.id);
       qcm.published = false;
       toast("Examen repassé en brouillon.", "success");
-      refreshStatus();
+      if (onPublishChange) onPublishChange(); else refreshStatus();
     } catch (e) { toast("Dépublication impossible : " + (e?.message || e), "error"); }
   }
 
