@@ -11,7 +11,7 @@
 
 import { listStagiaires, listEpcfLivrets, getEpcfLivret, upsertEpcfLivret } from "../db.js?v=20260718d";
 import { el, clear, displayStagiaire, compareByNom, formatDate, toast } from "../utils.js?v=20260718d";
-import { isAdmin, isProf } from "../auth-admin.js?v=20260718d";
+import { isAdmin, isProf, getProfile } from "../auth-admin.js?v=20260718d";
 import { getCurrentWho } from "../identity.js?v=20260718d";
 
 // ---------------------------------------------------------------------------
@@ -403,7 +403,11 @@ export async function renderEpcfLivret(container, opts = {}) {
     try { rows = await listEpcfLivrets(); } catch (e) { console.error(e); }
     if (opts.isActive && !opts.isActive()) return;
     clear(container);
-    const mine = rows[0];
+    // La RLS ne renvoie que le sien à un vrai stagiaire ; le filtre par
+    // stagiaire_id du profil couvre le fondateur en « Voir en tant que »
+    // (session réelle admin → la RLS renvoie tout).
+    const myId = getProfile()?.stagiaire_id ?? null;
+    const mine = (myId != null && rows.find((r) => r.stagiaire_id === myId)) || rows[0];
     if (!mine) {
       container.appendChild(el("p", { class: "muted" },
         "Ton livret officiel EPCF n'a pas encore été créé par les formateurs."));
@@ -435,7 +439,9 @@ function showListe(container) {
     const row = livretsIndex.find((l) => l.stagiaire_id === s.id);
     const cell = el("td", {});
     if (row) {
-      cell.appendChild(el("span", { class: "lv-statut ok" }, "rempli · màj " + formatDate(row.updated_at)));
+      // updated_at est un timestamptz ISO complet : parseDate (formats jour) ne
+      // sait pas le lire, on passe par Date directement.
+      cell.appendChild(el("span", { class: "lv-statut ok" }, "rempli · màj " + formatDate(new Date(row.updated_at))));
     } else {
       cell.appendChild(el("span", { class: "lv-statut" }, "vierge"));
     }
