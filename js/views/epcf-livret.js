@@ -44,7 +44,8 @@ const NB_PAGES = 10;
 // Champ texte inline (une ligne) / bloc multi-lignes / case à cocher.
 // data-k = clé de sérialisation ; data-x = groupe exclusif (Mme/M., OUI/NON…).
 function f(k, ph, extra = "") {
-  return `<span class="lv-f ${extra}" data-k="${k}" data-ph="${ph || PH_TEXTE}"></span>`;
+  const date = ph === PH_DATE ? " lv-date" : "";
+  return `<span class="lv-f ${extra}${date}" data-k="${k}" data-ph="${ph || PH_TEXTE}"></span>`;
 }
 function fblock(k, hmm, ph) {
   return `<div class="lv-f lv-s10" style="min-height:${hmm}mm" data-k="${k}" data-ph="${ph || PH_TEXTE}"></div>`;
@@ -208,7 +209,7 @@ export function buildDocHTML() {
         <td class="lv-s11">Mme ${cb("civ.mme", "civ")}</td><td class="lv-s11">M. ${cb("civ.m", "civ")}</td></tr>
       <tr style="height:8mm"><td class="lv-i lv-s12 lv-magenta">Nom</td><td class="lv-s6 lv-magenta" style="vertical-align:middle">►</td><td colspan="2">${f("nom", " ")}</td></tr>
       <tr style="height:8mm"><td class="lv-i lv-s12 lv-magenta">Prénom</td><td class="lv-s6 lv-magenta" style="vertical-align:middle">►</td><td colspan="2">${f("prenom", " ")}</td></tr>
-      <tr style="height:8mm"><td class="lv-i lv-s12 lv-magenta">Date de naissance</td><td class="lv-s6 lv-magenta" style="vertical-align:middle">►</td><td colspan="2">${f("naissance", " ")}</td></tr>
+      <tr style="height:8mm"><td class="lv-i lv-s12 lv-magenta">Date de naissance</td><td class="lv-s6 lv-magenta" style="vertical-align:middle">►</td><td colspan="2">${f("naissance", " ", "lv-date")}</td></tr>
     </table>
     ${foot(1)}
   </div>`;
@@ -323,6 +324,40 @@ export function wireDocEditing(doc, onChange) {
     }
   });
   doc.addEventListener("input", () => onChange());
+
+  // Mini-sélecteur sur les champs date : « Aujourd'hui » en un clic, ou une
+  // date au choix (input natif). On peut toujours taper au clavier à la place.
+  const closePicker = () => doc.querySelectorAll(".lv-datepick").forEach((n) => n.remove());
+  const frDate = (iso) => {
+    const [y, m, d] = iso.split("-");
+    return `${d}/${m}/${y}`;
+  };
+  doc.addEventListener("click", (e) => {
+    const field = e.target.closest?.(".lv-f.lv-date[data-k]");
+    if (!field) { if (!e.target.closest?.(".lv-datepick")) closePicker(); return; }
+    if (field.parentElement.querySelector(".lv-datepick")) return;   // déjà ouvert
+    closePicker();
+    const today = new Date();
+    const todayIso = [today.getFullYear(),
+      String(today.getMonth() + 1).padStart(2, "0"),
+      String(today.getDate()).padStart(2, "0")].join("-");
+    const apply = (iso) => {
+      field.textContent = frDate(iso);
+      closePicker();
+      field.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    };
+    const inp = el("input", { type: "date", value: todayIso });
+    inp.addEventListener("change", () => { if (inp.value) apply(inp.value); });
+    const pick = el("div", { class: "lv-datepick" },
+      el("button", { type: "button", class: "lv-dp-today", onClick: () => apply(todayIso) },
+        "Aujourd'hui (" + frDate(todayIso) + ")"),
+      inp,
+      el("button", { type: "button", onClick: () => { field.textContent = ""; closePicker(); field.dispatchEvent(new InputEvent("input", { bubbles: true })); } }, "Effacer"),
+    );
+    const cell = field.parentElement;
+    if (getComputedStyle(cell).position === "static") cell.style.position = "relative";
+    cell.appendChild(pick);
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -354,6 +389,7 @@ function refreshPrintClone(doc) {
   clone.classList.remove("lv-screen", "lv-edit");
   clone.querySelectorAll("[contenteditable]").forEach((n) => n.removeAttribute("contenteditable"));
   clone.querySelectorAll("[tabindex]").forEach((n) => n.removeAttribute("tabindex"));
+  clone.querySelectorAll(".lv-datepick").forEach((n) => n.remove());
   c.appendChild(clone);
   document.body.classList.add("livret-printable");
 }
@@ -502,6 +538,9 @@ function showDoc(container, stagiaire, row, { readOnly, back } = {}) {
   if (stagiaire) {
     defaults.nom = (stagiaire.nom || "").toUpperCase();
     defaults.prenom = stagiaire.prenom || "";
+    // Date de naissance du profil (Mon suivi / saisie stagiaire) : pré-remplit
+    // le livret tant que le champ n'y a pas été saisi à la main.
+    if (stagiaire.date_naissance) defaults.naissance = formatDate(new Date(stagiaire.date_naissance));
   }
   fillData(doc, { ...defaults, ...data });
 

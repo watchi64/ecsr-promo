@@ -24,6 +24,25 @@
 .lv-status.error { color: #b91c1c; }
 .lv-hint { font-size: 0.8rem; color: var(--c-muted, #6b7280); margin: 0 0 10px; }
 
+/* Champ « Date de naissance » du profil (Mon suivi) : alimente le livret. */
+.ms-naissance {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 0 0 16px;
+  font-size: 0.9rem;
+}
+.ms-naissance label { font-weight: 600; }
+.ms-naissance input[type="date"] {
+  font: inherit;
+  padding: 4px 8px;
+  border: 1px solid var(--c-border, #d8d8d2);
+  border-radius: 8px;
+  background: #fff;
+}
+.ms-naissance-hint { font-size: 0.8rem; }
+
 /* Liste formateur */
 .lv-liste-table { width: 100%; border-collapse: collapse; }
 .lv-liste-table th, .lv-liste-table td {
@@ -150,8 +169,11 @@
   min-height: 4.2mm;
   white-space: pre-wrap;
   outline: none;
+  /* Une date/un nom plus large que sa colonne (ex. Dates 16,7mm du tableau
+     officiel) passe à la ligne dans sa cellule au lieu de déborder dessus. */
+  overflow-wrap: anywhere;
 }
-span.lv-f { display: inline-block; min-width: 20mm; vertical-align: bottom; }
+span.lv-f { display: inline-block; min-width: 12mm; max-width: 100%; vertical-align: bottom; }
 .lv-f:empty::before { content: attr(data-ph); color: #808080; }
 /* Affordance d'édition, à l'écran uniquement */
 .lv-edit .lv-f[contenteditable] { border-bottom: 0.3mm dashed #d8b4e2; cursor: text; }
@@ -174,6 +196,34 @@ span.lv-f { display: inline-block; min-width: 20mm; vertical-align: bottom; }
 }
 .lv-edit .lv-cb[data-k] { cursor: pointer; }
 .lv-edit .lv-cb[data-k]:hover { border-color: #D60093; }
+
+/* Mini-sélecteur de date (édition uniquement, jamais cloné à l'impression) */
+.lv-datepick {
+  position: absolute;
+  z-index: 40;
+  top: 100%;
+  left: 0;
+  background: #fff;
+  border: 1px solid #c9c9c4;
+  border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
+  padding: 8px;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  font-size: 10pt;
+  white-space: nowrap;
+}
+.lv-datepick input[type="date"] { font: inherit; padding: 2px 4px; }
+.lv-datepick button {
+  font: inherit;
+  padding: 3px 8px;
+  border: 1px solid #c9c9c4;
+  border-radius: 6px;
+  background: #f6f6f2;
+  cursor: pointer;
+}
+.lv-datepick button.lv-dp-today { background: #6B7F4E; border-color: #6B7F4E; color: #fff; }
 
 /* --- Impression --- */
 #livret-print { display: none; }

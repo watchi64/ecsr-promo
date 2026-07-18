@@ -1,8 +1,9 @@
 import { listStagiaires, listEvaluations, getPlanning, getHalfMetaForWeek, getJoursOff, getSetting,
-         getVoitureAggregats, listProfs, listEpcf, getEpcfMoyennes, listThemes } from "../db.js?v=20260718d";
-import { el, clear, isoDate, getMonday, addDays, formatDate, displayStagiaire, compareByNom } from "../utils.js?v=20260718d";
+         getVoitureAggregats, listProfs, listEpcf, getEpcfMoyennes, listThemes,
+         getStagiaire, setDateNaissance } from "../db.js?v=20260718d";
+import { el, clear, isoDate, getMonday, addDays, formatDate, displayStagiaire, compareByNom, toast } from "../utils.js?v=20260718d";
 import { HALF_DAYS } from "../config.js?v=20260718d";
-import { isAdmin, getProfile } from "../auth-admin.js?v=20260718d";
+import { isAdmin, isProf, getProfile } from "../auth-admin.js?v=20260718d";
 import { renderEpcfTrameSection } from "../epcf-restitution.js?v=20260718d";
 import { renderSubTabs } from "../subtabs.js?v=20260718d";
 
@@ -462,13 +463,29 @@ export async function renderMonSuivi(container) {
       return;
     }
     body.appendChild(el("div", { class: "loading" }, "Chargement"));
-    const [items, evaluations, epcfEvals] = await Promise.all([
+    const [items, evaluations, epcfEvals, stagiaireRow] = await Promise.all([
       loadUpcoming(id),
       listEvaluations({ stagiaire_id: id }),
       listEpcf({ stagiaire_id: id }),
+      getStagiaire(id),
     ]);
     if (token !== renderToken) return;   // un rendu plus récent a pris la main
     clear(body);
+
+    // Date de naissance du profil : saisie par le stagiaire lui-même (son propre
+    // suivi) ou par formateur/admin. Reportée automatiquement sur le livret EPCF.
+    if (isAdmin() || isProf() || id === myId) {
+      const dob = el("input", { type: "date", value: stagiaireRow?.date_naissance || "" });
+      dob.addEventListener("change", async () => {
+        try {
+          await setDateNaissance(id, dob.value || null);
+          toast("Date de naissance enregistrée", "success", 2000);
+        } catch (e) { console.error(e); toast(e?.message || String(e), "error"); }
+      });
+      body.appendChild(el("div", { class: "ms-naissance" },
+        el("label", {}, "Date de naissance"), dob,
+        el("span", { class: "muted ms-naissance-hint" }, "Reportée automatiquement sur le livret EPCF.")));
+    }
     // Sous-onglets : Passages · EPCF · Évolution. Le rendu de chaque onglet est
     // paresseux ; toutes les données sont déjà chargées (closures ci-dessus).
     body.appendChild(renderSubTabs([

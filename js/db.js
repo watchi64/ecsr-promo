@@ -647,6 +647,24 @@ export async function deleteEpcf(id) {
   if (error) throw error;
 }
 
+export async function getStagiaire(id) {
+  const { data, error } = await supabase.from("stagiaires").select("*").eq("id", id).maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+// Date de naissance du profil stagiaire (alimente le livret EPCF officiel).
+// RPC SECURITY DEFINER : autorisé pour le stagiaire lui-même ou formateur/admin.
+export async function setDateNaissance(stagiaireId, dateIso) {
+  const { error } = await supabase.rpc("set_date_naissance", {
+    p_stagiaire_id: stagiaireId,
+    p_date: dateIso || null,
+  });
+  if (error) throw error;
+  invalidateCache("stagiaires");
+  invalidateCache("stagiaires_all");
+}
+
 // === Livret officiel EPCF (document ministère TP-01303, 1 livret / stagiaire) ===
 
 // Index léger : la RLS limite déjà chacun à ce qu'il a le droit de voir
