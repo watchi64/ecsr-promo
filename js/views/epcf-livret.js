@@ -76,7 +76,7 @@ function evalTable(prefix, labels, extraRows = 0, rowMm = 7) {
     let html = `<tr style="height:${rowMm}mm">
       <td rowspan="${3 + (i === labels.length - 1 ? extraRows : 0)}" class="lv-center lv-b lv-s10">${label}</td>
       <td rowspan="${3 + (i === labels.length - 1 ? extraRows : 0)}">${fblock(`${k}.desc`, 16)}</td>
-      <td rowspan="${3 + (i === labels.length - 1 ? extraRows : 0)}" class="lv-center">${f(`${k}.date`, PH_DATE, "lv-s10")}</td>
+      <td rowspan="${3 + (i === labels.length - 1 ? extraRows : 0)}" class="lv-center">${f(`${k}.date`, PH_DATE, "lv-s10 lv-date-short")}</td>
       <td class="lv-s10">1 ${cb(`${k}.c1`)}</td><td class="lv-s10">4 ${cb(`${k}.c4`)}</td><td class="lv-s10">7 ${cb(`${k}.c7`)}</td></tr>
     <tr style="height:${rowMm}mm"><td class="lv-s10">2 ${cb(`${k}.c2`)}</td><td class="lv-s10">5 ${cb(`${k}.c5`)}</td><td class="lv-s10">8 ${cb(`${k}.c8`)}</td></tr>
     <tr style="height:${rowMm}mm"><td class="lv-s10">3 ${cb(`${k}.c3`)}</td><td class="lv-s10">6 ${cb(`${k}.c6`)}</td><td class="lv-s10">9 ${cb(`${k}.c9`)}</td></tr>`;
@@ -328,9 +328,10 @@ export function wireDocEditing(doc, onChange) {
   // Mini-sélecteur sur les champs date : « Aujourd'hui » en un clic, ou une
   // date au choix (input natif). On peut toujours taper au clavier à la place.
   const closePicker = () => doc.querySelectorAll(".lv-datepick").forEach((n) => n.remove());
-  const frDate = (iso) => {
+  // short : année sur 2 chiffres (colonne « Dates » étroite du tableau officiel).
+  const frDate = (iso, short) => {
     const [y, m, d] = iso.split("-");
-    return `${d}/${m}/${y}`;
+    return `${d}/${m}/${short ? y.slice(2) : y}`;
   };
   doc.addEventListener("click", (e) => {
     const field = e.target.closest?.(".lv-f.lv-date[data-k]");
@@ -341,8 +342,9 @@ export function wireDocEditing(doc, onChange) {
     const todayIso = [today.getFullYear(),
       String(today.getMonth() + 1).padStart(2, "0"),
       String(today.getDate()).padStart(2, "0")].join("-");
+    const short = field.classList.contains("lv-date-short");
     const apply = (iso) => {
-      field.textContent = frDate(iso);
+      field.textContent = frDate(iso, short);
       closePicker();
       field.dispatchEvent(new InputEvent("input", { bubbles: true }));
     };
@@ -350,7 +352,7 @@ export function wireDocEditing(doc, onChange) {
     inp.addEventListener("change", () => { if (inp.value) apply(inp.value); });
     const pick = el("div", { class: "lv-datepick" },
       el("button", { type: "button", class: "lv-dp-today", onClick: () => apply(todayIso) },
-        "Aujourd'hui (" + frDate(todayIso) + ")"),
+        "Aujourd'hui (" + frDate(todayIso, short) + ")"),
       inp,
       el("button", { type: "button", onClick: () => { field.textContent = ""; closePicker(); field.dispatchEvent(new InputEvent("input", { bubbles: true })); } }, "Effacer"),
     );
