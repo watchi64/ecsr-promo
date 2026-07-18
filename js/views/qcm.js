@@ -83,6 +83,9 @@ function runEntrainement(theme, full, questions) {
   let idx = 0;
   let score = 0;
   const answers = {}; // question_id -> tableau d'ids d'options cochées
+  // Comme en examen : ordre d'affichage des options mélangé, stable par question pendant la passe
+  // (la banque peut stocker la bonne réponse en tête — ne jamais afficher l'ordre de la base).
+  let optOrder = new Map(questions.map((q) => [q.id, shuffle(q.options || [])]));
 
   const overlay = el("div", { class: "qcm-overlay" });
   const player = el("div", { class: "qcm-player" });
@@ -146,7 +149,8 @@ function runEntrainement(theme, full, questions) {
       else renderResults();
     });
 
-    q.options.forEach((opt, i) => {
+    const opts = optOrder.get(q.id) || [];
+    opts.forEach((opt, i) => {
       const choice = el("button", { class: "qcm-choice", type: "button" },
         el("span", { class: "qcm-choice-letter" }, letter(i)),
         el("span", { class: "qcm-choice-text" }, opt.texte),
@@ -171,7 +175,7 @@ function runEntrainement(theme, full, questions) {
       choices.querySelectorAll(".qcm-choice").forEach((c, ci) => {
         c.classList.add("disabled");
         c.classList.remove("selected");
-        const o = q.options[ci];
+        const o = opts[ci];
         if (o.is_correct) c.classList.add("correct");
         else if (selected.has(o.id)) c.classList.add("wrong");
       });
@@ -213,6 +217,7 @@ function runEntrainement(theme, full, questions) {
         idx = 0; score = 0;
         startedAt = new Date().toISOString();  // nouvelle partie : nouvel horodatage de départ
         for (const k in answers) delete answers[k];
+        optOrder = new Map(questions.map((q) => [q.id, shuffle(q.options || [])]));  // nouveau mélange par passe
         renderQuestion();
       } }, "Recommencer"),
     ));
