@@ -1318,8 +1318,24 @@ h3 {
 .p-salle-shared-wrap { border-top: none; }
 /* Sujet propre à un groupe : sans le retrait du sujet global de la carte */
 .p-salle-group-sujet { padding: 0 0 0.1rem; }
-/* « + élève » propre à un groupe : libellé discret (cas effectif réduit) */
+/* « + stagiaire » propre à un groupe : libellé discret (cas effectif réduit) */
 .p-salle-extra .p-lane-role-label { color: var(--text-faint); text-transform: none; letter-spacing: 0; }
+/* Libellés longs (partagé + extras) : empilés au-dessus du champ, jamais côte à côte.
+   Les cartes sont souvent étroites (activités en parallèle, mobile) : en ligne, le
+   libellé étouffait le champ de saisie. */
+.p-salle-shared, .p-salle-extra {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.2rem;
+}
+.p-salle-shared { min-height: 0; }
+.p-salle-extra { min-height: 0; }
+.p-salle-shared .p-lane-role-label,
+.p-salle-extra .p-lane-role-label { min-width: 0; width: auto; }
+/* width explicite : un `.p-lane-role.eleves { align-items: flex-start }` plus spécifique
+   empêche le stretch, la colonne se réduirait sinon à son contenu */
+.p-salle-shared .p-lane-eleves-col { width: 100%; }
+.p-salle-extra .chips-select { width: 100%; }
 .read-only .p-salle-toggle { display: none; }
 .p-lane-role {
   display: flex;
