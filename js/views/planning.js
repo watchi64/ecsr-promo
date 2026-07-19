@@ -1571,7 +1571,7 @@ function buildElevesRoleShared(entry, lid) {
   eleveRole.appendChild(el("span", {
     class: "p-lane-role-label",
     title: "Les mêmes stagiaires assistent aux deux passages (groupe 1 puis groupe 2)",
-  }, "Stagiaires"));
+  }, "Stagiaires · demi-journée"));
   const eleveCol = el("div", { class: "p-lane-eleves-col" });
   // Libres sur LES DEUX vagues : union des blocages élèves G1 + G2
   const blocked = new Set([...slotOccupants(entry, "eleves"), ...slotOccupants(entry, "eleves_2")]);
@@ -1603,8 +1603,8 @@ function buildElevesExtraRole(entry, lid, group) {
   const role = el("div", { class: "p-lane-role eleves p-salle-extra" });
   role.appendChild(el("span", {
     class: "p-lane-role-label",
-    title: "Élève en plus dans ce groupe seulement (en cas d'effectif réduit)",
-  }, "+ ce groupe"));
+    title: "Stagiaire en plus dans ce groupe seulement (en cas d'effectif réduit)",
+  }, "+ stagiaire (ce groupe)"));
   const shared = sharedEleves(entry);
   const blocked = slotOccupants(entry, group === 2 ? "eleves_2" : "eleves");
   const counts = roleCounts("Pédagogie salle", "eleve", lid);
@@ -1613,7 +1613,7 @@ function buildElevesExtraRole(entry, lid, group) {
   role.appendChild(chipsSelect(options, extras, (ids) => {
     const sh = sharedEleves(entry);
     saveEntry(lid, { [field]: [...sh, ...ids.filter((id) => !sh.includes(id))] });
-  }, counts, { placeholder: "+ élève…" }));
+  }, counts, { placeholder: "Ajouter…" }));
   return role;
 }
 
