@@ -543,20 +543,6 @@ function effSujets(e) {
   return out;
 }
 
-// Élèves d'une carte salle 2 groupes : la liste PARTAGÉE (les mêmes toute la
-// demi-journée, présents aux deux passages) = intersection des deux groupes ;
-// les extras d'un groupe = sa liste moins la partagée (cas effectif réduit :
-// ex. le tableau du G1 rejoint le public du G2).
-function sharedEleves(e) {
-  const set2 = new Set(e.eleves_ids_2 || []);
-  return (e.eleves_ids || []).filter((id) => set2.has(id));
-}
-function extraEleves(e, group) {
-  const shared = new Set(sharedEleves(e));
-  const list = group === 2 ? (e.eleves_ids_2 || []) : (e.eleves_ids || []);
-  return list.filter((id) => !shared.has(id));
-}
-
 // Bénévoles déjà placés sur une AUTRE carte du même créneau (cartes parallèles =
 // simultanées : pas deux voitures à la fois). Les slots successifs restent permis :
 // un bénévole reste souvent toute la demi-journée et change d'élève moniteur.
@@ -931,13 +917,22 @@ async function autoPlaceWeek() {
       .sort((a, b) => cmpScores(a.score, b.score))[0]?.id ?? null;
     if (pick != null) { e[pField] = pick; bump(tab, pick); } else unfilled++;
   };
-  // Les 4 élèves d'une carte : carte 2 groupes = UN tirage partagé pour la demi-journée
-  // (les mêmes élèves aux deux passages → libres sur les deux vagues, écrits dans les
-  // deux listes) ; carte 1 groupe = comme avant. Une carte double partiellement remplie
-  // à la main n'est pas touchée (côté modulaire).
+  // Les 4 élèves d'une carte : carte 2 groupes = UN tirage pour la demi-journée (les
+  // mêmes élèves aux deux passages → libres sur les deux vagues, écrits dans les deux
+  // listes). Si UN seul groupe a été rempli à la main, l'autre est complété avec les
+  // mêmes stagiaires (moins les conflits du groupe cible). Carte 1 groupe = comme avant.
   const fillElevesSalle = (e) => {
     if (e.salle_double) {
-      if ((e.eleves_ids && e.eleves_ids.length) || (e.eleves_ids_2 && e.eleves_ids_2.length)) return;
+      const l1 = e.eleves_ids || [], l2 = e.eleves_ids_2 || [];
+      if (l1.length && l2.length) return;              // les 2 groupes déjà remplis
+      if (l1.length || l2.length) {
+        // Alignement demi-journée : copie du groupe rempli vers le groupe vide
+        const srcList = l1.length ? l1 : l2;
+        const destField = l1.length ? "eleves_ids_2" : "eleves_ids";
+        const blocked = slotOccupants(e, l1.length ? "eleves_2" : "eleves");
+        e[destField] = srcList.filter((id) => !blocked.has(id));
+        return;  // pas de bump : ces stagiaires sont déjà comptés (union par carte)
+      }
       const blocked = new Set([...slotOccupants(e, "eleves"), ...slotOccupants(e, "eleves_2")]);
       const pick = pickLeast(salleEl, blocked, 4);
       e.eleves_ids = pick; e.eleves_ids_2 = [...pick];
@@ -1551,70 +1546,22 @@ function buildElevesRoleSalle(entry, lid, group) {
   const counts = roleCounts("Pédagogie salle", "eleve", lid);
   const options = stagiaires.filter((s) => !blocked.has(s.id) || current.includes(s.id));
   eleveCol.appendChild(chipsSelect(options, current, (ids) => saveEntry(lid, { [field]: ids }), counts));
+  // Carte 2 groupes : le dé tire les 4 stagiaires DE LA DEMI-JOURNÉE (les mêmes dans
+  // les deux groupes, d'où un seul comportement quel que soit le groupe cliqué).
+  // L'édition manuelle des chips reste par groupe (côté modulaire).
+  const double = !!entry.salle_double && entry.activite === "Pédagogie salle";
   eleveCol.appendChild(el("div", { class: "p-eleves-dice-toolbar" },
     el("button", {
       class: "p-dice-btn", type: "button",
-      "aria-label": "Tirer 4 stagiaires au hasard", title: "Tirer 4 stagiaires (priorité aux moins passés)",
-      onClick: () => randomFillEleves(lid, group),
+      "aria-label": "Tirer 4 stagiaires au hasard",
+      title: double
+        ? "Tirer les 4 stagiaires de la demi-journée (les mêmes pour les 2 groupes, priorité aux moins passés)"
+        : "Tirer 4 stagiaires (priorité aux moins passés)",
+      onClick: () => (double ? randomFillElevesShared(lid) : randomFillEleves(lid, group)),
     }, "🎲")
   ));
   eleveRole.appendChild(eleveCol);
   return eleveRole;
-}
-
-// Bloc « Stagiaires » PARTAGÉ d'une carte salle 2 groupes : placés une fois pour la
-// demi-journée, ils assistent aux deux passages d'affilée (G1 puis G2). Écrit la même
-// liste dans les deux groupes en préservant les extras propres à chaque groupe.
-function buildElevesRoleShared(entry, lid) {
-  const current = sharedEleves(entry);
-  const eleveRole = el("div", { class: "p-lane-role eleves p-salle-shared" });
-  eleveRole.appendChild(el("span", {
-    class: "p-lane-role-label",
-    title: "Les mêmes stagiaires assistent aux deux passages (groupe 1 puis groupe 2)",
-  }, "Stagiaires · demi-journée"));
-  const eleveCol = el("div", { class: "p-lane-eleves-col" });
-  // Libres sur LES DEUX vagues : union des blocages élèves G1 + G2
-  const blocked = new Set([...slotOccupants(entry, "eleves"), ...slotOccupants(entry, "eleves_2")]);
-  const counts = roleCounts("Pédagogie salle", "eleve", lid);
-  const options = stagiaires.filter((s) => !blocked.has(s.id) || current.includes(s.id));
-  eleveCol.appendChild(chipsSelect(options, current, (ids) => {
-    const extras1 = extraEleves(entry, 1).filter((id) => !ids.includes(id));
-    const extras2 = extraEleves(entry, 2).filter((id) => !ids.includes(id));
-    saveEntry(lid, { eleves_ids: [...ids, ...extras1], eleves_ids_2: [...ids, ...extras2] });
-  }, counts));
-  eleveCol.appendChild(el("div", { class: "p-eleves-dice-toolbar" },
-    el("button", {
-      class: "p-dice-btn", type: "button",
-      "aria-label": "Tirer 4 stagiaires pour la demi-journée",
-      title: "Tirer 4 stagiaires pour la demi-journée (priorité aux moins passés)",
-      onClick: () => randomFillElevesShared(lid),
-    }, "🎲")
-  ));
-  eleveRole.appendChild(eleveCol);
-  return eleveRole;
-}
-
-// Zone « + élève » propre à UN groupe d'une carte salle 2 groupes (cas effectif
-// réduit : ex. le tableau du G1 rejoint le public du G2). N'affiche que les extras
-// du groupe, hors liste partagée.
-function buildElevesExtraRole(entry, lid, group) {
-  const field = group === 2 ? "eleves_ids_2" : "eleves_ids";
-  const extras = extraEleves(entry, group);
-  const role = el("div", { class: "p-lane-role eleves p-salle-extra" });
-  role.appendChild(el("span", {
-    class: "p-lane-role-label",
-    title: "Stagiaire en plus dans ce groupe seulement (en cas d'effectif réduit)",
-  }, "+ stagiaire (ce groupe)"));
-  const shared = sharedEleves(entry);
-  const blocked = slotOccupants(entry, group === 2 ? "eleves_2" : "eleves");
-  const counts = roleCounts("Pédagogie salle", "eleve", lid);
-  const options = stagiaires.filter((s) =>
-    (!blocked.has(s.id) && !shared.includes(s.id)) || extras.includes(s.id));
-  role.appendChild(chipsSelect(options, extras, (ids) => {
-    const sh = sharedEleves(entry);
-    saveEntry(lid, { [field]: [...sh, ...ids.filter((id) => !sh.includes(id))] });
-  }, counts, { placeholder: "Ajouter…" }));
-  return role;
 }
 
 function renderLaneCell(entry) {
@@ -1692,25 +1639,23 @@ function renderLaneCell(entry) {
     body.appendChild(el("div", { class: "p-salle-groupes" }, toggle));
 
     if (double) {
-      // 2 groupes : élèves PARTAGÉS pour la demi-journée (au-dessus des groupes),
-      // puis chaque groupe = tag + au tableau + sujet propre + « + élève » (extras).
-      body.appendChild(el("div", { class: "p-lane-participants p-salle-group p-salle-shared-wrap" },
-        buildElevesRoleShared(entry, lid)));
-
+      // 2 groupes, chaque groupe dans l'ordre : thème (sujet propre) → au tableau →
+      // stagiaires. Le placement « demi-journée » (mêmes 4 dans les 2 groupes) passe
+      // par le dé et « Placer la semaine » ; les chips restent modulables par groupe.
       const g1 = el("div", { class: "p-lane-participants p-salle-group" });
       g1.appendChild(el("div", { class: "p-salle-group-tag" }, "Groupe 1"));
-      g1.appendChild(buildTableauRole(entry, lid, 1));
       g1.appendChild(el("div", { class: "p-lane-sujet p-salle-group-sujet" },
         sujetMultiSelect(entry.sujet, (v) => saveEntry(lid, { sujet: v }))));
-      g1.appendChild(buildElevesExtraRole(entry, lid, 1));
+      g1.appendChild(buildTableauRole(entry, lid, 1));
+      g1.appendChild(buildElevesRoleSalle(entry, lid, 1));
       body.appendChild(g1);
 
       const g2 = el("div", { class: "p-lane-participants p-salle-group" });
       g2.appendChild(el("div", { class: "p-salle-group-tag" }, "Groupe 2"));
-      g2.appendChild(buildTableauRole(entry, lid, 2));
       g2.appendChild(el("div", { class: "p-lane-sujet p-salle-group-sujet" },
         sujetMultiSelect(entry.sujet_2, (v) => saveEntry(lid, { sujet_2: v }))));
-      g2.appendChild(buildElevesExtraRole(entry, lid, 2));
+      g2.appendChild(buildTableauRole(entry, lid, 2));
+      g2.appendChild(buildElevesRoleSalle(entry, lid, 2));
       body.appendChild(g2);
     } else {
       const g1 = el("div", { class: "p-lane-participants p-salle-group" });

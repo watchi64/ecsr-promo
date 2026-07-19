@@ -26,11 +26,16 @@ main comme élève du groupe 2 (zone « + élève » par groupe).
 
 ## Comportements
 
-- **Carte (2 groupes)** : un bloc « Stagiaires » partagé (chips + dé) au-dessus des
-  groupes ; chaque groupe = tag + Au tableau + Sujet propre + « + élève (ce groupe) ».
-  En mode 1 groupe : inchangé (sujet unique en haut, élèves du groupe 1).
-- **Dé élèves (2 groupes)** : tire 4 stagiaires éligibles pour LES DEUX vagues
-  (union des blocages G1+G2), remplit les deux colonnes à l'identique (efface les extras).
+- **Carte (2 groupes)** [révisé sur retour utilisateur 19/07 : pas de bloc partagé] :
+  chaque groupe affiche, dans l'ordre : Sujet propre → Au tableau → Stagiaires (liste
+  complète du groupe, chips modulables). La logique « demi-journée » passe uniquement
+  par le dé et « Placer la semaine ». En mode 1 groupe : inchangé.
+- **Dé élèves (2 groupes)** : quel que soit le groupe cliqué, tire LES 4 stagiaires de
+  la demi-journée, éligibles pour les deux vagues (union des blocages G1+G2), et remplit
+  les deux listes à l'identique.
+- **Placer la semaine, carte double** : 2 listes vides → un tirage écrit dans les deux ;
+  1 seule liste remplie à la main → l'autre est complétée par copie (moins les conflits
+  du groupe cible) ; 2 listes remplies → intouchées.
 - **Équité** : un stagiaire élève sur une carte double compte 1 placement (union unique
   des deux listes), pas 2.
 - **Placer la semaine** : remplit les élèves une fois par carte double (deux colonnes
