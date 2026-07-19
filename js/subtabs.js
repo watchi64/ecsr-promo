@@ -2,7 +2,7 @@
 // Une barre segmentée + un panneau qui bascule au clic. Le rendu de chaque
 // onglet est paresseux (appelé à l'activation), donc on peut y mettre du lourd.
 
-import { el, clear } from "./utils.js?v=20260719f";
+import { el, clear } from "./utils.js?v=20260719h";
 
 // tabs = [{ key, label, render(panel) }].
 // opts.activeKey : onglet initial ; opts.storageKey : mémorise le dernier onglet choisi.
