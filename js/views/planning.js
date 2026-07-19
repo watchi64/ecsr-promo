@@ -181,6 +181,7 @@ function entryUpsertPayload(entry) {
     pedagogue_id: entry.pedagogue_id ?? null,
     eleves_ids: entry.eleves_ids ?? [],
     // Pédagogie salle 2e groupe (un seul créneau peut faire tourner 2 tableaux)
+    sujet_2: entry.sujet_2 ?? null,
     pedagogue_id_2: entry.pedagogue_id_2 ?? null,
     eleves_ids_2: entry.eleves_ids_2 ?? [],
     salle_double: entry.salle_double ?? false,
@@ -288,7 +289,7 @@ async function addLaneInSlot(d, half, slot) {
 // On permute le CONTENU des deux cartes (pas leur position en base) : les lignes
 // gardent leur (slot, lane), donc aucun conflit avec la contrainte d'unicité, et on
 // réutilise l'upsert existant. Visuellement = un déplacement. Undo via Ctrl+Z.
-const SWAP_FIELDS = ["activite", "prof_ids", "prof_id", "prof_autre", "autonomie", "sujet", "pedagogue_id", "eleves_ids", "pedagogue_id_2", "eleves_ids_2", "salle_double", "benevoles_ids", "notes"];
+const SWAP_FIELDS = ["activite", "prof_ids", "prof_id", "prof_autre", "autonomie", "sujet", "sujet_2", "pedagogue_id", "eleves_ids", "pedagogue_id_2", "eleves_ids_2", "salle_double", "benevoles_ids", "notes"];
 
 function snapshotFields(entry) {
   const o = {};
@@ -499,9 +500,12 @@ function roleCounts(activite, role, exceptLid) {
     if (role === "pedagogue") {
       bump(e.pedagogue_id);
       if (e.salle_double) bump(e.pedagogue_id_2);   // 2e tableau seulement si 2 groupes actifs
+    } else if (e.salle_double) {
+      // Carte 2 groupes : les élèves sont partagés entre les deux vagues → une présence
+      // sur la carte = 1 placement (pas 2), même si la personne figure dans les 2 listes.
+      new Set([...(e.eleves_ids || []), ...(e.eleves_ids_2 || [])]).forEach(bump);
     } else {
       (e.eleves_ids || []).forEach(bump);
-      if (e.salle_double) (e.eleves_ids_2 || []).forEach(bump);  // 2e groupe seulement si actif
     }
   });
   return counts;
@@ -527,6 +531,30 @@ function effElevesIds(e, group = 1) {
 function effBenevolesIds(e) {
   if (!entryShape(e).includes("benevoles")) return [];
   return e.benevoles_ids || [];
+}
+// Sujets EFFECTIFS d'un créneau : `sujet` (groupe 1 / unique) + `sujet_2` (groupe 2,
+// cartes salle 2 groupes seulement). Comme les rôles, `sujet_2` est conservé en base
+// mais ignoré dès que la carte n'est plus une salle double.
+function effSujets(e) {
+  if (!entryShape(e).includes("sujet")) return [];
+  const out = [];
+  if (e.sujet && String(e.sujet).trim()) out.push(e.sujet);
+  if (e.activite === "Pédagogie salle" && e.salle_double && e.sujet_2 && String(e.sujet_2).trim()) out.push(e.sujet_2);
+  return out;
+}
+
+// Élèves d'une carte salle 2 groupes : la liste PARTAGÉE (les mêmes toute la
+// demi-journée, présents aux deux passages) = intersection des deux groupes ;
+// les extras d'un groupe = sa liste moins la partagée (cas effectif réduit :
+// ex. le tableau du G1 rejoint le public du G2).
+function sharedEleves(e) {
+  const set2 = new Set(e.eleves_ids_2 || []);
+  return (e.eleves_ids || []).filter((id) => set2.has(id));
+}
+function extraEleves(e, group) {
+  const shared = new Set(sharedEleves(e));
+  const list = group === 2 ? (e.eleves_ids_2 || []) : (e.eleves_ids || []);
+  return list.filter((id) => !shared.has(id));
 }
 
 // Bénévoles déjà placés sur une AUTRE carte du même créneau (cartes parallèles =
@@ -704,6 +732,30 @@ async function randomFillEleves(lid, group = 1) {
   renderInto(currentContainer);
 }
 
+// Élèves d'une carte salle 2 GROUPES : un seul tirage pour la demi-journée. Les 4 tirés
+// assistent aux deux passages → ils doivent être libres sur les deux vagues (union des
+// blocages G1+G2) et remplacent les deux listes (extras compris).
+async function randomFillElevesShared(lid) {
+  const entry = entries.find((e) => e._lid === lid);
+  if (!entry) return;
+
+  const eleveCount = roleCounts("Pédagogie salle", "eleve", lid);
+  const blocked = new Set([...slotOccupants(entry, "eleves"), ...slotOccupants(entry, "eleves_2")]);
+  const eligible = stagiaires.filter((s) => !blocked.has(s.id));
+  if (eligible.length === 0) {
+    toast("Aucun stagiaire disponible sur ce créneau", "info", 3000);
+    return;
+  }
+  const ordered = shuffle(eligible).sort((a, b) => (eleveCount[a.id] || 0) - (eleveCount[b.id] || 0));
+  const picked = ordered.slice(0, 4).map((s) => s.id);
+
+  toast(picked.length < 4
+    ? `${picked.length} stagiaire(s) tiré(s) pour la demi-journée · priorité aux moins passés`
+    : "4 stagiaires tirés pour la demi-journée · priorité aux moins passés", "success", 1600);
+  await saveEntry(lid, { eleves_ids: picked, eleves_ids_2: [...picked] });
+  renderInto(currentContainer);
+}
+
 // Au tableau (groupe 1 ou 2) : priorité à qui n'a encore AUCUN passage (voiture ou tableau)
 // cette semaine, puis le moins passé au tableau, HISTORIQUE des passages Salle inclus
 // (salleStats), départagé par le compteur intra-semaine. Exclut quiconque est déjà sur le
@@ -788,10 +840,14 @@ function placementEmpties(e) {
   const out = [];
   if (e.activite === "Pédagogie salle") {
     if (e.pedagogue_id == null) out.push("t1");
-    if (!(e.eleves_ids && e.eleves_ids.length)) out.push("e1");
     if (e.salle_double) {
       if (e.pedagogue_id_2 == null) out.push("t2");
-      if (!(e.eleves_ids_2 && e.eleves_ids_2.length)) out.push("e2");
+      // Élèves partagés entre les 2 groupes : une carte double est « à remplir »
+      // seulement si AUCUN des deux groupes n'a d'élèves (un remplissage manuel
+      // partiel d'un seul groupe compte comme placé — côté modulaire respecté).
+      if (!((e.eleves_ids && e.eleves_ids.length) || (e.eleves_ids_2 && e.eleves_ids_2.length))) out.push("e");
+    } else if (!(e.eleves_ids && e.eleves_ids.length)) {
+      out.push("e1");
     }
   } else if (e.activite === "Voiture (conduite)") {
     if (!(e.eleves_ids && e.eleves_ids.length)) out.push("v");
@@ -829,8 +885,14 @@ async function autoPlaceWeek() {
   } else {
     targets.forEach((e) => {
       if (e.activite === "Pédagogie salle") {
-        bump(tab, e.pedagogue_id); (e.eleves_ids || []).forEach((id) => bump(salleEl, id));
-        if (e.salle_double) { bump(tab, e.pedagogue_id_2); (e.eleves_ids_2 || []).forEach((id) => bump(salleEl, id)); }
+        bump(tab, e.pedagogue_id);
+        if (e.salle_double) {
+          bump(tab, e.pedagogue_id_2);
+          // Élèves partagés : 1 placement par carte même si présents dans les 2 listes
+          new Set([...(e.eleves_ids || []), ...(e.eleves_ids_2 || [])]).forEach((id) => bump(salleEl, id));
+        } else {
+          (e.eleves_ids || []).forEach((id) => bump(salleEl, id));
+        }
       } else {
         (e.eleves_ids || []).forEach((id) => {
           bump(voit, id);
@@ -869,13 +931,24 @@ async function autoPlaceWeek() {
       .sort((a, b) => cmpScores(a.score, b.score))[0]?.id ?? null;
     if (pick != null) { e[pField] = pick; bump(tab, pick); } else unfilled++;
   };
-  // Les 4 élèves d'un groupe g : les moins passés en élève salle, blocages du créneau respectés.
-  const fillElevesSalle = (e, g) => {
-    const eField = g === 2 ? "eleves_ids_2" : "eleves_ids";
-    if (e[eField] && e[eField].length) return;
-    const pick = pickLeast(salleEl, slotOccupants(e, g === 2 ? "eleves_2" : "eleves"), 4);
-    e[eField] = pick; pick.forEach((id) => bump(salleEl, id));
-    unfilled += 4 - pick.length;
+  // Les 4 élèves d'une carte : carte 2 groupes = UN tirage partagé pour la demi-journée
+  // (les mêmes élèves aux deux passages → libres sur les deux vagues, écrits dans les
+  // deux listes) ; carte 1 groupe = comme avant. Une carte double partiellement remplie
+  // à la main n'est pas touchée (côté modulaire).
+  const fillElevesSalle = (e) => {
+    if (e.salle_double) {
+      if ((e.eleves_ids && e.eleves_ids.length) || (e.eleves_ids_2 && e.eleves_ids_2.length)) return;
+      const blocked = new Set([...slotOccupants(e, "eleves"), ...slotOccupants(e, "eleves_2")]);
+      const pick = pickLeast(salleEl, blocked, 4);
+      e.eleves_ids = pick; e.eleves_ids_2 = [...pick];
+      pick.forEach((id) => bump(salleEl, id));
+      unfilled += 4 - pick.length;
+    } else {
+      if (e.eleves_ids && e.eleves_ids.length) return;
+      const pick = pickLeast(salleEl, slotOccupants(e, "eleves"), 4);
+      e.eleves_ids = pick; pick.forEach((id) => bump(salleEl, id));
+      unfilled += 4 - pick.length;
+    }
   };
   // Les 2 stagiaires d'une voiture : score voiture v2 préfixé par la couverture.
   const fillVoiture = (e) => {
@@ -907,7 +980,7 @@ async function autoPlaceWeek() {
   // Passe 2 : élèves salle, une fois tous les tableaux fixés (plus aucun coin possible).
   for (const e of ordered) {
     if (e.activite !== "Pédagogie salle") continue;
-    for (const g of (e.salle_double ? [1, 2] : [1])) fillElevesSalle(e, g);
+    fillElevesSalle(e);
   }
 
   // Rééquilibrage élèves salle : écart max 1 entre stagiaires sur la semaine
@@ -918,8 +991,8 @@ async function autoPlaceWeek() {
     stagiaires.forEach((s) => { counts[s.id] = 0; });
     targets.forEach((e) => {
       if (e.activite !== "Pédagogie salle") return;
-      (effElevesIds(e, 1) || []).forEach((id) => { if (id in counts) counts[id]++; });
-      (effElevesIds(e, 2) || []).forEach((id) => { if (id in counts) counts[id]++; });
+      // Élèves partagés : présence dans les 2 groupes d'une même carte = 1 placement
+      new Set([...effElevesIds(e, 1), ...effElevesIds(e, 2)]).forEach((id) => { if (id in counts) counts[id]++; });
     });
     const ids = Object.keys(counts).map(Number);
     if (!ids.length) break;
@@ -930,15 +1003,26 @@ async function autoPlaceWeek() {
     let swapped = false;
     for (const e of targets) {
       if (e.activite !== "Pédagogie salle") continue;
-      for (const g of (e.salle_double ? [1, 2] : [1])) {
-        const field = g === 2 ? "eleves_ids_2" : "eleves_ids";
-        const list = e[field] || [];
-        if (!list.includes(maxId)) continue;
-        const blocked = slotOccupants(e, g === 2 ? "eleves_2" : "eleves");
+      if (e.salle_double) {
+        // Échange dans LES DEUX listes à la fois pour garder les élèves partagés en phase
+        const in1 = (e.eleves_ids || []).includes(maxId);
+        const in2 = (e.eleves_ids_2 || []).includes(maxId);
+        if (!in1 && !in2) continue;
+        const blocked = new Set([
+          ...(in1 ? slotOccupants(e, "eleves") : []),
+          ...(in2 ? slotOccupants(e, "eleves_2") : []),
+        ]);
         if (blocked.has(minId)) continue;
-        e[field] = list.map((id) => (id === maxId ? minId : id));
+        if (in1) e.eleves_ids = e.eleves_ids.map((id) => (id === maxId ? minId : id));
+        if (in2) e.eleves_ids_2 = e.eleves_ids_2.map((id) => (id === maxId ? minId : id));
         swapped = true;
-        break;
+      } else {
+        const list = e.eleves_ids || [];
+        if (!list.includes(maxId)) continue;
+        const blocked = slotOccupants(e, "eleves");
+        if (blocked.has(minId)) continue;
+        e.eleves_ids = list.map((id) => (id === maxId ? minId : id));
+        swapped = true;
       }
       if (swapped) break;
     }
@@ -1478,6 +1562,61 @@ function buildElevesRoleSalle(entry, lid, group) {
   return eleveRole;
 }
 
+// Bloc « Stagiaires » PARTAGÉ d'une carte salle 2 groupes : placés une fois pour la
+// demi-journée, ils assistent aux deux passages d'affilée (G1 puis G2). Écrit la même
+// liste dans les deux groupes en préservant les extras propres à chaque groupe.
+function buildElevesRoleShared(entry, lid) {
+  const current = sharedEleves(entry);
+  const eleveRole = el("div", { class: "p-lane-role eleves p-salle-shared" });
+  eleveRole.appendChild(el("span", {
+    class: "p-lane-role-label",
+    title: "Les mêmes stagiaires assistent aux deux passages (groupe 1 puis groupe 2)",
+  }, "Stagiaires"));
+  const eleveCol = el("div", { class: "p-lane-eleves-col" });
+  // Libres sur LES DEUX vagues : union des blocages élèves G1 + G2
+  const blocked = new Set([...slotOccupants(entry, "eleves"), ...slotOccupants(entry, "eleves_2")]);
+  const counts = roleCounts("Pédagogie salle", "eleve", lid);
+  const options = stagiaires.filter((s) => !blocked.has(s.id) || current.includes(s.id));
+  eleveCol.appendChild(chipsSelect(options, current, (ids) => {
+    const extras1 = extraEleves(entry, 1).filter((id) => !ids.includes(id));
+    const extras2 = extraEleves(entry, 2).filter((id) => !ids.includes(id));
+    saveEntry(lid, { eleves_ids: [...ids, ...extras1], eleves_ids_2: [...ids, ...extras2] });
+  }, counts));
+  eleveCol.appendChild(el("div", { class: "p-eleves-dice-toolbar" },
+    el("button", {
+      class: "p-dice-btn", type: "button",
+      "aria-label": "Tirer 4 stagiaires pour la demi-journée",
+      title: "Tirer 4 stagiaires pour la demi-journée (priorité aux moins passés)",
+      onClick: () => randomFillElevesShared(lid),
+    }, "🎲")
+  ));
+  eleveRole.appendChild(eleveCol);
+  return eleveRole;
+}
+
+// Zone « + élève » propre à UN groupe d'une carte salle 2 groupes (cas effectif
+// réduit : ex. le tableau du G1 rejoint le public du G2). N'affiche que les extras
+// du groupe, hors liste partagée.
+function buildElevesExtraRole(entry, lid, group) {
+  const field = group === 2 ? "eleves_ids_2" : "eleves_ids";
+  const extras = extraEleves(entry, group);
+  const role = el("div", { class: "p-lane-role eleves p-salle-extra" });
+  role.appendChild(el("span", {
+    class: "p-lane-role-label",
+    title: "Élève en plus dans ce groupe seulement (en cas d'effectif réduit)",
+  }, "+ ce groupe"));
+  const shared = sharedEleves(entry);
+  const blocked = slotOccupants(entry, group === 2 ? "eleves_2" : "eleves");
+  const counts = roleCounts("Pédagogie salle", "eleve", lid);
+  const options = stagiaires.filter((s) =>
+    (!blocked.has(s.id) && !shared.includes(s.id)) || extras.includes(s.id));
+  role.appendChild(chipsSelect(options, extras, (ids) => {
+    const sh = sharedEleves(entry);
+    saveEntry(lid, { [field]: [...sh, ...ids.filter((id) => !sh.includes(id))] });
+  }, counts, { placeholder: "+ élève…" }));
+  return role;
+}
+
 function renderLaneCell(entry) {
   const lid = entry._lid;
   const cell = el("div", {
@@ -1526,8 +1665,9 @@ function renderLaneCell(entry) {
 
   const body = el("div", { class: "p-lane-body" });
 
-  // === Sujet : mis en avant ===
-  if (shape.includes("sujet")) {
+  // === Sujet : mis en avant (sauf salle 2 groupes : un sujet PAR groupe, plus bas) ===
+  const salleDouble = entry.activite === "Pédagogie salle" && !!entry.salle_double;
+  if (shape.includes("sujet") && !salleDouble) {
     const sujetWrap = sujetMultiSelect(entry.sujet, (v) => saveEntry(lid, { sujet: v }));
     body.appendChild(el("div", { class: "p-lane-sujet" }, sujetWrap));
   }
@@ -1551,18 +1691,32 @@ function renderLaneCell(entry) {
     });
     body.appendChild(el("div", { class: "p-salle-groupes" }, toggle));
 
-    const g1 = el("div", { class: "p-lane-participants p-salle-group" });
-    if (double) g1.appendChild(el("div", { class: "p-salle-group-tag" }, "Groupe 1"));
-    g1.appendChild(buildTableauRole(entry, lid, 1));
-    g1.appendChild(buildElevesRoleSalle(entry, lid, 1));
-    body.appendChild(g1);
-
     if (double) {
+      // 2 groupes : élèves PARTAGÉS pour la demi-journée (au-dessus des groupes),
+      // puis chaque groupe = tag + au tableau + sujet propre + « + élève » (extras).
+      body.appendChild(el("div", { class: "p-lane-participants p-salle-group p-salle-shared-wrap" },
+        buildElevesRoleShared(entry, lid)));
+
+      const g1 = el("div", { class: "p-lane-participants p-salle-group" });
+      g1.appendChild(el("div", { class: "p-salle-group-tag" }, "Groupe 1"));
+      g1.appendChild(buildTableauRole(entry, lid, 1));
+      g1.appendChild(el("div", { class: "p-lane-sujet p-salle-group-sujet" },
+        sujetMultiSelect(entry.sujet, (v) => saveEntry(lid, { sujet: v }))));
+      g1.appendChild(buildElevesExtraRole(entry, lid, 1));
+      body.appendChild(g1);
+
       const g2 = el("div", { class: "p-lane-participants p-salle-group" });
       g2.appendChild(el("div", { class: "p-salle-group-tag" }, "Groupe 2"));
       g2.appendChild(buildTableauRole(entry, lid, 2));
-      g2.appendChild(buildElevesRoleSalle(entry, lid, 2));
+      g2.appendChild(el("div", { class: "p-lane-sujet p-salle-group-sujet" },
+        sujetMultiSelect(entry.sujet_2, (v) => saveEntry(lid, { sujet_2: v }))));
+      g2.appendChild(buildElevesExtraRole(entry, lid, 2));
       body.appendChild(g2);
+    } else {
+      const g1 = el("div", { class: "p-lane-participants p-salle-group" });
+      g1.appendChild(buildTableauRole(entry, lid, 1));
+      g1.appendChild(buildElevesRoleSalle(entry, lid, 1));
+      body.appendChild(g1);
     }
   } else if (shape.includes("eleves")) {
     // Voiture (conduite) : élèves seuls, avec mini-picker 1/2/3.
@@ -1980,12 +2134,12 @@ function openValiderSemaineModal() {
   entries.forEach((e) => {
     const dateIso = isoDate(addDays(monday, e.day_index));
     if (dateIso > todayIso) return;
-    parseSujet(e.sujet).forEach((titre) => {
+    effSujets(e).forEach((val) => parseSujet(val).forEach((titre) => {
       const t = themes.find((x) => x.titre === titre);
       if (!t || t.statut === "Fait") return;  // texte libre non rattaché ou déjà fait : ignoré
       const prev = themeByDate.get(t.id);
       if (!prev || dateIso < prev.date) themeByDate.set(t.id, { theme: t, date: dateIso });
-    });
+    }));
   });
   const themeCandidates = [...themeByDate.values()];
 
@@ -2378,7 +2532,7 @@ function printName(id, ambig) {
 function entryHasContent(e) {
   const hasPed = effPedagogueId(e, 1) != null || effPedagogueId(e, 2) != null;
   const hasEl = effElevesIds(e, 1).length > 0 || effElevesIds(e, 2).length > 0;
-  return nonEmpty(e.activite) || (entryShape(e).includes("sujet") && nonEmpty(e.sujet)) || nonEmpty(e.notes)
+  return nonEmpty(e.activite) || effSujets(e).length > 0 || nonEmpty(e.notes)
       || (e.prof_ids && e.prof_ids.length) || e.prof_id
       || hasPed || hasEl || effBenevolesIds(e).length > 0;
 }
@@ -2404,18 +2558,29 @@ function printEntryCell(e, ambig) {
 
   // Sujet → thèmes abordés, chacun préfixé de son NUMÉRO s'il est rattaché à un thème
   // connu (sinon texte libre sans numéro), un par ligne. (« Autre » n'a pas de sujet.)
-  if (entryShape(e).includes("sujet") && nonEmpty(e.sujet)) {
-    const box = el("div", { class: "pp-sujet" });
-    parseSujet(e.sujet).forEach((titre) => {
+  // Salle 2 groupes : sujet par groupe → chaque ligne est étiquetée G1/G2 dès que le
+  // groupe 2 a son propre sujet.
+  const addSujetLines = (box, val, tag) => {
+    parseSujet(val).forEach((titre) => {
       const t = themes.find((x) => x.titre === titre);
       const line = el("div", { class: "pp-theme" });
+      if (tag) line.appendChild(el("span", { class: "pp-theme-grp" }, tag));
       if (t && t.numero != null) {
         line.appendChild(el("span", { class: "pp-theme-num" }, String(t.numero).padStart(2, "0")));
       }
       line.appendChild(el("span", { class: "pp-theme-titre" }, titre));
       box.appendChild(line);
     });
-    cell.appendChild(box);
+  };
+  if (entryShape(e).includes("sujet")) {
+    const doubleSalle = e.activite === "Pédagogie salle" && e.salle_double;
+    const hasS2 = doubleSalle && nonEmpty(e.sujet_2);
+    if (nonEmpty(e.sujet) || hasS2) {
+      const box = el("div", { class: "pp-sujet" });
+      if (nonEmpty(e.sujet)) addSujetLines(box, e.sujet, hasS2 ? "G1" : null);
+      if (hasS2) addSujetLines(box, e.sujet_2, "G2");
+      cell.appendChild(box);
+    }
   }
 
   // Au tableau + Élèves — rôles EFFECTIFS selon la forme de l'activité (ignore une donnée
@@ -2436,9 +2601,17 @@ function printEntryCell(e, ambig) {
   };
   if (e.activite === "Pédagogie salle" && e.salle_double) {
     addTableau("Au tableau G1", effPedagogueId(e, 1));
-    addEleves("Stagiaires G1", effElevesIds(e, 1));
     addTableau("Au tableau G2", effPedagogueId(e, 2));
-    addEleves("Stagiaires G2", effElevesIds(e, 2));
+    // Élèves partagés pour la demi-journée : imprimés UNE fois si les deux groupes
+    // sont identiques, sinon par groupe (cas modulaire : extras dans un seul groupe).
+    const l1 = effElevesIds(e, 1), l2 = effElevesIds(e, 2);
+    const same = l1.length === l2.length && l1.every((id) => l2.includes(id));
+    if (same) {
+      addEleves("Stagiaires", l1);
+    } else {
+      addEleves("Stagiaires G1", l1);
+      addEleves("Stagiaires G2", l2);
+    }
   } else {
     addTableau("Au tableau", effPedagogueId(e, 1));
     addEleves("Stagiaires", effElevesIds(e, 1));

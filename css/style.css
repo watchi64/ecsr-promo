@@ -1314,6 +1314,12 @@ h3 {
   color: var(--accent);
   padding: 0.1rem 0 0.05rem;
 }
+/* Élèves partagés de la demi-journée (salle 2 groupes) : bloc au-dessus des groupes */
+.p-salle-shared-wrap { border-top: none; }
+/* Sujet propre à un groupe : sans le retrait du sujet global de la carte */
+.p-salle-group-sujet { padding: 0 0 0.1rem; }
+/* « + élève » propre à un groupe : libellé discret (cas effectif réduit) */
+.p-salle-extra .p-lane-role-label { color: var(--text-faint); text-transform: none; letter-spacing: 0; }
 .read-only .p-salle-toggle { display: none; }
 .p-lane-role {
   display: flex;
@@ -5464,6 +5470,8 @@ button.theme-date.editable.muted { color: var(--text-faint); }
   .pp-theme { display: flex; gap: 1.2mm; align-items: baseline; }
   .pp-theme + .pp-theme { margin-top: 0.3mm; }
   .pp-theme-num { flex: none; font-weight: 700; color: #6B7F4E !important; font-variant-numeric: tabular-nums; }
+  /* Étiquette de groupe (G1/G2) devant le sujet d'une salle 2 groupes */
+  .pp-theme-grp { flex: none; font-weight: 700; font-size: 7.5pt; color: #555; }
   .pp-theme-titre { min-width: 0; overflow-wrap: anywhere; }
   .pp-line { font-size: 8.3pt; line-height: 1.25; color: #333; }
   .pp-key { color: #777; }

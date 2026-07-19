@@ -107,9 +107,12 @@ function extractMyPassages(entries, metas, monday, id, joursOff) {
     if (!type) return;
     const date = addDays(monday, e.day_index);
     const prof_ids = (e.prof_ids && e.prof_ids.length) ? e.prof_ids : (e.prof_id ? [e.prof_id] : []);
+    // Salle 2 groupes : le tableau du groupe 2 anime le sujet du groupe 2 (sujet_2)
+    const sujet = (type === "Salle" && e.salle_double && e.pedagogue_id_2 === id)
+      ? (e.sujet_2 || null) : (e.sujet || null);
     out.push({
       iso: isoDate(date), date, day_index: e.day_index, half_day: e.half_day,
-      slot: e.slot ?? 0, type, sujet: e.sujet || null,
+      slot: e.slot ?? 0, type, sujet,
       horaire: horaireFor(metas, e.day_index, e.half_day),
       profs: profNamesFor(prof_ids, e.prof_autre),
     });
