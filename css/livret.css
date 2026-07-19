@@ -228,6 +228,39 @@ td.lv-center .lv-f { text-align: center; }
 }
 .lv-datepick button.lv-dp-today { background: #6B7F4E; border-color: #6B7F4E; color: #fff; }
 
+/* Auto-complétion des noms de formateurs / évaluateurs (édition uniquement). */
+.lv-namepick {
+  position: absolute;
+  z-index: 40;
+  top: 100%;
+  left: 0;
+  min-width: 45mm;
+  max-height: 46mm;
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid #c9c9c4;
+  border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
+  padding: 4px;
+}
+.lv-namepick-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  font-size: 10pt;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.lv-namepick-item:hover { background: #f0f0ea; }
+
+/* Affordance : les champs Nom de visa avec auto-complétion sont cliquables. */
+.lv-edit .lv-name[contenteditable] { cursor: pointer; }
+
 /* --- Impression --- */
 #livret-print { display: none; }
 

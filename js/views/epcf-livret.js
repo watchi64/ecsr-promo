@@ -9,10 +9,10 @@
 // Rôles : formateur/admin = liste des stagiaires + remplissage ; stagiaire =
 // consultation de SON livret en lecture seule (imposé par la RLS).
 
-import { listStagiaires, listEpcfLivrets, getEpcfLivret, upsertEpcfLivret } from "../db.js?v=20260719l";
-import { el, clear, displayStagiaire, compareByNom, formatDate, toast } from "../utils.js?v=20260719l";
-import { isAdmin, isProf, getProfile } from "../auth-admin.js?v=20260719l";
-import { getCurrentWho } from "../identity.js?v=20260719l";
+import { listStagiaires, listProfs, listEpcfLivrets, getEpcfLivret, upsertEpcfLivret } from "../db.js?v=20260719m";
+import { el, clear, displayStagiaire, compareByNom, formatDate, toast } from "../utils.js?v=20260719m";
+import { isAdmin, isProf, getProfile } from "../auth-admin.js?v=20260719m";
+import { getCurrentWho } from "../identity.js?v=20260719m";
 
 // ---------------------------------------------------------------------------
 // Gabarit du document (contenu officiel, ne pas modifier sans nouveau modèle)
@@ -111,7 +111,7 @@ function resultIntro(prefix) {
 
 function formateurRow(k) {
   return `<tr style="height:10mm">
-    <td class="lv-i lv-s12">Nom</td><td class="lv-s6" style="vertical-align:middle">►</td><td>${f(`${k}.nom`, PH_NOM)}</td>
+    <td class="lv-i lv-s12">Nom</td><td class="lv-s6" style="vertical-align:middle">►</td><td>${f(`${k}.nom`, PH_NOM, "lv-name")}</td>
     <td class="lv-i lv-s12">Date</td><td class="lv-s6" style="vertical-align:middle">►</td><td class="lv-center">${f(`${k}.date`, PH_DATE)}</td>
     <td></td></tr>`;
 }
@@ -295,7 +295,8 @@ export function fillData(doc, data) {
 // Rend le document éditable : champs contenteditable en texte brut, cases à
 // cocher cliquables (groupes exclusifs via data-x). onChange est appelé à
 // chaque modification. Exporté pour le banc d'essai (_preview_livret.html).
-export function wireDocEditing(doc, onChange) {
+export function wireDocEditing(doc, onChange, opts = {}) {
+  const names = Array.isArray(opts.names) ? opts.names : [];
   doc.querySelectorAll(".lv-f[data-k]").forEach((n) => {
     n.contentEditable = "plaintext-only";
     if (n.contentEditable !== "plaintext-only") n.contentEditable = "true";
@@ -363,6 +364,43 @@ export function wireDocEditing(doc, onChange) {
     if (getComputedStyle(cell).position === "static") cell.style.position = "relative";
     cell.appendChild(pick);
   });
+
+  // Auto-complétion des noms de formateurs / évaluateurs : au clic sur un champ
+  // « Nom » de visa, liste des formateurs (filtrée par ce qui est déjà tapé) ;
+  // clic = remplit. La saisie libre reste possible (évaluateur externe).
+  const norm = (s) => String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
+  const closeNamePick = () => doc.querySelectorAll(".lv-namepick").forEach((n) => n.remove());
+  function openNamePick(field) {
+    closeNamePick();
+    if (!names.length) return;
+    const q = norm(field.textContent);
+    const matches = names.filter((n) => norm(n).includes(q));
+    // Rien à proposer, ou le champ contient déjà exactement un nom de la liste.
+    if (!matches.length || (matches.length === 1 && norm(matches[0]) === q)) return;
+    const pick = el("div", { class: "lv-namepick" });
+    matches.forEach((name) => {
+      // mousedown (pas click) : sélectionne avant que le blur du champ ne ferme la liste.
+      pick.appendChild(el("button", { type: "button", class: "lv-namepick-item",
+        onMousedown: (e) => {
+          e.preventDefault();
+          field.textContent = name;
+          closeNamePick();
+          onChange();
+        } }, name));
+    });
+    const cell = field.parentElement;
+    if (getComputedStyle(cell).position === "static") cell.style.position = "relative";
+    cell.appendChild(pick);
+  }
+  doc.addEventListener("click", (e) => {
+    const field = e.target.closest?.(".lv-f.lv-name[data-k]");
+    if (field) { closePicker(); openNamePick(field); }
+    else if (!e.target.closest?.(".lv-namepick")) closeNamePick();
+  });
+  doc.addEventListener("input", (e) => {
+    const field = e.target.closest?.(".lv-f.lv-name[data-k]");
+    if (field) openNamePick(field);
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -394,7 +432,7 @@ function refreshPrintClone(doc) {
   clone.classList.remove("lv-screen", "lv-edit");
   clone.querySelectorAll("[contenteditable]").forEach((n) => n.removeAttribute("contenteditable"));
   clone.querySelectorAll("[tabindex]").forEach((n) => n.removeAttribute("tabindex"));
-  clone.querySelectorAll(".lv-datepick").forEach((n) => n.remove());
+  clone.querySelectorAll(".lv-datepick, .lv-namepick").forEach((n) => n.remove());
   c.appendChild(clone);
   document.body.classList.add("livret-printable");
 }
@@ -432,6 +470,7 @@ function getLivretDocNode() { return currentDocNode; }
 
 let stagiaires = [];
 let livretsIndex = [];   // [{stagiaire_id, updated_at}] pour les statuts de liste
+let profNames = [];      // noms des formateurs, pour l'auto-complétion des visas
 
 export async function renderEpcfLivret(container, opts = {}) {
   clear(container);
@@ -458,10 +497,14 @@ export async function renderEpcfLivret(container, opts = {}) {
     return;
   }
 
-  const [stagiairesData, livretsData] = await Promise.all([listStagiaires(), listEpcfLivrets()]);
+  const [stagiairesData, livretsData, profsData] = await Promise.all([
+    listStagiaires(), listEpcfLivrets(), listProfs(),
+  ]);
   if (opts.isActive && !opts.isActive()) return;
   stagiaires = stagiairesData.slice().sort(compareByNom);
   livretsIndex = livretsData;
+  profNames = (profsData || []).map((p) => p.nom).filter(Boolean)
+    .sort((a, b) => a.localeCompare(b, "fr"));
   clear(container);
   showListe(container);
 }
@@ -549,7 +592,7 @@ function showDoc(container, stagiaire, row, { readOnly, back } = {}) {
   }
   fillData(doc, { ...defaults, ...data });
 
-  if (!readOnly) wireDocEditing(doc, () => scheduleSave());
+  if (!readOnly) wireDocEditing(doc, () => scheduleSave(), { names: profNames });
 
   // Mise à l'échelle écran : le document (210mm ≈ 794px) est réduit pour tenir
   // dans la colonne, verrou de hauteur pour ne pas laisser de vide dessous.

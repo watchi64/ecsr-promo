@@ -6,7 +6,7 @@
 <head>
   <meta charset="utf-8" />
   <title>Banc d'essai — Livret EPCF</title>
-  <link rel="stylesheet" href="css/livret.css?v=20260718d" />
+  <link rel="stylesheet" href="css/livret.css?v=20260719m" />
   <style>
     body { margin: 20px; background: #e8e8e4; font-family: sans-serif; }
     .bench-bar { margin-bottom: 14px; display: flex; gap: 10px; align-items: center; }
@@ -29,14 +29,14 @@
   </div>
   <div id="host"></div>
   <script type="module">
-    import { buildDocHTML, fillData, collectData, wireDocEditing } from "./js/views/epcf-livret.js?v=20260718d";
+    import { buildDocHTML, fillData, collectData, wireDocEditing } from "./js/views/epcf-livret.js?v=20260719m";
     const host = document.getElementById("host");
     const doc = document.createElement("div");
     doc.className = "lv-doc lv-screen lv-edit";
     doc.innerHTML = buildDocHTML();
     host.appendChild(doc);
     window.__changes = 0;
-    wireDocEditing(doc, () => { window.__changes++; });
+    wireDocEditing(doc, () => { window.__changes++; }, { names: ["Hocine KARA", "Raphaël MARTIN", "Romain DURAND", "Fanny LEROY"] });
 
     const SAMPLE = {
       organisme: "ECF BOUSCAREN",
