@@ -4,9 +4,9 @@
  * Multi-réponses : une question peut avoir plusieurs bonnes réponses.
  * Juste = ensemble coché == ensemble des bonnes réponses (toutes les bonnes, aucune fausse).
  */
-import { el, clear, toast, formatDate } from "../utils.js?v=20260719b";
-import { icon } from "../icons.js?v=20260719b";
-import { getQcmFull, insertQcmAttempt, getMyProfile, getMyExamAttempt } from "../db.js?v=20260719b";
+import { el, clear, toast, formatDate } from "../utils.js?v=20260719d";
+import { icon } from "../icons.js?v=20260719d";
+import { getQcmFull, insertQcmAttempt, getMyProfile, getMyExamAttempt } from "../db.js?v=20260719d";
 
 function shuffle(arr) {
   const a = arr.slice();
