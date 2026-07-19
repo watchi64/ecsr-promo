@@ -125,9 +125,11 @@ function formateursTable(prefix, titre) {
   </table>`;
 }
 
-// Fiche de résultats d'une activité-type : 2 pages, comme le document Word
-// officiel (la coupure tombe à « Compétences à réévaluer », les zones libres
-// du gabarit sont dimensionnées pour ça).
+// Fiche de résultats d'une activité-type : 2 pages.
+// Page A : en-tête + compétences + tableau d'évaluations + résultat (cases).
+// Page B : entièrement dédiée aux zones à rédiger (points d'attention +
+// compétences à réévaluer) → grande hauteur de saisie (retour utilisateur
+// 19/07 : sous le tableau, les points d'attention manquaient de place).
 function fichePages(pageA, num, titre, competences, prefix, opts = {}) {
   const a = `<div class="lv-page">
     <table style="width:172.5mm">
@@ -140,13 +142,13 @@ function fichePages(pageA, num, titre, competences, prefix, opts = {}) {
     <div class="lv-s10 lv-just" style="margin-top:2mm;line-height:1.5">${competences.map((c) => `<p>${c}</p>`).join("")}</div>
     <div style="margin-top:5mm">${evalTable(prefix, opts.labels || ["1", "2", "3"], opts.extraRows || 0, opts.rowMm || 7)}</div>
     ${resultIntro(prefix)}
-    <p class="lv-b lv-s11" style="margin-top:4mm">Si le candidat n’a pas satisfait aux critères issus des référentiels, notez ci-dessous les points d’attention et précisions éventuelles.</p>
-    ${fblock(`${prefix}.attention`, opts.h1 ?? 50)}
     ${foot(pageA)}
   </div>`;
   const b = `<div class="lv-page">
-    <p style="margin-top:4mm"><span class="lv-b lv-s11">Compétences à réévaluer : </span><span class="lv-i" style="color:#7F7F7F">(Voir évaluations complémentaires ci-après.)</span></p>
-    ${fblock(`${prefix}.reeval`, opts.h2 ?? 52)}
+    <p class="lv-b lv-s11" style="margin-top:4mm">Si le candidat n’a pas satisfait aux critères issus des référentiels, notez ci-dessous les points d’attention et précisions éventuelles.</p>
+    ${fblock(`${prefix}.attention`, opts.h1 ?? 105)}
+    <p style="margin-top:3mm"><span class="lv-b lv-s11">Compétences à réévaluer : </span><span class="lv-i" style="color:#7F7F7F">(Voir évaluations complémentaires ci-après.)</span></p>
+    ${fblock(`${prefix}.reeval`, opts.h2 ?? 62)}
     ${formateursTable(prefix, "Formateur(s) évaluateur(s)")}
     ${foot(pageA + 1)}
   </div>`;
@@ -224,12 +226,13 @@ export function buildDocHTML() {
     ${foot(2)}
   </div>`;
 
-  const p34 = fichePages(3, 1, AT1_TITRE, AT1_COMPETENCES, "at1", { h1: 50, h2: 52 });
+  const p34 = fichePages(3, 1, AT1_TITRE, AT1_COMPETENCES, "at1");
   const p5 = complPage(5, "at1c");
   // AT2 : le gabarit officiel comporte 4 rangées de cases supplémentaires sur le
-  // bloc 3 (particularité du document ministère, reproduite à l'identique) et une
-  // zone « à réévaluer » plus haute (80mm dans le Word officiel).
-  const p67 = fichePages(6, 2, AT2_TITRE, AT2_COMPETENCES, "at2", { extraRows: 4, rowMm: 5.5, h1: 50, h2: 80 });
+  // bloc 3 (particularité du document ministère, reproduite à l'identique). Le
+  // tableau retrouve des lignes normales : les zones à rédiger sont désormais en
+  // page B, donc la page A n'est plus contrainte.
+  const p67 = fichePages(6, 2, AT2_TITRE, AT2_COMPETENCES, "at2", { extraRows: 4 });
   const p8 = complPage(8, "at2c", { labels: ["1", "2", "4"] });
 
   const p9 = `<div class="lv-page">
