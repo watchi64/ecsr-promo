@@ -62,6 +62,13 @@
   font-family: Arial, Helvetica, sans-serif;
   color: #404040;
   width: 210mm;
+  /* Impose l'impression des aplats (bandeaux magenta, cartouches gris, croix
+     des cases dessinées en background-image) sur TOUS les supports, même quand
+     l'option « Graphiques d'arrière-plan » du navigateur est décochée (défaut
+     Chrome/Edge/Firefox/iOS). Sans ça : bandeaux blancs et cases cochées
+     invisibles. Propriété héritée → couvre tous les descendants du document. */
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
 }
 .lv-page {
   position: relative;
@@ -268,6 +275,11 @@ td.lv-center .lv-f { text-align: center; }
   /* Quand le livret est ouvert, on n'imprime QUE lui. */
   body.livret-printable > *:not(#livret-print) { display: none !important; }
   body.livret-printable #livret-print { display: block !important; }
+  /* Sécurité moteur : force les aplats sur chaque élément imprimé. */
+  #livret-print, #livret-print * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
   #livret-print .lv-page { page-break-after: always; box-shadow: none; margin: 0; }
   #livret-print .lv-page:last-child { page-break-after: auto; }
   /* Les affordances d'édition ne s'impriment jamais */
