@@ -1,9 +1,9 @@
-import { listThemes, updateTheme, addTheme, deleteTheme, listQcmIndex, getQcmFull, publishQcm, unpublishQcm, updateExamConfig, listExamAttempts, resetExamAttempt, listMyQcmAttempts, getMyProfile, listEvaluations, getOrCreateQcm, saveQcmQuestion, deleteQcmQuestion, reorderQcmQuestions, uploadQcmImage } from "../db.js?v=20260719h";
-import { el, clear, isoDate, formatDate, toast, debounce } from "../utils.js?v=20260719h";
-import { icon } from "../icons.js?v=20260719h";
-import { isAdmin, getAdminEmail, isFounder, getViewAs, isProf, isStagiaire } from "../auth-admin.js?v=20260719h";
-import { recordUndo } from "../undo.js?v=20260719h";
-import { openQcmEntrainement, openQcmExamen } from "./qcm.js?v=20260719h";
+import { listThemes, updateTheme, addTheme, deleteTheme, listQcmIndex, getQcmFull, publishQcm, unpublishQcm, updateExamConfig, listExamAttempts, resetExamAttempt, listMyQcmAttempts, getMyProfile, listEvaluations, getOrCreateQcm, saveQcmQuestion, deleteQcmQuestion, reorderQcmQuestions, uploadQcmImage } from "../db.js?v=20260719j";
+import { el, clear, isoDate, formatDate, toast, debounce } from "../utils.js?v=20260719j";
+import { icon } from "../icons.js?v=20260719j";
+import { isAdmin, getAdminEmail, isFounder, getViewAs, isProf, isStagiaire } from "../auth-admin.js?v=20260719j";
+import { recordUndo } from "../undo.js?v=20260719j";
+import { openQcmEntrainement, openQcmExamen } from "./qcm.js?v=20260719j";
 
 let themes = [];
 let qcmByTheme = new Map();  // theme_id -> { id, nb_questions, published, ... }
