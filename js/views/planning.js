@@ -675,11 +675,12 @@ function slotOccupants(entry, exceptField) {
   return ids;
 }
 
-// === Score de priorité voiture (v2) ===
-// Aux points d'appel, le tuple est PRÉFIXÉ par le critère « couverture » (0 = pas encore de
-// passage voiture OU tableau cette semaine → prioritaire) : chacun a au moins 1 passage
-// hebdo dans la mesure du possible. Ordre lexicographique croissant du tuple final :
-//  [0] couverture : déclasse qui a déjà ≥1 passage (voiture élève ou tableau) cette semaine ;
+// === Score de priorité voiture (v2, cascade 2026-07-19) ===
+// Aux points d'appel, le tuple est PRÉFIXÉ par DEUX critères de couverture : d'abord la
+// couverture GLOBALE (0 = rien eu du tout cette semaine → prioritaire), puis la couverture
+// DU TYPE (0 = pas encore de voiture cette semaine). Objectif : 1 salle ET 1 voiture
+// chacun, dans la mesure du possible. Ordre lexicographique croissant du tuple final :
+//  [0-1] couvertures (globale puis voiture), cf. ci-dessus ;
 //  [1] plafond souple : déclasse (sans exclure) qui a déjà 2 placements voiture cette semaine ;
 //  [2] anti jours consécutifs : déclasse qui a déjà une voiture le même jour, la veille
 //      ou le lendemain (voitDays = jours de placement voiture par stagiaire) ;
@@ -725,20 +726,23 @@ function cmpScores(a, b) {
   return 0;
 }
 
-// Placements générateurs de passage (voiture élève + tableau) de la semaine, par stagiaire.
-// Exclut jours off et la carte cible. Sert au critère « au moins 1 passage chacun ».
-function weekPassageCounts(excludeLid) {
-  const counts = {};
-  const bump = (id) => { if (id != null) counts[id] = (counts[id] || 0) + 1; };
+// Placements générateurs de passage de la semaine, PAR TYPE (salle-tableau / voiture-
+// élève), par stagiaire. Exclut jours off et la carte cible. Un marqué absent COMPTE
+// (tour consommé — il reste dans son champ de rôle) ; son remplaçant ne compte pas
+// (passage bonus — il n'apparaît que dans entry.absences). Sert à la cascade :
+// 1) rien eu cette semaine → 2) type manquant → 3) retard historique sur le type.
+function weekPassageCountsByType(excludeLid) {
+  const salle = {}, voiture = {};
+  const bump = (m, id) => { if (id != null) m[id] = (m[id] || 0) + 1; };
   entries.forEach((e) => {
     if (e._lid === excludeLid || dayIsOff(e.day_index)) return;
-    if (e.activite === ACT_VOITURE) (e.eleves_ids || []).forEach(bump);
+    if (e.activite === ACT_VOITURE) (e.eleves_ids || []).forEach((id) => bump(voiture, id));
     else if (e.activite === "Pédagogie salle") {
-      bump(e.pedagogue_id);
-      if (e.salle_double) bump(e.pedagogue_id_2);
+      bump(salle, e.pedagogue_id);
+      if (e.salle_double) bump(salle, e.pedagogue_id_2);
     }
   });
-  return counts;
+  return { salle, voiture };
 }
 
 // Élèves salle (groupe 1 ou 2) : priorise les moins passés, SANS plafond bloquant (re-placement
@@ -791,18 +795,20 @@ async function randomFillElevesShared(lid) {
   renderInto(currentContainer);
 }
 
-// Au tableau (groupe 1 ou 2) : priorité à qui n'a encore AUCUN passage (voiture ou tableau)
-// cette semaine, puis le moins passé au tableau, HISTORIQUE des passages Salle inclus
-// (salleStats), départagé par le compteur intra-semaine. Exclut quiconque est déjà sur le
-// même créneau (élèves, autre tableau, carte parallèle).
+// Au tableau (groupe 1 ou 2) — cascade (spec 2026-07-19) : priorité à qui n'a encore
+// AUCUN passage cette semaine, puis à qui n'a pas encore eu de TABLEAU cette semaine,
+// puis le moins passé au tableau, HISTORIQUE des passages Salle inclus (salleStats,
+// Absences comptées), départagé par le compteur intra-semaine. Exclut quiconque est
+// déjà sur le même créneau (élèves, autre tableau, carte parallèle).
 async function randomFillPedagogue(lid, group = 1) {
   const entry = entries.find((e) => e._lid === lid);
   if (!entry) return;
 
   const field = group === 2 ? "pedagogue_id_2" : "pedagogue_id";
   const pedaCount = roleCounts("Pédagogie salle", "pedagogue", lid);
-  const passCounts = weekPassageCounts(lid);
-  const couvert = (id) => (passCounts[id] || 0) > 0 ? 1 : 0;
+  const { salle: weekSalle, voiture: weekVoitP } = weekPassageCountsByType(lid);
+  const couvertGlobal = (id) => ((weekSalle[id] || 0) + (weekVoitP[id] || 0)) > 0 ? 1 : 0;
+  const couvertSalle = (id) => (weekSalle[id] || 0) > 0 ? 1 : 0;
   const blocked = slotOccupants(entry, group === 2 ? "pedagogue_2" : "pedagogue");
   const eligible = stagiaires.filter((s) => !blocked.has(s.id));
   if (eligible.length === 0) {
@@ -810,7 +816,7 @@ async function randomFillPedagogue(lid, group = 1) {
     return;
   }
   const ordered = shuffle(eligible)
-    .map((s) => ({ s, score: [couvert(s.id), (salleStats[s.id] || 0) + (pedaCount[s.id] || 0), pedaCount[s.id] || 0] }))
+    .map((s) => ({ s, score: [couvertGlobal(s.id), couvertSalle(s.id), (salleStats[s.id] || 0) + (pedaCount[s.id] || 0), pedaCount[s.id] || 0] }))
     .sort((a, b) => cmpScores(a.score, b.score));
   const picked = ordered[0].s;
   await saveEntry(lid, { [field]: picked.id });
@@ -842,10 +848,11 @@ async function randomFillVoitureEleves(lid, count) {
     toast("Aucun stagiaire disponible sur ce créneau", "info", 3000);
     return;
   }
-  const passCounts = weekPassageCounts(lid);
-  const couvert = (id) => (passCounts[id] || 0) > 0 ? 1 : 0;
+  const { salle: weekSalle, voiture: weekVoitAll } = weekPassageCountsByType(lid);
+  const couvertGlobal = (id) => ((weekSalle[id] || 0) + (weekVoitAll[id] || 0)) > 0 ? 1 : 0;
+  const couvertVoiture = (id) => (weekVoitAll[id] || 0) > 0 ? 1 : 0;
   const picked = shuffle(eligible)
-    .map((s) => ({ id: s.id, score: [couvert(s.id), ...voitureScore(s.id, entry, voitAvecEleve, voit, voitDays)] }))
+    .map((s) => ({ id: s.id, score: [couvertGlobal(s.id), couvertVoiture(s.id), ...voitureScore(s.id, entry, voitAvecEleve, voit, voitDays)] }))
     .sort((a, b) => cmpScores(a.score, b.score))
     .slice(0, count).map((x) => x.id);
 
@@ -950,9 +957,12 @@ async function autoPlaceWeek() {
       .sort((a, b) => (countMap[a.id] || 0) - (countMap[b.id] || 0))
       .slice(0, n).map((s) => s.id);
 
-  // Couverture : 0 = pas encore de passage (voiture élève ou tableau) cette semaine → prioritaire.
-  // Favorise « au moins 1 passage chacun » avant de resservir qui que ce soit.
-  const couvert = (id) => ((voit[id] || 0) + (tab[id] || 0)) > 0 ? 1 : 0;
+  // Cascade de couverture (spec 2026-07-19) : 1) rien eu cette semaine → prioritaire ;
+  // 2) pas encore eu CE type cette semaine ; 3) retard historique sur le type (critères
+  // suivants du score). Objectif : 1 salle ET 1 voiture chacun, dans la mesure du possible.
+  const couvertGlobal = (id) => ((voit[id] || 0) + (tab[id] || 0)) > 0 ? 1 : 0;
+  const couvertTab = (id) => (tab[id] || 0) > 0 ? 1 : 0;
+  const couvertVoit = (id) => (voit[id] || 0) > 0 ? 1 : 0;
 
   let unfilled = 0;
 
@@ -962,7 +972,7 @@ async function autoPlaceWeek() {
     const pField = g === 2 ? "pedagogue_id_2" : "pedagogue_id";
     if (e[pField] != null) return;
     const pick = shuffle(stagiaires.filter((s) => !slotOccupants(e, g === 2 ? "pedagogue_2" : "pedagogue").has(s.id)))
-      .map((s) => ({ id: s.id, score: [couvert(s.id), (salleStats[s.id] || 0) + (tab[s.id] || 0), tab[s.id] || 0] }))
+      .map((s) => ({ id: s.id, score: [couvertGlobal(s.id), couvertTab(s.id), (salleStats[s.id] || 0) + (tab[s.id] || 0), tab[s.id] || 0] }))
       .sort((a, b) => cmpScores(a.score, b.score))[0]?.id ?? null;
     if (pick != null) { e[pField] = pick; bump(tab, pick); } else unfilled++;
   };
@@ -998,7 +1008,7 @@ async function autoPlaceWeek() {
   const fillVoiture = (e) => {
     if (e.eleves_ids && e.eleves_ids.length) return;
     const pick = shuffle(stagiaires.filter((s) => !slotOccupants(e, "eleves").has(s.id)))
-      .map((s) => ({ id: s.id, score: [couvert(s.id), ...voitureScore(s.id, e, voitAvecEleve, voit, voitDays)] }))
+      .map((s) => ({ id: s.id, score: [couvertGlobal(s.id), couvertVoit(s.id), ...voitureScore(s.id, e, voitAvecEleve, voit, voitDays)] }))
       .sort((a, b) => cmpScores(a.score, b.score))
       .slice(0, 2).map((x) => x.id);
     e.eleves_ids = pick;
@@ -2437,9 +2447,15 @@ function buildRulesNote() {
     li("Une personne au plus une fois par vague. Une carte « 1 groupe » occupe tout le créneau."),
   ));
 
-  body.appendChild(el("p", {}, b("Places voiture (priorité, dans l'ordre) :")));
+  body.appendChild(el("p", {}, b("L'objectif de la semaine : 1 passage salle ET 1 passage voiture chacun, dans la mesure du possible.")));
   body.appendChild(el("ul", {},
-    li("D'abord ceux qui n'ont encore ", b("aucun passage"), " cette semaine (chacun au moins une place voiture ou tableau)."),
+    li("D'abord ceux qui n'ont encore ", b("rien eu du tout"), " cette semaine."),
+    li("Puis ceux à qui il manque ", b("ce type"), " de passage (ex. déjà passés au tableau mais pas en voiture)."),
+    li("Puis les plus ", b("en retard"), " sur ce type (historique des semaines passées compté)."),
+  ));
+
+  body.appendChild(el("p", {}, b("Places voiture (départage, dans l'ordre) :")));
+  body.appendChild(el("ul", {},
     li("Maximum ", b("2 voitures par semaine"), " par stagiaire, et jamais deux jours d'affilée."),
     li("Priorité à qui a fait le ", b("moins de séances avec un élève bénévole"), " (on rattrape le retard)."),
     li("On favorise un bénévole dont le niveau correspond à ce que le stagiaire veut travailler (fiche « Mon suivi »)."),
@@ -2449,7 +2465,13 @@ function buildRulesNote() {
 
   body.appendChild(el("p", {}, b("Au tableau (salle) :")));
   body.appendChild(el("ul", {},
-    li("D'abord ceux qui n'ont encore aucun passage cette semaine, puis les moins passés au tableau (retard des semaines passées compté)."),
+    li("Même cascade : rien eu cette semaine → pas encore de tableau cette semaine → les moins passés au tableau (retard des semaines passées compté)."),
+  ));
+
+  body.appendChild(el("p", {}, b("Absences :")));
+  body.appendChild(el("ul", {},
+    li(b("Dernière minute / pas prévenu"), " : marque la chip absente (⊘) sur la carte. Le passage ", b("compte quand même"), " pour l'absent (son tour est consommé) ; le remplaçant fait un passage ", b("bonus"), " qui ne lui sera pas décompté la semaine suivante."),
+    li(b("Prévenu à l'avance"), " : remplace simplement le nom sur la carte — le remplaçant fait un passage normal, l'absent garde sa priorité."),
   ));
 
   body.appendChild(el("p", {}, b("Stagiaires qui font les élèves (salle) :")));
@@ -2462,7 +2484,7 @@ function buildRulesNote() {
   body.appendChild(el("ul", {},
     li(b("🎲 Placer la semaine"), " : remplit les tableaux d'abord, puis les élèves (demande confirmation, annulable par Ctrl+Z)."),
     li(b("🧹 Vider les placements"), " : retire tous les stagiaires de la semaine, mais garde activités, formateurs, sujets, notes et élèves bénévoles."),
-    li(b("Valider la semaine"), " : le planning fait foi — tout est enregistré comme « effectué ». Une absence ou un cas particulier ? Corrige ensuite dans l'onglet Passages."),
+    li(b("Valider la semaine"), " : le planning fait foi — prévu non marqué = « effectué », marqué ⊘ = « absence » (comptée) + « bonus » pour le remplaçant. Un cas particulier ? Corrige ensuite dans l'onglet Passages."),
   ));
 
   body.appendChild(el("p", { class: "planning-rules-foot" },
