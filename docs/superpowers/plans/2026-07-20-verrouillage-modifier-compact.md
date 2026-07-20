@@ -643,6 +643,32 @@ git commit -m "feat(planning): vue compacte des semaines verrouillées (vide mas
 
 ---
 
+### Task 8: Ergonomie du mode édition (volet 4, ajout validé le 20/07)
+
+**Files:**
+- Modify: `js/views/planning.js` — `renderInto` (pill, liseré, hint), niveau module (Échap)
+- Modify: `css/style.css` — `.p-edit-pill`, `.p-editing .p-days`
+- Modify: `_harness_stub.js` — carte salle 2 groupes (preuve note vide masquée en compact)
+
+**Interfaces:** consume `canEditWeek()`, `isLocked()`, `editMode`, `toast` (utils, déjà importé).
+
+- [ ] **Step 1: Pill flottante + liseré + hint dans `renderInto`** — après le toggle `p-compact` :
+  `container.classList.toggle("p-editing", editing)` ; si `editing`, appendre au conteneur
+  `div.p-edit-pill` (« ✏️ Édition en cours » + bouton « ✓ Terminer » → `editMode = false; renderInto`).
+  Sur la zone `wrap` (`.p-days`) : si `admin && !editing`, listener click → toast throttlé
+  (module `let lastHintAt = 0`, 5000 ms) avec message selon `isLocked(semaineLundi)`.
+- [ ] **Step 2: Échap** — listener `keydown` module unique (drapeau `escListenerSet`) :
+  `key === "Escape" && editMode && currentContainer?.isConnected && !document.querySelector(".modal-backdrop")`
+  et cible hors input/textarea/select → `editMode = false; renderInto(currentContainer)`.
+- [ ] **Step 3: CSS** — pill fixed bottom-center (fond accent, texte clair, ombre douce,
+  `@media print { display: none }`), liseré `.p-editing .p-days { outline: 2px dashed …accent
+  translucide…; outline-offset: 6px; border-radius }`.
+- [ ] **Step 4: Banc** — pill présente en édition seulement ; liseré idem ; toast au clic en
+  lecture seule (2 messages selon verrou, throttle vérifié) ; Échap sort du mode mais pas
+  modale ouverte ; stagiaire : ni pill ni toast ; carte salle double verrouillée : « + note »
+  vide absente.
+- [ ] **Step 5: Commit** `feat(planning): ergonomie du mode édition (pill flottante, liseré, hint, Échap)`
+
 ## Self-review (fait à l'écriture du plan)
 
 - **Couverture spec** : volet 1 → Tasks 2, 4 (badge/Déverrouiller), 5 (modale + Ctrl+Z), 3 (backstop) ; volet 2 → Tasks 2, 3, 4 ; volet 3 → Task 6 ; les 8 scénarios de test → Task 7. Cas limites : double onglet = comportement assumé par la spec (pas de code) ; semaine future = condition existante du bouton Valider conservée (Task 4).

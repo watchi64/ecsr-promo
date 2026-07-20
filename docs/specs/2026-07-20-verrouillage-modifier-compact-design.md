@@ -165,6 +165,26 @@ Le look actuel (cartes jour, bandeaux MATIN/APRÈS-MIDI, chips) est conservé ; 
 
 ---
 
+## Volet 4 — Ergonomie du mode édition (ajout validé le 20/07, après implémentation des volets 1-3)
+
+1. **Pill flottante** : en mode édition uniquement, pastille `position: fixed` centrée en bas
+   d'écran — « ✏️ Édition en cours » + bouton « ✓ Terminer ». Masquée à l'impression,
+   z-index sous les modales. Absente en lecture seule et sur semaine verrouillée.
+2. **Liseré du mode** : classe `p-editing` sur le conteneur quand `canEditWeek()` ; contour
+   pointillé accent discret autour de `.p-days`. Lecture seule : aucun changement visuel.
+3. **Hint au clic en lecture seule** (admin uniquement) : clic sur la zone des jours → toast
+   throttlé (max 1 / 5 s) — semaine normale : « Semaine en lecture seule — clique ✏️ Modifier
+   pour éditer » ; semaine verrouillée : « Semaine validée — clique Déverrouiller pour
+   corriger ». Rien côté stagiaire.
+4. **Échap** : en mode édition, Échap revient en lecture seule — sauf modale ouverte
+   (`.modal-backdrop` présent) ou focus dans un champ de saisie. Listener module unique,
+   inactif si la vue Planning n'est pas montée (`currentContainer.isConnected`).
+
+Précision utilisateur (20/07) : une note vide (« + note ») ne doit pas apparaître sur une
+semaine validée — déjà couvert par le masquage des champs vides du volet 3 (`.p-lane-notes`
+vide → `is-empty`), y compris sur les cartes salle 2 groupes ; reste disponible en mode
+édition.
+
 ## Hors périmètre
 
 - Aucune modification du schéma de base, des RLS, ni des autres vues (`passages.js`, `notes.js`…).
