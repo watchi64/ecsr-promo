@@ -15,6 +15,7 @@ import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260719p";
 import { recordUndo } from "../undo.js?v=20260719p";
 import { getCurrentWho } from "../identity.js?v=20260719p";
 import { openBenevolesPanel } from "./benevoles.js?v=20260719p";
+import { meilleurResultat } from "../passage-rules.js?v=20260719p";
 
 let stagiaires = [];
 let profs = [];
@@ -2142,26 +2143,38 @@ function openValiderSemaineModal() {
   const todayIso = isoDate(new Date());
   const activeIds = new Set(stagiaires.map((s) => s.id));
 
-  // 1. Candidats depuis le planning, jours écoulés uniquement (date du jour <= aujourd'hui)
+  // 1. Candidats depuis le planning, jours écoulés uniquement (date du jour <= aujourd'hui).
+  // Un prévu marqué absent → candidat « Absence » (remplacant_id renseigné) + candidat
+  // « Bonus » pour le remplaçant s'il y en a un. Prévu non marqué → « Effectué ».
   const raw = [];
   const profOf = (e) => (e.prof_ids && e.prof_ids.length ? e.prof_ids[0] : (e.prof_id ?? null));
+  const pushCand = (stagiaire_id, type, dateIso, day_index, prof_id, avec_eleve, e) => {
+    if (!activeIds.has(stagiaire_id)) return;
+    const abs = absenceOf(e, stagiaire_id);
+    if (abs) {
+      raw.push({ stagiaire_id, type, date: dateIso, day_index, prof_id, avec_eleve,
+                 resultat: "Absence", remplacant_id: abs.rid ?? null });
+      if (abs.rid != null && activeIds.has(abs.rid)) {
+        raw.push({ stagiaire_id: abs.rid, type, date: dateIso, day_index, prof_id, avec_eleve,
+                   resultat: "Bonus", remplacant_id: null });
+      }
+    } else {
+      raw.push({ stagiaire_id, type, date: dateIso, day_index, prof_id, avec_eleve,
+                 resultat: "Effectué", remplacant_id: null });
+    }
+  };
   entries.forEach((e) => {
     const dateIso = isoDate(addDays(monday, e.day_index));
     if (dateIso > todayIso) return;
     if (dayIsOff(e.day_index)) return;   // jour désactivé/férié : aucun passage validé
+    const prof = profOf(e);
     if (e.activite === "Pédagogie salle") {
-      if (e.pedagogue_id && activeIds.has(e.pedagogue_id)) {
-        raw.push({ stagiaire_id: e.pedagogue_id, type: "Salle", date: dateIso, day_index: e.day_index, prof_id: profOf(e), avec_eleve: null });
-      }
+      if (e.pedagogue_id) pushCand(e.pedagogue_id, "Salle", dateIso, e.day_index, prof, null, e);
       // 2e tableau (si la carte a 2 groupes) = un 2e passage Salle
-      if (e.salle_double && e.pedagogue_id_2 && activeIds.has(e.pedagogue_id_2)) {
-        raw.push({ stagiaire_id: e.pedagogue_id_2, type: "Salle", date: dateIso, day_index: e.day_index, prof_id: profOf(e), avec_eleve: null });
-      }
+      if (e.salle_double && e.pedagogue_id_2) pushCand(e.pedagogue_id_2, "Salle", dateIso, e.day_index, prof, null, e);
     } else if (e.activite === "Voiture (conduite)") {
       const avecEleve = (e.benevoles_ids || []).length > 0;
-      (e.eleves_ids || []).forEach((id) => {
-        if (activeIds.has(id)) raw.push({ stagiaire_id: id, type: "Voiture", date: dateIso, day_index: e.day_index, prof_id: profOf(e), avec_eleve: avecEleve });
-      });
+      (e.eleves_ids || []).forEach((id) => pushCand(id, "Voiture", dateIso, e.day_index, prof, avecEleve, e));
     }
   });
 
@@ -2179,6 +2192,10 @@ function openValiderSemaineModal() {
     if (prev) {
       if (c.avec_eleve === true) prev.avec_eleve = true;
       if (prev.prof_id == null) prev.prof_id = c.prof_id;
+      // Fusion des résultats (grain jour) : Effectué > Absence > Bonus — un vrai
+      // passage n'est jamais écrasé par une absence ni un bonus du même jour.
+      const best = meilleurResultat(prev.resultat, c.resultat);
+      if (best !== prev.resultat) { prev.resultat = best; prev.remplacant_id = c.remplacant_id ?? null; }
       return;
     }
     seenMap.set(k, c);
@@ -2237,9 +2254,12 @@ function renderValiderModal(toCreate, already, existKey, themeCandidates) {
   const themeState = (themeCandidates || []).map(() => ({ include: true }));
   const list = el("div", { class: "valider-list" });
 
-  // Récapitulatif compact en lecture seule : le planning fait foi, tous les
-  // candidats sont enregistrés en résultat "Effectué" sans étape de confirmation.
-  const headText = [el("strong", {}, toCreate.length + " passage(s)"), " seront enregistrés (résultat : Effectué)."];
+  // Récapitulatif compact en lecture seule : le planning fait foi (absences marquées
+  // sur les cartes incluses), sans étape de confirmation par passage.
+  const nbAbs = toCreate.filter((c) => c.resultat === "Absence").length;
+  const nbBonus = toCreate.filter((c) => c.resultat === "Bonus").length;
+  const headText = [el("strong", {}, toCreate.length + " passage(s)"), " seront enregistrés."];
+  if (nbAbs || nbBonus) headText.push(` Dont ${nbAbs} ❌ absence(s) (comptées) et ${nbBonus} ⭐ bonus (non comptés).`);
   if (already.length) headText.push(" " + already.length + " déjà enregistré(s).");
   list.appendChild(el("p", { class: "valider-summary-head" }, ...headText));
 
@@ -2252,7 +2272,8 @@ function renderValiderModal(toCreate, already, existKey, themeCandidates) {
     const byDay = new Map(); // day_index -> noms
     ofType.forEach((c) => {
       if (!byDay.has(c.day_index)) byDay.set(c.day_index, []);
-      byDay.get(c.day_index).push(nameOf(c.stagiaire_id));
+      byDay.get(c.day_index).push(nameOf(c.stagiaire_id)
+        + (c.resultat === "Absence" ? " ❌" : c.resultat === "Bonus" ? " ⭐" : ""));
     });
 
     const section = el("div", { class: "valider-section" },
@@ -2323,7 +2344,7 @@ function renderValiderModal(toCreate, already, existKey, themeCandidates) {
     };
 
     toCreate.forEach((c) => {
-      addRow(c.stagiaire_id, c.type, c.date, "Effectué", null, c.prof_id, c.avec_eleve);
+      addRow(c.stagiaire_id, c.type, c.date, c.resultat || "Effectué", c.remplacant_id || null, c.prof_id, c.avec_eleve);
     });
 
     const themesToMark = (themeCandidates || []).filter((tc, i) => themeState[i].include);
@@ -2383,7 +2404,7 @@ function renderValiderModal(toCreate, already, existKey, themeCandidates) {
   const modal = el("div", { class: "modal valider-modal" },
     el("h3", {}, "Valider la semaine"),
     el("p", { class: "muted", style: "margin:0 0 0.6rem; font-size:0.85rem;" },
-      "Passages déduits du planning des jours écoulés — le planning fait foi. Une absence ou un cas particulier ? Corrige ensuite dans l'onglet Passages."),
+      "Passages déduits du planning des jours écoulés — le planning fait foi. Une absence de dernière minute ? Marque-la sur la carte (⊘) AVANT de valider : elle sera enregistrée « Absence » (comptée) et son remplaçant en « Bonus » (non compté)."),
     list,
     el("div", { class: "modal-actions" }, cancelBtn, saveBtn),
   );
