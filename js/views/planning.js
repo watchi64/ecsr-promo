@@ -1432,10 +1432,16 @@ function chipsSelect(allStagiaires, currentIds, onChange, counts, opts = {}) {
 // tous les stagiaires (moins l'absent), tri par priorité, badge « occupé » à titre
 // d'avertissement AU LIEU d'une exclusion dure — c'est le remplacement de dernière
 // minute, la personne est souvent déjà dans la salle (cas Céline, 17/07).
-function renderAbsenceRows(entry, lid) {
+// group (salle uniquement) : ne rend que l'absence du tableau de CE groupe, pour que la
+// ligne vive dans le bloc de son groupe (retour utilisateur 20/07).
+function renderAbsenceRows(entry, lid, group = null) {
   const wrap = el("div", { class: "abs-rows" });
   const roleIds = passageRoleIds(entry);
-  const absList = entryAbsences(entry).filter((a) => roleIds.includes(a.sid));
+  let absList = entryAbsences(entry).filter((a) => roleIds.includes(a.sid));
+  if (group != null && entry.activite === "Pédagogie salle") {
+    const pid = group === 2 ? (entry.pedagogue_id_2 ?? null) : (entry.pedagogue_id ?? null);
+    absList = absList.filter((a) => a.sid === pid);
+  }
   if (!absList.length) return wrap;
   const isSalle = entry.activite === "Pédagogie salle";
   const counts = isSalle ? roleCounts("Pédagogie salle", "pedagogue", lid)
@@ -1764,6 +1770,7 @@ function renderLaneCell(entry) {
       g1.appendChild(el("div", { class: "p-lane-sujet p-salle-group-sujet" },
         sujetMultiSelect(entry.sujet, (v) => saveEntry(lid, { sujet: v }))));
       g1.appendChild(buildTableauRole(entry, lid, 1));
+      g1.appendChild(renderAbsenceRows(entry, lid, 1));
       g1.appendChild(buildElevesRoleSalle(entry, lid, 1));
       body.appendChild(g1);
 
@@ -1772,11 +1779,13 @@ function renderLaneCell(entry) {
       g2.appendChild(el("div", { class: "p-lane-sujet p-salle-group-sujet" },
         sujetMultiSelect(entry.sujet_2, (v) => saveEntry(lid, { sujet_2: v }))));
       g2.appendChild(buildTableauRole(entry, lid, 2));
+      g2.appendChild(renderAbsenceRows(entry, lid, 2));
       g2.appendChild(buildElevesRoleSalle(entry, lid, 2));
       body.appendChild(g2);
     } else {
       const g1 = el("div", { class: "p-lane-participants p-salle-group" });
       g1.appendChild(buildTableauRole(entry, lid, 1));
+      g1.appendChild(renderAbsenceRows(entry, lid, 1));
       g1.appendChild(buildElevesRoleSalle(entry, lid, 1));
       body.appendChild(g1);
     }
@@ -1856,8 +1865,8 @@ function renderLaneCell(entry) {
     body.appendChild(participants);
   }
 
-  // === Remplacements d'absents (une fois par carte, salle comme voiture) ===
-  body.appendChild(renderAbsenceRows(entry, lid));
+  // === Remplacements d'absents — voiture (en salle, chaque groupe rend les siens) ===
+  if (entry.activite === ACT_VOITURE) body.appendChild(renderAbsenceRows(entry, lid));
 
   // === Notes : discret, en bas ===
   if (shape.includes("notes")) {
