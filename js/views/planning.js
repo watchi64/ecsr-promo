@@ -46,6 +46,15 @@ async function setWeekLock(lundi, locked) {
   await setSetting("semaines_verrouillees", JSON.stringify([...lockedWeeks].sort()));
 }
 
+// Un undo (Ctrl+Z) déclenche un remount complet de la vue (hashchange émis par undo.js).
+// Sans ce drapeau one-shot, le remount retomberait en lecture seule en plein travail :
+// tout undo du planning préserve donc le mode courant (et l'undo de validation peut
+// restaurer editMode = true avant le remount).
+let keepEditModeOnce = false;
+function recordPlanningUndo(label, undoFn) {
+  recordUndo(label, async () => { keepEditModeOnce = true; await undoFn(); });
+}
+
 // Défauts horaires si pas de meta en DB
 const DEFAULT_HALF_META = {
   matin: { start_time: "09:00", end_time: "12:30", pause_start: "10:45", pause_minutes: 20 },
@@ -334,7 +343,7 @@ async function swapEntries(lidA, lidB, opts = {}) {
     await persistBoth();
     renderInto(currentContainer);
     toast(opts.toast || "Cartes échangées · Ctrl+Z pour annuler", "success", 2000);
-    recordUndo(opts.undoLabel || "échange de cartes", async () => {
+    recordPlanningUndo(opts.undoLabel || "échange de cartes", async () => {
       Object.assign(a, beforeA);
       Object.assign(b, beforeB);
       await persistBoth();
@@ -594,7 +603,7 @@ async function setAbsence(lid, sid, action, rid = null) {
   if (action === "replace") next = next.map((a) => (a.sid === sid ? { ...a, rid } : a));
   await saveEntry(lid, { absences: next });
   renderInto(currentContainer);
-  recordUndo("marquage d'absence", async () => {
+  recordPlanningUndo("marquage d'absence", async () => {
     await saveEntry(lid, { absences: beforeAbs });
     renderInto(currentContainer);
   });
@@ -1111,7 +1120,7 @@ async function autoPlaceWeek() {
     await Promise.all(changed.map((e) => upsertPlanningEntry(entryUpsertPayload(e))));
     renderInto(currentContainer);
     toast(`Semaine placée${unfilled ? ` · ${unfilled} place(s) non remplie(s)` : ""} · Ctrl+Z pour annuler`, "success", 3000);
-    recordUndo("placement auto de la semaine", async () => {
+    recordPlanningUndo("placement auto de la semaine", async () => {
       before.forEach(({ e, snap }) => Object.assign(e, snap));
       await Promise.all(changed.map((e) => upsertPlanningEntry(entryUpsertPayload(e))));
       renderInto(currentContainer);
@@ -1145,7 +1154,7 @@ async function clearWeekPlacements() {
     await Promise.all(targets.map((e) => upsertPlanningEntry(entryUpsertPayload(e))));
     renderInto(currentContainer);
     toast("Placements vidés · Ctrl+Z pour annuler", "success", 3000);
-    recordUndo("vidage des placements", async () => {
+    recordPlanningUndo("vidage des placements", async () => {
       before.forEach(({ e, snap }) => Object.assign(e, snap));
       await Promise.all(targets.map((e) => upsertPlanningEntry(entryUpsertPayload(e))));
       renderInto(currentContainer);
@@ -2162,7 +2171,7 @@ async function disableDay(d) {
     await loadPlanning();
     renderInto(currentContainer);
     toast(JOURS[d] + " désactivé · Ctrl+Z pour annuler", "success", 2400);
-    recordUndo("jour désactivé", async () => { await deleteJourOff(semaineLundi, d); await loadPlanning(); renderInto(currentContainer); });
+    recordPlanningUndo("jour désactivé", async () => { await deleteJourOff(semaineLundi, d); await loadPlanning(); renderInto(currentContainer); });
   } catch (e) { toast("Erreur : " + e.message, "error"); }
 }
 
@@ -2362,6 +2371,14 @@ function renderValiderModal(toCreate, already, existKey, themeCandidates) {
     });
   }
 
+  // Verrou : coché d'office si le vendredi de la semaine est écoulé (semaine finie),
+  // décoché si validation en milieu de semaine (jours restants encore à planifier).
+  const fridayIso = isoDate(addDays(new Date(semaineLundi + "T00:00:00"), 4));
+  const lockCb = el("input", { type: "checkbox", id: "valider-lock-cb" });
+  lockCb.checked = isoDate(new Date()) > fridayIso;
+  const lockRow = el("label", { class: "valider-lock-row", for: "valider-lock-cb" },
+    lockCb, " 🔒 Verrouiller la semaine après enregistrement");
+
   const cancelBtn = el("button", { class: "btn ghost", onClick: () => backdrop.remove() }, "Annuler");
   const saveBtn = el("button", { class: "btn primary" }, icon.check(), "Enregistrer");
 
@@ -2422,15 +2439,29 @@ function renderValiderModal(toCreate, already, existKey, themeCandidates) {
       if (themesToMark.length) parts.push(themesToMark.length + " thème(s)");
       toast(parts.join(" + ") + " enregistré(s) · Ctrl+Z pour annuler", "success", 2800);
 
-      recordUndo("validation de la semaine", async () => {
+      // Verrouillage éventuel AVANT le recordUndo (wantLock capturé par la closure d'undo)
+      const wantLock = lockCb.checked;
+      if (wantLock) {
+        await setWeekLock(semaineLundi, true);
+        editMode = false;
+      }
+
+      recordPlanningUndo("validation de la semaine", async () => {
         if (insertedIds.length) await deletePassagesBatch(insertedIds);
         for (const u of themeUndo) {
           await updateTheme(u.theme.id, { statut: u.prev.statut, date_fait: u.prev.date_fait });
           u.theme.statut = u.prev.statut;
           u.theme.date_fait = u.prev.date_fait;
         }
+        // Le verrou suit la validation qu'il accompagne (spec 2026-07-20) ; retour en
+        // édition (le remount hashchange d'undo.js re-rend la vue juste après).
+        if (wantLock) {
+          await setWeekLock(semaineLundi, false);
+          editMode = true;
+        }
       });
       backdrop.remove();
+      if (wantLock) renderInto(currentContainer);   // bascule badge + read-only + compact
     } catch (e) {
       console.error(e);
       saveBtn.disabled = false;
@@ -2447,6 +2478,7 @@ function renderValiderModal(toCreate, already, existKey, themeCandidates) {
     el("p", { class: "muted", style: "margin:0 0 0.6rem; font-size:0.85rem;" },
       "Passages déduits du planning des jours écoulés — le planning fait foi. Une absence de dernière minute ? Marque-la sur la carte (⊘) AVANT de valider : elle sera enregistrée « Absence » (comptée) et son remplaçant en « Bonus » (non compté)."),
     list,
+    lockRow,
     el("div", { class: "modal-actions" }, cancelBtn, saveBtn),
   );
 
@@ -3053,7 +3085,10 @@ export async function renderPlanning(container) {
   }
   autresProfsMem = parseAutresProfs(await getSetting("profs_autres"));
   semaineLundi = (await getSetting("current_week_lundi")) || isoDate(getMonday(new Date()));
-  editMode = false;   // la vue s'ouvre toujours en lecture seule (spec 2026-07-20)
+  // La vue s'ouvre toujours en lecture seule (spec 2026-07-20) — SAUF au remount
+  // provoqué par un Ctrl+Z (hashchange d'undo.js) : on préserve le mode en cours.
+  if (keepEditModeOnce) keepEditModeOnce = false;
+  else editMode = false;
   await loadPlanning();
   renderInto(container);
 }

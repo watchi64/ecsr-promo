@@ -730,6 +730,8 @@ h3 {
 }
 .p-unlock-btn { opacity: 0.75; }
 .p-unlock-btn:hover { opacity: 1; }
+.valider-lock-row { display: flex; align-items: center; gap: 0.45rem;
+  margin: 0.6rem 0 0; font-size: 0.88rem; cursor: pointer; user-select: none; }
 
 /* Layout en cards par jour — empilées verticalement, lanes en parallèle horizontales */
 
