@@ -733,6 +733,17 @@ h3 {
 .valider-lock-row { display: flex; align-items: center; gap: 0.45rem;
   margin: 0.6rem 0 0; font-size: 0.88rem; cursor: pointer; user-select: none; }
 
+/* ============================================================
+   Vue compacte (semaine verrouillée) : le vide disparaît,
+   les espacements se resserrent — spec 2026-07-20.
+   ============================================================ */
+.p-compact .is-empty { display: none !important; }
+.p-compact .p-lane-cell { padding: 0.4rem 0.55rem; }
+.p-compact .p-slots-wrap { gap: 0.35rem; }
+.p-compact .p-day-content { gap: 0.4rem; }
+.p-compact .p-half { padding-bottom: 0.3rem; }
+.p-compact .p-lane-body { gap: 0.25rem; }
+
 /* Layout en cards par jour — empilées verticalement, lanes en parallèle horizontales */
 
 .p-days {

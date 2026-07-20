@@ -11,7 +11,7 @@ import { loadTheme } from "./theme-switcher.js?v=20260720b";
 import { renderHome } from "./views/home.js?v=20260720b";
 import { renderDashboard } from "./views/dashboard.js?v=20260720b";
 import { renderMonSuivi } from "./views/mon-suivi.js?v=20260720b";
-import { renderPlanning, teardownPrintTarget } from "./views/planning.js?v=20260720b";
+import { renderPlanning, teardownPrintTarget, resetPlanningEditMode } from "./views/planning.js?v=20260720b";
 import { teardownLivretPrint } from "./views/epcf-livret.js?v=20260720b";
 import { renderNotes } from "./views/notes.js?v=20260720b";
 import { renderRessources } from "./views/ressources.js?v=20260720b";
@@ -161,9 +161,15 @@ const routes = {
   config:     renderConfig,
 };
 
+let lastRoute = null;
+
 async function navigate() {
   const hash = location.hash.replace(/^#\//, "") || "dashboard";
   const route = routes[hash] ? hash : "dashboard";
+  // En QUITTANT le planning (pas sur un simple remount : undo, refresh d'auth…),
+  // le mode édition retombe — la vue se rouvrira toujours en lecture seule.
+  if (lastRoute === "planning" && route !== "planning") resetPlanningEditMode();
+  lastRoute = route;
   document.querySelectorAll(".tab").forEach((t) => {
     const active = t.dataset.route === route;
     t.classList.toggle("active", active);
@@ -177,6 +183,7 @@ async function navigate() {
   // retirait jamais → « .read-only select { pointer-events: none } » gelait ensuite
   // le tri des Notes, les filtres, etc. Le planning re-pose la classe à son rendu.
   view.classList.remove("read-only");
+  view.classList.remove("p-compact");
   // En quittant le planning, on retire sa cible d'impression (re-montée par renderPlanning).
   teardownPrintTarget();
   // Idem pour le livret EPCF (re-monté à l'ouverture d'un livret).

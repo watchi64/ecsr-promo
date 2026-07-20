@@ -46,14 +46,13 @@ async function setWeekLock(lundi, locked) {
   await setSetting("semaines_verrouillees", JSON.stringify([...lockedWeeks].sort()));
 }
 
-// Un undo (Ctrl+Z) déclenche un remount complet de la vue (hashchange émis par undo.js).
-// Sans ce drapeau one-shot, le remount retomberait en lecture seule en plein travail :
-// tout undo du planning préserve donc le mode courant (et l'undo de validation peut
-// restaurer editMode = true avant le remount).
-let keepEditModeOnce = false;
-function recordPlanningUndo(label, undoFn) {
-  recordUndo(label, async () => { keepEditModeOnce = true; await undoFn(); });
-}
+// La vue est remontée intégralement par le routeur sur bien plus que la navigation :
+// hashchange d'undo.js après un Ctrl+Z, événements d'auth supabase (refresh de token,
+// refocus d'onglet) via onAdminChange. Un reset d'editMode au montage éjecterait donc
+// du mode édition en plein travail. Le reset se fait au contraire en QUITTANT la vue
+// (main.js appelle resetPlanningEditMode) et au changement de semaine — mêmes
+// garanties, sans faux positifs.
+export function resetPlanningEditMode() { editMode = false; }
 
 // Défauts horaires si pas de meta en DB
 const DEFAULT_HALF_META = {
@@ -343,7 +342,7 @@ async function swapEntries(lidA, lidB, opts = {}) {
     await persistBoth();
     renderInto(currentContainer);
     toast(opts.toast || "Cartes échangées · Ctrl+Z pour annuler", "success", 2000);
-    recordPlanningUndo(opts.undoLabel || "échange de cartes", async () => {
+    recordUndo(opts.undoLabel || "échange de cartes", async () => {
       Object.assign(a, beforeA);
       Object.assign(b, beforeB);
       await persistBoth();
@@ -603,7 +602,7 @@ async function setAbsence(lid, sid, action, rid = null) {
   if (action === "replace") next = next.map((a) => (a.sid === sid ? { ...a, rid } : a));
   await saveEntry(lid, { absences: next });
   renderInto(currentContainer);
-  recordPlanningUndo("marquage d'absence", async () => {
+  recordUndo("marquage d'absence", async () => {
     await saveEntry(lid, { absences: beforeAbs });
     renderInto(currentContainer);
   });
@@ -1120,7 +1119,7 @@ async function autoPlaceWeek() {
     await Promise.all(changed.map((e) => upsertPlanningEntry(entryUpsertPayload(e))));
     renderInto(currentContainer);
     toast(`Semaine placée${unfilled ? ` · ${unfilled} place(s) non remplie(s)` : ""} · Ctrl+Z pour annuler`, "success", 3000);
-    recordPlanningUndo("placement auto de la semaine", async () => {
+    recordUndo("placement auto de la semaine", async () => {
       before.forEach(({ e, snap }) => Object.assign(e, snap));
       await Promise.all(changed.map((e) => upsertPlanningEntry(entryUpsertPayload(e))));
       renderInto(currentContainer);
@@ -1154,7 +1153,7 @@ async function clearWeekPlacements() {
     await Promise.all(targets.map((e) => upsertPlanningEntry(entryUpsertPayload(e))));
     renderInto(currentContainer);
     toast("Placements vidés · Ctrl+Z pour annuler", "success", 3000);
-    recordPlanningUndo("vidage des placements", async () => {
+    recordUndo("vidage des placements", async () => {
       before.forEach(({ e, snap }) => Object.assign(e, snap));
       await Promise.all(targets.map((e) => upsertPlanningEntry(entryUpsertPayload(e))));
       renderInto(currentContainer);
@@ -1912,6 +1911,33 @@ function renderLaneCell(entry) {
   }
 
   cell.appendChild(body);
+
+  // === Vue compacte (semaine verrouillée) : marque les blocs sans valeur — la CSS
+  // .p-compact .is-empty les masque (mêmes règles que le rendu print). Détection sur
+  // le DOM rendu : les displays vides portent .chips-placeholder / .person-placeholder,
+  // les sujets vides n'ont aucune .sujet-chip. ===
+  if (isLocked(semaineLundi)) {
+    const isEmptyDisplay = (root) => {
+      if (!root) return true;
+      if (root.querySelector(".chip, .person-value, .sujet-chip")) return false;
+      return !!root.querySelector(".chips-placeholder, .person-placeholder")
+          || !root.textContent.trim();
+    };
+    cell.querySelectorAll(".p-lane-sujet").forEach((elx) => {
+      if (isEmptyDisplay(elx)) elx.classList.add("is-empty");
+    });
+    cell.querySelectorAll(".p-lane-role").forEach((elx) => {
+      const inner = elx.querySelector(".person-select, .chips-select") || elx;
+      if (isEmptyDisplay(inner)) elx.classList.add("is-empty");
+    });
+    cell.querySelectorAll(".p-lane-notes").forEach((elx) => {
+      const input = elx.querySelector("input");
+      if (!input || !input.value.trim()) elx.classList.add("is-empty");
+    });
+    cell.querySelectorAll(".p-lane-prof-wrap").forEach((elx) => {
+      if (isEmptyDisplay(elx)) elx.classList.add("is-empty");
+    });
+  }
   return cell;
 }
 
@@ -1933,8 +1959,11 @@ function renderSlotRow(d, half, row, maxLanes) {
 
   row.lanes.forEach((entry) => {
     const cell = renderLaneCell(entry);
-    // Place la cellule dans la colonne correspondant à son lane index
-    cell.style.gridColumn = String((entry.lane ?? 0) + 1);
+    // Place la cellule dans la colonne correspondant à son lane index. En vue compacte
+    // (semaine verrouillée), les lanes vides sont filtrées en amont et _laneRender
+    // re-numérote les restantes pour resserrer la grille (entry.lane reste intact).
+    const laneIdx = (isLocked(semaineLundi) ? entry._laneRender : entry.lane) ?? entry.lane ?? 0;
+    cell.style.gridColumn = String(laneIdx + 1);
     lanes.appendChild(cell);
   });
 
@@ -2017,10 +2046,20 @@ function renderDayCard(d, monday) {
     section.appendChild(headBtn);
 
     const slotsWrap = el("div", { class: "p-slots-wrap" });
-    const rows = rowsFor(d, half.key);
+    let rows = rowsFor(d, half.key);
+    const compact = isLocked(semaineLundi);
+    if (compact) {
+      // Vue compacte : seules les lanes avec contenu, puis les créneaux non vides.
+      // Re-numérotation via _laneRender (champ de RENDU — ne jamais muter entry.lane,
+      // qui est persisté) pour que la carte pleine reprenne toute la largeur.
+      rows = rows
+        .map((r) => ({ ...r, lanes: r.lanes.filter(entryHasContent) }))
+        .filter((r) => r.lanes.length > 0);
+      rows.forEach((r) => r.lanes.forEach((e, i) => { e._laneRender = i; }));
+    }
     // Calcule combien de "colonnes parallèles" maximum dans cette demi-journée
     // = max(lane index + 1) parmi toutes les entries de la demi-journée
-    const allLanes = rows.flatMap((r) => r.lanes.map((e) => e.lane ?? 0));
+    const allLanes = rows.flatMap((r) => r.lanes.map((e) => (compact ? e._laneRender : e.lane) ?? 0));
     const maxLanes = Math.max(1, ...allLanes.map((l) => l + 1));
     rows.forEach((row) => slotsWrap.appendChild(renderSlotRow(d, half.key, row, maxLanes)));
 
@@ -2034,7 +2073,8 @@ function renderDayCard(d, monday) {
     addSuiteBtn.appendChild(document.createTextNode("À la suite"));
     slotsWrap.appendChild(addSuiteBtn);
 
-    section.appendChild(slotsWrap);
+    // Vue compacte : une demi-journée sans contenu se réduit à son bandeau seul.
+    if (!compact || rows.length > 0) section.appendChild(slotsWrap);
     content.appendChild(section);
   });
   card.appendChild(content);
@@ -2171,7 +2211,7 @@ async function disableDay(d) {
     await loadPlanning();
     renderInto(currentContainer);
     toast(JOURS[d] + " désactivé · Ctrl+Z pour annuler", "success", 2400);
-    recordPlanningUndo("jour désactivé", async () => { await deleteJourOff(semaineLundi, d); await loadPlanning(); renderInto(currentContainer); });
+    recordUndo("jour désactivé", async () => { await deleteJourOff(semaineLundi, d); await loadPlanning(); renderInto(currentContainer); });
   } catch (e) { toast("Erreur : " + e.message, "error"); }
 }
 
@@ -2446,7 +2486,7 @@ function renderValiderModal(toCreate, already, existKey, themeCandidates) {
         editMode = false;
       }
 
-      recordPlanningUndo("validation de la semaine", async () => {
+      recordUndo("validation de la semaine", async () => {
         if (insertedIds.length) await deletePassagesBatch(insertedIds);
         for (const u of themeUndo) {
           await updateTheme(u.theme.id, { statut: u.prev.statut, date_fait: u.prev.date_fait });
@@ -2567,6 +2607,8 @@ function renderInto(container) {
   // Lecture seule dès qu'on n'est pas en édition explicite (stagiaire, admin hors
   // mode Modifier, ou semaine verrouillée) — la CSS .read-only fait le gros du travail.
   container.classList.toggle("read-only", !editing);
+  // Vue compacte : automatique sur semaine verrouillée, pour tous (admin et stagiaires).
+  container.classList.toggle("p-compact", isLocked(semaineLundi));
 
   const monday = new Date(semaineLundi + "T00:00:00");
   const longLabel = monday.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
@@ -3085,10 +3127,6 @@ export async function renderPlanning(container) {
   }
   autresProfsMem = parseAutresProfs(await getSetting("profs_autres"));
   semaineLundi = (await getSetting("current_week_lundi")) || isoDate(getMonday(new Date()));
-  // La vue s'ouvre toujours en lecture seule (spec 2026-07-20) — SAUF au remount
-  // provoqué par un Ctrl+Z (hashchange d'undo.js) : on préserve le mode en cours.
-  if (keepEditModeOnce) keepEditModeOnce = false;
-  else editMode = false;
   await loadPlanning();
   renderInto(container);
 }
