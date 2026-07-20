@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20260719p";
+import { compteDansEquite } from "./passage-rules.js?v=20260719p";
 
 // fetch avec timeout : sans ça, une requête peut rester pendue indéfiniment
 // (réseau mobile instable) → "Chargement" infini. Avec, elle échoue proprement après 15s.
@@ -1039,7 +1040,8 @@ export async function upsertFiche({ stagiaire_id, souhaits, besoins, updated_by_
 }
 
 // Agrégats voiture par stagiaire pour le placement : nb de séances avec élève,
-// répartition par formateur. Les absences/reports ne comptent pas comme exposition.
+// répartition par formateur. Règle 2026-07-19 : une ABSENCE COMPTE (tour consommé,
+// y compris avec_eleve si le créneau avait un bénévole) ; Bonus/Report ne comptent pas.
 // avec_eleve NULL (historique inconnu) ne compte PAS comme « avec élève ».
 export async function getVoitureAggregats() {
   const { data, error } = await supabase
@@ -1049,7 +1051,7 @@ export async function getVoitureAggregats() {
   if (error) throw error;
   const map = {};
   data.forEach((p) => {
-    if (p.resultat === "Absence" || p.resultat === "Report") return;
+    if (!compteDansEquite(p.resultat)) return;
     const m = map[p.stagiaire_id] || (map[p.stagiaire_id] = { total: 0, avecEleve: 0, byProf: {}, lastDate: null });
     m.total++;
     if (p.avec_eleve === true) m.avecEleve++;
@@ -1060,7 +1062,7 @@ export async function getVoitureAggregats() {
 }
 
 // Agrégats Salle (passages au tableau) par stagiaire, pour le tirage des tableaux.
-// Absences/reports exclus, comme pour la voiture.
+// Règle 2026-07-19 : une Absence COMPTE (tour consommé) ; Bonus/Report non.
 export async function getSalleAggregats() {
   const { data, error } = await supabase
     .from("passages")
@@ -1069,7 +1071,7 @@ export async function getSalleAggregats() {
   if (error) throw error;
   const map = {};
   data.forEach((p) => {
-    if (p.resultat === "Absence" || p.resultat === "Report") return;
+    if (!compteDansEquite(p.resultat)) return;
     map[p.stagiaire_id] = (map[p.stagiaire_id] || 0) + 1;
   });
   return map;
