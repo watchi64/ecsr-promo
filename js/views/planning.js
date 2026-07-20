@@ -2583,38 +2583,64 @@ function renderInto(container) {
     dateInput, prevBtn, nextBtn, todayBtn,
     el("span", { style: "flex:1" }),
   );
-  // Banque d'élèves bénévoles (voiture) : gestion réservée aux formateurs/admins
-  if (admin) {
-    const bnvBtn = el("button", { class: "btn small",
-      title: "Banque d'élèves bénévoles (voiture) : fiches, dispos, téléphones",
-      onClick: () => openBenevolesPanel({ onClose: async () => {
-        benevoles = await loadBenevoles();
+  // Banque d'élèves bénévoles : accessible aussi en lecture seule (consulter une fiche
+  // ou un téléphone ne doit pas obliger à passer en édition) — mais pas sur semaine
+  // verrouillée (barre réduite au badge + Déverrouiller, design validé).
+  const bnvBtn = () => el("button", { class: "btn small",
+    title: "Banque d'élèves bénévoles (voiture) : fiches, dispos, téléphones",
+    onClick: () => openBenevolesPanel({ onClose: async () => {
+      benevoles = await loadBenevoles();
+      renderInto(currentContainer);
+    }}) }, "Élèves bénévoles");
+
+  const locked = isLocked(semaineLundi);
+  if (admin && locked) {
+    // — Semaine verrouillée : badge + Déverrouiller (l'édition passe par le déverrouillage)
+    weekBar.appendChild(el("span", { class: "p-locked-badge", title: "Semaine validée et verrouillée" },
+      "✓ Semaine validée"));
+    weekBar.appendChild(el("button", { class: "btn small ghost p-unlock-btn",
+      title: "Retirer le verrou et passer en édition",
+      onClick: async () => {
+        await setWeekLock(semaineLundi, false);
+        editMode = true;   // déverrouiller = on vient corriger → édition directe
         renderInto(currentContainer);
-      }}) }, "Élèves bénévoles");
-    weekBar.appendChild(bnvBtn);
-  }
-  // Placer la semaine : tirage global (tableaux + élèves de toute la semaine), admin uniquement
-  if (admin) {
+      } }, "Déverrouiller"));
+  } else if (admin && !editing) {
+    // — Lecture seule (défaut) : Modifier + banque bénévoles
+    const editBtn = el("button", { class: "btn small primary",
+      title: "Passer la semaine affichée en mode édition",
+      onClick: () => { editMode = true; renderInto(currentContainer); } });
+    editBtn.appendChild(document.createTextNode("✏️ Modifier"));
+    weekBar.appendChild(editBtn);
+    weekBar.appendChild(bnvBtn());
+  } else if (admin && editing) {
+    // — Mode édition : Terminer + les 4 boutons habituels
+    const doneBtn = el("button", { class: "btn small",
+      title: "Terminer l'édition (retour en lecture seule)",
+      onClick: () => { editMode = false; renderInto(currentContainer); } }, "✓ Terminer");
+    weekBar.appendChild(doneBtn);
+    weekBar.appendChild(bnvBtn());
     const placeBtn = el("button", { class: "btn small",
       title: "Placer automatiquement tableaux et stagiaires de toute la semaine (priorité aux moins passés)",
       onClick: () => autoPlaceWeek() });
     placeBtn.appendChild(document.createTextNode("🎲 Placer la semaine"));
     weekBar.appendChild(placeBtn);
-  }
-  // Vider les placements : retire tous les stagiaires placés (admin uniquement)
-  if (admin) {
     const clearBtn = el("button", { class: "btn small danger",
       title: "Retirer tous les stagiaires placés cette semaine (bénévoles, profs, sujets et notes conservés)",
       onClick: () => clearWeekPlacements() });
     clearBtn.appendChild(document.createTextNode("🧹 Vider les placements"));
     weekBar.appendChild(clearBtn);
+    // Valider la semaine : sur une semaine au moins partiellement écoulée
+    if (semaineLundi <= isoDate(new Date())) {
+      const validBtn = el("button", { class: "btn small primary", onClick: () => openValiderSemaineModal() });
+      validBtn.appendChild(icon.check());
+      validBtn.appendChild(document.createTextNode("Valider la semaine"));
+      weekBar.appendChild(validBtn);
+    }
   }
-  // Valider la semaine : admin uniquement, sur une semaine au moins partiellement écoulée
-  if (admin && semaineLundi <= isoDate(new Date())) {
-    const validBtn = el("button", { class: "btn small primary", onClick: () => openValiderSemaineModal() });
-    validBtn.appendChild(icon.check());
-    validBtn.appendChild(document.createTextNode("Valider la semaine"));
-    weekBar.appendChild(validBtn);
+  // Stagiaire sur semaine verrouillée : badge informatif seul
+  if (!admin && locked) {
+    weekBar.appendChild(el("span", { class: "p-locked-badge" }, "✓ Semaine validée"));
   }
   weekBar.appendChild(printBtn);
   container.appendChild(weekBar);

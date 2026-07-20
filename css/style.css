@@ -721,6 +721,16 @@ h3 {
   border-color: var(--accent);
 }
 
+/* Verrouillage semaine : badge « ✓ Semaine validée » + déverrouillage discret */
+.p-locked-badge {
+  display: inline-flex; align-items: center; gap: 0.3rem;
+  font-size: 0.82rem; font-weight: 600; padding: 0.3rem 0.65rem;
+  border-radius: 999px; background: var(--c-go-soft); color: var(--c-go);
+  white-space: nowrap;
+}
+.p-unlock-btn { opacity: 0.75; }
+.p-unlock-btn:hover { opacity: 1; }
+
 /* Layout en cards par jour — empilées verticalement, lanes en parallèle horizontales */
 
 .p-days {
