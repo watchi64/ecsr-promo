@@ -31,6 +31,21 @@ let salleStats = {};     // getSalleAggregats() : { [stagiaire_id]: nb passages 
 let semaineLundi = null;
 let currentContainer = null;
 
+// === Verrouillage des semaines validées + mode édition explicite (spec 2026-07-20) ===
+let lockedWeeks = new Set();  // lundis ISO verrouillés (clé settings `semaines_verrouillees`)
+let editMode = false;         // édition explicite (bouton Modifier), par semaine affichée
+
+function isLocked(lundi) { return lockedWeeks.has(lundi); }
+
+// Prédicat central d'édition : admin + mode édition actif + semaine non verrouillée.
+// Remplace les gardes isAdmin() partout où il s'agit d'ÉDITER la semaine affichée.
+function canEditWeek() { return isAdmin() && editMode && !isLocked(semaineLundi); }
+
+async function setWeekLock(lundi, locked) {
+  if (locked) lockedWeeks.add(lundi); else lockedWeeks.delete(lundi);
+  await setSetting("semaines_verrouillees", JSON.stringify([...lockedWeeks].sort()));
+}
+
 // Défauts horaires si pas de meta en DB
 const DEFAULT_HALF_META = {
   matin: { start_time: "09:00", end_time: "12:30", pause_start: "10:45", pause_minutes: 20 },
@@ -2027,11 +2042,14 @@ async function loadBenevoles() {
 }
 
 async function loadPlanning() {
-  const [data, metas, offs] = await Promise.all([
+  const [data, metas, offs, lockedRaw] = await Promise.all([
     getPlanning(semaineLundi),
     getHalfMetaForWeek(semaineLundi),
     getJoursOff(semaineLundi),
+    getSetting("semaines_verrouillees").catch(() => null),  // clé absente → null
   ]);
+  try { lockedWeeks = new Set(JSON.parse(lockedRaw || "[]")); }
+  catch { lockedWeeks = new Set(); }
   let counter = 0;
   entries = data.map((row) => {
     // Compat ascendante : si prof_ids vide mais prof_id présent, on l'utilise
@@ -2114,6 +2132,7 @@ function openHalfMetaEditor(d, half, anchorEl) {
 }
 
 async function changeWeek(dateStr) {
+  editMode = false;   // chaque semaine se rouvre en lecture seule (spec 2026-07-20)
   semaineLundi = dateStr;
   // La « semaine affichée » est persistée comme réglage GLOBAL de la promo (table settings,
   // écriture admin-only en RLS) : c'est la semaine que tout le monde retrouve à l'ouverture.
@@ -2998,6 +3017,7 @@ export async function renderPlanning(container) {
   }
   autresProfsMem = parseAutresProfs(await getSetting("profs_autres"));
   semaineLundi = (await getSetting("current_week_lundi")) || isoDate(getMonday(new Date()));
+  editMode = false;   // la vue s'ouvre toujours en lecture seule (spec 2026-07-20)
   await loadPlanning();
   renderInto(container);
 }
