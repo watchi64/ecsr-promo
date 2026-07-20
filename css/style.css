@@ -733,6 +733,46 @@ h3 {
 .valider-lock-row { display: flex; align-items: center; gap: 0.45rem;
   margin: 0.6rem 0 0; font-size: 0.88rem; cursor: pointer; user-select: none; }
 
+/* Ergonomie du mode édition (volet 4) : liseré pointillé + pill flottante */
+.p-editing .p-days {
+  outline: 2px dashed color-mix(in srgb, var(--accent) 45%, transparent);
+  outline-offset: 6px;
+  border-radius: var(--r-sm);
+}
+.p-edit-pill {
+  position: fixed;
+  bottom: 1.1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 40;                       /* sous les modales (backdrop plus haut) */
+  display: inline-flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.45rem 0.6rem 0.45rem 1rem;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.86rem;
+  font-weight: 600;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.22);
+  white-space: nowrap;
+}
+.p-edit-pill-btn {
+  border: none;
+  border-radius: 999px;
+  padding: 0.32rem 0.75rem;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--accent);
+}
+.p-edit-pill-btn:hover { background: #fff; }
+@media print {
+  .p-edit-pill { display: none !important; }
+  .p-editing .p-days { outline: none; }
+}
+
 /* ============================================================
    Vue compacte (semaine verrouillée) : le vide disparaît,
    les espacements se resserrent — spec 2026-07-20.

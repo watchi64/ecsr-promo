@@ -54,6 +54,18 @@ async function setWeekLock(lundi, locked) {
 // garanties, sans faux positifs.
 export function resetPlanningEditMode() { editMode = false; }
 
+// Volet 4 : hint lecture seule throttlé + sortie du mode édition par Échap.
+let lastHintAt = 0;
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "Escape" || !editMode) return;
+  if (!currentContainer || !currentContainer.isConnected) return;   // vue Planning non montée
+  if (document.querySelector(".modal-backdrop")) return;            // Échap appartient à la modale
+  const t = e.target;
+  if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT" || t.isContentEditable)) return;
+  editMode = false;
+  renderInto(currentContainer);
+});
+
 // Défauts horaires si pas de meta en DB
 const DEFAULT_HALF_META = {
   matin: { start_time: "09:00", end_time: "12:30", pause_start: "10:45", pause_minutes: 20 },
@@ -2609,6 +2621,8 @@ function renderInto(container) {
   container.classList.toggle("read-only", !editing);
   // Vue compacte : automatique sur semaine verrouillée, pour tous (admin et stagiaires).
   container.classList.toggle("p-compact", isLocked(semaineLundi));
+  // Liseré du mode édition : la zone des jours est visiblement « ouverte » (volet 4).
+  container.classList.toggle("p-editing", editing);
 
   const monday = new Date(semaineLundi + "T00:00:00");
   const longLabel = monday.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
@@ -2722,7 +2736,30 @@ function renderInto(container) {
 
   const wrap = el("div", { class: "p-days" });
   JOURS.forEach((_, d) => wrap.appendChild(renderDayCard(d, monday)));
+  // Hint découvrabilité (volet 4) : un admin qui clique en lecture seule n'obtient
+  // aucune réaction des cartes (pointer-events coupés) — on lui dit pourquoi.
+  if (admin && !editing) {
+    wrap.addEventListener("click", () => {
+      const now = Date.now();
+      if (now - lastHintAt < 5000) return;   // max 1 toast / 5 s
+      lastHintAt = now;
+      toast(isLocked(semaineLundi)
+        ? "Semaine validée — clique « Déverrouiller » pour corriger"
+        : "Semaine en lecture seule — clique « ✏️ Modifier » pour éditer", "info", 3200);
+    });
+  }
   container.appendChild(wrap);
+
+  // Pill flottante (volet 4) : signal permanent du mode édition + sortie à portée
+  // de clic sans remonter à la barre d'outils.
+  if (editing) {
+    const pillDone = el("button", { class: "p-edit-pill-btn",
+      onClick: () => { editMode = false; renderInto(currentContainer); } }, "✓ Terminer");
+    container.appendChild(el("div", { class: "p-edit-pill" },
+      el("span", { class: "p-edit-pill-label" }, "✏️ Édition en cours"),
+      pillDone,
+    ));
+  }
 
   container.appendChild(el("div", { class: "planning-helper" },
     el("strong", {}, "À la suite "), "↓ = nouveau créneau dans le temps (après celui qui précède). ",
