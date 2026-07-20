@@ -187,6 +187,7 @@ function entryUpsertPayload(entry) {
     salle_double: entry.salle_double ?? false,
     benevoles_ids: entry.benevoles_ids ?? [],
     notes: entry.notes ?? null,
+    absences: entry.absences ?? [],   // [{sid, rid}] absences de dernière minute (spec 2026-07-19)
   };
 }
 
@@ -543,6 +544,46 @@ function effSujets(e) {
   return out;
 }
 
+// === Absences de dernière minute (spec 2026-07-19) ===
+// entry.absences = [{ sid, rid }] : sid = prévu absent (il RESTE dans son champ de rôle,
+// la carte fait foi du planifié), rid = remplaçant (null si personne n'a repris).
+// Le rôle se déduit de la position de sid sur la carte.
+function entryAbsences(e) { return Array.isArray(e.absences) ? e.absences : []; }
+function absenceOf(e, sid) { return entryAbsences(e).find((a) => a.sid === sid) || null; }
+
+// Ids générateurs de passage d'une carte (tableaux salle / élèves voiture) — les seuls
+// rôles marquables absents. Sert aussi à purger les absences orphelines (chip retirée,
+// activité changée).
+function passageRoleIds(e) {
+  if (e.activite === "Pédagogie salle") {
+    const ids = [];
+    if (e.pedagogue_id != null) ids.push(e.pedagogue_id);
+    if (e.salle_double && e.pedagogue_id_2 != null) ids.push(e.pedagogue_id_2);
+    return ids;
+  }
+  if (e.activite === ACT_VOITURE) return [...(e.eleves_ids || [])];
+  return [];
+}
+
+// Marque / démarque / affecte un remplaçant. Purge les orphelines au passage,
+// enregistre via saveEntry et pose un undo Ctrl+Z.
+async function setAbsence(lid, sid, action, rid = null) {
+  const entry = entries.find((e) => e._lid === lid);
+  if (!entry) return;
+  const beforeAbs = entryAbsences(entry).map((a) => ({ ...a }));
+  const valid = new Set(passageRoleIds(entry));
+  let next = entryAbsences(entry).filter((a) => valid.has(a.sid));
+  if (action === "mark" && !next.some((a) => a.sid === sid)) next = [...next, { sid, rid: null }];
+  if (action === "unmark") next = next.filter((a) => a.sid !== sid);
+  if (action === "replace") next = next.map((a) => (a.sid === sid ? { ...a, rid } : a));
+  await saveEntry(lid, { absences: next });
+  renderInto(currentContainer);
+  recordUndo("marquage d'absence", async () => {
+    await saveEntry(lid, { absences: beforeAbs });
+    renderInto(currentContainer);
+  });
+}
+
 // Bénévoles déjà placés sur une AUTRE carte du même créneau (cartes parallèles =
 // simultanées : pas deux voitures à la fois). Les slots successifs restent permis :
 // un bénévole reste souvent toute la demi-journée et change d'élève moniteur.
@@ -622,6 +663,13 @@ function slotOccupants(entry, exceptField) {
     if (exceptField === "pedagogue" || exceptField === "eleves") {
       add(effPedagogueId(e, 2));
     }
+  });
+
+  // Les remplaçants désignés occupent le créneau au même titre que l'absent qu'ils
+  // couvrent (si l'absent a été compté occupant, son remplaçant l'est aussi).
+  entries.forEach((e) => {
+    if (e.day_index !== entry.day_index || e.half_day !== entry.half_day) return;
+    entryAbsences(e).forEach((a) => { if (a.rid != null && ids.has(a.sid)) ids.add(a.rid); });
   });
   return ids;
 }
