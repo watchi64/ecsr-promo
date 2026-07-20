@@ -93,7 +93,7 @@ Liste : ALEXER Audrick, ANKPRA Gaëlle, AQUILA Céline, BAILLY Mickael, BLANC Ju
 | `competences` | C1-C4 (TP ECSR) + REMC + MGDE |
 | `passages`, `passages_audit` | passages salle/voiture avec who tracking |
 | `evaluations`, `evaluations_audit` | notes (type Thème/Compétence/Contrôle) |
-| `planning_entries` | + nouvelle colonne **`prof_ids INTEGER[]`** (multi-formateurs). `prof_id` legacy conservé synchronisé au 1er. + **`benevoles_ids INTEGER[]`** (élèves bénévoles voiture, 02/07/2026) |
+| `planning_entries` | + nouvelle colonne **`prof_ids INTEGER[]`** (multi-formateurs). `prof_id` legacy conservé synchronisé au 1er. + **`benevoles_ids INTEGER[]`** (élèves bénévoles voiture, 02/07/2026). + **`absences JSONB`** `[{sid, rid}]` (absences de dernière minute, 19/07/2026 — cf. § Absences & comptage) |
 | `benevoles` | banque d'élèves bénévoles (voiture conduite) : prénom (seul champ obligatoire), nom optionnel, **téléphone**, `niveau` = code compétence/sous-compétence REMC (« C1 », « C1.4 »... libellés résolus par `nivLabel()` dans benevoles.js), boîte, heures faites, **`auto_ecole_id` FK → auto_ecoles** (05/07/2026, le texte libre a été migré puis supprimé), `dispos jsonb` (grille hebdo LUNDI..VENDREDI x matin/aprem), `actif` (retrait doux). **RLS entièrement `is_admin()`** : invisible pour les stagiaires, téléphone jamais transmis. Seed 02/07/2026 : 9 bénévoles de la semaine du 6 juillet (Assiya, Chahinez + 7 via contact « Sophie ») liés aux cartes Voiture |
 | `auto_ecoles` | partenaires (05/07/2026) : nom (obligatoire), référent, téléphone, email, adresse, notes, `actif`. RLS entièrement `is_admin()`. « Sophie » (06 16 14 75 14) = première fiche, migrée depuis le texte libre |
 | `benevole_suivi` | commentaires de suivi par venue (05/07/2026) : `(benevole_id, semaine_lundi, day_index, half_day)` UNIQUE + commentaire. RLS `is_admin()`. ⚠️ Les venues ne sont PAS stockées : déduites de `planning_entries.benevoles_ids` (une demi-journée = une venue), seuls les commentaires vivent ici |
@@ -116,6 +116,16 @@ Liste : ALEXER Audrick, ANKPRA Gaëlle, AQUILA Céline, BAILLY Mickael, BLANC Ju
 ### Edge Function `invite-user`
 
 Vérifie le JWT de l'appelant, check `is_admin = true` en lecture service_role, upsert dans user_profiles. **Plus d'envoi de mail** (depuis v3 du 18 mai — l'app fait du signup classique côté navigateur).
+
+## Absences & comptage des passages (19/07/2026)
+
+Spec complète : `docs/specs/2026-07-19-absences-comptage-placement-design.md`.
+
+- **Une Absence COMPTE** dans les compteurs d'équité du placement (tour consommé) ; **Bonus et Report ne comptent pas**. Règles centralisées dans `js/passage-rules.js` (`compteDansEquite`, `meilleurResultat`), testées par `node tests/passage-rules.test.mjs`. C'est l'INVERSE d'avant : casse le cercle vicieux des absents re-priorisés.
+- **Absence de dernière minute** : marquée SUR la carte planning (⊘ à côté du tableau, clic sur le corps d'une chip élève voiture). Le prévu reste affiché barré ; un sélecteur « remplacé(e) par » propose TOUT le monde avec badge « occupé » en avertissement (pas d'exclusion dure). Stocké dans `planning_entries.absences` `[{sid, rid}]`.
+- **Absence prévenue à l'avance** : pas de marquage — simple swap de chip, le remplaçant fait un passage normal. La frontière relève du jugement de l'admin.
+- **Valider la semaine** : prévu non marqué → `Effectué` ; marqué → `Absence` (avec `remplacant_id`) + `Bonus` pour le remplaçant. Fusion au grain jour : `Effectué > Absence > Bonus`.
+- **Placement auto en cascade** (dés + Placer la semaine) : 1) rien eu cette semaine → 2) type manquant (objectif 1 salle ET 1 voiture chacun) → 3) retard historique sur le type → 4) critères existants (plafond 2 voitures, anti-jours-consécutifs, avec-élève, variété formateur).
 
 ## Décisions UX importantes (à respecter)
 

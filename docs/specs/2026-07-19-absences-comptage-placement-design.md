@@ -1,6 +1,6 @@
 # Absences, comptage des passages & placement par type — Design
 
-**Date** : 2026-07-19 · **Branche** : `absences-comptage` · **Statut** : validé en brainstorm, en attente de relecture finale
+**Date** : 2026-07-19 · **Branche** : `absences-comptage` · **Statut** : implémenté (lots 1-3, vérifiés au banc fetch-stub) — en attente merge/déploiement
 
 ## 1. Contexte et problème
 
