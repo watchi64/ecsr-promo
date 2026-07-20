@@ -1291,7 +1291,9 @@ function prioLegend() {
 
 // Sélecteur d'UNE personne (tableau) : même habillage que les chips élèves / profs, trié par
 // priorité (moins passés en tête) avec compteur. counts (optionnel) = map id -> nb de passages.
-function personSelect(allStagiaires, currentId, onChange, counts, placeholder = "—") {
+// opts (optionnel) : { itemBadge } — badge additionnel par item (ex. « occupé » pour le
+// sélecteur de remplaçant, qui avertit au lieu d'exclure).
+function personSelect(allStagiaires, currentId, onChange, counts, placeholder = "—", opts = {}) {
   const wrap = el("div", { class: "person-select" });
   const display = el("div", { class: "person-display", tabindex: "0" });
   const dropdown = el("div", { class: "chips-dropdown person-dropdown hidden" });
@@ -1317,6 +1319,7 @@ function personSelect(allStagiaires, currentId, onChange, counts, placeholder = 
       const item = el("div", { class: "person-item" + (value === s.id ? " selected" : "") },
         el("span", { class: "person-item-name" }, displayStagiaire(s)));
       if (counts) item.appendChild(prioBadge(counts[s.id] || 0));
+      if (opts.itemBadge) { const badge = opts.itemBadge(s); if (badge) item.appendChild(badge); }
       item.addEventListener("click", (ev) => { ev.stopPropagation(); value = s.id; onChange(s.id); render(); close(); });
       dropdown.appendChild(item);
     });
@@ -1335,8 +1338,11 @@ function personSelect(allStagiaires, currentId, onChange, counts, placeholder = 
 // menu est trié par priorité (moins passés en tête) et affiche le compteur à côté de chaque nom.
 // opts (optionnel) : { labelFn, placeholder, itemBadge } pour réutiliser le composant avec
 // d'autres listes que les stagiaires (ex. bénévoles : badge « dispo » à la place du compteur).
+// { chipClassFn, onChipClick } : classe et action au clic sur le CORPS d'une chip (marquage
+// d'absence sur les élèves voiture — la croix garde son rôle de retrait).
 function chipsSelect(allStagiaires, currentIds, onChange, counts, opts = {}) {
-  const { labelFn = displayStagiaire, placeholder = "Stagiaires…", itemBadge = null, chipTitleFn = null } = opts;
+  const { labelFn = displayStagiaire, placeholder = "Stagiaires…", itemBadge = null,
+          chipTitleFn = null, chipClassFn = null, onChipClick = null } = opts;
   const wrap = el("div", { class: "chips-select" });
   const display = el("div", { class: "chips-display", tabindex: "0" });
   const dropdown = el("div", { class: "chips-dropdown hidden" });
@@ -1350,7 +1356,7 @@ function chipsSelect(allStagiaires, currentIds, onChange, counts, opts = {}) {
       selected.forEach((id) => {
         const s = allStagiaires.find((x) => x.id === id);
         if (!s) return;
-        const chip = el("span", { class: "chip" },
+        const chip = el("span", { class: "chip" + (chipClassFn ? (chipClassFn(id) || "") : "") },
           labelFn(s),
           el("span", { class: "x", onClick: (ev) => {
             ev.stopPropagation();
@@ -1360,6 +1366,14 @@ function chipsSelect(allStagiaires, currentIds, onChange, counts, opts = {}) {
           }}, "×")
         );
         if (chipTitleFn) chip.setAttribute("title", chipTitleFn(id));
+        if (onChipClick) {
+          chip.classList.add("chip-clickable");
+          chip.addEventListener("click", (ev) => {
+            if (ev.target.classList.contains("x")) return;  // la croix garde son rôle
+            ev.stopPropagation();                            // ne pas ouvrir le dropdown
+            onChipClick(id);
+          });
+        }
         display.appendChild(chip);
       });
     }
@@ -1400,6 +1414,40 @@ function chipsSelect(allStagiaires, currentIds, onChange, counts, opts = {}) {
   wrap.appendChild(display);
   wrap.appendChild(dropdown);
   render();
+  return wrap;
+}
+
+// Lignes « ⊘ X absent(e) → remplacé(e) par … » d'une carte (spec §5). Sélecteur SOUPLE :
+// tous les stagiaires (moins l'absent), tri par priorité, badge « occupé » à titre
+// d'avertissement AU LIEU d'une exclusion dure — c'est le remplacement de dernière
+// minute, la personne est souvent déjà dans la salle (cas Céline, 17/07).
+function renderAbsenceRows(entry, lid) {
+  const wrap = el("div", { class: "abs-rows" });
+  const roleIds = passageRoleIds(entry);
+  const absList = entryAbsences(entry).filter((a) => roleIds.includes(a.sid));
+  if (!absList.length) return wrap;
+  const isSalle = entry.activite === "Pédagogie salle";
+  const counts = isSalle ? roleCounts("Pédagogie salle", "pedagogue", lid)
+                         : roleCounts(ACT_VOITURE, "eleve", lid);
+  absList.forEach((a) => {
+    const s = stagiaires.find((x) => x.id === a.sid);
+    const exceptField = isSalle
+      ? (entry.salle_double && entry.pedagogue_id_2 === a.sid ? "pedagogue_2" : "pedagogue")
+      : "eleves";
+    const occupied = new Set([...slotOccupants(entry, exceptField)]);
+    // Même carte : les autres inscrits du créneau sont occupés aussi (une voiture ne se
+    // bloque pas elle-même dans slotOccupants, mais son autre élève est bien pris).
+    roleIds.forEach((id) => { if (id !== a.sid) occupied.add(id); });
+    const options = stagiaires.filter((x) => x.id !== a.sid);
+    wrap.appendChild(el("div", { class: "abs-row" },
+      el("span", { class: "abs-row-name" }, "⊘ " + (s ? displayStagiaire(s) : "?") + " absent(e) → remplacé(e) par"),
+      personSelect(options, a.rid, (id) => setAbsence(lid, a.sid, "replace", id), counts, "personne", {
+        itemBadge: (x) => occupied.has(x.id)
+          ? el("span", { class: "prio-badge abs-occupied", title: "Déjà pris sur ce créneau — à toi de juger" }, "occupé")
+          : null,
+      }),
+    ));
+  });
   return wrap;
 }
 
@@ -1579,6 +1627,16 @@ function buildTableauRole(entry, lid, group) {
     title: "Tirer 1 stagiaire au tableau (le moins passé cette semaine)",
     onClick: () => randomFillPedagogue(lid, group),
   }, "🎲"));
+  // Absence de dernière minute (spec 2026-07-19) : le prévu reste affiché, barré.
+  const absPeda = currentVal != null ? absenceOf(entry, currentVal) : null;
+  if (absPeda) pedaRole.classList.add("role-absent");
+  if (currentVal != null) {
+    pedaRole.appendChild(el("button", {
+      class: "p-abs-btn" + (absPeda ? " active" : ""), type: "button",
+      title: absPeda ? "Annuler l'absence" : "Marquer absent(e) — dernière minute (le passage comptera « Absence »)",
+      onClick: () => setAbsence(lid, currentVal, absPeda ? "unmark" : "mark"),
+    }, "⊘"));
+  }
   return pedaRole;
 }
 
@@ -1723,7 +1781,10 @@ function renderLaneCell(entry) {
     eleveCol.appendChild(chipsSelect(eleveOptions, entry.eleves_ids || [], (ids) => {
       saveEntry(lid, { eleves_ids: ids });
     }, voitCounts, {
-      chipTitleFn: (id) => `${voitureStats[id]?.avecEleve || 0} séance(s) avec élève bénévole au compteur`,
+      chipTitleFn: (id) => `${voitureStats[id]?.avecEleve || 0} séance(s) avec élève bénévole au compteur`
+        + (absenceOf(entry, id) ? " · ABSENT(E) — cliquer pour annuler" : " · Cliquer : marquer absent(e)"),
+      chipClassFn: (id) => (absenceOf(entry, id) ? " chip-absent" : ""),
+      onChipClick: (id) => setAbsence(lid, id, absenceOf(entry, id) ? "unmark" : "mark"),
     }));
     if (entry.activite === "Voiture (conduite)") {
       const wrap = el("div", { class: "p-dice-picker-wrap" });
@@ -1783,6 +1844,9 @@ function renderLaneCell(entry) {
 
     body.appendChild(participants);
   }
+
+  // === Remplacements d'absents (une fois par carte, salle comme voiture) ===
+  body.appendChild(renderAbsenceRows(entry, lid));
 
   // === Notes : discret, en bas ===
   if (shape.includes("notes")) {

@@ -6148,3 +6148,17 @@ body.qcm-open { overflow: hidden; }
   .epcf-seg { align-self: flex-end; }
   .epcf-radar-label { font-size: 14px; }  /* unités du viewBox : compense l'échelle ~0.8 à 375px → ~11px affichés */
 }
+
+/* === Absences de derniere minute (spec 2026-07-19) === */
+.chip.chip-absent { text-decoration: line-through; background: var(--c-stop-soft); color: var(--c-stop); }
+.chip.chip-clickable { cursor: pointer; }
+.role-absent .person-value { text-decoration: line-through; color: var(--c-stop); }
+.p-abs-btn { background: none; border: 1px solid transparent; border-radius: 6px;
+  cursor: pointer; font-size: 0.95rem; line-height: 1; padding: 2px 5px; opacity: 0.55; color: var(--text-muted); }
+.p-abs-btn:hover { opacity: 1; }
+.p-abs-btn.active { color: var(--c-stop); opacity: 1; }
+.abs-rows { display: flex; flex-direction: column; gap: 4px; margin-top: 4px; width: 100%; }
+.abs-rows:empty { display: none; }
+.abs-row { display: flex; align-items: center; gap: 6px; font-size: 0.8rem; flex-wrap: wrap; }
+.abs-row-name { color: var(--c-stop); font-weight: 600; }
+.abs-occupied { background: var(--c-wait-soft); color: var(--c-wait); }
