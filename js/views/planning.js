@@ -208,10 +208,10 @@ function entryUpsertPayload(entry) {
 }
 
 async function saveEntry(localId, patch) {
-  // Garde d'accès : seuls les admins (formateurs) écrivent le planning. Backstop
-  // si un contrôle d'édition fuit en lecture seule (la RLS bloque déjà côté serveur,
-  // mais on évite ici la mutation locale optimiste + le toast d'erreur trompeur).
-  if (!isAdmin()) return;
+  // Garde d'accès : édition explicite uniquement (admin + mode édition + semaine non
+  // verrouillée). Backstop si un contrôle d'édition fuit en lecture seule (la RLS bloque
+  // déjà côté serveur, mais on évite la mutation locale optimiste + le toast trompeur).
+  if (!canEditWeek()) { console.warn("saveEntry refusé : semaine verrouillée ou lecture seule"); return; }
   const entry = entries.find((e) => e._lid === localId);
   if (!entry) return;
   Object.assign(entry, patch);
@@ -371,7 +371,7 @@ function confirmCrossMove(sourceLid, targetLid) {
 let dragState = null;
 
 function beginCardDrag(ev, sourceLid, sourceCell) {
-  if (!isAdmin()) return;
+  if (!canEditWeek()) return;
   if (ev.pointerType === "mouse" && ev.button !== 0) return;
   ev.preventDefault();
   const handleEl = ev.currentTarget;
@@ -913,6 +913,7 @@ function placementEmpties(e) {
 }
 
 async function autoPlaceWeek() {
+  if (!canEditWeek()) return;
   await flushPendingInputs();
   const targets = entries.filter((e) =>
     (e.activite === "Pédagogie salle" || e.activite === "Voiture (conduite)")
@@ -1127,6 +1128,7 @@ async function autoPlaceWeek() {
 // Retire tableaux + élèves salle + élèves voiture de TOUTES les cartes de la semaine.
 // Conserve : activités, profs, sujets, notes, bénévoles, horaires, jours off. Undo Ctrl+Z.
 async function clearWeekPlacements() {
+  if (!canEditWeek()) return;
   await flushPendingInputs();
   const targets = entries.filter((e) =>
     e.pedagogue_id != null || e.pedagogue_id_2 != null ||
@@ -1157,7 +1159,7 @@ async function clearWeekPlacements() {
 }
 
 async function deleteCell(entry) {
-  if (!isAdmin()) return;  // garde d'accès : suppression réservée aux admins (formateurs)
+  if (!canEditWeek()) return;  // garde d'accès : édition explicite uniquement
   // Commit les saisies en cours avant le re-render complet (sinon une note/sujet en attente est perdu)
   await flushPendingInputs();
   // Une demi-journée peut rester vide : on autorise la suppression de n'importe quelle activité.
@@ -1946,7 +1948,7 @@ function renderSlotRow(d, half, row, maxLanes) {
 function renderDayCard(d, monday) {
   const date = addDays(monday, d);
   const off = dayOffInfo(d, monday);
-  const admin = isAdmin();
+  const admin = canEditWeek();  // toggles jour on/off = édition de la semaine
   const card = el("article", { class: "p-day-card" + (off.off ? " off" : "") });
 
   const head = el("div", { class: "p-day-head" },
@@ -1989,7 +1991,7 @@ function renderDayCard(d, monday) {
     // pour les autres. NE PAS le masquer en lecture seule : il porte MATIN/APRÈS-MIDI,
     // les horaires et la pause — sans lui, les demi-journées sont indistinguables
     // (bug élèves 2026-07-03, ancien `.read-only .p-half-head.editable { display:none }`).
-    const headBtn = isAdmin()
+    const headBtn = canEditWeek()
       ? el("button", {
           class: "p-half-head editable",
           title: "Modifier les horaires et la pause",
@@ -2062,6 +2064,7 @@ async function loadPlanning() {
 }
 
 async function saveHalfMeta(d, half, patch) {
+  if (!canEditWeek()) return;
   const existing = metaFor(d, half);
   const merged = { ...existing, ...patch };
   const payload = {
@@ -2148,7 +2151,7 @@ async function changeWeek(dateStr) {
 // Désactive un jour (férié, vacances, pont, formation externe…) : grisé, aucune activité
 // affichée, exclu du placement auto et de la validation. Les cartes restent en base.
 async function disableDay(d) {
-  if (!isAdmin()) return;
+  if (!canEditWeek()) return;
   const monday = new Date(semaineLundi + "T00:00:00");
   const info = dayOffInfo(d, monday);
   const def = info.ferie ? info.label : "Vacances";
@@ -2164,7 +2167,7 @@ async function disableDay(d) {
 }
 
 async function enableDay(d) {
-  if (!isAdmin()) return;
+  if (!canEditWeek()) return;
   try {
     await deleteJourOff(semaineLundi, d);
     await loadPlanning();
@@ -2528,19 +2531,26 @@ function renderInto(container) {
   clear(container);
 
   const admin = isAdmin();
-  container.classList.toggle("read-only", !admin);
+  const editing = canEditWeek();
+  // Lecture seule dès qu'on n'est pas en édition explicite (stagiaire, admin hors
+  // mode Modifier, ou semaine verrouillée) — la CSS .read-only fait le gros du travail.
+  container.classList.toggle("read-only", !editing);
 
   const monday = new Date(semaineLundi + "T00:00:00");
   const longLabel = monday.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
 
   container.appendChild(el("div", { class: "view-header" },
     el("div", { class: "view-header-text" },
-      el("p", { class: "eyebrow" }, (admin ? "Édition" : "Consultation") + " · Semaine du " + longLabel),
+      el("p", { class: "eyebrow" }, (editing ? "Édition" : "Consultation") + " · Semaine du " + longLabel),
       el("h2", {}, "Planning de la semaine"),
       el("p", { class: "subtitle" },
-        admin
+        editing
           ? "Sélectionne les activités, profs et stagiaires. Tout s'enregistre automatiquement."
-          : "Lecture seule. Connexion admin requise pour modifier."
+          : admin
+            ? (isLocked(semaineLundi)
+                ? "Semaine validée et verrouillée. « Déverrouiller » pour corriger."
+                : "Lecture seule. Clique « Modifier » pour éditer la semaine.")
+            : "Lecture seule. Connexion admin requise pour modifier."
       ),
     ),
   ));
