@@ -6355,6 +6355,39 @@ body.qcm-open { overflow: hidden; }
    sous les jours). `.week-bar` n'existe que dans le planning, où elle est toujours
    suivie de `.p-daynav` : pas besoin de `:has()`, qui exclurait les vieux Safari. */
 .week-bar { margin-bottom: 0.45rem; }
+
+/* Deux groupes empilés : « se déplacer » (date, flèches, Cette semaine) puis « agir »
+   (Modifier, Bénévoles, Valider, Imprimer…), séparés par un filet. Avant, les huit
+   contrôles partageaient un seul flux et retombaient en trois lignes sans hiérarchie
+   sur téléphone. */
+.week-bar {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+}
+.week-bar-nav,
+.week-bar-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.week-bar-nav { padding-bottom: 0.55rem; }
+.week-bar-actions {
+  padding-top: 0.55rem;
+  border-top: 1px solid var(--line);
+}
+.week-bar-actions:empty { display: none; }
+/* Libellés d'action en deux versions : la longue sur grand écran, la courte sous
+   560 px, pour que les actions tiennent sur une ligne sur téléphone. Deux libellés
+   complets plutôt qu'un mot tronqué : `text-transform: capitalize` produisait
+   « Placer La Semaine ». Le title au survol reste toujours complet. */
+.btn-short { display: none; }
+@media (max-width: 560px) {
+  .week-bar-actions .btn-long { display: none; }
+  .week-bar-actions .btn-short { display: inline; }
+}
 .p-daynav {
   position: sticky;
   top: 52px;                 /* sous la topbar (sticky, ~52px de haut) */

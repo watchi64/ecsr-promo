@@ -2750,15 +2750,19 @@ function renderInto(container) {
   const todayBtn = el("button", { class: "btn small" }, "Cette semaine");
   todayBtn.addEventListener("click", () => changeWeek(isoDate(getMonday(new Date()))));
 
+  // « Imprimer / PDF » sur grand écran, « PDF » sur téléphone (le mot long est masqué
+  // en CSS) : sans ça, les trois actions débordent sur une deuxième ligne à 375 px.
   const printBtn = el("button", { class: "btn small", onClick: () => printPlanning() });
   printBtn.appendChild(icon.list());
-  printBtn.appendChild(document.createTextNode("Imprimer / PDF"));
+  printBtn.appendChild(el("span", { class: "btn-long" }, "Imprimer / PDF"));
+  printBtn.appendChild(el("span", { class: "btn-short" }, "PDF"));
 
-  const weekBar = el("div", { class: "week-bar" },
-    el("span", { class: "week-bar-label" }, "Semaine du"),
-    dateInput, prevBtn, nextBtn, todayBtn,
-    el("span", { style: "flex:1" }),
-  );
+  // Barre en DEUX groupes : « se déplacer » puis « agir », séparés par un filet.
+  // Le libellé « Semaine du » a été retiré : l'en-tête juste au-dessus dit déjà
+  // « Consultation · Semaine du 6 juillet 2026 ».
+  const navGroup = el("div", { class: "week-bar-nav" }, dateInput, prevBtn, nextBtn, todayBtn);
+  const actionsGroup = el("div", { class: "week-bar-actions" });
+  const weekBar = el("div", { class: "week-bar" }, navGroup, actionsGroup);
   // Banque d'élèves bénévoles : accessible aussi en lecture seule (consulter une fiche
   // ou un téléphone ne doit pas obliger à passer en édition) — mais pas sur semaine
   // verrouillée (barre réduite au badge + Déverrouiller, design validé).
@@ -2767,14 +2771,16 @@ function renderInto(container) {
     onClick: () => openBenevolesPanel({ onClose: async () => {
       benevoles = await loadBenevoles();
       renderInto(currentContainer);
-    }}) }, "Élèves bénévoles");
+    }}) },
+    el("span", { class: "btn-long" }, "Élèves bénévoles"),
+    el("span", { class: "btn-short" }, "Bénévoles"));
 
   const locked = isLocked(semaineLundi);
   if (admin && locked) {
     // — Semaine verrouillée : badge + Déverrouiller (l'édition passe par le déverrouillage)
-    weekBar.appendChild(el("span", { class: "p-locked-badge", title: "Semaine validée et verrouillée" },
+    actionsGroup.appendChild(el("span", { class: "p-locked-badge", title: "Semaine validée et verrouillée" },
       "✓ Semaine validée"));
-    weekBar.appendChild(el("button", { class: "btn small ghost p-unlock-btn",
+    actionsGroup.appendChild(el("button", { class: "btn small ghost p-unlock-btn",
       title: "Retirer le verrou et passer en édition",
       onClick: async () => {
         await setWeekLock(semaineLundi, false);
@@ -2787,38 +2793,41 @@ function renderInto(container) {
       title: "Passer la semaine affichée en mode édition",
       onClick: () => { editMode = true; renderInto(currentContainer); } });
     editBtn.appendChild(document.createTextNode("✏️ Modifier"));
-    weekBar.appendChild(editBtn);
-    weekBar.appendChild(bnvBtn());
+    actionsGroup.appendChild(editBtn);
+    actionsGroup.appendChild(bnvBtn());
   } else if (admin && editing) {
     // — Mode édition : Terminer + les 4 boutons habituels
     const doneBtn = el("button", { class: "btn small",
       title: "Terminer l'édition (retour en lecture seule)",
       onClick: () => { editMode = false; renderInto(currentContainer); } }, "✓ Terminer");
-    weekBar.appendChild(doneBtn);
-    weekBar.appendChild(bnvBtn());
+    actionsGroup.appendChild(doneBtn);
+    actionsGroup.appendChild(bnvBtn());
     const placeBtn = el("button", { class: "btn small",
       title: "Placer automatiquement tableaux et stagiaires de toute la semaine (priorité aux moins passés)",
       onClick: () => autoPlaceWeek() });
-    placeBtn.appendChild(document.createTextNode("🎲 Placer la semaine"));
-    weekBar.appendChild(placeBtn);
+    placeBtn.appendChild(el("span", { class: "btn-long" }, "🎲 Placer la semaine"));
+    placeBtn.appendChild(el("span", { class: "btn-short" }, "🎲 Placer"));
+    actionsGroup.appendChild(placeBtn);
     const clearBtn = el("button", { class: "btn small danger",
       title: "Retirer tous les stagiaires placés cette semaine (bénévoles, profs, sujets et notes conservés)",
       onClick: () => clearWeekPlacements() });
-    clearBtn.appendChild(document.createTextNode("🧹 Vider les placements"));
-    weekBar.appendChild(clearBtn);
+    clearBtn.appendChild(el("span", { class: "btn-long" }, "🧹 Vider les placements"));
+    clearBtn.appendChild(el("span", { class: "btn-short" }, "🧹 Vider"));
+    actionsGroup.appendChild(clearBtn);
     // Valider la semaine : sur une semaine au moins partiellement écoulée
     if (semaineLundi <= isoDate(new Date())) {
       const validBtn = el("button", { class: "btn small primary", onClick: () => openValiderSemaineModal() });
       validBtn.appendChild(icon.check());
-      validBtn.appendChild(document.createTextNode("Valider la semaine"));
-      weekBar.appendChild(validBtn);
+      validBtn.appendChild(el("span", { class: "btn-long" }, "Valider la semaine"));
+      validBtn.appendChild(el("span", { class: "btn-short" }, "Valider"));
+      actionsGroup.appendChild(validBtn);
     }
   }
   // Stagiaire sur semaine verrouillée : badge informatif seul
   if (!admin && locked) {
-    weekBar.appendChild(el("span", { class: "p-locked-badge" }, "✓ Semaine validée"));
+    actionsGroup.appendChild(el("span", { class: "p-locked-badge" }, "✓ Semaine validée"));
   }
-  weekBar.appendChild(printBtn);
+  actionsGroup.appendChild(printBtn);
   container.appendChild(weekBar);
   // Barre de jours COLLÉE à la barre de semaine : les deux forment le bloc de
   // navigation. Le mémo des règles, qui s'intercalait ici, passe sous les jours —
