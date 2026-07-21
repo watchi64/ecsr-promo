@@ -669,6 +669,45 @@ git commit -m "feat(planning): vue compacte des semaines verrouillées (vide mas
   vide absente.
 - [ ] **Step 5: Commit** `feat(planning): ergonomie du mode édition (pill flottante, liseré, hint, Échap)`
 
+### Task 9: Épuration hors mode édition + fix ⊘ (volet 5, validé le 20/07 après déploiement)
+
+**Files:**
+- Modify: `js/views/planning.js` — `renderInto` (toggle `p-compact`), `renderDayCard` (`compact`),
+  `renderSlotRow` (`laneIdx`), `renderLaneCell` (marquage `is-empty`)
+- Modify: `css/style.css` — groupe `.read-only` (ajout `.p-abs-btn`)
+
+**Interfaces:** consume `canEditWeek()`. Le prédicat `isLocked()` reste utilisé pour le badge,
+la toolbar et les messages, mais **plus** pour décider du compactage.
+
+- [ ] **Step 1: Basculer les 4 sites de compactage sur `!canEditWeek()`**
+
+Dans `renderInto` : `container.classList.toggle("p-compact", !canEditWeek())`.
+Dans `renderDayCard` : `const compact = !canEditWeek();`.
+Dans `renderSlotRow` : `const laneIdx = (canEditWeek() ? entry.lane : (entry._laneRender ?? entry.lane)) ?? 0;`
+Dans `renderLaneCell` : la garde du marquage `is-empty` devient `if (!canEditWeek()) { … }`.
+
+- [ ] **Step 2: Ajouter `.p-abs-btn` au groupe masqué en lecture seule**
+
+```css
+.read-only .p-dice-btn,
+.read-only .p-abs-btn,
+```
+(inséré dans la liste existante qui se termine par `.read-only .p-dice-picker { display: none !important; }`)
+
+- [ ] **Step 3: Vérifier au banc**
+
+Admin lecture seule semaine normale : créneau vide absent, lane vide absente, demi-journée vide
+réduite au bandeau, champs vides masqués, `.p-abs-btn` absent du rendu visible.
+Clic « Modifier » : tout revient (cartes vides, ⊘, champs). Semaine verrouillée : inchangée.
+Stagiaire : compact sur semaine remplie ET sur semaine vierge (jours + bandeaux seuls), zéro ⊘.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add js/views/planning.js css/style.css
+git commit -m "feat(planning): épuration hors mode édition + fix bouton absence visible en lecture seule"
+```
+
 ## Self-review (fait à l'écriture du plan)
 
 - **Couverture spec** : volet 1 → Tasks 2, 4 (badge/Déverrouiller), 5 (modale + Ctrl+Z), 3 (backstop) ; volet 2 → Tasks 2, 3, 4 ; volet 3 → Task 6 ; les 8 scénarios de test → Task 7. Cas limites : double onglet = comportement assumé par la spec (pas de code) ; semaine future = condition existante du bouton Valider conservée (Task 4).

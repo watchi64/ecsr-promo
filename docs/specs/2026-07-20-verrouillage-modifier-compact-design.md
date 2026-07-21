@@ -185,6 +185,25 @@ semaine validée — déjà couvert par le masquage des champs vides du volet 3 
 vide → `is-empty`), y compris sur les cartes salle 2 groupes ; reste disponible en mode
 édition.
 
+## Volet 5 — Épuration complète hors mode édition (ajout validé le 20/07, après déploiement)
+
+Retour utilisateur après mise en prod : « lorsqu'on n'est pas en mode Modifier, tous les espaces
+non remplis et les boutons doivent disparaître pour épurer un maximum ».
+
+1. **Le compactage n'est plus lié au verrou mais au mode édition** : le prédicat passe de
+   `isLocked(semaineLundi)` à `!canEditWeek()`. Cela couvre les trois cas d'un coup : admin en
+   lecture seule sur semaine normale (nouveau), admin sur semaine verrouillée (inchangé),
+   stagiaires sur toutes les semaines (nouveau, validé explicitement par l'utilisateur).
+   Remplace donc la décision du volet 3 « compact uniquement sur semaine verrouillée ».
+2. **Correctif `.p-abs-btn`** : le bouton ⊘ (marquage d'absence, ajouté par la refonte absences
+   du 20/07) n'a jamais été ajouté au groupe CSS `.read-only` : il reste visible et cliquable
+   côté stagiaire en prod. L'écriture était déjà bloquée (backstop `canEditWeek()` + RLS
+   `is_admin()`), donc aucune donnée corrompue, mais l'UI était trompeuse. Ajouté au groupe.
+   C'est exactement le gotcha connu : tout nouveau contrôle d'édition doit rejoindre ce groupe.
+3. **Conséquence assumée** : une semaine future encore vierge apparaît quasi vide en lecture
+   seule (jours + bandeaux d'horaires seulement). Le toast du volet 4 (« clique ✏️ Modifier
+   pour éditer ») lève le doute côté formateur ; « Modifier » restaure la vue complète.
+
 ## Hors périmètre
 
 - Aucune modification du schéma de base, des RLS, ni des autres vues (`passages.js`, `notes.js`…).
