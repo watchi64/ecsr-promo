@@ -2820,8 +2820,9 @@ function renderInto(container) {
   }
   weekBar.appendChild(printBtn);
   container.appendChild(weekBar);
-  container.appendChild(buildRulesNote());
-
+  // Barre de jours COLLÉE à la barre de semaine : les deux forment le bloc de
+  // navigation. Le mémo des règles, qui s'intercalait ici, passe sous les jours —
+  // c'est de la documentation, pas de la navigation.
   container.appendChild(buildDayNav(monday));
 
   const wrap = el("div", { class: "p-days" });
@@ -2850,6 +2851,8 @@ function renderInto(container) {
       pillDone,
     ));
   }
+
+  container.appendChild(buildRulesNote());
 
   container.appendChild(el("div", { class: "planning-helper" },
     el("strong", {}, "À la suite "), "↓ = nouveau créneau dans le temps (après celui qui précède). ",

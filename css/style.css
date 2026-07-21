@@ -6350,6 +6350,11 @@ body.qcm-open { overflow: hidden; }
 
 /* --- Barre de jours colante (volet 6) : appui = saut au jour, jour visible surligné.
    Présente dans les deux modes : c'est de la navigation, pas de l'édition. --- */
+/* La barre de semaine et la barre de jours forment UN bloc de navigation : l'écart
+   entre les deux est resserré (le mémo des règles, qui s'intercalait, est passé
+   sous les jours). `.week-bar` n'existe que dans le planning, où elle est toujours
+   suivie de `.p-daynav` : pas besoin de `:has()`, qui exclurait les vieux Safari. */
+.week-bar { margin-bottom: 0.45rem; }
 .p-daynav {
   position: sticky;
   top: 52px;                 /* sous la topbar (sticky, ~52px de haut) */
@@ -6357,7 +6362,7 @@ body.qcm-open { overflow: hidden; }
   display: flex;
   gap: 0.3rem;
   padding: 0.35rem;
-  margin-bottom: 0.6rem;
+  margin-bottom: 1rem;
   background: var(--bg-elev);
   border: 1px solid var(--line);
   border-radius: var(--r-sm);
