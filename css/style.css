@@ -4771,6 +4771,9 @@ button.theme-date.editable.muted { color: var(--text-faint); }
    par le backstop canEditWeek() + RLS, mais UI trompeuse). Gotcha récurrent : tout
    nouveau contrôle d'édition doit être ajouté ICI. */
 .read-only .p-abs-btn,
+/* × de retrait du formateur, même histoire (sélecteur maison, donc invisible aux
+   règles génériques `select`/`input` du groupe ci-dessus). */
+.read-only .p-prof-x,
 .read-only .p-eleves-dice-toolbar,
 .read-only .p-dice-picker-wrap,
 .read-only .p-dice-picker { display: none !important; }
@@ -4778,6 +4781,17 @@ button.theme-date.editable.muted { color: var(--text-faint); }
    lecture seule : le JS rend un div statique (non éditable) aux non-admins.
    Ne jamais le re-masquer ici — sans lui les demi-journées sont indistinguables. */
 .read-only .p-half-head { cursor: default; }
+/* Sélecteur de formateur : c'est une div `tabindex=0` qui ouvre un menu au clic, pas un
+   <select>, donc les règles génériques plus haut ne l'atteignaient pas. En lecture seule
+   il restait cliquable et ouvrait son menu (constaté 20/07). Neutralisé ici, et son menu
+   forcé fermé au cas où il aurait été ouvert avant la bascule en lecture seule. */
+.read-only .p-prof-display {
+  pointer-events: none;
+  background: transparent !important;
+  border-color: transparent !important;
+  cursor: default !important;
+}
+.read-only .p-prof-dropdown { display: none !important; }
 
 /* ============================================================
    Identity picker (qui es-tu ? après gate)

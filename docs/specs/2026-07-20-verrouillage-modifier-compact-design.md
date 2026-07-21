@@ -195,11 +195,19 @@ non remplis et les boutons doivent disparaître pour épurer un maximum ».
    lecture seule sur semaine normale (nouveau), admin sur semaine verrouillée (inchangé),
    stagiaires sur toutes les semaines (nouveau, validé explicitement par l'utilisateur).
    Remplace donc la décision du volet 3 « compact uniquement sur semaine verrouillée ».
-2. **Correctif `.p-abs-btn`** : le bouton ⊘ (marquage d'absence, ajouté par la refonte absences
-   du 20/07) n'a jamais été ajouté au groupe CSS `.read-only` : il reste visible et cliquable
-   côté stagiaire en prod. L'écriture était déjà bloquée (backstop `canEditWeek()` + RLS
-   `is_admin()`), donc aucune donnée corrompue, mais l'UI était trompeuse. Ajouté au groupe.
-   C'est exactement le gotcha connu : tout nouveau contrôle d'édition doit rejoindre ce groupe.
+2. **Correctifs de contrôles qui fuyaient en lecture seule.** Deux contrôles n'avaient jamais
+   rejoint le groupe CSS `.read-only`, donc restaient visibles et cliquables, y compris côté
+   stagiaire. L'écriture était bloquée dans les deux cas (backstop `canEditWeek()` + RLS
+   `is_admin()`) : aucune donnée corrompue, mais l'interface laissait croire à une action
+   possible.
+   - `.p-abs-btn` : le ⊘ de marquage d'absence (ajouté par la refonte absences du 20/07).
+   - `.p-prof-display` / `.p-prof-x` / `.p-prof-dropdown` : le sélecteur de formateur. Il
+     échappait aussi aux règles génériques `select`/`input` du groupe, car c'est une `div`
+     `tabindex="0"` maison qui ouvre son propre menu au clic.
+   **Audit systématique fait au banc** plutôt qu'au cas par cas : énumération de tous les
+   `button/select/input/textarea/[tabindex]/[role=button]` visibles et non neutralisés dans
+   `.p-days` en lecture seule. Après correctifs, l'inventaire renvoie **zéro** contrôle
+   interactif restant. Ce test est à rejouer à chaque ajout de contrôle sur les cartes.
 3. **Conséquence assumée** : une semaine future encore vierge apparaît quasi vide en lecture
    seule (jours + bandeaux d'horaires seulement). Le toast du volet 4 (« clique ✏️ Modifier
    pour éditer ») lève le doute côté formateur ; « Modifier » restaure la vue complète.
