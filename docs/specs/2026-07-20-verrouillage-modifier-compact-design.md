@@ -208,6 +208,13 @@ non remplis et les boutons doivent disparaître pour épurer un maximum ».
    `button/select/input/textarea/[tabindex]/[role=button]` visibles et non neutralisés dans
    `.p-days` en lecture seule. Après correctifs, l'inventaire renvoie **zéro** contrôle
    interactif restant. Ce test est à rejouer à chaque ajout de contrôle sur les cartes.
+
+3. **Portée des règles `.read-only` restreinte à `.p-days`** (régression corrigée le 20/07).
+   Les sélecteurs génériques `.read-only select|input|.chips-display` touchaient TOUTE la vue,
+   donc aussi le champ de date de la barre de semaine : en lecture seule, il devenait inerte et
+   la navigation par mois disparaissait. Invisible tant que `.read-only` ne concernait que les
+   stagiaires ; devenu bloquant dès que la lecture seule est le mode par défaut des formateurs.
+   Règle générale : **ces styles visent l'édition des cartes, jamais la navigation.**
 3. **Conséquence assumée** : une semaine future encore vierge apparaît quasi vide en lecture
    seule (jours + bandeaux d'horaires seulement). Le toast du volet 4 (« clique ✏️ Modifier
    pour éditer ») lève le doute côté formateur ; « Modifier » restaure la vue complète.

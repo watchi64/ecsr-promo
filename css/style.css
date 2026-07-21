@@ -4748,18 +4748,24 @@ button.theme-date.editable.muted { color: var(--text-faint); }
 }
 
 /* ============================================================
-   Read-only mode (lecture seule pour Planning quand non-admin)
+   Read-only mode (lecture seule du Planning)
+   ⚠️ PORTÉE : uniquement `.p-days`, la zone des cartes. Ces règles visent les
+   contrôles d'ÉDITION du planning, jamais la NAVIGATION. Tant que `.read-only`
+   n'était posé que pour les stagiaires, la nuance ne se voyait pas ; depuis que
+   la lecture seule est le mode par défaut (spec 2026-07-20), un sélecteur trop
+   large neutralise aussi le champ de date de la barre de semaine — c'est arrivé,
+   la navigation par mois était devenue impossible pour les formateurs.
    ============================================================ */
 
-.read-only select,
-.read-only input,
-.read-only .chips-display {
+.read-only .p-days select,
+.read-only .p-days input,
+.read-only .p-days .chips-display {
   pointer-events: none;
   background: transparent !important;
   border-color: transparent !important;
   cursor: default !important;
 }
-.read-only select { background-image: none !important; padding-right: 0.4rem !important; }
+.read-only .p-days select { background-image: none !important; padding-right: 0.4rem !important; }
 .read-only .p-add-suite,
 .read-only .p-add-parallele-mini,
 .read-only .p-lane-delete,
