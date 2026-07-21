@@ -1924,11 +1924,11 @@ function renderLaneCell(entry) {
 
   cell.appendChild(body);
 
-  // === Vue compacte (semaine verrouillée) : marque les blocs sans valeur — la CSS
-  // .p-compact .is-empty les masque (mêmes règles que le rendu print). Détection sur
-  // le DOM rendu : les displays vides portent .chips-placeholder / .person-placeholder,
-  // les sujets vides n'ont aucune .sujet-chip. ===
-  if (isLocked(semaineLundi)) {
+  // === Vue compacte (tout ce qui n'est pas l'édition active) : marque les blocs sans
+  // valeur, la CSS .p-compact .is-empty les masque (mêmes règles que le rendu print).
+  // Détection sur le DOM rendu : les displays vides portent .chips-placeholder /
+  // .person-placeholder, les sujets vides n'ont aucune .sujet-chip. ===
+  if (!canEditWeek()) {
     const isEmptyDisplay = (root) => {
       if (!root) return true;
       if (root.querySelector(".chip, .person-value, .sujet-chip")) return false;
@@ -1974,7 +1974,7 @@ function renderSlotRow(d, half, row, maxLanes) {
     // Place la cellule dans la colonne correspondant à son lane index. En vue compacte
     // (semaine verrouillée), les lanes vides sont filtrées en amont et _laneRender
     // re-numérote les restantes pour resserrer la grille (entry.lane reste intact).
-    const laneIdx = (isLocked(semaineLundi) ? entry._laneRender : entry.lane) ?? entry.lane ?? 0;
+    const laneIdx = (canEditWeek() ? entry.lane : (entry._laneRender ?? entry.lane)) ?? 0;
     cell.style.gridColumn = String(laneIdx + 1);
     lanes.appendChild(cell);
   });
@@ -2059,7 +2059,7 @@ function renderDayCard(d, monday) {
 
     const slotsWrap = el("div", { class: "p-slots-wrap" });
     let rows = rowsFor(d, half.key);
-    const compact = isLocked(semaineLundi);
+    const compact = !canEditWeek();
     if (compact) {
       // Vue compacte : seules les lanes avec contenu, puis les créneaux non vides.
       // Re-numérotation via _laneRender (champ de RENDU — ne jamais muter entry.lane,
@@ -2619,8 +2619,10 @@ function renderInto(container) {
   // Lecture seule dès qu'on n'est pas en édition explicite (stagiaire, admin hors
   // mode Modifier, ou semaine verrouillée) — la CSS .read-only fait le gros du travail.
   container.classList.toggle("read-only", !editing);
-  // Vue compacte : automatique sur semaine verrouillée, pour tous (admin et stagiaires).
-  container.classList.toggle("p-compact", isLocked(semaineLundi));
+  // Vue compacte : dès qu'on n'édite pas, pour tous (admin hors mode Modifier, semaine
+  // verrouillée, stagiaires). Épuration maximale : le vide n'apporte rien à la lecture,
+  // et « Modifier » restaure instantanément tous les emplacements (volet 5).
+  container.classList.toggle("p-compact", !editing);
   // Liseré du mode édition : la zone des jours est visiblement « ouverte » (volet 4).
   container.classList.toggle("p-editing", editing);
 

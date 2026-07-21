@@ -4822,6 +4822,11 @@ button.theme-date.editable.muted { color: var(--text-faint); }
 .read-only .chips-display .x,
 .read-only .sujet-chip-x,
 .read-only .p-dice-btn,
+/* ⊘ marquage d'absence : ajouté par la refonte absences du 20/07 sans rejoindre ce
+   groupe, donc visible et cliquable côté stagiaire jusqu'au 20/07 (écriture bloquée
+   par le backstop canEditWeek() + RLS, mais UI trompeuse). Gotcha récurrent : tout
+   nouveau contrôle d'édition doit être ajouté ICI. */
+.read-only .p-abs-btn,
 .read-only .p-eleves-dice-toolbar,
 .read-only .p-dice-picker-wrap,
 .read-only .p-dice-picker { display: none !important; }
