@@ -106,7 +106,13 @@ html, body {
   -webkit-font-smoothing: antialiased;
   -webkit-text-size-adjust: 100%;
   text-rendering: optimizeLegibility;
+  /* `hidden` d'abord (repli pour les navigateurs anciens), puis `clip` : `hidden` fait
+     de <body> un conteneur de défilement, ce qui casse silencieusement TOUT élément
+     collant à l'intérieur (constaté sur la barre de jours du planning, qui sortait de
+     l'écran au lieu de rester en haut). `clip` coupe le débordement horizontal sans
+     créer ce conteneur, donc le collage fonctionne. */
   overflow-x: hidden;
+  overflow-x: clip;
   width: 100%;
 }
 
@@ -721,68 +727,6 @@ h3 {
   border-color: var(--accent);
 }
 
-/* Verrouillage semaine : badge « ✓ Semaine validée » + déverrouillage discret */
-.p-locked-badge {
-  display: inline-flex; align-items: center; gap: 0.3rem;
-  font-size: 0.82rem; font-weight: 600; padding: 0.3rem 0.65rem;
-  border-radius: 999px; background: var(--c-go-soft); color: var(--c-go);
-  white-space: nowrap;
-}
-.p-unlock-btn { opacity: 0.75; }
-.p-unlock-btn:hover { opacity: 1; }
-.valider-lock-row { display: flex; align-items: center; gap: 0.45rem;
-  margin: 0.6rem 0 0; font-size: 0.88rem; cursor: pointer; user-select: none; }
-
-/* Ergonomie du mode édition (volet 4) : liseré pointillé + pill flottante */
-.p-editing .p-days {
-  outline: 2px dashed color-mix(in srgb, var(--accent) 45%, transparent);
-  outline-offset: 6px;
-  border-radius: var(--r-sm);
-}
-.p-edit-pill {
-  position: fixed;
-  bottom: 1.1rem;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 40;                       /* sous les modales (backdrop plus haut) */
-  display: inline-flex;
-  align-items: center;
-  gap: 0.7rem;
-  padding: 0.45rem 0.6rem 0.45rem 1rem;
-  border-radius: 999px;
-  background: var(--accent);
-  color: #fff;
-  font-size: 0.86rem;
-  font-weight: 600;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.22);
-  white-space: nowrap;
-}
-.p-edit-pill-btn {
-  border: none;
-  border-radius: 999px;
-  padding: 0.32rem 0.75rem;
-  font: inherit;
-  font-weight: 700;
-  cursor: pointer;
-  background: rgba(255, 255, 255, 0.92);
-  color: var(--accent);
-}
-.p-edit-pill-btn:hover { background: #fff; }
-@media print {
-  .p-edit-pill { display: none !important; }
-  .p-editing .p-days { outline: none; }
-}
-
-/* ============================================================
-   Vue compacte (semaine verrouillée) : le vide disparaît,
-   les espacements se resserrent — spec 2026-07-20.
-   ============================================================ */
-.p-compact .is-empty { display: none !important; }
-.p-compact .p-lane-cell { padding: 0.4rem 0.55rem; }
-.p-compact .p-slots-wrap { gap: 0.35rem; }
-.p-compact .p-day-content { gap: 0.4rem; }
-.p-compact .p-half { padding-bottom: 0.3rem; }
-.p-compact .p-lane-body { gap: 0.25rem; }
 
 /* Layout en cards par jour — empilées verticalement, lanes en parallèle horizontales */
 
@@ -6230,3 +6174,199 @@ body.qcm-open { overflow: hidden; }
 .abs-row { display: flex; align-items: center; gap: 6px; font-size: 0.8rem; flex-wrap: wrap; }
 .abs-row-name { color: var(--c-stop); font-weight: 600; }
 .abs-occupied { background: var(--c-wait-soft); color: var(--c-wait); }
+
+
+/* ============================================================
+   OVERRIDES DE FIN DE FICHIER — verrou, mode édition, vue compacte,
+   barre de jours (specs 2026-07-20, volets 1 à 6).
+   ⚠️ Ce bloc DOIT rester en fin de fichier : plusieurs de ses règles ont la
+   même spécificité que les règles de base du planning (ex. .p-compact
+   .sujet-chips vs .sujet-multi .sujet-chips) et ne gagnent que par l'ordre
+   de déclaration. Le remonter plus haut casse silencieusement la densité.
+   ============================================================ */
+/* Verrouillage semaine : badge « ✓ Semaine validée » + déverrouillage discret */
+.p-locked-badge {
+  display: inline-flex; align-items: center; gap: 0.3rem;
+  font-size: 0.82rem; font-weight: 600; padding: 0.3rem 0.65rem;
+  border-radius: 999px; background: var(--c-go-soft); color: var(--c-go);
+  white-space: nowrap;
+}
+.p-unlock-btn { opacity: 0.75; }
+.p-unlock-btn:hover { opacity: 1; }
+.valider-lock-row { display: flex; align-items: center; gap: 0.45rem;
+  margin: 0.6rem 0 0; font-size: 0.88rem; cursor: pointer; user-select: none; }
+
+/* Ergonomie du mode édition (volet 4) : liseré pointillé + pill flottante */
+.p-editing .p-days {
+  outline: 2px dashed color-mix(in srgb, var(--accent) 45%, transparent);
+  outline-offset: 6px;
+  border-radius: var(--r-sm);
+}
+.p-edit-pill {
+  position: fixed;
+  bottom: 1.1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 40;                       /* sous les modales (backdrop plus haut) */
+  display: inline-flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.45rem 0.6rem 0.45rem 1rem;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.86rem;
+  font-weight: 600;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.22);
+  white-space: nowrap;
+}
+.p-edit-pill-btn {
+  border: none;
+  border-radius: 999px;
+  padding: 0.32rem 0.75rem;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--accent);
+}
+.p-edit-pill-btn:hover { background: #fff; }
+@media print {
+  .p-edit-pill { display: none !important; }
+  .p-editing .p-days { outline: none; }
+}
+
+/* ============================================================
+   Vue compacte (semaine verrouillée) : le vide disparaît,
+   les espacements se resserrent — spec 2026-07-20.
+   ============================================================ */
+.p-compact .is-empty { display: none !important; }
+.p-compact .p-lane-cell { padding: 0.4rem 0.55rem; }
+.p-compact .p-slots-wrap { gap: 0.35rem; }
+.p-compact .p-day-content { gap: 0.4rem; }
+.p-compact .p-half { padding-bottom: 0.3rem; }
+.p-compact .p-lane-body { gap: 0.25rem; }
+
+/* --- Densification (volet 6) : hors édition, la carte se lit comme du texte.
+   Rien ici ne doit ressembler à un champ : c'est ce qui faisait croire aux
+   utilisateurs que le planning était modifiable alors qu'il ne l'est pas. --- */
+
+/* Sujet : plus de pastille ni de champ de saisie, un simple libellé accentué. */
+.p-compact .sujet-chip {
+  background: none;
+  padding: 0;
+  border-radius: 0;
+  font-weight: 600;
+  gap: 0.25rem;
+}
+.p-compact .sujet-chip-num {
+  background: none;
+  color: var(--accent-strong);
+  padding: 0;
+  min-width: 0;
+}
+.p-compact .sujet-chip-num::after { content: " ·"; }
+.p-compact .sujet-chip-input,
+.p-compact .sujet-ac-dropdown { display: none !important; }
+.p-compact .p-lane-sujet { margin: 0; }
+
+/* Hauteurs de confort tactile : indispensables pour viser un contrôle au doigt,
+   pur gâchis en lecture seule (32 px pour une ligne de 17, 40 px par déroulant).
+   Les neutraliser est le plus gros levier de densité. */
+.p-compact .sujet-chips {
+  min-height: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  gap: 0.15rem 0.5rem;
+}
+.p-compact .p-lane-activite-wrap,
+.p-compact .p-lane-prof-wrap { min-height: 0; }
+.p-compact .p-lane-activite-wrap select,
+.p-compact .p-lane-prof-wrap select,
+.p-compact .p-lane-header select {
+  min-height: 0;
+  height: auto;
+  padding: 0;
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+.p-compact .p-lane-header { gap: 0.5rem; align-items: baseline; }
+
+/* Salle 2 groupes : « GROUPE 1 » remonte sur la ligne du sujet au lieu d'occuper
+   sa propre ligne (16 px × 2 groupes × 5 jours de gagnés). Les rôles restent
+   dessous, pleine largeur. */
+.p-compact .p-salle-group {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: 0.4rem;
+  align-items: baseline;
+}
+.p-compact .p-salle-group > .p-salle-group-tag { grid-column: 1; grid-row: 1; }
+.p-compact .p-salle-group > .p-lane-sujet { grid-column: 2; grid-row: 1; }
+.p-compact .p-salle-group > *:not(.p-salle-group-tag):not(.p-lane-sujet) { grid-column: 1 / -1; }
+.p-compact .p-salle-group-tag { font-size: 0.6rem; line-height: 1.2; }
+
+/* Espacements généraux resserrés */
+.p-compact .p-lane-body { gap: 0.15rem; }
+.p-compact .p-days { gap: 0.4rem; }
+.p-compact .p-slot-row { gap: 0.25rem; }
+.p-compact .p-slot-marker { padding-top: 0.15rem; }
+.p-compact .p-day-head { padding-top: 0.3rem; padding-bottom: 0.3rem; }
+.p-compact .p-lane-role.eleves { align-items: baseline; }
+
+/* Rôles : label discret, valeurs en texte courant, chips sans pastille. */
+.p-compact .p-lane-role { min-height: 0; gap: 0.35rem; align-items: baseline; }
+.p-compact .p-lane-role-label { min-width: 0; font-size: 0.64rem; }
+.p-compact .chip {
+  background: none !important;
+  padding: 0 !important;
+  border-radius: 0;
+  font-size: 0.84rem;
+}
+.p-compact .chips-display .chip:not(:last-child)::after { content: ","; }
+.p-compact .chips-display,
+.p-compact .person-display { padding: 0; min-height: 0; gap: 0.3rem; }
+.p-compact .chips-display { row-gap: 0.1rem; }
+.p-compact .p-lane-eleves-col { gap: 0.1rem; }
+.p-compact .p-lane-header { min-height: 0; }
+.p-compact .p-lane-participants { gap: 0.15rem; }
+.p-compact .p-salle-group { padding: 0.25rem 0.4rem; }
+.p-compact .p-half-head { padding-top: 0.3rem; padding-bottom: 0.3rem; }
+
+/* --- Barre de jours colante (volet 6) : appui = saut au jour, jour visible surligné.
+   Présente dans les deux modes : c'est de la navigation, pas de l'édition. --- */
+.p-daynav {
+  position: sticky;
+  top: 52px;                 /* sous la topbar (sticky, ~52px de haut) */
+  z-index: 9;
+  display: flex;
+  gap: 0.3rem;
+  padding: 0.35rem;
+  margin-bottom: 0.6rem;
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+}
+.p-daynav-btn {
+  flex: 1 1 0;
+  min-width: 0;
+  border: none;
+  background: none;
+  border-radius: var(--r-sm);
+  padding: 0.3rem 0.1rem;
+  font-family: inherit;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--text-soft);
+  cursor: pointer;
+  line-height: 1.25;
+}
+.p-daynav-btn span { display: block; font-size: 0.68rem; font-weight: 400; opacity: 0.75; }
+.p-daynav-btn:hover { background: var(--bg-deep-soft, rgba(0, 0, 0, 0.05)); }
+.p-daynav-btn.current { background: var(--accent); color: #fff; }
+.p-daynav-btn.current span { opacity: 0.9; }
+.p-daynav-btn.off { color: var(--text-faint); }
+.p-day-card { scroll-margin-top: 104px; }   /* topbar + barre de jours */
+@media print { .p-daynav { display: none !important; } }

@@ -204,6 +204,59 @@ non remplis et les boutons doivent disparaître pour épurer un maximum ».
    seule (jours + bandeaux d'horaires seulement). Le toast du volet 4 (« clique ✏️ Modifier
    pour éditer ») lève le doute côté formateur ; « Modifier » restaure la vue complète.
 
+## Volet 6 — Densification lecture seule + navigation par jour (validé le 20/07)
+
+Motivation : plaintes d'ergonomie sur téléphone, « scroller de jour en jour ». Mesures au banc
+sur une semaine réaliste (5 jours pleins, salle 2 groupes + voiture + lane parallèle), viewport
+iPhone 375×812 : **édition 7885 px (9,7 écrans)**, **lecture seule après volet 5 : 3794 px
+(4,7 écrans)**, soit ~752 px par jour. Objectif : **~2,5 écrans**.
+
+1. **Cartes densifiées** (CSS pur, sous `.p-compact`, mode édition inchangé) :
+   - Sujet : la puce perd son fond et son arrondi, devient un libellé texte accentué, numéro de
+     thème conservé (« 12 · Le freinage »). L'input `+` (`.sujet-chip-input`) est masqué : c'est
+     lui qui donnait l'impression d'un champ modifiable (retour utilisateur).
+   - Rôles : label raccourci et discret, valeurs en texte courant ; les chips stagiaires perdent
+     leur fond de pastille et sont séparées par des virgules.
+   - Interlignes, hauteurs minimales et marges resserrés.
+2. **Barre de jours colante** : `LUN 06 … VEN 10` en `position: sticky` sous l'en-tête de l'app.
+   Appui = défilement jusqu'au jour (`scroll-margin-top` pour compenser en-tête + barre). Le jour
+   visible est surligné via un `IntersectionObserver` (déconnecté à chaque re-render pour éviter
+   les fuites). Jours fériés/fermés grisés mais cliquables. **Affichée dans les deux modes**
+   (lecture seule et édition) : c'est de la navigation, pas de l'édition.
+3. **Portée** : mobile ET ordinateur, même rendu (choix utilisateur : un seul rendu à maintenir).
+4. **Vérification** : mesure de hauteur re-jouée après implémentation et rapportée telle quelle,
+   y compris si l'objectif n'est pas atteint.
+
+### Résultat mesuré (banc, iPhone 375×812, même semaine réaliste)
+
+| Étape | Hauteur | Écrans |
+|---|---|---|
+| Avant volet 6 (lecture seule) | 3794 px | 4,7 |
+| Densification CSS seule (1er jet) | 3401 px | 4,2 |
+| + neutralisation des hauteurs tactiles | 3022 px | 3,7 |
+| + étiquette de groupe sur la ligne du sujet, espacements | **2842 px** | **3,5** |
+
+**Objectif 2,5 écrans NON atteint : on s'arrête à 3,5** (soit −25 % contre −47 % visés). Le reste
+de la hauteur est structurel (en-têtes de jour, bandeaux de demi-journée, en-tête de carte,
+deux blocs de rôles par groupe) et ne se réduit plus par CSS : il faudrait un rendu texte dédié
+en lecture seule, réutilisant la logique du rendu print. Non fait, à décider séparément.
+La navigation par jour, elle, répond directement à la plainte d'origine.
+
+### Découvertes de plateforme (documentées pour ne pas les re-payer)
+
+- **`overflow-x: hidden` sur `<body>` casse tout `position: sticky` descendant** : `body` devient
+  un conteneur de défilement qui ne défile pas, donc l'élément collant part avec la page. La barre
+  sortait de l'écran. Corrigé par `overflow-x: clip` (même effet visuel, pas de conteneur créé),
+  précédé de `hidden` comme repli pour les navigateurs anciens.
+- **Le banc s'exécute en page « cachée »** (`document.visibilityState === "hidden"`) : le navigateur
+  y gèle `requestAnimationFrame`, n'émet aucun événement `scroll` et ne délivre aucun callback
+  d'`IntersectionObserver`. Conséquence : toute logique dépendant de ces mécanismes est
+  invérifiable au banc. Le surlignage a donc été écrit avec un throttle temporel et testé en
+  émettant l'événement `scroll` à la main.
+- **Le défilement fluide est inopérant dans ce contexte** (ni `scrollIntoView`, ni `scrollTo`, ni
+  `scroll-behavior`), le saut direct fonctionne : `scrollToDay` tente le fluide puis bascule sur
+  le saut direct si rien n'a bougé après 250 ms.
+
 ## Hors périmètre
 
 - Aucune modification du schéma de base, des RLS, ni des autres vues (`passages.js`, `notes.js`…).

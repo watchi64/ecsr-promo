@@ -2610,6 +2610,92 @@ function buildRulesNote() {
   return details;
 }
 
+// === Barre de jours colante (volet 6) ===
+// Répond à la plainte « scroller de jour en jour » sur téléphone : un appui saute au
+// jour voulu, et le jour à l'écran reste surligné pendant le défilement.
+// Le surlignage est calculé sur l'événement `scroll` plutôt qu'avec un
+// IntersectionObserver : au banc, l'observer ne délivre aucun callback (aucune
+// configuration testée ne fonctionne), donc son comportement serait invérifiable.
+// Un calcul sur 5 cartes, throttlé par requestAnimationFrame, est trivial et testable.
+let dayNavScrollHandler = null;   // retiré à CHAQUE rendu : renderInto est appelé souvent
+
+// Défilement jusqu'à un jour. Le défilement fluide est silencieusement ignoré dans
+// certains contextes (constaté au banc : ni scrollIntoView smooth, ni scrollTo smooth,
+// ni scroll-behavior CSS ne bougent d'un pixel, alors que le saut direct fonctionne).
+// On tente donc le fluide, puis on bascule sur le saut direct s'il ne s'est rien passé :
+// un bouton de navigation doit toujours emmener quelque part.
+function scrollToDay(d) {
+  const card = currentContainer?.querySelectorAll(".p-day-card")[d];
+  if (!card) return;
+  const before = window.scrollY;
+  card.scrollIntoView({ behavior: "smooth", block: "start" });
+  setTimeout(() => {
+    if (Math.abs(window.scrollY - before) < 4) card.scrollIntoView({ block: "start" });
+  }, 250);
+}
+
+function buildDayNav(monday) {
+  const nav = el("div", { class: "p-daynav" });
+  const todayIso = isoDate(new Date());
+  JOURS.forEach((jour, d) => {
+    const date = addDays(monday, d);
+    const off = dayOffInfo(d, monday);
+    const btn = el("button", {
+      class: "p-daynav-btn" + (off.off ? " off" : "") + (isoDate(date) === todayIso ? " current" : ""),
+      type: "button",
+      title: off.off ? jour + " : " + off.label : "Aller à " + jour.toLowerCase(),
+      onClick: () => scrollToDay(d),
+    }, jour.slice(0, 3));
+    // Quantième seul (« 06 ») : le mois est déjà porté par « Semaine du … » au-dessus,
+    // et 5 boutons doivent tenir dans 375 px sur téléphone.
+    btn.appendChild(el("span", {}, String(date.getDate()).padStart(2, "0")));
+    nav.appendChild(btn);
+  });
+  return nav;
+}
+
+// Surligne le jour visible pendant le scroll. Appelé après l'insertion des cartes.
+function armDayNavHighlight(container) {
+  detachDayNavHighlight();
+  const cards = [...container.querySelectorAll(".p-day-card")];
+  const btns = [...container.querySelectorAll(".p-daynav-btn")];
+  if (!cards.length || !btns.length) return;
+
+  // Jour courant = celui qui occupe la plus grande hauteur sous la barre de jours.
+  const update = () => {
+    const haut = 104;                       // topbar + barre de jours
+    const bas = window.innerHeight;
+    let best = 0, bestVisible = -1;
+    cards.forEach((c, i) => {
+      const r = c.getBoundingClientRect();
+      const visible = Math.min(r.bottom, bas) - Math.max(r.top, haut);
+      if (visible > bestVisible + 0.5) { bestVisible = visible; best = i; }
+    });
+    btns.forEach((b, i) => b.classList.toggle("current", i === best));
+  };
+
+  // Throttle temporel (et non requestAnimationFrame) : rAF est gelé dès que la page
+  // n'est pas visible, ce qui rendrait le surlignage intestable au banc et muet dans
+  // tout contexte d'arrière-plan. Un intervalle de 100 ms suffit largement pour 5 cartes.
+  let last = 0, timer = null;
+  dayNavScrollHandler = () => {
+    const now = Date.now();
+    if (now - last >= 100) { last = now; update(); return; }
+    if (timer) return;
+    timer = setTimeout(() => { timer = null; last = Date.now(); update(); }, 100);
+  };
+  window.addEventListener("scroll", dayNavScrollHandler, { passive: true });
+  window.addEventListener("resize", dayNavScrollHandler, { passive: true });
+  update();
+}
+
+function detachDayNavHighlight() {
+  if (!dayNavScrollHandler) return;
+  window.removeEventListener("scroll", dayNavScrollHandler);
+  window.removeEventListener("resize", dayNavScrollHandler);
+  dayNavScrollHandler = null;
+}
+
 function renderInto(container) {
   currentContainer = container;
   clear(container);
@@ -2736,6 +2822,8 @@ function renderInto(container) {
   container.appendChild(weekBar);
   container.appendChild(buildRulesNote());
 
+  container.appendChild(buildDayNav(monday));
+
   const wrap = el("div", { class: "p-days" });
   JOURS.forEach((_, d) => wrap.appendChild(renderDayCard(d, monday)));
   // Hint découvrabilité (volet 4) : un admin qui clique en lecture seule n'obtient
@@ -2768,6 +2856,9 @@ function renderInto(container) {
     el("strong", {}, "Parallèle "), "→ = autre activité au même horaire (ex: voiture qui tourne pendant un cours). ",
     "Au moins 1 créneau par demi-journée. Min. 1 lane (rangée) → bouton « Parallèle » l'étoffe."
   ));
+
+  // Surlignage du jour visible dans la barre de jours (après insertion des cartes).
+  armDayNavHighlight(container);
 
   // Monte/rafraîchit le DOM d'impression dédié (caché à l'écran, utilisé par @media print).
   mountPrintTarget();
@@ -3135,6 +3226,7 @@ function mountPrintTarget() {
 // Appelé par le routeur en quittant le planning : on retire la cible d'impression
 // pour qu'un print natif depuis une autre vue n'imprime pas un planning périmé.
 export function teardownPrintTarget() {
+  detachDayNavHighlight();   // la vue quitte l'écran : plus rien à surveiller
   document.getElementById("print-container")?.remove();
   document.body.classList.remove("planning-printable");
 }
