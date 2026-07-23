@@ -2,23 +2,23 @@
  * Promo ECSR — Application propriétaire.
  * © 2026 watchi64 — Tous droits réservés. Voir LICENSE.
  */
-import { signInWithPassword, signUpWithPassword, getCurrentUser, invalidateCache } from "./db.js?v=20260723b";
-import { toast } from "./utils.js?v=20260723b";
-import { icon } from "./icons.js?v=20260723b";
-import { initAuth, onAdminChange, isAuth } from "./auth-admin.js?v=20260723b";
-import { loadAccent } from "./accent-switcher.js?v=20260723b";
-import { loadTheme } from "./theme-switcher.js?v=20260723b";
-import { renderHome } from "./views/home.js?v=20260723b";
-import { renderDashboard } from "./views/dashboard.js?v=20260723b";
-import { renderMonSuivi } from "./views/mon-suivi.js?v=20260723b";
-import { renderPlanning, teardownPrintTarget, resetPlanningEditMode, requestPlanningToday } from "./views/planning.js?v=20260723b";
-import { teardownLivretPrint } from "./views/epcf-livret.js?v=20260723b";
-import { renderNotes } from "./views/notes.js?v=20260723b";
-import { renderRessources } from "./views/ressources.js?v=20260723b";
-import { renderThemes } from "./views/themes.js?v=20260723b";
-import { renderConfig } from "./views/config.js?v=20260723b";
-import { renderCalendrier } from "./views/calendrier.js?v=20260723b";
-import { initUndoKeyboard } from "./undo.js?v=20260723b";
+import { signInWithPassword, signUpWithPassword, getCurrentUser, invalidateCache } from "./db.js?v=20260723c";
+import { toast } from "./utils.js?v=20260723c";
+import { icon } from "./icons.js?v=20260723c";
+import { initAuth, onAdminChange, isAuth } from "./auth-admin.js?v=20260723c";
+import { loadAccent } from "./accent-switcher.js?v=20260723c";
+import { loadTheme } from "./theme-switcher.js?v=20260723c";
+import { renderHome } from "./views/home.js?v=20260723c";
+import { renderDashboard } from "./views/dashboard.js?v=20260723c";
+import { renderMonSuivi } from "./views/mon-suivi.js?v=20260723c";
+import { renderPlanning, teardownPrintTarget, resetPlanningEditMode, requestPlanningToday } from "./views/planning.js?v=20260723c";
+import { teardownLivretPrint } from "./views/epcf-livret.js?v=20260723c";
+import { renderNotes } from "./views/notes.js?v=20260723c";
+import { renderRessources } from "./views/ressources.js?v=20260723c";
+import { renderThemes } from "./views/themes.js?v=20260723c";
+import { renderConfig } from "./views/config.js?v=20260723c";
+import { renderCalendrier } from "./views/calendrier.js?v=20260723c";
+import { initUndoKeyboard } from "./undo.js?v=20260723c";
 
 // ===== Gate : email magic link =====
 
@@ -245,6 +245,20 @@ function setupTodayBtn() {
   });
 }
 
+// « Ouvrir l'app » = démarrage à froid. Un raccourci d'écran d'accueil, un favori ou un
+// onglet restauré garde l'ancienne vue dans l'URL (#/dashboard…) : sans ce test, le hash
+// mémorisé gagne toujours et la vue d'accueil ne s'applique jamais (constaté sur iPhone
+// le 23/07). On ne force PAS sur un rechargement ni sur précédent/suivant : tirer pour
+// rafraîchir doit rester sur la page qu'on regarde, pas éjecter vers Mon suivi.
+function isColdStart() {
+  try {
+    const nav = performance.getEntriesByType("navigation")[0];
+    return !nav || (nav.type !== "reload" && nav.type !== "back_forward");
+  } catch (e) {
+    return true;
+  }
+}
+
 async function bootApp() {
   hideGate();
   renderTabs();
@@ -252,7 +266,12 @@ async function bootApp() {
   setupTodayBtn();
   onAdminChange(() => { renderTabs(); navigate(); });
   initUndoKeyboard();
-  if (!location.hash) location.hash = "#/mon-suivi";
+  // replaceState plutôt que location.hash : pas de `hashchange` (donc pas de double
+  // rendu avec le navigate() ci-dessous) et pas d'entrée d'historique parasite.
+  if (!location.hash || isColdStart()) {
+    try { history.replaceState(null, "", "#/mon-suivi"); }
+    catch (e) { location.hash = "#/mon-suivi"; }
+  }
   await navigate();
 }
 
