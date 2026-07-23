@@ -1,7 +1,7 @@
-import { listStagiaires, getStats, getSetting } from "../db.js?v=20260723f";
-import { el, clear, isoDate, getMonday, displayStagiaire, compareByNom } from "../utils.js?v=20260723f";
-import { icon } from "../icons.js?v=20260723f";
-import { renderPassages } from "./passages.js?v=20260723f";
+import { listStagiaires, getStats, getSetting } from "../db.js?v=20260723g";
+import { el, clear, isoDate, getMonday, displayStagiaire, compareByNom } from "../utils.js?v=20260723g";
+import { icon } from "../icons.js?v=20260723g";
+import { renderPassages } from "./passages.js?v=20260723g";
 
 const SORT_OPTIONS = [
   { key: "priorite",   label: "Priorité de passage" },
@@ -153,7 +153,7 @@ export async function renderDashboard(container) {
   container.appendChild(el("div", { class: "view-header" },
     el("div", { class: "view-header-text" },
       el("p", { class: "eyebrow" }, "Semaine du " + new Date(monday + "T00:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "long" })),
-      el("h2", {}, "Suivi des passages"),
+      el("h2", {}, "Priorités de passage"),
       el("p", { class: "subtitle" }, "Qui doit passer en priorité, par rapport à la moyenne de la classe."),
     ),
   ));

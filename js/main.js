@@ -2,23 +2,23 @@
  * Promo ECSR — Application propriétaire.
  * © 2026 watchi64 — Tous droits réservés. Voir LICENSE.
  */
-import { signInWithPassword, signUpWithPassword, getCurrentUser, invalidateCache } from "./db.js?v=20260723f";
-import { toast } from "./utils.js?v=20260723f";
-import { icon } from "./icons.js?v=20260723f";
-import { initAuth, onAdminChange, isAuth } from "./auth-admin.js?v=20260723f";
-import { loadAccent } from "./accent-switcher.js?v=20260723f";
-import { loadTheme } from "./theme-switcher.js?v=20260723f";
-import { renderHome } from "./views/home.js?v=20260723f";
-import { renderDashboard } from "./views/dashboard.js?v=20260723f";
-import { renderMonSuivi } from "./views/mon-suivi.js?v=20260723f";
-import { renderPlanning, teardownPrintTarget, resetPlanningEditMode, requestPlanningToday } from "./views/planning.js?v=20260723f";
-import { teardownLivretPrint } from "./views/epcf-livret.js?v=20260723f";
-import { renderNotes } from "./views/notes.js?v=20260723f";
-import { renderRessources } from "./views/ressources.js?v=20260723f";
-import { renderThemes } from "./views/themes.js?v=20260723f";
-import { renderConfig } from "./views/config.js?v=20260723f";
-import { renderCalendrier } from "./views/calendrier.js?v=20260723f";
-import { initUndoKeyboard } from "./undo.js?v=20260723f";
+import { signInWithPassword, signUpWithPassword, getCurrentUser, invalidateCache } from "./db.js?v=20260723g";
+import { toast } from "./utils.js?v=20260723g";
+import { icon } from "./icons.js?v=20260723g";
+import { initAuth, onAdminChange, isAuth } from "./auth-admin.js?v=20260723g";
+import { loadAccent } from "./accent-switcher.js?v=20260723g";
+import { loadTheme } from "./theme-switcher.js?v=20260723g";
+import { renderHome } from "./views/home.js?v=20260723g";
+import { renderDashboard } from "./views/dashboard.js?v=20260723g";
+import { renderMonSuivi } from "./views/mon-suivi.js?v=20260723g";
+import { renderPlanning, teardownPrintTarget, resetPlanningEditMode, requestPlanningToday } from "./views/planning.js?v=20260723g";
+import { teardownLivretPrint } from "./views/epcf-livret.js?v=20260723g";
+import { renderNotes } from "./views/notes.js?v=20260723g";
+import { renderRessources } from "./views/ressources.js?v=20260723g";
+import { renderThemes } from "./views/themes.js?v=20260723g";
+import { renderConfig } from "./views/config.js?v=20260723g";
+import { renderCalendrier } from "./views/calendrier.js?v=20260723g";
+import { initUndoKeyboard } from "./undo.js?v=20260723g";
 
 // ===== Gate : email magic link =====
 
@@ -121,8 +121,12 @@ function hideGate() {
 
 const TABS = [
   { route: "home",       label: "Accueil",         icon: "info"      },
-  { route: "dashboard",  label: "Passages",        icon: "dashboard" },
-  { route: "mon-suivi",  label: "Mon suivi",       icon: "user"      },
+  // « Priorités » : la vue promo dit QUI doit passer, pas « les passages » (ce mot
+  // appartient à l'espace perso). L'espace perso n'a PLUS d'onglet : on y accède par
+  // l'ouverture de l'app, le logo et le badge (« Mon espace personnel ») — la route
+  // mon-suivi reste dans `routes` ci-dessous. Sur #/mon-suivi, aucun onglet n'est
+  // actif : assumé (la boucle d'activation ne matche rien).
+  { route: "dashboard",  label: "Priorités",       icon: "target"    },
   { route: "planning",   label: "Planning",        icon: "calendar"  },
   { route: "calendrier", label: "Calendrier",      icon: "clock"     },
   { route: "themes",     label: "Thèmes",          icon: "list"      },
