@@ -1,12 +1,12 @@
 import { listStagiaires, listEvaluations, getPlanning, getHalfMetaForWeek, getJoursOff, getSetting,
          getVoitureAggregats, listProfs, listEpcf, getEpcfMoyennes, listThemes,
-         getStagiaire, setDateNaissance } from "../db.js?v=20260723c";
-import { el, clear, isoDate, getMonday, addDays, formatDate, displayStagiaire, compareByNom, toast } from "../utils.js?v=20260723c";
-import { HALF_DAYS } from "../config.js?v=20260723c";
-import { isAdmin, isProf, getProfile } from "../auth-admin.js?v=20260723c";
-import { renderEpcfTrameSection } from "../epcf-restitution.js?v=20260723c";
-import { renderSubTabs } from "../subtabs.js?v=20260723c";
-import { rolesPourEntry, ROLE_ORDER } from "../creneaux-rules.js?v=20260723c";
+         getStagiaire, setDateNaissance } from "../db.js?v=20260723d";
+import { el, clear, isoDate, getMonday, addDays, formatDate, displayStagiaire, compareByNom, toast } from "../utils.js?v=20260723d";
+import { HALF_DAYS } from "../config.js?v=20260723d";
+import { isAdmin, isProf, getProfile } from "../auth-admin.js?v=20260723d";
+import { renderEpcfTrameSection } from "../epcf-restitution.js?v=20260723d";
+import { renderSubTabs } from "../subtabs.js?v=20260723d";
+import { rolesPourEntry, ROLE_ORDER } from "../creneaux-rules.js?v=20260723d";
 
 const HALF_ORDER = { matin: 0, aprem: 1 };
 
@@ -467,7 +467,7 @@ export async function renderMonSuivi(container) {
   const header = el("div", { class: "view-header" },
     el("div", { class: "view-header-text" },
       el("p", { class: "eyebrow" }, "Espace personnel"),
-      el("h2", {}, "Mon suivi"),
+      el("h2", {}, "Suivi des passages"),
       el("p", { class: "subtitle" }, "Mon planning à venir et l'évolution de mes résultats."),
     ),
   );
