@@ -19,9 +19,9 @@
   <title>TP ECSR App</title>
 
   <!-- Polices auto-hébergées (RGPD : aucun appel Google Fonts) -->
-  <link rel="stylesheet" href="css/fonts.css?v=20260723a" />
-  <link rel="stylesheet" href="css/style.css?v=20260723a" />
-  <link rel="stylesheet" href="css/livret.css?v=20260723a" />
+  <link rel="stylesheet" href="css/fonts.css?v=20260723b" />
+  <link rel="stylesheet" href="css/style.css?v=20260723b" />
+  <link rel="stylesheet" href="css/livret.css?v=20260723b" />
   <link rel="icon" href="assets/logo/tpecsr-logo.svg" type="image/svg+xml" />
 </head>
 <body>
@@ -51,7 +51,7 @@
   <!-- App -->
   <div id="app" class="hidden">
     <header class="topbar">
-      <a href="#/dashboard" class="brand">
+      <a href="#/mon-suivi" class="brand">
         <img class="brand-logo" src="assets/logo/tpecsr-logo.svg" alt="TP ECSR" />
       </a>
 
@@ -59,6 +59,7 @@
 
       <div class="topbar-actions">
         <div id="admin-slot"></div>
+        <button id="today-btn" class="ghost-btn" title="Aujourd'hui au planning" aria-label="Aller à la journée d'aujourd'hui au planning"></button>
         <button id="refresh-btn" class="ghost-btn" title="Actualiser" aria-label="Actualiser"></button>
       </div>
     </header>
@@ -68,6 +69,6 @@
     <div id="toast" class="toast hidden"></div>
   </div>
 
-  <script type="module" src="js/main.js?v=20260723a"></script>
+  <script type="module" src="js/main.js?v=20260723b"></script>
 </body>
 </html>

@@ -2,23 +2,23 @@
  * Promo ECSR — Application propriétaire.
  * © 2026 watchi64 — Tous droits réservés. Voir LICENSE.
  */
-import { signInWithPassword, signUpWithPassword, getCurrentUser, invalidateCache } from "./db.js?v=20260723a";
-import { toast } from "./utils.js?v=20260723a";
-import { icon } from "./icons.js?v=20260723a";
-import { initAuth, onAdminChange, isAuth } from "./auth-admin.js?v=20260723a";
-import { loadAccent } from "./accent-switcher.js?v=20260723a";
-import { loadTheme } from "./theme-switcher.js?v=20260723a";
-import { renderHome } from "./views/home.js?v=20260723a";
-import { renderDashboard } from "./views/dashboard.js?v=20260723a";
-import { renderMonSuivi } from "./views/mon-suivi.js?v=20260723a";
-import { renderPlanning, teardownPrintTarget, resetPlanningEditMode } from "./views/planning.js?v=20260723a";
-import { teardownLivretPrint } from "./views/epcf-livret.js?v=20260723a";
-import { renderNotes } from "./views/notes.js?v=20260723a";
-import { renderRessources } from "./views/ressources.js?v=20260723a";
-import { renderThemes } from "./views/themes.js?v=20260723a";
-import { renderConfig } from "./views/config.js?v=20260723a";
-import { renderCalendrier } from "./views/calendrier.js?v=20260723a";
-import { initUndoKeyboard } from "./undo.js?v=20260723a";
+import { signInWithPassword, signUpWithPassword, getCurrentUser, invalidateCache } from "./db.js?v=20260723b";
+import { toast } from "./utils.js?v=20260723b";
+import { icon } from "./icons.js?v=20260723b";
+import { initAuth, onAdminChange, isAuth } from "./auth-admin.js?v=20260723b";
+import { loadAccent } from "./accent-switcher.js?v=20260723b";
+import { loadTheme } from "./theme-switcher.js?v=20260723b";
+import { renderHome } from "./views/home.js?v=20260723b";
+import { renderDashboard } from "./views/dashboard.js?v=20260723b";
+import { renderMonSuivi } from "./views/mon-suivi.js?v=20260723b";
+import { renderPlanning, teardownPrintTarget, resetPlanningEditMode, requestPlanningToday } from "./views/planning.js?v=20260723b";
+import { teardownLivretPrint } from "./views/epcf-livret.js?v=20260723b";
+import { renderNotes } from "./views/notes.js?v=20260723b";
+import { renderRessources } from "./views/ressources.js?v=20260723b";
+import { renderThemes } from "./views/themes.js?v=20260723b";
+import { renderConfig } from "./views/config.js?v=20260723b";
+import { renderCalendrier } from "./views/calendrier.js?v=20260723b";
+import { initUndoKeyboard } from "./undo.js?v=20260723b";
 
 // ===== Gate : email magic link =====
 
@@ -164,8 +164,10 @@ const routes = {
 let lastRoute = null;
 
 async function navigate() {
-  const hash = location.hash.replace(/^#\//, "") || "dashboard";
-  const route = routes[hash] ? hash : "dashboard";
+  // Vue d'accueil = « Mon suivi » : à l'ouverture, chacun veut d'abord savoir ce qui
+  // l'attend (son planning à venir, ses résultats), pas les agrégats de la promo.
+  const hash = location.hash.replace(/^#\//, "") || "mon-suivi";
+  const route = routes[hash] ? hash : "mon-suivi";
   // En QUITTANT le planning (pas sur un simple remount : undo, refresh d'auth…),
   // le mode édition retombe — la vue se rouvrira toujours en lecture seule.
   if (lastRoute === "planning" && route !== "planning") resetPlanningEditMode();
@@ -229,13 +231,28 @@ function setupRefreshBtn() {
   });
 }
 
+// Raccourci « Aujourd'hui » : ouvre le planning sur la journée du jour, depuis n'importe
+// quelle vue. Déjà sur le planning, le hash ne change pas → aucun `hashchange` : on
+// re-rend à la main, sinon le bouton serait inerte pile là où on s'en sert le plus.
+function setupTodayBtn() {
+  const btn = document.getElementById("today-btn");
+  btn.innerHTML = "";
+  btn.appendChild(icon.today());
+  btn.addEventListener("click", async () => {
+    requestPlanningToday();
+    if (location.hash === "#/planning") await navigate();
+    else location.hash = "#/planning";
+  });
+}
+
 async function bootApp() {
   hideGate();
   renderTabs();
   setupRefreshBtn();
+  setupTodayBtn();
   onAdminChange(() => { renderTabs(); navigate(); });
   initUndoKeyboard();
-  if (!location.hash) location.hash = "#/dashboard";
+  if (!location.hash) location.hash = "#/mon-suivi";
   await navigate();
 }
 

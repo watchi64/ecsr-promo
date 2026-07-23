@@ -7,15 +7,15 @@ import {
   addPassagesBatch, deletePassagesBatch, getPassagesInRange, updateTheme,
   listBenevoles, listBenevolesNoms,
   getVoitureAggregats, listFiches, getSalleAggregats,
-} from "../db.js?v=20260723a";
-import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260723a";
-import { icon } from "../icons.js?v=20260723a";
-import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260723a";
-import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260723a";
-import { recordUndo } from "../undo.js?v=20260723a";
-import { getCurrentWho } from "../identity.js?v=20260723a";
-import { openBenevolesPanel } from "./benevoles.js?v=20260723a";
-import { meilleurResultat } from "../passage-rules.js?v=20260723a";
+} from "../db.js?v=20260723b";
+import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260723b";
+import { icon } from "../icons.js?v=20260723b";
+import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260723b";
+import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260723b";
+import { recordUndo } from "../undo.js?v=20260723b";
+import { getCurrentWho } from "../identity.js?v=20260723b";
+import { openBenevolesPanel } from "./benevoles.js?v=20260723b";
+import { meilleurResultat } from "../passage-rules.js?v=20260723b";
 
 let stagiaires = [];
 let profs = [];
@@ -2634,6 +2634,23 @@ function scrollToDay(d) {
   }, 250);
 }
 
+// === Raccourci « Aujourd'hui » (bouton de la barre du haut) ===
+// Un clic depuis n'importe quelle vue doit atterrir sur la journée du jour. Le drapeau
+// est posé AVANT le changement de route et consommé par renderPlanning : c'est le seul
+// endroit où l'on sait quelle semaine est chargée et où les cartes existent déjà pour
+// pouvoir défiler jusqu'à la bonne.
+let pendingTodayJump = false;
+export function requestPlanningToday() { pendingTodayJump = true; }
+
+// Jour visé : aujourd'hui du lundi au vendredi ; le week-end, « aujourd'hui » n'existe
+// pas au planning (5 jours), on emmène donc au prochain jour utile — le lundi suivant.
+function todayJumpTarget() {
+  const now = new Date();
+  const dow = now.getDay();   // 0 = dimanche, 6 = samedi
+  if (dow >= 1 && dow <= 5) return { date: now, dayIndex: dow - 1, weekend: false };
+  return { date: addDays(getMonday(now), 7), dayIndex: 0, weekend: true };
+}
+
 function buildDayNav(monday) {
   const nav = el("div", { class: "p-daynav" });
   const todayIso = isoDate(new Date());
@@ -3269,7 +3286,20 @@ export async function renderPlanning(container) {
     voitureStats = {}; fichesSuivi = []; salleStats = {};
   }
   autresProfsMem = parseAutresProfs(await getSetting("profs_autres"));
-  semaineLundi = (await getSetting("current_week_lundi")) || isoDate(getMonday(new Date()));
+  // Raccourci « Aujourd'hui » : on force la semaine en cours en LOCAL, sans écrire le
+  // réglage global « current_week_lundi » — c'est une navigation personnelle, elle n'a
+  // pas à déplacer la semaine affichée pour toute la promo (même logique que pour un
+  // stagiaire qui feuillette les semaines).
+  const jump = pendingTodayJump ? todayJumpTarget() : null;
+  pendingTodayJump = false;
+  const weekSetting = await getSetting("current_week_lundi");
+  semaineLundi = jump
+    ? isoDate(getMonday(jump.date))
+    : (weekSetting || isoDate(getMonday(new Date())));
   await loadPlanning();
   renderInto(container);
+  if (jump) {
+    scrollToDay(jump.dayIndex);
+    if (jump.weekend) toast("Week-end : on t'emmène au lundi qui suit.", "info", 3000);
+  }
 }
