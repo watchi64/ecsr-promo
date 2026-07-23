@@ -2,7 +2,7 @@
 // Même règle d'équité que partout ailleurs (compteDansEquite) : Effectué + Absence
 // comptent, Bonus/Report non. Module sans DOM ni réseau, testé en node
 // (tests/passages-stats.test.mjs), sur le modèle de creneaux-rules.js.
-import { compteDansEquite } from "./passage-rules.js?v=20260723g";
+import { compteDansEquite } from "./passage-rules.js?v=20260723h";
 
 // rows : lignes de la table passages ({type, resultat, avec_eleve, prof_id}).
 // Retourne { salle, voiture, avecEleve, byProf } ; byProf ne concerne que la voiture.

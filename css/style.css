@@ -6433,3 +6433,32 @@ body.qcm-open { overflow: hidden; }
 .p-daynav-btn.off { color: var(--text-faint); }
 .p-day-card { scroll-margin-top: 104px; }   /* topbar + barre de jours */
 @media print { .p-daynav { display: none !important; } }
+
+/* ============================================================
+   Mon suivi — historique des passages effectués (volet 2026-07-23)
+   Bloc en FIN de fichier : l'ordre de déclaration départage les
+   spécificités égales (piège documenté du 2026-07-20).
+   ============================================================ */
+.ms-histo-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-top: 0.85rem;
+}
+.ms-histo-item {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.45rem 0.6rem;
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  font-size: 0.88rem;
+}
+.ms-histo-date {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  min-width: 5.2rem;
+}
+.ms-histo-comment { font-size: 0.82rem; }

@@ -1,17 +1,17 @@
 import { listStagiaires, listEvaluations, getPlanning, getHalfMetaForWeek, getJoursOff, getSetting,
-         getVoitureAggregats, listProfs, listEpcf, getEpcfMoyennes, listThemes,
-         getStagiaire, setDateNaissance } from "../db.js?v=20260723g";
-import { el, clear, isoDate, getMonday, addDays, formatDate, displayStagiaire, compareByNom, toast } from "../utils.js?v=20260723g";
-import { HALF_DAYS } from "../config.js?v=20260723g";
-import { isAdmin, isProf, getProfile } from "../auth-admin.js?v=20260723g";
-import { renderEpcfTrameSection } from "../epcf-restitution.js?v=20260723g";
-import { renderSubTabs } from "../subtabs.js?v=20260723g";
-import { rolesPourEntry, ROLE_ORDER } from "../creneaux-rules.js?v=20260723g";
+         listProfs, listEpcf, getEpcfMoyennes, listThemes,
+         getStagiaire, setDateNaissance, listPassages } from "../db.js?v=20260723h";
+import { el, clear, isoDate, getMonday, addDays, formatDate, displayStagiaire, compareByNom, toast } from "../utils.js?v=20260723h";
+import { HALF_DAYS, RESULTATS } from "../config.js?v=20260723h";
+import { isAdmin, isProf, getProfile } from "../auth-admin.js?v=20260723h";
+import { renderEpcfTrameSection } from "../epcf-restitution.js?v=20260723h";
+import { renderSubTabs } from "../subtabs.js?v=20260723h";
+import { rolesPourEntry, ROLE_ORDER } from "../creneaux-rules.js?v=20260723h";
+import { statsPassages } from "../passages-stats.js?v=20260723h";
 
 const HALF_ORDER = { matin: 0, aprem: 1 };
 
-// Agrégats/profs/moyennes EPCF : chargés une fois par rendu (indépendants de l'élève sélectionné).
-let aggregats = {};
+// Profs/moyennes EPCF : chargés une fois par rendu (indépendants de l'élève sélectionné).
 let profs = [];
 let moySalle = [];
 let moyVehicule = [];
@@ -395,36 +395,38 @@ function renderChartSection(evaluations) {
   return section;
 }
 
-function renderHistoriqueSection(id) {
-  const a = aggregats[id] || { total: 0, avecEleve: 0, byProf: {} };
+// « Passages effectués » : compteurs (règle d'équité) + historique détaillé, depuis
+// la MÊME liste listPassages — compteurs et lignes toujours cohérents entre eux.
+// Remplace l'« Historique voiture » qui vivait dans l'onglet Évolution : les tuiles
+// et la répartition par formateur déménagent ici, avec la salle en plus.
+function renderEffectuesSection(rows) {
   const section = el("section", { class: "ms-section" },
-    el("h3", { class: "ms-section-title" }, "Historique voiture"));
-  if (!a.total) {
-    section.appendChild(el("p", { class: "muted ms-empty" }, "Aucun passage voiture pour l'instant."));
+    el("h3", { class: "ms-section-title" }, "Mes passages effectués"));
+  if (!rows || !rows.length) {
+    section.appendChild(el("p", { class: "muted ms-empty" }, "Aucun passage enregistré pour l'instant."));
     return section;
   }
-  const aVide = Math.max(0, a.total - a.avecEleve);
-  const pctVide = a.total ? Math.round((aVide / a.total) * 100) : 0;
+  const s = statsPassages(rows);
+
   const tile = (v, l) => el("div", { class: "histo-stat" },
     el("div", { class: "histo-stat-value" }, String(v)),
     el("div", { class: "histo-stat-label" }, l));
-
   const card = el("div", { class: "suivi-histo" },
     el("div", { class: "histo-stats" },
-      tile(a.total, "passages"),
-      tile(a.avecEleve, "avec élève"),
-      tile(aVide, "à vide"),
-      tile(pctVide + "%", "taux à vide"),
+      tile(s.salle, "salle"),
+      tile(s.voiture, "voiture"),
+      tile(s.avecEleve, "avec élève"),
     ));
 
-  const rows = Object.entries(a.byProf)
+  // Répartition par formateur (voiture) — mêmes classes CSS que l'ancien historique.
+  const profRows = Object.entries(s.byProf)
     .map(([pid, k]) => ({ nom: profs.find((p) => p.id === Number(pid))?.nom || "?", n: k }))
     .sort((x, y) => y.n - x.n);
-  if (rows.length) {
-    const maxN = Math.max(1, ...rows.map((r) => r.n));
-    card.appendChild(el("p", { class: "histo-profs-title" }, "Répartition par formateur"));
+  if (profRows.length) {
+    const maxN = Math.max(1, ...profRows.map((r) => r.n));
+    card.appendChild(el("p", { class: "histo-profs-title" }, "Voiture · répartition par formateur"));
     const list = el("div", { class: "histo-profs" });
-    rows.forEach((r) => {
+    profRows.forEach((r) => {
       list.appendChild(el("div", { class: "histo-prof-row" },
         el("span", { class: "histo-prof-nom" }, r.nom),
         el("span", { class: "histo-prof-bar" },
@@ -435,6 +437,20 @@ function renderHistoriqueSection(id) {
     card.appendChild(list);
   }
   section.appendChild(card);
+
+  // Historique détaillé : rows déjà triées date desc par listPassages. Les lignes
+  // non comptées (Bonus/Report) sont listées quand même, leur tag dit leur statut.
+  const list = el("div", { class: "ms-histo-list" });
+  rows.forEach((p) => {
+    const res = RESULTATS.find((r) => r.value === p.resultat);
+    list.appendChild(el("div", { class: "ms-histo-item" },
+      el("span", { class: "ms-histo-date" }, formatDate(p.date)),
+      el("span", { class: "tag " + (p.type === "Salle" ? "salle" : "voiture") }, p.type),
+      el("span", { class: "tag " + (res?.color || "") }, p.resultat),
+      p.commentaire ? el("span", { class: "ms-histo-comment muted" }, p.commentaire) : null,
+    ));
+  });
+  section.appendChild(list);
   return section;
 }
 
@@ -447,12 +463,12 @@ export async function renderMonSuivi(container) {
 
   // listStagiaires est chargé dans tous les cas (plus seulement pour le sélecteur) :
   // il nomme aussi le stagiaire au tableau sur les créneaux « élève salle ».
-  const [aggregatsData, profsData, moySalleData, moyVehiculeData, themesData, stagiairesData] =
+  const [profsData, moySalleData, moyVehiculeData, themesData, stagiairesData] =
     await Promise.all([
-      getVoitureAggregats(), listProfs(), getEpcfMoyennes("salle"), getEpcfMoyennes("vehicule"),
+      listProfs(), getEpcfMoyennes("salle"), getEpcfMoyennes("vehicule"),
       listThemes(), listStagiaires(),
     ]);
-  aggregats = aggregatsData; profs = profsData; moySalle = moySalleData; moyVehicule = moyVehiculeData;
+  profs = profsData; moySalle = moySalleData; moyVehicule = moyVehiculeData;
   themeNumByTitre = {};
   (themesData || []).forEach((t) => {
     if (t.type === "theme" && t.numero != null && t.titre) themeNumByTitre[normTitre(t.titre)] = t.numero;
@@ -489,11 +505,12 @@ export async function renderMonSuivi(container) {
       return;
     }
     body.appendChild(el("div", { class: "loading" }, "Chargement"));
-    const [items, evaluations, epcfEvals, stagiaireRow] = await Promise.all([
+    const [items, evaluations, epcfEvals, stagiaireRow, passRows] = await Promise.all([
       loadUpcoming(id),
       listEvaluations({ stagiaire_id: id }),
       listEpcf({ stagiaire_id: id }),
       getStagiaire(id),
+      listPassages({ stagiaire_id: id }),
     ]);
     if (token !== renderToken) return;   // un rendu plus récent a pris la main
     clear(body);
@@ -515,8 +532,10 @@ export async function renderMonSuivi(container) {
     // Sous-onglets : Passages · EPCF · Évolution. Le rendu de chaque onglet est
     // paresseux ; toutes les données sont déjà chargées (closures ci-dessus).
     body.appendChild(renderSubTabs([
-      { key: "passages", label: "Passages",
-        render: (p) => p.appendChild(renderPassagesSection(items)) },
+      { key: "passages", label: "Passages", render: (p) => {
+          p.appendChild(renderPassagesSection(items));
+          p.appendChild(renderEffectuesSection(passRows));
+        } },
       { key: "epcf", label: "EPCF", render: (p) => {
           p.appendChild(renderEpcfTrameSection("salle",
             epcfEvals.filter((e) => e.trame === "salle"), moySalle));
@@ -524,7 +543,6 @@ export async function renderMonSuivi(container) {
             epcfEvals.filter((e) => e.trame === "vehicule"), moyVehicule));
         } },
       { key: "evolution", label: "Évolution", render: (p) => {
-          p.appendChild(renderHistoriqueSection(id));
           p.appendChild(renderChartSection(evaluations));
         } },
     ], { storageKey: "ecsr_monsuivi_subtab" }));
