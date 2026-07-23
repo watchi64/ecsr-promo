@@ -505,13 +505,37 @@ export async function renderMonSuivi(container) {
       return;
     }
     body.appendChild(el("div", { class: "loading" }, "Chargement"));
-    const [items, evaluations, epcfEvals, stagiaireRow, passRows] = await Promise.all([
-      loadUpcoming(id),
-      listEvaluations({ stagiaire_id: id }),
-      listEpcf({ stagiaire_id: id }),
-      getStagiaire(id),
-      listPassages({ stagiaire_id: id }),
-    ]);
+    // Le changement d'élève (select) appelle renderFor hors du routeur : sans ce
+    // catch, un échec réseau laissait le corps figé sur « Chargement ». Même boîte
+    // d'erreur que navigate() (main.js), mais dans le corps — l'en-tête et le
+    // sélecteur restent utilisables.
+    let items, evaluations, epcfEvals, stagiaireRow, passRows;
+    try {
+      [items, evaluations, epcfEvals, stagiaireRow, passRows] = await Promise.all([
+        loadUpcoming(id),
+        listEvaluations({ stagiaire_id: id }),
+        listEpcf({ stagiaire_id: id }),
+        getStagiaire(id),
+        listPassages({ stagiaire_id: id }),
+      ]);
+    } catch (e) {
+      if (token !== renderToken) return;   // un rendu plus récent a pris la main
+      console.error(e);
+      clear(body);
+      const isTimeout = /abort|timeout|network|fetch/i.test(e?.message || String(e));
+      const retry = el("button", { class: "btn primary" }, "Réessayer");
+      retry.addEventListener("click", () => renderFor(id));
+      body.appendChild(el("div", { class: "view-error-box" },
+        el("p", { class: "view-error-title" },
+          isTimeout ? "Connexion trop lente" : "Une erreur est survenue"),
+        el("p", { class: "view-error-sub" },
+          isTimeout
+            ? "Le serveur n'a pas répondu à temps. Vérifie ta connexion et réessaie."
+            : "Détail : " + (e?.message || e)),
+        retry));
+      toast(isTimeout ? "Connexion trop lente, réessaie" : (e?.message || String(e)), "error");
+      return;
+    }
     if (token !== renderToken) return;   // un rendu plus récent a pris la main
     clear(body);
 
