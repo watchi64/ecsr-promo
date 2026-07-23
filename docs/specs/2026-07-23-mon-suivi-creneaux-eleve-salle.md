@@ -96,4 +96,4 @@ Pas de migration Supabase : les colonnes existent déjà.
   `eleves_ids_2` présent alors que `salle_double` est faux (ignoré), activité changée
   avec `eleves_ids` résiduel (ignoré), jour off (filtré), tri passage-avant-élève.
 - Preview locale (`.\dev.ps1`) : vue stagiaire (`myId` défini), vue formateur/admin avec
-  le sélecteur d'élève, semaine courante + semaine suivante, thème clair et sombre.
+  le sélecteur d'élève, semaine courante + semaine suivante.

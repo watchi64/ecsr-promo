@@ -1,11 +1,12 @@
 import { listStagiaires, listEvaluations, getPlanning, getHalfMetaForWeek, getJoursOff, getSetting,
          getVoitureAggregats, listProfs, listEpcf, getEpcfMoyennes, listThemes,
-         getStagiaire, setDateNaissance } from "../db.js?v=20260721b";
-import { el, clear, isoDate, getMonday, addDays, formatDate, displayStagiaire, compareByNom, toast } from "../utils.js?v=20260721b";
-import { HALF_DAYS } from "../config.js?v=20260721b";
-import { isAdmin, isProf, getProfile } from "../auth-admin.js?v=20260721b";
-import { renderEpcfTrameSection } from "../epcf-restitution.js?v=20260721b";
-import { renderSubTabs } from "../subtabs.js?v=20260721b";
+         getStagiaire, setDateNaissance } from "../db.js?v=20260723a";
+import { el, clear, isoDate, getMonday, addDays, formatDate, displayStagiaire, compareByNom, toast } from "../utils.js?v=20260723a";
+import { HALF_DAYS } from "../config.js?v=20260723a";
+import { isAdmin, isProf, getProfile } from "../auth-admin.js?v=20260723a";
+import { renderEpcfTrameSection } from "../epcf-restitution.js?v=20260723a";
+import { renderSubTabs } from "../subtabs.js?v=20260723a";
+import { rolesPourEntry, ROLE_ORDER } from "../creneaux-rules.js?v=20260723a";
 
 const HALF_ORDER = { matin: 0, aprem: 1 };
 
@@ -14,6 +15,9 @@ let aggregats = {};
 let profs = [];
 let moySalle = [];
 let moyVehicule = [];
+// id stagiaire -> "V. Timy" : sert à nommer le stagiaire au tableau sur les
+// créneaux où l'utilisateur est élève.
+let stagiaireNoms = {};
 // Titre de thème (normalisé) -> numéro, construit depuis les 57 thèmes officiels.
 // Sert à retrouver le numéro quand la ligne d'éval ne le porte pas (ou quand un
 // « Contrôle » a pour intitulé un thème officiel).
@@ -91,31 +95,25 @@ function dayIsOff(joursOff, monday, day_index) {
   return Boolean(frenchHolidays(date.getFullYear())[isoDate(date)]);
 }
 
-// Applique la MÊME règle métier que « Valider la semaine » :
-// Pédagogie salle -> pédagogue au tableau = Salle ; Voiture (conduite) -> chaque élève = Voiture.
-function extractMyPassages(entries, metas, monday, id, joursOff) {
+// Créneaux du stagiaire sur une semaine : ses passages (tableau salle, conduite —
+// MÊME règle métier que « Valider la semaine ») ET les demi-journées où il est
+// simplement élève dans la salle. Le rôle est porté par le champ `role` :
+// seul `passage` compte comme un passage, `eleve` est de l'affichage.
+function extractMyCreneaux(entries, metas, monday, id, joursOff) {
   const out = [];
   (entries || []).forEach((e) => {
     if (dayIsOff(joursOff, monday, e.day_index)) return;
-    let type = null;
-    if (e.activite === "Pédagogie salle" &&
-        (e.pedagogue_id === id || (e.salle_double && e.pedagogue_id_2 === id))) {
-      type = "Salle";
-    } else if (e.activite === "Voiture (conduite)" && (e.eleves_ids || []).includes(id)) {
-      type = "Voiture";
-    }
-    if (!type) return;
+    const roles = rolesPourEntry(e, id);
+    if (!roles.length) return;
     const date = addDays(monday, e.day_index);
     const prof_ids = (e.prof_ids && e.prof_ids.length) ? e.prof_ids : (e.prof_id ? [e.prof_id] : []);
-    // Salle 2 groupes : le tableau du groupe 2 anime le sujet du groupe 2 (sujet_2)
-    const sujet = (type === "Salle" && e.salle_double && e.pedagogue_id_2 === id)
-      ? (e.sujet_2 || null) : (e.sujet || null);
-    out.push({
+    const base = {
       iso: isoDate(date), date, day_index: e.day_index, half_day: e.half_day,
-      slot: e.slot ?? 0, type, sujet,
+      slot: e.slot ?? 0,
       horaire: horaireFor(metas, e.day_index, e.half_day),
       profs: profNamesFor(prof_ids, e.prof_autre),
-    });
+    };
+    roles.forEach((r) => out.push({ ...base, ...r }));
   });
   return out;
 }
@@ -130,34 +128,54 @@ async function loadUpcoming(id) {
     getPlanning(mondayIso), getHalfMetaForWeek(mondayIso), getJoursOff(mondayIso),
     getPlanning(nextIso),   getHalfMetaForWeek(nextIso),   getJoursOff(nextIso),
   ]);
-  let items = extractMyPassages(e1, m1, monday1, id, off1);
-  if (e2 && e2.length) items = items.concat(extractMyPassages(e2, m2, monday2, id, off2));
+  let items = extractMyCreneaux(e1, m1, monday1, id, off1);
+  if (e2 && e2.length) items = items.concat(extractMyCreneaux(e2, m2, monday2, id, off2));
   items.sort((a, b) =>
     a.iso.localeCompare(b.iso) ||
     (HALF_ORDER[a.half_day] - HALF_ORDER[b.half_day]) ||
-    (a.slot - b.slot));
+    (a.slot - b.slot) ||
+    (ROLE_ORDER[a.role] - ROLE_ORDER[b.role]));
   return items;
+}
+
+const TAG_CLASS = { Salle: "salle", Voiture: "voiture", "Élève salle": "eleve" };
+
+// « au tableau : M. Marie · Croisement, puis P. Paul · Priorités » — une vague
+// par groupe où le stagiaire est élève. Nom ou sujet manquant : on affiche ce
+// qui existe ; les deux manquants : la vague est passée sous silence.
+function tableauxLabel(waves) {
+  const parts = (waves || [])
+    .map((w) => [w.tableau_id != null ? stagiaireNoms[w.tableau_id] : null, w.sujet]
+      .filter(Boolean).join(" · "))
+    .filter(Boolean);
+  if (!parts.length) return null;
+  return "au tableau : " + parts[0] + (parts[1] ? ", puis " + parts[1] : "");
 }
 
 function renderPassagesSection(items) {
   const section = el("section", { class: "ms-section" },
-    el("h3", { class: "ms-section-title" }, "Mes passages à venir"));
+    el("h3", { class: "ms-section-title" }, "Mon planning à venir"));
   if (items.length === 0) {
-    section.appendChild(el("p", { class: "muted ms-empty" }, "Aucun passage planifié pour l'instant."));
+    section.appendChild(el("p", { class: "muted ms-empty" }, "Aucun créneau planifié pour l'instant."));
     return section;
   }
   const todayIso = isoDate(new Date());
   let nextMarked = false;
   const list = el("div", { class: "ms-passage-list" });
   items.forEach((it) => {
+    const eleve = it.role === "eleve";
     const past = it.iso < todayIso;
     const today = it.iso === todayIso;
-    const isNext = !past && !today && !nextMarked;
+    // « prochain » repère le prochain VRAI passage : une présence en salle ne
+    // doit pas lui voler la place.
+    const isNext = !past && !today && !nextMarked && !eleve;
     if (isNext) nextMarked = true;
-    const cls = "ms-passage" + (past ? " past" : "") + (today ? " today" : "") + (isNext ? " next" : "");
+    const cls = "ms-passage" + (eleve ? " eleve" : "") + (past ? " past" : "")
+      + (today ? " today" : "") + (isNext ? " next" : "");
     const badge = past ? el("span", { class: "ms-passage-badge muted" }, "passé")
       : today ? el("span", { class: "ms-passage-badge today" }, "aujourd'hui")
       : isNext ? el("span", { class: "ms-passage-badge next" }, "prochain") : null;
+    const detail = eleve ? tableauxLabel(it.waves) : it.sujet;
     list.appendChild(el("div", { class: cls },
       el("div", { class: "ms-passage-when" },
         el("span", { class: "ms-passage-day" }, dayDateLabel(it.date)),
@@ -165,11 +183,11 @@ function renderPassagesSection(items) {
           halfLabel(it.half_day) + (it.horaire ? " · " + it.horaire : "")),
       ),
       el("div", { class: "ms-passage-meta" },
-        el("span", { class: "tag " + (it.type === "Salle" ? "salle" : "voiture") }, it.type),
+        el("span", { class: "tag " + (TAG_CLASS[it.type] || "") }, it.type),
         it.profs && it.profs.length
           ? el("span", { class: "ms-passage-prof muted" }, "avec " + it.profs.join(", "))
           : null,
-        it.sujet ? el("span", { class: "ms-passage-sujet muted" }, it.sujet) : null,
+        detail ? el("span", { class: "ms-passage-sujet muted" }, detail) : null,
         badge,
       ),
     ));
@@ -427,16 +445,21 @@ export async function renderMonSuivi(container) {
   const myId = getProfile()?.stagiaire_id ?? null;
   const needSelector = isAdmin() || myId == null;
 
-  let stagiaires = [];
-  const [aggregatsData, profsData, moySalleData, moyVehiculeData, themesData] = await Promise.all([
-    getVoitureAggregats(), listProfs(), getEpcfMoyennes("salle"), getEpcfMoyennes("vehicule"), listThemes(),
-  ]);
+  // listStagiaires est chargé dans tous les cas (plus seulement pour le sélecteur) :
+  // il nomme aussi le stagiaire au tableau sur les créneaux « élève salle ».
+  const [aggregatsData, profsData, moySalleData, moyVehiculeData, themesData, stagiairesData] =
+    await Promise.all([
+      getVoitureAggregats(), listProfs(), getEpcfMoyennes("salle"), getEpcfMoyennes("vehicule"),
+      listThemes(), listStagiaires(),
+    ]);
   aggregats = aggregatsData; profs = profsData; moySalle = moySalleData; moyVehicule = moyVehiculeData;
   themeNumByTitre = {};
   (themesData || []).forEach((t) => {
     if (t.type === "theme" && t.numero != null && t.titre) themeNumByTitre[normTitre(t.titre)] = t.numero;
   });
-  if (needSelector) stagiaires = (await listStagiaires()).slice().sort(compareByNom);
+  stagiaireNoms = {};
+  (stagiairesData || []).forEach((s) => { stagiaireNoms[s.id] = displayStagiaire(s); });
+  const stagiaires = needSelector ? (stagiairesData || []).slice().sort(compareByNom) : [];
   const selectedId = myId ?? (stagiaires[0]?.id ?? null);
 
   clear(container);
@@ -445,7 +468,7 @@ export async function renderMonSuivi(container) {
     el("div", { class: "view-header-text" },
       el("p", { class: "eyebrow" }, "Espace personnel"),
       el("h2", {}, "Mon suivi"),
-      el("p", { class: "subtitle" }, "Mes passages à venir et l'évolution de mes résultats."),
+      el("p", { class: "subtitle" }, "Mon planning à venir et l'évolution de mes résultats."),
     ),
   );
   container.appendChild(header);

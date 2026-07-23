@@ -3293,6 +3293,9 @@ button.theme-date.editable.muted { color: var(--text-faint); }
 
 .tag.salle { background: var(--act-peda); color: #92400E; border-color: var(--act-peda-border); }
 .tag.voiture { background: var(--act-voiture); color: #166534; border-color: var(--act-voiture-border); }
+/* Élève en salle : une présence, pas un passage — volontairement en retrait des
+   tags colorés Salle / Voiture. */
+.tag.eleve { background: var(--bg-subtle); color: var(--text-soft); border-color: var(--line); }
 .tag.effectue { background: var(--c-go-soft); color: var(--c-go); }
 .tag.absence { background: var(--c-stop-soft); color: var(--c-stop); }
 .tag.bonus { background: var(--c-wait-soft); color: var(--c-wait); }
@@ -6013,6 +6016,8 @@ body.qcm-open { overflow: hidden; }
   padding: 0.75rem 1rem; border: 1px solid var(--line); border-radius: 12px;
   background: var(--bg-elev);
 }
+/* Créneau où le stagiaire est seulement élève : même gabarit, fond en retrait. */
+.ms-passage.eleve { background: transparent; }
 .ms-passage.past { opacity: 0.5; }
 .ms-passage.today { border-color: var(--accent); }
 .ms-passage.next { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
