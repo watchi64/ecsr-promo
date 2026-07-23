@@ -15,9 +15,9 @@
 import {
   getCurrentUser, signOut, onAuthChange,
   getMyProfile, listStagiaires, listProfs,
-} from "./db.js?v=20260723d";
-import { el, toast, displayStagiaire } from "./utils.js?v=20260723d";
-import { icon } from "./icons.js?v=20260723d";
+} from "./db.js?v=20260723e";
+import { el, toast, displayStagiaire } from "./utils.js?v=20260723e";
+import { icon } from "./icons.js?v=20260723e";
 
 let currentUser = null;     // Supabase auth user
 let currentProfile = null;  // row user_profiles
@@ -226,6 +226,14 @@ function openProfileMenu() {
     location.reload();
   }}, "Se déconnecter");
 
+  // Accès direct à l'espace personnel (Mon suivi) depuis le badge : demandé pour que
+  // « cliquer sur mon nom » mène chez soi. On change juste le hash → le routeur (main.js)
+  // fait le rendu ; pas d'import de navigate ici.
+  const persoBtn = el("button", { class: "btn full", onClick: () => {
+    backdrop.remove();
+    location.hash = "#/mon-suivi";
+  }}, icon.user(), "Mon espace personnel");
+
   const modal = el("div", { class: "modal" },
     el("h3", {}, "Mon compte"),
     el("p", { class: "muted", style: "margin:0 0 0.4rem;font-size:0.9rem" },
@@ -236,6 +244,7 @@ function openProfileMenu() {
         ? el("span", {}, " · profil : ", el("strong", {}, getProfileWho() || "?"))
         : null,
     ),
+    persoBtn,
     buildViewAsBlock(() => backdrop.remove()),
     logoutBtn,
     el("div", { class: "modal-actions" },

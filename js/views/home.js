@@ -2,10 +2,10 @@
  * Page d'accueil — version actualisée après les refontes (auth, calendrier, contacts).
  * Affichage personnalisé : salutation + prochains événements + raccourcis.
  */
-import { listAgendaEvents } from "../db.js?v=20260723d";
-import { el, clear, parseDate, formatDate, isoDate } from "../utils.js?v=20260723d";
-import { icon } from "../icons.js?v=20260723d";
-import { isAdmin, getProfile, getProfileWho } from "../auth-admin.js?v=20260723d";
+import { listAgendaEvents } from "../db.js?v=20260723e";
+import { el, clear, parseDate, formatDate, isoDate } from "../utils.js?v=20260723e";
+import { icon } from "../icons.js?v=20260723e";
+import { isAdmin, getProfile, getProfileWho } from "../auth-admin.js?v=20260723e";
 
 function greetingByHour() {
   const h = new Date().getHours();
@@ -86,7 +86,7 @@ export async function renderHome(container) {
 
   // === Raccourcis principaux (tuiles) ===
   const tiles = [
-    { route: "dashboard",  icon: "dashboard",    title: "Tableau de bord",  desc: "Priorités & historique des passages" },
+    { route: "dashboard",  icon: "dashboard",    title: "Suivi des passages", desc: "Priorités & historique des passages" },
     { route: "planning",   icon: "calendar",     title: "Planning",         desc: "Cette semaine, créneaux & tirages" },
     { route: "calendrier", icon: "clock",        title: "Calendrier",       desc: "Examens, stages, dates clés" },
     { route: "themes",     icon: "list",         title: "Thèmes",           desc: "57 thèmes & progression" },
