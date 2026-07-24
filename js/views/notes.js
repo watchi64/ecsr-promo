@@ -2,14 +2,14 @@ import {
   listStagiaires, listCompetences, listEvaluations, listThemes,
   addEvaluation, updateEvaluation, deleteEvaluation, listAuditForEvaluation,
   listUserProfiles,
-} from "../db.js?v=20260723h";
-import { el, clear, isoDate, formatDate, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260723h";
-import { icon } from "../icons.js?v=20260723h";
-import { getAdminEmail, isAdmin } from "../auth-admin.js?v=20260723h";
-import { recordUndo } from "../undo.js?v=20260723h";
-import { renderSubTabs } from "../subtabs.js?v=20260723h";
-import { renderEpcf } from "./epcf.js?v=20260723h";
-import { renderEpcfLivret } from "./epcf-livret.js?v=20260723h";
+} from "../db.js?v=20260724a";
+import { el, clear, isoDate, formatDate, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260724a";
+import { icon } from "../icons.js?v=20260724a";
+import { getAdminEmail, isAdmin } from "../auth-admin.js?v=20260724a";
+import { recordUndo } from "../undo.js?v=20260724a";
+import { renderSubTabs } from "../subtabs.js?v=20260724a";
+import { renderEpcf } from "./epcf.js?v=20260724a";
+import { renderEpcfLivret } from "./epcf-livret.js?v=20260724a";
 
 let userProfiles = [];  // pour résoudre l'anonymat par stagiaire_id
 
@@ -111,6 +111,18 @@ const MATRIX_SPECIAL_COLS = [
   { key: "REMC", label: "REMC", tooltip: "REMC — Vision globale du référentiel mobilité citoyenne" },
   { key: "MGDE", label: "GDE",  tooltip: "Matrice GDE — Goals for Driver Education" },
 ];
+
+// Thèmes évalués ENSEMBLE par un seul QCM : une seule note, mais les deux colonnes
+// restent affichées en en-tête. La cellule de note est FUSIONNÉE (colspan) sur le groupe,
+// et la note est portée par le PREMIER thème du groupe (donc comptée une seule fois
+// dans les moyennes). Pour ajouter un groupe : [numéro1, numéro2, ...].
+const THEME_GROUPS = [[46, 47]];
+const THEME_GROUP_LEADER = new Map();   // numero -> groupe (si numero ouvre le groupe)
+const THEME_GROUP_FOLLOWER = new Set(); // numeros absorbés par la cellule fusionnée
+THEME_GROUPS.forEach((g) => {
+  THEME_GROUP_LEADER.set(g[0], g);
+  g.slice(1).forEach((n) => THEME_GROUP_FOLLOWER.add(n));
+});
 
 function noteColor(note, max) {
   if (note == null || max == null) return "muted";
@@ -925,15 +937,19 @@ function renderMatrice(container) {
       tr.appendChild(td);
     });
 
-    // 57 colonnes thèmes
+    // 57 colonnes thèmes (les thèmes groupés partagent UNE cellule fusionnée)
     for (let n = 1; n <= 57; n++) {
+      if (THEME_GROUP_FOLLOWER.has(n)) continue;   // absorbé par la cellule du thème qui ouvre le groupe
+      const grp = THEME_GROUP_LEADER.get(n);
       const ev = noteForStagiaireTheme(s.id, n);
       const cell = noteMatrixCell(ev);
-      const td = el("td", { class: "m-td-cell" + (cell ? "" : " empty") });
+      const td = el("td", { class: "m-td-cell" + (cell ? "" : " empty") + (grp ? " grouped" : "") });
+      if (grp) td.colSpan = grp.length;
       if (cell) {
         applyNoteCellStyle(td, cell.ratio * 20);
         td.textContent = String(cell.note);
-        td.title = `Thème ${n} : ${cell.note}/${cell.max} le ${formatDate(cell.eval.date_eval)}`;
+        const libelle = grp ? `Thèmes ${grp.join(" + ")} (évalués ensemble)` : `Thème ${n}`;
+        td.title = `${libelle} : ${cell.note}/${cell.max} le ${formatDate(cell.eval.date_eval)}`;
       }
       if (admin) {
         td.classList.add("editable");
