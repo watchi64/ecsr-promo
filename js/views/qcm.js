@@ -6,7 +6,7 @@
  */
 import { el, clear, toast, formatDate } from "../utils.js?v=20260724a";
 import { icon } from "../icons.js?v=20260724a";
-import { getQcmFull, insertQcmAttempt, getMyProfile, getMyExamAttempt } from "../db.js?v=20260724a";
+import { getQcmFull, insertQcmAttempt, getMyProfile, getMyExamAttempt, listMyQcmAttemptsFor } from "../db.js?v=20260724a";
 
 function shuffle(arr) {
   const a = arr.slice();
@@ -59,8 +59,33 @@ function buildRecap(questions, answers) {
   return recap;
 }
 
+// --- Entraînement adaptatif ---
+// Classe les questions d'après mes tentatives passées (entraînement + examen) selon
+// le résultat LE PLUS RÉCENT par question : échouées / jamais vues / maîtrisées.
+// Une question laissée sans réponse à l'examen n'apparaît pas dans answers : elle
+// reste « jamais vue » (indistinguable d'une question hors tirage).
+export function computeRevision(questions, attempts) {
+  const last = new Map(); // question_id -> juste (true) / faux (false) au passage le plus récent
+  for (const att of attempts) {           // attempts triées ancien -> récent : le dernier écrase
+    const answers = att.answers || {};
+    for (const q of questions) {
+      const chosen = answers[q.id];
+      if (chosen === undefined) continue; // question non vue dans cette tentative
+      last.set(q.id, isAnswerCorrect(chosen, q));
+    }
+  }
+  return {
+    failed: questions.filter((q) => last.get(q.id) === false),
+    unseen: questions.filter((q) => !last.has(q.id)),
+    mastered: questions.filter((q) => last.get(q.id) === true),
+  };
+}
+
 // Point d'entrée : ouvre l'entraînement d'un QCM pour un thème donné.
-export async function openQcmEntrainement(theme, qcmMeta) {
+// Ordre adaptatif : échouées d'abord, puis jamais vues, puis maîtrisées (mélange
+// aléatoire à l'intérieur de chaque groupe). L'examen n'est pas concerné.
+// opts.errorsOnly : ne rejoue QUE les questions échouées (« Revoir mes erreurs »).
+export async function openQcmEntrainement(theme, qcmMeta, opts = {}) {
   let full;
   try {
     full = await getQcmFull(qcmMeta.id);
@@ -74,10 +99,34 @@ export async function openQcmEntrainement(theme, qcmMeta) {
     toast("Ce QCM n'a pas encore de questions.", "error");
     return;
   }
-  runEntrainement(theme, full, shuffle(questions));
+
+  // Mes tentatives passées -> groupes de révision. Non bloquant : au moindre pépin
+  // (compte non lié, hors ligne…), on retombe sur l'ordre aléatoire pur.
+  let rev = null;
+  try {
+    const profile = await getMyProfile();
+    if (profile?.stagiaire_id) {
+      const attempts = await listMyQcmAttemptsFor(qcmMeta.id, profile.stagiaire_id);
+      if (attempts.length) rev = computeRevision(questions, attempts);
+    }
+  } catch (e) { /* adaptatif indisponible : ordre aléatoire */ }
+
+  if (opts.errorsOnly) {
+    if (!rev || rev.failed.length === 0) {
+      toast("Aucune erreur à revoir sur ce QCM. Lance un entraînement complet !", "info");
+      return;
+    }
+    runEntrainement(theme, full, shuffle(rev.failed), "Revoir mes erreurs");
+    return;
+  }
+
+  const ordered = rev
+    ? [...shuffle(rev.failed), ...shuffle(rev.unseen), ...shuffle(rev.mastered)]
+    : shuffle(questions);
+  runEntrainement(theme, full, ordered);
 }
 
-function runEntrainement(theme, full, questions) {
+function runEntrainement(theme, full, questions, badge = "Entraînement") {
   let startedAt = new Date().toISOString();
   const total = questions.length;
   let idx = 0;
@@ -106,7 +155,7 @@ function runEntrainement(theme, full, questions) {
   function header(sub) {
     return el("div", { class: "qcm-head" },
       el("div", { class: "qcm-head-text" },
-        el("span", { class: "qcm-badge" }, "Entraînement"),
+        el("span", { class: "qcm-badge" }, badge),
         el("p", { class: "qcm-head-title" }, headTitle),
         sub ? el("p", { class: "qcm-head-sub" }, sub) : null,
       ),

@@ -446,6 +446,20 @@ export async function listMyQcmAttempts() {
   return data || [];
 }
 
+// Mes tentatives détaillées (réponses incluses, les 2 modes) pour un QCM, triées ancien -> récent.
+// stagiaireId explicite : un admin lié voit toutes les lignes via RLS, on ne garde que les siennes.
+// Sert à l'entraînement adaptatif (questions échouées d'abord, « Revoir mes erreurs »).
+export async function listMyQcmAttemptsFor(qcmId, stagiaireId) {
+  const { data, error } = await supabase
+    .from("qcm_attempts")
+    .select("mode, answers, finished_at")
+    .eq("qcm_id", qcmId)
+    .eq("stagiaire_id", stagiaireId)
+    .order("finished_at", { ascending: true });
+  if (error) throw error;
+  return data || [];
+}
+
 // Ma tentative examen pour ce QCM (RLS : mes lignes uniquement). null si aucune.
 export async function getMyExamAttempt(qcmId) {
   const { data, error } = await supabase

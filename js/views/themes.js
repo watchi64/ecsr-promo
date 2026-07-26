@@ -147,11 +147,18 @@ function openQcmSheet(theme, qcm) {
       ));
     }
 
-    // S'entraîner (tout le monde).
+    // S'entraîner (tout le monde). Ordre adaptatif : mes erreurs passées d'abord.
     body.appendChild(el("button", { class: "btn primary full", type: "button",
       onClick: () => { backdrop.remove(); openQcmEntrainement(theme, qcm); } }, icon.play(), "S'entraîner"));
     body.appendChild(el("p", { class: "muted", style: "font-size:0.78rem;text-align:center;margin:0.35rem 0 0" },
-      "Libre, illimité, ne compte pas dans les notes."));
+      "Libre, illimité, ne compte pas dans les notes. Tes anciennes erreurs passent en premier."));
+
+    // Revoir mes erreurs : rejoue uniquement les questions échouées (les 2 modes comptent).
+    if (isStagiaire()) {
+      body.appendChild(el("button", { class: "btn ghost full", type: "button", style: "margin-top:0.45rem",
+        onClick: () => { backdrop.remove(); openQcmEntrainement(theme, qcm, { errorsOnly: true }); } },
+        icon.history(), "Revoir mes erreurs"));
+    }
 
     // Passer l'examen (stagiaire).
     if (isStagiaire()) {
