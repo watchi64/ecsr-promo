@@ -505,6 +505,8 @@ async function openQcmEditor(theme, qcmId) {
     const correctCount = (q.options || []).filter((o) => o.is_correct).length;
     const card = el("div", { class: "qcm-editor-card" });
 
+    // Toutes les actions sont DANS l'en-tête, à côté du numéro : placées en bas de carte,
+    // elles se lisaient comme appartenant à la question suivante (on éditait la précédente).
     card.appendChild(el("div", { class: "qcm-editor-card-head" },
       el("span", { class: "qcm-editor-card-num" }, String(i + 1)),
       q.section ? el("span", { class: "qcm-editor-section" }, q.section) : null,
@@ -514,6 +516,10 @@ async function openQcmEditor(theme, qcmId) {
           disabled: i === 0 || undefined, onClick: () => moveQuestion(questions, i, -1) }, "↑"),
         el("button", { class: "btn small ghost", type: "button", title: "Descendre",
           disabled: i === questions.length - 1 || undefined, onClick: () => moveQuestion(questions, i, 1) }, "↓"),
+        el("button", { class: "btn ghost small", type: "button", title: `Modifier la question ${i + 1}`,
+          onClick: () => openQuestionForm(qcmId, q, q.ordre, onSaved) }, "Éditer"),
+        el("button", { class: "btn danger small", type: "button", title: `Supprimer la question ${i + 1}`,
+          onClick: () => removeQuestion(q) }, "Supprimer"),
       ),
     ));
 
@@ -530,13 +536,6 @@ async function openQcmEditor(theme, qcmId) {
       ));
     });
     card.appendChild(opts);
-
-    card.appendChild(el("div", { class: "qcm-editor-card-actions" },
-      el("button", { class: "btn ghost small", type: "button",
-        onClick: () => openQuestionForm(qcmId, q, q.ordre, onSaved) }, "Éditer"),
-      el("button", { class: "btn danger small", type: "button",
-        onClick: () => removeQuestion(q) }, "Supprimer"),
-    ));
     return card;
   }
 
@@ -578,6 +577,9 @@ function openQuestionForm(qcmId, question, nextOrdre, onSaved) {
   let pendingImageUrl = question?.image_url ?? null;
 
   const backdrop = el("div", { class: "modal-backdrop" });
+  // Réassignée plus bas (retire aussi l'écouteur clavier) ; ce défaut sert si save()
+  // aboutit avant l'installation du gestionnaire de fermeture.
+  let closeForm = () => backdrop.remove();
 
   const sectionInput = el("input", { type: "text", placeholder: "Section (optionnel)", value: question?.section || "" });
   const enonceInput = el("textarea", { rows: 3, placeholder: "Énoncé de la question" }, question?.enonce || "");
@@ -648,7 +650,7 @@ function openQuestionForm(qcmId, question, nextOrdre, onSaved) {
     };
     try {
       await saveQcmQuestion(qcmId, q);
-      backdrop.remove();
+      closeForm();
       toast("Question enregistrée.", "success");
       onSaved();
     } catch (e) {
@@ -676,12 +678,33 @@ function openQuestionForm(qcmId, question, nextOrdre, onSaved) {
       ),
     ),
     el("div", { class: "modal-actions" },
-      el("button", { class: "btn ghost", type: "button", onClick: () => backdrop.remove() }, "Annuler"),
+      el("button", { class: "btn ghost", type: "button", onClick: () => requestCancel() }, "Annuler"),
       el("button", { class: "btn primary", type: "button", onClick: save }, icon.check(), "Enregistrer"),
     ),
   );
   backdrop.appendChild(modal);
-  backdrop.addEventListener("click", (e) => { if (e.target === backdrop) backdrop.remove(); });
+
+  // Saisie en cours : on ne perd JAMAIS le travail sur un clic à côté.
+  // Le clic sur le fond est ignoré ; Annuler et Échap demandent confirmation si le
+  // formulaire a été modifié (sinon ferment directement).
+  let touched = false;
+  modal.addEventListener("input", () => { touched = true; });
+  modal.addEventListener("change", () => { touched = true; });
+
+  function close() {
+    document.removeEventListener("keydown", onKey);
+    backdrop.remove();
+  }
+  function requestCancel() {
+    if (touched && !window.confirm("Abandonner les modifications de cette question ?")) return;
+    close();
+  }
+  function onKey(e) {
+    if (e.key === "Escape") { e.preventDefault(); requestCancel(); }
+  }
+  document.addEventListener("keydown", onKey);
+  closeForm = close;  // utilisé par save() pour fermer proprement
+
   document.body.appendChild(backdrop);
   setTimeout(() => enonceInput.focus(), 80);
 }
