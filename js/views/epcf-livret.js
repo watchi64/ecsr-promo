@@ -9,10 +9,10 @@
 // Rôles : formateur/admin = liste des stagiaires + remplissage ; stagiaire =
 // consultation de SON livret en lecture seule (imposé par la RLS).
 
-import { listStagiaires, listProfs, listEpcfLivrets, getEpcfLivret, upsertEpcfLivret } from "../db.js?v=20260728a";
-import { el, clear, displayStagiaire, compareByNom, formatDate, toast } from "../utils.js?v=20260728a";
-import { isAdmin, isProf, getProfile } from "../auth-admin.js?v=20260728a";
-import { getCurrentWho } from "../identity.js?v=20260728a";
+import { listStagiaires, listProfs, listEpcfLivrets, getEpcfLivret, upsertEpcfLivret } from "../db.js?v=20260728c";
+import { el, clear, displayStagiaire, compareByNom, formatDate, toast } from "../utils.js?v=20260728c";
+import { isAdmin, isProf, getProfile } from "../auth-admin.js?v=20260728c";
+import { getCurrentWho } from "../identity.js?v=20260728c";
 
 // ---------------------------------------------------------------------------
 // Gabarit du document (contenu officiel, ne pas modifier sans nouveau modèle)
