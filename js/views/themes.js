@@ -441,12 +441,22 @@ async function openQcmEditor(theme, qcmId) {
   let dirty = false;  // une modif a-t-elle eu lieu ? (pour rafraîchir la vue Thèmes en sortie)
 
   function close() {
+    document.removeEventListener("keydown", onEditorKey);
     overlay.remove();
     document.body.classList.remove("qcm-open");
     // La banque a changé (nb_questions, existence) : rafraîchir la liste des thèmes.
     if (dirty && lastContainer) { reload(lastContainer).catch(() => { /* refresh silencieux */ }); }
   }
-  overlay.addEventListener("click", (e) => { if (e.target === overlay) close(); });
+  // Pas de fermeture au clic à côté : un clic involontaire sortait de l'écran d'édition.
+  // On sort par la croix ou par Échap — et Échap ne s'applique pas si un formulaire
+  // de question est ouvert par-dessus (c'est lui qui gère alors la touche).
+  function onEditorKey(e) {
+    if (e.key !== "Escape") return;
+    if (document.querySelector(".qcm-form-backdrop")) return;
+    e.preventDefault();
+    close();
+  }
+  document.addEventListener("keydown", onEditorKey);
 
   const numPrefix = theme.numero ? String(theme.numero).padStart(2, "0") + " · " : "";
   const onSaved = () => { dirty = true; reloadEditor(); };
@@ -576,7 +586,11 @@ function openQuestionForm(qcmId, question, nextOrdre, onSaved) {
   const isEdit = !!question;
   let pendingImageUrl = question?.image_url ?? null;
 
-  const backdrop = el("div", { class: "modal-backdrop" });
+  // `qcm-form-backdrop` place ce formulaire AU-DESSUS de l'overlay de l'éditeur
+  // (.qcm-overlay, z-index 1000). Sans cette classe le formulaire s'ouvrait derrière :
+  // il paraissait « ouvrir la question du dessous » et tout clic atterrissait sur
+  // l'overlay, qui fermait l'éditeur entier.
+  const backdrop = el("div", { class: "modal-backdrop qcm-form-backdrop" });
   // Réassignée plus bas (retire aussi l'écouteur clavier) ; ce défaut sert si save()
   // aboutit avant l'installation du gestionnaire de fermeture.
   let closeForm = () => backdrop.remove();

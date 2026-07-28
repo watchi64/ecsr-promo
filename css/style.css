@@ -3732,6 +3732,10 @@ button.theme-date.editable.muted { color: var(--text-faint); }
   animation: backdrop-in 0.18s ease-out;
 }
 
+/* Formulaire de question de l'éditeur QCM : il s'ouvre PAR-DESSUS .qcm-overlay
+   (z-index 1000), sinon il apparaît derrière et tous les clics vont à l'overlay. */
+.modal-backdrop.qcm-form-backdrop { z-index: 1100; }
+
 @keyframes backdrop-in {
   from { opacity: 0; }
   to { opacity: 1; }
@@ -5219,7 +5223,9 @@ button.theme-date.editable.muted { color: var(--text-faint); }
   box-shadow: var(--shadow-3);
   font-size: 0.88rem;
   font-weight: 500;
-  z-index: 300;
+  /* Au-dessus de tout ce qui peut couvrir l'écran (.qcm-overlay 1000, formulaire 1100,
+     bandeau d'aperçu 1500) : un toast invisible équivaut à une confirmation perdue. */
+  z-index: 2000;
   border: 1px solid rgba(255,255,255,0.06);
   animation: toast-in 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
