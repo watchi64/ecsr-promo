@@ -180,7 +180,7 @@ function runEntrainement(theme, full, questions, badge = "Entraînement") {
     const card = el("div", { class: "qcm-card" });
     card.appendChild(el("p", { class: "qcm-question" }, q.enonce));
     if (correctIds(q).length > 1) {
-      card.appendChild(el("p", { class: "qcm-multi-hint" }, "Plusieurs réponses possibles."));
+      card.appendChild(el("p", { class: "qcm-multi-hint" }, "Plusieurs réponses attendues : cochez-les toutes."));
     }
     if (q.image_url) {
       card.appendChild(el("img", { class: "qcm-question-img", src: q.image_url, alt: "Illustration de la question", loading: "lazy" }));
@@ -464,7 +464,7 @@ function runExam(theme, full, questions, profile) {
     if (q.section) card.appendChild(el("p", { class: "qcm-head-sub" }, q.section));
     card.appendChild(el("p", { class: "qcm-question" }, q.enonce));
     if (correctIds(q).length > 1) {
-      card.appendChild(el("p", { class: "qcm-multi-hint" }, "Plusieurs réponses possibles."));
+      card.appendChild(el("p", { class: "qcm-multi-hint" }, "Plusieurs réponses attendues : cochez-les toutes."));
     }
     if (q.image_url) {
       card.appendChild(el("img", { class: "qcm-question-img", src: q.image_url, alt: "Illustration de la question", loading: "lazy" }));

@@ -640,10 +640,23 @@ function openQuestionForm(qcmId, question, nextOrdre, onSaved, siblings = []) {
     const txt = el("input", { type: "text", class: "qcm-form-opt-text", placeholder: "Texte de la réponse", value: opt?.texte || "" });
     const del = el("button", { class: "btn ghost small icon-only", type: "button", "aria-label": "Retirer la réponse" });
     del.appendChild(icon.trash());
+    // Monter / descendre : l'ordre enregistré est celui du DOM (voir save()),
+    // il suffit donc de déplacer la ligne. Sans effet pour l'élève, qui voit
+    // les réponses mélangées, mais indispensable pour relire une question.
+    const up = el("button", { class: "btn ghost small icon-only", type: "button", title: "Monter cette réponse", "aria-label": "Monter cette réponse" }, "↑");
+    const down = el("button", { class: "btn ghost small icon-only", type: "button", title: "Descendre cette réponse", "aria-label": "Descendre cette réponse" }, "↓");
     const row = el("div", { class: "qcm-form-opt" },
       el("label", { class: "qcm-form-opt-check", title: "Bonne réponse" }, cb),
-      txt, del,
+      txt, up, down, del,
     );
+    up.addEventListener("click", () => {
+      const prev = row.previousElementSibling;
+      if (prev) optsWrap.insertBefore(row, prev);
+    });
+    down.addEventListener("click", () => {
+      const next = row.nextElementSibling;
+      if (next) optsWrap.insertBefore(next, row);
+    });
     del.addEventListener("click", () => row.remove());
     optsWrap.appendChild(row);
   }

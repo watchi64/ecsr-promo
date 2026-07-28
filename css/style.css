@@ -6558,6 +6558,8 @@ body.qcm-open { overflow: hidden; }
 .qcm-form-opts { display: flex; flex-direction: column; gap: 0.4rem; }
 .qcm-form-opt { display: flex; align-items: center; gap: 0.45rem; }
 .qcm-form-opt .qcm-form-opt-text { flex: 1 1 auto; min-width: 0; }
+/* Flèches de réordonnancement des réponses : compactes, pour ne pas manger le champ. */
+.qcm-form-opt .icon-only { flex: 0 0 auto; padding-left: 0.4rem; padding-right: 0.4rem; }
 .qcm-form-opt-check { display: inline-flex; align-items: center; }
 .qcm-form-img { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
 /* Position : petit champ numérique, l'aide tient sur une ligne discrète. */
