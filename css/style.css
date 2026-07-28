@@ -6560,3 +6560,6 @@ body.qcm-open { overflow: hidden; }
 .qcm-form-opt .qcm-form-opt-text { flex: 1 1 auto; min-width: 0; }
 .qcm-form-opt-check { display: inline-flex; align-items: center; }
 .qcm-form-img { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+/* Position : petit champ numérique, l'aide tient sur une ligne discrète. */
+.qcm-form-pos input { width: 5.5rem; }
+.qcm-form-pos p.muted { font-size: 0.78rem; margin: 0.25rem 0 0; }

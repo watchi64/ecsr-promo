@@ -506,7 +506,7 @@ async function openQcmEditor(theme, qcmId) {
 
     panel.appendChild(el("div", { class: "qcm-actions" },
       el("button", { class: "btn primary full", type: "button",
-        onClick: () => openQuestionForm(qcmId, null, questions.length, onSaved) },
+        onClick: () => openQuestionForm(qcmId, null, questions.length, onSaved, questions) },
         icon.plus(), "Ajouter une question"),
     ));
   }
@@ -527,7 +527,7 @@ async function openQcmEditor(theme, qcmId) {
         el("button", { class: "btn small ghost", type: "button", title: "Descendre",
           disabled: i === questions.length - 1 || undefined, onClick: () => moveQuestion(questions, i, 1) }, "↓"),
         el("button", { class: "btn ghost small", type: "button", title: `Modifier la question ${i + 1}`,
-          onClick: () => openQuestionForm(qcmId, q, q.ordre, onSaved) }, "Éditer"),
+          onClick: () => openQuestionForm(qcmId, q, q.ordre, onSaved, questions) }, "Éditer"),
         el("button", { class: "btn danger small", type: "button", title: `Supprimer la question ${i + 1}`,
           onClick: () => removeQuestion(q) }, "Supprimer"),
       ),
@@ -582,9 +582,16 @@ async function openQcmEditor(theme, qcmId) {
 
 // Modale de création / édition d'une question (multi-réponses).
 // nextOrdre = ordre à donner à une nouvelle question (ignoré en édition).
-function openQuestionForm(qcmId, question, nextOrdre, onSaved) {
+function openQuestionForm(qcmId, question, nextOrdre, onSaved, siblings = []) {
   const isEdit = !!question;
   let pendingImageUrl = question?.image_url ?? null;
+
+  // Position : déplacer une question n'importe où sans cliquer ↑ ou ↓ vingt fois.
+  const posFrom = isEdit ? siblings.findIndex((s) => s.id === question.id) : -1;
+  const posInput = el("input", {
+    type: "number", min: "1", max: String(Math.max(siblings.length, 1)),
+    value: String(posFrom >= 0 ? posFrom + 1 : siblings.length + 1),
+  });
 
   // `qcm-form-backdrop` place ce formulaire AU-DESSUS de l'overlay de l'éditeur
   // (.qcm-overlay, z-index 1000). Sans cette classe le formulaire s'ouvrait derrière :
@@ -664,17 +671,42 @@ function openQuestionForm(qcmId, question, nextOrdre, onSaved) {
     };
     try {
       await saveQcmQuestion(qcmId, q);
+      const moved = await applyPosition();
       closeForm();
-      toast("Question enregistrée.", "success");
+      toast(moved ? "Question enregistrée et déplacée." : "Question enregistrée.", "success");
       onSaved();
     } catch (e) {
       toast("Enregistrement impossible : " + (e?.message || e), "error");
     }
   }
 
+  // Applique la position saisie : on retire la question de la liste et on la réinsère
+  // au rang demandé, puis on renormalise tous les ordres (comme les boutons ↑/↓).
+  // Renvoie true si un déplacement a eu lieu.
+  async function applyPosition() {
+    if (!isEdit || posFrom < 0) return false;
+    const wanted = parseInt(posInput.value, 10);
+    if (!Number.isFinite(wanted)) return false;
+    const to = Math.min(Math.max(wanted - 1, 0), siblings.length - 1);
+    if (to === posFrom) return false;
+    const arr = siblings.slice();
+    const [row] = arr.splice(posFrom, 1);
+    arr.splice(to, 0, row);
+    await reorderQcmQuestions(arr.map((s, k) => ({ id: s.id, ordre: k })));
+    return true;
+  }
+
   const modal = el("div", { class: "modal qcm-form-modal" },
     el("h3", {}, isEdit ? "Modifier la question" : "Nouvelle question"),
     el("div", { class: "qcm-form-body" },
+      isEdit && siblings.length > 1
+        ? el("div", { class: "field qcm-form-pos" },
+            el("label", {}, "Position"),
+            posInput,
+            el("p", { class: "muted" },
+              `1 = première question, ${siblings.length} = dernière. Change le numéro pour déplacer la question.`),
+          )
+        : null,
       el("div", { class: "field" }, el("label", {}, "Section"), sectionInput),
       el("div", { class: "field" }, el("label", {}, "Énoncé"), enonceInput),
       el("div", { class: "field" }, el("label", {}, "Explication"), explicInput),
