@@ -7,15 +7,15 @@ import {
   addPassagesBatch, deletePassagesBatch, getPassagesInRange, updateTheme,
   listBenevoles, listBenevolesNoms,
   getVoitureAggregats, listFiches, getSalleAggregats,
-} from "../db.js?v=20260727b";
-import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260727b";
-import { icon } from "../icons.js?v=20260727b";
-import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260727b";
-import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260727b";
-import { recordUndo } from "../undo.js?v=20260727b";
-import { getCurrentWho } from "../identity.js?v=20260727b";
-import { openBenevolesPanel } from "./benevoles.js?v=20260727b";
-import { meilleurResultat } from "../passage-rules.js?v=20260727b";
+} from "../db.js?v=20260728a";
+import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260728a";
+import { icon } from "../icons.js?v=20260728a";
+import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260728a";
+import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260728a";
+import { recordUndo } from "../undo.js?v=20260728a";
+import { getCurrentWho } from "../identity.js?v=20260728a";
+import { openBenevolesPanel } from "./benevoles.js?v=20260728a";
+import { meilleurResultat } from "../passage-rules.js?v=20260728a";
 
 let stagiaires = [];
 let profs = [];
@@ -1350,8 +1350,11 @@ function personSelect(allStagiaires, currentId, onChange, counts, placeholder = 
   const close = () => { dropdown.classList.add("hidden"); display.classList.remove("open"); };
 
   function render() {
+    // optionsFn (optionnel) : recalcule les options à chaque render (donc à l'ouverture,
+    // cf. handler de clic) → un stagiaire libéré d'un autre rôle apparaît sans rafraîchir.
+    const list = opts.optionsFn ? opts.optionsFn(value) : allStagiaires;
     clear(display);
-    const s = value != null ? allStagiaires.find((x) => x.id === value) : null;
+    const s = value != null ? list.find((x) => x.id === value) : null;
     display.appendChild(s
       ? el("span", { class: "person-value" }, displayStagiaire(s))
       : el("span", { class: "person-placeholder" }, placeholder));
@@ -1362,7 +1365,7 @@ function personSelect(allStagiaires, currentId, onChange, counts, placeholder = 
       el("span", { class: "person-item-name person-none" }, placeholder));
     none.addEventListener("click", (ev) => { ev.stopPropagation(); value = null; onChange(null); render(); close(); });
     dropdown.appendChild(none);
-    const ordered = counts ? allStagiaires.slice().sort((a, b) => (counts[a.id] || 0) - (counts[b.id] || 0)) : allStagiaires;
+    const ordered = counts ? list.slice().sort((a, b) => (counts[a.id] || 0) - (counts[b.id] || 0)) : list;
     ordered.forEach((s) => {
       const item = el("div", { class: "person-item" + (value === s.id ? " selected" : "") },
         el("span", { class: "person-item-name" }, displayStagiaire(s)));
@@ -1373,7 +1376,12 @@ function personSelect(allStagiaires, currentId, onChange, counts, placeholder = 
     });
   }
 
-  display.addEventListener("click", () => { dropdown.classList.toggle("hidden"); display.classList.toggle("open"); });
+  display.addEventListener("click", () => {
+    const willOpen = dropdown.classList.contains("hidden");
+    if (willOpen && opts.optionsFn) render();   // options fraîches à l'ouverture
+    dropdown.classList.toggle("hidden");
+    display.classList.toggle("open");
+  });
   document.addEventListener("click", (e) => { if (!wrap.contains(e.target)) close(); });
 
   wrap.appendChild(display);
@@ -1390,19 +1398,22 @@ function personSelect(allStagiaires, currentId, onChange, counts, placeholder = 
 // d'absence sur les élèves voiture — la croix garde son rôle de retrait).
 function chipsSelect(allStagiaires, currentIds, onChange, counts, opts = {}) {
   const { labelFn = displayStagiaire, placeholder = "Stagiaires…", itemBadge = null,
-          chipTitleFn = null, chipClassFn = null, onChipClick = null } = opts;
+          chipTitleFn = null, chipClassFn = null, onChipClick = null, optionsFn = null } = opts;
   const wrap = el("div", { class: "chips-select" });
   const display = el("div", { class: "chips-display", tabindex: "0" });
   const dropdown = el("div", { class: "chips-dropdown hidden" });
   let selected = [...(currentIds || [])];
 
   function render() {
+    // optionsFn (optionnel) : recalcule les options à chaque render (donc à l'ouverture)
+    // → un stagiaire libéré d'un autre rôle du créneau devient sélectionnable sans rafraîchir.
+    const list = optionsFn ? optionsFn(selected) : allStagiaires;
     clear(display);
     if (selected.length === 0) {
       display.appendChild(el("span", { class: "chips-placeholder" }, placeholder));
     } else {
       selected.forEach((id) => {
-        const s = allStagiaires.find((x) => x.id === id);
+        const s = list.find((x) => x.id === id) || allStagiaires.find((x) => x.id === id);
         if (!s) return;
         const chip = el("span", { class: "chip" + (chipClassFn ? (chipClassFn(id) || "") : "") },
           labelFn(s),
@@ -1429,8 +1440,8 @@ function chipsSelect(allStagiaires, currentIds, onChange, counts, opts = {}) {
     if (counts) dropdown.appendChild(prioLegend());
     // Tri par priorité (moins passés en tête) si on a les compteurs
     const ordered = counts
-      ? allStagiaires.slice().sort((a, b) => (counts[a.id] || 0) - (counts[b.id] || 0))
-      : allStagiaires;
+      ? list.slice().sort((a, b) => (counts[a.id] || 0) - (counts[b.id] || 0))
+      : list;
     ordered.forEach((s) => {
       const item = el("div", {
         class: "chips-dropdown-item" + (selected.includes(s.id) ? " selected" : ""),
@@ -1449,6 +1460,8 @@ function chipsSelect(allStagiaires, currentIds, onChange, counts, opts = {}) {
   }
 
   display.addEventListener("click", () => {
+    const willOpen = dropdown.classList.contains("hidden");
+    if (willOpen && optionsFn) render();   // options fraîches à l'ouverture
     dropdown.classList.toggle("hidden");
     display.classList.toggle("open");
   });
@@ -1674,7 +1687,11 @@ function buildTableauRole(entry, lid, group) {
   const counts = roleCounts("Pédagogie salle", "pedagogue", lid);
   const options = stagiaires.filter((s) => !blocked.has(s.id) || s.id === currentVal);
   pedaRole.appendChild(personSelect(
-    options, currentVal, (id) => saveEntry(lid, { [field]: id }), counts, "—"
+    options, currentVal, (id) => saveEntry(lid, { [field]: id }), counts, "—",
+    { optionsFn: (val) => {
+        const b = slotOccupants(entry, exceptField);   // recalculé à l'ouverture (état courant)
+        return stagiaires.filter((s) => !b.has(s.id) || s.id === val);
+      } }
   ));
   pedaRole.appendChild(el("button", {
     class: "p-dice-btn", type: "button",
@@ -1705,7 +1722,12 @@ function buildElevesRoleSalle(entry, lid, group) {
   const blocked = slotOccupants(entry, exceptField);
   const counts = roleCounts("Pédagogie salle", "eleve", lid);
   const options = stagiaires.filter((s) => !blocked.has(s.id) || current.includes(s.id));
-  eleveCol.appendChild(chipsSelect(options, current, (ids) => saveEntry(lid, { [field]: ids }), counts));
+  eleveCol.appendChild(chipsSelect(options, current, (ids) => saveEntry(lid, { [field]: ids }), counts, {
+    optionsFn: (sel) => {
+      const b = slotOccupants(entry, exceptField);   // recalculé à l'ouverture (état courant)
+      return stagiaires.filter((s) => !b.has(s.id) || sel.includes(s.id));
+    },
+  }));
   // Carte 2 groupes : le dé tire les 4 stagiaires DE LA DEMI-JOURNÉE (les mêmes dans
   // les deux groupes, d'où un seul comportement quel que soit le groupe cliqué).
   // L'édition manuelle des chips reste par groupe (côté modulaire).
@@ -1842,6 +1864,10 @@ function renderLaneCell(entry) {
         + (absenceOf(entry, id) ? " · ABSENT(E) — cliquer pour annuler" : " · Cliquer : marquer absent(e)"),
       chipClassFn: (id) => (absenceOf(entry, id) ? " chip-absent" : ""),
       onChipClick: (id) => setAbsence(lid, id, absenceOf(entry, id) ? "unmark" : "mark"),
+      optionsFn: (sel) => {
+        const b = slotOccupants(entry, "eleves");   // recalculé à l'ouverture (état courant)
+        return stagiaires.filter((s) => !b.has(s.id) || sel.includes(s.id));
+      },
     }));
     if (entry.activite === "Voiture (conduite)") {
       const wrap = el("div", { class: "p-dice-picker-wrap" });
