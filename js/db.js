@@ -1,6 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20260729b";
-import { compteDansEquite } from "./passage-rules.js?v=20260729b";
+import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20260729d";
+import { compteDansEquite } from "./passage-rules.js?v=20260729d";
 
 // fetch avec timeout : sans ça, une requête peut rester pendue indéfiniment
 // (réseau mobile instable) → "Chargement" infini. Avec, elle échoue proprement après 15s.
