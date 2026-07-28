@@ -1099,12 +1099,18 @@ function openAddNotionModal(onSaved) {
 
 // Méta de présentation par "famille" (groupe top-level dans la nav)
 // L'ordre ici détermine l'ordre d'affichage.
-const FAMILLES = [
+const FAMILLES_BASE = [
   {
     key: "themes-officiels",
     label: "Thèmes officiels",
     short: "Thèmes",
     match: (t) => t.type === "theme",
+  },
+  {
+    key: "qcm-transversaux",
+    label: "QCM transversaux",
+    short: "Transversaux",
+    match: (t) => t.type === "notion" && t.categorie === "QCM transversal",
   },
   {
     key: "competences-formateur",
@@ -1123,6 +1129,20 @@ const FAMILLES = [
     label: "Notions pédagogiques",
     short: "Notions",
     match: (t) => t.type === "notion" && t.categorie === "Notion pédagogique",
+  },
+];
+
+// Famille filet de sécurité : le rendu ne parcourt que FAMILLES, donc une entrée
+// qui ne correspond à aucune famille n'était affichée NULLE PART — seulement
+// comptée dans « Tout ». C'est ce qui a rendu les 3 QCM transversaux invisibles.
+// Cette famille attrape toute catégorie future non prévue ici.
+const FAMILLES = [
+  ...FAMILLES_BASE,
+  {
+    key: "autres",
+    label: "Autres",
+    short: "Autres",
+    match: (t) => !FAMILLES_BASE.some((f) => f.match(t)),
   },
 ];
 
