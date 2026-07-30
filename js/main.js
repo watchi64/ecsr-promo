@@ -12,7 +12,7 @@ import { renderHome } from "./views/home.js?v=20260729d";
 import { renderDashboard } from "./views/dashboard.js?v=20260729d";
 import { renderMonSuivi } from "./views/mon-suivi.js?v=20260729d";
 import { renderPlanning, teardownPrintTarget, resetPlanningEditMode, requestPlanningToday } from "./views/planning.js?v=20260729d";
-import { teardownDocPrint } from "./doc-officiel.js";
+import { teardownDocPrint } from "./doc-officiel.js?v=20260729d";
 import { renderNotes } from "./views/notes.js?v=20260729d";
 import { renderRessources } from "./views/ressources.js?v=20260729d";
 import { renderThemes } from "./views/themes.js?v=20260729d";

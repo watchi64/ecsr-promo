@@ -29,13 +29,15 @@
     <button id="fill">Remplir données témoin</button>
     <button id="long">Texte très long</button>
     <button id="empty">Vider</button>
-    <button id="print">Imprimer</button>
+    <button id="print">Imprimer (banc)</button>
+    <button id="printapp">Imprimer via le chemin de l'app</button>
     <span id="report" style="font-size:13px;color:#555"></span>
   </div>
   <div id="host"></div>
   <script type="module">
     import { buildDpHTML } from "./js/views/dp-gabarit.js";
-    import { fillData, collectData, applyEditable, wireDocEditing } from "./js/doc-officiel.js";
+    import { fillData, collectData, applyEditable, wireDocEditing,
+             bindDocPrint, refreshDocPrint, teardownDocPrint } from "./js/doc-officiel.js";
     import { blocsImprimes, sommaire } from "./js/dp-rules.js";
 
     const host = document.getElementById("host");
@@ -92,6 +94,29 @@
       render();
     };
     document.getElementById("print").onclick = () => window.print();
+
+    // Chemin d'impression RÉEL de l'app : clone du document dans #dp-print,
+    // classe body.dp-printable, règle @page injectée par doc-officiel.js.
+    // window.__print expose le résultat pour une vérification automatisée.
+    document.getElementById("printapp").onclick = () => {
+      bindDocPrint(doc, { printId: "dp-print", bodyClass: "dp-printable" });
+      refreshDocPrint();
+      const c = document.getElementById("dp-print");
+      window.__print = {
+        conteneur: !!c,
+        bodyClass: document.body.classList.contains("dp-printable"),
+        reglePage: document.getElementById("doc-officiel-page-style")?.textContent || null,
+        pagesClonees: c ? c.querySelectorAll(".dp-page").length : 0,
+        exclusClones: c ? c.querySelectorAll(".dp-page-exclue").length : 0,
+        editableRetire: c ? c.querySelectorAll("[contenteditable]").length : 0,
+        classesEcranRetirees: c ? !c.firstElementChild?.classList.contains("dp-edit") : null,
+      };
+      window.print();
+    };
+    window.__teardown = () => { teardownDocPrint();
+      return { conteneur: !!document.getElementById("dp-print"),
+               bodyClass: document.body.classList.contains("dp-printable"),
+               reglePage: !!document.getElementById("doc-officiel-page-style") }; };
 
     function report() {
       const pages = doc.querySelectorAll(".dp-page");

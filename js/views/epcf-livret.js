@@ -14,7 +14,7 @@ import { el, clear, displayStagiaire, compareByNom, formatDate, toast } from "..
 import { isAdmin, isProf, getProfile } from "../auth-admin.js?v=20260729d";
 import { getCurrentWho } from "../identity.js?v=20260729d";
 import { collectData, fillData, applyEditable, wireDocEditing,
-         bindDocPrint, refreshDocPrint, teardownDocPrint } from "../doc-officiel.js";
+         bindDocPrint, refreshDocPrint, teardownDocPrint } from "../doc-officiel.js?v=20260729d";
 
 // Noms historiques conservés : main.js et le banc d'essai _preview_livret.html
 // les importent depuis ce module. La mécanique vit désormais dans doc-officiel.js,

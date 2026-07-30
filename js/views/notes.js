@@ -10,6 +10,7 @@ import { recordUndo } from "../undo.js?v=20260729d";
 import { renderSubTabs } from "../subtabs.js?v=20260729d";
 import { renderEpcf } from "./epcf.js?v=20260729d";
 import { renderEpcfLivret } from "./epcf-livret.js?v=20260729d";
+import { renderDp } from "./dp.js?v=20260729d";
 
 let userProfiles = [];  // pour résoudre l'anonymat par stagiaire_id
 
@@ -1044,9 +1045,11 @@ function rerender(container) {
     panel.appendChild(renderChartsSection());
   };
 
-  // Sous-onglets Matrice · EPCF · Livret EPCF pour TOUT LE MONDE. renderEpcf et
-  // renderEpcfLivret s'adaptent au rôle : formateur/admin → liste + saisie ;
-  // stagiaire → vue classe (EPCF) / son livret en lecture seule (Livret).
+  // Sous-onglets Matrice · EPCF · Livret EPCF · Dossier pro pour TOUT LE MONDE.
+  // renderEpcf, renderEpcfLivret et renderDp s'adaptent au rôle :
+  // formateur/admin → liste + saisie (EPCF, Livret) ou liste + consultation (DP) ;
+  // stagiaire → vue classe (EPCF), son livret en lecture seule (Livret), et son
+  // dossier professionnel EN ÉDITION (le DP appartient au candidat).
   // La matrice reste en lecture seule pour les stagiaires.
   container.appendChild(renderSubTabs([
     { key: "matrice", label: "Matrice", render: buildMatricePanel },
@@ -1067,6 +1070,16 @@ function rerender(container) {
             if (!ctx || ctx.isActive()) {
               clear(p);
               p.appendChild(el("p", { class: "muted" }, "Erreur de chargement du livret EPCF. Reviens sur l'onglet pour réessayer."));
+            }
+          });
+      } },
+    { key: "dp", label: "Dossier pro", render: (p, ctx) => {
+        renderDp(p, { embedded: true, isActive: ctx && ctx.isActive })
+          .catch((e) => {
+            console.error(e);
+            if (!ctx || ctx.isActive()) {
+              clear(p);
+              p.appendChild(el("p", { class: "muted" }, "Erreur de chargement du dossier professionnel. Reviens sur l'onglet pour réessayer."));
             }
           });
       } },
