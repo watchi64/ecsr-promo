@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<!-- Banc d'essai visuel du Dossier Professionnel (non déployé, jamais lié depuis l'app).
+     Rend le document seul, sans authentification, pour tester la pagination,
+     le sommaire vivant, le débordement et l'aperçu d'impression. -->
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <title>Banc d'essai · Dossier Professionnel</title>
+  <link rel="stylesheet" href="css/livret.css" />
+  <link rel="stylesheet" href="css/dp.css" />
+  <style>
+    body { margin: 20px; background: #e8e8e4; font-family: sans-serif; }
+    .bench-bar { margin-bottom: 14px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    @page { size: A4 portrait; margin: 0; }
+    @media print {
+      body { margin: 0; background: #fff; }
+      .bench-bar { display: none; }
+      /* Reproduit la règle de l'app (css/dp.css, portée #dp-print) : les
+         exemples encore vides sont affichés en édition mais ne s'impriment pas. */
+      .dp-page-exclue { display: none !important; }
+      .dp-page { page-break-after: always; box-shadow: none !important; margin: 0 !important; }
+      .dp-page:last-child { page-break-after: auto; }
+    }
+  </style>
+</head>
+<body>
+  <div class="bench-bar">
+    <strong>Banc d'essai Dossier Professionnel</strong>
+    <button id="fill">Remplir données témoin</button>
+    <button id="long">Texte très long</button>
+    <button id="empty">Vider</button>
+    <button id="print">Imprimer</button>
+    <span id="report" style="font-size:13px;color:#555"></span>
+  </div>
+  <div id="host"></div>
+  <script type="module">
+    import { buildDpHTML } from "./js/views/dp-gabarit.js";
+    import { fillData, collectData, applyEditable, wireDocEditing } from "./js/doc-officiel.js";
+    import { blocsImprimes, sommaire } from "./js/dp-rules.js";
+
+    const host = document.getElementById("host");
+    const doc = document.createElement("div");
+    doc.className = "dp-doc dp-screen dp-edit";
+    host.appendChild(doc);
+
+    // Exemple AT1 n°1 complet, AT1 n°2 laissé vide (il ne doit PAS apparaître),
+    // AT1 n°3 rempli (il doit apparaître, et décaler la pagination).
+    const SAMPLE = {
+      nom_naissance: "VALDIVIA", nom_usage: "VALDIVIA", prenom: "Timy",
+      adresse: "12 rue des Oliviers, 30000 Nîmes",
+      modalite_formation: true,
+      at1_ex1_titre: "Animation d'une séance collective sur les feux du véhicule",
+      at1_ex1_taches: "Préparation et animation d'une séance collective de sécurité routière pour un groupe de 6 apprenants, sur le thème 22 (feux du véhicule).",
+      at1_ex1_moyens: "Support de projection, véhicule école, fiches thème REMC.",
+      at1_ex1_avec_qui: "Sous la supervision du formateur référent.",
+      at1_ex1_entreprise: "ECF Pro by SPS", at1_ex1_service: "Salle de formation",
+      at1_ex1_du: "21/07/2026", at1_ex1_au: "21/07/2026",
+      at1_ex3_titre: "Séance individuelle en circulation urbaine",
+      at1_ex3_taches: "Conduite accompagnée en boulevard urbain et giratoires.",
+      at2_ex1_titre: "Sensibilisation au risque routier en entreprise",
+      at2_ex1_taches: "Animation d'une action de sensibilisation auprès de salariés.",
+      dh_nom: "Timy VALDIVIA", dh_fait_a: "Nîmes", dh_le: "30/07/2026",
+    };
+
+    let data = {};
+    let cable = false;
+    function render() {
+      // edition: true → les 6 exemples sont affichés, les vides marqués « non imprimé ».
+      doc.innerHTML = buildDpHTML(data, { edition: true });
+      fillData(doc, data);
+      if (!cable) { wireDocEditing(doc, onEdit); cable = true; } else applyEditable(doc);
+      marquerDebordements();
+      report();
+    }
+    function onEdit() {
+      const avant = blocsImprimes(data).length;
+      data = collectData(doc);
+      if (blocsImprimes(data).length !== avant) render();
+      else { marquerDebordements(); report(); }
+    }
+    function marquerDebordements() {
+      doc.querySelectorAll(".dp-zone").forEach((z) => {
+        const nominal = parseFloat(getComputedStyle(z).minHeight) || 0;
+        z.classList.toggle("dp-deborde", z.offsetHeight > nominal + 2);
+      });
+    }
+
+    document.getElementById("fill").onclick = () => { data = { ...SAMPLE }; render(); };
+    document.getElementById("empty").onclick = () => { data = {}; render(); };
+    document.getElementById("long").onclick = () => {
+      data = { ...SAMPLE, at1_ex1_taches: "Phrase de test répétée pour provoquer un débordement. ".repeat(60) };
+      render();
+    };
+    document.getElementById("print").onclick = () => window.print();
+
+    function report() {
+      const pages = doc.querySelectorAll(".dp-page");
+      const exclues = doc.querySelectorAll(".dp-page-exclue").length;
+      const imprimees = pages.length - exclues;
+      const hautes = [...pages].filter((p) => p.offsetHeight > 1130).length;   // 296.5mm ≈ 1121px @96dpi
+      const debordes = doc.querySelectorAll(".dp-zone.dp-deborde").length;
+      document.getElementById("report").textContent =
+        `${pages.length} pages affichées dont ${imprimees} imprimées · ${pages[0]?.offsetWidth}px de large`
+        + ` · pages agrandies: ${hautes} · zones en débordement: ${debordes}`
+        + ` · champs remplis: ${Object.keys(collectData(doc)).length}`;
+      window.__bench = { affichees: pages.length, imprimees, exclues, hautes, debordes,
+                         attendues: blocsImprimes(data).length, sommaire: sommaire(data) };
+    }
+    render();
+  </script>
+</body>
+</html>

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { CHAMPS_EXEMPLE, cleExemple, exempleRempli, exempleImprime,
-         blocsImprimes, sommaire } from "../js/dp-rules.js";
+         blocsImprimes, blocsEdition, sommaire } from "../js/dp-rules.js";
 
 // --- Clés de sérialisation ---
 assert.equal(cleExemple(1, 2, "taches"), "at1_ex2_taches");
@@ -57,8 +57,34 @@ assert.deepEqual(sommaire(mixte),
 // Le titre est nettoyé de ses espaces de bord.
 assert.deepEqual(sommaire({ at1_ex1_titre: "  Première leçon  " })[0].titre, "Première leçon");
 
+// --- Mode édition : les 6 exemples sont toujours présents ---
+// Sans cela, le candidat n'aurait aucun champ où saisir son 2e ou 3e exemple.
+const edition = blocsEdition({});
+assert.equal(edition.length, 14, "14 blocs en édition, quel que soit le remplissage");
+assert.equal(edition.filter((b) => b.type === "exemple").length, 6);
+// Les exemples n°1 sont imprimés et numérotés, les autres non.
+const exVierge = edition.filter((b) => b.type === "exemple");
+assert.deepEqual(exVierge.map((b) => [b.at, b.n, b.imprime, b.page]),
+  [[1, 1, true, 5], [1, 2, false, null], [1, 3, false, null],
+   [2, 1, true, 6], [2, 2, false, null], [2, 3, false, null]]);
+// Les blocs fixes gardent la pagination de l'impression.
+assert.equal(edition.find((b) => b.type === "annexes").page, 10);
+assert.equal(edition.find((b) => b.type === "annexes").imprime, true);
+
+// Édition avec l'exemple AT1 n°3 rempli : il devient imprimé et numéroté,
+// le n°2 reste exclu, et la pagination des blocs suivants suit.
+const ed2 = blocsEdition({ at1_ex3_titre: "C" });
+assert.deepEqual(ed2.filter((b) => b.type === "exemple").map((b) => [b.at, b.n, b.imprime, b.page]),
+  [[1, 1, true, 5], [1, 2, false, null], [1, 3, true, 6],
+   [2, 1, true, 7], [2, 2, false, null], [2, 3, false, null]]);
+assert.equal(ed2.find((b) => b.type === "titres").page, 8);
+// Les blocs imprimés de blocsEdition sont exactement ceux de blocsImprimes.
+assert.deepEqual(ed2.filter((b) => b.imprime).map((b) => b.page),
+  blocsImprimes({ at1_ex3_titre: "C" }).map((b) => b.page));
+
 // --- Robustesse : data absent ne doit pas jeter ---
 assert.equal(exempleRempli(null, 1, 1), false);
 assert.equal(blocsImprimes(null).length, 10);
+assert.equal(blocsEdition(null).length, 14);
 
 console.log("dp-rules : OK");

@@ -46,6 +46,27 @@ export function blocsImprimes(data) {
   return blocs.map((b, i) => ({ ...b, page: i + 1 }));
 }
 
+// Blocs affichés en mode ÉDITION : les 6 exemples, même vides. Sans cela le
+// candidat n'aurait aucun champ où saisir son 2e ou 3e exemple, puisque les
+// exemples vides sont absents du document imprimé. Les blocs non imprimés
+// portent imprime:false et page:null ; ils sont masqués à l'impression.
+export function blocsEdition(data) {
+  const pages = new Map();
+  const cle = (b) => (b.type === "exemple" ? `exemple:${b.at}:${b.n}` : b.type);
+  blocsImprimes(data).forEach((b) => pages.set(cle(b), b.page));
+
+  const blocs = BLOCS_AVANT.map((type) => ({ type }));
+  for (const at of [1, 2]) {
+    for (const n of [1, 2, 3]) blocs.push({ type: "exemple", at, n });
+  }
+  BLOCS_APRES.forEach((type) => blocs.push({ type }));
+
+  return blocs.map((b) => {
+    const page = pages.get(cle(b));
+    return { ...b, imprime: page !== undefined, page: page === undefined ? null : page };
+  });
+}
+
 // Entrées du sommaire : un exemple imprimé par ligne, avec le titre saisi par
 // le candidat et le numéro de page calculé.
 export function sommaire(data) {
