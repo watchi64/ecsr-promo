@@ -13,6 +13,14 @@ import { listStagiaires, listProfs, listEpcfLivrets, getEpcfLivret, upsertEpcfLi
 import { el, clear, displayStagiaire, compareByNom, formatDate, toast } from "../utils.js?v=20260729d";
 import { isAdmin, isProf, getProfile } from "../auth-admin.js?v=20260729d";
 import { getCurrentWho } from "../identity.js?v=20260729d";
+import { collectData, fillData, applyEditable, wireDocEditing,
+         bindDocPrint, refreshDocPrint, teardownDocPrint } from "../doc-officiel.js";
+
+// Noms historiques conservés : main.js et le banc d'essai _preview_livret.html
+// les importent depuis ce module. La mécanique vit désormais dans doc-officiel.js,
+// partagée avec le Dossier Professionnel.
+export { collectData, fillData, applyEditable, wireDocEditing };
+export const teardownLivretPrint = teardownDocPrint;
 
 // ---------------------------------------------------------------------------
 // Gabarit du document (contenu officiel, ne pas modifier sans nouveau modèle)
@@ -268,201 +276,6 @@ export function buildDocHTML() {
   return p1 + p2 + p34 + p5 + p67 + p8 + p9 + p10;
 }
 
-// ---------------------------------------------------------------------------
-// Sérialisation <-> DOM
-// ---------------------------------------------------------------------------
-
-export function collectData(doc) {
-  const out = {};
-  doc.querySelectorAll(".lv-f[data-k]").forEach((n) => {
-    const v = n.innerText.replace(/ /g, " ").trim();
-    if (v) out[n.dataset.k] = v;
-  });
-  doc.querySelectorAll(".lv-cb[data-k].on").forEach((n) => { out[n.dataset.k] = true; });
-  return out;
-}
-
-export function fillData(doc, data) {
-  doc.querySelectorAll(".lv-f[data-k]").forEach((n) => {
-    const v = data[n.dataset.k];
-    n.textContent = typeof v === "string" ? v : "";
-  });
-  doc.querySelectorAll(".lv-cb[data-k]").forEach((n) => {
-    n.classList.toggle("on", data[n.dataset.k] === true);
-  });
-}
-
-// Rend le document éditable : champs contenteditable en texte brut, cases à
-// cocher cliquables (groupes exclusifs via data-x). onChange est appelé à
-// chaque modification. Exporté pour le banc d'essai (_preview_livret.html).
-export function wireDocEditing(doc, onChange, opts = {}) {
-  const names = Array.isArray(opts.names) ? opts.names : [];
-  doc.querySelectorAll(".lv-f[data-k]").forEach((n) => {
-    n.contentEditable = "plaintext-only";
-    if (n.contentEditable !== "plaintext-only") n.contentEditable = "true";
-  });
-  // Collage : toujours en texte brut (sinon du HTML copié casserait le gabarit).
-  doc.addEventListener("paste", (e) => {
-    const t = e.target.closest?.(".lv-f[data-k]");
-    if (!t) return;
-    e.preventDefault();
-    const text = (e.clipboardData || window.clipboardData).getData("text/plain");
-    document.execCommand("insertText", false, text);
-  });
-  const toggleCb = (n) => {
-    const on = !n.classList.contains("on");
-    if (on && n.dataset.x) {
-      doc.querySelectorAll(`.lv-cb[data-x="${n.dataset.x}"]`).forEach((o) => o.classList.remove("on"));
-    }
-    n.classList.toggle("on", on);
-    onChange();
-  };
-  doc.addEventListener("click", (e) => {
-    const n = e.target.closest?.(".lv-cb[data-k]");
-    if (n) toggleCb(n);
-  });
-  doc.addEventListener("keydown", (e) => {
-    if ((e.key === " " || e.key === "Enter") && e.target.classList?.contains("lv-cb")) {
-      e.preventDefault();
-      toggleCb(e.target);
-    }
-  });
-  doc.addEventListener("input", () => onChange());
-
-  // Mini-sélecteur sur les champs date : « Aujourd'hui » en un clic, ou une
-  // date au choix (input natif). On peut toujours taper au clavier à la place.
-  const closePicker = () => doc.querySelectorAll(".lv-datepick").forEach((n) => n.remove());
-  // short : année sur 2 chiffres (colonne « Dates » étroite du tableau officiel).
-  const frDate = (iso, short) => {
-    const [y, m, d] = iso.split("-");
-    return `${d}/${m}/${short ? y.slice(2) : y}`;
-  };
-  doc.addEventListener("click", (e) => {
-    const field = e.target.closest?.(".lv-f.lv-date[data-k]");
-    if (!field) { if (!e.target.closest?.(".lv-datepick")) closePicker(); return; }
-    if (field.parentElement.querySelector(".lv-datepick")) return;   // déjà ouvert
-    closePicker();
-    const today = new Date();
-    const todayIso = [today.getFullYear(),
-      String(today.getMonth() + 1).padStart(2, "0"),
-      String(today.getDate()).padStart(2, "0")].join("-");
-    const short = field.classList.contains("lv-date-short");
-    const apply = (iso) => {
-      field.textContent = frDate(iso, short);
-      closePicker();
-      field.dispatchEvent(new InputEvent("input", { bubbles: true }));
-    };
-    const inp = el("input", { type: "date", value: todayIso });
-    inp.addEventListener("change", () => { if (inp.value) apply(inp.value); });
-    const pick = el("div", { class: "lv-datepick" },
-      el("button", { type: "button", class: "lv-dp-today", onClick: () => apply(todayIso) },
-        "Aujourd'hui (" + frDate(todayIso, short) + ")"),
-      inp,
-      el("button", { type: "button", onClick: () => { field.textContent = ""; closePicker(); field.dispatchEvent(new InputEvent("input", { bubbles: true })); } }, "Effacer"),
-    );
-    const cell = field.parentElement;
-    if (getComputedStyle(cell).position === "static") cell.style.position = "relative";
-    cell.appendChild(pick);
-  });
-
-  // Auto-complétion des noms de formateurs / évaluateurs : au clic sur un champ
-  // « Nom » de visa, liste des formateurs (filtrée par ce qui est déjà tapé) ;
-  // clic = remplit. La saisie libre reste possible (évaluateur externe).
-  const norm = (s) => String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
-  const closeNamePick = () => doc.querySelectorAll(".lv-namepick").forEach((n) => n.remove());
-  function openNamePick(field) {
-    closeNamePick();
-    if (!names.length) return;
-    const q = norm(field.textContent);
-    const matches = names.filter((n) => norm(n).includes(q));
-    // Rien à proposer, ou le champ contient déjà exactement un nom de la liste.
-    if (!matches.length || (matches.length === 1 && norm(matches[0]) === q)) return;
-    const pick = el("div", { class: "lv-namepick" });
-    matches.forEach((name) => {
-      // mousedown (pas click) : sélectionne avant que le blur du champ ne ferme la liste.
-      pick.appendChild(el("button", { type: "button", class: "lv-namepick-item",
-        onMousedown: (e) => {
-          e.preventDefault();
-          field.textContent = name;
-          closeNamePick();
-          onChange();
-        } }, name));
-    });
-    const cell = field.parentElement;
-    if (getComputedStyle(cell).position === "static") cell.style.position = "relative";
-    cell.appendChild(pick);
-  }
-  doc.addEventListener("click", (e) => {
-    const field = e.target.closest?.(".lv-f.lv-name[data-k]");
-    if (field) { closePicker(); openNamePick(field); }
-    else if (!e.target.closest?.(".lv-namepick")) closeNamePick();
-  });
-  doc.addEventListener("input", (e) => {
-    const field = e.target.closest?.(".lv-f.lv-name[data-k]");
-    if (field) openNamePick(field);
-  });
-}
-
-// ---------------------------------------------------------------------------
-// Impression : clone du document dans #livret-print (enfant direct de <body>),
-// même architecture éprouvée que l'impression du planning (pas de setTimeout,
-// rafraîchi avant chaque impression). Le clone est en lecture pure.
-// ---------------------------------------------------------------------------
-
-let printListenersReady = false;
-
-function refreshPrintClone(doc) {
-  // Format de page du livret (A4 portrait, marges gérées par le document).
-  // Injecté seulement tant qu'un livret est ouvert : une règle @page en dur
-  // dans livret.css écraserait le « A4 landscape » de l'impression du planning.
-  if (!document.getElementById("livret-page-style")) {
-    const st = document.createElement("style");
-    st.id = "livret-page-style";
-    st.textContent = "@page { size: A4 portrait; margin: 0; }";
-    document.head.appendChild(st);
-  }
-  let c = document.getElementById("livret-print");
-  if (!c) {
-    c = document.createElement("div");
-    c.id = "livret-print";
-    document.body.appendChild(c);
-  }
-  clear(c);
-  const clone = doc.cloneNode(true);
-  clone.classList.remove("lv-screen", "lv-edit");
-  clone.querySelectorAll("[contenteditable]").forEach((n) => n.removeAttribute("contenteditable"));
-  clone.querySelectorAll("[tabindex]").forEach((n) => n.removeAttribute("tabindex"));
-  clone.querySelectorAll(".lv-datepick, .lv-namepick").forEach((n) => n.remove());
-  c.appendChild(clone);
-  document.body.classList.add("livret-printable");
-}
-
-export function teardownLivretPrint() {
-  document.getElementById("livret-print")?.remove();
-  document.getElementById("livret-page-style")?.remove();
-  document.body.classList.remove("livret-printable");
-}
-
-// Si le document n'est plus à l'écran (sous-onglet changé…), on ne doit surtout
-// pas intercepter l'impression d'autre chose.
-function ensurePrintListeners() {
-  if (printListenersReady) return;
-  printListenersReady = true;
-  const beforePrint = () => {
-    const doc = getLivretDocNode();
-    if (doc && document.contains(doc)) refreshPrintClone(doc);
-    else teardownLivretPrint();
-  };
-  window.addEventListener("beforeprint", beforePrint);
-  // iOS Safari n'émet pas beforeprint : matchMedia est son seul signal.
-  const mm = window.matchMedia("print");
-  const onMm = (e) => { if (e.matches) beforePrint(); };
-  if (mm.addEventListener) mm.addEventListener("change", onMm);
-  else if (mm.addListener) mm.addListener(onMm);
-}
-
-let currentDocNode = null;
-function getLivretDocNode() { return currentDocNode; }
 
 // ---------------------------------------------------------------------------
 // Vue
@@ -568,7 +381,7 @@ function showDoc(container, stagiaire, row, { readOnly, back } = {}) {
   toolbar.appendChild(status);
   toolbar.appendChild(el("button", { class: "btn small primary", onClick: async () => {
     if (!readOnly) await saveNow();
-    refreshPrintClone(doc);
+    refreshDocPrint();
     window.print();
   } }, "Imprimer / PDF"));
   container.appendChild(toolbar);
@@ -611,9 +424,7 @@ function showDoc(container, stagiaire, row, { readOnly, back } = {}) {
   window.addEventListener("resize", rescale);
   requestAnimationFrame(rescale);
 
-  currentDocNode = doc;
-  ensurePrintListeners();
-  refreshPrintClone(doc);
+  bindDocPrint(doc, { printId: "livret-print", bodyClass: "livret-printable" });
 
   // --- Autosave (débouncé) ---
   let saveTimer = null;
@@ -655,6 +466,6 @@ function showDoc(container, stagiaire, row, { readOnly, back } = {}) {
   let cloneTimer = null;
   function refreshPrintCloneSoon() {
     clearTimeout(cloneTimer);
-    cloneTimer = setTimeout(() => { if (document.contains(doc)) refreshPrintClone(doc); }, 1200);
+    cloneTimer = setTimeout(() => { if (document.contains(doc)) refreshDocPrint(); }, 1200);
   }
 }

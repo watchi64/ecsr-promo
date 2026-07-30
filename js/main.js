@@ -12,7 +12,7 @@ import { renderHome } from "./views/home.js?v=20260729d";
 import { renderDashboard } from "./views/dashboard.js?v=20260729d";
 import { renderMonSuivi } from "./views/mon-suivi.js?v=20260729d";
 import { renderPlanning, teardownPrintTarget, resetPlanningEditMode, requestPlanningToday } from "./views/planning.js?v=20260729d";
-import { teardownLivretPrint } from "./views/epcf-livret.js?v=20260729d";
+import { teardownDocPrint } from "./doc-officiel.js";
 import { renderNotes } from "./views/notes.js?v=20260729d";
 import { renderRessources } from "./views/ressources.js?v=20260729d";
 import { renderThemes } from "./views/themes.js?v=20260729d";
@@ -192,8 +192,9 @@ async function navigate() {
   view.classList.remove("p-compact");
   // En quittant le planning, on retire sa cible d'impression (re-montée par renderPlanning).
   teardownPrintTarget();
-  // Idem pour le livret EPCF (re-monté à l'ouverture d'un livret).
-  teardownLivretPrint();
+  // Idem pour les documents officiels, livret EPCF et Dossier Professionnel
+  // (re-montés à l'ouverture d'un document).
+  teardownDocPrint();
   try {
     await routes[route](view);
   } catch (e) {
