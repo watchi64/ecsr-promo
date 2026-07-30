@@ -127,6 +127,23 @@ Spec complète : `docs/specs/2026-07-19-absences-comptage-placement-design.md`.
 - **Valider la semaine** : prévu non marqué → `Effectué` ; marqué → `Absence` (avec `remplacant_id`) + `Bonus` pour le remplaçant. Fusion au grain jour : `Effectué > Absence > Bonus`.
 - **Placement auto en cascade** (dés + Placer la semaine) : 1) rien eu cette semaine → 2) type manquant (objectif 1 salle ET 1 voiture chacun) → 3) retard historique sur le type → 4) critères existants (plafond 2 voitures, anti-jours-consécutifs, avec-élève, variété formateur).
 
+## Dossier Professionnel (DP) — 30/07/2026, branche `dp-dossier-professionnel`
+
+Spec : `docs/specs/2026-07-30-dossier-professionnel-design.md` · plan : `docs/plans/2026-07-30-dossier-professionnel.md`
+Modèle source : `docs/specs/2026-07-30-dp-modele-source.docx` (ministère chargé de l'emploi, version du 11/09/2017).
+
+Chaque stagiaire remplit **son** DP dans l'app (Notes → sous-onglet « Dossier pro ») puis l'imprime ou l'enregistre en PDF au format officiel.
+
+- **Noyau partagé `js/doc-officiel.js`** : la mécanique du livret EPCF (sérialisation `[data-k]`, `contentEditable`, clone d'impression, règle `@page` injectée puis retirée) en est extraite et sert aux DEUX documents. `epcf-livret.js` la consomme, son gabarit n'a pas bougé. Les classes techniques `.lv-f` / `.lv-cb` sont communes (préfixe historique, non renommé pour ne pas toucher un gabarit validé).
+- **Un seul document officiel ouvert à la fois** (livret et DP sont deux sous-onglets de Notes). `teardownDocPrint()` remplace `teardownLivretPrint()` dans `main.js` et retire aussi la règle `@page portrait` : sans ça l'impression du planning perdrait son A4 paysage.
+- **Table `dp_dossiers`** (jsonb plat, UNIQUE `stagiaire_id`). RLS **inversée par rapport au livret** : lecture `is_admin() OR is_prof() OR stagiaire_id = my_stagiaire_id()`, écriture `is_admin() OR stagiaire_id = my_stagiaire_id()`. Aucune politique d'écriture ne mentionne `is_prof()` : le DP appartient au candidat. `anon` révoqué explicitement (les default privileges du schéma public le lui avaient accordé à la création).
+- **Composition dans `js/dp-rules.js`** (logique pure, `node tests/dp-rules.test.mjs`) : 4 blocs d'ouverture, jusqu'à 6 exemples, 4 blocs de fin. Un exemple vide n'est pas imprimé, **sauf le n°1 de chaque activité-type** (un DP vierge doit rester imprimable). Sommaire et numéros de page calculés, pas saisis.
+- **Piège résolu** : en édition, `buildDpHTML(data, { edition: true })` rend les **6** exemples, sinon le candidat n'aurait aucun champ où saisir son 2e ou 3e exemple. Les vides portent `.dp-page-exclue`, masquée par `#dp-print .dp-page-exclue` à l'impression.
+- **Re-rendu à pagination changeante** : remplir ou vider un exemple change sommaire et numérotation, donc le document est reconstruit. `wireDocEditing` pose ses écouteurs en **délégation** sur le conteneur : ils survivent au `innerHTML` et ne doivent être posés qu'une fois (drapeau `editionCablee`), sinon une frappe déclencherait N enregistrements. Seul `applyEditable(doc)` est ré-appliqué. Le curseur est replacé dans le champ actif après reconstruction.
+- **Texte long jamais coupé** : `.dp-page` a un `min-height` et non une hauteur fixe (à l'inverse du livret). Un liseré ambre signale le dépassement. Le détecteur compare `offsetHeight` au `min-height` calculé, ce qui **impose `box-sizing: border-box` sur `.dp-zone`** (sinon toute zone, même vide, paraît déborder de la hauteur du padding).
+- **Bancs d'essai** : `_preview_dp.html` (document seul, pagination, impression) et `_preview_dp_vue.html` (la vraie vue dans les deux rôles, `?role=stagiaire|formateur`, via une **import map** qui substitue `_preview_stubs/db.js` et `_preview_stubs/auth-admin.js`). Aucune requête vers la prod.
+- **Hors périmètre v1** : pièces jointes (pas de Storage), export `.docx`, signature électronique.
+
 ## Décisions UX importantes (à respecter)
 
 - ❌ **Pas d'em-dashes (—)** dans les libellés UI. Régression à éviter.
