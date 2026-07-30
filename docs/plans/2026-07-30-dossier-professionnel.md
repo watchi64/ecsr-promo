@@ -34,9 +34,13 @@ Elles s'appliquent à **toutes** les tâches.
 - **Pas de framework**, pas de dépendance npm, pas de gamification.
 - **Migrations Supabase** uniquement via l'outil MCP `apply_migration` sur le projet
   `crpduennbqaemhfaywrz`. Jamais d'INSERT/UPDATE de structure via `execute_sql`.
-- **Cache-bust :** le hook `pre-commit` pose les tokens `?v=` automatiquement. Ne jamais
-  éditer un token à la main. Ne jamais rediriger la sortie de `cache-bust.js` vers un
-  fichier du projet.
+- **Cache-bust : ne PAS lancer `scripts/cache-bust.js` sur cette branche.** Le hook
+  `pre-commit` ne re-versionne que sur `main`, précisément pour que les branches de feature
+  ne re-tamponnent pas les ~96 lignes `?v=` et ne produisent pas des conflits de bruit pur
+  au merge (mesure du 2026-07-16). Le re-versionnage se fera à la release sur `main`, et le
+  hook `pre-push` vérifie qu'il n'a pas été oublié. Pour voir le JS à jour en local, faire
+  un rechargement forcé du navigateur. Ne jamais éditer un token à la main, ne jamais
+  rediriger la sortie de `cache-bust.js` vers un fichier du projet.
 - **Imports :** tout nouvel import de module doit être écrit **sans** `?v=` ; le hook
   s'en charge. Copier la forme des imports existants du fichier voisin.
 - **Push :** ne jamais pousser. Commits locaux uniquement, l'utilisateur pousse lui-même.
@@ -565,12 +569,8 @@ est celle qui compte.
 Le livret est un document validé en conditions réelles (impression testée le 19/07) : il
 doit ressortir identique.
 
-1. Rafraîchir les tokens en local avant de servir, sinon le navigateur sert l'ancien JS :
-
-```bash
-node scripts/cache-bust.js
-```
-
+1. Recharger de force le navigateur (le token `?v=` reste figé sur une branche de
+   feature, voir les contraintes globales).
 2. Démarrer l'aperçu (outil `preview_start` avec la configuration du dépôt, jamais un
    serveur lancé via Bash) et ouvrir `_preview_livret.html`.
 3. Cliquer « Remplir données témoin » : toutes les valeurs doivent apparaître dans les
@@ -1080,7 +1080,7 @@ vérification chiffrée depuis le navigateur.
 
 - [ ] **Étape 6 : vérifier dans le navigateur**
 
-1. `node scripts/cache-bust.js`
+1. Recharger de force le navigateur si un fichier vient d'être modifié.
 2. Ouvrir `_preview_dp.html` via l'outil d'aperçu.
 3. À l'ouverture (dossier vierge), la barre doit indiquer **10 pages** : les 4 blocs
    d'ouverture, l'exemple n°1 de chaque activité-type, les 4 blocs de fin.
@@ -1438,14 +1438,11 @@ des vérifications faites au banc d'essai seulement, ou sur un JS servi depuis l
 
 **Fichiers :** aucun a priori. Les correctifs trouvés ici sont commités au fil de l'eau.
 
-- [ ] **Étape 1 : rafraîchir les tokens de cache avant de servir**
+- [ ] **Étape 1 : servir la version à jour**
 
-```bash
-node scripts/cache-bust.js
-```
-
-Indispensable : en local le hook ne pose les tokens qu'au commit, donc le navigateur
-servirait l'ancien JS. Ne jamais rediriger la sortie de ce script vers un fichier du projet.
+Ne pas lancer `scripts/cache-bust.js` : sur une branche de feature les tokens `?v=` restent
+figés par choix (voir les contraintes globales). Faire un rechargement forcé du navigateur
+pour être sûr de ne pas lire un module en cache.
 
 - [ ] **Étape 2 : lancer l'aperçu et se connecter**
 
