@@ -124,7 +124,7 @@ et le numéro de page. En-tête : « Dossier Professionnel (DP) ».
 |---|---|
 | **AT2 reconstitué** | Le modèle fourni annonce l'AT2 au sommaire mais ne contient aucun bloc d'exemple pour elle. On reproduit la structure de l'AT1 à l'identique. Le libellé de l'AT2 est repris de `epcf-livret.js`, déjà conforme au référentiel |
 | **Sommaire vivant** | Le titre saisi dans un exemple remonte automatiquement au sommaire avec son numéro de page, au lieu d'être recopié à la main |
-| **Exemples vides non imprimés** | Le DP officiel demande « un à trois exemples ». Un exemple dont tous les champs sont vides sort de l'impression et du sommaire, au lieu d'imprimer une page blanche |
+| **Exemples vides non imprimés** | Le DP officiel demande « un à trois exemples ». Un exemple dont tous les champs sont vides sort de l'impression et du sommaire, au lieu d'imprimer une page blanche. **Exception : l'exemple n°1 de chaque activité-type est toujours imprimé**, même vide, pour qu'un DP vierge reste imprimable et remplissable à la main |
 
 ### Débordement de texte
 
