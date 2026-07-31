@@ -1,0 +1,100 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 378" width="900" height="378" role="img" aria-label="Planche des modulations de marquage routier : T1, T prime 1, T2, T3, T prime 3 et T4, dessinees a l echelle">
+  <style>
+    .code { font: 700 15px system-ui, sans-serif; fill: #f2f2f2; }
+    .cote { font: 400 11px system-ui, sans-serif; fill: #cfd2d6; }
+  </style>
+  <rect x="0" y="0" width="900" height="378" fill="#4f5257"/>
+  <text x="12" y="51" class="code">T1</text>
+  <text x="96" y="32" class="cote">trait 3 m &#183; espacement 10 m</text>
+  <g fill="#f2f2f2">
+      <rect x="96.0" y="44" width="24.0" height="9"/>
+      <rect x="200.0" y="44" width="24.0" height="9"/>
+      <rect x="304.0" y="44" width="24.0" height="9"/>
+      <rect x="408.0" y="44" width="24.0" height="9"/>
+      <rect x="512.0" y="44" width="24.0" height="9"/>
+      <rect x="616.0" y="44" width="24.0" height="9"/>
+      <rect x="720.0" y="44" width="24.0" height="9"/>
+      <rect x="824.0" y="44" width="24.0" height="9"/>
+  </g>
+  <text x="12" y="109" class="code">T'1</text>
+  <text x="96" y="90" class="cote">trait 1,5 m &#183; espacement 5 m</text>
+  <g fill="#f2f2f2">
+      <rect x="96.0" y="102" width="12.0" height="9"/>
+      <rect x="148.0" y="102" width="12.0" height="9"/>
+      <rect x="200.0" y="102" width="12.0" height="9"/>
+      <rect x="252.0" y="102" width="12.0" height="9"/>
+      <rect x="304.0" y="102" width="12.0" height="9"/>
+      <rect x="356.0" y="102" width="12.0" height="9"/>
+      <rect x="408.0" y="102" width="12.0" height="9"/>
+      <rect x="460.0" y="102" width="12.0" height="9"/>
+      <rect x="512.0" y="102" width="12.0" height="9"/>
+      <rect x="564.0" y="102" width="12.0" height="9"/>
+      <rect x="616.0" y="102" width="12.0" height="9"/>
+      <rect x="668.0" y="102" width="12.0" height="9"/>
+      <rect x="720.0" y="102" width="12.0" height="9"/>
+      <rect x="772.0" y="102" width="12.0" height="9"/>
+      <rect x="824.0" y="102" width="12.0" height="9"/>
+      <rect x="876.0" y="102" width="12.0" height="9"/>
+  </g>
+  <text x="12" y="167" class="code">T2</text>
+  <text x="96" y="148" class="cote">trait 3 m &#183; espacement 3,5 m</text>
+  <g fill="#f2f2f2">
+      <rect x="96.0" y="160" width="24.0" height="9"/>
+      <rect x="148.0" y="160" width="24.0" height="9"/>
+      <rect x="200.0" y="160" width="24.0" height="9"/>
+      <rect x="252.0" y="160" width="24.0" height="9"/>
+      <rect x="304.0" y="160" width="24.0" height="9"/>
+      <rect x="356.0" y="160" width="24.0" height="9"/>
+      <rect x="408.0" y="160" width="24.0" height="9"/>
+      <rect x="460.0" y="160" width="24.0" height="9"/>
+      <rect x="512.0" y="160" width="24.0" height="9"/>
+      <rect x="564.0" y="160" width="24.0" height="9"/>
+      <rect x="616.0" y="160" width="24.0" height="9"/>
+      <rect x="668.0" y="160" width="24.0" height="9"/>
+      <rect x="720.0" y="160" width="24.0" height="9"/>
+      <rect x="772.0" y="160" width="24.0" height="9"/>
+      <rect x="824.0" y="160" width="24.0" height="9"/>
+      <rect x="876.0" y="160" width="12.0" height="9"/>
+  </g>
+  <text x="12" y="225" class="code">T3</text>
+  <text x="96" y="206" class="cote">trait 3 m &#183; espacement 1,33 m</text>
+  <g fill="#f2f2f2">
+      <rect x="96.0" y="218" width="24.0" height="9"/>
+      <rect x="130.6" y="218" width="24.0" height="9"/>
+      <rect x="165.3" y="218" width="24.0" height="9"/>
+      <rect x="199.9" y="218" width="24.0" height="9"/>
+      <rect x="234.6" y="218" width="24.0" height="9"/>
+      <rect x="269.2" y="218" width="24.0" height="9"/>
+      <rect x="303.8" y="218" width="24.0" height="9"/>
+      <rect x="338.5" y="218" width="24.0" height="9"/>
+      <rect x="373.1" y="218" width="24.0" height="9"/>
+      <rect x="407.8" y="218" width="24.0" height="9"/>
+      <rect x="442.4" y="218" width="24.0" height="9"/>
+      <rect x="477.0" y="218" width="24.0" height="9"/>
+      <rect x="511.7" y="218" width="24.0" height="9"/>
+      <rect x="546.3" y="218" width="24.0" height="9"/>
+      <rect x="581.0" y="218" width="24.0" height="9"/>
+      <rect x="615.6" y="218" width="24.0" height="9"/>
+      <rect x="650.2" y="218" width="24.0" height="9"/>
+      <rect x="684.9" y="218" width="24.0" height="9"/>
+      <rect x="719.5" y="218" width="24.0" height="9"/>
+      <rect x="754.2" y="218" width="24.0" height="9"/>
+      <rect x="788.8" y="218" width="24.0" height="9"/>
+      <rect x="823.4" y="218" width="24.0" height="9"/>
+      <rect x="858.1" y="218" width="24.0" height="9"/>
+  </g>
+  <text x="12" y="283" class="code">T'3</text>
+  <text x="96" y="264" class="cote">trait 20 m &#183; espacement 6 m</text>
+  <g fill="#f2f2f2">
+      <rect x="96.0" y="276" width="160.0" height="9"/>
+      <rect x="304.0" y="276" width="160.0" height="9"/>
+      <rect x="512.0" y="276" width="160.0" height="9"/>
+      <rect x="720.0" y="276" width="160.0" height="9"/>
+  </g>
+  <text x="12" y="341" class="code">T4</text>
+  <text x="96" y="322" class="cote">trait 39 m &#183; espacement 13 m</text>
+  <g fill="#f2f2f2">
+      <rect x="96.0" y="334" width="312.0" height="9"/>
+      <rect x="512.0" y="334" width="312.0" height="9"/>
+  </g>
+</svg>

@@ -1,26 +1,30 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 220" width="640" height="220" role="img" aria-label="Vue de dessus du bord d'une chaussée : la ligne de rive est faite de traits blancs séparés par des espacements plus longs que les traits">
-  <!-- Vue de dessus du bord droit de la chaussée. Ce que la question fait lire :
-       sur une ligne de rive, le TRAIT est plus court que l'ESPACEMENT.
-       Ici trait = 56, espacement = 74, soit un rapport de 0,76. -->
-
-  <rect x="0" y="0" width="640" height="220" fill="#4f5257"/>
-  <!-- accotement, pour situer le bord de chaussée -->
-  <rect x="0" y="164" width="640" height="56" fill="#7a7264"/>
-
-  <!-- ligne de rive : traits de 56, pas de 130 (donc 74 d'espacement) -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 200" width="640" height="200" role="img" aria-label="Vue de dessus du bord d une chaussee : ligne de rive dont les traits sont nettement plus courts que les espacements">
+  <!-- Ligne de rive T'1, cotes officielles IISR 7e partie : trait 1,5 m,
+       espacement 5 m, soit un rapport de 1 a 3. Echelle : 8 px par metre. -->
+  <rect x="0" y="0" width="640" height="200" fill="#4f5257"/>
+  <rect x="0" y="150" width="640" height="50" fill="#7a7264"/>
   <g fill="#f2f2f2">
-    <rect x="20"  y="150" width="56" height="8"/>
-    <rect x="150" y="150" width="56" height="8"/>
-    <rect x="280" y="150" width="56" height="8"/>
-    <rect x="410" y="150" width="56" height="8"/>
-    <rect x="540" y="150" width="56" height="8"/>
+      <rect x="0.0" y="138" width="12.0" height="8"/>
+      <rect x="52.0" y="138" width="12.0" height="8"/>
+      <rect x="104.0" y="138" width="12.0" height="8"/>
+      <rect x="156.0" y="138" width="12.0" height="8"/>
+      <rect x="208.0" y="138" width="12.0" height="8"/>
+      <rect x="260.0" y="138" width="12.0" height="8"/>
+      <rect x="312.0" y="138" width="12.0" height="8"/>
+      <rect x="364.0" y="138" width="12.0" height="8"/>
+      <rect x="416.0" y="138" width="12.0" height="8"/>
+      <rect x="468.0" y="138" width="12.0" height="8"/>
+      <rect x="520.0" y="138" width="12.0" height="8"/>
+      <rect x="572.0" y="138" width="12.0" height="8"/>
+      <rect x="624.0" y="138" width="12.0" height="8"/>
   </g>
-
-  <!-- ligne d'axe, plus haut, pour que la scène se lise comme une chaussée -->
   <g fill="#f2f2f2" opacity="0.75">
-    <rect x="34"  y="52" width="48" height="7"/>
-    <rect x="208" y="52" width="48" height="7"/>
-    <rect x="382" y="52" width="48" height="7"/>
-    <rect x="556" y="52" width="48" height="7"/>
+      <rect x="0.0" y="54" width="24.0" height="7"/>
+      <rect x="104.0" y="54" width="24.0" height="7"/>
+      <rect x="208.0" y="54" width="24.0" height="7"/>
+      <rect x="312.0" y="54" width="24.0" height="7"/>
+      <rect x="416.0" y="54" width="24.0" height="7"/>
+      <rect x="520.0" y="54" width="24.0" height="7"/>
+      <rect x="624.0" y="54" width="16.0" height="7"/>
   </g>
 </svg>
