@@ -1,22 +1,40 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 200" width="600" height="200" role="img" aria-label="Flèches de rabattement peintes sur la voie, obliquant vers la droite, suivies d'une ligne continue">
-  <!-- Schéma de lecture des flèches de rabattement : elles obliquent vers la voie
-       de droite et annoncent le passage de la ligne discontinue à la ligne continue. -->
-  <rect x="0" y="0" width="600" height="200" fill="#6b6f73"/>
-  <rect x="0" y="168" width="600" height="32" fill="#8d8577"/>
-  <rect x="0" y="0"   width="600" height="14" fill="#8d8577"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 220" width="640" height="220" role="img" aria-label="Vue de dessus d'une chaussée : trois flèches peintes obliquent vers la droite en se décalant vers la voie de droite, et la ligne d'axe discontinue devient continue au-delà">
+  <!-- Vue de dessus. Sens de circulation vers la DROITE.
+       Ligne d'axe en haut : discontinue, puis continue à partir de x = 380.
+       Les flèches pointent vers l'avant en obliquant vers la voie de droite
+       (donc vers le bas de l'image) : « rabattez-vous avant la ligne continue ». -->
 
-  <!-- axe : discontinu à gauche, puis continu à partir du rabattement -->
-  <g fill="#ffffff">
-    <rect x="20"  y="92" width="46" height="8" rx="1"/>
-    <rect x="126" y="92" width="46" height="8" rx="1"/>
-    <rect x="232" y="92" width="46" height="8" rx="1"/>
-    <rect x="338" y="92" width="262" height="8" rx="1"/>
+  <rect x="0" y="0" width="640" height="220" fill="#4f5257"/>
+  <rect x="0" y="0"   width="640" height="14" fill="#7a7264"/>
+  <rect x="0" y="206" width="640" height="14" fill="#7a7264"/>
+
+  <!-- ligne d'axe : discontinue puis continue -->
+  <g fill="#f2f2f2">
+    <rect x="24"  y="62" width="58" height="7"/>
+    <rect x="130" y="62" width="58" height="7"/>
+    <rect x="236" y="62" width="58" height="7"/>
+    <rect x="380" y="62" width="236" height="7"/>
   </g>
 
-  <!-- trois flèches de rabattement, de plus en plus inclinées vers la droite -->
-  <g fill="#ffffff">
-    <path d="M60 150 L60 128 L48 128 L70 108 L92 128 L80 128 L80 150 Z" transform="rotate(18 70 130)"/>
-    <path d="M180 150 L180 128 L168 128 L190 108 L212 128 L200 128 L200 150 Z" transform="rotate(26 190 130)"/>
-    <path d="M300 150 L300 128 L288 128 L310 108 L332 128 L320 128 L320 150 Z" transform="rotate(34 310 130)"/>
+  <!-- ligne de rive -->
+  <g fill="#f2f2f2" opacity="0.8">
+    <rect x="24"  y="190" width="44" height="6"/>
+    <rect x="118" y="190" width="44" height="6"/>
+    <rect x="212" y="190" width="44" height="6"/>
+    <rect x="306" y="190" width="44" height="6"/>
+    <rect x="400" y="190" width="44" height="6"/>
+    <rect x="494" y="190" width="44" height="6"/>
+    <rect x="588" y="190" width="44" height="6"/>
+  </g>
+
+  <!-- Flèches : hampe horizontale + pointe à droite, l'ensemble incliné de 16°
+       vers le bas, et chacune plus basse que la precedente. -->
+  <g fill="#f2f2f2">
+    <path d="M56 96 L120 96 L120 84 L156 106 L120 128 L120 116 L56 116 Z"
+          transform="rotate(16 106 106)"/>
+    <path d="M212 116 L276 116 L276 104 L312 126 L276 148 L276 136 L212 136 Z"
+          transform="rotate(16 262 126)"/>
+    <path d="M368 136 L432 136 L432 124 L468 146 L432 168 L432 156 L368 156 Z"
+          transform="rotate(16 418 146)"/>
   </g>
 </svg>
