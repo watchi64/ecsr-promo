@@ -74,6 +74,20 @@ function shuffle(arr) {
   return a;
 }
 
+
+// Illustration d'une question. Un panneau (SVG) doit rester petit et centre :
+// affiche a 100 % de la largeur il ecrase l'enonce, alors qu'une photo de
+// situation a besoin de toute la place. On distingue par l'extension.
+function imageQuestion(q) {
+  const panneau = /\.svg(\?|$)/i.test(q.image_url || "");
+  return el("img", {
+    class: "qcm-question-img" + (panneau ? " is-panneau" : ""),
+    src: q.image_url,
+    alt: panneau ? "Panneau de signalisation" : "Illustration de la question",
+    loading: "lazy",
+  });
+}
+
 function letter(i) {
   return String.fromCharCode(65 + i); // A, B, C, D, E
 }
@@ -239,9 +253,7 @@ function runEntrainement(theme, full, questions, badge = "Entraînement") {
     if (correctIds(q).length > 1) {
       card.appendChild(el("p", { class: "qcm-multi-hint" }, "Plusieurs réponses attendues : cochez-les toutes."));
     }
-    if (q.image_url) {
-      card.appendChild(el("img", { class: "qcm-question-img", src: q.image_url, alt: "Illustration de la question", loading: "lazy" }));
-    }
+    if (q.image_url) card.appendChild(imageQuestion(q));
 
     const choices = el("div", { class: "qcm-choices" });
     let answered = false;
@@ -526,9 +538,7 @@ function runExam(theme, full, questions, profile) {
     if (correctIds(q).length > 1) {
       card.appendChild(el("p", { class: "qcm-multi-hint" }, "Plusieurs réponses attendues : cochez-les toutes."));
     }
-    if (q.image_url) {
-      card.appendChild(el("img", { class: "qcm-question-img", src: q.image_url, alt: "Illustration de la question", loading: "lazy" }));
-    }
+    if (q.image_url) card.appendChild(imageQuestion(q));
 
     // Le dot de grille de la question courante, mis à jour en place au toggle.
     let currentDot = null;

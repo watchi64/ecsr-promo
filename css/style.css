@@ -6620,3 +6620,10 @@ body.qcm-open { overflow: hidden; }
   background: var(--c-stop); color: #fff; font-size: 0.7rem; font-weight: 700;
   white-space: nowrap;
 }
+
+/* Panneau en illustration de question : taille contenue, sinon le dessin ecrase
+   l'enonce. Les photos de situation gardent toute la largeur. */
+.qcm-question-img.is-panneau {
+  max-width: 190px; margin-left: auto; margin-right: auto;
+  border: 0; background: transparent; padding: 0.25rem;
+}
