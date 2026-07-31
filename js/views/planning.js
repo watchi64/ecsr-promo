@@ -7,15 +7,15 @@ import {
   addPassagesBatch, deletePassagesBatch, getPassagesInRange, updateTheme,
   listBenevoles, listBenevolesNoms,
   getVoitureAggregats, listFiches, getSalleAggregats,
-} from "../db.js?v=20260731n";
-import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260731n";
-import { icon } from "../icons.js?v=20260731n";
-import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260731n";
-import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260731n";
-import { recordUndo } from "../undo.js?v=20260731n";
-import { getCurrentWho } from "../identity.js?v=20260731n";
-import { openBenevolesPanel } from "./benevoles.js?v=20260731n";
-import { meilleurResultat } from "../passage-rules.js?v=20260731n";
+} from "../db.js?v=20260731p";
+import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260731p";
+import { icon } from "../icons.js?v=20260731p";
+import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260731p";
+import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260731p";
+import { recordUndo } from "../undo.js?v=20260731p";
+import { getCurrentWho } from "../identity.js?v=20260731p";
+import { openBenevolesPanel } from "./benevoles.js?v=20260731p";
+import { meilleurResultat } from "../passage-rules.js?v=20260731p";
 
 let stagiaires = [];
 let profs = [];

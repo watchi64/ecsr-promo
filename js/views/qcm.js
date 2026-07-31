@@ -4,10 +4,10 @@
  * Multi-réponses : une question peut avoir plusieurs bonnes réponses.
  * Juste = ensemble coché == ensemble des bonnes réponses (toutes les bonnes, aucune fausse).
  */
-import { el, clear, toast, formatDate } from "../utils.js?v=20260731n";
-import { icon } from "../icons.js?v=20260731n";
+import { el, clear, toast, formatDate } from "../utils.js?v=20260731p";
+import { icon } from "../icons.js?v=20260731p";
 import { getQcmFull, insertQcmAttempt, getMyProfile, getMyExamAttempt, listMyQcmAttemptsFor,
-         createQcmSignalement } from "../db.js?v=20260731n";
+         createQcmSignalement } from "../db.js?v=20260731p";
 
 const MOTIFS = [
   ["reponse_fausse", "La réponse indiquée me semble fausse"],
