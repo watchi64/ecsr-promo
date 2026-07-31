@@ -1,4 +1,4 @@
-import { listThemes, updateTheme, addTheme, deleteTheme, listQcmIndex, getQcmFull, publishQcm, unpublishQcm, updateExamConfig, listExamAttempts, resetExamAttempt, listMyQcmAttempts, getMyProfile, listEvaluations, getOrCreateQcm, saveQcmQuestion, deleteQcmQuestion, reorderQcmQuestions, uploadQcmImage, listQcmSignalements, setQcmSignalementStatut } from "../db.js?v=20260731d";
+import { listThemes, updateTheme, addTheme, deleteTheme, listQcmIndex, getQcmFull, publishQcm, unpublishQcm, updateExamConfig, listExamAttempts, resetExamAttempt, listMyQcmAttempts, getMyProfile, listEvaluations, getOrCreateQcm, saveQcmQuestion, deleteQcmQuestion, reorderQcmQuestions, uploadQcmImage, listQcmSignalements, setQcmSignalementStatut, countQcmSignalementsOuverts } from "../db.js?v=20260731d";
 import { el, clear, isoDate, formatDate, toast, debounce } from "../utils.js?v=20260731d";
 import { icon } from "../icons.js?v=20260731d";
 import { isAdmin, getAdminEmail, isFounder, getViewAs, isProf, isStagiaire } from "../auth-admin.js?v=20260731d";
@@ -10,6 +10,7 @@ let qcmByTheme = new Map();  // theme_id -> { id, nb_questions, published, ... }
 let myExamByQcm = new Map();       // qcm_id -> ma dernière tentative examen (QCM)
 let myTrainByQcm = new Map();      // qcm_id -> ma dernière tentative entraînement
 let myNoteByThemeNum = new Map();  // theme_numero -> ma note officielle (matrice Notes)
+let signalByQcm = {};              // qcm_id -> nb de signalements ouverts (formateur seulement)
 let lastContainer = null;          // pour rafraîchir la liste après un QCM
 
 // Après un QCM (entraînement ou examen), recharge la liste pour mettre à jour mes notes.
@@ -26,14 +27,19 @@ function canSeeQcm() {
 }
 
 async function loadQcmIndex() {
-  if (!canSeeQcm()) { qcmByTheme = new Map(); myExamByQcm = new Map(); myTrainByQcm = new Map(); myNoteByThemeNum = new Map(); return; }
+  if (!canSeeQcm()) { qcmByTheme = new Map(); myExamByQcm = new Map(); myTrainByQcm = new Map(); myNoteByThemeNum = new Map(); signalByQcm = {}; return; }
   try {
     const profile = await getMyProfile();
-    const [list, attempts, evals] = await Promise.all([
+    // Les signalements ouverts sont comptés dès la liste : sinon le formateur devrait
+    // ouvrir chaque QCM un par un pour découvrir lesquels ont été signalés.
+    // La RLS renvoie une liste vide à un stagiaire : le badge n'apparaît que pour le formateur.
+    const [list, attempts, evals, signals] = await Promise.all([
       listQcmIndex(),
       listMyQcmAttempts(),
       profile?.stagiaire_id ? listEvaluations({ stagiaire_id: profile.stagiaire_id }) : Promise.resolve([]),
+      countQcmSignalementsOuverts().catch(() => ({})),
     ]);
+    signalByQcm = signals || {};
     qcmByTheme = new Map(list.filter((q) => q.nb_questions > 0).map((q) => [q.theme_id, q]));
     myExamByQcm = new Map();
     myTrainByQcm = new Map();
@@ -48,7 +54,7 @@ async function loadQcmIndex() {
       }
     }
   } catch (e) {
-    qcmByTheme = new Map(); myExamByQcm = new Map(); myTrainByQcm = new Map(); myNoteByThemeNum = new Map();
+    qcmByTheme = new Map(); myExamByQcm = new Map(); myTrainByQcm = new Map(); myNoteByThemeNum = new Map(); signalByQcm = {};
   }
 }
 
@@ -84,6 +90,14 @@ function qcmCellEl(theme, qcm) {
   const note = myThemeNote(theme, qcm);
   const train = myTrainNote(qcm);
   const cell = el("div", { class: "theme-qcm-cell2" }, btn);
+  // Signalements ouverts : visible sans ouvrir le QCM, sinon ils passent inapercus.
+  const nbSignal = signalByQcm[qcm.id] || 0;
+  if (nbSignal) {
+    cell.appendChild(el("span", {
+      class: "theme-qcm-signal",
+      title: nbSignal + " signalement" + (nbSignal > 1 ? "s" : "") + " a traiter dans ce QCM",
+    }, "⚑ " + nbSignal));
+  }
   if (note != null || train != null) {
     const row = (lab, val, colored) => el("div", { class: "qcm-cell-note-row" },
       el("span", { class: "qcm-cell-note-lab" }, lab),
@@ -171,6 +185,19 @@ function openQcmSheet(theme, qcm) {
         body.appendChild(el("p", { class: "muted", style: "text-align:center;margin:0.9rem 0 0;font-size:0.82rem" },
           "L'examen n'est pas encore en ligne."));
       }
+    }
+
+    // Signalements ouverts : remontés SUR la fiche, avec un accès direct à l'éditeur.
+    // Sans ça il fallait passer par « Modifier » puis « Éditer les questions » pour les
+    // découvrir, donc savoir à l'avance qu'il y en avait.
+    const nbSignal = signalByQcm[qcm.id] || 0;
+    if (canManageExam() && nbSignal) {
+      const voir = el("button", { class: "btn full", type: "button", style: "margin-top:0.9rem" },
+        `⚑ ${nbSignal} signalement${nbSignal > 1 ? "s" : ""} à traiter`);
+      voir.addEventListener("click", () => { backdrop.remove(); openQcmEditor(theme, qcm.id); });
+      body.appendChild(voir);
+      body.appendChild(el("p", { class: "muted", style: "font-size:0.78rem;text-align:center;margin:0.35rem 0 0" },
+        "Signalé par un élève. Ouvre l'éditeur pour lire et classer."));
     }
 
     // Gestion formateur (éditer la banque, publier / tirage / tentatives).
@@ -552,6 +579,7 @@ async function openQcmEditor(theme, qcmId) {
         try {
           await setQcmSignalementStatut(s.id, statut, getAdminEmail());
           toast(statut === "traite" ? "Signalement classé comme corrigé." : "Signalement écarté.", "success");
+          dirty = true;  // sinon le badge de la liste des thèmes reste sur l'ancien compte
           await reloadEditor();
         } catch (e) {
           bouton.disabled = false;

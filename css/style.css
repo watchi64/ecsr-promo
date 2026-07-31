@@ -6611,3 +6611,12 @@ body.qcm-open { overflow: hidden; }
   padding: 0.1rem 0.45rem; border-radius: 999px;
   background: var(--c-stop); color: #fff; font-size: 0.72rem; font-weight: 700;
 }
+
+/* Signalements ouverts d'un QCM, visibles depuis la liste des thèmes : sans ce
+   repère, le formateur devrait ouvrir chaque QCM pour les découvrir. */
+.theme-qcm-signal {
+  display: inline-flex; align-items: center; gap: 0.2rem; margin-top: 0.25rem;
+  padding: 0.08rem 0.4rem; border-radius: 999px;
+  background: var(--c-stop); color: #fff; font-size: 0.7rem; font-weight: 700;
+  white-space: nowrap;
+}
