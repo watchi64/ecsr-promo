@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 200" width="600" height="200" role="img" aria-label="Flèches de rabattement peintes sur la voie, obliquant vers la droite, suivies d'une ligne continue">
+  <!-- Schéma de lecture des flèches de rabattement : elles obliquent vers la voie
+       de droite et annoncent le passage de la ligne discontinue à la ligne continue. -->
+  <rect x="0" y="0" width="600" height="200" fill="#6b6f73"/>
+  <rect x="0" y="168" width="600" height="32" fill="#8d8577"/>
+  <rect x="0" y="0"   width="600" height="14" fill="#8d8577"/>
+
+  <!-- axe : discontinu à gauche, puis continu à partir du rabattement -->
+  <g fill="#ffffff">
+    <rect x="20"  y="92" width="46" height="8" rx="1"/>
+    <rect x="126" y="92" width="46" height="8" rx="1"/>
+    <rect x="232" y="92" width="46" height="8" rx="1"/>
+    <rect x="338" y="92" width="262" height="8" rx="1"/>
+  </g>
+
+  <!-- trois flèches de rabattement, de plus en plus inclinées vers la droite -->
+  <g fill="#ffffff">
+    <path d="M60 150 L60 128 L48 128 L70 108 L92 128 L80 128 L80 150 Z" transform="rotate(18 70 130)"/>
+    <path d="M180 150 L180 128 L168 128 L190 108 L212 128 L200 128 L200 150 Z" transform="rotate(26 190 130)"/>
+    <path d="M300 150 L300 128 L288 128 L310 108 L332 128 L320 128 L320 150 Z" transform="rotate(34 310 130)"/>
+  </g>
+</svg>

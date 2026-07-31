@@ -6624,6 +6624,10 @@ body.qcm-open { overflow: hidden; }
 /* Panneau en illustration de question : taille contenue, sinon le dessin ecrase
    l'enonce. Les photos de situation gardent toute la largeur. */
 .qcm-question-img.is-panneau {
-  max-width: 190px; margin-left: auto; margin-right: auto;
+  /* Plafond de HAUTEUR et non de largeur : un panneau est carre, une planche de
+     balises ou un schema de marquage est en format paysage. Une limite de largeur
+     ecraserait les seconds ; une limite de hauteur laisse les deux lisibles. */
+  max-height: 155px; width: auto; max-width: 100%;
+  margin-left: auto; margin-right: auto;
   border: 0; background: transparent; padding: 0.25rem;
 }

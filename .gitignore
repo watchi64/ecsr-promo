@@ -4,3 +4,6 @@ node_modules/
 .vscode/
 .idea/
 .claude/
+
+# Planche de controle des visuels : outil local, jamais deploye
+_verif/

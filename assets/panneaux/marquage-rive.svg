@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 200" width="600" height="200" role="img" aria-label="Ligne de rive : traits blancs courts séparés par des espacements plus longs, au bord de la chaussée">
+  <!-- Schéma de lecture d'une ligne de rive. Proportions conformes au rapport
+       enseigné : le trait est plus court que l'espacement qui le suit. -->
+  <rect x="0" y="0" width="600" height="200" fill="#6b6f73"/>
+  <!-- accotement, pour situer le bord de chaussée -->
+  <rect x="0" y="150" width="600" height="50" fill="#8d8577"/>
+  <!-- ligne de rive : trait 60, espacement 70 -->
+  <g fill="#ffffff">
+    <rect x="20"  y="138" width="60" height="9" rx="1"/>
+    <rect x="150" y="138" width="60" height="9" rx="1"/>
+    <rect x="280" y="138" width="60" height="9" rx="1"/>
+    <rect x="410" y="138" width="60" height="9" rx="1"/>
+    <rect x="540" y="138" width="60" height="9" rx="1"/>
+  </g>
+  <!-- axe de la chaussée, pour que la scène se lise comme une route -->
+  <g fill="#ffffff" opacity="0.9">
+    <rect x="30"  y="60" width="45" height="7" rx="1"/>
+    <rect x="205" y="60" width="45" height="7" rx="1"/>
+    <rect x="380" y="60" width="45" height="7" rx="1"/>
+    <rect x="555" y="60" width="45" height="7" rx="1"/>
+  </g>
+</svg>
