@@ -6565,3 +6565,49 @@ body.qcm-open { overflow: hidden; }
 /* Position : petit champ numérique, l'aide tient sur une ligne discrète. */
 .qcm-form-pos input { width: 5.5rem; }
 .qcm-form-pos p.muted { font-size: 0.78rem; margin: 0.25rem 0 0; }
+
+/* --- Signalement d'une question douteuse (lecteur d'entraînement) ---
+   Discret par construction : c'est un recours, il ne doit pas concurrencer
+   « Question suivante » ni donner envie de fuir une question difficile. */
+.qcm-signal-wrap { margin-top: 0.75rem; }
+.qcm-signal-btn {
+  background: none; border: 0; padding: 0.2rem 0; cursor: pointer;
+  font: inherit; font-size: 0.78rem; color: var(--text-muted);
+  text-decoration: underline; text-underline-offset: 2px;
+}
+.qcm-signal-btn:hover { color: var(--c-stop); }
+.qcm-signal-form {
+  margin-top: 0.5rem; padding: 0.75rem; border: 1px solid var(--border);
+  border-radius: 10px; background: var(--surface-2);
+  display: flex; flex-direction: column; gap: 0.5rem;
+}
+.qcm-signal-intro { margin: 0; font-size: 0.8rem; color: var(--text-muted); }
+.qcm-signal-motif, .qcm-signal-comment {
+  width: 100%; padding: 0.45rem 0.55rem; border: 1px solid var(--border);
+  border-radius: 8px; background: var(--surface); color: var(--text);
+  font: inherit; font-size: 0.85rem;
+}
+.qcm-signal-comment { resize: vertical; min-height: 2.4rem; }
+.qcm-signal-actions { display: flex; gap: 0.5rem; }
+.qcm-signal-done { margin: 0.4rem 0 0; font-size: 0.82rem; font-weight: 600; color: var(--c-go); }
+
+/* --- Côté formateur : signalements dans l'éditeur de QCM --- */
+.qcm-signal-panel {
+  margin: 0 0 1rem; padding: 0.85rem 1rem; border-radius: 12px;
+  background: var(--c-stop-soft); border: 1px solid var(--c-stop);
+}
+.qcm-signal-panel h4 { margin: 0 0 0.6rem; font-size: 0.9rem; color: var(--c-stop); }
+.qcm-signal-item {
+  padding: 0.55rem 0; border-top: 1px solid rgba(0,0,0,0.08);
+  display: flex; flex-direction: column; gap: 0.3rem;
+}
+.qcm-signal-item:first-of-type { border-top: 0; }
+.qcm-signal-item-meta { font-size: 0.76rem; color: var(--text-muted); }
+.qcm-signal-item-motif { font-size: 0.85rem; font-weight: 600; }
+.qcm-signal-item-comment { font-size: 0.85rem; font-style: italic; }
+.qcm-signal-item-actions { display: flex; gap: 0.4rem; margin-top: 0.15rem; }
+.qcm-editor-signal {
+  display: inline-flex; align-items: center; gap: 0.25rem;
+  padding: 0.1rem 0.45rem; border-radius: 999px;
+  background: var(--c-stop); color: #fff; font-size: 0.72rem; font-weight: 700;
+}

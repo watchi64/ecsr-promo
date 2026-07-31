@@ -1126,3 +1126,78 @@ export async function getSalleAggregats() {
   });
   return map;
 }
+
+// --- Signalements sur les questions de QCM ---
+// Objectif : un élève qui trouve une question douteuse la signale en un clic,
+// au lieu de le dire dans le groupe. Le formateur tranche depuis l'éditeur.
+
+// Crée un signalement au nom de l'utilisateur connecté.
+// L'email est imposé par la RLS (lower(email) = lower(auth.email())) : inutile de
+// le passer, on le lit de la session pour que l'insert passe la policy.
+export async function createQcmSignalement({ questionId, motif, commentaire }) {
+  const { data: { user } } = await supabase.auth.getUser();
+  const email = user?.email;
+  if (!email) throw new Error("Session expirée : reconnecte-toi pour signaler.");
+  const row = {
+    question_id: questionId,
+    email,
+    motif: motif || "autre",
+    commentaire: (commentaire || "").trim() || null,
+  };
+  const prof = await myStagiaireId();
+  if (prof) row.stagiaire_id = prof;
+  const { data, error } = await supabase.from("qcm_signalements").insert(row).select().single();
+  if (error) throw error;
+  return data;
+}
+
+// stagiaire_id de l'utilisateur courant, ou null (un formateur n'en a pas forcément).
+async function myStagiaireId() {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user?.email) return null;
+  const { data } = await supabase
+    .from("user_profiles").select("stagiaire_id")
+    .ilike("email", user.email).maybeSingle();
+  return data?.stagiaire_id ?? null;
+}
+
+// Signalements d'un QCM, groupés par question. Vide pour un stagiaire (RLS).
+export async function listQcmSignalements(qcmId, { statut = "ouvert" } = {}) {
+  let req = supabase
+    .from("qcm_signalements")
+    .select("*, question:qcm_questions!inner(id, qcm_id, enonce)")
+    .eq("question.qcm_id", qcmId)
+    .order("created_at", { ascending: false });
+  if (statut) req = req.eq("statut", statut);
+  const { data, error } = await req;
+  if (error) throw error;
+  const parQuestion = {};
+  (data || []).forEach((s) => {
+    (parQuestion[s.question_id] = parQuestion[s.question_id] || []).push(s);
+  });
+  return { liste: data || [], parQuestion };
+}
+
+// Nombre de signalements ouverts par qcm_id, pour les compteurs de l'index.
+export async function countQcmSignalementsOuverts() {
+  const { data, error } = await supabase
+    .from("qcm_signalements")
+    .select("question:qcm_questions!inner(qcm_id)")
+    .eq("statut", "ouvert");
+  if (error) throw error;
+  const map = {};
+  (data || []).forEach((s) => {
+    const id = s.question?.qcm_id;
+    if (id) map[id] = (map[id] || 0) + 1;
+  });
+  return map;
+}
+
+// Classe un signalement : 'traite' (corrigé) ou 'rejete' (la question était juste).
+export async function setQcmSignalementStatut(id, statut, email) {
+  const { error } = await supabase
+    .from("qcm_signalements")
+    .update({ statut, traite_at: new Date().toISOString(), traite_par_email: email || null })
+    .eq("id", id);
+  if (error) throw error;
+}

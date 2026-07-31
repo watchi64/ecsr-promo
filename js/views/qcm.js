@@ -6,7 +6,64 @@
  */
 import { el, clear, toast, formatDate } from "../utils.js?v=20260731b";
 import { icon } from "../icons.js?v=20260731b";
-import { getQcmFull, insertQcmAttempt, getMyProfile, getMyExamAttempt, listMyQcmAttemptsFor } from "../db.js?v=20260731b";
+import { getQcmFull, insertQcmAttempt, getMyProfile, getMyExamAttempt, listMyQcmAttemptsFor,
+         createQcmSignalement } from "../db.js?v=20260731b";
+
+const MOTIFS = [
+  ["reponse_fausse", "La réponse indiquée me semble fausse"],
+  ["enonce_ambigu", "L'énoncé est ambigu ou incomplet"],
+  ["explication", "L'explication est fausse ou peu claire"],
+  ["doublon", "Question en double"],
+  ["autre", "Autre"],
+];
+
+// Bouton « Signaler » + son petit formulaire, à placer sous une question.
+// Volontairement discret : c'est un recours, pas une action principale.
+function signalerBloc(question) {
+  const wrap = el("div", { class: "qcm-signal-wrap" });
+  const bouton = el("button", { class: "qcm-signal-btn", type: "button" },
+    "⚑ Signaler un problème sur cette question");
+  wrap.appendChild(bouton);
+
+  bouton.addEventListener("click", () => {
+    if (wrap.querySelector(".qcm-signal-form")) return;  // déjà ouvert
+    bouton.style.display = "none";
+    const select = el("select", { class: "qcm-signal-motif" },
+      ...MOTIFS.map(([v, label]) => el("option", { value: v }, label)));
+    const commentaire = el("textarea", { class: "qcm-signal-comment", rows: "2",
+      placeholder: "Précise si tu veux (facultatif)" });
+    const envoyer = el("button", { class: "btn primary small", type: "button" }, "Envoyer");
+    const annuler = el("button", { class: "btn ghost small", type: "button" }, "Annuler");
+    const form = el("div", { class: "qcm-signal-form" },
+      el("p", { class: "qcm-signal-intro" }, "Merci : c'est ce qui permet de corriger la base."),
+      select, commentaire,
+      el("div", { class: "qcm-signal-actions" }, envoyer, annuler),
+    );
+    wrap.appendChild(form);
+    select.focus({ preventScroll: true });
+
+    annuler.addEventListener("click", () => { form.remove(); bouton.style.display = ""; });
+    envoyer.addEventListener("click", async () => {
+      envoyer.disabled = true;
+      envoyer.textContent = "Envoi…";
+      try {
+        await createQcmSignalement({
+          questionId: question.id,
+          motif: select.value,
+          commentaire: commentaire.value,
+        });
+        clear(wrap);
+        wrap.appendChild(el("p", { class: "qcm-signal-done" }, "✓ Signalement envoyé, merci."));
+      } catch (e) {
+        envoyer.disabled = false;
+        envoyer.textContent = "Envoyer";
+        toast("Envoi impossible : " + (e?.message || e), "error");
+      }
+    });
+  });
+
+  return wrap;
+}
 
 function shuffle(arr) {
   const a = arr.slice();
@@ -231,6 +288,9 @@ function runEntrainement(theme, full, questions, badge = "Entraînement") {
       if (q.explication) {
         card.insertBefore(el("div", { class: "qcm-explain " + (ok ? "ok" : "ko") }, q.explication), validateBtn);
       }
+      // Le signalement n'apparaît qu'APRÈS correction : avant, l'élève ne peut pas
+      // juger la question, et le bouton ne servirait qu'à fuir la difficulté.
+      card.insertBefore(signalerBloc(q), validateBtn);
       validateBtn.style.display = "none";
       nextBtn.style.display = "";
       nextBtn.focus({ preventScroll: true });  // garde le focus clavier sans repositionner l'overlay

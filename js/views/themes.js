@@ -1,4 +1,4 @@
-import { listThemes, updateTheme, addTheme, deleteTheme, listQcmIndex, getQcmFull, publishQcm, unpublishQcm, updateExamConfig, listExamAttempts, resetExamAttempt, listMyQcmAttempts, getMyProfile, listEvaluations, getOrCreateQcm, saveQcmQuestion, deleteQcmQuestion, reorderQcmQuestions, uploadQcmImage } from "../db.js?v=20260731b";
+import { listThemes, updateTheme, addTheme, deleteTheme, listQcmIndex, getQcmFull, publishQcm, unpublishQcm, updateExamConfig, listExamAttempts, resetExamAttempt, listMyQcmAttempts, getMyProfile, listEvaluations, getOrCreateQcm, saveQcmQuestion, deleteQcmQuestion, reorderQcmQuestions, uploadQcmImage, listQcmSignalements, setQcmSignalementStatut } from "../db.js?v=20260731b";
 import { el, clear, isoDate, formatDate, toast, debounce } from "../utils.js?v=20260731b";
 import { icon } from "../icons.js?v=20260731b";
 import { isAdmin, getAdminEmail, isFounder, getViewAs, isProf, isStagiaire } from "../auth-admin.js?v=20260731b";
@@ -473,8 +473,15 @@ async function openQcmEditor(theme, qcmId) {
     );
   }
 
+  // Signalements ouverts du QCM, rechargés avec l'éditeur. Un échec ici ne doit
+  // jamais empêcher l'édition : on retombe sur « aucun signalement ».
+  let signalements = { liste: [], parQuestion: {} };
+
   async function reloadEditor() {
     let full;
+    try {
+      signalements = await listQcmSignalements(qcmId, { statut: "ouvert" });
+    } catch { signalements = { liste: [], parQuestion: {} }; }
     try {
       full = await getQcmFull(qcmId);
     } catch (e) {
@@ -496,6 +503,8 @@ async function openQcmEditor(theme, qcmId) {
 
     panel.appendChild(editorHead(questions.length + " question" + (questions.length > 1 ? "s" : "")));
 
+    if (signalements.liste.length) panel.appendChild(signalPanel(questions));
+
     const list = el("div", { class: "qcm-editor-list" });
     if (!questions.length) {
       list.appendChild(el("p", { class: "muted", style: "text-align:center;padding:1.5rem 0" },
@@ -511,6 +520,51 @@ async function openQcmEditor(theme, qcmId) {
     ));
   }
 
+  const MOTIF_LABELS = {
+    reponse_fausse: "Réponse fausse",
+    enonce_ambigu: "Énoncé ambigu ou incomplet",
+    explication: "Explication fausse ou peu claire",
+    doublon: "Question en double",
+    autre: "Autre",
+  };
+
+  // Les signalements en tête de l'éditeur : c'est là que le formateur corrige,
+  // donc c'est là qu'ils doivent apparaître, avec le numéro de la question visée.
+  function signalPanel(questions) {
+    const numeroDe = new Map(questions.map((q, i) => [q.id, i + 1]));
+    const box = el("div", { class: "qcm-signal-panel" });
+    const n = signalements.liste.length;
+    box.appendChild(el("h4", {}, `⚑ ${n} signalement${n > 1 ? "s" : ""} à traiter`));
+
+    signalements.liste.forEach((s) => {
+      const num = numeroDe.get(s.question_id);
+      const traite = el("button", { class: "btn small primary", type: "button" }, "Corrigé");
+      const rejete = el("button", { class: "btn small ghost", type: "button" }, "Rien à corriger");
+      const item = el("div", { class: "qcm-signal-item" },
+        el("span", { class: "qcm-signal-item-meta" },
+          (num ? `Question ${num} · ` : "") + (s.email || "anonyme") + " · " + formatDate(s.created_at)),
+        el("span", { class: "qcm-signal-item-motif" }, MOTIF_LABELS[s.motif] || s.motif),
+        s.commentaire ? el("span", { class: "qcm-signal-item-comment" }, "« " + s.commentaire + " »") : null,
+        el("div", { class: "qcm-signal-item-actions" }, traite, rejete),
+      );
+      async function classer(statut, bouton) {
+        bouton.disabled = true;
+        try {
+          await setQcmSignalementStatut(s.id, statut, getAdminEmail());
+          toast(statut === "traite" ? "Signalement classé comme corrigé." : "Signalement écarté.", "success");
+          await reloadEditor();
+        } catch (e) {
+          bouton.disabled = false;
+          toast("Échec : " + (e?.message || e), "error");
+        }
+      }
+      traite.addEventListener("click", () => classer("traite", traite));
+      rejete.addEventListener("click", () => classer("rejete", rejete));
+      box.appendChild(item);
+    });
+    return box;
+  }
+
   function questionCard(q, i, questions) {
     const correctCount = (q.options || []).filter((o) => o.is_correct).length;
     const card = el("div", { class: "qcm-editor-card" });
@@ -521,6 +575,10 @@ async function openQcmEditor(theme, qcmId) {
       el("span", { class: "qcm-editor-card-num" }, String(i + 1)),
       q.section ? el("span", { class: "qcm-editor-section" }, q.section) : null,
       correctCount > 1 ? el("span", { class: "qcm-editor-multi" }, "Plusieurs réponses") : null,
+      (signalements.parQuestion[q.id] || []).length
+        ? el("span", { class: "qcm-editor-signal", title: "Signalements ouverts sur cette question" },
+            "⚑ " + signalements.parQuestion[q.id].length)
+        : null,
       el("div", { class: "qcm-editor-card-order" },
         el("button", { class: "btn small ghost", type: "button", title: "Monter",
           disabled: i === 0 || undefined, onClick: () => moveQuestion(questions, i, -1) }, "↑"),
