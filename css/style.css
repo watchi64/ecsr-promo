@@ -6629,5 +6629,14 @@ body.qcm-open { overflow: hidden; }
      ecraserait les seconds ; une limite de hauteur laisse les deux lisibles. */
   max-height: 155px; width: auto; max-width: 100%;
   margin-left: auto; margin-right: auto;
-  border: 0; background: transparent; padding: 0.25rem;
+  /* Fond gris neutre, VOLONTAIREMENT independant du theme : beaucoup de panneaux
+     sont blancs ou tres clairs (balises J, fin d'interdiction B31) et
+     disparaissaient sur fond clair. Le gris est aussi la presentation habituelle
+     des planches de signalisation. Valeur choisie par le calcul : elle detache le
+     blanc (rapport 1,63) sans eteindre le rouge des panneaux (rapport 3,01) ; un
+     gris plus fonce ferait l'inverse. */
+  background: #c6cbd1;
+  border: 1px solid rgba(0, 0, 0, 0.16);
+  border-radius: 8px;
+  padding: 0.5rem 0.7rem;
 }
