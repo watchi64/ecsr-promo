@@ -1,7 +1,7 @@
 import { listThemes, updateTheme, addTheme, deleteTheme, listQcmIndex, getQcmFull, publishQcm, unpublishQcm, updateExamConfig, listExamAttempts, resetExamAttempt, listMyQcmAttempts, getMyProfile, listEvaluations, getOrCreateQcm, saveQcmQuestion, deleteQcmQuestion, reorderQcmQuestions, uploadQcmImage, listQcmSignalements, setQcmSignalementStatut, countQcmSignalementsOuverts } from "../db.js?v=20260731p";
 import { el, clear, isoDate, formatDate, toast, debounce } from "../utils.js?v=20260731p";
 import { icon } from "../icons.js?v=20260731p";
-import { isAdmin, getAdminEmail, isFounder, getViewAs, isProf, isStagiaire } from "../auth-admin.js?v=20260731p";
+import { isAdmin, getAdminEmail, isProf, isStagiaire } from "../auth-admin.js?v=20260731p";
 import { recordUndo } from "../undo.js?v=20260731p";
 import { openQcmEntrainement, openQcmExamen } from "./qcm.js?v=20260731p";
 
@@ -23,7 +23,11 @@ window.addEventListener("qcm-attempt-saved", async () => {
 // En aperçu « Voir en tant que … », il disparaît (= ce que verra un élève).
 // La RLS (lecture QCM = fondateur) double cette restriction côté serveur.
 function canSeeQcm() {
-  return isFounder() && !getViewAs();
+  // Ouvert a tout utilisateur connecte depuis la publication des QCM (31/07).
+  // Le filtrage est fait par la RLS, pas ici : un stagiaire ne recoit que les QCM
+  // publies, un formateur recoit en plus les brouillons. Garder un test de role
+  // ici reviendrait a cacher a la promo ce que la base lui autorise deja.
+  return true;
 }
 
 async function loadQcmIndex() {
@@ -1106,7 +1110,8 @@ function renderThemeRow(theme, container) {
     onClick: () => openThemeModal(theme),
   }, theme.titre);
 
-  // Colonne QCM (fondateur seulement) : cellule dédiée à droite, jamais sous le titre.
+  // Colonne QCM : cellule dédiée à droite, jamais sous le titre. Un stagiaire n'y
+  // voit un bouton que si le thème a un QCM publié ; « Créer QCM » reste au formateur.
   const qcm = qcmByTheme.get(theme.id);
   const qcmCell = canSeeQcm()
     ? el("div", { class: "theme-qcm-cell" },
