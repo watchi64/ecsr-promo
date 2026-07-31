@@ -11,10 +11,20 @@
 <head>
   <meta charset="utf-8" />
   <title>Banc d'essai · vue Dossier pro</title>
-  <link rel="stylesheet" href="css/fonts.css" />
-  <link rel="stylesheet" href="css/style.css" />
-  <link rel="stylesheet" href="css/livret.css" />
-  <link rel="stylesheet" href="css/dp.css" />
+  <!-- Feuilles injectées avec un cache-buster : sur une branche de feature les
+       tokens ?v= ne bougent pas, et le navigateur resservirait indéfiniment une
+       version périmée de dp.css (constaté : la règle masquant #dp-print
+       manquait dans la copie en cache). Un banc doit toujours exercer le disque. -->
+  <script>
+    window.__cssPrete = Promise.all(
+      ["css/fonts.css", "css/style.css", "css/livret.css", "css/dp.css"].map((f) => new Promise((ok) => {
+        const l = document.createElement("link");
+        l.rel = "stylesheet";
+        l.href = `${f}?cb=${Date.now()}`;
+        l.onload = l.onerror = ok;
+        document.head.appendChild(l);
+      })));
+  </script>
   <!-- Les clés sont les URL RÉSOLUES des imports de dp.js (token ?v= compris). -->
   <script type="importmap">
   {
@@ -45,9 +55,16 @@
     // navigateur resservirait indéfiniment la version en cache de dp.js. Un banc
     // doit toujours exercer le code du disque.
     const { renderDp } = await import("./js/views/dp.js?v=20260729d&cb=" + Date.now());
+    await window.__cssPrete;   // styles appliqués avant toute mesure
 
     const view = document.getElementById("view");
-    await renderDp(view, { embedded: true, isActive: () => true });
+    // ?dossier=<id> reproduit l'entrée « Mon espace personnel » : on ouvre le
+    // dossier d'un stagiaire précis, sans passer par la liste.
+    const cible = new URLSearchParams(location.search).get("dossier");
+    await renderDp(view, {
+      embedded: true, isActive: () => true,
+      ...(cible ? { stagiaireId: Number(cible) } : {}),
+    });
 
     // Résumé exposé pour la vérification automatisée.
     window.__vue = () => {

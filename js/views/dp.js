@@ -22,11 +22,42 @@ let dossiersIndex = [];
 // s'ouvre alors EN ÉDITION, puisque le DP de quelqu'un n'appartient qu'à lui.
 let monStagiaireId = null;
 
+// Charge le dossier d'un stagiaire et l'affiche, sans passer par la liste.
+async function ouvrirDossier(container, id, { readOnly, back, isActive }) {
+  let row = null;
+  let s = null;
+  try {
+    [row, s] = await Promise.all([
+      getDpDossier(id),
+      listStagiaires().then((l) => l.find((x) => x.id === id) || null),
+    ]);
+  } catch (e) {
+    console.error(e);
+    if (isActive && !isActive()) return;
+    clear(container);
+    container.appendChild(el("p", { class: "muted" },
+      "Chargement du dossier professionnel impossible : " + (e?.message || e)));
+    return;
+  }
+  if (isActive && !isActive()) return;
+  clear(container);
+  showDoc(container, s, row, { readOnly, stagiaireId: id, back });
+}
+
+// opts.stagiaireId : ouvre directement le dossier de CE stagiaire, sans liste.
+// Utilisé par l'espace personnel (Mon suivi), où l'on regarde déjà quelqu'un de
+// précis. En édition si c'est le sien, en consultation sinon.
 export async function renderDp(container, opts = {}) {
   clear(container);
   container.appendChild(el("div", { class: "loading" }, "Chargement"));
   const formateur = isAdmin() || isProf();
   const monId = getProfile()?.stagiaire_id ?? null;
+
+  if (opts.stagiaireId != null) {
+    const id = Number(opts.stagiaireId);
+    await ouvrirDossier(container, id, { readOnly: id !== monId, isActive: opts.isActive });
+    return;
+  }
 
   // Un stagiaire (ou un fondateur en aperçu « stagiaire ») ouvre directement son
   // dossier. La RLS ne lui renvoie que le sien de toute façon.
@@ -37,24 +68,7 @@ export async function renderDp(container, opts = {}) {
         "Ton compte n'est pas encore relié à une fiche stagiaire : le dossier professionnel n'est pas disponible."));
       return;
     }
-    let row = null;
-    let moi = null;
-    try {
-      [row, moi] = await Promise.all([
-        getDpDossier(monId),
-        listStagiaires().then((l) => l.find((s) => s.id === monId) || null),
-      ]);
-    } catch (e) {
-      console.error(e);
-      if (opts.isActive && !opts.isActive()) return;
-      clear(container);
-      container.appendChild(el("p", { class: "muted" },
-        "Chargement du dossier professionnel impossible : " + (e?.message || e)));
-      return;
-    }
-    if (opts.isActive && !opts.isActive()) return;
-    clear(container);
-    showDoc(container, moi, row, { readOnly: false, stagiaireId: monId });
+    await ouvrirDossier(container, monId, { readOnly: false, isActive: opts.isActive });
     return;
   }
 

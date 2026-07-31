@@ -131,6 +131,13 @@
 .dp-scale { transform-origin: top left; }
 
 /* --- Impression --- */
+
+/* Le clone d'impression vit en permanence dans le <body> tant qu'un dossier est
+   ouvert (voir doc-officiel.js) : il DOIT être masqué à l'écran, sinon le
+   document apparaît une seconde fois sous la vue, en pleine largeur 210mm et
+   sans la mise à l'échelle. Même règle que #livret-print dans livret.css. */
+#dp-print { display: none; }
+
 @media print {
   body.dp-printable > *:not(#dp-print) { display: none !important; }
   body.dp-printable #dp-print { display: block !important; }

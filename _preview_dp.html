@@ -6,8 +6,17 @@
 <head>
   <meta charset="utf-8" />
   <title>Banc d'essai · Dossier Professionnel</title>
-  <link rel="stylesheet" href="css/livret.css" />
-  <link rel="stylesheet" href="css/dp.css" />
+  <!-- Cache-buster : voir la note dans _preview_dp_vue.html. Sur une branche de
+       feature le token ?v= est figé, le navigateur resservirait un CSS périmé. -->
+  <script>
+    window.__cssPrete = Promise.all(["css/livret.css", "css/dp.css"].map((f) => new Promise((ok) => {
+      const l = document.createElement("link");
+      l.rel = "stylesheet";
+      l.href = `${f}?cb=${Date.now()}`;
+      l.onload = l.onerror = ok;
+      document.head.appendChild(l);
+    })));
+  </script>
   <style>
     body { margin: 20px; background: #e8e8e4; font-family: sans-serif; }
     .bench-bar { margin-bottom: 14px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
@@ -39,6 +48,7 @@
     import { fillData, collectData, applyEditable, wireDocEditing,
              bindDocPrint, refreshDocPrint, teardownDocPrint } from "./js/doc-officiel.js";
     import { blocsImprimes, sommaire } from "./js/dp-rules.js";
+    await window.__cssPrete;   // styles appliqués avant toute mesure de débordement
 
     const host = document.getElementById("host");
     const doc = document.createElement("div");
