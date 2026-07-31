@@ -187,7 +187,7 @@ function openQcmSheet(theme, qcm) {
           "Une seule passe, chronométrée, notée sur 20."));
       } else {
         body.appendChild(el("p", { class: "muted", style: "text-align:center;margin:0.9rem 0 0;font-size:0.82rem" },
-          "L'examen n'est pas encore en ligne."));
+          "L'examen n'est pas encore ouvert. L'entraînement, lui, est illimité."));
       }
     }
 
@@ -226,7 +226,11 @@ function openQcmSheet(theme, qcm) {
   document.body.appendChild(backdrop);
 }
 
-// Panneau formateur : statut + deux actions (Publier/Dépublier, Modifier).
+// Panneau formateur : statut + deux actions (ouvrir/retirer l'examen, Modifier).
+// ATTENTION au sens de `published` : il ne gouverne QUE la mise en ligne de
+// l'examen. La lecture des QCM et l'entraînement sont ouverts à tout utilisateur
+// connecté, independamment de ce drapeau (politiques RLS du 2026-08-01). Un QCM
+// « examen non ouvert » est donc bien visible et utilisable en entraînement.
 // « Modifier » ouvre une modale regroupant l'édition de la banque, les questions
 // (au hasard / à la main), le temps et les tentatives.
 // onPublishChange : re-rend la fiche entière après Publier/Dépublier (le panneau
@@ -240,15 +244,16 @@ function themeExamPanel(theme, qcm, onPublishChange) {
     clear(status);
     const on = !!qcm.published;
     const frozenN = Array.isArray(qcm.exam_question_ids) ? qcm.exam_question_ids.length : null;
-    status.appendChild(el("span", { class: "exam-badge " + (on ? "on" : "off") }, on ? "En ligne" : "Brouillon"));
+    status.appendChild(el("span", { class: "exam-badge " + (on ? "on" : "off") },
+      on ? "Examen en ligne" : "Examen non ouvert"));
     status.appendChild(el("span", { class: "muted", style: "font-size:0.8rem" },
       ` ${frozenN ?? qcm.nb_questions} questions · ${qcm.exam_seconds_per_question || 30}s/question`
       + (qcm.exam_draw_mode === "manual" ? " · sélection manuelle" : " · tirage aléatoire")));
 
     clear(actions);
     actions.appendChild(on
-      ? el("button", { class: "btn danger", type: "button", onClick: doUnpublish }, "Dépublier")
-      : el("button", { class: "btn primary", type: "button", onClick: doPublishNow }, "Publier"));
+      ? el("button", { class: "btn danger", type: "button", onClick: doUnpublish }, "Retirer l'examen")
+      : el("button", { class: "btn primary", type: "button", onClick: doPublishNow }, "Ouvrir l'examen"));
     actions.appendChild(el("button", { class: "btn ghost", type: "button", onClick: openConfig }, "Modifier"));
   }
 
