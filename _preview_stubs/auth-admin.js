@@ -19,9 +19,14 @@ export function getViewAs() { return null; }
 export function isAuth() { return true; }
 
 export function getProfile() {
-  return ROLE === "formateur"
-    ? { email: "formateur@test.local", role: "prof", prof_id: 1, stagiaire_id: null, is_admin: true }
-    : { email: "stagiaire@test.local", role: "stagiaire", stagiaire_id: MON_ID, is_admin: false };
+  if (ROLE === "formateur") {
+    // ?moi=1 simule le cas réel de l'utilisateur : admin ET stagiaire (id 15).
+    // Sa propre ligne de la liste doit alors s'ouvrir en édition.
+    const aussiStagiaire = params.get("moi") === "1";
+    return { email: "formateur@test.local", role: "prof", prof_id: 1,
+             stagiaire_id: aussiStagiaire ? MON_ID : null, is_admin: true };
+  }
+  return { email: "stagiaire@test.local", role: "stagiaire", stagiaire_id: MON_ID, is_admin: false };
 }
 
 export function getProfileWho() { return ROLE === "formateur" ? "Formateur test" : "Stagiaire test"; }

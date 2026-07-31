@@ -17,6 +17,10 @@ import { blocsImprimes } from "../dp-rules.js?v=20260729d";
 
 let stagiaires = [];
 let dossiersIndex = [];
+// stagiaire_id de la personne connectée, ou null. Un formateur peut être
+// lui-même stagiaire (cas admin + stagiaire) : sa propre ligne de la liste
+// s'ouvre alors EN ÉDITION, puisque le DP de quelqu'un n'appartient qu'à lui.
+let monStagiaireId = null;
 
 export async function renderDp(container, opts = {}) {
   clear(container);
@@ -68,6 +72,7 @@ export async function renderDp(container, opts = {}) {
   if (opts.isActive && !opts.isActive()) return;
   stagiaires = stagiairesData.slice().sort(compareByNom);
   dossiersIndex = dossiersData;
+  monStagiaireId = monId;
   clear(container);
   showListe(container);
 }
@@ -84,23 +89,31 @@ function showListe(container) {
   const tbody = el("tbody");
   stagiaires.forEach((s) => {
     const row = dossiersIndex.find((d) => d.stagiaire_id === s.id);
+    const cestMoi = monStagiaireId != null && s.id === monStagiaireId;
     const cell = el("td", {});
     cell.appendChild(el("span", { class: "lv-statut" + (row ? " ok" : "") },
       row ? "commencé · màj " + formatDate(new Date(row.updated_at)) : "vierge"));
-    if (row) {
+    // Sa propre ligne s'ouvre en édition, même pour un formateur : le DP
+    // appartient au candidat, et un formateur peut être aussi stagiaire.
+    // Les dossiers des autres ne s'ouvrent qu'en consultation, et seulement
+    // s'ils existent déjà.
+    if (cestMoi || row) {
       cell.appendChild(el("button", {
-        class: "btn small ghost", style: "margin-left:10px",
+        class: "btn small " + (cestMoi && !row ? "primary" : "ghost"),
+        style: "margin-left:10px",
         onClick: async () => {
           let full = null;
           try { full = await getDpDossier(s.id); }
           catch (e) { console.error(e); toast(e?.message || String(e), "error"); return; }
-          showDoc(container, s, full, { readOnly: true, stagiaireId: s.id, back: () => renderReload(container) });
+          showDoc(container, s, full, {
+            readOnly: !cestMoi, stagiaireId: s.id, back: () => renderReload(container),
+          });
         },
-      }, "Consulter"));
+      }, cestMoi ? (row ? "Remplir mon dossier" : "Commencer mon dossier") : "Consulter"));
     }
-    tbody.appendChild(el("tr", {},
-      el("td", {}, el("div", { class: "lv-name-cell" }, el("span", {}, displayStagiaire(s)))),
-      cell));
+    const nom = el("div", { class: "lv-name-cell" }, el("span", {}, displayStagiaire(s)));
+    if (cestMoi) nom.appendChild(el("span", { class: "lv-statut" }, "moi"));
+    tbody.appendChild(el("tr", {}, el("td", {}, nom), cell));
   });
   table.appendChild(tbody);
   container.appendChild(table);

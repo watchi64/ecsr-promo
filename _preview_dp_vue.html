@@ -40,7 +40,11 @@
   </div>
   <div id="view"></div>
   <script type="module">
-    import { renderDp } from "./js/views/dp.js?v=20260729d";
+    // Import dynamique avec cache-buster : sur une branche de feature le token
+    // ?v= ne bouge pas (le re-versionnage ne se fait que sur main), donc le
+    // navigateur resservirait indéfiniment la version en cache de dp.js. Un banc
+    // doit toujours exercer le code du disque.
+    const { renderDp } = await import("./js/views/dp.js?v=20260729d&cb=" + Date.now());
 
     const view = document.getElementById("view");
     await renderDp(view, { embedded: true, isActive: () => true });
