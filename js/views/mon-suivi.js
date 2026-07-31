@@ -6,6 +6,7 @@ import { HALF_DAYS, RESULTATS } from "../config.js?v=20260729d";
 import { isAdmin, isProf, getProfile } from "../auth-admin.js?v=20260729d";
 import { renderEpcfTrameSection } from "../epcf-restitution.js?v=20260729d";
 import { renderSubTabs } from "../subtabs.js?v=20260729d";
+import { renderDp } from "./dp.js?v=20260729d";
 import { rolesPourEntry, ROLE_ORDER } from "../creneaux-rules.js?v=20260729d";
 import { statsPassages } from "../passages-stats.js?v=20260729d";
 
@@ -568,6 +569,19 @@ export async function renderMonSuivi(container) {
         } },
       { key: "evolution", label: "Évolution", render: (p) => {
           p.appendChild(renderChartSection(evaluations));
+        } },
+      // Le DP appartient au candidat : dans SON espace il est éditable. Un
+      // formateur qui consulte l'espace d'un autre élève le voit en lecture
+      // seule (renderDp compare l'élève affiché au stagiaire_id du profil).
+      { key: "dp", label: "Dossier pro", render: (p, ctx) => {
+          renderDp(p, { stagiaireId: id, embedded: true, isActive: ctx && ctx.isActive })
+            .catch((e) => {
+              console.error(e);
+              if (!ctx || ctx.isActive()) {
+                clear(p);
+                p.appendChild(el("p", { class: "muted" }, "Erreur de chargement du dossier professionnel. Reviens sur l'onglet pour réessayer."));
+              }
+            });
         } },
     ], { storageKey: "ecsr_monsuivi_subtab" }));
   }

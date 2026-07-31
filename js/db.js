@@ -723,6 +723,42 @@ export async function getEpcfMoyennes(trame) {
   return data;
 }
 
+// === Dossier Professionnel (document ministère, 1 dossier / stagiaire) ===
+// Le DP appartient au candidat : la RLS n'autorise l'écriture qu'à son
+// propriétaire (et à un admin). Les formateurs y ont un accès en lecture.
+
+export async function listDpDossiers() {
+  const { data, error } = await supabase
+    .from("dp_dossiers")
+    .select("id, stagiaire_id, data, updated_at");
+  if (error) throw error;
+  return data;
+}
+
+export async function getDpDossier(stagiaireId) {
+  const { data, error } = await supabase
+    .from("dp_dossiers")
+    .select("*")
+    .eq("stagiaire_id", stagiaireId)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+// Upsert par stagiaire (contrainte UNIQUE stagiaire_id côté base).
+export async function upsertDpDossier({ stagiaire_id, data, updated_by_who }) {
+  const { data: row, error } = await supabase
+    .from("dp_dossiers")
+    .upsert(
+      { stagiaire_id, data, updated_by_who, updated_at: new Date().toISOString() },
+      { onConflict: "stagiaire_id" },
+    )
+    .select()
+    .single();
+  if (error) throw error;
+  return row;
+}
+
 // === Audit passages (historique qui a modifié quoi) ===
 
 export async function listRecentPassagesAudit(limit = 100) {

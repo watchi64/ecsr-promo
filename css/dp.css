@@ -1,0 +1,155 @@
+/* ============================================================================
+   Dossier Professionnel (DP) : vue + impression.
+
+   Même principe WYSIWYG que le livret EPCF : le document affiché à l'écran EST
+   le document imprimé. Les champs réutilisent les classes .lv-f / .lv-cb de
+   css/livret.css, communes à tous les documents officiels (voir doc-officiel.js).
+
+   Différence volontaire avec le livret : la page a une hauteur MINIMALE et non
+   fixe, et ne masque pas son débordement. Un texte long pousse la page au lieu
+   d'être coupé. Perdre du texte à l'impression serait pire qu'une numérotation
+   qui glisse d'une feuille.
+   ========================================================================= */
+
+.dp-doc {
+  font-family: Arial, Helvetica, sans-serif;
+  color: #000;
+  width: 210mm;
+  font-size: 11pt;
+  /* Impose l'impression des aplats (cartouches gris, bordures) même quand
+     l'option « Graphiques d'arrière-plan » du navigateur est décochée. */
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+.dp-page {
+  position: relative;
+  width: 210mm;
+  min-height: 296.5mm;      /* minimum, pas une hauteur fixe : le texte long pousse */
+  box-sizing: border-box;
+  background: #fff;
+  padding: 18mm 18mm 22mm;
+  display: flex;
+  flex-direction: column;
+}
+.dp-screen .dp-page { box-shadow: 0 2px 14px rgba(0, 0, 0, 0.18); margin: 0 0 8mm; }
+
+.dp-doc p { margin: 0; }
+.dp-doc ul { margin: 2mm 0; padding-left: 7mm; }
+.dp-doc li { margin: 0 0 1.5mm; }
+.dp-doc table { border-collapse: collapse; table-layout: fixed; width: 100%; }
+.dp-doc td, .dp-doc th { vertical-align: top; padding: 1.5mm 2mm; word-wrap: break-word; }
+
+/* En-tête et pied de page officiels, sur chaque bloc. */
+.dp-head {
+  font-size: 9pt; color: #444;
+  border-bottom: 0.5pt solid #999;
+  padding-bottom: 1.5mm; margin-bottom: 6mm;
+}
+.dp-foot {
+  margin-top: auto;          /* colle en bas de page grâce au flex du conteneur */
+  padding-top: 3mm;
+  border-top: 0.5pt solid #999;
+  font-size: 8pt; color: #444;
+  display: flex; justify-content: space-between; gap: 6mm;
+}
+
+/* Titres de rubrique du document */
+.dp-h1 { font-size: 20pt; font-weight: 700; text-align: center; margin: 0 0 8mm; }
+.dp-h2 { font-size: 14pt; font-weight: 700; margin: 0 0 4mm; }
+.dp-question { font-weight: 700; font-size: 11pt; margin: 5mm 0 2mm; }
+
+/* Cartouche d'activité-type en tête de chaque exemple */
+.dp-at {
+  display: flex; gap: 4mm; align-items: stretch;
+  border: 1pt solid #000; margin-bottom: 6mm;
+}
+.dp-at-num {
+  background: #eee; font-weight: 700; font-size: 16pt;
+  padding: 3mm 4mm; display: flex; align-items: center;
+  border-right: 1pt solid #000; white-space: nowrap;
+}
+.dp-at-titre { padding: 3mm; font-size: 10pt; align-self: center; }
+.dp-ex-num { font-weight: 700; font-size: 12pt; margin: 0 0 4mm; }
+
+/* Zone de rédaction : hauteur nominale généreuse, jamais de coupe.
+   box-sizing: border-box est INDISPENSABLE au détecteur de débordement, qui
+   compare offsetHeight (padding et bordure compris) à min-height. En
+   content-box, min-height ne couvre que le contenu et toute zone, même vide,
+   paraîtrait déborder de la hauteur du padding. */
+.dp-zone { box-sizing: border-box; min-height: 32mm; border: 0.5pt solid #bbb; padding: 2mm; }
+.dp-zone.dp-zone-petite { min-height: 18mm; }
+/* Signalé quand le contenu dépasse la hauteur nominale (classe posée en JS). */
+.dp-edit .dp-zone.dp-deborde { border-color: #b45309; box-shadow: inset 0 0 0 1pt #fde68a; }
+.dp-deborde-note { font-size: 8pt; color: #b45309; margin-top: 1mm; }
+/* La note n'apparaît que sur la zone effectivement en débordement, en édition. */
+.dp-deborde-note { display: none; }
+.dp-edit .dp-zone.dp-deborde + .dp-deborde-note { display: block; }
+
+/* Page affichée en édition mais absente du document imprimé : exemple encore
+   vide. Le candidat doit pouvoir y saisir, tout en voyant qu'elle ne compte pas
+   tant qu'elle reste vide. Dès qu'un champ est rempli, la page redevient
+   normale et prend son numéro. */
+.dp-page-exclue { background: #fbfbfa; }
+.dp-page-exclue::after {
+  content: "";
+  position: absolute; inset: 0;
+  border: 1pt dashed #c9c6bd;
+  pointer-events: none;
+}
+.dp-foot-exclu { font-style: italic; color: #8a8578; }
+
+/* Tableau bordé (titres, diplômes et contexte des exemples) */
+.dp-tbl-borde { border: 0.5pt solid #000; }
+.dp-tbl-borde td, .dp-tbl-borde th { border: 0.5pt solid #000; }
+.dp-tbl-borde th { background: #f4f4f4; text-align: left; }
+.dp-col-date { width: 40mm; }
+
+/* Couverture */
+.dp-cover-logo { width: 42mm; margin: 0 0 10mm; }
+.dp-cover-logo img { width: 100%; height: auto; display: block; }
+.dp-cover-table td { border: 0.5pt solid #000; }
+.dp-cover-label { width: 55mm; background: #f4f4f4; font-weight: 600; }
+
+/* Sommaire */
+.dp-somm-ligne {
+  display: flex; align-items: baseline; gap: 2mm;
+  padding: 1.5mm 0; border-bottom: 0.25pt dotted #999;
+}
+.dp-somm-titre { flex: 1; min-width: 0; }
+.dp-somm-vide { color: #999; font-style: italic; }
+.dp-somm-page { white-space: nowrap; }
+
+/* Intercalaire et pages de séparation */
+.dp-separateur {
+  flex: 1; display: flex; align-items: center; justify-content: center;
+  text-align: center; font-size: 24pt; font-weight: 700;
+}
+
+/* Mise à l'échelle écran, identique au livret. */
+.dp-scale-outer { overflow: hidden; }
+.dp-scale { transform-origin: top left; }
+
+/* --- Impression --- */
+
+/* Le clone d'impression vit en permanence dans le <body> tant qu'un dossier est
+   ouvert (voir doc-officiel.js) : il DOIT être masqué à l'écran, sinon le
+   document apparaît une seconde fois sous la vue, en pleine largeur 210mm et
+   sans la mise à l'échelle. Même règle que #livret-print dans livret.css. */
+#dp-print { display: none; }
+
+@media print {
+  body.dp-printable > *:not(#dp-print) { display: none !important; }
+  body.dp-printable #dp-print { display: block !important; }
+  /* Les exemples encore vides sont affichés en édition mais ne s'impriment pas.
+     Masqués AVANT la règle de saut de page pour ne pas laisser de feuille vide. */
+  #dp-print .dp-page-exclue { display: none !important; }
+  #dp-print .dp-page { page-break-after: always; box-shadow: none; margin: 0; }
+  #dp-print .dp-page:last-child { page-break-after: auto; }
+  /* Le liseré d'alerte est une aide de saisie, il ne s'imprime pas. */
+  #dp-print .dp-zone { border-color: #bbb !important; box-shadow: none !important; }
+  #dp-print .dp-deborde-note { display: none !important; }
+}
+/* NB : la règle « @page { size: A4 portrait; margin: 0 } » est injectée en JS
+   par doc-officiel.js seulement tant qu'un document est ouvert. En dur ici,
+   elle écraserait le « A4 landscape » de l'impression du planning. */

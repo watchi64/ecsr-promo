@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<!-- Banc d'essai de la VUE « Dossier pro » (non déployé, jamais lié depuis l'app).
+     Fait tourner le vrai js/views/dp.js dans les deux rôles, sans
+     authentification et sans toucher la base de production : l'import map
+     ci-dessous substitue des modules factices à js/db.js et js/auth-admin.js.
+     Tout le reste (dp.js, dp-gabarit.js, dp-rules.js, doc-officiel.js, utils.js,
+     identity.js) est le code réel.
+
+     Rôles : ?role=stagiaire (défaut) ou ?role=formateur -->
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <title>Banc d'essai · vue Dossier pro</title>
+  <!-- Feuilles injectées avec un cache-buster : sur une branche de feature les
+       tokens ?v= ne bougent pas, et le navigateur resservirait indéfiniment une
+       version périmée de dp.css (constaté : la règle masquant #dp-print
+       manquait dans la copie en cache). Un banc doit toujours exercer le disque. -->
+  <script>
+    window.__cssPrete = Promise.all(
+      ["css/fonts.css", "css/style.css", "css/livret.css", "css/dp.css"].map((f) => new Promise((ok) => {
+        const l = document.createElement("link");
+        l.rel = "stylesheet";
+        l.href = `${f}?cb=${Date.now()}`;
+        l.onload = l.onerror = ok;
+        document.head.appendChild(l);
+      })));
+  </script>
+  <!-- Les clés sont les URL RÉSOLUES des imports de dp.js (token ?v= compris). -->
+  <script type="importmap">
+  {
+    "imports": {
+      "/js/db.js?v=20260729d": "/_preview_stubs/db.js",
+      "/js/auth-admin.js?v=20260729d": "/_preview_stubs/auth-admin.js"
+    }
+  }
+  </script>
+  <style>
+    body { margin: 20px; background: var(--c-bg, #f7f7f4); }
+    .bench-bar { margin-bottom: 14px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+                 font-family: sans-serif; font-size: 14px; }
+    #view { max-width: 900px; }
+  </style>
+</head>
+<body>
+  <div class="bench-bar">
+    <strong>Banc vue Dossier pro</strong>
+    <a href="?role=stagiaire">rôle stagiaire</a>
+    <a href="?role=formateur">rôle formateur</a>
+    <span id="report" style="color:#555"></span>
+  </div>
+  <div id="view"></div>
+  <script type="module">
+    // Import dynamique avec cache-buster : sur une branche de feature le token
+    // ?v= ne bouge pas (le re-versionnage ne se fait que sur main), donc le
+    // navigateur resservirait indéfiniment la version en cache de dp.js. Un banc
+    // doit toujours exercer le code du disque.
+    const { renderDp } = await import("./js/views/dp.js?v=20260729d&cb=" + Date.now());
+    await window.__cssPrete;   // styles appliqués avant toute mesure
+
+    const view = document.getElementById("view");
+    // ?dossier=<id> reproduit l'entrée « Mon espace personnel » : on ouvre le
+    // dossier d'un stagiaire précis, sans passer par la liste.
+    const cible = new URLSearchParams(location.search).get("dossier");
+    await renderDp(view, {
+      embedded: true, isActive: () => true,
+      ...(cible ? { stagiaireId: Number(cible) } : {}),
+    });
+
+    // Résumé exposé pour la vérification automatisée.
+    window.__vue = () => {
+      const doc = view.querySelector(".dp-doc");
+      const liste = view.querySelector(".lv-liste-table");
+      return {
+        role: new URLSearchParams(location.search).get("role") || "stagiaire",
+        listeAffichee: !!liste,
+        lignesListe: liste ? liste.querySelectorAll("tbody tr").length : 0,
+        boutonsConsulter: [...view.querySelectorAll("button")].map((b) => b.textContent.trim()),
+        documentAffiche: !!doc,
+        enEdition: doc ? doc.classList.contains("dp-edit") : null,
+        pagesAffichees: doc ? doc.querySelectorAll(".dp-page").length : 0,
+        pagesExclues: doc ? doc.querySelectorAll(".dp-page-exclue").length : 0,
+        champsEditables: doc ? doc.querySelectorAll("[contenteditable]").length : 0,
+        statut: view.querySelector(".lv-status")?.textContent || null,
+        consigne: view.querySelector(".lv-hint")?.textContent.trim().slice(0, 60) || null,
+        preRemplissage: doc ? {
+          nom_usage: doc.querySelector('[data-k="nom_usage"]')?.textContent,
+          prenom: doc.querySelector('[data-k="prenom"]')?.textContent,
+          dh_nom: doc.querySelector('[data-k="dh_nom"]')?.textContent,
+          modaliteCochee: doc.querySelector('[data-k="modalite_formation"]')?.classList.contains("on"),
+        } : null,
+      };
+    };
+    document.getElementById("report").textContent = JSON.stringify(window.__vue());
+  </script>
+</body>
+</html>
