@@ -6779,3 +6779,21 @@ body.qcm-open { overflow: hidden; }
     font-size: 0;
   }
 }
+
+/* --- Fenêtre d'ouverture des examens --- */
+/* Bandeau d'échéance dans le panneau formateur. */
+.exam-echeance {
+  margin-left: 0.4rem; padding: 0.08rem 0.45rem; border-radius: 999px;
+  background: var(--c-go-soft); color: var(--accent-strong);
+  font-size: 0.74rem; font-weight: 700; white-space: nowrap;
+}
+/* Choix de la durée à l'ouverture : une colonne de boutons pleine largeur. */
+.exam-duree-choix { display: flex; flex-direction: column; gap: 0.4rem; }
+/* Pastille de la liste des thèmes : repérer un examen ouvert sans entrer dans la
+   fiche. C'est le filet contre l'oubli d'une ouverture sans limite. */
+.theme-qcm-exam-on {
+  display: inline-flex; align-items: center; margin-top: 0.25rem;
+  padding: 0.08rem 0.45rem; border-radius: 999px;
+  background: var(--c-go); color: #fff; font-size: 0.7rem; font-weight: 700;
+  white-space: nowrap;
+}
