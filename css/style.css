@@ -6645,13 +6645,18 @@ body.qcm-open { overflow: hidden; }
    Nouveautés : cartes, puces, pastille d'onglet
    ============================================================ */
 
-.nv-liste { display: flex; flex-direction: column; gap: 0.6rem; }
+/* Rythme vertical aligné sur les autres sections d'Accueil, qui portent toutes
+   une marge basse de 2.5rem (tuiles, agenda, « À retenir »). Sans elle, la
+   derniere carte touchait les tuiles de raccourcis. */
+.home-nouveautes { margin-bottom: 2.5rem; }
+
+.nv-liste { display: flex; flex-direction: column; gap: 0.7rem; }
 
 .nv-carte {
   background: var(--bg-elev);
   border: 1px solid var(--line);
   border-radius: var(--r);
-  padding: 0.85rem 1rem;
+  padding: 1rem 1.2rem;
 }
 
 .nv-head {
@@ -6659,7 +6664,7 @@ body.qcm-open { overflow: hidden; }
   align-items: center;
   gap: 0.5rem;
   flex-wrap: wrap;
-  margin-bottom: 0.3rem;
+  margin-bottom: 0.45rem;
 }
 
 .nv-date { color: var(--text-muted); font-size: 0.78rem; }
@@ -6676,19 +6681,25 @@ body.qcm-open { overflow: hidden; }
 .nv-puce-neuf { background: var(--accent); color: #FFF; }
 .nv-puce-role { background: var(--accent-soft); color: var(--accent-strong); }
 
-.nv-titre { margin: 0 0 0.25rem; font-size: 1rem; }
-.nv-resume { margin: 0; color: var(--text-soft); font-size: 0.9rem; line-height: 1.5; }
+.nv-titre { margin: 0 0 0.35rem; font-size: 1rem; }
+.nv-resume { margin: 0; color: var(--text-soft); font-size: 0.9rem; line-height: 1.55; }
 
 .nv-ou {
   display: inline-block;
-  margin-top: 0.5rem;
+  margin-top: 0.7rem;
   font-size: 0.84rem;
   color: var(--accent-strong);
   text-decoration: none;
 }
 .nv-ou:hover { text-decoration: underline; }
 
-.nv-guide { margin-top: 0.5rem; }
+/* Filet de séparation : le guide est un bloc à part dans la carte, pas la suite
+   du résumé. Sans lui, « Comment faire » se lisait comme une ligne de plus. */
+.nv-guide {
+  margin-top: 0.8rem;
+  padding-top: 0.7rem;
+  border-top: 1px solid var(--line-faint);
+}
 .nv-guide summary {
   cursor: pointer;
   font-size: 0.84rem;

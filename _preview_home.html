@@ -38,7 +38,9 @@
   }
   </script>
   <style>
-    body { margin: 20px; background: var(--bg, #F1F4F0); }
+    /* Padding et non marge : une marge sur body fait deborder le document de
+       sa largeur et ferait croire a un debordement horizontal du produit. */
+    body { margin: 0; padding: 20px; background: var(--bg, #F1F4F0); }
     .bench-bar { margin-bottom: 14px; display: flex; gap: 10px; align-items: center;
                  flex-wrap: wrap; font-family: sans-serif; font-size: 14px; }
     #verdict { font-family: ui-monospace, monospace; font-size: 13px; white-space: pre-line;
@@ -52,7 +54,7 @@
     <strong>Banc Accueil</strong>
     <a href="?role=stagiaire">rôle stagiaire</a>
     <a href="?role=formateur">rôle formateur</a>
-    <button id="oublier" type="button">Oublier ce qui est lu</button>
+    <span>mémoire du lu remise à zéro à chaque chargement</span>
   </div>
   <div id="verdict">Mesure en cours…</div>
   <main id="view"></main>
@@ -67,10 +69,11 @@
     const { visibles, CLE_VUES } = await import(`./js/nouveautes.js?cb=${cb}`);
     const { isAdmin, isProf } = await import("./_preview_stubs/auth-admin.js");
 
-    document.getElementById("oublier").addEventListener("click", () => {
-      localStorage.removeItem(CLE_VUES);
-      location.reload();
-    });
+    // Etat de depart DETERMINISTE. Sans ca, une visite prealable de la page
+    // complete (qui marque tout) faisait echouer l'assertion « 3 identifiants
+    // marques » alors que le produit etait correct. Un banc qui crie au loup
+    // finit ignore.
+    localStorage.removeItem(CLE_VUES);
 
     let evenements = 0;
     window.addEventListener("nouveautes-vues", () => { evenements += 1; });
