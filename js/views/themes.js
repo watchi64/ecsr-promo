@@ -1,6 +1,8 @@
 import { listThemes, updateTheme, addTheme, deleteTheme, listQcmIndex, getQcmFull, publishQcm, unpublishQcm, updateExamConfig, listExamAttempts, resetExamAttempt, listMyQcmAttempts, getMyProfile, listEvaluations, getOrCreateQcm, saveQcmQuestion, deleteQcmQuestion, reorderQcmQuestions, uploadQcmImage, listQcmSignalements, setQcmSignalementStatut, countQcmSignalementsOuverts } from "../db.js?v=20260801b";
 import { el, clear, isoDate, formatDate, toast, debounce } from "../utils.js?v=20260801b";
 import { icon } from "../icons.js?v=20260801b";
+import { examenDemarrable, tempsRestantMs, formatTempsRestant,
+         echeanceDepuisChoix, DUREES_OUVERTURE } from "../qcm-exam-rules.js?v=20260801b";
 import { isAdmin, getAdminEmail, isProf, isStagiaire } from "../auth-admin.js?v=20260801b";
 import { recordUndo } from "../undo.js?v=20260801b";
 import { openQcmEntrainement, openQcmExamen } from "./qcm.js?v=20260801b";
@@ -94,6 +96,16 @@ function qcmCellEl(theme, qcm) {
   const note = myThemeNote(theme, qcm);
   const train = myTrainNote(qcm);
   const cell = el("div", { class: "theme-qcm-cell2" }, btn);
+  // Examen ouvert : reperable d'un coup d'oeil depuis la liste. C'est le filet
+  // contre l'oubli quand un formateur a ouvert sans limite de temps.
+  if (examenDemarrable(qcm)) {
+    const restant = tempsRestantMs(qcm);
+    cell.appendChild(el("span", {
+      class: "theme-qcm-exam-on",
+      title: restant == null ? "Examen ouvert sans limite" : `Examen ouvert, ferme dans ${formatTempsRestant(restant)}`,
+    }, "Examen ouvert"));
+  }
+
   // Signalements ouverts : visible sans ouvrir le QCM, sinon ils passent inapercus.
   const nbSignal = signalByQcm[qcm.id] || 0;
   if (nbSignal) {
@@ -180,14 +192,17 @@ function openQcmSheet(theme, qcm) {
 
     // Passer l'examen (stagiaire).
     if (isStagiaire()) {
-      if (qcm.published) {
+      if (examenDemarrable(qcm)) {
+        const restant = tempsRestantMs(qcm);
         body.appendChild(el("button", { class: "btn accent full", type: "button", style: "margin-top:0.9rem",
           onClick: () => { backdrop.remove(); openQcmExamen(theme, qcm); } }, "Passer l'examen"));
         body.appendChild(el("p", { class: "muted", style: "font-size:0.78rem;text-align:center;margin:0.35rem 0 0" },
-          "Une seule passe, chronométrée, notée sur 20."));
+          "Une seule passe, chronométrée, notée sur 20."
+          + (restant == null ? "" : ` L'examen ferme dans ${formatTempsRestant(restant)}.`)));
       } else {
+        // Pas de bouton grisé : il inviterait à cliquer pour rien.
         body.appendChild(el("p", { class: "muted", style: "text-align:center;margin:0.9rem 0 0;font-size:0.82rem" },
-          "L'examen n'est pas encore ouvert. L'entraînement, lui, est illimité."));
+          "L'examen s'ouvre quand un formateur le décide. L'entraînement, lui, est illimité."));
       }
     }
 
@@ -242,23 +257,55 @@ function themeExamPanel(theme, qcm, onPublishChange) {
 
   function refreshStatus() {
     clear(status);
-    const on = !!qcm.published;
+    const ouvert = examenDemarrable(qcm);
     const frozenN = Array.isArray(qcm.exam_question_ids) ? qcm.exam_question_ids.length : null;
-    status.appendChild(el("span", { class: "exam-badge " + (on ? "on" : "off") },
-      on ? "Examen en ligne" : "Examen non ouvert"));
+    const restant = tempsRestantMs(qcm);
+    // Une échéance dépassée laisse published à true en base : on l'affiche comme
+    // fermé, sans mentir sur l'état, pour que le formateur sache qu'il peut rouvrir.
+    const echu = !!qcm.published && !ouvert;
+    status.appendChild(el("span", { class: "exam-badge " + (ouvert ? "on" : "off") },
+      ouvert ? "Examen ouvert" : (echu ? "Examen échu" : "Examen non ouvert")));
+    if (ouvert) {
+      status.appendChild(el("span", { class: "exam-echeance" },
+        restant == null ? "sans limite" : `ferme dans ${formatTempsRestant(restant)}`));
+    }
     status.appendChild(el("span", { class: "muted", style: "font-size:0.8rem" },
       ` ${frozenN ?? qcm.nb_questions} questions · ${qcm.exam_seconds_per_question || 30}s/question`
       + (qcm.exam_draw_mode === "manual" ? " · sélection manuelle" : " · tirage aléatoire")));
 
     clear(actions);
-    actions.appendChild(on
-      ? el("button", { class: "btn danger", type: "button", onClick: doUnpublish }, "Retirer l'examen")
-      : el("button", { class: "btn primary", type: "button", onClick: doPublishNow }, "Ouvrir l'examen"));
+    actions.appendChild(ouvert
+      ? el("button", { class: "btn danger", type: "button", onClick: doUnpublish }, "Fermer maintenant")
+      : el("button", { class: "btn primary", type: "button", onClick: demanderDuree }, "Ouvrir l'examen"));
     actions.appendChild(el("button", { class: "btn ghost", type: "button", onClick: openConfig }, "Modifier"));
   }
 
+  // Ouvrir : on demande d'abord POUR COMBIEN DE TEMPS. Une ouverture sans échéance
+  // reste possible, mais le formateur devra refermer lui-même : la pastille de la
+  // liste des thèmes est là pour qu'il ne l'oublie pas.
+  function demanderDuree() {
+    const bd = el("div", { class: "modal-backdrop" });
+    const choix = el("div", { class: "exam-duree-choix" });
+    DUREES_OUVERTURE.forEach((d) => {
+      const b = el("button", { class: "btn ghost full", type: "button" }, d.label);
+      b.addEventListener("click", () => { bd.remove(); doPublishNow(echeanceDepuisChoix(d)); });
+      choix.appendChild(b);
+    });
+    const modal = el("div", { class: "modal" },
+      el("h3", {}, "Ouvrir l'examen pour combien de temps ?"),
+      el("p", { class: "muted", style: "font-size:0.85rem;margin:0 0 0.8rem" },
+        "Les stagiaires pourront démarrer pendant cette durée. Celui qui a démarré à temps peut terminer sa passe."),
+      choix,
+      el("div", { class: "modal-actions" },
+        el("button", { class: "btn ghost", type: "button", onClick: () => bd.remove() }, "Annuler")),
+    );
+    bd.appendChild(modal);
+    bd.addEventListener("click", (e) => { if (e.target === bd) bd.remove(); });
+    document.body.appendChild(bd);
+  }
+
   // Publier : met en ligne avec la config actuelle (gèle toutes les questions si aucun tirage défini).
-  async function doPublishNow() {
+  async function doPublishNow(fermeA = null) {
     try {
       let ids = Array.isArray(qcm.exam_question_ids) ? qcm.exam_question_ids : null;
       if (!ids || !ids.length) {
@@ -268,21 +315,23 @@ function themeExamPanel(theme, qcm, onPublishChange) {
       await publishQcm(qcm.id, {
         examQuestionIds: ids, drawMode: qcm.exam_draw_mode || "random",
         nbQuestions: qcm.exam_nb_questions ?? null, secondsPerQuestion: qcm.exam_seconds_per_question ?? 30,
-        email: getAdminEmail(),
+        email: getAdminEmail(), fermeA,
       });
-      Object.assign(qcm, { published: true, exam_question_ids: ids });
-      toast(`Examen en ligne : ${ids.length} questions.`, "success");
+      Object.assign(qcm, { published: true, exam_question_ids: ids, exam_ferme_a: fermeA });
+      toast(fermeA
+        ? `Examen ouvert : ${ids.length} questions, ferme dans ${formatTempsRestant(tempsRestantMs(qcm))}.`
+        : `Examen ouvert sans limite : ${ids.length} questions. Pense à le refermer.`, "success");
       if (onPublishChange) onPublishChange(); else refreshStatus();
-    } catch (e) { toast("Publication impossible : " + (e?.message || e), "error"); }
+    } catch (e) { toast("Ouverture impossible : " + (e?.message || e), "error"); }
   }
 
   async function doUnpublish() {
     try {
       await unpublishQcm(qcm.id);
-      qcm.published = false;
-      toast("Examen repassé en brouillon.", "success");
+      Object.assign(qcm, { published: false, exam_ferme_a: null });
+      toast("Examen fermé.", "success");
       if (onPublishChange) onPublishChange(); else refreshStatus();
-    } catch (e) { toast("Dépublication impossible : " + (e?.message || e), "error"); }
+    } catch (e) { toast("Fermeture impossible : " + (e?.message || e), "error"); }
   }
 
   // Avertit si des tentatives existent avant de changer le tirage (risque d'incohérence).

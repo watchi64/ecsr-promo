@@ -8,6 +8,7 @@ import { el, clear, toast, formatDate } from "../utils.js?v=20260801b";
 import { icon } from "../icons.js?v=20260801b";
 import { getQcmFull, insertQcmAttempt, getMyProfile, getMyExamAttempt, listMyQcmAttemptsFor,
          createQcmSignalement } from "../db.js?v=20260801b";
+import { examenDemarrable, tempsRestantMs, formatTempsRestant } from "../qcm-exam-rules.js?v=20260801b";
 
 const MOTIFS = [
   ["reponse_fausse", "La réponse indiquée me semble fausse"],
@@ -410,8 +411,13 @@ export async function openQcmExamen(theme, qcmMeta) {
     toast("Impossible de charger l'examen : " + (e?.message || e), "error");
     return;
   }
-  if (!full.published) {
-    toast("L'examen de ce thème n'est pas encore publié.", "error");
+  // État relu ICI, au démarrage, et pas seulement au rendu de la fiche : sans ça un
+  // stagiaire ayant laissé la modale ouverte démarrerait après la fermeture et se
+  // ferait rejeter à la remise, après avoir tout composé.
+  if (!examenDemarrable(full)) {
+    toast(full.published
+      ? "La fenêtre de cet examen vient de se refermer. L'entraînement reste ouvert."
+      : "L'examen de ce thème n'est pas ouvert. L'entraînement, lui, est illimité.", "error");
     return;
   }
 
@@ -474,6 +480,10 @@ function runExamPrescreen(theme, full, questions, profile) {
       el("li", {}, `${total} questions`),
       el("li", {}, `Durée : ${fmtTime(budget)} (${secondsPer} s par question)`),
       el("li", {}, "Une seule passe. Aucune correction avant la fin."),
+      // Fenetre d'ouverture : indicatif seulement, la base tranche a la remise.
+      // Celui qui a demarre a temps peut terminer sa passe.
+      tempsRestantMs(full) == null ? null
+        : el("li", {}, `La fenêtre se referme dans ${formatTempsRestant(tempsRestantMs(full))}, mais une passe commencée va à son terme`),
     ),
     el("p", { class: "qcm-results-sub", style: "font-size:0.82rem" },
       "Le minuteur démarre dès que tu cliques sur Commencer."),

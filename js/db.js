@@ -381,7 +381,7 @@ export async function insertQcmAttempt(payload) {
 }
 
 // Publie l'examen d'un QCM et gèle le tirage (formateur/admin). email = auteur.
-export async function publishQcm(qcmId, { examQuestionIds, drawMode, nbQuestions, secondsPerQuestion, email }) {
+export async function publishQcm(qcmId, { examQuestionIds, drawMode, nbQuestions, secondsPerQuestion, email, fermeA = null }) {
   const now = new Date().toISOString();
   const { error } = await supabase
     .from("qcm")
@@ -393,6 +393,7 @@ export async function publishQcm(qcmId, { examQuestionIds, drawMode, nbQuestions
       exam_draw_mode: drawMode,
       exam_nb_questions: nbQuestions ?? null,
       exam_seconds_per_question: secondsPerQuestion ?? 30,
+      exam_ferme_a: fermeA,
       updated_at: now,
     })
     .eq("id", qcmId);
@@ -400,11 +401,13 @@ export async function publishQcm(qcmId, { examQuestionIds, drawMode, nbQuestions
   invalidateCache("qcm_index");
 }
 
-// Dépublie l'examen (conserve le tirage gelé).
+// Ferme l'examen (conserve le tirage gelé). L'échéance est remise à nul pour
+// qu'un examen fermé ne garde pas d'échéance fantôme, qui réapparaîtrait à la
+// prochaine ouverture.
 export async function unpublishQcm(qcmId) {
   const { error } = await supabase
     .from("qcm")
-    .update({ published: false, updated_at: new Date().toISOString() })
+    .update({ published: false, exam_ferme_a: null, updated_at: new Date().toISOString() })
     .eq("id", qcmId);
   if (error) throw error;
   invalidateCache("qcm_index");
