@@ -45,10 +45,14 @@
   </div>
   <main id="view"></main>
   <script type="module">
-    import { renderNouveautes } from "./js/views/nouveautes.js?cb=1";
-    import { NOUVEAUTES } from "./js/nouveautes-data.js?v=20260731r";
-    import { visibles, nonLues, lireVues, CLE_VUES } from "./js/nouveautes.js?v=20260731r";
-    import { isAdmin, isProf } from "./_preview_stubs/auth-admin.js";
+    // Import DYNAMIQUE horodaté, et surtout pas « ?cb=1 » : une constante est
+    // mise en cache par le navigateur, le banc resservirait la version d'avant
+    // ta modification et validerait un code qui n'est plus sur le disque.
+    const cb = Date.now();
+    const { renderNouveautes } = await import(`./js/views/nouveautes.js?cb=${cb}`);
+    const { NOUVEAUTES } = await import(`./js/nouveautes-data.js?cb=${cb}`);
+    const { visibles, nonLues, lireVues, CLE_VUES } = await import(`./js/nouveautes.js?cb=${cb}`);
+    const { isAdmin, isProf } = await import("./_preview_stubs/auth-admin.js");
 
     const vue = document.getElementById("view");
     const compte = document.getElementById("compte");

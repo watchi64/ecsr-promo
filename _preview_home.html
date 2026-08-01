@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<!-- Banc d'essai de la vue Accueil (non déployé, jamais lié depuis l'app).
+     Fait tourner le vrai js/views/home.js sans authentification et sans toucher
+     la base : l'import map substitue des modules factices à js/db.js et
+     js/auth-admin.js. Tout le reste est le code réel.
+
+     Il existe pour garder un couplage fragile : l'ORDRE des sections d'Accueil.
+     Le compteur J-N est inséré de façon asynchrone, après le premier rendu, et
+     visait « .home-tiles ». Depuis que la section Nouveautés s'intercale, il
+     doit viser « .home-nouveautes » en priorité, sinon il se retrouve SOUS elle.
+     Rien à l'écran ne signale l'erreur : seul l'ordre le dit.
+
+     Il vérifie aussi que Accueil ne marque comme lues que les entrées qu'il
+     AFFICHE (3), pas toutes celles que la personne pourrait voir.
+
+     Rôles : ?role=stagiaire (défaut) ou ?role=formateur -->
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <title>Banc d'essai · Accueil</title>
+  <!-- Feuilles injectées avec un cache-buster : sur une branche de feature les
+       tokens ?v= ne bougent pas et le navigateur resservirait un style périmé. -->
+  <script>
+    ["css/fonts.css", "css/style.css"].forEach((f) => {
+      const l = document.createElement("link");
+      l.rel = "stylesheet";
+      l.href = `${f}?cb=${Date.now()}`;
+      document.head.appendChild(l);
+    });
+  </script>
+  <!-- Les clés sont les URL RÉSOLUES des imports de home.js (token ?v= compris). -->
+  <script type="importmap">
+  {
+    "imports": {
+      "/js/auth-admin.js?v=20260731r": "/_preview_stubs/auth-admin.js",
+      "/js/db.js?v=20260731r": "/_preview_stubs/db-home.js"
+    }
+  }
+  </script>
+  <style>
+    body { margin: 20px; background: var(--bg, #F1F4F0); }
+    .bench-bar { margin-bottom: 14px; display: flex; gap: 10px; align-items: center;
+                 flex-wrap: wrap; font-family: sans-serif; font-size: 14px; }
+    #verdict { font-family: ui-monospace, monospace; font-size: 13px; white-space: pre-line;
+               background: #FBFCFA; border: 1px solid #D8DED2; border-radius: 10px;
+               padding: 10px 12px; margin-bottom: 14px; }
+    #view { max-width: 760px; }
+  </style>
+</head>
+<body>
+  <div class="bench-bar">
+    <strong>Banc Accueil</strong>
+    <a href="?role=stagiaire">rôle stagiaire</a>
+    <a href="?role=formateur">rôle formateur</a>
+    <button id="oublier" type="button">Oublier ce qui est lu</button>
+  </div>
+  <div id="verdict">Mesure en cours…</div>
+  <main id="view"></main>
+  <script type="module">
+    // Import DYNAMIQUE horodaté, et surtout pas « ?cb=1 » : une constante est
+    // mise en cache par le navigateur, le banc resservirait la version d'avant
+    // ta modification et validerait un code qui n'est plus sur le disque.
+    // Constaté : la régression de l'ancre du compteur passait au vert.
+    const cb = Date.now();
+    const { renderHome } = await import(`./js/views/home.js?cb=${cb}`);
+    const { NOUVEAUTES } = await import(`./js/nouveautes-data.js?cb=${cb}`);
+    const { visibles, CLE_VUES } = await import(`./js/nouveautes.js?cb=${cb}`);
+    const { isAdmin, isProf } = await import("./_preview_stubs/auth-admin.js");
+
+    document.getElementById("oublier").addEventListener("click", () => {
+      localStorage.removeItem(CLE_VUES);
+      location.reload();
+    });
+
+    let evenements = 0;
+    window.addEventListener("nouveautes-vues", () => { evenements += 1; });
+
+    const vue = document.getElementById("view");
+    await renderHome(vue);
+    // Le compteur J-N s'insère après l'agenda, qui est asynchrone.
+    await new Promise((r) => setTimeout(r, 400));
+
+    const ordre = [...vue.children].map((n) => n.className.split(" ")[0] || n.tagName.toLowerCase());
+    const nv = vue.querySelector(".home-nouveautes");
+    const vues = JSON.parse(localStorage.getItem(CLE_VUES) || "[]");
+    const visiblesIci = visibles(NOUVEAUTES, isAdmin() || isProf()).length;
+    const iCompteur = ordre.indexOf("home-countdown");
+    const iNouv = ordre.indexOf("home-nouveautes");
+    const iTuiles = ordre.indexOf("home-tiles");
+
+    const ok = (b) => (b ? "OK  " : "ECHEC");
+    document.getElementById("verdict").textContent = [
+      `rôle : ${isAdmin() || isProf() ? "formateur" : "stagiaire"}   entrées visibles : ${visiblesIci}`,
+      `ordre : ${ordre.join(" > ")}`,
+      `${ok(iCompteur >= 0 && iCompteur < iNouv)} le compteur J-N est AU-DESSUS des nouveautés`,
+      `${ok(iNouv >= 0 && iNouv < iTuiles)} les nouveautés sont AU-DESSUS des tuiles`,
+      `${ok(nv && nv.querySelectorAll(".nv-carte").length === Math.min(3, visiblesIci))} `
+        + `cartes affichées : ${nv ? nv.querySelectorAll(".nv-carte").length : 0} (attendu ${Math.min(3, visiblesIci)})`,
+      `${ok(nv && [...nv.querySelectorAll(".nv-guide")].every((d) => !d.open))} guides repliés dans Accueil`,
+      `${ok(vues.length === Math.min(3, visiblesIci))} `
+        + `identifiants marqués : ${vues.length} (attendu ${Math.min(3, visiblesIci)}, pas ${visiblesIci})`,
+      `${ok(evenements === 1)} événement « nouveautes-vues » émis : ${evenements}`,
+    ].join("\n");
+  </script>
+</body>
+</html>

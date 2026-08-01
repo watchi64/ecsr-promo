@@ -173,8 +173,17 @@ canal de notification.
   Vérifié au banc, ordre défavorable compris.
 - **⚠️ Ordre dans Accueil** : le compteur J−N vise `.home-nouveautes` en priorité, sinon il
   s'insérerait sous les nouveautés puisqu'il ciblait `.home-tiles`, descendu d'un cran.
-- **Banc d'essai** : `_preview_nouveautes.html` (`?role=stagiaire|formateur`), réutilise le stub
-  `_preview_stubs/auth-admin.js` du Dossier Professionnel.
+- **Deux bancs d'essai**, tous deux en `?role=stagiaire|formateur`, réutilisant le stub
+  `_preview_stubs/auth-admin.js` du Dossier Professionnel :
+  - `_preview_nouveautes.html` : la page complète (filtre d'audience, marquage, lien de sous-onglet).
+  - `_preview_home.html` : fait tourner le vrai `renderHome` (base factice `_preview_stubs/db-home.js`)
+    et **affiche un verdict OK/ECHEC** sur l'ordre des sections et le marquage partiel. Il existe
+    parce que l'ordre d'Accueil est un couplage fragile que rien ne signale à l'écran.
+- **⚠️ Un banc doit importer en dynamique avec `Date.now()`**, jamais `?cb=1`. Une constante est
+  mise en cache par le navigateur : le banc resert alors la version d'avant la modification et
+  valide du code qui n'est plus sur le disque. Constaté le 01/08 en réintroduisant volontairement
+  la régression de l'ancre du compteur : le banc passait au vert. Les deux bancs ont été corrigés,
+  et la régression est bien détectée depuis.
 
 ## Décisions UX importantes (à respecter)
 
