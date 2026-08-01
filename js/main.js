@@ -5,7 +5,7 @@
 import { signInWithPassword, signUpWithPassword, getCurrentUser, invalidateCache } from "./db.js?v=20260731r";
 import { toast } from "./utils.js?v=20260731r";
 import { icon } from "./icons.js?v=20260731r";
-import { initAuth, onAdminChange, isAuth } from "./auth-admin.js?v=20260731r";
+import { initAuth, onAdminChange, isAuth, isAdmin, isProf } from "./auth-admin.js?v=20260731r";
 import { loadAccent } from "./accent-switcher.js?v=20260731r";
 import { loadTheme } from "./theme-switcher.js?v=20260731r";
 import { renderHome } from "./views/home.js?v=20260731r";
@@ -19,6 +19,9 @@ import { renderThemes } from "./views/themes.js?v=20260731r";
 import { renderConfig } from "./views/config.js?v=20260731r";
 import { renderCalendrier } from "./views/calendrier.js?v=20260731r";
 import { initUndoKeyboard } from "./undo.js?v=20260731r";
+import { renderNouveautes } from "./views/nouveautes.js?v=20260731r";
+import { NOUVEAUTES } from "./nouveautes-data.js?v=20260731r";
+import { visibles, nonLues, lireVues, libellePastille } from "./nouveautes.js?v=20260731r";
 
 // ===== Gate : email magic link =====
 
@@ -151,6 +154,28 @@ function renderTabs() {
   });
 }
 
+// Pastille de nouveautés sur l'onglet Accueil. Modifie l'élément SUR PLACE :
+// surtout pas de renderTabs() complet, qui reconstruirait la barre et perdrait
+// la classe « active » posée par navigate().
+function majBadgeNouveautes() {
+  const tab = document.querySelector('.tab[data-route="home"]');
+  if (!tab) return;
+  const mesEntrees = visibles(NOUVEAUTES, isAdmin() || isProf());
+  const texte = libellePastille(nonLues(mesEntrees, lireVues()).length);
+  let badge = tab.querySelector(".tab-badge");
+  if (!texte) {
+    if (badge) badge.remove();
+    return;
+  }
+  if (!badge) {
+    badge = document.createElement("span");
+    badge.className = "tab-badge";
+    badge.setAttribute("aria-label", "nouveautés non lues");
+    tab.appendChild(badge);
+  }
+  badge.textContent = texte;
+}
+
 // ===== Router =====
 
 const routes = {
@@ -163,7 +188,13 @@ const routes = {
   notes:      renderNotes,
   ressources: renderRessources,
   config:     renderConfig,
+  nouveautes: renderNouveautes,
 };
+
+// Routes sans onglet propre qui doivent quand même allumer un onglet. On arrive
+// sur #/nouveautes depuis Accueil : laisser la barre sans onglet actif
+// donnerait l'impression d'être sorti de l'app.
+const ONGLET_POUR_ROUTE = { nouveautes: "home" };
 
 let lastRoute = null;
 
@@ -176,8 +207,9 @@ async function navigate() {
   // le mode édition retombe — la vue se rouvrira toujours en lecture seule.
   if (lastRoute === "planning" && route !== "planning") resetPlanningEditMode();
   lastRoute = route;
+  const ongletActif = ONGLET_POUR_ROUTE[route] || route;
   document.querySelectorAll(".tab").forEach((t) => {
-    const active = t.dataset.route === route;
+    const active = t.dataset.route === ongletActif;
     t.classList.toggle("active", active);
     if (active) t.setAttribute("aria-current", "page");
     else t.removeAttribute("aria-current");
@@ -267,9 +299,13 @@ function isColdStart() {
 async function bootApp() {
   hideGate();
   renderTabs();
+  majBadgeNouveautes();
   setupRefreshBtn();
   setupTodayBtn();
-  onAdminChange(() => { renderTabs(); navigate(); });
+  // Le changement de rôle change l'audience, donc le compte.
+  onAdminChange(() => { renderTabs(); majBadgeNouveautes(); navigate(); });
+  // Émis par la page et par la section d'Accueil après marquage.
+  window.addEventListener("nouveautes-vues", majBadgeNouveautes);
   initUndoKeyboard();
   // replaceState plutôt que location.hash : pas de `hashchange` (donc pas de double
   // rendu avec le navigate() ci-dessous) et pas d'entrée d'historique parasite.
