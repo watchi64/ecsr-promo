@@ -147,6 +147,35 @@ Chaque stagiaire remplit **son** DP dans l'app (Notes → sous-onglet « Dossier
 - **⚠️ Piège de cache sur les branches de feature** : le hook ne re-versionne les tokens `?v=` que sur `main`, donc en local le navigateur resert indéfiniment l'ancien `dp.js?v=…` ET l'ancien `dp.css` (mesuré : 11 451 octets servis contre 12 294 sur le disque). Un rechargement forcé ne suffit pas toujours. Les deux bancs chargent donc leurs modules et leurs feuilles avec un `?cb=Date.now()`. Pour tester l'app elle-même : onglet privé, ou DevTools avec « Disable cache ».
 - **Hors périmètre v1** : pièces jointes (pas de Storage), export `.docx`, signature électronique.
 
+## Rubrique Nouveautés (01/08/2026, branche `nouveautes`)
+
+Spec : `docs/specs/2026-08-01-nouveautes-design.md` · plan : `docs/plans/2026-08-01-nouveautes.md`
+
+Où la promo retrouve les mises à jour de l'app, en complément du message WhatsApp qui reste le
+canal de notification.
+
+- **Contenu versionné**, pas de table Supabase : `js/nouveautes-data.js`. Écrire une nouveauté
+  = ajouter un objet dans ce fichier, **dans le même commit que le code qu'elle annonce**.
+- **Règles pures** dans `js/nouveautes.js` (`node tests/nouveautes.test.mjs`). Le test n'importe
+  PAS le contenu réel : ajouter une entrée ne doit jamais casser une assertion.
+- **Deux affichages, une seule carte** : 3 dernières dans Accueil (guide replié), toutes sur
+  `#/nouveautes` (guide déplié). `carteNouveaute()` est exportée par `js/views/nouveautes.js`.
+- **Route sans onglet**, comme `mon-suivi`. `ONGLET_POUR_ROUTE` dans `main.js` garde l'onglet
+  Accueil allumé sur `#/nouveautes`.
+- **Audience** : champ `pour` (`tous` ou `formateurs`), filtré à l'affichage ET dans le compte
+  de la pastille. Reprise de juillet : 9 entrées, dont 3 réservées aux formateurs.
+- **Non-lu** : `localStorage["ecsr_nouveautes_vues"]`, liste d'ids. Accueil ne marque que les
+  entrées qu'il affiche, la page complète marque tout. La pastille se rafraîchit par l'événement
+  `nouveautes-vues` (window), ce qui évite un import circulaire home.js ↔ main.js.
+- **⚠️ Piège CSS** : le `@media (max-width: 760px)` masque les libellés d'onglets par
+  `.tab span { display: none }`. La pastille doit être ciblée en `.tab .tab-badge` (spécificité
+  0,0,2,0 contre 0,0,1,1), sinon elle est invisible sur téléphone, là où elle sert le plus.
+  Vérifié au banc, ordre défavorable compris.
+- **⚠️ Ordre dans Accueil** : le compteur J−N vise `.home-nouveautes` en priorité, sinon il
+  s'insérerait sous les nouveautés puisqu'il ciblait `.home-tiles`, descendu d'un cran.
+- **Banc d'essai** : `_preview_nouveautes.html` (`?role=stagiaire|formateur`), réutilise le stub
+  `_preview_stubs/auth-admin.js` du Dossier Professionnel.
+
 ## Décisions UX importantes (à respecter)
 
 - ❌ **Pas d'em-dashes (—)** dans les libellés UI. Régression à éviter.
