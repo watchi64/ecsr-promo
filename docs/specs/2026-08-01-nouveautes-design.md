@@ -142,10 +142,11 @@ pour un stagiaire qui arriverait plus tard.
 - Ouvrir **Accueil** marque les entrées **réellement affichées** (les 3 dernières visibles).
 - Ouvrir **`#/nouveautes`** marque **tout** ce que la personne peut voir.
 
-Au lancement la pastille affichera 9, tombera à 6 après un passage par Accueil, puis à 0 après
-« Tout voir ». En régime normal il y aura une ou deux nouveautés, toutes visibles dans Accueil,
-donc la pastille tombera à 0 du premier coup. Le raffinement ne se paye que lors d'une longue
-absence, et il invite précisément à ouvrir la liste complète.
+Au lancement la pastille affichera **9 pour un formateur et 6 pour un stagiaire** (3 des 9 entrées
+de reprise sont réservées aux formateurs), tombera de 3 après un passage par Accueil, puis à 0
+après « Tout voir ». En régime normal il y aura une ou deux nouveautés, toutes visibles dans
+Accueil, donc la pastille tombera à 0 du premier coup. Le raffinement ne se paye que lors d'une
+longue absence, et il invite précisément à ouvrir la liste complète.
 
 `localStorage` peut échouer (mode privé, quota). Toute lecture et toute écriture sont enveloppées
 dans un `try/catch`, comme le fait déjà `subtabs.js`. En cas d'échec, tout paraît nouveau à chaque
@@ -208,7 +209,7 @@ Dates réelles de mise en production, relevées dans `git log`.
 | 2026-07-31 | Signaler une erreur dans un QCM depuis la question elle-même | tous |
 | 2026-07-31 | Le Dossier Professionnel se remplit dans l'app et s'imprime au format officiel | tous |
 | 2026-07-23 | L'app ouvre sur ton espace personnel, « Priorités » remplace le tableau de bord, tes passages effectués y sont comptés | tous |
-| 2026-07-21 | Le planning s'ouvre en lecture seule et se lit en vue compacte une fois la semaine validée | tous |
+| 2026-07-21 | Verrou de semaine et mode Modifier : le planning s'ouvre en lecture seule, vue compacte une fois la semaine validée | formateurs |
 | 2026-07-20 | Absences et comptage des passages : une absence consomme ton tour, un passage bonus non | tous |
 | 2026-07-19 | Le livret officiel TP-01303 se remplit et s'imprime depuis ton espace personnel | tous |
 | 2026-07-05 | Auto-écoles partenaires et suivi des venues des bénévoles | formateurs |
