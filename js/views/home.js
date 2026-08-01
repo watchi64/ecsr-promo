@@ -5,7 +5,10 @@
 import { listAgendaEvents } from "../db.js?v=20260731r";
 import { el, clear, parseDate, formatDate, isoDate } from "../utils.js?v=20260731r";
 import { icon } from "../icons.js?v=20260731r";
-import { isAdmin, getProfile, getProfileWho } from "../auth-admin.js?v=20260731r";
+import { isAdmin, isProf, getProfile, getProfileWho } from "../auth-admin.js?v=20260731r";
+import { NOUVEAUTES } from "../nouveautes-data.js?v=20260731r";
+import { triees, visibles, nonLues, lireVues, marquerVues } from "../nouveautes.js?v=20260731r";
+import { carteNouveaute } from "./nouveautes.js?v=20260731r";
 
 function greetingByHour() {
   const h = new Date().getHours();
@@ -48,6 +51,36 @@ function countdownLabel(days) {
   return `J − ${days}`;
 }
 
+// Nombre de nouveautés montrées dans Accueil. Au-delà, « Tout voir » renvoie
+// vers #/nouveautes : sans ce plafond, la page finirait par pousser les
+// raccourcis sous la ligne de flottaison.
+const ACCUEIL_MAX = 3;
+
+function sectionNouveautes() {
+  const mesEntrees = triees(visibles(NOUVEAUTES, isAdmin() || isProf()));
+  if (mesEntrees.length === 0) return null;
+
+  // Le calcul du neuf se fait AVANT le marquage, sinon plus rien n'aurait sa puce.
+  const neuves = new Set(nonLues(mesEntrees, lireVues()).map((e) => e.id));
+  const affichees = mesEntrees.slice(0, ACCUEIL_MAX);
+
+  const section = el("section", { class: "home-nouveautes" },
+    el("div", { class: "home-section-head" },
+      el("h2", {}, "✨ Nouveautés"),
+      el("a", { class: "home-link", href: "#/nouveautes" }, "Tout voir →"),
+    ),
+    el("div", { class: "nv-liste" },
+      ...affichees.map((e) => carteNouveaute(e, { neuve: neuves.has(e.id) })),
+    ),
+  );
+
+  // Accueil ne marque que ce qu'il montre. La pastille tombe donc de 3, ce qui
+  // invite à ouvrir la liste complète quand il reste des entrées plus anciennes.
+  marquerVues(affichees.map((e) => e.id), NOUVEAUTES);
+  window.dispatchEvent(new CustomEvent("nouveautes-vues"));
+  return section;
+}
+
 export async function renderHome(container) {
   clear(container);
 
@@ -83,6 +116,11 @@ export async function renderHome(container) {
       "Tout au même endroit, à jour en temps réel."
     ),
   ));
+
+  // Placée avant les tuiles : quelqu'un qui arrive en cliquant sur la pastille
+  // doit tomber dessus sans défiler.
+  const nouveautes = sectionNouveautes();
+  if (nouveautes) container.appendChild(nouveautes);
 
   // === Raccourcis principaux (tuiles) ===
   const tiles = [
@@ -144,9 +182,12 @@ export async function renderHome(container) {
           ),
         ),
       );
-      // Insère le compteur juste avant les tuiles
-      const tiles = container.querySelector(".home-tiles");
-      if (tiles) container.insertBefore(countdownEl, tiles);
+      // Insère le compteur au-dessus des Nouveautés si elles sont là, sinon
+      // juste avant les tuiles. L'ordre voulu est : hero, compteur, nouveautés,
+      // raccourcis.
+      const ancre = container.querySelector(".home-nouveautes")
+                 || container.querySelector(".home-tiles");
+      if (ancre) container.insertBefore(countdownEl, ancre);
     }
 
     // Liste des 3 prochains événements (peu importe le type)
