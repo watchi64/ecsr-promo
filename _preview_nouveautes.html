@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<!-- Banc d'essai de la rubrique Nouveautés (non déployé, jamais lié depuis l'app).
+     Fait tourner le vrai js/views/nouveautes.js dans les deux rôles, sans
+     authentification et sans toucher la base : l'import map substitue le stub
+     d'auth. La vue ne fait aucune requête réseau, db.js n'a pas besoin d'être
+     remplacé.
+
+     Rôles : ?role=stagiaire (défaut) ou ?role=formateur -->
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <title>Banc d'essai · Nouveautés</title>
+  <!-- Feuilles injectées avec un cache-buster : sur une branche de feature les
+       tokens ?v= ne bougent pas et le navigateur resservirait un style périmé. -->
+  <script>
+    ["css/fonts.css", "css/style.css"].forEach((f) => {
+      const l = document.createElement("link");
+      l.rel = "stylesheet";
+      l.href = `${f}?cb=${Date.now()}`;
+      document.head.appendChild(l);
+    });
+  </script>
+  <!-- Les clés sont les URL RÉSOLUES des imports de views/nouveautes.js. -->
+  <script type="importmap">
+  {
+    "imports": {
+      "/js/auth-admin.js?v=20260731r": "/_preview_stubs/auth-admin.js"
+    }
+  }
+  </script>
+  <style>
+    body { margin: 20px; background: var(--bg, #F1F4F0); }
+    .bench-bar { margin-bottom: 14px; display: flex; gap: 10px; align-items: center;
+                 flex-wrap: wrap; font-family: sans-serif; font-size: 14px; }
+    #view { max-width: 720px; }
+  </style>
+</head>
+<body>
+  <div class="bench-bar">
+    <strong>Banc Nouveautés</strong>
+    <a href="?role=stagiaire">rôle stagiaire</a>
+    <a href="?role=formateur">rôle formateur</a>
+    <button id="oublier" type="button">Oublier ce qui est lu</button>
+    <span id="compte"></span>
+  </div>
+  <main id="view"></main>
+  <script type="module">
+    import { renderNouveautes } from "./js/views/nouveautes.js?cb=1";
+    import { NOUVEAUTES } from "./js/nouveautes-data.js?v=20260731r";
+    import { visibles, nonLues, lireVues, CLE_VUES } from "./js/nouveautes.js?v=20260731r";
+    import { isAdmin, isProf } from "./_preview_stubs/auth-admin.js";
+
+    const vue = document.getElementById("view");
+    const compte = document.getElementById("compte");
+
+    function majCompte() {
+      const n = nonLues(visibles(NOUVEAUTES, isAdmin() || isProf()), lireVues()).length;
+      compte.textContent = `non lues : ${n}`;
+    }
+
+    document.getElementById("oublier").addEventListener("click", () => {
+      localStorage.removeItem(CLE_VUES);
+      location.reload();
+    });
+
+    // Le compte est lu AVANT le rendu, qui marque tout comme lu.
+    majCompte();
+    await renderNouveautes(vue);
+    window.addEventListener("nouveautes-vues", majCompte);
+  </script>
+</body>
+</html>

@@ -6640,3 +6640,100 @@ body.qcm-open { overflow: hidden; }
   border-radius: 8px;
   padding: 0.5rem 0.7rem;
 }
+
+/* ============================================================
+   Nouveautés : cartes, puces, pastille d'onglet
+   ============================================================ */
+
+.nv-liste { display: flex; flex-direction: column; gap: 0.6rem; }
+
+.nv-carte {
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 0.85rem 1rem;
+}
+
+.nv-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.3rem;
+}
+
+.nv-date { color: var(--text-muted); font-size: 0.78rem; }
+
+.nv-puce-neuf,
+.nv-puce-role {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  line-height: 1.5;
+}
+
+.nv-puce-neuf { background: var(--accent); color: #FFF; }
+.nv-puce-role { background: var(--accent-soft); color: var(--accent-strong); }
+
+.nv-titre { margin: 0 0 0.25rem; font-size: 1rem; }
+.nv-resume { margin: 0; color: var(--text-soft); font-size: 0.9rem; line-height: 1.5; }
+
+.nv-ou {
+  display: inline-block;
+  margin-top: 0.5rem;
+  font-size: 0.84rem;
+  color: var(--accent-strong);
+  text-decoration: none;
+}
+.nv-ou:hover { text-decoration: underline; }
+
+.nv-guide { margin-top: 0.5rem; }
+.nv-guide summary {
+  cursor: pointer;
+  font-size: 0.84rem;
+  color: var(--text-muted);
+}
+.nv-guide ol {
+  margin: 0.45rem 0 0;
+  padding-left: 1.2rem;
+  font-size: 0.86rem;
+  color: var(--text-soft);
+  line-height: 1.55;
+}
+.nv-guide li { margin-bottom: 0.25rem; }
+
+/* Pastille sur l'onglet Accueil.
+   ATTENTION : le @media mobile plus haut dans ce fichier pose
+   « .tab span { display: none } » (specificite 0,0,1,1). Le selecteur
+   ci-dessous est en 0,0,2,0, donc il gagne, quel que soit l'ordre. Sans ca la
+   pastille serait invisible sur telephone, la ou elle sert le plus. */
+.tab .tab-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  margin-left: 0.15rem;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #FFF;
+  font-size: 0.7rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
+@media (max-width: 760px) {
+  /* Les onglets sont en icone seule : un chiffre serait illisible, on garde un
+     simple point. */
+  .tab .tab-badge {
+    width: 8px;
+    min-width: 8px;
+    height: 8px;
+    padding: 0;
+    margin-left: -4px;
+    align-self: flex-start;
+    font-size: 0;
+  }
+}
