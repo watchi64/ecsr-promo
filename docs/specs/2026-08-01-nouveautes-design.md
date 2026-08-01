@@ -54,7 +54,10 @@ posée dans Accueil ne serait vue que par ceux qui y sont déjà allés.
 | `js/views/nouveautes.js` | La page complète `#/nouveautes` |
 | `tests/nouveautes.test.mjs` | Test Node, sur le modèle de `dp-rules.test.mjs` |
 | `_preview_nouveautes.html` | Banc d'essai, `?role=stagiaire\|formateur`, `auth-admin.js` substitué par import map |
-| `_preview_stubs/auth-admin-role.js` | Module factice pour le banc (le stub existant sert au DP, on n'y touche pas) |
+
+Le stub `_preview_stubs/auth-admin.js` écrit pour le Dossier Professionnel porte déjà le levier
+`?role=` : il est réutilisé tel quel, aucun module factice supplémentaire n'est nécessaire. La vue
+ne fait aucune requête réseau, donc `db.js` n'a pas besoin d'être substitué.
 
 ### Fichiers modifiés
 
