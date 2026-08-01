@@ -88,16 +88,6 @@ export const NOUVEAUTES = [
     ],
   },
   {
-    id: "2026-07-20-absences-comptage",
-    date: "2026-07-20",
-    pour: "tous",
-    titre: "Comment une absence compte dans ton tour de passage",
-    resume: "Une absence consomme ton tour : la place t'était réservée, elle n'a pas servi. "
-          + "Un passage bonus, lui, ne consomme rien. Les priorités en tiennent compte, pour que "
-          + "les tours restent équitables entre tout le monde.",
-    ou: { label: "Priorités", route: "dashboard" },
-  },
-  {
     id: "2026-07-19-livret-epcf",
     date: "2026-07-19",
     pour: "tous",

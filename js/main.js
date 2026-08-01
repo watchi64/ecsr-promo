@@ -21,7 +21,7 @@ import { renderCalendrier } from "./views/calendrier.js?v=20260731r";
 import { initUndoKeyboard } from "./undo.js?v=20260731r";
 import { renderNouveautes } from "./views/nouveautes.js?v=20260731r";
 import { NOUVEAUTES } from "./nouveautes-data.js?v=20260731r";
-import { visibles, nonLues, lireVues, libellePastille } from "./nouveautes.js?v=20260731r";
+import { visibles, nonLues, vuesEffectives, libellePastille } from "./nouveautes.js?v=20260731r";
 
 // ===== Gate : email magic link =====
 
@@ -161,7 +161,7 @@ function majBadgeNouveautes() {
   const tab = document.querySelector('.tab[data-route="home"]');
   if (!tab) return;
   const mesEntrees = visibles(NOUVEAUTES, isAdmin() || isProf());
-  const texte = libellePastille(nonLues(mesEntrees, lireVues()).length);
+  const texte = libellePastille(nonLues(mesEntrees, vuesEffectives(NOUVEAUTES)).length);
   let badge = tab.querySelector(".tab-badge");
   if (!texte) {
     if (badge) badge.remove();

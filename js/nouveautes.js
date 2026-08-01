@@ -11,6 +11,12 @@
 
 export const CLE_VUES = "ecsr_nouveautes_vues";
 
+// Date de mise en ligne de la rubrique. Les entrées qui lui sont antérieures ou
+// égales sont des REPRISES : la promo utilise ces fonctionnalités depuis des
+// semaines. Les afficher comme neuves au premier chargement serait faux, et la
+// pastille annoncerait huit nouveautés le jour du lancement.
+export const MISE_EN_LIGNE = "2026-08-01";
+
 // Correspondance route -> clé localStorage du sous-onglet, telle que
 // renderSubTabs la mémorise. Permet à un lien « Où le trouver » d'ouvrir la vue
 // directement sur le bon sous-onglet. Une route absente d'ici ignore simplement
@@ -54,16 +60,35 @@ export function ajouterVues(vues, ids, entrees) {
   return purger([...new Set([...(vues || []), ...ids])], entrees);
 }
 
+// Ids des entrées de reprise, à considérer comme déjà lues au tout premier accès.
+export function idsDeReprise(entrees, dateMiseEnLigne) {
+  return entrees.filter((e) => e.date <= dateMiseEnLigne).map((e) => e.id);
+}
+
 // === localStorage ===
 
+// Renvoie null si RIEN n'a jamais été mémorisé. À distinguer d'une liste vide,
+// qui signifie « tout a été remis à neuf volontairement » : seul le premier cas
+// déclenche l'amorce ci-dessous.
 export function lireVues() {
   try {
     const brut = localStorage.getItem(CLE_VUES);
-    const liste = brut ? JSON.parse(brut) : [];
+    if (brut === null) return null;
+    const liste = JSON.parse(brut);
     return Array.isArray(liste) ? liste : [];
   } catch (e) {
     return [];
   }
+}
+
+// État de lecture effectif. Au tout premier accès, amorce la mémoire avec les
+// entrées de reprise : elles ne doivent pas s'afficher comme neuves.
+export function vuesEffectives(entrees) {
+  const stockees = lireVues();
+  if (stockees) return stockees;
+  const amorce = idsDeReprise(entrees, MISE_EN_LIGNE);
+  marquerVues(amorce, entrees);
+  return amorce;
 }
 
 export function marquerVues(ids, entrees) {

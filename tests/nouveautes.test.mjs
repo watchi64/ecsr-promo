@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import {
-  triees, visibles, nonLues, libellePastille, purger, ajouterVues,
+  triees, visibles, nonLues, libellePastille, purger, ajouterVues, idsDeReprise,
 } from "../js/nouveautes.js";
 
 const E = [
@@ -36,4 +36,14 @@ assert.deepEqual(purger(["a", "obsolete"], E), ["a"]);
 // Ajout sans doublon, purgé au passage.
 assert.deepEqual(ajouterVues(["a"], ["a", "b", "obsolete"], E), ["a", "b"]);
 
-console.log("nouveautes : 13 assertions OK");
+// Amorce : au premier accès, les entrées antérieures ou égales à la mise en
+// ligne sont déjà lues. Celles qui lui sont postérieures restent neuves, sinon
+// une nouveauté publiée le jour même passerait inaperçue.
+assert.deepEqual(idsDeReprise(E, "2026-07-31"), ["a", "b", "c", "d"]);
+assert.deepEqual(idsDeReprise(E, "2026-07-19"), ["a", "d"]);
+assert.deepEqual(idsDeReprise(E, "2026-07-01"), []);
+// Une entrée postérieure à la mise en ligne n'est jamais amorcée.
+const AVEC_FUTURE = [...E, { id: "futur", date: "2026-08-15", pour: "tous" }];
+assert.ok(!idsDeReprise(AVEC_FUTURE, "2026-08-01").includes("futur"));
+
+console.log("nouveautes : 17 assertions OK");

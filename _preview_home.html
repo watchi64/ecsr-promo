@@ -54,7 +54,7 @@
     <strong>Banc Accueil</strong>
     <a href="?role=stagiaire">rôle stagiaire</a>
     <a href="?role=formateur">rôle formateur</a>
-    <span>mémoire du lu remise à zéro à chaque chargement</span>
+    <span>état de départ : rien de lu (liste vide, pas premier accès)</span>
   </div>
   <div id="verdict">Mesure en cours…</div>
   <main id="view"></main>
@@ -73,7 +73,12 @@
     // complete (qui marque tout) faisait echouer l'assertion « 3 identifiants
     // marques » alors que le produit etait correct. Un banc qui crie au loup
     // finit ignore.
-    localStorage.removeItem(CLE_VUES);
+    //
+    // On ecrit une liste VIDE, on n'efface pas la cle : effacer simulerait un
+    // tout premier acces, qui amorce la memoire avec les entrees de reprise
+    // (cf. vuesEffectives). Ici on veut le cas « rien n'a encore ete lu », pour
+    // verifier qu'Accueil ne marque que les 3 entrees qu'il AFFICHE.
+    localStorage.setItem(CLE_VUES, "[]");
 
     let evenements = 0;
     window.addEventListener("nouveautes-vues", () => { evenements += 1; });

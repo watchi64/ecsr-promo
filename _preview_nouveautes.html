@@ -42,7 +42,8 @@
     <strong>Banc Nouveautés</strong>
     <a href="?role=stagiaire">rôle stagiaire</a>
     <a href="?role=formateur">rôle formateur</a>
-    <button id="oublier" type="button">Oublier ce qui est lu</button>
+    <button id="oublier" type="button">Tout marquer non lu</button>
+    <button id="premier" type="button">Simuler un premier accès</button>
     <span id="compte"></span>
   </div>
   <main id="view"></main>
@@ -53,18 +54,25 @@
     const cb = Date.now();
     const { renderNouveautes } = await import(`./js/views/nouveautes.js?cb=${cb}`);
     const { NOUVEAUTES } = await import(`./js/nouveautes-data.js?cb=${cb}`);
-    const { visibles, nonLues, lireVues, CLE_VUES } = await import(`./js/nouveautes.js?cb=${cb}`);
+    const { visibles, nonLues, vuesEffectives, CLE_VUES } = await import(`./js/nouveautes.js?cb=${cb}`);
     const { isAdmin, isProf } = await import("./_preview_stubs/auth-admin.js");
 
     const vue = document.getElementById("view");
     const compte = document.getElementById("compte");
 
     function majCompte() {
-      const n = nonLues(visibles(NOUVEAUTES, isAdmin() || isProf()), lireVues()).length;
+      const n = nonLues(visibles(NOUVEAUTES, isAdmin() || isProf()), vuesEffectives(NOUVEAUTES)).length;
       compte.textContent = `non lues : ${n}`;
     }
 
+    // Liste vide et non suppression de la cle : supprimer simulerait un tout
+    // premier acces, qui amorce la memoire avec les entrees de reprise et
+    // n'afficherait donc aucune puce « Nouveau ».
     document.getElementById("oublier").addEventListener("click", () => {
+      localStorage.setItem(CLE_VUES, "[]");
+      location.reload();
+    });
+    document.getElementById("premier").addEventListener("click", () => {
       localStorage.removeItem(CLE_VUES);
       location.reload();
     });

@@ -8,7 +8,7 @@ import { el, clear, formatDate } from "../utils.js?v=20260731r";
 import { isAdmin, isProf } from "../auth-admin.js?v=20260731r";
 import { NOUVEAUTES } from "../nouveautes-data.js?v=20260731r";
 import {
-  triees, visibles, nonLues, lireVues, marquerVues, STORAGE_SOUS_ONGLET,
+  triees, visibles, nonLues, vuesEffectives, marquerVues, STORAGE_SOUS_ONGLET,
 } from "../nouveautes.js?v=20260731r";
 
 // Lien « Où le trouver ». Si l'entrée vise un sous-onglet, on écrit la clé que
@@ -58,7 +58,7 @@ export async function renderNouveautes(container) {
 
   const formateur = isAdmin() || isProf();
   const mesEntrees = triees(visibles(NOUVEAUTES, formateur));
-  const neuves = new Set(nonLues(mesEntrees, lireVues()).map((e) => e.id));
+  const neuves = new Set(nonLues(mesEntrees, vuesEffectives(NOUVEAUTES)).map((e) => e.id));
 
   container.appendChild(el("div", { class: "view-header" },
     el("h1", {}, "Nouveautés"),

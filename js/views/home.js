@@ -7,7 +7,7 @@ import { el, clear, parseDate, formatDate, isoDate } from "../utils.js?v=2026073
 import { icon } from "../icons.js?v=20260731r";
 import { isAdmin, isProf, getProfile, getProfileWho } from "../auth-admin.js?v=20260731r";
 import { NOUVEAUTES } from "../nouveautes-data.js?v=20260731r";
-import { triees, visibles, nonLues, lireVues, marquerVues } from "../nouveautes.js?v=20260731r";
+import { triees, visibles, nonLues, vuesEffectives, marquerVues } from "../nouveautes.js?v=20260731r";
 import { carteNouveaute } from "./nouveautes.js?v=20260731r";
 
 function greetingByHour() {
@@ -61,7 +61,7 @@ function sectionNouveautes() {
   if (mesEntrees.length === 0) return null;
 
   // Le calcul du neuf se fait AVANT le marquage, sinon plus rien n'aurait sa puce.
-  const neuves = new Set(nonLues(mesEntrees, lireVues()).map((e) => e.id));
+  const neuves = new Set(nonLues(mesEntrees, vuesEffectives(NOUVEAUTES)).map((e) => e.id));
   const affichees = mesEntrees.slice(0, ACCUEIL_MAX);
 
   const section = el("section", { class: "home-nouveautes" },
