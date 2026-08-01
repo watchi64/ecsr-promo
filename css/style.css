@@ -6645,10 +6645,41 @@ body.qcm-open { overflow: hidden; }
    Nouveautés : cartes, puces, pastille d'onglet
    ============================================================ */
 
-/* Rythme vertical aligné sur les autres sections d'Accueil, qui portent toutes
-   une marge basse de 2.5rem (tuiles, agenda, « À retenir »). Sans elle, la
-   derniere carte touchait les tuiles de raccourcis. */
-.home-nouveautes { margin-bottom: 2.5rem; }
+/* Dans Accueil, la section est un bloc encapsulé, sur le modèle de « À retenir »
+   (.home-info) : fond, bordure, rayon, padding. La marge basse de 2.5rem aligne
+   le rythme sur les autres sections, sans elle la dernière carte touchait les
+   tuiles de raccourcis. */
+.home-nouveautes {
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 1.2rem 1.4rem;
+  margin-bottom: 2.5rem;
+}
+
+/* Les cartes s'aplatissent À L'INTÉRIEUR de ce bloc : des cartes bordées dans un
+   conteneur bordé donneraient un effet boîte dans boîte. Elles sont séparées par
+   un filet. Aucun changement côté JavaScript : la page complète #/nouveautes,
+   qui n'a pas cet ancêtre, garde ses cartes autonomes. */
+.home-nouveautes .nv-liste { gap: 0; }
+.home-nouveautes .nv-carte {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0.9rem 0;
+}
+.home-nouveautes .nv-carte + .nv-carte { border-top: 1px solid var(--line-faint); }
+.home-nouveautes .nv-carte:first-child { padding-top: 0; }
+.home-nouveautes .nv-carte:last-child { padding-bottom: 0; }
+
+/* Le filet du guide est utile sur la page complète, où les guides sont dépliés.
+   Dans Accueil ils sont repliés : un filet tous les deux lignes, en plus de ceux
+   qui séparent les cartes, ferait de la soupe de traits. */
+.home-nouveautes .nv-guide {
+  border-top: none;
+  padding-top: 0;
+  margin-top: 0.6rem;
+}
 
 .nv-liste { display: flex; flex-direction: column; gap: 0.7rem; }
 
