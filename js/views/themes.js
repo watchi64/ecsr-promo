@@ -567,7 +567,10 @@ async function openQcmEditor(theme, qcmId) {
     let full;
     try {
       signalements = await listQcmSignalements(qcmId, { statut: "ouvert" });
-    } catch { signalements = { liste: [], parQuestion: {} }; }
+    } catch (e) {
+      console.error("Signalements illisibles :", e);
+      signalements = { liste: [], parQuestion: {} };
+    }
     try {
       full = await getQcmFull(qcmId);
     } catch (e) {
@@ -669,6 +672,7 @@ async function openQcmEditor(theme, qcmId) {
       el("summary", { class: "qcm-signal-instr-tete" },
         el("span", { class: "qcm-signal-instr-titre" }, "Instruction automatique — avis, pas décision"),
         el("span", { class: "qcm-signal-instr-conclusion" }, etat.libelle + " — " + etat.conclusion),
+        el("span", { class: "qcm-signal-instr-plus" }, "Voir l'analyse ▾"),
         el("span", { class: "qcm-signal-instr-date" },
           etat.instruitAt ? "instruit le " + formatDate(etat.instruitAt) : ""),
       ),

@@ -6816,6 +6816,12 @@ body.qcm-open { overflow: hidden; }
 .qcm-signal-instr-conclusion {
   display: block; margin-top: 0.15rem; font-size: 0.85rem; color: var(--text);
 }
+.qcm-signal-instr-plus {
+  display: inline-block; margin-top: 0.3rem;
+  font-size: 0.76rem; font-weight: 600; color: var(--text-muted);
+  text-decoration: underline;
+}
+.qcm-signal-instr[open] .qcm-signal-instr-plus { text-decoration: none; }
 .qcm-signal-instr-date {
   display: block; margin-top: 0.1rem; font-size: 0.72rem; color: var(--text-muted);
 }
