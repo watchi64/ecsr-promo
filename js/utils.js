@@ -11,7 +11,12 @@ export function isoDate(d) {
 }
 
 export function parseDate(str) {
-  return new Date(str + "T00:00:00");
+  const s = String(str);
+  // Une date seule (« 2026-07-30 ») se lit en heure LOCALE : le suffixe T00:00:00 évite
+  // le décalage UTC qui la ferait reculer d'un jour. Un horodatage complet porte déjà son
+  // heure et parfois son fuseau ; le concaténer donnait une date invalide, ce qui affichait
+  // NaN/NaN/NaN sur chaque ligne du panneau des signalements.
+  return new Date(s.includes("T") ? s : s + "T00:00:00");
 }
 
 /** Renvoie le lundi de la semaine d'une date donnée (date locale) */
