@@ -1165,10 +1165,14 @@ async function myStagiaireId() {
 }
 
 // Signalements d'un QCM, groupés par question. Vide pour un stagiaire (RLS).
+// L'instruction automatique est jointe en LECTURE SEULE : aucune fonction de ce fichier
+// n'écrit dans qcm_signalement_instruction, et la table n'a aucune politique d'écriture
+// pour `authenticated`. Le navigateur ne peut pas fabriquer un verdict.
 export async function listQcmSignalements(qcmId, { statut = "ouvert" } = {}) {
   let req = supabase
     .from("qcm_signalements")
-    .select("*, question:qcm_questions!inner(id, qcm_id, enonce)")
+    .select("*, question:qcm_questions!inner(id, qcm_id, enonce), "
+          + "instruction:qcm_signalement_instruction(verdict_auto, analyse_auto, instruit_at)")
     .eq("question.qcm_id", qcmId)
     .order("created_at", { ascending: false });
   if (statut) req = req.eq("statut", statut);
