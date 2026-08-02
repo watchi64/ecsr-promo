@@ -39,12 +39,16 @@ async function loadQcmIndex() {
     const profile = await getMyProfile();
     // Les signalements ouverts sont comptés dès la liste : sinon le formateur devrait
     // ouvrir chaque QCM un par un pour découvrir lesquels ont été signalés.
-    // La RLS renvoie une liste vide à un stagiaire : le badge n'apparaît que pour le formateur.
+    // Le comptage est réservé au formateur, et la RLS ne suffit PAS à l'assurer : sa
+    // politique de lecture laisse un élève relire SES propres signalements, il verrait
+    // donc un drapeau sur les QCM qu'il a lui-même signalés. Et en aperçu « Voir en tant
+    // que », la RLS n'est pas simulée du tout : le fondateur verrait tous les drapeaux
+    // alors qu'il regarde l'écran d'un élève. Le garde-fou est donc ici.
     const [list, attempts, evals, signals] = await Promise.all([
       listQcmIndex(),
       listMyQcmAttempts(),
       profile?.stagiaire_id ? listEvaluations({ stagiaire_id: profile.stagiaire_id }) : Promise.resolve([]),
-      countQcmSignalementsOuverts().catch(() => ({})),
+      canManageExam() ? countQcmSignalementsOuverts().catch(() => ({})) : Promise.resolve({}),
     ]);
     signalByQcm = signals || {};
     qcmByTheme = new Map(list.filter((q) => q.nb_questions > 0).map((q) => [q.theme_id, q]));
