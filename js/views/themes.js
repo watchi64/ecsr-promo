@@ -3,6 +3,7 @@ import { el, clear, isoDate, formatDate, toast, debounce } from "../utils.js?v=2
 import { icon } from "../icons.js?v=20260801e";
 import { examenDemarrable, tempsRestantMs, formatTempsRestant,
          echeanceDepuisChoix, DUREES_OUVERTURE } from "../qcm-exam-rules.js?v=20260801e";
+import { etatInstruction, morceaux } from "../qcm-signalement-rules.js?v=20260801e";
 import { isAdmin, getAdminEmail, isProf, isStagiaire } from "../auth-admin.js?v=20260801e";
 import { recordUndo } from "../undo.js?v=20260801e";
 import { openQcmEntrainement, openQcmExamen } from "./qcm.js?v=20260801e";
@@ -631,6 +632,7 @@ async function openQcmEditor(theme, qcmId) {
         el("span", { class: "qcm-signal-item-motif" }, MOTIF_LABELS[s.motif] || s.motif),
         s.commentaire ? el("span", { class: "qcm-signal-item-comment" }, "« " + s.commentaire + " »") : null,
         el("div", { class: "qcm-signal-item-actions" }, traite, rejete),
+        encartInstruction(s),
       );
       async function classer(statut, bouton) {
         bouton.disabled = true;
@@ -649,6 +651,36 @@ async function openQcmEditor(theme, qcmId) {
       box.appendChild(item);
     });
     return box;
+  }
+
+  // L'avis de l'agent d'instruction, SOUS les boutons de décision et volontairement gris :
+  // le vert et le rouge restent la signature des deux boutons, donc de la décision du
+  // formateur. Un avis ne doit jamais se lire comme un classement déjà fait.
+  function encartInstruction(s) {
+    const etat = etatInstruction(s);
+    if (!etat.instruit) {
+      return el("p", { class: "qcm-signal-instr-vide" }, "Pas encore instruit.");
+    }
+    const analyse = el("div", { class: "qcm-signal-instr-analyse" });
+    etat.analyse.split("\n").forEach((ligne) => {
+      analyse.appendChild(el("p", { class: "qcm-signal-instr-ligne" }, ...enLiens(ligne)));
+    });
+    return el("details", { class: "qcm-signal-instr" },
+      el("summary", { class: "qcm-signal-instr-tete" },
+        el("span", { class: "qcm-signal-instr-titre" }, "Instruction automatique — avis, pas décision"),
+        el("span", { class: "qcm-signal-instr-conclusion" }, etat.libelle + " — " + etat.conclusion),
+        el("span", { class: "qcm-signal-instr-date" },
+          etat.instruitAt ? "instruit le " + formatDate(etat.instruitAt) : ""),
+      ),
+      analyse,
+    );
+  }
+
+  // Les URL de l'analyse deviennent cliquables SANS innerHTML : le texte vient de l'agent.
+  function enLiens(texte) {
+    return morceaux(texte).map((m) => (m.lien
+      ? el("a", { href: m.valeur, target: "_blank", rel: "noopener" }, m.valeur)
+      : m.valeur));
   }
 
   function questionCard(q, i, questions) {
