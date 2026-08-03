@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import {
-  VERDICTS, libelleVerdict, conclusionDe, etatInstruction, morceaux,
+  VERDICTS, libelleVerdict, conclusionDe, corpsAnalyse, etatInstruction, morceaux,
 } from "../js/qcm-signalement-rules.js";
 
 // --- Libellés : le verdict s'écrit en toutes lettres, jamais en code brut ---
@@ -53,6 +53,22 @@ const enTableau = etatInstruction({
 assert.equal(enTableau.instruit, true);
 assert.equal(enTableau.libelle, "Ambigu");
 assert.deepEqual(etatInstruction({ id: 3, instruction: [] }), { instruit: false });
+
+// --- Corps de l'analyse : la conclusion ne se lit pas deux fois ---
+assert.deepEqual(
+  corpsAnalyse("Conclusion : c'est fondé.\nLe grief : fondé.\nVérifications : R414-1 colle."),
+  ["Le grief : fondé.", "Vérifications : R414-1 colle."],
+);
+assert.deepEqual(corpsAnalyse("\n\nConclusion : c'est fondé.\n\nLe grief : fondé."),
+  ["Le grief : fondé."], "les lignes vides de tête et d'entre-deux ne laissent pas de trou");
+assert.deepEqual(corpsAnalyse("Conclusion: sans espace.\nSuite."), ["Suite."],
+  "l'étiquette est reconnue sans espace avant les deux-points");
+assert.deepEqual(corpsAnalyse("Pas d'étiquette.\nSuite."), ["Pas d'étiquette.", "Suite."],
+  "sans étiquette, rien n'est retiré");
+assert.deepEqual(corpsAnalyse("Conclusion : seule."), [],
+  "une analyse réduite à sa conclusion ne laisse pas de corps");
+assert.deepEqual(corpsAnalyse(""), []);
+assert.deepEqual(corpsAnalyse(null), []);
 
 // --- Morceaux : liens cliquables SANS innerHTML ---
 assert.deepEqual(morceaux("aucun lien"), [{ valeur: "aucun lien", lien: false }]);

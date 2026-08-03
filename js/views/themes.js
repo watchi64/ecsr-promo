@@ -3,7 +3,7 @@ import { el, clear, isoDate, formatDate, toast, debounce } from "../utils.js?v=2
 import { icon } from "../icons.js?v=20260801e";
 import { examenDemarrable, tempsRestantMs, formatTempsRestant,
          echeanceDepuisChoix, DUREES_OUVERTURE } from "../qcm-exam-rules.js?v=20260801e";
-import { etatInstruction, morceaux } from "../qcm-signalement-rules.js?v=20260801e";
+import { etatInstruction, corpsAnalyse, morceaux } from "../qcm-signalement-rules.js?v=20260801e";
 import { isAdmin, getAdminEmail, isProf, isStagiaire } from "../auth-admin.js?v=20260801e";
 import { recordUndo } from "../undo.js?v=20260801e";
 import { openQcmEntrainement, openQcmExamen } from "./qcm.js?v=20260801e";
@@ -669,7 +669,7 @@ async function openQcmEditor(theme, qcmId) {
       return el("p", { class: "qcm-signal-instr-vide" }, "Pas encore instruit.");
     }
     const analyse = el("div", { class: "qcm-signal-instr-analyse" });
-    etat.analyse.split("\n").forEach((ligne) => {
+    corpsAnalyse(etat.analyse).forEach((ligne) => {
       analyse.appendChild(el("p", { class: "qcm-signal-instr-ligne" }, ...enLiens(ligne)));
     });
     return el("details", { class: "qcm-signal-instr" },

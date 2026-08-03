@@ -38,6 +38,18 @@ export function etatInstruction(signalement) {
   };
 }
 
+// Corps de l'analyse, sans la ligne de conclusion : celle-ci est déjà affichée dans le
+// résumé de l'encart, replié comme déplié. La réinjecter ici la ferait lire deux fois.
+export function corpsAnalyse(analyse) {
+  const lignes = String(analyse || "").split("\n");
+  const premiere = lignes.findIndex((l) => l.trim());
+  if (premiere >= 0 && /^conclusion\s*:/i.test(lignes[premiere].trim())) {
+    lignes.splice(0, premiere + 1);
+  }
+  while (lignes.length && !lignes[0].trim()) lignes.shift();
+  return lignes;
+}
+
 // Découpe un texte en morceaux pour construire des liens cliquables avec el() : le
 // contenu vient de l'agent, il ne doit JAMAIS passer par innerHTML.
 // La classe exclut « ) », « > » et les guillemets : sinon la parenthèse fermante d'un
