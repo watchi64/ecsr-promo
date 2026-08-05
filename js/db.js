@@ -1137,7 +1137,10 @@ export async function getSalleAggregats() {
 // Crée un signalement au nom de l'utilisateur connecté.
 // L'email est imposé par la RLS (lower(email) = lower(auth.email())) : inutile de
 // le passer, on le lit de la session pour que l'insert passe la policy.
-export async function createQcmSignalement({ questionId, motif, commentaire }) {
+// `optionId` / `optionTexte` sont facultatifs : un signalement peut viser l'énoncé ou
+// l'explication, sans option en particulier. Le texte est enregistré en plus de l'id
+// parce que c'est CE QUE L'ÉLÈVE A VU : il survit à la correction de l'option.
+export async function createQcmSignalement({ questionId, motif, commentaire, optionId, optionTexte }) {
   const { data: { user } } = await supabase.auth.getUser();
   const email = user?.email;
   if (!email) throw new Error("Session expirée : reconnecte-toi pour signaler.");
@@ -1146,6 +1149,8 @@ export async function createQcmSignalement({ questionId, motif, commentaire }) {
     email,
     motif: motif || "autre",
     commentaire: (commentaire || "").trim() || null,
+    option_id: optionId || null,
+    option_texte: optionId ? (optionTexte || null) : null,
   };
   const prof = await myStagiaireId();
   if (prof) row.stagiaire_id = prof;

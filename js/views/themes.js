@@ -637,6 +637,11 @@ async function openQcmEditor(theme, qcmId) {
         el("span", { class: "qcm-signal-item-meta" },
           (num ? `Question ${num} · ` : "") + (s.email || "anonyme") + " · " + formatDate(s.created_at)),
         el("span", { class: "qcm-signal-item-motif" }, MOTIF_LABELS[s.motif] || s.motif),
+        // Le texte de l'option TEL QUE L'ÉLÈVE L'A VU : les options étant mélangées à
+        // l'affichage, sa lettre ne veut rien dire ici, mais son texte, si.
+        s.option_texte
+          ? el("span", { class: "qcm-signal-item-option" }, "Réponse visée : " + s.option_texte)
+          : null,
         s.commentaire ? el("span", { class: "qcm-signal-item-comment" }, "« " + s.commentaire + " »") : null,
         el("div", { class: "qcm-signal-item-actions" }, traite, rejete),
         encartInstruction(s),

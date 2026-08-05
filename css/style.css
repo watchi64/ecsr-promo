@@ -6835,3 +6835,8 @@ body.qcm-open { overflow: hidden; }
 .qcm-signal-instr-vide {
   margin: 0.5rem 0 0; font-size: 0.76rem; font-style: italic; color: var(--text-muted);
 }
+/* Réponse visée par le signalement : factuelle, pas une alerte — c'est un repère de
+   lecture, au même rang que le motif. */
+.qcm-signal-item-option {
+  font-size: 0.82rem; color: var(--text-muted);
+}
