@@ -15,6 +15,14 @@ Un paragraphe d'introduction avec du **gras** et un [lien](https://exemple.fr).
 
 Règle énoncée en une phrase.
 
+Points importants à connaître :
+- Point un du cours
+- Point deux du cours
+
+Étapes d'application :
+1. Première étape
+2. Deuxième étape
+
 _Textes : R411-25_
 
 :::signaux AB1
