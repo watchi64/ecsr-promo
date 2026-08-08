@@ -12,11 +12,12 @@
  */
 import { el, clear } from "../utils.js?v=20260808b";
 import { icon } from "../icons.js?v=20260808b";
-import { getCours, saveCours, setCoursPublie, listCoursVersions, getCoursVersion }
+import { getCours, saveCours, setCoursPublie, listCoursVersions, getCoursVersion, uploadCoursImage }
   from "../db.js?v=20260808b";
 import { rendreMarkdown } from "./cours-reader.js?v=20260808b";
-import { insererSyntaxe, titreDepuisMarkdown } from "../cours-rules.js?v=20260808b";
+import { insererSyntaxe, titreDepuisMarkdown, cheminImage } from "../cours-rules.js?v=20260808b";
 import { getProfileWho } from "../auth-admin.js?v=20260808b";
+import { reduireImage } from "../cours-images.js?v=20260808b";
 
 const OUTILS = [
   { label: "Gras", avant: "**", apres: "**", defaut: "texte" },
@@ -74,10 +75,38 @@ export async function openCoursEditeur(numero, { onFerme } = {}) {
     });
     outils.appendChild(b);
   }
+  const champFichier = el("input", { type: "file", accept: "image/*", hidden: true });
+  const btnImage = el("button", { class: "btn", type: "button" }, "Image");
+  btnImage.addEventListener("click", () => champFichier.click());
+  champFichier.addEventListener("change", async () => {
+    const fichier = champFichier.files[0];
+    champFichier.value = "";
+    if (!fichier) return;
+    btnImage.disabled = true;
+    btnImage.textContent = "Envoi…";
+    try {
+      const blob = await reduireImage(fichier);
+      const url = await uploadCoursImage(blob, cheminImage(numero, fichier.name, Date.now()));
+      const r = insererSyntaxe(zone.value, zone.selectionStart, zone.selectionEnd,
+        "\n![", `](${url})\n`, "légende");
+      zone.value = r.texte;
+      zone.setSelectionRange(r.debutSel, r.finSel);
+      marquerNonSauve();
+      rafraichirApercu();
+    } catch (e) {
+      message("Échec du téléversement : " + (e?.message || e));
+    } finally {
+      btnImage.disabled = false;
+      btnImage.textContent = "Image";
+    }
+  });
+
   const btnVersions = el("button", { class: "btn", type: "button" }, "Versions");
   const btnEnregistrer = el("button", { class: "btn primary", type: "button" }, "Enregistrer");
   outils.appendChild(btnVersions);
   outils.appendChild(btnEnregistrer);
+  outils.insertBefore(btnImage, btnVersions);
+  outils.appendChild(champFichier);
 
   // Bascule mobile : sur grand écran le CSS montre les deux panneaux.
   const bascule = el("div", { class: "editeur-bascule" },

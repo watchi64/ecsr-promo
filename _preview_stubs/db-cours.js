@@ -78,6 +78,14 @@ export async function setCoursPublie(id, publie) {
   const c = magasin.find((x) => x.id === id);
   if (c) c.published = !!publie;
 }
+export async function uploadCoursImage(blob, chemin) {
+  // Une URL de données suffit au banc : l'image s'affiche vraiment dans l'aperçu.
+  return await new Promise((res) => {
+    const r = new FileReader();
+    r.onload = () => res(r.result);
+    r.readAsDataURL(blob);
+  });
+}
 /** Levier de banc : simule une modification concurrente par « Hocine ». */
 export function _simulerModifConcurrente(numero) {
   const c = magasin.find((x) => x.numero === Number(numero));

@@ -657,6 +657,16 @@ export async function setCoursPublie(id, publie) {
   invalidateCache("cours_index");
 }
 
+// Téléverse une image de cours (déjà réduite) et renvoie son URL publique.
+export async function uploadCoursImage(blob, chemin) {
+  const { error } = await supabase.storage
+    .from("cours-images")
+    .upload(chemin, blob, { upsert: false, contentType: "image/jpeg" });
+  if (error) throw error;
+  const { data } = supabase.storage.from("cours-images").getPublicUrl(chemin);
+  return data.publicUrl;
+}
+
 // === Compétences ===
 
 export async function listCompetences() {

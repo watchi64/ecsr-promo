@@ -289,6 +289,16 @@ function rendreBlocs(lignes, contexte) {
       continue;
     }
 
+    // Image seule sur sa ligne : ![légende](url)
+    const img = nu.match(/^!\[([^\]]*)\]\((\S+)\)$/);
+    if (img) {
+      const fig = el("figure", { class: "cours-image" },
+        el("img", { src: img[2], alt: img[1], loading: "lazy" }));
+      if (img[1]) fig.appendChild(el("figcaption", { class: "signaux-legende" }, img[1]));
+      sortie.push(fig);
+      i++; continue;
+    }
+
     // Liste numérotée.
     if (/^\d+\.\s/.test(nu)) {
       const items = [];
@@ -322,7 +332,7 @@ function rendreBlocs(lignes, contexte) {
 
     // Paragraphe : lignes consécutives jusqu'à une ligne vide.
     const para = [];
-    while (i < lignes.length && lignes[i].trim() && !/^(#|>|\||[-*]\s|\d+\.\s|---)/.test(lignes[i].trim())) {
+    while (i < lignes.length && lignes[i].trim() && !/^(#|>|\||[-*]\s|\d+\.\s|---|!\[)/.test(lignes[i].trim())) {
       para.push(lignes[i].trim());
       i++;
     }
