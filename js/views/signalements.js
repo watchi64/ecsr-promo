@@ -163,7 +163,8 @@ export async function renderConsoleSignalements(panel, { themes = [], onOuvrirEd
     }
     // Pas de numéro de question : celui de l'éditeur est un rang dans la liste chargée,
     // pas la colonne `ordre`. Un numéro faux serait pire que pas de numéro.
-    return carteSignalement(s, { contexte, onClasser: classer, onOuvrirEditeur });
+    return carteSignalement(s, { contexte, onClasser: classer,
+      onOuvrirEditeur: onOuvrirEditeur ? (sig) => onOuvrirEditeur(sig, charger) : null });
   }
 
   await charger();

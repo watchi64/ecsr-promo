@@ -519,7 +519,7 @@ function themeExamPanel(theme, qcm, onPublishChange) {
 
 // Éditeur plein écran de la banque de questions d'un thème.
 // qcmId null => on crée (ou récupère) la ligne qcm du thème à l'ouverture.
-async function openQcmEditor(theme, qcmId, questionIdCible = null) {
+async function openQcmEditor(theme, qcmId, questionIdCible = null, onFerme = null) {
   if (qcmId == null) {
     try {
       qcmId = await getOrCreateQcm(theme.id, theme.titre, getAdminEmail());
@@ -546,7 +546,10 @@ async function openQcmEditor(theme, qcmId, questionIdCible = null) {
     overlay.remove();
     document.body.classList.remove("qcm-open");
     // La banque a changé (nb_questions, existence) : rafraîchir la liste des thèmes.
-    if (dirty && lastContainer) { reload(lastContainer).catch(() => { /* refresh silencieux */ }); }
+    // Ouvert depuis la console : c'est elle qu'il faut rafraîchir, pas la liste des
+    // thèmes — qui n'est même pas affichée.
+    if (dirty && onFerme) { onFerme().catch(() => { /* refresh silencieux */ }); }
+    else if (dirty && lastContainer) { reload(lastContainer).catch(() => { /* refresh silencieux */ }); }
   }
   // Pas de fermeture au clic à côté : un clic involontaire sortait de l'écran d'édition.
   // On sort par la croix ou par Échap — et Échap ne s'applique pas si un formulaire
@@ -1513,6 +1516,12 @@ async function reload(container) {
 
 export async function renderThemes(container) {
   clear(container);
+  // Un montage précédent a pu laisser ces deux références derrière lui : le panneau
+  // qu'elles désignent est mort, et le jeton d'activation qu'elles portent est figé sur
+  // l'onglet d'alors. Les repartir de zéro à chaque montage évite qu'un rendu tardif
+  // n'écrive dans un écran disparu — ou refuse d'écrire dans celui qui vient de naître.
+  lastContainer = null;
+  themesActif = () => true;
   container.appendChild(el("div", { class: "loading" }, "Chargement"));
   themes = await listThemes();
   await loadQcmIndex();
@@ -1533,9 +1542,14 @@ export async function renderThemes(container) {
 
 // La console ne connaît pas l'éditeur : elle rend la main ici avec le signalement,
 // et c'est Thèmes qui retrouve le thème et ouvre l'éditeur sur la bonne question.
-function ouvrirDepuisConsole(s) {
+function ouvrirDepuisConsole(s, rechargerConsole) {
   const qcm = s.question?.qcm;
   const theme = themes.find((t) => t.id === qcm?.theme_id);
   if (!theme || !qcm) { toast("Thème introuvable pour ce QCM.", "error"); return; }
-  openQcmEditor(theme, qcm.id, s.question_id);
+  // Au retour de l'éditeur, la console doit refléter ce qui vient d'être fait — et les
+  // badges ⚑ de la liste des thèmes avec elle, sinon ils annoncent un compte périmé.
+  openQcmEditor(theme, qcm.id, s.question_id, async () => {
+    await loadQcmIndex();
+    if (rechargerConsole) await rechargerConsole();
+  });
 }
