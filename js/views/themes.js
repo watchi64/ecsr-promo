@@ -8,6 +8,7 @@ import { recordUndo } from "../undo.js?v=20260808b";
 import { openQcmEntrainement, openQcmExamen } from "./qcm.js?v=20260808b";
 import { carteSignalement, renderConsoleSignalements } from "./signalements.js?v=20260808b";
 import { renderSubTabs } from "../subtabs.js?v=20260808b";
+import { hasCours, openCoursSheet } from "./cours-reader.js?v=20260808b";
 
 let themes = [];
 let qcmByTheme = new Map();  // theme_id -> { id, nb_questions, published, ... }
@@ -1077,11 +1078,19 @@ function openThemeModal(theme) {
       el("h3", { class: "theme-modal-titre" }, theme.titre),
     ),
     theme.categorie ? el("p", { class: "muted theme-modal-cat" }, theme.categorie) : null,
-    el("div", { class: "theme-modal-placeholder" },
-      el("p", {}, "Contenu pédagogique à venir : cours, exercices, supports."),
-      el("p", { class: "muted", style: "font-size:0.82rem" },
-        "Le QCM (entraînement et examen) est accessible depuis la colonne QCM de la liste."),
-    ),
+    hasCours(theme)
+      ? el("div", { class: "theme-cours-cta" },
+          el("button", { class: "btn primary full", type: "button",
+            onClick: () => { backdrop.remove(); openCoursSheet(theme); } },
+            icon.edu(), "Lire le cours"),
+          el("p", { class: "theme-cours-hint" },
+            "Synthèse, contenu détaillé, sanctions sourcées, chiffres clés et aide-mémoire."),
+        )
+      : el("div", { class: "theme-modal-placeholder" },
+          el("p", {}, "Le cours de ce thème est en cours de rédaction."),
+          el("p", { class: "muted", style: "font-size:0.82rem" },
+            "Le QCM (entraînement et examen) est accessible depuis la colonne QCM de la liste."),
+        ),
     el("div", { class: "modal-actions" },
       el("button", { class: "btn primary", onClick: () => backdrop.remove() }, "Fermer"),
     ),
@@ -1188,7 +1197,12 @@ function renderThemeRow(theme, container) {
     el("span", { class: "theme-num" }, num),
     el("div", { class: "theme-titre-block" },
       titreBtn,
-      theme.categorie ? el("span", { class: "theme-cat" }, theme.categorie) : null,
+      (theme.categorie || hasCours(theme))
+        ? el("div", { class: "theme-titre-meta" },
+            theme.categorie ? el("span", { class: "theme-cat" }, theme.categorie) : null,
+            hasCours(theme) ? el("span", { class: "theme-cours-flag" }, "Cours") : null,
+          )
+        : null,
     ),
     statutChip,
     dateLabel,
