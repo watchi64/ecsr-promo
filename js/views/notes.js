@@ -2,15 +2,15 @@ import {
   listStagiaires, listCompetences, listEvaluations, listThemes,
   addEvaluation, updateEvaluation, deleteEvaluation, listAuditForEvaluation,
   listUserProfiles,
-} from "../db.js?v=20260808d";
-import { el, clear, isoDate, formatDate, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260808d";
-import { icon } from "../icons.js?v=20260808d";
-import { getAdminEmail, isAdmin } from "../auth-admin.js?v=20260808d";
-import { recordUndo } from "../undo.js?v=20260808d";
-import { renderSubTabs } from "../subtabs.js?v=20260808d";
-import { renderEpcf } from "./epcf.js?v=20260808d";
-import { renderEpcfLivret } from "./epcf-livret.js?v=20260808d";
-import { renderDp } from "./dp.js?v=20260808d";
+} from "../db.js?v=20260808e";
+import { el, clear, isoDate, formatDate, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260808e";
+import { icon } from "../icons.js?v=20260808e";
+import { getAdminEmail, isAdmin } from "../auth-admin.js?v=20260808e";
+import { recordUndo } from "../undo.js?v=20260808e";
+import { renderSubTabs } from "../subtabs.js?v=20260808e";
+import { renderEpcf } from "./epcf.js?v=20260808e";
+import { renderEpcfLivret } from "./epcf-livret.js?v=20260808e";
+import { renderDp } from "./dp.js?v=20260808e";
 
 let userProfiles = [];  // pour résoudre l'anonymat par stagiaire_id
 

@@ -1,13 +1,13 @@
-import { listThemes, updateTheme, addTheme, deleteTheme, listQcmIndex, getQcmFull, publishQcm, unpublishQcm, updateExamConfig, listExamAttempts, resetExamAttempt, listMyQcmAttempts, getMyProfile, listEvaluations, getOrCreateQcm, saveQcmQuestion, deleteQcmQuestion, reorderQcmQuestions, uploadQcmImage, listQcmSignalements, setQcmSignalementStatut, countQcmSignalementsOuverts } from "../db.js?v=20260808d";
-import { el, clear, isoDate, formatDate, toast, debounce } from "../utils.js?v=20260808d";
-import { icon } from "../icons.js?v=20260808d";
+import { listThemes, updateTheme, addTheme, deleteTheme, listQcmIndex, getQcmFull, publishQcm, unpublishQcm, updateExamConfig, listExamAttempts, resetExamAttempt, listMyQcmAttempts, getMyProfile, listEvaluations, getOrCreateQcm, saveQcmQuestion, deleteQcmQuestion, reorderQcmQuestions, uploadQcmImage, listQcmSignalements, setQcmSignalementStatut, countQcmSignalementsOuverts } from "../db.js?v=20260808e";
+import { el, clear, isoDate, formatDate, toast, debounce } from "../utils.js?v=20260808e";
+import { icon } from "../icons.js?v=20260808e";
 import { examenDemarrable, tempsRestantMs, formatTempsRestant,
-         echeanceDepuisChoix, DUREES_OUVERTURE } from "../qcm-exam-rules.js?v=20260808d";
-import { isAdmin, getAdminEmail, isProf, isStagiaire } from "../auth-admin.js?v=20260808d";
-import { recordUndo } from "../undo.js?v=20260808d";
-import { openQcmEntrainement, openQcmExamen } from "./qcm.js?v=20260808d";
-import { carteSignalement, renderConsoleSignalements, chargerAuteurs } from "./signalements.js?v=20260808d";
-import { renderSubTabs } from "../subtabs.js?v=20260808d";
+         echeanceDepuisChoix, DUREES_OUVERTURE } from "../qcm-exam-rules.js?v=20260808e";
+import { isAdmin, getAdminEmail, isProf, isStagiaire } from "../auth-admin.js?v=20260808e";
+import { recordUndo } from "../undo.js?v=20260808e";
+import { openQcmEntrainement, openQcmExamen } from "./qcm.js?v=20260808e";
+import { carteSignalement, renderConsoleSignalements, chargerAuteurs } from "./signalements.js?v=20260808e";
+import { renderSubTabs } from "../subtabs.js?v=20260808e";
 
 let themes = [];
 let qcmByTheme = new Map();  // theme_id -> { id, nb_questions, published, ... }
