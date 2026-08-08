@@ -34,6 +34,8 @@ Une planche d'essai.
 | Infraction | Article | Amende | Retrait points | Source |
 |------------|---------|--------|----------------|--------|
 | Essai | R413-14 | 135 € | **1 point** | [Légifrance](https://exemple.fr) |
+| Essai sans retrait | R412-1 | 35 € | aucune | [Légifrance](https://exemple.fr) |
+| Essai avec précision | R417-9 | 35 € | 0 ; immobilisation possible | [Légifrance](https://exemple.fr) |
 `;
 
 let magasin = [

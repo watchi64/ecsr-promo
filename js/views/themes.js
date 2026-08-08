@@ -57,7 +57,7 @@ async function loadQcmIndex() {
       listMyQcmAttempts(),
       profile?.stagiaire_id ? listEvaluations({ stagiaire_id: profile.stagiaire_id }) : Promise.resolve([]),
       canManageExam() ? countQcmSignalementsOuverts().catch(() => ({})) : Promise.resolve({}),
-      chargerCoursIndex(),
+      chargerCoursIndex().catch(() => null),
     ]);
     signalByQcm = signals || {};
     qcmByTheme = new Map(list.filter((q) => q.nb_questions > 0).map((q) => [q.theme_id, q]));

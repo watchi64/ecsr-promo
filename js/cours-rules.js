@@ -28,7 +28,7 @@ export function insererSyntaxe(texte, debut, fin, avant, apres, defaut) {
 export function cheminImage(numero, nomFichier, horodatage) {
   const propre = String(nomFichier || "image").toLowerCase()
     .replace(/\.[a-z0-9]+$/i, "")
-    .normalize("NFD").replace(/[̀-ͯ]/g, "")
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "")
     .slice(0, 40) || "image";
   return `theme_${String(numero).padStart(2, "0")}/${horodatage}_${propre}.jpg`;

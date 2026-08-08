@@ -120,14 +120,14 @@ function rendreSanctions(lignes, entetes) {
     let note = "";
     if (idx.points >= 0 && c[idx.points]) {
       const brut = c[idx.points];
-      const m = brut.match(/^\s*\*{0,2}\s*(\d+\s*points?|aucun|0)\s*\*{0,2}\s*(.*)$/i);
+      const m = brut.match(/^\s*\*{0,2}\s*(\d+\s*points?|aucune?|0)\s*\*{0,2}\s*(.*)$/i);
       if (m) {
         const valeur = m[1].trim();
-        const zero = /^(0|aucun)$/i.test(valeur);
+        const zero = /^(0|aucune?)$/i.test(valeur);
         meta.appendChild(pastille("chip-points" + (zero ? " chip-zero" : ""),
           zero ? "0 point" : valeur));
         // « (de plein droit) : + suspension… » se lit mieux en phrase.
-        note = m[2].replace(/^[\s:,.\-]+/, "")
+        note = m[2].replace(/^[\s:,;.\-]+/, "")
           .replace(/^\(de plein droit\)\s*[:,]?\s*\+?\s*/i, "De plein droit. ")
           .replace(/^\+\s*/, "")
           .trim();
