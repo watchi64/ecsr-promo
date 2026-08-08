@@ -359,6 +359,18 @@ export async function openCoursSheet(theme) {
   const fermer = el("button", { class: "cours-close", type: "button", "aria-label": "Fermer le cours" });
   fermer.appendChild(icon.close ? icon.close() : document.createTextNode("×"));
 
+  // Édition réservée au formateur et à l'admin : le stagiaire ne voit jamais
+  // ce bouton. L'import dynamique évite de charger l'éditeur pour lui.
+  const modifier = (isAdmin() || isProf())
+    ? el("button", { class: "btn cours-modifier", type: "button", onClick: async () => {
+        const { openCoursEditeur } = await import("./cours-editeur.js?v=20260808b");
+        close();
+        openCoursEditeur(numero, {
+          onFerme: (aChange) => { if (aChange) openCoursSheet(theme); },
+        });
+      } }, "Modifier")
+    : null;
+
   const tete = el("div", { class: "cours-head" },
     el("div", { class: "cours-head-main" },
       el("span", { class: "cours-num" }, String(numero).padStart(2, "0")),
@@ -367,6 +379,7 @@ export async function openCoursSheet(theme) {
         meta,
       ),
     ),
+    modifier,
     fermer,
   );
 
