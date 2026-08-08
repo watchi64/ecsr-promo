@@ -596,6 +596,67 @@ export async function getCours(numero) {
   return data;
 }
 
+// Enregistre un cours avec garde-fou optimiste. `ouvertA` est le updated_at lu
+// à l'ouverture de l'éditeur. Si le cours a bougé entre-temps, on ne touche à
+// rien et on renvoie qui l'a modifié : l'appelant décide (écraser = rappeler
+// avec le ouvertA frais). L'état précédent est archivé dans cours_versions.
+export async function saveCours(id, { titre, corps_md, who, ouvertA }) {
+  const { data: courant, error: e1 } = await supabase
+    .from("cours").select("*").eq("id", id).single();
+  if (e1) throw e1;
+  if (courant.updated_at !== ouvertA) {
+    return { conflit: true, par: courant.updated_by, quand: courant.updated_at };
+  }
+  const { error: e2 } = await supabase.from("cours_versions").insert({
+    cours_id: id, titre: courant.titre, corps_md: courant.corps_md,
+    saved_by: courant.updated_by, saved_at: courant.updated_at,
+  });
+  if (e2) throw e2;
+  const { data, error: e3 } = await supabase
+    .from("cours")
+    .update({ titre, corps_md, updated_by: who, updated_at: new Date().toISOString() })
+    .eq("id", id).eq("updated_at", ouvertA)
+    .select();
+  if (e3) throw e3;
+  if (!data || !data.length) {
+    // Doublé entre la lecture et l'écriture : rien d'écrasé (la clause eq a
+    // retenu l'update), la version archivée en trop est sans gravité.
+    const { data: frais } = await supabase
+      .from("cours").select("updated_by, updated_at").eq("id", id).single();
+    return { conflit: true, par: frais?.updated_by, quand: frais?.updated_at };
+  }
+  invalidateCache("cours_index");
+  return { conflit: false, cours: data[0] };
+}
+
+// L'historique d'un cours, du plus récent au plus ancien (métadonnées seules).
+export async function listCoursVersions(coursId) {
+  const { data, error } = await supabase
+    .from("cours_versions")
+    .select("id, saved_by, saved_at")
+    .eq("cours_id", coursId)
+    .order("saved_at", { ascending: false });
+  if (error) throw error;
+  return data || [];
+}
+
+// Une version complète (pour l'aperçu ou la restauration).
+export async function getCoursVersion(versionId) {
+  const { data, error } = await supabase
+    .from("cours_versions").select("*").eq("id", versionId).single();
+  if (error) throw error;
+  return data;
+}
+
+// Publie ou dépublie. Ne touche ni updated_by ni updated_at : publier n'est
+// pas modifier, et y toucher déclencherait de faux conflits d'édition.
+export async function setCoursPublie(id, publie) {
+  const { error } = await supabase
+    .from("cours").update({ published: !!publie }).eq("id", id);
+  if (error) throw error;
+  invalidateCache("cours_index");
+}
+
 // === Compétences ===
 
 export async function listCompetences() {

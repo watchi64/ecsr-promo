@@ -53,3 +53,33 @@ export async function getCours(numero) {
   if (!c) throw new Error("Cours introuvable");
   return { ...c };
 }
+
+let versions = [];  // { id, cours_id, titre, corps_md, saved_by, saved_at }
+
+export async function saveCours(id, { titre, corps_md, who, ouvertA }) {
+  const c = magasin.find((x) => x.id === id);
+  if (!c) throw new Error("Cours introuvable");
+  if (c.updated_at !== ouvertA) return { conflit: true, par: c.updated_by, quand: c.updated_at };
+  versions.unshift({ id: "v" + (versions.length + 1), cours_id: id,
+    titre: c.titre, corps_md: c.corps_md, saved_by: c.updated_by, saved_at: c.updated_at });
+  Object.assign(c, { titre, corps_md, updated_by: who, updated_at: new Date().toISOString() });
+  return { conflit: false, cours: { ...c } };
+}
+export async function listCoursVersions(coursId) {
+  return versions.filter((v) => v.cours_id === coursId)
+    .map(({ corps_md, titre, ...meta }) => meta);
+}
+export async function getCoursVersion(versionId) {
+  const v = versions.find((x) => x.id === versionId);
+  if (!v) throw new Error("Version introuvable");
+  return { ...v };
+}
+export async function setCoursPublie(id, publie) {
+  const c = magasin.find((x) => x.id === id);
+  if (c) c.published = !!publie;
+}
+/** Levier de banc : simule une modification concurrente par « Hocine ». */
+export function _simulerModifConcurrente(numero) {
+  const c = magasin.find((x) => x.numero === Number(numero));
+  if (c) { c.updated_by = "Hocine"; c.updated_at = new Date().toISOString(); }
+}
