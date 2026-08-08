@@ -3,10 +3,10 @@ import { el, clear, isoDate, formatDate, toast, debounce } from "../utils.js?v=2
 import { icon } from "../icons.js?v=20260801e";
 import { examenDemarrable, tempsRestantMs, formatTempsRestant,
          echeanceDepuisChoix, DUREES_OUVERTURE } from "../qcm-exam-rules.js?v=20260801e";
-import { etatInstruction, corpsAnalyse, morceaux } from "../qcm-signalement-rules.js?v=20260801e";
 import { isAdmin, getAdminEmail, isProf, isStagiaire } from "../auth-admin.js?v=20260801e";
 import { recordUndo } from "../undo.js?v=20260801e";
 import { openQcmEntrainement, openQcmExamen } from "./qcm.js?v=20260801e";
+import { carteSignalement, MOTIF_LABELS } from "./signalements.js?v=20260801e";
 
 let themes = [];
 let qcmByTheme = new Map();  // theme_id -> { id, nb_questions, published, ... }
@@ -613,14 +613,6 @@ async function openQcmEditor(theme, qcmId) {
     ));
   }
 
-  const MOTIF_LABELS = {
-    reponse_fausse: "Réponse fausse",
-    enonce_ambigu: "Énoncé ambigu ou incomplet",
-    explication: "Explication fausse ou peu claire",
-    doublon: "Question en double",
-    autre: "Autre",
-  };
-
   // Les signalements en tête de l'éditeur : c'est là que le formateur corrige,
   // donc c'est là qu'ils doivent apparaître, avec le numéro de la question visée.
   function signalPanel(questions) {
@@ -630,22 +622,6 @@ async function openQcmEditor(theme, qcmId) {
     box.appendChild(el("h4", {}, `⚑ ${n} signalement${n > 1 ? "s" : ""} à traiter`));
 
     signalements.liste.forEach((s) => {
-      const num = numeroDe.get(s.question_id);
-      const traite = el("button", { class: "btn small primary", type: "button" }, "Corrigé");
-      const rejete = el("button", { class: "btn small ghost", type: "button" }, "Rien à corriger");
-      const item = el("div", { class: "qcm-signal-item" },
-        el("span", { class: "qcm-signal-item-meta" },
-          (num ? `Question ${num} · ` : "") + (s.email || "anonyme") + " · " + formatDate(s.created_at)),
-        el("span", { class: "qcm-signal-item-motif" }, MOTIF_LABELS[s.motif] || s.motif),
-        // Le texte de l'option TEL QUE L'ÉLÈVE L'A VU : les options étant mélangées à
-        // l'affichage, sa lettre ne veut rien dire ici, mais son texte, si.
-        s.option_texte
-          ? el("span", { class: "qcm-signal-item-option" }, "Réponse visée : " + s.option_texte)
-          : null,
-        s.commentaire ? el("span", { class: "qcm-signal-item-comment" }, "« " + s.commentaire + " »") : null,
-        el("div", { class: "qcm-signal-item-actions" }, traite, rejete),
-        encartInstruction(s),
-      );
       async function classer(statut, bouton) {
         bouton.disabled = true;
         try {
@@ -658,42 +634,9 @@ async function openQcmEditor(theme, qcmId) {
           toast("Échec : " + (e?.message || e), "error");
         }
       }
-      traite.addEventListener("click", () => classer("traite", traite));
-      rejete.addEventListener("click", () => classer("rejete", rejete));
-      box.appendChild(item);
+      box.appendChild(carteSignalement(s, { numero: numeroDe.get(s.question_id), onClasser: classer }));
     });
     return box;
-  }
-
-  // L'avis de l'agent d'instruction, SOUS les boutons de décision et volontairement gris :
-  // le vert et le rouge restent la signature des deux boutons, donc de la décision du
-  // formateur. Un avis ne doit jamais se lire comme un classement déjà fait.
-  function encartInstruction(s) {
-    const etat = etatInstruction(s);
-    if (!etat.instruit) {
-      return el("p", { class: "qcm-signal-instr-vide" }, "Pas encore instruit.");
-    }
-    const analyse = el("div", { class: "qcm-signal-instr-analyse" });
-    corpsAnalyse(etat.analyse).forEach((ligne) => {
-      analyse.appendChild(el("p", { class: "qcm-signal-instr-ligne" }, ...enLiens(ligne)));
-    });
-    return el("details", { class: "qcm-signal-instr" },
-      el("summary", { class: "qcm-signal-instr-tete" },
-        el("span", { class: "qcm-signal-instr-titre" }, "Instruction automatique — avis, pas décision"),
-        el("span", { class: "qcm-signal-instr-conclusion" }, etat.libelle + " — " + etat.conclusion),
-        el("span", { class: "qcm-signal-instr-plus" }, "Voir l'analyse ▾"),
-        el("span", { class: "qcm-signal-instr-date" },
-          etat.instruitAt ? "instruit le " + formatDate(etat.instruitAt) : ""),
-      ),
-      analyse,
-    );
-  }
-
-  // Les URL de l'analyse deviennent cliquables SANS innerHTML : le texte vient de l'agent.
-  function enLiens(texte) {
-    return morceaux(texte).map((m) => (m.lien
-      ? el("a", { href: m.valeur, target: "_blank", rel: "noopener" }, m.valeur)
-      : m.valeur));
   }
 
   function questionCard(q, i, questions) {
