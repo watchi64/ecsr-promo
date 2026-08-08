@@ -6872,3 +6872,17 @@ body.qcm-open { overflow: hidden; }
   box-shadow: 0 0 0 2px var(--text-muted);
   transition: box-shadow 0.4s ease;
 }
+
+/* Dans la console, chaque signalement est une carte détachée. Le filet de 1 px qui
+   suffit dans le panneau de l'éditeur s'y perd : les signalements s'enchaînent, et
+   l'encart d'avis — gris et large — noie la limite entre deux cartes. Fond clair
+   plutôt que gris, pour que l'encart d'avis ressorte À L'INTÉRIEUR de sa carte. */
+.signal-console-carte {
+  margin-bottom: 0.9rem; padding: 0.75rem 0.9rem;
+  border: 1px solid var(--line); border-radius: 10px;
+  background: var(--bg-elev);
+}
+/* Le panneau de l'éditeur retire la bordure haute de sa première carte ; ici chaque
+   carte est close, la première comme les autres. */
+.signal-console-carte:first-of-type { border-top: 1px solid var(--line); }
+.signal-console-carte:last-of-type { margin-bottom: 0; }

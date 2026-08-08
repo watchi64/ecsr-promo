@@ -5,10 +5,10 @@
 // Ce module ne connaît PAS l'éditeur : il reçoit `onOuvrirEditeur` de la part de
 // themes.js. Importer themes.js ici créerait un import circulaire entre deux vues.
 
-import { el, clear, formatDate, toast } from "../utils.js?v=20260808b";
-import { etatInstruction, corpsAnalyse, morceaux, grouperParVerdict } from "../qcm-signalement-rules.js?v=20260808b";
-import { listTousSignalements, setQcmSignalementStatut } from "../db.js?v=20260808b";
-import { getAdminEmail } from "../auth-admin.js?v=20260808b";
+import { el, clear, formatDate, toast } from "../utils.js?v=20260808c";
+import { etatInstruction, corpsAnalyse, morceaux, grouperParVerdict } from "../qcm-signalement-rules.js?v=20260808c";
+import { listTousSignalements, setQcmSignalementStatut } from "../db.js?v=20260808c";
+import { getAdminEmail } from "../auth-admin.js?v=20260808c";
 
 export const MOTIF_LABELS = {
   reponse_fausse: "Réponse fausse",
@@ -163,8 +163,13 @@ export async function renderConsoleSignalements(panel, { themes = [], onOuvrirEd
     }
     // Pas de numéro de question : celui de l'éditeur est un rang dans la liste chargée,
     // pas la colonne `ordre`. Un numéro faux serait pire que pas de numéro.
-    return carteSignalement(s, { contexte, onClasser: classer,
+    const carte = carteSignalement(s, { contexte, onClasser: classer,
       onOuvrirEditeur: onOuvrirEditeur ? (sig) => onOuvrirEditeur(sig, charger) : null });
+    // Détachées les unes des autres ici, et ici SEULEMENT : dans le panneau de l'éditeur
+    // les signalements sont peu nombreux et un filet suffit, alors qu'en console ils
+    // s'enchaînent et l'encart d'avis noie la limite entre deux cartes.
+    carte.classList.add("signal-console-carte");
+    return carte;
   }
 
   await charger();
