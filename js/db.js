@@ -574,6 +574,28 @@ export async function uploadQcmImage(file, qcmId, questionId) {
   return data.publicUrl;
 }
 
+// === Cours (par thème) ===
+
+// Index léger des cours visibles (la RLS filtre : un stagiaire ne voit que le
+// publié). Sert au badge « Cours » de la liste des thèmes sans tout charger.
+export async function listCoursIndex() {
+  return cachedQuery("cours_index", async () => {
+    const { data, error } = await supabase
+      .from("cours")
+      .select("id, numero, titre, published, updated_by, updated_at");
+    if (error) throw error;
+    return data || [];
+  });
+}
+
+// Le cours complet d'un thème (corps markdown compris).
+export async function getCours(numero) {
+  const { data, error } = await supabase
+    .from("cours").select("*").eq("numero", numero).single();
+  if (error) throw error;
+  return data;
+}
+
 // === Compétences ===
 
 export async function listCompetences() {
