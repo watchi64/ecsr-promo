@@ -1190,6 +1190,24 @@ export async function listQcmSignalements(qcmId, { statut = "ouvert" } = {}) {
   return { liste: data || [], parQuestion };
 }
 
+// Tous les signalements, tous QCM confondus : c'est la source de la console.
+// `statut` vaut 'ouvert' (défaut), 'traite', 'rejete', ou null pour tout prendre.
+// Le THÈME n'est volontairement pas joint : ce serait un troisième niveau d'imbrication
+// payé à chaque chargement, alors que la vue Thèmes a déjà la liste des thèmes en
+// mémoire et résout le libellé depuis `theme_id`.
+export async function listTousSignalements({ statut = "ouvert" } = {}) {
+  let req = supabase
+    .from("qcm_signalements")
+    .select("*, question:qcm_questions!inner(id, qcm_id, enonce, ordre, "
+          + "qcm:qcm!inner(id, titre, theme_id)), "
+          + "instruction:qcm_signalement_instruction(verdict_auto, analyse_auto, instruit_at)")
+    .order("created_at", { ascending: false });
+  if (statut) req = req.eq("statut", statut);
+  const { data, error } = await req;
+  if (error) throw error;
+  return data || [];
+}
+
 // Nombre de signalements ouverts par qcm_id, pour les compteurs de l'index.
 export async function countQcmSignalementsOuverts() {
   const { data, error } = await supabase
