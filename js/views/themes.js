@@ -519,7 +519,7 @@ function themeExamPanel(theme, qcm, onPublishChange) {
 
 // Éditeur plein écran de la banque de questions d'un thème.
 // qcmId null => on crée (ou récupère) la ligne qcm du thème à l'ouverture.
-async function openQcmEditor(theme, qcmId) {
+async function openQcmEditor(theme, qcmId, questionIdCible = null) {
   if (qcmId == null) {
     try {
       qcmId = await getOrCreateQcm(theme.id, theme.titre, getAdminEmail());
@@ -536,6 +536,10 @@ async function openQcmEditor(theme, qcmId) {
   document.body.classList.add("qcm-open");
 
   let dirty = false;  // une modif a-t-elle eu lieu ? (pour rafraîchir la vue Thèmes en sortie)
+
+  // Le saut ne vaut que pour le PREMIER rendu : l'éditeur se repeint à chaque
+  // enregistrement, et refaire défiler à chaque fois serait pénible.
+  let cibleAFaire = questionIdCible;
 
   function close() {
     document.removeEventListener("keydown", onEditorKey);
@@ -613,6 +617,16 @@ async function openQcmEditor(theme, qcmId) {
     questions.forEach((q, i) => list.appendChild(questionCard(q, i, questions)));
     panel.appendChild(list);
 
+    if (cibleAFaire) {
+      const cible = list.querySelector('.qcm-editor-card[data-question-id="' + cibleAFaire + '"]');
+      cibleAFaire = null;
+      if (cible) {
+        cible.scrollIntoView({ block: "center" });
+        cible.classList.add("qcm-editor-card-cible");
+        setTimeout(() => cible.classList.remove("qcm-editor-card-cible"), 2000);
+      }
+    }
+
     panel.appendChild(el("div", { class: "qcm-actions" },
       el("button", { class: "btn primary full", type: "button",
         onClick: () => openQuestionForm(qcmId, null, questions.length, onSaved, questions) },
@@ -648,7 +662,7 @@ async function openQcmEditor(theme, qcmId) {
 
   function questionCard(q, i, questions) {
     const correctCount = (q.options || []).filter((o) => o.is_correct).length;
-    const card = el("div", { class: "qcm-editor-card" });
+    const card = el("div", { class: "qcm-editor-card", dataset: { questionId: String(q.id) } });
 
     // Toutes les actions sont DANS l'en-tête, à côté du numéro : placées en bas de carte,
     // elles se lisaient comme appartenant à la question suivante (on éditait la précédente).
@@ -1523,5 +1537,5 @@ function ouvrirDepuisConsole(s) {
   const qcm = s.question?.qcm;
   const theme = themes.find((t) => t.id === qcm?.theme_id);
   if (!theme || !qcm) { toast("Thème introuvable pour ce QCM.", "error"); return; }
-  openQcmEditor(theme, qcm.id);
+  openQcmEditor(theme, qcm.id, s.question_id);
 }

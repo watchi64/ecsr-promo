@@ -6862,3 +6862,10 @@ body.qcm-open { overflow: hidden; }
 .qcm-signal-item-contexte {
   font-size: 0.8rem; font-weight: 600; color: var(--text);
 }
+
+/* Question atteinte depuis la console : un halo bref, le temps de la retrouver des yeux.
+   Neutre à dessein — ce n'est pas un état de la question, juste un repère de navigation. */
+.qcm-editor-card-cible {
+  box-shadow: 0 0 0 2px var(--text-muted);
+  transition: box-shadow 0.4s ease;
+}
