@@ -1,13 +1,13 @@
-import { listThemes, updateTheme, addTheme, deleteTheme, listQcmIndex, getQcmFull, publishQcm, unpublishQcm, updateExamConfig, listExamAttempts, resetExamAttempt, listMyQcmAttempts, getMyProfile, listEvaluations, getOrCreateQcm, saveQcmQuestion, deleteQcmQuestion, reorderQcmQuestions, uploadQcmImage, listQcmSignalements, setQcmSignalementStatut, countQcmSignalementsOuverts } from "../db.js?v=20260808c";
-import { el, clear, isoDate, formatDate, toast, debounce } from "../utils.js?v=20260808c";
-import { icon } from "../icons.js?v=20260808c";
+import { listThemes, updateTheme, addTheme, deleteTheme, listQcmIndex, getQcmFull, publishQcm, unpublishQcm, updateExamConfig, listExamAttempts, resetExamAttempt, listMyQcmAttempts, getMyProfile, listEvaluations, getOrCreateQcm, saveQcmQuestion, deleteQcmQuestion, reorderQcmQuestions, uploadQcmImage, listQcmSignalements, setQcmSignalementStatut, countQcmSignalementsOuverts } from "../db.js?v=20260808d";
+import { el, clear, isoDate, formatDate, toast, debounce } from "../utils.js?v=20260808d";
+import { icon } from "../icons.js?v=20260808d";
 import { examenDemarrable, tempsRestantMs, formatTempsRestant,
-         echeanceDepuisChoix, DUREES_OUVERTURE } from "../qcm-exam-rules.js?v=20260808c";
-import { isAdmin, getAdminEmail, isProf, isStagiaire } from "../auth-admin.js?v=20260808c";
-import { recordUndo } from "../undo.js?v=20260808c";
-import { openQcmEntrainement, openQcmExamen } from "./qcm.js?v=20260808c";
-import { carteSignalement, renderConsoleSignalements } from "./signalements.js?v=20260808c";
-import { renderSubTabs } from "../subtabs.js?v=20260808c";
+         echeanceDepuisChoix, DUREES_OUVERTURE } from "../qcm-exam-rules.js?v=20260808d";
+import { isAdmin, getAdminEmail, isProf, isStagiaire } from "../auth-admin.js?v=20260808d";
+import { recordUndo } from "../undo.js?v=20260808d";
+import { openQcmEntrainement, openQcmExamen } from "./qcm.js?v=20260808d";
+import { carteSignalement, renderConsoleSignalements, chargerAuteurs } from "./signalements.js?v=20260808d";
+import { renderSubTabs } from "../subtabs.js?v=20260808d";
 
 let themes = [];
 let qcmByTheme = new Map();  // theme_id -> { id, nb_questions, published, ... }
@@ -584,6 +584,9 @@ async function openQcmEditor(theme, qcmId, questionIdCible = null, onFerme = nul
   async function reloadEditor() {
     let full;
     try {
+      // Les auteurs d'abord : sans eux la carte n'affiche que l'adresse, qui ne dit pas
+      // toujours qui a signalé (adresses partagées).
+      await chargerAuteurs();
       signalements = await listQcmSignalements(qcmId, { statut: "ouvert" });
     } catch (e) {
       console.error("Signalements illisibles :", e);
@@ -658,7 +661,10 @@ async function openQcmEditor(theme, qcmId, questionIdCible = null, onFerme = nul
           toast("Échec : " + (e?.message || e), "error");
         }
       }
-      box.appendChild(carteSignalement(s, { numero: numeroDe.get(s.question_id), onClasser: classer }));
+      // Dans l'éditeur, le rang suffit comme repère : la liste des questions est juste
+      // en dessous, l'énoncé serait redondant.
+      const num = numeroDe.get(s.question_id);
+      box.appendChild(carteSignalement(s, { titre: num ? "Question " + num : null, onClasser: classer }));
     });
     return box;
   }

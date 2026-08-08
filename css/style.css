@@ -6859,12 +6859,9 @@ body.qcm-open { overflow: hidden; }
 .signal-console-vide, .signal-console-erreur {
   padding: 1.5rem 0; text-align: center; color: var(--text-muted);
 }
-.qcm-signal-item-contexte {
-  font-size: 0.8rem; font-weight: 600; color: var(--text);
-  /* L'énoncé complet peut dépasser 200 caractères : borné à deux lignes, sinon la ligne
-     de contexte pèse plus lourd que le grief qu'elle situe. */
-  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
-}
+/* La ligne de contexte concaténée (thème · QCM · énoncé) et sa troncature à deux lignes
+   ont disparu : le thème est passé en surtitre, le titre du QCM a été retiré comme
+   redondant, et l'énoncé porte seul le titre — il n'a plus besoin d'être rogné. */
 
 /* Question atteinte depuis la console : un halo bref, le temps de la retrouver des yeux.
    Neutre à dessein — ce n'est pas un état de la question, juste un repère de navigation. */
@@ -6886,3 +6883,31 @@ body.qcm-open { overflow: hidden; }
    carte est close, la première comme les autres. */
 .signal-console-carte:first-of-type { border-top: 1px solid var(--line); }
 .signal-console-carte:last-of-type { margin-bottom: 0; }
+
+/* --- Hiérarchie de lecture d'une carte de signalement ------------------------------
+   On lit dans cet ordre : ce qui est visé, le grief, puis qui l'a écrit. Le surtitre
+   situe sans peser, le titre porte, le commentaire de l'élève est le contenu utile —
+   c'est lui qu'on vient chercher, il ne peut pas rester le plus maigre de la carte. */
+.qcm-signal-item-surtitre {
+  font-size: 0.7rem; font-weight: 700; letter-spacing: 0.04em;
+  text-transform: uppercase; color: var(--text-muted);
+}
+.qcm-signal-item-titre {
+  margin: 0.1rem 0 0.15rem; font-size: 0.95rem; font-weight: 600;
+  line-height: 1.35; color: var(--text);
+}
+/* Le motif devient une pastille : c'est une étiquette, pas une phrase. En gras sur sa
+   propre ligne, il concurrençait la question. */
+.qcm-signal-item-motif {
+  align-self: flex-start;
+  padding: 0.08rem 0.5rem; border-radius: 999px;
+  background: var(--bg-soft); border: 1px solid var(--line);
+  font-size: 0.72rem; font-weight: 600; color: var(--text-muted);
+}
+.qcm-signal-item-comment {
+  margin: 0.1rem 0; padding-left: 0.6rem;
+  border-left: 2px solid var(--line-strong);
+  font-size: 0.88rem; font-style: normal; line-height: 1.45; color: var(--text);
+}
+/* La signature se lit en dernier : elle situe le grief, elle ne l'annonce pas. */
+.qcm-signal-item-meta { margin-top: 0.1rem; }
