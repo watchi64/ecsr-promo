@@ -20,7 +20,8 @@ const MOTIFS = [
 
 // Bouton « Signaler » + son petit formulaire, à placer sous une question.
 // Volontairement discret : c'est un recours, pas une action principale.
-function signalerBloc(question) {
+// `options` est l'ordre AFFICHÉ, mélangé : c'est celui que l'élève a sous les yeux.
+function signalerBloc(question, options = []) {
   const wrap = el("div", { class: "qcm-signal-wrap" });
   const bouton = el("button", { class: "qcm-signal-btn", type: "button" },
     "⚑ Signaler un problème sur cette question");
@@ -31,13 +32,22 @@ function signalerBloc(question) {
     bouton.style.display = "none";
     const select = el("select", { class: "qcm-signal-motif" },
       ...MOTIFS.map(([v, label]) => el("option", { value: v }, label)));
+    // Quelle réponse est visée ? Les options sont mélangées à l'affichage : sans ce champ,
+    // l'élève ne peut la désigner que par son rang (« la réponse D »), qui ne correspond
+    // plus à rien une fois le signalement en base. La liste reprend donc l'ordre et les
+    // lettres qu'il a sous les yeux.
+    const cible = el("select", { class: "qcm-signal-motif" },
+      el("option", { value: "" }, "Toute la question (pas une réponse en particulier)"),
+      ...options.map((o, i) => el("option", { value: String(o.id) }, letter(i) + ". " + o.texte)));
     const commentaire = el("textarea", { class: "qcm-signal-comment", rows: "2",
       placeholder: "Précise si tu veux (facultatif)" });
     const envoyer = el("button", { class: "btn primary small", type: "button" }, "Envoyer");
     const annuler = el("button", { class: "btn ghost small", type: "button" }, "Annuler");
     const form = el("div", { class: "qcm-signal-form" },
       el("p", { class: "qcm-signal-intro" }, "Merci : c'est ce qui permet de corriger la base."),
-      select, commentaire,
+      select,
+      options.length ? cible : null,
+      commentaire,
       el("div", { class: "qcm-signal-actions" }, envoyer, annuler),
     );
     wrap.appendChild(form);
@@ -48,10 +58,13 @@ function signalerBloc(question) {
       envoyer.disabled = true;
       envoyer.textContent = "Envoi…";
       try {
+        const visee = options.find((o) => String(o.id) === cible.value) || null;
         await createQcmSignalement({
           questionId: question.id,
           motif: select.value,
           commentaire: commentaire.value,
+          optionId: visee ? visee.id : null,
+          optionTexte: visee ? visee.texte : null,
         });
         clear(wrap);
         wrap.appendChild(el("p", { class: "qcm-signal-done" }, "✓ Signalement envoyé, merci."));
@@ -303,7 +316,7 @@ function runEntrainement(theme, full, questions, badge = "Entraînement") {
       }
       // Le signalement n'apparaît qu'APRÈS correction : avant, l'élève ne peut pas
       // juger la question, et le bouton ne servirait qu'à fuir la difficulté.
-      card.insertBefore(signalerBloc(q), validateBtn);
+      card.insertBefore(signalerBloc(q, opts), validateBtn);
       validateBtn.style.display = "none";
       nextBtn.style.display = "";
       nextBtn.focus({ preventScroll: true });  // garde le focus clavier sans repositionner l'overlay

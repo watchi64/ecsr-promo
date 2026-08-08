@@ -6,6 +6,8 @@ import { examenDemarrable, tempsRestantMs, formatTempsRestant,
 import { isAdmin, getAdminEmail, isProf, isStagiaire } from "../auth-admin.js?v=20260801e";
 import { recordUndo } from "../undo.js?v=20260801e";
 import { openQcmEntrainement, openQcmExamen } from "./qcm.js?v=20260801e";
+import { carteSignalement, renderConsoleSignalements } from "./signalements.js?v=20260801e";
+import { renderSubTabs } from "../subtabs.js?v=20260801e";
 
 let themes = [];
 let qcmByTheme = new Map();  // theme_id -> { id, nb_questions, published, ... }
@@ -14,6 +16,12 @@ let myTrainByQcm = new Map();      // qcm_id -> ma dernière tentative entraîne
 let myNoteByThemeNum = new Map();  // theme_numero -> ma note officielle (matrice Notes)
 let signalByQcm = {};              // qcm_id -> nb de signalements ouverts (formateur seulement)
 let lastContainer = null;          // pour rafraîchir la liste après un QCM
+// L'onglet Thèmes partage son nœud d'affichage avec la console des signalements
+// (subtabs.js réutilise un seul panneau). Un repeint asynchrone arrivé alors que
+// l'utilisateur est passé sur la console effacerait ce qu'il regarde : ce jeton dit
+// si l'onglet Thèmes est encore celui qui est affiché. Hors sous-onglets (cas d'un
+// élève, qui n'a pas de barre), il vaut toujours vrai.
+let themesActif = () => true;
 
 // Après un QCM (entraînement ou examen), recharge la liste pour mettre à jour mes notes.
 window.addEventListener("qcm-attempt-saved", async () => {
@@ -38,12 +46,16 @@ async function loadQcmIndex() {
     const profile = await getMyProfile();
     // Les signalements ouverts sont comptés dès la liste : sinon le formateur devrait
     // ouvrir chaque QCM un par un pour découvrir lesquels ont été signalés.
-    // La RLS renvoie une liste vide à un stagiaire : le badge n'apparaît que pour le formateur.
+    // Le comptage est réservé au formateur, et la RLS ne suffit PAS à l'assurer : sa
+    // politique de lecture laisse un élève relire SES propres signalements, il verrait
+    // donc un drapeau sur les QCM qu'il a lui-même signalés. Et en aperçu « Voir en tant
+    // que », la RLS n'est pas simulée du tout : le fondateur verrait tous les drapeaux
+    // alors qu'il regarde l'écran d'un élève. Le garde-fou est donc ici.
     const [list, attempts, evals, signals] = await Promise.all([
       listQcmIndex(),
       listMyQcmAttempts(),
       profile?.stagiaire_id ? listEvaluations({ stagiaire_id: profile.stagiaire_id }) : Promise.resolve([]),
-      countQcmSignalementsOuverts().catch(() => ({})),
+      canManageExam() ? countQcmSignalementsOuverts().catch(() => ({})) : Promise.resolve({}),
     ]);
     signalByQcm = signals || {};
     qcmByTheme = new Map(list.filter((q) => q.nb_questions > 0).map((q) => [q.theme_id, q]));
@@ -507,7 +519,7 @@ function themeExamPanel(theme, qcm, onPublishChange) {
 
 // Éditeur plein écran de la banque de questions d'un thème.
 // qcmId null => on crée (ou récupère) la ligne qcm du thème à l'ouverture.
-async function openQcmEditor(theme, qcmId) {
+async function openQcmEditor(theme, qcmId, questionIdCible = null, onFerme = null) {
   if (qcmId == null) {
     try {
       qcmId = await getOrCreateQcm(theme.id, theme.titre, getAdminEmail());
@@ -525,12 +537,19 @@ async function openQcmEditor(theme, qcmId) {
 
   let dirty = false;  // une modif a-t-elle eu lieu ? (pour rafraîchir la vue Thèmes en sortie)
 
+  // Le saut ne vaut que pour le PREMIER rendu : l'éditeur se repeint à chaque
+  // enregistrement, et refaire défiler à chaque fois serait pénible.
+  let cibleAFaire = questionIdCible;
+
   function close() {
     document.removeEventListener("keydown", onEditorKey);
     overlay.remove();
     document.body.classList.remove("qcm-open");
     // La banque a changé (nb_questions, existence) : rafraîchir la liste des thèmes.
-    if (dirty && lastContainer) { reload(lastContainer).catch(() => { /* refresh silencieux */ }); }
+    // Ouvert depuis la console : c'est elle qu'il faut rafraîchir, pas la liste des
+    // thèmes — qui n'est même pas affichée.
+    if (dirty && onFerme) { onFerme().catch(() => { /* refresh silencieux */ }); }
+    else if (dirty && lastContainer) { reload(lastContainer).catch(() => { /* refresh silencieux */ }); }
   }
   // Pas de fermeture au clic à côté : un clic involontaire sortait de l'écran d'édition.
   // On sort par la croix ou par Échap — et Échap ne s'applique pas si un formulaire
@@ -566,7 +585,10 @@ async function openQcmEditor(theme, qcmId) {
     let full;
     try {
       signalements = await listQcmSignalements(qcmId, { statut: "ouvert" });
-    } catch { signalements = { liste: [], parQuestion: {} }; }
+    } catch (e) {
+      console.error("Signalements illisibles :", e);
+      signalements = { liste: [], parQuestion: {} };
+    }
     try {
       full = await getQcmFull(qcmId);
     } catch (e) {
@@ -598,20 +620,22 @@ async function openQcmEditor(theme, qcmId) {
     questions.forEach((q, i) => list.appendChild(questionCard(q, i, questions)));
     panel.appendChild(list);
 
+    if (cibleAFaire) {
+      const cible = list.querySelector('.qcm-editor-card[data-question-id="' + cibleAFaire + '"]');
+      cibleAFaire = null;
+      if (cible) {
+        cible.scrollIntoView({ block: "center" });
+        cible.classList.add("qcm-editor-card-cible");
+        setTimeout(() => cible.classList.remove("qcm-editor-card-cible"), 2000);
+      }
+    }
+
     panel.appendChild(el("div", { class: "qcm-actions" },
       el("button", { class: "btn primary full", type: "button",
         onClick: () => openQuestionForm(qcmId, null, questions.length, onSaved, questions) },
         icon.plus(), "Ajouter une question"),
     ));
   }
-
-  const MOTIF_LABELS = {
-    reponse_fausse: "Réponse fausse",
-    enonce_ambigu: "Énoncé ambigu ou incomplet",
-    explication: "Explication fausse ou peu claire",
-    doublon: "Question en double",
-    autre: "Autre",
-  };
 
   // Les signalements en tête de l'éditeur : c'est là que le formateur corrige,
   // donc c'est là qu'ils doivent apparaître, avec le numéro de la question visée.
@@ -622,16 +646,6 @@ async function openQcmEditor(theme, qcmId) {
     box.appendChild(el("h4", {}, `⚑ ${n} signalement${n > 1 ? "s" : ""} à traiter`));
 
     signalements.liste.forEach((s) => {
-      const num = numeroDe.get(s.question_id);
-      const traite = el("button", { class: "btn small primary", type: "button" }, "Corrigé");
-      const rejete = el("button", { class: "btn small ghost", type: "button" }, "Rien à corriger");
-      const item = el("div", { class: "qcm-signal-item" },
-        el("span", { class: "qcm-signal-item-meta" },
-          (num ? `Question ${num} · ` : "") + (s.email || "anonyme") + " · " + formatDate(s.created_at)),
-        el("span", { class: "qcm-signal-item-motif" }, MOTIF_LABELS[s.motif] || s.motif),
-        s.commentaire ? el("span", { class: "qcm-signal-item-comment" }, "« " + s.commentaire + " »") : null,
-        el("div", { class: "qcm-signal-item-actions" }, traite, rejete),
-      );
       async function classer(statut, bouton) {
         bouton.disabled = true;
         try {
@@ -644,16 +658,14 @@ async function openQcmEditor(theme, qcmId) {
           toast("Échec : " + (e?.message || e), "error");
         }
       }
-      traite.addEventListener("click", () => classer("traite", traite));
-      rejete.addEventListener("click", () => classer("rejete", rejete));
-      box.appendChild(item);
+      box.appendChild(carteSignalement(s, { numero: numeroDe.get(s.question_id), onClasser: classer }));
     });
     return box;
   }
 
   function questionCard(q, i, questions) {
     const correctCount = (q.options || []).filter((o) => o.is_correct).length;
-    const card = el("div", { class: "qcm-editor-card" });
+    const card = el("div", { class: "qcm-editor-card", dataset: { questionId: String(q.id) } });
 
     // Toutes les actions sont DANS l'en-tête, à côté du numéro : placées en bas de carte,
     // elles se lisaient comme appartenant à la question suivante (on éditait la précédente).
@@ -1336,6 +1348,9 @@ function refreshStatsInPlace(container) {
 }
 
 function rerender(container) {
+  // Repeint tardif alors que l'utilisateur est passé sur la console : ne rien écrire,
+  // le panneau ne nous appartient plus. Revenir sur l'onglet Thèmes le re-rend de toute façon.
+  if (!themesActif()) return;
   clear(container);
 
   const admin = isAdmin();
@@ -1500,10 +1515,41 @@ async function reload(container) {
 }
 
 export async function renderThemes(container) {
-  lastContainer = container;
   clear(container);
+  // Un montage précédent a pu laisser ces deux références derrière lui : le panneau
+  // qu'elles désignent est mort, et le jeton d'activation qu'elles portent est figé sur
+  // l'onglet d'alors. Les repartir de zéro à chaque montage évite qu'un rendu tardif
+  // n'écrive dans un écran disparu — ou refuse d'écrire dans celui qui vient de naître.
+  lastContainer = null;
+  themesActif = () => true;
   container.appendChild(el("div", { class: "loading" }, "Chargement"));
   themes = await listThemes();
   await loadQcmIndex();
-  rerender(container);
+  clear(container);
+
+  // Un élève ne voit ni la barre de sous-onglets, ni la console : la RLS ne suffit pas,
+  // sa politique de lecture lui rend SES propres signalements.
+  if (!canManageExam()) { lastContainer = container; rerender(container); return; }
+
+  container.appendChild(renderSubTabs([
+    { key: "themes", label: "Thèmes",
+      // lastContainer devient le PANNEAU : c'est lui que reload() doit repeindre.
+      render: (p, ctx) => { lastContainer = p; themesActif = ctx?.isActive || (() => true); rerender(p); } },
+    { key: "signalements", label: "⚑ Signalements",
+      render: (p, ctx) => { renderConsoleSignalements(p, { themes, onOuvrirEditeur: ouvrirDepuisConsole, isActive: ctx?.isActive }); } },
+  ], { storageKey: "themes.subtab" }));
+}
+
+// La console ne connaît pas l'éditeur : elle rend la main ici avec le signalement,
+// et c'est Thèmes qui retrouve le thème et ouvre l'éditeur sur la bonne question.
+function ouvrirDepuisConsole(s, rechargerConsole) {
+  const qcm = s.question?.qcm;
+  const theme = themes.find((t) => t.id === qcm?.theme_id);
+  if (!theme || !qcm) { toast("Thème introuvable pour ce QCM.", "error"); return; }
+  // Au retour de l'éditeur, la console doit refléter ce qui vient d'être fait — et les
+  // badges ⚑ de la liste des thèmes avec elle, sinon ils annoncent un compte périmé.
+  openQcmEditor(theme, qcm.id, s.question_id, async () => {
+    await loadQcmIndex();
+    if (rechargerConsole) await rechargerConsole();
+  });
 }

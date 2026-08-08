@@ -1137,7 +1137,10 @@ export async function getSalleAggregats() {
 // Crée un signalement au nom de l'utilisateur connecté.
 // L'email est imposé par la RLS (lower(email) = lower(auth.email())) : inutile de
 // le passer, on le lit de la session pour que l'insert passe la policy.
-export async function createQcmSignalement({ questionId, motif, commentaire }) {
+// `optionId` / `optionTexte` sont facultatifs : un signalement peut viser l'énoncé ou
+// l'explication, sans option en particulier. Le texte est enregistré en plus de l'id
+// parce que c'est CE QUE L'ÉLÈVE A VU : il survit à la correction de l'option.
+export async function createQcmSignalement({ questionId, motif, commentaire, optionId, optionTexte }) {
   const { data: { user } } = await supabase.auth.getUser();
   const email = user?.email;
   if (!email) throw new Error("Session expirée : reconnecte-toi pour signaler.");
@@ -1146,6 +1149,8 @@ export async function createQcmSignalement({ questionId, motif, commentaire }) {
     email,
     motif: motif || "autre",
     commentaire: (commentaire || "").trim() || null,
+    option_id: optionId || null,
+    option_texte: optionId ? (optionTexte || null) : null,
   };
   const prof = await myStagiaireId();
   if (prof) row.stagiaire_id = prof;
@@ -1165,10 +1170,14 @@ async function myStagiaireId() {
 }
 
 // Signalements d'un QCM, groupés par question. Vide pour un stagiaire (RLS).
+// L'instruction automatique est jointe en LECTURE SEULE : aucune fonction de ce fichier
+// n'écrit dans qcm_signalement_instruction, et la table n'a aucune politique d'écriture
+// pour `authenticated`. Le navigateur ne peut pas fabriquer un verdict.
 export async function listQcmSignalements(qcmId, { statut = "ouvert" } = {}) {
   let req = supabase
     .from("qcm_signalements")
-    .select("*, question:qcm_questions!inner(id, qcm_id, enonce)")
+    .select("*, question:qcm_questions!inner(id, qcm_id, enonce), "
+          + "instruction:qcm_signalement_instruction(verdict_auto, analyse_auto, instruit_at)")
     .eq("question.qcm_id", qcmId)
     .order("created_at", { ascending: false });
   if (statut) req = req.eq("statut", statut);
@@ -1179,6 +1188,24 @@ export async function listQcmSignalements(qcmId, { statut = "ouvert" } = {}) {
     (parQuestion[s.question_id] = parQuestion[s.question_id] || []).push(s);
   });
   return { liste: data || [], parQuestion };
+}
+
+// Tous les signalements, tous QCM confondus : c'est la source de la console.
+// `statut` vaut 'ouvert' (défaut), 'traite', 'rejete', ou null pour tout prendre.
+// Le THÈME n'est volontairement pas joint : ce serait un troisième niveau d'imbrication
+// payé à chaque chargement, alors que la vue Thèmes a déjà la liste des thèmes en
+// mémoire et résout le libellé depuis `theme_id`.
+export async function listTousSignalements({ statut = "ouvert" } = {}) {
+  let req = supabase
+    .from("qcm_signalements")
+    .select("*, question:qcm_questions!inner(id, qcm_id, enonce, ordre, "
+          + "qcm:qcm!inner(id, titre, theme_id)), "
+          + "instruction:qcm_signalement_instruction(verdict_auto, analyse_auto, instruit_at)")
+    .order("created_at", { ascending: false });
+  if (statut) req = req.eq("statut", statut);
+  const { data, error } = await req;
+  if (error) throw error;
+  return data || [];
 }
 
 // Nombre de signalements ouverts par qcm_id, pour les compteurs de l'index.
