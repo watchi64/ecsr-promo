@@ -68,3 +68,27 @@ export function morceaux(texte) {
   if (i < t.length) out.push({ valeur: t.slice(i), lien: false });
   return out;
 }
+
+// Ordre des groupes de la console, du plus exigeant au moins exigeant.
+// « non_concluant » est placé AVANT « confirme » et non parmi eux : c'est un aveu
+// d'aveuglement de l'agent (PISTE muet, question à image), pas un verdict rassurant.
+export const GROUPES = [
+  { cle: "fonde",         titre: "⚑ Signalement fondé — à corriger" },
+  { cle: "ambigu",        titre: "Ambigu — à trancher" },
+  { cle: "non_concluant", titre: "Non concluant — à lire" },
+  { cle: "confirme",      titre: "Question confirmée — rien à corriger" },
+  { cle: "non_instruit",  titre: "Pas encore instruit" },
+];
+
+// Range les signalements par verdict, dans l'ordre de GROUPES. Les groupes vides sont
+// omis : afficher cinq titres pour deux signalements mentirait sur la charge de travail.
+export function grouperParVerdict(signalements) {
+  const par = new Map(GROUPES.map((g) => [g.cle, []]));
+  (signalements || []).forEach((s) => {
+    const etat = etatInstruction(s);
+    let cle = "non_instruit";
+    if (etat.instruit) cle = par.has(etat.verdict) ? etat.verdict : "non_concluant";
+    par.get(cle).push(s);
+  });
+  return GROUPES.map((g) => ({ ...g, items: par.get(g.cle) })).filter((g) => g.items.length);
+}

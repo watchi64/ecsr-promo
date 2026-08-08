@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import {
-  VERDICTS, libelleVerdict, conclusionDe, corpsAnalyse, etatInstruction, morceaux,
+  VERDICTS, libelleVerdict, conclusionDe, corpsAnalyse, etatInstruction, morceaux, GROUPES, grouperParVerdict,
 } from "../js/qcm-signalement-rules.js";
 
 // --- Libellés : le verdict s'écrit en toutes lettres, jamais en code brut ---
@@ -90,5 +90,38 @@ assert.deepEqual(morceaux("(https://a.test/x)"), [
   { valeur: "https://a.test/x", lien: true },
   { valeur: ")", lien: false },
 ]);
+
+// --- Groupement par verdict : la file de traitement ---
+const sig = (id, verdict) => ({
+  id,
+  instruction: verdict ? { verdict_auto: verdict, analyse_auto: "Conclusion : x.", instruit_at: null } : null,
+});
+
+assert.deepEqual(GROUPES.map((g) => g.cle),
+  ["fonde", "ambigu", "non_concluant", "confirme", "non_instruit"],
+  "ordre fixe : non_concluant AVANT confirme, c'est un aveu d'aveuglement pas un feu vert");
+
+const groupes = grouperParVerdict([
+  sig(1, "confirme"), sig(2, "fonde"), sig(3, null), sig(4, "non_concluant"),
+  sig(5, "ambigu"), sig(6, "fonde"),
+]);
+assert.deepEqual(groupes.map((g) => g.cle),
+  ["fonde", "ambigu", "non_concluant", "confirme", "non_instruit"]);
+assert.deepEqual(groupes[0].items.map((s) => s.id), [2, 6], "l'ordre d'entrée est conservé dans un groupe");
+assert.deepEqual(groupes[4].items.map((s) => s.id), [3], "sans instruction → Pas encore instruit");
+assert.ok(groupes.every((g) => typeof g.titre === "string" && g.titre.length));
+
+// Groupes vides omis : une console qui affiche cinq titres pour deux signalements ment
+// sur la charge de travail.
+const partiel = grouperParVerdict([sig(1, "fonde")]);
+assert.deepEqual(partiel.map((g) => g.cle), ["fonde"]);
+
+assert.deepEqual(grouperParVerdict([]), []);
+assert.deepEqual(grouperParVerdict(null), []);
+
+// Verdict hors des quatre connus : impossible avec la contrainte CHECK de la table, mais
+// on ne parie pas dessus — il demande une lecture humaine, donc il va avec les non concluants.
+const inconnu = grouperParVerdict([sig(1, "n_importe_quoi")]);
+assert.deepEqual(inconnu.map((g) => g.cle), ["non_concluant"]);
 
 console.log("qcm-signalement-rules : OK");
