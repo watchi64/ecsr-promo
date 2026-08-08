@@ -1504,7 +1504,7 @@ export async function renderThemes(container) {
       // lastContainer devient le PANNEAU : c'est lui que reload() doit repeindre.
       render: (p) => { lastContainer = p; rerender(p); } },
     { key: "signalements", label: "⚑ Signalements",
-      render: (p) => { renderConsoleSignalements(p, { themes, onOuvrirEditeur: ouvrirDepuisConsole }); } },
+      render: (p, ctx) => { renderConsoleSignalements(p, { themes, onOuvrirEditeur: ouvrirDepuisConsole, isActive: ctx?.isActive }); } },
   ], { storageKey: "themes.subtab" }));
 }
 

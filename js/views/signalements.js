@@ -88,11 +88,14 @@ const STATUTS_CONSOLE = [
 // La console : tous les signalements au même endroit, rangés par ce qu'ils demandent
 // comme travail. `themes` sert uniquement à retrouver le libellé d'un thème depuis son
 // id — la console ne fait aucune requête sur les thèmes.
-export async function renderConsoleSignalements(panel, { themes = [], onOuvrirEditeur = null } = {}) {
+export async function renderConsoleSignalements(panel, { themes = [], onOuvrirEditeur = null, isActive = () => true } = {}) {
   let statut = "ouvert";
   const titreThemeDe = new Map(themes.map((t) => [t.id, (t.numero != null ? String(t.numero).padStart(2, "0") + " · " : "") + t.titre]));
 
+  let gen = 0;   // chargements concurrents : seule la dernière demande a le droit d'écrire
+
   async function charger() {
+    const maGen = ++gen;
     clear(panel);
     panel.appendChild(el("div", { class: "loading" }, "Chargement"));
     let liste;
@@ -101,6 +104,9 @@ export async function renderConsoleSignalements(panel, { themes = [], onOuvrirEd
     } catch (e) {
       // Journalisé : un échec muet est ce qui a rendu un défaut invisible le 2026-08-02.
       console.error("Signalements illisibles :", e);
+      // Le panneau est partagé entre les sous-onglets : ne rien y écrire si l'utilisateur
+      // est déjà reparti, sinon on efface l'onglet qu'il regarde.
+      if (!isActive() || maGen !== gen) return;
       clear(panel);
       const reessayer = el("button", { class: "btn small", type: "button" }, "Réessayer");
       reessayer.addEventListener("click", () => { charger(); });
@@ -108,6 +114,7 @@ export async function renderConsoleSignalements(panel, { themes = [], onOuvrirEd
         el("p", {}, "Impossible de charger les signalements."), reessayer));
       return;
     }
+    if (!isActive() || maGen !== gen) return;
     clear(panel);
     panel.appendChild(barre(liste.length));
     if (!liste.length) {
