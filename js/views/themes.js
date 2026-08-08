@@ -6,7 +6,8 @@ import { examenDemarrable, tempsRestantMs, formatTempsRestant,
 import { isAdmin, getAdminEmail, isProf, isStagiaire } from "../auth-admin.js?v=20260801e";
 import { recordUndo } from "../undo.js?v=20260801e";
 import { openQcmEntrainement, openQcmExamen } from "./qcm.js?v=20260801e";
-import { carteSignalement } from "./signalements.js?v=20260801e";
+import { carteSignalement, renderConsoleSignalements } from "./signalements.js?v=20260801e";
+import { renderSubTabs } from "../subtabs.js?v=20260801e";
 
 let themes = [];
 let qcmByTheme = new Map();  // theme_id -> { id, nb_questions, published, ... }
@@ -1488,10 +1489,30 @@ async function reload(container) {
 }
 
 export async function renderThemes(container) {
-  lastContainer = container;
   clear(container);
   container.appendChild(el("div", { class: "loading" }, "Chargement"));
   themes = await listThemes();
   await loadQcmIndex();
-  rerender(container);
+  clear(container);
+
+  // Un élève ne voit ni la barre de sous-onglets, ni la console : la RLS ne suffit pas,
+  // sa politique de lecture lui rend SES propres signalements.
+  if (!canManageExam()) { lastContainer = container; rerender(container); return; }
+
+  container.appendChild(renderSubTabs([
+    { key: "themes", label: "Thèmes",
+      // lastContainer devient le PANNEAU : c'est lui que reload() doit repeindre.
+      render: (p) => { lastContainer = p; rerender(p); } },
+    { key: "signalements", label: "⚑ Signalements",
+      render: (p) => { renderConsoleSignalements(p, { themes, onOuvrirEditeur: ouvrirDepuisConsole }); } },
+  ], { storageKey: "themes.subtab" }));
+}
+
+// La console ne connaît pas l'éditeur : elle rend la main ici avec le signalement,
+// et c'est Thèmes qui retrouve le thème et ouvre l'éditeur sur la bonne question.
+function ouvrirDepuisConsole(s) {
+  const qcm = s.question?.qcm;
+  const theme = themes.find((t) => t.id === qcm?.theme_id);
+  if (!theme || !qcm) { toast("Thème introuvable pour ce QCM.", "error"); return; }
+  openQcmEditor(theme, qcm.id);
 }

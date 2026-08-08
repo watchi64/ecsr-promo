@@ -5,8 +5,10 @@
 // Ce module ne connaît PAS l'éditeur : il reçoit `onOuvrirEditeur` de la part de
 // themes.js. Importer themes.js ici créerait un import circulaire entre deux vues.
 
-import { el, formatDate } from "../utils.js?v=20260801e";
-import { etatInstruction, corpsAnalyse, morceaux } from "../qcm-signalement-rules.js?v=20260801e";
+import { el, clear, formatDate, toast } from "../utils.js?v=20260801e";
+import { etatInstruction, corpsAnalyse, morceaux, grouperParVerdict } from "../qcm-signalement-rules.js?v=20260801e";
+import { listTousSignalements, setQcmSignalementStatut } from "../db.js?v=20260801e";
+import { getAdminEmail } from "../auth-admin.js?v=20260801e";
 
 export const MOTIF_LABELS = {
   reponse_fausse: "Réponse fausse",
@@ -74,4 +76,84 @@ export function carteSignalement(s, { numero = null, contexte = null, onClasser,
     actions,
     encartInstruction(s),
   );
+}
+
+const STATUTS_CONSOLE = [
+  { value: "ouvert", label: "Ouverts" },
+  { value: "traite", label: "Corrigés" },
+  { value: "rejete", label: "Écartés" },
+  { value: "",       label: "Tout" },
+];
+
+// La console : tous les signalements au même endroit, rangés par ce qu'ils demandent
+// comme travail. `themes` sert uniquement à retrouver le libellé d'un thème depuis son
+// id — la console ne fait aucune requête sur les thèmes.
+export async function renderConsoleSignalements(panel, { themes = [], onOuvrirEditeur = null } = {}) {
+  let statut = "ouvert";
+  const titreThemeDe = new Map(themes.map((t) => [t.id, (t.numero != null ? String(t.numero).padStart(2, "0") + " · " : "") + t.titre]));
+
+  async function charger() {
+    clear(panel);
+    panel.appendChild(el("div", { class: "loading" }, "Chargement"));
+    let liste;
+    try {
+      liste = await listTousSignalements({ statut: statut || null });
+    } catch (e) {
+      // Journalisé : un échec muet est ce qui a rendu un défaut invisible le 2026-08-02.
+      console.error("Signalements illisibles :", e);
+      clear(panel);
+      const reessayer = el("button", { class: "btn small", type: "button" }, "Réessayer");
+      reessayer.addEventListener("click", () => { charger(); });
+      panel.appendChild(el("div", { class: "signal-console-erreur" },
+        el("p", {}, "Impossible de charger les signalements."), reessayer));
+      return;
+    }
+    clear(panel);
+    panel.appendChild(barre(liste.length));
+    if (!liste.length) {
+      panel.appendChild(el("p", { class: "signal-console-vide" },
+        statut === "ouvert" ? "Aucun signalement ouvert." : "Aucun signalement pour ce filtre."));
+      return;
+    }
+    grouperParVerdict(liste).forEach((groupe) => {
+      panel.appendChild(el("h4", { class: "signal-console-groupe" },
+        groupe.titre, el("span", { class: "signal-console-compte" }, groupe.items.length)));
+      groupe.items.forEach((s) => panel.appendChild(carteConsole(s)));
+    });
+  }
+
+  function barre(n) {
+    const sel = el("select", { class: "signal-console-statut" },
+      ...STATUTS_CONSOLE.map((s) => {
+        const o = el("option", { value: s.value }, s.label);
+        if (s.value === statut) o.selected = true;
+        return o;
+      }));
+    sel.addEventListener("change", () => { statut = sel.value; charger(); });
+    return el("div", { class: "signal-console-barre" },
+      el("h3", {}, "⚑ " + n + " signalement" + (n > 1 ? "s" : "")), sel);
+  }
+
+  function carteConsole(s) {
+    const qcm = s.question?.qcm || null;
+    // Thème absent de la liste : on affiche le QCM seul plutôt que de casser la ligne.
+    const contexte = [titreThemeDe.get(qcm?.theme_id), qcm?.titre, s.question?.enonce]
+      .filter(Boolean).join(" · ");
+    async function classer(st, bouton) {
+      bouton.disabled = true;
+      try {
+        await setQcmSignalementStatut(s.id, st, getAdminEmail());
+        toast(st === "traite" ? "Signalement classé comme corrigé." : "Signalement écarté.", "success");
+        await charger();
+      } catch (e) {
+        bouton.disabled = false;
+        toast("Échec : " + (e?.message || e), "error");
+      }
+    }
+    // Pas de numéro de question : celui de l'éditeur est un rang dans la liste chargée,
+    // pas la colonne `ordre`. Un numéro faux serait pire que pas de numéro.
+    return carteSignalement(s, { contexte, onClasser: classer, onOuvrirEditeur });
+  }
+
+  await charger();
 }
