@@ -2,9 +2,9 @@
  * Promo ECSR : Application propriétaire.
  * © 2026 watchi64 : Tous droits réservés. Voir LICENSE.
  *
- * Lecteur de cours. Le contenu vit en markdown dans assets/cours/theme_XX.md
- * (source unique versionnée, partagée avec le dépôt formation-ecsr) et se rend
- * ici en DOM, sans innerHTML, comme le reste de l'app.
+ * Lecteur de cours. Le contenu vit en base (table cours, colonne corps_md,
+ * cf. js/db.js) et se rend ici en DOM, sans innerHTML, comme le reste de
+ * l'app.
  *
  * Le markdown de nos cours suit une charte stricte (voir CLAUDE.md du dépôt
  * formation-ecsr), ce qui permet de traiter trois blocs de façon particulière :
@@ -18,28 +18,22 @@ import { el, clear } from "../utils.js?v=20260808b";
 import { icon } from "../icons.js?v=20260808b";
 import { carteSignal, signalConnu } from "../signaux.js?v=20260808b";
 import { carteMarquage, marquageConnu } from "../marquage.js?v=20260808b";
+import { listCoursIndex, getCours } from "../db.js?v=20260808b";
+import { isAdmin, isProf } from "../auth-admin.js?v=20260808b";
 
-// Thèmes dont le cours est disponible. La liste grandira au fil de la
-// production des 57 cours ; elle reste locale pour éviter un aller-retour
-// réseau juste pour savoir s'il faut afficher un bouton.
-const COURS_DISPONIBLES = new Set([1, 2]);
+// Index des cours visibles, chargé une fois par rendu de la page Thèmes.
+let coursIndex = null;  // Map numero -> { id, titre, published, updated_by, updated_at }
 
-/** Le thème a-t-il un cours rédigé ? */
+/** Charge (ou recharge) l'index des cours visibles. À appeler avant hasCours(). */
+export async function chargerCoursIndex() {
+  const lignes = await listCoursIndex();
+  coursIndex = new Map(lignes.map((c) => [Number(c.numero), c]));
+  return coursIndex;
+}
+
+/** Le thème a-t-il un cours visible ? (index chargé par chargerCoursIndex) */
 export function hasCours(theme) {
-  return !!theme && COURS_DISPONIBLES.has(Number(theme.numero));
-}
-
-// Le jeton `?v=` de ce module est posé par scripts/cache-bust.js à chaque
-// commit. On le réutilise pour le markdown : un nouveau déploiement invalide
-// donc aussi le cache du cours, sans jeton à maintenir à la main.
-function versionQuery() {
-  const q = String(import.meta.url).split("?")[1];
-  return q ? "?" + q : "";
-}
-
-function coursUrl(numero) {
-  const nom = "theme_" + String(numero).padStart(2, "0") + ".md";
-  return new URL("assets/cours/" + nom + versionQuery(), document.baseURI).href;
+  return !!theme && !!coursIndex && coursIndex.has(Number(theme.numero));
 }
 
 // ===== Rendu markdown =====
@@ -352,6 +346,13 @@ function tempsLecture(texte) {
 
 // ===== Écran de lecture =====
 
+/** Rend un texte markdown complet. Renvoie { noeuds, contexte } ;
+ *  contexte.sections liste les titres de niveau 2 (pour le sommaire). */
+export function rendreMarkdown(texte) {
+  const contexte = { sections: [], essentielVu: false };
+  return { noeuds: rendreBlocs(String(texte).split("\n"), contexte), contexte };
+}
+
 /**
  * Ouvre le cours d'un thème en plein écran, par-dessus la vue courante.
  * Fermeture par la croix ou Échap seulement : un clic à côté ne doit pas
@@ -407,12 +408,10 @@ export async function openCoursSheet(theme) {
   });
 
   try {
-    const rep = await fetch(coursUrl(numero));
-    if (!rep.ok) throw new Error("HTTP " + rep.status);
-    const texte = await rep.text();
+    const cours = await getCours(numero);
+    const texte = cours.corps_md;
 
-    const contexte = { sections: [], essentielVu: false };
-    const noeuds = rendreBlocs(texte.split("\n"), contexte);
+    const { noeuds, contexte } = rendreMarkdown(texte);
 
     clear(corps);
     noeuds.forEach((n) => corps.appendChild(n));
@@ -420,6 +419,14 @@ export async function openCoursSheet(theme) {
     const titre = extraireTitre(texte);
     if (titre) tete.querySelector(".cours-head-titre").textContent = titre;
     meta.textContent = `${contexte.sections.length} sections · ${tempsLecture(texte)} min de lecture`;
+
+    // État formateur/admin : le stagiaire n'a pas à voir la cuisine.
+    if (isAdmin() || isProf()) {
+      const quand = cours.updated_at
+        ? new Date(cours.updated_at).toLocaleDateString("fr-FR") : "";
+      meta.textContent += (cours.published ? " · Publié" : " · Non publié")
+        + (cours.updated_by ? ` · modifié par ${cours.updated_by} le ${quand}` : "");
+    }
 
     // Sommaire : les titres de niveau 2, numérotés comme dans le cours.
     clear(sommaire);

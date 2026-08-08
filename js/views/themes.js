@@ -8,7 +8,7 @@ import { recordUndo } from "../undo.js?v=20260808b";
 import { openQcmEntrainement, openQcmExamen } from "./qcm.js?v=20260808b";
 import { carteSignalement, renderConsoleSignalements } from "./signalements.js?v=20260808b";
 import { renderSubTabs } from "../subtabs.js?v=20260808b";
-import { hasCours, openCoursSheet } from "./cours-reader.js?v=20260808b";
+import { hasCours, openCoursSheet, chargerCoursIndex } from "./cours-reader.js?v=20260808b";
 
 let themes = [];
 let qcmByTheme = new Map();  // theme_id -> { id, nb_questions, published, ... }
@@ -57,6 +57,7 @@ async function loadQcmIndex() {
       listMyQcmAttempts(),
       profile?.stagiaire_id ? listEvaluations({ stagiaire_id: profile.stagiaire_id }) : Promise.resolve([]),
       canManageExam() ? countQcmSignalementsOuverts().catch(() => ({})) : Promise.resolve({}),
+      chargerCoursIndex(),
     ]);
     signalByQcm = signals || {};
     qcmByTheme = new Map(list.filter((q) => q.nb_questions > 0).map((q) => [q.theme_id, q]));
