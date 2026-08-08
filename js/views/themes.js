@@ -6,7 +6,7 @@ import { examenDemarrable, tempsRestantMs, formatTempsRestant,
 import { isAdmin, getAdminEmail, isProf, isStagiaire } from "../auth-admin.js?v=20260801e";
 import { recordUndo } from "../undo.js?v=20260801e";
 import { openQcmEntrainement, openQcmExamen } from "./qcm.js?v=20260801e";
-import { carteSignalement, MOTIF_LABELS } from "./signalements.js?v=20260801e";
+import { carteSignalement } from "./signalements.js?v=20260801e";
 
 let themes = [];
 let qcmByTheme = new Map();  // theme_id -> { id, nb_questions, published, ... }
