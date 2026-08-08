@@ -16,6 +16,12 @@ let myTrainByQcm = new Map();      // qcm_id -> ma dernière tentative entraîne
 let myNoteByThemeNum = new Map();  // theme_numero -> ma note officielle (matrice Notes)
 let signalByQcm = {};              // qcm_id -> nb de signalements ouverts (formateur seulement)
 let lastContainer = null;          // pour rafraîchir la liste après un QCM
+// L'onglet Thèmes partage son nœud d'affichage avec la console des signalements
+// (subtabs.js réutilise un seul panneau). Un repeint asynchrone arrivé alors que
+// l'utilisateur est passé sur la console effacerait ce qu'il regarde : ce jeton dit
+// si l'onglet Thèmes est encore celui qui est affiché. Hors sous-onglets (cas d'un
+// élève, qui n'a pas de barre), il vaut toujours vrai.
+let themesActif = () => true;
 
 // Après un QCM (entraînement ou examen), recharge la liste pour mettre à jour mes notes.
 window.addEventListener("qcm-attempt-saved", async () => {
@@ -1325,6 +1331,9 @@ function refreshStatsInPlace(container) {
 }
 
 function rerender(container) {
+  // Repeint tardif alors que l'utilisateur est passé sur la console : ne rien écrire,
+  // le panneau ne nous appartient plus. Revenir sur l'onglet Thèmes le re-rend de toute façon.
+  if (!themesActif()) return;
   clear(container);
 
   const admin = isAdmin();
@@ -1502,7 +1511,7 @@ export async function renderThemes(container) {
   container.appendChild(renderSubTabs([
     { key: "themes", label: "Thèmes",
       // lastContainer devient le PANNEAU : c'est lui que reload() doit repeindre.
-      render: (p) => { lastContainer = p; rerender(p); } },
+      render: (p, ctx) => { lastContainer = p; themesActif = ctx?.isActive || (() => true); rerender(p); } },
     { key: "signalements", label: "⚑ Signalements",
       render: (p, ctx) => { renderConsoleSignalements(p, { themes, onOuvrirEditeur: ouvrirDepuisConsole, isActive: ctx?.isActive }); } },
   ], { storageKey: "themes.subtab" }));
