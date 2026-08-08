@@ -20,6 +20,7 @@ import { carteSignal, signalConnu } from "../signaux.js?v=20260808b";
 import { carteMarquage, marquageConnu } from "../marquage.js?v=20260808b";
 import { listCoursIndex, getCours } from "../db.js?v=20260808b";
 import { isAdmin, isProf } from "../auth-admin.js?v=20260808b";
+import { titreDepuisMarkdown, tempsLecture } from "../cours-rules.js?v=20260808b";
 
 // Index des cours visibles, chargé une fois par rendu de la page Thèmes.
 let coursIndex = null;  // Map numero -> { id, titre, published, updated_by, updated_at }
@@ -332,17 +333,6 @@ function rendreBlocs(lignes, contexte) {
   return sortie;
 }
 
-/** Titre du cours (première ligne `# `), sans le préfixe « THÈME XX - ». */
-function extraireTitre(texte) {
-  const m = texte.match(/^#\s+(.+)$/m);
-  if (!m) return null;
-  return m[1].replace(/^TH[ÈE]ME\s+\d+\s*[-:]\s*/i, "").trim();
-}
-
-function tempsLecture(texte) {
-  const mots = texte.split(/\s+/).filter(Boolean).length;
-  return Math.max(1, Math.round(mots / 200));
-}
 
 // ===== Écran de lecture =====
 
@@ -416,7 +406,7 @@ export async function openCoursSheet(theme) {
     clear(corps);
     noeuds.forEach((n) => corps.appendChild(n));
 
-    const titre = extraireTitre(texte);
+    const titre = titreDepuisMarkdown(texte);
     if (titre) tete.querySelector(".cours-head-titre").textContent = titre;
     meta.textContent = `${contexte.sections.length} sections · ${tempsLecture(texte)} min de lecture`;
 
