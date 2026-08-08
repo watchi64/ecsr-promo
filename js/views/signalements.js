@@ -95,6 +95,10 @@ export async function renderConsoleSignalements(panel, { themes = [], onOuvrirEd
   let gen = 0;   // chargements concurrents : seule la dernière demande a le droit d'écrire
 
   async function charger() {
+    // Le panneau est partagé entre les sous-onglets. `charger()` peut être rappelé
+    // APRÈS un await de l'appelant (classer() enchaîne sur lui) : si l'utilisateur a
+    // changé d'onglet entre-temps, écrire ici effacerait ce qu'il regarde.
+    if (!isActive()) return;
     const maGen = ++gen;
     clear(panel);
     panel.appendChild(el("div", { class: "loading" }, "Chargement"));
