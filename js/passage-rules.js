@@ -1,4 +1,4 @@
-// Règles PURES de comptage des passages — spec docs/specs/2026-07-19-absences-comptage-placement-design.md.
+// Règles PURES de comptage des passages, spec docs/specs/2026-07-19-absences-comptage-placement-design.md.
 // Module sans dépendance : importé par db.js et planning.js, testable directement en node
 // (tests/passage-rules.test.mjs).
 

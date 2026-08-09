@@ -1,11 +1,11 @@
 import {
   listRessources, addRessource, updateRessource, deleteRessource,
   listContacts, addContact, updateContact, deleteContact,
-} from "../db.js?v=20260809b";
-import { el, clear, toast } from "../utils.js?v=20260809b";
-import { icon } from "../icons.js?v=20260809b";
-import { isAdmin } from "../auth-admin.js?v=20260809b";
-import { recordUndo } from "../undo.js?v=20260809b";
+} from "../db.js?v=20260809c";
+import { el, clear, toast } from "../utils.js?v=20260809c";
+import { icon } from "../icons.js?v=20260809c";
+import { isAdmin } from "../auth-admin.js?v=20260809c";
+import { recordUndo } from "../undo.js?v=20260809c";
 
 let ressources = [];
 let contacts = [];
@@ -126,7 +126,7 @@ function openContactModal(existing, onSaved) {
   const backdrop = el("div", { class: "modal-backdrop" });
 
   const prenomInput = el("input", { type: "text", placeholder: "Prénom (ou nom)", value: existing?.prenom || "" });
-  const roleInput = el("input", { type: "text", placeholder: "Rôle / fonction (ex. Service entreprise — CP)", value: existing?.role || "" });
+  const roleInput = el("input", { type: "text", placeholder: "Rôle / fonction (ex. Service entreprise, CP)", value: existing?.role || "" });
   const phoneInput = el("input", { type: "tel", placeholder: "04 12 34 56 78", value: existing?.phone || "" });
   const emailInput = el("input", { type: "email", placeholder: "email@ecf-sps.fr", value: existing?.email || "" });
   const noteInput = el("input", { type: "text", placeholder: "Note (ex. si X et Y indisponibles)", value: existing?.note || "" });

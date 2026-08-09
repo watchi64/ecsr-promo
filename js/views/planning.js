@@ -7,15 +7,15 @@ import {
   addPassagesBatch, deletePassagesBatch, getPassagesInRange, updateTheme,
   listBenevoles, listBenevolesNoms,
   getVoitureAggregats, listFiches, getSalleAggregats,
-} from "../db.js?v=20260809b";
-import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260809b";
-import { icon } from "../icons.js?v=20260809b";
-import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260809b";
-import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260809b";
-import { recordUndo } from "../undo.js?v=20260809b";
-import { getCurrentWho } from "../identity.js?v=20260809b";
-import { openBenevolesPanel } from "./benevoles.js?v=20260809b";
-import { meilleurResultat } from "../passage-rules.js?v=20260809b";
+} from "../db.js?v=20260809c";
+import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260809c";
+import { icon } from "../icons.js?v=20260809c";
+import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20260809c";
+import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20260809c";
+import { recordUndo } from "../undo.js?v=20260809c";
+import { getCurrentWho } from "../identity.js?v=20260809c";
+import { openBenevolesPanel } from "./benevoles.js?v=20260809c";
+import { meilleurResultat } from "../passage-rules.js?v=20260809c";
 
 let stagiaires = [];
 let profs = [];
@@ -50,7 +50,7 @@ async function setWeekLock(lundi, locked) {
 // hashchange d'undo.js après un Ctrl+Z, événements d'auth supabase (refresh de token,
 // refocus d'onglet) via onAdminChange. Un reset d'editMode au montage éjecterait donc
 // du mode édition en plein travail. Le reset se fait au contraire en QUITTANT la vue
-// (main.js appelle resetPlanningEditMode) et au changement de semaine — mêmes
+// (main.js appelle resetPlanningEditMode) et au changement de semaine : mêmes
 // garanties, sans faux positifs.
 export function resetPlanningEditMode() { editMode = false; }
 
@@ -114,7 +114,7 @@ function frenchHolidays(year) {
 }
 
 // État d'un jour : off (désactivé), son libellé, et s'il est manuel (donc réactivable en 1 clic)
-// ou automatique (férié calculé — pas de ligne en base).
+// ou automatique (férié calculé, pas de ligne en base).
 function dayOffInfo(dayIndex, monday) {
   const manual = joursOff.find((j) => j.day_index === dayIndex);
   if (manual) return { off: true, label: manual.label || "Désactivé", manual: true };
@@ -200,7 +200,7 @@ function rowsFor(d, half) {
 
 // Construit le payload d'upsert (clé de conflit = semaine,jour,demi-journée,slot,lane).
 // La position (slot/lane) identifie la ligne en base : on ne la change jamais lors
-// d'un échange — c'est le contenu qu'on permute (cf. swapEntries).
+// d'un échange : c'est le contenu qu'on permute (cf. swapEntries).
 function entryUpsertPayload(entry) {
   return {
     semaine_lundi: semaineLundi,
@@ -550,7 +550,7 @@ function roleCounts(activite, role, exceptLid) {
 
 // Rôles EFFECTIFS d'un créneau selon la FORME de son activité (ACTIVITY_SHAPES).
 // Quand on change l'activité d'un créneau, la donnée des rôles (tableau/élèves) reste
-// stockée — pratique si on rebascule l'activité — mais un rôle absent de la forme courante
+// stockée (pratique si on rebascule l'activité), mais un rôle absent de la forme courante
 // (ex. élèves restés sur un Cours, ou « au tableau » resté sur une Voiture) ne doit JAMAIS
 // être affiché ni utilisé. Source unique de vérité, utilisée par l'impression et le blocage
 // de créneau (la validation et les compteurs filtrent déjà par activité).
@@ -587,7 +587,7 @@ function effSujets(e) {
 function entryAbsences(e) { return Array.isArray(e.absences) ? e.absences : []; }
 function absenceOf(e, sid) { return entryAbsences(e).find((a) => a.sid === sid) || null; }
 
-// Ids générateurs de passage d'une carte (tableaux salle / élèves voiture) — les seuls
+// Ids générateurs de passage d'une carte (tableaux salle / élèves voiture) : les seuls
 // rôles marquables absents. Sert aussi à purger les absences orphelines (chip retirée,
 // activité changée).
 function passageRoleIds(e) {
@@ -720,7 +720,7 @@ function slotOccupants(entry, exceptField) {
 //  [2] anti jours consécutifs : déclasse qui a déjà une voiture le même jour, la veille
 //      ou le lendemain (voitDays = jours de placement voiture par stagiaire) ;
 //  [3] séances avec élève (historique passages avec_eleve=true + placements de la semaine
-//      sur des créneaux avec bénévoles) — critère principal (équité d'exposition) ;
+//      sur des créneaux avec bénévoles) : critère principal (équité d'exposition) ;
 //  [4] match souhaits × niveau des bénévoles du créneau (0 = matche, 1 = neutre) ;
 //  [5] passages déjà faits avec le prof du créneau (variété formateur) ;
 //  [6] total placements voiture de la semaine (équilibre intra-semaine).
@@ -763,8 +763,8 @@ function cmpScores(a, b) {
 
 // Placements générateurs de passage de la semaine, PAR TYPE (salle-tableau / voiture-
 // élève), par stagiaire. Exclut jours off et la carte cible. Un marqué absent COMPTE
-// (tour consommé — il reste dans son champ de rôle) ; son remplaçant ne compte pas
-// (passage bonus — il n'apparaît que dans entry.absences). Sert à la cascade :
+// (tour consommé, il reste dans son champ de rôle) ; son remplaçant ne compte pas
+// (passage bonus, il n'apparaît que dans entry.absences). Sert à la cascade :
 // 1) rien eu cette semaine → 2) type manquant → 3) retard historique sur le type.
 function weekPassageCountsByType(excludeLid) {
   const salle = {}, voiture = {};
@@ -830,7 +830,7 @@ async function randomFillElevesShared(lid) {
   renderInto(currentContainer);
 }
 
-// Au tableau (groupe 1 ou 2) — cascade (spec 2026-07-19) : priorité à qui n'a encore
+// Au tableau (groupe 1 ou 2), cascade (spec 2026-07-19) : priorité à qui n'a encore
 // AUCUN passage cette semaine, puis à qui n'a pas encore eu de TABLEAU cette semaine,
 // puis le moins passé au tableau, HISTORIQUE des passages Salle inclus (salleStats,
 // Absences comptées), départagé par le compteur intra-semaine. Exclut quiconque est
@@ -861,7 +861,7 @@ async function randomFillPedagogue(lid, group = 1) {
 
 // Voiture : score v2 (couverture « 1 passage chacun », plafond souple 2/semaine, anti jours
 // consécutifs, équité d'exposition). Exclut quiconque est déjà sur le même créneau (carte
-// parallèle, ex. salle) — pas deux endroits à la fois.
+// parallèle, ex. salle) : pas deux endroits à la fois.
 async function randomFillVoitureEleves(lid, count) {
   const entry = entries.find((e) => e._lid === lid);
   if (!entry) return;
@@ -921,7 +921,7 @@ function placementEmpties(e) {
       if (e.pedagogue_id_2 == null) out.push("t2");
       // Élèves partagés entre les 2 groupes : une carte double est « à remplir »
       // seulement si AUCUN des deux groupes n'a d'élèves (un remplissage manuel
-      // partiel d'un seul groupe compte comme placé — côté modulaire respecté).
+      // partiel d'un seul groupe compte comme placé : côté modulaire respecté).
       if (!((e.eleves_ids && e.eleves_ids.length) || (e.eleves_ids_2 && e.eleves_ids_2.length))) out.push("e");
     } else if (!(e.eleves_ids && e.eleves_ids.length)) {
       out.push("e1");
@@ -955,7 +955,7 @@ async function autoPlaceWeek() {
   // Compteurs par rôle (équité). En remélange on repart de zéro ; en remplissage on amorce
   // avec l'existant pour équilibrer autour des places déjà occupées.
   const tab = {}, salleEl = {}, voit = {}, voitAvecEleve = {};
-  const voitDays = {};   // { [stagiaireId]: Set<day_index> } — jours déjà en voiture cette semaine
+  const voitDays = {};   // { [stagiaireId]: Set<day_index> } : jours déjà en voiture cette semaine
   const bump = (m, id) => { if (id != null) m[id] = (m[id] || 0) + 1; };
 
   if (reroll) {
@@ -1057,7 +1057,7 @@ async function autoPlaceWeek() {
   };
 
   // Passe 1 : voiture + TOUS les tableaux salle. On réserve les rares stagiaires libres
-  // de la vague 1 pour l'animation AVANT que les élèves ne les consomment — sinon, sur un
+  // de la vague 1 pour l'animation AVANT que les élèves ne les consomment : sinon, sur un
   // créneau à 2 cartes salle, un tableau G2 pouvait se retrouver sans candidat (règle des
   // vagues : un élève de la vague 1 ne peut pas animer en vague 2 ; constat 2026-07-11).
   for (const e of ordered) {
@@ -1196,7 +1196,7 @@ async function deleteCell(entry) {
 
 // === Composants ===
 
-function selectFromList(items, currentVal, onChange, placeholder = "—") {
+function selectFromList(items, currentVal, onChange, placeholder = "-") {
   const sel = el("select");
   sel.appendChild(el("option", { value: "" }, placeholder));
   items.forEach((it) => {
@@ -1274,7 +1274,7 @@ function profChipsSelect(allProfs, entry, lid) {
     }, "Groupe (autonomie)"));
     // « Autre » : champ nom libre
     const nameInput = el("input", {
-      type: "text", class: "p-prof-autre-input", placeholder: "Autre formateur — nom…",
+      type: "text", class: "p-prof-autre-input", placeholder: "Autre formateur : nom…",
       autocomplete: "off", autocorrect: "off", autocapitalize: "words", spellcheck: "false",
     });
     const commitAutre = (v) => {
@@ -1327,7 +1327,7 @@ function profChipsSelect(allProfs, entry, lid) {
 }
 
 // Badge « nb de fois déjà placé(e) cette semaine dans ce rôle AU PLANNING » (0 = prioritaire).
-// NB : c'est le PLAN, pas un passage enregistré — les passages ne se comptent qu'à « Valider
+// NB : c'est le PLAN, pas un passage enregistré ; les passages ne se comptent qu'à « Valider
 // la semaine ». Sert juste à équilibrer les placements de la semaine en cours.
 function prioBadge(n) {
   return el("span", { class: "prio-count" + (n === 0 ? " zero" : ""), title: "déjà placé(e) cette semaine au planning (≠ passage validé)" }, String(n));
@@ -1339,9 +1339,9 @@ function prioLegend() {
 
 // Sélecteur d'UNE personne (tableau) : même habillage que les chips élèves / profs, trié par
 // priorité (moins passés en tête) avec compteur. counts (optionnel) = map id -> nb de passages.
-// opts (optionnel) : { itemBadge } — badge additionnel par item (ex. « occupé » pour le
+// opts (optionnel) : { itemBadge }, badge additionnel par item (ex. « occupé » pour le
 // sélecteur de remplaçant, qui avertit au lieu d'exclure).
-function personSelect(allStagiaires, currentId, onChange, counts, placeholder = "—", opts = {}) {
+function personSelect(allStagiaires, currentId, onChange, counts, placeholder = "-", opts = {}) {
   const wrap = el("div", { class: "person-select" });
   const display = el("div", { class: "person-display", tabindex: "0" });
   const dropdown = el("div", { class: "chips-dropdown person-dropdown hidden" });
@@ -1395,7 +1395,7 @@ function personSelect(allStagiaires, currentId, onChange, counts, placeholder = 
 // opts (optionnel) : { labelFn, placeholder, itemBadge } pour réutiliser le composant avec
 // d'autres listes que les stagiaires (ex. bénévoles : badge « dispo » à la place du compteur).
 // { chipClassFn, onChipClick } : classe et action au clic sur le CORPS d'une chip (marquage
-// d'absence sur les élèves voiture — la croix garde son rôle de retrait).
+// d'absence sur les élèves voiture : la croix garde son rôle de retrait).
 function chipsSelect(allStagiaires, currentIds, onChange, counts, opts = {}) {
   const { labelFn = displayStagiaire, placeholder = "Stagiaires…", itemBadge = null,
           chipTitleFn = null, chipClassFn = null, onChipClick = null, optionsFn = null } = opts;
@@ -1480,7 +1480,7 @@ function chipsSelect(allStagiaires, currentIds, onChange, counts, opts = {}) {
 
 // Lignes « ⊘ X absent(e) → remplacé(e) par … » d'une carte (spec §5). Sélecteur SOUPLE :
 // tous les stagiaires (moins l'absent), tri par priorité, badge « occupé » à titre
-// d'avertissement AU LIEU d'une exclusion dure — c'est le remplacement de dernière
+// d'avertissement AU LIEU d'une exclusion dure : c'est le remplacement de dernière
 // minute, la personne est souvent déjà dans la salle (cas Céline, 17/07).
 // group (salle uniquement) : ne rend que l'absence du tableau de CE groupe, pour que la
 // ligne vive dans le bloc de son groupe (retour utilisateur 20/07).
@@ -1510,7 +1510,7 @@ function renderAbsenceRows(entry, lid, group = null) {
       el("span", { class: "abs-row-name" }, "⊘ " + (s ? displayStagiaire(s) : "?") + " absent(e) → remplacé(e) par"),
       personSelect(options, a.rid, (id) => setAbsence(lid, a.sid, "replace", id), counts, "personne", {
         itemBadge: (x) => occupied.has(x.id)
-          ? el("span", { class: "prio-badge abs-occupied", title: "Déjà pris sur ce créneau — à toi de juger" }, "occupé")
+          ? el("span", { class: "prio-badge abs-occupied", title: "Déjà pris sur ce créneau : à toi de juger" }, "occupé")
           : null,
       }),
     ));
@@ -1687,7 +1687,7 @@ function buildTableauRole(entry, lid, group) {
   const counts = roleCounts("Pédagogie salle", "pedagogue", lid);
   const options = stagiaires.filter((s) => !blocked.has(s.id) || s.id === currentVal);
   pedaRole.appendChild(personSelect(
-    options, currentVal, (id) => saveEntry(lid, { [field]: id }), counts, "—",
+    options, currentVal, (id) => saveEntry(lid, { [field]: id }), counts, "-",
     { optionsFn: (val) => {
         const b = slotOccupants(entry, exceptField);   // recalculé à l'ouverture (état courant)
         return stagiaires.filter((s) => !b.has(s.id) || s.id === val);
@@ -1704,7 +1704,7 @@ function buildTableauRole(entry, lid, group) {
   if (currentVal != null) {
     pedaRole.appendChild(el("button", {
       class: "p-abs-btn" + (absPeda ? " active" : ""), type: "button",
-      title: absPeda ? "Annuler l'absence" : "Marquer absent(e) — dernière minute (le passage comptera « Absence »)",
+      title: absPeda ? "Annuler l'absence" : "Marquer absent(e) : dernière minute (le passage comptera « Absence »)",
       onClick: () => setAbsence(lid, currentVal, absPeda ? "unmark" : "mark"),
     }, "⊘"));
   }
@@ -1757,7 +1757,7 @@ function renderLaneCell(entry) {
 
   // === Header strip : poignée + activité + prof + delete ===
   const header = el("div", { class: "p-lane-header" });
-  // Poignée de glisse (échange de cartes par drag & drop) — masquée en lecture seule via CSS
+  // Poignée de glisse (échange de cartes par drag & drop) : masquée en lecture seule via CSS
   const dragHandle = el("button", {
     class: "p-lane-drag", type: "button",
     "aria-label": "Glisser pour échanger avec une autre carte",
@@ -1861,7 +1861,7 @@ function renderLaneCell(entry) {
       saveEntry(lid, { eleves_ids: ids });
     }, voitCounts, {
       chipTitleFn: (id) => `${voitureStats[id]?.avecEleve || 0} séance(s) avec élève bénévole au compteur`
-        + (absenceOf(entry, id) ? " · ABSENT(E) — cliquer pour annuler" : " · Cliquer : marquer absent(e)"),
+        + (absenceOf(entry, id) ? " · ABSENT(E) : cliquer pour annuler" : " · Cliquer : marquer absent(e)"),
       chipClassFn: (id) => (absenceOf(entry, id) ? " chip-absent" : ""),
       onChipClick: (id) => setAbsence(lid, id, absenceOf(entry, id) ? "unmark" : "mark"),
       optionsFn: (sel) => {
@@ -1928,7 +1928,7 @@ function renderLaneCell(entry) {
     body.appendChild(participants);
   }
 
-  // === Remplacements d'absents — voiture (en salle, chaque groupe rend les siens) ===
+  // === Remplacements d'absents, voiture (en salle, chaque groupe rend les siens) ===
   if (entry.activite === ACT_VOITURE) body.appendChild(renderAbsenceRows(entry, lid));
 
   // === Notes : discret, en bas ===
@@ -1989,7 +1989,7 @@ function renderSlotRow(d, half, row, maxLanes) {
     el("span", { class: "p-slot-num" }, String(row.slot + 1))
   ));
 
-  // Lanes — grid à `maxLanes` colonnes (+ une colonne fine pour le bouton parallèle)
+  // Lanes : grid à `maxLanes` colonnes (+ une colonne fine pour le bouton parallèle)
   // `has-parallel` : 2+ activités au même horaire → encadrées en groupe sur mobile.
   const lanes = el("div", { class: "p-lanes" + (row.lanes.length > 1 ? " has-parallel" : "") });
   // Grid template : N colonnes de cellules de même largeur + 1 colonne 40px pour le "+"
@@ -2065,7 +2065,7 @@ function renderDayCard(d, monday) {
 
     // Header : bouton d'édition des horaires pour les admins ; simple bandeau statique
     // pour les autres. NE PAS le masquer en lecture seule : il porte MATIN/APRÈS-MIDI,
-    // les horaires et la pause — sans lui, les demi-journées sont indistinguables
+    // les horaires et la pause : sans lui, les demi-journées sont indistinguables
     // (bug élèves 2026-07-03, ancien `.read-only .p-half-head.editable { display:none }`).
     const headBtn = canEditWeek()
       ? el("button", {
@@ -2088,7 +2088,7 @@ function renderDayCard(d, monday) {
     const compact = !canEditWeek();
     if (compact) {
       // Vue compacte : seules les lanes avec contenu, puis les créneaux non vides.
-      // Re-numérotation via _laneRender (champ de RENDU — ne jamais muter entry.lane,
+      // Re-numérotation via _laneRender (champ de RENDU : ne jamais muter entry.lane,
       // qui est persisté) pour que la carte pleine reprenne toute la largeur.
       rows = rows
         .map((r) => ({ ...r, lanes: r.lanes.filter(entryHasContent) }))
@@ -2226,7 +2226,7 @@ async function changeWeek(dateStr) {
   semaineLundi = dateStr;
   // La « semaine affichée » est persistée comme réglage GLOBAL de la promo (table settings,
   // écriture admin-only en RLS) : c'est la semaine que tout le monde retrouve à l'ouverture.
-  // Les non-admins naviguent donc en LOCAL uniquement — persister ici levait une erreur RLS
+  // Les non-admins naviguent donc en LOCAL uniquement : persister ici levait une erreur RLS
   // qui court-circuitait loadPlanning/renderInto → navigation bloquée pour les stagiaires
   // (bug Gaëlle 2026-07-02), alors qu'un stagiaire ne doit de toute façon pas déplacer la
   // semaine courante de toute la promo.
@@ -2242,7 +2242,7 @@ async function disableDay(d) {
   const monday = new Date(semaineLundi + "T00:00:00");
   const info = dayOffInfo(d, monday);
   const def = info.ferie ? info.label : "Vacances";
-  const label = prompt("Désactiver « " + JOURS[d] + " » — libellé (ex. Vacances, Pont, Férié…) :", def);
+  const label = prompt("Désactiver « " + JOURS[d] + " », libellé (ex. Vacances, Pont, Férié…) :", def);
   if (label === null) return;   // annulé
   try {
     await setJourOff(semaineLundi, d, label.trim() || "Désactivé", getCurrentWho());
@@ -2320,7 +2320,7 @@ function openValiderSemaineModal() {
     if (prev) {
       if (c.avec_eleve === true) prev.avec_eleve = true;
       if (prev.prof_id == null) prev.prof_id = c.prof_id;
-      // Fusion des résultats (grain jour) : Effectué > Absence > Bonus — un vrai
+      // Fusion des résultats (grain jour) : Effectué > Absence > Bonus ; un vrai
       // passage n'est jamais écrasé par une absence ni un bonus du même jour.
       const best = meilleurResultat(prev.resultat, c.resultat);
       if (best !== prev.resultat) { prev.resultat = best; prev.remplacant_id = c.remplacant_id ?? null; }
@@ -2554,7 +2554,7 @@ function renderValiderModal(toCreate, already, existKey, themeCandidates) {
   const modal = el("div", { class: "modal valider-modal" },
     el("h3", {}, "Valider la semaine"),
     el("p", { class: "muted", style: "margin:0 0 0.6rem; font-size:0.85rem;" },
-      "Passages déduits du planning des jours écoulés — le planning fait foi. Une absence de dernière minute ? Marque-la sur la carte (⊘) AVANT de valider : elle sera enregistrée « Absence » (comptée) et son remplaçant en « Bonus » (non compté)."),
+      "Passages déduits du planning des jours écoulés : le planning fait foi. Une absence de dernière minute ? Marque-la sur la carte (⊘) AVANT de valider : elle sera enregistrée « Absence » (comptée) et son remplaçant en « Bonus » (non compté)."),
     list,
     lockRow,
     el("div", { class: "modal-actions" }, cancelBtn, saveBtn),
@@ -2584,7 +2584,7 @@ function buildRulesNote() {
   body.appendChild(el("ul", {},
     li("Tous les ", b("groupes 1"), " tournent en même temps, puis tous les ", b("groupes 2"), "."),
     li("Un stagiaire peut donc apparaître dans les deux vagues (ex. élève en G1 puis élève en G2)."),
-    li("Interdit : être élève en G1 ", b("puis"), " au tableau en G2 (il faut le temps de préparer son animation) — ni deux animations d'affilée."),
+    li("Interdit : être élève en G1 ", b("puis"), " au tableau en G2 (il faut le temps de préparer son animation), ni deux animations d'affilée."),
     li("Une personne au plus une fois par vague. Une carte « 1 groupe » occupe tout le créneau."),
   ));
 
@@ -2612,7 +2612,7 @@ function buildRulesNote() {
   body.appendChild(el("p", {}, b("Absences :")));
   body.appendChild(el("ul", {},
     li(b("Dernière minute / pas prévenu"), " : marque la chip absente (⊘) sur la carte. Le passage ", b("compte quand même"), " pour l'absent (son tour est consommé) ; le remplaçant fait un passage ", b("bonus"), " qui ne lui sera pas décompté la semaine suivante."),
-    li(b("Prévenu à l'avance"), " : remplace simplement le nom sur la carte — le remplaçant fait un passage normal, l'absent garde sa priorité."),
+    li(b("Prévenu à l'avance"), " : remplace simplement le nom sur la carte, le remplaçant fait un passage normal, l'absent garde sa priorité."),
   ));
 
   body.appendChild(el("p", {}, b("Stagiaires qui font les élèves (salle) :")));
@@ -2625,11 +2625,11 @@ function buildRulesNote() {
   body.appendChild(el("ul", {},
     li(b("🎲 Placer la semaine"), " : remplit les tableaux d'abord, puis les élèves (demande confirmation, annulable par Ctrl+Z)."),
     li(b("🧹 Vider les placements"), " : retire tous les stagiaires de la semaine, mais garde activités, formateurs, sujets, notes et élèves bénévoles."),
-    li(b("Valider la semaine"), " : le planning fait foi — prévu non marqué = « effectué », marqué ⊘ = « absence » (comptée) + « bonus » pour le remplaçant. Un cas particulier ? Corrige ensuite dans l'onglet Passages."),
+    li(b("Valider la semaine"), " : le planning fait foi, prévu non marqué = « effectué », marqué ⊘ = « absence » (comptée) + « bonus » pour le remplaçant. Un cas particulier ? Corrige ensuite dans l'onglet Passages."),
   ));
 
   body.appendChild(el("p", { class: "planning-rules-foot" },
-    "Le placement fait tourner les stagiaires entre les deux vagues (groupes 1 puis groupes 2), donc un créneau se remplit normalement en entier — même avec deux salles à 2 groupes. Un groupe ne peut se retrouver plus court que si trop peu de stagiaires sont disponibles (en gros, moins de 10 présents) ; c'est alors logique, pas un bug."
+    "Le placement fait tourner les stagiaires entre les deux vagues (groupes 1 puis groupes 2), donc un créneau se remplit normalement en entier, même avec deux salles à 2 groupes. Un groupe ne peut se retrouver plus court que si trop peu de stagiaires sont disponibles (en gros, moins de 10 présents) ; c'est alors logique, pas un bug."
   ));
 
   details.appendChild(body);
@@ -2669,7 +2669,7 @@ let pendingTodayJump = false;
 export function requestPlanningToday() { pendingTodayJump = true; }
 
 // Jour visé : aujourd'hui du lundi au vendredi ; le week-end, « aujourd'hui » n'existe
-// pas au planning (5 jours), on emmène donc au prochain jour utile — le lundi suivant.
+// pas au planning (5 jours), on emmène donc au prochain jour utile : le lundi suivant.
 function todayJumpTarget() {
   const now = new Date();
   const dow = now.getDay();   // 0 = dimanche, 6 = samedi
@@ -2746,7 +2746,7 @@ function renderInto(container) {
   const admin = isAdmin();
   const editing = canEditWeek();
   // Lecture seule dès qu'on n'est pas en édition explicite (stagiaire, admin hors
-  // mode Modifier, ou semaine verrouillée) — la CSS .read-only fait le gros du travail.
+  // mode Modifier, ou semaine verrouillée) : la CSS .read-only fait le gros du travail.
   container.classList.toggle("read-only", !editing);
   // Vue compacte : dès qu'on n'édite pas, pour tous (admin hors mode Modifier, semaine
   // verrouillée, stagiaires). Épuration maximale : le vide n'apporte rien à la lecture,
@@ -2807,7 +2807,7 @@ function renderInto(container) {
   const actionsGroup = el("div", { class: "week-bar-actions" });
   const weekBar = el("div", { class: "week-bar" }, navGroup, actionsGroup);
   // Banque d'élèves bénévoles : accessible aussi en lecture seule (consulter une fiche
-  // ou un téléphone ne doit pas obliger à passer en édition) — mais pas sur semaine
+  // ou un téléphone ne doit pas obliger à passer en édition), mais pas sur semaine
   // verrouillée (barre réduite au badge + Déverrouiller, design validé).
   const bnvBtn = () => el("button", { class: "btn small",
     title: "Banque d'élèves bénévoles (voiture) : fiches, dispos, téléphones",
@@ -2820,7 +2820,7 @@ function renderInto(container) {
 
   const locked = isLocked(semaineLundi);
   if (admin && locked) {
-    // — Semaine verrouillée : badge + Déverrouiller (l'édition passe par le déverrouillage)
+    // - Semaine verrouillée : badge + Déverrouiller (l'édition passe par le déverrouillage)
     actionsGroup.appendChild(el("span", { class: "p-locked-badge", title: "Semaine validée et verrouillée" },
       "✓ Semaine validée"));
     actionsGroup.appendChild(el("button", { class: "btn small ghost p-unlock-btn",
@@ -2831,7 +2831,7 @@ function renderInto(container) {
         renderInto(currentContainer);
       } }, "Déverrouiller"));
   } else if (admin && !editing) {
-    // — Lecture seule (défaut) : Modifier + banque bénévoles
+    // - Lecture seule (défaut) : Modifier + banque bénévoles
     const editBtn = el("button", { class: "btn small primary",
       title: "Passer la semaine affichée en mode édition",
       onClick: () => { editMode = true; renderInto(currentContainer); } });
@@ -2839,7 +2839,7 @@ function renderInto(container) {
     actionsGroup.appendChild(editBtn);
     actionsGroup.appendChild(bnvBtn());
   } else if (admin && editing) {
-    // — Mode édition : Terminer + les 4 boutons habituels
+    // - Mode édition : Terminer + les 4 boutons habituels
     const doneBtn = el("button", { class: "btn small",
       title: "Terminer l'édition (retour en lecture seule)",
       onClick: () => { editMode = false; renderInto(currentContainer); } }, "✓ Terminer");
@@ -2873,22 +2873,22 @@ function renderInto(container) {
   actionsGroup.appendChild(printBtn);
   container.appendChild(weekBar);
   // Barre de jours COLLÉE à la barre de semaine : les deux forment le bloc de
-  // navigation. Le mémo des règles, qui s'intercalait ici, passe sous les jours —
+  // navigation. Le mémo des règles, qui s'intercalait ici, passe sous les jours :
   // c'est de la documentation, pas de la navigation.
   container.appendChild(buildDayNav(monday));
 
   const wrap = el("div", { class: "p-days" });
   JOURS.forEach((_, d) => wrap.appendChild(renderDayCard(d, monday)));
   // Hint découvrabilité (volet 4) : un admin qui clique en lecture seule n'obtient
-  // aucune réaction des cartes (pointer-events coupés) — on lui dit pourquoi.
+  // aucune réaction des cartes (pointer-events coupés) : on lui dit pourquoi.
   if (admin && !editing) {
     wrap.addEventListener("click", () => {
       const now = Date.now();
       if (now - lastHintAt < 5000) return;   // max 1 toast / 5 s
       lastHintAt = now;
       toast(isLocked(semaineLundi)
-        ? "Semaine validée — clique « Déverrouiller » pour corriger"
-        : "Semaine en lecture seule — clique « ✏️ Modifier » pour éditer", "info", 3200);
+        ? "Semaine validée : clique « Déverrouiller » pour corriger"
+        : "Semaine en lecture seule : clique « ✏️ Modifier » pour éditer", "info", 3200);
     });
   }
   container.appendChild(wrap);
@@ -2968,7 +2968,7 @@ function printEntryCell(e, ambig) {
   if (nonEmpty(e.activite)) {
     header.appendChild(el("span", { class: "pp-act" }, e.activite));
   } else {
-    header.appendChild(el("span", { class: "pp-act muted" }, "—"));
+    header.appendChild(el("span", { class: "pp-act muted" }, "-"));
   }
   const profIds = (e.prof_ids && e.prof_ids.length) ? e.prof_ids : (e.prof_id ? [e.prof_id] : []);
   const profParts = profIds.map(lookupProf).filter(Boolean);
@@ -3006,7 +3006,7 @@ function printEntryCell(e, ambig) {
     }
   }
 
-  // Au tableau + Élèves — rôles EFFECTIFS selon la forme de l'activité (ignore une donnée
+  // Au tableau + Élèves : rôles EFFECTIFS selon la forme de l'activité (ignore une donnée
   // périmée d'un rôle absent du type courant : ex. élèves restés sur un Cours, « au tableau »
   // resté sur une Voiture). Noms seulement s'ils se résolvent (évite un label orphelin).
   // « Au tableau » (1 personne) reste en ligne ; les élèves sont listés UN PAR LIGNE.
@@ -3112,7 +3112,7 @@ function buildPrintHtml(monday) {
         .filter((row) => row.lanes.length > 0);
 
       if (rows.length === 0) {
-        halfBlock.appendChild(el("div", { class: "pp-empty" }, "—"));
+        halfBlock.appendChild(el("div", { class: "pp-empty" }, "-"));
       } else {
         rows.forEach((row) => {
           const rowEl = el("div", { class: "pp-row" });
@@ -3141,7 +3141,7 @@ function buildPrintHtml(monday) {
 
 // Le DOM d'impression dédié (#print-container) est monté EN PERMANENCE tant qu'on est sur
 // le planning, rendu HORS ÉCRAN (position:fixed, left:-200vw) mais bien dans le layout
-// (donc MESURABLE — indispensable pour la mise à l'échelle auto). La bascule écran↔impression
+// (donc MESURABLE, indispensable pour la mise à l'échelle auto). La bascule écran↔impression
 // est faite uniquement par `@media print` + la classe `planning-printable` sur <body>.
 // Avantage : marche pour TOUS les chemins (bouton, Cmd/Ctrl+P, Partage→Imprimer iOS, Chrome
 // Android), sans course critique (l'ancien setTimeout retirait le DOM pendant que l'aperçu
@@ -3162,7 +3162,7 @@ const PRINT_FIT_MM = IS_MOBILE ? 148 : 180;     // hauteur cible
 const PRINT_WIDTH_MM = IS_MOBILE ? 230 : 270;   // largeur (zone imprimable mobile plus étroite)
 // Hauteur de COUPE (mm) : un peu AU-DESSUS de la cible (headroom) mais SOUS la zone
 // imprimable → si le rendu print réel sort plus haut que la mesure écran (polices chargées
-// entre-temps, métriques du pilote d'imprimante… — vu sur le PC d'Hocine : planning rogné),
+// entre-temps, métriques du pilote d'imprimante… ; vu sur le PC d'Hocine : planning rogné),
 // l'écart est absorbé au lieu de couper le contenu, et la page reste UNIQUE quoi qu'il arrive.
 const PRINT_CLIP_MM = IS_MOBILE ? 152 : 188;
 
@@ -3313,7 +3313,7 @@ export async function renderPlanning(container) {
   }
   autresProfsMem = parseAutresProfs(await getSetting("profs_autres"));
   // Raccourci « Aujourd'hui » : on force la semaine en cours en LOCAL, sans écrire le
-  // réglage global « current_week_lundi » — c'est une navigation personnelle, elle n'a
+  // réglage global « current_week_lundi » : c'est une navigation personnelle, elle n'a
   // pas à déplacer la semaine affichée pour toute la promo (même logique que pour un
   // stagiaire qui feuillette les semaines).
   const jump = pendingTodayJump ? todayJumpTarget() : null;

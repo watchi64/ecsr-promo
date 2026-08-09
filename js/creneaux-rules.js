@@ -1,4 +1,4 @@
-// Rôles PURS d'un stagiaire sur une carte de planning — spec
+// Rôles PURS d'un stagiaire sur une carte de planning, spec
 // docs/specs/2026-07-23-mon-suivi-creneaux-eleve-salle.md.
 // Module sans dépendance : importé par mon-suivi.js, testable en node
 // (tests/creneaux-rules.test.mjs).

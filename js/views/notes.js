@@ -2,15 +2,15 @@ import {
   listStagiaires, listCompetences, listEvaluations, listThemes,
   addEvaluation, updateEvaluation, deleteEvaluation, listAuditForEvaluation,
   listUserProfiles,
-} from "../db.js?v=20260809b";
-import { el, clear, isoDate, formatDate, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260809b";
-import { icon } from "../icons.js?v=20260809b";
-import { getAdminEmail, isAdmin } from "../auth-admin.js?v=20260809b";
-import { recordUndo } from "../undo.js?v=20260809b";
-import { renderSubTabs } from "../subtabs.js?v=20260809b";
-import { renderEpcf } from "./epcf.js?v=20260809b";
-import { renderEpcfLivret } from "./epcf-livret.js?v=20260809b";
-import { renderDp } from "./dp.js?v=20260809b";
+} from "../db.js?v=20260809c";
+import { el, clear, isoDate, formatDate, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260809c";
+import { icon } from "../icons.js?v=20260809c";
+import { getAdminEmail, isAdmin } from "../auth-admin.js?v=20260809c";
+import { recordUndo } from "../undo.js?v=20260809c";
+import { renderSubTabs } from "../subtabs.js?v=20260809c";
+import { renderEpcf } from "./epcf.js?v=20260809c";
+import { renderEpcfLivret } from "./epcf-livret.js?v=20260809c";
+import { renderDp } from "./dp.js?v=20260809c";
 
 let userProfiles = [];  // pour résoudre l'anonymat par stagiaire_id
 
@@ -107,10 +107,10 @@ const TYPES_EVAL = ["Thème", "Compétence", "Contrôle"];
 
 // Colonnes "spéciales" du tableau matrice (en plus des 57 thèmes)
 const MATRIX_SPECIAL_COLS = [
-  { key: "C1",   label: "C1",   tooltip: "Compétence formateur C1 — Accueillir & sensibiliser SR" },
-  { key: "C2",   label: "C2",   tooltip: "Compétence formateur C2 — Concevoir & animer" },
-  { key: "REMC", label: "REMC", tooltip: "REMC — Vision globale du référentiel mobilité citoyenne" },
-  { key: "MGDE", label: "GDE",  tooltip: "Matrice GDE — Goals for Driver Education" },
+  { key: "C1",   label: "C1",   tooltip: "Compétence formateur C1 : Accueillir & sensibiliser SR" },
+  { key: "C2",   label: "C2",   tooltip: "Compétence formateur C2 : Concevoir & animer" },
+  { key: "REMC", label: "REMC", tooltip: "REMC : Vision globale du référentiel mobilité citoyenne" },
+  { key: "MGDE", label: "GDE",  tooltip: "Matrice GDE : Goals for Driver Education" },
 ];
 
 // Thèmes évalués ENSEMBLE par un seul QCM : une seule note, mais les deux colonnes
@@ -145,7 +145,7 @@ function describeEval(e) {
   if (e.type === "Contrôle") {
     return e.controle_libelle || "Contrôle";
   }
-  return "—";
+  return "-";
 }
 
 function openEditModal(existing, onSaved) {
@@ -153,7 +153,7 @@ function openEditModal(existing, onSaved) {
   const backdrop = el("div", { class: "modal-backdrop" });
 
   const stagiaireSel = el("select");
-  stagiaireSel.appendChild(el("option", { value: "" }, "—"));
+  stagiaireSel.appendChild(el("option", { value: "" }, "-"));
   stagiaires.forEach((s) => {
     const opt = el("option", { value: s.id }, displayStagiaire(s));
     if (existing && existing.stagiaire_id === s.id) opt.selected = true;
@@ -172,7 +172,7 @@ function openEditModal(existing, onSaved) {
   const themeTitre = el("input", { type: "text", placeholder: "Titre du thème (optionnel)", value: existing?.theme_titre || "" });
 
   const compSel = el("select");
-  compSel.appendChild(el("option", { value: "" }, "—"));
+  compSel.appendChild(el("option", { value: "" }, "-"));
   competences.forEach((c) => {
     const opt = el("option", { value: c.code }, `${c.code} · ${c.libelle.slice(0, 60)}${c.libelle.length > 60 ? "…" : ""}`);
     if (existing?.competence_code === c.code) opt.selected = true;
@@ -297,9 +297,9 @@ async function openHistoryModal(evaluation_id) {
           if (JSON.stringify(a.before_data[k]) !== JSON.stringify(a.after_data[k])) {
             diffs.push(el("div", { class: "audit-diff" },
               el("span", { class: "audit-field" }, k),
-              el("span", { class: "audit-before" }, String(a.before_data[k] ?? "—")),
+              el("span", { class: "audit-before" }, String(a.before_data[k] ?? "-")),
               el("span", { class: "audit-arrow" }, "→"),
-              el("span", { class: "audit-after" }, String(a.after_data[k] ?? "—")),
+              el("span", { class: "audit-after" }, String(a.after_data[k] ?? "-")),
             ));
           }
         });
@@ -349,7 +349,7 @@ function renderTable(container) {
   filtered.forEach((e) => {
     const noteCell = el("td", {},
       e.note == null
-        ? el("span", { class: "muted" }, "—")
+        ? el("span", { class: "muted" }, "-")
         : el("span", { class: "note-pill " + noteColor(e.note, e.note_max) },
             el("span", { class: "note-num" }, String(e.note)),
             el("span", { class: "note-max" }, "/" + (e.note_max ?? 20))
@@ -721,7 +721,7 @@ function openStagiaireDetail(stagiaire, themeByNum, container) {
         const cls = cellColorClass(ratio);
         valueWrap.appendChild(el("span", { class: "sd-note " + cls }, String(ev.note)));
       } else {
-        valueWrap.appendChild(el("span", { class: "sd-note empty" }, "—"));
+        valueWrap.appendChild(el("span", { class: "sd-note empty" }, "-"));
       }
       if (admin) {
         valueWrap.classList.add("editable");
@@ -900,7 +900,7 @@ function renderMatrice(container) {
   sortStagiaires(stagiaires, currentNotesSort).forEach((s) => {
     const tr = el("tr");
 
-    // Colonne prénom (sticky) — cliquable pour ouvrir la vue détaillée
+    // Colonne prénom (sticky) : cliquable pour ouvrir la vue détaillée
     const visibleName = displayName(s);
     const nameBtn = el("button", {
       class: "m-name-btn" + (isStagiaireAnonymous(s.id) ? " anon" : ""), type: "button",
@@ -1036,7 +1036,7 @@ function rerender(container) {
   // Panneau « Matrice » = barre d'outils + tableau + synthèse + graphiques.
   // On passe le `container` de la vue (pas le panneau) à renderMatrice : les
   // éditions de cellule appellent refreshAnalyticsInPlace(container), qui
-  // retrouve .notes-synthese/.notes-chart par querySelector — ils restent des
+  // retrouve .notes-synthese/.notes-chart par querySelector, ils restent des
   // descendants du container, dans le panneau.
   const buildMatricePanel = (panel) => {
     panel.appendChild(toolbar);
@@ -1153,8 +1153,8 @@ function renderSynthese() {
       el("span", { class: "notes-kpi-label" }, label),
     );
   }
-  kpis.appendChild(kpi("Moyenne classe", classAvg != null ? (Math.round(classAvg * 10) / 10) + " /20" : "—", cellColorClassFromAvg(classAvg)));
-  kpis.appendChild(kpi("Médiane", classMed != null ? (Math.round(classMed * 10) / 10) + " /20" : "—", cellColorClassFromAvg(classMed)));
+  kpis.appendChild(kpi("Moyenne classe", classAvg != null ? (Math.round(classAvg * 10) / 10) + " /20" : "-", cellColorClassFromAvg(classAvg)));
+  kpis.appendChild(kpi("Médiane", classMed != null ? (Math.round(classMed * 10) / 10) + " /20" : "-", cellColorClassFromAvg(classMed)));
   kpis.appendChild(kpi("Notes saisies", String(rated.length)));
   kpis.appendChild(kpi("Notes < 10/20", String(below10), below10 > 0 ? "bad" : "ok"));
   wrap.appendChild(kpis);

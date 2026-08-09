@@ -1,7 +1,7 @@
-import { listStagiaires, getStats, getSetting } from "../db.js?v=20260809b";
-import { el, clear, isoDate, getMonday, displayStagiaire, compareByNom } from "../utils.js?v=20260809b";
-import { icon } from "../icons.js?v=20260809b";
-import { renderPassages } from "./passages.js?v=20260809b";
+import { listStagiaires, getStats, getSetting } from "../db.js?v=20260809c";
+import { el, clear, isoDate, getMonday, displayStagiaire, compareByNom } from "../utils.js?v=20260809c";
+import { icon } from "../icons.js?v=20260809c";
+import { renderPassages } from "./passages.js?v=20260809c";
 
 const SORT_OPTIONS = [
   { key: "priorite",   label: "Priorité de passage" },
@@ -34,7 +34,7 @@ function sortEnriched(list, mode) {
 // prio = "tours utilisés" = passages faits (+ bonus) + refus/absences. Un refus compte comme un
 // tour : il fait perdre la place de prioritaire, mais le vrai compteur (effectif) reste plus bas.
 // Comptés UNIQUEMENT depuis les passages enregistrés (table `passages`, via « Valider la
-// semaine » ou saisie manuelle) — le planning seul ne compte pas → suivi sans ambiguïté.
+// semaine » ou saisie manuelle) : le planning seul ne compte pas → suivi sans ambiguïté.
 function statForType(s, type) {
   const e = s?.[type]?.["Effectué"] || 0;
   const b = s?.[type]?.["Bonus"] || 0;
@@ -96,7 +96,7 @@ function explainPanel(objSalle, objVoiture) {
     el("div", { class: "dash-explain-body" },
       el("p", {},
         el("strong", {}, "Les passages se comptent à « Valider la semaine »."),
-        " Placer quelqu'un dans le planning, c'est planifier — ça ne compte pas tant que la semaine n'est pas validée. Le tableau de bord n'affiche que les passages enregistrés."),
+        " Placer quelqu'un dans le planning, c'est planifier : ça ne compte pas tant que la semaine n'est pas validée. Le tableau de bord n'affiche que les passages enregistrés."),
       el("p", {},
         el("strong", {}, "Objectif = moyenne de la classe"),
         ` (cette semaine : Salle ${objSalle}, Voiture ${objVoiture}). Au niveau ou au-dessus → `,
@@ -104,7 +104,7 @@ function explainPanel(objSalle, objVoiture) {
         " ; plus le retard est grand, plus c'est prioritaire."),
       el("p", {},
         el("strong", {}, "Un refus ou une absence compte comme un tour utilisé."),
-        " Il fait perdre sa place de prioritaire — refuser n'est donc pas « gratuit ». Mais le vrai compteur de passages, lui, reste en dessous : on redevient prioritaire dès que la classe avance. ",
+        " Il fait perdre sa place de prioritaire : refuser n'est donc pas « gratuit ». Mais le vrai compteur de passages, lui, reste en dessous, on redevient prioritaire dès que la classe avance. ",
         el("strong", {}, "On rattrape son retard, le refus a juste coûté un tour.")),
     ),
   );
@@ -211,7 +211,7 @@ export async function renderDashboard(container) {
   ));
 
   // Historique des passages : fusionné dans le même onglet (c'est la même donnée
-  // vue autrement — priorités au-dessus, détail des passages en dessous).
+  // vue autrement : priorités au-dessus, détail des passages en dessous).
   const passagesSection = el("section", { style: "margin-top:2.5rem" });
   container.appendChild(passagesSection);
   await renderPassages(passagesSection);

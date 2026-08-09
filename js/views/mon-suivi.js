@@ -1,14 +1,14 @@
 import { listStagiaires, listEvaluations, getPlanning, getHalfMetaForWeek, getJoursOff, getSetting,
          listProfs, listEpcf, getEpcfMoyennes, listThemes,
-         getStagiaire, setDateNaissance, listPassages } from "../db.js?v=20260809b";
-import { el, clear, isoDate, getMonday, addDays, formatDate, displayStagiaire, compareByNom, toast } from "../utils.js?v=20260809b";
-import { HALF_DAYS, RESULTATS } from "../config.js?v=20260809b";
-import { isAdmin, isProf, getProfile } from "../auth-admin.js?v=20260809b";
-import { renderEpcfTrameSection } from "../epcf-restitution.js?v=20260809b";
-import { renderSubTabs } from "../subtabs.js?v=20260809b";
-import { renderDp } from "./dp.js?v=20260809b";
-import { rolesPourEntry, ROLE_ORDER } from "../creneaux-rules.js?v=20260809b";
-import { statsPassages } from "../passages-stats.js?v=20260809b";
+         getStagiaire, setDateNaissance, listPassages } from "../db.js?v=20260809c";
+import { el, clear, isoDate, getMonday, addDays, formatDate, displayStagiaire, compareByNom, toast } from "../utils.js?v=20260809c";
+import { HALF_DAYS, RESULTATS } from "../config.js?v=20260809c";
+import { isAdmin, isProf, getProfile } from "../auth-admin.js?v=20260809c";
+import { renderEpcfTrameSection } from "../epcf-restitution.js?v=20260809c";
+import { renderSubTabs } from "../subtabs.js?v=20260809c";
+import { renderDp } from "./dp.js?v=20260809c";
+import { rolesPourEntry, ROLE_ORDER } from "../creneaux-rules.js?v=20260809c";
+import { statsPassages } from "../passages-stats.js?v=20260809c";
 
 const HALF_ORDER = { matin: 0, aprem: 1 };
 
@@ -56,7 +56,7 @@ function dayDateLabel(date) {
   return capitalize(date.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" }));
 }
 
-// Jours fériés français (calculés) + jours désactivés manuellement — même logique que le planning.
+// Jours fériés français (calculés) + jours désactivés manuellement : même logique que le planning.
 function easterSunday(year) {
   const a = year % 19, b = Math.floor(year / 100), c = year % 100;
   const d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25);
@@ -96,7 +96,7 @@ function dayIsOff(joursOff, monday, day_index) {
   return Boolean(frenchHolidays(date.getFullYear())[isoDate(date)]);
 }
 
-// Créneaux du stagiaire sur une semaine : ses passages (tableau salle, conduite —
+// Créneaux du stagiaire sur une semaine : ses passages (tableau salle, conduite,
 // MÊME règle métier que « Valider la semaine ») ET les demi-journées où il est
 // simplement élève dans la salle. Le rôle est porté par le champ `role` :
 // seul `passage` compte comme un passage, `eleve` est de l'affichage.
@@ -141,7 +141,7 @@ async function loadUpcoming(id) {
 
 const TAG_CLASS = { Salle: "salle", Voiture: "voiture", "Élève salle": "eleve" };
 
-// « au tableau : M. Marie · Croisement, puis P. Paul · Priorités » — une vague
+// « au tableau : M. Marie · Croisement, puis P. Paul · Priorités » : une vague
 // par groupe où le stagiaire est élève. Nom ou sujet manquant : on affiche ce
 // qui existe ; les deux manquants : la vague est passée sous silence.
 function tableauxLabel(waves) {
@@ -397,7 +397,7 @@ function renderChartSection(evaluations) {
 }
 
 // « Passages effectués » : compteurs (règle d'équité) + historique détaillé, depuis
-// la MÊME liste listPassages — compteurs et lignes toujours cohérents entre eux.
+// la MÊME liste listPassages : compteurs et lignes toujours cohérents entre eux.
 // Remplace l'« Historique voiture » qui vivait dans l'onglet Évolution : les tuiles
 // et la répartition par formateur déménagent ici, avec la salle en plus.
 function renderEffectuesSection(rows) {
@@ -419,7 +419,7 @@ function renderEffectuesSection(rows) {
       tile(s.avecEleve, "avec élève"),
     ));
 
-  // Répartition par formateur (voiture) — mêmes classes CSS que l'ancien historique.
+  // Répartition par formateur (voiture) : mêmes classes CSS que l'ancien historique.
   const profRows = Object.entries(s.byProf)
     .map(([pid, k]) => ({ nom: profs.find((p) => p.id === Number(pid))?.nom || "?", n: k }))
     .sort((x, y) => y.n - x.n);
@@ -508,7 +508,7 @@ export async function renderMonSuivi(container) {
     body.appendChild(el("div", { class: "loading" }, "Chargement"));
     // Le changement d'élève (select) appelle renderFor hors du routeur : sans ce
     // catch, un échec réseau laissait le corps figé sur « Chargement ». Même boîte
-    // d'erreur que navigate() (main.js), mais dans le corps — l'en-tête et le
+    // d'erreur que navigate() (main.js), mais dans le corps : l'en-tête et le
     // sélecteur restent utilisables.
     let items, evaluations, epcfEvals, stagiaireRow, passRows;
     try {

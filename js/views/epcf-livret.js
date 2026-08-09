@@ -1,4 +1,4 @@
-// Livret officiel EPCF — document ministère du travail TP-01303 (« Livret
+// Livret officiel EPCF : document ministère du travail TP-01303 (« Livret
 // d'évaluations passées en cours de formation »), reproduit à l'identique.
 // Demande d'Hocine (mail du 16/07/2026) : les formateurs le remplissent sur le
 // site par stagiaire, et l'impression doit ressortir EXACTEMENT comme le
@@ -9,12 +9,12 @@
 // Rôles : formateur/admin = liste des stagiaires + remplissage ; stagiaire =
 // consultation de SON livret en lecture seule (imposé par la RLS).
 
-import { listStagiaires, listProfs, listEpcfLivrets, getEpcfLivret, upsertEpcfLivret } from "../db.js?v=20260809b";
-import { el, clear, displayStagiaire, compareByNom, formatDate, toast } from "../utils.js?v=20260809b";
-import { isAdmin, isProf, getProfile } from "../auth-admin.js?v=20260809b";
-import { getCurrentWho } from "../identity.js?v=20260809b";
+import { listStagiaires, listProfs, listEpcfLivrets, getEpcfLivret, upsertEpcfLivret } from "../db.js?v=20260809c";
+import { el, clear, displayStagiaire, compareByNom, formatDate, toast } from "../utils.js?v=20260809c";
+import { isAdmin, isProf, getProfile } from "../auth-admin.js?v=20260809c";
+import { getCurrentWho } from "../identity.js?v=20260809c";
 import { collectData, fillData, applyEditable, wireDocEditing,
-         bindDocPrint, refreshDocPrint, teardownDocPrint } from "../doc-officiel.js?v=20260809b";
+         bindDocPrint, refreshDocPrint, teardownDocPrint } from "../doc-officiel.js?v=20260809c";
 
 // Noms historiques conservés : main.js et le banc d'essai _preview_livret.html
 // les importent depuis ce module. La mécanique vit désormais dans doc-officiel.js,
@@ -377,7 +377,7 @@ function showDoc(container, stagiaire, row, { readOnly, back } = {}) {
   const status = el("span", { class: "lv-status" }, readOnly ? "Lecture seule" : "");
   const toolbar = el("div", { class: "lv-toolbar" });
   if (back) toolbar.appendChild(el("button", { class: "btn small ghost", onClick: () => { teardownLivretPrint(); back(); } }, "← Retour"));
-  toolbar.appendChild(el("h3", {}, "Livret EPCF" + (stagiaire ? " — " + displayStagiaire(stagiaire) : "")));
+  toolbar.appendChild(el("h3", {}, "Livret EPCF" + (stagiaire ? " : " + displayStagiaire(stagiaire) : "")));
   toolbar.appendChild(status);
   toolbar.appendChild(el("button", { class: "btn small primary", onClick: async () => {
     if (!readOnly) await saveNow();
