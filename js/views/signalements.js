@@ -1,14 +1,14 @@
-// Console des signalements, et carte d'un signalement — partagée avec le panneau de
+// Console des signalements, et carte d'un signalement, partagée avec le panneau de
 // l'éditeur de QCM. Une seule fonction produit la carte : les deux écrans ne peuvent
 // donc pas diverger dans leur présentation.
 //
 // Ce module ne connaît PAS l'éditeur : il reçoit `onOuvrirEditeur` de la part de
 // themes.js. Importer themes.js ici créerait un import circulaire entre deux vues.
 
-import { el, clear, formatDate, toast } from "../utils.js?v=20260809a";
-import { etatInstruction, corpsAnalyse, morceaux, grouperParVerdict } from "../qcm-signalement-rules.js?v=20260809a";
-import { listTousSignalements, setQcmSignalementStatut, listStagiaires } from "../db.js?v=20260809a";
-import { getAdminEmail } from "../auth-admin.js?v=20260809a";
+import { el, clear, formatDate, toast } from "../utils.js?v=20260809b";
+import { etatInstruction, corpsAnalyse, morceaux, grouperParVerdict } from "../qcm-signalement-rules.js?v=20260809b";
+import { listTousSignalements, setQcmSignalementStatut, listStagiaires } from "../db.js?v=20260809b";
+import { getAdminEmail } from "../auth-admin.js?v=20260809b";
 
 export const MOTIF_LABELS = {
   reponse_fausse: "Réponse fausse",
@@ -116,7 +116,7 @@ const STATUTS_CONSOLE = [
 
 // La console : tous les signalements au même endroit, rangés par ce qu'ils demandent
 // comme travail. `themes` sert uniquement à retrouver le libellé d'un thème depuis son
-// id — la console ne fait aucune requête sur les thèmes.
+// id, la console ne fait aucune requête sur les thèmes.
 export async function renderConsoleSignalements(panel, { themes = [], onOuvrirEditeur = null, isActive = () => true } = {}) {
   let statut = "ouvert";
   const titreThemeDe = new Map(themes.map((t) => [t.id, (t.numero != null ? String(t.numero).padStart(2, "0") + " · " : "") + t.titre]));

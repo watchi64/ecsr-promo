@@ -1,10 +1,10 @@
 /* ============================================================
-   TP ECSR — Design system v3
+   TP ECSR, Design system v3
    Crème ivoire + espresso + accent racing.
    Inspiration : darb + Good Luck Racing + Auto Trade.
    ============================================================ */
 
-/* Self-host Canela (Commercial Type — display serif) */
+/* Self-host Canela (Commercial Type, display serif) */
 @font-face {
   font-family: "Canela";
   src: url("fonts/canela_light.otf") format("opentype");
@@ -28,7 +28,7 @@
 }
 
 :root {
-  /* --- Neutrals — Mint éditorial (seul thème actif) --- */
+  /* --- Neutrals, Mint éditorial (seul thème actif) --- */
   --bg:        #F1F4F0;
   --bg-elev:   #FBFCFA;
   --bg-soft:   #E7ECE3;
@@ -728,7 +728,7 @@ h3 {
 }
 
 
-/* Layout en cards par jour — empilées verticalement, lanes en parallèle horizontales */
+/* Layout en cards par jour, empilées verticalement, lanes en parallèle horizontales */
 
 .p-days {
   display: flex;
@@ -1961,7 +1961,7 @@ h3 {
   .agenda-date-day { font-size: 1.25rem; }
 }
 
-/* Bouton tirage aléatoire (dé) — discret, à côté des chips élèves */
+/* Bouton tirage aléatoire (dé), discret, à côté des chips élèves */
 .p-dice-btn {
   flex: 0 0 auto;
   background: var(--bg-elev);
@@ -2168,7 +2168,7 @@ body.p-dragging-active {
 
 /* === Add buttons === */
 
-/* Bouton parallèle compact — barre verticale au bout */
+/* Bouton parallèle compact, barre verticale au bout */
 .p-add-parallele-mini {
   align-self: stretch;
   width: 32px;
@@ -3293,7 +3293,7 @@ button.theme-date.editable.muted { color: var(--text-faint); }
 
 .tag.salle { background: var(--act-peda); color: #92400E; border-color: var(--act-peda-border); }
 .tag.voiture { background: var(--act-voiture); color: #166534; border-color: var(--act-voiture-border); }
-/* Élève en salle : une présence, pas un passage — volontairement en retrait des
+/* Élève en salle : une présence, pas un passage, volontairement en retrait des
    tags colorés Salle / Voiture. */
 .tag.eleve { background: var(--bg-subtle); color: var(--text-soft); border-color: var(--line); }
 .tag.effectue { background: var(--c-go-soft); color: var(--c-go); }
@@ -3610,7 +3610,7 @@ button.theme-date.editable.muted { color: var(--text-faint); }
 .info-list dd a { color: var(--accent); text-decoration: underline; }
 .info-list dd a:hover { color: var(--accent-strong); }
 
-/* Backward compat — anciennes classes (Promo block réutilise) */
+/* Backward compat, anciennes classes (Promo block réutilise) */
 
 .config-section { background: var(--bg-elev); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 1.5rem 1.6rem; }
 .config-section h3 { margin: 0 0 0.75rem; font-family: var(--font-display); font-size: 1.5rem; font-weight: 700; }
@@ -4026,7 +4026,7 @@ button.theme-date.editable.muted { color: var(--text-faint); }
 }
 
 /* ============================================================
-   Notes — pills & types
+   Notes, pills & types
    ============================================================ */
 
 .note-pill {
@@ -4054,7 +4054,7 @@ button.theme-date.editable.muted { color: var(--text-faint); }
 .tag.eval-type-controle   { background: var(--act-controle); color: #9A3412; border-color: var(--act-controle-border); }
 
 /* ============================================================
-   Notes — Matrice (toolbar date + cellules + édition inline)
+   Notes, Matrice (toolbar date + cellules + édition inline)
    ============================================================ */
 
 .matrice-toolbar {
@@ -4760,7 +4760,7 @@ button.theme-date.editable.muted { color: var(--text-faint); }
    contrôles d'ÉDITION du planning, jamais la NAVIGATION. Tant que `.read-only`
    n'était posé que pour les stagiaires, la nuance ne se voyait pas ; depuis que
    la lecture seule est le mode par défaut (spec 2026-07-20), un sélecteur trop
-   large neutralise aussi le champ de date de la barre de semaine — c'est arrivé,
+   large neutralise aussi le champ de date de la barre de semaine, c'est arrivé,
    la navigation par mois était devenue impossible pour les formateurs.
    ============================================================ */
 
@@ -4792,7 +4792,7 @@ button.theme-date.editable.muted { color: var(--text-faint); }
 .read-only .p-dice-picker { display: none !important; }
 /* Le bandeau de demi-journée (MATIN/APRÈS-MIDI + horaires + pause) reste VISIBLE en
    lecture seule : le JS rend un div statique (non éditable) aux non-admins.
-   Ne jamais le re-masquer ici — sans lui les demi-journées sont indistinguables. */
+   Ne jamais le re-masquer ici, sans lui les demi-journées sont indistinguables. */
 .read-only .p-half-head { cursor: default; }
 /* Sélecteur de formateur : c'est une div `tabindex=0` qui ouvre un menu au clic, pas un
    <select>, donc les règles génériques plus haut ne l'atteignaient pas. En lecture seule
@@ -5309,7 +5309,7 @@ button.theme-date.editable.muted { color: var(--text-faint); }
    ============================================================ */
 
 /* ============================================================
-   Print / PDF — DOM dédié (rendu compact 1 page A4 paysage)
+   Print / PDF, DOM dédié (rendu compact 1 page A4 paysage)
    ============================================================ */
 
 @page {
@@ -5337,7 +5337,7 @@ button.theme-date.editable.muted { color: var(--text-faint); }
   pointer-events: none;
 }
 
-/* Reset — police chargée par l'app (Outfit) → rendu identique sur tous les OS. */
+/* Reset, police chargée par l'app (Outfit) → rendu identique sur tous les OS. */
 #print-container .print-root,
 #print-container .print-root * {
   color: #000;
@@ -5623,7 +5623,7 @@ button.theme-date.editable.muted { color: var(--text-faint); }
 }
 
 /* ============================================================
-   QCM — puce (liste), bloc modale, player plein écran
+   QCM, puce (liste), bloc modale, player plein écran
    ============================================================ */
 
 /* Puce d'entraînement sous le titre du thème */
@@ -5797,7 +5797,7 @@ body.qcm-open { overflow: hidden; }
 }
 
 /* ============================================================
-   Fondateur — « Voir en tant que » (aperçu de rôle)
+   Fondateur, « Voir en tant que » (aperçu de rôle)
    ============================================================ */
 
 /* Sélecteur dans le menu profil */
@@ -6045,7 +6045,7 @@ body.qcm-open { overflow: hidden; }
 .ms-axis-label.small { font-size: 10px; }
 .ms-avg-line { fill: none; stroke: var(--accent); stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
 /* Le point visible ne capte rien : c'est .ms-pt-hit (transparent, plus large) qui
-   reçoit survol et tap — indispensable pour viser au doigt sur mobile. */
+   reçoit survol et tap, indispensable pour viser au doigt sur mobile. */
 .ms-pt { stroke: var(--bg-elev); stroke-width: 1.5; pointer-events: none; }
 .ms-pt-hit { fill: transparent; stroke: none; cursor: pointer; }
 .ms-pt.bad   { fill: var(--c-stop); }
@@ -6087,7 +6087,7 @@ body.qcm-open { overflow: hidden; }
 .histo-prof-bar-fill { display: block; height: 100%; background: var(--accent); border-radius: 999px; }
 .histo-prof-n { flex: 0 0 auto; font-size: 0.82rem; }
 
-/* ===== Mon suivi — historique ===== */
+/* ===== Mon suivi, historique ===== */
 .suivi-histo { background: var(--bg-subtle); border-radius: var(--r); padding: 0.9rem 1.1rem; }
 
 /* ===== Sous-onglets (navigation interne à une vue : Mon suivi, Notes…) ===== */
@@ -6179,7 +6179,7 @@ body.qcm-open { overflow: hidden; }
 .epcf-name-cell { display: flex; align-items: center; gap: 0.6rem; justify-content: space-between; }
 .epcf-name { font-weight: 500; }
 
-/* ===== EPCF — responsive mobile. Bloc SÉPARÉ du @media principal (plus haut dans le
+/* ===== EPCF, responsive mobile. Bloc SÉPARÉ du @media principal (plus haut dans le
    fichier) : placé APRÈS les règles EPCF pour gagner la cascade à spécificité égale.
    Toute règle mobile EPCF doit venir ICI, jamais dans le @media principal (sinon la
    règle d'ici l'écraserait silencieusement). Même seuil maison : 760px. ===== */
@@ -6208,7 +6208,7 @@ body.qcm-open { overflow: hidden; }
 
 
 /* ============================================================
-   OVERRIDES DE FIN DE FICHIER — verrou, mode édition, vue compacte,
+   OVERRIDES DE FIN DE FICHIER, verrou, mode édition, vue compacte,
    barre de jours (specs 2026-07-20, volets 1 à 6).
    ⚠️ Ce bloc DOIT rester en fin de fichier : plusieurs de ses règles ont la
    même spécificité que les règles de base du planning (ex. .p-compact
@@ -6269,7 +6269,7 @@ body.qcm-open { overflow: hidden; }
 
 /* ============================================================
    Vue compacte (semaine verrouillée) : le vide disparaît,
-   les espacements se resserrent — spec 2026-07-20.
+   les espacements se resserrent, spec 2026-07-20.
    ============================================================ */
 .p-compact .is-empty { display: none !important; }
 .p-compact .p-lane-cell { padding: 0.4rem 0.55rem; }
@@ -6441,7 +6441,7 @@ body.qcm-open { overflow: hidden; }
 @media print { .p-daynav { display: none !important; } }
 
 /* ============================================================
-   Mon suivi — historique des passages effectués (volet 2026-07-23)
+   Mon suivi, historique des passages effectués (volet 2026-07-23)
    Bloc en FIN de fichier : l'ordre de déclaration départage les
    spécificités égales (piège documenté du 2026-07-20).
    ============================================================ */
@@ -6835,7 +6835,7 @@ body.qcm-open { overflow: hidden; }
 .qcm-signal-instr-vide {
   margin: 0.5rem 0 0; font-size: 0.76rem; font-style: italic; color: var(--text-muted);
 }
-/* Réponse visée par le signalement : factuelle, pas une alerte — c'est un repère de
+/* Réponse visée par le signalement : factuelle, pas une alerte, c'est un repère de
    lecture, au même rang que le motif. */
 .qcm-signal-item-option {
   font-size: 0.82rem; color: var(--text-muted);
@@ -6861,10 +6861,10 @@ body.qcm-open { overflow: hidden; }
 }
 /* La ligne de contexte concaténée (thème · QCM · énoncé) et sa troncature à deux lignes
    ont disparu : le thème est passé en surtitre, le titre du QCM a été retiré comme
-   redondant, et l'énoncé porte seul le titre — il n'a plus besoin d'être rogné. */
+   redondant, et l'énoncé porte seul le titre, il n'a plus besoin d'être rogné. */
 
 /* Question atteinte depuis la console : un halo bref, le temps de la retrouver des yeux.
-   Neutre à dessein — ce n'est pas un état de la question, juste un repère de navigation. */
+   Neutre à dessein, ce n'est pas un état de la question, juste un repère de navigation. */
 .qcm-editor-card-cible {
   box-shadow: 0 0 0 2px var(--text-muted);
   transition: box-shadow 0.4s ease;
@@ -6872,7 +6872,7 @@ body.qcm-open { overflow: hidden; }
 
 /* Dans la console, chaque signalement est une carte détachée. Le filet de 1 px qui
    suffit dans le panneau de l'éditeur s'y perd : les signalements s'enchaînent, et
-   l'encart d'avis — gris et large — noie la limite entre deux cartes. Fond clair
+   l'encart d'avis, gris et large, noie la limite entre deux cartes. Fond clair
    plutôt que gris, pour que l'encart d'avis ressorte À L'INTÉRIEUR de sa carte. */
 .signal-console-carte {
   margin-bottom: 0.9rem; padding: 0.75rem 0.9rem;
@@ -6886,7 +6886,7 @@ body.qcm-open { overflow: hidden; }
 
 /* --- Hiérarchie de lecture d'une carte de signalement ------------------------------
    On lit dans cet ordre : ce qui est visé, le grief, puis qui l'a écrit. Le surtitre
-   situe sans peser, le titre porte, le commentaire de l'élève est le contenu utile —
+   situe sans peser, le titre porte, le commentaire de l'élève est le contenu utile -
    c'est lui qu'on vient chercher, il ne peut pas rester le plus maigre de la carte. */
 .qcm-signal-item-surtitre {
   font-size: 0.7rem; font-weight: 700; letter-spacing: 0.04em;

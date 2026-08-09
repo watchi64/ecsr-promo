@@ -1,14 +1,14 @@
 /*
- * QCM — player plein écran.
+ * QCM, player plein écran.
  * Entraînement (libre, correction à la validation, non comptée) + Examen (tirage N, une passe, note).
  * Multi-réponses : une question peut avoir plusieurs bonnes réponses.
  * Juste = ensemble coché == ensemble des bonnes réponses (toutes les bonnes, aucune fausse).
  */
-import { el, clear, toast, formatDate } from "../utils.js?v=20260809a";
-import { icon } from "../icons.js?v=20260809a";
+import { el, clear, toast, formatDate } from "../utils.js?v=20260809b";
+import { icon } from "../icons.js?v=20260809b";
 import { getQcmFull, insertQcmAttempt, getMyProfile, getMyExamAttempt, listMyQcmAttemptsFor,
-         createQcmSignalement } from "../db.js?v=20260809a";
-import { examenDemarrable, tempsRestantMs, formatTempsRestant } from "../qcm-exam-rules.js?v=20260809a";
+         createQcmSignalement } from "../db.js?v=20260809b";
+import { examenDemarrable, tempsRestantMs, formatTempsRestant } from "../qcm-exam-rules.js?v=20260809b";
 
 const MOTIFS = [
   ["reponse_fausse", "La réponse indiquée me semble fausse"],
@@ -218,7 +218,7 @@ function runEntrainement(theme, full, questions, badge = "Entraînement") {
   let score = 0;
   const answers = {}; // question_id -> tableau d'ids d'options cochées
   // Comme en examen : ordre d'affichage des options mélangé, stable par question pendant la passe
-  // (la banque peut stocker la bonne réponse en tête — ne jamais afficher l'ordre de la base).
+  // (la banque peut stocker la bonne réponse en tête, ne jamais afficher l'ordre de la base).
   let optOrder = new Map(questions.map((q) => [q.id, shuffle(q.options || [])]));
 
   const overlay = el("div", { class: "qcm-overlay" });

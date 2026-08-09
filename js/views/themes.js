@@ -1,13 +1,13 @@
-import { listThemes, updateTheme, addTheme, deleteTheme, listQcmIndex, getQcmFull, publishQcm, unpublishQcm, updateExamConfig, listExamAttempts, resetExamAttempt, listMyQcmAttempts, getMyProfile, listEvaluations, getOrCreateQcm, saveQcmQuestion, deleteQcmQuestion, reorderQcmQuestions, uploadQcmImage, listQcmSignalements, setQcmSignalementStatut, countQcmSignalementsOuverts } from "../db.js?v=20260809a";
-import { el, clear, isoDate, formatDate, toast, debounce } from "../utils.js?v=20260809a";
-import { icon } from "../icons.js?v=20260809a";
+import { listThemes, updateTheme, addTheme, deleteTheme, listQcmIndex, getQcmFull, publishQcm, unpublishQcm, updateExamConfig, listExamAttempts, resetExamAttempt, listMyQcmAttempts, getMyProfile, listEvaluations, getOrCreateQcm, saveQcmQuestion, deleteQcmQuestion, reorderQcmQuestions, uploadQcmImage, listQcmSignalements, setQcmSignalementStatut, countQcmSignalementsOuverts } from "../db.js?v=20260809b";
+import { el, clear, isoDate, formatDate, toast, debounce } from "../utils.js?v=20260809b";
+import { icon } from "../icons.js?v=20260809b";
 import { examenDemarrable, tempsRestantMs, formatTempsRestant,
-         echeanceDepuisChoix, DUREES_OUVERTURE } from "../qcm-exam-rules.js?v=20260809a";
-import { isAdmin, getAdminEmail, isProf, isStagiaire } from "../auth-admin.js?v=20260809a";
-import { recordUndo } from "../undo.js?v=20260809a";
-import { openQcmEntrainement, openQcmExamen } from "./qcm.js?v=20260809a";
-import { carteSignalement, renderConsoleSignalements, chargerAuteurs } from "./signalements.js?v=20260809a";
-import { renderSubTabs } from "../subtabs.js?v=20260809a";
+         echeanceDepuisChoix, DUREES_OUVERTURE } from "../qcm-exam-rules.js?v=20260809b";
+import { isAdmin, getAdminEmail, isProf, isStagiaire } from "../auth-admin.js?v=20260809b";
+import { recordUndo } from "../undo.js?v=20260809b";
+import { openQcmEntrainement, openQcmExamen } from "./qcm.js?v=20260809b";
+import { carteSignalement, renderConsoleSignalements, chargerAuteurs } from "./signalements.js?v=20260809b";
+import { renderSubTabs } from "../subtabs.js?v=20260809b";
 
 let themes = [];
 let qcmByTheme = new Map();  // theme_id -> { id, nb_questions, published, ... }
@@ -261,7 +261,7 @@ function openQcmSheet(theme, qcm) {
 // « Modifier » ouvre une modale regroupant l'édition de la banque, les questions
 // (au hasard / à la main), le temps et les tentatives.
 // onPublishChange : re-rend la fiche entière après Publier/Dépublier (le panneau
-// courant est alors remplacé — ne plus toucher à ses nœuds après l'appel).
+// courant est alors remplacé, ne plus toucher à ses nœuds après l'appel).
 function themeExamPanel(theme, qcm, onPublishChange) {
   const panel = el("div", { class: "theme-exam-panel" });
   const status = el("p", { class: "theme-exam-status" });
@@ -547,12 +547,12 @@ async function openQcmEditor(theme, qcmId, questionIdCible = null, onFerme = nul
     document.body.classList.remove("qcm-open");
     // La banque a changé (nb_questions, existence) : rafraîchir la liste des thèmes.
     // Ouvert depuis la console : c'est elle qu'il faut rafraîchir, pas la liste des
-    // thèmes — qui n'est même pas affichée.
+    // thèmes, qui n'est même pas affichée.
     if (dirty && onFerme) { onFerme().catch(() => { /* refresh silencieux */ }); }
     else if (dirty && lastContainer) { reload(lastContainer).catch(() => { /* refresh silencieux */ }); }
   }
   // Pas de fermeture au clic à côté : un clic involontaire sortait de l'écran d'édition.
-  // On sort par la croix ou par Échap — et Échap ne s'applique pas si un formulaire
+  // On sort par la croix ou par Échap, et Échap ne s'applique pas si un formulaire
   // de question est ouvert par-dessus (c'est lui qui gère alors la touche).
   function onEditorKey(e) {
     if (e.key !== "Escape") return;
@@ -1117,7 +1117,7 @@ function renderThemeRow(theme, container) {
   const statutNorm = normalizeStatut(theme.statut);
   const color = statutNorm === "Fait" ? "done" : "todo";
 
-  // Statut chip cliquable (admin only) — toggle binaire
+  // Statut chip cliquable (admin only), toggle binaire
   const statutChip = el(admin ? "button" : "span", {
     class: "theme-statut " + color + (admin ? " clickable" : ""),
     type: admin ? "button" : undefined,
@@ -1143,7 +1143,7 @@ function renderThemeRow(theme, container) {
     notesInput.addEventListener("input", () => debouncedNoteSave(theme)(notesInput.value));
   }
 
-  // Date — éditable si admin
+  // Date, éditable si admin
   let dateLabel;
   if (admin) {
     dateLabel = el("button", {
@@ -1296,7 +1296,7 @@ const FAMILLES_BASE = [
 ];
 
 // Famille filet de sécurité : le rendu ne parcourt que FAMILLES, donc une entrée
-// qui ne correspond à aucune famille n'était affichée NULLE PART — seulement
+// qui ne correspond à aucune famille n'était affichée NULLE PART, seulement
 // comptée dans « Tout ». C'est ce qui a rendu les 3 QCM transversaux invisibles.
 // Cette famille attrape toute catégorie future non prévue ici.
 const FAMILLES = [
@@ -1525,7 +1525,7 @@ export async function renderThemes(container) {
   // Un montage précédent a pu laisser ces deux références derrière lui : le panneau
   // qu'elles désignent est mort, et le jeton d'activation qu'elles portent est figé sur
   // l'onglet d'alors. Les repartir de zéro à chaque montage évite qu'un rendu tardif
-  // n'écrive dans un écran disparu — ou refuse d'écrire dans celui qui vient de naître.
+  // n'écrive dans un écran disparu, ou refuse d'écrire dans celui qui vient de naître.
   lastContainer = null;
   themesActif = () => true;
   container.appendChild(el("div", { class: "loading" }, "Chargement"));
@@ -1552,7 +1552,7 @@ function ouvrirDepuisConsole(s, rechargerConsole) {
   const qcm = s.question?.qcm;
   const theme = themes.find((t) => t.id === qcm?.theme_id);
   if (!theme || !qcm) { toast("Thème introuvable pour ce QCM.", "error"); return; }
-  // Au retour de l'éditeur, la console doit refléter ce qui vient d'être fait — et les
+  // Au retour de l'éditeur, la console doit refléter ce qui vient d'être fait, et les
   // badges ⚑ de la liste des thèmes avec elle, sinon ils annoncent un compte périmé.
   openQcmEditor(theme, qcm.id, s.question_id, async () => {
     await loadQcmIndex();

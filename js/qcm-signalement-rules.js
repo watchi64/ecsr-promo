@@ -1,6 +1,6 @@
 // Règles d'affichage de l'instruction automatique d'un signalement.
 // Module PUR : aucun DOM, aucun réseau, aucune écriture. L'application ne produit jamais
-// un verdict, elle ne fait que le lire — c'est le second verrou de la règle non négociable.
+// un verdict, elle ne fait que le lire, c'est le second verrou de la règle non négociable.
 
 export const VERDICTS = {
   fonde:         "Signalement fondé",
