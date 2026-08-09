@@ -1,6 +1,6 @@
-// Trames EPCF (grilles d'évaluation officielles d'Hocine, CCP1 — 09/07/2026).
+// Trames EPCF (grilles d'évaluation officielles d'Hocine, CCP1, 09/07/2026).
 //
-// VERSIONNAGE — règle stricte : une version publiée ne se modifie JAMAIS en place
+// VERSIONNAGE, règle stricte : une version publiée ne se modifie JAMAIS en place
 // (des évals en base portent trame_version et doivent réafficher leur définition).
 // Pour faire évoluer une grille : (1) copier l'objet actuel sous un export d'archive
 // (ex. EPCF_TRAMES_V1), (2) créer la nouvelle définition avec version: 2,
@@ -8,7 +8,7 @@
 // qu'une version, EPCF_TRAMES[trame] suffit.
 //
 // UNICITÉ DES CODES : les codes critères (EVAL1, BILEV2…) ne sont uniques que
-// PAR trame — jamais globalement (EVAL4 salle ≠ EVAL4 véhicule). Tout helper de
+// PAR trame, jamais globalement (EVAL4 salle ≠ EVAL4 véhicule). Tout helper de
 // lookup doit prendre (trame, code), jamais un code seul.
 
 export const NOTE_VALUES = { A: 2, R: 1, NA: 0 };
@@ -18,13 +18,13 @@ export const NOTE_LABELS = { A: "Acquis", R: "À renforcer", NA: "Non acquis" };
 // visuellement les blocs sur le radar et le détail. Teintes CHOISIES HORS
 // vert/ambre/rouge pour ne pas entrer en conflit avec les notes A/R/NA.
 export const EPCF_PHASE_COLORS = {
-  PREP:  "#5E81AC",  // bleu       (salle — préparation)
-  ANIM:  "#A3799F",  // mauve      (salle — animation)
-  COND:  "#4F8FA6",  // bleu-canard(véhicule — animation conduite)
-  EVAL:  "#8C6BB1",  // violet     (partagé salle/véhicule — évaluations)
-  BILEV: "#6C88C4",  // bleu clair (partagé — bilan & objectif)
-  BILAN: "#9C7B5A",  // taupe      (partagé — bilan final)
-  PERC:  "#3F9C8E",  // teal       (véhicule — perception C7)
+  PREP:  "#5E81AC",  // bleu       (salle, préparation)
+  ANIM:  "#A3799F",  // mauve      (salle, animation)
+  COND:  "#4F8FA6",  // bleu-canard(véhicule, animation conduite)
+  EVAL:  "#8C6BB1",  // violet     (partagé salle/véhicule, évaluations)
+  BILEV: "#6C88C4",  // bleu clair (partagé, bilan & objectif)
+  BILAN: "#9C7B5A",  // taupe      (partagé, bilan final)
+  PERC:  "#3F9C8E",  // teal       (véhicule, perception C7)
 };
 
 export const EPCF_TRAMES = {
@@ -40,7 +40,7 @@ export const EPCF_TRAMES = {
       {
         code: "PREP", court: "Préparation",
         titre: "Préparation (de X minutes)",
-        competenceTP: "1 — Construire et préparer le scénario d'une séance collective de formation",
+        competenceTP: "1. Construire et préparer le scénario d'une séance collective de formation",
         criteres: [
           { code: "PREP1", libelle: "Les objectifs sont ciblés pour des élèves conducteurs." },
           { code: "PREP2", libelle: "Une hiérarchie des objectifs est établie suivant le parcours des élèves." },
@@ -52,7 +52,7 @@ export const EPCF_TRAMES = {
       {
         code: "ANIM", court: "Animation",
         titre: "Cours, explication, application",
-        competenceTP: "2 — Animer une séance collective de formation à la sécurité routière",
+        competenceTP: "2. Animer une séance collective de formation à la sécurité routière",
         criteres: [
           { code: "ANIM1", libelle: "Le plan est en lien avec l'objectif." },
           { code: "ANIM2", libelle: "Utilise-t-il les connaissances des élèves ?" },
@@ -66,7 +66,7 @@ export const EPCF_TRAMES = {
       {
         code: "EVAL", court: "Évaluations",
         titre: "Évaluation générale statique · Évaluation spécifique statique · Évaluation finale",
-        competenceTP: "4 — Évaluer le degré d'acquisition des compétences des apprenants",
+        competenceTP: "4. Évaluer le degré d'acquisition des compétences des apprenants",
         criteres: [
           { code: "EVAL1", libelle: "Explique-t-il l'intérêt de l'évaluation ?" },
           { code: "EVAL2", libelle: "Cherche-t-il à connaître les élèves ?" },
@@ -80,7 +80,7 @@ export const EPCF_TRAMES = {
       {
         code: "BILEV", court: "Bilan & objectif",
         titre: "Bilan des évaluations · Détermination de l'objectif",
-        competenceTP: "6 — Repérer les difficultés d'apprentissage et essayer d'y remédier",
+        competenceTP: "6. Repérer les difficultés d'apprentissage et essayer d'y remédier",
         criteres: [
           { code: "BILEV1", libelle: "Repérer les difficultés d'apprentissage particulières des élèves." },
           { code: "BILEV2", libelle: "Identifier les difficultés d'apprentissage particulières des élèves." },
@@ -112,7 +112,7 @@ export const EPCF_TRAMES = {
       {
         code: "COND", court: "Animation conduite",
         titre: "Explication, démonstration, guidage, autonomie, répétition",
-        competenceTP: "3 — Animer une séance individuelle de formation à la conduite d'un véhicule léger",
+        competenceTP: "3. Animer une séance individuelle de formation à la conduite d'un véhicule léger",
         criteres: [
           { code: "COND1", libelle: "L'objectif est-il respecté ? Les modifications sont-elles justifiées ?" },
           { code: "COND2", libelle: "Les choix d'itinéraire sont réalisables en fonction des impératifs." },
@@ -127,7 +127,7 @@ export const EPCF_TRAMES = {
       {
         code: "EVAL", court: "Évaluations",
         titre: "Évaluations statiques · Évaluation finale",
-        competenceTP: "4 — Évaluer le degré d'acquisition des compétences des apprenants",
+        competenceTP: "4. Évaluer le degré d'acquisition des compétences des apprenants",
         criteres: [
           { code: "EVAL1", libelle: "Explique-t-il l'intérêt de l'évaluation ?" },
           { code: "EVAL2", libelle: "Cherche-t-il à connaître l'apprenant ?" },
@@ -141,7 +141,7 @@ export const EPCF_TRAMES = {
       {
         code: "BILEV", court: "Bilan & objectif",
         titre: "Bilan des évaluations · Détermination de l'objectif",
-        competenceTP: "6 — Repérer les difficultés d'apprentissage et essayer d'y remédier",
+        competenceTP: "6. Repérer les difficultés d'apprentissage et essayer d'y remédier",
         criteres: [
           { code: "BILEV1", libelle: "Repérer les difficultés d'apprentissage particulières de l'élève." },
           { code: "BILEV2", libelle: "Identifier les difficultés d'apprentissage particulières de l'élève." },
@@ -162,7 +162,7 @@ export const EPCF_TRAMES = {
       {
         code: "PERC", court: "Perception (C7)",
         titre: "Conduite commentée, guidage, démonstration",
-        competenceTP: "7 — Apprécier la dynamique de l'environnement routier et identifier les risques potentiels",
+        competenceTP: "7. Apprécier la dynamique de l'environnement routier et identifier les risques potentiels",
         criteres: [
           { code: "PERC1", libelle: "La prise d'information est riche et variée (CAHLLM)." },
           { code: "PERC2", libelle: "Les indices sont triés." },

@@ -1,10 +1,10 @@
-import { listStagiaires, listPassages, addPassage, updatePassage, deletePassage, listRecentPassagesAudit } from "../db.js?v=20260809b";
-import { el, clear, isoDate, formatDate, toast, displayStagiaire } from "../utils.js?v=20260809b";
-import { icon } from "../icons.js?v=20260809b";
-import { recordUndo } from "../undo.js?v=20260809b";
-import { TYPES, RESULTATS } from "../config.js?v=20260809b";
-import { isAdmin, getProfile } from "../auth-admin.js?v=20260809b";
-import { getCurrentWho } from "../identity.js?v=20260809b";
+import { listStagiaires, listPassages, addPassage, updatePassage, deletePassage, listRecentPassagesAudit } from "../db.js?v=20260809c";
+import { el, clear, isoDate, formatDate, toast, displayStagiaire } from "../utils.js?v=20260809c";
+import { icon } from "../icons.js?v=20260809c";
+import { recordUndo } from "../undo.js?v=20260809c";
+import { TYPES, RESULTATS } from "../config.js?v=20260809c";
+import { isAdmin, getProfile } from "../auth-admin.js?v=20260809c";
+import { getCurrentWho } from "../identity.js?v=20260809c";
 
 let stagiaires = [];
 let passages = [];
@@ -24,7 +24,7 @@ function openAddModal(onSaved, existing = null) {
     max: today,
   });
   const stagiaireSel = el("select");
-  stagiaireSel.appendChild(el("option", { value: "" }, "—"));
+  stagiaireSel.appendChild(el("option", { value: "" }, "-"));
   stagiaires.forEach((s) => stagiaireSel.appendChild(el("option", { value: s.id }, displayStagiaire(s))));
   if (existing) {
     stagiaireSel.value = String(existing.stagiaire_id);
@@ -41,7 +41,7 @@ function openAddModal(onSaved, existing = null) {
   if (existing) resultatSel.value = existing.resultat;
 
   const remplacantSel = el("select");
-  remplacantSel.appendChild(el("option", { value: "" }, "—"));
+  remplacantSel.appendChild(el("option", { value: "" }, "-"));
   stagiaires.forEach((s) => remplacantSel.appendChild(el("option", { value: s.id }, displayStagiaire(s))));
   if (existing && existing.remplacant_id) remplacantSel.value = String(existing.remplacant_id);
 
@@ -173,7 +173,7 @@ function renderTable(container) {
       onClick: () => openAddModal(() => reload(container), p),
     }, "✎") : null;
 
-    const whoLabel = p.created_by_who || (p.origine === "Planning" ? "Auto" : "—");
+    const whoLabel = p.created_by_who || (p.origine === "Planning" ? "Auto" : "-");
     const isAdmin_ = whoLabel.includes("@");
 
     const tr = el("tr", {},
@@ -181,7 +181,7 @@ function renderTable(container) {
       el("td", {}, p.stagiaire ? displayStagiaire(p.stagiaire) : "?"),
       el("td", {}, el("span", { class: "tag " + (p.type === "Salle" ? "salle" : "voiture") }, p.type)),
       el("td", {}, resultTag(p.resultat)),
-      el("td", { class: "muted" }, p.remplacant ? displayStagiaire(p.remplacant) : "—"),
+      el("td", { class: "muted" }, p.remplacant ? displayStagiaire(p.remplacant) : "-"),
       el("td", {}, el("span", { class: "tag who" + (isAdmin_ ? " admin" : "") }, whoLabel)),
       showActions ? el("td", {}, el("span", { style: "display:inline-flex; gap:0.3rem" }, editBtn, delBtn)) : null
     );

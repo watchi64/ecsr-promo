@@ -4,12 +4,12 @@
 //  - stagiaire : vue classe (moyennes agrégées, k-anonymisées) uniquement.
 // La saisie reste protégée par la RLS (INSERT/UPDATE réservés aux profs/admin).
 
-import { listStagiaires, listProfs, listEpcf, upsertEpcf, getEpcfMoyennes } from "../db.js?v=20260809b";
-import { el, clear, isoDate, formatDate, displayStagiaire, compareByNom, toast } from "../utils.js?v=20260809b";
-import { isAdmin, isProf, getProfile } from "../auth-admin.js?v=20260809b";
-import { getCurrentWho } from "../identity.js?v=20260809b";
-import { EPCF_TRAMES, NOTE_LABELS } from "../epcf-trames.js?v=20260809b";
-import { renderEpcfTrameSection, renderEpcfClasse } from "../epcf-restitution.js?v=20260809b";
+import { listStagiaires, listProfs, listEpcf, upsertEpcf, getEpcfMoyennes } from "../db.js?v=20260809c";
+import { el, clear, isoDate, formatDate, displayStagiaire, compareByNom, toast } from "../utils.js?v=20260809c";
+import { isAdmin, isProf, getProfile } from "../auth-admin.js?v=20260809c";
+import { getCurrentWho } from "../identity.js?v=20260809c";
+import { EPCF_TRAMES, NOTE_LABELS } from "../epcf-trames.js?v=20260809c";
+import { renderEpcfTrameSection, renderEpcfClasse } from "../epcf-restitution.js?v=20260809c";
 
 let stagiaires = [];
 let profs = [];
@@ -29,7 +29,7 @@ export async function renderEpcf(container, opts = {}) {
   container.appendChild(el("div", { class: "loading" }, "Chargement"));
   const formateur = isAdmin() || isProf();
 
-  // Stagiaire : pas de saisie ni de liste — seulement la vue classe (moyennes
+  // Stagiaire : pas de saisie ni de liste, seulement la vue classe (moyennes
   // agrégées, k-anonymisées). La RPC getEpcfMoyennes est autorisée à tout connecté.
   if (!formateur) {
     const [mSalle, mVehicule] = await Promise.all([getEpcfMoyennes("salle"), getEpcfMoyennes("vehicule")]);
@@ -62,7 +62,7 @@ export async function renderEpcf(container, opts = {}) {
       el("div", { class: "view-header-text" },
         el("p", { class: "eyebrow" }, "Formateurs"),
         el("h2", {}, "EPCF"),
-        el("p", { class: "subtitle" }, "Évaluations en cours de formation — grilles CCP1 salle et véhicule."),
+        el("p", { class: "subtitle" }, "Évaluations en cours de formation : grilles CCP1 salle et véhicule."),
       ),
     ));
   }
@@ -124,7 +124,7 @@ function showForm(body, stagiaire, trameKey, existing) {
       if (dirty && !confirm("Abandonner la saisie en cours ?")) return;
       showListe(body);
     } }, "← Retour"),
-    el("h3", {}, `${trame.label} — ${displayStagiaire(stagiaire)}`),
+    el("h3", {}, `${trame.label} : ${displayStagiaire(stagiaire)}`),
   ));
 
   const dateInput = el("input", { type: "date", value: existing?.date_eval || isoDate(new Date()) });
@@ -141,7 +141,7 @@ function showForm(body, stagiaire, trameKey, existing) {
   // n'a pas de prof_id → option vide, pas d'attribution silencieuse au premier prof).
   const preset = existing ? existing.evaluateur_prof_id : (getProfile()?.prof_id ?? null);
   const evalSel = el("select");
-  const optVide = el("option", { value: "" }, "—");
+  const optVide = el("option", { value: "" }, "-");
   if (preset == null) optVide.selected = true;
   evalSel.appendChild(optVide);
   profs.forEach((p) => {
@@ -156,7 +156,7 @@ function showForm(body, stagiaire, trameKey, existing) {
   trame.sections.forEach((sec) => {
     const box = el("div", { class: "epcf-form-section" },
       el("h4", {}, sec.titre,
-        sec.competenceTP ? el("span", { class: "muted epcf-detail-tp" }, " — " + sec.competenceTP) : null));
+        sec.competenceTP ? el("span", { class: "muted epcf-detail-tp" }, " (" + sec.competenceTP + ")") : null));
     sec.criteres.forEach((c) => {
       const seg = el("div", { class: "epcf-seg" });
       const btns = {};
@@ -244,7 +244,7 @@ function showConsult(body, stagiaire) {
   clear(body);
   body.appendChild(el("div", { class: "epcf-form-head" },
     el("button", { class: "btn small ghost", onClick: () => showListe(body) }, "← Retour"),
-    el("h3", {}, "Résultats — " + displayStagiaire(stagiaire)),
+    el("h3", {}, "Résultats : " + displayStagiaire(stagiaire)),
   ));
   TRAME_KEYS.forEach((trameKey) => {
     body.appendChild(renderEpcfTrameSection(trameKey,
@@ -258,7 +258,7 @@ function showClasse(body) {
   clear(body);
   body.appendChild(el("div", { class: "epcf-form-head" },
     el("button", { class: "btn small ghost", onClick: () => showListe(body) }, "← Retour"),
-    el("h3", {}, "Vue classe — moyennes"),
+    el("h3", {}, "Vue classe : moyennes"),
   ));
   renderEpcfClasse(body, moyByTrame);
 }

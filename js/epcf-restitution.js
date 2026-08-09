@@ -1,8 +1,8 @@
 // Restitution EPCF : scoring des phases, radar SVG, section réutilisable
 // (affichée dans Mon suivi ; réutilisable ailleurs).
 
-import { el, clear, formatDate } from "./utils.js?v=20260809b";
-import { EPCF_TRAMES, NOTE_VALUES, NOTE_LABELS, EPCF_PHASE_COLORS } from "./epcf-trames.js?v=20260809b";
+import { el, clear, formatDate } from "./utils.js?v=20260809c";
+import { EPCF_TRAMES, NOTE_VALUES, NOTE_LABELS, EPCF_PHASE_COLORS } from "./epcf-trames.js?v=20260809c";
 
 const SVGNS = "http://www.w3.org/2000/svg";
 function svgEl(tag, attrs = {}) {
@@ -75,7 +75,7 @@ export function renderEpcfDetail(trameKey, evalRow) {
     const color = EPCF_PHASE_COLORS[sec.code] || null;
     const box = el("div", { class: "epcf-detail-section" },
       el("h5", { class: "epcf-detail-title" }, sec.titre,
-        sec.competenceTP ? el("span", { class: "muted epcf-detail-tp" }, " — " + sec.competenceTP) : null));
+        sec.competenceTP ? el("span", { class: "muted epcf-detail-tp" }, " (" + sec.competenceTP + ")") : null));
     if (color) {
       box.style.borderLeftColor = color;
       box.querySelector(".epcf-detail-title").style.color = color;
@@ -83,7 +83,7 @@ export function renderEpcfDetail(trameKey, evalRow) {
     sec.criteres.forEach((c) => {
       const note = evalRow.scores?.[c.code];
       box.appendChild(el("div", { class: "epcf-detail-row" },
-        el("span", { class: "epcf-chip " + (note || "vide") }, note ? NOTE_LABELS[note] : "—"),
+        el("span", { class: "epcf-chip " + (note || "vide") }, note ? NOTE_LABELS[note] : "-"),
         el("span", {}, c.libelle),
       ));
     });
@@ -103,7 +103,7 @@ export function renderEpcfDetail(trameKey, evalRow) {
 
 // Section complète pour UNE trame : radar (éval choisie vs moyenne groupe) + détail.
 // evals : évals du stagiaire pour cette trame, triées desc (listEpcf). moyennes : RPC.
-// ATTENTION : moyennes DOIT venir de getEpcfMoyennes(trameKey) — les codes critères collisionnent entre trames.
+// ATTENTION : moyennes DOIT venir de getEpcfMoyennes(trameKey), les codes critères collisionnent entre trames.
 export function renderEpcfTrameSection(trameKey, evals, moyennes) {
   const trame = EPCF_TRAMES[trameKey];
   const section = el("div", { class: "epcf-resti" },
@@ -140,7 +140,7 @@ export function renderEpcfTrameSection(trameKey, evals, moyennes) {
   if (evals.length > 1) {
     const sel = el("select", { class: "epcf-eval-select" });
     evals.forEach((ev, i) => {
-      const o = el("option", { value: String(i) }, formatDate(ev.date_eval) + (ev.evaluateur?.nom ? " — " + ev.evaluateur.nom : ""));
+      const o = el("option", { value: String(i) }, formatDate(ev.date_eval) + (ev.evaluateur?.nom ? " (" + ev.evaluateur.nom + ")" : ""));
       if (i === 0) o.selected = true;
       sel.appendChild(o);
     });
@@ -166,7 +166,7 @@ export function renderEpcfClasse(container, moyennesByTrame) {
     const all = (moyennesByTrame && moyennesByTrame[trameKey]) || [];
     const nEval = Math.max(0, ...all.map((m) => Number(m.effectif) || 0));
     const box = el("div", { class: "epcf-classe-trame" },
-      el("h4", {}, `${trame.label} — ${nEval} stagiaire(s) évalué(s)`));
+      el("h4", {}, `${trame.label} : ${nEval} stagiaire(s) évalué(s)`));
     if (!all.length) {
       box.appendChild(el("p", { class: "muted" }, "Aucune évaluation."));
       container.appendChild(box);
@@ -196,7 +196,7 @@ export function renderEpcfClasse(container, moyennesByTrame) {
       if (color) phaseCell.style.color = color;
       tbody.appendChild(el("tr", { class: "epcf-classe-phase" },
         phaseCell,
-        el("td", {}, ps == null ? el("strong", {}, "—")
+        el("td", {}, ps == null ? el("strong", {}, "-")
           : el("span", { class: "epcf-chip " + tierOf(ps * 2) }, el("strong", {}, (ps * 2).toFixed(2)))),
         el("td", {}, "")));
       sec.criteres.forEach((c) => {
@@ -204,7 +204,7 @@ export function renderEpcfClasse(container, moyennesByTrame) {
         const tier = m ? tierOf(m.moyenne) : "";
         tbody.appendChild(el("tr", {},
           el("td", { class: "epcf-classe-lib" }, c.libelle),
-          el("td", {}, el("span", { class: "epcf-chip " + (tier || "vide") }, m ? m.moyenne.toFixed(2) : "—")),
+          el("td", {}, el("span", { class: "epcf-chip " + (tier || "vide") }, m ? m.moyenne.toFixed(2) : "-")),
           el("td", { class: "muted" }, m ? String(m.effectif) : "")));
       });
     });

@@ -1,27 +1,27 @@
 /*
- * Promo ECSR — Application propriétaire.
- * © 2026 watchi64 — Tous droits réservés. Voir LICENSE.
+ * Promo ECSR : application propriétaire.
+ * © 2026 watchi64. Tous droits réservés. Voir LICENSE.
  */
-import { signInWithPassword, signUpWithPassword, getCurrentUser, invalidateCache } from "./db.js?v=20260809b";
-import { toast } from "./utils.js?v=20260809b";
-import { icon } from "./icons.js?v=20260809b";
-import { initAuth, onAdminChange, isAuth, isAdmin, isProf } from "./auth-admin.js?v=20260809b";
-import { loadAccent } from "./accent-switcher.js?v=20260809b";
-import { loadTheme } from "./theme-switcher.js?v=20260809b";
-import { renderHome } from "./views/home.js?v=20260809b";
-import { renderDashboard } from "./views/dashboard.js?v=20260809b";
-import { renderMonSuivi } from "./views/mon-suivi.js?v=20260809b";
-import { renderPlanning, teardownPrintTarget, resetPlanningEditMode, requestPlanningToday } from "./views/planning.js?v=20260809b";
-import { teardownDocPrint } from "./doc-officiel.js?v=20260809b";
-import { renderNotes } from "./views/notes.js?v=20260809b";
-import { renderRessources } from "./views/ressources.js?v=20260809b";
-import { renderThemes } from "./views/themes.js?v=20260809b";
-import { renderConfig } from "./views/config.js?v=20260809b";
-import { renderCalendrier } from "./views/calendrier.js?v=20260809b";
-import { initUndoKeyboard } from "./undo.js?v=20260809b";
-import { renderNouveautes } from "./views/nouveautes.js?v=20260809b";
-import { NOUVEAUTES } from "./nouveautes-data.js?v=20260809b";
-import { visibles, nonLues, vuesEffectives, libellePastille } from "./nouveautes.js?v=20260809b";
+import { signInWithPassword, signUpWithPassword, getCurrentUser, invalidateCache } from "./db.js?v=20260809c";
+import { toast } from "./utils.js?v=20260809c";
+import { icon } from "./icons.js?v=20260809c";
+import { initAuth, onAdminChange, isAuth, isAdmin, isProf } from "./auth-admin.js?v=20260809c";
+import { loadAccent } from "./accent-switcher.js?v=20260809c";
+import { loadTheme } from "./theme-switcher.js?v=20260809c";
+import { renderHome } from "./views/home.js?v=20260809c";
+import { renderDashboard } from "./views/dashboard.js?v=20260809c";
+import { renderMonSuivi } from "./views/mon-suivi.js?v=20260809c";
+import { renderPlanning, teardownPrintTarget, resetPlanningEditMode, requestPlanningToday } from "./views/planning.js?v=20260809c";
+import { teardownDocPrint } from "./doc-officiel.js?v=20260809c";
+import { renderNotes } from "./views/notes.js?v=20260809c";
+import { renderRessources } from "./views/ressources.js?v=20260809c";
+import { renderThemes } from "./views/themes.js?v=20260809c";
+import { renderConfig } from "./views/config.js?v=20260809c";
+import { renderCalendrier } from "./views/calendrier.js?v=20260809c";
+import { initUndoKeyboard } from "./undo.js?v=20260809c";
+import { renderNouveautes } from "./views/nouveautes.js?v=20260809c";
+import { NOUVEAUTES } from "./nouveautes-data.js?v=20260809c";
+import { visibles, nonLues, vuesEffectives, libellePastille } from "./nouveautes.js?v=20260809c";
 
 // ===== Gate : email magic link =====
 
@@ -126,7 +126,7 @@ const TABS = [
   { route: "home",       label: "Accueil",         icon: "info"      },
   // « Priorités » : la vue promo dit QUI doit passer, pas « les passages » (ce mot
   // appartient à l'espace perso). L'espace perso n'a PLUS d'onglet : on y accède par
-  // l'ouverture de l'app, le logo et le badge (« Mon espace personnel ») — la route
+  // l'ouverture de l'app, le logo et le badge (« Mon espace personnel ») ; la route
   // mon-suivi reste dans `routes` ci-dessous. Sur #/mon-suivi, aucun onglet n'est
   // actif : assumé (la boucle d'activation ne matche rien).
   { route: "dashboard",  label: "Priorités",       icon: "target"    },
@@ -204,7 +204,7 @@ async function navigate() {
   const hash = location.hash.replace(/^#\//, "") || "mon-suivi";
   const route = routes[hash] ? hash : "mon-suivi";
   // En QUITTANT le planning (pas sur un simple remount : undo, refresh d'auth…),
-  // le mode édition retombe — la vue se rouvrira toujours en lecture seule.
+  // le mode édition retombe : la vue se rouvrira toujours en lecture seule.
   if (lastRoute === "planning" && route !== "planning") resetPlanningEditMode();
   lastRoute = route;
   const ongletActif = ONGLET_POUR_ROUTE[route] || route;

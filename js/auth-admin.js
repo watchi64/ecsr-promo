@@ -3,7 +3,7 @@
  *
  * Modèle :
  *  - Tout le monde se connecte via email + mot de passe Supabase
- *    (whitelist user_profiles, cf. refonte du 18 mai — plus de magic link).
+ *    (whitelist user_profiles, cf. refonte du 18 mai, plus de magic link).
  *  - À la connexion, on lit user_profiles pour récupérer le rôle
  *    (stagiaire / prof / admin) et la personne liée (stagiaire_id ou prof_id).
  *  - isAdmin() / isProf() / isStagiaire() : checks de rôle.
@@ -15,9 +15,9 @@
 import {
   getCurrentUser, signOut, onAuthChange,
   getMyProfile, listStagiaires, listProfs,
-} from "./db.js?v=20260809b";
-import { el, toast, displayStagiaire } from "./utils.js?v=20260809b";
-import { icon } from "./icons.js?v=20260809b";
+} from "./db.js?v=20260809c";
+import { el, toast, displayStagiaire } from "./utils.js?v=20260809c";
+import { icon } from "./icons.js?v=20260809c";
 
 let currentUser = null;     // Supabase auth user
 let currentProfile = null;  // row user_profiles

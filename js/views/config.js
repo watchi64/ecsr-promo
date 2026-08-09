@@ -8,10 +8,10 @@ import {
   addProf, updateProf, deleteProf,
   listUserProfiles, deleteUserProfile, inviteUser,
   setMyAnonymousNotes,
-} from "../db.js?v=20260809b";
-import { el, clear, toast, displayStagiaire } from "../utils.js?v=20260809b";
-import { icon } from "../icons.js?v=20260809b";
-import { isAdmin, getAdminEmail, getProfile } from "../auth-admin.js?v=20260809b";
+} from "../db.js?v=20260809c";
+import { el, clear, toast, displayStagiaire } from "../utils.js?v=20260809c";
+import { icon } from "../icons.js?v=20260809c";
+import { isAdmin, getAdminEmail, getProfile } from "../auth-admin.js?v=20260809c";
 
 // ====== SECTION Accès & invitations ======
 
@@ -48,7 +48,7 @@ async function renderAccessSection(rerender) {
     function refreshPersonOptions() {
       clear(personSel);
       const role = roleSel.value;
-      personSel.appendChild(el("option", { value: "" }, "— Choisir —"));
+      personSel.appendChild(el("option", { value: "" }, "Choisir…"));
       const list = role === "stagiaire" ? stagiaires : profs;
       const taken = new Set(profiles
         .filter((p) => role === "stagiaire" ? p.stagiaire_id : p.prof_id)
