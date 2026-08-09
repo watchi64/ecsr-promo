@@ -13,6 +13,24 @@
 
 export const NOUVEAUTES = [
   {
+    id: "2026-08-09-cours-en-relecture",
+    date: "2026-08-09",
+    pour: "formateurs",
+    titre: "Les 57 cours sont dans l'app, à relire et à publier",
+    resume: "Chaque thème porte maintenant son cours complet, visible des formateurs "
+          + "seulement. Tu le lis, tu le corriges directement dans l'app (l'aperçu montre "
+          + "exactement ce que verra l'élève), et tu le publies quand il est prêt : rien "
+          + "n'est visible de la promo sans ta décision, cours par cours. Chaque "
+          + "enregistrement garde une version : rien ne se perd, tout se restaure.",
+    ou: { label: "Thèmes, badge Cours", route: "themes" },
+    guide: [
+      "Ouvre l'onglet Thèmes et clique sur « Lire le cours » d'un thème.",
+      "« Modifier » ouvre l'éditeur : corrige à gauche, contrôle l'aperçu à droite.",
+      "Le bouton Panneaux ouvre la galerie : cherche un panneau par son nom, un clic l'insère.",
+      "Enregistre, puis « Publier » quand le cours est prêt pour la promo.",
+    ],
+  },
+  {
     id: "2026-08-08-signalement-reponse-visee",
     date: "2026-08-08",
     pour: "tous",
