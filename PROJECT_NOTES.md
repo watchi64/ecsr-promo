@@ -185,6 +185,31 @@ canal de notification.
   la régression de l'ancre du compteur : le banc passait au vert. Les deux bancs ont été corrigés,
   et la régression est bien détectée depuis.
 
+## Cours en base (09/08/2026, EN PROD)
+
+Les 57 cours du dossier formation vivent dans Supabase (tables `cours` + `cours_versions`,
+bucket `cours-images`) ; le depot `cours/theme_XX_*/` est l'archive figee de la version
+verifiee d'origine, `cours_publies/` (depot ECSR) porte l'export sens unique
+(`tools/export_cours.py`, lecture seule, cle service dans le `.env` racine ECSR).
+
+- **Lecteur** (`js/views/cours-reader.js`) : ouvert depuis la page Themes (badge « Cours »,
+  CTA « Lire le cours »), rendu markdown maison (fiche « L'essentiel », tableaux avec
+  pastilles de couleur, planches `:::signaux` / `:::marquage`, sources repliees, images).
+  RLS : un stagiaire ne voit que le publie ; formateurs et admin voient tout.
+- **Editeur** (`js/views/cours-editeur.js`) : bouton « Modifier » (roles prof/admin),
+  markdown + apercu partage avec le lecteur, garde-fou optimiste (bandeau conflit
+  Ecraser/Abandonner), versions archivees a chaque enregistrement (restauration en un clic),
+  Publier/Depublier, televersement d'images (reduction canvas 1600 px), Ctrl+Z natif
+  preserve (execCommand), galerie de panneaux filtrable.
+- **Catalogue de panneaux** : 384 SVG officiels (Wikimedia Commons, domaine public) dans
+  `assets/signaux/catalogue/`, manifeste genere `js/signaux-catalogue.js` (intitules
+  Wikipedia FR, 305/384), script rejouable `scripts/construire_catalogue_signaux.py`.
+  Le registre verifie de `js/signaux.js` (20 codes + 4 familles) garde la priorite.
+- **Etat au deploiement** : 57 cours en base (`published = false`, md5 57/57 identiques a
+  l'origine), 57 versions d'origine. Publication = decision formateur, cours par cours.
+- Banc : `_preview_cours.html` (git-exclu, stubs `_preview_stubs/db-cours.js` +
+  `auth-admin.js`) ; attention au token `?v=` des cles d'import map apres cache-bust.
+
 ## Décisions UX importantes (à respecter)
 
 - ❌ **Pas d'em-dashes (—)** dans les libellés UI. Régression à éviter.
