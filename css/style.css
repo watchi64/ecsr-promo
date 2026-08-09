@@ -7296,8 +7296,11 @@ body.cours-open { overflow: hidden; }
   color: var(--text-muted);
 }
 
-/* Aucun tableau ne doit pousser la page : les cellules cassent les mots trop longs. */
-.cours-table td, .cours-table th { overflow-wrap: anywhere; }
+/* Aucun tableau ne doit pousser la page : les cellules passent à la ligne entre
+   les mots, jamais au milieu d'un mot (anywhere écrasait « Couleur » en une pile
+   de lettres sur téléphone) ; un contenu vraiment trop large fait défiler
+   l'enveloppe .cours-table-wrap au lieu de casser les mots. */
+.cours-table td, .cours-table th { overflow-wrap: break-word; }
 
 .cours-article code {
   padding: 0.05rem 0.3rem;
@@ -7405,3 +7408,25 @@ body.cours-open { overflow: hidden; }
 /* ===== Images de cours ===== */
 .cours-image { margin: 14px 0; }
 .cours-image img { max-width: 100%; border-radius: var(--r); display: block; }
+
+/* ===== Pastilles de couleur des tableaux de cours =====
+   Teintes de la signalisation réelle (donnée pédagogique, comme les couleurs
+   des panneaux dans signaux.js) : hors palette de l'app, à dessein. */
+.cours-pastille {
+  display: inline-block;
+  width: 0.72em; height: 0.72em;
+  border-radius: 50%;
+  margin-right: 0.4em;
+  border: 1px solid var(--line-strong);
+  vertical-align: -0.05em;
+}
+.cours-pastille-blanc { background: #f4f3ee; }
+.cours-pastille-jaune { background: #ffc72c; }
+.cours-pastille-bleu { background: #1f5fbf; }
+.cours-pastille-rouge { background: #cc1f2f; }
+.cours-pastille-vert { background: #00804a; }
+.cours-pastille-orange { background: #ef7d00; }
+.cours-pastille-noir { background: #1c1c1c; }
+.cours-pastille-gris { background: #9a9a9a; }
+.cours-pastille-marron { background: #7c4a1e; }
+.cours-pastille-violet { background: #6c3fa8; }

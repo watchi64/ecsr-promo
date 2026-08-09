@@ -67,6 +67,38 @@ function estSeparateurTableau(ligne) {
   return /^\|[\s:|-]+\|$/.test(ligne.trim());
 }
 
+// Pastille de couleur devant les noms de couleurs des tableaux (nomenclature du
+// marquage, feux, catadioptres) : voir la couleur aide à la mémoriser. Les teintes
+// sont celles de la signalisation réelle, pas de la palette de l'app : c'est de la
+// donnée pédagogique, comme les couleurs des panneaux dans signaux.js.
+const COULEURS_PASTILLE = {
+  blanc: "blanc", blanche: "blanc", blancs: "blanc", blanches: "blanc",
+  jaune: "jaune", jaunes: "jaune",
+  bleu: "bleu", bleue: "bleu", bleus: "bleu", bleues: "bleu",
+  rouge: "rouge", rouges: "rouge",
+  vert: "vert", verte: "vert", verts: "vert", vertes: "vert",
+  orange: "orange", oranges: "orange",
+  noir: "noir", noire: "noir", noirs: "noir", noires: "noir",
+  gris: "gris", grise: "gris", grises: "gris",
+  marron: "marron", marrons: "marron",
+  violet: "violet", violette: "violet", violets: "violet", violettes: "violet",
+};
+
+function classeCouleur(mot) {
+  return COULEURS_PASTILLE[mot.toLowerCase()] || null;
+}
+
+/** Cellule de tableau : si elle commence par un nom de couleur et reste courte
+ *  (une étiquette, pas une phrase), une pastille de la couleur la précède. */
+function celluleTableau(texte) {
+  const frag = document.createDocumentFragment();
+  const m = String(texte).trim().match(/^\*{0,2}([A-Za-zÀ-ÿ]+)/);
+  const classe = m && String(texte).trim().length <= 30 ? classeCouleur(m[1]) : null;
+  if (classe) frag.appendChild(el("span", { class: `cours-pastille cours-pastille-${classe}` }));
+  frag.appendChild(inline(texte));
+  return frag;
+}
+
 function cellules(ligne) {
   return ligne.trim().replace(/^\|/, "").replace(/\|$/, "").split("|").map((c) => c.trim());
 }
@@ -166,7 +198,7 @@ function rendreTableau(lignes) {
   const thead = el("thead", {}, el("tr", {}, entetes.map((c) => el("th", {}, inline(c)))));
   const corps = el("tbody");
   for (const ligne of lignes.slice(2)) {
-    corps.appendChild(el("tr", {}, cellules(ligne).map((c) => el("td", {}, inline(c)))));
+    corps.appendChild(el("tr", {}, cellules(ligne).map((c) => el("td", {}, celluleTableau(c)))));
   }
   table.appendChild(thead);
   table.appendChild(corps);

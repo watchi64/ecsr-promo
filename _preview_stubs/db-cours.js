@@ -23,6 +23,13 @@ Points importants à connaître :
 1. Première étape
 2. Deuxième étape
 
+| Couleur | Signification | Emploi |
+|---------|---------------|--------|
+| **Blanc** | Marquage permanent | Usage général |
+| **Jaune** | Marquage temporaire | Chantiers, ou arrêt et stationnement interdits |
+| Bleu | Stationnement à durée limitée | Zone bleue |
+| Blanche est la couleur la plus fréquente du marquage en France | Phrase longue : pas de pastille attendue | aucun |
+
 _Textes : R411-25_
 
 :::signaux AB1
