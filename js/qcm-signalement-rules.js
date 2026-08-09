@@ -1,6 +1,6 @@
 // Règles d'affichage de l'instruction automatique d'un signalement.
 // Module PUR : aucun DOM, aucun réseau, aucune écriture. L'application ne produit jamais
-// un verdict, elle ne fait que le lire — c'est le second verrou de la règle non négociable.
+// un verdict, elle ne fait que le lire, c'est le second verrou de la règle non négociable.
 
 export const VERDICTS = {
   fonde:         "Signalement fondé",
@@ -73,10 +73,10 @@ export function morceaux(texte) {
 // « non_concluant » est placé AVANT « confirme » et non parmi eux : c'est un aveu
 // d'aveuglement de l'agent (PISTE muet, question à image), pas un verdict rassurant.
 export const GROUPES = [
-  { cle: "fonde",         titre: "⚑ Signalement fondé — à corriger" },
-  { cle: "ambigu",        titre: "Ambigu — à trancher" },
-  { cle: "non_concluant", titre: "Non concluant — à lire" },
-  { cle: "confirme",      titre: "Question confirmée — rien à corriger" },
+  { cle: "fonde",         titre: "⚑ Signalement fondé, à corriger" },
+  { cle: "ambigu",        titre: "Ambigu, à trancher" },
+  { cle: "non_concluant", titre: "Non concluant, à lire" },
+  { cle: "confirme",      titre: "Question confirmée, rien à corriger" },
   { cle: "non_instruit",  titre: "Pas encore instruit" },
 ];
 

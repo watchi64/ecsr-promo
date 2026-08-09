@@ -1,14 +1,14 @@
-// Console des signalements, et carte d'un signalement — partagée avec le panneau de
+// Console des signalements, et carte d'un signalement, partagée avec le panneau de
 // l'éditeur de QCM. Une seule fonction produit la carte : les deux écrans ne peuvent
 // donc pas diverger dans leur présentation.
 //
 // Ce module ne connaît PAS l'éditeur : il reçoit `onOuvrirEditeur` de la part de
 // themes.js. Importer themes.js ici créerait un import circulaire entre deux vues.
 
-import { el, clear, formatDate, toast } from "../utils.js?v=20260808b";
-import { etatInstruction, corpsAnalyse, morceaux, grouperParVerdict } from "../qcm-signalement-rules.js?v=20260808b";
-import { listTousSignalements, setQcmSignalementStatut } from "../db.js?v=20260808b";
-import { getAdminEmail } from "../auth-admin.js?v=20260808b";
+import { el, clear, formatDate, toast } from "../utils.js?v=20260809b";
+import { etatInstruction, corpsAnalyse, morceaux, grouperParVerdict } from "../qcm-signalement-rules.js?v=20260809b";
+import { listTousSignalements, setQcmSignalementStatut, listStagiaires } from "../db.js?v=20260809b";
+import { getAdminEmail } from "../auth-admin.js?v=20260809b";
 
 export const MOTIF_LABELS = {
   reponse_fausse: "Réponse fausse",
@@ -17,6 +17,27 @@ export const MOTIF_LABELS = {
   doublon: "Question en double",
   autre: "Autre",
 };
+
+// Le nom de l'auteur d'un signalement. L'adresse ne suffit pas : dix des onze signalements
+// de la base viennent de « arthur-gaelle@hotmail.fr », qui est celle de Gaëlle ANKPRA.
+// Les abandons sont inclus : un signalement déposé avant un abandon garde son auteur.
+let auteurs = null;
+
+export async function chargerAuteurs() {
+  if (auteurs) return;
+  try {
+    const liste = await listStagiaires({ includeInactive: true });
+    auteurs = new Map(liste.map((st) => [st.id, [st.prenom, st.nom].filter(Boolean).join(" ")]));
+  } catch (e) {
+    // Sans la liste, on retombe sur l'adresse seule : dégradé, pas cassé.
+    console.error("Noms des auteurs illisibles :", e);
+    auteurs = new Map();
+  }
+}
+
+function nomDe(s) {
+  return (auteurs && s.stagiaire_id) ? (auteurs.get(s.stagiaire_id) || null) : null;
+}
 
 // Les URL de l'analyse deviennent cliquables SANS innerHTML : le texte vient de l'agent.
 function enLiens(texte) {
@@ -39,8 +60,8 @@ function encartInstruction(s) {
   });
   return el("details", { class: "qcm-signal-instr" },
     el("summary", { class: "qcm-signal-instr-tete" },
-      el("span", { class: "qcm-signal-instr-titre" }, "Instruction automatique — avis, pas décision"),
-      el("span", { class: "qcm-signal-instr-conclusion" }, etat.libelle + " — " + etat.conclusion),
+      el("span", { class: "qcm-signal-instr-titre" }, "Instruction automatique : avis, pas décision"),
+      el("span", { class: "qcm-signal-instr-conclusion" }, etat.libelle + " : " + etat.conclusion),
       el("span", { class: "qcm-signal-instr-plus" }, "Voir l'analyse ▾"),
       el("span", { class: "qcm-signal-instr-date" },
         etat.instruitAt ? "instruit le " + formatDate(etat.instruitAt) : ""),
@@ -49,9 +70,13 @@ function encartInstruction(s) {
   );
 }
 
-// La carte d'un signalement. Ordre imposé : contexte, meta, motif, réponse visée,
-// commentaire, boutons de décision, puis l'avis. C'est l'ordre déjà en production.
-export function carteSignalement(s, { numero = null, contexte = null, onClasser, onOuvrirEditeur = null } = {}) {
+// La carte d'un signalement, ordonnée par ce qu'on cherche en la lisant :
+// ce qui est visé (surtitre + titre), puis le grief, puis QUI l'a écrit, puis la décision.
+// L'identité descend en signature : elle situe le grief, elle ne s'annonce pas avant lui.
+//
+// `titre` est le repère du signalement dans son écran : l'énoncé de la question en console,
+// « Question 7 » dans l'éditeur, où le rang suffit puisque la liste est sous les yeux.
+export function carteSignalement(s, { titre = null, surtitre = null, onClasser, onOuvrirEditeur = null } = {}) {
   const traite = el("button", { class: "btn small primary", type: "button" }, "Corrigé");
   const rejete = el("button", { class: "btn small ghost", type: "button" }, "Rien à corriger");
   traite.addEventListener("click", () => onClasser("traite", traite));
@@ -62,17 +87,21 @@ export function carteSignalement(s, { numero = null, contexte = null, onClasser,
     ouvrir.addEventListener("click", () => onOuvrirEditeur(s));
     actions.appendChild(ouvrir);
   }
+  const nom = nomDe(s);
   return el("div", { class: "qcm-signal-item" },
-    contexte ? el("span", { class: "qcm-signal-item-contexte" }, contexte) : null,
-    el("span", { class: "qcm-signal-item-meta" },
-      (numero ? `Question ${numero} · ` : "") + (s.email || "anonyme") + " · " + formatDate(s.created_at)),
+    surtitre ? el("span", { class: "qcm-signal-item-surtitre" }, surtitre) : null,
+    titre ? el("p", { class: "qcm-signal-item-titre" }, titre) : null,
     el("span", { class: "qcm-signal-item-motif" }, MOTIF_LABELS[s.motif] || s.motif),
     // Le texte de l'option TEL QUE L'ÉLÈVE L'A VU : les options étant mélangées à
     // l'affichage, sa lettre ne veut rien dire ici, mais son texte, si.
     s.option_texte
       ? el("span", { class: "qcm-signal-item-option" }, "Réponse visée : " + s.option_texte)
       : null,
-    s.commentaire ? el("span", { class: "qcm-signal-item-comment" }, "« " + s.commentaire + " »") : null,
+    s.commentaire ? el("p", { class: "qcm-signal-item-comment" }, "« " + s.commentaire + " »") : null,
+    // La signature : le nom d'abord, l'adresse ensuite. Une adresse partagée ou peu
+    // parlante ne doit pas être le seul moyen de savoir qui a signalé.
+    el("span", { class: "qcm-signal-item-meta" },
+      (nom ? nom + " · " : "") + (s.email || "anonyme") + " · " + formatDate(s.created_at)),
     actions,
     encartInstruction(s),
   );
@@ -87,7 +116,7 @@ const STATUTS_CONSOLE = [
 
 // La console : tous les signalements au même endroit, rangés par ce qu'ils demandent
 // comme travail. `themes` sert uniquement à retrouver le libellé d'un thème depuis son
-// id — la console ne fait aucune requête sur les thèmes.
+// id, la console ne fait aucune requête sur les thèmes.
 export async function renderConsoleSignalements(panel, { themes = [], onOuvrirEditeur = null, isActive = () => true } = {}) {
   let statut = "ouvert";
   const titreThemeDe = new Map(themes.map((t) => [t.id, (t.numero != null ? String(t.numero).padStart(2, "0") + " · " : "") + t.titre]));
@@ -104,6 +133,7 @@ export async function renderConsoleSignalements(panel, { themes = [], onOuvrirEd
     panel.appendChild(el("div", { class: "loading" }, "Chargement"));
     let liste;
     try {
+      await chargerAuteurs();
       liste = await listTousSignalements({ statut: statut || null });
     } catch (e) {
       // Journalisé : un échec muet est ce qui a rendu un défaut invisible le 2026-08-02.
@@ -147,9 +177,11 @@ export async function renderConsoleSignalements(panel, { themes = [], onOuvrirEd
 
   function carteConsole(s) {
     const qcm = s.question?.qcm || null;
-    // Thème absent de la liste : on affiche le QCM seul plutôt que de casser la ligne.
-    const contexte = [titreThemeDe.get(qcm?.theme_id), qcm?.titre, s.question?.enonce]
-      .filter(Boolean).join(" · ");
+    // Le titre du QCM n'est pas repris : il répète presque toujours celui du thème
+    // (« Les ronds-points et sens giratoires » / « Les ronds-points et carrefours à sens
+    // giratoire »), et cette redondance poussait la question en fin de ligne.
+    // Thème absent de la liste : on retombe sur le titre du QCM plutôt que sur rien.
+    const surtitre = titreThemeDe.get(qcm?.theme_id) || qcm?.titre || null;
     async function classer(st, bouton) {
       bouton.disabled = true;
       try {
@@ -162,9 +194,15 @@ export async function renderConsoleSignalements(panel, { themes = [], onOuvrirEd
       }
     }
     // Pas de numéro de question : celui de l'éditeur est un rang dans la liste chargée,
-    // pas la colonne `ordre`. Un numéro faux serait pire que pas de numéro.
-    return carteSignalement(s, { contexte, onClasser: classer,
+    // pas la colonne `ordre`. Un numéro faux serait pire que pas de numéro. C'est l'énoncé
+    // qui sert de titre, et il identifie sans ambiguïté.
+    const carte = carteSignalement(s, { surtitre, titre: s.question?.enonce || null, onClasser: classer,
       onOuvrirEditeur: onOuvrirEditeur ? (sig) => onOuvrirEditeur(sig, charger) : null });
+    // Détachées les unes des autres ici, et ici SEULEMENT : dans le panneau de l'éditeur
+    // les signalements sont peu nombreux et un filet suffit, alors qu'en console ils
+    // s'enchaînent et l'encart d'avis noie la limite entre deux cartes.
+    carte.classList.add("signal-console-carte");
+    return carte;
   }
 
   await charger();
