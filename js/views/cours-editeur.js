@@ -10,7 +10,7 @@
  * enregistrement ; si le cours a bougé entre-temps, un bandeau propose
  * d'écraser ou d'abandonner, rien ne part sans décision.
  */
-import { el, clear } from "../utils.js?v=20260809b";
+import { el, clear, debounce } from "../utils.js?v=20260809b";
 import { icon } from "../icons.js?v=20260809b";
 import { getCours, saveCours, setCoursPublie, listCoursVersions, getCoursVersion, uploadCoursImage }
   from "../db.js?v=20260809b";
@@ -19,6 +19,7 @@ import { insererSyntaxe, titreDepuisMarkdown, cheminImage } from "../cours-rules
 import { getProfileWho } from "../auth-admin.js?v=20260809b";
 import { reduireImage } from "../cours-images.js?v=20260809b";
 import { SIGNAUX, carteSignal } from "../signaux.js?v=20260809b";
+import { CATALOGUE } from "../signaux-catalogue.js?v=20260809b";
 import { MARQUAGES, carteMarquage } from "../marquage.js?v=20260809b";
 
 const OUTILS = [
@@ -26,6 +27,50 @@ const OUTILS = [
   { label: "Titre", avant: "\n### ", apres: "\n", defaut: "Sous-partie" },
   { label: "Tableau", avant: "\n| Situation | Règle |\n|---|---|\n| ", apres: " |  |\n", defaut: "cas" },
 ];
+
+// ===== Galerie de panneaux : fusion du registre vérifié (SIGNAUX, qui garde
+// la priorité en cas de code partagé) et du catalogue complet (384 codes),
+// calculée une fois au chargement du module. =====
+const LIBELLES_SERIE = {
+  danger: "Danger",
+  priorites: "Priorités",
+  prescription: "Prescription (B)",
+  indication: "Indication",
+  services: "Services",
+  agglomeration: "Agglomération",
+  localisation: "Localisation",
+  "passage-niveau": "Passages à niveau",
+  temporaire: "Temporaire",
+  balisage: "Balisage",
+  panonceaux: "Panonceaux",
+};
+const ORDRE_SERIE = Object.keys(LIBELLES_SERIE);
+
+const FAMILLES_SIGNAUX = Object.keys(SIGNAUX)
+  .filter((code) => code.startsWith("famille-"))
+  .map((code) => ({ code, nom: SIGNAUX[code].nom }));
+
+const SIGNAUX_CATALOGUE = (() => {
+  const items = [];
+  for (const [code, s] of Object.entries(SIGNAUX)) {
+    if (code.startsWith("famille-")) continue;
+    items.push({ code, nom: s.nom, serie: s.serie || null });
+  }
+  for (const [code, c] of Object.entries(CATALOGUE)) {
+    if (Object.prototype.hasOwnProperty.call(SIGNAUX, code)) continue; // doublon : le registre vérifié gagne
+    items.push({ code, nom: c.nom, serie: c.serie });
+  }
+  return items;
+})();
+
+const COMPTES_SERIE = SIGNAUX_CATALOGUE.reduce((acc, it) => {
+  if (it.serie) acc[it.serie] = (acc[it.serie] || 0) + 1;
+  return acc;
+}, {});
+
+function normaliserRecherche(s) {
+  return s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+}
 
 export async function openCoursEditeur(numero, { onFerme } = {}) {
   const cours = await getCours(numero);
@@ -115,18 +160,77 @@ export async function openCoursEditeur(numero, { onFerme } = {}) {
     rafraichirApercu();
   }
 
+  // ===== Filtres et recherche de la galerie « Panneaux » (384 codes du
+  // catalogue + 20 vérifiés + 4 familles). Le type « marquage » n'a que 6
+  // vignettes : il n'a pas besoin de filtre et garde son ancien rendu direct. =====
+  let filtreSerie = "tous";
+  let filtreTexte = "";
+  const grilleSignaux = el("div", { class: "editeur-galerie-grille" });
+  const barreFiltres = el("div", { class: "editeur-galerie-filtres" });
+  const champRecherche = el("input", { type: "search", class: "editeur-recherche",
+    placeholder: "Rechercher un code ou un nom…" });
+  champRecherche.addEventListener("input", debounce(() => {
+    filtreTexte = champRecherche.value;
+    rafraichirGrilleSignaux();
+  }, 150));
+
+  function itemsGalerieSignaux() {
+    let liste;
+    if (filtreSerie === "familles") liste = FAMILLES_SIGNAUX;
+    else if (filtreSerie === "tous") liste = [...FAMILLES_SIGNAUX, ...SIGNAUX_CATALOGUE];
+    else liste = SIGNAUX_CATALOGUE.filter((it) => it.serie === filtreSerie);
+    const q = normaliserRecherche(filtreTexte.trim());
+    if (!q) return liste;
+    return liste.filter((it) => normaliserRecherche(it.code).includes(q) || normaliserRecherche(it.nom).includes(q));
+  }
+
+  function rafraichirGrilleSignaux() {
+    clear(grilleSignaux);
+    for (const it of itemsGalerieSignaux()) {
+      const v = el("button", { class: "editeur-vignette", type: "button",
+        title: it.code.startsWith("famille-") ? it.code : `Insérer ${it.code}`,
+        onClick: () => insererCodePlanche("signaux", it.code) });
+      v.appendChild(carteSignal(it.code));
+      grilleSignaux.appendChild(v);
+    }
+  }
+
+  function rafraichirBarreFiltres() {
+    clear(barreFiltres);
+    const puce = (valeur, libelle) => el("button", {
+      class: "editeur-puce" + (filtreSerie === valeur ? " on" : ""), type: "button",
+      onClick: () => { filtreSerie = valeur; rafraichirBarreFiltres(); rafraichirGrilleSignaux(); },
+    }, libelle);
+    barreFiltres.appendChild(puce("tous", `Tous (${FAMILLES_SIGNAUX.length + SIGNAUX_CATALOGUE.length})`));
+    for (const s of ORDRE_SERIE) {
+      if (!COMPTES_SERIE[s]) continue;
+      barreFiltres.appendChild(puce(s, `${LIBELLES_SERIE[s]} (${COMPTES_SERIE[s]})`));
+    }
+    barreFiltres.appendChild(puce("familles", `Familles (${FAMILLES_SIGNAUX.length})`));
+  }
+
   function togglerGalerie(type) {
     if (!galerie.hidden && galerieType === type) { galerie.hidden = true; return; }
     galerieType = type;
     clear(galerie);
-    const registre = type === "signaux" ? SIGNAUX : MARQUAGES;
-    const carte = type === "signaux" ? carteSignal : carteMarquage;
-    for (const code of Object.keys(registre)) {
-      const v = el("button", { class: "editeur-vignette", type: "button",
-        title: code.startsWith("famille-") ? code : `Insérer ${code}`,
-        onClick: () => insererCodePlanche(type, code) });
-      v.appendChild(carte(code));
-      galerie.appendChild(v);
+    if (type === "signaux") {
+      filtreSerie = "tous";
+      filtreTexte = "";
+      champRecherche.value = "";
+      rafraichirBarreFiltres();
+      galerie.appendChild(barreFiltres);
+      galerie.appendChild(champRecherche);
+      galerie.appendChild(grilleSignaux);
+      rafraichirGrilleSignaux();
+    } else {
+      const grilleMarquage = el("div", { class: "editeur-galerie-grille" });
+      for (const code of Object.keys(MARQUAGES)) {
+        const v = el("button", { class: "editeur-vignette", type: "button",
+          title: `Insérer ${code}`, onClick: () => insererCodePlanche("marquage", code) });
+        v.appendChild(carteMarquage(code));
+        grilleMarquage.appendChild(v);
+      }
+      galerie.appendChild(grilleMarquage);
     }
     versionsPanneau.hidden = true;
     galerie.hidden = false;

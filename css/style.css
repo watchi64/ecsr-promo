@@ -7435,10 +7435,11 @@ body.cours-open { overflow: hidden; }
    Choisir un panneau ou un marquage en le voyant : vignettes cliquables,
    reprises des cartes du lecteur (signal-card / marquage-card). */
 .editeur-galerie {
-  display: flex; flex-wrap: wrap; gap: 8px; align-items: stretch;
+  display: flex; flex-direction: column; gap: 8px;
   padding: 8px 14px; border-bottom: 1px solid var(--line);
-  max-height: 250px; overflow-y: auto;
+  max-height: 340px; overflow-y: auto;
 }
+.editeur-galerie-grille { display: flex; flex-wrap: wrap; gap: 8px; align-items: stretch; }
 .editeur-vignette {
   padding: 6px; border: 1px solid var(--line); border-radius: var(--r);
   background: var(--bg-elev); cursor: pointer; text-align: center;
@@ -7447,3 +7448,19 @@ body.cours-open { overflow: hidden; }
 .editeur-vignette .signal-card, .editeur-vignette .marquage-card { margin: 0; border: 0; }
 .editeur-vignette .signal-cap, .editeur-vignette .marquage-cap { max-width: 8.5rem; }
 .editeur-vignette .marquage-svg { width: 10rem; height: auto; }
+
+/* ===== Filtres et recherche de la galerie de panneaux (catalogue 384 codes) =====
+   Puces de série + champ de recherche, au-dessus de la grille de vignettes. */
+.editeur-galerie-filtres { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.editeur-puce {
+  padding: 3px 10px; border: 1px solid var(--line); border-radius: 999px;
+  background: var(--bg-elev); color: var(--text-soft);
+  font-size: 0.76rem; font-family: var(--font); cursor: pointer; white-space: nowrap;
+}
+.editeur-puce:hover, .editeur-puce:focus-visible { border-color: var(--accent); }
+.editeur-puce.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.editeur-recherche {
+  width: 100%; padding: 5px 10px; border: 1px solid var(--line); border-radius: var(--r);
+  background: var(--bg-elev); color: var(--text); font: 0.85rem var(--font);
+}
+.editeur-recherche:focus { outline: none; border-color: var(--accent); }
