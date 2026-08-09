@@ -15,9 +15,18 @@ Usage :
 
 Sources :
     - Wikimedia Commons, API action=query&list=allimages (domaine public,
-      fichiers "France road sign <CODE>.svg").
+      fichiers "France road sign <CODE>.svg", plus un second passage dédié
+      aux passages à niveau : "FR road sign G<CODE>[ bis].svg", nommage
+      différent constaté sur Commons pour cette seule série).
     - Wikipédia FR, API action=parse&prop=wikitext, pages dédiées à chaque
       famille de panneaux (voir PAGES_WIKIPEDIA ci-dessous).
+
+Note sur les balises (J) : sondage manuel du 2026-08-09 des préfixes
+"FR road sign J", "France balise" et "Balise J" sur Commons. Les deux
+premiers ne retournent rien ; le troisième ne retourne que des photographies
+de terrain (JPG/webp, plusieurs Mo), pas des schémas vectoriels officiels.
+Décision : ne pas intégrer, la série J reste couverte par le seul J5 déjà
+présent dans le catalogue principal.
 """
 
 import argparse
@@ -88,7 +97,7 @@ CORRECTIONS_MANUELLES = {
     "EB20": "Sortie d'agglomération",
 }
 
-CODE_MOTIF = r"[A-Z]{1,2}[0-9]{1,3}(?:-[0-9]{1,2})?[a-z]?[0-9]?(?:\s+bis)?"
+CODE_MOTIF = r"[A-Z]{1,2}[0-9]{1,3}(?:-[0-9]{1,2})?(?:[a-z]?\s*bis|[a-z]?[0-9]?)"
 
 
 # ---------------------------------------------------------------------------
@@ -113,16 +122,16 @@ def requete_json(url, tentatives=5):
     raise RuntimeError("Blocage persistant de l'API après plusieurs tentatives")
 
 
-def lister_fichiers_commons():
+def lister_fichiers_commons(prefixe="France road sign "):
     """Interroge allimages avec pagination, retourne la liste brute des
-    fichiers dont le titre commence par 'France road sign '."""
+    fichiers dont le titre commence par `prefixe`."""
     fichiers = []
     aicontinue = None
     while True:
         params = {
             "action": "query",
             "list": "allimages",
-            "aiprefix": "France road sign ",
+            "aiprefix": prefixe,
             "aiprop": "url|size",
             "ailimit": "500",
             "format": "json",
@@ -190,6 +199,40 @@ def choisir_variantes(fichiers):
         else:
             premiere = sorted(variantes.keys())[0]
             retenus[code_brut] = variantes[premiere]
+    return retenus
+
+
+# ---------------------------------------------------------------------------
+# Passage à niveau (G) : sur Commons, ces schémas ne sont pas nommés
+# "France road sign G..." mais "FR road sign G...", avec les variantes
+# "bis" en suffixe séparé par une espace plutôt qu'entre parenthèses.
+# Arbitrage utilisateur du 2026-08-09 : on les intègre via un second passage
+# dédié plutôt que d'élargir silencieusement le filtre principal.
+# ---------------------------------------------------------------------------
+
+TITRE_MOTIF_G = re.compile(r"^FR road sign ([A-Za-z0-9]+)(\s+bis)?\.svg$", re.IGNORECASE)
+
+
+def choisir_variantes_g(fichiers):
+    """Même logique de sélection que choisir_variantes, adaptée au motif de
+    nommage 'FR road sign G1[ bis].svg' (pas de parenthèses ici : chaque
+    fichier correspond déjà à un code unique, aucun doublon à trancher)."""
+    retenus = {}
+    for f in fichiers:
+        titre = f["title"]
+        if not titre.startswith("File:"):
+            continue
+        nom = titre[len("File:"):]
+        if "+" in nom:
+            continue
+        m = TITRE_MOTIF_G.match(nom)
+        if not m:
+            continue
+        code = m.group(1) + ("bis" if m.group(2) else "")
+        prefixe, serie = code_serie(code)
+        if not serie:
+            continue
+        retenus[code] = f
     return retenus
 
 
@@ -471,6 +514,16 @@ def main():
 
     retenus = choisir_variantes(fichiers)
     print(f"  {len(retenus)} codes retenus après filtrage des séries ECSR et des variantes.")
+
+    print("Étape 1 bis : passages à niveau (préfixe Commons 'FR road sign G')...")
+    fichiers_g = lister_fichiers_commons(prefixe="FR road sign G")
+    retenus_g = choisir_variantes_g(fichiers_g)
+    nouveaux_g = 0
+    for code, entree in retenus_g.items():
+        if code not in retenus:
+            retenus[code] = entree
+            nouveaux_g += 1
+    print(f"  {len(retenus_g)} fichiers 'FR road sign G*' trouvés, {nouveaux_g} codes G ajoutés au catalogue.")
 
     print("Étape 2/3 : téléchargement des SVG...")
     telecharges = telecharger_fichiers(retenus, rapport)
