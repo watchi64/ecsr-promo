@@ -18,13 +18,13 @@ import { rendreMarkdown } from "./cours-reader.js?v=20260809b";
 import { insererSyntaxe, titreDepuisMarkdown, cheminImage } from "../cours-rules.js?v=20260809b";
 import { getProfileWho } from "../auth-admin.js?v=20260809b";
 import { reduireImage } from "../cours-images.js?v=20260809b";
+import { SIGNAUX, carteSignal } from "../signaux.js?v=20260809b";
+import { MARQUAGES, carteMarquage } from "../marquage.js?v=20260809b";
 
 const OUTILS = [
   { label: "Gras", avant: "**", apres: "**", defaut: "texte" },
   { label: "Titre", avant: "\n### ", apres: "\n", defaut: "Sous-partie" },
   { label: "Tableau", avant: "\n| Situation | Règle |\n|---|---|\n| ", apres: " |  |\n", defaut: "cas" },
-  { label: "Panneaux", avant: "\n:::signaux ", apres: "\nLégende.\n:::\n", defaut: "AB1" },
-  { label: "Marquage", avant: "\n:::marquage ", apres: "\nLégende.\n:::\n", defaut: "T1" },
 ];
 
 export async function openCoursEditeur(numero, { onFerme } = {}) {
@@ -61,20 +61,83 @@ export async function openCoursEditeur(numero, { onFerme } = {}) {
   zone.value = cours.corps_md;
   const apercu = el("div", { class: "cours-article editeur-apercu" });
 
+  // Insère avant/sélection/après au point d'insertion en passant par la pile
+  // d'annulation native du navigateur : Ctrl+Z défait l'insertion. Écrire
+  // zone.value directement viderait cette pile ; c'est le repli seulement.
+  function insererSyntaxeZone(avant, apres, defaut) {
+    zone.focus();
+    const debut = zone.selectionStart, fin = zone.selectionEnd;
+    const sel = zone.value.slice(debut, fin) || defaut;
+    if (!document.execCommand("insertText", false, avant + sel + apres)) {
+      const r = insererSyntaxe(zone.value, debut, fin, avant, apres, defaut);
+      zone.value = r.texte;
+    }
+    zone.setSelectionRange(debut + avant.length, debut + avant.length + sel.length);
+    marquerNonSauve();
+    rafraichirApercu();
+  }
+
   const outils = el("div", { class: "editeur-outils" });
   for (const o of OUTILS) {
     const b = el("button", { class: "btn", type: "button" }, o.label);
-    b.addEventListener("click", () => {
-      const r = insererSyntaxe(zone.value, zone.selectionStart, zone.selectionEnd,
-        o.avant, o.apres, o.defaut);
-      zone.value = r.texte;
-      zone.focus();
-      zone.setSelectionRange(r.debutSel, r.finSel);
-      marquerNonSauve();
-      rafraichirApercu();
-    });
+    b.addEventListener("click", () => insererSyntaxeZone(o.avant, o.apres, o.defaut));
     outils.appendChild(b);
   }
+
+  // ===== Galerie de planches : choisir un panneau ou un marquage en le voyant,
+  // au lieu de connaître son code par cœur. Un clic insère une planche neuve ;
+  // si le curseur est déjà sur la ligne de codes d'une planche du même type,
+  // le code s'ajoute au bout (les clics successifs composent une planche). =====
+  const galerie = el("div", { class: "editeur-galerie", hidden: true });
+  let galerieType = null;
+
+  function insererCodePlanche(type, code) {
+    zone.focus();
+    const pos = zone.selectionStart;
+    const debutLigne = zone.value.lastIndexOf("\n", pos - 1) + 1;
+    const finBrute = zone.value.indexOf("\n", pos);
+    const finLigne = finBrute === -1 ? zone.value.length : finBrute;
+    if (zone.value.slice(debutLigne, finLigne).startsWith(":::" + type + " ")) {
+      zone.setSelectionRange(finLigne, finLigne);
+      if (!document.execCommand("insertText", false, " " + code)) {
+        zone.value = zone.value.slice(0, finLigne) + " " + code + zone.value.slice(finLigne);
+      }
+      zone.setSelectionRange(finLigne + 1 + code.length, finLigne + 1 + code.length);
+    } else {
+      const tete = `\n:::${type} ${code}`;
+      if (!document.execCommand("insertText", false, `${tete}\nLégende.\n:::\n`)) {
+        zone.value = zone.value.slice(0, pos) + `${tete}\nLégende.\n:::\n` + zone.value.slice(pos);
+      }
+      // Curseur en fin de ligne de codes : le clic suivant complète la planche.
+      zone.setSelectionRange(pos + tete.length, pos + tete.length);
+    }
+    marquerNonSauve();
+    rafraichirApercu();
+  }
+
+  function togglerGalerie(type) {
+    if (!galerie.hidden && galerieType === type) { galerie.hidden = true; return; }
+    galerieType = type;
+    clear(galerie);
+    const registre = type === "signaux" ? SIGNAUX : MARQUAGES;
+    const carte = type === "signaux" ? carteSignal : carteMarquage;
+    for (const code of Object.keys(registre)) {
+      const v = el("button", { class: "editeur-vignette", type: "button",
+        title: code.startsWith("famille-") ? code : `Insérer ${code}`,
+        onClick: () => insererCodePlanche(type, code) });
+      v.appendChild(carte(code));
+      galerie.appendChild(v);
+    }
+    versionsPanneau.hidden = true;
+    galerie.hidden = false;
+  }
+
+  const btnPanneaux = el("button", { class: "btn", type: "button",
+    onClick: () => togglerGalerie("signaux") }, "Panneaux");
+  const btnMarquage = el("button", { class: "btn", type: "button",
+    onClick: () => togglerGalerie("marquage") }, "Marquage");
+  outils.appendChild(btnPanneaux);
+  outils.appendChild(btnMarquage);
   const champFichier = el("input", { type: "file", accept: "image/*", hidden: true });
   const btnImage = el("button", { class: "btn", type: "button" }, "Image");
   btnImage.addEventListener("click", () => champFichier.click());
@@ -87,12 +150,7 @@ export async function openCoursEditeur(numero, { onFerme } = {}) {
     try {
       const blob = await reduireImage(fichier);
       const url = await uploadCoursImage(blob, cheminImage(numero, fichier.name, Date.now()));
-      const r = insererSyntaxe(zone.value, zone.selectionStart, zone.selectionEnd,
-        "\n![", `](${url})\n`, "légende");
-      zone.value = r.texte;
-      zone.setSelectionRange(r.debutSel, r.finSel);
-      marquerNonSauve();
-      rafraichirApercu();
+      insererSyntaxeZone("\n![", `](${url})\n`, "légende");
     } catch (e) {
       message("Échec du téléversement : " + (e?.message || e));
     } finally {
@@ -127,6 +185,7 @@ export async function openCoursEditeur(numero, { onFerme } = {}) {
   overlay.appendChild(tete);
   overlay.appendChild(bandeau);
   overlay.appendChild(outils);
+  overlay.appendChild(galerie);
   overlay.appendChild(bascule);
   overlay.appendChild(versionsPanneau);
   overlay.appendChild(corps);
@@ -223,6 +282,7 @@ export async function openCoursEditeur(numero, { onFerme } = {}) {
   // ===== Versions =====
   btnVersions.addEventListener("click", async () => {
     if (!versionsPanneau.hidden) { versionsPanneau.hidden = true; return; }
+    galerie.hidden = true;
     clear(versionsPanneau);
     versionsPanneau.hidden = false;
     versionsPanneau.appendChild(el("p", { class: "muted" }, "Chargement…"));
@@ -269,7 +329,14 @@ export async function openCoursEditeur(numero, { onFerme } = {}) {
     document.removeEventListener("keydown", onKey);
     if (onFerme) onFerme(aChange);
   }
-  function onKey(e) { if (e.key === "Escape") { e.preventDefault(); close(); } }
+  function onKey(e) {
+    if (e.key !== "Escape") return;
+    e.preventDefault();
+    // Échap referme d'abord ce qui est ouvert par-dessus l'éditeur.
+    if (!galerie.hidden) { galerie.hidden = true; return; }
+    if (!versionsPanneau.hidden) { versionsPanneau.hidden = true; return; }
+    close();
+  }
   fermer.addEventListener("click", close);
   document.addEventListener("keydown", onKey);
 }

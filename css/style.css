@@ -7430,3 +7430,20 @@ body.cours-open { overflow: hidden; }
 .cours-pastille-gris { background: #9a9a9a; }
 .cours-pastille-marron { background: #7c4a1e; }
 .cours-pastille-violet { background: #6c3fa8; }
+
+/* ===== Galerie de planches de l'éditeur de cours =====
+   Choisir un panneau ou un marquage en le voyant : vignettes cliquables,
+   reprises des cartes du lecteur (signal-card / marquage-card). */
+.editeur-galerie {
+  display: flex; flex-wrap: wrap; gap: 8px; align-items: stretch;
+  padding: 8px 14px; border-bottom: 1px solid var(--line);
+  max-height: 250px; overflow-y: auto;
+}
+.editeur-vignette {
+  padding: 6px; border: 1px solid var(--line); border-radius: var(--r);
+  background: var(--bg-elev); cursor: pointer; text-align: center;
+}
+.editeur-vignette:hover, .editeur-vignette:focus-visible { border-color: var(--accent); }
+.editeur-vignette .signal-card, .editeur-vignette .marquage-card { margin: 0; border: 0; }
+.editeur-vignette .signal-cap, .editeur-vignette .marquage-cap { max-width: 8.5rem; }
+.editeur-vignette .marquage-svg { width: 10rem; height: auto; }
