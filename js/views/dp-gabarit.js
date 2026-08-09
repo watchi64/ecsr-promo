@@ -11,7 +11,7 @@
 // au sommaire, et il passe obligatoirement par escapeHtml. Toutes les autres
 // valeurs entrent par fillData, qui écrit en textContent.
 
-import { blocsImprimes, blocsEdition, sommaire, cleExemple } from "../dp-rules.js?v=20260809c";
+import { blocsImprimes, blocsEdition, sommaire, cleExemple } from "../dp-rules.js?v=20260809e";
 
 export const AT1_TITRE = "Former des apprenants conducteurs par des actions individuelles et collectives, dans le respect des cadres réglementaires en vigueur";
 export const AT2_TITRE = "Sensibiliser l’ensemble des usagers de la route à l’adoption de comportements sûrs et respectueux de l’environnement";
