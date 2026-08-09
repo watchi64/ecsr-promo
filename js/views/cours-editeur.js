@@ -10,14 +10,14 @@
  * enregistrement ; si le cours a bougé entre-temps, un bandeau propose
  * d'écraser ou d'abandonner, rien ne part sans décision.
  */
-import { el, clear } from "../utils.js?v=20260808b";
-import { icon } from "../icons.js?v=20260808b";
+import { el, clear } from "../utils.js?v=20260809b";
+import { icon } from "../icons.js?v=20260809b";
 import { getCours, saveCours, setCoursPublie, listCoursVersions, getCoursVersion, uploadCoursImage }
-  from "../db.js?v=20260808b";
-import { rendreMarkdown } from "./cours-reader.js?v=20260808b";
-import { insererSyntaxe, titreDepuisMarkdown, cheminImage } from "../cours-rules.js?v=20260808b";
-import { getProfileWho } from "../auth-admin.js?v=20260808b";
-import { reduireImage } from "../cours-images.js?v=20260808b";
+  from "../db.js?v=20260809b";
+import { rendreMarkdown } from "./cours-reader.js?v=20260809b";
+import { insererSyntaxe, titreDepuisMarkdown, cheminImage } from "../cours-rules.js?v=20260809b";
+import { getProfileWho } from "../auth-admin.js?v=20260809b";
+import { reduireImage } from "../cours-images.js?v=20260809b";
 
 const OUTILS = [
   { label: "Gras", avant: "**", apres: "**", defaut: "texte" },
