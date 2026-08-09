@@ -1,13 +1,13 @@
-import { listThemes, updateTheme, addTheme, deleteTheme, listQcmIndex, getQcmFull, publishQcm, unpublishQcm, updateExamConfig, listExamAttempts, resetExamAttempt, listMyQcmAttempts, getMyProfile, listEvaluations, getOrCreateQcm, saveQcmQuestion, deleteQcmQuestion, reorderQcmQuestions, uploadQcmImage, listQcmSignalements, setQcmSignalementStatut, countQcmSignalementsOuverts } from "../db.js?v=20260808e";
-import { el, clear, isoDate, formatDate, toast, debounce } from "../utils.js?v=20260808e";
-import { icon } from "../icons.js?v=20260808e";
+import { listThemes, updateTheme, addTheme, deleteTheme, listQcmIndex, getQcmFull, publishQcm, unpublishQcm, updateExamConfig, listExamAttempts, resetExamAttempt, listMyQcmAttempts, getMyProfile, listEvaluations, getOrCreateQcm, saveQcmQuestion, deleteQcmQuestion, reorderQcmQuestions, uploadQcmImage, listQcmSignalements, setQcmSignalementStatut, countQcmSignalementsOuverts } from "../db.js?v=20260809a";
+import { el, clear, isoDate, formatDate, toast, debounce } from "../utils.js?v=20260809a";
+import { icon } from "../icons.js?v=20260809a";
 import { examenDemarrable, tempsRestantMs, formatTempsRestant,
-         echeanceDepuisChoix, DUREES_OUVERTURE } from "../qcm-exam-rules.js?v=20260808e";
-import { isAdmin, getAdminEmail, isProf, isStagiaire } from "../auth-admin.js?v=20260808e";
-import { recordUndo } from "../undo.js?v=20260808e";
-import { openQcmEntrainement, openQcmExamen } from "./qcm.js?v=20260808e";
-import { carteSignalement, renderConsoleSignalements, chargerAuteurs } from "./signalements.js?v=20260808e";
-import { renderSubTabs } from "../subtabs.js?v=20260808e";
+         echeanceDepuisChoix, DUREES_OUVERTURE } from "../qcm-exam-rules.js?v=20260809a";
+import { isAdmin, getAdminEmail, isProf, isStagiaire } from "../auth-admin.js?v=20260809a";
+import { recordUndo } from "../undo.js?v=20260809a";
+import { openQcmEntrainement, openQcmExamen } from "./qcm.js?v=20260809a";
+import { carteSignalement, renderConsoleSignalements, chargerAuteurs } from "./signalements.js?v=20260809a";
+import { renderSubTabs } from "../subtabs.js?v=20260809a";
 
 let themes = [];
 let qcmByTheme = new Map();  // theme_id -> { id, nb_questions, published, ... }
@@ -130,7 +130,7 @@ function qcmCellEl(theme, qcm) {
     const row = (lab, val, colored) => el("div", { class: "qcm-cell-note-row" },
       el("span", { class: "qcm-cell-note-lab" }, lab),
       el("span", { class: "qcm-cell-note-val " + (colored ? "n-" + noteClass(val) : "is-muted") },
-        val != null ? `${val}/20` : "—"),
+        val != null ? `${val}/20` : "-"),
     );
     cell.appendChild(el("div", { class: "qcm-cell-notes" },
       row("Examen", note, true),
@@ -179,11 +179,11 @@ function openQcmSheet(theme, qcm) {
     if (isStagiaire()) {
       body.appendChild(el("div", { class: "qcm-note-cards" },
         el("div", { class: "qcm-note-card n-" + noteClass(note) },
-          el("span", { class: "qcm-note-card-val" }, note != null ? `${note}/20` : "—"),
+          el("span", { class: "qcm-note-card-val" }, note != null ? `${note}/20` : "-"),
           el("span", { class: "qcm-note-card-lab" }, "Ma note d'examen"),
         ),
         el("div", { class: "qcm-note-card n-" + noteClass(train) },
-          el("span", { class: "qcm-note-card-val" }, train != null ? `${train}/20` : "—"),
+          el("span", { class: "qcm-note-card-val" }, train != null ? `${train}/20` : "-"),
           el("span", { class: "qcm-note-card-lab" }, "Dernier entraînement"),
         ),
       ));
@@ -450,7 +450,7 @@ function themeExamPanel(theme, qcm, onPublishChange) {
         if (!attempts.length) { bodyA.appendChild(el("p", { class: "muted" }, "Aucune tentative pour l'instant.")); return; }
         attempts.forEach((a) => {
           bodyA.appendChild(el("div", { class: "exam-attempt-row" },
-            el("span", {}, (a.stagiaire?.prenom || `Stagiaire ${a.stagiaire_id}`) + ` — ${a.note_20}/20`),
+            el("span", {}, (a.stagiaire?.prenom || `Stagiaire ${a.stagiaire_id}`) + ` : ${a.note_20}/20`),
             el("button", { class: "btn danger", type: "button", onClick: async () => {
               if (!window.confirm("Réinitialiser cette tentative ? La note sera supprimée.")) return;
               try { await resetExamAttempt(qcm.id, a.stagiaire_id); attempts = attempts.filter((x) => x.id !== a.id); toast("Tentative réinitialisée.", "success"); fill(); }
@@ -997,7 +997,7 @@ function updateThemeRowInPlace(theme, chipEl) {
       dateEl.appendChild(document.createTextNode(formatDate(theme.date_fait)));
     } else {
       dateEl.classList.add("muted");
-      dateEl.appendChild(document.createTextNode("—"));
+      dateEl.appendChild(document.createTextNode("-"));
     }
   }
 }
@@ -1113,7 +1113,7 @@ function debouncedNoteSave(theme) {
 
 function renderThemeRow(theme, container) {
   const admin = isAdmin();
-  const num = theme.numero ? String(theme.numero).padStart(2, "0") : "—";
+  const num = theme.numero ? String(theme.numero).padStart(2, "0") : "-";
   const statutNorm = normalizeStatut(theme.statut);
   const color = statutNorm === "Fait" ? "done" : "todo";
 
@@ -1158,7 +1158,7 @@ function renderThemeRow(theme, container) {
   } else {
     dateLabel = theme.date_fait
       ? el("span", { class: "theme-date" }, formatDate(theme.date_fait))
-      : el("span", { class: "theme-date muted" }, "—");
+      : el("span", { class: "theme-date muted" }, "-");
   }
 
   // Delete (admin notion seulement, jamais sur thèmes officiels)

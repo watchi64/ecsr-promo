@@ -5,10 +5,10 @@
 // Ce module ne connaît PAS l'éditeur : il reçoit `onOuvrirEditeur` de la part de
 // themes.js. Importer themes.js ici créerait un import circulaire entre deux vues.
 
-import { el, clear, formatDate, toast } from "../utils.js?v=20260808e";
-import { etatInstruction, corpsAnalyse, morceaux, grouperParVerdict } from "../qcm-signalement-rules.js?v=20260808e";
-import { listTousSignalements, setQcmSignalementStatut, listStagiaires } from "../db.js?v=20260808e";
-import { getAdminEmail } from "../auth-admin.js?v=20260808e";
+import { el, clear, formatDate, toast } from "../utils.js?v=20260809a";
+import { etatInstruction, corpsAnalyse, morceaux, grouperParVerdict } from "../qcm-signalement-rules.js?v=20260809a";
+import { listTousSignalements, setQcmSignalementStatut, listStagiaires } from "../db.js?v=20260809a";
+import { getAdminEmail } from "../auth-admin.js?v=20260809a";
 
 export const MOTIF_LABELS = {
   reponse_fausse: "Réponse fausse",
@@ -60,8 +60,8 @@ function encartInstruction(s) {
   });
   return el("details", { class: "qcm-signal-instr" },
     el("summary", { class: "qcm-signal-instr-tete" },
-      el("span", { class: "qcm-signal-instr-titre" }, "Instruction automatique — avis, pas décision"),
-      el("span", { class: "qcm-signal-instr-conclusion" }, etat.libelle + " — " + etat.conclusion),
+      el("span", { class: "qcm-signal-instr-titre" }, "Instruction automatique : avis, pas décision"),
+      el("span", { class: "qcm-signal-instr-conclusion" }, etat.libelle + " : " + etat.conclusion),
       el("span", { class: "qcm-signal-instr-plus" }, "Voir l'analyse ▾"),
       el("span", { class: "qcm-signal-instr-date" },
         etat.instruitAt ? "instruit le " + formatDate(etat.instruitAt) : ""),

@@ -19,12 +19,12 @@ export const NOUVEAUTES = [
     titre: "Dis quelle réponse te pose problème quand tu signales",
     resume: "Le formulaire de signalement te demande maintenant laquelle des réponses est en "
           + "cause. C'est utile : les réponses sont mélangées à chaque passage, donc écrire "
-          + "« la réponse D » ne voulait rien dire une fois le signalement reçu. Et ça sert — "
+          + "« la réponse D » ne voulait rien dire une fois le signalement reçu. Et ça sert : "
           + "les signalements de la semaine ont abouti à huit questions corrigées.",
     ou: { label: "Thèmes, colonne QCM", route: "themes" },
     guide: [
       "Pendant un entraînement, réponds à la question, puis utilise le lien de signalement.",
-      "Choisis le motif, puis la réponse concernée dans la liste — ou laisse « toute la question » "
+      "Choisis le motif, puis la réponse concernée dans la liste, ou laisse « toute la question » "
         + "si c'est l'énoncé ou l'explication qui cloche.",
       "Ajoute un mot d'explication si tu veux, et envoie.",
     ],
@@ -36,8 +36,8 @@ export const NOUVEAUTES = [
     titre: "Tous les signalements au même endroit, déjà instruits",
     resume: "Un sous-onglet Signalements rassemble les signalements de tous les QCM, rangés par "
           + "ce qu'ils demandent : ceux où l'élève a raison d'abord, puis ceux à trancher, puis "
-          + "ceux qui n'appellent rien. Chacun arrive avec une analyse déjà faite — articles de "
-          + "loi revérifiés, chiffres recoupés — mais la décision reste la tienne : l'avis ne "
+          + "ceux qui n'appellent rien. Chacun arrive avec une analyse déjà faite (articles de "
+          + "loi revérifiés, chiffres recoupés), mais la décision reste la tienne : l'avis ne "
           + "corrige jamais une question de lui-même.",
     ou: { label: "Thèmes, sous-onglet Signalements", route: "themes" },
     guide: [
