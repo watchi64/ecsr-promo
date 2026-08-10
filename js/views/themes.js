@@ -1116,20 +1116,6 @@ function openThemeModal(theme) {
   document.body.appendChild(backdrop);
 }
 
-function debouncedNoteSave(theme) {
-  const key = "theme-note-" + theme.id;
-  if (!window.__debSavers) window.__debSavers = {};
-  if (!window.__debSavers[key]) {
-    window.__debSavers[key] = debounce(async (val) => {
-      try {
-        await updateTheme(theme.id, { notes: val, updated_by_email: getAdminEmail() });
-        theme.notes = val;
-      } catch (e) { toast(e.message, "error"); }
-    }, 600);
-  }
-  return window.__debSavers[key];
-}
-
 function renderThemeRow(theme, container) {
   const admin = isAdmin();
   const num = theme.numero ? String(theme.numero).padStart(2, "0") : "-";
@@ -1149,18 +1135,6 @@ function renderThemeRow(theme, container) {
     ev.preventDefault();
     cycleStatut(theme, container, statutChip);
   });
-
-  // Notes (toujours visible, mais readonly si pas admin)
-  const notesInput = el("input", {
-    type: "text",
-    class: "theme-notes",
-    placeholder: admin ? "Notes pédagogiques…" : "",
-    value: theme.notes || "",
-    readonly: !admin || undefined,
-  });
-  if (admin) {
-    notesInput.addEventListener("input", () => debouncedNoteSave(theme)(notesInput.value));
-  }
 
   // Date, éditable si admin
   let dateLabel;
@@ -1226,7 +1200,6 @@ function renderThemeRow(theme, container) {
     ),
     statutChip,
     dateLabel,
-    notesInput,
     qcmCell,
     delBtn || el("span"),
   );
@@ -1509,7 +1482,6 @@ function rerender(container) {
       el("span", {}, "Thème"),
       el("span", {}, "Statut"),
       el("span", {}, "Fait le"),
-      el("span", {}, "Notes"),
       canSeeQcm() ? el("span", {}, "QCM") : null,
       el("span", {}),
     ));
