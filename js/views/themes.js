@@ -1076,6 +1076,15 @@ function openDateEditor(theme, anchorEl, container) {
   setTimeout(() => dateInput.focus(), 80);
 }
 
+// Enchaînement cours -> QCM : le lecteur propose l'entraînement du thème en fin
+// de lecture, si un QCM existe et que le lecteur du moment a le droit de le voir
+// (la RLS et l'index font qu'un stagiaire n'a ici que le publié).
+function optionsCoursPour(theme) {
+  const qcm = qcmByTheme.get(theme.id);
+  if (!qcm || !canSeeQcm()) return {};
+  return { onQcm: () => openQcmEntrainement(theme, qcm) };
+}
+
 function openThemeModal(theme) {
   const backdrop = el("div", { class: "modal-backdrop" });
   const num = theme.numero ? String(theme.numero).padStart(2, "0") : null;
@@ -1088,7 +1097,7 @@ function openThemeModal(theme) {
     hasCours(theme)
       ? el("div", { class: "theme-cours-cta" },
           el("button", { class: "btn primary full", type: "button",
-            onClick: () => { backdrop.remove(); openCoursSheet(theme); } },
+            onClick: () => { backdrop.remove(); openCoursSheet(theme, optionsCoursPour(theme)); } },
             icon.edu(), "Lire le cours"),
           el("p", { class: "theme-cours-hint" },
             "Synthèse, contenu détaillé, sanctions sourcées, chiffres clés et aide-mémoire."),
@@ -1186,10 +1195,14 @@ function renderThemeRow(theme, container) {
     delBtn.appendChild(icon.trash());
   }
 
+  // Le clic sur le titre mène droit au cours quand il existe ; la fiche du
+  // thème ne sert plus que lorsqu'il n'y a pas encore de cours à lire.
   const titreBtn = el("button", {
     class: "theme-titre-link", type: "button",
-    title: "Voir le contenu du thème",
-    onClick: () => openThemeModal(theme),
+    title: hasCours(theme) ? "Lire le cours" : "Voir le contenu du thème",
+    onClick: () => hasCours(theme)
+      ? openCoursSheet(theme, optionsCoursPour(theme))
+      : openThemeModal(theme),
   }, theme.titre);
 
   // Colonne QCM : cellule dédiée à droite, jamais sous le titre. Un stagiaire n'y

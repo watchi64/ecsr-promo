@@ -24,10 +24,11 @@ export const NOUVEAUTES = [
           + "enregistrement garde une version : rien ne se perd, tout se restaure.",
     ou: { label: "Thèmes, badge Cours", route: "themes" },
     guide: [
-      "Ouvre l'onglet Thèmes et clique sur « Lire le cours » d'un thème.",
+      "Ouvre l'onglet Thèmes et clique sur le titre d'un thème : le cours s'ouvre directement.",
       "« Modifier » ouvre l'éditeur : corrige à gauche, contrôle l'aperçu à droite.",
       "Le bouton Panneaux ouvre la galerie : cherche un panneau par son nom, un clic l'insère.",
       "Enregistre, puis « Publier » quand le cours est prêt pour la promo.",
+      "En fin de cours, un bouton enchaîne sur le QCM du thème.",
     ],
   },
   {

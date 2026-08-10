@@ -390,7 +390,7 @@ export function rendreMarkdown(texte) {
  * Fermeture par la croix ou Échap seulement : un clic à côté ne doit pas
  * faire perdre sa position de lecture.
  */
-export async function openCoursSheet(theme) {
+export async function openCoursSheet(theme, { onQcm } = {}) {
   const numero = Number(theme.numero);
   const overlay = el("div", { class: "cours-overlay" });
   const barre = el("div", { class: "cours-progress" });
@@ -460,6 +460,16 @@ export async function openCoursSheet(theme) {
 
     clear(corps);
     noeuds.forEach((n) => corps.appendChild(n));
+
+    // Fin de lecture : enchaîner sur le QCM du thème quand il est disponible.
+    if (onQcm) {
+      corps.appendChild(el("div", { class: "cours-qcm-cta" },
+        el("p", { class: "cours-qcm-cta-texte" }, "Cours terminé ? Vérifie que c'est acquis."),
+        el("button", { class: "btn primary", type: "button",
+          onClick: () => { close(); onQcm(); } },
+          "S'entraîner : QCM du thème"),
+      ));
+    }
 
     const titre = titreDepuisMarkdown(texte);
     if (titre) tete.querySelector(".cours-head-titre").textContent = titre;
