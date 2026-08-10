@@ -109,7 +109,10 @@ function qcmCellEl(theme, qcm) {
   }, icon.quiz(), "QCM");
   const note = myThemeNote(theme, qcm);
   const train = myTrainNote(qcm);
-  const cell = el("div", { class: "theme-qcm-cell2" }, btn);
+  // L'en-tête étale bouton et notes sur toute la largeur de la colonne ;
+  // la barre en dessous matérialise la dernière note d'entraînement.
+  const cell = el("div", { class: "theme-qcm-cell2" },
+    el("div", { class: "qcm-cell-entete" }, btn));
   // Examen ouvert : reperable d'un coup d'oeil depuis la liste. C'est le filet
   // contre l'oubli quand un formateur a ouvert sans limite de temps.
   if (examenDemarrable(qcm)) {
@@ -134,10 +137,17 @@ function qcmCellEl(theme, qcm) {
       el("span", { class: "qcm-cell-note-val " + (colored ? "n-" + noteClass(val) : "is-muted") },
         val != null ? `${val}/20` : "-"),
     );
-    cell.appendChild(el("div", { class: "qcm-cell-notes" },
+    cell.querySelector(".qcm-cell-entete").appendChild(el("div", { class: "qcm-cell-notes" },
       row("Examen", note, true),
       row("Entraîn.", train, false),
     ));
+  }
+  if (train != null) {
+    const pct = Math.max(0, Math.min(100, (train / 20) * 100));
+    cell.appendChild(el("div", {
+      class: "qcm-cell-barre",
+      title: `Entraînement : ${train}/20`,
+    }, el("div", { class: "qcm-cell-barre-fill n-" + noteClass(train), style: `width:${pct}%` })));
   }
   return cell;
 }

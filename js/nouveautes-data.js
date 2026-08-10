@@ -13,6 +13,16 @@
 
 export const NOUVEAUTES = [
   {
+    id: "2026-08-10-barre-entrainement",
+    date: "2026-08-10",
+    pour: "tous",
+    titre: "Ta progression d'entraînement se voit d'un coup d'œil",
+    resume: "Dans la liste des thèmes, une barre colorée sous chaque QCM se remplit avec ta "
+          + "dernière note d'entraînement. Plus la barre est verte et pleine, plus le thème "
+          + "est acquis : tu repères en un survol ceux qui méritent une nouvelle passe.",
+    ou: { label: "Thèmes, colonne QCM", route: "themes" },
+  },
+  {
     id: "2026-08-09-cours-en-relecture",
     date: "2026-08-09",
     pour: "formateurs",

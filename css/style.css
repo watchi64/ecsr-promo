@@ -7476,3 +7476,22 @@ body.cours-open { overflow: hidden; }
   }
   .themes-list.cours-on.qcm-on .theme-row .theme-qcm-cell { grid-row: 4; }
 }
+
+/* ===== Cellule QCM : pleine largeur et barre d'entraînement =====
+   Le bouton et les notes se partagent la largeur de la colonne ; la barre
+   sous la cellule se remplit avec la dernière note d'entraînement (mêmes
+   paliers de couleur que les notes). */
+.theme-qcm-cell .theme-qcm-cell2 { width: 100%; }
+.qcm-cell-entete {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px; width: 100%;
+}
+.qcm-cell-barre {
+  width: 100%; height: 5px; margin-top: 6px;
+  border-radius: 999px; background: var(--line-faint); overflow: hidden;
+}
+.qcm-cell-barre-fill { height: 100%; border-radius: 999px; }
+.qcm-cell-barre-fill.n-great { background: var(--c-go); }
+.qcm-cell-barre-fill.n-ok { background: var(--accent-strong); }
+.qcm-cell-barre-fill.n-mid { background: #B67A3D; }
+.qcm-cell-barre-fill.n-low { background: var(--c-stop); }
