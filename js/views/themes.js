@@ -8,7 +8,7 @@ import { recordUndo } from "../undo.js?v=20260810d";
 import { openQcmEntrainement, openQcmExamen } from "./qcm.js?v=20260810d";
 import { carteSignalement, renderConsoleSignalements, chargerAuteurs } from "./signalements.js?v=20260810d";
 import { renderSubTabs } from "../subtabs.js?v=20260810d";
-import { hasCours, openCoursSheet, chargerCoursIndex } from "./cours-reader.js?v=20260810d";
+import { hasCours, openCoursSheet, chargerCoursIndex, coursDejaOuvert } from "./cours-reader.js?v=20260810d";
 
 let themes = [];
 let qcmByTheme = new Map();  // theme_id -> { id, nb_questions, published, ... }
@@ -1116,7 +1116,7 @@ function openThemeModal(theme) {
   document.body.appendChild(backdrop);
 }
 
-function renderThemeRow(theme, container) {
+function renderThemeRow(theme, container, coursOn = false) {
   const admin = isAdmin();
   const num = theme.numero ? String(theme.numero).padStart(2, "0") : "-";
   const statutNorm = normalizeStatut(theme.statut);
@@ -1169,14 +1169,31 @@ function renderThemeRow(theme, container) {
     delBtn.appendChild(icon.trash());
   }
 
+  // Colonne Cours : bouton vif tant que le cours n'a pas été ouvert sur cet
+  // appareil, atténué ensuite. Le clic sur le titre suit le même chemin.
+  const coursBtn = hasCours(theme)
+    ? el("button", {
+        class: "theme-cours-btn" + (coursDejaOuvert(theme.numero) ? " deja-lu" : ""),
+        type: "button",
+        title: coursDejaOuvert(theme.numero) ? "Relire le cours" : "Lire le cours",
+      }, icon.edu(), "Cours")
+    : null;
+  const coursCell = coursOn
+    ? el("div", { class: "theme-cours-cell" }, coursBtn || el("span"))
+    : null;
+
+  function ouvrirCours() {
+    coursBtn?.classList.add("deja-lu");
+    openCoursSheet(theme, optionsCoursPour(theme));
+  }
+  coursBtn?.addEventListener("click", ouvrirCours);
+
   // Le clic sur le titre mène droit au cours quand il existe ; la fiche du
   // thème ne sert plus que lorsqu'il n'y a pas encore de cours à lire.
   const titreBtn = el("button", {
     class: "theme-titre-link", type: "button",
     title: hasCours(theme) ? "Lire le cours" : "Voir le contenu du thème",
-    onClick: () => hasCours(theme)
-      ? openCoursSheet(theme, optionsCoursPour(theme))
-      : openThemeModal(theme),
+    onClick: () => hasCours(theme) ? ouvrirCours() : openThemeModal(theme),
   }, theme.titre);
 
   // Colonne QCM : cellule dédiée à droite, jamais sous le titre. Un stagiaire n'y
@@ -1191,15 +1208,15 @@ function renderThemeRow(theme, container) {
     el("span", { class: "theme-num" }, num),
     el("div", { class: "theme-titre-block" },
       titreBtn,
-      (theme.categorie || hasCours(theme))
+      theme.categorie
         ? el("div", { class: "theme-titre-meta" },
-            theme.categorie ? el("span", { class: "theme-cat" }, theme.categorie) : null,
-            hasCours(theme) ? el("span", { class: "theme-cours-flag" }, "Cours") : null,
+            el("span", { class: "theme-cat" }, theme.categorie),
           )
         : null,
     ),
     statutChip,
     dateLabel,
+    coursCell,
     qcmCell,
     delBtn || el("span"),
   );
@@ -1476,12 +1493,17 @@ function rerender(container) {
     }
 
     // Liste des thèmes/notions, sous-groupée par catégorie si c'est une famille avec sous-cats (thèmes officiels)
-    const list = el("div", { class: "themes-list" + (canSeeQcm() ? " qcm-on" : "") });
+    // La colonne Cours n'existe que si au moins un thème de la section a un
+    // cours visible (un stagiaire sans cours publié garde la liste d'avant).
+    const coursOn = items.some((t) => hasCours(t));
+    const list = el("div", { class: "themes-list"
+      + (canSeeQcm() ? " qcm-on" : "") + (coursOn ? " cours-on" : "") });
     list.appendChild(el("div", { class: "theme-row theme-header" },
       el("span", { class: "theme-num" }, "N°"),
       el("span", {}, "Thème"),
       el("span", {}, "Statut"),
       el("span", {}, "Fait le"),
+      coursOn ? el("span", {}, "Cours") : null,
       canSeeQcm() ? el("span", {}, "QCM") : null,
       el("span", {}),
     ));
@@ -1497,10 +1519,10 @@ function rerender(container) {
       });
       Object.entries(grouped).forEach(([cat, gItems]) => {
         list.appendChild(el("div", { class: "theme-group-head" }, cat, el("span", { class: "muted" }, " · " + gItems.length)));
-        gItems.forEach((t) => list.appendChild(renderThemeRow(t, container)));
+        gItems.forEach((t) => list.appendChild(renderThemeRow(t, container, coursOn)));
       });
     } else {
-      items.forEach((t) => list.appendChild(renderThemeRow(t, container)));
+      items.forEach((t) => list.appendChild(renderThemeRow(t, container, coursOn)));
     }
     section.appendChild(list);
 

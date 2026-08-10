@@ -37,6 +37,25 @@ export function hasCours(theme) {
   return !!theme && !!coursIndex && coursIndex.has(Number(theme.numero));
 }
 
+// Mémoire locale des cours déjà ouverts (par navigateur, comme les nouveautés
+// vues) : la page Thèmes colore en vif les cours pas encore lus.
+const CLE_COURS_OUVERTS = "cours-ouverts";
+
+/** Ce cours a-t-il déjà été ouvert sur cet appareil ? */
+export function coursDejaOuvert(numero) {
+  try {
+    return JSON.parse(localStorage.getItem(CLE_COURS_OUVERTS) || "[]").includes(Number(numero));
+  } catch (e) { return false; }
+}
+
+function marquerCoursOuvert(numero) {
+  try {
+    const vus = new Set(JSON.parse(localStorage.getItem(CLE_COURS_OUVERTS) || "[]"));
+    vus.add(Number(numero));
+    localStorage.setItem(CLE_COURS_OUVERTS, JSON.stringify([...vus]));
+  } catch (e) { /* stockage indisponible : le bouton restera simplement vif */ }
+}
+
 // ===== Rendu markdown =====
 
 // Inline : liens, gras, italique, code. Renvoie un fragment (jamais d'innerHTML).
@@ -455,6 +474,7 @@ export async function openCoursSheet(theme, { onQcm } = {}) {
   try {
     const cours = await getCours(numero);
     const texte = cours.corps_md;
+    marquerCoursOuvert(numero);
 
     const { noeuds, contexte } = rendreMarkdown(texte);
 

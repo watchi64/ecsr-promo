@@ -7310,22 +7310,6 @@ body.cours-open { overflow: hidden; }
   text-align: center;
   color: var(--text-muted);
 }
-/* Pastille « Cours » sur la ligne de thème. */
-.theme-cours-flag {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  margin-left: 0.4rem;
-  padding: 0.05rem 0.35rem;
-  border-radius: 0.3rem;
-  background: var(--accent-soft);
-  color: var(--accent-strong);
-  font-size: 0.66rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  vertical-align: middle;
-}
 
 /* --- Planches de marquage au sol --- */
 .marquage-bloc { margin: 1.1rem 0; }
@@ -7459,4 +7443,36 @@ body.cours-open { overflow: hidden; }
   margin: 0 0 0.6rem;
   font-size: 0.9rem;
   color: var(--text);
+}
+
+/* ===== Colonne Cours de la liste des thèmes =====
+   Bouton vif tant que le cours n'a jamais été ouvert sur l'appareil,
+   atténué ensuite (mémoire locale, comme les nouveautés vues). */
+.theme-cours-cell { display: flex; align-items: center; min-width: 0; }
+.theme-cours-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 0.4rem 0.8rem; border-radius: 999px;
+  border: 1px solid var(--accent); background: var(--accent);
+  color: #fff; font-weight: 600; font-size: 0.82rem;
+  font-family: inherit; cursor: pointer; white-space: nowrap;
+}
+.theme-cours-btn .icon { width: 15px; height: 15px; }
+.theme-cours-btn:hover { filter: brightness(1.06); }
+.theme-cours-btn.deja-lu {
+  background: transparent; border-color: var(--line);
+  color: var(--text-muted); font-weight: 500;
+}
+.theme-cours-btn.deja-lu:hover { border-color: var(--accent); color: var(--text); filter: none; }
+
+/* Grilles : la colonne Cours s'insère entre la date et le QCM. */
+.themes-list.cours-on .theme-row { grid-template-columns: 50px 1fr 120px 90px 100px 36px; }
+.themes-list.cours-on.qcm-on .theme-row {
+  grid-template-columns: 50px 1fr 110px 78px 100px minmax(170px, 0.7fr) 36px;
+}
+@media (max-width: 720px) {
+  .themes-list.cours-on .theme-row { grid-template-columns: 36px 1fr auto auto; }
+  .themes-list.cours-on .theme-row .theme-cours-cell {
+    grid-column: 2 / -1; grid-row: 3; justify-self: start; margin-top: 0.4rem;
+  }
+  .themes-list.cours-on.qcm-on .theme-row .theme-qcm-cell { grid-row: 4; }
 }
