@@ -2,26 +2,26 @@
  * Promo ECSR : application propriétaire.
  * © 2026 watchi64. Tous droits réservés. Voir LICENSE.
  */
-import { signInWithPassword, signUpWithPassword, getCurrentUser, invalidateCache } from "./db.js?v=20260810h";
-import { toast } from "./utils.js?v=20260810h";
-import { icon } from "./icons.js?v=20260810h";
-import { initAuth, onAdminChange, isAuth, isAdmin, isProf } from "./auth-admin.js?v=20260810h";
-import { loadAccent } from "./accent-switcher.js?v=20260810h";
-import { loadTheme } from "./theme-switcher.js?v=20260810h";
-import { renderHome } from "./views/home.js?v=20260810h";
-import { renderDashboard } from "./views/dashboard.js?v=20260810h";
-import { renderMonSuivi } from "./views/mon-suivi.js?v=20260810h";
-import { renderPlanning, teardownPrintTarget, resetPlanningEditMode, requestPlanningToday } from "./views/planning.js?v=20260810h";
-import { teardownDocPrint } from "./doc-officiel.js?v=20260810h";
-import { renderNotes } from "./views/notes.js?v=20260810h";
-import { renderRessources } from "./views/ressources.js?v=20260810h";
-import { renderThemes } from "./views/themes.js?v=20260810h";
-import { renderConfig } from "./views/config.js?v=20260810h";
-import { renderCalendrier } from "./views/calendrier.js?v=20260810h";
-import { initUndoKeyboard } from "./undo.js?v=20260810h";
-import { renderNouveautes } from "./views/nouveautes.js?v=20260810h";
-import { NOUVEAUTES } from "./nouveautes-data.js?v=20260810h";
-import { visibles, nonLues, vuesEffectives, libellePastille } from "./nouveautes.js?v=20260810h";
+import { signInWithPassword, signUpWithPassword, getCurrentUser, invalidateCache } from "./db.js?v=20260811b";
+import { toast } from "./utils.js?v=20260811b";
+import { icon } from "./icons.js?v=20260811b";
+import { initAuth, onAdminChange, isAuth, isAdmin, isProf } from "./auth-admin.js?v=20260811b";
+import { loadAccent } from "./accent-switcher.js?v=20260811b";
+import { loadTheme } from "./theme-switcher.js?v=20260811b";
+import { renderHome } from "./views/home.js?v=20260811b";
+import { renderDashboard } from "./views/dashboard.js?v=20260811b";
+import { renderMonSuivi } from "./views/mon-suivi.js?v=20260811b";
+import { renderPlanning, teardownPrintTarget, resetPlanningEditMode, requestPlanningToday } from "./views/planning.js?v=20260811b";
+import { teardownDocPrint } from "./doc-officiel.js?v=20260811b";
+import { renderNotes } from "./views/notes.js?v=20260811b";
+import { renderRessources } from "./views/ressources.js?v=20260811b";
+import { renderThemes } from "./views/themes.js?v=20260811b";
+import { renderConfig } from "./views/config.js?v=20260811b";
+import { renderCalendrier } from "./views/calendrier.js?v=20260811b";
+import { initUndoKeyboard } from "./undo.js?v=20260811b";
+import { renderNouveautes } from "./views/nouveautes.js?v=20260811b";
+import { NOUVEAUTES } from "./nouveautes-data.js?v=20260811b";
+import { visibles, nonLues, vuesEffectives, libellePastille } from "./nouveautes.js?v=20260811b";
 
 // ===== Gate : email magic link =====
 
