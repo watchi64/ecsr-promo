@@ -33,3 +33,18 @@ export function cheminImage(numero, nomFichier, horodatage) {
     .slice(0, 40) || "image";
   return `theme_${String(numero).padStart(2, "0")}/${horodatage}_${propre}.jpg`;
 }
+
+/** Interpolation linéaire par morceaux entre deux suites d'ancres croissantes
+ *  (défilement synchronisé de l'éditeur : positions des titres de part et
+ *  d'autre). Ancres inutilisables : y est rendu tel quel. */
+export function interpolerAncres(src, dst, y) {
+  if (src.length < 2 || src.length !== dst.length) return y;
+  if (y <= src[0]) return dst[0];
+  for (let i = 1; i < src.length; i++) {
+    if (y <= src[i]) {
+      const t = (y - src[i - 1]) / (src[i] - src[i - 1] || 1);
+      return dst[i - 1] + t * (dst[i] - dst[i - 1]);
+    }
+  }
+  return dst[dst.length - 1];
+}

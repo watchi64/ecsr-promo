@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { titreDepuisMarkdown, tempsLecture, insererSyntaxe, cheminImage }
+import { titreDepuisMarkdown, tempsLecture, insererSyntaxe, cheminImage, interpolerAncres }
   from "../js/cours-rules.js";
 
 test("titreDepuisMarkdown retire le préfixe THÈME XX", () => {
@@ -31,4 +31,20 @@ test("cheminImage nettoie le nom et pose le préfixe du thème", () => {
     cheminImage(7, "Photo Vacances.PNG", "1723100000000"),
     "theme_07/1723100000000_photo-vacances.jpg");
   assert.equal(cheminImage(43, "???.jpg", "1"), "theme_43/1_image.jpg");
+});
+
+test("interpolerAncres suit les segments et borne aux extrémités", () => {
+  const src = [0, 100, 300];
+  const dst = [0, 50, 250];
+  assert.equal(interpolerAncres(src, dst, 0), 0);
+  assert.equal(interpolerAncres(src, dst, 100), 50);
+  assert.equal(interpolerAncres(src, dst, 50), 25);       // milieu du 1er segment
+  assert.equal(interpolerAncres(src, dst, 200), 150);     // milieu du 2e segment
+  assert.equal(interpolerAncres(src, dst, -10), 0);       // avant la première ancre
+  assert.equal(interpolerAncres(src, dst, 999), 250);     // après la dernière
+});
+
+test("interpolerAncres rend y tel quel si les ancres sont inutilisables", () => {
+  assert.equal(interpolerAncres([], [], 42), 42);
+  assert.equal(interpolerAncres([0, 10], [0], 42), 42);
 });

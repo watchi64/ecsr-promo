@@ -15,7 +15,7 @@ import { icon } from "../icons.js?v=20260811b";
 import { getCours, saveCours, setCoursPublie, listCoursVersions, getCoursVersion, uploadCoursImage }
   from "../db.js?v=20260811b";
 import { rendreMarkdown } from "./cours-reader.js?v=20260811b";
-import { insererSyntaxe, titreDepuisMarkdown, cheminImage } from "../cours-rules.js?v=20260811b";
+import { insererSyntaxe, titreDepuisMarkdown, cheminImage, interpolerAncres } from "../cours-rules.js?v=20260811b";
 import { getProfileWho } from "../auth-admin.js?v=20260811b";
 import { reduireImage } from "../cours-images.js?v=20260811b";
 import { SIGNAUX, carteSignal } from "../signaux.js?v=20260811b";
@@ -304,19 +304,84 @@ export async function openCoursEditeur(numero, { onFerme } = {}) {
     minuterie = setTimeout(() => {
       clear(apercu);
       rendreMarkdown(zone.value).noeuds.forEach((n) => apercu.appendChild(n));
-      // Le re-rendu remet l'aperçu à zéro : on le réaligne sur la zone.
+      // Le re-rendu change la géométrie : carte d'ancres à reconstruire,
+      // puis réalignement de l'aperçu sur la zone.
+      carteObsolete = true;
       synchroniserDefilement(zone, apercu);
     }, 400);
   }
   zone.addEventListener("input", () => { marquerNonSauve(); rafraichirApercu(); });
   rafraichirApercu();
 
-  // ===== Défilement synchronisé : les deux panneaux suivent la même
-  // proportion (leurs hauteurs diffèrent, markdown brut contre rendu :
-  // la règle de trois est le bon accord). La garde évite que le réglage
-  // programmatique d'un panneau ne redéclenche l'autre en boucle. =====
+  // ===== Défilement synchronisé par ancres : chaque titre (##, ###, ####)
+  // est mesuré des deux côtés, et le défilement interpole entre ces points.
+  // Chaque section se cale ainsi en face de la sienne ; le proportionnel pur
+  // dérivait dès que le rendu (tableaux, planches) divergeait du brut.
+  // Côté zone, un miroir typographique mesure la vraie hauteur des titres
+  // malgré les retours à la ligne automatiques. =====
+  let carte = null;          // { zone: [y...], apercu: [y...] }
+  let carteObsolete = true;
+  const miroir = el("div");
+
+  function construireCarte() {
+    carte = null;
+    const texte = zone.value;
+    const positions = [];
+    let pos = 0;
+    for (const ligne of texte.split("\n")) {
+      if (/^#{2,4}\s/.test(ligne)) positions.push(pos);
+      pos += ligne.length + 1;
+    }
+    const titres = [...apercu.querySelectorAll("h2, h3, h4")];
+    if (positions.length < 2 || positions.length !== titres.length) return;
+
+    const st = getComputedStyle(zone);
+    miroir.style.cssText = "position:absolute; left:-99999px; top:0; visibility:hidden;"
+      + `box-sizing:border-box; width:${zone.clientWidth}px;`
+      + `padding:${st.padding}; border:0; margin:0;`
+      + `font:${st.font}; letter-spacing:${st.letterSpacing};`
+      + "white-space:pre-wrap; overflow-wrap:break-word;";
+    clear(miroir);
+    const marqueurs = [];
+    let precedent = 0;
+    for (const p of positions) {
+      miroir.appendChild(document.createTextNode(texte.slice(precedent, p)));
+      const m = el("span");
+      miroir.appendChild(m);
+      marqueurs.push(m);
+      precedent = p;
+    }
+    miroir.appendChild(document.createTextNode(texte.slice(precedent)));
+    document.body.appendChild(miroir);
+    const yZone = marqueurs.map((m) => m.offsetTop);
+    miroir.remove();
+
+    const rect = apercu.getBoundingClientRect();
+    const yApercu = titres.map((t) => t.getBoundingClientRect().top - rect.top + apercu.scrollTop);
+
+    // Bornes de début et de fin, puis filtrage strictement croissant des deux
+    // côtés : une paire qui recule casserait l'interpolation.
+    const paires = [[0, 0]];
+    for (let i = 0; i < yZone.length; i++) {
+      const derniere = paires[paires.length - 1];
+      if (yZone[i] > derniere[0] && yApercu[i] > derniere[1]) paires.push([yZone[i], yApercu[i]]);
+    }
+    const maxZone = Math.max(1, zone.scrollHeight - zone.clientHeight);
+    const maxApercu = Math.max(1, apercu.scrollHeight - apercu.clientHeight);
+    const utiles = paires.filter(([a, b]) => a < maxZone && b < maxApercu);
+    utiles.push([maxZone, maxApercu]);
+    carte = { zone: utiles.map((p) => p[0]), apercu: utiles.map((p) => p[1]) };
+  }
+
   let sourceDefilement = null;
   function synchroniserDefilement(depuis, vers) {
+    if (carteObsolete) { construireCarte(); carteObsolete = false; }
+    if (carte) {
+      const [src, dst] = depuis === zone ? [carte.zone, carte.apercu] : [carte.apercu, carte.zone];
+      vers.scrollTop = interpolerAncres(src, dst, depuis.scrollTop);
+      return;
+    }
+    // Repli proportionnel (comptes de titres discordants).
     const max = depuis.scrollHeight - depuis.clientHeight;
     if (max <= 0) return;
     const versMax = Math.max(0, vers.scrollHeight - vers.clientHeight);
@@ -332,6 +397,11 @@ export async function openCoursEditeur(numero, { onFerme } = {}) {
   }
   suivreDefilement(zone, apercu);
   suivreDefilement(apercu, zone);
+  // La carte se périme quand la géométrie change : re-rendu (géré dans
+  // rafraichirApercu), fenêtre redimensionnée, image de l'aperçu chargée.
+  function invaliderCarte() { carteObsolete = true; }
+  window.addEventListener("resize", invaliderCarte);
+  apercu.addEventListener("load", invaliderCarte, true);
 
   function marquerNonSauve() {
     sauve = false;
@@ -455,6 +525,7 @@ export async function openCoursEditeur(numero, { onFerme } = {}) {
     overlay.remove();
     document.body.classList.remove("cours-open");
     document.removeEventListener("keydown", onKey);
+    window.removeEventListener("resize", invaliderCarte);
     if (onFerme) onFerme(aChange);
   }
   function onKey(e) {
