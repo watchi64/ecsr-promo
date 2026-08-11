@@ -304,10 +304,34 @@ export async function openCoursEditeur(numero, { onFerme } = {}) {
     minuterie = setTimeout(() => {
       clear(apercu);
       rendreMarkdown(zone.value).noeuds.forEach((n) => apercu.appendChild(n));
+      // Le re-rendu remet l'aperçu à zéro : on le réaligne sur la zone.
+      synchroniserDefilement(zone, apercu);
     }, 400);
   }
   zone.addEventListener("input", () => { marquerNonSauve(); rafraichirApercu(); });
   rafraichirApercu();
+
+  // ===== Défilement synchronisé : les deux panneaux suivent la même
+  // proportion (leurs hauteurs diffèrent, markdown brut contre rendu :
+  // la règle de trois est le bon accord). La garde évite que le réglage
+  // programmatique d'un panneau ne redéclenche l'autre en boucle. =====
+  let sourceDefilement = null;
+  function synchroniserDefilement(depuis, vers) {
+    const max = depuis.scrollHeight - depuis.clientHeight;
+    if (max <= 0) return;
+    const versMax = Math.max(0, vers.scrollHeight - vers.clientHeight);
+    vers.scrollTop = (depuis.scrollTop / max) * versMax;
+  }
+  function suivreDefilement(panneau, autre) {
+    panneau.addEventListener("scroll", () => {
+      if (sourceDefilement && sourceDefilement !== panneau) return;
+      sourceDefilement = panneau;
+      synchroniserDefilement(panneau, autre);
+      setTimeout(() => { sourceDefilement = null; }, 0);
+    });
+  }
+  suivreDefilement(zone, apercu);
+  suivreDefilement(apercu, zone);
 
   function marquerNonSauve() {
     sauve = false;
