@@ -23,7 +23,7 @@
  * au catalogue se dessine quand même (photo Wikimedia, sans détail
  * pédagogique), le registre vérifié gardant la priorité en cas de doublon.
  */
-import { CATALOGUE } from "./signaux-catalogue.js?v=20260811b";
+import { CATALOGUE } from "./signaux-catalogue.js?v=20260811d";
 
 const NS = "http://www.w3.org/2000/svg";
 const ROUGE = "#C8102E";
