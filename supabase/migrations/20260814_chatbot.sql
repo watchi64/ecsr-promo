@@ -91,13 +91,14 @@ from public.cours c, lateral public.decoupe_markdown(c.corps_md) s
 where length(trim(s.contenu)) > 0;
 
 -- 5. Recherche plein-texte avec rang (appelee par l'Edge Function en service role)
+-- Pas de filtre sur cours.published : decision utilisateur du 2026-08-14.
+-- Le fond des 57 cours est deja controle ; la publication in-app ne gouverne que le lecteur.
 create or replace function public.chercher_cours(q text, ntheme integer default null, limite integer default 5)
 returns table(numero integer, titre text, section text, contenu text, rang real)
 language sql stable security definer set search_path = public as $$
   select ck.numero, ck.titre, ck.section, ck.contenu,
          ts_rank(ck.tsv, websearch_to_tsquery('french', q)) as rang
   from cours_chunks ck
-  join cours c on c.id = ck.cours_id and c.published
   where ck.tsv @@ websearch_to_tsquery('french', q)
     and (ntheme is null or ck.numero = ntheme)
   order by rang desc
