@@ -1,4 +1,4 @@
-import test from "node:test";
+﻿import test from "node:test";
 import assert from "node:assert/strict";
 import { OUTILS, construirePromptSysteme } from "../supabase/functions/chatbot/outils.mjs";
 import { AIDE_APP } from "../supabase/functions/chatbot/aide.mjs";
@@ -19,10 +19,10 @@ test("le prompt systeme porte la regle d'or, la page et l'aide", () => {
   assert.ok(p.includes("CORPUS_TEST"));
   assert.ok(p.includes("consulter_article_legifrance"));
   assert.ok(/jamais|INTERDICTION/i.test(p));
-  assert.ok(!p.includes("—"), "pas de tiret cadratin dans le prompt");
+  assert.ok(!p.includes("\u2014"), "pas de tiret cadratin dans le prompt");
 });
 
 test("le corpus d'aide est substantiel et sans tiret cadratin", () => {
   assert.ok(AIDE_APP.length > 1500);
-  assert.ok(!AIDE_APP.includes("—"));
+  assert.ok(!AIDE_APP.includes("\u2014"));
 });
