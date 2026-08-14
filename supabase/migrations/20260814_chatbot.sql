@@ -61,10 +61,9 @@ create index if not exists cours_chunks_tsv_idx on public.cours_chunks using gin
 create index if not exists cours_chunks_cours_idx on public.cours_chunks (cours_id);
 
 alter table public.cours_chunks enable row level security;
-drop policy if exists cours_chunks_select_auth on public.cours_chunks;
-create policy cours_chunks_select_auth on public.cours_chunks
-  for select to authenticated using (true);
--- pas de policy d'ecriture : seule la service role (bypass RLS) ecrit, via le trigger security definer
+-- Aucune policy : ni lecture ni ecriture cote client (decision utilisateur du
+-- 2026-08-14). Seule la service role (bypass RLS) lit et ecrit ; sinon un
+-- stagiaire pourrait lire en direct les cours non publies, hors verrou du lecteur.
 
 -- 3. Redecoupage automatique quand un cours change
 create or replace function public.rechunk_cours() returns trigger
@@ -104,7 +103,7 @@ language sql stable security definer set search_path = public as $$
   order by rang desc
   limit least(coalesce(limite, 5), 8);
 $$;
-revoke execute on function public.chercher_cours(text, integer, integer) from public, anon;
+revoke execute on function public.chercher_cours(text, integer, integer) from public, anon, authenticated;
 
 -- 6. Quota journalier (increment atomique, heure de Paris)
 create table if not exists public.chatbot_usage (
