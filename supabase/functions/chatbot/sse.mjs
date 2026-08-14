@@ -5,7 +5,11 @@ export function extraireLignesSSE(tampon, morceau) {
   const restant = lignes.pop() ?? "";
   const datas = [];
   for (const l of lignes) {
-    const m = l.match(/^data:\s*(.*)$/);
+    // \r? : la spec SSE autorise des fins de ligne CRLF ; sans lui, un
+    // fournisseur en CRLF verrait TOUTES ses lignes silencieusement perdues.
+    // \r? : la spec SSE autorise des fins de ligne CRLF ; sans lui, un
+    // fournisseur en CRLF verrait TOUTES ses lignes silencieusement perdues.
+    const m = l.match(/^data:\s*(.*)\r?$/);
     if (m && m[1] && m[1] !== "[DONE]") datas.push(m[1]);
   }
   return { restant, datas };

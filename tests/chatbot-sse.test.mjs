@@ -10,6 +10,11 @@ test("extraireLignesSSE gere une ligne coupee entre deux morceaux", () => {
   assert.equal(deux.restant, "");
 });
 
+test("extraireLignesSSE tolere les fins de ligne CRLF", () => {
+  const r = extraireLignesSSE("", 'data: {"a":1}\r\ndata: [DONE]\r\n');
+  assert.deepEqual(r.datas, ['{"a":1}']);
+});
+
 test("accumulerChunk agrege texte, tool_calls fragmentes et fin", () => {
   const etat = nouvelEtat();
   assert.equal(accumulerChunk(etat, { choices: [{ delta: { content: "Bon" } }] }), "Bon");
