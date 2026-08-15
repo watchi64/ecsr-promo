@@ -3,7 +3,7 @@
  * Stack en mémoire (perdu au reload). Max 30 actions.
  * Chaque action est { label, undoFn } : la fonction sait défaire l'opération.
  */
-import { toast } from "./utils.js?v=20260811d";
+import { toast } from "./utils.js?v=20260815b";
 
 const stack = [];
 const MAX = 30;

@@ -7,7 +7,7 @@
 // à tous les documents : le préfixe est celui du livret, premier document
 // implémenté, et n'a pas été renommé pour ne pas toucher un gabarit validé.
 
-import { el, clear } from "./utils.js?v=20260811d";
+import { el, clear } from "./utils.js?v=20260815b";
 
 // ---------------------------------------------------------------------------
 // Sérialisation <-> DOM
