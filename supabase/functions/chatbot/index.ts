@@ -1,22 +1,20 @@
 // Edge Function chatbot : orchestre le LLM et ses outils, streame la reponse en SSE.
 // Secrets requis : MISTRAL_API_KEY (et/ou GEMINI_API_KEY), PISTE_CLIENT_ID, PISTE_CLIENT_SECRET.
-// Durcissements issus de la revue du 2026-08-15 : verrou transport de la regle d'or
-// (aucun motif d'article dans les deltas avant une verification PISTE reussie) et
-// resilience a la deconnexion du client en pleine generation.
+// Durcissements issus des revues du 2026-08-15 : verrou transport de la regle d'or
+// (module verrou-articles.mjs, liste blanche des numeros verifies) et resilience
+// a la deconnexion du client en pleine generation.
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { consulterArticle } from "./piste.ts";
 import { appelLLM, fournisseursDisponibles } from "./providers.mjs";
 import { OUTILS, construirePromptSysteme } from "./outils.mjs";
 import { AIDE_APP } from "./aide.mjs";
+import { creerVerrou, autoriserNumero, pousserDelta, viderVerrou } from "./verrou-articles.mjs";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
-
-// Motif de numero d'article (R416-15, L234-1, R413-14-1...) pour le verrou.
-const MOTIF_ARTICLE = /\b[RLD]\.?\s?\d{2,4}(?:-\d{1,3})+/gi;
 
 function reponseJson(corps: unknown, statut = 200): Response {
   return new Response(JSON.stringify(corps), {
@@ -118,22 +116,10 @@ Deno.serve(async (req) => {
       };
       const fermer = () => { try { ctrl.close(); } catch { /* deja ferme ou annule */ } };
 
-      // Verrou transport de la regle d'or : tant qu'aucun article n'a ete verifie
-      // via PISTE dans CETTE requete, tout motif d'article sortant est masque.
-      // Le carry de 12 caracteres couvre un motif coupe entre deux deltas.
-      let verrouArticles = true;
-      let carry = "";
-      const filtrer = (t: string) => {
-        if (!verrouArticles) return t;
-        const s = carry + t;
-        carry = s.slice(-12);
-        return s.slice(0, -12).replace(MOTIF_ARTICLE, "[verification en cours]");
-      };
-      const viderCarry = () => {
-        const reste = verrouArticles ? carry.replace(MOTIF_ARTICLE, "[verification en cours]") : carry;
-        carry = "";
-        return reste;
-      };
+      // Verrou transport : seuls les numeros renvoyes par un appel PISTE reussi
+      // de CETTE requete passent en clair, tout autre motif est masque.
+      const verrou = creerVerrou();
+      const emettreTexte = (t: string) => { if (t) envoyer({ type: "delta", texte: t }); };
 
       try {
         const conversation: unknown[] = [systeme, ...messages];
@@ -148,13 +134,9 @@ Deno.serve(async (req) => {
               temperature: 0.3,
               max_tokens: 1024,
             },
-            surTexte: (t: string) => {
-              const filtre = filtrer(t);
-              if (filtre) envoyer({ type: "delta", texte: filtre });
-            },
+            surTexte: (t: string) => emettreTexte(pousserDelta(verrou, t)),
           });
-          const reste = viderCarry();
-          if (reste) envoyer({ type: "delta", texte: reste });
+          emettreTexte(viderVerrou(verrou));
           const appels = (res.toolCalls ?? []).filter((tc: { function?: { name?: string } }) => tc?.function?.name);
           if (!appels.length) { envoyer({ type: "fin" }); fermer(); return; }
           conversation.push({
@@ -173,8 +155,9 @@ Deno.serve(async (req) => {
             try { args = JSON.parse(tc.function.arguments || "{}"); } catch { /* args vides */ }
             const resultat = await executerOutil(tc.function.name, args, sr);
             if (tc.function.name === "consulter_article_legifrance"
-              && resultat && typeof resultat === "object" && !("erreur" in resultat)) {
-              verrouArticles = false;
+              && resultat && typeof resultat === "object"
+              && "url" in resultat && resultat.url && "num" in resultat && resultat.num) {
+              autoriserNumero(verrou, String(resultat.num));
             }
             conversation.push({
               role: "tool",
