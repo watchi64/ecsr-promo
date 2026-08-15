@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="fr" data-accent="brique">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#1A1612" />
+  <meta name="referrer" content="no-referrer" />
+  <title>BANC : TP ECSR App</title>
+
+  <!-- Polices auto-hébergées (RGPD : aucun appel Google Fonts) -->
+  <link rel="stylesheet" href="css/fonts.css?v=banc1786267712477" />
+  <link rel="stylesheet" href="css/style.css?v=banc1786267712477" />
+  <link rel="stylesheet" href="css/livret.css?v=banc1786267712477" />
+  <link rel="stylesheet" href="css/dp.css?v=banc1786267712477" />
+  <link rel="icon" href="assets/logo/tpecsr-logo.svg" type="image/svg+xml" />
+  <!-- Écran d'accueil iOS : Safari n'accepte pas de SVG et rend la transparence en noir.
+       PNG 180x180 opaque (pictogramme clair sur le fond espresso de l'app), coins laissés
+       carrés : iOS applique lui-même son masque arrondi. Généré depuis le logo SVG. -->
+  <link rel="apple-touch-icon" sizes="180x180" href="assets/logo/apple-touch-icon.png" />
+  <meta name="apple-mobile-web-app-title" content="TP ECSR" />
+  <script type="importmap">
+  {"imports": {"https://esm.sh/@supabase/supabase-js@2": "./_harness_supabase.js?v=banc1786267712477"}}
+  </script>
+  <script>
+    // BANC : stub du flux SSE de l'Edge Function chatbot, aucun appel reseau.
+    const fetchReel = window.fetch;
+    window.fetch = function (entree, init) {
+      const url = typeof entree === "string" ? entree : entree.url;
+      if (!url.includes("/functions/v1/chatbot")) return fetchReel.call(this, entree, init);
+      const enc = new TextEncoder();
+      const evts = [
+        { type: "outil", nom: "chercher_dans_les_cours" },
+        { type: "delta", texte: "Les **feux de croisement** eclairent a 30 m minimum" },
+        { type: "delta", texte: " sans eblouir.\n\nSources : Theme 22, section 2.A" },
+        { type: "fin" },
+      ];
+      const corps = new ReadableStream({
+        async start(c) {
+          for (const e of evts) {
+            await new Promise((r) => setTimeout(r, 250));
+            c.enqueue(enc.encode("data: " + JSON.stringify(e) + "\n\n"));
+          }
+          c.close();
+        },
+      });
+      return Promise.resolve(new Response(corps, {
+        status: 200,
+        headers: { "Content-Type": "text/event-stream" },
+      }));
+    };
+  </script>
+</head>
+<body>
+
+  <!-- Password gate -->
+  <div id="gate" class="gate hidden">
+    <div class="gate-bg" aria-hidden="true"></div>
+    <div class="gate-card">
+      <img class="gate-logo" src="assets/logo/tpecsr-logo.svg" alt="TP ECSR" />
+      <p class="eyebrow">Promo · 2026</p>
+      <h1>Bienvenue</h1>
+      <div class="gate-tabs" role="tablist">
+        <button class="gate-tab active" id="gate-tab-signin" role="tab" type="button">Connexion</button>
+        <button class="gate-tab" id="gate-tab-signup" role="tab" type="button">Créer un compte</button>
+      </div>
+      <p class="muted" id="gate-subtitle">Entre ton email et ton mot de passe.</p>
+      <div class="gate-form">
+        <input type="email" id="gate-email" placeholder="ton.email@exemple.fr" autocomplete="email" />
+        <input type="password" id="gate-password" placeholder="Mot de passe (min. 6 caractères)" autocomplete="current-password" />
+        <button id="gate-submit" class="btn primary">Se connecter</button>
+      </div>
+      <p class="error hidden" id="gate-error"></p>
+      <p class="muted gate-hint" id="gate-hint">Pas encore inscrit ? Demande à un admin d'ajouter ton email à la liste, puis clique « Créer un compte ».</p>
+    </div>
+  </div>
+
+  <!-- App -->
+  <div id="app" class="hidden">
+    <header class="topbar">
+      <a href="#/mon-suivi" class="brand">
+        <img class="brand-logo" src="assets/logo/tpecsr-logo.svg" alt="TP ECSR" />
+      </a>
+
+      <nav class="tabs" id="tabs"></nav>
+
+      <div class="topbar-actions">
+        <div id="admin-slot"></div>
+        <button id="today-btn" class="ghost-btn" title="Aujourd'hui au planning" aria-label="Aller à la journée d'aujourd'hui au planning"></button>
+        <button id="refresh-btn" class="ghost-btn" title="Actualiser" aria-label="Actualiser"></button>
+      </div>
+    </header>
+
+    <main id="view"></main>
+
+    <div id="toast" class="toast hidden"></div>
+  </div>
+
+  <script type="module" src="js/main.js?v=banc1786267712477"></script>
+</body>
+</html>
