@@ -1,11 +1,15 @@
 // Verrou transport de la regle d'or : en flux, masque tout motif de numero
 // d'article qui n'a pas ete verifie via PISTE dans la requete en cours.
 // Module pur (testable en node) : l'Edge Function ne fait que l'appeler.
+// SYNCHRONE PAR CONTRAT : la regex globale est partagee au niveau module ;
+// ajouter un await dans ces fonctions casserait l'isolation entre requetes.
 // Le (?!\d) final evite le faux positif sur les plages d'annees (l 2024-2025).
 
 export const MOTIF_ARTICLE = /\b[RLD]\.?\s?\d{2,4}(?:-\d{1,3})+(?!\d)/gi;
 const MASQUE = "[verification en cours]";
-// Queue retenue en tampon : plus long motif plausible (L. 1234-123-12 = 14) + marge.
+// Queue retenue en tampon. Doit rester superieure au plus long motif plausible :
+// L. 1234-123-12 = 14 caracteres (la regex n'etant pas bornee, une correspondance
+// plus longue reste couverte par le recul de frontiere, jamais par cette constante).
 const RETENUE = 16;
 
 export function creerVerrou() {
@@ -21,9 +25,20 @@ export function autoriserNumero(verrou, num) {
   if (n) verrou.autorises.add(n);
 }
 
-function masquer(verrou, texte) {
-  return texte.replace(MOTIF_ARTICLE, (m) =>
-    verrou.autorises.has(normaliserNumero(m)) ? m : MASQUE);
+// Assemble la sortie a partir des correspondances DEJA calculees sur le tampon
+// entier : ne jamais rejouer la regex sur une tranche coupee, le (?!\d) y
+// mentirait et masquerait du texte ordinaire (plage d'annees coupee au mauvais
+// endroit, constat de revue du 2026-08-15).
+function assembler(verrou, motifs, limite) {
+  let sortie = "";
+  let pos = 0;
+  for (const m of motifs) {
+    if (m.index + m[0].length > limite) break;
+    sortie += verrou.tampon.slice(pos, m.index)
+      + (verrou.autorises.has(normaliserNumero(m[0])) ? m[0] : MASQUE);
+    pos = m.index + m[0].length;
+  }
+  return sortie + verrou.tampon.slice(pos, limite);
 }
 
 // Ajoute un delta au tampon et renvoie la partie devenue sure a emettre :
@@ -34,20 +49,22 @@ export function pousserDelta(verrou, delta) {
   let limite = Math.max(0, verrou.tampon.length - RETENUE);
   if (limite === 0) return "";
   MOTIF_ARTICLE.lastIndex = 0;
-  let m;
-  while ((m = MOTIF_ARTICLE.exec(verrou.tampon)) !== null) {
+  const motifs = [...verrou.tampon.matchAll(MOTIF_ARTICLE)];
+  for (const m of motifs) {
     if (m.index >= limite) break;
     if (m.index + m[0].length >= limite) { limite = m.index; break; }
   }
   if (limite === 0) return "";
-  const sortie = masquer(verrou, verrou.tampon.slice(0, limite));
+  const sortie = assembler(verrou, motifs, limite);
   verrou.tampon = verrou.tampon.slice(limite);
   return sortie;
 }
 
 // Vide le tampon (fin de tour ou fin de flux) : plus rien ne peut s'etendre.
 export function viderVerrou(verrou) {
-  const reste = masquer(verrou, verrou.tampon);
+  MOTIF_ARTICLE.lastIndex = 0;
+  const motifs = [...verrou.tampon.matchAll(MOTIF_ARTICLE)];
+  const reste = assembler(verrou, motifs, verrou.tampon.length);
   verrou.tampon = "";
   return reste;
 }
