@@ -87,6 +87,7 @@ Deno.serve(async (req) => {
   // Aucune cle LLM : erreur de config, a signaler AVANT de consommer le quota.
   const fournisseurs = fournisseursDisponibles((k: string) => Deno.env.get(k));
   if (!fournisseurs.length) return reponseJson({ error: "Aucune cle LLM configuree" }, 500);
+  console.log("chatbot fournisseurs:", fournisseurs.map((f) => `${f.nom}=${f.modele}`).join(" "));
 
   const { data: reglage } = await sr.from("settings").select("value")
     .eq("key", "chatbot_quota_jour").maybeSingle();
