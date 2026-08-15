@@ -13,6 +13,16 @@
 
 export const NOUVEAUTES = [
   {
+    id: "2026-08-15-assistant",
+    date: "2026-08-15",
+    pour: "tous",
+    titre: "Un assistant répond à tes questions, partout dans l'app",
+    resume: "Le bouton rond en bas à droite ouvre un assistant qui connaît les 57 cours, "
+          + "vérifie la réglementation directement sur Légifrance et t'explique le "
+          + "fonctionnement de l'app. Il cite ses sources, et chacun dispose de 30 "
+          + "questions par jour.",
+  },
+  {
     id: "2026-08-10-barre-entrainement",
     date: "2026-08-10",
     pour: "tous",
