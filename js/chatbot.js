@@ -81,7 +81,7 @@ async function envoyerQuestion(question, msgs) {
       return;
     }
     if (!resp.ok) {
-      bulleBot.textContent = "L'assistant est indisponible pour le moment, reessaie un peu plus tard.";
+      bulleBot.textContent = "L'assistant est indisponible pour le moment, réessaie un peu plus tard.";
       messageFige = true;
       return;
     }
@@ -100,7 +100,7 @@ async function envoyerQuestion(question, msgs) {
           bulleBot.textContent = texte;
         } else if (ev.type === "outil") {
           bulleBot.textContent = ev.nom === "consulter_article_legifrance"
-            ? "Verification sur Legifrance…"
+            ? "Vérification sur Légifrance…"
             : "Recherche dans les cours…";
         } else if (ev.type === "erreur") {
           texte = texte || ev.message;
@@ -111,7 +111,7 @@ async function envoyerQuestion(question, msgs) {
     }
   } catch (e) {
     console.error("chatbot:", e);
-    if (!texte) { bulleBot.textContent = "Connexion interrompue, reessaie."; messageFige = true; }
+    if (!texte) { bulleBot.textContent = "Connexion interrompue, réessaie."; messageFige = true; }
   } finally {
     enCours = false;
     if (texte) {
@@ -120,7 +120,7 @@ async function envoyerQuestion(question, msgs) {
       await rendreEnMarkdown(bulleBot, texte);
     } else if (!messageFige) {
       // Couvre aussi un flux coupe apres un statut outil ("Recherche...")
-      bulleBot.textContent = "Pas de reponse, reessaie.";
+      bulleBot.textContent = "Pas de réponse, réessaie.";
     }
     msgs.scrollTop = msgs.scrollHeight;
   }
@@ -151,7 +151,7 @@ export function initChatbot() {
     <div class="chatbot-msgs"></div>
     <form class="chatbot-form">
       <textarea rows="1" placeholder="Pose ta question…" maxlength="2000"
-        aria-label="Ta question a l'assistant"></textarea>
+        aria-label="Ta question à l'assistant"></textarea>
       <button type="submit" class="btn primary" aria-label="Envoyer">Envoyer</button>
     </form>`;
   app.appendChild(panneau);
@@ -167,7 +167,7 @@ export function initChatbot() {
     }
   } else {
     ajouterBulle(msgs, "assistant",
-      "Salut ! Je peux t'expliquer l'app, t'aider a reviser les 57 themes et verifier la reglementation sur Legifrance. Qu'est-ce qu'il te faut ?");
+      "Salut ! Je peux t'expliquer l'app, t'aider à réviser les 57 thèmes et vérifier la réglementation sur Légifrance. Qu'est-ce qu'il te faut ?");
   }
 
   fab.addEventListener("click", () => {
