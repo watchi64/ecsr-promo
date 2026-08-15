@@ -145,9 +145,10 @@ export function initChatbot() {
   panneau.className = "chatbot-panel hidden";
   panneau.innerHTML = `
     <div class="chatbot-head">
-      <p class="chatbot-titre">Assistant</p>
+      <p class="chatbot-titre">Assistant <span class="chatbot-beta">bêta</span></p>
       <button type="button" class="ghost-btn chatbot-close" aria-label="Fermer l'assistant">&times;</button>
     </div>
+    <p class="chatbot-disclaimer">Version bêta : l'assistant peut se tromper, vérifie les points importants dans les cours. La qualité des réponses va s'améliorer.</p>
     <div class="chatbot-msgs"></div>
     <form class="chatbot-form">
       <textarea rows="1" placeholder="Pose ta question…" maxlength="2000"

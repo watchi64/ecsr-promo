@@ -7539,6 +7539,26 @@ body.cours-open { overflow: hidden; }
   border-bottom: 1px solid var(--line);
 }
 .chatbot-titre { font-weight: 600; margin: 0; }
+.chatbot-beta {
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--accent-strong);
+  background: var(--accent-soft);
+  border-radius: 999px;
+  padding: 2px 8px;
+  vertical-align: middle;
+}
+.chatbot-disclaimer {
+  margin: 0;
+  padding: 6px 14px;
+  font-size: 0.75rem;
+  line-height: 1.35;
+  color: var(--text-muted);
+  background: var(--bg-subtle);
+  border-bottom: 1px solid var(--line);
+}
 .chatbot-msgs {
   flex: 1;
   overflow-y: auto;
