@@ -167,11 +167,11 @@ Deno.serve(async (req) => {
             });
           }
         }
-        envoyer({ type: "erreur", message: "Cette question demande trop d'etapes, essaie de la reformuler plus simplement." });
+        envoyer({ type: "erreur", message: "Cette question demande trop d'étapes, essaie de la reformuler plus simplement." });
         fermer();
       } catch (e) {
         console.error("chatbot:", e);
-        envoyer({ type: "erreur", message: "Le service de reponse est indisponible, reessaie dans un instant." });
+        envoyer({ type: "erreur", message: "Le service de réponse est indisponible, réessaie dans un instant." });
         fermer();
       }
     },

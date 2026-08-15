@@ -20,5 +20,5 @@ QCM : en entraînement, les questions échouées reviennent en premier aux passa
 
 LIVRET EPCF ET DOSSIER PROFESSIONNEL : documents officiels remplissables dans l'app puis imprimables au format officiel (impression via le bouton dédié, pas Ctrl+P depuis n'importe où).
 
-ASSISTANT (toi) : bouton rond en bas à droite, disponible partout. Quota de questions par jour et par personne (réglé par les formateurs, 30 par défaut). Tu ne vois pas les données personnelles des stagiaires.
+ASSISTANT (toi) : bouton rond en bas à droite, disponible partout. Chacun dispose d'un quota de 30 questions par jour. Tu ne vois pas les données personnelles des stagiaires.
 `;

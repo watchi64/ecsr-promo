@@ -6,7 +6,7 @@
 // Le (?!\d) final evite le faux positif sur les plages d'annees (l 2024-2025).
 
 export const MOTIF_ARTICLE = /\b[RLD]\.?\s?\d{2,4}(?:-\d{1,3})+(?!\d)/gi;
-const MASQUE = "[verification en cours]";
+const MASQUE = "[vérification en cours]";
 // Queue retenue en tampon. Doit rester superieure au plus long motif plausible :
 // L. 1234-123-12 = 14 caracteres (la regex n'etant pas bornee, une correspondance
 // plus longue reste couverte par le recul de frontiere, jamais par cette constante).

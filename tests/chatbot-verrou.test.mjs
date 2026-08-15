@@ -19,7 +19,7 @@ function oracle(texte, autorises = []) {
   const propre = (n) => n.toUpperCase().replace(/[.\s]/g, "");
   const set = new Set(autorises.map(propre));
   MOTIF_ARTICLE.lastIndex = 0;
-  return texte.replace(MOTIF_ARTICLE, (m) => (set.has(propre(m)) ? m : "[verification en cours]"));
+  return texte.replace(MOTIF_ARTICLE, (m) => (set.has(propre(m)) ? m : "[vérification en cours]"));
 }
 
 function verifierToutesTailles(texte, autorises = []) {
@@ -35,7 +35,7 @@ function verifierToutesTailles(texte, autorises = []) {
 test("un numero non verifie est masque quel que soit le decoupage", () => {
   const attendu = verifierToutesTailles("L'article applicable est le R412-6-1 du code de la route.");
   assert.ok(!attendu.includes("R412-6-1"));
-  assert.ok(attendu.includes("[verification en cours]"));
+  assert.ok(attendu.includes("[vérification en cours]"));
 });
 
 test("un numero verifie passe en clair, un autre reste masque", () => {

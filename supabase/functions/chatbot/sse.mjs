@@ -7,8 +7,6 @@ export function extraireLignesSSE(tampon, morceau) {
   for (const l of lignes) {
     // \r? : la spec SSE autorise des fins de ligne CRLF ; sans lui, un
     // fournisseur en CRLF verrait TOUTES ses lignes silencieusement perdues.
-    // \r? : la spec SSE autorise des fins de ligne CRLF ; sans lui, un
-    // fournisseur en CRLF verrait TOUTES ses lignes silencieusement perdues.
     const m = l.match(/^data:\s*(.*)\r?$/);
     if (m && m[1] && m[1] !== "[DONE]") datas.push(m[1]);
   }
