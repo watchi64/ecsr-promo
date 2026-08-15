@@ -22,6 +22,7 @@ import { initUndoKeyboard } from "./undo.js?v=20260811d";
 import { renderNouveautes } from "./views/nouveautes.js?v=20260811d";
 import { NOUVEAUTES } from "./nouveautes-data.js?v=20260811d";
 import { visibles, nonLues, vuesEffectives, libellePastille } from "./nouveautes.js?v=20260811d";
+import { initChatbot } from "./chatbot.js?v=20260811d";
 
 // ===== Gate : email magic link =====
 
@@ -302,6 +303,7 @@ async function bootApp() {
   majBadgeNouveautes();
   setupRefreshBtn();
   setupTodayBtn();
+  initChatbot();
   // Le changement de rôle change l'audience, donc le compte.
   onAdminChange(() => { renderTabs(); majBadgeNouveautes(); navigate(); });
   // Émis par la page et par la section d'Accueil après marquage.
