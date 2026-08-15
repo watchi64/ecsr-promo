@@ -53,10 +53,13 @@ async function envoyerQuestion(question, msgs) {
   const bulleBot = ajouterBulle(msgs, "assistant", "…");
 
   let texte = "";
+  // Vrai quand un message final (quota, erreur) est deja pose : la retombee
+  // du finally ne doit alors pas l'ecraser par "Pas de reponse".
+  let messageFige = false;
   try {
     const { data } = await supabase.auth.getSession();
     const session = data?.session;
-    if (!session) { bulleBot.textContent = "Reconnecte-toi pour utiliser l'assistant."; return; }
+    if (!session) { bulleBot.textContent = "Reconnecte-toi pour utiliser l'assistant."; messageFige = true; return; }
 
     const resp = await fetch(`${SUPABASE_URL}/functions/v1/chatbot`, {
       method: "POST",
@@ -74,10 +77,12 @@ async function envoyerQuestion(question, msgs) {
     if (resp.status === 429) {
       const j = await resp.json().catch(() => ({}));
       bulleBot.textContent = j.message || "Quota du jour atteint, reviens demain.";
+      messageFige = true;
       return;
     }
     if (!resp.ok) {
       bulleBot.textContent = "L'assistant est indisponible pour le moment, reessaie un peu plus tard.";
+      messageFige = true;
       return;
     }
 
@@ -106,14 +111,15 @@ async function envoyerQuestion(question, msgs) {
     }
   } catch (e) {
     console.error("chatbot:", e);
-    if (!texte) bulleBot.textContent = "Connexion interrompue, reessaie.";
+    if (!texte) { bulleBot.textContent = "Connexion interrompue, reessaie."; messageFige = true; }
   } finally {
     enCours = false;
     if (texte) {
       histo.push({ role: "assistant", content: texte });
       sauverHisto();
       await rendreEnMarkdown(bulleBot, texte);
-    } else if (bulleBot.textContent === "…") {
+    } else if (!messageFige) {
+      // Couvre aussi un flux coupe apres un statut outil ("Recherche...")
       bulleBot.textContent = "Pas de reponse, reessaie.";
     }
     msgs.scrollTop = msgs.scrollHeight;
