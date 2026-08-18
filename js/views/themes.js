@@ -1410,18 +1410,27 @@ function rerender(container) {
     ) : null,
   ));
 
-  // Navigation par pills (par famille)
+  // Navigation par pills (par famille). Le clic ne repeint que la zone de
+  // résultats : la barre de filtres (recherche + statut) garde ses nœuds.
   const pillsWrap = el("div", { class: "theme-pills" });
+  function setFamille(key) {
+    activeFamille = key;
+    pillsWrap.querySelectorAll(".theme-pill").forEach((p) =>
+      p.classList.toggle("active", p.dataset.famille === key));
+    renderResults();
+  }
   const pillAll = el("button", {
     class: "theme-pill" + (activeFamille === "all" ? " active" : ""),
-    onClick: () => { activeFamille = "all"; rerender(container); }
+    dataset: { famille: "all" },
+    onClick: () => setFamille("all"),
   }, "Tout", el("span", { class: "theme-pill-count" }, themes.length));
   pillsWrap.appendChild(pillAll);
 
   famillesData.forEach((f) => {
     const pill = el("button", {
       class: "theme-pill theme-pill-" + f.key + (activeFamille === f.key ? " active" : ""),
-      onClick: () => { activeFamille = f.key; rerender(container); }
+      dataset: { famille: f.key },
+      onClick: () => setFamille(f.key),
     },
       f.short,
       el("span", { class: "theme-pill-count" }, f.items.length),
@@ -1430,9 +1439,13 @@ function rerender(container) {
   });
   container.appendChild(pillsWrap);
 
-  // Filtres supplémentaires (recherche + statut + catégorie fine)
+  // Filtres supplémentaires (recherche + statut). Ces nœuds sont STABLES tant
+  // que la vue est montée : la frappe et le changement de statut ne repeignent
+  // que la zone de résultats, jamais la barre de filtres. Reconstruire l'input
+  // pendant la saisie détruisait le nœud actif : focus perdu, clavier iOS
+  // refermé à chaque lettre (bug du 18/08).
   const searchInput = el("input", { type: "search", placeholder: "Rechercher…", value: search });
-  searchInput.addEventListener("input", debounce(() => { search = searchInput.value; rerender(container); }, 200));
+  searchInput.addEventListener("input", debounce(() => { search = searchInput.value; renderResults(); }, 150));
 
   const statutSel = el("select");
   statutSel.appendChild(el("option", { value: "" }, "Tous les statuts"));
@@ -1441,109 +1454,123 @@ function rerender(container) {
     if (filterStatut === s.value) opt.selected = true;
     statutSel.appendChild(opt);
   });
-  statutSel.addEventListener("change", () => { filterStatut = statutSel.value; rerender(container); });
+  statutSel.addEventListener("change", () => { filterStatut = statutSel.value; renderResults(); });
 
   container.appendChild(el("div", { class: "passages-toolbar" },
     el("div", { class: "passages-filters" }, searchInput, statutSel),
   ));
 
-  // Détermine les familles à afficher (active ou toutes)
-  const famillesToShow = activeFamille === "all"
-    ? famillesData
-    : famillesData.filter((f) => f.key === activeFamille);
+  // Zone de résultats : la SEULE partie repeinte quand la recherche, le statut
+  // ou la famille active changent. Le reste de la vue (header, pills, barre de
+  // filtres) ne bouge pas, donc le champ actif garde focus et curseur.
+  const resultsWrap = el("div", { class: "themes-results" });
+  container.appendChild(resultsWrap);
 
-  // Rendu de chaque famille comme section autonome
-  famillesToShow.forEach((f) => {
-    // Filtre interne par search + statut
-    const items = f.items.filter((t) => {
-      if (filterStatut && normalizeStatut(t.statut) !== filterStatut) return false;
-      if (search) {
-        const q = search.toLowerCase();
-        const inTitle = t.titre.toLowerCase().includes(q);
-        const inNum = t.numero != null && String(t.numero).includes(q);
-        const inCat = (t.categorie || "").toLowerCase().includes(q);
-        if (!inTitle && !inNum && !inCat) return false;
+  function renderResults() {
+    clear(resultsWrap);
+
+    // Détermine les familles à afficher (active ou toutes)
+    const famillesToShow = activeFamille === "all"
+      ? famillesData
+      : famillesData.filter((f) => f.key === activeFamille);
+
+    let sectionsAffichees = 0;
+
+    // Rendu de chaque famille comme section autonome
+    famillesToShow.forEach((f) => {
+      // Filtre interne par search + statut
+      const items = f.items.filter((t) => {
+        if (filterStatut && normalizeStatut(t.statut) !== filterStatut) return false;
+        if (search) {
+          const q = search.toLowerCase();
+          const inTitle = t.titre.toLowerCase().includes(q);
+          const inNum = t.numero != null && String(t.numero).includes(q);
+          const inCat = (t.categorie || "").toLowerCase().includes(q);
+          if (!inTitle && !inNum && !inCat) return false;
+        }
+        return true;
+      });
+
+      if (items.length === 0) return;
+      sectionsAffichees++;
+
+      const stats = familleStats(items);
+
+      const section = el("section", { class: "theme-section theme-section-" + f.key });
+
+      // Header de section
+      section.appendChild(el("div", { class: "theme-section-head" },
+        el("div", { class: "theme-section-title-wrap" },
+          el("h3", { class: "theme-section-title" }, f.label),
+          el("p", { class: "muted theme-section-subtitle" }, items.length + " entrée" + (items.length > 1 ? "s" : "")),
+        ),
+        el("div", { class: "theme-section-stats" },
+          el("div", { class: "theme-section-stat" },
+            el("span", { class: "theme-section-stat-value" }, String(stats.fait)),
+            el("span", { class: "theme-section-stat-label" }, "Faits"),
+          ),
+          el("div", { class: "theme-section-stat" },
+            el("span", { class: "theme-section-stat-value" }, String(stats.aFaire)),
+            el("span", { class: "theme-section-stat-label" }, "À faire"),
+          ),
+        ),
+      ));
+
+      // Barre de progression
+      if (stats.total > 0) {
+        const bar = el("div", { class: "theme-progress" },
+          el("div", { class: "theme-progress-fill", style: `width: ${stats.pct}%` }),
+        );
+        section.appendChild(el("div", { class: "theme-progress-wrap" },
+          bar,
+          el("span", { class: "theme-progress-label" }, stats.pct + "%"),
+        ));
       }
-      return true;
+
+      // Liste des thèmes/notions, sous-groupée par catégorie si c'est une famille avec sous-cats (thèmes officiels)
+      // La colonne Cours n'existe que si au moins un thème de la section a un
+      // cours visible (un stagiaire sans cours publié garde la liste d'avant).
+      const coursOn = items.some((t) => hasCours(t));
+      const list = el("div", { class: "themes-list"
+        + (canSeeQcm() ? " qcm-on" : "") + (coursOn ? " cours-on" : "") });
+      list.appendChild(el("div", { class: "theme-row theme-header" },
+        el("span", { class: "theme-num" }, "N°"),
+        el("span", {}, "Thème"),
+        el("span", {}, "Statut"),
+        el("span", {}, "Fait le"),
+        coursOn ? el("span", {}, "Cours") : null,
+        canSeeQcm() ? el("span", {}, "QCM") : null,
+        el("span", {}),
+      ));
+
+      // Sous-groupage par catégorie uniquement pour les thèmes officiels (qui ont 11 sous-catégories)
+      const needsSubGroup = f.key === "themes-officiels";
+      if (needsSubGroup) {
+        const grouped = {};
+        items.forEach((t) => {
+          const key = t.categorie || "Sans catégorie";
+          if (!grouped[key]) grouped[key] = [];
+          grouped[key].push(t);
+        });
+        Object.entries(grouped).forEach(([cat, gItems]) => {
+          list.appendChild(el("div", { class: "theme-group-head" }, cat, el("span", { class: "muted" }, " · " + gItems.length)));
+          gItems.forEach((t) => list.appendChild(renderThemeRow(t, container, coursOn)));
+        });
+      } else {
+        items.forEach((t) => list.appendChild(renderThemeRow(t, container, coursOn)));
+      }
+      section.appendChild(list);
+
+      resultsWrap.appendChild(section);
     });
 
-    if (items.length === 0) return;
-
-    const stats = familleStats(items);
-
-    const section = el("section", { class: "theme-section theme-section-" + f.key });
-
-    // Header de section
-    section.appendChild(el("div", { class: "theme-section-head" },
-      el("div", { class: "theme-section-title-wrap" },
-        el("h3", { class: "theme-section-title" }, f.label),
-        el("p", { class: "muted theme-section-subtitle" }, items.length + " entrée" + (items.length > 1 ? "s" : "")),
-      ),
-      el("div", { class: "theme-section-stats" },
-        el("div", { class: "theme-section-stat" },
-          el("span", { class: "theme-section-stat-value" }, String(stats.fait)),
-          el("span", { class: "theme-section-stat-label" }, "Faits"),
-        ),
-        el("div", { class: "theme-section-stat" },
-          el("span", { class: "theme-section-stat-value" }, String(stats.aFaire)),
-          el("span", { class: "theme-section-stat-label" }, "À faire"),
-        ),
-      ),
-    ));
-
-    // Barre de progression
-    if (stats.total > 0) {
-      const bar = el("div", { class: "theme-progress" },
-        el("div", { class: "theme-progress-fill", style: `width: ${stats.pct}%` }),
-      );
-      section.appendChild(el("div", { class: "theme-progress-wrap" },
-        bar,
-        el("span", { class: "theme-progress-label" }, stats.pct + "%"),
-      ));
+    // Aucun résultat : compté APRÈS filtres (avant, une recherche sans aucune
+    // correspondance laissait la page vide, sans message).
+    if (!sectionsAffichees) {
+      resultsWrap.appendChild(el("p", { class: "muted", style: "padding:2rem 0;text-align:center" }, "Aucun thème ne correspond aux filtres."));
     }
-
-    // Liste des thèmes/notions, sous-groupée par catégorie si c'est une famille avec sous-cats (thèmes officiels)
-    // La colonne Cours n'existe que si au moins un thème de la section a un
-    // cours visible (un stagiaire sans cours publié garde la liste d'avant).
-    const coursOn = items.some((t) => hasCours(t));
-    const list = el("div", { class: "themes-list"
-      + (canSeeQcm() ? " qcm-on" : "") + (coursOn ? " cours-on" : "") });
-    list.appendChild(el("div", { class: "theme-row theme-header" },
-      el("span", { class: "theme-num" }, "N°"),
-      el("span", {}, "Thème"),
-      el("span", {}, "Statut"),
-      el("span", {}, "Fait le"),
-      coursOn ? el("span", {}, "Cours") : null,
-      canSeeQcm() ? el("span", {}, "QCM") : null,
-      el("span", {}),
-    ));
-
-    // Sous-groupage par catégorie uniquement pour les thèmes officiels (qui ont 11 sous-catégories)
-    const needsSubGroup = f.key === "themes-officiels";
-    if (needsSubGroup) {
-      const grouped = {};
-      items.forEach((t) => {
-        const key = t.categorie || "Sans catégorie";
-        if (!grouped[key]) grouped[key] = [];
-        grouped[key].push(t);
-      });
-      Object.entries(grouped).forEach(([cat, gItems]) => {
-        list.appendChild(el("div", { class: "theme-group-head" }, cat, el("span", { class: "muted" }, " · " + gItems.length)));
-        gItems.forEach((t) => list.appendChild(renderThemeRow(t, container, coursOn)));
-      });
-    } else {
-      items.forEach((t) => list.appendChild(renderThemeRow(t, container, coursOn)));
-    }
-    section.appendChild(list);
-
-    container.appendChild(section);
-  });
-
-  // Aucun résultat
-  const anyShown = famillesToShow.some((f) => f.items.length > 0);
-  if (!anyShown) {
-    container.appendChild(el("p", { class: "muted", style: "padding:2rem 0;text-align:center" }, "Aucun thème ne correspond aux filtres."));
   }
+  renderResults();
 }
 
 async function reload(container) {
