@@ -171,9 +171,15 @@ export function initChatbot() {
       "Salut ! Je peux t'expliquer l'app, t'aider à réviser les 57 thèmes et vérifier la réglementation sur Légifrance. Qu'est-ce qu'il te faut ?");
   }
 
+  // Auto-focus seulement au pointeur precis (souris/trackpad) : sur ecran
+  // tactile, focus() ouvrirait le clavier immediatement (et declenchait le
+  // zoom iOS) alors que l'utilisateur veut d'abord voir le panneau.
+  // Evalue au clic, pas a l'init : suit un changement de peripherique.
   fab.addEventListener("click", () => {
     panneau.classList.toggle("hidden");
-    if (!panneau.classList.contains("hidden")) input.focus();
+    if (!panneau.classList.contains("hidden") && window.matchMedia("(pointer: fine)").matches) {
+      input.focus();
+    }
   });
   panneau.querySelector(".chatbot-close").addEventListener("click", () => panneau.classList.add("hidden"));
   document.addEventListener("keydown", (e) => {
