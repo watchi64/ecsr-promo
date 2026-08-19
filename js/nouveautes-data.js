@@ -13,6 +13,17 @@
 
 export const NOUVEAUTES = [
   {
+    id: "2026-08-19-themes-mobile",
+    date: "2026-08-19",
+    pour: "tous",
+    titre: "La page Thèmes, enfin lisible sur ton téléphone",
+    resume: "Les cartes des thèmes s'affichent proprement sur téléphone : numéro en pastille "
+          + "à côté du titre, titre sur toute la largeur, boutons Cours et QCM bien alignés "
+          + "avec tes notes. Et le champ de recherche ne ferme plus ton clavier à chaque "
+          + "lettre : tape ta recherche d'une traite, la liste se filtre en direct.",
+    ou: { label: "Thèmes", route: "themes" },
+  },
+  {
     id: "2026-08-15-assistant",
     date: "2026-08-15",
     pour: "tous",

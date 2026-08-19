@@ -7591,3 +7591,81 @@ body.cours-open { overflow: hidden; }
 @media print {
   .chatbot-fab, .chatbot-panel { display: none !important; }
 }
+
+/* ============================================================
+   Thèmes sur mobile : correctif de spécificité + carte compacte
+   (fix/themes-mobile, 18/08/2026)
+   ============================================================ */
+
+/* 1) Correctif : la grille desktop `.themes-list.cours-on.qcm-on .theme-row`
+   (4 classes) battait les overrides mobiles à 3 classes des media queries
+   existantes. Dès que la liste porte les DEUX colonnes Cours et QCM (le cas
+   courant depuis les cours en base), le téléphone recevait la grille desktop
+   à 7 colonnes : numéro large, titre écrasé mot à mot, zone vide à droite.
+   Même sélecteur, même media query, plus bas dans le fichier : l'ordre des
+   sources fait gagner celui-ci. */
+@media (max-width: 720px) {
+  .themes-list.cours-on.qcm-on .theme-row {
+    grid-template-columns: 36px 1fr auto auto;
+  }
+}
+
+/* 2) Petits écrans (<= 480px) : carte compacte.
+   Numéro en pastille inline avec le titre (colonne auto), titre sur toute la
+   largeur restante, statut sur sa ligne (corbeille des notions à droite),
+   date sur sa ligne, puis Cours et QCM (notes + barre) en pleine largeur.
+   Les sélecteurs reprennent les variantes .qcm-on / .cours-on existantes pour
+   gagner à égalité de spécificité par l'ordre des sources. */
+@media (max-width: 480px) {
+  .themes-list .theme-row,
+  .themes-list.qcm-on .theme-row,
+  .themes-list.cours-on .theme-row,
+  .themes-list.cours-on.qcm-on .theme-row {
+    grid-template-columns: auto 1fr auto;
+    grid-template-areas:
+      "num    titre  titre"
+      "statut statut del"
+      "date   date   date"
+      "cours  cours  cours"
+      "qcm    qcm    qcm";
+    gap: 0.45rem 0.55rem;
+    padding: 0.75rem 0.8rem;
+  }
+  /* Numéro : pastille compacte, calée sur la première ligne du titre. */
+  .themes-list .theme-row .theme-num {
+    grid-area: num;
+    align-self: start;
+    justify-self: start;
+    margin-top: 1px;
+    background: var(--bg-subtle);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 2px 8px;
+    font-size: 0.72rem;
+    line-height: 1.4;
+  }
+  .themes-list .theme-row .theme-titre-block { grid-area: titre; }
+  /* Statut : à gauche sur sa propre ligne (il était collé au titre). */
+  .themes-list .theme-row .theme-statut {
+    grid-area: statut;
+    justify-self: start;
+    align-self: center;
+  }
+  .theme-row > .theme-date,
+  .theme-row > button.theme-date {
+    grid-area: date;
+    justify-self: start;
+  }
+  .themes-list.cours-on .theme-row .theme-cours-cell {
+    grid-area: cours;
+    margin-top: 0;
+  }
+  /* Cellule QCM : étirée sur toute la largeur pour que le bouton, les scores
+     (Examen / Entraîn.) et la barre de progression s'alignent proprement. */
+  .themes-list.qcm-on .theme-row .theme-qcm-cell,
+  .themes-list.cours-on.qcm-on .theme-row .theme-qcm-cell {
+    grid-area: qcm;
+    justify-self: stretch;
+    margin-top: 0;
+  }
+}
