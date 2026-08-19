@@ -7669,3 +7669,14 @@ body.cours-open { overflow: hidden; }
     margin-top: 0;
   }
 }
+
+/* ===== Assistant : correctif ouverture mobile (2026-08-18) =====
+   iOS Safari zoome automatiquement le viewport au focus d'un champ dont la
+   font-size calculee est < 16px. Le textarea du chatbot n'avait aucune regle
+   de police : il tombait sur le defaut navigateur (petit monospace ~13px),
+   d'ou le zoom brutal a l'ouverture du panneau sur iPhone. 16px partout, pas
+   seulement sous 600px : un iPad depasse ce seuil et zoome pareil. */
+.chatbot-form textarea {
+  font: inherit;
+  font-size: 16px;
+}

@@ -13,6 +13,15 @@
 
 export const NOUVEAUTES = [
   {
+    id: "2026-08-19-assistant-mobile",
+    date: "2026-08-19",
+    pour: "tous",
+    titre: "L'assistant s'ouvre sans zoomer sur ton téléphone",
+    resume: "Ouvrir l'assistant sur téléphone zoomait la page et sortait le clavier direct. "
+          + "C'est réglé : la fenêtre s'ouvre tranquillement, tu vois la conversation en "
+          + "entier et tu tapes dans le champ quand tu veux.",
+  },
+  {
     id: "2026-08-19-themes-mobile",
     date: "2026-08-19",
     pour: "tous",

@@ -3,10 +3,10 @@
  * Aucune cle ici : tout passe par l'Edge Function `chatbot` (JWT verifie).
  * Historique ephemere (sessionStorage), fenetre des 8 derniers messages envoyee.
  */
-import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20260819a";
-import { supabase } from "./db.js?v=20260819a";
-import { icon } from "./icons.js?v=20260819a";
-import { fenetreMessages, pageDepuisHash, extraireEvenements } from "./chatbot-rules.js?v=20260819a";
+import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20260819b";
+import { supabase } from "./db.js?v=20260819b";
+import { icon } from "./icons.js?v=20260819b";
+import { fenetreMessages, pageDepuisHash, extraireEvenements } from "./chatbot-rules.js?v=20260819b";
 
 const CLE_HISTO = "chatbot_histo";
 let histo = [];
@@ -24,7 +24,7 @@ function sauverHisto() {
 
 async function rendreEnMarkdown(noeud, texte) {
   try {
-    const { rendreMarkdown } = await import("./views/cours-reader.js?v=20260819a");
+    const { rendreMarkdown } = await import("./views/cours-reader.js?v=20260819b");
     const { noeuds } = rendreMarkdown(texte);
     noeud.replaceChildren(...noeuds);
     noeud.querySelectorAll("a[href^='http']").forEach((a) => {
@@ -171,9 +171,15 @@ export function initChatbot() {
       "Salut ! Je peux t'expliquer l'app, t'aider à réviser les 57 thèmes et vérifier la réglementation sur Légifrance. Qu'est-ce qu'il te faut ?");
   }
 
+  // Auto-focus seulement au pointeur precis (souris/trackpad) : sur ecran
+  // tactile, focus() ouvrirait le clavier immediatement (et declenchait le
+  // zoom iOS) alors que l'utilisateur veut d'abord voir le panneau.
+  // Evalue au clic, pas a l'init : suit un changement de peripherique.
   fab.addEventListener("click", () => {
     panneau.classList.toggle("hidden");
-    if (!panneau.classList.contains("hidden")) input.focus();
+    if (!panneau.classList.contains("hidden") && window.matchMedia("(pointer: fine)").matches) {
+      input.focus();
+    }
   });
   panneau.querySelector(".chatbot-close").addEventListener("click", () => panneau.classList.add("hidden"));
   document.addEventListener("keydown", (e) => {
