@@ -10,17 +10,17 @@
  * enregistrement ; si le cours a bougé entre-temps, un bandeau propose
  * d'écraser ou d'abandonner, rien ne part sans décision.
  */
-import { el, clear, debounce } from "../utils.js?v=20260819b";
-import { icon } from "../icons.js?v=20260819b";
+import { el, clear, debounce } from "../utils.js?v=20260819c";
+import { icon } from "../icons.js?v=20260819c";
 import { getCours, saveCours, setCoursPublie, listCoursVersions, getCoursVersion, uploadCoursImage }
-  from "../db.js?v=20260819b";
-import { rendreMarkdown } from "./cours-reader.js?v=20260819b";
-import { insererSyntaxe, titreDepuisMarkdown, cheminImage, interpolerAncres } from "../cours-rules.js?v=20260819b";
-import { getProfileWho } from "../auth-admin.js?v=20260819b";
-import { reduireImage } from "../cours-images.js?v=20260819b";
-import { SIGNAUX, carteSignal } from "../signaux.js?v=20260819b";
-import { CATALOGUE } from "../signaux-catalogue.js?v=20260819b";
-import { MARQUAGES, carteMarquage } from "../marquage.js?v=20260819b";
+  from "../db.js?v=20260819c";
+import { rendreMarkdown } from "./cours-reader.js?v=20260819c";
+import { insererSyntaxe, titreDepuisMarkdown, cheminImage, interpolerAncres } from "../cours-rules.js?v=20260819c";
+import { getProfileWho } from "../auth-admin.js?v=20260819c";
+import { reduireImage } from "../cours-images.js?v=20260819c";
+import { SIGNAUX, carteSignal } from "../signaux.js?v=20260819c";
+import { CATALOGUE } from "../signaux-catalogue.js?v=20260819c";
+import { MARQUAGES, carteMarquage } from "../marquage.js?v=20260819c";
 
 const OUTILS = [
   { label: "Gras", avant: "**", apres: "**", defaut: "texte" },
@@ -419,9 +419,12 @@ export async function openCoursEditeur(numero, { onFerme } = {}) {
   function effacerMessage() { bandeau.hidden = true; clear(bandeau); }
 
   // ===== Enregistrement =====
+  // Même convention de retour visuel que btnImage pendant l'upload : bouton
+  // désactivé (anti double-clic) + libellé d'attente, puis confirmation.
   async function enregistrer({ ecraser = false } = {}) {
     effacerMessage();
     btnEnregistrer.disabled = true;
+    btnEnregistrer.textContent = "Enregistrement…";
     try {
       if (ecraser) {
         // Écraser en connaissance de cause : on reprend le jeton frais.
@@ -442,8 +445,8 @@ export async function openCoursEditeur(numero, { onFerme } = {}) {
       }
       ouvertA = r.cours.updated_at;
       sauve = true; aChange = true;
-      btnEnregistrer.textContent = "Enregistré";
-      setTimeout(() => { if (sauve) btnEnregistrer.textContent = "Enregistrer"; }, 1500);
+      btnEnregistrer.textContent = "Enregistré ✓";
+      setTimeout(() => { if (sauve) btnEnregistrer.textContent = "Enregistrer"; }, 2000);
       tete.querySelector(".cours-head-titre").textContent = r.cours.titre;
     } catch (e) {
       // Échec réseau ou droits : le texte reste dans la zone, rien n'est perdu.
@@ -452,6 +455,11 @@ export async function openCoursEditeur(numero, { onFerme } = {}) {
       ]);
     } finally {
       btnEnregistrer.disabled = false;
+      // Conflit ou échec : le libellé d'attente ne doit pas rester affiché.
+      // Le succès a déjà posé « Enregistré ✓ », on ne l'écrase pas.
+      if (btnEnregistrer.textContent === "Enregistrement…") {
+        btnEnregistrer.textContent = sauve ? "Enregistrer" : "Enregistrer *";
+      }
     }
   }
   btnEnregistrer.addEventListener("click", () => enregistrer());
@@ -465,6 +473,7 @@ export async function openCoursEditeur(numero, { onFerme } = {}) {
       return;
     }
     btnPublier.disabled = true;
+    btnPublier.textContent = cible ? "Publication…" : "Dépublication…";
     try {
       await setCoursPublie(cours.id, cible);
       aChange = true;
@@ -472,6 +481,7 @@ export async function openCoursEditeur(numero, { onFerme } = {}) {
       btnPublier.textContent = cible ? "Dépublier" : "Publier";
     } catch (e) {
       message("Échec : " + (e?.message || e));
+      btnPublier.textContent = cible ? "Publier" : "Dépublier";
     } finally {
       btnPublier.disabled = false;
     }

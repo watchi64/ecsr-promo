@@ -1,7 +1,7 @@
-import { listStagiaires, getStats, getSetting } from "../db.js?v=20260819b";
-import { el, clear, isoDate, getMonday, displayStagiaire, compareByNom } from "../utils.js?v=20260819b";
-import { icon } from "../icons.js?v=20260819b";
-import { renderPassages } from "./passages.js?v=20260819b";
+import { listStagiaires, getStats, getSetting } from "../db.js?v=20260819c";
+import { el, clear, isoDate, getMonday, displayStagiaire, compareByNom } from "../utils.js?v=20260819c";
+import { icon } from "../icons.js?v=20260819c";
+import { renderPassages } from "./passages.js?v=20260819c";
 
 const SORT_OPTIONS = [
   { key: "priorite",   label: "Priorité de passage" },

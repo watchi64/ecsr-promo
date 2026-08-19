@@ -13,6 +13,15 @@
 
 export const NOUVEAUTES = [
   {
+    id: "2026-08-19-editeur-enregistrer",
+    date: "2026-08-19",
+    pour: "formateurs",
+    titre: "Le bouton Enregistrer de l'éditeur de cours te répond",
+    resume: "Quand tu enregistres un cours, le bouton affiche « Enregistrement... » puis "
+          + "« Enregistré » avec une coche quand c'est bien parti. En cas de problème, un "
+          + "message clair s'affiche et ton texte reste dans l'éditeur. Pareil pour Publier.",
+  },
+  {
     id: "2026-08-19-assistant-mobile",
     date: "2026-08-19",
     pour: "tous",
