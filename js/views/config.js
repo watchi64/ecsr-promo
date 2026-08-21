@@ -203,32 +203,72 @@ function renderMyPreferencesSection(rerender) {
   const block = el("div", { class: "param-block" });
   block.appendChild(el("h4", {}, "Anonymat dans le tableau de notes"));
   block.appendChild(el("p", { class: "muted" },
-    "Si activé, ton prénom est remplacé par « Anonyme » dans le tableau et les graphiques de la page Notes, et tu es placé(e) en fin de liste. Les admins continuent de voir ton vrai prénom (besoin d'évaluation)."));
+    "Si activé, les autres stagiaires ne voient plus ni ton prénom ni tes notes sur la page Notes "
+    + "(elles restent comptées dans les moyennes du groupe). En échange, tu ne vois plus leurs notes : "
+    + "seulement ta ligne, la moyenne du groupe, la moyenne haute et la moyenne basse. "
+    + "Les formateurs continuent de tout voir (besoin d'évaluation)."));
+  block.appendChild(el("p", { class: "muted" },
+    "Après un changement, tu as 2 minutes pour annuler ; ensuite le réglage est verrouillé pendant 24 h."));
 
   const checkbox = el("input", { type: "checkbox", id: "pref-anon" });
   if (profile.anonymous_notes) checkbox.checked = true;
 
   const label = el("label", { for: "pref-anon", class: "invite-admin-toggle" },
     checkbox,
-    " Masquer mon prénom dans les notes",
+    " Masquer mon prénom et mes notes",
   );
+
+  // Verrou anti-yoyo : l'état (grâce de 2 min / verrou de 24 h) vient du profil
+  // et est appliqué pour de bon côté serveur par la RPC. Ici on ne fait que
+  // l'afficher et griser la case.
+  const GRACE_MS = 2 * 60 * 1000;
+  const lockInfo = el("p", { class: "muted", style: "margin:0.4rem 0 0;font-weight:600" });
+
+  function refreshLockState() {
+    const now = Date.now();
+    const changedAt = profile.anon_changed_at ? new Date(profile.anon_changed_at).getTime() : null;
+    const lockUntil = profile.anon_lock_until ? new Date(profile.anon_lock_until).getTime() : null;
+    const inGrace = changedAt != null && now < changedAt + GRACE_MS;
+    const locked = !inGrace && lockUntil != null && now < lockUntil;
+    checkbox.disabled = locked;
+    if (locked) {
+      const d = new Date(lockUntil);
+      const quand = d.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" })
+        + " à " + d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+      lockInfo.textContent = "Réglage verrouillé : prochain changement possible le " + quand + ".";
+      lockInfo.style.display = "";
+    } else if (inGrace) {
+      lockInfo.textContent = "Tu peux encore annuler ce changement pendant 2 minutes.";
+      lockInfo.style.display = "";
+    } else {
+      lockInfo.style.display = "none";
+    }
+  }
 
   checkbox.addEventListener("change", async () => {
     const wanted = checkbox.checked;
     checkbox.disabled = true;
     try {
-      await setMyAnonymousNotes(wanted);
-      profile.anonymous_notes = wanted;
-      toast(wanted ? "Tu apparais maintenant en Anonyme." : "Ton prénom est à nouveau visible.", "success");
+      const state = await setMyAnonymousNotes(wanted);
+      profile.anonymous_notes = state?.value ?? wanted;
+      profile.anon_changed_at = state?.changed_at ?? null;
+      profile.anon_lock_until = state?.locked_until ?? null;
+      checkbox.checked = !!profile.anonymous_notes;
+      toast(profile.anonymous_notes
+        ? "Ton prénom et tes notes sont maintenant masqués."
+        : "Ton prénom et tes notes sont à nouveau visibles.", "success");
     } catch (e) {
       toast("Erreur : " + e.message, "error");
       checkbox.checked = !wanted;
     } finally {
       checkbox.disabled = false;
+      refreshLockState();
     }
   });
 
   block.appendChild(label);
+  block.appendChild(lockInfo);
+  refreshLockState();
   section.appendChild(block);
   return section;
 }

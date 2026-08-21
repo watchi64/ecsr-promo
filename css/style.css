@@ -4453,6 +4453,18 @@ button.theme-date.editable.muted { color: var(--text-faint); }
   font-weight: 500;
 }
 
+/* Anonymat renforcé : ligne « Moyenne du groupe » (vue du stagiaire anonymisé)
+   et mention sous la matrice (profils masqués / rappel de réciprocité). */
+.m-row-group-avg td { border-top: 2px solid #C9D2BC; }
+.m-group-avg-label {
+  font-style: italic;
+  font-weight: 600;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.matrice-anon-note { margin: 0.5rem 0 0; font-size: 0.82rem; }
+
 /* === Vue détaillée stagiaire (modale) === */
 .sd-modal { max-width: 540px; width: 100%; }
 .sd-head { margin-bottom: 0.8rem; }
