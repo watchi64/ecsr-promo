@@ -13,6 +13,18 @@
 
 export const NOUVEAUTES = [
   {
+    id: "2026-08-26-cours-pour-tous",
+    date: "2026-08-26",
+    pour: "tous",
+    titre: "Les cours des 57 thèmes sont ouverts à toute la promo",
+    resume: "Jusqu'ici réservés aux formateurs, les cours complets des 57 thèmes sont "
+          + "maintenant lisibles par tout le monde. Dans la page Thèmes, le bouton "
+          + "« Lire le cours » ouvre le cours en plein écran : l'essentiel en tête, les "
+          + "sanctions en fiches, les planches de panneaux, et un sommaire pour naviguer. "
+          + "En fin de lecture, tu peux enchaîner directement sur le QCM du thème.",
+    ou: { label: "Thèmes", route: "themes" },
+  },
+  {
     id: "2026-08-21-anonymat-notes",
     date: "2026-08-21",
     pour: "tous",
