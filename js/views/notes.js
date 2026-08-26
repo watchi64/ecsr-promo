@@ -2,15 +2,15 @@ import {
   listStagiaires, listCompetences, listEvaluations, listThemes,
   addEvaluation, updateEvaluation, deleteEvaluation, listAuditForEvaluation,
   listUserProfiles,
-} from "../db.js?v=20260819c";
-import { el, clear, isoDate, formatDate, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260819c";
-import { icon } from "../icons.js?v=20260819c";
-import { getAdminEmail, isAdmin } from "../auth-admin.js?v=20260819c";
-import { recordUndo } from "../undo.js?v=20260819c";
-import { renderSubTabs } from "../subtabs.js?v=20260819c";
-import { renderEpcf } from "./epcf.js?v=20260819c";
-import { renderEpcfLivret } from "./epcf-livret.js?v=20260819c";
-import { renderDp } from "./dp.js?v=20260819c";
+} from "../db.js?v=20260826a";
+import { el, clear, isoDate, formatDate, toast, displayStagiaire, compareByNom } from "../utils.js?v=20260826a";
+import { icon } from "../icons.js?v=20260826a";
+import { getAdminEmail, isAdmin, getProfile } from "../auth-admin.js?v=20260826a";
+import { recordUndo } from "../undo.js?v=20260826a";
+import { renderSubTabs } from "../subtabs.js?v=20260826a";
+import { renderEpcf } from "./epcf.js?v=20260826a";
+import { renderEpcfLivret } from "./epcf-livret.js?v=20260826a";
+import { renderDp } from "./dp.js?v=20260826a";
 
 let userProfiles = [];  // pour résoudre l'anonymat par stagiaire_id
 
@@ -69,10 +69,42 @@ function isStagiaireAnonymous(stagiaireId) {
 }
 
 function displayName(s) {
-  // Les admins voient toujours le vrai nom (besoin métier : noter, repérer).
-  // Les autres voient "Anonyme" si la personne a coché le flag.
-  if (isAdmin()) return displayStagiaire(s);
+  // Les admins voient toujours le vrai nom (besoin métier : noter, repérer),
+  // et chacun voit le sien. Filet de sécurité : "Anonyme" pour un profil masqué
+  // (ces lignes sont normalement déjà retirées de la vue des autres stagiaires).
+  if (isAdmin() || s.id === myStagiaireId()) return displayStagiaire(s);
   return isStagiaireAnonymous(s.id) ? "Anonyme" : displayStagiaire(s);
+}
+
+// === Anonymat renforcé : réciprocité ===
+// Un stagiaire anonymisé disparaît (prénom ET notes) de la vue des autres
+// stagiaires, et ne voit plus lui-même que sa propre ligne plus les moyennes du
+// groupe. Les admins voient tout. Ses notes restent comptées dans tous les
+// agrégats (Synthèse, moyennes par thème, distribution).
+function myStagiaireId() {
+  return getProfile()?.stagiaire_id ?? null;
+}
+
+function iAmAnonymous() {
+  return !isAdmin() && !!getProfile()?.anonymous_notes;
+}
+
+function visibleStagiaires() {
+  if (isAdmin()) return stagiaires;
+  if (iAmAnonymous()) return stagiaires.filter((s) => s.id === myStagiaireId());
+  return stagiaires.filter((s) => !isStagiaireAnonymous(s.id));
+}
+
+function hiddenCount() {
+  return stagiaires.length - visibleStagiaires().length;
+}
+
+// Moyenne du groupe sur un sous-ensemble de notes (toutes évaluations notées
+// confondues, cohérent avec la Synthèse classe).
+function groupAvgFor(filterFn) {
+  const evs = ratedEvals().filter(filterFn);
+  if (evs.length === 0) return null;
+  return evs.reduce((sum, e) => sum + evalScore20(e), 0) / evs.length;
 }
 
 function sortStagiaires(list, mode) {
@@ -760,7 +792,7 @@ function openStagiaireDetail(stagiaire, themeByNum, container) {
 
   const modal = el("div", { class: "modal sd-modal" },
     el("div", { class: "sd-head" },
-      el("h3", {}, stagiaire.prenom),
+      el("h3", {}, displayName(stagiaire)),
       el("p", { class: "muted", style: "margin:0;font-size:0.85rem" },
         admin ? "Clique sur une note pour la modifier." : "Lecture seule."),
     ),
@@ -897,7 +929,7 @@ function renderMatrice(container) {
   // Construction d'un Map themes par numero pour la modale détail
   const themeByNumLocal = themesByNum;
 
-  sortStagiaires(stagiaires, currentNotesSort).forEach((s) => {
+  sortStagiaires(visibleStagiaires(), currentNotesSort).forEach((s) => {
     const tr = el("tr");
 
     // Colonne prénom (sticky) : cliquable pour ouvrir la vue détaillée
@@ -968,10 +1000,62 @@ function renderMatrice(container) {
 
     tbody.appendChild(tr);
   });
+  if (iAmAnonymous()) tbody.appendChild(buildGroupAvgRow());
   table.appendChild(tbody);
   wrap.appendChild(table);
 
+  if (!admin) {
+    if (iAmAnonymous()) {
+      wrap.appendChild(el("p", { class: "muted matrice-anon-note" },
+        "Tu as masqué tes notes : tu vois ta ligne et la moyenne du groupe. "
+        + "Les autres stagiaires ne voient ni ton prénom ni tes notes "
+        + "(elles comptent toujours dans les moyennes)."));
+    } else if (hiddenCount() > 0) {
+      const n = hiddenCount();
+      wrap.appendChild(el("p", { class: "muted matrice-anon-note" },
+        n + (n > 1 ? " profils masqués, comptés" : " profil masqué, compté") + " dans les moyennes du groupe."));
+    }
+  }
+
   return wrap;
+}
+
+// Ligne « Moyenne du groupe » affichée au stagiaire anonymisé à la place des
+// lignes des autres : moyenne de classe par colonne, non cliquable.
+function buildGroupAvgRow() {
+  const tr = el("tr", { class: "m-row-group-avg" });
+  tr.appendChild(el("td", { class: "m-td-name sticky" },
+    el("span", { class: "m-group-avg-label" }, "Moyenne du groupe")));
+
+  function avgCell(avg, cls, title) {
+    const td = el("td", { class: cls + (avg == null ? " empty" : "") });
+    if (avg != null) {
+      td.textContent = String(Math.round(avg * 10) / 10);
+      applyNoteCellStyle(td, avg);
+      if (title) td.title = title;
+    }
+    return td;
+  }
+
+  tr.appendChild(avgCell(groupAvgFor(() => true), "m-td-avg", "Moyenne générale du groupe"));
+
+  MATRIX_SPECIAL_COLS.forEach((c) => {
+    const avg = groupAvgFor((e) => e.type === "Compétence" && e.competence_code === c.key);
+    tr.appendChild(avgCell(avg, "m-td-cell", c.label + " : moyenne du groupe"));
+  });
+
+  for (let n = 1; n <= 57; n++) {
+    if (THEME_GROUP_FOLLOWER.has(n)) continue;
+    const grp = THEME_GROUP_LEADER.get(n);
+    const nums = grp || [n];
+    const avg = groupAvgFor((e) => e.type === "Thème" && nums.includes(e.theme_numero));
+    const libelle = grp ? `Thèmes ${grp.join(" + ")}` : `Thème ${n}`;
+    const td = avgCell(avg, "m-td-cell" + (grp ? " grouped" : ""), libelle + " : moyenne du groupe");
+    if (grp) td.colSpan = grp.length;
+    tr.appendChild(td);
+  }
+
+  return tr;
 }
 
 function rerender(container) {
@@ -1239,13 +1323,32 @@ function buildAveragesChartSvg() {
 
 function renderAveragesChartInner() {
   // Code repris de renderAveragesChart mais retourne seulement le SVG
-  const sorted = sortStagiaires(stagiaires, "avg-desc");
+  if (iAmAnonymous()) return buildAnonAveragesChartSvg();
+  const sorted = sortStagiaires(visibleStagiaires(), "avg-desc");
   const data = sorted.map((s) => {
     const evs = evaluations.filter((e) => e.stagiaire_id === s.id && e.note != null && e.note_max);
     const avg = evs.length === 0 ? null : evs.reduce((sum, e) => sum + evalScore20(e), 0) / evs.length;
     return { name: displayName(s), avg, count: evs.length, anon: isStagiaireAnonymous(s.id) };
   });
   return horizontalBarChart(data, 22);
+}
+
+// Vue du stagiaire anonymisé : plus de barres nominatives, seulement sa moyenne
+// située par rapport à la meilleure, la moyenne du groupe et la moins bonne
+// (moyennes générales individuelles, sans prénom, anonymes compris).
+function buildAnonAveragesChartSvg() {
+  const avgs = stagiaires
+    .map((s) => ({ id: s.id, avg: stagiaireAvg(s.id) }))
+    .filter((d) => d.avg != null);
+  const mine = avgs.find((d) => d.id === myStagiaireId()) || null;
+  const myCount = evaluations.filter((e) => e.stagiaire_id === myStagiaireId() && e.note != null && e.note_max).length;
+  const data = [
+    { name: "Toi", avg: mine ? mine.avg : null, count: mine ? myCount : null },
+    { name: "Moyenne haute", avg: avgs.length ? Math.max(...avgs.map((d) => d.avg)) : null },
+    { name: "Moyenne du groupe", avg: groupAvgFor(() => true) },
+    { name: "Moyenne basse", avg: avgs.length ? Math.min(...avgs.map((d) => d.avg)) : null },
+  ];
+  return horizontalBarChart(data, 22, 140);
 }
 
 function buildThemesChartSvg() {

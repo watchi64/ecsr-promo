@@ -1,6 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20260819c";
-import { compteDansEquite } from "./passage-rules.js?v=20260819c";
+import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20260826a";
+import { compteDansEquite } from "./passage-rules.js?v=20260826a";
 
 // fetch avec timeout : sans ça, une requête peut rester pendue indéfiniment
 // (réseau mobile instable) → "Chargement" infini. Avec, elle échoue proprement après 15s.
@@ -1091,9 +1091,12 @@ export async function listUserProfiles() {
   return data;
 }
 
+// La RPC applique le verrou anti-yoyo côté serveur (2 min de grâce, puis 24 h)
+// et renvoie l'état : { value, changed_at, locked_until }.
 export async function setMyAnonymousNotes(val) {
-  const { error } = await supabase.rpc("set_my_anonymous_notes", { val: !!val });
+  const { data, error } = await supabase.rpc("set_my_anonymous_notes", { val: !!val });
   if (error) throw error;
+  return data;
 }
 
 export async function getMyProfile() {

@@ -13,6 +13,19 @@
 
 export const NOUVEAUTES = [
   {
+    id: "2026-08-21-anonymat-notes",
+    date: "2026-08-21",
+    pour: "tous",
+    titre: "Anonyme pour de vrai dans le tableau de notes",
+    resume: "Jusqu'ici, passer en anonyme cachait seulement ton prénom. Désormais, tes notes "
+          + "disparaissent aussi pour les autres stagiaires (elles comptent toujours dans les "
+          + "moyennes du groupe). En échange, tu ne vois plus leurs notes : tu gardes ta ligne, "
+          + "la moyenne du groupe, la moyenne haute et la moyenne basse. Après un changement, "
+          + "tu as 2 minutes pour annuler, puis le réglage est bloqué pendant 24 h. Les "
+          + "formateurs, eux, voient toujours tout.",
+    ou: { label: "Paramètres, Mes préférences", route: "config" },
+  },
+  {
     id: "2026-08-19-editeur-enregistrer",
     date: "2026-08-19",
     pour: "formateurs",
