@@ -14,13 +14,13 @@
  *   - un tableau qui porte une colonne « Amende » devient un tableau de
  *     sanctions (montants et points en chiffres tabulaires).
  */
-import { el, clear } from "../utils.js?v=20260826c";
-import { icon } from "../icons.js?v=20260826c";
-import { carteSignal, signalConnu } from "../signaux.js?v=20260826c";
-import { carteMarquage, marquageConnu } from "../marquage.js?v=20260826c";
-import { listCoursIndex, getCours } from "../db.js?v=20260826c";
-import { isAdmin, isProf } from "../auth-admin.js?v=20260826c";
-import { titreDepuisMarkdown, tempsLecture } from "../cours-rules.js?v=20260826c";
+import { el, clear } from "../utils.js?v=20260826d";
+import { icon } from "../icons.js?v=20260826d";
+import { carteSignal, signalConnu } from "../signaux.js?v=20260826d";
+import { carteMarquage, marquageConnu } from "../marquage.js?v=20260826d";
+import { listCoursIndex, getCours } from "../db.js?v=20260826d";
+import { isAdmin, isProf } from "../auth-admin.js?v=20260826d";
+import { titreDepuisMarkdown, tempsLecture } from "../cours-rules.js?v=20260826d";
 
 // Index des cours visibles, chargé une fois par rendu de la page Thèmes.
 let coursIndex = null;  // Map numero -> { id, titre, published, updated_by, updated_at }
@@ -424,7 +424,7 @@ export async function openCoursSheet(theme, { onQcm } = {}) {
   // ce bouton. L'import dynamique évite de charger l'éditeur pour lui.
   const modifier = (isAdmin() || isProf())
     ? el("button", { class: "btn cours-modifier", type: "button", onClick: async () => {
-        const { openCoursEditeur } = await import("./cours-editeur.js?v=20260826c");
+        const { openCoursEditeur } = await import("./cours-editeur.js?v=20260826d");
         close();
         openCoursEditeur(numero, {
           onFerme: (aChange) => { if (aChange) openCoursSheet(theme); },

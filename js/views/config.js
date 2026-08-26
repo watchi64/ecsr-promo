@@ -8,10 +8,10 @@ import {
   addProf, updateProf, deleteProf,
   listUserProfiles, deleteUserProfile, inviteUser,
   setMyAnonymousNotes,
-} from "../db.js?v=20260826c";
-import { el, clear, toast, displayStagiaire } from "../utils.js?v=20260826c";
-import { icon } from "../icons.js?v=20260826c";
-import { isAdmin, getAdminEmail, getProfile } from "../auth-admin.js?v=20260826c";
+} from "../db.js?v=20260826d";
+import { el, clear, toast, displayStagiaire } from "../utils.js?v=20260826d";
+import { icon } from "../icons.js?v=20260826d";
+import { isAdmin, getAdminEmail, getProfile } from "../auth-admin.js?v=20260826d";
 
 // ====== SECTION Accès & invitations ======
 
@@ -207,8 +207,13 @@ function renderMyPreferencesSection(rerender) {
     + "(elles restent comptées dans les moyennes du groupe). En échange, tu ne vois plus leurs notes : "
     + "seulement ta ligne, la moyenne du groupe, la moyenne haute et la moyenne basse. "
     + "Les formateurs continuent de tout voir (besoin d'évaluation)."));
+  // Les profils admin / fondateur n'ont pas de verrou (besoin de tester et de
+  // démontrer) : la RPC les laisse passer, l'UI n'affiche donc pas la règle.
+  const noLock = !!(profile.is_admin || profile.is_founder);
   block.appendChild(el("p", { class: "muted" },
-    "Après un changement, tu as 2 minutes pour annuler ; ensuite le réglage est verrouillé pendant 24 h."));
+    noLock
+      ? "Ton profil admin change librement, sans verrou."
+      : "Après un changement, tu as 2 minutes pour annuler ; ensuite le réglage est verrouillé pendant 24 h."));
 
   const checkbox = el("input", { type: "checkbox", id: "pref-anon" });
   if (profile.anonymous_notes) checkbox.checked = true;
@@ -225,6 +230,11 @@ function renderMyPreferencesSection(rerender) {
   const lockInfo = el("p", { class: "muted", style: "margin:0.4rem 0 0;font-weight:600" });
 
   function refreshLockState() {
+    if (noLock) {
+      checkbox.disabled = false;
+      lockInfo.style.display = "none";
+      return;
+    }
     const now = Date.now();
     const changedAt = profile.anon_changed_at ? new Date(profile.anon_changed_at).getTime() : null;
     const lockUntil = profile.anon_lock_until ? new Date(profile.anon_lock_until).getTime() : null;
