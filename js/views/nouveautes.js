@@ -4,12 +4,12 @@
 // La page n'est PAS dans la barre d'onglets : on y arrive par le lien
 // « Tout voir » d'Accueil, comme #/mon-suivi n'a pas d'onglet non plus.
 
-import { el, clear, formatDate } from "../utils.js?v=20260826b";
-import { isAdmin, isProf } from "../auth-admin.js?v=20260826b";
-import { NOUVEAUTES } from "../nouveautes-data.js?v=20260826b";
+import { el, clear, formatDate } from "../utils.js?v=20260826c";
+import { isAdmin, isProf } from "../auth-admin.js?v=20260826c";
+import { NOUVEAUTES } from "../nouveautes-data.js?v=20260826c";
 import {
   triees, visibles, nonLues, vuesEffectives, marquerVues, STORAGE_SOUS_ONGLET,
-} from "../nouveautes.js?v=20260826b";
+} from "../nouveautes.js?v=20260826c";
 
 // Lien « Où le trouver ». Si l'entrée vise un sous-onglet, on écrit la clé que
 // renderSubTabs relit à l'ouverture de la vue : sans ça, un lien « Notes,
