@@ -122,6 +122,49 @@
    css/livret.css porte la même règle pour #livret-print. */
 #dp-print { display: none; }
 
+/* --- Le flux d'édition --------------------------------------------------- */
+
+/* En édition le document n'est pas découpé en feuilles : le candidat écrit dans
+   un ruban continu à la largeur d'une feuille, avec les futures coupures
+   matérialisées. Un champ coupé en deux ne serait plus éditable. */
+.dp-flux {
+  box-sizing: border-box;
+  width: 210mm;
+  background: #fff;
+  padding: 13mm 20mm 13mm 23mm;
+}
+.dp-screen .dp-flux { box-shadow: 0 2px 14px rgba(0, 0, 0, 0.18); }
+
+.dp-coupure {
+  margin: 5mm -6mm;
+  border-top: 0.4mm dashed var(--dp-cadre);
+  font-size: 8pt;
+  color: #8a8578;
+  text-align: right;
+  padding-top: 1mm;
+}
+
+/* Fiche d'exemple encore vide : affichée en édition, absente du document
+   imprimé. Le candidat doit pouvoir y saisir tout en voyant qu'elle ne compte
+   pas tant qu'elle reste vide. */
+.dp-bloc-exclu { background: #fbfbfa; outline: 0.3mm dashed #c9c6bd; }
+.dp-mention-exclu { font-size: 8pt; font-style: italic; color: #8a8578; margin-bottom: 2mm; }
+
+/* Conteneur de mesure : rendu, donc mesurable, mais hors de l'écran. Un
+   display:none n'a ni hauteur ni rectangle, la composition y serait aveugle. */
+#dp-compose {
+  position: absolute;
+  left: -20000px;
+  top: 0;
+  width: 210mm;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* Suite d'une zone coupée par un saut de feuille : pas de bordure haute, pour
+   que le cadre se lise comme continu d'une feuille à l'autre. */
+.dp-doc .dp-zone.dp-suite { border-top: none; }
+
 @media print {
   body.dp-printable > *:not(#dp-print) { display: none !important; }
   body.dp-printable #dp-print { display: block !important; }

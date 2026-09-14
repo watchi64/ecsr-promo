@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<!-- Banc temporaire du moteur de composition. Supprimé en tâche 7. Il n'utilise
+     pas le gabarit du DP : des blocs de contrôle suffisent à prouver la coupe. -->
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <title>Banc · moteur de composition DP</title>
+  <script>
+    window.__cssPrete = Promise.all(["css/livret.css", "css/dp.css"].map((f) => new Promise((ok) => {
+      const l = document.createElement("link");
+      l.rel = "stylesheet";
+      l.href = `${f}?cb=${Date.now()}`;
+      l.onload = l.onerror = ok;
+      document.head.appendChild(l);
+    })));
+  </script>
+  <style>
+    body { margin: 20px; background: #e8e8e4; font-family: sans-serif; }
+    #rapport { margin-bottom: 12px; font-size: 13px; white-space: pre-line; }
+    .ok { color: #2f6f3e; } .ko { color: #b00020; font-weight: 700; }
+  </style>
+</head>
+<body>
+  <div id="rapport">mesure en cours</div>
+  <div id="hote"></div>
+  <script type="module">
+    const cb = Date.now();
+    const { feuille } = await import(`./js/views/dp-gabarit.js?cb=${cb}`);
+    const { composer } = await import(`./js/dp-pagination.js?cb=${cb}`);
+    await window.__cssPrete;
+
+    // Un texte long et déterministe : 900 mots courts, largement plus qu'une feuille.
+    const MOTS = Array.from({ length: 900 }, (_, i) => `mot${i}`).join(" ");
+
+    const flux = document.createElement("div");
+    flux.className = "dp-doc dp-flux";
+    flux.innerHTML = `
+      <div class="dp-bloc" data-cle="un" data-ouvrant="1" data-nature="atomique">
+        <p><b>Rubrique un</b></p></div>
+      <div class="dp-bloc" data-cle="deux" data-ouvrant="1" data-nature="atomique"
+           data-avec-suivant="1"><p><b>Rubrique deux, intitulé</b></p></div>
+      <div class="dp-bloc dp-zone" data-cle="deux" data-nature="secable"></div>
+      <div class="dp-bloc" data-cle="trois" data-ouvrant="1" data-nature="atomique">
+        <p><b>Rubrique trois</b></p></div>`;
+    flux.querySelector(".dp-zone").textContent = MOTS;
+    document.body.appendChild(flux);
+    flux.style.position = "absolute";
+    flux.style.left = "-20000px";
+
+    const hote = document.createElement("div");
+    hote.className = "dp-doc dp-screen";
+    document.getElementById("hote").appendChild(hote);
+
+    const blocs = [...flux.children].filter((n) => n.classList.contains("dp-bloc"));
+    const res = composer(blocs, {
+      hote,
+      fabriquerFeuille: (numero, couv) => {
+        const d = document.createElement("div");
+        d.innerHTML = feuille("", numero, couv);
+        return d.firstElementChild;
+      },
+    });
+
+    // --- Contrôles ---
+    const lignes = [];
+    const dire = (ok, texte) => lignes.push(`${ok ? "OK  " : "KO  "}${texte}`);
+
+    dire(res.feuilles >= 3, `feuilles produites : ${res.feuilles} (attendu au moins 3)`);
+
+    // Aucun texte perdu : la concaténation des morceaux doit rendre l'original.
+    const morceaux = [...hote.querySelectorAll(".dp-zone")].map((n) => n.textContent).join("");
+    dire(morceaux.replace(/\s+/g, " ").trim() === MOTS,
+      `texte reconstitué identique à l'original (${morceaux.length} caractères contre ${MOTS.length})`);
+
+    // Aucune feuille ne déborde de sa hauteur utile.
+    const debordent = [...hote.querySelectorAll(".dp-corps")]
+      .filter((c) => c.scrollHeight > c.clientHeight + 1).length;
+    dire(debordent === 0, `feuilles en débordement : ${debordent} (attendu 0)`);
+
+    // Numérotation continue dans les pieds de page.
+    const numeros = [...hote.querySelectorAll(".dp-pied")]
+      .map((p) => Number(p.innerText.match(/Page (\d+)/)[1]));
+    dire(numeros.every((n, i) => n === i + 1), `pieds numérotés ${numeros.join(", ")}`);
+
+    // Les morceaux de suite ne portent plus de data-k : le document composé n'est
+    // jamais une source de données.
+    const fuite = hote.querySelectorAll(".dp-zone[data-k]").length;
+    dire(fuite === 0, `zones composées portant encore data-k : ${fuite} (attendu 0)`);
+
+    // Chaque rubrique ouvrante commence bien sur une feuille neuve.
+    dire(res.numeroParCle.get("un") === 1 && res.numeroParCle.get("deux") === 2,
+      `rubriques : un=${res.numeroParCle.get("un")}, deux=${res.numeroParCle.get("deux")}, trois=${res.numeroParCle.get("trois")}`);
+
+    const r = document.getElementById("rapport");
+    r.textContent = lignes.join("\n");
+    r.className = lignes.some((l) => l.startsWith("KO")) ? "ko" : "ok";
+  </script>
+</body>
+</html>
