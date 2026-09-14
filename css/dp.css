@@ -267,8 +267,15 @@
 
 /* Le modèle donne 182,6 mm à cette fiche pour une zone utile de 167 mm : elle
    déborde volontairement dans les marges, et c'est ce débordement qui lui donne
-   sa largeur caractéristique. */
-.dp-fiche { width: 182.6mm; margin-left: -0.6mm; }
+   sa largeur caractéristique. On la ramène à 179,6 mm.
+
+   Pourquoi cet écart de 3 mm : à 182,6 mm il ne restait que 5 mm de blanc à
+   droite, mesuré sur le document composé. C'est la limite basse de la zone
+   imprimable d'une imprimante de bureau, qui rognerait le liseré droit des
+   cadres. Le dossier est remis à un jury : un cadre coupé se voit, 3 mm de
+   moins sur la largeur d'un tableau ne se voient pas. Le retrait négatif de
+   gauche est conservé, la marge droite passe à 8 mm. */
+.dp-fiche { width: 179.6mm; margin-left: -0.6mm; }
 
 .dp-at { display: flex; align-items: flex-end; gap: 3mm; margin-bottom: 1mm; }
 .dp-at-num {
