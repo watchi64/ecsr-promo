@@ -265,7 +265,9 @@ paginé, ce qui exclut qu'une coupe d'affichage ampute un enregistrement.
 
 Sans authentification, sur banc :
 
-- dossier vierge : 9 feuilles, dans l'ordre du modèle ;
+- dossier vierge : 8 feuilles, une par rubrique, dans l'ordre du modèle. Le modèle Word en
+  compte 9 parce qu'il ne porte qu'une activité-type avec ses trois fiches ; le titre ECSR en
+  a deux, et seule la fiche n°1 de chacune s'imprime d'office ;
 - dossier long : les feuilles se multiplient, chaque feuille porte son en-tête et son pied,
   la numérotation est continue, aucun texte n'est perdu ni tronqué ;
 - sommaire : les numéros annoncés correspondent aux pieds de page réels, dossier long compris ;

@@ -1660,10 +1660,17 @@ Dans `buildDpFlux`, remplacer `case "sommaire": return rubriqueSommaire(data, pa
 
 Recharger `http://localhost:8000/_preview_dp_moteur.html`.
 
-Attendu : le dossier vierge compose exactement **9 feuilles**, dans l'ordre couverture,
-présentation, sommaire, intercalaire, fiche 1.1, fiche 2.1, titres, déclaration. Cela fait 8
-rubriques pour 9 feuilles : vérifier laquelle occupe deux feuilles et pourquoi, puis ajuster
-les hauteurs nominales des zones si le débordement vient d'une fiche vide.
+Attendu : le dossier vierge compose exactement **8 feuilles**, une par rubrique, dans l'ordre
+couverture, présentation, sommaire, intercalaire, fiche 1.1, fiche 2.1, titres, déclaration.
+
+Le modèle Word, lui, fait 9 pages : il ne porte qu'une seule activité-type, avec ses trois
+fiches. L'app en génère deux, une par activité-type, et n'imprime d'office que la fiche n°1
+de chacune. Huit rubriques, donc huit feuilles. Ne pas chercher à retrouver le compte du
+modèle : c'est le même document, appliqué à un titre qui a deux activités-types.
+
+Une neuvième feuille signalerait qu'une rubrique déborde alors qu'elle est vide, donc que les
+hauteurs nominales des zones sont trop généreuses. Dans ce cas, réduire `min-height` de
+`.dp-zone` jusqu'à ce qu'une fiche vide tienne sur sa feuille.
 
 Ajouter ce contrôle au banc, après les contrôles existants :
 
@@ -1671,7 +1678,7 @@ Ajouter ce contrôle au banc, après les contrôles existants :
     const ordre = [...hote.querySelectorAll(".dp-feuille")].map((f) =>
       f.querySelector(".dp-bandeau, .dp-sommaire-titre, .dp-intercalaire, .dp-at-num, .dp-identite-label")
         ?.textContent.trim().slice(0, 28) || "(suite)");
-    dire(res.feuilles === 9, `dossier vierge : ${res.feuilles} feuilles (attendu 9)`);
+    dire(res.feuilles === 8, `dossier vierge : ${res.feuilles} feuilles (attendu 8)`);
     lignes.push("   ordre : " + ordre.join(" | "));
 ```
 
@@ -2098,7 +2105,7 @@ Ouvrir `http://localhost:8000/_preview_dp.html` et passer les trois boutons.
 
 Attendu, pour chacun :
 - toutes les lignes du rapport en `OK` ;
-- « Dossier vierge » : 9 feuilles ;
+- « Dossier vierge » : 8 feuilles, une par rubrique ;
 - « Données témoin » : le sommaire concorde, les intitulés saisis apparaissent, aucun champ
   perdu ;
 - « Texte très long » : le nombre de feuilles augmente, la fiche concernée s'étale sur
@@ -2349,7 +2356,7 @@ cd C:\Users\watch\Dev\ECSR\TP_ECSR_App-wt-dp-layout; .\dev.ps1
 | # | Vérification | Attendu |
 |---|---|---|
 | 1 | Ouvrir le dossier d'un stagiaire qui a déjà beaucoup écrit, par exemple celui de 11 669 caractères | Tout son texte est là, champ par champ. Comparer avec l'export de la base avant de conclure |
-| 2 | Compter les feuilles de ce dossier | Plus que 9, et chaque feuille porte son en-tête et son pied avec un numéro continu |
+| 2 | Compter les feuilles de ce dossier | Plus que 8, et chaque feuille porte son en-tête et son pied avec un numéro continu |
 | 3 | Vérifier le sommaire de ce dossier | Les numéros annoncés correspondent aux pieds de page réels |
 | 4 | Saisir du texte, attendre une seconde | Statut « Modifié » puis « Enregistré », et un trait de coupe apparaît si la feuille est pleine |
 | 5 | Recharger la page | La saisie est toujours là |
