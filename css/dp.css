@@ -57,8 +57,8 @@
   padding: 13mm 20mm 9mm 23mm;
   overflow: hidden;
 }
-/* La couverture a ses propres marges : 25 mm à gauche, à droite et en bas,
-   en-tête à 10 mm du bord. Le même plancher joue ici, en plus marqué : le logo
+/* La couverture a ses propres marges : 25 mm à gauche et à droite, en-tête à 10 mm
+   du bord, pied à 9 mm. Le même plancher joue ici, en plus marqué : le logo
    du ministère, haut de 35,7 mm, repousse le corps jusque vers 49,7 mm. */
 .dp-feuille.dp-couverture { padding: 10mm 25mm 9mm 25mm; }
 
