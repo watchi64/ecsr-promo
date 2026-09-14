@@ -41,6 +41,11 @@ Toutes les valeurs ci-dessous sont extraites du XML du `.docx`, pas estimées à
 | En-tête | à 10 mm du bord sur la couverture, 13 mm ensuite |
 | Pied de page | à 9 mm du bord |
 
+Les marges hautes du tableau sont des planchers, pas des positions fixes : comme dans Word,
+l'en-tête les repousse dès qu'il est plus haut que l'espace qui lui est alloué. Le corps de
+page démarre ainsi réellement vers 49,7 mm du bord haut sur la couverture, logo compris, et
+vers 33 mm sur les autres pages.
+
 La marge gauche de 23 mm vient d'une marge de 20 mm augmentée d'une gouttière de 3 mm.
 Plusieurs tableaux portent un retrait négatif et débordent volontairement dans les marges :
 la fiche d'exemple fait 182,6 mm de large pour une zone de texte de 167 mm. Ce débordement

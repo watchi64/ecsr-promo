@@ -50,11 +50,16 @@
   display: flex;
   flex-direction: column;
   /* Marges du modèle : 23 mm à gauche (20 mm plus 3 mm de gouttière), 20 mm à
-     droite, en-tête à 13 mm du bord, pied à 9 mm. */
+     droite, en-tête à 13 mm du bord, pied à 9 mm. La marge haute de 25 mm du
+     modèle Word est un plancher, pas une position fixe : l'en-tête la repousse
+     dès qu'il est plus haut que l'espace qui lui est alloué, comme dans Word.
+     Ici, le corps démarre donc réellement vers 33 mm du bord haut, pas à 25 mm. */
   padding: 13mm 20mm 9mm 23mm;
   overflow: hidden;
 }
-/* La couverture a ses propres marges : 25 mm partout, en-tête à 10 mm. */
+/* La couverture a ses propres marges : 25 mm à gauche, à droite et en bas,
+   en-tête à 10 mm du bord. Le même plancher joue ici, en plus marqué : le logo
+   du ministère, haut de 35,7 mm, repousse le corps jusque vers 49,7 mm. */
 .dp-feuille.dp-couverture { padding: 10mm 25mm 9mm 25mm; }
 
 .dp-screen .dp-feuille { box-shadow: 0 2px 14px rgba(0, 0, 0, 0.18); margin: 0 0 8mm; }

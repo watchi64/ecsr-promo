@@ -570,7 +570,10 @@ Attendu :
 - un seul logo, sur la couverture ;
 - feuille 1 : pied `DOSSIER PROFESSIONNEL - Version Traitement de texte - Version du 11/09/2017 Page 1` ;
 - feuille 2 : pied `Page 2 DOSSIER PROFESSIONNEL - Version du 11/09/2017` ;
-- corps utile compris entre 235 et 250 mm.
+- corps utile de la couverture : environ 233 mm (tolérance 3 mm) ;
+- corps utile des feuilles courantes : environ 249 mm (tolérance 3 mm). L'écart entre les
+  deux vient du logo du ministère, qui dans l'en-tête repousse le corps plus bas, mais
+  seulement sur la couverture.
 
 Contrôler aussi à l'œil, par capture d'écran : bande grise, titre en petites capitales
 grises centré, filet magenta sous le titre, logo du ministère sur la couverture seulement.
