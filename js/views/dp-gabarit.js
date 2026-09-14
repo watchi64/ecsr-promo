@@ -135,7 +135,9 @@ function rubriquePresentation() {
 
 // pages : Map de clé de rubrique vers numéro de feuille, issue de la première
 // passe de pagination. Absente à la première passe, les numéros restent vides.
-function rubriqueSommaire(data, pages) {
+// Exporte : la vue remplace ce seul bloc quand la pagination change, plutot que
+// de reconstruire tout le flux, ce qui ferait sauter le curseur du candidat.
+export function blocSommaire(data, pages) {
   const num = (cle) => (pages && pages.get(cle) !== undefined ? `p. ${pages.get(cle)}` : "p.");
   const lignesAt = (at) => sommaire(data).filter((e) => e.at === at).map((e) => `
     <div class="dp-sommaire-ligne">
@@ -235,9 +237,43 @@ function rubriqueExemple(at, n, imprime) {
     + question("5. Informations complémentaires (facultatif)", "complement", true);
 }
 
-// Provisoire, remplacé en tâche 6.
-function rubriqueTitres() { return bloc(`<p>Titres</p>`, { cle: "titres", ouvrant: true }); }
-function rubriqueDeclaration() { return bloc(`<p>Déclaration</p>`, { cle: "declaration", ouvrant: true }); }
+function rubriqueTitres() {
+  const lignes = Array.from({ length: 10 }, (_, i) => `
+    <tr>
+      <td>${f(`titre${i + 1}_intitule`)}</td>
+      <td>${f(`titre${i + 1}_organisme`)}</td>
+      <td>${f(`titre${i + 1}_date`, PH_DATE)}</td>
+    </tr>`).join("");
+  return bloc(`
+    <div class="dp-titres-bloc">
+      <div class="dp-bandeau">Titres, diplômes, CQP, attestations de formation</div>
+      <div class="dp-filet-magenta"></div>
+      <div class="dp-titres-sous">(facultatif)</div>
+      <table class="dp-tbl-titres">
+        <tr>
+          <th class="dp-col-intitule">Intitulé</th>
+          <th class="dp-col-organisme">Autorité ou organisme</th>
+          <th class="dp-col-date">Date</th>
+        </tr>
+        ${lignes}
+      </table>
+    </div>`, { cle: "titres", ouvrant: true });
+}
+
+function rubriqueDeclaration() {
+  return bloc(`
+    <div class="dp-declaration-bloc">
+      <div class="dp-bandeau">Déclaration sur l’honneur</div>
+      <div class="dp-filet-magenta"></div>
+      <div class="dp-declaration-corps">
+        <p>Je soussigné(e) ${f("dh_nom")},</p>
+        <p>déclare sur l’honneur que les renseignements fournis dans ce dossier sont exacts et que je suis l’auteur(e) des réalisations jointes.</p>
+        <p>Fait à ${f("dh_fait_a")} le ${f("dh_le", PH_DATE)}</p>
+        <p>pour faire valoir ce que de droit.</p>
+        <p class="dp-signature">Signature :</p>
+      </div>
+    </div>`, { cle: "declaration", ouvrant: true });
+}
 
 // Document complet, sous forme de FLUX de blocs. Le découpage en feuilles est le
 // travail de js/dp-pagination.js, pas celui du gabarit.
@@ -252,7 +288,7 @@ export function buildDpFlux(data, { edition = false, pages = null } = {}) {
     switch (r.type) {
       case "couverture":   return rubriqueCouverture();
       case "presentation": return rubriquePresentation();
-      case "sommaire":     return rubriqueSommaire(data, pages);
+      case "sommaire":     return blocSommaire(data, pages);
       case "intercalaire": return rubriqueIntercalaire();
       case "exemple":      return rubriqueExemple(r.at, r.n, r.imprime !== false);
       case "titres":       return rubriqueTitres();

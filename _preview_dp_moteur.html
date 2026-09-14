@@ -297,6 +297,68 @@
     dire(Math.abs(largeurFicheMm - 182.6) < 0.5,
       `largeur de la fiche : ${largeurFicheMm.toFixed(1)} mm (attendu 182,6 mm)`);
 
+    // --- Tâche 6 : titres et diplômes, déclaration sur l'honneur ---
+    // Le dossier vierge : un flux dédié, sans aucun champ rempli (hote/res plus
+    // haut portent le texte de stress-test MOTS dans une zone, ce n'est pas un
+    // dossier vierge). Doit composer exactement une feuille par rubrique.
+    const fluxVierge = document.createElement("div");
+    fluxVierge.className = "dp-doc dp-flux";
+    fluxVierge.style.cssText = "position:absolute;left:-20000px";
+    fluxVierge.innerHTML = buildDpFlux({}, { edition: false });
+    document.body.appendChild(fluxVierge);
+    const hoteVierge = document.createElement("div");
+    hoteVierge.className = "dp-doc";
+    hoteVierge.style.cssText = "position:absolute;left:-20000px";
+    document.body.appendChild(hoteVierge);
+    const resVierge = composer(
+      [...fluxVierge.children].filter((n) => n.classList.contains("dp-bloc")),
+      {
+        hote: hoteVierge,
+        fabriquerFeuille: (numero, couv) => {
+          const d = document.createElement("div");
+          d.innerHTML = feuille("", numero, couv);
+          return d.firstElementChild;
+        },
+      },
+    );
+
+    const ordre = [...hoteVierge.querySelectorAll(".dp-feuille")].map((f) =>
+      f.querySelector(".dp-bandeau, .dp-sommaire-titre, .dp-intercalaire, .dp-at-num, .dp-identite-label")
+        ?.textContent.trim().slice(0, 28) || "(suite)");
+    dire(resVierge.feuilles === 8, `dossier vierge : ${resVierge.feuilles} feuilles (attendu 8)`);
+    lignes.push("   ordre : " + ordre.join(" | "));
+
+    // Mesures du tableau des titres et de la déclaration, à la place d'un
+    // contrôle à l'œil.
+    const thTitres = [...hoteVierge.querySelectorAll(".dp-tbl-titres th")];
+    // getBoundingClientRect() donnerait la boîte de bordure (avec le padding
+    // de l'en-tête) : c'est la largeur CSS déclarée (boîte de contenu, box-sizing
+    // par défaut) qui doit correspondre aux mesures du modèle.
+    const largeursMm = thTitres.map((th) => parseFloat(getComputedStyle(th).width) / PX_PAR_MM);
+    dire(thTitres.length === 3
+        && Math.abs(largeursMm[0] - 40.0) < 0.5
+        && Math.abs(largeursMm[1] - 85.1) < 0.5
+        && Math.abs(largeursMm[2] - 47.5) < 0.5,
+      `tableau des titres : largeurs des colonnes ${largeursMm.map((m) => m.toFixed(1)).join(" / ")} mm `
+      + `(attendu 40.0 / 85.1 / 47.5)`);
+
+    const stThTitres = thTitres[0] ? getComputedStyle(thTitres[0]) : null;
+    dire(!!stThTitres && stThTitres.backgroundColor === "rgb(242, 242, 242)",
+      `tableau des titres : fond de l'en-tête ${stThTitres ? stThTitres.backgroundColor : "absent"} `
+      + `(attendu rgb(242, 242, 242))`);
+
+    const nbLignesTitres = hoteVierge.querySelectorAll(".dp-tbl-titres tr").length - 1;
+    dire(nbLignesTitres === 10, `tableau des titres : ${nbLignesTitres} lignes de saisie (attendu 10)`);
+
+    const corpsDeclaration = hoteVierge.querySelector(".dp-declaration-corps");
+    const stCorpsDeclaration = corpsDeclaration ? getComputedStyle(corpsDeclaration) : null;
+    const ratioInterligne = stCorpsDeclaration
+      ? parseFloat(stCorpsDeclaration.lineHeight) / parseFloat(stCorpsDeclaration.fontSize) : 0;
+    dire(Math.abs(ratioInterligne - 2) < 0.05,
+      `déclaration : interligne ${stCorpsDeclaration ? stCorpsDeclaration.lineHeight : "absent"} `
+      + `pour une taille de ${stCorpsDeclaration ? stCorpsDeclaration.fontSize : "?"} `
+      + `(rapport ${ratioInterligne.toFixed(2)}, attendu 2)`);
+
     const r = document.getElementById("rapport");
     r.textContent = lignes.join("\n");
     r.className = lignes.some((l) => l.startsWith("KO")) ? "ko" : "ok";

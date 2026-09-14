@@ -66,8 +66,18 @@ export function composer(blocs, { hote, fabriquerFeuille }) {
       if (!deborde()) {
         // Un intitulé de question ne reste jamais seul en bas de feuille : sa
         // zone de réponse doit pouvoir commencer en dessous.
+        //
+        // corps.scrollHeight ne mesure pas l'espace consommé : le corps a une
+        // hauteur FIXE (flex: 1 1 auto dans une feuille de hauteur fixe, voir
+        // css/dp.css), donc tant que le contenu ne déborde pas, scrollHeight
+        // vaut clientHeight (= hUtile), quel que soit le contenu réellement
+        // posé. hUtile - corps.scrollHeight valait alors toujours ~0, plus
+        // petit que HAUTEUR_MIN_MORCEAU : la garde se déclenchait à CHAQUE
+        // intitulé avec suivant, même en tout début de feuille. La place
+        // réellement restante se lit sur le bas du dernier élément posé.
+        const restant = corps.getBoundingClientRect().bottom - aPlacer.getBoundingClientRect().bottom;
         if (aPlacer.dataset.avecSuivant === "1" && corps.childElementCount > 1
-            && hUtile - corps.scrollHeight < HAUTEUR_MIN_MORCEAU) {
+            && restant < HAUTEUR_MIN_MORCEAU) {
           corps.removeChild(aPlacer);
           nouvelleFeuille(false);
           numeroParBloc[index] = numero;

@@ -323,6 +323,32 @@
 .dp-periode { display: flex; align-items: baseline; gap: 2mm; flex-wrap: wrap; }
 .dp-doc .dp-periode .lv-f { min-width: 28mm; }
 
+/* --- Titres, diplômes, CQP, attestations de formation --------------------- */
+
+.dp-titres-bloc { width: 172.6mm; margin: 0 auto; }
+.dp-titres-sous { text-align: center; font-style: italic; font-size: 14pt; padding: 5mm 0 6mm; }
+.dp-tbl-titres { border: 0.5pt solid var(--dp-texte); }
+.dp-tbl-titres th, .dp-tbl-titres td { border: 0.5pt solid var(--dp-texte); }
+.dp-tbl-titres th {
+  background: var(--dp-gris-clair);
+  font-weight: 700;
+  font-size: 14pt;
+  text-align: center;
+  padding: 2mm;
+}
+.dp-tbl-titres td { height: 9mm; }
+.dp-col-intitule { width: 40mm; }
+.dp-col-organisme { width: 85.1mm; }
+.dp-col-date { width: 47.5mm; }
+
+/* --- Déclaration sur l'honneur -------------------------------------------- */
+
+.dp-declaration-bloc { width: 175.1mm; margin: 0 auto; }
+.dp-declaration-corps { padding: 14mm 4mm 0; font-size: 12pt; line-height: 2; }
+.dp-declaration-corps p { margin-bottom: 4mm; }
+.dp-doc .dp-declaration-corps .lv-f { min-width: 60mm; border-bottom: 0.3pt dotted var(--dp-cadre); }
+.dp-signature { margin-top: 16mm; }
+
 /* --- Le flux d'édition --------------------------------------------------- */
 
 /* En édition le document n'est pas découpé en feuilles : le candidat écrit dans
