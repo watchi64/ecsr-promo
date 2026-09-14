@@ -143,8 +143,14 @@
         .map(([k]) => k);
       dire(perdus.length === 0, `champs absents du document : ${perdus.join(", ") || "aucun"}`);
 
-      // Le document composé n'est jamais une source de données.
-      dire(doc.querySelectorAll(".dp-zone[data-k]").length >= 0, "zones présentes");
+      // Le document composé n'est jamais une source de données : aucun de ses
+      // éléments ne porte de clé de sérialisation. Comparer une longueur à zéro
+      // et non à « au moins zéro » : une longueur de liste ne peut pas être
+      // négative, un tel contrôle passerait toujours.
+      const clesRestantes = [...doc.querySelectorAll("[data-k]")].map((n) => n.dataset.k);
+      dire(clesRestantes.length === 0,
+        `éléments du document composé portant encore une clé : ${clesRestantes.length}`
+        + `${clesRestantes.length ? " (" + clesRestantes.slice(0, 5).join(", ") + ")" : ""}`);
 
       const r = document.getElementById("rapport");
       r.textContent = l.join("\n");
