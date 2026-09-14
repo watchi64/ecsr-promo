@@ -13,6 +13,15 @@ export const PX_PAR_MM = 96 / 25.4;
 // bas de feuille : deux ou trois lignes orphelines se lisent mal.
 export const HAUTEUR_MIN_MORCEAU = 10 * PX_PAR_MM;
 
+// Retire d'un clone toutes les clés de sérialisation, la sienne et celles de
+// ses descendants, et le renvoie. Le document composé ne doit jamais pouvoir
+// être confondu avec le flux d'édition, seul porteur des données du candidat.
+function sansCles(el) {
+  el.removeAttribute("data-k");
+  el.querySelectorAll("[data-k]").forEach((n) => n.removeAttribute("data-k"));
+  return el;
+}
+
 // Répartit les blocs sur des feuilles. Renvoie le nombre de feuilles produites,
 // le numéro de feuille où commence chaque bloc, et celui où commence chaque
 // rubrique (clé data-cle), dont le sommaire a besoin.
@@ -45,16 +54,16 @@ export function composer(blocs, { hote, fabriquerFeuille }) {
       numeroParCle.set(bloc.dataset.cle, numero);
     }
 
-    let aPlacer = bloc.cloneNode(true);
+    // Le document composé n'est JAMAIS une source de données : le clone perd
+    // toutes ses clés de sérialisation, la sienne et celles de ses descendants.
+    // fillData a déjà rempli le flux source, les valeurs sont donc dans le
+    // texte du clone. Seul le flux d'édition reste interrogeable par
+    // collectData, ce qui exclut qu'un morceau composé ampute un enregistrement.
+    let aPlacer = sansCles(bloc.cloneNode(true));
     while (aPlacer) {
       corps.appendChild(aPlacer);
 
       if (!deborde()) {
-        // Même posé sans coupure, un bloc sécable n'est plus un champ : seul le
-        // flux d'édition porte les data-k, jamais le document composé. Sans cette
-        // ligne, une zone assez petite pour tenir sur une seule feuille gardait
-        // son data-k à vie dans la vue composée (consultation, impression).
-        if (aPlacer.dataset.nature === "secable") aPlacer.removeAttribute("data-k");
         // Un intitulé de question ne reste jamais seul en bas de feuille : sa
         // zone de réponse doit pouvoir commencer en dessous.
         if (aPlacer.dataset.avecSuivant === "1" && corps.childElementCount > 1
@@ -72,12 +81,8 @@ export function composer(blocs, { hote, fabriquerFeuille }) {
       if (aPlacer.dataset.nature === "secable") {
         const reste = couper(aPlacer, corps, hUtile);
         if (reste !== null) {
-          // Le morceau posé et sa suite ne sont plus des champs : seul le flux
-          // d'édition porte les data-k, jamais le document composé.
-          aPlacer.removeAttribute("data-k");
           const suite = aPlacer.cloneNode(false);
           suite.classList.add("dp-suite");
-          suite.removeAttribute("data-k");
           suite.textContent = reste;
           nouvelleFeuille(false);
           aPlacer = suite;

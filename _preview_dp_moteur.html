@@ -88,10 +88,13 @@
       .map((p) => Number(p.innerText.match(/Page (\d+)/)[1]));
     dire(numeros.every((n, i) => n === i + 1), `pieds numérotés ${numeros.join(", ")}`);
 
-    // Les morceaux de suite ne portent plus de data-k : le document composé n'est
-    // jamais une source de données.
-    const fuite = hote.querySelectorAll(".dp-zone[data-k]").length;
-    dire(fuite === 0, `zones composées portant encore data-k : ${fuite} (attendu 0)`);
+    // Le document composé n'est jamais une source de données : AUCUN de ses
+    // éléments ne doit porter de clé, pas seulement les zones de rédaction. Un
+    // cartouche de fiche et un tableau de contexte portent aussi des champs.
+    const fuites = [...hote.querySelectorAll("[data-k]")].map((n) => n.dataset.k);
+    dire(fuites.length === 0,
+      `éléments composés portant encore une clé : ${fuites.length}`
+      + `${fuites.length ? " (" + fuites.slice(0, 5).join(", ") + ")" : ""} (attendu 0)`);
 
     // Chaque rubrique ouvrante DÉMARRE une feuille : son premier bloc doit être
     // le premier élément du corps de sa feuille. Comparer des numéros de feuille
@@ -265,8 +268,9 @@
     });
     const recompose = [...hote2.querySelectorAll(".dp-zone")]
       .map((n) => n.textContent).join("").replace(/\s+/g, " ").trim();
-    dire(recompose.includes(LONG.slice(0, 200)) && recompose.includes(LONG.slice(-200)),
-      `fiche longue : début et fin du texte présents après composition sur ${res2.feuilles} feuilles`);
+    dire(recompose === LONG,
+      `fiche longue : texte recomposé identique à l'original sur ${res2.feuilles} feuilles `
+      + `(${recompose.length} caractères contre ${LONG.length})`);
     const debordent2 = [...hote2.querySelectorAll(".dp-corps")]
       .filter((c) => c.scrollHeight > c.clientHeight + 1).length;
     dire(debordent2 === 0, `fiche longue : feuilles en débordement ${debordent2} (attendu 0)`);
