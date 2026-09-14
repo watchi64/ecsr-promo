@@ -198,7 +198,7 @@ pagination ne peuvent donc pas coexister sur le même DOM.
 
 | Mode | Affichage | Pagination |
 |---|---|---|
-| Édition, le candidat sur son dossier | Flux continu, champs entiers, saisie confortable | Le moteur tourne mais ne coupe rien : il matérialise les coupures par un trait de coupe discret, légendé du numéro de la feuille suivante |
+| Édition, le candidat sur son dossier | Flux continu, champs entiers, saisie confortable | Le moteur tourne mais ne coupe rien : il matérialise les coupures par un trait discret, non numéroté. Le ruban d'édition contient aussi les fiches vides, qui ne s'impriment pas, donc sa numérotation ne serait pas celle du document remis au jury. Les vrais numéros vivent au sommaire |
 | Consultation, un formateur | Document réellement paginé | Complète |
 | Impression, depuis les deux modes | Document réellement paginé | Complète |
 
