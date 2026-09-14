@@ -4,7 +4,7 @@
 //
 // En édition, les 6 exemples de pratique sont affichés même vides, sinon le
 // candidat n'aurait aucun champ où saisir son 2e ou 3e exemple ; les vides
-// portent .dp-page-exclue et ne s'impriment pas (voir dp-gabarit.js).
+// portent .dp-bloc-exclu et ne s'impriment pas (voir dp-gabarit.js).
 
 import { listStagiaires, listDpDossiers, getDpDossier, upsertDpDossier } from "../db.js?v=20260826d";
 import { el, clear, displayStagiaire, compareByNom, formatDate, toast } from "../utils.js?v=20260826d";
@@ -12,8 +12,9 @@ import { isAdmin, isProf, getProfile } from "../auth-admin.js?v=20260826d";
 import { getCurrentWho } from "../identity.js?v=20260826d";
 import { collectData, fillData, applyEditable, wireDocEditing,
          bindDocPrint, refreshDocPrint, teardownDocPrint } from "../doc-officiel.js?v=20260826d";
-import { buildDpHTML } from "./dp-gabarit.js?v=20260826d";
-import { blocsImprimes } from "../dp-rules.js?v=20260826d";
+import { buildDpFlux, blocSommaire, feuille } from "./dp-gabarit.js?v=20260826d";
+import { exempleImprime } from "../dp-rules.js?v=20260826d";
+import { composer, marquerCoupures } from "../dp-pagination.js?v=20260826d";
 
 let stagiaires = [];
 let dossiersIndex = [];
@@ -177,6 +178,9 @@ function showDoc(container, stagiaire, row, { readOnly, stagiaireId, back } = {}
     ? "Le DP appartient au candidat, il en est le seul rédacteur. Consultation seule."
     : "Clique dans les zones encadrées pour remplir. Enregistrement automatique. Un exemple laissé vide ne sera pas imprimé."));
 
+  // À l'écran : en édition le candidat écrit dans un flux continu, en
+  // consultation le document est déjà composé en feuilles. Dans les deux cas,
+  // c'est le document composé qui s'imprime.
   const doc = el("div", { class: "dp-doc dp-screen" + (readOnly ? "" : " dp-edit") });
   const scaleInner = el("div", { class: "dp-scale" }, doc);
   const scaleOuter = el("div", { class: "dp-scale-outer" }, scaleInner);
@@ -194,54 +198,131 @@ function showDoc(container, stagiaire, row, { readOnly, stagiaireId, back } = {}
     scaleOuter.style.height = doc.offsetHeight * scale + "px";
   };
 
-  // Nombre de blocs imprimés au dernier rendu : sert à détecter qu'un exemple
-  // vient de passer de vide à rempli (ou l'inverse), ce qui change le sommaire
-  // et la pagination et impose de reconstruire le document.
-  let nbBlocs = 0;
-  // Les écouteurs de wireDocEditing sont posés en délégation sur `doc` : ils
-  // survivent au remplacement de innerHTML et ne doivent donc être posés
-  // QU'UNE FOIS, sinon chaque reconstruction les empilerait (une frappe
-  // déclencherait N enregistrements). Seul contentEditable est ré-appliqué.
+  // Conteneur hors écran : document de mesure et document composé. Il est retiré
+  // par teardownDocPrint au changement de route.
+  document.getElementById("dp-hors-ecran")?.remove();
+  const mesure = el("div", { class: "dp-doc" });
+  const pourImpression = el("div", { class: "dp-doc" });
+  const horsEcran = el("div", { id: "dp-hors-ecran", "aria-hidden": "true" }, mesure, pourImpression);
+  document.body.appendChild(horsEcran);
+
+  const fabriquerFeuille = (numero, estCouverture) => {
+    const d = document.createElement("div");
+    d.innerHTML = feuille("", numero, estCouverture);
+    return d.firstElementChild;
+  };
+  const blocsDe = (flux) => [...flux.children].filter((n) => n.classList.contains("dp-bloc"));
+
+  // Un flux détaché du document : la composition clone ses blocs dans les
+  // feuilles et ne mesure que les clones, le flux source n'a pas à être rendu.
+  function fluxDetache(html) {
+    const f = document.createElement("div");
+    f.className = "dp-flux";
+    f.innerHTML = html;
+    fillData(f, data);
+    return f;
+  }
+
+  // Compose le document imprimable dans `pourImpression`, et renvoie le numéro
+  // de feuille de chaque rubrique. Deux passes : la première donne les numéros,
+  // la seconde les inscrit au sommaire. Elle converge toujours, un numéro de
+  // page ne changeant pas la hauteur de la ligne qui le porte.
+  function composerImprimable() {
+    const passe1 = composer(blocsDe(fluxDetache(buildDpFlux(data, { edition: false }))),
+      { hote: mesure, fabriquerFeuille });
+    const flux2 = fluxDetache(buildDpFlux(data, { edition: false, pages: passe1.numeroParCle }));
+    const passe2 = composer(blocsDe(flux2), { hote: pourImpression, fabriquerFeuille });
+    mesure.textContent = "";
+    return passe2.numeroParCle;
+  }
+
+  let fluxEdition = null;
+  // Les écouteurs de wireDocEditing sont posés en DÉLÉGATION sur `doc` : ils
+  // survivent au remplacement de son contenu et ne doivent donc être posés
+  // qu'une fois, sinon une frappe déclencherait N enregistrements.
   let editionCablee = false;
 
-  function render() {
-    doc.innerHTML = buildDpHTML(data, { edition: !readOnly });
-    nbBlocs = blocsImprimes(data).length;
-    fillData(doc, data);
-    if (!readOnly) {
+  function rendre() {
+    const pages = composerImprimable();
+    if (readOnly) {
+      clear(doc);
+      [...pourImpression.children].forEach((f) => doc.appendChild(f.cloneNode(true)));
+    } else {
+      fluxEdition = el("div", { class: "dp-flux" });
+      fluxEdition.innerHTML = buildDpFlux(data, { edition: true, pages });
+      clear(doc);
+      doc.appendChild(fluxEdition);
+      fillData(doc, data);
       if (!editionCablee) { wireDocEditing(doc, onEdit); editionCablee = true; }
       else applyEditable(doc);
+      majCoupures();
     }
-    marquerDebordements(doc);
-    bindDocPrint(doc, { printId: "dp-print", bodyClass: "dp-printable" });
+    bindDocPrint(readOnly ? doc : pourImpression,
+      { printId: "dp-print", bodyClass: "dp-printable", avantClone: readOnly ? null : rafraichirImprimable });
     requestAnimationFrame(rescale);
   }
 
-  function onEdit() {
-    // collectData est la source de vérité : il omet les champs vides, donc
-    // vider un champ le retire bien de data. Aucune clé ne peut se perdre, les
-    // 6 exemples sont rendus en édition.
-    data = collectData(doc);
-    if (blocsImprimes(data).length !== nbBlocs) {
-      // La pagination change : on reconstruit, en gardant le champ actif.
-      const actif = document.activeElement?.dataset?.k || null;
-      render();
-      if (actif) {
-        const cible = doc.querySelector(`[data-k="${CSS.escape(actif)}"]`);
-        if (cible) placerCurseurEnFin(cible);
+  // Recompose le document imprimable sans toucher à ce que voit le candidat.
+  function rafraichirImprimable() {
+    const pages = composerImprimable();
+    if (fluxEdition) {
+      const ancien = fluxEdition.querySelector('[data-cle="sommaire"]');
+      if (ancien) {
+        const tmp = document.createElement("div");
+        tmp.innerHTML = blocSommaire(data, pages);
+        ancien.replaceWith(tmp.firstElementChild);
       }
-    } else {
-      marquerDebordements(doc);
     }
-    scheduleSave();
   }
 
-  render();
+  // Marque dans le ruban d'édition les endroits où le document changera de
+  // feuille. On ne coupe rien : un champ réparti sur deux feuilles ne serait
+  // plus éditable.
+  function majCoupures() {
+    if (!fluxEdition) return;
+    const r = composer(blocsDe(fluxEdition), { hote: mesure, fabriquerFeuille });
+    mesure.textContent = "";
+    marquerCoupures(fluxEdition, r.numeroParBloc);
+  }
+
+  // Une fiche qui passe de vide à remplie, ou l'inverse, change seulement son
+  // apparence et sa mention : le flux, lui, ne bouge pas. C'est ce qui garantit
+  // que le curseur ne saute jamais pendant la frappe.
+  function majExclusions() {
+    if (!fluxEdition) return;
+    for (const at of [1, 2]) {
+      for (const n of [1, 2, 3]) {
+        const exclu = !exempleImprime(data, at, n);
+        fluxEdition.querySelectorAll(`[data-cle="exemple:${at}:${n}"]`)
+          .forEach((b) => b.classList.toggle("dp-bloc-exclu", exclu));
+        const m = fluxEdition.querySelector(`[data-cle="exemple:${at}:${n}"] .dp-mention-exclu`);
+        if (m) m.hidden = !exclu;
+      }
+    }
+  }
+
+  let repaginationTimer = null;
+  function onEdit() {
+    // collectData est la source de vérité : il omet les champs vides, donc vider
+    // un champ le retire bien de data.
+    data = collectData(fluxEdition);
+    majExclusions();
+    scheduleSave();
+    // La repagination attend une pause de frappe : elle mesure tout le document,
+    // et rien ne justifie de la refaire à chaque caractère.
+    clearTimeout(repaginationTimer);
+    repaginationTimer = setTimeout(() => {
+      if (!document.contains(doc)) return;
+      rafraichirImprimable();
+      majCoupures();
+    }, 700);
+  }
+
+  rendre();
   window.addEventListener("resize", rescale);
 
   // --- Autosave débouncé, même mécanique que le livret EPCF ---
   let saveTimer = null;
-  let cloneTimer = null;
   let saving = false;
   let pendingAgain = false;
 
@@ -255,7 +336,7 @@ function showDoc(container, stagiaire, row, { readOnly, stagiaireId, back } = {}
     try {
       await upsertDpDossier({
         stagiaire_id: stagiaireId,
-        data: collectData(doc),
+        data: collectData(fluxEdition),
         updated_by_who: getCurrentWho(),
       });
       status.textContent = "Enregistré ✓";
@@ -276,34 +357,5 @@ function showDoc(container, stagiaire, row, { readOnly, stagiaireId, back } = {}
     status.className = "lv-status saving";
     clearTimeout(saveTimer);
     saveTimer = setTimeout(saveNow, 900);
-    // Le clone d'impression suit les éditions sans re-cloner à chaque frappe.
-    clearTimeout(cloneTimer);
-    cloneTimer = setTimeout(() => { if (document.contains(doc)) refreshDocPrint(); }, 1200);
   }
-}
-
-// Signale les zones dont le contenu dépasse la hauteur nominale. On ne coupe
-// jamais le texte : le liseré invite seulement à resserrer la rédaction.
-//
-// La zone n'a qu'un min-height et ne masque pas son débordement : elle GRANDIT
-// au lieu de déborder, donc scrollHeight vaut toujours clientHeight ici. Le
-// dépassement se mesure en comparant la hauteur réelle à la hauteur nominale
-// (la zone est en box-sizing: border-box, les deux sont comparables).
-// offsetHeight et non getBoundingClientRect : le document est sous un
-// transform: scale, qui fausserait le rectangle mais pas le layout.
-function marquerDebordements(doc) {
-  doc.querySelectorAll(".dp-zone").forEach((z) => {
-    const nominal = parseFloat(getComputedStyle(z).minHeight) || 0;
-    z.classList.toggle("dp-deborde", z.offsetHeight > nominal + 2);
-  });
-}
-
-function placerCurseurEnFin(node) {
-  node.focus({ preventScroll: true });
-  const r = document.createRange();
-  r.selectNodeContents(node);
-  r.collapse(false);
-  const sel = window.getSelection();
-  sel.removeAllRanges();
-  sel.addRange(r);
 }

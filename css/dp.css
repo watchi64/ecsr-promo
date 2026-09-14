@@ -377,14 +377,16 @@
 .dp-bloc-exclu { background: #fbfbfa; outline: 0.3mm dashed #c9c6bd; }
 .dp-mention-exclu { font-size: 8pt; font-style: italic; color: #8a8578; margin-bottom: 2mm; }
 
-/* Conteneur de mesure : rendu, donc mesurable, mais hors de l'écran. Un
-   display:none n'a ni hauteur ni rectangle, la composition y serait aveugle. */
-#dp-compose {
+/* Conteneur hors écran : il porte le document de mesure et le document composé
+   prêt à imprimer. Il est POSITIONNÉ hors de l'écran, jamais masqué : un
+   display:none n'a pas de mise en page, et visibility:hidden rend les
+   rectangles de ligne peu fiables selon les navigateurs. La composition a
+   besoin des deux. */
+#dp-hors-ecran {
   position: absolute;
   left: -20000px;
   top: 0;
   width: 210mm;
-  visibility: hidden;
   pointer-events: none;
 }
 
@@ -398,6 +400,7 @@
   #dp-print .dp-feuille { page-break-after: always; box-shadow: none; margin: 0; }
   #dp-print .dp-feuille:last-child { page-break-after: auto; }
 }
-/* NB : la règle « @page { size: A4 portrait; margin: 0 } » est injectée en JS
-   par js/doc-officiel.js seulement tant qu'un document est ouvert. En dur ici,
-   elle écraserait le « A4 landscape » de l'impression du planning. */
+/* NB : la taille et les marges de la page imprimée (portrait, marges nulles)
+   sont injectées en JS par js/doc-officiel.js seulement tant qu'un document
+   est ouvert. En dur ici, cette règle écraserait le format paysage de
+   l'impression du planning. */

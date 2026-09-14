@@ -164,18 +164,23 @@ export function wireDocEditing(doc, onChange, opts = {}) {
 // sous-onglets de Notes, jamais affichés ensemble.
 // ---------------------------------------------------------------------------
 
-let courant = null;              // { doc, printId, bodyClass }
+let courant = null;              // { doc, printId, bodyClass, avantClone }
 let listenersPrets = false;
 
-export function bindDocPrint(doc, { printId, bodyClass }) {
-  courant = { doc, printId, bodyClass };
+// avantClone : rappel facultatif, exécuté juste avant le clonage. Le DP s'en
+// sert pour recomposer son document paginé, qui n'est pas celui affiché quand le
+// candidat est en train d'écrire. Absente, l'option ne change rien : le livret
+// EPCF continue de cloner son document tel quel.
+export function bindDocPrint(doc, { printId, bodyClass, avantClone = null }) {
+  courant = { doc, printId, bodyClass, avantClone };
   ensurePrintListeners();
   refreshDocPrint();
 }
 
 export function refreshDocPrint() {
   if (!courant) return;
-  const { doc, printId, bodyClass } = courant;
+  const { doc, printId, bodyClass, avantClone } = courant;
+  if (avantClone) avantClone();
   // Format de page injecté seulement tant qu'un document est ouvert : une règle
   // @page en dur écraserait le « A4 landscape » de l'impression du planning.
   if (!document.getElementById("doc-officiel-page-style")) {
@@ -210,6 +215,7 @@ export function teardownDocPrint() {
   document.getElementById("livret-print")?.remove();
   document.getElementById("dp-print")?.remove();
   document.body.classList.remove("livret-printable", "dp-printable");
+  document.getElementById("dp-hors-ecran")?.remove();
   document.getElementById("doc-officiel-page-style")?.remove();
   courant = null;
 }

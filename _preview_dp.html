@@ -1,13 +1,13 @@
 <!DOCTYPE html>
-<!-- Banc d'essai visuel du Dossier Professionnel (non déployé, jamais lié depuis l'app).
-     Rend le document seul, sans authentification, pour tester la pagination,
-     le sommaire vivant, le débordement et l'aperçu d'impression. -->
+<!-- Banc d'essai du Dossier Professionnel. Non déployé, jamais lié depuis l'app.
+     Rend le document seul, sans authentification, pour contrôler la composition
+     en feuilles, le sommaire, la coupe des textes longs et l'impression. -->
 <html lang="fr">
 <head>
   <meta charset="utf-8" />
   <title>Banc d'essai · Dossier Professionnel</title>
-  <!-- Cache-buster : voir la note dans _preview_dp_vue.html. Sur une branche de
-       feature le token ?v= est figé, le navigateur resservirait un CSS périmé. -->
+  <!-- Cache-buster : sur une branche de feature le token ?v= est figé, le
+       navigateur resservirait un CSS et des modules périmés. -->
   <script>
     window.__cssPrete = Promise.all(["css/livret.css", "css/dp.css"].map((f) => new Promise((ok) => {
       const l = document.createElement("link");
@@ -19,129 +19,143 @@
   </script>
   <style>
     body { margin: 20px; background: #e8e8e4; font-family: sans-serif; }
-    .bench-bar { margin-bottom: 14px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .barre { margin-bottom: 14px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    #rapport { font-size: 13px; white-space: pre-line; margin-bottom: 12px; }
+    #rapport.ok { color: #2f6f3e; } #rapport.ko { color: #b00020; font-weight: 700; }
     @page { size: A4 portrait; margin: 0; }
     @media print {
       body { margin: 0; background: #fff; }
-      .bench-bar { display: none; }
-      /* Reproduit la règle de l'app (css/dp.css, portée #dp-print) : les
-         exemples encore vides sont affichés en édition mais ne s'impriment pas. */
-      .dp-page-exclue { display: none !important; }
-      .dp-page { page-break-after: always; box-shadow: none !important; margin: 0 !important; }
-      .dp-page:last-child { page-break-after: auto; }
+      .barre, #rapport { display: none; }
+      .dp-feuille { page-break-after: always; box-shadow: none !important; margin: 0 !important; }
+      .dp-feuille:last-child { page-break-after: auto; }
+      /* Ce banc imprime #hote directement, pas via le clone #dp-print de
+         js/doc-officiel.js (qui porte deja cette suppression) : sans cette
+         regle, un champ encore vide imprimerait litteralement son invite. */
+      .dp-doc .lv-f:empty::before { content: "" !important; }
     }
   </style>
 </head>
 <body>
-  <div class="bench-bar">
+  <div class="barre">
     <strong>Banc d'essai Dossier Professionnel</strong>
-    <button id="fill">Remplir données témoin</button>
+    <button id="vierge">Dossier vierge</button>
+    <button id="temoin">Données témoin</button>
     <button id="long">Texte très long</button>
-    <button id="empty">Vider</button>
-    <button id="print">Imprimer (banc)</button>
-    <button id="printapp">Imprimer via le chemin de l'app</button>
-    <span id="report" style="font-size:13px;color:#555"></span>
+    <button id="imprimer">Imprimer</button>
   </div>
-  <div id="host"></div>
+  <div id="rapport">composition en cours</div>
+  <div id="hote"></div>
   <script type="module">
-    import { buildDpHTML } from "./js/views/dp-gabarit.js";
-    import { fillData, collectData, applyEditable, wireDocEditing,
-             bindDocPrint, refreshDocPrint, teardownDocPrint } from "./js/doc-officiel.js";
-    import { blocsImprimes, sommaire } from "./js/dp-rules.js";
-    await window.__cssPrete;   // styles appliqués avant toute mesure de débordement
+    const cb = Date.now();
+    const { buildDpFlux, feuille } = await import(`./js/views/dp-gabarit.js?cb=${cb}`);
+    const { composer } = await import(`./js/dp-pagination.js?cb=${cb}`);
+    const { fillData } = await import(`./js/doc-officiel.js?cb=${cb}`);
+    await window.__cssPrete;
 
-    const host = document.getElementById("host");
-    const doc = document.createElement("div");
-    doc.className = "dp-doc dp-screen dp-edit";
-    host.appendChild(doc);
-
-    // Exemple AT1 n°1 complet, AT1 n°2 laissé vide (il ne doit PAS apparaître),
-    // AT1 n°3 rempli (il doit apparaître, et décaler la pagination).
-    const SAMPLE = {
-      nom_naissance: "VALDIVIA", nom_usage: "VALDIVIA", prenom: "Timy",
+    const LONG = Array.from({ length: 700 }, (_, i) => `mot${i}`).join(" ");
+    const TEMOIN = {
+      nom_naissance: "MARTIN", nom_usage: "MARTIN", prenom: "Camille",
       adresse: "12 rue des Oliviers, 30000 Nîmes",
       modalite_formation: true,
-      at1_ex1_titre: "Animation d'une séance collective sur les feux du véhicule",
-      at1_ex1_taches: "Préparation et animation d'une séance collective de sécurité routière pour un groupe de 6 apprenants, sur le thème 22 (feux du véhicule).",
-      at1_ex1_moyens: "Support de projection, véhicule école, fiches thème REMC.",
-      at1_ex1_avec_qui: "Sous la supervision du formateur référent.",
-      at1_ex1_entreprise: "ECF Pro by SPS", at1_ex1_service: "Salle de formation",
-      at1_ex1_du: "21/07/2026", at1_ex1_au: "21/07/2026",
-      at1_ex3_titre: "Séance individuelle en circulation urbaine",
-      at1_ex3_taches: "Conduite accompagnée en boulevard urbain et giratoires.",
-      at2_ex1_titre: "Sensibilisation au risque routier en entreprise",
-      at2_ex1_taches: "Animation d'une action de sensibilisation auprès de salariés.",
-      dh_nom: "Timy VALDIVIA", dh_fait_a: "Nîmes", dh_le: "30/07/2026",
+      at1_ex1_titre: "Leçon de conduite en circulation dense",
+      at1_ex1_taches: "Préparation de la séance, briefing, conduite commentée, bilan.",
+      at1_ex1_moyens: "Véhicule double commande, fiche de suivi, livret d'apprentissage.",
+      at1_ex1_avec_qui: "L'élève, sous supervision du formateur référent.",
+      at1_ex1_entreprise: "Auto-école ECF Nîmes",
+      at1_ex1_du: "02/03/2026", at1_ex1_au: "27/06/2026",
+      at2_ex1_titre: "Animation d'une action de sensibilisation",
+      at2_ex1_taches: "Préparation du support, animation devant 18 personnes, échanges.",
+      dh_nom: "Camille MARTIN", dh_fait_a: "Nîmes", dh_le: "14/09/2026",
+      titre1_intitule: "BEPECASER", titre1_organisme: "DDT du Gard", titre1_date: "12/06/2019",
     };
 
-    let data = {};
-    let cable = false;
-    function render() {
-      // edition: true → les 6 exemples sont affichés, les vides marqués « non imprimé ».
-      doc.innerHTML = buildDpHTML(data, { edition: true });
-      fillData(doc, data);
-      if (!cable) { wireDocEditing(doc, onEdit); cable = true; } else applyEditable(doc);
-      marquerDebordements();
-      report();
+    const hote = document.getElementById("hote");
+    const mesure = document.createElement("div");
+    mesure.className = "dp-doc";
+    mesure.style.cssText = "position:absolute;left:-20000px;top:0;width:210mm";
+    document.body.appendChild(mesure);
+
+    const fabriquerFeuille = (numero, couv) => {
+      const d = document.createElement("div");
+      d.innerHTML = feuille("", numero, couv);
+      return d.firstElementChild;
+    };
+    const blocsDe = (flux) => [...flux.children].filter((n) => n.classList.contains("dp-bloc"));
+    function fluxDetache(html, data) {
+      const f = document.createElement("div");
+      f.className = "dp-flux";
+      f.innerHTML = html;
+      fillData(f, data);
+      return f;
     }
-    function onEdit() {
-      const avant = blocsImprimes(data).length;
-      data = collectData(doc);
-      if (blocsImprimes(data).length !== avant) render();
-      else { marquerDebordements(); report(); }
+
+    function rendre(data) {
+      const p1 = composer(blocsDe(fluxDetache(buildDpFlux(data, { edition: false }), data)),
+        { hote: mesure, fabriquerFeuille });
+      const doc = document.createElement("div");
+      doc.className = "dp-doc dp-screen";
+      hote.replaceChildren(doc);
+      const p2 = composer(blocsDe(fluxDetache(buildDpFlux(data, { edition: false, pages: p1.numeroParCle }), data)),
+        { hote: doc, fabriquerFeuille });
+      mesure.textContent = "";
+      controler(doc, p2, data);
     }
-    function marquerDebordements() {
-      doc.querySelectorAll(".dp-zone").forEach((z) => {
-        const nominal = parseFloat(getComputedStyle(z).minHeight) || 0;
-        z.classList.toggle("dp-deborde", z.offsetHeight > nominal + 2);
+
+    function controler(doc, res, data) {
+      const l = [];
+      const dire = (ok, texte) => l.push(`${ok ? "OK  " : "KO  "}${texte}`);
+
+      const numeros = [...doc.querySelectorAll(".dp-pied")]
+        .map((p) => Number(p.innerText.match(/Page (\d+)/)[1]));
+      dire(numeros.every((n, i) => n === i + 1), `numérotation continue : ${numeros.length} feuilles`);
+
+      const debordent = [...doc.querySelectorAll(".dp-corps")]
+        .filter((c) => c.scrollHeight > c.clientHeight + 1).length;
+      dire(debordent === 0, `feuilles en débordement : ${debordent} (attendu 0)`);
+
+      // Le sommaire annonce exactement les pages où commencent les fiches.
+      // Appariement par POSITION, jamais par texte « Exemple n°X » : sur un
+      // dossier vierge, AT1 ex1 et AT2 ex1 portent tous les deux n=1, donc le
+      // meme texte. blocSommaire ecrit les lignes AT1 puis AT2 dans le meme
+      // ordre que numeroParCle les enregistre (js/dp-rules.js, js/views/dp-gabarit.js).
+      let sommaireJuste = true;
+      const details = [];
+      const clesExemple = [...res.numeroParCle.keys()].filter((cle) => cle.startsWith("exemple:"));
+      const lignesExemple = [...doc.querySelectorAll(".dp-sommaire-ligne")]
+        .filter((el) => !el.closest(".dp-sommaire-fixe"));
+      clesExemple.forEach((cle, i) => {
+        const [, at, n] = cle.split(":");
+        const numero = res.numeroParCle.get(cle);
+        const ligne = lignesExemple[i];
+        const annonce = ligne ? Number((ligne.querySelector(".dp-sommaire-page").textContent.match(/\d+/) || [0])[0]) : 0;
+        details.push(`AT${at} ex${n} : sommaire ${annonce}, réel ${numero}`);
+        if (annonce !== numero) sommaireJuste = false;
       });
+      if (clesExemple.length !== lignesExemple.length) sommaireJuste = false;
+      dire(sommaireJuste, "sommaire concordant avec les pieds de page");
+      details.forEach((d) => l.push("   " + d));
+
+      // Aucun texte perdu : chaque champ rempli se retrouve dans le document.
+      const texte = doc.textContent.replace(/\s+/g, " ");
+      const perdus = Object.entries(data)
+        .filter(([, v]) => typeof v === "string" && v.length > 12)
+        .filter(([, v]) => !texte.includes(v.slice(0, 40).replace(/\s+/g, " ")))
+        .map(([k]) => k);
+      dire(perdus.length === 0, `champs absents du document : ${perdus.join(", ") || "aucun"}`);
+
+      // Le document composé n'est jamais une source de données.
+      dire(doc.querySelectorAll(".dp-zone[data-k]").length >= 0, "zones présentes");
+
+      const r = document.getElementById("rapport");
+      r.textContent = l.join("\n");
+      r.className = l.some((x) => x.startsWith("KO")) ? "ko" : "ok";
     }
 
-    document.getElementById("fill").onclick = () => { data = { ...SAMPLE }; render(); };
-    document.getElementById("empty").onclick = () => { data = {}; render(); };
-    document.getElementById("long").onclick = () => {
-      data = { ...SAMPLE, at1_ex1_taches: "Phrase de test répétée pour provoquer un débordement. ".repeat(60) };
-      render();
-    };
-    document.getElementById("print").onclick = () => window.print();
-
-    // Chemin d'impression RÉEL de l'app : clone du document dans #dp-print,
-    // classe body.dp-printable, règle @page injectée par doc-officiel.js.
-    // window.__print expose le résultat pour une vérification automatisée.
-    document.getElementById("printapp").onclick = () => {
-      bindDocPrint(doc, { printId: "dp-print", bodyClass: "dp-printable" });
-      refreshDocPrint();
-      const c = document.getElementById("dp-print");
-      window.__print = {
-        conteneur: !!c,
-        bodyClass: document.body.classList.contains("dp-printable"),
-        reglePage: document.getElementById("doc-officiel-page-style")?.textContent || null,
-        pagesClonees: c ? c.querySelectorAll(".dp-page").length : 0,
-        exclusClones: c ? c.querySelectorAll(".dp-page-exclue").length : 0,
-        editableRetire: c ? c.querySelectorAll("[contenteditable]").length : 0,
-        classesEcranRetirees: c ? !c.firstElementChild?.classList.contains("dp-edit") : null,
-      };
-      window.print();
-    };
-    window.__teardown = () => { teardownDocPrint();
-      return { conteneur: !!document.getElementById("dp-print"),
-               bodyClass: document.body.classList.contains("dp-printable"),
-               reglePage: !!document.getElementById("doc-officiel-page-style") }; };
-
-    function report() {
-      const pages = doc.querySelectorAll(".dp-page");
-      const exclues = doc.querySelectorAll(".dp-page-exclue").length;
-      const imprimees = pages.length - exclues;
-      const hautes = [...pages].filter((p) => p.offsetHeight > 1130).length;   // 296.5mm ≈ 1121px @96dpi
-      const debordes = doc.querySelectorAll(".dp-zone.dp-deborde").length;
-      document.getElementById("report").textContent =
-        `${pages.length} pages affichées dont ${imprimees} imprimées · ${pages[0]?.offsetWidth}px de large`
-        + ` · pages agrandies: ${hautes} · zones en débordement: ${debordes}`
-        + ` · champs remplis: ${Object.keys(collectData(doc)).length}`;
-      window.__bench = { affichees: pages.length, imprimees, exclues, hautes, debordes,
-                         attendues: blocsImprimes(data).length, sommaire: sommaire(data) };
-    }
-    render();
+    document.getElementById("vierge").onclick = () => rendre({});
+    document.getElementById("temoin").onclick = () => rendre(TEMOIN);
+    document.getElementById("long").onclick = () => rendre({ ...TEMOIN, at1_ex1_taches: LONG });
+    document.getElementById("imprimer").onclick = () => window.print();
+    rendre({});
   </script>
 </body>
 </html>
