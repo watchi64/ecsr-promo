@@ -204,7 +204,7 @@
 .dp-presentation-bloc .dp-cadre { padding: 6mm 7mm; }
 .dp-presentation-bloc p { margin-bottom: 3mm; text-align: justify; }
 .dp-intertitre { font-weight: 700; font-size: 14pt; margin: 5mm 0 3mm; }
-.dp-source {
+.dp-doc .dp-source {
   text-align: right;
   font-style: italic;
   font-size: 9pt;

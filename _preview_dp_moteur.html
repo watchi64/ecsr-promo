@@ -62,9 +62,17 @@
     dire(res.feuilles >= 3, `feuilles produites : ${res.feuilles} (attendu au moins 3)`);
 
     // Aucun texte perdu : la concaténation des morceaux doit rendre l'original.
-    const morceaux = [...hote.querySelectorAll(".dp-zone")].map((n) => n.textContent).join("");
-    dire(morceaux.replace(/\s+/g, " ").trim() === MOTS,
-      `texte reconstitué identique à l'original (${morceaux.length} caractères contre ${MOTS.length})`);
+    // Le contrôle ne s'applique qu'à un flux portant des zones sécables ; les
+    // quatre premières rubriques du document n'en ont aucune, et les scénarios
+    // A et B plus bas gardent leur propre contrôle de texte.
+    const zonesComposees = [...hote.querySelectorAll(".dp-zone")];
+    if (zonesComposees.length) {
+      const morceaux = zonesComposees.map((n) => n.textContent).join("");
+      dire(morceaux.replace(/\s+/g, " ").trim() === MOTS,
+        `texte reconstitué identique à l'original (${morceaux.length} caractères contre ${MOTS.length})`);
+    } else {
+      lignes.push("--  texte reconstitué : sans objet, ce flux ne porte aucune zone sécable");
+    }
 
     // Aucune feuille ne déborde de sa hauteur utile.
     const debordent = [...hote.querySelectorAll(".dp-corps")]
