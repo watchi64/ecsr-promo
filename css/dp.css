@@ -122,6 +122,147 @@
    css/livret.css porte la même règle pour #livret-print. */
 #dp-print { display: none; }
 
+/* --- Blocs et motifs communs --------------------------------------------- */
+
+.dp-bloc { position: relative; }
+
+/* Bandeau de rubrique : barre magenta pleine, titre blanc, filet dessous. */
+.dp-bandeau {
+  background: var(--dp-magenta);
+  color: #fff;
+  font-weight: 700;
+  font-size: 20pt;
+  text-align: center;
+  padding: 0.5mm 2mm 1mm;
+}
+.dp-filet-magenta { border-top: 2.25pt solid var(--dp-magenta); margin-top: 1.4mm; }
+.dp-cadre { border: 0.5pt solid var(--dp-filet); border-top: none; padding: 3mm 4mm; }
+
+/* Repère triangulaire magenta du modèle (Wingdings 3 U+F075), dessiné en CSS :
+   la police n'est pas disponible et ne peut pas être appelée par son caractère. */
+.dp-repere {
+  display: inline-block;
+  width: 0;
+  height: 0;
+  border-left: 1.6mm solid var(--dp-magenta);
+  border-top: 1mm solid transparent;
+  border-bottom: 1mm solid transparent;
+  vertical-align: 0.4mm;
+  margin: 0 1.5mm;
+}
+
+/* Puce de liste du texte officiel, même repère. */
+.dp-liste { list-style: none; margin: 0; padding: 0; }
+.dp-liste li { position: relative; padding-left: 6mm; margin-bottom: 2mm; text-align: justify; font-size: 10pt; }
+.dp-liste li::before {
+  content: "";
+  position: absolute;
+  left: 1.5mm;
+  top: 1.6mm;
+  width: 0;
+  height: 0;
+  border-left: 1.6mm solid var(--dp-magenta);
+  border-top: 1mm solid transparent;
+  border-bottom: 1mm solid transparent;
+}
+
+/* Repères de saisie : visibles à l'écran, jamais imprimés. Un dossier remis au
+   jury ne doit pas porter « Cliquez ici pour taper du texte ». */
+.dp-doc .lv-f:empty::before { color: #9a9a9a; font-style: italic; }
+#dp-print .lv-f:empty::before { content: "" !important; }
+
+/* --- Couverture ---------------------------------------------------------- */
+
+.dp-identite { width: 137.5mm; margin: 6mm 0 0 29.4mm; }
+.dp-identite-ligne { display: flex; align-items: baseline; margin-bottom: 3mm; }
+.dp-identite-label {
+  flex: 0 0 41.4mm;
+  border-left: 3pt solid var(--dp-magenta);
+  padding-left: 2.5mm;
+  font-style: italic;
+  font-size: 12pt;
+  color: var(--dp-magenta);
+}
+.dp-identite-champ { flex: 1 1 auto; min-width: 0; }
+.dp-identite-ligne.dp-identite-haute { align-items: stretch; }
+.dp-identite-ligne.dp-identite-haute .dp-identite-champ { min-height: 11mm; }
+
+.dp-titre-vise-bloc { width: 170.1mm; margin: 18mm auto 0; }
+.dp-titre-vise {
+  text-align: center;
+  font-size: 16pt;
+  padding: 6mm 2mm;
+  border-bottom: 1.5pt solid var(--dp-magenta);
+}
+.dp-modalite-titre { font-weight: 700; font-size: 18pt; margin-bottom: 3mm; }
+.dp-modalite-ligne { font-size: 16pt; margin-bottom: 2mm; }
+.dp-doc .dp-modalite-ligne .lv-cb { margin-right: 3mm; }
+
+/* --- Présentation du dossier --------------------------------------------- */
+
+.dp-presentation-bloc { width: 175.1mm; margin: 0 auto; }
+.dp-presentation-bloc .dp-cadre { padding: 6mm 7mm; }
+.dp-presentation-bloc p { margin-bottom: 3mm; text-align: justify; }
+.dp-intertitre { font-weight: 700; font-size: 14pt; margin: 5mm 0 3mm; }
+.dp-source {
+  text-align: right;
+  font-style: italic;
+  font-size: 9pt;
+  color: var(--dp-gris-pied);
+  margin-top: 3mm;
+}
+.dp-lien-officiel { display: flex; align-items: center; gap: 3mm; margin-top: 6mm; }
+.dp-lien-officiel b { font-size: 14pt; }
+.dp-lien-officiel .dp-repere { border-left-width: 4mm; border-top-width: 2.5mm; border-bottom-width: 2.5mm; }
+
+/* --- Sommaire ------------------------------------------------------------ */
+
+.dp-sommaire-titre {
+  font-weight: 700;
+  font-size: 24pt;
+  color: var(--dp-magenta);
+  border-bottom: 3pt solid var(--dp-magenta);
+  padding-bottom: 1mm;
+  margin-bottom: 5mm;
+}
+.dp-sommaire-section { font-weight: 700; font-size: 14pt; margin-bottom: 4mm; }
+.dp-sommaire-at {
+  background: var(--dp-gris-clair);
+  border-left: 2.25pt solid var(--dp-magenta);
+  font-weight: 700;
+  font-size: 12pt;
+  padding: 2mm 3mm;
+  margin: 5mm 0 2mm;
+}
+.dp-sommaire-ligne { display: flex; align-items: baseline; gap: 2mm; padding: 1.6mm 0 1.6mm 4mm; }
+.dp-sommaire-intitule { flex: 1 1 auto; min-width: 0; }
+.dp-sommaire-intitule i { font-weight: 700; }
+.dp-sommaire-vide { color: #9a9a9a; font-style: italic; }
+.dp-sommaire-page { white-space: nowrap; }
+/* Case carrée du modèle, à droite de chaque ligne. Décorative : sa fonction
+   n'est pas documentée, lui donner un champ reviendrait à inventer une donnée. */
+.dp-sommaire-case {
+  flex: 0 0 auto;
+  width: 4.5mm;
+  height: 4.5mm;
+  border: 1pt solid var(--dp-filet);
+}
+.dp-sommaire-fixe { margin-top: 6mm; }
+.dp-sommaire-fixe .dp-sommaire-ligne { font-weight: 700; font-size: 12pt; padding-left: 0; }
+
+/* --- Intercalaire -------------------------------------------------------- */
+
+.dp-intercalaire {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-weight: 700;
+  font-size: 48pt;
+  line-height: 1.1;
+}
+
 /* --- Le flux d'édition --------------------------------------------------- */
 
 /* En édition le document n'est pas découpé en feuilles : le candidat écrit dans

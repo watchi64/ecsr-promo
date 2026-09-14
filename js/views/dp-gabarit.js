@@ -9,6 +9,8 @@
 // au sommaire, et il passe obligatoirement par escapeHtml. Toutes les autres
 // valeurs entrent par fillData, qui écrit en textContent.
 
+import { rubriquesImprimees, rubriquesEdition, sommaire, cleExemple } from "../dp-rules.js?v=20260826d";
+
 function escapeHtml(s) {
   return String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 }
@@ -47,4 +49,153 @@ export function feuille(interieur, numero, estCouverture) {
        + `<div class="dp-corps">${interieur}</div>`
        + pied(numero)
        + `</section>`;
+}
+
+export const AT1_TITRE = "Former des apprenants conducteurs par des actions individuelles et collectives, dans le respect des cadres réglementaires en vigueur";
+export const AT2_TITRE = "Sensibiliser l’ensemble des usagers de la route à l’adoption de comportements sûrs et respectueux de l’environnement";
+
+const PH_TEXTE = "Cliquez ici pour taper du texte.";
+const PH_DATE = "Cliquez ici pour choisir une date.";
+
+// Champ d'une ligne. data-k = clé de sérialisation, inchangée depuis 2026-07-30.
+function f(k, ph, extra = "") {
+  const date = ph === PH_DATE ? " lv-date" : "";
+  return `<span class="lv-f ${extra}${date}" data-k="${k}" data-ph="${ph || PH_TEXTE}"></span>`;
+}
+function cb(k, group) {
+  return `<span class="lv-cb" data-k="${k}"${group ? ` data-x="${group}"` : ""} role="checkbox" tabindex="0"></span>`;
+}
+
+// Un bloc du flux. `cle` identifie la rubrique pour le sommaire, `ouvrant` force
+// une feuille neuve, `nature` dit si le moteur a le droit de le couper.
+function bloc(interieur, { cle, ouvrant = false, nature = "atomique", avecSuivant = false, classe = "" }) {
+  return `<div class="dp-bloc ${classe}" data-cle="${cle}"`
+       + (ouvrant ? ` data-ouvrant="1"` : "")
+       + ` data-nature="${nature}"`
+       + (avecSuivant ? ` data-avec-suivant="1"` : "")
+       + `>${interieur}</div>`;
+}
+
+function rubriqueCouverture() {
+  const ligne = (label, k, haute) =>
+    `<div class="dp-identite-ligne${haute ? " dp-identite-haute" : ""}">
+       <span class="dp-identite-label">${label}</span><span class="dp-repere"></span>
+       <span class="lv-f dp-identite-champ" data-k="${k}" data-ph="${PH_TEXTE}"></span>
+     </div>`;
+  return bloc(`
+    <div class="dp-identite">
+      ${ligne("Nom de naissance", "nom_naissance", false)}
+      ${ligne("Nom d’usage", "nom_usage", false)}
+      ${ligne("Prénom", "prenom", false)}
+      ${ligne("Adresse", "adresse", true)}
+    </div>
+    <div class="dp-titre-vise-bloc">
+      <div class="dp-bandeau">Titre professionnel visé</div>
+      <div class="dp-filet-magenta"></div>
+      <div class="dp-titre-vise">ENSEIGNANT DE LA CONDUITE ET DE LA SÉCURITÉ ROUTIÈRE</div>
+      <div class="dp-cadre">
+        <p class="dp-modalite-titre">Modalité d’accès :</p>
+        <p class="dp-modalite-ligne">${cb("modalite_formation", "modalite")}Parcours de formation</p>
+        <p class="dp-modalite-ligne">${cb("modalite_vae", "modalite")}Validation des Acquis de l’Expérience (VAE)</p>
+      </div>
+    </div>`, { cle: "couverture", ouvrant: true });
+}
+
+function rubriquePresentation() {
+  return bloc(`
+    <div class="dp-presentation-bloc">
+      <div class="dp-bandeau">Présentation du dossier</div>
+      <div class="dp-filet-magenta"></div>
+      <div class="dp-cadre">
+        <p>Le dossier professionnel (DP) constitue un élément du système de validation du titre professionnel.<br><b>Ce titre est délivré par le Ministère chargé de l’emploi.</b></p>
+        <p>Le DP appartient au candidat. Il le conserve, l’actualise durant son parcours et le présente <b>obligatoirement à chaque session d’examen</b>.</p>
+        <p>Pour rédiger le DP, le candidat peut être aidé par un formateur ou par un accompagnateur VAE.</p>
+        <p>Il est consulté par le jury au moment de la session d’examen.</p>
+        <p class="dp-intertitre">Pour prendre sa décision, le jury dispose :</p>
+        <ul class="dp-liste">
+          <li>des résultats de la mise en situation professionnelle complétés, éventuellement, du questionnaire professionnel ou de l’entretien professionnel ou de l’entretien technique ou du questionnement à partir de productions.</li>
+          <li>du <b>Dossier Professionnel</b> (DP) dans lequel le candidat a consigné les preuves de sa pratique professionnelle.</li>
+          <li>des résultats des évaluations passées en cours de formation lorsque le candidat évalué est issu d’un parcours de formation</li>
+          <li>de l’entretien final (dans le cadre de la session titre).</li>
+        </ul>
+        <p class="dp-source">[Arrêté du 22 décembre 2015, relatif aux conditions de délivrance des titres professionnels du ministère chargé de l’Emploi]</p>
+        <p class="dp-intertitre">Ce dossier comporte :</p>
+        <ul class="dp-liste">
+          <li>pour chaque activité-type du titre visé, un à trois exemples de pratique professionnelle ;</li>
+          <li>un tableau à renseigner si le candidat souhaite porter à la connaissance du jury la détention d’un titre, d’un diplôme, d’un certificat de qualification professionnelle (CQP) ou des attestations de formation ;</li>
+          <li>une déclaration sur l’honneur à compléter et à signer ;</li>
+          <li>des documents illustrant la pratique professionnelle du candidat (facultatif)</li>
+          <li>des annexes, si nécessaire.</li>
+        </ul>
+        <p class="dp-source">Pour compléter ce dossier, le candidat dispose d’un site web en accès libre sur le site.</p>
+        <p class="dp-lien-officiel"><span class="dp-repere"></span><b>http://travail-emploi.gouv.fr/titres-professionnels</b></p>
+      </div>
+    </div>`, { cle: "presentation", ouvrant: true });
+}
+
+// pages : Map de clé de rubrique vers numéro de feuille, issue de la première
+// passe de pagination. Absente à la première passe, les numéros restent vides.
+function rubriqueSommaire(data, pages) {
+  const num = (cle) => (pages && pages.get(cle) !== undefined ? `p. ${pages.get(cle)}` : "p.");
+  const lignesAt = (at) => sommaire(data).filter((e) => e.at === at).map((e) => `
+    <div class="dp-sommaire-ligne">
+      <span class="dp-repere"></span>
+      <span class="dp-sommaire-intitule"><i>Exemple n°${e.n}</i> ${e.titre
+        ? escapeHtml(e.titre)
+        : `<span class="dp-sommaire-vide">intitulé à renseigner</span>`}</span>
+      <span class="dp-sommaire-page">${num(`exemple:${at}:${e.n}`)}</span>
+      <span class="dp-sommaire-case"></span>
+    </div>`).join("");
+  const ligneFixe = (label, cle) => `
+    <div class="dp-sommaire-ligne">
+      <span class="dp-sommaire-intitule">${label}</span>
+      <span class="dp-sommaire-page">${cle ? num(cle) : "p."}</span>
+      <span class="dp-sommaire-case"></span>
+    </div>`;
+  return bloc(`
+    <div class="dp-sommaire-titre">Sommaire</div>
+    <div class="dp-sommaire-section">Exemples de pratique professionnelle</div>
+    <div class="dp-sommaire-at">${AT1_TITRE}</div>
+    ${lignesAt(1)}
+    <div class="dp-sommaire-at">${AT2_TITRE}</div>
+    ${lignesAt(2)}
+    <div class="dp-sommaire-fixe">
+      ${ligneFixe("Titres, diplômes, CQP, attestations de formation <i>(facultatif)</i>", "titres")}
+      ${ligneFixe("Déclaration sur l’honneur", "declaration")}
+      ${ligneFixe("Documents illustrant la pratique professionnelle <i>(facultatif)</i>", null)}
+      ${ligneFixe("Annexes <i>(si le RC le prévoit)</i>", null)}
+    </div>`, { cle: "sommaire", ouvrant: true });
+}
+
+function rubriqueIntercalaire() {
+  return bloc(`<div class="dp-intercalaire">Exemples de pratique<br>professionnelle</div>`,
+    { cle: "intercalaire", ouvrant: true });
+}
+
+// Provisoire, remplacé en tâches 5 et 6.
+function rubriqueExemple(at, n) { return bloc(`<p>Fiche ${at}.${n}</p>`, { cle: `exemple:${at}:${n}`, ouvrant: true }); }
+function rubriqueTitres() { return bloc(`<p>Titres</p>`, { cle: "titres", ouvrant: true }); }
+function rubriqueDeclaration() { return bloc(`<p>Déclaration</p>`, { cle: "declaration", ouvrant: true }); }
+
+// Document complet, sous forme de FLUX de blocs. Le découpage en feuilles est le
+// travail de js/dp-pagination.js, pas celui du gabarit.
+//
+// edition : rend les 6 fiches d'exemple, même vides, sinon le candidat n'aurait
+// aucun champ où saisir sa 2e ou sa 3e fiche. Celles qui resteront hors du
+// document imprimé sont signalées.
+// pages : Map de clé de rubrique vers numéro de feuille, pour le sommaire.
+export function buildDpFlux(data, { edition = false, pages = null } = {}) {
+  const rubriques = edition ? rubriquesEdition(data) : rubriquesImprimees(data);
+  return rubriques.map((r) => {
+    switch (r.type) {
+      case "couverture":   return rubriqueCouverture();
+      case "presentation": return rubriquePresentation();
+      case "sommaire":     return rubriqueSommaire(data, pages);
+      case "intercalaire": return rubriqueIntercalaire();
+      case "exemple":      return rubriqueExemple(r.at, r.n, r.imprime !== false);
+      case "titres":       return rubriqueTitres();
+      case "declaration":  return rubriqueDeclaration();
+      default:             return "";
+    }
+  }).join("");
 }

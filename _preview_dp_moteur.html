@@ -35,15 +35,8 @@
 
     const flux = document.createElement("div");
     flux.className = "dp-doc dp-flux";
-    flux.innerHTML = `
-      <div class="dp-bloc" data-cle="un" data-ouvrant="1" data-nature="atomique">
-        <p><b>Rubrique un</b></p></div>
-      <div class="dp-bloc" data-cle="deux" data-ouvrant="1" data-nature="atomique"
-           data-avec-suivant="1"><p><b>Rubrique deux, intitulé</b></p></div>
-      <div class="dp-bloc dp-zone" data-cle="deux" data-nature="secable"></div>
-      <div class="dp-bloc" data-cle="trois" data-ouvrant="1" data-nature="atomique">
-        <p><b>Rubrique trois</b></p></div>`;
-    flux.querySelector(".dp-zone").textContent = MOTS;
+    const { buildDpFlux } = await import(`./js/views/dp-gabarit.js?cb=${cb}`);
+    flux.innerHTML = buildDpFlux({}, { edition: false });
     document.body.appendChild(flux);
     flux.style.position = "absolute";
     flux.style.left = "-20000px";
