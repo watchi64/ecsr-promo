@@ -26,7 +26,8 @@
   <script type="module">
     const cb = Date.now();
     const { feuille } = await import(`./js/views/dp-gabarit.js?cb=${cb}`);
-    const { composer } = await import(`./js/dp-pagination.js?cb=${cb}`);
+    const { composer, PX_PAR_MM, HAUTEUR_MIN_MORCEAU } =
+      await import(`./js/dp-pagination.js?cb=${cb}`);
     await window.__cssPrete;
 
     // Un texte long et déterministe : 900 mots courts, largement plus qu'une feuille.
@@ -87,16 +88,27 @@
     const fuite = hote.querySelectorAll(".dp-zone[data-k]").length;
     dire(fuite === 0, `zones composées portant encore data-k : ${fuite} (attendu 0)`);
 
-    // Chaque rubrique ouvrante commence bien sur une feuille neuve.
-    dire(res.numeroParCle.get("un") === 1 && res.numeroParCle.get("deux") === 2
-        && res.numeroParCle.get("trois") === res.feuilles,
-      `rubriques : un=${res.numeroParCle.get("un")}, deux=${res.numeroParCle.get("deux")}, trois=${res.numeroParCle.get("trois")} (attendu trois=${res.feuilles})`);
+    // Chaque rubrique ouvrante DÉMARRE une feuille : son premier bloc doit être
+    // le premier élément du corps de sa feuille. Comparer des numéros de feuille
+    // ne prouverait rien, une rubrique pouvant commencer au milieu d'une feuille
+    // sans que son numéro change.
+    const feuillesDom = [...hote.querySelectorAll(".dp-feuille")];
+    const malPlacees = [...res.numeroParCle.entries()]
+      .filter(([cle, numero]) => {
+        const c = feuillesDom[numero - 1] && feuillesDom[numero - 1].querySelector(".dp-corps");
+        return !c || !c.firstElementChild || c.firstElementChild.dataset.cle !== cle;
+      })
+      .map(([cle]) => cle);
+    dire(malPlacees.length === 0,
+      `rubriques démarrant une feuille neuve : ${malPlacees.length === 0
+        ? res.numeroParCle.size + " sur " + res.numeroParCle.size
+        : "échec pour " + malPlacees.join(", ")}`);
 
     // --- Scénario A : bloc insécable plus haut qu'une feuille ---
     // Un seul bloc atomique, dont le texte dépasse largement une feuille : le
-    // moteur doit le garder intact et lever la coupe (dp-corps-deborde) plutôt
-    // que perdre du texte. C'est le garde-fou de la ligne 86-89 de
-    // js/dp-pagination.js.
+    // moteur doit le garder intact et lever la coupe plutôt que perdre du texte.
+    // C'est le garde-fou qui pose la classe dp-corps-deborde sur un corps de
+    // feuille dont le premier bloc dépasse à lui seul la hauteur utile.
     const texteBlocHautA = Array.from({ length: 200 },
       (_, i) => `Paragraphe ${i} du bloc insécable, volontairement long pour dépasser une feuille entière.`).join(" ");
     const fluxA = document.createElement("div");
@@ -199,7 +211,6 @@
 
     const blocsB = [...fluxB.children].filter((n) => n.classList.contains("dp-bloc"));
     const indexIntituleB = blocsB.findIndex((b) => b.dataset.avecSuivant === "1");
-    const indexZoneB = blocsB.findIndex((b) => b.classList.contains("dp-zone"));
     const resB = composer(blocsB, {
       hote: hoteB,
       fabriquerFeuille: (numero, couv) => {
@@ -209,10 +220,22 @@
       },
     });
 
+    // La garde promet qu'une zone de réponse peut COMMENCER sous son intitulé
+    // avec au moins HAUTEUR_MIN_MORCEAU de hauteur. Comparer les numéros de
+    // feuille de l'intitulé et de sa zone ne prouverait rien : sans la garde, un
+    // fragment de quelques mots s'accroche encore sous l'intitulé et les deux
+    // numéros restent égaux. On mesure donc ce qui est réellement posé.
     const feuilleIntituleB = resB.numeroParBloc[indexIntituleB];
-    const feuilleZoneB = resB.numeroParBloc[indexZoneB];
-    dire(feuilleIntituleB === feuilleZoneB,
-      `scénario B : intitulé (feuille ${feuilleIntituleB}) et début de sa zone (feuille ${feuilleZoneB}) sur la même feuille`);
+    const feuillesB = [...hoteB.querySelectorAll(".dp-feuille")];
+    const corpsIntituleB = feuillesB[feuilleIntituleB - 1]
+      && feuillesB[feuilleIntituleB - 1].querySelector(".dp-corps");
+    const intituleComposeB = corpsIntituleB && corpsIntituleB.querySelector('[data-avec-suivant="1"]');
+    const suivantB = intituleComposeB && intituleComposeB.nextElementSibling;
+    const hauteurZoneB = suivantB && suivantB.classList.contains("dp-zone")
+      ? suivantB.getBoundingClientRect().height : 0;
+    dire(hauteurZoneB >= HAUTEUR_MIN_MORCEAU,
+      `scénario B : ${(hauteurZoneB / PX_PAR_MM).toFixed(1)} mm de zone posés sous l'intitulé `
+      + `de la feuille ${feuilleIntituleB} (seuil ${(HAUTEUR_MIN_MORCEAU / PX_PAR_MM).toFixed(1)} mm)`);
 
     const r = document.getElementById("rapport");
     r.textContent = lignes.join("\n");

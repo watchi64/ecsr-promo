@@ -7,11 +7,11 @@
 // Mesurer impose que les feuilles soient RENDUES : un conteneur en display:none
 // n'a ni hauteur ni rectangle. L'appelant fournit un hôte hors écran mais rendu.
 
-const PX_PAR_MM = 96 / 25.4;
+export const PX_PAR_MM = 96 / 25.4;
 
 // En dessous de cette hauteur restante, on n'ouvre pas une zone de rédaction en
 // bas de feuille : deux ou trois lignes orphelines se lisent mal.
-const HAUTEUR_MIN_MORCEAU = 10 * PX_PAR_MM;
+export const HAUTEUR_MIN_MORCEAU = 10 * PX_PAR_MM;
 
 // Répartit les blocs sur des feuilles. Renvoie le nombre de feuilles produites,
 // le numéro de feuille où commence chaque bloc, et celui où commence chaque
