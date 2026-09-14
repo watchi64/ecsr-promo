@@ -131,7 +131,10 @@ function couper(el, corps, hUtile) {
   }
   if (best >= texte.length) return null;
 
-  // Ne jamais couper au milieu d'un mot : on recule au dernier séparateur.
+  // On recule au dernier séparateur avant la coupe quand il en existe un ; à
+  // défaut (un mot à lui seul plus long qu'une ligne), on coupe au plus juste,
+  // en plein mot : refuser de couper ferait déborder indéfiniment la feuille,
+  // alors qu'un navigateur fait la même chose avec une césure forcée.
   const espace = texte.lastIndexOf(" ", best);
   const ligne = texte.lastIndexOf("\n", best);
   const sep = Math.max(espace, ligne);

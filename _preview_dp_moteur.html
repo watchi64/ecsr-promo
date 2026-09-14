@@ -88,8 +88,131 @@
     dire(fuite === 0, `zones composées portant encore data-k : ${fuite} (attendu 0)`);
 
     // Chaque rubrique ouvrante commence bien sur une feuille neuve.
-    dire(res.numeroParCle.get("un") === 1 && res.numeroParCle.get("deux") === 2,
-      `rubriques : un=${res.numeroParCle.get("un")}, deux=${res.numeroParCle.get("deux")}, trois=${res.numeroParCle.get("trois")}`);
+    dire(res.numeroParCle.get("un") === 1 && res.numeroParCle.get("deux") === 2
+        && res.numeroParCle.get("trois") === res.feuilles,
+      `rubriques : un=${res.numeroParCle.get("un")}, deux=${res.numeroParCle.get("deux")}, trois=${res.numeroParCle.get("trois")} (attendu trois=${res.feuilles})`);
+
+    // --- Scénario A : bloc insécable plus haut qu'une feuille ---
+    // Un seul bloc atomique, dont le texte dépasse largement une feuille : le
+    // moteur doit le garder intact et lever la coupe (dp-corps-deborde) plutôt
+    // que perdre du texte. C'est le garde-fou de la ligne 86-89 de
+    // js/dp-pagination.js.
+    const texteBlocHautA = Array.from({ length: 200 },
+      (_, i) => `Paragraphe ${i} du bloc insécable, volontairement long pour dépasser une feuille entière.`).join(" ");
+    const fluxA = document.createElement("div");
+    fluxA.className = "dp-doc dp-flux";
+    fluxA.innerHTML = `
+      <div class="dp-bloc" data-cle="haut" data-ouvrant="1" data-nature="atomique">
+        <p><b>Bloc insécable</b></p>
+        <p class="dp-texte-haut">${texteBlocHautA}</p>
+      </div>`;
+    document.body.appendChild(fluxA);
+    fluxA.style.position = "absolute";
+    fluxA.style.left = "-20000px";
+
+    const hoteA = document.createElement("div");
+    hoteA.className = "dp-doc dp-screen";
+    hoteA.style.position = "absolute";
+    hoteA.style.left = "-20000px";
+    document.body.appendChild(hoteA);
+
+    const blocsA = [...fluxA.children].filter((n) => n.classList.contains("dp-bloc"));
+    const resA = composer(blocsA, {
+      hote: hoteA,
+      fabriquerFeuille: (numero, couv) => {
+        const d = document.createElement("div");
+        d.innerHTML = feuille("", numero, couv);
+        return d.firstElementChild;
+      },
+    });
+
+    const texteComposeA = [...hoteA.querySelectorAll(".dp-texte-haut")].map((n) => n.textContent).join("");
+    dire(texteComposeA === texteBlocHautA,
+      `scénario A : texte du bloc insécable intégralement présent (${texteComposeA.length} caractères contre ${texteBlocHautA.length})`);
+
+    const corpsDebordeA = hoteA.querySelectorAll(".dp-corps.dp-corps-deborde").length;
+    dire(resA.feuilles === 1 && corpsDebordeA === 1,
+      `scénario A : feuille unique marquée dp-corps-deborde (feuilles=${resA.feuilles}, débordantes=${corpsDebordeA})`);
+
+    // --- Scénario B : intitulé orphelin ---
+    // On mesure d'abord, sur une feuille neuve, la hauteur d'une ligne de
+    // remplissage et celle de l'intitulé : ça permet de calculer, sans nombre
+    // de lignes codé en dur (fragile, propre au rendu d'une machine), combien
+    // de lignes poser avant l'intitulé pour ne laisser que quelques
+    // millimètres en bas de feuille, sous le seuil HAUTEUR_MIN_MORCEAU (10 mm).
+    const hoteMesureB = document.createElement("div");
+    hoteMesureB.className = "dp-doc dp-screen";
+    hoteMesureB.style.position = "absolute";
+    hoteMesureB.style.left = "-20000px";
+    document.body.appendChild(hoteMesureB);
+
+    const feuilleMesureB = (() => {
+      const d = document.createElement("div");
+      d.innerHTML = feuille("", 1, false);
+      return d.firstElementChild;
+    })();
+    hoteMesureB.appendChild(feuilleMesureB);
+    const corpsMesureB = feuilleMesureB.querySelector(".dp-corps");
+    const hUtileB = corpsMesureB.clientHeight;
+
+    const ligneProbeB = document.createElement("div");
+    ligneProbeB.className = "dp-bloc";
+    ligneProbeB.textContent = "Ligne de remplissage 0, juste assez pour occuper une ligne pleine.";
+    corpsMesureB.appendChild(ligneProbeB);
+    const hauteurLigneB = ligneProbeB.getBoundingClientRect().height;
+    corpsMesureB.removeChild(ligneProbeB);
+
+    const intituleProbeB = document.createElement("div");
+    intituleProbeB.className = "dp-bloc";
+    intituleProbeB.innerHTML = "<p><b>Question orpheline</b></p>";
+    corpsMesureB.appendChild(intituleProbeB);
+    const hauteurIntituleB = intituleProbeB.getBoundingClientRect().height;
+    document.body.removeChild(hoteMesureB);
+
+    // Une feuille neuve tient environ ce nombre de lignes de remplissage ; on
+    // s'arrête deux lignes avant le bas : assez de place pour que l'intitulé
+    // tienne encore, mais moins de 10 mm une fois l'intitulé posé.
+    const lignesParFeuilleB = Math.floor(hUtileB / hauteurLigneB);
+    const nLignesRemplissageB = Math.max(1, lignesParFeuilleB - 2);
+
+    let htmlB = "";
+    for (let i = 0; i < nLignesRemplissageB; i += 1) {
+      htmlB += `<div class="dp-bloc" data-cle="orphelin" data-nature="secable"${i === 0 ? ' data-ouvrant="1"' : ""}>Ligne de remplissage ${i}, juste assez pour occuper une ligne pleine.</div>`;
+    }
+    htmlB += `<div class="dp-bloc" data-cle="orphelin" data-nature="atomique" data-avec-suivant="1"><p><b>Question orpheline</b></p></div>`;
+    htmlB += `<div class="dp-bloc dp-zone" data-cle="orphelin" data-nature="secable"></div>`;
+
+    const fluxB = document.createElement("div");
+    fluxB.className = "dp-doc dp-flux";
+    fluxB.innerHTML = htmlB;
+    fluxB.querySelector(".dp-zone").textContent =
+      Array.from({ length: 300 }, (_, i) => `reponse${i}`).join(" ");
+    document.body.appendChild(fluxB);
+    fluxB.style.position = "absolute";
+    fluxB.style.left = "-20000px";
+
+    const hoteB = document.createElement("div");
+    hoteB.className = "dp-doc dp-screen";
+    hoteB.style.position = "absolute";
+    hoteB.style.left = "-20000px";
+    document.body.appendChild(hoteB);
+
+    const blocsB = [...fluxB.children].filter((n) => n.classList.contains("dp-bloc"));
+    const indexIntituleB = blocsB.findIndex((b) => b.dataset.avecSuivant === "1");
+    const indexZoneB = blocsB.findIndex((b) => b.classList.contains("dp-zone"));
+    const resB = composer(blocsB, {
+      hote: hoteB,
+      fabriquerFeuille: (numero, couv) => {
+        const d = document.createElement("div");
+        d.innerHTML = feuille("", numero, couv);
+        return d.firstElementChild;
+      },
+    });
+
+    const feuilleIntituleB = resB.numeroParBloc[indexIntituleB];
+    const feuilleZoneB = resB.numeroParBloc[indexZoneB];
+    dire(feuilleIntituleB === feuilleZoneB,
+      `scénario B : intitulé (feuille ${feuilleIntituleB}) et début de sa zone (feuille ${feuilleZoneB}) sur la même feuille`);
 
     const r = document.getElementById("rapport");
     r.textContent = lignes.join("\n");
