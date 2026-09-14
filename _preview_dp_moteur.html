@@ -40,6 +40,10 @@
     document.body.appendChild(flux);
     flux.style.position = "absolute";
     flux.style.left = "-20000px";
+    // buildDpFlux ne remplit aucune valeur (c'est le rôle de fillData) : on pose
+    // ici le texte de contrôle dans l'unique zone que ce flux vierge porte pour
+    // l'activité-type 1, exactement comme fillData le ferait pour un data-k donné.
+    flux.querySelector('[data-k="at1_ex1_taches"]').textContent = MOTS;
 
     const hote = document.createElement("div");
     hote.className = "dp-doc dp-screen";
@@ -237,6 +241,57 @@
     dire(hauteurZoneB >= HAUTEUR_MIN_MORCEAU,
       `scénario B : ${(hauteurZoneB / PX_PAR_MM).toFixed(1)} mm de zone posés sous l'intitulé `
       + `de la feuille ${feuilleIntituleB} (seuil ${(HAUTEUR_MIN_MORCEAU / PX_PAR_MM).toFixed(1)} mm)`);
+
+    // Une fiche remplie d'un texte plus long qu'une feuille doit se répartir
+    // sans rien perdre, comme le fait Word.
+    const LONG = Array.from({ length: 700 }, (_, i) => `mot${i}`).join(" ");
+    const flux2 = document.createElement("div");
+    flux2.className = "dp-doc dp-flux";
+    flux2.style.cssText = "position:absolute;left:-20000px";
+    flux2.innerHTML = buildDpFlux({ at1_ex1_taches: LONG }, { edition: false });
+    document.body.appendChild(flux2);
+    flux2.querySelector('[data-k="at1_ex1_taches"]').textContent = LONG;
+    const hote2 = document.createElement("div");
+    hote2.className = "dp-doc";
+    hote2.style.cssText = "position:absolute;left:-20000px";
+    document.body.appendChild(hote2);
+    const res2 = composer([...flux2.children].filter((n) => n.classList.contains("dp-bloc")), {
+      hote: hote2,
+      fabriquerFeuille: (numero, couv) => {
+        const d = document.createElement("div");
+        d.innerHTML = feuille("", numero, couv);
+        return d.firstElementChild;
+      },
+    });
+    const recompose = [...hote2.querySelectorAll(".dp-zone")]
+      .map((n) => n.textContent).join("").replace(/\s+/g, " ").trim();
+    dire(recompose.includes(LONG.slice(0, 200)) && recompose.includes(LONG.slice(-200)),
+      `fiche longue : début et fin du texte présents après composition sur ${res2.feuilles} feuilles`);
+    const debordent2 = [...hote2.querySelectorAll(".dp-corps")]
+      .filter((c) => c.scrollHeight > c.clientHeight + 1).length;
+    dire(debordent2 === 0, `fiche longue : feuilles en débordement ${debordent2} (attendu 0)`);
+
+    // Habillage de la fiche d'exemple : mesures JavaScript plutôt qu'un contrôle
+    // à l'œil, sur la première fiche du flux 2 (at1_ex1).
+    const stAtNum = getComputedStyle(flux2.querySelector(".dp-at-num"));
+    dire(stAtNum.color === "rgb(214, 0, 147)" && stAtNum.fontWeight === "700",
+      `cartouche activité-type : couleur ${stAtNum.color}, graisse ${stAtNum.fontWeight}, taille ${stAtNum.fontSize} (attendu rgb(214, 0, 147), 700, 24px pour 18pt)`);
+
+    const stExLigne = getComputedStyle(flux2.querySelector(".dp-ex-ligne"));
+    dire(stExLigne.borderBottomStyle === "double" && stExLigne.borderBottomColor === "rgb(214, 0, 147)",
+      `ligne Exemple : filet ${stExLigne.borderBottomStyle} ${stExLigne.borderBottomColor}, épaisseur ${stExLigne.borderBottomWidth} (attendu double, rgb(214, 0, 147))`);
+
+    const stQuestion = getComputedStyle(flux2.querySelector(".dp-question"));
+    dire(stQuestion.borderLeftColor === "rgb(214, 0, 147)" && stQuestion.borderLeftWidth === "4px",
+      `barre des questions : couleur ${stQuestion.borderLeftColor}, épaisseur ${stQuestion.borderLeftWidth} (attendu rgb(214, 0, 147), 4px pour 3pt)`);
+
+    const stZone = getComputedStyle(flux2.querySelector(".dp-zone"));
+    dire(stZone.borderLeftColor === "rgb(191, 191, 191)" && stZone.borderLeftStyle === "solid",
+      `cadre des zones : couleur ${stZone.borderLeftColor}, style ${stZone.borderLeftStyle} (attendu rgb(191, 191, 191), solid)`);
+
+    const largeurFicheMm = flux2.querySelector(".dp-fiche").getBoundingClientRect().width / PX_PAR_MM;
+    dire(Math.abs(largeurFicheMm - 182.6) < 0.5,
+      `largeur de la fiche : ${largeurFicheMm.toFixed(1)} mm (attendu 182,6 mm)`);
 
     const r = document.getElementById("rapport");
     r.textContent = lignes.join("\n");

@@ -263,6 +263,66 @@
   line-height: 1.1;
 }
 
+/* --- Fiche d'exemple de pratique professionnelle -------------------------- */
+
+/* Le modèle donne 182,6 mm à cette fiche pour une zone utile de 167 mm : elle
+   déborde volontairement dans les marges, et c'est ce débordement qui lui donne
+   sa largeur caractéristique. */
+.dp-fiche { width: 182.6mm; margin-left: -0.6mm; }
+
+.dp-at { display: flex; align-items: flex-end; gap: 3mm; margin-bottom: 1mm; }
+.dp-at-num {
+  flex: 0 0 52mm;
+  text-align: right;
+  font-weight: 700;
+  font-size: 18pt;
+  color: var(--dp-magenta);
+}
+.dp-at-titre { flex: 1 1 auto; min-width: 0; font-weight: 700; font-size: 12pt; }
+
+.dp-ex-ligne {
+  display: flex;
+  align-items: baseline;
+  gap: 2mm;
+  padding: 2mm 0;
+  /* Double filet du modèle : un trait fin, un intervalle, un trait épais. */
+  border-bottom: 3pt double var(--dp-magenta);
+  margin-bottom: 5mm;
+}
+.dp-ex-num { flex: 0 0 52mm; text-align: right; font-weight: 700; font-style: italic; }
+.dp-ex-titre { flex: 1 1 auto; min-width: 0; }
+
+.dp-question {
+  font-weight: 700;
+  border-left: 3pt solid var(--dp-magenta);
+  border-bottom: 1pt solid var(--dp-magenta);
+  padding: 1mm 0 1mm 2.5mm;
+  margin-top: 5mm;
+}
+/* Zone de rédaction : cadre du modèle, hauteur nominale généreuse. Le moteur la
+   coupe entre deux lignes quand elle dépasse la feuille ; jamais de texte perdu. */
+.dp-doc .dp-zone {
+  box-sizing: border-box;
+  min-height: 30mm;
+  border: 1pt solid var(--dp-cadre);
+  border-top: none;
+  padding: 2mm;
+  white-space: pre-wrap;
+  /* Un mot sans espace plus long qu'une ligne, une adresse web par exemple,
+     déborderait du cadre de la zone : on force la coupure dans le mot. */
+  overflow-wrap: break-word;
+}
+.dp-doc .dp-zone.dp-zone-petite { min-height: 16mm; }
+
+/* Tableau de contexte de la question 4 */
+.dp-contexte { border: 1pt solid var(--dp-cadre); border-top: none; }
+.dp-contexte-ligne { display: flex; align-items: baseline; gap: 2mm; padding: 2mm; }
+.dp-contexte-ligne + .dp-contexte-ligne { border-top: 0.5pt solid var(--dp-filet); }
+.dp-contexte-label { flex: 0 0 70mm; }
+.dp-contexte-champ { flex: 1 1 auto; min-width: 0; }
+.dp-periode { display: flex; align-items: baseline; gap: 2mm; flex-wrap: wrap; }
+.dp-doc .dp-periode .lv-f { min-width: 28mm; }
+
 /* --- Le flux d'édition --------------------------------------------------- */
 
 /* En édition le document n'est pas découpé en feuilles : le candidat écrit dans

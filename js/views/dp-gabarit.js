@@ -172,8 +172,70 @@ function rubriqueIntercalaire() {
     { cle: "intercalaire", ouvrant: true });
 }
 
-// Provisoire, remplacé en tâches 5 et 6.
-function rubriqueExemple(at, n) { return bloc(`<p>Fiche ${at}.${n}</p>`, { cle: `exemple:${at}:${n}`, ouvrant: true }); }
+// Une fiche d'exemple. Ses zones de rédaction sont les seuls blocs sécables du
+// document : ce sont elles que le candidat remplit, et elles seules peuvent
+// dépasser la feuille.
+//
+// imprime : faux pour une fiche encore vide affichée en édition. Elle reste
+// saisissable, mais porte sa mention et son fond, et n'existe pas dans le flux
+// d'impression, construit sans elle.
+function rubriqueExemple(at, n, imprime) {
+  const k = (champ) => cleExemple(at, n, champ);
+  // La mention est TOUJOURS dans le DOM, simplement masquée quand la fiche
+  // compte : la vue bascule l'exclusion sans reconstruire le flux, ce qui est ce
+  // qui garantit que le curseur du candidat ne saute pas pendant la frappe.
+  const classe = imprime ? "" : "dp-bloc-exclu";
+  const mention = `<p class="dp-mention-exclu"${imprime ? " hidden" : ""}>Fiche encore vide : elle ne sera pas imprimée.</p>`;
+
+  const tete = bloc(`${mention}
+    <div class="dp-fiche">
+      <div class="dp-at">
+        <div class="dp-at-num">Activité-type ${at}</div>
+        <div class="dp-at-titre">${at === 1 ? AT1_TITRE : AT2_TITRE}</div>
+      </div>
+      <div class="dp-ex-ligne">
+        <span class="dp-ex-num">Exemple n°${n}</span><span class="dp-repere"></span>
+        <span class="lv-f dp-ex-titre" data-k="${k("titre")}" data-ph="${PH_TEXTE}"></span>
+      </div>
+    </div>`, { cle: `exemple:${at}:${n}`, ouvrant: true, classe });
+
+  const question = (texte, champ, petite) =>
+    bloc(`<div class="dp-fiche"><p class="dp-question">${texte}</p></div>`,
+      { cle: `exemple:${at}:${n}`, avecSuivant: true, classe })
+    // La zone est à la fois un bloc du flux et un champ : la classe lv-f est
+    // indispensable, collectData et fillData ne regardant que .lv-f[data-k].
+    + `<div class="dp-bloc dp-fiche lv-f dp-zone${petite ? " dp-zone-petite" : ""} ${classe}"`
+    + ` data-cle="exemple:${at}:${n}" data-nature="secable"`
+    + ` data-k="${k(champ)}" data-ph="${PH_TEXTE}"></div>`;
+
+  const contexte = bloc(`
+    <div class="dp-fiche">
+      <p class="dp-question">4. Contexte</p>
+      <div class="dp-contexte">
+        <div class="dp-contexte-ligne">
+          <span class="dp-contexte-label">Nom de l’entreprise, organisme ou association<span class="dp-repere"></span></span>
+          <span class="lv-f dp-contexte-champ" data-k="${k("entreprise")}" data-ph="${PH_TEXTE}"></span>
+        </div>
+        <div class="dp-contexte-ligne">
+          <span class="dp-contexte-label">Chantier, atelier, service<span class="dp-repere"></span></span>
+          <span class="lv-f dp-contexte-champ" data-k="${k("service")}" data-ph="${PH_TEXTE}"></span>
+        </div>
+        <div class="dp-contexte-ligne">
+          <span class="dp-contexte-label">Période d’exercice<span class="dp-repere"></span></span>
+          <span class="dp-periode">Du : ${f(k("du"), PH_DATE)} au : ${f(k("au"), PH_DATE)}</span>
+        </div>
+      </div>
+    </div>`, { cle: `exemple:${at}:${n}`, classe });
+
+  return tete
+    + question("1. Décrivez les tâches ou opérations que vous avez effectuées, et dans quelles conditions :", "taches", false)
+    + question("2. Précisez les moyens utilisés :", "moyens", false)
+    + question("3. Avec qui avez-vous travaillé ?", "avec_qui", true)
+    + contexte
+    + question("5. Informations complémentaires (facultatif)", "complement", true);
+}
+
+// Provisoire, remplacé en tâche 6.
 function rubriqueTitres() { return bloc(`<p>Titres</p>`, { cle: "titres", ouvrant: true }); }
 function rubriqueDeclaration() { return bloc(`<p>Déclaration</p>`, { cle: "declaration", ouvrant: true }); }
 

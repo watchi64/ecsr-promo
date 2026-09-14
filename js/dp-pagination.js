@@ -50,6 +50,11 @@ export function composer(blocs, { hote, fabriquerFeuille }) {
       corps.appendChild(aPlacer);
 
       if (!deborde()) {
+        // Même posé sans coupure, un bloc sécable n'est plus un champ : seul le
+        // flux d'édition porte les data-k, jamais le document composé. Sans cette
+        // ligne, une zone assez petite pour tenir sur une seule feuille gardait
+        // son data-k à vie dans la vue composée (consultation, impression).
+        if (aPlacer.dataset.nature === "secable") aPlacer.removeAttribute("data-k");
         // Un intitulé de question ne reste jamais seul en bas de feuille : sa
         // zone de réponse doit pouvoir commencer en dessous.
         if (aPlacer.dataset.avecSuivant === "1" && corps.childElementCount > 1
