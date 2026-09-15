@@ -7,7 +7,7 @@ session réelle sur la base de production, avec un vrai compte.
 Lancer l'aperçu local depuis le worktree :
 
 ```bash
-cd C:\Users\watch\Dev\ECSR\TP_ECSR_App-wt-dp-layout; .\dev.ps1
+cd C:\Users\watch\Dev\ECSR\TP_ECSR_App; .\dev.ps1
 ```
 
 ## À vérifier
