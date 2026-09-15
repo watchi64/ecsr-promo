@@ -47,6 +47,10 @@ page démarre ainsi réellement vers 49,7 mm du bord haut sur la couverture, log
 vers 33 mm sur les autres pages.
 
 La marge gauche de 23 mm vient d'une marge de 20 mm augmentée d'une gouttière de 3 mm.
+**Écart assumé, décidé le 2026-09-15 après le premier tirage papier** : cette gouttière est
+prévue pour une reliure, que le DP ne connaît pas, et elle faisait pencher de 3 mm toutes les
+pages sans bloc large. Les marges latérales sont donc ramenées à 21,5 mm des deux côtés. La
+zone de texte garde exactement sa largeur de 167 mm, elle est seulement recentrée.
 Plusieurs tableaux portent un retrait négatif et débordent volontairement dans les marges :
 la fiche d'exemple fait 182,6 mm de large pour une zone de texte de 167 mm. Ce débordement
 est reproduit, c'est lui qui donne au document sa largeur caractéristique.

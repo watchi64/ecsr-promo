@@ -2,13 +2,13 @@
  * Page d'accueil : version actualisée après les refontes (auth, calendrier, contacts).
  * Affichage personnalisé : salutation + prochains événements + raccourcis.
  */
-import { listAgendaEvents } from "../db.js?v=20260915c";
-import { el, clear, parseDate, formatDate, isoDate } from "../utils.js?v=20260915c";
-import { icon } from "../icons.js?v=20260915c";
-import { isAdmin, isProf, getProfile, getProfileWho } from "../auth-admin.js?v=20260915c";
-import { NOUVEAUTES } from "../nouveautes-data.js?v=20260915c";
-import { triees, visibles, nonLues, vuesEffectives, marquerVues } from "../nouveautes.js?v=20260915c";
-import { carteNouveaute } from "./nouveautes.js?v=20260915c";
+import { listAgendaEvents } from "../db.js?v=20260915d";
+import { el, clear, parseDate, formatDate, isoDate } from "../utils.js?v=20260915d";
+import { icon } from "../icons.js?v=20260915d";
+import { isAdmin, isProf, getProfile, getProfileWho } from "../auth-admin.js?v=20260915d";
+import { NOUVEAUTES } from "../nouveautes-data.js?v=20260915d";
+import { triees, visibles, nonLues, vuesEffectives, marquerVues } from "../nouveautes.js?v=20260915d";
+import { carteNouveaute } from "./nouveautes.js?v=20260915d";
 
 function greetingByHour() {
   const h = new Date().getHours();

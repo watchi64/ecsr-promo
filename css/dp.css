@@ -58,12 +58,17 @@
   background: #fff;
   display: flex;
   flex-direction: column;
-  /* Marges du modèle : 23 mm à gauche (20 mm plus 3 mm de gouttière), 20 mm à
-     droite, en-tête à 13 mm du bord, pied à 9 mm. La marge haute de 25 mm du
-     modèle Word est un plancher, pas une position fixe : l'en-tête la repousse
-     dès qu'il est plus haut que l'espace qui lui est alloué, comme dans Word.
-     Ici, le corps démarre donc réellement vers 33 mm du bord haut, pas à 25 mm. */
-  padding: 13mm 20mm 9mm 23mm;
+  /* Marges latérales : 21,5 mm des deux côtés, en-tête à 13 mm du bord, pied à
+     9 mm. Le modèle officiel met 20 mm à droite et 23 mm à gauche, soit 20 mm
+     plus 3 mm de gouttière de reliure. Écart assumé : le DP ne se relie pas, et
+     cette gouttière faisait pencher de 3 mm les pages sans bloc large, ce qui se
+     voit sur un tirage. La zone de texte garde exactement sa largeur de 167 mm,
+     elle est seulement recentrée.
+     La marge haute de 25 mm du modèle Word est un plancher, pas une position
+     fixe : l'en-tête la repousse dès qu'il est plus haut que l'espace qui lui est
+     alloué, comme dans Word. Ici, le corps démarre donc réellement vers 33 mm du
+     bord haut, pas à 25 mm. */
+  padding: 13mm 21.5mm 9mm 21.5mm;
   /* Meme raison que .dp-corps : les blocs larges du modele debordent dans les
      marges et ne doivent jamais etre coupes. Seule la mesure rogne. */
   overflow: visible;
@@ -158,17 +163,16 @@
    dans les marges, comme dans Word. Avec un simple margin:0 auto, un bloc trop
    large ne se centre pas : tout son debordement part a droite, et le document
    penche visiblement a l'impression.
-   On calcule donc la marge gauche pour le centrer sur la FEUILLE. Les marges du
-   corps ne sont pas symetriques (23 mm a gauche contre 20 mm a droite, c'est la
-   gouttiere du modele) : leur milieu est decale de 1,5 mm vers la droite, d'ou
-   la compensation. Chaque bloc declare sa largeur dans --dp-large. */
+   On calcule donc la marge gauche pour le centrer sur la FEUILLE. Les marges
+   laterales etant egales, le milieu du corps est celui de la feuille et le calcul
+   n'a rien a compenser. Chaque bloc declare sa largeur dans --dp-large. */
 .dp-titre-vise-bloc,
 .dp-presentation-bloc,
 .dp-titres-bloc,
 .dp-declaration-bloc,
 .dp-fiche {
   width: var(--dp-large);
-  margin-left: calc((100% - var(--dp-large)) / 2 - 1.5mm);
+  margin-left: calc((100% - var(--dp-large)) / 2);
   margin-right: 0;
 }
 
@@ -234,10 +238,6 @@
 .dp-identite-ligne.dp-identite-haute .dp-identite-champ { min-height: 11mm; }
 
 .dp-titre-vise-bloc { --dp-large: 170.1mm; margin-top: 18mm; }
-/* La couverture a des marges symetriques (25 mm des deux cotes) : la
-   compensation de 1,5 mm, faite pour la gouttiere des feuilles courantes, y
-   decalerait le bloc de 3 mm vers la gauche. */
-.dp-couverture .dp-titre-vise-bloc { margin-left: calc((100% - var(--dp-large)) / 2); }
 .dp-titre-vise {
   text-align: center;
   font-size: 16pt;
