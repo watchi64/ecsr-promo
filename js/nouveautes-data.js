@@ -13,6 +13,20 @@
 
 export const NOUVEAUTES = [
   {
+    id: "2026-09-15-dp-mise-en-page",
+    date: "2026-09-15",
+    pour: "tous",
+    titre: "Ton dossier professionnel a repris la mise en page officielle",
+    resume: "Le DP de l'app ressemble maintenant trait pour trait au document du "
+          + "ministère : bandeaux magenta, en-tête et pied de page officiels, cartouches "
+          + "d'activité-type. Surtout, quand un de tes textes dépasse la page, le document "
+          + "continue proprement sur la feuille suivante au lieu de tout décaler, et le "
+          + "sommaire annonce les bons numéros de page. Pendant que tu écris, un trait "
+          + "pointillé te montre où le document changera de feuille. Rien de ce que tu "
+          + "avais déjà saisi n'a bougé.",
+    ou: { label: "Mon suivi, Dossier pro", route: "mon-suivi" },
+  },
+  {
     id: "2026-08-26-cours-pour-tous",
     date: "2026-08-26",
     pour: "tous",

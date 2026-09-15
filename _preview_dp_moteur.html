@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<!-- Banc permanent du moteur de composition (non déployé, jamais lié depuis
+     l'app). Il n'utilise pas le gabarit du DP : des blocs de contrôle suffisent
+     à prouver la coupe. -->
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <title>Banc · moteur de composition DP</title>
+  <script>
+    window.__cssPrete = Promise.all(["css/livret.css", "css/dp.css"].map((f) => new Promise((ok) => {
+      const l = document.createElement("link");
+      l.rel = "stylesheet";
+      l.href = `${f}?cb=${Date.now()}`;
+      l.onload = l.onerror = ok;
+      document.head.appendChild(l);
+    })));
+  </script>
+  <style>
+    body { margin: 20px; background: #e8e8e4; font-family: sans-serif; }
+    #rapport { margin-bottom: 12px; font-size: 13px; white-space: pre-line; }
+    .ok { color: #2f6f3e; } .ko { color: #b00020; font-weight: 700; }
+  </style>
+</head>
+<body>
+  <div id="rapport">mesure en cours</div>
+  <div id="hote"></div>
+  <script type="module">
+    const cb = Date.now();
+    const { feuille } = await import(`./js/views/dp-gabarit.js?cb=${cb}`);
+    const { composer, PX_PAR_MM, HAUTEUR_MIN_MORCEAU } =
+      await import(`./js/dp-pagination.js?cb=${cb}`);
+    await window.__cssPrete;
+
+    // Un texte long et déterministe : 900 mots courts, largement plus qu'une feuille.
+    const MOTS = Array.from({ length: 900 }, (_, i) => `mot${i}`).join(" ");
+
+    const flux = document.createElement("div");
+    flux.className = "dp-doc dp-flux";
+    const { buildDpFlux } = await import(`./js/views/dp-gabarit.js?cb=${cb}`);
+    flux.innerHTML = buildDpFlux({}, { edition: false });
+    document.body.appendChild(flux);
+    flux.style.position = "absolute";
+    flux.style.left = "-20000px";
+    // buildDpFlux ne remplit aucune valeur (c'est le rôle de fillData) : on pose
+    // ici le texte de contrôle dans l'unique zone que ce flux vierge porte pour
+    // l'activité-type 1, exactement comme fillData le ferait pour un data-k donné.
+    flux.querySelector('[data-k="at1_ex1_taches"]').textContent = MOTS;
+
+    const hote = document.createElement("div");
+    hote.className = "dp-doc dp-screen";
+    document.getElementById("hote").appendChild(hote);
+
+    const blocs = [...flux.children].filter((n) => n.classList.contains("dp-bloc"));
+    const res = composer(blocs, {
+      hote,
+      fabriquerFeuille: (numero, couv) => {
+        const d = document.createElement("div");
+        d.innerHTML = feuille("", numero, couv);
+        return d.firstElementChild;
+      },
+    });
+
+    // --- Contrôles ---
+    const lignes = [];
+    const dire = (ok, texte) => lignes.push(`${ok ? "OK  " : "KO  "}${texte}`);
+
+    dire(res.feuilles >= 3, `feuilles produites : ${res.feuilles} (attendu au moins 3)`);
+
+    // Aucun texte perdu : la concaténation des morceaux doit rendre l'original.
+    // Le contrôle ne s'applique qu'à un flux portant des zones sécables ; les
+    // quatre premières rubriques du document n'en ont aucune, et les scénarios
+    // A et B plus bas gardent leur propre contrôle de texte.
+    const zonesComposees = [...hote.querySelectorAll(".dp-zone")];
+    if (zonesComposees.length) {
+      const morceaux = zonesComposees.map((n) => n.textContent).join("");
+      dire(morceaux.replace(/\s+/g, " ").trim() === MOTS,
+        `texte reconstitué identique à l'original (${morceaux.length} caractères contre ${MOTS.length})`);
+    } else {
+      lignes.push("--  texte reconstitué : sans objet, ce flux ne porte aucune zone sécable");
+    }
+
+    // Aucune feuille ne déborde de sa hauteur utile.
+    const debordent = [...hote.querySelectorAll(".dp-corps")]
+      .filter((c) => c.scrollHeight > c.clientHeight + 1).length;
+    dire(debordent === 0, `feuilles en débordement : ${debordent} (attendu 0)`);
+
+    // Numérotation continue dans les pieds de page.
+    const numeros = [...hote.querySelectorAll(".dp-pied")]
+      .map((p) => Number(p.innerText.match(/Page (\d+)/)[1]));
+    dire(numeros.every((n, i) => n === i + 1), `pieds numérotés ${numeros.join(", ")}`);
+
+    // Le document composé n'est jamais une source de données : AUCUN de ses
+    // éléments ne doit porter de clé, pas seulement les zones de rédaction. Un
+    // cartouche de fiche et un tableau de contexte portent aussi des champs.
+    const fuites = [...hote.querySelectorAll("[data-k]")].map((n) => n.dataset.k);
+    dire(fuites.length === 0,
+      `éléments composés portant encore une clé : ${fuites.length}`
+      + `${fuites.length ? " (" + fuites.slice(0, 5).join(", ") + ")" : ""} (attendu 0)`);
+
+    // Chaque rubrique ouvrante DÉMARRE une feuille : son premier bloc doit être
+    // le premier élément du corps de sa feuille. Comparer des numéros de feuille
+    // ne prouverait rien, une rubrique pouvant commencer au milieu d'une feuille
+    // sans que son numéro change.
+    const feuillesDom = [...hote.querySelectorAll(".dp-feuille")];
+    const malPlacees = [...res.numeroParCle.entries()]
+      .filter(([cle, numero]) => {
+        const c = feuillesDom[numero - 1] && feuillesDom[numero - 1].querySelector(".dp-corps");
+        return !c || !c.firstElementChild || c.firstElementChild.dataset.cle !== cle;
+      })
+      .map(([cle]) => cle);
+    dire(malPlacees.length === 0,
+      `rubriques démarrant une feuille neuve : ${malPlacees.length === 0
+        ? res.numeroParCle.size + " sur " + res.numeroParCle.size
+        : "échec pour " + malPlacees.join(", ")}`);
+
+    // --- Scénario A : bloc insécable plus haut qu'une feuille ---
+    // Un seul bloc atomique, dont le texte dépasse largement une feuille : le
+    // moteur doit le garder intact et lever la coupe plutôt que perdre du texte.
+    // C'est le garde-fou qui pose la classe dp-corps-deborde sur un corps de
+    // feuille dont le premier bloc dépasse à lui seul la hauteur utile.
+    const texteBlocHautA = Array.from({ length: 200 },
+      (_, i) => `Paragraphe ${i} du bloc insécable, volontairement long pour dépasser une feuille entière.`).join(" ");
+    const fluxA = document.createElement("div");
+    fluxA.className = "dp-doc dp-flux";
+    fluxA.innerHTML = `
+      <div class="dp-bloc" data-cle="haut" data-ouvrant="1" data-nature="atomique">
+        <p><b>Bloc insécable</b></p>
+        <p class="dp-texte-haut">${texteBlocHautA}</p>
+      </div>`;
+    document.body.appendChild(fluxA);
+    fluxA.style.position = "absolute";
+    fluxA.style.left = "-20000px";
+
+    const hoteA = document.createElement("div");
+    hoteA.className = "dp-doc dp-screen";
+    hoteA.style.position = "absolute";
+    hoteA.style.left = "-20000px";
+    document.body.appendChild(hoteA);
+
+    const blocsA = [...fluxA.children].filter((n) => n.classList.contains("dp-bloc"));
+    const resA = composer(blocsA, {
+      hote: hoteA,
+      fabriquerFeuille: (numero, couv) => {
+        const d = document.createElement("div");
+        d.innerHTML = feuille("", numero, couv);
+        return d.firstElementChild;
+      },
+    });
+
+    const texteComposeA = [...hoteA.querySelectorAll(".dp-texte-haut")].map((n) => n.textContent).join("");
+    dire(texteComposeA === texteBlocHautA,
+      `scénario A : texte du bloc insécable intégralement présent (${texteComposeA.length} caractères contre ${texteBlocHautA.length})`);
+
+    const corpsDebordeA = hoteA.querySelectorAll(".dp-corps.dp-corps-deborde").length;
+    dire(resA.feuilles === 1 && corpsDebordeA === 1,
+      `scénario A : feuille unique marquée dp-corps-deborde (feuilles=${resA.feuilles}, débordantes=${corpsDebordeA})`);
+
+    // --- Scénario B : intitulé orphelin ---
+    // On mesure d'abord, sur une feuille neuve, la hauteur d'une ligne de
+    // remplissage et celle de l'intitulé : ça permet de calculer, sans nombre
+    // de lignes codé en dur (fragile, propre au rendu d'une machine), combien
+    // de lignes poser avant l'intitulé pour ne laisser que quelques
+    // millimètres en bas de feuille, sous le seuil HAUTEUR_MIN_MORCEAU (10 mm).
+    const hoteMesureB = document.createElement("div");
+    hoteMesureB.className = "dp-doc dp-screen";
+    hoteMesureB.style.position = "absolute";
+    hoteMesureB.style.left = "-20000px";
+    document.body.appendChild(hoteMesureB);
+
+    const feuilleMesureB = (() => {
+      const d = document.createElement("div");
+      d.innerHTML = feuille("", 1, false);
+      return d.firstElementChild;
+    })();
+    hoteMesureB.appendChild(feuilleMesureB);
+    const corpsMesureB = feuilleMesureB.querySelector(".dp-corps");
+    const hUtileB = corpsMesureB.clientHeight;
+
+    const ligneProbeB = document.createElement("div");
+    ligneProbeB.className = "dp-bloc";
+    ligneProbeB.textContent = "Ligne de remplissage 0, juste assez pour occuper une ligne pleine.";
+    corpsMesureB.appendChild(ligneProbeB);
+    const hauteurLigneB = ligneProbeB.getBoundingClientRect().height;
+    corpsMesureB.removeChild(ligneProbeB);
+
+    const intituleProbeB = document.createElement("div");
+    intituleProbeB.className = "dp-bloc";
+    intituleProbeB.innerHTML = "<p><b>Question orpheline</b></p>";
+    corpsMesureB.appendChild(intituleProbeB);
+    const hauteurIntituleB = intituleProbeB.getBoundingClientRect().height;
+    document.body.removeChild(hoteMesureB);
+
+    // Une feuille neuve tient environ ce nombre de lignes de remplissage ; on
+    // s'arrête deux lignes avant le bas : assez de place pour que l'intitulé
+    // tienne encore, mais moins de 10 mm une fois l'intitulé posé.
+    const lignesParFeuilleB = Math.floor(hUtileB / hauteurLigneB);
+    const nLignesRemplissageB = Math.max(1, lignesParFeuilleB - 2);
+
+    let htmlB = "";
+    for (let i = 0; i < nLignesRemplissageB; i += 1) {
+      htmlB += `<div class="dp-bloc" data-cle="orphelin" data-nature="secable"${i === 0 ? ' data-ouvrant="1"' : ""}>Ligne de remplissage ${i}, juste assez pour occuper une ligne pleine.</div>`;
+    }
+    htmlB += `<div class="dp-bloc" data-cle="orphelin" data-nature="atomique" data-avec-suivant="1"><p><b>Question orpheline</b></p></div>`;
+    htmlB += `<div class="dp-bloc dp-zone" data-cle="orphelin" data-nature="secable"></div>`;
+
+    const fluxB = document.createElement("div");
+    fluxB.className = "dp-doc dp-flux";
+    fluxB.innerHTML = htmlB;
+    fluxB.querySelector(".dp-zone").textContent =
+      Array.from({ length: 300 }, (_, i) => `reponse${i}`).join(" ");
+    document.body.appendChild(fluxB);
+    fluxB.style.position = "absolute";
+    fluxB.style.left = "-20000px";
+
+    const hoteB = document.createElement("div");
+    hoteB.className = "dp-doc dp-screen";
+    hoteB.style.position = "absolute";
+    hoteB.style.left = "-20000px";
+    document.body.appendChild(hoteB);
+
+    const blocsB = [...fluxB.children].filter((n) => n.classList.contains("dp-bloc"));
+    const indexIntituleB = blocsB.findIndex((b) => b.dataset.avecSuivant === "1");
+    const resB = composer(blocsB, {
+      hote: hoteB,
+      fabriquerFeuille: (numero, couv) => {
+        const d = document.createElement("div");
+        d.innerHTML = feuille("", numero, couv);
+        return d.firstElementChild;
+      },
+    });
+
+    // La garde promet qu'une zone de réponse peut COMMENCER sous son intitulé
+    // avec au moins HAUTEUR_MIN_MORCEAU de hauteur. Comparer les numéros de
+    // feuille de l'intitulé et de sa zone ne prouverait rien : sans la garde, un
+    // fragment de quelques mots s'accroche encore sous l'intitulé et les deux
+    // numéros restent égaux. On mesure donc ce qui est réellement posé.
+    const feuilleIntituleB = resB.numeroParBloc[indexIntituleB];
+    const feuillesB = [...hoteB.querySelectorAll(".dp-feuille")];
+    const corpsIntituleB = feuillesB[feuilleIntituleB - 1]
+      && feuillesB[feuilleIntituleB - 1].querySelector(".dp-corps");
+    const intituleComposeB = corpsIntituleB && corpsIntituleB.querySelector('[data-avec-suivant="1"]');
+    const suivantB = intituleComposeB && intituleComposeB.nextElementSibling;
+    const hauteurZoneB = suivantB && suivantB.classList.contains("dp-zone")
+      ? suivantB.getBoundingClientRect().height : 0;
+    dire(hauteurZoneB >= HAUTEUR_MIN_MORCEAU,
+      `scénario B : ${(hauteurZoneB / PX_PAR_MM).toFixed(1)} mm de zone posés sous l'intitulé `
+      + `de la feuille ${feuilleIntituleB} (seuil ${(HAUTEUR_MIN_MORCEAU / PX_PAR_MM).toFixed(1)} mm)`);
+
+    // Une fiche remplie d'un texte plus long qu'une feuille doit se répartir
+    // sans rien perdre, comme le fait Word.
+    const LONG = Array.from({ length: 700 }, (_, i) => `mot${i}`).join(" ");
+    const flux2 = document.createElement("div");
+    flux2.className = "dp-doc dp-flux";
+    flux2.style.cssText = "position:absolute;left:-20000px";
+    flux2.innerHTML = buildDpFlux({ at1_ex1_taches: LONG }, { edition: false });
+    document.body.appendChild(flux2);
+    flux2.querySelector('[data-k="at1_ex1_taches"]').textContent = LONG;
+    const hote2 = document.createElement("div");
+    hote2.className = "dp-doc";
+    hote2.style.cssText = "position:absolute;left:-20000px";
+    document.body.appendChild(hote2);
+    const res2 = composer([...flux2.children].filter((n) => n.classList.contains("dp-bloc")), {
+      hote: hote2,
+      fabriquerFeuille: (numero, couv) => {
+        const d = document.createElement("div");
+        d.innerHTML = feuille("", numero, couv);
+        return d.firstElementChild;
+      },
+    });
+    const recompose = [...hote2.querySelectorAll(".dp-zone")]
+      .map((n) => n.textContent).join("").replace(/\s+/g, " ").trim();
+    dire(recompose === LONG,
+      `fiche longue : texte recomposé identique à l'original sur ${res2.feuilles} feuilles `
+      + `(${recompose.length} caractères contre ${LONG.length})`);
+    const debordent2 = [...hote2.querySelectorAll(".dp-corps")]
+      .filter((c) => c.scrollHeight > c.clientHeight + 1).length;
+    dire(debordent2 === 0, `fiche longue : feuilles en débordement ${debordent2} (attendu 0)`);
+
+    // Habillage de la fiche d'exemple : mesures JavaScript plutôt qu'un contrôle
+    // à l'œil, sur la première fiche du flux 2 (at1_ex1).
+    const stAtNum = getComputedStyle(flux2.querySelector(".dp-at-num"));
+    dire(stAtNum.color === "rgb(214, 0, 147)" && stAtNum.fontWeight === "700",
+      `cartouche activité-type : couleur ${stAtNum.color}, graisse ${stAtNum.fontWeight}, taille ${stAtNum.fontSize} (attendu rgb(214, 0, 147), 700, 24px pour 18pt)`);
+
+    const stExLigne = getComputedStyle(flux2.querySelector(".dp-ex-ligne"));
+    dire(stExLigne.borderBottomStyle === "double" && stExLigne.borderBottomColor === "rgb(214, 0, 147)",
+      `ligne Exemple : filet ${stExLigne.borderBottomStyle} ${stExLigne.borderBottomColor}, épaisseur ${stExLigne.borderBottomWidth} (attendu double, rgb(214, 0, 147))`);
+
+    const stQuestion = getComputedStyle(flux2.querySelector(".dp-question"));
+    dire(stQuestion.borderLeftColor === "rgb(214, 0, 147)" && stQuestion.borderLeftWidth === "4px",
+      `barre des questions : couleur ${stQuestion.borderLeftColor}, épaisseur ${stQuestion.borderLeftWidth} (attendu rgb(214, 0, 147), 4px pour 3pt)`);
+
+    const stZone = getComputedStyle(flux2.querySelector(".dp-zone"));
+    dire(stZone.borderLeftColor === "rgb(191, 191, 191)" && stZone.borderLeftStyle === "solid",
+      `cadre des zones : couleur ${stZone.borderLeftColor}, style ${stZone.borderLeftStyle} (attendu rgb(191, 191, 191), solid)`);
+
+    const largeurFicheMm = flux2.querySelector(".dp-fiche").getBoundingClientRect().width / PX_PAR_MM;
+    // 179,6 mm depuis 34a955d (8 mm de blanc a droite au lieu de 5, cf. le
+    // commentaire de .dp-fiche dans css/dp.css) : ce banc verifiait encore
+    // l'ancienne largeur de 182,6 mm, jamais mise a jour apres coup.
+    dire(Math.abs(largeurFicheMm - 179.6) < 0.5,
+      `largeur de la fiche : ${largeurFicheMm.toFixed(1)} mm (attendu 179,6 mm)`);
+
+    // --- Tâche 6 : titres et diplômes, déclaration sur l'honneur ---
+    // Le dossier vierge : un flux dédié, sans aucun champ rempli (hote/res plus
+    // haut portent le texte de stress-test MOTS dans une zone, ce n'est pas un
+    // dossier vierge). Doit composer exactement une feuille par rubrique.
+    const fluxVierge = document.createElement("div");
+    fluxVierge.className = "dp-doc dp-flux";
+    fluxVierge.style.cssText = "position:absolute;left:-20000px";
+    fluxVierge.innerHTML = buildDpFlux({}, { edition: false });
+    document.body.appendChild(fluxVierge);
+    const hoteVierge = document.createElement("div");
+    hoteVierge.className = "dp-doc";
+    hoteVierge.style.cssText = "position:absolute;left:-20000px";
+    document.body.appendChild(hoteVierge);
+    const resVierge = composer(
+      [...fluxVierge.children].filter((n) => n.classList.contains("dp-bloc")),
+      {
+        hote: hoteVierge,
+        fabriquerFeuille: (numero, couv) => {
+          const d = document.createElement("div");
+          d.innerHTML = feuille("", numero, couv);
+          return d.firstElementChild;
+        },
+      },
+    );
+
+    const ordre = [...hoteVierge.querySelectorAll(".dp-feuille")].map((f) =>
+      f.querySelector(".dp-bandeau, .dp-sommaire-titre, .dp-intercalaire, .dp-at-num, .dp-identite-label")
+        ?.textContent.trim().slice(0, 28) || "(suite)");
+    dire(resVierge.feuilles === 8, `dossier vierge : ${resVierge.feuilles} feuilles (attendu 8)`);
+    lignes.push("   ordre : " + ordre.join(" | "));
+
+    // Mesures du tableau des titres et de la déclaration, à la place d'un
+    // contrôle à l'œil.
+    const thTitres = [...hoteVierge.querySelectorAll(".dp-tbl-titres th")];
+    // getBoundingClientRect() donnerait la boîte de bordure (avec le padding
+    // de l'en-tête) : c'est la largeur CSS déclarée (boîte de contenu, box-sizing
+    // par défaut) qui doit correspondre aux mesures du modèle.
+    const largeursMm = thTitres.map((th) => parseFloat(getComputedStyle(th).width) / PX_PAR_MM);
+    dire(thTitres.length === 3
+        && Math.abs(largeursMm[0] - 40.0) < 0.5
+        && Math.abs(largeursMm[1] - 85.1) < 0.5
+        && Math.abs(largeursMm[2] - 47.5) < 0.5,
+      `tableau des titres : largeurs des colonnes ${largeursMm.map((m) => m.toFixed(1)).join(" / ")} mm `
+      + `(attendu 40.0 / 85.1 / 47.5)`);
+
+    const stThTitres = thTitres[0] ? getComputedStyle(thTitres[0]) : null;
+    dire(!!stThTitres && stThTitres.backgroundColor === "rgb(242, 242, 242)",
+      `tableau des titres : fond de l'en-tête ${stThTitres ? stThTitres.backgroundColor : "absent"} `
+      + `(attendu rgb(242, 242, 242))`);
+
+    const nbLignesTitres = hoteVierge.querySelectorAll(".dp-tbl-titres tr").length - 1;
+    dire(nbLignesTitres === 10, `tableau des titres : ${nbLignesTitres} lignes de saisie (attendu 10)`);
+
+    const corpsDeclaration = hoteVierge.querySelector(".dp-declaration-corps");
+    const stCorpsDeclaration = corpsDeclaration ? getComputedStyle(corpsDeclaration) : null;
+    const ratioInterligne = stCorpsDeclaration
+      ? parseFloat(stCorpsDeclaration.lineHeight) / parseFloat(stCorpsDeclaration.fontSize) : 0;
+    dire(Math.abs(ratioInterligne - 2) < 0.05,
+      `déclaration : interligne ${stCorpsDeclaration ? stCorpsDeclaration.lineHeight : "absent"} `
+      + `pour une taille de ${stCorpsDeclaration ? stCorpsDeclaration.fontSize : "?"} `
+      + `(rapport ${ratioInterligne.toFixed(2)}, attendu 2)`);
+
+    const r = document.getElementById("rapport");
+    r.textContent = lignes.join("\n");
+    r.className = lignes.some((l) => l.startsWith("KO")) ? "ko" : "ok";
+  </script>
+</body>
+</html>

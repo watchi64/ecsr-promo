@@ -3,8 +3,10 @@
      Fait tourner le vrai js/views/dp.js dans les deux rôles, sans
      authentification et sans toucher la base de production : l'import map
      ci-dessous substitue des modules factices à js/db.js et js/auth-admin.js.
-     Tout le reste (dp.js, dp-gabarit.js, dp-rules.js, doc-officiel.js, utils.js,
-     identity.js) est le code réel.
+     Tout le reste (dp.js, dp-gabarit.js, dp-rules.js, dp-pagination.js,
+     doc-officiel.js, utils.js, identity.js) est le code réel : la vue compose
+     réellement le document en feuilles pour la consultation et l'impression, et
+     affiche un flux continu avec traits de coupe en édition.
 
      Rôles : ?role=stagiaire (défaut) ou ?role=formateur -->
 <html lang="fr">
@@ -29,8 +31,8 @@
   <script type="importmap">
   {
     "imports": {
-      "/js/db.js?v=20260729d": "/_preview_stubs/db.js",
-      "/js/auth-admin.js?v=20260729d": "/_preview_stubs/auth-admin.js"
+      "/js/db.js?v=20260826d": "/_preview_stubs/db.js",
+      "/js/auth-admin.js?v=20260826d": "/_preview_stubs/auth-admin.js"
     }
   }
   </script>
@@ -54,7 +56,7 @@
     // ?v= ne bouge pas (le re-versionnage ne se fait que sur main), donc le
     // navigateur resservirait indéfiniment la version en cache de dp.js. Un banc
     // doit toujours exercer le code du disque.
-    const { renderDp } = await import("./js/views/dp.js?v=20260729d&cb=" + Date.now());
+    const { renderDp } = await import("./js/views/dp.js?v=20260826d&cb=" + Date.now());
     await window.__cssPrete;   // styles appliqués avant toute mesure
 
     const view = document.getElementById("view");
@@ -66,10 +68,14 @@
       ...(cible ? { stagiaireId: Number(cible) } : {}),
     });
 
-    // Résumé exposé pour la vérification automatisée.
+    // Résumé exposé pour la vérification automatisée. Le document affiché est
+    // soit le flux d'édition continu (.dp-flux, data-k conservés), soit le
+    // document composé en feuilles (data-k retirés par le moteur de
+    // composition, voir js/dp-pagination.js).
     window.__vue = () => {
       const doc = view.querySelector(".dp-doc");
       const liste = view.querySelector(".lv-liste-table");
+      const flux = doc ? doc.querySelector(".dp-flux") : null;
       return {
         role: new URLSearchParams(location.search).get("role") || "stagiaire",
         listeAffichee: !!liste,
@@ -77,9 +83,12 @@
         boutonsConsulter: [...view.querySelectorAll("button")].map((b) => b.textContent.trim()),
         documentAffiche: !!doc,
         enEdition: doc ? doc.classList.contains("dp-edit") : null,
-        pagesAffichees: doc ? doc.querySelectorAll(".dp-page").length : 0,
-        pagesExclues: doc ? doc.querySelectorAll(".dp-page-exclue").length : 0,
+        fluxAffiche: !!flux,
+        feuillesComposees: doc ? doc.querySelectorAll(".dp-feuille").length : 0,
         champsEditables: doc ? doc.querySelectorAll("[contenteditable]").length : 0,
+        coupures: flux ? flux.querySelectorAll(".dp-coupure").length : 0,
+        fichesExclues: flux ? flux.querySelectorAll(".dp-bloc-exclu").length : 0,
+        lignesSommaire: doc ? doc.querySelectorAll(".dp-sommaire-ligne").length : 0,
         statut: view.querySelector(".lv-status")?.textContent || null,
         consigne: view.querySelector(".lv-hint")?.textContent.trim().slice(0, 60) || null,
         preRemplissage: doc ? {
@@ -88,6 +97,9 @@
           dh_nom: doc.querySelector('[data-k="dh_nom"]')?.textContent,
           modaliteCochee: doc.querySelector('[data-k="modalite_formation"]')?.classList.contains("on"),
         } : null,
+        // Compteur d'enregistrements exposé par le stub js/db.js : sert à
+        // contrôler que N frappes déclenchent N enregistrements, pas N².
+        upserts: window.__db ? window.__db.upserts : null,
       };
     };
     document.getElementById("report").textContent = JSON.stringify(window.__vue());
