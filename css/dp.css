@@ -37,7 +37,16 @@
 
 .dp-doc p { margin: 0; }
 .dp-doc table { border-collapse: collapse; table-layout: fixed; width: 100%; }
-.dp-doc td, .dp-doc th { vertical-align: top; padding: 1.2mm 1.6mm; word-wrap: break-word; }
+/* box-sizing: border-box est indispensable ici : sans lui, le remplissage des
+   cellules s'AJOUTE a la largeur des colonnes, et le tableau des titres, dont
+   les trois colonnes somment a 172,6 mm, s'elargissait a 185,6 mm. Il finissait
+   alors a 1,4 mm du bord de la feuille, sous la zone imprimable. */
+.dp-doc td, .dp-doc th {
+  box-sizing: border-box;
+  vertical-align: top;
+  padding: 1.2mm 1.6mm;
+  word-wrap: break-word;
+}
 
 /* --- La feuille ---------------------------------------------------------- */
 
@@ -55,26 +64,39 @@
      dès qu'il est plus haut que l'espace qui lui est alloué, comme dans Word.
      Ici, le corps démarre donc réellement vers 33 mm du bord haut, pas à 25 mm. */
   padding: 13mm 20mm 9mm 23mm;
-  overflow: hidden;
+  /* Meme raison que .dp-corps : les blocs larges du modele debordent dans les
+     marges et ne doivent jamais etre coupes. Seule la mesure rogne. */
+  overflow: visible;
 }
 /* La couverture a ses propres marges : 25 mm à gauche et à droite, en-tête à 10 mm
    du bord, pied à 9 mm. Le même plancher joue ici, en plus marqué : le logo
    du ministère, haut de 35,7 mm, repousse le corps jusque vers 49,7 mm. */
 .dp-feuille.dp-couverture { padding: 10mm 25mm 9mm 25mm; }
 
+.dp-mesure .dp-feuille { overflow: hidden; }
 .dp-screen .dp-feuille { box-shadow: 0 2px 14px rgba(0, 0, 0, 0.18); margin: 0 0 8mm; }
 
 /* Le corps occupe toute la place entre l'en-tête et le pied. C'est lui que le
    moteur de composition mesure : sa hauteur est fixe, son scrollHeight dit si le
    contenu déborde. */
-.dp-corps { flex: 1 1 auto; min-height: 0; overflow: hidden; }
-/* Garde-fou : posée par le moteur quand un bloc insécable dépasse à lui seul la
-   hauteur d'une feuille. Mieux vaut un débordement visible qu'un texte rogné.
-   Le corps seul ne suffit pas : .dp-feuille porte overflow:hidden et rognerait
-   quand même le débordement. Le moteur pose donc AUSSI .dp-feuille-deborde sur
-   la feuille concernée (js/dp-pagination.js) ; les autres feuilles gardent leur
-   coupe normale, ce sélecteur ne visant que celle-là. */
-.dp-corps.dp-corps-deborde { overflow: visible; }
+/* Le corps ne rogne RIEN au rendu final. C'est capital : plusieurs blocs du
+   modele officiel sont volontairement plus larges que la zone de texte (la
+   fiche d'exemple fait 179,6 mm pour 167 mm utiles) et debordent dans les
+   marges, exactement comme dans Word. Un overflow:hidden permanent les coupait
+   a droite en plein mot, aussi bien a l'ecran qu'a l'impression, sans que la
+   moindre mesure de rectangle puisse le voir : getBoundingClientRect rend la
+   geometrie reelle, pas ce qui est peint.
+
+   Le rognage sert uniquement au MOTEUR, qui compare scrollHeight a clientHeight
+   pour savoir si une feuille deborde : il pose .dp-mesure sur son hote le temps
+   de composer, puis la retire. Masquer ne deplace rien, la mesure verticale est
+   donc identique dans les deux etats. */
+.dp-corps { flex: 1 1 auto; min-height: 0; overflow: visible; }
+.dp-mesure .dp-corps { overflow: hidden; }
+/* Posees par le moteur quand un bloc insecable depasse a lui seul la hauteur
+   d'une feuille. Elles levent le rognage aux deux niveaux, y compris PENDANT la
+   mesure : mieux vaut une feuille trop pleine qu'un texte perdu. */
+.dp-mesure .dp-corps.dp-corps-deborde { overflow: visible; }
 .dp-feuille.dp-feuille-deborde { overflow: visible; }
 
 /* --- En-tête ------------------------------------------------------------- */

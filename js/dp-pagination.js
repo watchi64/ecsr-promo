@@ -27,6 +27,10 @@ function sansCles(el) {
 // rubrique (clé data-cle), dont le sommaire a besoin.
 export function composer(blocs, { hote, fabriquerFeuille }) {
   hote.textContent = "";
+  // Le rognage des feuilles n'existe que le temps de la composition : c'est lui
+  // qui rend scrollHeight parlant. Retire a la fin, sinon il couperait a droite
+  // les blocs que le modele officiel fait deborder dans les marges.
+  hote.classList.add("dp-mesure");
   const numeroParBloc = [];
   const numeroParCle = new Map();
   let numero = 0;
@@ -119,6 +123,7 @@ export function composer(blocs, { hote, fabriquerFeuille }) {
     }
   });
 
+  hote.classList.remove("dp-mesure");
   return { feuilles: numero, numeroParBloc, numeroParCle };
 }
 

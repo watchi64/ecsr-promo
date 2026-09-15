@@ -164,6 +164,50 @@
       dire(sommaireExact, "sommaire concordant avec la page réelle (contrôle indépendant de numeroParCle)");
       detailsExact.forEach((d) => l.push("   " + d));
 
+      // Aucun texte ROGNE. Controle ne des le premier tirage papier : plusieurs
+      // blocs du modele officiel sont plus larges que la zone de texte et
+      // debordent dans les marges. Tant que le corps d'une feuille portait
+      // overflow:hidden, ils etaient coupes a droite en plein mot, a l'ecran
+      // comme a l'impression. Aucune mesure de rectangle ne pouvait le voir :
+      // getBoundingClientRect rend la geometrie, pas ce qui est peint. On
+      // compare donc chaque element a sa boite de rognage effective, c'est a
+      // dire au premier ancetre dont overflow n'est pas visible.
+      const boiteDeRognage = (el) => {
+        let n = el.parentElement;
+        while (n) {
+          if (getComputedStyle(n).overflowX !== "visible") return n;
+          n = n.parentElement;
+        }
+        return null;
+      };
+      const rognes = [];
+      for (const el of doc.querySelectorAll(".dp-feuille *")) {
+        const b = el.getBoundingClientRect();
+        if (!b.width || el.children.length) continue;
+        const clip = boiteDeRognage(el);
+        if (!clip) continue;
+        const c = clip.getBoundingClientRect();
+        if (b.right > c.right + 0.5 || b.left < c.left - 0.5) {
+          rognes.push((el.textContent || "").trim().slice(0, 30));
+        }
+      }
+      dire(rognes.length === 0,
+        `elements coupes par un rognage : ${rognes.length}`
+        + `${rognes.length ? " (" + rognes.slice(0, 3).join(" / ") + ")" : ""}`);
+
+      // Aucun element ne sort de la feuille non plus : sous 5 mm du bord, une
+      // imprimante de bureau rogne.
+      let margeMini = 999;
+      for (const f of doc.querySelectorAll(".dp-feuille")) {
+        const bf = f.getBoundingClientRect();
+        for (const el of f.querySelectorAll("*")) {
+          const b = el.getBoundingClientRect();
+          if (!b.width) continue;
+          margeMini = Math.min(margeMini, (bf.right - b.right) / (96 / 25.4), (b.left - bf.left) / (96 / 25.4));
+        }
+      }
+      dire(margeMini >= 6, `marge la plus etroite du document : ${margeMini.toFixed(1)} mm (seuil 6 mm)`);
+
       // Aucun texte perdu : chaque champ rempli se retrouve dans le document.
       const texte = doc.textContent.replace(/\s+/g, " ");
       const perdus = Object.entries(data)

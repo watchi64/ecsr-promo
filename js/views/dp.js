@@ -6,15 +6,15 @@
 // candidat n'aurait aucun champ où saisir son 2e ou 3e exemple ; les vides
 // portent .dp-bloc-exclu et ne s'impriment pas (voir dp-gabarit.js).
 
-import { listStagiaires, listDpDossiers, getDpDossier, upsertDpDossier } from "../db.js?v=20260915a";
-import { el, clear, displayStagiaire, compareByNom, formatDate, toast } from "../utils.js?v=20260915a";
-import { isAdmin, isProf, getProfile } from "../auth-admin.js?v=20260915a";
-import { getCurrentWho } from "../identity.js?v=20260915a";
+import { listStagiaires, listDpDossiers, getDpDossier, upsertDpDossier } from "../db.js?v=20260915b";
+import { el, clear, displayStagiaire, compareByNom, formatDate, toast } from "../utils.js?v=20260915b";
+import { isAdmin, isProf, getProfile } from "../auth-admin.js?v=20260915b";
+import { getCurrentWho } from "../identity.js?v=20260915b";
 import { collectData, fillData, applyEditable, wireDocEditing,
-         bindDocPrint, refreshDocPrint, teardownDocPrint } from "../doc-officiel.js?v=20260915a";
-import { buildDpFlux, blocSommaire, feuille } from "./dp-gabarit.js?v=20260915a";
-import { exempleImprime } from "../dp-rules.js?v=20260915a";
-import { composer, marquerCoupures } from "../dp-pagination.js?v=20260915a";
+         bindDocPrint, refreshDocPrint, teardownDocPrint } from "../doc-officiel.js?v=20260915b";
+import { buildDpFlux, blocSommaire, feuille } from "./dp-gabarit.js?v=20260915b";
+import { exempleImprime } from "../dp-rules.js?v=20260915b";
+import { composer, marquerCoupures } from "../dp-pagination.js?v=20260915b";
 
 let stagiaires = [];
 let dossiersIndex = [];

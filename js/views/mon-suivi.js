@@ -1,14 +1,14 @@
 import { listStagiaires, listEvaluations, getPlanning, getHalfMetaForWeek, getJoursOff, getSetting,
          listProfs, listEpcf, getEpcfMoyennes, listThemes,
-         getStagiaire, setDateNaissance, listPassages } from "../db.js?v=20260915a";
-import { el, clear, isoDate, getMonday, addDays, formatDate, displayStagiaire, compareByNom, toast } from "../utils.js?v=20260915a";
-import { HALF_DAYS, RESULTATS } from "../config.js?v=20260915a";
-import { isAdmin, isProf, getProfile } from "../auth-admin.js?v=20260915a";
-import { renderEpcfTrameSection } from "../epcf-restitution.js?v=20260915a";
-import { renderSubTabs } from "../subtabs.js?v=20260915a";
-import { renderDp } from "./dp.js?v=20260915a";
-import { rolesPourEntry, ROLE_ORDER } from "../creneaux-rules.js?v=20260915a";
-import { statsPassages } from "../passages-stats.js?v=20260915a";
+         getStagiaire, setDateNaissance, listPassages } from "../db.js?v=20260915b";
+import { el, clear, isoDate, getMonday, addDays, formatDate, displayStagiaire, compareByNom, toast } from "../utils.js?v=20260915b";
+import { HALF_DAYS, RESULTATS } from "../config.js?v=20260915b";
+import { isAdmin, isProf, getProfile } from "../auth-admin.js?v=20260915b";
+import { renderEpcfTrameSection } from "../epcf-restitution.js?v=20260915b";
+import { renderSubTabs } from "../subtabs.js?v=20260915b";
+import { renderDp } from "./dp.js?v=20260915b";
+import { rolesPourEntry, ROLE_ORDER } from "../creneaux-rules.js?v=20260915b";
+import { statsPassages } from "../passages-stats.js?v=20260915b";
 
 const HALF_ORDER = { matin: 0, aprem: 1 };
 
