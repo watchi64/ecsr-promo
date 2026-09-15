@@ -153,6 +153,25 @@
 
 .dp-bloc { position: relative; }
 
+/* Blocs plus larges que la zone de texte.
+   Plusieurs blocs du modele officiel depassent les 167 mm utiles et debordent
+   dans les marges, comme dans Word. Avec un simple margin:0 auto, un bloc trop
+   large ne se centre pas : tout son debordement part a droite, et le document
+   penche visiblement a l'impression.
+   On calcule donc la marge gauche pour le centrer sur la FEUILLE. Les marges du
+   corps ne sont pas symetriques (23 mm a gauche contre 20 mm a droite, c'est la
+   gouttiere du modele) : leur milieu est decale de 1,5 mm vers la droite, d'ou
+   la compensation. Chaque bloc declare sa largeur dans --dp-large. */
+.dp-titre-vise-bloc,
+.dp-presentation-bloc,
+.dp-titres-bloc,
+.dp-declaration-bloc,
+.dp-fiche {
+  width: var(--dp-large);
+  margin-left: calc((100% - var(--dp-large)) / 2 - 1.5mm);
+  margin-right: 0;
+}
+
 /* Bandeau de rubrique : barre magenta pleine, titre blanc, filet dessous. */
 .dp-bandeau {
   background: var(--dp-magenta);
@@ -214,7 +233,11 @@
 .dp-identite-ligne.dp-identite-haute { align-items: stretch; }
 .dp-identite-ligne.dp-identite-haute .dp-identite-champ { min-height: 11mm; }
 
-.dp-titre-vise-bloc { width: 170.1mm; margin: 18mm auto 0; }
+.dp-titre-vise-bloc { --dp-large: 170.1mm; margin-top: 18mm; }
+/* La couverture a des marges symetriques (25 mm des deux cotes) : la
+   compensation de 1,5 mm, faite pour la gouttiere des feuilles courantes, y
+   decalerait le bloc de 3 mm vers la gauche. */
+.dp-couverture .dp-titre-vise-bloc { margin-left: calc((100% - var(--dp-large)) / 2); }
 .dp-titre-vise {
   text-align: center;
   font-size: 16pt;
@@ -227,7 +250,7 @@
 
 /* --- Présentation du dossier --------------------------------------------- */
 
-.dp-presentation-bloc { width: 175.1mm; margin: 0 auto; }
+.dp-presentation-bloc { --dp-large: 175.1mm; }
 .dp-presentation-bloc .dp-cadre { padding: 6mm 7mm; }
 .dp-presentation-bloc p { margin-bottom: 3mm; text-align: justify; }
 .dp-intertitre { font-weight: 700; font-size: 14pt; margin: 5mm 0 3mm; }
@@ -302,7 +325,7 @@
    cadres. Le dossier est remis à un jury : un cadre coupé se voit, 3 mm de
    moins sur la largeur d'un tableau ne se voient pas. Le retrait négatif de
    gauche est conservé, la marge droite passe à 8 mm. */
-.dp-fiche { width: 179.6mm; margin-left: -0.6mm; }
+.dp-fiche { --dp-large: 179.6mm; }
 
 .dp-at { display: flex; align-items: flex-end; gap: 3mm; margin-bottom: 1mm; }
 .dp-at-num {
@@ -359,7 +382,7 @@
 
 /* --- Titres, diplômes, CQP, attestations de formation --------------------- */
 
-.dp-titres-bloc { width: 172.6mm; margin: 0 auto; }
+.dp-titres-bloc { --dp-large: 172.6mm; }
 .dp-titres-sous { text-align: center; font-style: italic; font-size: 14pt; padding: 5mm 0 6mm; }
 .dp-tbl-titres { border: 0.5pt solid var(--dp-texte); }
 .dp-tbl-titres th, .dp-tbl-titres td { border: 0.5pt solid var(--dp-texte); }
@@ -377,7 +400,7 @@
 
 /* --- Déclaration sur l'honneur -------------------------------------------- */
 
-.dp-declaration-bloc { width: 175.1mm; margin: 0 auto; }
+.dp-declaration-bloc { --dp-large: 175.1mm; }
 .dp-declaration-corps { padding: 14mm 4mm 0; font-size: 12pt; line-height: 2; }
 .dp-declaration-corps p { margin-bottom: 4mm; }
 .dp-doc .dp-declaration-corps .lv-f { min-width: 60mm; border-bottom: 0.3pt dotted var(--dp-cadre); }

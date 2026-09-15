@@ -195,6 +195,23 @@
         `elements coupes par un rognage : ${rognes.length}`
         + `${rognes.length ? " (" + rognes.slice(0, 3).join(" / ") + ")" : ""}`);
 
+      // Les blocs larges sont centres sur la FEUILLE. Sans ce controle, un bloc
+      // trop large pour la zone de texte cale a gauche et tout son debordement
+      // part a droite : le document penche, ce qui se voit au premier tirage.
+      const decentres = [];
+      for (const sel of [".dp-titre-vise-bloc", ".dp-presentation-bloc", ".dp-titres-bloc",
+                         ".dp-declaration-bloc", ".dp-fiche"]) {
+        for (const el of doc.querySelectorAll(sel)) {
+          const bf = el.closest(".dp-feuille").getBoundingClientRect();
+          const b = el.getBoundingClientRect();
+          const ecart = Math.abs((b.left - bf.left) - (bf.right - b.right)) / (96 / 25.4);
+          if (ecart > 0.5) decentres.push(sel + " a " + ecart.toFixed(1) + " mm");
+        }
+      }
+      dire(decentres.length === 0,
+        "blocs decentres sur leur feuille : " + decentres.length
+        + (decentres.length ? " (" + [...new Set(decentres)].join(", ") + ")" : ""));
+
       // Aucun element ne sort de la feuille non plus : sous 5 mm du bord, une
       // imprimante de bureau rogne.
       let margeMini = 999;
