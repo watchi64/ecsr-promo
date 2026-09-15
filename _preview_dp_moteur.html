@@ -1,6 +1,7 @@
 <!DOCTYPE html>
-<!-- Banc temporaire du moteur de composition. Supprimé en tâche 7. Il n'utilise
-     pas le gabarit du DP : des blocs de contrôle suffisent à prouver la coupe. -->
+<!-- Banc permanent du moteur de composition (non déployé, jamais lié depuis
+     l'app). Il n'utilise pas le gabarit du DP : des blocs de contrôle suffisent
+     à prouver la coupe. -->
 <html lang="fr">
 <head>
   <meta charset="utf-8" />
@@ -294,8 +295,11 @@
       `cadre des zones : couleur ${stZone.borderLeftColor}, style ${stZone.borderLeftStyle} (attendu rgb(191, 191, 191), solid)`);
 
     const largeurFicheMm = flux2.querySelector(".dp-fiche").getBoundingClientRect().width / PX_PAR_MM;
-    dire(Math.abs(largeurFicheMm - 182.6) < 0.5,
-      `largeur de la fiche : ${largeurFicheMm.toFixed(1)} mm (attendu 182,6 mm)`);
+    // 179,6 mm depuis 34a955d (8 mm de blanc a droite au lieu de 5, cf. le
+    // commentaire de .dp-fiche dans css/dp.css) : ce banc verifiait encore
+    // l'ancienne largeur de 182,6 mm, jamais mise a jour apres coup.
+    dire(Math.abs(largeurFicheMm - 179.6) < 0.5,
+      `largeur de la fiche : ${largeurFicheMm.toFixed(1)} mm (attendu 179,6 mm)`);
 
     // --- Tâche 6 : titres et diplômes, déclaration sur l'honneur ---
     // Le dossier vierge : un flux dédié, sans aucun champ rempli (hote/res plus

@@ -53,15 +53,9 @@ export function rubriquesImprimees(data) {
 // le candidat n'aurait aucun champ où saisir sa 2e ou sa 3e fiche. Celles qui
 // resteront hors du document imprimé portent imprime:false.
 export function rubriquesEdition(data) {
-  const imprimees = new Set(
-    rubriquesImprimees(data).map((r) => (r.type === "exemple" ? `exemple:${r.at}:${r.n}` : r.type)),
-  );
   const out = RUBRIQUES_AVANT.map((type) => ({ type, imprime: true }));
-  for (const at of [1, 2]) {
-    for (const n of [1, 2, 3]) {
-      out.push({ type: "exemple", at, n, imprime: imprimees.has(`exemple:${at}:${n}`) });
-    }
-  }
+  for (const at of [1, 2]) for (const n of [1, 2, 3])
+    out.push({ type: "exemple", at, n, imprime: exempleImprime(data, at, n) });
   RUBRIQUES_APRES.forEach((type) => out.push({ type, imprime: true }));
   return out;
 }

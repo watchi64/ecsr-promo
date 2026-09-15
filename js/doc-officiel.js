@@ -164,22 +164,31 @@ export function wireDocEditing(doc, onChange, opts = {}) {
 // sous-onglets de Notes, jamais affichés ensemble.
 // ---------------------------------------------------------------------------
 
-let courant = null;              // { doc, printId, bodyClass, avantClone }
+let courant = null;              // { ancre, printId, bodyClass, avantClone, source }
 let listenersPrets = false;
 
 // avantClone : rappel facultatif, exécuté juste avant le clonage. Le DP s'en
 // sert pour recomposer son document paginé, qui n'est pas celui affiché quand le
 // candidat est en train d'écrire. Absente, l'option ne change rien : le livret
 // EPCF continue de cloner son document tel quel.
-export function bindDocPrint(doc, { printId, bodyClass, avantClone = null }) {
-  courant = { doc, printId, bodyClass, avantClone };
+//
+// ancre / source : l'ancre est le témoin de vie du document à l'écran, celui
+// que le garde-fou d'impression teste via document.contains (voir
+// ensurePrintListeners ci-dessous) ; source, si fournie, est l'élément
+// réellement cloné pour l'impression. Le DP les distingue parce que son
+// document imprimable vit dans un conteneur hors écran, jamais détaché du
+// DOM, qui ne peut donc pas servir de témoin. Sans `source`, on clone
+// l'ancre elle-même : comportement inchangé pour le livret EPCF, qui ne
+// passe ni l'une ni l'autre option.
+export function bindDocPrint(ancre, { printId, bodyClass, avantClone = null, source = null }) {
+  courant = { ancre, printId, bodyClass, avantClone, source };
   ensurePrintListeners();
   refreshDocPrint();
 }
 
 export function refreshDocPrint() {
   if (!courant) return;
-  const { doc, printId, bodyClass, avantClone } = courant;
+  const { ancre, printId, bodyClass, avantClone, source } = courant;
   if (avantClone) avantClone();
   // Format de page injecté seulement tant qu'un document est ouvert : une règle
   // @page en dur écraserait le « A4 landscape » de l'impression du planning.
@@ -196,7 +205,7 @@ export function refreshDocPrint() {
     document.body.appendChild(c);
   }
   clear(c);
-  const clone = doc.cloneNode(true);
+  const clone = (source || ancre).cloneNode(true);
   clone.classList.remove("lv-screen", "lv-edit", "dp-screen", "dp-edit");
   clone.querySelectorAll("[contenteditable]").forEach((n) => n.removeAttribute("contenteditable"));
   clone.querySelectorAll("[tabindex]").forEach((n) => n.removeAttribute("tabindex"));
@@ -226,7 +235,7 @@ function ensurePrintListeners() {
   if (listenersPrets) return;
   listenersPrets = true;
   const beforePrint = () => {
-    if (courant && document.contains(courant.doc)) refreshDocPrint();
+    if (courant && document.contains(courant.ancre)) refreshDocPrint();
     else teardownDocPrint();
   };
   window.addEventListener("beforeprint", beforePrint);

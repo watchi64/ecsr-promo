@@ -67,4 +67,11 @@ assert.deepEqual(edition.map((r) => r.type),
    "exemple", "exemple", "exemple", "exemple", "exemple", "exemple",
    "titres", "declaration"]);
 
+// --- Robustesse : un objet de données nul ne doit rien casser ---
+assert.equal(rubriquesImprimees(null).length, 8, "dossier nul : 8 rubriques imprimées");
+assert.equal(rubriquesEdition(null).length, 12, "dossier nul : 12 rubriques en édition");
+assert.deepEqual(sommaire(null),
+  [{ at: 1, n: 1, titre: "" }, { at: 2, n: 1, titre: "" }],
+  "dossier nul : sommaire à deux entrées au titre vide");
+
 console.log("dp-rules : OK");

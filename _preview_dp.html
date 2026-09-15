@@ -135,6 +135,35 @@
       dire(sommaireJuste, "sommaire concordant avec les pieds de page");
       details.forEach((d) => l.push("   " + d));
 
+      // Contrôle indépendant de numeroParCle : la vraie page d'une fiche est
+      // l'index de la première feuille dont le corps COMMENCE par le bloc
+      // ouvrant de cette fiche (data-ouvrant="1" et data-cle=cette clé). Ce
+      // contrôle ne consulte jamais numeroParCle : une carte fausse (bug de la
+      // garde manquante) ne peut donc pas le faire passer par erreur, alors que
+      // le contrôle ci-dessus, comparant le sommaire à numeroParCle lui-même,
+      // validerait la même carte fausse.
+      const feuillesDom = [...doc.querySelectorAll(".dp-feuille")];
+      const pageReelle = (cle) => {
+        const idx = feuillesDom.findIndex((f) => {
+          const premier = f.querySelector(".dp-corps")?.firstElementChild;
+          return !!premier && premier.dataset.ouvrant === "1" && premier.dataset.cle === cle;
+        });
+        return idx === -1 ? null : idx + 1;
+      };
+      let sommaireExact = true;
+      const detailsExact = [];
+      clesExemple.forEach((cle, i) => {
+        const [, at, n] = cle.split(":");
+        const reel = pageReelle(cle);
+        const ligne = lignesExemple[i];
+        const annonce = ligne ? Number((ligne.querySelector(".dp-sommaire-page").textContent.match(/\d+/) || [0])[0]) : 0;
+        detailsExact.push(`AT${at} ex${n} : sommaire ${annonce}, page réelle (DOM) ${reel}`);
+        if (annonce !== reel) sommaireExact = false;
+      });
+      if (clesExemple.length !== lignesExemple.length) sommaireExact = false;
+      dire(sommaireExact, "sommaire concordant avec la page réelle (contrôle indépendant de numeroParCle)");
+      detailsExact.forEach((d) => l.push("   " + d));
+
       // Aucun texte perdu : chaque champ rempli se retrouve dans le document.
       const texte = doc.textContent.replace(/\s+/g, " ");
       const perdus = Object.entries(data)

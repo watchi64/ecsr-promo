@@ -81,7 +81,7 @@ export function composer(blocs, { hote, fabriquerFeuille }) {
           corps.removeChild(aPlacer);
           nouvelleFeuille(false);
           numeroParBloc[index] = numero;
-          if (bloc.dataset.cle) numeroParCle.set(bloc.dataset.cle, numero);
+          if (bloc.dataset.cle && !numeroParCle.has(bloc.dataset.cle)) numeroParCle.set(bloc.dataset.cle, numero);
           corps.appendChild(aPlacer);
         }
         aPlacer = null;
@@ -106,13 +106,16 @@ export function composer(blocs, { hote, fabriquerFeuille }) {
         // Le bloc dépasse à lui seul la hauteur d'une feuille. On le garde et on
         // laisse déborder : perdre du texte serait pire qu'une feuille trop pleine.
         corps.classList.add("dp-corps-deborde");
+        // .dp-feuille garde overflow:hidden pour toutes les autres feuilles ; seule
+        // celle-ci doit laisser passer (css/dp.css, .dp-feuille.dp-feuille-deborde).
+        corps.closest(".dp-feuille")?.classList.add("dp-feuille-deborde");
         corps.appendChild(aPlacer);
         aPlacer = null;
         break;
       }
       nouvelleFeuille(false);
       numeroParBloc[index] = numero;
-      if (bloc.dataset.cle) numeroParCle.set(bloc.dataset.cle, numero);
+      if (bloc.dataset.cle && !numeroParCle.has(bloc.dataset.cle)) numeroParCle.set(bloc.dataset.cle, numero);
     }
   });
 

@@ -223,17 +223,41 @@ function showDoc(container, stagiaire, row, { readOnly, stagiaireId, back } = {}
     return f;
   }
 
+  // Deux cartes de pages sont identiques quand elles portent les mêmes clés avec
+  // les mêmes numéros. Sert à détecter la convergence de composerImprimable.
+  function memeCarte(a, b) {
+    if (a.size !== b.size) return false;
+    for (const [cle, numero] of a) {
+      if (b.get(cle) !== numero) return false;
+    }
+    return true;
+  }
+
   // Compose le document imprimable dans `pourImpression`, et renvoie le numéro
-  // de feuille de chaque rubrique. Deux passes : la première donne les numéros,
-  // la seconde les inscrit au sommaire. Elle converge toujours, un numéro de
-  // page ne changeant pas la hauteur de la ligne qui le porte.
+  // de feuille de chaque rubrique. Le sommaire affiche des numéros de page, qui
+  // ne changent en principe pas la hauteur de la ligne qui les porte : une seule
+  // passe supplémentaire (numéros vides, puis numéros inscrits) suffit alors à
+  // converger. Mais un intitulé de fiche vient du candidat et peut être long :
+  // s'il replie une ligne du sommaire entre deux passes, le document entier
+  // décale d'un cran et une seule passe de plus ne suffit plus forcément. On
+  // boucle donc jusqu'à ce que la carte se stabilise, avec un maximum de 3
+  // passes : au-delà, on garde la dernière carte obtenue sans échouer, un
+  // sommaire légèrement décalé valant mieux qu'un document qui refuse de
+  // s'afficher. Chaque passe compose directement dans `pourImpression` (que
+  // `composer` vide avant d'écrire) : la dernière itération y laisse donc déjà
+  // le document final, sans passe finale séparée.
   function composerImprimable() {
-    const passe1 = composer(blocsDe(fluxDetache(buildDpFlux(data, { edition: false }))),
-      { hote: mesure, fabriquerFeuille });
-    const flux2 = fluxDetache(buildDpFlux(data, { edition: false, pages: passe1.numeroParCle }));
-    const passe2 = composer(blocsDe(flux2), { hote: pourImpression, fabriquerFeuille });
-    mesure.textContent = "";
-    return passe2.numeroParCle;
+    let pages = null;
+    let numeroParCle = null;
+    for (let i = 0; i < 3; i += 1) {
+      const flux = fluxDetache(buildDpFlux(data, { edition: false, pages }));
+      const res = composer(blocsDe(flux), { hote: pourImpression, fabriquerFeuille });
+      numeroParCle = res.numeroParCle;
+      if (pages && memeCarte(pages, numeroParCle)) break;
+      pages = numeroParCle;
+    }
+    imprimableAJour = true;
+    return numeroParCle;
   }
 
   let fluxEdition = null;
@@ -241,6 +265,13 @@ function showDoc(container, stagiaire, row, { readOnly, stagiaireId, back } = {}
   // survivent au remplacement de son contenu et ne doivent donc être posés
   // qu'une fois, sinon une frappe déclencherait N enregistrements.
   let editionCablee = false;
+  // Vrai dès que `pourImpression` reflète la donnée courante. rendre() le pose
+  // juste après avoir composé ; onEdit() l'invalide dès qu'un caractère change.
+  // rafraichirImprimable() s'en sert pour ne pas recomposer un document déjà à
+  // jour : sans ce drapeau, rendre() composait une fois, puis bindDocPrint
+  // appelait aussitôt refreshDocPrint -> avantClone -> une seconde composition
+  // identique, à chaque ouverture du dossier.
+  let imprimableAJour = false;
 
   function rendre() {
     const pages = composerImprimable();
@@ -257,13 +288,21 @@ function showDoc(container, stagiaire, row, { readOnly, stagiaireId, back } = {}
       else applyEditable(doc);
       majCoupures();
     }
-    bindDocPrint(readOnly ? doc : pourImpression,
-      { printId: "dp-print", bodyClass: "dp-printable", avantClone: readOnly ? null : rafraichirImprimable });
+    // `doc` est le témoin de vie (toujours à l'écran tant que le dossier est
+    // ouvert) ; `pourImpression`, lui, vit hors écran et n'est jamais détaché,
+    // il ne peut donc pas servir de témoin (voir js/doc-officiel.js). En
+    // édition, c'est quand même lui qui est cloné pour l'impression : c'est le
+    // document paginé, pas le flux continu affiché au candidat.
+    bindDocPrint(doc, { printId: "dp-print", bodyClass: "dp-printable",
+      avantClone: readOnly ? null : rafraichirImprimable,
+      source: readOnly ? null : pourImpression });
     requestAnimationFrame(rescale);
   }
 
   // Recompose le document imprimable sans toucher à ce que voit le candidat.
+  // Rien à refaire si `pourImpression` est déjà à jour (voir imprimableAJour).
   function rafraichirImprimable() {
+    if (imprimableAJour) return;
     const pages = composerImprimable();
     if (fluxEdition) {
       const ancien = fluxEdition.querySelector('[data-cle="sommaire"]');
@@ -303,6 +342,8 @@ function showDoc(container, stagiaire, row, { readOnly, stagiaireId, back } = {}
 
   let repaginationTimer = null;
   function onEdit() {
+    // Le document imprimable ne reflète plus la saisie en cours.
+    imprimableAJour = false;
     // collectData est la source de vérité : il omet les champs vides, donc vider
     // un champ le retire bien de data.
     data = collectData(fluxEdition);

@@ -69,8 +69,13 @@
    contenu déborde. */
 .dp-corps { flex: 1 1 auto; min-height: 0; overflow: hidden; }
 /* Garde-fou : posée par le moteur quand un bloc insécable dépasse à lui seul la
-   hauteur d'une feuille. Mieux vaut un débordement visible qu'un texte rogné. */
+   hauteur d'une feuille. Mieux vaut un débordement visible qu'un texte rogné.
+   Le corps seul ne suffit pas : .dp-feuille porte overflow:hidden et rognerait
+   quand même le débordement. Le moteur pose donc AUSSI .dp-feuille-deborde sur
+   la feuille concernée (js/dp-pagination.js) ; les autres feuilles gardent leur
+   coupe normale, ce sélecteur ne visant que celle-là. */
 .dp-corps.dp-corps-deborde { overflow: visible; }
+.dp-feuille.dp-feuille-deborde { overflow: visible; }
 
 /* --- En-tête ------------------------------------------------------------- */
 
