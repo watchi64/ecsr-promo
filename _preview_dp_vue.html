@@ -27,12 +27,16 @@
         document.head.appendChild(l);
       })));
   </script>
-  <!-- Les clés sont les URL RÉSOLUES des imports de dp.js (token ?v= compris). -->
+  <!-- Les clés sont les URL RÉSOLUES des imports de dp.js, token ?v= compris.
+       Ce token est re-posé à chaque mise en production par le hook pre-commit :
+       s'il ne correspond plus à celui de js/views/dp.js, la substitution des
+       modules factices ne se fait plus et le banc taperait la vraie base.
+       Le remettre à jour fait partie de la mise en production. -->
   <script type="importmap">
   {
     "imports": {
-      "/js/db.js?v=20260826d": "/_preview_stubs/db.js",
-      "/js/auth-admin.js?v=20260826d": "/_preview_stubs/auth-admin.js"
+      "/js/db.js?v=20260915a": "/_preview_stubs/db.js",
+      "/js/auth-admin.js?v=20260915a": "/_preview_stubs/auth-admin.js"
     }
   }
   </script>
@@ -56,7 +60,7 @@
     // ?v= ne bouge pas (le re-versionnage ne se fait que sur main), donc le
     // navigateur resservirait indéfiniment la version en cache de dp.js. Un banc
     // doit toujours exercer le code du disque.
-    const { renderDp } = await import("./js/views/dp.js?v=20260826d&cb=" + Date.now());
+    const { renderDp } = await import("./js/views/dp.js?v=20260915a&cb=" + Date.now());
     await window.__cssPrete;   // styles appliqués avant toute mesure
 
     const view = document.getElementById("view");
