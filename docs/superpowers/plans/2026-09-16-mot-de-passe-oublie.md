@@ -13,7 +13,7 @@
 ## Contraintes globales
 
 - **Worktree :** `C:\Users\watch\Dev\ECSR\ecsr-promo-mdp-oublie`, branche `mdp-oublie`. Ne jamais écrire dans `TP_ECSR_App` sauf là où une tâche le demande explicitement (fichiers de banc).
-- **Jeton de cache figé :** sur une branche de feature, le hook `pre-commit` ne re-versionne PAS. Tout nouvel import JS s'écrit avec le jeton déjà en place dans le fichier qui importe, aujourd'hui `?v=20260916a`. Ne jamais inventer un jeton.
+- **Jeton de cache figé :** sur une branche de feature, le hook `pre-commit` ne re-versionne PAS. Tout nouvel import JS s'écrit avec le jeton déjà en place dans le fichier qui importe, aujourd'hui `?v=20260916b`. Ne jamais inventer un jeton.
 - **Zéro tiret cadratin** (U+2014) dans le code, les commentaires, les messages et les commits. Règle du projet, sans exception.
 - **Français dans l'interface**, tutoiement (la gate tutoie déjà : « Entre ton email »).
 - **Minimum de mot de passe : 8 caractères**, partout, y compris les textes d'aide.
@@ -475,7 +475,7 @@ Tâche de déplacement pur. Aucun mode nouveau ici : à la fin, connexion et cr�
 
 - [ ] **Étape 1 : créer `js/gate.js` avec le code déplacé**
 
-Le contenu reprend `showGate`/`hideGate` de `main.js` en remplaçant les validations et les textes en dur par `gate-rules.js`. Noter le jeton `?v=20260916a` sur les imports : il est figé sur cette branche.
+Le contenu reprend `showGate`/`hideGate` de `main.js` en remplaçant les validations et les textes en dur par `gate-rules.js`. Noter le jeton `?v=20260916b` sur les imports : il est figé sur cette branche.
 
 ```javascript
 /*
@@ -484,8 +484,8 @@ Le contenu reprend `showGate`/`hideGate` de `main.js` en remplaçant les validat
  */
 // La carte d'authentification et ses modes. Sortie de main.js, qui redevient le
 // fichier du démarrage et des routes.
-import { signInWithPassword, signUpWithPassword } from "./db.js?v=20260916a";
-import { validerEmail, validerMotDePasse, messageErreurAuth, configMode } from "./gate-rules.js?v=20260916a";
+import { signInWithPassword, signUpWithPassword } from "./db.js?v=20260916b";
+import { validerEmail, validerMotDePasse, messageErreurAuth, configMode } from "./gate-rules.js?v=20260916b";
 
 export function showGate(mode = "signin") {
   const gate = document.getElementById("gate");
@@ -575,13 +575,13 @@ export function hideGate() {
 Supprimer le bloc `// ===== Gate : email magic link =====` avec `showGate()` et `hideGate()` (de la ligne 27 jusqu'à la fin de `hideGate`). À la place, ajouter l'import auprès des autres :
 
 ```javascript
-import { showGate, hideGate } from "./gate.js?v=20260916a";
+import { showGate, hideGate } from "./gate.js?v=20260916b";
 ```
 
 Puis nettoyer la ligne d'import de `db.js` : `signInWithPassword` et `signUpWithPassword` ne servent plus dans `main.js`. Elle devient :
 
 ```javascript
-import { getCurrentUser, invalidateCache } from "./db.js?v=20260916a";
+import { getCurrentUser, invalidateCache } from "./db.js?v=20260916b";
 ```
 
 Ne pas toucher aux imports de `icon` et `toast` : ils restent utilisés ailleurs dans `main.js`.
@@ -731,7 +731,7 @@ git commit -m "Gate : balisage et style des ecrans de reinitialisation"
 - [ ] **Étape 1 : compléter l'import de `db.js` dans `js/gate.js`**
 
 ```javascript
-import { signInWithPassword, signUpWithPassword, requestPasswordReset } from "./db.js?v=20260916a";
+import { signInWithPassword, signUpWithPassword, requestPasswordReset } from "./db.js?v=20260916b";
 ```
 
 - [ ] **Étape 2 : câbler les nouveaux éléments dans `showGate`**
@@ -894,9 +894,9 @@ git commit -m "Gate : demande de lien de reinitialisation (message neutre, verro
 - [ ] **Étape 1 : compléter les imports de `js/gate.js`**
 
 ```javascript
-import { signInWithPassword, signUpWithPassword, requestPasswordReset, updatePassword } from "./db.js?v=20260916a";
-import { validerEmail, validerMotDePasse, messageErreurAuth, configMode } from "./gate-rules.js?v=20260916a";
-import { toast } from "./utils.js?v=20260916a";
+import { signInWithPassword, signUpWithPassword, requestPasswordReset, updatePassword } from "./db.js?v=20260916b";
+import { validerEmail, validerMotDePasse, messageErreurAuth, configMode } from "./gate-rules.js?v=20260916b";
+import { toast } from "./utils.js?v=20260916b";
 ```
 
 - [ ] **Étape 2 : ajouter l'enregistrement du nouveau mot de passe**
@@ -948,8 +948,8 @@ Et rendre la touche Entrée active sur la confirmation, sous les deux `onkeydown
 Ajouter les imports auprès des autres :
 
 ```javascript
-import { lireJetonRecuperation } from "./gate-rules.js?v=20260916a";
-import { verifyRecoveryToken } from "./db.js?v=20260916a";
+import { lireJetonRecuperation } from "./gate-rules.js?v=20260916b";
+import { verifyRecoveryToken } from "./db.js?v=20260916b";
 ```
 
 Puis remplacer le début du bloc de démarrage (la fonction anonyme en fin de fichier) par :
