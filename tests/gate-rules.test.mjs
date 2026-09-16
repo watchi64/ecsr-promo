@@ -18,7 +18,7 @@ assert.equal(validerEmail(undefined), "Email invalide");
 // Mot de passe : requis, longueur, puis correspondance quand une confirmation est demandee.
 assert.equal(validerMotDePasse("motdepasse8"), null);
 assert.equal(validerMotDePasse(""), "Mot de passe requis");
-assert.equal(validerMotDePasse("court"), "Mot de passe : 8 caracteres minimum");
+assert.equal(validerMotDePasse("court"), "Mot de passe : 8 caractères minimum");
 assert.equal(validerMotDePasse("motdepasse8", "motdepasse8"), null);
 assert.equal(validerMotDePasse("motdepasse8", "motdepasse9"), "Les deux mots de passe ne correspondent pas");
 // Sans confirmation attendue, on ne compare rien.
@@ -26,12 +26,12 @@ assert.equal(validerMotDePasse("motdepasse8", undefined), null);
 
 // Messages Supabase traduits (repris de l'ancien showGate).
 assert.equal(messageErreurAuth("Invalid login credentials"), "Email ou mot de passe incorrect.");
-assert.equal(messageErreurAuth("User already registered"), "Cet email a deja un compte. Bascule sur la connexion.");
-assert.equal(messageErreurAuth("Database error saving new user"), "Email non whitelisté. Demande a un admin de t'inviter d'abord.");
+assert.equal(messageErreurAuth("User already registered"), "Cet email a déjà un compte. Bascule sur la connexion.");
+assert.equal(messageErreurAuth("Database error saving new user"), "Email non whitelisté. Demande à un admin de t'inviter d'abord.");
 assert.equal(messageErreurAuth("For security purposes, you can only request this after 47 seconds"),
-  "Trop de demandes. Patiente quelques minutes avant de reessayer.");
+  "Trop de demandes. Patiente quelques minutes avant de réessayer.");
 assert.equal(messageErreurAuth("Email rate limit exceeded"),
-  "Trop de demandes. Patiente quelques minutes avant de reessayer.");
+  "Trop de demandes. Patiente quelques minutes avant de réessayer.");
 // Message inconnu : on le laisse passer tel quel plutot que de mentir.
 assert.equal(messageErreurAuth("Boom"), "Boom");
 assert.equal(messageErreurAuth(""), "Une erreur est survenue.");

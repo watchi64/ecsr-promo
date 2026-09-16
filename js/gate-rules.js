@@ -17,7 +17,7 @@ export function validerEmail(email) {
 // dans ce cas on ne compare rien.
 export function validerMotDePasse(mdp, confirmation) {
   if (!mdp) return "Mot de passe requis";
-  if (mdp.length < MDP_MIN) return "Mot de passe : " + MDP_MIN + " caracteres minimum";
+  if (mdp.length < MDP_MIN) return "Mot de passe : " + MDP_MIN + " caractères minimum";
   if (confirmation !== undefined && mdp !== confirmation) {
     return "Les deux mots de passe ne correspondent pas";
   }
@@ -28,12 +28,12 @@ export function messageErreurAuth(brut) {
   const msg = brut ? String(brut) : "";
   if (!msg) return "Une erreur est survenue.";
   if (/Invalid login credentials/i.test(msg)) return "Email ou mot de passe incorrect.";
-  if (/User already registered/i.test(msg)) return "Cet email a deja un compte. Bascule sur la connexion.";
+  if (/User already registered/i.test(msg)) return "Cet email a déjà un compte. Bascule sur la connexion.";
   if (/non autorisé/i.test(msg) || /Database error/i.test(msg)) {
-    return "Email non whitelisté. Demande a un admin de t'inviter d'abord.";
+    return "Email non whitelisté. Demande à un admin de t'inviter d'abord.";
   }
   if (/For security purposes/i.test(msg) || /rate limit/i.test(msg)) {
-    return "Trop de demandes. Patiente quelques minutes avant de reessayer.";
+    return "Trop de demandes. Patiente quelques minutes avant de réessayer.";
   }
   return msg;
 }
