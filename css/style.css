@@ -2768,7 +2768,7 @@ body.p-dragging-active {
   margin-top: 0.7rem;
   font: inherit;
   font-size: 0.82rem;
-  color: var(--muted);
+  color: var(--text-muted);
   cursor: pointer;
   text-decoration: underline;
   text-underline-offset: 3px;
