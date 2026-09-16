@@ -59,6 +59,7 @@ export function showGate(mode = "signin") {
   emailInput.focus();
 
   const echec = (msg) => {
+    info.classList.add("hidden");
     error.textContent = msg;
     error.classList.remove("hidden");
   };
@@ -74,9 +75,16 @@ export function showGate(mode = "signin") {
     const reste = Math.ceil((verrouJusqua - Date.now()) / 1000);
     if (reste > 0) return echec("Patiente " + reste + " secondes avant un nouvel envoi.");
 
+    // Mode retenu au moment de l'appel : si la carte a change de mode pendant
+    // que la requete est en vol (ex. clic sur "Retour a la connexion"),
+    // on abandonne l'affichage du resultat sans jamais annuler la demande.
+    const modeAppel = courant;
     error.classList.add("hidden");
     submit.disabled = true;
     submit.textContent = configMode("reset-request").boutonEnCours;
+    // Le verrou se pose avant l'envoi : il couvre aussi la fenetre ou la
+    // requete est en vol, pas seulement l'apres-coup.
+    verrouJusqua = Date.now() + 60000;
     try {
       await requestPasswordReset(email);
     } catch (e) {
@@ -84,11 +92,11 @@ export function showGate(mode = "signin") {
       // reviendrait à dire si l'adresse a un compte.
       console.error("Reset request error:", e);
     }
+    if (courant !== modeAppel) return;
     // Message identique quoi qu'il arrive : aucune énumération de comptes.
     info.textContent = "Si un compte existe pour cette adresse, un lien vient de partir. "
                      + "Pense à regarder les indésirables.";
     info.classList.remove("hidden");
-    verrouJusqua = Date.now() + 60000;
     submit.textContent = configMode("reset-request").bouton;
     submit.disabled = false;
   }
@@ -124,7 +132,12 @@ export function showGate(mode = "signin") {
   };
 
   submit.onclick = handler;
-  const onEnter = (e) => { if (e.key === "Enter") { e.preventDefault(); handler(); } };
+  const onEnter = (e) => {
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    if (submit.disabled) return;
+    handler();
+  };
   emailInput.onkeydown = onEnter;
   passwordInput.onkeydown = onEnter;
 }
