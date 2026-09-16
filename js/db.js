@@ -1159,6 +1159,37 @@ export async function signUpWithPassword(email, password) {
   return data;
 }
 
+// URL de retour du mail de réinitialisation. Doit figurer dans les Redirect URLs
+// du tableau de bord Supabase, sinon le lien est refusé.
+const URL_RETOUR = location.hostname === "localhost"
+  ? location.origin + "/"
+  : "https://watchi64.github.io/ecsr-promo/";
+
+export async function requestPasswordReset(email) {
+  const { error } = await supabase.auth.resetPasswordForEmail(
+    email.trim().toLowerCase(),
+    { redirectTo: URL_RETOUR },
+  );
+  if (error) throw error;
+}
+
+// Le lien du mail porte un `token_hash` : on l'échange contre une session de
+// récupération. Ce chemin marche d'un appareil à l'autre, contrairement au PKCE
+// qui exigerait le même navigateur que la demande.
+export async function verifyRecoveryToken(tokenHash) {
+  const { data, error } = await supabase.auth.verifyOtp({
+    token_hash: tokenHash,
+    type: "recovery",
+  });
+  if (error) throw error;
+  return data;
+}
+
+export async function updatePassword(password) {
+  const { error } = await supabase.auth.updateUser({ password });
+  if (error) throw error;
+}
+
 export async function signOut() {
   const { error } = await supabase.auth.signOut();
   if (error) throw error;
