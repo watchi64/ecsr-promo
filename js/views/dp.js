@@ -6,15 +6,15 @@
 // candidat n'aurait aucun champ où saisir son 2e ou 3e exemple ; les vides
 // portent .dp-bloc-exclu et ne s'impriment pas (voir dp-gabarit.js).
 
-import { listStagiaires, listDpDossiers, getDpDossier, upsertDpDossier } from "../db.js?v=20260915d";
-import { el, clear, displayStagiaire, compareByNom, formatDate, toast } from "../utils.js?v=20260915d";
-import { isAdmin, isProf, getProfile } from "../auth-admin.js?v=20260915d";
-import { getCurrentWho } from "../identity.js?v=20260915d";
+import { listStagiaires, listDpDossiers, getDpDossier, upsertDpDossier } from "../db.js?v=20260916a";
+import { el, clear, displayStagiaire, compareByNom, formatDate, toast } from "../utils.js?v=20260916a";
+import { isAdmin, isProf, getProfile } from "../auth-admin.js?v=20260916a";
+import { getCurrentWho } from "../identity.js?v=20260916a";
 import { collectData, fillData, applyEditable, wireDocEditing,
-         bindDocPrint, refreshDocPrint, teardownDocPrint } from "../doc-officiel.js?v=20260915d";
-import { buildDpFlux, blocSommaire, feuille } from "./dp-gabarit.js?v=20260915d";
-import { exempleImprime } from "../dp-rules.js?v=20260915d";
-import { composer, marquerCoupures } from "../dp-pagination.js?v=20260915d";
+         bindDocPrint, refreshDocPrint, teardownDocPrint } from "../doc-officiel.js?v=20260916a";
+import { buildDpFlux, blocSommaire, feuille } from "./dp-gabarit.js?v=20260916a";
+import { exempleImprime } from "../dp-rules.js?v=20260916a";
+import { composer, marquerCoupures } from "../dp-pagination.js?v=20260916a";
 
 let stagiaires = [];
 let dossiersIndex = [];
@@ -192,7 +192,10 @@ function showDoc(container, stagiaire, row, { readOnly, stagiaireId, back } = {}
     if (!document.contains(scaleOuter)) return;
     const w = scaleOuter.clientWidth;
     if (!w) return;
-    const docW = doc.offsetWidth || 794;
+    // scrollWidth couvre le cas ou le document deborderait de son conteneur ;
+    // offsetWidth suffit des lors que .dp-doc porte sa largeur de feuille. On
+    // prend le plus grand des deux, et 794 px, soit 210 mm, en dernier recours.
+    const docW = Math.max(doc.scrollWidth, doc.offsetWidth, 794);
     const scale = Math.min(1, w / docW);
     scaleInner.style.transform = `scale(${scale})`;
     scaleOuter.style.height = doc.offsetHeight * scale + "px";

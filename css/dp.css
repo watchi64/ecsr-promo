@@ -25,6 +25,11 @@
   /* Calibri est la police du modèle. Carlito en est le clone métriquement
      compatible ; la pile système prend le relais sur iOS, qui n'a ni l'une ni
      l'autre. */
+  /* Largeur d'une feuille. Indispensable : la mise a l'echelle de l'ecran
+     compare la largeur disponible a offsetWidth de ce conteneur. Sans largeur
+     propre, il prend celle de son parent, le rapport vaut 1, et le document
+     deborde de l'ecran sur un telephone. */
+  width: 210mm;
   font-family: Calibri, Carlito, "Segoe UI", system-ui, sans-serif;
   font-size: 11pt;
   line-height: 1.22;
