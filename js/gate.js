@@ -54,6 +54,15 @@ export function showGate(mode = "signin") {
         : "Mot de passe (min. " + MDP_MIN + " caractères)";
     error.classList.add("hidden");
     submit.disabled = false;
+    // Le focus va au premier champ reellement visible du mode (email, sinon mot
+    // de passe), jamais a un champ cache. Recalcule a chaque changement de mode :
+    // sinon, passer du lien mort a la demande laisse le champ email sans curseur.
+    const premierChampVisible = c.champs.email
+      ? emailInput
+      : c.champs.password
+        ? passwordInput
+        : null;
+    if (premierChampVisible) premierChampVisible.focus();
   }
 
   tabSignin.onclick = () => setMode("signin");
@@ -61,14 +70,6 @@ export function showGate(mode = "signin") {
   oubli.onclick = () => setMode("reset-request");
   retour.onclick = () => setMode("signin");
   setMode(courant);
-  // Le focus va au premier champ reellement visible du mode (email, sinon mot
-  // de passe), jamais a un champ cache (reset-set, reset-error).
-  const premierChampVisible = !emailInput.classList.contains("hidden")
-    ? emailInput
-    : !passwordInput.classList.contains("hidden")
-      ? passwordInput
-      : null;
-  if (premierChampVisible) premierChampVisible.focus();
 
   const echec = (msg) => {
     info.classList.add("hidden");
