@@ -4,7 +4,7 @@
  */
 // La carte d'authentification et ses modes. Sortie de main.js, qui redevient le
 // fichier du démarrage et des routes.
-import { signInWithPassword, signUpWithPassword } from "./db.js?v=20260916b";
+import { signInWithPassword, signUpWithPassword, requestPasswordReset } from "./db.js?v=20260916b";
 import { validerEmail, validerMotDePasse, messageErreurAuth, configMode } from "./gate-rules.js?v=20260916b";
 
 export function showGate(mode = "signin") {
@@ -18,6 +18,10 @@ export function showGate(mode = "signin") {
   const submit = document.getElementById("gate-submit");
   const error = document.getElementById("gate-error");
   const hint = document.getElementById("gate-hint");
+  const confirmation = document.getElementById("gate-confirmation");
+  const oubli = document.getElementById("gate-oubli");
+  const retour = document.getElementById("gate-retour");
+  const info = document.getElementById("gate-info");
 
   gate.classList.remove("hidden");
   document.getElementById("app").classList.add("hidden");
@@ -36,12 +40,21 @@ export function showGate(mode = "signin") {
     passwordInput.classList.toggle("hidden", !c.champs.password);
     if (c.autocomplete) passwordInput.autocomplete = c.autocomplete;
     hint.textContent = c.hint;
+    confirmation.classList.toggle("hidden", !c.champs.confirmation);
+    oubli.classList.toggle("hidden", !c.lienOubli);
+    retour.classList.toggle("hidden", !c.retour);
+    info.classList.add("hidden");
+    passwordInput.placeholder = next === "signin"
+      ? "Mot de passe"
+      : "Nouveau mot de passe (min. 8 caractères)";
     error.classList.add("hidden");
     submit.disabled = false;
   }
 
   tabSignin.onclick = () => setMode("signin");
   tabSignup.onclick = () => setMode("signup");
+  oubli.onclick = () => setMode("reset-request");
+  retour.onclick = () => setMode("signin");
   setMode(courant);
   emailInput.focus();
 
@@ -50,7 +63,39 @@ export function showGate(mode = "signin") {
     error.classList.remove("hidden");
   };
 
+  // Verrou d'envoi : au-delà du plafond horaire appliqué par Supabase, on
+  // empêche le matraquage du bouton, qui n'apporte rien à l'utilisateur.
+  let verrouJusqua = 0;
+
+  async function envoyerLien() {
+    const email = emailInput.value.trim();
+    const erreurEmail = validerEmail(email);
+    if (erreurEmail) return echec(erreurEmail);
+    const reste = Math.ceil((verrouJusqua - Date.now()) / 1000);
+    if (reste > 0) return echec("Patiente " + reste + " secondes avant un nouvel envoi.");
+
+    error.classList.add("hidden");
+    submit.disabled = true;
+    submit.textContent = configMode("reset-request").boutonEnCours;
+    try {
+      await requestPasswordReset(email);
+    } catch (e) {
+      // On journalise, mais on n'en dit rien à l'écran : révéler l'échec
+      // reviendrait à dire si l'adresse a un compte.
+      console.error("Reset request error:", e);
+    }
+    // Message identique quoi qu'il arrive : aucune énumération de comptes.
+    info.textContent = "Si un compte existe pour cette adresse, un lien vient de partir. "
+                     + "Pense à regarder les indésirables.";
+    info.classList.remove("hidden");
+    verrouJusqua = Date.now() + 60000;
+    submit.textContent = configMode("reset-request").bouton;
+    submit.disabled = false;
+  }
+
   const handler = async () => {
+    if (courant === "reset-request") return envoyerLien();
+    if (courant === "reset-error") return setMode("reset-request");
     const email = emailInput.value.trim();
     const password = passwordInput.value;
     const erreurEmail = validerEmail(email);
