@@ -41,12 +41,7 @@ export function messageErreurAuth(brut) {
 // Le lien du mail arrive en query string (jamais dans le fragment) : le routeur
 // de l'app lit `location.hash` sous la forme `#/route` et ne doit pas etre touche.
 export function lireJetonRecuperation(search) {
-  let params;
-  try {
-    params = new URLSearchParams(search || "");
-  } catch (e) {
-    return null;
-  }
+  const params = new URLSearchParams(search || "");
   const jeton = params.get("token_hash");
   if (!jeton) return null;
   if (params.get("type") !== "recovery") return null;

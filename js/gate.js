@@ -5,7 +5,7 @@
 // La carte d'authentification et ses modes. Sortie de main.js, qui redevient le
 // fichier du démarrage et des routes.
 import { signInWithPassword, signUpWithPassword, requestPasswordReset, updatePassword } from "./db.js?v=20260916b";
-import { validerEmail, validerMotDePasse, messageErreurAuth, configMode } from "./gate-rules.js?v=20260916b";
+import { validerEmail, validerMotDePasse, messageErreurAuth, configMode, MDP_MIN } from "./gate-rules.js?v=20260916b";
 import { toast } from "./utils.js?v=20260916b";
 
 export function showGate(mode = "signin") {
@@ -45,9 +45,13 @@ export function showGate(mode = "signin") {
     oubli.classList.toggle("hidden", !c.lienOubli);
     retour.classList.toggle("hidden", !c.retour);
     info.classList.add("hidden");
+    // « Nouveau » n'a de sens que sur l'ecran de reinitialisation : en creation
+    // de compte, il n'y a pas d'ancien mot de passe a remplacer.
     passwordInput.placeholder = next === "signin"
       ? "Mot de passe"
-      : "Nouveau mot de passe (min. 8 caractères)";
+      : next === "reset-set"
+        ? "Nouveau mot de passe (min. " + MDP_MIN + " caractères)"
+        : "Mot de passe (min. " + MDP_MIN + " caractères)";
     error.classList.add("hidden");
     submit.disabled = false;
   }
@@ -57,7 +61,14 @@ export function showGate(mode = "signin") {
   oubli.onclick = () => setMode("reset-request");
   retour.onclick = () => setMode("signin");
   setMode(courant);
-  emailInput.focus();
+  // Le focus va au premier champ reellement visible du mode (email, sinon mot
+  // de passe), jamais a un champ cache (reset-set, reset-error).
+  const premierChampVisible = !emailInput.classList.contains("hidden")
+    ? emailInput
+    : !passwordInput.classList.contains("hidden")
+      ? passwordInput
+      : null;
+  if (premierChampVisible) premierChampVisible.focus();
 
   const echec = (msg) => {
     info.classList.add("hidden");

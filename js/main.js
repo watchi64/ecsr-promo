@@ -2,13 +2,12 @@
  * Promo ECSR : application propriétaire.
  * © 2026 watchi64. Tous droits réservés. Voir LICENSE.
  */
-import { getCurrentUser, invalidateCache } from "./db.js?v=20260916b";
+import { getCurrentUser, invalidateCache, verifyRecoveryToken } from "./db.js?v=20260916b";
 import { toast } from "./utils.js?v=20260916b";
 import { icon } from "./icons.js?v=20260916b";
 import { initAuth, onAdminChange, isAuth, isAdmin, isProf } from "./auth-admin.js?v=20260916b";
 import { showGate, hideGate } from "./gate.js?v=20260916b";
 import { lireJetonRecuperation } from "./gate-rules.js?v=20260916b";
-import { verifyRecoveryToken } from "./db.js?v=20260916b";
 import { loadAccent } from "./accent-switcher.js?v=20260916b";
 import { loadTheme } from "./theme-switcher.js?v=20260916b";
 import { renderHome } from "./views/home.js?v=20260916b";
@@ -257,17 +256,26 @@ async function bootApp() {
   // par-dessus l'ecran de saisie. L'URL est nettoyee tout de suite pour que le
   // jeton ne traine ni dans la barre d'adresse ni dans l'historique.
   const jeton = lireJetonRecuperation(location.search);
+  // Mode initial de la carte pour le demarreur normal ci-dessous : "reset-error"
+  // si le jeton s'est revele invalide, sinon la valeur par defaut de showGate().
+  let modeGateInitial;
   if (jeton) {
     try {
       await verifyRecoveryToken(jeton);
       history.replaceState(null, "", location.pathname);
       showGate("reset-set");
+      return;   // ni initAuth ni polling : on attend la saisie.
     } catch (e) {
       console.error("Recovery token error:", e);
       history.replaceState(null, "", location.pathname);
-      showGate("reset-error");
+      // Jeton invalide : l'utilisateur n'est pas authentifie du tout. On
+      // rejoint le demarrage normal d'un visiteur non connecte (initAuth puis
+      // la boucle de surveillance ci-dessous), sinon la connexion reussirait
+      // cote serveur sans que personne n'ecoute (aucun onAuthStateChange, aucun
+      // polling), et l'app ne s'ouvrirait jamais. showGate() n'est appele
+      // qu'une fois, dans la branche non authentifiee, avec ce mode.
+      modeGateInitial = "reset-error";
     }
-    return;   // ni initAuth ni polling : on attend la saisie.
   }
 
   await initAuth();
@@ -277,7 +285,7 @@ async function bootApp() {
     // Pas connecté → gate.
     // Si l'URL contient ?code=... (callback magic link), Supabase a déjà handle ;
     // un onAuthChange va déclencher le boot automatiquement.
-    showGate();
+    showGate(modeGateInitial);
     // Surveille le moment où l'auth devient valide pour basculer.
     const watch = setInterval(async () => {
       if (isAuth()) {

@@ -1161,7 +1161,7 @@ export async function signUpWithPassword(email, password) {
 
 // URL de retour du mail de réinitialisation. Doit figurer dans les Redirect URLs
 // du tableau de bord Supabase, sinon le lien est refusé.
-const URL_RETOUR = location.hostname === "localhost"
+const URL_RETOUR = (location.hostname === "localhost" || location.hostname === "127.0.0.1")
   ? location.origin + "/"
   : "https://watchi64.github.io/ecsr-promo/";
 
