@@ -35,8 +35,8 @@
   <script type="importmap">
   {
     "imports": {
-      "/js/db.js?v=20260915d": "/_preview_stubs/db.js",
-      "/js/auth-admin.js?v=20260915d": "/_preview_stubs/auth-admin.js"
+      "/js/db.js?v=20260916a": "/_preview_stubs/db.js",
+      "/js/auth-admin.js?v=20260916a": "/_preview_stubs/auth-admin.js"
     }
   }
   </script>
@@ -60,7 +60,7 @@
     // ?v= ne bouge pas (le re-versionnage ne se fait que sur main), donc le
     // navigateur resservirait indéfiniment la version en cache de dp.js. Un banc
     // doit toujours exercer le code du disque.
-    const { renderDp } = await import("./js/views/dp.js?v=20260915d&cb=" + Date.now());
+    const { renderDp } = await import("./js/views/dp.js?v=20260916a&cb=" + Date.now());
     await window.__cssPrete;   // styles appliqués avant toute mesure
 
     const view = document.getElementById("view");
