@@ -4,8 +4,9 @@
  */
 // La carte d'authentification et ses modes. Sortie de main.js, qui redevient le
 // fichier du démarrage et des routes.
-import { signInWithPassword, signUpWithPassword, requestPasswordReset } from "./db.js?v=20260916b";
+import { signInWithPassword, signUpWithPassword, requestPasswordReset, updatePassword } from "./db.js?v=20260916b";
 import { validerEmail, validerMotDePasse, messageErreurAuth, configMode } from "./gate-rules.js?v=20260916b";
+import { toast } from "./utils.js?v=20260916b";
 
 export function showGate(mode = "signin") {
   const gate = document.getElementById("gate");
@@ -101,9 +102,44 @@ export function showGate(mode = "signin") {
     submit.disabled = false;
   }
 
+  async function enregistrerMotDePasse() {
+    const mdp = passwordInput.value;
+    const erreur = validerMotDePasse(mdp, confirmation.value);
+    if (erreur) return echec(erreur);
+
+    // Meme garde que dans envoyerLien : si la carte a change de mode pendant
+    // que l'appel est en vol, on abandonne l'ecriture dans la carte (utile
+    // surtout au chemin d'erreur ; le succes recharge la page, la question
+    // devient sans objet).
+    const modeAppel = courant;
+    error.classList.add("hidden");
+    submit.disabled = true;
+    submit.textContent = configMode("reset-set").boutonEnCours;
+    let echoue = null;
+    try {
+      await updatePassword(mdp);
+    } catch (e) {
+      console.error("Update password error:", e);
+      echoue = e;
+    }
+    if (courant !== modeAppel) return;
+    if (echoue) {
+      echec(messageErreurAuth(echoue?.message || String(echoue)));
+      submit.disabled = false;
+      submit.textContent = configMode("reset-set").bouton;
+      return;
+    }
+    toast("Mot de passe modifi\u00e9.", "success", 3000);
+    // Rechargement sur l'URL propre : la session de recuperation est deja
+    // valide, le demarrage normal ouvre l'app. Plus sur que de rejouer le boot
+    // a la main depuis un etat intermediaire.
+    location.replace(location.pathname);
+  }
+
   const handler = async () => {
     if (courant === "reset-request") return envoyerLien();
     if (courant === "reset-error") return setMode("reset-request");
+    if (courant === "reset-set") return enregistrerMotDePasse();
     const email = emailInput.value.trim();
     const password = passwordInput.value;
     const erreurEmail = validerEmail(email);
@@ -140,6 +176,7 @@ export function showGate(mode = "signin") {
   };
   emailInput.onkeydown = onEnter;
   passwordInput.onkeydown = onEnter;
+  confirmation.onkeydown = onEnter;
 }
 
 export function hideGate() {

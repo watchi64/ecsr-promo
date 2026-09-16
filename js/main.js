@@ -7,6 +7,8 @@ import { toast } from "./utils.js?v=20260916b";
 import { icon } from "./icons.js?v=20260916b";
 import { initAuth, onAdminChange, isAuth, isAdmin, isProf } from "./auth-admin.js?v=20260916b";
 import { showGate, hideGate } from "./gate.js?v=20260916b";
+import { lireJetonRecuperation } from "./gate-rules.js?v=20260916b";
+import { verifyRecoveryToken } from "./db.js?v=20260916b";
 import { loadAccent } from "./accent-switcher.js?v=20260916b";
 import { loadTheme } from "./theme-switcher.js?v=20260916b";
 import { renderHome } from "./views/home.js?v=20260916b";
@@ -249,6 +251,25 @@ async function bootApp() {
 (async () => {
   loadTheme();
   loadAccent();
+
+  // Retour depuis le mail de reinitialisation. Ce test passe AVANT initAuth :
+  // la session de recuperation rendrait isAuth() vrai et ferait demarrer l'app
+  // par-dessus l'ecran de saisie. L'URL est nettoyee tout de suite pour que le
+  // jeton ne traine ni dans la barre d'adresse ni dans l'historique.
+  const jeton = lireJetonRecuperation(location.search);
+  if (jeton) {
+    try {
+      await verifyRecoveryToken(jeton);
+      history.replaceState(null, "", location.pathname);
+      showGate("reset-set");
+    } catch (e) {
+      console.error("Recovery token error:", e);
+      history.replaceState(null, "", location.pathname);
+      showGate("reset-error");
+    }
+    return;   // ni initAuth ni polling : on attend la saisie.
+  }
+
   await initAuth();
   if (isAuth()) {
     await bootApp();
