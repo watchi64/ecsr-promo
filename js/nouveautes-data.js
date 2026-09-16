@@ -13,6 +13,27 @@
 
 export const NOUVEAUTES = [
   {
+    id: "2026-09-16-derniere-page",
+    date: "2026-09-16",
+    pour: "tous",
+    titre: "L'app rouvre sur la page que tu as quittée",
+    resume: "Jusqu'ici, ouvrir l'app te ramenait toujours sur Mon suivi. Désormais elle "
+          + "retrouve la page où tu étais la dernière fois, et même le sous-onglet. Si tu "
+          + "consultes souvent le planning ou les thèmes, tu y reviens directement.",
+  },
+  {
+    id: "2026-09-16-dp-formateurs",
+    date: "2026-09-16",
+    pour: "tous",
+    titre: "Ton formateur peut t'aider directement dans ton dossier professionnel",
+    resume: "Le dossier professionnel reste ton document : c'est toi qui le rédiges et qui "
+          + "le signes. Mais les formateurs peuvent maintenant écrire dedans pour "
+          + "t'accompagner, au lieu de seulement le lire. Chaque enregistrement retient qui "
+          + "a écrit en dernier, et cette information s'affiche en haut du dossier : tu vois "
+          + "donc toujours si quelqu'un y est passé après toi.",
+    ou: { label: "Mon suivi, Dossier pro", route: "mon-suivi" },
+  },
+  {
     id: "2026-09-15-dp-mise-en-page",
     date: "2026-09-15",
     pour: "tous",

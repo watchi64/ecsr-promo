@@ -1,20 +1,22 @@
-// Dossier Professionnel : un dossier par stagiaire, rempli par le candidat
-// lui-même (le DP lui appartient), consulté en lecture seule par les
-// formateurs. Le document affiché est le document imprimé.
+// Dossier Professionnel : un dossier par stagiaire. Le DP reste le document du
+// candidat, mais les formateurs peuvent l'ouvrir en écriture pour accompagner
+// sa rédaction (décision du 2026-09-16, qui renverse celle du 2026-07-30 ; la
+// RLS de dp_dossiers a suivi). La dernière main est tracée par
+// updated_by_who et affichée sous la barre d'outils. Le document affiché est le document imprimé.
 //
 // En édition, les 6 exemples de pratique sont affichés même vides, sinon le
 // candidat n'aurait aucun champ où saisir son 2e ou 3e exemple ; les vides
 // portent .dp-bloc-exclu et ne s'impriment pas (voir dp-gabarit.js).
 
-import { listStagiaires, listDpDossiers, getDpDossier, upsertDpDossier } from "../db.js?v=20260916a";
-import { el, clear, displayStagiaire, compareByNom, formatDate, toast } from "../utils.js?v=20260916a";
-import { isAdmin, isProf, getProfile } from "../auth-admin.js?v=20260916a";
-import { getCurrentWho } from "../identity.js?v=20260916a";
+import { listStagiaires, listDpDossiers, getDpDossier, upsertDpDossier } from "../db.js?v=20260916b";
+import { el, clear, displayStagiaire, compareByNom, formatDate, toast } from "../utils.js?v=20260916b";
+import { isAdmin, isProf, getProfile } from "../auth-admin.js?v=20260916b";
+import { getCurrentWho } from "../identity.js?v=20260916b";
 import { collectData, fillData, applyEditable, wireDocEditing,
-         bindDocPrint, refreshDocPrint, teardownDocPrint } from "../doc-officiel.js?v=20260916a";
-import { buildDpFlux, blocSommaire, feuille } from "./dp-gabarit.js?v=20260916a";
-import { exempleImprime } from "../dp-rules.js?v=20260916a";
-import { composer, marquerCoupures } from "../dp-pagination.js?v=20260916a";
+         bindDocPrint, refreshDocPrint, teardownDocPrint } from "../doc-officiel.js?v=20260916b";
+import { buildDpFlux, blocSommaire, feuille } from "./dp-gabarit.js?v=20260916b";
+import { exempleImprime } from "../dp-rules.js?v=20260916b";
+import { composer, marquerCoupures } from "../dp-pagination.js?v=20260916b";
 
 let stagiaires = [];
 let dossiersIndex = [];
@@ -56,7 +58,10 @@ export async function renderDp(container, opts = {}) {
 
   if (opts.stagiaireId != null) {
     const id = Number(opts.stagiaireId);
-    await ouvrirDossier(container, id, { readOnly: id !== monId, isActive: opts.isActive });
+    // Son propre dossier, ou celui d'un stagiaire quand on est formateur : dans
+    // les deux cas en écriture. Un stagiaire qui regarde le dossier d'un autre
+    // ne passe jamais ici, la RLS ne le lui renverrait pas.
+    await ouvrirDossier(container, id, { readOnly: !(formateur || id === monId), isActive: opts.isActive });
     return;
   }
 
@@ -97,7 +102,8 @@ function showListe(container) {
   teardownDocPrint();
   container.appendChild(el("p", { class: "lv-hint" },
     "Dossier professionnel (DP) du ministère chargé de l'emploi. ",
-    "Le DP appartient au candidat : chaque stagiaire remplit le sien, les formateurs le consultent."));
+    "Le DP est le document du candidat. Les formateurs peuvent l'ouvrir pour l'accompagner ; ",
+    "chaque enregistrement retient qui a écrit en dernier."));
   const table = el("table", { class: "lv-liste-table" });
   table.appendChild(el("thead", {}, el("tr", {},
     el("th", {}, "Stagiaire"), el("th", {}, "Dossier"))));
@@ -108,24 +114,22 @@ function showListe(container) {
     const cell = el("td", {});
     cell.appendChild(el("span", { class: "lv-statut" + (row ? " ok" : "") },
       row ? "commencé · màj " + formatDate(new Date(row.updated_at)) : "vierge"));
-    // Sa propre ligne s'ouvre en édition, même pour un formateur : le DP
-    // appartient au candidat, et un formateur peut être aussi stagiaire.
-    // Les dossiers des autres ne s'ouvrent qu'en consultation, et seulement
-    // s'ils existent déjà.
-    if (cestMoi || row) {
-      cell.appendChild(el("button", {
-        class: "btn small " + (cestMoi && !row ? "primary" : "ghost"),
-        style: "margin-left:10px",
-        onClick: async () => {
-          let full = null;
-          try { full = await getDpDossier(s.id); }
-          catch (e) { console.error(e); toast(e?.message || String(e), "error"); return; }
-          showDoc(container, s, full, {
-            readOnly: !cestMoi, stagiaireId: s.id, back: () => renderReload(container),
-          });
-        },
-      }, cestMoi ? (row ? "Remplir mon dossier" : "Commencer mon dossier") : "Consulter"));
-    }
+    // Un formateur ouvre en écriture le dossier de n'importe quel stagiaire,
+    // commencé ou non : il accompagne la rédaction. Sa propre ligne s'ouvre de
+    // la même façon, un formateur pouvant être aussi stagiaire.
+    cell.appendChild(el("button", {
+      class: "btn small " + (cestMoi && !row ? "primary" : "ghost"),
+      style: "margin-left:10px",
+      onClick: async () => {
+        let full = null;
+        try { full = await getDpDossier(s.id); }
+        catch (e) { console.error(e); toast(e?.message || String(e), "error"); return; }
+        showDoc(container, s, full, {
+          readOnly: false, stagiaireId: s.id, back: () => renderReload(container),
+        });
+      },
+    }, cestMoi ? (row ? "Remplir mon dossier" : "Commencer mon dossier")
+               : (row ? "Ouvrir" : "Commencer")));
     const nom = el("div", { class: "lv-name-cell" }, el("span", {}, displayStagiaire(s)));
     if (cestMoi) nom.appendChild(el("span", { class: "lv-statut" }, "moi"));
     tbody.appendChild(el("tr", {}, el("td", {}, nom), cell));
@@ -165,8 +169,9 @@ function showDoc(container, stagiaire, row, { readOnly, stagiaireId, back } = {}
     toolbar.appendChild(el("button", { class: "btn small ghost",
       onClick: () => { teardownDocPrint(); back(); } }, "← Retour"));
   }
+  const cestLeMien = stagiaire == null || (getProfile()?.stagiaire_id ?? null) === stagiaireId;
   toolbar.appendChild(el("h3", {},
-    "Dossier professionnel" + (readOnly && stagiaire ? " : " + displayStagiaire(stagiaire) : "")));
+    "Dossier professionnel" + (!cestLeMien && stagiaire ? " : " + displayStagiaire(stagiaire) : "")));
   toolbar.appendChild(status);
   toolbar.appendChild(el("button", { class: "btn small primary", onClick: async () => {
     if (!readOnly) await saveNow();
@@ -174,9 +179,17 @@ function showDoc(container, stagiaire, row, { readOnly, stagiaireId, back } = {}
     window.print();
   } }, "Imprimer / PDF"));
   container.appendChild(toolbar);
+  // Qui a écrit en dernier. Le DP est le document du candidat : quand un
+  // formateur y touche, cela doit se voir, du candidat comme des autres.
+  const derniereMain = row && row.updated_by_who
+    ? "Dernière modification par " + row.updated_by_who
+      + (row.updated_at ? " le " + formatDate(new Date(row.updated_at)) : "") + ". "
+    : "";
   container.appendChild(el("p", { class: "lv-hint" }, readOnly
-    ? "Le DP appartient au candidat, il en est le seul rédacteur. Consultation seule."
-    : "Clique dans les zones encadrées pour remplir. Enregistrement automatique. Un exemple laissé vide ne sera pas imprimé."));
+    ? derniereMain + "Consultation seule."
+    : derniereMain + (cestLeMien
+        ? "Clique dans les zones encadrées pour remplir. Enregistrement automatique. Un exemple laissé vide ne sera pas imprimé."
+        : "Tu accompagnes ce candidat : tes modifications sont enregistrées à ton nom.")));
 
   // À l'écran : en édition le candidat écrit dans un flux continu, en
   // consultation le document est déjà composé en feuilles. Dans les deux cas,

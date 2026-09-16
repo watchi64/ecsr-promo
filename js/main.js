@@ -2,27 +2,27 @@
  * Promo ECSR : application propriétaire.
  * © 2026 watchi64. Tous droits réservés. Voir LICENSE.
  */
-import { signInWithPassword, signUpWithPassword, getCurrentUser, invalidateCache } from "./db.js?v=20260916a";
-import { toast } from "./utils.js?v=20260916a";
-import { icon } from "./icons.js?v=20260916a";
-import { initAuth, onAdminChange, isAuth, isAdmin, isProf } from "./auth-admin.js?v=20260916a";
-import { loadAccent } from "./accent-switcher.js?v=20260916a";
-import { loadTheme } from "./theme-switcher.js?v=20260916a";
-import { renderHome } from "./views/home.js?v=20260916a";
-import { renderDashboard } from "./views/dashboard.js?v=20260916a";
-import { renderMonSuivi } from "./views/mon-suivi.js?v=20260916a";
-import { renderPlanning, teardownPrintTarget, resetPlanningEditMode, requestPlanningToday } from "./views/planning.js?v=20260916a";
-import { teardownDocPrint } from "./doc-officiel.js?v=20260916a";
-import { renderNotes } from "./views/notes.js?v=20260916a";
-import { renderRessources } from "./views/ressources.js?v=20260916a";
-import { renderThemes } from "./views/themes.js?v=20260916a";
-import { renderConfig } from "./views/config.js?v=20260916a";
-import { renderCalendrier } from "./views/calendrier.js?v=20260916a";
-import { initUndoKeyboard } from "./undo.js?v=20260916a";
-import { renderNouveautes } from "./views/nouveautes.js?v=20260916a";
-import { NOUVEAUTES } from "./nouveautes-data.js?v=20260916a";
-import { visibles, nonLues, vuesEffectives, libellePastille } from "./nouveautes.js?v=20260916a";
-import { initChatbot } from "./chatbot.js?v=20260916a";
+import { signInWithPassword, signUpWithPassword, getCurrentUser, invalidateCache } from "./db.js?v=20260916b";
+import { toast } from "./utils.js?v=20260916b";
+import { icon } from "./icons.js?v=20260916b";
+import { initAuth, onAdminChange, isAuth, isAdmin, isProf } from "./auth-admin.js?v=20260916b";
+import { loadAccent } from "./accent-switcher.js?v=20260916b";
+import { loadTheme } from "./theme-switcher.js?v=20260916b";
+import { renderHome } from "./views/home.js?v=20260916b";
+import { renderDashboard } from "./views/dashboard.js?v=20260916b";
+import { renderMonSuivi } from "./views/mon-suivi.js?v=20260916b";
+import { renderPlanning, teardownPrintTarget, resetPlanningEditMode, requestPlanningToday } from "./views/planning.js?v=20260916b";
+import { teardownDocPrint } from "./doc-officiel.js?v=20260916b";
+import { renderNotes } from "./views/notes.js?v=20260916b";
+import { renderRessources } from "./views/ressources.js?v=20260916b";
+import { renderThemes } from "./views/themes.js?v=20260916b";
+import { renderConfig } from "./views/config.js?v=20260916b";
+import { renderCalendrier } from "./views/calendrier.js?v=20260916b";
+import { initUndoKeyboard } from "./undo.js?v=20260916b";
+import { renderNouveautes } from "./views/nouveautes.js?v=20260916b";
+import { NOUVEAUTES } from "./nouveautes-data.js?v=20260916b";
+import { visibles, nonLues, vuesEffectives, libellePastille } from "./nouveautes.js?v=20260916b";
+import { initChatbot } from "./chatbot.js?v=20260916b";
 
 // ===== Gate : email magic link =====
 
@@ -199,11 +199,32 @@ const ONGLET_POUR_ROUTE = { nouveautes: "home" };
 
 let lastRoute = null;
 
+// Derniere page visitee, pour y revenir au prochain demarrage. Le sous-onglet,
+// lui, se souvient deja tout seul (voir storageKey dans js/subtabs.js) : rendre
+// la route suffit a retomber exactement la ou on etait.
+const CLE_DERNIERE_ROUTE = "derniere-route";
+
+function memoriserRoute(route) {
+  try { localStorage.setItem(CLE_DERNIERE_ROUTE, route); } catch (e) { /* mode prive */ }
+}
+
+// Renvoie la derniere route connue, ou null si elle est absente ou n'existe plus
+// (onglet supprime depuis, stockage vide, navigation privee).
+function derniereRoute() {
+  try {
+    const r = localStorage.getItem(CLE_DERNIERE_ROUTE);
+    return r && routes[r] ? r : null;
+  } catch (e) {
+    return null;
+  }
+}
+
 async function navigate() {
-  // Vue d'accueil = « Mon suivi » : à l'ouverture, chacun veut d'abord savoir ce qui
-  // l'attend (son planning à venir, ses résultats), pas les agrégats de la promo.
+  // Page de repli quand rien n'est memorise : « Mon suivi », ou chacun retrouve
+  // ce qui l'attend, son planning a venir et ses resultats.
   const hash = location.hash.replace(/^#\//, "") || "mon-suivi";
   const route = routes[hash] ? hash : "mon-suivi";
+  memoriserRoute(route);
   // En QUITTANT le planning (pas sur un simple remount : undo, refresh d'auth…),
   // le mode édition retombe : la vue se rouvrira toujours en lecture seule.
   if (lastRoute === "planning" && route !== "planning") resetPlanningEditMode();
@@ -284,10 +305,10 @@ function setupTodayBtn() {
 }
 
 // « Ouvrir l'app » = démarrage à froid. Un raccourci d'écran d'accueil, un favori ou un
-// onglet restauré garde l'ancienne vue dans l'URL (#/dashboard…) : sans ce test, le hash
-// mémorisé gagne toujours et la vue d'accueil ne s'applique jamais (constaté sur iPhone
-// le 23/07). On ne force PAS sur un rechargement ni sur précédent/suivant : tirer pour
-// rafraîchir doit rester sur la page qu'on regarde, pas éjecter vers Mon suivi.
+// onglet restauré garde une vue figée dans l'URL (#/dashboard…), celle du jour où le
+// raccourci a été créé : sans ce test, ce hash gagnerait toujours et on ne reviendrait
+// jamais sur la page réellement quittée. On ne force PAS sur un rechargement ni sur
+// précédent/suivant : tirer pour rafraîchir doit rester sur la page qu'on regarde.
 function isColdStart() {
   try {
     const nav = performance.getEntriesByType("navigation")[0];
@@ -309,11 +330,14 @@ async function bootApp() {
   // Émis par la page et par la section d'Accueil après marquage.
   window.addEventListener("nouveautes-vues", majBadgeNouveautes);
   initUndoKeyboard();
-  // replaceState plutôt que location.hash : pas de `hashchange` (donc pas de double
-  // rendu avec le navigate() ci-dessous) et pas d'entrée d'historique parasite.
+  // À l'ouverture, on revient sur la page quittée la dernière fois, et à défaut
+  // sur « Mon suivi ». replaceState plutôt que location.hash : pas de
+  // `hashchange` (donc pas de double rendu avec le navigate() ci-dessous) et pas
+  // d'entrée d'historique parasite.
   if (!location.hash || isColdStart()) {
-    try { history.replaceState(null, "", "#/mon-suivi"); }
-    catch (e) { location.hash = "#/mon-suivi"; }
+    const cible = "#/" + (derniereRoute() || "mon-suivi");
+    try { history.replaceState(null, "", cible); }
+    catch (e) { location.hash = cible; }
   }
   await navigate();
 }

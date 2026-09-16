@@ -78,6 +78,14 @@ Clés de `data`, plates comme celles du livret :
 
 ### Politiques RLS
 
+**Révisé le 2026-09-16.** Les formateurs écrivent désormais aussi dans le DP, pour
+accompagner la rédaction : `is_prof()` a été ajouté aux politiques INSERT et UPDATE. Le DP
+reste le document du candidat, et la colonne `updated_by_who` trace la dernière main, que la
+vue affiche sous la barre d'outils. Pour revenir en arrière, rejouer ces deux politiques sans
+`OR is_prof()`.
+
+Le tableau ci-dessous décrit l'état d'origine, conservé pour mémoire.
+
 Miroir inversé de `epcf_livrets` : sur le livret le formateur écrit et le stagiaire lit,
 sur le DP c'est le contraire.
 
