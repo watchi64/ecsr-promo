@@ -13,6 +13,15 @@
 
 export const NOUVEAUTES = [
   {
+    id: "2026-09-18-mot-de-passe-oublie",
+    date: "2026-09-18",
+    pour: "tous",
+    titre: "Tu peux réinitialiser ton mot de passe toi-même",
+    resume: "Si tu as oublié ton mot de passe, clique « Mot de passe oublié ? » sur l'écran "
+          + "de connexion. Tu reçois un lien par email, valable une heure, qui te permet d'en "
+          + "choisir un nouveau. Plus besoin de demander à un formateur de te débloquer.",
+  },
+  {
     id: "2026-09-16-derniere-page",
     date: "2026-09-16",
     pour: "tous",

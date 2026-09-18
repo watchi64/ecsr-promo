@@ -2759,6 +2759,29 @@ body.p-dragging-active {
   line-height: 1.4;
 }
 
+/* Lien discret sous le bouton de la gate (oubli, retour). Bouton plutôt que
+   lien : aucune navigation, on change de mode dans la même carte. */
+.gate-link {
+  background: none;
+  border: none;
+  padding: 0;
+  margin-top: 0.7rem;
+  font: inherit;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.gate-link:hover { color: var(--accent); }
+
+.gate-info {
+  margin-top: 0.9rem;
+  font-size: 0.85rem;
+  line-height: 1.45;
+  color: var(--text);
+}
+
 /* === État erreur Paramètres (timeout / réseau) === */
 .param-error {
   background: var(--bg-elev);

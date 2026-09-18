@@ -1,14 +1,14 @@
-import { listThemes, updateTheme, addTheme, deleteTheme, listQcmIndex, getQcmFull, publishQcm, unpublishQcm, updateExamConfig, listExamAttempts, resetExamAttempt, listMyQcmAttempts, getMyProfile, listEvaluations, getOrCreateQcm, saveQcmQuestion, deleteQcmQuestion, reorderQcmQuestions, uploadQcmImage, listQcmSignalements, setQcmSignalementStatut, countQcmSignalementsOuverts } from "../db.js?v=20260916b";
-import { el, clear, isoDate, formatDate, toast, debounce } from "../utils.js?v=20260916b";
-import { icon } from "../icons.js?v=20260916b";
+import { listThemes, updateTheme, addTheme, deleteTheme, listQcmIndex, getQcmFull, publishQcm, unpublishQcm, updateExamConfig, listExamAttempts, resetExamAttempt, listMyQcmAttempts, getMyProfile, listEvaluations, getOrCreateQcm, saveQcmQuestion, deleteQcmQuestion, reorderQcmQuestions, uploadQcmImage, listQcmSignalements, setQcmSignalementStatut, countQcmSignalementsOuverts } from "../db.js?v=20260918a";
+import { el, clear, isoDate, formatDate, toast, debounce } from "../utils.js?v=20260918a";
+import { icon } from "../icons.js?v=20260918a";
 import { examenDemarrable, tempsRestantMs, formatTempsRestant,
-         echeanceDepuisChoix, DUREES_OUVERTURE } from "../qcm-exam-rules.js?v=20260916b";
-import { isAdmin, getAdminEmail, isProf, isStagiaire } from "../auth-admin.js?v=20260916b";
-import { recordUndo } from "../undo.js?v=20260916b";
-import { openQcmEntrainement, openQcmExamen } from "./qcm.js?v=20260916b";
-import { carteSignalement, renderConsoleSignalements, chargerAuteurs } from "./signalements.js?v=20260916b";
-import { renderSubTabs } from "../subtabs.js?v=20260916b";
-import { hasCours, openCoursSheet, chargerCoursIndex, coursDejaOuvert } from "./cours-reader.js?v=20260916b";
+         echeanceDepuisChoix, DUREES_OUVERTURE } from "../qcm-exam-rules.js?v=20260918a";
+import { isAdmin, getAdminEmail, isProf, isStagiaire } from "../auth-admin.js?v=20260918a";
+import { recordUndo } from "../undo.js?v=20260918a";
+import { openQcmEntrainement, openQcmExamen } from "./qcm.js?v=20260918a";
+import { carteSignalement, renderConsoleSignalements, chargerAuteurs } from "./signalements.js?v=20260918a";
+import { renderSubTabs } from "../subtabs.js?v=20260918a";
+import { hasCours, openCoursSheet, chargerCoursIndex, coursDejaOuvert } from "./cours-reader.js?v=20260918a";
 
 let themes = [];
 let qcmByTheme = new Map();  // theme_id -> { id, nb_questions, published, ... }

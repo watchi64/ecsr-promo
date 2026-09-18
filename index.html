@@ -19,10 +19,10 @@
   <title>TP ECSR App</title>
 
   <!-- Polices auto-hébergées (RGPD : aucun appel Google Fonts) -->
-  <link rel="stylesheet" href="css/fonts.css?v=20260916b" />
-  <link rel="stylesheet" href="css/style.css?v=20260916b" />
-  <link rel="stylesheet" href="css/livret.css?v=20260916b" />
-  <link rel="stylesheet" href="css/dp.css?v=20260916b" />
+  <link rel="stylesheet" href="css/fonts.css?v=20260918a" />
+  <link rel="stylesheet" href="css/style.css?v=20260918a" />
+  <link rel="stylesheet" href="css/livret.css?v=20260918a" />
+  <link rel="stylesheet" href="css/dp.css?v=20260918a" />
   <link rel="icon" href="assets/logo/tpecsr-logo.svg" type="image/svg+xml" />
   <!-- Écran d'accueil iOS : Safari n'accepte pas de SVG et rend la transparence en noir.
        PNG 180x180 opaque (pictogramme clair sur le fond espresso de l'app), coins laissés
@@ -46,10 +46,14 @@
       <p class="muted" id="gate-subtitle">Entre ton email et ton mot de passe.</p>
       <div class="gate-form">
         <input type="email" id="gate-email" placeholder="ton.email@exemple.fr" autocomplete="email" />
-        <input type="password" id="gate-password" placeholder="Mot de passe (min. 6 caractères)" autocomplete="current-password" />
+        <input type="password" id="gate-password" placeholder="Mot de passe (min. 8 caractères)" autocomplete="current-password" />
+        <input type="password" id="gate-confirmation" class="hidden" placeholder="Confirme le mot de passe" autocomplete="new-password" />
         <button id="gate-submit" class="btn primary">Se connecter</button>
       </div>
       <p class="error hidden" id="gate-error"></p>
+      <p class="gate-info hidden" id="gate-info"></p>
+      <button type="button" class="gate-link" id="gate-oubli">Mot de passe oublié ?</button>
+      <button type="button" class="gate-link hidden" id="gate-retour">Retour à la connexion</button>
       <p class="muted gate-hint" id="gate-hint">Pas encore inscrit ? Demande à un admin d'ajouter ton email à la liste, puis clique « Créer un compte ».</p>
     </div>
   </div>
@@ -75,6 +79,6 @@
     <div id="toast" class="toast hidden"></div>
   </div>
 
-  <script type="module" src="js/main.js?v=20260916b"></script>
+  <script type="module" src="js/main.js?v=20260918a"></script>
 </body>
 </html>

@@ -2,124 +2,29 @@
  * Promo ECSR : application propriétaire.
  * © 2026 watchi64. Tous droits réservés. Voir LICENSE.
  */
-import { signInWithPassword, signUpWithPassword, getCurrentUser, invalidateCache } from "./db.js?v=20260916b";
-import { toast } from "./utils.js?v=20260916b";
-import { icon } from "./icons.js?v=20260916b";
-import { initAuth, onAdminChange, isAuth, isAdmin, isProf } from "./auth-admin.js?v=20260916b";
-import { loadAccent } from "./accent-switcher.js?v=20260916b";
-import { loadTheme } from "./theme-switcher.js?v=20260916b";
-import { renderHome } from "./views/home.js?v=20260916b";
-import { renderDashboard } from "./views/dashboard.js?v=20260916b";
-import { renderMonSuivi } from "./views/mon-suivi.js?v=20260916b";
-import { renderPlanning, teardownPrintTarget, resetPlanningEditMode, requestPlanningToday } from "./views/planning.js?v=20260916b";
-import { teardownDocPrint } from "./doc-officiel.js?v=20260916b";
-import { renderNotes } from "./views/notes.js?v=20260916b";
-import { renderRessources } from "./views/ressources.js?v=20260916b";
-import { renderThemes } from "./views/themes.js?v=20260916b";
-import { renderConfig } from "./views/config.js?v=20260916b";
-import { renderCalendrier } from "./views/calendrier.js?v=20260916b";
-import { initUndoKeyboard } from "./undo.js?v=20260916b";
-import { renderNouveautes } from "./views/nouveautes.js?v=20260916b";
-import { NOUVEAUTES } from "./nouveautes-data.js?v=20260916b";
-import { visibles, nonLues, vuesEffectives, libellePastille } from "./nouveautes.js?v=20260916b";
-import { initChatbot } from "./chatbot.js?v=20260916b";
-
-// ===== Gate : email magic link =====
-
-function showGate() {
-  const gate = document.getElementById("gate");
-  const tabSignin = document.getElementById("gate-tab-signin");
-  const tabSignup = document.getElementById("gate-tab-signup");
-  const subtitle = document.getElementById("gate-subtitle");
-  const emailInput = document.getElementById("gate-email");
-  const passwordInput = document.getElementById("gate-password");
-  const submit = document.getElementById("gate-submit");
-  const error = document.getElementById("gate-error");
-  const hint = document.getElementById("gate-hint");
-
-  let mode = "signin";  // "signin" | "signup"
-
-  gate.classList.remove("hidden");
-  document.getElementById("app").classList.add("hidden");
-
-  function setMode(next) {
-    mode = next;
-    tabSignin.classList.toggle("active", mode === "signin");
-    tabSignup.classList.toggle("active", mode === "signup");
-    if (mode === "signin") {
-      subtitle.textContent = "Entre ton email et ton mot de passe.";
-      submit.textContent = "Se connecter";
-      passwordInput.autocomplete = "current-password";
-      hint.textContent = "Pas encore inscrit ? Bascule sur « Créer un compte » (ton email doit être whitelisté).";
-    } else {
-      subtitle.textContent = "Crée ton compte : email (whitelisté par un admin) + choisis un mot de passe.";
-      submit.textContent = "Créer mon compte";
-      passwordInput.autocomplete = "new-password";
-      hint.textContent = "Tu dois avoir été invité au préalable. Sinon l'inscription sera refusée.";
-    }
-    error.classList.add("hidden");
-    submit.disabled = false;
-  }
-
-  tabSignin.onclick = () => setMode("signin");
-  tabSignup.onclick = () => setMode("signup");
-  setMode("signin");
-  emailInput.focus();
-
-  const handler = async () => {
-    const email = emailInput.value.trim();
-    const password = passwordInput.value;
-    if (!email || !/^\S+@\S+\.\S+$/.test(email)) {
-      error.textContent = "Email invalide";
-      error.classList.remove("hidden");
-      return;
-    }
-    if (!password) {
-      error.textContent = "Mot de passe requis";
-      error.classList.remove("hidden");
-      return;
-    }
-    // Longueur minimale exigée seulement à la création (la connexion valide
-    // le vrai mot de passe côté serveur).
-    if (mode === "signup" && password.length < 8) {
-      error.textContent = "Mot de passe : 8 caractères minimum";
-      error.classList.remove("hidden");
-      return;
-    }
-    error.classList.add("hidden");
-    submit.disabled = true;
-    const original = submit.textContent;
-    submit.textContent = mode === "signup" ? "Création…" : "Connexion…";
-    try {
-      if (mode === "signup") {
-        await signUpWithPassword(email, password);
-      } else {
-        await signInWithPassword(email, password);
-      }
-      // initAuth() est déjà câblé via onAuthChange ; le polling watch bootera l'app.
-    } catch (e) {
-      console.error("Gate auth error:", e);
-      let msg = e?.message || String(e);
-      // Messages Supabase plus parlants
-      if (/Invalid login credentials/i.test(msg)) msg = "Email ou mot de passe incorrect.";
-      else if (/User already registered/i.test(msg)) msg = "Cet email a déjà un compte. Bascule sur « Connexion ».";
-      else if (/non autorisé/i.test(msg) || /Database error/i.test(msg)) msg = "Email non whitelisté. Demande à un admin de t'inviter d'abord.";
-      error.textContent = msg;
-      error.classList.remove("hidden");
-      submit.disabled = false;
-      submit.textContent = original;
-    }
-  };
-  submit.onclick = handler;
-  const onEnter = (e) => { if (e.key === "Enter") { e.preventDefault(); handler(); } };
-  emailInput.onkeydown = onEnter;
-  passwordInput.onkeydown = onEnter;
-}
-
-function hideGate() {
-  document.getElementById("gate").classList.add("hidden");
-  document.getElementById("app").classList.remove("hidden");
-}
+import { getCurrentUser, invalidateCache, verifyRecoveryToken } from "./db.js?v=20260918a";
+import { toast } from "./utils.js?v=20260918a";
+import { icon } from "./icons.js?v=20260918a";
+import { initAuth, onAdminChange, isAuth, isAdmin, isProf } from "./auth-admin.js?v=20260918a";
+import { showGate, hideGate } from "./gate.js?v=20260918a";
+import { lireJetonRecuperation } from "./gate-rules.js?v=20260918a";
+import { loadAccent } from "./accent-switcher.js?v=20260918a";
+import { loadTheme } from "./theme-switcher.js?v=20260918a";
+import { renderHome } from "./views/home.js?v=20260918a";
+import { renderDashboard } from "./views/dashboard.js?v=20260918a";
+import { renderMonSuivi } from "./views/mon-suivi.js?v=20260918a";
+import { renderPlanning, teardownPrintTarget, resetPlanningEditMode, requestPlanningToday } from "./views/planning.js?v=20260918a";
+import { teardownDocPrint } from "./doc-officiel.js?v=20260918a";
+import { renderNotes } from "./views/notes.js?v=20260918a";
+import { renderRessources } from "./views/ressources.js?v=20260918a";
+import { renderThemes } from "./views/themes.js?v=20260918a";
+import { renderConfig } from "./views/config.js?v=20260918a";
+import { renderCalendrier } from "./views/calendrier.js?v=20260918a";
+import { initUndoKeyboard } from "./undo.js?v=20260918a";
+import { renderNouveautes } from "./views/nouveautes.js?v=20260918a";
+import { NOUVEAUTES } from "./nouveautes-data.js?v=20260918a";
+import { visibles, nonLues, vuesEffectives, libellePastille } from "./nouveautes.js?v=20260918a";
+import { initChatbot } from "./chatbot.js?v=20260918a";
 
 // ===== Tabs =====
 
@@ -345,6 +250,34 @@ async function bootApp() {
 (async () => {
   loadTheme();
   loadAccent();
+
+  // Retour depuis le mail de reinitialisation. Ce test passe AVANT initAuth :
+  // la session de recuperation rendrait isAuth() vrai et ferait demarrer l'app
+  // par-dessus l'ecran de saisie. L'URL est nettoyee tout de suite pour que le
+  // jeton ne traine ni dans la barre d'adresse ni dans l'historique.
+  const jeton = lireJetonRecuperation(location.search);
+  // Mode initial de la carte pour le demarreur normal ci-dessous : "reset-error"
+  // si le jeton s'est revele invalide, sinon la valeur par defaut de showGate().
+  let modeGateInitial;
+  if (jeton) {
+    try {
+      await verifyRecoveryToken(jeton);
+      history.replaceState(null, "", location.pathname);
+      showGate("reset-set");
+      return;   // ni initAuth ni polling : on attend la saisie.
+    } catch (e) {
+      console.error("Recovery token error:", e);
+      history.replaceState(null, "", location.pathname);
+      // Jeton invalide : l'utilisateur n'est pas authentifie du tout. On
+      // rejoint le demarrage normal d'un visiteur non connecte (initAuth puis
+      // la boucle de surveillance ci-dessous), sinon la connexion reussirait
+      // cote serveur sans que personne n'ecoute (aucun onAuthStateChange, aucun
+      // polling), et l'app ne s'ouvrirait jamais. showGate() n'est appele
+      // qu'une fois, dans la branche non authentifiee, avec ce mode.
+      modeGateInitial = "reset-error";
+    }
+  }
+
   await initAuth();
   if (isAuth()) {
     await bootApp();
@@ -352,7 +285,7 @@ async function bootApp() {
     // Pas connecté → gate.
     // Si l'URL contient ?code=... (callback magic link), Supabase a déjà handle ;
     // un onAuthChange va déclencher le boot automatiquement.
-    showGate();
+    showGate(modeGateInitial);
     // Surveille le moment où l'auth devient valide pour basculer.
     const watch = setInterval(async () => {
       if (isAuth()) {
