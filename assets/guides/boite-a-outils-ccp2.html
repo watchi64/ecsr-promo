@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Boîte à outils numérique CCP2</title>
-<meta name="description" content="Des outils simples et les bons réflexes pour avancer sur ton CCP2 : raccourcis, Google Drive, Docs, Forms, Canva, dictée vocale et IA.">
+<meta name="description" content="Des outils simples et les bons réflexes pour avancer sur ton CCP2 : raccourcis, gestes de base, Google Drive, Docs, Forms, Canva, dictée vocale et IA.">
 <link rel="stylesheet" href="../../css/fonts.css">
 <style>
 @font-face { font-family: "Canela"; src: url("../../css/fonts/canela_light.otf") format("opentype"); font-weight: 300; font-display: swap; }
@@ -22,10 +22,9 @@
   --accent: #6B7F4E;
   --accent-strong: #556641;
   --accent-soft: #EAEFD9;
-  --warn: #B45309;
-  --warn-soft: #FBEACB;
   --stop: #A05A3D;
   --stop-soft: #F6E4D7;
+  --pin: #D6336C;
   --r: 10px;
   --r-lg: 16px;
   --shadow: 0 4px 12px -2px rgba(60, 40, 20, 0.06), 0 2px 4px rgba(60, 40, 20, 0.03);
@@ -42,13 +41,14 @@ body {
   font-family: var(--font); font-size: 17px; line-height: 1.55;
   -webkit-font-smoothing: antialiased;
 }
-.wrap { max-width: 860px; margin: 0 auto; padding: 0 16px; }
+.wrap { max-width: 900px; margin: 0 auto; padding: 0 16px; }
+a { color: var(--accent-strong); }
 
 /* En-tête */
 header.hero { padding: 40px 0 24px; }
 .eyebrow { font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--accent-strong); font-weight: 600; margin: 0 0 10px; }
 h1 { font-family: var(--font-display); font-weight: 300; font-size: clamp(32px, 7vw, 50px); line-height: 1.08; margin: 0 0 14px; text-wrap: balance; }
-.lead { font-size: 18px; color: var(--text-soft); margin: 0; max-width: 60ch; }
+.lead { font-size: 18px; color: var(--text-soft); margin: 0; max-width: 62ch; }
 
 /* Barre de navigation collante */
 nav.toc {
@@ -57,7 +57,7 @@ nav.toc {
   border-bottom: 1px solid var(--line);
 }
 nav.toc .rail {
-  max-width: 860px; margin: 0 auto; padding: 10px 16px;
+  max-width: 900px; margin: 0 auto; padding: 10px 16px;
   display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none;
 }
 nav.toc .rail::-webkit-scrollbar { display: none; }
@@ -70,7 +70,6 @@ nav.toc a {
 nav.toc a img, nav.toc a svg { width: 20px; height: 20px; flex: none; }
 nav.toc a:hover { border-color: var(--accent); }
 nav.toc a.active { background: var(--bg-deep); border-color: var(--bg-deep); color: #fff; }
-nav.toc a.active svg { color: #fff; }
 
 /* Blocs */
 main { padding: 28px 0 64px; }
@@ -89,7 +88,7 @@ section.bloc {
 }
 .logo img { width: 30px; height: 30px; }
 .logo img.full { width: 52px; height: 52px; border-radius: 14px; }
-.logo svg { width: 28px; height: 28px; color: var(--ink, var(--accent-strong)); }
+.logo svg { width: 28px; height: 28px; color: var(--accent-strong); }
 .bloc-head .num { font-family: var(--font-mono); font-size: 13px; color: var(--text-muted); display: block; }
 .bloc-head h2 { font-family: var(--font-display); font-weight: 400; font-size: 28px; line-height: 1.1; margin: 0; }
 .bloc-body { padding: 20px 22px 8px; }
@@ -104,7 +103,19 @@ section.bloc {
 .bloc-foot a.next { margin-left: auto; background: var(--bg-deep); border-color: var(--bg-deep); color: #fff; }
 .bloc-foot a:hover { border-color: var(--accent); }
 
-.intro { color: var(--text-soft); margin: 0 0 16px; }
+.intro { color: var(--text-soft); margin: 0 0 14px; }
+.links { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 8px; }
+.links a {
+  font-size: 14px; font-weight: 500; text-decoration: none; color: var(--accent-strong);
+  background: #fff; border: 1px solid var(--line); border-radius: 999px; padding: 5px 12px;
+}
+.links a::after { content: " ↗"; }
+.links a:hover { border-color: var(--accent); }
+.sub {
+  font-size: 13px; text-transform: uppercase; letter-spacing: .07em; font-weight: 600;
+  color: var(--text-muted); margin: 26px 0 12px; display: flex; align-items: center; gap: 10px;
+}
+.sub::after { content: ""; flex: 1; height: 1px; background: var(--line); }
 h3 { font-size: 17px; margin: 18px 0 6px; font-weight: 600; }
 p { margin: 0 0 12px; }
 ul { margin: 0 0 14px; padding-left: 20px; }
@@ -127,6 +138,47 @@ kbd {
   border-radius: 5px; padding: 1px 6px; white-space: nowrap; color: var(--text);
 }
 .combo { white-space: nowrap; }
+.path {
+  font-family: var(--font-mono); font-size: 13px; background: var(--bg); color: var(--text);
+  border: 1px solid var(--line); border-radius: 5px; padding: 1px 6px;
+}
+
+/* Schémas d'écran annotés */
+figure.mock { margin: 0 0 8px; }
+.mock-frame { border-radius: 12px; overflow-x: auto; border: 1px solid var(--line); background: #fff; }
+.mock-frame svg { display: block; width: 100%; min-width: 540px; height: auto; }
+.mock-frame svg text { font-family: var(--font); }
+.mock .hint { display: none; font-size: 13px; color: var(--text-muted); margin: 6px 0 0; }
+.m-win { fill: #fff; }
+.t { fill: #3C4043; font-size: 14px; }
+.t-lg { font-size: 19px; }
+.t-m { fill: #80868B; font-size: 13.5px; }
+.t-b { font-weight: 600; }
+.pin circle { fill: var(--pin); stroke: #fff; stroke-width: 2.5; }
+.pin text { fill: #fff; font-size: 14px; font-weight: 700; text-anchor: middle; }
+ol.legend { list-style: none; padding: 0; margin: 14px 0 0; display: grid; gap: 10px 18px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); counter-reset: l; }
+ol.legend li { counter-increment: l; position: relative; padding-left: 34px; margin: 0; font-size: 15.5px; color: var(--text-soft); }
+ol.legend li::before {
+  content: counter(l); position: absolute; left: 0; top: 0;
+  width: 24px; height: 24px; border-radius: 50%; background: var(--pin); color: #fff;
+  font-size: 13px; font-weight: 700; display: grid; place-items: center;
+}
+ol.legend li strong { color: var(--text); }
+
+/* Pas à pas */
+.howto-grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); margin-bottom: 8px; }
+.howto { background: #fff; border: 1px solid var(--line); border-radius: var(--r); padding: 14px 16px; }
+.howto h4 { margin: 0 0 8px; font-size: 16px; font-weight: 600; }
+.howto ol { margin: 0; padding-left: 20px; font-size: 15.5px; color: var(--text-soft); }
+.howto ol li { margin-bottom: 5px; }
+.howto p { margin: 0; font-size: 15.5px; color: var(--text-soft); }
+
+/* Gestes de base */
+.gestes { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); margin-bottom: 16px; }
+.geste { display: flex; gap: 14px; align-items: flex-start; background: #fff; border: 1px solid var(--line); border-radius: var(--r); padding: 14px 16px; }
+.geste svg { width: 30px; height: 42px; flex: none; }
+.geste h3 { margin: 0 0 3px; font-size: 16px; }
+.geste p { margin: 0; font-size: 15px; color: var(--text-soft); }
 
 /* Raccourcis : le bloc vedette */
 section.star { border: 2px solid var(--bg-deep); }
@@ -135,10 +187,7 @@ section.star .bloc-head .num { color: #B7C0AA; }
 .badge { margin-left: auto; font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; background: #D8E1C0; color: var(--bg-deep); padding: 4px 10px; border-radius: 999px; white-space: nowrap; }
 .keys { display: grid; gap: 12px; grid-template-columns: repeat(4, minmax(0, 1fr)); margin-bottom: 20px; }
 @media (max-width: 800px) { .keys { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-.key {
-  background: #fff; border: 1px solid var(--line-strong); border-bottom-width: 3px;
-  border-radius: 12px; padding: 14px 14px 12px; text-align: center;
-}
+.key { background: #fff; border: 1px solid var(--line-strong); border-bottom-width: 3px; border-radius: 12px; padding: 14px 14px 12px; text-align: center; }
 .key .combo { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 5px; margin-bottom: 8px; }
 .key kbd { font-size: 16px; padding: 4px 9px; border-bottom-width: 3px; border-radius: 7px; }
 .key .plus { color: var(--text-muted); font-weight: 600; }
@@ -151,6 +200,11 @@ section.star .bloc-head .num { color: #B7C0AA; }
 
 .prompt { font-family: var(--font-mono); font-size: 13.5px; line-height: 1.55; background: #fff; border: 1px dashed var(--line-strong); border-radius: var(--r); padding: 12px 14px; margin: 0 0 12px; color: var(--text-soft); }
 .prompt .tag { display: block; font-family: var(--font); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--accent-strong); margin-bottom: 4px; }
+
+.journal { background: #fff; border: 1px solid var(--line); border-radius: var(--r); padding: 18px 22px; margin-bottom: 16px; }
+.journal .j-date { font-family: var(--font-display); font-size: 22px; margin: 0 0 8px; }
+.journal p { font-size: 15.5px; margin: 0 0 6px; color: var(--text-soft); }
+.journal .j-tag { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--text-muted); margin-bottom: 10px; }
 
 footer { padding: 8px 0 48px; color: var(--text-muted); font-size: 14px; text-align: center; }
 
@@ -167,10 +221,12 @@ footer { padding: 8px 0 48px; color: var(--text-muted); font-size: 14px; text-al
   .key { padding: 12px 8px 10px; }
   .key .combo { gap: 3px; }
   .key kbd { font-size: 13px; padding: 3px 6px; }
+  .mock .hint { display: block; }
 }
 @media print {
   nav.toc, .bloc-foot { display: none; }
-  section.bloc { box-shadow: none; break-inside: avoid-page; }
+  section.bloc { box-shadow: none; }
+  .mock-frame svg { min-width: 0; }
 }
 </style>
 </head>
@@ -180,13 +236,14 @@ footer { padding: 8px 0 48px; color: var(--text-muted); font-size: 14px; text-al
   <header class="hero">
     <p class="eyebrow">CCP2 · Boîte à outils</p>
     <h1>Des outils simples pour avancer sur ton CCP2</h1>
-    <p class="lead">Pas un mode d'emploi : quelques réflexes pour te débrouiller partout, et une poignée d'outils gratuits qui font gagner beaucoup de temps.</p>
+    <p class="lead">Les bases de chaque outil, expliquées sur un écran annoté, puis les bons réflexes pour te débrouiller même quand l'écran ne ressemble pas tout à fait à l'image.</p>
   </header>
 </div>
 
 <nav class="toc" aria-label="Sommaire">
   <div class="rail">
     <a href="#raccourcis"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/></svg>Raccourcis</a>
+    <a href="#gestes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="3" width="12" height="18" rx="6"/><path d="M12 3v6M6 9h12"/></svg>Gestes de base</a>
     <a href="#bloque"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/><path d="M5.6 5.6l3.6 3.6M14.8 14.8l3.6 3.6M18.4 5.6l-3.6 3.6M9.2 14.8l-3.6 3.6"/></svg>Si tu bloques</a>
     <a href="#drive"><img src="logos/drive.svg" alt="">Drive</a>
     <a href="#docs"><img src="logos/docs.svg" alt="">Docs</a>
@@ -208,7 +265,7 @@ footer { padding: 8px 0 48px; color: var(--text-muted); font-size: 14px; text-al
     <span class="badge">Le plus utile</span>
   </div>
   <div class="bloc-body">
-    <p class="intro">Ils marchent partout : Docs, Forms, Canva, mails, internet. Sur Mac, <kbd>Cmd</kbd> remplace <kbd>Ctrl</kbd>.</p>
+    <p class="intro">Ils marchent partout : Docs, Forms, Canva, mails, internet. On garde la première touche enfoncée, on appuie sur la seconde, on relâche les deux. Sur Mac, <kbd>Cmd</kbd> remplace <kbd>Ctrl</kbd>.</p>
     <div class="keys">
       <div class="key"><div class="combo"><kbd>Ctrl</kbd><span class="plus">+</span><kbd>C</kbd></div><div class="what">Copier</div></div>
       <div class="key"><div class="combo"><kbd>Ctrl</kbd><span class="plus">+</span><kbd>V</kbd></div><div class="what">Coller</div></div>
@@ -232,156 +289,597 @@ footer { padding: 8px 0 48px; color: var(--text-muted); font-size: 14px; text-al
       </ul>
     </div>
     <div class="note"><p>Deux nouveaux par semaine, pas plus. Au bout d'un mois, tu ne cherches plus.</p></div>
+    <div class="links"><a href="https://support.google.com/docs/answer/179738?hl=fr" target="_blank" rel="noopener">Tous les raccourcis de Google Docs</a></div>
   </div>
-  <div class="bloc-foot"><a class="next" href="#bloque">Suivant : si tu bloques →</a></div>
+  <div class="bloc-foot"><a class="next" href="#gestes">Suivant : gestes de base →</a></div>
 </section>
 
-<!-- 02 SI TU BLOQUES -->
+<!-- 02 GESTES DE BASE -->
+<section class="bloc" id="gestes" style="--tint:#E7ECE3">
+  <div class="bloc-head">
+    <div class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="3" width="12" height="18" rx="6"/><path d="M12 3v6M6 9h12"/></svg></div>
+    <div><span class="num">02</span><h2>Les gestes de base</h2></div>
+  </div>
+  <div class="bloc-body">
+    <p class="intro">La souris fait bien plus que cliquer. Ces gestes marchent dans tous les logiciels, et la plupart aussi sur le pavé tactile d'un ordinateur portable.</p>
+    <div class="gestes">
+      <div class="geste">
+        <svg viewBox="0 0 28 40"><rect x="1" y="1" width="26" height="38" rx="13" fill="#fff" stroke="#46554A" stroke-width="1.6"/><path d="M14 1 A13 13 0 0 0 1 14 V15 H14 Z" fill="#6B7F4E"/><path d="M14 1v14M1 15h26" stroke="#46554A" stroke-width="1.6"/></svg>
+        <div><h3>Clic</h3><p>Sélectionner un fichier, placer le curseur dans un texte, ouvrir un lien.</p></div>
+      </div>
+      <div class="geste">
+        <svg viewBox="0 0 28 40"><rect x="1" y="1" width="26" height="38" rx="13" fill="#fff" stroke="#46554A" stroke-width="1.6"/><path d="M14 1 A13 13 0 0 0 1 14 V15 H14 Z" fill="#6B7F4E"/><path d="M14 1v14M1 15h26" stroke="#46554A" stroke-width="1.6"/><text x="7" y="31" font-size="11" font-weight="700" fill="#6B7F4E">×2</text></svg>
+        <div><h3>Double-clic</h3><p>Ouvrir un fichier ou un dossier. Dans un texte : sélectionne le mot.</p></div>
+      </div>
+      <div class="geste">
+        <svg viewBox="0 0 28 40"><rect x="1" y="1" width="26" height="38" rx="13" fill="#fff" stroke="#46554A" stroke-width="1.6"/><path d="M14 1 A13 13 0 0 0 1 14 V15 H14 Z" fill="#6B7F4E"/><path d="M14 1v14M1 15h26" stroke="#46554A" stroke-width="1.6"/><text x="7" y="31" font-size="11" font-weight="700" fill="#6B7F4E">×3</text></svg>
+        <div><h3>Triple-clic</h3><p>Dans un texte : sélectionne tout le paragraphe d'un coup.</p></div>
+      </div>
+      <div class="geste">
+        <svg viewBox="0 0 28 40"><rect x="1" y="1" width="26" height="38" rx="13" fill="#fff" stroke="#46554A" stroke-width="1.6"/><path d="M14 1 A13 13 0 0 1 27 14 V15 H14 Z" fill="#D6336C"/><path d="M14 1v14M1 15h26" stroke="#46554A" stroke-width="1.6"/></svg>
+        <div><h3>Clic droit</h3><p>Ouvre le menu de ce qu'on peut faire ici : renommer, copier, partager, supprimer…</p></div>
+      </div>
+      <div class="geste">
+        <svg viewBox="0 0 28 40"><rect x="1" y="1" width="26" height="38" rx="13" fill="#fff" stroke="#46554A" stroke-width="1.6"/><path d="M14 1 A13 13 0 0 0 1 14 V15 H14 Z" fill="#6B7F4E"/><path d="M14 1v14M1 15h26" stroke="#46554A" stroke-width="1.6"/><path d="M9 29h10M16 26l3 3-3 3" stroke="#6B7F4E" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <div><h3>Cliquer-glisser</h3><p>Garder le bouton enfoncé en bougeant : sélectionne un morceau de texte, ou déplace un fichier vers un dossier (glisser-déposer).</p></div>
+      </div>
+      <div class="geste">
+        <svg viewBox="0 0 28 40"><rect x="1" y="1" width="26" height="38" rx="13" fill="#fff" stroke="#46554A" stroke-width="1.6"/><path d="M14 1v14M1 15h26" stroke="#46554A" stroke-width="1.6"/><rect x="11.5" y="5" width="5" height="9" rx="2.5" fill="#6B7F4E"/></svg>
+        <div><h3>Molette</h3><p>Fait défiler la page. Avec <kbd>Ctrl</kbd> enfoncé : zoomer ou dézoomer quand c'est écrit trop petit.</p></div>
+      </div>
+    </div>
+    <div class="howto-grid">
+      <div class="howto"><h4>Sélectionner au clavier</h4><p><kbd>Maj</kbd> + flèches : lettre par lettre. <span class="combo"><kbd>Ctrl</kbd> + <kbd>Maj</kbd></span> + flèches : mot par mot. Pratique quand la souris est trop imprécise.</p></div>
+      <div class="howto"><h4>Plusieurs fichiers à la fois</h4><p><kbd>Ctrl</kbd> + clic sur chaque fichier pour en choisir plusieurs. <kbd>Maj</kbd> + clic pour prendre tous ceux entre deux.</p></div>
+    </div>
+  </div>
+  <div class="bloc-foot"><a href="#raccourcis">← Raccourcis</a><a class="next" href="#bloque">Suivant : si tu bloques →</a></div>
+</section>
+
+<!-- 03 SI TU BLOQUES -->
 <section class="bloc" id="bloque" style="--tint:#EAEFD9">
   <div class="bloc-head">
     <div class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/><path d="M5.6 5.6l3.6 3.6M14.8 14.8l3.6 3.6M18.4 5.6l-3.6 3.6M9.2 14.8l-3.6 3.6"/></svg></div>
-    <div><span class="num">02</span><h2>Si tu bloques</h2></div>
+    <div><span class="num">03</span><h2>Si tu bloques</h2></div>
   </div>
   <div class="bloc-body">
-    <p class="intro">Personne ne connaît tous les menus. Le secret, c'est de savoir chercher.</p>
+    <p class="intro">Les écrans changent d'une mise à jour à l'autre, personne ne connaît tous les menus. Le secret, c'est de savoir chercher.</p>
     <div class="grid">
       <div class="tile"><h3>1. Survole, clic droit</h3><p>Une bulle explique chaque icône. Le clic droit propose ce qu'on peut faire ici.</p></div>
-      <div class="tile"><h3>2. Essaie sans peur</h3><p><kbd>Ctrl</kbd> + <kbd>Z</kbd> annule tout. Docs enregistre seul et garde l'historique.</p></div>
-      <div class="tile"><h3>3. Cherche dans les menus</h3><p>Dans Docs, <kbd>Alt</kbd> + <kbd>/</kbd> : tape « sommaire », « tableau »… Dans Canva, la barre de recherche.</p></div>
-      <div class="tile"><h3>4. Demande avec une capture</h3><p>Capture l'écran, colle-la dans une IA : « je veux faire ça, où je clique ? ».</p></div>
+      <div class="tile"><h3>2. Essaie sans peur</h3><p><span class="combo"><kbd>Ctrl</kbd> + <kbd>Z</kbd></span> annule. Docs enregistre seul et garde l'historique.</p></div>
+      <div class="tile"><h3>3. Cherche dans les menus</h3><p>Dans Docs, <span class="combo"><kbd>Alt</kbd> + <kbd>/</kbd></span> : tape « sommaire », « tableau »… Dans Canva, la barre de recherche.</p></div>
+      <div class="tile"><h3>4. Demande avec une capture</h3><p>Capture l'écran, colle-la dans une IA : « je veux faire ça, où je clique ? ».</p></div>
+    </div>
+    <div class="links">
+      <a href="https://support.google.com/drive/?hl=fr" target="_blank" rel="noopener">Aide Google Drive</a>
+      <a href="https://support.google.com/docs/?hl=fr" target="_blank" rel="noopener">Aide Docs et Forms</a>
     </div>
   </div>
-  <div class="bloc-foot"><a href="#raccourcis">← Raccourcis</a><a class="next" href="#drive">Suivant : Drive →</a></div>
+  <div class="bloc-foot"><a href="#gestes">← Gestes de base</a><a class="next" href="#drive">Suivant : Drive →</a></div>
 </section>
 
-<!-- 03 DRIVE -->
+<!-- 04 DRIVE -->
 <section class="bloc" id="drive" style="--tint:#FEF4D6">
   <div class="bloc-head">
     <div class="logo"><img src="logos/drive.svg" alt="Google Drive"></div>
-    <div><span class="num">03</span><h2>Google Drive</h2></div>
+    <div><span class="num">04</span><h2>Google Drive</h2></div>
   </div>
   <div class="bloc-body">
-    <p class="intro">Ton classeur. Bien rangé dès le début, tu retrouves tout au moment d'écrire.</p>
+    <p class="intro">Ton classeur en ligne, avec ton compte Gmail, sur ordinateur ou dans l'appli Google Drive du téléphone. Tout ce que tu y mets se retrouve sur tous tes appareils.</p>
+    <div class="links">
+      <a href="https://drive.google.com" target="_blank" rel="noopener">Ouvrir Drive</a>
+      <a href="https://support.google.com/drive/?hl=fr" target="_blank" rel="noopener">Aide Drive</a>
+    </div>
+
+    <p class="sub">L'écran</p>
+    <figure class="mock">
+      <div class="mock-frame">
+        <svg viewBox="0 0 800 440" role="img" aria-label="L'écran de Google Drive, annoté de 1 à 6">
+          <rect class="m-win" x="0" y="0" width="800" height="440"/>
+          <image href="logos/drive.svg" x="22" y="18" width="30" height="27"/>
+          <text class="t t-lg" x="62" y="39">Drive</text>
+          <rect x="210" y="14" width="390" height="38" rx="19" fill="#E9EEF6"/>
+          <circle cx="236" cy="31" r="7" fill="none" stroke="#5f6368" stroke-width="2"/><path d="M241 36l5 5" stroke="#5f6368" stroke-width="2" stroke-linecap="round"/>
+          <text class="t-m" x="258" y="38">Rechercher dans Drive</text>
+          <circle cx="762" cy="33" r="16" fill="#6B7F4E"/><text x="762" y="38" text-anchor="middle" fill="#fff" font-size="14" font-weight="600">T</text>
+          <rect x="16" y="72" width="118" height="46" rx="16" fill="#fff" stroke="#C9CFC4"/>
+          <text class="t t-b" x="34" y="101" font-size="16">+ Nouveau</text>
+          <text class="t" x="30" y="158">Accueil</text>
+          <rect x="12" y="172" width="168" height="30" rx="15" fill="#C2E7FF"/>
+          <text class="t t-b" x="30" y="192">Mon Drive</text>
+          <text class="t" x="30" y="226">Partagés avec moi</text>
+          <text class="t" x="30" y="258">Récents</text>
+          <text class="t" x="30" y="290">Suivis</text>
+          <text class="t" x="30" y="322">Corbeille</text>
+          <rect x="196" y="66" width="590" height="362" rx="14" fill="#fff" stroke="#E3E6E0"/>
+          <text class="t" x="216" y="100" font-size="19">Mon Drive  ›  CCP2</text>
+          <text class="t-m" x="252" y="136">Nom</text><text class="t-m" x="600" y="136">Modifié le</text>
+          <line x1="206" y1="146" x2="776" y2="146" stroke="#E3E6E0"/>
+          <rect x="204" y="190" width="574" height="36" rx="8" fill="#C2E7FF" opacity=".55"/>
+          <g fill="#5F6368">
+            <path transform="translate(216,163)" d="M0 2a2 2 0 0 1 2-2h6l2 3h10a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2z"/>
+            <path transform="translate(216,199)" d="M0 2a2 2 0 0 1 2-2h6l2 3h10a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2z"/>
+            <path transform="translate(216,235)" d="M0 2a2 2 0 0 1 2-2h6l2 3h10a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2z"/>
+            <path transform="translate(216,271)" d="M0 2a2 2 0 0 1 2-2h6l2 3h10a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2z"/>
+          </g>
+          <text class="t" x="252" y="177">Dossier écrit</text><text class="t-m" x="600" y="177">14 oct.</text>
+          <text class="t t-b" x="252" y="213">Enquête</text>
+          <text class="t" x="252" y="249">Animation</text><text class="t-m" x="600" y="249">10 oct.</text>
+          <text class="t" x="252" y="285">Annexes</text>
+          <rect x="220" y="305" width="15" height="20" rx="2" fill="#4285F4"/>
+          <text class="t" x="252" y="321">Journal de bord</text><text class="t-m" x="600" y="321">15 oct.</text>
+          <rect x="433" y="220" width="236" height="200" rx="8" fill="rgba(0,0,0,.06)"/>
+          <rect x="430" y="216" width="236" height="200" rx="8" fill="#fff" stroke="#DADCE0"/>
+          <text class="t" x="450" y="244">Ouvrir avec</text><text class="t-m" x="646" y="244">›</text>
+          <text class="t" x="450" y="274">Télécharger</text>
+          <text class="t" x="450" y="304">Renommer</text>
+          <line x1="440" y1="316" x2="656" y2="316" stroke="#E3E6E0"/>
+          <text class="t t-b" x="450" y="340">Partager</text><text class="t-m" x="646" y="340">›</text>
+          <text class="t" x="450" y="370">Organiser</text><text class="t-m" x="646" y="370">›</text>
+          <text class="t" x="450" y="400">Placer dans la corbeille</text>
+          <g class="pin" transform="translate(142,74)"><circle r="13"/><text y="5">1</text></g>
+          <g class="pin" transform="translate(614,22)"><circle r="13"/><text y="5">2</text></g>
+          <g class="pin" transform="translate(126,187)"><circle r="13"/><text y="5">3</text></g>
+          <g class="pin" transform="translate(166,221)"><circle r="13"/><text y="5">4</text></g>
+          <g class="pin" transform="translate(672,222)"><circle r="13"/><text y="5">5</text></g>
+          <g class="pin" transform="translate(110,317)"><circle r="13"/><text y="5">6</text></g>
+        </svg>
+      </div>
+      <p class="hint">Fais glisser l'image vers la gauche pour la voir en entier.</p>
+      <ol class="legend">
+        <li><strong>Nouveau</strong> : créer un dossier, un document, un formulaire, ou importer un fichier de l'ordinateur.</li>
+        <li><strong>Rechercher</strong> : tape un mot du nom ou du contenu, Drive retrouve le fichier.</li>
+        <li><strong>Mon Drive</strong> : tous tes fichiers et dossiers.</li>
+        <li><strong>Partagés avec moi</strong> : ce que les autres t'ont partagé (formateurs, collègues).</li>
+        <li><strong>Le clic droit</strong> sur un fichier : renommer, partager, déplacer (dans Organiser), télécharger.</li>
+        <li><strong>Corbeille</strong> : un fichier supprimé y reste 30 jours. Clic droit, Restaurer, pour le récupérer.</li>
+      </ol>
+    </figure>
+
+    <p class="sub">Pas à pas</p>
+    <div class="howto-grid">
+      <div class="howto"><h4>Créer ton dossier CCP2</h4><ol><li><span class="path">Nouveau › Nouveau dossier</span></li><li>Tape le nom, puis <strong>Créer</strong>.</li><li>Double-clic pour entrer dedans et créer tes sous-dossiers de la même façon.</li></ol></div>
+      <div class="howto"><h4>Mettre un fichier de l'ordinateur</h4><ol><li>Ouvre le dossier de destination dans Drive.</li><li>Glisse le fichier depuis l'explorateur de fichiers jusque dans la fenêtre.</li><li>Ou : <span class="path">Nouveau › Importer un fichier</span>.</li></ol></div>
+      <div class="howto"><h4>Partager un fichier</h4><ol><li>Clic droit sur le fichier, <span class="path">Partager › Partager</span>.</li><li>Tape l'adresse mail et choisis le rôle, puis <strong>Envoyer</strong>.</li><li>Ou <span class="path">Partager › Copier le lien</span>, à coller sur WhatsApp.</li></ol></div>
+      <div class="howto"><h4>Depuis ton téléphone</h4><ol><li>Dans l'appli Drive, ouvre le bon dossier.</li><li>Bouton <strong>+</strong>, puis <strong>Importer</strong> pour une photo.</li><li>Ou <strong>Scanner</strong> pour photographier un document papier en PDF.</li></ol></div>
+    </div>
+
+    <p class="sub">Conseils</p>
     <div class="grid">
-      <div class="tile"><h3>Ranger</h3><p>Un dossier « CCP2 » avec des sous-dossiers : Dossier, Enquête, Animation, Annexes, Photos.</p></div>
-      <div class="tile"><h3>Nommer</h3><p>La date en premier, à l'envers : « 2026-10-14 RDV lycée ». Tout se range dans l'ordre.</p></div>
-      <div class="tile"><h3>Partager</h3><p><strong>Lecteur</strong> lit, <strong>Commentateur</strong> annote (idéal pour faire relire), <strong>Éditeur</strong> modifie.</p></div>
-      <div class="tile"><h3>Le téléphone</h3><p>L'appli Drive envoie tes photos et scanne tes papiers directement dans le bon dossier.</p></div>
+      <div class="tile"><h3>Ranger</h3><p>Un dossier « CCP2 » et des sous-dossiers : Dossier écrit, Enquête, Animation, Annexes, Photos.</p></div>
+      <div class="tile"><h3>Nommer</h3><p>La date en premier, à l'envers : « 2026-10-14 RDV lycée ». Tout se range dans l'ordre.</p></div>
+      <div class="tile"><h3>Les rôles de partage</h3><p><strong>Lecteur</strong> lit, <strong>Commentateur</strong> annote (idéal pour faire relire), <strong>Éditeur</strong> modifie tout.</p></div>
     </div>
   </div>
   <div class="bloc-foot"><a href="#bloque">← Si tu bloques</a><a class="next" href="#docs">Suivant : Docs →</a></div>
 </section>
 
-<!-- 04 DOCS -->
+<!-- 05 DOCS -->
 <section class="bloc" id="docs" style="--tint:#E4EDFD">
   <div class="bloc-head">
     <div class="logo"><img src="logos/docs.svg" alt="Google Docs"></div>
-    <div><span class="num">04</span><h2>Google Docs</h2></div>
+    <div><span class="num">05</span><h2>Google Docs</h2></div>
   </div>
   <div class="bloc-body">
-    <p class="intro">Pour écrire ton dossier de 40 000 caractères.</p>
-    <div class="grid">
-      <div class="tile"><h3>Styles de titres</h3><p>« Titre 1 », « Titre 2 » au lieu du gras : le sommaire se fait tout seul (Insertion, Table des matières).</p></div>
-      <div class="tile"><h3>Compter</h3><p><kbd>Ctrl</kbd> + <kbd>Maj</kbd> + <kbd>C</kbd>. Le CCP2 se compte en « Caractères », espaces compris.</p></div>
-      <div class="tile"><h3>Faire relire</h3><p>Partage en Commentateur : les remarques s'affichent dans la marge sans toucher ton texte.</p></div>
-      <div class="tile"><h3>Mettre en page</h3><p><kbd>Ctrl</kbd> + <kbd>Entrée</kbd> saut de page. Insertion, Tableau pour tes trames. Télécharger en PDF pour rendre.</p></div>
+    <p class="intro">Le traitement de texte de Google, pour écrire ton dossier. Tout s'enregistre au fur et à mesure : pas de bouton « Enregistrer ».</p>
+    <div class="links">
+      <a href="https://docs.google.com" target="_blank" rel="noopener">Ouvrir Docs</a>
+      <a href="https://docs.new" target="_blank" rel="noopener">Nouveau document direct</a>
+      <a href="https://support.google.com/docs/answer/179738?hl=fr" target="_blank" rel="noopener">Raccourcis de Docs</a>
+    </div>
+
+    <p class="sub">L'écran</p>
+    <figure class="mock">
+      <div class="mock-frame">
+        <svg viewBox="0 0 800 440" role="img" aria-label="L'écran de Google Docs, annoté de 1 à 6">
+          <rect class="m-win" x="0" y="0" width="800" height="440"/>
+          <image href="logos/docs.svg" x="20" y="12" width="26" height="36"/>
+          <text class="t t-lg" x="56" y="31">Dossier CCP2</text>
+          <text class="t-m" x="56" y="54" font-size="13.5" word-spacing="9">Fichier Édition Affichage Insertion Format Outils Extensions Aide</text>
+          <path d="M628 22h24a3 3 0 0 1 3 3v14a3 3 0 0 1-3 3h-14l-6 5v-5h-4a3 3 0 0 1-3-3V25a3 3 0 0 1 3-3z" fill="none" stroke="#5F6368" stroke-width="2"/>
+          <rect x="668" y="14" width="112" height="38" rx="19" fill="#C2E7FF"/>
+          <text class="t t-b" x="724" y="38" text-anchor="middle">Partager</text>
+          <rect x="12" y="68" width="776" height="38" rx="19" fill="#EDF2FA"/>
+          <text class="t-m" x="34" y="92">100 %</text>
+          <rect x="98" y="74" width="132" height="26" rx="5" fill="#fff" stroke="#C7CCD1"/>
+          <text class="t" x="108" y="92" font-size="13.5">Texte normal ▾</text>
+          <text class="t" x="248" y="92" font-size="13.5">Arial ▾</text>
+          <text class="t" x="318" y="92" font-size="13.5">11</text>
+          <text class="t t-b" x="356" y="92">B</text>
+          <text class="t" x="380" y="92" font-style="italic">I</text>
+          <text class="t" x="400" y="92" text-decoration="underline">U</text>
+          <g fill="#9AA0A6"><rect x="438" y="80" width="14" height="14" rx="2"/><rect x="466" y="80" width="14" height="14" rx="2"/><rect x="494" y="80" width="14" height="14" rx="2"/><rect x="536" y="82" width="18" height="2.5"/><rect x="536" y="87" width="12" height="2.5"/><rect x="536" y="92" width="18" height="2.5"/></g>
+          <rect x="0" y="112" width="800" height="328" fill="#F8F9FA"/>
+          <text class="t t-b" x="20" y="142" font-size="13.5">Plan</text>
+          <text class="t" x="20" y="172" font-size="13">Introduction</text>
+          <rect x="14" y="184" width="3" height="18" fill="#1A73E8"/>
+          <text x="24" y="198" font-size="13" font-weight="600" fill="#1A73E8">A. Analyse préalable</text>
+          <text class="t" x="34" y="224" font-size="13">1. Commanditaire</text>
+          <text class="t" x="34" y="248" font-size="13">2. La structure</text>
+          <text class="t" x="20" y="276" font-size="13">B. Construction</text>
+          <text class="t" x="20" y="302" font-size="13">C. Animation</text>
+          <text class="t" x="20" y="328" font-size="13">D. Analyse</text>
+          <rect x="196" y="126" width="440" height="314" fill="#fff" stroke="#E3E6E0"/>
+          <text class="t" x="226" y="170" font-size="22">A. Analyse préalable</text>
+          <g fill="#E3E6E0"><rect x="226" y="186" width="380" height="7" rx="3"/><rect x="226" y="200" width="360" height="7" rx="3"/><rect x="226" y="214" width="300" height="7" rx="3"/></g>
+          <text class="t t-b" x="226" y="252" font-size="16">1. Choix du commanditaire</text>
+          <rect x="226" y="266" width="380" height="7" rx="3" fill="#E3E6E0"/>
+          <rect x="226" y="278" width="210" height="11" rx="2" fill="#FDE293"/>
+          <g fill="#E3E6E0"><rect x="226" y="294" width="370" height="7" rx="3"/><rect x="226" y="308" width="280" height="7" rx="3"/></g>
+          <text class="t t-b" x="226" y="346" font-size="16">2. Présentation de la structure</text>
+          <g fill="#E3E6E0"><rect x="226" y="360" width="380" height="7" rx="3"/><rect x="226" y="374" width="340" height="7" rx="3"/></g>
+          <line x1="436" y1="284" x2="648" y2="290" stroke="#FBBC04" stroke-width="1.5" stroke-dasharray="3 3"/>
+          <rect x="648" y="262" width="140" height="76" rx="10" fill="#fff" stroke="#DADCE0"/>
+          <circle cx="665" cy="283" r="9" fill="#A05A3D"/>
+          <text class="t t-b" x="680" y="288" font-size="12.5">Formateur</text>
+          <text class="t" x="660" y="312" font-size="12.5">Ajoute la date</text>
+          <text class="t" x="660" y="328" font-size="12.5">de la demande ?</text>
+          <g class="pin" transform="translate(188,26)"><circle r="13"/><text y="5">1</text></g>
+          <g class="pin" transform="translate(522,50)"><circle r="13"/><text y="5">2</text></g>
+          <g class="pin" transform="translate(236,74)"><circle r="13"/><text y="5">3</text></g>
+          <g class="pin" transform="translate(166,137)"><circle r="13"/><text y="5">4</text></g>
+          <g class="pin" transform="translate(786,262)"><circle r="13"/><text y="5">5</text></g>
+          <g class="pin" transform="translate(668,16)"><circle r="13"/><text y="5">6</text></g>
+        </svg>
+      </div>
+      <p class="hint">Fais glisser l'image vers la gauche pour la voir en entier.</p>
+      <ol class="legend">
+        <li><strong>Le nom du document</strong> : clique dessus pour le renommer.</li>
+        <li><strong>Les menus</strong> : tout est rangé là. Insertion (image, tableau, sommaire), Outils (nombre de mots), Fichier (télécharger en PDF, historique).</li>
+        <li><strong>Les styles</strong> : Texte normal, Titre 1, Titre 2. Ce sont eux qui fabriquent le plan et le sommaire.</li>
+        <li><strong>Le plan</strong> : la liste de tes titres. Clique sur un titre pour y sauter.</li>
+        <li><strong>Un commentaire</strong> : une remarque dans la marge, reliée au passage surligné, sans toucher au texte.</li>
+        <li><strong>Partager</strong> : donner accès au document à un formateur ou à un collègue.</li>
+      </ol>
+    </figure>
+
+    <p class="sub">Pas à pas</p>
+    <div class="howto-grid">
+      <div class="howto"><h4>Créer le document</h4><ol><li>Dans ton dossier Drive : <span class="path">Nouveau › Google Docs</span>.</li><li>Clique sur « Document sans titre » en haut pour le nommer.</li></ol></div>
+      <div class="howto"><h4>Mettre un titre</h4><ol><li>Clique dans la ligne du titre.</li><li>Ouvre la liste <strong>Texte normal</strong> et choisis <strong>Titre 1</strong> (une partie) ou <strong>Titre 2</strong> (une sous-partie).</li></ol></div>
+      <div class="howto"><h4>Faire le sommaire</h4><ol><li>Place le curseur en haut du document.</li><li><span class="path">Insertion › Table des matières</span>.</li><li>Après des changements, clique dans le sommaire, puis sur la flèche circulaire pour le mettre à jour.</li></ol></div>
+      <div class="howto"><h4>Compter les caractères</h4><ol><li><span class="path">Outils › Nombre de mots</span>, ou <span class="combo"><kbd>Ctrl</kbd> + <kbd>Maj</kbd> + <kbd>C</kbd></span>.</li><li>Le CCP2 se lit sur la ligne <strong>Caractères</strong> (espaces compris).</li><li>Sélectionne d'abord une partie pour ne compter qu'elle.</li></ol></div>
+      <div class="howto"><h4>Image et tableau</h4><ol><li><span class="path">Insertion › Image › Importer depuis l'ordinateur</span> (ou depuis Drive).</li><li><span class="path">Insertion › Tableau</span>, puis choisis le nombre de lignes et de colonnes : parfait pour les trames.</li></ol></div>
+      <div class="howto"><h4>Rendre et revenir en arrière</h4><ol><li><span class="path">Fichier › Télécharger › Document PDF</span> : la version à rendre.</li><li><span class="path">Fichier › Historique des versions</span> : retrouver une version d'avant.</li></ol></div>
+      <div class="howto"><h4>Faire relire</h4><ol><li>Partage en <strong>Commentateur</strong>.</li><li>Pour commenter : sélectionne un passage, puis l'icône bulle (ou <span class="combo"><kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>M</kbd></span>).</li><li>Une fois corrigé, clique <strong>Résoudre</strong>.</li></ol></div>
+      <div class="howto"><h4>Changer de page</h4><p><span class="combo"><kbd>Ctrl</kbd> + <kbd>Entrée</kbd></span> insère un saut de page : la partie suivante commence en haut d'une nouvelle page.</p></div>
     </div>
   </div>
   <div class="bloc-foot"><a href="#drive">← Drive</a><a class="next" href="#forms">Suivant : Forms →</a></div>
 </section>
 
-<!-- 05 FORMS -->
+<!-- 06 FORMS -->
 <section class="bloc" id="forms" style="--tint:#EFE7F8">
   <div class="bloc-head">
     <div class="logo"><img src="logos/forms.svg" alt="Google Forms"></div>
-    <div><span class="num">05</span><h2>Google Forms</h2></div>
+    <div><span class="num">06</span><h2>Google Forms</h2></div>
   </div>
   <div class="bloc-body">
-    <p class="intro">Deux fois dans le CCP2 : l'enquête avant l'action, la satisfaction après.</p>
+    <p class="intro">Les questionnaires en ligne de Google. Il sert deux fois dans le CCP2 : l'enquête avant l'action, la satisfaction après.</p>
+    <div class="links">
+      <a href="https://forms.google.com" target="_blank" rel="noopener">Ouvrir Forms</a>
+      <a href="https://forms.new" target="_blank" rel="noopener">Nouveau formulaire direct</a>
+      <a href="https://support.google.com/docs/answer/2839588?hl=fr" target="_blank" rel="noopener">Aide : publier et partager</a>
+    </div>
+
+    <p class="sub">L'écran</p>
+    <figure class="mock">
+      <div class="mock-frame">
+        <svg viewBox="0 0 800 440" role="img" aria-label="L'écran de Google Forms, annoté de 1 à 6">
+          <rect x="0" y="0" width="800" height="440" fill="#F0EBF8"/>
+          <rect x="0" y="0" width="800" height="96" fill="#fff"/>
+          <image href="logos/forms.svg" x="20" y="14" width="22" height="30"/>
+          <text class="t t-lg" x="54" y="36">Enquête trajets</text>
+                    <path d="M624 32c6-9 22-9 28 0c-6 9-22 9-28 0z" fill="none" stroke="#5F6368" stroke-width="2"/><circle cx="638" cy="32" r="4" fill="#5F6368"/>
+          <rect x="672" y="14" width="110" height="38" rx="19" fill="#673AB7"/>
+          <text x="727" y="38" text-anchor="middle" fill="#fff" font-size="14" font-weight="600">Publier</text>
+          <text x="290" y="82" font-size="14" font-weight="600" fill="#673AB7">Questions</text>
+          <rect x="290" y="90" width="70" height="3" rx="1.5" fill="#673AB7"/>
+          <text class="t" x="392" y="82">Réponses</text>
+          <text class="t" x="486" y="82">Paramètres</text>
+          <rect x="150" y="112" width="480" height="80" rx="8" fill="#fff"/>
+          <rect x="150" y="112" width="480" height="8" rx="4" fill="#673AB7"/>
+          <text class="t" x="172" y="150" font-size="20">Enquête trajets</text>
+          <text class="t-m" x="172" y="174">Questionnaire anonyme, 3 minutes</text>
+          <rect x="150" y="204" width="480" height="226" rx="8" fill="#fff"/>
+          <rect x="150" y="204" width="5" height="226" fill="#4285F4"/>
+          <rect x="172" y="222" width="262" height="42" rx="4" fill="#F1F3F4"/>
+          <text class="t" x="184" y="248">Comment venez-vous au travail ?</text>
+          <rect x="446" y="222" width="166" height="42" rx="4" fill="#fff" stroke="#DADCE0"/>
+          <circle cx="466" cy="243" r="7" fill="none" stroke="#5F6368" stroke-width="2"/><circle cx="466" cy="243" r="3" fill="#5F6368"/>
+          <text class="t" x="480" y="248" font-size="13.5">Choix multiples ▾</text>
+          <g fill="none" stroke="#9AA0A6" stroke-width="2"><circle cx="182" cy="292" r="8"/><circle cx="182" cy="322" r="8"/><circle cx="182" cy="352" r="8"/><circle cx="182" cy="382" r="8"/></g>
+          <text class="t" x="200" y="297">Voiture</text>
+          <text class="t" x="200" y="327">Deux-roues</text>
+          <text class="t" x="200" y="357">Transports en commun</text>
+          <text class="t-m" x="200" y="387">Ajouter une option</text>
+          <line x1="172" y1="402" x2="612" y2="402" stroke="#E3E6E0"/>
+          <rect x="452" y="410" width="12" height="14" rx="2" fill="none" stroke="#5F6368" stroke-width="1.8"/>
+          <path d="M482 412h14M485 412v12h8v-12" fill="none" stroke="#5F6368" stroke-width="1.8"/>
+          <text class="t" x="512" y="422" font-size="13">Obligatoire</text>
+          <rect x="584" y="412" width="28" height="13" rx="6.5" fill="#BDC1C6"/><circle cx="591" cy="418.5" r="7" fill="#fff" stroke="#BDC1C6"/>
+          <rect x="646" y="204" width="44" height="172" rx="8" fill="#fff" stroke="#DADCE0"/>
+          <circle cx="668" cy="228" r="11" fill="none" stroke="#5F6368" stroke-width="2"/><path d="M668 222v12M662 228h12" stroke="#5F6368" stroke-width="2"/>
+          <text x="668" y="270" text-anchor="middle" font-size="14" font-weight="700" fill="#5F6368">Tt</text>
+          <rect x="659" y="292" width="18" height="15" rx="2" fill="none" stroke="#5F6368" stroke-width="2"/>
+          <path d="M659 334h18M659 342h18" stroke="#5F6368" stroke-width="2"/>
+          <g class="pin" transform="translate(700,214)"><circle r="13"/><text y="5">1</text></g>
+          <g class="pin" transform="translate(614,220)"><circle r="13"/><text y="5">2</text></g>
+          <g class="pin" transform="translate(620,396)"><circle r="13"/><text y="5">3</text></g>
+          <g class="pin" transform="translate(472,62)"><circle r="13"/><text y="5">4</text></g>
+          <g class="pin" transform="translate(784,16)"><circle r="13"/><text y="5">5</text></g>
+          <g class="pin" transform="translate(654,16)"><circle r="13"/><text y="5">6</text></g>
+        </svg>
+      </div>
+      <p class="hint">Fais glisser l'image vers la gauche pour la voir en entier.</p>
+      <ol class="legend">
+        <li><strong>Ajouter une question</strong> (le +). En dessous : ajouter un titre, une image, une nouvelle section.</li>
+        <li><strong>Le type de question</strong> : Choix multiples (une seule réponse), Cases à cocher (plusieurs), Échelle linéaire (une note de 1 à 5), Réponse courte ou Paragraphe (texte libre).</li>
+        <li><strong>Obligatoire</strong> : on ne peut pas valider le questionnaire sans répondre à celle-ci.</li>
+        <li><strong>Réponses</strong> : les résultats en graphiques, qui se remplissent au fur et à mesure.</li>
+        <li><strong>Publier</strong> : rend le questionnaire accessible et donne le lien à partager. Sur les anciens formulaires, ce bouton s'appelle « Envoyer ».</li>
+        <li><strong>Aperçu</strong> (l'œil) : voir et tester le questionnaire comme la personne interrogée.</li>
+      </ol>
+    </figure>
+
+    <p class="sub">Pas à pas</p>
+    <div class="howto-grid">
+      <div class="howto"><h4>Créer le questionnaire</h4><ol><li>Dans ton dossier Drive : <span class="path">Nouveau › Google Forms</span> (parfois rangé sous « Plus »).</li><li>Choisis un formulaire vierge, puis écris le titre et une phrase d'explication.</li></ol></div>
+      <div class="howto"><h4>Écrire une question</h4><ol><li>Tape la question dans la zone grise.</li><li>Choisis le type à droite.</li><li>Écris les réponses possibles, puis le <strong>+</strong> pour la question suivante.</li></ol></div>
+      <div class="howto"><h4>Tester avant d'envoyer</h4><ol><li>Clique sur l'œil pour ouvrir l'aperçu.</li><li>Remplis-le comme un participant, et fais-le remplir à un proche.</li></ol></div>
+      <div class="howto"><h4>Diffuser</h4><ol><li><strong>Publier</strong>, puis copie le lien du répondant.</li><li>Colle-le sur WhatsApp ou dans un mail.</li><li>Pour une salle : transforme-le en QR code (Canva a une appli « Code QR » gratuite) et affiche-le.</li></ol></div>
+      <div class="howto"><h4>Lire les résultats</h4><ol><li>Onglet <strong>Réponses</strong> : un graphique par question.</li><li>Le bouton Sheets crée un tableau avec toutes les réponses.</li><li>Une capture des graphiques fait une annexe claire.</li></ol></div>
+      <div class="howto"><h4>Refaire pour la satisfaction</h4><ol><li>Dans Drive, clic droit sur le formulaire, <span class="path">Créer une copie</span>.</li><li>Renomme la copie et remplace les questions.</li></ol></div>
+    </div>
+
+    <p class="sub">Conseils</p>
     <div class="grid">
       <div class="tile"><h3>Court</h3><p>Dix questions maximum, moins de cinq minutes.</p></div>
-      <div class="tile"><h3>Surtout fermé</h3><p>Choix, cases, échelle de 1 à 5. Une ou deux questions ouvertes seulement.</p></div>
-      <div class="tile"><h3>Testé</h3><p>Fais-le remplir à un proche : s'il hésite, la question est mal posée.</p></div>
-      <div class="tile"><h3>En QR code</h3><p>« Envoyer », copie le lien, transforme-le en QR code : on répond depuis son téléphone.</p></div>
+      <div class="tile"><h3>Surtout fermé</h3><p>Choix, cases, échelles : rapide à remplir et transformé en graphiques. Une ou deux questions ouvertes seulement.</p></div>
+      <div class="tile"><h3>Anonyme</h3><p>Ne demande le nom que si c'est vraiment utile : on répond plus franchement.</p></div>
     </div>
-    <div class="note"><p>L'onglet « Réponses » fait les graphiques : une capture, et tu as une annexe. Ne demande le nom que si c'est vraiment utile.</p></div>
   </div>
   <div class="bloc-foot"><a href="#docs">← Docs</a><a class="next" href="#canva">Suivant : Canva →</a></div>
 </section>
 
-<!-- 06 CANVA -->
+<!-- 07 CANVA -->
 <section class="bloc" id="canva" style="--tint:#E0F4F5">
   <div class="bloc-head">
     <div class="logo"><img src="logos/canva.svg" alt="Canva"></div>
-    <div><span class="num">06</span><h2>Canva</h2></div>
+    <div><span class="num">07</span><h2>Canva</h2></div>
   </div>
   <div class="bloc-body">
-    <p class="intro">Les diapos accompagnent ta parole. Si tout est écrit dessus, on lit au lieu de t'écouter.</p>
+    <p class="intro">Un outil gratuit en ligne pour faire des diapos à partir de modèles déjà mis en page. Tes diapos accompagnent ta parole : si tout est écrit dessus, on lit au lieu de t'écouter.</p>
+    <div class="links">
+      <a href="https://www.canva.com/fr_fr/" target="_blank" rel="noopener">Ouvrir Canva</a>
+      <a href="https://www.canva.com/fr_fr/presentations/modeles/" target="_blank" rel="noopener">Modèles de présentation</a>
+    </div>
+
+    <p class="sub">L'écran</p>
+    <figure class="mock">
+      <div class="mock-frame">
+        <svg viewBox="0 0 800 440" role="img" aria-label="L'écran de Canva, annoté de 1 à 8">
+          <defs><linearGradient id="cvg" x1="0" x2="1" y1="0" y2="0"><stop offset="0" stop-color="#00C4CC"/><stop offset="1" stop-color="#7D2AE8"/></linearGradient></defs>
+          <rect x="0" y="0" width="800" height="440" fill="#EBECF0"/>
+          <rect x="0" y="0" width="800" height="54" fill="url(#cvg)"/>
+          <text x="22" y="33" fill="#fff" font-size="14" font-weight="500">Fichier</text>
+          <text x="88" y="33" fill="#fff" font-size="14" font-weight="500">Redimensionner</text>
+          <text x="390" y="33" fill="#fff" font-size="14" font-weight="600" text-anchor="middle">Action sécurité routière</text>
+          <rect x="560" y="11" width="104" height="32" rx="8" fill="none" stroke="#fff" stroke-width="1.5"/>
+          <text x="612" y="32" fill="#fff" font-size="14" font-weight="600" text-anchor="middle">Présenter</text>
+          <rect x="676" y="11" width="108" height="32" rx="8" fill="#fff"/>
+          <text x="730" y="32" fill="#7D2AE8" font-size="14" font-weight="700" text-anchor="middle">Partager</text>
+          <rect x="0" y="54" width="74" height="386" fill="#fff"/>
+          <line x1="74" y1="54" x2="74" y2="440" stroke="#E3E6E0"/>
+          <g fill="#E6E9EE"><rect x="26" y="70" width="22" height="22" rx="6"/><rect x="26" y="130" width="22" height="22" rx="6"/><rect x="26" y="190" width="22" height="22" rx="6"/><rect x="26" y="250" width="22" height="22" rx="6"/><rect x="26" y="310" width="22" height="22" rx="6"/><rect x="26" y="370" width="22" height="22" rx="6"/></g>
+          <g font-size="11" fill="#3C4043" text-anchor="middle"><text x="37" y="108">Design</text><text x="37" y="168">Éléments</text><text x="37" y="228">Texte</text><text x="37" y="288">Importations</text><text x="37" y="348">Outils</text><text x="37" y="408">Projets</text></g>
+          <rect x="196" y="80" width="480" height="270" fill="#fff"/>
+          <rect x="196" y="80" width="200" height="270" fill="#DDE4C2"/>
+          <path d="M226 300l50-70 36 46 22-26 42 50z" fill="#6B7F4E" opacity=".75"/><circle cx="346" cy="150" r="16" fill="#F4DDB0"/>
+          <text x="420" y="172" font-size="28" font-weight="700" fill="#1F2924">Garder ses</text>
+          <text x="420" y="206" font-size="28" font-weight="700" fill="#1F2924">distances</text>
+          <rect x="420" y="222" width="44" height="4" rx="2" fill="#6B7F4E"/>
+          <text x="420" y="252" font-size="14" fill="#6E7A6F">Deux secondes au minimum</text>
+          <rect x="74" y="386" width="726" height="54" fill="#fff"/>
+          <line x1="74" y1="386" x2="800" y2="386" stroke="#E3E6E0"/>
+          <path d="M96 404h14v16H96z" fill="none" stroke="#5F6368" stroke-width="1.8"/>
+          <text class="t" x="118" y="418" font-size="13.5">Notes</text>
+          <rect x="300" y="396" width="60" height="34" rx="4" fill="#fff" stroke="#8B3DFF" stroke-width="2"/>
+          <rect x="370" y="396" width="60" height="34" rx="4" fill="#fff" stroke="#D0D5CC"/>
+          <rect x="440" y="396" width="60" height="34" rx="4" fill="#fff" stroke="#D0D5CC"/>
+          <rect x="510" y="396" width="34" height="34" rx="4" fill="#E6E9EE"/>
+          <text x="527" y="419" text-anchor="middle" font-size="20" fill="#3C4043">+</text>
+          <text class="t-m" x="738" y="418">54 %</text>
+          <g class="pin" transform="translate(62,72)"><circle r="13"/><text y="5">1</text></g>
+          <g class="pin" transform="translate(62,132)"><circle r="13"/><text y="5">2</text></g>
+          <g class="pin" transform="translate(62,252)"><circle r="13"/><text y="5">3</text></g>
+          <g class="pin" transform="translate(672,90)"><circle r="13"/><text y="5">4</text></g>
+          <g class="pin" transform="translate(786,14)"><circle r="13"/><text y="5">5</text></g>
+          <g class="pin" transform="translate(560,12)"><circle r="13"/><text y="5">6</text></g>
+          <g class="pin" transform="translate(172,404)"><circle r="13"/><text y="5">7</text></g>
+          <g class="pin" transform="translate(548,396)"><circle r="13"/><text y="5">8</text></g>
+        </svg>
+      </div>
+      <p class="hint">Fais glisser l'image vers la gauche pour la voir en entier.</p>
+      <ol class="legend">
+        <li><strong>Design</strong> : les modèles. Tape « présentation » et un thème, puis clique sur un modèle.</li>
+        <li><strong>Éléments</strong> : formes, pictogrammes, photos, graphiques, à ajouter d'un clic.</li>
+        <li><strong>Importations</strong> : tes propres photos, à glisser ensuite sur la diapo.</li>
+        <li><strong>La diapo</strong> : clique sur un texte pour le modifier, sur une image pour la remplacer ou la supprimer.</li>
+        <li><strong>Partager</strong> : inviter ton co-animateur, télécharger en PDF.</li>
+        <li><strong>Présenter</strong> : lancer le diaporama en plein écran.</li>
+        <li><strong>Notes</strong> : ce que tu veux dire sur cette diapo. Toi seul les vois pendant la présentation.</li>
+        <li><strong>Ajouter une diapo</strong>. Glisse les miniatures pour changer l'ordre.</li>
+      </ol>
+    </figure>
+
+    <p class="sub">Pas à pas</p>
+    <div class="howto-grid">
+      <div class="howto"><h4>Commencer</h4><ol><li>Crée un compte gratuit (ou connecte-toi avec Google).</li><li>Bouton de création, puis <strong>Présentation</strong>.</li><li>Choisis un modèle dans l'onglet <strong>Design</strong>.</li></ol></div>
+      <div class="howto"><h4>Modifier un texte</h4><ol><li>Double-clic sur le texte, puis tape.</li><li>La barre qui apparaît en haut change la police, la taille, la couleur.</li></ol></div>
+      <div class="howto"><h4>Mettre ta photo</h4><ol><li><span class="path">Importations › Importer des fichiers</span>.</li><li>Glisse ta photo sur l'image du modèle : elle prend sa place et son cadrage.</li></ol></div>
+      <div class="howto"><h4>Présenter</h4><ol><li>Bouton <strong>Présenter</strong>, en plein écran.</li><li>Flèches du clavier pour avancer ou reculer, <kbd>Échap</kbd> pour sortir.</li></ol></div>
+      <div class="howto"><h4>Télécharger en PDF</h4><ol><li><span class="path">Partager › Télécharger</span>.</li><li>Type de fichier : <strong>PDF Standard</strong>, puis <strong>Télécharger</strong>.</li><li>Copie-le sur une clé USB : sans internet le jour J, tu présentes quand même.</li></ol></div>
+      <div class="howto"><h4>Travailler à deux</h4><ol><li><strong>Partager</strong>, tape l'adresse mail du co-animateur.</li><li>Vous modifiez la même présentation, chacun de chez soi.</li></ol></div>
+    </div>
+
+    <p class="sub">Conseils</p>
     <div class="grid">
-      <div class="tile"><h3>Un modèle</h3><p>Pars d'un modèle « Présentation » et garde-le : deux polices, trois couleurs.</p></div>
+      <div class="tile"><h3>Un seul modèle</h3><p>Garde-le du début à la fin : deux polices, trois couleurs.</p></div>
       <div class="tile"><h3>Une idée par diapo</h3><p>Peu de mots, une grande image. Un chiffre fort, en très gros, seul.</p></div>
-      <div class="tile"><h3>Les notes</h3><p>Les détails vont dans les notes du présentateur : toi seul les vois.</p></div>
-      <div class="tile"><h3>Une copie PDF</h3><p>Sur clé USB. Sans internet le jour J, tu présentes quand même.</p></div>
     </div>
   </div>
   <div class="bloc-foot"><a href="#forms">← Forms</a><a class="next" href="#dicter">Suivant : dicter →</a></div>
 </section>
 
-<!-- 07 DICTER -->
+<!-- 08 DICTER -->
 <section class="bloc" id="dicter" style="--tint:#ECECEA">
   <div class="bloc-head">
     <div class="logo"><img class="full" src="logos/wispr.png" alt="Wispr Flow"></div>
-    <div><span class="num">07</span><h2>Dicter plutôt que taper</h2></div>
+    <div><span class="num">08</span><h2>Dicter plutôt que taper</h2></div>
   </div>
   <div class="bloc-body">
-    <p class="intro">On parle environ trois fois plus vite qu'on ne tape. Si le clavier te ralentit, parle.</p>
-    <div class="grid">
-      <div class="tile"><h3>Wispr Flow</h3><p>Écrit ce que tu dis dans n'importe quelle appli, enlève les « euh », met la ponctuation. Gratuit jusqu'à 2 000 mots par semaine sur ordinateur, 1 000 sur téléphone.</p></div>
-      <div class="tile"><h3>Déjà installé</h3><p><kbd>Win</kbd> + <kbd>H</kbd> : la dictée de Windows. Dans Docs : Outils, Saisie vocale. Sur téléphone : le micro du clavier.</p></div>
+    <p class="intro">On parle environ trois fois plus vite qu'on ne tape. Si le clavier te ralentit, parle : le texte s'écrit là où clignote le curseur.</p>
+    <div class="links">
+      <a href="https://wisprflow.ai" target="_blank" rel="noopener">Télécharger Wispr Flow</a>
+      <a href="https://docs.wisprflow.ai/articles/6409258247-starting-your-first-dictation" target="_blank" rel="noopener">Première dictée (aide, en anglais)</a>
     </div>
-    <div class="note"><p><strong>L'astuce :</strong> juste après un rendez-vous ou ton animation, dicte cinq minutes tout ce qui s'est passé. Ce brouillon brut deviendra ta partie C.</p></div>
+
+    <p class="sub">Le geste</p>
+    <figure class="mock">
+      <div class="mock-frame" style="background:#1F2924">
+        <svg viewBox="0 0 800 230" role="img" aria-label="Clavier : maintenir Ctrl et la touche Windows pour dicter">
+          <rect x="0" y="0" width="800" height="230" fill="#1F2924"/>
+          <g fill="#34413A">
+            <rect x="20" y="20" width="100" height="52" rx="8"/>
+            <rect x="128" y="20" width="52" height="52" rx="8"/><rect x="188" y="20" width="52" height="52" rx="8"/><rect x="248" y="20" width="52" height="52" rx="8"/><rect x="308" y="20" width="52" height="52" rx="8"/><rect x="368" y="20" width="52" height="52" rx="8"/><rect x="428" y="20" width="52" height="52" rx="8"/><rect x="488" y="20" width="52" height="52" rx="8"/><rect x="548" y="20" width="52" height="52" rx="8"/><rect x="608" y="20" width="52" height="52" rx="8"/><rect x="668" y="20" width="52" height="52" rx="8"/>
+            <rect x="728" y="20" width="52" height="52" rx="8"/>
+            <rect x="118" y="84" width="64" height="52" rx="8"/>
+            <rect x="268" y="84" width="64" height="52" rx="8"/>
+            <rect x="340" y="84" width="300" height="52" rx="8"/>
+            <rect x="648" y="84" width="70" height="52" rx="8"/>
+            <rect x="726" y="84" width="54" height="52" rx="8"/>
+          </g>
+          <g fill="#9DA89A" font-size="15" text-anchor="middle">
+            <text x="70" y="52">Maj</text><text x="154" y="52">&lt;</text><text x="214" y="52">W</text><text x="274" y="52">X</text><text x="334" y="52">C</text><text x="394" y="52">V</text><text x="454" y="52">B</text><text x="514" y="52">N</text><text x="574" y="52">,</text><text x="634" y="52">;</text><text x="694" y="52">:</text><text x="754" y="52">Maj</text>
+            <text x="150" y="116">Fn</text><text x="300" y="116">Alt</text><text x="490" y="116">Espace</text><text x="683" y="116">Alt Gr</text><text x="753" y="116">Ctrl</text>
+          </g>
+          <rect x="20" y="84" width="90" height="52" rx="8" fill="#D8E1C0" stroke="#fff" stroke-width="2"/>
+          <text x="65" y="116" text-anchor="middle" font-size="17" font-weight="700" fill="#14201C">Ctrl</text>
+          <rect x="190" y="84" width="70" height="52" rx="8" fill="#D8E1C0" stroke="#fff" stroke-width="2"/>
+          <g fill="#14201C" transform="translate(213,98)"><rect x="0" y="0" width="11" height="11"/><rect x="13" y="0" width="11" height="11"/><rect x="0" y="13" width="11" height="11"/><rect x="13" y="13" width="11" height="11"/></g>
+          <text x="400" y="190" text-anchor="middle" font-size="20" font-weight="600" fill="#D8E1C0">Maintiens Ctrl + Windows, parle, puis relâche</text>
+          <text x="400" y="216" text-anchor="middle" font-size="14" fill="#9DA89A">Raccourci de Wispr Flow sur Windows</text>
+        </svg>
+      </div>
+      <p class="hint">Fais glisser l'image vers la gauche pour la voir en entier.</p>
+    </figure>
+
+    <p class="sub">Pas à pas</p>
+    <div class="howto-grid">
+      <div class="howto"><h4>Installer Wispr Flow</h4><ol><li>Sur le site, télécharge l'appli pour Windows (ou Mac, iPhone, Android).</li><li>Crée un compte et autorise le micro : l'appli te guide.</li></ol></div>
+      <div class="howto"><h4>Dicter avec Wispr Flow</h4><ol><li>Clique là où tu veux écrire : Docs, un mail, une IA…</li><li>Maintiens <span class="combo"><kbd>Ctrl</kbd> + <kbd>Win</kbd></span> et parle.</li><li>Relâche : le texte apparaît, sans les « euh », avec la ponctuation.</li><li>Pour parler longtemps sans tenir les touches : <span class="combo"><kbd>Ctrl</kbd> + <kbd>Win</kbd> + <kbd>Espace</kbd></span>.</li></ol></div>
+      <div class="howto"><h4>Sans rien installer : Windows</h4><ol><li>Clique là où tu veux écrire, puis <span class="combo"><kbd>Win</kbd> + <kbd>H</kbd></span>.</li><li>Parle, puis clique sur le micro pour arrêter.</li><li>La roue dentée de la petite fenêtre active la ponctuation automatique.</li></ol></div>
+      <div class="howto"><h4>Dans Google Docs ou sur téléphone</h4><ol><li>Docs (avec Chrome) : <span class="path">Outils › Saisie vocale</span>, clique sur le micro.</li><li>Téléphone : le micro du clavier fait la même chose partout.</li></ol></div>
+    </div>
+    <div class="note"><p><strong>Gratuit</strong> : Wispr Flow offre 2 000 mots par semaine sur ordinateur et 1 000 sur téléphone, largement assez pour démarrer. <strong>L'astuce</strong> : juste après un rendez-vous ou ton animation, dicte cinq minutes tout ce qui s'est passé. Ce brouillon brut deviendra ta partie C.</p></div>
   </div>
   <div class="bloc-foot"><a href="#canva">← Canva</a><a class="next" href="#ia">Suivant : l'IA →</a></div>
 </section>
 
-<!-- 08 IA -->
+<!-- 09 IA -->
 <section class="bloc" id="ia" style="--tint:#FBEACB">
   <div class="bloc-head">
     <div class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="color:#B45309"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/><path d="M19 15l.7 2.3L22 18l-2.3.7L19 21l-.7-2.3L16 18l2.3-.7z"/></svg></div>
-    <div><span class="num">08</span><h2>L'IA, une aide pas l'auteur</h2></div>
+    <div><span class="num">09</span><h2>L'IA, une aide pas l'auteur</h2></div>
   </div>
   <div class="bloc-body">
-    <p class="intro">ChatGPT, Claude, Le Chat, Gemini : peu importe. Bien utilisée, elle te débloque. Mal utilisée, elle écrit un dossier que tu ne sauras pas défendre.</p>
-    <div class="grid">
-      <div class="tile"><h3>Page blanche</h3><p>Raconte ta situation, demande un plan ou des pistes.</p></div>
-      <div class="tile"><h3>Reformuler</h3><p>Donne ton paragraphe, demande-le plus clair, avec tes idées.</p></div>
-      <div class="tile"><h3>Corriger</h3><p>L'orthographe seulement, sans rien changer d'autre.</p></div>
-      <div class="tile"><h3>S'entraîner</h3><p>Fais-lui jouer le jury, une question à la fois.</p></div>
+    <p class="intro">ChatGPT, Claude, Le Chat, Gemini : toutes se ressemblent et s'utilisent pareil, et toutes ont une version gratuite. Bien utilisée, l'IA te débloque. Mal utilisée, elle écrit un dossier que tu ne sauras pas défendre.</p>
+    <div class="links">
+      <a href="https://chatgpt.com" target="_blank" rel="noopener">ChatGPT</a>
+      <a href="https://claude.ai" target="_blank" rel="noopener">Claude</a>
+      <a href="https://chat.mistral.ai" target="_blank" rel="noopener">Le Chat (Mistral)</a>
+      <a href="https://gemini.google.com" target="_blank" rel="noopener">Gemini</a>
     </div>
-    <h3>Bien demander</h3>
-    <p>Dis-lui <strong>qui tu es</strong>, <strong>ce que tu fais</strong>, <strong>ce que tu veux</strong> et <strong>sous quelle forme</strong>. Puis ajuste : « plus court », « garde mes mots ».</p>
-    <div class="prompt"><span class="tag">Exemple</span>Je suis stagiaire enseignant de la conduite. Je prépare une action de sensibilisation à la sécurité routière pour les salariés d'une entreprise de livraison. Propose 8 questions courtes pour un Google Forms sur leurs trajets et les risques qu'ils rencontrent, surtout à choix.</div>
+
+    <p class="sub">L'écran</p>
+    <figure class="mock">
+      <div class="mock-frame">
+        <svg viewBox="0 0 800 440" role="img" aria-label="L'écran d'une IA conversationnelle, annoté de 1 à 4">
+          <rect class="m-win" x="0" y="0" width="800" height="440"/>
+          <rect x="0" y="0" width="190" height="440" fill="#F6F7F5"/>
+          <rect x="10" y="18" width="172" height="38" rx="10" fill="#fff" stroke="#D0D5CC"/>
+          <text class="t t-b" x="22" y="42" font-size="12.5">+ Nouvelle conversation</text>
+          <text class="t-m" x="18" y="92" font-size="12">Récents</text>
+          <text class="t" x="18" y="120" font-size="13">Questions d'enquête</text>
+          <text class="t" x="18" y="148" font-size="13">Relecture partie A</text>
+          <text class="t" x="18" y="176" font-size="13">Plan du dossier</text>
+          <rect x="380" y="28" width="392" height="66" rx="16" fill="#EAEFD9"/>
+          <text class="t" x="398" y="55" font-size="13.5">Corrige seulement l'orthographe de ce</text>
+          <text class="t" x="398" y="77" font-size="13.5">paragraphe, sans changer mes idées : [...]</text>
+          <circle cx="222" cy="126" r="12" fill="#FBEACB"/><path d="M222 118l2 5 5 2-5 2-2 5-2-5-5-2 5-2z" fill="#B45309"/>
+          <text class="t" x="246" y="131" font-size="13.5">Voici ton paragraphe corrigé :</text>
+          <g fill="#E3E6E0"><rect x="246" y="146" width="430" height="8" rx="4"/><rect x="246" y="164" width="400" height="8" rx="4"/><rect x="246" y="182" width="440" height="8" rx="4"/><rect x="246" y="200" width="300" height="8" rx="4"/></g>
+          <text class="t-m" x="246" y="234" font-size="13">Corrections : « sécurité » (accent), « leurs » (accord)…</text>
+          <rect x="246" y="252" width="12" height="14" rx="2" fill="none" stroke="#5F6368" stroke-width="1.8"/><rect x="250" y="248" width="12" height="14" rx="2" fill="#fff" stroke="#5F6368" stroke-width="1.8"/>
+          <path d="M290 250a8 8 0 1 1-7 4" fill="none" stroke="#5F6368" stroke-width="1.8"/><path d="M283 248v6h6" fill="none" stroke="#5F6368" stroke-width="1.8"/>
+          <rect x="214" y="334" width="566" height="84" rx="22" fill="#fff" stroke="#C9CFC4"/>
+          <text class="t-m" x="240" y="366">Écris ton message…</text>
+          <circle cx="244" cy="396" r="13" fill="none" stroke="#5F6368" stroke-width="1.8"/><path d="M244 389v14M237 396h14" stroke="#5F6368" stroke-width="1.8"/>
+          <circle cx="750" cy="396" r="16" fill="#14201C"/><path d="M750 404v-15M743 395l7-7 7 7" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+          <g class="pin" transform="translate(180,20)"><circle r="13"/><text y="5">1</text></g>
+          <g class="pin" transform="translate(274,396)"><circle r="13"/><text y="5">2</text></g>
+          <g class="pin" transform="translate(718,396)"><circle r="13"/><text y="5">3</text></g>
+          <g class="pin" transform="translate(318,256)"><circle r="13"/><text y="5">4</text></g>
+        </svg>
+      </div>
+      <p class="hint">Fais glisser l'image vers la gauche pour la voir en entier.</p>
+      <ol class="legend">
+        <li><strong>Nouvelle conversation</strong> : une par sujet. L'IA se souvient de ce que tu lui as dit dans la conversation, pas d'une autre.</li>
+        <li><strong>Joindre</strong> : un fichier, une photo, une capture. Tu peux aussi coller une capture avec <span class="combo"><kbd>Ctrl</kbd> + <kbd>V</kbd></span> dans la zone de message.</li>
+        <li><strong>Envoyer</strong> (ou <kbd>Entrée</kbd>). <span class="combo"><kbd>Maj</kbd> + <kbd>Entrée</kbd></span> pour aller à la ligne sans envoyer.</li>
+        <li><strong>Copier la réponse</strong>, puis la coller dans ton document avec <span class="combo"><kbd>Ctrl</kbd> + <kbd>Maj</kbd> + <kbd>V</kbd></span> (sans sa mise en forme). La flèche circulaire demande une autre version.</li>
+      </ol>
+    </figure>
+
+    <p class="sub">Bien demander</p>
+    <p>Dis-lui <strong>qui tu es</strong>, <strong>ce que tu fais</strong>, <strong>ce que tu veux</strong> et <strong>sous quelle forme</strong>. Puis discute : « plus court », « plus simple », « garde mes mots ».</p>
+    <div class="prompt"><span class="tag">Exemple : l'enquête</span>Je suis stagiaire enseignant de la conduite. Je prépare une action de sensibilisation à la sécurité routière pour les salariés d'une entreprise de livraison. Propose 8 questions courtes pour un Google Forms sur leurs trajets et les risques qu'ils rencontrent, surtout à choix.</div>
+    <div class="prompt"><span class="tag">Exemple : bloqué sur un écran</span>[colle ta capture] Je suis sur Google Docs et je veux insérer un sommaire automatique. Où dois-je cliquer ?</div>
+    <div class="prompt"><span class="tag">Exemple : le jury</span>Voici ma partie D. Joue un jury de titre professionnel : pose-moi une question à la fois, attends ma réponse, puis dis-moi ce qui était convaincant et ce qui manquait.</div>
+
+    <p class="sub">Les limites</p>
     <div class="note stop">
       <ul>
-        <li><strong>Elle invente avec aplomb</strong> : article de loi, chiffre, statistique. Vérifie toujours à la source (Légifrance, ONISR).</li>
+        <li><strong>Elle invente avec aplomb</strong> : article de loi, chiffre, statistique. Vérifie toujours à la source : <a href="https://www.legifrance.gouv.fr" target="_blank" rel="noopener">Légifrance</a> pour les textes, <a href="https://www.onisr.securite-routiere.gouv.fr" target="_blank" rel="noopener">ONISR</a> pour les chiffres.</li>
         <li><strong>Le jury t'interroge à l'oral</strong> : garde seulement ce que tu comprends et sais expliquer.</li>
         <li><strong>Ton vécu ne s'invente pas</strong> : elle aide à formuler tes parties C et D, pas à les créer.</li>
-        <li><strong>Pas de données personnelles</strong> : écris « le responsable », pas son nom ni son numéro.</li>
+        <li><strong>Pas de données personnelles</strong> : écris « le responsable », pas son nom ni son numéro.</li>
       </ul>
     </div>
   </div>
   <div class="bloc-foot"><a href="#dicter">← Dicter</a><a class="next" href="#methode">Suivant : méthode →</a></div>
 </section>
 
-<!-- 09 METHODE -->
+<!-- 10 METHODE -->
 <section class="bloc" id="methode" style="--tint:#F4DDB0">
   <div class="bloc-head">
     <div class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="color:#8A5A12"><path d="M5 3h12a2 2 0 0 1 2 2v16H7a2 2 0 0 1-2-2z"/><path d="M5 19a2 2 0 0 1 2-2h12M9 7h6M9 11h4"/></svg></div>
-    <div><span class="num">09</span><h2>Une méthode qui tient</h2></div>
+    <div><span class="num">10</span><h2>Une méthode qui tient</h2></div>
   </div>
   <div class="bloc-body">
+    <p class="intro">Le plus dur dans le CCP2, ce n'est pas d'écrire : c'est de retrouver ce qui s'est passé des semaines plus tard. Un journal de bord règle ça.</p>
+    <p class="sub">À quoi ressemble une entrée</p>
+    <div class="journal">
+      <p class="j-tag">Exemple</p>
+      <p class="j-date">14 octobre</p>
+      <p><strong>Fait :</strong> rendez-vous avec la responsable de la structure, 45 minutes.</p>
+      <p><strong>Appris :</strong> une soixantaine de jeunes, beaucoup viennent en scooter.</p>
+      <p><strong>Décidé :</strong> questionnaire Forms auprès de deux groupes avant le 25 octobre.</p>
+      <p><strong>Preuve :</strong> mail de confirmation rangé dans Drive, dossier Enquête.</p>
+    </div>
     <div class="grid">
-      <div class="tile"><h3>Un journal de bord</h3><p>Un Google Doc, cinq lignes à chaque étape : la date, ce que tu as fait, avec qui, ce que tu as décidé, où est la preuve.</p></div>
+      <div class="tile"><h3>Où et quand</h3><p>Un Google Doc « Journal de bord » dans ton dossier CCP2. Une entrée à chaque étape, tapée ou dictée, le jour même.</p></div>
       <div class="tile"><h3>Les preuves au fil de l'eau</h3><p>La demande du commanditaire, l'organigramme, l'enquête, les supports, les photos (avec accord), la satisfaction : ce sont tes annexes.</p></div>
     </div>
   </div>
@@ -399,7 +897,10 @@ footer { padding: 8px 0 48px; color: var(--text-muted); font-size: 14px; text-al
   const rail = document.querySelector("nav.toc .rail");
   const byId = new Map(links.map((a) => [a.getAttribute("href").slice(1), a]));
   const sections = [...document.querySelectorAll("section.bloc")];
+  let last = null;
   const setActive = (id) => {
+    if (id === last) return;
+    last = id;
     links.forEach((a) => a.classList.toggle("active", a === byId.get(id)));
     const a = byId.get(id);
     if (a && rail) rail.scrollTo({ left: a.offsetLeft - rail.clientWidth / 2 + a.clientWidth / 2, behavior: "smooth" });

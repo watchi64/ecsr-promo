@@ -18,11 +18,10 @@ export const NOUVEAUTES = [
     pour: "tous",
     titre: "Une boîte à outils numérique pour ton CCP2",
     resume: "Un guide pour te simplifier la vie pendant le CCP2 : les raccourcis clavier "
-          + "utiles au quotidien, comment ranger ton Drive, écrire ton dossier dans Google "
-          + "Docs, faire ton enquête avec Google Forms, préparer tes diapos sur Canva, dicter "
-          + "au lieu de taper et te servir d'une IA sans qu'elle écrive à ta place. Pas un "
-          + "mode d'emploi pas à pas : des réflexes pour te débrouiller même quand l'écran "
-          + "ne ressemble pas à ce que tu as vu en cours.",
+          + "les plus utiles, les gestes de base de la souris, puis Google Drive, Docs, Forms, "
+          + "Canva, la dictée vocale et l'IA. Pour chaque outil : un écran annoté qui montre "
+          + "où cliquer, les manipulations de base pas à pas, les liens pour l'ouvrir, et des "
+          + "réflexes pour te débrouiller même quand l'écran ne ressemble pas à l'image.",
     ou: { label: "Ressources", route: "ressources" },
   },
   {
