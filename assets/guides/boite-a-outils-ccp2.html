@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Boîte à outils numérique CCP2</title>
+<meta name="description" content="Des outils simples et les bons réflexes pour avancer sur ton CCP2 : raccourcis, Google Drive, Docs, Forms, Canva, dictée vocale et IA.">
+<link rel="stylesheet" href="../../css/fonts.css">
+<style>
+@font-face { font-family: "Canela"; src: url("../../css/fonts/canela_light.otf") format("opentype"); font-weight: 300; font-display: swap; }
+@font-face { font-family: "Canela"; src: url("../../css/fonts/canela_roman.otf") format("opentype"); font-weight: 400; font-display: swap; }
+
+:root {
+  --bg: #F1F4F0;
+  --bg-elev: #FBFCFA;
+  --bg-soft: #E7ECE3;
+  --line: #D8DED2;
+  --line-strong: #B7C0AA;
+  --text: #1F2924;
+  --text-soft: #46554A;
+  --text-muted: #6E7A6F;
+  --accent: #6B7F4E;
+  --accent-strong: #556641;
+  --accent-soft: #EAEFD9;
+  --warn: #B45309;
+  --warn-soft: #FBEACB;
+  --stop: #A05A3D;
+  --stop-soft: #F6E4D7;
+  --r: 10px;
+  --r-lg: 14px;
+  --shadow: 0 4px 12px -2px rgba(60, 40, 20, 0.06), 0 2px 4px rgba(60, 40, 20, 0.03);
+  --font-display: "Canela", "Cormorant Garamond", Georgia, serif;
+  --font: "Outfit", -apple-system, "Segoe UI", Roboto, system-ui, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, Menlo, monospace;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 17px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+.wrap { max-width: 820px; margin: 0 auto; padding: 0 16px 64px; }
+
+header.hero { padding: 48px 0 28px; }
+.eyebrow {
+  font-size: 13px; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--accent-strong); font-weight: 600; margin: 0 0 10px;
+}
+h1 {
+  font-family: var(--font-display); font-weight: 300;
+  font-size: clamp(34px, 7vw, 52px); line-height: 1.08; margin: 0 0 16px;
+  text-wrap: balance;
+}
+.lead { font-size: 19px; color: var(--text-soft); margin: 0; max-width: 62ch; }
+
+nav.toc {
+  display: flex; flex-wrap: wrap; gap: 8px; margin: 28px 0 8px;
+}
+nav.toc a {
+  text-decoration: none; color: var(--text-soft); font-size: 14px; font-weight: 500;
+  background: var(--bg-elev); border: 1px solid var(--line); border-radius: 999px;
+  padding: 6px 12px;
+}
+nav.toc a:hover { border-color: var(--accent); color: var(--accent-strong); }
+
+section { margin-top: 44px; scroll-margin-top: 16px; }
+h2 {
+  font-family: var(--font-display); font-weight: 400; font-size: 30px; line-height: 1.15;
+  margin: 0 0 6px; display: flex; align-items: baseline; gap: 12px;
+}
+h2 .num { font-family: var(--font-mono); font-size: 14px; color: var(--accent); font-weight: 500; }
+.intro { color: var(--text-soft); margin: 0 0 18px; }
+h3 { font-size: 18px; margin: 22px 0 8px; font-weight: 600; }
+p { margin: 0 0 12px; }
+ul { margin: 0 0 12px; padding-left: 20px; }
+li { margin-bottom: 6px; }
+li::marker { color: var(--accent); }
+strong { font-weight: 600; }
+a { color: var(--accent-strong); }
+
+.card {
+  background: var(--bg-elev); border: 1px solid var(--line); border-radius: var(--r-lg);
+  padding: 20px; box-shadow: var(--shadow); margin-bottom: 14px;
+}
+.grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+.grid .card { margin: 0; }
+.card h3 { margin-top: 0; }
+
+.note {
+  border-left: 3px solid var(--accent); background: var(--accent-soft);
+  border-radius: 0 var(--r) var(--r) 0; padding: 12px 16px; margin: 14px 0;
+}
+.note.warn { border-color: var(--warn); background: var(--warn-soft); }
+.note.stop { border-color: var(--stop); background: var(--stop-soft); }
+.note p:last-child, .note ul:last-child { margin-bottom: 0; }
+
+kbd {
+  font-family: var(--font-mono); font-size: 13px; font-weight: 500;
+  background: #fff; border: 1px solid var(--line-strong); border-bottom-width: 2px;
+  border-radius: 5px; padding: 1px 6px; white-space: nowrap; color: var(--text);
+}
+table { width: 100%; border-collapse: collapse; font-size: 16px; }
+th { text-align: left; font-size: 13px; text-transform: uppercase; letter-spacing: .05em; color: var(--text-muted); font-weight: 600; padding: 0 10px 8px 0; }
+td { border-top: 1px solid var(--line); padding: 9px 10px 9px 0; vertical-align: top; }
+td:first-child { white-space: nowrap; width: 1%; }
+.table-card { padding: 16px 20px; }
+
+.steps { counter-reset: s; list-style: none; padding: 0; }
+.steps li { counter-increment: s; position: relative; padding-left: 40px; margin-bottom: 12px; }
+.steps li::before {
+  content: counter(s); position: absolute; left: 0; top: 1px;
+  width: 26px; height: 26px; border-radius: 50%; background: var(--accent); color: #fff;
+  font-size: 14px; font-weight: 600; display: grid; place-items: center;
+}
+
+.prompt {
+  font-family: var(--font-mono); font-size: 14px; line-height: 1.55;
+  background: #fff; border: 1px dashed var(--line-strong); border-radius: var(--r);
+  padding: 12px 14px; margin: 8px 0 14px; color: var(--text-soft);
+}
+.prompt .tag { display: block; font-family: var(--font); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--accent-strong); margin-bottom: 4px; }
+
+footer { margin-top: 56px; padding-top: 20px; border-top: 1px solid var(--line); color: var(--text-muted); font-size: 14px; }
+
+@media (max-width: 560px) {
+  body { font-size: 16px; }
+  header.hero { padding-top: 32px; }
+  h2 { font-size: 26px; }
+  thead { display: none; }
+  tr { display: block; border-top: 1px solid var(--line); padding: 10px 0; }
+  tr:first-child { border-top: 0; padding-top: 0; }
+  td { display: block; border: 0; padding: 0; width: auto; }
+  td:first-child { width: auto; margin-bottom: 4px; }
+}
+@media print {
+  body { background: #fff; }
+  nav.toc { display: none; }
+  .card { box-shadow: none; break-inside: avoid; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="hero">
+  <p class="eyebrow">CCP2 · Boîte à outils</p>
+  <h1>Des outils simples pour avancer sur ton CCP2</h1>
+  <p class="lead">Ce n'est pas un mode d'emploi. Les écrans changent, les menus bougent : ce qui compte, ce sont quelques réflexes qui te permettent de te débrouiller partout, et une poignée d'outils gratuits qui font gagner beaucoup de temps.</p>
+  <nav class="toc" aria-label="Sommaire">
+    <a href="#reflexes">Quand tu bloques</a>
+    <a href="#raccourcis">Raccourcis</a>
+    <a href="#drive">Drive</a>
+    <a href="#docs">Docs</a>
+    <a href="#forms">Forms</a>
+    <a href="#canva">Canva</a>
+    <a href="#dictee">Dicter</a>
+    <a href="#ia">L'IA</a>
+    <a href="#methode">Méthode</a>
+  </nav>
+</header>
+
+<section id="reflexes">
+  <h2><span class="num">01</span>Quand tu bloques</h2>
+  <p class="intro">Personne ne connaît tous les menus par cœur, les gens à l'aise non plus. Leur secret, c'est de savoir chercher. Dans cet ordre :</p>
+  <ol class="steps">
+    <li><strong>Survole et fais un clic droit.</strong> Laisse la souris une seconde sur une icône : une petite bulle dit à quoi elle sert. Le clic droit ouvre un menu adapté à ce que tu as sous la souris (texte, image, fichier).</li>
+    <li><strong>Essaie sans peur.</strong> <kbd>Ctrl</kbd> + <kbd>Z</kbd> annule la dernière action. Dans Google Docs, tout est enregistré tout seul et l'historique garde les anciennes versions : tu ne peux presque rien casser.</li>
+    <li><strong>Cherche dans les menus.</strong> Dans Google Docs, Sheets et Slides, <kbd>Alt</kbd> + <kbd>/</kbd> ouvre une barre où tu tapes ce que tu veux faire (« sommaire », « saut de page », « nombre de mots »). Dans Canva, la barre de recherche en haut fait pareil.</li>
+    <li><strong>Demande à internet ou à une IA, avec une capture.</strong> <kbd>Windows</kbd> + <kbd>Maj</kbd> + <kbd>S</kbd> te laisse découper un morceau d'écran. Colle-le dans une IA avec ta question : « je suis sur cet écran, je veux insérer un tableau, où je clique ? ».</li>
+    <li><strong>Demande à un collègue de promo.</strong> Et quand tu as trouvé, montre-le à ton tour : c'est comme ça qu'on retient.</li>
+  </ol>
+</section>
+
+<section id="raccourcis">
+  <h2><span class="num">02</span>Les raccourcis qui servent tous les jours</h2>
+  <p class="intro">Ils marchent presque partout : Docs, Forms, Canva, ta messagerie, internet. Sur Mac, remplace <kbd>Ctrl</kbd> par <kbd>Cmd</kbd>.</p>
+  <div class="card table-card">
+    <table>
+      <thead><tr><th>Touches</th><th>Ce que ça fait</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>Ctrl</kbd> + <kbd>C</kbd></td><td>Copier ce qui est sélectionné</td></tr>
+        <tr><td><kbd>Ctrl</kbd> + <kbd>X</kbd></td><td>Couper (copier puis retirer)</td></tr>
+        <tr><td><kbd>Ctrl</kbd> + <kbd>V</kbd></td><td>Coller</td></tr>
+        <tr><td><kbd>Ctrl</kbd> + <kbd>Maj</kbd> + <kbd>V</kbd></td><td>Coller <strong>sans la mise en forme</strong> : le texte prend le style de ton document au lieu de garder la police du site d'où il vient</td></tr>
+        <tr><td><kbd>Ctrl</kbd> + <kbd>Z</kbd></td><td>Annuler la dernière action (on peut appuyer plusieurs fois)</td></tr>
+        <tr><td><kbd>Ctrl</kbd> + <kbd>Y</kbd></td><td>Rétablir ce que tu viens d'annuler</td></tr>
+        <tr><td><kbd>Ctrl</kbd> + <kbd>A</kbd></td><td>Tout sélectionner</td></tr>
+        <tr><td><kbd>Ctrl</kbd> + <kbd>F</kbd></td><td>Chercher un mot dans la page ou le document</td></tr>
+        <tr><td><kbd>Ctrl</kbd> + <kbd>B</kbd> / <kbd>I</kbd> / <kbd>U</kbd></td><td>Gras, italique, souligné</td></tr>
+        <tr><td><kbd>Ctrl</kbd> + <kbd>P</kbd></td><td>Imprimer (ou enregistrer en PDF)</td></tr>
+        <tr><td><kbd>Alt</kbd> + <kbd>Tab</kbd></td><td>Passer d'une fenêtre à l'autre</td></tr>
+        <tr><td><kbd>Ctrl</kbd> + <kbd>T</kbd> / <kbd>W</kbd></td><td>Ouvrir / fermer un onglet du navigateur</td></tr>
+        <tr><td><kbd>Ctrl</kbd> + <kbd>Maj</kbd> + <kbd>T</kbd></td><td>Rouvrir l'onglet fermé par erreur</td></tr>
+        <tr><td><kbd>Windows</kbd> + <kbd>Maj</kbd> + <kbd>S</kbd></td><td>Capture d'une partie de l'écran, prête à coller</td></tr>
+        <tr><td><kbd>Windows</kbd> + <kbd>V</kbd></td><td>Historique de tout ce que tu as copié (à activer la première fois)</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="note"><p>N'apprends pas la liste d'un coup. Choisis-en deux cette semaine, force-toi à les utiliser, puis ajoute-en deux autres. Au bout d'un mois, tu ne cherches plus.</p></div>
+</section>
+
+<section id="drive">
+  <h2><span class="num">03</span>Google Drive : un seul endroit pour tout ton CCP2</h2>
+  <p class="intro">Le Drive, c'est ton classeur. S'il est bien rangé dès le début, tu retrouves tout le jour où tu écris et le jour où tu montes les annexes.</p>
+  <div class="grid">
+    <div class="card">
+      <h3>Ranger</h3>
+      <p>Un dossier « CCP2 », et dedans quelques sous-dossiers : Dossier écrit, Enquête, Animation, Annexes, Photos. Un fichier qui traîne ailleurs est un fichier perdu.</p>
+    </div>
+    <div class="card">
+      <h3>Nommer</h3>
+      <p>Commence les noms par la date à l'envers : « 2026-10-14 Compte rendu rendez-vous lycée ». Les fichiers se rangent alors tout seuls dans l'ordre chronologique.</p>
+    </div>
+    <div class="card">
+      <h3>Partager</h3>
+      <p>Bouton « Partager », puis choisis le rôle : <strong>Lecteur</strong> (lit seulement), <strong>Commentateur</strong> (laisse des remarques, parfait pour faire relire) ou <strong>Éditeur</strong> (peut tout modifier).</p>
+    </div>
+    <div class="card">
+      <h3>Ton téléphone</h3>
+      <p>Avec l'application Drive, tes photos de l'action et tes documents papier (scannés depuis l'appli) arrivent directement dans le bon dossier. Plus besoin de les envoyer par mail.</p>
+    </div>
+  </div>
+</section>
+
+<section id="docs">
+  <h2><span class="num">04</span>Google Docs : écrire ton dossier</h2>
+  <p class="intro">Quatre fonctions font la différence sur un document de 40 000 caractères.</p>
+  <h3>Les titres, pour un sommaire automatique</h3>
+  <p>Au lieu de mettre tes titres en gras à la main, utilise la liste de styles (« Texte normal », « Titre 1 », « Titre 2 ») dans la barre d'outils. En échange, Docs fabrique ton sommaire tout seul (Insertion, Table des matières) et le panneau de gauche te permet de sauter d'une partie à l'autre.</p>
+  <h3>Compter les caractères</h3>
+  <p><kbd>Ctrl</kbd> + <kbd>Maj</kbd> + <kbd>C</kbd> affiche le nombre de mots et de caractères. Le CCP2 se compte en caractères <strong>espaces compris</strong> : c'est la ligne « Caractères ». Sélectionne une seule partie avant le raccourci pour savoir combien elle pèse.</p>
+  <h3>Faire relire</h3>
+  <p>Partage en « Commentateur » à un formateur ou un collègue. Il sélectionne un passage et laisse une remarque dans la marge, sans toucher à ton texte. Tu réponds, tu corriges, tu cliques sur « Résoudre ».</p>
+  <h3>Mettre en page sans galérer</h3>
+  <ul>
+    <li><kbd>Ctrl</kbd> + <kbd>Entrée</kbd> : saut de page, pour commencer une partie sur une nouvelle page.</li>
+    <li>Insertion, Tableau : idéal pour tes trames prévisionnelle et réelle.</li>
+    <li>Fichier, Télécharger, PDF : la version à rendre, qui ne bougera plus.</li>
+  </ul>
+</section>
+
+<section id="forms">
+  <h2><span class="num">05</span>Google Forms : ton enquête et ta satisfaction</h2>
+  <p class="intro">Forms sert deux fois dans le CCP2 : pour l'enquête de terrain avant l'action, et pour le questionnaire de satisfaction après.</p>
+  <div class="grid">
+    <div class="card">
+      <h3>Court</h3>
+      <p>Dix questions au plus, moins de cinq minutes. Au-delà, les gens abandonnent ou répondent au hasard.</p>
+    </div>
+    <div class="card">
+      <h3>Surtout fermé</h3>
+      <p>Choix multiples, cases, échelle de 1 à 5 : c'est rapide à remplir et Forms en fait des graphiques. Garde une ou deux questions ouvertes pour les idées que tu n'avais pas prévues.</p>
+    </div>
+    <div class="card">
+      <h3>Testé</h3>
+      <p>Fais-le remplir à un proche avant de l'envoyer. S'il hésite sur une question, elle est mal posée.</p>
+    </div>
+    <div class="card">
+      <h3>Facile d'accès</h3>
+      <p>Bouton « Envoyer », puis l'icône lien. Transforme ce lien en QR code (le navigateur ou un site gratuit le fait) et affiche-le sur une feuille ou une diapo : les gens répondent depuis leur téléphone.</p>
+    </div>
+  </div>
+  <div class="note"><p>L'onglet « Réponses » résume tout en graphiques. Une capture de ces graphiques fait une annexe claire, et les chiffres nourrissent directement ta partie A (enquête) et ta partie D (satisfaction). Ne demande le nom des gens que si tu en as vraiment besoin.</p></div>
+</section>
+
+<section id="canva">
+  <h2><span class="num">06</span>Canva : des diapos qui servent l'oral</h2>
+  <p class="intro">Tes diapos accompagnent ta parole, elles ne la remplacent pas. Si tout est écrit dessus, le public lit au lieu de t'écouter.</p>
+  <ul>
+    <li><strong>Pars d'un modèle</strong> « Présentation » et garde-le du début à la fin : deux polices, trois couleurs, pas plus.</li>
+    <li><strong>Une idée par diapo</strong>, quelques mots, une grande image ou un pictogramme. Un chiffre marquant s'écrit en très gros, seul.</li>
+    <li><strong>Les détails vont dans les notes</strong> du présentateur (en bas de l'écran) : tu les vois en présentant, pas le public.</li>
+    <li><strong>Télécharge une copie en PDF</strong> (Partager, Télécharger) sur une clé USB. Le jour J, s'il n'y a pas d'internet, tu présentes quand même.</li>
+  </ul>
+</section>
+
+<section id="dictee">
+  <h2><span class="num">07</span>Dicter plutôt que taper</h2>
+  <p class="intro">Si taper au clavier te ralentit, parle. On parle environ trois fois plus vite qu'on ne tape, et raconter ce qu'on a fait est souvent plus naturel que l'écrire.</p>
+  <div class="grid">
+    <div class="card">
+      <h3>Wispr Flow</h3>
+      <p>Une application qui écrit ce que tu dis dans n'importe quel logiciel (Docs, mail, Canva, une IA). Elle retire les « euh », ajoute la ponctuation et comprend le français. Version gratuite : 2 000 mots par semaine sur ordinateur, 1 000 sur téléphone. Windows, Mac, iPhone et Android.</p>
+    </div>
+    <div class="card">
+      <h3>Déjà sur ton ordinateur</h3>
+      <p><kbd>Windows</kbd> + <kbd>H</kbd> lance la dictée de Windows dans n'importe quel champ de texte. Dans Google Docs (avec Chrome) : Outils, Saisie vocale. Sur ton téléphone, le micro du clavier fait la même chose.</p>
+    </div>
+  </div>
+  <div class="note"><p><strong>L'astuce :</strong> juste après un rendez-vous ou ton animation, dicte pendant cinq minutes tout ce qui s'est passé, sans te corriger. Ce brouillon brut, avec ses détails et ses anecdotes, deviendra ta partie C. Écrit trois semaines plus tard, il aurait perdu la moitié de sa matière.</p></div>
+</section>
+
+<section id="ia">
+  <h2><span class="num">08</span>L'IA : une aide, pas l'auteur</h2>
+  <p class="intro">ChatGPT, Claude, Le Chat, Gemini : peu importe laquelle. Bien utilisée, elle te débloque et te fait gagner du temps. Mal utilisée, elle écrit un dossier que tu ne sauras pas défendre devant le jury.</p>
+
+  <h3>Là où elle aide vraiment</h3>
+  <div class="grid">
+    <div class="card"><h3>La page blanche</h3><p>Lui raconter ta situation et lui demander un plan, des pistes, des questions à te poser.</p></div>
+    <div class="card"><h3>La reformulation</h3><p>Lui donner ton paragraphe maladroit et lui demander de le clarifier, en gardant tes idées.</p></div>
+    <div class="card"><h3>L'orthographe</h3><p>Relire un texte et lister les fautes, sans rien changer d'autre.</p></div>
+    <div class="card"><h3>L'entraînement</h3><p>Jouer le jury : te poser des questions sur ton dossier et commenter tes réponses.</p></div>
+  </div>
+
+  <h3>Comment bien lui demander</h3>
+  <p>Une IA répond aussi bien que tu la renseignes. Donne-lui quatre choses : <strong>qui tu es</strong>, <strong>ce que tu fais</strong>, <strong>ce que tu veux</strong> et <strong>la forme attendue</strong>. Puis discute : « plus court », « plus simple », « garde mes mots ».</p>
+  <div class="prompt"><span class="tag">Exemple : l'enquête</span>Je suis stagiaire enseignant de la conduite. Je prépare une action de sensibilisation à la sécurité routière pour les salariés d'une entreprise de livraison. Propose-moi 8 questions courtes pour un questionnaire Google Forms qui me permette de connaître leurs trajets et les risques qu'ils rencontrent. Surtout des questions à choix, deux ouvertes au maximum.</div>
+  <div class="prompt"><span class="tag">Exemple : la relecture</span>Voici un paragraphe de mon dossier. Corrige uniquement l'orthographe et la grammaire, ne change ni mes idées ni mon style, et liste-moi les corrections faites : [colle ton texte]</div>
+  <div class="prompt"><span class="tag">Exemple : le jury</span>Voici la partie D de mon dossier. Joue un jury de titre professionnel : pose-moi une question à la fois sur mes choix, attends ma réponse, puis dis-moi ce qui était convaincant et ce qui manquait.</div>
+
+  <h3>Les limites à connaître</h3>
+  <div class="note stop">
+    <ul>
+      <li><strong>Elle invente avec aplomb.</strong> Un article de loi, un chiffre d'accidents, une statistique : vérifie toujours à la source (Légifrance, ONISR, Sécurité routière) avant de l'écrire.</li>
+      <li><strong>Le jury t'interroge à l'oral.</strong> Chaque phrase du dossier doit être la tienne, et tu dois pouvoir l'expliquer. Si tu ne comprends pas ce qu'elle a écrit, ne le garde pas.</li>
+      <li><strong>Ton vécu ne s'invente pas.</strong> Les parties C et D racontent ce que toi, tu as fait et ressenti. L'IA peut t'aider à le formuler, pas à le créer.</li>
+      <li><strong>Pas de données personnelles.</strong> Ne colle ni noms, ni téléphones, ni réponses nominatives des personnes de ta structure. Remplace-les par « le responsable », « un salarié ».</li>
+    </ul>
+  </div>
+</section>
+
+<section id="methode">
+  <h2><span class="num">09</span>Une méthode qui tient sur la durée</h2>
+  <p class="intro">Le plus dur dans le CCP2, ce n'est pas l'écriture, c'est de retrouver ce qui s'est passé des semaines plus tard.</p>
+  <div class="card">
+    <h3>Tiens un journal de bord</h3>
+    <p>Un simple Google Doc, une entrée à chaque étape : <strong>la date</strong>, <strong>ce que tu as fait</strong>, <strong>avec qui</strong>, <strong>ce que tu as appris ou décidé</strong>, et où est la preuve (mail, photo, questionnaire). Cinq lignes suffisent, tapées ou dictées.</p>
+    <p>Au moment de rédiger, tu n'inventes rien et tu n'oublies rien : tout est là, daté, avec les anecdotes et les imprévus que le jury aime entendre.</p>
+  </div>
+  <div class="card">
+    <h3>Garde les preuves au fil de l'eau</h3>
+    <p>La demande du commanditaire (le mail, ou un compte rendu daté de l'entretien), l'organigramme, les réponses à l'enquête, les supports, les photos de l'action (avec l'accord des personnes), les questionnaires de satisfaction. Ce sont tes annexes, et elles sont difficiles à récupérer après coup.</p>
+  </div>
+</section>
+
+<footer>
+  <p>Guide proposé par Timy à la promo, pour se simplifier la vie pendant le CCP2. Une idée, une astuce à ajouter ? Dis-le-lui.</p>
+</footer>
+
+</div>
+</body>
+</html>

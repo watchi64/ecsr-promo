@@ -13,6 +13,19 @@
 
 export const NOUVEAUTES = [
   {
+    id: "2026-09-30-boite-a-outils-ccp2",
+    date: "2026-09-30",
+    pour: "tous",
+    titre: "Une boîte à outils numérique pour ton CCP2",
+    resume: "Un guide pour te simplifier la vie pendant le CCP2 : les raccourcis clavier "
+          + "utiles au quotidien, comment ranger ton Drive, écrire ton dossier dans Google "
+          + "Docs, faire ton enquête avec Google Forms, préparer tes diapos sur Canva, dicter "
+          + "au lieu de taper et te servir d'une IA sans qu'elle écrive à ta place. Pas un "
+          + "mode d'emploi pas à pas : des réflexes pour te débrouiller même quand l'écran "
+          + "ne ressemble pas à ce que tu as vu en cours.",
+    ou: { label: "Ressources", route: "ressources" },
+  },
+  {
     id: "2026-09-18-mot-de-passe-oublie",
     date: "2026-09-18",
     pour: "tous",
