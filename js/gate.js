@@ -4,9 +4,9 @@
  */
 // La carte d'authentification et ses modes. Sortie de main.js, qui redevient le
 // fichier du démarrage et des routes.
-import { signInWithPassword, signUpWithPassword, requestPasswordReset, updatePassword } from "./db.js?v=20260918a";
-import { validerEmail, validerMotDePasse, messageErreurAuth, configMode, MDP_MIN } from "./gate-rules.js?v=20260918a";
-import { toast } from "./utils.js?v=20260918a";
+import { signInWithPassword, signUpWithPassword, requestPasswordReset, updatePassword } from "./db.js?v=20260930a";
+import { validerEmail, validerMotDePasse, messageErreurAuth, configMode, MDP_MIN } from "./gate-rules.js?v=20260930a";
+import { toast } from "./utils.js?v=20260930a";
 
 export function showGate(mode = "signin") {
   const gate = document.getElementById("gate");
