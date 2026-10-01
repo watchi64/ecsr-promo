@@ -35,6 +35,10 @@ assert.equal(libellePastille(10), "9+");
 assert.deepEqual(purger(["a", "obsolete"], E), ["a"]);
 // Ajout sans doublon, purgé au passage.
 assert.deepEqual(ajouterVues(["a"], ["a", "b", "obsolete"], E), ["a", "b"]);
+// Une annonce d'ouverture de module n'est jamais purgée, même absente de la
+// liste du moment (état des modules illisible au démarrage).
+assert.deepEqual(purger(["module-notes-2026-10-12T13:30:00.000Z", "obsolete"], E),
+                 ["module-notes-2026-10-12T13:30:00.000Z"]);
 
 // Amorce : au premier accès, les entrées antérieures ou égales à la mise en
 // ligne sont déjà lues. Celles qui lui sont postérieures restent neuves, sinon
@@ -46,4 +50,4 @@ assert.deepEqual(idsDeReprise(E, "2026-07-01"), []);
 const AVEC_FUTURE = [...E, { id: "futur", date: "2026-08-15", pour: "tous" }];
 assert.ok(!idsDeReprise(AVEC_FUTURE, "2026-08-01").includes("futur"));
 
-console.log("nouveautes : 17 assertions OK");
+console.log("nouveautes : 18 assertions OK");
