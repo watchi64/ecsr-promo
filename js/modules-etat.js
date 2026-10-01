@@ -95,13 +95,24 @@ export function onModulesChange(cb) {
 // Relit la valeur juste avant d'écrire : la fenêtre où deux formateurs qui
 // cliquent en même temps s'écraseraient tombe à quelques millisecondes.
 // Lève une erreur si la lecture ou l'écriture échoue (l'appelant l'affiche).
-async function ecrire(transformer) {
+async function ecrireUne(transformer) {
   const frais = lireEtat(await getSetting(CLE_REGLAGE));
   const texte = ecrireEtat(transformer(frais));
   await setSetting(CLE_REGLAGE, texte);
   ecrireCopie(texte);
   appliquer(texte);
   return etat;
+}
+
+// File d'écriture : deux cases cochées vite lanceraient deux écritures en
+// parallèle, et la seconde, qui a relu avant que la première ait écrit, repartirait
+// de l'état d'avant elle et l'écraserait. Chaque écriture attend donc la fin de la
+// précédente. Celle qui échoue rejette sa propre promesse sans bloquer les suivantes.
+let suiteEcritures = Promise.resolve();
+function ecrire(transformer) {
+  const tour = suiteEcritures.then(() => ecrireUne(transformer));
+  suiteEcritures = tour.catch(() => {});
+  return tour;
 }
 
 export function basculerModule(cle, ouvrir) {
