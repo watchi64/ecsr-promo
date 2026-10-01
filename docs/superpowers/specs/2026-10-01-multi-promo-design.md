@@ -26,8 +26,11 @@ garanti par la base elle-même. Contrainte absolue : **aucune régression pour l
 1. **Même base Supabase, en multi-promo** (cadrage du 01/10), plutôt qu'un second projet.
 2. **Formateurs communs** : les trois formateurs encadrent les deux promos. Ils gardent leur compte
    et choisissent la promo sur laquelle ils travaillent.
-3. **Bénévoles et auto-écoles : banque commune** au centre. Le compteur de venues d'un bénévole
-   additionne les plannings de toutes les promos.
+3. **Bénévoles et auto-écoles : une banque par lieu** du centre de formation (Nîmes, Montpellier,
+   puis chaque autre lieu avec sa première promo). Chaque promo est rattachée à un lieu et voit la
+   banque de son lieu ; le compteur de venues d'un bénévole additionne les plannings des promos de
+   son lieu. Précisé à la relecture de la spec (01/10) : la première version prévoyait une banque
+   commune au centre.
 4. **Publication des cours commune.** L'ouverture progressive pour la nouvelle promo passe par les
    modules du chantier B. L'ouverture d'un examen QCM, elle, est propre à chaque promo.
 5. **Noms affichés** : « Nîmes, mars 2026 » (promo actuelle, formation débutée le 30/03/2026) et
@@ -39,15 +42,17 @@ garanti par la base elle-même. Contrainte absolue : **aucune régression pour l
 8. **Architecture : la promo voyage avec chaque requête et la base la vérifie** (retenue aussi pour
    la grande échelle, voir B.1).
 9. **Chaque table propre à une promo porte sa colonne `promo_id`**, même quand on pourrait la
-   déduire du stagiaire : filtre direct, indexable, standard à grande échelle.
+   déduire du stagiaire : filtre direct, indexable, standard à grande échelle. De même, chaque table
+   propre à un lieu porte sa colonne `lieu_id`.
 
 Décidé sans question, parce que la réponse découle des choix ci-dessus :
 
 - **Signalements QCM communs** : la banque de questions est partagée et les formateurs sont
   communs ; un stagiaire ne voit que ses propres signalements (règle actuelle).
 - **Quota de l'assistant global** : par personne et par jour, inchangé.
-- **Un formateur accède à toutes les promos** (aujourd'hui les trois sont communs). Le jour où un
-  niveau centre existera, ce sera « toutes les promos de son centre ».
+- **Un formateur accède à toutes les promos, tous lieux confondus** (aujourd'hui les trois sont
+  communs et les deux promos à Nîmes). Le jour où un lieu aura ses propres formateurs, on les
+  rattachera à leurs lieux (voir G).
 - **Pas d'écran de création de promo** : une promo se crée par migration, une ou deux fois par an.
 
 ## Faits vérifiés le 01/10 (base `crpduennbqaemhfaywrz`, PostgreSQL 17.6)
@@ -78,18 +83,32 @@ Décidé sans question, parce que la réponse découle des choix ci-dessus :
 
 ## A. Modèle de données
 
-### A.1 Table `promos`
+### A.1 Tables `lieux` et `promos`
+
+**`lieux`** : les sites du centre de formation.
+
+| Colonne | Type | Rôle |
+|---|---|---|
+| `id` | integer, identité | 1 = « Nîmes », 2 = « Montpellier » (ids posés explicitement par la migration) |
+| `nom` | text, non nul, unique | Nom affiché |
+| `created_at` | timestamptz | |
+
+Les autres lieux s'ajoutent par migration avec leur première promo, comme les promos elles-mêmes.
+
+**`promos`** :
 
 | Colonne | Type | Rôle |
 |---|---|---|
 | `id` | integer, identité | 1 = « Nîmes, mars 2026 », 2 = « Nîmes, septembre 2026 » (ids posés explicitement par la migration) |
+| `lieu_id` | integer, non nul, `references lieux` | Nîmes pour les deux promos |
 | `nom` | text, non nul | Nom affiché |
 | `date_debut` | date, non nul | 30/03/2026 et 30/09/2026 |
 | `date_fin` | date, nullable | 11/12/2026 pour mars ; nulle pour septembre tant qu'elle n'est pas connue |
 | `created_at` | timestamptz | |
 
-Préparé, pas construit : une colonne `centre_id` s'ajoutera ici le jour où l'app servira plusieurs
-centres. Les tables « communes au centre » ci-dessous deviendront alors propres à chaque centre.
+Hiérarchie : centre (implicite, unique aujourd'hui), lieux, promos. Préparé, pas construit : une
+colonne `centre_id` s'ajoutera sur `lieux` le jour où l'app servira plusieurs centres ; les tables
+« communes au centre » ci-dessous deviendront alors propres à chaque centre.
 
 ### A.2 Qui accède à quelle promo
 
@@ -101,6 +120,7 @@ centres. Les tables « communes au centre » ci-dessous deviendront alors propre
   d'elle-même.
 - Dans une promo où il n'a pas de fiche, un compte de rôle stagiaire qui y accède (cas unique :
   Timy, par son statut de fondateur) y est traité en admin pur.
+- **Lieu courant** : celui de la promo courante. Le lieu n'ouvre aucun droit par lui-même.
 
 ### A.3 Classement des tables
 
@@ -120,21 +140,31 @@ par défaut `promo_courante()`, sauf mention contraire.
 | **`themes_progression`** (nouvelle) | Clé `(promo_id, theme_id)`. Colonnes `statut` (mêmes valeurs permises qu'aujourd'hui, défaut « À faire »), `date_fait`, `date_qcm`, `notes`, `updated_by_email`, `updated_at`. `theme_id → themes on delete cascade` |
 | **`qcm_examens`** (nouvelle) | Clé `(promo_id, qcm_id)`. Colonnes `published` (défaut faux), `published_by_email`, `published_at`, `exam_nb_questions`, `exam_question_ids`, `exam_draw_mode` (mêmes valeurs permises), `exam_seconds_per_question` (défaut 30), `exam_ferme_a`, `updated_at`. `qcm_id → qcm on delete cascade` |
 
+**Propres à un lieu : colonne `lieu_id integer not null references lieux`, indexée.**
+
+| Table | Particularités |
+|---|---|
+| `benevoles`, `auto_ecoles` | Valeur par défaut `lieu_courant()` : un bénévole ou une auto-école créé depuis une promo rejoint la banque de son lieu. Un bénévole ne peut être affilié qu'à une auto-école de son lieu (contrôle par trigger) |
+| `benevole_suivi` | `lieu_id` imposée par un trigger depuis le bénévole |
+
 **Communes au centre (règles actuelles conservées)** : `themes` (référentiel : numéros, titres,
 catégories, types, ordre, notions), `competences`, `cours`, `cours_versions`, `cours_chunks`, `qcm`
 (banque), `qcm_questions`, `qcm_options`, `qcm_signalements`, `qcm_signalement_instruction`,
-`ressources`, `contacts`, `profs`, `benevoles`, `auto_ecoles`, `benevole_suivi`.
+`ressources`, `contacts`, `profs`.
 
 **Par personne** : `chatbot_usage` (inchangée) et `user_profiles` (une ligne par personne, règles
 resserrées en B.4).
 
-Accepté, non contraint par la base : les identifiants de stagiaires rangés dans des tableaux ou des
-colonnes libres du planning (`eleves_ids`, `eleves_ids_2`, `pedagogue_id_2`, `absences`) ne sont
-pas vérifiés contre la promo de la ligne. L'interface ne propose que les stagiaires de la promo
-courante.
+Accepté, non contraint par la base : les identifiants rangés dans des tableaux ou des colonnes
+libres du planning (`eleves_ids`, `eleves_ids_2`, `pedagogue_id_2`, `absences`, `benevoles_ids`)
+ne sont pas vérifiés contre la promo ou le lieu de la ligne. L'interface ne propose que les
+stagiaires de la promo courante et les bénévoles de son lieu.
 
 ### A.4 Données existantes
 
+- Lieux : Nîmes (1) et Montpellier (2). Les deux promos sont à Nîmes. Les 29 bénévoles, les 3
+  auto-écoles et le suivi des venues (vide aujourd'hui) sont rattachés à Nîmes ; la banque de
+  Montpellier démarre vide.
 - Toutes les lignes des tables propres à une promo sont rattachées à la promo 1 (mars 2026).
   Réglages : `current_week_lundi`, `semaines_verrouillees`, `profs_autres` vont à la promo 1 ;
   `chatbot_quota_jour`, `cohort_name`, `password_hash` deviennent globaux.
@@ -160,8 +190,8 @@ active enregistrée dans le profil, filtre explicite dans chaque fonction de l'a
 - **Promo par requête** : le schéma standard des applications multi-clients sur Postgres.
   L'isolation est garantie par la base, chaque appareil et chaque onglet a son contexte, un client
   ancien ou buggé ne lit jamais hors de ses droits. Deux renforts viendront plus tard sans rien
-  refaire : le niveau centre, et les droits inscrits dans le jeton de connexion (pour éviter une
-  lecture du profil par requête à grande échelle).
+  refaire : le niveau centre au-dessus des lieux, et les droits inscrits dans le jeton de
+  connexion (pour éviter une lecture du profil par requête à grande échelle).
 
 ### B.2 Fonctions de contexte
 
@@ -177,22 +207,25 @@ SQL, `security definer`, `stable`, `search_path` fixé, email du jeton comparé 
   - En-tête fait uniquement de chiffres (`^[0-9]{1,9}$`) et promo accessible : cette promo.
   - Tout autre cas (promo interdite, valeur fantaisiste, visiteur non connecté) : nulle. Aucune
     ligne ne correspond alors, et toute insertion échoue sur la contrainte de non-nullité.
-- **`mes_promos() → table (id, nom, date_debut, date_fin, par_defaut boolean, stagiaire_id
-  integer)`** : les promos accessibles, celle par défaut marquée, et l'identité stagiaire de
-  l'utilisateur dans chacune (nulle s'il n'y a pas de fiche).
+- **`mes_promos() → table (id, nom, lieu_id, lieu_nom, date_debut, date_fin, par_defaut
+  boolean, stagiaire_id integer)`** : les promos accessibles avec leur lieu, celle par défaut
+  marquée, et l'identité stagiaire de l'utilisateur dans chacune (nulle s'il n'y a pas de fiche).
+- **`lieu_courant() → integer`** : le lieu de `promo_courante()`, nul s'il n'y a pas de promo
+  courante.
 - **`my_stagiaire_id()`** (existante) : ne renvoie plus l'identité stagiaire que si cette fiche
   appartient à `promo_courante()`.
 - `is_admin()` et `is_prof()` restent globales (rôle de la personne) : la restriction à la promo
   vient de la condition `promo_id` de chaque règle.
-- Droits d'exécution : `authenticated` **et** `anon` sur `promo_courante`, `peut_acceder_promo`,
-  `promo_par_defaut`. Les règles ouvertes à `public` les appellent ; sans ce droit, une requête sans
-  jeton échoue en « permission denied » au lieu d'un refus propre (leçon du 18/07). `mes_promos` :
-  `authenticated` seul.
+- Droits d'exécution : `authenticated` **et** `anon` sur `promo_courante`, `lieu_courant`,
+  `peut_acceder_promo`, `promo_par_defaut`. Les règles ouvertes à `public` les appellent ; sans
+  ce droit, une requête sans jeton échoue en « permission denied » au lieu d'un refus propre
+  (leçon du 18/07). `mes_promos` : `authenticated` seul.
 
 ### B.3 Forme des règles, table par table
 
-Partout, la condition promo s'écrit `promo_id = (select promo_courante())`, évaluée une fois par
-requête. Elle s'ajoute aux conditions de rôle actuelles, qui restent identiques.
+Partout, la condition promo s'écrit `promo_id = (select promo_courante())` et la condition lieu
+`lieu_id = (select lieu_courant())`, évaluées une fois par requête. Elles s'ajoutent aux conditions
+de rôle actuelles, qui restent identiques.
 
 | Table | Lecture | Écriture |
 |---|---|---|
@@ -206,6 +239,8 @@ requête. Elle s'ajoute aux conditions de rôle actuelles, qui restent identique
 | `settings` | promo : les réglages globaux ne sont plus lisibles depuis l'app, qui ne les lit pas | `is_admin()` + promo : les réglages globaux ne s'écrivent plus depuis l'app |
 | `themes_progression` | promo | `is_admin()` + promo |
 | `qcm_examens` | promo | ajout et modification : `is_admin()` ou `is_prof()`, + promo ; suppression : `is_admin()` + promo |
+| `benevoles`, `auto_ecoles`, `benevole_suivi` | `is_admin()` + lieu | `is_admin()` + lieu |
+| `lieux` | lieux des promos accessibles | aucune depuis l'app |
 | `promos` | `peut_acceder_promo(id)` | modification du seul `nom` (droit de colonne) par `is_admin()` + `peut_acceder_promo(id)` ; ni création ni suppression depuis l'app |
 
 ### B.4 Comptes (`user_profiles`)
@@ -228,10 +263,11 @@ requête. Elle s'ajoute aux conditions de rôle actuelles, qui restent identique
 | `audit_evaluations`, `audit_passages` | Recopient `promo_id` dans l'historique |
 | `epcf_moyennes(trame)` | Moyennes de la promo courante seulement (aujourd'hui sur toute la base) |
 | `set_date_naissance` | La fiche visée doit appartenir à la promo courante |
-| **`venues_benevoles()`** (nouvelle) | Réservée à `is_admin()` : les cartes du planning portant des bénévoles, **toutes promos accessibles**, avec le nom de la promo. Remplace la lecture directe de `planning_entries` pour le suivi des bénévoles |
+| `benevoles_noms()` | Ne renvoie plus que les bénévoles du lieu courant (inactifs compris, pour que les vieilles semaines restent lisibles) |
+| **`venues_benevoles()`** (nouvelle) | Réservée à `is_admin()` : les cartes du planning portant des bénévoles, **toutes promos du lieu courant**, avec le nom de la promo. Remplace la lecture directe de `planning_entries` pour le suivi des bénévoles |
 
 `mirror_exam_to_evaluations` n'a rien à changer : la note qu'il recopie dans `evaluations` reçoit
-sa promo du trigger de cette table. Inchangées : `benevoles_noms`, `chatbot_consommer`,
+sa promo du trigger de cette table. Inchangées : `chatbot_consommer`,
 `chercher_cours`, `decoupe_markdown`, `rechunk_cours`, `set_my_anonymous_notes`,
 `enforce_whitelist_signup`. Fonctions Edge `chatbot` et `invite-user` : aucun changement, et
 l'en-tête de promo ne leur est jamais envoyé.
@@ -263,8 +299,10 @@ l'en-tête de promo ne leur est jamais envoyé.
 
 - Dans la barre du haut, avant le badge du nom ; affichée seulement si `mes_promos()` compte au
   moins deux promos. Les stagiaires ne voient rien de nouveau.
-- Libellé court tiré de `date_debut` : « mars 2026 », « sept. 2026 ». Un appui ouvre la liste des
-  noms complets, promo courante cochée ; choisir une autre promo déclenche la bascule de C.1.
+- Libellé court tiré de `date_debut` : « mars 2026 », « sept. 2026 », précédé du lieu
+  (« Montpellier · sept. 2026 ») dès que les promos accessibles couvrent plusieurs lieux. Un appui
+  ouvre la liste des noms complets, promo courante cochée ; choisir une autre promo déclenche la
+  bascule de C.1.
 - Doit tenir sur iPhone à côté des onglets en icônes. Ce n'est pas un contrôle d'édition : elle
   n'entre pas dans le groupe `.read-only`.
 
@@ -276,7 +314,7 @@ devient `admin`. Tous les appelants (`auth-admin.js`, `views/themes.js`, `views/
 profitent sans changement. Pour Timy dans septembre : pas d'espace stagiaire, pas de tentative
 d'examen, interface d'admin.
 
-### C.4 `db.js` (seul fichier de données touché, vues intactes)
+### C.4 `db.js` (seul fichier d'accès aux données touché)
 
 | Fonctions | Changement |
 |---|---|
@@ -287,7 +325,8 @@ d'examen, interface d'admin.
 | `publishQcm`, `unpublishQcm`, `setExamDraw`, `updateExamConfig` | Écrivent dans `qcm_examens` (upsert sur `promo_id,qcm_id`) |
 | `upsertPlanningEntry`, `upsertHalfMeta`, `setJourOff`, `setSetting` | Cible d'unicité préfixée par `promo_id` |
 | `getSetting`, `setSetting` | Même signature, désormais propres à la promo courante : **porte d'entrée de B** |
-| `listVenuesBenevoles` | Passe par `venues_benevoles()` ; une venue d'une autre promo s'affiche avec le nom de sa promo, sans les noms d'élèves |
+| `listBenevoles`, `listAutoEcoles`, `listBenevolesNoms`, ajouts de bénévoles et d'auto-écoles | Code inchangé : la base ne renvoie que la banque du lieu courant, et un ajout y est rattaché d'office |
+| `listVenuesBenevoles` | Passe par `venues_benevoles()` ; une venue d'une autre promo du même lieu s'affiche avec le nom de sa promo, sans les noms d'élèves |
 | `getMyProfile` | Profil effectif (C.3) |
 
 **Règle de fusion** : elle ne lit **jamais** les anciennes colonnes de `themes` et de `qcm`, même
@@ -297,8 +336,9 @@ de progression est « À faire », un QCM sans ligne d'examen est fermé.
 ### C.5 Paramètres
 
 - Section « Promo » : nom de la promo courante, modifiable par les admins (remplace `cohort_name`,
-  inutilisé). Les stagiaires listés et ajoutés sont ceux de la promo courante. La liste des
-  formateurs est présentée comme commune à toutes les promos.
+  inutilisé), et son lieu, affiché. Les stagiaires listés et ajoutés sont ceux de la promo
+  courante. La liste des formateurs est présentée comme commune à toutes les promos.
+- Panneau Bénévoles : son titre indique le lieu de la banque affichée (« Bénévoles · Nîmes »).
 - « Accès & invitations » : code inchangé ; la base ne renvoie que le personnel et les stagiaires
   de la promo courante.
 
@@ -325,7 +365,7 @@ jamais une écriture au mauvais endroit : on demande aux formateurs de rafraîch
 
 | Étape | Contenu | Visible pour | Marche arrière |
 |---|---|---|---|
-| **1. Fondations** (migration) | `promos` (2 lignes) ; colonnes `promo_id` remplies avec 1, puis rendues non nulles avec leur défaut ou leur trigger ; index ; `themes_progression` et `qcm_examens` remplies pour la promo 1 ; fonctions de B.2 ; triggers de D.2. Nouvelles unicités **ajoutées à côté** des anciennes. Règles d'accès inchangées | Personne | Migration retour : suppression de tout l'ajouté, rien d'existant n'a été modifié |
+| **1. Fondations** (migration) | `lieux` (Nîmes, Montpellier) et `promos` (2 lignes, à Nîmes) ; colonnes `lieu_id` des banques remplies avec Nîmes ; colonnes `promo_id` remplies avec 1, puis rendues non nulles avec leur défaut ou leur trigger ; index ; `themes_progression` et `qcm_examens` remplies pour la promo 1 ; fonctions de B.2 ; triggers de D.2. Nouvelles unicités **ajoutées à côté** des anciennes. Règles d'accès inchangées | Personne | Migration retour : suppression de tout l'ajouté, rien d'existant n'a été modifié |
 | **2. Cloisonnement** (migration) | Photo « avant » (E.2) ; répétition des nouvelles règles dans une transaction annulée, avec le script de preuve ; puis application réelle de B.3, B.4 et B.5. Script de preuve vert, photo « après » identique | Personne : l'app actuelle n'envoie pas d'en-tête, elle reste sur la promo 1 | Migration retour écrite d'avance, qui recrée les règles et fonctions relevées le 01/10 à l'identique |
 | **3. App et formateurs** | Fusion dans `main` (contexte, pastille, `db.js`, Paramètres, Nouveautés et entrée « formateurs »), poussée par Timy, contrôle en ligne. **Ensuite seulement**, migration de bascule : suppression des anciennes unicités et de la clé primaire `key` de `settings`. Les formateurs préparent septembre : stagiaires, calendrier, planning | Formateurs et Timy | Revenir au commit précédent ; recréer les anciennes unicités tant que septembre n'a pas de données, ensuite corriger en avant |
 | **4. Ouverture aux 8** | Après la livraison des modules (B) : saisie des 8 dans Paramètres, invitations, preuve rejouée avec un vrai compte de septembre, message WhatsApp | Les 8 | Retirer les invitations |
@@ -366,6 +406,9 @@ promo 1 »), sans aucun email écrit en dur.
 - Personnages : stagiaire de mars, formateur, fondateur en promo 1 puis en promo 2, stagiaire
   fictif de septembre, visiteur non connecté. Simulation par `set local role`,
   `request.jwt.claims` et `request.headers`.
+- Lieux : les deux promos réelles étant à Nîmes, le script crée aussi, dans la même transaction
+  annulée, une promo fictive à Montpellier avec un bénévole et une auto-école. Un formateur dans
+  une promo de Nîmes ne doit voir que la banque de Nîmes, et inversement.
 - Pour chaque table : lire, ajouter, modifier, supprimer, dans chaque contexte (sans en-tête,
   en-tête 1, en-tête 2, en-tête interdit, en-tête fantaisiste). Comparaison à une matrice attendue,
   sortie lisible et **verdict unique**.
@@ -392,7 +435,9 @@ l'état d'examen (défauts, anciennes colonnes ignorées).
 Banc à import map (`_harness_supabase.js` recopié depuis `TP_ECSR_App`, stub enrichi de
 `mes_promos`) : pastille visible pour un formateur et pour le fondateur, absente pour un
 stagiaire ; bascule (mémorisation puis rechargement) ; fondateur traité en admin dans septembre ;
-thèmes « À faire » et examens fermés dans septembre ; Nouveautés sans arriéré. Les embarquements
+thèmes « À faire » et examens fermés dans septembre ; Nouveautés sans arriéré ; titre du
+panneau Bénévoles avec le lieu ; libellé de la pastille précédé du lieu quand les promos couvrent
+plusieurs lieux. Les embarquements
 existants (`stagiaires!stagiaire_id` dans notes, passages, EPCF, examens) sont aussi contrôlés sur
 la vraie base après l'étape 1. Vérification dans le navigateur avant toute annonce.
 
@@ -413,12 +458,17 @@ formateur ou du fondateur ; septembre vide, mars intacte.
 - **C (cours REMC, branche `cours-remc`)** : `cours` reste commune ; aucun conflit attendu ; se
   prévenir avant de fusionner.
 - Fusions : A touche surtout `db.js` (transport, thèmes, QCM, réglages, upserts), `auth-admin.js`,
-  `main.js`, `nouveautes.js` et `views/config.js`. Le second à fusionner reprend `main` et résout.
+  `main.js`, `nouveautes.js`, `views/config.js` et `views/benevoles.js`. Le second à fusionner
+  reprend `main` et résout.
 
 ## G. Hors périmètre, limites connues
 
 - Niveau centre, écran de création de promo, transfert d'un stagiaire d'une promo à l'autre.
-- Un bénévole placé au même créneau dans les deux promos n'est pas signalé.
+- Un bénévole placé au même créneau dans deux promos du même lieu n'est pas signalé.
+- Rattachement des formateurs à des lieux : aujourd'hui un formateur accède à toutes les promos,
+  tous lieux confondus. À faire le jour où un lieu aura ses propres formateurs.
+- Déplacer un bénévole ou une auto-école d'un lieu à l'autre : pas d'interface.
+- Contacts (secrétariats) propres à chaque lieu : même logique possible plus tard, non demandée.
 - Fin de vie de la promo de mars (archivage, conservation de 12 mois prévue par les conditions
   d'utilisation) : chantier ultérieur.
 - Droits inscrits dans le jeton de connexion (performance à grande échelle) : plus tard, sans
