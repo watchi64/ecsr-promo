@@ -56,6 +56,7 @@ eq(lireEtat(texte({ v: 1, depuis: T0, ouverts: { planning: T0, notes: 5 } })),
 eq(VERSION, 1, "version du format");
 const e1 = regle({ planning: T0, notes: T1 });
 eq(lireEtat(ecrireEtat(e1)), e1, "aller-retour écrire puis lire");
+assert.throws(() => ecrireEtat(ETAT_LIBRE), /seul un état réglé/); n++;
 eq(ETAT_LIBRE.statut, "libre", "état libre");
 ok(estReglee(e1) && !estReglee(ETAT_LIBRE) && !estReglee({ statut: "illisible" }) && !estReglee(null),
    "estReglee");
@@ -107,6 +108,12 @@ eq(annonces(regle({ planning: T0, qcm: T1, themes: T2 }), CAT).map((a) => a.id),
    ["module-themes-" + T2, "module-qcm-" + T1], "parent ouvert ensuite : les deux sont annoncés");
 const aAssistant = annonces(regle({ assistant: T1 }), CAT);
 ok(aAssistant.length === 1 && !("ou" in aAssistant[0]), "annonce sans lien si le catalogue n'en donne pas");
+const avecInconnue = regle({ planning: T0, fantome: T1 });
+eq(annonces(avecInconnue, CAT), [], "clé inconnue du catalogue : ignorée sans erreur");
+ok(estOuvert("planning", avecInconnue, CAT), "clé inconnue sans effet sur les autres modules");
+eq(basculer(avecInconnue, "notes", true, CAT, T2).ouverts.fantome, T1, "clé inconnue conservée par la bascule");
+const premiere = annonces(b1, CAT)[0];
+ok(premiere.ou !== CAT[1].annonce.ou, "le lien de l'annonce est une copie, pas l'objet du catalogue");
 
 // 7. Module d'une nouveauté
 eq(moduleDeNouveaute({ id: "a", module: "qcm", ou: { route: "themes" } }, REF), "qcm", "champ module prioritaire");
@@ -148,7 +155,8 @@ eq(purger([idAnnonce, "obsolete"], []), [idAnnonce], "une annonce lue n'est jama
 // 11. Catalogue réel
 const cles = MODULES.map((m) => m.cle);
 eq(new Set(cles).size, cles.length, "clés uniques");
-const CADRATIN = "2014";
+const CADRATIN = "\u2014";
+eq(CADRATIN.charCodeAt(0), 0x2014, "la constante est bien le tiret cadratin");
 for (const m of MODULES) {
   ok(typeof m.nom === "string" && m.nom.length > 0, m.cle + " : nom");
   ok(GROUPES.includes(m.groupe), m.cle + " : groupe connu");

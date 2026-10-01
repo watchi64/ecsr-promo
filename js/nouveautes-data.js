@@ -253,7 +253,6 @@ export const NOUVEAUTES = [
     id: "2026-07-31-dossier-professionnel",
     date: "2026-07-31",
     pour: "tous",
-    module: "dp",
     titre: "Ton Dossier Professionnel se remplit dans l'app",
     resume: "Le dossier que tu présentes au jury se saisit directement ici et s'imprime au "
           + "format officiel. Tes réponses sont enregistrées au fur et à mesure, tu peux y "
@@ -300,7 +299,6 @@ export const NOUVEAUTES = [
     id: "2026-07-19-livret-epcf",
     date: "2026-07-19",
     pour: "tous",
-    module: "livret",
     titre: "Ton livret officiel TP-01303 se remplit dans l'app",
     resume: "Le livret que tu présentes au jury se saisit ici et s'imprime au format officiel. "
           + "Ta date de naissance est reprise automatiquement depuis ton profil, tu n'as pas à "

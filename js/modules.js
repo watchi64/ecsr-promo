@@ -37,8 +37,10 @@ export function lireEtat(texte) {
   return { statut: "reglee", depuis: brut.depuis, ouverts };
 }
 
-// État réglé vers texte stocké.
+// État réglé vers texte stocké. Un état libre ou illisible n'a rien à écrire :
+// le refuser évite de stocker un texte que lireEtat relirait comme illisible.
 export function ecrireEtat(etat) {
+  if (!estReglee(etat)) throw new Error("ecrireEtat : seul un état réglé s'écrit");
   return JSON.stringify({ v: VERSION, depuis: etat.depuis, ouverts: etat.ouverts });
 }
 
@@ -107,7 +109,7 @@ export function annonces(etat, modules) {
       id: PREFIXE_ANNONCE + m.cle + "-" + quand, date, pour: "tous", module: m.cle,
       titre: m.annonce.titre, resume: m.annonce.resume,
     };
-    if (m.annonce.ou) entree.ou = m.annonce.ou;
+    if (m.annonce.ou) entree.ou = { ...m.annonce.ou };
     liste.push(entree);
   }
   return liste;

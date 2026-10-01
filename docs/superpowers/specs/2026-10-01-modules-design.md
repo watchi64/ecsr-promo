@@ -231,7 +231,7 @@ fondateur (voir 11.1).
 - En-tête : titre « Modules de la promo », sous-titre « Ouvre les parties de l'app au fil de la
   formation. Une partie fermée est invisible pour les stagiaires ; tu la vois toujours, avec le
   repère "Masqué aux stagiaires". »
-- Ligne d'information du socle : « Toujours ouverts : Accueil, Mon espace (Passages),
+- Ligne d'information du socle : « Toujours ouverts : Accueil, Mon espace personnel (Passages),
   Paramètres, Nouveautés. »
 - **Promo libre** : bandeau « Aucun réglage : tout est ouvert pour cette promo. » et bouton
   **« Partir de l'ensemble de départ »**, avec confirmation (« Seuls Planning, Calendrier et
@@ -466,7 +466,7 @@ tutoiement, sans jargon).
 | `themes` | Liste des thèmes et progression de la classe. | Les thèmes sont ouverts | La liste des thèmes de la formation, avec ceux déjà traités en classe et leur date. | Thèmes |
 | `cours` | Lecture du cours de chaque thème. | Les cours sont ouverts | Chaque thème a son cours à lire : l'essentiel en quelques lignes, les règles, les sanctions et les chiffres clés. Clique sur le titre d'un thème ou sur son bouton Cours. | Thèmes, bouton Cours |
 | `qcm` | QCM d'entraînement et d'examen. | Les QCM sont ouverts | Entraîne-toi sur chaque thème avec un QCM : les questions ratées reviennent en premier jusqu'à ce que tu les maîtrises. | Thèmes, colonne QCM |
-| `epcf` | Évaluations EPCF, dans Notes et Mon espace. | L'EPCF est ouvert | Tes évaluations EPCF du CCP1, en salle et en véhicule, s'affichent dans ton espace personnel. La vue de la classe est dans Notes. | Mon espace, sous-onglet EPCF |
+| `epcf` | Évaluations EPCF, dans Notes et Mon espace. | L'EPCF est ouvert | Tes évaluations EPCF du CCP1, en salle et en véhicule, s'affichent dans ton espace personnel. La vue de la classe est dans Notes. | Mon espace personnel, sous-onglet EPCF |
 | `livret` | Livret officiel EPCF, dans Notes. | Le livret EPCF est ouvert | Ton livret d'évaluation officiel du CCP1 se consulte dans Notes. Pense à indiquer ta date de naissance dans ton espace personnel : elle y est reportée automatiquement. | Notes, sous-onglet Livret EPCF |
-| `dp` | Dossier professionnel, dans Notes et Mon espace. | Le dossier professionnel est ouvert | Remplis ton dossier professionnel directement dans l'app, puis imprime-le ou enregistre-le en PDF au format officiel. Tes formateurs peuvent le relire et t'aider. | Mon espace, sous-onglet Dossier pro |
+| `dp` | Dossier professionnel, dans Notes et Mon espace. | Le dossier professionnel est ouvert | Remplis ton dossier professionnel directement dans l'app, puis imprime-le ou enregistre-le en PDF au format officiel. Tes formateurs peuvent le relire et t'aider. | Mon espace personnel, sous-onglet Dossier pro |
 | `assistant` | Bulle d'aide sur les cours et le Code de la route. | L'assistant est ouvert | Une bulle en bas de l'écran répond à tes questions sur les cours et le Code de la route. C'est une version d'essai : vérifie les points importants dans les cours. | aucun lien (la bulle est sur toutes les pages) |
