@@ -227,10 +227,59 @@ footer { padding: 8px 0 48px; color: var(--text-muted); font-size: 14px; text-al
   .key kbd { font-size: 13px; padding: 3px 6px; }
   .mock .hint { display: block; }
 }
+/* Bouton de téléchargement du PDF */
+.pdf-btn {
+  display: inline-flex; align-items: center; gap: 9px; margin-top: 20px;
+  text-decoration: none; font-size: 15px; font-weight: 600; color: #fff;
+  background: var(--bg-deep); border-radius: 999px; padding: 10px 18px 10px 14px;
+}
+.pdf-btn svg { width: 20px; height: 20px; }
+.pdf-btn:hover { background: var(--accent-strong); }
+.pdf-btn small { font-weight: 400; opacity: .75; }
+.print-only { display: none; }
+
+/* Impression et PDF : A4, un bloc par page, couleurs conservées */
+@page { size: A4; margin: 12mm 11mm 13mm; }
 @media print {
-  nav.toc, .bloc-foot { display: none; }
-  section.bloc { box-shadow: none; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  html { scroll-padding-top: 0; }
+  body { background: #fff; font-size: 13.5px; line-height: 1.45; }
+  .wrap { max-width: none; padding: 0; }
+  nav.toc, .bloc-foot, .pdf-btn, .mock .hint, footer { display: none !important; }
+  .print-only { display: block; }
+  header.hero { padding: 8mm 0 6mm; }
+  h1 { font-size: 34px; }
+  .lead { font-size: 15px; }
+  .print-url { margin-top: 10px; font-size: 12px; color: var(--text-muted); }
+  main { padding: 0; }
+  section.bloc { box-shadow: none; margin: 0 0 6mm; border-radius: 12px; }
+  p, li { orphans: 3; widows: 3; }
+  .bloc-head, .sub, .intro { break-after: avoid; }
+  .intro { break-inside: avoid; }
+  .links.screen { display: none; }
+  .links.print-only { display: flex; margin: 4px 0 10px; }
+  figure.mock { break-inside: avoid; }
+  .bloc-head { padding: 12px 16px; }
+  .bloc-body { padding: 14px 16px 6px; }
+  .bloc-head h2 { font-size: 24px; }
+  .logo { width: 42px; height: 42px; }
+  .logo img.full { width: 42px; height: 42px; }
+  .mock-frame { overflow: visible; width: 78%; margin: 0 auto; }
   .mock-frame svg { min-width: 0; }
+  ol.legend { margin-top: 10px; gap: 6px 14px; }
+  .path { font-size: 11px; padding: 0 4px; }
+  .key { padding: 10px 6px 8px; }
+  .key .combo { gap: 3px; }
+  .key kbd { font-size: 13px; padding: 2px 6px; }
+  .sub { margin: 14px 0 8px; }
+  .tile, .howto, .key, .geste, .prompt, .journal, .note, ol.legend li, figure.mock .mock-frame { break-inside: avoid; }
+  .tile p, .howto ol, .howto p, ol.legend li, .geste p { font-size: 13px; }
+  .grid, .howto-grid, .gestes { gap: 8px; }
+  .tile, .howto, .geste { padding: 10px 12px; }
+  .keys { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+  .links a::after { content: " : " attr(href); font-weight: 400; color: var(--text-muted); }
+  .links a { font-size: 12px; }
+  .note.stop a::after { content: " (" attr(href) ")"; font-size: 11px; color: var(--text-muted); }
 }
 </style>
 </head>
@@ -241,6 +290,8 @@ footer { padding: 8px 0 48px; color: var(--text-muted); font-size: 14px; text-al
     <p class="eyebrow">CCP2 · Boîte à outils</p>
     <h1>Des outils simples pour avancer sur ton CCP2</h1>
     <p class="lead">Les bases de chaque outil, expliquées sur un écran annoté, puis les bons réflexes pour te débrouiller même quand l'écran ne ressemble pas tout à fait à l'image.</p>
+    <a class="pdf-btn" href="boite-a-outils-ccp2.pdf" download="Boite-a-outils-CCP2.pdf"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>Télécharger en PDF <small>à imprimer</small></a>
+    <p class="print-only print-url">Version en ligne, toujours à jour : watchi64.github.io/ecsr-promo/assets/guides/boite-a-outils-ccp2.html</p>
   </header>
 </div>
 
@@ -293,7 +344,8 @@ footer { padding: 8px 0 48px; color: var(--text-muted); font-size: 14px; text-al
       </ul>
     </div>
     <div class="note"><p>Deux nouveaux par semaine, pas plus. Au bout d'un mois, tu ne cherches plus.</p></div>
-    <div class="links"><a href="https://support.google.com/docs/answer/179738?hl=fr" target="_blank" rel="noopener">Tous les raccourcis de Google Docs</a></div>
+    <div class="links screen"><a href="https://support.google.com/docs/answer/179738?hl=fr" target="_blank" rel="noopener">Tous les raccourcis de Google Docs</a></div>
+    <div class="links print-only"><a href="https://support.google.com/docs/answer/179738?hl=fr" target="_blank" rel="noopener">Tous les raccourcis de Google Docs</a></div>
   </div>
   <div class="bloc-foot"><a class="next" href="#gestes">Suivant : gestes de base →</a></div>
 </section>
@@ -354,7 +406,11 @@ footer { padding: 8px 0 48px; color: var(--text-muted); font-size: 14px; text-al
       <div class="tile"><h3>3. Cherche dans les menus</h3><p>Dans Docs, <span class="combo"><kbd>Alt</kbd> + <kbd>/</kbd></span> : tape « sommaire », « tableau »… Dans Canva, la barre de recherche.</p></div>
       <div class="tile"><h3>4. Demande avec une capture</h3><p>Capture l'écran, colle-la dans une IA : « je veux faire ça, où je clique ? ».</p></div>
     </div>
-    <div class="links">
+    <div class="links screen">
+      <a href="https://support.google.com/drive/?hl=fr" target="_blank" rel="noopener">Aide Google Drive</a>
+      <a href="https://support.google.com/docs/?hl=fr" target="_blank" rel="noopener">Aide Docs et Forms</a>
+    </div>
+    <div class="links print-only">
       <a href="https://support.google.com/drive/?hl=fr" target="_blank" rel="noopener">Aide Google Drive</a>
       <a href="https://support.google.com/docs/?hl=fr" target="_blank" rel="noopener">Aide Docs et Forms</a>
     </div>
@@ -370,7 +426,7 @@ footer { padding: 8px 0 48px; color: var(--text-muted); font-size: 14px; text-al
   </div>
   <div class="bloc-body">
     <p class="intro">Ton classeur en ligne, avec ton compte Gmail, sur ordinateur ou dans l'appli Google Drive du téléphone. Tout ce que tu y mets se retrouve sur tous tes appareils.</p>
-    <div class="links">
+    <div class="links screen">
       <a href="https://drive.google.com" target="_blank" rel="noopener">Ouvrir Drive</a>
       <a href="https://support.google.com/drive/?hl=fr" target="_blank" rel="noopener">Aide Drive</a>
     </div>
@@ -454,6 +510,10 @@ footer { padding: 8px 0 48px; color: var(--text-muted); font-size: 14px; text-al
       <div class="tile"><h3>Nommer</h3><p>La date en premier, à l'envers : « 2026-10-14 RDV lycée ». Tout se range dans l'ordre.</p></div>
       <div class="tile"><h3>Les rôles de partage</h3><p><strong>Lecteur</strong> lit, <strong>Commentateur</strong> annote (idéal pour faire relire), <strong>Éditeur</strong> modifie tout.</p></div>
     </div>
+    <div class="links print-only">
+      <a href="https://drive.google.com" target="_blank" rel="noopener">Ouvrir Drive</a>
+      <a href="https://support.google.com/drive/?hl=fr" target="_blank" rel="noopener">Aide Drive</a>
+    </div>
   </div>
   <div class="bloc-foot"><a href="#bloque">← Si tu bloques</a><a class="next" href="#docs">Suivant : Docs →</a></div>
 </section>
@@ -466,7 +526,7 @@ footer { padding: 8px 0 48px; color: var(--text-muted); font-size: 14px; text-al
   </div>
   <div class="bloc-body">
     <p class="intro">Le traitement de texte de Google, pour écrire ton dossier. Tout s'enregistre au fur et à mesure : pas de bouton « Enregistrer ».</p>
-    <div class="links">
+    <div class="links screen">
       <a href="https://docs.google.com" target="_blank" rel="noopener">Ouvrir Docs</a>
       <a href="https://docs.new" target="_blank" rel="noopener">Nouveau document direct</a>
       <a href="https://support.google.com/docs/answer/179738?hl=fr" target="_blank" rel="noopener">Raccourcis de Docs</a>
@@ -548,6 +608,11 @@ footer { padding: 8px 0 48px; color: var(--text-muted); font-size: 14px; text-al
       <div class="howto"><h4>Faire relire</h4><ol><li>Partage en <strong>Commentateur</strong>.</li><li>Pour commenter : sélectionne un passage, puis l'icône bulle (ou <span class="combo"><kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>M</kbd></span>).</li><li>Une fois corrigé, clique <strong>Résoudre</strong>.</li></ol></div>
       <div class="howto"><h4>Changer de page</h4><p><span class="combo"><kbd>Ctrl</kbd> + <kbd>Entrée</kbd></span> insère un saut de page : la partie suivante commence en haut d'une nouvelle page.</p></div>
     </div>
+    <div class="links print-only">
+      <a href="https://docs.google.com" target="_blank" rel="noopener">Ouvrir Docs</a>
+      <a href="https://docs.new" target="_blank" rel="noopener">Nouveau document direct</a>
+      <a href="https://support.google.com/docs/answer/179738?hl=fr" target="_blank" rel="noopener">Raccourcis de Docs</a>
+    </div>
   </div>
   <div class="bloc-foot"><a href="#drive">← Drive</a><a class="next" href="#forms">Suivant : Forms →</a></div>
 </section>
@@ -560,7 +625,7 @@ footer { padding: 8px 0 48px; color: var(--text-muted); font-size: 14px; text-al
   </div>
   <div class="bloc-body">
     <p class="intro">Les questionnaires en ligne de Google. Il sert deux fois dans le CCP2 : l'enquête avant l'action, la satisfaction après.</p>
-    <div class="links">
+    <div class="links screen">
       <a href="https://forms.google.com" target="_blank" rel="noopener">Ouvrir Forms</a>
       <a href="https://forms.new" target="_blank" rel="noopener">Nouveau formulaire direct</a>
       <a href="https://support.google.com/docs/answer/2839588?hl=fr" target="_blank" rel="noopener">Aide : publier et partager</a>
@@ -642,6 +707,11 @@ footer { padding: 8px 0 48px; color: var(--text-muted); font-size: 14px; text-al
       <div class="tile"><h3>Surtout fermé</h3><p>Choix, cases, échelles : rapide à remplir et transformé en graphiques. Une ou deux questions ouvertes seulement.</p></div>
       <div class="tile"><h3>Anonyme</h3><p>Ne demande le nom que si c'est vraiment utile : on répond plus franchement.</p></div>
     </div>
+    <div class="links print-only">
+      <a href="https://forms.google.com" target="_blank" rel="noopener">Ouvrir Forms</a>
+      <a href="https://forms.new" target="_blank" rel="noopener">Nouveau formulaire direct</a>
+      <a href="https://support.google.com/docs/answer/2839588?hl=fr" target="_blank" rel="noopener">Aide : publier et partager</a>
+    </div>
   </div>
   <div class="bloc-foot"><a href="#docs">← Docs</a><a class="next" href="#canva">Suivant : Canva →</a></div>
 </section>
@@ -654,7 +724,7 @@ footer { padding: 8px 0 48px; color: var(--text-muted); font-size: 14px; text-al
   </div>
   <div class="bloc-body">
     <p class="intro">Un outil gratuit en ligne pour faire des diapos à partir de modèles déjà mis en page. Tes diapos accompagnent ta parole : si tout est écrit dessus, on lit au lieu de t'écouter.</p>
-    <div class="links">
+    <div class="links screen">
       <a href="https://www.canva.com/fr_fr/" target="_blank" rel="noopener">Ouvrir Canva</a>
       <a href="https://www.canva.com/fr_fr/presentations/modeles/" target="_blank" rel="noopener">Modèles de présentation</a>
     </div>
@@ -732,6 +802,10 @@ footer { padding: 8px 0 48px; color: var(--text-muted); font-size: 14px; text-al
       <div class="tile"><h3>Un seul modèle</h3><p>Garde-le du début à la fin : deux polices, trois couleurs.</p></div>
       <div class="tile"><h3>Une idée par diapo</h3><p>Peu de mots, une grande image. Un chiffre fort, en très gros, seul.</p></div>
     </div>
+    <div class="links print-only">
+      <a href="https://www.canva.com/fr_fr/" target="_blank" rel="noopener">Ouvrir Canva</a>
+      <a href="https://www.canva.com/fr_fr/presentations/modeles/" target="_blank" rel="noopener">Modèles de présentation</a>
+    </div>
   </div>
   <div class="bloc-foot"><a href="#forms">← Forms</a><a class="next" href="#dicter">Suivant : dicter →</a></div>
 </section>
@@ -744,7 +818,7 @@ footer { padding: 8px 0 48px; color: var(--text-muted); font-size: 14px; text-al
   </div>
   <div class="bloc-body">
     <p class="intro">On parle environ trois fois plus vite qu'on ne tape. Si le clavier te ralentit, parle : le texte s'écrit là où clignote le curseur.</p>
-    <div class="links">
+    <div class="links screen">
       <a href="https://wisprflow.ai" target="_blank" rel="noopener">Télécharger Wispr Flow</a>
       <a href="https://docs.wisprflow.ai/articles/6409258247-starting-your-first-dictation" target="_blank" rel="noopener">Première dictée (aide, en anglais)</a>
     </div>
@@ -787,6 +861,10 @@ footer { padding: 8px 0 48px; color: var(--text-muted); font-size: 14px; text-al
       <div class="howto"><h4>Dans Google Docs ou sur téléphone</h4><ol><li>Docs (avec Chrome) : <span class="path">Outils › Saisie vocale</span>, clique sur le micro.</li><li>Téléphone : le micro du clavier fait la même chose partout.</li></ol></div>
     </div>
     <div class="note"><p><strong>Gratuit</strong> : Wispr Flow offre 2 000 mots par semaine sur ordinateur et 1 000 sur téléphone, largement assez pour démarrer. <strong>L'astuce</strong> : juste après un rendez-vous ou ton animation, dicte cinq minutes tout ce qui s'est passé. Ce brouillon brut deviendra ta partie C.</p></div>
+    <div class="links print-only">
+      <a href="https://wisprflow.ai" target="_blank" rel="noopener">Télécharger Wispr Flow</a>
+      <a href="https://docs.wisprflow.ai/articles/6409258247-starting-your-first-dictation" target="_blank" rel="noopener">Première dictée (aide, en anglais)</a>
+    </div>
   </div>
   <div class="bloc-foot"><a href="#canva">← Canva</a><a class="next" href="#ia">Suivant : l'IA →</a></div>
 </section>
@@ -799,7 +877,7 @@ footer { padding: 8px 0 48px; color: var(--text-muted); font-size: 14px; text-al
   </div>
   <div class="bloc-body">
     <p class="intro">ChatGPT, Claude, Le Chat, Gemini : toutes se ressemblent et s'utilisent pareil, et toutes ont une version gratuite. Bien utilisée, l'IA te débloque. Mal utilisée, elle écrit un dossier que tu ne sauras pas défendre.</p>
-    <div class="links">
+    <div class="links screen">
       <a href="https://chatgpt.com" target="_blank" rel="noopener">ChatGPT</a>
       <a href="https://claude.ai" target="_blank" rel="noopener">Claude</a>
       <a href="https://chat.mistral.ai" target="_blank" rel="noopener">Le Chat (Mistral)</a>
@@ -860,6 +938,12 @@ footer { padding: 8px 0 48px; color: var(--text-muted); font-size: 14px; text-al
         <li><strong>Ton vécu ne s'invente pas</strong> : elle aide à formuler tes parties C et D, pas à les créer.</li>
         <li><strong>Pas de données personnelles</strong> : écris « le responsable », pas son nom ni son numéro.</li>
       </ul>
+    </div>
+    <div class="links print-only">
+      <a href="https://chatgpt.com" target="_blank" rel="noopener">ChatGPT</a>
+      <a href="https://claude.ai" target="_blank" rel="noopener">Claude</a>
+      <a href="https://chat.mistral.ai" target="_blank" rel="noopener">Le Chat (Mistral)</a>
+      <a href="https://gemini.google.com" target="_blank" rel="noopener">Gemini</a>
     </div>
   </div>
   <div class="bloc-foot"><a href="#dicter">← Dicter</a><a class="next" href="#methode">Suivant : méthode →</a></div>
