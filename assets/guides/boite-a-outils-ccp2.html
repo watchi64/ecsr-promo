@@ -227,6 +227,22 @@ footer { padding: 8px 0 48px; color: var(--text-muted); font-size: 14px; text-al
   .key kbd { font-size: 13px; padding: 3px 6px; }
   .mock .hint { display: block; }
 }
+/* Bandeau Titre pro ECSR, discret (encre) */
+.brand { display: flex; align-items: center; gap: 10px; margin: 0 0 18px; color: var(--text-muted); font-size: 13px; font-weight: 500; }
+.brand img { height: 26px; width: auto; opacity: .85; }
+
+/* Les IA : éditeur et pays */
+.ias { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); margin: 0 0 10px; }
+.ia { position: relative; display: flex; flex-direction: column; gap: 2px; text-decoration: none; color: var(--text); background: #fff; border: 1px solid var(--line); border-radius: var(--r); padding: 12px 14px; }
+.ia:hover { border-color: var(--accent); }
+.ia strong { font-size: 16px; }
+.ia span { font-size: 14px; color: var(--text-soft); white-space: nowrap; }
+.ia em { font-style: normal; font-size: 12.5px; color: var(--accent-strong); font-family: var(--font-mono); }
+.ia.fr { border: 2px solid #1F3F8F; overflow: hidden; padding-top: 16px; }
+.ia.fr::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 5px; background: linear-gradient(90deg, #1F3F8F 0 33.3%, #fff 33.3% 66.6%, #C8102E 66.6%); border-bottom: 1px solid var(--line); }
+.ia-tag { align-self: flex-start; font-size: 11px !important; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: #fff !important; background: #1F3F8F; border-radius: 4px; padding: 1px 7px; margin-bottom: 4px; }
+.ia-fr-note { font-size: 15px; color: var(--text-soft); margin: 0 0 16px; }
+
 /* Bouton de téléchargement du PDF */
 .pdf-btn {
   display: inline-flex; align-items: center; gap: 9px; margin-top: 20px;
@@ -248,6 +264,10 @@ footer { padding: 8px 0 48px; color: var(--text-muted); font-size: 14px; text-al
   nav.toc, .bloc-foot, .pdf-btn, .mock .hint, footer { display: none !important; }
   .print-only { display: block; }
   header.hero { padding: 8mm 0 6mm; }
+  .brand { margin-bottom: 10px; }
+  .brand img { height: 18px; }
+  .ias { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+  .ia { padding: 8px 10px; break-inside: avoid; }
   h1 { font-size: 34px; }
   .lead { font-size: 15px; }
   .print-url { margin-top: 10px; font-size: 12px; color: var(--text-muted); }
@@ -287,6 +307,7 @@ footer { padding: 8px 0 48px; color: var(--text-muted); font-size: 14px; text-al
 
 <div class="wrap">
   <header class="hero">
+    <div class="brand"><img src="../logo/tpecsr-logo.svg" alt="TP ECSR"><span>Titre professionnel ECSR</span></div>
     <p class="eyebrow">CCP2 · Boîte à outils</p>
     <h1>Des outils simples pour avancer sur ton CCP2</h1>
     <p class="lead">Les bases de chaque outil, expliquées sur un écran annoté, puis les bons réflexes pour te débrouiller même quand l'écran ne ressemble pas tout à fait à l'image.</p>
@@ -877,12 +898,13 @@ footer { padding: 8px 0 48px; color: var(--text-muted); font-size: 14px; text-al
   </div>
   <div class="bloc-body">
     <p class="intro">ChatGPT, Claude, Le Chat, Gemini : toutes se ressemblent et s'utilisent pareil, et toutes ont une version gratuite. Bien utilisée, l'IA te débloque. Mal utilisée, elle écrit un dossier que tu ne sauras pas défendre.</p>
-    <div class="links screen">
-      <a href="https://chatgpt.com" target="_blank" rel="noopener">ChatGPT</a>
-      <a href="https://claude.ai" target="_blank" rel="noopener">Claude</a>
-      <a href="https://chat.mistral.ai" target="_blank" rel="noopener">Le Chat (Mistral)</a>
-      <a href="https://gemini.google.com" target="_blank" rel="noopener">Gemini</a>
+    <div class="ias">
+      <a class="ia fr" href="https://chat.mistral.ai" target="_blank" rel="noopener"><span class="ia-tag">IA française</span><strong>Le Chat</strong><span>par Mistral AI</span><span>France (Paris)</span><em>chat.mistral.ai</em></a>
+      <a class="ia" href="https://chatgpt.com" target="_blank" rel="noopener"><strong>ChatGPT</strong><span>par OpenAI</span><span>États-Unis</span><em>chatgpt.com</em></a>
+      <a class="ia" href="https://gemini.google.com" target="_blank" rel="noopener"><strong>Gemini</strong><span>par Google</span><span>États-Unis</span><em>gemini.google.com</em></a>
+      <a class="ia" href="https://claude.ai" target="_blank" rel="noopener"><strong>Claude</strong><span>par Anthropic</span><span>États-Unis</span><em>claude.ai</em></a>
     </div>
+    <p class="ia-fr-note">Tu préfères une IA française ? <strong>Le Chat</strong>, de l'entreprise parisienne Mistral AI, est gratuit et s'utilise exactement comme les autres.</p>
 
     <p class="sub">L'écran</p>
     <figure class="mock">
@@ -938,12 +960,6 @@ footer { padding: 8px 0 48px; color: var(--text-muted); font-size: 14px; text-al
         <li><strong>Ton vécu ne s'invente pas</strong> : elle aide à formuler tes parties C et D, pas à les créer.</li>
         <li><strong>Pas de données personnelles</strong> : écris « le responsable », pas son nom ni son numéro.</li>
       </ul>
-    </div>
-    <div class="links print-only">
-      <a href="https://chatgpt.com" target="_blank" rel="noopener">ChatGPT</a>
-      <a href="https://claude.ai" target="_blank" rel="noopener">Claude</a>
-      <a href="https://chat.mistral.ai" target="_blank" rel="noopener">Le Chat (Mistral)</a>
-      <a href="https://gemini.google.com" target="_blank" rel="noopener">Gemini</a>
     </div>
   </div>
   <div class="bloc-foot"><a href="#dicter">← Dicter</a><a class="next" href="#methode">Suivant : méthode →</a></div>
