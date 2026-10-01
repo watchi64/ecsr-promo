@@ -2,29 +2,29 @@
  * Promo ECSR : application propriétaire.
  * © 2026 watchi64. Tous droits réservés. Voir LICENSE.
  */
-import { getCurrentUser, invalidateCache, verifyRecoveryToken } from "./db.js?v=20260930a";
-import { toast } from "./utils.js?v=20260930a";
-import { icon } from "./icons.js?v=20260930a";
-import { initAuth, onAdminChange, isAuth, isAdmin, isProf } from "./auth-admin.js?v=20260930a";
-import { showGate, hideGate } from "./gate.js?v=20260930a";
-import { lireJetonRecuperation } from "./gate-rules.js?v=20260930a";
-import { loadAccent } from "./accent-switcher.js?v=20260930a";
-import { loadTheme } from "./theme-switcher.js?v=20260930a";
-import { renderHome } from "./views/home.js?v=20260930a";
-import { renderDashboard } from "./views/dashboard.js?v=20260930a";
-import { renderMonSuivi } from "./views/mon-suivi.js?v=20260930a";
-import { renderPlanning, teardownPrintTarget, resetPlanningEditMode, requestPlanningToday } from "./views/planning.js?v=20260930a";
-import { teardownDocPrint } from "./doc-officiel.js?v=20260930a";
-import { renderNotes } from "./views/notes.js?v=20260930a";
-import { renderRessources } from "./views/ressources.js?v=20260930a";
-import { renderThemes } from "./views/themes.js?v=20260930a";
-import { renderConfig } from "./views/config.js?v=20260930a";
-import { renderCalendrier } from "./views/calendrier.js?v=20260930a";
-import { initUndoKeyboard } from "./undo.js?v=20260930a";
-import { renderNouveautes } from "./views/nouveautes.js?v=20260930a";
-import { NOUVEAUTES } from "./nouveautes-data.js?v=20260930a";
-import { visibles, nonLues, vuesEffectives, libellePastille } from "./nouveautes.js?v=20260930a";
-import { initChatbot } from "./chatbot.js?v=20260930a";
+import { getCurrentUser, invalidateCache, verifyRecoveryToken } from "./db.js?v=20261001a";
+import { toast } from "./utils.js?v=20261001a";
+import { icon } from "./icons.js?v=20261001a";
+import { initAuth, onAdminChange, isAuth, isAdmin, isProf } from "./auth-admin.js?v=20261001a";
+import { showGate, hideGate } from "./gate.js?v=20261001a";
+import { lireJetonRecuperation } from "./gate-rules.js?v=20261001a";
+import { loadAccent } from "./accent-switcher.js?v=20261001a";
+import { loadTheme } from "./theme-switcher.js?v=20261001a";
+import { renderHome } from "./views/home.js?v=20261001a";
+import { renderDashboard } from "./views/dashboard.js?v=20261001a";
+import { renderMonSuivi } from "./views/mon-suivi.js?v=20261001a";
+import { renderPlanning, teardownPrintTarget, resetPlanningEditMode, requestPlanningToday } from "./views/planning.js?v=20261001a";
+import { teardownDocPrint } from "./doc-officiel.js?v=20261001a";
+import { renderNotes } from "./views/notes.js?v=20261001a";
+import { renderRessources } from "./views/ressources.js?v=20261001a";
+import { renderThemes } from "./views/themes.js?v=20261001a";
+import { renderConfig } from "./views/config.js?v=20261001a";
+import { renderCalendrier } from "./views/calendrier.js?v=20261001a";
+import { initUndoKeyboard } from "./undo.js?v=20261001a";
+import { renderNouveautes } from "./views/nouveautes.js?v=20261001a";
+import { NOUVEAUTES } from "./nouveautes-data.js?v=20261001a";
+import { visibles, nonLues, vuesEffectives, libellePastille } from "./nouveautes.js?v=20261001a";
+import { initChatbot } from "./chatbot.js?v=20261001a";
 
 // ===== Tabs =====
 

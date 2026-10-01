@@ -13,6 +13,17 @@
 
 export const NOUVEAUTES = [
   {
+    id: "2026-10-01-guide-ccp2-videos",
+    date: "2026-10-01",
+    pour: "tous",
+    titre: "Des vidéos conseillées dans la boîte à outils CCP2",
+    resume: "Pour chaque outil du guide (raccourcis, Drive, Docs, Forms, Canva, dictée, IA), "
+          + "une ou deux vidéos YouTube en français, récentes et claires pour débuter, choisies "
+          + "pour t'éviter de chercher longtemps. Le guide se télécharge aussi en PDF à imprimer : "
+          + "chaque vidéo y a son QR code, à viser avec l'appareil photo de ton téléphone.",
+    ou: { label: "Ressources, Examens", route: "ressources" },
+  },
+  {
     id: "2026-09-30-boite-a-outils-ccp2",
     date: "2026-09-30",
     pour: "tous",
