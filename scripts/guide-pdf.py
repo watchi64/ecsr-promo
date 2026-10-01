@@ -14,6 +14,6 @@ pdf = html.with_suffix(".pdf")
 subprocess.run([
     CHROME, "--headless=new", "--disable-gpu", "--no-pdf-header-footer",
     "--allow-file-access-from-files", "--virtual-time-budget=8000",
-    f"--print-to-pdf={pdf}", html.as_uri(),
+    f"--print-to-pdf={pdf}", html.as_uri() + "?pdf",
 ], check=True, capture_output=True)
 print(pdf, pdf.stat().st_size // 1024, "Ko")

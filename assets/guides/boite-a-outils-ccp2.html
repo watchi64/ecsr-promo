@@ -227,6 +227,11 @@ footer { padding: 8px 0 48px; color: var(--text-muted); font-size: 14px; text-al
   .key kbd { font-size: 13px; padding: 3px 6px; }
   .mock .hint { display: block; }
 }
+/* À quoi sert la catégorie, sous son titre */
+.purpose { margin: 3px 0 0; font-size: 14.5px; color: var(--text-soft); }
+section.star .purpose { color: #D8E1C0; }
+.page-head { display: none; }
+
 /* Bandeau Titre pro ECSR, discret (encre) */
 .brand { display: flex; align-items: center; gap: 10px; margin: 0 0 18px; color: var(--text-muted); font-size: 13px; font-weight: 500; }
 .brand img { height: 26px; width: auto; opacity: .85; }
@@ -254,58 +259,81 @@ footer { padding: 8px 0 48px; color: var(--text-muted); font-size: 14px; text-al
 .pdf-btn small { font-weight: 400; opacity: .75; }
 .print-only { display: none; }
 
-/* Impression et PDF : A4, un bloc par page, couleurs conservées */
+</style>
+<style id="print-css" media="print">
+/* Impression et PDF : A4, une catégorie par page, couleurs conservées */
 @page { size: A4; margin: 12mm 11mm 13mm; }
-@media print {
-  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  html { scroll-padding-top: 0; }
-  body { background: #fff; font-size: 13.5px; line-height: 1.45; }
-  .wrap { max-width: none; padding: 0; }
-  nav.toc, .bloc-foot, .pdf-btn, .mock .hint, footer { display: none !important; }
-  .print-only { display: block; }
-  header.hero { padding: 8mm 0 6mm; }
-  .brand { margin-bottom: 10px; }
-  .brand img { height: 18px; }
-  .ias { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
-  .ia { padding: 8px 10px; break-inside: avoid; }
-  h1 { font-size: 34px; }
-  .lead { font-size: 15px; }
-  .print-url { margin-top: 10px; font-size: 12px; color: var(--text-muted); }
-  main { padding: 0; }
-  section.bloc { box-shadow: none; margin: 0 0 6mm; border-radius: 12px; }
-  p, li { orphans: 3; widows: 3; }
-  .bloc-head, .sub, .intro { break-after: avoid; }
-  .intro { break-inside: avoid; }
-  .links.screen { display: none; }
-  .links.print-only { display: flex; margin: 4px 0 10px; }
-  figure.mock { break-inside: avoid; }
-  .bloc-head { padding: 12px 16px; }
-  .bloc-body { padding: 14px 16px 6px; }
-  .bloc-head h2 { font-size: 24px; }
-  .logo { width: 42px; height: 42px; }
-  .logo img.full { width: 42px; height: 42px; }
-  .mock-frame { overflow: visible; width: 78%; margin: 0 auto; }
-  .mock-frame svg { min-width: 0; }
-  ol.legend { margin-top: 10px; gap: 6px 14px; }
-  .path { font-size: 11px; padding: 0 4px; }
-  .key { padding: 10px 6px 8px; }
-  .key .combo { gap: 3px; }
-  .key kbd { font-size: 13px; padding: 2px 6px; }
-  .sub { margin: 14px 0 8px; }
-  .tile, .howto, .key, .geste, .prompt, .journal, .note, ol.legend li, figure.mock .mock-frame { break-inside: avoid; }
-  .tile p, .howto ol, .howto p, ol.legend li, .geste p { font-size: 13px; }
-  .grid, .howto-grid, .gestes { gap: 8px; }
-  .tile, .howto, .geste { padding: 10px 12px; }
-  .keys { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
-  .links a::after { content: " : " attr(href); font-weight: 400; color: var(--text-muted); }
-  .links a { font-size: 12px; }
-  .note.stop a::after { content: " (" attr(href) ")"; font-size: 11px; color: var(--text-muted); }
-}
+* { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+html { scroll-padding-top: 0; }
+body { background: #fff; font-size: 13.5px; line-height: 1.45; }
+.wrap { max-width: none; padding: 0; }
+nav.toc, .bloc-foot, .pdf-btn, .mock .hint, footer { display: none !important; }
+.print-only { display: block; }
+header.hero { padding: 8mm 0 6mm; }
+.brand { margin-bottom: 10px; }
+.brand img { height: 18px; }
+.ias { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.ia { padding: 8px 10px; break-inside: avoid; }
+h1 { font-size: 34px; }
+.lead { font-size: 15px; }
+.print-url { margin-top: 10px; font-size: 12px; color: var(--text-muted); }
+main { padding: 0; }
+section.bloc { box-shadow: none; border-radius: 12px; }
+p, li { orphans: 3; widows: 3; }
+.bloc-head, .sub, .intro { break-after: avoid; }
+.intro { break-inside: avoid; }
+.links.screen { display: none; }
+.links.print-only { display: flex; margin: 4px 0 10px; }
+figure.mock { break-inside: avoid; }
+.bloc-head { padding: 12px 16px; }
+.bloc-body { padding: 14px 16px 6px; }
+.bloc-head h2 { font-size: 24px; }
+.logo { width: 42px; height: 42px; }
+.logo img.full { width: 42px; height: 42px; }
+.mock-frame { overflow: visible; margin: 0 auto; }
+.mock-frame svg { min-width: 0; }
+ol.legend { margin-top: 10px; gap: 6px 14px; }
+.path { font-size: 11px; padding: 0 4px; }
+.key { padding: 10px 6px 8px; }
+.key .combo { gap: 3px; }
+.key kbd { font-size: 13px; padding: 2px 6px; }
+.sub { margin: 14px 0 8px; }
+.tile, .howto, .key, .geste, .prompt, .journal, .note, ol.legend li, figure.mock .mock-frame { break-inside: avoid; }
+.tile p, .howto ol, .howto p, ol.legend li, .geste p { font-size: 13px; }
+.grid, .howto-grid, .gestes { gap: 8px; }
+.tile, .howto, .geste { padding: 10px 12px; }
+.keys { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.links a::after { content: " : " attr(href); font-weight: 400; color: var(--text-muted); }
+.links a { font-size: 12px; }
+.note.stop a::after { content: " (" attr(href) ")"; font-size: 11px; color: var(--text-muted); }
+/* Une catégorie par page : chaque bloc commence une feuille. Le mode ?pdf
+   (utilisé par scripts/guide-pdf.py) réduit un bloc trop long pour qu'il tienne. */
+section.bloc { margin: 0; }
+.page-head { display: flex !important; align-items: center; gap: 8px; break-before: page; break-after: avoid;
+  font-size: 11px; color: var(--text-muted); border-bottom: 1px solid var(--line); padding: 0 0 5px; margin: 0 0 8px; }
+.page-head.first { break-before: auto; }
+.page-head img { height: 14px; width: auto; }
+.page-head .step { margin-left: auto; font-weight: 600; color: var(--text-soft); }
+.brand { display: none; }
+.purpose { font-size: 13px; }
+html.pdf body { width: 188mm; margin: 0 auto; }
+.mock-frame { width: 54%; }
+ol.legend { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+figure.mock { margin-bottom: 0; }
+.intro { margin-bottom: 8px; }
+.note { padding: 8px 12px; margin-bottom: 10px; }
+.howto h4 { margin-bottom: 4px; }
+.howto ol li { margin-bottom: 2px; }
+.prompt { font-size: 12px; padding: 8px 10px; }
+.grid { grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
+.howto-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.gestes { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 </style>
 </head>
 <body>
 
 <div class="wrap">
+  <div class="page-head print-only first"><img src="../logo/tpecsr-logo.svg" alt=""><span>Boîte à outils numérique CCP2</span><span class="step">Étape 1 sur 10</span></div>
   <header class="hero">
     <div class="brand"><img src="../logo/tpecsr-logo.svg" alt="TP ECSR"><span>Titre professionnel ECSR</span></div>
     <p class="eyebrow">CCP2 · Boîte à outils</p>
@@ -337,7 +365,7 @@ footer { padding: 8px 0 48px; color: var(--text-muted); font-size: 14px; text-al
 <section class="bloc star" id="raccourcis">
   <div class="bloc-head">
     <div class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="color:var(--bg-deep)"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/></svg></div>
-    <div><span class="num">01</span><h2>Les raccourcis clavier</h2></div>
+    <div><span class="num">01</span><h2>Les raccourcis clavier</h2><p class="purpose">Aller plus vite dans tous les logiciels</p></div>
     <span class="badge">Le plus utile</span>
   </div>
   <div class="bloc-body">
@@ -372,10 +400,11 @@ footer { padding: 8px 0 48px; color: var(--text-muted); font-size: 14px; text-al
 </section>
 
 <!-- 02 GESTES DE BASE -->
+<div class="page-head print-only"><img src="../logo/tpecsr-logo.svg" alt=""><span>Boîte à outils numérique CCP2</span><span class="step">Étape 2 sur 10</span></div>
 <section class="bloc" id="gestes" style="--tint:#E7ECE3">
   <div class="bloc-head">
     <div class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="3" width="12" height="18" rx="6"/><path d="M12 3v6M6 9h12"/></svg></div>
-    <div><span class="num">02</span><h2>Les gestes de base</h2></div>
+    <div><span class="num">02</span><h2>Les gestes de base</h2><p class="purpose">Maîtriser la souris et la sélection</p></div>
   </div>
   <div class="bloc-body">
     <p class="intro">La souris fait bien plus que cliquer. Ces gestes marchent dans tous les logiciels, et la plupart aussi sur le pavé tactile d'un ordinateur portable.</p>
@@ -414,10 +443,11 @@ footer { padding: 8px 0 48px; color: var(--text-muted); font-size: 14px; text-al
 </section>
 
 <!-- 03 SI TU BLOQUES -->
+<div class="page-head print-only"><img src="../logo/tpecsr-logo.svg" alt=""><span>Boîte à outils numérique CCP2</span><span class="step">Étape 3 sur 10</span></div>
 <section class="bloc" id="bloque" style="--tint:#EAEFD9">
   <div class="bloc-head">
     <div class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/><path d="M5.6 5.6l3.6 3.6M14.8 14.8l3.6 3.6M18.4 5.6l-3.6 3.6M9.2 14.8l-3.6 3.6"/></svg></div>
-    <div><span class="num">03</span><h2>Si tu bloques</h2></div>
+    <div><span class="num">03</span><h2>Si tu bloques</h2><p class="purpose">Trouver la solution par toi-même</p></div>
   </div>
   <div class="bloc-body">
     <p class="intro">Les écrans changent d'une mise à jour à l'autre, personne ne connaît tous les menus. Le secret, c'est de savoir chercher.</p>
@@ -440,10 +470,11 @@ footer { padding: 8px 0 48px; color: var(--text-muted); font-size: 14px; text-al
 </section>
 
 <!-- 04 DRIVE -->
+<div class="page-head print-only"><img src="../logo/tpecsr-logo.svg" alt=""><span>Boîte à outils numérique CCP2</span><span class="step">Étape 4 sur 10</span></div>
 <section class="bloc" id="drive" style="--tint:#FEF4D6">
   <div class="bloc-head">
     <div class="logo"><img src="logos/drive.svg" alt="Google Drive"></div>
-    <div><span class="num">04</span><h2>Google Drive</h2></div>
+    <div><span class="num">04</span><h2>Google Drive</h2><p class="purpose">Ranger, retrouver et partager tes fichiers</p></div>
   </div>
   <div class="bloc-body">
     <p class="intro">Ton classeur en ligne, avec ton compte Gmail, sur ordinateur ou dans l'appli Google Drive du téléphone. Tout ce que tu y mets se retrouve sur tous tes appareils.</p>
@@ -540,10 +571,11 @@ footer { padding: 8px 0 48px; color: var(--text-muted); font-size: 14px; text-al
 </section>
 
 <!-- 05 DOCS -->
+<div class="page-head print-only"><img src="../logo/tpecsr-logo.svg" alt=""><span>Boîte à outils numérique CCP2</span><span class="step">Étape 5 sur 10</span></div>
 <section class="bloc" id="docs" style="--tint:#E4EDFD">
   <div class="bloc-head">
     <div class="logo"><img src="logos/docs.svg" alt="Google Docs"></div>
-    <div><span class="num">05</span><h2>Google Docs</h2></div>
+    <div><span class="num">05</span><h2>Google Docs</h2><p class="purpose">Écrire et mettre en page ton dossier</p></div>
   </div>
   <div class="bloc-body">
     <p class="intro">Le traitement de texte de Google, pour écrire ton dossier. Tout s'enregistre au fur et à mesure : pas de bouton « Enregistrer ».</p>
@@ -639,10 +671,11 @@ footer { padding: 8px 0 48px; color: var(--text-muted); font-size: 14px; text-al
 </section>
 
 <!-- 06 FORMS -->
+<div class="page-head print-only"><img src="../logo/tpecsr-logo.svg" alt=""><span>Boîte à outils numérique CCP2</span><span class="step">Étape 6 sur 10</span></div>
 <section class="bloc" id="forms" style="--tint:#EFE7F8">
   <div class="bloc-head">
     <div class="logo"><img src="logos/forms.svg" alt="Google Forms"></div>
-    <div><span class="num">06</span><h2>Google Forms</h2></div>
+    <div><span class="num">06</span><h2>Google Forms</h2><p class="purpose">Faire ton enquête et ton questionnaire de satisfaction</p></div>
   </div>
   <div class="bloc-body">
     <p class="intro">Les questionnaires en ligne de Google. Il sert deux fois dans le CCP2 : l'enquête avant l'action, la satisfaction après.</p>
@@ -738,10 +771,11 @@ footer { padding: 8px 0 48px; color: var(--text-muted); font-size: 14px; text-al
 </section>
 
 <!-- 07 CANVA -->
+<div class="page-head print-only"><img src="../logo/tpecsr-logo.svg" alt=""><span>Boîte à outils numérique CCP2</span><span class="step">Étape 7 sur 10</span></div>
 <section class="bloc" id="canva" style="--tint:#E0F4F5">
   <div class="bloc-head">
     <div class="logo"><img src="logos/canva.svg" alt="Canva"></div>
-    <div><span class="num">07</span><h2>Canva</h2></div>
+    <div><span class="num">07</span><h2>Canva</h2><p class="purpose">Préparer les diapos de ta présentation</p></div>
   </div>
   <div class="bloc-body">
     <p class="intro">Un outil gratuit en ligne pour faire des diapos à partir de modèles déjà mis en page. Tes diapos accompagnent ta parole : si tout est écrit dessus, on lit au lieu de t'écouter.</p>
@@ -832,10 +866,11 @@ footer { padding: 8px 0 48px; color: var(--text-muted); font-size: 14px; text-al
 </section>
 
 <!-- 08 DICTER -->
+<div class="page-head print-only"><img src="../logo/tpecsr-logo.svg" alt=""><span>Boîte à outils numérique CCP2</span><span class="step">Étape 8 sur 10</span></div>
 <section class="bloc" id="dicter" style="--tint:#ECECEA">
   <div class="bloc-head">
     <div class="logo"><img class="full" src="logos/wispr.png" alt="Wispr Flow"></div>
-    <div><span class="num">08</span><h2>Dicter plutôt que taper</h2></div>
+    <div><span class="num">08</span><h2>Dicter plutôt que taper</h2><p class="purpose">Écrire en parlant, plus vite qu'au clavier</p></div>
   </div>
   <div class="bloc-body">
     <p class="intro">On parle environ trois fois plus vite qu'on ne tape. Si le clavier te ralentit, parle : le texte s'écrit là où clignote le curseur.</p>
@@ -891,10 +926,11 @@ footer { padding: 8px 0 48px; color: var(--text-muted); font-size: 14px; text-al
 </section>
 
 <!-- 09 IA -->
+<div class="page-head print-only"><img src="../logo/tpecsr-logo.svg" alt=""><span>Boîte à outils numérique CCP2</span><span class="step">Étape 9 sur 10</span></div>
 <section class="bloc" id="ia" style="--tint:#FBEACB">
   <div class="bloc-head">
     <div class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="color:#B45309"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/><path d="M19 15l.7 2.3L22 18l-2.3.7L19 21l-.7-2.3L16 18l2.3-.7z"/></svg></div>
-    <div><span class="num">09</span><h2>L'IA, une aide pas l'auteur</h2></div>
+    <div><span class="num">09</span><h2>L'IA, une aide pas l'auteur</h2><p class="purpose">Te faire aider sans te faire remplacer</p></div>
   </div>
   <div class="bloc-body">
     <p class="intro">ChatGPT, Claude, Le Chat, Gemini : toutes se ressemblent et s'utilisent pareil, et toutes ont une version gratuite. Bien utilisée, l'IA te débloque. Mal utilisée, elle écrit un dossier que tu ne sauras pas défendre.</p>
@@ -966,10 +1002,11 @@ footer { padding: 8px 0 48px; color: var(--text-muted); font-size: 14px; text-al
 </section>
 
 <!-- 10 METHODE -->
+<div class="page-head print-only"><img src="../logo/tpecsr-logo.svg" alt=""><span>Boîte à outils numérique CCP2</span><span class="step">Étape 10 sur 10</span></div>
 <section class="bloc" id="methode" style="--tint:#F4DDB0">
   <div class="bloc-head">
     <div class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="color:#8A5A12"><path d="M5 3h12a2 2 0 0 1 2 2v16H7a2 2 0 0 1-2-2z"/><path d="M5 19a2 2 0 0 1 2-2h12M9 7h6M9 11h4"/></svg></div>
-    <div><span class="num">10</span><h2>Une méthode qui tient</h2></div>
+    <div><span class="num">10</span><h2>Une méthode qui tient</h2><p class="purpose">Garder la trace de tout ton CCP2</p></div>
   </div>
   <div class="bloc-body">
     <p class="intro">Le plus dur dans le CCP2, ce n'est pas d'écrire : c'est de retrouver ce qui s'est passé des semaines plus tard. Un journal de bord règle ça.</p>
@@ -994,6 +1031,37 @@ footer { padding: 8px 0 48px; color: var(--text-muted); font-size: 14px; text-al
 
 <footer class="wrap">Guide proposé par Timy à la promo. Une astuce à ajouter ? Dis-le-lui.</footer>
 
+<script>
+// Mode PDF (?pdf) : applique la mise en page imprimée à l'écran, puis réduit
+// chaque catégorie trop haute pour qu'elle tienne sur une seule page A4.
+(() => {
+  if (!new URLSearchParams(location.search).has("pdf")) return;
+  document.documentElement.classList.add("pdf");
+  document.getElementById("print-css").media = "all";
+  const fit = () => {
+    const page = 272 * 96 / 25.4 - 16; // hauteur utile d'une page A4, en px
+    const hero = document.querySelector("header.hero").getBoundingClientRect().height;
+    document.querySelectorAll("section.bloc").forEach((s, i) => {
+      const tete = s.previousElementSibling?.classList.contains("page-head") ? s.previousElementSibling.getBoundingClientRect().height + 8 : 0;
+      const dispo = (i === 0 ? page - hero - 30 : page - tete);
+      const haut = () => s.getBoundingClientRect().height;
+      s.dataset.hauteur = Math.round(haut());
+      if (haut() <= dispo) return;
+      // Réduire change la largeur disponible, donc la mise en page : on cherche
+      // par dichotomie le plus grand zoom qui tient vraiment sur la page.
+      let bas = 0.5, h = 1;
+      for (let k = 0; k < 9; k++) {
+        const z = (bas + h) / 2;
+        s.style.zoom = z;
+        if (haut() <= dispo) bas = z; else h = z;
+      }
+      s.style.zoom = bas.toFixed(3);
+    });
+    document.documentElement.dataset.pret = "1";
+  };
+  document.fonts.ready.then(() => requestAnimationFrame(fit));
+})();
+</script>
 <script>
 // Surligne dans la barre le bloc en cours de lecture et le garde visible.
 (() => {
