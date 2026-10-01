@@ -312,6 +312,8 @@ section.bloc { margin: 0; border: 0; background: none; box-shadow: none; overflo
 .bloc-head { border-radius: 10px; border-bottom: 0; }
 .bloc-body { padding: 10px 2px 0; }
 .page-head.cont { break-before: page; margin-top: 0; }
+.page-head.joint { display: none !important; }
+.page-head.joint + section.bloc { margin-top: 7mm; }
 .links.print-only a.aide, .links.print-only.vide { display: none !important; }
 /* Économie d'encre : les aplats sombres passent en clair */
 section.star { border: 0; }
@@ -416,7 +418,7 @@ figure.mock { margin-bottom: 0; }
 </section>
 
 <!-- 02 GESTES DE BASE -->
-<div class="page-head print-only"><img src="../logo/tpecsr-logo.svg" alt=""><span>Boîte à outils numérique CCP2</span><span class="step">Étape 2 sur 10</span></div>
+<div class="page-head print-only"><img src="../logo/tpecsr-logo.svg" alt=""><span>Boîte à outils numérique CCP2</span><span class="step">Étapes 2 et 3 sur 10</span></div>
 <section class="bloc" id="gestes" style="--tint:#E7ECE3">
   <div class="bloc-head">
     <div class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="3" width="12" height="18" rx="6"/><path d="M12 3v6M6 9h12"/></svg></div>
@@ -459,7 +461,7 @@ figure.mock { margin-bottom: 0; }
 </section>
 
 <!-- 03 SI TU BLOQUES -->
-<div class="page-head print-only"><img src="../logo/tpecsr-logo.svg" alt=""><span>Boîte à outils numérique CCP2</span><span class="step">Étape 3 sur 10</span></div>
+<div class="page-head joint print-only"><img src="../logo/tpecsr-logo.svg" alt=""><span>Boîte à outils numérique CCP2</span><span class="step">Étape 3 sur 10</span></div>
 <section class="bloc" id="bloque" style="--tint:#EAEFD9">
   <div class="bloc-head">
     <div class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/><path d="M5.6 5.6l3.6 3.6M14.8 14.8l3.6 3.6M18.4 5.6l-3.6 3.6M9.2 14.8l-3.6 3.6"/></svg></div>
@@ -1002,7 +1004,7 @@ figure.mock { margin-bottom: 0; }
       </ol>
     </figure>
 
-    <div class="page-head cont print-only"><img src="../logo/tpecsr-logo.svg" alt=""><span>Boîte à outils numérique CCP2 · L'IA (suite)</span><span class="step">Étape 9 sur 10</span></div>
+    <div class="page-head cont print-only"><img src="../logo/tpecsr-logo.svg" alt=""><span>Boîte à outils numérique CCP2 · L'IA (suite) et la méthode</span><span class="step">Étapes 9 et 10 sur 10</span></div>
     <p class="sub">Bien demander</p>
     <p>Dis-lui <strong>qui tu es</strong>, <strong>ce que tu fais</strong>, <strong>ce que tu veux</strong> et <strong>sous quelle forme</strong>. Puis discute : « plus court », « plus simple », « garde mes mots ».</p>
     <div class="prompt"><span class="tag">Exemple : l'enquête</span>Je suis stagiaire enseignant de la conduite. Je prépare une action de sensibilisation à la sécurité routière pour les salariés d'une entreprise de livraison. Propose 8 questions courtes pour un Google Forms sur leurs trajets et les risques qu'ils rencontrent, surtout à choix.</div>
@@ -1023,7 +1025,7 @@ figure.mock { margin-bottom: 0; }
 </section>
 
 <!-- 10 METHODE -->
-<div class="page-head print-only"><img src="../logo/tpecsr-logo.svg" alt=""><span>Boîte à outils numérique CCP2</span><span class="step">Étape 10 sur 10</span></div>
+<div class="page-head joint print-only"><img src="../logo/tpecsr-logo.svg" alt=""><span>Boîte à outils numérique CCP2</span><span class="step">Étape 10 sur 10</span></div>
 <section class="bloc" id="methode" style="--tint:#F4DDB0">
   <div class="bloc-head">
     <div class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="color:#8A5A12"><path d="M5 3h12a2 2 0 0 1 2 2v16H7a2 2 0 0 1-2-2z"/><path d="M5 19a2 2 0 0 1 2-2h12M9 7h6M9 11h4"/></svg></div>
@@ -1060,30 +1062,33 @@ figure.mock { margin-bottom: 0; }
   document.documentElement.classList.add("pdf");
   document.getElementById("print-css").media = "all";
   const fit = () => {
-    const page = 272 * 96 / 25.4 - 16; // hauteur utile d'une page A4, en px
-    const hero = document.querySelector("header.hero").getBoundingClientRect().height;
-    document.querySelectorAll("section.bloc").forEach((s, i) => {
-      const tete = s.previousElementSibling?.classList.contains("page-head") ? s.previousElementSibling.getBoundingClientRect().height + 8 : 0;
-      const dispo = (i === 0 ? page - hero - 30 : page - tete);
-      const coupe = s.querySelector(".page-head.cont");
-      // Hauteur de la plus grande partie : le bloc entier, ou chaque moitié s'il est coupé en deux pages.
-      const haut = () => {
-        const r = s.getBoundingClientRect();
-        if (!coupe) return r.height;
-        const c = coupe.getBoundingClientRect().top;
-        return Math.max(c - r.top, r.bottom - c);
+    const page = 272 * 96 / 25.4 - 14; // hauteur utile d'une page A4, en px
+    const fin = document.querySelector("main");
+    const tetes = () => [...document.querySelectorAll(".page-head")].filter((t) => getComputedStyle(t).display !== "none");
+    // Une page va d'un en-tête affiché au suivant. Si elle déborde, on réduit
+    // ensemble les blocs qu'elle contient, par dichotomie (réduire élargit et
+    // réorganise le contenu, un calcul direct se tromperait).
+    tetes().forEach((tete, i) => {
+      const hauteur = () => {
+        const t = tetes(), haut = t[i].getBoundingClientRect().top;
+        const bas = t[i + 1] ? t[i + 1].getBoundingClientRect().top : fin.getBoundingClientRect().bottom;
+        return bas - haut;
       };
-      s.dataset.hauteur = Math.round(haut());
-      if (haut() <= dispo) return;
-      // Réduire change la largeur disponible, donc la mise en page : on cherche
-      // par dichotomie le plus grand zoom qui tient vraiment sur la page.
+      if (hauteur() <= page) return;
+      const t = tetes(), debut = t[i], suivant = t[i + 1];
+      const blocs = [...document.querySelectorAll("section.bloc")].filter((s) => {
+        const apresDebut = debut.compareDocumentPosition(s) & Node.DOCUMENT_POSITION_FOLLOWING || s.contains(debut);
+        const avantSuivant = !suivant || (s.compareDocumentPosition(suivant) & Node.DOCUMENT_POSITION_FOLLOWING) || s.contains(suivant);
+        return apresDebut && avantSuivant;
+      });
+      const depart = blocs.map((s) => parseFloat(s.style.zoom) || 1);
       let bas = 0.5, h = 1;
       for (let k = 0; k < 9; k++) {
         const z = (bas + h) / 2;
-        s.style.zoom = z;
-        if (haut() <= dispo) bas = z; else h = z;
+        blocs.forEach((s, j) => { s.style.zoom = Math.min(depart[j], z); });
+        if (hauteur() <= page) bas = z; else h = z;
       }
-      s.style.zoom = bas.toFixed(3);
+      blocs.forEach((s, j) => { s.style.zoom = Math.min(depart[j], bas).toFixed(3); });
     });
     document.documentElement.dataset.pret = "1";
   };
