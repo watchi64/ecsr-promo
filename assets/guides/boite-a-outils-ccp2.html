@@ -308,7 +308,23 @@ ol.legend { margin-top: 10px; gap: 6px 14px; }
 .note.stop a::after { content: " (" attr(href) ")"; font-size: 11px; color: var(--text-muted); }
 /* Une catégorie par page : chaque bloc commence une feuille. Le mode ?pdf
    (utilisé par scripts/guide-pdf.py) réduit un bloc trop long pour qu'il tienne. */
-section.bloc { margin: 0; }
+section.bloc { margin: 0; border: 0; background: none; box-shadow: none; overflow: visible; border-radius: 0; }
+.bloc-head { border-radius: 10px; border-bottom: 0; }
+.bloc-body { padding: 10px 2px 0; }
+.page-head.cont { break-before: page; margin-top: 0; }
+.links.print-only a.aide, .links.print-only.vide { display: none !important; }
+/* Économie d'encre : les aplats sombres passent en clair */
+section.star { border: 0; }
+section.star .bloc-head { background: var(--accent-soft); color: var(--text); }
+section.star .bloc-head .num { color: var(--text-muted); }
+section.star .purpose { color: var(--text-soft); }
+.mock-frame.clavier { background: #fff !important; }
+.clavier rect[fill="#1F2924"] { fill: #fff; }
+.clavier g[fill="#34413A"] { fill: #fff; stroke: #B7C0AA; stroke-width: 1.5; }
+.clavier g[fill="#9DA89A"] { fill: #46554A; }
+.clavier text[fill="#D8E1C0"] { fill: #1F2924; }
+.clavier text[fill="#9DA89A"] { fill: #6E7A6F; }
+.clavier rect[fill="#D8E1C0"] { stroke: #556641; }
 .page-head { display: flex !important; align-items: center; gap: 8px; break-before: page; break-after: avoid;
   font-size: 11px; color: var(--text-muted); border-bottom: 1px solid var(--line); padding: 0 0 5px; margin: 0 0 8px; }
 .page-head.first { break-before: auto; }
@@ -317,7 +333,7 @@ section.bloc { margin: 0; }
 .brand { display: none; }
 .purpose { font-size: 13px; }
 html.pdf body { width: 188mm; margin: 0 auto; }
-.mock-frame { width: 54%; }
+.mock-frame { width: 94%; }
 ol.legend { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 figure.mock { margin-bottom: 0; }
 .intro { margin-bottom: 8px; }
@@ -394,7 +410,7 @@ figure.mock { margin-bottom: 0; }
     </div>
     <div class="note"><p>Deux nouveaux par semaine, pas plus. Au bout d'un mois, tu ne cherches plus.</p></div>
     <div class="links screen"><a href="https://support.google.com/docs/answer/179738?hl=fr" target="_blank" rel="noopener">Tous les raccourcis de Google Docs</a></div>
-    <div class="links print-only"><a href="https://support.google.com/docs/answer/179738?hl=fr" target="_blank" rel="noopener">Tous les raccourcis de Google Docs</a></div>
+    <div class="links print-only vide"><a class="aide" href="https://support.google.com/docs/answer/179738?hl=fr" target="_blank" rel="noopener">Tous les raccourcis de Google Docs</a></div>
   </div>
   <div class="bloc-foot"><a class="next" href="#gestes">Suivant : gestes de base →</a></div>
 </section>
@@ -461,9 +477,9 @@ figure.mock { margin-bottom: 0; }
       <a href="https://support.google.com/drive/?hl=fr" target="_blank" rel="noopener">Aide Google Drive</a>
       <a href="https://support.google.com/docs/?hl=fr" target="_blank" rel="noopener">Aide Docs et Forms</a>
     </div>
-    <div class="links print-only">
-      <a href="https://support.google.com/drive/?hl=fr" target="_blank" rel="noopener">Aide Google Drive</a>
-      <a href="https://support.google.com/docs/?hl=fr" target="_blank" rel="noopener">Aide Docs et Forms</a>
+    <div class="links print-only vide">
+      <a class="aide" href="https://support.google.com/drive/?hl=fr" target="_blank" rel="noopener">Aide Google Drive</a>
+      <a class="aide" href="https://support.google.com/docs/?hl=fr" target="_blank" rel="noopener">Aide Docs et Forms</a>
     </div>
   </div>
   <div class="bloc-foot"><a href="#gestes">← Gestes de base</a><a class="next" href="#drive">Suivant : Drive →</a></div>
@@ -548,6 +564,7 @@ figure.mock { margin-bottom: 0; }
       </ol>
     </figure>
 
+    <div class="page-head cont print-only"><img src="../logo/tpecsr-logo.svg" alt=""><span>Boîte à outils numérique CCP2 · Google Drive (suite)</span><span class="step">Étape 4 sur 10</span></div>
     <p class="sub">Pas à pas</p>
     <div class="howto-grid">
       <div class="howto"><h4>Créer ton dossier CCP2</h4><ol><li><span class="path">Nouveau › Nouveau dossier</span></li><li>Tape le nom, puis <strong>Créer</strong>.</li><li>Double-clic pour entrer dedans et créer tes sous-dossiers de la même façon.</li></ol></div>
@@ -564,7 +581,7 @@ figure.mock { margin-bottom: 0; }
     </div>
     <div class="links print-only">
       <a href="https://drive.google.com" target="_blank" rel="noopener">Ouvrir Drive</a>
-      <a href="https://support.google.com/drive/?hl=fr" target="_blank" rel="noopener">Aide Drive</a>
+      <a class="aide" href="https://support.google.com/drive/?hl=fr" target="_blank" rel="noopener">Aide Drive</a>
     </div>
   </div>
   <div class="bloc-foot"><a href="#bloque">← Si tu bloques</a><a class="next" href="#docs">Suivant : Docs →</a></div>
@@ -650,6 +667,7 @@ figure.mock { margin-bottom: 0; }
       </ol>
     </figure>
 
+    <div class="page-head cont print-only"><img src="../logo/tpecsr-logo.svg" alt=""><span>Boîte à outils numérique CCP2 · Google Docs (suite)</span><span class="step">Étape 5 sur 10</span></div>
     <p class="sub">Pas à pas</p>
     <div class="howto-grid">
       <div class="howto"><h4>Créer le document</h4><ol><li>Dans ton dossier Drive : <span class="path">Nouveau › Google Docs</span>.</li><li>Clique sur « Document sans titre » en haut pour le nommer.</li></ol></div>
@@ -664,7 +682,7 @@ figure.mock { margin-bottom: 0; }
     <div class="links print-only">
       <a href="https://docs.google.com" target="_blank" rel="noopener">Ouvrir Docs</a>
       <a href="https://docs.new" target="_blank" rel="noopener">Nouveau document direct</a>
-      <a href="https://support.google.com/docs/answer/179738?hl=fr" target="_blank" rel="noopener">Raccourcis de Docs</a>
+      <a class="aide" href="https://support.google.com/docs/answer/179738?hl=fr" target="_blank" rel="noopener">Raccourcis de Docs</a>
     </div>
   </div>
   <div class="bloc-foot"><a href="#drive">← Drive</a><a class="next" href="#forms">Suivant : Forms →</a></div>
@@ -745,6 +763,7 @@ figure.mock { margin-bottom: 0; }
       </ol>
     </figure>
 
+    <div class="page-head cont print-only"><img src="../logo/tpecsr-logo.svg" alt=""><span>Boîte à outils numérique CCP2 · Google Forms (suite)</span><span class="step">Étape 6 sur 10</span></div>
     <p class="sub">Pas à pas</p>
     <div class="howto-grid">
       <div class="howto"><h4>Créer le questionnaire</h4><ol><li>Dans ton dossier Drive : <span class="path">Nouveau › Google Forms</span> (parfois rangé sous « Plus »).</li><li>Choisis un formulaire vierge, puis écris le titre et une phrase d'explication.</li></ol></div>
@@ -764,7 +783,7 @@ figure.mock { margin-bottom: 0; }
     <div class="links print-only">
       <a href="https://forms.google.com" target="_blank" rel="noopener">Ouvrir Forms</a>
       <a href="https://forms.new" target="_blank" rel="noopener">Nouveau formulaire direct</a>
-      <a href="https://support.google.com/docs/answer/2839588?hl=fr" target="_blank" rel="noopener">Aide : publier et partager</a>
+      <a class="aide" href="https://support.google.com/docs/answer/2839588?hl=fr" target="_blank" rel="noopener">Aide : publier et partager</a>
     </div>
   </div>
   <div class="bloc-foot"><a href="#docs">← Docs</a><a class="next" href="#canva">Suivant : Canva →</a></div>
@@ -842,6 +861,7 @@ figure.mock { margin-bottom: 0; }
       </ol>
     </figure>
 
+    <div class="page-head cont print-only"><img src="../logo/tpecsr-logo.svg" alt=""><span>Boîte à outils numérique CCP2 · Canva (suite)</span><span class="step">Étape 7 sur 10</span></div>
     <p class="sub">Pas à pas</p>
     <div class="howto-grid">
       <div class="howto"><h4>Commencer</h4><ol><li>Crée un compte gratuit (ou connecte-toi avec Google).</li><li>Bouton de création, puis <strong>Présentation</strong>.</li><li>Choisis un modèle dans l'onglet <strong>Design</strong>.</li></ol></div>
@@ -859,7 +879,7 @@ figure.mock { margin-bottom: 0; }
     </div>
     <div class="links print-only">
       <a href="https://www.canva.com/fr_fr/" target="_blank" rel="noopener">Ouvrir Canva</a>
-      <a href="https://www.canva.com/fr_fr/presentations/modeles/" target="_blank" rel="noopener">Modèles de présentation</a>
+      <a class="aide" href="https://www.canva.com/fr_fr/presentations/modeles/" target="_blank" rel="noopener">Modèles de présentation</a>
     </div>
   </div>
   <div class="bloc-foot"><a href="#forms">← Forms</a><a class="next" href="#dicter">Suivant : dicter →</a></div>
@@ -881,7 +901,7 @@ figure.mock { margin-bottom: 0; }
 
     <p class="sub">Le geste</p>
     <figure class="mock">
-      <div class="mock-frame" style="background:#1F2924">
+      <div class="mock-frame clavier" style="background:#1F2924">
         <svg viewBox="0 0 800 230" role="img" aria-label="Clavier : maintenir Ctrl et la touche Windows pour dicter">
           <rect x="0" y="0" width="800" height="230" fill="#1F2924"/>
           <g fill="#34413A">
@@ -919,7 +939,7 @@ figure.mock { margin-bottom: 0; }
     <div class="note"><p><strong>Gratuit</strong> : Wispr Flow offre 2 000 mots par semaine sur ordinateur et 1 000 sur téléphone, largement assez pour démarrer. <strong>L'astuce</strong> : juste après un rendez-vous ou ton animation, dicte cinq minutes tout ce qui s'est passé. Ce brouillon brut deviendra ta partie C.</p></div>
     <div class="links print-only">
       <a href="https://wisprflow.ai" target="_blank" rel="noopener">Télécharger Wispr Flow</a>
-      <a href="https://docs.wisprflow.ai/articles/6409258247-starting-your-first-dictation" target="_blank" rel="noopener">Première dictée (aide, en anglais)</a>
+      <a class="aide" href="https://docs.wisprflow.ai/articles/6409258247-starting-your-first-dictation" target="_blank" rel="noopener">Première dictée (aide, en anglais)</a>
     </div>
   </div>
   <div class="bloc-foot"><a href="#canva">← Canva</a><a class="next" href="#ia">Suivant : l'IA →</a></div>
@@ -982,6 +1002,7 @@ figure.mock { margin-bottom: 0; }
       </ol>
     </figure>
 
+    <div class="page-head cont print-only"><img src="../logo/tpecsr-logo.svg" alt=""><span>Boîte à outils numérique CCP2 · L'IA (suite)</span><span class="step">Étape 9 sur 10</span></div>
     <p class="sub">Bien demander</p>
     <p>Dis-lui <strong>qui tu es</strong>, <strong>ce que tu fais</strong>, <strong>ce que tu veux</strong> et <strong>sous quelle forme</strong>. Puis discute : « plus court », « plus simple », « garde mes mots ».</p>
     <div class="prompt"><span class="tag">Exemple : l'enquête</span>Je suis stagiaire enseignant de la conduite. Je prépare une action de sensibilisation à la sécurité routière pour les salariés d'une entreprise de livraison. Propose 8 questions courtes pour un Google Forms sur leurs trajets et les risques qu'ils rencontrent, surtout à choix.</div>
@@ -1044,7 +1065,14 @@ figure.mock { margin-bottom: 0; }
     document.querySelectorAll("section.bloc").forEach((s, i) => {
       const tete = s.previousElementSibling?.classList.contains("page-head") ? s.previousElementSibling.getBoundingClientRect().height + 8 : 0;
       const dispo = (i === 0 ? page - hero - 30 : page - tete);
-      const haut = () => s.getBoundingClientRect().height;
+      const coupe = s.querySelector(".page-head.cont");
+      // Hauteur de la plus grande partie : le bloc entier, ou chaque moitié s'il est coupé en deux pages.
+      const haut = () => {
+        const r = s.getBoundingClientRect();
+        if (!coupe) return r.height;
+        const c = coupe.getBoundingClientRect().top;
+        return Math.max(c - r.top, r.bottom - c);
+      };
       s.dataset.hauteur = Math.round(haut());
       if (haut() <= dispo) return;
       // Réduire change la largeur disponible, donc la mise en page : on cherche
