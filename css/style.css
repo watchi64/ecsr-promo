@@ -7762,3 +7762,21 @@ body.cours-open { overflow: hidden; }
   .tab .marque-masque { margin-left: -3px; align-self: flex-start; }
   .tab .marque-masque .icon { width: 10px; height: 10px; }
 }
+
+/* ===== Thèmes : repère des modules fermés, visible sur téléphone (chantier B, 2026-10) =====
+   Sous 720 px, le bloc mobile des lignes de thèmes masque l'en-tête du tableau
+   (« .theme-row.theme-header { display: none; } »). Or les en-têtes des colonnes Cours
+   et QCM portent le repère « Masqué aux stagiaires » (œil barré) : sur iPhone, un
+   formateur n'aurait plus aucun signe que ces modules sont fermés pour sa promo.
+   Quand l'en-tête porte au moins un repère, themes.js lui pose « a-repere » : on le
+   rétablit en bande horizontale, où ne restent que les colonnes repérées (N°, Thème,
+   Statut et Fait le restent masqués comme avant).
+   Spécificité : trois classes (0,3,0) contre deux (0,2,0) pour la règle qui masque, donc
+   elle gagne quel que soit l'ordre des règles, sans forcer la priorité. Les autres
+   règles mobiles du tableau (grilles à 3 à 5 classes) règlent grille, espacement et
+   alignement : aucune ne pose « display » sur .theme-row, et « .theme-row > span:empty »
+   ne vise que les cellules vides. */
+@media (max-width: 720px) {
+  .theme-row.theme-header.a-repere { display: flex; }
+  .theme-row.theme-header.a-repere > span:not(.module-masque) { display: none; }
+}

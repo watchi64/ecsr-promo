@@ -17,6 +17,7 @@ let myExamByQcm = new Map();       // qcm_id -> ma dernière tentative examen (Q
 let myTrainByQcm = new Map();      // qcm_id -> ma dernière tentative entraînement
 let myNoteByThemeNum = new Map();  // theme_numero -> ma note officielle (matrice Notes)
 let signalByQcm = {};              // qcm_id -> nb de signalements ouverts (formateur seulement)
+let qcmAffiche = false;            // colonne QCM affichée : module « qcm » visible, figé au chargement de l'index
 let lastContainer = null;          // pour rafraîchir la liste après un QCM
 // L'onglet Thèmes partage son nœud d'affichage avec la console des signalements
 // (subtabs.js réutilise un seul panneau). Un repeint asynchrone arrivé alors que
@@ -35,13 +36,20 @@ window.addEventListener("qcm-attempt-saved", async () => {
 // « qcm » (js/modules-data.js) : fermé pour la promo, il disparaît chez un
 // stagiaire, un formateur le garde avec le repère. Le filtrage des QCM eux-mêmes
 // reste fait par la RLS : un stagiaire ne reçoit que les QCM publiés.
+// La visibilité est figée au chargement de l'index (loadQcmIndex), comme les données
+// qu'elle commande : relue en direct, un module ouvert en séance ferait afficher, au
+// prochain filtre ou à la prochaine recherche, une colonne QCM aux cellules vides.
+// Un module ouvert ou fermé en séance prend donc effet à la navigation suivante (ou
+// au prochain rechargement de l'index, par exemple au retour d'un QCM).
 function canSeeQcm() {
-  return moduleVisible("qcm");
+  return qcmAffiche;
 }
 
 // Le cours d'un thème n'est proposé que si le module « cours » est visible et
-// que le thème a un cours (index chargé par chargerCoursIndex). Remplace
-// hasCours() dans toute cette vue.
+// que le thème a un cours (index chargé par chargerCoursIndex). Cette règle
+// commande la colonne Cours, le bouton de la ligne, le clic sur le titre et le
+// bouton « Lire le cours » de la fiche du thème. Le texte de remplacement de la
+// fiche, lui, ne dépend que du module (voir openThemeModal).
 function coursVisible(theme) {
   return moduleVisible("cours") && hasCours(theme);
 }
@@ -53,6 +61,7 @@ function enteteColonne(libelle, cle) {
 }
 
 async function loadQcmIndex() {
+  qcmAffiche = moduleVisible("qcm");  // figé ici, avec les données (voir canSeeQcm)
   if (!canSeeQcm()) {
     qcmByTheme = new Map(); myExamByQcm = new Map(); myTrainByQcm = new Map(); myNoteByThemeNum = new Map(); signalByQcm = {};
     // L'index des cours ne dépend pas des QCM : sans ce chargement, fermer le
@@ -1132,9 +1141,10 @@ function openThemeModal(theme) {
             "Synthèse, contenu détaillé, sanctions sourcées, chiffres clés et aide-mémoire."),
         )
       : el("div", { class: "theme-modal-placeholder" },
-          // Un cours qui existe mais dont le module est fermé ne doit pas passer
-          // pour « en cours de rédaction ».
-          el("p", {}, hasCours(theme)
+          // Le texte suit le module, pas l'existence du cours : tant que le module est
+          // fermé pour la promo, le cours « n'est pas encore ouvert », que le thème en
+          // ait un ou non ; module ouvert, un thème sans cours est « en cours de rédaction ».
+          el("p", {}, !moduleVisible("cours")
             ? "Le cours de ce thème n'est pas encore ouvert pour ta promo."
             : "Le cours de ce thème est en cours de rédaction."),
           canSeeQcm()
@@ -1558,7 +1568,7 @@ function rerender(container) {
       const coursOn = items.some((t) => coursVisible(t));
       const list = el("div", { class: "themes-list"
         + (canSeeQcm() ? " qcm-on" : "") + (coursOn ? " cours-on" : "") });
-      list.appendChild(el("div", { class: "theme-row theme-header" },
+      const entete = el("div", { class: "theme-row theme-header" },
         el("span", { class: "theme-num" }, "N°"),
         el("span", {}, "Thème"),
         el("span", {}, "Statut"),
@@ -1566,7 +1576,11 @@ function rerender(container) {
         coursOn ? enteteColonne("Cours", "cours") : null,
         canSeeQcm() ? enteteColonne("QCM", "qcm") : null,
         el("span", {}),
-      ));
+      );
+      // Sous 720 px, le CSS masque l'en-tête du tableau : « a-repere » lui garde la
+      // seule bande des colonnes repérées « Masqué aux stagiaires » (voir style.css).
+      if (entete.querySelector(".module-masque")) entete.classList.add("a-repere");
+      list.appendChild(entete);
 
       // Sous-groupage par catégorie uniquement pour les thèmes officiels (qui ont 11 sous-catégories)
       const needsSubGroup = f.key === "themes-officiels";
