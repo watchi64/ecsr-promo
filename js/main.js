@@ -5,7 +5,7 @@
 import { getCurrentUser, invalidateCache, verifyRecoveryToken } from "./db.js?v=20261001a";
 import { toast } from "./utils.js?v=20261001a";
 import { icon } from "./icons.js?v=20261001a";
-import { initAuth, onAdminChange, isAuth, isAdmin, isProf } from "./auth-admin.js?v=20261001a";
+import { initAuth, onAdminChange, isAuth } from "./auth-admin.js?v=20261001a";
 import { showGate, hideGate } from "./gate.js?v=20261001a";
 import { lireJetonRecuperation } from "./gate-rules.js?v=20261001a";
 import { loadAccent } from "./accent-switcher.js?v=20261001a";
@@ -22,11 +22,11 @@ import { renderConfig } from "./views/config.js?v=20261001a";
 import { renderCalendrier } from "./views/calendrier.js?v=20261001a";
 import { initUndoKeyboard } from "./undo.js?v=20261001a";
 import { renderNouveautes } from "./views/nouveautes.js?v=20261001a";
-import { visibles, nonLues, vuesEffectives, libellePastille } from "./nouveautes.js?v=20261001a";
+import { libellePastille } from "./nouveautes.js?v=20261001a";
 import { initChatbot, appliquerModuleAssistant } from "./chatbot.js?v=20261001a";
 import {
   chargerModules, onModulesChange, surveillerPremierPlan, routeVisible, routeMasquee,
-  repereMasque, toutesLesNouveautes, nouveautesDeLaPromo,
+  repereMasque, nouveautesAffichables,
 } from "./modules-etat.js?v=20261001a";
 
 // ===== Tabs =====
@@ -79,16 +79,14 @@ function marquerOngletActif() {
   });
 }
 
-// Pastille de nouveautés sur l'onglet Accueil. Modifie l'élément SUR PLACE :
-// surtout pas de renderTabs() complet, qui reconstruirait la barre et perdrait
-// la classe « active » posée par navigate().
+// Pastille de nouveautés sur l'onglet Accueil. Elle se modifie sur place, sur
+// l'onglet existant : renderTabs() reconstruit la barre sans elle, donc cette
+// fonction se rappelle après chaque renderTabs().
 function majBadgeNouveautes() {
   const tab = document.querySelector('.tab[data-route="home"]');
   if (!tab) return;
-  // Nouveautés écrites et annonces d'ouverture de module ; la mémoire des
-  // nouveautés lues reçoit la liste complète (amorce et purge).
-  const mesEntrees = visibles(nouveautesDeLaPromo(), isAdmin() || isProf());
-  const texte = libellePastille(nonLues(mesEntrees, vuesEffectives(toutesLesNouveautes())).length);
+  // Nouveautés écrites et annonces d'ouverture de module, pas encore lues.
+  const texte = libellePastille(nouveautesAffichables().neuves.size);
   let badge = tab.querySelector(".tab-badge");
   if (!texte) {
     if (badge) badge.remove();

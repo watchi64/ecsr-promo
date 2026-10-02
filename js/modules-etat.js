@@ -16,6 +16,7 @@ import {
   avecAnnonces, nouveautesPour,
 } from "./modules.js?v=20261001a";
 import { NOUVEAUTES } from "./nouveautes-data.js?v=20261001a";
+import { triees, visibles, nonLues, vuesEffectives, marquerVues } from "./nouveautes.js?v=20261001a";
 
 const CLE_REGLAGE = "modules";
 const REF = { modules: MODULES, moduleDeRoute: MODULE_DE_ROUTE, moduleDeSousOnglet: MODULE_DE_SOUS_ONGLET };
@@ -150,6 +151,20 @@ export function toutesLesNouveautes() {
 // Pour l'affichage et le compte de la pastille : ce que la personne doit voir.
 export function nouveautesDeLaPromo() {
   return nouveautesPour(NOUVEAUTES, etat, REF, formateurConnecte());
+}
+
+// Nouveautés à montrer à la personne connectée, de la plus récente à la plus
+// ancienne, et les ids encore non lus. La mémoire des nouveautés lues reçoit
+// toujours la liste complète : c'est elle qui décide de l'amorce et de la purge.
+export function nouveautesAffichables() {
+  const entrees = triees(visibles(nouveautesDeLaPromo(), formateurConnecte()));
+  const neuves = new Set(nonLues(entrees, vuesEffectives(toutesLesNouveautes())).map((e) => e.id));
+  return { entrees, neuves };
+}
+
+// Marque des nouveautés comme lues (sans jamais purger une entrée masquée).
+export function marquerLues(ids) {
+  marquerVues(ids, toutesLesNouveautes());
 }
 
 // Sur iPhone, on rouvre l'app sans la recharger : l'état est relu quand elle
