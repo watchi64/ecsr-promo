@@ -1784,17 +1784,9 @@ Contrôle : `node --test tests/chatbot-outils.test.mjs` (le corpus reste long et
 
 - [ ] **Étape 3 : `PROJECT_NOTES.md`**
 
-Remplacer le titre et le bloc de la liste des pages :
-
-```
-## Pages (9 onglets) — état actuel
-
-```
-Accueil · Tableau de bord · Planning · Calendrier · Thèmes · Passages · Notes · Ressources & contacts · Paramètres
-```
-```
-
-par :
+Remplacer le titre `## Pages (9 onglets)` (suivi d'un tiret long et des mots « état actuel »,
+qui partent avec lui) et le bloc de code qui liste ensuite les neuf pages (« Accueil · Tableau
+de bord · … · Paramètres ») par :
 
 ```
 ## Pages (8 onglets) : état au 03/10/2026
