@@ -7838,3 +7838,6 @@ body.cours-open { overflow: hidden; }
 .modules-explication,
 .modules-date { font-size: 0.82rem; }
 .modules-date { color: var(--accent-strong); }
+
+/* ===== Onglets CCP1 et CCP2 (chantier D) ===== */
+.modules-groupe-note { margin: -0.2rem 0 0.4rem; font-size: 0.82rem; }

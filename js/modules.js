@@ -59,6 +59,22 @@ export function estOuvert(cle, etat, modules) {
   return !m || !m.parent || estOuvert(m.parent, etat, modules);
 }
 
+// Modules qui gouvernent une route. Un onglet regroupé (CCP1) en a plusieurs,
+// un onglet simple un seul, une route du socle aucun.
+export function modulesDeRoute(route, ref) {
+  const regroupes = ref.ongletsRegroupes || {};
+  if (contient(regroupes, route)) return regroupes[route];
+  const cle = contient(ref.moduleDeRoute, route) ? ref.moduleDeRoute[route] : null;
+  return cle ? [cle] : [];
+}
+
+// Une route du socle est toujours ouverte. Un onglet regroupé l'est dès qu'une de
+// ses parties l'est : il n'a pas de module propre, donc pas de case à cocher.
+export function routeOuverte(route, etat, ref) {
+  const cles = modulesDeRoute(route, ref);
+  return cles.length === 0 || cles.some((cle) => estOuvert(cle, etat, ref.modules));
+}
+
 export function ensembleDeDepart(modules, maintenant) {
   const ouverts = {};
   for (const m of modules) if (m.depart) ouverts[m.cle] = maintenant;

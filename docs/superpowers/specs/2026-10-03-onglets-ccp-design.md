@@ -218,6 +218,8 @@ titre d'un stage ou d'un examen du CCP2 contient « CCP2 ».
   est ouverte. »
 - **Ordre** (celui du réglage) : planning, calendrier, ressources, priorites, themes, cours, qcm,
   notes, epcf, livret, dp, ccp2, assistant. Les parents restent avant leurs enfants.
+- **Livret EPCF** perd son parent `notes` : il n'est plus rangé dans Notes mais à côté, dans CCP1.
+  Un formateur peut donc l'ouvrir sans ouvrir la matrice des notes.
 - **Textes** : les explications et annonces qui disaient « dans Notes » ou « Thèmes, colonne
   QCM » pointent vers CCP1 (« CCP1, sous-onglet Notes », « CCP1, Thèmes, colonne QCM »…).
   Les annonces étant fabriquées à l'affichage, les anciennes suivent.

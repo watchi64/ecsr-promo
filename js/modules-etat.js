@@ -9,17 +9,20 @@ import { getSetting, setSetting } from "./db.js?v=20261002b";
 import { isAdmin, isProf, isFounder, getAdminEmail } from "./auth-admin.js?v=20261002b";
 import { icon } from "./icons.js?v=20261002b";
 import {
-  MODULES, MODULE_DE_ROUTE, MODULE_DE_SOUS_ONGLET, REGLAGE_OUVERT_AUX_FORMATEURS,
+  MODULES, MODULE_DE_ROUTE, MODULE_DE_SOUS_ONGLET, ONGLETS_REGROUPES, REGLAGE_OUVERT_AUX_FORMATEURS,
 } from "./modules-data.js?v=20261002b";
 import {
   ETAT_LIBRE, lireEtat, ecrireEtat, estReglee, estOuvert, basculer, ensembleDeDepart,
-  avecAnnonces, nouveautesPour,
+  avecAnnonces, nouveautesPour, routeOuverte,
 } from "./modules.js?v=20261002b";
 import { NOUVEAUTES } from "./nouveautes-data.js?v=20261002b";
 import { triees, visibles, nonLues, vuesEffectives, marquerVues } from "./nouveautes.js?v=20261002b";
 
 const CLE_REGLAGE = "modules";
-const REF = { modules: MODULES, moduleDeRoute: MODULE_DE_ROUTE, moduleDeSousOnglet: MODULE_DE_SOUS_ONGLET };
+const REF = {
+  modules: MODULES, moduleDeRoute: MODULE_DE_ROUTE, moduleDeSousOnglet: MODULE_DE_SOUS_ONGLET,
+  ongletsRegroupes: ONGLETS_REGROUPES,
+};
 // Relecture au retour au premier plan : au plus une fois par minute.
 const DELAI_RELECTURE_MS = 60 * 1000;
 // Valeur du minuteur de chargerModulesAuDemarrage : distingue « délai écoulé » d'une lecture finie.
@@ -107,8 +110,11 @@ export function moduleVisible(cle) {
 export function moduleMasque(cle) {
   return !estOuvert(cle, etat, MODULES);
 }
-export function routeVisible(route) { return moduleVisible(MODULE_DE_ROUTE[route]); }
-export function routeMasquee(route) { return moduleMasque(MODULE_DE_ROUTE[route]); }
+// Une route est-elle à montrer à la personne connectée ? Toujours pour un
+// formateur ; un onglet regroupé (CCP1) l'est dès qu'une de ses parties l'est.
+export function routeVisible(route) { return formateurConnecte() || routeOuverte(route, etat, REF); }
+// Route fermée pour la promo : repère chez un formateur.
+export function routeMasquee(route) { return !routeOuverte(route, etat, REF); }
 
 // Qui voit la section de réglage (voir REGLAGE_OUVERT_AUX_FORMATEURS).
 export function peutRegler() {

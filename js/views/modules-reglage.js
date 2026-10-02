@@ -7,7 +7,7 @@
 // pas de rechargement de toute la page Paramètres.
 import { el, toast } from "../utils.js?v=20261002b";
 import { icon } from "../icons.js?v=20261002b";
-import { MODULES, GROUPES } from "../modules-data.js?v=20261002b";
+import { MODULES, GROUPES, NOTES_DE_GROUPE } from "../modules-data.js?v=20261002b";
 import { estReglee, estOuvert, jourParis, accorder } from "../modules.js?v=20261002b";
 import {
   etatModules, peutRegler, basculerModule, appliquerEnsembleDeDepart,
@@ -108,6 +108,8 @@ export function renderModulesSection() {
     if (membres.length === 0) continue;
     section.appendChild(el("div", { class: "param-block modules-groupe" },
       el("h4", {}, groupe),
+      NOTES_DE_GROUPE[groupe]
+        ? el("p", { class: "modules-groupe-note muted" }, NOTES_DE_GROUPE[groupe]) : null,
       ...membres.map((m) => ligneModule(m, etat)),
     ));
   }
