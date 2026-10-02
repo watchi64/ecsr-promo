@@ -49,10 +49,13 @@ export function libellePastille(n) {
 }
 
 // Retire les ids qui ne correspondent plus à aucune entrée, pour que la liste
-// mémorisée ne gonfle pas indéfiniment.
+// mémorisée ne gonfle pas indéfiniment. Les annonces d'ouverture de module (ids
+// « module-… », voir PREFIXE_ANNONCE dans js/modules.js) sont épargnées : un
+// démarrage où l'état des modules n'a pas pu être lu les ferait disparaître, et
+// une annonce déjà lue reviendrait comme neuve au chargement suivant.
 export function purger(vues, entrees) {
   const connus = new Set(entrees.map((e) => e.id));
-  return (vues || []).filter((id) => connus.has(id));
+  return (vues || []).filter((id) => connus.has(id) || String(id).startsWith("module-"));
 }
 
 // Fusionne des ids dans la liste des vues, purgée. Renvoie la nouvelle liste.

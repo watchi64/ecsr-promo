@@ -2,13 +2,14 @@
  * Page d'accueil : version actualisée après les refontes (auth, calendrier, contacts).
  * Affichage personnalisé : salutation + prochains événements + raccourcis.
  */
-import { listAgendaEvents } from "../db.js?v=20261001a";
-import { el, clear, parseDate, formatDate, isoDate } from "../utils.js?v=20261001a";
-import { icon } from "../icons.js?v=20261001a";
-import { isAdmin, isProf, getProfile, getProfileWho } from "../auth-admin.js?v=20261001a";
-import { NOUVEAUTES } from "../nouveautes-data.js?v=20261001a";
-import { triees, visibles, nonLues, vuesEffectives, marquerVues } from "../nouveautes.js?v=20261001a";
-import { carteNouveaute } from "./nouveautes.js?v=20261001a";
+import { listAgendaEvents } from "../db.js?v=20261002b";
+import { el, clear, parseDate, formatDate, isoDate } from "../utils.js?v=20261002b";
+import { icon } from "../icons.js?v=20261002b";
+import { isAdmin, getProfile, getProfileWho } from "../auth-admin.js?v=20261002b";
+import {
+  nouveautesAffichables, marquerLues, routeVisible, routeMasquee, repereMasque,
+} from "../modules-etat.js?v=20261002b";
+import { carteNouveaute } from "./nouveautes.js?v=20261002b";
 
 function greetingByHour() {
   const h = new Date().getHours();
@@ -57,11 +58,12 @@ function countdownLabel(days) {
 const ACCUEIL_MAX = 3;
 
 function sectionNouveautes() {
-  const mesEntrees = triees(visibles(NOUVEAUTES, isAdmin() || isProf()));
+  // Nouveautés de la promo (annonces d'ouverture de module comprises) et celles qui
+  // sont encore neuves. Le calcul du neuf se fait AVANT le marquage plus bas, sinon
+  // plus rien n'aurait sa puce.
+  const { entrees: mesEntrees, neuves } = nouveautesAffichables();
   if (mesEntrees.length === 0) return null;
 
-  // Le calcul du neuf se fait AVANT le marquage, sinon plus rien n'aurait sa puce.
-  const neuves = new Set(nonLues(mesEntrees, vuesEffectives(NOUVEAUTES)).map((e) => e.id));
   const affichees = mesEntrees.slice(0, ACCUEIL_MAX);
 
   const section = el("section", { class: "home-nouveautes" },
@@ -76,7 +78,7 @@ function sectionNouveautes() {
 
   // Accueil ne marque que ce qu'il montre. La pastille tombe donc de 3, ce qui
   // invite à ouvrir la liste complète quand il reste des entrées plus anciennes.
-  marquerVues(affichees.map((e) => e.id), NOUVEAUTES);
+  marquerLues(affichees.map((e) => e.id));
   window.dispatchEvent(new CustomEvent("nouveautes-vues"));
   return section;
 }
@@ -88,7 +90,7 @@ export async function renderHome(container) {
   const who = getProfileWho();
   const admin = isAdmin();
   const roleLabel = admin ? "Admin"
-    : profile?.role === "prof" ? "Prof"
+    : profile?.role === "prof" ? "Formateur"
     : profile?.role === "stagiaire" ? "Stagiaire" : null;
 
   const today = new Date();
@@ -133,105 +135,112 @@ export async function renderHome(container) {
   ];
 
   container.appendChild(el("div", { class: "home-tiles" },
-    ...tiles.map((t) => el("a", {
-      class: "home-tile",
-      href: "#/" + t.route,
-    },
-      el("div", { class: "home-tile-icon" }, icon[t.icon]()),
-      el("div", { class: "home-tile-body" },
-        el("span", { class: "home-tile-title" }, t.title),
-        el("span", { class: "home-tile-desc" }, t.desc),
-      ),
-    )),
+    ...tiles.filter((t) => routeVisible(t.route)).map((t) => {
+      const titre = el("span", { class: "home-tile-title" }, t.title);
+      const tuile = el("a", { class: "home-tile", href: "#/" + t.route },
+        el("div", { class: "home-tile-icon" }, icon[t.icon]()),
+        el("div", { class: "home-tile-body" },
+          titre,
+          el("span", { class: "home-tile-desc" }, t.desc),
+        ),
+      );
+      // Module fermé pour la promo : tuile gardée chez un formateur, repérée.
+      return repereMasque(tuile, routeMasquee(t.route), titre);
+    }),
   ));
 
   // === Prochains événements (agenda) ===
-  const agendaSection = el("section", { class: "home-agenda" },
-    el("div", { class: "home-section-head" },
-      el("h2", {}, "📅 Prochains événements"),
-      el("a", { class: "home-link", href: "#/calendrier" }, "Tout voir →"),
-    ),
-  );
-  agendaSection.appendChild(el("div", { class: "home-agenda-list", id: "home-agenda-list" },
-    el("p", { class: "muted" }, "Chargement…"),
-  ));
-  container.appendChild(agendaSection);
+  // Section, lecture de l'agenda et compte à rebours mènent tous au Calendrier :
+  // module fermé pour la promo, rien de tout cela n'est construit (un formateur
+  // le garde toujours).
+  if (routeVisible("calendrier")) {
+    const agendaSection = el("section", { class: "home-agenda" },
+      el("div", { class: "home-section-head" },
+        el("h2", {}, "📅 Prochains événements"),
+        el("a", { class: "home-link", href: "#/calendrier" }, "Tout voir →"),
+      ),
+    );
+    agendaSection.appendChild(el("div", { class: "home-agenda-list", id: "home-agenda-list" },
+      el("p", { class: "muted" }, "Chargement…"),
+    ));
+    container.appendChild(agendaSection);
 
-  // Charge l'agenda en arrière-plan
-  try {
-    const events = await listAgendaEvents();
-    const upcoming = events.filter((e) => !isPast(e));
+    // Charge l'agenda en arrière-plan
+    try {
+      const events = await listAgendaEvents();
+      const upcoming = events.filter((e) => !isPast(e));
 
-    // Compteur principal : prochain événement majeur (examen ou stage)
-    const nextMajor = upcoming.find((e) => MAJOR_TYPES.has(e.type));
-    if (nextMajor) {
-      const days = daysUntil(nextMajor.date_start);
-      const countdownEl = el("section", { class: "home-countdown" },
-        el("div", { class: "home-countdown-icon" }, TYPE_EMOJI[nextMajor.type] || "📌"),
-        el("div", { class: "home-countdown-body" },
-          el("span", { class: "home-countdown-label muted" }, "Prochain événement majeur"),
-          el("span", { class: "home-countdown-title" }, nextMajor.title),
-          el("span", { class: "home-countdown-date muted" }, eventDateShort(nextMajor)),
-        ),
-        el("div", { class: "home-countdown-pill " + (days === 0 ? "today" : days <= 7 ? "soon" : "later") },
-          el("span", { class: "home-countdown-num" },
-            days === 0 ? "0" : days === 1 ? "1" : String(days),
+      // Compteur principal : prochain événement majeur (examen ou stage)
+      const nextMajor = upcoming.find((e) => MAJOR_TYPES.has(e.type));
+      if (nextMajor) {
+        const days = daysUntil(nextMajor.date_start);
+        const countdownEl = el("section", { class: "home-countdown" },
+          el("div", { class: "home-countdown-icon" }, TYPE_EMOJI[nextMajor.type] || "📌"),
+          el("div", { class: "home-countdown-body" },
+            el("span", { class: "home-countdown-label muted" }, "Prochain événement majeur"),
+            el("span", { class: "home-countdown-title" }, nextMajor.title),
+            el("span", { class: "home-countdown-date muted" }, eventDateShort(nextMajor)),
           ),
-          el("span", { class: "home-countdown-unit" },
-            days === 0 ? "Aujourd'hui !" : days === 1 ? "jour" : "jours",
+          el("div", { class: "home-countdown-pill " + (days === 0 ? "today" : days <= 7 ? "soon" : "later") },
+            el("span", { class: "home-countdown-num" },
+              days === 0 ? "0" : days === 1 ? "1" : String(days),
+            ),
+            el("span", { class: "home-countdown-unit" },
+              days === 0 ? "Aujourd'hui !" : days === 1 ? "jour" : "jours",
+            ),
           ),
-        ),
-      );
-      // Insère le compteur au-dessus des Nouveautés si elles sont là, sinon
-      // juste avant les tuiles. L'ordre voulu est : hero, compteur, nouveautés,
-      // raccourcis.
-      const ancre = container.querySelector(".home-nouveautes")
-                 || container.querySelector(".home-tiles");
-      if (ancre) container.insertBefore(countdownEl, ancre);
-    }
-
-    // Liste des 3 prochains événements (peu importe le type)
-    const next3 = upcoming.slice(0, 3);
-    const listEl = container.querySelector("#home-agenda-list");
-    if (listEl) {
-      clear(listEl);
-      if (next3.length === 0) {
-        listEl.appendChild(el("p", { class: "muted home-empty-line" },
-          "Aucun événement à venir. " + (admin ? "Ajoute-en depuis l'onglet Calendrier." : "Reste à l'affût."),
-        ));
-      } else {
-        next3.forEach((e) => {
-          const start = parseDate(e.date_start);
-          const days = daysUntil(e.date_start);
-          const isTodayE = e.date_start <= isoDate(today) && (e.date_end || e.date_start) >= isoDate(today);
-          const label = countdownLabel(days);
-          listEl.appendChild(el("a", {
-            class: "home-event" + (isTodayE ? " today" : ""),
-            href: "#/calendrier",
-          },
-            el("div", { class: "home-event-date" },
-              el("span", { class: "home-event-day" }, String(start.getDate())),
-              el("span", { class: "home-event-month" },
-                start.toLocaleDateString("fr-FR", { month: "short" }).replace(".", "").toUpperCase()),
-            ),
-            el("div", { class: "home-event-body" },
-              el("span", { class: "home-event-emoji" }, TYPE_EMOJI[e.type] || "📌"),
-              el("span", { class: "home-event-title" }, e.title),
-              el("span", { class: "home-event-meta muted" },
-                eventDateShort(e),
-                e.location ? " · 📍 " + e.location : "",
-              ),
-            ),
-            label ? el("span", { class: "home-event-countdown" + (days === 0 ? " today" : days <= 7 ? " soon" : "") }, label) : null,
-          ));
-        });
+        );
+        // Insère le compteur au-dessus des Nouveautés si elles sont là, sinon
+        // juste avant les tuiles. L'ordre voulu est : hero, compteur, nouveautés,
+        // raccourcis.
+        const ancre = container.querySelector(".home-nouveautes")
+                   || container.querySelector(".home-tiles");
+        if (ancre) container.insertBefore(countdownEl, ancre);
       }
-    }
-  } catch (e) {
-    const listEl = container.querySelector("#home-agenda-list");
-    if (listEl) {
-      clear(listEl);
-      listEl.appendChild(el("p", { class: "muted" }, "Impossible de charger les événements."));
+
+      // Liste des 3 prochains événements (peu importe le type)
+      const next3 = upcoming.slice(0, 3);
+      const listEl = container.querySelector("#home-agenda-list");
+      if (listEl) {
+        clear(listEl);
+        if (next3.length === 0) {
+          listEl.appendChild(el("p", { class: "muted home-empty-line" },
+            "Aucun événement à venir. " + (admin ? "Ajoute-en depuis l'onglet Calendrier." : "Reste à l'affût."),
+          ));
+        } else {
+          next3.forEach((e) => {
+            const start = parseDate(e.date_start);
+            const days = daysUntil(e.date_start);
+            const isTodayE = e.date_start <= isoDate(today) && (e.date_end || e.date_start) >= isoDate(today);
+            const label = countdownLabel(days);
+            listEl.appendChild(el("a", {
+              class: "home-event" + (isTodayE ? " today" : ""),
+              href: "#/calendrier",
+            },
+              el("div", { class: "home-event-date" },
+                el("span", { class: "home-event-day" }, String(start.getDate())),
+                el("span", { class: "home-event-month" },
+                  start.toLocaleDateString("fr-FR", { month: "short" }).replace(".", "").toUpperCase()),
+              ),
+              el("div", { class: "home-event-body" },
+                el("span", { class: "home-event-emoji" }, TYPE_EMOJI[e.type] || "📌"),
+                el("span", { class: "home-event-title" }, e.title),
+                el("span", { class: "home-event-meta muted" },
+                  eventDateShort(e),
+                  e.location ? " · 📍 " + e.location : "",
+                ),
+              ),
+              label ? el("span", { class: "home-event-countdown" + (days === 0 ? " today" : days <= 7 ? " soon" : "") }, label) : null,
+            ));
+          });
+        }
+      }
+    } catch (e) {
+      const listEl = container.querySelector("#home-agenda-list");
+      if (listEl) {
+        clear(listEl);
+        listEl.appendChild(el("p", { class: "muted" }, "Impossible de charger les événements."));
+      }
     }
   }
 
@@ -244,8 +253,8 @@ export async function renderHome(container) {
         " Tes ajouts de passages et tes notes sont signés automatiquement.",
       ),
       el("li", {},
-        el("strong", {}, "Ajout de passage limité à 2 jours en arrière."),
-        " Au-delà, demande à un admin (prof) de le faire pour toi.",
+        el("strong", {}, "Tu ajoutes et corriges tes passages toi-même."),
+        " Pour en supprimer un, demande à un formateur.",
       ),
       el("li", {},
         el("strong", {}, "Tout est tracé."),

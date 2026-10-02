@@ -1,6 +1,7 @@
 /*
  * Vue Paramètres.
- * 3 sections : Accès & invitations · Promo · Infos.
+ * Sections : Accès & invitations · Mes préférences · Modules de la promo
+ * (js/views/modules-reglage.js) · Promo · Infos.
  */
 import {
   listStagiaires, listProfs,
@@ -8,10 +9,12 @@ import {
   addProf, updateProf, deleteProf,
   listUserProfiles, deleteUserProfile, inviteUser,
   setMyAnonymousNotes,
-} from "../db.js?v=20261001a";
-import { el, clear, toast, displayStagiaire } from "../utils.js?v=20261001a";
-import { icon } from "../icons.js?v=20261001a";
-import { isAdmin, getAdminEmail, getProfile } from "../auth-admin.js?v=20261001a";
+} from "../db.js?v=20261002b";
+import { el, clear, toast, displayStagiaire } from "../utils.js?v=20261002b";
+import { icon } from "../icons.js?v=20261002b";
+import { isAdmin, getAdminEmail, getProfile } from "../auth-admin.js?v=20261002b";
+import { moduleVisible } from "../modules-etat.js?v=20261002b";
+import { renderModulesSection } from "./modules-reglage.js?v=20261002b";
 
 // ====== SECTION Accès & invitations ======
 
@@ -23,7 +26,7 @@ async function renderAccessSection(rerender) {
     el("div", { class: "param-icon" }, icon.shield()),
     el("div", {},
       el("h3", {}, "Accès & invitations"),
-      el("p", { class: "muted" }, "Personnes invitées à utiliser l'app (stagiaires, profs, admins)."),
+      el("p", { class: "muted" }, "Personnes invitées à utiliser l'app (stagiaires, formateurs, admins)."),
     ),
   ));
 
@@ -156,7 +159,7 @@ async function renderAccessSection(rerender) {
           if (pr) who = pr.nom;
         }
         const pills = el("div", { class: "role-pills" },
-          el("span", { class: "role-pill role-" + p.role }, p.role),
+          el("span", { class: "role-pill role-" + p.role }, p.role === "prof" ? "formateur" : p.role),
           (p.is_admin && p.role !== "admin") ? el("span", { class: "role-pill role-admin" }, "admin") : null,
         );
         const item = el("li", { class: "admin-item" },
@@ -190,6 +193,9 @@ async function renderAccessSection(rerender) {
 function renderMyPreferencesSection(rerender) {
   const profile = getProfile();
   if (!profile) return null;  // pas affichée si pas de profil
+  // Seul réglage de la section : l'anonymat dans la page Notes. Module Notes
+  // fermé pour la promo : la section n'a plus d'objet pour un stagiaire.
+  if (!moduleVisible("notes")) return null;
 
   const section = el("section", { class: "param-section" });
   section.appendChild(el("div", { class: "param-section-head" },
@@ -469,12 +475,18 @@ async function rerender(container) {
   container.appendChild(el("div", { class: "loading" }, "Chargement"));
 
   try {
-    const sections = await withTimeout(Promise.all([
+    const [acces, preferences, promo, infos] = await withTimeout(Promise.all([
       renderAccessSection(() => rerender(container)),
       Promise.resolve(renderMyPreferencesSection(() => rerender(container))),
       renderPromoSection(() => rerender(container)),
       Promise.resolve(renderInfoSection()),
     ]), 12000, "Paramètres");
+    // La section « Modules de la promo » est construite ICI, après l'attente, et non dans le
+    // tableau ci-dessus : elle montre l'état des modules tel qu'il est au moment de son
+    // insertion. Construite avant l'attente, elle serait périmée si une écriture se terminait
+    // pendant « Chargement » : redessiner() (js/views/modules-reglage.js) ne trouve alors
+    // aucune section à l'écran, et l'ancienne, rendue d'avant l'écriture, serait insérée ensuite.
+    const modules = renderModulesSection();
 
     clear(container);
     container.appendChild(el("div", { class: "view-header" },
@@ -486,7 +498,7 @@ async function rerender(container) {
     ));
 
     const grid = el("div", { class: "param-grid" });
-    sections.filter(Boolean).forEach((s) => grid.appendChild(s));
+    [acces, preferences, modules, promo, infos].filter(Boolean).forEach((s) => grid.appendChild(s));
     container.appendChild(grid);
   } catch (e) {
     console.error("Paramètres : erreur de chargement", e);

@@ -7,15 +7,15 @@ import {
   addPassagesBatch, deletePassagesBatch, getPassagesInRange, updateTheme,
   listBenevoles, listBenevolesNoms,
   getVoitureAggregats, listFiches, getSalleAggregats,
-} from "../db.js?v=20261001a";
-import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20261001a";
-import { icon } from "../icons.js?v=20261001a";
-import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20261001a";
-import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20261001a";
-import { recordUndo } from "../undo.js?v=20261001a";
-import { getCurrentWho } from "../identity.js?v=20261001a";
-import { openBenevolesPanel } from "./benevoles.js?v=20261001a";
-import { meilleurResultat } from "../passage-rules.js?v=20261001a";
+} from "../db.js?v=20261002b";
+import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20261002b";
+import { icon } from "../icons.js?v=20261002b";
+import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20261002b";
+import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20261002b";
+import { recordUndo } from "../undo.js?v=20261002b";
+import { getCurrentWho } from "../identity.js?v=20261002b";
+import { openBenevolesPanel } from "./benevoles.js?v=20261002b";
+import { meilleurResultat } from "../passage-rules.js?v=20261002b";
 
 let stagiaires = [];
 let profs = [];
@@ -1157,7 +1157,7 @@ async function clearWeekPlacements() {
     toast("Aucun stagiaire placé cette semaine", "info", 3000);
     return;
   }
-  if (!confirm("⚠️ Retirer TOUS les stagiaires placés cette semaine (tableaux, salle, voiture) ?\n\nLes bénévoles, profs, sujets et notes sont conservés.")) return;
+  if (!confirm("⚠️ Retirer TOUS les stagiaires placés cette semaine (tableaux, salle, voiture) ?\n\nLes bénévoles, formateurs, sujets et notes sont conservés.")) return;
 
   const before = targets.map((e) => ({ e, snap: snapshotPlacement(e) }));
   targets.forEach((e) => { e.pedagogue_id = null; e.pedagogue_id_2 = null; e.eleves_ids = []; e.eleves_ids_2 = []; });
@@ -2764,7 +2764,7 @@ function renderInto(container) {
       el("h2", {}, "Planning de la semaine"),
       el("p", { class: "subtitle" },
         editing
-          ? "Sélectionne les activités, profs et stagiaires. Tout s'enregistre automatiquement."
+          ? "Sélectionne les activités, formateurs et stagiaires. Tout s'enregistre automatiquement."
           : admin
             ? (isLocked(semaineLundi)
                 ? "Semaine validée et verrouillée. « Déverrouiller » pour corriger."
@@ -2852,7 +2852,7 @@ function renderInto(container) {
     placeBtn.appendChild(el("span", { class: "btn-short" }, "🎲 Placer"));
     actionsGroup.appendChild(placeBtn);
     const clearBtn = el("button", { class: "btn small danger",
-      title: "Retirer tous les stagiaires placés cette semaine (bénévoles, profs, sujets et notes conservés)",
+      title: "Retirer tous les stagiaires placés cette semaine (bénévoles, formateurs, sujets et notes conservés)",
       onClick: () => clearWeekPlacements() });
     clearBtn.appendChild(el("span", { class: "btn-long" }, "🧹 Vider les placements"));
     clearBtn.appendChild(el("span", { class: "btn-short" }, "🧹 Vider"));
