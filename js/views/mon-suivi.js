@@ -1,14 +1,15 @@
 import { listStagiaires, listEvaluations, getPlanning, getHalfMetaForWeek, getJoursOff, getSetting,
          listProfs, listEpcf, getEpcfMoyennes, listThemes,
-         getStagiaire, setDateNaissance, listPassages } from "../db.js?v=20261002a";
-import { el, clear, isoDate, getMonday, addDays, formatDate, displayStagiaire, compareByNom, toast } from "../utils.js?v=20261002a";
-import { HALF_DAYS, RESULTATS } from "../config.js?v=20261002a";
-import { isAdmin, isProf, getProfile } from "../auth-admin.js?v=20261002a";
-import { renderEpcfTrameSection } from "../epcf-restitution.js?v=20261002a";
-import { renderSubTabs } from "../subtabs.js?v=20261002a";
-import { renderDp } from "./dp.js?v=20261002a";
-import { rolesPourEntry, ROLE_ORDER } from "../creneaux-rules.js?v=20261002a";
-import { statsPassages } from "../passages-stats.js?v=20261002a";
+         getStagiaire, setDateNaissance, listPassages } from "../db.js?v=20261002b";
+import { el, clear, isoDate, getMonday, addDays, formatDate, displayStagiaire, compareByNom, toast } from "../utils.js?v=20261002b";
+import { HALF_DAYS, RESULTATS } from "../config.js?v=20261002b";
+import { isAdmin, isProf, getProfile } from "../auth-admin.js?v=20261002b";
+import { renderEpcfTrameSection } from "../epcf-restitution.js?v=20261002b";
+import { renderSubTabs } from "../subtabs.js?v=20261002b";
+import { renderDp } from "./dp.js?v=20261002b";
+import { rolesPourEntry, ROLE_ORDER } from "../creneaux-rules.js?v=20261002b";
+import { statsPassages } from "../passages-stats.js?v=20261002b";
+import { moduleVisible } from "../modules-etat.js?v=20261002b";
 
 const HALF_ORDER = { matin: 0, aprem: 1 };
 
@@ -485,7 +486,9 @@ export async function renderMonSuivi(container) {
     el("div", { class: "view-header-text" },
       el("p", { class: "eyebrow" }, "Espace personnel"),
       el("h2", {}, "Mon suivi"),
-      el("p", { class: "subtitle" }, "Mon planning à venir et l'évolution de mes résultats."),
+      el("p", { class: "subtitle" }, moduleVisible("notes")
+        ? "Mon planning à venir et l'évolution de mes résultats."
+        : "Mon planning à venir."),
     ),
   );
   container.appendChild(header);
@@ -542,7 +545,8 @@ export async function renderMonSuivi(container) {
 
     // Date de naissance du profil : saisie par le stagiaire lui-même (son propre
     // suivi) ou par formateur/admin. Reportée automatiquement sur le livret EPCF.
-    if (isAdmin() || isProf() || id === myId) {
+    // Le champ ne sert qu'au livret : il suit donc le module Livret EPCF.
+    if ((isAdmin() || isProf() || id === myId) && moduleVisible("livret")) {
       const dob = el("input", { type: "date", value: stagiaireRow?.date_naissance || "" });
       dob.addEventListener("change", async () => {
         try {
@@ -561,19 +565,19 @@ export async function renderMonSuivi(container) {
           p.appendChild(renderPassagesSection(items));
           p.appendChild(renderEffectuesSection(passRows));
         } },
-      { key: "epcf", label: "EPCF", render: (p) => {
+      { key: "epcf", label: "EPCF", module: "epcf", render: (p) => {
           p.appendChild(renderEpcfTrameSection("salle",
             epcfEvals.filter((e) => e.trame === "salle"), moySalle));
           p.appendChild(renderEpcfTrameSection("vehicule",
             epcfEvals.filter((e) => e.trame === "vehicule"), moyVehicule));
         } },
-      { key: "evolution", label: "Évolution", render: (p) => {
+      { key: "evolution", label: "Évolution", module: "notes", render: (p) => {
           p.appendChild(renderChartSection(evaluations));
         } },
       // Le DP appartient au candidat : dans SON espace il est éditable. Un
       // formateur qui consulte l'espace d'un autre élève le voit en lecture
       // seule (renderDp compare l'élève affiché au stagiaire_id du profil).
-      { key: "dp", label: "Dossier pro", render: (p, ctx) => {
+      { key: "dp", label: "Dossier pro", module: "dp", render: (p, ctx) => {
           renderDp(p, { stagiaireId: id, embedded: true, isActive: ctx && ctx.isActive })
             .catch((e) => {
               console.error(e);

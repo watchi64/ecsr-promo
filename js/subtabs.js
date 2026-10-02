@@ -2,12 +2,17 @@
 // Une barre segmentée + un panneau qui bascule au clic. Le rendu de chaque
 // onglet est paresseux (appelé à l'activation), donc on peut y mettre du lourd.
 
-import { el, clear } from "./utils.js?v=20261002a";
+import { el, clear } from "./utils.js?v=20261002b";
+import { moduleVisible, moduleMasque, repereMasque } from "./modules-etat.js?v=20261002b";
 
-// tabs = [{ key, label, render(panel) }].
+// tabs = [{ key, label, render(panel), module? }].
+// module : clé du catalogue (js/modules-data.js). Fermé pour la promo, le
+// sous-onglet disparaît chez un stagiaire et porte le repère chez un formateur.
 // opts.activeKey : onglet initial ; opts.storageKey : mémorise le dernier onglet choisi.
-// Retourne l'élément conteneur (barre + panneau).
-export function renderSubTabs(tabs, opts = {}) {
+// Retourne l'élément conteneur (barre + panneau). S'il ne reste qu'un onglet, la
+// barre n'est pas affichée : le contenu s'affiche directement.
+export function renderSubTabs(tousLesOnglets, opts = {}) {
+  const tabs = tousLesOnglets.filter((t) => !t.module || moduleVisible(t.module));
   const { activeKey, storageKey } = opts;
   const wrap = el("div", { class: "subtabs" });
   const bar = el("div", { class: "subtabs-bar", role: "tablist" });
@@ -38,10 +43,11 @@ export function renderSubTabs(tabs, opts = {}) {
   tabs.forEach((t) => {
     const b = el("button", { class: "subtab", type: "button", role: "tab",
       onClick: () => activate(t.key) }, t.label);
+    if (t.module) repereMasque(b, moduleMasque(t.module));
     buttons[t.key] = b;
     bar.appendChild(b);
   });
-  wrap.appendChild(bar);
+  if (tabs.length > 1) wrap.appendChild(bar);
   wrap.appendChild(panel);
   if (current) activate(current);
   return wrap;

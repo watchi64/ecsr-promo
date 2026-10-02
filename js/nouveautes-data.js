@@ -6,7 +6,10 @@
 //
 // Champs : id (unique, date en préfixe), date (AAAA-MM-JJ), pour
 // ("tous" | "formateurs"), titre, resume. Facultatifs : ou (le chemin dans
-// l'app, rendu cliquable) et guide (étapes numérotées).
+// l'app, rendu cliquable), guide (étapes numérotées) et module (clé de
+// js/modules-data.js : la nouveauté est masquée aux stagiaires d'une promo où ce
+// module est fermé). Sans `module`, il est déduit du lien `ou` ; le préciser
+// dès que le lien ne suffit pas (une nouveauté sur les QCM qui mène à Thèmes).
 //
 // Public : la promo, des adultes en reconversion. Pas de vocabulaire technique,
 // pas de numéro de version, pas de nom de fichier.
@@ -67,6 +70,7 @@ export const NOUVEAUTES = [
     id: "2026-09-16-dp-formateurs",
     date: "2026-09-16",
     pour: "tous",
+    module: "dp",
     titre: "Ton formateur peut t'aider directement dans ton dossier professionnel",
     resume: "Le dossier professionnel reste ton document : c'est toi qui le rédiges et qui "
           + "le signes. Mais les formateurs peuvent maintenant écrire dedans pour "
@@ -79,6 +83,7 @@ export const NOUVEAUTES = [
     id: "2026-09-15-dp-mise-en-page",
     date: "2026-09-15",
     pour: "tous",
+    module: "dp",
     titre: "Ton dossier professionnel a repris la mise en page officielle",
     resume: "Le DP de l'app ressemble maintenant trait pour trait au document du "
           + "ministère : bandeaux magenta, en-tête et pied de page officiels, cartouches "
@@ -93,6 +98,7 @@ export const NOUVEAUTES = [
     id: "2026-08-26-cours-pour-tous",
     date: "2026-08-26",
     pour: "tous",
+    module: "cours",
     titre: "Les cours des 57 thèmes sont ouverts à toute la promo",
     resume: "Jusqu'ici réservés aux formateurs, les cours complets des 57 thèmes sont "
           + "maintenant lisibles par tout le monde. Dans la page Thèmes, le bouton "
@@ -105,6 +111,7 @@ export const NOUVEAUTES = [
     id: "2026-08-21-anonymat-notes",
     date: "2026-08-21",
     pour: "tous",
+    module: "notes",
     titre: "Anonyme pour de vrai dans le tableau de notes",
     resume: "Jusqu'ici, passer en anonyme cachait seulement ton prénom. Désormais, tes notes "
           + "disparaissent aussi pour les autres stagiaires (elles comptent toujours dans les "
@@ -127,6 +134,7 @@ export const NOUVEAUTES = [
     id: "2026-08-19-assistant-mobile",
     date: "2026-08-19",
     pour: "tous",
+    module: "assistant",
     titre: "L'assistant s'ouvre sans zoomer sur ton téléphone",
     resume: "Ouvrir l'assistant sur téléphone zoomait la page et sortait le clavier direct. "
           + "C'est réglé : la fenêtre s'ouvre tranquillement, tu vois la conversation en "
@@ -147,6 +155,7 @@ export const NOUVEAUTES = [
     id: "2026-08-15-assistant",
     date: "2026-08-15",
     pour: "tous",
+    module: "assistant",
     titre: "Un assistant répond à tes questions, partout dans l'app",
     resume: "Le bouton rond en bas à droite ouvre un assistant qui connaît les 57 cours, "
           + "vérifie la réglementation directement sur Légifrance et t'explique le "
@@ -157,6 +166,7 @@ export const NOUVEAUTES = [
     id: "2026-08-10-barre-entrainement",
     date: "2026-08-10",
     pour: "tous",
+    module: "qcm",
     titre: "Ta progression d'entraînement se voit d'un coup d'œil",
     resume: "Dans la liste des thèmes, une barre colorée sous chaque QCM se remplit avec ta "
           + "dernière note d'entraînement. Plus la barre est verte et pleine, plus le thème "
@@ -187,6 +197,7 @@ export const NOUVEAUTES = [
     id: "2026-08-08-signalement-reponse-visee",
     date: "2026-08-08",
     pour: "tous",
+    module: "qcm",
     titre: "Dis quelle réponse te pose problème quand tu signales",
     resume: "Le formulaire de signalement te demande maintenant laquelle des réponses est en "
           + "cause. C'est utile : les réponses sont mélangées à chaque passage, donc écrire "
@@ -221,6 +232,7 @@ export const NOUVEAUTES = [
     id: "2026-07-31-qcm-entrainement",
     date: "2026-07-31",
     pour: "tous",
+    module: "qcm",
     titre: "Les QCM d'entraînement sont ouverts à toute la promo",
     resume: "Les 57 thèmes ont désormais leur QCM. Tu t'entraînes autant de fois que tu veux, "
           + "ça ne compte jamais dans tes notes. Tes anciennes erreurs repassent en premier, "
@@ -236,6 +248,7 @@ export const NOUVEAUTES = [
     id: "2026-07-31-qcm-signalement",
     date: "2026-07-31",
     pour: "tous",
+    module: "qcm",
     titre: "Signale une erreur dans un QCM en un clic",
     resume: "Si une question te paraît fausse, ambiguë ou mal formulée, tu peux le signaler "
           + "depuis la question elle-même. Le signalement arrive aux formateurs, qui corrigent "

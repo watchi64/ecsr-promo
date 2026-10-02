@@ -2,15 +2,15 @@ import {
   listStagiaires, listCompetences, listEvaluations, listThemes,
   addEvaluation, updateEvaluation, deleteEvaluation, listAuditForEvaluation,
   listUserProfiles,
-} from "../db.js?v=20261002a";
-import { el, clear, isoDate, formatDate, toast, displayStagiaire, compareByNom } from "../utils.js?v=20261002a";
-import { icon } from "../icons.js?v=20261002a";
-import { getAdminEmail, isAdmin, getProfile } from "../auth-admin.js?v=20261002a";
-import { recordUndo } from "../undo.js?v=20261002a";
-import { renderSubTabs } from "../subtabs.js?v=20261002a";
-import { renderEpcf } from "./epcf.js?v=20261002a";
-import { renderEpcfLivret } from "./epcf-livret.js?v=20261002a";
-import { renderDp } from "./dp.js?v=20261002a";
+} from "../db.js?v=20261002b";
+import { el, clear, isoDate, formatDate, toast, displayStagiaire, compareByNom } from "../utils.js?v=20261002b";
+import { icon } from "../icons.js?v=20261002b";
+import { getAdminEmail, isAdmin, getProfile } from "../auth-admin.js?v=20261002b";
+import { recordUndo } from "../undo.js?v=20261002b";
+import { renderSubTabs } from "../subtabs.js?v=20261002b";
+import { renderEpcf } from "./epcf.js?v=20261002b";
+import { renderEpcfLivret } from "./epcf-livret.js?v=20261002b";
+import { renderDp } from "./dp.js?v=20261002b";
 
 let userProfiles = [];  // pour résoudre l'anonymat par stagiaire_id
 
@@ -1135,9 +1135,10 @@ function rerender(container) {
   // stagiaire → vue classe (EPCF), son livret en lecture seule (Livret), et son
   // dossier professionnel EN ÉDITION (le DP appartient au candidat).
   // La matrice reste en lecture seule pour les stagiaires.
+  // Chaque sous-onglet suit son module (js/modules-data.js) ; la Matrice suit l'onglet lui-même.
   container.appendChild(renderSubTabs([
     { key: "matrice", label: "Matrice", render: buildMatricePanel },
-    { key: "epcf", label: "EPCF", render: (p, ctx) => {
+    { key: "epcf", label: "EPCF", module: "epcf", render: (p, ctx) => {
         renderEpcf(p, { embedded: true, isActive: ctx && ctx.isActive })
           .catch((e) => {
             console.error(e);
@@ -1147,7 +1148,7 @@ function rerender(container) {
             }
           });
       } },
-    { key: "livret", label: "Livret EPCF", render: (p, ctx) => {
+    { key: "livret", label: "Livret EPCF", module: "livret", render: (p, ctx) => {
         renderEpcfLivret(p, { embedded: true, isActive: ctx && ctx.isActive })
           .catch((e) => {
             console.error(e);
@@ -1157,7 +1158,7 @@ function rerender(container) {
             }
           });
       } },
-    { key: "dp", label: "Dossier pro", render: (p, ctx) => {
+    { key: "dp", label: "Dossier pro", module: "dp", render: (p, ctx) => {
         renderDp(p, { embedded: true, isActive: ctx && ctx.isActive })
           .catch((e) => {
             console.error(e);

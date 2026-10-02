@@ -7722,3 +7722,119 @@ body.cours-open { overflow: hidden; }
   font: inherit;
   font-size: 16px;
 }
+
+/* ===== Modules débloqués par les formateurs (chantier B, 2026-10) =====
+   Repère « Masqué aux stagiaires » : posé chez un formateur sur ce qui est fermé
+   pour la promo (onglets, tuiles, sous-onglets, en-têtes de colonnes, bulle) par
+   repereMasque() de js/modules-etat.js.
+   ATTENTION : le @media mobile pose « .tab span { display: none } » (spécificité
+   0,1,1). « .tab .marque-masque » est en 0,2,0 : il gagne quel que soit l'ordre,
+   sinon l'œil disparaîtrait sur téléphone, là où les onglets sont en icône seule. */
+.module-masque { opacity: 0.55; }
+.module-masque:hover,
+.module-masque:focus-visible,
+.tab.module-masque.active,
+.subtab.module-masque.active { opacity: 0.9; }
+.marque-masque {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 0.3rem;
+  color: var(--text-muted);
+  vertical-align: middle;
+}
+.marque-masque .icon { width: 13px; height: 13px; }
+.tab .marque-masque {
+  display: inline-flex;
+  margin-left: 0.1rem;
+  color: inherit;
+}
+.chatbot-fab .marque-masque {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  margin: 0;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--bg-elev);
+  color: var(--text-muted);
+  box-shadow: var(--shadow-1);
+}
+/* Sur téléphone, l'œil se pose sur le coin haut droit de l'icône de l'onglet, hors du flux :
+   il ne coûte aucune largeur à la barre (qui défile). En flux, trois onglets repérés la
+   faisaient déborder à 375 px et l'engrenage de Paramètres était coupé. */
+@media (max-width: 760px) {
+  .tab { position: relative; }
+  .tab .marque-masque {
+    position: absolute;
+    top: 2px;
+    right: 3px;
+    margin: 0;
+  }
+  .tab .marque-masque .icon { width: 10px; height: 10px; }
+}
+
+/* ===== Thèmes : repère des modules fermés, visible sur téléphone (chantier B, 2026-10) =====
+   Sous 720 px, le bloc mobile des lignes de thèmes masque l'en-tête du tableau
+   (« .theme-row.theme-header { display: none; } »). Or les en-têtes des colonnes Cours
+   et QCM portent le repère « Masqué aux stagiaires » (œil barré) : sur iPhone, un
+   formateur n'aurait plus aucun signe que ces modules sont fermés pour sa promo.
+   Quand l'en-tête porte au moins un repère, themes.js lui pose « a-repere » : on le
+   rétablit en bande horizontale, où ne restent que les colonnes repérées (N°, Thème,
+   Statut et Fait le restent masqués comme avant).
+   Spécificité : trois classes (0,3,0) contre deux (0,2,0) pour la règle qui masque, donc
+   elle gagne quel que soit l'ordre des règles, sans forcer la priorité. Les autres
+   règles mobiles du tableau (grilles à 3 à 5 classes) règlent grille, espacement et
+   alignement : aucune ne pose « display » sur .theme-row, et « .theme-row > span:empty »
+   ne vise que les cellules vides. */
+@media (max-width: 720px) {
+  .theme-row.theme-header.a-repere { display: flex; }
+  .theme-row.theme-header.a-repere > span:not(.module-masque) { display: none; }
+}
+
+/* Section « Modules de la promo » (Paramètres). Une colonne, lignes à cible
+   tactile de 44 px au moins. */
+.modules-bandeau {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem 1rem;
+  padding: 0.8rem 1rem;
+  margin-bottom: 1rem;
+  border-radius: var(--r);
+  background: var(--accent-soft);
+}
+.modules-bandeau p { margin: 0; font-weight: 600; color: var(--text); }
+.modules-socle { margin: 0 0 0.5rem; font-size: 0.85rem; }
+.modules-ligne {
+  display: grid;
+  grid-template-columns: 26px 1fr;
+  gap: 0.6rem;
+  align-items: start;
+  min-height: 44px;
+  padding: 0.55rem 0;
+  border-bottom: 1px solid var(--line-faint);
+}
+.modules-ligne:last-child { border-bottom: none; }
+.modules-ligne.enfant { padding-left: 1.5rem; }
+.modules-ligne input[type="checkbox"] {
+  width: 22px;
+  height: 22px;
+  margin: 1px 0 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+.modules-ligne input[type="checkbox"]:disabled { cursor: not-allowed; }
+.modules-libelle {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  cursor: pointer;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.modules-nom { font-weight: 600; color: var(--text); }
+.modules-parent,
+.modules-explication,
+.modules-date { font-size: 0.82rem; }
+.modules-date { color: var(--accent-strong); }
