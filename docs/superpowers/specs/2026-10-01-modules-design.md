@@ -156,9 +156,12 @@ par `getSetting("modules")` et `setSetting("modules", …)` de `db.js` :
 |---|---|---|
 | Barre d'onglets | onglet absent | onglet présent, avec repère |
 | Tuiles d'Accueil | tuile absente | tuile présente, avec repère |
+| Accueil, agenda « Prochains événements » et compte à rebours (module `calendrier`) | section et compte à rebours absents | présents, sans repère |
+| Mon espace, sous-titre (module `notes`) | « Mon planning à venir. », sans mention de l'évolution | phrase complète (« … et l'évolution de mes résultats. »), sans repère |
 | Sous-onglets (Notes, Mon espace) | sous-onglet absent ; s'il n'en reste qu'un, **la barre disparaît** et le contenu s'affiche directement | sous-onglet présent, avec repère |
 | Thèmes, colonne Cours | colonne et bouton absents ; le titre d'un thème ouvre sa fiche, comme pour un thème sans cours. La fiche ne montre ni « Lire le cours » ni « en cours de rédaction », mais « Le cours de ce thème n'est pas encore ouvert pour ta promo. » | colonne présente, repère sur l'en-tête |
 | Thèmes, colonne QCM | colonne absente, ainsi que le bouton QCM proposé en fin de cours et la phrase de la fiche du thème qui renvoie à la colonne QCM | colonne présente, repère sur l'en-tête |
+| Thèmes, en-tête du tableau sur téléphone (sous 720 px) | en-tête masqué, comme avant | en-tête masqué : une bande n'affiche que les colonnes repérées (Cours, QCM), sans quoi le repère serait invisible sur téléphone |
 | Thèmes, note de matrice dans la cellule QCM (module `notes`) | note de matrice absente ; la note d'entraînement reste | présente, sans repère |
 | Mon espace, « Date de naissance » (module `livret`) | champ absent | présent, sans repère |
 | Paramètres, anonymat des notes (module `notes`) | bloc absent ; si la section « Mes préférences » n'a plus rien, elle disparaît | présent, sans repère |
@@ -167,15 +170,21 @@ par `getSetting("modules")` et `setSetting("modules", …)` de `db.js` :
 | Nouveautés | voir 9 | voir 9 |
 
 Le repère se pose sur les éléments de navigation (onglets, tuiles, sous-onglets, en-têtes de
-colonnes, bulle). Les petits éléments secondaires (champ, bloc, note, bouton du haut) n'en
-portent pas : ce serait du bruit.
+colonnes, bulle). Les petits éléments secondaires (champ, bloc, note, bouton du haut, agenda et
+sous-titre) n'en portent pas : ce serait du bruit.
+
+La colonne QCM de Thèmes est figée au chargement de l'index, comme les données qu'elle commande :
+un module ouvert ou fermé en séance prend effet à la navigation suivante (ou au prochain
+rechargement de l'index, par exemple au retour d'un QCM). Relue en direct, la colonne apparaîtrait
+dès le prochain filtre ou la prochaine recherche, avec des cellules vides.
 
 ### 6.2 Le repère « Masqué aux stagiaires »
 
 Élément atténué et petite icône d'œil barré (nouvelle icône `eyeOff` dans `icons.js`), avec
 `title` et `aria-label` « Masqué aux stagiaires ». Sur téléphone, où les onglets sont en icône
-seule, l'atténuation et l'œil suffisent à le distinguer. Une seule classe CSS
-(`module-masque`) le porte partout.
+seule, l'atténuation et l'œil suffisent à le distinguer ; l'œil (10 px) est alors posé en absolu sur
+le coin haut droit de l'icône, ce qui ne coûte aucune largeur à la barre d'onglets. Une seule
+classe CSS (`module-masque`) le porte partout.
 
 ### 6.3 La garde des routes
 
@@ -196,8 +205,12 @@ d'interface.
 ## 7. Fraîcheur et erreurs
 
 **Lecture de l'état** à trois moments :
-1. au démarrage, après l'authentification et avant de dessiner la barre d'onglets ;
-2. au bouton Actualiser ;
+1. au démarrage, après l'authentification et avant de dessiner la barre d'onglets. L'attente est
+   **bornée à 3,5 s** (`chargerModulesAuDemarrage`) et la vue affiche « Chargement » pendant ce
+   temps. Au-delà, on n'attend plus la base : la barre est dessinée d'après la copie de l'appareil
+   (sinon l'état libre, tout ouvert) ; la vraie réponse, quand elle arrive, s'applique à son tour,
+   prévient les abonnés et la barre est redessinée ;
+2. au bouton Actualiser (la vue affiche « Chargement » pendant la relecture) ;
 3. quand l'app revient au premier plan (`visibilitychange`), au plus une fois par minute.
 
 Le changement de promo d'un formateur recharge la page (spec A, C.1) : l'état de la nouvelle
@@ -219,13 +232,23 @@ dernier état connu : libre, donc tout ouvert.
 temps pourraient s'écraser. Échec (réseau, droits) : message d'erreur, la case revient à son
 état précédent.
 
+Trois garde-fous complètent cette écriture :
+- les écritures sont **mises en file** : deux cases cochées coup sur coup s'exécutent l'une après
+  l'autre, et aucune bascule n'est perdue ;
+- une lecture partie avant une écriture aboutie est **ignorée** à son arrivée : sa réponse montre
+  l'état d'avant l'écriture, l'appliquer le rétablirait en mémoire, sur l'appareil et chez les
+  abonnés ;
+- « Partir de l'ensemble de départ » **ne remplace jamais un réglage lisible** : si la base en porte
+  déjà un (lecture de démarrage ratée, autre formateur), il est conservé tel quel. L'ensemble de
+  départ ne s'applique qu'à un état libre ou illisible.
+
 ## 8. Le réglage dans Paramètres
 
 Nouvelle section **« Modules de la promo »**, rendue par `js/views/modules-reglage.js` et
 montée dans Paramètres après « Mes préférences ».
 
-**Qui la voit** : `isAdmin()`. Tant que le multi-promo n'est pas en ligne, réservée au
-fondateur (voir 11.1).
+**Qui la voit** : `peutRegler()`, soit `isAdmin()` et, tant que le multi-promo n'est pas en ligne,
+le fondateur seul (`REGLAGE_OUVERT_AUX_FORMATEURS`, voir 11.1).
 
 **Contenu** :
 - En-tête : titre « Modules de la promo », sous-titre « Ouvre les parties de l'app au fil de la
@@ -236,9 +259,14 @@ fondateur (voir 11.1).
 - **Promo libre** : bandeau « Aucun réglage : tout est ouvert pour cette promo. » et bouton
   **« Partir de l'ensemble de départ »**, avec confirmation (« Seuls Planning, Calendrier et
   Ressources resteront visibles pour les stagiaires. Continuer ? »). Les cases restent
-  utilisables : une bascule depuis l'état libre matérialise le réglage (4.5).
+  utilisables : une bascule depuis l'état libre matérialise le réglage (4.5). **La première
+  bascule d'une case demande confirmation** : « Cette promo n'a encore aucun réglage : tout est
+  ouvert. Changer une case crée un réglage qui s'applique à tous ses stagiaires, et on ne pourra
+  plus revenir à l'état « aucun réglage ». Continuer ? ». Si le formateur refuse, la case retrouve
+  son état d'avant, sans écriture et sans message. Une fois la promo réglée, plus aucune
+  confirmation (celle du bouton de départ est inchangée).
 - **Promo illisible** : bandeau « Réglage illisible : tout est ouvert pour cette promo. » et le
-  même bouton.
+  même bouton. La première bascule d'une case y demande la même confirmation.
 - La liste, groupée sous les intitulés Démarrage, Suivi de la formation, CCP1, Dossier
   professionnel, Outils. Chaque ligne : une case à cocher (style des cases existantes de
   Paramètres), le nom, une ligne d'explication (annexe A), et « ouvert le 12/10 » (jour
@@ -251,6 +279,16 @@ fondateur (voir 11.1).
 pendant l'écriture. Message de confirmation : « Notes ouvertes aux stagiaires » ou « Notes
 masquées aux stagiaires ». Après écriture, l'état local est mis à jour et les écouteurs prévenus
 (barre, pastille).
+
+Après « Partir de l'ensemble de départ », le message est neutre (« Réglage des modules
+enregistré ») : un réglage lisible déjà en base est conservé tel quel (voir 7), l'ensemble de
+départ peut donc ne rien changer.
+
+Après chaque écriture, réussie ou non, la section se redessine **sur la section affichée à
+l'écran** (celle d'où est parti le clic a pu être remplacée entre-temps) et repart de l'état réel :
+après un échec, la case revient d'elle-même à son état. Le focus est rendu à la case actionnée (ou
+à la case où le formateur est passé entre-temps), pour qu'un formateur au clavier ne reparte pas du
+début de la page ; il n'est jamais pris à un champ d'une autre section.
 
 **Téléphone** : une colonne, lignes à cible tactile d'au moins 44 px, aucune barre de défilement
 horizontale.
@@ -299,24 +337,25 @@ déjà lues reviendraient comme neuves.
 |---|---|---|
 | `js/modules-data.js` (nouveau) | Le catalogue (annexe A), l'ordre des groupes, les routes du socle, le drapeau `REGLAGE_OUVERT_AUX_FORMATEURS` | rien |
 | `js/modules.js` (nouveau) | Règles pures : lecture du JSON, ouvert ou non, ensemble de départ, bascule, écriture du JSON, annonces, module d'une nouveauté, filtre. Aucun accès à la base ni au DOM, testé par node | rien (le catalogue est passé en argument) |
-| `js/modules-etat.js` (nouveau) | **Seul point de contact avec la base** : `chargerModules()`, état courant synchrone, `moduleVisible(cle)`, `moduleMasque(cle)`, `basculerModule(cle, ouvrir)`, `appliquerEnsembleDeDepart()`, `onModulesChange(cb)`, surveillance du premier plan, copie sur l'appareil, `nouveautesDeLaPromo()` | `db.js` (`getSetting`, `setSetting`), `auth-admin.js`, `modules.js`, `modules-data.js`, `nouveautes-data.js` |
+| `js/modules-etat.js` (nouveau) | **Seul point de contact avec la base**. Exports : `chargerModules()`, `chargerModulesAuDemarrage()` (lecture bornée du démarrage), `etatModules()` (état courant synchrone), `formateurConnecte()`, `moduleVisible(cle)`, `moduleMasque(cle)`, `routeVisible(route)`, `routeMasquee(route)`, `peutRegler()`, `onModulesChange(cb)`, `basculerModule(cle, ouvrir)`, `appliquerEnsembleDeDepart()`, `nouveautesAffichables()` (liste affichée et ids neufs) et `marquerLues(ids)`, seuls appelants de `vuesEffectives` et de `marquerVues` (`js/nouveautes.js`), `surveillerPremierPlan()`, `repereMasque(noeud, masque, cible)`. En interne : la copie sur l'appareil, la file d'écriture, le compteur de lectures périmées | `db.js` (`getSetting`, `setSetting`), `auth-admin.js`, `icons.js`, `modules.js`, `modules-data.js`, `nouveautes-data.js`, `nouveautes.js` |
 | `js/views/modules-reglage.js` (nouveau) | La section de Paramètres | `modules-etat.js`, `modules-data.js` |
-| `js/main.js` | `module` sur les entrées de `TABS` ; filtre et repère dans `renderTabs` ; garde dans `navigate()` et `derniereRoute()` ; chargement au démarrage ; bouton Actualiser ; bouton « Aujourd'hui » ; pastille via `nouveautesDeLaPromo()` | |
+| `js/main.js` | Filtre et repère dans `renderTabs` par la route (`routeVisible`, `routeMasquee`) ; garde dans `navigate()` et `derniereRoute()` ; chargement borné au démarrage (`chargerModulesAuDemarrage`, « Chargement » dans la vue) ; bouton Actualiser (« Chargement » pendant la relecture) ; bouton « Aujourd'hui » ; pastille via `nouveautesAffichables()` | |
 | `js/subtabs.js` | Champ `module` sur les sous-onglets : filtre, repère, barre masquée s'il n'en reste qu'un | `modules-etat.js` |
-| `js/views/home.js` | `module` sur les tuiles ; nouveautés via `nouveautesDeLaPromo()` | |
-| `js/views/nouveautes.js` | nouveautés via `nouveautesDeLaPromo()` | |
+| `js/views/home.js` | Tuiles filtrées et repérées par la route (`routeVisible`, `routeMasquee`) ; agenda et compte à rebours selon `routeVisible("calendrier")` ; nouveautés via `nouveautesAffichables()` et `marquerLues(ids)` | |
+| `js/views/nouveautes.js` | nouveautés via `nouveautesAffichables()` et `marquerLues(ids)` | |
 | `js/nouveautes.js` | exemption `module-` dans `purger()` | |
-| `js/views/notes.js`, `js/views/mon-suivi.js` | `module` sur les sous-onglets ; champ date de naissance | |
+| `js/views/notes.js`, `js/views/mon-suivi.js` | `module` sur les sous-onglets ; champ date de naissance ; sous-titre de Mon suivi | |
 | `js/views/themes.js` | colonnes Cours et QCM, note de matrice, clic sur le titre | |
 | `js/chatbot.js` | bulle absente ou repérée | |
 | `js/views/config.js` | montage de la section ; bloc anonymat | |
 | `js/icons.js`, `css/style.css` | icône `eyeOff`, classe `module-masque`, styles de la section (bloc CSS en fin de fichier) | |
 | `js/nouveautes-data.js` | champ `module` documenté ; entrée « formateurs » à la livraison | |
 
-Le masquage est **déclaratif** : un onglet, une tuile ou un sous-onglet déclare
-`module: "notes"`, et le filtre est appliqué en un seul endroit par famille (barre d'onglets,
-`renderSubTabs`, routeur). Les quelques points d'accroche qui ne sont ni des onglets ni des
-sous-onglets (colonnes de Thèmes, bulle, champ, bloc, bouton du haut) appellent
+Le masquage est **déclaratif** : la barre d'onglets et les tuiles ne portent pas de champ `module`,
+elles passent par leur route et `MODULE_DE_ROUTE` (`routeVisible`, `routeMasquee`) ; seuls les
+sous-onglets déclarent `module: "notes"`. Le filtre est appliqué en un seul endroit par famille
+(barre d'onglets, tuiles, `renderSubTabs`, routeur). Les quelques points d'accroche qui ne sont ni
+des onglets ni des sous-onglets (colonnes de Thèmes, bulle, champ, bloc, bouton du haut) appellent
 `moduleVisible()` explicitement.
 
 Les deux questions que pose une vue :
@@ -367,15 +406,21 @@ d'ouverture de A.
 
 **Fichiers touchés des deux côtés** : `main.js`, `views/home.js`, `views/nouveautes.js`,
 `nouveautes.js` (A y ajoute une date d'amorce à `vuesEffectives`, B une exemption dans
-`purger()` et la liste `nouveautesDeLaPromo()` aux trois appelants) et `views/config.js`. Le
-second à fusionner reprend `main` et résout.
+`purger()`) et `views/config.js`. Le second à fusionner reprend `main` et résout.
+
+Les trois lecteurs des nouveautés (pastille de `main.js`, `views/home.js`, `views/nouveautes.js`)
+n'appellent plus `vuesEffectives` : seul `nouveautesAffichables()` de `js/modules-etat.js` le fait.
+La date d'amorce de A (sa spec C.6) s'ajoute donc à cet unique appel. Le test
+`tests/nouveautes.test.mjs` compte désormais 18 assertions. Si une clé `modules` existe dans
+`settings` au moment de la migration de A, elle appartient à la promo de mars.
 
 ### 11.2 Avec D (onglets CCP1 et CCP2)
 
-Ajouter un module = une entrée dans `MODULES` (`js/modules-data.js`) et un `module: "ccp1"` sur
-l'onglet. Si l'EPCF, le Livret ou le Dossier pro déménagent dans ces onglets, D met à jour leur
-`parent`. Les promos réglées verront les nouveaux onglets fermés (4.2) : prévoir leur ouverture
-pour une promo qui doit les voir tout de suite.
+Ajouter un onglet module = une entrée dans `MODULES` (`js/modules-data.js`) et sa route dans
+`MODULE_DE_ROUTE` (un champ `module` sur une entrée de `TABS` serait ignoré) ; un sous-onglet,
+lui, porte `module: "ccp1"`. Si l'EPCF, le Livret ou le Dossier pro déménagent dans ces onglets, D
+met à jour leur `parent`. Les promos réglées verront les nouveaux onglets fermés (4.2) : prévoir
+leur ouverture pour une promo qui doit les voir tout de suite.
 
 ## 12. Sécurité
 
@@ -389,7 +434,8 @@ pour une promo qui doit les voir tout de suite.
   de promo (`request.headers` portant `x-promo-id`) : un formateur écrit la clé de la promo
   qu'il a choisie et n'atteint pas celle de l'autre.
 - Toute écriture passe par `modules-etat.js`, appelé seulement depuis la section de réglage,
-  elle-même gardée par `isAdmin()`.
+  elle-même gardée par `peutRegler()`, pas seulement par `isAdmin()` : tant que
+  `REGLAGE_OUVERT_AUX_FORMATEURS` vaut `false`, le fondateur seul.
 
 ## 13. Tests et preuves
 
@@ -404,7 +450,9 @@ pour une promo qui doit les voir tout de suite.
 - annonces : seulement après `depuis`, seulement pour les modules ouverts parent compris, id et
   date en heure de Paris (cas d'une ouverture à 00 h 30) ;
 - module d'une nouveauté (champ `module`, `ou` avec et sans sous-onglet, sans `ou`) et filtre ;
-- `purger()` garde les ids `module-` (dans `tests/nouveautes.test.mjs`).
+- `purger()` garde les ids `module-` (dans `tests/nouveautes.test.mjs`) ;
+- ids des nouveautés écrites uniques (la pastille compte un ensemble d'ids), dans
+  `tests/modules.test.mjs`.
 
 **Banc complet** (`_harness.html`, client Supabase factice, copié depuis `TP_ECSR_App` ;
 fixture `settings.modules` pilotée par un levier d'URL) :
@@ -416,9 +464,14 @@ fixture `settings.modules` pilotée par un levier d'URL) :
 - Mon espace sans barre de sous-onglets ; Notes ouvert avec seulement la Matrice ;
 - Thèmes ouvert sans Cours ni QCM ;
 - formateur : tout présent, un repère par module fermé ;
-- section de réglage : bascules, écritures relevées dans le journal du client factice, mise à
+- section de réglage : bascules (la première, sur une promo libre, demande confirmation : un
+  refus ne laisse aucune écriture), écritures relevées dans le journal du client factice, mise à
   jour de la barre et de la pastille ;
-- annonces : nombre de la pastille après ouverture de Notes.
+- annonces : nombre de la pastille après ouverture de Notes ;
+- démarrage borné : avec `?lenteur=<ms>&lenteur_tables=settings` (retarde les lectures du client
+  factice, ici celles de `settings`, jamais les écritures : sans `lenteur_tables`, l'ouverture de
+  l'app est retardée elle aussi), la barre est dessinée au bout de 3,5 s d'après la copie de
+  l'appareil (sinon tout ouvert), puis redessinée à l'arrivée de la vraie réponse.
 
 **Banc autonome versionné** `_preview_modules.html` (peint par le pane, contrairement à l'app
 complète) : la section de réglage et les repères, à 375 px et en largeur bureau, en formateur

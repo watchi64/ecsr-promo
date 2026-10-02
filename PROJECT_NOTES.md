@@ -222,11 +222,14 @@ Spec : `docs/superpowers/specs/2026-10-01-modules-design.md` · plan :
 Les formateurs ouvrent les parties de l'app au fil de la progression d'une promo
 (Paramètres › Modules de la promo).
 
-- **État** : clé `modules` de `settings`, texte JSON `{v, depuis, ouverts: {clé: heure ISO}}`,
-  propre à chaque promo par le multi-promo (chantier A). Clé absente = **tout ouvert** (promo de
-  mars). Lu et écrit **uniquement** par `js/modules-etat.js` (via `getSetting` / `setSetting`).
-  Écritures mises en file, relecture juste avant d'écrire, lecture périmée ignorée ; « Partir de
-  l'ensemble de départ » ne remplace jamais un réglage lisible déjà en base.
+- **État** : clé `modules` de `settings`, texte JSON `{v, depuis, ouverts: {clé: heure ISO}}`.
+  Elle sera propre à chaque promo une fois le multi-promo (chantier A) en ligne : tant qu'il n'existe
+  qu'une promo, il n'y a qu'une clé. Clé absente = **tout ouvert** (promo de mars). Lu et écrit
+  **uniquement** par `js/modules-etat.js` (via `getSetting` / `setSetting`). Écritures mises en
+  file, relecture juste avant d'écrire, lecture périmée ignorée ; « Partir de l'ensemble de départ »
+  ne remplace jamais un réglage lisible déjà en base. Démarrage borné : au-delà de 3,5 s, la barre est
+  dessinée d'après la copie de l'appareil (sinon tout ouvert) et la vraie réponse la redessine à son
+  arrivée (`chargerModulesAuDemarrage`).
 - **Catalogue** : `js/modules-data.js` (12 modules, groupes, parent, ensemble de départ, accords,
   textes d'annonce). Ajouter un module = une entrée + `module: "<clé>"` sur le sous-onglet, ou sa
   route dans `MODULE_DE_ROUTE`. Un module ajouté arrive **fermé** chez les promos réglées.
@@ -239,8 +242,10 @@ Les formateurs ouvrent les parties de l'app au fil de la progression d'une promo
   (Calendrier), bulle (`appliquerModuleAssistant`), bouton « Aujourd'hui ».
 - **Formateurs** : voient tout ; ce qui est fermé porte le repère « Masqué aux stagiaires »
   (`repereMasque()`, classe `module-masque`, œil `marque-masque`). Pièges : `.tab span
-  { display: none }` sur mobile, d'où `.tab .marque-masque` en 0,2,0 ; l'en-tête du tableau de
-  Thèmes est masqué sous 720 px, d'où la bande `.a-repere` qui n'affiche que les colonnes repérées.
+  { display: none }` sur mobile, d'où `.tab .marque-masque` en 0,2,0, posé en absolu sur le coin de
+  l'icône (en flux, trois onglets repérés faisaient déborder la barre à 375 px) ; l'en-tête du
+  tableau de Thèmes est masqué sous 720 px, d'où la bande `.a-repere` qui n'affiche que les
+  colonnes repérées.
 - **Nouveautés** : chaque ouverture postérieure à la mise en place devient une annonce (id
   `module-<clé>-<heure>`). Point unique : `nouveautesAffichables()` et `marquerLues(ids)` dans
   `modules-etat.js`, seuls appelants de `vuesEffectives` et `marquerVues` : la date d'amorce du
@@ -248,13 +253,29 @@ Les formateurs ouvrent les parties de l'app au fil de la progression d'une promo
   écrite la masque aux stagiaires d'une promo où ce module est fermé.
 - **Réglage réservé au fondateur** tant que `REGLAGE_OUVERT_AUX_FORMATEURS` vaut `false` : avant
   le multi-promo, un formateur fermerait des modules à la promo de mars.
-- **Nouvelle promo** : à régler (« Partir de l'ensemble de départ », connecté sur cette promo)
-  **avant** d'inviter ses stagiaires, sinon elle voit tout.
-- **Bancs** : `_harness.html` (app complète ; `?modules=depart|notes|themes|enfant|illisible`,
-  `?role=prof`, `?date=2026-10-20` pour qu'une bascule soit postérieure au réglage factice du
-  05/10), généré par `_harness_build.mjs`, qui remappe désormais chaque module vers une URL neuve :
-  plus besoin de re-versionner une branche pour tester. `_preview_modules.html` (versionné, peint par
-  le pane, `?fondateur=1`, fermé au réseau par sa CSP, jeton lu dans `index.html`).
+- **Première bascule** d'une case sur une promo libre ou illisible : confirmation (elle fige un
+  réglage pour tous les stagiaires, et l'app ne sait plus revenir à « aucun réglage »). Refus : la
+  case revient, rien n'est écrit.
+- **Quand le multi-promo (A) sera en ligne** :
+  - passer `REGLAGE_OUVERT_AUX_FORMATEURS` à `true`, avec une entrée Nouveautés « formateurs » ;
+  - ajouter l'identifiant de promo à la clé de copie de l'appareil (`cleCopie()`, via
+    `getPromoCourante()`) ;
+  - rejouer la preuve RLS avec l'en-tête `x-promo-id` ;
+  - régler la promo de septembre (« Partir de l'ensemble de départ », connecté sur cette promo)
+    **avant** d'inviter ses stagiaires, sinon elle voit tout ;
+  - la date d'amorce de A s'ajoute dans `nouveautesAffichables()`.
+- **Marche arrière** vers l'état « aucun réglage » (tout ouvert) : l'app ne sait pas le faire, c'est
+  une migration, `delete from public.settings where key = 'modules';` (avec la condition de promo
+  une fois A en ligne).
+- **Bancs** : `_harness.html` (app complète), `_harness_build.mjs` et `_harness_supabase.js` ne sont
+  **pas versionnés** : ils vivent dans `C:/Users/watch/Dev/ECSR/TP_ECSR_App` (exclus de git). Leviers
+  d'URL : `?modules=depart|notes|themes|enfant|illisible`, `?role=prof`, `?date=2026-10-20` (pour
+  qu'une bascule soit postérieure au réglage factice du 05/10), `?lenteur=<ms>` (retarde chaque
+  lecture du faux client : preuve du démarrage borné ; ajouter `&lenteur_tables=settings` pour ne
+  pas retarder aussi l'ouverture de l'app). `_harness_build.mjs` génère la page et remappe
+  chaque module vers une URL neuve : plus besoin de re-versionner une branche pour tester. Seuls
+  `_preview_modules.html` (peint par le pane, `?fondateur=1`, fermé au réseau par sa CSP, jeton lu
+  dans `index.html`) et ses doublures `_preview_stubs/` sont versionnés.
 - **Preuve RLS** (02/10, avant multi-promo, transaction annulée) : un stagiaire ne peut pas écrire
   la clé `modules`, un formateur le peut. À rejouer avec l'en-tête `x-promo-id` une fois A en ligne.
 
