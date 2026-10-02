@@ -6,7 +6,7 @@
 
 import { el, clear, formatDate } from "../utils.js?v=20261001a";
 import { isAdmin, isProf } from "../auth-admin.js?v=20261001a";
-import { NOUVEAUTES } from "../nouveautes-data.js?v=20261001a";
+import { nouveautesDeLaPromo, toutesLesNouveautes } from "../modules-etat.js?v=20261001a";
 import {
   triees, visibles, nonLues, vuesEffectives, marquerVues, STORAGE_SOUS_ONGLET,
 } from "../nouveautes.js?v=20261001a";
@@ -57,8 +57,11 @@ export async function renderNouveautes(container) {
   clear(container);
 
   const formateur = isAdmin() || isProf();
-  const mesEntrees = triees(visibles(NOUVEAUTES, formateur));
-  const neuves = new Set(nonLues(mesEntrees, vuesEffectives(NOUVEAUTES)).map((e) => e.id));
+  // Nouveautés de la promo (annonces d'ouverture de module comprises) ; la
+  // mémoire des nouveautés lues reçoit la liste complète.
+  const toutes = toutesLesNouveautes();
+  const mesEntrees = triees(visibles(nouveautesDeLaPromo(), formateur));
+  const neuves = new Set(nonLues(mesEntrees, vuesEffectives(toutes)).map((e) => e.id));
 
   container.appendChild(el("div", { class: "view-header" },
     el("h1", {}, "Nouveautés"),
@@ -80,6 +83,6 @@ export async function renderNouveautes(container) {
   // La page complète marque TOUT comme lu, la section d'Accueil ne marque que
   // les entrées qu'elle affiche. La pastille se met à jour par l'événement, ce
   // qui évite un import circulaire avec main.js.
-  marquerVues(mesEntrees.map((e) => e.id), NOUVEAUTES);
+  marquerVues(mesEntrees.map((e) => e.id), toutes);
   window.dispatchEvent(new CustomEvent("nouveautes-vues"));
 }

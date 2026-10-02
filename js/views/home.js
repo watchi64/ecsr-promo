@@ -6,7 +6,9 @@ import { listAgendaEvents } from "../db.js?v=20261001a";
 import { el, clear, parseDate, formatDate, isoDate } from "../utils.js?v=20261001a";
 import { icon } from "../icons.js?v=20261001a";
 import { isAdmin, isProf, getProfile, getProfileWho } from "../auth-admin.js?v=20261001a";
-import { NOUVEAUTES } from "../nouveautes-data.js?v=20261001a";
+import {
+  nouveautesDeLaPromo, toutesLesNouveautes, routeVisible, routeMasquee, repereMasque,
+} from "../modules-etat.js?v=20261001a";
 import { triees, visibles, nonLues, vuesEffectives, marquerVues } from "../nouveautes.js?v=20261001a";
 import { carteNouveaute } from "./nouveautes.js?v=20261001a";
 
@@ -57,11 +59,14 @@ function countdownLabel(days) {
 const ACCUEIL_MAX = 3;
 
 function sectionNouveautes() {
-  const mesEntrees = triees(visibles(NOUVEAUTES, isAdmin() || isProf()));
+  // Nouveautés de la promo (annonces d'ouverture de module comprises) ; la
+  // mémoire des nouveautés lues reçoit la liste complète.
+  const toutes = toutesLesNouveautes();
+  const mesEntrees = triees(visibles(nouveautesDeLaPromo(), isAdmin() || isProf()));
   if (mesEntrees.length === 0) return null;
 
   // Le calcul du neuf se fait AVANT le marquage, sinon plus rien n'aurait sa puce.
-  const neuves = new Set(nonLues(mesEntrees, vuesEffectives(NOUVEAUTES)).map((e) => e.id));
+  const neuves = new Set(nonLues(mesEntrees, vuesEffectives(toutes)).map((e) => e.id));
   const affichees = mesEntrees.slice(0, ACCUEIL_MAX);
 
   const section = el("section", { class: "home-nouveautes" },
@@ -76,7 +81,7 @@ function sectionNouveautes() {
 
   // Accueil ne marque que ce qu'il montre. La pastille tombe donc de 3, ce qui
   // invite à ouvrir la liste complète quand il reste des entrées plus anciennes.
-  marquerVues(affichees.map((e) => e.id), NOUVEAUTES);
+  marquerVues(affichees.map((e) => e.id), toutes);
   window.dispatchEvent(new CustomEvent("nouveautes-vues"));
   return section;
 }
@@ -133,16 +138,18 @@ export async function renderHome(container) {
   ];
 
   container.appendChild(el("div", { class: "home-tiles" },
-    ...tiles.map((t) => el("a", {
-      class: "home-tile",
-      href: "#/" + t.route,
-    },
-      el("div", { class: "home-tile-icon" }, icon[t.icon]()),
-      el("div", { class: "home-tile-body" },
-        el("span", { class: "home-tile-title" }, t.title),
-        el("span", { class: "home-tile-desc" }, t.desc),
-      ),
-    )),
+    ...tiles.filter((t) => routeVisible(t.route)).map((t) => {
+      const titre = el("span", { class: "home-tile-title" }, t.title);
+      const tuile = el("a", { class: "home-tile", href: "#/" + t.route },
+        el("div", { class: "home-tile-icon" }, icon[t.icon]()),
+        el("div", { class: "home-tile-body" },
+          titre,
+          el("span", { class: "home-tile-desc" }, t.desc),
+        ),
+      );
+      // Module fermé pour la promo : tuile gardée chez un formateur, repérée.
+      return repereMasque(tuile, routeMasquee(t.route), titre);
+    }),
   ));
 
   // === Prochains événements (agenda) ===
