@@ -9,6 +9,7 @@ import { openQcmEntrainement, openQcmExamen } from "./qcm.js?v=20261001a";
 import { carteSignalement, renderConsoleSignalements, chargerAuteurs } from "./signalements.js?v=20261001a";
 import { renderSubTabs } from "../subtabs.js?v=20261001a";
 import { hasCours, openCoursSheet, chargerCoursIndex, coursDejaOuvert } from "./cours-reader.js?v=20261001a";
+import { moduleVisible, moduleMasque, repereMasque } from "../modules-etat.js?v=20261001a";
 
 let themes = [];
 let qcmByTheme = new Map();  // theme_id -> { id, nb_questions, published, ... }
@@ -30,19 +31,35 @@ window.addEventListener("qcm-attempt-saved", async () => {
   try { await reload(lastContainer); } catch (e) { /* refresh silencieux */ }
 });
 
-// Phase dev : le QCM n'est visible que par le fondateur en vue réelle.
-// En aperçu « Voir en tant que … », il disparaît (= ce que verra un élève).
-// La RLS (lecture QCM = fondateur) double cette restriction côté serveur.
+// La colonne QCM, la fiche QCM et le bouton QCM de fin de cours suivent le module
+// « qcm » (js/modules-data.js) : fermé pour la promo, il disparaît chez un
+// stagiaire, un formateur le garde avec le repère. Le filtrage des QCM eux-mêmes
+// reste fait par la RLS : un stagiaire ne reçoit que les QCM publiés.
 function canSeeQcm() {
-  // Ouvert a tout utilisateur connecte depuis la publication des QCM (31/07).
-  // Le filtrage est fait par la RLS, pas ici : un stagiaire ne recoit que les QCM
-  // publies, un formateur recoit en plus les brouillons. Garder un test de role
-  // ici reviendrait a cacher a la promo ce que la base lui autorise deja.
-  return true;
+  return moduleVisible("qcm");
+}
+
+// Le cours d'un thème n'est proposé que si le module « cours » est visible et
+// que le thème a un cours (index chargé par chargerCoursIndex). Remplace
+// hasCours() dans toute cette vue.
+function coursVisible(theme) {
+  return moduleVisible("cours") && hasCours(theme);
+}
+
+// En-tête de colonne d'un module, repéré chez un formateur quand le module est
+// fermé pour la promo.
+function enteteColonne(libelle, cle) {
+  return repereMasque(el("span", {}, libelle), moduleMasque(cle));
 }
 
 async function loadQcmIndex() {
-  if (!canSeeQcm()) { qcmByTheme = new Map(); myExamByQcm = new Map(); myTrainByQcm = new Map(); myNoteByThemeNum = new Map(); signalByQcm = {}; return; }
+  if (!canSeeQcm()) {
+    qcmByTheme = new Map(); myExamByQcm = new Map(); myTrainByQcm = new Map(); myNoteByThemeNum = new Map(); signalByQcm = {};
+    // L'index des cours ne dépend pas des QCM : sans ce chargement, fermer le
+    // module QCM ferait disparaître les cours avec lui.
+    await chargerCoursIndex().catch(() => null);
+    return;
+  }
   try {
     const profile = await getMyProfile();
     // Les signalements ouverts sont comptés dès la liste : sinon le formateur devrait
@@ -81,6 +98,8 @@ async function loadQcmIndex() {
 // Ma note "officielle" pour un thème : matrice Notes si numéroté, sinon la tentative examen du QCM.
 function myThemeNote(theme, qcm) {
   if (theme.numero != null) {
+    // Note officielle de la matrice : elle appartient au module Notes.
+    if (!moduleVisible("notes")) return null;
     const e = myNoteByThemeNum.get(theme.numero);
     return e ? Math.round((Number(e.note) / Number(e.note_max || 20)) * 20 * 10) / 10 : null;
   }
@@ -1104,7 +1123,7 @@ function openThemeModal(theme) {
       el("h3", { class: "theme-modal-titre" }, theme.titre),
     ),
     theme.categorie ? el("p", { class: "muted theme-modal-cat" }, theme.categorie) : null,
-    hasCours(theme)
+    coursVisible(theme)
       ? el("div", { class: "theme-cours-cta" },
           el("button", { class: "btn primary full", type: "button",
             onClick: () => { backdrop.remove(); openCoursSheet(theme, optionsCoursPour(theme)); } },
@@ -1113,9 +1132,15 @@ function openThemeModal(theme) {
             "Synthèse, contenu détaillé, sanctions sourcées, chiffres clés et aide-mémoire."),
         )
       : el("div", { class: "theme-modal-placeholder" },
-          el("p", {}, "Le cours de ce thème est en cours de rédaction."),
-          el("p", { class: "muted", style: "font-size:0.82rem" },
-            "Le QCM (entraînement et examen) est accessible depuis la colonne QCM de la liste."),
+          // Un cours qui existe mais dont le module est fermé ne doit pas passer
+          // pour « en cours de rédaction ».
+          el("p", {}, hasCours(theme)
+            ? "Le cours de ce thème n'est pas encore ouvert pour ta promo."
+            : "Le cours de ce thème est en cours de rédaction."),
+          canSeeQcm()
+            ? el("p", { class: "muted", style: "font-size:0.82rem" },
+                "Le QCM (entraînement et examen) est accessible depuis la colonne QCM de la liste.")
+            : null,
         ),
     el("div", { class: "modal-actions" },
       el("button", { class: "btn primary", onClick: () => backdrop.remove() }, "Fermer"),
@@ -1181,7 +1206,7 @@ function renderThemeRow(theme, container, coursOn = false) {
 
   // Colonne Cours : bouton vif tant que le cours n'a pas été ouvert sur cet
   // appareil, atténué ensuite. Le clic sur le titre suit le même chemin.
-  const coursBtn = hasCours(theme)
+  const coursBtn = coursVisible(theme)
     ? el("button", {
         class: "theme-cours-btn" + (coursDejaOuvert(theme.numero) ? " deja-lu" : ""),
         type: "button",
@@ -1202,8 +1227,8 @@ function renderThemeRow(theme, container, coursOn = false) {
   // thème ne sert plus que lorsqu'il n'y a pas encore de cours à lire.
   const titreBtn = el("button", {
     class: "theme-titre-link", type: "button",
-    title: hasCours(theme) ? "Lire le cours" : "Voir le contenu du thème",
-    onClick: () => hasCours(theme) ? ouvrirCours() : openThemeModal(theme),
+    title: coursVisible(theme) ? "Lire le cours" : "Voir le contenu du thème",
+    onClick: () => coursVisible(theme) ? ouvrirCours() : openThemeModal(theme),
   }, theme.titre);
 
   // Colonne QCM : cellule dédiée à droite, jamais sous le titre. Un stagiaire n'y
@@ -1530,7 +1555,7 @@ function rerender(container) {
       // Liste des thèmes/notions, sous-groupée par catégorie si c'est une famille avec sous-cats (thèmes officiels)
       // La colonne Cours n'existe que si au moins un thème de la section a un
       // cours visible (un stagiaire sans cours publié garde la liste d'avant).
-      const coursOn = items.some((t) => hasCours(t));
+      const coursOn = items.some((t) => coursVisible(t));
       const list = el("div", { class: "themes-list"
         + (canSeeQcm() ? " qcm-on" : "") + (coursOn ? " cours-on" : "") });
       list.appendChild(el("div", { class: "theme-row theme-header" },
@@ -1538,8 +1563,8 @@ function rerender(container) {
         el("span", {}, "Thème"),
         el("span", {}, "Statut"),
         el("span", {}, "Fait le"),
-        coursOn ? el("span", {}, "Cours") : null,
-        canSeeQcm() ? el("span", {}, "QCM") : null,
+        coursOn ? enteteColonne("Cours", "cours") : null,
+        canSeeQcm() ? enteteColonne("QCM", "qcm") : null,
         el("span", {}),
       ));
 
