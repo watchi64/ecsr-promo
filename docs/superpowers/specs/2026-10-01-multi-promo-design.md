@@ -347,8 +347,8 @@ de progression est « À faire », un QCM sans ligne d'examen est fermé.
 `vuesEffectives` reçoit une date d'amorce : la plus tardive entre `MISE_EN_LIGNE` (2026-08-01) et
 la `date_debut` de la promo courante. Au premier passage sur un appareil, les entrées antérieures
 comptent comme déjà lues ; elles restent lisibles dans la page Nouveautés comme historique de
-l'app. Appelants : `main.js` (pastille de l'onglet Accueil), `views/home.js`,
-`views/nouveautes.js`. Test `node` mis à jour.
+l'app. Depuis le chantier B, un seul appelant : `nouveautesAffichables()` de
+`js/modules-etat.js` (les trois vues passent par lui). Test `node` mis à jour.
 
 ### C.7 Ancienne version en cache
 
@@ -368,7 +368,7 @@ jamais une écriture au mauvais endroit : on demande aux formateurs de rafraîch
 | **1. Fondations** (migration) | `lieux` (Nîmes, Montpellier) et `promos` (2 lignes, à Nîmes) ; colonnes `lieu_id` des banques remplies avec Nîmes ; colonnes `promo_id` remplies avec 1, puis rendues non nulles avec leur défaut ou leur trigger ; index ; `themes_progression` et `qcm_examens` remplies pour la promo 1 ; fonctions de B.2 ; triggers de D.2. Nouvelles unicités **ajoutées à côté** des anciennes. Règles d'accès inchangées | Personne | Migration retour : suppression de tout l'ajouté, rien d'existant n'a été modifié |
 | **2. Cloisonnement** (migration) | Photo « avant » (E.2) ; répétition des nouvelles règles dans une transaction annulée, avec le script de preuve ; puis application réelle de B.3, B.4 et B.5. Script de preuve vert, photo « après » identique | Personne : l'app actuelle n'envoie pas d'en-tête, elle reste sur la promo 1 | Migration retour écrite d'avance, qui recrée les règles et fonctions relevées le 01/10 à l'identique |
 | **3. App et formateurs** | Fusion dans `main` (contexte, pastille, `db.js`, Paramètres, Nouveautés et entrée « formateurs »), poussée par Timy, contrôle en ligne. **Ensuite seulement**, migration de bascule : suppression des anciennes unicités et de la clé primaire `key` de `settings`. Les formateurs préparent septembre : stagiaires, calendrier, planning | Formateurs et Timy | Revenir au commit précédent ; recréer les anciennes unicités tant que septembre n'a pas de données, ensuite corriger en avant |
-| **4. Ouverture aux 8** | Après la livraison des modules (B) : saisie des 8 dans Paramètres, invitations, preuve rejouée avec un vrai compte de septembre, message WhatsApp | Les 8 | Retirer les invitations |
+| **4. Ouverture aux 8** | Après la livraison des modules (B) : réglage des modules de septembre (« Partir de l'ensemble de départ »), saisie des 8 dans Paramètres, invitations, preuve rejouée avec un vrai compte de septembre, message WhatsApp | Les 8 | Retirer les invitations |
 | **5. Ménage** | Quand plus aucun appareil ne tourne sur l'ancienne version : suppression des triggers de D.2, des anciennes colonnes de `themes` et `qcm`, et des réglages `cohort_name` et `password_hash` | Personne | Inutile : tout vit dans les nouvelles tables |
 
 L'ordre de l'étape 3 compte : la nouvelle version fonctionne avec les anciennes et les nouvelles
@@ -455,6 +455,12 @@ formateur ou du fondateur ; septembre vide, mars intacte.
   B en a besoin, s'appuie sur `promo_courante()`. Le filtre des Nouveautés par date de promo est
   pris par A. B lit cette spec par
   `git -C C:/Users/watch/Dev/ECSR/TP_ECSR_App show multi-promo:docs/superpowers/specs/2026-10-01-multi-promo-design.md`.
+- **Suites du chantier B prises par A à l'étape 3** (B est livré depuis le 02/10, sa conversation
+  est close) : réglage des modules ouvert aux formateurs (`REGLAGE_OUVERT_AUX_FORMATEURS = true`,
+  annoncé dans l'entrée Nouveautés « formateurs » de A), clé de copie de l'état des modules propre
+  à la promo (`cleCopie()`), écriture de la clé `modules` couverte par la preuve de A. À l'étape 4,
+  **avant** d'inviter les 8 : un formateur placé sur septembre clique Paramètres › Modules de la
+  promo › « Partir de l'ensemble de départ », sinon la promo voit tout.
 - **C (cours REMC, branche `cours-remc`)** : `cours` reste commune ; aucun conflit attendu ; se
   prévenir avant de fusionner.
 - Fusions : A touche surtout `db.js` (transport, thèmes, QCM, réglages, upserts), `auth-admin.js`,

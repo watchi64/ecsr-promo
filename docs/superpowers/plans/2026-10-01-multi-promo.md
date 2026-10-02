@@ -39,7 +39,8 @@ question de fond).
 - Français partout (code, commentaires, libellés, commits). « Formateur », jamais « Prof », dans un
   libellé visible.
 - Jeton de cache : tout nouvel import relatif porte le jeton déjà présent sur la branche
-  (`?v=20261001a` au 01/10 ; le relever par `grep -o 'v=2026[0-9]*[a-z]' index.html | head -1`).
+  (`?v=20261002b` au 02/10, après la livraison du chantier B ; le relever par
+  `grep -o 'v=2026[0-9]*[a-z]' index.html | head -1`).
   Ne jamais lancer `scripts/cache-bust.js` sur la branche, ne jamais le piper : le hook
   re-tokenise à la fusion dans `main`.
 - Nouveau bloc CSS : en FIN de `css/style.css`.
@@ -75,7 +76,7 @@ question de fond).
 | `js/promo-pastille.js` | Pastille et choix de la promo |
 | `js/db.js` | Contexte de promo, en-tête, profil effectif, lectures et écritures par promo |
 | `js/auth-admin.js` | Démarrage (promos avant toute lecture), pastille dans la barre |
-| `js/main.js`, `js/views/home.js`, `js/views/nouveautes.js`, `js/nouveautes.js`, `tests/nouveautes.test.mjs` | Amorce des Nouveautés par promo |
+| `js/nouveautes.js`, `tests/nouveautes.test.mjs`, `js/modules-etat.js`, `js/modules-data.js` | Amorce des Nouveautés par promo ; suites du chantier B (clé de copie de l'état des modules propre à la promo, réglage des modules ouvert aux formateurs) |
 | `js/nouveautes-data.js` | Entrée « formateurs » |
 | `js/views/planning.js` | La bascule attend les enregistrements en cours |
 | `js/views/config.js` | Nom et lieu de la promo, nom de famille des stagiaires |
@@ -172,8 +173,14 @@ begin
     execute format('select count(*), count(*) filter (where promo_id = 1) from public.%I', v_table) into n, m;
     perform pg_temp.ok('rattachement à mars : ' || v_table, n = m, n || ' lignes dont ' || m || ' en promo 1');
   end loop;
-  select count(*) filter (where promo_id = 1), count(*) filter (where promo_id is null) into n, m from settings;
-  perform pg_temp.ok('réglages : 3 de promo, 3 globaux', n = 3 and m = 3, n || ' de promo, ' || m || ' globaux');
+  -- Réglages : les trois clés globales sans promo, toutes les autres en mars (y compris une
+  -- éventuelle clé « modules » posée avant la migration, cf. chantier B).
+  select count(*) filter (where promo_id is null),
+         count(*) filter (where promo_id is distinct from 1
+                            and key not in ('chatbot_quota_jour', 'cohort_name', 'password_hash'))
+    into n, m from settings;
+  perform pg_temp.ok('réglages : 3 globaux, tous les autres en mars', n = 3 and m = 0,
+    n || ' globaux, ' || m || ' hors mars');
   select count(*) into n from settings
    where promo_id is null and key not in ('chatbot_quota_jour', 'cohort_name', 'password_hash');
   perform pg_temp.ok('réglages globaux : seulement les trois prévus', n = 0, n || ' en trop');
@@ -1434,6 +1441,22 @@ begin
   perform pg_temp.verifier('formateur en septembre : réglage de septembre', v_txt = 'OK 1 2', v_txt);
   v_txt := pg_temp.ecrire(v_stag1, null, 'update public.settings set value = value returning key');
   perform pg_temp.verifier('stagiaire : aucun réglage modifiable', v_txt = 'OK 0 nul' or v_txt like 'REFUS%', v_txt);
+  -- Clé « modules » du chantier B : un formateur la règle pour la promo affichée, un stagiaire
+  -- jamais. Avant la bascule, la clé primaire porte encore sur « key » : si mars a déjà sa clé
+  -- « modules », l'écriture pour septembre attend la bascule (Tâche 16).
+  if exists (select 1 from settings where key = 'modules' and promo_id = 1)
+     and exists (select 1 from pg_constraint where conrelid = 'public.settings'::regclass
+                  and contype = 'p' and pg_get_constraintdef(oid) = 'PRIMARY KEY (key)') then
+    perform pg_temp.verifier('modules (chantier B) : écriture par promo, à rejouer après la bascule', true,
+      'clé primaire encore sur key');
+  else
+    v_txt := pg_temp.ecrire(v_form, '2', 'insert into public.settings (key, value) values (''modules'', ''{}'') '
+      || 'on conflict (promo_id, key) do update set value = excluded.value returning promo_id::text');
+    perform pg_temp.verifier('modules (chantier B) : un formateur règle la promo affichée', v_txt = 'OK 1 2', v_txt);
+  end if;
+  v_txt := pg_temp.ecrire(v_fictif, '2', 'insert into public.settings (key, value) values (''modules'', ''{}'') '
+    || 'on conflict (promo_id, key) do update set value = excluded.value returning promo_id::text');
+  perform pg_temp.verifier('modules (chantier B) : un stagiaire ne règle rien', v_txt like 'REFUS%', v_txt);
   v_txt := pg_temp.ecrire(v_form, '2', 'insert into public.benevoles (prenom) values (''PreuveB'') returning lieu_id::text');
   perform pg_temp.verifier('bénévole créé depuis septembre : banque de Nîmes', v_txt = 'OK 1 1', v_txt);
   v_txt := pg_temp.ecrire(v_form, v_mtp::text, 'insert into public.benevoles (prenom) values (''PreuveB'') returning lieu_id::text');
@@ -2548,20 +2571,20 @@ Remplacer :
 
 ```js
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261001a";
-import { compteDansEquite } from "./passage-rules.js?v=20261001a";
+import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261002b";
+import { compteDansEquite } from "./passage-rules.js?v=20261002b";
 ```
 
 par :
 
 ```js
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261001a";
-import { compteDansEquite } from "./passage-rules.js?v=20261001a";
+import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261002b";
+import { compteDansEquite } from "./passage-rules.js?v=20261002b";
 import {
   ENTETE_PROMO, doitPorterEntetePromo, choisirPromoInitiale, profilEffectif,
   separerChamps, CHAMPS_PROGRESSION, CHAMPS_EXAMEN, fusionnerProgression, fusionnerExamen,
-} from "./promo-rules.js?v=20261001a";
+} from "./promo-rules.js?v=20261002b";
 
 // Contexte de promo (spec multi-promo, C.1). La promo courante voyage dans l'en-tête
 // x-promo-id de chaque requête de données ; la base vérifie le droit et filtre.
@@ -2691,7 +2714,7 @@ export async function deleteUserProfile(email) {
 - [ ] **Étape 5 : le planning inscrit son attente**
 
 Dans `js/views/planning.js`, ajouter `avantChangementPromo,` à la liste importée depuis
-`"../db.js?v=20261001a"` (par exemple après `getVoitureAggregats, listFiches, getSalleAggregats,`),
+`"../db.js?v=20261002b"` (par exemple après `getVoitureAggregats, listFiches, getSalleAggregats,`),
 puis insérer juste après la fonction `flushPendingInputs` (après sa `}` fermante) :
 
 ```js
@@ -2988,9 +3011,9 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>" && git log --oneline -1
 // Pastille de la promo affichée (spec multi-promo C.2) : visible seulement à qui a au
 // moins deux promos (formateurs, fondateur). Un appui ouvre le choix ; choisir une autre
 // promo attend les enregistrements en cours puis recharge la page (choisirPromo).
-import { el } from "./utils.js?v=20261001a";
-import { getMesPromos, getPromoCourante, choisirPromo } from "./db.js?v=20261001a";
-import { libelleCourtPromo } from "./promo-rules.js?v=20261001a";
+import { el } from "./utils.js?v=20261002b";
+import { getMesPromos, getPromoCourante, choisirPromo } from "./db.js?v=20261002b";
+import { libelleCourtPromo } from "./promo-rules.js?v=20261002b";
 
 export function construirePastille() {
   const promos = getMesPromos();
@@ -3048,9 +3071,9 @@ Remplacer :
 import {
   getCurrentUser, signOut, onAuthChange,
   getMyProfile, listStagiaires, listProfs,
-} from "./db.js?v=20261001a";
-import { el, toast, displayStagiaire } from "./utils.js?v=20261001a";
-import { icon } from "./icons.js?v=20261001a";
+} from "./db.js?v=20261002b";
+import { el, toast, displayStagiaire } from "./utils.js?v=20261002b";
+import { icon } from "./icons.js?v=20261002b";
 ```
 
 par :
@@ -3060,10 +3083,10 @@ import {
   getCurrentUser, signOut, onAuthChange,
   getMyProfile, listStagiaires, listProfs,
   chargerMesPromos, oublierPromo,
-} from "./db.js?v=20261001a";
-import { el, toast, displayStagiaire } from "./utils.js?v=20261001a";
-import { icon } from "./icons.js?v=20261001a";
-import { construirePastille } from "./promo-pastille.js?v=20261001a";
+} from "./db.js?v=20261002b";
+import { el, toast, displayStagiaire } from "./utils.js?v=20261002b";
+import { icon } from "./icons.js?v=20261002b";
+import { construirePastille } from "./promo-pastille.js?v=20261002b";
 ```
 
 - [ ] **Étape 3 : démarrage dans `js/auth-admin.js`**
@@ -3397,7 +3420,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>" && git log --oneline -1
 
 - [ ] **Étape 1 : import**
 
-Ajouter `getPromoCourante,` à la liste importée depuis `"../db.js?v=20261001a"` (ligne
+Ajouter `getPromoCourante,` à la liste importée depuis `"../db.js?v=20261002b"` (ligne
 `listVenuesBenevoles, listSuiviBenevole, upsertSuiviBenevole, listStagiaires,`, à compléter en
 `listVenuesBenevoles, listSuiviBenevole, upsertSuiviBenevole, listStagiaires, getPromoCourante,`).
 
@@ -3469,13 +3492,19 @@ Attendu : `grep -c` affiche `3` (la définition et les deux appels).
 
 ---
 
-### Tâche 12 : Nouveautés, amorce par promo et entrée « formateurs »
+### Tâche 12 : Nouveautés et modules, les suites du chantier B
+
+Depuis la livraison du chantier B (02/10), les trois lecteurs des Nouveautés (`main.js`,
+`views/home.js`, `views/nouveautes.js`) passent tous par `nouveautesAffichables()` de
+`js/modules-etat.js`, seul appelant de `vuesEffectives`. B attend en outre trois gestes au
+moment où le multi-promo est en ligne ; sa conversation étant close, A les prend dans la même
+fusion (spec F).
 
 **Fichiers :**
-- Modifier : `tests/nouveautes.test.mjs`
-- Modifier : `js/nouveautes.js`
-- Modifier : `js/main.js`, `js/views/home.js`, `js/views/nouveautes.js`
-- Modifier : `js/nouveautes-data.js`
+- Modifier : `tests/nouveautes.test.mjs`, `js/nouveautes.js`
+- Modifier : `js/modules-etat.js` (amorce, clé de copie propre à la promo)
+- Modifier : `js/modules-data.js` (réglage des modules ouvert aux formateurs)
+- Modifier : `js/nouveautes-data.js` (entrée « formateurs »)
 
 **Interfaces :**
 - Consomme : `getPromoCourante` (Tâche 7).
@@ -3484,23 +3513,19 @@ Attendu : `grep -c` affiche `3` (la définition et les deux appels).
 
 - [ ] **Étape 1 : le test d'abord**
 
-Dans `tests/nouveautes.test.mjs`, remplacer l'import :
+Dans `tests/nouveautes.test.mjs`, remplacer :
 
 ```js
-import {
   triees, visibles, nonLues, libellePastille, purger, ajouterVues, idsDeReprise,
-} from "../js/nouveautes.js";
 ```
 
 par :
 
 ```js
-import {
   triees, visibles, nonLues, libellePastille, purger, ajouterVues, idsDeReprise, amorcePour,
-} from "../js/nouveautes.js";
 ```
 
-et remplacer la dernière ligne `console.log("nouveautes : 17 assertions OK");` par :
+et remplacer la dernière ligne `console.log("nouveautes : 18 assertions OK");` par :
 
 ```js
 // Amorce par promo : une promo récente ne trouve pas des dizaines d'anciennes entrées
@@ -3510,7 +3535,7 @@ assert.equal(amorcePour(undefined), "2026-08-01");
 assert.equal(amorcePour("2026-03-30"), "2026-08-01");
 assert.equal(amorcePour("2026-09-30"), "2026-09-30");
 
-console.log("nouveautes : 20 assertions OK");
+console.log("nouveautes : 21 assertions OK");
 ```
 
 Run : `cd /c/Users/watch/Dev/ecsr-promo-multi-promo && node tests/nouveautes.test.mjs`
@@ -3547,57 +3572,102 @@ export function vuesEffectives(entrees, dateAmorce = MISE_EN_LIGNE) {
   const amorce = idsDeReprise(entrees, dateAmorce);
 ```
 
-Run : `node tests/nouveautes.test.mjs` → `nouveautes : 20 assertions OK`.
+Run : `node tests/nouveautes.test.mjs` → `nouveautes : 21 assertions OK`.
 
-- [ ] **Étape 3 : les trois appelants**
+- [ ] **Étape 3 : `js/modules-etat.js`**
 
-`js/main.js` : dans l'import depuis `"./db.js?v=20261001a"`, ajouter `getPromoCourante` ; dans
-l'import depuis `"./nouveautes.js?v=20261001a"`, ajouter `amorcePour` ; puis remplacer
-`vuesEffectives(NOUVEAUTES)` par `vuesEffectives(NOUVEAUTES, amorcePour(getPromoCourante()?.date_debut))`.
+Remplacer `import { getSetting, setSetting } from "./db.js?v=20261002b";` par
+`import { getSetting, setSetting, getPromoCourante } from "./db.js?v=20261002b";`, et
+`import { triees, visibles, nonLues, vuesEffectives, marquerVues } from "./nouveautes.js?v=20261002b";`
+par
+`import { triees, visibles, nonLues, vuesEffectives, marquerVues, amorcePour } from "./nouveautes.js?v=20261002b";`
+(jetons : ceux du fichier au moment de l'édition).
 
-`js/views/home.js` : `import { listAgendaEvents } from "../db.js?v=20261001a";` devient
-`import { listAgendaEvents, getPromoCourante } from "../db.js?v=20261001a";` ; ajouter `amorcePour`
-à l'import depuis `"../nouveautes.js?v=20261001a"` ; même remplacement de `vuesEffectives(NOUVEAUTES)`.
+Remplacer :
 
-`js/views/nouveautes.js` : ajouter sous les imports existants
-`import { getPromoCourante } from "../db.js?v=20261001a";`, ajouter `amorcePour` à l'import depuis
-`"../nouveautes.js?v=20261001a"`, même remplacement de `vuesEffectives(NOUVEAUTES)`.
+```js
+  return "ecsr_modules:" + String(getAdminEmail() || "").toLowerCase();
+```
 
-Contrôle : `grep -n "vuesEffectives(NOUVEAUTES" js/main.js js/views/home.js js/views/nouveautes.js`
-→ trois lignes, toutes avec `amorcePour(getPromoCourante()?.date_debut)`.
+par :
 
-- [ ] **Étape 4 : l'entrée « formateurs »**
+```js
+  // Propre au compte ET à la promo : basculer de promo ne doit jamais ressortir l'état des
+  // modules de l'autre (spec multi-promo, suites du chantier B).
+  return "ecsr_modules:" + String(getAdminEmail() || "").toLowerCase()
+    + ":" + (getPromoCourante()?.id ?? "");
+```
+
+Remplacer :
+
+```js
+  const neuves = new Set(nonLues(entrees, vuesEffectives(toutesLesNouveautes())).map((e) => e.id));
+```
+
+par :
+
+```js
+  // Amorce à la date de la promo affichée (spec multi-promo C.6).
+  const vues = vuesEffectives(toutesLesNouveautes(), amorcePour(getPromoCourante()?.date_debut));
+  const neuves = new Set(nonLues(entrees, vues).map((e) => e.id));
+```
+
+- [ ] **Étape 4 : `js/modules-data.js`, réglage ouvert aux formateurs**
+
+Remplacer :
+
+```js
+// Tant que le multi-promo (chantier A) n'est pas en ligne, il n'existe qu'une
+// promo : un formateur qui croirait préparer la nouvelle fermerait des modules
+// à la promo actuelle. Le réglage reste alors réservé au fondateur. Passer à
+// true quand l'app multi-promo est en ligne (étape 3 de A).
+export const REGLAGE_OUVERT_AUX_FORMATEURS = false;
+```
+
+par :
+
+```js
+// Ouvert aux formateurs depuis le multi-promo (étape 3 de A) : chacun règle les modules de
+// la promo affichée par la pastille, et d'elle seule. Avant, il n'existait qu'une promo et le
+// réglage était réservé au fondateur.
+export const REGLAGE_OUVERT_AUX_FORMATEURS = true;
+```
+
+- [ ] **Étape 5 : l'entrée « formateurs »**
 
 En tête du tableau `NOUVEAUTES` de `js/nouveautes-data.js` (juste après `export const NOUVEAUTES = [`),
-insérer l'objet suivant, où `DATE` est remplacé par la date du jour de la fusion au format
-`AAAA-MM-JJ` (`date +%F`) :
+insérer l'objet suivant, où `DATE` est la date du jour au format `AAAA-MM-JJ` (`date +%F`) ; si la
+fusion a lieu un autre jour, la Tâche 15 la met à jour :
 
 ```js
   {
     id: "DATE-deux-promos",
     date: "DATE",
     pour: "formateurs",
-    titre: "Deux promos dans l'app, une pastille pour passer de l'une à l'autre",
+    titre: "Deux promos dans l'app, et des modules réglés promo par promo",
     resume: "La promo de septembre a sa place dans l'app, à côté de celle de mars. En haut de "
           + "l'écran, une pastille indique la promo affichée : touche-la pour changer. Chaque "
           + "appareil retient ton choix. Planning, calendrier, notes, passages, progression des "
           + "thèmes et examens QCM sont propres à chaque promo ; cours, banque de questions et "
           + "ressources restent communs. Les élèves bénévoles et les auto-écoles sont rangés par "
-          + "lieu : depuis une promo de Nîmes, tu vois la banque de Nîmes.",
+          + "lieu. Et la section « Modules de la promo » des Paramètres t'est ouverte : elle "
+          + "règle les outils de la promo affichée, et d'elle seule.",
     ou: { label: "Pastille en haut, à côté de ton nom", route: "home" },
     guide: [
       "Touche la pastille « mars 2026 » en haut de l'écran.",
       "Choisis « Nîmes, septembre 2026 » : la page se recharge sur cette promo.",
       "Dans Paramètres, ajoute les stagiaires de la promo (prénom et nom de famille), puis "
         + "prépare le calendrier et le planning.",
+      "Avant d'inviter les stagiaires de septembre : Paramètres, « Modules de la promo », "
+        + "« Partir de l'ensemble de départ ».",
     ],
   },
 ```
 
-- [ ] **Étape 5 : contrôles et commit**
+- [ ] **Étape 6 : contrôles et commit**
 
 ```bash
-cd /c/Users/watch/Dev/ecsr-promo-multi-promo && node tests/nouveautes.test.mjs && node --check js/main.js && node --check js/views/home.js && node --check js/views/nouveautes.js && node --check js/nouveautes-data.js && grep -n $'\xe2\x80\x94' js/nouveautes.js js/nouveautes-data.js js/main.js js/views/home.js js/views/nouveautes.js tests/nouveautes.test.mjs; git add tests/nouveautes.test.mjs js/nouveautes.js js/main.js js/views/home.js js/views/nouveautes.js js/nouveautes-data.js && git commit -q -m "Multi-promo : Nouveautes amorcees a la date de la promo, entree pour les formateurs
+cd /c/Users/watch/Dev/ecsr-promo-multi-promo && node tests/nouveautes.test.mjs && node tests/modules.test.mjs && node --check js/modules-etat.js && node --check js/modules-data.js && node --check js/nouveautes.js && node --check js/nouveautes-data.js && grep -n $'\xe2\x80\x94' js/nouveautes.js js/nouveautes-data.js js/modules-etat.js js/modules-data.js tests/nouveautes.test.mjs; git add tests/nouveautes.test.mjs js/nouveautes.js js/modules-etat.js js/modules-data.js js/nouveautes-data.js && git commit -q -m "Multi-promo : Nouveautes amorcees a la date de la promo, modules par promo ouverts aux formateurs
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>" && git log --oneline -1
 ```
@@ -3607,7 +3677,8 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>" && git log --oneline -1
 ### Tâche 13 : Banc d'essai et vérifications navigateur
 
 **Fichiers (non versionnés) :**
-- Copier puis modifier : `_harness_supabase.js`, `_harness_build.mjs` (depuis `TP_ECSR_App`)
+- Copier puis modifier : `_harness_supabase.js`, `_harness_build.mjs` (depuis `TP_ECSR_App`, où ils
+  vivent ; ils portent déjà les leviers du chantier B : `?modules=`, `?role=prof`, `?lenteur=`)
 - Générer : `_harness.html`
 - Créer : `.claude/launch.json` du worktree (exclu), `_mesure_topbar.html` (non suivi, supprimé en fin de tâche)
 
@@ -3651,19 +3722,19 @@ bloque sur une connexion gardée ouverte par le pane).
 
 - [ ] **Étape 2 : enrichir le stub `_harness_supabase.js`**
 
-a) Juste après la fermeture de l'objet `FIXTURES` (`};` qui précède `const RPC = {`), insérer :
+a) Juste avant la ligne `const RPC = {`, insérer :
 
 ```js
 // --- Multi-promo (banc) ---
-// Défaut : formateur avec deux promos (mars, septembre). `?role=stagiaire` ou `?promos=1` :
-// une seule. `?lieux=2` met septembre à Montpellier (libellé préfixé du lieu). La promo
-// courante du banc est lue dans la même clé localStorage que l'app : le stub joue ainsi le
-// filtrage par promo que la base fait sur l'en-tête.
+// Défaut : deux promos (mars, septembre). `?role=stagiaire` ou `?promos=1` : une seule.
+// `?lieux=2` met septembre à Montpellier (libellé préfixé du lieu). La promo courante du
+// banc est lue dans la même clé localStorage que l'app : le stub joue ainsi le filtrage par
+// promo que la base fait sur l'en-tête. Une ligne sans promo_id appartient à mars.
 const PARAMS_BANC = new URLSearchParams(location.search);
 const MTP_BANC = PARAMS_BANC.get("lieux") === "2";
 const PROMOS_BANC = [
   { id: 1, nom: "Nîmes, mars 2026", lieu_id: 1, lieu_nom: "Nîmes", date_debut: "2026-03-30",
-    date_fin: "2026-12-11", par_defaut: true, stagiaire_id: 1 },
+    date_fin: "2026-12-11", par_defaut: true, stagiaire_id: PARAMS_BANC.get("role") === "prof" ? null : 1 },
   { id: 2, nom: MTP_BANC ? "Montpellier, septembre 2026" : "Nîmes, septembre 2026",
     lieu_id: MTP_BANC ? 2 : 1, lieu_nom: MTP_BANC ? "Montpellier" : "Nîmes",
     date_debut: "2026-09-30", date_fin: null, par_defaut: false, stagiaire_id: null },
@@ -3682,7 +3753,16 @@ const TABLES_PROMO_BANC = new Set(["stagiaires", "evaluations", "evaluations_aud
   "settings", "qcm_attempts", "epcf_evaluations", "epcf_livrets", "dp_dossiers", "fiches_suivi"]);
 ```
 
-b) Remplacer `const RPC = {` et ses deux lignes par :
+b) Remplacer :
+
+```js
+const RPC = {
+  epcf_moyennes: [],
+  benevoles_noms: [],
+};
+```
+
+par :
 
 ```js
 const RPC = {
@@ -3692,28 +3772,27 @@ const RPC = {
 };
 ```
 
-c) Dans `createClient`, remplacer `export function createClient() {` par
-`export function createClient(url, key, options) {` et ajouter en première ligne du corps :
+c) Remplacer `export function createClient() {` par :
 
 ```js
+export function createClient(url, key, options) {
   // Le banc expose le fetch personnalisé de db.js pour tester l'en-tête de promo.
   window.__HARNESS_GLOBAL_FETCH = options?.global?.fetch;
 ```
 
-puis remplacer `rpc: async (name) => ({ data: RPC[name] ?? [], error: null }),` par :
+puis remplacer `    rpc: async (name) => {` par :
 
 ```js
-    rpc: async (name) => (name === "mes_promos"
-      ? { data: promosBanc(), error: null }
-      : { data: RPC[name] ?? [], error: null }),
+    rpc: async (name) => {
+      if (name === "mes_promos") return { data: promosBanc(), error: null };
 ```
 
-d) Dans `Query._run`, remplacer
-`const rows = applyFilters(FIXTURES[this.table] || [], this.filters);` par :
+d) Remplacer
+`    const rows = applyFilters(FIXTURES[this.table] || [], this.filters);` par :
 
 ```js
     let rows = applyFilters(FIXTURES[this.table] || [], this.filters);
-    // Joue le filtrage par promo de la base : une ligne sans promo_id appartient à mars.
+    // Joue le filtrage par promo de la base (une ligne sans promo_id appartient à mars).
     if (TABLES_PROMO_BANC.has(this.table)) rows = rows.filter((r) => (r.promo_id ?? 1) === promoBanc());
     rows = rows.map((r) => ({
       ...r,
@@ -3722,32 +3801,38 @@ d) Dans `Query._run`, remplacer
     }));
 ```
 
-e) Fixtures : dans `themes`, remplacer la ligne du thème 22 par
-`{ id: 1, type: "theme", numero: 22, titre: "Feux du véhicule", ordre: 22, statut: "Fait", progression: [{ promo_id: 1, statut: "Fait", date_fait: "2026-07-01", date_qcm: null, notes: null, updated_by_email: null }] },`
+e) Fixtures. Remplacer la ligne du thème 22 par
+`    { id: 1, type: "theme", numero: 22, titre: "Feux du véhicule", ordre: 22, statut: "Fait", progression: [{ promo_id: 1, statut: "Fait", date_fait: "2026-07-01", date_qcm: null, notes: null, updated_by_email: null }] },`
 et celle du thème 23 par
-`{ id: 2, type: "theme", numero: 23, titre: "Pneumatiques", ordre: 23, statut: "Fait", progression: [] },`
+`    { id: 2, type: "theme", numero: 23, titre: "Pneumatiques", ordre: 23, statut: "Fait", progression: [] },`
 (l'ancienne colonne « Fait » du thème 23 doit être IGNORÉE : il doit s'afficher « À faire »).
-Dans `qcm`, ajouter au QCM 50 :
-`examen: [{ promo_id: 1, published: true, published_by_email: null, published_at: null, exam_nb_questions: null, exam_question_ids: null, exam_draw_mode: null, exam_seconds_per_question: 30, exam_ferme_a: null }],`
-et au QCM 51 : `examen: [],`.
-
-f) Profil du fondateur : remplacer le tableau `user_profiles` par :
+Remplacer `      qcm_questions: [{ count: 3 }],` par :
 
 ```js
-  user_profiles: [
-    PARAMS_ROLE === "stagiaire"
-      ? { id: 1, email: "banc@example.test", role: "stagiaire", is_admin: false,
-          is_founder: true, stagiaire_id: 1, prof_id: null }
-      : PARAMS_ROLE === "fondateur"
-        ? { id: 1, email: "banc@example.test", role: "stagiaire", is_admin: true,
-            is_founder: true, stagiaire_id: 1, prof_id: null }
-        : { id: 1, email: "banc@example.test", role: "admin", is_admin: true,
-            is_founder: true, stagiaire_id: 1, prof_id: null },
-  ],
+      qcm_questions: [{ count: 3 }],
+      examen: [{ promo_id: 1, published: true, published_by_email: null, published_at: null,
+        exam_nb_questions: null, exam_question_ids: null, exam_draw_mode: null,
+        exam_seconds_per_question: 30, exam_ferme_a: null }],
 ```
 
-en définissant au-dessus de `const FIXTURES = {` :
-`const PARAMS_ROLE = new URLSearchParams(location.search).get("role");`
+et `      qcm_questions: [{ count: 1 }],` par :
+
+```js
+      qcm_questions: [{ count: 1 }],
+      examen: [],
+```
+
+f) Profil du fondateur réel (rôle stagiaire ET admin) : juste avant la ligne
+`      return { id: 1, email: "banc@example.test", role: "admin", is_admin: true,` du tableau
+`user_profiles`, insérer :
+
+```js
+      // `?role=fondateur` : le vrai cas du fondateur, rôle stagiaire ET admin (multi-promo).
+      if (role === "fondateur") {
+        return { id: 1, email: "banc@example.test", role: "stagiaire", is_admin: true,
+                 is_founder: true, stagiaire_id: 1, prof_id: null };
+      }
+```
 
 - [ ] **Étape 3 : générer et ouvrir le banc**
 
@@ -3755,25 +3840,16 @@ en définissant au-dessus de `const FIXTURES = {` :
 cd /c/Users/watch/Dev/ecsr-promo-multi-promo && node _harness_build.mjs && node --check _harness_supabase.js
 ```
 
-`preview_start` avec `name = "banc-multi-promo"`, puis naviguer vers
-`http://localhost:<port>/_harness.html?bust=<horodatage>`. Avant chaque scénario, purger le cache
-des modules modifiés (le jeton ne change pas sur la branche) par `javascript_tool` :
-
-```js
-await Promise.all(["js/db.js", "js/promo-rules.js", "js/promo-pastille.js", "js/auth-admin.js",
-  "js/main.js", "js/nouveautes.js", "js/nouveautes-data.js", "js/views/home.js",
-  "js/views/nouveautes.js", "js/views/config.js", "js/views/benevoles.js", "js/views/planning.js",
-  "css/style.css"].map((f) => fetch(f + (f.endsWith(".css") ? "" : "?v=20261001a"), { cache: "reload" })));
-location.reload();
-```
-
+(`_harness_build.mjs` remappe chaque module vers une URL neuve à chaque génération : pas de purge
+de cache à faire, mais REGÉNÉRER après chaque modification de code.) `preview_start` avec
+`name = "banc-multi-promo"`, puis naviguer vers `http://localhost:<port>/_harness.html?role=prof&bust=<horodatage>`.
 Vérifier que le bandeau orange « BANC D'ESSAI » est présent et que les prénoms affichés sont les
-factices (sinon c'est le vrai `db.js` qui a chargé : recommencer avec un nouveau `bust`).
+factices.
 
 - [ ] **Étape 4 : scénarios (chacun par `javascript_tool`, résultat attendu en commentaire)**
 
-1. Formateur, mars (`?bust=...`, `localStorage.removeItem("ecsr_promo:banc@example.test")` puis
-   rechargement) :
+1. Formateur, mars (`?role=prof&bust=...`, après
+   `localStorage.removeItem("ecsr_promo:banc@example.test")` et rechargement) :
    ```js
    ({ pastille: document.querySelector(".promo-pastille")?.textContent.trim(),
       slot: document.getElementById("admin-slot").className })
@@ -3781,7 +3857,7 @@ factices (sinon c'est le vrai `db.js` qui a chargé : recommencer avec un nouvea
    ```
 2. Bascule vers septembre, attente d'écriture comprise :
    ```js
-   const db = await import("./js/db.js?v=20261001a");
+   const db = await import("./js/db.js?v=20261002b");
    db.avantChangementPromo(() => new Promise((r) => setTimeout(() => { sessionStorage.setItem("banc_attente", "faite"); r(); }, 300)));
    document.querySelector(".promo-pastille").click();
    [...document.querySelectorAll(".promo-choix")].find((b) => b.textContent.includes("septembre")).click();
@@ -3793,6 +3869,7 @@ factices (sinon c'est le vrai `db.js` qui a chargé : recommencer avec un nouvea
       pastille: document.querySelector(".promo-pastille")?.textContent.trim() })
    // { memo: "2", attente: "faite", pastille: "sept. 2026▾" }
    ```
+   (Les imports dynamiques gardent le jeton des sources : l'import map du banc les redirige.)
 3. Septembre vide : `location.hash = "#/planning"` puis
    `document.getElementById("view").textContent.includes("Théorie")` → `false` (la carte de mars
    n'apparaît pas). Revenir en mars par la pastille : la même expression → `true`.
@@ -3817,12 +3894,12 @@ factices (sinon c'est le vrai `db.js` qui a chargé : recommencer avec un nouvea
 6. Stagiaire (`?role=stagiaire&bust=...`) : `document.querySelector(".promo-pastille")` → `null`.
 7. Fondateur (`?role=fondateur&bust=...`), en septembre :
    ```js
-   const m = await import("./js/auth-admin.js?v=20261001a");
+   const m = await import("./js/auth-admin.js?v=20261002b");
    ({ stagiaire: m.isStagiaire(), admin: m.isAdmin(), fiche: m.getProfile()?.stagiaire_id, role: m.getProfile()?.role })
    // { stagiaire: false, admin: true, fiche: null, role: "admin" }
    ```
    et en mars : `{ stagiaire: true, admin: true, fiche: 1, role: "stagiaire" }`.
-8. Libellé avec lieu (`?lieux=2&bust=...`, en septembre) : texte de la pastille
+8. Libellé avec lieu (`?role=prof&lieux=2&bust=...`, en septembre) : texte de la pastille
    `"Montpellier · sept. 2026▾"`.
 9. Nouveautés sans arriéré (formateur, septembre) :
    `localStorage.removeItem("ecsr_nouveautes_vues"); location.reload();` puis
@@ -3833,10 +3910,16 @@ factices (sinon c'est le vrai `db.js` qui a chargé : recommencer avec un nouvea
     ```js
     ({ promo: document.querySelector('input[aria-label="Nom de la promo"]')?.value,
        lieu: [...document.querySelectorAll(".block-head .count")].map((e) => e.textContent).find((t) => t.startsWith("Lieu")),
-       formateurs: [...document.querySelectorAll(".block-head h4")].map((e) => e.textContent).find((t) => t.startsWith("Formateurs")) })
-    // { promo: "Nîmes, septembre 2026", lieu: "Lieu : Nîmes", formateurs: "Formateurs (communs à toutes les promos)" }
+       formateurs: [...document.querySelectorAll(".block-head h4")].map((e) => e.textContent).find((t) => t.startsWith("Formateurs")),
+       modules: [...document.querySelectorAll(".param-section h3")].some((h) => h.textContent.includes("Modules")) })
+    // { promo: "Nîmes, septembre 2026", lieu: "Lieu : Nîmes", formateurs: "Formateurs (communs à toutes les promos)", modules: true }
     ```
-11. Console : `read_console_messages` avec `onlyErrors: true` → aucune erreur de module ou de
+11. Modules par promo (`?role=prof&modules=depart&bust=...`, la fixture `modules` n'a pas de
+    `promo_id` : elle est à mars) : en mars, la clé de copie porte l'id de promo
+    (`Object.keys(localStorage).filter((k) => k.startsWith("ecsr_modules:"))` → une clé finissant
+    par `:1`) ; en septembre, aucun module fermé (état libre) :
+    `(await import("./js/modules-etat.js?v=20261002b")).moduleVisible("notes")` → `true`.
+12. Console : `read_console_messages` avec `onlyErrors: true` → aucune erreur de module ou de
     syntaxe sur l'ensemble des scénarios.
 
 - [ ] **Étape 5 : la barre du haut tient sur iPhone**
@@ -3938,7 +4021,22 @@ Spec : `docs/superpowers/specs/2026-10-01-multi-promo-design.md` · plan : `docs
 - **Pièges** : une migration n'a pas de promo courante (insérer avec `promo_id` explicite) ; `getSetting`/`setSetting` sont propres à la promo ; une nouvelle table propre à une promo reçoit sa colonne, sa règle et une ligne dans le script de preuve ; ne jamais relire les anciennes colonnes de `themes` et `qcm` (supprimées à l'étape 5 du plan).
 ```
 
-- [ ] **Étape 3 : revue de la branche entière**
+- [ ] **Étape 3 : la liste de B dans PROJECT_NOTES**
+
+Dans la section « Modules débloqués par les formateurs », remplacer le bloc qui commence par
+`- **Quand le multi-promo (A) sera en ligne** :` (sept lignes, jusqu'à
+`  - la date d'amorce de A s'ajoute dans `nouveautesAffichables()`.`) par :
+
+```markdown
+- **Avec le multi-promo (A)** : drapeau `REGLAGE_OUVERT_AUX_FORMATEURS` à `true` (entrée
+  Nouveautés « formateurs » commune avec A), clé de copie de l'appareil propre à la promo
+  (`cleCopie()` via `getPromoCourante()`), date d'amorce de A dans `nouveautesAffichables()`, et
+  écriture de la clé `modules` couverte par la preuve de A (`tests/sql/multi-promo-preuve.sql`).
+  Reste à l'étape 4 de A : régler la promo de septembre (« Partir de l'ensemble de départ »,
+  connecté sur cette promo) **avant** d'inviter ses stagiaires, sinon elle voit tout.
+```
+
+- [ ] **Étape 4 : revue de la branche entière**
 
 ```bash
 cd /c/Users/watch/Dev/ecsr-promo-multi-promo && git diff --stat main...HEAD && for t in tests/*.test.mjs; do node "$t" || echo "ECHEC $t"; done && git diff main...HEAD -- js css index.html | grep -n $'\xe2\x80\x94' ; grep -rn "Prof\b" js/promo-pastille.js js/promo-rules.js; echo fin
@@ -3948,7 +4046,7 @@ Attendu : tous les tests « OK », aucun cadratin, aucun « Prof » visible. Rel
 fichier par fichier contre la spec (C.1 à C.7). Puis demander une revue indépendante
 (`superpowers:requesting-code-review`) sur la plage `main...multi-promo`, et traiter ses constats.
 
-- [ ] **Étape 4 : commit**
+- [ ] **Étape 5 : commit**
 
 ```bash
 cd /c/Users/watch/Dev/ecsr-promo-multi-promo && git diff -U0 PROJECT_NOTES.md | grep -n $'\xe2\x80\x94'; git add PROJECT_NOTES.md && git commit -q -m "Multi-promo : section de reprise dans PROJECT_NOTES
@@ -3998,7 +4096,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>" && grep -o 'v=2026[0-9]
 Attendu : branche `main`, aucun fichier modifié avant la fusion (le fichier non suivi
 `docs/superpowers/plans/2026-09-16-mdp-oublie-journal.md` n'est pas à nous : ne pas y toucher),
 fusion sans conflit (tout a été résolu à l'étape 2), puis UN seul jeton listé (le hook l'a posé
-pendant le commit). Vérifier aussi `grep -c "amorcePour" js/main.js` → au moins 1.
+pendant le commit). Vérifier aussi `grep -c "amorcePour" js/modules-etat.js` → au moins 1.
 
 - [ ] **Étape 4 : proposer la poussée**
 
@@ -4063,23 +4161,32 @@ le worktree : supprimer alors le dossier à la main.) Retirer l'entrée `banc-mu
 
 # Partie D : ouverture aux 8 et ménage
 
-### Tâche 17 : Ouverture aux 8 stagiaires (après la livraison du chantier B)
+### Tâche 17 : Ouverture aux 8 stagiaires
 
 - [ ] **Étape 1 : préalable**
 
-Le chantier B (modules) est fusionné et en ligne ; Timy a choisi les outils ouverts pour septembre.
+Les étapes 1 à 3 sont en ligne et la preuve est verte. Le chantier B (modules) est livré depuis le
+02/10 ; Timy a choisi les outils à ouvrir pour septembre.
 
-- [ ] **Étape 2 : saisie par Timy ou un formateur, dans l'app, en septembre**
+- [ ] **Étape 2 : régler les modules de septembre, AVANT toute invitation**
+
+Un formateur (ou Timy) se place sur « Nîmes, septembre 2026 » par la pastille, ouvre Paramètres ›
+Modules de la promo et clique « Partir de l'ensemble de départ », puis ouvre les outils voulus.
+Sans ce geste, la clé `modules` est absente pour septembre et la promo voit tout (spec B §11.1).
+Contrôle : `select promo_id, left(value, 60) from settings where key = 'modules';` (lecture par
+`execute_sql`) montre une ligne `promo_id = 2`.
+
+- [ ] **Étape 3 : saisie par Timy ou un formateur, dans l'app, en septembre**
 
 Paramètres : les 8 stagiaires (prénom et nom de famille) ; Accès & invitations : l'email de chacun.
 Aucune de ces données ne transite par le dépôt.
 
-- [ ] **Étape 3 : preuve avec un vrai compte**
+- [ ] **Étape 4 : preuve avec un vrai compte**
 
 Dès qu'un premier compte de septembre est créé, rejouer `tests/sql/multi-promo-preuve.sql` : les
 personnages « vrai stagiaire de septembre » s'ajoutent d'eux-mêmes. Attendu : `VERDICT VERT`.
 
-- [ ] **Étape 4 : message de bienvenue pour les 8**
+- [ ] **Étape 5 : message de bienvenue pour les 8**
 
 Rédiger pour Timy un message WhatsApp court (adresse de l'app, création du compte avec l'email
 donné, ajouter l'app à l'écran d'accueil de l'iPhone, rafraîchir si quelque chose ne s'affiche pas),
