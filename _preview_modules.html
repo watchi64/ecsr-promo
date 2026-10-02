@@ -76,8 +76,8 @@
   <div id="sous-onglets"></div>
   <p class="bench-titre">Paramètres</p>
   <div class="param-grid" id="zone"></div>
-  <!-- Cible de toast() (js/utils.js) : sans elle, le message qui suit chaque
-       écriture lèverait une erreur et la case ne reviendrait pas à son état. -->
+  <!-- Cible de toast() (js/utils.js) : sans elle, chaque message lèverait une erreur
+       non gérée dans la console et rien ne s'afficherait. -->
   <div id="toast" class="toast hidden"></div>
   <script type="module">
     const j = window.__jeton;

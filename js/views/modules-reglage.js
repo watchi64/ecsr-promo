@@ -3,8 +3,8 @@
 //
 // Réservé aux formateurs, et au seul fondateur tant que le multi-promo n'est pas
 // en ligne (REGLAGE_OUVERT_AUX_FORMATEURS, js/modules-data.js). La section se
-// redessine elle-même après chaque écriture : pas de rechargement de toute la
-// page Paramètres.
+// redessine elle-même après chaque écriture, réussie ou non (voir redessiner) :
+// pas de rechargement de toute la page Paramètres.
 import { el, toast } from "../utils.js?v=20261001a";
 import { icon } from "../icons.js?v=20261001a";
 import { MODULES, GROUPES } from "../modules-data.js?v=20261001a";
@@ -31,16 +31,27 @@ function enumerer(noms) {
   return noms.slice(0, -1).join(", ") + " et " + noms[noms.length - 1];
 }
 
+// Redessine la section qui est ACTUELLEMENT à l'écran, jamais celle d'où est parti le
+// clic. Deux cases cochées coup sur coup lancent deux écritures, exécutées l'une après
+// l'autre (file de js/modules-etat.js) : la première, en finissant, remplace la section
+// par une neuve ; la seconde, en finissant, doit redessiner cette neuve. Viser l'ancienne,
+// déjà retirée de la page, ne ferait rien (remplacer un nœud détaché est sans effet) et
+// l'écran resterait celui d'avant la seconde écriture. On cherche donc la section dans la
+// page à chaque redessin, et la neuve repart toujours de l'état réel des modules : après
+// un échec, la case revient d'elle-même à son état, sans remise en état à part.
+function redessiner() {
+  const affichee = document.querySelector(".modules-reglage");
+  if (!affichee) return;   // la page Paramètres n'est plus à l'écran
+  const suivante = renderModulesSection();
+  if (suivante) affichee.replaceWith(suivante);
+  else affichee.remove();
+}
+
 export function renderModulesSection() {
   if (!peutRegler()) return null;
   const etat = etatModules();
 
   const section = el("section", { class: "param-section modules-reglage" });
-  const redessiner = () => {
-    const suivante = renderModulesSection();
-    if (suivante) section.replaceWith(suivante);
-    else section.remove();
-  };
 
   section.appendChild(el("div", { class: "param-section-head" },
     el("div", { class: "param-icon" }, icon.eyeOff()),
@@ -52,7 +63,7 @@ export function renderModulesSection() {
     ),
   ));
 
-  if (etat.statut !== "reglee") section.appendChild(bandeauDepart(etat, redessiner));
+  if (etat.statut !== "reglee") section.appendChild(bandeauDepart(etat));
   section.appendChild(el("p", { class: "modules-socle muted" }, SOCLE));
 
   for (const groupe of GROUPES) {
@@ -60,13 +71,13 @@ export function renderModulesSection() {
     if (membres.length === 0) continue;
     section.appendChild(el("div", { class: "param-block modules-groupe" },
       el("h4", {}, groupe),
-      ...membres.map((m) => ligneModule(m, etat, redessiner)),
+      ...membres.map((m) => ligneModule(m, etat)),
     ));
   }
   return section;
 }
 
-function bandeauDepart(etat, redessiner) {
+function bandeauDepart(etat) {
   const noms = enumerer(MODULES.filter((m) => m.depart).map((m) => m.nom));
   const bouton = el("button", { class: "btn primary", type: "button" }, "Partir de l'ensemble de départ");
   bouton.addEventListener("click", async () => {
@@ -77,11 +88,11 @@ function bandeauDepart(etat, redessiner) {
       // Message neutre : si la base portait déjà un réglage lisible (lecture de
       // démarrage ratée, autre formateur), appliquerEnsembleDeDepart le conserve.
       toast("Réglage des modules enregistré", "success");
-      redessiner();
     } catch (e) {
       console.error(e);
       toast("Erreur : " + (e?.message || e), "error");
-      bouton.disabled = false;
+    } finally {
+      redessiner();
     }
   });
   return el("div", { class: "modules-bandeau" },
@@ -92,7 +103,7 @@ function bandeauDepart(etat, redessiner) {
   );
 }
 
-function ligneModule(m, etat, redessiner) {
+function ligneModule(m, etat) {
   const reglee = etat.statut === "reglee";
   // La case montre l'état propre du module : un enfant reste coché quand son
   // parent est fermé (fermer un parent ne touche pas ses enfants).
@@ -109,12 +120,11 @@ function ligneModule(m, etat, redessiner) {
     try {
       await basculerModule(m.cle, ouvrir);
       toast(`${m.nom} ${accorder(ouvrir ? "ouvert" : "masqué", m.accord)} aux stagiaires`, "success");
-      redessiner();
     } catch (e) {
       console.error(e);
       toast("Erreur : " + (e?.message || e), "error");
-      caseACocher.checked = !ouvrir;
-      caseACocher.disabled = false;
+    } finally {
+      redessiner();
     }
   });
 
