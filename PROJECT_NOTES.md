@@ -214,6 +214,50 @@ verifiee d'origine, `cours_publies/` (depot ECSR) porte l'export sens unique
 - Banc : `_preview_cours.html` (git-exclu, stubs `_preview_stubs/db-cours.js` +
   `auth-admin.js`) ; attention au token `?v=` des cles d'import map apres cache-bust.
 
+## Modules débloqués par les formateurs (chantier B, octobre 2026)
+
+Spec : `docs/superpowers/specs/2026-10-01-modules-design.md` · plan :
+`docs/superpowers/plans/2026-10-01-modules.md`
+
+Les formateurs ouvrent les parties de l'app au fil de la progression d'une promo
+(Paramètres › Modules de la promo).
+
+- **État** : clé `modules` de `settings`, texte JSON `{v, depuis, ouverts: {clé: heure ISO}}`,
+  propre à chaque promo par le multi-promo (chantier A). Clé absente = **tout ouvert** (promo de
+  mars). Lu et écrit **uniquement** par `js/modules-etat.js` (via `getSetting` / `setSetting`).
+  Écritures mises en file, relecture juste avant d'écrire, lecture périmée ignorée ; « Partir de
+  l'ensemble de départ » ne remplace jamais un réglage lisible déjà en base.
+- **Catalogue** : `js/modules-data.js` (12 modules, groupes, parent, ensemble de départ, accords,
+  textes d'annonce). Ajouter un module = une entrée + `module: "<clé>"` sur le sous-onglet, ou sa
+  route dans `MODULE_DE_ROUTE`. Un module ajouté arrive **fermé** chez les promos réglées.
+- **Règles pures** : `js/modules.js`, `node tests/modules.test.mjs` (contrôle aussi le catalogue
+  réel et le rattachement des nouveautés écrites).
+- **Masquage déclaratif** : `renderTabs` (main.js), `renderSubTabs` (champ `module`), garde dans
+  `navigate()` (avec message) et `derniereRoute()` (silencieuse). Points explicites : colonnes
+  Cours et QCM de Thèmes (`coursVisible`, `canSeeQcm` figé au chargement de l'index par
+  `qcmAffiche`), note de matrice, date de naissance (Livret), anonymat (Notes), agenda d'Accueil
+  (Calendrier), bulle (`appliquerModuleAssistant`), bouton « Aujourd'hui ».
+- **Formateurs** : voient tout ; ce qui est fermé porte le repère « Masqué aux stagiaires »
+  (`repereMasque()`, classe `module-masque`, œil `marque-masque`). Pièges : `.tab span
+  { display: none }` sur mobile, d'où `.tab .marque-masque` en 0,2,0 ; l'en-tête du tableau de
+  Thèmes est masqué sous 720 px, d'où la bande `.a-repere` qui n'affiche que les colonnes repérées.
+- **Nouveautés** : chaque ouverture postérieure à la mise en place devient une annonce (id
+  `module-<clé>-<heure>`). Point unique : `nouveautesAffichables()` et `marquerLues(ids)` dans
+  `modules-etat.js`, seuls appelants de `vuesEffectives` et `marquerVues` : la date d'amorce du
+  multi-promo s'ajoute là. `purger()` épargne les ids `module-`. Le champ `module` d'une nouveauté
+  écrite la masque aux stagiaires d'une promo où ce module est fermé.
+- **Réglage réservé au fondateur** tant que `REGLAGE_OUVERT_AUX_FORMATEURS` vaut `false` : avant
+  le multi-promo, un formateur fermerait des modules à la promo de mars.
+- **Nouvelle promo** : à régler (« Partir de l'ensemble de départ », connecté sur cette promo)
+  **avant** d'inviter ses stagiaires, sinon elle voit tout.
+- **Bancs** : `_harness.html` (app complète ; `?modules=depart|notes|themes|enfant|illisible`,
+  `?role=prof`, `?date=2026-10-20` pour qu'une bascule soit postérieure au réglage factice du
+  05/10), généré par `_harness_build.mjs`, qui remappe désormais chaque module vers une URL neuve :
+  plus besoin de re-versionner une branche pour tester. `_preview_modules.html` (versionné, peint par
+  le pane, `?fondateur=1`, fermé au réseau par sa CSP, jeton lu dans `index.html`).
+- **Preuve RLS** (02/10, avant multi-promo, transaction annulée) : un stagiaire ne peut pas écrire
+  la clé `modules`, un formateur le peut. À rejouer avec l'en-tête `x-promo-id` une fois A en ligne.
+
 ## Décisions UX importantes (à respecter)
 
 - ❌ **Pas d'em-dashes (—)** dans les libellés UI. Régression à éviter.
