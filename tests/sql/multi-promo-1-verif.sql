@@ -1,5 +1,5 @@
 -- Vérification de l'étape 1 du multi-promo (fondations).
--- Ne laisse AUCUNE trace : le bloc final lève toujours une exception, qui annule les
+-- Ne laisse aucune donnée : le bloc final lève toujours une exception, qui annule les
 -- écritures de test et porte le verdict (« VERDICT VERT » attendu).
 -- Personnages choisis par requête : aucun email écrit ici (dépôt public).
 -- Chaque écriture dans une table de l'app se fait dans un sous-bloc annulé par une exception
@@ -146,6 +146,13 @@ begin
     promo_courante() = v_defaut_form, coalesce(promo_courante()::text, 'nul'));
   perform pg_temp.entetes_bruts(v_form, '{oops');
   perform pg_temp.ok('en-têtes illisibles : rien', promo_courante() is null, coalesce(promo_courante()::text, 'nul'));
+  -- \u0000 passe la validation json puis lève 22P05 à la lecture ; jsonb le refuse d'emblée.
+  perform pg_temp.entetes_bruts(v_form, '{"accept": "\u0000"}');
+  begin
+    v_txt := coalesce(promo_courante()::text, 'nul');
+  exception when others then v_txt := 'erreur ' || sqlstate;
+  end;
+  perform pg_temp.ok('en-têtes avec \u0000 : rien, sans erreur', v_txt = 'nul', v_txt);
   perform pg_temp.contexte(v_fond, null);
   perform pg_temp.ok('fondateur sans en-tête : mars, sa fiche', promo_courante() = 1,
     coalesce(promo_courante()::text, 'nul'));
@@ -321,6 +328,14 @@ begin
   end;
   perform pg_temp.ok('réglages : sans promo, une nouvelle clé est refusée',
     v_etat = '23514' and v_contrainte = 'settings_globaux_prevus', v_etat || ':' || v_contrainte || ' : ' || v_txt);
+
+  begin
+    perform pg_temp.contexte(v_form, null);
+    insert into settings (key, value) values ('cle_de_test_multi_promo', 'x') returning promo_id into v_int;
+    raise exception 'sentinelle:%', v_int;
+  exception when others then v_txt := sqlerrm; end;
+  perform pg_temp.ok('réglages : une nouvelle clé du personnel sans en-tête prend la promo par défaut',
+    v_txt = 'sentinelle:' || v_defaut_form, v_txt);
 
   -- Upsert de l'app (sur key) d'une clé globale : la ligne proposée reçoit la promo par défaut
   -- et passe le CHECK, la mise à jour ne touche pas promo_id, la clé reste globale.

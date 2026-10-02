@@ -108,10 +108,10 @@ declare
 begin
   if brut is not null then
     -- En-têtes illisibles : aucune promo (PostgREST envoie toujours un JSON valide).
-    if not pg_input_is_valid(brut, 'json') then
+    if not pg_input_is_valid(brut, 'jsonb') then
       return null;
     end if;
-    entete := brut::json ->> 'x-promo-id';
+    entete := brut::jsonb ->> 'x-promo-id';
   end if;
   if entete is null or entete = '' then
     return promo_par_defaut();
