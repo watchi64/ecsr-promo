@@ -55,9 +55,9 @@ function coursVisible(theme) {
 }
 
 // En-tête de colonne d'un module, repéré chez un formateur quand le module est
-// fermé pour la promo.
+// fermé pour la promo. Le repère n'est posé que pour qui voit le module.
 function enteteColonne(libelle, cle) {
-  return repereMasque(el("span", {}, libelle), moduleMasque(cle));
+  return repereMasque(el("span", {}, libelle), moduleVisible(cle) && moduleMasque(cle));
 }
 
 async function loadQcmIndex() {
