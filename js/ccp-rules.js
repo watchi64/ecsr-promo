@@ -1,0 +1,33 @@
+// Règles pures des onglets CCP1 et CCP2 (chantier D). Aucune dépendance, aucun
+// accès à la base ni au DOM : testées par node (tests/ccp-rules.test.mjs).
+
+const contient = (objet, cle) => Object.prototype.hasOwnProperty.call(objet, cle);
+
+// Anciennes adresses. Thèmes et Notes étaient des onglets ; ce sont désormais des
+// sous-onglets de CCP1. Des favoris, des raccourcis d'écran d'accueil et la
+// dernière page mémorisée les portent encore.
+export const ANCIENNES_ROUTES = {
+  themes: { route: "ccp1", sousOnglet: "themes" },
+  notes: { route: "ccp1", sousOnglet: "notes" },
+};
+
+// Destination d'une ancienne adresse, ou null si la route n'en est pas une.
+export function ancienneRoute(route) {
+  return typeof route === "string" && contient(ANCIENNES_ROUTES, route) ? ANCIENNES_ROUTES[route] : null;
+}
+
+// Types d'événements du Calendrier repris dans le parcours CCP2.
+export const TYPES_DATES_CCP2 = ["formation", "stage", "examen"];
+const MOTIF_CCP2 = /\bccp\s*2\b/i;
+
+// Événements CCP2 du Calendrier : formation, stages et examen dont le titre
+// contient « CCP2 » (casse et espace ignorés), triés par date de début. Chacun
+// reçoit `passe`, vrai s'il est terminé à la date `aujourdhui` (AAAA-MM-JJ). Les
+// dates de la base sont des textes AAAA-MM-JJ : l'ordre du texte est celui du temps.
+export function datesCcp2(evenements, aujourdhui) {
+  return (Array.isArray(evenements) ? evenements : [])
+    .filter((e) => e && TYPES_DATES_CCP2.includes(e.type) && typeof e.date_start === "string"
+      && MOTIF_CCP2.test(e.title || ""))
+    .map((e) => ({ ...e, passe: (e.date_end || e.date_start) < aujourdhui }))
+    .sort((a, b) => (a.date_start < b.date_start ? -1 : a.date_start > b.date_start ? 1 : 0));
+}
