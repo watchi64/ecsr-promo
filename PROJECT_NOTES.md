@@ -56,11 +56,15 @@ Web app de suivi de promotion **TP ECSR Nîmes 2026** (15 stagiaires + 3 formate
 - Tous les `*_audit` : aucune écriture directe, uniquement via triggers
 - RPC `set_my_anonymous_notes(val)` SECURITY DEFINER : permet à chacun de toggle son propre flag
 
-## Pages (9 onglets) — état actuel
+## Pages (8 onglets) : état au 03/10/2026
 
 ```
-Accueil · Tableau de bord · Planning · Calendrier · Thèmes · Passages · Notes · Ressources & contacts · Paramètres
+Accueil · Priorités · Planning · Calendrier · CCP1 · CCP2 · Ressources · Paramètres
 ```
+
+Mon espace (`mon-suivi`) et Nouveautés sont des pages sans onglet. CCP1 porte en sous-onglets
+Thèmes, Notes, EPCF, Livret EPCF et Dossier pro (voir « Onglets CCP1 et CCP2 »). Les descriptions
+ci-dessous datent de mai et juin : Thèmes et Notes y sont décrits comme des onglets.
 
 ### Spécificités à connaître
 
@@ -278,6 +282,39 @@ Les formateurs ouvrent les parties de l'app au fil de la progression d'une promo
   dans `index.html`) et ses doublures `_preview_stubs/` sont versionnés.
 - **Preuve RLS** (02/10, avant multi-promo, transaction annulée) : un stagiaire ne peut pas écrire
   la clé `modules`, un formateur le peut. À rejouer avec l'en-tête `x-promo-id` une fois A en ligne.
+
+## Onglets CCP1 et CCP2 (chantier D, octobre 2026)
+
+Spec : `docs/superpowers/specs/2026-10-03-onglets-ccp-design.md` · plan :
+`docs/superpowers/plans/2026-10-03-onglets-ccp.md`
+
+- **Barre** : Thèmes et Notes quittent la barre, CCP1 et CCP2 y entrent (8 onglets, la barre tient
+  sur un iPhone). Icônes chiffrées `ccp1`, `ccp2` (`js/icons.js`) : sur téléphone, seul le chiffre
+  les distingue.
+- **CCP1** (`js/views/ccp1.js`) : sous-onglets déclarés dans `SOUS_ONGLETS_CCP1`
+  (`js/modules-data.js`), mémorisés sous `ecsr_ccp1_subtab`. Thèmes et Notes y sont rendus
+  **embarqués** (`renderThemes` / `renderNotes` avec `{ embedded, isActive }`) : sans grand titre,
+  et sans écrire dans un panneau qui n'est plus le leur (deux gardes prouvées au banc par sabotage).
+  Notes n'a plus de sous-onglets.
+- **CCP1 et les modules** : pas de module propre. `ONGLETS_REGROUPES.ccp1` liste ses parties ;
+  `routeOuverte` (`js/modules.js`) l'ouvre dès qu'une l'est, un formateur voit le repère quand
+  toutes sont fermées. Livret EPCF n'a plus Notes pour parent.
+- **CCP2** (`js/views/ccp2.js`) : module `ccp2`. Texte versionné dans `js/ccp2-parcours-data.js`
+  (critères du REAC mot pour mot, exigences du référentiel d'évaluation), dates tirées de
+  `listAgendaEvents()` : événements dont le titre contient « CCP2 » (formation, stage, examen),
+  seulement si le Calendrier est ouvert. Dernière étape ouverte : `ecsr_ccp2_etape`.
+- **Anciennes adresses** : `#/themes` et `#/notes` passent la garde de leur module puis mènent au
+  sous-onglet de CCP1 (`ANCIENNES_ROUTES`, `js/ccp-rules.js`) ; la dernière page mémorisée suit
+  le même chemin.
+- **Tests** : `node tests/modules.test.mjs`, `node tests/ccp-rules.test.mjs` (texte du parcours
+  compris : forme, liens, aucun cadratin, jamais « prof »).
+- **Convention pour les formateurs** : le titre d'un stage ou d'un examen du CCP2 contient
+  « CCP2 », sinon il n'apparaît pas dans le parcours.
+- **Assistant** : `aide.mjs` décrit CCP1 et CCP2 ; il faut redéployer la fonction `chatbot` pour
+  que la bulle le sache.
+- **Banc** : après chaque `node _harness_build.mjs`, ouvrir `_harness.html` avec un paramètre
+  neuf (`?cb=…`) : le navigateur garde la page en cache avec l'ancien jeton, donc les anciens
+  modules, et un test peut passer au vert sur du code qui n'est plus sur le disque.
 
 ## Décisions UX importantes (à respecter)
 

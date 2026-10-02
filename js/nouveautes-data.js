@@ -16,6 +16,32 @@
 
 export const NOUVEAUTES = [
   {
+    id: "2026-10-03-onglet-ccp1",
+    date: "2026-10-03",
+    pour: "tous",
+    module: "themes",
+    titre: "Thèmes, Notes et EPCF réunis dans l'onglet CCP1",
+    resume: "Les thèmes avec leurs cours et leurs QCM, le tableau des notes, l'EPCF, le livret "
+          + "EPCF et le dossier professionnel sont maintenant rangés dans un seul onglet, CCP1. "
+          + "Sur téléphone, c'est l'icône marquée 1. Ton espace personnel ne change pas.",
+    ou: { label: "CCP1", route: "ccp1" },
+    guide: [
+      "Touche l'onglet CCP1 (l'icône marquée 1 sur téléphone).",
+      "Choisis Thèmes, Notes, EPCF, Livret EPCF ou Dossier pro dans la barre juste en dessous.",
+    ],
+  },
+  {
+    id: "2026-10-03-parcours-ccp2",
+    date: "2026-10-03",
+    pour: "tous",
+    module: "ccp2",
+    titre: "Nouvel onglet CCP2 : ton parcours en 8 étapes",
+    resume: "Du choix du commanditaire au jour de l'épreuve, chaque étape dit ce que le jury "
+          + "regarde, comment t'y prendre et ce qu'il faut garder pour ton dossier. Tes dates "
+          + "de stage et d'examen sont rappelées en haut de la page.",
+    ou: { label: "CCP2", route: "ccp2" },
+  },
+  {
     id: "2026-10-01-guide-ccp2-videos",
     date: "2026-10-01",
     pour: "tous",
