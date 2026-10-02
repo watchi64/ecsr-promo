@@ -22,6 +22,8 @@ const CLE_REGLAGE = "modules";
 const REF = { modules: MODULES, moduleDeRoute: MODULE_DE_ROUTE, moduleDeSousOnglet: MODULE_DE_SOUS_ONGLET };
 // Relecture au retour au premier plan : au plus une fois par minute.
 const DELAI_RELECTURE_MS = 60 * 1000;
+// Valeur du minuteur de chargerModulesAuDemarrage : distingue « délai écoulé » d'une lecture finie.
+const DELAI_DEPASSE = Symbol("delai-depasse");
 
 let etat = ETAT_LIBRE;
 let texteCourant;          // undefined tant que rien n'a été lu dans cette session
@@ -71,6 +73,25 @@ export async function chargerModules() {
     console.error("Modules : lecture impossible, dernier état connu conservé.", e);
     if (texteCourant === undefined) appliquer(lireCopie());
   }
+  return etat;
+}
+
+// Démarrage borné : au-delà de `delaiMs`, on n'attend plus la base. On applique la
+// copie de l'appareil (sinon l'état libre) ; la vraie réponse, si elle arrive ensuite,
+// s'applique à son tour et prévient les abonnés (la barre est alors redessinée).
+// La lecture en cours n'est pas abandonnée : c'est la même que chargerModules(), avec
+// son compteur de lectures périmées. Elle ne rejette jamais, donc la course ne laisse
+// aucune promesse rejetée derrière elle. Ne touche pas à la file d'écriture.
+export async function chargerModulesAuDemarrage(delaiMs = 3500) {
+  const lecture = chargerModules();
+  let minuteur;
+  const delai = new Promise((fin) => { minuteur = setTimeout(fin, delaiMs, DELAI_DEPASSE); });
+  const premier = await Promise.race([lecture, delai]);
+  clearTimeout(minuteur);
+  // Rien n'a encore été lu dans la session : la copie de l'appareil, ou l'état libre si
+  // elle est absente. Si la lecture a abouti entre-temps, texteCourant est déjà posé et
+  // la copie n'est pas appliquée par-dessus.
+  if (premier === DELAI_DEPASSE && texteCourant === undefined) appliquer(lireCopie());
   return etat;
 }
 
@@ -145,11 +166,15 @@ export function appliquerEnsembleDeDepart() {
 }
 
 // Pour la mémoire des nouveautés lues (amorce, purge) : tout, sans filtre.
-export function toutesLesNouveautes() {
+function toutesLesNouveautes() {
   return avecAnnonces(NOUVEAUTES, etat, MODULES);
 }
-// Pour l'affichage et le compte de la pastille : ce que la personne doit voir.
-export function nouveautesDeLaPromo() {
+// Nouveautés écrites et annonces de la promo : un stagiaire ne reçoit pas celles d'un
+// module fermé, un formateur les reçoit toutes. Cette liste ne tient PAS compte de
+// l'audience (les entrées « pour: formateurs » y figurent pour tout le monde) : seule
+// nouveautesAffichables() la filtre, par visibles(). Interne : les vues passent par
+// nouveautesAffichables() et marquerLues().
+function nouveautesDeLaPromo() {
   return nouveautesPour(NOUVEAUTES, etat, REF, formateurConnecte());
 }
 

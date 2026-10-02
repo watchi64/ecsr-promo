@@ -25,8 +25,8 @@ import { renderNouveautes } from "./views/nouveautes.js?v=20261001a";
 import { libellePastille } from "./nouveautes.js?v=20261001a";
 import { initChatbot, appliquerModuleAssistant } from "./chatbot.js?v=20261001a";
 import {
-  chargerModules, onModulesChange, surveillerPremierPlan, routeVisible, routeMasquee,
-  repereMasque, nouveautesAffichables,
+  chargerModules, chargerModulesAuDemarrage, onModulesChange, surveillerPremierPlan,
+  routeVisible, routeMasquee, repereMasque, nouveautesAffichables,
 } from "./modules-etat.js?v=20261001a";
 
 // ===== Tabs =====
@@ -206,6 +206,16 @@ async function navigate() {
 
 window.addEventListener("hashchange", navigate);
 
+// Pose « Chargement » dans la vue, le temps d'une attente (lecture des modules) : sans cela,
+// l'écran resterait vide au démarrage, ou figé sur l'ancienne page après « Actualiser ».
+// La vue suivante, rendue par navigate(), le remplace.
+function afficherChargement() {
+  const chargement = document.createElement("div");
+  chargement.className = "loading";
+  chargement.textContent = "Chargement";
+  document.getElementById("view").replaceChildren(chargement);
+}
+
 function setupRefreshBtn() {
   const btn = document.getElementById("refresh-btn");
   btn.innerHTML = "";
@@ -213,6 +223,7 @@ function setupRefreshBtn() {
   btn.addEventListener("click", async () => {
     // Force le rechargement réel : vide le cache des données de référence
     invalidateCache();
+    afficherChargement();
     // Un formateur a pu ouvrir un module depuis le dernier chargement.
     await chargerModules();
     navigate();
@@ -263,7 +274,10 @@ function isColdStart() {
 async function bootApp() {
   hideGate();
   // L'état des modules décide des onglets visibles : il est lu avant de dessiner la barre.
-  await chargerModules();
+  // La lecture est bornée (chargerModulesAuDemarrage : copie de l'appareil au-delà de
+  // 3,5 s, la vraie réponse redessine la barre à son arrivée) et la vue dit « Chargement ».
+  afficherChargement();
+  await chargerModulesAuDemarrage();
   renderTabs();
   majBadgeNouveautes();
   setupRefreshBtn();

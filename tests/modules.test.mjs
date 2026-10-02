@@ -190,6 +190,11 @@ eq(typeof REGLAGE_OUVERT_AUX_FORMATEURS, "boolean", "drapeau booléen");
 // Dossier pro, des QCM, des cours ou de l'anonymat : sans champ `module`, une
 // promo qui n'a pas ce module les verrait.
 for (const e of NOUVEAUTES) if (e.module) ok(cles.includes(e.module), e.id + " : module connu");
+// La pastille compte un ENSEMBLE d'ids (nouveautesAffichables) et la mémoire des nouveautés
+// lues les garde par id : deux entrées de même id ne compteraient que pour une et se
+// marqueraient lues ensemble.
+const idsNouveautes = NOUVEAUTES.map((e) => e.id);
+eq(new Set(idsNouveautes).size, idsNouveautes.length, "ids de NOUVEAUTES uniques");
 const REF_REEL = { modules: MODULES, moduleDeRoute: MODULE_DE_ROUTE, moduleDeSousOnglet: MODULE_DE_SOUS_ONGLET };
 const attendu = {
   "2026-09-16-dp-formateurs": "dp", "2026-09-15-dp-mise-en-page": "dp",

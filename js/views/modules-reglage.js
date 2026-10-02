@@ -15,6 +15,13 @@ import {
 
 const SOCLE = "Toujours ouverts : Accueil, Mon espace personnel (Passages), Paramètres, Nouveautés.";
 
+// Demandée avant la première bascule d'une case sur une promo libre ou illisible : cette
+// bascule fige un réglage pour tous les stagiaires de la promo, et l'état « aucun réglage »
+// ne se retrouve plus ensuite. Le bouton « Partir de l'ensemble de départ » a la sienne.
+const CONFIRMATION_PREMIER_REGLAGE = "Cette promo n'a encore aucun réglage : tout est ouvert. "
+  + "Changer une case crée un réglage qui s'applique à tous ses stagiaires, et on ne pourra "
+  + "plus revenir à l'état « aucun réglage ». Continuer ?";
+
 function nomDe(cle) {
   return MODULES.find((m) => m.cle === cle)?.nom || cle;
 }
@@ -138,6 +145,13 @@ function ligneModule(m, etat) {
   caseACocher.disabled = parentFerme;
   caseACocher.addEventListener("change", async () => {
     const ouvrir = caseACocher.checked;
+    // `reglee` est l'état AFFICHÉ, celui que le formateur a sous les yeux. Sur une promo libre
+    // ou illisible, la première bascule fige un réglage : on la fait confirmer. Refus : la case
+    // retrouve son état d'avant, sans écriture ni message (rien ne s'est passé).
+    if (!reglee && !confirm(CONFIRMATION_PREMIER_REGLAGE)) {
+      caseACocher.checked = !ouvrir;
+      return;
+    }
     caseACocher.disabled = true;
     await ecrireEtRedessiner(
       () => basculerModule(m.cle, ouvrir),

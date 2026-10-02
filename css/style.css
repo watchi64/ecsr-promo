@@ -7733,7 +7733,8 @@ body.cours-open { overflow: hidden; }
 .module-masque { opacity: 0.55; }
 .module-masque:hover,
 .module-masque:focus-visible,
-.tab.module-masque.active { opacity: 0.9; }
+.tab.module-masque.active,
+.subtab.module-masque.active { opacity: 0.9; }
 .marque-masque {
   display: inline-flex;
   align-items: center;
@@ -7758,8 +7759,17 @@ body.cours-open { overflow: hidden; }
   color: var(--text-muted);
   box-shadow: var(--shadow-1);
 }
+/* Sur téléphone, l'œil se pose sur le coin haut droit de l'icône de l'onglet, hors du flux :
+   il ne coûte aucune largeur à la barre (qui défile). En flux, trois onglets repérés la
+   faisaient déborder à 375 px et l'engrenage de Paramètres était coupé. */
 @media (max-width: 760px) {
-  .tab .marque-masque { margin-left: -3px; align-self: flex-start; }
+  .tab { position: relative; }
+  .tab .marque-masque {
+    position: absolute;
+    top: 2px;
+    right: 3px;
+    margin: 0;
+  }
   .tab .marque-masque .icon { width: 10px; height: 10px; }
 }
 
