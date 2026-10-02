@@ -9,12 +9,12 @@ import {
   addProf, updateProf, deleteProf,
   listUserProfiles, deleteUserProfile, inviteUser,
   setMyAnonymousNotes,
-} from "../db.js?v=20261001a";
-import { el, clear, toast, displayStagiaire } from "../utils.js?v=20261001a";
-import { icon } from "../icons.js?v=20261001a";
-import { isAdmin, getAdminEmail, getProfile } from "../auth-admin.js?v=20261001a";
-import { moduleVisible } from "../modules-etat.js?v=20261001a";
-import { renderModulesSection } from "./modules-reglage.js?v=20261001a";
+} from "../db.js?v=20261002a";
+import { el, clear, toast, displayStagiaire } from "../utils.js?v=20261002a";
+import { icon } from "../icons.js?v=20261002a";
+import { isAdmin, getAdminEmail, getProfile } from "../auth-admin.js?v=20261002a";
+import { moduleVisible } from "../modules-etat.js?v=20261002a";
+import { renderModulesSection } from "./modules-reglage.js?v=20261002a";
 
 // ====== SECTION Accès & invitations ======
 
@@ -26,7 +26,7 @@ async function renderAccessSection(rerender) {
     el("div", { class: "param-icon" }, icon.shield()),
     el("div", {},
       el("h3", {}, "Accès & invitations"),
-      el("p", { class: "muted" }, "Personnes invitées à utiliser l'app (stagiaires, profs, admins)."),
+      el("p", { class: "muted" }, "Personnes invitées à utiliser l'app (stagiaires, formateurs, admins)."),
     ),
   ));
 
@@ -159,7 +159,7 @@ async function renderAccessSection(rerender) {
           if (pr) who = pr.nom;
         }
         const pills = el("div", { class: "role-pills" },
-          el("span", { class: "role-pill role-" + p.role }, p.role),
+          el("span", { class: "role-pill role-" + p.role }, p.role === "prof" ? "formateur" : p.role),
           (p.is_admin && p.role !== "admin") ? el("span", { class: "role-pill role-admin" }, "admin") : null,
         );
         const item = el("li", { class: "admin-item" },

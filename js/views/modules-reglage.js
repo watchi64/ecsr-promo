@@ -5,13 +5,13 @@
 // en ligne (REGLAGE_OUVERT_AUX_FORMATEURS, js/modules-data.js). La section se
 // redessine elle-même après chaque écriture, réussie ou non (voir redessiner) :
 // pas de rechargement de toute la page Paramètres.
-import { el, toast } from "../utils.js?v=20261001a";
-import { icon } from "../icons.js?v=20261001a";
-import { MODULES, GROUPES } from "../modules-data.js?v=20261001a";
-import { estReglee, estOuvert, jourParis, accorder } from "../modules.js?v=20261001a";
+import { el, toast } from "../utils.js?v=20261002a";
+import { icon } from "../icons.js?v=20261002a";
+import { MODULES, GROUPES } from "../modules-data.js?v=20261002a";
+import { estReglee, estOuvert, jourParis, accorder } from "../modules.js?v=20261002a";
 import {
   etatModules, peutRegler, basculerModule, appliquerEnsembleDeDepart,
-} from "../modules-etat.js?v=20261001a";
+} from "../modules-etat.js?v=20261002a";
 
 const SOCLE = "Toujours ouverts : Accueil, Mon espace personnel (Passages), Paramètres, Nouveautés.";
 
