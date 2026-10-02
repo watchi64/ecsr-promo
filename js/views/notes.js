@@ -1135,9 +1135,10 @@ function rerender(container) {
   // stagiaire → vue classe (EPCF), son livret en lecture seule (Livret), et son
   // dossier professionnel EN ÉDITION (le DP appartient au candidat).
   // La matrice reste en lecture seule pour les stagiaires.
+  // Chaque sous-onglet suit son module (js/modules-data.js) ; la Matrice suit l'onglet lui-même.
   container.appendChild(renderSubTabs([
     { key: "matrice", label: "Matrice", render: buildMatricePanel },
-    { key: "epcf", label: "EPCF", render: (p, ctx) => {
+    { key: "epcf", label: "EPCF", module: "epcf", render: (p, ctx) => {
         renderEpcf(p, { embedded: true, isActive: ctx && ctx.isActive })
           .catch((e) => {
             console.error(e);
@@ -1147,7 +1148,7 @@ function rerender(container) {
             }
           });
       } },
-    { key: "livret", label: "Livret EPCF", render: (p, ctx) => {
+    { key: "livret", label: "Livret EPCF", module: "livret", render: (p, ctx) => {
         renderEpcfLivret(p, { embedded: true, isActive: ctx && ctx.isActive })
           .catch((e) => {
             console.error(e);
@@ -1157,7 +1158,7 @@ function rerender(container) {
             }
           });
       } },
-    { key: "dp", label: "Dossier pro", render: (p, ctx) => {
+    { key: "dp", label: "Dossier pro", module: "dp", render: (p, ctx) => {
         renderDp(p, { embedded: true, isActive: ctx && ctx.isActive })
           .catch((e) => {
             console.error(e);
