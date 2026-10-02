@@ -49,6 +49,9 @@ alter table public.fiches_suivi       add column promo_id integer not null defau
 -- Réglages : promo_id nulle = réglage global (quota de l'assistant et deux clés inutilisées).
 alter table public.settings           add column promo_id integer default 1 references public.promos(id);
 update public.settings set promo_id = null where key in ('chatbot_quota_jour', 'cohort_name', 'password_hash');
+-- Seules ces trois clés sont globales : sans promo, toute autre insertion est refusée.
+alter table public.settings add constraint settings_globaux_prevus
+  check (promo_id is not null or key in ('chatbot_quota_jour', 'cohort_name', 'password_hash'));
 
 alter table public.benevoles      add column lieu_id integer not null default 1 references public.lieux(id);
 alter table public.auto_ecoles    add column lieu_id integer not null default 1 references public.lieux(id);
@@ -100,13 +103,16 @@ returns integer language plpgsql stable security definer
 set search_path to 'public', 'pg_temp'
 as $$
 declare
+  brut text := nullif(current_setting('request.headers', true), '');
   entete text;
 begin
-  begin
-    entete := nullif(current_setting('request.headers', true), '')::json ->> 'x-promo-id';
-  exception when others then
-    return null;
-  end;
+  if brut is not null then
+    -- En-têtes illisibles : aucune promo (PostgREST envoie toujours un JSON valide).
+    if not pg_input_is_valid(brut, 'json') then
+      return null;
+    end if;
+    entete := brut::json ->> 'x-promo-id';
+  end if;
   if entete is null or entete = '' then
     return promo_par_defaut();
   end if;
@@ -223,7 +229,7 @@ returns trigger language plpgsql security definer
 set search_path to 'public', 'pg_temp'
 as $$
 begin
-  if new.auto_ecole_id is not null and not exists (
+  if new.lieu_id is not null and new.auto_ecole_id is not null and not exists (
     select 1 from public.auto_ecoles a where a.id = new.auto_ecole_id and a.lieu_id = new.lieu_id
   ) then
     raise exception 'Cette auto-école appartient à un autre lieu.' using errcode = '23514';

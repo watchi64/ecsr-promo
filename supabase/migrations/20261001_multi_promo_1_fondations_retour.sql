@@ -64,6 +64,7 @@ drop trigger if exists trg_lieu_du_benevole on public.benevole_suivi;
 drop trigger if exists trg_affiliation_meme_lieu on public.benevoles;
 
 alter table public.settings drop constraint if exists settings_promo_key_unique;
+alter table public.settings drop constraint if exists settings_globaux_prevus;
 alter table public.settings drop column if exists id;
 alter table public.stagiaires         drop column if exists promo_id;
 alter table public.evaluations        drop column if exists promo_id;
