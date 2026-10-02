@@ -23,7 +23,7 @@ async function renderAccessSection(rerender) {
     el("div", { class: "param-icon" }, icon.shield()),
     el("div", {},
       el("h3", {}, "Accès & invitations"),
-      el("p", { class: "muted" }, "Personnes invitées à utiliser l'app (stagiaires, profs, admins)."),
+      el("p", { class: "muted" }, "Personnes invitées à utiliser l'app (stagiaires, formateurs, admins)."),
     ),
   ));
 
@@ -156,7 +156,7 @@ async function renderAccessSection(rerender) {
           if (pr) who = pr.nom;
         }
         const pills = el("div", { class: "role-pills" },
-          el("span", { class: "role-pill role-" + p.role }, p.role),
+          el("span", { class: "role-pill role-" + p.role }, p.role === "prof" ? "formateur" : p.role),
           (p.is_admin && p.role !== "admin") ? el("span", { class: "role-pill role-admin" }, "admin") : null,
         );
         const item = el("li", { class: "admin-item" },

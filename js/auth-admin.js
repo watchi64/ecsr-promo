@@ -169,7 +169,7 @@ function updateBadge() {
   const who = getProfileWho() || currentUser.email;
   const roleLabel =
     currentProfile?.role === "admin"     ? "admin" :
-    currentProfile?.role === "prof"      ? "prof" :
+    currentProfile?.role === "prof"      ? "formateur" :
     currentProfile?.role === "stagiaire" ? "stagiaire" : "";
 
   const badge = el("button", { class: "admin-badge", onClick: openProfileMenu },
@@ -239,7 +239,7 @@ function openProfileMenu() {
     el("p", { class: "muted", style: "margin:0 0 0.4rem;font-size:0.9rem" },
       "Connecté en tant que ", el("strong", {}, currentUser.email)),
     el("p", { class: "muted", style: "margin:0 0 1.2rem;font-size:0.85rem" },
-      "Rôle : ", el("strong", {}, currentProfile?.role || "?"),
+      "Rôle : ", el("strong", {}, currentProfile?.role === "prof" ? "formateur" : (currentProfile?.role || "?")),
       currentProfile && (currentProfile.stagiaire_id || currentProfile.prof_id)
         ? el("span", {}, " · profil : ", el("strong", {}, getProfileWho() || "?"))
         : null,

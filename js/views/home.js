@@ -88,7 +88,7 @@ export async function renderHome(container) {
   const who = getProfileWho();
   const admin = isAdmin();
   const roleLabel = admin ? "Admin"
-    : profile?.role === "prof" ? "Prof"
+    : profile?.role === "prof" ? "Formateur"
     : profile?.role === "stagiaire" ? "Stagiaire" : null;
 
   const today = new Date();
@@ -244,8 +244,8 @@ export async function renderHome(container) {
         " Tes ajouts de passages et tes notes sont signés automatiquement.",
       ),
       el("li", {},
-        el("strong", {}, "Ajout de passage limité à 2 jours en arrière."),
-        " Au-delà, demande à un admin (prof) de le faire pour toi.",
+        el("strong", {}, "Tu ajoutes et corriges tes passages toi-même."),
+        " Pour en supprimer un, demande à un formateur.",
       ),
       el("li", {},
         el("strong", {}, "Tout est tracé."),

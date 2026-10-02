@@ -24,6 +24,16 @@ export const NOUVEAUTES = [
     ou: { label: "Ressources, Examens", route: "ressources" },
   },
   {
+    id: "2026-10-02-passages-toute-date",
+    date: "2026-10-02",
+    pour: "tous",
+    titre: "Un passage oublié ? Ajoute-le toi-même, même ancien",
+    resume: "Tu peux enregistrer un passage à n'importe quelle date passée et corriger les "
+          + "tiens si tu t'es trompé. Seule la suppression d'un passage passe par un "
+          + "formateur. La limite de 2 jours indiquée sur l'accueil n'existe plus.",
+    ou: { label: "Priorités, Historique des passages", route: "dashboard" },
+  },
+  {
     id: "2026-09-30-boite-a-outils-ccp2",
     date: "2026-09-30",
     pour: "tous",
