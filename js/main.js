@@ -23,6 +23,7 @@ import { renderNouveautes } from "./views/nouveautes.js?v=20261002b";
 import { libellePastille, STORAGE_SOUS_ONGLET } from "./nouveautes.js?v=20261002b";
 import { ancienneRoute } from "./ccp-rules.js?v=20261002b";
 import { renderCcp1 } from "./views/ccp1.js?v=20261002b";
+import { renderCcp2 } from "./views/ccp2.js?v=20261002b";
 import { initChatbot, appliquerModuleAssistant } from "./chatbot.js?v=20261002b";
 import {
   chargerModules, chargerModulesAuDemarrage, onModulesChange, surveillerPremierPlan,
@@ -45,6 +46,7 @@ const TABS = [
   // n'a pas de module propre : il s'affiche dès qu'une de ces parties est ouverte
   // (ONGLETS_REGROUPES, js/modules-data.js).
   { route: "ccp1",       label: "CCP1",            icon: "ccp1"      },
+  { route: "ccp2",       label: "CCP2",            icon: "ccp2"      },
   { route: "ressources", label: "Ressources",      icon: "signpost"  },
   { route: "config",     label: "Paramètres",      icon: "settings"  },
 ];
@@ -112,6 +114,7 @@ const routes = {
   planning:   renderPlanning,
   calendrier: renderCalendrier,
   ccp1:       renderCcp1,
+  ccp2:       renderCcp2,
   ressources: renderRessources,
   config:     renderConfig,
   nouveautes: renderNouveautes,
