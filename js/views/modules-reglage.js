@@ -8,7 +8,7 @@
 import { el, toast } from "../utils.js?v=20261001a";
 import { icon } from "../icons.js?v=20261001a";
 import { MODULES, GROUPES } from "../modules-data.js?v=20261001a";
-import { estOuvert, jourParis, accorder } from "../modules.js?v=20261001a";
+import { estReglee, estOuvert, jourParis, accorder } from "../modules.js?v=20261001a";
 import {
   etatModules, peutRegler, basculerModule, appliquerEnsembleDeDepart,
 } from "../modules-etat.js?v=20261001a";
@@ -37,20 +37,50 @@ function enumerer(noms) {
 // par une neuve ; la seconde, en finissant, doit redessiner cette neuve. Viser l'ancienne,
 // déjà retirée de la page, ne ferait rien (remplacer un nœud détaché est sans effet) et
 // l'écran resterait celui d'avant la seconde écriture. On cherche donc la section dans la
-// page à chaque redessin, et la neuve repart toujours de l'état réel des modules : après
-// un échec, la case revient d'elle-même à son état, sans remise en état à part.
-function redessiner() {
+// page à chaque redessin (par sa classe « modules-reglage »), et la neuve repart toujours
+// de l'état réel des modules : après un échec, la case revient d'elle-même à son état,
+// sans remise en état à part.
+//
+// `idACibler` : id de la case actionnée. Elle est grisée pendant l'écriture, donc perd le
+// focus, et le redessin la remplace : sans cela, un formateur au clavier repartirait du
+// début de la page. Le focus revient à la case qui l'a (si le formateur est déjà passé à la
+// suivante, c'est elle : lui rendre la case actionnée ferait basculer celle-ci à la touche
+// Espace), à défaut à la case actionnée. S'il est ailleurs dans la page (un champ d'une
+// autre section), on n'y touche pas : on ne lui vole pas ce qu'il est en train de saisir.
+function redessiner(idACibler) {
   const affichee = document.querySelector(".modules-reglage");
   if (!affichee) return;   // la page Paramètres n'est plus à l'écran
+  const actif = document.activeElement;
+  const dansSection = !!actif && affichee.contains(actif);
+  const focusAilleurs = !!actif && actif !== document.body && !dansSection;
+  const idFocus = (dansSection && actif.id) || idACibler;
   const suivante = renderModulesSection();
   if (suivante) affichee.replaceWith(suivante);
   else affichee.remove();
+  if (suivante && idFocus && !focusAilleurs) suivante.querySelector("#" + idFocus)?.focus({ preventScroll: true });
+}
+
+// Protocole de toute écriture de la section (une case, le bouton de l'ensemble de départ) :
+// l'écriture, un message de succès ou d'erreur, puis, dans tous les cas, le redessin de la
+// section affichée. `ecriture` est une fonction qui renvoie une promesse.
+async function ecrireEtRedessiner(ecriture, messageSucces, idACibler) {
+  try {
+    await ecriture();
+    toast(messageSucces, "success");
+  } catch (e) {
+    console.error(e);
+    toast("Erreur : " + (e?.message || e), "error");
+  } finally {
+    redessiner(idACibler);
+  }
 }
 
 export function renderModulesSection() {
   if (!peutRegler()) return null;
   const etat = etatModules();
 
+  // La classe « modules-reglage » sert à retrouver la section affichée (voir redessiner) :
+  // ne pas la retirer.
   const section = el("section", { class: "param-section modules-reglage" });
 
   section.appendChild(el("div", { class: "param-section-head" },
@@ -63,7 +93,7 @@ export function renderModulesSection() {
     ),
   ));
 
-  if (etat.statut !== "reglee") section.appendChild(bandeauDepart(etat));
+  if (!estReglee(etat)) section.appendChild(bandeauDepart(etat));
   section.appendChild(el("p", { class: "modules-socle muted" }, SOCLE));
 
   for (const groupe of GROUPES) {
@@ -83,17 +113,9 @@ function bandeauDepart(etat) {
   bouton.addEventListener("click", async () => {
     if (!confirm(`Seuls ${noms} resteront visibles pour les stagiaires. Continuer ?`)) return;
     bouton.disabled = true;
-    try {
-      await appliquerEnsembleDeDepart();
-      // Message neutre : si la base portait déjà un réglage lisible (lecture de
-      // démarrage ratée, autre formateur), appliquerEnsembleDeDepart le conserve.
-      toast("Réglage des modules enregistré", "success");
-    } catch (e) {
-      console.error(e);
-      toast("Erreur : " + (e?.message || e), "error");
-    } finally {
-      redessiner();
-    }
+    // Message neutre : si la base portait déjà un réglage lisible (lecture de démarrage
+    // ratée, autre formateur), appliquerEnsembleDeDepart le conserve.
+    await ecrireEtRedessiner(appliquerEnsembleDeDepart, "Réglage des modules enregistré");
   });
   return el("div", { class: "modules-bandeau" },
     el("p", {}, etat.statut === "illisible"
@@ -104,7 +126,7 @@ function bandeauDepart(etat) {
 }
 
 function ligneModule(m, etat) {
-  const reglee = etat.statut === "reglee";
+  const reglee = estReglee(etat);
   // La case montre l'état propre du module : un enfant reste coché quand son
   // parent est fermé (fermer un parent ne touche pas ses enfants).
   const coche = !reglee || Object.prototype.hasOwnProperty.call(etat.ouverts, m.cle);
@@ -117,22 +139,20 @@ function ligneModule(m, etat) {
   caseACocher.addEventListener("change", async () => {
     const ouvrir = caseACocher.checked;
     caseACocher.disabled = true;
-    try {
-      await basculerModule(m.cle, ouvrir);
-      toast(`${m.nom} ${accorder(ouvrir ? "ouvert" : "masqué", m.accord)} aux stagiaires`, "success");
-    } catch (e) {
-      console.error(e);
-      toast("Erreur : " + (e?.message || e), "error");
-    } finally {
-      redessiner();
-    }
+    await ecrireEtRedessiner(
+      () => basculerModule(m.cle, ouvrir),
+      `${m.nom} ${accorder(ouvrir ? "ouvert" : "masqué", m.accord)} aux stagiaires`,
+      id,
+    );
   });
 
   const mention = m.parent
     ? el("span", { class: "modules-parent muted" },
         (parentFerme ? "s'ouvre avec " : "dans ") + nomDe(m.parent))
     : null;
-  const date = reglee && coche
+  // La date n'a de sens que pour un module effectivement ouvert : un enfant coché dont le
+  // parent est fermé n'est pas ouvert pour les stagiaires.
+  const date = reglee && estOuvert(m.cle, etat, MODULES)
     ? el("span", { class: "modules-date" },
         `${accorder("ouvert", m.accord)} le ${jourCourt(etat.ouverts[m.cle])}`)
     : null;

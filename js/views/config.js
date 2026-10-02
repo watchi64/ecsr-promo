@@ -475,13 +475,18 @@ async function rerender(container) {
   container.appendChild(el("div", { class: "loading" }, "Chargement"));
 
   try {
-    const sections = await withTimeout(Promise.all([
+    const [acces, preferences, promo, infos] = await withTimeout(Promise.all([
       renderAccessSection(() => rerender(container)),
       Promise.resolve(renderMyPreferencesSection(() => rerender(container))),
-      Promise.resolve(renderModulesSection()),
       renderPromoSection(() => rerender(container)),
       Promise.resolve(renderInfoSection()),
     ]), 12000, "Paramètres");
+    // La section « Modules de la promo » est construite ICI, après l'attente, et non dans le
+    // tableau ci-dessus : elle montre l'état des modules tel qu'il est au moment de son
+    // insertion. Construite avant l'attente, elle serait périmée si une écriture se terminait
+    // pendant « Chargement » : redessiner() (js/views/modules-reglage.js) ne trouve alors
+    // aucune section à l'écran, et l'ancienne, rendue d'avant l'écriture, serait insérée ensuite.
+    const modules = renderModulesSection();
 
     clear(container);
     container.appendChild(el("div", { class: "view-header" },
@@ -493,7 +498,7 @@ async function rerender(container) {
     ));
 
     const grid = el("div", { class: "param-grid" });
-    sections.filter(Boolean).forEach((s) => grid.appendChild(s));
+    [acces, preferences, modules, promo, infos].filter(Boolean).forEach((s) => grid.appendChild(s));
     container.appendChild(grid);
   } catch (e) {
     console.error("Paramètres : erreur de chargement", e);

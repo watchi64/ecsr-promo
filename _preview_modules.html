@@ -11,6 +11,13 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8" />
+  <!-- Banc fermé au réseau : même si le vrai js/db.js se chargeait malgré l'import map, rien ne
+       pourrait sortir (connect-src 'self') ni être chargé de l'extérieur (esm.sh, Supabase).
+       Les polices de css/fonts.css et de css/style.css sont auto-hébergées (assets/fonts,
+       css/fonts) : aucune source externe à autoriser. 'unsafe-inline' : l'import map et le
+       module de cette page sont en ligne. Cette balise doit rester AVANT tout script et toute
+       feuille de style. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; base-uri 'self'; form-action 'self'" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Banc d'essai · modules</title>
   <script>
@@ -26,7 +33,12 @@
       var x = new XMLHttpRequest();
       x.open("GET", "index.html?cb=" + Date.now(), false);
       x.send();
-      var jeton = /js\/main\.js\?v=(\d{8}[a-z]+)/.exec(x.responseText)[1];
+      var trouve = /js\/main\.js\?v=(\d{8}[a-z]+)/.exec(x.responseText);
+      // Échec fermé : sans jeton, pas d'import map, et les imports du module de la page
+      // chargeraient le VRAI js/db.js (la production). On s'arrête ici ; le module de la page
+      // refuse de démarrer tant que window.__jeton est absent.
+      if (!trouve) throw new Error("Banc modules : jeton ?v= introuvable dans index.html, import map non posée.");
+      var jeton = trouve[1];
       var neuf = "cb" + Date.now();
       var imports = {};
       imports["./js/db.js?v=" + jeton] = "./_preview_stubs/db-modules.js?v=" + neuf;
@@ -80,10 +92,25 @@
        non gérée dans la console et rien ne s'afficherait. -->
   <div id="toast" class="toast hidden"></div>
   <script type="module">
+    // Garde, échec fermé : sans jeton, l'import map n'est pas posée et les imports ci-dessous
+    // chargeraient le VRAI js/db.js. Le banc s'arrête alors, avec une erreur visible à l'écran.
+    function arret(message) {
+      const bandeau = document.createElement("pre");
+      bandeau.textContent = "BANC ARRÊTÉ : " + message;
+      bandeau.style.cssText = "margin:0 0 14px;padding:12px;background:#fdecea;color:#7a1f14;"
+        + "border:1px solid #e3a59d;border-radius:8px;white-space:pre-wrap;font:13px/1.4 ui-monospace,monospace";
+      document.body.prepend(bandeau);
+      throw new Error(message);
+    }
+    if (!window.__jeton) arret("jeton ?v= non lu (voir la console) : l'import map n'est pas posée, rien n'est chargé.");
+
     const j = window.__jeton;
     const { el } = await import("./js/utils.js?v=" + j);
     const { icon } = await import("./js/icons.js?v=" + j);
     const etat = await import("./js/modules-etat.js?v=" + j);
+    // Seconde garde : la doublure db-modules.js pose window.__ecritures en s'évaluant. Absente, c'est
+    // que le VRAI js/db.js a été chargé (import map non appliquée) : on s'arrête avant le premier appel.
+    if (!Array.isArray(window.__ecritures)) arret("la doublure de js/db.js n'est pas chargée (import map non appliquée), aucun appel n'est fait.");
     const { renderModulesSection } = await import("./js/views/modules-reglage.js?v=" + j);
     await etat.chargerModules();
 
