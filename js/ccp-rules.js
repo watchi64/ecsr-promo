@@ -16,6 +16,18 @@ export function ancienneRoute(route) {
   return typeof route === "string" && contient(ANCIENNES_ROUTES, route) ? ANCIENNES_ROUTES[route] : null;
 }
 
+// Typographie du parcours : une espace insécable lie un nombre à la suite (« 40 000 »,
+// « 30 minutes », « 1 h 30 »), pour qu'un retour à la ligne ne le coupe pas en deux.
+// Le caractère est fabriqué par son code : écrit tel quel, il serait invisible dans le
+// source.
+const INSECABLE = String.fromCharCode(0xa0);
+export function insecables(texte) {
+  return String(texte)
+    .replace(/(\d) (?=\d{3}(?!\d))/g, "$1" + INSECABLE)
+    .replace(/(\d) (?=[A-Za-zÀ-ÿ])/g, "$1" + INSECABLE)
+    .replace(/\bh (?=\d)/g, "h" + INSECABLE);
+}
+
 // Types d'événements du Calendrier repris dans le parcours CCP2.
 export const TYPES_DATES_CCP2 = ["formation", "stage", "examen"];
 const MOTIF_CCP2 = /\bccp\s*2\b/i;

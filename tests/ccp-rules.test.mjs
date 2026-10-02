@@ -4,7 +4,7 @@
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { ANCIENNES_ROUTES, ancienneRoute, TYPES_DATES_CCP2, datesCcp2 } from "../js/ccp-rules.js";
+import { ANCIENNES_ROUTES, ancienneRoute, TYPES_DATES_CCP2, datesCcp2, insecables } from "../js/ccp-rules.js";
 import { EPREUVE, ETAPES } from "../js/ccp2-parcours-data.js";
 import {
   MODULES, MODULE_DE_ROUTE, ONGLETS_REGROUPES, ROUTES_SOCLE, MODULE_DE_SOUS_ONGLET,
@@ -50,6 +50,17 @@ eq(datesCcp2([{ id: 2, type: "examen", title: "Examens CCP2", date_start: "2026-
    true, "sans date de fin, la date de début fait foi");
 eq(datesCcp2(null, "2026-10-14"), [], "liste absente");
 ok(!("passe" in EV[1]), "les événements d'origine ne sont pas modifiés");
+
+// 2 bis. Espaces insécables
+const NB = String.fromCharCode(0xa0);
+eq(insecables("de 40 000 à 45 000 caractères"), `de 40${NB}000${NB}à 45${NB}000${NB}caractères`,
+   "milliers, et nombre lié au mot qui le suit");
+eq(insecables("1 h 30 devant le jury"), `1${NB}h${NB}30${NB}devant le jury`, "durée en heures");
+eq(insecables("(30 minutes, sans interruption)"), `(30${NB}minutes, sans interruption)`, "nombre et unité");
+eq(insecables("Étape 8 : le jour"), "Étape 8 : le jour", "chiffre suivi d'un signe : rien à changer");
+eq(insecables("2026 12 10"), `2026 12 10`, "groupes qui ne sont pas des milliers : rien à changer");
+eq(insecables("les 57 thèmes"), `les 57${NB}thèmes`, "nombre suivi d'un mot");
+eq(insecables("sans nombre"), "sans nombre", "texte sans nombre inchangé");
 
 // 3. Texte du parcours
 eq(ETAPES.length, 8, "8 étapes");

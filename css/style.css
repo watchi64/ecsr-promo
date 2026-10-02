@@ -7928,4 +7928,7 @@ body.cours-open { overflow: hidden; }
 @media (max-width: 760px) {
   .ccp2-etape-corps { padding: 0 1rem 1rem; }
   .ccp2-epreuve, .ccp2-dates { padding: 0.9rem 1rem; }
+  /* Titre puis période, toujours empilés : sinon les lignes courtes tiennent sur une
+     ligne et les longues sur deux, et la liste perd son alignement. */
+  .ccp2-date { flex-direction: column; }
 }

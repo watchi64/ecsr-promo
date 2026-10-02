@@ -5,7 +5,7 @@ import { el, clear, formatDate, isoDate } from "../utils.js?v=20261002b";
 import { listAgendaEvents } from "../db.js?v=20261002b";
 import { routeVisible, moduleVisible } from "../modules-etat.js?v=20261002b";
 import { STORAGE_SOUS_ONGLET } from "../nouveautes.js?v=20261002b";
-import { datesCcp2 } from "../ccp-rules.js?v=20261002b";
+import { datesCcp2, insecables } from "../ccp-rules.js?v=20261002b";
 import { EPREUVE, ETAPES } from "../ccp2-parcours-data.js?v=20261002b";
 
 // Dernière étape ouverte, rouverte au retour sur l'onglet.
@@ -48,14 +48,14 @@ function rubrique(titre, points) {
   if (!points || points.length === 0) return null;
   return el("section", { class: "ccp2-rubrique" },
     el("h4", {}, titre),
-    el("ul", {}, ...points.map((p) => el("li", {}, p))),
+    el("ul", {}, ...points.map((p) => el("li", {}, insecables(p)))),
   );
 }
 
 function carteEpreuve() {
   return el("section", { class: "ccp2-epreuve" },
     el("h3", {}, EPREUVE.titre),
-    el("ul", { class: "ccp2-epreuve-points" }, ...EPREUVE.points.map((p) => el("li", {}, p))),
+    el("ul", { class: "ccp2-epreuve-points" }, ...EPREUVE.points.map((p) => el("li", {}, insecables(p)))),
     listeLiens(EPREUVE.liens),
   );
 }
@@ -89,7 +89,7 @@ function carteEtape(etape, ouverte) {
     el("summary", {},
       el("span", { class: "ccp2-etape-num" }, String(etape.num)),
       el("span", { class: "ccp2-etape-titre" }, etape.titre),
-      el("span", { class: "ccp2-etape-bref" }, etape.enBref),
+      el("span", { class: "ccp2-etape-bref" }, insecables(etape.enBref)),
     ),
     el("div", { class: "ccp2-etape-corps" },
       rubrique(etape.titreAttendus || "Ce que le jury regarde", etape.attendus),
@@ -112,9 +112,9 @@ export async function renderCcp2(container) {
     el("div", { class: "view-header-text" },
       el("p", { class: "eyebrow" }, "Titre professionnel ECSR"),
       el("h2", {}, "CCP2"),
-      el("p", { class: "subtitle" },
+      el("p", { class: "subtitle" }, insecables(
         `Sensibiliser les usagers de la route : ton parcours en ${ETAPES.length} étapes, `
-        + "du commanditaire au jour de l'épreuve."),
+        + "du commanditaire au jour de l'épreuve.")),
     ),
   ));
   container.appendChild(carteEpreuve());
