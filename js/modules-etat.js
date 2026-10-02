@@ -12,7 +12,7 @@ import {
   MODULES, MODULE_DE_ROUTE, MODULE_DE_SOUS_ONGLET, REGLAGE_OUVERT_AUX_FORMATEURS,
 } from "./modules-data.js?v=20261001a";
 import {
-  ETAT_LIBRE, lireEtat, ecrireEtat, estOuvert, basculer, ensembleDeDepart,
+  ETAT_LIBRE, lireEtat, ecrireEtat, estReglee, estOuvert, basculer, ensembleDeDepart,
   avecAnnonces, nouveautesPour,
 } from "./modules.js?v=20261001a";
 import { NOUVEAUTES } from "./nouveautes-data.js?v=20261001a";
@@ -25,6 +25,7 @@ const DELAI_RELECTURE_MS = 60 * 1000;
 let etat = ETAT_LIBRE;
 let texteCourant;          // undefined tant que rien n'a été lu dans cette session
 let derniereLecture = 0;
+let ecrituresAbouties = 0; // écritures terminées dans cette session : voir chargerModules
 const abonnes = new Set();
 
 // Copie sur l'appareil, propre au compte : elle ne sert que si la lecture échoue.
@@ -56,8 +57,13 @@ function appliquer(texte) {
 // l'appareil, sinon libre (tout ouvert). Ne lève jamais d'erreur.
 export async function chargerModules() {
   derniereLecture = Date.now();
+  const ecrituresAuDepart = ecrituresAbouties;
   try {
     const texte = await getSetting(CLE_REGLAGE);
+    // Une écriture a abouti pendant que cette lecture voyageait : la réponse montre
+    // l'état d'avant elle. L'appliquer rétablirait l'ancien texte, en mémoire, dans
+    // la copie de l'appareil et chez les abonnés. On l'ignore.
+    if (ecrituresAbouties !== ecrituresAuDepart) return etat;
     ecrireCopie(texte);
     appliquer(texte);
   } catch (e) {
@@ -99,6 +105,7 @@ async function ecrireUne(transformer) {
   const frais = lireEtat(await getSetting(CLE_REGLAGE));
   const texte = ecrireEtat(transformer(frais));
   await setSetting(CLE_REGLAGE, texte);
+  ecrituresAbouties++;
   ecrireCopie(texte);
   appliquer(texte);
   return etat;
@@ -112,15 +119,28 @@ let suiteEcritures = Promise.resolve();
 function ecrire(transformer) {
   const tour = suiteEcritures.then(() => ecrireUne(transformer));
   suiteEcritures = tour.catch(() => {});
-  return tour;
+  // Promesse dérivée : `tour` est déjà marquée comme gérée par la ligne du dessus,
+  // donc la renvoyer telle quelle cacherait le rejet à un appelant qui oublie son
+  // .catch. Celle-ci reste non gérée tant que l'appelant ne la traite pas : le rejet
+  // est alors signalé dans la console, comme n'importe quelle erreur non rattrapée.
+  return tour.then((e) => e);
 }
 
+// La promesse rejette si la lecture ou l'écriture échoue ; l'appelant affiche l'erreur.
 export function basculerModule(cle, ouvrir) {
   return ecrire((frais) => basculer(frais, cle, ouvrir, MODULES, new Date().toISOString()));
 }
 
+// La promesse rejette si la lecture ou l'écriture échoue ; l'appelant affiche l'erreur.
 export function appliquerEnsembleDeDepart() {
-  return ecrire(() => ensembleDeDepart(MODULES, new Date().toISOString()));
+  // `frais` est la valeur relue juste avant d'écrire, pas celle de la mémoire : la
+  // mémoire peut croire la promo libre alors qu'un réglage existe (lecture de
+  // démarrage ratée, ou onglet resté ouvert pendant qu'un autre formateur réglait la
+  // promo). Un réglage lisible est donc conservé tel quel : l'ensemble de départ ne
+  // s'applique que sur un état libre ou illisible.
+  return ecrire((frais) => estReglee(frais)
+    ? frais
+    : ensembleDeDepart(MODULES, new Date().toISOString()));
 }
 
 // Pour la mémoire des nouveautés lues (amorce, purge) : tout, sans filtre.
