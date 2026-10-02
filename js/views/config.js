@@ -1,6 +1,7 @@
 /*
  * Vue Paramètres.
- * 3 sections : Accès & invitations · Promo · Infos.
+ * Sections : Accès & invitations · Mes préférences · Modules de la promo
+ * (js/views/modules-reglage.js) · Promo · Infos.
  */
 import {
   listStagiaires, listProfs,
@@ -12,6 +13,8 @@ import {
 import { el, clear, toast, displayStagiaire } from "../utils.js?v=20261001a";
 import { icon } from "../icons.js?v=20261001a";
 import { isAdmin, getAdminEmail, getProfile } from "../auth-admin.js?v=20261001a";
+import { moduleVisible } from "../modules-etat.js?v=20261001a";
+import { renderModulesSection } from "./modules-reglage.js?v=20261001a";
 
 // ====== SECTION Accès & invitations ======
 
@@ -190,6 +193,9 @@ async function renderAccessSection(rerender) {
 function renderMyPreferencesSection(rerender) {
   const profile = getProfile();
   if (!profile) return null;  // pas affichée si pas de profil
+  // Seul réglage de la section : l'anonymat dans la page Notes. Module Notes
+  // fermé pour la promo : la section n'a plus d'objet pour un stagiaire.
+  if (!moduleVisible("notes")) return null;
 
   const section = el("section", { class: "param-section" });
   section.appendChild(el("div", { class: "param-section-head" },
@@ -472,6 +478,7 @@ async function rerender(container) {
     const sections = await withTimeout(Promise.all([
       renderAccessSection(() => rerender(container)),
       Promise.resolve(renderMyPreferencesSection(() => rerender(container))),
+      Promise.resolve(renderModulesSection()),
       renderPromoSection(() => rerender(container)),
       Promise.resolve(renderInfoSection()),
     ]), 12000, "Paramètres");

@@ -7780,3 +7780,51 @@ body.cours-open { overflow: hidden; }
   .theme-row.theme-header.a-repere { display: flex; }
   .theme-row.theme-header.a-repere > span:not(.module-masque) { display: none; }
 }
+
+/* Section « Modules de la promo » (Paramètres). Une colonne, lignes à cible
+   tactile de 44 px au moins. */
+.modules-bandeau {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem 1rem;
+  padding: 0.8rem 1rem;
+  margin-bottom: 1rem;
+  border-radius: var(--r);
+  background: var(--accent-soft);
+}
+.modules-bandeau p { margin: 0; font-weight: 600; color: var(--text); }
+.modules-socle { margin: 0 0 0.5rem; font-size: 0.85rem; }
+.modules-ligne {
+  display: grid;
+  grid-template-columns: 26px 1fr;
+  gap: 0.6rem;
+  align-items: start;
+  min-height: 44px;
+  padding: 0.55rem 0;
+  border-bottom: 1px solid var(--line-faint);
+}
+.modules-ligne:last-child { border-bottom: none; }
+.modules-ligne.enfant { padding-left: 1.5rem; }
+.modules-ligne input[type="checkbox"] {
+  width: 22px;
+  height: 22px;
+  margin: 1px 0 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+.modules-ligne input[type="checkbox"]:disabled { cursor: not-allowed; }
+.modules-libelle {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  cursor: pointer;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.modules-nom { font-weight: 600; color: var(--text); }
+.modules-parent,
+.modules-explication,
+.modules-date { font-size: 0.82rem; }
+.modules-date { color: var(--accent-strong); }

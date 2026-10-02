@@ -14,7 +14,9 @@ const MON_ID = Number(params.get("stagiaire") || 15);
 export function isAdmin() { return ROLE === "formateur"; }
 export function isProf() { return ROLE === "formateur"; }
 export function isStagiaire() { return ROLE === "stagiaire"; }
-export function isFounder() { return false; }
+// ?fondateur=1 : le banc des modules (_preview_modules.html) joue le fondateur,
+// seul autorisé à régler les modules tant que le multi-promo n'est pas en ligne.
+export function isFounder() { return params.get("fondateur") === "1"; }
 export function getViewAs() { return null; }
 export function isAuth() { return true; }
 

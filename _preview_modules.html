@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<!-- Banc d'essai des modules (chantier B), non déployé, jamais lié depuis l'app.
+     Fait tourner la VRAIE section « Modules de la promo » (js/views/modules-reglage.js)
+     et le vrai repère « Masqué aux stagiaires » (js/modules-etat.js), avec les vraies
+     feuilles de style. Contrairement à l'app complète, cette page est peinte par le
+     pane : c'est elle qui prouve le rendu à 375 px.
+     Doublures : js/db.js (réglage en mémoire, aucun appel réseau) et js/auth-admin.js
+     (rôle par l'URL).
+     Paramètres : ?role=formateur|stagiaire, &fondateur=1, &modules=<scénario>
+     (absent = libre ; depart, notes, themes, enfant, illisible). -->
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Banc d'essai · modules</title>
+  <script>
+    // L'import map doit exister avant le premier module : ce script classique, lu
+    // pendant l'analyse de <head>, l'insère avant le module du bas de page, à partir
+    // du jeton ?v= lu de façon synchrone dans index.html. Chaque module réel est
+    // remappé vers une URL neuve (le pane met tout en cache), db.js et
+    // auth-admin.js vers leurs doublures. Aucun jeton n'est codé en dur : le banc
+    // survit au re-versionnage de la mise en production.
+    // La liste ci-dessous reprend TOUT ce que js/views/modules-reglage.js importe,
+    // directement ou non : un module absent resterait servi depuis le cache du pane.
+    (function () {
+      var x = new XMLHttpRequest();
+      x.open("GET", "index.html?cb=" + Date.now(), false);
+      x.send();
+      var jeton = /js\/main\.js\?v=(\d{8}[a-z]+)/.exec(x.responseText)[1];
+      var neuf = "cb" + Date.now();
+      var imports = {};
+      imports["./js/db.js?v=" + jeton] = "./_preview_stubs/db-modules.js?v=" + neuf;
+      imports["./js/auth-admin.js?v=" + jeton] = "./_preview_stubs/auth-admin.js?v=" + neuf;
+      ["utils.js", "icons.js", "modules-data.js", "modules.js", "modules-etat.js",
+       "nouveautes-data.js", "nouveautes.js", "views/modules-reglage.js"].forEach(function (f) {
+        imports["./js/" + f + "?v=" + jeton] = "./js/" + f + "?v=" + neuf;
+      });
+      var carte = document.createElement("script");
+      carte.type = "importmap";
+      carte.textContent = JSON.stringify({ imports: imports });
+      document.head.appendChild(carte);
+      ["css/fonts.css", "css/style.css"].forEach(function (f) {
+        var lien = document.createElement("link");
+        lien.rel = "stylesheet";
+        lien.href = f + "?v=" + neuf;
+        document.head.appendChild(lien);
+      });
+      window.__jeton = jeton;
+    })();
+  </script>
+  <style>
+    /* Padding et non marge : css/style.css donne « width: 100% » à <body>, et une
+       marge le ferait déborder de sa largeur. Le verdict signalerait alors un
+       débordement horizontal qui n'est pas celui du produit (même piège que dans
+       _preview_home.html). */
+    body { margin: 0; padding: 16px; background: var(--bg, #F1F4F0); }
+    .bench-bar { margin-bottom: 14px; display: flex; gap: 10px; flex-wrap: wrap;
+                 font: 14px system-ui, sans-serif; }
+    .bench-titre { font: 600 13px system-ui, sans-serif; margin: 18px 0 8px; color: #555; }
+    .demo-topbar { background: var(--bg-deep, #14201C); padding: 8px; border-radius: 10px;
+                   overflow-x: auto; }
+  </style>
+</head>
+<body>
+  <div class="bench-bar">
+    <strong>Banc modules</strong>
+    <a href="?role=formateur&fondateur=1&modules=depart">fondateur, départ</a>
+    <a href="?role=formateur&fondateur=1">fondateur, libre</a>
+    <a href="?role=formateur&fondateur=1&modules=enfant">fondateur, QCM sans Thèmes</a>
+    <a href="?role=formateur&modules=depart">formateur non fondateur</a>
+    <a href="?role=stagiaire&modules=depart">stagiaire, départ</a>
+  </div>
+  <p class="bench-titre">Barre d'onglets (mêmes classes que l'app)</p>
+  <nav class="tabs demo-topbar" id="onglets"></nav>
+  <p class="bench-titre">Sous-onglets de Mon espace</p>
+  <div id="sous-onglets"></div>
+  <p class="bench-titre">Paramètres</p>
+  <div class="param-grid" id="zone"></div>
+  <!-- Cible de toast() (js/utils.js) : sans elle, le message qui suit chaque
+       écriture lèverait une erreur et la case ne reviendrait pas à son état. -->
+  <div id="toast" class="toast hidden"></div>
+  <script type="module">
+    const j = window.__jeton;
+    const { el } = await import("./js/utils.js?v=" + j);
+    const { icon } = await import("./js/icons.js?v=" + j);
+    const etat = await import("./js/modules-etat.js?v=" + j);
+    const { renderModulesSection } = await import("./js/views/modules-reglage.js?v=" + j);
+    await etat.chargerModules();
+
+    // Copie de la liste TABS de js/main.js (route, libellé, icône) : le banc ne peut
+    // pas importer main.js, qui démarre l'app entière.
+    const ONGLETS = [
+      ["home", "Accueil", "info"], ["dashboard", "Priorités", "target"],
+      ["planning", "Planning", "calendar"], ["calendrier", "Calendrier", "clock"],
+      ["themes", "Thèmes", "list"], ["notes", "Notes", "edu"],
+      ["ressources", "Ressources", "signpost"], ["config", "Paramètres", "settings"],
+    ];
+    const SOUS_ONGLETS = [["Passages", null], ["EPCF", "epcf"], ["Évolution", "notes"], ["Dossier pro", "dp"]];
+
+    function dessiner() {
+      const nav = document.getElementById("onglets");
+      nav.replaceChildren();
+      for (const [route, libelle, ic] of ONGLETS) {
+        if (!etat.routeVisible(route)) continue;
+        const a = el("a", { class: "tab", href: "#", dataset: { route } }, icon[ic](), el("span", {}, libelle));
+        etat.repereMasque(a, etat.routeMasquee(route));
+        nav.appendChild(a);
+      }
+      const barre = el("div", { class: "subtabs-bar" });
+      for (const [libelle, mod] of SOUS_ONGLETS) {
+        if (mod && !etat.moduleVisible(mod)) continue;
+        const b = el("button", { class: "subtab", type: "button" }, libelle);
+        if (mod) etat.repereMasque(b, etat.moduleMasque(mod));
+        barre.appendChild(b);
+      }
+      document.getElementById("sous-onglets").replaceChildren(el("div", { class: "subtabs" }, barre));
+      const zone = document.getElementById("zone");
+      zone.replaceChildren(renderModulesSection()
+        || el("p", { class: "muted" }, "Section non affichée pour ce rôle."));
+    }
+    etat.onModulesChange(dessiner);
+    dessiner();
+
+    // Verdict pour la vérification automatisée, à lire après resize_window.
+    window.__verdict = () => {
+      const lignes = [...document.querySelectorAll(".modules-ligne")];
+      return {
+        largeur: window.innerWidth,
+        ongletsVisibles: [...document.querySelectorAll("#onglets .tab")].map((t) => t.dataset.route),
+        ongletsMasques: [...document.querySelectorAll("#onglets .tab.module-masque")].map((t) => t.dataset.route),
+        oeilVisibleSurOnglets: [...document.querySelectorAll(".tab .marque-masque")]
+          .every((m) => getComputedStyle(m).display !== "none"),
+        libellesOngletsCaches: [...document.querySelectorAll("#onglets .tab > span:not(.marque-masque)")]
+          .every((s) => getComputedStyle(s).display === "none"),
+        sectionAffichee: !!document.querySelector(".modules-reglage"),
+        bandeau: document.querySelector(".modules-bandeau p")?.textContent ?? null,
+        lignes: lignes.length,
+        lignesTropBasses: lignes.filter((l) => l.getBoundingClientRect().height < 44).length,
+        debordementHorizontal: document.documentElement.scrollWidth > window.innerWidth,
+        coches: lignes.map((l) => l.querySelector("input").checked),
+        grisees: lignes.filter((l) => l.querySelector("input").disabled).map((l) => l.querySelector("input").id),
+        ecritures: window.__ecritures.length,
+      };
+    };
+  </script>
+</body>
+</html>
