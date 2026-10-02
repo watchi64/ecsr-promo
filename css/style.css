@@ -7722,3 +7722,43 @@ body.cours-open { overflow: hidden; }
   font: inherit;
   font-size: 16px;
 }
+
+/* ===== Modules débloqués par les formateurs (chantier B, 2026-10) =====
+   Repère « Masqué aux stagiaires » : posé chez un formateur sur ce qui est fermé
+   pour la promo (onglets, tuiles, sous-onglets, en-têtes de colonnes, bulle) par
+   repereMasque() de js/modules-etat.js.
+   ATTENTION : le @media mobile pose « .tab span { display: none } » (spécificité
+   0,1,1). « .tab .marque-masque » est en 0,2,0 : il gagne quel que soit l'ordre,
+   sinon l'œil disparaîtrait sur téléphone, là où les onglets sont en icône seule. */
+.module-masque { opacity: 0.55; }
+.module-masque:hover,
+.module-masque:focus-visible,
+.tab.module-masque.active { opacity: 0.9; }
+.marque-masque {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 0.3rem;
+  color: var(--text-muted);
+  vertical-align: middle;
+}
+.marque-masque .icon { width: 13px; height: 13px; }
+.tab .marque-masque {
+  display: inline-flex;
+  margin-left: 0.1rem;
+  color: inherit;
+}
+.chatbot-fab .marque-masque {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  margin: 0;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--bg-elev);
+  color: var(--text-muted);
+  box-shadow: var(--shadow-1);
+}
+@media (max-width: 760px) {
+  .tab .marque-masque { margin-left: -3px; align-self: flex-start; }
+  .tab .marque-masque .icon { width: 10px; height: 10px; }
+}

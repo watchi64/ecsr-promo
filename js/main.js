@@ -22,9 +22,12 @@ import { renderConfig } from "./views/config.js?v=20261001a";
 import { renderCalendrier } from "./views/calendrier.js?v=20261001a";
 import { initUndoKeyboard } from "./undo.js?v=20261001a";
 import { renderNouveautes } from "./views/nouveautes.js?v=20261001a";
-import { NOUVEAUTES } from "./nouveautes-data.js?v=20261001a";
 import { visibles, nonLues, vuesEffectives, libellePastille } from "./nouveautes.js?v=20261001a";
-import { initChatbot } from "./chatbot.js?v=20261001a";
+import { initChatbot, appliquerModuleAssistant } from "./chatbot.js?v=20261001a";
+import {
+  chargerModules, onModulesChange, surveillerPremierPlan, routeVisible, routeMasquee,
+  repereMasque, toutesLesNouveautes, nouveautesDeLaPromo,
+} from "./modules-etat.js?v=20261001a";
 
 // ===== Tabs =====
 
@@ -47,7 +50,7 @@ const TABS = [
 function renderTabs() {
   const nav = document.getElementById("tabs");
   nav.innerHTML = "";
-  TABS.filter((t) => !t.visible || t.visible()).forEach((t) => {
+  TABS.filter((t) => (!t.visible || t.visible()) && routeVisible(t.route)).forEach((t) => {
     const a = document.createElement("a");
     a.href = "#/" + t.route;
     a.className = "tab";
@@ -56,7 +59,23 @@ function renderTabs() {
     const span = document.createElement("span");
     span.textContent = t.label;
     a.appendChild(span);
+    // Module fermé pour la promo : seul un formateur voit encore l'onglet, repéré.
+    repereMasque(a, routeMasquee(t.route));
     nav.appendChild(a);
+  });
+  // La barre vient d'être reconstruite : sans ça, un redessin dû aux modules la
+  // laisserait sans onglet allumé.
+  marquerOngletActif();
+}
+
+// Allume l'onglet de la route affichée (ou celui qui l'héberge, voir ONGLET_POUR_ROUTE).
+function marquerOngletActif() {
+  const ongletActif = ONGLET_POUR_ROUTE[lastRoute] || lastRoute;
+  document.querySelectorAll(".tab").forEach((t) => {
+    const active = t.dataset.route === ongletActif;
+    t.classList.toggle("active", active);
+    if (active) t.setAttribute("aria-current", "page");
+    else t.removeAttribute("aria-current");
   });
 }
 
@@ -66,8 +85,10 @@ function renderTabs() {
 function majBadgeNouveautes() {
   const tab = document.querySelector('.tab[data-route="home"]');
   if (!tab) return;
-  const mesEntrees = visibles(NOUVEAUTES, isAdmin() || isProf());
-  const texte = libellePastille(nonLues(mesEntrees, vuesEffectives(NOUVEAUTES)).length);
+  // Nouveautés écrites et annonces d'ouverture de module ; la mémoire des
+  // nouveautés lues reçoit la liste complète (amorce et purge).
+  const mesEntrees = visibles(nouveautesDeLaPromo(), isAdmin() || isProf());
+  const texte = libellePastille(nonLues(mesEntrees, vuesEffectives(toutesLesNouveautes())).length);
   let badge = tab.querySelector(".tab-badge");
   if (!texte) {
     if (badge) badge.remove();
@@ -118,7 +139,9 @@ function memoriserRoute(route) {
 function derniereRoute() {
   try {
     const r = localStorage.getItem(CLE_DERNIERE_ROUTE);
-    return r && routes[r] ? r : null;
+    // Une page dont le module est fermé pour la promo n'est pas une destination :
+    // repli silencieux, la dernière page n'est qu'une commodité.
+    return r && routes[r] && routeVisible(r) ? r : null;
   } catch (e) {
     return null;
   }
@@ -128,19 +151,20 @@ async function navigate() {
   // Page de repli quand rien n'est memorise : « Mon suivi », ou chacun retrouve
   // ce qui l'attend, son planning a venir et ses resultats.
   const hash = location.hash.replace(/^#\//, "") || "mon-suivi";
-  const route = routes[hash] ? hash : "mon-suivi";
+  let route = routes[hash] ? hash : "mon-suivi";
+  // Module fermé pour la promo (lien, adresse saisie, nouveauté ancienne) : un
+  // stagiaire est ramené sur Mon suivi, avec un mot d'explication.
+  if (!routeVisible(route)) {
+    toast("Cette partie n'est pas encore ouverte pour ta promo.", "info", 3500);
+    try { history.replaceState(null, "", "#/mon-suivi"); } catch (e) { /* ignore */ }
+    route = "mon-suivi";
+  }
   memoriserRoute(route);
   // En QUITTANT le planning (pas sur un simple remount : undo, refresh d'auth…),
   // le mode édition retombe : la vue se rouvrira toujours en lecture seule.
   if (lastRoute === "planning" && route !== "planning") resetPlanningEditMode();
   lastRoute = route;
-  const ongletActif = ONGLET_POUR_ROUTE[route] || route;
-  document.querySelectorAll(".tab").forEach((t) => {
-    const active = t.dataset.route === ongletActif;
-    t.classList.toggle("active", active);
-    if (active) t.setAttribute("aria-current", "page");
-    else t.removeAttribute("aria-current");
-  });
+  marquerOngletActif();
   const view = document.getElementById("view");
   // Le conteneur #view est partagé entre toutes les vues. On réinitialise l'état
   // qu'une vue précédente a pu y laisser, sinon il contamine la suivante.
@@ -188,9 +212,11 @@ function setupRefreshBtn() {
   const btn = document.getElementById("refresh-btn");
   btn.innerHTML = "";
   btn.appendChild(icon.refresh());
-  btn.addEventListener("click", () => {
+  btn.addEventListener("click", async () => {
     // Force le rechargement réel : vide le cache des données de référence
     invalidateCache();
+    // Un formateur a pu ouvrir un module depuis le dernier chargement.
+    await chargerModules();
     navigate();
   });
 }
@@ -209,6 +235,19 @@ function setupTodayBtn() {
   });
 }
 
+// Le raccourci « Aujourd'hui » mène au planning : il suit donc le module Planning.
+// style.display plutôt que l'attribut hidden, que la règle .ghost-btn écraserait.
+function majBoutonAujourdhui() {
+  const btn = document.getElementById("today-btn");
+  if (btn) btn.style.display = routeVisible("planning") ? "" : "none";
+}
+
+// Ce qui, hors de la barre d'onglets, dépend des modules : bouton du haut et bulle.
+function majPresenceModules() {
+  majBoutonAujourdhui();
+  appliquerModuleAssistant();
+}
+
 // « Ouvrir l'app » = démarrage à froid. Un raccourci d'écran d'accueil, un favori ou un
 // onglet restauré garde une vue figée dans l'URL (#/dashboard…), celle du jour où le
 // raccourci a été créé : sans ce test, ce hash gagnerait toujours et on ne reviendrait
@@ -225,13 +264,26 @@ function isColdStart() {
 
 async function bootApp() {
   hideGate();
+  // L'état des modules décide des onglets visibles : il est lu avant de dessiner la barre.
+  await chargerModules();
   renderTabs();
   majBadgeNouveautes();
   setupRefreshBtn();
   setupTodayBtn();
   initChatbot();
-  // Le changement de rôle change l'audience, donc le compte.
-  onAdminChange(() => { renderTabs(); majBadgeNouveautes(); navigate(); });
+  majPresenceModules();
+  // Le changement de rôle change l'audience, donc le compte, et ce qu'on voit des modules.
+  onAdminChange(() => { renderTabs(); majBadgeNouveautes(); majPresenceModules(); navigate(); });
+  // Un module ouvert ou fermé (réglage d'un formateur, relecture au premier plan) :
+  // barre, pastille et raccourcis suivent. La vue n'est rejouée que si elle vient
+  // d'être fermée, pour ne pas détruire une saisie en cours.
+  onModulesChange(() => {
+    renderTabs();
+    majBadgeNouveautes();
+    majPresenceModules();
+    if (lastRoute && !routeVisible(lastRoute)) navigate();
+  });
+  surveillerPremierPlan();
   // Émis par la page et par la section d'Accueil après marquage.
   window.addEventListener("nouveautes-vues", majBadgeNouveautes);
   initUndoKeyboard();

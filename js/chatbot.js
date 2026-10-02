@@ -7,6 +7,7 @@ import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261001a";
 import { supabase } from "./db.js?v=20261001a";
 import { icon } from "./icons.js?v=20261001a";
 import { fenetreMessages, pageDepuisHash, extraireEvenements } from "./chatbot-rules.js?v=20261001a";
+import { moduleVisible, moduleMasque, repereMasque } from "./modules-etat.js?v=20261001a";
 
 const CLE_HISTO = "chatbot_histo";
 let histo = [];
@@ -199,4 +200,18 @@ export function initChatbot() {
       form.requestSubmit();
     }
   });
+}
+
+// La bulle suit le module « assistant » (js/modules-data.js) : absente pour un
+// stagiaire quand il est fermé pour la promo, repérée chez un formateur. Appelée
+// par main.js au démarrage et à chaque changement de rôle ou d'état des modules.
+export function appliquerModuleAssistant() {
+  const fab = document.getElementById("chatbot-fab");
+  if (!fab) return;
+  const visible = moduleVisible("assistant");
+  // style.display plutôt que l'attribut hidden, que la règle .chatbot-fab
+  // (display: flex) écraserait.
+  fab.style.display = visible ? "" : "none";
+  if (!visible) document.getElementById("chatbot-panel")?.classList.add("hidden");
+  repereMasque(fab, visible && moduleMasque("assistant"));
 }
