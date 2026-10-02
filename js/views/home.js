@@ -129,8 +129,7 @@ export async function renderHome(container) {
     { route: "dashboard",  icon: "target",       title: "Priorités",        desc: "Qui doit passer, vs moyenne de classe" },
     { route: "planning",   icon: "calendar",     title: "Planning",         desc: "Cette semaine, créneaux & tirages" },
     { route: "calendrier", icon: "clock",        title: "Calendrier",       desc: "Examens, stages, dates clés" },
-    { route: "themes",     icon: "list",         title: "Thèmes",           desc: "57 thèmes & progression" },
-    { route: "notes",      icon: "edu",          title: "Notes",            desc: "Matrice & synthèse classe" },
+    { route: "ccp1",       icon: "ccp1",         title: "CCP1",             desc: "Thèmes, notes, EPCF, dossier pro" },
     { route: "ressources", icon: "signpost",     title: "Ressources",       desc: "Contacts & liens utiles" },
   ];
 

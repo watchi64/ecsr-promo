@@ -25,6 +25,8 @@ let lastContainer = null;          // pour rafraîchir la liste après un QCM
 // si l'onglet Thèmes est encore celui qui est affiché. Hors sous-onglets (cas d'un
 // élève, qui n'a pas de barre), il vaut toujours vrai.
 let themesActif = () => true;
+// Rendu dans le sous-onglet Thèmes de CCP1 : pas de grand titre (l'onglet a le sien).
+let embarque = false;
 
 // Après un QCM (entraînement ou examen), recharge la liste pour mettre à jour mes notes.
 window.addEventListener("qcm-attempt-saved", async () => {
@@ -1434,11 +1436,13 @@ function rerender(container) {
   const themesOfficiels = themes.filter((t) => t.type === "theme");
   const totalProgress = familleStats(themesOfficiels);
 
-  container.appendChild(el("div", { class: "view-header" },
+  // Embarquée dans CCP1, la vue garde sa ligne de progression (refreshStatsInPlace la
+  // retrouve par .view-header .eyebrow) et son bouton, mais pas son grand titre.
+  container.appendChild(el("div", { class: "view-header" + (embarque ? " view-header-embarque" : "") },
     el("div", { class: "view-header-text" },
       el("p", { class: "eyebrow" }, totalProgress.fait + " / " + totalProgress.total + " thèmes officiels terminés"),
-      el("h2", {}, "Thèmes & progression"),
-      el("p", { class: "subtitle" }, "Référentiel officiel ECF (57 thèmes) + compétences TP ECSR (formateur) + compétences REMC (conduite) + notions pédagogiques."),
+      embarque ? null : el("h2", {}, "Thèmes & progression"),
+      embarque ? null : el("p", { class: "subtitle" }, "Référentiel officiel ECF (57 thèmes) + compétences TP ECSR (formateur) + compétences REMC (conduite) + notions pédagogiques."),
     ),
     admin ? el("button", { class: "btn primary", onClick: () => openAddNotionModal(() => reload(container)) },
       icon.plus(), "Ajouter une notion"
@@ -1618,17 +1622,23 @@ async function reload(container) {
   rerender(container);
 }
 
-export async function renderThemes(container) {
+export async function renderThemes(container, opts = {}) {
   clear(container);
+  // Dans un sous-onglet de CCP1, `isActive` dit si ce sous-onglet est encore celui qui
+  // est affiché ; ailleurs, il vaut toujours vrai.
+  const ongletActif = opts.isActive || (() => true);
+  embarque = !!opts.embedded;
   // Un montage précédent a pu laisser ces deux références derrière lui : le panneau
   // qu'elles désignent est mort, et le jeton d'activation qu'elles portent est figé sur
   // l'onglet d'alors. Les repartir de zéro à chaque montage évite qu'un rendu tardif
   // n'écrive dans un écran disparu, ou refuse d'écrire dans celui qui vient de naître.
   lastContainer = null;
-  themesActif = () => true;
+  themesActif = ongletActif;
   container.appendChild(el("div", { class: "loading" }, "Chargement"));
   themes = await listThemes();
   await loadQcmIndex();
+  // Sous-onglet de CCP1 quitté pendant le chargement : le panneau ne nous appartient plus.
+  if (!ongletActif()) return;
   clear(container);
 
   // Un élève ne voit ni la barre de sous-onglets, ni la console : la RLS ne suffit pas,
@@ -1637,8 +1647,14 @@ export async function renderThemes(container) {
 
   container.appendChild(renderSubTabs([
     { key: "themes", label: "Thèmes",
-      // lastContainer devient le PANNEAU : c'est lui que reload() doit repeindre.
-      render: (p, ctx) => { lastContainer = p; themesActif = ctx?.isActive || (() => true); rerender(p); } },
+      // lastContainer devient le PANNEAU : c'est lui que reload() doit repeindre. Le
+      // repeint attend que ce sous-onglet ET celui de CCP1 soient encore affichés.
+      render: (p, ctx) => {
+        lastContainer = p;
+        const interne = ctx?.isActive || (() => true);
+        themesActif = () => ongletActif() && interne();
+        rerender(p);
+      } },
     { key: "signalements", label: "⚑ Signalements",
       render: (p, ctx) => { renderConsoleSignalements(p, { themes, onOuvrirEditeur: ouvrirDepuisConsole, isActive: ctx?.isActive }); } },
   ], { storageKey: "themes.subtab" }));

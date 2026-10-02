@@ -15,14 +15,14 @@ import { renderDashboard } from "./views/dashboard.js?v=20261002b";
 import { renderMonSuivi } from "./views/mon-suivi.js?v=20261002b";
 import { renderPlanning, teardownPrintTarget, resetPlanningEditMode, requestPlanningToday } from "./views/planning.js?v=20261002b";
 import { teardownDocPrint } from "./doc-officiel.js?v=20261002b";
-import { renderNotes } from "./views/notes.js?v=20261002b";
 import { renderRessources } from "./views/ressources.js?v=20261002b";
-import { renderThemes } from "./views/themes.js?v=20261002b";
 import { renderConfig } from "./views/config.js?v=20261002b";
 import { renderCalendrier } from "./views/calendrier.js?v=20261002b";
 import { initUndoKeyboard } from "./undo.js?v=20261002b";
 import { renderNouveautes } from "./views/nouveautes.js?v=20261002b";
-import { libellePastille } from "./nouveautes.js?v=20261002b";
+import { libellePastille, STORAGE_SOUS_ONGLET } from "./nouveautes.js?v=20261002b";
+import { ancienneRoute } from "./ccp-rules.js?v=20261002b";
+import { renderCcp1 } from "./views/ccp1.js?v=20261002b";
 import { initChatbot, appliquerModuleAssistant } from "./chatbot.js?v=20261002b";
 import {
   chargerModules, chargerModulesAuDemarrage, onModulesChange, surveillerPremierPlan,
@@ -41,8 +41,10 @@ const TABS = [
   { route: "dashboard",  label: "Priorités",       icon: "target"    },
   { route: "planning",   label: "Planning",        icon: "calendar"  },
   { route: "calendrier", label: "Calendrier",      icon: "clock"     },
-  { route: "themes",     label: "Thèmes",          icon: "list"      },
-  { route: "notes",      label: "Notes",           icon: "edu"       },
+  // CCP1 réunit Thèmes, Notes, EPCF, Livret EPCF et Dossier pro en sous-onglets. Il
+  // n'a pas de module propre : il s'affiche dès qu'une de ces parties est ouverte
+  // (ONGLETS_REGROUPES, js/modules-data.js).
+  { route: "ccp1",       label: "CCP1",            icon: "ccp1"      },
   { route: "ressources", label: "Ressources",      icon: "signpost"  },
   { route: "config",     label: "Paramètres",      icon: "settings"  },
 ];
@@ -109,8 +111,7 @@ const routes = {
   "mon-suivi": renderMonSuivi,
   planning:   renderPlanning,
   calendrier: renderCalendrier,
-  themes:     renderThemes,
-  notes:      renderNotes,
+  ccp1:       renderCcp1,
   ressources: renderRessources,
   config:     renderConfig,
   nouveautes: renderNouveautes,
@@ -139,7 +140,9 @@ function derniereRoute() {
     const r = localStorage.getItem(CLE_DERNIERE_ROUTE);
     // Une page dont le module est fermé pour la promo n'est pas une destination :
     // repli silencieux, la dernière page n'est qu'une commodité.
-    return r && routes[r] && routeVisible(r) ? r : null;
+    // Une ancienne adresse (themes, notes) est encore une destination : navigate()
+    // la mène au bon sous-onglet de CCP1.
+    return r && (routes[r] || ancienneRoute(r)) && routeVisible(r) ? r : null;
   } catch (e) {
     return null;
   }
@@ -149,13 +152,23 @@ async function navigate() {
   // Page de repli quand rien n'est memorise : « Mon suivi », ou chacun retrouve
   // ce qui l'attend, son planning a venir et ses resultats.
   const hash = location.hash.replace(/^#\//, "") || "mon-suivi";
-  let route = routes[hash] ? hash : "mon-suivi";
+  // Ancienne adresse (#/themes, #/notes : favoris, raccourcis d'écran d'accueil) :
+  // Thèmes et Notes sont devenus des sous-onglets de CCP1. Elle passe d'abord la
+  // garde de son module, puis mène au bon sous-onglet.
+  const ancienne = ancienneRoute(hash);
+  let route = (ancienne || routes[hash]) ? hash : "mon-suivi";
   // Module fermé pour la promo (lien, adresse saisie, nouveauté ancienne) : un
   // stagiaire est ramené sur Mon suivi, avec un mot d'explication.
   if (!routeVisible(route)) {
     toast("Cette partie n'est pas encore ouverte pour ta promo.", "info", 3500);
     try { history.replaceState(null, "", "#/mon-suivi"); } catch (e) { /* ignore */ }
     route = "mon-suivi";
+  } else if (ancienne) {
+    // Le sous-onglet visé est écrit là où renderSubTabs le relit, puis l'adresse est
+    // remplacée sans entrée d'historique (replaceState ne déclenche pas hashchange).
+    try { localStorage.setItem(STORAGE_SOUS_ONGLET[ancienne.route], ancienne.sousOnglet); } catch (e) { /* mode privé */ }
+    try { history.replaceState(null, "", "#/" + ancienne.route); } catch (e) { /* ignore */ }
+    route = ancienne.route;
   }
   memoriserRoute(route);
   // En QUITTANT le planning (pas sur un simple remount : undo, refresh d'auth…),

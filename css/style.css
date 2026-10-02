@@ -7841,3 +7841,12 @@ body.cours-open { overflow: hidden; }
 
 /* ===== Onglets CCP1 et CCP2 (chantier D) ===== */
 .modules-groupe-note { margin: -0.2rem 0 0.4rem; font-size: 0.82rem; }
+/* Vue embarquée dans un sous-onglet de CCP1 (Thèmes, Notes) : sans grand titre, la
+   ligne de compteur ne garde qu'un petit écart avec la suite. */
+.view-header.view-header-embarque { margin-bottom: 0.9rem; }
+.view-header.view-header-embarque .eyebrow { margin-bottom: 0; }
+@media (max-width: 760px) {
+  /* Cinq sous-onglets sur la largeur d'un iPhone : écarts serrés. */
+  .ccp1-onglets > .subtabs-bar { gap: 0.1rem; }
+  .ccp1-onglets > .subtabs-bar > .subtab { padding: 0.5rem 0.5rem; font-size: 0.86rem; }
+}

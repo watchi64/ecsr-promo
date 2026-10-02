@@ -7,10 +7,6 @@ import { el, clear, isoDate, formatDate, toast, displayStagiaire, compareByNom }
 import { icon } from "../icons.js?v=20261002b";
 import { getAdminEmail, isAdmin, getProfile } from "../auth-admin.js?v=20261002b";
 import { recordUndo } from "../undo.js?v=20261002b";
-import { renderSubTabs } from "../subtabs.js?v=20261002b";
-import { renderEpcf } from "./epcf.js?v=20261002b";
-import { renderEpcfLivret } from "./epcf-livret.js?v=20261002b";
-import { renderDp } from "./dp.js?v=20261002b";
 
 let userProfiles = [];  // pour résoudre l'anonymat par stagiaire_id
 
@@ -22,6 +18,8 @@ let themesOfficiels = [];  // les 57 thèmes du référentiel (chargés en + pou
 let filterStagiaire = "";
 let filterType = "";
 let currentEvalDate = null;  // Date appliquée aux nouvelles notes saisies dans la matrice
+// Rendu dans le sous-onglet Notes de CCP1 : pas de grand titre (l'onglet a le sien).
+let embarque = false;
 
 const NOTES_SORT_OPTIONS = [
   { key: "default",   label: "Ordre par défaut" },
@@ -1066,11 +1064,11 @@ function rerender(container) {
   // Initialise la date courante si pas encore définie
   if (!currentEvalDate) currentEvalDate = isoDate(new Date());
 
-  container.appendChild(el("div", { class: "view-header" },
+  container.appendChild(el("div", { class: "view-header" + (embarque ? " view-header-embarque" : "") },
     el("div", { class: "view-header-text" },
       el("p", { class: "eyebrow" }, evaluations.length + " note" + (evaluations.length > 1 ? "s" : "") + " enregistrée" + (evaluations.length > 1 ? "s" : "")),
-      el("h2", {}, "Notes & évaluations"),
-      el("p", { class: "subtitle" }, "Tableau matrice : stagiaires × thèmes/compétences. Clique une cellule pour saisir la note."),
+      embarque ? null : el("h2", {}, "Notes & évaluations"),
+      embarque ? null : el("p", { class: "subtitle" }, "Tableau matrice : stagiaires × thèmes/compétences. Clique une cellule pour saisir la note."),
     ),
     admin ? null : el("span", { class: "muted", style: "font-size:0.85rem" }, "Lecture seule. Connexion admin requise pour modifier."),
   ));
@@ -1117,58 +1115,15 @@ function rerender(container) {
     );
   }
 
-  // Panneau « Matrice » = barre d'outils + tableau + synthèse + graphiques.
-  // On passe le `container` de la vue (pas le panneau) à renderMatrice : les
-  // éditions de cellule appellent refreshAnalyticsInPlace(container), qui
-  // retrouve .notes-synthese/.notes-chart par querySelector, ils restent des
-  // descendants du container, dans le panneau.
-  const buildMatricePanel = (panel) => {
-    panel.appendChild(toolbar);
-    panel.appendChild(renderMatrice(container));
-    panel.appendChild(renderSynthese());
-    panel.appendChild(renderChartsSection());
-  };
-
-  // Sous-onglets Matrice · EPCF · Livret EPCF · Dossier pro pour TOUT LE MONDE.
-  // renderEpcf, renderEpcfLivret et renderDp s'adaptent au rôle :
-  // formateur/admin → liste + saisie (EPCF, Livret) ou liste + consultation (DP) ;
-  // stagiaire → vue classe (EPCF), son livret en lecture seule (Livret), et son
-  // dossier professionnel EN ÉDITION (le DP appartient au candidat).
+  // Matrice = barre d'outils + tableau + synthèse + graphiques. Les éditions de cellule
+  // appellent refreshAnalyticsInPlace(container), qui retrouve .notes-synthese et
+  // .notes-chart par querySelector dans ce même conteneur. EPCF, Livret EPCF et
+  // Dossier pro, autrefois sous-onglets de Notes, sont ceux de CCP1 (js/views/ccp1.js).
   // La matrice reste en lecture seule pour les stagiaires.
-  // Chaque sous-onglet suit son module (js/modules-data.js) ; la Matrice suit l'onglet lui-même.
-  container.appendChild(renderSubTabs([
-    { key: "matrice", label: "Matrice", render: buildMatricePanel },
-    { key: "epcf", label: "EPCF", module: "epcf", render: (p, ctx) => {
-        renderEpcf(p, { embedded: true, isActive: ctx && ctx.isActive })
-          .catch((e) => {
-            console.error(e);
-            if (!ctx || ctx.isActive()) {
-              clear(p);
-              p.appendChild(el("p", { class: "muted" }, "Erreur de chargement de l'espace EPCF. Reviens sur l'onglet pour réessayer."));
-            }
-          });
-      } },
-    { key: "livret", label: "Livret EPCF", module: "livret", render: (p, ctx) => {
-        renderEpcfLivret(p, { embedded: true, isActive: ctx && ctx.isActive })
-          .catch((e) => {
-            console.error(e);
-            if (!ctx || ctx.isActive()) {
-              clear(p);
-              p.appendChild(el("p", { class: "muted" }, "Erreur de chargement du livret EPCF. Reviens sur l'onglet pour réessayer."));
-            }
-          });
-      } },
-    { key: "dp", label: "Dossier pro", module: "dp", render: (p, ctx) => {
-        renderDp(p, { embedded: true, isActive: ctx && ctx.isActive })
-          .catch((e) => {
-            console.error(e);
-            if (!ctx || ctx.isActive()) {
-              clear(p);
-              p.appendChild(el("p", { class: "muted" }, "Erreur de chargement du dossier professionnel. Reviens sur l'onglet pour réessayer."));
-            }
-          });
-      } },
-  ], { storageKey: "ecsr_notes_subtab" }));
+  container.appendChild(toolbar);
+  container.appendChild(renderMatrice(container));
+  container.appendChild(renderSynthese());
+  container.appendChild(renderChartsSection());
 }
 
 // === Helpers stats ===
@@ -1523,7 +1478,8 @@ function horizontalBarChart(data, barHeight = 22, labelWidth = 100) {
   return svg;
 }
 
-export async function renderNotes(container) {
+export async function renderNotes(container, opts = {}) {
+  embarque = !!opts.embedded;
   clear(container);
   container.appendChild(el("div", { class: "loading" }, "Chargement"));
   let allThemes;
@@ -1531,6 +1487,8 @@ export async function renderNotes(container) {
     listStagiaires(), listCompetences(), listEvaluations(), listThemes(), listUserProfiles(),
   ]);
   themesOfficiels = allThemes.filter((t) => t.type === "theme" && t.numero != null);
+  // Sous-onglet de CCP1 quitté pendant le chargement : le panneau ne nous appartient plus.
+  if (opts.isActive && !opts.isActive()) return;
   rerender(container);
 }
 
