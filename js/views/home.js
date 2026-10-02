@@ -2,13 +2,13 @@
  * Page d'accueil : version actualisée après les refontes (auth, calendrier, contacts).
  * Affichage personnalisé : salutation + prochains événements + raccourcis.
  */
-import { listAgendaEvents } from "../db.js?v=20261001a";
-import { el, clear, parseDate, formatDate, isoDate } from "../utils.js?v=20261001a";
-import { icon } from "../icons.js?v=20261001a";
-import { isAdmin, isProf, getProfile, getProfileWho } from "../auth-admin.js?v=20261001a";
-import { NOUVEAUTES } from "../nouveautes-data.js?v=20261001a";
-import { triees, visibles, nonLues, vuesEffectives, marquerVues } from "../nouveautes.js?v=20261001a";
-import { carteNouveaute } from "./nouveautes.js?v=20261001a";
+import { listAgendaEvents } from "../db.js?v=20261002a";
+import { el, clear, parseDate, formatDate, isoDate } from "../utils.js?v=20261002a";
+import { icon } from "../icons.js?v=20261002a";
+import { isAdmin, isProf, getProfile, getProfileWho } from "../auth-admin.js?v=20261002a";
+import { NOUVEAUTES } from "../nouveautes-data.js?v=20261002a";
+import { triees, visibles, nonLues, vuesEffectives, marquerVues } from "../nouveautes.js?v=20261002a";
+import { carteNouveaute } from "./nouveautes.js?v=20261002a";
 
 function greetingByHour() {
   const h = new Date().getHours();
@@ -88,7 +88,7 @@ export async function renderHome(container) {
   const who = getProfileWho();
   const admin = isAdmin();
   const roleLabel = admin ? "Admin"
-    : profile?.role === "prof" ? "Prof"
+    : profile?.role === "prof" ? "Formateur"
     : profile?.role === "stagiaire" ? "Stagiaire" : null;
 
   const today = new Date();
@@ -244,8 +244,8 @@ export async function renderHome(container) {
         " Tes ajouts de passages et tes notes sont signés automatiquement.",
       ),
       el("li", {},
-        el("strong", {}, "Ajout de passage limité à 2 jours en arrière."),
-        " Au-delà, demande à un admin (prof) de le faire pour toi.",
+        el("strong", {}, "Tu ajoutes et corriges tes passages toi-même."),
+        " Pour en supprimer un, demande à un formateur.",
       ),
       el("li", {},
         el("strong", {}, "Tout est tracé."),
