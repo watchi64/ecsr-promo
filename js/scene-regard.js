@@ -9,8 +9,8 @@
  * Une étape porte au plus un regard, dans le repère des scènes (cap mesuré depuis
  * +x, croissant dans le sens des aiguilles d'une montre à l'écran) :
  * - { angle } : degrés par rapport au cap, positifs à droite, négatifs à gauche
- *   (0 droit devant, 40 la sortie d'un virage à droite, 150 l'angle mort droit,
- *   165 le rétroviseur droit et l'arrière droit) ;
+ *   (0 droit devant, 40 la sortie d'un virage à droite, 120 l'angle mort droit, tête tournée vers
+ *   l'épaule, 170 les rétroviseurs ; -120 et -170 pour la gauche) ;
  * - { balayage: true } : va-et-vient de part et d'autre du cap (BALAYAGE) ;
  * - { suivre: id } : vers l'acteur id, depuis l'œil du conducteur, tant qu'il est
  *   visible et à au plus REGARD_MAX_SUIVI degrés du cap : le conducteur ne suit

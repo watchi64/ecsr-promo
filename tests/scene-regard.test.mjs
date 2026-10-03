@@ -44,9 +44,10 @@ test("sans étape ou sans regard, pas de cône", () => {
 });
 
 test("angle : en degrés par rapport au cap, positif à droite, négatif à gauche", () => {
-  // Vers le nord, 165 (rétroviseur droit, arrière droit) regarde au sud-sud-est : 75 degrés à l'écran.
-  proche(angleRegard(etape({ angle: 165 }), voiture(-90), 3, sans), 75 * DEG);
-  proche(angleRegard(etape({ angle: 150 }), voiture(-90), 3, sans), 60 * DEG);
+  // Vers le nord, 170 (rétroviseurs) regarde à 80 degrés à l'écran, presque vers l'arrière ; 120 (angle mort droit,
+  // tête tournée vers l'épaule) à 30 degrés.
+  proche(angleRegard(etape({ angle: 170 }), voiture(-90), 3, sans), 80 * DEG);
+  proche(angleRegard(etape({ angle: 120 }), voiture(-90), 3, sans), 30 * DEG);
   proche(angleRegard(etape({ angle: 0 }), voiture(-90), 3, sans), -90 * DEG);
   proche(angleRegard(etape({ angle: -40 }), voiture(0), 3, sans), -40 * DEG);
 });
