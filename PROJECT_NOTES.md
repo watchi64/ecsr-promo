@@ -4,7 +4,7 @@
 
 ## TL;DR
 
-Web app de suivi de promotion **TP ECSR Nîmes 2026** (15 stagiaires + 3 formateurs Hocine/Raphaël/Romain + 1 admin watchi64). Stack : HTML/CSS/JS vanilla + Supabase + GitHub Pages.
+Web app de suivi des promotions **TP ECSR** : depuis octobre 2026, plusieurs promos dans la même base (« Nîmes, mars 2026 » et « Nîmes, septembre 2026 », cf. § Multi-promo), mêmes formateurs (Hocine, Raphaël, Romain) + 1 admin watchi64. Stack : HTML/CSS/JS vanilla + Supabase + GitHub Pages.
 
 - URL : **https://watchi64.github.io/ecsr-promo/**
 - Repo : `github.com/watchi64/ecsr-promo` (public)
@@ -261,14 +261,13 @@ Les formateurs ouvrent les parties de l'app au fil de la progression d'une promo
 - **Première bascule** d'une case sur une promo libre ou illisible : confirmation (elle fige un
   réglage pour tous les stagiaires, et l'app ne sait plus revenir à « aucun réglage »). Refus : la
   case revient, rien n'est écrit.
-- **Quand le multi-promo (A) sera en ligne** :
-  - passer `REGLAGE_OUVERT_AUX_FORMATEURS` à `true`, avec une entrée Nouveautés « formateurs » ;
-  - ajouter l'identifiant de promo à la clé de copie de l'appareil (`cleCopie()`, via
-    `getPromoCourante()`) ;
-  - rejouer la preuve RLS avec l'en-tête `x-promo-id` ;
-  - régler la promo de septembre (« Partir de l'ensemble de départ », connecté sur cette promo)
-    **avant** d'inviter ses stagiaires, sinon elle voit tout ;
-  - la date d'amorce de A s'ajoute dans `nouveautesAffichables()`.
+- **Avec le multi-promo (A)** : drapeau `REGLAGE_OUVERT_AUX_FORMATEURS` à `true` (entrée
+  Nouveautés « formateurs » commune avec A), clé de copie de l'appareil propre à la promo
+  (`cleCopie()` via `getPromoCourante()`), date d'amorce de A dans `nouveautesAffichables()`, et
+  écriture de la clé `modules` couverte par la preuve de A (`tests/sql/multi-promo-preuve.sql`).
+  La section « Modules de la promo » nomme la promo qu'elle règle (en-tête et confirmations).
+  Reste à l'étape 4 de A : régler la promo de septembre (« Partir de l'ensemble de départ »,
+  connecté sur cette promo) **avant** d'inviter ses stagiaires, sinon elle voit tout.
 - **Marche arrière** vers l'état « aucun réglage » (tout ouvert) : l'app ne sait pas le faire, c'est
   une migration, `delete from public.settings where key = 'modules';` (avec la condition de promo
   une fois A en ligne).
@@ -283,6 +282,19 @@ Les formateurs ouvrent les parties de l'app au fil de la progression d'une promo
   dans `index.html`) et ses doublures `_preview_stubs/` sont versionnés.
 - **Preuve RLS** (02/10, avant multi-promo, transaction annulée) : un stagiaire ne peut pas écrire
   la clé `modules`, un formateur le peut. À rejouer avec l'en-tête `x-promo-id` une fois A en ligne.
+
+## Multi-promo (octobre 2026)
+
+Spec : `docs/superpowers/specs/2026-10-01-multi-promo-design.md` · plan : `docs/superpowers/plans/2026-10-01-multi-promo.md`.
+
+- **Modèle** : table `lieux` (Nîmes 1, Montpellier 2) et `promos` (1 = « Nîmes, mars 2026 », 2 = « Nîmes, septembre 2026 », toutes deux à Nîmes). Les autres promos et lieux se créent par migration.
+- **Contexte** : chaque requête vers `/rest/v1/` porte l'en-tête `x-promo-id` (ajouté par `fetchWithTimeout` de `db.js` ; jamais vers les fonctions Edge, l'auth ni le stockage). La base vérifie : `promo_courante()` (en-tête accessible ; absent : promo par défaut ; interdit ou fantaisiste : rien), `lieu_courant()`, `mes_promos()`, `peut_acceder_promo()`. Stagiaire : sa promo ; formateur, admin pur, fondateur : toutes. Défaut : la promo de la fiche, sinon la plus ancienne en cours.
+- **Propre à une promo** (colonne `promo_id`, règle `promo_id = (select promo_courante())` ajoutée aux règles de rôle) : stagiaires, notes, passages et historiques, planning (cartes, horaires, jours off), calendrier, réglages (`settings` ; `chatbot_quota_jour` reste global, `promo_id` nulle), tentatives QCM, EPCF, livret, DP, fiches de suivi, `themes_progression` (fait, dates) et `qcm_examens` (examen ouvert, tirage gelé, échéance). Pour les tables liées à un stagiaire, un trigger impose la promo de la fiche.
+- **Propre à un lieu** (`lieu_id`) : bénévoles, auto-écoles, suivi des venues. Les venues se lisent par la RPC `venues_benevoles()` (promos du même lieu ; réservée aux admins).
+- **Commun** : référentiel des thèmes, compétences, cours, banque QCM, signalements, ressources, contacts, formateurs.
+- **App** : règles pures `js/promo-rules.js` (`node tests/promo-rules.test.mjs`) ; contexte dans `db.js` (`chargerMesPromos`, `getPromoCourante`, `choisirPromo`, `avantChangementPromo`, `rechargerApresEnregistrements`) ; `getMyProfile()` renvoie le profil effectif (un compte stagiaire sans fiche dans la promo y est admin pur) ; pastille `js/promo-pastille.js` (au moins deux promos, dialogue accessible) ; choix mémorisé par appareil et par compte (`ecsr_promo:<email>`) ; la bascule attend les enregistrements du planning puis recharge. Si `mes_promos()` échoue deux fois : bandeau durable « Promos non chargées » (promo par défaut servie). Liste vide : session refusée, motif affiché sur la porte (événement `ecsr:refus-porte`, écouté par `gate.js`).
+- **Preuve** : `tests/sql/multi-promo-preuve.sql`, à rejouer (via `execute_sql`) après toute migration qui touche aux règles d'accès : verdict dans le message de l'exception finale, rien n'est écrit. Les refus d'écriture s'y testent **sans** `RETURNING` de colonne (sinon la règle de lecture masque une règle d'écriture fautive). Répétition d'une migration : lot `begin;` + `tests/sql/multi-promo-photo.sql` + migration + preuve (la photo prouve la non-régression de mars).
+- **Pièges** : une migration n'a pas de promo courante (insérer avec `promo_id` explicite) ; `settings` n'accepte une promo nulle que pour les clés globales prévues (CHECK `settings_globaux_prevus`) ; `getSetting`/`setSetting` sont propres à la promo ; une nouvelle table propre à une promo reçoit sa colonne, sa règle et une ligne dans le script de preuve ; ne jamais relire les anciennes colonnes de `themes` et `qcm` (supprimées à l'étape 5 du plan) ; les migrations commencent par `set local lock_timeout = '3s';` (échec propre plutôt qu'une app bloquée derrière un verrou).
 
 ## Barre simple et onglet CCP2 (chantier D, octobre 2026)
 

@@ -7,16 +7,17 @@ import {
   addPassagesBatch, deletePassagesBatch, getPassagesInRange, updateTheme,
   listBenevoles, listBenevolesNoms,
   getVoitureAggregats, listFiches, getSalleAggregats,
-} from "../db.js?v=20261003a";
-import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20261003a";
-import { icon } from "../icons.js?v=20261003a";
-import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20261003a";
-import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20261003a";
-import { recordUndo } from "../undo.js?v=20261003a";
-import { getCurrentWho } from "../identity.js?v=20261003a";
-import { openBenevolesPanel } from "./benevoles.js?v=20261003a";
-import { meilleurResultat } from "../passage-rules.js?v=20261003a";
-import { routeVisible, routeMasquee, repereMasque } from "../modules-etat.js?v=20261003a";
+  avantChangementPromo,
+} from "../db.js?v=20261003b";
+import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20261003b";
+import { icon } from "../icons.js?v=20261003b";
+import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20261003b";
+import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20261003b";
+import { recordUndo } from "../undo.js?v=20261003b";
+import { getCurrentWho } from "../identity.js?v=20261003b";
+import { openBenevolesPanel } from "./benevoles.js?v=20261003b";
+import { meilleurResultat } from "../passage-rules.js?v=20261003b";
+import { routeVisible, routeMasquee, repereMasque } from "../modules-etat.js?v=20261003b";
 
 let stagiaires = [];
 let profs = [];
@@ -283,6 +284,10 @@ async function flushPendingInputs() {
     await Promise.all([...pendingSaves]);
   }
 }
+
+// Une bascule de promo attend les enregistrements en cours du planning : une case en train
+// de se sauver ne doit pas partir dans l'autre promo (spec multi-promo C.1).
+avantChangementPromo(() => flushPendingInputs());
 
 // Version simplifiée : ajoute en fin de séquence (la plupart des cas)
 async function addSlotEnd(d, half) {

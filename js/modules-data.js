@@ -39,11 +39,10 @@ export const MODULE_DE_SOUS_ONGLET = {
   "mon-suivi": { evolution: "notes", epcf: "epcf", livret: "livret", dp: "dp" },
 };
 
-// Tant que le multi-promo (chantier A) n'est pas en ligne, il n'existe qu'une
-// promo : un formateur qui croirait préparer la nouvelle fermerait des modules
-// à la promo actuelle. Le réglage reste alors réservé au fondateur. Passer à
-// true quand l'app multi-promo est en ligne (étape 3 de A).
-export const REGLAGE_OUVERT_AUX_FORMATEURS = false;
+// Ouvert aux formateurs depuis le multi-promo (étape 3 de A) : chacun règle les modules de
+// la promo affichée par la pastille, et d'elle seule. Avant, il n'existait qu'une promo et le
+// réglage était réservé au fondateur.
+export const REGLAGE_OUVERT_AUX_FORMATEURS = true;
 
 export const MODULES = [
   {

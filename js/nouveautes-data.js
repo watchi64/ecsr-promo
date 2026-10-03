@@ -16,6 +16,29 @@
 
 export const NOUVEAUTES = [
   {
+    id: "2026-10-03-deux-promos",
+    date: "2026-10-03",
+    pour: "formateurs",
+    titre: "Deux promos dans l'app, et des modules réglés promo par promo",
+    resume: "La promo de septembre a sa place dans l'app, à côté de celle de mars. En haut de "
+          + "l'écran, une pastille indique la promo affichée : touche-la pour changer. Chaque "
+          + "appareil retient ton choix. Planning, calendrier, notes, passages, progression des "
+          + "thèmes et examens QCM sont propres à chaque promo ; cours, banque de questions, "
+          + "ressources, ainsi que la liste des thèmes et des notions, restent communs. Les "
+          + "élèves bénévoles et les auto-écoles sont rangés par lieu. Et la section « Modules "
+          + "de la promo » des Paramètres t'est ouverte : elle règle les outils de la promo "
+          + "affichée, et d'elle seule.",
+    ou: { label: "Pastille en haut, à côté de ton nom", route: "home" },
+    guide: [
+      "Touche la pastille « mars 2026 » en haut de l'écran.",
+      "Choisis « Nîmes, septembre 2026 » : la page se recharge sur cette promo.",
+      "Dans Paramètres, ajoute les stagiaires de la promo (prénom et nom de famille), puis "
+        + "prépare le calendrier et le planning.",
+      "Avant d'inviter les stagiaires de septembre : Paramètres, « Modules de la promo », "
+        + "« Partir de l'ensemble de départ ».",
+    ],
+  },
+  {
     id: "2026-10-03-barre-simple",
     date: "2026-10-03",
     pour: "tous",

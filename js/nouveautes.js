@@ -85,12 +85,19 @@ export function lireVues() {
   }
 }
 
+// Date d'amorce : la mise en ligne de la rubrique, ou le début de la promo s'il est plus
+// tardif. Quelqu'un qui arrive avec une promo récente ne doit pas trouver des dizaines
+// d'anciennes entrées « neuves » au premier passage (spec multi-promo C.6).
+export function amorcePour(dateDebutPromo) {
+  return dateDebutPromo && dateDebutPromo > MISE_EN_LIGNE ? dateDebutPromo : MISE_EN_LIGNE;
+}
+
 // État de lecture effectif. Au tout premier accès, amorce la mémoire avec les
 // entrées de reprise : elles ne doivent pas s'afficher comme neuves.
-export function vuesEffectives(entrees) {
+export function vuesEffectives(entrees, dateAmorce = MISE_EN_LIGNE) {
   const stockees = lireVues();
   if (stockees) return stockees;
-  const amorce = idsDeReprise(entrees, MISE_EN_LIGNE);
+  const amorce = idsDeReprise(entrees, dateAmorce);
   marquerVues(amorce, entrees);
   return amorce;
 }

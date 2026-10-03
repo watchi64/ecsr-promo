@@ -8,10 +8,10 @@
 import {
   listBenevoles, addBenevole, updateBenevole, setBenevoleActif,
   listAutoEcoles, addAutoEcole, updateAutoEcole, setAutoEcoleActif, deleteAutoEcole,
-  listVenuesBenevoles, listSuiviBenevole, upsertSuiviBenevole, listStagiaires,
-} from "../db.js?v=20261003a";
-import { el, clear, toast, displayStagiaire, compareByNom, isoDate, addDays, formatDayShort } from "../utils.js?v=20261003a";
-import { JOURS } from "../config.js?v=20261003a";
+  listVenuesBenevoles, listSuiviBenevole, upsertSuiviBenevole, listStagiaires, getPromoCourante,
+} from "../db.js?v=20261003b";
+import { el, clear, toast, displayStagiaire, compareByNom, isoDate, addDays, formatDayShort } from "../utils.js?v=20261003b";
+import { JOURS } from "../config.js?v=20261003b";
 
 const JOURS_COURTS = ["Lun", "Mar", "Mer", "Jeu", "Ven"];
 const DEMI = [
@@ -134,6 +134,12 @@ export function openBenevolesPanel({ onClose } = {}) {
     return s ? displayStagiaire(s) : "";
   }
 
+  // Le lieu dans le titre : la banque affichée est celle du lieu de la promo courante.
+  function titrePanneau() {
+    const lieu = getPromoCourante()?.lieu_nom;
+    return "Élèves bénévoles et partenaires" + (lieu ? " · " + lieu : "");
+  }
+
   function metaLine(b, nbVenues) {
     const parts = [
       b.boite,
@@ -144,24 +150,34 @@ export function openBenevolesPanel({ onClose } = {}) {
     return parts.join(" · ");
   }
 
-  // Venues d'un bénévole : regroupe les cartes planning par demi-journée
-  // (plusieurs créneaux successifs la même demi-journée = une seule venue).
+  // Venues d'un bénévole : regroupe les cartes planning par demi-journée et par promo
+  // (plusieurs créneaux successifs la même demi-journée dans une promo = une seule venue ;
+  // deux promos du lieu sur la même demi-journée = deux venues, jamais fondues).
   function venuesFor(benevoleId) {
-    const map = new Map();  // clé "semaine|jour|demi" -> venue
+    const map = new Map();  // clé "semaine|jour|demi|promo" -> venue
     venues.forEach((e) => {
       if (!(e.benevoles_ids || []).includes(benevoleId)) return;
-      const key = `${e.semaine_lundi}|${e.day_index}|${e.half_day}`;
+      const key = `${e.semaine_lundi}|${e.day_index}|${e.half_day}|${e.promo_id ?? ""}`;
       if (!map.has(key)) {
         map.set(key, { semaine_lundi: e.semaine_lundi, day_index: e.day_index,
-          half_day: e.half_day, eleves: new Set(), sujets: new Set() });
+          half_day: e.half_day, eleves: new Set(), sujets: new Set(), autresPromos: new Set() });
       }
       const vn = map.get(key);
+      // Venue d'une autre promo du même lieu : on dit laquelle ; ses élèves ne sont pas
+      // nommables depuis la promo affichée (spec multi-promo C.4).
+      if (e.promo_id != null && e.promo_id !== getPromoCourante()?.id && e.promo_nom) {
+        vn.autresPromos.add(e.promo_nom);
+      }
       (e.eleves_ids || []).forEach((id) => vn.eleves.add(id));
       if (e.sujet && String(e.sujet).trim()) vn.sujets.add(String(e.sujet).trim());
     });
+    // Même créneau dans deux promos du lieu : la promo courante d'abord (aucune « autre
+    // promo »), puis par nom, pour que l'ordre ne dépende pas de celui des lignes de la RPC.
     return [...map.values()].sort((a, b) =>
       b.semaine_lundi.localeCompare(a.semaine_lundi) || b.day_index - a.day_index
-      || (b.half_day === "aprem" ? 1 : 0) - (a.half_day === "aprem" ? 1 : 0));
+      || (b.half_day === "aprem" ? 1 : 0) - (a.half_day === "aprem" ? 1 : 0)
+      || a.autresPromos.size - b.autresPromos.size
+      || [...a.autresPromos].join().localeCompare([...b.autresPromos].join(), "fr"));
   }
 
   function venueCount(benevoleId) { return venuesFor(benevoleId).length; }
@@ -202,7 +218,7 @@ export function openBenevolesPanel({ onClose } = {}) {
 
   function renderList() {
     clear(modal);
-    modal.appendChild(el("h3", {}, "Élèves bénévoles et partenaires"));
+    modal.appendChild(el("h3", {}, titrePanneau()));
     modal.appendChild(renderTabs());
     modal.appendChild(el("p", { class: "muted bnv-intro" },
       "Volontaires qui viennent conduire avec les élèves moniteurs. Visible uniquement par les formateurs/admins."));
@@ -274,7 +290,7 @@ export function openBenevolesPanel({ onClose } = {}) {
 
   function renderEcoles() {
     clear(modal);
-    modal.appendChild(el("h3", {}, "Élèves bénévoles et partenaires"));
+    modal.appendChild(el("h3", {}, titrePanneau()));
     modal.appendChild(renderTabs());
     modal.appendChild(el("p", { class: "muted bnv-intro" },
       "Auto-écoles partenaires : les contacts à appeler pour trouver des élèves bénévoles."));
@@ -599,6 +615,11 @@ export function openBenevolesPanel({ onClose } = {}) {
           suiviBloc.appendChild(el("p", { class: "muted bnv-empty" }, "Aucune venue planifiée pour l'instant."));
         }
 
+        // benevole_suivi est propre au lieu (clé : bénévole + créneau, sans promo) : un seul
+        // champ de commentaire par créneau, même quand deux promos du lieu y ont chacune une
+        // venue ; deux champs écriraient la même ligne et s'écraseraient.
+        const dejaChamp = new Set();
+
         vns.forEach((vn) => {
           const key = `${vn.semaine_lundi}|${vn.day_index}|${vn.half_day}`;
           const date = venueDate(vn);
@@ -607,10 +628,14 @@ export function openBenevolesPanel({ onClose } = {}) {
             el("span", { class: "bnv-venue-date" }, venueLabel(vn.day_index, date, vn.half_day)));
           const noms = [...vn.eleves].map(stagiaireNom).filter(Boolean).join(", ");
           if (noms) head.appendChild(el("span", { class: "bnv-venue-avec" }, "avec " + noms));
+          if (vn.autresPromos.size) {
+            head.appendChild(el("span", { class: "bnv-venue-avec" }, [...vn.autresPromos].join(", ")));
+          }
           if (futur) head.appendChild(el("span", { class: "bnv-venue-futur" }, "à venir"));
           const venueEl = el("div", { class: "bnv-venue" }, head);
           if (vn.sujets.size) venueEl.appendChild(el("div", { class: "bnv-venue-sujet" }, [...vn.sujets].join(", ")));
-          if (!futur) {
+          if (!futur && !dejaChamp.has(key)) {
+            dejaChamp.add(key);
             const com = comByKey.get(key);
             const input = el("input", { type: "text", class: "bnv-venue-com",
               placeholder: "+ commentaire de séance", value: com?.commentaire || "", autocomplete: "off" });

@@ -2,8 +2,8 @@
 // Une barre segmentée + un panneau qui bascule au clic. Le rendu de chaque
 // onglet est paresseux (appelé à l'activation), donc on peut y mettre du lourd.
 
-import { el, clear } from "./utils.js?v=20261003a";
-import { moduleVisible, moduleMasque, repereMasque } from "./modules-etat.js?v=20261003a";
+import { el, clear } from "./utils.js?v=20261003b";
+import { moduleVisible, moduleMasque, repereMasque } from "./modules-etat.js?v=20261003b";
 
 // tabs = [{ key, label, render(panel), module? }].
 // module : clé du catalogue (js/modules-data.js). Fermé pour la promo, le

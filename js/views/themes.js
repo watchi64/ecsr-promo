@@ -1,15 +1,15 @@
-import { listThemes, updateTheme, addTheme, deleteTheme, listQcmIndex, getQcmFull, publishQcm, unpublishQcm, updateExamConfig, listExamAttempts, resetExamAttempt, listMyQcmAttempts, getMyProfile, listEvaluations, getOrCreateQcm, saveQcmQuestion, deleteQcmQuestion, reorderQcmQuestions, uploadQcmImage, listQcmSignalements, setQcmSignalementStatut, countQcmSignalementsOuverts } from "../db.js?v=20261003a";
-import { el, clear, isoDate, formatDate, toast, debounce } from "../utils.js?v=20261003a";
-import { icon } from "../icons.js?v=20261003a";
+import { listThemes, updateTheme, addTheme, deleteTheme, listQcmIndex, getQcmFull, publishQcm, unpublishQcm, updateExamConfig, listExamAttempts, resetExamAttempt, listMyQcmAttempts, getMyProfile, listEvaluations, getOrCreateQcm, saveQcmQuestion, deleteQcmQuestion, reorderQcmQuestions, uploadQcmImage, listQcmSignalements, setQcmSignalementStatut, countQcmSignalementsOuverts } from "../db.js?v=20261003b";
+import { el, clear, isoDate, formatDate, toast, debounce } from "../utils.js?v=20261003b";
+import { icon } from "../icons.js?v=20261003b";
 import { examenDemarrable, tempsRestantMs, formatTempsRestant,
-         echeanceDepuisChoix, DUREES_OUVERTURE } from "../qcm-exam-rules.js?v=20261003a";
-import { isAdmin, getAdminEmail, isProf, isStagiaire } from "../auth-admin.js?v=20261003a";
-import { recordUndo } from "../undo.js?v=20261003a";
-import { openQcmEntrainement, openQcmExamen } from "./qcm.js?v=20261003a";
-import { carteSignalement, renderConsoleSignalements, chargerAuteurs } from "./signalements.js?v=20261003a";
-import { renderSubTabs } from "../subtabs.js?v=20261003a";
-import { hasCours, openCoursSheet, chargerCoursIndex, coursDejaOuvert } from "./cours-reader.js?v=20261003a";
-import { moduleVisible, moduleMasque, repereMasque } from "../modules-etat.js?v=20261003a";
+         echeanceDepuisChoix, DUREES_OUVERTURE } from "../qcm-exam-rules.js?v=20261003b";
+import { isAdmin, getAdminEmail, isProf, isStagiaire } from "../auth-admin.js?v=20261003b";
+import { recordUndo } from "../undo.js?v=20261003b";
+import { openQcmEntrainement, openQcmExamen } from "./qcm.js?v=20261003b";
+import { carteSignalement, renderConsoleSignalements, chargerAuteurs } from "./signalements.js?v=20261003b";
+import { renderSubTabs } from "../subtabs.js?v=20261003b";
+import { hasCours, openCoursSheet, chargerCoursIndex, coursDejaOuvert } from "./cours-reader.js?v=20261003b";
+import { moduleVisible, moduleMasque, repereMasque } from "../modules-etat.js?v=20261003b";
 
 let themes = [];
 let qcmByTheme = new Map();  // theme_id -> { id, nb_questions, published, ... }
@@ -1205,7 +1205,9 @@ function renderThemeRow(theme, container, coursOn = false) {
     delBtn = el("button", {
       class: "btn small danger icon-only", "aria-label": "Supprimer la notion",
       onClick: async () => {
-        if (!confirm(`Supprimer la notion « ${theme.titre} » ?`)) return;
+        // `themes` est commun à toutes les promos : la suppression emporte en cascade la progression,
+        // les QCM, les états d'examen et les tentatives de TOUTES les promos.
+        if (!confirm(`Supprimer la notion « ${theme.titre} » ?\n\nLa suppression vaut pour toutes les promos : la progression, les QCM et les tentatives liés disparaissent avec elle.`)) return;
         await deleteTheme(theme.id);
         themes = themes.filter((t) => t.id !== theme.id);
         rerender(container);
@@ -1301,7 +1303,7 @@ function openAddNotionModal(onSaved) {
         ordre: 999,
         updated_by_email: getAdminEmail(),
       });
-      toast("Notion ajoutée", "success");
+      toast("Notion ajoutée pour toutes les promos", "success");
       backdrop.remove();
       onSaved();
     } catch (e) { toast(e.message, "error"); }

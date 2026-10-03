@@ -15,9 +15,12 @@
 import {
   getCurrentUser, signOut, onAuthChange,
   getMyProfile, listStagiaires, listProfs,
-} from "./db.js?v=20261003a";
-import { el, toast, displayStagiaire } from "./utils.js?v=20261003a";
-import { icon } from "./icons.js?v=20261003a";
+  chargerMesPromos, oublierPromo, getPromoCourante, rechargerApresEnregistrements,
+  bloquerRequetesJusquAuRechargement,
+} from "./db.js?v=20261003b";
+import { el, toast, displayStagiaire } from "./utils.js?v=20261003b";
+import { icon } from "./icons.js?v=20261003b";
+import { construirePastille } from "./promo-pastille.js?v=20261003b";
 
 let currentUser = null;     // Supabase auth user
 let currentProfile = null;  // row user_profiles
@@ -117,32 +120,120 @@ async function refreshProfile() {
   loadViewAs();
 }
 
+const MESSAGE_SANS_PROMO = "Aucune promo n'est associée à ton compte. Demande à un formateur.";
+const MESSAGE_PROMOS_NON_CHARGEES = "Promos non chargées : la promo par défaut est affichée.";
+// Un stagiaire n'a qu'une promo : « promo par défaut » ne lui dit rien.
+const MESSAGE_PROMOS_NON_CHARGEES_STAGIAIRE = "Connexion instable : certaines informations peuvent manquer.";
+const PAUSE_AVANT_SECOND_ESSAI_MS = 1500;
+
+// État dégradé : mes_promos a échoué deux fois et aucune promo n'est en place. Sans en-tête, la
+// base répond sur la promo par défaut de la personne ; un bandeau le dit (updatePromosBanner)
+// jusqu'à ce qu'un chargement ultérieur réussisse. Il est recalculé à chaque chargement. Au
+// retour (rappel onAuthChange), la page se recharge si la promo posée n'est pas celle par défaut.
+let promosIndisponibles = false;
+
+// Contexte de promo AVANT toute lecture (spec multi-promo C.1). Faux si le compte n'a accès à
+// aucune promo ; nul si une déconnexion a croisé le chargement (rien n'a été posé : à ignorer,
+// ni refus ni message, la déconnexion a déjà tout remis à plat). Deux essais, le second 1,5 s
+// après le premier : une panne passagère ne doit pas faire perdre la promo choisie. Si les deux
+// échouent, on entre quand même (un stagiaire n'a qu'une promo, le bloquer serait une
+// régression) en état dégradé : liste vide, donc sans pastille, et bandeau. Un échec au
+// renouvellement d'un jeton, alors que les promos du compte sont déjà en mémoire, ne change
+// rien : la promo affichée reste la bonne, rien à signaler.
+async function chargerContextePromo(user) {
+  for (let essai = 1; essai <= 2; essai++) {
+    try {
+      const promos = await chargerMesPromos(user.email);
+      if (promos === null) return null;
+      promosIndisponibles = false;
+      return promos.length > 0;
+    } catch (e) {
+      console.error("mes_promos indisponible (essai " + essai + "/2)", e);
+      if (essai === 1) await new Promise((resolve) => setTimeout(resolve, PAUSE_AVANT_SECOND_ESSAI_MS));
+    }
+  }
+  promosIndisponibles = !getPromoCourante();
+  return true;
+}
+
+// Refus de la session (aucune promo, profil absent) : contexte oublié, motif envoyé à la porte,
+// déconnexion, puis message dans l'app. Le toast seul ne suffit pas : pendant la porte il est
+// caché avec #app, et la carte de connexion resterait sur « Connexion… ». gate.js écoute donc
+// « ecsr:refus-porte » (detail = le motif). Pas d'import de gate.js ici : un événement suffit.
+async function refuserSession(message) {
+  oublierPromo();
+  document.dispatchEvent(new CustomEvent("ecsr:refus-porte", { detail: message }));
+  await signOut();
+  currentUser = null;
+  currentProfile = null;
+  toast(message, "error", 5000);
+}
+
+// Rechargement décidé ici (promo devenue inaccessible, retour d'un état dégradé), sans attendre les
+// enregistrements en cours, contrairement à la bascule et au bandeau « Réessayer » : ils partiraient
+// sous l'en-tête de la nouvelle promo alors que l'écran montre l'ancienne. Les requêtes de données
+// sont donc coupées d'abord, jusqu'au rechargement.
+function rechargerSansDelai() {
+  bloquerRequetesJusquAuRechargement();
+  location.reload();
+}
+
 export async function initAuth() {
   currentUser = await getCurrentUser();
   if (currentUser) {
-    // Les annuaires ne sont lisibles qu'authentifié (RLS) → charger après l'auth.
-    await loadDirectories();
-    await refreshProfile();
-    if (!currentProfile) {
-      // Connecté mais pas dans user_profiles → kick out
-      await signOut();
-      currentUser = null;
-      toast("Ton compte n'est plus autorisé. Demande une invitation.", "error", 5000);
+    const contexte = await chargerContextePromo(currentUser);
+    if (contexte === null) {
+      // Déconnexion pendant le chargement : rien n'a été posé, rien à refuser ni à dire.
+    } else if (!contexte) {
+      // Le rappel onAuthChange n'est pas encore branché : la déconnexion ne lui dira pas
+      // d'oublier le contexte, refuserSession s'en charge (comme pour le profil absent).
+      await refuserSession(MESSAGE_SANS_PROMO);
+    } else {
+      // Les annuaires ne sont lisibles qu'authentifié (RLS) → charger après l'auth.
+      await loadDirectories();
+      await refreshProfile();
+      if (!currentProfile) {
+        // Connecté mais pas dans user_profiles → kick out
+        await refuserSession("Ton compte n'est plus autorisé. Demande une invitation.");
+      }
     }
   }
 
   onAuthChange(async (user) => {
     currentUser = user;
     if (user) {
-      await loadDirectories();
-      await refreshProfile();
-      if (!currentProfile) {
-        await signOut();
-        currentUser = null;
-        toast("Email non invité. Demande à un admin de te whitelister.", "error", 5000);
+      const avant = getPromoCourante()?.id ?? null;
+      const etaitDegrade = promosIndisponibles;
+      const contexte = await chargerContextePromo(user);
+      // Déconnexion pendant le chargement : le rappel de la déconnexion a déjà vidé le profil, la barre
+      // et prévenu les écouteurs. Rien à refuser, à dire ni à relire (et surtout pas de second signOut,
+      // qui frapperait une session ouverte entre-temps).
+      if (contexte === null) return;
+      if (!contexte) {
+        await refuserSession(MESSAGE_SANS_PROMO);
+      } else if (avant !== null && getPromoCourante()?.id !== avant) {
+        // La promo affichée n'est plus accessible (ou le compte a changé) : les vues déjà
+        // dessinées sont celles de l'autre promo. On repart de zéro plutôt que de les mélanger.
+        rechargerSansDelai();
+        return;
+      } else if (etaitDegrade && getPromoCourante() && !getPromoCourante().par_defaut) {
+        // Retour d'un état dégradé : sans en-tête, la base a servi la promo par défaut, et c'est elle
+        // que les vues affichent (les annulations Ctrl+Z déjà enregistrées en rejoueraient le contenu
+        // sous l'en-tête de la promo mémorisée, posée à l'instant). On repart de zéro. Si la promo
+        // posée EST celle par défaut, les vues correspondent déjà : rien à recharger, le bandeau
+        // disparaît.
+        rechargerSansDelai();
+        return;
+      } else {
+        await loadDirectories();
+        await refreshProfile();
+        if (!currentProfile) {
+          await refuserSession("Email non invité. Demande à un admin de te whitelister.");
+        }
       }
     } else {
       currentProfile = null;
+      oublierPromo();
     }
     listeners.forEach((cb) => cb(currentUser, currentProfile));
     updateBadge();
@@ -164,7 +255,13 @@ function updateBadge() {
   const slot = document.getElementById("admin-slot");
   if (!slot) return;
   slot.innerHTML = "";
-  if (!currentUser) { updateImpersonationBanner(); return; }
+  if (!currentUser) { updateImpersonationBanner(); updatePromosBanner(); return; }
+
+  // Pastille de promo devant le badge (formateurs et fondateur, au moins deux promos). Pas dans
+  // l'aperçu « Stagiaire » : un stagiaire n'en a pas, l'aperçu doit rester fidèle.
+  const pastille = getViewAs() === "stagiaire" ? null : construirePastille();
+  if (pastille) slot.appendChild(pastille);
+  slot.classList.toggle("avec-pastille", !!pastille);
 
   const who = getProfileWho() || currentUser.email;
   const roleLabel =
@@ -179,6 +276,30 @@ function updateBadge() {
   );
   slot.appendChild(badge);
   updateImpersonationBanner();
+  updatePromosBanner();
+}
+
+// Bandeau d'état dégradé : les promos n'ont pas pu être chargées (deux essais), l'app affiche la
+// promo par défaut du compte. Persistant, retiré dès qu'un chargement réussit. Sur le modèle du
+// bandeau d'aperçu, mais dans #app : il est caché avec lui pendant la porte. « Réessayer »
+// recharge la page, qui repart d'un contexte propre, après les enregistrements en cours du
+// planning (même attente qu'une bascule de promo).
+function updatePromosBanner() {
+  let banner = document.getElementById("promos-banner");
+  if (!(promosIndisponibles && currentUser && currentProfile)) { if (banner) banner.remove(); return; }
+  if (!banner) {
+    banner = el("div", { id: "promos-banner", class: "promos-banner", role: "status" },
+      el("span", { class: "promos-banner-texte" },
+        currentProfile.role === "stagiaire" ? MESSAGE_PROMOS_NON_CHARGEES_STAGIAIRE : MESSAGE_PROMOS_NON_CHARGEES),
+      el("button", { class: "promos-banner-btn", type: "button", onClick: (e) => {
+        e.currentTarget.disabled = true;
+        rechargerApresEnregistrements();
+      } }, "Réessayer"),
+    );
+    (document.getElementById("app") || document.body).appendChild(banner);
+  }
+  // Même place, en bas de l'écran : au-dessus du bandeau d'aperçu quand les deux sont là.
+  banner.classList.toggle("au-dessus-apercu", !!document.getElementById("impersonation-banner"));
 }
 
 // Bandeau permanent quand un fondateur est en aperçu d'un autre rôle.

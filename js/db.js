@@ -1,10 +1,31 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261003a";
-import { compteDansEquite } from "./passage-rules.js?v=20261003a";
+import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261003b";
+import { compteDansEquite } from "./passage-rules.js?v=20261003b";
+import {
+  ENTETE_PROMO, doitPorterEntetePromo, choisirPromoInitiale, profilEffectif,
+  separerChamps, CHAMPS_PROGRESSION, CHAMPS_EXAMEN, fusionnerProgression, fusionnerExamen,
+} from "./promo-rules.js?v=20261003b";
+
+// Contexte de promo (spec multi-promo, C.1). La promo courante voyage dans l'en-tête
+// x-promo-id de chaque requête de données ; la base vérifie le droit et filtre.
+let mesPromos = [];          // lignes renvoyées par la RPC mes_promos()
+let promoCouranteId = null;  // nulle tant que le contexte n'est pas chargé : pas d'en-tête
+let cleMemoire = null;       // clé localStorage propre au compte
+let compteContexte = null;   // compte (email en minuscules) auquel appartient le contexte
+let epoque = 0;              // incrémentée à la déconnexion : un chargement en vol devient caduc
+let basculeEnCours = false;  // une seule bascule à la fois (double appui, deux choix rapides)
+let requetesBloquees = false; // rechargement décidé : plus aucune requête de données ne part
+const avantBascule = new Set();
 
 // fetch avec timeout : sans ça, une requête peut rester pendue indéfiniment
 // (réseau mobile instable) → "Chargement" infini. Avec, elle échoue proprement après 15s.
 function fetchWithTimeout(input, init = {}) {
+  const url = typeof input === "string" ? input : String(input?.url ?? input);
+  // Rechargement décidé (bloquerRequetesJusquAuRechargement) : aucune requête de données ne part,
+  // avec ou sans contexte de promo. Rejet immédiat, avant le minuteur et le réseau.
+  if (requetesBloquees && doitPorterEntetePromo(url, SUPABASE_URL)) {
+    return Promise.reject(new Error("Rechargement en cours"));
+  }
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 15000);
   // Si un signal externe existe déjà (rare), on le respecte aussi
@@ -13,7 +34,16 @@ function fetchWithTimeout(input, init = {}) {
     if (externalSignal.aborted) controller.abort();
     else externalSignal.addEventListener("abort", () => controller.abort(), { once: true });
   }
-  return fetch(input, { ...init, signal: controller.signal })
+  // En-tête de promo : seulement vers l'API de données (cf. promo-rules.js).
+  let options = init;
+  if (promoCouranteId != null && doitPorterEntetePromo(url, SUPABASE_URL)) {
+    // Un Request garde ses propres en-têtes (apikey, Authorization) s'il n'y en a pas dans init.
+    const entetes = new Headers(init.headers
+      || (typeof Request !== "undefined" && input instanceof Request ? input.headers : {}));
+    entetes.set(ENTETE_PROMO, String(promoCouranteId));
+    options = { ...init, headers: entetes };
+  }
+  return fetch(input, { ...options, signal: controller.signal })
     .finally(() => clearTimeout(timeoutId));
 }
 
@@ -53,6 +83,110 @@ export function invalidateCache(key) {
   else { _cache.clear(); _cacheExpiry.clear(); }
 }
 
+// === Contexte de promo ===
+
+// Charge les promos accessibles et fixe la promo courante : celle mémorisée sur cet
+// appareil si elle est toujours accessible, sinon celle par défaut. Appelée à chaque
+// événement d'authentification : la promo en cours est CONSERVÉE tant qu'elle reste
+// accessible (un renouvellement de jeton ne doit jamais faire changer de promo, ni
+// envoyer une requête sans en-tête pendant le rechargement de la liste). Renvoie la liste (vide si
+// le compte n'a accès à aucune promo), ou null si une déconnexion a croisé le chargement : rien
+// n'est alors posé, et l'appelant n'a rien à faire (ni refus, ni message).
+export async function chargerMesPromos(email) {
+  const compte = email ? String(email).trim().toLowerCase() : null;
+  // Autre compte que celui du contexte en mémoire (appareil partagé) : on repart de zéro,
+  // sans rien hériter de la promo du compte précédent.
+  if (compte !== compteContexte) {
+    mesPromos = [];
+    promoCouranteId = null;
+    cleMemoire = null;
+    compteContexte = compte;
+    invalidateCache();
+  }
+  const monEpoque = epoque;
+  const { data, error } = await supabase.rpc("mes_promos");
+  if (error) throw error;
+  if (monEpoque !== epoque) return null;  // déconnexion pendant le chargement : rien à poser
+  cleMemoire = compte ? "ecsr_promo:" + compte : null;
+  mesPromos = data || [];
+  let memorisee = null;
+  try { memorisee = cleMemoire ? localStorage.getItem(cleMemoire) : null; } catch (e) { /* navigation privée */ }
+  const garder = mesPromos.some((p) => p.id === promoCouranteId) ? promoCouranteId : null;
+  const nouvelle = garder ?? choisirPromoInitiale(mesPromos, memorisee);
+  if (nouvelle !== promoCouranteId) invalidateCache();
+  promoCouranteId = nouvelle;
+  return mesPromos;
+}
+
+export function getMesPromos() { return mesPromos; }
+
+export function getPromoCourante() {
+  return mesPromos.find((p) => p.id === promoCouranteId) || null;
+}
+
+// Déconnexion : le contexte est oublié en mémoire (le choix mémorisé, propre au compte, reste).
+export function oublierPromo() {
+  epoque += 1;
+  mesPromos = [];
+  promoCouranteId = null;
+  cleMemoire = null;
+  compteContexte = null;
+  invalidateCache();
+}
+
+// Un module qui a des écritures en vol (le planning) s'inscrit ici : la bascule les attend.
+export function avantChangementPromo(fn) {
+  avantBascule.add(fn);
+  return () => avantBascule.delete(fn);
+}
+
+// Bascule : attendre les enregistrements en cours, mémoriser, recharger. Le rechargement
+// vide aussi les caches et la pile Ctrl+Z, qui ne doit jamais rejouer une action d'une
+// promo dans une autre.
+export async function choisirPromo(id) {
+  id = Number(id);  // la valeur d'un <select> arrive en chaîne
+  if (basculeEnCours || id === promoCouranteId || !mesPromos.some((p) => p.id === id)) return;
+  basculeEnCours = true;
+  await attendreEnregistrements();
+  try { if (cleMemoire) localStorage.setItem(cleMemoire, String(id)); } catch (e) { /* ignore */ }
+  location.reload();
+}
+
+// Rechargement sûr (bandeau « Réessayer ») : mêmes attentes qu'une bascule, sans changer de promo.
+export async function rechargerApresEnregistrements() {
+  if (basculeEnCours) return;
+  basculeEnCours = true;
+  await attendreEnregistrements();
+  location.reload();
+}
+
+// Rechargement décidé SANS attendre les enregistrements (js/auth-admin.js : retour d'un état
+// dégradé, promo devenue inaccessible). Les vues affichées sont celles d'une autre promo que le
+// contexte qui vient d'être posé : tout ce qui est encore en route (enregistrement différé du
+// planning, annulation Ctrl+Z, relecture) partirait sous l'en-tête de la nouvelle promo avec du
+// contenu de l'ancienne. Jusqu'au rechargement, plus aucune requête de données ne part ;
+// l'authentification, les fonctions et le stockage ne sont pas concernés. Sans retour en arrière :
+// la page va disparaître. choisirPromo et rechargerApresEnregistrements ne l'appellent PAS : elles
+// attendent d'abord les enregistrements en cours, qui doivent partir.
+export function bloquerRequetesJusquAuRechargement() {
+  requetesBloquees = true;
+}
+
+async function attendreEnregistrements() {
+  for (const attendre of avantBascule) {
+    try { await attendre(); } catch (e) { console.error("bascule de promo : attente", e); }
+  }
+}
+
+export async function renommerPromo(id, nom) {
+  // Sans .select(), un refus par les règles d'accès répond « 0 ligne, sans erreur ».
+  const { data, error } = await supabase.from("promos").update({ nom }).eq("id", id).select("id");
+  if (error) throw error;
+  if (!data || data.length === 0) throw new Error("Renommage refusé : promo introuvable ou droits insuffisants.");
+  const promo = mesPromos.find((p) => p.id === id);
+  if (promo) promo.nom = nom;
+}
+
 // === Stagiaires & Profs ===
 
 // Par défaut, ne renvoie que les stagiaires actifs (les abandons sont masqués
@@ -78,14 +212,14 @@ export async function listProfs() {
   });
 }
 
-export async function addStagiaire(prenom) {
+export async function addStagiaire(prenom, nom = null) {
   const { data: max } = await supabase
     .from("stagiaires")
     .select("ordre")
     .order("ordre", { ascending: false })
     .limit(1);
   const ordre = (max?.[0]?.ordre || 0) + 1;
-  const { error } = await supabase.from("stagiaires").insert({ prenom, ordre });
+  const { error } = await supabase.from("stagiaires").insert({ prenom, nom: nom || null, ordre });
   if (error) throw error;
   invalidateCache("stagiaires");
   invalidateCache("stagiaires_all");
@@ -93,6 +227,14 @@ export async function addStagiaire(prenom) {
 
 export async function updateStagiaire(id, prenom) {
   const { error } = await supabase.from("stagiaires").update({ prenom }).eq("id", id);
+  if (error) throw error;
+  invalidateCache("stagiaires");
+  invalidateCache("stagiaires_all");
+}
+
+// Nom de famille : sert à l'affichage « V. Timy » et au tri alphabétique.
+export async function updateStagiaireNom(id, nom) {
+  const { error } = await supabase.from("stagiaires").update({ nom: nom || null }).eq("id", id);
   if (error) throw error;
   invalidateCache("stagiaires");
   invalidateCache("stagiaires_all");
@@ -226,7 +368,7 @@ export async function upsertPlanningEntry(entry) {
   if (entry.lane == null) entry.lane = 0;
   const { error } = await supabase
     .from("planning_entries")
-    .upsert(entry, { onConflict: "semaine_lundi,day_index,half_day,slot,lane" });
+    .upsert(entry, { onConflict: "promo_id,semaine_lundi,day_index,half_day,slot,lane" });
   if (error) throw error;
 }
 
@@ -249,7 +391,7 @@ export async function getHalfMetaForWeek(semaine_lundi) {
 export async function upsertHalfMeta(meta) {
   const { error } = await supabase
     .from("planning_half_meta")
-    .upsert(meta, { onConflict: "semaine_lundi,day_index,half_day" });
+    .upsert(meta, { onConflict: "promo_id,semaine_lundi,day_index,half_day" });
   if (error) throw error;
 }
 
@@ -275,7 +417,7 @@ export async function setJourOff(semaine_lundi, day_index, label, who) {
   const { error } = await supabase
     .from("planning_jours_off")
     .upsert({ semaine_lundi, day_index, label: label ?? null, created_by_who: who ?? null },
-            { onConflict: "semaine_lundi,day_index" });
+            { onConflict: "promo_id,semaine_lundi,day_index" });
   if (error) throw error;
 }
 
@@ -290,6 +432,7 @@ export async function deleteJourOff(semaine_lundi, day_index) {
 
 // === Settings ===
 
+// Réglage de la promo courante (la base ne renvoie que ceux-là), ou null.
 export async function getSetting(key) {
   const { data, error } = await supabase
     .from("settings")
@@ -300,10 +443,12 @@ export async function getSetting(key) {
   return data?.value ?? null;
 }
 
+// Réglage propre à la promo courante (promo_id posé par la base). Porte d'entrée unique
+// des modules du chantier B : aucune autre écriture dans la table settings.
 export async function setSetting(key, value) {
   const { error } = await supabase
     .from("settings")
-    .upsert({ key, value, updated_at: new Date().toISOString() });
+    .upsert({ key, value, updated_at: new Date().toISOString() }, { onConflict: "promo_id,key" });
   if (error) throw error;
 }
 
@@ -313,24 +458,46 @@ export async function listThemes() {
   return cachedQuery("themes", async () => {
     const { data, error } = await supabase
       .from("themes")
-      .select("*")
+      .select("*, progression:themes_progression(statut, date_fait, date_qcm, notes, updated_by_email)")
       .order("type")    // theme avant notion
       .order("ordre");
     if (error) throw error;
-    return data;
+    // La base ne renvoie que la progression de la promo courante ; « À faire » sinon.
+    return (data || []).map(fusionnerProgression);
   });
 }
 
-export async function updateTheme(id, patch) {
-  const { error } = await supabase.from("themes").update(patch).eq("id", id);
+// Progression de la promo courante (promo_id posé par la base).
+async function ecrireProgression(themeId, champs) {
+  const { error } = await supabase
+    .from("themes_progression")
+    .upsert({ theme_id: themeId, ...champs }, { onConflict: "promo_id,theme_id" });
   if (error) throw error;
-  invalidateCache("themes");
+}
+
+// Fait, dates et auteur vont à la progression de la promo ; le reste au référentiel commun.
+export async function updateTheme(id, patch) {
+  const { dans: progression, hors: referentiel } = separerChamps(patch, CHAMPS_PROGRESSION);
+  try {
+    if (Object.keys(progression).length) await ecrireProgression(id, progression);
+    if (Object.keys(referentiel).length) {
+      const { error } = await supabase.from("themes").update(referentiel).eq("id", id);
+      if (error) throw error;
+    }
+  } finally {
+    // Même en cas d'échec de la seconde écriture, la première a pu passer : relire.
+    invalidateCache("themes");
+  }
 }
 
 export async function addTheme(t) {
-  const { error } = await supabase.from("themes").insert(t);
+  const { dans: progression, hors: referentiel } = separerChamps(t, CHAMPS_PROGRESSION);
+  const { data, error } = await supabase.from("themes").insert(referentiel).select("id").single();
   if (error) throw error;
+  // Le thème existe désormais : la liste doit le montrer même si sa progression échoue
+  // (sinon un second « Ajouter » créerait un doublon).
   invalidateCache("themes");
+  if (Object.keys(progression).length) await ecrireProgression(data.id, progression);
 }
 
 export async function deleteTheme(id) {
@@ -341,16 +508,18 @@ export async function deleteTheme(id) {
 
 // === QCM (par thème) ===
 
-// Index léger des QCM : un par thème, avec le nombre de questions.
-// Sert à afficher l'accès QCM sur la liste des thèmes sans tout charger.
+const SELECT_EXAMEN = "examen:qcm_examens(" + CHAMPS_EXAMEN.join(", ") + ")";
+
+// Index léger des QCM : un par thème, avec le nombre de questions et l'état d'examen de
+// la promo courante (fermé s'il n'existe pas, spec multi-promo C.4).
 export async function listQcmIndex() {
   return cachedQuery("qcm_index", async () => {
     const { data, error } = await supabase
       .from("qcm")
-      .select("id, theme_id, titre, published, published_by_email, published_at, exam_nb_questions, exam_pass_20, exam_seconds_per_question, exam_draw_mode, exam_question_ids, qcm_questions(count)");
+      .select(`id, theme_id, titre, exam_pass_20, qcm_questions(count), ${SELECT_EXAMEN}`);
     if (error) throw error;
     return (data || []).map((q) => ({
-      ...q,
+      ...fusionnerExamen(q),
       nb_questions: q.qcm_questions?.[0]?.count ?? 0,
     }));
   });
@@ -360,13 +529,14 @@ export async function listQcmIndex() {
 export async function getQcmFull(qcmId) {
   const { data, error } = await supabase
     .from("qcm")
-    .select("*, questions:qcm_questions(*, options:qcm_options(*))")
+    .select(`*, questions:qcm_questions(*, options:qcm_options(*)), ${SELECT_EXAMEN}`)
     .eq("id", qcmId)
     .single();
   if (error) throw error;
-  (data.questions || []).sort((a, b) => a.ordre - b.ordre);
-  (data.questions || []).forEach((q) => (q.options || []).sort((a, b) => a.ordre - b.ordre));
-  return data;
+  const qcm = fusionnerExamen(data);
+  (qcm.questions || []).sort((a, b) => a.ordre - b.ordre);
+  (qcm.questions || []).forEach((q) => (q.options || []).sort((a, b) => a.ordre - b.ordre));
+  return qcm;
 }
 
 // Enregistre une tentative (entraînement ou examen). Renvoie la ligne créée.
@@ -380,62 +550,57 @@ export async function insertQcmAttempt(payload) {
   return data;
 }
 
-// Publie l'examen d'un QCM et gèle le tirage (formateur/admin). email = auteur.
-export async function publishQcm(qcmId, { examQuestionIds, drawMode, nbQuestions, secondsPerQuestion, email, fermeA = null }) {
-  const now = new Date().toISOString();
+// État d'examen de la promo courante (promo_id posé par la base).
+async function ecrireExamen(qcmId, champs) {
   const { error } = await supabase
-    .from("qcm")
-    .update({
-      published: true,
-      published_by_email: email ?? null,
-      published_at: now,
-      exam_question_ids: examQuestionIds,
-      exam_draw_mode: drawMode,
-      exam_nb_questions: nbQuestions ?? null,
-      exam_seconds_per_question: secondsPerQuestion ?? 30,
-      exam_ferme_a: fermeA,
-      updated_at: now,
-    })
-    .eq("id", qcmId);
+    .from("qcm_examens")
+    .upsert({ qcm_id: qcmId, ...champs }, { onConflict: "promo_id,qcm_id" });
   if (error) throw error;
   invalidateCache("qcm_index");
 }
 
-// Ferme l'examen (conserve le tirage gelé). L'échéance est remise à nul pour
-// qu'un examen fermé ne garde pas d'échéance fantôme, qui réapparaîtrait à la
-// prochaine ouverture.
+// Publie l'examen d'un QCM pour la promo courante et gèle le tirage. email = auteur.
+export async function publishQcm(qcmId, { examQuestionIds, drawMode, nbQuestions, secondsPerQuestion, email, fermeA = null }) {
+  await ecrireExamen(qcmId, {
+    published: true,
+    published_by_email: email ?? null,
+    published_at: new Date().toISOString(),
+    exam_question_ids: examQuestionIds,
+    exam_draw_mode: drawMode,
+    exam_nb_questions: nbQuestions ?? null,
+    exam_seconds_per_question: secondsPerQuestion ?? 30,
+    exam_ferme_a: fermeA,
+  });
+}
+
+// Ferme l'examen (conserve le tirage gelé). L'échéance est remise à nul pour qu'un
+// examen fermé ne garde pas d'échéance fantôme, qui réapparaîtrait à la réouverture.
 export async function unpublishQcm(qcmId) {
-  const { error } = await supabase
-    .from("qcm")
-    .update({ published: false, exam_ferme_a: null, updated_at: new Date().toISOString() })
-    .eq("id", qcmId);
-  if (error) throw error;
-  invalidateCache("qcm_index");
+  await ecrireExamen(qcmId, { published: false, exam_ferme_a: null });
 }
 
 // Régénère le tirage gelé sans toucher à l'état de publication.
 export async function setExamDraw(qcmId, { examQuestionIds, drawMode, nbQuestions }) {
-  const { error } = await supabase
-    .from("qcm")
-    .update({
-      exam_question_ids: examQuestionIds,
-      exam_draw_mode: drawMode,
-      exam_nb_questions: nbQuestions ?? null,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", qcmId);
-  if (error) throw error;
-  invalidateCache("qcm_index");
+  await ecrireExamen(qcmId, {
+    exam_question_ids: examQuestionIds,
+    exam_draw_mode: drawMode,
+    exam_nb_questions: nbQuestions ?? null,
+  });
 }
 
-// Met à jour la config d'examen (questions gelées, temps, mode) sans changer l'état de publication.
+// Met à jour la config d'examen sans changer l'état de publication. Un champ qui ne
+// relève pas de l'examen (titre...) va à la banque commune.
 export async function updateExamConfig(qcmId, patch) {
-  const { error } = await supabase
-    .from("qcm")
-    .update({ ...patch, updated_at: new Date().toISOString() })
-    .eq("id", qcmId);
-  if (error) throw error;
-  invalidateCache("qcm_index");
+  const { dans: examen, hors: banque } = separerChamps(patch, CHAMPS_EXAMEN);
+  if (Object.keys(examen).length) await ecrireExamen(qcmId, examen);
+  if (Object.keys(banque).length) {
+    const { error } = await supabase
+      .from("qcm")
+      .update({ ...banque, updated_at: new Date().toISOString() })
+      .eq("id", qcmId);
+    if (error) throw error;
+    invalidateCache("qcm_index");
+  }
 }
 
 // Toutes mes tentatives (RLS : mes lignes only), triées récent -> ancien.
@@ -1015,17 +1180,13 @@ export async function deleteAutoEcole(id) {
 // Les venues sont DÉDUITES du planning (cartes Voiture où le bénévole est placé),
 // jamais stockées. Seuls les commentaires vivent dans benevole_suivi.
 
-// Toutes les cartes portant au moins un bénévole (pour compter les venues et
-// construire la fiche de suivi). Pas de cache : le planning bouge tout le temps.
+// Toutes les cartes portant au moins un bénévole, sur les promos du lieu courant (la
+// banque est commune au lieu). RPC réservée aux admins (is_admin(), liste vide sinon) ; chaque ligne porte aussi
+// promo_id et promo_nom. Pas de cache : le planning bouge tout le temps.
 export async function listVenuesBenevoles() {
-  const { data, error } = await supabase
-    .from("planning_entries")
-    .select("semaine_lundi, day_index, half_day, sujet, eleves_ids, benevoles_ids")
-    .neq("benevoles_ids", "{}")
-    .order("semaine_lundi", { ascending: false })
-    .order("day_index", { ascending: true });
+  const { data, error } = await supabase.rpc("venues_benevoles");
   if (error) throw error;
-  return data;
+  return data || [];
 }
 
 export async function listSuiviBenevole(benevole_id) {
@@ -1108,7 +1269,8 @@ export async function getMyProfile() {
     .eq("email", user.email.toLowerCase())
     .maybeSingle();
   if (error) throw error;
-  return data;
+  // Profil effectif dans la promo courante (spec multi-promo C.3).
+  return profilEffectif(data, getPromoCourante());
 }
 
 export async function deleteUserProfile(email) {
@@ -1288,6 +1450,9 @@ export async function createQcmSignalement({ questionId, motif, commentaire, opt
 
 // stagiaire_id de l'utilisateur courant, ou null (un formateur n'en a pas forcément).
 async function myStagiaireId() {
+  // Contexte de promo chargé : la fiche de CETTE promo (le fondateur n'en a pas en septembre).
+  const promo = getPromoCourante();
+  if (promo) return promo.stagiaire_id ?? null;
   const { data: { user } } = await supabase.auth.getUser();
   if (!user?.email) return null;
   const { data } = await supabase

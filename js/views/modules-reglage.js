@@ -1,26 +1,37 @@
 // Paramètres › « Modules de la promo » (chantier B) : ouvrir ou fermer, pour la
 // promo courante, les parties de l'app que voient les stagiaires.
 //
-// Réservé aux formateurs, et au seul fondateur tant que le multi-promo n'est pas
-// en ligne (REGLAGE_OUVERT_AUX_FORMATEURS, js/modules-data.js). La section se
+// Réservé aux formateurs, chacun pour la promo affichée (REGLAGE_OUVERT_AUX_FORMATEURS,
+// js/modules-data.js, ouvert avec le multi-promo). La section se
 // redessine elle-même après chaque écriture, réussie ou non (voir redessiner) :
 // pas de rechargement de toute la page Paramètres.
-import { el, toast } from "../utils.js?v=20261003a";
-import { icon } from "../icons.js?v=20261003a";
-import { MODULES, GROUPES } from "../modules-data.js?v=20261003a";
-import { estReglee, estOuvert, jourParis, accorder } from "../modules.js?v=20261003a";
+import { el, toast } from "../utils.js?v=20261003b";
+import { icon } from "../icons.js?v=20261003b";
+import { MODULES, GROUPES } from "../modules-data.js?v=20261003b";
+import { estReglee, estOuvert, jourParis, accorder } from "../modules.js?v=20261003b";
 import {
   etatModules, peutRegler, basculerModule, appliquerEnsembleDeDepart,
-} from "../modules-etat.js?v=20261003a";
+} from "../modules-etat.js?v=20261003b";
+import { getPromoCourante } from "../db.js?v=20261003b";
+
+// La section règle la promo AFFICHÉE (pastille) : on la nomme partout, pour qu'un formateur
+// arrivé par défaut sur une promo ne règle jamais l'autre par mégarde.
+function nomPromo() {
+  return getPromoCourante()?.nom || "promo par défaut (promos non chargées)";
+}
+function laPromo() {
+  const nom = getPromoCourante()?.nom;
+  return nom ? `la promo « ${nom} »` : "la promo affichée";
+}
 
 const SOCLE = "Toujours ouverts : Accueil, Mon espace personnel (Passages), Paramètres, Nouveautés.";
 
 // Demandée avant la première bascule d'une case sur une promo libre ou illisible : cette
 // bascule fige un réglage pour tous les stagiaires de la promo, et l'état « aucun réglage »
 // ne se retrouve plus ensuite. Le bouton « Partir de l'ensemble de départ » a la sienne.
-const CONFIRMATION_PREMIER_REGLAGE = "Cette promo n'a encore aucun réglage : tout est ouvert. "
-  + "Changer une case crée un réglage qui s'applique à tous ses stagiaires, et on ne pourra "
-  + "plus revenir à l'état « aucun réglage ». Continuer ?";
+const confirmationPremierReglage = () => `Pour ${laPromo()}, aucun réglage n'existe encore : `
+  + "tout est ouvert. Changer une case crée un réglage qui s'applique à tous ses stagiaires, "
+  + "et on ne pourra plus revenir à l'état « aucun réglage ». Continuer ?";
 
 function nomDe(cle) {
   return MODULES.find((m) => m.cle === cle)?.nom || cle;
@@ -94,6 +105,7 @@ export function renderModulesSection() {
     el("div", { class: "param-icon" }, icon.eyeOff()),
     el("div", {},
       el("h3", {}, "Modules de la promo"),
+      el("p", {}, "Promo réglée : ", el("strong", {}, nomPromo())),
       el("p", { class: "muted" },
         "Ouvre les parties de l'app au fil de la formation. Une partie fermée est invisible "
         + "pour les stagiaires ; tu la vois toujours, avec le repère « Masqué aux stagiaires »."),
@@ -118,7 +130,7 @@ function bandeauDepart(etat) {
   const noms = enumerer(MODULES.filter((m) => m.depart).map((m) => m.nom));
   const bouton = el("button", { class: "btn primary", type: "button" }, "Partir de l'ensemble de départ");
   bouton.addEventListener("click", async () => {
-    if (!confirm(`Seuls ${noms} resteront visibles pour les stagiaires. Continuer ?`)) return;
+    if (!confirm(`Pour ${laPromo()}, seuls ${noms} resteront visibles pour les stagiaires. Continuer ?`)) return;
     bouton.disabled = true;
     // Message neutre : si la base portait déjà un réglage lisible (lecture de démarrage
     // ratée, autre formateur), appliquerEnsembleDeDepart le conserve.
@@ -148,7 +160,7 @@ function ligneModule(m, etat) {
     // `reglee` est l'état AFFICHÉ, celui que le formateur a sous les yeux. Sur une promo libre
     // ou illisible, la première bascule fige un réglage : on la fait confirmer. Refus : la case
     // retrouve son état d'avant, sans écriture ni message (rien ne s'est passé).
-    if (!reglee && !confirm(CONFIRMATION_PREMIER_REGLAGE)) {
+    if (!reglee && !confirm(confirmationPremierReglage())) {
       caseACocher.checked = !ouvrir;
       return;
     }
