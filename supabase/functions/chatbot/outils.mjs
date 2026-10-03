@@ -5,8 +5,9 @@ export const OUTILS = [
     type: "function",
     function: {
       name: "chercher_dans_les_cours",
-      description: "Recherche plein-texte dans les 57 cours officiels de la formation ECSR. "
-        + "Renvoie les sections les plus pertinentes avec leur numero de theme, leur titre et leur section. "
+      description: "Recherche plein-texte dans les cours de la formation ECSR : les 57 themes officiels "
+        + "et les cours des competences de conduite (C1 a C4, programme du permis B). "
+        + "Renvoie les sections les plus pertinentes avec leur theme ou leur competence, leur titre et leur section. "
         + "A appeler pour toute question de fond sur la formation, la conduite ou la securite routiere.",
       parameters: {
         type: "object",

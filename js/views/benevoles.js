@@ -18,52 +18,55 @@ const DEMI = [
   { key: "matin", label: "matin", court: "m" },
   { key: "aprem", label: "après-midi", court: "am" },
 ];
-// Compétences REMC (permis B) avec leurs sous-compétences : intitulés alignés sur la
-// table themes (type notion, préfixe « REMC Cx.y »). Le niveau stocké en base est le
-// CODE seul (« C1 », « C1.4 »...), le libellé est résolu à l'affichage via nivLabel().
+// Compétences du programme de formation B et leurs sous-compétences : intitulés du
+// livret d'apprentissage (arrêté du 29 juillet 2013, annexe III, version en vigueur
+// depuis le 27/01/2016), alignés sur la colonne code de la table themes. Le niveau
+// stocké en base est le CODE seul (« C1 », « C1.4 »...), le libellé est résolu à
+// l'affichage via nivLabel().
 export const COMPETENCES_REMC = [
   { code: "C1", titre: "Maîtriser le maniement du véhicule dans un trafic faible ou nul",
     sous: [
-      ["C1.1", "Connaître les principaux organes et commandes, vérifications intérieures/extérieures"],
+      ["C1.1", "Connaître les principaux organes et commandes du véhicule, effectuer des vérifications intérieures et extérieures"],
       ["C1.2", "Entrer, s'installer au poste de conduite et en sortir"],
       ["C1.3", "Tenir, tourner le volant et maintenir la trajectoire"],
       ["C1.4", "Démarrer et s'arrêter"],
       ["C1.5", "Doser l'accélération et le freinage à diverses allures"],
       ["C1.6", "Utiliser la boîte de vitesses"],
-      ["C1.7", "Diriger la voiture en avant, en ligne droite et en courbe (allure et trajectoire)"],
+      ["C1.7", "Diriger la voiture en avant en ligne droite et en courbe en adaptant allure et trajectoire"],
       ["C1.8", "Regarder autour de soi et avertir"],
       ["C1.9", "Effectuer une marche arrière et un demi-tour en sécurité"],
     ] },
   { code: "C2", titre: "Appréhender la route et circuler dans des conditions normales",
     sous: [
-      ["C2.1", "Connaître les principales règles de circulation et la signalisation"],
-      ["C2.2", "Tenir compte de la signalisation verticale et horizontale"],
-      ["C2.3", "Rechercher les indices utiles"],
-      ["C2.4", "Utiliser toutes les commandes"],
-      ["C2.5", "Adapter sa vitesse aux situations"],
-      ["C2.6", "Choisir la voie de circulation"],
-      ["C2.7", "Maintenir les distances de sécurité"],
-      ["C2.8", "Franchir les différents types d'intersection et y changer de direction"],
+      ["C2.1", "Rechercher la signalisation, les indices utiles et en tenir compte"],
+      ["C2.2", "Positionner le véhicule sur la chaussée et choisir la voie de circulation"],
+      ["C2.3", "Adapter l'allure aux situations"],
+      ["C2.4", "Tourner à droite et à gauche en agglomération"],
+      ["C2.5", "Détecter, identifier et franchir les intersections suivant le régime de priorité"],
+      ["C2.6", "Franchir les ronds-points et les carrefours à sens giratoire"],
+      ["C2.7", "S'arrêter et stationner en épi, en bataille et en créneau"],
     ] },
-  { code: "C3", titre: "Circuler dans des conditions difficiles et partager la route",
+  { code: "C3", titre: "Circuler dans des conditions difficiles et partager la route avec les autres usagers",
     sous: [
       ["C3.1", "Évaluer et maintenir les distances de sécurité"],
       ["C3.2", "Croiser, dépasser, être dépassé"],
-      ["C3.3", "Passer les virages et conduire en déclivité"],
-      ["C3.4", "Connaître et respecter les autres usagers (respect et courtoisie)"],
+      ["C3.3", "Passer des virages et conduire en déclivité"],
+      ["C3.4", "Connaître les caractéristiques des autres usagers et savoir se comporter à leur égard, avec respect et courtoisie"],
       ["C3.5", "S'insérer, circuler et sortir d'une voie rapide"],
-      ["C3.6", "Conduire dans une file de véhicule et dans une circulation dense"],
-      ["C3.7", "Conduire quand l'adhérence et la visibilité sont réduites"],
+      ["C3.6", "Conduire dans une file de véhicules et dans une circulation dense"],
+      ["C3.7", "Connaître les règles relatives à la circulation inter-files des motocyclistes. Savoir en tenir compte"],
+      ["C3.8", "Conduire quand l'adhérence et la visibilité sont réduites"],
+      ["C3.9", "Conduire à l'abord et dans la traversée d'ouvrages routiers tels que les tunnels, les ponts…"],
     ] },
   { code: "C4", titre: "Pratiquer une conduite autonome, sûre et économique",
     sous: [
-      ["C4.1", "Suivre un itinéraire de façon autonome"],
+      ["C4.1", "Suivre un itinéraire de manière autonome"],
       ["C4.2", "Préparer et effectuer un voyage longue distance en autonomie"],
-      ["C4.3", "Connaître les principaux facteurs de risque au volant et recommandations"],
-      ["C4.4", "Comportements en cas d'accident : protéger, alerter, secourir"],
-      ["C4.5", "Faire l'expérience des aides à la conduite (régulateur, limiteur, ABS, navigation)"],
-      ["C4.6", "Notions sur l'entretien, le dépannage et les situations d'urgence"],
-      ["C4.7", "Pratiquer l'éco-conduite"],
+      ["C4.3", "Connaître les principaux facteurs de risque au volant et les recommandations à appliquer"],
+      ["C4.4", "Connaître les comportements à adopter en cas d'accident : protéger, alerter, secourir"],
+      ["C4.5", "Faire l'expérience des aides à la conduite du véhicule (régulateur, limiteur de vitesse, ABS, aides à la navigation…)"],
+      ["C4.6", "Avoir des notions sur l'entretien, le dépannage et les situations d'urgence"],
+      ["C4.7", "Pratiquer l'écoconduite"],
     ] },
 ];
 const BOITES = ["Manuelle", "Automatique"];

@@ -35,8 +35,10 @@ async function executerOutil(nom: string, args: Record<string, unknown>, sr: Ret
       return { erreur: "Recherche dans les cours indisponible pour le moment." };
     }
     if (!data?.length) return { info: "Aucune section de cours ne correspond a cette recherche." };
-    return data.map((c: { numero: number; titre: string; section: string; contenu: string }) => ({
-      theme: `Theme ${String(c.numero).padStart(2, "0")} : ${c.titre}`,
+    return data.map((c: { numero: number | null; code: string | null; titre: string; section: string; contenu: string }) => ({
+      theme: c.code
+        ? `Competence ${c.code} : ${c.titre}`
+        : `Theme ${String(c.numero).padStart(2, "0")} : ${c.titre}`,
       section: c.section,
       extrait: String(c.contenu).slice(0, 1500),
     }));
