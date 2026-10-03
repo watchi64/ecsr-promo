@@ -180,14 +180,14 @@ export async function listProfs() {
   });
 }
 
-export async function addStagiaire(prenom) {
+export async function addStagiaire(prenom, nom = null) {
   const { data: max } = await supabase
     .from("stagiaires")
     .select("ordre")
     .order("ordre", { ascending: false })
     .limit(1);
   const ordre = (max?.[0]?.ordre || 0) + 1;
-  const { error } = await supabase.from("stagiaires").insert({ prenom, ordre });
+  const { error } = await supabase.from("stagiaires").insert({ prenom, nom: nom || null, ordre });
   if (error) throw error;
   invalidateCache("stagiaires");
   invalidateCache("stagiaires_all");
@@ -195,6 +195,14 @@ export async function addStagiaire(prenom) {
 
 export async function updateStagiaire(id, prenom) {
   const { error } = await supabase.from("stagiaires").update({ prenom }).eq("id", id);
+  if (error) throw error;
+  invalidateCache("stagiaires");
+  invalidateCache("stagiaires_all");
+}
+
+// Nom de famille : sert à l'affichage « V. Timy » et au tri alphabétique.
+export async function updateStagiaireNom(id, nom) {
+  const { error } = await supabase.from("stagiaires").update({ nom: nom || null }).eq("id", id);
   if (error) throw error;
   invalidateCache("stagiaires");
   invalidateCache("stagiaires_all");
@@ -328,7 +336,7 @@ export async function upsertPlanningEntry(entry) {
   if (entry.lane == null) entry.lane = 0;
   const { error } = await supabase
     .from("planning_entries")
-    .upsert(entry, { onConflict: "semaine_lundi,day_index,half_day,slot,lane" });
+    .upsert(entry, { onConflict: "promo_id,semaine_lundi,day_index,half_day,slot,lane" });
   if (error) throw error;
 }
 
@@ -351,7 +359,7 @@ export async function getHalfMetaForWeek(semaine_lundi) {
 export async function upsertHalfMeta(meta) {
   const { error } = await supabase
     .from("planning_half_meta")
-    .upsert(meta, { onConflict: "semaine_lundi,day_index,half_day" });
+    .upsert(meta, { onConflict: "promo_id,semaine_lundi,day_index,half_day" });
   if (error) throw error;
 }
 
@@ -377,7 +385,7 @@ export async function setJourOff(semaine_lundi, day_index, label, who) {
   const { error } = await supabase
     .from("planning_jours_off")
     .upsert({ semaine_lundi, day_index, label: label ?? null, created_by_who: who ?? null },
-            { onConflict: "semaine_lundi,day_index" });
+            { onConflict: "promo_id,semaine_lundi,day_index" });
   if (error) throw error;
 }
 
@@ -392,6 +400,7 @@ export async function deleteJourOff(semaine_lundi, day_index) {
 
 // === Settings ===
 
+// Réglage de la promo courante (la base ne renvoie que ceux-là), ou null.
 export async function getSetting(key) {
   const { data, error } = await supabase
     .from("settings")
@@ -402,10 +411,12 @@ export async function getSetting(key) {
   return data?.value ?? null;
 }
 
+// Réglage propre à la promo courante (promo_id posé par la base). Porte d'entrée unique
+// des modules du chantier B : aucune autre écriture dans la table settings.
 export async function setSetting(key, value) {
   const { error } = await supabase
     .from("settings")
-    .upsert({ key, value, updated_at: new Date().toISOString() });
+    .upsert({ key, value, updated_at: new Date().toISOString() }, { onConflict: "promo_id,key" });
   if (error) throw error;
 }
 
@@ -415,23 +426,39 @@ export async function listThemes() {
   return cachedQuery("themes", async () => {
     const { data, error } = await supabase
       .from("themes")
-      .select("*")
+      .select("*, progression:themes_progression(statut, date_fait, date_qcm, notes, updated_by_email)")
       .order("type")    // theme avant notion
       .order("ordre");
     if (error) throw error;
-    return data;
+    // La base ne renvoie que la progression de la promo courante ; « À faire » sinon.
+    return (data || []).map(fusionnerProgression);
   });
 }
 
-export async function updateTheme(id, patch) {
-  const { error } = await supabase.from("themes").update(patch).eq("id", id);
+// Progression de la promo courante (promo_id posé par la base).
+async function ecrireProgression(themeId, champs) {
+  const { error } = await supabase
+    .from("themes_progression")
+    .upsert({ theme_id: themeId, ...champs }, { onConflict: "promo_id,theme_id" });
   if (error) throw error;
+}
+
+// Fait, dates et auteur vont à la progression de la promo ; le reste au référentiel commun.
+export async function updateTheme(id, patch) {
+  const { dans: progression, hors: referentiel } = separerChamps(patch, CHAMPS_PROGRESSION);
+  if (Object.keys(progression).length) await ecrireProgression(id, progression);
+  if (Object.keys(referentiel).length) {
+    const { error } = await supabase.from("themes").update(referentiel).eq("id", id);
+    if (error) throw error;
+  }
   invalidateCache("themes");
 }
 
 export async function addTheme(t) {
-  const { error } = await supabase.from("themes").insert(t);
+  const { dans: progression, hors: referentiel } = separerChamps(t, CHAMPS_PROGRESSION);
+  const { data, error } = await supabase.from("themes").insert(referentiel).select("id").single();
   if (error) throw error;
+  if (Object.keys(progression).length) await ecrireProgression(data.id, progression);
   invalidateCache("themes");
 }
 
@@ -443,16 +470,18 @@ export async function deleteTheme(id) {
 
 // === QCM (par thème) ===
 
-// Index léger des QCM : un par thème, avec le nombre de questions.
-// Sert à afficher l'accès QCM sur la liste des thèmes sans tout charger.
+const SELECT_EXAMEN = "examen:qcm_examens(" + CHAMPS_EXAMEN.join(", ") + ")";
+
+// Index léger des QCM : un par thème, avec le nombre de questions et l'état d'examen de
+// la promo courante (fermé s'il n'existe pas, spec multi-promo C.4).
 export async function listQcmIndex() {
   return cachedQuery("qcm_index", async () => {
     const { data, error } = await supabase
       .from("qcm")
-      .select("id, theme_id, titre, published, published_by_email, published_at, exam_nb_questions, exam_pass_20, exam_seconds_per_question, exam_draw_mode, exam_question_ids, qcm_questions(count)");
+      .select(`id, theme_id, titre, exam_pass_20, qcm_questions(count), ${SELECT_EXAMEN}`);
     if (error) throw error;
     return (data || []).map((q) => ({
-      ...q,
+      ...fusionnerExamen(q),
       nb_questions: q.qcm_questions?.[0]?.count ?? 0,
     }));
   });
@@ -462,13 +491,14 @@ export async function listQcmIndex() {
 export async function getQcmFull(qcmId) {
   const { data, error } = await supabase
     .from("qcm")
-    .select("*, questions:qcm_questions(*, options:qcm_options(*))")
+    .select(`*, questions:qcm_questions(*, options:qcm_options(*)), ${SELECT_EXAMEN}`)
     .eq("id", qcmId)
     .single();
   if (error) throw error;
-  (data.questions || []).sort((a, b) => a.ordre - b.ordre);
-  (data.questions || []).forEach((q) => (q.options || []).sort((a, b) => a.ordre - b.ordre));
-  return data;
+  const qcm = fusionnerExamen(data);
+  (qcm.questions || []).sort((a, b) => a.ordre - b.ordre);
+  (qcm.questions || []).forEach((q) => (q.options || []).sort((a, b) => a.ordre - b.ordre));
+  return qcm;
 }
 
 // Enregistre une tentative (entraînement ou examen). Renvoie la ligne créée.
@@ -482,62 +512,57 @@ export async function insertQcmAttempt(payload) {
   return data;
 }
 
-// Publie l'examen d'un QCM et gèle le tirage (formateur/admin). email = auteur.
-export async function publishQcm(qcmId, { examQuestionIds, drawMode, nbQuestions, secondsPerQuestion, email, fermeA = null }) {
-  const now = new Date().toISOString();
+// État d'examen de la promo courante (promo_id posé par la base).
+async function ecrireExamen(qcmId, champs) {
   const { error } = await supabase
-    .from("qcm")
-    .update({
-      published: true,
-      published_by_email: email ?? null,
-      published_at: now,
-      exam_question_ids: examQuestionIds,
-      exam_draw_mode: drawMode,
-      exam_nb_questions: nbQuestions ?? null,
-      exam_seconds_per_question: secondsPerQuestion ?? 30,
-      exam_ferme_a: fermeA,
-      updated_at: now,
-    })
-    .eq("id", qcmId);
+    .from("qcm_examens")
+    .upsert({ qcm_id: qcmId, ...champs }, { onConflict: "promo_id,qcm_id" });
   if (error) throw error;
   invalidateCache("qcm_index");
 }
 
-// Ferme l'examen (conserve le tirage gelé). L'échéance est remise à nul pour
-// qu'un examen fermé ne garde pas d'échéance fantôme, qui réapparaîtrait à la
-// prochaine ouverture.
+// Publie l'examen d'un QCM pour la promo courante et gèle le tirage. email = auteur.
+export async function publishQcm(qcmId, { examQuestionIds, drawMode, nbQuestions, secondsPerQuestion, email, fermeA = null }) {
+  await ecrireExamen(qcmId, {
+    published: true,
+    published_by_email: email ?? null,
+    published_at: new Date().toISOString(),
+    exam_question_ids: examQuestionIds,
+    exam_draw_mode: drawMode,
+    exam_nb_questions: nbQuestions ?? null,
+    exam_seconds_per_question: secondsPerQuestion ?? 30,
+    exam_ferme_a: fermeA,
+  });
+}
+
+// Ferme l'examen (conserve le tirage gelé). L'échéance est remise à nul pour qu'un
+// examen fermé ne garde pas d'échéance fantôme, qui réapparaîtrait à la réouverture.
 export async function unpublishQcm(qcmId) {
-  const { error } = await supabase
-    .from("qcm")
-    .update({ published: false, exam_ferme_a: null, updated_at: new Date().toISOString() })
-    .eq("id", qcmId);
-  if (error) throw error;
-  invalidateCache("qcm_index");
+  await ecrireExamen(qcmId, { published: false, exam_ferme_a: null });
 }
 
 // Régénère le tirage gelé sans toucher à l'état de publication.
 export async function setExamDraw(qcmId, { examQuestionIds, drawMode, nbQuestions }) {
-  const { error } = await supabase
-    .from("qcm")
-    .update({
-      exam_question_ids: examQuestionIds,
-      exam_draw_mode: drawMode,
-      exam_nb_questions: nbQuestions ?? null,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", qcmId);
-  if (error) throw error;
-  invalidateCache("qcm_index");
+  await ecrireExamen(qcmId, {
+    exam_question_ids: examQuestionIds,
+    exam_draw_mode: drawMode,
+    exam_nb_questions: nbQuestions ?? null,
+  });
 }
 
-// Met à jour la config d'examen (questions gelées, temps, mode) sans changer l'état de publication.
+// Met à jour la config d'examen sans changer l'état de publication. Un champ qui ne
+// relève pas de l'examen (titre...) va à la banque commune.
 export async function updateExamConfig(qcmId, patch) {
-  const { error } = await supabase
-    .from("qcm")
-    .update({ ...patch, updated_at: new Date().toISOString() })
-    .eq("id", qcmId);
-  if (error) throw error;
-  invalidateCache("qcm_index");
+  const { dans: examen, hors: banque } = separerChamps(patch, CHAMPS_EXAMEN);
+  if (Object.keys(examen).length) await ecrireExamen(qcmId, examen);
+  if (Object.keys(banque).length) {
+    const { error } = await supabase
+      .from("qcm")
+      .update({ ...banque, updated_at: new Date().toISOString() })
+      .eq("id", qcmId);
+    if (error) throw error;
+    invalidateCache("qcm_index");
+  }
 }
 
 // Toutes mes tentatives (RLS : mes lignes only), triées récent -> ancien.
@@ -1117,17 +1142,13 @@ export async function deleteAutoEcole(id) {
 // Les venues sont DÉDUITES du planning (cartes Voiture où le bénévole est placé),
 // jamais stockées. Seuls les commentaires vivent dans benevole_suivi.
 
-// Toutes les cartes portant au moins un bénévole (pour compter les venues et
-// construire la fiche de suivi). Pas de cache : le planning bouge tout le temps.
+// Toutes les cartes portant au moins un bénévole, sur les promos du lieu courant (la
+// banque est commune au lieu). RPC réservée aux formateurs ; chaque ligne porte aussi
+// promo_id et promo_nom. Pas de cache : le planning bouge tout le temps.
 export async function listVenuesBenevoles() {
-  const { data, error } = await supabase
-    .from("planning_entries")
-    .select("semaine_lundi, day_index, half_day, sujet, eleves_ids, benevoles_ids")
-    .neq("benevoles_ids", "{}")
-    .order("semaine_lundi", { ascending: false })
-    .order("day_index", { ascending: true });
+  const { data, error } = await supabase.rpc("venues_benevoles");
   if (error) throw error;
-  return data;
+  return data || [];
 }
 
 export async function listSuiviBenevole(benevole_id) {
