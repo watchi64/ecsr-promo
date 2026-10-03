@@ -6,7 +6,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { consulterArticle } from "./piste.ts";
 import { appelLLM, fournisseursDisponibles } from "./providers.mjs";
-import { OUTILS, construirePromptSysteme } from "./outils.mjs";
+import { OUTILS, construirePromptSysteme, etiquetteCours } from "./outils.mjs";
 import { AIDE_APP } from "./aide.mjs";
 import { creerVerrou, autoriserNumero, pousserDelta, viderVerrou } from "./verrou-articles.mjs";
 
@@ -36,9 +36,7 @@ async function executerOutil(nom: string, args: Record<string, unknown>, sr: Ret
     }
     if (!data?.length) return { info: "Aucune section de cours ne correspond a cette recherche." };
     return data.map((c: { numero: number | null; code: string | null; titre: string; section: string; contenu: string }) => ({
-      theme: c.code
-        ? `Competence ${c.code} : ${c.titre}`
-        : `Theme ${String(c.numero).padStart(2, "0")} : ${c.titre}`,
+      theme: etiquetteCours(c),
       section: c.section,
       extrait: String(c.contenu).slice(0, 1500),
     }));
