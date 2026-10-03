@@ -9,7 +9,7 @@
  * VC20130321, Cerema) ; les autres sont des choix de dessin, nommés dans DESSIN
  * et consignés dans la fiche de vérification de chaque cours qui les utilise.
  */
-import { DEG, trajet, tournerChemin, tournerPoint, rectangle, pointsArc, disque, secteurAnneau }
+import { DEG, trajet, tournerChemin, tournerPoint, rectangle, pointsArc, disque, secteurAnneau, pointDansPolygone }
   from "./scene-geometrie.js?v=20261003c";
 
 export const IISR = {
@@ -49,9 +49,11 @@ export const DESSIN = {
   // AB3a du carrefour en croix : écart au coin de la chaussée (avant l'arrondi), selon chaque axe, vers l'extérieur.
   ecartAB3aCroix: 2.5,
   // AB3a de chaque entrée du giratoire, dans le repère de la branche : déport au-delà de la bordure droite
-  // de la voie entrante, et distance au centre de l'îlot (valeur absolue, adaptée à rExt = 14 m).
+  // de la voie entrante, et distance du bord amont de la ligne de cédez-le-passage au panneau, le long de l'axe
+  // de la branche. Posé par rapport à la ligne, le panneau la suit quand les rayons changent ; avec les rayons
+  // par défaut (rExt = 14 m), 1,95 m le met à 16,5 m du centre de l'îlot. Choix de dessin, sans source.
   deportAB3aGiratoire: 1.6,
-  distanceAB3aGiratoire: 16.5,
+  distanceAB3aAmontCedez: 1.95,
   // AB25 de la branche sud : déport au-delà de la bordure droite de la voie entrante. Sa distance à l'anneau
   // est le paramètre distanceAB25 de giratoire (thème 11 : de l'ordre de 50 m en agglomération).
   deportAB25: 1.2,
@@ -193,7 +195,9 @@ const ROTATION = { sud: 0, est: -90, nord: 180, ouest: 90 };   // du repère de 
  * entrée : panneau AB3a et ligne T'2 de 0,50 m, de l'axe à la bordure du
  * raccordement d'entrée, précédée de 15 m d'axiale continue (IISR 117-4 B).
  * Panneau AB25 sur la branche sud, à `distanceAB25` m de l'anneau (thème 11 : de
- * l'ordre de 50 m en agglomération). Les trajectoires suivent les bordures à
+ * l'ordre de 50 m en agglomération). Chaque AB3a est posé à DESSIN.distanceAB3aAmontCedez
+ * en amont de sa ligne de cédez-le-passage ; un panneau (AB3a ou AB25) qui ne tomberait
+ * pas sur un trottoir fait lever une erreur. Les trajectoires suivent les bordures à
  * DESSIN.margeTrajectoire près, d'où le rayon de l'anneau parcouru (rAnneau) et
  * l'écart à l'axe des voies d'entrée et de sortie (xLigne).
  */
@@ -240,12 +244,21 @@ export function giratoire({ branches, rIlot = 8, rExt = 14, rRacc = 8, distanceA
       largeur: IISR.largeurCedez, trait: IISR.transversale.trait, vide: IISR.transversale.vide });
     marquages.push(axialeContinue(tourner([0, rExt], rot), tourner([0, rExt + IISR.axialeContinueAvantCedez], rot)));
     marquages.push(axialeT1(tourner([0, rExt + IISR.axialeContinueAvantCedez], rot), tourner([0, LOIN], rot)));
-    const [px, py] = tourner([h + DESSIN.deportAB3aGiratoire, DESSIN.distanceAB3aGiratoire], rot);
+    const [px, py] = tourner([h + DESSIN.deportAB3aGiratoire, yAval + IISR.largeurCedez + DESSIN.distanceAB3aAmontCedez], rot);
     panneaux.push({ code: "AB3a", x: px, y: py });
     voies[nom + "Entrante"] = rectangle(0, rExt, h, LOIN).map((p) => tourner(p, rot));
     voies[nom + "Sortante"] = rectangle(-h, rExt, 0, LOIN).map((p) => tourner(p, rot));
   }
   panneaux.push({ code: "AB25", x: cx + h + DESSIN.deportAB25, y: cy + rExt + distanceAB25 });
+
+  // Un panneau se pose sur un trottoir. Si les rayons ou la distance demandés le font tomber ailleurs (sur la
+  // chaussée évasée d'une entrée), le décor serait faux sans que rien ne le signale : on le refuse.
+  for (const p of panneaux) {
+    if (!obstacles.some((o) => o.nature === "trottoir" && pointDansPolygone([p.x, p.y], o.poly))) {
+      throw new Error(`giratoire : le panneau ${p.code} ne tombe pas sur un trottoir, en (${p.x.toFixed(2)} ; ${p.y.toFixed(2)}) m`
+        + ` : revoir les rayons (rIlot ${rIlot} m, rExt ${rExt} m, rRacc ${rRacc} m) ou distanceAB25 (${distanceAB25} m)`);
+    }
+  }
 
   return {
     monde: { largeur, hauteur }, centre: { x: cx, y: cy },

@@ -5,6 +5,7 @@ import { IISR, DESSIN, HORS_MONDE, carrefourEnCroix, giratoire, trajetGiratoire 
 
 const proche = (a, b, eps = 1e-6) => assert.ok(Math.abs(a - b) <= eps, `${a} au lieu de ${b}`);
 const surTrottoir = (d, p) => d.obstacles.some((o) => o.nature === "trottoir" && pointDansPolygone([p.x, p.y], o.poly));
+const etendue = (poly, i) => [Math.min(...poly.map((q) => q[i])), Math.max(...poly.map((q) => q[i]))];   // bornes d'un polygone selon un axe (0 : x, 1 : y)
 
 test("carrefour en croix : monde, centre, voies de 3,5 m", () => {
   const d = carrefourEnCroix({ branches: { nord: 8, sud: 26, est: 22, ouest: 8 }, passages: ["est"] });
@@ -36,6 +37,49 @@ test("carrefour en croix : passage piéton conforme à l'IISR (art. 118)", () =>
     proche(Math.max(...yb) - Math.min(...yb), IISR.passage.bande);
   }
   for (let i = 1; i < ys.length; i++) proche(ys[i] - ys[i - 1] - IISR.passage.bande, IISR.passage.intervalle);
+});
+
+test("carrefour en croix : passage piéton de la branche ouest, 0,5 m après l'arrondi des bordures (IISR art. 118)", () => {
+  // Branche ouest de 16 m : le passage (de 12,5 à 10 m à l'ouest de l'axe nord-sud) est dans le monde, de même
+  // que les 15 m d'axiale continue qui le précèdent. Avec 8 m, comme aux autres tests, il déborderait du bord ouest.
+  const d = carrefourEnCroix({ branches: { nord: 8, sud: 26, est: 22, ouest: 16 }, passages: ["ouest"] });
+  const { cx } = d.reperes;
+  const p = d.reperes.passages.ouest;
+  assert.deepEqual(Object.keys(d.reperes.passages), ["ouest"], "seule la branche ouest porte un passage");
+  assert.ok(p.x0 >= 0 && p.x1 <= d.monde.largeur, "le passage est dans le monde");
+  // x1 est le bord du passage côté carrefour : il commence 0,5 m après l'arrondi, à l'ouest de la bordure de la chaussée.
+  proche(p.x1 - p.x0, IISR.passage.longueur);
+  proche(p.x1, cx - DESSIN.voie - DESSIN.rayonBordure - DESSIN.ecartPassage);
+  const bandes = d.marquages.filter((m) => m.type === "surface");
+  assert.ok(bandes.length >= 5 && bandes.length <= 7, "5 à 7 bandes pour une chaussée de 7 m");
+  const ys = bandes.map((b) => etendue(b.poly, 1)[0]).sort((a, b) => a - b);
+  for (const b of bandes) {
+    const [yMin, yMax] = etendue(b.poly, 1), [xMin, xMax] = etendue(b.poly, 0);
+    proche(yMax - yMin, IISR.passage.bande);
+    proche(xMin, p.x0); proche(xMax, p.x1);   // chaque bande occupe toute la longueur du passage
+  }
+  for (let i = 1; i < ys.length; i++) proche(ys[i] - ys[i - 1] - IISR.passage.bande, IISR.passage.intervalle);
+});
+
+test("carrefour en croix : passage piéton ouest, voie sortante au nord de l'axe, axiale continue interrompue de 0,5 m de chaque côté", () => {
+  const d = carrefourEnCroix({ branches: { nord: 8, sud: 26, est: 22, ouest: 16 }, passages: ["ouest"] });
+  const { cx, cy } = d.reperes;
+  const p = d.reperes.passages.ouest;
+  // On roule à droite : les véhicules qui quittent le carrefour vers l'ouest sont au nord de l'axe, dans la voie sortante.
+  const [yMin, yMax] = etendue(p.zoneSortante, 1), [xMin, xMax] = etendue(p.zoneSortante, 0);
+  proche(yMin, cy - DESSIN.voie); proche(yMax, cy);
+  proche(xMin, p.x0); proche(xMax, p.x1);
+  // L'axiale continue d'avant la ligne de cédez-le-passage s'arrête à 0,50 m de chaque bord du passage : aucun de ses
+  // segments ne couvre la zone de x0 - 0,5 à x1 + 0,5, et ce qui est peint est la longueur de 15 m moins cette zone.
+  const xOuest = p.x0 - IISR.passage.interruptionAxiale, xEst = p.x1 + IISR.passage.interruptionAxiale;
+  const continues = d.marquages.filter((m) => m.type === "ligne" && !m.trait && m.de[1] === cy && Math.max(m.de[0], m.a[0]) <= cx);
+  assert.ok(continues.length >= 2, "le passage coupe l'axiale continue en deux");
+  for (const m of continues) {
+    const lo = Math.min(m.de[0], m.a[0]), hi = Math.max(m.de[0], m.a[0]);
+    assert.ok(hi <= xOuest + 1e-9 || lo >= xEst - 1e-9, `un segment continu va de ${lo} à ${hi}, sur la zone du passage (de ${xOuest} à ${xEst})`);
+  }
+  const peint = continues.reduce((n, m) => n + Math.abs(m.a[0] - m.de[0]), 0);
+  proche(peint, IISR.axialeContinueAvantCedez - (IISR.passage.longueur + 2 * IISR.passage.interruptionAxiale));
 });
 
 test("carrefour en croix : cédez-le-passage des branches est et ouest (IISR 117-4 B)", () => {
@@ -126,6 +170,52 @@ test("giratoire : la ligne de cédez-le-passage va de l'axe à la bordure du rac
   }
 });
 
+test("giratoire : avec les rayons par défaut, chaque AB3a reste à 16,5 m du centre de l'îlot, dans le repère de sa branche", () => {
+  // Position de référence des décors par défaut (rExt = 14 m) : poser le panneau par rapport à la ligne de
+  // cédez-le-passage ne la déplace pas.
+  const g = giratoire({ branches: { nord: 26, sud: 76, est: 26, ouest: 40 } });
+  const { cx, cy } = g.reperes;
+  const ab3a = g.panneaux.filter((p) => p.code === "AB3a");
+  assert.equal(ab3a.length, 4);
+  const rotation = { sud: 0, est: -90, nord: 180, ouest: 90 };   // du repère de la branche sud vers chaque branche
+  for (const [nom, rot] of Object.entries(rotation)) {
+    const [x, y] = tournerPoint([cx + DESSIN.voie + DESSIN.deportAB3aGiratoire, cy + 16.5], cx, cy, rot);
+    assert.ok(ab3a.some((p) => Math.hypot(p.x - x, p.y - y) < 1e-9), `${nom} : aucun AB3a en (${x.toFixed(3)} ; ${y.toFixed(3)})`);
+  }
+});
+
+test("giratoire : chaque AB3a est sur un trottoir, à DESSIN.distanceAB3aAmontCedez en amont de sa ligne de cédez-le-passage, avec les rayons par défaut et avec d'autres", () => {
+  const rotation = { sud: 0, est: -90, nord: 180, ouest: 90 };   // du repère de la branche sud vers chaque branche
+  for (const rayons of [{ rIlot: 10, rExt: 16, rRacc: 10 }, {}]) {
+    const g = giratoire({ branches: { nord: 26, sud: 76, est: 26, ouest: 40 }, ...rayons });
+    const { cx, cy } = g.reperes;
+    const ab3a = g.panneaux.filter((p) => p.code === "AB3a");
+    assert.equal(ab3a.length, 4);
+    for (const p of ab3a) assert.ok(surTrottoir(g, p), `${JSON.stringify(rayons)} : AB3a en (${p.x.toFixed(2)} ; ${p.y.toFixed(2)}) hors du trottoir`);
+    for (const [nom, rot] of Object.entries(rotation)) {
+      // La ligne de sa branche, ramenée à la branche sud : son ordonnée est celle de son axe, son bord amont est à une demi-largeur de plus.
+      const ligne = g.marquages.find((m) => m.role === "cedez-" + nom);
+      const yAmont = tournerPoint(ligne.de, cx, cy, -rot)[1] + IISR.largeurCedez / 2;
+      const [x, y] = tournerPoint([cx + DESSIN.voie + DESSIN.deportAB3aGiratoire, yAmont + DESSIN.distanceAB3aAmontCedez], cx, cy, rot);
+      assert.ok(ab3a.some((p) => Math.hypot(p.x - x, p.y - y) < 1e-9),
+        `${JSON.stringify(rayons)} : ${nom} : aucun AB3a à ${DESSIN.distanceAB3aAmontCedez} m en amont de la ligne de cédez-le-passage`);
+    }
+  }
+});
+
+test("giratoire : un panneau qui ne tombe pas sur un trottoir fait refuser le décor, avec son code et sa position dans le message", () => {
+  const branches = { nord: 26, sud: 76, est: 26, ouest: 40 };
+  // Raccordements d'entrée très évasés : la chaussée s'élargit jusqu'à l'emplacement des AB3a.
+  assert.throws(() => giratoire({ branches, rRacc: 30 }),
+    /giratoire : le panneau AB3a ne tombe pas sur un trottoir, en \(-?[\d.]+ ; -?[\d.]+\) m : revoir les rayons \(rIlot 8 m, rExt 14 m, rRacc 30 m\) ou distanceAB25 \(50 m\)/);
+  // AB25 à 0 m de l'anneau : il serait sur la chaussée évasée de l'entrée sud.
+  assert.throws(() => giratoire({ branches, distanceAB25: 0 }),
+    /giratoire : le panneau AB25 ne tombe pas sur un trottoir, en \(-?[\d.]+ ; -?[\d.]+\) m : revoir les rayons \(rIlot 8 m, rExt 14 m, rRacc 8 m\) ou distanceAB25 \(0 m\)/);
+  // Le contrôle ne refuse pas à tort : les rayons par défaut et { rIlot: 10, rExt: 16, rRacc: 10 } sont acceptés.
+  assert.doesNotThrow(() => giratoire({ branches }));
+  assert.doesNotThrow(() => giratoire({ branches, rIlot: 10, rExt: 16, rRacc: 10 }));
+});
+
 test("trajetGiratoire : arcs tangents à l'anneau, sortie dans l'axe de la voie visée", () => {
   const g = giratoire({ branches: { nord: 26, sud: 76, est: 26, ouest: 40 } });
   const { cx, cy, rAnneau } = g.reperes;
@@ -191,6 +281,11 @@ test("giratoire : la zone de conflit sud contient le point où l'élève (sud ve
   // La zone n'est qu'un secteur de l'anneau : le point où l'élève en sort, au nord, n'en fait pas partie.
   const sortie = pointA(tr.chemin, tr.s.sortie);
   assert.ok(!pointDansPolygone([sortie.x, sortie.y], zone), "le point de sortie nord est dans la zone de conflit sud");
+});
+
+test("DESSIN.demiLargeurVoiture : moitié de la largeur du gabarit voiture", () => {
+  // La valeur est recopiée dans DESSIN pour caler les trajectoires sur les bordures : elle doit suivre le gabarit.
+  assert.equal(DESSIN.demiLargeurVoiture, GABARITS.voiture.largeur / 2);
 });
 
 // Amendement du 03/10 : un véhicule qui part en cours de scène apparaît à son départ, et un
