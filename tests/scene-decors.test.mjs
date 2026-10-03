@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { DEG, GABARITS, emprise, pointA, pointDansPolygone, polygonesSeChevauchent, rectangle } from "../js/scene-geometrie.js";
+import { DEG, GABARITS, emprise, pointA, pointDansPolygone, polygonesSeChevauchent, rectangle, tournerPoint } from "../js/scene-geometrie.js";
 import { IISR, DESSIN, HORS_MONDE, carrefourEnCroix, giratoire, trajetGiratoire } from "../js/scene-decors.js";
 
 const proche = (a, b, eps = 1e-6) => assert.ok(Math.abs(a - b) <= eps, `${a} au lieu de ${b}`);
@@ -43,13 +43,43 @@ test("carrefour en croix : cédez-le-passage des branches est et ouest (IISR 117
   const { cx, cy } = d.reperes;
   const est = d.marquages.find((m) => m.role === "cedez-est");
   assert.equal(est.largeur, 0.5); assert.equal(est.trait, 0.5); assert.equal(est.vide, 0.5);
-  assert.deepEqual([est.de[1], est.a[1]], [cy - DESSIN.voie, cy], "sur la seule voie entrante");
   // Axiale continue sur 15 m de route avant la ligne, interrompue à 0,50 m du passage.
   const continues = d.marquages.filter((m) => m.type === "ligne" && !m.trait && m.de[1] === cy && m.de[0] >= cx);
   const peint = continues.reduce((n, m) => n + Math.abs(m.a[0] - m.de[0]), 0);
   proche(peint, IISR.axialeContinueAvantCedez - (IISR.passage.longueur + 2 * IISR.passage.interruptionAxiale));
   for (const p of d.panneaux) assert.ok(surTrottoir(d, p), `${p.code} hors du trottoir`);
   assert.equal(d.panneaux.filter((p) => p.code === "AB3a").length, 2);
+});
+
+test("carrefour en croix : la ligne de cédez-le-passage va de l'axe à la bordure arrondie (IISR 117-4 B)", () => {
+  // La ligne s'étend sur toute la largeur de la voie qui doit céder le passage et marque la limite de la
+  // chaussée prioritaire : son bord aval est sur cette limite. À cet endroit la chaussée est plus large que
+  // la voie, à cause de l'arrondi du coin : le trait va jusqu'à la bordure, rencontrée à son bord amont (le
+  // plus éloigné du carrefour, donc là où la chaussée est la moins large), pour rester entièrement sur la chaussée.
+  const h = DESSIN.voie, r = DESSIN.rayonBordure;
+  for (const [cote, coin, s] of [["est", "NE", 1], ["ouest", "SO", -1]]) {
+    const d = carrefourEnCroix({ branches: { nord: 8, sud: 26, est: 22, ouest: 8 }, passages: [cote] });
+    const { cy, bord, arrondi } = d.reperes;
+    const ligne = d.marquages.find((m) => m.role === "cedez-" + cote);
+    // La voie entrante de l'est est au nord de l'axe (`de` du côté de la bordure), celle de l'ouest au sud (`a` de ce côté).
+    const [axe, bordure] = cote === "est" ? [ligne.a, ligne.de] : [ligne.de, ligne.a];
+    const xCentre = bord[cote] + (s * IISR.largeurCedez) / 2, xAmont = bord[cote] + s * IISR.largeurCedez;
+    // Le long de la route, le trait n'a pas bougé : bord aval sur la limite de la chaussée prioritaire.
+    proche(axe[0], xCentre); proche(bordure[0], xCentre);
+    proche(axe[1], cy);
+    // Son coin amont, côté bordure, est sur l'arc de l'arrondi : 9,5 - racine(36 - 5,5 au carré), soit 7,102 m de l'axe.
+    const c = arrondi[coin];
+    proche(Math.hypot(xAmont - c.x, bordure[1] - c.y), c.r);
+    proche(Math.abs(bordure[1] - cy), h + r - Math.sqrt(r * r - (r - IISR.largeurCedez) ** 2));
+    proche(Math.abs(bordure[1] - cy), 7.102, 1e-3);
+    // Tout le trait est sur la chaussée : bord aval, axe et bord amont, de l'axe à la bordure.
+    for (const x of [bord[cote], xCentre, xAmont]) {
+      for (let k = 0; k <= 50; k++) {
+        const p = { x, y: cy + ((bordure[1] - cy) * k) / 50 };
+        assert.ok(!surTrottoir(d, p), `${cote} : le point (${p.x.toFixed(3)} ; ${p.y.toFixed(3)}) du trait est sur un trottoir`);
+      }
+    }
+  }
 });
 
 test("giratoire : raccordements tangents, anneau, ligne de cédez hors de l'anneau", () => {
@@ -68,6 +98,34 @@ test("giratoire : raccordements tangents, anneau, ligne de cédez hors de l'anne
   assert.equal(g.panneaux.filter((p) => p.code === "AB25").length, 1);
 });
 
+test("giratoire : la ligne de cédez-le-passage va de l'axe à la bordure du raccordement d'entrée (IISR 117-4 B)", () => {
+  // Même règle que pour le carrefour en croix : le trait va jusqu'à la bordure, rencontrée à son bord amont
+  // (le plus éloigné de l'anneau, là où la chaussée, évasée par le raccordement, est la moins large).
+  const g = giratoire({ branches: { nord: 26, sud: 76, est: 26, ouest: 40 } });
+  const { cx, cy, yF, rExt, rRacc } = g.reperes;
+  const h = DESSIN.voie;
+  const rotation = { sud: 0, est: -90, nord: 180, ouest: 90 };   // du repère de la branche sud vers chaque branche
+  for (const nom of Object.keys(rotation)) {
+    const ligne = g.marquages.find((m) => m.role === "cedez-" + nom);
+    // Les formules sont celles de la branche sud : on y ramène la ligne, puis on rapporte chaque point au décor.
+    const versSud = (p) => tournerPoint(p, cx, cy, -rotation[nom]);
+    const versDecor = (p) => tournerPoint(p, cx, cy, rotation[nom]);
+    const [deX, deY] = versSud(ligne.de), [aX, aY] = versSud(ligne.a);
+    proche(deX, cx);                                          // part de l'axe de la branche
+    proche(aY, deY);                                          // trait perpendiculaire à l'axe
+    proche(deY - IISR.largeurCedez / 2 - cy, rExt + 0.05);    // bord aval à 5 cm de l'anneau
+    const yAmont = deY + IISR.largeurCedez / 2;
+    // Le coin amont du trait, côté bordure, est sur l'arc du raccordement d'entrée (centre à 8 m de la bordure droite).
+    proche(Math.hypot(aX - (cx + h + rRacc), yAmont - (cy + yF)), rRacc);
+    assert.ok(aX > cx + h, `${nom} : la chaussée évasée est plus large que la voie`);
+    // Tout le bord amont, de l'axe à la bordure, est sur la chaussée.
+    for (let k = 0; k <= 50; k++) {
+      const [x, y] = versDecor([deX + ((aX - deX) * k) / 50, yAmont]);
+      assert.ok(!surTrottoir(g, { x, y }), `${nom} : le bord amont du trait est sur un trottoir (point ${k} sur 50)`);
+    }
+  }
+});
+
 test("trajetGiratoire : arcs tangents à l'anneau, sortie dans l'axe de la voie visée", () => {
   const g = giratoire({ branches: { nord: 26, sud: 76, est: 26, ouest: 40 } });
   const { cx, cy, rAnneau } = g.reperes;
@@ -83,6 +141,56 @@ test("trajetGiratoire : arcs tangents à l'anneau, sortie dans l'axe de la voie 
   const finOE = pointA(oe.chemin, oe.chemin.longueur);
   proche(finOE.y, cy + 2.0); proche(finOE.cap, 0, 1e-9); proche(finOE.x, g.monde.largeur - 0.5);
   assert.throws(() => trajetGiratoire(g, "sud", "sud"), /demi-tour/);
+});
+
+test("trajetGiratoire : une branche inconnue est refusée, avec son nom dans le message", () => {
+  const g = giratoire({ branches: { nord: 26, sud: 76, est: 26, ouest: 40 } });
+  assert.throws(() => trajetGiratoire(g, "Sud", "nord"),
+    /branche « Sud » inconnue pour « depuis » \(attendu : « sud », « est », « nord », « ouest »\)/);
+  assert.throws(() => trajetGiratoire(g, "sud", "nord-est"), /branche « nord-est » inconnue pour « vers »/);
+  assert.throws(() => trajetGiratoire(g, "x", "x"), /branche « x » inconnue/, "pas pris pour un demi-tour");
+});
+
+test("trajetGiratoire : le clignotant s'allume 3 degrés après l'axe de la sortie précédente", () => {
+  const g = giratoire({ branches: { nord: 26, sud: 76, est: 26, ouest: 40 } });
+  const { cx, cy, rAnneau } = g.reperes;
+  const polaire = (p) => Math.atan2(p.y - cy, p.x - cx) / DEG;   // repère de l'écran : 0 à l'est, 90 au sud, -90 au nord
+  const surAnneau = (p) => proche(Math.hypot(p.x - cx, p.y - cy), rAnneau);
+  for (const options of [{}, { horsMonde: true }]) {
+    // Depuis le sud, deuxième sortie (nord) : la sortie précédente est l'est, à 0 degré ; on circule dans le sens des angles décroissants.
+    const nord = trajetGiratoire(g, "sud", "nord", options);
+    const pNord = pointA(nord.chemin, nord.s.clignotant);
+    surAnneau(pNord); proche(polaire(pNord), -3);
+    // Troisième sortie (ouest) : la sortie précédente est le nord, à -90 degrés.
+    const ouest = trajetGiratoire(g, "sud", "ouest", options);
+    const pOuest = pointA(ouest.chemin, ouest.s.clignotant);
+    surAnneau(pOuest); proche(polaire(pOuest), -93);
+  }
+  // Les trois autres départs, deuxième et troisième sorties : même règle, tournée avec la branche.
+  const ordre = ["sud", "est", "nord", "ouest"];
+  const axe = { sud: 90, est: 0, nord: -90, ouest: 180 };
+  const ecart = (a, b) => ((((a - b) + 180) % 360) + 360) % 360 - 180;   // a - b ramené dans [-180, 180[
+  for (const depuis of ["est", "nord", "ouest"]) {
+    for (const k of [2, 3]) {
+      const vers = ordre[(ordre.indexOf(depuis) + k) % 4], precedente = ordre[(ordre.indexOf(depuis) + k - 1) % 4];
+      const tr = trajetGiratoire(g, depuis, vers);
+      const p = pointA(tr.chemin, tr.s.clignotant);
+      surAnneau(p);
+      const e = ecart(polaire(p), axe[precedente] - 3);
+      assert.ok(Math.abs(e) < 1e-6, `${depuis} vers ${vers} : clignotant à ${polaire(p).toFixed(3)} degrés, attendu ${axe[precedente] - 3}`);
+    }
+  }
+});
+
+test("giratoire : la zone de conflit sud contient le point où l'élève (sud vers nord) rejoint l'anneau", () => {
+  const g = giratoire({ branches: { nord: 26, sud: 76, est: 26, ouest: 40 } });
+  const zone = g.reperes.zoneConflitSud;
+  const tr = trajetGiratoire(g, "sud", "nord");
+  const entree = pointA(tr.chemin, tr.s.anneau);
+  assert.ok(pointDansPolygone([entree.x, entree.y], zone), "le point où l'élève rejoint l'anneau est hors de la zone de conflit");
+  // La zone n'est qu'un secteur de l'anneau : le point où l'élève en sort, au nord, n'en fait pas partie.
+  const sortie = pointA(tr.chemin, tr.s.sortie);
+  assert.ok(!pointDansPolygone([sortie.x, sortie.y], zone), "le point de sortie nord est dans la zone de conflit sud");
 });
 
 // Amendement du 03/10 : un véhicule qui part en cours de scène apparaît à son départ, et un
@@ -164,6 +272,30 @@ test("trajetGiratoire avec horsMonde : même tracé, prolongé de HORS_MONDE + 0
       // Il finit toujours cap dans l'axe de la voie de sortie, avec ou sans l'option.
       const finAvec = pointA(avec.chemin, avec.chemin.longueur), finSans = pointA(sans.chemin, sans.chemin.longueur);
       egal(finAvec.cap, finSans.cap, 1e-9);
+    }
+  }
+});
+
+test("trajetGiratoire : sur les 12 trajets, avec et sans horsMonde, la voiture ne touche ni trottoir ni îlot", () => {
+  const g = giratoire({ branches: { nord: 26, sud: 76, est: 26, ouest: 40 } });
+  const saillies = g.obstacles.filter((o) => o.nature === "trottoir" || o.nature === "ilot");
+  assert.equal(saillies.length, 5, "quatre trottoirs et l'îlot : sinon la vérification ne porterait sur rien");
+  const branches = ["sud", "est", "nord", "ouest"];
+  const pas = 0.05;   // l'emprise de la voiture est relevée tous les 5 cm le long du trajet
+  for (const depuis of branches) {
+    for (const vers of branches) {
+      if (vers === depuis) continue;
+      for (const options of [{}, { horsMonde: true }]) {
+        const { chemin } = trajetGiratoire(g, depuis, vers, options);
+        const libelle = `${depuis} vers ${vers}${options.horsMonde ? " (horsMonde)" : ""}`;
+        const n = Math.ceil(chemin.longueur / pas);
+        for (let k = 0; k <= n; k++) {
+          const s = Math.min(chemin.longueur, k * pas);
+          const voiture = emprise("voiture", pointA(chemin, s));
+          const touche = saillies.find((o) => polygonesSeChevauchent(voiture, o.poly));
+          assert.ok(!touche, `${libelle} : à s = ${s.toFixed(2)} m, la voiture touche ${touche && touche.nature}`);
+        }
+      }
     }
   }
 });

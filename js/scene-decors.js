@@ -26,7 +26,35 @@ export const DESSIN = {
   rayonBordure: 6,          // arrondi des bordures du carrefour en croix
   ecartPassage: 0.5,        // de la fin de l'arrondi au passage piéton
   margeTrajectoire: 0.6,    // entre le flanc d'une voiture et la bordure qu'elle suit
-  demiLargeurVoiture: 0.9,
+  demiLargeurVoiture: 0.9,  // moitié de la largeur d'une voiture (GABARITS.voiture.largeur, 1,8 m), pour caler les trajectoires sur les bordures
+
+  // Distance, vers l'intérieur du monde, du bord au premier et au dernier point d'un trajet de giratoire par
+  // défaut : celui de l'élève, visible de bout en bout. Choix de dessin, sans source. Un véhicule qui apparaît
+  // ou disparaît en cours de scène part et finit, lui, à HORS_MONDE au-delà du bord (option horsMonde).
+  retraitBord: 0.5,
+  // Jeu entre l'anneau et le bord aval de la ligne de cédez-le-passage du giratoire. La ligne marque la
+  // limite de la chaussée prioritaire (IISR 7e partie, art. 117-4 B), ici le bord extérieur de l'anneau ;
+  // les 5 cm sont un choix de dessin : la ligne est tenue juste hors de l'anneau.
+  jeuCedezAnneau: 0.05,
+  // Degrés, après l'axe de la sortie précédente, auxquels s'allume le clignotant d'un trajet de giratoire.
+  // Le thème 11 enseigne seulement « après avoir dépassé la sortie précédente » : les 3 degrés sont un
+  // choix de dessin.
+  clignotantApresAxe: 3,
+  // Secteur de l'anneau devant l'entrée sud (angles polaires en degrés, dans le repère de la branche sud) :
+  // zone de conflit que l'élève ne doit pas pénétrer tant qu'un usager de l'anneau s'y trouve (priorité à
+  // l'anneau, thème 11). Les deux bornes sont un choix de dessin.
+  secteurConflit: [40, 125],
+
+  // Panneaux : choix de dessin, sans source ; chacun est posé sur le trottoir, à droite de la voie entrante.
+  // AB3a du carrefour en croix : écart au coin de la chaussée (avant l'arrondi), selon chaque axe, vers l'extérieur.
+  ecartAB3aCroix: 2.5,
+  // AB3a de chaque entrée du giratoire, dans le repère de la branche : déport au-delà de la bordure droite
+  // de la voie entrante, et distance au centre de l'îlot (valeur absolue, adaptée à rExt = 14 m).
+  deportAB3aGiratoire: 1.6,
+  distanceAB3aGiratoire: 16.5,
+  // AB25 de la branche sud : déport au-delà de la bordure droite de la voie entrante. Sa distance à l'anneau
+  // est le paramètre distanceAB25 de giratoire (thème 11 : de l'ordre de 50 m en agglomération).
+  deportAB25: 1.2,
 };
 
 // Distance du centre d'une voiture au bord du monde pour qu'elle soit entièrement hors du cadre :
@@ -69,8 +97,10 @@ function retirer([a, b], creux) {
 /**
  * Carrefour en croix d'agglomération, chaussées à double sens, une voie par sens.
  * L'axe nord-sud est prioritaire. Les branches est et ouest portent un
- * cédez-le-passage : panneau AB3a au coin et ligne T'2 de 0,50 m sur la voie
- * entrante, précédée de 15 m d'axiale continue (IISR 117-4 B). Passages piétons
+ * cédez-le-passage : panneau AB3a au coin et ligne T'2 de 0,50 m, précédée de
+ * 15 m d'axiale continue (IISR 117-4 B). La ligne s'étend sur toute la largeur de
+ * la voie entrante : de l'axe à la bordure arrondie du coin, que son bord amont
+ * rencontre, de sorte que tout le trait reste sur la chaussée. Passages piétons
  * sur les branches demandées, juste après l'arrondi des bordures (IISR 118).
  */
 export function carrefourEnCroix({ branches, passages = [] }) {
@@ -115,9 +145,16 @@ export function carrefourEnCroix({ branches, passages = [] }) {
   for (const cote of ["est", "ouest"]) {
     const s = cote === "est" ? 1 : -1;
     const xBord = cx + s * h;
-    const [yE0, yE1] = cote === "est" ? [cy - h, cy] : [cy, cy + h];   // voie entrante
+    // Ligne de cédez-le-passage (IISR 117-4 B) : elle s'étend sur toute la largeur de la voie qui doit céder le
+    // passage et marque la limite de la chaussée prioritaire, d'où son bord aval sur xBord. À cet endroit la
+    // chaussée est élargie par l'arrondi du coin : le trait va de l'axe à la bordure, que son bord amont (le
+    // plus éloigné du carrefour, donc là où la chaussée est la moins large) rencontre, pour rester sur la chaussée.
+    const [coin, sy] = cote === "est" ? [arrondi.NE, -1] : [arrondi.SO, 1];   // coin à droite de la voie entrante, et son côté de l'axe
+    const xAmont = xBord + s * IISR.largeurCedez;
+    const yBordure = coin.y - sy * Math.sqrt(coin.r * coin.r - (xAmont - coin.x) ** 2);
+    const [yDe, yA] = cote === "est" ? [yBordure, cy] : [cy, yBordure];
     marquages.push({ type: "ligne", role: "cedez-" + cote,
-      de: [xBord + (s * IISR.largeurCedez) / 2, yE0], a: [xBord + (s * IISR.largeurCedez) / 2, yE1],
+      de: [xBord + (s * IISR.largeurCedez) / 2, yDe], a: [xBord + (s * IISR.largeurCedez) / 2, yA],
       largeur: IISR.largeurCedez, trait: IISR.transversale.trait, vide: IISR.transversale.vide });
     let creux = null;
     if (passages.includes(cote)) {
@@ -135,7 +172,8 @@ export function carrefourEnCroix({ branches, passages = [] }) {
     for (const [a, b] of retirer([xBord, xFinContinue], creux)) marquages.push(axialeContinue([a, cy], [b, cy]));
     marquages.push(axialeT1([xFinContinue, cy], [cote === "est" ? largeur : 0, cy]));
     // Panneau AB3a au coin, à droite de la voie entrante, sur le trottoir.
-    panneaux.push({ code: "AB3a", x: xBord + s * 2.5, y: cote === "est" ? cy - h - 2.5 : cy + h + 2.5 });
+    const e = DESSIN.ecartAB3aCroix;
+    panneaux.push({ code: "AB3a", x: xBord + s * e, y: cote === "est" ? cy - h - e : cy + h + e });
   }
 
   return {
@@ -152,11 +190,12 @@ const ROTATION = { sud: 0, est: -90, nord: 180, ouest: 90 };   // du repère de 
  * Carrefour à sens giratoire d'agglomération : îlot central infranchissable,
  * chaussée annulaire à une voie, à sens unique par la droite (R110-2), quatre
  * branches à double sens (une voie par sens), sans îlot séparateur. À chaque
- * entrée : panneau AB3a et ligne T'2 de 0,50 m, précédée de 15 m d'axiale
- * continue (IISR 117-4 B). Panneau AB25 sur la branche sud, à `distanceAB25` m
- * de l'anneau (thème 11 : de l'ordre de 50 m en agglomération). Les trajectoires
- * suivent les bordures à DESSIN.margeTrajectoire près, d'où le rayon de l'anneau
- * parcouru (rAnneau) et l'écart à l'axe des voies d'entrée et de sortie (xLigne).
+ * entrée : panneau AB3a et ligne T'2 de 0,50 m, de l'axe à la bordure du
+ * raccordement d'entrée, précédée de 15 m d'axiale continue (IISR 117-4 B).
+ * Panneau AB25 sur la branche sud, à `distanceAB25` m de l'anneau (thème 11 : de
+ * l'ordre de 50 m en agglomération). Les trajectoires suivent les bordures à
+ * DESSIN.margeTrajectoire près, d'où le rayon de l'anneau parcouru (rAnneau) et
+ * l'écart à l'axe des voies d'entrée et de sortie (xLigne).
  */
 export function giratoire({ branches, rIlot = 8, rExt = 14, rRacc = 8, distanceAB25 = 50 }) {
   const h = DESSIN.voie;
@@ -185,9 +224,13 @@ export function giratoire({ branches, rIlot = 8, rExt = 14, rRacc = 8, distanceA
   obstacles.push({ nature: "ilot", poly: disque(cx, cy, rIlot) });
 
   // Marquage et panneaux d'une branche, dans le repère de la branche sud, puis rotation.
-  const yAval = rExt + 0.05;                                 // bord aval de la ligne, juste hors de l'anneau
+  const yAval = rExt + DESSIN.jeuCedezAnneau;                // bord aval de la ligne, juste hors de l'anneau
   const yLigne = yAval + IISR.largeurCedez / 2;
-  const xBordure = h + rRacc - Math.sqrt(rRacc * rRacc - (yLigne - yF) ** 2);   // la ligne va jusqu'à la bordure
+  // Comme au carrefour en croix, la ligne va de l'axe à la bordure (IISR 117-4 B : toute la largeur de la voie qui
+  // doit céder le passage). La chaussée, évasée par le raccordement d'entrée, est la moins large au bord amont du
+  // trait, le plus éloigné de l'anneau : c'est là que la bordure borne le trait, pour qu'il reste sur la chaussée.
+  const yAmontLigne = yLigne + IISR.largeurCedez / 2;
+  const xBordure = h + rRacc - Math.sqrt(rRacc * rRacc - (yAmontLigne - yF) ** 2);
   const marquages = [];
   const panneaux = [];
   const voies = {};
@@ -197,12 +240,12 @@ export function giratoire({ branches, rIlot = 8, rExt = 14, rRacc = 8, distanceA
       largeur: IISR.largeurCedez, trait: IISR.transversale.trait, vide: IISR.transversale.vide });
     marquages.push(axialeContinue(tourner([0, rExt], rot), tourner([0, rExt + IISR.axialeContinueAvantCedez], rot)));
     marquages.push(axialeT1(tourner([0, rExt + IISR.axialeContinueAvantCedez], rot), tourner([0, LOIN], rot)));
-    const [px, py] = tourner([h + 1.6, 16.5], rot);
+    const [px, py] = tourner([h + DESSIN.deportAB3aGiratoire, DESSIN.distanceAB3aGiratoire], rot);
     panneaux.push({ code: "AB3a", x: px, y: py });
     voies[nom + "Entrante"] = rectangle(0, rExt, h, LOIN).map((p) => tourner(p, rot));
     voies[nom + "Sortante"] = rectangle(-h, rExt, 0, LOIN).map((p) => tourner(p, rot));
   }
-  panneaux.push({ code: "AB25", x: cx + h + 1.2, y: cy + rExt + distanceAB25 });
+  panneaux.push({ code: "AB25", x: cx + h + DESSIN.deportAB25, y: cy + rExt + distanceAB25 });
 
   return {
     monde: { largeur, hauteur }, centre: { x: cx, y: cy },
@@ -210,7 +253,7 @@ export function giratoire({ branches, rIlot = 8, rExt = 14, rRacc = 8, distanceA
     reperes: {
       cx, cy, rIlot, rExt, rRacc, yF, thetaRacc, rFil, rAnneau, xLigne,
       cedez: { yAmont: cy + yAval + IISR.largeurCedez },      // branche sud
-      zoneConflitSud: secteurAnneau(cx, cy, rIlot, rExt, 40, 125),
+      zoneConflitSud: secteurAnneau(cx, cy, rIlot, rExt, ...DESSIN.secteurConflit),
       distances: { sud: hauteur - cy, nord: cy, est: largeur - cx, ouest: cx },
     },
   };
@@ -221,22 +264,31 @@ export function giratoire({ branches, rIlot = 8, rExt = 14, rRacc = 8, distanceA
  * dans l'axe de la voie d'entrée, arc d'entrée concentrique au raccordement,
  * arc de l'anneau, arc de sortie, puis la voie de sortie jusqu'au bord du monde.
  * Les arcs sont tangents par construction. Abscisses repères renvoyées :
- * tangenceEntree, anneau, clignotant (sortie précédente passée de 3 degrés,
- * thème 11), sortie, finSortie.
+ * tangenceEntree, anneau, clignotant (DESSIN.clignotantApresAxe degrés après
+ * l'axe de la sortie précédente : le thème 11 enseigne seulement « après avoir
+ * dépassé la sortie précédente », l'écart est un choix de dessin), sortie,
+ * finSortie. Une branche inconnue et le demi-tour sont refusés.
  *
- * Par défaut, le trajet part et finit à 0,5 m à l'intérieur du bord du monde : c'est
- * celui de l'élève, visible dès son départ et jusqu'à son arrivée. Avec `horsMonde`,
- * il part et finit à HORS_MONDE au-delà du bord, pour un véhicule qui apparaît à son
- * départ ou disparaît à la fin de son trajet. Le tracé est le même, prolongé de
- * HORS_MONDE + 0,5 m à chaque bout, et les abscisses repères suivent le tracé.
+ * Par défaut, le trajet part et finit à DESSIN.retraitBord (0,5 m) à l'intérieur du
+ * bord du monde : c'est celui de l'élève, visible dès son départ et jusqu'à son
+ * arrivée. Avec `horsMonde`, il part et finit à HORS_MONDE au-delà du bord, pour un
+ * véhicule qui apparaît à son départ ou disparaît à la fin de son trajet. Le tracé
+ * est le même, prolongé de HORS_MONDE + DESSIN.retraitBord (3,25 m) à chaque bout,
+ * et les abscisses repères suivent le tracé.
  */
 export function trajetGiratoire(g, depuis, vers, { horsMonde = false } = {}) {
+  for (const [argument, branche] of [["depuis", depuis], ["vers", vers]]) {
+    if (!ORDRE_BRANCHES.includes(branche)) {
+      const attendues = ORDRE_BRANCHES.map((b) => `« ${b} »`).join(", ");
+      throw new Error(`trajetGiratoire : branche « ${branche} » inconnue pour « ${argument} » (attendu : ${attendues})`);
+    }
+  }
   const k = (ORDRE_BRANCHES.indexOf(vers) - ORDRE_BRANCHES.indexOf(depuis) + 4) % 4;   // 1 : première sortie
   if (k === 0) throw new Error("trajetGiratoire : le demi-tour n'est pas prévu");
   const { cx, cy, yF, thetaRacc, rFil, rAnneau, xLigne, distances } = g.reperes;
-  const auDela = horsMonde ? HORS_MONDE : -0.5;   // position des extrémités par rapport au bord du monde (+ : au-delà)
+  const auDela = horsMonde ? HORS_MONDE : -DESSIN.retraitBord;   // position des extrémités par rapport au bord du monde (+ : au-delà)
   const approche = distances[depuis] + auDela - yF;
-  const sortie = distances[vers] + auDela - yF;
+  const longueurSortie = distances[vers] + auDela - yF;
   const balayage = 2 * thetaRacc + 90 * (k - 2);
   const t = trajet(cx + xLigne, cy + yF + approche, -90).droit(approche);
   const tangenceEntree = t.longueur;
@@ -246,9 +298,10 @@ export function trajetGiratoire(g, depuis, vers, { horsMonde = false } = {}) {
   const debutSortie = t.longueur;
   t.virage(rFil, thetaRacc);
   const finSortie = t.longueur;
-  t.droit(sortie);
-  // L'axe de la sortie précédente est à l'angle polaire 180 - 90 k (repère de la branche sud).
-  const clignotant = k === 1 ? 0 : anneau + (thetaRacc - (180 - 90 * k - 3)) * DEG * rAnneau;
+  t.droit(longueurSortie);
+  // L'axe de la sortie précédente est à l'angle polaire 180 - 90 k (repère de la branche sud) ;
+  // on circule dans le sens des angles décroissants, le clignotant s'allume donc à cet angle moins l'écart.
+  const clignotant = k === 1 ? 0 : anneau + (thetaRacc - (180 - 90 * k - DESSIN.clignotantApresAxe)) * DEG * rAnneau;
   return {
     chemin: tournerChemin(t.fin(), cx, cy, ROTATION[depuis]),
     s: { tangenceEntree, anneau, clignotant, sortie: debutSortie, finSortie },
