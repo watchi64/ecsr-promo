@@ -65,7 +65,8 @@ export function trajet(x, y, capDeg) {
       poser({ ...options, type: "arc", x0: px, y0: py, cap, rayon, angle, longueur: rayon * Math.abs(angle), debut: longueur });
       return api;
     },
-    // Décalage latéral (positif vers la droite) sur une longueur donnée : deux arcs
+    // Décalage latéral d (positif vers la droite) pour une avance L = `l` mesurée selon le
+    // cap initial : la longueur du chemin parcouru est un peu plus grande que `l`. Deux arcs
     // opposés de même rayon ; theta = 2 atan(d / L), rayon = L / (2 sin theta).
     decaler(decalage, l, options = {}) {
       if (!decalage || !(l > 0)) throw new Error("trajet.decaler : décalage non nul et longueur positive attendus");
@@ -145,8 +146,9 @@ export function avant(gabarit, p) {
 /**
  * Chronologie d'un acteur sur son trajet. `profil` : points { s, kmh } aux
  * abscisses strictement croissantes, de s = 0 à s = longueur du trajet ; entre
- * deux points, accélération constante. Un point peut porter `pause` (secondes) :
- * l'acteur y reste immobile, ce qui exige kmh = 0. `depart` retarde le départ.
+ * deux points, accélération constante. Un point peut porter `pause` (secondes,
+ * strictement positive) : l'acteur y reste immobile, ce qui exige kmh = 0. `depart`
+ * retarde le départ.
  * Renvoie { echantillons: [{ t, s, v }], duree }, v en m/s, triés par t.
  */
 export function chronologie(chemin, profil, { depart = 0, pas = 0.05 } = {}) {
@@ -162,7 +164,10 @@ export function chronologie(chemin, profil, { depart = 0, pas = 0.05 } = {}) {
   for (let i = 0; i < profil.length; i++) {
     const p = profil[i];
     if (!(p.kmh >= 0)) throw new Error(`chronologie : vitesse invalide en s = ${p.s}`);
-    if (p.pause) {
+    if (p.pause !== undefined) {
+      if (!(Number.isFinite(p.pause) && p.pause > 0)) {
+        throw new Error(`chronologie : une pause doit être strictement positive (s = ${p.s}, pause = ${p.pause})`);
+      }
       if (p.kmh !== 0) throw new Error(`chronologie : une pause exige kmh = 0 (s = ${p.s})`);
       ech.push({ t, s: p.s, v: 0 });
       t += p.pause;
@@ -236,7 +241,7 @@ export function rectangle(x0, y0, x1, y1) {
 }
 
 /** Points d'un arc de cercle de a0 à a1 (degrés), par le chemin le plus court, extrémités
- *  comprises. La flèche d'une corde de 5 degrés reste sous 7 mm pour un rayon de 9 m. */
+ *  comprises. La flèche d'une corde de 5 degrés reste sous 9 mm pour un rayon de 9 m. */
 export function pointsArc(cx, cy, r, a0Deg, a1Deg, pasDeg = 5) {
   let d = a1Deg - a0Deg;
   while (d <= -180) d += 360;
@@ -257,9 +262,19 @@ export function disque(cx, cy, r, pasDeg = 5) {
   return Array.from({ length: n }, (_, k) => [cx + R * Math.cos((2 * Math.PI * k) / n), cy + R * Math.sin((2 * Math.PI * k) / n)]);
 }
 
-/** Secteur d'anneau entre les rayons r0 et r1 et les angles a0 et a1 (degrés). */
+/**
+ * Secteur d'anneau entre les rayons r0 et r1, de l'angle a0 à l'angle a1 (degrés). L'arc
+ * extérieur et l'arc intérieur sont tracés dans le même sens, le second parcouru à
+ * rebours. `pointsArc` suit le plus court chemin : l'ouverture |a1 - a0| doit donc être
+ * strictement comprise entre 0 et 180 degrés. À 180 le chemin est ambigu, au-delà il
+ * passerait de l'autre côté du secteur demandé.
+ */
 export function secteurAnneau(cx, cy, r0, r1, a0Deg, a1Deg, pasDeg = 5) {
-  return [...pointsArc(cx, cy, r1, a0Deg, a1Deg, pasDeg), ...pointsArc(cx, cy, r0, a1Deg, a0Deg, pasDeg)];
+  const ouverture = Math.abs(a1Deg - a0Deg);
+  if (!(ouverture > 0 && ouverture < 180)) {
+    throw new Error(`secteurAnneau : l'ouverture (${a1Deg - a0Deg} degrés) doit être strictement comprise entre 0 et 180 en valeur absolue`);
+  }
+  return [...pointsArc(cx, cy, r1, a0Deg, a1Deg, pasDeg), ...pointsArc(cx, cy, r0, a0Deg, a1Deg, pasDeg).reverse()];
 }
 
 export function pointDansPolygone([x, y], poly) {
@@ -301,11 +316,20 @@ export function polygonesSeChevauchent(A, B) {
 
 // ===== Scène préparée =====
 
-/** Calcule les chronologies des acteurs et l'instant de chaque étape. */
+/**
+ * Calcule les chronologies des acteurs et l'instant de chaque étape. Refuse une
+ * `apparition` autre que « debut » ou « depart » (ou absente).
+ */
 export function preparerScene(def) {
-  const acteurs = def.acteurs.map((a) => (a.pose
-    ? { ...a }
-    : { ...a, chrono: chronologie(a.chemin, a.profil, { depart: a.depart || 0 }) }));
+  const acteurs = def.acteurs.map((a, i) => {
+    if (a.apparition !== undefined && a.apparition !== "debut" && a.apparition !== "depart") {
+      const nom = a.id === undefined ? `n° ${i + 1}` : `« ${a.id} »`;
+      throw new Error(`scène ${def.code} : acteur ${nom} : apparition « ${a.apparition} » inconnue (« debut » ou « depart » attendu)`);
+    }
+    return a.pose
+      ? { ...a }
+      : { ...a, chrono: chronologie(a.chemin, a.profil, { depart: a.depart || 0 }) };
+  });
   const eleve = acteurs.find((a) => a.role === "eleve");
   if (!eleve || !eleve.chrono) throw new Error(`scène ${def.code} : un acteur mobile de rôle « eleve » est requis`);
   const etapes = def.etapes.map((e) => ({ ...e, t: tempsAtteint(eleve.chrono, e.s) + (e.delai || 0) }));
@@ -313,18 +337,30 @@ export function preparerScene(def) {
   return { ...def, acteurs, eleve, etapes, duree: fin + (def.finPause ?? 1) };
 }
 
-/** État d'un acteur à l'instant t. Un véhicule n'apparaît qu'à son départ ; un piéton
- *  est visible dès le début (il attend au bord du trottoir). */
+/**
+ * État d'un acteur à l'instant t. Un véhicule n'apparaît qu'à son départ ; un piéton est
+ * visible dès le début (il attend au bord du trottoir). Tant que l'acteur ne progresse
+ * pas sur son trajet, c'est-à-dire avant son départ et après la fin de sa chronologie,
+ * sa vitesse et son accélération sont nulles. Un acteur autre que l'élève dont le trajet
+ * finit en mouvement sort du cadre : il devient invisible dès que sa chronologie est
+ * terminée (symétrique de l'apparition au départ). Celui qui finit à l'arrêt reste
+ * visible, et l'élève aussi, car sa fin est celle de la scène.
+ */
 export function etatActeur(acteur, t) {
   if (acteur.pose) {
     return { x: acteur.pose.x, y: acteur.pose.y, cap: acteur.pose.cap * DEG, v: 0, a: 0, s: 0,
       courbure: 0, visible: true, clignotant: null };
   }
+  const { echantillons, duree } = acteur.chrono;
+  const parti = t >= (acteur.depart || 0) - 1e-9;
+  const termine = t > duree + 1e-9;
   const { s, v, a } = etatA(acteur.chrono, t);
   const p = pointA(acteur.chemin, s);
   const apparition = acteur.apparition || (acteur.gabarit === "pieton" ? "debut" : "depart");
-  const visible = apparition === "debut" || t >= (acteur.depart || 0) - 1e-9;
+  const sortDuCadre = termine && acteur.role !== "eleve" && echantillons[echantillons.length - 1].v > 0;
+  const visible = !sortDuCadre && (apparition === "debut" || parti);
+  const immobile = !parti || termine;
   const c = (acteur.clignotant || []).find((x) => s >= x.de - 1e-9 && s <= x.a + 1e-9);
-  return { x: p.x, y: p.y, cap: p.cap, v, a, s, courbure: courbureA(acteur.chemin, s), visible,
-    clignotant: c ? c.cote : null };
+  return { x: p.x, y: p.y, cap: p.cap, v: immobile ? 0 : v, a: immobile ? 0 : a, s,
+    courbure: courbureA(acteur.chemin, s), visible, clignotant: c ? c.cote : null };
 }
