@@ -219,12 +219,21 @@ test("tourner-droite : 25 km/h, 10 km/h avant le balayage, freinage doux (1,0 m/
   }
 });
 
-test("tourner-droite : contrôler puis indiquer, clignotant droit allumé à la fin du coup d'œil aux rétroviseurs, au moins 3 s avant l'arc, jusqu'à la fin de l'arc", () => {
+test("tourner-droite : contrôler puis indiquer, clignotant droit allumé dans la seconde moitié du coup d'œil aux rétroviseurs, au moins 3 s avant l'arc, jusqu'à la fin de l'arc", () => {
   const { def, eleve, sFinVirage, tVirage, T } = lireTournerDroite();
-  assert.deepEqual(def.acteurs[0].clignotant, [{ cote: "droite", de: def.etapes[1].s, a: sFinVirage }]);
-  assert.ok(T[1] > 0, "le coup d'œil d'abord");
-  proche(tempsAtteint(eleve.chrono, def.acteurs[0].clignotant[0].de), T[1], 1e-9, "clignotant à la fin de l'étape 1");
-  assert.ok(tVirage - T[1] >= 3, "allumé au moins 3 s avant l'arc");
+  assert.equal(def.acteurs[0].clignotant.length, 1, "un seul clignotant");
+  const [clignotant] = def.acteurs[0].clignotant;
+  assert.equal(clignotant.cote, "droite");
+  proche(clignotant.a, sFinVirage, 1e-9, "allumé jusqu'à la fin de l'arc");
+  // Le coup d'œil commence sans clignotant (contrôler d'abord) ; le clignotant s'allume avant que l'étape 2 commence,
+  // pour que l'étape « Contrôler et mettre le clignotant » le montre : 0,5 s avant la fin du coup d'œil.
+  const tAllume = tempsAtteint(eleve.chrono, clignotant.de);
+  assert.equal(etatActeur(eleve, T[0]).clignotant, null, "le coup d'œil commence sans clignotant");
+  assert.ok(tAllume > T[0] && tAllume < T[1], `clignotant allumé à t = ${tAllume.toFixed(3)} s, hors de l'étape 1`);
+  assert.equal(etatActeur(eleve, T[1]).clignotant, "droite", "déjà allumé quand l'étape 2 commence");
+  assert.ok(tAllume >= (T[0] + T[1]) / 2, "dans la seconde moitié du coup d'œil");
+  proche(T[1] - tAllume, 0.5, 1e-9, "0,5 s avant la fin du coup d'œil");
+  assert.ok(tVirage - tAllume >= 3, "allumé au moins 3 s avant l'arc");
 });
 
 test("tourner-droite : cadre de 46 m qui suit l'élève, cône des rétroviseurs entier dans le monde pendant l'étape 1", () => {
