@@ -8044,3 +8044,29 @@ body.cours-open { overflow: hidden; }
   .subtabs-bar { gap: 0.1rem; }
   .subtab { padding: 0.5rem 0.5rem; font-size: 0.86rem; }
 }
+
+/* ===== Chantier D, lot 2 : fiche en sommaire et page Stagiaires ===== */
+
+/* Fiche : nom de la personne ou de la partie, lien de retour (iPhone). */
+.fiche-titre { margin: 0 0 0.9rem; font-size: 1.3rem; }
+.fiche-retour {
+  display: inline-flex; align-items: center; gap: 0.15rem;
+  margin: 0 0 0.6rem; color: var(--accent-strong); text-decoration: none; font-size: 1rem;
+}
+.fiche-retour svg { width: 18px; height: 18px; }
+
+/* Sommaire (iPhone) : une grande ligne par partie, à la manière des Réglages. */
+.fiche-sommaire {
+  display: flex; flex-direction: column; overflow: hidden;
+  background: var(--bg-elev); border: 1px solid var(--line); border-radius: 12px;
+}
+.fiche-ligne {
+  display: flex; align-items: center; gap: 0.6rem; min-height: 50px; padding: 0.7rem 0.9rem;
+  color: var(--text); text-decoration: none; border-top: 1px solid var(--line-faint);
+}
+.fiche-ligne:first-child { border-top: none; }
+.fiche-ligne:active { background: var(--bg-subtle); }
+.fiche-ligne-nom { flex: 1; font-size: 1rem; }
+.fiche-ligne-etat { color: var(--text-muted); font-size: 0.92rem; }
+.fiche-ligne > svg { width: 18px; height: 18px; color: var(--text-faint); flex: none; }
+.fiche-ligne-etat.afaire, .stg-etat.afaire { color: var(--c-wait); }

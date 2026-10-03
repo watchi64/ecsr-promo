@@ -64,6 +64,13 @@ export function isStagiaire() {
   return currentProfile?.role === "stagiaire";
 }
 
+// Profil stagiaire de la personne connectée, tel que l'app le traite : en aperçu
+// « Formateur », le fondateur n'en a pas, comme un vrai formateur (chantier D).
+export function monStagiaireId() {
+  if (getViewAs() === "prof") return null;
+  return currentProfile?.stagiaire_id ?? null;
+}
+
 // Charge l'aperçu mémorisé (ignoré si l'utilisateur n'est pas fondateur).
 function loadViewAs() {
   try {

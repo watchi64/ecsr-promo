@@ -12,6 +12,7 @@ import { listStagiaires, listDpDossiers, getDpDossier, upsertDpDossier } from ".
 import { el, clear, displayStagiaire, compareByNom, formatDate, toast } from "../utils.js?v=20261003b";
 import { isAdmin, isProf, getProfile } from "../auth-admin.js?v=20261003b";
 import { getCurrentWho } from "../identity.js?v=20261003b";
+import { EVT_DOCUMENT } from "../fiche-rules.js?v=20261003b";
 import { collectData, fillData, applyEditable, wireDocEditing,
          bindDocPrint, refreshDocPrint, teardownDocPrint } from "../doc-officiel.js?v=20261003b";
 import { buildDpFlux, blocSommaire, feuille } from "./dp-gabarit.js?v=20261003b";
@@ -391,11 +392,14 @@ function showDoc(container, stagiaire, row, { readOnly, stagiaireId, back } = {}
     status.textContent = "Enregistrement…";
     status.className = "lv-status saving";
     try {
-      await upsertDpDossier({
+      const row = await upsertDpDossier({
         stagiaire_id: stagiaireId,
         data: collectData(fluxEdition),
         updated_by_who: getCurrentWho(),
       });
+      // La fiche et la page Stagiaires mettent leur état « Dossier » à jour.
+      document.dispatchEvent(new CustomEvent(EVT_DOCUMENT, { detail: {
+        genre: "dossier", stagiaireId, updatedAt: row?.updated_at || new Date().toISOString() } }));
       status.textContent = "Enregistré ✓";
       status.className = "lv-status";
     } catch (e) {

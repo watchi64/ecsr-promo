@@ -1,16 +1,21 @@
 import { listStagiaires, listEvaluations, getPlanning, getHalfMetaForWeek, getJoursOff, getSetting,
          listProfs, listEpcf, getEpcfMoyennes, listThemes,
-         getStagiaire, setDateNaissance, listPassages } from "../db.js?v=20261003b";
-import { el, clear, isoDate, getMonday, addDays, formatDate, displayStagiaire, compareByNom, toast } from "../utils.js?v=20261003b";
+         getStagiaire, setDateNaissance, listPassages,
+         listLivretsIndex, listDossiersIndex } from "../db.js?v=20261003b";
+import { el, clear, isoDate, getMonday, addDays, formatDate, displayStagiaire, toast } from "../utils.js?v=20261003b";
 import { HALF_DAYS, RESULTATS } from "../config.js?v=20261003b";
-import { isAdmin, isProf, getProfile } from "../auth-admin.js?v=20261003b";
+import { isAdmin, isProf, monStagiaireId } from "../auth-admin.js?v=20261003b";
 import { renderEpcfTrameSection } from "../epcf-restitution.js?v=20261003b";
 import { renderSubTabs } from "../subtabs.js?v=20261003b";
 import { renderDp } from "./dp.js?v=20261003b";
 import { renderEpcfLivret } from "./epcf-livret.js?v=20261003b";
 import { rolesPourEntry, ROLE_ORDER } from "../creneaux-rules.js?v=20261003b";
 import { statsPassages } from "../passages-stats.js?v=20261003b";
-import { moduleVisible } from "../modules-etat.js?v=20261003b";
+import { moduleVisible, moduleMasque, repereMasque } from "../modules-etat.js?v=20261003b";
+import { icon } from "../icons.js?v=20261003b";
+import { PARTIES, lireAdresse, adresseFiche } from "../route-rules.js?v=20261003b";
+import { etatsSommaire, passagesAVenir, EVT_DOCUMENT } from "../fiche-rules.js?v=20261003b";
+import { surChangementAdresse, remplacerAdresse, peutQuitter } from "../navigation.js?v=20261003b";
 
 const HALF_ORDER = { matin: 0, aprem: 1 };
 
@@ -155,9 +160,9 @@ function tableauxLabel(waves) {
   return "au tableau : " + parts[0] + (parts[1] ? ", puis " + parts[1] : "");
 }
 
-function renderPassagesSection(items) {
+function renderPassagesSection(items, soi = true) {
   const section = el("section", { class: "ms-section" },
-    el("h3", { class: "ms-section-title" }, "Mon planning à venir"));
+    el("h3", { class: "ms-section-title" }, soi ? "Mon planning à venir" : "Planning à venir"));
   if (items.length === 0) {
     section.appendChild(el("p", { class: "muted ms-empty" }, "Aucun créneau planifié pour l'instant."));
     return section;
@@ -319,9 +324,9 @@ function buildChart(evals) {
   return svg;
 }
 
-function renderChartSection(evaluations) {
+function renderChartSection(evaluations, soi = true) {
   const section = el("section", { class: "ms-section" },
-    el("h3", { class: "ms-section-title" }, "Mon évolution"));
+    el("h3", { class: "ms-section-title" }, soi ? "Mon évolution" : "Évolution"));
   const noted = (evaluations || [])
     .filter((e) => e.note != null && e.note_max)
     .map((e) => ({ ...e, norm: (Number(e.note) / Number(e.note_max)) * 20 }))
@@ -402,9 +407,9 @@ function renderChartSection(evaluations) {
 // la MÊME liste listPassages : compteurs et lignes toujours cohérents entre eux.
 // Remplace l'« Historique voiture » qui vivait dans l'onglet Évolution : les tuiles
 // et la répartition par formateur déménagent ici, avec la salle en plus.
-function renderEffectuesSection(rows) {
+function renderEffectuesSection(rows, soi = true) {
   const section = el("section", { class: "ms-section" },
-    el("h3", { class: "ms-section-title" }, "Mes passages effectués"));
+    el("h3", { class: "ms-section-title" }, soi ? "Mes passages effectués" : "Passages effectués"));
   if (!rows || !rows.length) {
     section.appendChild(el("p", { class: "muted ms-empty" }, "Aucun passage enregistré pour l'instant."));
     return section;
@@ -457,20 +462,26 @@ function renderEffectuesSection(rows) {
   return section;
 }
 
-export async function renderMonSuivi(container) {
-  clear(container);
-  container.appendChild(el("div", { class: "loading" }, "Chargement"));
+// === La fiche d'une personne (chantier D, lot 2) ===
+// Partagée par Mon espace (sa propre fiche) et la page Stagiaires (la fiche d'un
+// stagiaire, vue par un formateur). Deux dispositions, choisies à l'affichage :
+// onglets sur ordinateur ; sur iPhone, un sommaire puis la partie en plein écran.
 
-  const myId = getProfile()?.stagiaire_id ?? null;
-  const needSelector = isAdmin() || myId == null;
+const LIBELLE_PARTIE = { passages: "Passages", epcf: "EPCF", evolution: "Évolution", livret: "Livret", dp: "Dossier pro" };
+// Module de chaque partie (js/modules-data.js) : fermé pour la promo, la partie
+// disparaît chez un stagiaire et porte le repère chez un formateur.
+const MODULE_DE_PARTIE = { passages: null, epcf: "epcf", evolution: "notes", livret: "livret", dp: "dp" };
 
-  // listStagiaires est chargé dans tous les cas (plus seulement pour le sélecteur) :
-  // il nomme aussi le stagiaire au tableau sur les créneaux « élève salle ».
-  const [profsData, moySalleData, moyVehiculeData, themesData, stagiairesData] =
-    await Promise.all([
-      listProfs(), getEpcfMoyennes("salle"), getEpcfMoyennes("vehicule"),
-      listThemes(), listStagiaires(),
-    ]);
+export function dispositionFiche() {
+  return window.matchMedia("(max-width: 760px)").matches ? "sommaire" : "onglets";
+}
+
+// Contexte commun à toutes les fiches (formateurs, moyennes EPCF de la classe,
+// thèmes, noms) : une lecture par ouverture de page. Renvoie les stagiaires actifs.
+export async function chargerContexteFiche() {
+  const [profsData, moySalleData, moyVehiculeData, themesData, stagiairesData] = await Promise.all([
+    listProfs(), getEpcfMoyennes("salle"), getEpcfMoyennes("vehicule"), listThemes(), listStagiaires(),
+  ]);
   profs = profsData; moySalle = moySalleData; moyVehicule = moyVehiculeData;
   themeNumByTitre = {};
   (themesData || []).forEach((t) => {
@@ -478,145 +489,220 @@ export async function renderMonSuivi(container) {
   });
   stagiaireNoms = {};
   (stagiairesData || []).forEach((s) => { stagiaireNoms[s.id] = displayStagiaire(s); });
-  const stagiaires = needSelector ? (stagiairesData || []).slice().sort(compareByNom) : [];
-  const selectedId = myId ?? (stagiaires[0]?.id ?? null);
+  return stagiairesData || [];
+}
 
+// Données d'une personne, pour toutes les parties de sa fiche.
+export async function chargerFiche(id) {
+  const [items, evaluations, epcfEvals, stagiaireRow, passRows, livrets, dossiers] = await Promise.all([
+    loadUpcoming(id),
+    listEvaluations({ stagiaire_id: id }),
+    listEpcf({ stagiaire_id: id }),
+    getStagiaire(id),
+    listPassages({ stagiaire_id: id }),
+    listLivretsIndex({ stagiaire_id: id }),
+    listDossiersIndex({ stagiaire_id: id }),
+  ]);
+  return { id, items, evaluations, epcfEvals, stagiaireRow, passRows,
+    livret: (livrets || [])[0] || null, dossier: (dossiers || [])[0] || null };
+}
+
+// Livret ou dossier enregistré (événement EVT_DOCUMENT) : l'état de la fiche suit.
+export function noterDocument(d, detail) {
+  if (!d || !detail || detail.stagiaireId !== d.id) return false;
+  const ligne = { stagiaire_id: d.id, updated_at: detail.updatedAt };
+  if (detail.genre === "livret") d.livret = ligne;
+  else if (detail.genre === "dossier") d.dossier = ligne;
+  else return false;
+  return true;
+}
+
+// Une seule écoute pour toute l'app : la page affichée y branche son traitement.
+let surDocument = null;
+let ecouteDocumentsPosee = false;
+export function ecouterDocuments(fn) {
+  surDocument = fn;
+  if (ecouteDocumentsPosee) return;
+  document.addEventListener(EVT_DOCUMENT, (e) => { if (surDocument) surDocument(e.detail); });
+  ecouteDocumentsPosee = true;
+}
+
+// Boîte d'erreur de chargement, dans la zone donnée (l'en-tête reste utilisable).
+export function afficherErreur(zone, e, reessayer) {
+  console.error(e);
+  clear(zone);
+  const isTimeout = /abort|timeout|network|fetch/i.test(e?.message || String(e));
+  const retry = el("button", { class: "btn primary" }, "Réessayer");
+  retry.addEventListener("click", () => reessayer());
+  zone.appendChild(el("div", { class: "view-error-box" },
+    el("p", { class: "view-error-title" }, isTimeout ? "Connexion trop lente" : "Une erreur est survenue"),
+    el("p", { class: "view-error-sub" }, isTimeout
+      ? "Le serveur n'a pas répondu à temps. Vérifie ta connexion et réessaie."
+      : "Détail : " + (e?.message || e)),
+    retry));
+  toast(isTimeout ? "Connexion trop lente, réessaie" : (e?.message || String(e)), "error");
+}
+
+function partiesVisibles() {
+  return PARTIES.filter((p) => !MODULE_DE_PARTIE[p] || moduleVisible(MODULE_DE_PARTIE[p]));
+}
+
+function lienRetour(label, href) {
+  return el("a", { class: "fiche-retour", href }, icon.chevronLeft(), el("span", {}, label));
+}
+
+export function renderFiche(container, d, opts) {
+  clear(container);
+  const parties = partiesVisibles();
+  const partie = parties.includes(opts.partie) ? opts.partie : null;
+  if (opts.disposition === "onglets") {
+    if (opts.titre) container.appendChild(el("h2", { class: "fiche-titre" }, opts.titre));
+    container.appendChild(renderSubTabs(parties.map((p) => ({
+      key: p, label: LIBELLE_PARTIE[p], module: MODULE_DE_PARTIE[p] || undefined,
+      render: (panel, ctx) => rendrePartie(panel, p, d, opts, ctx),
+    })), {
+      activeKey: partie || undefined,
+      storageKey: opts.storageKey,
+      // L'onglet choisi s'inscrit dans l'adresse, sans étape d'historique.
+      onChange: (p) => remplacerAdresse(opts.adresse(p)),
+      avantChangement: () => peutQuitter(),
+    }));
+    return;
+  }
+  if (partie) {
+    // iPhone, une partie en plein écran : le retour mène au sommaire.
+    container.appendChild(lienRetour(opts.titre || "Mon espace", opts.adresse(null)));
+    container.appendChild(el("h2", { class: "fiche-titre" }, LIBELLE_PARTIE[partie]));
+    const panel = el("div", { class: "fiche-partie" });
+    container.appendChild(panel);
+    rendrePartie(panel, partie, d, opts, { isActive: () => panel.isConnected });
+    return;
+  }
+  // iPhone : le sommaire.
+  if (opts.retour) container.appendChild(lienRetour(opts.retour.label, opts.retour.href));
+  if (opts.titre) container.appendChild(el("h2", { class: "fiche-titre" }, opts.titre));
+  container.appendChild(rendreSommaire(d, parties, opts));
+}
+
+function rendreSommaire(d, parties, opts) {
+  const etats = etatsSommaire({
+    aVenir: passagesAVenir(d.items, isoDate(new Date())),
+    evals: d.epcfEvals, livret: d.livret, dossier: d.dossier, soi: !!opts.soi,
+  });
+  const liste = el("nav", { class: "fiche-sommaire", "aria-label": "Parties de la fiche" });
+  parties.forEach((p) => {
+    const etat = etats[p];
+    const nom = el("span", { class: "fiche-ligne-nom" }, LIBELLE_PARTIE[p]);
+    const ligne = el("a", { class: "fiche-ligne", href: opts.adresse(p) },
+      nom,
+      etat ? el("span", { class: "fiche-ligne-etat" + (etat.afaire ? " afaire" : "") }, etat.texte) : null,
+      icon.chevronRight());
+    if (MODULE_DE_PARTIE[p]) repereMasque(ligne, moduleMasque(MODULE_DE_PARTIE[p]), nom);
+    liste.appendChild(ligne);
+  });
+  return liste;
+}
+
+// Date de naissance du profil, reportée sur le livret : la personne elle-même,
+// un formateur ou un admin la saisit. Rangée dans la partie Livret, seule à s'en servir.
+function champNaissance(d, soi) {
+  if (!(soi || isAdmin() || isProf())) return null;
+  const dob = el("input", { type: "date", value: d.stagiaireRow?.date_naissance || "" });
+  dob.addEventListener("change", async () => {
+    try {
+      await setDateNaissance(d.id, dob.value || null);
+      if (d.stagiaireRow) d.stagiaireRow.date_naissance = dob.value || null;
+      toast("Date de naissance enregistrée", "success", 2000);
+    } catch (e) { console.error(e); toast(e?.message || String(e), "error"); }
+  });
+  return el("div", { class: "ms-naissance" },
+    el("label", {}, "Date de naissance"), dob,
+    el("span", { class: "muted ms-naissance-hint" }, "Reportée automatiquement sur le livret EPCF."));
+}
+
+function erreurPartie(zone, isActive, texte) {
+  return (e) => {
+    console.error(e);
+    if (!isActive || isActive()) {
+      clear(zone);
+      zone.appendChild(el("p", { class: "muted" }, texte));
+    }
+  };
+}
+
+// Contenu d'une partie. ctx.isActive : faux si l'on est passé à autre chose
+// pendant un chargement (la partie ne doit plus écrire).
+function rendrePartie(panel, partie, d, opts, ctx) {
+  const isActive = ctx && ctx.isActive;
+  const soi = !!opts.soi;
+  if (partie === "passages") {
+    panel.appendChild(renderPassagesSection(d.items, soi));
+    panel.appendChild(renderEffectuesSection(d.passRows, soi));
+  } else if (partie === "epcf") {
+    panel.appendChild(renderEpcfTrameSection("salle", d.epcfEvals.filter((e) => e.trame === "salle"), moySalle));
+    panel.appendChild(renderEpcfTrameSection("vehicule", d.epcfEvals.filter((e) => e.trame === "vehicule"), moyVehicule));
+  } else if (partie === "evolution") {
+    panel.appendChild(renderChartSection(d.evaluations, soi));
+  } else if (partie === "livret") {
+    const naissance = champNaissance(d, soi);
+    if (naissance) panel.appendChild(naissance);
+    const zone = el("div");
+    panel.appendChild(zone);
+    renderEpcfLivret(zone, { stagiaireId: d.id, embedded: true, isActive })
+      .catch(erreurPartie(zone, isActive, "Erreur de chargement du livret EPCF. Rouvre la partie pour réessayer."));
+  } else if (partie === "dp") {
+    // Le DP appartient au candidat : éditable dans son espace ; un formateur
+    // peut aussi y écrire pour l'accompagner (droits révisés le 16/09).
+    renderDp(panel, { stagiaireId: d.id, embedded: true, isActive })
+      .catch(erreurPartie(panel, isActive, "Erreur de chargement du dossier professionnel. Rouvre la partie pour réessayer."));
+  }
+}
+
+// === Mon espace : la fiche de la personne connectée ===
+export async function renderMonSuivi(container) {
+  clear(container);
+  container.appendChild(el("div", { class: "loading" }, "Chargement"));
+  const monId = monStagiaireId();
+  await chargerContexteFiche();
   clear(container);
 
   const header = el("div", { class: "view-header" },
     el("div", { class: "view-header-text" },
       el("p", { class: "eyebrow" }, "Espace personnel"),
-      el("h2", {}, "Mon suivi"),
+      el("h2", {}, "Mon espace"),
       el("p", { class: "subtitle" }, moduleVisible("notes")
         ? "Mon planning à venir et l'évolution de mes résultats."
         : "Mon planning à venir."),
     ),
   );
+  const corps = el("div", { class: "ms-body" });
   container.appendChild(header);
-
-  const body = el("div", { class: "ms-body" });
-  container.appendChild(body);
-
-  // Garde anti-race : chaque rendu obtient un jeton ; après l'await, si un rendu plus
-  // récent a démarré (changement d'élève), on abandonne pour ne pas écraser le corps
-  // avec les données d'un élève qui n'est plus sélectionné.
-  let renderToken = 0;
-
-  async function renderFor(id) {
-    const token = ++renderToken;
-    clear(body);
-    if (id == null) {
-      body.appendChild(el("p", { class: "muted" }, "Aucun stagiaire sélectionné."));
-      return;
-    }
-    body.appendChild(el("div", { class: "loading" }, "Chargement"));
-    // Le changement d'élève (select) appelle renderFor hors du routeur : sans ce
-    // catch, un échec réseau laissait le corps figé sur « Chargement ». Même boîte
-    // d'erreur que navigate() (main.js), mais dans le corps : l'en-tête et le
-    // sélecteur restent utilisables.
-    let items, evaluations, epcfEvals, stagiaireRow, passRows;
-    try {
-      [items, evaluations, epcfEvals, stagiaireRow, passRows] = await Promise.all([
-        loadUpcoming(id),
-        listEvaluations({ stagiaire_id: id }),
-        listEpcf({ stagiaire_id: id }),
-        getStagiaire(id),
-        listPassages({ stagiaire_id: id }),
-      ]);
-    } catch (e) {
-      if (token !== renderToken) return;   // un rendu plus récent a pris la main
-      console.error(e);
-      clear(body);
-      const isTimeout = /abort|timeout|network|fetch/i.test(e?.message || String(e));
-      const retry = el("button", { class: "btn primary" }, "Réessayer");
-      retry.addEventListener("click", () => renderFor(id));
-      body.appendChild(el("div", { class: "view-error-box" },
-        el("p", { class: "view-error-title" },
-          isTimeout ? "Connexion trop lente" : "Une erreur est survenue"),
-        el("p", { class: "view-error-sub" },
-          isTimeout
-            ? "Le serveur n'a pas répondu à temps. Vérifie ta connexion et réessaie."
-            : "Détail : " + (e?.message || e)),
-        retry));
-      toast(isTimeout ? "Connexion trop lente, réessaie" : (e?.message || String(e)), "error");
-      return;
-    }
-    if (token !== renderToken) return;   // un rendu plus récent a pris la main
-    clear(body);
-
-    // Date de naissance du profil : saisie par le stagiaire lui-même (son propre
-    // suivi) ou par formateur/admin. Reportée automatiquement sur le livret EPCF.
-    // Le champ ne sert qu'au livret : il suit donc le module Livret EPCF.
-    if ((isAdmin() || isProf() || id === myId) && moduleVisible("livret")) {
-      const dob = el("input", { type: "date", value: stagiaireRow?.date_naissance || "" });
-      dob.addEventListener("change", async () => {
-        try {
-          await setDateNaissance(id, dob.value || null);
-          toast("Date de naissance enregistrée", "success", 2000);
-        } catch (e) { console.error(e); toast(e?.message || String(e), "error"); }
-      });
-      body.appendChild(el("div", { class: "ms-naissance" },
-        el("label", {}, "Date de naissance"), dob,
-        el("span", { class: "muted ms-naissance-hint" }, "Reportée automatiquement sur le livret EPCF.")));
-    }
-    // Sous-onglets : Passages · EPCF · Évolution · Livret EPCF · Dossier pro. Mon espace
-    // porte tout ce qui est à la personne affichée (chantier D). Le rendu de chaque
-    // onglet est paresseux ; les données des trois premiers sont déjà chargées.
-    body.appendChild(renderSubTabs([
-      { key: "passages", label: "Passages", render: (p) => {
-          p.appendChild(renderPassagesSection(items));
-          p.appendChild(renderEffectuesSection(passRows));
-        } },
-      { key: "epcf", label: "EPCF", module: "epcf", render: (p) => {
-          p.appendChild(renderEpcfTrameSection("salle",
-            epcfEvals.filter((e) => e.trame === "salle"), moySalle));
-          p.appendChild(renderEpcfTrameSection("vehicule",
-            epcfEvals.filter((e) => e.trame === "vehicule"), moyVehicule));
-        } },
-      { key: "evolution", label: "Évolution", module: "notes", render: (p) => {
-          p.appendChild(renderChartSection(evaluations));
-        } },
-      // Le livret de la personne affichée : le sien en lecture pour un stagiaire, en
-      // saisie pour un formateur qui regarde l'espace d'un stagiaire. Libellé court
-      // (« Livret », à côté d'« EPCF ») : avec cinq sous-onglets, la barre doit tenir
-      // sur une ligne d'iPhone.
-      { key: "livret", label: "Livret", module: "livret", render: (p, ctx) => {
-          renderEpcfLivret(p, { stagiaireId: id, embedded: true, isActive: ctx && ctx.isActive })
-            .catch((e) => {
-              console.error(e);
-              if (!ctx || ctx.isActive()) {
-                clear(p);
-                p.appendChild(el("p", { class: "muted" }, "Erreur de chargement du livret EPCF. Reviens sur l'onglet pour réessayer."));
-              }
-            });
-        } },
-      // Le DP appartient au candidat : dans SON espace il est éditable. Un
-      // formateur qui consulte l'espace d'un élève peut aussi y écrire, pour
-      // l'accompagner (droits révisés le 16/09).
-      { key: "dp", label: "Dossier pro", module: "dp", render: (p, ctx) => {
-          renderDp(p, { stagiaireId: id, embedded: true, isActive: ctx && ctx.isActive })
-            .catch((e) => {
-              console.error(e);
-              if (!ctx || ctx.isActive()) {
-                clear(p);
-                p.appendChild(el("p", { class: "muted" }, "Erreur de chargement du dossier professionnel. Reviens sur l'onglet pour réessayer."));
-              }
-            });
-        } },
-    ], { storageKey: "ecsr_monsuivi_subtab" }));
+  container.appendChild(corps);
+  if (monId == null) {
+    corps.appendChild(el("p", { class: "muted" }, "Aucun profil stagiaire n'est relié à ce compte."));
+    return;
   }
 
-  if (needSelector) {
-    const sel = el("select", { class: "ms-selector" });
-    stagiaires.forEach((s) => {
-      const o = el("option", { value: s.id }, displayStagiaire(s));
-      if (String(s.id) === String(selectedId)) o.selected = true;
-      sel.appendChild(o);
+  let d = null;
+  const dessiner = (adr) => {
+    const disposition = dispositionFiche();
+    // iPhone, dans une partie : le retour « ‹ Mon espace » remplace l'en-tête.
+    header.hidden = disposition === "sommaire" && !!adr.partie;
+    renderFiche(corps, d, {
+      soi: true, partie: adr.partie, disposition, titre: null, retour: null,
+      adresse: (p) => adresseFiche("mon-suivi", null, p),
+      storageKey: "ecsr_monsuivi_subtab",
     });
-    sel.addEventListener("change", () => renderFor(Number(sel.value)));
-    header.appendChild(el("div", { class: "ms-selector-wrap" },
-      el("label", { class: "muted" }, "Élève"), sel));
-  }
-
-  await renderFor(selectedId);
+    if (disposition === "sommaire") window.scrollTo(0, 0);
+  };
+  const charger = async () => {
+    clear(corps);
+    corps.appendChild(el("div", { class: "loading" }, "Chargement"));
+    try { d = await chargerFiche(monId); }
+    catch (e) { afficherErreur(corps, e, charger); return; }
+    dessiner(lireAdresse(location.hash));
+  };
+  surChangementAdresse("mon-suivi", async (adr) => { if (d) dessiner(adr); });
+  ecouterDocuments((detail) => { noterDocument(d, detail); });
+  await charger();
 }
