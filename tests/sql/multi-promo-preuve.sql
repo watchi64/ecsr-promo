@@ -1,6 +1,6 @@
 -- Preuve du cloisonnement multi-promo (spec E.1 et E.2). Rejouable à volonté : le bloc
 -- final lève TOUJOURS une exception, qui annule les données de test et porte le verdict.
--- Personnages réels choisis par requête : aucun email n'est écrit ici (dépôt public).
+-- Personnages réels choisis par requête : aucun email réel n'est écrit ici (dépôt public).
 -- Si la table temporaire « photo » existe (répétition de l'étape 2), la non-régression de
 -- mars est comparée à elle, avant toute donnée de test.
 --
@@ -478,8 +478,9 @@ begin
       format('obtenu %s, attendu %s', coalesce(left(v_obtenu, 80), 'nul'), left(v_att_txt, 80)));
   end loop;
 
-  -- Date de naissance (fiche fictive de mars) : relue en propriétaire avant, puis après chaque
-  -- appel, dans une sous-transaction annulée. Le refus porte le code P0001 de la fonction.
+  -- Date de naissance (fiches fictives de mars et de septembre) : relue en propriétaire avant,
+  -- puis après chaque appel, dans une sous-transaction annulée. Le refus porte le code P0001 de
+  -- la fonction.
   for v_p in select * from (values
       ('refusée', v_form, '2', v_sid_mars, 'formateur, fiche de mars'),
       ('modifiable', v_form, '1', v_sid_mars, 'formateur, fiche de mars'),
@@ -692,8 +693,9 @@ begin
    $q$update public.lieux set nom = 'PreuveMaj'$q$, $q$delete from public.lieux$q$,
    null, $q$null::integer, r.id, null::integer, false$q$);
   -- Ligne de test de chaque table, dans la portée de septembre (banque de Nîmes pour les tables
-  -- de lieu) : cible des jumeaux positifs de la modification et de la suppression. %2$s
-  -- stagiaire fictif de septembre, %4$s bénévole témoin de Nîmes, %5$s QCM A, %6$s thème A.
+  -- de lieu, lieu vide de test pour lieux) : cible des jumeaux de la modification et de la
+  -- suppression, positifs là où le personnel a le droit d'écrire. %2$s stagiaire fictif de
+  -- septembre, %4$s bénévole témoin de Nîmes, %5$s QCM A, %6$s thème A.
   alter table modeles add column cible text;
   update modeles m set cible = c.cible
     from (values
@@ -714,9 +716,10 @@ begin
       ('user_profiles', $q$email = 'preuve.fictif@example.invalid'$q$), ('lieux', $q$id = 9999$q$)) as c(t, cible)
    where m.t = c.t;
 
-  -- Contextes d'écriture : promo courante attendue (spec B.2), balayage (modification et
-  -- suppression sur toute la table) là où la portée ne contient que des données de test,
-  -- déplacement (changer la promo ou le lieu d'une ligne) depuis septembre et Montpellier.
+  -- Contextes d'écriture : promo courante attendue (spec B.2) ; balayage (modification et
+  -- suppression sur toute la table) là où la portée légitime est vide, ou réduite aux lignes du
+  -- stagiaire lui-même et aux comptes du personnel ; déplacement (changer la promo ou le lieu
+  -- d'une ligne) depuis septembre et Montpellier.
   drop table if exists pg_temp.contextes;
   create temp table contextes (ordre serial, nom text, email text, entete text, promo integer,
     balayage boolean, deplacement boolean);
@@ -741,7 +744,7 @@ begin
       ('vrai stagiaire de septembre', v_stag2, '2', 2, false, false),
       ('vrai stagiaire de septembre', v_stag2, '1', null, true, false);
   end if;
-  -- Jumeaux positifs de la modification et de la suppression : depuis septembre, par le personnel.
+  -- Jumeaux de la modification et de la suppression : depuis septembre, par le personnel.
   alter table contextes add column jumeau boolean not null default false;
   update contextes set jumeau = true where entete = '2' and nom in ('formateur', 'fondateur');
 
