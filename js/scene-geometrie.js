@@ -272,7 +272,8 @@ export function disque(cx, cy, r, pasDeg = 5) {
 export function secteurAnneau(cx, cy, r0, r1, a0Deg, a1Deg, pasDeg = 5) {
   const ouverture = Math.abs(a1Deg - a0Deg);
   if (!(ouverture > 0 && ouverture < 180)) {
-    throw new Error(`secteurAnneau : l'ouverture (${a1Deg - a0Deg} degrés) doit être strictement comprise entre 0 et 180 en valeur absolue`);
+    throw new Error(`secteurAnneau : l'ouverture (${a1Deg - a0Deg} degrés) doit être strictement comprise entre 0 et 180 en valeur absolue`
+      + " : écrire les angles sans saut de 360 degrés, par exemple -10 et 10 plutôt que 350 et 10");
   }
   return [...pointsArc(cx, cy, r1, a0Deg, a1Deg, pasDeg), ...pointsArc(cx, cy, r0, a0Deg, a1Deg, pasDeg).reverse()];
 }
@@ -338,29 +339,62 @@ export function preparerScene(def) {
 }
 
 /**
- * État d'un acteur à l'instant t. Un véhicule n'apparaît qu'à son départ ; un piéton est
- * visible dès le début (il attend au bord du trottoir). Tant que l'acteur ne progresse
- * pas sur son trajet, c'est-à-dire avant son départ et après la fin de sa chronologie,
- * sa vitesse et son accélération sont nulles. Un acteur autre que l'élève dont le trajet
- * finit en mouvement sort du cadre : il devient invisible dès que sa chronologie est
- * terminée (symétrique de l'apparition au départ). Celui qui finit à l'arrêt reste
- * visible, et l'élève aussi, car sa fin est celle de la scène.
+ * Apparition d'un acteur : « debut » (visible dès le début de la scène) ou « depart »
+ * (visible à partir de son départ). La valeur explicite `acteur.apparition` l'emporte ; à
+ * défaut, un piéton est visible dès le début (il attend au bord du trottoir) et tout autre
+ * acteur n'apparaît qu'à son départ.
+ */
+export function apparitionDe(acteur) {
+  return acteur.apparition || (acteur.gabarit === "pieton" ? "debut" : "depart");
+}
+
+/**
+ * Un véhicule autre que celui de l'élève dont le trajet finit en mouvement quitte le cadre à
+ * la fin de sa chronologie (symétrique de l'apparition au départ). La scène doit donc faire
+ * finir ce trajet hors du monde (hors de la zone dessinée) : `scene-controles.js` le vérifie.
+ * Faux pour un acteur sans chronologie (fixe, `pose`, ou pas encore préparé), pour l'élève (sa
+ * fin est celle de la scène), pour un piéton (il s'arrête au bout de son trajet et ne quitte
+ * jamais l'image) et pour un véhicule dont le trajet finit à l'arrêt.
+ */
+export function sortDuCadre(acteur) {
+  if (!acteur.chrono || acteur.role === "eleve" || acteur.gabarit === "pieton") return false;
+  const echantillons = acteur.chrono.echantillons;
+  return echantillons[echantillons.length - 1].v > 0;
+}
+
+/**
+ * État d'un acteur à l'instant t. Un acteur fixe (`pose`) est toujours visible et à l'arrêt.
+ * Pour un acteur mobile :
+ * - Visibilité : dès le début si `apparitionDe` vaut « debut », à partir du départ si elle
+ *   vaut « depart » (par défaut, un piéton est visible dès le début et un véhicule n'apparaît
+ *   qu'à son départ). Après la fin de sa chronologie (t > duree), un acteur qui `sortDuCadre`
+ *   est invisible ; tous les autres restent visibles à leur arrivée, un piéton compris : il
+ *   s'arrête au bout de son trajet.
+ * - Avant son départ : vitesse et accélération nulles, pour tous les acteurs.
+ * - Après la fin de la chronologie : accélération nulle, position d'arrivée. La vitesse est
+ *   nulle pour tous sauf l'élève : un piéton s'est arrêté, un véhicule qui finit à l'arrêt
+ *   l'est déjà, un véhicule qui a quitté le cadre est invisible. L'élève garde sa vitesse
+ *   finale (celle du dernier échantillon), car la fin de la scène tient l'image pendant
+ *   `finPause` : le moteur allume les feux stop sous 0,05 m/s, ce qui ne doit pas arriver sur
+ *   cette image tenue, et une tenue n'est pas un arrêt (contrôle de la ligne d'arrêt).
+ *   `scene-controles.js` vérifie que l'élève finit en dernier lorsqu'il termine en mouvement,
+ *   de sorte que toute l'image est tenue avec lui.
  */
 export function etatActeur(acteur, t) {
   if (acteur.pose) {
     return { x: acteur.pose.x, y: acteur.pose.y, cap: acteur.pose.cap * DEG, v: 0, a: 0, s: 0,
       courbure: 0, visible: true, clignotant: null };
   }
-  const { echantillons, duree } = acteur.chrono;
+  const { duree } = acteur.chrono;
   const parti = t >= (acteur.depart || 0) - 1e-9;
   const termine = t > duree + 1e-9;
   const { s, v, a } = etatA(acteur.chrono, t);
   const p = pointA(acteur.chemin, s);
-  const apparition = acteur.apparition || (acteur.gabarit === "pieton" ? "debut" : "depart");
-  const sortDuCadre = termine && acteur.role !== "eleve" && echantillons[echantillons.length - 1].v > 0;
-  const visible = !sortDuCadre && (apparition === "debut" || parti);
-  const immobile = !parti || termine;
+  const visible = !(termine && sortDuCadre(acteur)) && (apparitionDe(acteur) === "debut" || parti);
+  // Après la fin, etatA renvoie la dernière vitesse du profil : seul l'élève la garde.
+  const vitesse = !parti || (termine && acteur.role !== "eleve") ? 0 : v;
+  const acceleration = parti && !termine ? a : 0;
   const c = (acteur.clignotant || []).find((x) => s >= x.de - 1e-9 && s <= x.a + 1e-9);
-  return { x: p.x, y: p.y, cap: p.cap, v: immobile ? 0 : v, a: immobile ? 0 : a, s,
+  return { x: p.x, y: p.y, cap: p.cap, v: vitesse, a: acceleration, s,
     courbure: courbureA(acteur.chemin, s), visible, clignotant: c ? c.cote : null };
 }

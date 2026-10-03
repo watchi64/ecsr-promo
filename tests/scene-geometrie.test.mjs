@@ -4,6 +4,7 @@ import {
   DEG, trajet, pointA, courbureA, tournerChemin, tournerPoint, premiereAbscisse, avant,
   chronologie, etatA, tempsAtteint, emprise, rectangle, pointsArc, disque, secteurAnneau,
   pointDansPolygone, segmentsSeCoupent, polygonesSeChevauchent, preparerScene, etatActeur,
+  apparitionDe, sortDuCadre,
 } from "../js/scene-geometrie.js";
 
 const proche = (a, b, eps = 1e-6) => assert.ok(Math.abs(a - b) <= eps, `${a} au lieu de ${b}`);
@@ -121,7 +122,7 @@ test("preparerScene et etatActeur : étapes, durée, visibilité, clignotant", (
 
 // ===== Acteurs figés : immobiles hors de leur trajet, sortie du cadre =====
 
-test("etatActeur : vitesse et accélération nulles avant le départ et après la fin du trajet", () => {
+test("etatActeur : v et a nulles avant le départ ; après la fin, l'élève garde sa vitesse finale, les autres s'arrêtent", () => {
   const c = trajet(0, 0, 0).droit(100).fin();
   const sc = preparerScene({
     code: "essai",
@@ -146,16 +147,52 @@ test("etatActeur : vitesse et accélération nulles avant le départ et après l
   proche(etatActeur(autre, 14).v, 10);
   proche(etatActeur(autre, 14).s, 100);
   proche(etatActeur(eleve, 10).v, 10);
-  // Après la fin de la chronologie : immobile à l'arrivée, vitesse et accélération nulles.
-  for (const [acteur, t] of [[autre, 14.01], [autre, 20], [autre, 1000], [eleve, 10.01], [eleve, 12], [eleve, 1000]]) {
-    const e = etatActeur(acteur, t);
-    assert.equal(e.v, 0, `${acteur.id} : v à t = ${t}`);
-    assert.equal(e.a, 0, `${acteur.id} : a à t = ${t}`);
+  // Après la fin de la chronologie, chacun est resté à l'arrivée (s = 100) et n'accélère plus.
+  // Un autre acteur est à l'arrêt (ici, un véhicule sorti du cadre, donc invisible).
+  for (const t of [14.01, 20, 1000]) {
+    const e = etatActeur(autre, t);
+    assert.equal(e.v, 0, `autre : v à t = ${t}`);
+    assert.equal(e.a, 0, `autre : a à t = ${t}`);
+    proche(e.s, 100);
+  }
+  // L'élève garde sa vitesse finale (10 m/s) jusqu'à la fin de la scène et au-delà : la fin tient
+  // l'image, et sous 0,05 m/s le moteur allumerait les feux stop sur cette image tenue.
+  for (const t of [10.01, 12, sc.duree, 1000]) {
+    const e = etatActeur(eleve, t);
+    proche(e.v, 10);
+    assert.equal(e.a, 0, `élève : a à t = ${t}`);
     proche(e.s, 100);
   }
 });
 
-test("etatActeur : sortie du cadre selon la vitesse finale et le rôle", () => {
+test("etatActeur : l'élève à départ différé est immobile avant de partir, puis garde sa vitesse finale", () => {
+  const c = trajet(0, 0, 0).droit(100).fin();
+  const sc = preparerScene({
+    code: "essai",
+    acteurs: [{ id: "eleve", role: "eleve", gabarit: "voiture", chemin: c,
+      profil: [{ s: 0, kmh: 36 }, { s: 100, kmh: 36 }], depart: 3 }],
+    etapes: [{ s: 0 }],
+  });
+  const eleve = sc.acteurs[0];
+  // Avant le départ, la chronologie interpole v de 0 à 10 m/s : le rôle n'y change rien.
+  for (const t of [0, 1, 2.999]) {
+    const e = etatActeur(eleve, t);
+    assert.equal(e.v, 0, `v à t = ${t}`);
+    assert.equal(e.a, 0, `a à t = ${t}`);
+    assert.equal(e.s, 0, `s à t = ${t}`);
+  }
+  proche(etatActeur(eleve, 3).v, 10);
+  // La fin tombe à t = 13 (3 s d'attente, 10 s de route), puis la tenue dure jusqu'à sc.duree = 14.
+  for (const t of [13.01, 14, 1000]) {
+    const e = etatActeur(eleve, t);
+    proche(e.v, 10);
+    assert.equal(e.a, 0, `a à t = ${t}`);
+    proche(e.s, 100);
+  }
+  proche(sc.duree, 14);
+});
+
+test("etatActeur : sortie du cadre selon la vitesse finale, le rôle et le gabarit", () => {
   const c = trajet(0, 0, 0).droit(100).fin();
   const roule = [{ s: 0, kmh: 36 }, { s: 100, kmh: 36 }];
   const sc = preparerScene({
@@ -170,14 +207,22 @@ test("etatActeur : sortie du cadre selon la vitesse finale et le rôle", () => {
   });
   const [eleve, croisement, gare, marcheur] = sc.acteurs;
   const visible = (acteur, t) => etatActeur(acteur, t).visible;
-  // Un acteur autre que l'élève qui finit en mouvement quitte le cadre à la fin de sa chronologie.
-  for (const acteur of [croisement, marcheur]) {
-    const fin = acteur.chrono.duree;
-    assert.equal(visible(acteur, fin / 2), true, `${acteur.id} visible en route`);
-    assert.equal(visible(acteur, fin - 0.01), true, `${acteur.id} visible juste avant la fin`);
-    assert.equal(visible(acteur, fin), true, `${acteur.id} visible au dernier instant`);
-    assert.equal(visible(acteur, fin + 0.01), false, `${acteur.id} sorti du cadre juste après la fin`);
-    assert.equal(visible(acteur, fin + 100), false, `${acteur.id} sorti du cadre longtemps après`);
+  // Un véhicule autre que l'élève qui finit en mouvement quitte le cadre à la fin de sa chronologie.
+  const fin = croisement.chrono.duree;
+  assert.equal(visible(croisement, fin / 2), true, "croisement visible en route");
+  assert.equal(visible(croisement, fin - 0.01), true, "croisement visible juste avant la fin");
+  assert.equal(visible(croisement, fin), true, "croisement visible au dernier instant");
+  assert.equal(visible(croisement, fin + 0.01), false, "croisement sorti du cadre juste après la fin");
+  assert.equal(visible(croisement, fin + 100), false, "croisement sorti du cadre longtemps après");
+  // Un piéton qui finit en marchant s'arrête au bout de son trajet : il ne quitte jamais l'image.
+  const finMarche = marcheur.chrono.duree;
+  for (const t of [finMarche / 2, finMarche - 0.01, finMarche, finMarche + 0.01, finMarche + 100, sc.duree]) {
+    assert.equal(visible(marcheur, t), true, `marcheur visible à t = ${t}`);
+  }
+  for (const t of [finMarche + 0.01, finMarche + 100, sc.duree]) {
+    const e = etatActeur(marcheur, t);
+    assert.equal(e.v, 0, `marcheur arrêté à t = ${t}`);
+    proche(e.s, 100);
   }
   // Celui qui finit à l'arrêt reste visible.
   for (const t of [5, gare.chrono.duree, gare.chrono.duree + 0.01, gare.chrono.duree + 100]) {
@@ -187,6 +232,32 @@ test("etatActeur : sortie du cadre selon la vitesse finale et le rôle", () => {
   for (const t of [5, eleve.chrono.duree, eleve.chrono.duree + 0.01, sc.duree]) {
     assert.equal(visible(eleve, t), true, `élève visible à t = ${t}`);
   }
+});
+
+test("sortDuCadre : vrai seulement pour un véhicule autre que l'élève dont le trajet finit en mouvement", () => {
+  const c = trajet(0, 0, 0).droit(100).fin();
+  const roule = [{ s: 0, kmh: 36 }, { s: 100, kmh: 36 }];
+  const sc = preparerScene({
+    code: "essai",
+    acteurs: [
+      { id: "eleve", role: "eleve", gabarit: "voiture", chemin: c, profil: roule },
+      { id: "croisement", gabarit: "voiture", chemin: c, profil: roule },
+      { id: "ralenti", gabarit: "voiture", chemin: c, profil: [{ s: 0, kmh: 36 }, { s: 100, kmh: 0.1 }] },
+      { id: "gare", gabarit: "voiture", chemin: c, profil: [{ s: 0, kmh: 36 }, { s: 100, kmh: 0 }] },
+      { id: "marcheur", gabarit: "pieton", chemin: c, profil: [{ s: 0, kmh: 5 }, { s: 100, kmh: 5 }] },
+      { id: "garee", gabarit: "voiture", pose: { x: 30, y: 4, cap: 0 } },
+    ],
+    etapes: [{ s: 0 }],
+  });
+  const [eleve, croisement, ralenti, gare, marcheur, garee] = sc.acteurs;
+  assert.equal(sortDuCadre(croisement), true, "véhicule qui finit en mouvement");
+  assert.equal(sortDuCadre(ralenti), true, "même très lent, il roule encore à la fin");
+  assert.equal(sortDuCadre(eleve), false, "l'élève, qui finit pourtant en mouvement");
+  assert.equal(sortDuCadre(marcheur), false, "piéton qui finit en marchant");
+  assert.equal(sortDuCadre(gare), false, "véhicule qui finit à l'arrêt");
+  assert.equal(sortDuCadre(garee), false, "acteur fixe (pose)");
+  // Un acteur pas encore préparé n'a pas de chronologie : il ne sort pas.
+  assert.equal(sortDuCadre({ gabarit: "voiture", chemin: c, profil: roule }), false);
 });
 
 test("etatActeur : piéton à départ différé visible et immobile avant ; apparition explicite", () => {
@@ -215,6 +286,17 @@ test("etatActeur : piéton à départ différé visible et immobile avant ; appa
   }
   assert.equal(etatActeur(tardif, 5).visible, true);
   proche(etatActeur(pieton, 6).v, 5 / 3.6, 1e-6);
+});
+
+test("apparitionDe : valeur explicite, sinon « debut » pour un piéton et « depart » pour un véhicule", () => {
+  assert.equal(apparitionDe({ gabarit: "voiture" }), "depart");
+  assert.equal(apparitionDe({ gabarit: "pieton" }), "debut");
+  // Une valeur explicite l'emporte dans les deux sens.
+  assert.equal(apparitionDe({ gabarit: "voiture", apparition: "debut" }), "debut");
+  assert.equal(apparitionDe({ gabarit: "pieton", apparition: "depart" }), "depart");
+  // Et elle reste la même quand elle coïncide avec le défaut.
+  assert.equal(apparitionDe({ gabarit: "voiture", apparition: "depart" }), "depart");
+  assert.equal(apparitionDe({ gabarit: "pieton", apparition: "debut" }), "debut");
 });
 
 test("etatActeur : clignotant gauche et droit, bornes de l'intervalle comprises", () => {
@@ -296,6 +378,11 @@ test("secteurAnneau : une ouverture nulle ou de 180 degrés et plus est refusée
   assert.throws(() => secteurAnneau(0, 0, 8, 14, 0, 360), /180/);
   assert.throws(() => secteurAnneau(0, 0, 8, 14, 30, 30), /180/);
   assert.throws(() => secteurAnneau(0, 0, 8, 14, 0, NaN), /180/);
+  // Un secteur qui franchit 0 écrit avec des angles de 0 à 360 est refusé : le message dit comment le réécrire.
+  assert.throws(
+    () => secteurAnneau(0, 0, 8, 14, 350, 10),
+    (e) => /180/.test(e.message) && /-10 et 10 plutôt que 350 et 10/.test(e.message),
+  );
 });
 
 // ===== Conventions sur lesquelles reposent le moteur et les contrôles =====
