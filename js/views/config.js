@@ -333,7 +333,10 @@ async function renderPromoSection(rerender) {
         try {
           await renommerPromo(promo.id, v);
           toast("Nom de la promo mis à jour", "success");
-          rerender();
+          // Seul ce bloc est redessiné (il relit la promo courante, déjà renommée en mémoire) :
+          // le reste de la vue, le défilement et une saisie en cours ailleurs ne bougent pas.
+          const neuf = renderPromoCourante();
+          if (neuf) wrap.replaceWith(neuf);
         } catch (e) {
           nomPromo.value = promo.nom;
           toast(e.message, "error");
@@ -354,16 +357,27 @@ async function renderPromoSection(rerender) {
 
     const list = el("ul", { class: "config-list" });
     items.forEach((it) => {
+      // Champ « Nom de famille » (plus bas) : déclaré ici, le gestionnaire du prénom en a besoin.
+      let nomInput = null;
       const input = el("input", { type: "text", value: it.prenom || it.nom, readonly: admin ? undefined : true });
       if (admin) {
         input.addEventListener("blur", async () => {
           const v = input.value.trim();
-          if (!v || v === (it.prenom || it.nom)) return;
+          if (v === (it.prenom || it.nom)) return;
+          if (!v) { input.value = it.prenom || it.nom; return; }
           try {
             if (type === "stagiaire") await updateStagiaire(it.id, v);
             else await updateProf(it.id, v);
+            // Copie locale à jour : un nouveau blur ne retente pas la même écriture, et l'étiquette
+            // du champ voisin comme les confirmations d'abandon et de suppression portent le bon nom.
+            if (type === "stagiaire") it.prenom = v;
+            else it.nom = v;
+            if (nomInput) nomInput.setAttribute("aria-label", "Nom de famille de " + v);
             toast("Mis à jour", "success");
-          } catch (e) { toast(type === "stagiaire" ? messageErreurStagiaire(e) : e.message, "error"); }
+          } catch (e) {
+            input.value = it.prenom || it.nom;
+            toast(type === "stagiaire" ? messageErreurStagiaire(e) : e.message, "error");
+          }
         });
         input.addEventListener("keydown", (e) => { if (e.key === "Enter") input.blur(); });
       }
@@ -398,24 +412,24 @@ async function renderPromoSection(rerender) {
         }, icon.trash());
       }
 
-      // Stagiaire : nom de famille à côté du prénom (affichage « V. Timy », tri par nom).
-      let nomInput = null;
-      if (type === "stagiaire") {
+      // Stagiaire, pour un admin seulement : nom de famille à côté du prénom (affichage « V. Timy »,
+      // tri par nom). Les autres stagiaires n'en voient que l'initiale : le champ n'existe pas pour eux.
+      if (admin && type === "stagiaire") {
         nomInput = el("input", { type: "text", class: "config-nom", value: it.nom || "",
-          placeholder: "Nom", "aria-label": "Nom de famille de " + it.prenom,
-          readonly: admin ? undefined : true });
-        if (admin) {
-          nomInput.addEventListener("blur", async () => {
-            const v = nomInput.value.trim();
-            if (v === (it.nom || "")) return;
-            try {
-              await updateStagiaireNom(it.id, v);
-              it.nom = v || null;
-              toast("Mis à jour", "success");
-            } catch (e) { toast(e.message, "error"); }
-          });
-          nomInput.addEventListener("keydown", (e) => { if (e.key === "Enter") nomInput.blur(); });
-        }
+          placeholder: "Nom", "aria-label": "Nom de famille de " + it.prenom });
+        nomInput.addEventListener("blur", async () => {
+          const v = nomInput.value.trim();
+          if (v === (it.nom || "")) return;
+          try {
+            await updateStagiaireNom(it.id, v);
+            it.nom = v || null;
+            toast("Mis à jour", "success");
+          } catch (e) {
+            nomInput.value = it.nom || "";
+            toast(e.message, "error");
+          }
+        });
+        nomInput.addEventListener("keydown", (e) => { if (e.key === "Enter") nomInput.blur(); });
       }
       list.appendChild(el("li", {}, input, nomInput, actionBtn));
     });
@@ -426,7 +440,14 @@ async function renderPromoSection(rerender) {
       const addNom = type === "stagiaire" ? el("input", { type: "text", placeholder: "Nom de famille" }) : null;
       const addBtn = el("button", { class: "btn accent", onClick: async () => {
         const v = addInput.value.trim();
-        if (!v) return;
+        if (!v) {
+          // Seul le nom de famille est rempli : on le dit et on renvoie sur le prénom, plutôt que de ne rien faire.
+          if (addNom && addNom.value.trim()) {
+            toast("Renseigne d'abord le prénom.", "error");
+            addInput.focus();
+          }
+          return;
+        }
         try {
           if (type === "stagiaire") await addStagiaire(v, addNom.value.trim());
           else await addProf(v);
@@ -436,7 +457,13 @@ async function renderPromoSection(rerender) {
           rerender();
         } catch (e) { toast(type === "stagiaire" ? messageErreurStagiaire(e) : e.message, "error"); }
       }}, icon.plus(), "Ajouter");
-      addInput.addEventListener("keydown", (e) => { if (e.key === "Enter") addBtn.click(); });
+      // Stagiaire : Entrée dans « Prénom » passe à « Nom de famille », Entrée dans « Nom de famille »
+      // valide. Formateur (un seul champ) : Entrée valide.
+      addInput.addEventListener("keydown", (e) => {
+        if (e.key !== "Enter") return;
+        if (addNom) addNom.focus();
+        else addBtn.click();
+      });
       if (addNom) addNom.addEventListener("keydown", (e) => { if (e.key === "Enter") addBtn.click(); });
       wrap.appendChild(el("div", { class: "config-add" }, addInput, addNom, addBtn));
     }
