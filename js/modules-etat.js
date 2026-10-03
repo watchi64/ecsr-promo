@@ -31,7 +31,7 @@ let derniereLecture = 0;
 let ecrituresAbouties = 0; // écritures terminées dans cette session : voir chargerModules
 const abonnes = new Set();
 
-// Copie sur l'appareil, propre au compte : elle ne sert que si la lecture échoue.
+// Copie sur l'appareil, propre au compte et à la promo : elle ne sert que si la lecture échoue.
 function cleCopie() {
   // Propre au compte ET à la promo : basculer de promo ne doit jamais ressortir l'état des
   // modules de l'autre (spec multi-promo, suites du chantier B).
