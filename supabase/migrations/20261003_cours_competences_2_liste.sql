@@ -1,16 +1,30 @@
 -- Cours des compétences de conduite, étape 2 : liste de référence alignée sur le livret
 -- d'apprentissage B (arrêté du 29 juillet 2013, annexe III, version en vigueur depuis le
 -- 27/01/2016 ; spec ECSR du 03/10/2026, section 2). À appliquer JUSTE APRÈS la mise en
--- ligne du code qui affiche la colonne code. Marche arrière : ..._2_liste_retour.sql
+-- ligne du code qui affiche la colonne code.
+-- Marche arrière : 20261003_cours_competences_2_liste_retour.sql
+--
+-- Les gardes arrêtent tout, avant la moindre écriture, si l'état n'est plus celui relevé le
+-- 03/10 : migration déjà appliquée, liste changée, QCM sur la ligne retirée, progression REMC
+-- d'une autre promo que celle de mars (les codes réemployés changeraient le sens de ses
+-- marques), séance du planning qui citerait un intitulé REMC (le planning garde ses sujets
+-- par leur texte, le renommage couperait le lien sans bruit).
 
 do $$
 begin
+  assert not exists (select 1 from public.themes where categorie = 'Compétence conduite (REMC)' and code is not null),
+    'la liste REMC est déjà codée : migration déjà appliquée';
   assert (select count(*) from public.themes where categorie = 'Compétence conduite (REMC)') = 35,
     'la liste REMC a changé depuis le relevé du 03/10 : revoir la migration';
   assert (select count(*) from public.themes
           where categorie = 'Compétence conduite (REMC)' and id between 80 and 114) = 35,
     'identifiants REMC inattendus';
   assert not exists (select 1 from public.qcm where theme_id = 98), 'un QCM est rattaché à la ligne 98';
+  assert not exists (select 1 from public.themes_progression p join public.themes t on t.id = p.theme_id
+                     where t.categorie = 'Compétence conduite (REMC)' and p.promo_id <> 1),
+    'une autre promo que celle de mars a une progression REMC : revoir la migration';
+  assert not exists (select 1 from public.planning_entries where sujet like '%REMC C%' or sujet_2 like '%REMC C%'),
+    'une séance du planning cite un intitulé REMC : revoir la migration';
 end $$;
 
 update public.themes as t set code = v.code, titre = v.titre, ordre = v.ordre

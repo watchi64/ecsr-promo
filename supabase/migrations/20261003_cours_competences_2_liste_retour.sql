@@ -1,12 +1,28 @@
 -- Marche arrière de l'étape 2 : rétablit la liste relevée le 03/10/2026, ligne 98 et sa
--- progression de la promo de mars comprises (le déclencheur de synchronisation la recrée
--- depuis statut et date_fait). Les intitulés d'origine portaient un tiret cadratin : il est
--- produit par chr(8212), jamais écrit dans ce fichier.
+-- progression de la promo de mars comprises. La progression est écrite directement dans
+-- themes_progression : le retour vaut avant comme après le ménage multi-promo, qui retire
+-- de themes les colonnes héritées et leurs déclencheurs. À jouer avant l'import des cours de
+-- compétence : il vide themes.code, que cours.code ne référence pas par une clé étrangère.
+-- Les intitulés d'origine portaient un tiret cadratin : il est produit par chr(8212), jamais
+-- écrit dans ce fichier.
+
+do $$
+begin
+  assert not exists (select 1 from public.qcm q join public.themes t on t.id = q.theme_id
+                     where t.code in ('C3.7', 'C3.9')),
+    'un QCM est rattaché à C3.7 ou C3.9 : la suppression l''emporterait';
+end $$;
+
 delete from public.themes where code in ('C3.7', 'C3.9') and categorie = 'Compétence conduite (REMC)';
 
-insert into public.themes (id, titre, categorie, type, statut, date_fait, ordre, updated_by_email)
+insert into public.themes (id, titre, categorie, type, ordre)
 values (98, 'REMC C2.8 ' || chr(8212) || ' Franchir les différents types d''intersection et y changer de direction',
-        'Compétence conduite (REMC)', 'notion', 'Fait', '2026-05-04', 218, 'misterwatchi@gmail.com');
+        'Compétence conduite (REMC)', 'notion', 218);
+
+insert into public.themes_progression (promo_id, theme_id, statut, date_fait, updated_by_email)
+values (1, 98, 'Fait', '2026-05-04', 'misterwatchi@gmail.com')
+on conflict (promo_id, theme_id) do update
+  set statut = excluded.statut, date_fait = excluded.date_fait, updated_by_email = excluded.updated_by_email;
 
 update public.themes as t set code = null, ordre = v.ordre, titre = 'REMC ' || v.ancien || ' ' || chr(8212) || ' ' || v.titre
 from (values
