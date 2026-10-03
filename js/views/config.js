@@ -5,7 +5,8 @@
  */
 import {
   listStagiaires, listProfs,
-  addStagiaire, updateStagiaire, deleteStagiaire, setStagiaireActif,
+  addStagiaire, updateStagiaire, updateStagiaireNom, deleteStagiaire, setStagiaireActif,
+  getPromoCourante, renommerPromo,
   addProf, updateProf, deleteProf,
   listUserProfiles, deleteUserProfile, inviteUser,
   setMyAnonymousNotes,
@@ -291,6 +292,12 @@ function renderMyPreferencesSection(rerender) {
 
 // ====== SECTION Promo (stagiaires + profs) ======
 
+// Écriture d'un stagiaire refusée : l'unicité (promo, prénom) de la base (code 23505) se dit en
+// une phrase claire ; toute autre erreur garde le message de la base.
+function messageErreurStagiaire(e) {
+  return e?.code === "23505" ? "Ce prénom existe déjà dans la promo." : e?.message;
+}
+
 async function renderPromoSection(rerender) {
   const admin = isAdmin();
   const section = el("section", { class: "param-section" });
@@ -308,10 +315,40 @@ async function renderPromoSection(rerender) {
   const stagiairesActifs = allStagiaires.filter((s) => s.actif !== false);
   const stagiairesAbandon = allStagiaires.filter((s) => s.actif === false);
 
+  // Promo affichée : nom modifiable par les admins, lieu en lecture (spec multi-promo C.5).
+  function renderPromoCourante() {
+    const promo = getPromoCourante();
+    if (!promo) return null;
+    const wrap = el("div", { class: "param-block" });
+    wrap.appendChild(el("div", { class: "block-head" },
+      el("h4", {}, "Promo affichée"),
+      el("span", { class: "count" }, "Lieu : " + (promo.lieu_nom || "non renseigné")),
+    ));
+    const nomPromo = el("input", { type: "text", value: promo.nom, "aria-label": "Nom de la promo",
+      readonly: admin ? undefined : true });
+    if (admin) {
+      nomPromo.addEventListener("blur", async () => {
+        const v = nomPromo.value.trim();
+        if (!v || v === promo.nom) { nomPromo.value = promo.nom; return; }
+        try {
+          await renommerPromo(promo.id, v);
+          toast("Nom de la promo mis à jour", "success");
+          rerender();
+        } catch (e) {
+          nomPromo.value = promo.nom;
+          toast(e.message, "error");
+        }
+      });
+      nomPromo.addEventListener("keydown", (e) => { if (e.key === "Enter") nomPromo.blur(); });
+    }
+    wrap.appendChild(el("ul", { class: "config-list" }, el("li", {}, nomPromo)));
+    return wrap;
+  }
+
   function renderList(items, type) {
     const wrap = el("div", { class: "param-block" });
     wrap.appendChild(el("div", { class: "block-head" },
-      el("h4", {}, type === "stagiaire" ? "Stagiaires" : "Formateurs"),
+      el("h4", {}, type === "stagiaire" ? "Stagiaires" : "Formateurs (communs à toutes les promos)"),
       el("span", { class: "count" }, items.length + " entrée" + (items.length > 1 ? "s" : "")),
     ));
 
@@ -326,7 +363,7 @@ async function renderPromoSection(rerender) {
             if (type === "stagiaire") await updateStagiaire(it.id, v);
             else await updateProf(it.id, v);
             toast("Mis à jour", "success");
-          } catch (e) { toast(e.message, "error"); }
+          } catch (e) { toast(type === "stagiaire" ? messageErreurStagiaire(e) : e.message, "error"); }
         });
         input.addEventListener("keydown", (e) => { if (e.key === "Enter") input.blur(); });
       }
@@ -361,25 +398,47 @@ async function renderPromoSection(rerender) {
         }, icon.trash());
       }
 
-      list.appendChild(el("li", {}, input, actionBtn));
+      // Stagiaire : nom de famille à côté du prénom (affichage « V. Timy », tri par nom).
+      let nomInput = null;
+      if (type === "stagiaire") {
+        nomInput = el("input", { type: "text", class: "config-nom", value: it.nom || "",
+          placeholder: "Nom", "aria-label": "Nom de famille de " + it.prenom,
+          readonly: admin ? undefined : true });
+        if (admin) {
+          nomInput.addEventListener("blur", async () => {
+            const v = nomInput.value.trim();
+            if (v === (it.nom || "")) return;
+            try {
+              await updateStagiaireNom(it.id, v);
+              it.nom = v || null;
+              toast("Mis à jour", "success");
+            } catch (e) { toast(e.message, "error"); }
+          });
+          nomInput.addEventListener("keydown", (e) => { if (e.key === "Enter") nomInput.blur(); });
+        }
+      }
+      list.appendChild(el("li", {}, input, nomInput, actionBtn));
     });
     wrap.appendChild(list);
 
     if (admin) {
       const addInput = el("input", { type: "text", placeholder: type === "stagiaire" ? "Prénom" : "Nom" });
+      const addNom = type === "stagiaire" ? el("input", { type: "text", placeholder: "Nom de famille" }) : null;
       const addBtn = el("button", { class: "btn accent", onClick: async () => {
         const v = addInput.value.trim();
         if (!v) return;
         try {
-          if (type === "stagiaire") await addStagiaire(v);
+          if (type === "stagiaire") await addStagiaire(v, addNom.value.trim());
           else await addProf(v);
           addInput.value = "";
+          if (addNom) addNom.value = "";
           toast("Ajouté", "success");
           rerender();
-        } catch (e) { toast(e.message, "error"); }
+        } catch (e) { toast(type === "stagiaire" ? messageErreurStagiaire(e) : e.message, "error"); }
       }}, icon.plus(), "Ajouter");
       addInput.addEventListener("keydown", (e) => { if (e.key === "Enter") addBtn.click(); });
-      wrap.appendChild(el("div", { class: "config-add" }, addInput, addBtn));
+      if (addNom) addNom.addEventListener("keydown", (e) => { if (e.key === "Enter") addBtn.click(); });
+      wrap.appendChild(el("div", { class: "config-add" }, addInput, addNom, addBtn));
     }
     return wrap;
   }
@@ -428,6 +487,8 @@ async function renderPromoSection(rerender) {
     return wrap;
   }
 
+  const blocPromo = renderPromoCourante();
+  if (blocPromo) section.appendChild(blocPromo);
   section.appendChild(renderList(stagiairesActifs, "stagiaire"));
   if (admin && stagiairesAbandon.length) section.appendChild(renderAbandons(stagiairesAbandon));
   section.appendChild(renderList(profs, "prof"));
