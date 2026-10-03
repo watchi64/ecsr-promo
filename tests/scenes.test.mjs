@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { SCENES } from "../js/scenes.js";
 import { controlerScene } from "../js/scene-controles.js";
-import { oeil, angleRegard, coneRegard, regardContient } from "../js/scene-regard.js";
+import { oeil, angleRegard, cibleSuivie, coneRegard, regardContient } from "../js/scene-regard.js";
 import { KMH, DEG, preparerScene, etatActeur, emprise, tempsAtteint, centreArc, pointA, pointDansPolygone,
   polygonesSeChevauchent } from "../js/scene-geometrie.js";
 import { DESSIN } from "../js/scene-decors.js";
@@ -33,6 +33,20 @@ function nonGeles(valeur, chemin = "définition", vus = new Set()) {
   vus.add(valeur);
   const ici = Object.isFrozen(valeur) ? [] : [chemin];
   return ici.concat(...Object.entries(valeur).map(([k, v]) => nonGeles(v, `${chemin}.${k}`, vus)));
+}
+
+// Instants où l'élève roule pendant une étape qui suit un usager sans que le conducteur le suive des yeux (cible
+// invisible, ou passée derrière lui au-delà de REGARD_MAX_SUIVI : son regard est alors ramené devant). La scène doit
+// changer d'étape avant que la cible sorte du champ du conducteur.
+function ciblesPerdues(def) {
+  const sc = preparerScene(def);
+  const perdues = [];
+  for (const t of instantsPas(sc)) {
+    const etape = sc.etapes[etapeActive(sc, t)], e = etatActeur(sc.eleve, t);
+    if (!(etape.regard && etape.regard.suivre) || e.v <= ROULE) continue;
+    if (cibleSuivie(etape, e, etatsA(sc, t)) === null) perdues.push(`t = ${t.toFixed(1)} s`);
+  }
+  return perdues;
 }
 
 // Pour chaque attente « cede » : instants où l'élève est arrêté avant d'entrer dans la zone, que l'autre usager n'a
@@ -72,14 +86,7 @@ for (const [code, entree] of Object.entries(SCENES)) {
   });
   test(`scène ${code} : tant que l'élève roule, le regard ne perd jamais la cible qu'il suit`, () => {
     // La scène change d'étape avant que la cible sorte du champ du conducteur (REGARD_MAX_SUIVI).
-    const sc = preparerScene(entree.construire());
-    const perdue = [];
-    for (const t of instantsPas(sc)) {
-      const etape = sc.etapes[etapeActive(sc, t)], e = etatActeur(sc.eleve, t);
-      if (!(etape.regard && etape.regard.suivre) || e.v <= ROULE) continue;
-      if (angleRegard(etape, e, t, etatsA(sc, t)) === null) perdue.push(`t = ${t.toFixed(1)} s`);
-    }
-    assert.deepEqual(perdue, []);
+    assert.deepEqual(ciblesPerdues(entree.construire()), []);
   });
   test(`scène ${code} : arrêté pour céder le passage, l'élève suit du regard l'usager à qui il le cède`, () => {
     assert.deepEqual(regardsHorsCede(entree.construire()), []);
@@ -141,6 +148,14 @@ test("tourner-droite : un regard qui quitte le piéton pendant l'attente est dé
   const etape = def.etapes.find((e) => e.regard && e.regard.suivre === "pieton");
   etape.regard = { angle: 0 };
   assert.ok(regardsHorsCede(def).length > 0);
+});
+
+test("tourner-droite : une étape qui suit encore le piéton une fois la voiture repartie est détectée", () => {
+  // Sans l'étape « Repartir », l'étape qui suit le piéton dure pendant que la voiture s'éloigne : il passe derrière le
+  // conducteur, qui ne le suit plus des yeux (son regard est ramené devant) alors que l'étape affichée dit le contraire.
+  const def = copie("tourner-droite");
+  def.etapes = def.etapes.slice(0, 7);
+  assert.ok(ciblesPerdues(def).length > 0);
 });
 
 test("tourner-gauche : tourner avant que le véhicule d'en face soit passé est détecté", () => {
@@ -356,6 +371,8 @@ test("tourner-droite : huit étapes de la fiche, dans l'ordre, chacune avec son 
 //
 // Comme pour tourner-droite, les instants se lisent sur la définition (trajet, chronologie, emprises).
 
+const ALLURE_REDUITE = 8;   // km/h : allure du balayage, avant de s'arrêter pour céder (choix de dessin, sources de la scène)
+
 function lireTournerGauche() {
   const def = SCENES["tourner-gauche"].construire(), sc = preparerScene(def);
   const eleve = sc.eleve, enFace = sc.acteurs.find((a) => a.id === "enFace");
@@ -443,14 +460,14 @@ test("tourner-gauche : tourner après le point central, le centre de la voiture 
   assert.ok(surAxeNordSud.y < cy, `axe nord-sud franchi en y = ${surAxeNordSud.y.toFixed(3)}, pas au nord du point central`);
 });
 
-test("tourner-gauche : 25 km/h, 10 km/h avant le balayage, arrêt pour céder, décélérations de 2,0 m/s² au plus, reprise de 1,5 m/s² au plus sans dépasser 10 km/h dans l'arc", () => {
+test("tourner-gauche : 25 km/h, 8 km/h avant le balayage, arrêt pour céder, décélérations de 2,0 m/s² au plus, reprise de 1,5 m/s² au plus sans dépasser 10 km/h dans l'arc", () => {
   const { sc, eleve, tArret, tReprise, tFinVirage, T } = lireTournerGauche();
   proche(kmh(eleve, 0), 25, 1e-9, "allure d'approche");
-  // Allure réduite avant l'intersection : 10 km/h atteints avant le balayage et tenus jusqu'au freinage pour le
+  // Allure réduite avant l'intersection : 8 km/h atteints avant le balayage et tenus jusqu'au freinage pour le
   // véhicule d'en face (étape 5).
-  const tDix = premierInstant((t) => kmh(eleve, t) <= 10 + 1e-9, 0, tArret);
-  assert.ok(tDix !== null && tDix <= T[3] + 1e-9, "10 km/h atteints avant le balayage");
-  for (let t = tDix; t < T[4]; t += 0.01) proche(kmh(eleve, t), 10, 1e-9, `allure à t = ${t.toFixed(2)} s`);
+  const tReduite = premierInstant((t) => kmh(eleve, t) <= ALLURE_REDUITE + 1e-9, 0, tArret);
+  assert.ok(tReduite !== null && tReduite <= T[3] + 1e-9, "allure réduite atteinte avant le balayage");
+  for (let t = tReduite; t < T[4]; t += 0.01) proche(kmh(eleve, t), ALLURE_REDUITE, 1e-9, `allure à t = ${t.toFixed(2)} s`);
   // Dans l'arc, reprise jusqu'à 10 km/h au plus et aucun freinage : l'allure se réduit avant le virage, jamais pendant.
   for (let t = tReprise; t <= tFinVirage + 1e-9; t += 0.01) {
     const e = etatActeur(eleve, t);
@@ -491,22 +508,23 @@ test("tourner-gauche : cadre de 46 m qui suit l'élève, cône des rétroviseurs
   }
 });
 
-test("tourner-gauche : balayage à 10 km/h, carrefour dans le cadre, le cône contient au moins un instant le point central et l'entrée de chaque voie qui arrive dans l'intersection", () => {
+test("tourner-gauche : balayage à 8 km/h, carrefour dans le cadre, le cône contient au moins un instant le point central, l'entrée de chaque voie qui arrive dans l'intersection et le passage piéton de la voie de sortie", () => {
   const { def, sc, eleve, reperes, T } = lireTournerGauche();
-  const { cx, cy, bord } = reperes, h = DESSIN.voie;
+  const { cx, cy, bord, passages } = reperes, h = DESSIN.voie;
   const cedez = (cote) => def.decor.marquages.find((m) => m.role === "cedez-" + cote).de[0];
   const cibles = {
     "point central de l'intersection": { x: cx, y: cy },
     "voie entrante ouest, à sa ligne de cédez-le-passage": { x: cedez("ouest"), y: cy + h / 2 },
     "voie du véhicule d'en face, au bord nord du carrefour": { x: cx - h / 2, y: bord.nord },
     "voie entrante est, à sa ligne de cédez-le-passage": { x: cedez("est"), y: cy - h / 2 },
+    "passage piéton de la branche ouest, sur la voie de sortie": { x: (passages.ouest.x0 + passages.ouest.x1) / 2, y: cy - h / 2 },
   };
   const instants = instantsPas(sc).filter((t) => t + 1e-9 >= T[3] && t < T[4]);
   assert.ok(instants.length >= DUREE_MIN.balayage / PAS - 1, "le balayage est échantillonné");
   const vus = new Map(Object.keys(cibles).map((nom) => [nom, 0]));
   for (const t of instants) {
     const e = etatActeur(eleve, t), c = cadre(def, e);
-    proche(e.v / KMH, 10, 1e-9, `allure à t = ${t.toFixed(1)} s`);
+    proche(e.v / KMH, ALLURE_REDUITE, 1e-9, `allure à t = ${t.toFixed(1)} s`);
     for (const [x, y] of def.decor.zones.carrefour) {
       assert.ok(x >= c.x0 && x <= c.x0 + c.w && y >= c.y0 && y <= c.y0 + c.h, `carrefour hors du cadre à t = ${t.toFixed(1)} s`);
     }
@@ -526,28 +544,48 @@ test("tourner-gauche : le véhicule d'en face roule à 30 km/h, part et finit ho
   proche(tEntree - tArret, 0.3, 1e-6, "entrée dans le carrefour après l'arrêt de l'élève");
 });
 
-test("tourner-gauche : l'élève suit des yeux le véhicule d'en face dès qu'il ralentit pour lui, jusqu'à ce qu'il ait quitté la zone de conflit", () => {
-  const { def, sc, eleve, enFace, tArret, tSortieFace, T } = lireTournerGauche();
-  // L'étape 5 commence avec le freinage pour céder le passage ; le véhicule d'en face est alors déjà à l'image.
-  proche(T[4], premierInstant((t) => kmh(eleve, t) < 10 - 1e-9, T[3], tArret), 1e-6, "étape 5 au début du freinage");
-  const eF = etatActeur(enFace, T[4]);
-  assert.ok(eF.visible, "parti quand l'élève ralentit pour lui");
-  assert.ok(Math.max(...emprise("voiture", eF).map(([, y]) => y)) > cadre(def, etatActeur(eleve, T[4])).y0,
-    "dans le cadre quand l'élève ralentit pour lui");
-  const instants = instantsPas(sc).filter((t) => t + 1e-9 >= T[4] && t <= tSortieFace);
+test("tourner-gauche : l'élève suit des yeux le véhicule d'en face dès qu'il ralentit pour lui, puis, le véhicule passé, regarde de nouveau devant lui la voie d'en face avant l'angle mort", () => {
+  const { def, sc, eleve, enFace, reperes, tArret, tSortieFace, T } = lireTournerGauche();
+  // L'étape 5 commence avec le freinage pour céder le passage : le centre du véhicule d'en face est alors dans le cadre
+  // et dans le cône.
+  proche(T[4], premierInstant((t) => kmh(eleve, t) < ALLURE_REDUITE - 1e-9, T[3], tArret), 1e-6, "étape 5 au début du freinage");
+  const e4 = etatActeur(eleve, T[4]), f4 = etatActeur(enFace, T[4]), c4 = cadre(def, e4);
+  assert.ok(f4.visible, "parti quand l'élève ralentit pour lui");
+  assert.ok(f4.x >= c4.x0 && f4.x <= c4.x0 + c4.w && f4.y >= c4.y0 && f4.y <= c4.y0 + c4.h,
+    "centre du véhicule d'en face dans le cadre quand l'élève ralentit pour lui");
+  assert.ok(regardContient(angleRegard(sc.etapes[4], e4, T[4], etatsA(sc, T[4])), oeil(e4), f4),
+    "centre du véhicule d'en face dans le cône quand l'élève ralentit pour lui");
+  // Pendant toute l'étape 5, l'étape suit le véhicule d'en face (jusqu'à sa sortie de la zone de conflit, et au-delà
+  // jusqu'à l'angle mort) ; le regard est posé sur lui, sauf une fois l'élève arrêté et le véhicule passé derrière son
+  // œil (au-delà de REGARD_MAX_SUIVI) : il est alors ramené devant, jamais absent.
+  assert.ok(T[5] > tSortieFace, "étape 5 jusqu'après la sortie de la zone de conflit");
+  const instants = instantsPas(sc).filter((t) => t + 1e-9 >= T[4] && t + 1e-9 < T[5]);
+  const devant = [];
   for (const t of instants) {
-    const etape = sc.etapes[etapeActive(sc, t)], e = etatActeur(eleve, t);
+    const etape = sc.etapes[etapeActive(sc, t)], e = etatActeur(eleve, t), etats = etatsA(sc, t);
     assert.equal(etape.regard.suivre, "enFace", `t = ${t.toFixed(1)} s`);
-    // Le cône ne le lâche qu'une fois l'élève arrêté et le véhicule d'en face passé à sa hauteur (derrière son œil).
-    if (angleRegard(etape, e, t, etatsA(sc, t)) === null) {
-      assert.ok(e.v === 0 && etatActeur(enFace, t).y > oeil(e).y, `regard perdu à t = ${t.toFixed(1)} s`);
-    }
+    if (cibleSuivie(etape, e, etats)) continue;
+    assert.ok(e.v === 0 && etatActeur(enFace, t).y > oeil(e).y, `regard détourné du véhicule d'en face à t = ${t.toFixed(1)} s`);
+    assert.equal(angleRegard(etape, e, t, etats), e.cap, `regard ramené devant à t = ${t.toFixed(1)} s`);
+    devant.push(t);
   }
-  // Arrêté, l'élève le garde dans le cône tant qu'il arrive vers lui.
+  // Arrêté, l'élève garde le véhicule d'en face dans le cône tant qu'il arrive vers lui.
   for (const t of instants.filter((t) => t >= tArret)) {
     const etape = sc.etapes[etapeActive(sc, t)], e = etatActeur(eleve, t), f = etatActeur(enFace, t);
     if (f.y >= oeil(e).y) continue;
     assert.ok(regardContient(angleRegard(etape, e, t, etatsA(sc, t)), oeil(e), f), `véhicule d'en face hors du cône à t = ${t.toFixed(1)} s`);
+  }
+  // Le véhicule passé, le regard ramené devant couvre de nouveau la voie d'en face en amont du carrefour (un autre
+  // véhicule peut suivre le premier), jusqu'à l'angle mort.
+  assert.ok(devant.length > 0, "regard ramené devant avant l'angle mort");
+  for (let k = 1; k < devant.length; k++) proche(devant[k] - devant[k - 1], PAS, 1e-9, "regard ramené devant sans interruption");
+  assert.ok(T[5] - devant[devant.length - 1] <= PAS + 1e-9, "regard ramené devant jusqu'à l'angle mort");
+  for (const t of devant) {
+    const e = etatActeur(eleve, t), angle = angleRegard(sc.etapes[4], e, t, etatsA(sc, t));
+    for (const amont of [5, 10, 15]) {
+      const p = { x: reperes.cx - DESSIN.voie / 2, y: reperes.bord.nord - amont };
+      assert.ok(regardContient(angle, oeil(e), p), `voie d'en face, ${amont} m en amont du carrefour, hors du cône à t = ${t.toFixed(1)} s`);
+    }
   }
 });
 
@@ -580,7 +618,7 @@ test("tourner-gauche : huit étapes de la fiche, dans l'ordre, chacune avec son 
   proche(T[1], tempsAtteint(eleve.chrono, decalage[0].debut), 1e-9, "serrer : début du décalage");
   proche(T[2], premierInstant((t) => kmh(eleve, t) < 25 - 1e-9, 0, tArret), 1e-6, "réduire : début du ralentissement");
   proche(T[4] - T[3], 2.0, 1e-6, "balayer : les 2,0 s qui précèdent le freinage");
-  proche(T[4], premierInstant((t) => kmh(eleve, t) < 10 - 1e-9, T[3], tArret), 1e-6, "céder : début du freinage");
+  proche(T[4], premierInstant((t) => kmh(eleve, t) < ALLURE_REDUITE - 1e-9, T[3], tArret), 1e-6, "céder : début du freinage");
   proche(T[5], tSortieFace + 0.4, 1e-6, "angle mort : 0,4 s après la sortie du véhicule d'en face");
   proche(T[6], tReprise, 1e-6, "tourner : au redémarrage");
   proche(T[7], tFinVirage, 1e-6, "rejoindre la voie de droite : à la fin de l'arc");
