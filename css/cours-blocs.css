@@ -31,3 +31,19 @@
 .cours-competence .cours-somm-num { display: none; }
 /* Pastille de l'en-tête : style.css la fixe à 2,1 rem, trop étroit pour un code comme « C2.4 ». */
 .cours-competence .cours-num { min-width: 2.6rem; width: auto; padding: 0 0.3rem; }
+
+/* Schéma animé */
+.scene-bloc { margin: 1.2rem 0; }
+.scene-vue { border-radius: var(--r); overflow: hidden; background: #5D635B; }
+.scene-svg { display: block; width: 100%; height: auto; max-height: 72vh; }
+.scene-commandes { display: flex; gap: 0.5rem; align-items: center; margin: 0.5rem 0; }
+.scene-facteur { font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-muted); }
+.scene-etapes { list-style: none; margin: 0.3rem 0 0; padding: 0; display: grid; gap: 0.2rem; }
+.scene-etape {
+  display: flex; gap: 0.6rem; align-items: baseline; width: 100%; text-align: left;
+  background: none; border: 0; border-radius: var(--r-sm); padding: 0.35rem 0.5rem;
+  font: inherit; color: var(--text-soft); cursor: pointer;
+}
+.scene-etape-num { font-family: var(--font-mono); min-width: 1.2rem; color: var(--text-muted); }
+.scene-etapes li.on .scene-etape { background: var(--accent-soft); color: var(--text); font-weight: 500; }
+.scene-inconnue .scene-etape { cursor: default; }

@@ -150,6 +150,13 @@ export function signalConnu(code) {
     || Object.prototype.hasOwnProperty.call(CATALOGUE, code);
 }
 
+/** URL du dessin officiel d'un panneau du registre vérifié, sinon null. Les
+ *  scènes animées n'utilisent que ce registre, jamais le catalogue. */
+export function urlSignalVerifie(code) {
+  const s = SIGNAUX[code];
+  return s && s.fichier ? cheminSignal(s.fichier) : null;
+}
+
 function visuel(code, s) {
   if (s.dessin) {
     const d = s.dessin();
