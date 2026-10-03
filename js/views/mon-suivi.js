@@ -551,10 +551,22 @@ function lienRetour(label, href) {
   return el("a", { class: "fiche-retour", href }, icon.chevronLeft(), el("span", {}, label));
 }
 
+// Renvoie ce qui est affiché : "onglets", "sommaire", "partie" (iPhone, avec un
+// retour) ou "unique" (iPhone, une seule partie ouverte, montrée directement).
 export function renderFiche(container, d, opts) {
   clear(container);
   const parties = partiesVisibles();
   const partie = parties.includes(opts.partie) ? opts.partie : null;
+  if (opts.disposition !== "onglets" && parties.length === 1) {
+    // Une seule partie ouverte (début de formation) : pas de sommaire d'une ligne,
+    // la partie directement, comme renderSubTabs qui cache sa barre pour un seul onglet.
+    if (opts.retour) container.appendChild(lienRetour(opts.retour.label, opts.retour.href));
+    if (opts.titre) container.appendChild(el("h2", { class: "fiche-titre" }, opts.titre));
+    const panel = el("div", { class: "fiche-partie" });
+    container.appendChild(panel);
+    rendrePartie(panel, parties[0], d, opts, { isActive: () => panel.isConnected });
+    return "unique";
+  }
   if (opts.disposition === "onglets") {
     if (opts.titre) container.appendChild(el("h2", { class: "fiche-titre" }, opts.titre));
     container.appendChild(renderSubTabs(parties.map((p) => ({
@@ -567,7 +579,7 @@ export function renderFiche(container, d, opts) {
       onChange: (p) => remplacerAdresse(opts.adresse(p)),
       avantChangement: () => peutQuitter(),
     }));
-    return;
+    return "onglets";
   }
   if (partie) {
     // iPhone, une partie en plein écran : le retour mène au sommaire.
@@ -576,12 +588,13 @@ export function renderFiche(container, d, opts) {
     const panel = el("div", { class: "fiche-partie" });
     container.appendChild(panel);
     rendrePartie(panel, partie, d, opts, { isActive: () => panel.isConnected });
-    return;
+    return "partie";
   }
   // iPhone : le sommaire.
   if (opts.retour) container.appendChild(lienRetour(opts.retour.label, opts.retour.href));
   if (opts.titre) container.appendChild(el("h2", { class: "fiche-titre" }, opts.titre));
   container.appendChild(rendreSommaire(d, parties, opts));
+  return "sommaire";
 }
 
 function rendreSommaire(d, parties, opts) {
@@ -696,13 +709,13 @@ export async function renderMonSuivi(container) {
   let d = null;
   const dessiner = (adr) => {
     const disposition = dispositionFiche();
-    // iPhone, dans une partie : le retour « ‹ Mon espace » remplace l'en-tête.
-    header.hidden = disposition === "sommaire" && !!adr.partie;
-    renderFiche(corps, d, {
+    const affiche = renderFiche(corps, d, {
       soi: true, partie: adr.partie, disposition, titre: null, retour: null,
       adresse: (p) => adresseFiche("mon-suivi", null, p),
       storageKey: "ecsr_monsuivi_subtab",
     });
+    // iPhone, dans une partie : le retour « ‹ Mon espace » remplace l'en-tête.
+    header.hidden = affiche === "partie";
     if (disposition === "sommaire") window.scrollTo(0, 0);
   };
   const charger = async () => {
