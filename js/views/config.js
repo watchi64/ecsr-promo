@@ -10,12 +10,12 @@ import {
   addProf, updateProf, deleteProf,
   listUserProfiles, deleteUserProfile, inviteUser,
   setMyAnonymousNotes,
-} from "../db.js?v=20261003d";
-import { el, clear, toast, displayStagiaire } from "../utils.js?v=20261003d";
-import { icon } from "../icons.js?v=20261003d";
-import { isAdmin, getAdminEmail, getProfile } from "../auth-admin.js?v=20261003d";
-import { moduleVisible } from "../modules-etat.js?v=20261003d";
-import { renderModulesSection } from "./modules-reglage.js?v=20261003d";
+} from "../db.js?v=20261003e";
+import { el, clear, toast, displayStagiaire } from "../utils.js?v=20261003e";
+import { icon } from "../icons.js?v=20261003e";
+import { isAdmin, getAdminEmail, getProfile } from "../auth-admin.js?v=20261003e";
+import { moduleVisible } from "../modules-etat.js?v=20261003e";
+import { renderModulesSection } from "./modules-reglage.js?v=20261003e";
 
 // ====== SECTION Accès & invitations ======
 

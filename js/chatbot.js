@@ -3,11 +3,11 @@
  * Aucune cle ici : tout passe par l'Edge Function `chatbot` (JWT verifie).
  * Historique ephemere (sessionStorage), fenetre des 8 derniers messages envoyee.
  */
-import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261003d";
-import { supabase } from "./db.js?v=20261003d";
-import { icon } from "./icons.js?v=20261003d";
-import { fenetreMessages, pageDepuisHash, extraireEvenements } from "./chatbot-rules.js?v=20261003d";
-import { moduleVisible, moduleMasque, repereMasque } from "./modules-etat.js?v=20261003d";
+import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261003e";
+import { supabase } from "./db.js?v=20261003e";
+import { icon } from "./icons.js?v=20261003e";
+import { fenetreMessages, pageDepuisHash, extraireEvenements } from "./chatbot-rules.js?v=20261003e";
+import { moduleVisible, moduleMasque, repereMasque } from "./modules-etat.js?v=20261003e";
 
 const CLE_HISTO = "chatbot_histo";
 let histo = [];
@@ -25,7 +25,7 @@ function sauverHisto() {
 
 async function rendreEnMarkdown(noeud, texte) {
   try {
-    const { rendreMarkdown } = await import("./views/cours-reader.js?v=20261003d");
+    const { rendreMarkdown } = await import("./views/cours-reader.js?v=20261003e");
     const { noeuds } = rendreMarkdown(texte);
     noeud.replaceChildren(...noeuds);
     noeud.querySelectorAll("a[href^='http']").forEach((a) => {

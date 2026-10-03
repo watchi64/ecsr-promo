@@ -9,7 +9,7 @@
 // au sommaire, et il passe obligatoirement par escapeHtml. Toutes les autres
 // valeurs entrent par fillData, qui écrit en textContent.
 
-import { rubriquesImprimees, rubriquesEdition, sommaire, cleExemple } from "../dp-rules.js?v=20261003d";
+import { rubriquesImprimees, rubriquesEdition, sommaire, cleExemple } from "../dp-rules.js?v=20261003e";
 
 function escapeHtml(s) {
   return String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));

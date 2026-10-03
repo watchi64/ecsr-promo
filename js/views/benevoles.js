@@ -9,9 +9,9 @@ import {
   listBenevoles, addBenevole, updateBenevole, setBenevoleActif,
   listAutoEcoles, addAutoEcole, updateAutoEcole, setAutoEcoleActif, deleteAutoEcole,
   listVenuesBenevoles, listSuiviBenevole, upsertSuiviBenevole, listStagiaires, getPromoCourante,
-} from "../db.js?v=20261003d";
-import { el, clear, toast, displayStagiaire, compareByNom, isoDate, addDays, formatDayShort } from "../utils.js?v=20261003d";
-import { JOURS } from "../config.js?v=20261003d";
+} from "../db.js?v=20261003e";
+import { el, clear, toast, displayStagiaire, compareByNom, isoDate, addDays, formatDayShort } from "../utils.js?v=20261003e";
+import { JOURS } from "../config.js?v=20261003e";
 
 const JOURS_COURTS = ["Lun", "Mar", "Mer", "Jeu", "Ven"];
 const DEMI = [
@@ -94,7 +94,8 @@ function dispoBadges(b) {
   return wrap;
 }
 
-function telLink(tel) {
+// Exporté pour le Planning (numéro d'un élève bénévole au toucher) : même lien tel:, même classe.
+export function telLink(tel) {
   if (!tel || !String(tel).trim()) return null;
   return el("a", { class: "bnv-tel", href: "tel:" + String(tel).replace(/[^+\d]/g, "") }, tel);
 }

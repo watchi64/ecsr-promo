@@ -5,18 +5,18 @@
 // et écrivent la valeur de la promo courante. Si ce rangement change, c'est ce
 // fichier seul qu'on rebranche. Les règles vivent dans js/modules.js, le
 // catalogue dans js/modules-data.js.
-import { getSetting, setSetting, getPromoCourante } from "./db.js?v=20261003d";
-import { isAdmin, isProf, isFounder, getAdminEmail } from "./auth-admin.js?v=20261003d";
-import { icon } from "./icons.js?v=20261003d";
+import { getSetting, setSetting, getPromoCourante } from "./db.js?v=20261003e";
+import { isAdmin, isProf, isFounder, getAdminEmail } from "./auth-admin.js?v=20261003e";
+import { icon } from "./icons.js?v=20261003e";
 import {
   MODULES, MODULE_DE_ROUTE, MODULE_DE_SOUS_ONGLET, REGLAGE_OUVERT_AUX_FORMATEURS,
-} from "./modules-data.js?v=20261003d";
+} from "./modules-data.js?v=20261003e";
 import {
   ETAT_LIBRE, lireEtat, ecrireEtat, estReglee, estOuvert, basculer, ensembleDeDepart,
   avecAnnonces, nouveautesPour,
-} from "./modules.js?v=20261003d";
-import { NOUVEAUTES } from "./nouveautes-data.js?v=20261003d";
-import { triees, visibles, nonLues, vuesEffectives, marquerVues, amorcePour } from "./nouveautes.js?v=20261003d";
+} from "./modules.js?v=20261003e";
+import { NOUVEAUTES } from "./nouveautes-data.js?v=20261003e";
+import { triees, visibles, nonLues, vuesEffectives, marquerVues, amorcePour } from "./nouveautes.js?v=20261003e";
 
 const CLE_REGLAGE = "modules";
 const REF = { modules: MODULES, moduleDeRoute: MODULE_DE_ROUTE, moduleDeSousOnglet: MODULE_DE_SOUS_ONGLET };
