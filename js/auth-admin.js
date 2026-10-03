@@ -21,6 +21,7 @@ import {
 import { el, toast, displayStagiaire } from "./utils.js?v=20261003b";
 import { icon } from "./icons.js?v=20261003b";
 import { construirePastille } from "./promo-pastille.js?v=20261003b";
+import { pagePersonnelle } from "./route-rules.js?v=20261003b";
 
 let currentUser = null;     // Supabase auth user
 let currentProfile = null;  // row user_profiles
@@ -354,13 +355,14 @@ function openProfileMenu() {
     location.reload();
   }}, "Se déconnecter");
 
-  // Accès direct à l'espace personnel (Mon suivi) depuis le badge : demandé pour que
-  // « cliquer sur mon nom » mène chez soi. On change juste le hash → le routeur (main.js)
-  // fait le rendu ; pas d'import de navigate ici.
+  // Accès direct à sa page depuis le badge : « cliquer sur mon nom » mène chez soi.
+  // Un formateur sans profil stagiaire n'a pas de Mon espace : sa page est la page
+  // Stagiaires (chantier D, lot 2). On change juste le hash, le routeur fait le rendu.
+  const versStagiaires = pagePersonnelle({ formateur: isAdmin() || isProf(), stagiaireId: monStagiaireId() }) === "stagiaires";
   const persoBtn = el("button", { class: "btn full", onClick: () => {
     backdrop.remove();
-    location.hash = "#/mon-suivi";
-  }}, icon.user(), "Mon espace personnel");
+    location.hash = versStagiaires ? "#/stagiaires" : "#/mon-suivi";
+  }}, versStagiaires ? icon.users() : icon.user(), versStagiaires ? "Stagiaires" : "Mon espace personnel");
 
   const modal = el("div", { class: "modal" },
     el("h3", {}, "Mon compte"),

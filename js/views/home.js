@@ -5,7 +5,7 @@
 import { listAgendaEvents } from "../db.js?v=20261003b";
 import { el, clear, parseDate, formatDate, isoDate } from "../utils.js?v=20261003b";
 import { icon } from "../icons.js?v=20261003b";
-import { isAdmin, getProfile, getProfileWho } from "../auth-admin.js?v=20261003b";
+import { isAdmin, isProf, getProfile, getProfileWho } from "../auth-admin.js?v=20261003b";
 import {
   nouveautesAffichables, marquerLues, routeVisible, routeMasquee, repereMasque,
 } from "../modules-etat.js?v=20261003b";
@@ -126,7 +126,11 @@ export async function renderHome(container) {
 
   // === Raccourcis principaux (tuiles) ===
   const tiles = [
-    // Les tuiles suivent la barre d'onglets (Priorités se rejoint depuis le Planning).
+    // La page Stagiaires (chantier D, lot 2) en tête, chez un formateur ou un admin.
+    // Les autres tuiles suivent la barre d'onglets (Priorités se rejoint depuis le Planning).
+    ...((isAdmin() || isProf())
+      ? [{ route: "stagiaires", icon: "users", title: "Stagiaires", desc: "La promo, une fiche par personne" }]
+      : []),
     { route: "planning",   icon: "calendar",     title: "Planning",         desc: "Cette semaine, créneaux & tirages" },
     { route: "calendrier", icon: "clock",        title: "Calendrier",       desc: "Examens, stages, dates clés" },
     { route: "themes",     icon: "book",         title: "Cours",            desc: "Thèmes, compétences & QCM" },

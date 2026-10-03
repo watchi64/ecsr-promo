@@ -5,7 +5,7 @@
 import { getCurrentUser, invalidateCache, verifyRecoveryToken } from "./db.js?v=20261003b";
 import { toast } from "./utils.js?v=20261003b";
 import { icon } from "./icons.js?v=20261003b";
-import { initAuth, onAdminChange, isAuth } from "./auth-admin.js?v=20261003b";
+import { initAuth, onAdminChange, isAuth, isAdmin, isProf, monStagiaireId } from "./auth-admin.js?v=20261003b";
 import { showGate, hideGate } from "./gate.js?v=20261003b";
 import { lireJetonRecuperation } from "./gate-rules.js?v=20261003b";
 import { loadAccent } from "./accent-switcher.js?v=20261003b";
@@ -24,7 +24,8 @@ import { initUndoKeyboard } from "./undo.js?v=20261003b";
 import { renderNouveautes } from "./views/nouveautes.js?v=20261003b";
 import { libellePastille } from "./nouveautes.js?v=20261003b";
 import { renderCcp2 } from "./views/ccp2.js?v=20261003b";
-import { lireAdresse } from "./route-rules.js?v=20261003b";
+import { renderStagiaires } from "./views/stagiaires.js?v=20261003b";
+import { lireAdresse, pagePersonnelle } from "./route-rules.js?v=20261003b";
 import {
   peutQuitter, leverGardeSortie, majSurPlacePour, oublierMajSurPlace,
   noterAdresse, adresseCourante, remplacerAdresse, installerGardeNavigateur,
@@ -120,6 +121,7 @@ const routes = {
   themes:     renderThemes,
   notes:      renderNotes,
   ccp2:       renderCcp2,
+  stagiaires: renderStagiaires,
   ressources: renderRessources,
   config:     renderConfig,
   nouveautes: renderNouveautes,
@@ -169,6 +171,16 @@ async function navigate({ force = false } = {}) {
   // stagiaire est ramené sur Mon suivi, avec un mot d'explication.
   if (!routeVisible(route)) {
     toast("Cette partie n'est pas encore ouverte pour ta promo.", "info", 3500);
+    try { history.replaceState(null, "", "#/mon-suivi"); } catch (e) { /* ignore */ }
+    route = "mon-suivi";
+  }
+  // Page « à soi » (chantier D, lot 2) : un formateur sans profil stagiaire n'a pas
+  // de Mon espace, il a la page Stagiaires ; un stagiaire n'a pas la page Stagiaires.
+  const formateur = isAdmin() || isProf();
+  if (route === "mon-suivi" && pagePersonnelle({ formateur, stagiaireId: monStagiaireId() }) === "stagiaires") {
+    try { history.replaceState(null, "", "#/stagiaires"); } catch (e) { /* ignore */ }
+    route = "stagiaires";
+  } else if (route === "stagiaires" && !formateur) {
     try { history.replaceState(null, "", "#/mon-suivi"); } catch (e) { /* ignore */ }
     route = "mon-suivi";
   }
