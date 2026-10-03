@@ -1205,7 +1205,9 @@ function renderThemeRow(theme, container, coursOn = false) {
     delBtn = el("button", {
       class: "btn small danger icon-only", "aria-label": "Supprimer la notion",
       onClick: async () => {
-        if (!confirm(`Supprimer la notion « ${theme.titre} » ?`)) return;
+        // `themes` est commun à toutes les promos : la suppression emporte en cascade la progression,
+        // les QCM, les états d'examen et les tentatives de TOUTES les promos.
+        if (!confirm(`Supprimer la notion « ${theme.titre} » ?\n\nLa suppression vaut pour toutes les promos : la progression, les QCM et les tentatives liés disparaissent avec elle.`)) return;
         await deleteTheme(theme.id);
         themes = themes.filter((t) => t.id !== theme.id);
         rerender(container);
@@ -1301,7 +1303,7 @@ function openAddNotionModal(onSaved) {
         ordre: 999,
         updated_by_email: getAdminEmail(),
       });
-      toast("Notion ajoutée", "success");
+      toast("Notion ajoutée pour toutes les promos", "success");
       backdrop.remove();
       onSaved();
     } catch (e) { toast(e.message, "error"); }

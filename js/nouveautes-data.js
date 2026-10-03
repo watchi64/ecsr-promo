@@ -23,10 +23,11 @@ export const NOUVEAUTES = [
     resume: "La promo de septembre a sa place dans l'app, à côté de celle de mars. En haut de "
           + "l'écran, une pastille indique la promo affichée : touche-la pour changer. Chaque "
           + "appareil retient ton choix. Planning, calendrier, notes, passages, progression des "
-          + "thèmes et examens QCM sont propres à chaque promo ; cours, banque de questions et "
-          + "ressources restent communs. Les élèves bénévoles et les auto-écoles sont rangés par "
-          + "lieu. Et la section « Modules de la promo » des Paramètres t'est ouverte : elle "
-          + "règle les outils de la promo affichée, et d'elle seule.",
+          + "thèmes et examens QCM sont propres à chaque promo ; cours, banque de questions, "
+          + "ressources, ainsi que la liste des thèmes et des notions, restent communs. Les "
+          + "élèves bénévoles et les auto-écoles sont rangés par lieu. Et la section « Modules "
+          + "de la promo » des Paramètres t'est ouverte : elle règle les outils de la promo "
+          + "affichée, et d'elle seule.",
     ou: { label: "Pastille en haut, à côté de ton nom", route: "home" },
     guide: [
       "Touche la pastille « mars 2026 » en haut de l'écran.",
