@@ -7924,3 +7924,10 @@ body.cours-open { overflow: hidden; }
      ligne et les longues sur deux, et la liste perd son alignement. */
   .ccp2-date { flex-direction: column; }
 }
+@media (max-width: 760px) {
+  /* Barres de sous-onglets sur iPhone : jusqu'à cinq sous-onglets sur une ligne
+     (Mon espace en a cinq depuis l'arrivée du livret). Toutes les barres de l'app
+     suivent la même règle, pour qu'elles se ressemblent. */
+  .subtabs-bar { gap: 0.1rem; }
+  .subtab { padding: 0.5rem 0.5rem; font-size: 0.86rem; }
+}

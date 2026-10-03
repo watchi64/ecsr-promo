@@ -577,8 +577,10 @@ export async function renderMonSuivi(container) {
           p.appendChild(renderChartSection(evaluations));
         } },
       // Le livret de la personne affichée : le sien en lecture pour un stagiaire, en
-      // saisie pour un formateur qui regarde l'espace d'un stagiaire.
-      { key: "livret", label: "Livret EPCF", module: "livret", render: (p, ctx) => {
+      // saisie pour un formateur qui regarde l'espace d'un stagiaire. Libellé court
+      // (« Livret », à côté d'« EPCF ») : avec cinq sous-onglets, la barre doit tenir
+      // sur une ligne d'iPhone.
+      { key: "livret", label: "Livret", module: "livret", render: (p, ctx) => {
           renderEpcfLivret(p, { stagiaireId: id, embedded: true, isActive: ctx && ctx.isActive })
             .catch((e) => {
               console.error(e);
