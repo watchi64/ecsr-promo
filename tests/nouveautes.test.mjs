@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import {
-  triees, visibles, nonLues, libellePastille, purger, ajouterVues, idsDeReprise,
+  triees, visibles, nonLues, libellePastille, purger, ajouterVues, idsDeReprise, amorcePour,
 } from "../js/nouveautes.js";
 
 const E = [
@@ -50,4 +50,11 @@ assert.deepEqual(idsDeReprise(E, "2026-07-01"), []);
 const AVEC_FUTURE = [...E, { id: "futur", date: "2026-08-15", pour: "tous" }];
 assert.ok(!idsDeReprise(AVEC_FUTURE, "2026-08-01").includes("futur"));
 
-console.log("nouveautes : 18 assertions OK");
+// Amorce par promo : une promo récente ne trouve pas des dizaines d'anciennes entrées
+// « neuves » au premier passage ; une promo plus ancienne que la rubrique garde la date
+// de mise en ligne.
+assert.equal(amorcePour(undefined), "2026-08-01");
+assert.equal(amorcePour("2026-03-30"), "2026-08-01");
+assert.equal(amorcePour("2026-09-30"), "2026-09-30");
+
+console.log("nouveautes : 21 assertions OK");

@@ -5,7 +5,7 @@
 // et écrivent la valeur de la promo courante. Si ce rangement change, c'est ce
 // fichier seul qu'on rebranche. Les règles vivent dans js/modules.js, le
 // catalogue dans js/modules-data.js.
-import { getSetting, setSetting } from "./db.js?v=20261002b";
+import { getSetting, setSetting, getPromoCourante } from "./db.js?v=20261002b";
 import { isAdmin, isProf, isFounder, getAdminEmail } from "./auth-admin.js?v=20261002b";
 import { icon } from "./icons.js?v=20261002b";
 import {
@@ -16,7 +16,7 @@ import {
   avecAnnonces, nouveautesPour,
 } from "./modules.js?v=20261002b";
 import { NOUVEAUTES } from "./nouveautes-data.js?v=20261002b";
-import { triees, visibles, nonLues, vuesEffectives, marquerVues } from "./nouveautes.js?v=20261002b";
+import { triees, visibles, nonLues, vuesEffectives, marquerVues, amorcePour } from "./nouveautes.js?v=20261002b";
 
 const CLE_REGLAGE = "modules";
 const REF = { modules: MODULES, moduleDeRoute: MODULE_DE_ROUTE, moduleDeSousOnglet: MODULE_DE_SOUS_ONGLET };
@@ -33,7 +33,10 @@ const abonnes = new Set();
 
 // Copie sur l'appareil, propre au compte : elle ne sert que si la lecture échoue.
 function cleCopie() {
-  return "ecsr_modules:" + String(getAdminEmail() || "").toLowerCase();
+  // Propre au compte ET à la promo : basculer de promo ne doit jamais ressortir l'état des
+  // modules de l'autre (spec multi-promo, suites du chantier B).
+  return "ecsr_modules:" + String(getAdminEmail() || "").toLowerCase()
+    + ":" + (getPromoCourante()?.id ?? "");
 }
 function lireCopie() {
   try { return localStorage.getItem(cleCopie()); } catch (e) { return null; }
@@ -183,7 +186,9 @@ function nouveautesDeLaPromo() {
 // toujours la liste complète : c'est elle qui décide de l'amorce et de la purge.
 export function nouveautesAffichables() {
   const entrees = triees(visibles(nouveautesDeLaPromo(), formateurConnecte()));
-  const neuves = new Set(nonLues(entrees, vuesEffectives(toutesLesNouveautes())).map((e) => e.id));
+  // Amorce à la date de la promo affichée (spec multi-promo C.6).
+  const vues = vuesEffectives(toutesLesNouveautes(), amorcePour(getPromoCourante()?.date_debut));
+  const neuves = new Set(nonLues(entrees, vues).map((e) => e.id));
   return { entrees, neuves };
 }
 
