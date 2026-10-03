@@ -54,11 +54,49 @@ let magasin = [
     created_at: "2026-08-08T10:00:00.000Z" },
 ];
 
+// Cours de compétences d'essai : liens entre cours, cours suivant, mise en page compacte.
+const MD_C2 = `# C2 - Appréhender la route
+
+> **L'essentiel**
+> Ouverture d'essai.
+
+## Les sous-compétences
+
+- [C2.4 : tourner](cours:C2.4)
+- [Thème 1](cours:1)
+- [Thème absent](cours:57)
+`;
+const MD_C24 = `# C2.4 - Tourner à droite et à gauche en agglomération
+
+> **L'essentiel**
+> Cours d'essai.
+
+## Pourquoi
+
+Paragraphe d'essai.
+
+## Comment
+
+Texte avant un bloc.
+:::cartes
+Q : Question d'essai ?
+R : Réponse d'essai.
+:::
+`;
+magasin.push(
+  { id: "k2", numero: null, code: "C2", titre: "Appréhender la route", corps_md: MD_C2, published: true,
+    updated_by: "import", updated_at: "2026-10-03T10:00:00.000Z", created_at: "2026-10-03T10:00:00.000Z" },
+  { id: "k24", numero: null, code: "C2.4", titre: "Tourner à droite et à gauche en agglomération", corps_md: MD_C24,
+    published: true, updated_by: "import", updated_at: "2026-10-03T10:00:00.000Z", created_at: "2026-10-03T10:00:00.000Z" },
+);
+
 export async function listCoursIndex() {
   return magasin.map(({ corps_md, ...reste }) => reste);
 }
-export async function getCours(numero) {
-  const c = magasin.find((x) => x.numero === Number(numero));
+export async function getCours(cle) {
+  const c = typeof cle === "string"
+    ? magasin.find((x) => x.code === cle)
+    : magasin.find((x) => x.numero === Number(cle));
   if (!c) throw new Error("Cours introuvable");
   return { ...c };
 }

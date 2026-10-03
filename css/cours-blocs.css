@@ -1,0 +1,26 @@
+/* Promo ECSR : cours des compétences de conduite (liste, liens, mise en page compacte, blocs).
+   Feuille séparée de style.css : moins de conflits de fusion avec les autres chantiers. */
+
+/* Liste Cours > Compétences : codes et titres de groupe. Quatre classes : la règle
+   mobile de style.css sur .theme-num en a trois. */
+.themes-list .theme-row .theme-num.code { font-size: 0.72rem; letter-spacing: -0.02em; white-space: nowrap; }
+.theme-row-groupe .theme-titre-link { font-weight: 600; }
+
+/* Liens entre cours et cours suivant */
+.cours-lien {
+  background: none; border: 0; padding: 0; font: inherit; cursor: pointer;
+  color: var(--accent-strong); text-decoration: underline; text-underline-offset: 2px;
+}
+.cours-suivant {
+  margin: 2rem 0 1rem; padding: 1rem; display: flex; flex-direction: column; gap: 0.6rem;
+  align-items: flex-start; border: 1px solid var(--line); border-radius: var(--r); background: var(--bg-elev);
+}
+.cours-suivant-texte { margin: 0; color: var(--text-muted); font-size: 0.85rem; }
+
+/* Mise en page compacte d'un cours de compétence : une carte par rubrique */
+.cours-competence .cours-carte {
+  margin: 0.9rem 0; padding: 0.4rem 1rem 0.8rem;
+  background: var(--bg-elev); border: 1px solid var(--line); border-radius: var(--r-lg);
+}
+.cours-competence .cours-carte > .cours-h2 { margin-top: 0.6rem; }
+.cours-competence .cours-somm-num { display: none; }
