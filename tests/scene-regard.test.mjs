@@ -1,8 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { DEG, pointDansPolygone } from "../js/scene-geometrie.js";
-import { REGARD_MAX_SUIVI, REGARD_PORTEE, REGARD_OUVERTURE, oeil, angleRegard, cibleSuivie, coneRegard, regardContient }
-  from "../js/scene-regard.js";
+import { REGARD_MAX_SUIVI, REGARD_PORTEE, REGARD_OUVERTURE, DEBORD_SUIVI, oeil, angleRegard, cibleSuivie, coneRegard,
+  regardContient, longueurCone, secteurBalayage, regardDessine } from "../js/scene-regard.js";
 
 const proche = (a, b, eps = 1e-9) => assert.ok(Math.abs(a - b) <= eps, `${a} au lieu de ${b}`);
 // Écart signé (degrés) de l'angle a à l'angle b (radians), ramené dans ]-180 ; 180].
@@ -177,4 +177,97 @@ test("regardContient coïncide avec le triangle de coneRegard", () => {
     }
   }
   assert.ok(dedans > 500, "la grille traverse bien les cônes");
+});
+
+// ===== Cône dessiné par le moteur (correction de la tâche 11) =====
+
+// Distance de l'œil o au point [x, y] et direction (radians) de ce point vue de l'œil.
+const distance = (o, [x, y]) => Math.hypot(x - o.x, y - o.y);
+const direction = (o, [x, y]) => Math.atan2(y - o.y, x - o.x);
+
+test("longueurCone : le cône s'arrête DEBORD_SUIVI m au-delà de l'usager suivi des yeux, sans dépasser REGARD_PORTEE", () => {
+  assert.equal(DEBORD_SUIVI, 2);
+  const n = voiture(-90), suivre = etape({ suivre: "pieton" });
+  proche(longueurCone(suivre, n, cibleVue(n, 30, 10)), 12);
+  proche(longueurCone(suivre, n, cibleVue(n, -99, 5)), 7);
+  proche(longueurCone(suivre, n, cibleVue(n, 0, 19.5)), 21.5);
+  assert.equal(longueurCone(suivre, n, cibleVue(n, 30, 21)), REGARD_PORTEE, "22 m au plus");
+});
+
+test("longueurCone : regard ramené devant (cible passée derrière le conducteur), toute la portée et non la distance à la cible", () => {
+  const n = voiture(-90), suivre = etape({ suivre: "pieton" });
+  for (const relatif of [100.1, -100.1, 150, 180]) {
+    assert.equal(longueurCone(suivre, n, cibleVue(n, relatif, 5)), REGARD_PORTEE, `cible à ${relatif} degrés du cap`);
+  }
+  // Sans cible suivie (inconnue, invisible), ou sans regard qui suit : toute la portée.
+  assert.equal(longueurCone(etape({ suivre: "fantome" }), n, cibleVue(n, 10, 5)), REGARD_PORTEE);
+  assert.equal(longueurCone(suivre, n, cibleVue(n, 10, 5, false)), REGARD_PORTEE);
+  assert.equal(longueurCone(etape({ angle: 40 }), n, cibleVue(n, 40, 5)), REGARD_PORTEE);
+  assert.equal(longueurCone(etape({ balayage: true }), n, cibleVue(n, 0, 5)), REGARD_PORTEE);
+  assert.equal(longueurCone(undefined, n, sans), REGARD_PORTEE);
+});
+
+test("secteurBalayage : l'œil, puis l'arc de rayon REGARD_PORTEE, de 75 + 16 degrés de part et d'autre du cap", () => {
+  const n = voiture(-90), o = oeil(n);
+  const secteur = secteurBalayage(n.cap, o);
+  proche(secteur[0][0], o.x); proche(secteur[0][1], o.y);
+  const arc = secteur.slice(1);
+  assert.ok(arc.length >= 37, "arc tracé par pas de 5 degrés au plus");
+  for (const p of arc) proche(distance(o, p), REGARD_PORTEE, 1e-9);
+  const relatifs = arc.map((p) => ecartDeg(direction(o, p), n.cap));
+  proche(relatifs[0], -(75 + REGARD_OUVERTURE), 1e-9);
+  proche(relatifs[relatifs.length - 1], 75 + REGARD_OUVERTURE, 1e-9);
+  for (let k = 1; k < relatifs.length; k++) {
+    assert.ok(relatifs[k] > relatifs[k - 1] && relatifs[k] - relatifs[k - 1] <= 5 + 1e-9, "arc parcouru dans un seul sens, sans saut");
+  }
+});
+
+test("secteurBalayage : c'est la réunion des cônes du balayage, dont les pointes atteignent ses deux bords", () => {
+  const n = voiture(-90), o = oeil(n), b = etape({ balayage: true });
+  let min = Infinity, max = -Infinity;
+  for (let t = 0; t < 2; t += 0.005) {
+    for (const p of coneRegard(angleRegard(b, n, t, sans), o).slice(1)) {
+      const relatif = ecartDeg(direction(o, p), n.cap);
+      assert.ok(Math.abs(relatif) <= 75 + REGARD_OUVERTURE + 1e-9, `pointe du cône hors du secteur à t = ${t.toFixed(3)} s`);
+      min = Math.min(min, relatif); max = Math.max(max, relatif);
+    }
+  }
+  proche(min, -(75 + REGARD_OUVERTURE), 1e-6);
+  proche(max, 75 + REGARD_OUVERTURE, 1e-6);
+});
+
+test("regardDessine : en lecture, le triangle de coneRegard dans la direction d'angleRegard, à la longueur de longueurCone", () => {
+  const n = voiture(-90), o = oeil(n);
+  for (const [regard, etats, t] of [[{ angle: 120 }, sans, 3], [{ balayage: true }, sans, 0.37], [{ suivre: "pieton" }, cibleVue(n, 30, 10), 1]]) {
+    const r = regardDessine(etape(regard), n, t, etats);
+    assert.equal(r.forme, "cone", JSON.stringify(regard));
+    const angle = angleRegard(etape(regard), n, t, etats), longueur = longueurCone(etape(regard), n, etats);
+    const attendu = coneRegard(angle, o);
+    proche(r.poly[0][0], o.x); proche(r.poly[0][1], o.y);
+    for (let k = 1; k < 3; k++) {
+      proche(distance(o, r.poly[k]), longueur, 1e-9);
+      proche(direction(o, r.poly[k]), direction(o, attendu[k]), 1e-9);
+    }
+  }
+  assert.equal(regardDessine(etape({}), n, 0, sans), null, "pas de regard, pas de cône");
+  assert.equal(regardDessine(etape({ suivre: "pieton" }), n, 0, cibleVue(n, 30, 10, false)), null, "cible invisible");
+});
+
+test("regardDessine : regard ramené devant, le cône de toute la portée droit devant", () => {
+  const n = voiture(-90), o = oeil(n);
+  const r = regardDessine(etape({ suivre: "pieton" }), n, 0, cibleVue(n, 160, 4));
+  assert.equal(r.forme, "cone");
+  for (const p of r.poly.slice(1)) proche(distance(o, p), REGARD_PORTEE, 1e-9);
+  proche(ecartDeg(direction(o, r.poly[1]) / 2 + direction(o, r.poly[2]) / 2, n.cap), 0, 1e-9);
+});
+
+test("regardDessine : sur une image figée, un balayage montre le secteur balayé ; un angle ou un regard qui suit, le même cône qu'en lecture", () => {
+  const n = voiture(-90), o = oeil(n);
+  const balayage = regardDessine(etape({ balayage: true }), n, 0.37, sans, true);
+  assert.equal(balayage.forme, "secteur");
+  assert.deepEqual(balayage.poly, secteurBalayage(n.cap, o));
+  for (const [regard, etats] of [[{ angle: -170 }, sans], [{ suivre: "pieton" }, cibleVue(n, -30, 8)], [{ suivre: "pieton" }, cibleVue(n, 120, 8)]]) {
+    assert.deepEqual(regardDessine(etape(regard), n, 2.2, etats, true), regardDessine(etape(regard), n, 2.2, etats), JSON.stringify(regard));
+  }
+  assert.equal(regardDessine(undefined, n, 0, sans, true), null);
 });

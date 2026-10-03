@@ -20,7 +20,9 @@
  * pas de cône.
  *
  * Le cône dessiné (coneRegard) est un triangle : l'œil, puis deux pointes à REGARD_PORTEE m, à REGARD_OUVERTURE
- * degrés de part et d'autre de la direction du regard. regardContient dit si un point y est.
+ * degrés de part et d'autre de la direction du regard. regardContient dit si un point y est. Le moteur dessine ce que
+ * rend regardDessine : ce triangle, arrêté DEBORD_SUIVI m au-delà d'un usager suivi des yeux (longueurCone), ou, sur une
+ * image figée, le secteur que parcourt un balayage (secteurBalayage).
  */
 import { DEG } from "./scene-geometrie.js?v=20261003c";
 
@@ -29,7 +31,7 @@ import { DEG } from "./scene-geometrie.js?v=20261003c";
 export const REGARD_MAX_SUIVI = 100;
 
 // Portée (m) et demi-ouverture (degrés) du cône du regard : choix de dessin, sans portée réglementaire, partagés par
-// le moteur de rendu (tâche 11, qui les importe) et par les tests des scènes. Un conducteur voit un piéton à 20 m :
+// le moteur de rendu (tâche 11, par regardDessine) et par les tests des scènes. Un conducteur voit un piéton à 20 m :
 // la portée doit atteindre, depuis l'approche, le piéton qui attend de l'autre côté du carrefour.
 export const REGARD_PORTEE = 22;
 export const REGARD_OUVERTURE = 16;
@@ -102,6 +104,58 @@ export function angleRegard(etape, e, t, etats) {
 export function coneRegard(angle, o) {
   const pointe = (a) => [o.x + REGARD_PORTEE * Math.cos(a), o.y + REGARD_PORTEE * Math.sin(a)];
   return [[o.x, o.y], pointe(angle - REGARD_OUVERTURE * DEG), pointe(angle + REGARD_OUVERTURE * DEG)];
+}
+
+/** Le cône d'un regard posé sur un usager suivi des yeux s'arrête DEBORD_SUIVI m au-delà de lui (choix de dessin,
+ *  amendement de la tâche 11) : il désigne la personne regardée au lieu de déborder du cadre. */
+export const DEBORD_SUIVI = 2;
+
+/**
+ * Longueur (m) des côtés du cône dessiné pendant l'étape `etape`, pour la voiture de l'élève dans l'état e ; `etats` :
+ * Map des états des acteurs (id -> etatActeur). REGARD_PORTEE, sauf quand le conducteur suit des yeux un usager
+ * (cibleSuivie le rend) : le cône s'arrête alors DEBORD_SUIVI m au-delà de lui, sans dépasser REGARD_PORTEE. Un regard
+ * ramené devant parce que la cible est passée derrière le conducteur reprend toute la portée.
+ */
+export function longueurCone(etape, e, etats) {
+  const cible = cibleSuivie(etape, e, etats);
+  if (!cible) return REGARD_PORTEE;
+  const o = oeil(e);
+  return Math.min(REGARD_PORTEE, Math.hypot(cible.x - o.x, cible.y - o.y) + DEBORD_SUIVI);
+}
+
+/**
+ * Secteur que parcourt le cône pendant un balayage, pour une voiture de cap `cap` (radians) dont l'œil est en o : de
+ * BALAYAGE.amplitude + REGARD_OUVERTURE degrés (75 + 16) de part et d'autre du cap, rayon REGARD_PORTEE. C'est la
+ * réunion exacte des cônes du balayage : leurs pointes décrivent l'arc. Polygone [[x, y], ...] : l'œil, puis l'arc, par
+ * pas d'au plus `pasDeg` degrés.
+ */
+export function secteurBalayage(cap, o, pasDeg = 5) {
+  const demi = (BALAYAGE.amplitude + REGARD_OUVERTURE) * DEG;
+  const n = Math.ceil((2 * demi) / (pasDeg * DEG));
+  const arc = Array.from({ length: n + 1 }, (_, k) => {
+    const a = cap - demi + (2 * demi * k) / n;
+    return [o.x + REGARD_PORTEE * Math.cos(a), o.y + REGARD_PORTEE * Math.sin(a)];
+  });
+  return [[o.x, o.y], ...arc];
+}
+
+/**
+ * Regard que dessine le moteur à l'instant t de l'étape `etape`, pour la voiture de l'élève dans l'état e ; `etats` :
+ * Map des états des acteurs. null : pas de regard (étape sans regard, cible inconnue ou invisible).
+ * - { forme: "cone", poly } : le triangle de coneRegard, dans la direction d'angleRegard, ramené vers l'œil à la
+ *   longueur de longueurCone ;
+ * - { forme: "secteur", poly } : sur une image figée (`fige` : pas à pas, pause, fin de lecture, animations réduites),
+ *   un balayage se montre par le secteur qu'il parcourt (secteurBalayage), et non par la direction que son va-et-vient
+ *   aurait par hasard à cet instant. Un angle ou un usager suivi gardent le même cône qu'en lecture.
+ */
+export function regardDessine(etape, e, t, etats, fige = false) {
+  const r = etape && etape.regard;
+  if (fige && r && r.balayage) return { forme: "secteur", poly: secteurBalayage(e.cap, oeil(e)) };
+  const angle = angleRegard(etape, e, t, etats);
+  if (angle === null) return null;
+  const o = oeil(e), k = Math.min(1, longueurCone(etape, e, etats) / REGARD_PORTEE);
+  const triangle = coneRegard(angle, o);
+  return { forme: "cone", poly: k === 1 ? triangle : triangle.map(([x, y]) => [o.x + (x - o.x) * k, o.y + (y - o.y) * k]) };
 }
 
 /**

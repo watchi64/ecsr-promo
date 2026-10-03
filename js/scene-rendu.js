@@ -1,0 +1,116 @@
+/*
+ * Promo ECSR : Application propriétaire.
+ * © 2026 watchi64 : Tous droits réservés. Voir LICENSE.
+ *
+ * Règles du rendu des scènes animées. Module pur (ni DOM ni réseau) : ce que montre
+ * l'image, en lecture comme sur une image figée (pas à pas, pause, fin de lecture,
+ * animations réduites). Le moteur (js/scene-moteur.js) dessine avec ces fonctions,
+ * et les tests (tests/scene-rendu.test.mjs) les vérifient sur les scènes du registre.
+ * Le regard du conducteur, lui, est dans js/scene-regard.js.
+ *
+ * Toutes les valeurs ci-dessous sont des choix de dessin, sans portée réglementaire.
+ */
+import { etatActeur, emprise } from "./scene-geometrie.js?v=20261003c";
+
+/** Fréquence du clignotant, en hertz. */
+export const FREQ_CLIGNOTANT = 1.5;
+/** Côté (m) du dessin d'un panneau, centré sur sa position : agrandi pour rester lisible, mais tenu sur le trottoir
+ *  (ses quatre coins y restent dans chaque scène, tests/scene-rendu.test.mjs). Au-delà de 1,48 m, un coin des AB3a du
+ *  carrefour en croix, posés à 2,5 m du coin de la chaussée, déborderait sur l'arrondi de la bordure. */
+export const TAILLE_PANNEAU = 1.4;
+/** Rayon (m) du disque d'un repère d'étape (animations réduites) ; ses numéros sont écrits en chasse fixe de 1,2 m. */
+export const RAYON_REPERE = 1.2;
+// Chasse (m) d'un caractère des numéros d'un repère : 0,6 em d'une police à chasse fixe de 1,2 m (0,72 m), arrondie
+// au-dessus pour les polices de repli, et jeu (m) de part et d'autre du texte.
+const CHASSE_REPERE = 0.75, JEU_REPERE = 0.3;
+/** Distance (m) en deçà de laquelle deux étapes partagent un repère. */
+export const ECART_REPERES = 1.5;
+/** Marge (m) du cadre des animations réduites autour de ce qu'il montre. */
+export const MARGE_CADRE_REDUIT = 1;
+
+const borner = (v, min, max) => Math.min(Math.max(v, min), max);
+
+/**
+ * Côté du clignotant dessiné allumé ("droite", "gauche") pour un véhicule dans l'état e, ou null. En lecture, il
+ * clignote à FREQ_CLIGNOTANT, allumé la première moitié de chaque période, comptée depuis le début de la scène. Sur une
+ * image figée (`fige`), il est dessiné allumé tant qu'il est en marche : l'image montre l'état du clignotant, pas une
+ * phase de son clignotement.
+ */
+export function clignotantAllume(e, instant, fige) {
+  if (!e.clignotant) return null;
+  return fige || Math.floor(instant * FREQ_CLIGNOTANT * 2) % 2 === 0 ? e.clignotant : null;
+}
+
+/** Cadre de la caméra en lecture, { x, y, largeur, hauteur } (m) : centré sur l'élève dans l'état e, borné au monde.
+ *  Sans caméra, le monde entier. */
+export function cadreCamera(sc, e) {
+  if (!sc.camera) return { x: 0, y: 0, largeur: sc.monde.largeur, hauteur: sc.monde.hauteur };
+  const { largeur, hauteur } = sc.camera;
+  return { x: borner(e.x - largeur / 2, 0, sc.monde.largeur - largeur), y: borner(e.y - hauteur / 2, 0, sc.monde.hauteur - hauteur),
+    largeur, hauteur };
+}
+
+/**
+ * Repères des étapes (animations réduites) : la position de l'élève au début de chaque étape, [{ x, y, numeros }]. Une
+ * étape qui commence à moins de ECART_REPERES m d'un repère déjà posé le partage (numéros joints par un point médian).
+ */
+export function reperesEtapes(sc) {
+  const reperes = [];
+  sc.etapes.forEach((et, i) => {
+    const e = etatActeur(sc.eleve, et.t);
+    const proche = reperes.find((r) => Math.hypot(r.x - e.x, r.y - e.y) < ECART_REPERES);
+    if (proche) proche.numeros.push(i + 1); else reperes.push({ x: e.x, y: e.y, numeros: [i + 1] });
+  });
+  return reperes;
+}
+
+/** Demi-largeur (m) du repère qui porte ces numéros : le disque de RAYON_REPERE pour un seul numéro, une pastille
+ *  allongée qui contient tout le texte quand plusieurs étapes partagent le repère (« 5·6·7 »). */
+export function demiLargeurRepere(numeros) {
+  return Math.max(RAYON_REPERE, (numeros.join("·").length * CHASSE_REPERE) / 2 + JEU_REPERE);
+}
+
+/**
+ * Cadre fixe des animations réduites, { x, y, largeur, hauteur } (m). Il montre, à MARGE_CADRE_REDUIT près : tous les
+ * repères (disques et pastilles compris), la voiture de l'élève au début de chaque étape et chaque usager suivi des yeux au début de
+ * l'étape qui le suit. Largeur de la caméra (même échelle qu'en lecture), hauteur au moins celle de la caméra, cadre
+ * centré sur ce qu'il montre puis borné au monde. Sans caméra, le monde entier.
+ */
+export function cadreReduit(sc) {
+  const { monde, camera } = sc;
+  if (!camera) return { x: 0, y: 0, largeur: monde.largeur, hauteur: monde.hauteur };
+  const points = [];
+  for (const r of reperesEtapes(sc)) {
+    const demi = demiLargeurRepere(r.numeros);
+    points.push([r.x - demi, r.y - RAYON_REPERE], [r.x + demi, r.y + RAYON_REPERE]);
+  }
+  for (const et of sc.etapes) {
+    points.push(...emprise(sc.eleve.gabarit, etatActeur(sc.eleve, et.t)));
+    const suivi = et.regard && et.regard.suivre && sc.acteurs.find((a) => a.id === et.regard.suivre);
+    if (!suivi) continue;
+    const s = etatActeur(suivi, et.t);
+    if (s.visible) points.push(...emprise(suivi.gabarit, s));
+  }
+  const xs = points.map(([x]) => x), ys = points.map(([, y]) => y);
+  const x0 = Math.max(Math.min(...xs) - MARGE_CADRE_REDUIT, 0), x1 = Math.min(Math.max(...xs) + MARGE_CADRE_REDUIT, monde.largeur);
+  const y0 = Math.max(Math.min(...ys) - MARGE_CADRE_REDUIT, 0), y1 = Math.min(Math.max(...ys) + MARGE_CADRE_REDUIT, monde.hauteur);
+  const largeur = Math.min(camera.largeur, monde.largeur);
+  const hauteur = Math.min(Math.max(y1 - y0, camera.hauteur), monde.hauteur);
+  return { x: borner((x0 + x1 - largeur) / 2, 0, monde.largeur - largeur), y: borner((y0 + y1 - hauteur) / 2, 0, monde.hauteur - hauteur),
+    largeur, hauteur };
+}
+
+/** Rectangle { x, y, largeur, hauteur } (m) du dessin d'un panneau posé en (p.x ; p.y) : centré sur sa position. */
+export function emprisePanneau(p) {
+  return { x: p.x - TAILLE_PANNEAU / 2, y: p.y - TAILLE_PANNEAU / 2, largeur: TAILLE_PANNEAU, hauteur: TAILLE_PANNEAU };
+}
+
+/**
+ * Facteur de lecture affiché sous le schéma quand la scène ne se joue pas à sa vitesse réelle : { texte, libelle }
+ * (« × 0,5 » et sa lecture en clair pour les lecteurs d'écran), ou null à vitesse réelle.
+ */
+export function facteurLecture(vitesse) {
+  if (vitesse === 1) return null;
+  const nombre = String(vitesse).replace(".", ",");
+  return { texte: "× " + nombre, libelle: `Lecture ${vitesse < 1 ? "ralentie" : "accélérée"} : ${nombre} fois la vitesse réelle` };
+}
