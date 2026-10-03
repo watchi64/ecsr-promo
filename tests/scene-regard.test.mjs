@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { DEG, pointDansPolygone } from "../js/scene-geometrie.js";
-import { REGARD_MAX_SUIVI, REGARD_PORTEE, REGARD_OUVERTURE, oeil, angleRegard, coneRegard, regardContient }
+import { REGARD_MAX_SUIVI, REGARD_PORTEE, REGARD_OUVERTURE, oeil, angleRegard, cibleSuivie, coneRegard, regardContient }
   from "../js/scene-regard.js";
 
 const proche = (a, b, eps = 1e-9) => assert.ok(Math.abs(a - b) <= eps, `${a} au lieu de ${b}`);
@@ -78,14 +78,15 @@ test("suivre : pas de cône si la cible est inconnue ou invisible", () => {
   assert.equal(angleRegard(etape({ suivre: "pieton" }), n, 0, cibleVue(n, 10, 10, false)), null);
 });
 
-test("suivre : pas de cône au-delà de REGARD_MAX_SUIVI degrés du cap, de chaque côté", () => {
+test("suivre : au-delà de REGARD_MAX_SUIVI degrés du cap, de chaque côté, la cible est passée derrière le conducteur, qui regarde de nouveau devant lui", () => {
   const n = voiture(-90);
   const suivi = (relatifDeg) => angleRegard(etape({ suivre: "pieton" }), n, 0, cibleVue(n, relatifDeg));
   proche(ecartDeg(suivi(99.9), n.cap), 99.9, 1e-6);
   proche(ecartDeg(suivi(-99.9), n.cap), -99.9, 1e-6);
-  assert.equal(suivi(100.1), null);
-  assert.equal(suivi(-100.1), null);
-  assert.equal(suivi(180), null);
+  // Le regard rend le cap lui-même : un cône droit devant, jamais une absence de cône pour une cible visible.
+  assert.equal(suivi(100.1), n.cap);
+  assert.equal(suivi(-100.1), n.cap);
+  assert.equal(suivi(180), n.cap);
 });
 
 test("suivre : l'écart au cap se mesure modulo un tour, quel que soit le cap accumulé", () => {
@@ -93,7 +94,36 @@ test("suivre : l'écart au cap se mesure modulo un tour, quel que soit le cap ac
   for (const capDeg of [-450, 270, 630]) {
     const e = voiture(capDeg);
     proche(ecartDeg(angleRegard(etape({ suivre: "pieton" }), e, 0, cibleVue(e, 30)), e.cap), 30, 1e-6);
-    assert.equal(angleRegard(etape({ suivre: "pieton" }), e, 0, cibleVue(e, 150)), null);
+    assert.equal(angleRegard(etape({ suivre: "pieton" }), e, 0, cibleVue(e, 150)), e.cap);
+  }
+});
+
+test("cibleSuivie : la cible que le conducteur suit des yeux, visible et à au plus REGARD_MAX_SUIVI degrés du cap ; sinon null", () => {
+  const n = voiture(-90), suivre = etape({ suivre: "pieton" });
+  const vue = cibleVue(n, 30);
+  assert.equal(cibleSuivie(suivre, n, vue), vue.get("pieton"));
+  assert.equal(cibleSuivie(suivre, n, cibleVue(n, 100.1)), null, "passée derrière, à droite");
+  assert.equal(cibleSuivie(suivre, n, cibleVue(n, -100.1)), null, "passée derrière, à gauche");
+  assert.equal(cibleSuivie(suivre, n, cibleVue(n, 30, 10, false)), null, "invisible");
+  assert.equal(cibleSuivie(etape({ suivre: "fantome" }), n, vue), null, "inconnue");
+  // Seul un regard qui suit a une cible ; un balayage ou un angle l'emportent, comme dans angleRegard.
+  assert.equal(cibleSuivie(undefined, n, vue), null);
+  assert.equal(cibleSuivie({ s: 0, t: 0 }, n, vue), null);
+  assert.equal(cibleSuivie(etape({ angle: 30 }), n, vue), null);
+  assert.equal(cibleSuivie(etape({ balayage: true }), n, vue), null);
+  assert.equal(cibleSuivie(etape({ angle: 30, suivre: "pieton" }), n, vue), null);
+});
+
+test("suivre : angleRegard vise la cible exactement quand cibleSuivie la rend, et le cap quand elle est passée derrière", () => {
+  for (const capDeg of [-90, 0, 37, -450]) {
+    const e = voiture(capDeg);
+    for (let relatif = -177; relatif <= 177; relatif += 3) {
+      const etats = cibleVue(e, relatif), suivre = etape({ suivre: "pieton" });
+      const angle = angleRegard(suivre, e, 0, etats), suivie = cibleSuivie(suivre, e, etats);
+      assert.equal(suivie !== null, Math.abs(relatif) <= REGARD_MAX_SUIVI, `cap ${capDeg}, cible à ${relatif} degrés`);
+      if (suivie) proche(ecartDeg(angle, e.cap), relatif, 1e-6);
+      else assert.equal(angle, e.cap, `cap ${capDeg}, cible à ${relatif} degrés : regard ramené devant`);
+    }
   }
 });
 

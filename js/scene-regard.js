@@ -13,16 +13,19 @@
  *   l'épaule, 170 les rétroviseurs ; -120 et -170 pour la gauche) ;
  * - { balayage: true } : va-et-vient de part et d'autre du cap (BALAYAGE) ;
  * - { suivre: id } : vers l'acteur id, depuis l'œil du conducteur, tant qu'il est
- *   visible et à au plus REGARD_MAX_SUIVI degrés du cap : le conducteur ne suit
- *   pas des yeux ce qui passe derrière lui.
- * Sans regard, ou quand la cible est perdue, angleRegard rend null : pas de cône.
+ *   visible et à au plus REGARD_MAX_SUIVI degrés du cap (cibleSuivie le rend). Le
+ *   conducteur ne suit pas des yeux ce qui passe derrière lui : au-delà, il regarde
+ *   de nouveau devant lui, et le regard rend le cap.
+ * Sans regard, ou quand la cible est inconnue ou invisible, angleRegard rend null :
+ * pas de cône.
  *
  * Le cône dessiné (coneRegard) est un triangle : l'œil, puis deux pointes à REGARD_PORTEE m, à REGARD_OUVERTURE
  * degrés de part et d'autre de la direction du regard. regardContient dit si un point y est.
  */
 import { DEG } from "./scene-geometrie.js?v=20261003c";
 
-/** Écart maximal, en degrés, entre le cap et la direction d'une cible suivie des yeux. */
+/** Écart maximal, en degrés, entre le cap et la direction d'une cible suivie des yeux : au-delà, elle est passée derrière
+ *  le conducteur, qui regarde de nouveau devant lui. */
 export const REGARD_MAX_SUIVI = 100;
 
 // Portée (m) et demi-ouverture (degrés) du cône du regard : choix de dessin, sans portée réglementaire, partagés par
@@ -52,10 +55,35 @@ function ecart(a, b) {
   return d;
 }
 
+// Direction (radians, repère de l'écran) d'une cible vue depuis l'œil du conducteur de la voiture e.
+function directionDepuisOeil(e, cible) {
+  const o = oeil(e);
+  return Math.atan2(cible.y - o.y, cible.x - o.x);
+}
+
+// La cible est-elle devant le conducteur, à au plus REGARD_MAX_SUIVI degrés du cap ?
+const devantLeConducteur = (e, cible) => Math.abs(ecart(directionDepuisOeil(e, cible), e.cap)) <= REGARD_MAX_SUIVI * DEG;
+
+/**
+ * Cible que le conducteur suit des yeux pendant l'étape `etape` (regard { suivre: id }), pour sa voiture dans l'état
+ * e ; `etats` : Map des états des acteurs (id -> etatActeur). Rend l'état de la cible quand elle est connue, visible
+ * et à au plus REGARD_MAX_SUIVI degrés du cap ; null sinon (étape sans regard qui suit, cible inconnue, invisible ou
+ * passée derrière le conducteur). Mêmes priorités qu'angleRegard : un balayage ou un angle l'emportent sur suivre.
+ * Les tests des scènes s'en servent pour savoir si le regard est posé sur la cible ou ramené devant.
+ */
+export function cibleSuivie(etape, e, etats) {
+  const r = etape && etape.regard;
+  if (!r || r.balayage || typeof r.angle === "number" || !r.suivre) return null;
+  const cible = etats.get(r.suivre);
+  return cible && cible.visible && devantLeConducteur(e, cible) ? cible : null;
+}
+
 /**
  * Direction du regard (radians, repère de l'écran) pendant l'étape `etape`, pour la voiture de l'élève dans
  * l'état e, à l'instant t de la scène ; `etats` : Map des états des acteurs (id -> etatActeur). null : pas de
- * cône à dessiner (étape sans regard, cible inconnue, invisible, ou à plus de REGARD_MAX_SUIVI degrés du cap).
+ * cône à dessiner (étape sans regard, cible inconnue ou invisible). Une cible suivie qui passe à plus de
+ * REGARD_MAX_SUIVI degrés du cap est derrière le conducteur : il ne la suit plus des yeux et regarde de nouveau
+ * devant lui (le regard rend le cap).
  */
 export function angleRegard(etape, e, t, etats) {
   const r = etape && etape.regard;
@@ -65,9 +93,7 @@ export function angleRegard(etape, e, t, etats) {
   if (r.suivre) {
     const cible = etats.get(r.suivre);
     if (!cible || !cible.visible) return null;
-    const o = oeil(e);
-    const direction = Math.atan2(cible.y - o.y, cible.x - o.x);
-    return Math.abs(ecart(direction, e.cap)) > REGARD_MAX_SUIVI * DEG ? null : direction;
+    return devantLeConducteur(e, cible) ? directionDepuisOeil(e, cible) : e.cap;
   }
   return null;
 }
