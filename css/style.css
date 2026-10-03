@@ -7838,3 +7838,57 @@ body.cours-open { overflow: hidden; }
 .modules-explication,
 .modules-date { font-size: 0.82rem; }
 .modules-date { color: var(--accent-strong); }
+
+/* ===== Multi-promo : pastille de la promo affichée (2026-10) =====
+   Devant le badge du nom ; visible seulement à qui a au moins deux promos. Sur
+   téléphone, la flèche et la pastille de rôle du badge s'effacent pour tenir
+   dans la barre. */
+#admin-slot { display: flex; align-items: center; gap: 0.4rem; }
+.promo-pastille {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.4rem 0.65rem;
+  border-radius: 999px;
+  border: 1px solid rgba(245, 232, 208, 0.25);
+  background: rgba(245, 232, 208, 0.08);
+  color: #F5E8D0;
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.promo-pastille:hover { background: rgba(245, 232, 208, 0.16); }
+/* Bascule en cours (jusqu'au rechargement) : la pastille reste affichée, sans réagir. */
+.promo-pastille:disabled { opacity: 0.6; cursor: default; background: rgba(245, 232, 208, 0.08); }
+.promo-pastille-fleche { font-size: 0.7rem; opacity: 0.7; }
+.promo-choix-liste {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin: 0.8rem 0;
+}
+.promo-choix {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  text-align: left;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--bg-elev);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+.promo-choix.active { border-color: var(--accent); background: var(--bg-subtle); font-weight: 600; }
+.promo-choix-puce { color: var(--accent); }
+.promo-choix-liste.en-cours { opacity: 0.6; pointer-events: none; }
+.config-list .config-nom { flex: 0 1 40%; }
+@media (max-width: 760px) {
+  .promo-pastille { padding: 0.35rem 0.5rem; font-size: 0.74rem; }
+  .promo-pastille-fleche { display: none; }
+  #admin-slot.avec-pastille .admin-role { display: none; }
+}

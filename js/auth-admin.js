@@ -15,9 +15,11 @@
 import {
   getCurrentUser, signOut, onAuthChange,
   getMyProfile, listStagiaires, listProfs,
+  chargerMesPromos, oublierPromo, getPromoCourante,
 } from "./db.js?v=20261002b";
 import { el, toast, displayStagiaire } from "./utils.js?v=20261002b";
 import { icon } from "./icons.js?v=20261002b";
+import { construirePastille } from "./promo-pastille.js?v=20261002b";
 
 let currentUser = null;     // Supabase auth user
 let currentProfile = null;  // row user_profiles
@@ -117,32 +119,96 @@ async function refreshProfile() {
   loadViewAs();
 }
 
+// Résultats de chargerContextePromo.
+const PROMOS_OK = "ok";                        // les promos du compte sont en mémoire
+const PROMOS_AUCUNE = "aucune";                // le compte n'a accès à aucune promo
+const PROMOS_INDISPONIBLES = "indisponibles";  // mes_promos a échoué deux fois, aucune promo en place
+
+const MESSAGE_SANS_PROMO = "Aucune promo n'est associée à ton compte. Demande à un formateur.";
+const MESSAGE_PROMOS_NON_CHARGEES =
+  "Promos non chargées : la promo par défaut est affichée. Recharge la page pour réessayer.";
+const PAUSE_AVANT_SECOND_ESSAI_MS = 1500;
+
+// Contexte de promo AVANT toute lecture (spec multi-promo C.1). Deux essais, le second
+// 1,5 s après le premier : une panne passagère ne doit pas faire perdre la promo choisie.
+// Si les deux échouent, on entre quand même (un stagiaire n'a qu'une promo, le bloquer serait
+// une régression) : sans en-tête, la base répond sur la promo par défaut de la personne, et
+// l'appelant le dit à l'écran. La liste reste vide, donc sans pastille. Un échec au
+// renouvellement d'un jeton, alors que les promos du compte sont déjà en mémoire, ne change
+// rien : la promo affichée reste la bonne, il n'y a rien à signaler.
+async function chargerContextePromo(user) {
+  for (let essai = 1; essai <= 2; essai++) {
+    try {
+      const promos = await chargerMesPromos(user.email);
+      return promos.length > 0 ? PROMOS_OK : PROMOS_AUCUNE;
+    } catch (e) {
+      console.error("mes_promos indisponible (essai " + essai + "/2)", e);
+      if (essai === 1) await new Promise((resolve) => setTimeout(resolve, PAUSE_AVANT_SECOND_ESSAI_MS));
+    }
+  }
+  return getPromoCourante() ? PROMOS_OK : PROMOS_INDISPONIBLES;
+}
+
 export async function initAuth() {
   currentUser = await getCurrentUser();
   if (currentUser) {
-    // Les annuaires ne sont lisibles qu'authentifié (RLS) → charger après l'auth.
-    await loadDirectories();
-    await refreshProfile();
-    if (!currentProfile) {
-      // Connecté mais pas dans user_profiles → kick out
+    const promos = await chargerContextePromo(currentUser);
+    if (promos === PROMOS_AUCUNE) {
+      // Le rappel onAuthChange n'est pas encore branché : la déconnexion ne lui dira pas
+      // d'oublier le contexte, c'est donc ici (comme pour le profil absent plus bas).
+      oublierPromo();
       await signOut();
       currentUser = null;
-      toast("Ton compte n'est plus autorisé. Demande une invitation.", "error", 5000);
+      toast(MESSAGE_SANS_PROMO, "error", 5000);
+    } else {
+      // Les annuaires ne sont lisibles qu'authentifié (RLS) → charger après l'auth.
+      await loadDirectories();
+      await refreshProfile();
+      if (!currentProfile) {
+        // Connecté mais pas dans user_profiles → kick out
+        oublierPromo();
+        await signOut();
+        currentUser = null;
+        toast("Ton compte n'est plus autorisé. Demande une invitation.", "error", 5000);
+      } else if (promos === PROMOS_INDISPONIBLES) {
+        // Dit après les lectures, quand l'app est sur le point de s'afficher : un message
+        // posé avant pourrait expirer pendant qu'elles attendent (réseau lent, justement).
+        toast(MESSAGE_PROMOS_NON_CHARGEES, "error", 8000);
+      }
     }
   }
 
   onAuthChange(async (user) => {
     currentUser = user;
     if (user) {
-      await loadDirectories();
-      await refreshProfile();
-      if (!currentProfile) {
+      const avant = getPromoCourante()?.id ?? null;
+      const promos = await chargerContextePromo(user);
+      if (promos === PROMOS_AUCUNE) {
+        oublierPromo();
         await signOut();
         currentUser = null;
-        toast("Email non invité. Demande à un admin de te whitelister.", "error", 5000);
+        currentProfile = null;
+        toast(MESSAGE_SANS_PROMO, "error", 5000);
+      } else if (avant !== null && getPromoCourante()?.id !== avant) {
+        // La promo affichée n'est plus accessible (ou le compte a changé) : les vues déjà
+        // dessinées sont celles de l'autre promo. On repart de zéro plutôt que de les mélanger.
+        location.reload();
+        return;
+      } else {
+        await loadDirectories();
+        await refreshProfile();
+        if (!currentProfile) {
+          oublierPromo();
+          await signOut();
+          currentUser = null;
+          toast("Email non invité. Demande à un admin de te whitelister.", "error", 5000);
+        } else if (promos === PROMOS_INDISPONIBLES) {
+          toast(MESSAGE_PROMOS_NON_CHARGEES, "error", 8000);
+        }
       }
     } else {
       currentProfile = null;
+      oublierPromo();
     }
     listeners.forEach((cb) => cb(currentUser, currentProfile));
     updateBadge();
@@ -165,6 +231,11 @@ function updateBadge() {
   if (!slot) return;
   slot.innerHTML = "";
   if (!currentUser) { updateImpersonationBanner(); return; }
+
+  // Pastille de promo devant le badge (formateurs et fondateur, au moins deux promos).
+  const pastille = construirePastille();
+  if (pastille) slot.appendChild(pastille);
+  slot.classList.toggle("avec-pastille", !!pastille);
 
   const who = getProfileWho() || currentUser.email;
   const roleLabel =
