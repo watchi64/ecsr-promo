@@ -149,7 +149,9 @@ begin
   end if;
 
   -- B. Données de test (annulées par la levée finale)
-  insert into promos (lieu_id, nom, date_debut) values (2, 'Preuve, Montpellier', current_date)
+  -- Identifiant explicite : une exécution annulée ne consomme aucun numéro de l'identité de
+  -- promos (les séquences ne sont pas transactionnelles).
+  insert into promos (id, lieu_id, nom, date_debut) values (9999, 2, 'Preuve, Montpellier', current_date)
     returning id into v_mtp;
   insert into stagiaires (prenom, nom, ordre, promo_id) values ('PreuveFictif', 'PREUVE', 999, 2)
     returning id into v_sid_fictif;

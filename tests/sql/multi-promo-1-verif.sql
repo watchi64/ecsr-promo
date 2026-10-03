@@ -87,12 +87,13 @@ begin
   perform pg_temp.ok('promos : ids, noms, lieu et dates',
     v_txt = '1|Nîmes, mars 2026|1|2026-03-30|2026-12-11 ; 2|Nîmes, septembre 2026|1|2026-09-30|nulle',
     coalesce(v_txt, 'aucune'));
-  -- Identités prêtes à donner 3 : lecture de l'état de la séquence, rien n'est consommé.
+  -- Identités : la lecture ne consomme rien ; d'autres scripts annulés (la preuve) ont pu faire avancer la séquence, seule compte l'absence de collision avec 1 et 2.
   foreach v_table in array array['lieux', 'promos'] loop
     v_seq := pg_get_serial_sequence('public.' || v_table, 'id');
     execute format('select last_value, is_called from %s', v_seq) into v_last, v_bool;
-    perform pg_temp.ok('identité de ' || v_table || ' : prochaine valeur 3, rien de consommé',
-      v_last = 3 and not v_bool, v_seq || ' : last_value ' || v_last || ', is_called ' || v_bool);
+    perform pg_temp.ok('identité de ' || v_table || ' : prochaine valeur au moins 3 (1 et 2 jamais redonnés)',
+      (case when v_bool then v_last + 1 else v_last end) >= 3,
+      v_seq || ' : last_value ' || v_last || ', is_called ' || v_bool);
   end loop;
 
   -- 2. Copies fidèles de la progression et de l'état des examens
