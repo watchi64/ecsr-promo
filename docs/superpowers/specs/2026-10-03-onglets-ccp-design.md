@@ -194,7 +194,10 @@ Relecture de la spec par Timy, plan, réalisation et vérification au banc ; fus
 vérification navigateur du `main` fusionné, push par Timy, redéploiement de l'assistant par
 Timy, puis ménage (worktree, branche, notes de projet, mémoire) et message WhatsApp.
 
-## 11. Lot 2 : l'espace stagiaires des formateurs (à spécifier ensuite)
+## 11. Lot 2 : l'espace stagiaires des formateurs
+
+Spécifié le 03/10 dans `2026-10-03-espace-stagiaires-design.md` (page Stagiaires, fiche en
+sommaire sur iPhone), qui précise et ajuste le principe de départ ci-dessous.
 
 Principe validé le 03/10 : pour un formateur, Mon espace s'ouvre sur **la liste de la promo**,
 avec pour chacun des pastilles d'avancement (EPCF, livret, dossier) ; un geste ouvre l'espace
