@@ -6,15 +6,27 @@
  * SVG, à l'échelle réelle (une unité = un mètre), et l'anime en temps réel.
  * Tout est construit par l'API du DOM : aucun texte de cours ne devient du code.
  * La géométrie est celle de js/scene-geometrie.js, la même que celle des tests ;
- * le regard du conducteur et son cône sont ceux de js/scene-regard.js.
+ * le regard du conducteur et son cône sont ceux de js/scene-regard.js, et les
+ * règles de l'image (clignotant, cadres, repères, panneaux) celles de
+ * js/scene-rendu.js, testées elles aussi.
  *
  * Sobriété : la lecture démarre quand le schéma devient visible, une seule fois,
  * puis attend « Rejouer » ; elle s'arrête si le schéma sort de l'écran ou du
- * document. Animations réduites : schéma à l'arrêt, étapes numérotées le long du
- * trajet, un appui sur une étape y place la voiture.
+ * document. Animations réduites : schéma à l'arrêt, cadré une fois pour toutes sur
+ * l'ensemble des étapes, étapes numérotées le long du trajet, un appui sur une
+ * étape y place la voiture.
+ *
+ * Image figée (pas à pas, pause, fin de lecture, animations réduites) : elle montre
+ * l'état de la scène à cet instant, pas une phase d'animation : le clignotant en
+ * marche y est allumé, le regard de l'étape y est dessiné.
+ *
+ * Rien n'apparaît hors du cadre : le dessin est découpé au cadre courant, et la
+ * boîte du SVG prend les proportions de ce cadre (css/cours-blocs.css).
  */
 import { preparerScene, etatActeur, pointA, GABARITS, DEG } from "./scene-geometrie.js?v=20261003c";
-import { oeil, angleRegard, coneRegard, REGARD_PORTEE } from "./scene-regard.js?v=20261003c";
+import { regardDessine } from "./scene-regard.js?v=20261003c";
+import { RAYON_REPERE, clignotantAllume, cadreCamera, cadreReduit, reperesEtapes, demiLargeurRepere, emprisePanneau,
+  facteurLecture } from "./scene-rendu.js?v=20261003c";
 import { urlSignalVerifie } from "./signaux.js?v=20261003c";
 
 const NS = "http://www.w3.org/2000/svg";
@@ -24,11 +36,15 @@ const TEINTES = {
   chaussee: "#5D635B", trottoir: "#DAD6CA", ilot: "#B9CB9B", peinture: "#FFFFFF",
   eleve: "#6B7F4E", eleveBord: "#3E4A2D", autre: "#8D97A3", autreBord: "#4E5863",
   pieton: "#2E2E2B", clignotant: "#F4A900", stop: "#D2232A", vitre: "#C9D6DF",
-  regard: "#FFD45C", trajet: "#FFFFFF", repere: "#1F2924",
+  regard: "#FFD45C", repere: "#1F2924",
+  // Trajet prévu de l'élève : la teinte de sa voiture, en pointillé fin et translucide, pour ne jamais passer pour un
+  // marquage peint (blanc, en traits).
+  trajet: "#6B7F4E",
 };
-const TAILLE_PANNEAU = 2.6;    // m : panneaux AGRANDIS pour rester lisibles (consigné dans les fiches)
-const FREQ_CLIGNOTANT = 1.5;   // Hz
-const DEBORD_SUIVI = 2;        // m : le cône d'un regard qui suit un usager dépasse celui-ci de 2 m
+// Opacité du regard : le cône, ou, plus léger, le secteur que parcourt un balayage sur une image figée.
+const OPACITE_REGARD = { cone: 0.4, secteur: 0.22 };
+// Numéro des schémas montés : chacun a sa propre découpe, plusieurs schémas pouvant partager une page.
+let numeroScene = 0;
 
 function svg(nom, attrs = {}) {
   const n = document.createElementNS(NS, nom);
@@ -36,6 +52,7 @@ function svg(nom, attrs = {}) {
   return n;
 }
 const f3 = (x) => x.toFixed(3);
+const n3 = (x) => String(Number(x.toFixed(3)));     // 46 s'écrit « 46 », 63.50926 « 63.509 »
 const chemin = (poly) => "M" + poly.map(([x, y]) => f3(x) + " " + f3(y)).join(" L") + " Z";
 
 // Le pointillé d'un tracé SVG commence à son premier point. Pour une ligne de cédez-le-passage, c'est le bout le plus
@@ -60,14 +77,25 @@ function dessinerMarquage(parent, m, centre) {
   parent.appendChild(svg("line", attrs));
 }
 
+// Panneau : le dessin officiel, centré sur la position réelle du panneau (js/scene-rendu.js, emprisePanneau).
 function dessinerPanneau(parent, p) {
   const url = urlSignalVerifie(p.code);
   if (!url) return;                                  // jamais deviné
+  const r = emprisePanneau(p);
   const g = svg("g", { class: "scene-panneau" });
-  g.appendChild(svg("circle", { cx: f3(p.x), cy: f3(p.y), r: 0.25, fill: TEINTES.repere }));   // position réelle
-  g.appendChild(svg("image", { x: f3(p.x - TAILLE_PANNEAU / 2), y: f3(p.y - TAILLE_PANNEAU - 0.3),
-    width: TAILLE_PANNEAU, height: TAILLE_PANNEAU, href: url }));
+  g.appendChild(svg("image", { x: f3(r.x), y: f3(r.y), width: r.largeur, height: r.hauteur, href: url }));
   parent.appendChild(g);
+}
+
+// Trajet prévu de l'élève, point par point tous les 0,5 m.
+function dessinerTrajet(parent, sc) {
+  const points = [];
+  for (let s = 0; s <= sc.eleve.chemin.longueur; s += 0.5) {
+    const p = pointA(sc.eleve.chemin, s);
+    points.push(f3(p.x) + "," + f3(p.y));
+  }
+  parent.appendChild(svg("polyline", { points: points.join(" "), fill: "none", stroke: TEINTES.trajet,
+    "stroke-width": 0.18, "stroke-linecap": "round", "stroke-dasharray": "0 0.45", opacity: 0.85 }));
 }
 
 // Voiture en repère local : x vers l'avant, y vers la droite.
@@ -96,72 +124,81 @@ function dessinerPieton() {
   return { g, clignotants: null, stops: null };
 }
 
-// Longueur (m) du cône du regard : la portée de js/scene-regard.js. Un regard qui suit un usager s'arrête 2 m au-delà
-// de lui : le cône désigne la personne regardée au lieu de déborder du cadre. Même ordre de priorité qu'angleRegard
-// (balayage, angle, puis suivre) ; appelée seulement quand angleRegard a rendu une direction, donc quand la cible
-// d'un regard qui suit est connue et visible.
-function longueurCone(regard, o, etats) {
-  if (regard.balayage || typeof regard.angle === "number" || !regard.suivre) return REGARD_PORTEE;
-  const cible = etats.get(regard.suivre);
-  return Math.min(REGARD_PORTEE, Math.hypot(cible.x - o.x, cible.y - o.y) + DEBORD_SUIVI);
-}
-
-// Triangle du cône : celui de coneRegard (js/scene-regard.js, que les tests des scènes contrôlent), ramené autour de
-// l'œil à `longueur` m quand le regard suit un usager.
-function triangleCone(angle, o, longueur) {
-  const triangle = coneRegard(angle, o);
-  if (longueur >= REGARD_PORTEE) return triangle;
-  const k = longueur / REGARD_PORTEE;
-  return triangle.map(([x, y]) => [o.x + (x - o.x) * k, o.y + (y - o.y) * k]);
-}
-
-function reperesEtapes(sc) {
+// Repères numérotés des étapes (animations réduites), à la position de l'élève au début de chacune : un disque, ou une
+// pastille qui contient tous les numéros quand plusieurs étapes partagent le repère.
+function dessinerReperes(sc) {
   const g = svg("g", { class: "scene-reperes" });
-  const groupes = [];
-  sc.etapes.forEach((et, i) => {
-    const e = etatActeur(sc.eleve, et.t);
-    const proche = groupes.find((x) => Math.hypot(x.x - e.x, x.y - e.y) < 1.5);
-    if (proche) proche.num.push(i + 1); else groupes.push({ x: e.x, y: e.y, num: [i + 1] });
-  });
-  for (const x of groupes) {
-    g.appendChild(svg("circle", { cx: f3(x.x), cy: f3(x.y), r: 1.2, fill: "#FFFFFF", stroke: TEINTES.repere, "stroke-width": 0.15 }));
-    const texte = svg("text", { x: f3(x.x), y: f3(x.y + 0.45), "text-anchor": "middle", "font-size": 1.2,
+  for (const r of reperesEtapes(sc)) {
+    const demi = demiLargeurRepere(r.numeros);
+    g.appendChild(svg("rect", { x: f3(r.x - demi), y: f3(r.y - RAYON_REPERE), width: f3(2 * demi), height: 2 * RAYON_REPERE,
+      rx: RAYON_REPERE, fill: "#FFFFFF", stroke: TEINTES.repere, "stroke-width": 0.15 }));
+    const texte = svg("text", { x: f3(r.x), y: f3(r.y + 0.45), "text-anchor": "middle", "font-size": 1.2,
       fill: TEINTES.repere, "font-family": "Geist Mono, ui-monospace, monospace" });
-    texte.textContent = x.num.join("·");
+    texte.textContent = r.numeros.join("·");
     g.appendChild(texte);
   }
   return g;
 }
 
+// Étape courante : classe « on » sur l'élément de l'étape, aria-current sur son bouton (c'est lui qui reçoit le focus)
+// ou, sans bouton, sur l'élément lui-même.
+function marquerEtape(element, courante) {
+  element.classList.toggle("on", courante);
+  const cible = (element.querySelector && element.querySelector("button")) || element;
+  if (courante) cible.setAttribute("aria-current", "step");
+  else cible.removeAttribute("aria-current");
+}
+
 export function monterScene(def, { conteneur, etapes = [], reduit = false, onEtape = null } = {}) {
   const sc = preparerScene(def);
-  const racine = svg("svg", { class: "scene-svg", role: "img", "aria-label": sc.titre,
-    viewBox: sc.camera ? `0 0 ${sc.camera.largeur} ${sc.camera.hauteur}` : `0 0 ${sc.monde.largeur} ${sc.monde.hauteur}` });
-  racine.appendChild(svg("rect", { x: -200, y: -200, width: sc.monde.largeur + 400, height: sc.monde.hauteur + 400, fill: TEINTES.chaussee }));
+  const racine = svg("svg", { class: "scene-svg", role: "img", "aria-label": sc.titre });
+  // Tout le dessin est découpé au cadre courant : rien de ce qui est hors du cadre (le monde au-delà de ses bords, un
+  // véhicule qui doit entrer par un bord) n'apparaît, même si la boîte du SVG laissait des bandes autour du cadre.
+  const idDecoupe = `scene-cadre-${++numeroScene}`;
+  const rectCadre = svg("rect");
+  const decoupe = svg("clipPath", { id: idDecoupe });
+  decoupe.appendChild(rectCadre);
+  const defs = svg("defs");
+  defs.appendChild(decoupe);
+  const dessin = svg("g", { "clip-path": `url(#${idDecoupe})` });
+  racine.appendChild(defs);
+  racine.appendChild(dessin);
+
+  dessin.appendChild(svg("rect", { x: -200, y: -200, width: sc.monde.largeur + 400, height: sc.monde.hauteur + 400, fill: TEINTES.chaussee }));
   for (const o of sc.decor.obstacles) {
-    racine.appendChild(svg("path", { d: chemin(o.poly), fill: o.nature === "ilot" ? TEINTES.ilot : TEINTES.trottoir }));
+    dessin.appendChild(svg("path", { d: chemin(o.poly), fill: o.nature === "ilot" ? TEINTES.ilot : TEINTES.trottoir }));
   }
   const marquage = svg("g");
   sc.decor.marquages.forEach((m) => dessinerMarquage(marquage, m, sc.decor.centre));
-  racine.appendChild(marquage);
-  const points = [];
-  for (let s = 0; s <= sc.eleve.chemin.longueur; s += 0.5) {
-    const p = pointA(sc.eleve.chemin, s);
-    points.push(f3(p.x) + "," + f3(p.y));
-  }
-  racine.appendChild(svg("polyline", { points: points.join(" "), fill: "none", stroke: TEINTES.trajet,
-    "stroke-width": 0.12, "stroke-dasharray": "0.6 0.6", opacity: 0.6 }));
-  sc.decor.panneaux.forEach((p) => dessinerPanneau(racine, p));
-  const cone = svg("path", { fill: TEINTES.regard, opacity: 0.4, display: "none" });
-  racine.appendChild(cone);
+  dessin.appendChild(marquage);
+  dessinerTrajet(dessin, sc);
+  sc.decor.panneaux.forEach((p) => dessinerPanneau(dessin, p));
+  const cone = svg("path", { fill: TEINTES.regard, opacity: OPACITE_REGARD.cone, display: "none" });
+  dessin.appendChild(cone);
+  // Les repères passent sous les usagers : ils ne cachent jamais la voiture.
+  if (reduit) dessin.appendChild(dessinerReperes(sc));
   const vues = new Map();
   for (const a of sc.acteurs) {
     const v = a.gabarit === "pieton" ? dessinerPieton()
       : dessinerVoiture(a.role === "eleve" ? TEINTES.eleve : TEINTES.autre, a.role === "eleve" ? TEINTES.eleveBord : TEINTES.autreBord);
-    racine.appendChild(v.g);
+    dessin.appendChild(v.g);
     vues.set(a.id, v);
   }
-  if (reduit) racine.appendChild(reperesEtapes(sc));
+
+  // Cadre : viewBox et découpe ensemble.
+  function cadrer(c) {
+    racine.setAttribute("viewBox", `${f3(c.x)} ${f3(c.y)} ${n3(c.largeur)} ${n3(c.hauteur)}`);
+    rectCadre.setAttribute("x", f3(c.x));
+    rectCadre.setAttribute("y", f3(c.y));
+    rectCadre.setAttribute("width", n3(c.largeur));
+    rectCadre.setAttribute("height", n3(c.hauteur));
+  }
+  // En lecture, le cadre suit l'élève (caméra) et garde sa taille ; en animations réduites, il est posé une fois pour
+  // toutes sur l'ensemble des étapes. Ses proportions sont celles de la boîte du SVG (css/cours-blocs.css).
+  const premierCadre = reduit ? cadreReduit(sc) : cadreCamera(sc, etatActeur(sc.eleve, 0));
+  racine.style.setProperty("--scene-l", n3(premierCadre.largeur));
+  racine.style.setProperty("--scene-h", n3(premierCadre.hauteur));
+  cadrer(premierCadre);
 
   const barre = document.createElement("div");
   barre.className = "scene-commandes";
@@ -173,17 +210,27 @@ export function monterScene(def, { conteneur, etapes = [], reduit = false, onEta
   rejouerBtn.className = "btn ghost";
   rejouerBtn.textContent = "Rejouer";
   barre.append(lecture, rejouerBtn);
-  if ((sc.vitesseLecture || 1) !== 1) {
-    const facteur = document.createElement("span");
-    facteur.className = "scene-facteur";
-    facteur.textContent = "× " + sc.vitesseLecture;
-    barre.append(facteur);
+  const facteur = facteurLecture(sc.vitesseLecture || 1);
+  if (facteur) {
+    // « × 0,5 » à l'écran ; les lecteurs d'écran lisent la phrase en clair.
+    const span = document.createElement("span");
+    span.className = "scene-facteur";
+    const vu = document.createElement("span");
+    vu.setAttribute("aria-hidden", "true");
+    vu.textContent = facteur.texte;
+    const lu = document.createElement("span");
+    lu.className = "scene-lecteur-ecran";
+    lu.textContent = facteur.libelle;
+    span.append(vu, lu);
+    barre.append(span);
   }
   conteneur.append(racine, barre);
 
   let t = 0, enCours = false, raf = 0, dernier = 0, etapeCourante = -1, dejaVu = false, observateur = null;
 
   function rendre(instant) {
+    // Image figée (pas à pas, pause, fin de lecture, animations réduites) : l'état de la scène, pas une phase d'animation.
+    const fige = reduit || !enCours;
     const etats = new Map(sc.acteurs.map((a) => [a.id, etatActeur(a, instant)]));
     let k = 0;
     sc.etapes.forEach((et, i) => { if (instant + 1e-9 >= et.t) k = i; });
@@ -192,50 +239,51 @@ export function monterScene(def, { conteneur, etapes = [], reduit = false, onEta
       v.g.setAttribute("display", e.visible ? "inline" : "none");
       v.g.setAttribute("transform", `translate(${f3(e.x)} ${f3(e.y)}) rotate(${(e.cap / DEG).toFixed(2)})`);
       if (v.clignotants) {
-        const allume = e.clignotant && Math.floor(instant * FREQ_CLIGNOTANT * 2) % 2 === 0;
+        const allume = clignotantAllume(e, instant, fige);
         for (const cote of ["droite", "gauche"]) {
-          v.clignotants[cote].forEach((n) => n.setAttribute("opacity", allume && e.clignotant === cote ? 1 : 0));
+          v.clignotants[cote].forEach((n) => n.setAttribute("opacity", allume === cote ? 1 : 0));
         }
         v.stops.forEach((n) => n.setAttribute("opacity", e.a < -0.3 || e.v < 0.05 ? 1 : 0));
       }
     }
     const e = etats.get(sc.eleve.id);
-    const etape = sc.etapes[k];
-    const ang = reduit ? null : angleRegard(etape, e, instant, etats);
-    if (ang === null) {
+    // Sur une image figée, en animations réduites comme en pas à pas, le regard de l'étape reste dessiné : le cône d'un
+    // angle ou d'un usager suivi, et, pour un balayage, le secteur qu'il parcourt (75 + 16 degrés de part et d'autre du
+    // cap, sur REGARD_PORTEE), plus léger, au lieu de la direction que son va-et-vient aurait à cet instant.
+    const regard = regardDessine(sc.etapes[k], e, instant, etats, fige);
+    if (!regard) {
       cone.setAttribute("display", "none");
     } else {
-      const o = oeil(e);
-      cone.setAttribute("d", chemin(triangleCone(ang, o, longueurCone(etape.regard, o, etats))));
+      cone.setAttribute("d", chemin(regard.poly));
+      cone.setAttribute("opacity", OPACITE_REGARD[regard.forme]);
       cone.setAttribute("display", "inline");
     }
-    if (sc.camera) {
-      const w = sc.camera.largeur, h = sc.camera.hauteur;
-      const x0 = Math.min(Math.max(e.x - w / 2, 0), sc.monde.largeur - w);
-      const y0 = Math.min(Math.max(e.y - h / 2, 0), sc.monde.hauteur - h);
-      racine.setAttribute("viewBox", `${f3(x0)} ${f3(y0)} ${w} ${h}`);
-    }
+    // La caméra suit l'élève en lecture ; en animations réduites, le cadre posé au montage ne bouge pas.
+    if (sc.camera && !reduit) cadrer(cadreCamera(sc, e));
     if (k !== etapeCourante) {
       etapeCourante = k;
-      etapes.forEach((li, i) => li.classList.toggle("on", i === k));
+      etapes.forEach((element, i) => marquerEtape(element, i === k));
       if (onEtape) onEtape(k);
     }
   }
 
+  // Le libellé du bouton porte l'état (Lecture, Pause, Revoir) : pas d'aria-pressed, qui le doublerait.
   function majBouton() {
     lecture.textContent = enCours ? "Pause" : (t >= sc.duree ? "Revoir" : "Lecture");
-    lecture.setAttribute("aria-pressed", enCours ? "true" : "false");
   }
+  function arreter() { enCours = false; cancelAnimationFrame(raf); }
   function boucle(maintenant) {
     if (!racine.isConnected) { detruire(); return; }
     const dt = Math.min(0.1, (maintenant - dernier) / 1000) * (sc.vitesseLecture || 1);
     dernier = maintenant;
     t = Math.min(sc.duree, t + dt);
+    if (t >= sc.duree) { enCours = false; rendre(t); majBouton(); return; }   // la dernière image est une image figée
     rendre(t);
-    if (t >= sc.duree) { enCours = false; majBouton(); return; }
     raf = requestAnimationFrame(boucle);
   }
+  // Une lecture demandée, comme un appui sur une étape, l'emporte sur la lecture automatique à la première visibilité.
   function jouer() {
+    dejaVu = true;
     if (enCours) return;
     if (t >= sc.duree) t = 0;
     enCours = true;
@@ -243,10 +291,10 @@ export function monterScene(def, { conteneur, etapes = [], reduit = false, onEta
     raf = requestAnimationFrame(boucle);
     majBouton();
   }
-  function pause() { enCours = false; cancelAnimationFrame(raf); majBouton(); }
-  function rejouer() { pause(); t = 0; rendre(0); jouer(); }
-  function allerEtape(i) { pause(); t = sc.etapes[i].t; rendre(t); majBouton(); }
-  function detruire() { cancelAnimationFrame(raf); enCours = false; if (observateur) observateur.disconnect(); }
+  function pause() { arreter(); rendre(t); majBouton(); }
+  function rejouer() { arreter(); t = 0; rendre(0); jouer(); }
+  function allerEtape(i) { dejaVu = true; arreter(); t = sc.etapes[i].t; rendre(t); majBouton(); }
+  function detruire() { arreter(); if (observateur) observateur.disconnect(); majBouton(); }
 
   lecture.addEventListener("click", () => (enCours ? pause() : jouer()));
   rejouerBtn.addEventListener("click", rejouer);

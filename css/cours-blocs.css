@@ -32,12 +32,25 @@
 /* Pastille de l'en-tête : style.css la fixe à 2,1 rem, trop étroit pour un code comme « C2.4 ». */
 .cours-competence .cours-num { min-width: 2.6rem; width: auto; padding: 0 0.3rem; }
 
-/* Schéma animé */
+/* Schéma animé. Le gris de la chaussée est porté par le dessin lui-même : la barre de
+   commandes, sous le schéma, est posée sur le fond de la page. */
 .scene-bloc { margin: 1.2rem 0; }
-.scene-vue { border-radius: var(--r); overflow: hidden; background: #5D635B; }
-.scene-svg { display: block; width: 100%; height: auto; max-height: 72vh; }
+.scene-svg {
+  display: block; width: 100%; height: auto; max-height: 72vh;
+  /* Boîte aux proportions du cadre (--scene-l sur --scene-h, en mètres, posés par le
+     moteur) : quand la hauteur est bornée, la largeur se réduit d'autant, sans bande
+     autour du cadre (le moteur découpe en outre le dessin au cadre). */
+  aspect-ratio: var(--scene-l) / var(--scene-h);
+  max-width: calc(72vh * var(--scene-l) / var(--scene-h));
+  background: #5D635B; border-radius: var(--r);
+}
 .scene-commandes { display: flex; gap: 0.5rem; align-items: center; margin: 0.5rem 0; }
-.scene-facteur { font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-muted); }
+.scene-facteur { font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-soft); }
+/* Texte lu par les lecteurs d'écran seulement (libellé du facteur de lecture). */
+.scene-lecteur-ecran {
+  position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0;
+  overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap;
+}
 .scene-etapes { list-style: none; margin: 0.3rem 0 0; padding: 0; display: grid; gap: 0.2rem; }
 .scene-etape {
   display: flex; gap: 0.6rem; align-items: baseline; width: 100%; text-align: left;
