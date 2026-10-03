@@ -16,6 +16,15 @@
 
 export const NOUVEAUTES = [
   {
+    id: "2026-10-03-numero-benevole",
+    date: "2026-10-03",
+    pour: "formateurs",
+    titre: "Planning : le numéro d'un élève bénévole en un toucher",
+    resume: "Dans le planning, touche le nom d'un élève bénévole pour afficher son numéro et "
+          + "l'appeler.",
+    ou: { label: "Planning", route: "planning" },
+  },
+  {
     id: "2026-10-03-barre-jours-telephone",
     date: "2026-10-03",
     pour: "tous",

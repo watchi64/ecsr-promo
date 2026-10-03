@@ -8171,3 +8171,95 @@ body.cours-open { overflow: hidden; }
      carte sous les deux barres : ici 95,5 (barre du haut) + 47,7 (barre de jours) + 4,8 d'air = 148 px. */
   .p-day-card { scroll-margin-top: 148px; }
 }
+
+/* ===== Planning : le numéro d'un élève bénévole, au toucher (formateurs, 2026-10) =====
+   Sur une carte Voiture, le nom d'un élève bénévole est un bouton chez le formateur : un toucher
+   affiche son numéro (lien tel:) à côté du nom, un second le masque. Chez le stagiaire, le nom reste
+   du texte (voir benevoleNomEtNumero dans planning.js).
+   ⚠️ EXCEPTION ASSUMÉE À LA LECTURE SEULE. Ce bouton n'est pas un contrôle d'édition : il doit rester
+   actif quand `.read-only` coupe les contrôles des cartes (bloc « Read-only mode » plus haut).
+   `.chips-display` y est en `pointer-events: none` et ses enfants en héritent : sans la règle
+   ci-dessous, le nom serait inerte là où on en a besoin. L'audit « zéro contrôle actif » (boutons,
+   champs et [tabindex] visibles de `.p-days` dont pointer-events n'est pas none) écarte donc les
+   éléments marqués [data-hors-edition] : le nom-bouton, le lien du numéro et le texte « pas de
+   numéro », et rien d'autre. Un contrôle d'édition ne reçoit JAMAIS cet attribut.
+   Bloc en fin de fichier : la vue compacte (`.p-compact .chip`, plus haut) a la même spécificité que
+   ces règles et ne cède que par l'ordre de déclaration. */
+.read-only .p-days .chips-display .bnv-nom-btn,
+.read-only .p-days .chips-display .bnv-nom-num { pointer-events: auto; }
+
+/* Le nom : du texte courant, simplement souligné en pointillés (discret, mais on le voit). */
+.bnv-nom-btn {
+  position: relative;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  text-decoration: underline dotted var(--text-faint);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
+  touch-action: manipulation;   /* pas de zoom au double toucher (afficher puis masquer) */
+}
+/* Zone de toucher élargie sans toucher à la mise en page : le texte fait 16 px de haut en vue
+   compacte, la zone atteint 28 px (minimum conseillé : 24). Côtés à 3 px seulement, pour ne pas
+   mordre sur la croix de retrait de la puce en édition. */
+.bnv-nom-btn::after {
+  content: "";
+  position: absolute;
+  top: -0.4rem;
+  right: -0.2rem;
+  bottom: -0.4rem;
+  left: -0.2rem;
+}
+/* Souligné plein au survol, souris seulement : sur téléphone le survol reste collé après le toucher. */
+@media (hover: hover) { .bnv-nom-btn:hover { text-decoration-style: solid; } }
+.bnv-nom-btn[aria-expanded="true"] { color: var(--accent-strong); text-decoration-color: var(--accent); }
+.bnv-nom-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+
+/* Le numéro : un lien d'appel bien gros à toucher, ou « pas de numéro » en simple texte. */
+.bnv-nom-num[hidden] { display: none !important; }
+a.bnv-nom-num {
+  position: relative;   /* au-dessus de la zone de toucher élargie des noms voisins (::after plus haut) */
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.9rem;
+  padding: 0 0.7rem;
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  font-size: 0.88rem;
+  font-weight: 600;
+  touch-action: manipulation;
+}
+span.bnv-nom-num { font-size: 0.8rem; font-style: italic; color: var(--text-muted); }
+/* En édition les puces sont petites (0,7 rem) : la pastille du numéro suit, sans perdre sa zone de toucher. */
+.p-editing a.bnv-nom-num { min-height: 1.75rem; padding: 0 0.55rem; font-size: 0.8rem; }
+
+/* Puce ouverte : le nom et son numéro côte à côte, le numéro passe sous le nom si la place manque.
+   En lecture, la puce prend toute sa ligne (sans virgule) : on ne lit pas un numéro collé au nom
+   suivant. */
+.chip.bnv-ouvert { flex-wrap: wrap; align-items: center; gap: 0.15rem 0.5rem; max-width: 100%; }
+.p-compact .chips-display .chip.bnv-ouvert { flex: 1 0 100%; }
+.p-compact .chips-display .chip.bnv-ouvert::after { content: none; }
+/* En édition, la pastille garde sa croix : le nom et la croix sur la première ligne, le numéro dessous.
+   Avec un simple retour à la ligne, la croix se retrouve seule sur une troisième ligne à 320 px. */
+.p-editing .chip.bnv-ouvert {
+  display: inline-grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+}
+.p-editing .chip.bnv-ouvert .bnv-nom-btn { grid-column: 1; grid-row: 1; justify-self: start; }
+.p-editing .chip.bnv-ouvert .x { grid-column: 2; grid-row: 1; }
+.p-editing .chip.bnv-ouvert .bnv-nom-num { grid-column: 1 / -1; grid-row: 2; justify-self: start; }
+
+/* Jamais de numéro sur papier : l'impression a son propre DOM, ceci n'est qu'une ceinture. */
+@media print {
+  .bnv-nom-num { display: none !important; }
+  .bnv-nom-btn { text-decoration: none; }
+}

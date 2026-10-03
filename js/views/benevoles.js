@@ -94,7 +94,8 @@ function dispoBadges(b) {
   return wrap;
 }
 
-function telLink(tel) {
+// Exporté pour le Planning (numéro d'un élève bénévole au toucher) : même lien tel:, même classe.
+export function telLink(tel) {
   if (!tel || !String(tel).trim()) return null;
   return el("a", { class: "bnv-tel", href: "tel:" + String(tel).replace(/[^+\d]/g, "") }, tel);
 }

@@ -15,7 +15,7 @@ import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../conf
 import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20261003c";
 import { recordUndo } from "../undo.js?v=20261003c";
 import { getCurrentWho } from "../identity.js?v=20261003c";
-import { openBenevolesPanel } from "./benevoles.js?v=20261003c";
+import { openBenevolesPanel, telLink } from "./benevoles.js?v=20261003c";
 import { meilleurResultat } from "../passage-rules.js?v=20261003c";
 import { routeVisible, routeMasquee, repereMasque } from "../modules-etat.js?v=20261003c";
 
@@ -1402,9 +1402,13 @@ function personSelect(allStagiaires, currentId, onChange, counts, placeholder = 
 // d'autres listes que les stagiaires (ex. bénévoles : badge « dispo » à la place du compteur).
 // { chipClassFn, onChipClick } : classe et action au clic sur le CORPS d'une chip (marquage
 // d'absence sur les élèves voiture : la croix garde son rôle de retrait).
+// { chipLabelFn } : libellé de la CHIP seulement (le menu garde labelFn), texte ou liste de nœuds
+// (élèves bénévoles : nom-bouton + numéro). Un clic sur un élément marqué [data-hors-edition]
+// n'ouvre pas le menu : ce n'est pas une action d'édition de la carte.
 function chipsSelect(allStagiaires, currentIds, onChange, counts, opts = {}) {
   const { labelFn = displayStagiaire, placeholder = "Stagiaires…", itemBadge = null,
-          chipTitleFn = null, chipClassFn = null, onChipClick = null, optionsFn = null } = opts;
+          chipTitleFn = null, chipClassFn = null, onChipClick = null, optionsFn = null,
+          chipLabelFn = null } = opts;
   const wrap = el("div", { class: "chips-select" });
   const display = el("div", { class: "chips-display", tabindex: "0" });
   const dropdown = el("div", { class: "chips-dropdown hidden" });
@@ -1422,7 +1426,7 @@ function chipsSelect(allStagiaires, currentIds, onChange, counts, opts = {}) {
         const s = list.find((x) => x.id === id) || allStagiaires.find((x) => x.id === id);
         if (!s) return;
         const chip = el("span", { class: "chip" + (chipClassFn ? (chipClassFn(id) || "") : "") },
-          labelFn(s),
+          chipLabelFn ? chipLabelFn(s) : labelFn(s),
           el("span", { class: "x", onClick: (ev) => {
             ev.stopPropagation();
             selected = selected.filter((x) => x !== id);
@@ -1465,7 +1469,8 @@ function chipsSelect(allStagiaires, currentIds, onChange, counts, opts = {}) {
     });
   }
 
-  display.addEventListener("click", () => {
+  display.addEventListener("click", (ev) => {
+    if (ev.target.closest("[data-hors-edition]")) return;   // nom-bouton / numéro d'un bénévole
     const willOpen = dropdown.classList.contains("hidden");
     if (willOpen && optionsFn) render();   // options fraîches à l'ouverture
     dropdown.classList.toggle("hidden");
@@ -1482,6 +1487,35 @@ function chipsSelect(allStagiaires, currentIds, onChange, counts, opts = {}) {
   wrap.appendChild(dropdown);
   render();
   return wrap;
+}
+
+// Nom d'un élève bénévole tel que sa puce l'affiche sur une carte. Formateur : le nom est un
+// bouton qui montre / masque le numéro, en lien tel: juste à côté (« pas de numéro » quand la
+// fiche n'en a pas). Stagiaire : le nom seul, en texte : la RPC benevoles_noms() ne lui donne
+// jamais le numéro, et sans la colonne `telephone` il n'y a de toute façon rien à montrer.
+// Ce n'est PAS un contrôle d'édition : il reste actif en lecture seule (exception notée en fin
+// de style.css) et, marqué [data-hors-edition], il n'ouvre ni le menu de la puce ni le toast
+// « lecture seule » de la zone des cartes. L'impression a son propre DOM : jamais de numéro.
+function benevoleNomEtNumero(b) {
+  if (!isAdmin() || !("telephone" in b)) return b.display;
+  const nom = b.display;
+  // Un numéro sans aucun chiffre (« - », « ? ») ne s'appelle pas : il compte comme absent.
+  const lien = String(b.telephone ?? "").replace(/[^+\d]/g, "") ? telLink(b.telephone) : null;
+  const numero = lien || el("span", { class: "bnv-nom-sans" }, "pas de numéro");
+  numero.classList.add("bnv-nom-num");
+  numero.setAttribute("data-hors-edition", "");
+  numero.hidden = true;
+  const bouton = el("button", {
+    type: "button", class: "bnv-nom-btn", "data-hors-edition": "",
+    "aria-expanded": "false", "aria-label": "Afficher le numéro de " + nom,
+  }, nom);
+  bouton.addEventListener("click", () => {
+    const ouvert = bouton.getAttribute("aria-expanded") !== "true";
+    bouton.setAttribute("aria-expanded", String(ouvert));
+    numero.hidden = !ouvert;
+    bouton.closest(".chip")?.classList.toggle("bnv-ouvert", ouvert);
+  });
+  return [bouton, numero];
 }
 
 // Lignes « ⊘ X absent(e) → remplacé(e) par … » d'une carte (spec §5). Sélecteur SOUPLE :
@@ -1908,7 +1942,8 @@ function renderLaneCell(entry) {
 
     // Bénévoles (volontaires conduite) : chips depuis la banque, dispos du jour en tête.
     // Côté stagiaire, `benevoles` vient de la RPC ({id, display}) : pas de dispos ni
-    // d'actif → tri stable, pas de badge, chips en lecture seule comme les élèves.
+    // d'actif → tri stable, pas de badge, chips en lecture seule comme les élèves, et le nom
+    // reste du texte. Côté formateur, le nom de la chip ouvre le numéro (benevoleNomEtNumero).
     if (shape.includes("benevoles")) {
       const bnvRole = el("div", { class: "p-lane-role benevoles" });
       bnvRole.appendChild(el("span", { class: "p-lane-role-label" }, "Élèves bénévoles"));
@@ -1924,6 +1959,7 @@ function renderLaneCell(entry) {
       bnvRole.appendChild(chipsSelect(bnvOptions, currentBnv,
         (ids) => saveEntry(lid, { benevoles_ids: ids }), null, {
           labelFn: (b) => b.display,
+          chipLabelFn: benevoleNomEtNumero,
           placeholder: "Élèves bénévoles…",
           itemBadge: (b) => isBenevoleDispo(b, entry)
             ? el("span", { class: "bnv-dispo-badge" }, "dispo") : null,
@@ -2897,7 +2933,9 @@ function renderInto(container) {
   // Hint découvrabilité (volet 4) : un admin qui clique en lecture seule n'obtient
   // aucune réaction des cartes (pointer-events coupés) : on lui dit pourquoi.
   if (admin && !editing) {
-    wrap.addEventListener("click", () => {
+    wrap.addEventListener("click", (ev) => {
+      // Le nom d'un bénévole (et son numéro) reste actif en lecture seule : pas de hint.
+      if (ev.target.closest("[data-hors-edition]")) return;
       const now = Date.now();
       if (now - lastHintAt < 5000) return;   // max 1 toast / 5 s
       lastHintAt = now;
