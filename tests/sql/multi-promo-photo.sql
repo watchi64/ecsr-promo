@@ -16,8 +16,8 @@ begin
   if p_email is null then set local role anon; else set local role authenticated; end if;
 end $f$;
 
--- Compte ce qu'un personnage voit. Un refus de droit (visiteur sur une table fermée)
--- compte 0 ; toute autre erreur rend -1, qui ne correspond à aucune attente.
+-- Compte ce qu'un personnage voit. Un refus de droit ne vaut 0 que pour le visiteur (tables
+-- qui lui sont fermées) ; toute autre erreur rend -1, que la preuve compte comme un échec.
 create or replace function pg_temp.compter(p_email text, p_entete text, p_sql text)
 returns bigint language plpgsql as $f$
 declare n bigint;
@@ -26,7 +26,7 @@ begin
   begin
     execute p_sql into n;
   exception
-    when insufficient_privilege then n := 0;
+    when insufficient_privilege then n := case when p_email is null then 0 else -1 end;
     when others then n := -1;
   end;
   reset role;
