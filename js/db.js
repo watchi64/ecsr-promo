@@ -11,6 +11,9 @@ import {
 let mesPromos = [];          // lignes renvoyées par la RPC mes_promos()
 let promoCouranteId = null;  // nulle tant que le contexte n'est pas chargé : pas d'en-tête
 let cleMemoire = null;       // clé localStorage propre au compte
+let compteContexte = null;   // compte (email en minuscules) auquel appartient le contexte
+let epoque = 0;              // incrémentée à la déconnexion : un chargement en vol devient caduc
+let basculeEnCours = false;  // une seule bascule à la fois (double appui, deux choix rapides)
 const avantBascule = new Set();
 
 // fetch avec timeout : sans ça, une requête peut rester pendue indéfiniment
@@ -28,7 +31,9 @@ function fetchWithTimeout(input, init = {}) {
   let options = init;
   const url = typeof input === "string" ? input : String(input?.url ?? input);
   if (promoCouranteId != null && doitPorterEntetePromo(url, SUPABASE_URL)) {
-    const entetes = new Headers(init.headers || {});
+    // Un Request garde ses propres en-têtes (apikey, Authorization) s'il n'y en a pas dans init.
+    const entetes = new Headers(init.headers
+      || (typeof Request !== "undefined" && input instanceof Request ? input.headers : {}));
     entetes.set(ENTETE_PROMO, String(promoCouranteId));
     options = { ...init, headers: entetes };
   }
@@ -80,9 +85,21 @@ export function invalidateCache(key) {
 // accessible (un renouvellement de jeton ne doit jamais faire changer de promo, ni
 // envoyer une requête sans en-tête pendant le rechargement de la liste).
 export async function chargerMesPromos(email) {
-  cleMemoire = email ? "ecsr_promo:" + String(email).trim().toLowerCase() : null;
+  const compte = email ? String(email).trim().toLowerCase() : null;
+  // Autre compte que celui du contexte en mémoire (appareil partagé) : on repart de zéro,
+  // sans rien hériter de la promo du compte précédent.
+  if (compte !== compteContexte) {
+    mesPromos = [];
+    promoCouranteId = null;
+    cleMemoire = null;
+    compteContexte = compte;
+    invalidateCache();
+  }
+  const monEpoque = epoque;
   const { data, error } = await supabase.rpc("mes_promos");
   if (error) throw error;
+  if (monEpoque !== epoque) return [];  // déconnexion pendant le chargement : rien à poser
+  cleMemoire = compte ? "ecsr_promo:" + compte : null;
   mesPromos = data || [];
   let memorisee = null;
   try { memorisee = cleMemoire ? localStorage.getItem(cleMemoire) : null; } catch (e) { /* navigation privée */ }
@@ -101,9 +118,11 @@ export function getPromoCourante() {
 
 // Déconnexion : le contexte est oublié en mémoire (le choix mémorisé, propre au compte, reste).
 export function oublierPromo() {
+  epoque += 1;
   mesPromos = [];
   promoCouranteId = null;
   cleMemoire = null;
+  compteContexte = null;
   invalidateCache();
 }
 
@@ -117,7 +136,9 @@ export function avantChangementPromo(fn) {
 // vide aussi les caches et la pile Ctrl+Z, qui ne doit jamais rejouer une action d'une
 // promo dans une autre.
 export async function choisirPromo(id) {
-  if (id === promoCouranteId || !mesPromos.some((p) => p.id === id)) return;
+  id = Number(id);  // la valeur d'un <select> arrive en chaîne
+  if (basculeEnCours || id === promoCouranteId || !mesPromos.some((p) => p.id === id)) return;
+  basculeEnCours = true;
   for (const attendre of avantBascule) {
     try { await attendre(); } catch (e) { console.error("bascule de promo : attente", e); }
   }
@@ -126,8 +147,10 @@ export async function choisirPromo(id) {
 }
 
 export async function renommerPromo(id, nom) {
-  const { error } = await supabase.from("promos").update({ nom }).eq("id", id);
+  // Sans .select(), un refus par les règles d'accès répond « 0 ligne, sans erreur ».
+  const { data, error } = await supabase.from("promos").update({ nom }).eq("id", id).select("id");
   if (error) throw error;
+  if (!data || data.length === 0) throw new Error("Renommage refusé : promo introuvable ou droits insuffisants.");
   const promo = mesPromos.find((p) => p.id === id);
   if (promo) promo.nom = nom;
 }
@@ -1368,6 +1391,9 @@ export async function createQcmSignalement({ questionId, motif, commentaire, opt
 
 // stagiaire_id de l'utilisateur courant, ou null (un formateur n'en a pas forcément).
 async function myStagiaireId() {
+  // Contexte de promo chargé : la fiche de CETTE promo (le fondateur n'en a pas en septembre).
+  const promo = getPromoCourante();
+  if (promo) return promo.stagiaire_id ?? null;
   const { data: { user } } = await supabase.auth.getUser();
   if (!user?.email) return null;
   const { data } = await supabase
