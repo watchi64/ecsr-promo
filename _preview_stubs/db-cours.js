@@ -65,6 +65,7 @@ const MD_C2 = `# C2 - Appréhender la route
 - [C2.4 : tourner](cours:C2.4)
 - [Thème 1](cours:1)
 - [Thème absent](cours:57)
+- [Lien mal formé](cours:C2.10)
 `;
 const MD_C24 = `# C2.4 - Tourner à droite et à gauche en agglomération
 

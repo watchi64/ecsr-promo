@@ -76,15 +76,16 @@ function inline(texte) {
     if (m.index > 0) frag.appendChild(document.createTextNode(reste.slice(0, m.index)));
     if (m[1] !== undefined) {
       // Lien vers un autre cours (`cours:31`, `cours:C2.5`) : un bouton, pour ne
-      // jamais toucher au routage par l'adresse. Cible inconnue ou non visible :
-      // texte simple, jamais un lien mort.
+      // jamais toucher au routage par l'adresse. Cible inconnue, non visible ou
+      // mal formée (`cours:58`, `cours:C2.10`, `cours:c2.4`) : texte simple,
+      // jamais un lien mort. Seul un vrai lien externe devient un <a>.
       const cible = cibleLienCours(m[2]);
-      if (cible === null) {
-        frag.appendChild(el("a", { href: m[2], target: "_blank", rel: "noopener noreferrer" }, m[1]));
-      } else if (hasCoursCle(cible)) {
+      if (cible !== null && hasCoursCle(cible)) {
         frag.appendChild(el("button", { type: "button", class: "cours-lien", dataset: { cours: String(cible) } }, m[1]));
-      } else {
+      } else if (cible !== null || /^\s*cours:/i.test(m[2])) {
         frag.appendChild(document.createTextNode(m[1]));
+      } else {
+        frag.appendChild(el("a", { href: m[2], target: "_blank", rel: "noopener noreferrer" }, m[1]));
       }
     } else if (m[3] !== undefined) {
       frag.appendChild(el("strong", {}, m[3]));

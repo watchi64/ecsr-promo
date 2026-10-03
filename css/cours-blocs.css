@@ -8,7 +8,7 @@
 
 /* Liens entre cours et cours suivant */
 .cours-lien {
-  background: none; border: 0; padding: 0; font: inherit; cursor: pointer;
+  background: none; border: 0; padding: 0; font: inherit; cursor: pointer; text-align: left;
   color: var(--accent-strong); text-decoration: underline; text-underline-offset: 2px;
 }
 .cours-suivant {
@@ -25,5 +25,9 @@
   margin: 0.9rem 0; padding: 0.4rem 1rem 0.8rem;
   background: var(--bg-elev); border: 1px solid var(--line); border-radius: var(--r-lg);
 }
-.cours-competence .cours-carte > .cours-h2 { margin-top: 0.6rem; }
+/* Le .cours-h2 de style.css porte un filet et un retrait haut qui séparent les rubriques
+   d'un thème ; dans une carte, ils doubleraient le bord de la carte. */
+.cours-competence .cours-carte > .cours-h2 { margin-top: 0.6rem; border-top: none; padding-top: 0; }
 .cours-competence .cours-somm-num { display: none; }
+/* Pastille de l'en-tête : style.css la fixe à 2,1 rem, trop étroit pour un code comme « C2.4 ». */
+.cours-competence .cours-num { min-width: 2.6rem; width: auto; padding: 0 0.3rem; }
