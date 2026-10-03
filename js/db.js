@@ -1,6 +1,17 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261002b";
 import { compteDansEquite } from "./passage-rules.js?v=20261002b";
+import {
+  ENTETE_PROMO, doitPorterEntetePromo, choisirPromoInitiale, profilEffectif,
+  separerChamps, CHAMPS_PROGRESSION, CHAMPS_EXAMEN, fusionnerProgression, fusionnerExamen,
+} from "./promo-rules.js?v=20261002b";
+
+// Contexte de promo (spec multi-promo, C.1). La promo courante voyage dans l'en-tête
+// x-promo-id de chaque requête de données ; la base vérifie le droit et filtre.
+let mesPromos = [];          // lignes renvoyées par la RPC mes_promos()
+let promoCouranteId = null;  // nulle tant que le contexte n'est pas chargé : pas d'en-tête
+let cleMemoire = null;       // clé localStorage propre au compte
+const avantBascule = new Set();
 
 // fetch avec timeout : sans ça, une requête peut rester pendue indéfiniment
 // (réseau mobile instable) → "Chargement" infini. Avec, elle échoue proprement après 15s.
@@ -13,7 +24,15 @@ function fetchWithTimeout(input, init = {}) {
     if (externalSignal.aborted) controller.abort();
     else externalSignal.addEventListener("abort", () => controller.abort(), { once: true });
   }
-  return fetch(input, { ...init, signal: controller.signal })
+  // En-tête de promo : seulement vers l'API de données (cf. promo-rules.js).
+  let options = init;
+  const url = typeof input === "string" ? input : String(input?.url ?? input);
+  if (promoCouranteId != null && doitPorterEntetePromo(url, SUPABASE_URL)) {
+    const entetes = new Headers(init.headers || {});
+    entetes.set(ENTETE_PROMO, String(promoCouranteId));
+    options = { ...init, headers: entetes };
+  }
+  return fetch(input, { ...options, signal: controller.signal })
     .finally(() => clearTimeout(timeoutId));
 }
 
@@ -51,6 +70,66 @@ async function cachedQuery(key, fetcher) {
 export function invalidateCache(key) {
   if (key) { _cache.delete(key); _cacheExpiry.delete(key); }
   else { _cache.clear(); _cacheExpiry.clear(); }
+}
+
+// === Contexte de promo ===
+
+// Charge les promos accessibles et fixe la promo courante : celle mémorisée sur cet
+// appareil si elle est toujours accessible, sinon celle par défaut. Appelée à chaque
+// événement d'authentification : la promo en cours est CONSERVÉE tant qu'elle reste
+// accessible (un renouvellement de jeton ne doit jamais faire changer de promo, ni
+// envoyer une requête sans en-tête pendant le rechargement de la liste).
+export async function chargerMesPromos(email) {
+  cleMemoire = email ? "ecsr_promo:" + String(email).trim().toLowerCase() : null;
+  const { data, error } = await supabase.rpc("mes_promos");
+  if (error) throw error;
+  mesPromos = data || [];
+  let memorisee = null;
+  try { memorisee = cleMemoire ? localStorage.getItem(cleMemoire) : null; } catch (e) { /* navigation privée */ }
+  const garder = mesPromos.some((p) => p.id === promoCouranteId) ? promoCouranteId : null;
+  const nouvelle = garder ?? choisirPromoInitiale(mesPromos, memorisee);
+  if (nouvelle !== promoCouranteId) invalidateCache();
+  promoCouranteId = nouvelle;
+  return mesPromos;
+}
+
+export function getMesPromos() { return mesPromos; }
+
+export function getPromoCourante() {
+  return mesPromos.find((p) => p.id === promoCouranteId) || null;
+}
+
+// Déconnexion : le contexte est oublié en mémoire (le choix mémorisé, propre au compte, reste).
+export function oublierPromo() {
+  mesPromos = [];
+  promoCouranteId = null;
+  cleMemoire = null;
+  invalidateCache();
+}
+
+// Un module qui a des écritures en vol (le planning) s'inscrit ici : la bascule les attend.
+export function avantChangementPromo(fn) {
+  avantBascule.add(fn);
+  return () => avantBascule.delete(fn);
+}
+
+// Bascule : attendre les enregistrements en cours, mémoriser, recharger. Le rechargement
+// vide aussi les caches et la pile Ctrl+Z, qui ne doit jamais rejouer une action d'une
+// promo dans une autre.
+export async function choisirPromo(id) {
+  if (id === promoCouranteId || !mesPromos.some((p) => p.id === id)) return;
+  for (const attendre of avantBascule) {
+    try { await attendre(); } catch (e) { console.error("bascule de promo : attente", e); }
+  }
+  try { if (cleMemoire) localStorage.setItem(cleMemoire, String(id)); } catch (e) { /* ignore */ }
+  location.reload();
+}
+
+export async function renommerPromo(id, nom) {
+  const { error } = await supabase.from("promos").update({ nom }).eq("id", id);
+  if (error) throw error;
+  const promo = mesPromos.find((p) => p.id === id);
+  if (promo) promo.nom = nom;
 }
 
 // === Stagiaires & Profs ===
@@ -1108,7 +1187,8 @@ export async function getMyProfile() {
     .eq("email", user.email.toLowerCase())
     .maybeSingle();
   if (error) throw error;
-  return data;
+  // Profil effectif dans la promo courante (spec multi-promo C.3).
+  return profilEffectif(data, getPromoCourante());
 }
 
 export async function deleteUserProfile(email) {

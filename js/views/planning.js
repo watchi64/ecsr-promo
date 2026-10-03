@@ -7,6 +7,7 @@ import {
   addPassagesBatch, deletePassagesBatch, getPassagesInRange, updateTheme,
   listBenevoles, listBenevolesNoms,
   getVoitureAggregats, listFiches, getSalleAggregats,
+  avantChangementPromo,
 } from "../db.js?v=20261002b";
 import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20261002b";
 import { icon } from "../icons.js?v=20261002b";
@@ -282,6 +283,10 @@ async function flushPendingInputs() {
     await Promise.all([...pendingSaves]);
   }
 }
+
+// Une bascule de promo attend les enregistrements en cours du planning : une case en train
+// de se sauver ne doit pas partir dans l'autre promo (spec multi-promo C.1).
+avantChangementPromo(() => flushPendingInputs());
 
 // Version simplifiée : ajoute en fin de séquence (la plupart des cas)
 async function addSlotEnd(d, half) {
