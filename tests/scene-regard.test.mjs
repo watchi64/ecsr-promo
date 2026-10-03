@@ -1,7 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { DEG } from "../js/scene-geometrie.js";
-import { REGARD_MAX_SUIVI, oeil, angleRegard } from "../js/scene-regard.js";
+import { DEG, pointDansPolygone } from "../js/scene-geometrie.js";
+import { REGARD_MAX_SUIVI, REGARD_PORTEE, REGARD_OUVERTURE, oeil, angleRegard, coneRegard, regardContient }
+  from "../js/scene-regard.js";
 
 const proche = (a, b, eps = 1e-9) => assert.ok(Math.abs(a - b) <= eps, `${a} au lieu de ${b}`);
 // Écart signé (degrés) de l'angle a à l'angle b (radians), ramené dans ]-180 ; 180].
@@ -93,4 +94,56 @@ test("suivre : l'écart au cap se mesure modulo un tour, quel que soit le cap ac
     proche(ecartDeg(angleRegard(etape({ suivre: "pieton" }), e, 0, cibleVue(e, 30)), e.cap), 30, 1e-6);
     assert.equal(angleRegard(etape({ suivre: "pieton" }), e, 0, cibleVue(e, 150)), null);
   }
+});
+
+// ===== Cône du regard : portée et ouverture nommées (décision du 03/10, seconde relecture de la tâche 8) =====
+
+// Point à `distance` m de o, dans la direction `deg` degrés (repère de l'écran).
+const vers = (o, deg, distance) => ({ x: o.x + distance * Math.cos(deg * DEG), y: o.y + distance * Math.sin(deg * DEG) });
+
+test("cône du regard : portée de 22 m, demi-ouverture de 16 degrés", () => {
+  assert.equal(REGARD_PORTEE, 22);
+  assert.equal(REGARD_OUVERTURE, 16);
+});
+
+test("coneRegard : le triangle dessiné, de l'œil aux deux pointes, à REGARD_PORTEE m et REGARD_OUVERTURE degrés de part et d'autre", () => {
+  const o = { x: 10, y: 20 };
+  const [sommet, gauche, droite] = coneRegard(-90 * DEG, o);   // regard vers le nord
+  proche(sommet[0], 10); proche(sommet[1], 20);
+  const g = vers(o, -106, 22), d = vers(o, -74, 22);
+  proche(gauche[0], g.x); proche(gauche[1], g.y);
+  proche(droite[0], d.x); proche(droite[1], d.y);
+});
+
+test("regardContient : dans l'ouverture et en deçà du bord lointain du triangle, bords compris", () => {
+  const o = { x: 0, y: 0 };
+  // Regard vers l'est. Sur l'axe, le bord lointain est à 22 cos 16 = 21,15 m ; les pointes sont à 22 m.
+  assert.equal(regardContient(0, o, vers(o, 0, 10)), true);
+  assert.equal(regardContient(0, o, vers(o, 0, 21.1)), true);
+  assert.equal(regardContient(0, o, vers(o, 0, 21.2)), false);
+  assert.equal(regardContient(0, o, vers(o, 15.9, 21.9)), true);
+  assert.equal(regardContient(0, o, vers(o, 16.1, 10)), false);
+  assert.equal(regardContient(0, o, vers(o, -15.9, 10)), true);
+  assert.equal(regardContient(0, o, vers(o, -16.1, 10)), false);
+  assert.equal(regardContient(0, o, vers(o, 180, 5)), false);
+  assert.equal(regardContient(0, o, o), true, "l'œil est le sommet du cône");
+  assert.equal(regardContient(2 * Math.PI, o, vers(o, 5, 10)), true, "un tour de plus ne change rien");
+  // Pas de regard (angleRegard rend null) : pas de cône, rien n'est contenu.
+  assert.equal(regardContient(null, o, vers(o, 0, 5)), false);
+});
+
+test("regardContient coïncide avec le triangle de coneRegard", () => {
+  const o = { x: 1.3, y: -0.7 };
+  let dedans = 0;
+  for (const angleDeg of [0, 37, -100, 200, 451]) {
+    const triangle = coneRegard(angleDeg * DEG, o);
+    for (let x = -24.7; x <= 25; x += 0.731) {
+      for (let y = -24.3; y <= 25; y += 0.677) {
+        const attendu = pointDansPolygone([x, y], triangle);
+        if (attendu) dedans++;
+        assert.equal(regardContient(angleDeg * DEG, o, { x, y }), attendu, `angle ${angleDeg}, point (${x.toFixed(3)} ; ${y.toFixed(3)})`);
+      }
+    }
+  }
+  assert.ok(dedans > 500, "la grille traverse bien les cônes");
 });

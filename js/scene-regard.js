@@ -16,11 +16,20 @@
  *   visible et à au plus REGARD_MAX_SUIVI degrés du cap : le conducteur ne suit
  *   pas des yeux ce qui passe derrière lui.
  * Sans regard, ou quand la cible est perdue, angleRegard rend null : pas de cône.
+ *
+ * Le cône dessiné (coneRegard) est un triangle : l'œil, puis deux pointes à REGARD_PORTEE m, à REGARD_OUVERTURE
+ * degrés de part et d'autre de la direction du regard. regardContient dit si un point y est.
  */
 import { DEG } from "./scene-geometrie.js?v=20261003c";
 
 /** Écart maximal, en degrés, entre le cap et la direction d'une cible suivie des yeux. */
 export const REGARD_MAX_SUIVI = 100;
+
+// Portée (m) et demi-ouverture (degrés) du cône du regard : choix de dessin, sans portée réglementaire, partagés par
+// le moteur de rendu (tâche 11, qui les importe) et par les tests des scènes. Un conducteur voit un piéton à 20 m :
+// la portée doit atteindre, depuis l'approche, le piéton qui attend de l'autre côté du carrefour.
+export const REGARD_PORTEE = 22;
+export const REGARD_OUVERTURE = 16;
 
 // Balayage : 75 degrés de part et d'autre du cap, un aller-retour complet toutes les 2 s (0,5 Hz).
 // Choix de dessin du moteur (plan, tâche 11). La phase suit l'instant de la scène.
@@ -61,4 +70,25 @@ export function angleRegard(etape, e, t, etats) {
     return Math.abs(ecart(direction, e.cap)) > REGARD_MAX_SUIVI * DEG ? null : direction;
   }
   return null;
+}
+
+/** Triangle du cône dessiné pour un regard de direction `angle` (radians) depuis l'œil o : [[x, y] x 3]. */
+export function coneRegard(angle, o) {
+  const pointe = (a) => [o.x + REGARD_PORTEE * Math.cos(a), o.y + REGARD_PORTEE * Math.sin(a)];
+  return [[o.x, o.y], pointe(angle - REGARD_OUVERTURE * DEG), pointe(angle + REGARD_OUVERTURE * DEG)];
+}
+
+/**
+ * Le cône d'un regard de direction `angle` (radians, ou null : pas de cône) depuis l'œil o contient-il le point
+ * { x, y } ? Même triangle que coneRegard, bords compris : le point est dans l'ouverture et en deçà du bord
+ * lointain, perpendiculaire à l'axe à REGARD_PORTEE cos(REGARD_OUVERTURE) de l'œil.
+ */
+export function regardContient(angle, o, point) {
+  if (angle === null || angle === undefined) return false;
+  const dx = point.x - o.x, dy = point.y - o.y;
+  const distance = Math.hypot(dx, dy);
+  if (distance === 0) return true;
+  const horsAxe = ecart(Math.atan2(dy, dx), angle);
+  return Math.abs(horsAxe) <= REGARD_OUVERTURE * DEG
+    && distance * Math.cos(horsAxe) <= REGARD_PORTEE * Math.cos(REGARD_OUVERTURE * DEG);
 }
