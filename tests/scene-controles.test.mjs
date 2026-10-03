@@ -301,3 +301,36 @@ test("les contrôles s'enchaînent dans l'ordre : étapes, trajectoires, entrée
     assert.ok(Math.max(...rangs[k]) < Math.min(...rangs[k + 1]), `le groupe ${k + 1} doit précéder le groupe ${k + 2}\n${messages.join("\n")}`);
   }
 });
+
+// ===== Amendement du 03/10 (fiche ECF C2-E) : clignotant tôt et tout le long =====
+//
+// Trajet des essais : 20 m vers le nord, un virage à droite de 10 m de rayon (de s = 20 m à s = 35,71 m), puis
+// 10 m vers l'est. À 15 km/h constants, l'arc est parcouru de t = 4,8 s à t = 8,57 s.
+const virageDroite = () => trajet(0, 70, -90).droit(20).virage(10, 90).droit(10).fin();
+const finArc = (c) => c.segments[1].debut + c.segments[1].longueur;
+const clignotantJusqua = (c, profil, a) => controlerScene(scene([eleve(c, profil, { clignotant: [{ cote: "droite", de: 0, a }] })]));
+
+test("un clignotant coupé juste après l'entrée dans l'arc est refusé", () => {
+  // Éteint à s = 21 m (t = 5,04 s) : le premier dixième de seconde échantillonné sans lui est t = 5,1 s.
+  const c = virageDroite();
+  assert.deepEqual(clignotantJusqua(c, constant(c, 15), 21),
+    ["eleve : clignotant droite éteint pendant le changement de direction (t = 5.1 s)"]);
+});
+
+test("le clignotant doit tenir jusqu'au bout de l'arc : la fin de l'arc est un instant contrôlé", () => {
+  const c = virageDroite();
+  assert.deepEqual(clignotantJusqua(c, constant(c, 15), finArc(c)), []);
+  // Éteint 1 cm avant la fin de l'arc, entre deux dixièmes de seconde (8,5 s et la fin, 8,57 s).
+  assert.deepEqual(clignotantJusqua(c, constant(c, 15), finArc(c) - 0.01),
+    ["eleve : clignotant droite éteint pendant le changement de direction (t = 8.6 s)"]);
+});
+
+test("un arrêt dans l'arc ne dispense pas du clignotant : il reste allumé jusqu'à la fin de l'arc", () => {
+  // La voiture ralentit jusqu'à l'arrêt à s = 25 m (dans l'arc, t = 12 s), attend 2 s puis repart.
+  const c = virageDroite();
+  const profil = [{ s: 0, kmh: 15 }, { s: 25, kmh: 0, pause: 2 }, { s: c.longueur, kmh: 15 }];
+  assert.deepEqual(clignotantJusqua(c, profil, finArc(c)), []);
+  // Coupé à l'arrêt : allumé pendant l'attente, éteint dès que la voiture repart (t = 14 s).
+  assert.deepEqual(clignotantJusqua(c, profil, 25),
+    ["eleve : clignotant droite éteint pendant le changement de direction (t = 14.0 s)"]);
+});

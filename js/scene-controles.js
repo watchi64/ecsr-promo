@@ -9,8 +9,9 @@
  * ce sont des garde-fous de vraisemblance, consignés comme tels dans les fiches.
  *
  * Ordre des contrôles : étapes, trajectoires (contacts, limite, accélérations,
- * continuité de la vitesse), entrées et sorties hors du monde, clignotants, puis
- * les attentes que la scène déclare.
+ * continuité de la vitesse), entrées et sorties hors du monde, clignotants (assez
+ * tôt, du bon côté et tout le long de l'arc), puis les attentes que la scène
+ * déclare.
  */
 import { preparerScene, etatActeur, emprise, polygonesSeChevauchent, pointDansPolygone, tempsAtteint, avant,
   apparitionDe, sortDuCadre, rectangle, KMH, DEG }
@@ -142,9 +143,23 @@ function controlerClignotants(sc, note) {
           break;
         }
       }
-      for (let t = tDebut; t <= tFin + 1e-9; t += SEUILS.pas) {
+      // Pendant tout l'arc (les dixièmes de seconde depuis son début, puis sa fin, un arrêt dans l'arc compris) :
+      // jamais le clignotant de l'autre côté, et celui du bon côté toujours allumé (« clignotant tôt et tout le
+      // long », fiche ECF C2-E).
+      const instantsArc = [];
+      for (let t = tDebut; t <= tFin + 1e-9; t += SEUILS.pas) instantsArc.push(t);
+      instantsArc.push(tFin);
+      let autreCote = false, eteint = false;
+      for (const t of instantsArc) {
         const c = etatActeur(a, t).clignotant;
-        if (c && c !== cote) { note(`${a.id} : clignotant ${c} pendant un virage à ${cote} (t = ${f1(t)} s)`); break; }
+        if (!autreCote && c && c !== cote) {
+          autreCote = true;
+          note(`${a.id} : clignotant ${c} pendant un virage à ${cote} (t = ${f1(t)} s)`);
+        }
+        if (!eteint && c !== cote) {
+          eteint = true;
+          note(`${a.id} : clignotant ${cote} éteint pendant le changement de direction (t = ${f1(t)} s)`);
+        }
       }
     }
   }
