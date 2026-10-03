@@ -51,14 +51,14 @@ test("interpolerAncres rend y tel quel si les ancres sont inutilisables", () => 
   assert.equal(interpolerAncres([0, 10], [0], 42), 42);
 });
 
-test("titreDepuisMarkdown retire aussi le code d'une competence", () => {
-  assert.equal(titreDepuisMarkdown("# C2.4 - Tourner a droite et a gauche en agglomeration"),
-    "Tourner a droite et a gauche en agglomeration");
-  assert.equal(titreDepuisMarkdown("# C2 - Apprehender la route"), "Apprehender la route");
-  assert.equal(titreDepuisMarkdown("# THEME 12 - La vitesse"), "La vitesse");
+test("titreDepuisMarkdown retire aussi le code d'une compétence", () => {
+  assert.equal(titreDepuisMarkdown("# C2.4 - Tourner à droite et à gauche en agglomération"),
+    "Tourner à droite et à gauche en agglomération");
+  assert.equal(titreDepuisMarkdown("# C2 - Appréhender la route"), "Appréhender la route");
+  assert.equal(titreDepuisMarkdown("# THÈME 12 - La vitesse"), "La vitesse");
 });
 
-test("cleCours : numero d'un theme, code d'une competence, rien pour une notion", () => {
+test("cleCours : numéro d'un thème, code d'une compétence, rien pour une notion", () => {
   assert.equal(cleCours({ numero: 7 }), 7);
   assert.equal(cleCours({ numero: "12" }), 12);
   assert.equal(cleCours({ code: "C2.4", numero: null }), "C2.4");
@@ -75,7 +75,7 @@ test("estCodeCompetence et estOuverture", () => {
   assert.ok(!estOuverture(12));
 });
 
-test("libelleCle : numero sur deux chiffres, code tel quel", () => {
+test("libelleCle : numéro sur deux chiffres, code tel quel", () => {
   assert.equal(libelleCle(7), "07");
   assert.equal(libelleCle(42), "42");
   assert.equal(libelleCle("C2.4"), "C2.4");
@@ -86,7 +86,7 @@ test("comparerCodes suit l'ordre du livret", () => {
     ["C1", "C1.2", "C1.9", "C2", "C2.1"]);
 });
 
-test("coursSuivant : sous-competence suivante visible, puis ouverture suivante, rien apres C4.7", () => {
+test("coursSuivant : sous-compétence suivante visible, puis ouverture suivante, rien après C4.7", () => {
   const visibles = ["C1", "C1.1", "C1.9", "C2", "C2.4", "C2.6", "C4.7", 12];
   assert.equal(coursSuivant("C2.4", visibles), "C2.6");
   assert.equal(coursSuivant("C1.9", visibles), "C2");
@@ -95,16 +95,18 @@ test("coursSuivant : sous-competence suivante visible, puis ouverture suivante, 
   assert.equal(coursSuivant(12, visibles), null);
 });
 
-test("cibleLienCours : theme 1 a 57 ou code, sinon null", () => {
+test("cibleLienCours : thème 1 à 57 ou code, sinon null", () => {
   assert.equal(cibleLienCours("cours:31"), 31);
   assert.equal(cibleLienCours("cours:C2.5"), "C2.5");
+  assert.equal(cibleLienCours("cours:1"), 1);
+  assert.equal(cibleLienCours("cours:57"), 57);
   assert.equal(cibleLienCours("cours:58"), null);
   assert.equal(cibleLienCours("cours:0"), null);
   assert.equal(cibleLienCours("cours:C5"), null);
   assert.equal(cibleLienCours("https://exemple.fr"), null);
 });
 
-test("cheminImage range les images d'une competence a part", () => {
-  assert.equal(cheminImage("C2.4", "Schema.png", "1"), "competence_c2-4/1_schema.jpg");
+test("cheminImage range les images d'une compétence à part", () => {
+  assert.equal(cheminImage("C2.4", "Schéma.png", "1"), "competence_c2-4/1_schema.jpg");
   assert.equal(cheminImage(7, "Photo.PNG", "2"), "theme_07/2_photo.jpg");
 });
