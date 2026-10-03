@@ -14,19 +14,12 @@
 // générée à l'ouverture, lue par les stagiaires : tutoiement, sans jargon).
 // Aucun import : le fichier est lu tel quel par les tests node.
 
-export const GROUPES = ["Démarrage", "Suivi de la formation", "CCP1", "CCP2", "Outils"];
-
-// Phrase affichée sous l'intitulé d'un groupe, dans la section de réglage.
-export const NOTES_DE_GROUPE = {
-  CCP1: "L'onglet CCP1 apparaît aux stagiaires dès qu'une de ces parties est ouverte.",
-};
+export const GROUPES = ["Démarrage", "Suivi de la formation", "CCP1", "Dossier professionnel", "CCP2", "Outils"];
 
 // Routes jamais fermées. Elles n'ont pas de module.
 export const ROUTES_SOCLE = ["home", "mon-suivi", "config", "nouveautes"];
 
-// Route d'un onglet vers le module qui la gouverne. `themes` et `notes` ne sont
-// plus des onglets (ce sont des sous-onglets de CCP1) mais restent des adresses :
-// js/main.js les mène à CCP1 après la garde de leur module.
+// Route d'un onglet vers le module qui la gouverne.
 export const MODULE_DE_ROUTE = {
   planning: "planning",
   calendrier: "calendrier",
@@ -37,29 +30,13 @@ export const MODULE_DE_ROUTE = {
   ccp2: "ccp2",
 };
 
-// Sous-onglets de l'onglet CCP1, dans l'ordre d'affichage (js/views/ccp1.js les
-// rend). L'onglet regroupé et les liens « Où le trouver » s'en déduisent.
-export const SOUS_ONGLETS_CCP1 = [
-  { key: "themes", label: "Thèmes", module: "themes" },
-  { key: "notes", label: "Notes", module: "notes" },
-  { key: "epcf", label: "EPCF", module: "epcf" },
-  { key: "livret", label: "Livret EPCF", module: "livret" },
-  { key: "dp", label: "Dossier pro", module: "dp" },
-];
-
-// Onglets qui regroupent plusieurs modules : visibles dès qu'un de leurs modules
-// l'est (routeOuverte, js/modules.js). Ils n'ont pas de module propre.
-export const ONGLETS_REGROUPES = {
-  ccp1: SOUS_ONGLETS_CCP1.map((s) => s.module),
-};
-
 // Sous-onglets rattachés à un module, par route. Sert aux liens « Où le
 // trouver » des nouveautés ; les vues, elles, déclarent `module` sur leurs
-// sous-onglets (js/views/ccp1.js le tire de SOUS_ONGLETS_CCP1,
-// js/views/mon-suivi.js l'écrit). Garder Mon espace d'accord avec sa vue.
+// sous-onglets (js/views/notes.js, js/views/mon-suivi.js). Garder les deux
+// d'accord.
 export const MODULE_DE_SOUS_ONGLET = {
-  ccp1: Object.fromEntries(SOUS_ONGLETS_CCP1.map((s) => [s.key, s.module])),
-  "mon-suivi": { evolution: "notes", epcf: "epcf", dp: "dp" },
+  notes: { matrice: "notes", epcf: "epcf", livret: "livret", dp: "dp" },
+  "mon-suivi": { evolution: "notes", epcf: "epcf", livret: "livret", dp: "dp" },
 };
 
 // Tant que le multi-promo (chantier A) n'est pas en ligne, il n'existe qu'une
@@ -100,81 +77,83 @@ export const MODULES = [
   },
   {
     cle: "priorites", nom: "Priorités", accord: "fp", groupe: "Suivi de la formation",
-    explication: "Qui doit passer en priorité, en salle et en voiture.",
+    explication: "Qui doit passer en priorité, en salle et en voiture : bouton en haut du Planning.",
     annonce: {
-      titre: "L'onglet Priorités est ouvert",
-      resume: "Il montre qui doit passer en priorité, au tableau comme en voiture, pour que "
-            + "chacun ait autant de passages que les autres.",
-      ou: { label: "Priorités", route: "dashboard" },
+      titre: "Les priorités de passage sont ouvertes",
+      resume: "Un bouton en haut du Planning montre qui doit passer en priorité, au tableau "
+            + "comme en voiture, pour que chacun ait autant de passages que les autres.",
+      ou: { label: "Planning, bouton Priorités", route: "dashboard" },
     },
   },
   {
-    cle: "themes", nom: "Thèmes", accord: "mp", groupe: "CCP1",
-    explication: "Liste des thèmes et progression de la classe, dans CCP1.",
+    cle: "notes", nom: "Notes", accord: "fp", groupe: "Suivi de la formation",
+    explication: "Matrice des notes, Évolution dans Mon espace, anonymat.",
     annonce: {
-      titre: "Les thèmes sont ouverts",
-      resume: "La liste des thèmes de la formation, avec ceux déjà traités en classe et leur "
-            + "date. Tu la trouves dans l'onglet CCP1.",
-      ou: { label: "CCP1, sous-onglet Thèmes", route: "ccp1", sousOnglet: "themes" },
+      titre: "Les notes sont ouvertes",
+      resume: "Tes notes de thèmes s'affichent dans l'onglet Notes, avec la synthèse de la "
+            + "classe. Dans ton espace personnel, l'onglet Évolution trace ta progression. "
+            + "Si tu préfères, tu peux masquer ton prénom et tes notes aux autres dans Paramètres.",
+      ou: { label: "Notes", route: "notes" },
     },
   },
   {
-    cle: "cours", nom: "Cours", accord: "mp", groupe: "CCP1", parent: "themes",
+    // Clé historique « themes » (stockée en base, jamais renommée) : l'onglet s'affiche
+    // désormais « Cours », avec ses sous-onglets Thèmes et Compétences.
+    cle: "themes", nom: "Cours", accord: "mp", groupe: "Suivi de la formation",
+    explication: "Onglet Cours : thèmes, compétences et progression de la classe.",
+    annonce: {
+      titre: "L'onglet Cours est ouvert",
+      resume: "Les thèmes et les compétences de la formation, avec ceux déjà traités en classe "
+            + "et leur date.",
+      ou: { label: "Cours", route: "themes" },
+    },
+  },
+  {
+    cle: "cours", nom: "Lecture des cours", accord: "fs", groupe: "Suivi de la formation", parent: "themes",
     explication: "Lecture du cours de chaque thème.",
     annonce: {
       titre: "Les cours sont ouverts",
       resume: "Chaque thème a son cours à lire : l'essentiel en quelques lignes, les règles, "
-            + "les sanctions et les chiffres clés. Dans l'onglet CCP1, clique sur le titre d'un "
-            + "thème ou sur son bouton Cours.",
-      ou: { label: "CCP1, Thèmes, bouton Cours", route: "ccp1", sousOnglet: "themes" },
+            + "les sanctions et les chiffres clés. Dans l'onglet Cours, clique sur le titre "
+            + "d'un thème ou sur son bouton Cours.",
+      ou: { label: "Cours, colonne Cours", route: "themes" },
     },
   },
   {
-    cle: "qcm", nom: "QCM", accord: "mp", groupe: "CCP1", parent: "themes",
+    cle: "qcm", nom: "QCM", accord: "mp", groupe: "Suivi de la formation", parent: "themes",
     explication: "QCM d'entraînement et d'examen.",
     annonce: {
       titre: "Les QCM sont ouverts",
       resume: "Entraîne-toi sur chaque thème avec un QCM : les questions ratées reviennent en "
             + "premier jusqu'à ce que tu les maîtrises.",
-      ou: { label: "CCP1, Thèmes, colonne QCM", route: "ccp1", sousOnglet: "themes" },
-    },
-  },
-  {
-    cle: "notes", nom: "Notes", accord: "fp", groupe: "CCP1",
-    explication: "Matrice des notes dans CCP1, Évolution dans Mon espace, anonymat.",
-    annonce: {
-      titre: "Les notes sont ouvertes",
-      resume: "Tes notes de thèmes s'affichent dans l'onglet CCP1, sous-onglet Notes, avec la "
-            + "synthèse de la classe. Dans ton espace personnel, l'onglet Évolution trace ta "
-            + "progression. Si tu préfères, tu peux masquer ton prénom et tes notes aux autres "
-            + "dans Paramètres.",
-      ou: { label: "CCP1, sous-onglet Notes", route: "ccp1", sousOnglet: "notes" },
+      ou: { label: "Cours, colonne QCM", route: "themes" },
     },
   },
   {
     cle: "epcf", nom: "EPCF", accord: "ms", groupe: "CCP1",
-    explication: "Évaluations EPCF, dans CCP1 et Mon espace.",
+    explication: "Évaluations EPCF, dans Notes et Mon espace.",
     annonce: {
       titre: "L'EPCF est ouvert",
       resume: "Tes évaluations EPCF du CCP1, en salle et en véhicule, s'affichent dans ton "
-            + "espace personnel. La vue de la classe est dans l'onglet CCP1.",
+            + "espace personnel. La vue de la classe est dans Notes.",
       ou: { label: "Mon espace personnel, sous-onglet EPCF", route: "mon-suivi", sousOnglet: "epcf" },
     },
   },
   {
+    // Plus de parent : le stagiaire consulte son livret dans Mon espace, pas dans Notes.
     cle: "livret", nom: "Livret EPCF", accord: "ms", groupe: "CCP1",
-    explication: "Livret officiel EPCF, dans CCP1.",
+    explication: "Livret officiel EPCF : celui du stagiaire dans Mon espace, la saisie des formateurs dans Notes.",
     annonce: {
       titre: "Le livret EPCF est ouvert",
-      resume: "Ton livret d'évaluation officiel du CCP1 se consulte dans l'onglet CCP1. Pense à "
-            + "indiquer ta date de naissance dans ton espace personnel : elle y est reportée "
-            + "automatiquement.",
-      ou: { label: "CCP1, sous-onglet Livret EPCF", route: "ccp1", sousOnglet: "livret" },
+      resume: "Ton livret d'évaluation officiel se consulte dans ton espace personnel. Pense "
+            + "à y indiquer ta date de naissance : elle est reportée automatiquement sur le "
+            + "livret.",
+      ou: { label: "Mon espace personnel, sous-onglet Livret EPCF", route: "mon-suivi", sousOnglet: "livret" },
     },
   },
   {
-    cle: "dp", nom: "Dossier pro", accord: "ms", groupe: "CCP1",
-    explication: "Dossier professionnel, dans CCP1 et Mon espace.",
+    cle: "dp", nom: "Dossier pro", accord: "ms", groupe: "Dossier professionnel",
+    explication: "Dossier professionnel : celui du stagiaire dans Mon espace, la relecture des formateurs dans Notes.",
     annonce: {
       titre: "Le dossier professionnel est ouvert",
       resume: "Remplis ton dossier professionnel directement dans l'app, puis imprime-le ou "

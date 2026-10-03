@@ -23,7 +23,8 @@ export const MISE_EN_LIGNE = "2026-08-01";
 // le champ sousOnglet : le lien navigue, sans atterrissage précis.
 export const STORAGE_SOUS_ONGLET = {
   "mon-suivi": "ecsr_monsuivi_subtab",
-  ccp1: "ecsr_ccp1_subtab",
+  notes: "ecsr_notes_subtab",
+  themes: "themes.subtab",
 };
 
 // Antéchronologique, de la plus récente à la plus ancienne.

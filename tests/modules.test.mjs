@@ -6,12 +6,12 @@ import assert from "node:assert/strict";
 import {
   VERSION, PREFIXE_ANNONCE, ETAT_LIBRE, lireEtat, ecrireEtat, estReglee, estOuvert,
   ensembleDeDepart, basculer, jourParis, annonces, avecAnnonces, moduleDeNouveaute,
-  nouveautesPour, accorder, modulesDeRoute, routeOuverte,
+  nouveautesPour, accorder,
 } from "../js/modules.js";
 import { purger, STORAGE_SOUS_ONGLET } from "../js/nouveautes.js";
 import {
   MODULES, GROUPES, ROUTES_SOCLE, MODULE_DE_ROUTE, MODULE_DE_SOUS_ONGLET,
-  REGLAGE_OUVERT_AUX_FORMATEURS, SOUS_ONGLETS_CCP1, ONGLETS_REGROUPES, NOTES_DE_GROUPE,
+  REGLAGE_OUVERT_AUX_FORMATEURS,
 } from "../js/modules-data.js";
 import { NOUVEAUTES } from "../js/nouveautes-data.js";
 
@@ -152,22 +152,6 @@ eq(PREFIXE_ANNONCE, "module-", "préfixe connu de purger()");
 const idAnnonce = annonces(b1, CAT)[0].id;
 eq(purger([idAnnonce, "obsolete"], []), [idAnnonce], "une annonce lue n'est jamais purgée");
 
-// 10 bis. Onglets regroupés (CCP1) : visibles dès qu'une de leurs parties l'est.
-const REF_R = { ...REF, ongletsRegroupes: { ccp1: ["themes", "notes"] } };
-eq(modulesDeRoute("ccp1", REF_R), ["themes", "notes"], "onglet regroupé : ses modules");
-eq(modulesDeRoute("planning", REF_R), ["planning"], "onglet simple : son module");
-eq(modulesDeRoute("home", REF_R), [], "socle : aucun module");
-eq(modulesDeRoute("planning", REF), ["planning"], "référentiel sans onglet regroupé");
-eq(modulesDeRoute("constructor", REF_R), [], "propriété héritée ignorée");
-ok(routeOuverte("home", regle({}), REF_R), "socle toujours ouvert");
-ok(routeOuverte("ccp1", ETAT_LIBRE, REF_R), "promo libre : onglet regroupé ouvert");
-ok(!routeOuverte("ccp1", regle({ planning: T0 }), REF_R), "aucune partie ouverte : onglet fermé");
-ok(routeOuverte("ccp1", regle({ notes: T1 }), REF_R), "une partie ouverte suffit");
-ok(routeOuverte("planning", regle({ planning: T0 }), REF_R), "onglet simple ouvert");
-ok(!routeOuverte("planning", regle({ notes: T1 }), REF_R), "onglet simple fermé");
-const REF_P = { ...REF, ongletsRegroupes: { ccp1: ["qcm"] } };
-ok(!routeOuverte("ccp1", regle({ qcm: T1 }), REF_P), "partie cochée sous un parent fermé : onglet fermé");
-
 // 11. Catalogue réel
 const cles = MODULES.map((m) => m.cle);
 eq(new Set(cles).size, cles.length, "clés uniques");
@@ -186,8 +170,7 @@ for (const m of MODULES) {
   }
   if (m.annonce.ou) {
     const r = m.annonce.ou.route;
-    ok(r in MODULE_DE_ROUTE || r in ONGLETS_REGROUPES || ROUTES_SOCLE.includes(r),
-       m.cle + " : lien vers une route connue");
+    ok(r in MODULE_DE_ROUTE || ROUTES_SOCLE.includes(r), m.cle + " : lien vers une route connue");
     if (m.annonce.ou.sousOnglet) ok(r in STORAGE_SOUS_ONGLET, m.cle + " : sous-onglet joignable");
   }
   const tout = [m.nom, m.explication, m.annonce.titre, m.annonce.resume, m.annonce.ou?.label || ""].join(" ");
@@ -202,25 +185,15 @@ for (const parRoute of Object.values(MODULE_DE_SOUS_ONGLET)) {
 for (const r of ROUTES_SOCLE) ok(!(r in MODULE_DE_ROUTE), "route du socle sans module : " + r);
 eq(typeof REGLAGE_OUVERT_AUX_FORMATEURS, "boolean", "drapeau booléen");
 
-// 11 bis. Onglets CCP1 et CCP2 (chantier D)
-for (const [route, parties] of Object.entries(ONGLETS_REGROUPES)) {
-  ok(!(route in MODULE_DE_ROUTE), route + " : onglet regroupé hors MODULE_DE_ROUTE");
-  ok(!ROUTES_SOCLE.includes(route), route + " : onglet regroupé hors socle");
-  for (const p of parties) ok(cles.includes(p), route + " : partie connue " + p);
-}
-eq(ONGLETS_REGROUPES.ccp1, SOUS_ONGLETS_CCP1.map((s) => s.module), "CCP1 : ses parties = ses sous-onglets");
-eq(Object.keys(MODULE_DE_SOUS_ONGLET.ccp1), SOUS_ONGLETS_CCP1.map((s) => s.key), "CCP1 : chaque sous-onglet joignable");
-eq(STORAGE_SOUS_ONGLET.ccp1, "ecsr_ccp1_subtab", "CCP1 : mémoire du sous-onglet");
-ok(!("notes" in MODULE_DE_SOUS_ONGLET), "Notes n'a plus de sous-onglets");
+// 11 bis. Chantier D : barre simple et onglet CCP2
 eq(MODULE_DE_ROUTE.ccp2, "ccp2", "CCP2 : route gouvernée par son module");
+eq(MODULES.find((m) => m.cle === "ccp2")?.groupe, "CCP2", "CCP2 : son groupe dans le réglage");
 eq(MODULES.find((m) => m.cle === "livret").parent, undefined, "livret : plus rangé dans Notes");
-for (const s of SOUS_ONGLETS_CCP1) {
-  ok(typeof s.label === "string" && s.label.length > 0 && !s.label.includes(CADRATIN), s.key + " : libellé");
-}
-for (const [g, note] of Object.entries(NOTES_DE_GROUPE)) {
-  ok(GROUPES.includes(g), g + " : note sur un groupe connu");
-  ok(!note.includes(CADRATIN), g + " : note sans tiret cadratin");
-}
+eq(MODULE_DE_SOUS_ONGLET["mon-suivi"].livret, "livret", "livret : sous-onglet de Mon espace");
+eq(STORAGE_SOUS_ONGLET.themes, "themes.subtab", "Cours : sous-onglet mémorisé joignable");
+eq(MODULES.find((m) => m.cle === "themes").nom, "Cours", "Thèmes s'affiche Cours");
+const nomsAffiches = MODULES.map((m) => m.nom);
+eq(new Set(nomsAffiches).size, nomsAffiches.length, "noms affichés uniques dans le réglage");
 
 // 12. Nouveautés déjà écrites rattachées au bon module. Ces entrées historiques
 // mènent à « Mon suivi », « Thèmes » ou « Paramètres » alors qu'elles parlent du
