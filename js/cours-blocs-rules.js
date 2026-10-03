@@ -7,13 +7,18 @@
  *   :::scene <code>          puis une étape par ligne, puis :::
  *   :::quiz ordre            « ? consigne » facultative, puis les éléments dans l'ordre juste
  *   :::quiz vrai-faux        « affirmation | vrai ou faux | explication facultative »
- *   :::quiz choix            « ? question », options « - … », bonnes « - [x] … », « > explication »
+ *   :::quiz choix            « ? question », options « - … » (fausse explicite : « - [ ] … »),
+ *                            bonnes « - [x] … », « > explication » ; une ligne vide ferme la question
  *   :::cartes                « Q : … » puis « R : … »
+ * Les étapes et les éléments peuvent être numérotés (« 1. » ou « 1) ») : le numéro
+ * est retiré, mais pas un décimal (« 1.5 m du bord »).
  * Un bloc mal formé renvoie { ok: false, erreur } : le lecteur l'affiche en
  * texte brut, l'éditeur affiche l'erreur.
  */
 
-const NUMERO = /^\d+[.)]\s*/;
+// Numéro en tête de ligne (« 1. », « 1.Tourner », « 3) »), retiré. Le séparateur ne doit pas
+// être suivi d'un chiffre : « 1.5 m du bord » est une mesure, pas l'étape 1.
+const NUMERO = /^\d+[.)](?!\d)\s*/;
 
 export function analyserScene(arg, lignes) {
   const code = String(arg || "").trim().split(/\s+/)[0] || "";
@@ -30,10 +35,10 @@ export function analyserQuiz(forme, lignes) {
 }
 
 function quizOrdre(lignes) {
-  const propres = lignes.map((l) => l.trim()).filter(Boolean);
+  // Numéro retiré avant d'écarter les lignes vides, comme pour la scène : « 3. » seul n'est pas un élément.
+  const elements = lignes.map((l) => l.trim().replace(NUMERO, "").trim()).filter(Boolean);
   let consigne = "Remets les étapes dans l'ordre";
-  if (propres[0] && propres[0].startsWith("? ")) consigne = propres.shift().slice(2).trim();
-  const elements = propres.map((l) => l.replace(NUMERO, "").trim());
+  if (elements[0] && elements[0].startsWith("? ")) consigne = elements.shift().slice(2).trim();
   if (elements.length < 2) return { ok: false, erreur: "Quiz ordre : au moins deux éléments." };
   if (elements.length > 8) return { ok: false, erreur: "Quiz ordre : huit éléments au plus." };
   if (new Set(elements).size !== elements.length) return { ok: false, erreur: "Quiz ordre : deux éléments identiques." };
@@ -61,9 +66,10 @@ function quizChoix(lignes) {
     const l = brut.trim();
     if (!l) { fermer(); continue; }
     if (l.startsWith("? ")) { fermer(); q = { question: l.slice(2).trim(), options: [], explication: "" }; continue; }
-    if (!q) return { ok: false, erreur: "Quiz choix : chaque question commence par « ? »." };
-    const opt = l.match(/^-\s+(\[x\]\s+)?(.+)$/i);
-    if (opt) { q.options.push({ texte: opt[2].trim(), juste: !!opt[1] }); continue; }
+    if (!q) return { ok: false, erreur: `Quiz choix : la ligne « ${l} » n'est rattachée à aucune question (une ligne vide termine la question en cours).` };
+    // « - texte » et « - [ ] texte » : fausse ; « - [x] texte » et « - [X] texte » : juste.
+    const opt = l.match(/^-\s+(?:\[([ xX])\]\s+)?(.+)$/);
+    if (opt) { q.options.push({ texte: opt[2].trim(), juste: opt[1] === "x" || opt[1] === "X" }); continue; }
     if (l.startsWith("> ")) { q.explication = (q.explication ? q.explication + " " : "") + l.slice(2).trim(); continue; }
     return { ok: false, erreur: `Quiz choix : ligne non reconnue « ${l} ».` };
   }
