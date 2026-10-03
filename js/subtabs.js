@@ -9,11 +9,14 @@ import { moduleVisible, moduleMasque, repereMasque } from "./modules-etat.js?v=2
 // module : clé du catalogue (js/modules-data.js). Fermé pour la promo, le
 // sous-onglet disparaît chez un stagiaire et porte le repère chez un formateur.
 // opts.activeKey : onglet initial ; opts.storageKey : mémorise le dernier onglet choisi.
+// opts.onChange(key) : appelé quand l'utilisateur choisit un onglet (pas au rendu
+// initial). opts.avantChangement() : renvoie false pour garder l'onglet affiché
+// (saisie en cours qu'on ne veut pas perdre).
 // Retourne l'élément conteneur (barre + panneau). S'il ne reste qu'un onglet, la
 // barre n'est pas affichée : le contenu s'affiche directement.
 export function renderSubTabs(tousLesOnglets, opts = {}) {
   const tabs = tousLesOnglets.filter((t) => !t.module || moduleVisible(t.module));
-  const { activeKey, storageKey } = opts;
+  const { activeKey, storageKey, onChange, avantChangement } = opts;
   const wrap = el("div", { class: "subtabs" });
   const bar = el("div", { class: "subtabs-bar", role: "tablist" });
   const panel = el("div", { class: "subtabs-panel" });
@@ -26,7 +29,8 @@ export function renderSubTabs(tousLesOnglets, opts = {}) {
   const buttons = {};
   let gen = 0;   // jeton d'activation : permet à un rendu asynchrone de savoir s'il est
                  // toujours le rendu courant (sinon il doit s'abstenir d'écrire le panneau).
-  function activate(key) {
+  function activate(key, parUtilisateur = false) {
+    if (parUtilisateur && avantChangement && !avantChangement()) return;
     current = key;
     const myGen = ++gen;
     if (storageKey) { try { localStorage.setItem(storageKey, key); } catch (e) { /* ignore */ } }
@@ -38,11 +42,12 @@ export function renderSubTabs(tousLesOnglets, opts = {}) {
     clear(panel);
     const tab = tabs.find((t) => t.key === key);
     if (tab) tab.render(panel, { isActive: () => current === key && gen === myGen });
+    if (parUtilisateur && onChange) onChange(key);
   }
 
   tabs.forEach((t) => {
     const b = el("button", { class: "subtab", type: "button", role: "tab",
-      onClick: () => activate(t.key) }, t.label);
+      onClick: () => activate(t.key, true) }, t.label);
     if (t.module) repereMasque(b, moduleMasque(t.module));
     buttons[t.key] = b;
     bar.appendChild(b);

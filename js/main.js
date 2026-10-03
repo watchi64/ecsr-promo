@@ -24,6 +24,11 @@ import { initUndoKeyboard } from "./undo.js?v=20261003b";
 import { renderNouveautes } from "./views/nouveautes.js?v=20261003b";
 import { libellePastille } from "./nouveautes.js?v=20261003b";
 import { renderCcp2 } from "./views/ccp2.js?v=20261003b";
+import { lireAdresse } from "./route-rules.js?v=20261003b";
+import {
+  peutQuitter, leverGardeSortie, majSurPlacePour, oublierMajSurPlace,
+  noterAdresse, adresseCourante, remplacerAdresse, installerGardeNavigateur,
+} from "./navigation.js?v=20261003b";
 import { initChatbot, appliquerModuleAssistant } from "./chatbot.js?v=20261003b";
 import {
   chargerModules, chargerModulesAuDemarrage, onModulesChange, surveillerPremierPlan,
@@ -150,11 +155,16 @@ function derniereRoute() {
   }
 }
 
-async function navigate() {
-  // Page de repli quand rien n'est memorise : « Mon suivi », ou chacun retrouve
-  // ce qui l'attend, son planning a venir et ses resultats.
-  const hash = location.hash.replace(/^#\//, "") || "mon-suivi";
-  let route = routes[hash] ? hash : "mon-suivi";
+async function navigate({ force = false } = {}) {
+  // Garde de saisie (chantier D, lot 2) : une grille EPCF commencée n'est pas
+  // abandonnée sans accord. Refus : l'adresse affichée est remise, sans rendu.
+  if (!peutQuitter()) { remplacerAdresse(adresseCourante()); return; }
+  leverGardeSortie();
+  // Adresses à segments (#/stagiaires/12/epcf) : le premier choisit la page, la
+  // page lit le reste. Page de repli : « Mon suivi », où chacun retrouve ce qui
+  // l'attend, son planning à venir et ses résultats.
+  let route = lireAdresse(location.hash).route;
+  if (!routes[route]) route = "mon-suivi";
   // Module fermé pour la promo (lien, adresse saisie, nouveauté ancienne) : un
   // stagiaire est ramené sur Mon suivi, avec un mot d'explication.
   if (!routeVisible(route)) {
@@ -163,6 +173,15 @@ async function navigate() {
     route = "mon-suivi";
   }
   memoriserRoute(route);
+  noterAdresse(location.hash);
+  // Même page, autre fiche ou autre partie : la page se met à jour elle-même.
+  // force : Actualiser, changement de rôle, Réessayer veulent un vrai rendu.
+  const surPlace = !force && route === lastRoute ? majSurPlacePour(route) : null;
+  if (surPlace) {
+    try { await surPlace(lireAdresse(location.hash)); return; }
+    catch (e) { console.error(e); }   // repli : rendu complet ci-dessous
+  }
+  oublierMajSurPlace();
   // En QUITTANT le planning (pas sur un simple remount : undo, refresh d'auth…),
   // le mode édition retombe : la vue se rouvrira toujours en lecture seule.
   if (lastRoute === "planning" && route !== "planning") resetPlanningEditMode();
@@ -200,7 +219,7 @@ async function navigate() {
     const retry = document.createElement("button");
     retry.className = "btn primary";
     retry.textContent = "Réessayer";
-    retry.addEventListener("click", () => navigate());
+    retry.addEventListener("click", () => navigate({ force: true }));
     box.appendChild(h);
     box.appendChild(sub);
     box.appendChild(retry);
@@ -209,7 +228,7 @@ async function navigate() {
   }
 }
 
-window.addEventListener("hashchange", navigate);
+window.addEventListener("hashchange", () => navigate());
 
 // Pose « Chargement » dans la vue, le temps d'une attente (lecture des modules) : sans cela,
 // l'écran resterait vide au démarrage, ou figé sur l'ancienne page après « Actualiser ».
@@ -226,12 +245,14 @@ function setupRefreshBtn() {
   btn.innerHTML = "";
   btn.appendChild(icon.refresh());
   btn.addEventListener("click", async () => {
+    // Saisie en cours : pas de rechargement sans accord.
+    if (!peutQuitter()) return;
     // Force le rechargement réel : vide le cache des données de référence
     invalidateCache();
     afficherChargement();
     // Un formateur a pu ouvrir un module depuis le dernier chargement.
     await chargerModules();
-    navigate();
+    navigate({ force: true });
   });
 }
 
@@ -243,8 +264,9 @@ function setupTodayBtn() {
   btn.innerHTML = "";
   btn.appendChild(icon.today());
   btn.addEventListener("click", async () => {
+    if (!peutQuitter()) return;
     requestPlanningToday();
-    if (location.hash === "#/planning") await navigate();
+    if (location.hash === "#/planning") await navigate({ force: true });
     else location.hash = "#/planning";
   });
 }
@@ -290,7 +312,7 @@ async function bootApp() {
   initChatbot();
   majPresenceModules();
   // Le changement de rôle change l'audience, donc le compte, et ce qu'on voit des modules.
-  onAdminChange(() => { renderTabs(); majBadgeNouveautes(); majPresenceModules(); navigate(); });
+  onAdminChange(() => { renderTabs(); majBadgeNouveautes(); majPresenceModules(); navigate({ force: true }); });
   // Un module ouvert ou fermé (réglage d'un formateur, relecture au premier plan) :
   // barre, pastille et raccourcis suivent. La vue n'est rejouée que si elle vient
   // d'être fermée, pour ne pas détruire une saisie en cours.
@@ -298,12 +320,13 @@ async function bootApp() {
     renderTabs();
     majBadgeNouveautes();
     majPresenceModules();
-    if (lastRoute && !routeVisible(lastRoute)) navigate();
+    if (lastRoute && !routeVisible(lastRoute)) navigate({ force: true });
   });
   surveillerPremierPlan();
   // Émis par la page et par la section d'Accueil après marquage.
   window.addEventListener("nouveautes-vues", majBadgeNouveautes);
   initUndoKeyboard();
+  installerGardeNavigateur();
   // À l'ouverture, on revient sur la page quittée la dernière fois, et à défaut
   // sur « Mon suivi ». replaceState plutôt que location.hash : pas de
   // `hashchange` (donc pas de double rendu avec le navigate() ci-dessous) et pas
