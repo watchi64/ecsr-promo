@@ -1,15 +1,16 @@
 import { listStagiaires, listEvaluations, getPlanning, getHalfMetaForWeek, getJoursOff, getSetting,
          listProfs, listEpcf, getEpcfMoyennes, listThemes,
-         getStagiaire, setDateNaissance, listPassages } from "../db.js?v=20261002b";
-import { el, clear, isoDate, getMonday, addDays, formatDate, displayStagiaire, compareByNom, toast } from "../utils.js?v=20261002b";
-import { HALF_DAYS, RESULTATS } from "../config.js?v=20261002b";
-import { isAdmin, isProf, getProfile } from "../auth-admin.js?v=20261002b";
-import { renderEpcfTrameSection } from "../epcf-restitution.js?v=20261002b";
-import { renderSubTabs } from "../subtabs.js?v=20261002b";
-import { renderDp } from "./dp.js?v=20261002b";
-import { rolesPourEntry, ROLE_ORDER } from "../creneaux-rules.js?v=20261002b";
-import { statsPassages } from "../passages-stats.js?v=20261002b";
-import { moduleVisible } from "../modules-etat.js?v=20261002b";
+         getStagiaire, setDateNaissance, listPassages } from "../db.js?v=20261003a";
+import { el, clear, isoDate, getMonday, addDays, formatDate, displayStagiaire, compareByNom, toast } from "../utils.js?v=20261003a";
+import { HALF_DAYS, RESULTATS } from "../config.js?v=20261003a";
+import { isAdmin, isProf, getProfile } from "../auth-admin.js?v=20261003a";
+import { renderEpcfTrameSection } from "../epcf-restitution.js?v=20261003a";
+import { renderSubTabs } from "../subtabs.js?v=20261003a";
+import { renderDp } from "./dp.js?v=20261003a";
+import { renderEpcfLivret } from "./epcf-livret.js?v=20261003a";
+import { rolesPourEntry, ROLE_ORDER } from "../creneaux-rules.js?v=20261003a";
+import { statsPassages } from "../passages-stats.js?v=20261003a";
+import { moduleVisible } from "../modules-etat.js?v=20261003a";
 
 const HALF_ORDER = { matin: 0, aprem: 1 };
 
@@ -558,8 +559,9 @@ export async function renderMonSuivi(container) {
         el("label", {}, "Date de naissance"), dob,
         el("span", { class: "muted ms-naissance-hint" }, "Reportée automatiquement sur le livret EPCF.")));
     }
-    // Sous-onglets : Passages · EPCF · Évolution. Le rendu de chaque onglet est
-    // paresseux ; toutes les données sont déjà chargées (closures ci-dessus).
+    // Sous-onglets : Passages · EPCF · Évolution · Livret EPCF · Dossier pro. Mon espace
+    // porte tout ce qui est à la personne affichée (chantier D). Le rendu de chaque
+    // onglet est paresseux ; les données des trois premiers sont déjà chargées.
     body.appendChild(renderSubTabs([
       { key: "passages", label: "Passages", render: (p) => {
           p.appendChild(renderPassagesSection(items));
@@ -574,9 +576,23 @@ export async function renderMonSuivi(container) {
       { key: "evolution", label: "Évolution", module: "notes", render: (p) => {
           p.appendChild(renderChartSection(evaluations));
         } },
+      // Le livret de la personne affichée : le sien en lecture pour un stagiaire, en
+      // saisie pour un formateur qui regarde l'espace d'un stagiaire. Libellé court
+      // (« Livret », à côté d'« EPCF ») : avec cinq sous-onglets, la barre doit tenir
+      // sur une ligne d'iPhone.
+      { key: "livret", label: "Livret", module: "livret", render: (p, ctx) => {
+          renderEpcfLivret(p, { stagiaireId: id, embedded: true, isActive: ctx && ctx.isActive })
+            .catch((e) => {
+              console.error(e);
+              if (!ctx || ctx.isActive()) {
+                clear(p);
+                p.appendChild(el("p", { class: "muted" }, "Erreur de chargement du livret EPCF. Reviens sur l'onglet pour réessayer."));
+              }
+            });
+        } },
       // Le DP appartient au candidat : dans SON espace il est éditable. Un
-      // formateur qui consulte l'espace d'un autre élève le voit en lecture
-      // seule (renderDp compare l'élève affiché au stagiaire_id du profil).
+      // formateur qui consulte l'espace d'un élève peut aussi y écrire, pour
+      // l'accompagner (droits révisés le 16/09).
       { key: "dp", label: "Dossier pro", module: "dp", render: (p, ctx) => {
           renderDp(p, { stagiaireId: id, embedded: true, isActive: ctx && ctx.isActive })
             .catch((e) => {

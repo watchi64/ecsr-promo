@@ -7838,3 +7838,96 @@ body.cours-open { overflow: hidden; }
 .modules-explication,
 .modules-date { font-size: 0.82rem; }
 .modules-date { color: var(--accent-strong); }
+
+/* ===== Chantier D : barre simple et parcours CCP2 ===== */
+/* Priorités se consulte depuis le Planning : retour au-dessus du titre. */
+.dash-retour { margin: 0 0 0.6rem; }
+/* Parcours CCP2 */
+.ccp2-epreuve,
+.ccp2-dates {
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  padding: 1rem 1.2rem;
+  margin-bottom: 1rem;
+}
+.ccp2-epreuve h3,
+.ccp2-dates h3 { margin: 0 0 0.6rem; font-size: 1.1rem; }
+.ccp2-epreuve-points { margin: 0; padding-left: 1.1rem; display: grid; gap: 0.4rem; }
+.ccp2-liens {
+  list-style: none;
+  margin: 0.8rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1.2rem;
+  font-size: 0.9rem;
+}
+.ccp2-liens a { color: var(--accent-strong); text-decoration: underline; text-underline-offset: 2px; }
+.ccp2-dates-liste { list-style: none; margin: 0; padding: 0; }
+.ccp2-date {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.2rem 1rem;
+  padding: 0.45rem 0;
+  border-bottom: 1px solid var(--line-faint);
+}
+.ccp2-date:last-child { border-bottom: none; }
+.ccp2-date-periode { font-family: var(--font-mono); font-size: 0.85rem; color: var(--text-soft); }
+.ccp2-date.passe { color: var(--text-muted); }
+.ccp2-date.passe .ccp2-date-periode { color: var(--text-faint); }
+.ccp2-etapes-titre { margin: 1.4rem 0 0.7rem; font-size: 1.15rem; }
+.ccp2-etapes { display: grid; gap: 0.6rem; }
+.ccp2-etape {
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+}
+.ccp2-etape[open] { border-color: var(--line-strong); }
+.ccp2-etape > summary {
+  display: grid;
+  grid-template-columns: 2.1rem 1fr;
+  column-gap: 0.8rem;
+  row-gap: 0.15rem;
+  align-items: center;
+  min-height: 44px;
+  padding: 0.8rem 1rem;
+  cursor: pointer;
+  list-style: none;
+}
+.ccp2-etape > summary::-webkit-details-marker { display: none; }
+.ccp2-etape-num {
+  grid-row: 1 / span 2;
+  width: 2.1rem;
+  height: 2.1rem;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  font-family: var(--font-mono);
+  font-weight: 600;
+}
+.ccp2-etape[open] .ccp2-etape-num { background: var(--accent); color: #fff; }
+.ccp2-etape-titre { font-weight: 600; color: var(--text); }
+.ccp2-etape-bref { font-size: 0.9rem; color: var(--text-muted); }
+.ccp2-etape-corps { padding: 0 1rem 1rem calc(1rem + 2.1rem + 0.8rem); }
+.ccp2-rubrique h4 { margin: 0.9rem 0 0.35rem; font-size: 0.95rem; color: var(--accent-strong); }
+.ccp2-rubrique ul { margin: 0; padding-left: 1.1rem; display: grid; gap: 0.3rem; }
+.ccp2-rubrique .ccp2-liens { margin-top: 0; }
+.ccp2-source { margin: 1rem 0 0; font-size: 0.8rem; color: var(--text-muted); }
+@media (max-width: 760px) {
+  .ccp2-etape-corps { padding: 0 1rem 1rem; }
+  .ccp2-epreuve, .ccp2-dates { padding: 0.9rem 1rem; }
+  /* Titre puis période, toujours empilés : sinon les lignes courtes tiennent sur une
+     ligne et les longues sur deux, et la liste perd son alignement. */
+  .ccp2-date { flex-direction: column; }
+}
+@media (max-width: 760px) {
+  /* Barres de sous-onglets sur iPhone : jusqu'à cinq sous-onglets sur une ligne
+     (Mon espace en a cinq depuis l'arrivée du livret). Toutes les barres de l'app
+     suivent la même règle, pour qu'elles se ressemblent. */
+  .subtabs-bar { gap: 0.1rem; }
+  .subtab { padding: 0.5rem 0.5rem; font-size: 0.86rem; }
+}

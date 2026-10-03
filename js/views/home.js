@@ -2,14 +2,14 @@
  * Page d'accueil : version actualisée après les refontes (auth, calendrier, contacts).
  * Affichage personnalisé : salutation + prochains événements + raccourcis.
  */
-import { listAgendaEvents } from "../db.js?v=20261002b";
-import { el, clear, parseDate, formatDate, isoDate } from "../utils.js?v=20261002b";
-import { icon } from "../icons.js?v=20261002b";
-import { isAdmin, getProfile, getProfileWho } from "../auth-admin.js?v=20261002b";
+import { listAgendaEvents } from "../db.js?v=20261003a";
+import { el, clear, parseDate, formatDate, isoDate } from "../utils.js?v=20261003a";
+import { icon } from "../icons.js?v=20261003a";
+import { isAdmin, getProfile, getProfileWho } from "../auth-admin.js?v=20261003a";
 import {
   nouveautesAffichables, marquerLues, routeVisible, routeMasquee, repereMasque,
-} from "../modules-etat.js?v=20261002b";
-import { carteNouveaute } from "./nouveautes.js?v=20261002b";
+} from "../modules-etat.js?v=20261003a";
+import { carteNouveaute } from "./nouveautes.js?v=20261003a";
 
 function greetingByHour() {
   const h = new Date().getHours();
@@ -126,11 +126,12 @@ export async function renderHome(container) {
 
   // === Raccourcis principaux (tuiles) ===
   const tiles = [
-    { route: "dashboard",  icon: "target",       title: "Priorités",        desc: "Qui doit passer, vs moyenne de classe" },
+    // Les tuiles suivent la barre d'onglets (Priorités se rejoint depuis le Planning).
     { route: "planning",   icon: "calendar",     title: "Planning",         desc: "Cette semaine, créneaux & tirages" },
     { route: "calendrier", icon: "clock",        title: "Calendrier",       desc: "Examens, stages, dates clés" },
-    { route: "themes",     icon: "list",         title: "Thèmes",           desc: "57 thèmes & progression" },
+    { route: "themes",     icon: "book",         title: "Cours",            desc: "Thèmes, compétences & QCM" },
     { route: "notes",      icon: "edu",          title: "Notes",            desc: "Matrice & synthèse classe" },
+    { route: "ccp2",       icon: "ccp2",         title: "CCP2",             desc: "Ton parcours en 8 étapes" },
     { route: "ressources", icon: "signpost",     title: "Ressources",       desc: "Contacts & liens utiles" },
   ];
 

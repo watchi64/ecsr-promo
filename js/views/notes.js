@@ -2,15 +2,15 @@ import {
   listStagiaires, listCompetences, listEvaluations, listThemes,
   addEvaluation, updateEvaluation, deleteEvaluation, listAuditForEvaluation,
   listUserProfiles,
-} from "../db.js?v=20261002b";
-import { el, clear, isoDate, formatDate, toast, displayStagiaire, compareByNom } from "../utils.js?v=20261002b";
-import { icon } from "../icons.js?v=20261002b";
-import { getAdminEmail, isAdmin, getProfile } from "../auth-admin.js?v=20261002b";
-import { recordUndo } from "../undo.js?v=20261002b";
-import { renderSubTabs } from "../subtabs.js?v=20261002b";
-import { renderEpcf } from "./epcf.js?v=20261002b";
-import { renderEpcfLivret } from "./epcf-livret.js?v=20261002b";
-import { renderDp } from "./dp.js?v=20261002b";
+} from "../db.js?v=20261003a";
+import { el, clear, isoDate, formatDate, toast, displayStagiaire, compareByNom } from "../utils.js?v=20261003a";
+import { icon } from "../icons.js?v=20261003a";
+import { getAdminEmail, isAdmin, isProf, getProfile } from "../auth-admin.js?v=20261003a";
+import { recordUndo } from "../undo.js?v=20261003a";
+import { renderSubTabs } from "../subtabs.js?v=20261003a";
+import { renderEpcf } from "./epcf.js?v=20261003a";
+import { renderEpcfLivret } from "./epcf-livret.js?v=20261003a";
+import { renderDp } from "./dp.js?v=20261003a";
 
 let userProfiles = [];  // pour résoudre l'anonymat par stagiaire_id
 
@@ -1129,25 +1129,13 @@ function rerender(container) {
     panel.appendChild(renderChartsSection());
   };
 
-  // Sous-onglets Matrice · EPCF · Livret EPCF · Dossier pro pour TOUT LE MONDE.
-  // renderEpcf, renderEpcfLivret et renderDp s'adaptent au rôle :
-  // formateur/admin → liste + saisie (EPCF, Livret) ou liste + consultation (DP) ;
-  // stagiaire → vue classe (EPCF), son livret en lecture seule (Livret), et son
-  // dossier professionnel EN ÉDITION (le DP appartient au candidat).
-  // La matrice reste en lecture seule pour les stagiaires.
+  // Notes, c'est la classe (chantier D) : Matrice et EPCF pour tout le monde (vue
+  // classe de l'EPCF pour un stagiaire). Livret EPCF et Dossier pro sont les outils
+  // des formateurs (liste + saisie ou relecture) ; le stagiaire retrouve les siens
+  // dans Mon espace. La matrice reste en lecture seule pour les stagiaires.
   // Chaque sous-onglet suit son module (js/modules-data.js) ; la Matrice suit l'onglet lui-même.
-  container.appendChild(renderSubTabs([
-    { key: "matrice", label: "Matrice", render: buildMatricePanel },
-    { key: "epcf", label: "EPCF", module: "epcf", render: (p, ctx) => {
-        renderEpcf(p, { embedded: true, isActive: ctx && ctx.isActive })
-          .catch((e) => {
-            console.error(e);
-            if (!ctx || ctx.isActive()) {
-              clear(p);
-              p.appendChild(el("p", { class: "muted" }, "Erreur de chargement de l'espace EPCF. Reviens sur l'onglet pour réessayer."));
-            }
-          });
-      } },
+  const formateur = isAdmin() || isProf();
+  const outilsFormateur = [
     { key: "livret", label: "Livret EPCF", module: "livret", render: (p, ctx) => {
         renderEpcfLivret(p, { embedded: true, isActive: ctx && ctx.isActive })
           .catch((e) => {
@@ -1168,6 +1156,20 @@ function rerender(container) {
             }
           });
       } },
+  ];
+  container.appendChild(renderSubTabs([
+    { key: "matrice", label: "Matrice", render: buildMatricePanel },
+    { key: "epcf", label: "EPCF", module: "epcf", render: (p, ctx) => {
+        renderEpcf(p, { embedded: true, isActive: ctx && ctx.isActive })
+          .catch((e) => {
+            console.error(e);
+            if (!ctx || ctx.isActive()) {
+              clear(p);
+              p.appendChild(el("p", { class: "muted" }, "Erreur de chargement de l'espace EPCF. Reviens sur l'onglet pour réessayer."));
+            }
+          });
+      } },
+    ...(formateur ? outilsFormateur : []),
   ], { storageKey: "ecsr_notes_subtab" }));
 }
 

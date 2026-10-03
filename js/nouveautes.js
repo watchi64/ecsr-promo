@@ -24,6 +24,7 @@ export const MISE_EN_LIGNE = "2026-08-01";
 export const STORAGE_SOUS_ONGLET = {
   "mon-suivi": "ecsr_monsuivi_subtab",
   notes: "ecsr_notes_subtab",
+  themes: "themes.subtab",
 };
 
 // Antéchronologique, de la plus récente à la plus ancienne.

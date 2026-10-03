@@ -16,6 +16,45 @@
 
 export const NOUVEAUTES = [
   {
+    id: "2026-10-03-barre-simple",
+    date: "2026-10-03",
+    pour: "tous",
+    module: "themes",
+    titre: "Une barre d'onglets plus simple",
+    resume: "L'onglet Thèmes s'appelle maintenant Cours, avec deux sous-onglets : Thèmes et "
+          + "Compétences. Les priorités de passage se trouvent en haut du Planning. Ton livret "
+          + "EPCF et ton dossier professionnel sont rangés dans ton espace personnel, avec tout "
+          + "ce qui est à toi.",
+    ou: { label: "Cours", route: "themes" },
+    guide: [
+      "Cours : choisis Thèmes ou Compétences juste sous le titre.",
+      "Planning : le bouton Priorités est en haut de la page.",
+      "Ton espace personnel (le logo en haut à gauche) : sous-onglets Livret EPCF et Dossier pro.",
+    ],
+  },
+  {
+    id: "2026-10-03-livret-espace-stagiaire",
+    date: "2026-10-03",
+    pour: "formateurs",
+    module: "livret",
+    titre: "Le livret EPCF s'ouvre aussi depuis l'espace d'un stagiaire",
+    resume: "Dans l'espace personnel d'un stagiaire (choisis-le dans la liste « Élève »), le "
+          + "sous-onglet Livret EPCF ouvre son livret directement en saisie. Dans Notes, tu "
+          + "gardes la liste de tous les livrets et de tous les dossiers professionnels.",
+    ou: { label: "Mon espace personnel, sous-onglet Livret EPCF", route: "mon-suivi", sousOnglet: "livret" },
+  },
+  {
+    id: "2026-10-03-parcours-ccp2",
+    date: "2026-10-03",
+    pour: "tous",
+    module: "ccp2",
+    titre: "Nouvel onglet CCP2 : ton parcours en 8 étapes",
+    resume: "Du choix du commanditaire au jour de l'épreuve, chaque étape dit ce que le jury "
+          + "regarde, comment t'y prendre et ce qu'il faut garder pour ton dossier. Tes dates "
+          + "de stage et d'examen sont rappelées en haut de la page.",
+    ou: { label: "CCP2", route: "ccp2" },
+  },
+  {
     id: "2026-10-01-guide-ccp2-videos",
     date: "2026-10-01",
     pour: "tous",
@@ -34,7 +73,7 @@ export const NOUVEAUTES = [
     resume: "Tu peux enregistrer un passage à n'importe quelle date passée et corriger les "
           + "tiens si tu t'es trompé. Seule la suppression d'un passage passe par un "
           + "formateur. La limite de 2 jours indiquée sur l'accueil n'existe plus.",
-    ou: { label: "Priorités, Historique des passages", route: "dashboard" },
+    ou: { label: "Planning, bouton Priorités", route: "dashboard" },
   },
   {
     id: "2026-09-30-boite-a-outils-ccp2",
@@ -105,7 +144,7 @@ export const NOUVEAUTES = [
           + "« Lire le cours » ouvre le cours en plein écran : l'essentiel en tête, les "
           + "sanctions en fiches, les planches de panneaux, et un sommaire pour naviguer. "
           + "En fin de lecture, tu peux enchaîner directement sur le QCM du thème.",
-    ou: { label: "Thèmes", route: "themes" },
+    ou: { label: "Cours", route: "themes" },
   },
   {
     id: "2026-08-21-anonymat-notes",
@@ -149,7 +188,7 @@ export const NOUVEAUTES = [
           + "à côté du titre, titre sur toute la largeur, boutons Cours et QCM bien alignés "
           + "avec tes notes. Et le champ de recherche ne ferme plus ton clavier à chaque "
           + "lettre : tape ta recherche d'une traite, la liste se filtre en direct.",
-    ou: { label: "Thèmes", route: "themes" },
+    ou: { label: "Cours", route: "themes" },
   },
   {
     id: "2026-08-15-assistant",
@@ -171,7 +210,7 @@ export const NOUVEAUTES = [
     resume: "Dans la liste des thèmes, une barre colorée sous chaque QCM se remplit avec ta "
           + "dernière note d'entraînement. Plus la barre est verte et pleine, plus le thème "
           + "est acquis : tu repères en un survol ceux qui méritent une nouvelle passe.",
-    ou: { label: "Thèmes, colonne QCM", route: "themes" },
+    ou: { label: "Cours, colonne QCM", route: "themes" },
   },
   {
     id: "2026-08-09-cours-en-relecture",
@@ -183,7 +222,7 @@ export const NOUVEAUTES = [
           + "exactement ce que verra l'élève), et tu le publies quand il est prêt : rien "
           + "n'est visible de la promo sans ta décision, cours par cours. Chaque "
           + "enregistrement garde une version : rien ne se perd, tout se restaure.",
-    ou: { label: "Thèmes, badge Cours", route: "themes" },
+    ou: { label: "Cours, colonne Cours", route: "themes" },
     guide: [
       "Ouvre l'onglet Thèmes : chaque thème a sa colonne Cours. Le bouton reste "
         + "en couleur tant que tu n'as pas encore ouvert ce cours sur ton appareil.",
@@ -203,7 +242,7 @@ export const NOUVEAUTES = [
           + "cause. C'est utile : les réponses sont mélangées à chaque passage, donc écrire "
           + "« la réponse D » ne voulait rien dire une fois le signalement reçu. Et ça sert : "
           + "les signalements de la semaine ont abouti à huit questions corrigées.",
-    ou: { label: "Thèmes, colonne QCM", route: "themes" },
+    ou: { label: "Cours, colonne QCM", route: "themes" },
     guide: [
       "Pendant un entraînement, réponds à la question, puis utilise le lien de signalement.",
       "Choisis le motif, puis la réponse concernée dans la liste, ou laisse « toute la question » "
@@ -221,7 +260,7 @@ export const NOUVEAUTES = [
           + "ceux qui n'appellent rien. Chacun arrive avec une analyse déjà faite (articles de "
           + "loi revérifiés, chiffres recoupés), mais la décision reste la tienne : l'avis ne "
           + "corrige jamais une question de lui-même.",
-    ou: { label: "Thèmes, sous-onglet Signalements", route: "themes" },
+    ou: { label: "Cours, sous-onglet Signalements", route: "themes", sousOnglet: "signalements" },
     guide: [
       "Ouvre l'onglet Thèmes, puis le sous-onglet Signalements.",
       "Lis l'avis en dépliant « Voir l'analyse », puis tranche avec « Corrigé » ou « Rien à corriger ».",
@@ -237,7 +276,7 @@ export const NOUVEAUTES = [
     resume: "Les 57 thèmes ont désormais leur QCM. Tu t'entraînes autant de fois que tu veux, "
           + "ça ne compte jamais dans tes notes. Tes anciennes erreurs repassent en premier, "
           + "pour que tu travailles ce qui te manque plutôt que ce que tu sais déjà.",
-    ou: { label: "Thèmes, colonne QCM", route: "themes" },
+    ou: { label: "Cours, colonne QCM", route: "themes" },
     guide: [
       "Ouvre l'onglet Thèmes.",
       "Clique sur le bouton QCM à droite du thème qui t'intéresse.",
@@ -253,7 +292,7 @@ export const NOUVEAUTES = [
     resume: "Si une question te paraît fausse, ambiguë ou mal formulée, tu peux le signaler "
           + "depuis la question elle-même. Le signalement arrive aux formateurs, qui corrigent "
           + "pour toute la promo.",
-    ou: { label: "Thèmes, colonne QCM", route: "themes" },
+    ou: { label: "Cours, colonne QCM", route: "themes" },
     guide: [
       "Pendant un entraînement, ouvre la question qui te pose problème.",
       "Utilise le lien de signalement sous la question et explique en une phrase ce qui cloche.",
@@ -313,7 +352,7 @@ export const NOUVEAUTES = [
     resume: "Le livret que tu présentes au jury se saisit ici et s'imprime au format officiel. "
           + "Ta date de naissance est reprise automatiquement depuis ton profil, tu n'as pas à "
           + "la ressaisir.",
-    ou: { label: "Notes, sous-onglet Livret EPCF", route: "notes", sousOnglet: "livret" },
+    ou: { label: "Mon espace personnel, sous-onglet Livret EPCF", route: "mon-suivi", sousOnglet: "livret" },
     guide: [
       "Renseigne ta date de naissance dans ton espace personnel si ce n'est pas déjà fait.",
       "Ouvre l'onglet Notes, sous-onglet « Livret EPCF ».",

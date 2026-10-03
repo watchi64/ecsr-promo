@@ -185,6 +185,16 @@ for (const parRoute of Object.values(MODULE_DE_SOUS_ONGLET)) {
 for (const r of ROUTES_SOCLE) ok(!(r in MODULE_DE_ROUTE), "route du socle sans module : " + r);
 eq(typeof REGLAGE_OUVERT_AUX_FORMATEURS, "boolean", "drapeau booléen");
 
+// 11 bis. Chantier D : barre simple et onglet CCP2
+eq(MODULE_DE_ROUTE.ccp2, "ccp2", "CCP2 : route gouvernée par son module");
+eq(MODULES.find((m) => m.cle === "ccp2")?.groupe, "CCP2", "CCP2 : son groupe dans le réglage");
+eq(MODULES.find((m) => m.cle === "livret").parent, undefined, "livret : plus rangé dans Notes");
+eq(MODULE_DE_SOUS_ONGLET["mon-suivi"].livret, "livret", "livret : sous-onglet de Mon espace");
+eq(STORAGE_SOUS_ONGLET.themes, "themes.subtab", "Cours : sous-onglet mémorisé joignable");
+eq(MODULES.find((m) => m.cle === "themes").nom, "Cours", "Thèmes s'affiche Cours");
+const nomsAffiches = MODULES.map((m) => m.nom);
+eq(new Set(nomsAffiches).size, nomsAffiches.length, "noms affichés uniques dans le réglage");
+
 // 12. Nouveautés déjà écrites rattachées au bon module. Ces entrées historiques
 // mènent à « Mon suivi », « Thèmes » ou « Paramètres » alors qu'elles parlent du
 // Dossier pro, des QCM, des cours ou de l'anonymat : sans champ `module`, une

@@ -7,15 +7,16 @@ import {
   addPassagesBatch, deletePassagesBatch, getPassagesInRange, updateTheme,
   listBenevoles, listBenevolesNoms,
   getVoitureAggregats, listFiches, getSalleAggregats,
-} from "../db.js?v=20261002b";
-import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20261002b";
-import { icon } from "../icons.js?v=20261002b";
-import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20261002b";
-import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20261002b";
-import { recordUndo } from "../undo.js?v=20261002b";
-import { getCurrentWho } from "../identity.js?v=20261002b";
-import { openBenevolesPanel } from "./benevoles.js?v=20261002b";
-import { meilleurResultat } from "../passage-rules.js?v=20261002b";
+} from "../db.js?v=20261003a";
+import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20261003a";
+import { icon } from "../icons.js?v=20261003a";
+import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20261003a";
+import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20261003a";
+import { recordUndo } from "../undo.js?v=20261003a";
+import { getCurrentWho } from "../identity.js?v=20261003a";
+import { openBenevolesPanel } from "./benevoles.js?v=20261003a";
+import { meilleurResultat } from "../passage-rules.js?v=20261003a";
+import { routeVisible, routeMasquee, repereMasque } from "../modules-etat.js?v=20261003a";
 
 let stagiaires = [];
 let profs = [];
@@ -2772,6 +2773,15 @@ function renderInto(container) {
             : "Lecture seule. Connexion admin requise pour modifier."
       ),
     ),
+    // Priorités de passage : rangées dans le Planning, plus d'onglet (chantier D).
+    // Visibles des formateurs, et des stagiaires si le module est ouvert pour leur
+    // promo ; repère « Masqué aux stagiaires » chez un formateur quand il est fermé.
+    routeVisible("dashboard")
+      ? repereMasque(el("button", { class: "btn small", type: "button",
+          title: "Qui doit passer en priorité, au tableau et en voiture",
+          onClick: () => { location.hash = "#/dashboard"; } },
+          icon.target(), "Priorités"), routeMasquee("dashboard"))
+      : null,
   ));
 
   // Toolbar semaine
