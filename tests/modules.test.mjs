@@ -14,6 +14,7 @@ import {
   REGLAGE_OUVERT_AUX_FORMATEURS,
 } from "../js/modules-data.js";
 import { NOUVEAUTES } from "../js/nouveautes-data.js";
+import { hrefLien, PARTIES } from "../js/route-rules.js";
 
 let n = 0;
 const ok = (cond, msg) => { assert.ok(cond, msg); n++; };
@@ -219,5 +220,24 @@ for (const [id, cle] of Object.entries(attendu)) {
   ok(!!e, id + " existe");
   eq(moduleDeNouveaute(e, REF_REEL), cle, id + " : rattachée à " + cle);
 }
+
+// 13. Lot 2 du chantier D : liens vers les parties de Mon espace, page Stagiaires.
+for (const m of MODULES) {
+  const ou = m.annonce && m.annonce.ou;
+  if (!ou || ou.route !== "mon-suivi" || !ou.sousOnglet) continue;
+  ok(PARTIES.includes(ou.sousOnglet), m.cle + " : partie de Mon espace connue");
+  eq(hrefLien(ou), "#/mon-suivi/" + ou.sousOnglet, m.cle + " : le lien vise la partie par l'adresse");
+}
+ok(ROUTES_SOCLE.includes("stagiaires"), "page Stagiaires : route du socle");
+eq(Object.keys(MODULE_DE_SOUS_ONGLET.notes).sort(), ["epcf", "matrice"], "Notes : Matrice et EPCF seulement");
+ok(!NOUVEAUTES.some((e) => e.id === "2026-10-03-livret-espace-stagiaire"), "entrée caduque du 03/10 retirée");
+const libelles = [...NOUVEAUTES.map((e) => e.ou), ...MODULES.map((m) => m.annonce && m.annonce.ou)]
+  .filter(Boolean).map((o) => o.label);
+ok(!libelles.some((l) => /sous-onglet Livret EPCF/.test(l)), "plus de « sous-onglet Livret EPCF »");
+const pageStagiaires = NOUVEAUTES.find((e) => e.id === "2026-10-03-page-stagiaires");
+ok(pageStagiaires && pageStagiaires.pour === "formateurs" && pageStagiaires.ou.route === "stagiaires",
+   "nouveauté formateurs : la page Stagiaires");
+ok(NOUVEAUTES.some((e) => e.id === "2026-10-03-sommaire-iphone" && e.pour === "tous"),
+   "nouveauté pour tous : le sommaire sur iPhone");
 
 console.log(`modules : ${n} assertions OK`);

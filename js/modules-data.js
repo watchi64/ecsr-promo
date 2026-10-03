@@ -131,35 +131,35 @@ export const MODULES = [
   },
   {
     cle: "epcf", nom: "EPCF", accord: "ms", groupe: "CCP1",
-    explication: "Évaluations EPCF, dans Notes et Mon espace.",
+    explication: "Évaluations EPCF : les siennes dans Mon espace, les moyennes de la classe dans Notes, la saisie des formateurs dans la page Stagiaires.",
     annonce: {
       titre: "L'EPCF est ouvert",
       resume: "Tes évaluations EPCF du CCP1, en salle et en véhicule, s'affichent dans ton "
             + "espace personnel. La vue de la classe est dans Notes.",
-      ou: { label: "Mon espace personnel, sous-onglet EPCF", route: "mon-suivi", sousOnglet: "epcf" },
+      ou: { label: "Mon espace personnel, partie EPCF", route: "mon-suivi", sousOnglet: "epcf" },
     },
   },
   {
-    // Plus de parent : le stagiaire consulte son livret dans Mon espace, pas dans Notes.
+    // Plus de parent : le livret vit dans la fiche (Mon espace, page Stagiaires).
     cle: "livret", nom: "Livret EPCF", accord: "ms", groupe: "CCP1",
-    explication: "Livret officiel EPCF : celui du stagiaire dans Mon espace, la saisie des formateurs dans Notes.",
+    explication: "Livret officiel EPCF : celui du stagiaire dans Mon espace, la saisie des formateurs dans la page Stagiaires.",
     annonce: {
       titre: "Le livret EPCF est ouvert",
       resume: "Ton livret d'évaluation officiel se consulte dans ton espace personnel. Pense "
             + "à y indiquer ta date de naissance : elle est reportée automatiquement sur le "
             + "livret.",
-      ou: { label: "Mon espace personnel, sous-onglet Livret EPCF", route: "mon-suivi", sousOnglet: "livret" },
+      ou: { label: "Mon espace personnel, partie Livret", route: "mon-suivi", sousOnglet: "livret" },
     },
   },
   {
     cle: "dp", nom: "Dossier pro", accord: "ms", groupe: "Dossier professionnel",
-    explication: "Dossier professionnel : celui du stagiaire dans Mon espace, la relecture des formateurs dans Notes.",
+    explication: "Dossier professionnel : celui du stagiaire dans Mon espace, la relecture des formateurs dans la page Stagiaires.",
     annonce: {
       titre: "Le dossier professionnel est ouvert",
       resume: "Remplis ton dossier professionnel directement dans l'app, puis imprime-le ou "
             + "enregistre-le en PDF au format officiel. Tes formateurs peuvent le relire et "
             + "t'aider.",
-      ou: { label: "Mon espace personnel, sous-onglet Dossier pro", route: "mon-suivi", sousOnglet: "dp" },
+      ou: { label: "Mon espace personnel, partie Dossier pro", route: "mon-suivi", sousOnglet: "dp" },
     },
   },
   {

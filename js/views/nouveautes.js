@@ -7,19 +7,22 @@
 import { el, clear, formatDate } from "../utils.js?v=20261003b";
 import { nouveautesAffichables, marquerLues } from "../modules-etat.js?v=20261003b";
 import { STORAGE_SOUS_ONGLET } from "../nouveautes.js?v=20261003b";
+import { hrefLien } from "../route-rules.js?v=20261003b";
 
-// Lien « Où le trouver ». Si l'entrée vise un sous-onglet, on écrit la clé que
+// Lien « Où le trouver ». Une partie de Mon espace se vise par l'adresse
+// (#/mon-suivi/dp) ; un sous-onglet de Notes ou de Cours, par la clé que
 // renderSubTabs relit à l'ouverture de la vue : sans ça, un lien « Notes,
-// sous-onglet Livret EPCF » atterrirait sur la Matrice, et le lecteur devrait
+// sous-onglet EPCF » atterrirait sur la Matrice, et le lecteur devrait
 // chercher lui-même ce qu'on venait de lui indiquer.
 function lienOu(ou) {
   if (!ou) return null;
+  const href = hrefLien(ou);
   return el("a", {
     class: "nv-ou",
-    href: "#/" + ou.route,
+    href,
     onClick: () => {
       const cle = STORAGE_SOUS_ONGLET[ou.route];
-      if (!cle || !ou.sousOnglet) return;
+      if (!cle || !ou.sousOnglet || href !== "#/" + ou.route) return;
       try { localStorage.setItem(cle, ou.sousOnglet); } catch (e) { /* ignore */ }
     },
   }, "Où le trouver : ", el("strong", {}, ou.label));
