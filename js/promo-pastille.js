@@ -5,6 +5,16 @@ import { el } from "./utils.js?v=20261002b";
 import { getMesPromos, getPromoCourante, choisirPromo } from "./db.js?v=20261002b";
 import { libelleCourtPromo } from "./promo-rules.js?v=20261002b";
 
+// « Montpellier · sept. 2026 » : le lieu dans son propre span, que le CSS masque sur les
+// écrans les plus étroits (la date suffit à distinguer les promos dans la barre).
+function texteDePastille(libelle) {
+  const i = libelle.indexOf(" · ");
+  if (i < 0) return el("span", { class: "promo-pastille-texte" }, libelle);
+  return el("span", { class: "promo-pastille-texte" },
+    el("span", { class: "promo-pastille-lieu" }, libelle.slice(0, i + 3)),
+    libelle.slice(i + 3));
+}
+
 // Vrai dès qu'une bascule est lancée, jusqu'au rechargement de la page. Tant qu'il l'est,
 // ni la pastille ni le choix ne répondent : pendant que les enregistrements du planning se
 // terminent, rien ne doit repartir (second choix, nouvelle saisie dans l'ancienne promo).
@@ -22,7 +32,7 @@ export function construirePastille() {
     disabled: bascule,
     onClick: ouvrirChoix,
   },
-    el("span", { class: "promo-pastille-texte" }, libelleCourtPromo(courante, promos)),
+    texteDePastille(libelleCourtPromo(courante, promos)),
     el("span", { class: "promo-pastille-fleche", "aria-hidden": "true" }, "▾"),
   );
 }

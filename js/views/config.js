@@ -462,7 +462,8 @@ async function renderPromoSection(rerender) {
 
     if (admin && avecAjout) {
       const addInput = el("input", { type: "text", placeholder: type === "stagiaire" ? "Prénom" : "Nom" });
-      const addNom = type === "stagiaire" ? el("input", { type: "text", placeholder: "Nom de famille" }) : null;
+      const addNom = type === "stagiaire" ? el("input", { type: "text", placeholder: "Nom",
+        "aria-label": "Nom de famille" }) : null;
       const addBtn = el("button", { class: "btn accent", onClick: async () => {
         const v = addInput.value.trim();
         if (!v) {

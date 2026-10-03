@@ -7935,3 +7935,9 @@ body.cours-open { overflow: hidden; }
   white-space: nowrap;
 }
 .promos-banner-btn:hover { filter: brightness(0.92); }
+
+/* Multi-promo : sous 360 px, la pastille ne garde que la date (« sept. 2026 ») ; le lieu
+   reste lisible dans la liste des promos. Évite de pousser « Actualiser » hors écran. */
+@media (max-width: 360px) {
+  .promo-pastille-lieu { display: none; }
+}
