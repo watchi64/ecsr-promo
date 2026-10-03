@@ -446,20 +446,26 @@ async function ecrireProgression(themeId, champs) {
 // Fait, dates et auteur vont à la progression de la promo ; le reste au référentiel commun.
 export async function updateTheme(id, patch) {
   const { dans: progression, hors: referentiel } = separerChamps(patch, CHAMPS_PROGRESSION);
-  if (Object.keys(progression).length) await ecrireProgression(id, progression);
-  if (Object.keys(referentiel).length) {
-    const { error } = await supabase.from("themes").update(referentiel).eq("id", id);
-    if (error) throw error;
+  try {
+    if (Object.keys(progression).length) await ecrireProgression(id, progression);
+    if (Object.keys(referentiel).length) {
+      const { error } = await supabase.from("themes").update(referentiel).eq("id", id);
+      if (error) throw error;
+    }
+  } finally {
+    // Même en cas d'échec de la seconde écriture, la première a pu passer : relire.
+    invalidateCache("themes");
   }
-  invalidateCache("themes");
 }
 
 export async function addTheme(t) {
   const { dans: progression, hors: referentiel } = separerChamps(t, CHAMPS_PROGRESSION);
   const { data, error } = await supabase.from("themes").insert(referentiel).select("id").single();
   if (error) throw error;
-  if (Object.keys(progression).length) await ecrireProgression(data.id, progression);
+  // Le thème existe désormais : la liste doit le montrer même si sa progression échoue
+  // (sinon un second « Ajouter » créerait un doublon).
   invalidateCache("themes");
+  if (Object.keys(progression).length) await ecrireProgression(data.id, progression);
 }
 
 export async function deleteTheme(id) {
@@ -1143,7 +1149,7 @@ export async function deleteAutoEcole(id) {
 // jamais stockées. Seuls les commentaires vivent dans benevole_suivi.
 
 // Toutes les cartes portant au moins un bénévole, sur les promos du lieu courant (la
-// banque est commune au lieu). RPC réservée aux formateurs ; chaque ligne porte aussi
+// banque est commune au lieu). RPC réservée aux admins (is_admin(), liste vide sinon) ; chaque ligne porte aussi
 // promo_id et promo_nom. Pas de cache : le planning bouge tout le temps.
 export async function listVenuesBenevoles() {
   const { data, error } = await supabase.rpc("venues_benevoles");
