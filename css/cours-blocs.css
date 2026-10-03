@@ -16,6 +16,9 @@
   align-items: flex-start; border: 1px solid var(--line); border-radius: var(--r); background: var(--bg-elev);
 }
 .cours-suivant-texte { margin: 0; color: var(--text-muted); font-size: 0.85rem; }
+/* Le titre d'une sous-compétence est long et le .btn de style.css interdit le retour à la
+   ligne : sans cette règle, le bouton dépasse du cadre sur téléphone. */
+.cours-suivant .btn { max-width: 100%; white-space: normal; text-align: left; }
 
 /* Mise en page compacte d'un cours de compétence : une carte par rubrique */
 .cours-competence .cours-carte {
