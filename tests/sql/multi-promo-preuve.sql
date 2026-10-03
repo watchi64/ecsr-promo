@@ -7,6 +7,14 @@
 -- jamais supposé : toute attente qui en dépend le lit dans la table promos, et la preuve se
 -- rejoue telle quelle dans les deux états.
 --
+-- Comptes orphelins. La clé étrangère user_profiles.stagiaire_id est en ON DELETE SET NULL :
+-- supprimer la fiche d'un stagiaire invité laisse un compte « stagiaire » sans fiche. Le vrai
+-- personnel (sans fiche, role <> 'stagiaire') reste lisible de tous les connectés ; un compte
+-- orphelin ne l'est que de lui-même et des admins, qui doivent pouvoir le nettoyer. Le modèle
+-- d'attendus de la lecture de user_profiles (pg_temp.attendu) suit cette définition : sans la
+-- migration 20261003_multi_promo_compte_orphelin, les contrôles du compte orphelin sont rouges
+-- (ce sont eux, et les comptes visibles des stagiaires, qui détectent la faille).
+--
 -- Écritures. Dans la matrice, un refus attendu se tente sans RETURNING ni ON CONFLICT, et une
 -- modification ou une suppression qui ne doit rien toucher hors de la portée se fait sans citer
 -- aucune colonne (sur toute la table, valeur constante) : dès qu'une instruction lit une colonne,
@@ -127,8 +135,11 @@ begin
     into v_admin, v_prof, v_sid
     from public.user_profiles up where lower(up.email) = lower(p_email);
   if p_table = 'user_profiles' then
+    -- Le personnel (sans fiche, role <> 'stagiaire') est lisible de tous les connectés ; un compte
+    -- de stagiaire sans fiche (fiche supprimée) l'est de lui-même et des admins seulement.
     select count(*) into n from public.user_profiles up
-     where lower(up.email) = lower(p_email) or up.stagiaire_id is null
+     where lower(up.email) = lower(p_email)
+        or (up.stagiaire_id is null and (up.role <> 'stagiaire' or coalesce(v_admin, false)))
         or up.stagiaire_id in (select s.id from public.stagiaires s where s.promo_id = p_promo);
     return n;
   end if;
@@ -194,7 +205,9 @@ do $preuve$
 declare
   v_stag1 text; v_form text; v_fond text; v_stag2 text;
   v_fictif text := 'preuve.fictif@example.invalid';
+  v_orphelin text := 'preuve.orphelin@example.invalid'; v_personnel text := 'preuve.personnel.temoin@example.invalid';
   v_sid1 integer; v_sid_fond integer; v_sid_fictif integer; v_sid_fictif2 integer; v_sid_mars integer;
+  v_sid_orphelin integer; v_n_personnel bigint; v_n_personnel_reel bigint;
   v_mtp integer := 9999; v_vide integer := 9998; v_lieu_vide integer := 9999;
   v_theme_a integer := 2000000001; v_theme_b integer := 2000000002;
   v_qcm_a bigint := 2000000001; v_qcm_b bigint := 2000000002;
@@ -269,6 +282,20 @@ begin
   insert into stagiaires (prenom, nom, ordre, promo_id, date_naissance)
     values ('PreuveMars', 'PREUVE', 997, 1, '2000-01-01') returning id into v_sid_mars;
   insert into user_profiles (email, role, stagiaire_id) values (v_fictif, 'stagiaire', v_sid_fictif);
+  -- Compte orphelin : un stagiaire invité dont on supprime la fiche (la clé étrangère remet
+  -- stagiaire_id à nul, le compte reste) ; et un compte du personnel fictif (sans fiche, role
+  -- prof), témoin de ce qui doit rester lisible de tous.
+  insert into stagiaires (prenom, nom, ordre, promo_id) values ('PreuveOrphelin', 'PREUVE', 995, 2)
+    returning id into v_sid_orphelin;
+  insert into user_profiles (email, role, stagiaire_id) values (v_orphelin, 'stagiaire', v_sid_orphelin);
+  delete from stagiaires where id = v_sid_orphelin;
+  insert into user_profiles (email, role) values (v_personnel, 'prof');
+  perform pg_temp.verifier('fiche supprimée : le compte de stagiaire reste, sans fiche (ON DELETE SET NULL)',
+    exists (select 1 from user_profiles where email = v_orphelin and role = 'stagiaire' and stagiaire_id is null)
+      and exists (select 1 from user_profiles where email = v_personnel and role = 'prof' and stagiaire_id is null),
+    'compte orphelin et compte du personnel fictifs en place');
+  select count(*), count(*) filter (where email not like '%.invalid') into v_n_personnel, v_n_personnel_reel
+    from user_profiles where stagiaire_id is null and role <> 'stagiaire';
   -- Thèmes et QCM fictifs : aucun examen ni aucune progression réels ne sont touchés. A sert aux
   -- examens et à la progression de septembre, B aux écritures de la matrice.
   insert into themes (id, numero, titre, type, ordre) values
@@ -385,6 +412,19 @@ begin
     v_att := pg_temp.attendu('user_profiles', v_p.email, v_p.promo);
     perform pg_temp.verifier_g('lecture', 'user_profiles', 'comptes visibles', v_contexte,
       v_vu = v_att, format('vu %s, attendu %s', v_vu, v_att));
+    -- Compte orphelin : lu des seuls admins (le compte se lit lui-même par son e-mail). Le vrai
+    -- personnel (sans fiche, role <> 'stagiaire') reste lisible de tous les connectés, jamais du visiteur.
+    v_vu := pg_temp.compter(v_p.email, v_p.entete,
+      format('select count(*) from public.user_profiles where lower(email) = %L', v_orphelin));
+    v_att := case when exists (select 1 from public.user_profiles up
+                                where lower(up.email) = lower(v_p.email) and up.is_admin) then 1 else 0 end;
+    perform pg_temp.verifier_g('lecture', 'user_profiles', 'compte orphelin lu des seuls admins', v_contexte,
+      v_vu = v_att, format('vu %s, attendu %s', v_vu, v_att));
+    v_vu := pg_temp.compter(v_p.email, v_p.entete,
+      $q$select count(*) from public.user_profiles where stagiaire_id is null and role <> 'stagiaire'$q$);
+    v_att := case when v_p.email is null then 0 else v_n_personnel end;
+    perform pg_temp.verifier_g('lecture', 'user_profiles', 'personnel lu de tous les connectés', v_contexte,
+      v_vu = v_att and (v_att > 0 or v_p.email is null), format('vu %s, attendu %s', v_vu, v_att));
   end loop;
 
   -- D. Promos et lieux visibles (indépendants de l'en-tête)
@@ -407,6 +447,48 @@ begin
     pg_temp.compter(v_fictif, '2', format('select count(*) from public.user_profiles where stagiaire_id = %s', v_sid1)) = 0);
   perform pg_temp.verifier('un stagiaire de mars ne voit pas les comptes de septembre',
     pg_temp.compter(v_stag1, null, format('select count(*) from public.user_profiles where lower(email) = %L', v_fictif)) = 0);
+
+  -- E bis. Compte orphelin (fiche supprimée) : lu de lui-même et des admins, de personne d'autre ;
+  -- le vrai personnel reste lu de tous les connectés. La matrice de lecture le contrôle dans tous
+  -- les contextes ; ces contrôles nomment les personnages (un admin doit pouvoir le nettoyer).
+  v_sql := format('select count(*) from public.user_profiles where lower(email) = %L', v_orphelin);
+  v_vu := pg_temp.compter(v_stag1, null, v_sql);
+  perform pg_temp.verifier('compte orphelin : invisible du stagiaire de mars', v_vu = 0, format('vu %s, attendu 0', v_vu));
+  v_vu := pg_temp.compter(v_fictif, '2', v_sql);
+  perform pg_temp.verifier('compte orphelin : invisible du stagiaire fictif de septembre', v_vu = 0,
+    format('vu %s, attendu 0', v_vu));
+  v_vu := pg_temp.compter(null, null, v_sql);
+  perform pg_temp.verifier('compte orphelin : invisible du visiteur', v_vu = 0, format('vu %s, attendu 0', v_vu));
+  v_vu := pg_temp.compter(v_form, '2', v_sql);
+  perform pg_temp.verifier('compte orphelin : visible d''un formateur admin',
+    v_vu = 1 and (select up.is_admin from user_profiles up where up.email = v_form), format('vu %s, attendu 1', v_vu));
+  v_vu := pg_temp.compter(v_fond, null, v_sql);
+  perform pg_temp.verifier('compte orphelin : visible du fondateur',
+    v_vu = 1 and (select up.is_admin from user_profiles up where up.email = v_fond), format('vu %s, attendu 1', v_vu));
+  v_vu := pg_temp.compter(v_orphelin, null, v_sql);
+  perform pg_temp.verifier('compte orphelin : se lit lui-même', v_vu = 1, format('vu %s, attendu 1', v_vu));
+  v_vu := pg_temp.compter(v_orphelin, null, 'select count(*) from public.user_profiles');
+  v_att := pg_temp.attendu('user_profiles', v_orphelin, null);
+  perform pg_temp.verifier('compte orphelin : ne lit que sa ligne et celles du personnel',
+    v_vu = v_att and v_att = 1 + v_n_personnel, format('vu %s, attendu %s (1 + %s du personnel)', v_vu, v_att, v_n_personnel));
+  v_txt := pg_temp.ecrire(v_form, '2', format('delete from public.user_profiles where lower(email) = %L', v_orphelin),
+    format('select count(*)::text from public.user_profiles where lower(email) = %L', v_orphelin));
+  perform pg_temp.verifier('compte orphelin : un admin peut le nettoyer (suppression)', v_txt = 'OK 1 0', v_txt);
+  v_txt := pg_temp.ecrire(v_stag1, null, format('delete from public.user_profiles where lower(email) = %L', v_orphelin),
+    format('select count(*)::text from public.user_profiles where lower(email) = %L', v_orphelin));
+  perform pg_temp.verifier('compte orphelin : un stagiaire ne le supprime pas', v_txt = 'OK 0 1', v_txt);
+  -- Témoin : les lignes du vrai personnel (comptes réels, plus le compte fictif) restent lisibles
+  -- des stagiaires, de mars comme de septembre.
+  for v_p in select * from (values ('stagiaire de mars', v_stag1, null::text),
+                                   ('stagiaire fictif de septembre', v_fictif, '2')) as t(nom, email, entete) loop
+    v_vu := pg_temp.compter(v_p.email, v_p.entete,
+      $q$select count(*) from public.user_profiles where stagiaire_id is null and role <> 'stagiaire'$q$);
+    v_hors := pg_temp.compter(v_p.email, v_p.entete,
+      $q$select count(*) from public.user_profiles where stagiaire_id is null and role <> 'stagiaire' and email not like '%.invalid'$q$);
+    perform pg_temp.verifier(format('personnel : les lignes du vrai personnel restent lisibles du %s', v_p.nom),
+      v_vu = v_n_personnel and v_hors = v_n_personnel_reel and v_n_personnel > 0,
+      format('vu %s dont %s réelle(s), attendu %s dont %s', v_vu, v_hors, v_n_personnel, v_n_personnel_reel));
+  end loop;
 
   -- F. Fonctions serveur
   perform pg_temp.verifier('fondateur en mars : sa fiche',
