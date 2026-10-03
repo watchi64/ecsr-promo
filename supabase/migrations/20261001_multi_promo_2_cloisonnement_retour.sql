@@ -2,6 +2,9 @@
 -- Attention : une fois septembre peuplé, ce retour rouvre les promos les unes aux autres
 -- (lecture ouverte à tout connecté, comme avant l'étape 2), et il supprime venues_benevoles(),
 -- dont l'app de l'étape 3 dépend. À n'employer qu'en urgence, app de l'étape 3 retirée.
+-- Même en urgence, un verrou qui tarde fait échouer le retour (rien n'est fait, on relance)
+-- plutôt que de faire attendre l'app derrière lui.
+set local lock_timeout = '3s';
 
 -- Règles des tables existantes
 drop policy if exists stagiaires_admin_writes on public.stagiaires;

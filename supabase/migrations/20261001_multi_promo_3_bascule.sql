@@ -1,7 +1,8 @@
 -- Multi-promo, bascule (étape 3), à appliquer APRÈS la mise en ligne de la nouvelle
 -- version : les anciennes unicités sans promo disparaissent, septembre peut écrire son
 -- planning et ses réglages. Une version ancienne de l'app ne sait plus enregistrer le
--- planning ni les réglages ensuite (erreur visible) : prévenir les formateurs.
+-- planning ni les réglages ensuite (refus de la base ; dans un ancien onglet, l'enregistrement
+-- échoue ou les flèches de semaine ne répondent plus) : prévenir les formateurs.
 -- Marche arrière : 20261001_multi_promo_3_bascule_retour.sql
 -- Un verrou qui tarde fait échouer la migration (rien n'est appliqué, on relance) au lieu de
 -- faire attendre l'app derrière elle.
