@@ -23,7 +23,7 @@ begin
   assert not exists (select 1 from public.themes_progression p join public.themes t on t.id = p.theme_id
                      where t.categorie = 'Compétence conduite (REMC)' and p.promo_id <> 1),
     'une autre promo que celle de mars a une progression REMC : revoir la migration';
-  assert not exists (select 1 from public.planning_entries where sujet like '%REMC C%' or sujet_2 like '%REMC C%'),
+  assert not exists (select 1 from public.planning_entries where sujet ~ 'REMC C[1-4]' or sujet_2 ~ 'REMC C[1-4]'),
     'une séance du planning cite un intitulé REMC : revoir la migration';
 end $$;
 

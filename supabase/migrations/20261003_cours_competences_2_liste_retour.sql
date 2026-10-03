@@ -62,3 +62,18 @@ from (values
   (114, 'C4.7', 237, 'Pratiquer l''éco-conduite')
 ) as v(id, ancien, ordre, titre)
 where t.id = v.id;
+
+-- Contrôles de sortie, valables avant comme après le ménage multi-promo : si l'un échoue,
+-- tout le retour est annulé plutôt que de laisser une liste à moitié rétablie.
+do $$
+begin
+  assert (select count(*) from public.themes where categorie = 'Compétence conduite (REMC)') = 35,
+    'retour : 35 lignes REMC attendues';
+  assert not exists (select 1 from public.themes where categorie = 'Compétence conduite (REMC)' and code is not null),
+    'retour : codes restants';
+  assert (select count(*) from public.themes
+          where categorie = 'Compétence conduite (REMC)' and titre like 'REMC C%') = 35,
+    'retour : intitulés d''origine non rétablis';
+  assert (select statut from public.themes_progression where theme_id = 98 and promo_id = 1) = 'Fait',
+    'retour : progression de la ligne 98';
+end $$;
