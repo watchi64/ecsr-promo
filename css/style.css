@@ -7947,4 +7947,7 @@ body.cours-open { overflow: hidden; }
    formateurs (huit onglets avec leurs libellés dans une seule rangée). */
 @media (max-width: 1400px) {
   #admin-slot.avec-pastille .admin-role { display: none; }
+  /* Badge de repli sur l'e-mail (fondateur dans une promo où il n'a pas de fiche) : même
+     plafond que sur téléphone, sinon « Actualiser » sort encore de 71 à 101 px à 1280 px. */
+  #admin-slot.avec-pastille .admin-email { max-width: 5.5rem; }
 }
