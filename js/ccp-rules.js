@@ -1,20 +1,5 @@
-// Règles pures des onglets CCP1 et CCP2 (chantier D). Aucune dépendance, aucun
-// accès à la base ni au DOM : testées par node (tests/ccp-rules.test.mjs).
-
-const contient = (objet, cle) => Object.prototype.hasOwnProperty.call(objet, cle);
-
-// Anciennes adresses. Thèmes et Notes étaient des onglets ; ce sont désormais des
-// sous-onglets de CCP1. Des favoris, des raccourcis d'écran d'accueil et la
-// dernière page mémorisée les portent encore.
-export const ANCIENNES_ROUTES = {
-  themes: { route: "ccp1", sousOnglet: "themes" },
-  notes: { route: "ccp1", sousOnglet: "notes" },
-};
-
-// Destination d'une ancienne adresse, ou null si la route n'en est pas une.
-export function ancienneRoute(route) {
-  return typeof route === "string" && contient(ANCIENNES_ROUTES, route) ? ANCIENNES_ROUTES[route] : null;
-}
+// Règles pures de l'onglet CCP2 (chantier D). Aucune dépendance, aucun accès à la
+// base ni au DOM : testées par node (tests/ccp-rules.test.mjs).
 
 // Typographie du parcours : une espace insécable lie un nombre à la suite (« 40 000 »,
 // « 30 minutes », « 1 h 30 »), pour qu'un retour à la ligne ne le coupe pas en deux.

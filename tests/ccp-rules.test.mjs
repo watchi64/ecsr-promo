@@ -1,35 +1,19 @@
-// Onglets CCP1 et CCP2 (chantier D) : anciennes adresses, dates du parcours CCP2
-// et intégrité du texte du parcours. Lancer depuis la racine du dépôt :
+// Onglet CCP2 (chantier D) : dates du parcours, espaces insécables et intégrité du
+// texte du parcours. Lancer depuis la racine du dépôt :
 // node tests/ccp-rules.test.mjs
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { ANCIENNES_ROUTES, ancienneRoute, TYPES_DATES_CCP2, datesCcp2, insecables } from "../js/ccp-rules.js";
+import { TYPES_DATES_CCP2, datesCcp2, insecables } from "../js/ccp-rules.js";
 import { EPREUVE, ETAPES } from "../js/ccp2-parcours-data.js";
-import {
-  MODULES, MODULE_DE_ROUTE, ONGLETS_REGROUPES, ROUTES_SOCLE, MODULE_DE_SOUS_ONGLET,
-} from "../js/modules-data.js";
+import { MODULES, MODULE_DE_ROUTE, ROUTES_SOCLE } from "../js/modules-data.js";
 import { STORAGE_SOUS_ONGLET } from "../js/nouveautes.js";
 
 let n = 0;
 const ok = (cond, msg) => { assert.ok(cond, msg); n++; };
 const eq = (a, b, msg) => { assert.deepEqual(a, b, msg); n++; };
 
-// 1. Anciennes adresses
-eq(ancienneRoute("themes"), { route: "ccp1", sousOnglet: "themes" }, "#/themes mène à CCP1, Thèmes");
-eq(ancienneRoute("notes"), { route: "ccp1", sousOnglet: "notes" }, "#/notes mène à CCP1, Notes");
-eq(ancienneRoute("planning"), null, "une route actuelle n'est pas une ancienne adresse");
-eq(ancienneRoute("constructor"), null, "propriété héritée ignorée");
-eq(ancienneRoute(undefined), null, "adresse absente");
-for (const [ancienne, cible] of Object.entries(ANCIENNES_ROUTES)) {
-  ok(ancienne in MODULE_DE_ROUTE, ancienne + " : gardée par son module");
-  ok(cible.route in ONGLETS_REGROUPES, ancienne + " : mène à un onglet regroupé");
-  eq(MODULE_DE_SOUS_ONGLET[cible.route][cible.sousOnglet], MODULE_DE_ROUTE[ancienne],
-     ancienne + " : le sous-onglet visé relève du même module");
-  ok(cible.route in STORAGE_SOUS_ONGLET, ancienne + " : sous-onglet mémorisable");
-}
-
-// 2. Dates du parcours CCP2
+// 1. Dates du parcours CCP2
 eq(TYPES_DATES_CCP2, ["formation", "stage", "examen"], "types repris du Calendrier");
 const EV = [
   { id: 1, type: "formation", title: "Formation CCP1", date_start: "2026-03-30", date_end: "2026-09-21" },
@@ -51,7 +35,7 @@ eq(datesCcp2([{ id: 2, type: "examen", title: "Examens CCP2", date_start: "2026-
 eq(datesCcp2(null, "2026-10-14"), [], "liste absente");
 ok(!("passe" in EV[1]), "les événements d'origine ne sont pas modifiés");
 
-// 2 bis. Espaces insécables
+// 2. Espaces insécables
 const NB = String.fromCharCode(0xa0);
 eq(insecables("de 40 000 à 45 000 caractères"), `de 40${NB}000${NB}à 45${NB}000${NB}caractères`,
    "milliers, et nombre lié au mot qui le suit");
@@ -80,8 +64,7 @@ function verifierLien(l, ou) {
     }
     return;
   }
-  ok(l.route in MODULE_DE_ROUTE || l.route in ONGLETS_REGROUPES || ROUTES_SOCLE.includes(l.route),
-     ou + " : route connue");
+  ok(l.route in MODULE_DE_ROUTE || ROUTES_SOCLE.includes(l.route), ou + " : route connue");
   if (l.sousOnglet) ok(l.route in STORAGE_SOUS_ONGLET, ou + " : sous-onglet joignable");
   if (l.module) ok(MODULES.some((m) => m.cle === l.module), ou + " : module connu");
 }

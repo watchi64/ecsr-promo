@@ -147,7 +147,7 @@ export const ETAPES = [
     ],
     liens: [
       { label: "Les cours des 57 thèmes, pour vérifier une règle ou un chiffre",
-        route: "ccp1", sousOnglet: "themes", module: "cours" },
+        route: "themes", sousOnglet: "themes", module: "cours" },
       { label: "Boîte à outils numérique CCP2 (Forms pour un questionnaire, Canva pour un support)",
         href: BOITE_A_OUTILS },
     ],
