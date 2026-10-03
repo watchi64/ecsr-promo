@@ -4,7 +4,7 @@
 
 ## TL;DR
 
-Web app de suivi des promotions **TP ECSR** : depuis octobre 2026, plusieurs promos dans la même base (« Nîmes, mars 2026 » et « Nîmes, septembre 2026 », cf. § Multi-promo), mêmes formateurs (Hocine, Raphaël, Romain) + 1 admin watchi64. Stack : HTML/CSS/JS vanilla + Supabase + GitHub Pages.
+Web app de suivi des promotions **TP ECSR** : depuis octobre 2026, plusieurs promos dans la même base (« Nîmes, mars 2026 » et « Montpellier, septembre 2026 », cf. § Multi-promo), mêmes formateurs (Hocine, Raphaël, Romain) + 1 admin watchi64. Stack : HTML/CSS/JS vanilla + Supabase + GitHub Pages.
 
 - URL : **https://watchi64.github.io/ecsr-promo/**
 - Repo : `github.com/watchi64/ecsr-promo` (public)
@@ -288,7 +288,7 @@ Les formateurs ouvrent les parties de l'app au fil de la progression d'une promo
 
 Spec : `docs/superpowers/specs/2026-10-01-multi-promo-design.md` · plan : `docs/superpowers/plans/2026-10-01-multi-promo.md`.
 
-- **Modèle** : table `lieux` (Nîmes 1, Montpellier 2) et `promos` (1 = « Nîmes, mars 2026 », 2 = « Nîmes, septembre 2026 », toutes deux à Nîmes). Les autres promos et lieux se créent par migration.
+- **Modèle** : table `lieux` (Nîmes 1, Montpellier 2) et `promos` : 1 = « Nîmes, mars 2026 », rattachée au lieu Nîmes (1) ; 2 = « Montpellier, septembre 2026 », rattachée au lieu Montpellier (2). `mes_promos()` donne aussi `nb_stagiaires`, que le choix de promo affiche avec les jours avant la fin. Les autres promos et lieux se créent par migration.
 - **Contexte** : chaque requête vers `/rest/v1/` porte l'en-tête `x-promo-id` (ajouté par `fetchWithTimeout` de `db.js` ; jamais vers les fonctions Edge, l'auth ni le stockage). La base vérifie : `promo_courante()` (en-tête accessible ; absent : promo par défaut ; interdit ou fantaisiste : rien), `lieu_courant()`, `mes_promos()`, `peut_acceder_promo()`. Stagiaire : sa promo ; formateur, admin pur, fondateur : toutes. Défaut : la promo de la fiche, sinon la plus ancienne en cours.
 - **Propre à une promo** (colonne `promo_id`, règle `promo_id = (select promo_courante())` ajoutée aux règles de rôle) : stagiaires, notes, passages et historiques, planning (cartes, horaires, jours off), calendrier, réglages (`settings` ; `chatbot_quota_jour` reste global, `promo_id` nulle), tentatives QCM, EPCF, livret, DP, fiches de suivi, `themes_progression` (fait, dates) et `qcm_examens` (examen ouvert, tirage gelé, échéance). Pour les tables liées à un stagiaire, un trigger impose la promo de la fiche.
 - **Propre à un lieu** (`lieu_id`) : bénévoles, auto-écoles, suivi des venues. Les venues se lisent par la RPC `venues_benevoles()` (promos du même lieu ; réservée aux admins).

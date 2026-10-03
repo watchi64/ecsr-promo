@@ -17,11 +17,11 @@ import {
   getMyProfile, listStagiaires, listProfs,
   chargerMesPromos, oublierPromo, getPromoCourante, rechargerApresEnregistrements,
   bloquerRequetesJusquAuRechargement,
-} from "./db.js?v=20261003c";
-import { el, toast, displayStagiaire } from "./utils.js?v=20261003c";
-import { icon } from "./icons.js?v=20261003c";
-import { construirePastille } from "./promo-pastille.js?v=20261003c";
-import { pagePersonnelle } from "./route-rules.js?v=20261003c";
+} from "./db.js?v=20261003d";
+import { el, toast, displayStagiaire } from "./utils.js?v=20261003d";
+import { icon } from "./icons.js?v=20261003d";
+import { construirePastille } from "./promo-pastille.js?v=20261003d";
+import { pagePersonnelle } from "./route-rules.js?v=20261003d";
 
 let currentUser = null;     // Supabase auth user
 let currentProfile = null;  // row user_profiles

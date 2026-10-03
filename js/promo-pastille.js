@@ -1,9 +1,9 @@
 // Pastille de la promo affichée (spec multi-promo C.2) : visible seulement à qui a au
 // moins deux promos (formateurs, fondateur). Un appui ouvre le choix ; choisir une autre
 // promo attend les enregistrements en cours puis recharge la page (choisirPromo).
-import { el } from "./utils.js?v=20261003c";
-import { getMesPromos, getPromoCourante, choisirPromo } from "./db.js?v=20261003c";
-import { libelleCourtPromo } from "./promo-rules.js?v=20261003c";
+import { el } from "./utils.js?v=20261003d";
+import { getMesPromos, getPromoCourante, choisirPromo } from "./db.js?v=20261003d";
+import { libelleCourtPromo, resumePromo } from "./promo-rules.js?v=20261003d";
 
 // « Montpellier · sept. 2026 » : le lieu dans son propre span, que le CSS masque sur les
 // écrans les plus étroits (la date suffit à distinguer les promos dans la barre).
@@ -13,6 +13,17 @@ function texteDePastille(libelle) {
   return el("span", { class: "promo-pastille-texte" },
     el("span", { class: "promo-pastille-lieu" }, libelle.slice(0, i + 3)),
     libelle.slice(i + 3));
+}
+
+// Seconde ligne d'un choix : « 9 stagiaires en cours · fin dans 69 jours ». Chaque partie forme un bloc
+// en ligne et le séparateur reste en fin de la première : quand la ligne est trop longue (écran étroit,
+// texte agrandi), la coupe tombe entre les deux parties, jamais avec un « · » en tête de ligne. Le texte,
+// lui, reste celui de resumePromo (la description lue par les lecteurs d'écran).
+function segmentsDeDetail(resume) {
+  const parties = resume.split(" · ");
+  return parties.flatMap((texte, i) => (i === parties.length - 1
+    ? [el("span", { class: "promo-choix-segment" }, texte)]
+    : [el("span", { class: "promo-choix-segment" }, texte + " ·"), " "]));
 }
 
 // Vrai dès qu'une bascule est lancée, jusqu'au rechargement de la page. Tant qu'il l'est,
@@ -71,9 +82,14 @@ function ouvrirChoix() {
 
   promos.forEach((p) => {
     const active = p.id === courante.id;
+    // Nom accessible : le nom de la promo seul, comme avant la seconde ligne. Le résumé (stagiaires en
+    // cours, jours avant la fin) en est la description. Un seul dialogue à la fois : identifiants uniques.
+    const idNom = "promo-choix-nom-" + p.id;
+    const idDetail = "promo-choix-detail-" + p.id;
     liste.appendChild(el("button", {
       class: "promo-choix" + (active ? " active" : ""), type: "button", role: "radio",
       "aria-checked": active ? "true" : "false",
+      "aria-labelledby": idNom, "aria-describedby": idDetail,
       onClick: async () => {
         if (bascule) return;
         // Promo déjà affichée, ou retirée de la liste depuis l'ouverture : rien à basculer.
@@ -83,7 +99,10 @@ function ouvrirChoix() {
       },
     },
       el("span", { class: "promo-choix-puce", "aria-hidden": "true" }, active ? "●" : "○"),
-      el("span", {}, p.nom),
+      el("span", { class: "promo-choix-texte" },
+        el("span", { id: idNom }, p.nom),
+        el("span", { class: "promo-choix-detail", id: idDetail }, segmentsDeDetail(resumePromo(p))),
+      ),
     ));
   });
 

@@ -3,6 +3,9 @@
 -- Personnages réels choisis par requête : aucun email réel n'est écrit ici (dépôt public).
 -- Si la table temporaire « photo » existe (répétition de l'étape 2), la non-régression de
 -- mars est comparée à elle, avant toute donnée de test.
+-- Le lieu de la promo 2 (Nîmes jusqu'à la correction du 03/10, Montpellier ensuite) n'est
+-- jamais supposé : toute attente qui en dépend le lit dans la table promos, et la preuve se
+-- rejoue telle quelle dans les deux états.
 --
 -- Écritures. Dans la matrice, un refus attendu se tente sans RETURNING ni ON CONFLICT, et une
 -- modification ou une suppression qui ne doit rien toucher hors de la portée se fait sans citer
@@ -196,6 +199,7 @@ declare
   v_theme_a integer := 2000000001; v_theme_b integer := 2000000002;
   v_qcm_a bigint := 2000000001; v_qcm_b bigint := 2000000002;
   v_ae_mtp integer; v_ae_nimes integer; v_bnv_mtp integer; v_bnv_nimes integer;
+  v_lieu_sept integer; v_ae_sept integer; v_bnv_sept integer;
   v_defaut_form integer; v_defaut_fond integer; v_photo boolean := false;
   v_seq_lieux text; v_seq_promos text; v_cle_epcf text; v_global text;
   v_p record; v_c record; v_m record; v_t text; v_vu bigint; v_att bigint; v_hors bigint;
@@ -292,11 +296,20 @@ begin
   insert into benevoles (prenom, lieu_id) values ('PreuveBenevoleNimes', 1) returning id into v_bnv_nimes;
   insert into benevole_suivi (benevole_id, semaine_lundi, day_index, half_day) values
     (v_bnv_mtp, '2030-01-07', 0, 'matin'), (v_bnv_nimes, '2030-01-07', 1, 'matin');
-  -- Planning : une carte de septembre sans bénévole, une venue en septembre et une à
-  -- Montpellier (créneaux distincts : l'ancienne unicité sans promo vit jusqu'à la bascule).
+  -- Banque du lieu de septembre, lieu lu dans promos (jamais supposé) : le bénévole témoin est
+  -- celui des deux qui s'y trouve ; l'auto-école témoin est une troisième, que nul bénévole n'a
+  -- choisie (la clé étrangère de l'affiliation n'efface pas en cascade : la supprimer doit réussir).
+  select lieu_id into v_lieu_sept from promos where id = 2;
+  select b.id into v_bnv_sept from benevoles b where b.id in (v_bnv_nimes, v_bnv_mtp) and b.lieu_id = v_lieu_sept;
+  insert into auto_ecoles (nom, lieu_id) values ('Preuve AE septembre', v_lieu_sept) returning id into v_ae_sept;
+  perform pg_temp.verifier('banque du lieu de septembre : bénévole et auto-école témoins en place',
+    v_bnv_sept is not null and v_ae_sept is not null, format('lieu de la promo 2 : %s', v_lieu_sept));
+  -- Planning : une carte de septembre sans bénévole, une venue en septembre (bénévole de la
+  -- banque de son lieu) et une dans la promo de test de Montpellier (créneaux distincts :
+  -- l'ancienne unicité sans promo vit jusqu'à la bascule).
   insert into planning_entries (promo_id, semaine_lundi, day_index, half_day, slot, lane, activite, benevoles_ids) values
     (2, '2030-01-07', 0, 'matin', 0, 0, 'Cours', '{}'),
-    (2, '2030-01-14', 0, 'matin', 0, 0, 'Cours', array[v_bnv_nimes]),
+    (2, '2030-01-14', 0, 'matin', 0, 0, 'Cours', array[v_bnv_sept]),
     (v_mtp, '2030-01-21', 0, 'matin', 0, 0, 'Cours', array[v_bnv_mtp]);
   insert into planning_half_meta (promo_id, semaine_lundi, day_index, half_day, start_time, end_time)
     values (2, '2030-01-07', 0, 'matin', '08:30', '12:00');
@@ -413,19 +426,45 @@ begin
     v_txt = (select count(*) from promos) || ':' || v_defaut_form, coalesce(v_txt, 'nul'));
   perform pg_temp.verifier('mes_promos du stagiaire fictif : septembre seul',
     pg_temp.valeur(v_fictif, null, 'select string_agg(id::text, '','') from mes_promos()') = '2');
+  -- Nombre de stagiaires en cours : colonne nb_stagiaires de mes_promos(), ajoutée par la migration
+  -- Montpellier du 03/10 ; tant qu'elle n'est pas appliquée, le contrôle est reporté. L'effectif de
+  -- chaque promo est calculé ici en propriétaire ; un stagiaire ne voit toujours que sa promo.
+  if exists (select 1 from pg_proc p where p.oid = 'public.mes_promos()'::regprocedure
+              and p.proargnames @> array['nb_stagiaires']) then
+    select coalesce(string_agg(pr.id::text || ':' || (select count(*) from stagiaires s
+                                 where s.promo_id = pr.id and s.actif)::text, ',' order by pr.id), '')
+      into v_att_txt from promos pr;
+    v_txt := pg_temp.valeur(v_form, null,
+      $q$select coalesce(string_agg(id::text || ':' || nb_stagiaires::text, ',' order by id), '') from mes_promos()$q$);
+    perform pg_temp.verifier('mes_promos du formateur : nb_stagiaires = stagiaires actifs de chaque promo',
+      v_txt = v_att_txt and v_att_txt <> '',
+      format('obtenu %s, attendu %s', coalesce(left(v_txt, 80), 'nul'), left(v_att_txt, 80)));
+    v_att_txt := '1:2:' || (select count(*) from stagiaires s where s.promo_id = 2 and s.actif);
+    v_txt := pg_temp.valeur(v_fictif, null,
+      $q$select count(*)::text || ':' || coalesce(min(id), 0)::text || ':' || coalesce(min(nb_stagiaires), -1)::text from mes_promos()$q$);
+    perform pg_temp.verifier('mes_promos du stagiaire fictif : sa seule promo, avec son effectif',
+      v_txt = v_att_txt, format('obtenu %s, attendu %s', coalesce(v_txt, 'nul'), v_att_txt));
+  else
+    perform pg_temp.reporter('hors matrice', 'mes_promos : nombre de stagiaires non joué',
+      'colonne nb_stagiaires absente : migration Montpellier du 03/10 non appliquée');
+  end if;
+  v_txt := pg_temp.valeur(null, null, 'select count(*)::text from mes_promos()');
+  perform pg_temp.verifier('mes_promos : fermée au visiteur (42501)', v_txt = 'ERREUR 42501', coalesce(v_txt, 'nul'));
 
-  -- Noms des bénévoles : la banque du lieu courant, comparée identifiant par identifiant.
+  -- Noms des bénévoles : la banque du lieu courant, comparée identifiant par identifiant, depuis
+  -- chaque promo. Le lieu de chacune se lit dans promos (septembre est à Nîmes ou à Montpellier
+  -- selon l'état de la base) : les deux banques restent contrôlées dans les deux états.
   v_sql := $q$select coalesce(string_agg(id::text, ',' order by id), '') from benevoles_noms()$q$;
-  select coalesce(string_agg(id::text, ',' order by id), ''), count(*) into v_att_txt, v_n from benevoles where lieu_id = 1;
-  v_txt := pg_temp.valeur(v_fictif, '2', v_sql);
-  perform pg_temp.verifier('noms des bénévoles depuis septembre : la banque de Nîmes, rien d''autre',
-    v_txt = v_att_txt, format('%s nom(s) attendu(s), obtenu %s', v_n,
-      case when v_txt = v_att_txt then 'la même liste' else coalesce(left(v_txt, 60), 'nul') end));
-  select coalesce(string_agg(id::text, ',' order by id), ''), count(*) into v_att_txt, v_n from benevoles where lieu_id = 2;
-  v_txt := pg_temp.valeur(v_form, v_mtp::text, v_sql);
-  perform pg_temp.verifier('noms des bénévoles depuis la promo de Montpellier : la banque de Montpellier, rien d''autre',
-    v_txt = v_att_txt, format('%s nom(s) attendu(s), obtenu %s', v_n,
-      case when v_txt = v_att_txt then 'la même liste' else coalesce(left(v_txt, 60), 'nul') end));
+  foreach v_txt in array array['1', '2', v_mtp::text] loop
+    v_lieu := (select lieu_id from promos where id = v_txt::integer);
+    select coalesce(string_agg(id::text, ',' order by id), ''), count(*) into v_att_txt, v_n
+      from benevoles where lieu_id = v_lieu;
+    v_obtenu := pg_temp.valeur(case v_txt when '1' then v_stag1 when '2' then v_fictif else v_form end, v_txt, v_sql);
+    perform pg_temp.verifier(format('noms des bénévoles depuis la promo %s : la banque de son lieu (%s), rien d''autre',
+        v_txt, v_lieu),
+      v_obtenu = v_att_txt and v_att_txt <> '', format('%s nom(s) attendu(s), obtenu %s', v_n,
+        case when v_obtenu = v_att_txt then 'la même liste' else coalesce(left(v_obtenu, 60), 'nul') end));
+  end loop;
   perform pg_temp.verifier('noms des bénévoles sans promo courante : aucun',
     pg_temp.valeur(v_stag1, 'abc', 'select count(*)::text from benevoles_noms()') = '0');
 
@@ -447,11 +486,14 @@ begin
         case when v_obtenu = v_att_txt then 'les mêmes'
              when v_obtenu is null or v_obtenu like 'ERREUR %' then coalesce(v_obtenu, 'nul')
              else coalesce(array_length(string_to_array(nullif(v_obtenu, ''), ';'), 1), 0) || ' venue(s), différentes' end));
-    if v_txt = '1' then
-      perform pg_temp.verifier('venues depuis mars : la venue de septembre y figure, avec le nom de sa promo',
-        strpos(v_obtenu, concat_ws('|', 2, (select nom from promos where id = 2), date '2030-01-14')) > 0,
-        coalesce(left(v_obtenu, 40), 'nul'));
-    end if;
+    -- La venue de septembre figure, avec le nom de sa promo, depuis toute promo du lieu de
+    -- septembre, et depuis aucune autre (les deux lieux se lisent dans promos).
+    perform pg_temp.verifier(format('venues depuis la promo %s : la venue de septembre %s, avec le nom de sa promo',
+        v_txt, case when v_lieu = v_lieu_sept then 'y figure' else 'n''y figure pas' end),
+      coalesce(v_obtenu not like 'ERREUR %', false)
+        and (strpos(v_obtenu, concat_ws('|', 2, (select nom from promos where id = 2), date '2030-01-14')) > 0)
+            = (v_lieu = v_lieu_sept),
+      coalesce(left(v_obtenu, 40), 'nul'));
   end loop;
   perform pg_temp.verifier('venues : nom de promo toujours renseigné',
     pg_temp.valeur(v_form, '1', 'select count(*)::text from venues_benevoles() where promo_nom is null') = '0');
@@ -695,10 +737,11 @@ begin
    $q$select id::text from public.lieux where id = 9997$q$,
    $q$update public.lieux set nom = 'PreuveMaj'$q$, $q$delete from public.lieux$q$,
    null, $q$null::integer, r.id, null::integer, false$q$);
-  -- Ligne de test de chaque table, dans la portée de septembre (banque de Nîmes pour les tables
-  -- de lieu, lieu vide de test pour lieux) : cible des jumeaux de la modification et de la
-  -- suppression, positifs là où le personnel a le droit d'écrire. %2$s stagiaire fictif de
-  -- septembre, %4$s bénévole témoin de Nîmes, %5$s QCM A, %6$s thème A.
+  -- Ligne de test de chaque table, dans la portée de septembre (banque du lieu de septembre pour
+  -- les tables de lieu, lieu vide de test pour lieux) : cible des jumeaux de la modification et de
+  -- la suppression, positifs là où le personnel a le droit d'écrire. %2$s stagiaire fictif de
+  -- septembre, %3$s auto-école témoin et %4$s bénévole témoin de la banque de septembre, %5$s QCM A,
+  -- %6$s thème A.
   alter table modeles add column cible text;
   update modeles m set cible = c.cible
     from (values
@@ -714,7 +757,7 @@ begin
       ('dp_dossiers', $q$stagiaire_id = %2$s$q$), ('fiches_suivi', $q$stagiaire_id = %2$s$q$),
       ('themes_progression', $q$promo_id = 2 and theme_id = %6$s$q$),
       ('qcm_examens', $q$promo_id = 2 and qcm_id = %5$s$q$),
-      ('benevoles', $q$prenom = 'PreuveBenevoleNimes'$q$), ('auto_ecoles', $q$nom = 'Preuve AE Nîmes'$q$),
+      ('benevoles', $q$id = %4$s$q$), ('auto_ecoles', $q$id = %3$s$q$),
       ('benevole_suivi', $q$benevole_id = %4$s$q$),
       ('user_profiles', $q$email = 'preuve.fictif@example.invalid'$q$), ('lieux', $q$id = 9999$q$)) as c(t, cible)
    where m.t = c.t;
@@ -900,7 +943,7 @@ begin
       --    qui en a le droit (nombre calculé en propriétaire ; la ligne doit exister). Elle est
       --    ciblée par ses colonnes : la règle de lecture s'applique aussi, ce qui est voulu ici.
       if v_c.jumeau and v_m.cible is not null then
-        v_txt := format(v_m.cible, null, v_sid_fictif, null, v_bnv_nimes, v_qcm_a, v_theme_a);
+        v_txt := format(v_m.cible, null, v_sid_fictif, v_ae_sept, v_bnv_sept, v_qcm_a, v_theme_a);
         foreach v_op in array array['modification', 'suppression'] loop
           v_sql := case v_op when 'modification' then v_m.maj else v_m.sup end || ' where ' || v_txt;
           v_priv := case v_op when 'modification'
@@ -1050,12 +1093,12 @@ begin
   select string_agg('- ' || libelle || ' : ' || detail, E'\n' order by num) into v_reportes
     from preuve where etat = 'reporté';
   v_message := format(E'VERDICT %s\n%s contrôles : %s réussis, %s échec(s), %s reporté(s) ; %s ms depuis le début du lot\n'
-                      || E'état : photo %s ; vrai stagiaire de septembre : %s\n'
+                      || E'état : photo %s ; vrai stagiaire de septembre : %s ; promo 2 au lieu %s\n'
                       || 'échecs par groupe (échecs/contrôles) : %s',
     case when v_ko = 0 then 'VERT' else 'ROUGE' end, v_total, v_ok, v_ko, v_rep,
     round(extract(epoch from clock_timestamp() - now()) * 1000),
     case when v_photo then 'présente' else 'absente' end,
-    case when v_stag2 is not null then 'présent' else 'absent' end, v_groupes);
+    case when v_stag2 is not null then 'présent' else 'absent' end, v_lieu_sept, v_groupes);
   if v_n > 0 then
     v_message := v_message || format(E'\néchecs hors matrices (%s premiers sur %s) :\n%s', least(v_n, 40), v_n, v_liste);
   end if;

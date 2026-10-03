@@ -50,6 +50,36 @@ export function libelleCourtPromo(promo, promos = []) {
   return lieux.size > 1 && promo.lieu_nom ? `${promo.lieu_nom} · ${base}` : base;
 }
 
+const MS_PAR_JOUR = 24 * 60 * 60 * 1000;
+
+// Seconde ligne d'un choix de promo : « 9 stagiaires en cours · fin dans 69 jours ». Le compte
+// (`nb_stagiaires`, entier positif ou nul) n'est écrit que si la base le donne : une base plus
+// ancienne n'a pas la colonne. Les jours se comptent en jours de calendrier entre la date LOCALE
+// d'`aujourdhui` et `date_fin` ("AAAA-MM-JJ", ou nulle), tous deux ramenés à minuit UTC par
+// Date.UTC : ni l'heure ni un changement d'heure (jour de 23 h ou de 25 h) ne décalent le résultat.
+export function resumePromo(promo, aujourdhui = new Date()) {
+  if (!promo) return "";
+  const nb = promo.nb_stagiaires;
+  const parties = [];
+  if (Number.isInteger(nb) && nb >= 0) {
+    parties.push(nb === 0 ? "aucun stagiaire en cours" : `${nb} stagiaire${nb > 1 ? "s" : ""} en cours`);
+  }
+  parties.push(texteFinPromo(promo.date_fin, aujourdhui));
+  const texte = parties.join(" · ");
+  return texte.charAt(0).toUpperCase() + texte.slice(1);
+}
+
+function texteFinPromo(dateFin, aujourdhui) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(typeof dateFin === "string" ? dateFin : "");
+  if (!m) return "date de fin à venir";
+  const jours = (Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]))
+    - Date.UTC(aujourdhui.getFullYear(), aujourdhui.getMonth(), aujourdhui.getDate())) / MS_PAR_JOUR;
+  if (jours < 0) return "formation terminée";
+  if (jours === 0) return "fin aujourd'hui";
+  if (jours === 1) return "fin demain";
+  return `fin dans ${jours} jours`;
+}
+
 // Profil dans la promo courante : l'identité stagiaire vient de la promo (mes_promos),
 // et un compte de rôle stagiaire sans fiche dans cette promo (cas du fondateur) y est un
 // admin pur. Sans promo connue, le profil reste brut.

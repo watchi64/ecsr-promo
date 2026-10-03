@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import {
-  ENTETE_PROMO, doitPorterEntetePromo, choisirPromoInitiale, libelleCourtPromo, profilEffectif,
+  ENTETE_PROMO, doitPorterEntetePromo, choisirPromoInitiale, libelleCourtPromo, resumePromo, profilEffectif,
   CHAMPS_PROGRESSION, CHAMPS_EXAMEN, separerChamps, fusionnerProgression, fusionnerExamen,
 } from "../js/promo-rules.js";
 
@@ -83,6 +83,78 @@ assert.deepEqual(["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "1
   ["janv. 2027", "févr. 2027", "mars 2027", "avr. 2027", "mai 2027", "juin 2027", "juil. 2027",
    "août 2027", "sept. 2027", "oct. 2027", "nov. 2027", "déc. 2027"]);
 
+// Seconde ligne d'un choix de promo : le compte de stagiaires (seulement si la base le donne) puis les jours
+// avant la fin. « Aujourd'hui » est un instant LOCAL, lu à Paris : les jours se comptent d'une date de calendrier
+// à l'autre, quelle que soit l'heure, même un jour de changement d'heure. Sans ce fuseau, sur une machine en UTC,
+// les jours de 23 h et de 25 h plus bas ne prouveraient rien.
+process.env.TZ = "Europe/Paris";
+const AUJ = new Date(2026, 9, 3, 14, 30);  // le 3 octobre 2026, 14 h 30
+const resume = (champs, auj = AUJ) => resumePromo({ ...MARS, ...champs }, auj);
+
+// Les deux cas réels : mars (fin le 11 décembre) et Montpellier (pas encore de date de fin).
+assert.equal(resume({ nb_stagiaires: 9, date_fin: "2026-12-11" }), "9 stagiaires en cours · fin dans 69 jours");
+assert.equal(resume({ nb_stagiaires: 0, date_fin: null }), "Aucun stagiaire en cours · date de fin à venir");
+
+// Compte : aucun, un seul, plusieurs.
+assert.equal(resume({ nb_stagiaires: 0, date_fin: "2026-12-11" }), "Aucun stagiaire en cours · fin dans 69 jours");
+assert.equal(resume({ nb_stagiaires: 1, date_fin: "2026-12-11" }), "1 stagiaire en cours · fin dans 69 jours");
+assert.equal(resume({ nb_stagiaires: 2, date_fin: "2026-12-11" }), "2 stagiaires en cours · fin dans 69 jours");
+
+// Sans compte exploitable (colonne absente d'une base plus ancienne, ou valeur qui n'est pas un entier positif
+// ou nul) : la seconde partie reste seule, avec sa majuscule.
+assert.equal(resume({ date_fin: "2026-12-11" }), "Fin dans 69 jours");
+assert.equal(resume({ nb_stagiaires: null, date_fin: "2026-12-11" }), "Fin dans 69 jours");
+assert.equal(resume({ nb_stagiaires: "9", date_fin: "2026-12-11" }), "Fin dans 69 jours");
+assert.equal(resume({ nb_stagiaires: NaN, date_fin: "2026-12-11" }), "Fin dans 69 jours");
+assert.equal(resume({ nb_stagiaires: -1, date_fin: "2026-12-11" }), "Fin dans 69 jours");
+assert.equal(resume({ date_fin: null }), "Date de fin à venir");
+
+// Jours avant la fin : lointaine, après-demain, demain, aujourd'hui, passée, pas de date.
+assert.equal(resume({ date_fin: "2027-10-03" }), "Fin dans 365 jours");
+assert.equal(resume({ date_fin: "2026-10-05" }), "Fin dans 2 jours");
+assert.equal(resume({ date_fin: "2026-10-04" }), "Fin demain");
+assert.equal(resume({ date_fin: "2026-10-03" }), "Fin aujourd'hui");
+assert.equal(resume({ date_fin: "2026-10-02" }), "Formation terminée");
+assert.equal(resume({ date_fin: "2025-12-11" }), "Formation terminée");
+assert.equal(resume({ nb_stagiaires: 1, date_fin: "2026-10-04" }), "1 stagiaire en cours · fin demain");
+assert.equal(resume({ nb_stagiaires: 9, date_fin: "2026-10-03" }), "9 stagiaires en cours · fin aujourd'hui");
+assert.equal(resume({ nb_stagiaires: 9, date_fin: "2026-10-02" }), "9 stagiaires en cours · formation terminée");
+assert.equal(resume({ nb_stagiaires: 3 }), "3 stagiaires en cours · date de fin à venir");
+
+// Calendrier : jour bissextile et passage d'une année à l'autre.
+assert.equal(resume({ date_fin: "2028-03-01" }, new Date(2028, 1, 28, 9, 0)), "Fin dans 2 jours");
+assert.equal(resume({ date_fin: "2027-03-01" }, new Date(2027, 1, 28, 9, 0)), "Fin demain");
+assert.equal(resume({ date_fin: "2027-01-01" }, new Date(2026, 11, 31, 23, 0)), "Fin demain");
+
+// L'heure n'y change rien : minuit pile, une seconde avant minuit, et 0 h 30 le lendemain (lu en UTC, ce
+// 0 h 30 serait encore la veille).
+assert.equal(resume({ date_fin: "2026-10-04" }, new Date(2026, 9, 3, 0, 0, 0)), "Fin demain");
+assert.equal(resume({ date_fin: "2026-10-04" }, new Date(2026, 9, 3, 23, 59, 59)), "Fin demain");
+assert.equal(resume({ date_fin: "2026-10-04" }, new Date(2026, 9, 4, 0, 30)), "Fin aujourd'hui");
+assert.equal(resume({ date_fin: "2026-10-03" }, new Date(2026, 9, 4, 0, 30)), "Formation terminée");
+
+// Changements d'heure : le dimanche 29 mars 2026 dure 23 h, le dimanche 25 octobre 25 h ; les jours comptés
+// restent entiers (du 24 au 26 octobre : 2 jours, bien que 49 h séparent les deux minuits).
+assert.equal(resume({ date_fin: "2026-10-26" }, new Date(2026, 9, 24, 12, 0)), "Fin dans 2 jours");
+assert.equal(resume({ date_fin: "2026-10-26" }, new Date(2026, 9, 24, 0, 0)), "Fin dans 2 jours");
+assert.equal(resume({ date_fin: "2026-10-26" }, new Date(2026, 9, 24, 23, 59)), "Fin dans 2 jours");
+assert.equal(resume({ date_fin: "2026-10-26" }, new Date(2026, 9, 25, 23, 30)), "Fin demain");
+assert.equal(resume({ date_fin: "2026-03-30" }, new Date(2026, 2, 28, 0, 0)), "Fin dans 2 jours");
+assert.equal(resume({ date_fin: "2026-03-30" }, new Date(2026, 2, 28, 23, 59)), "Fin dans 2 jours");
+assert.equal(resume({ date_fin: "2026-03-30" }, new Date(2026, 2, 29, 12, 0)), "Fin demain");
+
+// Sans second argument : la date du jour de la machine.
+assert.equal(resumePromo({ ...MARS, date_fin: "2000-01-01" }), "Formation terminée");
+assert.match(resumePromo({ ...MARS, date_fin: "2999-12-31" }), /^Fin dans \d+ jours$/);
+
+// Entrées incomplètes : jamais « NaN », jamais d'exception ; la promo reçue n'est pas modifiée (gelée ici).
+assert.equal(resume({ date_fin: "" }), "Date de fin à venir");
+assert.equal(resume({ date_fin: "pas une date" }), "Date de fin à venir");
+assert.equal(resumePromo(null, AUJ), "");
+assert.equal(resumePromo(undefined, AUJ), "");
+assert.equal(resumePromo(Object.freeze({ ...MARS, nb_stagiaires: 9, date_fin: "2026-12-11" }), AUJ),
+  "9 stagiaires en cours · fin dans 69 jours");
+
 // Profil effectif dans la promo courante.
 const FONDATEUR = { email: "f@example.test", role: "stagiaire", stagiaire_id: 15, is_admin: true, is_founder: true };
 assert.deepEqual(profilEffectif(FONDATEUR, MARS), { ...FONDATEUR, stagiaire_id: 15, role: "stagiaire" });
@@ -141,4 +213,4 @@ assert.equal(ouvert.exam_draw_mode, "manual");
 assert.deepEqual([...CHAMPS_EXAMEN].sort(), ["exam_draw_mode", "exam_ferme_a", "exam_nb_questions",
   "exam_question_ids", "exam_seconds_per_question", "published", "published_at", "published_by_email"]);
 
-console.log("promo-rules : 74 assertions OK");
+console.log("promo-rules : 116 assertions OK");
