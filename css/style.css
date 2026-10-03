@@ -8157,9 +8157,17 @@ body.cours-open { overflow: hidden; }
     box-shadow: 0 0 0 2px var(--bg-deep);
   }
   .topbar .topbar-actions { grid-column: 1 / -1; grid-row: 2; }
-  /* Barre de jours du Planning : collée à top: 52px (réglage prévu pour la barre d'une ligne du
-     bureau), elle passait sur téléphone ENTIÈREMENT sous la barre de 140 px. Avec la barre à 95 px,
-     4 px de son bord dépasseraient dessous au défilement. Collée à 0, elle reste cachée comme
-     avant ; pour la montrer sous la barre, mettre ici top: 96px. */
-  .p-daynav { top: 0; }
+  /* Barre de jours du Planning : visible sous la barre du haut quand on fait défiler. Elle se colle
+     à la hauteur exacte de cette barre, 95,5 px à toutes les largeurs de téléphone et pour tous les
+     rôles (1rem = 15px ici) : remplissage haut 9 (0,6rem) + première ligne 36 (hauteur mini d'un
+     onglet) + écart entre les lignes 6 (0,4rem) + seconde ligne 34,5 (bouton rond : icône de 18 +
+     2 x 8,25 de remplissage) + remplissage bas 9 + filet du bas 1. Un top: 96px laisserait une bande
+     de 0,5 px entre les deux barres, où le contenu qui défile pourrait apparaître. À recalculer si la
+     barre du haut change. Empilement : .topbar (z-index 10) reste au-dessus de .p-daynav (9). Avant :
+     52px (réglage du bureau, barre d'une ligne) puis 0, soit une barre de jours cachée sur téléphone. */
+  .p-daynav { top: 95.5px; }
+  /* Les sauts vers un jour (boutons de la barre de jours, bouton « Aujourd'hui ») posent la carte du
+     jour à scroll-margin-top du haut de l'écran. Les 104 px du bureau laisseraient 39 px du haut de la
+     carte sous les deux barres : ici 95,5 (barre du haut) + 47,7 (barre de jours) + 4,8 d'air = 148 px. */
+  .p-day-card { scroll-margin-top: 148px; }
 }
