@@ -1,8 +1,8 @@
 // Paramètres › « Modules de la promo » (chantier B) : ouvrir ou fermer, pour la
 // promo courante, les parties de l'app que voient les stagiaires.
 //
-// Réservé aux formateurs, et au seul fondateur tant que le multi-promo n'est pas
-// en ligne (REGLAGE_OUVERT_AUX_FORMATEURS, js/modules-data.js). La section se
+// Réservé aux formateurs, chacun pour la promo affichée (REGLAGE_OUVERT_AUX_FORMATEURS,
+// js/modules-data.js, ouvert avec le multi-promo). La section se
 // redessine elle-même après chaque écriture, réussie ou non (voir redessiner) :
 // pas de rechargement de toute la page Paramètres.
 import { el, toast } from "../utils.js?v=20261002b";
