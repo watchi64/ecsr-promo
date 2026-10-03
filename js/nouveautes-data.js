@@ -57,7 +57,7 @@ export const NOUVEAUTES = [
           + "affichée, et d'elle seule.",
     ou: { label: "Pastille en haut, à côté de ton nom", route: "home" },
     guide: [
-      "Touche la pastille « mars 2026 » en haut de l'écran.",
+      "Touche la pastille de la promo en haut de l'écran (« Nîmes · mars 2026 »).",
       "Choisis « Montpellier, septembre 2026 » : la page se recharge sur cette promo.",
       "Dans Paramètres, ajoute les stagiaires de la promo (prénom et nom de famille), puis "
         + "prépare le calendrier et le planning.",
