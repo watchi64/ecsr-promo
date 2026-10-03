@@ -56,11 +56,16 @@ Web app de suivi des promotions **TP ECSR** : depuis octobre 2026, plusieurs pro
 - Tous les `*_audit` : aucune écriture directe, uniquement via triggers
 - RPC `set_my_anonymous_notes(val)` SECURITY DEFINER : permet à chacun de toggle son propre flag
 
-## Pages (9 onglets) — état actuel
+## Pages (8 onglets) : état au 03/10/2026
 
 ```
-Accueil · Tableau de bord · Planning · Calendrier · Thèmes · Passages · Notes · Ressources & contacts · Paramètres
+Accueil · Planning · Calendrier · Cours · Notes · CCP2 · Ressources · Paramètres
 ```
+
+CCP2 n'apparaît que lorsqu'un formateur ouvre le module pour la promo. Mon espace (`mon-suivi`),
+Priorités (`dashboard`, bouton en haut du Planning) et Nouveautés sont des pages sans onglet.
+Cours garde la route `themes`. Voir « Barre simple et onglet CCP2 ». Les descriptions ci-dessous
+datent de mai et juin : Thèmes, Priorités et Notes y sont décrits comme avant.
 
 ### Spécificités à connaître
 
@@ -290,6 +295,47 @@ Spec : `docs/superpowers/specs/2026-10-01-multi-promo-design.md` · plan : `docs
 - **App** : règles pures `js/promo-rules.js` (`node tests/promo-rules.test.mjs`) ; contexte dans `db.js` (`chargerMesPromos`, `getPromoCourante`, `choisirPromo`, `avantChangementPromo`, `rechargerApresEnregistrements`) ; `getMyProfile()` renvoie le profil effectif (un compte stagiaire sans fiche dans la promo y est admin pur) ; pastille `js/promo-pastille.js` (au moins deux promos, dialogue accessible) ; choix mémorisé par appareil et par compte (`ecsr_promo:<email>`) ; la bascule attend les enregistrements du planning puis recharge. Si `mes_promos()` échoue deux fois : bandeau durable « Promos non chargées » (promo par défaut servie). Liste vide : session refusée, motif affiché sur la porte (événement `ecsr:refus-porte`, écouté par `gate.js`).
 - **Preuve** : `tests/sql/multi-promo-preuve.sql`, à rejouer (via `execute_sql`) après toute migration qui touche aux règles d'accès : verdict dans le message de l'exception finale, rien n'est écrit. Les refus d'écriture s'y testent **sans** `RETURNING` de colonne (sinon la règle de lecture masque une règle d'écriture fautive). Répétition d'une migration : lot `begin;` + `tests/sql/multi-promo-photo.sql` + migration + preuve (la photo prouve la non-régression de mars).
 - **Pièges** : une migration n'a pas de promo courante (insérer avec `promo_id` explicite) ; `settings` n'accepte une promo nulle que pour les clés globales prévues (CHECK `settings_globaux_prevus`) ; `getSetting`/`setSetting` sont propres à la promo ; une nouvelle table propre à une promo reçoit sa colonne, sa règle et une ligne dans le script de preuve ; ne jamais relire les anciennes colonnes de `themes` et `qcm` (supprimées à l'étape 5 du plan) ; les migrations commencent par `set local lock_timeout = '3s';` (échec propre plutôt qu'une app bloquée derrière un verrou).
+
+## Barre simple et onglet CCP2 (chantier D, octobre 2026)
+
+Spec : `docs/superpowers/specs/2026-10-03-onglets-ccp-design.md` (version 2) · plan :
+`docs/superpowers/plans/2026-10-03-onglets-ccp.md`. Une première version (onglet CCP1 regroupant
+Thèmes, Notes, EPCF, Livret et Dossier pro) a été écartée par Timy le 03/10 : elle reste dans
+l'historique git de la branche `onglets-ccp`.
+
+Principes : un onglet ne déménage jamais (il peut seulement apparaître) ; une chose, un endroit,
+selon qu'on est stagiaire ou formateur ; **Mon espace = ce qui est à moi, Notes = la classe**.
+
+- **Barre** (`js/main.js`) : plus d'onglet Priorités ; Thèmes s'affiche « Cours » (icône `book`,
+  route `themes` inchangée) ; onglet **CCP2** (icône `ccp2`, carré marqué 2) gouverné par le module
+  `ccp2`. Huit onglets tiennent sur un iPhone de 375 px.
+- **Priorités** : bouton dans l'en-tête du Planning (`routeVisible("dashboard")`, repère chez un
+  formateur si le module est fermé) ; la page garde `#/dashboard`, `ONGLET_POUR_ROUTE` y allume
+  l'onglet Planning, un bouton « Planning » ramène.
+- **Cours** (`js/views/themes.js`) : en-tête commun (progression des 57 thèmes, tenue par
+  `ligneProgression` car elle est hors du panneau), sous-onglets Thèmes et Compétences
+  (`ENSEMBLES` : thèmes officiels + QCM transversaux ; compétences formateur, conduite, notions,
+  filet), plus Signalements pour les formateurs ; pastille active mémorisée par sous-onglet
+  (`familleActive`) ; pastilles masquées s'il n'y a qu'une famille.
+- **Notes** : Matrice et EPCF pour tous ; Livret EPCF et Dossier pro réservés aux formateurs
+  (jusqu'au lot 2, espace stagiaires des formateurs).
+- **Mon espace** : sous-onglet **Livret EPCF** ; `renderEpcfLivret(p, { stagiaireId })` ouvre le
+  livret de l'élève affiché, en saisie pour un formateur ; un stagiaire voit le sien en lecture.
+- **CCP2** (`js/views/ccp2.js`) : texte versionné dans `js/ccp2-parcours-data.js` (critères du REAC
+  mot pour mot, exigences du référentiel d'évaluation), dates tirées de `listAgendaEvents()`
+  (titre contenant « CCP2 », types formation, stage, examen, si le Calendrier est ouvert), dernière
+  étape ouverte mémorisée (`ecsr_ccp2_etape`), nombres insécables (`insecables`, `js/ccp-rules.js`).
+- **Modules** : groupe « CCP2 » et module `ccp2` ; noms affichés « Cours » (clé `themes`) et
+  « Lecture des cours » (clé `cours`) ; Livret EPCF n'a plus Notes pour parent ;
+  `STORAGE_SOUS_ONGLET.themes` pour les liens « Où le trouver » vers un sous-onglet de Cours.
+- **Tests** : `node tests/modules.test.mjs`, `node tests/ccp-rules.test.mjs` (texte du parcours :
+  forme, liens, aucun cadratin, jamais « prof »).
+- **Convention pour les formateurs** : le titre d'un stage ou d'un examen du CCP2 contient
+  « CCP2 », sinon il n'apparaît pas dans le parcours.
+- **Assistant** : `aide.mjs` décrit la nouvelle barre ; il faut redéployer la fonction `chatbot`.
+- **Banc** : après chaque `node _harness_build.mjs`, ouvrir `_harness.html` avec un paramètre
+  neuf (`?cb=…`) : le navigateur garde la page en cache avec l'ancien jeton, donc les anciens
+  modules, et un test peut passer au vert sur du code qui n'est plus sur le disque.
 
 ## Décisions UX importantes (à respecter)
 

@@ -1,7 +1,7 @@
-import { listStagiaires, getStats, getSetting } from "../db.js?v=20261002b";
-import { el, clear, isoDate, getMonday, displayStagiaire, compareByNom } from "../utils.js?v=20261002b";
-import { icon } from "../icons.js?v=20261002b";
-import { renderPassages } from "./passages.js?v=20261002b";
+import { listStagiaires, getStats, getSetting } from "../db.js?v=20261003a";
+import { el, clear, isoDate, getMonday, displayStagiaire, compareByNom } from "../utils.js?v=20261003a";
+import { icon } from "../icons.js?v=20261003a";
+import { renderPassages } from "./passages.js?v=20261003a";
 
 const SORT_OPTIONS = [
   { key: "priorite",   label: "Priorité de passage" },
@@ -149,6 +149,10 @@ export async function renderDashboard(container) {
   };
 
   clear(container);
+
+  // Priorités se consulte depuis le Planning (chantier D) : retour en un geste.
+  container.appendChild(el("button", { class: "btn small ghost dash-retour", type: "button",
+    onClick: () => { location.hash = "#/planning"; } }, icon.chevronLeft(), "Planning"));
 
   container.appendChild(el("div", { class: "view-header" },
     el("div", { class: "view-header-text" },

@@ -14,7 +14,7 @@
 // générée à l'ouverture, lue par les stagiaires : tutoiement, sans jargon).
 // Aucun import : le fichier est lu tel quel par les tests node.
 
-export const GROUPES = ["Démarrage", "Suivi de la formation", "CCP1", "Dossier professionnel", "Outils"];
+export const GROUPES = ["Démarrage", "Suivi de la formation", "CCP1", "Dossier professionnel", "CCP2", "Outils"];
 
 // Routes jamais fermées. Elles n'ont pas de module.
 export const ROUTES_SOCLE = ["home", "mon-suivi", "config", "nouveautes"];
@@ -27,6 +27,7 @@ export const MODULE_DE_ROUTE = {
   dashboard: "priorites",
   notes: "notes",
   themes: "themes",
+  ccp2: "ccp2",
 };
 
 // Sous-onglets rattachés à un module, par route. Sert aux liens « Où le
@@ -35,7 +36,7 @@ export const MODULE_DE_ROUTE = {
 // d'accord.
 export const MODULE_DE_SOUS_ONGLET = {
   notes: { matrice: "notes", epcf: "epcf", livret: "livret", dp: "dp" },
-  "mon-suivi": { evolution: "notes", epcf: "epcf", dp: "dp" },
+  "mon-suivi": { evolution: "notes", epcf: "epcf", livret: "livret", dp: "dp" },
 };
 
 // Ouvert aux formateurs depuis le multi-promo (étape 3 de A) : chacun règle les modules de
@@ -75,12 +76,12 @@ export const MODULES = [
   },
   {
     cle: "priorites", nom: "Priorités", accord: "fp", groupe: "Suivi de la formation",
-    explication: "Qui doit passer en priorité, en salle et en voiture.",
+    explication: "Qui doit passer en priorité, en salle et en voiture : bouton en haut du Planning.",
     annonce: {
-      titre: "L'onglet Priorités est ouvert",
-      resume: "Il montre qui doit passer en priorité, au tableau comme en voiture, pour que "
-            + "chacun ait autant de passages que les autres.",
-      ou: { label: "Priorités", route: "dashboard" },
+      titre: "Les priorités de passage sont ouvertes",
+      resume: "Un bouton en haut du Planning montre qui doit passer en priorité, au tableau "
+            + "comme en voiture, pour que chacun ait autant de passages que les autres.",
+      ou: { label: "Planning, bouton Priorités", route: "dashboard" },
     },
   },
   {
@@ -95,23 +96,26 @@ export const MODULES = [
     },
   },
   {
-    cle: "themes", nom: "Thèmes", accord: "mp", groupe: "Suivi de la formation",
-    explication: "Liste des thèmes et progression de la classe.",
+    // Clé historique « themes » (stockée en base, jamais renommée) : l'onglet s'affiche
+    // désormais « Cours », avec ses sous-onglets Thèmes et Compétences.
+    cle: "themes", nom: "Cours", accord: "mp", groupe: "Suivi de la formation",
+    explication: "Onglet Cours : thèmes, compétences et progression de la classe.",
     annonce: {
-      titre: "Les thèmes sont ouverts",
-      resume: "La liste des thèmes de la formation, avec ceux déjà traités en classe et leur date.",
-      ou: { label: "Thèmes", route: "themes" },
+      titre: "L'onglet Cours est ouvert",
+      resume: "Les thèmes et les compétences de la formation, avec ceux déjà traités en classe "
+            + "et leur date.",
+      ou: { label: "Cours", route: "themes" },
     },
   },
   {
-    cle: "cours", nom: "Cours", accord: "mp", groupe: "Suivi de la formation", parent: "themes",
+    cle: "cours", nom: "Lecture des cours", accord: "fs", groupe: "Suivi de la formation", parent: "themes",
     explication: "Lecture du cours de chaque thème.",
     annonce: {
       titre: "Les cours sont ouverts",
       resume: "Chaque thème a son cours à lire : l'essentiel en quelques lignes, les règles, "
-            + "les sanctions et les chiffres clés. Clique sur le titre d'un thème ou sur son "
-            + "bouton Cours.",
-      ou: { label: "Thèmes, bouton Cours", route: "themes" },
+            + "les sanctions et les chiffres clés. Dans l'onglet Cours, clique sur le titre "
+            + "d'un thème ou sur son bouton Cours.",
+      ou: { label: "Cours, colonne Cours", route: "themes" },
     },
   },
   {
@@ -121,7 +125,7 @@ export const MODULES = [
       titre: "Les QCM sont ouverts",
       resume: "Entraîne-toi sur chaque thème avec un QCM : les questions ratées reviennent en "
             + "premier jusqu'à ce que tu les maîtrises.",
-      ou: { label: "Thèmes, colonne QCM", route: "themes" },
+      ou: { label: "Cours, colonne QCM", route: "themes" },
     },
   },
   {
@@ -135,25 +139,36 @@ export const MODULES = [
     },
   },
   {
-    cle: "livret", nom: "Livret EPCF", accord: "ms", groupe: "CCP1", parent: "notes",
-    explication: "Livret officiel EPCF, dans Notes.",
+    // Plus de parent : le stagiaire consulte son livret dans Mon espace, pas dans Notes.
+    cle: "livret", nom: "Livret EPCF", accord: "ms", groupe: "CCP1",
+    explication: "Livret officiel EPCF : celui du stagiaire dans Mon espace, la saisie des formateurs dans Notes.",
     annonce: {
       titre: "Le livret EPCF est ouvert",
-      resume: "Ton livret d'évaluation officiel du CCP1 se consulte dans Notes. Pense à "
-            + "indiquer ta date de naissance dans ton espace personnel : elle y est reportée "
-            + "automatiquement.",
-      ou: { label: "Notes, sous-onglet Livret EPCF", route: "notes", sousOnglet: "livret" },
+      resume: "Ton livret d'évaluation officiel se consulte dans ton espace personnel. Pense "
+            + "à y indiquer ta date de naissance : elle est reportée automatiquement sur le "
+            + "livret.",
+      ou: { label: "Mon espace personnel, sous-onglet Livret EPCF", route: "mon-suivi", sousOnglet: "livret" },
     },
   },
   {
     cle: "dp", nom: "Dossier pro", accord: "ms", groupe: "Dossier professionnel",
-    explication: "Dossier professionnel, dans Notes et Mon espace.",
+    explication: "Dossier professionnel : celui du stagiaire dans Mon espace, la relecture des formateurs dans Notes.",
     annonce: {
       titre: "Le dossier professionnel est ouvert",
       resume: "Remplis ton dossier professionnel directement dans l'app, puis imprime-le ou "
             + "enregistre-le en PDF au format officiel. Tes formateurs peuvent le relire et "
             + "t'aider.",
       ou: { label: "Mon espace personnel, sous-onglet Dossier pro", route: "mon-suivi", sousOnglet: "dp" },
+    },
+  },
+  {
+    cle: "ccp2", nom: "CCP2", accord: "ms", groupe: "CCP2",
+    explication: "Parcours guidé en 8 étapes, du commanditaire à l'épreuve.",
+    annonce: {
+      titre: "L'onglet CCP2 est ouvert",
+      resume: "Ton parcours CCP2 en 8 étapes, du choix du commanditaire au jour de l'épreuve : "
+            + "pour chacune, ce que le jury regarde, comment t'y prendre et les documents utiles.",
+      ou: { label: "CCP2", route: "ccp2" },
     },
   },
   {

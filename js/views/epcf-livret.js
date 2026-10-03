@@ -9,12 +9,12 @@
 // Rôles : formateur/admin = liste des stagiaires + remplissage ; stagiaire =
 // consultation de SON livret en lecture seule (imposé par la RLS).
 
-import { listStagiaires, listProfs, listEpcfLivrets, getEpcfLivret, upsertEpcfLivret } from "../db.js?v=20261002b";
-import { el, clear, displayStagiaire, compareByNom, formatDate, toast } from "../utils.js?v=20261002b";
-import { isAdmin, isProf, getProfile } from "../auth-admin.js?v=20261002b";
-import { getCurrentWho } from "../identity.js?v=20261002b";
+import { listStagiaires, listProfs, listEpcfLivrets, getEpcfLivret, upsertEpcfLivret } from "../db.js?v=20261003a";
+import { el, clear, displayStagiaire, compareByNom, formatDate, toast } from "../utils.js?v=20261003a";
+import { isAdmin, isProf, getProfile } from "../auth-admin.js?v=20261003a";
+import { getCurrentWho } from "../identity.js?v=20261003a";
 import { collectData, fillData, applyEditable, wireDocEditing,
-         bindDocPrint, refreshDocPrint, teardownDocPrint } from "../doc-officiel.js?v=20261002b";
+         bindDocPrint, refreshDocPrint, teardownDocPrint } from "../doc-officiel.js?v=20261003a";
 
 // Noms historiques conservés : main.js et le banc d'essai _preview_livret.html
 // les importent depuis ce module. La mécanique vit désormais dans doc-officiel.js,
@@ -307,6 +307,24 @@ export async function renderEpcfLivret(container, opts = {}) {
       return;
     }
     showDoc(container, null, mine, { readOnly: true });
+    return;
+  }
+
+  // Mon espace (chantier D) : le livret du stagiaire affiché, ouvert directement en
+  // saisie. Un stagiaire ne passe jamais ici (bloc ci-dessus) : il ne voit que son
+  // propre espace, donc son propre livret.
+  if (opts.stagiaireId != null) {
+    const id = Number(opts.stagiaireId);
+    const [stagiairesData, profsData] = await Promise.all([listStagiaires(), listProfs()]);
+    let full = null;
+    try { full = await getEpcfLivret(id); } catch (e) { console.error(e); }
+    if (opts.isActive && !opts.isActive()) return;
+    profNames = (profsData || []).map((p) => p.nom).filter(Boolean)
+      .sort((a, b) => a.localeCompare(b, "fr"));
+    const s = stagiairesData.find((x) => x.id === id);
+    clear(container);
+    if (!s) { container.appendChild(el("p", { class: "muted" }, "Stagiaire introuvable.")); return; }
+    showDoc(container, s, full, { readOnly: false });
     return;
   }
 
