@@ -122,6 +122,8 @@ function ouvrirChoix() {
     const choix = [...liste.querySelectorAll(".promo-choix")];
     const i = choix.indexOf(ici);
     if (i < 0 || bascule) return;
+    // Alt, Ctrl ou Cmd + flèche : raccourci du navigateur (page précédente), on le laisse passer.
+    if (e.altKey || e.ctrlKey || e.metaKey) return;
     let vers;
     switch (e.key) {
       case "ArrowDown": case "ArrowRight": vers = i + 1; break;

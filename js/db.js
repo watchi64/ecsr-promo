@@ -139,11 +139,23 @@ export async function choisirPromo(id) {
   id = Number(id);  // la valeur d'un <select> arrive en chaîne
   if (basculeEnCours || id === promoCouranteId || !mesPromos.some((p) => p.id === id)) return;
   basculeEnCours = true;
+  await attendreEnregistrements();
+  try { if (cleMemoire) localStorage.setItem(cleMemoire, String(id)); } catch (e) { /* ignore */ }
+  location.reload();
+}
+
+// Rechargement sûr (bandeau « Réessayer ») : mêmes attentes qu'une bascule, sans changer de promo.
+export async function rechargerApresEnregistrements() {
+  if (basculeEnCours) return;
+  basculeEnCours = true;
+  await attendreEnregistrements();
+  location.reload();
+}
+
+async function attendreEnregistrements() {
   for (const attendre of avantBascule) {
     try { await attendre(); } catch (e) { console.error("bascule de promo : attente", e); }
   }
-  try { if (cleMemoire) localStorage.setItem(cleMemoire, String(id)); } catch (e) { /* ignore */ }
-  location.reload();
 }
 
 export async function renommerPromo(id, nom) {

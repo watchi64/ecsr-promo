@@ -15,7 +15,7 @@
 import {
   getCurrentUser, signOut, onAuthChange,
   getMyProfile, listStagiaires, listProfs,
-  chargerMesPromos, oublierPromo, getPromoCourante,
+  chargerMesPromos, oublierPromo, getPromoCourante, rechargerApresEnregistrements,
 } from "./db.js?v=20261002b";
 import { el, toast, displayStagiaire } from "./utils.js?v=20261002b";
 import { icon } from "./icons.js?v=20261002b";
@@ -121,6 +121,8 @@ async function refreshProfile() {
 
 const MESSAGE_SANS_PROMO = "Aucune promo n'est associée à ton compte. Demande à un formateur.";
 const MESSAGE_PROMOS_NON_CHARGEES = "Promos non chargées : la promo par défaut est affichée.";
+// Un stagiaire n'a qu'une promo : « promo par défaut » ne lui dit rien.
+const MESSAGE_PROMOS_NON_CHARGEES_STAGIAIRE = "Connexion instable : certaines informations peuvent manquer.";
 const PAUSE_AVANT_SECOND_ESSAI_MS = 1500;
 
 // État dégradé : mes_promos a échoué deux fois et aucune promo n'est en place. Sans en-tête, la
@@ -249,14 +251,19 @@ function updateBadge() {
 // Bandeau d'état dégradé : les promos n'ont pas pu être chargées (deux essais), l'app affiche la
 // promo par défaut du compte. Persistant, retiré dès qu'un chargement réussit. Sur le modèle du
 // bandeau d'aperçu, mais dans #app : il est caché avec lui pendant la porte. « Réessayer »
-// recharge la page, qui repart d'un contexte propre.
+// recharge la page, qui repart d'un contexte propre, après les enregistrements en cours du
+// planning (même attente qu'une bascule de promo).
 function updatePromosBanner() {
   let banner = document.getElementById("promos-banner");
   if (!(promosIndisponibles && currentUser && currentProfile)) { if (banner) banner.remove(); return; }
   if (!banner) {
     banner = el("div", { id: "promos-banner", class: "promos-banner", role: "status" },
-      el("span", { class: "promos-banner-texte" }, MESSAGE_PROMOS_NON_CHARGEES),
-      el("button", { class: "promos-banner-btn", type: "button", onClick: () => location.reload() }, "Réessayer"),
+      el("span", { class: "promos-banner-texte" },
+        currentProfile.role === "stagiaire" ? MESSAGE_PROMOS_NON_CHARGEES_STAGIAIRE : MESSAGE_PROMOS_NON_CHARGEES),
+      el("button", { class: "promos-banner-btn", type: "button", onClick: (e) => {
+        e.currentTarget.disabled = true;
+        rechargerApresEnregistrements();
+      } }, "Réessayer"),
     );
     (document.getElementById("app") || document.body).appendChild(banner);
   }
