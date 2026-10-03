@@ -1,3 +1,5 @@
+-- Ce test décrit les données de référence de l'étape 1 (promo 2 à Nîmes), remplacées le 03/10
+-- (promo 2 à Montpellier) : il n'est plus à rejouer, seule la preuve multi-promo se rejoue.
 -- Vérification de l'étape 1 du multi-promo (fondations).
 -- Ne laisse aucune donnée : le bloc final lève toujours une exception, qui annule les
 -- écritures de test et porte le verdict (« VERDICT VERT » attendu).
