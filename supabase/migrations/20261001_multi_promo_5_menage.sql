@@ -2,6 +2,9 @@
 -- antérieure à la Tâche 15 : la synchronisation de bascule et les anciennes colonnes de
 -- progression et d'examen disparaissent. Pas de marche arrière utile : tout vit dans
 -- themes_progression et qcm_examens.
+-- Un verrou qui tarde fait échouer la migration (rien n'est appliqué, on relance) au lieu de
+-- faire attendre l'app derrière elle.
+set local lock_timeout = '3s';
 drop trigger if exists trg_sync_themes_progression on public.themes;
 drop trigger if exists trg_sync_progression_themes on public.themes_progression;
 drop trigger if exists trg_sync_qcm_examens on public.qcm;
