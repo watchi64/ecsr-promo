@@ -15,6 +15,8 @@ assert.equal(doitPorterEntetePromo(SB + "/auth/v1/token?grant_type=password", SB
 assert.equal(doitPorterEntetePromo(SB + "/storage/v1/object/qcm-images/a.png", SB), false);
 assert.equal(doitPorterEntetePromo("https://autre.example/rest/v1/x", SB), false);
 assert.equal(doitPorterEntetePromo(undefined, SB), false);
+assert.equal(doitPorterEntetePromo("https://exemple.supabase.co.evil.example/rest/v1/x", SB), false);
+assert.equal(doitPorterEntetePromo("/rest/v1/x", SB), false);
 
 const MARS = { id: 1, nom: "Nîmes, mars 2026", lieu_id: 1, lieu_nom: "Nîmes",
   date_debut: "2026-03-30", par_defaut: true, stagiaire_id: 15 };
@@ -33,6 +35,12 @@ assert.equal(choisirPromoInitiale([MARS, SEPT], "abc"), 1);
 assert.equal(choisirPromoInitiale([SEPT], null), 2);
 assert.equal(choisirPromoInitiale([], "1"), null);
 assert.equal(choisirPromoInitiale(null, "1"), null);
+// Promo marquée par défaut qui n'est pas la première : cas réel après la fin de mars (11/12).
+const MARS_ECHUE = { ...MARS, par_defaut: false };
+const SEPT_DEFAUT = { ...SEPT, par_defaut: true };
+assert.equal(choisirPromoInitiale([MARS_ECHUE, SEPT_DEFAUT], null), 2);
+assert.equal(choisirPromoInitiale([MARS_ECHUE, SEPT_DEFAUT], "7"), 2);
+assert.equal(choisirPromoInitiale([MARS_ECHUE, SEPT_DEFAUT], "1"), 1);
 
 // Libellé court : mois et année, précédé du lieu seulement si plusieurs lieux.
 assert.equal(libelleCourtPromo(MARS, [MARS, SEPT]), "mars 2026");
@@ -40,6 +48,10 @@ assert.equal(libelleCourtPromo(SEPT, [MARS, SEPT]), "sept. 2026");
 assert.equal(libelleCourtPromo(MTP, [MARS, SEPT, MTP]), "Montpellier · janv. 2027");
 assert.equal(libelleCourtPromo(SEPT, [MARS, SEPT, MTP]), "Nîmes · sept. 2026");
 assert.equal(libelleCourtPromo(null, [MARS]), "");
+assert.deepEqual(["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12"]
+  .map((mm) => libelleCourtPromo({ ...SEPT, date_debut: `2027-${mm}-01` }, [SEPT])),
+  ["janv. 2027", "févr. 2027", "mars 2027", "avr. 2027", "mai 2027", "juin 2027", "juil. 2027",
+   "août 2027", "sept. 2027", "oct. 2027", "nov. 2027", "déc. 2027"]);
 
 // Profil effectif dans la promo courante.
 const FONDATEUR = { email: "f@example.test", role: "stagiaire", stagiaire_id: 15, is_admin: true, is_founder: true };
@@ -56,6 +68,9 @@ assert.deepEqual(separerChamps({ statut: "Fait", date_fait: "2026-10-02", titre:
 assert.deepEqual(separerChamps(undefined, CHAMPS_PROGRESSION), { dans: {}, hors: {} });
 assert.deepEqual(separerChamps({ exam_seconds_per_question: 45, titre: "Q" }, CHAMPS_EXAMEN),
   { dans: { exam_seconds_per_question: 45 }, hors: { titre: "Q" } });
+// Liste verrouillée : un champ oublié partirait dans les anciennes colonnes de themes, que la
+// synchronisation de bascule recopie dans mars.
+assert.deepEqual([...CHAMPS_PROGRESSION].sort(), ["date_fait", "date_qcm", "notes", "statut", "updated_by_email"]);
 
 // Fusion de la progression : les anciennes colonnes du thème sont toujours écrasées.
 const THEME = { id: 5, numero: 5, titre: "T", type: "theme", statut: "Fait", date_fait: "2026-05-01",
@@ -68,6 +83,10 @@ assert.deepEqual(fusionnerProgression({ ...THEME, progression: [{ statut: "Fait"
   { id: 5, numero: 5, titre: "T", type: "theme", statut: "Fait", date_fait: "2026-10-05", date_qcm: null,
     notes: null, updated_by_email: "h@example.test" });
 assert.equal(fusionnerProgression({ ...THEME }).statut, "À faire");
+assert.deepEqual(fusionnerProgression({ ...THEME, progression: [{ statut: "En cours", date_fait: null,
+  date_qcm: "2026-10-09", notes: "à revoir", updated_by_email: null }] }),
+  { id: 5, numero: 5, titre: "T", type: "theme", statut: "En cours", date_fait: null, date_qcm: "2026-10-09",
+    notes: "à revoir", updated_by_email: null });
 
 // Fusion de l'état d'examen : un QCM sans ligne d'examen dans la promo est fermé.
 const QCM = { id: 50, theme_id: 5, titre: "Q", published: true, exam_seconds_per_question: 45,
@@ -78,6 +97,10 @@ assert.equal(ferme.exam_seconds_per_question, 30);
 assert.equal(ferme.exam_ferme_a, null);
 assert.deepEqual(ferme.qcm_questions, [{ count: 3 }]);
 assert.equal("examen" in ferme, false);
+const { qcm_questions: _questions, ...fermeSansQuestions } = ferme;
+assert.deepEqual(fermeSansQuestions, { id: 50, theme_id: 5, titre: "Q", published: false,
+  published_by_email: null, published_at: null, exam_nb_questions: null, exam_question_ids: null,
+  exam_draw_mode: null, exam_seconds_per_question: 30, exam_ferme_a: null });
 const ouvert = fusionnerExamen({ ...QCM, examen: [{ published: true, published_by_email: "h@example.test",
   published_at: "2026-10-02T08:00:00Z", exam_nb_questions: 2, exam_question_ids: [1, 2],
   exam_draw_mode: "manual", exam_seconds_per_question: 20, exam_ferme_a: null }] });
@@ -88,4 +111,4 @@ assert.equal(ouvert.exam_draw_mode, "manual");
 assert.deepEqual([...CHAMPS_EXAMEN].sort(), ["exam_draw_mode", "exam_ferme_a", "exam_nb_questions",
   "exam_question_ids", "exam_seconds_per_question", "published", "published_at", "published_by_email"]);
 
-console.log("promo-rules : 43 assertions OK");
+console.log("promo-rules : 52 assertions OK");
