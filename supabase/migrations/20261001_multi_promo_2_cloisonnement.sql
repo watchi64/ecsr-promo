@@ -2,6 +2,10 @@
 -- (ou à un lieu) ajoute la condition de promo (ou de lieu) à ses règles actuelles.
 -- Marche arrière : 20261001_multi_promo_2_cloisonnement_retour.sql
 
+-- Un verrou qui tarde fait échouer la migration (rien n'est appliqué, on relance) au lieu de
+-- faire attendre l'app derrière elle.
+set local lock_timeout = '3s';
+
 drop function if exists public.diag_entete_promo();
 
 -- ===== Tables propres à une promo, écriture réservée aux admins =====

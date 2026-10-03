@@ -1,4 +1,7 @@
 -- Marche arrière de l'étape 2 : règles d'accès et fonctions telles que relevées le 01/10.
+-- Attention : une fois septembre peuplé, ce retour rouvre les promos les unes aux autres
+-- (lecture ouverte à tout connecté, comme avant l'étape 2), et il supprime venues_benevoles(),
+-- dont l'app de l'étape 3 dépend. À n'employer qu'en urgence, app de l'étape 3 retirée.
 
 -- Règles des tables existantes
 drop policy if exists stagiaires_admin_writes on public.stagiaires;
