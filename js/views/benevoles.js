@@ -171,9 +171,13 @@ export function openBenevolesPanel({ onClose } = {}) {
       (e.eleves_ids || []).forEach((id) => vn.eleves.add(id));
       if (e.sujet && String(e.sujet).trim()) vn.sujets.add(String(e.sujet).trim());
     });
+    // Même créneau dans deux promos du lieu : la promo courante d'abord (aucune « autre
+    // promo »), puis par nom, pour que l'ordre ne dépende pas de celui des lignes de la RPC.
     return [...map.values()].sort((a, b) =>
       b.semaine_lundi.localeCompare(a.semaine_lundi) || b.day_index - a.day_index
-      || (b.half_day === "aprem" ? 1 : 0) - (a.half_day === "aprem" ? 1 : 0));
+      || (b.half_day === "aprem" ? 1 : 0) - (a.half_day === "aprem" ? 1 : 0)
+      || a.autresPromos.size - b.autresPromos.size
+      || [...a.autresPromos].join().localeCompare([...b.autresPromos].join(), "fr"));
   }
 
   function venueCount(benevoleId) { return venuesFor(benevoleId).length; }
@@ -611,6 +615,11 @@ export function openBenevolesPanel({ onClose } = {}) {
           suiviBloc.appendChild(el("p", { class: "muted bnv-empty" }, "Aucune venue planifiée pour l'instant."));
         }
 
+        // benevole_suivi est propre au lieu (clé : bénévole + créneau, sans promo) : un seul
+        // champ de commentaire par créneau, même quand deux promos du lieu y ont chacune une
+        // venue ; deux champs écriraient la même ligne et s'écraseraient.
+        const dejaChamp = new Set();
+
         vns.forEach((vn) => {
           const key = `${vn.semaine_lundi}|${vn.day_index}|${vn.half_day}`;
           const date = venueDate(vn);
@@ -625,7 +634,8 @@ export function openBenevolesPanel({ onClose } = {}) {
           if (futur) head.appendChild(el("span", { class: "bnv-venue-futur" }, "à venir"));
           const venueEl = el("div", { class: "bnv-venue" }, head);
           if (vn.sujets.size) venueEl.appendChild(el("div", { class: "bnv-venue-sujet" }, [...vn.sujets].join(", ")));
-          if (!futur) {
+          if (!futur && !dejaChamp.has(key)) {
+            dejaChamp.add(key);
             const com = comByKey.get(key);
             const input = el("input", { type: "text", class: "bnv-venue-com",
               placeholder: "+ commentaire de séance", value: com?.commentaire || "", autocomplete: "off" });
