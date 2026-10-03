@@ -310,6 +310,24 @@ export async function renderEpcfLivret(container, opts = {}) {
     return;
   }
 
+  // Mon espace (chantier D) : le livret du stagiaire affiché, ouvert directement en
+  // saisie. Un stagiaire ne passe jamais ici (bloc ci-dessus) : il ne voit que son
+  // propre espace, donc son propre livret.
+  if (opts.stagiaireId != null) {
+    const id = Number(opts.stagiaireId);
+    const [stagiairesData, profsData] = await Promise.all([listStagiaires(), listProfs()]);
+    let full = null;
+    try { full = await getEpcfLivret(id); } catch (e) { console.error(e); }
+    if (opts.isActive && !opts.isActive()) return;
+    profNames = (profsData || []).map((p) => p.nom).filter(Boolean)
+      .sort((a, b) => a.localeCompare(b, "fr"));
+    const s = stagiairesData.find((x) => x.id === id);
+    clear(container);
+    if (!s) { container.appendChild(el("p", { class: "muted" }, "Stagiaire introuvable.")); return; }
+    showDoc(container, s, full, { readOnly: false });
+    return;
+  }
+
   const [stagiairesData, livretsData, profsData] = await Promise.all([
     listStagiaires(), listEpcfLivrets(), listProfs(),
   ]);
