@@ -16,6 +16,7 @@ import {
   getCurrentUser, signOut, onAuthChange,
   getMyProfile, listStagiaires, listProfs,
   chargerMesPromos, oublierPromo, getPromoCourante, rechargerApresEnregistrements,
+  bloquerRequetesJusquAuRechargement,
 } from "./db.js?v=20261002b";
 import { el, toast, displayStagiaire } from "./utils.js?v=20261002b";
 import { icon } from "./icons.js?v=20261002b";
@@ -127,7 +128,8 @@ const PAUSE_AVANT_SECOND_ESSAI_MS = 1500;
 
 // État dégradé : mes_promos a échoué deux fois et aucune promo n'est en place. Sans en-tête, la
 // base répond sur la promo par défaut de la personne ; un bandeau le dit (updatePromosBanner)
-// jusqu'à ce qu'un chargement ultérieur réussisse. Il est recalculé à chaque chargement.
+// jusqu'à ce qu'un chargement ultérieur réussisse. Il est recalculé à chaque chargement. Au
+// retour (rappel onAuthChange), la page se recharge si la promo posée n'est pas celle par défaut.
 let promosIndisponibles = false;
 
 // Contexte de promo AVANT toute lecture (spec multi-promo C.1). Faux si le compte n'a accès à
@@ -164,6 +166,15 @@ async function refuserSession(message) {
   toast(message, "error", 5000);
 }
 
+// Rechargement décidé ici (promo devenue inaccessible, retour d'un état dégradé), sans attendre les
+// enregistrements en cours, contrairement à la bascule et au bandeau « Réessayer » : ils partiraient
+// sous l'en-tête de la nouvelle promo alors que l'écran montre l'ancienne. Les requêtes de données
+// sont donc coupées d'abord, jusqu'au rechargement.
+function rechargerSansDelai() {
+  bloquerRequetesJusquAuRechargement();
+  location.reload();
+}
+
 export async function initAuth() {
   currentUser = await getCurrentUser();
   if (currentUser) {
@@ -186,12 +197,21 @@ export async function initAuth() {
     currentUser = user;
     if (user) {
       const avant = getPromoCourante()?.id ?? null;
+      const etaitDegrade = promosIndisponibles;
       if (!(await chargerContextePromo(user))) {
         await refuserSession(MESSAGE_SANS_PROMO);
       } else if (avant !== null && getPromoCourante()?.id !== avant) {
         // La promo affichée n'est plus accessible (ou le compte a changé) : les vues déjà
         // dessinées sont celles de l'autre promo. On repart de zéro plutôt que de les mélanger.
-        location.reload();
+        rechargerSansDelai();
+        return;
+      } else if (etaitDegrade && getPromoCourante() && !getPromoCourante().par_defaut) {
+        // Retour d'un état dégradé : sans en-tête, la base a servi la promo par défaut, et c'est elle
+        // que les vues affichent (les annulations Ctrl+Z déjà enregistrées en rejoueraient le contenu
+        // sous l'en-tête de la promo mémorisée, posée à l'instant). On repart de zéro. Si la promo
+        // posée EST celle par défaut, les vues correspondent déjà : rien à recharger, le bandeau
+        // disparaît.
+        rechargerSansDelai();
         return;
       } else {
         await loadDirectories();

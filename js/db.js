@@ -14,11 +14,18 @@ let cleMemoire = null;       // clé localStorage propre au compte
 let compteContexte = null;   // compte (email en minuscules) auquel appartient le contexte
 let epoque = 0;              // incrémentée à la déconnexion : un chargement en vol devient caduc
 let basculeEnCours = false;  // une seule bascule à la fois (double appui, deux choix rapides)
+let requetesBloquees = false; // rechargement décidé : plus aucune requête de données ne part
 const avantBascule = new Set();
 
 // fetch avec timeout : sans ça, une requête peut rester pendue indéfiniment
 // (réseau mobile instable) → "Chargement" infini. Avec, elle échoue proprement après 15s.
 function fetchWithTimeout(input, init = {}) {
+  const url = typeof input === "string" ? input : String(input?.url ?? input);
+  // Rechargement décidé (bloquerRequetesJusquAuRechargement) : aucune requête de données ne part,
+  // avec ou sans contexte de promo. Rejet immédiat, avant le minuteur et le réseau.
+  if (requetesBloquees && doitPorterEntetePromo(url, SUPABASE_URL)) {
+    return Promise.reject(new Error("Rechargement en cours"));
+  }
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 15000);
   // Si un signal externe existe déjà (rare), on le respecte aussi
@@ -29,7 +36,6 @@ function fetchWithTimeout(input, init = {}) {
   }
   // En-tête de promo : seulement vers l'API de données (cf. promo-rules.js).
   let options = init;
-  const url = typeof input === "string" ? input : String(input?.url ?? input);
   if (promoCouranteId != null && doitPorterEntetePromo(url, SUPABASE_URL)) {
     // Un Request garde ses propres en-têtes (apikey, Authorization) s'il n'y en a pas dans init.
     const entetes = new Headers(init.headers
@@ -150,6 +156,18 @@ export async function rechargerApresEnregistrements() {
   basculeEnCours = true;
   await attendreEnregistrements();
   location.reload();
+}
+
+// Rechargement décidé SANS attendre les enregistrements (js/auth-admin.js : retour d'un état
+// dégradé, promo devenue inaccessible). Les vues affichées sont celles d'une autre promo que le
+// contexte qui vient d'être posé : tout ce qui est encore en route (enregistrement différé du
+// planning, annulation Ctrl+Z, relecture) partirait sous l'en-tête de la nouvelle promo avec du
+// contenu de l'ancienne. Jusqu'au rechargement, plus aucune requête de données ne part ;
+// l'authentification, les fonctions et le stockage ne sont pas concernés. Sans retour en arrière :
+// la page va disparaître. choisirPromo et rechargerApresEnregistrements ne l'appellent PAS : elles
+// attendent d'abord les enregistrements en cours, qui doivent partir.
+export function bloquerRequetesJusquAuRechargement() {
+  requetesBloquees = true;
 }
 
 async function attendreEnregistrements() {
