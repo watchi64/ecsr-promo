@@ -16,6 +16,7 @@ import { recordUndo } from "../undo.js?v=20261002b";
 import { getCurrentWho } from "../identity.js?v=20261002b";
 import { openBenevolesPanel } from "./benevoles.js?v=20261002b";
 import { meilleurResultat } from "../passage-rules.js?v=20261002b";
+import { routeVisible, routeMasquee, repereMasque } from "../modules-etat.js?v=20261002b";
 
 let stagiaires = [];
 let profs = [];
@@ -2772,6 +2773,15 @@ function renderInto(container) {
             : "Lecture seule. Connexion admin requise pour modifier."
       ),
     ),
+    // Priorités de passage : rangées dans le Planning, plus d'onglet (chantier D).
+    // Visibles des formateurs, et des stagiaires si le module est ouvert pour leur
+    // promo ; repère « Masqué aux stagiaires » chez un formateur quand il est fermé.
+    routeVisible("dashboard")
+      ? repereMasque(el("button", { class: "btn small", type: "button",
+          title: "Qui doit passer en priorité, au tableau et en voiture",
+          onClick: () => { location.hash = "#/dashboard"; } },
+          icon.target(), "Priorités"), routeMasquee("dashboard"))
+      : null,
   ));
 
   // Toolbar semaine

@@ -150,6 +150,10 @@ export async function renderDashboard(container) {
 
   clear(container);
 
+  // Priorités se consulte depuis le Planning (chantier D) : retour en un geste.
+  container.appendChild(el("button", { class: "btn small ghost dash-retour", type: "button",
+    onClick: () => { location.hash = "#/planning"; } }, icon.chevronLeft(), "Planning"));
+
   container.appendChild(el("div", { class: "view-header" },
     el("div", { class: "view-header-text" },
       el("p", { class: "eyebrow" }, "Semaine du " + new Date(monday + "T00:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "long" })),
