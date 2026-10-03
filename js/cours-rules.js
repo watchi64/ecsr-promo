@@ -3,11 +3,10 @@
  * tout se teste par node.
  */
 
-/** Titre du cours (premiere ligne `# `), sans le prefixe « THEME XX - ». */
 export function titreDepuisMarkdown(texte) {
   const m = String(texte).match(/^#\s+(.+)$/m);
   if (!m) return null;
-  return m[1].replace(/^TH[ÈE]ME\s+\d+\s*[-:]\s*/i, "").trim();
+  return m[1].replace(/^(TH[ÈE]ME\s+\d+|C[1-4](?:\.[1-9])?)\s*[-:]\s*/i, "").trim();
 }
 
 /** Minutes de lecture estimees (200 mots par minute, plancher 1). */
@@ -25,13 +24,16 @@ export function insererSyntaxe(texte, debut, fin, avant, apres, defaut) {
 }
 
 /** Chemin d'une image dans le bucket cours-images. */
-export function cheminImage(numero, nomFichier, horodatage) {
+export function cheminImage(cle, nomFichier, horodatage) {
   const propre = String(nomFichier || "image").toLowerCase()
     .replace(/\.[a-z0-9]+$/i, "")
     .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "")
     .slice(0, 40) || "image";
-  return `theme_${String(numero).padStart(2, "0")}/${horodatage}_${propre}.jpg`;
+  const dossier = estCodeCompetence(cle)
+    ? "competence_" + cle.toLowerCase().replace(".", "-")
+    : "theme_" + String(cle).padStart(2, "0");
+  return `${dossier}/${horodatage}_${propre}.jpg`;
 }
 
 /** Interpolation linéaire par morceaux entre deux suites d'ancres croissantes
@@ -47,4 +49,58 @@ export function interpolerAncres(src, dst, y) {
     }
   }
   return dst[dst.length - 1];
+}
+
+// ===== Cle d'un cours : numero (les 57 themes) ou code (competences de conduite) =====
+
+const MOTIF_CODE = /^C[1-4](\.[1-9])?$/;
+
+/** Cle d'un cours, ou d'une entree du referentiel qui peut en porter un : le
+ *  numero d'un theme (1 a 57) ou le code d'une competence (« C2.4 »). Une notion
+ *  sans numero ni code n'a pas de cle (null). */
+export function cleCours(x) {
+  if (!x) return null;
+  if (typeof x.code === "string" && x.code) return x.code;
+  if (x.numero !== null && x.numero !== undefined && x.numero !== "") return Number(x.numero);
+  return null;
+}
+
+/** La cle designe-t-elle une competence (« C2 ») ou une sous-competence (« C2.4 ») ? */
+export function estCodeCompetence(cle) {
+  return typeof cle === "string" && MOTIF_CODE.test(cle);
+}
+
+/** Ouverture d'une competence (« C2 »), et non sous-competence. */
+export function estOuverture(cle) {
+  return estCodeCompetence(cle) && !cle.includes(".");
+}
+
+/** Libelle de la pastille et de l'en-tete du lecteur : « 07 » ou « C2.4 ». */
+export function libelleCle(cle) {
+  return estCodeCompetence(cle) ? cle : String(cle).padStart(2, "0");
+}
+
+/** Ordre de lecture du livret : C1, C1.1 ... C1.9, C2, C2.1 ... */
+export function comparerCodes(a, b) {
+  const [ca, sa = 0] = a.slice(1).split(".").map(Number);
+  const [cb, sb = 0] = b.slice(1).split(".").map(Number);
+  return ca - cb || sa - sb;
+}
+
+/** Cours de competence qui suit `cle` parmi les cles visibles, ou null. */
+export function coursSuivant(cle, clesVisibles) {
+  if (!estCodeCompetence(cle)) return null;
+  const codes = [...new Set(clesVisibles.filter(estCodeCompetence))].sort(comparerCodes);
+  return codes.find((c) => comparerCodes(c, cle) > 0) || null;
+}
+
+/** Lien interne `cours:31` ou `cours:C2.5` : la cle visee, sinon null. */
+export function cibleLienCours(href) {
+  const m = String(href).match(/^cours:(?:(\d{1,2})|(C[1-4](?:\.[1-9])?))$/);
+  if (!m) return null;
+  if (m[1]) {
+    const n = Number(m[1]);
+    return n >= 1 && n <= 57 ? n : null;
+  }
+  return m[2];
 }
