@@ -8100,3 +8100,12 @@ body.cours-open { overflow: hidden; }
   .stg-ligne.active { background: transparent; }
   .stg-ligne > svg { display: block; }
 }
+
+/* Partie EPCF de la fiche, chez un formateur : une ligne par épreuve. */
+.epcf-fiche-actions { display: flex; flex-direction: column; gap: 0.5rem; margin: 0 0 1.25rem; }
+.epcf-fiche-ligne {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem; padding: 0.6rem 0.8rem;
+  border: 1px solid var(--line); border-radius: 10px; background: var(--bg-elev);
+}
+.epcf-fiche-epreuve { font-weight: 600; min-width: 5.5rem; }
+.epcf-fiche-ligne .epcf-statut { flex: 1; }

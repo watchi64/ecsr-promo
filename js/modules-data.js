@@ -36,7 +36,7 @@ export const MODULE_DE_ROUTE = {
 // sous-onglets (js/views/notes.js, js/views/mon-suivi.js). Garder les deux
 // d'accord.
 export const MODULE_DE_SOUS_ONGLET = {
-  notes: { matrice: "notes", epcf: "epcf", livret: "livret", dp: "dp" },
+  notes: { matrice: "notes", epcf: "epcf" },
   "mon-suivi": { evolution: "notes", epcf: "epcf", livret: "livret", dp: "dp" },
 };
 

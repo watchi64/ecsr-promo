@@ -5,7 +5,7 @@ import { listStagiaires, listEvaluations, getPlanning, getHalfMetaForWeek, getJo
 import { el, clear, isoDate, getMonday, addDays, formatDate, displayStagiaire, toast } from "../utils.js?v=20261003b";
 import { HALF_DAYS, RESULTATS } from "../config.js?v=20261003b";
 import { isAdmin, isProf, monStagiaireId } from "../auth-admin.js?v=20261003b";
-import { renderEpcfTrameSection } from "../epcf-restitution.js?v=20261003b";
+import { renderEpcfPersonne } from "./epcf.js?v=20261003b";
 import { renderSubTabs } from "../subtabs.js?v=20261003b";
 import { renderDp } from "./dp.js?v=20261003b";
 import { renderEpcfLivret } from "./epcf-livret.js?v=20261003b";
@@ -639,8 +639,18 @@ function rendrePartie(panel, partie, d, opts, ctx) {
     panel.appendChild(renderPassagesSection(d.items, soi));
     panel.appendChild(renderEffectuesSection(d.passRows, soi));
   } else if (partie === "epcf") {
-    panel.appendChild(renderEpcfTrameSection("salle", d.epcfEvals.filter((e) => e.trame === "salle"), moySalle));
-    panel.appendChild(renderEpcfTrameSection("vehicule", d.epcfEvals.filter((e) => e.trame === "vehicule"), moyVehicule));
+    renderEpcfPersonne(panel, {
+      stagiaire: d.stagiaireRow || { id: d.id },
+      evals: d.epcfEvals,
+      moyennes: { salle: moySalle, vehicule: moyVehicule },
+      // Les outils du formateur sur la fiche d'un autre ; jamais sur sa propre fiche.
+      outils: !soi && (isAdmin() || isProf()),
+      onEnregistre: (evals) => {
+        d.epcfEvals = evals;
+        if (opts.onEpcfEnregistre) opts.onEpcfEnregistre(evals);
+      },
+      isActive,
+    });
   } else if (partie === "evolution") {
     panel.appendChild(renderChartSection(d.evaluations, soi));
   } else if (partie === "livret") {

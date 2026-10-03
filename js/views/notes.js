@@ -5,12 +5,10 @@ import {
 } from "../db.js?v=20261003b";
 import { el, clear, isoDate, formatDate, toast, displayStagiaire, compareByNom } from "../utils.js?v=20261003b";
 import { icon } from "../icons.js?v=20261003b";
-import { getAdminEmail, isAdmin, isProf, getProfile } from "../auth-admin.js?v=20261003b";
+import { getAdminEmail, isAdmin, getProfile } from "../auth-admin.js?v=20261003b";
 import { recordUndo } from "../undo.js?v=20261003b";
 import { renderSubTabs } from "../subtabs.js?v=20261003b";
 import { renderEpcf } from "./epcf.js?v=20261003b";
-import { renderEpcfLivret } from "./epcf-livret.js?v=20261003b";
-import { renderDp } from "./dp.js?v=20261003b";
 
 let userProfiles = [];  // pour résoudre l'anonymat par stagiaire_id
 
@@ -1129,34 +1127,11 @@ function rerender(container) {
     panel.appendChild(renderChartsSection());
   };
 
-  // Notes, c'est la classe (chantier D) : Matrice et EPCF pour tout le monde (vue
-  // classe de l'EPCF pour un stagiaire). Livret EPCF et Dossier pro sont les outils
-  // des formateurs (liste + saisie ou relecture) ; le stagiaire retrouve les siens
-  // dans Mon espace. La matrice reste en lecture seule pour les stagiaires.
-  // Chaque sous-onglet suit son module (js/modules-data.js) ; la Matrice suit l'onglet lui-même.
-  const formateur = isAdmin() || isProf();
-  const outilsFormateur = [
-    { key: "livret", label: "Livret EPCF", module: "livret", render: (p, ctx) => {
-        renderEpcfLivret(p, { embedded: true, isActive: ctx && ctx.isActive })
-          .catch((e) => {
-            console.error(e);
-            if (!ctx || ctx.isActive()) {
-              clear(p);
-              p.appendChild(el("p", { class: "muted" }, "Erreur de chargement du livret EPCF. Reviens sur l'onglet pour réessayer."));
-            }
-          });
-      } },
-    { key: "dp", label: "Dossier pro", module: "dp", render: (p, ctx) => {
-        renderDp(p, { embedded: true, isActive: ctx && ctx.isActive })
-          .catch((e) => {
-            console.error(e);
-            if (!ctx || ctx.isActive()) {
-              clear(p);
-              p.appendChild(el("p", { class: "muted" }, "Erreur de chargement du dossier professionnel. Reviens sur l'onglet pour réessayer."));
-            }
-          });
-      } },
-  ];
+  // Notes, c'est la classe (chantier D) : Matrice et moyennes EPCF, pour tout le
+  // monde. Ce qui est propre à une personne (sa saisie EPCF, son livret, son
+  // dossier) vit dans sa fiche : Mon espace, ou la page Stagiaires des formateurs.
+  // La matrice reste en lecture seule pour les stagiaires. Chaque sous-onglet suit
+  // son module (js/modules-data.js) ; la Matrice suit l'onglet lui-même.
   container.appendChild(renderSubTabs([
     { key: "matrice", label: "Matrice", render: buildMatricePanel },
     { key: "epcf", label: "EPCF", module: "epcf", render: (p, ctx) => {
@@ -1169,7 +1144,6 @@ function rerender(container) {
             }
           });
       } },
-    ...(formateur ? outilsFormateur : []),
   ], { storageKey: "ecsr_notes_subtab" }));
 }
 
