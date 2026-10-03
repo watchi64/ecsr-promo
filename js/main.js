@@ -23,6 +23,7 @@ import { renderCalendrier } from "./views/calendrier.js?v=20261002b";
 import { initUndoKeyboard } from "./undo.js?v=20261002b";
 import { renderNouveautes } from "./views/nouveautes.js?v=20261002b";
 import { libellePastille } from "./nouveautes.js?v=20261002b";
+import { renderCcp2 } from "./views/ccp2.js?v=20261002b";
 import { initChatbot, appliquerModuleAssistant } from "./chatbot.js?v=20261002b";
 import {
   chargerModules, chargerModulesAuDemarrage, onModulesChange, surveillerPremierPlan,
@@ -33,16 +34,18 @@ import {
 
 const TABS = [
   { route: "home",       label: "Accueil",         icon: "info"      },
-  // « Priorités » : la vue promo dit QUI doit passer, pas « les passages » (ce mot
-  // appartient à l'espace perso). L'espace perso n'a PLUS d'onglet : on y accède par
-  // l'ouverture de l'app, le logo et le badge (« Mon espace personnel ») ; la route
-  // mon-suivi reste dans `routes` ci-dessous. Sur #/mon-suivi, aucun onglet n'est
-  // actif : assumé (la boucle d'activation ne matche rien).
-  { route: "dashboard",  label: "Priorités",       icon: "target"    },
+  // L'espace perso n'a pas d'onglet : on y accède par l'ouverture de l'app, le logo et
+  // la pastille à son nom ; la route mon-suivi reste dans `routes` ci-dessous. Sur
+  // #/mon-suivi, aucun onglet n'est actif : assumé. Priorités n'a plus d'onglet non
+  // plus (chantier D) : bouton en haut du Planning, dont l'onglet reste allumé sur
+  // #/dashboard (voir ONGLET_POUR_ROUTE).
   { route: "planning",   label: "Planning",        icon: "calendar"  },
   { route: "calendrier", label: "Calendrier",      icon: "clock"     },
-  { route: "themes",     label: "Thèmes",          icon: "list"      },
+  // « Cours » garde la route themes : favoris et liens existants restent valides.
+  { route: "themes",     label: "Cours",           icon: "book"      },
   { route: "notes",      label: "Notes",           icon: "edu"       },
+  // CCP2 apparaît quand un formateur ouvre le module pour la promo (module ccp2).
+  { route: "ccp2",       label: "CCP2",            icon: "ccp2"      },
   { route: "ressources", label: "Ressources",      icon: "signpost"  },
   { route: "config",     label: "Paramètres",      icon: "settings"  },
 ];
@@ -111,15 +114,17 @@ const routes = {
   calendrier: renderCalendrier,
   themes:     renderThemes,
   notes:      renderNotes,
+  ccp2:       renderCcp2,
   ressources: renderRessources,
   config:     renderConfig,
   nouveautes: renderNouveautes,
 };
 
 // Routes sans onglet propre qui doivent quand même allumer un onglet. On arrive
-// sur #/nouveautes depuis Accueil : laisser la barre sans onglet actif
-// donnerait l'impression d'être sorti de l'app.
-const ONGLET_POUR_ROUTE = { nouveautes: "home" };
+// sur #/nouveautes depuis Accueil, et sur #/dashboard (Priorités) depuis le
+// Planning : laisser la barre sans onglet actif donnerait l'impression d'être
+// sorti de l'app.
+const ONGLET_POUR_ROUTE = { nouveautes: "home", dashboard: "planning" };
 
 let lastRoute = null;
 

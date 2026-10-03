@@ -126,11 +126,12 @@ export async function renderHome(container) {
 
   // === Raccourcis principaux (tuiles) ===
   const tiles = [
-    { route: "dashboard",  icon: "target",       title: "Priorités",        desc: "Qui doit passer, vs moyenne de classe" },
+    // Les tuiles suivent la barre d'onglets (Priorités se rejoint depuis le Planning).
     { route: "planning",   icon: "calendar",     title: "Planning",         desc: "Cette semaine, créneaux & tirages" },
     { route: "calendrier", icon: "clock",        title: "Calendrier",       desc: "Examens, stages, dates clés" },
-    { route: "themes",     icon: "list",         title: "Thèmes",           desc: "57 thèmes & progression" },
+    { route: "themes",     icon: "book",         title: "Cours",            desc: "Thèmes, compétences & QCM" },
     { route: "notes",      icon: "edu",          title: "Notes",            desc: "Matrice & synthèse classe" },
+    { route: "ccp2",       icon: "ccp2",         title: "CCP2",             desc: "Ton parcours en 8 étapes" },
     { route: "ressources", icon: "signpost",     title: "Ressources",       desc: "Contacts & liens utiles" },
   ];
 
