@@ -1372,7 +1372,26 @@ const FAMILLES = [
   },
 ];
 
-let activeFamille = "all";  // "all" ou clé de famille
+// Sous-onglets de Cours (chantier D) : chacun montre une partie des familles.
+// Thèmes = les connaissances (57 thèmes officiels, QCM transversaux) ; Compétences =
+// le métier (compétences de l'enseignant, de conduite, notions pédagogiques, filet).
+const ENSEMBLES = {
+  themes: ["themes-officiels", "qcm-transversaux"],
+  competences: ["competences-formateur", "competences-conduite", "notions-pedagogiques", "autres"],
+};
+let ensembleActif = "themes";
+// Pastille active, propre à chaque sous-onglet : "all" ou clé de famille.
+const familleActive = { themes: "all", competences: "all" };
+// Ligne de progression de l'en-tête de Cours, au-dessus des sous-onglets.
+let ligneProgression = null;
+
+function texteProgression() {
+  const tp = familleStats(themes.filter((t) => t.type === "theme"));
+  return tp.fait + " / " + tp.total + " thèmes officiels terminés";
+}
+function majProgression() {
+  if (ligneProgression) ligneProgression.textContent = texteProgression();
+}
 
 function familleStats(items) {
   const total = items.length;
@@ -1411,9 +1430,9 @@ function refreshStatsInPlace(container) {
     const label = section.querySelector(".theme-progress-label");
     if (label) label.textContent = stats.pct + "%";
   });
-  const tp = familleStats(themes.filter((t) => t.type === "theme"));
-  const eyebrow = container.querySelector(".view-header .eyebrow");
-  if (eyebrow) eyebrow.textContent = tp.fait + " / " + tp.total + " thèmes officiels terminés";
+  // La ligne « x / 57 thèmes officiels terminés » est dans l'en-tête de Cours, hors
+  // du panneau du sous-onglet : elle est tenue par sa propre référence.
+  majProgression();
 }
 
 function rerender(container) {
@@ -1422,48 +1441,39 @@ function rerender(container) {
   if (!themesActif()) return;
   clear(container);
 
-  const admin = isAdmin();
-
-  // Toutes les familles avec leur contenu (avant search)
-  const famillesData = FAMILLES.map((f) => {
+  // Familles du sous-onglet affiché, avec leur contenu (avant recherche).
+  const cles = ENSEMBLES[ensembleActif] || ENSEMBLES.themes;
+  const famillesData = FAMILLES.filter((f) => cles.includes(f.key)).map((f) => {
     const items = themes.filter(f.match);
     return { ...f, items, stats: familleStats(items) };
   }).filter((f) => f.items.length > 0);
+  // Une pastille mémorisée qui n'existe plus (famille vidée) ramène sur « Tout ».
+  if (familleActive[ensembleActif] !== "all"
+      && !famillesData.some((f) => f.key === familleActive[ensembleActif])) {
+    familleActive[ensembleActif] = "all";
+  }
+  majProgression();
 
-  // Stats globales (uniquement thèmes officiels)
-  const themesOfficiels = themes.filter((t) => t.type === "theme");
-  const totalProgress = familleStats(themesOfficiels);
-
-  container.appendChild(el("div", { class: "view-header" },
-    el("div", { class: "view-header-text" },
-      el("p", { class: "eyebrow" }, totalProgress.fait + " / " + totalProgress.total + " thèmes officiels terminés"),
-      el("h2", {}, "Thèmes & progression"),
-      el("p", { class: "subtitle" }, "Référentiel officiel ECF (57 thèmes) + compétences TP ECSR (formateur) + compétences REMC (conduite) + notions pédagogiques."),
-    ),
-    admin ? el("button", { class: "btn primary", onClick: () => openAddNotionModal(() => reload(container)) },
-      icon.plus(), "Ajouter une notion"
-    ) : null,
-  ));
-
-  // Navigation par pills (par famille). Le clic ne repeint que la zone de
-  // résultats : la barre de filtres (recherche + statut) garde ses nœuds.
+  // Navigation par pills (par famille), seulement s'il y a un choix à faire. Le clic
+  // ne repeint que la zone de résultats : la barre de filtres garde ses nœuds.
   const pillsWrap = el("div", { class: "theme-pills" });
   function setFamille(key) {
-    activeFamille = key;
+    familleActive[ensembleActif] = key;
     pillsWrap.querySelectorAll(".theme-pill").forEach((p) =>
       p.classList.toggle("active", p.dataset.famille === key));
     renderResults();
   }
+  const totalEnsemble = famillesData.reduce((n, f) => n + f.items.length, 0);
   const pillAll = el("button", {
-    class: "theme-pill" + (activeFamille === "all" ? " active" : ""),
+    class: "theme-pill" + (familleActive[ensembleActif] === "all" ? " active" : ""),
     dataset: { famille: "all" },
     onClick: () => setFamille("all"),
-  }, "Tout", el("span", { class: "theme-pill-count" }, themes.length));
+  }, "Tout", el("span", { class: "theme-pill-count" }, totalEnsemble));
   pillsWrap.appendChild(pillAll);
 
   famillesData.forEach((f) => {
     const pill = el("button", {
-      class: "theme-pill theme-pill-" + f.key + (activeFamille === f.key ? " active" : ""),
+      class: "theme-pill theme-pill-" + f.key + (familleActive[ensembleActif] === f.key ? " active" : ""),
       dataset: { famille: f.key },
       onClick: () => setFamille(f.key),
     },
@@ -1472,7 +1482,7 @@ function rerender(container) {
     );
     pillsWrap.appendChild(pill);
   });
-  container.appendChild(pillsWrap);
+  if (famillesData.length > 1) container.appendChild(pillsWrap);
 
   // Filtres supplémentaires (recherche + statut). Ces nœuds sont STABLES tant
   // que la vue est montée : la frappe et le changement de statut ne repeignent
@@ -1505,9 +1515,9 @@ function rerender(container) {
     clear(resultsWrap);
 
     // Détermine les familles à afficher (active ou toutes)
-    const famillesToShow = activeFamille === "all"
+    const famillesToShow = familleActive[ensembleActif] === "all"
       ? famillesData
-      : famillesData.filter((f) => f.key === activeFamille);
+      : famillesData.filter((f) => f.key === familleActive[ensembleActif]);
 
     let sectionsAffichees = 0;
 
@@ -1606,7 +1616,7 @@ function rerender(container) {
     // Aucun résultat : compté APRÈS filtres (avant, une recherche sans aucune
     // correspondance laissait la page vide, sans message).
     if (!sectionsAffichees) {
-      resultsWrap.appendChild(el("p", { class: "muted", style: "padding:2rem 0;text-align:center" }, "Aucun thème ne correspond aux filtres."));
+      resultsWrap.appendChild(el("p", { class: "muted", style: "padding:2rem 0;text-align:center" }, "Rien ne correspond aux filtres."));
     }
   }
   renderResults();
@@ -1615,7 +1625,9 @@ function rerender(container) {
 async function reload(container) {
   themes = await listThemes();
   await loadQcmIndex();
-  rerender(container);
+  // Aucune liste encore affichée (Cours ouvert sur Signalements) : les données sont
+  // rechargées, la liste les montrera quand on y viendra.
+  if (container) rerender(container);
 }
 
 export async function renderThemes(container) {
@@ -1631,17 +1643,37 @@ export async function renderThemes(container) {
   await loadQcmIndex();
   clear(container);
 
-  // Un élève ne voit ni la barre de sous-onglets, ni la console : la RLS ne suffit pas,
-  // sa politique de lecture lui rend SES propres signalements.
-  if (!canManageExam()) { lastContainer = container; rerender(container); return; }
+  // En-tête de Cours, au-dessus des sous-onglets. La ligne de progression est tenue à
+  // jour par refreshStatsInPlace (statut basculé, date corrigée).
+  ligneProgression = el("p", { class: "eyebrow" }, texteProgression());
+  container.appendChild(el("div", { class: "view-header" },
+    el("div", { class: "view-header-text" },
+      ligneProgression,
+      el("h2", {}, "Cours"),
+      el("p", { class: "subtitle" }, "Les thèmes et les compétences de la formation, avec leurs cours et leurs QCM."),
+    ),
+    isAdmin() ? el("button", { class: "btn primary", onClick: () => openAddNotionModal(() => reload(lastContainer)) },
+      icon.plus(), "Ajouter une notion") : null,
+  ));
 
-  container.appendChild(renderSubTabs([
-    { key: "themes", label: "Thèmes",
-      // lastContainer devient le PANNEAU : c'est lui que reload() doit repeindre.
-      render: (p, ctx) => { lastContainer = p; themesActif = ctx?.isActive || (() => true); rerender(p); } },
-    { key: "signalements", label: "⚑ Signalements",
-      render: (p, ctx) => { renderConsoleSignalements(p, { themes, onOuvrirEditeur: ouvrirDepuisConsole, isActive: ctx?.isActive }); } },
-  ], { storageKey: "themes.subtab" }));
+  // Thèmes et Compétences pour tous ; la console des signalements pour les formateurs
+  // seulement (la RLS ne suffit pas : elle rend à un élève SES propres signalements).
+  // lastContainer devient le PANNEAU : c'est lui que reload() doit repeindre.
+  const liste = (cle) => (p, ctx) => {
+    lastContainer = p;
+    ensembleActif = cle;
+    themesActif = ctx?.isActive || (() => true);
+    rerender(p);
+  };
+  const onglets = [
+    { key: "themes", label: "Thèmes", render: liste("themes") },
+    { key: "competences", label: "Compétences", render: liste("competences") },
+  ];
+  if (canManageExam()) {
+    onglets.push({ key: "signalements", label: "⚑ Signalements",
+      render: (p, ctx) => { renderConsoleSignalements(p, { themes, onOuvrirEditeur: ouvrirDepuisConsole, isActive: ctx?.isActive }); } });
+  }
+  container.appendChild(renderSubTabs(onglets, { storageKey: "themes.subtab" }));
 }
 
 // La console ne connaît pas l'éditeur : elle rend la main ici avec le signalement,
