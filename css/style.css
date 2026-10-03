@@ -7891,4 +7891,47 @@ body.cours-open { overflow: hidden; }
   .promo-pastille { padding: 0.35rem 0.5rem; font-size: 0.74rem; }
   .promo-pastille-fleche { display: none; }
   #admin-slot.avec-pastille .admin-role { display: none; }
+  /* Repli du badge sur l'e-mail (fondateur sans fiche dans la promo, jusqu'à 180 px) : tronqué
+     avec une ellipse, sinon « Actualiser » sort de l'écran à 375 px avec la pastille la plus longue. */
+  #admin-slot.avec-pastille .admin-email { max-width: 5.5rem; }
 }
+
+/* Bandeau d'état dégradé : promos non chargées après deux essais. Persistant, retiré dès qu'un
+   chargement réussit. En bas de l'écran comme le bandeau d'aperçu, au-dessus de lui s'ils sont
+   là tous les deux ; le texte passe à la ligne sur téléphone (width: max-content borne la
+   largeur au contenu, max-width à l'écran). */
+.promos-banner {
+  position: fixed;
+  left: 50%;
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  z-index: 1400;
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  width: max-content;
+  max-width: calc(100vw - 24px);
+  padding: 0.5rem 0.55rem 0.5rem 0.9rem;
+  background: var(--c-wait-soft);
+  color: var(--text);
+  border: 1px solid var(--act-peda-border);
+  border-radius: 14px;
+  box-shadow: var(--shadow-3);
+  font-size: 0.85rem;
+  line-height: 1.35;
+}
+.promos-banner.au-dessus-apercu { bottom: calc(64px + env(safe-area-inset-bottom, 0px)); }
+.promos-banner-btn {
+  flex: none;
+  background: var(--c-wait);
+  color: #fff;
+  border: none;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.promos-banner-btn:hover { filter: brightness(0.92); }

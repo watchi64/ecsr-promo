@@ -34,18 +34,29 @@ function ouvrirChoix() {
   if (document.querySelector(".promo-choix-modal")) return;  // déjà ouvert (clavier)
 
   const backdrop = el("div", { class: "modal-backdrop" });
-  const fermer = () => { if (!bascule) backdrop.remove(); };
-  const aide = el("p", { class: "muted" }, "Ton choix est mémorisé sur cet appareil.");
+  const aide = el("p", { class: "muted", role: "status" }, "Ton choix est mémorisé sur cet appareil.");
   const liste = el("div", { class: "promo-choix-liste", role: "radiogroup", "aria-label": "Promo affichée" });
+
+  // Fermer rend le focus à la pastille, cherchée à ce moment-là : updateBadge() a pu la
+  // redessiner depuis l'ouverture. Sans effet pendant la bascule (rien ne ferme avant le
+  // rechargement).
+  const fermer = () => {
+    if (bascule) return;
+    document.removeEventListener("keydown", auClavier, true);
+    backdrop.remove();
+    document.querySelector(".promo-pastille")?.focus();
+  };
 
   // Choisir une promo n'a qu'une issue : le rechargement. D'ici là (attente des
   // enregistrements en cours), tout le contrôle est verrouillé, pastille de la barre comprise.
+  // Le focus reste dans la fenêtre (sur elle-même) : les boutons désactivés ne le gardent pas.
   const verrouiller = () => {
     bascule = true;
     liste.classList.add("en-cours");
     aide.textContent = "Changement de promo en cours…";
     backdrop.querySelectorAll("button").forEach((b) => { b.disabled = true; });
     document.querySelectorAll(".promo-pastille").forEach((b) => { b.disabled = true; });
+    modal.focus();
   };
 
   promos.forEach((p) => {
@@ -66,8 +77,11 @@ function ouvrirChoix() {
     ));
   });
 
-  const modal = el("div", { class: "modal promo-choix-modal" },
-    el("h3", {}, "Promo affichée"),
+  const modal = el("div", {
+    class: "modal promo-choix-modal", role: "dialog", "aria-modal": "true",
+    "aria-labelledby": "promo-choix-titre", tabindex: "-1",
+  },
+    el("h3", { id: "promo-choix-titre" }, "Promo affichée"),
     aide,
     liste,
     el("div", { class: "modal-actions" },
@@ -77,4 +91,46 @@ function ouvrirChoix() {
   backdrop.appendChild(modal);
   backdrop.addEventListener("click", (e) => { if (e.target === backdrop) fermer(); });
   document.body.appendChild(backdrop);
+  document.addEventListener("keydown", auClavier, true);
+  liste.querySelector(".promo-choix.active")?.focus();  // le clavier part de la promo cochée
+
+  // Clavier, écouté sur le document (en capture) tant que la fenêtre est ouverte :
+  //  - Échap ferme, sauf pendant la bascule. L'événement s'arrête là : sinon le planning
+  //    quitterait le mode Modifier derrière la fenêtre (son garde sur .modal-backdrop arrive
+  //    trop tard, fermer() a déjà retiré le fond), et l'assistant fermerait son panneau ;
+  //  - Tab reste dans la fenêtre (aria-modal) ;
+  //  - les flèches circulent dans le groupe sans choisir : choisir recharge la page.
+  function auClavier(e) {
+    if (!backdrop.isConnected) { document.removeEventListener("keydown", auClavier, true); return; }
+    const ici = document.activeElement;
+    if (e.key === "Escape") {
+      e.preventDefault();
+      e.stopPropagation();
+      fermer();
+      return;
+    }
+    if (e.key === "Tab") {
+      const cibles = [...backdrop.querySelectorAll("button:not(:disabled)")];
+      if (cibles.length === 0) { e.preventDefault(); return; }  // bascule en cours : rien à atteindre
+      const premiere = cibles[0];
+      const derniere = cibles[cibles.length - 1];
+      if (!backdrop.contains(ici)) { e.preventDefault(); (e.shiftKey ? derniere : premiere).focus(); }
+      else if (e.shiftKey && (ici === premiere || ici === modal)) { e.preventDefault(); derniere.focus(); }
+      else if (!e.shiftKey && ici === derniere) { e.preventDefault(); premiere.focus(); }
+      return;
+    }
+    const choix = [...liste.querySelectorAll(".promo-choix")];
+    const i = choix.indexOf(ici);
+    if (i < 0 || bascule) return;
+    let vers;
+    switch (e.key) {
+      case "ArrowDown": case "ArrowRight": vers = i + 1; break;
+      case "ArrowUp": case "ArrowLeft": vers = i - 1; break;
+      case "Home": vers = 0; break;
+      case "End": vers = choix.length - 1; break;
+      default: return;
+    }
+    e.preventDefault();
+    choix[(vers + choix.length) % choix.length].focus();
+  }
 }

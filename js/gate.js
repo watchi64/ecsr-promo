@@ -8,6 +8,21 @@ import { signInWithPassword, signUpWithPassword, requestPasswordReset, updatePas
 import { validerEmail, validerMotDePasse, messageErreurAuth, configMode, MDP_MIN } from "./gate-rules.js?v=20261002b";
 import { toast } from "./utils.js?v=20261002b";
 
+// Refus décidé APRÈS une connexion réussie côté serveur (aucune promo, compte non invité) :
+// auth-admin.js émet « ecsr:refus-porte » (detail = le motif) juste avant de déconnecter. Un
+// toast n'y suffirait pas (il vit dans #app, caché pendant la porte) et le bouton resterait sur
+// « Connexion… ». On écrit donc le motif dans la carte et on rend la main au bouton. Au
+// démarrage, l'événement part AVANT showGate() (initAuth précède la porte) : le motif attend
+// alors l'ouverture de la carte. Écouté dès le chargement du module, une seule fois.
+let refusEnAttente = null;
+let afficherRefus = null;  // posé par showGate() : écrit dans la carte actuellement ouverte
+document.addEventListener("ecsr:refus-porte", (e) => {
+  const motif = typeof e.detail === "string" ? e.detail : "";
+  if (!motif) return;
+  if (afficherRefus) afficherRefus(motif);
+  else refusEnAttente = motif;
+});
+
 export function showGate(mode = "signin") {
   const gate = document.getElementById("gate");
   const tabs = document.querySelector(".gate-tabs");
@@ -76,6 +91,18 @@ export function showGate(mode = "signin") {
     error.textContent = msg;
     error.classList.remove("hidden");
   };
+
+  // Refus après connexion (voir plus haut) : motif dans la carte, bouton rendu à son libellé.
+  afficherRefus = (motif) => {
+    echec(motif);
+    submit.disabled = false;
+    submit.textContent = configMode(courant).bouton;
+  };
+  if (refusEnAttente) {
+    const motif = refusEnAttente;
+    refusEnAttente = null;
+    afficherRefus(motif);
+  }
 
   // Verrou d'envoi : au-delà du plafond horaire appliqué par Supabase, on
   // empêche le matraquage du bouton, qui n'apporte rien à l'utilisateur.
