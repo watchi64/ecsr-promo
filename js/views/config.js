@@ -19,9 +19,14 @@ import { renderModulesSection } from "./modules-reglage.js?v=20261002b";
 
 // ====== SECTION Accès & invitations ======
 
+// Liste des personnes invitables de la section déjà à l'écran. Posée par renderAccessSection, appelée
+// après un ajout de stagiaire, qui n'actualise que le bloc « Stagiaires » de la section « Promo ».
+let majPersonnesInvitables = null;
+
 async function renderAccessSection(rerender) {
   const admin = isAdmin();
   const currentEmail = getAdminEmail();
+  majPersonnesInvitables = null;  // le formulaire d'un rendu précédent ne doit pas survivre à celui-ci
   const section = el("section", { class: "param-section" });
   section.appendChild(el("div", { class: "param-section-head" },
     el("div", { class: "param-icon" }, icon.shield()),
@@ -31,7 +36,7 @@ async function renderAccessSection(rerender) {
     ),
   ));
 
-  const [profiles, stagiaires, profs] = await Promise.all([
+  let [profiles, stagiaires, profs] = await Promise.all([
     listUserProfiles(), listStagiaires(), listProfs(),
   ]);
 
@@ -68,6 +73,14 @@ async function renderAccessSection(rerender) {
     }
     roleSel.addEventListener("change", refreshPersonOptions);
     refreshPersonOptions();
+    // Un ajout de stagiaire n'actualise que son bloc : la liste d'ici suit, sans toucher à la personne
+    // déjà choisie ni à l'email en cours de saisie.
+    majPersonnesInvitables = async () => {
+      stagiaires = await listStagiaires();
+      const choisie = personSel.value;
+      refreshPersonOptions();
+      if (choisie && [...personSel.options].some((o) => o.value === choisie && !o.disabled)) personSel.value = choisie;
+    };
 
     const emailInput = el("input", { type: "email", placeholder: "email@exemple.fr", class: "invite-email" });
 
@@ -348,7 +361,19 @@ async function renderPromoSection(rerender) {
     return wrap;
   }
 
-  function renderList(items, type) {
+  // Après un ajout de stagiaire : relit la liste et n'actualise que l'en-tête (compteur) et les lignes du
+  // bloc « Stagiaires ». Le formulaire d'ajout reste en place, avec son focus (et le clavier de l'iPhone),
+  // comme le défilement et le reste de la vue ; la liste des personnes invitables suit.
+  async function actualiserStagiaires(bloc) {
+    const tous = await listStagiaires({ includeInactive: true });
+    const frais = renderList(tous.filter((s) => s.actif !== false), "stagiaire", false);
+    bloc.querySelector(".block-head").replaceWith(frais.querySelector(".block-head"));
+    bloc.querySelector(".config-list").replaceWith(frais.querySelector(".config-list"));
+    if (majPersonnesInvitables) majPersonnesInvitables().catch(() => {});
+  }
+
+  // avecAjout : faux pour actualiser un bloc existant (en-tête et lignes seuls, sans formulaire d'ajout).
+  function renderList(items, type, avecAjout = true) {
     const wrap = el("div", { class: "param-block" });
     wrap.appendChild(el("div", { class: "block-head" },
       el("h4", {}, type === "stagiaire" ? "Stagiaires" : "Formateurs (communs à toutes les promos)"),
@@ -435,7 +460,7 @@ async function renderPromoSection(rerender) {
     });
     wrap.appendChild(list);
 
-    if (admin) {
+    if (admin && avecAjout) {
       const addInput = el("input", { type: "text", placeholder: type === "stagiaire" ? "Prénom" : "Nom" });
       const addNom = type === "stagiaire" ? el("input", { type: "text", placeholder: "Nom de famille" }) : null;
       const addBtn = el("button", { class: "btn accent", onClick: async () => {
@@ -451,11 +476,21 @@ async function renderPromoSection(rerender) {
         try {
           if (type === "stagiaire") await addStagiaire(v, addNom.value.trim());
           else await addProf(v);
-          addInput.value = "";
-          if (addNom) addNom.value = "";
-          toast("Ajouté", "success");
-          rerender();
-        } catch (e) { toast(type === "stagiaire" ? messageErreurStagiaire(e) : e.message, "error"); }
+        } catch (e) {
+          // Refus : les champs sont conservés, rien d'autre ne bouge.
+          toast(type === "stagiaire" ? messageErreurStagiaire(e) : e.message, "error");
+          return;
+        }
+        addInput.value = "";
+        if (addNom) addNom.value = "";
+        toast("Ajouté", "success");
+        if (type !== "stagiaire") { rerender(); return; }
+        // Stagiaire : seul le bloc est actualisé, puis « Prénom » reprend le focus pour enchaîner les
+        // saisies sans remonter la page. Relecture impossible : rendu complet (il gère ses erreurs).
+        try {
+          await actualiserStagiaires(wrap);
+          addInput.focus();
+        } catch (e) { rerender(); }
       }}, icon.plus(), "Ajouter");
       // Stagiaire : Entrée dans « Prénom » passe à « Nom de famille », Entrée dans « Nom de famille »
       // valide. Formateur (un seul champ) : Entrée valide.
