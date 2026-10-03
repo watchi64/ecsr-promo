@@ -8123,3 +8123,43 @@ body.cours-open { overflow: hidden; }
   color: var(--text-soft);
 }
 .promo-choix-segment { display: inline-block; }
+
+/* ===== Barre du haut sur deux lignes sous 760 px (2026-10) =====
+   Avant : la grille à deux colonnes de la règle mobile plus haut plaçait la marque seule, puis les
+   onglets sur toute la largeur (grid-column: 1 / -1), puis, en troisième ligne, la zone d'actions :
+   140 px de barre collante sur iPhone. Ici : ligne 1 = logo (un peu réduit) et les huit onglets, qui
+   se partagent la largeur restante à parts égales (34 px au plus étroit : en dessous, ils défilent
+   comme avant) ; ligne 2 = pastille de promo, badge, calendrier, actualiser. Placement explicite, sans
+   toucher aux règles existantes. Le point de nouveautés de l'onglet Accueil sort du flux et se pose
+   au coin haut droit de l'icône : dans le flux, il décalait l'icône d'Accueil par rapport aux autres
+   sur des onglets devenus aussi étroits. */
+@media (max-width: 760px) {
+  .topbar {
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    gap: 0.4rem 0.25rem;
+  }
+  .topbar .brand { grid-column: 1; grid-row: 1; }
+  .topbar .brand-logo { height: 30px; }
+  .topbar .tabs { grid-column: 2; grid-row: 1; min-width: 0; gap: 0; }
+  .topbar .tab {
+    position: relative;
+    flex: 1 0 34px;
+    justify-content: center;
+    min-height: 36px;
+    padding: 0;
+  }
+  .topbar .tab .tab-badge {
+    position: absolute;
+    top: calc(50% - 14px);
+    left: calc(50% + 6px);
+    margin: 0;
+    box-shadow: 0 0 0 2px var(--bg-deep);
+  }
+  .topbar .topbar-actions { grid-column: 1 / -1; grid-row: 2; }
+  /* Barre de jours du Planning : collée à top: 52px (réglage prévu pour la barre d'une ligne du
+     bureau), elle passait sur téléphone ENTIÈREMENT sous la barre de 140 px. Avec la barre à 95 px,
+     4 px de son bord dépasseraient dessous au défilement. Collée à 0, elle reste cachée comme
+     avant ; pour la montrer sous la barre, mettre ici top: 96px. */
+  .p-daynav { top: 0; }
+}
