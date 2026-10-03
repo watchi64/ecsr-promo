@@ -9,9 +9,20 @@
 export const ENTETE_PROMO = "x-promo-id";
 
 // L'en-tête ne part que vers l'API de données (tables et RPC). Les fonctions Edge le
-// refusent en CORS ; l'authentification et le stockage n'en ont pas l'usage.
+// refusent en CORS ; l'authentification et le stockage n'en ont pas l'usage. Les adresses sont
+// analysées, non comparées comme du texte : une barre finale dans la configuration, un hôte en
+// capitales ou le port par défaut ne doivent pas couper l'en-tête sans erreur, et un chemin
+// remonté (..) ne doit pas l'envoyer vers une autre API. Adresse relative ou illisible : faux.
 export function doitPorterEntetePromo(url, supabaseUrl) {
-  return typeof url === "string" && !!supabaseUrl && url.startsWith(supabaseUrl + "/rest/v1/");
+  if (typeof url !== "string" || !supabaseUrl) return false;
+  try {
+    const cible = new URL(url);
+    const base = new URL(supabaseUrl);
+    return cible.origin === base.origin
+      && cible.pathname.startsWith(base.pathname.replace(/\/+$/, "") + "/rest/v1/");
+  } catch (e) {
+    return false;
+  }
 }
 
 // Promo de départ : celle mémorisée sur l'appareil si elle est toujours accessible,

@@ -133,15 +133,18 @@ const PAUSE_AVANT_SECOND_ESSAI_MS = 1500;
 let promosIndisponibles = false;
 
 // Contexte de promo AVANT toute lecture (spec multi-promo C.1). Faux si le compte n'a accès à
-// aucune promo. Deux essais, le second 1,5 s après le premier : une panne passagère ne doit pas
-// faire perdre la promo choisie. Si les deux échouent, on entre quand même (un stagiaire n'a
-// qu'une promo, le bloquer serait une régression) en état dégradé : liste vide, donc sans
-// pastille, et bandeau. Un échec au renouvellement d'un jeton, alors que les promos du compte
-// sont déjà en mémoire, ne change rien : la promo affichée reste la bonne, rien à signaler.
+// aucune promo ; nul si une déconnexion a croisé le chargement (rien n'a été posé : à ignorer,
+// ni refus ni message, la déconnexion a déjà tout remis à plat). Deux essais, le second 1,5 s
+// après le premier : une panne passagère ne doit pas faire perdre la promo choisie. Si les deux
+// échouent, on entre quand même (un stagiaire n'a qu'une promo, le bloquer serait une
+// régression) en état dégradé : liste vide, donc sans pastille, et bandeau. Un échec au
+// renouvellement d'un jeton, alors que les promos du compte sont déjà en mémoire, ne change
+// rien : la promo affichée reste la bonne, rien à signaler.
 async function chargerContextePromo(user) {
   for (let essai = 1; essai <= 2; essai++) {
     try {
       const promos = await chargerMesPromos(user.email);
+      if (promos === null) return null;
       promosIndisponibles = false;
       return promos.length > 0;
     } catch (e) {
@@ -178,7 +181,10 @@ function rechargerSansDelai() {
 export async function initAuth() {
   currentUser = await getCurrentUser();
   if (currentUser) {
-    if (!(await chargerContextePromo(currentUser))) {
+    const contexte = await chargerContextePromo(currentUser);
+    if (contexte === null) {
+      // Déconnexion pendant le chargement : rien n'a été posé, rien à refuser ni à dire.
+    } else if (!contexte) {
       // Le rappel onAuthChange n'est pas encore branché : la déconnexion ne lui dira pas
       // d'oublier le contexte, refuserSession s'en charge (comme pour le profil absent).
       await refuserSession(MESSAGE_SANS_PROMO);
@@ -198,7 +204,12 @@ export async function initAuth() {
     if (user) {
       const avant = getPromoCourante()?.id ?? null;
       const etaitDegrade = promosIndisponibles;
-      if (!(await chargerContextePromo(user))) {
+      const contexte = await chargerContextePromo(user);
+      // Déconnexion pendant le chargement : le rappel de la déconnexion a déjà vidé le profil, la barre
+      // et prévenu les écouteurs. Rien à refuser, à dire ni à relire (et surtout pas de second signOut,
+      // qui frapperait une session ouverte entre-temps).
+      if (contexte === null) return;
+      if (!contexte) {
         await refuserSession(MESSAGE_SANS_PROMO);
       } else if (avant !== null && getPromoCourante()?.id !== avant) {
         // La promo affichée n'est plus accessible (ou le compte a changé) : les vues déjà

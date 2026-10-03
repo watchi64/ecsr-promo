@@ -89,7 +89,9 @@ export function invalidateCache(key) {
 // appareil si elle est toujours accessible, sinon celle par défaut. Appelée à chaque
 // événement d'authentification : la promo en cours est CONSERVÉE tant qu'elle reste
 // accessible (un renouvellement de jeton ne doit jamais faire changer de promo, ni
-// envoyer une requête sans en-tête pendant le rechargement de la liste).
+// envoyer une requête sans en-tête pendant le rechargement de la liste). Renvoie la liste (vide si
+// le compte n'a accès à aucune promo), ou null si une déconnexion a croisé le chargement : rien
+// n'est alors posé, et l'appelant n'a rien à faire (ni refus, ni message).
 export async function chargerMesPromos(email) {
   const compte = email ? String(email).trim().toLowerCase() : null;
   // Autre compte que celui du contexte en mémoire (appareil partagé) : on repart de zéro,
@@ -104,7 +106,7 @@ export async function chargerMesPromos(email) {
   const monEpoque = epoque;
   const { data, error } = await supabase.rpc("mes_promos");
   if (error) throw error;
-  if (monEpoque !== epoque) return [];  // déconnexion pendant le chargement : rien à poser
+  if (monEpoque !== epoque) return null;  // déconnexion pendant le chargement : rien à poser
   cleMemoire = compte ? "ecsr_promo:" + compte : null;
   mesPromos = data || [];
   let memorisee = null;

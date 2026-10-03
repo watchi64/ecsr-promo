@@ -7941,3 +7941,10 @@ body.cours-open { overflow: hidden; }
 @media (max-width: 360px) {
   .promo-pastille-lieu { display: none; }
 }
+
+/* Multi-promo : sur portable (jusqu'à 1400 px), la pastille de rôle du badge s'efface comme sur
+   téléphone. Avec la pastille de promo, « Actualiser » était rogné de 16 px à 1280 px pour les
+   formateurs (huit onglets avec leurs libellés dans une seule rangée). */
+@media (max-width: 1400px) {
+  #admin-slot.avec-pastille .admin-role { display: none; }
+}

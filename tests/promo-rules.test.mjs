@@ -18,6 +18,36 @@ assert.equal(doitPorterEntetePromo(undefined, SB), false);
 assert.equal(doitPorterEntetePromo("https://exemple.supabase.co.evil.example/rest/v1/x", SB), false);
 assert.equal(doitPorterEntetePromo("/rest/v1/x", SB), false);
 
+// Adresse analysée (URL) et non comparée comme un texte : une barre finale dans la configuration, un hôte en
+// capitales ou le port par défaut ne font pas taire l'en-tête sans erreur ; un chemin remonté, un autre port
+// ou un autre schéma ne le reçoivent jamais.
+assert.equal(doitPorterEntetePromo(SB + "/rest/v1/x", SB + "/"), true);
+assert.equal(doitPorterEntetePromo(SB + "/rest/v1/rpc/mes_promos", SB + "/"), true);
+assert.equal(doitPorterEntetePromo(SB + "/functions/v1/chatbot", SB + "/"), false);
+assert.equal(doitPorterEntetePromo(SB + "/auth/v1/token", SB + "/"), false);
+assert.equal(doitPorterEntetePromo("https://EXEMPLE.Supabase.CO/rest/v1/x", SB), true);
+assert.equal(doitPorterEntetePromo("https://exemple.supabase.co:443/rest/v1/x", SB), true);
+assert.equal(doitPorterEntetePromo("https://exemple.supabase.co:8443/rest/v1/x", SB), false);
+assert.equal(doitPorterEntetePromo("http://exemple.supabase.co/rest/v1/x", SB), false);
+assert.equal(doitPorterEntetePromo(SB + "/rest/v1/../functions/v1/chatbot", SB), false);
+assert.equal(doitPorterEntetePromo(SB + "/rest/v1/%2e%2e/functions/v1/chatbot", SB), false);
+assert.equal(doitPorterEntetePromo(SB + "/rest/v1", SB), false);
+
+// Hôtes sosies, adresses relatives ou illisibles : jamais d'en-tête, jamais d'exception.
+assert.equal(doitPorterEntetePromo("https://exemple-supabase.co/rest/v1/x", SB), false);
+assert.equal(doitPorterEntetePromo("https://exemple.supabase.co@autre.example/rest/v1/x", SB), false);
+assert.equal(doitPorterEntetePromo("https://autre.example/exemple.supabase.co/rest/v1/x", SB), false);
+assert.equal(doitPorterEntetePromo("rest/v1/x", SB), false);
+assert.equal(doitPorterEntetePromo("//exemple.supabase.co/rest/v1/x", SB), false);
+assert.equal(doitPorterEntetePromo(SB + "/rest/v1/x", "pas une adresse"), false);
+assert.equal(doitPorterEntetePromo(SB + "/rest/v1/x", ""), false);
+assert.equal(doitPorterEntetePromo(SB + "/rest/v1/x", undefined), false);
+
+// Passerelle avec un préfixe de chemin : l'API de données est sous ce préfixe, comme avec l'ancienne comparaison.
+assert.equal(doitPorterEntetePromo("https://passerelle.example/api/rest/v1/x", "https://passerelle.example/api"), true);
+assert.equal(doitPorterEntetePromo("https://passerelle.example/api/rest/v1/x", "https://passerelle.example/api/"), true);
+assert.equal(doitPorterEntetePromo("https://passerelle.example/rest/v1/x", "https://passerelle.example/api"), false);
+
 const MARS = { id: 1, nom: "Nîmes, mars 2026", lieu_id: 1, lieu_nom: "Nîmes",
   date_debut: "2026-03-30", par_defaut: true, stagiaire_id: 15 };
 const SEPT = { id: 2, nom: "Nîmes, septembre 2026", lieu_id: 1, lieu_nom: "Nîmes",
@@ -111,4 +141,4 @@ assert.equal(ouvert.exam_draw_mode, "manual");
 assert.deepEqual([...CHAMPS_EXAMEN].sort(), ["exam_draw_mode", "exam_ferme_a", "exam_nb_questions",
   "exam_question_ids", "exam_seconds_per_question", "published", "published_at", "published_by_email"]);
 
-console.log("promo-rules : 52 assertions OK");
+console.log("promo-rules : 74 assertions OK");
