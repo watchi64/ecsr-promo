@@ -274,12 +274,15 @@ begin
   -- La synchro de bascule les a recopiés en mars ; B ne doit figurer dans aucune promo.
   delete from themes_progression where theme_id = v_theme_b;
   delete from qcm_examens where qcm_id = v_qcm_b;
-  -- État voulu posé explicitement, par upsert (rejouable une fois septembre en service).
+  -- État voulu posé explicitement, par upsert (rejouable une fois septembre en service). L'examen
+  -- de mars du QCM A l'est aussi : sans la synchro de bascule, supprimée par le ménage de l'étape 5,
+  -- sa ligne n'existe pas d'elle-même.
   insert into themes_progression (promo_id, theme_id, statut) values (2, v_theme_a, 'Fait')
     on conflict (promo_id, theme_id) do update set statut = excluded.statut;
   insert into qcm_examens (promo_id, qcm_id, published, exam_ferme_a) values (2, v_qcm_a, false, null)
     on conflict (promo_id, qcm_id) do update set published = excluded.published, exam_ferme_a = excluded.exam_ferme_a;
-  update qcm_examens set published = false, exam_ferme_a = null where promo_id = 1 and qcm_id = v_qcm_a;
+  insert into qcm_examens (promo_id, qcm_id, published, exam_ferme_a) values (1, v_qcm_a, false, null)
+    on conflict (promo_id, qcm_id) do update set published = excluded.published, exam_ferme_a = excluded.exam_ferme_a;
   -- Banques : une auto-école et un bénévole à Montpellier, une auto-école et un bénévole témoins
   -- à Nîmes (le suivi des venues de Nîmes est vide aujourd'hui).
   insert into auto_ecoles (nom, lieu_id) values ('Preuve AE Montpellier', 2) returning id into v_ae_mtp;
