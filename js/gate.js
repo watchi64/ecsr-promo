@@ -4,9 +4,9 @@
  */
 // La carte d'authentification et ses modes. Sortie de main.js, qui redevient le
 // fichier du démarrage et des routes.
-import { signInWithPassword, signUpWithPassword, requestPasswordReset, updatePassword } from "./db.js?v=20261003b";
-import { validerEmail, validerMotDePasse, messageErreurAuth, configMode, MDP_MIN } from "./gate-rules.js?v=20261003b";
-import { toast } from "./utils.js?v=20261003b";
+import { signInWithPassword, signUpWithPassword, requestPasswordReset, updatePassword } from "./db.js?v=20261003c";
+import { validerEmail, validerMotDePasse, messageErreurAuth, configMode, MDP_MIN } from "./gate-rules.js?v=20261003c";
+import { toast } from "./utils.js?v=20261003c";
 
 // Refus décidé APRÈS une connexion réussie côté serveur (aucune promo, compte non invité) :
 // auth-admin.js émet « ecsr:refus-porte » (detail = le motif) juste avant de déconnecter. Un

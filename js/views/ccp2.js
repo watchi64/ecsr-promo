@@ -1,12 +1,13 @@
 // Onglet CCP2 (chantier D) : parcours guidé du certificat « Sensibiliser
 // l'ensemble des usagers de la route ». Texte dans js/ccp2-parcours-data.js,
 // dates tirées du Calendrier de la promo. Lecture seule : aucun contrôle d'édition.
-import { el, clear, formatDate, isoDate } from "../utils.js?v=20261003b";
-import { listAgendaEvents } from "../db.js?v=20261003b";
-import { routeVisible, moduleVisible } from "../modules-etat.js?v=20261003b";
-import { STORAGE_SOUS_ONGLET } from "../nouveautes.js?v=20261003b";
-import { datesCcp2, insecables } from "../ccp-rules.js?v=20261003b";
-import { EPREUVE, ETAPES } from "../ccp2-parcours-data.js?v=20261003b";
+import { el, clear, formatDate, isoDate } from "../utils.js?v=20261003c";
+import { listAgendaEvents } from "../db.js?v=20261003c";
+import { routeVisible, moduleVisible } from "../modules-etat.js?v=20261003c";
+import { STORAGE_SOUS_ONGLET } from "../nouveautes.js?v=20261003c";
+import { hrefLien } from "../route-rules.js?v=20261003c";
+import { datesCcp2, insecables } from "../ccp-rules.js?v=20261003c";
+import { EPREUVE, ETAPES } from "../ccp2-parcours-data.js?v=20261003c";
 
 // Dernière étape ouverte, rouverte au retour sur l'onglet.
 const CLE_ETAPE = "ecsr_ccp2_etape";
@@ -27,13 +28,14 @@ function lien(l) {
   if (l.href) return el("a", { href: l.href, target: "_blank", rel: "noopener" }, l.label);
   if (l.module && !moduleVisible(l.module)) return null;
   if (!routeVisible(l.route)) return null;
+  const href = hrefLien(l);
   return el("a", {
-    href: "#/" + l.route,
-    // Comme les liens « Où le trouver » des nouveautés : le sous-onglet visé est écrit
-    // là où renderSubTabs le relit à l'ouverture de la page.
+    href,
+    // Comme les liens « Où le trouver » des nouveautés : une partie de Mon espace
+    // par l'adresse, un sous-onglet de Notes ou de Cours par la mémoire de renderSubTabs.
     onClick: () => {
       const cle = STORAGE_SOUS_ONGLET[l.route];
-      if (!cle || !l.sousOnglet) return;
+      if (!cle || !l.sousOnglet || href !== "#/" + l.route) return;
       try { localStorage.setItem(cle, l.sousOnglet); } catch (e) { /* ignore */ }
     },
   }, l.label);

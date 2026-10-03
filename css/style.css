@@ -8044,3 +8044,68 @@ body.cours-open { overflow: hidden; }
   .subtabs-bar { gap: 0.1rem; }
   .subtab { padding: 0.5rem 0.5rem; font-size: 0.86rem; }
 }
+
+/* ===== Chantier D, lot 2 : fiche en sommaire et page Stagiaires ===== */
+
+/* Fiche : nom de la personne ou de la partie, lien de retour (iPhone). */
+.fiche-titre { margin: 0 0 0.9rem; font-size: 1.3rem; }
+.fiche-retour {
+  display: inline-flex; align-items: center; gap: 0.15rem;
+  margin: 0 0 0.6rem; color: var(--accent-strong); text-decoration: none; font-size: 1rem;
+}
+.fiche-retour svg { width: 18px; height: 18px; }
+
+/* Sommaire (iPhone) : une grande ligne par partie, à la manière des Réglages. */
+.fiche-sommaire {
+  display: flex; flex-direction: column; overflow: hidden;
+  background: var(--bg-elev); border: 1px solid var(--line); border-radius: 12px;
+}
+.fiche-ligne {
+  display: flex; align-items: center; gap: 0.6rem; min-height: 50px; padding: 0.7rem 0.9rem;
+  color: var(--text); text-decoration: none; border-top: 1px solid var(--line-faint);
+}
+.fiche-ligne:first-child { border-top: none; }
+.fiche-ligne:active { background: var(--bg-subtle); }
+.fiche-ligne-nom { flex: 1; font-size: 1rem; }
+.fiche-ligne-etat { color: var(--text-muted); font-size: 0.92rem; }
+.fiche-ligne > svg { width: 18px; height: 18px; color: var(--text-faint); flex: none; }
+.fiche-ligne-etat.afaire, .stg-etat.afaire { color: var(--c-wait); }
+
+/* Page Stagiaires : ordinateur, la liste à gauche et la fiche à droite. */
+.stg-colonnes {
+  display: grid; grid-template-columns: minmax(0, 270px) minmax(0, 1fr);
+  gap: 1.75rem; align-items: start; margin-top: 1.25rem;
+}
+.stg-liste { display: flex; flex-direction: column; gap: 0.2rem; }
+.stg-ligne {
+  display: flex; align-items: center; gap: 0.5rem; padding: 0.55rem 0.75rem;
+  border-radius: 10px; color: var(--text); text-decoration: none;
+}
+.stg-ligne:hover { background: var(--bg-subtle); }
+.stg-ligne.active { background: var(--accent-soft); }
+.stg-ligne.active .stg-nom { color: var(--accent-strong); }
+.stg-ligne-texte { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.1rem; }
+.stg-nom { font-weight: 600; }
+.stg-etats { font-size: 0.84rem; color: var(--text-muted); }
+.stg-ligne > svg { display: none; width: 18px; height: 18px; color: var(--text-faint); flex: none; }
+.stg-fiche { min-width: 0; }
+@media (max-width: 760px) {
+  /* iPhone : la liste devient un groupe de grandes lignes, avec la flèche. */
+  .stg-liste {
+    gap: 0; margin-top: 1rem; overflow: hidden;
+    background: var(--bg-elev); border: 1px solid var(--line); border-radius: 12px;
+  }
+  .stg-ligne { min-height: 56px; padding: 0.7rem 0.9rem; border-radius: 0; border-top: 1px solid var(--line-faint); }
+  .stg-ligne:first-child { border-top: none; }
+  .stg-ligne.active { background: transparent; }
+  .stg-ligne > svg { display: block; }
+}
+
+/* Partie EPCF de la fiche, chez un formateur : une ligne par épreuve. */
+.epcf-fiche-actions { display: flex; flex-direction: column; gap: 0.5rem; margin: 0 0 1.25rem; }
+.epcf-fiche-ligne {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem; padding: 0.6rem 0.8rem;
+  border: 1px solid var(--line); border-radius: 10px; background: var(--bg-elev);
+}
+.epcf-fiche-epreuve { font-weight: 600; min-width: 5.5rem; }
+.epcf-fiche-ligne .epcf-statut { flex: 1; }

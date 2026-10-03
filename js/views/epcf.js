@@ -1,128 +1,105 @@
-// Vue EPCF, rendue en sous-onglet de Notes. S'adapte au rôle :
-//  - formateur/admin : liste des stagiaires × trames, saisie de grille, consultation
-//    par élève, vue classe ;
-//  - stagiaire : vue classe (moyennes agrégées, k-anonymisées) uniquement.
-// La saisie reste protégée par la RLS (INSERT/UPDATE réservés aux profs/admin).
+// Vue EPCF (chantier D, lot 2).
+//  - Notes, sous-onglet EPCF : les moyennes de la classe, pour tout le monde
+//    (agrégats k-anonymisés, RPC autorisée à tout connecté).
+//  - Fiche d'une personne (Mon espace, page Stagiaires) : ses résultats salle et
+//    véhicule ; chez un formateur, la saisie (Évaluer, Modifier, Nouvelle évaluation).
+// L'écriture reste réservée par la base aux formateurs et aux admins.
 
-import { listStagiaires, listProfs, listEpcf, upsertEpcf, getEpcfMoyennes } from "../db.js?v=20261003b";
-import { el, clear, isoDate, formatDate, displayStagiaire, compareByNom, toast } from "../utils.js?v=20261003b";
-import { isAdmin, isProf, getProfile } from "../auth-admin.js?v=20261003b";
-import { getCurrentWho } from "../identity.js?v=20261003b";
-import { EPCF_TRAMES, NOTE_LABELS } from "../epcf-trames.js?v=20261003b";
-import { renderEpcfTrameSection, renderEpcfClasse } from "../epcf-restitution.js?v=20261003b";
-
-let stagiaires = [];
-let profs = [];
-let evals = [];   // toutes les évals (les profs/admin lisent tout via RLS)
-let moyByTrame = { salle: [], vehicule: [] };   // agrégats RPC (vue classe + série groupe)
+import { listProfs, listEpcf, upsertEpcf, getEpcfMoyennes } from "../db.js?v=20261003c";
+import { el, clear, isoDate, formatDate, displayStagiaire, toast } from "../utils.js?v=20261003c";
+import { getProfile } from "../auth-admin.js?v=20261003c";
+import { getCurrentWho } from "../identity.js?v=20261003c";
+import { EPCF_TRAMES, NOTE_LABELS } from "../epcf-trames.js?v=20261003c";
+import { renderEpcfTrameSection, renderEpcfClasse } from "../epcf-restitution.js?v=20261003c";
+import { poserGardeSortie, leverGardeSortie } from "../navigation.js?v=20261003c";
 
 const TRAME_KEYS = ["salle", "vehicule"];
 
-function evalsFor(sid, trameKey) {
-  return evals.filter((e) => e.stagiaire_id === sid && e.trame === trameKey);
-}
-
-// opts.embedded : true quand la vue est rendue DANS une autre vue (sous-onglet EPCF
-// de Notes) → on n'affiche pas le view-header (le parent a déjà le sien).
+// opts.embedded : rendu dans le sous-onglet EPCF de Notes (le parent a son en-tête).
 export async function renderEpcf(container, opts = {}) {
   clear(container);
   container.appendChild(el("div", { class: "loading" }, "Chargement"));
-  const formateur = isAdmin() || isProf();
-
-  // Stagiaire : pas de saisie ni de liste, seulement la vue classe (moyennes
-  // agrégées, k-anonymisées). La RPC getEpcfMoyennes est autorisée à tout connecté.
-  if (!formateur) {
-    const [mSalle, mVehicule] = await Promise.all([getEpcfMoyennes("salle"), getEpcfMoyennes("vehicule")]);
-    if (opts.isActive && !opts.isActive()) return;
-    clear(container);
-    if (!opts.embedded) {
-      container.appendChild(el("div", { class: "view-header" },
-        el("div", { class: "view-header-text" }, el("h2", {}, "EPCF"))));
-    }
-    const body = el("div", { class: "epcf-body" });
-    container.appendChild(body);
-    body.appendChild(el("h3", { class: "epcf-resti-title" }, "Moyennes de la classe"));
-    renderEpcfClasse(body, { salle: mSalle, vehicule: mVehicule });
-    return;
-  }
-
-  const [stagiairesData, profsData, evalsData, mSalle, mVehicule] = await Promise.all([
-    listStagiaires(), listProfs(), listEpcf(), getEpcfMoyennes("salle"), getEpcfMoyennes("vehicule"),
-  ]);
-  stagiaires = stagiairesData; profs = profsData; evals = evalsData;
-  moyByTrame = { salle: mSalle, vehicule: mVehicule };
-  // Rendu embarqué (sous-onglet) : si l'utilisateur a changé d'onglet pendant le
-  // chargement, on ne touche pas au panneau (il affiche déjà autre chose).
+  const [mSalle, mVehicule] = await Promise.all([getEpcfMoyennes("salle"), getEpcfMoyennes("vehicule")]);
   if (opts.isActive && !opts.isActive()) return;
-  stagiaires = stagiaires.slice().sort(compareByNom);
   clear(container);
-
   if (!opts.embedded) {
     container.appendChild(el("div", { class: "view-header" },
-      el("div", { class: "view-header-text" },
-        el("p", { class: "eyebrow" }, "Formateurs"),
-        el("h2", {}, "EPCF"),
-        el("p", { class: "subtitle" }, "Évaluations en cours de formation : grilles CCP1 salle et véhicule."),
-      ),
-    ));
+      el("div", { class: "view-header-text" }, el("h2", {}, "EPCF"))));
   }
-
   const body = el("div", { class: "epcf-body" });
   container.appendChild(body);
-  showListe(body);
+  body.appendChild(el("h3", { class: "epcf-resti-title" }, "Moyennes de la classe"));
+  renderEpcfClasse(body, { salle: mSalle, vehicule: mVehicule });
 }
 
-// --- Liste : stagiaires × trames, statut + boutons ---
-function showListe(body) {
-  clear(body);
-  const table = el("table", { class: "epcf-table" });
-  table.appendChild(el("thead", {}, el("tr", {},
-    el("th", {}, "Stagiaire"),
-    ...TRAME_KEYS.map((k) => el("th", {}, EPCF_TRAMES[k].label)),
-  )));
-  const tbody = el("tbody");
-  stagiaires.forEach((s) => {
-    const hasAny = evals.some((e) => e.stagiaire_id === s.id);
-    // display:flex directement sur un <td> casse le border-collapse (traits
-    // désalignés dans la colonne) → on met le flex sur un <div> interne.
-    const nameCell = el("td", {}, el("div", { class: "epcf-name-cell" },
-      el("span", { class: "epcf-name" }, displayStagiaire(s)),
-      hasAny ? el("button", { class: "btn small ghost", onClick: () => showConsult(body, s) }, "Voir") : null,
-    ));
-    const tr = el("tr", {}, nameCell);
+// Partie EPCF de la fiche d'une personne. opts.outils : boutons de saisie (formateur).
+export function renderEpcfPersonne(container, opts) {
+  const etat = { evals: opts.evals || [], moyennes: opts.moyennes };
+
+  function dessiner() {
+    clear(container);
+    if (opts.outils) {
+      const actions = el("div", { class: "epcf-fiche-actions" });
+      TRAME_KEYS.forEach((k) => {
+        // listEpcf trie par date décroissante : la première est la dernière évaluation.
+        const derniere = etat.evals.find((e) => e.trame === k) || null;
+        actions.appendChild(el("div", { class: "epcf-fiche-ligne" },
+          el("span", { class: "epcf-fiche-epreuve" }, EPCF_TRAMES[k].label),
+          el("span", { class: "epcf-statut" + (derniere ? " ok" : " muted") },
+            derniere ? "évaluée le " + formatDate(derniere.date_eval) : "à évaluer"),
+          derniere ? el("button", { class: "btn small ghost", type: "button",
+            onClick: () => ouvrir(k, derniere) }, "Modifier") : null,
+          el("button", { class: "btn small primary", type: "button", onClick: () => ouvrir(k, null) },
+            derniere ? "Nouvelle évaluation" : "Évaluer"),
+        ));
+      });
+      container.appendChild(actions);
+    }
     TRAME_KEYS.forEach((k) => {
-      const list = evalsFor(s.id, k);
-      const cell = el("td", { class: "epcf-cell" });
-      if (list.length) {
-        cell.appendChild(el("span", { class: "epcf-statut ok" }, "évalué le " + formatDate(list[0].date_eval)));
-        cell.appendChild(el("button", { class: "btn small ghost", onClick: () => showForm(body, s, k, list[0]) }, "Modifier"));
-      } else {
-        cell.appendChild(el("span", { class: "epcf-statut muted" }, "à évaluer"));
-      }
-      cell.appendChild(el("button", { class: "btn small primary", onClick: () => showForm(body, s, k, null) },
-        list.length ? "Nouvelle éval" : "Évaluer"));
-      tr.appendChild(cell);
+      container.appendChild(renderEpcfTrameSection(k, etat.evals.filter((e) => e.trame === k), etat.moyennes[k]));
     });
-    tbody.appendChild(tr);
-  });
-  table.appendChild(tbody);
-  body.appendChild(el("div", { class: "epcf-table-wrap" }, table));
-  body.appendChild(el("div", { class: "epcf-actions" },
-    el("button", { class: "btn ghost", onClick: () => showClasse(body) }, "Vue classe (moyennes)")));
+  }
+
+  async function ouvrir(trameKey, existing) {
+    let profs = [];
+    try { profs = await listProfs(); } catch (e) { console.error(e); }
+    if (opts.isActive && !opts.isActive()) return;
+    showForm(container, opts.stagiaire, trameKey, existing, {
+      profs,
+      retour: dessiner,
+      apresEnregistrement: async () => {
+        try {
+          const [ev, mS, mV] = await Promise.all([
+            listEpcf({ stagiaire_id: opts.stagiaire.id }), getEpcfMoyennes("salle"), getEpcfMoyennes("vehicule"),
+          ]);
+          etat.evals = ev;
+          etat.moyennes = { salle: mS, vehicule: mV };
+        } catch (e) { console.error(e); }   // données peut-être périmées : la prochaine ouverture relira
+        if (opts.onEnregistre) opts.onEnregistre(etat.evals);
+        if (!opts.isActive || opts.isActive()) dessiner();
+      },
+    });
+  }
+
+  dessiner();
 }
 
 // --- Formulaire de saisie d'une grille ---
-function showForm(body, stagiaire, trameKey, existing) {
+// Une garde de sortie protège la saisie : quitter avec des changements demande confirmation.
+function showForm(body, stagiaire, trameKey, existing, { profs, retour, apresEnregistrement }) {
   clear(body);
   const trame = EPCF_TRAMES[trameKey];
   const scores = { ...(existing?.scores || {}) };
   const compSel = new Set(existing?.competences_acquises || []);
   let dirty = false;
+  const garde = { estSale: () => dirty, message: "Abandonner la saisie en cours ?" };
+  poserGardeSortie(garde);
 
   body.appendChild(el("div", { class: "epcf-form-head" },
-    el("button", { class: "btn small ghost", onClick: () => {
+    el("button", { class: "btn small ghost", type: "button", onClick: () => {
       if (dirty && !confirm("Abandonner la saisie en cours ?")) return;
-      showListe(body);
+      leverGardeSortie(garde);
+      retour();
     } }, "← Retour"),
     el("h3", {}, `${trame.label} : ${displayStagiaire(stagiaire)}`),
   ));
@@ -137,8 +114,8 @@ function showForm(body, stagiaire, trameKey, existing) {
     metaWrap.appendChild(el("div", { class: "field" }, el("label", {}, f.label), inp));
   });
   // Évaluateur facultatif. En édition, on respecte la valeur stockée (y compris null) ;
-  // en création, pré-rempli avec le prof connecté s'il en est un (le fondateur admin
-  // n'a pas de prof_id → option vide, pas d'attribution silencieuse au premier prof).
+  // en création, pré-rempli avec le formateur connecté s'il en est un (le fondateur
+  // admin n'a pas de prof_id : option vide, pas d'attribution silencieuse).
   const preset = existing ? existing.evaluateur_prof_id : (getProfile()?.prof_id ?? null);
   const evalSel = el("select");
   const optVide = el("option", { value: "" }, "-");
@@ -195,7 +172,7 @@ function showForm(body, stagiaire, trameKey, existing) {
   [dateInput, ...Object.values(metaInputs), commentTa].forEach((n) => n.addEventListener("input", () => { dirty = true; }));
   evalSel.addEventListener("change", () => { dirty = true; });
 
-  const saveBtn = el("button", { class: "btn primary", onClick: async () => {
+  const saveBtn = el("button", { class: "btn primary", type: "button", onClick: async () => {
     if (Object.keys(scores).length === 0) { toast("Renseigne au moins un critère", "error"); return; }
     if (!dateInput.value) { toast("Renseigne la date", "error"); return; }
     saveBtn.disabled = true;
@@ -224,41 +201,10 @@ function showForm(body, stagiaire, trameKey, existing) {
       saveBtn.textContent = prev;
       return;
     }
-    // L'éval est écrite : plus de retour en arrière possible sur ce bouton.
     toast("Évaluation enregistrée", "success", 2000);
     dirty = false;
-    // Rafraîchit la liste ET les moyennes (sinon la « Vue classe » ignorerait la
-    // nouvelle éval jusqu'au prochain rechargement de la vue).
-    try {
-      const [ev, mS, mV] = await Promise.all([listEpcf(), getEpcfMoyennes("salle"), getEpcfMoyennes("vehicule")]);
-      evals = ev; moyByTrame = { salle: mS, vehicule: mV };
-    } catch (e) { console.error(e); }   // données potentiellement périmées, la nav les rechargera
-    showListe(body);
+    leverGardeSortie(garde);
+    await apresEnregistrement();
   } }, "Enregistrer l'évaluation");
   body.appendChild(el("div", { class: "epcf-actions" }, saveBtn));
-}
-
-// --- Consultation (lecture seule) des derniers résultats d'un élève : les 2 radars
-// (salle + véhicule) + détail, sans passer par le formulaire d'édition. ---
-function showConsult(body, stagiaire) {
-  clear(body);
-  body.appendChild(el("div", { class: "epcf-form-head" },
-    el("button", { class: "btn small ghost", onClick: () => showListe(body) }, "← Retour"),
-    el("h3", {}, "Résultats : " + displayStagiaire(stagiaire)),
-  ));
-  TRAME_KEYS.forEach((trameKey) => {
-    body.appendChild(renderEpcfTrameSection(trameKey,
-      evals.filter((e) => e.stagiaire_id === stagiaire.id && e.trame === trameKey),
-      moyByTrame[trameKey]));
-  });
-}
-
-// --- Vue classe : moyennes par phase et critère (agrégats RPC, réutilisable). ---
-function showClasse(body) {
-  clear(body);
-  body.appendChild(el("div", { class: "epcf-form-head" },
-    el("button", { class: "btn small ghost", onClick: () => showListe(body) }, "← Retour"),
-    el("h3", {}, "Vue classe : moyennes"),
-  ));
-  renderEpcfClasse(body, moyByTrame);
 }

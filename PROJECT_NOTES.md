@@ -63,7 +63,8 @@ Accueil · Planning · Calendrier · Cours · Notes · CCP2 · Ressources · Par
 ```
 
 CCP2 n'apparaît que lorsqu'un formateur ouvre le module pour la promo. Mon espace (`mon-suivi`),
-Priorités (`dashboard`, bouton en haut du Planning) et Nouveautés sont des pages sans onglet.
+Stagiaires (`stagiaires`, formateurs : tuile de l'Accueil et bouton du compte), Priorités
+(`dashboard`, bouton en haut du Planning) et Nouveautés sont des pages sans onglet.
 Cours garde la route `themes`. Voir « Barre simple et onglet CCP2 ». Les descriptions ci-dessous
 datent de mai et juin : Thèmes, Priorités et Notes y sont décrits comme avant.
 
@@ -318,7 +319,7 @@ selon qu'on est stagiaire ou formateur ; **Mon espace = ce qui est à moi, Notes
   filet), plus Signalements pour les formateurs ; pastille active mémorisée par sous-onglet
   (`familleActive`) ; pastilles masquées s'il n'y a qu'une famille.
 - **Notes** : Matrice et EPCF pour tous ; Livret EPCF et Dossier pro réservés aux formateurs
-  (jusqu'au lot 2, espace stagiaires des formateurs).
+  (remplacés au lot 2 par la page Stagiaires, section suivante).
 - **Mon espace** : sous-onglet **Livret EPCF** ; `renderEpcfLivret(p, { stagiaireId })` ouvre le
   livret de l'élève affiché, en saisie pour un formateur ; un stagiaire voit le sien en lecture.
 - **CCP2** (`js/views/ccp2.js`) : texte versionné dans `js/ccp2-parcours-data.js` (critères du REAC
@@ -332,10 +333,43 @@ selon qu'on est stagiaire ou formateur ; **Mon espace = ce qui est à moi, Notes
   forme, liens, aucun cadratin, jamais « prof »).
 - **Convention pour les formateurs** : le titre d'un stage ou d'un examen du CCP2 contient
   « CCP2 », sinon il n'apparaît pas dans le parcours.
-- **Assistant** : `aide.mjs` décrit la nouvelle barre ; il faut redéployer la fonction `chatbot`.
+- **Assistant** : `aide.mjs` décrit la nouvelle barre ; fonction `chatbot` redéployée le 03/10
+  (version 8).
 - **Banc** : après chaque `node _harness_build.mjs`, ouvrir `_harness.html` avec un paramètre
   neuf (`?cb=…`) : le navigateur garde la page en cache avec l'ancien jeton, donc les anciens
   modules, et un test peut passer au vert sur du code qui n'est plus sur le disque.
+
+## Page Stagiaires et fiche en sommaire (chantier D, lot 2, octobre 2026)
+
+Spec : `docs/superpowers/specs/2026-10-03-espace-stagiaires-design.md` · plan :
+`docs/superpowers/plans/2026-10-03-espace-stagiaires.md`.
+
+- **Adresses à segments** : `#/<route>/<id>/<partie>` (`js/route-rules.js`, pur). Le routeur
+  choisit la page sur le premier segment ; la page lit le reste. Parties d'une fiche : `passages`,
+  `epcf`, `evolution`, `livret`, `dp`.
+- **Mise à jour sur place** (`js/navigation.js`) : une page s'inscrit avec
+  `surChangementAdresse(route, fn)` ; quand seule la fin de l'adresse change, `navigate()`
+  l'appelle au lieu de reconstruire la vue. `navigate({ force: true })` (Actualiser, changement de
+  rôle, Réessayer) reconstruit toujours.
+- **Garde de saisie** (`js/navigation.js`) : `poserGardeSortie({ estSale, message })` ;
+  `navigate`, Actualiser, Aujourd'hui, les sous-onglets et la fermeture de la page la consultent.
+  La grille EPCF est la seule vue à en poser une (le livret et le dossier s'enregistrent seuls).
+- **La fiche** (`renderFiche`, exportée par `js/views/mon-suivi.js`) : onglets sur ordinateur,
+  sommaire puis partie en plein écran sur iPhone (760 px et moins, disposition choisie à
+  l'affichage). États calculés par `js/fiche-rules.js` (pur). Mon espace = sa propre fiche ; la
+  page Stagiaires (`js/views/stagiaires.js`) = liste + fiche d'un stagiaire. Sur ordinateur, la
+  fiche choisie par défaut est inscrite dans l'adresse (Précédent revient à la fiche d'avant).
+- **États sans relecture** : le livret et le dossier émettent `document-enregistre` après un
+  enregistrement ; une évaluation EPCF enregistrée remonte par `onEpcfEnregistre`.
+- **Accès** : `pagePersonnelle()` ; un formateur sans profil stagiaire est conduit de
+  `#/mon-suivi` à `#/stagiaires`, un stagiaire de `#/stagiaires` à `#/mon-suivi`.
+  `monStagiaireId()` traite l'aperçu « Formateur » du fondateur comme un vrai formateur.
+- **Notes** : Matrice et moyennes EPCF pour tous ; la saisie EPCF, le livret et le dossier sont
+  dans la fiche.
+- **Aucune règle d'accès nouvelle** : vérifié en production le 03/10 (`pg_policies`), les
+  formateurs lisent et écrivent EPCF, livrets et dossiers de leur promo.
+- **Banc** : `?ecritures=1` garde en mémoire les insertions et upserts (EPCF, livret, dossier)
+  le temps de la page, pour vérifier qu'un état se met à jour après un enregistrement.
 
 ## Décisions UX importantes (à respecter)
 

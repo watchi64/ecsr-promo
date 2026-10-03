@@ -5,8 +5,10 @@ export function fenetreMessages(histo, max = 8) {
   return (histo ?? []).slice(-max).map((m) => ({ role: m.role, content: m.content }));
 }
 
+// Le premier segment seulement (#/stagiaires/12/epcf → stagiaires) : la fonction
+// serveur n'accepte qu'un mot simple comme nom de page.
 export function pageDepuisHash(hash) {
-  const route = String(hash ?? "").replace(/^#\//, "");
+  const route = String(hash ?? "").replace(/^#\//, "").split("/")[0];
   return route || "mon-suivi";
 }
 

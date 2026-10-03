@@ -1,10 +1,10 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261003b";
-import { compteDansEquite } from "./passage-rules.js?v=20261003b";
+import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261003c";
+import { compteDansEquite } from "./passage-rules.js?v=20261003c";
 import {
   ENTETE_PROMO, doitPorterEntetePromo, choisirPromoInitiale, profilEffectif,
   separerChamps, CHAMPS_PROGRESSION, CHAMPS_EXAMEN, fusionnerProgression, fusionnerExamen,
-} from "./promo-rules.js?v=20261003b";
+} from "./promo-rules.js?v=20261003c";
 
 // Contexte de promo (spec multi-promo, C.1). La promo courante voyage dans l'en-tête
 // x-promo-id de chaque requête de données ; la base vérifie le droit et filtre.
@@ -985,8 +985,9 @@ export async function getEpcfMoyennes(trame) {
 }
 
 // === Dossier Professionnel (document ministère, 1 dossier / stagiaire) ===
-// Le DP appartient au candidat : la RLS n'autorise l'écriture qu'à son
-// propriétaire (et à un admin). Les formateurs y ont un accès en lecture.
+// Le DP appartient au candidat. La base l'ouvre en lecture et en écriture à son
+// propriétaire, aux formateurs et aux admins de la promo (droits révisés le
+// 16/09, vérifiés en production le 03/10/2026).
 
 export async function listDpDossiers() {
   const { data, error } = await supabase
@@ -1018,6 +1019,35 @@ export async function upsertDpDossier({ stagiaire_id, data, updated_by_who }) {
     .single();
   if (error) throw error;
   return row;
+}
+
+// === Index légers des états (chantier D, lot 2) ===
+// Juste ce que demandent les états de la page Stagiaires et du sommaire, sans le
+// contenu des documents. La base filtre : un formateur lit sa promo, un stagiaire
+// ses propres lignes.
+
+export async function listEpcfEtats(filters = {}) {
+  let q = supabase.from("epcf_evaluations").select("stagiaire_id, trame, date_eval");
+  if (filters.stagiaire_id) q = q.eq("stagiaire_id", filters.stagiaire_id);
+  const { data, error } = await q;
+  if (error) throw error;
+  return data;
+}
+
+export async function listLivretsIndex(filters = {}) {
+  let q = supabase.from("epcf_livrets").select("stagiaire_id, updated_at");
+  if (filters.stagiaire_id) q = q.eq("stagiaire_id", filters.stagiaire_id);
+  const { data, error } = await q;
+  if (error) throw error;
+  return data;
+}
+
+export async function listDossiersIndex(filters = {}) {
+  let q = supabase.from("dp_dossiers").select("stagiaire_id, updated_at");
+  if (filters.stagiaire_id) q = q.eq("stagiaire_id", filters.stagiaire_id);
+  const { data, error } = await q;
+  if (error) throw error;
+  return data;
 }
 
 // === Audit passages (historique qui a modifié quoi) ===

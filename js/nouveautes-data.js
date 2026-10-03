@@ -16,6 +16,33 @@
 
 export const NOUVEAUTES = [
   {
+    id: "2026-10-03-page-stagiaires",
+    date: "2026-10-03",
+    pour: "formateurs",
+    titre: "Une page Stagiaires : toute la promo, une fiche par personne",
+    resume: "La tuile Stagiaires de l'Accueil (ou le bouton de ton compte) ouvre la liste de la "
+          + "promo, avec où en est chacun : épreuves EPCF évaluées, livret, dossier pro. La fiche "
+          + "d'un stagiaire réunit tes outils : la saisie de l'EPCF, son livret et son dossier. "
+          + "Notes garde la vue de la classe.",
+    ou: { label: "Accueil, tuile Stagiaires", route: "stagiaires" },
+    guide: [
+      "Ouvre la tuile Stagiaires de l'Accueil.",
+      "Choisis un stagiaire : sa fiche s'ouvre à côté de la liste, ou en plein écran sur téléphone.",
+      "Partie EPCF : Évaluer ou Modifier chaque épreuve. Parties Livret et Dossier pro : remplis-les ou relis-les.",
+    ],
+  },
+  {
+    id: "2026-10-03-sommaire-iphone",
+    date: "2026-10-03",
+    pour: "tous",
+    titre: "Ton espace personnel sur téléphone : un sommaire",
+    resume: "Sur téléphone, ton espace s'ouvre sur un sommaire : Passages, EPCF, Évolution, Livret "
+          + "et Dossier pro, chacun avec son état. Touche une ligne pour l'ouvrir ; la flèche en "
+          + "haut à gauche, ou le geste retour, te ramène au sommaire. Ta date de naissance se "
+          + "règle maintenant dans la partie Livret.",
+    ou: { label: "Le logo en haut à gauche", route: "mon-suivi" },
+  },
+  {
     id: "2026-10-03-deux-promos",
     date: "2026-10-03",
     pour: "formateurs",
@@ -52,19 +79,8 @@ export const NOUVEAUTES = [
     guide: [
       "Cours : choisis Thèmes ou Compétences juste sous le titre.",
       "Planning : le bouton Priorités est en haut de la page.",
-      "Ton espace personnel (le logo en haut à gauche) : sous-onglets Livret EPCF et Dossier pro.",
+      "Ton espace personnel (le logo en haut à gauche) : parties Livret et Dossier pro.",
     ],
-  },
-  {
-    id: "2026-10-03-livret-espace-stagiaire",
-    date: "2026-10-03",
-    pour: "formateurs",
-    module: "livret",
-    titre: "Le livret EPCF s'ouvre aussi depuis l'espace d'un stagiaire",
-    resume: "Dans l'espace personnel d'un stagiaire (choisis-le dans la liste « Élève »), le "
-          + "sous-onglet Livret EPCF ouvre son livret directement en saisie. Dans Notes, tu "
-          + "gardes la liste de tous les livrets et de tous les dossiers professionnels.",
-    ou: { label: "Mon espace personnel, sous-onglet Livret EPCF", route: "mon-suivi", sousOnglet: "livret" },
   },
   {
     id: "2026-10-03-parcours-ccp2",
@@ -139,7 +155,7 @@ export const NOUVEAUTES = [
           + "t'accompagner, au lieu de seulement le lire. Chaque enregistrement retient qui "
           + "a écrit en dernier, et cette information s'affiche en haut du dossier : tu vois "
           + "donc toujours si quelqu'un y est passé après toi.",
-    ou: { label: "Mon suivi, Dossier pro", route: "mon-suivi" },
+    ou: { label: "Mon espace personnel, partie Dossier pro", route: "mon-suivi", sousOnglet: "dp" },
   },
   {
     id: "2026-09-15-dp-mise-en-page",
@@ -154,7 +170,7 @@ export const NOUVEAUTES = [
           + "sommaire annonce les bons numéros de page. Pendant que tu écris, un trait "
           + "pointillé te montre où le document changera de feuille. Rien de ce que tu "
           + "avais déjà saisi n'a bougé.",
-    ou: { label: "Mon suivi, Dossier pro", route: "mon-suivi" },
+    ou: { label: "Mon espace personnel, partie Dossier pro", route: "mon-suivi", sousOnglet: "dp" },
   },
   {
     id: "2026-08-26-cours-pour-tous",
@@ -329,7 +345,7 @@ export const NOUVEAUTES = [
     resume: "Le dossier que tu présentes au jury se saisit directement ici et s'imprime au "
           + "format officiel. Tes réponses sont enregistrées au fur et à mesure, tu peux y "
           + "revenir autant de fois que tu veux.",
-    ou: { label: "Mon espace personnel, sous-onglet Dossier pro",
+    ou: { label: "Mon espace personnel, partie Dossier pro",
           route: "mon-suivi", sousOnglet: "dp" },
     guide: [
       "Ouvre ton espace personnel avec le logo en haut à gauche.",
@@ -375,7 +391,7 @@ export const NOUVEAUTES = [
     resume: "Le livret que tu présentes au jury se saisit ici et s'imprime au format officiel. "
           + "Ta date de naissance est reprise automatiquement depuis ton profil, tu n'as pas à "
           + "la ressaisir.",
-    ou: { label: "Mon espace personnel, sous-onglet Livret EPCF", route: "mon-suivi", sousOnglet: "livret" },
+    ou: { label: "Mon espace personnel, partie Livret", route: "mon-suivi", sousOnglet: "livret" },
     guide: [
       "Renseigne ta date de naissance dans ton espace personnel si ce n'est pas déjà fait.",
       "Ouvre l'onglet Notes, sous-onglet « Livret EPCF ».",

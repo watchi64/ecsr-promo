@@ -18,6 +18,11 @@ test("pageDepuisHash extrait la route, defaut mon-suivi", () => {
   assert.equal(pageDepuisHash(undefined), "mon-suivi");
 });
 
+test("pageDepuisHash ne garde que la page, sans fiche ni partie", () => {
+  assert.equal(pageDepuisHash("#/stagiaires/12/epcf"), "stagiaires");
+  assert.equal(pageDepuisHash("#/mon-suivi/dp"), "mon-suivi");
+});
+
 test("extraireEvenements decode nos evenements SSE malgre la fragmentation", () => {
   const un = extraireEvenements("", 'data: {"type":"delta","texte":"Bon"}\ndata: {"ty');
   assert.deepEqual(un.evenements, [{ type: "delta", texte: "Bon" }]);
