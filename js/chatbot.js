@@ -26,7 +26,9 @@ function sauverHisto() {
 async function rendreEnMarkdown(noeud, texte) {
   try {
     const { rendreMarkdown } = await import("./views/cours-reader.js?v=20261003c");
-    const { noeuds } = rendreMarkdown(texte);
+    // blocs: false : une réponse qui recopie un bloc de cours (schéma, quiz, cartes) le laisse en texte brut,
+    // elle ne monte ni schéma animé ni quiz dans la bulle.
+    const { noeuds } = rendreMarkdown(texte, { blocs: false });
     noeud.replaceChildren(...noeuds);
     noeud.querySelectorAll("a[href^='http']").forEach((a) => {
       a.target = "_blank";

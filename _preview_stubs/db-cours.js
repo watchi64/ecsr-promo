@@ -81,7 +81,7 @@ Paragraphe d'essai.
 Texte collé à un bloc.
 :::scene tourner-droite
 Contrôler et mettre le clignotant
-Serrer à droite, sans se coller au trottoir
+Serrer à droite, **sans se coller au trottoir**
 Réduire l'allure avant le virage
 Balayer l'intersection du regard
 Contrôler l'angle mort droit
@@ -98,9 +98,9 @@ R : Réponse d'essai.
 :::
 
 :::quiz ordre
-? Remets dans l'ordre
+? Remettre les étapes dans l'ordre
 Contrôle et clignotant
-Serrer à droite
+Serrer à **droite**
 Tourner
 :::
 
@@ -111,8 +111,8 @@ Le clignotant se met avant de serrer à droite. | vrai | On prévient, puis on s
 :::quiz choix
 ? Avant de tourner à droite, le regard va vers…
 - le compteur
-- [x] la voie de sortie et le trottoir
-> Le danger vient du côté du trottoir.
+- [x] la voie de **sortie** et le [trottoir](https://exemple.fr)
+> Le danger vient du côté du [trottoir](https://exemple.fr).
 :::
 
 :::scene inconnue

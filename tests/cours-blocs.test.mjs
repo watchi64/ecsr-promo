@@ -1,6 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { analyserScene, analyserQuiz, analyserCartes, melangerSansIdentite, corrigerOrdre, corrigerChoix }
+import { analyserScene, analyserQuiz, analyserCartes, melangerSansIdentite, corrigerOrdre, corrigerChoix,
+  BLOCS_INTERACTIFS, ouvertureBloc, lireBloc, erreurDirective, erreurNonRefermee,
+  messageOrdre, messageVraiFaux, messageChoix }
   from "../js/cours-blocs-rules.js";
 
 // Un bloc refusé dit toujours pourquoi : l'éditeur affiche ce message tel quel.
@@ -30,11 +32,12 @@ test("analyserScene : « 1. », « 2.Tourner » et « 3) » sont retirés, un nu
 });
 
 test("quiz ordre : consigne facultative, éléments dans l'ordre juste", () => {
-  const q = analyserQuiz("ordre", ["? Remets dans l'ordre", "A", "B", "C"]);
+  const q = analyserQuiz("ordre", ["? Remettre dans l'ordre", "A", "B", "C"]);
   assert.equal(q.ok, true);
-  assert.equal(q.consigne, "Remets dans l'ordre");
+  assert.equal(q.consigne, "Remettre dans l'ordre");
   assert.deepEqual(q.elements, ["A", "B", "C"]);
-  assert.equal(analyserQuiz("ordre", ["A", "B"]).consigne, "Remets les étapes dans l'ordre");
+  // Les textes d'un cours sont à l'infinitif : la consigne par défaut aussi.
+  assert.equal(analyserQuiz("ordre", ["A", "B"]).consigne, "Remettre les étapes dans l'ordre");
   assert.match(refus(analyserQuiz("ordre", ["A"])), /au moins deux/);
   assert.match(refus(analyserQuiz("ordre", ["A", "A"])), /identiques/);
   // Les bornes : huit éléments passent, neuf sont refusés pour cette seule raison.
@@ -167,4 +170,100 @@ test("corrigerOrdre et corrigerChoix", () => {
   assert.equal(corrigerChoix(q, new Set([0, 2])), true);
   assert.equal(corrigerChoix(q, new Set([0])), false);
   assert.equal(corrigerChoix(q, new Set([0, 1, 2])), false);
+});
+
+// ===== Lecture des blocs « ::: » du texte =====
+
+test("BLOCS_INTERACTIFS : les trois blocs que rend js/cours-blocs.js", () => {
+  assert.deepEqual(BLOCS_INTERACTIFS, ["scene", "quiz", "cartes"]);
+});
+
+test("ouvertureBloc : nom et argument d'une ligne d'ouverture, nom lu tel qu'écrit", () => {
+  assert.deepEqual(ouvertureBloc(":::scene tourner-droite"), { nom: "scene", arg: "tourner-droite" });
+  assert.deepEqual(ouvertureBloc("  :::quiz   ordre  "), { nom: "quiz", arg: "ordre" });
+  assert.deepEqual(ouvertureBloc(":::cartes"), { nom: "cartes", arg: "" });
+  // Une directive mal écrite est lue telle quelle : le lecteur la signale au lieu de l'ignorer.
+  assert.deepEqual(ouvertureBloc(":::scène x"), { nom: "scène", arg: "x" });
+  assert.deepEqual(ouvertureBloc(":::Quiz ordre"), { nom: "Quiz", arg: "ordre" });
+  assert.deepEqual(ouvertureBloc(":::scenery"), { nom: "scenery", arg: "" });
+});
+
+test("ouvertureBloc : une ligne qui n'ouvre rien donne null", () => {
+  for (const ligne of [":::", "  :::  ", "::: scene", "Texte", "", "- :::scene", "x :::quiz"]) {
+    assert.equal(ouvertureBloc(ligne), null, JSON.stringify(ligne));
+  }
+});
+
+test("lireBloc : le contenu va jusqu'à la ligne « ::: », la lecture reprend après elle", () => {
+  const lignes = ["a", ":::quiz ordre", "A", "", "B", ":::", "après"];
+  assert.deepEqual(lireBloc(lignes, 2), { contenu: ["A", "", "B"], suivante: 6, ferme: true });
+  // Une fermeture indentée ou suivie d'espaces ferme aussi, comme pour les planches.
+  assert.deepEqual(lireBloc(["A", "  :::  ", "B"], 0), { contenu: ["A"], suivante: 2, ferme: true });
+  assert.deepEqual(lireBloc([":::cartes", ":::"], 1), { contenu: [], suivante: 2, ferme: true });
+});
+
+test("lireBloc : un bloc sans fermeture est signalé et va jusqu'à la fin du texte", () => {
+  const lignes = ["Début.", ":::quiz ordre", "A", "B", "", "Fin du texte"];
+  assert.deepEqual(lireBloc(lignes, 2), { contenu: ["A", "B", "", "Fin du texte"], suivante: 6, ferme: false });
+  assert.deepEqual(lireBloc([":::quiz ordre"], 1), { contenu: [], suivante: 1, ferme: false });
+});
+
+test("erreurs de bloc : la directive inconnue et le bloc non refermé sont nommés", () => {
+  assert.match(erreurDirective("scène"), /« :::scène » inconnue/);
+  assert.match(erreurDirective("Quiz"), /scene, quiz, cartes, signaux ou marquage/);
+  assert.match(erreurNonRefermee("quiz"), /« :::quiz » non refermé/);
+  assert.match(erreurNonRefermee("quiz"), /« ::: »/);
+});
+
+// ===== Messages de correction : texte brut, lu par les lecteurs d'écran =====
+
+test("messageOrdre : juste, ou nombre de places justes puis l'ordre juste numéroté", () => {
+  assert.equal(messageOrdre(3, 3, ["A", "B", "C"]), "Juste : tout est dans l'ordre.");
+  // Numéroté et séparé par « ; » : les intitulés des étapes contiennent des virgules.
+  assert.equal(messageOrdre(1, 3, ["Contrôler et mettre le clignotant", "Serrer à droite, sans se coller au trottoir", "Tourner"]),
+    "1 sur 3 à la bonne place. Ordre juste : 1. Contrôler et mettre le clignotant ; 2. Serrer à droite, sans se coller au trottoir ; 3. Tourner.");
+  // Un élément qui finit par un point ne double pas le point final.
+  assert.equal(messageOrdre(0, 2, ["A.", "B."]), "0 sur 2 à la bonne place. Ordre juste : 1. A. ; 2. B.");
+});
+
+test("messageVraiFaux : toutes justes, ou chaque affirmation fausse avec la bonne valeur et son explication", () => {
+  const items = [
+    { affirmation: "Le clignotant se met avant de serrer à droite.", vrai: true, explication: "On prévient, puis on se place." },
+    { affirmation: "Le compteur se regarde en tournant", vrai: false, explication: "" },
+    { affirmation: "Le piéton passe en premier ?", vrai: true, explication: "Il est engagé" },
+  ];
+  assert.equal(messageVraiFaux(items, new Map([[0, true], [1, false], [2, true]])), "3 sur 3 justes.");
+  assert.equal(messageVraiFaux(items, new Map([[0, false], [1, false], [2, true]])),
+    "2 sur 3 justes. À corriger : « Le clignotant se met avant de serrer à droite » est vrai. On prévient, puis on se place.");
+  // Plusieurs erreurs : valeur juste de chacune ; l'explication reçoit un point final s'il manque.
+  assert.equal(messageVraiFaux(items, new Map([[0, true], [1, true], [2, false]])),
+    "1 sur 3 justes. À corriger : « Le compteur se regarde en tournant » est faux. « Le piéton passe en premier ? » est vrai. Il est engagé.");
+});
+
+test("messageVraiFaux : le texte brut est demandé par une fonction, le balisage ne passe pas", () => {
+  const items = [{ affirmation: "On serre **à droite**.", vrai: false, explication: "Voir `R415-3`." }];
+  const plat = (t) => t.replace(/\*\*|`/g, "");
+  assert.equal(messageVraiFaux(items, new Map([[0, true]]), plat),
+    "0 sur 1 justes. À corriger : « On serre à droite » est faux. Voir R415-3.");
+});
+
+test("messageChoix : bonne(s) réponse(s) de chaque question ratée, avec son explication", () => {
+  const unique = { question: "Q", options: [{ texte: "a", juste: false }, { texte: "b", juste: true }], explication: "Parce que." };
+  const multiple = { question: "Q", options: [{ texte: "a", juste: true }, { texte: "b", juste: true }, { texte: "c", juste: false }], explication: "" };
+  // Une seule question : pas de numéro.
+  assert.equal(messageChoix([unique], [new Set([0])]), "0 sur 1 justes. Bonne réponse : b. Parce que.");
+  assert.equal(messageChoix([unique], [new Set([1])]), "1 sur 1 justes.");
+  assert.equal(messageChoix([multiple], [new Set([0])]), "0 sur 1 justes. Bonnes réponses : a ; b.");
+  // Plusieurs questions : seules les ratées sont détaillées, avec leur numéro.
+  assert.equal(messageChoix([unique, multiple], [new Set([1]), new Set([0, 2])]),
+    "1 sur 2 justes. Question 2, bonnes réponses : a ; b.");
+  assert.equal(messageChoix([unique, multiple], [new Set([0]), new Set([0, 1])]),
+    "1 sur 2 justes. Question 1, bonne réponse : b. Parce que.");
+  assert.equal(messageChoix([unique, multiple], [new Set([1]), new Set([0, 1])]), "2 sur 2 justes.");
+});
+
+test("messageChoix : le texte brut est demandé par une fonction, le balisage ne passe pas", () => {
+  const q = { question: "Q", options: [{ texte: "la **voie** de sortie", juste: true }, { texte: "x", juste: false }], explication: "Côté `trottoir`" };
+  const plat = (t) => t.replace(/\*\*|`/g, "");
+  assert.equal(messageChoix([q], [new Set([1])], plat), "0 sur 1 justes. Bonne réponse : la voie de sortie. Côté trottoir.");
 });

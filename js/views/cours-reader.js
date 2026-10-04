@@ -18,7 +18,8 @@ import { el, clear } from "../utils.js?v=20261003c";
 import { icon } from "../icons.js?v=20261003c";
 import { carteSignal, signalConnu } from "../signaux.js?v=20261003c";
 import { carteMarquage, marquageConnu } from "../marquage.js?v=20261003c";
-import { rendreBlocInteractif } from "../cours-blocs.js?v=20261003c";
+import { rendreBlocInteractif, detruireScenes } from "../cours-blocs.js?v=20261003c";
+import { ouvertureBloc, lireBloc } from "../cours-blocs-rules.js?v=20261003c";
 import { listCoursIndex, getCours } from "../db.js?v=20261003c";
 import { isAdmin, isProf } from "../auth-admin.js?v=20261003c";
 import { titreDepuisMarkdown, tempsLecture, cleCours, estCodeCompetence, libelleCle, coursSuivant, cibleLienCours }
@@ -67,15 +68,19 @@ function marquerCoursOuvert(cle) {
 // ===== Rendu markdown =====
 
 // Inline : liens, gras, italique, code. Renvoie un fragment (jamais d'innerHTML).
+// `sansLien` : le libellé d'un lien reste du texte. C'est le rendu des boutons des blocs (option,
+// étape, carte) : un lien ne se loge pas dans un bouton.
 const INLINE = /\[([^\]]+)\]\(([^)]+)\)|\*\*([^*]+)\*\*|`([^`]+)`|\*([^*]+)\*|_([^_]+)_/;
 
-function inline(texte) {
+function inline(texte, sansLien = false) {
   const frag = document.createDocumentFragment();
   let reste = String(texte);
   let m;
   while ((m = INLINE.exec(reste))) {
     if (m.index > 0) frag.appendChild(document.createTextNode(reste.slice(0, m.index)));
-    if (m[1] !== undefined) {
+    if (m[1] !== undefined && sansLien) {
+      frag.appendChild(document.createTextNode(m[1]));
+    } else if (m[1] !== undefined) {
       // Lien vers un autre cours (`cours:31`, `cours:C2.5`) : un bouton, pour ne
       // jamais toucher au routage par l'adresse. Cible inconnue, non visible ou
       // mal formée (`cours:58`, `cours:C2.10`, `cours:c2.4`) : texte simple,
@@ -319,17 +324,6 @@ function rendreBlocs(lignes, contexte) {
 
     if (/^---+$/.test(nu)) { i++; continue; }
 
-    // Blocs interactifs des cours de compétences : schéma animé, quiz, cartes.
-    const bloc = nu.match(/^:::(scene|quiz|cartes)(?:\s+(.*))?$/);
-    if (bloc) {
-      i++;
-      const contenu = [];
-      while (i < lignes.length && lignes[i].trim() !== ":::") { contenu.push(lignes[i]); i++; }
-      i++;  // referme le bloc
-      sortie.push(rendreBlocInteractif(bloc[1], bloc[2] || "", contenu, contexte, inline));
-      continue;
-    }
-
     // Planches illustrées : panneaux ou marquage au sol.
     const planche = nu.match(/^:::(signaux|marquage)\s*(.*)$/);
     if (planche) {
@@ -341,6 +335,16 @@ function rendreBlocs(lignes, contexte) {
       const texte = legende.filter(Boolean).join(" ");
       const bloc = planche[1] === "signaux" ? rendreSignaux(codes, texte) : rendreMarquage(codes, texte);
       if (bloc) sortie.push(bloc);
+      continue;
+    }
+
+    // Blocs interactifs des cours de compétences (schéma animé, quiz, cartes). Après les planches :
+    // toute autre directive « ::: » est signalée (scène, Quiz...), et un bloc sans fermeture aussi.
+    const ouverture = ouvertureBloc(nu);
+    if (ouverture) {
+      const lu = lireBloc(lignes, i + 1);
+      i = lu.suivante;
+      sortie.push(rendreBlocInteractif(ouverture.nom, ouverture.arg, lu.contenu, contexte, inline, lu.ferme));
       continue;
     }
 
@@ -429,13 +433,21 @@ function rendreBlocs(lignes, contexte) {
 
 /** Rend un texte markdown complet. Renvoie { noeuds, contexte } ;
  *  contexte.sections liste les titres de niveau 2 (pour le sommaire),
- *  contexte.erreurs les blocs mal formés (affichés par l'éditeur seulement).
- *  `cartes` regroupe chaque rubrique de niveau 2 dans une carte (compétences). */
-export function rendreMarkdown(texte, { cartes = false } = {}) {
-  const contexte = { sections: [], essentielVu: false, erreurs: [] };
+ *  contexte.erreurs les blocs mal formés, non refermés ou de directive inconnue
+ *  (affichés par l'éditeur seulement),
+ *  contexte.scenes les schémas animés montés : le rendu qui les jette (fermeture de
+ *  la fiche, nouvel aperçu de l'éditeur) appelle d'abord detruireScenes(contexte).
+ *  `cartes` regroupe chaque rubrique de niveau 2 dans une carte (compétences).
+ *  `blocs: false` (assistant) laisse les blocs schéma, quiz et cartes en texte brut :
+ *  une réponse qui en recopie un ne monte ni schéma ni quiz dans la bulle. */
+export function rendreMarkdown(texte, { cartes = false, blocs = true } = {}) {
+  const contexte = { sections: [], essentielVu: false, erreurs: [], scenes: [], blocs };
   const noeuds = rendreBlocs(String(texte).split("\n"), contexte);
   return { noeuds: cartes ? regrouperEnCartes(noeuds) : noeuds, contexte };
 }
+
+// Pour l'aperçu de l'éditeur : jeter un rendu sans arrêter ses schémas les laisserait en vie.
+export { detruireScenes };
 
 // Mise en page compacte : chaque titre de niveau 2 ouvre une carte qui reçoit
 // tout ce qui le suit jusqu'au titre suivant. Ce qui précède le premier titre
@@ -509,7 +521,12 @@ export async function openCoursSheet(theme, { onQcm } = {}) {
   document.body.appendChild(overlay);
   document.body.classList.add("cours-open");
 
+  let ferme = false;          // fiche fermée (croix, Échap, lien, enchaînement)
+  let contexteCours = null;   // le rendu du cours : ses schémas sont à arrêter à la fermeture
   function close() {
+    ferme = true;
+    // Un schéma arrêté garde son observateur de visibilité, donc son SVG en vie, tant qu'on ne le détruit pas.
+    if (contexteCours) detruireScenes(contexteCours);
     overlay.remove();
     document.body.classList.remove("cours-open");
     document.removeEventListener("keydown", onKey);
@@ -529,8 +546,11 @@ export async function openCoursSheet(theme, { onQcm } = {}) {
     const cours = await getCours(cle);
     const texte = cours.corps_md;
     marquerCoursOuvert(cle);
+    // Fiche fermée pendant le chargement : rien à rendre, et aucun schéma à monter dans une fiche disparue.
+    if (ferme) return;
 
     const { noeuds, contexte } = rendreMarkdown(texte, { cartes: competence });
+    contexteCours = contexte;
 
     clear(corps);
     noeuds.forEach((n) => corps.appendChild(n));

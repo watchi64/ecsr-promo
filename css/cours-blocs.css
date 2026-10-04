@@ -62,8 +62,12 @@
   font: inherit; color: var(--text-soft); cursor: pointer;
 }
 .scene-etape-num { font-family: var(--font-mono); min-width: 1.2rem; color: var(--text-muted); }
+/* Texte d'une étape : un seul élément flex. Sans lui, chaque gras, code ou lien du texte devient
+   une colonne à part, écartée de ses voisins. */
+.scene-etape-texte { flex: 1 1 auto; min-width: 0; }
 .scene-etapes li.on .scene-etape { background: var(--accent-soft); color: var(--text); font-weight: 500; }
-.scene-inconnue .scene-etape { cursor: default; }
+/* Étape qui ne commande pas le schéma (scène inconnue, nombre d'étapes différent) : un texte, pas un bouton. */
+span.scene-etape { cursor: default; }
 
 /* Quiz : correction immédiate, rien n'est enregistré */
 .quiz { margin: 1.2rem 0; padding: 0.9rem 1rem; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--bg-elev); }
@@ -76,12 +80,25 @@
   background: #fff; font: inherit; color: var(--text); cursor: pointer;
 }
 .quiz-option[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
+/* Texte d'une option : un seul élément flex (voir .scene-etape-texte). */
+.quiz-option-texte { flex: 1 1 auto; min-width: 0; }
 .quiz-rang { display: inline-flex; justify-content: center; min-width: 1.4rem; font-family: var(--font-mono); color: var(--accent-strong); }
 .quiz-option.juste, .quiz-vf-ligne.juste { border-color: var(--c-go); background: var(--c-go-soft); }
 .quiz-option.faux, .quiz-vf-ligne.faux { border-color: var(--c-stop); background: var(--c-stop-soft); }
+/* Option corrigée : elle ne réagit plus. */
+.quiz-option.verrou { cursor: default; }
+/* Marque écrite de la correction (« Bien placé », « Réponse fausse »...) : la couleur ne porte jamais
+   seule l'information. Texte sombre sur fond blanc, la couleur n'est que dans le liseré. */
+.quiz-marque {
+  flex: none; padding: 0.05rem 0.5rem; border: 1.5px solid var(--line-strong); border-radius: 999px;
+  background: #fff; color: var(--text); font-size: 0.76rem; font-weight: 600; line-height: 1.4; white-space: nowrap;
+}
+.quiz-marque[hidden] { display: none; }
+.quiz-marque-juste { border-color: var(--c-go); }
+.quiz-marque-faux { border-color: var(--c-stop); }
 .quiz-vf-ligne { padding: 0.5rem 0.6rem; margin-bottom: 0.4rem; border: 1px solid transparent; border-radius: var(--r-sm); }
 .quiz-affirmation { margin: 0 0 0.4rem; }
-.quiz-vf-boutons { display: flex; gap: 0.5rem; }
+.quiz-vf-boutons { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
 .quiz-vf { padding: 0.4rem 0.9rem; border: 1px solid var(--line-strong); border-radius: var(--r-sm); background: #fff; font: inherit; cursor: pointer; }
 .quiz-vf[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
 .quiz-explication { margin: 0.4rem 0 0; font-size: 0.88rem; color: var(--text-soft); }
@@ -98,6 +115,12 @@
   border: 1px solid var(--line-strong); border-radius: var(--r); background: #fff; font: inherit; color: var(--text);
 }
 .carte[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); }
+/* Zone d'annonce des cartes : lue par les lecteurs d'écran, jamais affichée (la réponse qui prend la
+   place de la question dans le bouton n'est pas lue d'elle-même). */
+.cartes-annonce {
+  position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0;
+  overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap;
+}
 
 /* Bloc mal formé (visible surtout dans l'aperçu de l'éditeur) */
 .cours-bloc-brut {
