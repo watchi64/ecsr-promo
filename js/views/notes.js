@@ -235,7 +235,7 @@ function openEditModal(existing, onSaved) {
   const noteInput = el("input", { type: "text", inputmode: "decimal", placeholder: "Ex. 14.5 ou 10/12", value: existing?.note ?? "" });
   const noteMaxInput = el("input", { type: "number", min: 1, step: "0.5", value: existing?.note_max ?? 20 });
   const dateInput = el("input", { type: "date", value: existing?.date_eval || isoDate(new Date()) });
-  const obsInput = el("input", { type: "text", placeholder: "Observation (optionnel)", value: existing?.observation || "" });
+  const obsInput = el("input", { type: "text", placeholder: "Observation (optionnel, rien sur la santé)", value: existing?.observation || "" });
 
   async function save() {
     if (!stagiaireSel.value) { toast("Choisir un stagiaire", "error"); return; }

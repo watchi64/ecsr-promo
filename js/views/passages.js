@@ -45,7 +45,7 @@ function openAddModal(onSaved, existing = null) {
   stagiaires.forEach((s) => remplacantSel.appendChild(el("option", { value: s.id }, displayStagiaire(s))));
   if (existing && existing.remplacant_id) remplacantSel.value = String(existing.remplacant_id);
 
-  const commentInput = el("input", { type: "text", placeholder: "Optionnel", value: existing?.commentaire || "" });
+  const commentInput = el("input", { type: "text", placeholder: "Optionnel, sans motif médical", value: existing?.commentaire || "" });
 
   async function save() {
     if (!stagiaireSel.value) { toast("Choisir un stagiaire", "error"); return; }
