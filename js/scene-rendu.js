@@ -8,9 +8,24 @@
  * et les tests (tests/scene-rendu.test.mjs) les vérifient sur les scènes du registre.
  * Le regard du conducteur, lui, est dans js/scene-regard.js.
  *
+ * Teintes, clignotant, cadres, repères des étapes, panneaux, facteur de lecture.
+ *
  * Toutes les valeurs ci-dessous sont des choix de dessin, sans portée réglementaire.
  */
-import { etatActeur, emprise } from "./scene-geometrie.js?v=20261003c";
+import { GABARITS, etatActeur, emprise } from "./scene-geometrie.js?v=20261003c";
+
+// Teintes de la route réelle (donnée pédagogique), pas la palette de l'app ; la voiture de l'élève prend l'accent de l'app
+// pour être repérée d'un coup d'œil.
+export const TEINTES = {
+  chaussee: "#5D635B", trottoir: "#DAD6CA", ilot: "#B9CB9B", peinture: "#FFFFFF",
+  eleve: "#6B7F4E", eleveBord: "#3E4A2D", autre: "#8D97A3", autreBord: "#4E5863",
+  pieton: "#2E2E2B", clignotant: "#F4A900", stop: "#D2232A", vitre: "#C9D6DF",
+  regard: "#FFD45C", repere: "#1F2924",
+  // Trajet prévu de l'élève : teinte claire de celle de sa voiture, opaque, en points ronds. 3,44:1 sur la chaussée
+  // (WCAG 1.4.11 : 3:1 pour un graphique utile à la compréhension, tests/scene-rendu.test.mjs). La peinture routière
+  // est blanche ou jaune, en traits : des points vert sauge ne passent pas pour un marquage.
+  trajet: "#B5C98A",
+};
 
 /** Fréquence du clignotant, en hertz. */
 export const FREQ_CLIGNOTANT = 1.5;
@@ -25,6 +40,9 @@ export const RAYON_REPERE = 1.2;
 const CHASSE_REPERE = 0.75, JEU_REPERE = 0.3;
 /** Distance (m) en deçà de laquelle deux étapes partagent un repère. */
 export const ECART_REPERES = 1.5;
+/** Jeu (m) entre le flanc droit de la voiture de l'élève et le bord du repère de son étape, posé à sa droite : la voiture
+ *  ne cache jamais un repère. */
+export const JEU_REPERE_VOITURE = 0.3;
 /** Marge (m) du cadre des animations réduites autour de ce qu'il montre. */
 export const MARGE_CADRE_REDUIT = 1;
 
@@ -51,17 +69,24 @@ export function cadreCamera(sc, e) {
 }
 
 /**
- * Repères des étapes (animations réduites) : la position de l'élève au début de chaque étape, [{ x, y, numeros }]. Une
- * étape qui commence à moins de ECART_REPERES m d'un repère déjà posé le partage (numéros joints par un point médian).
+ * Repères des étapes (animations réduites), [{ x, y, numeros }] : un par position de l'élève au début d'une étape, centré
+ * à sa droite (le cap de sa première étape), à la distance qui laisse JEU_REPERE_VOITURE entre le flanc droit de la
+ * voiture et le bord du repère, quel que soit le cap (le repère, disque ou pastille, n'est pas tourné). Une étape qui
+ * commence à moins de ECART_REPERES m de la position d'un repère déjà posé le partage (numéros joints par un point médian).
  */
 export function reperesEtapes(sc) {
-  const reperes = [];
+  const groupes = [];
   sc.etapes.forEach((et, i) => {
     const e = etatActeur(sc.eleve, et.t);
-    const proche = reperes.find((r) => Math.hypot(r.x - e.x, r.y - e.y) < ECART_REPERES);
-    if (proche) proche.numeros.push(i + 1); else reperes.push({ x: e.x, y: e.y, numeros: [i + 1] });
+    const proche = groupes.find((g) => Math.hypot(g.e.x - e.x, g.e.y - e.y) < ECART_REPERES);
+    if (proche) proche.numeros.push(i + 1); else groupes.push({ e, numeros: [i + 1] });
   });
-  return reperes;
+  const demiVoiture = GABARITS[sc.eleve.gabarit].largeur / 2;
+  return groupes.map(({ e, numeros }) => {
+    const nx = -Math.sin(e.cap), ny = Math.cos(e.cap);     // droite du cap, l'axe y de l'écran allant vers le bas
+    const d = demiVoiture + JEU_REPERE_VOITURE + demiLargeurRepere(numeros) * Math.abs(nx) + RAYON_REPERE * Math.abs(ny);
+    return { x: e.x + d * nx, y: e.y + d * ny, numeros };
+  });
 }
 
 /** Demi-largeur (m) du repère qui porte ces numéros : le disque de RAYON_REPERE pour un seul numéro, une pastille
@@ -72,7 +97,7 @@ export function demiLargeurRepere(numeros) {
 
 /**
  * Cadre fixe des animations réduites, { x, y, largeur, hauteur } (m). Il montre, à MARGE_CADRE_REDUIT près : tous les
- * repères (disques et pastilles compris), la voiture de l'élève au début de chaque étape et chaque usager suivi des yeux au début de
+ * repères (disques et pastilles compris), le dessin entier de chaque panneau, la voiture de l'élève au début de chaque étape et chaque usager suivi des yeux au début de
  * l'étape qui le suit. Largeur de la caméra (même échelle qu'en lecture), hauteur au moins celle de la caméra, cadre
  * centré sur ce qu'il montre puis borné au monde. Sans caméra, le monde entier.
  */
@@ -83,6 +108,10 @@ export function cadreReduit(sc) {
   for (const r of reperesEtapes(sc)) {
     const demi = demiLargeurRepere(r.numeros);
     points.push([r.x - demi, r.y - RAYON_REPERE], [r.x + demi, r.y + RAYON_REPERE]);
+  }
+  for (const p of sc.decor.panneaux) {
+    const r = emprisePanneau(p);
+    points.push([r.x, r.y], [r.x + r.largeur, r.y + r.hauteur]);
   }
   for (const et of sc.etapes) {
     points.push(...emprise(sc.eleve.gabarit, etatActeur(sc.eleve, et.t)));

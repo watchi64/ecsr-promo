@@ -7,7 +7,7 @@
  * Tout est construit par l'API du DOM : aucun texte de cours ne devient du code.
  * La géométrie est celle de js/scene-geometrie.js, la même que celle des tests ;
  * le regard du conducteur et son cône sont ceux de js/scene-regard.js, et les
- * règles de l'image (clignotant, cadres, repères, panneaux) celles de
+ * règles de l'image (teintes, clignotant, cadres, repères, panneaux) celles de
  * js/scene-rendu.js, testées elles aussi.
  *
  * Sobriété : la lecture démarre quand le schéma devient visible, une seule fois,
@@ -25,22 +25,11 @@
  */
 import { preparerScene, etatActeur, pointA, GABARITS, DEG } from "./scene-geometrie.js?v=20261003c";
 import { regardDessine } from "./scene-regard.js?v=20261003c";
-import { RAYON_REPERE, clignotantAllume, cadreCamera, cadreReduit, reperesEtapes, demiLargeurRepere, emprisePanneau,
+import { TEINTES, RAYON_REPERE, clignotantAllume, cadreCamera, cadreReduit, reperesEtapes, demiLargeurRepere, emprisePanneau,
   facteurLecture } from "./scene-rendu.js?v=20261003c";
 import { urlSignalVerifie } from "./signaux.js?v=20261003c";
 
 const NS = "http://www.w3.org/2000/svg";
-// Teintes de la route réelle (donnée pédagogique), pas la palette de l'app ; la
-// voiture de l'élève prend l'accent de l'app pour être repérée d'un coup d'œil.
-const TEINTES = {
-  chaussee: "#5D635B", trottoir: "#DAD6CA", ilot: "#B9CB9B", peinture: "#FFFFFF",
-  eleve: "#6B7F4E", eleveBord: "#3E4A2D", autre: "#8D97A3", autreBord: "#4E5863",
-  pieton: "#2E2E2B", clignotant: "#F4A900", stop: "#D2232A", vitre: "#C9D6DF",
-  regard: "#FFD45C", repere: "#1F2924",
-  // Trajet prévu de l'élève : la teinte de sa voiture, en pointillé fin et translucide, pour ne jamais passer pour un
-  // marquage peint (blanc, en traits).
-  trajet: "#6B7F4E",
-};
 // Opacité du regard : le cône, ou, plus léger, le secteur que parcourt un balayage sur une image figée.
 const OPACITE_REGARD = { cone: 0.4, secteur: 0.22 };
 // Numéro des schémas montés : chacun a sa propre découpe, plusieurs schémas pouvant partager une page.
@@ -87,7 +76,8 @@ function dessinerPanneau(parent, p) {
   parent.appendChild(g);
 }
 
-// Trajet prévu de l'élève, point par point tous les 0,5 m.
+// Trajet prévu de l'élève, échantillonné tous les 0,5 m : points ronds opaques (traits quasi nuls aux bouts arrondis),
+// dans la teinte TEINTES.trajet, lisible sur la chaussée.
 function dessinerTrajet(parent, sc) {
   const points = [];
   for (let s = 0; s <= sc.eleve.chemin.longueur; s += 0.5) {
@@ -95,7 +85,7 @@ function dessinerTrajet(parent, sc) {
     points.push(f3(p.x) + "," + f3(p.y));
   }
   parent.appendChild(svg("polyline", { points: points.join(" "), fill: "none", stroke: TEINTES.trajet,
-    "stroke-width": 0.18, "stroke-linecap": "round", "stroke-dasharray": "0 0.45", opacity: 0.85 }));
+    "stroke-width": 0.22, "stroke-linecap": "round", "stroke-dasharray": "0.01 0.44" }));
 }
 
 // Voiture en repère local : x vers l'avant, y vers la droite.
@@ -124,8 +114,8 @@ function dessinerPieton() {
   return { g, clignotants: null, stops: null };
 }
 
-// Repères numérotés des étapes (animations réduites), à la position de l'élève au début de chacune : un disque, ou une
-// pastille qui contient tous les numéros quand plusieurs étapes partagent le repère.
+// Repères numérotés des étapes (animations réduites), à droite de la position de l'élève au début de chacune (jamais sous
+// sa voiture) : un disque, ou une pastille qui contient tous les numéros quand plusieurs étapes partagent le repère.
 function dessinerReperes(sc) {
   const g = svg("g", { class: "scene-reperes" });
   for (const r of reperesEtapes(sc)) {

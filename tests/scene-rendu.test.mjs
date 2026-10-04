@@ -1,10 +1,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { SCENES } from "../js/scenes.js";
-import { preparerScene, etatActeur, emprise, tempsAtteint, trajet, pointDansPolygone } from "../js/scene-geometrie.js";
+import { GABARITS, preparerScene, etatActeur, emprise, tempsAtteint, trajet, pointDansPolygone, polygonesSeChevauchent, rectangle }
+  from "../js/scene-geometrie.js";
 import { REGARD_PORTEE, DEBORD_SUIVI, oeil, cibleSuivie, regardDessine } from "../js/scene-regard.js";
-import { FREQ_CLIGNOTANT, TAILLE_PANNEAU, RAYON_REPERE, ECART_REPERES, MARGE_CADRE_REDUIT, clignotantAllume, cadreCamera,
-  reperesEtapes, demiLargeurRepere, cadreReduit, emprisePanneau, facteurLecture } from "../js/scene-rendu.js";
+import { TEINTES, FREQ_CLIGNOTANT, TAILLE_PANNEAU, RAYON_REPERE, ECART_REPERES, JEU_REPERE_VOITURE, MARGE_CADRE_REDUIT,
+  clignotantAllume, cadreCamera, reperesEtapes, demiLargeurRepere, cadreReduit, emprisePanneau, facteurLecture } from "../js/scene-rendu.js";
 
 // Règles pures du rendu des scènes (correction de la tâche 11) : ce que montre l'image, en lecture comme sur les images
 // figées (pas à pas, pause, animations réduites). Le moteur (js/scene-moteur.js) dessine avec ces fonctions.
@@ -16,6 +17,30 @@ const etatsA = (sc, t) => new Map(sc.acteurs.map((a) => [a.id, etatActeur(a, t)]
 const dans = (c, [x, y]) => x >= c.x - 1e-9 && x <= c.x + c.largeur + 1e-9 && y >= c.y - 1e-9 && y <= c.y + c.hauteur + 1e-9;
 // Le même point ramené dans le monde : une emprise qui déborde du monde n'y est montrée que pour sa partie intérieure.
 const dansLeMonde = (sc, [x, y]) => [Math.min(Math.max(x, 0), sc.monde.largeur), Math.min(Math.max(y, 0), sc.monde.hauteur)];
+
+// ===== Teintes =====
+
+// Luminance relative et rapport de contraste WCAG 2 d'une teinte #RRGGBB.
+function luminance(teinte) {
+  const n = parseInt(teinte.slice(1), 16);
+  const lin = (c) => { c /= 255; return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; };
+  return 0.2126 * lin(n >> 16) + 0.7152 * lin((n >> 8) & 255) + 0.0722 * lin(n & 255);
+}
+const contraste = (a, b) => { const [x, y] = [luminance(a), luminance(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
+// Teinte (degrés, cercle chromatique) d'une couleur #RRGGBB.
+function teinteDeg(couleur) {
+  const n = parseInt(couleur.slice(1), 16), [r, g, b] = [n >> 16, (n >> 8) & 255, n & 255];
+  const max = Math.max(r, g, b), min = Math.min(r, g, b), d = max - min;
+  const h = max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  return (h * 60 + 360) % 360;
+}
+
+test("TEINTES : le trajet prévu se lit sur la chaussée (3:1 au moins, WCAG 1.4.11), dans une teinte plus claire que celle de la voiture de l'élève", () => {
+  assert.ok(contraste(TEINTES.trajet, TEINTES.chaussee) >= 3, `contraste de ${contraste(TEINTES.trajet, TEINTES.chaussee).toFixed(2)}:1 sur la chaussée`);
+  assert.ok(Math.abs(teinteDeg(TEINTES.trajet) - teinteDeg(TEINTES.eleve)) <= 10, "même famille de teinte que la voiture de l'élève");
+  assert.ok(luminance(TEINTES.trajet) > luminance(TEINTES.eleve), "plus claire que la voiture de l'élève");
+  assert.notEqual(TEINTES.trajet, TEINTES.peinture, "jamais le blanc de la peinture");
+});
 
 // ===== Clignotant =====
 
@@ -83,25 +108,59 @@ test("cadreCamera : en lecture, le cadre de la caméra, centré sur l'élève et
   }
 });
 
-test("reperesEtapes : la position de l'élève au début de chaque étape ; deux étapes à moins de ECART_REPERES m partagent un repère", () => {
+test("reperesEtapes : un repère par position de l'élève au début d'une étape, posé à sa droite ; deux étapes à moins de ECART_REPERES m partagent un repère", () => {
   assert.equal(RAYON_REPERE, 1.2);
   assert.equal(ECART_REPERES, 1.5);
+  assert.equal(JEU_REPERE_VOITURE, 0.3);
   for (const [code, sc] of scenes()) {
     const reperes = reperesEtapes(sc);
     assert.deepEqual(reperes.flatMap((r) => r.numeros).sort((a, b) => a - b), sc.etapes.map((_, i) => i + 1),
       `${code} : chaque étape a un numéro, une seule fois`);
     for (const r of reperes) {
       const premier = etatActeur(sc.eleve, sc.etapes[r.numeros[0] - 1].t);
-      proche(r.x, premier.x); proche(r.y, premier.y);
+      // À droite du cap (repère de l'écran, y vers le bas : (-sin cap ; cos cap)), à la distance qui laisse
+      // JEU_REPERE_VOITURE entre le flanc droit de la voiture et le bord du repère.
+      const nx = -Math.sin(premier.cap), ny = Math.cos(premier.cap);
+      const d = GABARITS.voiture.largeur / 2 + JEU_REPERE_VOITURE + demiLargeurRepere(r.numeros) * Math.abs(nx) + RAYON_REPERE * Math.abs(ny);
+      proche(r.x, premier.x + d * nx, 1e-9, `${code} : repère ${r.numeros.join("·")}, x`);
+      proche(r.y, premier.y + d * ny, 1e-9, `${code} : repère ${r.numeros.join("·")}, y`);
       for (const n of r.numeros) {
         const e = etatActeur(sc.eleve, sc.etapes[n - 1].t);
-        assert.ok(Math.hypot(e.x - r.x, e.y - r.y) < ECART_REPERES, `${code} : étape ${n} trop loin de son repère`);
+        assert.ok(Math.hypot(e.x - premier.x, e.y - premier.y) < ECART_REPERES, `${code} : étape ${n} trop loin de son repère`);
       }
     }
   }
   // Tourner à gauche : l'angle mort et le virage commencent au même point d'arrêt, sous un seul repère.
   const sc = preparerScene(SCENES["tourner-gauche"].construire());
   assert.ok(reperesEtapes(sc).some((r) => r.numeros.includes(6) && r.numeros.includes(7)));
+});
+
+test("reperesEtapes : aucun repère n'est caché par la voiture de l'élève, quelle que soit l'étape montrée", () => {
+  for (const [code, sc] of scenes()) {
+    const reperes = reperesEtapes(sc);
+    sc.etapes.forEach((et, j) => {
+      const voiture = emprise(sc.eleve.gabarit, etatActeur(sc.eleve, et.t));
+      for (const r of reperes) {
+        const demi = demiLargeurRepere(r.numeros);
+        assert.ok(!polygonesSeChevauchent(voiture, rectangle(r.x - demi, r.y - RAYON_REPERE, r.x + demi, r.y + RAYON_REPERE)),
+          `${code} : le repère ${r.numeros.join("·")} passe sous la voiture à l'étape ${j + 1}`);
+      }
+    });
+  }
+});
+
+test("reperesEtapes : aucun repère ne recouvre les numéros d'un repère dessiné avant lui", () => {
+  // Dans un virage à droite, les repères posés à l'intérieur se rapprochent et leurs bords peuvent se toucher : les
+  // numéros, eux, restent dégagés. Numéros d'un repère : boîte de leur texte (chasse fixe de 0,72 m par caractère, 0,45 m
+  // de part et d'autre du centre) ; repère dessiné après : segment horizontal épaissi de RAYON_REPERE (disque ou pastille).
+  for (const [code, sc] of scenes()) {
+    const reperes = reperesEtapes(sc);
+    reperes.forEach((a, i) => reperes.slice(i + 1).forEach((b) => {
+      const dx = Math.max(0, Math.abs(a.x - b.x) - (a.numeros.join("·").length * 0.72) / 2 - (demiLargeurRepere(b.numeros) - RAYON_REPERE));
+      const dy = Math.max(0, Math.abs(a.y - b.y) - 0.45);
+      assert.ok(Math.hypot(dx, dy) >= RAYON_REPERE, `${code} : le repère ${b.numeros.join("·")} recouvre les numéros ${a.numeros.join("·")}`);
+    }));
+  }
 });
 
 test("demiLargeurRepere : un disque pour un seul numéro, une pastille qui contient tout le texte quand des étapes partagent un repère", () => {
@@ -113,7 +172,7 @@ test("demiLargeurRepere : un disque pour un seul numéro, une pastille qui conti
   }
 });
 
-test("cadreReduit : un cadre fixe qui montre tous les repères, la voiture de l'élève à chaque étape et chaque usager suivi des yeux à l'instant de son étape", () => {
+test("cadreReduit : un cadre fixe qui montre tous les repères, les panneaux, la voiture de l'élève à chaque étape et chaque usager suivi des yeux à l'instant de son étape", () => {
   assert.equal(MARGE_CADRE_REDUIT, 1);
   for (const [code, sc] of scenes()) {
     const c = cadreReduit(sc);
@@ -127,6 +186,13 @@ test("cadreReduit : un cadre fixe qui montre tous les repères, la voiture de l'
         const p = [r.x + dx * demiLargeurRepere(r.numeros), r.y + dy * RAYON_REPERE];
         assert.ok(dans(c, p), `${code} : repère ${r.numeros.join("·")} hors du cadre`);
         montres.push(p);
+      }
+    }
+    for (const panneau of sc.decor.panneaux) {
+      const r = emprisePanneau(panneau);
+      for (const p of [[r.x, r.y], [r.x + r.largeur, r.y + r.hauteur]]) {
+        assert.ok(dans(c, dansLeMonde(sc, p)), `${code} : panneau ${panneau.code} en (${panneau.x} ; ${panneau.y}) coupé par le cadre`);
+        montres.push(dansLeMonde(sc, p));
       }
     }
     sc.etapes.forEach((et, i) => {
@@ -157,7 +223,7 @@ test("cadreReduit : un cadre fixe qui montre tous les repères, la voiture de l'
 test("cadreReduit : au moins la hauteur de la caméra, centré sur ce qu'il montre puis borné au monde ; sans caméra, le monde entier", () => {
   const camera = { largeur: 30, hauteur: 40 };
   const definition = (y, camera) => ({
-    code: "essai", monde: { largeur: 30, hauteur: 100 }, camera,
+    code: "essai", monde: { largeur: 30, hauteur: 100 }, camera, decor: { panneaux: [] },
     acteurs: [{ id: "eleve", role: "eleve", gabarit: "voiture", chemin: trajet(15, y, -90).droit(5).fin(),
       profil: [{ s: 0, kmh: 18 }, { s: 5, kmh: 18 }] }],
     etapes: [{ s: 0 }, { s: 5 }],
