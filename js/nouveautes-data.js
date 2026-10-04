@@ -16,6 +16,17 @@
 
 export const NOUVEAUTES = [
   {
+    id: "2026-10-04-confidentialite-notes",
+    date: "2026-10-04",
+    pour: "tous",
+    titre: "Tes notes et ta fiche mieux protégées",
+    resume: "Si tu masques tes notes, plus personne dans la promo ne peut les consulter, même en "
+          + "dehors des écrans de l'application : les moyennes du groupe sont désormais calculées "
+          + "à part, sans exposer les notes de chacun. Ta date de naissance et ta fiche de suivi "
+          + "ne sont visibles que de toi et des formateurs. Rien ne change dans ce que tu vois.",
+    ou: { label: "Notes", route: "notes" },
+  },
+  {
     id: "2026-10-03-numero-benevole",
     date: "2026-10-03",
     pour: "formateurs",
