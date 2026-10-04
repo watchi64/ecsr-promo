@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /*
- * cache-bust.js — Source unique de vérité pour le cache-busting JS/CSS.
+ * cache-bust.js : source unique de vérité pour le cache-busting JS/CSS.
  *
  * Pose un même token ?v=AAAAMMJJx :
  *   - sur index.html        (lien CSS + script d'entrée main.js)
@@ -8,7 +8,7 @@
  *
  * Le token est UNIFORME sur tout le projet, posé en un seul passage. C'est
  * indispensable : un module importé sous deux URLs différentes (?v=i et ?v=j)
- * serait chargé deux fois par le navigateur — donc deux instances, état dupliqué
+ * serait chargé deux fois par le navigateur, donc deux instances, état dupliqué
  * (client Supabase en double, Sets partagés divergents, etc.).
  *
  * Les URLs externes (https://esm.sh/...) ne commencent pas par un point :

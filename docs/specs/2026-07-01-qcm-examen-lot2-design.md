@@ -1,4 +1,4 @@
-# Design · Lot 2 — Mode examen (QCM par thème)
+# Design · Lot 2 - Mode examen (QCM par thème)
 
 Date : 2026-07-01
 Projet : TP ECSR App (ecsr-promo)
@@ -21,7 +21,7 @@ Hors périmètre (reste au Lot 3) : vue Thèmes enrichie (ma note / date / moyen
 | Sujet | Décision |
 |---|---|
 | Où figer le tirage | **À la publication.** Publier gèle le set de questions. Stocké dans `qcm.exam_question_ids` (tableau JSON ordonné d'ids). Tous les élèves lisent ce même set. |
-| Comment produire le tirage | **Deux modes au choix du formateur**, même stockage : (a) **aléatoire** — le système tire N (`exam_nb_questions`) au hasard ; (b) **manuel** — le formateur coche ses questions. `exam_draw_mode` mémorise la méthode. |
+| Comment produire le tirage | **Deux modes au choix du formateur**, même stockage : (a) **aléatoire** : le système tire N (`exam_nb_questions`) au hasard ; (b) **manuel** : le formateur coche ses questions. `exam_draw_mode` mémorise la méthode. |
 | Ordre des réponses | **Mélangé par élève.** Mêmes questions et même ordre de questions pour tous (l'ordre du set gelé), mais l'ordre des options A/B/C/D est mélangé côté client par élève. Réduit la recopie. |
 | Navigation | **Libre avant/arrière** tant que « Terminer l'examen » n'est pas cliqué ; l'élève peut changer ses réponses. Aucune correction avant la fin dans tous les cas. |
 | Minuteur | **Chrono global** = `exam_seconds_per_question` × N (défaut **30 s** par question, réglable par le formateur). Un seul compte à rebours pour tout l'examen, compatible avec la navigation libre. À zéro → **remise automatique** (questions non répondues comptées fausses). |

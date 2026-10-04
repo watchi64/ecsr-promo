@@ -1,5 +1,5 @@
 -- Migration planning : formateur « Autre »/« Groupe (autonomie) » + jours désactivés/fériés
--- 2026-07-09 — ADDITIVE UNIQUEMENT (aucune suppression, aucune donnée existante touchée).
+-- 2026-07-09 : ADDITIVE UNIQUEMENT (aucune suppression, aucune donnée existante touchée).
 -- À exécuter dans Supabase → SQL Editor → New query → coller → Run.
 
 -- Feature 2 : formateur « Autre » (nom libre) + « Groupe (autonomie) »

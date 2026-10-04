@@ -1,4 +1,4 @@
-# Passation — Éditeur de QCM (formateur) + player multi-réponses
+# Passation - Éditeur de QCM (formateur) + player multi-réponses
 
 Date : 2026-07-01
 Projet : TP ECSR App (ecsr-promo)
@@ -56,7 +56,7 @@ Déjà là avant : `getQcmFull(qcmId)` (renvoie le qcm + `questions` triées par
 
 ## 6. Tâches restantes (dans cet ordre)
 
-### Tâche A — UI de l'éditeur (`js/views/themes.js` + imports)
+### Tâche A - UI de l'éditeur (`js/views/themes.js` + imports)
 
 **Imports à ajouter** (depuis `../db.js`) : `getOrCreateQcm, saveQcmQuestion, deleteQcmQuestion, reorderQcmQuestions, uploadQcmImage`.
 
@@ -84,22 +84,22 @@ Déjà là avant : `getQcmFull(qcmId)` (renvoie le qcm + `questions` triées par
   - `createQcmCellEl(theme)` : petit bouton **« ＋ Créer QCM »** (réutiliser `.theme-qcm-hint`) → `openQcmEditor(theme, null)`.
   - ⚠️ `loadQcmIndex()` ne met dans `qcmByTheme` que les qcm avec `nb_questions > 0`. Donc un qcm créé mais vide (0 question) réaffichera « Créer QCM » (getOrCreateQcm renverra l'existant, pas de doublon). Acceptable ; sinon, inclure les qcm à 0 question dans l'index et distinguer « Éditer » / « Créer ».
 
-### Tâche B — Player multi-réponses (`js/views/qcm.js`)
+### Tâche B - Player multi-réponses (`js/views/qcm.js`)
 
 Aujourd'hui le player est **QCU** (une seule réponse). Le rendre multi :
 - **Entraînement** (`runEntrainement`) : remplacer le clic-unique-correction-immédiate par des **cases à cocher** + un bouton **« Valider »**. `answers[q.id]` devient un **tableau d'ids** d'options cochées. À la validation : marquer visuellement bonnes/fausses ; **incrémenter le score si l'ensemble coché === l'ensemble des bonnes** (mêmes ids, ni plus ni moins). Puis « Question suivante ».
 - **Examen** (`runExam`) : les options deviennent des **toggles** (coché/décoché), `answers[q.id]` = **tableau d'ids**. Pas de correction avant la fin. Dans `finish()`, scoring : `correctSet = q.options.filter(o=>o.is_correct).map(o=>o.id)` ; `chosen = answers[q.id]||[]` ; question juste si `chosen.length === correctSet.length && correctSet.every(id => chosen.includes(id))`.
 - **Recap résultats** : afficher **toutes** les bonnes réponses (join), et l'état juste/faux par la comparaison d'ensembles.
-- **Compat** : une question à 1 seule bonne réponse fonctionne comme un cas particulier du multi. Le snapshot `answers` (jsonb) passe de `{qid: option_id}` à `{qid: [option_id,...]}` — sans souci côté DB.
-- Indiquer à l'écran quand c'est multi (« Plusieurs réponses possibles ») si la question a >1 bonne réponse — optionnel mais utile.
+- **Compat** : une question à 1 seule bonne réponse fonctionne comme un cas particulier du multi. Le snapshot `answers` (jsonb) passe de `{qid: option_id}` à `{qid: [option_id,...]}`, sans souci côté DB.
+- Indiquer à l'écran quand c'est multi (« Plusieurs réponses possibles ») si la question a >1 bonne réponse : optionnel mais utile.
 
-### Tâche C — CSS (`css/style.css`, à la fin)
+### Tâche C - CSS (`css/style.css`, à la fin)
 
 Classes à styler (mint, cohérent avec l'existant `.qcm-*` et `.theme-exam-*`) :
 - Overlay éditeur (`.qcm-editor` ou réutiliser `.qcm-overlay`/`.qcm-player`).
 - Carte question dans la liste éditeur (section badge, énoncé, miniature, options, boutons ↑/↓/éditer/suppr).
 - Formulaire question (champs, zone options avec case à cocher, aperçu image + bouton retirer).
-- Player multi : cases à cocher (`.qcm-choice` avec état coché distinct du survol — cf. `.qcm-choice.selected` déjà présent), bouton Valider.
+- Player multi : cases à cocher (`.qcm-choice` avec état coché distinct du survol : cf. `.qcm-choice.selected` déjà présent), bouton Valider.
 - Vérifier l'équilibre des accolades : `node -e "const c=require('fs').readFileSync('css/style.css','utf8');const o=(c.match(/{/g)||[]).length,f=(c.match(/}/g)||[]).length;console.log(o,f,o===f?'OK':'MISMATCH')"`.
 
 ## 7. Rappels de vérification / commit
@@ -111,7 +111,7 @@ Classes à styler (mint, cohérent avec l'existant `.qcm-*` et `.theme-exam-*`) 
 
 ## 8. Points en attente (hors éditeur, à ne pas perdre)
 
-- **Contenu REMC C1** : la question « Quelle est la différence entre tirer et pousser le volant ? » a été signalée comme pédagogiquement douteuse par le user (« on tire toujours le volant »). En attente de la bonne réponse pour corriger la banque (ne rien inventer — règle projet).
+- **Contenu REMC C1** : la question « Quelle est la différence entre tirer et pousser le volant ? » a été signalée comme pédagogiquement douteuse par le user (« on tire toujours le volant »). En attente de la bonne réponse pour corriger la banque (ne rien inventer : règle projet).
 - **« Ma note d'examen »** dans la fiche/liste = dernière note de la **matrice Notes** (`evaluations`) pour un thème numéroté, sinon la tentative examen QCM. Décision validée ; garder ce comportement.
 - **Seuil de réussite retiré** partout (plus de « Réussi / À retravailler »). La colonne `qcm.exam_pass_20` existe encore mais n'est plus utilisée.
 - **Mettre à jour la spec Lot 2** (`2026-07-01-qcm-examen-lot2-design.md`) pour acter : pas de seuil, fiche QCM dédiée, panneau formateur Modifier/Publier. (Pas encore fait.)

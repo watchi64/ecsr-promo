@@ -143,7 +143,7 @@ Sur chaque ligne thème, en complément de N° / Thème / Statut / Fait le / Not
 |---|---|---|
 | Entraînement | bouton ▶ (si le QCM a au moins 1 question) | tous |
 | Examen | badge « En ligne » (publié) / « Brouillon » | tous (action publier : formateur) |
-| Ma note | `14/20` ou `—` | le stagiaire connecté |
+| Ma note | `14/20` ou `-` | le stagiaire connecté |
 | Date examen | date de ma tentative examen | le stagiaire connecté |
 | Moyenne classe | `12,4/20` (avg des `note_20` examen) | tous |
 
@@ -165,7 +165,7 @@ Fichiers fournis (Downloads, 2026-06-29) :
 
 | Fichier | Rattachement `themes` | Questions | Sections |
 |---|---|---|---|
-| `Evaluation C1 type QCU.docx` | `REMC C1 — Maîtriser le maniement du véhicule` (id 80, `numero` null) | 20 | Démarrer/s'arrêter, Tenir le volant, Boîte de vitesses, Doser frein/accélérateur, Regarder/avertir |
+| `Evaluation C1 type QCU.docx` | `REMC C1 : Maîtriser le maniement du véhicule` (id 80, `numero` null) | 20 | Démarrer/s'arrêter, Tenir le volant, Boîte de vitesses, Doser frein/accélérateur, Regarder/avertir |
 | `QCU QR CODE Utilisation rationnelle du véhicule.docx` | **Thème #48 « Utilisation rationnelle du véhicule »** (numéroté, catégorie Mécanique) | 12 | Embrayage, Freinage, Boîte de vitesses |
 
 - Chaque question a 4 vraies options + « Je ne sais pas. » (jamais correcte).

@@ -34,13 +34,13 @@ porte un champ `role` :
 
 - Le cas `eleve` produit **un seul item par carte**, quel que soit le nombre de groupes
   où je suis élève. Il porte un tableau `waves` : une entrée par groupe concerné,
-  `{ tableau, sujet }` — `tableau` = nom court du stagiaire au tableau de ce groupe
+  `{ tableau, sujet }` : `tableau` = nom court du stagiaire au tableau de ce groupe
   (`displayStagiaire`), `sujet` = `sujet` pour le G1, `sujet_2` pour le G2.
-- `eleves_ids_2` n'est lu que si `salle_double` est vrai — même garde que
+- `eleves_ids_2` n'est lu que si `salle_double` est vrai, même garde que
   `effElevesIds()` dans `js/views/planning.js`, pour ne pas ressusciter des rôles
   laissés en base par un changement d'activité.
 - Cas limite conservé : au tableau du G1 **et** élève du G2 (autorisé par les règles de
-  conflit) produit deux lignes distinctes sur la même demi-journée — un `passage` et un
+  conflit) produit deux lignes distinctes sur la même demi-journée : un `passage` et un
   `eleve`. Ce sont deux vagues successives, c'est le comportement voulu.
 - Les jours off / fériés filtrent les lignes `eleve` comme les autres (`dayIsOff`).
 

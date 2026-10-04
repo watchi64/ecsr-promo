@@ -1,4 +1,4 @@
-# QCM Mode Examen (Lot 2) — Implementation Plan
+# QCM Mode Examen (Lot 2) - Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -34,7 +34,7 @@ Décisions de découpage : la logique data (db.js) est isolée du rendu (qcm.js,
 
 ---
 
-## Task 1: Migration — schéma + trigger miroir
+## Task 1: Migration - schéma + trigger miroir
 
 **Files:**
 - Apply migration (MCP `apply_migration`, name: `qcm_examen_lot2`)
@@ -161,7 +161,7 @@ git commit -m "docs(qcm): spec, plan et SQL de la migration examen (Lot 2)"
 
 ---
 
-## Task 2: db.js — fonctions d'accès examen
+## Task 2: db.js - fonctions d'accès examen
 
 **Files:**
 - Modify: `js/db.js` (bloc `// === QCM (par thème) ===`, autour de `js/db.js:306-345`)
@@ -290,7 +290,7 @@ git commit -m "feat(qcm): fonctions db examen (publier, tirage, ma tentative, re
 
 ---
 
-## Task 3: qcm.js — player examen
+## Task 3: qcm.js - player examen
 
 **Files:**
 - Modify: `js/views/qcm.js` (imports en tête + nouvelles fonctions en fin de fichier)
@@ -622,7 +622,7 @@ git commit -m "feat(qcm): player examen (pré-écran, chrono global, navigation 
 
 ---
 
-## Task 4: themes.js — panneau formateur + entrée examen
+## Task 4: themes.js - panneau formateur + entrée examen
 
 **Files:**
 - Modify: `js/views/themes.js` (imports en tête + fonction `themeQcmBlock` vers `js/views/themes.js:38-61`)
@@ -637,7 +637,7 @@ import { isAdmin, getAdminEmail, isFounder, getViewAs, isProf, isStagiaire } fro
 import { openQcmEntrainement, openQcmExamen } from "./qcm.js?v=20260630i";
 ```
 
-(Les autres imports — `el, clear, ...` et `icon` — restent inchangés.)
+(Les autres imports, `el, clear, ...` et `icon`, restent inchangés.)
 
 - [ ] **Step 2: Ajouter le helper de tirage aléatoire local**
 
@@ -856,7 +856,7 @@ function themeExamPanel(theme, qcm) {
       }
       attempts.forEach((a) => {
         const row = el("div", { class: "exam-attempt-row" },
-          el("span", {}, (a.stagiaire?.prenom || `Stagiaire ${a.stagiaire_id}`) + ` — ${a.note_20}/20`),
+          el("span", {}, (a.stagiaire?.prenom || `Stagiaire ${a.stagiaire_id}`) + ` : ${a.note_20}/20`),
           el("button", { class: "btn danger", type: "button", onClick: async () => {
             if (!window.confirm("Réinitialiser cette tentative ? La note sera supprimée.")) return;
             try {
@@ -916,7 +916,7 @@ git commit -m "feat(qcm): panneau formateur examen + entrée stagiaire dans la m
 
 ---
 
-## Task 5: CSS — styles examen
+## Task 5: CSS - styles examen
 
 **Files:**
 - Modify: `css/style.css` (append après le bloc QCM existant, après `css/style.css:5551`)

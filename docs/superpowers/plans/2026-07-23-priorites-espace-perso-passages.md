@@ -4,14 +4,14 @@
 
 **Goal:** Renommer le tableau de bord en « Priorités » (icône cible), retirer l'onglet « Mon suivi » de la barre, et afficher les passages effectués (compteurs + historique) dans l'espace perso.
 
-**Architecture:** Spec : `docs/superpowers/specs/2026-07-23-priorites-espace-perso-passages-design.md`. Vanilla JS, modules ES, pas de framework. Les compteurs des passages effectués sont calculés par un module pur `js/passages-stats.js` (testable en node, comme `creneaux-rules.js`) à partir de `listPassages({stagiaire_id})` — une seule requête, compteurs et historique toujours cohérents.
+**Architecture:** Spec : `docs/superpowers/specs/2026-07-23-priorites-espace-perso-passages-design.md`. Vanilla JS, modules ES, pas de framework. Les compteurs des passages effectués sont calculés par un module pur `js/passages-stats.js` (testable en node, comme `creneaux-rules.js`) à partir de `listPassages({stagiaire_id})` : une seule requête, compteurs et historique toujours cohérents.
 
 **Tech Stack:** Vanilla JS + Supabase (lecture seule ici). Tests : `node --check` + tests node sur module pur + banc import map (`_harness_build.mjs`).
 
 ## Global Constraints
 
-- Libellés UI : jamais « Prof » (toujours « Formateur »), jamais d'em-dash (—) dans les labels.
-- Comptage : `compteDansEquite` (Effectué + Absence comptent, Bonus/Report non) — ne JAMAIS introduire une autre règle.
+- Libellés UI : jamais « Prof » (toujours « Formateur »), jamais de tiret cadratin (U+2014) dans les labels.
+- Comptage : `compteDansEquite` (Effectué + Absence comptent, Bonus/Report non), ne JAMAIS introduire une autre règle.
 - Tout nouveau bloc CSS va en FIN de `css/style.css` (l'ordre de déclaration départage les spécificités égales).
 - Ne jamais piper la sortie de `scripts/cache-bust.js` ; le hook pre-commit s'en charge seul.
 - Les imports portent des jetons `?v=` réécrits par le hook : copier le jeton courant du fichier lors d'un ajout d'import.
@@ -76,7 +76,7 @@ console.log("Tous les tests passent.");
 - [ ] **Step 2: Vérifier que le test échoue**
 
 Run: `node tests/passages-stats.test.mjs`
-Expected: FAIL — `Cannot find module ... passages-stats.js`
+Expected: FAIL : `Cannot find module ... passages-stats.js`
 
 - [ ] **Step 3: Implémenter le module**
 
@@ -109,7 +109,7 @@ Note : le jeton `?v=` de l'import sera réécrit par le hook au commit ; copier 
 - [ ] **Step 4: Vérifier que les tests passent**
 
 Run: `node tests/passages-stats.test.mjs`
-Expected: `Tous les tests passent.` — et `node --check js/passages-stats.js` sans erreur.
+Expected: `Tous les tests passent.`, et `node --check js/passages-stats.js` sans erreur.
 
 - [ ] **Step 5: Commit**
 
@@ -129,7 +129,7 @@ git commit -m "feat(passages-stats): compteurs purs des passages effectues (regl
 - Modify: `js/views/home.js:89` (tuile)
 
 **Interfaces:**
-- Produces: `icon.target()` (icons.js) — utilisée par TABS.
+- Produces: `icon.target()` (icons.js) : utilisée par TABS.
 - Consumes: rien de Task 1.
 
 - [ ] **Step 1: Ajouter l'icône `target` dans icons.js**
@@ -137,11 +137,11 @@ git commit -m "feat(passages-stats): compteurs purs des passages effectues (regl
 Après la ligne `today:` (dans l'objet `icon`), ajouter :
 
 ```js
-  // Cible (Lucide target) : onglet « Priorités » — qui doit passer en priorité.
+  // Cible (Lucide target) : onglet « Priorités » : qui doit passer en priorité.
   target:     () => svg('<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>'),
 ```
 
-- [ ] **Step 2: TABS dans main.js — renommer dashboard, retirer mon-suivi**
+- [ ] **Step 2: TABS dans main.js - renommer dashboard, retirer mon-suivi**
 
 Remplacer dans `TABS` :
 
@@ -155,7 +155,7 @@ par :
 ```js
   // « Priorités » : la vue promo dit QUI doit passer, pas « les passages » (ce mot
   // appartient à l'espace perso). L'espace perso n'a PLUS d'onglet : on y accède par
-  // l'ouverture de l'app, le logo et le badge (« Mon espace personnel ») — la route
+  // l'ouverture de l'app, le logo et le badge (« Mon espace personnel ») : la route
   // mon-suivi reste dans `routes` ci-dessous. Sur #/mon-suivi, aucun onglet n'est
   // actif : assumé (la boucle d'activation ne matche rien).
   { route: "dashboard",  label: "Priorités",       icon: "target"    },
@@ -259,7 +259,7 @@ SUPPRIMER intégralement la fonction `renderHistoriqueSection(id)` (l.398-439) e
 
 ```js
 // « Passages effectués » : compteurs (règle d'équité) + historique détaillé, depuis
-// la MÊME liste listPassages — compteurs et lignes toujours cohérents entre eux.
+// la MÊME liste listPassages : compteurs et lignes toujours cohérents entre eux.
 // Remplace l'« Historique voiture » qui vivait dans l'onglet Évolution : les tuiles
 // et la répartition par formateur déménagent ici, avec la salle en plus.
 function renderEffectuesSection(rows) {
@@ -281,7 +281,7 @@ function renderEffectuesSection(rows) {
       tile(s.avecEleve, "avec élève"),
     ));
 
-  // Répartition par formateur (voiture) — mêmes classes CSS que l'ancien historique.
+  // Répartition par formateur (voiture), mêmes classes CSS que l'ancien historique.
   const profRows = Object.entries(s.byProf)
     .map(([pid, k]) => ({ nom: profs.find((p) => p.id === Number(pid))?.nom || "?", n: k }))
     .sort((x, y) => y.n - x.n);
@@ -350,7 +350,7 @@ Ajouter tout en fin de `css/style.css` :
 
 ```css
 /* ============================================================
-   Mon suivi — historique des passages effectués (volet 2026-07-23)
+   Mon suivi : historique des passages effectués (volet 2026-07-23)
    Bloc en FIN de fichier : l'ordre de déclaration départage les
    spécificités égales (piège documenté du 2026-07-20).
    ============================================================ */
@@ -424,7 +424,7 @@ Dans `_harness_supabase.js`, objet `FIXTURES`, remplacer `passages: [],` par :
 
 Attendu avec ces fixtures pour le stagiaire 1 : compteurs salle 1 · voiture 1 · avec élève 1 (le Bonus est exclu des compteurs) ; historique 3 lignes (le Bonus listé avec son tag) ; le passage d'Anissa (id 4) invisible.
 
-Note : le `select` du stub ignore les jointures PostgREST (`stagiaire:...`) — les champs `stagiaire`/`remplacant` sont fournis directement dans la fixture, et le tri date desc de `listPassages` est un `order()` no-op dans le stub, d'où des fixtures PRÉ-TRIÉES par date décroissante par stagiaire.
+Note : le `select` du stub ignore les jointures PostgREST (`stagiaire:...`) : les champs `stagiaire`/`remplacant` sont fournis directement dans la fixture, et le tri date desc de `listPassages` est un `order()` no-op dans le stub, d'où des fixtures PRÉ-TRIÉES par date décroissante par stagiaire.
 
 - [ ] **Step 2: Régénérer le banc et vérifier**
 
@@ -445,7 +445,7 @@ Puis via le pane (preview `ecsr-app`, `_harness.html?fresh=<n>`), vérifier par 
 
 Expected: tous les points verts.
 
-- [ ] **Step 3: Commit (si le stub seul a bougé, rien à committer — il est git-exclu ; sinon committer les retouches)**
+- [ ] **Step 3: Commit (si le stub seul a bougé, rien à committer : il est git-exclu ; sinon committer les retouches)**
 
 ```bash
 git status --short
@@ -457,7 +457,7 @@ Expected: arbre propre (les fichiers `_harness*` sont exclus).
 
 ### Task 5: Déploiement + vérification live
 
-**Files:** aucun nouveau — push de l'existant.
+**Files:** aucun nouveau : push de l'existant.
 
 - [ ] **Step 1: Push**
 

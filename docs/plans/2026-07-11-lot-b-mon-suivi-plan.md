@@ -1,10 +1,10 @@
-# Lot B — Espace « Mon suivi » · Implementation Plan
+# Lot B - Espace « Mon suivi » · Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Ajouter un onglet personnel « Mon suivi » montrant les passages à venir d'un stagiaire (déduits du planning, avec grisage) et un graphique SVG d'évolution de sa moyenne et de ses notes.
 
-**Architecture:** Une nouvelle vue `js/views/mon-suivi.js` (JS vanilla ES module) câblée dans le routeur/onglets de `main.js`, une icône ajoutée à `js/icons.js`, et des styles ajoutés à `css/style.css`. Lecture seule des données existantes (`planning_entries`, `planning_half_meta`, `evaluations`) — **aucune migration**. Vérification navigateur (pas de test-runner).
+**Architecture:** Une nouvelle vue `js/views/mon-suivi.js` (JS vanilla ES module) câblée dans le routeur/onglets de `main.js`, une icône ajoutée à `js/icons.js`, et des styles ajoutés à `css/style.css`. Lecture seule des données existantes (`planning_entries`, `planning_half_meta`, `evaluations`) : **aucune migration**. Vérification navigateur (pas de test-runner).
 
 **Tech Stack:** JavaScript vanilla (ES modules), SVG inline (pas de lib graphique), Supabase (lecture seule).
 
@@ -25,10 +25,10 @@
 
 ## File Structure
 
-- **Create:** `js/views/mon-suivi.js` — la vue complète (identité + sélecteur, section passages, section graphique). Responsabilité unique : afficher le suivi personnel d'un stagiaire.
-- **Modify:** `js/main.js` — enregistrer la route `mon-suivi`, l'onglet, et l'import.
-- **Modify:** `js/icons.js` — ajouter l'icône `progress` (trending-up).
-- **Modify:** `css/style.css` — styles `.ms-*`.
+- **Create:** `js/views/mon-suivi.js` : la vue complète (identité + sélecteur, section passages, section graphique). Responsabilité unique : afficher le suivi personnel d'un stagiaire.
+- **Modify:** `js/main.js` : enregistrer la route `mon-suivi`, l'onglet, et l'import.
+- **Modify:** `js/icons.js` : ajouter l'icône `progress` (trending-up).
+- **Modify:** `css/style.css` : styles `.ms-*`.
 
 ---
 
@@ -462,13 +462,13 @@ Ajouter à la fin de `css/style.css` :
 > diffère. Si le thème sombre définit d'autres noms, ajuster ; les couleurs de points
 > (`bad/warn/ok/great`) sont sémantiques et lisibles sur fond clair comme sombre.
 
-- [ ] **Step 2: Vérifier — thème clair**
+- [ ] **Step 2: Vérifier - thème clair**
 
 Recharger `#/mon-suivi`. Attendu : cartes de passages propres, badges lisibles, graphique
 aligné, points colorés, courbe à l'accent. Rien ne déborde horizontalement (le graphe scrolle
 dans son conteneur si l'écran est étroit).
 
-- [ ] **Step 3: Vérifier — thème sombre**
+- [ ] **Step 3: Vérifier - thème sombre**
 
 Basculer le thème (bouton thème de l'app, ou `resize_window` avec `colorScheme: "dark"`).
 Attendu : textes/gridlines/points restent lisibles, pas de carte blanche sur fond sombre
@@ -495,7 +495,7 @@ git commit -m "mon-suivi: styles (passages + graphique, clair/sombre)"
 
 Pas de test-runner. Vérification via le serveur de preview :
 
-1. `.claude/launch.json` : un serveur statique servant la racine du repo (ex. `python -m http.server 8000`), puis `preview_start` — ou `preview_start` avec l'URL locale.
+1. `.claude/launch.json` : un serveur statique servant la racine du repo (ex. `python -m http.server 8000`), puis `preview_start`, ou `preview_start` avec l'URL locale.
 2. Se connecter (gate). Idéalement tester **deux comptes** : un **admin** (voit le sélecteur) et un **stagiaire** lié à une fiche (voit son propre suivi).
 3. Pré-requis données : le stagiaire testé doit avoir des créneaux Salle/Voiture dans le planning
    de la semaine active (`current_week_lundi`) et quelques évaluations notées, sinon les sections
@@ -516,7 +516,7 @@ Pas de test-runner. Vérification via le serveur de preview :
   - Passages à venir (semaine active + suivante, filtre acteur, grisage, horaire, sujet) → Task 2. ✔
   - Graphique moyenne + notes, seuils couleur, tooltip, état vide → Task 3. ✔
   - Styles + thème clair/sombre → Task 4. ✔
-- **Placeholders :** aucun — code complet à chaque étape. ✔
+- **Placeholders :** aucun, code complet à chaque étape. ✔
 - **Cohérence des noms :** `loadUpcoming`, `extractMyPassages`, `renderPassagesSection`,
   `renderChartSection`, `buildChart`, `avgTier`, `svgEl` définis et appelés de façon cohérente ;
   `renderFor` mis à jour en Task 3 pour appeler `renderChartSection`. ✔

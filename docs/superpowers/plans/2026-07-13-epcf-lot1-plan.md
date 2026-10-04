@@ -1,4 +1,4 @@
-# Plan d'implémentation — Outil EPCF, lot 1
+# Plan d'implémentation - Outil EPCF, lot 1
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -9,10 +9,10 @@
 **Tech Stack:** Vanilla JS ES modules, Supabase (PostgREST + RLS), SVG, CSS maison (variables `--line`, `--bg-elev`, `--accent`, `--c-go`, `--c-stop`, PAS `--border`/`--bg-card` qui n'existent pas).
 
 **Contraintes d'environnement :**
-- Exécution dans un **worktree dédié** (branche `lot1-epcf`) créé via superpowers:using-git-worktrees — le dossier principal `TP_ECSR_App` est partagé entre sessions.
-- Le hook pre-commit `scripts/cache-bust.js` re-versionne le token `?v=` de TOUT le projet à chaque commit touchant js/css : le bruit dans les diffs est normal. Les imports dans les fichiers NOUVEAUX doivent porter le token courant lisible en tête de n'importe quel fichier existant (ex. `?v=20260713b`) — le hook le maintiendra ensuite.
+- Exécution dans un **worktree dédié** (branche `lot1-epcf`) créé via superpowers:using-git-worktrees : le dossier principal `TP_ECSR_App` est partagé entre sessions.
+- Le hook pre-commit `scripts/cache-bust.js` re-versionne le token `?v=` de TOUT le projet à chaque commit touchant js/css : le bruit dans les diffs est normal. Les imports dans les fichiers NOUVEAUX doivent porter le token courant lisible en tête de n'importe quel fichier existant (ex. `?v=20260713b`) : le hook le maintiendra ensuite.
 - Pas de framework de test : chaque tâche se vérifie par `node --check` + inspection ciblée ; la vérification navigateur se fait en tâche finale.
-- La migration SQL s'applique via le MCP Supabase (`apply_migration`, project_id `crpduennbqaemhfaywrz`) — si indisponible, la donner à l'utilisateur pour le SQL editor.
+- La migration SQL s'applique via le MCP Supabase (`apply_migration`, project_id `crpduennbqaemhfaywrz`) : si indisponible, la donner à l'utilisateur pour le SQL editor.
 
 ---
 
@@ -32,7 +32,7 @@
 
 ---
 
-### Task 1 : Migration SQL — table, helpers de rôle, RLS, RPC
+### Task 1 : Migration SQL - table, helpers de rôle, RLS, RPC
 
 **Files:**
 - Create: `C:\Users\watch\Dev\ECSR\migration_supabase\2026-07-14_epcf_evaluations.sql`
@@ -40,7 +40,7 @@
 - [ ] **Step 1 : Écrire le fichier SQL** (contenu complet) :
 
 ```sql
--- 2026-07-14 — Outil EPCF (évaluations en cours de formation), lot 1.
+-- 2026-07-14 : Outil EPCF (évaluations en cours de formation), lot 1.
 -- Table + helpers de rôle + RLS stricte + RPC moyennes groupe.
 -- Réf : TP_ECSR_App/docs/superpowers/specs/2026-07-13-epcf-design.md
 
@@ -66,7 +66,7 @@ create table if not exists public.epcf_evaluations (
 create index if not exists epcf_evaluations_stagiaire_idx
   on public.epcf_evaluations (stagiaire_id, trame, date_eval desc);
 
--- Helpers de rôle — MÊME pattern que is_admin() existant (match par email du JWT).
+-- Helpers de rôle, MÊME pattern que is_admin() existant (match par email du JWT).
 create or replace function public.is_prof()
 returns boolean language sql stable security definer
 set search_path to 'public', 'pg_temp'
@@ -135,15 +135,15 @@ $$;
 
 ---
 
-### Task 2 : Config des trames — `js/epcf-trames.js`
+### Task 2 : Config des trames - `js/epcf-trames.js`
 
 **Files:**
 - Create: `js/epcf-trames.js`
 
-- [ ] **Step 1 : Créer le fichier** (contenu complet — libellés = transcription exacte de la spec §2) :
+- [ ] **Step 1 : Créer le fichier** (contenu complet : libellés = transcription exacte de la spec §2) :
 
 ```js
-// Trames EPCF (grilles d'évaluation officielles d'Hocine, CCP1 — 09/07/2026).
+// Trames EPCF (grilles d'évaluation officielles d'Hocine, CCP1 : 09/07/2026).
 // NE PAS modifier une version publiée : toute évolution de la grille = version++
 // (les évals stockées portent trame_version et se réaffichent avec leur définition).
 
@@ -163,7 +163,7 @@ export const EPCF_TRAMES = {
       {
         code: "PREP", court: "Préparation",
         titre: "Préparation (de X minutes)",
-        competenceTP: "1 — Construire et préparer le scénario d'une séance collective de formation",
+        competenceTP: "1. Construire et préparer le scénario d'une séance collective de formation",
         criteres: [
           { code: "PREP1", libelle: "Les objectifs sont ciblés pour des élèves conducteurs." },
           { code: "PREP2", libelle: "Une hiérarchie des objectifs est établie suivant le parcours des élèves." },
@@ -175,7 +175,7 @@ export const EPCF_TRAMES = {
       {
         code: "ANIM", court: "Animation",
         titre: "Cours, explication, application",
-        competenceTP: "2 — Animer une séance collective de formation à la sécurité routière",
+        competenceTP: "2. Animer une séance collective de formation à la sécurité routière",
         criteres: [
           { code: "ANIM1", libelle: "Le plan est en lien avec l'objectif." },
           { code: "ANIM2", libelle: "Utilise-t-il les connaissances des élèves ?" },
@@ -189,7 +189,7 @@ export const EPCF_TRAMES = {
       {
         code: "EVAL", court: "Évaluations",
         titre: "Évaluation générale statique · Évaluation spécifique statique · Évaluation finale",
-        competenceTP: "4 — Évaluer le degré d'acquisition des compétences des apprenants",
+        competenceTP: "4. Évaluer le degré d'acquisition des compétences des apprenants",
         criteres: [
           { code: "EVAL1", libelle: "Explique-t-il l'intérêt de l'évaluation ?" },
           { code: "EVAL2", libelle: "Cherche-t-il à connaître les élèves ?" },
@@ -203,7 +203,7 @@ export const EPCF_TRAMES = {
       {
         code: "BILEV", court: "Bilan & objectif",
         titre: "Bilan des évaluations · Détermination de l'objectif",
-        competenceTP: "6 — Repérer les difficultés d'apprentissage et essayer d'y remédier",
+        competenceTP: "6. Repérer les difficultés d'apprentissage et essayer d'y remédier",
         criteres: [
           { code: "BILEV1", libelle: "Repérer les difficultés d'apprentissage particulières des élèves." },
           { code: "BILEV2", libelle: "Identifier les difficultés d'apprentissage particulières des élèves." },
@@ -235,7 +235,7 @@ export const EPCF_TRAMES = {
       {
         code: "COND", court: "Animation conduite",
         titre: "Explication, démonstration, guidage, autonomie, répétition",
-        competenceTP: "3 — Animer une séance individuelle de formation à la conduite d'un véhicule léger",
+        competenceTP: "3. Animer une séance individuelle de formation à la conduite d'un véhicule léger",
         criteres: [
           { code: "COND1", libelle: "L'objectif est-il respecté ? Les modifications sont-elles justifiées ?" },
           { code: "COND2", libelle: "Les choix d'itinéraire sont réalisables en fonction des impératifs." },
@@ -250,7 +250,7 @@ export const EPCF_TRAMES = {
       {
         code: "EVAL", court: "Évaluations",
         titre: "Évaluation générale statique · Évaluation spécifique statique · Évaluation finale",
-        competenceTP: "4 — Évaluer le degré d'acquisition des compétences des apprenants",
+        competenceTP: "4. Évaluer le degré d'acquisition des compétences des apprenants",
         criteres: [
           { code: "EVAL1", libelle: "Explique-t-il l'intérêt de l'évaluation ?" },
           { code: "EVAL2", libelle: "Cherche-t-il à connaître l'apprenant ?" },
@@ -264,7 +264,7 @@ export const EPCF_TRAMES = {
       {
         code: "BILEV", court: "Bilan & objectif",
         titre: "Bilan des évaluations · Détermination de l'objectif",
-        competenceTP: "6 — Repérer les difficultés d'apprentissage et essayer d'y remédier",
+        competenceTP: "6. Repérer les difficultés d'apprentissage et essayer d'y remédier",
         criteres: [
           { code: "BILEV1", libelle: "Repérer les difficultés d'apprentissage particulières de l'élève." },
           { code: "BILEV2", libelle: "Identifier les difficultés d'apprentissage particulières de l'élève." },
@@ -285,7 +285,7 @@ export const EPCF_TRAMES = {
       {
         code: "PERC", court: "Perception (C7)",
         titre: "Conduite commentée, guidage, démonstration",
-        competenceTP: "7 — Apprécier la dynamique de l'environnement routier et identifier les risques potentiels",
+        competenceTP: "7. Apprécier la dynamique de l'environnement routier et identifier les risques potentiels",
         criteres: [
           { code: "PERC1", libelle: "La prise d'information est riche et variée (CAHLLM)." },
           { code: "PERC2", libelle: "Les indices sont triés." },
@@ -300,13 +300,13 @@ export const EPCF_TRAMES = {
 };
 ```
 
-- [ ] **Step 2 : Vérifier** : `node --check js/epcf-trames.js` → OK. Compter les critères : salle 25, véhicule 28 (`node -e "import('./js/epcf-trames.js').then(m => { for (const [k,t] of Object.entries(m.EPCF_TRAMES)) console.log(k, t.sections.reduce((s,x)=>s+x.criteres.length,0)); })"` — lancer depuis la racine du worktree ; si l'import échoue à cause du token `?v=`, ce fichier n'importe rien donc ça passe).
+- [ ] **Step 2 : Vérifier** : `node --check js/epcf-trames.js` → OK. Compter les critères : salle 25, véhicule 28 (`node -e "import('./js/epcf-trames.js').then(m => { for (const [k,t] of Object.entries(m.EPCF_TRAMES)) console.log(k, t.sections.reduce((s,x)=>s+x.criteres.length,0)); })"` : lancer depuis la racine du worktree ; si l'import échoue à cause du token `?v=`, ce fichier n'importe rien donc ça passe).
 
 - [ ] **Step 3 : Commit** : `git add js/epcf-trames.js && git commit -m "epcf: trames officielles salle/véhicule (config versionnée)"`
 
 ---
 
-### Task 3 : Accès données — `js/db.js`
+### Task 3 : Accès données - `js/db.js`
 
 **Files:**
 - Modify: `js/db.js` (ajouter en fin de section données, avant les fonctions d'invitation)
@@ -352,7 +352,7 @@ export async function deleteEpcf(id) {
   if (error) throw error;
 }
 
-// Moyennes du groupe par critère (RPC SECURITY DEFINER — agrégats seuls).
+// Moyennes du groupe par critère (RPC SECURITY DEFINER : agrégats seuls).
 export async function getEpcfMoyennes(trame) {
   const { data, error } = await supabase.rpc("epcf_moyennes", { p_trame: trame });
   if (error) throw error;
@@ -366,7 +366,7 @@ export async function getEpcfMoyennes(trame) {
 
 ---
 
-### Task 4 : Scoring + radar + restitution — `js/epcf-restitution.js`
+### Task 4 : Scoring + radar + restitution - `js/epcf-restitution.js`
 
 **Files:**
 - Create: `js/epcf-restitution.js`
@@ -441,11 +441,11 @@ export function renderEpcfDetail(trameKey, evalRow) {
   trame.sections.forEach((sec) => {
     const box = el("div", { class: "epcf-detail-section" },
       el("h5", { class: "epcf-detail-title" }, sec.titre,
-        sec.competenceTP ? el("span", { class: "muted epcf-detail-tp" }, " — " + sec.competenceTP) : null));
+        sec.competenceTP ? el("span", { class: "muted epcf-detail-tp" }, " (" + sec.competenceTP + ")") : null));
     sec.criteres.forEach((c) => {
       const note = evalRow.scores?.[c.code];
       box.appendChild(el("div", { class: "epcf-detail-row" },
-        el("span", { class: "epcf-chip " + (note || "vide") }, note ? NOTE_LABELS[note] : "—"),
+        el("span", { class: "epcf-chip " + (note || "vide") }, note ? NOTE_LABELS[note] : "-"),
         el("span", {}, c.libelle),
       ));
     });
@@ -501,7 +501,7 @@ export function renderEpcfTrameSection(trameKey, evals, moyennes) {
   if (evals.length > 1) {
     const sel = el("select", { class: "epcf-eval-select" });
     evals.forEach((ev, i) => {
-      const o = el("option", { value: String(i) }, formatDate(ev.date_eval) + (ev.evaluateur?.nom ? " — " + ev.evaluateur.nom : ""));
+      const o = el("option", { value: String(i) }, formatDate(ev.date_eval) + (ev.evaluateur?.nom ? " (" + ev.evaluateur.nom + ")" : ""));
       if (i === 0) o.selected = true;
       sel.appendChild(o);
     });
@@ -519,7 +519,7 @@ export function renderEpcfTrameSection(trameKey, evals, moyennes) {
 
 ---
 
-### Task 5 : Vue formateur — `js/views/epcf.js` (liste + formulaire)
+### Task 5 : Vue formateur - `js/views/epcf.js` (liste + formulaire)
 
 **Files:**
 - Create: `js/views/epcf.js`
@@ -567,7 +567,7 @@ export async function renderEpcf(container) {
     el("div", { class: "view-header-text" },
       el("p", { class: "eyebrow" }, "Formateurs"),
       el("h2", {}, "EPCF"),
-      el("p", { class: "subtitle" }, "Évaluations en cours de formation — grilles CCP1 salle et véhicule."),
+      el("p", { class: "subtitle" }, "Évaluations en cours de formation : grilles CCP1 salle et véhicule."),
     ),
   ));
 
@@ -617,7 +617,7 @@ function showForm(body, stagiaire, trameKey, existing) {
 
   body.appendChild(el("div", { class: "epcf-form-head" },
     el("button", { class: "btn ghost sm", onClick: () => showListe(body) }, "← Retour"),
-    el("h3", {}, `${trame.label} — ${displayStagiaire(stagiaire)}`),
+    el("h3", {}, `${trame.label} : ${displayStagiaire(stagiaire)}`),
   ));
 
   const dateInput = el("input", { type: "date", value: existing?.date_eval || isoDate(new Date()) });
@@ -643,7 +643,7 @@ function showForm(body, stagiaire, trameKey, existing) {
   trame.sections.forEach((sec) => {
     const box = el("div", { class: "epcf-form-section" },
       el("h4", {}, sec.titre,
-        sec.competenceTP ? el("span", { class: "muted epcf-detail-tp" }, " — " + sec.competenceTP) : null));
+        sec.competenceTP ? el("span", { class: "muted epcf-detail-tp" }, " (" + sec.competenceTP + ")") : null));
     sec.criteres.forEach((c) => {
       const seg = el("div", { class: "epcf-seg" });
       ["A", "R", "NA"].forEach((note) => {
@@ -710,20 +710,20 @@ function showForm(body, stagiaire, trameKey, existing) {
 }
 ```
 
-(La fonction `showClasse` est ajoutée en Task 6 — pour que ce commit passe `node --check`, ajouter en bas du fichier un stub temporaire : `function showClasse(body) { showListe(body); }` qui sera remplacé.)
+(La fonction `showClasse` est ajoutée en Task 6 : pour que ce commit passe `node --check`, ajouter en bas du fichier un stub temporaire : `function showClasse(body) { showListe(body); }` qui sera remplacé.)
 
 - [ ] **Step 2 : Vérifier** : `node --check js/views/epcf.js` → OK.
 
-- [ ] **Step 3 : Commit** : `git add js/views/epcf.js && git commit -m "epcf: vue formateur — liste des stagiaires + formulaire de saisie"`
+- [ ] **Step 3 : Commit** : `git add js/views/epcf.js && git commit -m "epcf: vue formateur : liste des stagiaires + formulaire de saisie"`
 
 ---
 
-### Task 6 : Vue classe (moyennes) — dans `js/views/epcf.js`
+### Task 6 : Vue classe (moyennes) - dans `js/views/epcf.js`
 
 **Files:**
 - Modify: `js/views/epcf.js` (remplacer le stub `showClasse`)
 
-- [ ] **Step 1 : Remplacer le stub** par l'implémentation (agrégation client — les profs lisent toutes les lignes, pas besoin du RPC ici) :
+- [ ] **Step 1 : Remplacer le stub** par l'implémentation (agrégation client : les profs lisent toutes les lignes, pas besoin du RPC ici) :
 
 ```js
 // --- Vue classe : moyennes par critère et par phase (dernière éval formateur
@@ -732,7 +732,7 @@ function showClasse(body) {
   clear(body);
   body.appendChild(el("div", { class: "epcf-form-head" },
     el("button", { class: "btn ghost sm", onClick: () => showListe(body) }, "← Retour"),
-    el("h3", {}, "Vue classe — moyennes"),
+    el("h3", {}, "Vue classe : moyennes"),
   ));
 
   TRAME_KEYS.forEach((trameKey) => {
@@ -746,7 +746,7 @@ function showClasse(body) {
       return true;
     });
     const box = el("div", { class: "epcf-classe-trame" },
-      el("h4", {}, `${trame.label} — ${dernieres.length} stagiaire(s) évalué(s)`));
+      el("h4", {}, `${trame.label} : ${dernieres.length} stagiaire(s) évalué(s)`));
     if (!dernieres.length) {
       box.appendChild(el("p", { class: "muted" }, "Aucune évaluation."));
       body.appendChild(box);
@@ -769,14 +769,14 @@ function showClasse(body) {
       const ps = phaseScoreFromMoyennes(sec, moyennes);
       tbody.appendChild(el("tr", { class: "epcf-classe-phase" },
         el("td", {}, el("strong", {}, sec.court)),
-        el("td", {}, el("strong", {}, ps == null ? "—" : (ps * 2).toFixed(2))),
+        el("td", {}, el("strong", {}, ps == null ? "-" : (ps * 2).toFixed(2))),
         el("td", {}, "")));
       sec.criteres.forEach((c) => {
         const m = byCode[c.code];
         const tier = !m ? "" : m.moyenne >= 1.5 ? "A" : m.moyenne >= 0.8 ? "R" : "NA";
         tbody.appendChild(el("tr", {},
           el("td", { class: "epcf-classe-lib" }, c.libelle),
-          el("td", {}, el("span", { class: "epcf-chip " + (tier || "vide") }, m ? m.moyenne.toFixed(2) : "—")),
+          el("td", {}, el("span", { class: "epcf-chip " + (tier || "vide") }, m ? m.moyenne.toFixed(2) : "-")),
           el("td", { class: "muted" }, m ? String(m.effectif) : "")));
       });
     });
@@ -789,11 +789,11 @@ function showClasse(body) {
 
 - [ ] **Step 2 : Vérifier** : `node --check js/views/epcf.js` → OK. Vérifier qu'il ne reste qu'UNE définition de `showClasse` (le stub est remplacé) : `grep -c "function showClasse" js/views/epcf.js` → 1.
 
-- [ ] **Step 3 : Commit** : `git add js/views/epcf.js && git commit -m "epcf: vue classe — moyennes par phase et critère"`
+- [ ] **Step 3 : Commit** : `git add js/views/epcf.js && git commit -m "epcf: vue classe : moyennes par phase et critère"`
 
 ---
 
-### Task 7 : Câblage onglet + route — `js/main.js`, `js/icons.js`
+### Task 7 : Câblage onglet + route - `js/main.js`, `js/icons.js`
 
 **Files:**
 - Modify: `js/icons.js` (objet `icon`)
@@ -821,7 +821,7 @@ function showClasse(body) {
     ```js
     onAdminChange(() => { renderTabs(); navigate(); });
     ```
-    (l'onglet EPCF apparaît/disparaît quand le rôle change — connexion, « Voir en tant que »).
+    (l'onglet EPCF apparaît/disparaît quand le rôle change : connexion, « Voir en tant que »).
 
 - [ ] **Step 3 : Vérifier** : `node --check js/main.js && node --check js/icons.js` → OK.
 
@@ -829,7 +829,7 @@ function showClasse(body) {
 
 ---
 
-### Task 8 : Mon suivi — retrait fiche souhaits, ajout « Mes EPCF »
+### Task 8 : Mon suivi - retrait fiche souhaits, ajout « Mes EPCF »
 
 **Files:**
 - Modify: `js/views/mon-suivi.js`
@@ -842,12 +842,12 @@ function showClasse(body) {
   - Supprimer la fonction `renderFicheSection` en entier.
   - Supprimer la ligne `body.appendChild(renderFicheSection(id, () => renderFor(currentId)));` dans `renderFor`.
   - Supprimer `fiches`, `ficheOf` (variables/fonctions module) et `listFiches` du `Promise.all` de `renderMonSuivi` (garder `getVoitureAggregats` et `listProfs`).
-  - Nettoyer les imports devenus inutiles : `listFiches`, `upsertFiche` (depuis db.js), `COMPETENCES_REMC` (depuis benevoles.js), `getCurrentWho` (depuis identity.js) et `toast` **si** plus utilisés — vérifier avec `grep -n "toast\|getCurrentWho" js/views/mon-suivi.js` avant de retirer.
+  - Nettoyer les imports devenus inutiles : `listFiches`, `upsertFiche` (depuis db.js), `COMPETENCES_REMC` (depuis benevoles.js), `getCurrentWho` (depuis identity.js) et `toast` **si** plus utilisés : vérifier avec `grep -n "toast\|getCurrentWho" js/views/mon-suivi.js` avant de retirer.
 
 - [ ] **Step 3 : Ajouter la section « Mes EPCF »** :
   - Imports : `listEpcf, getEpcfMoyennes` (ajout à l'import db.js existant) et
     `import { renderEpcfTrameSection } from "../epcf-restitution.js?v=20260713b";`
-  - Charger les moyennes UNE fois par rendu de vue (elles ne dépendent pas de l'élève) — dans `renderMonSuivi`, ajouter au `Promise.all` existant :
+  - Charger les moyennes UNE fois par rendu de vue (elles ne dépendent pas de l'élève) : dans `renderMonSuivi`, ajouter au `Promise.all` existant :
     ```js
     const [aggregatsData, profsData, moySalle, moyVehicule] = await Promise.all([
       getVoitureAggregats(), listProfs(), getEpcfMoyennes("salle"), getEpcfMoyennes("vehicule"),
@@ -880,12 +880,12 @@ function showClasse(body) {
 
 ---
 
-### Task 9 : Styles — `css/style.css`
+### Task 9 : Styles - `css/style.css`
 
 **Files:**
 - Modify: `css/style.css`
 
-- [ ] **Step 1 : Retirer les styles morts** de la fiche souhaits — supprimer les règles `.suivi-comps`, `.suivi-comp`, `.suivi-comp summary`, `.suivi-comp-main`, `.suivi-souscomp` **après** avoir vérifié qu'aucune autre vue ne les utilise : `grep -rn "suivi-comp\|suivi-souscomp" js/ index.html` → seul mon-suivi.js (déjà nettoyé) devait les utiliser. Garder `.suivi-histo` (historique voiture).
+- [ ] **Step 1 : Retirer les styles morts** de la fiche souhaits : supprimer les règles `.suivi-comps`, `.suivi-comp`, `.suivi-comp summary`, `.suivi-comp-main`, `.suivi-souscomp` **après** avoir vérifié qu'aucune autre vue ne les utilise : `grep -rn "suivi-comp\|suivi-souscomp" js/ index.html` → seul mon-suivi.js (déjà nettoyé) devait les utiliser. Garder `.suivi-histo` (historique voiture).
 
 - [ ] **Step 2 : Ajouter les styles EPCF** (à la suite du bloc Mon suivi existant) :
 
@@ -949,7 +949,7 @@ function showClasse(body) {
 .epcf-classe-phase td { background: var(--bg-subtle); }
 ```
 
-Note : si `--bg-subtle` n'existe pas dans `:root` (vérifier avec `grep -n "\-\-bg-subtle" css/style.css`), remplacer par la variable de fond atténué réellement définie (`.suivi-histo` en utilise une — reprendre la même). `color-mix` est supporté par les navigateurs cibles (app déjà moderne) ; à défaut remplacer par des couleurs fixes claires.
+Note : si `--bg-subtle` n'existe pas dans `:root` (vérifier avec `grep -n "\-\-bg-subtle" css/style.css`), remplacer par la variable de fond atténué réellement définie (`.suivi-histo` en utilise une : reprendre la même). `color-mix` est supporté par les navigateurs cibles (app déjà moderne) ; à défaut remplacer par des couleurs fixes claires.
 
 - [ ] **Step 3 : Commit** : `git add css/style.css && git commit -m "epcf: styles (table, formulaire, chips, radar, vue classe)"`
 
@@ -957,7 +957,7 @@ Note : si `--bg-subtle` n'existe pas dans `:root` (vérifier avec `grep -n "\-\-
 
 ### Task 10 : Vérification finale + préparation merge
 
-**Files:** aucun nouveau — vérification transversale.
+**Files:** aucun nouveau : vérification transversale.
 
 - [ ] **Step 1 : Syntaxe globale** : `node --check` sur tous les js modifiés/créés (`epcf-trames.js`, `epcf-restitution.js`, `views/epcf.js`, `db.js`, `main.js`, `icons.js`, `views/mon-suivi.js`) → tous OK.
 
@@ -982,4 +982,4 @@ Note : si `--bg-subtle` n'existe pas dans `:root` (vérifier avec `grep -n "\-\-
 
 - **Couverture spec** : §2 trames → Task 2 ; §3 modèle → Task 1/3 ; §4 RLS+RPC → Task 1 ; §5 onglet EPCF (liste/formulaire/classe) → Tasks 5-7 ; §5 Mon suivi (Mes EPCF + retrait fiche) → Task 8 ; §6 db.js → Task 3 ; §7 cas limites (éval vide refusée Task 5, groupe < 2 masqué Task 4, phase vide → 0 documenté Task 4) ; §8 vérification → Task 10.
 - **Types cohérents** : `stagiaire_id`/`prof_id` = integer (vérifié en base) ; `scores` clés = codes critères des trames ; `phaseScoreFromMoyennes` consomme le format du RPC ET de l'agrégation client (Task 6 produit le même shape `{critere, moyenne, effectif}`).
-- **Écart signalé** : `deleteEpcf` ajouté en Task 3 (utile aux tests/corrections formateur) mais aucun bouton de suppression en UI au lot 1 — assumé.
+- **Écart signalé** : `deleteEpcf` ajouté en Task 3 (utile aux tests/corrections formateur) mais aucun bouton de suppression en UI au lot 1 : assumé.
