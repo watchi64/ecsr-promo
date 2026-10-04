@@ -14,19 +14,29 @@ import { el, clear, debounce } from "../utils.js?v=20261003c";
 import { icon } from "../icons.js?v=20261003c";
 import { getCours, saveCours, setCoursPublie, listCoursVersions, getCoursVersion, uploadCoursImage }
   from "../db.js?v=20261003c";
-import { rendreMarkdown } from "./cours-reader.js?v=20261003c";
-import { insererSyntaxe, titreDepuisMarkdown, cheminImage, interpolerAncres } from "../cours-rules.js?v=20261003c";
+import { rendreMarkdown, detruireScenes } from "./cours-reader.js?v=20261003c";
+import { insererSyntaxe, titreDepuisMarkdown, cheminImage, interpolerAncres, libelleCle, estCodeCompetence }
+  from "../cours-rules.js?v=20261003c";
 import { getProfileWho } from "../auth-admin.js?v=20261003c";
 import { reduireImage } from "../cours-images.js?v=20261003c";
 import { SIGNAUX, carteSignal } from "../signaux.js?v=20261003c";
 import { CATALOGUE } from "../signaux-catalogue.js?v=20261003c";
 import { MARQUAGES, carteMarquage } from "../marquage.js?v=20261003c";
+import { SCENES } from "../scenes.js?v=20261003c";
 
 const OUTILS = [
   { label: "Gras", avant: "**", apres: "**", defaut: "texte" },
   { label: "Titre", avant: "\n### ", apres: "\n", defaut: "Sous-partie" },
   { label: "Tableau", avant: "\n| Situation | Règle |\n|---|---|\n| ", apres: " |  |\n", defaut: "cas" },
 ];
+
+// Modèles insérés par le menu Blocs (syntaxe : voir js/cours-blocs-rules.js).
+const MODELES_BLOCS = {
+  ordre: "\n:::quiz ordre\n? Remettre les étapes dans l'ordre\nPremière étape\nDeuxième étape\nTroisième étape\n:::\n",
+  "vrai-faux": "\n:::quiz vrai-faux\nAffirmation à juger. | vrai | Explication.\n:::\n",
+  choix: "\n:::quiz choix\n? Question\n- Mauvaise réponse\n- [x] Bonne réponse\n- Mauvaise réponse\n> Explication.\n:::\n",
+  cartes: "\n:::cartes\nQ : Question\nR : Réponse\n:::\n",
+};
 
 // ===== Galerie de panneaux : fusion du registre vérifié (SIGNAUX, qui garde
 // la priorité en cas de code partagé) et du catalogue complet (384 codes),
@@ -72,13 +82,13 @@ function normaliserRecherche(s) {
   return s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 }
 
-export async function openCoursEditeur(numero, { onFerme } = {}) {
-  const cours = await getCours(numero);
+export async function openCoursEditeur(cle, { onFerme } = {}) {
+  const cours = await getCours(cle);
   let ouvertA = cours.updated_at;   // jeton du garde-fou optimiste
   let sauve = true;                 // l'éditeur est-il aligné avec la base ?
   let aChange = false;              // au moins un enregistrement réussi ?
 
-  const overlay = el("div", { class: "cours-overlay cours-editeur" });
+  const overlay = el("div", { class: "cours-overlay cours-editeur" + (estCodeCompetence(cle) ? " cours-competence" : "") });
 
   const statut = el("span", { class: "editeur-statut" },
     cours.published ? "Publié" : "Non publié");
@@ -90,7 +100,7 @@ export async function openCoursEditeur(numero, { onFerme } = {}) {
 
   const tete = el("div", { class: "cours-head" },
     el("div", { class: "cours-head-main" },
-      el("span", { class: "cours-num" }, String(numero).padStart(2, "0")),
+      el("span", { class: "cours-num" }, libelleCle(cle)),
       el("div", {},
         el("h2", { class: "cours-head-titre" }, cours.titre),
         el("p", { class: "cours-head-meta" }, "Modification du cours"),
@@ -118,6 +128,17 @@ export async function openCoursEditeur(numero, { onFerme } = {}) {
       zone.value = r.texte;
     }
     zone.setSelectionRange(debut + avant.length, debut + avant.length + sel.length);
+    marquerNonSauve();
+    rafraichirApercu();
+  }
+
+  // Insère un bloc entier au curseur, en passant par la pile d'annulation native.
+  function insererBloc(texte) {
+    zone.focus();
+    const pos = zone.selectionStart;
+    if (!document.execCommand("insertText", false, texte)) {
+      zone.value = zone.value.slice(0, pos) + texte + zone.value.slice(pos);
+    }
     marquerNonSauve();
     rafraichirApercu();
   }
@@ -222,6 +243,24 @@ export async function openCoursEditeur(numero, { onFerme } = {}) {
       galerie.appendChild(champRecherche);
       galerie.appendChild(grilleSignaux);
       rafraichirGrilleSignaux();
+    } else if (type === "blocs") {
+      const panneau = el("div", { class: "editeur-blocs" });
+      const bouton = (libelle, texte) => {
+        const b = el("button", { class: "btn", type: "button" }, libelle);
+        b.addEventListener("click", () => insererBloc(texte));
+        return b;
+      };
+      const groupe = (titre, boutons) => el("div", { class: "editeur-blocs-groupe" },
+        el("p", { class: "editeur-blocs-titre" }, titre), ...boutons);
+      panneau.appendChild(groupe("Schéma animé", Object.entries(SCENES).map(([code, s]) =>
+        bouton(s.titre, `\n:::scene ${code}\n${s.etapesModele.join("\n")}\n:::\n`))));
+      panneau.appendChild(groupe("Quiz", [
+        bouton("Remettre dans l'ordre", MODELES_BLOCS.ordre),
+        bouton("Vrai ou faux", MODELES_BLOCS["vrai-faux"]),
+        bouton("Choix", MODELES_BLOCS.choix),
+      ]));
+      panneau.appendChild(groupe("Autoévaluation", [bouton("Cartes", MODELES_BLOCS.cartes)]));
+      galerie.appendChild(panneau);
     } else {
       const grilleMarquage = el("div", { class: "editeur-galerie-grille" });
       for (const code of Object.keys(MARQUAGES)) {
@@ -242,6 +281,9 @@ export async function openCoursEditeur(numero, { onFerme } = {}) {
     onClick: () => togglerGalerie("marquage") }, "Marquage");
   outils.appendChild(btnPanneaux);
   outils.appendChild(btnMarquage);
+  const btnBlocs = el("button", { class: "btn", type: "button",
+    onClick: () => togglerGalerie("blocs") }, "Blocs");
+  outils.appendChild(btnBlocs);
   const champFichier = el("input", { type: "file", accept: "image/*", hidden: true });
   const btnImage = el("button", { class: "btn", type: "button" }, "Image");
   btnImage.addEventListener("click", () => champFichier.click());
@@ -253,7 +295,7 @@ export async function openCoursEditeur(numero, { onFerme } = {}) {
     btnImage.textContent = "Envoi…";
     try {
       const blob = await reduireImage(fichier);
-      const url = await uploadCoursImage(blob, cheminImage(numero, fichier.name, Date.now()));
+      const url = await uploadCoursImage(blob, cheminImage(cle, fichier.name, Date.now()));
       insererSyntaxeZone("\n![", `](${url})\n`, "légende");
     } catch (e) {
       message("Échec du téléversement : " + (e?.message || e));
@@ -299,11 +341,22 @@ export async function openCoursEditeur(numero, { onFerme } = {}) {
   // ===== Aperçu (avec un délai : re-rendre 20 000 caractères à chaque frappe
   // serait du gâchis ; 400 ms après la dernière frappe suffisent). =====
   let minuterie = null;
+  let contexteApercu = null;   // dernier rendu de l'aperçu : ses schémas sont à arrêter avant le suivant
   function rafraichirApercu() {
     clearTimeout(minuterie);
     minuterie = setTimeout(() => {
+      // Les schémas du rendu précédent gardent un observateur en vie : les arrêter avant de jeter leurs nœuds.
+      if (contexteApercu) detruireScenes(contexteApercu);
       clear(apercu);
-      rendreMarkdown(zone.value).noeuds.forEach((n) => apercu.appendChild(n));
+      const { noeuds, contexte } = rendreMarkdown(zone.value, { cartes: estCodeCompetence(cle) });
+      contexteApercu = contexte;
+      // Les blocs mal formés ne se voient qu'ici : le stagiaire n'a jamais de message.
+      if (contexte.erreurs.length) {
+        apercu.appendChild(el("div", { class: "editeur-avertissements" },
+          el("p", {}, "À corriger dans les blocs"),
+          el("ul", {}, contexte.erreurs.map((m) => el("li", {}, m)))));
+      }
+      noeuds.forEach((n) => apercu.appendChild(n));
       // Le re-rendu change la géométrie : carte d'ancres à reconstruire,
       // puis réalignement de l'aperçu sur la zone.
       carteObsolete = true;
@@ -428,7 +481,7 @@ export async function openCoursEditeur(numero, { onFerme } = {}) {
     try {
       if (ecraser) {
         // Écraser en connaissance de cause : on reprend le jeton frais.
-        const frais = await getCours(numero);
+        const frais = await getCours(cle);
         ouvertA = frais.updated_at;
       }
       const titre = titreDepuisMarkdown(zone.value) || cours.titre;
@@ -532,6 +585,9 @@ export async function openCoursEditeur(numero, { onFerme } = {}) {
       ]);
       return;
     }
+    // Plus d'aperçu à rafraîchir, et ses schémas ne restent pas en vie derrière l'éditeur fermé.
+    clearTimeout(minuterie);
+    if (contexteApercu) detruireScenes(contexteApercu);
     overlay.remove();
     document.body.classList.remove("cours-open");
     document.removeEventListener("keydown", onKey);
