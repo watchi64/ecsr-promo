@@ -1,4 +1,4 @@
-# Passages enrichis, fiches de suivi & placement v2 — Implementation Plan
+# Passages enrichis, fiches de suivi & placement v2 - Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -11,10 +11,10 @@
 **Spec:** `docs/superpowers/specs/2026-07-10-passages-fiches-suivi-placement-design.md`
 
 **Contraintes d'exécution :**
-- Travailler dans un **worktree** sur la branche `lot3-suivi-placement` (le dossier `TP_ECSR_App` est partagé entre sessions — ne jamais faire de checkout dedans). Skill : superpowers:using-git-worktrees.
+- Travailler dans un **worktree** sur la branche `lot3-suivi-placement` (le dossier `TP_ECSR_App` est partagé entre sessions, ne jamais faire de checkout dedans). Skill : superpowers:using-git-worktrees.
 - Commits fréquents sur la branche. **Jamais de push, jamais de merge dans main** sans accord explicite de l'utilisateur.
 - Pas de framework de test dans ce repo (pas de package.json) : la vérification est manuelle (serveur `dev.ps1` + Browser) + requêtes SQL de contrôle. Chaque tâche liste ses vérifications exactes.
-- Cache-bust : les imports portent `?v=YYYYMMDDx`. Le hook pre-commit re-versionne automatiquement — utiliser le suffixe courant des fichiers modifiés, ne pas s'en préoccuper davantage.
+- Cache-bust : les imports portent `?v=YYYYMMDDx`. Le hook pre-commit re-versionne automatiquement : utiliser le suffixe courant des fichiers modifiés, ne pas s'en préoccuper davantage.
 - Les tables/fonctions Supabase référencées (`is_admin()`, `user_profiles.email/stagiaire_id`, `profs.nom`, `stagiaires.prenom/nom`) existent déjà ; si un nom ne résout pas à l'application du SQL, STOP et remonter à l'utilisateur.
 
 ---
@@ -27,7 +27,7 @@
 - [ ] **Step 1: Écrire le fichier SQL**
 
 ```sql
--- Migration 2026-07-10 — chantier « suivi voiture »
+-- Migration 2026-07-10 : chantier « suivi voiture »
 -- 1) passages : formateur + présence d'élève bénévole
 -- 2) fiches_suivi : souhaits de compétences (permis B) + besoins par stagiaire
 -- À appliquer dans le SQL Editor Supabase (projet crpduennbqaemhfaywrz).
@@ -88,7 +88,7 @@ CREATE POLICY fiches_suivi_delete ON fiches_suivi
 COMMIT;
 ```
 
-- [ ] **Step 2: Demander à l'utilisateur d'appliquer le SQL** (checkpoint bloquant — pas d'accès MCP à ce projet Supabase). Lui donner la requête de vérification :
+- [ ] **Step 2: Demander à l'utilisateur d'appliquer le SQL** (checkpoint bloquant, pas d'accès MCP à ce projet Supabase). Lui donner la requête de vérification :
 
 ```sql
 SELECT column_name FROM information_schema.columns
@@ -103,7 +103,7 @@ SELECT count(*) FROM fiches_suivi;  -- attendu : 0
 git add ../migration_supabase/2026-07-10_passages_prof_fiches.sql
 git commit -m "sql: migration passages (prof_id, avec_eleve) + table fiches_suivi"
 ```
-(Si le repo ECSR racine et l'app sont deux repos distincts, committer chacun chez soi — vérifier avec `git -C .. rev-parse --git-dir` avant.)
+(Si le repo ECSR racine et l'app sont deux repos distincts, committer chacun chez soi : vérifier avec `git -C .. rev-parse --git-dir` avant.)
 
 ---
 
@@ -119,7 +119,7 @@ datés 30/03, 31/03, 01/04/2026. Post-stage réparti sur les jours ouvrés du 09
 - [ ] **Step 1: Écrire le fichier SQL**
 
 ```sql
--- Import « formulaire pédagogie voiture 07/2026 » — chiffres validés le 10/07/2026.
+-- Import « formulaire pédagogie voiture 07/2026 » : chiffres validés le 10/07/2026.
 -- Idempotent : supprime puis réinsère tout ce qui porte cette origine.
 -- Source : ECSR/suivi/pedagogie_voiture_2026-07.md
 BEGIN;
@@ -207,7 +207,7 @@ SELECT s.id, b.besoins, 'Import doc suivi'
 FROM (VALUES
   ('lorie',         'Auto-évaluation · démonstration · prendre plus d''assurance'),
   ('timy',          'Évaluation spécifique statique + dynamique (choix parcours, jalonnage) · organisation · questions d''auto-éval moins vagues · gestion du temps'),
-  ('gaëlle',        'Conduite de droite avec des démonstrations — n''a pas réussi à faire les démos'),
+  ('gaëlle',        'Conduite de droite avec des démonstrations : n''a pas réussi à faire les démos'),
   ('audrick-allan', 'Approfondir l''auto-évaluation'),
   ('julie',         'Cibler son cours pour l''adapter parfaitement au besoin précis de l''élève'),
   ('emilie',        'Difficultés sur les auto-évaluations et pour animer les cours'),
@@ -236,12 +236,12 @@ GROUP BY s.prenom ORDER BY s.prenom;
 COMMIT;
 ```
 
-- [ ] **Step 2: Checkpoint utilisateur** — lui demander de :
+- [ ] **Step 2: Checkpoint utilisateur** : lui demander de :
   1. Contrôler `SELECT id, prenom, nom FROM stagiaires ORDER BY prenom;` et ajuster les `prenom_key` si besoin (Rita et Audrick-allan sont les plus susceptibles de différer).
   2. Exécuter le script, examiner le résultat du garde-fou et de la vérification finale.
   3. Confirmer les totaux (90 lignes, 29 avec élève) avant de continuer.
 
-- [ ] **Step 3: Vérifier dans l'app** — lancer le serveur (`preview_start` name depuis `.claude/launch.json`, ou `dev.ps1`), onglet Passages : les entrées « Import formulaire 07/2026 » apparaissent ; Dashboard : compteurs voiture cohérents (Lorie 8, Audrick 8, Anissa 7…).
+- [ ] **Step 3: Vérifier dans l'app** : lancer le serveur (`preview_start` name depuis `.claude/launch.json`, ou `dev.ps1`), onglet Passages : les entrées « Import formulaire 07/2026 » apparaissent ; Dashboard : compteurs voiture cohérents (Lorie 8, Audrick 8, Anissa 7…).
 
 - [ ] **Step 4: Commit**
 
@@ -299,7 +299,7 @@ export async function getVoitureAggregats() {
 }
 ```
 
-- [ ] **Step 2: Vérifier** — recharger l'app (serveur lancé), console navigateur :
+- [ ] **Step 2: Vérifier** : recharger l'app (serveur lancé), console navigateur :
 `(await import("./js/db.js?v=" + Date.now())).getVoitureAggregats()` doit renvoyer un objet
 avec 13 clés et des `avecEleve` conformes au tableau (Lorie 2, Audrick 4, Anissa 1…).
 
@@ -326,10 +326,10 @@ export function nivLabel(code) { /* … inchangé … */ }
 ```
 
 Ne PAS renommer la constante (elle est utilisée en interne) ; dans l'UI de la nouvelle vue,
-le libellé affiché sera « Compétences du permis B (C1–C4) » — jamais « REMC » (demande
+le libellé affiché sera « Compétences du permis B (C1–C4) », jamais « REMC » (demande
 explicite utilisateur : ne pas confondre avec les compétences REMC de l'enseignant).
 
-- [ ] **Step 2: Vérifier** — recharger l'app, la vue Bénévoles fonctionne comme avant (niveaux affichés).
+- [ ] **Step 2: Vérifier** : recharger l'app, la vue Bénévoles fonctionne comme avant (niveaux affichés).
 
 - [ ] **Step 3: Commit**
 
@@ -343,7 +343,7 @@ git commit -m "benevoles: exporte le referentiel competences permis B + nivLabel
 ### Task 5: Bouton « Vider les placements » (planning)
 
 **Files:**
-- Modify: `js/views/planning.js` — nouvelle fonction après `autoPlaceWeek()` (~ligne 777), bouton dans le bloc admin de la week bar (~ligne 2021).
+- Modify: `js/views/planning.js` : nouvelle fonction après `autoPlaceWeek()` (~ligne 777), bouton dans le bloc admin de la week bar (~ligne 2021).
 
 - [ ] **Step 1: Ajouter la fonction**
 
@@ -394,7 +394,7 @@ async function clearWeekPlacements() {
   }
 ```
 
-- [ ] **Step 3: Vérifier au navigateur** — semaine de test : placer manuellement 2 stagiaires (salle + voiture) + 1 bénévole → cliquer Vider → confirmation → seuls les stagiaires disparaissent, bénévole/prof/sujet intacts → Ctrl+Z restaure. Vérifier aussi que le bouton n'apparaît pas hors admin (« Voir en tant que » stagiaire).
+- [ ] **Step 3: Vérifier au navigateur** : semaine de test : placer manuellement 2 stagiaires (salle + voiture) + 1 bénévole → cliquer Vider → confirmation → seuls les stagiaires disparaissent, bénévole/prof/sujet intacts → Ctrl+Z restaure. Vérifier aussi que le bouton n'apparaît pas hors admin (« Voir en tant que » stagiaire).
 
 - [ ] **Step 4: Commit**
 
@@ -408,9 +408,9 @@ git commit -m "planning: bouton admin Vider les placements (garde benevoles, und
 ### Task 6: Validation hebdo enrichie (prof_id + avec_eleve)
 
 **Files:**
-- Modify: `js/views/planning.js` — construction des candidats (~ligne 1690), dédoublonnage (~ligne 1713), `addRow` de la modale (~ligne 1876).
+- Modify: `js/views/planning.js` : construction des candidats (~ligne 1690), dédoublonnage (~ligne 1713), `addRow` de la modale (~ligne 1876).
 
-- [ ] **Step 1: Enrichir les candidats** — dans la boucle qui pousse dans `raw` :
+- [ ] **Step 1: Enrichir les candidats** : dans la boucle qui pousse dans `raw` :
 
 ```js
     const profOf = (e) => (e.prof_ids && e.prof_ids.length ? e.prof_ids[0] : (e.prof_id ?? null));
@@ -433,7 +433,7 @@ git commit -m "planning: bouton admin Vider les placements (garde benevoles, und
 ```
 
 - [ ] **Step 2: Fusionner au dédoublonnage** (2 sessions le même jour = 1 passage, mais
-`avec_eleve` en OR et premier `prof_id` non nul) — remplacer le bloc `seen` :
+`avec_eleve` en OR et premier `prof_id` non nul) : remplacer le bloc `seen` :
 
 ```js
   const seenMap = new Map();
@@ -451,7 +451,7 @@ git commit -m "planning: bouton admin Vider les placements (garde benevoles, und
   });
 ```
 
-- [ ] **Step 3: Propager dans `addRow`** (modale de validation) — signature et row :
+- [ ] **Step 3: Propager dans `addRow`** (modale de validation) : signature et row :
 
 ```js
     const addRow = (stagiaire_id, type, date, resultat, remplacant_id, prof_id = null, avec_eleve = null) => {
@@ -478,7 +478,7 @@ git commit -m "planning: bouton admin Vider les placements (garde benevoles, und
     });
 ```
 
-- [ ] **Step 4: Vérifier** — semaine de test avec 1 créneau Voiture (prof + bénévole + 2 stagiaires) et 1 Pédagogie salle → « Valider la semaine » → en SQL :
+- [ ] **Step 4: Vérifier** : semaine de test avec 1 créneau Voiture (prof + bénévole + 2 stagiaires) et 1 Pédagogie salle → « Valider la semaine » → en SQL :
 `SELECT stagiaire_id, type, prof_id, avec_eleve FROM passages WHERE origine='Planning' ORDER BY id DESC LIMIT 5;`
 → Voiture : `prof_id` renseigné, `avec_eleve = true` ; Salle : `avec_eleve = null`. Puis Ctrl+Z (les lignes disparaissent) et supprimer la semaine de test.
 
@@ -519,7 +519,7 @@ function renderHistorique(sid) {
   const a = aggregats[sid] || { total: 0, avecEleve: 0, byProf: {} };
   const profLine = Object.entries(a.byProf)
     .map(([pid, n]) => `${profs.find((p) => p.id === Number(pid))?.nom || "?"} ×${n}`)
-    .join(" · ") || "—";
+    .join(" · ") || "-";
   return el("div", { class: "suivi-histo" },
     el("h4", {}, "Historique voiture"),
     el("p", {}, `${a.total} passage(s) · dont ${a.avecEleve} avec élève`),
@@ -590,7 +590,7 @@ function renderAdminList(container) {
         el("span", { class: "muted" }, `${a.total} passages · ${a.avecEleve} avec élève`),
       ),
       el("div", { class: "suivi-card-tags" }, ...(tags.length ? tags : [el("span", { class: "faint" }, "aucun souhait coché")])),
-      el("p", { class: "suivi-card-besoins" }, fiche.besoins || "—"),
+      el("p", { class: "suivi-card-besoins" }, fiche.besoins || "-"),
     );
     card.addEventListener("click", () => openAdminEdit(container, s));
     wrap.appendChild(card);
@@ -621,7 +621,7 @@ function rerender(container) {
     el("div", { class: "view-header-text" },
       el("p", { class: "eyebrow" }, "Pédagogie voiture"),
       el("h2", {}, admin && myStagiaireId == null ? "Fiches de suivi" : "Mon suivi"),
-      el("p", { class: "subtitle" }, "Souhaits de compétences (permis B) et besoins — utilisés pour l'attribution des places voiture."),
+      el("p", { class: "subtitle" }, "Souhaits de compétences (permis B) et besoins : utilisés pour l'attribution des places voiture."),
     ),
   ));
 
@@ -672,9 +672,9 @@ import { renderSuivi } from "./views/suivi.js?v=20260710a";   // avec les autres
 .suivi-card-tags { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-bottom: 0.4rem; }
 .suivi-card-besoins { margin: 0; font-size: 0.88rem; color: var(--text-muted, #888); }
 ```
-(Vérifier les noms de variables CSS réellement utilisés dans `style.css` — `grep -n "^:root" -A 30 css/style.css` — et ajuster.)
+(Vérifier les noms de variables CSS réellement utilisés dans `style.css` (`grep -n "^:root" -A 30 css/style.css`) et ajuster.)
 
-- [ ] **Step 4: Vérifier au navigateur** —
+- [ ] **Step 4: Vérifier au navigateur** :
   - Compte admin : onglet « Mon suivi » → liste des 13 cartes, besoins seedés visibles (Gaëlle : démos) ; clic → édition, cocher C2 → Enregistrer → tag visible.
   - « Voir en tant que » un compte stagiaire (ou compte réel) : sa fiche seule, historique correct, sauvegarde OK.
   - Console : aucune erreur RLS.
@@ -691,9 +691,9 @@ git commit -m "suivi: onglet Mon suivi (souhaits competences permis B + besoins 
 ### Task 8: « Placer la semaine » v2 (scoring voiture)
 
 **Files:**
-- Modify: `js/views/planning.js` — imports (tête de fichier), chargement (`renderPlanning`/loader), `randomFillVoitureEleves` (~ligne 635), `autoPlaceWeek` (~ligne 686).
+- Modify: `js/views/planning.js` : imports (tête de fichier), chargement (`renderPlanning`/loader), `randomFillVoitureEleves` (~ligne 635), `autoPlaceWeek` (~ligne 686).
 
-- [ ] **Step 1: Charger les nouvelles données** — ajouter aux imports db :
+- [ ] **Step 1: Charger les nouvelles données** : ajouter aux imports db :
 `getVoitureAggregats, listFiches` ; deux variables module `let voitureStats = {}; let fichesSuivi = [];`
 et dans le chargement initial de la vue planning (là où stagiaires/profs/benevoles sont chargés),
 ajouter (résilient si migration absente, pattern `getJoursOff`) :
@@ -713,7 +713,7 @@ ajouter (résilient si migration absente, pattern `getJoursOff`) :
 // === Score de priorité voiture (v2) ===
 // Ordre lexicographique croissant :
 //  [0] séances avec élève (historique passages avec_eleve=true + placements de la semaine
-//      sur des créneaux avec bénévoles) — le critère principal (équité d'exposition) ;
+//      sur des créneaux avec bénévoles) : le critère principal (équité d'exposition) ;
 //  [1] match souhaits × niveau des bénévoles du créneau (0 = matche, 1 = neutre) ;
 //  [2] passages déjà faits avec le prof du créneau (variété formateur) ;
 //  [3] total placements voiture de la semaine (équilibre intra-semaine).
@@ -745,7 +745,7 @@ function cmpScores(a, b) {
 }
 ```
 
-- [ ] **Step 3: Brancher `autoPlaceWeek`** — dans la branche Voiture, remplacer le
+- [ ] **Step 3: Brancher `autoPlaceWeek`** : dans la branche Voiture, remplacer le
 `pickLeast(voit, …)` par le score. Le compteur `voit` existant est conservé (critère [3]) ;
 ajouter un compteur `voitAvecEleve` alimenté seulement quand le créneau a des bénévoles :
 
@@ -776,7 +776,7 @@ ajouter un compteur `voitAvecEleve` alimenté seulement quand le créneau a des 
     }
 ```
 
-- [ ] **Step 4: Brancher le tirage manuel** `randomFillVoitureEleves` — même mécanique :
+- [ ] **Step 4: Brancher le tirage manuel** `randomFillVoitureEleves`, même mécanique :
 
 ```js
 async function randomFillVoitureEleves(lid, count) {
@@ -810,7 +810,7 @@ async function randomFillVoitureEleves(lid, count) {
 }
 ```
 
-- [ ] **Step 5: Vérifier au navigateur** — semaine de test :
+- [ ] **Step 5: Vérifier au navigateur** : semaine de test :
   1. Créneau Voiture avec bénévole niveau C2 + prof Romain → « Placer la semaine » →
      les stagiaires tirés doivent être parmi les moins exposés (Anissa 1, Rita 1 attendus
      en tête après import) ; si une fiche coche C2, ce stagiaire passe devant à exposition égale.
@@ -831,7 +831,7 @@ git commit -m "planning: placement v2 (equite exposition eleves, match souhaits,
 
 ### Task 9: Passage en revue final
 
-- [ ] **Step 1: Relecture du diff complet** — `git diff main...lot3-suivi-placement --stat` puis lecture du diff ; vérifier qu'aucun fichier hors périmètre n'est touché.
+- [ ] **Step 1: Relecture du diff complet** : `git diff main...lot3-suivi-placement --stat` puis lecture du diff ; vérifier qu'aucun fichier hors périmètre n'est touché.
 - [ ] **Step 2: Scénario bout-en-bout au navigateur** (compte admin) :
   planning semaine du 06/07 réel → « Valider la semaine » (test utilisateur du circuit
   prof_id/avec_eleve) → onglet Passages (lignes enrichies) → « Mon suivi » (compteurs à jour)

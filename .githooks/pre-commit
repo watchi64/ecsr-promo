@@ -1,5 +1,5 @@
 #!/bin/sh
-# Cache-busting automatique — UNIQUEMENT sur main.
+# Cache-busting automatique : UNIQUEMENT sur main.
 # Si un fichier js/ ou css/ entre dans un commit sur main, (re)pose un token ?v=
 # uniforme sur index.html + tous les imports JS, puis re-stage les fichiers.
 #

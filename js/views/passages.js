@@ -1,10 +1,10 @@
-import { listStagiaires, listPassages, addPassage, updatePassage, deletePassage, listRecentPassagesAudit } from "../db.js?v=20261003c";
-import { el, clear, isoDate, formatDate, toast, displayStagiaire } from "../utils.js?v=20261003c";
-import { icon } from "../icons.js?v=20261003c";
-import { recordUndo } from "../undo.js?v=20261003c";
-import { TYPES, RESULTATS } from "../config.js?v=20261003c";
-import { isAdmin, getProfile } from "../auth-admin.js?v=20261003c";
-import { getCurrentWho } from "../identity.js?v=20261003c";
+import { listStagiaires, listPassages, addPassage, updatePassage, deletePassage, listRecentPassagesAudit } from "../db.js?v=20261004a";
+import { el, clear, isoDate, formatDate, toast, displayStagiaire } from "../utils.js?v=20261004a";
+import { icon } from "../icons.js?v=20261004a";
+import { recordUndo } from "../undo.js?v=20261004a";
+import { TYPES, RESULTATS } from "../config.js?v=20261004a";
+import { isAdmin, getProfile } from "../auth-admin.js?v=20261004a";
+import { getCurrentWho } from "../identity.js?v=20261004a";
 
 let stagiaires = [];
 let passages = [];
@@ -45,7 +45,7 @@ function openAddModal(onSaved, existing = null) {
   stagiaires.forEach((s) => remplacantSel.appendChild(el("option", { value: s.id }, displayStagiaire(s))));
   if (existing && existing.remplacant_id) remplacantSel.value = String(existing.remplacant_id);
 
-  const commentInput = el("input", { type: "text", placeholder: "Optionnel", value: existing?.commentaire || "" });
+  const commentInput = el("input", { type: "text", placeholder: "Optionnel, sans motif médical", value: existing?.commentaire || "" });
 
   async function save() {
     if (!stagiaireSel.value) { toast("Choisir un stagiaire", "error"); return; }

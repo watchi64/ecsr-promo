@@ -1,8 +1,8 @@
-# Promo ECSR — Suivi des passages
+# Promo ECSR - Suivi des passages
 
 Application web propriétaire dédiée à la gestion pédagogique d'une promotion en formation TP ECSR (Enseignant de la Conduite et de la Sécurité Routière).
 
-**© 2026 watchi64 — Tous droits réservés.** Voir [LICENSE](./LICENSE) pour les conditions d'utilisation.
+**© 2026 watchi64. Tous droits réservés.** Voir [LICENSE](./LICENSE) pour les conditions d'utilisation.
 
 ---
 
@@ -62,7 +62,7 @@ agenda_events, contacts, ressources, settings
 
 ## Propriété intellectuelle
 
-Ce projet — design, code, architecture, schéma de données, contenu pédagogique — constitue une œuvre originale protégée par le droit d'auteur.
+Ce projet (design, code, architecture, schéma de données, contenu pédagogique) constitue une œuvre originale protégée par le droit d'auteur.
 
 **Pour toute demande de licence commerciale** (intégration en école de conduite, déploiement pour un réseau, monétisation, etc.) : misterwatchi@gmail.com
 

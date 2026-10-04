@@ -1,14 +1,17 @@
 import {
   listStagiaires, listCompetences, listEvaluations, listThemes,
   addEvaluation, updateEvaluation, deleteEvaluation, listAuditForEvaluation,
-  listUserProfiles,
-} from "../db.js?v=20261003c";
-import { el, clear, isoDate, formatDate, toast, displayStagiaire, compareByNom } from "../utils.js?v=20261003c";
-import { icon } from "../icons.js?v=20261003c";
-import { getAdminEmail, isAdmin, getProfile } from "../auth-admin.js?v=20261003c";
-import { recordUndo } from "../undo.js?v=20261003c";
-import { renderSubTabs } from "../subtabs.js?v=20261003c";
-import { renderEpcf } from "./epcf.js?v=20261003c";
+  listUserProfiles, getNotesStatsGroupe,
+} from "../db.js?v=20261004a";
+import {
+  statsLocales, statsServeur, moyenneGenerale, moyenneCompetence, moyenneThemes, statsParTheme,
+} from "../notes-stats.js?v=20261004a";
+import { el, clear, isoDate, formatDate, toast, displayStagiaire, compareByNom } from "../utils.js?v=20261004a";
+import { icon } from "../icons.js?v=20261004a";
+import { getAdminEmail, isAdmin, getProfile } from "../auth-admin.js?v=20261004a";
+import { recordUndo } from "../undo.js?v=20261004a";
+import { renderSubTabs } from "../subtabs.js?v=20261004a";
+import { renderEpcf } from "./epcf.js?v=20261004a";
 
 let userProfiles = [];  // pour résoudre l'anonymat par stagiaire_id
 
@@ -16,6 +19,20 @@ let stagiaires = [];
 let competences = [];
 let evaluations = [];
 let themesOfficiels = [];  // les 57 thèmes du référentiel (chargés en + pour les titres dans la matrice)
+// Moyennes du groupe calculées par le serveur, anonymes comprises : un stagiaire ne lit que
+// ses notes et celles des profils non masqués (règle de la base), il ne peut donc pas les
+// calculer lui-même. Le personnel, qui lit tout, calcule en local (saisies reflétées aussitôt).
+let statsServeurGroupe = null;
+
+function chargerStatsGroupe() {
+  if (isAdmin()) return Promise.resolve(null);
+  return getNotesStatsGroupe().then(statsServeur).catch((e) => { console.error(e); return null; });
+}
+
+function statsGroupe() {
+  if (!isAdmin() && statsServeurGroupe) return statsServeurGroupe;
+  return statsLocales(evaluations, new Set(stagiaires.map((s) => s.id)));
+}
 
 let filterStagiaire = "";
 let filterType = "";
@@ -95,14 +112,6 @@ function visibleStagiaires() {
 
 function hiddenCount() {
   return stagiaires.length - visibleStagiaires().length;
-}
-
-// Moyenne du groupe sur un sous-ensemble de notes (toutes évaluations notées
-// confondues, cohérent avec la Synthèse classe).
-function groupAvgFor(filterFn) {
-  const evs = ratedEvals().filter(filterFn);
-  if (evs.length === 0) return null;
-  return evs.reduce((sum, e) => sum + evalScore20(e), 0) / evs.length;
 }
 
 function sortStagiaires(list, mode) {
@@ -226,7 +235,7 @@ function openEditModal(existing, onSaved) {
   const noteInput = el("input", { type: "text", inputmode: "decimal", placeholder: "Ex. 14.5 ou 10/12", value: existing?.note ?? "" });
   const noteMaxInput = el("input", { type: "number", min: 1, step: "0.5", value: existing?.note_max ?? 20 });
   const dateInput = el("input", { type: "date", value: existing?.date_eval || isoDate(new Date()) });
-  const obsInput = el("input", { type: "text", placeholder: "Observation (optionnel)", value: existing?.observation || "" });
+  const obsInput = el("input", { type: "text", placeholder: "Observation (optionnel, rien sur la santé)", value: existing?.observation || "" });
 
   async function save() {
     if (!stagiaireSel.value) { toast("Choisir un stagiaire", "error"); return; }
@@ -430,7 +439,7 @@ function renderTable(container) {
 }
 
 async function reload(container) {
-  [evaluations, userProfiles] = await Promise.all([listEvaluations(), listUserProfiles()]);
+  [evaluations, userProfiles, statsServeurGroupe] = await Promise.all([listEvaluations(), listUserProfiles(), chargerStatsGroupe()]);
   rerender(container);
 }
 
@@ -1035,10 +1044,11 @@ function buildGroupAvgRow() {
     return td;
   }
 
-  tr.appendChild(avgCell(groupAvgFor(() => true), "m-td-avg", "Moyenne générale du groupe"));
+  const st = statsGroupe();
+  tr.appendChild(avgCell(moyenneGenerale(st), "m-td-avg", "Moyenne générale du groupe"));
 
   MATRIX_SPECIAL_COLS.forEach((c) => {
-    const avg = groupAvgFor((e) => e.type === "Compétence" && e.competence_code === c.key);
+    const avg = moyenneCompetence(st, c.key);
     tr.appendChild(avgCell(avg, "m-td-cell", c.label + " : moyenne du groupe"));
   });
 
@@ -1046,7 +1056,7 @@ function buildGroupAvgRow() {
     if (THEME_GROUP_FOLLOWER.has(n)) continue;
     const grp = THEME_GROUP_LEADER.get(n);
     const nums = grp || [n];
-    const avg = groupAvgFor((e) => e.type === "Thème" && nums.includes(e.theme_numero));
+    const avg = moyenneThemes(st, nums);
     const libelle = grp ? `Thèmes ${grp.join(" + ")}` : `Thème ${n}`;
     const td = avgCell(avg, "m-td-cell" + (grp ? " grouped" : ""), libelle + " : moyenne du groupe");
     if (grp) td.colSpan = grp.length;
@@ -1060,13 +1070,14 @@ function rerender(container) {
   clear(container);
 
   const admin = isAdmin();
+  const nbLignes = statsGroupe().n_lignes;
 
   // Initialise la date courante si pas encore définie
   if (!currentEvalDate) currentEvalDate = isoDate(new Date());
 
   container.appendChild(el("div", { class: "view-header" },
     el("div", { class: "view-header-text" },
-      el("p", { class: "eyebrow" }, evaluations.length + " note" + (evaluations.length > 1 ? "s" : "") + " enregistrée" + (evaluations.length > 1 ? "s" : "")),
+      el("p", { class: "eyebrow" }, nbLignes + " note" + (nbLignes > 1 ? "s" : "") + " enregistrée" + (nbLignes > 1 ? "s" : "")),
       el("h2", {}, "Notes & évaluations"),
       el("p", { class: "subtitle" }, "Tableau matrice : stagiaires × thèmes/compétences. Clique une cellule pour saisir la note."),
     ),
@@ -1149,19 +1160,8 @@ function rerender(container) {
 
 // === Helpers stats ===
 
-function ratedEvals() {
-  return evaluations.filter((e) => e.note != null && e.note_max);
-}
-
 function evalScore20(e) {
   return (Number(e.note) / Number(e.note_max)) * 20;
-}
-
-function median(values) {
-  if (values.length === 0) return null;
-  const sorted = values.slice().sort((a, b) => a - b);
-  const mid = Math.floor(sorted.length / 2);
-  return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
 }
 
 function avgColorHex(avg) {
@@ -1178,29 +1178,18 @@ function cellColorClassFromAvg(avg) {
   return cellColorClass(avg / 20);
 }
 
-/** Moyenne classe par thème : { num, titre, avg, count } */
+/** Moyenne classe par thème : { num, titre, avg, med, count } */
 function themeStats() {
-  const out = [];
-  themesOfficiels.forEach((t) => {
-    if (t.numero == null) return;
-    const notes = evaluations
-      .filter((e) => e.type === "Thème" && e.theme_numero === t.numero && e.note != null && e.note_max)
-      .map(evalScore20);
-    if (notes.length === 0) return;
-    const avg = notes.reduce((a, b) => a + b, 0) / notes.length;
-    out.push({ num: t.numero, titre: t.titre, avg, med: median(notes), count: notes.length });
-  });
-  return out;
+  return statsParTheme(statsGroupe(), themesOfficiels);
 }
 
 // === Section Synthèse ===
 
 function renderSynthese() {
-  const rated = ratedEvals();
-  const scores = rated.map(evalScore20);
-  const classAvg = scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : null;
-  const classMed = median(scores);
-  const below10 = scores.filter((s) => s < 10).length;
+  const st = statsGroupe();
+  const classAvg = moyenneGenerale(st);
+  const classMed = st.mediane;
+  const below10 = st.sous_10;
 
   const wrap = el("section", { class: "notes-synthese" },
     el("h3", { class: "notes-chart-title" }, "Synthèse classe"),
@@ -1216,7 +1205,7 @@ function renderSynthese() {
   }
   kpis.appendChild(kpi("Moyenne classe", classAvg != null ? (Math.round(classAvg * 10) / 10) + " /20" : "-", cellColorClassFromAvg(classAvg)));
   kpis.appendChild(kpi("Médiane", classMed != null ? (Math.round(classMed * 10) / 10) + " /20" : "-", cellColorClassFromAvg(classMed)));
-  kpis.appendChild(kpi("Notes saisies", String(rated.length)));
+  kpis.appendChild(kpi("Notes saisies", String(st.n)));
   kpis.appendChild(kpi("Notes < 10/20", String(below10), below10 > 0 ? "bad" : "ok"));
   wrap.appendChild(kpis);
 
@@ -1314,16 +1303,14 @@ function renderAveragesChartInner() {
 // située par rapport à la meilleure, la moyenne du groupe et la moins bonne
 // (moyennes générales individuelles, sans prénom, anonymes compris).
 function buildAnonAveragesChartSvg() {
-  const avgs = stagiaires
-    .map((s) => ({ id: s.id, avg: stagiaireAvg(s.id) }))
-    .filter((d) => d.avg != null);
-  const mine = avgs.find((d) => d.id === myStagiaireId()) || null;
+  const st = statsGroupe();
+  const mine = stagiaireAvg(myStagiaireId());
   const myCount = evaluations.filter((e) => e.stagiaire_id === myStagiaireId() && e.note != null && e.note_max).length;
   const data = [
-    { name: "Toi", avg: mine ? mine.avg : null, count: mine ? myCount : null },
-    { name: "Moyenne haute", avg: avgs.length ? Math.max(...avgs.map((d) => d.avg)) : null },
-    { name: "Moyenne du groupe", avg: groupAvgFor(() => true) },
-    { name: "Moyenne basse", avg: avgs.length ? Math.min(...avgs.map((d) => d.avg)) : null },
+    { name: "Toi", avg: mine, count: mine != null ? myCount : null },
+    { name: "Moyenne haute", avg: st.moy_stagiaire_max },
+    { name: "Moyenne du groupe", avg: moyenneGenerale(st) },
+    { name: "Moyenne basse", avg: st.moy_stagiaire_min },
   ];
   return horizontalBarChart(data, 22, 140);
 }
@@ -1343,7 +1330,6 @@ function buildThemesChartSvg() {
 }
 
 function buildDistributionChartSvg() {
-  const rated = ratedEvals();
   const buckets = [
     { min: 0,  max: 4,  label: "0–4",   count: 0, color: "#991B1B" },
     { min: 4,  max: 8,  label: "4–8",   count: 0, color: "#DC2626" },
@@ -1351,10 +1337,9 @@ function buildDistributionChartSvg() {
     { min: 12, max: 16, label: "12–16", count: 0, color: "#65A30D" },
     { min: 16, max: 20.01, label: "16–20", count: 0, color: "#3F7012" },
   ];
-  rated.forEach((e) => {
-    const s = evalScore20(e);
-    for (const b of buckets) if (s >= b.min && s < b.max) { b.count++; break; }
-  });
+  // Effectifs par tranche (bornes : TRANCHES de notes-stats.js, mêmes valeurs qu'ici).
+  const repartition = statsGroupe().repartition;
+  buckets.forEach((b, i) => { b.count = repartition[i] || 0; });
   const max = Math.max(1, ...buckets.map((b) => b.count));
 
   const svgNS = "http://www.w3.org/2000/svg";
@@ -1503,8 +1488,8 @@ export async function renderNotes(container) {
   clear(container);
   container.appendChild(el("div", { class: "loading" }, "Chargement"));
   let allThemes;
-  [stagiaires, competences, evaluations, allThemes, userProfiles] = await Promise.all([
-    listStagiaires(), listCompetences(), listEvaluations(), listThemes(), listUserProfiles(),
+  [stagiaires, competences, evaluations, allThemes, userProfiles, statsServeurGroupe] = await Promise.all([
+    listStagiaires(), listCompetences(), listEvaluations(), listThemes(), listUserProfiles(), chargerStatsGroupe(),
   ]);
   themesOfficiels = allThemes.filter((t) => t.type === "theme" && t.numero != null);
   rerender(container);

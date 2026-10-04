@@ -10,7 +10,7 @@
  * et consignés dans la fiche de vérification de chaque cours qui les utilise.
  */
 import { DEG, trajet, tournerChemin, tournerPoint, rectangle, pointsArc, disque, secteurAnneau, pointDansPolygone }
-  from "./scene-geometrie.js?v=20261003c";
+  from "./scene-geometrie.js?v=20261004a";
 
 export const IISR = {
   u: 0.05,                                     // art. 113-1 C : largeur unité, routes ordinaires

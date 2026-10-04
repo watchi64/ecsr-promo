@@ -16,6 +16,35 @@
 
 export const NOUVEAUTES = [
   {
+    id: "2026-10-04-confidentialite-notes",
+    date: "2026-10-04",
+    pour: "tous",
+    titre: "Tes notes et ta fiche mieux protégées",
+    resume: "Si tu masques tes notes, plus personne dans la promo ne peut les consulter, même en "
+          + "dehors des écrans de l'application : les moyennes du groupe sont désormais calculées "
+          + "à part, sans exposer les notes de chacun. Ta date de naissance et ta fiche de suivi "
+          + "ne sont visibles que de toi et des formateurs. Rien ne change dans ce que tu vois.",
+    ou: { label: "Notes", route: "notes" },
+  },
+  {
+    id: "2026-10-03-numero-benevole",
+    date: "2026-10-03",
+    pour: "formateurs",
+    titre: "Planning : le numéro d'un élève bénévole en un toucher",
+    resume: "Dans le planning, touche le nom d'un élève bénévole pour afficher son numéro et "
+          + "l'appeler.",
+    ou: { label: "Planning", route: "planning" },
+  },
+  {
+    id: "2026-10-03-barre-jours-telephone",
+    date: "2026-10-03",
+    pour: "tous",
+    titre: "Planning : la barre des jours reste en haut",
+    resume: "Sur téléphone, la barre des jours du planning reste visible quand tu fais défiler "
+          + "la semaine.",
+    ou: { label: "Planning", route: "planning" },
+  },
+  {
     id: "2026-10-03-page-stagiaires",
     date: "2026-10-03",
     pour: "formateurs",
@@ -57,8 +86,8 @@ export const NOUVEAUTES = [
           + "affichée, et d'elle seule.",
     ou: { label: "Pastille en haut, à côté de ton nom", route: "home" },
     guide: [
-      "Touche la pastille « mars 2026 » en haut de l'écran.",
-      "Choisis « Nîmes, septembre 2026 » : la page se recharge sur cette promo.",
+      "Touche la pastille de la promo en haut de l'écran (« Nîmes · mars 2026 »).",
+      "Choisis « Montpellier, septembre 2026 » : la page se recharge sur cette promo.",
       "Dans Paramètres, ajoute les stagiaires de la promo (prénom et nom de famille), puis "
         + "prépare le calendrier et le planning.",
       "Avant d'inviter les stagiaires de septembre : Paramètres, « Modules de la promo », "

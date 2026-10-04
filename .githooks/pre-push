@@ -5,7 +5,7 @@
 #
 # Complement de la garde "main seulement" du pre-commit : un merge dans main ne
 # declenche PAS pre-commit (git utilise pre-merge-commit pour ca), donc apres un
-# merge il faut lancer le cache-bust a la main — ce hook empeche de l'oublier.
+# merge il faut lancer le cache-bust a la main : ce hook empeche de l'oublier.
 #
 # Forcer en connaissance de cause : git push --no-verify
 #

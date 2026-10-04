@@ -416,7 +416,7 @@ def extraire_designations(texte, codes_recherches, resultats):
 def nettoyer_designation(texte):
     texte = texte.strip().strip(".,;: ")
     texte = re.sub(r"\s+", " ", texte)
-    texte = texte.replace("—", ",")  # tiret cadratin interdit
+    texte = texte.replace("\u2014", ",")  # tiret cadratin interdit
     texte = texte.replace("–", ",")  # tiret demi-cadratin, par prudence
     if texte:
         texte = texte[0].upper() + texte[1:]

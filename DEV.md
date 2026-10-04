@@ -1,4 +1,4 @@
-# DEV.md — Workflow de développement
+# DEV.md - Workflow de développement
 
 But : développer en local, valider, puis déployer **seulement quand c'est sûr**.
 

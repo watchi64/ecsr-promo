@@ -1,4 +1,4 @@
-# Spec — Fiche « souhaits de compétences » + historique voiture dans Mon suivi
+# Spec - Fiche « souhaits de compétences » + historique voiture dans Mon suivi
 
 **Date** : 2026-07-12
 **Statut** : validé (brainstorming), prêt pour plan
@@ -20,7 +20,7 @@ dans le « Mon suivi » **live** (`mon-suivi.js`), pour n'avoir qu'un seul espac
 | Question | Décision |
 |----------|----------|
 | Où vit la fiche ? | **Fusion dans le `mon-suivi.js` live** (un seul onglet) |
-| Besoins | **Aucun** (YAGNI) — on ne garde que les **souhaits** (cases à cocher) + historique |
+| Besoins | **Aucun** (YAGNI) : on ne garde que les **souhaits** (cases à cocher) + historique |
 | Périmètre lot3 | Fiche (souhaits) **+ historique voiture** ; **pas** le reste (migration passages déjà en prod, placement v2, « vider placements », liste admin séparée) |
 | Admin | Réutilise le **sélecteur d'élève déjà présent** dans `mon-suivi.js` (pas de liste admin dédiée) |
 | Migration | **Aucune** (le backend existe déjà en prod) |
@@ -40,7 +40,7 @@ existantes → l'écriture ne doit jamais écraser la colonne `besoins`.
 
 ## Conception
 
-### 1. `js/db.js` — porter 3 fonctions (absentes de `main`)
+### 1. `js/db.js` - porter 3 fonctions (absentes de `main`)
 
 Copiées de `6b68627`, avec le token de cache-bust courant de `main` :
 
@@ -56,12 +56,12 @@ Copiées de `6b68627`, avec le token de cache-bust courant de `main` :
 
 `listProfs()` existe déjà sur `main` (réutilisé pour les noms de formateurs).
 
-### 2. `js/views/benevoles.js` — exporter la constante
+### 2. `js/views/benevoles.js` - exporter la constante
 
 `const COMPETENCES_REMC` → `export const COMPETENCES_REMC` (seul changement). `mon-suivi.js`
 l'importe (même approche que `suivi.js` de lot3).
 
-### 3. `js/views/mon-suivi.js` — ajouter 2 sections
+### 3. `js/views/mon-suivi.js` - ajouter 2 sections
 
 Nouveaux imports : `listFiches, upsertFiche, getVoitureAggregats, listProfs` (db),
 `toast` (utils), `getCurrentWho` (identity), `COMPETENCES_REMC` (benevoles).
@@ -71,10 +71,10 @@ Nouveaux imports : `listFiches, upsertFiche, getVoitureAggregats, listProfs` (db
 
 Deux sections ajoutées, rendues **par élève sélectionné** :
 
-- **Mes souhaits de compétences (permis B, C1–C4)** — accordéon `<details>` : une compétence
+- **Mes souhaits de compétences (permis B, C1–C4)** : accordéon `<details>` : une compétence
   par bloc, case principale (C1…C4) + cases des sous-compétences (C1.1…). Coché = présent dans
   `souhaits`. Bouton **« Enregistrer mes souhaits »** → `upsertFiche` + `toast` + refetch + re-render.
-- **Historique voiture** (lecture seule) — `aggregats[id]` : « N passage(s) · dont M avec élève »
+- **Historique voiture** (lecture seule) : `aggregats[id]` : « N passage(s) · dont M avec élève »
   + ligne « Formateurs : Nom ×k · … » (noms via `profs`). Si pas de données : compteurs à 0.
 
 **Ordre final des sections** dans l'onglet : Passages à venir → **Ma fiche (souhaits)** →
@@ -83,7 +83,7 @@ Historique voiture → Graphique d'évolution.
 Le **sélecteur d'élève** existant sert aussi à l'admin pour éditer la fiche d'un élève :
 au changement de sélection, `renderFor(id)` re-rend les 4 sections pour ce stagiaire.
 
-### 4. `css/style.css` — porter les styles `.suivi-*`
+### 4. `css/style.css` - porter les styles `.suivi-*`
 
 `.suivi-histo`, `.suivi-comp`, `.suivi-comp summary`, `.suivi-souscomp` (depuis `6b68627`).
 Pas besoin des styles `.suivi-editor textarea` (pas de besoins) ni `.suivi-admin-list`/

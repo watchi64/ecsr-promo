@@ -1,4 +1,4 @@
-# Design — Passages enrichis, fiches de suivi & placement v2
+# Design - Passages enrichis, fiches de suivi & placement v2
 
 **Date** : 2026-07-10
 **Statut** : validé (approche A), en attente de revue finale
@@ -18,13 +18,13 @@ Le suivi des passages « pédagogie voiture » de la promo a été reconstitué 
 la semaine du 06/07 n'est PAS importée (elle sera validée via le planning, test du circuit).
 
 **Vocabulaire** : le référentiel C1→C4 (avec sous-compétences) utilisé partout ici est celui des
-**4 compétences du permis B** (livret d'apprentissage) — ne pas l'appeler « REMC » dans l'UI.
+**4 compétences du permis B** (livret d'apprentissage), ne pas l'appeler « REMC » dans l'UI.
 C'est le référentiel déjà utilisé pour le `niveau` des bénévoles (`js/views/benevoles.js`,
-constante `COMPETENCES_REMC` — libellé interne existant, conservé tel quel dans le code).
+constante `COMPETENCES_REMC` : libellé interne existant, conservé tel quel dans le code).
 
 ---
 
-## Chantier 1 — Migration schéma + import de l'historique
+## Chantier 1 - Migration schéma + import de l'historique
 
 ### 1.1 Migration SQL
 
@@ -87,12 +87,12 @@ Rejouable sans doublon.
 Risque : des passages Voiture peuvent déjà exister dans la table sur la période
 (validations hebdo passées, saisies manuelles). Avant l'import, le script liste les
 passages Voiture existants entre le 30/03 et le 05/07 ; s'il y en a, ils sont présentés
-à l'utilisateur pour décision (les supprimer ou ajuster l'import) — pas de suppression
+à l'utilisateur pour décision (les supprimer ou ajuster l'import), pas de suppression
 silencieuse de données non issues de l'import.
 
 ---
 
-## Chantier 2 — Bouton « Vider les placements » (planning)
+## Chantier 2 - Bouton « Vider les placements » (planning)
 
 - **Emplacement** : barre d'outils du planning, à côté de « Placer la semaine ».
 - **Visibilité** : admin uniquement (`isAdmin()`).
@@ -102,14 +102,14 @@ silencieuse de données non issues de l'import.
   `benevoles_ids`, `salle_double`, horaires (`planning_half_meta`), jours off.
 - **Confirmation** : `confirm()` avec message d'avertissement explicite
   (« Retirer tous les stagiaires placés cette semaine ? Les bénévoles, profs, sujets et
-  notes sont conservés. ») — cohérent avec le pattern du re-mélange existant.
+  notes sont conservés. ») : cohérent avec le pattern du re-mélange existant.
 - **Undo** : snapshots avant modification + `recordUndo` (même mécanique que
   `autoPlaceWeek`). N'upserte que les cartes réellement modifiées.
 - **Feedback** : toast « Placements vidés · Ctrl+Z pour annuler ».
 
 ---
 
-## Chantier 3 — Onglet « Mon suivi » (fiches de suivi)
+## Chantier 3 - Onglet « Mon suivi » (fiches de suivi)
 
 ### 3.1 Table `fiches_suivi`
 
@@ -129,7 +129,7 @@ RLS :
   `user_profiles.stagiaire_id = fiches_suivi.stagiaire_id`.
 - DELETE : admin uniquement.
 
-### 3.2 UI — route `suivi`, onglet « Mon suivi »
+### 3.2 UI - route `suivi`, onglet « Mon suivi »
 
 Nouvelle vue `js/views/suivi.js`, enregistrée dans les routes et la nav de `js/main.js`.
 
@@ -151,7 +151,7 @@ Nouvelle vue `js/views/suivi.js`, enregistrée dans les routes et la nav de `js/
 ### 3.3 Seed initial
 
 L'import (chantier 1) insère aussi les `besoins` initiaux depuis le formulaire, par ex. :
-- Gaëlle → « Conduite de droite avec des démos — n'a pas réussi à faire les démos »
+- Gaëlle → « Conduite de droite avec des démos : n'a pas réussi à faire les démos »
 - Timy → « Évaluation spécifique statique + dynamique (parcours, jalonnage), organisation, gestion du temps »
 - (texte complet repris du document de suivi pour les 13 stagiaires)
 
@@ -159,7 +159,7 @@ Les souhaits (codes) restent vides au seed : c'est aux stagiaires de les cocher.
 
 ---
 
-## Chantier 4 — « Placer la semaine » v2 (créneaux Voiture uniquement)
+## Chantier 4 - « Placer la semaine » v2 (créneaux Voiture uniquement)
 
 La logique salle (tableaux, élèves salle) ne change pas. Pour chaque créneau Voiture,
 le tri des candidats (`pickLeast` actuel) est remplacé par un score composite,
@@ -174,7 +174,7 @@ ordre lexicographique :
    (souhait « C2 » ⟷ bénévole « C2.3 » ; souhait « C2.3 » ⟷ bénévole « C2.3 »).
    Créneau sans bénévole ou bénévole sans niveau : critère neutre (« tant pis »).
 3. **Variété formateur** : nombre de passages déjà faits avec le prof du créneau
-   (`passages.prof_id`) — le plus petit passe. Créneau sans prof identifié : neutre.
+   (`passages.prof_id`) : le plus petit passe. Créneau sans prof identifié : neutre.
 4. **Aléatoire** : shuffle existant conservé pour départager.
 
 Le tirage manuel par créneau (`randomFillVoitureEleves`) utilise le même score.
@@ -192,7 +192,7 @@ stagiaire : nb avec élève, nb par prof). Pas de requête par créneau.
 
 **Transparence** : le toast du placement auto reste inchangé ; en revanche le titre au survol
 des élèves placés en voiture affiche le compteur « n séances avec élève » (aide à la relecture
-manuelle du tirage). — détail UI ajustable à l'implémentation.
+manuelle du tirage). : détail UI ajustable à l'implémentation.
 
 ---
 
@@ -203,7 +203,7 @@ manuelle du tirage). — détail UI ajustable à l'implémentation.
 - Fiche : sauvegarde en conflit (deux éditions simultanées) → dernière écriture gagne,
   `updated_by_who` trace l'auteur (pattern existant de l'app).
 - Placement v2 : si `fiches_suivi` est vide ou la migration absente, l'algo doit
-  fonctionner (critères 2 dégradé neutre) — chargements résilients comme `getJoursOff`.
+  fonctionner (critères 2 dégradé neutre) : chargements résilients comme `getJoursOff`.
 - Abandons (Tatiana) : déjà exclus par `activeIds` dans le planning et la validation.
 
 ## Tests (manuels, sur le déploiement local `dev.ps1`)

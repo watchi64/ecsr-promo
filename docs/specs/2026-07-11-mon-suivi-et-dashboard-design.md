@@ -1,4 +1,4 @@
-# Spec — Espace « Mon suivi » + Tableau de bord épuré
+# Spec - Espace « Mon suivi » + Tableau de bord épuré
 
 **Date** : 2026-07-11
 **Statut** : validé (brainstorming), prêt pour plan d'implémentation
@@ -49,7 +49,7 @@ C'est exactement la logique de « Valider la semaine » (`planning.js`, `openVal
 
 ---
 
-## Chantier A — Tableau de bord épuré
+## Chantier A - Tableau de bord épuré
 
 **Fichier** : `js/views/dashboard.js` (+ nettoyage CSS mort `.avg-pill`).
 
@@ -74,7 +74,7 @@ Modifications :
 
 ---
 
-## Chantier B — Espace « Mon suivi »
+## Chantier B - Espace « Mon suivi »
 
 **Nouveau fichier** : `js/views/mon-suivi.js`
 **Câblage** : ajouter la route `mon-suivi` (`main.js` `routes` + `TABS`, inséré après
@@ -88,7 +88,7 @@ Modifications :
   si `stagiaire_id` existe, sinon le premier. La sélection re-render les 2 sections.
 - L'onglet est **toujours visible** (le stagiaire y voit son suivi, l'admin celui d'un élève).
 
-### Section 1 — Mes passages à venir
+### Section 1 - Mes passages à venir
 
 **Données** : semaine active `current_week_lundi` **+ semaine suivante** (`+7 j`).
 Pour chaque semaine : `getPlanning(lundi)` + `getHalfMetaForWeek(lundi)`. La semaine
@@ -118,7 +118,7 @@ Chaque item affiche :
 > Note : « effectué » ici = *jour passé dans le planning prévisionnel*, pas la validation
 > hebdo. C'est volontaire et suffisant pour l'usage (voir sa semaine d'un coup d'œil).
 
-### Section 2 — Mon évolution (graphique SVG maison)
+### Section 2 - Mon évolution (graphique SVG maison)
 
 **Données** : `listEvaluations()` filtrées sur le stagiaire, `note != null && note_max`,
 triées par `date_eval` croissant. Chaque note ramenée sur /20 : `note/note_max * 20`.
@@ -126,9 +126,9 @@ triées par `date_eval` croissant. Chaque note ramenée sur /20 : `note/note_max
 **Tracé** (SVG inline, responsive `viewBox`, thème light/dark via variables CSS) :
 - **Points** : une pastille par évaluation (x = **rang chronologique**, points équidistants,
   libellés de date sous l'axe ; y = note /20),
-  couleur selon le barème (`< 8` rouge, `< 12` orange, `< 16` vert, `≥ 16` excellent) —
+  couleur selon le barème (`< 8` rouge, `< 12` orange, `< 16` vert, `≥ 16` excellent),
   réutiliser la logique de seuils du dashboard (`avgColor`, à recopier localement).
-- **Courbe** : moyenne **cumulée** dans le temps (à l'index i, moyenne des notes 0..i) —
+- **Courbe** : moyenne **cumulée** dans le temps (à l'index i, moyenne des notes 0..i),
   cohérent avec la moyenne globale affichée ailleurs.
 - **Axes** : Y de 0 à 20 avec repères (0/5/10/15/20) ; X = les évaluations dans l'ordre.
 - **Interaction** : tooltip au survol d'un point (thème/libellé + note brute + note /20 + date).

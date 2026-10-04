@@ -1,6 +1,6 @@
-# Absences, comptage des passages & placement par type — Design
+# Absences, comptage des passages & placement par type - Design
 
-**Date** : 2026-07-19 · **Branche** : `absences-comptage` · **Statut** : implémenté (lots 1-3, vérifiés au banc fetch-stub) — en attente merge/déploiement
+**Date** : 2026-07-19 · **Branche** : `absences-comptage` · **Statut** : implémenté (lots 1-3, vérifiés au banc fetch-stub), en attente merge/déploiement
 
 ## 1. Contexte et problème
 
@@ -9,9 +9,9 @@ enregistré « Absence » est **exclu** des compteurs d'équité (`getVoitureAgg
 `getSalleAggregats`, `js/db.js`) : l'absent reste « en retard », le placement auto le
 re-priorise la semaine suivante, il est de nouveau absent, et l'admin corrige tout à la
 main (notes texte sur les cartes, remplacements impossibles à saisir car le sélecteur
-exclut en dur quiconque est déjà sur le créneau — `slotOccupants()`, `js/views/planning.js`).
+exclut en dur quiconque est déjà sur le créneau : `slotOccupants()`, `js/views/planning.js`).
 
-Cas déclencheur : semaine du 13/07 — Rita prévue au tableau vendredi 17 après-midi,
+Cas déclencheur : semaine du 13/07 : Rita prévue au tableau vendredi 17 après-midi,
 partie au dernier moment sans prévenir ; Céline a repris le tableau d'Emilie mais ne
 pouvait pas être saisie (élève sur la même carte → exclue du sélecteur).
 
@@ -32,7 +32,7 @@ pouvait pas être saisie (élève sur la même carte → exclue du sélecteur).
   - Le rôle (tableau G1/G2, élève voiture) se déduit de la position de `sid` dans les
     champs de rôle de la carte. **La personne prévue reste dans son champ de rôle** ;
     la carte fait foi de ce qui était planifié.
-- **`passages`** : aucun changement de schéma — `resultat` (`Effectué` / `Absence` /
+- **`passages`** : aucun changement de schéma : `resultat` (`Effectué` / `Absence` /
   `Bonus` / `Report`) et `remplacant_id` existent déjà.
 - RLS : `absences` hérite des règles de `planning_entries` (édition déjà réservée admin).
 
@@ -46,13 +46,13 @@ Dans `getVoitureAggregats()` et `getSalleAggregats()` (`js/db.js`) :
 - Voiture : une `Absence` sur un créneau avec élève bénévole incrémente aussi `avecEleve`
   (sinon l'absent garderait la priorité sur le critère principal → cercle vicieux).
   `avec_eleve` est renseigné sur la ligne Absence comme il l'aurait été sur un Effectué.
-- Rétroactif : s'applique aux lignes existantes (voir §2). Aucun script de reprise —
+- Rétroactif : s'applique aux lignes existantes (voir §2). Aucun script de reprise :
   c'est le même SELECT, seule la règle de filtrage JS change.
 - Dashboard / Mon suivi : inchangés (ils détaillent déjà par résultat via `getStats()`).
 
-## 5. UI carte — marquage d'absence
+## 5. UI carte - marquage d'absence
 
-Rôles concernés (v1) : **générateurs de passage uniquement** — tableau G1/G2 (salle),
+Rôles concernés (v1) : **générateurs de passage uniquement** : tableau G1/G2 (salle),
 élèves (voiture). Les élèves salle ne génèrent pas de passage : pas de marquage v1.
 
 - Clic sur la chip → menu : « Marquer absent(e) » / « Annuler l'absence ».
@@ -61,7 +61,7 @@ Rôles concernés (v1) : **générateurs de passage uniquement** — tableau G1/
   - propose **tous les stagiaires actifs** (moins l'absent lui-même), triés par priorité
     avec compteur, comme les sélecteurs existants ;
   - badge « occupé » (avertissement) pour ceux déjà pris sur le créneau, **au lieu de
-    l'exclusion dure** — fix du cas Céline ;
+    l'exclusion dure** : fix du cas Céline ;
   - remplaçant **optionnel** (`rid: null` = personne n'a repris le créneau).
 - Le remplaçant compte comme occupant du créneau (`slotOccupants()` ajoute les `rid`)
   pour les placements suivants de la même demi-journée.
@@ -72,7 +72,7 @@ Rôles concernés (v1) : **générateurs de passage uniquement** — tableau G1/
   activité changée), l'entrée `absences` correspondante est ignorée à la validation et
   purgée au prochain enregistrement de la carte.
 
-**Absence prévenue tôt** : pas de marquage — on remplace la chip normalement (geste
+**Absence prévenue tôt** : pas de marquage : on remplace la chip normalement (geste
 actuel). Le remplaçant fait un passage normal compté ; l'absent ne consomme rien.
 La frontière « prévenu tôt » / « dernière minute » est laissée au jugement de l'admin :
 l'app n'impose aucun seuil, c'est le geste choisi (swap ou marquage) qui décide.
@@ -91,7 +91,7 @@ Dans la génération des candidats (`openValiderSemaineModal`, `js/views/plannin
 - Modale : pastilles ❌ Absence / ⭐ Bonus dans le récapitulatif pour voir ce qui part
   en base. Le reste (déjà enregistrés, thèmes) inchangé.
 
-## 7. Placement auto — cascade par type
+## 7. Placement auto - cascade par type
 
 Pour un créneau de type T (Salle-tableau ou Voiture-élève), ordre lexicographique :
 
@@ -121,9 +121,9 @@ nouvelles règles. Les notes texte restent comme documentation.
 
 | Lot | Contenu | Déployable seul |
 |---|---|---|
-| **1 — Comptage** | Inversion des règles d'agrégats (§4) | Oui — effet immédiat sur les priorités |
-| **2 — Absences sur carte** | Migration + UI chips + sélecteur remplaçant + Valider la semaine (§3, §5, §6) | Oui |
-| **3 — Cascade par type** | Placement auto (§7) + mémo | Oui |
+| **1 - Comptage** | Inversion des règles d'agrégats (§4) | Oui : effet immédiat sur les priorités |
+| **2 - Absences sur carte** | Migration + UI chips + sélecteur remplaçant + Valider la semaine (§3, §5, §6) | Oui |
+| **3 - Cascade par type** | Placement auto (§7) + mémo | Oui |
 
 Puis rattrapage 13/07 (§8, avec l'admin). La migration n'est appliquée qu'au
 déploiement du lot 2 (colonne additive, sans risque pour l'existant).
@@ -139,7 +139,7 @@ déploiement du lot 2 (colonne additive, sans risque pour l'existant).
   3. cascade : semaine synthétique où un stagiaire a salle-sans-voiture, un autre rien,
      un autre les deux → ordre de service conforme §7 ;
   4. sélecteur remplaçant : élève de la même carte proposé avec badge « occupé ».
-- `node --check` sur les fichiers modifiés (⚠️ aveugle aux doublons de déclaration —
+- `node --check` sur les fichiers modifiés (⚠️ aveugle aux doublons de déclaration :
   la vérification navigateur reste obligatoire).
 - Vérification navigateur sur serveur local avant merge, un lot à la fois.
 - Workflow : worktree `TP_ECSR_App_absences` (main figé), merge → main → déploiement

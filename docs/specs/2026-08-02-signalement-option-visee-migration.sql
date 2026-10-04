@@ -2,7 +2,7 @@
 --
 -- Pourquoi : les options sont mélangées à l'affichage depuis le 2026-07-18. Un élève qui
 -- écrit « la réponse D » ou « la première proposition » désigne un rang qui n'existe plus
--- une fois le signalement en base — deux griefs du 01/08 (ids 14 et 15) sont devenus
+-- une fois le signalement en base : deux griefs du 01/08 (ids 14 et 15) sont devenus
 -- indécidables pour cette seule raison.
 --
 -- Deux colonnes, parce qu'elles répondent à deux questions différentes :

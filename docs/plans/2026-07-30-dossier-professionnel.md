@@ -26,7 +26,7 @@ Elles s'appliquent à **toutes** les tâches.
   branche `dp-dossier-professionnel`. Ne jamais faire de `checkout` dans `TP_ECSR_App`
   (dossier partagé entre sessions, figé sur `main`).
 - **Langue :** tout le texte visible est en français.
-- **Jamais d'em-dash (`—`)** nulle part : ni dans l'interface, ni dans les commentaires, ni
+- **Jamais de tiret cadratin (`U+2014`)** nulle part : ni dans l'interface, ni dans les commentaires, ni
   dans les commits. Utiliser `:`, `.`, `,` ou `·`.
 - **« Formateur »**, jamais « Prof », dans les libellés visibles.
 - **Affichage des stagiaires :** toujours via `displayStagiaire(s)` (« V. Timy »), tri par
