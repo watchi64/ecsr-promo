@@ -806,6 +806,20 @@ test("giratoire : pas de clignotant à l'entrée ; contrôles (rétroviseur int�
   assert.equal(etatActeur(eleve, tA(fin(arcSortie)) + 0.1).clignotant, null, "éteint après l'arc de sortie");
 });
 
+test("giratoire : le clignotant allumé, le regard porte vers la sortie : le cône contient le début et la fin de l'arc de sortie pendant toute l'étape 8", () => {
+  // L'anneau tourne à gauche : droit devant, le regard tomberait sur la bordure extérieure, à 6 m.
+  const { sc, eleve, arcSortie, fin, T } = lireGiratoire();
+  const debutSortie = pointA(eleve.chemin, arcSortie.debut), finSortie = pointA(eleve.chemin, fin(arcSortie));
+  const instants = instantsPas(sc).filter((t) => t + 1e-9 >= T[7] && t < T[8]);
+  assert.ok(instants.length >= DUREE_MIN.etape / PAS - 1, "l'étape 8 est échantillonnée");
+  for (const t of instants) {
+    const e = etatActeur(eleve, t), angle = angleRegard(sc.etapes[7], e, t, etatsA(sc, t));
+    for (const [nom, p] of [["début", debutSortie], ["fin", finSortie]]) {
+      assert.ok(regardContient(angle, oeil(e), p), `${nom} de l'arc de sortie hors du cône à t = ${t.toFixed(1)} s`);
+    }
+  }
+});
+
 test("giratoire : cadre de 40 x 46 m qui suit l'élève, cône du rétroviseur intérieur entier dans le monde pendant l'étape 1", () => {
   const { def, sc, eleve, T } = lireGiratoire();
   assert.ok(def.monde.hauteur > 46 && def.monde.largeur > 40, "monde plus grand que le cadre");
@@ -907,7 +921,7 @@ test("giratoire : dix étapes de la fiche, dans l'ordre, chacune avec son regard
   const { def, sc, eleve, arcSortie, fin, tA, tArret, tReprise, T } = lireGiratoire();
   assert.deepEqual(def.etapes.map((e) => e.regard), [
     { angle: 180 }, { angle: 0 }, { balayage: true }, { suivre: "anneau" }, { angle: 0 },
-    { angle: 180 }, { angle: -120 }, { angle: 0 }, { balayage: true }, { angle: 0 },
+    { angle: 180 }, { angle: -120 }, { angle: -20 }, { balayage: true }, { angle: 0 },
   ]);
   proche(T[0], 0, 1e-12, "rétroviseur intérieur dès le début");
   proche(T[1], 1.2, 1e-9, "coup d'œil de 1,2 s");
