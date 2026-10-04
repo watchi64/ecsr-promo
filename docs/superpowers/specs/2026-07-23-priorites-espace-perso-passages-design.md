@@ -23,7 +23,7 @@ notamment) n'apparaissent nulle part côté stagiaire.
 ## A. Onglet promo « Priorités »
 
 - `main.js` TABS : `dashboard` → label « Priorités », **icône cible** (nouvelle
-  entrée `target` dans icons.js — cercle + point central, style Lucide).
+  entrée `target` dans icons.js : cercle + point central, style Lucide).
 - `dashboard.js` : h2 « Priorités de passage ». Sous-titre inchangé.
 - `home.js` : tuile « Priorités » avec la même description.
 - Route interne `dashboard` inchangée.
@@ -38,7 +38,7 @@ notamment) n'apparaissent nulle part côté stagiaire.
 - L'icône `user` (personne) reste utilisée par le bouton « Mon espace
   personnel » du badge.
 
-## C. Espace perso — sous-onglet « Passages » enrichi
+## C. Espace perso - sous-onglet « Passages » enrichi
 
 Structure du sous-onglet (mon-suivi.js) :
 

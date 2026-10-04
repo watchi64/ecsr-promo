@@ -1,4 +1,4 @@
-# Lot A — Tableau de bord épuré · Implementation Plan
+# Lot A - Tableau de bord épuré · Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -18,8 +18,8 @@ dans un **worktree dédié** (skill `superpowers:using-git-worktrees`), sur une 
 
 ## File Structure
 
-- **Modify:** `js/views/dashboard.js` — retirer notes (import, calcul, pastille, tris).
-- **Modify (optionnel):** le CSS contenant `.avg-pill` (nettoyage de style mort) — à localiser par recherche.
+- **Modify:** `js/views/dashboard.js` : retirer notes (import, calcul, pastille, tris).
+- **Modify (optionnel):** le CSS contenant `.avg-pill` (nettoyage de style mort) : à localiser par recherche.
 
 Un seul fichier de logique change. Découpage en tâches par nature de suppression, pour des commits atomiques et vérifiables.
 
@@ -123,7 +123,7 @@ import { listStagiaires, getStats, getSetting } from "../db.js?v=20260710b";
 
 - [ ] **Step 4: Vérifier dans le navigateur**
 
-Recharger `#/dashboard`. Attendu : plus aucune pastille `/20` ni `—` sur les cartes ;
+Recharger `#/dashboard`. Attendu : plus aucune pastille `/20` ni `-` sur les cartes ;
 seul le nom + les badges de priorité Salle/Voiture restent. **Zéro erreur console**
 (vérifier qu'aucune référence à `computeAverage`/`avgColor`/`evaluations` ne subsiste).
 L'historique des passages en bas reste présent et fonctionnel.
@@ -173,7 +173,7 @@ git commit -m "dashboard: nettoie le CSS mort des pastilles de note"
 Pas de test-runner dans ce projet. Vérification manuelle via le serveur de preview :
 
 1. Créer `.claude/launch.json` si absent, avec un serveur statique servant la racine du repo
-   (ex. `python -m http.server 8000`), puis `preview_start` sur ce serveur — ou `preview_start`
+   (ex. `python -m http.server 8000`), puis `preview_start` sur ce serveur, ou `preview_start`
    avec l'URL locale.
 2. Se connecter (gate email/mot de passe) avec un compte admin de test.
 3. Ouvrir `#/dashboard`, dérouler la console : **0 erreur**.
@@ -192,5 +192,5 @@ Pas de test-runner dans ce projet. Vérification manuelle via le serveur de prev
 ## Self-review (fait à l'écriture)
 
 - **Couverture spec Chantier A :** tris note retirés (T1), pastille + calcul + import retirés (T2), CSS mort (T3). ✔
-- **Placeholders :** aucun — chaque étape montre le code exact. ✔
+- **Placeholders :** aucun, chaque étape montre le code exact. ✔
 - **Cohérence :** `computeAverage`/`avgColor` supprimés ET plus référencés (T2 step 1-3). `evaluations` retiré partout (import, Promise.all, enriched). ✔

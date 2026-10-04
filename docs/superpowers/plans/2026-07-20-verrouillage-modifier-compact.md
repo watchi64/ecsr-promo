@@ -1,4 +1,4 @@
-# Verrouillage + bouton Modifier + vue compactée — Implementation Plan
+# Verrouillage + bouton Modifier + vue compactée - Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -6,7 +6,7 @@
 
 **Architecture:** Tout se joue dans `js/views/planning.js` (vue monolithique existante, on suit le pattern) + `css/style.css`. Un Set `lockedWeeks` chargé depuis la clé KV `semaines_verrouillees` (table `settings`), un booléen `editMode` en mémoire, et un prédicat central `canEditWeek()` qui remplace les gardes `isAdmin()` d'édition. La vue compacte est du filtrage au rendu (lanes/créneaux vides) + une classe CSS `p-compact`.
 
-**Tech Stack:** Vanilla JS (modules ES, imports versionnés `?v=`), Supabase (REST via supabase-js), pas de framework, pas de test runner — la vérification se fait au banc fetch-stub (serveur python port 8123, pilotage `javascript_tool` + `dispatchEvent`).
+**Tech Stack:** Vanilla JS (modules ES, imports versionnés `?v=`), Supabase (REST via supabase-js), pas de framework, pas de test runner : la vérification se fait au banc fetch-stub (serveur python port 8123, pilotage `javascript_tool` + `dispatchEvent`).
 
 **Spec:** `docs/specs/2026-07-20-verrouillage-modifier-compact-design.md` (fait foi en cas de doute).
 
@@ -15,11 +15,11 @@
 - Worktree `C:\Users\watch\Dev\ECSR\TP_ECSR_App_verrou`, branche `verrou-semaine`. **Jamais** de commit sur main ; merge + cache-bust en fin de sujet seulement (jamais piper `cache-bust.js`).
 - Aucune migration DB, aucune modification de `js/db.js` (on consomme `getSetting`/`setSetting` existants).
 - Clé KV : `semaines_verrouillees`, valeur = JSON `["2026-07-13", ...]` (lundis ISO).
-- Les imports gardent le jeton `?v=20260720b` actuel — le cache-bust se fait au merge sur main.
+- Les imports gardent le jeton `?v=20260720b` actuel : le cache-bust se fait au merge sur main.
 - Libellés exacts : « ✏️ Modifier », « ✓ Terminer », « ✓ Semaine validée », « Déverrouiller », « 🔒 Verrouiller la semaine après enregistrement ».
 - `isAdmin()` reste tel quel pour la **visibilité des données** : `loadBenevoles()` (l.2022), persistance `current_week_lundi` (l.2124), bouton « Élèves bénévoles », bouton « Déverrouiller ».
-- Fichiers banc (`_harness.html`, `_harness_stub.js`, `_harness_server.py`) : déjà dans `.git/info/exclude` du repo principal (partagé par le worktree) — ne jamais les committer.
-- Les numéros de ligne cités sont ceux de `planning.js` @ b14d2a8 ; ils glissent au fil des tâches — se repérer aux ancres de code citées.
+- Fichiers banc (`_harness.html`, `_harness_stub.js`, `_harness_server.py`) : déjà dans `.git/info/exclude` du repo principal (partagé par le worktree), ne jamais les committer.
+- Les numéros de ligne cités sont ceux de `planning.js` @ b14d2a8 ; ils glissent au fil des tâches : se repérer aux ancres de code citées.
 
 ---
 
@@ -29,7 +29,7 @@
 - Create: `_harness_server.py` (racine du worktree)
 - Create: `_harness.html` (racine du worktree)
 - Create: `_harness_stub.js` (racine du worktree)
-- Modify: `.claude/launch.json` du projet parent (entrée port 8123) — via l'outil preview_start
+- Modify: `.claude/launch.json` du projet parent (entrée port 8123) : via l'outil preview_start
 
 **Interfaces:**
 - Produces: banc navigable sur `http://localhost:8123/_harness.html`, app montée avec un utilisateur admin simulé, bascule stagiaire via `window.__HARNESS.setAdmin(false)`, données en mémoire dans `window.__HARNESS.db`.
@@ -37,7 +37,7 @@
 - [ ] **Step 1: Écrire le serveur python no-store**
 
 ```python
-# _harness_server.py — serveur statique SANS cache (le pane navigateur cache les
+# _harness_server.py : serveur statique SANS cache (le pane navigateur cache les
 # modules JS malgré tout ; Cache-Control: no-store est OBLIGATOIRE).
 import http.server
 
@@ -59,7 +59,7 @@ Copier `index.html` en `_harness.html`, puis insérer `<script src="_harness_stu
 Stub générique : intercepte tout fetch vers Supabase (`/auth/v1/` et `/rest/v1/`), sert des données en mémoire. Table inconnue → `[]` en GET, echo en POST (l'app tolère les listes vides, cf. `renderPlanning` qui catch les stats). Grandes lignes obligatoires :
 
 ```js
-// _harness_stub.js — stub fetch Supabase pour le banc (jamais committé)
+// _harness_stub.js : stub fetch Supabase pour le banc (jamais committé)
 (() => {
   const MONDAY = "2026-07-13";   // semaine de test (écoulée → case verrou cochée d'office)
   const db = {
@@ -178,15 +178,15 @@ Stub générique : intercepte tout fetch vers Supabase (`/auth/v1/` et `/rest/v1
 - [ ] **Step 4: Lancer et vérifier**
 
 `preview_start` sur une entrée launch.json `{ "name": "ecsr-banc-verrou", "runtimeExecutable": "python", "runtimeArgs": ["_harness_server.py"], "port": 8123 }` (cwd = worktree), puis naviguer sur `http://localhost:8123/_harness.html`.
-⚠️ Gotchas connus (fiche mémoire) : screenshots et clics par coordonnées inutilisables sur cette app (viewport 1009×32) → **tout** piloter en `javascript_tool` + `dispatchEvent` ; erreurs console « loadDirectories failed » ×4 au boot = bruit bénin du stub ; le faux-positif « [object Object] » lié à l'origine localhost est connu — ignorer.
+⚠️ Gotchas connus (fiche mémoire) : screenshots et clics par coordonnées inutilisables sur cette app (viewport 1009×32) → **tout** piloter en `javascript_tool` + `dispatchEvent` ; erreurs console « loadDirectories failed » ×4 au boot = bruit bénin du stub ; le faux-positif « [object Object] » lié à l'origine localhost est connu : ignorer.
 
-Vérif : `document.querySelector(".p-day-card") !== null` et la carte « Pédagogie salle » visible dans le DOM. Adapter le stub (auth, colonnes manquantes) jusqu'à ce que la vue planning se monte — c'est le seul objectif de cette tâche.
+Vérif : `document.querySelector(".p-day-card") !== null` et la carte « Pédagogie salle » visible dans le DOM. Adapter le stub (auth, colonnes manquantes) jusqu'à ce que la vue planning se monte : c'est le seul objectif de cette tâche.
 
 - [ ] **Step 5: Vérifier que git ignore bien les 3 fichiers**
 
 Run: `git status --short` → aucun fichier `_harness*` listé.
 
-- [ ] **Step 6: Commit (rien à committer normalement — sinon STOP, un fichier banc a fui)**
+- [ ] **Step 6: Commit (rien à committer normalement, sinon STOP, un fichier banc a fui)**
 
 ---
 
@@ -264,7 +264,7 @@ git commit -m "feat(planning): état verrou semaines + mode édition (prédicats
 ### Task 3: Basculer les gardes d'édition sur canEditWeek()
 
 **Files:**
-- Modify: `js/views/planning.js` — sites listés ci-dessous
+- Modify: `js/views/planning.js` : sites listés ci-dessous
 
 **Interfaces:**
 - Consumes: `canEditWeek()` (Task 2).
@@ -300,13 +300,13 @@ Expected: classe `read-only` présente, eyebrow « Consultation · … ».
 
 - [ ] **Step 3: Vérifier le backstop**
 
-Les modules ne sont pas accessibles depuis la console (pas d'export global) — le backstop se teste par l'UI : forcer `editMode` impossible sans bouton (Task 4), donc vérifier simplement qu'aucune écriture ne part : interagir avec un select de carte via `dispatchEvent` → `window.__HARNESS.db.planning_entries` inchangé (pointer-events none + garde).
+Les modules ne sont pas accessibles depuis la console (pas d'export global) : le backstop se teste par l'UI : forcer `editMode` impossible sans bouton (Task 4), donc vérifier simplement qu'aucune écriture ne part : interagir avec un select de carte via `dispatchEvent` → `window.__HARNESS.db.planning_entries` inchangé (pointer-events none + garde).
 
 - [ ] **Step 4: Commit**
 
 ```bash
 git add js/views/planning.js
-git commit -m "feat(planning): lecture seule par défaut — gardes d'édition sur canEditWeek()"
+git commit -m "feat(planning): lecture seule par défaut : gardes d'édition sur canEditWeek()"
 ```
 
 ---
@@ -314,8 +314,8 @@ git commit -m "feat(planning): lecture seule par défaut — gardes d'édition s
 ### Task 4: Toolbar à 3 états (Modifier / Terminer / badge + Déverrouiller)
 
 **Files:**
-- Modify: `js/views/planning.js` — `renderInto`, bloc toolbar l.2552-2591
-- Modify: `css/style.css` — styles badge + bouton discret
+- Modify: `js/views/planning.js` : `renderInto`, bloc toolbar l.2552-2591
+- Modify: `css/style.css` : styles badge + bouton discret
 
 **Interfaces:**
 - Consumes: `canEditWeek()`, `isLocked()`, `setWeekLock()`, `editMode`.
@@ -327,7 +327,7 @@ Remplacer les quatre `if (admin) {...}` (l.2557-2589) par une logique à 3 état
 
 ```js
 if (admin && locked) {
-  // — Semaine verrouillée : badge + Déverrouiller (l'édition passe par le déverrouillage)
+  // Semaine verrouillée : badge + Déverrouiller (l'édition passe par le déverrouillage)
   weekBar.appendChild(el("span", { class: "p-locked-badge", title: "Semaine validée et verrouillée" },
     "✓ Semaine validée"));
   weekBar.appendChild(el("button", { class: "btn small ghost p-unlock-btn",
@@ -338,14 +338,14 @@ if (admin && locked) {
       renderInto(currentContainer);
     } }, "Déverrouiller"));
 } else if (admin && !editing) {
-  // — Lecture seule (défaut) : Modifier + banque bénévoles
+  // Lecture seule (défaut) : Modifier + banque bénévoles
   const editBtn = el("button", { class: "btn small primary",
     onClick: () => { editMode = true; renderInto(currentContainer); } });
   editBtn.appendChild(document.createTextNode("✏️ Modifier"));
   weekBar.appendChild(editBtn);
   weekBar.appendChild(bnvBtn());   // « Élèves bénévoles » (extraire l'actuel en helper)
 } else if (admin && editing) {
-  // — Mode édition : Terminer + les 4 boutons actuels
+  // Mode édition : Terminer + les 4 boutons actuels
   const doneBtn = el("button", { class: "btn small",
     onClick: () => { editMode = false; renderInto(currentContainer); } }, "✓ Terminer");
   weekBar.appendChild(doneBtn);
@@ -380,7 +380,7 @@ weekBar.appendChild(printBtn);   // Imprimer/PDF : toujours, comme aujourd'hui
 
 (vérifier si des variables `--success-*` existent déjà dans le fichier ; sinon garder les fallbacks littéraux ci-dessus, cohérents avec la palette mint de l'app).
 
-- [ ] **Step 3: Vérifier au banc — cycle complet**
+- [ ] **Step 3: Vérifier au banc - cycle complet**
 
 ```js
 // 1. lecture seule : bouton Modifier présent, pas les 4 boutons
@@ -409,7 +409,7 @@ window.__HARNESS.db.settings.push({ key: "semaines_verrouillees", value: '["2026
 
 ```bash
 git add js/views/planning.js css/style.css
-git commit -m "feat(planning): toolbar 3 états — Modifier/Terminer, badge Semaine validée + Déverrouiller"
+git commit -m "feat(planning): toolbar 3 états : Modifier/Terminer, badge Semaine validée + Déverrouiller"
 ```
 
 ---
@@ -417,7 +417,7 @@ git commit -m "feat(planning): toolbar 3 états — Modifier/Terminer, badge Sem
 ### Task 5: Case verrou dans la modale « Valider la semaine » + Ctrl+Z
 
 **Files:**
-- Modify: `js/views/planning.js` — `renderValiderModal` (l.2262-2434)
+- Modify: `js/views/planning.js` : `renderValiderModal` (l.2262-2434)
 
 **Interfaces:**
 - Consumes: `setWeekLock()`, `editMode`, `recordUndo` (existant, l.15).
@@ -441,7 +441,7 @@ et ajouter `lockRow` dans le modal entre `list` et `modal-actions` (l.2427).
 
 - [ ] **Step 2: Verrouiller à l'enregistrement + étendre l'undo**
 
-Dans `save()` (l.2346), après le `recordUndo(...)` existant — remplacer le bloc :
+Dans `save()` (l.2346), après le `recordUndo(...)` existant : remplacer le bloc :
 
 ```js
       const wantLock = lockCb.checked;
@@ -468,7 +468,7 @@ Dans `save()` (l.2346), après le `recordUndo(...)` existant — remplacer le bl
       if (wantLock) renderInto(currentContainer);   // bascule badge + read-only + compact
 ```
 
-(l'ordre : poser le verrou AVANT recordUndo pour que `wantLock` soit capturé ; le `recordUndo` existant ne re-rendait pas — l'ajout du `renderInto` dans l'undo est nécessaire pour faire disparaître badge/verrou à l'écran).
+(l'ordre : poser le verrou AVANT recordUndo pour que `wantLock` soit capturé ; le `recordUndo` existant ne re-rendait pas : l'ajout du `renderInto` dans l'undo est nécessaire pour faire disparaître badge/verrou à l'écran).
 
 - [ ] **Step 3: CSS de la ligne**
 
@@ -503,11 +503,11 @@ git commit -m "feat(planning): case verrou dans Valider la semaine, Ctrl+Z délo
 ### Task 6: Vue compactée des semaines verrouillées
 
 **Files:**
-- Modify: `js/views/planning.js` — `renderInto`, `renderDayCard` (l.1931), `renderSlotRow` (chercher `function renderSlotRow`), `renderLaneCell` (l.1690)
-- Modify: `css/style.css` — section `.p-compact`
+- Modify: `js/views/planning.js` : `renderInto`, `renderDayCard` (l.1931), `renderSlotRow` (chercher `function renderSlotRow`), `renderLaneCell` (l.1690)
+- Modify: `css/style.css` : section `.p-compact`
 
 **Interfaces:**
-- Consumes: `isLocked()`, `entryHasContent(e)` (existant l.2641, écrit pour le print — les déclarations de fonction sont hoistées, utilisable partout dans le module).
+- Consumes: `isLocked()`, `entryHasContent(e)` (existant l.2641, écrit pour le print : les déclarations de fonction sont hoistées, utilisable partout dans le module).
 - Produces: classe `p-compact` sur le conteneur ; créneaux/lanes/demi-journées vides absents du DOM ; classe `is-empty` sur les blocs de carte sans valeur.
 
 - [ ] **Step 1: Poser la classe et filtrer les lanes/créneaux**
@@ -536,7 +536,7 @@ et en compact, re-numéroter les lanes restantes pour que la grille se resserre
     if (compact) rows.forEach((r) => r.lanes.forEach((e, i) => { e._laneRender = i; }));
 ```
 
-Dans `renderSlotRow`, utiliser `entry._laneRender ?? entry.lane ?? 0` pour `gridColumn`, et dans `renderDayCard` calculer `maxLanes` sur les lanes retenues. **Ne jamais muter `entry.lane`** (champ persisté) — d'où le champ de rendu `_laneRender`.
+Dans `renderSlotRow`, utiliser `entry._laneRender ?? entry.lane ?? 0` pour `gridColumn`, et dans `renderDayCard` calculer `maxLanes` sur les lanes retenues. **Ne jamais muter `entry.lane`** (champ persisté), d'où le champ de rendu `_laneRender`.
 
 Demi-journée vide en compact : si `rows.length === 0`, n'ajouter QUE le `headBtn` (bandeau), pas `slotsWrap` :
 
@@ -547,7 +547,7 @@ Demi-journée vide en compact : si `rows.length === 0`, n'ajouter QUE le `headBt
 
 - [ ] **Step 2: Marquer les champs vides des cartes**
 
-À la fin de `renderLaneCell` (l.1690+), juste avant le `return`, quand `isLocked(semaineLundi)` — inspection DOM générique (robuste pour toutes les formes d'activité, salle double comprise) :
+À la fin de `renderLaneCell` (l.1690+), juste avant le `return`, quand `isLocked(semaineLundi)` : inspection DOM générique (robuste pour toutes les formes d'activité, salle double comprise) :
 
 ```js
   if (isLocked(semaineLundi)) {
@@ -573,7 +573,7 @@ Demi-journée vide en compact : si `rows.length === 0`, n'ajouter QUE le `headBt
   }
 ```
 
-⚠️ Les placeholders des displays vides commencent par « + » (« + stagiaires », « + note ») — c'est le marqueur utilisé ci-dessus ; vérifier au banc le texte exact des displays vides et ajuster le test `includes("+ ")` si besoin.
+⚠️ Les placeholders des displays vides commencent par « + » (« + stagiaires », « + note ») : c'est le marqueur utilisé ci-dessus ; vérifier au banc le texte exact des displays vides et ajuster le test `includes("+ ")` si besoin.
 
 - [ ] **Step 3: CSS compact**
 
@@ -582,7 +582,7 @@ Nouvelle section en fin de la partie planning de `css/style.css` :
 ```css
 /* ============================================================
    Vue compacte (semaine verrouillée) : le vide disparaît,
-   les espacements se resserrent — spec 2026-07-20.
+   les espacements se resserrent : spec 2026-07-20.
    ============================================================ */
 .p-compact .is-empty { display: none !important; }
 .p-compact .p-lane-cell { padding: 0.4rem 0.55rem; }
@@ -620,7 +620,7 @@ git commit -m "feat(planning): vue compacte des semaines verrouillées (vide mas
 
 ### Task 7: Passe de vérification complète au banc
 
-**Files:** aucun nouveau — corrections éventuelles dans `js/views/planning.js` / `css/style.css`.
+**Files:** aucun nouveau : corrections éventuelles dans `js/views/planning.js` / `css/style.css`.
 
 **Interfaces:** consume tout ; produit le GO pour la démo utilisateur.
 
@@ -637,33 +637,33 @@ git commit -m "feat(planning): vue compacte des semaines verrouillées (vide mas
 
 - [ ] **Step 2: Corriger ce qui casse, re-dérouler le scénario concerné, committer les correctifs** (`fix(planning): ...`).
 
-- [ ] **Step 3: Nettoyage repérages** — vérifier qu'aucun `console.log` de debug ni fichier parasite ne traîne : `git status --short` propre, `git diff main --stat` ne liste que `js/views/planning.js`, `css/style.css`, `docs/`.
+- [ ] **Step 3: Nettoyage repérages** : vérifier qu'aucun `console.log` de debug ni fichier parasite ne traîne : `git status --short` propre, `git diff main --stat` ne liste que `js/views/planning.js`, `css/style.css`, `docs/`.
 
-- [ ] **Step 4: STOP — démo utilisateur.** Présenter le résultat (captures du banc via lecture DOM, description des états) et attendre le **GO explicite** avant tout merge sur main. La procédure de merge (cache-bust sur main uniquement, jamais piper `cache-bust.js`, vérif navigateur post-merge, push sur GO, vérif Pages/live, ménage worktree) est documentée dans les fiches mémoire `ecsr-cache-bust-merge-conflicts` et `salle-demi-journee` — la suivre telle quelle.
+- [ ] **Step 4: STOP - démo utilisateur.** Présenter le résultat (captures du banc via lecture DOM, description des états) et attendre le **GO explicite** avant tout merge sur main. La procédure de merge (cache-bust sur main uniquement, jamais piper `cache-bust.js`, vérif navigateur post-merge, push sur GO, vérif Pages/live, ménage worktree) est documentée dans les fiches mémoire `ecsr-cache-bust-merge-conflicts` et `salle-demi-journee` : la suivre telle quelle.
 
 ---
 
 ### Task 8: Ergonomie du mode édition (volet 4, ajout validé le 20/07)
 
 **Files:**
-- Modify: `js/views/planning.js` — `renderInto` (pill, liseré, hint), niveau module (Échap)
-- Modify: `css/style.css` — `.p-edit-pill`, `.p-editing .p-days`
-- Modify: `_harness_stub.js` — carte salle 2 groupes (preuve note vide masquée en compact)
+- Modify: `js/views/planning.js` : `renderInto` (pill, liseré, hint), niveau module (Échap)
+- Modify: `css/style.css` : `.p-edit-pill`, `.p-editing .p-days`
+- Modify: `_harness_stub.js`, carte salle 2 groupes (preuve note vide masquée en compact)
 
 **Interfaces:** consume `canEditWeek()`, `isLocked()`, `editMode`, `toast` (utils, déjà importé).
 
-- [ ] **Step 1: Pill flottante + liseré + hint dans `renderInto`** — après le toggle `p-compact` :
+- [ ] **Step 1: Pill flottante + liseré + hint dans `renderInto`** : après le toggle `p-compact` :
   `container.classList.toggle("p-editing", editing)` ; si `editing`, appendre au conteneur
   `div.p-edit-pill` (« ✏️ Édition en cours » + bouton « ✓ Terminer » → `editMode = false; renderInto`).
   Sur la zone `wrap` (`.p-days`) : si `admin && !editing`, listener click → toast throttlé
   (module `let lastHintAt = 0`, 5000 ms) avec message selon `isLocked(semaineLundi)`.
-- [ ] **Step 2: Échap** — listener `keydown` module unique (drapeau `escListenerSet`) :
+- [ ] **Step 2: Échap** : listener `keydown` module unique (drapeau `escListenerSet`) :
   `key === "Escape" && editMode && currentContainer?.isConnected && !document.querySelector(".modal-backdrop")`
   et cible hors input/textarea/select → `editMode = false; renderInto(currentContainer)`.
-- [ ] **Step 3: CSS** — pill fixed bottom-center (fond accent, texte clair, ombre douce,
+- [ ] **Step 3: CSS** : pill fixed bottom-center (fond accent, texte clair, ombre douce,
   `@media print { display: none }`), liseré `.p-editing .p-days { outline: 2px dashed …accent
   translucide…; outline-offset: 6px; border-radius }`.
-- [ ] **Step 4: Banc** — pill présente en édition seulement ; liseré idem ; toast au clic en
+- [ ] **Step 4: Banc** : pill présente en édition seulement ; liseré idem ; toast au clic en
   lecture seule (2 messages selon verrou, throttle vérifié) ; Échap sort du mode mais pas
   modale ouverte ; stagiaire : ni pill ni toast ; carte salle double verrouillée : « + note »
   vide absente.
@@ -672,9 +672,9 @@ git commit -m "feat(planning): vue compacte des semaines verrouillées (vide mas
 ### Task 9: Épuration hors mode édition + fix ⊘ (volet 5, validé le 20/07 après déploiement)
 
 **Files:**
-- Modify: `js/views/planning.js` — `renderInto` (toggle `p-compact`), `renderDayCard` (`compact`),
+- Modify: `js/views/planning.js` : `renderInto` (toggle `p-compact`), `renderDayCard` (`compact`),
   `renderSlotRow` (`laneIdx`), `renderLaneCell` (marquage `is-empty`)
-- Modify: `css/style.css` — groupe `.read-only` (ajout `.p-abs-btn`)
+- Modify: `css/style.css` : groupe `.read-only` (ajout `.p-abs-btn`)
 
 **Interfaces:** consume `canEditWeek()`. Le prédicat `isLocked()` reste utilisé pour le badge,
 la toolbar et les messages, mais **plus** pour décider du compactage.
@@ -712,4 +712,4 @@ git commit -m "feat(planning): épuration hors mode édition + fix bouton absenc
 
 - **Couverture spec** : volet 1 → Tasks 2, 4 (badge/Déverrouiller), 5 (modale + Ctrl+Z), 3 (backstop) ; volet 2 → Tasks 2, 3, 4 ; volet 3 → Task 6 ; les 8 scénarios de test → Task 7. Cas limites : double onglet = comportement assumé par la spec (pas de code) ; semaine future = condition existante du bouton Valider conservée (Task 4).
 - **Placeholders** : aucun TBD ; les deux points signalés « vérifier au banc » (texte des placeholders « + », valeurs CSS) sont des calibrages explicites, pas des trous de conception.
-- **Cohérence des noms** : `isLocked` / `canEditWeek` / `setWeekLock` / `editMode` / `lockedWeeks` / `_laneRender` / `p-compact` / `is-empty` / `p-locked-badge` — utilisés à l'identique dans toutes les tâches.
+- **Cohérence des noms** : `isLocked` / `canEditWeek` / `setWeekLock` / `editMode` / `lockedWeeks` / `_laneRender` / `p-compact` / `is-empty` / `p-locked-badge` : utilisés à l'identique dans toutes les tâches.

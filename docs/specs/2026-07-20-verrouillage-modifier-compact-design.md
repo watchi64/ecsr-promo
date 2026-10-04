@@ -1,8 +1,8 @@
-# Spec — Verrouillage des semaines validées, bouton « Modifier », vue compactée
+# Spec - Verrouillage des semaines validées, bouton « Modifier », vue compactée
 
 **Date** : 2026-07-20 · **Branche** : `verrou-semaine` (worktree `TP_ECSR_App_verrou`)
 **Fichiers principaux** : `js/views/planning.js`, `js/db.js` (lecture seule), `css/style.css`
-**Base de données** : aucune migration — clé KV dans la table `settings` existante.
+**Base de données** : aucune migration : clé KV dans la table `settings` existante.
 
 Design validé par l'utilisateur le 20/07/2026 (brainstorm en 3 volets ; le volet 1 avait été
 validé lors de la session précédente).
@@ -18,14 +18,14 @@ modifiables et encombrées d'emplacements vides.
 
 Trois volets, livrés ensemble :
 
-1. **Verrouillage** : une semaine validée peut être verrouillée — lecture seule totale pour tous.
+1. **Verrouillage** : une semaine validée peut être verrouillée : lecture seule totale pour tous.
 2. **Bouton « Modifier »** : même hors verrou, le planning s'ouvre en lecture seule pour tout le
    monde ; l'édition est un mode explicite, par semaine.
 3. **Vue compactée** : une semaine verrouillée s'affiche débarrassée de tout le vide, pour tous.
 
 ---
 
-## Volet 1 — Verrouillage des semaines validées
+## Volet 1 - Verrouillage des semaines validées
 
 ### Stockage
 
@@ -46,7 +46,7 @@ Trois volets, livrés ensemble :
   la validation qu'il accompagne). Après l'annulation, la semaine revient en **mode édition**
   (l'utilisateur était en train d'éditer).
 
-### Semaine verrouillée — vue admin
+### Semaine verrouillée - vue admin
 
 - Lecture seule **totale**, identique au rendu stagiaire actuel : classe `read-only` sur le
   conteneur + aucun handler d'édition branché (chips, dés, ⊘, drag&drop, notes, sujets,
@@ -54,11 +54,11 @@ Trois volets, livrés ensemble :
 - Barre d'outils : les 4 boutons (Élèves bénévoles / 🎲 Placer la semaine / 🧹 Vider les
   placements / Valider la semaine) sont **remplacés** par :
   - un badge « **✓ Semaine validée** » (non cliquable) ;
-  - un bouton discret « **Déverrouiller** » (admin uniquement) — retire le lundi de
+  - un bouton discret « **Déverrouiller** » (admin uniquement) : retire le lundi de
     `semaines_verrouillees` **et passe directement en mode édition** (un seul geste, voir volet 2).
 - « Imprimer / PDF » reste disponible.
 
-### Semaine verrouillée — vue stagiaire
+### Semaine verrouillée - vue stagiaire
 
 - Rendu identique à aujourd'hui (déjà lecture seule) + badge « ✓ Semaine validée » (information,
   aucun bouton) + vue compactée (volet 3).
@@ -66,14 +66,14 @@ Trois volets, livrés ensemble :
 ### Backstop d'écriture
 
 - `saveEntry` **refuse** d'écrire si la semaine cible est verrouillée (retour silencieux +
-  `console.warn`, pas de toast agressif — le cas ne doit pas se produire via l'UI).
+  `console.warn`, pas de toast agressif : le cas ne doit pas se produire via l'UI).
 - Même garde sur les écritures de masse : placement auto (`autoPlaceWeek`), vider les placements
   (`clearWeekPlacements`), sauvegarde des horaires (`saveHalfMeta`), jours off, upsert des
   demi-journées. En pratique : toutes passent par le prédicat central `canEditWeek()` (volet 2).
 
 ---
 
-## Volet 2 — Bouton « Modifier » (lecture seule par défaut)
+## Volet 2 - Bouton « Modifier » (lecture seule par défaut)
 
 ### Principe
 
@@ -82,7 +82,7 @@ mode explicite, activé par un bouton « ✏️ Modifier ».
 
 ### Cycle de vie du mode édition
 
-- État `editMode`, **en mémoire seulement** (variable de module) — aucune persistance
+- État `editMode`, **en mémoire seulement** (variable de module) : aucune persistance
   (ni localStorage, ni sessionStorage).
 - Portée : **la semaine affichée**. Retombe à `false` :
   - à chaque changement de semaine (`changeWeek`, y compris flèches, date picker, « Cette semaine ») ;
@@ -98,7 +98,7 @@ mode explicite, activé par un bouton « ✏️ Modifier ».
 | Mode édition | ✓ Terminer · Élèves bénévoles · 🎲 Placer la semaine · 🧹 Vider les placements · Valider la semaine · Imprimer / PDF |
 
 - « Élèves bénévoles » reste accessible en lecture seule : la banque (fiches, dispos,
-  téléphones) est indépendante de la semaine — consulter un numéro ne doit pas obliger à passer
+  téléphones) est indépendante de la semaine : consulter un numéro ne doit pas obliger à passer
   en édition.
 - Vue stagiaire : inchangée (jamais de bouton Modifier).
 
@@ -126,7 +126,7 @@ mode explicite, activé par un bouton « ✏️ Modifier ».
 
 ---
 
-## Volet 3 — Vue compactée des semaines verrouillées
+## Volet 3 - Vue compactée des semaines verrouillées
 
 ### Déclenchement
 
@@ -136,7 +136,7 @@ mode explicite, activé par un bouton « ✏️ Modifier ».
 - Les semaines non verrouillées (même en lecture seule via le volet 2) gardent l'affichage
   actuel : une semaine en construction doit montrer ses trous.
 
-### Rendu (variante A validée sur mockup — cartes compactées)
+### Rendu (variante A validée sur mockup : cartes compactées)
 
 Le look actuel (cartes jour, bandeaux MATIN/APRÈS-MIDI, chips) est conservé ; on retire le vide :
 
@@ -148,14 +148,14 @@ Le look actuel (cartes jour, bandeaux MATIN/APRÈS-MIDI, chips) est conservé ; 
 3. **Demi-journées vides** : aucune lane avec contenu dans la demi-journée → seul le bandeau
    MATIN/APRÈS-MIDI (horaires compris) est affiché, pas de zone de créneaux.
 4. **Champs vides des cartes** : lignes sans valeur (sujet absent, « Au tableau » non renseigné,
-   notes vides, sélecteurs à vide, bénévoles absents) masquées — mêmes règles que
+   notes vides, sélecteurs à vide, bénévoles absents) masquées, mêmes règles que
    `printEntryCell`.
 5. **Espacements resserrés** : paddings/gaps réduits sur cartes et créneaux.
 
 ### Implémentation
 
 - Classe `p-compact` posée sur le conteneur de la vue quand `isLocked(semaineLundi)`.
-- Le rendu (JS) marque les éléments vides d'une classe (`is-empty`) au moment du rendu — la CSS
+- Le rendu (JS) marque les éléments vides d'une classe (`is-empty`) au moment du rendu : la CSS
   `.p-compact .is-empty { display: none }` + règles d'espacement font le reste. Le recalcul de
   `maxLanes` ignore les lanes vides quand la semaine est verrouillée.
 - Jours FÉRIÉ / FERMÉ : bandeau actuel conservé tel quel.
@@ -165,27 +165,27 @@ Le look actuel (cartes jour, bandeaux MATIN/APRÈS-MIDI, chips) est conservé ; 
 
 ---
 
-## Volet 4 — Ergonomie du mode édition (ajout validé le 20/07, après implémentation des volets 1-3)
+## Volet 4 - Ergonomie du mode édition (ajout validé le 20/07, après implémentation des volets 1-3)
 
 1. **Pill flottante** : en mode édition uniquement, pastille `position: fixed` centrée en bas
-   d'écran — « ✏️ Édition en cours » + bouton « ✓ Terminer ». Masquée à l'impression,
+   d'écran : « ✏️ Édition en cours » + bouton « ✓ Terminer ». Masquée à l'impression,
    z-index sous les modales. Absente en lecture seule et sur semaine verrouillée.
 2. **Liseré du mode** : classe `p-editing` sur le conteneur quand `canEditWeek()` ; contour
    pointillé accent discret autour de `.p-days`. Lecture seule : aucun changement visuel.
 3. **Hint au clic en lecture seule** (admin uniquement) : clic sur la zone des jours → toast
-   throttlé (max 1 / 5 s) — semaine normale : « Semaine en lecture seule — clique ✏️ Modifier
-   pour éditer » ; semaine verrouillée : « Semaine validée — clique Déverrouiller pour
+   throttlé (max 1 / 5 s) : semaine normale : « Semaine en lecture seule : clique ✏️ Modifier
+   pour éditer » ; semaine verrouillée : « Semaine validée : clique Déverrouiller pour
    corriger ». Rien côté stagiaire.
-4. **Échap** : en mode édition, Échap revient en lecture seule — sauf modale ouverte
+4. **Échap** : en mode édition, Échap revient en lecture seule, sauf modale ouverte
    (`.modal-backdrop` présent) ou focus dans un champ de saisie. Listener module unique,
    inactif si la vue Planning n'est pas montée (`currentContainer.isConnected`).
 
 Précision utilisateur (20/07) : une note vide (« + note ») ne doit pas apparaître sur une
-semaine validée — déjà couvert par le masquage des champs vides du volet 3 (`.p-lane-notes`
+semaine validée : déjà couvert par le masquage des champs vides du volet 3 (`.p-lane-notes`
 vide → `is-empty`), y compris sur les cartes salle 2 groupes ; reste disponible en mode
 édition.
 
-## Volet 5 — Épuration complète hors mode édition (ajout validé le 20/07, après déploiement)
+## Volet 5 - Épuration complète hors mode édition (ajout validé le 20/07, après déploiement)
 
 Retour utilisateur après mise en prod : « lorsqu'on n'est pas en mode Modifier, tous les espaces
 non remplis et les boutons doivent disparaître pour épurer un maximum ».
@@ -219,7 +219,7 @@ non remplis et les boutons doivent disparaître pour épurer un maximum ».
    seule (jours + bandeaux d'horaires seulement). Le toast du volet 4 (« clique ✏️ Modifier
    pour éditer ») lève le doute côté formateur ; « Modifier » restaure la vue complète.
 
-## Volet 6 — Densification lecture seule + navigation par jour (validé le 20/07)
+## Volet 6 - Densification lecture seule + navigation par jour (validé le 20/07)
 
 Motivation : plaintes d'ergonomie sur téléphone, « scroller de jour en jour ». Mesures au banc
 sur une semaine réaliste (5 jours pleins, salle 2 groupes + voiture + lane parallèle), viewport

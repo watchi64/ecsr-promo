@@ -1,4 +1,4 @@
-# Mon suivi — Souhaits de compétences + historique voiture · Implementation Plan
+# Mon suivi - Souhaits de compétences + historique voiture · Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -20,14 +20,14 @@
 
 ## File Structure
 
-- **Modify:** `js/db.js` — ajouter `listFiches`, `getVoitureAggregats`, `upsertFiche` (souhaits uniquement).
-- **Modify:** `js/views/benevoles.js` — `export` de `COMPETENCES_REMC`.
-- **Modify:** `js/views/mon-suivi.js` — imports + état + 2 sections + câblage `renderFor`.
-- **Modify:** `css/style.css` — styles `.suivi-*`.
+- **Modify:** `js/db.js` : ajouter `listFiches`, `getVoitureAggregats`, `upsertFiche` (souhaits uniquement).
+- **Modify:** `js/views/benevoles.js` : `export` de `COMPETENCES_REMC`.
+- **Modify:** `js/views/mon-suivi.js` : imports + état + 2 sections + câblage `renderFor`.
+- **Modify:** `css/style.css` : styles `.suivi-*`.
 
 ---
 
-### Task 1: Backend — fonctions db + export de la constante
+### Task 1: Backend - fonctions db + export de la constante
 
 **Files:**
 - Modify: `js/db.js`
@@ -101,7 +101,7 @@ git commit -m "db: fonctions fiches_suivi (souhaits only) + export COMPETENCES_R
 
 ---
 
-### Task 2: mon-suivi.js — sections souhaits + historique
+### Task 2: mon-suivi.js - sections souhaits + historique
 
 **Files:**
 - Modify: `js/views/mon-suivi.js` (imports l.1-4, ajout de fonctions, `renderMonSuivi`/`renderFor`)
@@ -177,7 +177,7 @@ function renderHistoriqueSection(id) {
   const a = aggregats[id] || { total: 0, avecEleve: 0, byProf: {} };
   const profLine = Object.entries(a.byProf)
     .map(([pid, n]) => `${profs.find((p) => p.id === Number(pid))?.nom || "?"} ×${n}`)
-    .join(" · ") || "—";
+    .join(" · ") || "-";
   return el("section", { class: "ms-section" },
     el("h3", { class: "ms-section-title" }, "Historique voiture"),
     el("div", { class: "suivi-histo" },
@@ -267,7 +267,7 @@ git commit -m "mon-suivi: sections souhaits de competences + historique voiture"
 Ajouter à la fin de `css/style.css` :
 
 ```css
-/* ===== Mon suivi — fiche souhaits + historique ===== */
+/* ===== Mon suivi - fiche souhaits + historique ===== */
 .suivi-histo { background: var(--bg-subtle); border-radius: var(--r); padding: 0.9rem 1.1rem; }
 .suivi-comps { margin-top: 0.25rem; }
 .suivi-comp { border: 1px solid var(--line); border-radius: var(--r-sm); padding: 0.45rem 0.7rem; margin-bottom: 0.5rem; }
@@ -306,7 +306,7 @@ git commit -m "mon-suivi: styles fiche souhaits + historique"
 
 Pas de test-runner. Via le serveur de preview :
 
-1. `.claude/launch.json` : serveur statique servant la racine du repo (ex. `python -m http.server 8000`), puis `preview_start` — ou `preview_start` avec l'URL locale. **Ctrl+Shift+R** après changement (index.html non cache-busté).
+1. `.claude/launch.json` : serveur statique servant la racine du repo (ex. `python -m http.server 8000`), puis `preview_start`, ou `preview_start` avec l'URL locale. **Ctrl+Shift+R** après changement (index.html non cache-busté).
 2. Se connecter. Tester idéalement un compte **admin** (sélecteur → n'importe quel élève) ; un compte **stagiaire** verrait directement sa propre fiche.
 3. Pré-requis données : les 13 fiches existent déjà ; choisir un élève avec passages voiture pour voir l'historique peuplé.
 4. Console : **0 erreur** sur `#/mon-suivi`.
@@ -321,10 +321,10 @@ Pas de test-runner. Via le serveur de preview :
 - **Couverture spec :** db (listFiches/upsertFiche souhaits-only/getVoitureAggregats) → Task 1 ;
   export constante → Task 1 ; sections souhaits + historique + câblage ordre → Task 2 ;
   styles → Task 3 ; non-régression `besoins` → Task 2 step 6. ✔
-- **Placeholders :** aucun — code complet à chaque étape. ✔
+- **Placeholders :** aucun, code complet à chaque étape. ✔
 - **Cohérence des noms :** `fiches`/`aggregats`/`profs`/`ficheOf`, `renderFicheSection(id,onSaved)`,
   `renderHistoriqueSection(id)` définis et appelés dans `renderFor` ; `upsertFiche` sans `besoins`
   cohérent entre db.js (Task 1) et l'appel (Task 2). ✔
 - **APIs :** `COMPETENCES_REMC` (c.code/c.titre/c.sous [[code,libelle]]), `profs[].nom`,
-  `getCurrentWho`, `toast` — conformes aux usages existants (`suivi.js` de lot3, `benevoles.js`). ✔
+  `getCurrentWho`, `toast` : conformes aux usages existants (`suivi.js` de lot3, `benevoles.js`). ✔
 - **Aucune migration / aucun changement RLS.** ✔

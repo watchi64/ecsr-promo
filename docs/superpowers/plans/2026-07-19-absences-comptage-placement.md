@@ -1,4 +1,4 @@
-# Absences, comptage & placement par type — Implementation Plan
+# Absences, comptage & placement par type - Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -22,7 +22,7 @@
 
 ---
 
-### Task 1: Lot 1 — module `passage-rules.js` + inversion du comptage (db.js)
+### Task 1: Lot 1 - module `passage-rules.js` + inversion du comptage (db.js)
 
 **Files:**
 - Create: `js/passage-rules.js`
@@ -71,7 +71,7 @@ Attendu : `ERR_MODULE_NOT_FOUND` (js/passage-rules.js n'existe pas).
 Créer `js/passage-rules.js` :
 
 ```js
-// Règles PURES de comptage des passages — spec docs/specs/2026-07-19-absences-comptage-placement-design.md.
+// Règles PURES de comptage des passages : spec docs/specs/2026-07-19-absences-comptage-placement-design.md.
 // Module sans dépendance : importé par db.js et planning.js, testable directement en node
 // (tests/passage-rules.test.mjs).
 
@@ -199,7 +199,7 @@ Dans `C:\Users\watch\Dev\ECSR\.claude\launch.json`, ajouter à `configurations` 
 Stub générique PostgREST : session admin factice + fixtures + interception fetch. Contenu complet :
 
 ```js
-// BANC D'ESSAI — stub Supabase. JAMAIS versionné, JAMAIS déployé (.git/info/exclude).
+// BANC D'ESSAI : stub Supabase. JAMAIS versionné, JAMAIS déployé (.git/info/exclude).
 // Intercepte fetch vers SUPABASE_URL : fixtures en mémoire, filtres PostgREST de base
 // (eq/gte/lte/in/order/single), inserts/upserts/patch/delete mémorisés dans window.STUB.
 (() => {
@@ -249,14 +249,14 @@ Stub générique PostgREST : session admin factice + fixtures + interception fet
       { id: 105, date: addD(-6), stagiaire_id: 4, type: "Voiture", resultat: "Absence", remplacant_id: null, prof_id: 1, avec_eleve: true, semaine_lundi: addD(-7), origine: "Planning" },
     ],
     planning_entries: [
-      // Jeudi : salle 2 groupes — tableau G1 Anna, G2 Bruno, stagiaires Chloé/David/Emma/Farid.
+      // Jeudi : salle 2 groupes : tableau G1 Anna, G2 Bruno, stagiaires Chloé/David/Emma/Farid.
       { semaine_lundi: MONDAY, day_index: 3, half_day: "aprem", slot: 0, lane: 0,
         activite: "Pédagogie salle", prof_id: 1, prof_ids: [1], prof_autre: null, autonomie: false,
         sujet: "Sujet G1", sujet_2: "Sujet G2", salle_double: true,
         pedagogue_id: 1, pedagogue_id_2: 2,
         eleves_ids: [3, 4, 5, 6], eleves_ids_2: [3, 4, 5, 6],
         benevoles_ids: [], notes: null, absences: [] },
-      // Vendredi matin : voiture — élèves Emma/Farid + bénévole (avec élève).
+      // Vendredi matin : voiture : élèves Emma/Farid + bénévole (avec élève).
       { semaine_lundi: MONDAY, day_index: 4, half_day: "matin", slot: 0, lane: 0,
         activite: "Voiture (conduite)", prof_id: 1, prof_ids: [1], prof_autre: null, autonomie: false,
         sujet: null, sujet_2: null, salle_double: false,
@@ -369,7 +369,7 @@ Stub générique PostgREST : session admin factice + fixtures + interception fet
 })();
 ```
 
-NB : si au chargement l'app réclame une table absente des fixtures (visible en console « table inconnue » ou rendu vide inattendu), ajouter la table vide dans `T` — le stub renvoie déjà `[]` par défaut, donc seul un `.single()` peut casser : dans ce cas ajouter la row fixture qui va bien (procédé : lire l'appel dans `js/db.js`).
+NB : si au chargement l'app réclame une table absente des fixtures (visible en console « table inconnue » ou rendu vide inattendu), ajouter la table vide dans `T` : le stub renvoie déjà `[]` par défaut, donc seul un `.single()` peut casser : dans ce cas ajouter la row fixture qui va bien (procédé : lire l'appel dans `js/db.js`).
 
 - [ ] **Step 3: Créer `_harness.html`**
 
@@ -388,11 +388,11 @@ Copier `index.html` tel quel vers `_harness.html`, puis insérer **avant le prem
 3. `read_page` : bandeau orange présent, app connectée en admin (pas d'écran de login), onglet Planning affichant la semaine courante avec la carte salle (tableaux A. Anna / B. Bruno) et la carte voiture (E. Emma, F. Farid).
 4. `read_console_messages` : aucune erreur bloquante (warnings tolérés).
 
-Attendu : planning rendu complet avec les fixtures. Pas de commit (fichiers non versionnés) — Task terminée quand le banc rend l'app.
+Attendu : planning rendu complet avec les fixtures. Pas de commit (fichiers non versionnés) : Task terminée quand le banc rend l'app.
 
 ---
 
-### Task 3: Lot 2a — migration SQL + plomberie `absences`
+### Task 3: Lot 2a - migration SQL + plomberie `absences`
 
 **Files:**
 - Create: `docs/specs/2026-07-19-absences-migration.sql`
@@ -436,7 +436,7 @@ Dans `js/views/planning.js`, insérer après la fonction `effSujets` (~ligne 544
 function entryAbsences(e) { return Array.isArray(e.absences) ? e.absences : []; }
 function absenceOf(e, sid) { return entryAbsences(e).find((a) => a.sid === sid) || null; }
 
-// Ids générateurs de passage d'une carte (tableaux salle / élèves voiture) — les seuls
+// Ids générateurs de passage d'une carte (tableaux salle / élèves voiture) : les seuls
 // rôles marquables absents. Sert aussi à purger les absences orphelines (chip retirée,
 // activité changée).
 function passageRoleIds(e) {
@@ -499,7 +499,7 @@ git commit -m "feat(absences): colonne absences + helpers + remplaçants occupan
 
 ---
 
-### Task 4: Lot 2b — UI de marquage (chips) + sélecteur de remplaçant souple
+### Task 4: Lot 2b - UI de marquage (chips) + sélecteur de remplaçant souple
 
 **Files:**
 - Modify: `js/views/planning.js:1246-1284` (`personSelect` : opts), `js/views/planning.js:1290-1355` (`chipsSelect` : opts chips), `js/views/planning.js:1516-1560` env. (rendu tableau salle), `js/views/planning.js:1671-1680` env. (chips élèves voiture), + helper `renderAbsenceRows` (nouveau)
@@ -511,7 +511,7 @@ git commit -m "feat(absences): colonne absences + helpers + remplaçants occupan
 
 - [ ] **Step 1: `personSelect` accepte un badge d'item**
 
-Signature (`js/views/planning.js:1246`) : `function personSelect(allStagiaires, currentId, onChange, counts, placeholder = "—", opts = {})`.
+Signature (`js/views/planning.js:1246`) : `function personSelect(allStagiaires, currentId, onChange, counts, placeholder = "-", opts = {})`.
 Dans la boucle `ordered.forEach((s) => {` (~ligne 1268), après `if (counts) item.appendChild(prioBadge(counts[s.id] || 0));` ajouter :
 
 ```js
@@ -553,7 +553,7 @@ Insérer après `chipsSelect` (~ligne 1356) :
 ```js
 // Lignes « ⊘ X absent(e) → remplacé(e) par … » d'une carte (spec §5). Sélecteur SOUPLE :
 // tous les stagiaires (moins l'absent), tri par priorité, badge « occupé » à titre
-// d'avertissement AU LIEU d'une exclusion dure — c'est le remplacement de dernière
+// d'avertissement AU LIEU d'une exclusion dure : c'est le remplacement de dernière
 // minute, la personne est souvent déjà dans la salle (cas Céline, 17/07).
 function renderAbsenceRows(entry, lid) {
   const wrap = el("div", { class: "abs-rows" });
@@ -574,7 +574,7 @@ function renderAbsenceRows(entry, lid) {
       el("span", { class: "abs-row-name" }, "⊘ " + (s ? displayStagiaire(s) : "?") + " absent(e) → remplacé(e) par"),
       personSelect(options, a.rid, (id) => setAbsence(lid, a.sid, "replace", id), counts, "personne", {
         itemBadge: (x) => occupied.has(x.id)
-          ? el("span", { class: "prio-badge abs-occupied", title: "Déjà pris sur ce créneau — à toi de juger" }, "occupé")
+          ? el("span", { class: "prio-badge abs-occupied", title: "Déjà pris sur ce créneau : à toi de juger" }, "occupé")
           : null,
       }),
     ));
@@ -583,7 +583,7 @@ function renderAbsenceRows(entry, lid) {
 }
 ```
 
-- [ ] **Step 4: Tableau salle — bouton ⊘ + rendu barré**
+- [ ] **Step 4: Tableau salle - bouton ⊘ + rendu barré**
 
 Dans le rendu du rôle « au tableau » (~ligne 1516-1540, zone du `personSelect` + bouton dé `p-dice-btn`) : `currentVal` est l'id du tableau du groupe, `field` vaut `pedagogue_id` ou `pedagogue_id_2`, `lid` la carte. Après l'ajout du bouton dé, ajouter :
 
@@ -593,16 +593,16 @@ Dans le rendu du rôle « au tableau » (~ligne 1516-1540, zone du `personSelect
   if (currentVal != null) {
     pedaRole.appendChild(el("button", {
       class: "p-abs-btn" + (absPeda ? " active" : ""), type: "button",
-      title: absPeda ? "Annuler l'absence" : "Marquer absent(e) — dernière minute (le passage comptera « Absence »)",
+      title: absPeda ? "Annuler l'absence" : "Marquer absent(e) : dernière minute (le passage comptera « Absence »)",
       onClick: () => setAbsence(lid, currentVal, absPeda ? "unmark" : "mark"),
     }, "⊘"));
   }
   pedaRole.appendChild(renderAbsenceRows(entry, lid));
 ```
 
-⚠️ Adapter les noms exacts (`pedaRole`, `currentVal`, `field`) à ceux du bloc réel — les anchors ci-dessus datent de la lecture du 19/07 ; si le code local diffère, garder la sémantique : bouton après le dé, classe sur le conteneur du rôle, lignes de remplacement à la suite. Pour une carte 2 groupes, chaque groupe rend son propre bouton ; `renderAbsenceRows` peut être appelé deux fois → ne l'appeler que pour le groupe 1 (il liste TOUTES les absences de la carte) ou le déplacer en pied de carte : choisir le pied de carte si le rendu par groupe duplique les lignes.
+⚠️ Adapter les noms exacts (`pedaRole`, `currentVal`, `field`) à ceux du bloc réel : les anchors ci-dessus datent de la lecture du 19/07 ; si le code local diffère, garder la sémantique : bouton après le dé, classe sur le conteneur du rôle, lignes de remplacement à la suite. Pour une carte 2 groupes, chaque groupe rend son propre bouton ; `renderAbsenceRows` peut être appelé deux fois → ne l'appeler que pour le groupe 1 (il liste TOUTES les absences de la carte) ou le déplacer en pied de carte : choisir le pied de carte si le rendu par groupe duplique les lignes.
 
-- [ ] **Step 5: Chips élèves voiture — clic = marquer absent**
+- [ ] **Step 5: Chips élèves voiture - clic = marquer absent**
 
 Au call-site voiture (~ligne 1675), remplacer :
 
@@ -621,7 +621,7 @@ par :
       saveEntry(lid, { eleves_ids: ids });
     }, voitCounts, {
       chipTitleFn: (id) => `${voitureStats[id]?.avecEleve || 0} séance(s) avec élève bénévole au compteur`
-        + (absenceOf(entry, id) ? " · ABSENT(E) — cliquer pour annuler" : " · Cliquer : marquer absent(e)"),
+        + (absenceOf(entry, id) ? " · ABSENT(E) : cliquer pour annuler" : " · Cliquer : marquer absent(e)"),
       chipClassFn: (id) => (absenceOf(entry, id) ? " chip-absent" : ""),
       onChipClick: (id) => setAbsence(lid, id, absenceOf(entry, id) ? "unmark" : "mark"),
     }));
@@ -664,7 +664,7 @@ git commit -m "feat(absences): marquage sur les chips + sélecteur remplaçant s
 
 ---
 
-### Task 5: Lot 2c — « Valider la semaine » génère Absence + Bonus
+### Task 5: Lot 2c - « Valider la semaine » génère Absence + Bonus
 
 **Files:**
 - Modify: `js/views/planning.js:2036-2074` (génération des candidats + fusion), `js/views/planning.js:2130-2160` (récapitulatif modale), `js/views/planning.js:2213-2215` (`addRow`), `js/views/planning.js:2274` et `2332` (textes), + import `meilleurResultat` en tête de fichier
@@ -724,7 +724,7 @@ Dans `openValiderSemaineModal` (~ligne 2034), remplacer le bloc `entries.forEach
 Dans le bloc de fusion (~lignes 2062-2074), à l'intérieur du `if (prev) { ... }`, après `if (prev.prof_id == null) prev.prof_id = c.prof_id;` ajouter :
 
 ```js
-      // Fusion des résultats (grain jour) : Effectué > Absence > Bonus — un vrai
+      // Fusion des résultats (grain jour) : Effectué > Absence > Bonus : un vrai
       // passage n'est jamais écrasé par une absence ni un bonus du même jour.
       const best = meilleurResultat(prev.resultat, c.resultat);
       if (best !== prev.resultat) { prev.resultat = best; prev.remplacant_id = c.remplacant_id ?? null; }
@@ -772,7 +772,7 @@ Et dans la construction `byDay` (~ligne 2141), remplacer `byDay.get(c.day_index)
         + (c.resultat === "Absence" ? " ❌" : c.resultat === "Bonus" ? " ⭐" : ""));
 ```
 
-Enfin les deux textes d'aide : ligne ~2274 remplacer « Une absence ou un cas particulier ? Corrige ensuite dans l'onglet Passages. » par « Une absence de dernière minute ? Marque-la sur la carte (⊘) AVANT de valider — elle sera enregistrée « Absence » et son remplaçant en « Bonus ». » ; même idée pour la ligne mémo ~2332 (le mémo complet est réécrit en Task 6).
+Enfin les deux textes d'aide : ligne ~2274 remplacer « Une absence ou un cas particulier ? Corrige ensuite dans l'onglet Passages. » par « Une absence de dernière minute ? Marque-la sur la carte (⊘) AVANT de valider : elle sera enregistrée « Absence » et son remplaçant en « Bonus ». » ; même idée pour la ligne mémo ~2332 (le mémo complet est réécrit en Task 6).
 
 - [ ] **Step 6: Vérification banc**
 
@@ -792,14 +792,14 @@ git commit -m "feat(absences): Valider la semaine genere Absence comptee + Bonus
 
 ---
 
-### Task 6: Lot 3 — cascade de placement par type + mémo
+### Task 6: Lot 3 - cascade de placement par type + mémo
 
 **Files:**
 - Modify: `js/views/planning.js:679-693` (`weekPassageCounts` → par type), `js/views/planning.js:749-770` (`randomFillPedagogue`), `js/views/planning.js:775-806` (`randomFillVoitureEleves`), `js/views/planning.js:904-918` et `948-962` (`autoPlaceWeek` : `couvert` → cascade), `js/views/planning.js:2284-2340` (mémo ℹ️)
 
 **Interfaces:**
 - Consumes: `voitureScore(id, entry, weekAvecEleve, weekVoit, voitDays)` (inchangé), `salleStats`, `cmpScores`, `dayIsOff`, `ACT_VOITURE`.
-- Produces: `weekPassageCountsByType(excludeLid): { salle: {[id]: n}, voiture: {[id]: n} }` (REMPLACE `weekPassageCounts` — supprimer l'ancienne, 2 call-sites internes). Scores : tableau = `[couvertGlobal, couvertSalle, retard, intraSemaine]`, voiture = `[couvertGlobal, couvertVoiture, ...voitureScore]`.
+- Produces: `weekPassageCountsByType(excludeLid): { salle: {[id]: n}, voiture: {[id]: n} }` (REMPLACE `weekPassageCounts` : supprimer l'ancienne, 2 call-sites internes). Scores : tableau = `[couvertGlobal, couvertSalle, retard, intraSemaine]`, voiture = `[couvertGlobal, couvertVoiture, ...voitureScore]`.
 
 - [ ] **Step 1: Compteurs hebdo par type**
 
@@ -808,8 +808,8 @@ Remplacer `weekPassageCounts` (lignes 679-693) par :
 ```js
 // Placements générateurs de passage de la semaine, PAR TYPE (salle-tableau / voiture-
 // élève), par stagiaire. Exclut jours off et la carte cible. Un marqué absent COMPTE
-// (tour consommé — il reste dans son champ de rôle) ; son remplaçant ne compte pas
-// (passage bonus — il n'apparaît que dans entry.absences). Sert à la cascade :
+// (tour consommé : il reste dans son champ de rôle) ; son remplaçant ne compte pas
+// (passage bonus : il n'apparaît que dans entry.absences). Sert à la cascade :
 // 1) rien eu cette semaine → 2) type manquant → 3) retard historique sur le type.
 function weekPassageCountsByType(excludeLid) {
   const salle = {}, voiture = {};
@@ -849,7 +849,7 @@ et le score (ligne 764) :
     .map((s) => ({ s, score: [couvertGlobal(s.id), couvertSalle(s.id), (salleStats[s.id] || 0) + (pedaCount[s.id] || 0), pedaCount[s.id] || 0] }))
 ```
 
-Mettre à jour le commentaire de tête de fonction (lignes 745-748) : « priorité à qui n'a encore AUCUN passage cette semaine, puis à qui n'a pas encore eu de tableau cette semaine, puis le moins passé au tableau (historique Salle inclus — Absences comptées), départagé par le compteur intra-semaine. »
+Mettre à jour le commentaire de tête de fonction (lignes 745-748) : « priorité à qui n'a encore AUCUN passage cette semaine, puis à qui n'a pas encore eu de tableau cette semaine, puis le moins passé au tableau (historique Salle inclus : Absences comptées), départagé par le compteur intra-semaine. »
 
 - [ ] **Step 3: `randomFillVoitureEleves` (dé voiture)**
 
@@ -917,15 +917,15 @@ Dans `renderPlacementMemo` (~lignes 2284-2340), intégrer les nouvelles règles 
   body.appendChild(el("p", {}, b("Absences :")));
   body.appendChild(el("ul", {},
     li(b("Dernière minute / pas prévenu"), " : marque la chip absente (⊘) sur la carte. Le passage compte quand même pour l'absent (son tour est consommé) ; le remplaçant fait un passage ", b("bonus"), " qui ne lui sera pas décompté."),
-    li(b("Prévenu à l'avance"), " : remplace simplement le nom sur la carte — le remplaçant fait un passage normal, l'absent garde sa priorité."),
+    li(b("Prévenu à l'avance"), " : remplace simplement le nom sur la carte : le remplaçant fait un passage normal, l'absent garde sa priorité."),
   ));
 ```
 
-(Adapter aux helpers locaux réels `li`/`b` du mémo — ils existent déjà dans cette fonction.)
+(Adapter aux helpers locaux réels `li`/`b` du mémo : ils existent déjà dans cette fonction.)
 
 - [ ] **Step 6: Vérification banc (scénario cascade)**
 
-`node --check js/views/planning.js`. Au banc, fixtures spéciales (modifier le stub puis recharger `?fresh=` neuf) : semaine avec — Anna tableau jeudi (salle couverte), Bruno rien, Chloé tableau mercredi + voiture mardi (tout couvert) ; carte voiture vendredi VIDE (`eleves_ids: []`).
+`node --check js/views/planning.js`. Au banc, fixtures spéciales (modifier le stub puis recharger `?fresh=` neuf) : semaine avec : Anna tableau jeudi (salle couverte), Bruno rien, Chloé tableau mercredi + voiture mardi (tout couvert) ; carte voiture vendredi VIDE (`eleves_ids: []`).
 1. Cliquer le dé de la carte voiture vendredi.
 2. Attendu : les 2 places vont à Bruno (rien eu → rang 1) et Anna (salle mais pas voiture → rang 2). Chloé (tout couvert) n'est PAS prise. Vérifier via `window.STUB.upserts` (dernier upsert planning_entries : `eleves_ids` = ids de Bruno et Anna, ordre libre).
 3. « Placer la semaine » sur une semaine vidée : vérifier qu'aucune erreur console et que chaque stagiaire obtient au plus 1 tableau tant que d'autres n'en ont pas (lecture `read_page`).
@@ -952,7 +952,7 @@ git commit -m "feat(placement): cascade par type (1 salle ET 1 voiture chacun) +
 
 1. `node tests/passage-rules.test.mjs` → OK.
 2. `node --check` sur : `js/db.js`, `js/passage-rules.js`, `js/views/planning.js` → OK.
-3. Banc complet — les 4 scénarios de la spec §10 (stub d'origine, `?fresh=` neuf) :
+3. Banc complet : les 4 scénarios de la spec §10 (stub d'origine, `?fresh=` neuf) :
    - **Compteurs** : `javascript_tool` → `const m = await import("./js/db.js?v=20260719p"); return await m.getSalleAggregats();` → attendu `{1: 2, 2: 1}` (Anna 2 Effectué ; Bruno 1 Absence comptée ; Chloé Bonus absente de la map). Puis `getVoitureAggregats()` → David présent avec `total: 1, avecEleve: 1` (Absence avec_eleve=true comptée).
    - **Marquage + validation** : scénario Task 5 Step 6 rejoué de bout en bout.
    - **Cascade** : scénario Task 6 Step 6 rejoué.
@@ -961,8 +961,8 @@ git commit -m "feat(placement): cascade par type (1 salle ET 1 voiture chacun) +
 
 - [ ] **Step 2: Documentation**
 
-- `PROJECT_NOTES.md` : section courte « Absences & comptage (2026-07-19) » — nouvelles règles (Absence compte, Bonus non, marquage ⊘ sur carte, cascade par type), pointeur vers la spec.
-- Spec : ligne **Statut** → `implémenté (branche absences-comptage) — en attente merge/deploy`.
+- `PROJECT_NOTES.md` : section courte « Absences & comptage (2026-07-19) » : nouvelles règles (Absence compte, Bonus non, marquage ⊘ sur carte, cascade par type), pointeur vers la spec.
+- Spec : ligne **Statut** → `implémenté (branche absences-comptage) : en attente merge/deploy`.
 
 - [ ] **Step 3: Commit**
 
@@ -983,9 +983,9 @@ git commit -m "docs: notes projet + statut spec absences/comptage"
 - Consumes: branche `absences-comptage` finie (Tasks 1-7), méthode merge/cache-bust documentée (fiche mémoire « Cache-bust = cause racine des merges cassés »).
 - Produces: app live à jour, semaine du 13/07 validée avec les nouvelles règles.
 
-- [ ] **Step 1: CHECKPOINT UTILISATEUR — présenter les résultats du banc et demander le feu vert pour merger/déployer.** Ne rien pousser sans accord explicite.
+- [ ] **Step 1: CHECKPOINT UTILISATEUR - présenter les résultats du banc et demander le feu vert pour merger/déployer.** Ne rien pousser sans accord explicite.
 
-- [ ] **Step 2: Migration PROD (avant le merge — colonne additive, inoffensive pour le code actuellement en prod)**
+- [ ] **Step 2: Migration PROD (avant le merge : colonne additive, inoffensive pour le code actuellement en prod)**
 
 Via MCP Supabase `apply_migration`, projet `crpduennbqaemhfaywrz`, nom `add_absences_planning_entries`, SQL du fichier `docs/specs/2026-07-19-absences-migration.sql`. Vérifier ensuite par `execute_sql` : `SELECT absences FROM planning_entries LIMIT 1;` → `[]`.
 
@@ -998,7 +998,7 @@ git -C C:/Users/watch/Dev/ECSR/TP_ECSR_App merge absences-comptage
 
 Puis sur main : run cache-bust SANS pipe (`node scripts/cache-bust.js` en sortie pleine), vérifier la symétrie du diffstat du commit cache-bust, `node --check` des fichiers touchés, vérification navigateur sur la VRAIE app locale `http://localhost:8000` (serveur `ecsr-app`) : planning rend, marquage ⊘ visible, aucune erreur console.
 
-- [ ] **Step 4: CHECKPOINT UTILISATEUR — demander l'accord de push.** Puis `git -C C:/Users/watch/Dev/ECSR/TP_ECSR_App push`, attendre le build Pages (statut `built` sur le bon commit), vérifier le live (jeton `?v=` servi = nouveau).
+- [ ] **Step 4: CHECKPOINT UTILISATEUR - demander l'accord de push.** Puis `git -C C:/Users/watch/Dev/ECSR/TP_ECSR_App push`, attendre le build Pages (statut `built` sur le bon commit), vérifier le live (jeton `?v=` servi = nouveau).
 
 - [ ] **Step 5: Rattrapage semaine du 13/07 (avec l'utilisateur, sur le live)**
 

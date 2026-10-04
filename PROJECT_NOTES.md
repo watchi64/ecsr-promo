@@ -1,4 +1,4 @@
-# PROJECT_NOTES.md — TP ECSR App
+# PROJECT_NOTES.md - TP ECSR App
 
 > **Fichier de reprise pour future session Claude.** Maintenu manuellement, à mettre à jour quand une décision structurante change. Daté : **2026-05-21**, backend mis à jour le 03/07/2026.
 
@@ -18,16 +18,16 @@ Web app de suivi des promotions **TP ECSR** : depuis octobre 2026, plusieurs pro
 | | |
 |---|---|
 | Frontend | HTML/CSS/JS vanilla, modules ES, **pas de framework** (refus assumé) |
-| Backend | Supabase Postgres, project `crpduennbqaemhfaywrz` (eu-west-3 Paris, org Timy Studio — migré le 17/06/2026 depuis dacqponglpeuscbgwfqn) |
+| Backend | Supabase Postgres, project `crpduennbqaemhfaywrz` (eu-west-3 Paris, org Timy Studio : migré le 17/06/2026 depuis dacqponglpeuscbgwfqn) |
 | Edge Function | `invite-user` (deploy via MCP `mcp__800314df__deploy_edge_function`) |
 | Hébergement | GitHub Pages, branche `main` |
 | Typo | Canela (display, self-hosted .otf) + Outfit (Google Fonts body) + Geist Mono (numéros) |
-| Logo | `assets/logo/tpecsr-logo.svg` (capsule TP) — SVG seul, le PNG a été supprimé |
+| Logo | `assets/logo/tpecsr-logo.svg` (capsule TP) : SVG seul, le PNG a été supprimé |
 | Palette | Mint éditorial unique (`:root`), accent vert `#6B7F4E`. Plus de switcher thème/accent |
 | Cache-bust | **Automatique** : hook `pre-commit` → `scripts/cache-bust.js` pose un token `?v=AAAAMMJJx` uniforme sur `index.html` + tous les imports JS |
 | Bootstrap admin | `misterwatchi@gmail.com` (compte admin + lié au stagiaire Timy id=15) |
 
-## Auth & permissions — refonte du 18 mai
+## Auth & permissions - refonte du 18 mai
 
 **Modèle actuel** : **email + mot de passe** pour tout le monde, whitelist côté serveur.
 
@@ -44,7 +44,7 @@ Web app de suivi des promotions **TP ECSR** : depuis octobre 2026, plusieurs pro
 | `role` | TEXT | `'stagiaire'` ou `'prof'` (l'option `'admin'` pur a été retirée du form) |
 | `stagiaire_id` | INTEGER → stagiaires.id | si role=stagiaire |
 | `prof_id` | INTEGER → profs.id | si role=prof |
-| `is_admin` | BOOLEAN | **orthogonal au rôle** — un stagiaire peut être aussi admin |
+| `is_admin` | BOOLEAN | **orthogonal au rôle** : un stagiaire peut être aussi admin |
 | `anonymous_notes` | BOOLEAN | si TRUE, affiché « Anonyme » dans la matrice Notes pour les non-admins |
 | `first_login_at`, `invited_at`, `invited_by_email` | TIMESTAMPTZ | audit |
 
@@ -76,17 +76,17 @@ datent de mai et juin : Thèmes, Priorités et Notes y sont décrits comme avant
 - **Calendrier** : 9 événements 2026 déjà insérés (Formation CCP1 30/03→21/09, stages 26/05, 03/08, Examens CCP1 22-25/09, Formation CCP2 28/09→07/12, stages 12/10, 26/10, 16/11, Examens CCP2 08-11/12). Types : examen/stage/formation/férié/autre, chacun couleur dédiée. Filtres « À venir » / « Tout ». Vue par mois.
 - **Thèmes** : 4 sections en pills (Tout / Thèmes 57 / TP ECSR 12 / REMC 35 / Notions 2). Statut **binaire** (À faire ↔ Fait), pas « En cours ». Clic prénom titre = modal « Contenu à venir ». Date éditable côté admin via modale (force statut à Fait). Mobile : 2 lignes + corbeille (sur notions) en 4e col pour éviter chevauchement.
 - **Passages** : table avec colonne « Ajouté par », filter, modal audit. Anti-backdating date ≥ J−2 pour non-admin (RLS + JS).
-- **Notes** : vue matrice unique (stagiaires × Moy + C1 + C2 + REMC + GDE + 57 thèmes). Headers thèmes verticaux rotatés. Édition inline cellule (click → input, Enter sauve, Esc annule). Date globale en toolbar. **Save en place** (pas de re-render complet, n'écrase plus les autres inputs ouverts). Tri : défaut / alpha / moyenne ↑/↓ / nb notes ↓. **Synthèse classe** (KPI moyenne/médiane/saisies/notes<10 + Top 3 thèmes faibles/solides). **Graphiques tabs** : par stagiaire / par thème / distribution. **Mode anonyme** (toggle perso) : nom remplacé par « Anonyme » sauf pour admins. Couleurs notes pêche→vert (F1DBC8 / FBE5C1 / DBE9C4 / BFE0A6, pas de rouge vif — ressenti rabaissant). Tap sur prénom = modal détail vertical (utile mobile). Lignes alternées gris léger.
+- **Notes** : vue matrice unique (stagiaires × Moy + C1 + C2 + REMC + GDE + 57 thèmes). Headers thèmes verticaux rotatés. Édition inline cellule (click → input, Enter sauve, Esc annule). Date globale en toolbar. **Save en place** (pas de re-render complet, n'écrase plus les autres inputs ouverts). Tri : défaut / alpha / moyenne ↑/↓ / nb notes ↓. **Synthèse classe** (KPI moyenne/médiane/saisies/notes<10 + Top 3 thèmes faibles/solides). **Graphiques tabs** : par stagiaire / par thème / distribution. **Mode anonyme** (toggle perso) : nom remplacé par « Anonyme » sauf pour admins. Couleurs notes pêche→vert (F1DBC8 / FBE5C1 / DBE9C4 / BFE0A6, pas de rouge vif : ressenti rabaissant). Tap sur prénom = modal détail vertical (utile mobile). Lignes alternées gris léger.
 - **Ressources & contacts** : section **Contacts** (Myriam/Séverine/Fanny pré-remplis depuis procédure absences ECF + bouton « Ajouter un contact »), section **Ressources externes** (liens curés Légifrance/REMC/SRRR…). Tap-to-call (`tel:`) et tap-to-mail (`mailto:`).
 - **Paramètres** : sections **Accès & invitations** (form invitation + liste avec pills rôle/admin), **Mes préférences** (toggle anonymat notes), **Promo** (stagiaires/profs CRUD admin), **Infos**. **Plus de section Apparence** (mint unique).
 
 ## Affichage stagiaires : nouveau format
 
-Depuis 19 mai, table `stagiaires` a une colonne `nom` (nom de famille). Format d'affichage **partout dans l'app** : `<initiale du nom>. <prénom>` — ex : « V. Timy ». Helper `displayStagiaire(s)` dans `utils.js`. Tri alpha = par `nom` via `compareByNom(a, b)`.
+Depuis 19 mai, table `stagiaires` a une colonne `nom` (nom de famille). Format d'affichage **partout dans l'app** : `<initiale du nom>. <prénom>` : ex : « V. Timy ». Helper `displayStagiaire(s)` dans `utils.js`. Tri alpha = par `nom` via `compareByNom(a, b)`.
 
 Liste : ALEXER Audrick, ANKPRA Gaëlle, AQUILA Céline, BAILLY Mickael, BLANC Julie, BLANQUINQUE Valentin, BRUN Gaël, CHOULET Emilie, ERRAJI CHAHID Rita, KESSAL Lorie, LOPEZ Tatiana, MEDJANI Cassandre, MURRIGUIAN Aurélie, OULD ABDELKADER Anissa, VALDIVIA Timy.
 
-## Base de données — état actuel
+## Base de données - état actuel
 
 ### Tables principales
 
@@ -99,29 +99,29 @@ Liste : ALEXER Audrick, ANKPRA Gaëlle, AQUILA Céline, BAILLY Mickael, BLANC Ju
 | `competences` | C1-C4 (TP ECSR) + REMC + MGDE |
 | `passages`, `passages_audit` | passages salle/voiture avec who tracking |
 | `evaluations`, `evaluations_audit` | notes (type Thème/Compétence/Contrôle) |
-| `planning_entries` | + nouvelle colonne **`prof_ids INTEGER[]`** (multi-formateurs). `prof_id` legacy conservé synchronisé au 1er. + **`benevoles_ids INTEGER[]`** (élèves bénévoles voiture, 02/07/2026). + **`absences JSONB`** `[{sid, rid}]` (absences de dernière minute, 19/07/2026 — cf. § Absences & comptage) |
+| `planning_entries` | + nouvelle colonne **`prof_ids INTEGER[]`** (multi-formateurs). `prof_id` legacy conservé synchronisé au 1er. + **`benevoles_ids INTEGER[]`** (élèves bénévoles voiture, 02/07/2026). + **`absences JSONB`** `[{sid, rid}]` (absences de dernière minute, 19/07/2026 : cf. § Absences & comptage) |
 | `benevoles` | banque d'élèves bénévoles (voiture conduite) : prénom (seul champ obligatoire), nom optionnel, **téléphone**, `niveau` = code compétence/sous-compétence REMC (« C1 », « C1.4 »... libellés résolus par `nivLabel()` dans benevoles.js), boîte, heures faites, **`auto_ecole_id` FK → auto_ecoles** (05/07/2026, le texte libre a été migré puis supprimé), `dispos jsonb` (grille hebdo LUNDI..VENDREDI x matin/aprem), `actif` (retrait doux). **RLS entièrement `is_admin()`** : invisible pour les stagiaires, téléphone jamais transmis. Seed 02/07/2026 : 9 bénévoles de la semaine du 6 juillet (Assiya, Chahinez + 7 via contact « Sophie ») liés aux cartes Voiture |
 | `auto_ecoles` | partenaires (05/07/2026) : nom (obligatoire), référent, téléphone, email, adresse, notes, `actif`. RLS entièrement `is_admin()`. « Sophie » (06 16 14 75 14) = première fiche, migrée depuis le texte libre |
 | `benevole_suivi` | commentaires de suivi par venue (05/07/2026) : `(benevole_id, semaine_lundi, day_index, half_day)` UNIQUE + commentaire. RLS `is_admin()`. ⚠️ Les venues ne sont PAS stockées : déduites de `planning_entries.benevoles_ids` (une demi-journée = une venue), seuls les commentaires vivent ici |
 | `planning_half_meta` | horaires + pause par demi-journée par semaine |
 | `ressources` | liens curés |
-| `contacts` | admin/urgence/autre — pré-rempli Myriam/Séverine/Fanny |
+| `contacts` | admin/urgence/autre : pré-rempli Myriam/Séverine/Fanny |
 | `agenda_events` | dates clés (examens, stages, formations) avec date_start + date_end optionnel |
 | `settings` | KV générique (utilisé pour current_week_lundi) |
-| `admins` | LEGACY conservée mais plus utilisée — la whitelist vit dans user_profiles |
+| `admins` | LEGACY conservée mais plus utilisée : la whitelist vit dans user_profiles |
 
 ### Fonctions / triggers Postgres notables
 
 - `is_admin()` SECURITY DEFINER : lit `user_profiles.is_admin` via JWT email
 - `enforce_whitelist_signup()` BEFORE INSERT ON auth.users : bloque si email pas dans user_profiles + auto-confirme email
 - `set_my_anonymous_notes(val)` SECURITY DEFINER : RPC perso
-- `benevoles_noms()` SECURITY DEFINER : seule surface bénévoles côté stagiaire — retourne uniquement `id` + `display` (« N. Prénom », inactifs compris pour que les vieilles semaines restent lisibles). Le planning l'utilise quand `isAdmin()` est faux
+- `benevoles_noms()` SECURITY DEFINER : seule surface bénévoles côté stagiaire : retourne uniquement `id` + `display` (« N. Prénom », inactifs compris pour que les vieilles semaines restent lisibles). Le planning l'utilise quand `isAdmin()` est faux
 - Triggers `audit_passages`, `audit_evaluations` : INSERT/UPDATE/DELETE → row dans `*_audit`, identité depuis `auth.jwt()->>email`
 - Trigger `agenda_touch_updated`, `contacts_touch_updated` : updated_at auto
 
 ### Edge Function `invite-user`
 
-Vérifie le JWT de l'appelant, check `is_admin = true` en lecture service_role, upsert dans user_profiles. **Plus d'envoi de mail** (depuis v3 du 18 mai — l'app fait du signup classique côté navigateur).
+Vérifie le JWT de l'appelant, check `is_admin = true` en lecture service_role, upsert dans user_profiles. **Plus d'envoi de mail** (depuis v3 du 18 mai : l'app fait du signup classique côté navigateur).
 
 ## Absences & comptage des passages (19/07/2026)
 
@@ -129,11 +129,11 @@ Spec complète : `docs/specs/2026-07-19-absences-comptage-placement-design.md`.
 
 - **Une Absence COMPTE** dans les compteurs d'équité du placement (tour consommé) ; **Bonus et Report ne comptent pas**. Règles centralisées dans `js/passage-rules.js` (`compteDansEquite`, `meilleurResultat`), testées par `node tests/passage-rules.test.mjs`. C'est l'INVERSE d'avant : casse le cercle vicieux des absents re-priorisés.
 - **Absence de dernière minute** : marquée SUR la carte planning (⊘ à côté du tableau, clic sur le corps d'une chip élève voiture). Le prévu reste affiché barré ; un sélecteur « remplacé(e) par » propose TOUT le monde avec badge « occupé » en avertissement (pas d'exclusion dure). Stocké dans `planning_entries.absences` `[{sid, rid}]`.
-- **Absence prévenue à l'avance** : pas de marquage — simple swap de chip, le remplaçant fait un passage normal. La frontière relève du jugement de l'admin.
+- **Absence prévenue à l'avance** : pas de marquage : simple swap de chip, le remplaçant fait un passage normal. La frontière relève du jugement de l'admin.
 - **Valider la semaine** : prévu non marqué → `Effectué` ; marqué → `Absence` (avec `remplacant_id`) + `Bonus` pour le remplaçant. Fusion au grain jour : `Effectué > Absence > Bonus`.
 - **Placement auto en cascade** (dés + Placer la semaine) : 1) rien eu cette semaine → 2) type manquant (objectif 1 salle ET 1 voiture chacun) → 3) retard historique sur le type → 4) critères existants (plafond 2 voitures, anti-jours-consécutifs, avec-élève, variété formateur).
 
-## Dossier Professionnel (DP) — 30/07/2026, branche `dp-dossier-professionnel`
+## Dossier Professionnel (DP) - 30/07/2026, branche `dp-dossier-professionnel`
 
 Spec : `docs/specs/2026-07-30-dossier-professionnel-design.md` · plan : `docs/plans/2026-07-30-dossier-professionnel.md`
 Modèle source : `docs/specs/2026-07-30-dp-modele-source.docx` (ministère chargé de l'emploi, version du 11/09/2017).
@@ -373,17 +373,17 @@ Spec : `docs/superpowers/specs/2026-10-03-espace-stagiaires-design.md` · plan :
 
 ## Décisions UX importantes (à respecter)
 
-- ❌ **Pas d'em-dashes (—)** dans les libellés UI. Régression à éviter.
+- ❌ **Pas de tiret cadratin (U+2014)** dans les libellés UI. Régression à éviter.
 - ✅ Format affichage stagiaires : **« V. Timy »** (initiale + prénom)
 - ✅ Layout planning : jour à gauche (sticky), demi-journées empilées avec lanes alignées en colonnes
 - ✅ Édition inline matrice Notes (pas de modal pour les saisies simples, mais modal détail au tap du prénom)
 - ✅ Headers tableau matrice : titres rotatés vertical (-90°)
-- ✅ Couleurs notes/cellules : pêche → vert (4 paliers, pas de rouge vif — ressenti rabaissant pour les stagiaires)
+- ✅ Couleurs notes/cellules : pêche → vert (4 paliers, pas de rouge vif : ressenti rabaissant pour les stagiaires)
 - ✅ Activité « Autre » : minimal (activité + formateur + note seulement)
 - ✅ Vert mint **partout** (un seul thème, un seul accent)
 - ✅ Cache-bust **automatique** (hook `pre-commit`) : token `?v=AAAAMMJJx` uniforme sur `index.html` + tous les imports JS
-- ❌ Pas de gamification (badges, XP) — public adulte
-- ❌ Pas de framework — vanilla suffit
+- ❌ Pas de gamification (badges, XP) : public adulte
+- ❌ Pas de framework : vanilla suffit
 - ❌ Pas de Google OAuth (testé, retiré, jugé non nécessaire)
 - ❌ Pas de magic link mail (testé, retiré : friction + rate-limit Supabase)
 
@@ -425,7 +425,7 @@ Câblé via `recordUndo(label, undoFn)` après chaque écriture. Sur Ctrl+Z, dé
 
 1. **Toujours commit + push après chaque feature significative** (le user n'aime pas les pauses « tu veux que je commit ? »)
 2. **Migrations Supabase via MCP `mcp__800314df__apply_migration`** (project_id `crpduennbqaemhfaywrz`), JAMAIS de SQL en local
-3. **Edge Functions via MCP `deploy_edge_function`** — nécessite confirmation user explicite
+3. **Edge Functions via MCP `deploy_edge_function`** : nécessite confirmation user explicite
 4. **Communication FR**, récap court après chaque livraison, tableaux markdown, gras sur l'essentiel
 5. **AskUserQuestion** uniquement pour les décisions structurantes (nouvelle table, refonte vue, choix d'archi). Sinon **trancher seul** et avancer
 6. **Cache-bust automatique** : le hook `pre-commit` pose le token `?v=` sur index.html + tous les modules JS, rien à bumper manuellement
@@ -440,6 +440,6 @@ Câblé via `recordUndo(label, undoFn)` après chaque écriture. Sur Ctrl+Z, dé
 - Questionnaires satisfaction auto J+1 / J+180
 - PWA installable (manifest + SW)
 - Export CSV/PDF complet matrice Notes
-- Multi-tenant (promo_id partout) — si un jour vente à d'autres centres
+- Multi-tenant (promo_id partout) : si un jour vente à d'autres centres
 - Génération QCM auto via API Claude depuis les 57 thèmes (différenciant pitch ECF)
 - Connexion possible des stagiaires côté formation-ecsr (cours/QCM unifiés ?)

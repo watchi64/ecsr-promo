@@ -1,4 +1,4 @@
-# Spec — Outil EPCF (évaluations en cours de formation) — Lot 1
+# Spec - Outil EPCF (évaluations en cours de formation) - Lot 1
 
 **Date** : 2026-07-13 · **Deadline lot 1 : livré avant le 20/07/2026** (EPCF du 20 au 23 juillet)
 **Source** : mail Hocine du 09/07/2026 « Critères d'évaluation CCP1 » + pièce jointe
@@ -13,19 +13,19 @@ compétence, le jury peut consulter ses EPCF pour vérifier si l'erreur était r
 L'outil doit :
 - permettre aux **formateurs** de remplir la grille directement dans l'app ;
 - restituer au **stagiaire concerné** (et à lui seul) ses résultats sous forme de
-  **radar** comparant sa note à la **moyenne du groupe** — 2 radars distincts (salle / véhicule) ;
+  **radar** comparant sa note à la **moyenne du groupe** : 2 radars distincts (salle / véhicule) ;
 - donner aux formateurs une **vue classe** (moyennes par phase/critère) comme outil d'aide à la décision ;
 - être **générique** : le même outil resservira pour l'auto-évaluation des stagiaires et
   pour des passages ultérieurs (salle/voiture), afin de constituer un historique de progression.
 
 Décisions actées avec l'utilisateur (13/07) :
 - Architecture **générique réutilisable** (table unique + trames en config JS versionnées).
-- Axes des radars = **les phases de la grille** (pas les 25-28 critères — illisible ; le
+- Axes des radars = **les phases de la grille** (pas les 25-28 critères : illisible ; le
   détail par critère est affiché sous le radar).
 - Saisie dans un **onglet « EPCF »** réservé profs/admin ; restitution stagiaire dans **Mon suivi**.
 - Lot 1 = base seule. Auto-éval, superposition historique et export PDF jury = lot 2.
 - Dans Mon suivi : la section fiche (« Mes souhaits de compétences (permis B) ») est
-  **retirée entièrement** — l'EPCF la remplace comme outil de suivi personnalisé.
+  **retirée entièrement** : l'EPCF la remplace comme outil de suivi personnalisé.
   Le champ « Mes besoins du moment » (prototype du 13/07 matin) est **mis de côté**
   (décision 13/07 soir) : l'auto-évaluation EPCF (lot 2) portera la parole de l'élève.
   Patch de sauvegarde : `ECSR/backups/besoins_prof_tooltip_2026-07-13.patch`.
@@ -36,16 +36,16 @@ Notation par critère : **A = Acquis · R = À renforcer · NA = Non acquis**.
 Numérisation pour les agrégats : A=2, R=1, NA=0 (score de phase = moyenne des critères
 renseignés, exprimée en %).
 
-### Trame SALLE — compétences TP : C1, C2, C4, C6 — 25 critères, 5 phases
+### Trame SALLE - compétences TP : C1, C2, C4, C6 - 25 critères, 5 phases
 
-**Phase PREP — Préparation (de X minutes)** — TP 1 « Construire et préparer le scénario d'une séance collective de formation »
+**Phase PREP - Préparation (de X minutes)** : TP 1 « Construire et préparer le scénario d'une séance collective de formation »
 - PREP1 · Les objectifs sont ciblés pour des élèves conducteurs.
 - PREP2 · Une hiérarchie des objectifs est établie suivant le parcours des élèves.
 - PREP3 · Les contenus sont adaptés aux objectifs définis.
 - PREP4 · Les animations prévues sont cohérentes avec les différents objectifs.
 - PREP5 · Les différents temps de la séance sont organisés.
 
-**Phase ANIM — Cours, explication, application** — TP 2 « Animer une séance collective de formation à la sécurité routière »
+**Phase ANIM - Cours, explication, application** : TP 2 « Animer une séance collective de formation à la sécurité routière »
 - ANIM1 · Le plan est en lien avec l'objectif.
 - ANIM2 · Utilise-t-il les connaissances des élèves ?
 - ANIM3 · Méthodes et outils pédagogiques sont utilisés.
@@ -54,7 +54,7 @@ renseignés, exprimée en %).
 - ANIM6 · Communication positive (facilitant / confiance).
 - ANIM7 · La durée de la séance est respectée.
 
-**Phase EVAL — Évaluation générale statique · Évaluation spécifique statique · Évaluation finale** — TP 4 « Évaluer le degré d'acquisition des compétences des apprenants »
+**Phase EVAL - Évaluation générale statique · Évaluation spécifique statique · Évaluation finale** : TP 4 « Évaluer le degré d'acquisition des compétences des apprenants »
 - EVAL1 · Explique-t-il l'intérêt de l'évaluation ?
 - EVAL2 · Cherche-t-il à connaître les élèves ?
 - EVAL3 · L'évaluation est-elle en lien avec le thème / REMC ?
@@ -63,21 +63,21 @@ renseignés, exprimée en %).
 - EVAL6 · Les critères de l'évaluation finale sont déterminés.
 - EVAL7 · L'évaluation finale est réalisable.
 
-**Phase BILEV — Bilan des évaluations · Détermination de l'objectif** — TP 6 « Repérer les difficultés d'apprentissage et essayer d'y remédier »
+**Phase BILEV - Bilan des évaluations · Détermination de l'objectif** : TP 6 « Repérer les difficultés d'apprentissage et essayer d'y remédier »
 - BILEV1 · Repérer les difficultés d'apprentissage particulières des élèves.
 - BILEV2 · Identifier les difficultés d'apprentissage particulières des élèves.
 - BILEV3 · L'objectif déterminé correspond aux difficultés d'apprentissage.
 - BILEV4 · L'intérêt de l'objectif choisi est expliqué aux élèves.
 
-**Phase BILAN — Bilan final**
+**Phase BILAN - Bilan final**
 - BILAN1 · Une restitution du message de sécurité routière est évoquée.
 - BILAN2 · Une projection pour une prochaine séance est proposée (livret).
 
 Méta salle : date, **thème**, durée, commentaire global, **compétences acquises** (cases C1, C2, C4, C6).
 
-### Trame VÉHICULE — compétences TP : C3, C4, C6, C7 — 28 critères, 5 phases
+### Trame VÉHICULE - compétences TP : C3, C4, C6, C7 - 28 critères, 5 phases
 
-**Phase COND — Explication, démonstration, guidage, autonomie, répétition** — TP 3 « Animer une séance individuelle de formation à la conduite d'un véhicule léger »
+**Phase COND - Explication, démonstration, guidage, autonomie, répétition** : TP 3 « Animer une séance individuelle de formation à la conduite d'un véhicule léger »
 - COND1 · L'objectif est-il respecté ? Les modifications sont-elles justifiées ?
 - COND2 · Les choix d'itinéraire sont réalisables en fonction des impératifs.
 - COND3 · Les techniques pédagogiques sont adaptées à la conduite (démo…).
@@ -87,7 +87,7 @@ Méta salle : date, **thème**, durée, commentaire global, **compétences acqui
 - COND7 · La durée de la séance est respectée.
 - COND8 · La sécurité pour tous est assurée.
 
-**Phase EVAL — Évaluations statiques · Évaluation finale** — TP 4 (idem salle)
+**Phase EVAL - Évaluations statiques · Évaluation finale** : TP 4 (idem salle)
 - EVAL1 · Explique-t-il l'intérêt de l'évaluation ?
 - EVAL2 · Cherche-t-il à connaître l'apprenant ?
 - EVAL3 · L'évaluation est-elle en lien avec l'objectif / livret ?
@@ -96,18 +96,18 @@ Méta salle : date, **thème**, durée, commentaire global, **compétences acqui
 - EVAL6 · Les critères de l'évaluation finale sont déterminés.
 - EVAL7 · L'évaluation finale est réalisable.
 
-**Phase BILEV — Bilan des évaluations · Détermination de l'objectif** — TP 6
+**Phase BILEV - Bilan des évaluations · Détermination de l'objectif** : TP 6
 - BILEV1 · Repérer les difficultés d'apprentissage particulières de l'élève.
 - BILEV2 · Identifier les difficultés d'apprentissage particulières de l'élève.
 - BILEV3 · L'objectif déterminé correspond aux difficultés d'apprentissage.
 - BILEV4 · L'intérêt de l'objectif choisi est expliqué à l'élève.
 - BILEV5 · Communication positive (empathie / écoute / posture professionnelle).
 
-**Phase BILAN — Bilan final**
+**Phase BILAN - Bilan final**
 - BILAN1 · Une restitution du message de sécurité routière est évoquée.
 - BILAN2 · Une projection pour une prochaine séance est proposée (livret).
 
-**Phase PERC — Conduite commentée, guidage, démonstration** — TP 7 « Apprécier la dynamique de l'environnement routier et identifier les risques potentiels »
+**Phase PERC - Conduite commentée, guidage, démonstration** : TP 7 « Apprécier la dynamique de l'environnement routier et identifier les risques potentiels »
 - PERC1 · La prise d'information est riche et variée (CAHLLM).
 - PERC2 · Les indices sont triés.
 - PERC3 · Les indices sont hiérarchisés.
@@ -119,13 +119,13 @@ Méta véhicule : date, **niveau de l'élève cobaye**, durée, commentaire glob
 **compétences acquises** (cases C3, C4, C6, C7).
 
 Notes de fidélité : BILEV1/BILEV2 (« Repérer » / « Identifier ») sont quasi identiques
-dans le document source — conservés tels quels (fidélité à la grille officielle).
+dans le document source : conservés tels quels (fidélité à la grille officielle).
 La « date de naissance » du document papier n'est pas stockée (identité gérée par l'app) ;
 elle sera ajoutée à l'export PDF jury (lot 2) si nécessaire.
 
 ## 3. Modèle de données
 
-### Config JS — `js/epcf-trames.js` (nouveau)
+### Config JS - `js/epcf-trames.js` (nouveau)
 
 `EPCF_TRAMES = { salle: {...}, vehicule: {...} }`. Chaque trame : `version` (int, =1),
 `label`, `competences` (cases « compétences acquises »), `metaFields` (déclaration des
@@ -160,7 +160,7 @@ create table epcf_evaluations (
 Pas de contrainte d'unicité (stagiaire, trame) : plusieurs évals par stagiaire et par
 trame sont **voulues** (historique). Pas de table d'audit au lot 1.
 
-## 4. Sécurité / RLS (stricte — une première dans l'app)
+## 4. Sécurité / RLS (stricte : une première dans l'app)
 
 Helpers SQL (SECURITY DEFINER, même façon que `is_admin()` existant) :
 - `my_stagiaire_id()` → `user_profiles.stagiaire_id` de `auth.uid()` (null sinon).
@@ -172,7 +172,7 @@ Policies sur `epcf_evaluations` :
   (Lot 2 : INSERT/UPDATE stagiaire autorisés uniquement si `auto_eval = true`
   et `stagiaire_id = my_stagiaire_id()`.)
 
-**Moyenne du groupe** — RPC `epcf_moyennes(p_trame text)` SECURITY DEFINER :
+**Moyenne du groupe** : RPC `epcf_moyennes(p_trame text)` SECURITY DEFINER :
 renvoie, par code critère, la moyenne numérique (A=2/R=1/NA=0) et l'effectif, calculée
 sur la **dernière éval** (`date_eval` max puis `id` max) **de chaque stagiaire** pour la
 trame et le contexte 'EPCF'. Aucune donnée individuelle n'est exposée ; accessible à
@@ -184,12 +184,12 @@ cette table introduit le pattern strict qui servira de référence.
 
 ## 5. UI
 
-### Onglet « EPCF » — visible profs/admin uniquement (`isProf() || isAdmin()`)
+### Onglet « EPCF » - visible profs/admin uniquement (`isProf() || isAdmin()`)
 
 1. **Liste** : tableau des stagiaires actifs × 2 trames, statut (« évalué le
    JJ/MM/AAAA » / « à évaluer »), boutons Évaluer / Modifier (modifier = rouvrir la
    dernière éval ; « Nouvelle évaluation » possible même si une existe déjà).
-   L'évaluateur est facultatif (option « — ») ; pré-rempli avec le prof connecté
+   L'évaluateur est facultatif (option « - ») ; pré-rempli avec le prof connecté
    s'il en est un.
 2. **Formulaire de saisie** : méta (date, thème ou niveau élève cobaye, durée),
    sections dépliées avec 3 boutons segmentés **A / R / NA** par critère (état
@@ -198,17 +198,17 @@ cette table introduit le pattern strict qui servira de référence.
    modifiable. Sauvegarde en une fois ; bouton désactivé pendant l'enregistrement
    (pattern anti-race de mon-suivi). Éval sans aucun critère renseigné → refusée.
 3. **Vue classe** : pour une trame donnée, moyennes de classe par phase et par critère
-   (tableau, avec code couleur A/R/NA) — basée sur la même logique « dernière éval par
+   (tableau, avec code couleur A/R/NA) : basée sur la même logique « dernière éval par
    stagiaire ». Outil d'aide à la décision pour ajuster les contenus de formation.
 
-### Mon suivi — restitution stagiaire (+ sélecteur admin existant)
+### Mon suivi - restitution stagiaire (+ sélecteur admin existant)
 
 Nouvelle section « **Mes EPCF** » (entre les passages à venir et l'historique voiture) :
 - **2 radars SVG maison** (pattern du graphe existant, pas de lib externe) : salle et
   véhicule. Axes = les 5 phases de la trame. 2 séries : stagiaire (trait plein, aplat
   léger) vs moyenne groupe (pointillé). Échelle 0-100 %.
 - Sous chaque radar : **détail par critère** (chips colorées Acquis / À renforcer /
-  Non acquis — palette c-go / ambre C98A2B / c-stop déjà utilisée), compétences acquises,
+  Non acquis : palette c-go / ambre C98A2B / c-stop déjà utilisée), compétences acquises,
   commentaire du formateur, date et évaluateur.
 - **Historique** : si plusieurs évals pour une trame, sélecteur de date (le radar et le
   détail affichent l'éval choisie ; par défaut la plus récente). La superposition de
@@ -221,7 +221,7 @@ Nouvelle section « **Mes EPCF** » (entre les passages à venir et l'historique
 - **Retrait complet** de la section fiche (`renderFicheSection`) : checkboxes souhaits
   ET bouton d'enregistrement. Le chargement `listFiches`/`upsertFiche` disparaît de la
   vue ; les fonctions restent dans db.js (réutilisables). Les colonnes `souhaits` et
-  `besoins` et leurs données restent en base — retrait purement UI.
+  `besoins` et leurs données restent en base : retrait purement UI.
 - Avant retrait, vérifier qu'aucune autre vue ne consomme `fiches_suivi.souhaits`
   (la vue Bénévoles / placement auto notamment).
 
@@ -235,7 +235,7 @@ Nouvelles fonctions : `listEpcf(filters)` (RLS filtre naturellement pour un stag
 - Critères non renseignés : exclus des moyennes (pas comptés comme 0).
 - Éval vide (0 critère renseigné) : refusée à la sauvegarde avec message.
 - Stagiaire hors effectif (abandon, ex. Tatiana) : masqué de la liste formateur comme
-  partout dans l'app (`listStagiaires()` ne renvoie que les actifs — comportement
+  partout dans l'app (`listStagiaires()` ne renvoie que les actifs : comportement
   délibéré app-wide) ; ses éventuelles évals restent en base. (Amendé le 13/07 en
   revue : la formulation initiale contredisait le comportement standard de l'app.)
 - Le « Voir en tant que » fondateur ne simule PAS la RLS (UI seulement) : la
@@ -253,7 +253,7 @@ Nouvelles fonctions : `listEpcf(filters)` (RLS filtre naturellement pour un stag
 
 - Auto-évaluation stagiaire (même grille, flag `auto_eval`, comparaison formateur vs auto).
 - Superposition historique sur un même radar (progression dans le temps).
-- Export PDF A4 fidèle au document papier (pour le jury) — le modèle de données du
+- Export PDF A4 fidèle au document papier (pour le jury) : le modèle de données du
   lot 1 capture déjà tout le nécessaire.
 - Usages hors EPCF via `contexte` (passages salle/voiture ultérieurs).
 - Éditeur de trames en base.

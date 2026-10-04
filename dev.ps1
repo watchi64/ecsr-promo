@@ -1,4 +1,4 @@
-# dev.ps1 — Lance la preview locale de TP ECSR App.
+# dev.ps1 : lance la preview locale de TP ECSR App.
 # Usage : .\dev.ps1   puis ouvre http://localhost:8000
 # Ctrl+C pour arreter.
 

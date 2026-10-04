@@ -27,7 +27,7 @@ Elles s'appliquent à **toutes** les tâches.
   fait que sur `main`, sinon les merges partent en conflit. Le hook `pre-commit` ne bouge pas non
   plus tant qu'on n'est pas sur `main`.
 - **Français partout.** Noms de fonctions, commentaires, libellés.
-- **Aucun em-dash (`—`)** dans les libellés d'interface. Régression connue à éviter.
+- **Aucun tiret cadratin (`U+2014`)** dans les libellés d'interface. Régression connue à éviter.
 - **« Formateur »**, jamais « Prof », dans tout texte visible.
 - **Pas de framework**, pas de dépendance nouvelle, modules ES uniquement.
 - **Palette mint existante** : utiliser les variables `var(--bg-elev)`, `var(--line)`,
@@ -1032,7 +1032,7 @@ canal de notification.
 - [ ] **Étape 3 : contrôle des conventions**
 
 ```bash
-grep -n "—" js/nouveautes-data.js js/nouveautes.js js/views/nouveautes.js; echo "exit=$? (1 = aucun em-dash)"
+grep -n $'\xe2\x80\x94' js/nouveautes-data.js js/nouveautes.js js/views/nouveautes.js; echo "exit=$? (1 = aucun tiret cadratin)"
 grep -rn "Prof\b" js/nouveautes-data.js; echo "exit=$? (1 = aucun « Prof »)"
 ```
 
