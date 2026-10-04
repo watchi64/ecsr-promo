@@ -299,7 +299,7 @@ test("apparitionDe : valeur explicite, sinon « debut » pour un piéton et « d
   assert.equal(apparitionDe({ gabarit: "pieton", apparition: "debut" }), "debut");
 });
 
-test("etatActeur : clignotant gauche et droit, bornes de l'intervalle comprises", () => {
+test("etatActeur : clignotant gauche et droit, bornes de l'intervalle comprises ; clignotantDepuis, instant d'allumage de l'intervalle en cours", () => {
   const c = trajet(0, 0, 0).droit(100).fin();
   const sc = preparerScene({
     code: "essai",
@@ -318,6 +318,48 @@ test("etatActeur : clignotant gauche et droit, bornes de l'intervalle comprises"
   assert.equal(etatActeur(eleve, 7).clignotant, "gauche");
   assert.equal(etatActeur(eleve, 8).clignotant, "gauche");
   assert.equal(etatActeur(eleve, 9).clignotant, null);
+  // Deux intervalles successifs : chacun compte depuis son propre allumage (s = 10 à t = 1, s = 60 à t = 6), jusqu'à sa
+  // borne de fin comprise ; clignotant éteint, avant, entre et après : null.
+  for (const t of [0.5, 4, 9]) assert.equal(etatActeur(eleve, t).clignotantDepuis, null, `t = ${t} s`);
+  for (const t of [1, 1.5, 2]) proche(etatActeur(eleve, t).clignotantDepuis, 1);
+  for (const t of [6, 7, 8]) proche(etatActeur(eleve, t).clignotantDepuis, 6);
+});
+
+test("etatActeur : clignotantDepuis tenu pendant un arrêt, intervalles contigus de côtés différents, départ différé, acteur fixe", () => {
+  const c = trajet(0, 0, 0).droit(100).fin();
+  const sc = preparerScene({
+    code: "essai",
+    acteurs: [
+      // 10 m/s jusqu'à s = 30 (t = 3), arrêt en s = 40 (t = 5) tenu 2 s, reprise jusqu'à 10 m/s en s = 60 (t = 11), puis 10 m/s.
+      { id: "eleve", role: "eleve", gabarit: "voiture", chemin: c,
+        profil: [{ s: 0, kmh: 36 }, { s: 30, kmh: 36 }, { s: 40, kmh: 0, pause: 2 }, { s: 60, kmh: 36 }, { s: 100, kmh: 36 }],
+        clignotant: [{ cote: "gauche", de: 35, a: 50 }, { cote: "droite", de: 50, a: 70 }] },
+      // Parti à t = 4, à 10 m/s : en s = 20 à t = 6.
+      { id: "autre", gabarit: "voiture", chemin: c, profil: [{ s: 0, kmh: 36 }, { s: 100, kmh: 36 }], depart: 4,
+        clignotant: [{ cote: "droite", de: 20, a: 40 }] },
+      { id: "fixe", gabarit: "voiture", pose: { x: 50, y: 10, cap: 0 } },
+    ],
+    etapes: [{ s: 0 }],
+  });
+  const [eleve, autre, fixe] = sc.acteurs;
+  // Gauche allumé en s = 35, pendant le freinage (t = 5 - √2) ; l'arrêt ne le rallume pas : pendant l'arrêt et à la
+  // reprise, il compte toujours depuis cet instant.
+  const tGauche = 5 - Math.SQRT2, tDroite = 7 + Math.sqrt(8);
+  const attendu = [[3, null, null], [4, "gauche", tGauche], [6, "gauche", tGauche], [9, "gauche", tGauche],
+    [10, "droite", tDroite], [11.5, "droite", tDroite], [13, null, null]];
+  for (const [t, cote, depuis] of attendu) {
+    const e = etatActeur(eleve, t);
+    assert.equal(e.clignotant, cote, `t = ${t} s`);
+    if (depuis === null) assert.equal(e.clignotantDepuis, null, `t = ${t} s`);
+    else proche(e.clignotantDepuis, depuis);
+  }
+  // Le droit, contigu au gauche (s = 50, t = 7 + √8), a son propre allumage. Départ différé : l'instant est celui de la
+  // scène, départ compris.
+  proche(etatActeur(autre, 7).clignotantDepuis, 6);
+  assert.equal(etatActeur(autre, 5).clignotantDepuis, null);
+  // Acteur fixe : jamais de clignotant.
+  assert.equal(etatActeur(fixe, 3).clignotant, null);
+  assert.equal(etatActeur(fixe, 3).clignotantDepuis, null);
 });
 
 // ===== Secteur d'anneau =====

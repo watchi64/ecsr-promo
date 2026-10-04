@@ -695,7 +695,9 @@ function anneauAmontRegarde(def) {
 function sequenceSortie(def) {
   const sc = preparerScene(def), eleve = sc.eleve;
   const { tReprise } = arretEtReprise(sc);
-  const tBalayage = sc.etapes.find((e) => e.regard && e.regard.balayage && e.t > tReprise).t;
+  const balayage = sc.etapes.find((e) => e.regard && e.regard.balayage && e.t > tReprise);
+  assert.ok(balayage, "sortie : aucune étape de balayage de la sortie après le redémarrage");
+  const tBalayage = balayage.t;
   const suite = [];
   for (let t = tReprise; t < tBalayage - 1e-9; t += 0.01) {
     const e = etatActeur(eleve, t), angle = angleRegard(sc.etapes[etapeActive(sc, t)], e, t, etatsA(sc, t));

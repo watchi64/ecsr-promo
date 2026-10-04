@@ -45,12 +45,22 @@ test("TEINTES : le trajet prévu se lit sur la chaussée (3:1 au moins, WCAG 1.4
 
 // ===== Clignotant =====
 
-test("clignotantAllume : en lecture, 1,5 Hz, allumé la première moitié de chaque période depuis le début de la scène", () => {
+test("clignotantAllume : en lecture, 1,5 Hz, allumé la première moitié de chaque période, comptée depuis l'allumage du clignotant", () => {
   assert.equal(FREQ_CLIGNOTANT, 1.5);
-  const droite = { clignotant: "droite" }, gauche = { clignotant: "gauche" };
-  for (const t of [0, 0.1, 0.32, 0.67, 0.704, 0.99, 1.34]) assert.equal(clignotantAllume(droite, t, false), "droite", `t = ${t} s`);
-  for (const t of [0.34, 0.5, 0.66, 1.0, 1.2]) assert.equal(clignotantAllume(gauche, t, false), null, `t = ${t} s`);
-  assert.equal(clignotantAllume(gauche, 0.704, false), "gauche");
+  // Allumages quelconques, dont 0,5 s, où une phase comptée depuis le début de la scène serait éteinte : seul compte le
+  // temps écoulé depuis l'allumage (clignotantDepuis, donné par etatActeur).
+  for (const depuis of [0, 0.5, 2.9, 19.3635]) {
+    const droite = { clignotant: "droite", clignotantDepuis: depuis }, gauche = { clignotant: "gauche", clignotantDepuis: depuis };
+    for (const dt of [0, 0.1, 0.32, 0.67, 0.704, 0.99, 1.34]) {
+      assert.equal(clignotantAllume(droite, depuis + dt, false), "droite", `allumé à t = ${depuis} s, ${dt} s plus tard`);
+    }
+    for (const dt of [0.34, 0.5, 0.66, 1.01, 1.2]) {
+      assert.equal(clignotantAllume(gauche, depuis + dt, false), null, `allumé à t = ${depuis} s, ${dt} s plus tard`);
+    }
+    assert.equal(clignotantAllume(gauche, depuis + 0.704, false), "gauche");
+  }
+  // Un instant à peine antérieur à l'allumage (l'état tolère 1e-9 m sur l'abscisse) compte comme l'allumage : éclat.
+  assert.equal(clignotantAllume({ clignotant: "droite", clignotantDepuis: 2 }, 2 - 1e-9, false), "droite");
 });
 
 test("clignotantAllume : sur une image figée, le clignotant en marche est toujours dessiné allumé, de son côté", () => {
@@ -73,23 +83,41 @@ test("scènes, images figées : à chaque étape, le clignotant en marche est de
   }
 });
 
-test("scènes, en lecture : le premier éclat du clignotant tombe dès que le clignotant s'allume, dans l'étape en cours à cet instant", () => {
-  // Les virages l'allument sous l'étape 1 (contrôler, puis indiquer) ; le giratoire, traversé en face, sous l'étape qui suit
-  // la sortie précédente. tests/scenes.test.mjs épingle cette étape pour chaque scène.
+test("scènes, en lecture : chaque clignotant de chaque acteur éclaire dès qu'il s'allume, une demi-période, puis suit le rythme ; celui de l'élève, dans l'étape en cours à cet instant", () => {
+  // Les virages allument celui de l'élève sous l'étape 1 (contrôler, puis indiquer) ; le giratoire, traversé en face, sous
+  // l'étape « Clignotant à droite après la sortie précédente ». tests/scenes.test.mjs épingle cette étape pour chaque scène.
+  const demiPeriode = 1 / (2 * FREQ_CLIGNOTANT);
   for (const [code, sc] of scenes()) {
-    const [clignotant] = sc.eleve.clignotant;
-    const tAllume = tempsAtteint(sc.eleve.chrono, clignotant.de);
-    // Étape en cours quand le clignotant s'allume, comme dans le moteur : la dernière commencée.
-    let n = 0;
-    sc.etapes.forEach((et, i) => { if (tAllume + 1e-9 >= et.t) n = i; });
-    const debut = sc.etapes[n].t, fin = n + 1 < sc.etapes.length ? sc.etapes[n + 1].t : sc.duree;
-    let premier = null;
-    for (let k = 0; k * 0.001 <= fin; k++) {
-      const t = k * 0.001;
-      if (clignotantAllume(etatActeur(sc.eleve, t), t, false)) { premier = t; break; }
+    let verifies = 0;
+    for (const a of sc.acteurs) {
+      for (const c of a.clignotant || []) {
+        const nom = `${code}, ${a.id}, clignotant ${c.cote} à partir de s = ${c.de.toFixed(3)} m`;
+        const tAllume = tempsAtteint(a.chrono, c.de), tEteint = tempsAtteint(a.chrono, c.a);
+        assert.ok(tEteint - tAllume > 3 * demiPeriode, `${nom} : intervalle trop court pour le vérifier`);
+        // Au millième de seconde, depuis le millième qui précède l'allumage : premier éclat, extinction, éclat suivant.
+        const eclaire = (t) => clignotantAllume(etatActeur(a, t), t, false) === c.cote;
+        const bascules = [];
+        let etat = false;
+        for (let k = 0; bascules.length < 3; k++) {
+          const t = Math.max(0, tAllume - 0.001) + k * 0.001;
+          assert.ok(t <= tEteint, `${nom} : moins de trois bascules avant l'extinction`);
+          if (eclaire(t) !== etat) { etat = !etat; bascules.push(t); }
+        }
+        const [premier, extinction, suivant] = bascules;
+        assert.ok(Math.abs(premier - tAllume) <= 0.002, `${nom} : allumé à t = ${tAllume.toFixed(3)} s, premier éclat à t = ${premier.toFixed(3)} s`);
+        proche(extinction - premier, demiPeriode, 0.003, `${nom} : durée du premier éclat`);
+        proche(suivant - premier, 2 * demiPeriode, 0.003, `${nom} : éclat suivant`);
+        if (a === sc.eleve) {
+          // Étape en cours quand le clignotant s'allume, comme dans le moteur : la dernière commencée.
+          let n = 0;
+          sc.etapes.forEach((et, i) => { if (tAllume + 1e-9 >= et.t) n = i; });
+          const debut = sc.etapes[n].t, fin = n + 1 < sc.etapes.length ? sc.etapes[n + 1].t : sc.duree;
+          assert.ok(premier >= debut - 0.001 && premier < fin, `${nom} : premier éclat à t = ${premier.toFixed(3)} s, hors de l'étape ${n + 1}`);
+        }
+        verifies++;
+      }
     }
-    assert.ok(premier !== null && premier >= debut && premier < fin, `${code} : premier éclat à t = ${premier} s, hors de l'étape ${n + 1}`);
-    assert.ok(premier - tAllume <= 0.002, `${code} : clignotant allumé à t = ${tAllume.toFixed(3)} s, premier éclat à t = ${premier} s`);
+    assert.ok(verifies > 0, `${code} : aucun clignotant, le test ne vérifie rien`);
   }
 });
 

@@ -379,11 +379,19 @@ export function sortDuCadre(acteur) {
  *   cette image tenue, et une tenue n'est pas un arrêt (contrôle de la ligne d'arrêt).
  *   `scene-controles.js` vérifie que l'élève finit en dernier lorsqu'il termine en mouvement,
  *   de sorte que toute l'image est tenue avec lui.
+ * - Clignotant : `clignotant` vaut le côté ("droite", "gauche") de l'intervalle de
+ *   `acteur.clignotant` qui contient l'abscisse atteinte, bornes comprises, ou null.
+ *   `clignotantDepuis` est l'instant (s, horloge de la scène, départ compris) où l'acteur a
+ *   atteint le début de cet intervalle, c'est-à-dire où ce clignotant s'est allumé ; null
+ *   quand le clignotant est éteint. Chaque intervalle est un allumage : deux intervalles
+ *   successifs ont chacun le leur, et un arrêt pendant le clignotant ne le change pas. Le
+ *   rendu compte la phase du clignotement depuis cet instant (`clignotantAllume`, dans
+ *   `scene-rendu.js`).
  */
 export function etatActeur(acteur, t) {
   if (acteur.pose) {
     return { x: acteur.pose.x, y: acteur.pose.y, cap: acteur.pose.cap * DEG, v: 0, a: 0, s: 0,
-      courbure: 0, visible: true, clignotant: null };
+      courbure: 0, visible: true, clignotant: null, clignotantDepuis: null };
   }
   const { duree } = acteur.chrono;
   const parti = t >= (acteur.depart || 0) - 1e-9;
@@ -396,5 +404,6 @@ export function etatActeur(acteur, t) {
   const acceleration = parti && !termine ? a : 0;
   const c = (acteur.clignotant || []).find((x) => s >= x.de - 1e-9 && s <= x.a + 1e-9);
   return { x: p.x, y: p.y, cap: p.cap, v: vitesse, a: acceleration, s,
-    courbure: courbureA(acteur.chemin, s), visible, clignotant: c ? c.cote : null };
+    courbure: courbureA(acteur.chemin, s), visible, clignotant: c ? c.cote : null,
+    clignotantDepuis: c ? tempsAtteint(acteur.chrono, c.de) : null };
 }

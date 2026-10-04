@@ -53,14 +53,17 @@ export const MARGE_CADRE_REDUIT = 1;
 const borner = (v, min, max) => Math.min(Math.max(v, min), max);
 
 /**
- * Côté du clignotant dessiné allumé ("droite", "gauche") pour un véhicule dans l'état e, ou null. En lecture, il
- * clignote à FREQ_CLIGNOTANT, allumé la première moitié de chaque période, comptée depuis le début de la scène. Sur une
+ * Côté du clignotant dessiné allumé ("droite", "gauche") pour un véhicule dans l'état e (etatActeur) à l'instant donné,
+ * ou null. En lecture, il clignote à FREQ_CLIGNOTANT, allumé la première moitié de chaque période, comptée depuis son
+ * allumage (`e.clignotantDepuis`) : tout clignotant éclaire dès qu'il s'allume, quel que soit l'instant de la scène, et
+ * un instant à peine antérieur à l'allumage (l'état tolère 1e-9 m sur l'abscisse) compte comme l'allumage. Sur une
  * image figée (`fige`), il est dessiné allumé tant qu'il est en marche : l'image montre l'état du clignotant, pas une
  * phase de son clignotement.
  */
 export function clignotantAllume(e, instant, fige) {
   if (!e.clignotant) return null;
-  return fige || Math.floor(instant * FREQ_CLIGNOTANT * 2) % 2 === 0 ? e.clignotant : null;
+  const ecoule = Math.max(0, instant - e.clignotantDepuis);
+  return fige || Math.floor(ecoule * FREQ_CLIGNOTANT * 2) % 2 === 0 ? e.clignotant : null;
 }
 
 /** Cadre de la caméra en lecture, { x, y, largeur, hauteur } (m) : centré sur l'élève dans l'état e, borné au monde.
