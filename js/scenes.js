@@ -324,22 +324,27 @@ const GIRATOIRE = geler({
   // au bout de l'arc d'entrée en reprenant de l'arrêt (17,8 km/h), et tous deux cassent leur allure à 15 km/h avant l'arc de
   // sortie.
   kmh: { approche: 30, adaptee: 15, anneau: 20, arcEntree: 18, cassee: 15, sortie: 30 },
+  // s : palier à 20 km/h dans l'anneau, au moins le pas des contrôles automatiques (0,1 s), pour que l'allure de l'anneau
+  // soit tenue avant de casser l'allure, et non touchée un instant.
+  palierAnneauMin: 0.1,
   ralentissement: 1.0,   // m/s² : adapter l'allure, progressivement, sur la longue approche de la branche sud
   freinage: 2.0,         // m/s² : s'arrêter au cédez-le-passage, casser l'allure, ralentir avant d'entrer (usager de l'anneau)
   reprise: 1.5,          // m/s² : accélération au redémarrage, dans l'anneau, puis dans la voie de sortie
   // s à l'écran : coup d'œil au rétroviseur intérieur à l'approche ; balayage, juste avant le freinage pour l'usager de
   // l'anneau ; regard à gauche, à l'arrêt, une fois l'usager sorti de la zone de conflit, jusqu'au redémarrage ; à la
-  // sortie, rétroviseur intérieur (en cassant l'allure), angle mort gauche, puis clignotant, avant de balayer la sortie.
-  duree: { retroviseur: 1.2, balayage: 2.0, regardGauche: 1.0, retroviseurSortie: 1.0, angleMort: 1.0, indication: 1.0 },
+  // sortie, rétroviseur intérieur (en cassant l'allure), angle mort droit, angle mort gauche, puis clignotant, avant de
+  // balayer la sortie.
+  duree: { retroviseur: 1.2, balayage: 2.0, regardGauche: 1.0, retroviseurSortie: 1.0, angleMortDroit: 1.0,
+    angleMortGauche: 1.0, indication: 1.0 },
   // degrés par rapport au cap, - à gauche. Gauche : à l'arrêt, le cône couvre l'anneau en amont de l'entrée, d'où viendrait
-  // un autre usager (angles polaires 94 à 174 autour de l'îlot), dans le cadre. Sortie : le clignotant allumé, le regard
-  // porte vers la sortie ; l'anneau tourne à gauche, et l'arc de sortie est alors de 26 à 11 degrés à gauche du cap (droit
-  // devant, le regard tomberait sur la bordure extérieure, à 6,8 m de l'œil).
-  regard: { retroviseurInterieur: 180, devant: 0, gauche: -55, angleMort: -120, sortie: -20 },
+  // un autre usager (angles polaires 94 à 174 autour de l'îlot), dans le cadre. Angles morts : tête tournée vers l'épaule,
+  // le droit (cycliste ou cyclomotoriste le long du bord extérieur), puis le gauche (vélo ou véhicule encore dans le
+  // giratoire). Sortie : le clignotant allumé, le regard porte vers la sortie ; l'anneau tourne à gauche, et l'arc de
+  // sortie est alors de 21 à 2 degrés à gauche du cap (droit devant, le regard tomberait sur la bordure extérieure, à 6,8 m
+  // de l'œil).
+  regard: { retroviseurInterieur: 180, devant: 0, gauche: -55, angleMortDroit: 120, angleMortGauche: -120, sortie: -12 },
   // s : l'usager de l'anneau passe devant l'entrée sud au moment où l'élève s'y arrête et quitte la zone de conflit ce temps
-  // après l'arrêt ; l'élève regarde alors à gauche (duree.regardGauche), puis repart. L'attente reste de 3,4 s, comme avant
-  // le regard à gauche : l'instant où le clignotant de sortie s'allume ne bouge pas, et son premier éclat (lié à l'horloge
-  // de la scène) non plus.
+  // après l'arrêt ; l'élève regarde alors à gauche (duree.regardGauche), puis repart : 3,4 s d'attente en tout.
   sortieAnneauApresArret: 2.4,
 });
 
@@ -361,16 +366,28 @@ function giratoireScene() {
   const sBalayage = sFrein - vitesse.adaptee * choix.duree.balayage;
   if (sBalayage < sAllureAdaptee) throw new Error("giratoire : allonger la branche sud");
 
-  // Anneau : reprise jusqu'à 20 km/h ; contrôles de sortie (rétroviseur intérieur en cassant l'allure, puis angle mort
-  // gauche), achevés quand le clignotant s'allume, 3 degrés après l'axe de la sortie précédente ; allure cassée tenue dans
-  // l'arc de sortie, puis reprise dans la voie de sortie.
+  // Anneau : reprise jusqu'à 20 km/h ; contrôles de sortie dès cette allure atteinte, après un palier s'il en reste le
+  // temps (rétroviseur intérieur en cassant l'allure, angle mort droit, angle mort gauche), achevés quand le clignotant
+  // s'allume : au plus tôt 3 degrés après l'axe de la sortie précédente (S.clignotant), au moins 2 s avant l'arc de sortie ;
+  // allure cassée tenue dans l'arc de sortie, puis reprise dans la voie de sortie.
   const sAllureAnneau = sArret + vitesse.anneau ** 2 / (2 * choix.reprise);
   const dCasser = (vitesse.anneau ** 2 - vitesse.cassee ** 2) / (2 * choix.freinage);
   const tCasser = (vitesse.anneau - vitesse.cassee) / choix.freinage;
-  const sAngleMort = S.clignotant - vitesse.cassee * choix.duree.angleMort;
-  const sCasser = sAngleMort - dCasser - vitesse.cassee * Math.max(0, choix.duree.retroviseurSortie - tCasser);
-  if (sCasser < sAllureAnneau) throw new Error("giratoire : contrôles de sortie commencés avant l'allure de l'anneau");
-  const sBalayageSortie = S.clignotant + vitesse.cassee * choix.duree.indication;
+  // Distance parcourue pendant chaque contrôle de sortie : le rétroviseur intérieur en cassant l'allure, puis les deux
+  // angles morts à l'allure cassée.
+  const dRetroviseur = dCasser + vitesse.cassee * Math.max(0, choix.duree.retroviseurSortie - tCasser);
+  const dAngleMortDroit = vitesse.cassee * choix.duree.angleMortDroit;
+  const dAngleMortGauche = vitesse.cassee * choix.duree.angleMortGauche;
+  // Palier à 20 km/h : ce qui reste avant le clignotant au plus tôt une fois les contrôles placés, sans descendre sous
+  // palierAnneauMin. Le temps des contrôles se prend d'abord sur ce palier, puis sur l'avance du clignotant, qui s'allume
+  // alors à la fin des contrôles.
+  const palier = Math.max(vitesse.anneau * choix.palierAnneauMin,
+    S.clignotant - (sAllureAnneau + dRetroviseur + dAngleMortDroit + dAngleMortGauche));
+  const sCasser = sAllureAnneau + palier;
+  const sAngleMortDroit = sCasser + dRetroviseur;
+  const sAngleMortGauche = sAngleMortDroit + dAngleMortDroit;
+  const sIndication = sAngleMortGauche + dAngleMortGauche;
+  const sBalayageSortie = sIndication + vitesse.cassee * choix.duree.indication;
   const sPleineAllure = S.finSortie + (vitesse.sortie ** 2 - vitesse.cassee ** 2) / (2 * choix.reprise);
   const profilSans = [
     { s: 0, kmh: choix.kmh.approche }, { s: sRalentir, kmh: choix.kmh.approche },
@@ -412,7 +429,7 @@ function giratoireScene() {
     camera: { largeur: choix.cadre.largeur, hauteur: choix.cadre.hauteur },
     acteurs: [
       { id: "eleve", role: "eleve", gabarit: "voiture", chemin, profil,
-        clignotant: [{ cote: "droite", de: S.clignotant, a: S.finSortie }] },
+        clignotant: [{ cote: "droite", de: sIndication, a: S.finSortie }] },
       { ...anneau, depart: departAnneau },
     ],
     etapes: [
@@ -423,8 +440,9 @@ function giratoireScene() {
       { s: sArret, delai: choix.sortieAnneauApresArret, regard: { angle: choix.regard.gauche } },
       { s: sArret, delai: pause, regard: { angle: choix.regard.devant } },
       { s: sCasser, regard: { angle: choix.regard.retroviseurInterieur } },
-      { s: sAngleMort, regard: { angle: choix.regard.angleMort } },
-      { s: S.clignotant, regard: { angle: choix.regard.sortie } },
+      { s: sAngleMortDroit, regard: { angle: choix.regard.angleMortDroit } },
+      { s: sAngleMortGauche, regard: { angle: choix.regard.angleMortGauche } },
+      { s: sIndication, regard: { angle: choix.regard.sortie } },
       { s: sBalayageSortie, regard: { balayage: true } },
       { s: S.finSortie, regard: { angle: choix.regard.devant } },
     ],
@@ -498,6 +516,7 @@ export const SCENES = {
       "Regarder à gauche avant de s'insérer",
       "S'insérer et circuler dans l'anneau",
       "Casser l'allure, rétroviseur intérieur",
+      "Contrôler l'angle mort droit",
       "Contrôler l'angle mort gauche",
       "Clignotant à droite après la sortie précédente",
       "Balayer la sortie et sortir",
@@ -506,12 +525,12 @@ export const SCENES = {
     sources: [
       "Carrefour à sens giratoire : place ou carrefour dont le terre-plein central est matériellement infranchissable, ceinturé par une chaussée mise à sens unique par la droite (on tourne en laissant l'îlot à sa gauche) et annoncé par une signalisation spécifique : R110-2.",
       "Céder le passage aux usagers circulant sur l'anneau, quel que soit le classement de la route que l'on quitte : R415-10. Ici l'usager de l'anneau passe devant l'entrée sud au moment où l'élève s'y arrête : repéré pendant le balayage, il est suivi des yeux dès que l'élève ralentit pour lui et pendant l'arrêt ; une fois qu'il a quitté la zone de conflit, l'élève regarde à gauche l'anneau en amont, d'où viendrait un autre usager, puis s'insère, le regard devant.",
-      "Avertir les autres usagers avant de changer de direction, donc pour sortir du giratoire (clignotant) : R412-10. En face, pas de clignotant à l'entrée et clignotant droit à la sortie : fiche ECF C2-F ; ce clignotant s'allume après avoir dépassé la sortie qui précède la sienne : cours du thème 11 (contrôlé). La fiche place « sortir en allumant le clignotant droit » après le balayage de la sortie ; la scène l'allume avant ce balayage, juste après la sortie précédente, au moins 2 s avant l'arc de sortie, et le garde jusqu'à la fin de cet arc. Contrôler, puis indiquer (méthode C.I.A. : contrôles, indications, actions) : fiche ECF C2-F.",
+      "Avertir les autres usagers avant de changer de direction, donc pour sortir du giratoire (clignotant) : R412-10. En face, pas de clignotant à l'entrée et clignotant droit à la sortie : fiche ECF C2-F ; ce clignotant s'allume après avoir dépassé la sortie qui précède la sienne : cours du thème 11 (contrôlé). La fiche place « sortir en allumant le clignotant droit » après le balayage de la sortie ; la scène l'allume avant ce balayage, une fois les contrôles de sortie faits, après la sortie précédente et au moins 2 s avant l'arc de sortie, et le garde jusqu'à la fin de cet arc. Contrôler, puis indiquer (méthode C.I.A. : contrôles, indications, actions) : fiche ECF C2-F.",
       "Dans un anneau à plusieurs voies, le conducteur qui vise une sortie située sur sa gauche par rapport à son axe d'entrée peut serrer à gauche, et tout changement de voie dans l'anneau reste soumis à la priorité et doit être signalé : R412-9. Non montré : l'anneau dessiné n'a qu'une voie.",
       "Rester constamment maître de sa vitesse et la régler selon les difficultés de la circulation et les obstacles prévisibles : R413-17 II. Adapter l'allure à l'approche, puis casser l'allure avant de sortir : fiche ECF C2-F.",
       "Signalisation : panneau AB25 de l'ordre de 50 m avant le giratoire en agglomération, panneau AB3a et ligne de cédez-le-passage à chaque entrée : cours du thème 11 (contrôlé). Marquage : unité u de 5 cm, modulations T'1 (traits de 1,50 m, vides de 5 m) et T'2 (traits et vides de 0,50 m) : IISR 7e partie, art. 113-1 ; axiale T'1 de largeur 2u, admise en agglomération, et ligne de cédez-le-passage T'2 de 0,50 m de large : art. 113-2 ; cette ligne s'étend sur toute la largeur de la voie entrante, de l'axe jusqu'à la bordure, marque la limite de la chaussée prioritaire (ici le bord de l'anneau) et est précédée d'une axiale continue de largeur 2u sur 10 à 20 m (15 m retenus) : art. 117-4 B.",
-      "Étapes et regards : d'après la fiche ECF C2-F (classeur de Timy) : à l'insertion, contrôles, allure adaptée, balayage des véhicules engagés, recherche de l'indice (allure de l'usager de l'anneau, son clignotant, sa position dans l'anneau), puis la décision, ici attendre ; l'usager passé, l'élève regarde de nouveau à gauche les véhicules qui pourraient être engagés avant de s'insérer ; à la sortie, allure cassée, contrôle au rétroviseur intérieur, angle mort gauche (vélo ou véhicule encore dans le giratoire), balayage de la sortie et clignotant droit. L'anneau dessiné n'ayant qu'une voie, l'étape « se replacer sur la voie extérieure » de la fiche n'a pas lieu d'être.",
-      "Choix de dessin, sans portée réglementaire : petit giratoire urbain à une voie : îlot central de 8 m de rayon, anneau de 6 m de large (bord extérieur à 14 m du centre), raccordements de bordure de 8 m de rayon, quatre branches à double sens de voies de 3,5 m, sans îlot séparateur ; ligne de cédez-le-passage à 5 cm de l'anneau, AB3a à 1,95 m en amont de la ligne, AB25 à 50 m de l'anneau ; branches de 26 m au nord et à l'est, 76 m au sud, 40 m à l'ouest ; cadre de 40 x 46 m qui suit l'élève ; départ à 22 m du bord bas (la portée du cône du regard, pour que le cône du rétroviseur intérieur reste dans l'image), dans l'axe de la voie d'entrée ; trajectoires à 0,6 m des bordures (anneau parcouru à 12,5 m du centre, arcs d'entrée et de sortie de 9,5 m de rayon) ; 30 km/h en approche et en sortie ; allure adaptée progressivement à 15 km/h (1,0 m/s²), puis freinage de 2,0 m/s² jusqu'à l'arrêt, au début de l'arc d'entrée, le coin avant gauche à 0,3 m de la ligne ; 20 km/h dans l'anneau (petit giratoire urbain ; la fiche indique 30 à 35 km/h pour un giratoire courant) ; au plus 19 km/h dans les arcs d'entrée et de sortie, pour une accélération latérale sous 3,0 m/s² (20 km/h y donneraient 3,25 m/s²) : reprise de 1,5 m/s² depuis l'arrêt (17,8 km/h au bout de l'arc d'entrée), allure cassée à 15 km/h avant l'arc de sortie (2,0 m/s²) ; usager de l'anneau venu de l'ouest et sorti à l'est, qui part et finit hors du dessin, à 30 km/h en approche, 18 km/h dans l'arc d'entrée, 20 km/h dans l'anneau et 15 km/h dans l'arc de sortie, et quitte la zone de conflit (le secteur de l'anneau de 40 à 125 degrés, devant l'entrée sud) 2,4 s après l'arrêt de l'élève ; regard de l'élève à gauche pendant 1,0 s, puis redémarrage (attente de 3,4 s au cédez-le-passage) ; clignotant droit allumé 3 degrés après l'axe de la sortie précédente ; cône du regard de 22 m, ouvert de 16 degrés de part et d'autre, qui s'arrête 2 m au-delà de l'usager suivi des yeux ; regard, par rapport à l'axe de la voiture : 180 degrés pendant 1,2 s (rétroviseur intérieur), droit devant, balayage de 75 degrés de part et d'autre (un aller-retour en 2 s) pendant les 2 s qui précèdent le freinage, usager de l'anneau suivi des yeux jusqu'à sa sortie de la zone de conflit, 55 degrés à gauche pendant 1,0 s à l'arrêt (l'anneau en amont, d'où viendrait un autre usager), droit devant, 180 degrés pendant 1,0 s en cassant l'allure, 120 degrés à gauche pendant 1,0 s (angle mort, tête tournée vers l'épaule), 20 degrés à gauche pendant 1,0 s une fois le clignotant allumé (vers la sortie : l'anneau tourne à gauche, et droit devant le regard tomberait sur la bordure extérieure, à 6,8 m), balayage de la sortie jusqu'à la fin de l'arc de sortie, puis droit devant ; panneaux agrandis pour rester lisibles.",
+      "Étapes et regards : d'après la fiche ECF C2-F (classeur de Timy) : à l'insertion, contrôles, allure adaptée, balayage des véhicules engagés, recherche de l'indice (allure de l'usager de l'anneau, son clignotant, sa position dans l'anneau), puis la décision, ici attendre ; l'usager passé, l'élève regarde de nouveau à gauche les véhicules qui pourraient être engagés avant de s'insérer ; à la sortie, allure cassée, contrôle au rétroviseur intérieur, angle mort gauche (vélo ou véhicule encore dans le giratoire), balayage de la sortie et clignotant droit. Avant de sortir, la scène contrôle aussi l'angle mort droit, avant le gauche : un cycliste ou un cyclomotoriste peut longer le bord extérieur de l'anneau (cours du thème 11, contrôlé). L'anneau dessiné n'ayant qu'une voie, l'étape « se replacer sur la voie extérieure » de la fiche n'a pas lieu d'être.",
+      "Choix de dessin, sans portée réglementaire : petit giratoire urbain à une voie : îlot central de 8 m de rayon, anneau de 6 m de large (bord extérieur à 14 m du centre), raccordements de bordure de 8 m de rayon, quatre branches à double sens de voies de 3,5 m, sans îlot séparateur ; ligne de cédez-le-passage à 5 cm de l'anneau, AB3a à 1,95 m en amont de la ligne, AB25 à 50 m de l'anneau ; branches de 26 m au nord et à l'est, 76 m au sud, 40 m à l'ouest ; cadre de 40 x 46 m qui suit l'élève ; départ à 22 m du bord bas (la portée du cône du regard, pour que le cône du rétroviseur intérieur reste dans l'image), dans l'axe de la voie d'entrée ; trajectoires à 0,6 m des bordures (anneau parcouru à 12,5 m du centre, arcs d'entrée et de sortie de 9,5 m de rayon) ; 30 km/h en approche et en sortie ; allure adaptée progressivement à 15 km/h (1,0 m/s²), puis freinage de 2,0 m/s² jusqu'à l'arrêt, au début de l'arc d'entrée, le coin avant gauche à 0,3 m de la ligne ; 20 km/h dans l'anneau (petit giratoire urbain ; la fiche indique 30 à 35 km/h pour un giratoire courant) ; au plus 19 km/h dans les arcs d'entrée et de sortie, pour une accélération latérale sous 3,0 m/s² (20 km/h y donneraient 3,25 m/s²) : reprise de 1,5 m/s² depuis l'arrêt (17,8 km/h au bout de l'arc d'entrée), 20 km/h tenus 0,1 s (le pas des contrôles automatiques), puis allure cassée à 15 km/h (2,0 m/s²), tenue jusqu'à la fin de l'arc de sortie : le temps des contrôles de sortie se prend d'abord sur ce palier, puis sur l'avance du clignotant ; usager de l'anneau venu de l'ouest et sorti à l'est, qui part et finit hors du dessin, à 30 km/h en approche, 18 km/h dans l'arc d'entrée, 20 km/h dans l'anneau et 15 km/h dans l'arc de sortie, et quitte la zone de conflit (le secteur de l'anneau de 40 à 125 degrés, devant l'entrée sud) 2,4 s après l'arrêt de l'élève ; regard de l'élève à gauche pendant 1,0 s, puis redémarrage (attente de 3,4 s au cédez-le-passage) ; clignotant droit allumé à la fin des contrôles de sortie, 13,4 degrés après l'axe de la sortie précédente (3 degrés au moins) et 2,36 s avant l'arc de sortie (2 s au moins) ; cône du regard de 22 m, ouvert de 16 degrés de part et d'autre, qui s'arrête 2 m au-delà de l'usager suivi des yeux ; regard, par rapport à l'axe de la voiture : 180 degrés pendant 1,2 s (rétroviseur intérieur), droit devant, balayage de 75 degrés de part et d'autre (un aller-retour en 2 s) pendant les 2 s qui précèdent le freinage, usager de l'anneau suivi des yeux jusqu'à sa sortie de la zone de conflit, 55 degrés à gauche pendant 1,0 s à l'arrêt (l'anneau en amont, d'où viendrait un autre usager), droit devant, 180 degrés pendant 1,0 s en cassant l'allure, 120 degrés à droite pendant 1,0 s (angle mort droit), 120 degrés à gauche pendant 1,0 s (angle mort gauche ; tête tournée vers l'épaule pour les deux), 12 degrés à gauche pendant 1,0 s une fois le clignotant allumé (vers la sortie : l'anneau tourne à gauche, et droit devant le regard tomberait sur la bordure extérieure, à 6,8 m), balayage de la sortie jusqu'à la fin de l'arc de sortie, puis droit devant ; panneaux agrandis pour rester lisibles.",
     ],
     construire: unique(giratoireScene),
   },
