@@ -178,3 +178,16 @@ export function _simulerModifConcurrente(numero) {
   const c = magasin.find((x) => x.numero === Number(numero));
   if (c) { c.updated_by = "Hocine"; c.updated_at = new Date().toISOString(); }
 }
+// Cours du pilote, copiés depuis cours_competences/ du dépôt ECSR (dossier non versionné).
+// Absents, le banc garde ses cours d'essai ; présents, ils remplacent ceux de même code.
+for (const [code, fichier] of [["C2", "c2.md"], ["C2.4", "c2-4.md"], ["C2.6", "c2-6.md"]]) {
+  try {
+    const rep = await fetch(new URL("./cours-pilote/" + fichier, import.meta.url));
+    if (!rep.ok) continue;
+    const corps_md = await rep.text();
+    const titre = (corps_md.match(/^#\s+C[1-4](?:\.[1-9])?\s*-\s*(.+)$/m) || [null, code])[1].trim();
+    magasin = magasin.filter((c) => c.code !== code);
+    magasin.push({ id: "pilote-" + code, numero: null, code, titre, corps_md, published: false,
+      updated_by: "import", updated_at: "2026-10-03T12:00:00.000Z", created_at: "2026-10-03T12:00:00.000Z" });
+  } catch (e) { /* fichier absent : rien */ }
+}
