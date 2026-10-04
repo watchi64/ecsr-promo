@@ -47,16 +47,22 @@ test("scènes, images figées : à chaque étape, le clignotant en marche est de
   }
 });
 
-test("scènes, en lecture : le premier éclat du clignotant tombe dans l'étape 1, dès que le clignotant s'allume", () => {
+test("scènes, en lecture : le premier éclat du clignotant tombe dès que le clignotant s'allume, dans l'étape en cours à cet instant", () => {
+  // Les virages l'allument sous l'étape 1 (contrôler, puis indiquer) ; le giratoire, traversé en face, sous l'étape qui suit
+  // la sortie précédente. tests/scenes.test.mjs épingle cette étape pour chaque scène.
   for (const [code, sc] of scenes()) {
     const [clignotant] = sc.eleve.clignotant;
     const tAllume = tempsAtteint(sc.eleve.chrono, clignotant.de);
+    // Étape en cours quand le clignotant s'allume, comme dans le moteur : la dernière commencée.
+    let n = 0;
+    sc.etapes.forEach((et, i) => { if (tAllume + 1e-9 >= et.t) n = i; });
+    const debut = sc.etapes[n].t, fin = n + 1 < sc.etapes.length ? sc.etapes[n + 1].t : sc.duree;
     let premier = null;
-    for (let k = 0; k * 0.001 <= sc.etapes[1].t; k++) {
+    for (let k = 0; k * 0.001 <= fin; k++) {
       const t = k * 0.001;
       if (clignotantAllume(etatActeur(sc.eleve, t), t, false)) { premier = t; break; }
     }
-    assert.ok(premier !== null && premier >= sc.etapes[0].t && premier < sc.etapes[1].t, `${code} : premier éclat à t = ${premier} s, hors de l'étape 1`);
+    assert.ok(premier !== null && premier >= debut && premier < fin, `${code} : premier éclat à t = ${premier} s, hors de l'étape ${n + 1}`);
     assert.ok(premier - tAllume <= 0.002, `${code} : clignotant allumé à t = ${tAllume.toFixed(3)} s, premier éclat à t = ${premier} s`);
   }
 });
