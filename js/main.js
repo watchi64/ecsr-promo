@@ -5,8 +5,9 @@
 import { getCurrentUser, invalidateCache, verifyRecoveryToken } from "./db.js?v=20261004a";
 import { toast } from "./utils.js?v=20261004a";
 import { icon } from "./icons.js?v=20261004a";
-import { initAuth, onAdminChange, isAuth, isAdmin, isProf, monStagiaireId } from "./auth-admin.js?v=20261004a";
+import { initAuth, onAdminChange, isAuth, isAdmin, isProf, monStagiaireId, getAdminEmail } from "./auth-admin.js?v=20261004a";
 import { showGate, hideGate } from "./gate.js?v=20261004a";
+import { exigerAcceptation } from "./legal.js?v=20261004a";
 import { lireJetonRecuperation } from "./gate-rules.js?v=20261004a";
 import { loadAccent } from "./accent-switcher.js?v=20261004a";
 import { loadTheme } from "./theme-switcher.js?v=20261004a";
@@ -316,6 +317,9 @@ async function bootApp() {
   // La lecture est bornée (chargerModulesAuDemarrage : copie de l'appareil au-delà de
   // 3,5 s, la vraie réponse redessine la barre à son arrivée) et la vue dit « Chargement ».
   afficherChargement();
+  // Conditions d'utilisation : rien ne s'ouvre tant que la version en vigueur n'est pas
+  // acceptée (fenêtre bloquante ; laisse passer si la lecture échoue).
+  await exigerAcceptation(getAdminEmail());
   await chargerModulesAuDemarrage();
   renderTabs();
   majBadgeNouveautes();

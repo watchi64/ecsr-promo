@@ -16,6 +16,30 @@
 
 export const NOUVEAUTES = [
   {
+    id: "2026-10-04-conditions-utilisation",
+    date: "2026-10-04",
+    pour: "tous",
+    titre: "Conditions d'utilisation et données personnelles",
+    resume: "À ta prochaine connexion, l'application te présente ses conditions d'utilisation : "
+          + "l'essentiel en huit lignes, le texte complet en un toucher. On y voit qui accède à quoi, "
+          + "combien de temps tes données sont gardées et comment les faire supprimer. Tu les "
+          + "retrouves à tout moment dans Mon compte, sous « Informations légales ».",
+  },
+  {
+    id: "2026-10-04-benevoles-information",
+    date: "2026-10-04",
+    pour: "formateurs",
+    titre: "Élèves bénévoles : les prévenir que leurs coordonnées sont enregistrées",
+    resume: "La loi demande d'informer les élèves bénévoles de ce que l'on garde sur eux. À leur "
+          + "première venue, envoie-leur le lien des informations légales de l'application "
+          + "(section 7 : ce qui est enregistré, qui le voit, combien de temps).",
+    guide: [
+      "Envoie par SMS : « Bonjour, pour organiser les séances, nous enregistrons vos nom, téléphone, niveau et disponibilités. Détails et droits : https://watchi64.github.io/ecsr-promo/#/informations-legales (section 7). »",
+      "Pour un élève mineur, enregistre de préférence le numéro d'un parent, avec son accord.",
+      "Dans les champs de commentaire (bénévoles, passages, notes), rien sur la santé ni la vie privée : une absence se note « absent ».",
+    ],
+  },
+  {
     id: "2026-10-04-confidentialite-notes",
     date: "2026-10-04",
     pour: "tous",

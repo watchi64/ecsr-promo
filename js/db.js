@@ -1405,6 +1405,23 @@ export async function updatePassword(password) {
   if (error) throw error;
 }
 
+// === Conditions d'utilisation (acceptation par version, propre au compte) ===
+
+// Les acceptations du compte connecté. Filtre explicite sur l'adresse : un admin lit
+// toutes les lignes (règle de la base), il ne doit regarder ici que les siennes.
+export async function listMesAcceptations(email) {
+  const { data, error } = await supabase.from("conditions_acceptations")
+    .select("version, accepted_at").eq("email", String(email).toLowerCase());
+  if (error) throw error;
+  return data || [];
+}
+
+export async function accepterConditions(version) {
+  const { data, error } = await supabase.rpc("accepter_conditions", { p_version: version });
+  if (error) throw error;
+  return data;
+}
+
 export async function signOut() {
   const { error } = await supabase.auth.signOut();
   if (error) throw error;

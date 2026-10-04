@@ -377,6 +377,10 @@ function openProfileMenu() {
     persoBtn,
     buildViewAsBlock(() => backdrop.remove()),
     logoutBtn,
+    el("button", { class: "gate-link compte-legal", type: "button", onClick: () => {
+      backdrop.remove();
+      import("./legal.js?v=20261004a").then((m) => m.ouvrirInformationsLegales());
+    } }, "Informations légales et données personnelles"),
     el("div", { class: "modal-actions" },
       el("button", { class: "btn ghost", onClick: () => backdrop.remove() }, "Fermer"),
     )

@@ -41,6 +41,12 @@ export function showGate(mode = "signin") {
 
   gate.classList.remove("hidden");
   document.getElementById("app").classList.add("hidden");
+  // Mentions légales et conditions lisibles par tout visiteur, avant connexion.
+  const legal = document.getElementById("gate-legal");
+  if (legal) legal.onclick = () => import("./legal.js?v=20261004a").then((m) => m.ouvrirInformationsLegales());
+  // Lien direct …/#/informations-legales (envoyé aux élèves bénévoles, qui n'ont pas de
+  // compte) : les textes s'ouvrent d'eux-mêmes par-dessus l'écran de connexion.
+  if (legal && /informations-legales/.test(location.hash)) legal.onclick();
 
   let courant = mode;
 
