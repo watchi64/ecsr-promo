@@ -18,6 +18,7 @@ import { el, clear } from "../utils.js?v=20261003c";
 import { icon } from "../icons.js?v=20261003c";
 import { carteSignal, signalConnu } from "../signaux.js?v=20261003c";
 import { carteMarquage, marquageConnu } from "../marquage.js?v=20261003c";
+import { rendreBlocInteractif } from "../cours-blocs.js?v=20261003c";
 import { listCoursIndex, getCours } from "../db.js?v=20261003c";
 import { isAdmin, isProf } from "../auth-admin.js?v=20261003c";
 import { titreDepuisMarkdown, tempsLecture, cleCours, estCodeCompetence, libelleCle, coursSuivant, cibleLienCours }
@@ -317,6 +318,17 @@ function rendreBlocs(lignes, contexte) {
     }
 
     if (/^---+$/.test(nu)) { i++; continue; }
+
+    // Blocs interactifs des cours de compétences : schéma animé, quiz, cartes.
+    const bloc = nu.match(/^:::(scene|quiz|cartes)(?:\s+(.*))?$/);
+    if (bloc) {
+      i++;
+      const contenu = [];
+      while (i < lignes.length && lignes[i].trim() !== ":::") { contenu.push(lignes[i]); i++; }
+      i++;  // referme le bloc
+      sortie.push(rendreBlocInteractif(bloc[1], bloc[2] || "", contenu, contexte, inline));
+      continue;
+    }
 
     // Planches illustrées : panneaux ou marquage au sol.
     const planche = nu.match(/^:::(signaux|marquage)\s*(.*)$/);

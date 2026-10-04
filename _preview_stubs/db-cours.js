@@ -70,7 +70,7 @@ const MD_C2 = `# C2 - Appréhender la route
 const MD_C24 = `# C2.4 - Tourner à droite et à gauche en agglomération
 
 > **L'essentiel**
-> Cours d'essai.
+> Cours d'essai du banc : tous les blocs.
 
 ## Pourquoi
 
@@ -78,10 +78,49 @@ Paragraphe d'essai.
 
 ## Comment
 
-Texte avant un bloc.
+Texte collé à un bloc.
+:::scene tourner-droite
+Contrôler et mettre le clignotant
+Serrer à droite, sans se coller au trottoir
+Réduire l'allure avant le virage
+Balayer l'intersection du regard
+Contrôler l'angle mort droit
+Tourner en regardant la sortie
+Céder le passage au piéton
+Repartir une fois le passage dégagé
+:::
+
+## Je m'évalue
+
 :::cartes
 Q : Question d'essai ?
 R : Réponse d'essai.
+:::
+
+:::quiz ordre
+? Remets dans l'ordre
+Contrôle et clignotant
+Serrer à droite
+Tourner
+:::
+
+:::quiz vrai-faux
+Le clignotant se met avant de serrer à droite. | vrai | On prévient, puis on se place.
+:::
+
+:::quiz choix
+? Avant de tourner à droite, le regard va vers…
+- le compteur
+- [x] la voie de sortie et le trottoir
+> Le danger vient du côté du trottoir.
+:::
+
+:::scene inconnue
+Une étape
+:::
+
+:::quiz ordre
+Seul
 :::
 `;
 magasin.push(

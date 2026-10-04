@@ -60,3 +60,43 @@
 .scene-etape-num { font-family: var(--font-mono); min-width: 1.2rem; color: var(--text-muted); }
 .scene-etapes li.on .scene-etape { background: var(--accent-soft); color: var(--text); font-weight: 500; }
 .scene-inconnue .scene-etape { cursor: default; }
+
+/* Quiz : correction immédiate, rien n'est enregistré */
+.quiz { margin: 1.2rem 0; padding: 0.9rem 1rem; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--bg-elev); }
+.quiz-consigne, .quiz-question { margin: 0 0 0.5rem; font-weight: 500; }
+.quiz-aide, .cartes-aide { margin: 0 0 0.5rem; font-size: 0.82rem; color: var(--text-muted); }
+.quiz-question-bloc { margin-bottom: 0.9rem; }
+.quiz-option {
+  display: flex; gap: 0.6rem; align-items: center; width: 100%; text-align: left; margin: 0 0 0.4rem;
+  padding: 0.55rem 0.7rem; border: 1px solid var(--line-strong); border-radius: var(--r-sm);
+  background: #fff; font: inherit; color: var(--text); cursor: pointer;
+}
+.quiz-option[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
+.quiz-rang { display: inline-flex; justify-content: center; min-width: 1.4rem; font-family: var(--font-mono); color: var(--accent-strong); }
+.quiz-option.juste, .quiz-vf-ligne.juste { border-color: var(--c-go); background: var(--c-go-soft); }
+.quiz-option.faux, .quiz-vf-ligne.faux { border-color: var(--c-stop); background: var(--c-stop-soft); }
+.quiz-vf-ligne { padding: 0.5rem 0.6rem; margin-bottom: 0.4rem; border: 1px solid transparent; border-radius: var(--r-sm); }
+.quiz-affirmation { margin: 0 0 0.4rem; }
+.quiz-vf-boutons { display: flex; gap: 0.5rem; }
+.quiz-vf { padding: 0.4rem 0.9rem; border: 1px solid var(--line-strong); border-radius: var(--r-sm); background: #fff; font: inherit; cursor: pointer; }
+.quiz-vf[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
+.quiz-explication { margin: 0.4rem 0 0; font-size: 0.88rem; color: var(--text-soft); }
+.quiz-actions { display: flex; gap: 0.5rem; margin-top: 0.6rem; }
+.quiz-message { min-height: 1.2rem; margin: 0.5rem 0 0; font-size: 0.88rem; }
+.quiz-message.erreur { color: var(--c-stop); }
+.quiz-message.reussi { color: var(--c-go); }
+
+/* Cartes d'autoévaluation */
+.cartes-bloc { margin: 1.2rem 0; }
+.cartes-grille { display: grid; grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr)); gap: 0.6rem; }
+.carte {
+  min-height: 5.5rem; padding: 0.8rem; text-align: left; cursor: pointer;
+  border: 1px solid var(--line-strong); border-radius: var(--r); background: #fff; font: inherit; color: var(--text);
+}
+.carte[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); }
+
+/* Bloc mal formé (visible surtout dans l'aperçu de l'éditeur) */
+.cours-bloc-brut {
+  white-space: pre-wrap; font-family: var(--font-mono); font-size: 0.8rem; padding: 0.6rem;
+  border: 1px dashed var(--line-strong); border-radius: var(--r-sm); background: var(--bg-soft);
+}
