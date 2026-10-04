@@ -46,15 +46,41 @@ const yMinAtteint = (chemin, limite) =>
 const xMaxSous = (chemin, limite) =>
   premiereAbscisse(chemin, (p) => Math.max(...emprise("voiture", p).map(([x]) => x)) < limite);
 
-// Dernier instant où l'emprise d'un acteur parti à t = 0 touche une zone.
+// Le même trajet privé de ses `longueur` premiers mètres, pris sur sa première ligne droite : le tracé ne change pas, le
+// départ avance, et les abscisses repères (trajetGiratoire) reculent d'autant.
+function raccourcirDebut({ chemin, s }, longueur) {
+  const [premier, ...suite] = chemin.segments;
+  if (premier.type !== "droite" || !(longueur > 0 && longueur < premier.longueur)) {
+    throw new Error(`raccourcirDebut : impossible de retirer ${longueur} m d'un trajet qui commence par ${premier.longueur} m de ${premier.type}`);
+  }
+  const segments = [
+    { ...premier, x0: premier.x0 + Math.cos(premier.cap) * longueur, y0: premier.y0 + Math.sin(premier.cap) * longueur,
+      longueur: premier.longueur - longueur },
+    ...suite.map((seg) => ({ ...seg, debut: seg.debut - longueur })),
+  ];
+  return {
+    chemin: { segments, longueur: chemin.longueur - longueur },
+    s: Object.fromEntries(Object.entries(s).map(([cle, abscisse]) => [cle, abscisse - longueur])),
+  };
+}
+
+// Dernier instant où l'emprise d'un acteur parti à t = 0 touche une zone : relevé tous les 5 centièmes de seconde, puis
+// précisé par dichotomie, au dix-millième de seconde, sur l'instant où l'emprise quitte la zone.
 function derniereSortie(acteur, zone) {
   const a = { ...acteur, chrono: chronologie(acteur.chemin, acteur.profil), depart: 0 };
+  const touche = (t) => polygonesSeChevauchent(emprise(a.gabarit, etatActeur(a, t)), zone);
   let derniere = null;
   for (let t = 0; t <= a.chrono.duree + 1e-9; t += 0.05) {
-    if (polygonesSeChevauchent(emprise(a.gabarit, etatActeur(a, t)), zone)) derniere = t;
+    if (touche(t)) derniere = t;
   }
   if (derniere === null) throw new Error(`${acteur.id} ne traverse pas la zone de conflit`);
-  return derniere;
+  let dedans = derniere, dehors = Math.min(derniere + 0.05, a.chrono.duree);
+  if (touche(dehors)) return dehors;
+  while (dehors - dedans > 1e-4) {
+    const milieu = (dedans + dehors) / 2;
+    if (touche(milieu)) dedans = milieu; else dehors = milieu;
+  }
+  return dedans;
 }
 
 // ===== Tourner à droite en agglomération (fiche ECF C2-E) =====
@@ -281,6 +307,132 @@ function tournerGauche() {
   };
 }
 
+// ===== Traverser un carrefour à sens giratoire (fiche ECF C2-F) =====
+//
+// Petit giratoire urbain, traversé en face (deuxième sortie). L'ordre des étapes et ce que regarde le conducteur suivent la
+// fiche, avec les conventions des virages (contrôler, puis indiquer ; rétroviseur intérieur à 180 degrés, angle mort à 120 ;
+// balayage d'au moins 2 s ; regard sur l'usager à qui l'élève cède le passage) ; les valeurs ci-dessous sont des choix de
+// dessin, recopiés dans les sources de la scène.
+const GIRATOIRE = geler({
+  // m ; décor du plan. La branche sud porte le recul du départ (REGARD_PORTEE) et l'approche de l'élève, la branche ouest
+  // l'approche de l'usager de l'anneau (qui part hors du monde), la branche nord la sortie de l'élève.
+  branches: { nord: 26, sud: 76, est: 26, ouest: 40 },
+  cadre: { largeur: 40, hauteur: 46 },   // m : cadre qui suit l'élève, sans changer l'échelle (plan)
+  // km/h : approche du plan ; allure adaptée avant le cédez-le-passage ; petit giratoire urbain à 20 km/h dans l'anneau
+  // (choix de Timy ; la fiche indique 30 à 35 km/h pour un giratoire courant). Dans les arcs d'entrée et de sortie, de 9,5 m
+  // de rayon, 20 km/h donneraient 3,25 m/s² d'accélération latérale : l'usager de l'anneau entre à 18 km/h, l'élève arrive
+  // au bout de l'arc d'entrée en reprenant de l'arrêt (17,8 km/h), et tous deux cassent leur allure à 15 km/h avant l'arc de
+  // sortie.
+  kmh: { approche: 30, adaptee: 15, anneau: 20, arcEntree: 18, cassee: 15, sortie: 30 },
+  ralentissement: 1.0,   // m/s² : adapter l'allure, progressivement, sur la longue approche de la branche sud
+  freinage: 2.0,         // m/s² : s'arrêter au cédez-le-passage, casser l'allure, ralentir avant d'entrer (usager de l'anneau)
+  reprise: 1.5,          // m/s² : accélération au redémarrage, dans l'anneau, puis dans la voie de sortie
+  // s à l'écran : coup d'œil au rétroviseur intérieur à l'approche ; balayage, juste avant le freinage pour l'usager de
+  // l'anneau ; à la sortie, rétroviseur intérieur (en cassant l'allure), angle mort gauche, puis clignotant, avant de
+  // balayer la sortie.
+  duree: { retroviseur: 1.2, balayage: 2.0, retroviseurSortie: 1.0, angleMort: 1.0, indication: 1.0 },
+  regard: { retroviseurInterieur: 180, devant: 0, angleMort: -120 },   // degrés par rapport au cap, - à gauche
+  // s : l'usager de l'anneau passe devant l'entrée sud au moment où l'élève s'y arrête et quitte la zone de conflit ce temps
+  // après l'arrêt ; l'élève repart quand il en est sorti depuis repriseApresPassage.
+  sortieAnneauApresArret: 2.5,
+  repriseApresPassage: 0.9,
+});
+
+function giratoireScene() {
+  const choix = GIRATOIRE;
+  const g = giratoire({ branches: choix.branches });
+  const { cx, cy } = g.reperes;
+  const vitesse = Object.fromEntries(Object.entries(choix.kmh).map(([cle, kmh]) => [cle, kmh * KMH]));
+  // Élève : de la branche sud à la branche nord, deuxième sortie. Départ à REGARD_PORTEE du bord bas, dans l'axe de la voie
+  // d'entrée : le cône du rétroviseur intérieur, tourné vers l'arrière, tient dans le monde (même départ que les virages).
+  const { chemin, s: S } = raccourcirDebut(trajetGiratoire(g, "sud", "nord"), REGARD_PORTEE - DESSIN.retraitBord);
+
+  // Approche : coup d'œil au rétroviseur intérieur, allure adaptée progressivement, balayage des véhicules engagés dans les
+  // 2 s qui précèdent le freinage, arrêt au cédez-le-passage, l'avant à MARGE_ARRET de la ligne.
+  const sRalentir = vitesse.approche * choix.duree.retroviseur;
+  const sAllureAdaptee = sRalentir + (vitesse.approche ** 2 - vitesse.adaptee ** 2) / (2 * choix.ralentissement);
+  const sArret = yMinAtteint(chemin, g.reperes.cedez.yAmont + MARGE_ARRET);
+  const sFrein = sArret - vitesse.adaptee ** 2 / (2 * choix.freinage);
+  const sBalayage = sFrein - vitesse.adaptee * choix.duree.balayage;
+  if (sBalayage < sAllureAdaptee) throw new Error("giratoire : allonger la branche sud");
+
+  // Anneau : reprise jusqu'à 20 km/h ; contrôles de sortie (rétroviseur intérieur en cassant l'allure, puis angle mort
+  // gauche), achevés quand le clignotant s'allume, 3 degrés après l'axe de la sortie précédente ; allure cassée tenue dans
+  // l'arc de sortie, puis reprise dans la voie de sortie.
+  const sAllureAnneau = sArret + vitesse.anneau ** 2 / (2 * choix.reprise);
+  const dCasser = (vitesse.anneau ** 2 - vitesse.cassee ** 2) / (2 * choix.freinage);
+  const tCasser = (vitesse.anneau - vitesse.cassee) / choix.freinage;
+  const sAngleMort = S.clignotant - vitesse.cassee * choix.duree.angleMort;
+  const sCasser = sAngleMort - dCasser - vitesse.cassee * Math.max(0, choix.duree.retroviseurSortie - tCasser);
+  if (sCasser < sAllureAnneau) throw new Error("giratoire : contrôles de sortie commencés avant l'allure de l'anneau");
+  const sBalayageSortie = S.clignotant + vitesse.cassee * choix.duree.indication;
+  const sPleineAllure = S.finSortie + (vitesse.sortie ** 2 - vitesse.cassee ** 2) / (2 * choix.reprise);
+  const profilSans = [
+    { s: 0, kmh: choix.kmh.approche }, { s: sRalentir, kmh: choix.kmh.approche },
+    { s: sAllureAdaptee, kmh: choix.kmh.adaptee }, { s: sFrein, kmh: choix.kmh.adaptee }, { s: sArret, kmh: 0 },
+    { s: sAllureAnneau, kmh: choix.kmh.anneau }, { s: sCasser, kmh: choix.kmh.anneau },
+    { s: sCasser + dCasser, kmh: choix.kmh.cassee }, { s: S.finSortie, kmh: choix.kmh.cassee },
+    { s: sPleineAllure, kmh: choix.kmh.sortie }, { s: chemin.longueur, kmh: choix.kmh.sortie },
+  ];
+  const tArrivee = tempsAtteint(chronologie(chemin, profilSans), sArret);
+
+  // Usager de l'anneau : de la branche ouest à la branche est (deuxième sortie), son trajet commence et finit hors du monde
+  // (HORS_MONDE). Il entre dans l'anneau à 18 km/h, y roule à 20 km/h, casse son allure avant l'arc de sortie et met son
+  // clignotant droit après la sortie précédente : le sud, devant l'élève. Il passe devant l'entrée sud quand l'élève s'y
+  // arrête ; l'élève lui cède le passage (R415-10) et le suit des yeux dès qu'il ralentit pour lui.
+  const trO = trajetGiratoire(g, "ouest", "est", { horsMonde: true });
+  const sRalentirO = trO.s.tangenceEntree - (vitesse.approche ** 2 - vitesse.arcEntree ** 2) / (2 * choix.freinage);
+  const sAllureAnneauO = trO.s.anneau + (vitesse.anneau ** 2 - vitesse.arcEntree ** 2) / (2 * choix.reprise);
+  const sPleineAllureO = trO.s.finSortie + (vitesse.sortie ** 2 - vitesse.cassee ** 2) / (2 * choix.reprise);
+  const anneau = {
+    id: "anneau", gabarit: "voiture", chemin: trO.chemin,
+    profil: [
+      { s: 0, kmh: choix.kmh.approche }, { s: sRalentirO, kmh: choix.kmh.approche },
+      { s: trO.s.tangenceEntree, kmh: choix.kmh.arcEntree }, { s: trO.s.anneau, kmh: choix.kmh.arcEntree },
+      { s: sAllureAnneauO, kmh: choix.kmh.anneau }, { s: trO.s.sortie - dCasser, kmh: choix.kmh.anneau },
+      { s: trO.s.sortie, kmh: choix.kmh.cassee }, { s: trO.s.finSortie, kmh: choix.kmh.cassee },
+      { s: sPleineAllureO, kmh: choix.kmh.sortie }, { s: trO.chemin.longueur, kmh: choix.kmh.sortie },
+    ],
+    clignotant: [{ cote: "droite", de: trO.s.clignotant, a: trO.s.finSortie }],
+  };
+  const zone = g.reperes.zoneConflitSud;
+  const departAnneau = tArrivee + choix.sortieAnneauApresArret - derniereSortie(anneau, zone);
+  if (departAnneau < 0) throw new Error("giratoire : allonger la branche ouest");
+  const pause = choix.sortieAnneauApresArret + choix.repriseApresPassage;
+  const profil = profilSans.map((p) => (p.s === sArret ? { ...p, pause } : p));
+  return {
+    code: "giratoire", titre: "Traverser un carrefour à sens giratoire", monde: g.monde, limite: LIMITE_AGGLOMERATION, decor: g,
+    camera: { largeur: choix.cadre.largeur, hauteur: choix.cadre.hauteur },
+    acteurs: [
+      { id: "eleve", role: "eleve", gabarit: "voiture", chemin, profil,
+        clignotant: [{ cote: "droite", de: S.clignotant, a: S.finSortie }] },
+      { ...anneau, depart: departAnneau },
+    ],
+    etapes: [
+      { s: 0, regard: { angle: choix.regard.retroviseurInterieur } },
+      { s: sRalentir, regard: { angle: choix.regard.devant } },
+      { s: sBalayage, regard: { balayage: true } },
+      { s: sFrein, regard: { suivre: "anneau" } },
+      { s: sArret, delai: pause, regard: { angle: choix.regard.devant } },
+      { s: sCasser, regard: { angle: choix.regard.retroviseurInterieur } },
+      { s: sAngleMort, regard: { angle: choix.regard.angleMort } },
+      { s: S.clignotant, regard: { angle: choix.regard.devant } },
+      { s: sBalayageSortie, regard: { balayage: true } },
+      { s: S.finSortie, regard: { angle: choix.regard.devant } },
+    ],
+    attentes: [
+      { type: "dans", acteur: "eleve", nom: "voie d'entrée sud", zone: g.voies.sudEntrante, de: 0, a: S.tangenceEntree, emprise: true },
+      { type: "dans", acteur: "eleve", nom: "voie de sortie nord", zone: g.voies.nordSortante, de: S.finSortie, a: chemin.longueur, emprise: true },
+      { type: "arretAvant", acteur: "eleve", nom: "ligne du cédez-le-passage", point: [cx, g.reperes.cedez.yAmont], normale: [0, 1], tolerance: TOLERANCE_ARRET },
+      { type: "cede", acteur: "eleve", autre: "anneau", nom: "anneau devant l'entrée sud", zone },
+      { type: "rotation", acteur: "eleve", nom: "îlot central", centre: [cx, cy], sens: "anti-horaire", de: S.anneau, a: S.sortie },
+      { type: "rotation", acteur: "anneau", nom: "îlot central", centre: [cx, cy], sens: "anti-horaire", de: trO.s.anneau, a: trO.s.sortie },
+      { type: "pasDeClignotantAvant", acteur: "eleve", cote: "droite", s: S.clignotant },
+      { type: "pasDeClignotantAvant", acteur: "anneau", cote: "droite", s: trO.s.clignotant },
+    ],
+  };
+}
+
 export const SCENES = {
   "tourner-droite": {
     titre: "Tourner à droite en agglomération",
@@ -327,5 +479,31 @@ export const SCENES = {
       "Choix de dessin, sans portée réglementaire : voies de 3,5 m ; arrondi de bordure de 6 m ; passage piéton sur la branche ouest, à 0,5 m de la fin de l'arrondi ; axe nord-sud prioritaire (cédez-le-passage sur les branches est et ouest) ; branches de 18 m au nord, 58 m au sud, 8 m à l'est et 20 m à l'ouest ; cadre de 46 m de haut sur toute la largeur, qui suit l'élève ; départ à 22 m du bord bas (la portée du cône du regard, pour que le cône des rétroviseurs reste dans l'image) ; départ au centre de la voie, décalage de 0,60 m vers la gauche sur 12 m (flanc gauche à 0,25 m de l'axe médian) ; attente l'avant à 0,10 m de la hauteur du centre de l'intersection, puis virage de 4,1 m de rayon (le plus petit retenu, braquage d'une citadine) jusqu'au centre de la voie de sortie, qui laisse le point central de l'intersection à 0,33 m à gauche du centre de la voiture ; 25 km/h en approche et en sortie, 8 km/h pour le balayage ; décélération de 2,0 m/s² pour réduire l'allure, puis pour s'arrêter ; reprise à 1,5 m/s² jusqu'à 10 km/h dans le virage, puis jusqu'à 25 km/h ; véhicule d'en face à 30 km/h, qui part et finit hors du dessin et entre dans le carrefour 0,3 s après l'arrêt de l'élève ; cône du regard de 22 m, ouvert de 16 degrés de part et d'autre, qui s'arrête 2 m au-delà de l'usager suivi des yeux ; regard, par rapport à l'axe de la voiture : 170 degrés à gauche pendant 1,2 s (rétroviseurs), balayage de 75 degrés de part et d'autre (un aller-retour en 2 s) pendant les 2 s qui précèdent le freinage, véhicule d'en face suivi des yeux dès le début du freinage puis, une fois passé derrière l'élève (à plus de 100 degrés de l'axe de la voiture), regard ramené droit devant, 120 degrés à gauche pendant 1,2 s (angle mort, tête tournée vers l'épaule) à partir de 0,4 s après que le véhicule d'en face a quitté le carrefour, 40 degrés à gauche dans le virage (sortie), puis droit devant ; clignotant allumé 0,5 s avant la fin du coup d'œil aux rétroviseurs ; panneaux agrandis pour rester lisibles.",
     ],
     construire: unique(tournerGauche),
+  },
+  giratoire: {
+    titre: "Traverser un carrefour à sens giratoire",
+    etapesModele: [
+      "Contrôler au rétroviseur intérieur, sans clignotant",
+      "Adapter l'allure à l'approche",
+      "Balayer les véhicules engagés",
+      "Céder le passage à l'usager de l'anneau",
+      "S'insérer et circuler dans l'anneau",
+      "Casser l'allure, rétroviseur intérieur",
+      "Contrôler l'angle mort gauche",
+      "Clignotant à droite après la sortie précédente",
+      "Balayer la sortie et sortir",
+      "Reprendre l'allure dans la voie de sortie",
+    ],
+    sources: [
+      "Carrefour à sens giratoire : place ou carrefour dont le terre-plein central est matériellement infranchissable, ceinturé par une chaussée mise à sens unique par la droite (on tourne en laissant l'îlot à sa gauche) et annoncé par une signalisation spécifique : R110-2.",
+      "Céder le passage aux usagers circulant sur l'anneau, quel que soit le classement de la route que l'on quitte : R415-10. Ici l'usager de l'anneau passe devant l'entrée sud au moment où l'élève y arrive : repéré pendant le balayage, il est suivi des yeux dès que l'élève ralentit pour lui et pendant l'arrêt ; l'élève repart une fois qu'il a quitté la zone de conflit, le regard ramené devant.",
+      "Avertir les autres usagers avant de changer de direction, donc pour sortir du giratoire (clignotant) : R412-10. En face : pas de clignotant à l'entrée, clignotant droit allumé après avoir dépassé la sortie qui précède la sienne et maintenu jusqu'à la sortie : cours du thème 11 (contrôlé) et fiche ECF C2-F. Contrôler, puis indiquer (méthode C.I.A. : contrôles, indications, actions) : fiche ECF C2-F.",
+      "Dans un anneau à plusieurs voies, le conducteur qui vise une sortie située sur sa gauche par rapport à son axe d'entrée peut serrer à gauche, et tout changement de voie dans l'anneau reste soumis à la priorité et doit être signalé : R412-9. Non montré : l'anneau dessiné n'a qu'une voie.",
+      "Rester constamment maître de sa vitesse et la régler selon les difficultés de la circulation et les obstacles prévisibles : R413-17 II. Adapter l'allure à l'approche, puis casser l'allure avant de sortir : fiche ECF C2-F.",
+      "Signalisation : panneau AB25 de l'ordre de 50 m avant le giratoire en agglomération, panneau AB3a et ligne de cédez-le-passage à chaque entrée : cours du thème 11 (contrôlé). Marquage : unité u de 5 cm, modulations T'1 (traits de 1,50 m, vides de 5 m) et T'2 (traits et vides de 0,50 m) : IISR 7e partie, art. 113-1 ; axiale T'1 de largeur 2u, admise en agglomération, et ligne de cédez-le-passage T'2 de 0,50 m de large : art. 113-2 ; cette ligne s'étend sur toute la largeur de la voie entrante, de l'axe jusqu'à la bordure, marque la limite de la chaussée prioritaire (ici le bord de l'anneau) et est précédée d'une axiale continue de largeur 2u sur 10 à 20 m (15 m retenus) : art. 117-4 B.",
+      "Étapes et regards : d'après la fiche ECF C2-F (classeur de Timy) : à l'insertion, contrôles, allure adaptée, balayage des véhicules engagés, puis la décision (ici attendre) ; à la sortie, allure cassée, contrôle au rétroviseur intérieur, angle mort gauche (vélo ou véhicule encore dans le giratoire), balayage de la sortie et clignotant droit. L'anneau dessiné n'ayant qu'une voie, l'étape « se replacer sur la voie extérieure » de la fiche n'a pas lieu d'être.",
+      "Choix de dessin, sans portée réglementaire : petit giratoire urbain à une voie : îlot central de 8 m de rayon, anneau de 6 m de large (bord extérieur à 14 m du centre), raccordements de bordure de 8 m de rayon, quatre branches à double sens de voies de 3,5 m, sans îlot séparateur ; ligne de cédez-le-passage à 5 cm de l'anneau, AB3a à 1,95 m en amont de la ligne, AB25 à 50 m de l'anneau ; branches de 26 m au nord et à l'est, 76 m au sud, 40 m à l'ouest ; cadre de 40 x 46 m qui suit l'élève ; départ à 22 m du bord bas (la portée du cône du regard, pour que le cône du rétroviseur intérieur reste dans l'image), dans l'axe de la voie d'entrée ; trajectoires à 0,6 m des bordures (anneau parcouru à 12,5 m du centre, arcs d'entrée et de sortie de 9,5 m de rayon) ; 30 km/h en approche et en sortie ; allure adaptée progressivement à 15 km/h (1,0 m/s²), puis freinage de 2,0 m/s² jusqu'à l'arrêt, au début de l'arc d'entrée, le coin avant gauche à 0,3 m de la ligne ; 20 km/h dans l'anneau (petit giratoire urbain ; la fiche indique 30 à 35 km/h pour un giratoire courant) ; au plus 19 km/h dans les arcs d'entrée et de sortie, pour une accélération latérale sous 3,0 m/s² (20 km/h y donneraient 3,25 m/s²) : reprise de 1,5 m/s² depuis l'arrêt (17,8 km/h au bout de l'arc d'entrée), allure cassée à 15 km/h avant l'arc de sortie (2,0 m/s²) ; usager de l'anneau venu de l'ouest et sorti à l'est, qui part et finit hors du dessin, à 30 km/h en approche, 18 km/h dans l'arc d'entrée, 20 km/h dans l'anneau et 15 km/h dans l'arc de sortie, et quitte la zone de conflit (le secteur de l'anneau de 40 à 125 degrés, devant l'entrée sud) 2,5 s après l'arrêt de l'élève ; redémarrage de l'élève 0,9 s après ; clignotant droit allumé 3 degrés après l'axe de la sortie précédente ; cône du regard de 22 m, ouvert de 16 degrés de part et d'autre, qui s'arrête 2 m au-delà de l'usager suivi des yeux ; regard, par rapport à l'axe de la voiture : 180 degrés pendant 1,2 s (rétroviseur intérieur), droit devant, balayage de 75 degrés de part et d'autre (un aller-retour en 2 s) pendant les 2 s qui précèdent le freinage, usager de l'anneau suivi des yeux, droit devant, 180 degrés pendant 1,0 s en cassant l'allure, 120 degrés à gauche pendant 1,0 s (angle mort, tête tournée vers l'épaule), droit devant pendant 1,0 s une fois le clignotant allumé, balayage de la sortie jusqu'à la fin de l'arc de sortie, puis droit devant ; panneaux agrandis pour rester lisibles.",
+    ],
+    construire: unique(giratoireScene),
   },
 };
