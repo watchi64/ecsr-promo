@@ -12,7 +12,7 @@
  *
  * Toutes les valeurs ci-dessous sont des choix de dessin, sans portée réglementaire.
  */
-import { GABARITS, etatActeur, emprise } from "./scene-geometrie.js?v=20261003c";
+import { GABARITS, etatActeur, emprise, rectangle, polygonesSeChevauchent } from "./scene-geometrie.js?v=20261003c";
 
 // Teintes de la route réelle (donnée pédagogique), pas la palette de l'app ; la voiture de l'élève prend l'accent de l'app
 // pour être repérée d'un coup d'œil.
@@ -43,6 +43,9 @@ export const ECART_REPERES = 1.5;
 /** Jeu (m) entre le flanc droit de la voiture de l'élève et le bord du repère de son étape, posé à sa droite : la voiture
  *  ne cache jamais un repère. */
 export const JEU_REPERE_VOITURE = 0.3;
+/** Pas (m) dont un repère s'écarte de la voiture quand sa place est prise, et écart supplémentaire maximal (m) à droite du
+ *  cap : au-delà, le repère passe à gauche. */
+export const PAS_REPERE = 0.1, ALLONGEMENT_MAX_REPERE = 3;
 /** Marge (m) du cadre des animations réduites autour de ce qu'il montre. */
 export const MARGE_CADRE_REDUIT = 1;
 
@@ -68,11 +71,27 @@ export function cadreCamera(sc, e) {
     largeur, hauteur };
 }
 
+// Boîte d'un repère : rectangle englobant de son disque ou de sa pastille.
+function boiteRepere(r) {
+  const d = demiLargeurRepere(r.numeros);
+  return rectangle(r.x - d, r.y - RAYON_REPERE, r.x + d, r.y + RAYON_REPERE);
+}
+
+// Bande d'une ligne de marquage : rectangle de la largeur de la ligne, de m.de à m.a.
+function bandeLigne(m) {
+  const [x0, y0] = m.de, [x1, y1] = m.a, l = Math.hypot(x1 - x0, y1 - y0);
+  const px = (-(y1 - y0) / l) * (m.largeur / 2), py = ((x1 - x0) / l) * (m.largeur / 2);
+  return [[x0 + px, y0 + py], [x1 + px, y1 + py], [x1 - px, y1 - py], [x0 - px, y0 - py]];
+}
+
 /**
- * Repères des étapes (animations réduites), [{ x, y, numeros }] : un par position de l'élève au début d'une étape, centré
- * à sa droite (le cap de sa première étape), à la distance qui laisse JEU_REPERE_VOITURE entre le flanc droit de la
- * voiture et le bord du repère, quel que soit le cap (le repère, disque ou pastille, n'est pas tourné). Une étape qui
- * commence à moins de ECART_REPERES m de la position d'un repère déjà posé le partage (numéros joints par un point médian).
+ * Repères des étapes (animations réduites), [{ x, y, numeros }] : un par position de l'élève au début d'une étape, sur la
+ * perpendiculaire à son cap (celui de sa première étape). Il se pose à droite, au plus près : à la distance qui laisse
+ * JEU_REPERE_VOITURE entre le flanc de la voiture et le bord du repère, quel que soit le cap (le disque ou la pastille
+ * n'est pas tourné). Si cette place est prise (dessin d'un panneau, ligne de cédez-le-passage, voiture de l'élève au début
+ * d'une étape, repère déjà posé) ou hors du monde, il s'écarte par pas de PAS_REPERE, jusqu'à ALLONGEMENT_MAX_REPERE plus
+ * loin, puis essaie de même à gauche du cap. Une étape qui commence à moins de ECART_REPERES m de la position d'un repère
+ * déjà posé le partage (numéros joints par un point médian).
  */
 export function reperesEtapes(sc) {
   const groupes = [];
@@ -81,11 +100,32 @@ export function reperesEtapes(sc) {
     const proche = groupes.find((g) => Math.hypot(g.e.x - e.x, g.e.y - e.y) < ECART_REPERES);
     if (proche) proche.numeros.push(i + 1); else groupes.push({ e, numeros: [i + 1] });
   });
-  const demiVoiture = GABARITS[sc.eleve.gabarit].largeur / 2;
+  const obstacles = sc.decor.panneaux.map((p) => { const r = emprisePanneau(p); return rectangle(r.x, r.y, r.x + r.largeur, r.y + r.hauteur); });
+  for (const m of sc.decor.marquages) {
+    if (m.type === "ligne" && typeof m.role === "string" && m.role.startsWith("cedez-")) obstacles.push(bandeLigne(m));
+  }
+  for (const et of sc.etapes) obstacles.push(emprise(sc.eleve.gabarit, etatActeur(sc.eleve, et.t)));
+  const libre = (r) => {
+    const b = boiteRepere(r);
+    const dansLeMonde = b.every(([x, y]) => x >= 0 && x <= sc.monde.largeur && y >= 0 && y <= sc.monde.hauteur);
+    return dansLeMonde && !obstacles.some((o) => polygonesSeChevauchent(b, o));
+  };
+  const demiVoiture = GABARITS[sc.eleve.gabarit].largeur / 2, pas = Math.round(ALLONGEMENT_MAX_REPERE / PAS_REPERE);
   return groupes.map(({ e, numeros }) => {
     const nx = -Math.sin(e.cap), ny = Math.cos(e.cap);     // droite du cap, l'axe y de l'écran allant vers le bas
-    const d = demiVoiture + JEU_REPERE_VOITURE + demiLargeurRepere(numeros) * Math.abs(nx) + RAYON_REPERE * Math.abs(ny);
-    return { x: e.x + d * nx, y: e.y + d * ny, numeros };
+    const d0 = demiVoiture + JEU_REPERE_VOITURE + demiLargeurRepere(numeros) * Math.abs(nx) + RAYON_REPERE * Math.abs(ny);
+    const place = (d) => ({ x: e.x + d * nx, y: e.y + d * ny, numeros });
+    let repere = null;
+    for (const sens of [1, -1]) {
+      for (let k = 0; k <= pas && !repere; k++) {
+        const r = place(sens * (d0 + k * PAS_REPERE));
+        if (libre(r)) repere = r;
+      }
+      if (repere) break;
+    }
+    repere ||= place(d0);                                   // aucune place libre : au plus près à droite (les tests le signalent)
+    obstacles.push(boiteRepere(repere));
+    return repere;
   });
 }
 

@@ -44,6 +44,10 @@
   max-width: calc(72vh * var(--scene-l) / var(--scene-h));
   background: #5D635B; border-radius: var(--r);
 }
+/* Animations réduites : pas de lecture automatique à déclencher à 60 % de visibilité, donc
+   pas de hauteur maximale ; le schéma garde la largeur, donc l'échelle, de la lecture, et la
+   page défile. */
+.scene-svg.scene-reduite { max-height: none; max-width: calc(72vh * var(--scene-lecture-l) / var(--scene-lecture-h)); }
 .scene-commandes { display: flex; gap: 0.5rem; align-items: center; margin: 0.5rem 0; }
 .scene-facteur { font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-soft); }
 /* Texte lu par les lecteurs d'écran seulement (libellé du facteur de lecture). */

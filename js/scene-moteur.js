@@ -141,7 +141,7 @@ function marquerEtape(element, courante) {
 
 export function monterScene(def, { conteneur, etapes = [], reduit = false, onEtape = null } = {}) {
   const sc = preparerScene(def);
-  const racine = svg("svg", { class: "scene-svg", role: "img", "aria-label": sc.titre });
+  const racine = svg("svg", { class: reduit ? "scene-svg scene-reduite" : "scene-svg", role: "img", "aria-label": sc.titre });
   // Tout le dessin est découpé au cadre courant : rien de ce qui est hors du cadre (le monde au-delà de ses bords, un
   // véhicule qui doit entrer par un bord) n'apparaît, même si la boîte du SVG laissait des bandes autour du cadre.
   const idDecoupe = `scene-cadre-${++numeroScene}`;
@@ -188,6 +188,12 @@ export function monterScene(def, { conteneur, etapes = [], reduit = false, onEta
   const premierCadre = reduit ? cadreReduit(sc) : cadreCamera(sc, etatActeur(sc.eleve, 0));
   racine.style.setProperty("--scene-l", n3(premierCadre.largeur));
   racine.style.setProperty("--scene-h", n3(premierCadre.hauteur));
+  if (reduit) {
+    // Animations réduites : la largeur reste celle de la lecture (même échelle) et la hauteur suit le cadre, sans borne.
+    const lecture = sc.camera || sc.monde;
+    racine.style.setProperty("--scene-lecture-l", n3(lecture.largeur));
+    racine.style.setProperty("--scene-lecture-h", n3(lecture.hauteur));
+  }
   cadrer(premierCadre);
 
   const barre = document.createElement("div");
