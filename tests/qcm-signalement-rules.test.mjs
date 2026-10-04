@@ -120,7 +120,7 @@ assert.deepEqual(grouperParVerdict([]), []);
 assert.deepEqual(grouperParVerdict(null), []);
 
 // Verdict hors des quatre connus : impossible avec la contrainte CHECK de la table, mais
-// on ne parie pas dessus — il demande une lecture humaine, donc il va avec les non concluants.
+// on ne parie pas dessus : il demande une lecture humaine, donc il va avec les non concluants.
 const inconnu = grouperParVerdict([sig(1, "n_importe_quoi")]);
 assert.deepEqual(inconnu.map((g) => g.cle), ["non_concluant"]);
 
