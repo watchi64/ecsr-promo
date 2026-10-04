@@ -9,13 +9,13 @@
 // Rôles : formateur/admin = liste des stagiaires + remplissage ; stagiaire =
 // consultation de SON livret en lecture seule (imposé par la RLS).
 
-import { listStagiaires, listProfs, listEpcfLivrets, getEpcfLivret, upsertEpcfLivret } from "../db.js?v=20261003e";
-import { el, clear, displayStagiaire, compareByNom, formatDate, toast } from "../utils.js?v=20261003e";
-import { isAdmin, isProf, getProfile } from "../auth-admin.js?v=20261003e";
-import { getCurrentWho } from "../identity.js?v=20261003e";
-import { EVT_DOCUMENT } from "../fiche-rules.js?v=20261003e";
+import { listStagiaires, listProfs, listEpcfLivrets, getEpcfLivret, upsertEpcfLivret, getDateNaissance } from "../db.js?v=20261004a";
+import { el, clear, displayStagiaire, compareByNom, formatDate, toast } from "../utils.js?v=20261004a";
+import { isAdmin, isProf, getProfile } from "../auth-admin.js?v=20261004a";
+import { getCurrentWho } from "../identity.js?v=20261004a";
+import { EVT_DOCUMENT } from "../fiche-rules.js?v=20261004a";
 import { collectData, fillData, applyEditable, wireDocEditing,
-         bindDocPrint, refreshDocPrint, teardownDocPrint } from "../doc-officiel.js?v=20261003e";
+         bindDocPrint, refreshDocPrint, teardownDocPrint } from "../doc-officiel.js?v=20261004a";
 
 // Noms historiques conservés : main.js et le banc d'essai _preview_livret.html
 // les importent depuis ce module. La mécanique vit désormais dans doc-officiel.js,
@@ -316,16 +316,19 @@ export async function renderEpcfLivret(container, opts = {}) {
   // propre espace, donc son propre livret.
   if (opts.stagiaireId != null) {
     const id = Number(opts.stagiaireId);
-    const [stagiairesData, profsData] = await Promise.all([listStagiaires(), listProfs()]);
+    const [stagiairesData, profsData, naissance] = await Promise.all([
+      listStagiaires(), listProfs(), getDateNaissance(id).catch((e) => { console.error(e); return null; }),
+    ]);
     let full = null;
     try { full = await getEpcfLivret(id); } catch (e) { console.error(e); }
     if (opts.isActive && !opts.isActive()) return;
     profNames = (profsData || []).map((p) => p.nom).filter(Boolean)
       .sort((a, b) => a.localeCompare(b, "fr"));
-    const s = stagiairesData.find((x) => x.id === id);
+    const trouve = stagiairesData.find((x) => x.id === id);
     clear(container);
-    if (!s) { container.appendChild(el("p", { class: "muted" }, "Stagiaire introuvable.")); return; }
-    showDoc(container, s, full, { readOnly: false });
+    if (!trouve) { container.appendChild(el("p", { class: "muted" }, "Stagiaire introuvable.")); return; }
+    // La date de naissance n'est plus dans la liste des stagiaires (table privée).
+    showDoc(container, { ...trouve, date_naissance: naissance }, full, { readOnly: false });
     return;
   }
 
@@ -369,7 +372,8 @@ function showListe(container) {
         if (row) {
           try { full = await getEpcfLivret(s.id); } catch (e) { console.error(e); toast(e?.message || String(e), "error"); return; }
         }
-        showDoc(container, s, full, { readOnly: false, back: () => renderReload(container) });
+        const naissance = await getDateNaissance(s.id).catch((e) => { console.error(e); return null; });
+        showDoc(container, { ...s, date_naissance: naissance }, full, { readOnly: false, back: () => renderReload(container) });
       },
     }, row ? "Ouvrir" : "Créer"));
     tbody.appendChild(el("tr", {},

@@ -127,7 +127,7 @@ end $f$;
 create or replace function pg_temp.attendu(p_table text, p_email text, p_promo integer)
 returns bigint language plpgsql as $f$
 declare
-  v_admin boolean := false; v_prof boolean := false; v_sid integer; v_lieu integer; n bigint;
+  v_admin boolean := false; v_prof boolean := false; v_anon boolean := false; v_sid integer; v_lieu integer; n bigint;
 begin
   if p_email is null then return 0; end if;
   select coalesce(up.is_admin, false), coalesce(up.role = 'prof', false),
@@ -151,6 +151,33 @@ begin
   elsif p_table in ('epcf_evaluations', 'epcf_livrets', 'dp_dossiers') then
     execute format('select count(*) from public.%I where promo_id = $1 and ($2 or $3 or stagiaire_id = $4)', p_table)
       into n using p_promo, v_admin, v_prof, v_sid;
+  elsif p_table in ('evaluations', 'evaluations_audit') then
+    -- Confidentialité des notes (20261004_confidentialite_2_fermeture) : un stagiaire lit ses
+    -- notes et celles des profils non masqués, s'il n'a pas masqué les siennes ; l'historique
+    -- suit la note.
+    select coalesce(bool_or(up.anonymous_notes), false) into v_anon
+      from public.user_profiles up where lower(up.email) = lower(p_email);
+    if p_table = 'evaluations' then
+      select count(*) into n from public.evaluations e
+       where e.promo_id = p_promo
+         and (v_admin or v_prof or e.stagiaire_id = v_sid
+              or (not v_anon and e.stagiaire_id is not null
+                  and not exists (select 1 from public.user_profiles x
+                                   where x.stagiaire_id = e.stagiaire_id and x.anonymous_notes)));
+    else
+      select count(*) into n from public.evaluations_audit a
+       where a.promo_id = p_promo
+         and (v_admin or v_prof or a.evaluation_id in (
+               select e.id from public.evaluations e
+                where e.promo_id = p_promo
+                  and (e.stagiaire_id = v_sid
+                       or (not v_anon and e.stagiaire_id is not null
+                           and not exists (select 1 from public.user_profiles x
+                                            where x.stagiaire_id = e.stagiaire_id and x.anonymous_notes)))));
+    end if;
+  elsif p_table = 'fiches_suivi' then
+    select count(*) into n from public.fiches_suivi
+     where promo_id = p_promo and (v_admin or v_prof or stagiaire_id = v_sid);
   elsif p_table in ('benevoles', 'auto_ecoles', 'benevole_suivi') then
     if v_admin then
       execute format('select count(*) from public.%I where lieu_id = $1', p_table) into n using v_lieu;

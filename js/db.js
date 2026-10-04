@@ -1,10 +1,10 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261003e";
-import { compteDansEquite } from "./passage-rules.js?v=20261003e";
+import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261004a";
+import { compteDansEquite } from "./passage-rules.js?v=20261004a";
 import {
   ENTETE_PROMO, doitPorterEntetePromo, choisirPromoInitiale, profilEffectif,
   separerChamps, CHAMPS_PROGRESSION, CHAMPS_EXAMEN, fusionnerProgression, fusionnerExamen,
-} from "./promo-rules.js?v=20261003e";
+} from "./promo-rules.js?v=20261004a";
 
 // Contexte de promo (spec multi-promo, C.1). La promo courante voyage dans l'en-tête
 // x-promo-id de chaque requête de données ; la base vérifie le droit et filtre.
@@ -873,6 +873,14 @@ export async function deleteEvaluation(id) {
   if (error) throw error;
 }
 
+// Moyennes du groupe (anonymes comprises, sans rien de nominatif), calculées par la base
+// pour les stagiaires qui ne lisent pas toutes les notes. Forme : js/notes-stats.js.
+export async function getNotesStatsGroupe() {
+  const { data, error } = await supabase.rpc("notes_stats_groupe");
+  if (error) throw error;
+  return data;
+}
+
 export async function listAuditForEvaluation(evaluation_id) {
   const { data, error } = await supabase
     .from("evaluations_audit")
@@ -923,10 +931,25 @@ export async function deleteEpcf(id) {
   if (error) throw error;
 }
 
+// La date de naissance vit dans stagiaires_prive (lisible du stagiaire lui-même et du
+// personnel seulement) ; elle est rapportée ici sur la fiche pour Mon suivi et le livret.
 export async function getStagiaire(id) {
-  const { data, error } = await supabase.from("stagiaires").select("*").eq("id", id).maybeSingle();
+  const [fiche, prive] = await Promise.all([
+    supabase.from("stagiaires").select("*").eq("id", id).maybeSingle(),
+    supabase.from("stagiaires_prive").select("date_naissance").eq("stagiaire_id", id).maybeSingle(),
+  ]);
+  if (fiche.error) throw fiche.error;
+  if (prive.error) throw prive.error;
+  if (!fiche.data) return fiche.data;
+  return { ...fiche.data, date_naissance: prive.data?.date_naissance ?? null };
+}
+
+// Date de naissance seule (null si absente ou non lisible) : livret ouvert par un formateur.
+export async function getDateNaissance(stagiaireId) {
+  const { data, error } = await supabase.from("stagiaires_prive")
+    .select("date_naissance").eq("stagiaire_id", stagiaireId).maybeSingle();
   if (error) throw error;
-  return data;
+  return data?.date_naissance ?? null;
 }
 
 // Date de naissance du profil stagiaire (alimente le livret EPCF officiel).

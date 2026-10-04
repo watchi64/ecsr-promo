@@ -9,9 +9,9 @@ import {
   listBenevoles, addBenevole, updateBenevole, setBenevoleActif,
   listAutoEcoles, addAutoEcole, updateAutoEcole, setAutoEcoleActif, deleteAutoEcole,
   listVenuesBenevoles, listSuiviBenevole, upsertSuiviBenevole, listStagiaires, getPromoCourante,
-} from "../db.js?v=20261003e";
-import { el, clear, toast, displayStagiaire, compareByNom, isoDate, addDays, formatDayShort } from "../utils.js?v=20261003e";
-import { JOURS } from "../config.js?v=20261003e";
+} from "../db.js?v=20261004a";
+import { el, clear, toast, displayStagiaire, compareByNom, isoDate, addDays, formatDayShort } from "../utils.js?v=20261004a";
+import { JOURS } from "../config.js?v=20261004a";
 
 const JOURS_COURTS = ["Lun", "Mar", "Mer", "Jeu", "Ven"];
 const DEMI = [
@@ -482,7 +482,9 @@ export function openBenevolesPanel({ onClose } = {}) {
     const telIn = el("input", { type: "tel", value: v("telephone", b?.telephone || ""), autocomplete: "off", placeholder: "06 12 34 56 78" });
     const heuresIn = el("input", { type: "number", min: "0", step: "0.5", value: v("heures", b?.heures ?? "") });
     const dispoNoteIn = el("input", { type: "text", value: v("dispo_note", b?.dispo_note || ""), autocomplete: "off", placeholder: "à partir de 17h, pas pendant ses exams…" });
-    const notesIn = el("input", { type: "text", value: v("notes", b?.notes || ""), autocomplete: "off" });
+    // Rappel RGPD : ni santé ni vie privée dans un champ libre (données sensibles).
+    const notesIn = el("input", { type: "text", value: v("notes", b?.notes || ""), autocomplete: "off",
+      placeholder: "Infos pratiques seulement, rien sur la santé ni la vie privée" });
 
     // Niveau : compétence globale (C1..C4) ou sous-compétence précise (C1.4...),
     // groupées par compétence. C1 et C2 sont les plus utilisées (début de formation).
