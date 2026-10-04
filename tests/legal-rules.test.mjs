@@ -28,7 +28,7 @@ eq(lignesEssentiel("# Sans encadré"), [], "texte sans encadré");
 
 // 4. Intégrité des textes
 for (const [nom, md] of [["conditions", CONDITIONS_MD], ["mentions", MENTIONS_MD]]) {
-  ok(!md.includes("—"), `${nom} : aucun tiret cadratin`);
+  ok(!md.includes(String.fromCharCode(0x2014)), `${nom} : aucun tiret cadratin`);
   ok(md.startsWith("# "), `${nom} : commence par son titre`);
 }
 for (let s = 1; s <= 16; s++) ok(CONDITIONS_MD.includes(`\n## ${s}. `), `section ${s} présente`);
