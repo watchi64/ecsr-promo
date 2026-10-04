@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { SCENES } from "../js/scenes.js";
-import { controlerScene } from "../js/scene-controles.js";
+import { controlerScene, SEUILS } from "../js/scene-controles.js";
 import { REGARD_PORTEE, oeil, angleRegard, cibleSuivie, coneRegard, regardContient } from "../js/scene-regard.js";
 import { KMH, DEG, preparerScene, etatActeur, emprise, tempsAtteint, centreArc, pointA, pointDansPolygone,
   polygonesSeChevauchent, rectangle } from "../js/scene-geometrie.js";
@@ -13,7 +13,7 @@ const copie = (code) => structuredClone(SCENES[code].construire());
 const proche = (a, b, eps = 1e-6, quoi = "") => assert.ok(Math.abs(a - b) <= eps, `${quoi}${quoi ? " : " : ""}${a} au lieu de ${b}`);
 
 // ===== Règles de regard et de rythme, pour toutes les scènes (amendements du 03/10, relectures de la tâche 8) =====
-const PAS = 0.1;                                   // s : échantillonnage, celui des contrôles automatiques
+const PAS = SEUILS.pas;                            // s : échantillonnage, celui des contrôles automatiques
 const ROULE = 0.5;                                 // m/s : au-delà, l'élève roule
 const ARRET = 0.01;                                // m/s : en deçà, l'élève est arrêté (comme pour l'attente arretAvant)
 const DUREE_MIN = { etape: 1.0, balayage: 2.0 };   // s à l'écran ; 2,0 s : un aller-retour complet du balayage
@@ -634,13 +634,19 @@ test("tourner-gauche : huit étapes de la fiche, dans l'ordre, chacune avec son 
 // l'arc de sortie.
 const GIRATOIRE_KMH = { approche: 30, adaptee: 15, anneau: 20, arcMax: 19, cassee: 15, sortie: 30 };
 
+// Instants où l'élève de la scène préparée sc s'arrête pour la première fois, puis repart.
+function arretEtReprise(sc) {
+  const tArret = premierInstant((t) => etatActeur(sc.eleve, t).v < 1e-9, 0, sc.duree);
+  const tReprise = premierInstant((t) => etatActeur(sc.eleve, t).v > 1e-9, tArret, sc.duree);
+  return { tArret, tReprise };
+}
+
 function lireGiratoire() {
   const def = SCENES.giratoire.construire(), sc = preparerScene(def);
   const eleve = sc.eleve, anneau = sc.acteurs.find((a) => a.id === "anneau");
   const [arcEntree, arcAnneau, arcSortie] = eleve.chemin.segments.filter((s) => s.type === "arc");
   const tA = (s) => tempsAtteint(eleve.chrono, s);
-  const tArret = premierInstant((t) => etatActeur(eleve, t).v < 1e-9, 0, sc.duree);
-  const tReprise = premierInstant((t) => etatActeur(eleve, t).v > 1e-9, tArret, sc.duree);
+  const { tArret, tReprise } = arretEtReprise(sc);
   // Zone de conflit de l'attente « cede » : instants où l'usager de l'anneau y entre et en sort (son emprise la touche).
   const zone = def.attentes.find((a) => a.type === "cede").zone;
   const touche = (t) => {
@@ -672,8 +678,7 @@ function anneauAmontRegarde(def) {
     const e = etatActeur(anneau, t);
     return e.visible && polygonesSeChevauchent(emprise("voiture", e), zone);
   };
-  const tArret = premierInstant((t) => etatActeur(eleve, t).v < 1e-9, 0, sc.duree);
-  const tReprise = premierInstant((t) => etatActeur(eleve, t).v > 1e-9, tArret, sc.duree);
+  const { tReprise } = arretEtReprise(sc);
   const tSortie = premierInstant((t) => !touche(t), premierInstant(touche, 0, sc.duree), sc.duree);
   const points = AMONT.map((p) => ({ x: cx + rAnneau * Math.cos(p * DEG), y: cy + rAnneau * Math.sin(p * DEG) }));
   const instants = [], couverts = [];
@@ -689,8 +694,7 @@ function anneauAmontRegarde(def) {
 // angles par rapport au cap (degrés, arrondis), chacun avec sa durée. On y lit l'ordre des contrôles de sortie.
 function regardsAvantClignotant(def) {
   const sc = preparerScene(def), eleve = sc.eleve;
-  const tArret = premierInstant((t) => etatActeur(eleve, t).v < 1e-9, 0, sc.duree);
-  const tReprise = premierInstant((t) => etatActeur(eleve, t).v > 1e-9, tArret, sc.duree);
+  const { tReprise } = arretEtReprise(sc);
   const tAllume = tempsAtteint(eleve.chrono, def.acteurs[0].clignotant[0].de);
   const suite = [];
   for (let t = tReprise; t < tAllume - 1e-9; t += 0.01) {
@@ -703,6 +707,15 @@ function regardsAvantClignotant(def) {
     else suite.push({ angle: a, duree: 0.01 });
   }
   return suite;
+}
+
+// Assertion d'ordre des contrôles de sortie : du redémarrage à l'allumage du clignotant, regard devant (insertion), puis
+// 180 (rétroviseur intérieur), 120 (angle mort droit) et -120 degrés (angle mort gauche), chacun pendant 1,0 s au moins.
+// Lève une AssertionError sinon.
+function verifierControlesSortie(def) {
+  const suite = regardsAvantClignotant(def);
+  assert.deepEqual(suite.map((r) => r.angle), [0, 180, 120, -120], `regards avant le clignotant : ${suite.map((r) => r.angle).join(", ")}`);
+  for (const r of suite.slice(-3)) assert.ok(r.duree >= DUREE_MIN.etape - 0.011, `regard à ${r.angle} degrés pendant ${r.duree.toFixed(2)} s`);
 }
 
 test("giratoire : s'insérer devant un usager de l'anneau est détecté", () => {
@@ -731,16 +744,22 @@ test("giratoire : un regard qui quitte l'usager de l'anneau pendant l'attente es
   assert.ok(regardsHorsCede(def).length > 0);
 });
 
-test("giratoire : sortir sans contrôler l'angle mort droit est détecté", () => {
-  // Étape de l'angle mort droit retirée : le rétroviseur intérieur dure jusqu'à l'angle mort gauche, et la suite des
-  // regards avant le clignotant n'a plus l'angle mort droit.
+test("giratoire : sortir sans contrôler l'angle mort droit est refusé par l'assertion d'ordre des contrôles de sortie", () => {
+  // Étape de l'angle mort droit retirée : le rétroviseur intérieur dure jusqu'à l'angle mort gauche.
   const def = copie("giratoire");
   const k = def.etapes.findIndex((e) => e.regard && e.regard.angle === 120);
   assert.ok(k > 0, "étape de l'angle mort droit");
   def.etapes.splice(k, 1);
-  const suite = regardsAvantClignotant(def).map((r) => r.angle);
-  assert.ok(!suite.includes(120), `regards avant le clignotant : ${suite.join(", ")}`);
-  assert.notDeepEqual(suite.slice(-3), [180, 120, -120]);
+  assert.throws(() => verifierControlesSortie(def), /regards avant le clignotant : 0, 180, -120(?![,\d])/);
+});
+
+test("giratoire : les deux angles morts gardés mais inversés (gauche, puis droit) sont refusés par l'assertion d'ordre des contrôles de sortie", () => {
+  const def = copie("giratoire");
+  const droit = def.etapes.find((e) => e.regard && e.regard.angle === 120);
+  const gauche = def.etapes.find((e) => e.regard && e.regard.angle === -120);
+  assert.ok(droit && gauche && def.etapes.indexOf(droit) + 1 === def.etapes.indexOf(gauche), "angle mort droit, puis gauche");
+  [droit.regard, gauche.regard] = [gauche.regard, droit.regard];
+  assert.throws(() => verifierControlesSortie(def), /regards avant le clignotant : 0, 180, -120, 120(?![,\d])/);
 });
 
 test("giratoire : s'insérer sans regarder à gauche l'anneau en amont est détecté", () => {
@@ -885,11 +904,29 @@ test("giratoire : pas de clignotant à l'entrée ; contrôles (rétroviseur int�
 });
 
 test("giratoire : contrôles de sortie dans l'ordre rétroviseur intérieur, angle mort droit, angle mort gauche, chacun pendant 1,0 s au moins, puis clignotant", () => {
-  // Du redémarrage à l'allumage : regard devant (insertion), puis 180 (rétroviseur intérieur), 120 (angle mort droit) et
-  // -120 degrés (angle mort gauche).
-  const suite = regardsAvantClignotant(SCENES.giratoire.construire());
-  assert.deepEqual(suite.map((r) => r.angle), [0, 180, 120, -120], `regards avant le clignotant : ${suite.map((r) => r.angle).join(", ")}`);
-  for (const r of suite.slice(-3)) assert.ok(r.duree >= DUREE_MIN.etape - 0.011, `regard à ${r.angle} degrés pendant ${r.duree.toFixed(2)} s`);
+  verifierControlesSortie(SCENES.giratoire.construire());
+});
+
+test("giratoire : les valeurs calculées que citent les sources (palier à 20 km/h, angle et avance du clignotant) sont celles de la scène, à l'arrondi écrit près", () => {
+  const { def, sc, eleve, arcSortie, tA, tReprise, reperes, T } = lireGiratoire();
+  const choixDeDessin = SCENES.giratoire.sources.find((s) => s.startsWith("Choix de dessin"));
+  // Nombre écrit à la française dans les sources ; tolérance : la moitié de son dernier chiffre.
+  const ecrit = (motif) => {
+    const m = choixDeDessin.match(motif);
+    assert.ok(m, `${motif} introuvable dans les sources`);
+    return { valeur: Number(m[1].replace(",", ".")), tolerance: 0.5 * 10 ** -(m[1].split(",")[1] || "").length };
+  };
+  const t20 = premierInstant((t) => kmh(eleve, t) >= GIRATOIRE_KMH.anneau - 1e-9, tReprise, sc.duree);
+  const deClignotant = def.acteurs[0].clignotant[0].de;
+  const mesures = [
+    ["palier à 20 km/h (s)", T[6] - t20, ecrit(/20 km\/h tenus (\d+(?:,\d+)?) s/)],
+    ["clignotant après l'axe de la sortie précédente (degrés)", -polaire(reperes, pointA(eleve.chemin, deClignotant)),
+      ecrit(/allumé à la fin des contrôles de sortie, (\d+(?:,\d+)?) degrés après l'axe de la sortie précédente/)],
+    ["avance du clignotant sur l'arc de sortie (s)", tA(arcSortie.debut) - tA(deClignotant), ecrit(/et (\d+(?:,\d+)?) s avant l'arc de sortie/)],
+  ];
+  for (const [nom, mesure, { valeur, tolerance }] of mesures) {
+    assert.ok(Math.abs(mesure - valeur) <= tolerance + 1e-9, `${nom} : ${mesure} dans la scène, ${valeur} dans les sources`);
+  }
 });
 
 test("giratoire : le clignotant allumé, le regard porte vers la sortie : le cône contient le début et la fin de l'arc de sortie pendant toute l'étape 10", () => {
