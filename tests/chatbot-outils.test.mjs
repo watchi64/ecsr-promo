@@ -26,6 +26,14 @@ test("le prompt systeme demande de citer aussi les competences", () => {
   const p = construirePromptSysteme({ aide: "CORPUS_TEST", page: "themes" });
   assert.ok(p.includes("Compétence"), "le prompt cite aussi les cours de competence");
   assert.ok(p.includes("thèmes, compétences, sections et liens"), "la ligne Sources liste aussi les competences");
+  assert.ok(p.includes("indique le thème ou la compétence à consulter"),
+    "quand les extraits ne couvrent pas un point, le renvoi nomme aussi la competence");
+});
+
+test("la description de chercher_dans_les_cours annonce aussi les cours de competence", () => {
+  const outil = OUTILS.find((o) => o.function.name === "chercher_dans_les_cours");
+  assert.ok(outil, "l'outil de recherche dans les cours existe");
+  assert.match(outil.function.description, /comp[eé]tences/i);
 });
 
 test("le corpus d'aide est substantiel et sans tiret cadratin", () => {

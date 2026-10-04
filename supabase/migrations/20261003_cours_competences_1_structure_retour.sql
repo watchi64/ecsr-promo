@@ -1,5 +1,18 @@
 -- Marche arrière de l'étape 1. À n'appliquer qu'AVANT l'import de cours à code :
 -- après, supprimer d'abord ces cours (numero not null échouerait).
+--
+-- Trois points à connaître avant de la jouer, surtout dans l'urgence :
+-- 1. Dès que le code de l'app qui lit cours.code (listCoursIndex, js/db.js) est en ligne, ce retour
+--    fait échouer la requête de l'index des cours : les 57 boutons « Cours » disparaissent. Ne le
+--    jouer qu'avant la mise en ligne de ce code, ou remettre d'abord en ligne le code précédent de l'app.
+-- 2. Après l'import des cours de compétence : supprimer d'abord leurs versions (cours_versions
+--    référence cours sans cascade, NO ACTION), puis les cours à code (cours_chunks suit en cascade) :
+--      delete from public.cours_versions
+--        where cours_id in (select id from public.cours where code is not null);
+--      delete from public.cours where code is not null;
+-- 3. Les marches arrière se jouent dans l'ordre inverse des étapes : la 3
+--    (20261003_cours_competences_3_assistant_publie_retour.sql), puis la 2
+--    (20261003_cours_competences_2_liste_retour.sql), puis celle-ci, la 1.
 drop function public.chercher_cours(text, integer, integer);
 create function public.chercher_cours(q text, ntheme integer default null, limite integer default 5)
 returns table(numero integer, titre text, section text, contenu text, rang real)
