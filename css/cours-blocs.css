@@ -85,6 +85,8 @@ span.scene-etape { cursor: default; }
 .quiz-rang { display: inline-flex; justify-content: center; min-width: 1.4rem; font-family: var(--font-mono); color: var(--accent-strong); }
 .quiz-option.juste, .quiz-vf-ligne.juste { border-color: var(--c-go); background: var(--c-go-soft); }
 .quiz-option.faux, .quiz-vf-ligne.faux { border-color: var(--c-stop); background: var(--c-stop-soft); }
+/* Bonne réponse non choisie : liseré vert en pointillés, sans le fond plein d'une bonne réponse choisie. */
+.quiz-option.manquee { border-color: var(--c-go); border-style: dashed; }
 /* Option corrigée : elle ne réagit plus. */
 .quiz-option.verrou { cursor: default; }
 /* Marque écrite de la correction (« Bien placé », « Réponse fausse »...) : la couleur ne porte jamais
@@ -96,6 +98,7 @@ span.scene-etape { cursor: default; }
 .quiz-marque[hidden] { display: none; }
 .quiz-marque-juste { border-color: var(--c-go); }
 .quiz-marque-faux { border-color: var(--c-stop); }
+.quiz-marque-manquee { border-color: var(--c-go); border-style: dashed; }
 .quiz-vf-ligne { padding: 0.5rem 0.6rem; margin-bottom: 0.4rem; border: 1px solid transparent; border-radius: var(--r-sm); }
 .quiz-affirmation { margin: 0 0 0.4rem; }
 .quiz-vf-boutons { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }

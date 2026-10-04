@@ -5,7 +5,8 @@ import { GABARITS, preparerScene, etatActeur, emprise, tempsAtteint, trajet, poi
   from "../js/scene-geometrie.js";
 import { REGARD_PORTEE, DEBORD_SUIVI, oeil, cibleSuivie, regardDessine } from "../js/scene-regard.js";
 import { TEINTES, FREQ_CLIGNOTANT, TAILLE_PANNEAU, RAYON_REPERE, ECART_REPERES, JEU_REPERE_VOITURE, PAS_REPERE,
-  ALLONGEMENT_MAX_REPERE, MARGE_CADRE_REDUIT, clignotantAllume, cadreCamera, reperesEtapes, demiLargeurRepere, cadreReduit, emprisePanneau, facteurLecture } from "../js/scene-rendu.js";
+  ALLONGEMENT_MAX_REPERE, MARGE_CADRE_REDUIT, clignotantAllume, cadreCamera, reperesEtapes, demiLargeurRepere, cadreReduit, emprisePanneau, facteurLecture,
+  SEUIL_DEMARRAGE, SEUILS_VISIBILITE, actionVisibilite } from "../js/scene-rendu.js";
 
 // Règles pures du rendu des scènes (correction de la tâche 11) : ce que montre l'image, en lecture comme sur les images
 // figées (pas à pas, pause, animations réduites). Le moteur (js/scene-moteur.js) dessine avec ces fonctions.
@@ -337,4 +338,38 @@ test("facteurLecture : « × n » avec une virgule décimale et un libellé lisi
   assert.deepEqual(facteurLecture(0.5), { texte: "× 0,5", libelle: "Lecture ralentie : 0,5 fois la vitesse réelle" });
   assert.deepEqual(facteurLecture(0.25), { texte: "× 0,25", libelle: "Lecture ralentie : 0,25 fois la vitesse réelle" });
   assert.deepEqual(facteurLecture(2), { texte: "× 2", libelle: "Lecture accélérée : 2 fois la vitesse réelle" });
+});
+
+// ===== Visibilité du schéma : quand la lecture démarre, quand elle s'interrompt =====
+
+test("SEUILS_VISIBILITE : l'observateur notifie à 0 (le schéma sort tout à fait de l'écran) et à 60 % (assez visible pour démarrer)", () => {
+  assert.equal(SEUIL_DEMARRAGE, 0.6);
+  assert.deepEqual(SEUILS_VISIBILITE, [0, 0.6]);
+});
+
+test("actionVisibilite : la première lecture démarre dès que 60 % du schéma est visible, une seule fois", () => {
+  for (const rapport of [0.6, 0.85, 1]) assert.equal(actionVisibilite(rapport, false, false), "demarrer", `${rapport}`);
+  for (const rapport of [0, 0.01, 0.3, 0.59]) assert.equal(actionVisibilite(rapport, false, false), null, `${rapport} : pas assez visible`);
+  for (const rapport of [0.6, 1]) assert.equal(actionVisibilite(rapport, true, false), null, `${rapport} : déjà lu, on attend « Rejouer »`);
+});
+
+test("actionVisibilite : la lecture ne s'interrompt que lorsque le schéma est tout à fait hors de l'écran", () => {
+  // Lire les dernières étapes de la liste, sous un schéma à moitié sorti de l'écran, ne l'interrompt pas.
+  for (const rapport of [1, 0.9, 0.6, 0.59, 0.4, 0.1, 0.001]) assert.equal(actionVisibilite(rapport, true, true), null, `${rapport} : encore visible`);
+  assert.equal(actionVisibilite(0, true, true), "pause");
+  // Rien à suspendre quand rien ne joue.
+  assert.equal(actionVisibilite(0, true, false), null);
+  assert.equal(actionVisibilite(0, false, false), null);
+});
+
+test("actionVisibilite : un défilement de bout en bout démarre une fois, ne suspend qu'à la sortie complète, ne relance pas", () => {
+  let dejaVu = false, enCours = false;
+  const journal = [];
+  for (const rapport of [0, 0.2, 0.7, 0.5, 0.05, 0, 0.3, 0.8]) {
+    const action = actionVisibilite(rapport, dejaVu, enCours);
+    if (action === "demarrer") { dejaVu = true; enCours = true; }
+    if (action === "pause") enCours = false;
+    journal.push(action);
+  }
+  assert.deepEqual(journal, [null, null, "demarrer", null, null, "pause", null, null]);
 });

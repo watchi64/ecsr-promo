@@ -8,7 +8,8 @@
  * et les tests (tests/scene-rendu.test.mjs) les vérifient sur les scènes du registre.
  * Le regard du conducteur, lui, est dans js/scene-regard.js.
  *
- * Teintes, clignotant, cadres, repères des étapes, panneaux, facteur de lecture.
+ * Teintes, clignotant, cadres, repères des étapes, panneaux, facteur de lecture, visibilité du
+ * schéma (quand la lecture démarre, quand elle s'interrompt).
  *
  * Toutes les valeurs ci-dessous sont des choix de dessin, sans portée réglementaire.
  */
@@ -182,4 +183,22 @@ export function facteurLecture(vitesse) {
   if (vitesse === 1) return null;
   const nombre = String(vitesse).replace(".", ",");
   return { texte: "× " + nombre, libelle: `Lecture ${vitesse < 1 ? "ralentie" : "accélérée"} : ${nombre} fois la vitesse réelle` };
+}
+
+/** Part visible du schéma (de 0 à 1) à partir de laquelle la première lecture démarre. */
+export const SEUIL_DEMARRAGE = 0.6;
+/** Seuils de l'observateur de visibilité du schéma : 0, pour être prévenu quand il sort tout à fait de l'écran, et
+ *  SEUIL_DEMARRAGE. */
+export const SEUILS_VISIBILITE = [0, SEUIL_DEMARRAGE];
+
+/**
+ * Ce que fait la lecture quand la part visible du schéma (`rapport`, de 0 à 1) change : "demarrer" la première fois que
+ * 60 % au moins du schéma sont visibles, "pause" quand il sort tout à fait de l'écran en pleine lecture, sinon rien
+ * (null). Lire les dernières étapes de la liste, sous un schéma à moitié sorti de l'écran, ne l'interrompt donc pas.
+ * `dejaVu` : la première lecture a déjà été lancée (automatique ou demandée) ; `enCours` : la lecture tourne.
+ */
+export function actionVisibilite(rapport, dejaVu, enCours) {
+  if (rapport >= SEUIL_DEMARRAGE && !dejaVu) return "demarrer";
+  if (rapport <= 0 && enCours) return "pause";
+  return null;
 }

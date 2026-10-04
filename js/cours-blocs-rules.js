@@ -16,7 +16,9 @@
  * texte brut, l'éditeur affiche l'erreur.
  * Lecture du texte (ouvertureBloc, lireBloc : où commence un bloc, où il finit, s'il est
  * refermé) et messages de correction des quiz (messageOrdre, messageVraiFaux,
- * messageChoix : du texte brut, que lisent les lecteurs d'écran) sont ici aussi, sans DOM.
+ * messageChoix : du texte brut, que lisent les lecteurs d'écran) sont ici aussi, sans DOM,
+ * comme l'état de correction de chaque option du quiz choix (corrigerOption) et sa marque
+ * écrite (MARQUES_CHOIX).
  */
 
 // Numéro en tête de ligne (« 1. », « 1.Tourner », « 3) »), retiré. Le séparateur ne doit pas
@@ -147,6 +149,17 @@ export function corrigerOrdre(propose, attendu) {
 export function corrigerChoix(question, cochees) {
   return question.options.every((o, i) => o.juste === cochees.has(i));
 }
+
+/** État de correction d'une option du quiz « choix » : "juste" (bonne réponse choisie), "manquee" (bonne réponse
+ *  non choisie), "faux" (mauvaise réponse choisie), ou null (mauvaise réponse laissée de côté : rien à signaler). */
+export function corrigerOption(option, choisie) {
+  if (option.juste) return choisie ? "juste" : "manquee";
+  return choisie ? "faux" : null;
+}
+
+/** Marque écrite de chaque état d'option (la couleur ne porte jamais seule l'information) : une bonne réponse
+ *  non choisie ne prend pas celle d'une bonne réponse choisie. Elle est lue avec le texte de l'option. */
+export const MARQUES_CHOIX = { juste: "Réponse juste", faux: "Réponse fausse", manquee: "Bonne réponse, non choisie" };
 
 // ===== Lecture des blocs « ::: » du texte du cours =====
 

@@ -10,11 +10,14 @@
  * règles de l'image (teintes, clignotant, cadres, repères, panneaux) celles de
  * js/scene-rendu.js, testées elles aussi.
  *
- * Sobriété : la lecture démarre quand le schéma devient visible, une seule fois,
- * puis attend « Rejouer » ; elle s'arrête si le schéma sort de l'écran ou du
- * document. Animations réduites : schéma à l'arrêt, cadré une fois pour toutes sur
- * l'ensemble des étapes, étapes numérotées le long du trajet, un appui sur une
- * étape y place la voiture.
+ * Sobriété : la lecture démarre quand 60 % du schéma sont visibles, une seule fois,
+ * puis attend « Rejouer » ; elle se met en pause quand le schéma sort tout à fait de
+ * l'écran, pas avant (sur un téléphone, le schéma et la liste de ses étapes ne tiennent
+ * pas ensemble à l'écran : lire les dernières étapes ne l'interrompt pas), et s'arrête
+ * quand il sort du document. Animations réduites : schéma à l'arrêt, cadré une fois pour
+ * toutes sur l'ensemble des étapes, étapes numérotées le long du trajet, un appui sur une
+ * étape y place la voiture. Après un appui sur une étape, la voiture est ramenée à
+ * l'écran si elle en était sortie (sans animation, la page ne bouge pas si elle est visible).
  *
  * Image figée (pas à pas, pause, fin de lecture, animations réduites) : elle montre
  * l'état de la scène à cet instant, pas une phase d'animation : le clignotant en
@@ -26,7 +29,7 @@
 import { preparerScene, etatActeur, pointA, GABARITS, DEG } from "./scene-geometrie.js?v=20261003c";
 import { regardDessine } from "./scene-regard.js?v=20261003c";
 import { TEINTES, RAYON_REPERE, clignotantAllume, cadreCamera, cadreReduit, reperesEtapes, demiLargeurRepere, emprisePanneau,
-  facteurLecture } from "./scene-rendu.js?v=20261003c";
+  facteurLecture, SEUILS_VISIBILITE, actionVisibilite } from "./scene-rendu.js?v=20261003c";
 import { urlSignalVerifie } from "./signaux.js?v=20261003c";
 
 const NS = "http://www.w3.org/2000/svg";
@@ -289,7 +292,20 @@ export function monterScene(def, { conteneur, etapes = [], reduit = false, onEta
   }
   function pause() { arreter(); rendre(t); majBouton(); }
   function rejouer() { arreter(); t = 0; rendre(0); jouer(); }
-  function allerEtape(i) { dejaVu = true; arreter(); t = sc.etapes[i].t; rendre(t); majBouton(); }
+  // Un appui sur une étape éloignée peut laisser la voiture de l'élève hors de l'écran (en animations réduites, le schéma
+  // peut être plus haut que l'écran d'un téléphone) : on la ramène, sans animation, si elle n'est pas déjà visible. Visible,
+  // c'est ce que l'œil verrait : l'élément le plus haut au centre de la voiture fait encore partie du schéma, donc elle n'est
+  // ni hors de l'écran, ni rognée par la zone qui défile, ni cachée sous une barre collante. Centrée plutôt que collée au
+  // bord, pour ne pas finir sous cette barre.
+  function montrerVoiture() {
+    const voiture = vues.get(sc.eleve.id).g;
+    const r = voiture.getBoundingClientRect();
+    if (r.width === 0 && r.height === 0) return;      // voiture masquée, ou schéma sorti du document : rien à montrer
+    const dessus = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+    if (dessus && racine.contains(dessus)) return;
+    voiture.scrollIntoView({ block: "center", inline: "nearest", behavior: "instant" });
+  }
+  function allerEtape(i) { dejaVu = true; arreter(); t = sc.etapes[i].t; rendre(t); majBouton(); montrerVoiture(); }
   function detruire() { arreter(); if (observateur) observateur.disconnect(); majBouton(); }
 
   lecture.addEventListener("click", () => (enCours ? pause() : jouer()));
@@ -297,11 +313,13 @@ export function monterScene(def, { conteneur, etapes = [], reduit = false, onEta
   rendre(0);
   majBouton();
   if (!reduit && typeof IntersectionObserver === "function") {
+    // Seuils 0 et 60 % : le rappel part quand le schéma sort tout à fait de l'écran et quand il atteint 60 %. La décision
+    // (démarrer, mettre en pause, ne rien faire) est celle de js/scene-rendu.js, sur la part visible de la dernière entrée.
     observateur = new IntersectionObserver((entrees) => {
-      const visible = entrees.some((x) => x.isIntersecting);
-      if (visible && !dejaVu) { dejaVu = true; jouer(); }
-      else if (!visible && enCours) pause();
-    }, { threshold: 0.6 });
+      const action = actionVisibilite(entrees[entrees.length - 1].intersectionRatio, dejaVu, enCours);
+      if (action === "demarrer") jouer();
+      else if (action === "pause") pause();
+    }, { threshold: SEUILS_VISIBILITE });
     observateur.observe(racine);
   }
   return { jouer, pause, rejouer, allerEtape, detruire, scene: sc };

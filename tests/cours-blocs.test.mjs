@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { analyserScene, analyserQuiz, analyserCartes, melangerSansIdentite, corrigerOrdre, corrigerChoix,
+  corrigerOption, MARQUES_CHOIX,
   BLOCS_INTERACTIFS, ouvertureBloc, lireBloc, erreurDirective, erreurNonRefermee,
   messageOrdre, messageVraiFaux, messageChoix }
   from "../js/cours-blocs-rules.js";
@@ -170,6 +171,33 @@ test("corrigerOrdre et corrigerChoix", () => {
   assert.equal(corrigerChoix(q, new Set([0, 2])), true);
   assert.equal(corrigerChoix(q, new Set([0])), false);
   assert.equal(corrigerChoix(q, new Set([0, 1, 2])), false);
+});
+
+test("corrigerOption : bonne réponse choisie, bonne réponse oubliée, mauvaise réponse choisie ou laissée", () => {
+  const bonne = { texte: "a", juste: true }, mauvaise = { texte: "b", juste: false };
+  assert.equal(corrigerOption(bonne, true), "juste");
+  assert.equal(corrigerOption(bonne, false), "manquee");
+  assert.equal(corrigerOption(mauvaise, true), "faux");
+  assert.equal(corrigerOption(mauvaise, false), null, "une mauvaise réponse laissée de côté : rien à signaler");
+});
+
+test("corrigerOption : à plusieurs bonnes réponses, chaque option a son état", () => {
+  const q = analyserQuiz("choix", ["? Q", "- [x] a", "- b", "- [x] c", "- d"]).questions[0];
+  const etats = (cochees) => q.options.map((o, i) => corrigerOption(o, cochees.has(i)));
+  assert.deepEqual(etats(new Set([0, 1])), ["juste", "faux", "manquee", null]);
+  assert.deepEqual(etats(new Set([0, 2])), ["juste", null, "juste", null]);
+  assert.deepEqual(etats(new Set([1, 3])), ["manquee", "faux", "manquee", "faux"]);
+});
+
+test("MARQUES_CHOIX : une marque écrite par état, la bonne réponse oubliée n'a pas celle d'une bonne réponse choisie", () => {
+  assert.deepEqual(MARQUES_CHOIX, { juste: "Réponse juste", faux: "Réponse fausse", manquee: "Bonne réponse, non choisie" });
+  assert.equal(new Set(Object.values(MARQUES_CHOIX)).size, 3, "trois marques distinctes");
+  for (const juste of [true, false]) {
+    for (const choisie of [true, false]) {
+      const etat = corrigerOption({ juste }, choisie);
+      if (etat) assert.ok(MARQUES_CHOIX[etat], `une marque pour l'état « ${etat} »`);
+    }
+  }
 });
 
 // ===== Lecture des blocs « ::: » du texte =====

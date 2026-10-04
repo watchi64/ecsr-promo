@@ -132,12 +132,15 @@ export async function openCoursEditeur(cle, { onFerme } = {}) {
     rafraichirApercu();
   }
 
-  // Insère un bloc entier au curseur, en passant par la pile d'annulation native.
+  // Insère un bloc entier après la sélection, en passant par la pile d'annulation native. insertText remplace ce qui est
+  // sélectionné : on replie d'abord la sélection à sa fin, pour qu'un bloc ne fasse jamais disparaître le texte choisi.
   function insererBloc(texte) {
     zone.focus();
-    const pos = zone.selectionStart;
+    const pos = zone.selectionEnd;
+    zone.setSelectionRange(pos, pos);
     if (!document.execCommand("insertText", false, texte)) {
       zone.value = zone.value.slice(0, pos) + texte + zone.value.slice(pos);
+      zone.setSelectionRange(pos + texte.length, pos + texte.length);
     }
     marquerNonSauve();
     rafraichirApercu();
@@ -159,7 +162,9 @@ export async function openCoursEditeur(cle, { onFerme } = {}) {
 
   function insererCodePlanche(type, code) {
     zone.focus();
-    const pos = zone.selectionStart;
+    // La planche se pose après la sélection, jamais à sa place (insertText remplace la sélection) : on la replie à sa fin.
+    const pos = zone.selectionEnd;
+    zone.setSelectionRange(pos, pos);
     const debutLigne = zone.value.lastIndexOf("\n", pos - 1) + 1;
     const finBrute = zone.value.indexOf("\n", pos);
     const finLigne = finBrute === -1 ? zone.value.length : finBrute;

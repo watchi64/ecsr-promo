@@ -25,12 +25,14 @@
  */
 import { el } from "./utils.js?v=20261003c";
 import { analyserScene, analyserQuiz, analyserCartes, melangerSansIdentite, corrigerOrdre, corrigerChoix,
-  BLOCS_INTERACTIFS, erreurDirective, erreurNonRefermee, messageOrdre, messageVraiFaux, messageChoix }
+  corrigerOption, MARQUES_CHOIX, BLOCS_INTERACTIFS, erreurDirective, erreurNonRefermee, messageOrdre, messageVraiFaux,
+  messageChoix }
   from "./cours-blocs-rules.js?v=20261003c";
 import { SCENES } from "./scenes.js?v=20261003c";
 import { monterScene } from "./scene-moteur.js?v=20261003c";
 
-// Marques écrites de la correction (en plus de la couleur).
+// Marques écrites de la correction (en plus de la couleur), une par état ; celles du quiz choix, qui compte
+// aussi la bonne réponse non choisie, sont dans js/cours-blocs-rules.js (MARQUES_CHOIX).
 const MARQUE_ORDRE = { juste: "Bien placé", faux: "Mal placé" };
 const MARQUE_REPONSE = { juste: "Réponse juste", faux: "Réponse fausse" };
 
@@ -120,9 +122,10 @@ function effacer(zone) {
 function nouvelleMarque() {
   return el("span", { class: "quiz-marque", hidden: true });
 }
-function poserMarque(marque, ok, textes) {
-  marque.className = "quiz-marque " + (ok ? "quiz-marque-juste" : "quiz-marque-faux");
-  marque.textContent = ok ? textes.juste : textes.faux;
+// `etat` : « juste », « faux » ou, pour une bonne réponse non choisie, « manquee » ; `textes` donne la marque de chacun.
+function poserMarque(marque, etat, textes) {
+  marque.className = "quiz-marque quiz-marque-" + etat;
+  marque.textContent = textes[etat];
   marque.hidden = false;
 }
 function effacerMarque(marque) {
@@ -175,7 +178,7 @@ function quizOrdre(q, inline) {
       const ok = r.parPosition[k];
       b.classList.add(ok ? "juste" : "faux");
       verrouiller(b);
-      poserMarque(marque, ok, MARQUE_ORDRE);
+      poserMarque(marque, ok ? "juste" : "faux", MARQUE_ORDRE);
     });
     annoncer(zone, messageOrdre(r.justes, r.total, q.elements.map(plat)), r.justes === r.total);
   });
@@ -235,7 +238,7 @@ function quizVraiFaux(q, inline) {
       if (ok) justes++;
       ligne.classList.remove("juste", "faux");
       ligne.classList.add(ok ? "juste" : "faux");
-      poserMarque(marque, ok, MARQUE_REPONSE);
+      poserMarque(marque, ok ? "juste" : "faux", MARQUE_REPONSE);
       if (it.explication) explication.hidden = false;
     });
     annoncer(zone, messageVraiFaux(q.items, reponses, plat), justes === q.items.length);
@@ -284,13 +287,12 @@ function quizChoix(q, inline) {
       if (corrigerChoix(x.question, x.cochees)) justes++;
       x.options.forEach(({ b, marque }, i) => {
         verrouiller(b);
-        b.classList.remove("juste", "faux");
-        if (x.question.options[i].juste) {
-          b.classList.add("juste");
-          poserMarque(marque, true, MARQUE_REPONSE);
-        } else if (x.cochees.has(i)) {
-          b.classList.add("faux");
-          poserMarque(marque, false, MARQUE_REPONSE);
+        b.classList.remove("juste", "faux", "manquee");
+        // Bonne réponse choisie, mauvaise réponse choisie, ou bonne réponse non choisie : trois états, trois marques.
+        const etat = corrigerOption(x.question.options[i], x.cochees.has(i));
+        if (etat) {
+          b.classList.add(etat);
+          poserMarque(marque, etat, MARQUES_CHOIX);
         } else {
           effacerMarque(marque);
         }
@@ -305,7 +307,7 @@ function quizChoix(q, inline) {
       x.cochees.clear();
       x.options.forEach(({ b, marque }) => {
         b.setAttribute("aria-pressed", "false");
-        b.classList.remove("juste", "faux");
+        b.classList.remove("juste", "faux", "manquee");
         deverrouiller(b);
         effacerMarque(marque);
       });
