@@ -371,6 +371,30 @@ Spec : `docs/superpowers/specs/2026-10-03-espace-stagiaires-design.md` · plan :
 - **Banc** : `?ecritures=1` garde en mémoire les insertions et upserts (EPCF, livret, dossier)
   le temps de la page, pour vérifier qu'un état se met à jour après un enregistrement.
 
+## Cours des compétences de conduite (programme B, C1 à C4)
+
+Spec et plans dans le dépôt ECSR : `docs/superpowers/specs/2026-10-03-cours-competences-remc-design.md`,
+`docs/superpowers/plans/2026-10-03-cours-competences-remc-plan-1.md`.
+
+- **Clé de cours** : un cours porte un numéro (les 57 thèmes) ou un code (`C2.4`), jamais les deux
+  (contrainte `cours_numero_ou_code`). `cleCours()` dans `js/cours-rules.js` ; `getCours(cle)`.
+  Le référentiel (`themes`) porte la même colonne `code` pour les 36 lignes REMC.
+- **Blocs** (`js/cours-blocs-rules.js` pour l'analyse, `js/cours-blocs.js` pour le DOM) : `:::scene <code>`,
+  `:::quiz ordre | vrai-faux | choix`, `:::cartes`. Un bloc mal formé s'affiche en texte brut ; l'erreur
+  n'apparaît que dans l'aperçu de l'éditeur (encadré « À corriger dans les blocs »).
+- **Scènes** : données dans `js/scenes.js`, géométrie pure dans `js/scene-geometrie.js` (mètres, repère
+  écran, cap croissant à droite), décors dans `js/scene-decors.js` (dimensions de l'IISR 7e partie),
+  regard dans `js/scene-regard.js`, aides de rendu pures dans `js/scene-rendu.js`, rendu dans
+  `js/scene-moteur.js`. **Règle : une scène qu'on ne sait pas rendre exacte n'est pas dessinée.**
+  `node tests/scenes.test.mjs` passe chaque scène aux contrôles automatiques (`js/scene-controles.js`) :
+  trottoirs, contacts, vitesse, accélérations, clignotant, priorités. Si un contrôle refuse, on corrige la
+  géométrie, jamais le seuil. Le clignotement se compte depuis l'allumage du clignotant.
+- **Tests** : sous Node 24, `node --test tests/` échoue (dossier chargé comme un module) ; lancer
+  `node --test "tests/*.test.mjs"`.
+- **Bancs** : `_preview_cours.html?cle=C2.4` (lecteur et éditeur), `_preview_scenes.html` (planche de revue,
+  `?reduit=1`), servis sans cache par `_serveur_banc.py` (non versionnés).
+- **Assistant** : `chercher_cours` renvoie `code` ; l'étiquette devient « Competence C2.4 ».
+
 ## Décisions UX importantes (à respecter)
 
 - ❌ **Pas de tiret cadratin (U+2014)** dans les libellés UI. Régression à éviter.
