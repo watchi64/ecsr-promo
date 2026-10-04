@@ -658,6 +658,33 @@ const polaire = (reperes, p) => Math.atan2(p.y - reperes.cy, p.x - reperes.cx) /
 // Le point (centre d'un acteur) est-il dans le cadre c, bords compris ?
 const dansCadre = (c, p) => p.x >= c.x0 && p.x <= c.x0 + c.w && p.y >= c.y0 && p.y <= c.y0 + c.h;
 
+// Anneau parcouru en amont de l'entrée sud, d'où viendrait un autre usager : angles polaires de 100 à 170 degrés, tous les
+// degrés (l'entrée sud est à 90, l'arc d'entrée ouest rejoint l'anneau à 148,5).
+const AMONT = Array.from({ length: 71 }, (_, k) => 100 + k);
+
+// Instants, au centième de seconde, de la sortie de l'usager de l'anneau de la zone de conflit au redémarrage de l'élève,
+// et ceux où le cône du regard contient tout l'anneau en amont.
+function anneauAmontRegarde(def) {
+  const sc = preparerScene(def), eleve = sc.eleve, anneau = sc.acteurs.find((a) => a.id === "anneau");
+  const { cx, cy, rAnneau } = def.decor.reperes;
+  const zone = def.attentes.find((a) => a.type === "cede").zone;
+  const touche = (t) => {
+    const e = etatActeur(anneau, t);
+    return e.visible && polygonesSeChevauchent(emprise("voiture", e), zone);
+  };
+  const tArret = premierInstant((t) => etatActeur(eleve, t).v < 1e-9, 0, sc.duree);
+  const tReprise = premierInstant((t) => etatActeur(eleve, t).v > 1e-9, tArret, sc.duree);
+  const tSortie = premierInstant((t) => !touche(t), premierInstant(touche, 0, sc.duree), sc.duree);
+  const points = AMONT.map((p) => ({ x: cx + rAnneau * Math.cos(p * DEG), y: cy + rAnneau * Math.sin(p * DEG) }));
+  const instants = [], couverts = [];
+  for (let t = tSortie; t < tReprise; t += 0.01) {
+    instants.push(t);
+    const e = etatActeur(eleve, t), angle = angleRegard(sc.etapes[etapeActive(sc, t)], e, t, etatsA(sc, t));
+    if (points.every((p) => regardContient(angle, oeil(e), p))) couverts.push(t);
+  }
+  return { instants, couverts, points };
+}
+
 test("giratoire : s'insérer devant un usager de l'anneau est détecté", () => {
   const def = copie("giratoire");
   // L'usager de l'anneau arrive trois secondes plus tard : l'élève, qui repart à l'heure
@@ -682,6 +709,18 @@ test("giratoire : un regard qui quitte l'usager de l'anneau pendant l'attente es
   const etape = def.etapes.find((e) => e.regard && e.regard.suivre === "anneau");
   etape.regard = { angle: 0 };
   assert.ok(regardsHorsCede(def).length > 0);
+});
+
+test("giratoire : s'insérer sans regarder à gauche l'anneau en amont est détecté", () => {
+  // Regard droit devant, ou usager de l'anneau suivi des yeux jusqu'au redémarrage : l'anneau d'où viendrait un autre
+  // usager n'est jamais regardé entre la sortie du premier et l'insertion.
+  const devant = copie("giratoire");
+  assert.deepEqual(devant.etapes[4].regard, { angle: -55 }, "étape 5 : regard à gauche");
+  devant.etapes[4].regard = { angle: 0 };
+  assert.equal(anneauAmontRegarde(devant).couverts.length, 0);
+  const sansEtape = copie("giratoire");
+  sansEtape.etapes.splice(4, 1);
+  assert.equal(anneauAmontRegarde(sansEtape).couverts.length, 0);
 });
 
 test("giratoire : un clignotant coupé dans l'arc de sortie est détecté", () => {
@@ -796,24 +835,24 @@ test("giratoire : pas de clignotant à l'entrée ; contrôles (rétroviseur int�
   proche(polaire(reperes, pointA(eleve.chemin, clignotant.de)), -DESSIN.clignotantApresAxe, 1e-6, "angle polaire de l'allumage");
   const tAllume = tA(clignotant.de);
   for (let t = 0; t < tAllume - 1e-6; t += 0.01) assert.equal(etatActeur(eleve, t).clignotant, null, `clignotant en marche à t = ${t.toFixed(2)} s`);
-  // Contrôler, puis indiquer : rétroviseur intérieur (étape 6) et angle mort gauche (étape 7) d'abord ; le clignotant
-  // s'allume au début de l'étape 8.
-  assert.ok(T[5] < T[6] && T[6] < T[7], "contrôles avant l'indication");
-  proche(T[7], tAllume, 1e-9, "le clignotant s'allume au début de l'étape 8");
+  // Contrôler, puis indiquer : rétroviseur intérieur (étape 7) et angle mort gauche (étape 8) d'abord ; le clignotant
+  // s'allume au début de l'étape 9.
+  assert.ok(T[6] < T[7] && T[7] < T[8], "contrôles avant l'indication");
+  proche(T[8], tAllume, 1e-9, "le clignotant s'allume au début de l'étape 9");
   const avance = tA(arcSortie.debut) - tAllume;
   assert.ok(avance >= 2.0, `allumé ${avance.toFixed(3)} s avant l'arc de sortie`);
   for (let t = tAllume; t <= tA(fin(arcSortie)) - 1e-6; t += 0.01) assert.equal(etatActeur(eleve, t).clignotant, "droite", `t = ${t.toFixed(2)} s`);
   assert.equal(etatActeur(eleve, tA(fin(arcSortie)) + 0.1).clignotant, null, "éteint après l'arc de sortie");
 });
 
-test("giratoire : le clignotant allumé, le regard porte vers la sortie : le cône contient le début et la fin de l'arc de sortie pendant toute l'étape 8", () => {
-  // L'anneau tourne à gauche : droit devant, le regard tomberait sur la bordure extérieure, à 6 m.
+test("giratoire : le clignotant allumé, le regard porte vers la sortie : le cône contient le début et la fin de l'arc de sortie pendant toute l'étape 9", () => {
+  // L'anneau tourne à gauche : droit devant, le regard tomberait sur la bordure extérieure, à 6,8 m de l'œil.
   const { sc, eleve, arcSortie, fin, T } = lireGiratoire();
   const debutSortie = pointA(eleve.chemin, arcSortie.debut), finSortie = pointA(eleve.chemin, fin(arcSortie));
-  const instants = instantsPas(sc).filter((t) => t + 1e-9 >= T[7] && t < T[8]);
-  assert.ok(instants.length >= DUREE_MIN.etape / PAS - 1, "l'étape 8 est échantillonnée");
+  const instants = instantsPas(sc).filter((t) => t + 1e-9 >= T[8] && t < T[9]);
+  assert.ok(instants.length >= DUREE_MIN.etape / PAS - 1, "l'étape 9 est échantillonnée");
   for (const t of instants) {
-    const e = etatActeur(eleve, t), angle = angleRegard(sc.etapes[7], e, t, etatsA(sc, t));
+    const e = etatActeur(eleve, t), angle = angleRegard(sc.etapes[8], e, t, etatsA(sc, t));
     for (const [nom, p] of [["début", debutSortie], ["fin", finSortie]]) {
       assert.ok(regardContient(angle, oeil(e), p), `${nom} de l'arc de sortie hors du cône à t = ${t.toFixed(1)} s`);
     }
@@ -834,13 +873,15 @@ test("giratoire : cadre de 40 x 46 m qui suit l'élève, cône du rétroviseur i
 
 test("giratoire : pendant le balayage, à 15 km/h, l'usager de l'anneau entre dans le cadre et le cône le contient au moins un instant", () => {
   const { def, sc, eleve, anneau, T } = lireGiratoire();
-  const instants = instantsPas(sc).filter((t) => t + 1e-9 >= T[2] && t < T[3]);
-  assert.ok(instants.length >= DUREE_MIN.balayage / PAS - 1, "le balayage est échantillonné");
+  // Au centième de seconde : le cône ne passe sur l'usager que pendant une fenêtre d'environ un dixième de seconde.
+  const instants = [];
+  for (let t = T[2]; t < T[3] - 1e-9; t += 0.01) instants.push(t);
+  assert.ok(instants.length >= DUREE_MIN.balayage / 0.01 - 1, "le balayage est échantillonné");
   let dansLeCadre = 0;
   const vu = [];
   for (const t of instants) {
     const e = etatActeur(eleve, t), a = etatActeur(anneau, t);
-    proche(e.v / KMH, GIRATOIRE_KMH.adaptee, 1e-9, `allure à t = ${t.toFixed(1)} s`);
+    proche(e.v / KMH, GIRATOIRE_KMH.adaptee, 1e-9, `allure à t = ${t.toFixed(2)} s`);
     if (!a.visible) continue;
     if (dansCadre(cadre(def, e), a)) dansLeCadre++;
     if (regardContient(angleRegard(sc.etapes[etapeActive(sc, t)], e, t, etatsA(sc, t)), oeil(e), a)) vu.push(t);
@@ -849,7 +890,7 @@ test("giratoire : pendant le balayage, à 15 km/h, l'usager de l'anneau entre da
   assert.ok(vu.length > 0, "le cône du balayage contient l'usager de l'anneau au moins un instant");
 });
 
-test("giratoire : l'élève suit des yeux l'usager de l'anneau dès qu'il ralentit pour lui ; arrêté, il le voit passer devant lui ; il repart 0,9 s après sa sortie de la zone de conflit, le regard ramené devant", () => {
+test("giratoire : l'élève suit des yeux l'usager de l'anneau dès qu'il ralentit pour lui ; arrêté, il le voit passer devant lui et quitter la zone de conflit, puis regarde à gauche et repart 1,0 s plus tard", () => {
   const { def, sc, eleve, anneau, tArret, tReprise, tSortieAnneau, T } = lireGiratoire();
   // L'étape 4 commence avec le freinage : le centre de l'usager de l'anneau est alors dans le cadre et dans le cône.
   proche(T[3], premierInstant((t) => kmh(eleve, t) < GIRATOIRE_KMH.adaptee - 1e-9, T[2], tArret), 1e-6, "étape 4 au début du freinage");
@@ -872,12 +913,33 @@ test("giratoire : l'élève suit des yeux l'usager de l'anneau dès qu'il ralent
   };
   assert.ok(cote(tArret) < 0, "l'usager de l'anneau est déjà passé devant l'élève quand il s'arrête");
   assert.ok(cote(tReprise) > 0, "l'usager de l'anneau n'est pas passé devant l'élève avant le redémarrage");
-  // Il quitte la zone de conflit 2,5 s après l'arrêt ; l'élève repart 0,9 s plus tard, le regard ramené devant (instants
-  // calculés par la scène au dix-millième de seconde).
-  proche(tSortieAnneau - tArret, 2.5, 1e-3, "sortie de l'usager de l'anneau après l'arrêt de l'élève");
-  proche(tReprise - tSortieAnneau, 0.9, 1e-3, "redémarrage après la sortie de l'usager de l'anneau");
-  proche(T[4], tReprise, 1e-6, "étape 5 au redémarrage");
-  assert.deepEqual(def.etapes[4].regard, { angle: 0 });
+  // Il quitte la zone de conflit 2,4 s après l'arrêt : l'étape 4 le suit des yeux jusque-là, l'étape 5 (regard à gauche)
+  // commence alors, et l'élève repart 1,0 s plus tard, le regard devant (instants calculés par la scène au dix-millième de
+  // seconde). L'attente totale reste de 3,4 s.
+  proche(tSortieAnneau - tArret, 2.4, 1e-3, "sortie de l'usager de l'anneau après l'arrêt de l'élève");
+  proche(T[4], tSortieAnneau, 1e-3, "étape 5 à la sortie de l'usager de l'anneau");
+  proche(tReprise - tSortieAnneau, 1.0, 1e-3, "redémarrage après la sortie de l'usager de l'anneau");
+  proche(tReprise - tArret, 3.4, 1e-6, "attente au cédez-le-passage");
+  proche(T[5], tReprise, 1e-6, "étape 6 au redémarrage");
+  assert.deepEqual(def.etapes[5].regard, { angle: 0 });
+});
+
+test("giratoire : l'usager de l'anneau sorti de la zone de conflit, l'élève arrêté regarde à gauche l'anneau en amont, d'où viendrait un autre usager, avant de s'insérer", () => {
+  const { def, sc, eleve, tSortieAnneau, tReprise, T } = lireGiratoire();
+  assert.deepEqual(def.etapes[4].regard, { angle: -55 });
+  assert.ok(T[5] - T[4] >= DUREE_MIN.etape - 1e-9, `regard à gauche pendant ${(T[5] - T[4]).toFixed(3)} s`);
+  // De la sortie de l'usager au redémarrage, au centième de seconde : élève arrêté, cône sur tout l'anneau en amont (angles
+  // polaires 100 à 170), dans le cadre.
+  const { instants, couverts, points } = anneauAmontRegarde(def);
+  assert.ok(instants.length >= (tReprise - tSortieAnneau) / 0.01 - 1 && instants.length >= 99, "l'attente est échantillonnée");
+  assert.ok(couverts.length > 0, "l'anneau en amont n'est jamais dans le cône entre la sortie de l'usager et le redémarrage");
+  assert.equal(couverts.length, instants.length, "l'anneau en amont sort du cône avant le redémarrage");
+  for (const t of instants) {
+    const e = etatActeur(eleve, t), c = cadre(def, e);
+    assert.equal(e.v, 0, `élève en mouvement à t = ${t.toFixed(2)} s`);
+    assert.equal(sc.etapes[etapeActive(sc, t)], sc.etapes[4], `t = ${t.toFixed(2)} s hors de l'étape 5`);
+    for (const p of points) assert.ok(dansCadre(c, p), `anneau en amont hors du cadre à t = ${t.toFixed(2)} s`);
+  }
 });
 
 test("giratoire : l'usager de l'anneau part et finit hors du monde, entre dans l'anneau à au plus 19 km/h, y roule à 20 km/h, casse son allure avant l'arc de sortie et clignote à droite après la sortie précédente, au moins 2 s avant cet arc", () => {
@@ -905,12 +967,13 @@ test("giratoire : l'usager de l'anneau part et finit hors du monde, entre dans l
   assert.ok(tA(arcS.debut) - tA(c.de) >= 2.0, `allumé ${(tA(arcS.debut) - tA(c.de)).toFixed(3)} s avant l'arc de sortie`);
 });
 
-test("giratoire : dix étapes de la fiche, dans l'ordre, chacune avec son regard et à son moment", () => {
+test("giratoire : onze étapes de la fiche, dans l'ordre, chacune avec son regard et à son moment", () => {
   assert.deepEqual(SCENES.giratoire.etapesModele, [
     "Contrôler au rétroviseur intérieur, sans clignotant",
     "Adapter l'allure à l'approche",
     "Balayer les véhicules engagés",
     "Céder le passage à l'usager de l'anneau",
+    "Regarder à gauche avant de s'insérer",
     "S'insérer et circuler dans l'anneau",
     "Casser l'allure, rétroviseur intérieur",
     "Contrôler l'angle mort gauche",
@@ -918,9 +981,9 @@ test("giratoire : dix étapes de la fiche, dans l'ordre, chacune avec son regard
     "Balayer la sortie et sortir",
     "Reprendre l'allure dans la voie de sortie",
   ]);
-  const { def, sc, eleve, arcSortie, fin, tA, tArret, tReprise, T } = lireGiratoire();
+  const { def, sc, eleve, arcSortie, fin, tA, tArret, tReprise, tSortieAnneau, T } = lireGiratoire();
   assert.deepEqual(def.etapes.map((e) => e.regard), [
-    { angle: 180 }, { angle: 0 }, { balayage: true }, { suivre: "anneau" }, { angle: 0 },
+    { angle: 180 }, { angle: 0 }, { balayage: true }, { suivre: "anneau" }, { angle: -55 }, { angle: 0 },
     { angle: 180 }, { angle: -120 }, { angle: -20 }, { balayage: true }, { angle: 0 },
   ]);
   proche(T[0], 0, 1e-12, "rétroviseur intérieur dès le début");
@@ -928,12 +991,13 @@ test("giratoire : dix étapes de la fiche, dans l'ordre, chacune avec son regard
   proche(T[1], premierInstant((t) => kmh(eleve, t) < GIRATOIRE_KMH.approche - 1e-9, 0, tArret), 1e-6, "adapter l'allure : début du ralentissement");
   proche(T[3] - T[2], 2.0, 1e-6, "balayer les véhicules engagés : les 2,0 s qui précèdent le freinage");
   proche(T[3], premierInstant((t) => kmh(eleve, t) < GIRATOIRE_KMH.adaptee - 1e-9, T[2], tArret), 1e-6, "céder : début du freinage");
-  proche(T[4], tReprise, 1e-6, "s'insérer : au redémarrage");
+  proche(T[4], tSortieAnneau, 1e-3, "regarder à gauche : à la sortie de l'usager de la zone de conflit");
+  proche(T[5], tReprise, 1e-6, "s'insérer : au redémarrage");
   const t20 = premierInstant((t) => kmh(eleve, t) >= GIRATOIRE_KMH.anneau - 1e-9, tReprise, sc.duree);
-  proche(T[5], premierInstant((t) => kmh(eleve, t) < GIRATOIRE_KMH.anneau - 1e-9, t20, sc.duree), 1e-6,
+  proche(T[6], premierInstant((t) => kmh(eleve, t) < GIRATOIRE_KMH.anneau - 1e-9, t20, sc.duree), 1e-6,
     "casser l'allure : début du ralentissement, 20 km/h une fois atteints");
-  proche(T[6] - T[5], 1.0, 1e-6, "rétroviseur intérieur pendant 1,0 s");
-  proche(T[7] - T[6], 1.0, 1e-6, "angle mort gauche pendant 1,0 s");
-  proche(T[8] - T[7], 1.0, 1e-6, "clignotant pendant 1,0 s avant de balayer la sortie");
-  proche(T[9], tA(fin(arcSortie)), 1e-6, "reprendre l'allure : à la fin de l'arc de sortie");
+  proche(T[7] - T[6], 1.0, 1e-6, "rétroviseur intérieur pendant 1,0 s");
+  proche(T[8] - T[7], 1.0, 1e-6, "angle mort gauche pendant 1,0 s");
+  proche(T[9] - T[8], 1.0, 1e-6, "clignotant pendant 1,0 s avant de balayer la sortie");
+  proche(T[10], tA(fin(arcSortie)), 1e-6, "reprendre l'allure : à la fin de l'arc de sortie");
 });
