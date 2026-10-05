@@ -23,7 +23,7 @@
  * au catalogue se dessine quand même (photo Wikimedia, sans détail
  * pédagogique), le registre vérifié gardant la priorité en cas de doublon.
  */
-import { CATALOGUE } from "./signaux-catalogue.js?v=20261004a";
+import { CATALOGUE } from "./signaux-catalogue.js?v=20261005a";
 
 const NS = "http://www.w3.org/2000/svg";
 const ROUGE = "#C8102E";
@@ -148,6 +148,13 @@ export const SIGNAUX = {
 export function signalConnu(code) {
   return Object.prototype.hasOwnProperty.call(SIGNAUX, code)
     || Object.prototype.hasOwnProperty.call(CATALOGUE, code);
+}
+
+/** URL du dessin officiel d'un panneau du registre vérifié, sinon null. Les
+ *  scènes animées n'utilisent que ce registre, jamais le catalogue. */
+export function urlSignalVerifie(code) {
+  const s = SIGNAUX[code];
+  return s && s.fichier ? cheminSignal(s.fichier) : null;
 }
 
 function visuel(code, s) {

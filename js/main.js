@@ -2,39 +2,39 @@
  * Promo ECSR : application propriétaire.
  * © 2026 watchi64. Tous droits réservés. Voir LICENSE.
  */
-import { getCurrentUser, invalidateCache, verifyRecoveryToken } from "./db.js?v=20261004a";
-import { toast } from "./utils.js?v=20261004a";
-import { icon } from "./icons.js?v=20261004a";
-import { initAuth, onAdminChange, isAuth, isAdmin, isProf, monStagiaireId } from "./auth-admin.js?v=20261004a";
-import { showGate, hideGate } from "./gate.js?v=20261004a";
-import { lireJetonRecuperation } from "./gate-rules.js?v=20261004a";
-import { loadAccent } from "./accent-switcher.js?v=20261004a";
-import { loadTheme } from "./theme-switcher.js?v=20261004a";
-import { renderHome } from "./views/home.js?v=20261004a";
-import { renderDashboard } from "./views/dashboard.js?v=20261004a";
-import { renderMonSuivi } from "./views/mon-suivi.js?v=20261004a";
-import { renderPlanning, teardownPrintTarget, resetPlanningEditMode, requestPlanningToday } from "./views/planning.js?v=20261004a";
-import { teardownDocPrint } from "./doc-officiel.js?v=20261004a";
-import { renderNotes } from "./views/notes.js?v=20261004a";
-import { renderRessources } from "./views/ressources.js?v=20261004a";
-import { renderThemes } from "./views/themes.js?v=20261004a";
-import { renderConfig } from "./views/config.js?v=20261004a";
-import { renderCalendrier } from "./views/calendrier.js?v=20261004a";
-import { initUndoKeyboard } from "./undo.js?v=20261004a";
-import { renderNouveautes } from "./views/nouveautes.js?v=20261004a";
-import { libellePastille } from "./nouveautes.js?v=20261004a";
-import { renderCcp2 } from "./views/ccp2.js?v=20261004a";
-import { renderStagiaires } from "./views/stagiaires.js?v=20261004a";
-import { lireAdresse, pagePersonnelle } from "./route-rules.js?v=20261004a";
+import { getCurrentUser, invalidateCache, verifyRecoveryToken } from "./db.js?v=20261005a";
+import { toast } from "./utils.js?v=20261005a";
+import { icon } from "./icons.js?v=20261005a";
+import { initAuth, onAdminChange, isAuth, isAdmin, isProf, monStagiaireId } from "./auth-admin.js?v=20261005a";
+import { showGate, hideGate } from "./gate.js?v=20261005a";
+import { lireJetonRecuperation } from "./gate-rules.js?v=20261005a";
+import { loadAccent } from "./accent-switcher.js?v=20261005a";
+import { loadTheme } from "./theme-switcher.js?v=20261005a";
+import { renderHome } from "./views/home.js?v=20261005a";
+import { renderDashboard } from "./views/dashboard.js?v=20261005a";
+import { renderMonSuivi } from "./views/mon-suivi.js?v=20261005a";
+import { renderPlanning, teardownPrintTarget, resetPlanningEditMode, requestPlanningToday } from "./views/planning.js?v=20261005a";
+import { teardownDocPrint } from "./doc-officiel.js?v=20261005a";
+import { renderNotes } from "./views/notes.js?v=20261005a";
+import { renderRessources } from "./views/ressources.js?v=20261005a";
+import { renderThemes } from "./views/themes.js?v=20261005a";
+import { renderConfig } from "./views/config.js?v=20261005a";
+import { renderCalendrier } from "./views/calendrier.js?v=20261005a";
+import { initUndoKeyboard } from "./undo.js?v=20261005a";
+import { renderNouveautes } from "./views/nouveautes.js?v=20261005a";
+import { libellePastille } from "./nouveautes.js?v=20261005a";
+import { renderCcp2 } from "./views/ccp2.js?v=20261005a";
+import { renderStagiaires } from "./views/stagiaires.js?v=20261005a";
+import { lireAdresse, pagePersonnelle } from "./route-rules.js?v=20261005a";
 import {
   peutQuitter, leverGardeSortie, majSurPlacePour, oublierMajSurPlace,
   noterAdresse, adresseCourante, remplacerAdresse, installerGardeNavigateur,
-} from "./navigation.js?v=20261004a";
-import { initChatbot, appliquerModuleAssistant } from "./chatbot.js?v=20261004a";
+} from "./navigation.js?v=20261005a";
+import { initChatbot, appliquerModuleAssistant } from "./chatbot.js?v=20261005a";
 import {
   chargerModules, chargerModulesAuDemarrage, onModulesChange, surveillerPremierPlan,
   routeVisible, routeMasquee, repereMasque, nouveautesAffichables,
-} from "./modules-etat.js?v=20261004a";
+} from "./modules-etat.js?v=20261005a";
 
 // ===== Tabs =====
 

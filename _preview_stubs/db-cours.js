@@ -54,11 +54,89 @@ let magasin = [
     created_at: "2026-08-08T10:00:00.000Z" },
 ];
 
+// Cours de compétences d'essai : liens entre cours, cours suivant, mise en page compacte.
+const MD_C2 = `# C2 - Appréhender la route
+
+> **L'essentiel**
+> Ouverture d'essai.
+
+## Les sous-compétences
+
+- [C2.4 : tourner](cours:C2.4)
+- [Thème 1](cours:1)
+- [Thème absent](cours:57)
+- [Lien mal formé](cours:C2.10)
+`;
+const MD_C24 = `# C2.4 - Tourner à droite et à gauche en agglomération
+
+> **L'essentiel**
+> Cours d'essai du banc : tous les blocs.
+
+## Pourquoi
+
+Paragraphe d'essai.
+
+## Comment
+
+Texte collé à un bloc.
+:::scene tourner-droite
+Contrôler et mettre le clignotant
+Serrer à droite, **sans se coller au trottoir**
+Réduire l'allure avant le virage
+Balayer l'intersection du regard
+Contrôler l'angle mort droit
+Tourner en regardant la sortie
+Céder le passage au piéton
+Repartir une fois le passage dégagé
+:::
+
+## Je m'évalue
+
+:::cartes
+Q : Question d'essai ?
+R : Réponse d'essai.
+:::
+
+:::quiz ordre
+? Remettre les étapes dans l'ordre
+Contrôle et clignotant
+Serrer à **droite**
+Tourner
+:::
+
+:::quiz vrai-faux
+Le clignotant se met avant de serrer à droite. | vrai | On prévient, puis on se place.
+:::
+
+:::quiz choix
+? Avant de tourner à droite, le regard va vers…
+- le compteur
+- [x] la voie de **sortie** et le [trottoir](https://exemple.fr)
+> Le danger vient du côté du [trottoir](https://exemple.fr).
+:::
+
+:::scene inconnue
+Une étape
+:::
+
+:::quiz ordre
+Seul
+:::
+`;
+magasin.push(
+  { id: "k2", numero: null, code: "C2", titre: "Appréhender la route", corps_md: MD_C2, published: true,
+    updated_by: "import", updated_at: "2026-10-03T10:00:00.000Z", created_at: "2026-10-03T10:00:00.000Z" },
+  { id: "k24", numero: null, code: "C2.4", titre: "Tourner à droite et à gauche en agglomération", corps_md: MD_C24,
+    published: true, updated_by: "import", updated_at: "2026-10-03T10:00:00.000Z", created_at: "2026-10-03T10:00:00.000Z" },
+);
+
 export async function listCoursIndex() {
   return magasin.map(({ corps_md, ...reste }) => reste);
 }
-export async function getCours(numero) {
-  const c = magasin.find((x) => x.numero === Number(numero));
+export async function getCours(cle) {
+  const c = typeof cle === "string"
+    ? magasin.find((x) => x.code === cle)
+    : magasin.find((x) => x.numero === Number(cle));
   if (!c) throw new Error("Cours introuvable");
   return { ...c };
 }
@@ -99,4 +177,17 @@ export async function uploadCoursImage(blob, chemin) {
 export function _simulerModifConcurrente(numero) {
   const c = magasin.find((x) => x.numero === Number(numero));
   if (c) { c.updated_by = "Hocine"; c.updated_at = new Date().toISOString(); }
+}
+// Cours du pilote, copiés depuis cours_competences/ du dépôt ECSR (dossier non versionné).
+// Absents, le banc garde ses cours d'essai ; présents, ils remplacent ceux de même code.
+for (const [code, fichier] of [["C2", "c2.md"], ["C2.4", "c2-4.md"], ["C2.6", "c2-6.md"]]) {
+  try {
+    const rep = await fetch(new URL("./cours-pilote/" + fichier, import.meta.url));
+    if (!rep.ok) continue;
+    const corps_md = await rep.text();
+    const titre = (corps_md.match(/^#\s+C[1-4](?:\.[1-9])?\s*-\s*(.+)$/m) || [null, code])[1].trim();
+    magasin = magasin.filter((c) => c.code !== code);
+    magasin.push({ id: "pilote-" + code, numero: null, code, titre, corps_md, published: false,
+      updated_by: "import", updated_at: "2026-10-03T12:00:00.000Z", created_at: "2026-10-03T12:00:00.000Z" });
+  } catch (e) { /* fichier absent : rien */ }
 }

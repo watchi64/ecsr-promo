@@ -1,0 +1,143 @@
+/* Promo ECSR : cours des compétences de conduite (liste, liens, mise en page compacte, blocs).
+   Feuille séparée de style.css : moins de conflits de fusion avec les autres chantiers. */
+
+/* Liste Cours > Compétences : codes et titres de groupe. Quatre classes : la règle
+   mobile de style.css sur .theme-num en a trois. */
+.themes-list .theme-row .theme-num.code { font-size: 0.72rem; letter-spacing: -0.02em; white-space: nowrap; }
+.theme-row-groupe .theme-titre-link { font-weight: 600; }
+
+/* Liens entre cours et cours suivant */
+.cours-lien {
+  background: none; border: 0; padding: 0; font: inherit; cursor: pointer; text-align: left;
+  color: var(--accent-strong); text-decoration: underline; text-underline-offset: 2px;
+}
+.cours-suivant {
+  margin: 2rem 0 1rem; padding: 1rem; display: flex; flex-direction: column; gap: 0.6rem;
+  align-items: flex-start; border: 1px solid var(--line); border-radius: var(--r); background: var(--bg-elev);
+}
+.cours-suivant-texte { margin: 0; color: var(--text-muted); font-size: 0.85rem; }
+/* Le titre d'une sous-compétence est long et le .btn de style.css interdit le retour à la
+   ligne : sans cette règle, le bouton dépasse du cadre sur téléphone. */
+.cours-suivant .btn { max-width: 100%; white-space: normal; text-align: left; }
+
+/* Mise en page compacte d'un cours de compétence : une carte par rubrique */
+.cours-competence .cours-carte {
+  margin: 0.9rem 0; padding: 0.4rem 1rem 0.8rem;
+  background: var(--bg-elev); border: 1px solid var(--line); border-radius: var(--r-lg);
+}
+/* Le .cours-h2 de style.css porte un filet et un retrait haut qui séparent les rubriques
+   d'un thème ; dans une carte, ils doubleraient le bord de la carte. */
+.cours-competence .cours-carte > .cours-h2 { margin-top: 0.6rem; border-top: none; padding-top: 0; }
+.cours-competence .cours-somm-num { display: none; }
+/* Pastille de l'en-tête : style.css la fixe à 2,1 rem, trop étroit pour un code comme « C2.4 ». */
+.cours-competence .cours-num { min-width: 2.6rem; width: auto; padding: 0 0.3rem; }
+
+/* Schéma animé. Le gris de la chaussée est porté par le dessin lui-même : la barre de
+   commandes, sous le schéma, est posée sur le fond de la page. */
+.scene-bloc { margin: 1.2rem 0; }
+.scene-svg {
+  display: block; width: 100%; height: auto; max-height: 72vh;
+  /* Boîte aux proportions du cadre (--scene-l sur --scene-h, en mètres, posés par le
+     moteur) : quand la hauteur est bornée, la largeur se réduit d'autant, sans bande
+     autour du cadre (le moteur découpe en outre le dessin au cadre). */
+  aspect-ratio: var(--scene-l) / var(--scene-h);
+  max-width: calc(72vh * var(--scene-l) / var(--scene-h));
+  background: #5D635B; border-radius: var(--r);
+}
+/* Animations réduites : pas de lecture automatique à déclencher à 60 % de visibilité, donc
+   pas de hauteur maximale ; le schéma garde la largeur, donc l'échelle, de la lecture, et la
+   page défile. */
+.scene-svg.scene-reduite { max-height: none; max-width: calc(72vh * var(--scene-lecture-l) / var(--scene-lecture-h)); }
+.scene-commandes { display: flex; gap: 0.5rem; align-items: center; margin: 0.5rem 0; }
+.scene-facteur { font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-soft); }
+/* Texte lu par les lecteurs d'écran seulement (libellé du facteur de lecture). */
+.scene-lecteur-ecran {
+  position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0;
+  overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap;
+}
+.scene-etapes { list-style: none; margin: 0.3rem 0 0; padding: 0; display: grid; gap: 0.2rem; }
+.scene-etape {
+  display: flex; gap: 0.6rem; align-items: baseline; width: 100%; text-align: left;
+  background: none; border: 0; border-radius: var(--r-sm); padding: 0.35rem 0.5rem;
+  font: inherit; color: var(--text-soft); cursor: pointer;
+}
+.scene-etape-num { font-family: var(--font-mono); min-width: 1.2rem; color: var(--text-muted); }
+/* Texte d'une étape : un seul élément flex. Sans lui, chaque gras, code ou lien du texte devient
+   une colonne à part, écartée de ses voisins. */
+.scene-etape-texte { flex: 1 1 auto; min-width: 0; }
+.scene-etapes li.on .scene-etape { background: var(--accent-soft); color: var(--text); font-weight: 500; }
+/* Étape qui ne commande pas le schéma (scène inconnue, nombre d'étapes différent) : un texte, pas un bouton. */
+span.scene-etape { cursor: default; }
+
+/* Quiz : correction immédiate, rien n'est enregistré */
+.quiz { margin: 1.2rem 0; padding: 0.9rem 1rem; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--bg-elev); }
+.quiz-consigne, .quiz-question { margin: 0 0 0.5rem; font-weight: 500; }
+.quiz-aide, .cartes-aide { margin: 0 0 0.5rem; font-size: 0.82rem; color: var(--text-muted); }
+.quiz-question-bloc { margin-bottom: 0.9rem; }
+.quiz-option {
+  display: flex; gap: 0.6rem; align-items: center; width: 100%; text-align: left; margin: 0 0 0.4rem;
+  padding: 0.55rem 0.7rem; border: 1px solid var(--line-strong); border-radius: var(--r-sm);
+  background: #fff; font: inherit; color: var(--text); cursor: pointer;
+}
+.quiz-option[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
+/* Texte d'une option : un seul élément flex (voir .scene-etape-texte). */
+.quiz-option-texte { flex: 1 1 auto; min-width: 0; }
+.quiz-rang { display: inline-flex; justify-content: center; min-width: 1.4rem; font-family: var(--font-mono); color: var(--accent-strong); }
+.quiz-option.juste, .quiz-vf-ligne.juste { border-color: var(--c-go); background: var(--c-go-soft); }
+.quiz-option.faux, .quiz-vf-ligne.faux { border-color: var(--c-stop); background: var(--c-stop-soft); }
+/* Bonne réponse non choisie : liseré vert en pointillés, sans le fond plein d'une bonne réponse choisie. */
+.quiz-option.manquee { border-color: var(--c-go); border-style: dashed; }
+/* Option corrigée : elle ne réagit plus. */
+.quiz-option.verrou { cursor: default; }
+/* Marque écrite de la correction (« Bien placé », « Réponse fausse »...) : la couleur ne porte jamais
+   seule l'information. Texte sombre sur fond blanc, la couleur n'est que dans le liseré. */
+.quiz-marque {
+  flex: none; padding: 0.05rem 0.5rem; border: 1.5px solid var(--line-strong); border-radius: 999px;
+  background: #fff; color: var(--text); font-size: 0.76rem; font-weight: 600; line-height: 1.4; white-space: nowrap;
+}
+.quiz-marque[hidden] { display: none; }
+.quiz-marque-juste { border-color: var(--c-go); }
+.quiz-marque-faux { border-color: var(--c-stop); }
+.quiz-marque-manquee { border-color: var(--c-go); border-style: dashed; }
+.quiz-vf-ligne { padding: 0.5rem 0.6rem; margin-bottom: 0.4rem; border: 1px solid transparent; border-radius: var(--r-sm); }
+.quiz-affirmation { margin: 0 0 0.4rem; }
+.quiz-vf-boutons { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
+.quiz-vf { padding: 0.4rem 0.9rem; border: 1px solid var(--line-strong); border-radius: var(--r-sm); background: #fff; font: inherit; cursor: pointer; }
+.quiz-vf[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
+.quiz-explication { margin: 0.4rem 0 0; font-size: 0.88rem; color: var(--text-soft); }
+.quiz-actions { display: flex; gap: 0.5rem; margin-top: 0.6rem; }
+.quiz-message { min-height: 1.2rem; margin: 0.5rem 0 0; font-size: 0.88rem; }
+.quiz-message.erreur { color: var(--c-stop); }
+.quiz-message.reussi { color: var(--c-go); }
+
+/* Cartes d'autoévaluation */
+.cartes-bloc { margin: 1.2rem 0; }
+.cartes-grille { display: grid; grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr)); gap: 0.6rem; }
+.carte {
+  min-height: 5.5rem; padding: 0.8rem; text-align: left; cursor: pointer;
+  border: 1px solid var(--line-strong); border-radius: var(--r); background: #fff; font: inherit; color: var(--text);
+}
+.carte[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); }
+/* Zone d'annonce des cartes : lue par les lecteurs d'écran, jamais affichée (la réponse qui prend la
+   place de la question dans le bouton n'est pas lue d'elle-même). */
+.cartes-annonce {
+  position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0;
+  overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap;
+}
+
+/* Bloc mal formé (visible surtout dans l'aperçu de l'éditeur) */
+.cours-bloc-brut {
+  white-space: pre-wrap; font-family: var(--font-mono); font-size: 0.8rem; padding: 0.6rem;
+  border: 1px dashed var(--line-strong); border-radius: var(--r-sm); background: var(--bg-soft);
+}
+
+/* Éditeur : menu Blocs et avertissements de l'aperçu */
+.editeur-blocs { display: grid; gap: 0.6rem; }
+.editeur-blocs-groupe { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; }
+.editeur-blocs-titre { width: 100%; margin: 0; font-size: 0.8rem; color: var(--text-muted); }
+.editeur-avertissements {
+  margin: 0 0 0.8rem; padding: 0.6rem 0.8rem; font-size: 0.85rem;
+  border: 1px solid var(--c-wait); border-radius: var(--r-sm); background: var(--c-wait-soft);
+}
+.editeur-avertissements p { margin: 0 0 0.3rem; font-weight: 500; }
+.editeur-avertissements ul { margin: 0; padding-left: 1.1rem; }

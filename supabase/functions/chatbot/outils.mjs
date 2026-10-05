@@ -5,8 +5,9 @@ export const OUTILS = [
     type: "function",
     function: {
       name: "chercher_dans_les_cours",
-      description: "Recherche plein-texte dans les 57 cours officiels de la formation ECSR. "
-        + "Renvoie les sections les plus pertinentes avec leur numero de theme, leur titre et leur section. "
+      description: "Recherche plein-texte dans les cours de la formation ECSR : les 57 themes officiels "
+        + "et les cours des competences de conduite (C1 a C4, programme du permis B). "
+        + "Renvoie les sections les plus pertinentes avec leur theme ou leur competence, leur titre et leur section. "
         + "A appeler pour toute question de fond sur la formation, la conduite ou la securite routiere.",
       parameters: {
         type: "object",
@@ -40,6 +41,14 @@ export const OUTILS = [
   },
 ];
 
+// Libelle d'un cours dans les resultats de chercher_dans_les_cours : une competence de
+// conduite se designe par son code (C2.4), un theme par son numero sur deux chiffres.
+export function etiquetteCours(c) {
+  return c.code
+    ? `Competence ${c.code} : ${c.titre}`
+    : `Theme ${String(c.numero).padStart(2, "0")} : ${c.titre}`;
+}
+
 export function construirePromptSysteme({ aide, page }) {
   return `Tu es l'assistant intégré de l'app TP ECSR, utilisée par une promo d'adultes en formation au titre professionnel d'enseignant de la conduite et de la sécurité routière (ECSR).
 L'utilisateur est actuellement sur la page « ${page} » de l'app.
@@ -51,13 +60,13 @@ Tes trois rôles :
 
 Règles impératives :
 - Tu réponds en français et tu tutoies, ton simple et pédagogue, réponses courtes et structurées.
-- Pour toute question de fond, appelle d'abord chercher_dans_les_cours et cite le thème et la section utilisés (exemple : Thème 22, section « 2. Contenu du cours > A. Feux de position »).
-- Sur le fond, tu RESTITUES les extraits de cours renvoyés par l'outil : reformuler et structurer est permis, AJOUTER des faits, des cas particuliers, des listes ou des conseils absents des extraits est interdit. Si les extraits ne couvrent pas un point de la question, dis-le simplement et indique le thème à consulter, ne complète jamais de mémoire.
+- Pour toute question de fond, appelle d'abord chercher_dans_les_cours et cite le thème (ou la compétence) et la section utilisés (exemples : Thème 22, section « 2. Contenu du cours > A. Feux de position » ; Compétence C2.4, section « Comment »).
+- Sur le fond, tu RESTITUES les extraits de cours renvoyés par l'outil : reformuler et structurer est permis, AJOUTER des faits, des cas particuliers, des listes ou des conseils absents des extraits est interdit. Si les extraits ne couvrent pas un point de la question, dis-le simplement et indique le thème ou la compétence à consulter, ne complète jamais de mémoire.
 - INTERDICTION ABSOLUE de citer un numéro d'article de loi ou de règlement qui ne provient pas d'un appel réussi à consulter_article_legifrance dans cette conversation. Si l'outil échoue ou ne trouve rien, dis-le honnêtement et n'avance jamais un numéro de mémoire.
 - Quand tu cites un article vérifié, donne son lien Légifrance (champ url renvoyé par l'outil) et signale tout état différent de VIGUEUR.
 - Hors périmètre (autre que : formation ECSR, conduite, sécurité routière, fonctionnement de l'app) : décline poliment en une phrase.
 - N'utilise jamais le caractère tiret cadratin, ni en français ni ailleurs.
-- Quand tu as utilisé des outils, termine par une ligne « Sources : » listant thèmes, sections et liens.
+- Quand tu as utilisé des outils, termine par une ligne « Sources : » listant thèmes, compétences, sections et liens.
 
 Guide de l'application (pour le rôle 1) :
 ${aide}`;

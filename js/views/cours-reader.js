@@ -14,44 +14,53 @@
  *   - un tableau qui porte une colonne « Amende » devient un tableau de
  *     sanctions (montants et points en chiffres tabulaires).
  */
-import { el, clear } from "../utils.js?v=20261004a";
-import { icon } from "../icons.js?v=20261004a";
-import { carteSignal, signalConnu } from "../signaux.js?v=20261004a";
-import { carteMarquage, marquageConnu } from "../marquage.js?v=20261004a";
-import { listCoursIndex, getCours } from "../db.js?v=20261004a";
-import { isAdmin, isProf } from "../auth-admin.js?v=20261004a";
-import { titreDepuisMarkdown, tempsLecture } from "../cours-rules.js?v=20261004a";
+import { el, clear } from "../utils.js?v=20261005a";
+import { icon } from "../icons.js?v=20261005a";
+import { carteSignal, signalConnu } from "../signaux.js?v=20261005a";
+import { carteMarquage, marquageConnu } from "../marquage.js?v=20261005a";
+import { rendreBlocInteractif, detruireScenes } from "../cours-blocs.js?v=20261005a";
+import { ouvertureBloc, lireBloc } from "../cours-blocs-rules.js?v=20261005a";
+import { listCoursIndex, getCours } from "../db.js?v=20261005a";
+import { isAdmin, isProf } from "../auth-admin.js?v=20261005a";
+import { titreDepuisMarkdown, tempsLecture, cleCours, estCodeCompetence, libelleCle, coursSuivant, cibleLienCours }
+  from "../cours-rules.js?v=20261005a";
 
 // Index des cours visibles, chargé une fois par rendu de la page Thèmes.
-let coursIndex = null;  // Map numero -> { id, titre, published, updated_by, updated_at }
+let coursIndex = null;  // Map clé (numéro ou code) -> { id, numero, code, titre, published, updated_by, updated_at }
 
 /** Charge (ou recharge) l'index des cours visibles. À appeler avant hasCours(). */
 export async function chargerCoursIndex() {
   const lignes = await listCoursIndex();
-  coursIndex = new Map(lignes.map((c) => [Number(c.numero), c]));
+  coursIndex = new Map(lignes.map((c) => [cleCours(c), c]).filter(([cle]) => cle !== null));
   return coursIndex;
 }
 
-/** Le thème a-t-il un cours visible ? (index chargé par chargerCoursIndex) */
+/** Un cours visible porte-t-il cette clé ? */
+export function hasCoursCle(cle) {
+  return cle !== null && cle !== undefined && !!coursIndex && coursIndex.has(cle);
+}
+
+/** Le thème (ou la compétence) a-t-il un cours visible ? */
 export function hasCours(theme) {
-  return !!theme && !!coursIndex && coursIndex.has(Number(theme.numero));
+  return !!theme && hasCoursCle(cleCours(theme));
 }
 
 // Mémoire locale des cours déjà ouverts (par navigateur, comme les nouveautés
-// vues) : la page Thèmes colore en vif les cours pas encore lus.
+// vues) : la page Cours colore en vif les cours pas encore lus. Les clés sont
+// des numéros (thèmes) ou des codes (compétences), jamais confondus par JSON.
 const CLE_COURS_OUVERTS = "cours-ouverts";
 
 /** Ce cours a-t-il déjà été ouvert sur cet appareil ? */
-export function coursDejaOuvert(numero) {
+export function coursDejaOuvert(cle) {
   try {
-    return JSON.parse(localStorage.getItem(CLE_COURS_OUVERTS) || "[]").includes(Number(numero));
+    return JSON.parse(localStorage.getItem(CLE_COURS_OUVERTS) || "[]").includes(cle);
   } catch (e) { return false; }
 }
 
-function marquerCoursOuvert(numero) {
+function marquerCoursOuvert(cle) {
   try {
     const vus = new Set(JSON.parse(localStorage.getItem(CLE_COURS_OUVERTS) || "[]"));
-    vus.add(Number(numero));
+    vus.add(cle);
     localStorage.setItem(CLE_COURS_OUVERTS, JSON.stringify([...vus]));
   } catch (e) { /* stockage indisponible : le bouton restera simplement vif */ }
 }
@@ -59,16 +68,31 @@ function marquerCoursOuvert(numero) {
 // ===== Rendu markdown =====
 
 // Inline : liens, gras, italique, code. Renvoie un fragment (jamais d'innerHTML).
+// `sansLien` : le libellé d'un lien reste du texte. C'est le rendu des boutons des blocs (option,
+// étape, carte) : un lien ne se loge pas dans un bouton.
 const INLINE = /\[([^\]]+)\]\(([^)]+)\)|\*\*([^*]+)\*\*|`([^`]+)`|\*([^*]+)\*|_([^_]+)_/;
 
-function inline(texte) {
+function inline(texte, sansLien = false) {
   const frag = document.createDocumentFragment();
   let reste = String(texte);
   let m;
   while ((m = INLINE.exec(reste))) {
     if (m.index > 0) frag.appendChild(document.createTextNode(reste.slice(0, m.index)));
-    if (m[1] !== undefined) {
-      frag.appendChild(el("a", { href: m[2], target: "_blank", rel: "noopener noreferrer" }, m[1]));
+    if (m[1] !== undefined && sansLien) {
+      frag.appendChild(document.createTextNode(m[1]));
+    } else if (m[1] !== undefined) {
+      // Lien vers un autre cours (`cours:31`, `cours:C2.5`) : un bouton, pour ne
+      // jamais toucher au routage par l'adresse. Cible inconnue, non visible ou
+      // mal formée (`cours:58`, `cours:C2.10`, `cours:c2.4`) : texte simple,
+      // jamais un lien mort. Seul un vrai lien externe devient un <a>.
+      const cible = cibleLienCours(m[2]);
+      if (cible !== null && hasCoursCle(cible)) {
+        frag.appendChild(el("button", { type: "button", class: "cours-lien", dataset: { cours: String(cible) } }, m[1]));
+      } else if (cible !== null || /^\s*cours:/i.test(m[2])) {
+        frag.appendChild(document.createTextNode(m[1]));
+      } else {
+        frag.appendChild(el("a", { href: m[2], target: "_blank", rel: "noopener noreferrer" }, m[1]));
+      }
     } else if (m[3] !== undefined) {
       frag.appendChild(el("strong", {}, m[3]));
     } else if (m[4] !== undefined) {
@@ -314,6 +338,16 @@ function rendreBlocs(lignes, contexte) {
       continue;
     }
 
+    // Blocs interactifs des cours de compétences (schéma animé, quiz, cartes). Après les planches :
+    // toute autre directive « ::: » est signalée (scène, Quiz...), et un bloc sans fermeture aussi.
+    const ouverture = ouvertureBloc(nu);
+    if (ouverture) {
+      const lu = lireBloc(lignes, i + 1);
+      i = lu.suivante;
+      sortie.push(rendreBlocInteractif(ouverture.nom, ouverture.arg, lu.contenu, contexte, inline, lu.ferme));
+      continue;
+    }
+
     if (nu.startsWith(">")) {
       const bloc = [];
       while (i < lignes.length && lignes[i].trim().startsWith(">")) bloc.push(lignes[i].trim()), i++;
@@ -383,7 +417,7 @@ function rendreBlocs(lignes, contexte) {
 
     // Paragraphe : lignes consécutives jusqu'à une ligne vide.
     const para = [];
-    while (i < lignes.length && lignes[i].trim() && !/^(#|>|\||[-*]\s|\d+\.\s|---|!\[)/.test(lignes[i].trim())) {
+    while (i < lignes.length && lignes[i].trim() && !/^(#|>|\||[-*]\s|\d+\.\s|---|!\[|:::)/.test(lignes[i].trim())) {
       para.push(lignes[i].trim());
       i++;
     }
@@ -398,10 +432,41 @@ function rendreBlocs(lignes, contexte) {
 // ===== Écran de lecture =====
 
 /** Rend un texte markdown complet. Renvoie { noeuds, contexte } ;
- *  contexte.sections liste les titres de niveau 2 (pour le sommaire). */
-export function rendreMarkdown(texte) {
-  const contexte = { sections: [], essentielVu: false };
-  return { noeuds: rendreBlocs(String(texte).split("\n"), contexte), contexte };
+ *  contexte.sections liste les titres de niveau 2 (pour le sommaire),
+ *  contexte.erreurs les blocs mal formés, non refermés ou de directive inconnue
+ *  (affichés par l'éditeur seulement),
+ *  contexte.scenes les schémas animés montés : le rendu qui les jette (fermeture de
+ *  la fiche, nouvel aperçu de l'éditeur) appelle d'abord detruireScenes(contexte).
+ *  `cartes` regroupe chaque rubrique de niveau 2 dans une carte (compétences).
+ *  `blocs: false` (assistant) laisse les blocs schéma, quiz et cartes en texte brut :
+ *  une réponse qui en recopie un ne monte ni schéma ni quiz dans la bulle. */
+export function rendreMarkdown(texte, { cartes = false, blocs = true } = {}) {
+  const contexte = { sections: [], essentielVu: false, erreurs: [], scenes: [], blocs };
+  const noeuds = rendreBlocs(String(texte).split("\n"), contexte);
+  return { noeuds: cartes ? regrouperEnCartes(noeuds) : noeuds, contexte };
+}
+
+// Pour l'aperçu de l'éditeur : jeter un rendu sans arrêter ses schémas les laisserait en vie.
+export { detruireScenes };
+
+// Mise en page compacte : chaque titre de niveau 2 ouvre une carte qui reçoit
+// tout ce qui le suit jusqu'au titre suivant. Ce qui précède le premier titre
+// (la fiche L'essentiel) reste hors carte. La carte n'est pas positionnée :
+// le sommaire calcule toujours ses défilements sur le même parent.
+function regrouperEnCartes(noeuds) {
+  const sortie = [];
+  let carte = null;
+  for (const n of noeuds) {
+    if (n.tagName === "H2") {
+      carte = el("section", { class: "cours-carte" }, n);
+      sortie.push(carte);
+    } else if (carte) {
+      carte.appendChild(n);
+    } else {
+      sortie.push(n);
+    }
+  }
+  return sortie;
 }
 
 /**
@@ -410,8 +475,9 @@ export function rendreMarkdown(texte) {
  * faire perdre sa position de lecture.
  */
 export async function openCoursSheet(theme, { onQcm } = {}) {
-  const numero = Number(theme.numero);
-  const overlay = el("div", { class: "cours-overlay" });
+  const cle = cleCours(theme);
+  const competence = estCodeCompetence(cle);
+  const overlay = el("div", { class: "cours-overlay" + (competence ? " cours-competence" : "") });
   const barre = el("div", { class: "cours-progress" });
   const jauge = el("div", { class: "cours-progress-bar" });
   barre.appendChild(jauge);
@@ -424,9 +490,9 @@ export async function openCoursSheet(theme, { onQcm } = {}) {
   // ce bouton. L'import dynamique évite de charger l'éditeur pour lui.
   const modifier = (isAdmin() || isProf())
     ? el("button", { class: "btn cours-modifier", type: "button", onClick: async () => {
-        const { openCoursEditeur } = await import("./cours-editeur.js?v=20261004a");
+        const { openCoursEditeur } = await import("./cours-editeur.js?v=20261005a");
         close();
-        openCoursEditeur(numero, {
+        openCoursEditeur(cle, {
           onFerme: (aChange) => { if (aChange) openCoursSheet(theme); },
         });
       } }, "Modifier")
@@ -434,7 +500,7 @@ export async function openCoursSheet(theme, { onQcm } = {}) {
 
   const tete = el("div", { class: "cours-head" },
     el("div", { class: "cours-head-main" },
-      el("span", { class: "cours-num" }, String(numero).padStart(2, "0")),
+      el("span", { class: "cours-num" }, libelleCle(cle)),
       el("div", {},
         el("h2", { class: "cours-head-titre" }, theme.titre),
         meta,
@@ -455,7 +521,12 @@ export async function openCoursSheet(theme, { onQcm } = {}) {
   document.body.appendChild(overlay);
   document.body.classList.add("cours-open");
 
+  let ferme = false;          // fiche fermée (croix, Échap, lien, enchaînement)
+  let contexteCours = null;   // le rendu du cours : ses schémas sont à arrêter à la fermeture
   function close() {
+    ferme = true;
+    // Un schéma arrêté garde son observateur de visibilité, donc son SVG en vie, tant qu'on ne le détruit pas.
+    if (contexteCours) detruireScenes(contexteCours);
     overlay.remove();
     document.body.classList.remove("cours-open");
     document.removeEventListener("keydown", onKey);
@@ -472,14 +543,43 @@ export async function openCoursSheet(theme, { onQcm } = {}) {
   });
 
   try {
-    const cours = await getCours(numero);
+    const cours = await getCours(cle);
     const texte = cours.corps_md;
-    marquerCoursOuvert(numero);
+    marquerCoursOuvert(cle);
+    // Fiche fermée pendant le chargement : rien à rendre, et aucun schéma à monter dans une fiche disparue.
+    if (ferme) return;
 
-    const { noeuds, contexte } = rendreMarkdown(texte);
+    const { noeuds, contexte } = rendreMarkdown(texte, { cartes: competence });
+    contexteCours = contexte;
 
     clear(corps);
     noeuds.forEach((n) => corps.appendChild(n));
+
+    // Liens entre cours : délégation sur le corps (posés par inline()).
+    corps.addEventListener("click", (ev) => {
+      const lien = ev.target.closest(".cours-lien");
+      if (!lien) return;
+      const visee = cibleLienCours("cours:" + lien.dataset.cours);
+      const entree = visee !== null && coursIndex ? coursIndex.get(visee) : null;
+      if (!entree) return;
+      close();
+      openCoursSheet({ numero: entree.numero, code: entree.code, titre: entree.titre });
+    });
+
+    // Fin d'une compétence : enchaîner sur la suivante (seulement si elle est visible).
+    if (competence && coursIndex) {
+      const suivant = coursSuivant(cle, [...coursIndex.keys()]);
+      const entree = suivant ? coursIndex.get(suivant) : null;
+      if (entree) {
+        corps.appendChild(el("div", { class: "cours-suivant" },
+          el("p", { class: "cours-suivant-texte" },
+            suivant.includes(".") ? "Sous-compétence suivante" : "Compétence suivante"),
+          el("button", { class: "btn primary", type: "button",
+            onClick: () => { close(); openCoursSheet({ numero: null, code: suivant, titre: entree.titre }); } },
+            `${suivant} · ${entree.titre}`),
+        ));
+      }
+    }
 
     // Fin de lecture : enchaîner sur le QCM du thème quand il est disponible.
     if (onQcm) {

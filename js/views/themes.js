@@ -1,15 +1,16 @@
-import { listThemes, updateTheme, addTheme, deleteTheme, listQcmIndex, getQcmFull, publishQcm, unpublishQcm, updateExamConfig, listExamAttempts, resetExamAttempt, listMyQcmAttempts, getMyProfile, listEvaluations, getOrCreateQcm, saveQcmQuestion, deleteQcmQuestion, reorderQcmQuestions, uploadQcmImage, listQcmSignalements, setQcmSignalementStatut, countQcmSignalementsOuverts } from "../db.js?v=20261004a";
-import { el, clear, isoDate, formatDate, toast, debounce } from "../utils.js?v=20261004a";
-import { icon } from "../icons.js?v=20261004a";
+import { listThemes, updateTheme, addTheme, deleteTheme, listQcmIndex, getQcmFull, publishQcm, unpublishQcm, updateExamConfig, listExamAttempts, resetExamAttempt, listMyQcmAttempts, getMyProfile, listEvaluations, getOrCreateQcm, saveQcmQuestion, deleteQcmQuestion, reorderQcmQuestions, uploadQcmImage, listQcmSignalements, setQcmSignalementStatut, countQcmSignalementsOuverts } from "../db.js?v=20261005a";
+import { el, clear, isoDate, formatDate, toast, debounce } from "../utils.js?v=20261005a";
+import { icon } from "../icons.js?v=20261005a";
 import { examenDemarrable, tempsRestantMs, formatTempsRestant,
-         echeanceDepuisChoix, DUREES_OUVERTURE } from "../qcm-exam-rules.js?v=20261004a";
-import { isAdmin, getAdminEmail, isProf, isStagiaire } from "../auth-admin.js?v=20261004a";
-import { recordUndo } from "../undo.js?v=20261004a";
-import { openQcmEntrainement, openQcmExamen } from "./qcm.js?v=20261004a";
-import { carteSignalement, renderConsoleSignalements, chargerAuteurs } from "./signalements.js?v=20261004a";
-import { renderSubTabs } from "../subtabs.js?v=20261004a";
-import { hasCours, openCoursSheet, chargerCoursIndex, coursDejaOuvert } from "./cours-reader.js?v=20261004a";
-import { moduleVisible, moduleMasque, repereMasque } from "../modules-etat.js?v=20261004a";
+         echeanceDepuisChoix, DUREES_OUVERTURE } from "../qcm-exam-rules.js?v=20261005a";
+import { isAdmin, getAdminEmail, isProf, isStagiaire } from "../auth-admin.js?v=20261005a";
+import { recordUndo } from "../undo.js?v=20261005a";
+import { openQcmEntrainement, openQcmExamen } from "./qcm.js?v=20261005a";
+import { carteSignalement, renderConsoleSignalements, chargerAuteurs } from "./signalements.js?v=20261005a";
+import { renderSubTabs } from "../subtabs.js?v=20261005a";
+import { hasCours, openCoursSheet, chargerCoursIndex, coursDejaOuvert } from "./cours-reader.js?v=20261005a";
+import { cleCours } from "../cours-rules.js?v=20261005a";
+import { moduleVisible, moduleMasque, repereMasque } from "../modules-etat.js?v=20261005a";
 
 let themes = [];
 let qcmByTheme = new Map();  // theme_id -> { id, nb_questions, published, ... }
@@ -1125,7 +1126,7 @@ function optionsCoursPour(theme) {
 
 function openThemeModal(theme) {
   const backdrop = el("div", { class: "modal-backdrop" });
-  const num = theme.numero ? String(theme.numero).padStart(2, "0") : null;
+  const num = theme.code || (theme.numero ? String(theme.numero).padStart(2, "0") : null);
   const modal = el("div", { class: "modal theme-modal" },
     el("div", { class: "theme-modal-head" },
       num ? el("span", { class: "theme-modal-num" }, num) : null,
@@ -1163,7 +1164,9 @@ function openThemeModal(theme) {
 
 function renderThemeRow(theme, container, coursOn = false) {
   const admin = isAdmin();
-  const num = theme.numero ? String(theme.numero).padStart(2, "0") : "-";
+  // Pastille : le numéro d'un thème, ou le code d'une compétence de conduite (« C2.4 »).
+  const num = theme.code || (theme.numero ? String(theme.numero).padStart(2, "0") : "-");
+  const groupe = /^C[1-4]$/.test(theme.code || "");
   const statutNorm = normalizeStatut(theme.statut);
   const color = statutNorm === "Fait" ? "done" : "todo";
 
@@ -1220,9 +1223,9 @@ function renderThemeRow(theme, container, coursOn = false) {
   // appareil, atténué ensuite. Le clic sur le titre suit le même chemin.
   const coursBtn = coursVisible(theme)
     ? el("button", {
-        class: "theme-cours-btn" + (coursDejaOuvert(theme.numero) ? " deja-lu" : ""),
+        class: "theme-cours-btn" + (coursDejaOuvert(cleCours(theme)) ? " deja-lu" : ""),
         type: "button",
-        title: coursDejaOuvert(theme.numero) ? "Relire le cours" : "Lire le cours",
+        title: coursDejaOuvert(cleCours(theme)) ? "Relire le cours" : "Lire le cours",
       }, icon.edu(), "Cours")
     : null;
   const coursCell = coursOn
@@ -1251,8 +1254,8 @@ function renderThemeRow(theme, container, coursOn = false) {
         qcm ? qcmCellEl(theme, qcm) : (canManageExam() ? createQcmCellEl(theme) : null))
     : null;
 
-  return el("div", { class: "theme-row " + color, dataset: { id: theme.id } },
-    el("span", { class: "theme-num" }, num),
+  return el("div", { class: "theme-row " + color + (groupe ? " theme-row-groupe" : ""), dataset: { id: theme.id } },
+    el("span", { class: "theme-num" + (theme.code ? " code" : "") }, num),
     el("div", { class: "theme-titre-block" },
       titreBtn,
       theme.categorie
@@ -1408,7 +1411,7 @@ function visibleFamilleItems(f) {
     if (search) {
       const q = search.toLowerCase();
       const inTitle = t.titre.toLowerCase().includes(q);
-      const inNum = t.numero != null && String(t.numero).includes(q);
+      const inNum = (t.numero != null && String(t.numero).includes(q)) || (t.code || "").toLowerCase().includes(q);
       const inCat = (t.categorie || "").toLowerCase().includes(q);
       if (!inTitle && !inNum && !inCat) return false;
     }
@@ -1531,7 +1534,7 @@ function rerender(container) {
         if (search) {
           const q = search.toLowerCase();
           const inTitle = t.titre.toLowerCase().includes(q);
-          const inNum = t.numero != null && String(t.numero).includes(q);
+          const inNum = (t.numero != null && String(t.numero).includes(q)) || (t.code || "").toLowerCase().includes(q);
           const inCat = (t.categorie || "").toLowerCase().includes(q);
           if (!inTitle && !inNum && !inCat) return false;
         }

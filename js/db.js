@@ -1,10 +1,10 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261004a";
-import { compteDansEquite } from "./passage-rules.js?v=20261004a";
+import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261005a";
+import { compteDansEquite } from "./passage-rules.js?v=20261005a";
 import {
   ENTETE_PROMO, doitPorterEntetePromo, choisirPromoInitiale, profilEffectif,
   separerChamps, CHAMPS_PROGRESSION, CHAMPS_EXAMEN, fusionnerProgression, fusionnerExamen,
-} from "./promo-rules.js?v=20261004a";
+} from "./promo-rules.js?v=20261005a";
 
 // Contexte de promo (spec multi-promo, C.1). La promo courante voyage dans l'en-tête
 // x-promo-id de chaque requête de données ; la base vérifie le droit et filtre.
@@ -747,16 +747,17 @@ export async function listCoursIndex() {
   return cachedQuery("cours_index", async () => {
     const { data, error } = await supabase
       .from("cours")
-      .select("id, numero, titre, published, updated_by, updated_at");
+      .select("id, numero, code, titre, published, updated_by, updated_at");
     if (error) throw error;
     return data || [];
   });
 }
 
-// Le cours complet d'un thème (corps markdown compris).
-export async function getCours(numero) {
+// Le cours complet d'un thème (clé numérique) ou d'une compétence (clé « C2.4 »).
+export async function getCours(cle) {
+  const colonne = typeof cle === "string" ? "code" : "numero";
   const { data, error } = await supabase
-    .from("cours").select("*").eq("numero", numero).single();
+    .from("cours").select("*").eq(colonne, cle).single();
   if (error) throw error;
   return data;
 }

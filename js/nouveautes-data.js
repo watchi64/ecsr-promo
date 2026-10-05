@@ -16,6 +16,33 @@
 
 export const NOUVEAUTES = [
   {
+    id: "2026-10-04-competences-conduite-liste",
+    date: "2026-10-04",
+    pour: "tous",
+    titre: "Compétences de conduite : la liste du livret officiel",
+    resume: "Dans Cours, sous-onglet Compétences, les compétences de conduite C1 à C4 suivent maintenant "
+          + "exactement le livret d'apprentissage : 32 sous-compétences, chacune avec son code (C2.4, C3.7…). "
+          + "La compétence 2 a retrouvé ses sept intitulés officiels, et la compétence 3 gagne deux "
+          + "sous-compétences : la circulation inter-files des motards, et les tunnels et les ponts.",
+    ou: { label: "Cours, sous-onglet Compétences", route: "themes", sousOnglet: "competences" },
+  },
+  {
+    id: "2026-10-04-cours-competences-blocs",
+    date: "2026-10-04",
+    pour: "formateurs",
+    titre: "Cours de compétences : schémas animés, quiz et cartes",
+    resume: "Les cours peuvent maintenant contenir des schémas animés (la voiture fait la manœuvre et les "
+          + "étapes s'allument), des quiz corrigés tout de suite et des cartes d'autoévaluation. Trois premiers "
+          + "cours de compétences arrivent, non publiés : l'ouverture de la compétence 2, tourner en "
+          + "agglomération (C2.4) et les ronds-points et giratoires (C2.6). À relire, puis à publier.",
+    ou: { label: "Cours, sous-onglet Compétences", route: "themes", sousOnglet: "competences" },
+    guide: [
+      "Ouvre Cours, puis le sous-onglet Compétences.",
+      "Ouvre C2.4 : le schéma se lance quand il apparaît à l'écran ; touche une étape pour y revenir.",
+      "Bouton Modifier, puis Blocs, pour ajouter un schéma, un quiz ou des cartes dans un cours.",
+    ],
+  },
+  {
     id: "2026-10-04-confidentialite-notes",
     date: "2026-10-04",
     pour: "tous",
