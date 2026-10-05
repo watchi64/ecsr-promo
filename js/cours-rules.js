@@ -67,6 +67,17 @@ export function cleCours(x) {
   return null;
 }
 
+/** Le cours serait-il visible du rôle simulé par l'aperçu « Voir en tant que » ? L'aperçu
+ *  ne change que l'affichage : la base répond avec les droits du fondateur. On rejoue donc
+ *  ici sa règle de lecture des cours : un stagiaire ne voit que le publié ; un formateur
+ *  voit aussi les cours de thème non publiés, mais pas un cours de compétence non publié,
+ *  réservé au fondateur. Hors aperçu (apercu nul), la base a déjà filtré : tout passe. */
+export function coursVisibleEnApercu(cours, apercu) {
+  if (!apercu) return true;
+  if (cours.published) return true;
+  return apercu === "prof" && !(typeof cours.code === "string" && cours.code);
+}
+
 /** La clé désigne-t-elle une compétence (« C2 ») ou une sous-compétence (« C2.4 ») ? */
 export function estCodeCompetence(cle) {
   return typeof cle === "string" && MOTIF_CODE.test(cle);

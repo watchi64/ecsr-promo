@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   titreDepuisMarkdown, tempsLecture, insererSyntaxe, cheminImage, interpolerAncres,
-  cleCours, estCodeCompetence, estOuverture, libelleCle, comparerCodes, coursSuivant, cibleLienCours,
+  cleCours, estCodeCompetence, estOuverture, libelleCle, comparerCodes, coursSuivant, cibleLienCours, coursVisibleEnApercu,
 } from "../js/cours-rules.js";
 
 test("titreDepuisMarkdown retire le préfixe THÈME XX", () => {
@@ -109,4 +109,19 @@ test("cibleLienCours : thème 1 à 57 ou code, sinon null", () => {
 test("cheminImage range les images d'une compétence à part", () => {
   assert.equal(cheminImage("C2.4", "Schéma.png", "1"), "competence_c2-4/1_schema.jpg");
   assert.equal(cheminImage(7, "Photo.PNG", "2"), "theme_07/2_photo.jpg");
+});
+
+test("coursVisibleEnApercu rejoue la règle de lecture de la base pour le rôle simulé", () => {
+  const theme = { numero: 12, code: null, published: true };
+  const themeBrouillon = { numero: 58, code: null, published: false };
+  const competence = { numero: null, code: "C2.4", published: true };
+  const competenceBrouillon = { numero: null, code: "C2.6", published: false };
+  // Hors aperçu, la base a déjà filtré : tout ce qu'elle a rendu passe.
+  for (const c of [theme, themeBrouillon, competence, competenceBrouillon]) assert.equal(coursVisibleEnApercu(c, null), true);
+  // Aperçu stagiaire : seulement le publié.
+  assert.deepEqual([theme, themeBrouillon, competence, competenceBrouillon].map((c) => coursVisibleEnApercu(c, "stagiaire")),
+    [true, false, true, false]);
+  // Aperçu formateur : le publié et les cours de thème non publiés, jamais un cours de compétence non publié.
+  assert.deepEqual([theme, themeBrouillon, competence, competenceBrouillon].map((c) => coursVisibleEnApercu(c, "prof")),
+    [true, true, true, false]);
 });

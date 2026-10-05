@@ -21,8 +21,9 @@ import { carteMarquage, marquageConnu } from "../marquage.js?v=20261005c";
 import { rendreBlocInteractif, detruireScenes } from "../cours-blocs.js?v=20261005c";
 import { ouvertureBloc, lireBloc } from "../cours-blocs-rules.js?v=20261005c";
 import { listCoursIndex, getCours } from "../db.js?v=20261005c";
-import { isAdmin, isProf } from "../auth-admin.js?v=20261005c";
-import { titreDepuisMarkdown, tempsLecture, cleCours, estCodeCompetence, libelleCle, coursSuivant, cibleLienCours }
+import { isAdmin, isProf, getViewAs } from "../auth-admin.js?v=20261005c";
+import { titreDepuisMarkdown, tempsLecture, cleCours, estCodeCompetence, libelleCle, coursSuivant, cibleLienCours,
+  coursVisibleEnApercu }
   from "../cours-rules.js?v=20261005c";
 
 // Index des cours visibles, chargé une fois par rendu de la page Thèmes.
@@ -30,7 +31,7 @@ let coursIndex = null;  // Map clé (numéro ou code) -> { id, numero, code, tit
 
 /** Charge (ou recharge) l'index des cours visibles. À appeler avant hasCours(). */
 export async function chargerCoursIndex() {
-  const lignes = await listCoursIndex();
+  const lignes = (await listCoursIndex()).filter((c) => coursVisibleEnApercu(c, getViewAs()));
   coursIndex = new Map(lignes.map((c) => [cleCours(c), c]).filter(([cle]) => cle !== null));
   return coursIndex;
 }
