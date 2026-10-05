@@ -7,7 +7,6 @@
 // Chaque compte doit alors accepter de nouveau à sa prochaine connexion. Une correction de
 // forme (faute, tournure) ne change pas la version.
 //
-// Repères à compléter avant publication : [SIRET] et [ADRESSE] (mentions légales).
 
 export const VERSION_CONDITIONS = "2026-10-04";
 
@@ -182,8 +181,8 @@ export const MENTIONS_MD = `# Mentions légales
 ## Éditeur
 
 - **Timy Studio**, entreprise individuelle (micro-entreprise) de Timy Valdivia
-- SIRET : [SIRET]
-- Adresse : [ADRESSE]
+- SIRET : 106 264 021 00010
+- Adresse : rue Marcel Pagnol, 30000 Nîmes
 - Contact : contact@timy-studio.fr
 - Directeur de la publication : Timy Valdivia
 
