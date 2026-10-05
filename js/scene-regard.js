@@ -24,7 +24,7 @@
  * rend regardDessine : ce triangle, arrêté DEBORD_SUIVI m au-delà d'un usager suivi des yeux (longueurCone), ou, sur une
  * image figée, le secteur que parcourt un balayage (secteurBalayage).
  */
-import { DEG } from "./scene-geometrie.js?v=20261005a";
+import { DEG } from "./scene-geometrie.js?v=20261005b";
 
 /** Écart maximal, en degrés, entre le cap et la direction d'une cible suivie des yeux : au-delà, elle est passée derrière
  *  le conducteur, qui regarde de nouveau devant lui. */

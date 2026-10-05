@@ -4,14 +4,13 @@ import { fournisseursDisponibles, planTentatives, appelLLM } from "../supabase/f
 
 function envDe(objet) { return (cle) => objet[cle]; }
 
-test("fournisseursDisponibles ne garde que les cles presentes, Mistral d'abord", () => {
+test("fournisseursDisponibles : Mistral seul, la cle Gemini est ignoree (conditions du 04/10)", () => {
   const les2 = fournisseursDisponibles(envDe({ MISTRAL_API_KEY: "m", GEMINI_API_KEY: "g" }));
-  assert.deepEqual(les2.map((f) => f.nom), ["mistral", "gemini"]);
+  assert.deepEqual(les2.map((f) => f.nom), ["mistral"]);
   assert.equal(les2[0].modele, "mistral-small-latest");
-  assert.equal(les2[1].modele, "gemini-2.5-flash");
+  assert.ok(les2.every((f) => !/google/.test(f.url)), "aucun appel vers Google");
 
-  const seul = fournisseursDisponibles(envDe({ GEMINI_API_KEY: "g" }));
-  assert.deepEqual(seul.map((f) => f.nom), ["gemini"]);
+  assert.deepEqual(fournisseursDisponibles(envDe({ GEMINI_API_KEY: "g" })), []);
   assert.deepEqual(fournisseursDisponibles(envDe({})), []);
 });
 
@@ -20,9 +19,9 @@ test("les modeles se surchargent par variable d'environnement", () => {
   assert.equal(m.modele, "mistral-medium-latest");
 });
 
-test("planTentatives double Mistral (retry) puis passe au suivant", () => {
+test("planTentatives double Mistral (retry)", () => {
   const fs = fournisseursDisponibles(envDe({ MISTRAL_API_KEY: "m", GEMINI_API_KEY: "g" }));
-  assert.deepEqual(planTentatives(fs).map((f) => f.nom), ["mistral", "mistral", "gemini"]);
+  assert.deepEqual(planTentatives(fs).map((f) => f.nom), ["mistral", "mistral"]);
 });
 
 function reponseFlux(lignes) {

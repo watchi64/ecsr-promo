@@ -1,10 +1,10 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261005a";
-import { compteDansEquite } from "./passage-rules.js?v=20261005a";
+import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261005b";
+import { compteDansEquite } from "./passage-rules.js?v=20261005b";
 import {
   ENTETE_PROMO, doitPorterEntetePromo, choisirPromoInitiale, profilEffectif,
   separerChamps, CHAMPS_PROGRESSION, CHAMPS_EXAMEN, fusionnerProgression, fusionnerExamen,
-} from "./promo-rules.js?v=20261005a";
+} from "./promo-rules.js?v=20261005b";
 
 // Contexte de promo (spec multi-promo, C.1). La promo courante voyage dans l'en-tête
 // x-promo-id de chaque requête de données ; la base vérifie le droit et filtre.
@@ -1404,6 +1404,23 @@ export async function verifyRecoveryToken(tokenHash) {
 export async function updatePassword(password) {
   const { error } = await supabase.auth.updateUser({ password });
   if (error) throw error;
+}
+
+// === Conditions d'utilisation (acceptation par version, propre au compte) ===
+
+// Les acceptations du compte connecté. Filtre explicite sur l'adresse : un admin lit
+// toutes les lignes (règle de la base), il ne doit regarder ici que les siennes.
+export async function listMesAcceptations(email) {
+  const { data, error } = await supabase.from("conditions_acceptations")
+    .select("version, accepted_at").eq("email", String(email).toLowerCase());
+  if (error) throw error;
+  return data || [];
+}
+
+export async function accepterConditions(version) {
+  const { data, error } = await supabase.rpc("accepter_conditions", { p_version: version });
+  if (error) throw error;
+  return data;
 }
 
 export async function signOut() {
