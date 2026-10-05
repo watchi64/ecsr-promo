@@ -1,10 +1,10 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261005d";
-import { compteDansEquite } from "./passage-rules.js?v=20261005d";
+import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261005e";
+import { compteDansEquite } from "./passage-rules.js?v=20261005e";
 import {
   ENTETE_PROMO, doitPorterEntetePromo, choisirPromoInitiale, profilEffectif,
   separerChamps, CHAMPS_PROGRESSION, CHAMPS_EXAMEN, fusionnerProgression, fusionnerExamen,
-} from "./promo-rules.js?v=20261005d";
+} from "./promo-rules.js?v=20261005e";
 
 // Contexte de promo (spec multi-promo, C.1). La promo courante voyage dans l'en-tête
 // x-promo-id de chaque requête de données ; la base vérifie le droit et filtre.
@@ -250,6 +250,42 @@ export async function deleteStagiaire(id) {
 // Désactivation douce (abandon) : la ligne reste en base (historique / stats futures)
 // mais le stagiaire est masqué partout (planning, dés, notes, passages) car
 // listStagiaires() ne renvoie que actif = true. actif=false => abandon, true => réactivé.
+// === Effacement des données personnelles (fonctions serveur réservées aux admins) ===
+// Le stagiaire doit d'abord être en abandon ; ses résultats restent, sans nom.
+export async function anonymiserStagiaire(id) {
+  const { data, error } = await supabase.rpc("anonymiser_stagiaire", { p_stagiaire_id: id });
+  if (error) throw error;
+  invalidateCache("stagiaires");
+  invalidateCache("stagiaires_all");
+  return data;
+}
+
+export async function etatAnonymisationPromo() {
+  const { data, error } = await supabase.rpc("etat_anonymisation_promo");
+  if (error) throw error;
+  return data;
+}
+
+export async function anonymiserPromo() {
+  const { data, error } = await supabase.rpc("anonymiser_promo");
+  if (error) throw error;
+  invalidateCache("stagiaires");
+  invalidateCache("stagiaires_all");
+  return data;
+}
+
+export async function listBenevolesAPurger() {
+  const { data, error } = await supabase.rpc("benevoles_a_purger");
+  if (error) throw error;
+  return data || [];
+}
+
+export async function purgerBenevoles(ids) {
+  const { data, error } = await supabase.rpc("purger_benevoles", { p_ids: ids });
+  if (error) throw error;
+  return data;
+}
+
 export async function setStagiaireActif(id, actif) {
   const { error } = await supabase.from("stagiaires").update({ actif }).eq("id", id);
   if (error) throw error;

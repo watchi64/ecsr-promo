@@ -16,6 +16,23 @@
 
 export const NOUVEAUTES = [
   {
+    id: "2026-10-05-effacement-donnees",
+    date: "2026-10-05",
+    pour: "formateurs",
+    titre: "Effacer les données d'un stagiaire, à sa demande",
+    resume: "Un stagiaire peut demander la suppression de ses données. Marque-le d'abord en abandon, "
+          + "puis « Effacer les données » dans Paramètres : son compte, sa date de naissance, son livret, "
+          + "son dossier et les commentaires disparaissent ; ses notes restent, sans nom, dans les "
+          + "moyennes. Une nouvelle partie « Données personnelles » montre aussi quand une promo pourra "
+          + "être anonymisée (12 mois après sa fin) et les élèves bénévoles à supprimer.",
+    ou: { label: "Paramètres", route: "config" },
+    guide: [
+      "Paramètres, partie Promo : « Abandon » sur le stagiaire concerné.",
+      "Dans « Abandons », bouton « Effacer les données », puis tape son prénom pour confirmer.",
+      "Partie « Données personnelles » : l'anonymisation de la promo et les élèves bénévoles inactifs.",
+    ],
+  },
+  {
     id: "2026-10-04-competences-conduite-liste",
     date: "2026-10-04",
     pour: "tous",
