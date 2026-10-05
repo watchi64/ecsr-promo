@@ -15,10 +15,10 @@
  * le moteur, l'éditeur et les tests la partagent sans pouvoir la modifier).
  */
 import { KMH, GABARITS, trajet, chronologie, tempsAtteint, premiereAbscisse, emprise, etatActeur, polygonesSeChevauchent }
-  from "./scene-geometrie.js?v=20261005a";
-import { DESSIN, HORS_MONDE, carrefourEnCroix, giratoire, trajetGiratoire } from "./scene-decors.js?v=20261005a";
-import { REGARD_PORTEE } from "./scene-regard.js?v=20261005a";
-import { SEUILS } from "./scene-controles.js?v=20261005a";
+  from "./scene-geometrie.js?v=20261005b";
+import { DESSIN, HORS_MONDE, carrefourEnCroix, giratoire, trajetGiratoire } from "./scene-decors.js?v=20261005b";
+import { REGARD_PORTEE } from "./scene-regard.js?v=20261005b";
+import { SEUILS } from "./scene-controles.js?v=20261005b";
 
 const MARGE_ARRET = 0.3;             // m entre la voiture arrêtée et la limite (passage, ligne)
 const TOLERANCE_ARRET = 0.7;         // m : écart admis par l'attente arretAvant, mesuré au milieu du pare-chocs

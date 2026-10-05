@@ -1,5 +1,5 @@
 // Edge Function chatbot : orchestre le LLM et ses outils, streame la reponse en SSE.
-// Secrets requis : MISTRAL_API_KEY (et/ou GEMINI_API_KEY), PISTE_CLIENT_ID, PISTE_CLIENT_SECRET.
+// Secrets requis : MISTRAL_API_KEY, PISTE_CLIENT_ID, PISTE_CLIENT_SECRET (GEMINI_API_KEY n'est plus lue).
 // Durcissements issus des revues du 2026-08-15 : verrou transport de la regle d'or
 // (module verrou-articles.mjs, liste blanche des numeros verifies) et resilience
 // a la deconnexion du client en pleine generation.

@@ -1,6 +1,8 @@
 // Appel des fournisseurs LLM (format OpenAI) avec streaming et bascule.
-// Mistral en principal (retry 1 fois), Gemini en secours. Un fournisseur sans
-// cle configuree est simplement absent de la liste.
+// Mistral seul (retry 1 fois). Le secours Gemini a ete retire le 2026-10-04 :
+// les conditions d'utilisation promettent que les messages restent chez un
+// prestataire de l'Union europeenne (GEMINI_API_KEY est donc ignoree). La
+// bascule reste generique : un futur fournisseur s'ajouterait a la liste.
 import { extraireLignesSSE, nouvelEtat, accumulerChunk } from "./sse.mjs";
 
 export function fournisseursDisponibles(env) {
@@ -11,14 +13,6 @@ export function fournisseursDisponibles(env) {
       url: "https://api.mistral.ai/v1/chat/completions",
       cle: env("MISTRAL_API_KEY"),
       modele: env("MISTRAL_MODEL") || "mistral-small-latest",
-    });
-  }
-  if (env("GEMINI_API_KEY")) {
-    liste.push({
-      nom: "gemini",
-      url: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
-      cle: env("GEMINI_API_KEY"),
-      modele: env("GEMINI_MODEL") || "gemini-2.5-flash",
     });
   }
   return liste;
