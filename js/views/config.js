@@ -1,11 +1,12 @@
 /*
  * Vue Paramètres.
  * Sections : Accès & invitations · Mes préférences · Modules de la promo
- * (js/views/modules-reglage.js) · Promo · Infos.
+ * (js/views/modules-reglage.js) · Promo · Données personnelles (admins) · Infos.
  */
 import {
   listStagiaires, listProfs,
-  addStagiaire, updateStagiaire, updateStagiaireNom, deleteStagiaire, setStagiaireActif,
+  addStagiaire, updateStagiaire, updateStagiaireNom, setStagiaireActif,
+  anonymiserStagiaire, etatAnonymisationPromo, anonymiserPromo, listBenevolesAPurger, purgerBenevoles,
   getPromoCourante, renommerPromo,
   addProf, updateProf, deleteProf,
   listUserProfiles, deleteUserProfile, inviteUser,
@@ -16,6 +17,7 @@ import { icon } from "../icons.js?v=20261005d";
 import { isAdmin, getAdminEmail, getProfile } from "../auth-admin.js?v=20261005d";
 import { moduleVisible } from "../modules-etat.js?v=20261005d";
 import { renderModulesSection } from "./modules-reglage.js?v=20261005d";
+import { confirmationValide, dateCourte, etatFinDePromo, resumeEffacement } from "../effacement-rules.js?v=20261005d";
 
 // ====== SECTION Accès & invitations ======
 
@@ -326,7 +328,9 @@ async function renderPromoSection(rerender) {
     listStagiaires({ includeInactive: true }), listProfs(),
   ]);
   const stagiairesActifs = allStagiaires.filter((s) => s.actif !== false);
-  const stagiairesAbandon = allStagiaires.filter((s) => s.actif === false);
+  // Les fiches anonymisées (données effacées) ne sont plus des abandons : seulement comptées.
+  const stagiairesAbandon = allStagiaires.filter((s) => s.actif === false && !s.anonymise_le);
+  const nbAnonymises = allStagiaires.filter((s) => s.anonymise_le).length;
 
   // Promo affichée : nom modifiable par les admins, lieu en lecture (spec multi-promo C.5).
   function renderPromoCourante() {
@@ -506,8 +510,10 @@ async function renderPromoSection(rerender) {
     return wrap;
   }
 
-  // Bloc des abandons : réactivation, ou suppression définitive (réservée ici pour
-  // éviter toute perte de données accidentelle depuis la liste active).
+  // Bloc des abandons : réactivation, ou effacement des données personnelles (droit à
+  // l'effacement). Réservé ici : il faut d'abord sortir la personne de la liste active.
+  // Plus de suppression de la fiche : ses résultats lui sont liés en cascade et
+  // disparaîtraient des statistiques ; la fiche est anonymisée par le serveur.
   function renderAbandons(items) {
     const wrap = el("div", { class: "param-block abandons-block" });
     wrap.appendChild(el("div", { class: "block-head" },
@@ -515,7 +521,8 @@ async function renderPromoSection(rerender) {
       el("span", { class: "count" }, items.length + " stagiaire" + (items.length > 1 ? "s" : "")),
     ));
     wrap.appendChild(el("p", { class: "muted abandons-hint" },
-      "Masqués du planning, des dés et des notes. Données conservées pour d'éventuelles statistiques."));
+      "Masqués du planning, des dés et des notes. « Effacer les données » répond à une demande de "
+      + "suppression : la personne disparaît, ses résultats restent sans nom dans les statistiques."));
     const list = el("ul", { class: "config-list" });
     items.forEach((it) => {
       const reactiverBtn = el("button", {
@@ -529,32 +536,126 @@ async function renderPromoSection(rerender) {
         }
       }, "Réactiver");
       const delBtn = el("button", {
-        class: "btn small danger icon-only",
-        "aria-label": "Supprimer définitivement",
-        title: "Supprimer définitivement (irréversible, efface les données)",
+        class: "btn small danger",
+        title: "Effacer ses données personnelles (irréversible)",
         onClick: async () => {
-          if (!confirm(`Supprimer DÉFINITIVEMENT ${it.prenom} ?\n\nIrréversible : efface ses données. Pour seulement le masquer, garde-le en abandon.`)) return;
+          const saisie = prompt(`Effacer les données de ${it.prenom} ?\n\n`
+            + "Supprimés : compte de connexion, e-mail, date de naissance, livret, dossier pro, fiche de suivi, commentaires.\n"
+            + "Conservés sans nom : notes, QCM, passages, scores EPCF.\n"
+            + "Irréversible.\n\n"
+            + `Pour confirmer, tape le prénom : ${it.prenom}`);
+          if (saisie === null) return;
+          if (!confirmationValide(saisie, it.prenom)) { toast("Prénom différent : rien n'a été effacé.", "error"); return; }
           try {
-            await deleteStagiaire(it.id);
-            toast("Supprimé définitivement", "success");
+            const details = await anonymiserStagiaire(it.id);
+            toast(resumeEffacement(details), "success", 6000);
             rerender();
           } catch (e) { toast(e.message, "error"); }
         }
-      }, icon.trash());
+      }, "Effacer les données");
       list.appendChild(el("li", { class: "abandon-row" },
         el("span", { class: "abandon-name" }, it.prenom),
         reactiverBtn, delBtn,
       ));
     });
     wrap.appendChild(list);
+    if (nbAnonymises) {
+      wrap.appendChild(el("p", { class: "muted abandons-hint" },
+        nbAnonymises + (nbAnonymises > 1 ? " fiches anonymisées" : " fiche anonymisée")
+        + " (données effacées, résultats conservés sans nom)."));
+    }
     return wrap;
   }
 
   const blocPromo = renderPromoCourante();
   if (blocPromo) section.appendChild(blocPromo);
   section.appendChild(renderList(stagiairesActifs, "stagiaire"));
-  if (admin && stagiairesAbandon.length) section.appendChild(renderAbandons(stagiairesAbandon));
+  if (admin && (stagiairesAbandon.length || nbAnonymises)) section.appendChild(renderAbandons(stagiairesAbandon));
   section.appendChild(renderList(profs, "prof"));
+  return section;
+}
+
+// ====== SECTION Données personnelles (admins) ======
+// Engagements des conditions d'utilisation (sections 7 et 10) : anonymisation 12 mois après la
+// fin de promo, élèves bénévoles supprimés 12 mois après leur dernière venue. Le serveur vérifie
+// tout (droit admin, délais) ; ici on montre l'état et on déclenche.
+
+async function renderDonneesSection(rerender) {
+  if (!isAdmin()) return null;
+  const section = el("section", { class: "param-section" });
+  section.appendChild(el("div", { class: "param-section-head" },
+    el("div", { class: "param-icon" }, icon.trash()),
+    el("div", {},
+      el("h3", {}, "Données personnelles"),
+      el("p", { class: "muted" }, "Durées de conservation promises dans les conditions d'utilisation."),
+    ),
+  ));
+
+  const [etat, benevoles] = await Promise.all([
+    etatAnonymisationPromo().catch((e) => { console.error(e); return undefined; }),
+    listBenevolesAPurger().catch((e) => { console.error(e); return undefined; }),
+  ]);
+
+  // Fin de promo
+  const blocPromo = el("div", { class: "param-block" });
+  blocPromo.appendChild(el("div", { class: "block-head" }, el("h4", {}, "Fin de promo")));
+  if (etat === undefined) {
+    blocPromo.appendChild(el("p", { class: "muted" }, "État indisponible pour le moment."));
+  } else {
+    const fin = etatFinDePromo(etat);
+    blocPromo.appendChild(el("p", { class: "muted donnees-texte" }, fin.texte));
+    if (fin.bouton) {
+      blocPromo.appendChild(el("button", { class: "btn danger", onClick: async (e) => {
+        const bouton = e.currentTarget;
+        const nom = etat.nom || "cette promo";
+        const saisie = prompt(`Anonymiser toutes les fiches de « ${nom} » ?\n\n`
+          + "Comptes, e-mails, dates de naissance, livrets, dossiers et commentaires sont effacés ; "
+          + "les résultats restent sans nom. Irréversible.\n\nPour confirmer, tape : ANONYMISER");
+        if (saisie === null) return;
+        if (saisie.trim() !== "ANONYMISER") { toast("Saisie différente : rien n'a été effacé.", "error"); return; }
+        bouton.disabled = true;
+        try {
+          const r = await anonymiserPromo();
+          const n = r.anonymises;
+          toast(`${n} fiche${n > 1 ? "s" : ""} anonymisée${n > 1 ? "s" : ""}.`, "success", 6000);
+          rerender();
+        } catch (err) { toast(err.message, "error"); rerender(); }
+      } }, "Anonymiser la promo"));
+    }
+  }
+  section.appendChild(blocPromo);
+
+  // Élèves bénévoles inactifs
+  const blocBnv = el("div", { class: "param-block" });
+  blocBnv.appendChild(el("div", { class: "block-head" },
+    el("h4", {}, "Élèves bénévoles sans venue depuis 12 mois"),
+    benevoles ? el("span", { class: "count" }, String(benevoles.length)) : null,
+  ));
+  if (benevoles === undefined) {
+    blocBnv.appendChild(el("p", { class: "muted" }, "Liste indisponible pour le moment."));
+  } else if (!benevoles.length) {
+    blocBnv.appendChild(el("p", { class: "muted donnees-texte" }, "Aucun : tous les élèves enregistrés sont venus dans les 12 derniers mois."));
+  } else {
+    const liste = el("ul", { class: "config-list donnees-liste" });
+    benevoles.forEach((b) => liste.appendChild(el("li", {},
+      el("span", {}, b.display),
+      el("span", { class: "muted" }, b.derniere_venue ? "dernière venue le " + dateCourte(b.derniere_venue) : "jamais venu"),
+    )));
+    blocBnv.appendChild(liste);
+    blocBnv.appendChild(el("button", { class: "btn danger", onClick: async (e) => {
+      const bouton = e.currentTarget;
+      const n = benevoles.length;
+      if (!confirm(`Supprimer ${n} élève${n > 1 ? "s" : ""} bénévole${n > 1 ? "s" : ""} et leurs coordonnées ?\n\n`
+        + "Ils disparaissent aussi des anciens créneaux du planning. Irréversible.")) return;
+      bouton.disabled = true;
+      try {
+        const nb = await purgerBenevoles(benevoles.map((b) => b.id));
+        toast(`${nb} élève${nb > 1 ? "s" : ""} supprimé${nb > 1 ? "s" : ""}.`, "success");
+        rerender();
+      } catch (err) { toast(err.message, "error"); rerender(); }
+    } }, benevoles.length > 1 ? `Supprimer ces ${benevoles.length} élèves` : "Supprimer cet élève"));
+  }
+  section.appendChild(blocBnv);
   return section;
 }
 
@@ -599,10 +700,11 @@ async function rerender(container) {
   container.appendChild(el("div", { class: "loading" }, "Chargement"));
 
   try {
-    const [acces, preferences, promo, infos] = await withTimeout(Promise.all([
+    const [acces, preferences, promo, donnees, infos] = await withTimeout(Promise.all([
       renderAccessSection(() => rerender(container)),
       Promise.resolve(renderMyPreferencesSection(() => rerender(container))),
       renderPromoSection(() => rerender(container)),
+      renderDonneesSection(() => rerender(container)),
       Promise.resolve(renderInfoSection()),
     ]), 12000, "Paramètres");
     // La section « Modules de la promo » est construite ICI, après l'attente, et non dans le
@@ -622,7 +724,7 @@ async function rerender(container) {
     ));
 
     const grid = el("div", { class: "param-grid" });
-    [acces, preferences, modules, promo, infos].filter(Boolean).forEach((s) => grid.appendChild(s));
+    [acces, preferences, modules, promo, donnees, infos].filter(Boolean).forEach((s) => grid.appendChild(s));
     container.appendChild(grid);
   } catch (e) {
     console.error("Paramètres : erreur de chargement", e);

@@ -8308,3 +8308,8 @@ span.bnv-nom-num { font-size: 0.8rem; font-style: italic; color: var(--text-mute
   .legal-overlay .cours-table th,
   .legal-overlay .cours-table td { padding: 0.45rem 0.3rem; font-size: 0.8rem; hyphens: auto; }
 }
+
+/* === Paramètres : données personnelles (effacement, durées de conservation) === */
+.donnees-texte { margin: 0 0 0.7rem; font-size: 0.88rem; line-height: 1.45; }
+.donnees-liste li { display: flex; justify-content: space-between; gap: 0.6rem; flex-wrap: wrap; font-size: 0.88rem; }
+.abandon-row .btn.danger { white-space: nowrap; }
