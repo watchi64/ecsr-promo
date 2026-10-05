@@ -394,6 +394,9 @@ Spec et plans dans le dépôt ECSR : `docs/superpowers/specs/2026-10-03-cours-co
 - **Bancs** : `_preview_cours.html?cle=C2.4` (lecteur et éditeur), `_preview_scenes.html` (planche de revue,
   `?reduit=1`), servis sans cache par `_serveur_banc.py` (non versionnés).
 - **Assistant** : `chercher_cours` renvoie `code` ; l'étiquette devient « Competence C2.4 ».
+- **Visibilité** (migration `20261005_cours_competences_4_fondateur.sql`) : un cours de compétence non publié
+  n'est visible et modifiable que du fondateur (`is_founder()`, un seul compte) ; Timy vérifie chaque cours, un par un,
+  puis le publie lui-même. Publié, il suit les règles des autres cours. L'assistant ne cite que les cours publiés.
 
 ## Décisions UX importantes (à respecter)
 

@@ -4,9 +4,9 @@
  */
 // La carte d'authentification et ses modes. Sortie de main.js, qui redevient le
 // fichier du démarrage et des routes.
-import { signInWithPassword, signUpWithPassword, requestPasswordReset, updatePassword } from "./db.js?v=20261005b";
-import { validerEmail, validerMotDePasse, messageErreurAuth, configMode, MDP_MIN } from "./gate-rules.js?v=20261005b";
-import { toast } from "./utils.js?v=20261005b";
+import { signInWithPassword, signUpWithPassword, requestPasswordReset, updatePassword } from "./db.js?v=20261005c";
+import { validerEmail, validerMotDePasse, messageErreurAuth, configMode, MDP_MIN } from "./gate-rules.js?v=20261005c";
+import { toast } from "./utils.js?v=20261005c";
 
 // Refus décidé APRÈS une connexion réussie côté serveur (aucune promo, compte non invité) :
 // auth-admin.js émet « ecsr:refus-porte » (detail = le motif) juste avant de déconnecter. Un
@@ -43,7 +43,7 @@ export function showGate(mode = "signin") {
   document.getElementById("app").classList.add("hidden");
   // Mentions légales et conditions lisibles par tout visiteur, avant connexion.
   const legal = document.getElementById("gate-legal");
-  if (legal) legal.onclick = () => import("./legal.js?v=20261005b").then((m) => m.ouvrirInformationsLegales());
+  if (legal) legal.onclick = () => import("./legal.js?v=20261005c").then((m) => m.ouvrirInformationsLegales());
   // Lien direct …/#/informations-legales (envoyé aux élèves bénévoles, qui n'ont pas de
   // compte) : les textes s'ouvrent d'eux-mêmes par-dessus l'écran de connexion.
   if (legal && /informations-legales/.test(location.hash)) legal.onclick();

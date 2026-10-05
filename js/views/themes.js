@@ -1,16 +1,16 @@
-import { listThemes, updateTheme, addTheme, deleteTheme, listQcmIndex, getQcmFull, publishQcm, unpublishQcm, updateExamConfig, listExamAttempts, resetExamAttempt, listMyQcmAttempts, getMyProfile, listEvaluations, getOrCreateQcm, saveQcmQuestion, deleteQcmQuestion, reorderQcmQuestions, uploadQcmImage, listQcmSignalements, setQcmSignalementStatut, countQcmSignalementsOuverts } from "../db.js?v=20261005b";
-import { el, clear, isoDate, formatDate, toast, debounce } from "../utils.js?v=20261005b";
-import { icon } from "../icons.js?v=20261005b";
+import { listThemes, updateTheme, addTheme, deleteTheme, listQcmIndex, getQcmFull, publishQcm, unpublishQcm, updateExamConfig, listExamAttempts, resetExamAttempt, listMyQcmAttempts, getMyProfile, listEvaluations, getOrCreateQcm, saveQcmQuestion, deleteQcmQuestion, reorderQcmQuestions, uploadQcmImage, listQcmSignalements, setQcmSignalementStatut, countQcmSignalementsOuverts } from "../db.js?v=20261005c";
+import { el, clear, isoDate, formatDate, toast, debounce } from "../utils.js?v=20261005c";
+import { icon } from "../icons.js?v=20261005c";
 import { examenDemarrable, tempsRestantMs, formatTempsRestant,
-         echeanceDepuisChoix, DUREES_OUVERTURE } from "../qcm-exam-rules.js?v=20261005b";
-import { isAdmin, getAdminEmail, isProf, isStagiaire } from "../auth-admin.js?v=20261005b";
-import { recordUndo } from "../undo.js?v=20261005b";
-import { openQcmEntrainement, openQcmExamen } from "./qcm.js?v=20261005b";
-import { carteSignalement, renderConsoleSignalements, chargerAuteurs } from "./signalements.js?v=20261005b";
-import { renderSubTabs } from "../subtabs.js?v=20261005b";
-import { hasCours, openCoursSheet, chargerCoursIndex, coursDejaOuvert } from "./cours-reader.js?v=20261005b";
-import { cleCours } from "../cours-rules.js?v=20261005b";
-import { moduleVisible, moduleMasque, repereMasque } from "../modules-etat.js?v=20261005b";
+         echeanceDepuisChoix, DUREES_OUVERTURE } from "../qcm-exam-rules.js?v=20261005c";
+import { isAdmin, getAdminEmail, isProf, isStagiaire } from "../auth-admin.js?v=20261005c";
+import { recordUndo } from "../undo.js?v=20261005c";
+import { openQcmEntrainement, openQcmExamen } from "./qcm.js?v=20261005c";
+import { carteSignalement, renderConsoleSignalements, chargerAuteurs } from "./signalements.js?v=20261005c";
+import { renderSubTabs } from "../subtabs.js?v=20261005c";
+import { hasCours, openCoursSheet, chargerCoursIndex, coursDejaOuvert } from "./cours-reader.js?v=20261005c";
+import { cleCours } from "../cours-rules.js?v=20261005c";
+import { moduleVisible, moduleMasque, repereMasque } from "../modules-etat.js?v=20261005c";
 
 let themes = [];
 let qcmByTheme = new Map();  // theme_id -> { id, nb_questions, published, ... }
