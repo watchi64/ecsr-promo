@@ -34,7 +34,7 @@ for (const [nom, md] of [["conditions", CONDITIONS_MD], ["mentions", MENTIONS_MD
 for (let s = 1; s <= 16; s++) ok(CONDITIONS_MD.includes(`\n## ${s}. `), `section ${s} présente`);
 ok(/contact@timy-studio\.fr/.test(CONDITIONS_MD) && /contact@timy-studio\.fr/.test(MENTIONS_MD), "contact présent");
 ok(/CNIL/.test(CONDITIONS_MD), "droit de réclamation auprès de la CNIL");
-ok(!/Gemini|Google/.test(CONDITIONS_MD), "aucun prestataire retiré n'est cité");
+ok(!/Gemini|Google|esm\.sh/.test(CONDITIONS_MD), "aucun prestataire retiré n'est cité");
 
 // 5. Garde-fou de publication : aucun repère à compléter ne doit rester.
 eq(reperesNonRemplis(CONDITIONS_MD), [], "conditions : repères à compléter");

@@ -1,4 +1,4 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "../vendor/supabase-js-2.117.2.js";
 import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261005d";
 import { compteDansEquite } from "./passage-rules.js?v=20261005d";
 import {
