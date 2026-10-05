@@ -1,9 +1,9 @@
 // Pastille de la promo affichée (spec multi-promo C.2) : visible seulement à qui a au
 // moins deux promos (formateurs, fondateur). Un appui ouvre le choix ; choisir une autre
 // promo attend les enregistrements en cours puis recharge la page (choisirPromo).
-import { el } from "./utils.js?v=20261005e";
-import { getMesPromos, getPromoCourante, choisirPromo } from "./db.js?v=20261005e";
-import { libelleCourtPromo, resumePromo } from "./promo-rules.js?v=20261005e";
+import { el } from "./utils.js?v=20261005f";
+import { getMesPromos, getPromoCourante, choisirPromo } from "./db.js?v=20261005f";
+import { libelleCourtPromo, resumePromo } from "./promo-rules.js?v=20261005f";
 
 // « Montpellier · sept. 2026 » : le lieu dans son propre span, que le CSS masque sur les
 // écrans les plus étroits (la date suffit à distinguer les promos dans la barre).

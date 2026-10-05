@@ -105,7 +105,6 @@ Pour organiser les séances de conduite, les formateurs enregistrent les **élè
 | GitHub (GitHub Pages) | Hébergement des pages de l'application | L'adresse IP de connexion, conservée pour la sécurité | États-Unis |
 | Mistral AI | Moteur de l'assistant | Les messages envoyés à l'assistant | France, Union européenne |
 | Resend | Envoi des e-mails du compte | L'adresse e-mail du destinataire et le contenu de l'e-mail | États-Unis |
-| esm.sh | Diffusion d'une bibliothèque technique utilisée par l'application | L'adresse IP de connexion | Réseau mondial |
 
 Les transferts vers les États-Unis (GitHub, Resend) sont encadrés par le cadre de protection des données UE-États-Unis (Data Privacy Framework) et par les clauses contractuelles types de la Commission européenne.
 

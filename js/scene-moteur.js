@@ -26,11 +26,11 @@
  * Rien n'apparaît hors du cadre : le dessin est découpé au cadre courant, et la
  * boîte du SVG prend les proportions de ce cadre (css/cours-blocs.css).
  */
-import { preparerScene, etatActeur, pointA, GABARITS, DEG } from "./scene-geometrie.js?v=20261005e";
-import { regardDessine } from "./scene-regard.js?v=20261005e";
+import { preparerScene, etatActeur, pointA, GABARITS, DEG } from "./scene-geometrie.js?v=20261005f";
+import { regardDessine } from "./scene-regard.js?v=20261005f";
 import { TEINTES, RAYON_REPERE, clignotantAllume, cadreCamera, cadreReduit, reperesEtapes, demiLargeurRepere, emprisePanneau,
-  facteurLecture, SEUILS_VISIBILITE, actionVisibilite } from "./scene-rendu.js?v=20261005e";
-import { urlSignalVerifie } from "./signaux.js?v=20261005e";
+  facteurLecture, SEUILS_VISIBILITE, actionVisibilite } from "./scene-rendu.js?v=20261005f";
+import { urlSignalVerifie } from "./signaux.js?v=20261005f";
 
 const NS = "http://www.w3.org/2000/svg";
 // Opacité du regard : le cône, ou, plus léger, le secteur que parcourt un balayage sur une image figée.

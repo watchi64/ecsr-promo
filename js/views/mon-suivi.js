@@ -1,21 +1,21 @@
 import { listStagiaires, listEvaluations, getPlanning, getHalfMetaForWeek, getJoursOff, getSetting,
          listProfs, listEpcf, getEpcfMoyennes, listThemes,
          getStagiaire, setDateNaissance, listPassages,
-         listLivretsIndex, listDossiersIndex } from "../db.js?v=20261005e";
-import { el, clear, isoDate, getMonday, addDays, formatDate, displayStagiaire, toast } from "../utils.js?v=20261005e";
-import { HALF_DAYS, RESULTATS } from "../config.js?v=20261005e";
-import { isAdmin, isProf, monStagiaireId } from "../auth-admin.js?v=20261005e";
-import { renderEpcfPersonne } from "./epcf.js?v=20261005e";
-import { renderSubTabs } from "../subtabs.js?v=20261005e";
-import { renderDp } from "./dp.js?v=20261005e";
-import { renderEpcfLivret } from "./epcf-livret.js?v=20261005e";
-import { rolesPourEntry, ROLE_ORDER } from "../creneaux-rules.js?v=20261005e";
-import { statsPassages } from "../passages-stats.js?v=20261005e";
-import { moduleVisible, moduleMasque, repereMasque } from "../modules-etat.js?v=20261005e";
-import { icon } from "../icons.js?v=20261005e";
-import { PARTIES, lireAdresse, adresseFiche } from "../route-rules.js?v=20261005e";
-import { etatsSommaire, passagesAVenir, EVT_DOCUMENT } from "../fiche-rules.js?v=20261005e";
-import { surChangementAdresse, remplacerAdresse, peutQuitter } from "../navigation.js?v=20261005e";
+         listLivretsIndex, listDossiersIndex } from "../db.js?v=20261005f";
+import { el, clear, isoDate, getMonday, addDays, formatDate, displayStagiaire, toast } from "../utils.js?v=20261005f";
+import { HALF_DAYS, RESULTATS } from "../config.js?v=20261005f";
+import { isAdmin, isProf, monStagiaireId } from "../auth-admin.js?v=20261005f";
+import { renderEpcfPersonne } from "./epcf.js?v=20261005f";
+import { renderSubTabs } from "../subtabs.js?v=20261005f";
+import { renderDp } from "./dp.js?v=20261005f";
+import { renderEpcfLivret } from "./epcf-livret.js?v=20261005f";
+import { rolesPourEntry, ROLE_ORDER } from "../creneaux-rules.js?v=20261005f";
+import { statsPassages } from "../passages-stats.js?v=20261005f";
+import { moduleVisible, moduleMasque, repereMasque } from "../modules-etat.js?v=20261005f";
+import { icon } from "../icons.js?v=20261005f";
+import { PARTIES, lireAdresse, adresseFiche } from "../route-rules.js?v=20261005f";
+import { etatsSommaire, passagesAVenir, EVT_DOCUMENT } from "../fiche-rules.js?v=20261005f";
+import { surChangementAdresse, remplacerAdresse, peutQuitter } from "../navigation.js?v=20261005f";
 
 const HALF_ORDER = { matin: 0, aprem: 1 };
 

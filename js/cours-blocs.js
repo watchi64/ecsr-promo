@@ -23,13 +23,13 @@
  * affirmation) ; la zone d'état (role="status") dit le score, la bonne réponse et l'explication de
  * ce qui est faux ; une option verrouillée est aria-disabled ; chaque question est un groupe nommé.
  */
-import { el } from "./utils.js?v=20261005e";
+import { el } from "./utils.js?v=20261005f";
 import { analyserScene, analyserQuiz, analyserCartes, melangerSansIdentite, corrigerOrdre, corrigerChoix,
   corrigerOption, MARQUES_CHOIX, BLOCS_INTERACTIFS, erreurDirective, erreurNonRefermee, messageOrdre, messageVraiFaux,
   messageChoix }
-  from "./cours-blocs-rules.js?v=20261005e";
-import { SCENES } from "./scenes.js?v=20261005e";
-import { monterScene } from "./scene-moteur.js?v=20261005e";
+  from "./cours-blocs-rules.js?v=20261005f";
+import { SCENES } from "./scenes.js?v=20261005f";
+import { monterScene } from "./scene-moteur.js?v=20261005f";
 
 // Marques écrites de la correction (en plus de la couleur), une par état ; celles du quiz choix, qui compte
 // aussi la bonne réponse non choisie, sont dans js/cours-blocs-rules.js (MARQUES_CHOIX).
