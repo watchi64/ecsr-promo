@@ -32,13 +32,12 @@ export const NOUVEAUTES = [
     pour: "formateurs",
     titre: "Cours de compétences : schémas animés, quiz et cartes",
     resume: "Les cours peuvent maintenant contenir des schémas animés (la voiture fait la manœuvre et les "
-          + "étapes s'allument), des quiz corrigés tout de suite et des cartes d'autoévaluation. Trois premiers "
-          + "cours de compétences arrivent, non publiés : l'ouverture de la compétence 2, tourner en "
-          + "agglomération (C2.4) et les ronds-points et giratoires (C2.6). À relire, puis à publier.",
+          + "étapes s'allument), des quiz corrigés tout de suite et des cartes d'autoévaluation. Les cours "
+          + "de compétences arriveront au fil de leur vérification.",
     ou: { label: "Cours, sous-onglet Compétences", route: "themes", sousOnglet: "competences" },
     guide: [
       "Ouvre Cours, puis le sous-onglet Compétences.",
-      "Ouvre C2.4 : le schéma se lance quand il apparaît à l'écran ; touche une étape pour y revenir.",
+      "Dans un cours, le schéma se lance quand il apparaît à l'écran ; touche une étape pour y revenir.",
       "Bouton Modifier, puis Blocs, pour ajouter un schéma, un quiz ou des cartes dans un cours.",
     ],
   },
