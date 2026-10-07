@@ -117,10 +117,12 @@ for (const [code, entree] of Object.entries(SCENES)) {
     assert.throws(() => { def.acteurs[0].profil[0].kmh = 0; }, TypeError);
     assert.throws(() => { def.etapes.push({ s: 0 }); }, TypeError);
     assert.throws(() => { def.decor.obstacles[0].poly[0][0] = 0; }, TypeError);
-    // Une copie se modifie librement : les tests de sabotage travaillent sur structuredClone.
+    // Une copie se modifie librement : les tests de sabotage travaillent sur structuredClone. La valeur écrite diffère de
+    // l'originale, que la scène commence en roulant ou à l'arrêt.
     const c = copie(code);
-    c.acteurs[0].profil[0].kmh = 0;
-    assert.notEqual(def.acteurs[0].profil[0].kmh, 0);
+    const kmhDepart = def.acteurs[0].profil[0].kmh;
+    c.acteurs[0].profil[0].kmh = kmhDepart + 1;
+    assert.equal(def.acteurs[0].profil[0].kmh, kmhDepart);
   });
 }
 

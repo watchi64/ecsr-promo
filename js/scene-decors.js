@@ -344,18 +344,20 @@ function exigerLongueur(decor, nom, valeur) {
 
 /**
  * Rue droite d'agglomération, orientée sud-nord : l'élève y roule vers le haut de l'écran. Chaussée à double sens de
- * deux voies de DESSIN.voie, séparées par une axiale T'1 de largeur 2u (IISR 113-1 et 113-2) dont le pointillé
- * commence au bord bas du monde, et bordée d'un trottoir de chaque côté, sans ligne de rive (en milieu urbain, les
- * bordures de trottoir matérialisent généralement le bord de la chaussée : IISR 114-5). Le monde a `longueur` m de
- * haut et montre `largeurTrottoir` m de trottoir de chaque côté de la chaussée. Repères : abscisses (x) du bord droit,
- * de l'axe et du bord gauche de la chaussée, pour l'élève qui roule vers le nord ; sa voie est voies.droite.
+ * deux voies de `largeurVoie` m (DESSIN.voie par défaut), séparées par une axiale T'1 de largeur 2u (IISR 113-1 et
+ * 113-2) dont le pointillé commence au bord bas du monde, et bordée d'un trottoir de chaque côté, sans ligne de rive (en
+ * milieu urbain, les bordures de trottoir matérialisent généralement le bord de la chaussée : IISR 114-5). Le monde a
+ * `longueur` m de haut et montre `largeurTrottoir` m de trottoir de chaque côté de la chaussée. Repères : abscisses (x)
+ * du bord droit, de l'axe et du bord gauche de la chaussée, pour l'élève qui roule vers le nord ; sa voie est
+ * voies.droite. Une scène qui élargit les voies le dit dans ses sources, avec sa raison.
  *
  * Les voitures en stationnement ne font pas partie du décor : ce sont des acteurs posés des scènes.
  */
-export function rue({ longueur, largeurTrottoir } = {}) {
+export function rue({ longueur, largeurTrottoir, largeurVoie = DESSIN.voie } = {}) {
   exigerLongueur("rue", "longueur", longueur);
   exigerLongueur("rue", "largeurTrottoir", largeurTrottoir);
-  const h = DESSIN.voie;
+  exigerLongueur("rue", "largeurVoie", largeurVoie);
+  const h = largeurVoie;
   const xBordGauche = largeurTrottoir, xAxe = xBordGauche + h, xBordDroit = xAxe + h;
   return {
     monde: { largeur: xBordDroit + largeurTrottoir, hauteur: longueur },

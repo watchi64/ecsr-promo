@@ -124,7 +124,9 @@ test("scènes, en lecture : chaque clignotant de chaque acteur éclaire dès qu'
     for (const a of sc.acteurs) {
       for (const c of a.clignotant || []) {
         const nom = `${code}, ${a.id}, clignotant ${c.cote} à partir de s = ${c.de.toFixed(3)} m`;
-        const tAllume = tempsAtteint(a.chrono, c.de), tEteint = tempsAtteint(a.chrono, c.a);
+        // Allumage et extinction datés (delai, delaiFin : voir etatActeur) : un clignotant mis pendant un arrêt s'allume
+        // delai secondes après l'arrivée en `de`, et non à cette arrivée.
+        const tAllume = tempsAtteint(a.chrono, c.de) + (c.delai ?? 0), tEteint = tempsAtteint(a.chrono, c.a) + (c.delaiFin ?? 0);
         assert.ok(tEteint - tAllume > 3 * demiPeriode, `${nom} : intervalle trop court pour le vérifier`);
         // Au millième de seconde, depuis le millième qui précède l'allumage : premier éclat, extinction, éclat suivant.
         const eclaire = (t) => clignotantAllume(etatActeur(a, t), t, false) === c.cote;
