@@ -13,7 +13,8 @@
  *
  * Toutes les valeurs ci-dessous sont des choix de dessin, sans portée réglementaire.
  */
-import { GABARITS, etatActeur, emprise, rectangle, polygonesSeChevauchent } from "./scene-geometrie.js?v=20261005f";
+import { DEG, GABARITS, etatActeur, emprise, rectangle, polygonesSeChevauchent } from "./scene-geometrie.js?v=20261005f";
+import { oeil, conesTour } from "./scene-regard.js?v=20261005f";
 
 // Teintes de la route réelle (donnée pédagogique), pas la palette de l'app ; la voiture de l'élève prend l'accent de l'app
 // pour être repérée d'un coup d'œil.
@@ -108,7 +109,9 @@ function bandeLigne(m) {
  * n'est pas tourné). Si cette place est prise (dessin d'un panneau, ligne de cédez-le-passage, voiture de l'élève au début
  * d'une étape, repère déjà posé) ou hors du monde, il s'écarte par pas de PAS_REPERE, jusqu'à ALLONGEMENT_MAX_REPERE plus
  * loin, puis essaie de même à gauche du cap. Une étape qui commence à moins de ECART_REPERES m de la position d'un repère
- * déjà posé le partage (numéros joints par un point médian).
+ * déjà posé le partage (numéros joints par un point médian). Un repère qui porte une étape où le regard fait le tour suit la
+ * même règle sur la diagonale à 45 degrés du cap (devant à droite, puis derrière à gauche), hors des quatre cônes du tour
+ * figé : sur la perpendiculaire, il tomberait sur l'axe d'un cône latéral.
  */
 export function reperesEtapes(sc) {
   const groupes = [];
@@ -129,14 +132,17 @@ export function reperesEtapes(sc) {
   };
   const demiVoiture = GABARITS[sc.eleve.gabarit].largeur / 2, pas = Math.round(ALLONGEMENT_MAX_REPERE / PAS_REPERE);
   return groupes.map(({ e, numeros }) => {
-    const nx = -Math.sin(e.cap), ny = Math.cos(e.cap);     // droite du cap, l'axe y de l'écran allant vers le bas
+    const tour = numeros.map((n) => sc.etapes[n - 1]).find((et) => et.regard && et.regard.tour);
+    const vue = tour && etatActeur(sc.eleve, tour.t), cones = tour ? conesTour(vue.cap, oeil(vue)) : [];
+    const [nx, ny] = tour ? [Math.cos(e.cap + 45 * DEG), Math.sin(e.cap + 45 * DEG)]     // tour : diagonale devant à droite
+      : [-Math.sin(e.cap), Math.cos(e.cap)];     // droite du cap, l'axe y de l'écran allant vers le bas
     const d0 = demiVoiture + JEU_REPERE_VOITURE + demiLargeurRepere(numeros) * Math.abs(nx) + RAYON_REPERE * Math.abs(ny);
     const place = (d) => ({ x: e.x + d * nx, y: e.y + d * ny, numeros });
     let repere = null;
     for (const sens of [1, -1]) {
       for (let k = 0; k <= pas && !repere; k++) {
         const r = place(sens * (d0 + k * PAS_REPERE));
-        if (libre(r)) repere = r;
+        if (libre(r) && !cones.some((c) => polygonesSeChevauchent(boiteRepere(r), c))) repere = r;
       }
       if (repere) break;
     }

@@ -16,8 +16,8 @@
  */
 import { KMH, DEG, GABARITS, trajet, chronologie, tempsAtteint, premiereAbscisse, pointA, emprise, etatActeur,
   polygonesSeChevauchent } from "./scene-geometrie.js?v=20261005f";
-import { DESSIN, HORS_MONDE, carrefourEnCroix, giratoire, trajetGiratoire } from "./scene-decors.js?v=20261005f";
-import { REGARD_PORTEE, oeil, regardContient } from "./scene-regard.js?v=20261005f";
+import { DESSIN, HORS_MONDE, carrefourEnCroix, giratoire, trajetGiratoire, rue } from "./scene-decors.js?v=20261005f";
+import { REGARD_PORTEE, REGARD_DUREE_TOUR_MIN, oeil, regardContient, coneRegard } from "./scene-regard.js?v=20261005f";
 import { SEUILS } from "./scene-controles.js?v=20261005f";
 
 const MARGE_ARRET = 0.3;             // m entre la voiture arrêtée et la limite (passage, ligne)
@@ -582,6 +582,103 @@ function regardIntersection() {
   };
 }
 
+// ===== Marche arrière en ligne droite le long du trottoir (C1.9, méthode de Timy du 07/10/2026) =====
+//
+// La voiture de l'élève est arrêtée dans la voie de droite, le long du trottoir, tournée vers le nord ; elle recule tout
+// droit vers le sud, sans autre usager en mouvement (C1 : trafic faible ou nul). Ordre de Timy, conforme à la méthode
+// V·V·C·C (vitesse, volant, contrôles, clignotants) : la marche arrière s'engage d'abord (ses feux de recul préviennent les
+// autres usagers), puis le tour du regard, à l'arrêt ; ensuite le recul à l'allure du pas, le regard par-dessus l'épaule
+// droite vers la lunette arrière ; enfin l'arrêt, regard devant. Les valeurs ci-dessous (angles du regard compris) sont des
+// choix de dessin, recopiés dans les sources de la scène.
+const MARCHE_ARRIERE = geler({
+  // m de trottoir montrés de chaque côté : le plus petit nombre entier de mètres pour que, sur l'image figée du tour, le
+  // cône du regard à droite, côté trottoir, se voie au-delà de la voiture sur au moins la largeur d'une voie (DESSIN.voie).
+  largeurTrottoir: 4,
+  // m : longueur de la rue, le plus petit nombre entier de mètres qui garde dans le dessin le cône du regard par la lunette
+  // jusqu'à l'arrêt.
+  longueur: 60,
+  // m, du bord haut au centre de la voiture au départ : le plus petit nombre entier de mètres qui garde dans le dessin le
+  // cône du regard pendant tout le tour, dont la pointe passe à REGARD_PORTEE de l'œil dans toutes les directions.
+  depart: 23,
+  // m : cadre qui suit l'élève, sur toute la largeur du monde, sans changer l'échelle ; il montre en entier les cônes du
+  // tour tournés devant et derrière.
+  hauteurCadre: 46,
+  jeuTrottoir: 0.3,           // m entre le flanc droit de la voiture et la bordure du trottoir (plan)
+  recul: 15,                  // m parcourus en marche arrière, en ligne droite le long du trottoir (plan)
+  // m entre l'arrière de la voiture de l'élève arrêtée et l'avant de la voiture garée, posée au-delà de la zone de recul :
+  // la zone de recul est libre sur ses 15 m, et l'élève ne s'arrête pas contre la voiture garée.
+  ecartVoitureGaree: 2,
+  kmh: { recul: 4 },          // allure du pas (plan), sous le garde-fou des contrôles automatiques (SEUILS.vitesseMarcheArriere)
+  reprise: 1.0,               // m/s² : mise en mouvement progressive, en marche arrière
+  freinage: 1.0,              // m/s² : arrêt progressif
+  // s à l'écran : engager la marche arrière (la durée minimale d'une étape) ; tour du regard, à l'arrêt (sa durée minimale :
+  // un quart de tour par seconde).
+  duree: { engager: 1.0, tour: REGARD_DUREE_TOUR_MIN },
+  // degrés par rapport au cap de la caisse, + à droite : devant ; par-dessus l'épaule droite, vers la lunette arrière (plan :
+  // 165, distinct du rétroviseur intérieur, à 180).
+  regard: { devant: 0, lunette: 165 },
+});
+
+function marcheArriere() {
+  const choix = MARCHE_ARRIERE;
+  const d = rue({ longueur: choix.longueur, largeurTrottoir: choix.largeurTrottoir });
+  const demiLongueur = GABARITS.voiture.longueur / 2;
+
+  // Trajet parti en marche arrière (la tortue va vers le sud, cap de marche 90 ; la caisse regarde le nord), le flanc droit
+  // à jeuTrottoir de la bordure du trottoir, sur toute la longueur du recul.
+  const x = d.reperes.xBordDroit - choix.jeuTrottoir - DESSIN.demiLargeurVoiture;
+  const chemin = trajet(x, choix.depart, 90, { arriere: true }).droit(choix.recul).fin();
+  const arret = pointA(chemin, chemin.longueur);
+
+  // Les cônes du regard restent dans la hauteur du dessin : pendant le tour, la pointe du cône passe à REGARD_PORTEE de l'œil
+  // dans toutes les directions ; le cône de la lunette, qui recule avec la voiture, descend le plus bas à l'arrêt.
+  const oDepart = oeil(pointA(chemin, 0));
+  if (oDepart.y - REGARD_PORTEE < 0) throw new Error("marche-arriere : le tour du regard sort du dessin, éloigner le départ du bord haut");
+  const lunette = coneRegard(arret.cap + choix.regard.lunette * DEG, oeil(arret));
+  if (Math.max(oDepart.y + REGARD_PORTEE, ...lunette.map(([, y]) => y)) > d.monde.hauteur) {
+    throw new Error("marche-arriere : un cône du regard sort du dessin par le bas, allonger la rue");
+  }
+
+  // À l'arrêt pendant l'étape 1 (la marche arrière s'engage) et le tour du regard, puis recul à l'allure du pas, atteinte et
+  // quittée progressivement, jusqu'au bout du recul.
+  const v = choix.kmh.recul * KMH;
+  const sAllure = v ** 2 / (2 * choix.reprise);
+  const sFrein = chemin.longueur - v ** 2 / (2 * choix.freinage);
+  if (!(sAllure < sFrein)) throw new Error("marche-arriere : recul trop court pour atteindre l'allure du pas");
+  const attente = choix.duree.engager + choix.duree.tour;
+  const profil = [
+    { s: 0, kmh: 0, pause: attente }, { s: sAllure, kmh: choix.kmh.recul },
+    { s: sFrein, kmh: choix.kmh.recul }, { s: chemin.longueur, kmh: 0 },
+  ];
+
+  // Voiture en stationnement, au-delà de la zone de recul : le long du même trottoir, tournée vers le nord comme celle de
+  // l'élève, son avant à ecartVoitureGaree de l'arrière de la voiture de l'élève arrêtée. Feux éteints (stationne).
+  const yGaree = arret.y + 2 * demiLongueur + choix.ecartVoitureGaree;
+  if (yGaree + demiLongueur > d.monde.hauteur) throw new Error("marche-arriere : la voiture garée sort du dessin, allonger la rue");
+  return {
+    code: "marche-arriere", titre: "Marche arrière en ligne droite le long du trottoir", monde: d.monde,
+    limite: LIMITE_AGGLOMERATION, decor: d,
+    camera: { largeur: d.monde.largeur, hauteur: choix.hauteurCadre },
+    acteurs: [
+      { id: "eleve", role: "eleve", gabarit: "voiture", chemin, profil },
+      { id: "garee", gabarit: "voiture", stationne: true, pose: { x, y: yGaree, cap: -90 } },
+    ],
+    etapes: [
+      { s: 0, regard: { angle: choix.regard.devant } },
+      { s: 0, delai: choix.duree.engager, regard: { tour: true } },
+      { s: 0, delai: attente, regard: { angle: choix.regard.lunette } },
+      { s: chemin.longueur, regard: { angle: choix.regard.devant } },
+    ],
+    attentes: [
+      { type: "dans", acteur: "eleve", nom: "voie de droite", zone: d.voies.droite, de: 0, a: chemin.longueur, emprise: true },
+      { type: "vitesseMax", acteur: "eleve", kmh: choix.kmh.recul, de: 0, a: chemin.longueur },
+      { type: "pasDeClignotantAvant", acteur: "eleve", cote: "droite", s: chemin.longueur },
+      { type: "pasDeClignotantAvant", acteur: "eleve", cote: "gauche", s: chemin.longueur },
+      { type: "dans", acteur: "garee", nom: "voie de droite", zone: d.voies.droite, de: 0, a: 0, emprise: true },
+    ],
+  };
+}
+
 export const SCENES = {
   "tourner-droite": {
     titre: "Tourner à droite en agglomération",
@@ -677,5 +774,23 @@ export const SCENES = {
       "Choix de dessin, sans portée réglementaire : voies de 3,5 m ; arrondi de bordure de 6 m ; axe nord-sud prioritaire (cédez-le-passage sur les branches est et ouest), sans passage piéton ; branches de 108 m au sud (le recul du départ et l'approche : le plus petit nombre entier de mètres qui loge les étapes, le regard loin devant durant au moins 1,0 s), 14 m à l'est et 11 m à l'ouest (le plus petit nombre entier de mètres pour que le cône du regard à droite, puis celui du regard à gauche, tiennent dans la largeur du dessin), 8 m au nord (la voiture de l'élève sort de l'intersection : son arrière en est à 5,25 m quand son trajet s'achève) ; cadre de 46 m de haut sur toute la largeur, qui suit l'élève ; départ à 22 m du bord bas (la portée du cône du regard : tourné vers l'arrière, le cône du rétroviseur intérieur reste dans l'image), au centre de la voie de droite, trajet tout droit vers le nord ; 50 km/h en approche, la vitesse maximale en agglomération ; décélération constante de 2,0 m/s² (le freinage progressif de la fiche C1-H ramené à une valeur moyenne : 2,78 s sur 30,9 m) jusqu'à 30 km/h, allure réduite à l'approche de l'intersection, tenue jusqu'à la fin : les trois contrôles à l'approche, de 1,0 s chacun, tiennent sur les 25 derniers mètres avant l'intersection, que l'élève traverse sans s'arrêter ; véhicule qui attend posé au centre de la voie entrante est, tourné vers l'ouest, l'avant à 0,3 m de la ligne de cédez-le-passage, feux stop allumés comme tout véhicule à l'arrêt ; cône du regard de 22 m, ouvert de 16 degrés de part et d'autre ; regard, par rapport à l'axe de la voiture : droit devant pendant 1,01 s (regarder loin devant) ; 180 degrés pendant 1,0 s (rétroviseur intérieur), achevé quand le ralentissement commence ; droit devant pendant le ralentissement, puis pendant 1,0 s (en face) ; 30 degrés à gauche pendant 1,0 s, vers l'entrée de la branche ouest : pendant tout le regard, le cône contient l'entrée de sa voie entrante (au bord amont de la ligne de cédez-le-passage), qui passe de 14,6 à 23,8 degrés à gauche de l'axe de la voiture, vu de l'œil du conducteur, et, en fin de regard, il couvre cette voie jusqu'à 7,2 m en amont de la ligne ; 30 degrés à droite pendant 1,0 s, vers l'entrée de la branche est, achevé quand l'avant de la voiture atteint le bord de l'intersection : pendant tout le regard, le cône contient le véhicule qui attend, qui passe de 18,4 à 35,5 degrés à droite ; à 60 degrés de part et d'autre, le cône du regard à gauche n'atteindrait la voie entrante ouest qu'après 0,35 s de regard, et celui du regard à droite ne contiendrait le véhicule qui attend qu'une fois l'avant de la voiture à 1,9 m dans l'intersection ; droit devant pour traverser ; panneaux agrandis pour rester lisibles.",
     ],
     construire: unique(regardIntersection),
+  },
+  "marche-arriere": {
+    titre: "Marche arrière en ligne droite le long du trottoir",
+    etapesModele: [
+      "Engager la marche arrière",
+      "Faire le tour du regard",
+      "Reculer en regardant par la lunette arrière",
+      "S'arrêter",
+    ],
+    sources: [
+      "Marche arrière en ligne droite le long du trottoir, méthode de Timy enseignée à l'ECF (07/10/2026) : avant de partir, un regard qui fait le tour complet (devant ; à gauche, le rétroviseur et l'angle mort ; la lunette arrière ; à droite, l'angle mort et le rétroviseur) ; pendant le recul, le regard par-dessus l'épaule droite, vers la lunette arrière ; l'allure du pas. Ordre des étapes, décision de Timy du 07/10/2026, conforme à la méthode V·V·C·C des procédures de Fabrice (section 4.3 : vitesse, volant, contrôles, clignotants) : la marche arrière s'engage d'abord, et ses feux préviennent les autres usagers ; les contrôles viennent ensuite, à l'arrêt ; le mouvement en dernier ; puis s'arrêter, et regarder devant avant de repartir. Le recul se fait en ligne droite, dans sa voie : la méthode n'y prévoit ni braquage ni clignotant.",
+      "Feux de recul : blancs, à l'arrière, ils s'allument d'eux-mêmes au passage de la marche arrière ; ils éclairent la zone située derrière le véhicule et signalent la manœuvre aux autres usagers : cours du thème 22, D (contrôlé). Ils comptent parmi les indications : procédures de Fabrice, section 1 (méthode C.I.A.), et fiche ECF C1-I. Le trajet part en marche arrière : les feux de recul sont allumés dès l'étape 1, voiture à l'arrêt, et jusqu'à la fin.",
+      "Faire le tour du regard avant de reculer : derrière le coffre, un enfant accroupi peut n'être visible ni directement ni au rétroviseur (angle mort d'autant plus étendu que le véhicule est haut), d'où le contour du véhicule avant toute marche arrière : cours du thème 24, F (contrôlé). Ici, depuis le poste de conduite, le tour du regard de la méthode de Timy.",
+      "Marche arrière inévitable : à allure très réduite, sous contrôles visuels constants : cours du thème 05 (contrôlé). Ici l'allure du pas, et le regard tourné vers l'arrière jusqu'à l'arrêt.",
+      "Marquage : unité u de 5 cm, modulation T'1 (traits de 1,50 m, vides de 5 m) : IISR 7e partie, art. 113-1 ; axiale T'1 de largeur 2u, admise en agglomération : art. 113-2 ; pas de ligne de rive, les bordures de trottoir matérialisant généralement le bord de la chaussée en milieu urbain : art. 114-5.",
+      "Choix de dessin, sans portée réglementaire : rue droite d'agglomération à double sens, voies de 3,5 m, sans voiture ni piéton en mouvement (C1 : trafic faible ou nul) ; 4 m de trottoir montrés de chaque côté (le plus petit nombre entier de mètres pour que, sur l'image figée du tour, le cône du regard à droite, côté trottoir, se voie au-delà de la voiture sur au moins la largeur d'une voie : 4,3 m) ; rue de 60 m (le plus petit nombre entier de mètres qui garde dans le dessin le cône du regard par la lunette jusqu'à l'arrêt) ; cadre de 46 m de haut sur toute la largeur, qui suit l'élève et montre en entier les cônes du tour tournés devant et derrière ; voiture de l'élève arrêtée dans la voie de droite, tournée vers le nord, le flanc droit à 0,3 m de la bordure du trottoir, son centre à 23 m du bord haut (le plus petit nombre entier de mètres qui garde dans le dessin le cône du regard pendant tout le tour, dont la pointe passe à 22 m de l'œil dans toutes les directions) ; recul de 15 m en ligne droite, le flanc droit toujours à 0,3 m de la bordure ; voiture en stationnement, feux éteints, posée au-delà de la zone de recul, le long du même trottoir et tournée vers le nord, son avant à 2 m de l'arrière de la voiture de l'élève arrêtée : au départ, 17 m sont libres derrière la voiture ; recul à 4 km/h, l'allure du pas, atteints puis quittés à 1,0 m/s², une mise en mouvement et un arrêt progressifs (1,11 s et 0,62 m chacun), tenus 12,39 s : 14,61 s de recul ; marche arrière engagée dès le début (feux de recul allumés), regard devant pendant 1,0 s (la durée minimale d'une étape), puis tour du regard pendant 4,0 s, à l'arrêt (sa durée minimale : un quart de tour par seconde) : la voiture recule 5,0 s après le début ; cône du regard de 22 m, ouvert de 16 degrés de part et d'autre ; regard, par rapport à l'axe de la voiture : droit devant pendant 1,0 s ; tour complet vers la gauche (devant, à gauche, l'arrière, à droite, de nouveau devant) pendant 4,0 s, montré sur une image figée par quatre cônes, devant, à gauche, derrière et à droite ; 165 degrés à droite pendant tout le recul (par-dessus l'épaule droite, vers la lunette arrière, et non 180, le rétroviseur intérieur) : le cône contient, jusqu'à l'arrêt, le chemin qui reste à parcourir derrière la voiture et l'avant de la voiture garée ; droit devant une fois la voiture arrêtée, pendant 1,0 s, l'image finale tenue.",
+    ],
+    construire: unique(marcheArriere),
   },
 };
