@@ -21,19 +21,20 @@
  *
  * Image figée (pas à pas, pause, fin de lecture, animations réduites) : elle montre
  * l'état de la scène à cet instant, pas une phase d'animation : le clignotant en
- * marche y est allumé, le regard de l'étape y est dessiné.
+ * marche y est allumé, le regard de l'étape y est dessiné. Les feux de recul, eux,
+ * suivent la marche, en lecture comme sur une image figée.
  *
  * Rien n'apparaît hors du cadre : le dessin est découpé au cadre courant, et la
  * boîte du SVG prend les proportions de ce cadre (css/cours-blocs.css).
  */
 import { preparerScene, etatActeur, pointA, GABARITS, DEG } from "./scene-geometrie.js?v=20261005f";
-import { regardDessine } from "./scene-regard.js?v=20261005f";
-import { TEINTES, RAYON_REPERE, clignotantAllume, cadreCamera, cadreReduit, reperesEtapes, demiLargeurRepere, emprisePanneau,
-  facteurLecture, SEUILS_VISIBILITE, actionVisibilite } from "./scene-rendu.js?v=20261005f";
+import { regardDessine, etapeBornee } from "./scene-regard.js?v=20261005f";
+import { TEINTES, RAYON_REPERE, clignotantAllume, feuxDeRecul, cadreCamera, cadreReduit, reperesEtapes, demiLargeurRepere,
+  emprisePanneau, facteurLecture, SEUILS_VISIBILITE, actionVisibilite } from "./scene-rendu.js?v=20261005f";
 import { urlSignalVerifie } from "./signaux.js?v=20261005f";
 
 const NS = "http://www.w3.org/2000/svg";
-// Opacité du regard : le cône, ou, plus léger, le secteur que parcourt un balayage sur une image figée.
+// Opacité du regard : le cône, ou, plus léger, le secteur que parcourt un balayage ou un tour du regard sur une image figée.
 const OPACITE_REGARD = { cone: 0.4, secteur: 0.22 };
 // Numéro des schémas montés : chacun a sa propre découpe, plusieurs schémas pouvant partager une page.
 let numeroScene = 0;
@@ -107,14 +108,16 @@ function dessinerVoiture(teinte, bord) {
     gauche: [feu(L / 2 - 0.42, -W / 2 + 0.02, 0.34, 0.2, TEINTES.clignotant), feu(-L / 2 + 0.08, -W / 2 + 0.02, 0.34, 0.2, TEINTES.clignotant)],
   };
   const stops = [feu(-L / 2 - 0.02, -W / 2 + 0.3, 0.12, 0.38, TEINTES.stop), feu(-L / 2 - 0.02, W / 2 - 0.68, 0.12, 0.38, TEINTES.stop)];
-  return { g, clignotants, stops };
+  // Feux de recul : deux feux blancs, chacun juste devant un feu stop, de mêmes dimensions.
+  const reculs = [feu(-L / 2 + 0.1, -W / 2 + 0.3, 0.12, 0.38, TEINTES.recul), feu(-L / 2 + 0.1, W / 2 - 0.68, 0.12, 0.38, TEINTES.recul)];
+  return { g, clignotants, stops, reculs };
 }
 
 function dessinerPieton() {
   const g = svg("g");
   g.appendChild(svg("circle", { r: 0.95, fill: "none", stroke: TEINTES.pieton, "stroke-width": 0.12, opacity: 0.55 }));   // halo de lisibilité
   g.appendChild(svg("circle", { r: 0.25, fill: TEINTES.pieton }));
-  return { g, clignotants: null, stops: null };
+  return { g, clignotants: null, stops: null, reculs: null };
 }
 
 // Repères numérotés des étapes (animations réduites), à droite de la position de l'élève au début de chacune (jamais sous
@@ -144,6 +147,8 @@ function marquerEtape(element, courante) {
 
 export function monterScene(def, { conteneur, etapes = [], reduit = false, onEtape = null } = {}) {
   const sc = preparerScene(def);
+  // Chaque étape avec sa fin : un tour du regard se règle sur les bornes de son étape (js/scene-regard.js).
+  const etapesBornees = sc.etapes.map((_, k) => etapeBornee(sc, k));
   const racine = svg("svg", { class: reduit ? "scene-svg scene-reduite" : "scene-svg", role: "img", "aria-label": sc.titre });
   // Tout le dessin est découpé au cadre courant : rien de ce qui est hors du cadre (le monde au-delà de ses bords, un
   // véhicule qui doit entrer par un bord) n'apparaît, même si la boîte du SVG laissait des bandes autour du cadre.
@@ -243,13 +248,16 @@ export function monterScene(def, { conteneur, etapes = [], reduit = false, onEta
           v.clignotants[cote].forEach((n) => n.setAttribute("opacity", allume === cote ? 1 : 0));
         }
         v.stops.forEach((n) => n.setAttribute("opacity", e.a < -0.3 || e.v < 0.05 ? 1 : 0));
+        const recul = feuxDeRecul(e);
+        v.reculs.forEach((n) => n.setAttribute("opacity", recul ? 1 : 0));
       }
     }
     const e = etats.get(sc.eleve.id);
     // Sur une image figée, en animations réduites comme en pas à pas, le regard de l'étape reste dessiné : le cône d'un
-    // angle ou d'un usager suivi, et, pour un balayage, le secteur qu'il parcourt (75 + 16 degrés de part et d'autre du
-    // cap, sur REGARD_PORTEE), plus léger, au lieu de la direction que son va-et-vient aurait à cet instant.
-    const regard = regardDessine(sc.etapes[k], e, instant, etats, fige);
+    // angle ou d'un usager suivi, et, plus léger, pour un balayage le secteur qu'il parcourt (75 + 16 degrés de part et
+    // d'autre du cap, sur REGARD_PORTEE), pour un tour du regard tout le tour de l'œil (le disque de rayon REGARD_PORTEE),
+    // au lieu de la direction que leur mouvement aurait à cet instant.
+    const regard = regardDessine(etapesBornees[k], e, instant, etats, fige);
     if (!regard) {
       cone.setAttribute("display", "none");
     } else {

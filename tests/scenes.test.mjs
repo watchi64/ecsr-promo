@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { SCENES } from "../js/scenes.js";
 import { controlerScene, SEUILS } from "../js/scene-controles.js";
-import { REGARD_PORTEE, oeil, angleRegard, cibleSuivie, coneRegard, regardContient } from "../js/scene-regard.js";
+import { REGARD_PORTEE, REGARD_DUREE_TOUR_MIN, oeil, angleRegard, cibleSuivie, coneRegard, regardContient } from "../js/scene-regard.js";
 import { KMH, DEG, preparerScene, etatActeur, emprise, tempsAtteint, centreArc, pointA, pointDansPolygone,
   polygonesSeChevauchent, rectangle } from "../js/scene-geometrie.js";
 import { DESSIN, trajetGiratoire } from "../js/scene-decors.js";
@@ -16,7 +16,8 @@ const proche = (a, b, eps = 1e-6, quoi = "") => assert.ok(Math.abs(a - b) <= eps
 const PAS = SEUILS.pas;                            // s : échantillonnage, celui des contrôles automatiques
 const ROULE = 0.5;                                 // m/s : au-delà, l'élève roule
 const ARRET = 0.01;                                // m/s : en deçà, l'élève est arrêté (comme pour l'attente arretAvant)
-const DUREE_MIN = { etape: 1.0, balayage: 2.0 };   // s à l'écran ; 2,0 s : un aller-retour complet du balayage
+// s à l'écran ; 2,0 s : un aller-retour complet du balayage ; un tour du regard : REGARD_DUREE_TOUR_MIN (js/scene-regard.js)
+const DUREE_MIN = { etape: 1.0, balayage: 2.0, tour: REGARD_DUREE_TOUR_MIN };
 
 // Étape active à l'instant t, comme dans le moteur : la dernière commencée.
 function etapeActive(sc, t) {
@@ -71,6 +72,20 @@ function regardsHorsCede(def) {
   return fautes;
 }
 
+// Étapes trop courtes à l'écran, de leur début à celui de la suivante (la dernière, jusqu'à la fin de la scène) : au
+// moins DUREE_MIN.etape, un balayage au moins DUREE_MIN.balayage, un tour du regard au moins DUREE_MIN.tour.
+function etapesTropCourtes(def) {
+  const sc = preparerScene(def);
+  const fautes = [];
+  sc.etapes.forEach((e, i) => {
+    const fin = i + 1 < sc.etapes.length ? sc.etapes[i + 1].t : sc.duree;
+    const r = e.regard || {};
+    const min = r.balayage ? DUREE_MIN.balayage : r.tour ? DUREE_MIN.tour : DUREE_MIN.etape;
+    if (fin - e.t < min - 1e-9) fautes.push(`étape ${i + 1} : ${(fin - e.t).toFixed(3)} s à l'écran, ${min} s au moins`);
+  });
+  return fautes;
+}
+
 for (const [code, entree] of Object.entries(SCENES)) {
   test(`scène ${code} : conforme à tous les contrôles automatiques`, () => {
     assert.deepEqual(controlerScene(entree.construire()), []);
@@ -91,13 +106,8 @@ for (const [code, entree] of Object.entries(SCENES)) {
   test(`scène ${code} : arrêté pour céder le passage, l'élève suit du regard l'usager à qui il le cède`, () => {
     assert.deepEqual(regardsHorsCede(entree.construire()), []);
   });
-  test(`scène ${code} : chaque étape dure au moins 1,0 s à l'écran, un balayage au moins 2,0 s`, () => {
-    const sc = preparerScene(entree.construire());
-    sc.etapes.forEach((e, i) => {
-      const fin = i + 1 < sc.etapes.length ? sc.etapes[i + 1].t : sc.duree;   // la dernière, jusqu'à la fin de la scène
-      const min = e.regard && e.regard.balayage ? DUREE_MIN.balayage : DUREE_MIN.etape;
-      assert.ok(fin - e.t >= min - 1e-9, `étape ${i + 1} : ${(fin - e.t).toFixed(3)} s à l'écran, ${min} s au moins`);
-    });
+  test(`scène ${code} : chaque étape dure au moins 1,0 s à l'écran, un balayage au moins 2,0 s, un tour du regard au moins 4 s`, () => {
+    assert.deepEqual(etapesTropCourtes(entree.construire()), []);
   });
   test(`scène ${code} : définition construite une seule fois et gelée en profondeur`, () => {
     const def = entree.construire();
@@ -179,6 +189,19 @@ test("tourner-gauche : un regard qui quitte le véhicule d'en face pendant l'att
   const etape = def.etapes.find((e) => e.regard && e.regard.suivre === "enFace");
   etape.regard = { angle: 0 };
   assert.ok(regardsHorsCede(def).length > 0);
+});
+
+test("tourner-droite : un tour du regard de moins de 4 s, comme un balayage de moins de 2 s, est détecté ; un tour qui dure assez passe", () => {
+  // Étape 4 : balayage de 2,0 s ; étape 5 : angle mort pendant 1,0 s ; étape 8 : regard devant pendant 5,9 s (repartir).
+  const tourCourt = copie("tourner-droite");
+  tourCourt.etapes[3].regard = { tour: true };
+  assert.deepEqual(etapesTropCourtes(tourCourt), ["étape 4 : 2.000 s à l'écran, 4 s au moins"]);
+  const balayageCourt = copie("tourner-droite");
+  balayageCourt.etapes[4].regard = { balayage: true };
+  assert.deepEqual(etapesTropCourtes(balayageCourt), ["étape 5 : 1.000 s à l'écran, 2 s au moins"]);
+  const tourAssezLong = copie("tourner-droite");
+  tourAssezLong.etapes[7].regard = { tour: true };
+  assert.deepEqual(etapesTropCourtes(tourAssezLong), []);
 });
 
 // ===== tourner-droite : la scène suit la fiche ECF C2-E (amendements du 03/10) =====

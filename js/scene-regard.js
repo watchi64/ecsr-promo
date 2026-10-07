@@ -12,6 +12,11 @@
  *   (0 droit devant, 40 la sortie d'un virage à droite, 120 l'angle mort droit, tête tournée vers
  *   l'épaule, 170 les rétroviseurs ; -120 et -170 pour la gauche) ;
  * - { balayage: true } : va-et-vient de part et d'autre du cap (BALAYAGE) ;
+ * - { tour: true } : le regard fait le tour complet, de 0 à -360 degrés, linéairement pendant toute l'étape : devant, la
+ *   gauche (rétroviseur extérieur et angle mort), l'arrière (lunette), la droite (angle mort et rétroviseur extérieur),
+ *   puis de nouveau devant. Ce sont les contrôles tout autour de la voiture avant une marche arrière (méthode de Timy).
+ *   L'étape dure au moins REGARD_DUREE_TOUR_MIN s, et le regard se règle sur ses bornes : le moteur et les tests la
+ *   passent avec sa fin (etapeBornee) ;
  * - { suivre: id } : vers l'acteur id, depuis l'œil du conducteur, tant qu'il est
  *   visible et à au plus REGARD_MAX_SUIVI degrés du cap (cibleSuivie le rend). Le
  *   conducteur ne suit pas des yeux ce qui passe derrière lui : au-delà, il regarde
@@ -22,7 +27,8 @@
  * Le cône dessiné (coneRegard) est un triangle : l'œil, puis deux pointes à REGARD_PORTEE m, à REGARD_OUVERTURE
  * degrés de part et d'autre de la direction du regard. regardContient dit si un point y est. Le moteur dessine ce que
  * rend regardDessine : ce triangle, arrêté DEBORD_SUIVI m au-delà d'un usager suivi des yeux (longueurCone), ou, sur une
- * image figée, le secteur que parcourt un balayage (secteurBalayage).
+ * image figée, le secteur que parcourt un balayage (secteurBalayage) ou un tour du regard (secteurTour : tout le tour de
+ * l'œil).
  */
 import { DEG } from "./scene-geometrie.js?v=20261005f";
 
@@ -39,6 +45,11 @@ export const REGARD_OUVERTURE = 16;
 // Balayage : 75 degrés de part et d'autre du cap, un aller-retour complet toutes les 2 s (0,5 Hz).
 // Choix de dessin du moteur (plan, tâche 11). La phase suit l'instant de la scène.
 const BALAYAGE = { amplitude: 75, frequence: 0.5 };
+
+/** Durée minimale (s) d'une étape dont le regard fait le tour : un quart de tour par seconde au plus. Choix de dessin
+ *  (plan 2, tâche 3) : chaque quart du tour (vers la gauche, vers l'arrière, vers la droite, de nouveau devant) reste
+ *  ainsi au moins 1,0 s à l'écran, la durée minimale d'une étape. tests/scenes.test.mjs le contrôle pour chaque scène. */
+export const REGARD_DUREE_TOUR_MIN = 4;
 
 // Place du conducteur (France : à gauche) : 0,2 m en avant du centre de la voiture, 0,4 m à sa gauche.
 const OEIL = { avant: 0.2, gauche: 0.4 };
@@ -70,14 +81,25 @@ const devantLeConducteur = (e, cible) => Math.abs(ecart(directionDepuisOeil(e, c
  * Cible que le conducteur suit des yeux pendant l'étape `etape` (regard { suivre: id }), pour sa voiture dans l'état
  * e ; `etats` : Map des états des acteurs (id -> etatActeur). Rend l'état de la cible quand elle est connue, visible
  * et à au plus REGARD_MAX_SUIVI degrés du cap ; null sinon (étape sans regard qui suit, cible inconnue, invisible ou
- * passée derrière le conducteur). Mêmes priorités qu'angleRegard : un balayage ou un angle l'emportent sur suivre.
- * Les tests des scènes s'en servent pour savoir si le regard est posé sur la cible ou ramené devant.
+ * passée derrière le conducteur). Mêmes priorités qu'angleRegard : un balayage, un tour du regard ou un angle l'emportent
+ * sur suivre. Les tests des scènes s'en servent pour savoir si le regard est posé sur la cible ou ramené devant.
  */
 export function cibleSuivie(etape, e, etats) {
   const r = etape && etape.regard;
-  if (!r || r.balayage || typeof r.angle === "number" || !r.suivre) return null;
+  if (!r || r.balayage || r.tour || typeof r.angle === "number" || !r.suivre) return null;
   const cible = etats.get(r.suivre);
   return cible && cible.visible && devantLeConducteur(e, cible) ? cible : null;
+}
+
+// Part du tour du regard accomplie à l'instant t : de 0 au début de l'étape (etape.t) à 1 à sa fin (etape.fin), bornée
+// (le moteur entre dans une étape à 1e-9 s près). Une étape sans fin, ou qui ne dure pas, est refusée.
+function partDuTour(etape, t) {
+  const debut = etape.t, fin = etape.fin;
+  if (!(Number.isFinite(debut) && Number.isFinite(fin) && fin > debut)) {
+    throw new Error(`tour du regard : l'étape qui commence à t = ${debut} s doit porter sa fin, après son début`
+      + ` (etape.fin reçu : ${String(fin)}) : la passer bornée par etapeBornee(sc, k)`);
+  }
+  return Math.min(1, Math.max(0, (t - debut) / (fin - debut)));
 }
 
 /**
@@ -85,12 +107,14 @@ export function cibleSuivie(etape, e, etats) {
  * l'état e, à l'instant t de la scène ; `etats` : Map des états des acteurs (id -> etatActeur). null : pas de
  * cône à dessiner (étape sans regard, cible inconnue ou invisible). Une cible suivie qui passe à plus de
  * REGARD_MAX_SUIVI degrés du cap est derrière le conducteur : il ne la suit plus des yeux et regarde de nouveau
- * devant lui (le regard rend le cap).
+ * devant lui (le regard rend le cap). Un tour du regard tourne vers la gauche, de 0 à -360 degrés, du début de
+ * l'étape à sa fin : elle doit porter `fin` (etapeBornee).
  */
 export function angleRegard(etape, e, t, etats) {
   const r = etape && etape.regard;
   if (!r) return null;
   if (r.balayage) return e.cap + BALAYAGE.amplitude * DEG * Math.sin(2 * Math.PI * BALAYAGE.frequence * t);
+  if (r.tour) return e.cap - 2 * Math.PI * partDuTour(etape, t);
   if (typeof r.angle === "number") return e.cap + r.angle * DEG;
   if (r.suivre) {
     const cible = etats.get(r.suivre);
@@ -140,22 +164,48 @@ export function secteurBalayage(cap, o, pasDeg = 5) {
 }
 
 /**
+ * Secteur que parcourt le cône pendant un tour du regard, pour une voiture de cap `cap` (radians) dont l'œil est en o :
+ * tout le tour de l'œil, le disque de rayon REGARD_PORTEE. C'est la réunion exacte des cônes du tour : leurs pointes
+ * décrivent le cercle. Polygone [[x, y], ...] : le cercle seul (l'œil en est le centre, et non un sommet comme pour le
+ * balayage), depuis le cap et vers la gauche comme le regard, par pas d'au plus `pasDeg` degrés.
+ */
+export function secteurTour(cap, o, pasDeg = 5) {
+  const n = Math.ceil(360 / pasDeg);
+  return Array.from({ length: n }, (_, k) => {
+    const a = cap - (2 * Math.PI * k) / n;
+    return [o.x + REGARD_PORTEE * Math.cos(a), o.y + REGARD_PORTEE * Math.sin(a)];
+  });
+}
+
+/**
  * Regard que dessine le moteur à l'instant t de l'étape `etape`, pour la voiture de l'élève dans l'état e ; `etats` :
  * Map des états des acteurs. null : pas de regard (étape sans regard, cible inconnue ou invisible).
  * - { forme: "cone", poly } : le triangle de coneRegard, dans la direction d'angleRegard, ramené vers l'œil à la
  *   longueur de longueurCone ;
  * - { forme: "secteur", poly } : sur une image figée (`fige` : pas à pas, pause, fin de lecture, animations réduites),
- *   un balayage se montre par le secteur qu'il parcourt (secteurBalayage), et non par la direction que son va-et-vient
- *   aurait par hasard à cet instant. Un angle ou un usager suivi gardent le même cône qu'en lecture.
+ *   un balayage se montre par le secteur qu'il parcourt (secteurBalayage), un tour du regard par tout le tour de l'œil
+ *   (secteurTour), et non par la direction que leur mouvement aurait par hasard à cet instant. Un angle ou un usager
+ *   suivi gardent le même cône qu'en lecture.
  */
 export function regardDessine(etape, e, t, etats, fige = false) {
   const r = etape && etape.regard;
   if (fige && r && r.balayage) return { forme: "secteur", poly: secteurBalayage(e.cap, oeil(e)) };
+  if (fige && r && r.tour) return { forme: "secteur", poly: secteurTour(e.cap, oeil(e)) };
   const angle = angleRegard(etape, e, t, etats);
   if (angle === null) return null;
   const o = oeil(e), k = Math.min(1, longueurCone(etape, e, etats) / REGARD_PORTEE);
   const triangle = coneRegard(angle, o);
   return { forme: "cone", poly: k === 1 ? triangle : triangle.map(([x, y]) => [o.x + (x - o.x) * k, o.y + (y - o.y) * k]) };
+}
+
+/**
+ * L'étape k d'une scène préparée (preparerScene), avec sa fin `fin` (s) : le début de l'étape suivante, ou la fin de la
+ * scène pour la dernière. Une copie : l'étape de la scène n'est pas modifiée. Un tour du regard se règle sur ces bornes :
+ * le moteur passe ainsi chaque étape à regardDessine, et les tests à angleRegard.
+ */
+export function etapeBornee(sc, k) {
+  const fin = k + 1 < sc.etapes.length ? sc.etapes[k + 1].t : sc.duree;
+  return { ...sc.etapes[k], fin };
 }
 
 /**

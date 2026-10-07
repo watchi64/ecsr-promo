@@ -5,8 +5,8 @@ import { GABARITS, preparerScene, etatActeur, emprise, tempsAtteint, trajet, poi
   from "../js/scene-geometrie.js";
 import { REGARD_PORTEE, DEBORD_SUIVI, oeil, cibleSuivie, regardDessine } from "../js/scene-regard.js";
 import { TEINTES, FREQ_CLIGNOTANT, TAILLE_PANNEAU, RAYON_REPERE, ECART_REPERES, JEU_REPERE_VOITURE, PAS_REPERE,
-  ALLONGEMENT_MAX_REPERE, MARGE_CADRE_REDUIT, clignotantAllume, cadreCamera, reperesEtapes, demiLargeurRepere, cadreReduit, emprisePanneau, facteurLecture,
-  SEUIL_DEMARRAGE, SEUILS_VISIBILITE, actionVisibilite } from "../js/scene-rendu.js";
+  ALLONGEMENT_MAX_REPERE, MARGE_CADRE_REDUIT, clignotantAllume, feuxDeRecul, cadreCamera, reperesEtapes, demiLargeurRepere, cadreReduit,
+  emprisePanneau, facteurLecture, SEUIL_DEMARRAGE, SEUILS_VISIBILITE, actionVisibilite } from "../js/scene-rendu.js";
 
 // Règles pures du rendu des scènes (correction de la tâche 11) : ce que montre l'image, en lecture comme sur les images
 // figées (pas à pas, pause, animations réduites). Le moteur (js/scene-moteur.js) dessine avec ces fonctions.
@@ -41,6 +41,16 @@ test("TEINTES : le trajet prévu se lit sur la chaussée (3:1 au moins, WCAG 1.4
   assert.ok(Math.abs(teinteDeg(TEINTES.trajet) - teinteDeg(TEINTES.eleve)) <= 10, "même famille de teinte que la voiture de l'élève");
   assert.ok(luminance(TEINTES.trajet) > luminance(TEINTES.eleve), "plus claire que la voiture de l'élève");
   assert.notEqual(TEINTES.trajet, TEINTES.peinture, "jamais le blanc de la peinture");
+});
+
+test("TEINTES : les feux de recul sont blancs et se lisent sur la chaussée comme sur la voiture de l'élève, carrosserie et bordure (3:1 au moins, WCAG 1.4.11)", () => {
+  for (const fond of ["chaussee", "eleve", "eleveBord"]) {
+    const c = contraste(TEINTES.recul, TEINTES[fond]);
+    assert.ok(c >= 3, `contraste de ${c.toFixed(2)}:1 sur ${fond}`);
+  }
+  const n = parseInt(TEINTES.recul.slice(1), 16), canaux = [n >> 16, (n >> 8) & 255, n & 255];
+  assert.ok(luminance(TEINTES.recul) >= 0.9, "blancs : très clairs");
+  assert.ok(Math.max(...canaux) - Math.min(...canaux) <= 16, "blancs : sans dominante de couleur");
 });
 
 // ===== Clignotant =====
@@ -119,6 +129,49 @@ test("scènes, en lecture : chaque clignotant de chaque acteur éclaire dès qu'
     }
     assert.ok(verifies > 0, `${code} : aucun clignotant, le test ne vérifie rien`);
   }
+});
+
+// ===== Feux de recul =====
+
+// Voiture de l'élève seule, sans décor : `chemin` et `profil` donnés, une seule étape.
+const voitureSeule = (chemin, profil) => preparerScene({
+  code: "essai", monde: { largeur: 20, hauteur: 40 }, decor: { panneaux: [], marquages: [], obstacles: [] },
+  acteurs: [{ id: "eleve", role: "eleve", gabarit: "voiture", chemin, profil }], etapes: [{ s: 0 }],
+}).eleve;
+
+test("feuxDeRecul : éteints en marche avant, allumés en marche arrière, à l'arrêt compris dès le rebroussement, la marche arrière étant engagée", () => {
+  // Avance de 6 m vers le nord, s'arrête 2 s au rebroussement, recule de 6 m au pas, s'arrête.
+  const a = voitureSeule(trajet(10, 30, -90).droit(6).inverser().droit(6).fin(),
+    [{ s: 0, kmh: 10 }, { s: 4, kmh: 10 }, { s: 6, kmh: 0, pause: 2 }, { s: 7, kmh: 4 }, { s: 11, kmh: 4 }, { s: 12, kmh: 0 }]);
+  const tArret = tempsAtteint(a.chrono, 6), tFin = a.chrono.duree;
+  for (const t of [0, 1, tArret - 0.05]) {
+    const e = etatActeur(a, t);
+    assert.equal(e.marche, "avant", `t = ${t.toFixed(3)} s`);
+    assert.equal(feuxDeRecul(e), false, `t = ${t.toFixed(3)} s, en marche avant`);
+  }
+  for (const t of [tArret + 1e-6, tArret + 1, tArret + 2 - 1e-6]) {
+    const e = etatActeur(a, t);
+    assert.equal(e.v, 0, `t = ${t.toFixed(3)} s : arrêté au rebroussement`);
+    assert.equal(feuxDeRecul(e), true, `t = ${t.toFixed(3)} s, arrêté au rebroussement`);
+  }
+  for (const t of [tArret + 3, tArret + 5, tFin, tFin + 1]) {
+    assert.equal(feuxDeRecul(etatActeur(a, t)), true, `t = ${t.toFixed(3)} s, en marche arrière`);
+  }
+});
+
+test("feuxDeRecul : un trajet parti en marche arrière les allume dès le départ, à l'arrêt ; un rebroussement vers la marche avant les éteint dès l'arrêt ; un acteur posé ne les allume jamais", () => {
+  // Arrêtée 3 s, recule de 4 m vers le sud au pas, s'arrête 2 s au rebroussement, repart en avant.
+  const a = voitureSeule(trajet(10, 20, 90, { arriere: true }).droit(4).inverser().droit(4).fin(),
+    [{ s: 0, kmh: 0, pause: 3 }, { s: 1, kmh: 4 }, { s: 3, kmh: 4 }, { s: 4, kmh: 0, pause: 2 }, { s: 5, kmh: 5 }, { s: 8, kmh: 5 }]);
+  const tArret = tempsAtteint(a.chrono, 4);
+  for (const t of [0, 1.5, 3, 4]) {
+    assert.equal(feuxDeRecul(etatActeur(a, t)), true, `t = ${t} s, marche arrière engagée`);
+  }
+  for (const t of [tArret + 1e-6, tArret + 1, a.chrono.duree]) {
+    assert.equal(feuxDeRecul(etatActeur(a, t)), false, `t = ${t.toFixed(3)} s, marche avant`);
+  }
+  const garee = { id: "garee", role: "autre", gabarit: "voiture", pose: { x: 3, y: 4, cap: -90 } };
+  assert.equal(feuxDeRecul(etatActeur(garee, 5)), false);
 });
 
 // ===== Cadres =====
@@ -314,14 +367,14 @@ test("cadreReduit : au moins la hauteur de la caméra, centré sur ce qu'il mont
 
 // ===== Regard sur les images figées =====
 
-test("scènes, images figées : le regard de chaque étape est dessiné, un cône pour un angle ou un usager suivi, le secteur balayé pour un balayage", () => {
+test("scènes, images figées : le regard de chaque étape est dessiné, un cône pour un angle ou un usager suivi, le secteur parcouru pour un balayage ou un tour du regard", () => {
   for (const [code, sc] of scenes()) {
     sc.etapes.forEach((et, i) => {
       const e = etatActeur(sc.eleve, et.t);
       const r = regardDessine(et, e, et.t, etatsA(sc, et.t), true);
       if (!et.regard) { assert.equal(r, null); return; }
       assert.ok(r, `${code}, étape ${i + 1} : pas de regard sur l'image figée`);
-      assert.equal(r.forme, et.regard.balayage ? "secteur" : "cone", `${code}, étape ${i + 1}`);
+      assert.equal(r.forme, et.regard.balayage || et.regard.tour ? "secteur" : "cone", `${code}, étape ${i + 1}`);
     });
   }
 });
