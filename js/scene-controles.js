@@ -8,18 +8,19 @@
  * message. Les seuils de confort ne sont pas des règles du Code de la route :
  * ce sont des garde-fous de vraisemblance, consignés comme tels dans les fiches.
  *
- * Ordre des contrôles : étapes, trajectoires (contacts, limite, accélérations,
- * continuité de la vitesse), entrées et sorties hors du monde, clignotants (assez
- * tôt, du bon côté et tout le long de l'arc), puis les attentes que la scène
- * déclare.
+ * Ordre des contrôles : étapes, trajectoires (contacts, limite, allure de recul,
+ * accélérations, continuité de la vitesse), arrêts aux rebroussements, entrées et
+ * sorties hors du monde, clignotants (assez tôt, du bon côté de la caisse et tout
+ * le long de l'arc), puis les attentes que la scène déclare.
  */
 import { preparerScene, etatActeur, emprise, polygonesSeChevauchent, pointDansPolygone, tempsAtteint, avant,
-  apparitionDe, sortDuCadre, rectangle, KMH, DEG }
+  apparitionDe, sortDuCadre, rebroussements, rectangle, KMH, DEG }
   from "./scene-geometrie.js?v=20261005f";
 
 export const SEUILS = {
   accelerationLaterale: 3.0,        // m/s²
   accelerationLongitudinale: 3.0,   // m/s²
+  vitesseMarcheArriere: 6,          // km/h : l'allure du pas, en marche arrière
   avanceClignotant: 2.0,            // s avant le début d'un changement de direction
   angleChangementDirection: 30,     // degrés : en deçà, un arc n'est pas un changement de direction
   pas: 0.1,                         // s
@@ -34,6 +35,7 @@ export function controlerScene(def) {
   const note = (m) => { if (!erreurs.includes(m)) erreurs.push(m); };
   controlerEtapes(sc, note);
   controlerTrajectoires(sc, note);
+  controlerRebroussements(sc, note);
   controlerEntreesSorties(sc, note);
   controlerClignotants(sc, note);
   for (const att of sc.attentes || []) controlerAttente(sc, att, note);
@@ -72,6 +74,10 @@ function controlerTrajectoires(sc, note) {
         if (polygonesSeChevauchent(poly, o.poly)) une(`${a.id}|${o.nature}`, `${a.id} touche un ${o.nature} à t = ${f1(t)} s`);
       }
       if (e.v / KMH > sc.limite + 1e-6) une(`${a.id}|limite`, `${a.id} dépasse ${sc.limite} km/h à t = ${f1(t)} s`);
+      // Allure de recul : en marche arrière (celle du segment parcouru, etatActeur), au plus l'allure du pas.
+      if (e.marche === "arriere" && e.v / KMH > SEUILS.vitesseMarcheArriere + 1e-6) {
+        une(`${a.id}|recul`, `${a.id} recule à ${(e.v / KMH).toFixed(1)} km/h à t = ${f1(t)} s (au plus ${SEUILS.vitesseMarcheArriere} km/h)`);
+      }
       const lat = e.v * e.v * Math.abs(e.courbure);
       if (lat > SEUILS.accelerationLaterale + 1e-6) une(`${a.id}|lat`, `${a.id} : accélération latérale de ${lat.toFixed(2)} m/s² à t = ${f1(t)} s`);
       if (Math.abs(e.a) > SEUILS.accelerationLongitudinale + 1e-6) une(`${a.id}|long`, `${a.id} : accélération longitudinale de ${e.a.toFixed(2)} m/s² à t = ${f1(t)} s`);
@@ -91,6 +97,23 @@ function controlerTrajectoires(sc, note) {
       }
     }
   });
+}
+
+// Un véhicule ne change de sens de marche qu'à l'arrêt : à chaque rebroussement, lu sur les segments par rebroussements()
+// (qui fait foi, et non le champ chemin.rebroussements), sa vitesse est nulle. L'arrêt se lit sur les échantillons de la
+// chronologie : elle en place un à chaque point du profil, à la vitesse exacte du point, et entre deux points
+// l'accélération est constante, la vitesse ne s'annulant qu'à un bout où le profil la met à 0 km/h (deux points de suite
+// à 0 km/h sont refusés). Un échantillon de vitesse nulle à l'abscisse du rebroussement, au micron près (les arrondis
+// flottants), prouve donc l'arrêt sans interpolation ni seuil de vitesse. Un arrêt d'un instant, sans pause, suffit. Les
+// piétons en sont exemptés, comme des autres règles de vitesse : ils partent et s'arrêtent d'un coup.
+function controlerRebroussements(sc, note) {
+  for (const a of sc.acteurs) {
+    if (!a.chrono || a.gabarit === "pieton") continue;
+    for (const s of rebroussements(a.chemin)) {
+      const arret = a.chrono.echantillons.some((e) => Math.abs(e.s - s) <= 1e-6 && e.v === 0);
+      if (!arret) note(`${a.id} change de sens de marche sans s'arrêter (s = ${f1(s)} m)`);
+    }
+  }
 }
 
 // Un véhicule ne surgit ni ne s'évanouit dans l'image : il entre et sort par les bords du monde (le rectangle
@@ -119,11 +142,17 @@ function controlerEntreesSorties(sc, note) {
   }
 }
 
-// Côté du changement de direction que représente un segment, ou null.
+// Côté du changement de direction que représente un segment, ou null. C'est le côté de la caisse : le trajet se lit dans
+// le repère de marche (scene-geometrie.js), et en marche arrière la gauche de la marche est la droite de la caisse. Un
+// virage de la tortue à gauche en reculant (volant tourné à droite, l'arrière part vers la droite) est donc un
+// changement de direction vers la droite : sur un segment parcouru en marche arrière, le côté s'inverse. Le reste de la
+// règle ne dépend pas de la marche.
 function changementDeDirection(seg) {
   if (seg.type !== "arc" || seg.suitLaRoute) return null;
-  if (seg.decalage) return seg.premier && seg.changementDeVoie ? (seg.angle > 0 ? "droite" : "gauche") : null;
-  return Math.abs(seg.angle) >= SEUILS.angleChangementDirection * DEG - 1e-9 ? (seg.angle > 0 ? "droite" : "gauche") : null;
+  const coteMarche = seg.angle > 0 ? "droite" : "gauche";
+  const cote = seg.arriere === true ? (coteMarche === "droite" ? "gauche" : "droite") : coteMarche;
+  if (seg.decalage) return seg.premier && seg.changementDeVoie ? cote : null;
+  return Math.abs(seg.angle) >= SEUILS.angleChangementDirection * DEG - 1e-9 ? cote : null;
 }
 
 function controlerClignotants(sc, note) {

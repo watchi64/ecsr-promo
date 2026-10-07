@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { trajet, rectangle } from "../js/scene-geometrie.js";
-import { controlerScene } from "../js/scene-controles.js";
+import { trajet, rectangle, KMH } from "../js/scene-geometrie.js";
+import { controlerScene, SEUILS } from "../js/scene-controles.js";
 
 const constant = (chemin, kmh) => [{ s: 0, kmh }, { s: chemin.longueur, kmh }];
 const eleve = (chemin, profil, extra = {}) => ({ id: "eleve", role: "eleve", gabarit: "voiture", chemin, profil, ...extra });
@@ -275,19 +275,24 @@ test("la limite d'un saut de vitesse est l'accélération de confort sur un pas 
   assert.deepEqual(part(1.2), ["autre : saut de vitesse de 1.2 km/h à t = 2.0 s"]);
 });
 
-test("les contrôles s'enchaînent dans l'ordre : étapes, trajectoires, entrées et sorties, clignotants, attentes", () => {
+test("les contrôles s'enchaînent dans l'ordre : étapes, trajectoires, rebroussements, entrées et sorties, clignotants, attentes", () => {
   // Un élève trop rapide qui vire sans clignotant, un véhicule qui attend puis part lancé (saut de vitesse), un
-  // véhicule qui surgit dans le cadre, des étapes à l'envers et une attente sur un acteur inconnu.
+  // véhicule qui surgit dans le cadre, un livreur qui change de sens de marche sans s'arrêter puis recule trop vite,
+  // des étapes à l'envers et une attente sur un acteur inconnu.
   const c = trajet(0, 70, -90).droit(20).virage(10, 90).droit(10).fin();
   const attend = nord("attend", 40, 40, 20, { depart: 1, apparition: "debut", profil: [{ s: 0, kmh: 36 }, { s: 20, kmh: 0 }] });
   const surgit = nord("surgit", 60, 70, 100, { depart: 3 });
-  const messages = controlerScene(scene([eleve(c, constant(c, 60)), attend, surgit], {
+  // Le livreur, à 9 km/h constants : 5 m vers le nord le long de x = 75, puis 60 m de recul, jusque hors du monde.
+  const cLivreur = trajet(75, 30, -90).droit(5).inverser().droit(60).fin();
+  const livreur = { id: "livreur", gabarit: "voiture", chemin: cLivreur, profil: constant(cLivreur, 9) };
+  const messages = controlerScene(scene([eleve(c, constant(c, 60)), attend, surgit, livreur], {
     etapes: [{ s: 10 }, { s: 5 }],
     attentes: [{ type: "dans", acteur: "fantome", nom: "voie", zone: rectangle(0, 0, 1, 1), de: 0, a: 1 }],
   }));
   const groupes = [
     [/étape 2/],
-    [/dépasse 50 km\/h/, /accélération latérale/, /saut de vitesse/],
+    [/dépasse 50 km\/h/, /accélération latérale/, /saut de vitesse/, /recule à/],
+    [/change de sens de marche/],
     [/apparaît dans le cadre/, /image resterait figée/],
     [/clignotant droite attendu/],
     [/« fantome » inconnu/],
@@ -333,4 +338,157 @@ test("un arrêt dans l'arc ne dispense pas du clignotant : il reste allumé jusq
   // Coupé à l'arrêt : allumé pendant l'attente, éteint dès que la voiture repart (t = 14 s).
   assert.deepEqual(clignotantJusqua(c, profil, 25),
     ["eleve : clignotant droite éteint pendant le changement de direction (t = 14.0 s)"]);
+});
+
+// ===== Marche arrière : allure de recul, arrêt au rebroussement, côté du clignotant =====
+//
+// Les essais qui suivent gardent le monde de scene() (80 m sur 80 m) et des allures rondes : 18 km/h font 5 m/s, et
+// 3,6 km/h font 1 m/s (un mètre de trajet dure une seconde). Une scène refusée ne porte qu'un seul défaut (on attend
+// ses messages exacts et rien d'autre) ; une scène acceptée est entièrement propre.
+
+// Aller et retour : 20 m vers le nord depuis (1,75 ; 60), rebroussement en s = 20 m, puis 20 m de recul vers le sud, la
+// caisse toujours tournée vers le nord. Dans les profils, l'aller roule à 18 km/h pendant 15 m (3 s), puis freine sur
+// les 5 derniers mètres (2,5 m/s² et 2 s pour s'arrêter : arrivée au rebroussement à t = 5 s).
+const allerRetour = () => trajet(1.75, 60, -90).droit(20).inverser().droit(20).fin();
+
+test("en marche arrière, l'allure ne dépasse pas SEUILS.vitesseMarcheArriere (6 km/h, l'allure du pas) ; en marche avant, la règle ne joue pas", () => {
+  assert.equal(SEUILS.vitesseMarcheArriere, 6);
+  // Départ en marche arrière, déjà lancé : 70 m de recul vers le sud depuis (1,75 ; 5), la caisse vers le nord.
+  const recul = trajet(1.75, 5, 90, { arriere: true }).droit(70).fin();
+  assert.deepEqual(controlerScene(scene([eleve(recul, constant(recul, 6))])), []);
+  assert.deepEqual(controlerScene(scene([eleve(recul, constant(recul, 8))])),
+    ["eleve recule à 8.0 km/h à t = 0.0 s (au plus 6 km/h)"]);
+  // Le même déplacement en marche avant (la caisse vers le sud) : 8 km/h ne déclenchent rien.
+  const avance = trajet(1.75, 5, 90).droit(70).fin();
+  assert.deepEqual(controlerScene(scene([eleve(avance, constant(avance, 8))])), []);
+});
+
+test("après un rebroussement, l'allure de recul est contrôlée dès que la voiture recule ; l'aller n'est pas concerné", () => {
+  // Aller à 18 km/h, arrêt d'une seconde au rebroussement (de t = 5 s à t = 6 s), puis reprise en recul à 2 m/s²
+  // jusqu'à `kmh`, tenus jusqu'au bout.
+  const c = allerRetour();
+  const profil = (kmh) => [{ s: 0, kmh: 18 }, { s: 15, kmh: 18 }, { s: 20, kmh: 0, pause: 1 },
+    { s: 20 + (kmh * KMH) ** 2 / (2 * 2), kmh }, { s: 40, kmh }];
+  // 6 km/h tenus en recul sont admis.
+  assert.deepEqual(controlerScene(scene([eleve(c, profil(6))])), []);
+  // À 2 m/s² depuis t = 6 s, le recul passe 6 km/h entre t = 6,8 s (1,6 m/s, soit 5,76 km/h) et t = 6,9 s (1,8 m/s,
+  // soit 6,48 km/h).
+  assert.deepEqual(controlerScene(scene([eleve(c, profil(8))])),
+    ["eleve recule à 6.5 km/h à t = 6.9 s (au plus 6 km/h)"]);
+});
+
+test("un rebroussement se fait à l'arrêt : le profil y passe par 0 km/h", () => {
+  // Aller à 18 km/h, freinage jusqu'au rebroussement (s = 20 m), puis recul à 5 km/h.
+  const c = allerRetour();
+  const profil = (auRebroussement) => [{ s: 0, kmh: 18 }, { s: 15, kmh: 18 }, auRebroussement, { s: 25, kmh: 5 }, { s: 40, kmh: 5 }];
+  assert.deepEqual(controlerScene(scene([eleve(c, profil({ s: 20, kmh: 0, pause: 1 }))])), []);
+  // Rebroussement à 2 km/h : la voiture passe de la marche avant à la marche arrière sans s'arrêter.
+  assert.deepEqual(controlerScene(scene([eleve(c, profil({ s: 20, kmh: 2 }))])),
+    ["eleve change de sens de marche sans s'arrêter (s = 20.0 m)"]);
+  // À 0,02 km/h, la voiture passerait pour arrêtée au seuil de l'attente arretAvant (moins de 0,01 m/s), mais son profil
+  // ne passe pas par 0 km/h : ce n'est pas un arrêt.
+  assert.deepEqual(controlerScene(scene([eleve(c, profil({ s: 20, kmh: 0.02 }))])),
+    ["eleve change de sens de marche sans s'arrêter (s = 20.0 m)"]);
+});
+
+test("c'est au rebroussement même que la vitesse s'annule : un arrêt 50 cm avant ou 50 cm après ne compte pas", () => {
+  const c = allerRetour();
+  for (const autour of [
+    [{ s: 19.5, kmh: 0, pause: 1 }, { s: 20, kmh: 2 }],   // arrêt, puis 50 cm à 2 km/h jusqu'au rebroussement
+    [{ s: 20, kmh: 2 }, { s: 20.5, kmh: 0, pause: 1 }],   // rebroussement à 2 km/h, arrêt 50 cm plus loin, en recul
+  ]) {
+    const profil = [{ s: 0, kmh: 18 }, { s: 15, kmh: 18 }, ...autour, { s: 25, kmh: 5 }, { s: 40, kmh: 5 }];
+    assert.deepEqual(controlerScene(scene([eleve(c, profil)])), ["eleve change de sens de marche sans s'arrêter (s = 20.0 m)"]);
+  }
+});
+
+test("chaque rebroussement est contrôlé, lu sur les segments du trajet", () => {
+  // 20 m vers le nord, 10 m de recul, puis 20 m vers le nord : rebroussements en s = 20 m et en s = 30 m. Arrêt d'une
+  // seconde au premier ; au second, arrêt d'une seconde aussi, ou passage à 3 km/h.
+  const c = trajet(1.75, 60, -90).droit(20).inverser().droit(10).inverser().droit(20).fin();
+  const profil = (auSecond) => [{ s: 0, kmh: 18 }, { s: 15, kmh: 18 }, { s: 20, kmh: 0, pause: 1 }, { s: 25, kmh: 5 },
+    { s: 28, kmh: 5 }, auSecond, { s: 35, kmh: 18 }, { s: 50, kmh: 18 }];
+  assert.deepEqual(controlerScene(scene([eleve(c, profil({ s: 30, kmh: 0, pause: 1 }))])), []);
+  const sansArret = profil({ s: 30, kmh: 3 });
+  assert.deepEqual(controlerScene(scene([eleve(c, sansArret)])), ["eleve change de sens de marche sans s'arrêter (s = 30.0 m)"]);
+  // Le champ chemin.rebroussements n'est qu'une lecture : un trajet recopié sans lui (comme le fait raccourcirDebut,
+  // dans js/scenes.js) garde ses rebroussements, lus sur les segments.
+  const recopie = { segments: c.segments, longueur: c.longueur };
+  assert.deepEqual(controlerScene(scene([eleve(recopie, sansArret)])), ["eleve change de sens de marche sans s'arrêter (s = 30.0 m)"]);
+});
+
+// Recul en virage, à 3,6 km/h : départ en marche arrière depuis (20 ; 40), la caisse vers le nord ; 5 m vers le sud, un
+// quart de tour de 5 m de rayon (de s = 5 m à s = 12,85 m, donc de t = 5 s à t = 12,85 s), puis 5 m. Un virage de la
+// tortue à gauche (-90) se fait volant tourné à droite : l'arrière part vers la droite de la caisse, l'est. Un virage de
+// la tortue à droite (+90) se fait volant tourné à gauche.
+const reculVirage = (angle, options) => trajet(20, 40, 90, { arriere: true }).droit(5).virage(5, angle, options).droit(5).fin();
+const reculAvec = (c, clignotant) => controlerScene(scene([eleve(c, constant(c, 3.6), clignotant ? { clignotant } : {})]));
+
+test("en marche arrière, le clignotant est celui de la caisse : volant à droite, clignotant droit ; volant à gauche, clignotant gauche", () => {
+  const volantDroite = reculVirage(-90), volantGauche = reculVirage(90);
+  assert.deepEqual(reculAvec(volantDroite, [{ cote: "droite", de: 0, a: finArc(volantDroite) }]), []);
+  assert.deepEqual(reculAvec(volantGauche, [{ cote: "gauche", de: 0, a: finArc(volantGauche) }]), []);
+  // Clignotant gauche pendant un recul volant à droite.
+  assert.deepEqual(reculAvec(volantDroite, [{ cote: "gauche", de: 0, a: finArc(volantDroite) }]), [
+    "eleve : clignotant droite attendu 2 s avant le changement de direction de s = 5.0 m (absent à t = 3.0 s)",
+    "eleve : clignotant gauche pendant un virage à droite (t = 5.0 s)",
+    "eleve : clignotant droite éteint pendant le changement de direction (t = 5.0 s)",
+  ]);
+});
+
+test("chaque arc se lit dans sa propre marche : un virage de la tortue à droite est à droite en avant, à gauche en recul", () => {
+  // À 3,6 km/h : 5 m vers le nord depuis (20 ; 70), quart de tour à droite (5 m de rayon), 5 m vers l'est ; freinage
+  // sur le dernier mètre (2 s) jusqu'au rebroussement (s = 17,85 m, t = 18,85 s) et une seconde d'arrêt. Puis le recul :
+  // 3 m vers l'ouest (reprise sur le premier, en 2 s), un quart de tour de la tortue à droite, volant tourné à gauche
+  // (l'arrière part vers le nord, à gauche de la caisse), et 5 m vers le nord. L'arc du recul commence en s = 20,85 m, à
+  // t = 23,85 s.
+  const c = trajet(20, 70, -90).droit(5).virage(5, 90).droit(5).inverser().droit(3).virage(5, 90).droit(5).fin();
+  const [, enAvant, , , enRecul] = c.segments;
+  const sRebroussement = c.segments[3].debut;
+  const profil = [{ s: 0, kmh: 3.6 }, { s: sRebroussement - 1, kmh: 3.6 }, { s: sRebroussement, kmh: 0, pause: 1 },
+    { s: sRebroussement + 1, kmh: 3.6 }, { s: c.longueur, kmh: 3.6 }];
+  const avec = (clignotant) => controlerScene(scene([eleve(c, profil, { clignotant })]));
+  assert.deepEqual(avec([{ cote: "droite", de: 0, a: enAvant.debut + enAvant.longueur },
+    { cote: "gauche", de: sRebroussement, a: enRecul.debut + enRecul.longueur }]), []);
+  // Le clignotant droit gardé tout du long convient au virage en avant, pas à celui du recul.
+  assert.deepEqual(avec([{ cote: "droite", de: 0, a: c.longueur }]), [
+    "eleve : clignotant gauche attendu 2 s avant le changement de direction de s = 20.9 m (absent à t = 21.9 s)",
+    "eleve : clignotant droite pendant un virage à gauche (t = 23.9 s)",
+    "eleve : clignotant gauche éteint pendant le changement de direction (t = 23.9 s)",
+  ]);
+});
+
+test("en marche arrière, le clignotant s'allume toujours au moins 2 s avant le virage et tient jusqu'à la fin de l'arc", () => {
+  const c = reculVirage(-90);
+  // Allumé en s = 4 m, à t = 4 s : une seconde seulement avant le virage.
+  assert.deepEqual(reculAvec(c, [{ cote: "droite", de: 4, a: finArc(c) }]),
+    ["eleve : clignotant droite attendu 2 s avant le changement de direction de s = 5.0 m (absent à t = 3.0 s)"]);
+  // Éteint en s = 8,05 m, dans l'arc : le premier dixième de seconde échantillonné sans lui est t = 8,1 s.
+  assert.deepEqual(reculAvec(c, [{ cote: "droite", de: 0, a: 8.05 }]),
+    ["eleve : clignotant droite éteint pendant le changement de direction (t = 8.1 s)"]);
+});
+
+test("en marche arrière, virage qui suit la route, arc de moins de 30 degrés et décalage sans changement de voie se passent de clignotant ; un changement de voie se signale du côté de la caisse", () => {
+  assert.deepEqual(reculAvec(reculVirage(-90, { suitLaRoute: true })), []);
+  assert.deepEqual(reculAvec(reculVirage(-20)), []);
+  // Après 3 m de recul (t = 3 s), décalage de 1 m vers la droite de la tortue (l'ouest), donc vers la gauche de la
+  // caisse, sur 10 m d'avance.
+  const decale = (options) => trajet(20, 40, 90, { arriere: true }).droit(3).decaler(1, 10, options).droit(3).fin();
+  assert.deepEqual(reculAvec(decale()), []);
+  const changement = decale({ changementDeVoie: true });
+  assert.deepEqual(reculAvec(changement, [{ cote: "gauche", de: 0, a: changement.longueur }]), []);
+  assert.deepEqual(reculAvec(changement), [
+    "eleve : clignotant gauche attendu 2 s avant le changement de direction de s = 3.0 m (absent à t = 1.0 s)",
+    "eleve : clignotant gauche éteint pendant le changement de direction (t = 3.0 s)",
+  ]);
+});
+
+test("une marche arrière dans une rue à droite est conforme : arrêt au rebroussement, recul au pas, clignotant droit", () => {
+  // 20 m vers le nord depuis (20 ; 70) à 18 km/h, freinage jusqu'à l'arrêt au rebroussement (s = 20 m), 2 s d'arrêt,
+  // puis recul à 5 km/h : 2 m, un quart de tour volant tourné à droite (6 m de rayon) et 10 m vers l'est. Le clignotant
+  // droit s'allume à l'arrêt et tient jusqu'à la fin du virage.
+  const c = trajet(20, 70, -90).droit(20).inverser().droit(2).virage(6, -90).droit(10).fin();
+  const arc = c.segments[2];
+  const profil = [{ s: 0, kmh: 18 }, { s: 15, kmh: 18 }, { s: 20, kmh: 0, pause: 2 }, { s: 21, kmh: 5 }, { s: c.longueur, kmh: 5 }];
+  assert.deepEqual(controlerScene(scene([eleve(c, profil, { clignotant: [{ cote: "droite", de: 20, a: arc.debut + arc.longueur }] })])), []);
 });
