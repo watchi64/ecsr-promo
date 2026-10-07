@@ -1,9 +1,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { DEG, GABARITS, emprise, pointA, pointDansPolygone, polygonesSeChevauchent, rectangle, tournerPoint } from "../js/scene-geometrie.js";
-import { IISR, DESSIN, HORS_MONDE, carrefourEnCroix, giratoire, trajetGiratoire } from "../js/scene-decors.js";
+import { DEG, GABARITS, emprise, pointA, pointDansPolygone, polygonesSeChevauchent, rectangle, tournerPoint, trajet, centreArc,
+  courbureA } from "../js/scene-geometrie.js";
+import { IISR, DESSIN, HORS_MONDE, carrefourEnCroix, giratoire, trajetGiratoire, rue, routeVirages } from "../js/scene-decors.js";
+import { controlerScene } from "../js/scene-controles.js";
 
-const proche = (a, b, eps = 1e-6) => assert.ok(Math.abs(a - b) <= eps, `${a} au lieu de ${b}`);
+const proche = (a, b, eps = 1e-6, quoi = "") => assert.ok(Math.abs(a - b) <= eps, `${quoi}${quoi ? " : " : ""}${a} au lieu de ${b}`);
 const surTrottoir = (d, p) => d.obstacles.some((o) => o.nature === "trottoir" && pointDansPolygone([p.x, p.y], o.poly));
 const etendue = (poly, i) => [Math.min(...poly.map((q) => q[i])), Math.max(...poly.map((q) => q[i]))];   // bornes d'un polygone selon un axe (0 : x, 1 : y)
 
@@ -393,4 +395,342 @@ test("trajetGiratoire : sur les 12 trajets, avec et sans horsMonde, la voiture n
       }
     }
   }
+});
+
+// ===== Rue droite et route en virages (plan 2, lot C1) =====
+
+// Route en virages d'essai : celle d'une scène plausible (rayon et angle par défaut), et une route plus serrée, à angle
+// droit, pour vérifier que la construction ne tient pas aux valeurs par défaut.
+const VIRAGES = { approche: 50, entreVirages: 20, sortie: 30, largeurTrottoir: 5 };
+const VIRAGES_SERRES = { approche: 30, entreVirages: 12, sortie: 20, largeurTrottoir: 3, rayon: 25, angle: 90 };
+const RUE = { longueur: 60, largeurTrottoir: 4 };
+
+const trottoirs = (d) => d.obstacles.filter((o) => o.nature === "trottoir");
+const surUnTrottoir = (d, q) => trottoirs(d).some((o) => pointDansPolygone(q, o.poly));
+const droiteDe = (p) => [-Math.sin(p.cap), Math.cos(p.cap)];     // normale unitaire à droite du cap (y vers le bas)
+const decale = (p, n, o) => [p.x + o * n[0], p.y + o * n[1]];   // point à o m de p dans la direction n
+
+// Distance, depuis le point q et dans la direction unitaire n, au premier bord de trottoir rencontré : mesurée sur les
+// polygones du décor, indépendamment de la façon dont ils ont été construits.
+function premierBord(d, q, n) {
+  let t = Infinity;
+  for (const { poly } of trottoirs(d)) {
+    for (let i = 0; i < poly.length; i++) {
+      const a = poly[i], b = poly[(i + 1) % poly.length];
+      const ex = b[0] - a[0], ey = b[1] - a[1], rx = a[0] - q[0], ry = a[1] - q[1];
+      const det = ex * n[1] - n[0] * ey;
+      if (Math.abs(det) < 1e-12) continue;                       // bord parallèle à la mesure
+      const ti = (ex * ry - rx * ey) / det, si = (n[0] * ry - rx * n[1]) / det;
+      if (ti >= 0 && si >= 0 && si <= 1) t = Math.min(t, ti);
+    }
+  }
+  return t;
+}
+
+// Géométrie attendue d'une route en virages, calculée ici sans le module : dimensions du monde, abscisses (x) de l'axe
+// sur les lignes droites d'approche et de sortie, et l'axe lui-même, du bord bas au bord haut, tracé à la tortue (virage
+// à droite : angle positif, virage à gauche : angle négatif).
+function routeAttendue({ approche, entreVirages, sortie, largeurTrottoir, rayon = 40, angle = 60 }) {
+  const h = DESSIN.voie, a = angle * DEG;
+  const hauteur = approche + 2 * rayon * Math.sin(a) + entreVirages * Math.cos(a) + sortie;
+  const xApproche = largeurTrottoir + h, xSortie = xApproche + 2 * rayon * (1 - Math.cos(a)) + entreVirages * Math.sin(a);
+  const axe = trajet(xApproche, hauteur, -90).droit(approche).virage(rayon, angle).droit(entreVirages).virage(rayon, -angle)
+    .droit(sortie).fin();
+  return { h, a, rayon, angle, hauteur, largeur: xSortie + h + largeurTrottoir, xApproche, xSortie, axe,
+    centres: { droite: centreArc(axe.segments[1]), gauche: centreArc(axe.segments[3]) } };
+}
+
+// Scène minimale sur un décor : l'élève suit le trajet à 30 km/h, sans autre usager, et doit rester dans la voie de droite.
+function sceneEssai(d, chemin) {
+  return {
+    code: "essai", titre: "Essai du décor", monde: d.monde, limite: 50, decor: d,
+    acteurs: [{ id: "eleve", role: "eleve", gabarit: "voiture", chemin,
+      profil: [{ s: 0, kmh: 30 }, { s: chemin.longueur, kmh: 30 }] }],
+    etapes: [{ s: 0, regard: { angle: 0 } }, { s: chemin.longueur / 2, regard: { angle: 0 } }],
+    attentes: [{ type: "dans", acteur: "eleve", nom: "voie de droite", zone: d.voies.droite, de: 0, a: chemin.longueur, emprise: true }],
+  };
+}
+
+test("rue : chaussée de deux voies de 3,5 m entre deux trottoirs, orientée sud-nord ; repères du bord droit, de l'axe et du bord gauche", () => {
+  const d = rue(RUE);
+  assert.deepEqual(d.monde, { largeur: 4 + 2 * DESSIN.voie + 4, hauteur: 60 });
+  assert.deepEqual(d.reperes, { xBordDroit: 11, xAxe: 7.5, xBordGauche: 4 });
+  // L'élève roule vers le nord : sa voie, la voie de droite, est à l'est de l'axe ; chacune a 3,5 m de large.
+  assert.deepEqual(etendue(d.voies.droite, 0), [7.5, 11]);
+  assert.deepEqual(etendue(d.voies.gauche, 0), [4, 7.5]);
+  for (const voie of [d.voies.droite, d.voies.gauche]) {
+    const [yMin, yMax] = etendue(voie, 1);
+    assert.ok(yMin < 0 && yMax > 60, "la voie déborde du monde aux deux bouts");
+  }
+  assert.deepEqual(d.panneaux, []);
+  assert.deepEqual(d.zones, {});
+});
+
+test("rue : un trottoir de chaque côté, de la bordure au bord du monde ; aucun sur la chaussée", () => {
+  const d = rue(RUE);
+  const { xBordDroit, xBordGauche } = d.reperes;
+  assert.equal(trottoirs(d).length, 2);
+  for (let y = 0; y <= 60; y += 0.5) {
+    for (let x = xBordGauche + 0.001; x < xBordDroit; x += 0.25) assert.ok(!surUnTrottoir(d, [x, y]), `(${x} ; ${y}) : trottoir sur la chaussée`);
+    assert.ok(!surUnTrottoir(d, [xBordDroit - 0.001, y]), `(${xBordDroit - 0.001} ; ${y}) : trottoir sur la chaussée`);
+    for (const x of [0, xBordGauche - 0.001, xBordDroit + 0.001, d.monde.largeur]) {
+      assert.ok(surUnTrottoir(d, [x, y]), `(${x} ; ${y}) : pas de trottoir au-delà de la bordure`);
+    }
+  }
+});
+
+test("rue : axiale T'1 de largeur 2u sur toute la longueur (IISR 7e partie, art. 113-1 et 113-2)", () => {
+  const d = rue(RUE);
+  assert.equal(d.marquages.length, 1);
+  const [m] = d.marquages;
+  assert.equal(m.type, "ligne");
+  assert.equal(m.largeur, 2 * IISR.u); proche(m.largeur, 0.1);
+  assert.equal(m.trait, 1.5); assert.equal(m.vide, 5);
+  // Du bord bas au bord haut, sur l'axe : le pointillé commence en bas, par un trait.
+  assert.deepEqual([m.de, m.a], [[7.5, 60], [7.5, 0]]);
+});
+
+test("rue : une longueur ou une largeur de trottoir absente, nulle, négative ou non numérique est refusée, avec son nom dans le message", () => {
+  assert.throws(() => rue({ largeurTrottoir: 4 }), /rue : « longueur » attend un nombre de mètres strictement positif \(reçu : undefined\)/);
+  assert.throws(() => rue({ longueur: 60, largeurTrottoir: 0 }), /rue : « largeurTrottoir » attend un nombre de mètres strictement positif \(reçu : 0\)/);
+  assert.throws(() => rue({ longueur: -1, largeurTrottoir: 4 }), /« longueur »/);
+  assert.throws(() => rue({ longueur: NaN, largeurTrottoir: 4 }), /« longueur »/);
+  assert.throws(() => rue({ longueur: "60", largeurTrottoir: 4 }), /« longueur »/);
+  assert.throws(() => rue(), /« longueur »/);
+});
+
+test("routeVirages : rayon de 40 m (mesuré sur l'axe) et angle de 60 degrés par défaut, choix de dessin nommés dans DESSIN", () => {
+  assert.equal(DESSIN.rayonVirage, 40);
+  assert.equal(DESSIN.angleVirage, 60);
+  const d = routeVirages(VIRAGES);
+  assert.equal(d.reperes.rayon, 40);
+  assert.equal(d.reperes.angle, 60);
+  const autre = routeVirages(VIRAGES_SERRES);
+  assert.equal(autre.reperes.rayon, 25);
+  assert.equal(autre.reperes.angle, 90);
+});
+
+test("routeVirages : ligne droite d'approche vers le nord, virage à droite, ligne droite courte, virage à gauche, ligne droite de sortie vers le nord", () => {
+  for (const params of [VIRAGES, VIRAGES_SERRES]) {
+    const d = routeVirages(params), g = routeAttendue(params), libelle = JSON.stringify(params);
+    proche(d.monde.largeur, g.largeur, 1e-9, libelle); proche(d.monde.hauteur, g.hauteur, 1e-9, libelle);
+    proche(d.reperes.xAxeApproche, g.xApproche, 1e-9, libelle); proche(d.reperes.xAxeSortie, g.xSortie, 1e-9, libelle);
+    // L'axe tracé à la tortue entre par le bord bas et sort par le bord haut, cap au nord aux deux bouts.
+    const fin = pointA(g.axe, g.axe.longueur);
+    proche(fin.x, g.xSortie, 1e-9, libelle); proche(fin.y, 0, 1e-9, libelle); proche(fin.cap, -90 * DEG, 1e-12, libelle);
+    // Le premier virage tourne à droite (centre à l'est de l'approche), le second à gauche (centre à l'ouest de la sortie).
+    assert.ok(g.axe.segments[1].angle > 0 && g.axe.segments[3].angle < 0, libelle);
+    const { virageDroite, virageGauche } = d.reperes.centres;
+    proche(virageDroite[0], g.centres.droite.x, 1e-9, libelle); proche(virageDroite[1], g.centres.droite.y, 1e-9, libelle);
+    proche(virageGauche[0], g.centres.gauche.x, 1e-9, libelle); proche(virageGauche[1], g.centres.gauche.y, 1e-9, libelle);
+    assert.ok(virageDroite[0] > g.xApproche && virageGauche[0] < g.xSortie, libelle);
+    // Le monde montre largeurTrottoir m de trottoir à gauche de la ligne droite d'approche et à droite de celle de sortie.
+    proche(g.xApproche - g.h, params.largeurTrottoir, 1e-12, libelle);
+    proche(d.monde.largeur - (g.xSortie + g.h), params.largeurTrottoir, 1e-9, libelle);
+    assert.deepEqual(d.panneaux, []);
+    assert.deepEqual(d.zones, {});
+  }
+});
+
+test("routeVirages : la chaussée garde 7 m de large, 3,5 m de part et d'autre de l'axe, mesurés tous les 0,5 m, virages compris ; aucun trottoir ne la chevauche", () => {
+  // Les arcs sont dessinés en cordes : la mesure est exacte en ligne droite, à DESSIN.flecheArc (2 mm) près dans les virages.
+  assert.equal(DESSIN.flecheArc, 0.002);
+  const eps = DESSIN.flecheArc;
+  for (const params of [VIRAGES, VIRAGES_SERRES]) {
+    const d = routeVirages(params), g = routeAttendue(params), libelle = JSON.stringify(params);
+    assert.equal(trottoirs(d).length, 2, libelle);
+    let mesuresEnVirage = 0;
+    for (let s = 0; s <= g.axe.longueur; s += 0.5) {
+      const p = pointA(g.axe, s), n = droiteDe(p), nom = `${libelle}, s = ${s.toFixed(1)} m`;
+      proche(premierBord(d, [p.x, p.y], n), g.h, eps, `${nom} : bordure droite`);
+      proche(premierBord(d, [p.x, p.y], [-n[0], -n[1]]), g.h, eps, `${nom} : bordure gauche`);
+      // De bordure à bordure, aucun point de la chaussée n'est sur un trottoir ; juste au-delà, le trottoir commence.
+      for (let k = -10; k <= 10; k++) {
+        assert.ok(!surUnTrottoir(d, decale(p, n, (k / 10) * (g.h - 2 * eps))), `${nom} : trottoir sur la chaussée (${k / 10} de la demi-largeur)`);
+      }
+      for (const o of [g.h + 2 * eps, -(g.h + 2 * eps)]) assert.ok(surUnTrottoir(d, decale(p, n, o)), `${nom} : pas de trottoir à ${o} m de l'axe`);
+      if (courbureA(g.axe, s) !== 0) mesuresEnVirage++;
+    }
+    assert.ok(mesuresEnVirage >= 140, `${libelle} : seulement ${mesuresEnVirage} mesures dans les virages`);
+  }
+});
+
+test("routeVirages : axiale T'1 de largeur 2u, traits de 1,50 m et vides de 5 m comptés le long de l'axe, dans les virages comme en ligne droite (IISR 7e partie, art. 113-1 et 113-2)", () => {
+  const { trait, vide } = IISR.axialeAgglo;
+  assert.equal(trait, 1.5); assert.equal(vide, 5);
+  const periode = trait + vide;
+  for (const params of [VIRAGES, VIRAGES_SERRES]) {
+    const d = routeVirages(params), g = routeAttendue(params), libelle = JSON.stringify(params);
+    // Le moteur ne trace que des segments droits : chaque trait est une surface, une bande dont les bords suivent l'axe.
+    assert.equal(d.marquages.length, Math.ceil(g.axe.longueur / periode), `${libelle} : nombre de traits`);
+    const enVirage = { droite: 0, gauche: 0 };
+    d.marquages.forEach((m, k) => {
+      const nom = `${libelle} : trait ${k + 1}`;
+      assert.equal(m.type, "surface", nom);
+      assert.equal(m.role, "axiale", nom);
+      const n = m.poly.length / 2;
+      assert.ok(Number.isInteger(n) && n >= 2, `${nom} : ${m.poly.length} points`);
+      // Points en vis-à-vis : le bord droit dans l'ordre, le bord gauche à rebours ; leur milieu est sur l'axe.
+      const droit = m.poly.slice(0, n), gauche = m.poly.slice(n).reverse();
+      const milieux = droit.map((q, i) => [(q[0] + gauche[i][0]) / 2, (q[1] + gauche[i][1]) / 2]);
+      const s0 = k * periode, s1 = Math.min(s0 + trait, g.axe.longueur);
+      const abscisses = [s0];
+      for (let i = 1; i < n; i++) abscisses.push(abscisses[i - 1] + Math.hypot(milieux[i][0] - milieux[i - 1][0], milieux[i][1] - milieux[i - 1][1]));
+      milieux.forEach((q, i) => {
+        const p = pointA(g.axe, abscisses[i]), nd = droiteDe(p);
+        proche(Math.hypot(q[0] - p.x, q[1] - p.y), 0, 1e-4, `${nom}, point ${i + 1} hors de l'axe`);
+        // Largeur 2u, u de chaque côté de l'axe, perpendiculairement à lui.
+        proche(Math.hypot(droit[i][0] - gauche[i][0], droit[i][1] - gauche[i][1]), 2 * IISR.u, 1e-9, `${nom}, largeur au point ${i + 1}`);
+        proche((droit[i][0] - q[0]) * nd[0] + (droit[i][1] - q[1]) * nd[1], IISR.u, 1e-6, `${nom}, bord droit au point ${i + 1}`);
+      });
+      // Début et fin du trait aux abscisses de la modulation.
+      const p0 = pointA(g.axe, s0), p1 = pointA(g.axe, s1);
+      proche(milieux[0][0], p0.x, 1e-9, nom); proche(milieux[0][1], p0.y, 1e-9, nom);
+      proche(milieux[n - 1][0], p1.x, 1e-9, nom); proche(milieux[n - 1][1], p1.y, 1e-9, nom);
+      proche(abscisses[n - 1] - s0, s1 - s0, 1e-3, `${nom} : longueur peinte`);
+      // Chaque corde, sur l'axe comme sur les deux bords, à moins de DESSIN.flecheArc de l'arc qu'elle remplace.
+      for (let i = 1; i < n; i++) {
+        const p = pointA(g.axe, (abscisses[i - 1] + abscisses[i]) / 2), nd = droiteDe(p);
+        for (const [ligne, o] of [[milieux, 0], [droit, IISR.u], [gauche, -IISR.u]]) {
+          const mx = (ligne[i][0] + ligne[i - 1][0]) / 2, my = (ligne[i][1] + ligne[i - 1][1]) / 2;
+          const [ax, ay] = decale(p, nd, o);
+          proche(Math.hypot(mx - ax, my - ay), 0, DESSIN.flecheArc + 1e-4, `${nom}, corde ${i} à ${o} m de l'axe`);
+        }
+      }
+      const c = courbureA(g.axe, (s0 + s1) / 2);
+      if (c > 0) enVirage.droite++;
+      if (c < 0) enVirage.gauche++;
+    });
+    assert.ok(enVirage.droite >= 4 && enVirage.gauche >= 4, `${libelle} : traits dans les virages ${JSON.stringify(enVirage)}`);
+  }
+});
+
+test("routeVirages : voie de droite et voie de gauche de part et d'autre de l'axe, sur toute la route", () => {
+  for (const params of [VIRAGES, VIRAGES_SERRES]) {
+    const d = routeVirages(params), g = routeAttendue(params), libelle = JSON.stringify(params);
+    for (let s = 0; s <= g.axe.longueur; s += 0.5) {
+      const p = pointA(g.axe, s), n = droiteDe(p), nom = `${libelle}, s = ${s.toFixed(1)} m`;
+      for (const o of [0.01, g.h / 2, g.h - 0.01]) {
+        const aDroite = decale(p, n, o), aGauche = decale(p, n, -o);
+        assert.ok(pointDansPolygone(aDroite, d.voies.droite) && !pointDansPolygone(aDroite, d.voies.gauche), `${nom} : ${o} m à droite de l'axe`);
+        assert.ok(pointDansPolygone(aGauche, d.voies.gauche) && !pointDansPolygone(aGauche, d.voies.droite), `${nom} : ${o} m à gauche de l'axe`);
+      }
+    }
+  }
+});
+
+test("routeVirages : le trajet de la voie de droite, décalé de -0,5 à +0,5 m, suit l'axe de la voie à la distance demandée et garde la voiture entière dans voies.droite, sans toucher de trottoir", () => {
+  for (const params of [VIRAGES, VIRAGES_SERRES]) {
+    const d = routeVirages(params), g = routeAttendue(params);
+    for (const decalage of [-0.5, -0.25, 0, 0.25, 0.5]) {
+      const { chemin, s } = d.reperes.cheminAxeVoieDroite(decalage);
+      const o = g.h / 2 + decalage, nom = `${JSON.stringify(params)}, décalage ${decalage} m`;
+      // Bouts : à DESSIN.retraitBord à l'intérieur des bords bas et haut, cap au nord, à o m à droite de l'axe.
+      const debut = pointA(chemin, 0), fin = pointA(chemin, chemin.longueur);
+      proche(debut.x, g.xApproche + o, 1e-9, nom); proche(debut.y, g.hauteur - DESSIN.retraitBord, 1e-9, nom);
+      proche(fin.x, g.xSortie + o, 1e-9, nom); proche(fin.y, DESSIN.retraitBord, 1e-9, nom);
+      proche(debut.cap, -90 * DEG, 1e-12, nom); proche(fin.cap, -90 * DEG, 1e-12, nom);
+      // Dans les virages : à (rayon - o) du centre du virage à droite, à (rayon + o) du centre du virage à gauche.
+      for (const [de, a, c, r] of [[s.debutVirageDroite, s.finVirageDroite, g.centres.droite, g.rayon - o],
+        [s.debutVirageGauche, s.finVirageGauche, g.centres.gauche, g.rayon + o]]) {
+        for (let k = 0; k <= 20; k++) {
+          const p = pointA(chemin, de + ((a - de) * k) / 20);
+          proche(Math.hypot(p.x - c.x, p.y - c.y), r, 1e-9, `${nom}, virage`);
+        }
+      }
+      const n = Math.ceil(chemin.longueur / 0.1);
+      for (let k = 0; k <= n; k++) {
+        const sk = Math.min(chemin.longueur, k * 0.1);
+        const voiture = emprise("voiture", pointA(chemin, sk));
+        assert.ok(voiture.every((q) => pointDansPolygone(q, d.voies.droite)), `${nom}, s = ${sk.toFixed(1)} m : la voiture sort de voies.droite`);
+        assert.ok(!trottoirs(d).some((t) => polygonesSeChevauchent(voiture, t.poly)), `${nom}, s = ${sk.toFixed(1)} m : la voiture touche un trottoir`);
+      }
+    }
+  }
+});
+
+test("routeVirages : abscisses du début et de la fin de chaque virage sur l'axe de la voie de droite (reperes.s), et sur le trajet décalé", () => {
+  const d = routeVirages(VIRAGES), g = routeAttendue(VIRAGES);
+  assert.deepEqual(d.reperes.s, d.reperes.cheminAxeVoieDroite(0).s);
+  assert.deepEqual(d.reperes.s, d.reperes.cheminAxeVoieDroite().s, "décalage nul par défaut");
+  // Valeurs de référence (rayon 40 m, angle 60 degrés) : l'axe de la voie de droite est à 38,25 m du centre du virage à
+  // droite et à 41,75 m de celui du virage à gauche.
+  proche(d.reperes.s.debutVirageDroite, 49.5);
+  proche(d.reperes.s.finVirageDroite, 49.5 + (38.25 * Math.PI) / 3);
+  proche(d.reperes.s.debutVirageGauche, 69.5 + (38.25 * Math.PI) / 3);
+  proche(d.reperes.s.finVirageGauche, 69.5 + (80 * Math.PI) / 3);
+  for (const decalage of [0, -0.3, 0.25]) {
+    const o = g.h / 2 + decalage, nom = `décalage ${decalage} m`;
+    const { chemin, s } = d.reperes.cheminAxeVoieDroite(decalage);
+    assert.deepEqual(Object.keys(s), ["debutVirageDroite", "finVirageDroite", "debutVirageGauche", "finVirageGauche"]);
+    proche(s.debutVirageDroite, VIRAGES.approche - DESSIN.retraitBord, 1e-9, nom);
+    proche(s.finVirageDroite - s.debutVirageDroite, (g.rayon - o) * g.a, 1e-9, nom);
+    proche(s.debutVirageGauche - s.finVirageDroite, VIRAGES.entreVirages, 1e-9, nom);
+    proche(s.finVirageGauche - s.debutVirageGauche, (g.rayon + o) * g.a, 1e-9, nom);
+    proche(chemin.longueur - s.finVirageGauche, VIRAGES.sortie - DESSIN.retraitBord, 1e-9, nom);
+    // La courbure change exactement à ces abscisses : droite, virage à droite, droite, virage à gauche, droite.
+    const juste = 1e-6;
+    assert.equal(courbureA(chemin, s.debutVirageDroite - juste), 0, nom);
+    proche(courbureA(chemin, s.debutVirageDroite + juste), 1 / (g.rayon - o), 1e-12, nom);
+    proche(courbureA(chemin, s.finVirageDroite - juste), 1 / (g.rayon - o), 1e-12, nom);
+    assert.equal(courbureA(chemin, s.finVirageDroite + juste), 0, nom);
+    assert.equal(courbureA(chemin, s.debutVirageGauche - juste), 0, nom);
+    proche(courbureA(chemin, s.debutVirageGauche + juste), -1 / (g.rayon + o), 1e-12, nom);
+    proche(courbureA(chemin, s.finVirageGauche - juste), -1 / (g.rayon + o), 1e-12, nom);
+    assert.equal(courbureA(chemin, s.finVirageGauche + juste), 0, nom);
+    // Le virage à droite commence à la hauteur où l'axe de la chaussée commence à tourner.
+    proche(pointA(chemin, s.debutVirageDroite).y, g.hauteur - VIRAGES.approche, 1e-9, nom);
+  }
+});
+
+test("routeVirages : les arcs du trajet de la voie de droite suivent la route (suitLaRoute) : pour les contrôles automatiques, ses virages ne sont pas des changements de direction", () => {
+  const d = routeVirages(VIRAGES);
+  const { chemin } = d.reperes.cheminAxeVoieDroite(0);
+  assert.deepEqual(chemin.segments.map((seg) => seg.type), ["droite", "arc", "droite", "arc", "droite"]);
+  proche(chemin.segments[1].angle, 60 * DEG); proche(chemin.segments[3].angle, -60 * DEG);
+  for (const seg of chemin.segments) assert.equal(seg.suitLaRoute === true, seg.type === "arc");
+  assert.deepEqual(controlerScene(sceneEssai(d, chemin)), []);
+  // Témoin : les mêmes arcs, sans la marque, sont des changements de direction (plus de 30 degrés) qui exigent un clignotant.
+  const sansMarque = { ...chemin, segments: chemin.segments.map((seg) => ({ ...seg, suitLaRoute: false })) };
+  const erreurs = controlerScene(sceneEssai(d, sansMarque));
+  assert.ok(erreurs.some((e) => /clignotant droite attendu/.test(e)), erreurs.join("\n"));
+  assert.ok(erreurs.some((e) => /clignotant gauche attendu/.test(e)), erreurs.join("\n"));
+});
+
+test("rue : une voiture qui roule au centre de la voie de droite, d'un bout à l'autre, passe tous les contrôles automatiques", () => {
+  const d = rue(RUE);
+  const chemin = trajet(d.reperes.xAxe + DESSIN.voie / 2, RUE.longueur - DESSIN.retraitBord, -90)
+    .droit(RUE.longueur - 2 * DESSIN.retraitBord).fin();
+  assert.deepEqual(controlerScene(sceneEssai(d, chemin)), []);
+});
+
+test("routeVirages : paramètres refusés avec leur nom dans le message (longueurs, rayon, angle, décalage du trajet)", () => {
+  assert.throws(() => routeVirages({ ...VIRAGES, approche: undefined }),
+    /routeVirages : « approche » attend un nombre de mètres strictement positif \(reçu : undefined\)/);
+  assert.throws(() => routeVirages({ ...VIRAGES, entreVirages: 0 }), /routeVirages : « entreVirages »/);
+  assert.throws(() => routeVirages({ ...VIRAGES, sortie: -2 }), /routeVirages : « sortie »/);
+  assert.throws(() => routeVirages({ ...VIRAGES, largeurTrottoir: NaN }), /routeVirages : « largeurTrottoir »/);
+  assert.throws(() => routeVirages({ ...VIRAGES, rayon: 0 }), /routeVirages : « rayon » attend un nombre de mètres/);
+  assert.throws(() => routeVirages({ ...VIRAGES, rayon: DESSIN.voie }), /routeVirages : « rayon » de 3.5 m/);
+  for (const angle of [0, -30, 91, NaN]) assert.throws(() => routeVirages({ ...VIRAGES, angle }), /routeVirages : « angle »/);
+  assert.throws(() => routeVirages({ ...VIRAGES, approche: 0.5 }), /routeVirages : « approche » de 0.5 m/);
+  assert.throws(() => routeVirages({ ...VIRAGES, sortie: 0.4 }), /routeVirages : « sortie » de 0.4 m/);
+  assert.throws(() => routeVirages(), /« approche »/);
+  assert.doesNotThrow(() => routeVirages({ ...VIRAGES, angle: 90 }));
+  const d = routeVirages(VIRAGES);
+  for (const decalage of [DESSIN.voie / 2, -DESSIN.voie / 2, 2, NaN]) {
+    assert.throws(() => d.reperes.cheminAxeVoieDroite(decalage), /cheminAxeVoieDroite : décalage de .* m/);
+  }
+  assert.doesNotThrow(() => d.reperes.cheminAxeVoieDroite(1.7));
+});
+
+test("rue et routeVirages : décors clonables par structuredClone, comme toute définition de scène ; cheminAxeVoieDroite n'est pas une donnée énumérée", () => {
+  // tests/scenes.test.mjs copie chaque définition de scène, décor compris, par structuredClone : une fonction énumérée
+  // dans le décor ferait échouer cette copie.
+  const r = rue(RUE);
+  assert.deepEqual(structuredClone(r), r);
+  const d = routeVirages(VIRAGES);
+  assert.deepEqual(structuredClone(d), d);
+  assert.equal(typeof d.reperes.cheminAxeVoieDroite, "function");
+  assert.deepEqual(Object.keys(d.reperes), ["rayon", "angle", "xAxeApproche", "xAxeSortie", "centres", "s"]);
 });
