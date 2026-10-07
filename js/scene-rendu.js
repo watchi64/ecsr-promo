@@ -27,7 +27,8 @@ export const TEINTES = {
   // est blanche ou jaune, en traits : des points vert sauge ne passent pas pour un marquage.
   trajet: "#B5C98A",
   // Feux de recul : blancs, comme sur une vraie voiture. 6,17:1 sur la chaussée, 4,40:1 sur la carrosserie de la voiture
-  // de l'élève et 9,45:1 sur sa bordure (WCAG 1.4.11 : 3:1, tests/scene-rendu.test.mjs).
+  // de l'élève et 9,45:1 sur sa bordure (WCAG 1.4.11 : 3:1, tests/scene-rendu.test.mjs). Sur la carrosserie grise des
+  // autres voitures, 2,96:1 seulement : accepté tant que seule la voiture de l'élève recule, ce qu'un test épingle.
   recul: "#FFFFFF",
 };
 

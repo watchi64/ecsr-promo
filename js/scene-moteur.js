@@ -28,14 +28,16 @@
  * boîte du SVG prend les proportions de ce cadre (css/cours-blocs.css).
  */
 import { preparerScene, etatActeur, pointA, GABARITS, DEG } from "./scene-geometrie.js?v=20261005f";
-import { regardDessine, etapeBornee } from "./scene-regard.js?v=20261005f";
+import { regardDessine } from "./scene-regard.js?v=20261005f";
 import { TEINTES, RAYON_REPERE, clignotantAllume, feuxDeRecul, cadreCamera, cadreReduit, reperesEtapes, demiLargeurRepere,
   emprisePanneau, facteurLecture, SEUILS_VISIBILITE, actionVisibilite } from "./scene-rendu.js?v=20261005f";
 import { urlSignalVerifie } from "./signaux.js?v=20261005f";
 
 const NS = "http://www.w3.org/2000/svg";
-// Opacité du regard : le cône, ou, plus léger, le secteur que parcourt un balayage ou un tour du regard sur une image figée.
-const OPACITE_REGARD = { cone: 0.4, secteur: 0.22 };
+// Opacité du regard : un cône, en lecture comme sur une image figée (les quatre cônes d'un tour du regard figé compris),
+// ou, plus léger, le secteur que parcourt un balayage sur une image figée.
+const OPACITE_CONE = 0.4;
+const OPACITE_REGARD = { cone: OPACITE_CONE, cones: OPACITE_CONE, secteur: 0.22 };
 // Numéro des schémas montés : chacun a sa propre découpe, plusieurs schémas pouvant partager une page.
 let numeroScene = 0;
 
@@ -147,8 +149,6 @@ function marquerEtape(element, courante) {
 
 export function monterScene(def, { conteneur, etapes = [], reduit = false, onEtape = null } = {}) {
   const sc = preparerScene(def);
-  // Chaque étape avec sa fin : un tour du regard se règle sur les bornes de son étape (js/scene-regard.js).
-  const etapesBornees = sc.etapes.map((_, k) => etapeBornee(sc, k));
   const racine = svg("svg", { class: reduit ? "scene-svg scene-reduite" : "scene-svg", role: "img", "aria-label": sc.titre });
   // Tout le dessin est découpé au cadre courant : rien de ce qui est hors du cadre (le monde au-delà de ses bords, un
   // véhicule qui doit entrer par un bord) n'apparaît, même si la boîte du SVG laissait des bandes autour du cadre.
@@ -254,14 +254,14 @@ export function monterScene(def, { conteneur, etapes = [], reduit = false, onEta
     }
     const e = etats.get(sc.eleve.id);
     // Sur une image figée, en animations réduites comme en pas à pas, le regard de l'étape reste dessiné : le cône d'un
-    // angle ou d'un usager suivi, et, plus léger, pour un balayage le secteur qu'il parcourt (75 + 16 degrés de part et
-    // d'autre du cap, sur REGARD_PORTEE), pour un tour du regard tout le tour de l'œil (le disque de rayon REGARD_PORTEE),
-    // au lieu de la direction que leur mouvement aurait à cet instant.
-    const regard = regardDessine(etapesBornees[k], e, instant, etats, fige);
+    // angle ou d'un usager suivi ; pour un balayage, plus léger, le secteur qu'il parcourt (75 + 16 degrés de part et
+    // d'autre du cap, sur REGARD_PORTEE) ; pour un tour du regard, quatre cônes (devant, à gauche, derrière, à droite) ; au
+    // lieu de la direction que leur mouvement aurait à cet instant. Les quatre cônes forment un seul tracé.
+    const regard = regardDessine(sc.etapes[k], e, instant, etats, fige);
     if (!regard) {
       cone.setAttribute("display", "none");
     } else {
-      cone.setAttribute("d", chemin(regard.poly));
+      cone.setAttribute("d", (regard.polys || [regard.poly]).map(chemin).join(" "));
       cone.setAttribute("opacity", OPACITE_REGARD[regard.forme]);
       cone.setAttribute("display", "inline");
     }

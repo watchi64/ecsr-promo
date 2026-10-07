@@ -120,6 +120,23 @@ test("preparerScene et etatActeur : étapes, durée, visibilité, clignotant", (
   assert.throws(() => preparerScene({ code: "x", acteurs: [], etapes: [] }), /eleve/);
 });
 
+test("preparerScene : chaque étape porte ses bornes, son instant t et sa fin : l'instant de l'étape suivante ou, pour la dernière, la fin de la scène", () => {
+  const def = {
+    code: "essai",
+    acteurs: [{ id: "eleve", role: "eleve", gabarit: "voiture", chemin: trajet(0, 0, 0).droit(100).fin(),
+      profil: [{ s: 0, kmh: 36 }, { s: 100, kmh: 36 }] }],
+    etapes: [{ s: 0, regard: { angle: 0 } }, { s: 50 }, { s: 50, delai: 2, regard: { tour: true } }],
+  };
+  const sc = preparerScene(def);
+  sc.etapes.forEach((e, i) => assert.equal(e.fin, i + 1 < sc.etapes.length ? sc.etapes[i + 1].t : sc.duree, `étape ${i + 1}`));
+  assert.deepEqual(sc.etapes.map((e) => Math.round(e.fin * 1000) / 1000), [5, 7, 11]);
+  // L'étape préparée garde ses champs ; la définition n'est pas modifiée.
+  assert.deepEqual([sc.etapes[2].s, sc.etapes[2].delai, sc.etapes[2].regard], [50, 2, { tour: true }]);
+  assert.ok(def.etapes.every((e) => !("t" in e) && !("fin" in e)), "définition intacte");
+  // La dernière étape va jusqu'à la fin de la scène, pause finale comprise.
+  proche(preparerScene({ ...def, finPause: 2.5 }).etapes[2].fin, 12.5);
+});
+
 // ===== Acteurs figés : immobiles hors de leur trajet, sortie du cadre =====
 
 test("etatActeur : v et a nulles avant le départ ; après la fin, l'élève garde sa vitesse finale, les autres s'arrêtent", () => {

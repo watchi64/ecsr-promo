@@ -72,16 +72,15 @@ function regardsHorsCede(def) {
   return fautes;
 }
 
-// Étapes trop courtes à l'écran, de leur début à celui de la suivante (la dernière, jusqu'à la fin de la scène) : au
-// moins DUREE_MIN.etape, un balayage au moins DUREE_MIN.balayage, un tour du regard au moins DUREE_MIN.tour.
+// Étapes trop courtes à l'écran, de leur instant `t` à leur fin `fin` (bornes posées par preparerScene : la dernière va
+// jusqu'à la fin de la scène) : au moins DUREE_MIN.etape, un balayage au moins DUREE_MIN.balayage, un tour du regard au
+// moins DUREE_MIN.tour.
 function etapesTropCourtes(def) {
-  const sc = preparerScene(def);
   const fautes = [];
-  sc.etapes.forEach((e, i) => {
-    const fin = i + 1 < sc.etapes.length ? sc.etapes[i + 1].t : sc.duree;
+  preparerScene(def).etapes.forEach((e, i) => {
     const r = e.regard || {};
     const min = r.balayage ? DUREE_MIN.balayage : r.tour ? DUREE_MIN.tour : DUREE_MIN.etape;
-    if (fin - e.t < min - 1e-9) fautes.push(`étape ${i + 1} : ${(fin - e.t).toFixed(3)} s à l'écran, ${min} s au moins`);
+    if (e.fin - e.t < min - 1e-9) fautes.push(`étape ${i + 1} : ${(e.fin - e.t).toFixed(3)} s à l'écran, ${min} s au moins`);
   });
   return fautes;
 }
@@ -192,16 +191,20 @@ test("tourner-gauche : un regard qui quitte le véhicule d'en face pendant l'att
 });
 
 test("tourner-droite : un tour du regard de moins de 4 s, comme un balayage de moins de 2 s, est détecté ; un tour qui dure assez passe", () => {
-  // Étape 4 : balayage de 2,0 s ; étape 5 : angle mort pendant 1,0 s ; étape 8 : regard devant pendant 5,9 s (repartir).
-  const tourCourt = copie("tourner-droite");
-  tourCourt.etapes[3].regard = { tour: true };
-  assert.deepEqual(etapesTropCourtes(tourCourt), ["étape 4 : 2.000 s à l'écran, 4 s au moins"]);
-  const balayageCourt = copie("tourner-droite");
-  balayageCourt.etapes[4].regard = { balayage: true };
-  assert.deepEqual(etapesTropCourtes(balayageCourt), ["étape 5 : 1.000 s à l'écran, 2 s au moins"]);
-  const tourAssezLong = copie("tourner-droite");
-  tourAssezLong.etapes[7].regard = { tour: true };
-  assert.deepEqual(etapesTropCourtes(tourAssezLong), []);
+  // Durées à l'écran lues sur les bornes des étapes (fin - t) : le balayage de l'intersection, la première étape plus
+  // courte qu'un balayage, la première qui dure au moins un tour du regard.
+  const etapes = preparerScene(SCENES["tourner-droite"].construire()).etapes;
+  const duree = (i) => etapes[i].fin - etapes[i].t;
+  const sabote = (i, regard) => { const def = copie("tourner-droite"); def.etapes[i].regard = regard; return etapesTropCourtes(def); };
+  const balayage = etapes.findIndex((e) => e.regard && e.regard.balayage);
+  const courte = etapes.findIndex((_, i) => duree(i) < DUREE_MIN.balayage);
+  const longue = etapes.findIndex((_, i) => duree(i) >= DUREE_MIN.tour);
+  assert.ok(balayage >= 0 && duree(balayage) < DUREE_MIN.tour && courte >= 0 && longue >= 0, "les trois cas sont exercés");
+  assert.deepEqual(sabote(balayage, { tour: true }),
+    [`étape ${balayage + 1} : ${duree(balayage).toFixed(3)} s à l'écran, ${DUREE_MIN.tour} s au moins`]);
+  assert.deepEqual(sabote(courte, { balayage: true }),
+    [`étape ${courte + 1} : ${duree(courte).toFixed(3)} s à l'écran, ${DUREE_MIN.balayage} s au moins`]);
+  assert.deepEqual(sabote(longue, { tour: true }), []);
 });
 
 // ===== tourner-droite : la scène suit la fiche ECF C2-E (amendements du 03/10) =====
