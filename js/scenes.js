@@ -14,10 +14,10 @@
  * construire() (définition calculée une seule fois, puis gelée en profondeur :
  * le moteur, l'éditeur et les tests la partagent sans pouvoir la modifier).
  */
-import { KMH, GABARITS, trajet, chronologie, tempsAtteint, premiereAbscisse, emprise, etatActeur, polygonesSeChevauchent }
-  from "./scene-geometrie.js?v=20261005f";
+import { KMH, DEG, GABARITS, trajet, chronologie, tempsAtteint, premiereAbscisse, pointA, emprise, etatActeur,
+  polygonesSeChevauchent } from "./scene-geometrie.js?v=20261005f";
 import { DESSIN, HORS_MONDE, carrefourEnCroix, giratoire, trajetGiratoire } from "./scene-decors.js?v=20261005f";
-import { REGARD_PORTEE } from "./scene-regard.js?v=20261005f";
+import { REGARD_PORTEE, oeil, regardContient } from "./scene-regard.js?v=20261005f";
 import { SEUILS } from "./scene-controles.js?v=20261005f";
 
 const MARGE_ARRET = 0.3;             // m entre la voiture arrêtée et la limite (passage, ligne)
@@ -472,6 +472,116 @@ function giratoireScene() {
   };
 }
 
+// ===== Regarder autour de soi à l'approche d'une intersection (procédures de Fabrice, 5.1 ; fiche ECF C1-I) =====
+//
+// L'élève traverse tout droit, sans clignotant, sur l'axe nord-sud prioritaire ; un véhicule attend, arrêté à la ligne de
+// cédez-le-passage de la branche est : l'indice à repérer. Les étapes suivent la méthode P.P.D.A. (percevoir loin et large,
+// prévoir, décider, agir) et les contrôles à l'approche (en face, à gauche, à droite) ; les valeurs ci-dessous (angles du
+// regard compris) sont des choix de dessin, recopiés dans les sources de la scène.
+const REGARD_INTERSECTION = geler({
+  // m ; la branche sud porte le recul du départ (REGARD_PORTEE) et l'approche : le plus petit nombre entier de mètres qui
+  // loge les durées ci-dessous, le regard loin devant durant au moins duree.loin. Est et ouest : le plus petit nombre entier
+  // de mètres pour que le cône du regard à droite, puis celui du regard à gauche, tiennent dans la largeur du monde. Nord :
+  // l'élève a quitté l'intersection quand son trajet s'achève.
+  branches: { nord: 8, sud: 108, est: 14, ouest: 11 },
+  hauteurCadre: 46,           // m : cadre qui suit l'élève, sur toute la largeur du monde, sans changer l'échelle
+  // km/h : allure d'approche en agglomération, puis allure réduite à l'approche de l'intersection, tenue jusqu'à la fin
+  // (l'élève la traverse sans s'arrêter : l'axe nord-sud est prioritaire).
+  kmh: { approche: 50, reduite: 30 },
+  ralentissement: 2.0,        // m/s² : pour réduire l'allure, progressivement
+  // s à l'écran : regard loin devant (au moins) ; coup d'œil au rétroviseur intérieur, juste avant de ralentir ; puis, à
+  // l'allure réduite, les trois contrôles à l'approche, le dernier achevé quand l'avant atteint le bord de l'intersection.
+  duree: { loin: 1.0, retroviseur: 1.0, enFace: 1.0, gauche: 1.0, droite: 1.0 },
+  // degrés par rapport au cap, - à gauche. Gauche et droite : vers l'entrée de chaque branche transversale. Pendant tout le
+  // regard à gauche, le cône contient l'entrée de la voie entrante ouest, au bord amont de sa ligne de cédez-le-passage (de
+  // 14,6 à 23,8 degrés à gauche de l'axe de la voiture, vu de l'œil du conducteur) ; pendant tout le regard à droite, il
+  // contient le véhicule qui attend (de 18,4 à 35,5 degrés à droite). À 60 degrés, le cône du regard à gauche n'atteindrait
+  // la voie entrante ouest qu'après 0,35 s de regard, et celui du regard à droite ne contiendrait le véhicule qui attend
+  // qu'une fois l'avant de la voiture à 1,9 m dans l'intersection.
+  regard: { devant: 0, retroviseurInterieur: 180, gauche: -30, droite: 30 },
+});
+
+function regardIntersection() {
+  const choix = REGARD_INTERSECTION;
+  const d = carrefourEnCroix({ branches: choix.branches });
+  const { cx, cy, bord } = d.reperes;
+  const h = DESSIN.voie, demiLongueur = GABARITS.voiture.longueur / 2;
+  const vitesse = { approche: choix.kmh.approche * KMH, reduite: choix.kmh.reduite * KMH };
+
+  // Trajet : tout droit vers le nord, au centre de la voie de droite, du départ à REGARD_PORTEE du bord bas (le cône du
+  // rétroviseur intérieur, tourné vers l'arrière, tient dans le monde) jusqu'à DESSIN.retraitBord du bord haut.
+  const yDepart = d.monde.hauteur - REGARD_PORTEE;
+  const chemin = trajet(cx + h / 2, yDepart, -90).droit(yDepart - DESSIN.retraitBord).fin();
+
+  // Étapes placées depuis l'intersection, à rebours : le regard à droite s'achève quand l'avant atteint le bord de
+  // l'intersection ; avant lui, à l'allure réduite, le regard à gauche, puis le regard en face ; avant eux, le
+  // ralentissement, et juste avant lui le coup d'œil au rétroviseur intérieur, à l'allure d'approche. Le regard loin devant
+  // occupe le début du trajet.
+  const sEntree = yDepart - demiLongueur - bord.sud;
+  const sDroite = sEntree - vitesse.reduite * choix.duree.droite;
+  const sGauche = sDroite - vitesse.reduite * choix.duree.gauche;
+  const sEnFace = sGauche - vitesse.reduite * choix.duree.enFace;
+  const sRalentir = sEnFace - (vitesse.approche ** 2 - vitesse.reduite ** 2) / (2 * choix.ralentissement);
+  const sRetroviseur = sRalentir - vitesse.approche * choix.duree.retroviseur;
+  if (sRetroviseur < vitesse.approche * choix.duree.loin) throw new Error("regard-intersection : allonger la branche sud");
+
+  // Véhicule qui attend au cédez-le-passage de la branche est : posé au centre de la voie entrante, tourné vers l'ouest,
+  // l'avant à MARGE_ARRET du bord amont de la ligne.
+  const ligne = d.marquages.find((m) => m.role === "cedez-est");
+  const xLigneAmont = ligne.de[0] + ligne.largeur / 2;
+  const pose = { x: xLigneAmont + MARGE_ARRET + demiLongueur, y: cy - h / 2, cap: 180 };
+  // Ce que chaque regard latéral contient tout du long : à gauche, l'entrée de la voie entrante ouest (son milieu, au bord
+  // amont de sa ligne de cédez-le-passage) ; à droite, le véhicule qui attend. En ligne droite, le cône, un triangle, ne
+  // tourne pas : il contient tout le chemin du point vu de l'œil s'il en contient les deux bouts, au début et à la fin du
+  // regard.
+  const ligneOuest = d.marquages.find((m) => m.role === "cedez-ouest");
+  const entreeOuest = { x: ligneOuest.de[0] - ligneOuest.largeur / 2, y: cy + h / 2 };
+  for (const [nom, angle, cible, debut, fin] of [
+    ["l'entrée de la voie entrante ouest", choix.regard.gauche, entreeOuest, sGauche, sDroite],
+    ["le véhicule qui attend", choix.regard.droite, pose, sDroite, sEntree],
+  ]) {
+    for (const s of [debut, fin]) {
+      const p = pointA(chemin, s);
+      if (!regardContient(p.cap + angle * DEG, oeil(p), cible)) {
+        throw new Error(`regard-intersection : ${nom} sort du cône du regard à ${angle < 0 ? "gauche" : "droite"}`);
+      }
+    }
+  }
+
+  const profil = [
+    { s: 0, kmh: choix.kmh.approche }, { s: sRalentir, kmh: choix.kmh.approche },
+    { s: sEnFace, kmh: choix.kmh.reduite }, { s: chemin.longueur, kmh: choix.kmh.reduite },
+  ];
+  return {
+    code: "regard-intersection", titre: "Regarder autour de soi à l'approche d'une intersection", monde: d.monde,
+    limite: LIMITE_AGGLOMERATION, decor: d,
+    camera: { largeur: d.monde.largeur, hauteur: choix.hauteurCadre },
+    acteurs: [
+      { id: "eleve", role: "eleve", gabarit: "voiture", chemin, profil },
+      { id: "aDroite", gabarit: "voiture", pose },
+    ],
+    etapes: [
+      { s: 0, regard: { angle: choix.regard.devant } },
+      { s: sRetroviseur, regard: { angle: choix.regard.retroviseurInterieur } },
+      { s: sRalentir, regard: { angle: choix.regard.devant } },
+      { s: sEnFace, regard: { angle: choix.regard.devant } },
+      { s: sGauche, regard: { angle: choix.regard.gauche } },
+      { s: sDroite, regard: { angle: choix.regard.droite } },
+      { s: sEntree, regard: { angle: choix.regard.devant } },
+    ],
+    attentes: [
+      { type: "dans", acteur: "eleve", nom: "moitié droite de la chaussée, intersection comprise", zone: d.voies.axeNordSudEst,
+        de: 0, a: chemin.longueur, emprise: true },
+      { type: "vitesseMax", acteur: "eleve", kmh: choix.kmh.reduite, de: sEnFace, a: chemin.longueur },
+      { type: "pasDeClignotantAvant", acteur: "eleve", cote: "droite", s: chemin.longueur },
+      { type: "pasDeClignotantAvant", acteur: "eleve", cote: "gauche", s: chemin.longueur },
+      { type: "dans", acteur: "aDroite", nom: "voie entrante, branche est", zone: d.voies.estEntrante, de: 0, a: 0, emprise: true },
+      { type: "arretAvant", acteur: "aDroite", nom: "ligne de cédez-le-passage, branche est", point: [xLigneAmont, cy - h / 2],
+        normale: [1, 0], tolerance: TOLERANCE_ARRET },
+    ],
+  };
+}
+
 export const SCENES = {
   "tourner-droite": {
     titre: "Tourner à droite en agglomération",
@@ -546,5 +656,26 @@ export const SCENES = {
       "Choix de dessin, sans portée réglementaire : petit giratoire urbain à une voie : îlot central de 8 m de rayon, anneau de 6 m de large (bord extérieur à 14 m du centre), raccordements de bordure de 8 m de rayon, quatre branches à double sens de voies de 3,5 m, sans îlot séparateur ; ligne de cédez-le-passage à 5 cm de l'anneau, AB3a à 1,95 m en amont de la ligne, AB25 à 50 m de l'anneau ; branches de 26 m au nord et à l'est, 76 m au sud, 40 m à l'ouest ; cadre de 40 x 46 m qui suit l'élève ; départ à 22 m du bord bas (la portée du cône du regard, pour que le cône du rétroviseur intérieur reste dans l'image), dans l'axe de la voie d'entrée ; trajectoires à 0,6 m des bordures (anneau parcouru à 12,5 m du centre, arcs d'entrée et de sortie de 9,5 m de rayon) ; 30 km/h en approche et en sortie ; allure adaptée progressivement à 15 km/h (1,0 m/s²), puis freinage de 2,0 m/s² jusqu'à l'arrêt, au début de l'arc d'entrée, le coin avant gauche à 0,3 m de la ligne ; 20 km/h dans l'anneau (petit giratoire urbain ; la fiche indique 30 à 35 km/h pour un giratoire courant) ; au plus 19 km/h dans les arcs d'entrée et de sortie, pour une accélération latérale sous 3,0 m/s² (20 km/h y donneraient 3,25 m/s²) : reprise de 1,5 m/s² depuis l'arrêt (17,8 km/h au bout de l'arc d'entrée), 20 km/h tenus 1,06 s, puis allure cassée à 11 km/h (2,0 m/s²) pendant le contrôle au rétroviseur intérieur, qui s'achève là où s'allume le clignotant, et tenue jusqu'à la fin de l'arc de sortie : à 11 km/h, le regard vers la sortie et les deux angles morts, qui suivent le clignotant, s'achèvent assez tôt pour que le balayage de la sortie commence près d'une seconde avant l'arc de sortie (ces trois regards tiendraient avant l'arc jusqu'à 14,5 km/h, mais le balayage commencerait alors à l'entrée de l'arc) ; usager de l'anneau venu de l'ouest et sorti à l'est, qui part et finit hors du dessin, à 30 km/h en approche, 18 km/h dans l'arc d'entrée, 20 km/h dans l'anneau et 15 km/h dans l'arc de sortie, et quitte la zone de conflit (le secteur de l'anneau de 40 à 125 degrés, devant l'entrée sud) 2,4 s après l'arrêt de l'élève ; regard de l'élève à gauche pendant 1,0 s, puis redémarrage (attente de 3,4 s au cédez-le-passage) ; clignotant droit allumé juste après le rétroviseur intérieur, 3,0 degrés après l'axe de la sortie précédente (3 degrés au moins) et 3,96 s avant l'arc de sortie (2 s au moins) ; les deux angles morts finissent 0,96 s avant l'arc de sortie ; cône du regard de 22 m, ouvert de 16 degrés de part et d'autre, qui s'arrête 2 m au-delà de l'usager suivi des yeux ; regard, par rapport à l'axe de la voiture : 180 degrés pendant 1,2 s (rétroviseur intérieur), droit devant, balayage de 75 degrés de part et d'autre (un aller-retour en 2 s) pendant les 2 s qui précèdent le freinage, usager de l'anneau suivi des yeux jusqu'à sa sortie de la zone de conflit, 55 degrés à gauche pendant 1,0 s à l'arrêt (l'anneau en amont, d'où viendrait un autre usager), droit devant, 180 degrés pendant 1,25 s en cassant l'allure, 21 degrés à gauche pendant 1,0 s une fois le clignotant allumé (vers la sortie : l'anneau tourne à gauche, et droit devant le regard tomberait sur la bordure extérieure, à 6,8 m), 120 degrés à droite pendant 1,0 s (angle mort droit), 120 degrés à gauche pendant 1,0 s (angle mort gauche ; tête tournée vers l'épaule pour les deux), balayage de la sortie jusqu'à la fin de l'arc de sortie, puis droit devant ; panneaux agrandis pour rester lisibles.",
     ],
     construire: unique(giratoireScene),
+  },
+  "regard-intersection": {
+    titre: "Regarder autour de soi à l'approche d'une intersection",
+    etapesModele: [
+      "Regarder loin devant",
+      "Contrôler au rétroviseur intérieur",
+      "Ralentir à l'approche",
+      "Regarder en face",
+      "Regarder à gauche",
+      "Regarder à droite",
+      "Traverser en regardant devant",
+    ],
+    sources: [
+      "Franchir une intersection, méthode P.P.D.A. : percevoir (regard loin et large), prévoir (« on s'attend toujours au pire »), décider, agir ; contrôles à l'approche : en face, à gauche, à droite ; rechercher les indices utiles, formels (panneaux, marquages, feux) et informels (regard, vitesse, attitude des autres) : procédures de Fabrice (classeur de Timy), section 5.1. Ici l'indice à repérer est le véhicule arrêté à la ligne de cédez-le-passage de la branche est : indice informel (il attend), sur une branche qui porte un panneau et une ligne de cédez-le-passage (indices formels).",
+      "Regarder autour de soi : regard loin (analyser la situation 10 à 15 s devant), balayage gauche, centre, droite et rétroviseurs toutes les 4 à 5 s : fiche ECF C1-I (classeur de Timy), qui nomme la méthode PADA : percevoir, analyser, décider, agir. Les clignotants servent lors d'un arrêt, d'un départ et d'un changement de direction (même fiche) : l'élève va tout droit, sans clignotant.",
+      "Contrôler l'arrière au rétroviseur intérieur, puis casser l'allure et freiner progressivement : fiche ECF C1-H (freinage normal) ; contrôler avant d'agir, la première action étant de ralentir : méthode C.I.A. (contrôles, indications, actions), procédures de Fabrice, section 1, et fiche ECF C1-I. L'élève ralentit sans se déporter : le contrôle est le coup d'œil au rétroviseur intérieur, le premier de l'ordre de Timy (rétroviseur intérieur, rétroviseur extérieur, angle mort).",
+      "Marquage : unité u de 5 cm, modulations T'1 (traits de 1,50 m, vides de 5 m) et T'2 (traits et vides de 0,50 m) : IISR 7e partie, art. 113-1 ; axiale T'1 de largeur 2u, admise en agglomération, et ligne de cédez-le-passage T'2 de 0,50 m de large : art. 113-2 ; cette ligne s'étend sur toute la largeur de la voie entrante, de l'axe jusqu'à la bordure, marque la limite de la chaussée prioritaire et est précédée d'une axiale continue de largeur 2u sur 10 à 20 m (15 m retenus) : art. 117-4 B.",
+      "Étapes et regards : d'après les procédures de Fabrice (section 5.1) et les fiches ECF C1-I et C1-H (classeur de Timy) : regarder loin devant, contrôler au rétroviseur intérieur avant de ralentir, ralentir à l'approche, regarder en face, à gauche, puis à droite, où attend le véhicule à repérer, les trois contrôles achevés avant d'entrer dans l'intersection, puis traverser en regardant devant. La scène montre une méthode de regard ; la règle de priorité (ici l'axe nord-sud, choix de dessin) relève de C2.5.",
+      "Choix de dessin, sans portée réglementaire : voies de 3,5 m ; arrondi de bordure de 6 m ; axe nord-sud prioritaire (cédez-le-passage sur les branches est et ouest), sans passage piéton ; branches de 108 m au sud (le recul du départ et l'approche : le plus petit nombre entier de mètres qui loge les étapes, le regard loin devant durant au moins 1,0 s), 14 m à l'est et 11 m à l'ouest (le plus petit nombre entier de mètres pour que le cône du regard à droite, puis celui du regard à gauche, tiennent dans la largeur du dessin), 8 m au nord (la voiture de l'élève sort de l'intersection : son arrière en est à 5,25 m quand son trajet s'achève) ; cadre de 46 m de haut sur toute la largeur, qui suit l'élève ; départ à 22 m du bord bas (la portée du cône du regard : tourné vers l'arrière, le cône du rétroviseur intérieur reste dans l'image), au centre de la voie de droite, trajet tout droit vers le nord ; 50 km/h en approche, la vitesse maximale en agglomération ; décélération constante de 2,0 m/s² (le freinage progressif de la fiche C1-H ramené à une valeur moyenne : 2,78 s sur 30,9 m) jusqu'à 30 km/h, allure réduite à l'approche de l'intersection, tenue jusqu'à la fin : les trois contrôles à l'approche, de 1,0 s chacun, tiennent sur les 25 derniers mètres avant l'intersection, que l'élève traverse sans s'arrêter ; véhicule qui attend posé au centre de la voie entrante est, tourné vers l'ouest, l'avant à 0,3 m de la ligne de cédez-le-passage, feux stop allumés comme tout véhicule à l'arrêt ; cône du regard de 22 m, ouvert de 16 degrés de part et d'autre ; regard, par rapport à l'axe de la voiture : droit devant pendant 1,01 s (regarder loin devant) ; 180 degrés pendant 1,0 s (rétroviseur intérieur), achevé quand le ralentissement commence ; droit devant pendant le ralentissement, puis pendant 1,0 s (en face) ; 30 degrés à gauche pendant 1,0 s, vers l'entrée de la branche ouest : pendant tout le regard, le cône contient l'entrée de sa voie entrante (au bord amont de la ligne de cédez-le-passage), qui passe de 14,6 à 23,8 degrés à gauche de l'axe de la voiture, vu de l'œil du conducteur, et, en fin de regard, il couvre cette voie jusqu'à 7,2 m en amont de la ligne ; 30 degrés à droite pendant 1,0 s, vers l'entrée de la branche est, achevé quand l'avant de la voiture atteint le bord de l'intersection : pendant tout le regard, le cône contient le véhicule qui attend, qui passe de 18,4 à 35,5 degrés à droite ; à 60 degrés de part et d'autre, le cône du regard à gauche n'atteindrait la voie entrante ouest qu'après 0,35 s de regard, et celui du regard à droite ne contiendrait le véhicule qui attend qu'une fois l'avant de la voiture à 1,9 m dans l'intersection ; droit devant pour traverser ; panneaux agrandis pour rester lisibles.",
+    ],
+    construire: unique(regardIntersection),
   },
 };

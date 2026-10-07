@@ -72,6 +72,9 @@ test("clignotantAllume : sur une image figée, le clignotant en marche est toujo
 });
 
 test("scènes, images figées : à chaque étape, le clignotant en marche est dessiné allumé, du bon côté", () => {
+  // Une scène où l'élève va tout droit, sans clignotant (regard-intersection), n'en montre à aucune étape et n'a rien à
+  // vérifier ici ; une scène où il en a un le montre à une étape au moins.
+  assert.ok(scenes().some(([, sc]) => (sc.eleve.clignotant || []).length), "aucune scène n'a de clignotant, le test ne vérifie rien");
   for (const [code, sc] of scenes()) {
     let enMarche = 0;
     sc.etapes.forEach((et, i) => {
@@ -79,7 +82,7 @@ test("scènes, images figées : à chaque étape, le clignotant en marche est de
       assert.equal(clignotantAllume(e, et.t, true), e.clignotant, `${code}, étape ${i + 1}`);
       if (e.clignotant) enMarche++;
     });
-    assert.ok(enMarche > 0, `${code} : aucune étape n'a de clignotant en marche, le test ne vérifie rien`);
+    if ((sc.eleve.clignotant || []).length) assert.ok(enMarche > 0, `${code} : aucune étape n'a de clignotant en marche, le test ne vérifie rien`);
   }
 });
 
@@ -87,8 +90,10 @@ test("scènes, en lecture : chaque clignotant de chaque acteur éclaire dès qu'
   // Les virages allument celui de l'élève sous l'étape 1 (contrôler, puis indiquer) ; le giratoire, traversé en face, sous
   // l'étape « Clignotant à droite après la sortie précédente ». tests/scenes.test.mjs épingle cette étape pour chaque scène.
   const demiPeriode = 1 / (2 * FREQ_CLIGNOTANT);
+  // Chaque clignotant déclaré est vérifié. Une scène où personne ne clignote (regard-intersection : l'élève va tout droit)
+  // n'a rien à vérifier ici ; le registre en compte d'autres.
+  assert.ok(scenes().some(([, sc]) => sc.acteurs.some((a) => (a.clignotant || []).length)), "aucun clignotant dans les scènes, le test ne vérifie rien");
   for (const [code, sc] of scenes()) {
-    let verifies = 0;
     for (const a of sc.acteurs) {
       for (const c of a.clignotant || []) {
         const nom = `${code}, ${a.id}, clignotant ${c.cote} à partir de s = ${c.de.toFixed(3)} m`;
@@ -114,10 +119,8 @@ test("scènes, en lecture : chaque clignotant de chaque acteur éclaire dès qu'
           const debut = sc.etapes[n].t, fin = n + 1 < sc.etapes.length ? sc.etapes[n + 1].t : sc.duree;
           assert.ok(premier >= debut - 0.001 && premier < fin, `${nom} : premier éclat à t = ${premier.toFixed(3)} s, hors de l'étape ${n + 1}`);
         }
-        verifies++;
       }
     }
-    assert.ok(verifies > 0, `${code} : aucun clignotant, le test ne vérifie rien`);
   }
 });
 
