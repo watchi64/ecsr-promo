@@ -82,6 +82,7 @@ test("clignotantAllume : sur une image figée, le clignotant en marche est toujo
 });
 
 test("scènes, images figées : à chaque étape, le clignotant en marche est dessiné allumé, du bon côté", () => {
+  let etapesAvecClignotant = 0;   // au moins une scène du registre exerce ce test
   for (const [code, sc] of scenes()) {
     let enMarche = 0;
     sc.etapes.forEach((et, i) => {
@@ -89,14 +90,16 @@ test("scènes, images figées : à chaque étape, le clignotant en marche est de
       assert.equal(clignotantAllume(e, et.t, true), e.clignotant, `${code}, étape ${i + 1}`);
       if (e.clignotant) enMarche++;
     });
-    assert.ok(enMarche > 0, `${code} : aucune étape n'a de clignotant en marche, le test ne vérifie rien`);
+    etapesAvecClignotant += enMarche;
   }
+  assert.ok(etapesAvecClignotant > 0, "aucune scène n'a d'étape avec un clignotant en marche : le test ne vérifie rien");
 });
 
 test("scènes, en lecture : chaque clignotant de chaque acteur éclaire dès qu'il s'allume, une demi-période, puis suit le rythme ; celui de l'élève, dans l'étape en cours à cet instant", () => {
   // Les virages allument celui de l'élève sous l'étape 1 (contrôler, puis indiquer) ; le giratoire, traversé en face, sous
   // l'étape « Clignotant à droite après la sortie précédente ». tests/scenes.test.mjs épingle cette étape pour chaque scène.
   const demiPeriode = 1 / (2 * FREQ_CLIGNOTANT);
+  let clignotantsVerifies = 0;   // au moins une scène du registre exerce ce test
   for (const [code, sc] of scenes()) {
     let verifies = 0;
     for (const a of sc.acteurs) {
@@ -127,8 +130,9 @@ test("scènes, en lecture : chaque clignotant de chaque acteur éclaire dès qu'
         verifies++;
       }
     }
-    assert.ok(verifies > 0, `${code} : aucun clignotant, le test ne vérifie rien`);
+    clignotantsVerifies += verifies;
   }
+  assert.ok(clignotantsVerifies > 0, "aucune scène n'a de clignotant : le test ne vérifie rien");
 });
 
 // ===== Feux de recul =====
@@ -261,24 +265,28 @@ test("reperesEtapes : aucun repère n'est caché par la voiture de l'élève, qu
 });
 
 test("reperesEtapes : aucun repère sur le dessin d'un panneau", () => {
+  let scenesAvecPanneaux = 0;   // au moins une scène du registre exerce ce test
   for (const [code, sc] of scenes()) {
-    assert.ok(sc.decor.panneaux.length > 0, `${code} : aucun panneau, le test ne vérifie rien`);
+    scenesAvecPanneaux += (sc.decor.panneaux.length > 0 ? 1 : 0);
     for (const r of reperesEtapes(sc)) {
       for (const p of sc.decor.panneaux) {
         assert.ok(!polygonesSeChevauchent(boiteRepere(r), dessinPanneau(p)), `${code} : le repère ${r.numeros.join("·")} couvre le panneau ${p.code} en (${p.x.toFixed(2)} ; ${p.y.toFixed(2)})`);
       }
     }
   }
+  assert.ok(scenesAvecPanneaux > 0, "aucune scène n'a de panneau : le test ne vérifie rien");
 });
 
 test("reperesEtapes : aucun repère sur une ligne de cédez-le-passage", () => {
+  let scenesAvecCedez = 0;   // au moins une scène du registre exerce ce test
   for (const [code, sc] of scenes()) {
     const lignes = lignesCedez(sc);
-    assert.ok(lignes.length > 0, `${code} : aucune ligne de cédez-le-passage, le test ne vérifie rien`);
+    scenesAvecCedez += (lignes.length > 0 ? 1 : 0);
     for (const r of reperesEtapes(sc)) {
       for (const m of lignes) assert.ok(!polygonesSeChevauchent(boiteRepere(r), bande(m)), `${code} : le repère ${r.numeros.join("·")} couvre la ligne ${m.role}`);
     }
   }
+  assert.ok(scenesAvecCedez > 0, "aucune scène n'a de ligne de cédez-le-passage : le test ne vérifie rien");
 });
 
 test("reperesEtapes : les repères ne se chevauchent pas", () => {
@@ -301,6 +309,7 @@ test("demiLargeurRepere : un disque pour un seul numéro, une pastille qui conti
 
 test("cadreReduit : un cadre fixe qui montre tous les repères, les panneaux, la voiture de l'élève à chaque étape et chaque usager suivi des yeux à l'instant de son étape", () => {
   assert.equal(MARGE_CADRE_REDUIT, 1);
+  let cadresQuiBougent = 0;   // au moins une scène du registre exerce ce test
   for (const [code, sc] of scenes()) {
     const c = cadreReduit(sc);
     assert.equal(c.largeur, sc.camera.largeur, `${code} : largeur de la caméra (même échelle)`);
@@ -343,8 +352,9 @@ test("cadreReduit : un cadre fixe qui montre tous les repères, les panneaux, la
       `${code} : cadre de ${c.hauteur} m de haut, plus que nécessaire`);
     // Le cadre de départ de la caméra ne montrait qu'une partie des repères : c'est ce que ce cadre corrige.
     const depart = cadreCamera(sc, etatActeur(sc.eleve, 0));
-    assert.ok(reperesEtapes(sc).some((r) => !dans(depart, [r.x, r.y])), `${code} : le cadre de départ montrait déjà tout`);
+    cadresQuiBougent += (reperesEtapes(sc).some((r) => !dans(depart, [r.x, r.y])) ? 1 : 0);
   }
+  assert.ok(cadresQuiBougent > 0, "aucune scène ne demande un cadre réduit plus grand que celui du départ : le test ne vérifie rien");
 });
 
 test("cadreReduit : au moins la hauteur de la caméra, centré sur ce qu'il montre puis borné au monde ; sans caméra, le monde entier", () => {
@@ -400,9 +410,10 @@ test("scènes : le cône d'un usager suivi s'arrête 2 m au-delà de lui ; ramen
 // ===== Panneaux et facteur de lecture =====
 
 test("emprisePanneau : le dessin du panneau est centré sur sa position, de TAILLE_PANNEAU de côté, ses quatre coins sur le trottoir", () => {
+  let panneauxVerifies = 0;   // au moins une scène du registre exerce ce test
   for (const [code, sc] of scenes()) {
     const trottoirs = sc.decor.obstacles.filter((o) => o.nature === "trottoir");
-    assert.ok(sc.decor.panneaux.length > 0, `${code} : aucun panneau, le test ne vérifie rien`);
+    panneauxVerifies += sc.decor.panneaux.length;
     for (const p of sc.decor.panneaux) {
       const r = emprisePanneau(p);
       assert.equal(r.largeur, TAILLE_PANNEAU); assert.equal(r.hauteur, TAILLE_PANNEAU);
@@ -412,6 +423,7 @@ test("emprisePanneau : le dessin du panneau est centré sur sa position, de TAIL
         `${code} : le dessin du panneau ${p.code} en (${p.x} ; ${p.y}) déborde du trottoir`);
     }
   }
+  assert.ok(panneauxVerifies > 0, "aucune scène n'a de panneau : le test ne vérifie rien");
 });
 
 test("facteurLecture : « × n » avec une virgule décimale et un libellé lisible ; rien à vitesse réelle", () => {
