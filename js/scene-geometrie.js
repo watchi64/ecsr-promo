@@ -16,7 +16,7 @@
  * avant, à l'opposé en marche arrière. pointA et etatActeur rendent les deux :
  * `cap`, celui de la caisse (dessin, emprise, avant, regard), et `capMarche`,
  * celui du déplacement. Un rebroussement inverse la marche sans faire pivoter la
- * caisse.
+ * caisse : son cap ne change pas, pas même d'un tour.
  */
 
 export const DEG = Math.PI / 180;
@@ -29,14 +29,6 @@ export const GABARITS = {
 };
 
 // ===== Segments et trajets =====
-
-// Angle ramené dans ]-π, π].
-function normaliserAngle(a) {
-  const r = a % (2 * Math.PI);
-  if (r > Math.PI) return r - 2 * Math.PI;
-  if (r <= -Math.PI) return r + 2 * Math.PI;
-  return r;
-}
 
 // Un segment est parcouru en marche arrière s'il le dit ; un segment qui ne porte pas `arriere` est en marche avant.
 const enMarcheArriere = (seg) => seg.arriere === true;
@@ -67,18 +59,22 @@ export function centreArc(seg) {
  *
  * Marche arrière. L'option `arriere` fait partir le trajet en marche arrière :
  * `capDeg` est alors le sens de déplacement, et la caisse regarde à l'opposé.
- * `inverser()` marque un rebroussement sur place : la tortue fait demi-tour (cap
- * de marche + 180 degrés, ramené dans ]-180, 180]) et la marche s'inverse ; la
- * caisse, elle, ne pivote pas. Chaque segment porte `arriere`, la marche dans
- * laquelle il est parcouru, et `fin()` rend aussi les abscisses des rebroussements.
- * En marche arrière, la gauche de la tortue est la droite de la caisse : un virage
- * de la tortue à gauche se fait volant tourné à droite (l'arrière de la voiture
- * part vers la droite de la caisse), un virage à droite volant tourné à gauche,
- * et un décalage positif écarte la voiture vers la gauche de la caisse.
+ * `inverser()` marque un rebroussement sur place : la tortue fait demi-tour et la
+ * marche s'inverse. La caisse, elle, ne pivote pas : son cap ne change pas au
+ * rebroussement, pas même d'un tour. Aucun cap n'est ramené dans un intervalle :
+ * ils suivent la rotation réelle de la voiture, continus le long du trajet.
+ * Chaque segment porte `arriere`, la marche dans laquelle il est parcouru, et
+ * `fin()` rend aussi les abscisses des rebroussements. En marche arrière, la
+ * gauche de la tortue est la droite de la caisse : un virage de la tortue à
+ * gauche se fait volant tourné à droite (l'arrière de la voiture part vers la
+ * droite de la caisse), un virage à droite volant tourné à gauche, et un décalage
+ * positif écarte la voiture vers la gauche de la caisse.
  *
  * Refusés : un rebroussement en tête de trajet (partir en marche arrière se dit
  * par l'option), deux rebroussements de suite et un trajet qui finit sur un
- * rebroussement. Chacun serait un rebroussement vide, qu'aucun segment ne parcourt.
+ * rebroussement (chacun serait un rebroussement vide, qu'aucun segment ne
+ * parcourt), ainsi qu'une option `arriere` sur un segment : la marche d'un
+ * segment est celle du trajet.
  */
 export function trajet(x, y, capDeg, { arriere = false } = {}) {
   if (typeof arriere !== "boolean") {
@@ -90,6 +86,10 @@ export function trajet(x, y, capDeg, { arriere = false } = {}) {
   // rebroussement.
   let segmentsAuRebroussement = -1;
   function poser(seg) {
+    if ("arriere" in seg) {
+      throw new Error("trajet : option arriere refusée sur un segment : la marche se règle au départ"
+        + " (trajet(x, y, cap, { arriere: true })) et par inverser()");
+    }
     seg.arriere = marcheArriere;
     segments.push(seg);
     const fin = pointSurSegment(seg, seg.longueur);
@@ -120,7 +120,10 @@ export function trajet(x, y, capDeg, { arriere = false } = {}) {
       api.virage(rayon, (-sens * theta) / DEG, { ...options, decalage: true });
       return api;
     },
-    // Rebroussement sur place, à l'abscisse atteinte : la tortue fait demi-tour et la marche s'inverse.
+    // Rebroussement sur place, à l'abscisse atteinte : la tortue fait demi-tour, + 180 degrés en entrant en marche
+    // arrière et - 180 degrés en en sortant, et la marche s'inverse. Le cap de la caisse (pointA : le cap de marche en
+    // marche avant, le cap de marche - 180 degrés en marche arrière) est donc le même avant et après : au bit près en
+    // sortant de la marche arrière, à un arrondi flottant près (moins de 1e-15 rad) en y entrant.
     inverser() {
       if (!segments.length) {
         throw new Error("trajet.inverser : rebroussement en tête de trajet, sans segment avant lui"
@@ -130,7 +133,7 @@ export function trajet(x, y, capDeg, { arriere = false } = {}) {
         throw new Error(`trajet.inverser : rebroussement vide en s = ${longueur.toFixed(2)} m,`
           + " juste après un autre, sans segment entre eux");
       }
-      cap = normaliserAngle(cap + Math.PI);
+      cap += marcheArriere ? -Math.PI : Math.PI;
       marcheArriere = !marcheArriere;
       abscissesRebroussement.push(longueur);
       segmentsAuRebroussement = segments.length;
@@ -140,6 +143,9 @@ export function trajet(x, y, capDeg, { arriere = false } = {}) {
     // Position et cap de la tortue : le cap de marche.
     get position() { return { x: px, y: py, cap }; },
     get nbSegments() { return segments.length; },
+    // `rebroussements` : les abscisses notées à la construction, pour lecture. Ce qui fait foi est la fonction
+    // rebroussements(chemin), qui les lit sur les segments : le champ ne suit pas toutes les transformations d'un
+    // chemin (raccourcirDebut, dans js/scenes.js, ne le recopie pas).
     fin() {
       if (segmentsAuRebroussement === segments.length) {
         throw new Error(`trajet.fin : le trajet finit sur un rebroussement (s = ${longueur.toFixed(2)} m),`
@@ -163,14 +169,15 @@ function segmentA(chemin, s) {
 /**
  * Point à l'abscisse curviligne s (bornée au trajet) : { x, y, cap, capMarche, arriere }. `capMarche` est le sens de
  * déplacement (le cap de la tortue) ; `cap` est celui de la caisse, l'avant de la voiture : le cap de marche tel quel
- * en marche avant (sans normalisation), son opposé en marche arrière (capMarche + π, ramené dans ]-π, π]). À l'abscisse
- * d'un rebroussement, le point est déjà dans la marche qui suit.
+ * en marche avant, le cap de marche - π en marche arrière. Jamais ramené dans un intervalle, il est continu le long du
+ * trajet, rebroussements compris : la caisse n'y pivote pas, pas même d'un tour. À l'abscisse d'un rebroussement, le
+ * point est déjà dans la marche qui suit.
  */
 export function pointA(chemin, s) {
   const { seg, d } = segmentA(chemin, s);
   const p = pointSurSegment(seg, d);
   const arriere = enMarcheArriere(seg);
-  return { x: p.x, y: p.y, cap: arriere ? normaliserAngle(p.cap + Math.PI) : p.cap, capMarche: p.cap, arriere };
+  return { x: p.x, y: p.y, cap: arriere ? p.cap - Math.PI : p.cap, capMarche: p.cap, arriere };
 }
 
 /** Courbure signée à l'abscisse s, dans le repère de marche : > 0 quand la tortue tourne à droite, < 0 à gauche, 0 en
