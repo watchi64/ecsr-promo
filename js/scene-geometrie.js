@@ -17,14 +17,29 @@
  * `cap`, celui de la caisse (dessin, emprise, avant, regard), et `capMarche`,
  * celui du déplacement. Un rebroussement inverse la marche sans faire pivoter la
  * caisse : son cap ne change pas, pas même d'un tour.
+ *
+ * Essieu : par défaut, le point du trajet est le centre de la voiture, qui pivote
+ * donc autour de son centre en virage. Avec l'option `essieu` de trajet (pour une
+ * voiture, GABARITS.voiture.essieu), le point du trajet est le milieu de l'essieu
+ * arrière, autour duquel pivote une vraie voiture (ses roues arrière ne sont pas
+ * directrices : le centre de rotation est sur la droite de l'essieu arrière).
+ * pointA et etatActeur rendent toujours le centre de la voiture, `essieu` m devant
+ * ce point le long de la caisse : l'emprise, l'avant, le regard, les repères, les
+ * cadres et le dessin le reçoivent sans rien changer de leur côté. Ce qui se lit
+ * sur le trajet reste au point du trajet : `capMarche` est le sens de son
+ * déplacement, et les abscisses (profil de vitesse, donc vitesse, clignotants
+ * `de` et `a`, étapes `s`, rebroussements) comme la courbure sont les siennes.
  */
 
 export const DEG = Math.PI / 180;
 export const KMH = 1 / 3.6;
 
-/** Gabarits réels, en mètres. */
+/** Gabarits réels, en mètres. `essieu` (voiture) : distance du centre de la voiture au milieu de son essieu arrière, le
+ *  long de la caisse, pour l'option essieu de trajet. */
 export const GABARITS = {
-  voiture: { longueur: 4.5, largeur: 1.8 },
+  // essieu : 1,45 m, soit un porte-à-faux arrière de 0,80 m (2,25 - 1,45) sur 4,5 m de long, l'ordre de grandeur d'une
+  // compacte (par exemple 0,8 m de porte-à-faux arrière et 2,7 m d'empattement pour 4,4 à 4,5 m de long).
+  voiture: { longueur: 4.5, largeur: 1.8, essieu: 1.45 },
   pieton: { longueur: 0.5, largeur: 0.5 },
 };
 
@@ -70,18 +85,39 @@ export function centreArc(seg) {
  * droite de la caisse), un virage à droite volant tourné à gauche, et un décalage
  * positif écarte la voiture vers la gauche de la caisse.
  *
+ * Essieu. L'option `essieu` (m, nombre fini, positif ou nul, 0 par défaut) est la
+ * distance du centre de la voiture au milieu de son essieu arrière, le long de la
+ * caisse. Avec `essieu` > 0, la tortue est le milieu de l'essieu arrière : les
+ * segments (droites, virages, décalages, rebroussements) décrivent son trajet, ses
+ * rayons de virage sont les siens et `position` la rend. (x, y) reste le centre
+ * de la voiture au départ : la tortue part `essieu` m derrière lui, le long de la
+ * caisse (devant lui dans le sens du déplacement en marche arrière), et pointA(_, 0)
+ * rend (x, y). Chaque segment porte alors `essieu`, comme sa marche : un trajet
+ * transformé qui garde ses segments (tourné, raccourci) le garde. Avec `essieu` nul,
+ * rien ne change : aucun segment ne le porte.
+ *
  * Refusés : un rebroussement en tête de trajet (partir en marche arrière se dit
  * par l'option), deux rebroussements de suite et un trajet qui finit sur un
  * rebroussement (chacun serait un rebroussement vide, qu'aucun segment ne
- * parcourt), ainsi qu'une option `arriere` sur un segment : la marche d'un
- * segment est celle du trajet.
+ * parcourt), ainsi qu'une option `arriere` ou `essieu` sur un segment : la marche
+ * et l'essieu d'un segment sont ceux du trajet.
  */
-export function trajet(x, y, capDeg, { arriere = false } = {}) {
+export function trajet(x, y, capDeg, { arriere = false, essieu = 0 } = {}) {
   if (typeof arriere !== "boolean") {
     throw new Error(`trajet : l'option arriere attend un booléen (reçu : ${String(arriere)})`);
   }
+  if (!(Number.isFinite(essieu) && essieu >= 0)) {
+    throw new Error(`trajet : option essieu ${valeurRecue(essieu)} invalide (nombre fini de mètres, positif ou nul, attendu)`);
+  }
   const segments = [], abscissesRebroussement = [];
   let px = x, py = y, cap = capDeg * DEG, longueur = 0, marcheArriere = arriere;
+  if (essieu > 0) {
+    // La tortue part du milieu de l'essieu arrière, `essieu` m derrière le centre le long de la caisse, qui regarde à
+    // l'opposé du déplacement en marche arrière.
+    const capCaisse = arriere ? cap - Math.PI : cap;
+    px = x - essieu * Math.cos(capCaisse);
+    py = y - essieu * Math.sin(capCaisse);
+  }
   // Nombre de segments posés au dernier rebroussement : tant qu'il n'a pas changé, aucun segment ne parcourt ce
   // rebroussement.
   let segmentsAuRebroussement = -1;
@@ -90,7 +126,12 @@ export function trajet(x, y, capDeg, { arriere = false } = {}) {
       throw new Error("trajet : option arriere refusée sur un segment : la marche se règle au départ"
         + " (trajet(x, y, cap, { arriere: true })) et par inverser()");
     }
+    if ("essieu" in seg) {
+      throw new Error("trajet : option essieu refusée sur un segment : l'essieu se règle au départ du trajet"
+        + " (trajet(x, y, cap, { essieu }))");
+    }
     seg.arriere = marcheArriere;
+    if (essieu > 0) seg.essieu = essieu;
     segments.push(seg);
     const fin = pointSurSegment(seg, seg.longueur);
     px = fin.x; py = fin.y; cap = fin.cap;
@@ -140,7 +181,8 @@ export function trajet(x, y, capDeg, { arriere = false } = {}) {
       return api;
     },
     get longueur() { return longueur; },
-    // Position et cap de la tortue : le cap de marche.
+    // Position et cap de la tortue : le point du trajet (le milieu de l'essieu arrière avec l'option essieu, le centre de
+    // la voiture sinon) et le cap de marche.
     get position() { return { x: px, y: py, cap }; },
     get nbSegments() { return segments.length; },
     // `rebroussements` : les abscisses notées à la construction, pour lecture. Ce qui fait foi est la fonction
@@ -171,17 +213,22 @@ function segmentA(chemin, s) {
  * déplacement (le cap de la tortue) ; `cap` est celui de la caisse, l'avant de la voiture : le cap de marche tel quel
  * en marche avant, le cap de marche - π en marche arrière. Jamais ramené dans un intervalle, il est continu le long du
  * trajet, rebroussements compris : la caisse n'y pivote pas, pas même d'un tour. À l'abscisse d'un rebroussement, le
- * point est déjà dans la marche qui suit.
+ * point est déjà dans la marche qui suit. (x, y) est le centre de la voiture : le point du trajet lui-même, ou, sur un
+ * segment qui porte `essieu` (option essieu de trajet), ce point (le milieu de l'essieu arrière) avancé de `essieu` m
+ * le long de la caisse.
  */
 export function pointA(chemin, s) {
   const { seg, d } = segmentA(chemin, s);
   const p = pointSurSegment(seg, d);
   const arriere = enMarcheArriere(seg);
-  return { x: p.x, y: p.y, cap: arriere ? p.cap - Math.PI : p.cap, capMarche: p.cap, arriere };
+  const cap = arriere ? p.cap - Math.PI : p.cap;
+  if (seg.essieu === undefined) return { x: p.x, y: p.y, cap, capMarche: p.cap, arriere };
+  return { x: p.x + seg.essieu * Math.cos(cap), y: p.y + seg.essieu * Math.sin(cap), cap, capMarche: p.cap, arriere };
 }
 
 /** Courbure signée à l'abscisse s, dans le repère de marche : > 0 quand la tortue tourne à droite, < 0 à gauche, 0 en
- *  ligne droite. En marche arrière, une courbure > 0 se fait volant tourné à gauche (voir trajet). */
+ *  ligne droite. En marche arrière, une courbure > 0 se fait volant tourné à gauche (voir trajet). C'est celle du trajet,
+ *  donc, avec l'option essieu, celle de l'essieu arrière. */
 export function courbureA(chemin, s) {
   const { seg } = segmentA(chemin, s);
   return seg.type === "arc" ? Math.sign(seg.angle) / seg.rayon : 0;

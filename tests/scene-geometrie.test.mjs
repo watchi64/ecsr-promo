@@ -1,10 +1,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  DEG, trajet, pointA, courbureA, tournerChemin, tournerPoint, premiereAbscisse, avant,
+  DEG, GABARITS, trajet, pointA, courbureA, tournerChemin, tournerPoint, premiereAbscisse, avant,
   chronologie, etatA, tempsAtteint, tempsDepart, emprise, rectangle, pointsArc, disque, secteurAnneau,
   pointDansPolygone, segmentsSeCoupent, polygonesSeChevauchent, preparerScene, etatActeur,
-  apparitionDe, sortDuCadre, pointSurSegment, rebroussements,
+  apparitionDe, sortDuCadre, pointSurSegment, rebroussements, centreArc,
 } from "../js/scene-geometrie.js";
 
 const proche = (a, b, eps = 1e-6) => assert.ok(Math.abs(a - b) <= eps, `${a} au lieu de ${b}`);
@@ -932,4 +932,188 @@ test("preparerScene : un délai de fin de clignotant doit être un nombre fini d
       + `${affiche} invalide (nombre fini de secondes, positif ou nul, attendu)` }, `delaiFin = ${String(delaiFin)}`);
   }
   for (const delaiFin of [undefined, 0, 2.5]) assert.doesNotThrow(() => preparerScene(scene(delaiFin)), `delaiFin = ${String(delaiFin)}`);
+});
+
+// ===== Braquage autour de l'essieu arrière (option essieu du trajet) =====
+//
+// Une vraie voiture pivote autour de son essieu arrière (ses roues arrière ne sont pas directrices) : avec l'option
+// essieu, le trajet est celui du milieu de l'essieu arrière, et pointA rend le centre de la voiture, `essieu` m devant
+// lui le long de la caisse. Les attendus sont calculés à la main, ici, avec d = 1,45 m (essieu d'une voiture) et le rayon
+// de l'essieu qui met le centre de la voiture à 4,1 m du centre de rotation.
+const D_ESSIEU = 1.45;
+const R_ESSIEU = Math.sqrt(4.1 ** 2 - D_ESSIEU ** 2);   // 3,835 m
+
+test("essieu : GABARITS.voiture.essieu vaut 1,45 m, soit un porte-à-faux arrière de 0,80 m sur 4,5 m de long", () => {
+  assert.equal(GABARITS.voiture.essieu, 1.45);
+  proche(GABARITS.voiture.longueur / 2 - GABARITS.voiture.essieu, 0.8, 1e-12);
+  assert.equal(GABARITS.pieton.essieu, undefined, "un piéton n'a pas d'essieu");
+});
+
+test("essieu, ligne droite : le centre de la voiture part de (x, y) et suit la ligne ; le trajet est celui de l'essieu, 1,45 m derrière", () => {
+  const ch = trajet(10, 20, -90, { essieu: 1.45 }).droit(5).fin();
+  const p0 = pointA(ch, 0), p5 = pointA(ch, 5);
+  proche(p0.x, 10, 1e-12); proche(p0.y, 20, 1e-12); proche(p0.cap, -90 * DEG, 1e-12);
+  proche(p5.x, 10, 1e-12); proche(p5.y, 15, 1e-12); proche(p5.cap, -90 * DEG, 1e-12);
+  proche(p5.capMarche, -90 * DEG, 1e-12);
+  // L'essieu est 1,45 m derrière le centre, au sud (y croît vers le bas).
+  const [seg] = ch.segments;
+  proche(seg.x0, 10, 1e-12); proche(seg.y0, 21.45, 1e-12);
+  assert.equal(seg.essieu, 1.45);
+  // Départ oblique, au cap 30 : l'essieu part de (1 - 1,45 cos 30 ; 2 - 1,45 sin 30), le centre de (1 ; 2).
+  const oblique = trajet(1, 2, 30, { essieu: 1.45 }).droit(4).fin(), a = 30 * DEG;
+  proche(oblique.segments[0].x0, 1 - 1.45 * Math.cos(a), 1e-12); proche(oblique.segments[0].y0, 2 - 1.45 * Math.sin(a), 1e-12);
+  const q0 = pointA(oblique, 0), q4 = pointA(oblique, 4);
+  proche(q0.x, 1, 1e-12); proche(q0.y, 2, 1e-12);
+  proche(q4.x, 1 + 4 * Math.cos(a), 1e-12); proche(q4.y, 2 + 4 * Math.sin(a), 1e-12); proche(q4.cap, a, 1e-12);
+});
+
+test("essieu, quart de virage à gauche depuis le nord : l'essieu tourne autour du centre de rotation, le centre de la voiture à √(R² + d²) de lui", () => {
+  const x0 = 3, y0 = 40, d = D_ESSIEU, R = R_ESSIEU;
+  const ch = trajet(x0, y0, -90, { essieu: d }).virage(R, -90).fin();
+  const [seg] = ch.segments;
+  // L'essieu part de (x0 ; y0 + d) ; le centre de rotation est à R à sa gauche, à l'ouest : (x0 - R ; y0 + d).
+  proche(seg.x0, x0, 1e-12); proche(seg.y0, y0 + d, 1e-12);
+  const c = centreArc(seg);
+  proche(c.x, x0 - R, 1e-12); proche(c.y, y0 + d, 1e-12);
+  // À la fin, cap -180 (ouest) : essieu en (x0 - R ; y0 + d - R), centre de la voiture d plus à l'ouest.
+  const essieuFin = pointSurSegment(seg, seg.longueur), fin = pointA(ch, ch.longueur);
+  proche(essieuFin.x, x0 - R, 1e-9); proche(essieuFin.y, y0 + d - R, 1e-9);
+  proche(fin.cap, -180 * DEG, 1e-12);
+  proche(fin.x, x0 - R - d, 1e-9); proche(fin.y, y0 + d - R, 1e-9);
+  // Après avoir tourné de 30 degrés : essieu en (x0 - R + R cos 30 ; y0 + d - R sin 30), caisse au cap -120, centre de la
+  // voiture d devant l'essieu le long de la caisse.
+  const a = 30 * DEG, p30 = pointA(ch, R * a);
+  proche(p30.cap, -120 * DEG, 1e-12);
+  proche(p30.x, x0 - R + R * Math.cos(a) - d * Math.sin(a), 1e-9);
+  proche(p30.y, y0 + d - R * Math.sin(a) - d * Math.cos(a), 1e-9);
+  // Partout, le centre de la voiture est à √(R² + d²) = 4,1 m du centre de rotation ; la courbure reste celle du trajet.
+  for (const f of [0, 0.1, 0.25, 0.5, 0.75, 0.9, 1]) {
+    const p = pointA(ch, f * ch.longueur);
+    proche(Math.hypot(p.x - (x0 - R), p.y - (y0 + d)), Math.sqrt(R * R + d * d), 1e-9);
+    proche(Math.hypot(p.x - (x0 - R), p.y - (y0 + d)), 4.1, 1e-9);
+  }
+  proche(courbureA(ch, 1), -1 / R, 1e-12);
+});
+
+test("essieu : en virage à gauche pris depuis une ligne droite, le coin arrière droit ne déborde de son flanc que de 0,067 m, au lieu de 0,483 m en pivotant au centre", () => {
+  const { longueur: L, largeur: W } = GABARITS.voiture;
+  // Voiture vers le nord, flanc droit en x = 0 au départ : 2 m tout droit, quart de virage à gauche, 2 m tout droit.
+  // Déport : plus grand x atteint par le coin arrière droit (le quatrième sommet de l'emprise, [-L/2, W/2]), relevé tous
+  // les demi-millimètres du trajet.
+  const deport = (R, d) => {
+    const ch = trajet(-W / 2, 0, -90, { essieu: d }).droit(2).virage(R, -90).droit(2).fin();
+    let max = -Infinity;
+    for (let k = 0; k * 0.0005 <= ch.longueur; k++) max = Math.max(max, emprise("voiture", pointA(ch, k * 0.0005))[2][0]);
+    return max;
+  };
+  // Avec l'option : le coin, à √((R + W/2)² + p²) du centre de rotation (p = L/2 - d, porte-à-faux arrière), passe au
+  // plus loin à l'est de ce centre, qui est à R + W/2 à l'ouest de la ligne du flanc.
+  const p = L / 2 - D_ESSIEU, avecEssieu = deport(R_ESSIEU, D_ESSIEU);
+  proche(avecEssieu, Math.sqrt((R_ESSIEU + W / 2) ** 2 + p ** 2) - (R_ESSIEU + W / 2), 1e-3);
+  proche(avecEssieu, 0.067, 1e-3);
+  // Sans l'option (pivot au centre, rayon de 4,1 m) : le coin est à √((4,1 + W/2)² + (L/2)²) du centre de rotation.
+  const sansEssieu = deport(4.1, 0);
+  proche(sansEssieu, Math.sqrt((4.1 + W / 2) ** 2 + (L / 2) ** 2) - (4.1 + W / 2), 1e-3);
+  proche(sansEssieu, 0.483, 1e-3);
+});
+
+test("essieu : au rebroussement, le centre de la voiture ne saute pas et la caisse ne pivote pas ; le recul volant à gauche suit l'essieu", () => {
+  const d = D_ESSIEU, R = R_ESSIEU;
+  const ch = trajet(5, 30, -90, { essieu: d }).droit(2).inverser().virage(R, 90).fin();
+  assert.deepEqual(rebroussements(ch), [2]);
+  const juste = pointA(ch, 2 - 1e-12), sur = pointA(ch, 2);
+  assert.equal(juste.arriere, false);
+  assert.equal(sur.arriere, true);
+  proche(sur.x, 5, 1e-9); proche(sur.y, 28, 1e-9);
+  proche(juste.x, sur.x, 1e-9); proche(juste.y, sur.y, 1e-9);
+  proche(juste.cap, -90 * DEG, 1e-12); proche(sur.cap, -90 * DEG, 1e-12);
+  // Recul volant à gauche (la tortue, vers le sud, tourne à droite) : centre de rotation à l'ouest de l'essieu, en
+  // (5 - R ; 29,45) ; l'essieu finit au sud de ce centre, en (5 - R ; 29,45 + R), caisse vers l'est, centre de la voiture
+  // d plus à l'est.
+  const fin = pointA(ch, ch.longueur);
+  proche(fin.cap, 0, 1e-12); proche(fin.capMarche, Math.PI, 1e-12);
+  proche(fin.x, 5 - R + d, 1e-9); proche(fin.y, 29.45 + R, 1e-9);
+});
+
+test("essieu, départ en marche arrière : le centre part de (x, y), caisse vers le nord, l'essieu derrière lui au sud", () => {
+  const x = -4, y = 12, d = D_ESSIEU;
+  const ch = trajet(x, y, 90, { arriere: true, essieu: d }).droit(4).fin();
+  const p0 = pointA(ch, 0), p4 = pointA(ch, 4);
+  proche(p0.x, x, 1e-12); proche(p0.y, y, 1e-12); proche(p0.cap, -90 * DEG, 1e-12);
+  proche(p4.x, x, 1e-12); proche(p4.y, y + 4, 1e-12); proche(p4.cap, -90 * DEG, 1e-12);
+  proche(ch.segments[0].x0, x, 1e-12); proche(ch.segments[0].y0, y + d, 1e-12);
+});
+
+test("essieu : le centre de la voiture et la caisse sont continus à chaque raccord (droites, virages, décalage), de part et d'autre", () => {
+  const ch = trajet(2, 50, -90, { essieu: D_ESSIEU }).droit(3).virage(R_ESSIEU, -60).droit(3).virage(R_ESSIEU, 45)
+    .decaler(1, 6).droit(2).fin();
+  assert.equal(ch.segments.length, 7);
+  for (const seg of ch.segments.slice(1)) {
+    const avantRaccord = pointA(ch, seg.debut - 1e-12), apresRaccord = pointA(ch, seg.debut + 1e-12);
+    for (const k of ["x", "y", "cap"]) {
+      assert.ok(Math.abs(avantRaccord[k] - apresRaccord[k]) < 1e-9,
+        `${k} saute de ${apresRaccord[k] - avantRaccord[k]} au raccord s = ${seg.debut.toFixed(3)} m`);
+    }
+  }
+});
+
+test("essieu : etatActeur rend la position de pointA à l'abscisse atteinte, départ compris", () => {
+  const chemin = trajet(20, 30, -90, { essieu: D_ESSIEU }).virage(R_ESSIEU, -60).inverser().virage(R_ESSIEU, -30).fin();
+  const [r] = rebroussements(chemin);
+  const profil = [{ s: 0, kmh: 0, pause: 1 }, { s: 1, kmh: 5 }, { s: r, kmh: 0, pause: 2 }, { s: r + 0.5, kmh: 4 },
+    { s: chemin.longueur, kmh: 0 }];
+  const sc = preparerScene({ code: "essai", etapes: [{ s: 0 }],
+    acteurs: [{ id: "eleve", role: "eleve", gabarit: "voiture", chemin, profil }] });
+  const eleve = sc.acteurs[0];
+  for (let t = 0; t <= sc.duree + 1e-9; t += 0.25) {
+    const e = etatActeur(eleve, t), p = pointA(chemin, e.s);
+    assert.deepEqual([e.x, e.y, e.cap, e.capMarche], [p.x, p.y, p.cap, p.capMarche], `t = ${t} s`);
+  }
+  const e0 = etatActeur(eleve, 0);
+  proche(e0.x, 20, 1e-12); proche(e0.y, 30, 1e-12);
+});
+
+test("essieu : un trajet tourné garde l'essieu de ses segments, et son centre est le centre tourné", () => {
+  const c = trajet(3, 4, -90, { essieu: D_ESSIEU }).droit(2).virage(R_ESSIEU, -70).fin();
+  const t = tournerChemin(c, 1, -2, 90);
+  for (const s of [0, 1.5, 3, c.longueur]) {
+    const p = pointA(c, s), q = pointA(t, s), [x, y] = tournerPoint([p.x, p.y], 1, -2, 90);
+    proche(q.x, x, 1e-9); proche(q.y, y, 1e-9); proche(q.cap, p.cap + 90 * DEG, 1e-12);
+  }
+});
+
+test("essieu par défaut (0) : rien ne change, ni les segments ni les points, et un 0 explicite donne le même trajet", () => {
+  const poser = (t) => t.droit(3).decaler(-0.6, 12).virage(4.1, -90).inverser().virage(5, 40).fin();
+  const defaut = poser(trajet(1, 2, -90)), zero = poser(trajet(1, 2, -90, { essieu: 0 }));
+  assert.ok(defaut.segments.every((seg) => !("essieu" in seg)), "aucun segment ne porte d'essieu");
+  assert.deepEqual(zero, defaut);
+  // Le point du trajet est le centre de la voiture : pointA rend exactement le point du segment.
+  for (let s = 0; s <= defaut.longueur; s += 0.37) {
+    const p = pointA(defaut, s);
+    const seg = defaut.segments.findLast((x) => x.debut <= s) || defaut.segments[0];
+    const q = pointSurSegment(seg, s - seg.debut);
+    assert.equal(p.x, q.x); assert.equal(p.y, q.y);
+  }
+});
+
+test("trajet : l'option essieu attend un nombre fini de mètres, positif ou nul ; le message cite la valeur reçue", () => {
+  for (const [essieu, affiche] of DELAIS_REFUSES) {
+    assert.throws(() => trajet(0, 0, -90, { essieu }),
+      { message: `trajet : option essieu ${affiche} invalide (nombre fini de mètres, positif ou nul, attendu)` },
+      `essieu = ${String(essieu)}`);
+  }
+  assert.throws(() => trajet(0, 0, -90, { essieu: -Infinity }), { message: "trajet : option essieu « -Infinity » invalide"
+    + " (nombre fini de mètres, positif ou nul, attendu)" });
+  for (const essieu of [undefined, 0, 1.45]) assert.doesNotThrow(() => trajet(0, 0, -90, { essieu }).droit(1).fin(), `essieu = ${String(essieu)}`);
+});
+
+test("une option de segment essieu est refusée : l'essieu se règle au départ du trajet", () => {
+  for (const [nom, poserSegment] of [
+    ["droit", (t) => t.droit(3, { essieu: 1.45 })],
+    ["virage", (t) => t.virage(5, 90, { essieu: 0 })],
+    ["decaler", (t) => t.decaler(1, 10, { essieu: 1.45 })],
+  ]) {
+    assert.throws(() => poserSegment(trajet(0, 0, 0)),
+      (e) => /segment/.test(e.message) && /essieu/.test(e.message) && /au départ/.test(e.message), nom);
+  }
 });
