@@ -111,7 +111,9 @@ function bandeLigne(m) {
  * loin, puis essaie de même à gauche du cap. Une étape qui commence à moins de ECART_REPERES m de la position d'un repère
  * déjà posé le partage (numéros joints par un point médian). Un repère qui porte une étape où le regard fait le tour suit la
  * même règle sur la diagonale à 45 degrés du cap (devant à droite, puis derrière à gauche), hors des quatre cônes du tour
- * figé : sur la perpendiculaire, il tomberait sur l'axe d'un cône latéral.
+ * figé : sur la perpendiculaire, il tomberait sur l'axe d'un cône latéral. Si toute la diagonale est prise, il la suit le long
+ * du cap (devant, puis derrière), où il ne couvre que le début du cône avant ou arrière. Dans chaque direction, la distance
+ * au plus près laisse JEU_REPERE_VOITURE entre la voiture et le repère, le long de cette direction.
  */
 export function reperesEtapes(sc) {
   const groupes = [];
@@ -131,22 +133,32 @@ export function reperesEtapes(sc) {
     return dansLeMonde && !obstacles.some((o) => polygonesSeChevauchent(b, o));
   };
   const demiVoiture = GABARITS[sc.eleve.gabarit].largeur / 2, pas = Math.round(ALLONGEMENT_MAX_REPERE / PAS_REPERE);
+  const demiLongueur = GABARITS[sc.eleve.gabarit].longueur / 2;
   return groupes.map(({ e, numeros }) => {
     const tour = numeros.map((n) => sc.etapes[n - 1]).find((et) => et.regard && et.regard.tour);
     const vue = tour && etatActeur(sc.eleve, tour.t), cones = tour ? conesTour(vue.cap, oeil(vue)) : [];
-    const [nx, ny] = tour ? [Math.cos(e.cap + 45 * DEG), Math.sin(e.cap + 45 * DEG)]     // tour : diagonale devant à droite
-      : [-Math.sin(e.cap), Math.cos(e.cap)];     // droite du cap, l'axe y de l'écran allant vers le bas
-    const d0 = demiVoiture + JEU_REPERE_VOITURE + demiLargeurRepere(numeros) * Math.abs(nx) + RAYON_REPERE * Math.abs(ny);
-    const place = (d) => ({ x: e.x + d * nx, y: e.y + d * ny, numeros });
-    let repere = null;
-    for (const sens of [1, -1]) {
-      for (let k = 0; k <= pas && !repere; k++) {
-        const r = place(sens * (d0 + k * PAS_REPERE));
-        if (libre(r) && !cones.some((c) => polygonesSeChevauchent(boiteRepere(r), c))) repere = r;
+    // Directions, dans l'ordre, chacune essayée dans les deux sens : [nx, ny, demi-étendue de la voiture le long d'elle, ce
+    // que le repère ne doit pas toucher]. Tour : la diagonale devant à droite, hors des cônes, puis le cap ; sinon, la droite
+    // du cap, l'axe y de l'écran allant vers le bas.
+    const directions = tour
+      ? [[Math.cos(e.cap + 45 * DEG), Math.sin(e.cap + 45 * DEG), (demiLongueur + demiVoiture) * Math.SQRT1_2, cones],
+        [Math.cos(e.cap), Math.sin(e.cap), demiLongueur, []]]
+      : [[-Math.sin(e.cap), Math.cos(e.cap), demiVoiture, []]];
+    let repere = null, auPlusPres = null;
+    for (const [nx, ny, demi, evites] of directions) {
+      const d0 = demi + JEU_REPERE_VOITURE + demiLargeurRepere(numeros) * Math.abs(nx) + RAYON_REPERE * Math.abs(ny);
+      const place = (d) => ({ x: e.x + d * nx, y: e.y + d * ny, numeros });
+      auPlusPres ||= place(d0);
+      for (const sens of [1, -1]) {
+        for (let k = 0; k <= pas && !repere; k++) {
+          const r = place(sens * (d0 + k * PAS_REPERE));
+          if (libre(r) && !evites.some((c) => polygonesSeChevauchent(boiteRepere(r), c))) repere = r;
+        }
+        if (repere) break;
       }
       if (repere) break;
     }
-    repere ||= place(d0);                                   // aucune place libre : au plus près à droite (les tests le signalent)
+    repere ||= auPlusPres;                                  // aucune place libre : au plus près à droite (les tests le signalent)
     obstacles.push(boiteRepere(repere));
     return repere;
   });

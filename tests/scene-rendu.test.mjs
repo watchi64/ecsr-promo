@@ -322,47 +322,133 @@ test("reperesEtapes : les repères ne se chevauchent pas", () => {
 
 // ===== Repères et tour du regard figé (mineure de la relecture du regard) =====
 
-test("reperesEtapes : le repère d'une étape où le regard fait le tour se pose sur la diagonale à 45 degrés du cap, au plus près devant à droite, ou derrière à gauche si cette place est prise, sans toucher les quatre cônes du tour figé", () => {
-  let tours = 0;
+// Fautes de placement des repères qui portent une étape où le regard fait le tour (js/scene-rendu.js, reperesEtapes), relevées
+// sur des repères donnés : [] quand chacun suit la règle. Le repère se pose sur la diagonale à 45 degrés du cap (devant à
+// droite, puis derrière à gauche), sans toucher les quatre cônes du tour figé ; si toute la diagonale est prise, le long du cap
+// (devant, puis derrière). Dans chaque direction, de la distance au centre de la voiture qui laisse JEU_REPERE_VOITURE entre la
+// voiture et le repère le long de cette direction (leurs demi-étendues), par pas de PAS_REPERE, jusqu'à ALLONGEMENT_MAX_REPERE
+// au-delà ; il prend la première place libre dans cet ordre. Une place est prise si le repère y sortirait du monde, ou y
+// toucherait un panneau, une ligne de cédez-le-passage, un acteur posé, la voiture de l'élève au début d'une étape, un repère
+// déjà posé ou, sur la diagonale, un cône du tour figé.
+function fautesReperesTour(sc, reperes) {
+  const fautes = [], { longueur: L, largeur: W } = GABARITS[sc.eleve.gabarit];
+  const voitures = sc.etapes.map((et) => emprise(sc.eleve.gabarit, etatActeur(sc.eleve, et.t)));
+  // Le décor, et les acteurs posés, dessinés au même endroit sur toute image.
+  const decor = [...sc.decor.panneaux.map(dessinPanneau), ...lignesCedez(sc).map(bande),
+    ...sc.acteurs.filter((a) => a.pose).map((a) => emprise(a.gabarit, etatActeur(a, 0)))];
+  const pas = Math.round(ALLONGEMENT_MAX_REPERE / PAS_REPERE);
+  reperes.forEach((r, i) => {
+    const tour = r.numeros.map((n) => sc.etapes[n - 1]).find((et) => et.regard && et.regard.tour);
+    if (!tour) return;
+    const nom = `repère ${r.numeros.join("·")}`;
+    const premier = etatActeur(sc.eleve, sc.etapes[r.numeros[0] - 1].t), vue = etatActeur(sc.eleve, tour.t);
+    const cones = conesTour(vue.cap, oeil(vue)), obstacles = [...decor, ...voitures, ...reperes.slice(0, i).map(boiteRepere)];
+    const prise = (p, avecCones) => {
+      const b = boiteRepere({ x: p.x, y: p.y, numeros: r.numeros });
+      return b.some(([x, y]) => x < 0 || x > sc.monde.largeur || y < 0 || y > sc.monde.hauteur)
+        || [...obstacles, ...(avecCones ? cones : [])].some((o) => polygonesSeChevauchent(b, o));
+    };
+    // La diagonale, puis le cap : direction (cos (cap + a) ; sin (cap + a)), l'axe y de l'écran allant vers le bas ;
+    // demi-étendue de la voiture le long de chacune ; places dans l'ordre de la règle (devant, puis derrière).
+    const directions = [["la diagonale", 45, (L / 2 + W / 2) * Math.SQRT1_2, true], ["le cap", 0, L / 2, false]]
+      .map(([quoi, a, demi, avecCones]) => {
+        const nx = Math.cos(premier.cap + a * DEG), ny = Math.sin(premier.cap + a * DEG);
+        const d0 = demi + JEU_REPERE_VOITURE + demiLargeurRepere(r.numeros) * Math.abs(nx) + RAYON_REPERE * Math.abs(ny);
+        const places = [1, -1].flatMap((sens) => Array.from({ length: pas + 1 }, (_, k) => sens * (d0 + k * PAS_REPERE)))
+          .map((d) => ({ x: premier.x + d * nx, y: premier.y + d * ny }));
+        return { quoi, nx, ny, avecCones, places };
+      });
+    const ou = directions.findIndex(({ nx, ny }) => Math.abs((r.x - premier.x) * ny - (r.y - premier.y) * nx) < 1e-9);
+    if (ou < 0) {
+      fautes.push(`${nom} : ni sur la diagonale ni sur le cap`);
+      return;
+    }
+    const { quoi, avecCones, places } = directions[ou];
+    const rang = places.findIndex((p) => Math.hypot(p.x - r.x, p.y - r.y) < 1e-9);
+    if (rang < 0) fautes.push(`${nom} : sur ${quoi}, hors des places de la règle`);
+    if (prise(r, avecCones)) fautes.push(`${nom} : sur ${quoi}, à une place prise`);
+    if (ou === 1 && directions[0].places.some((p) => !prise(p, true))) fautes.push(`${nom} : sur le cap alors que la diagonale avait une place libre`);
+    if (rang > 0 && places.slice(0, rang).some((p) => !prise(p, avecCones))) fautes.push(`${nom} : sur ${quoi}, écarté alors qu'une place plus proche était libre`);
+  });
+  return fautes;
+}
+
+// Repère qui porte une étape de tour, et l'état de la voiture de l'élève à sa première étape.
+function repereDuTour(sc, reperes) {
+  const k = reperes.findIndex((r) => r.numeros.some((n) => sc.etapes[n - 1].regard && sc.etapes[n - 1].regard.tour));
+  assert.ok(k >= 0, "un repère porte le tour du regard");
+  return { k, r: reperes[k], e: etatActeur(sc.eleve, sc.etapes[reperes[k].numeros[0] - 1].t) };
+}
+
+// Scène d'essai : la voiture de l'élève, tournée vers le nord au milieu d'un monde de 8 m de large, regarde devant, fait le tour
+// du regard à l'arrêt, puis avance de 5 m. La diagonale sort du monde des deux côtés : le repère des deux premières étapes se
+// replie sur le cap. `etapeDevant` : une troisième étape, au bout des 5 m, dont la voiture prend la place devant.
+function tourAuMilieu(etapeDevant) {
+  const chemin = trajet(4, 40, -90).droit(5).fin();
+  return preparerScene({
+    code: "essai", monde: { largeur: 8, hauteur: 60 }, camera: { largeur: 8, hauteur: 46 }, decor: { panneaux: [], marquages: [], obstacles: [] },
+    acteurs: [{ id: "eleve", role: "eleve", gabarit: "voiture", chemin, profil: [{ s: 0, kmh: 0, pause: 5 }, { s: 5, kmh: 5 }] }],
+    etapes: [{ s: 0, regard: { angle: 0 } }, { s: 0, delai: 1, regard: { tour: true } }, ...(etapeDevant ? [{ s: 5, regard: { angle: 0 } }] : [])],
+  });
+}
+
+test("reperesEtapes : le repère d'une étape où le regard fait le tour se pose sur la diagonale à 45 degrés du cap, hors des quatre cônes du tour figé, ou sur le cap si toute la diagonale est prise, chaque fois à la première place libre", () => {
+  let tours = 0;   // au moins une scène du registre exerce ce test
   for (const [code, sc] of scenes()) {
     const reperes = reperesEtapes(sc);
-    const voitures = sc.etapes.map((et) => emprise(sc.eleve.gabarit, etatActeur(sc.eleve, et.t)));
-    const decor = [...sc.decor.panneaux.map(dessinPanneau), ...lignesCedez(sc).map(bande)];
-    reperes.forEach((r, i) => {
-      const tour = r.numeros.map((n) => sc.etapes[n - 1]).find((et) => et.regard && et.regard.tour);
-      if (!tour) return;
+    assert.deepEqual(fautesReperesTour(sc, reperes), [], code);
+    for (const r of reperes.filter((x) => x.numeros.some((n) => sc.etapes[n - 1].regard && sc.etapes[n - 1].regard.tour))) {
       tours++;
-      const nom = `${code} : repère ${r.numeros.join("·")}`;
-      const premier = etatActeur(sc.eleve, sc.etapes[r.numeros[0] - 1].t), vue = etatActeur(sc.eleve, tour.t);
-      const cones = conesTour(vue.cap, oeil(vue));
-      // Diagonale devant à droite : (cos (cap + 45) ; sin (cap + 45)), l'axe y de l'écran allant vers le bas ; derrière à
-      // gauche, la direction opposée. Distance au centre de la voiture bornée comme sur la perpendiculaire.
-      const a = premier.cap + 45 * DEG, nx = Math.cos(a), ny = Math.sin(a);
-      const d0 = GABARITS.voiture.largeur / 2 + JEU_REPERE_VOITURE + demiLargeurRepere(r.numeros) * Math.abs(nx) + RAYON_REPERE * Math.abs(ny);
-      proche((r.x - premier.x) * ny - (r.y - premier.y) * nx, 0, 1e-9, `${nom}, hors de la diagonale`);
-      const d = (r.x - premier.x) * nx + (r.y - premier.y) * ny;
-      assert.ok(Math.abs(d) >= d0 - 1e-9 && Math.abs(d) <= d0 + ALLONGEMENT_MAX_REPERE + 1e-9, `${nom}, à ${d.toFixed(2)} m du centre de la voiture`);
-      for (const c of cones) assert.ok(!polygonesSeChevauchent(boiteRepere(r), c), `${nom}, sur un cône du tour figé`);
-      // Au plus près devant à droite, sauf si cette place est prise : hors du monde, sur un cône du tour figé, un panneau,
-      // une ligne de cédez-le-passage, la voiture de l'élève au début d'une étape ou un repère déjà posé.
-      if (Math.abs(d - d0) > 1e-9) {
-        const auPlusPres = boiteRepere({ x: premier.x + d0 * nx, y: premier.y + d0 * ny, numeros: r.numeros });
-        const horsDuMonde = auPlusPres.some(([x, y]) => x < 0 || x > sc.monde.largeur || y < 0 || y > sc.monde.hauteur);
-        const obstacles = [...cones, ...decor, ...voitures, ...reperes.slice(0, i).map(boiteRepere)];
-        assert.ok(horsDuMonde || obstacles.some((o) => polygonesSeChevauchent(auPlusPres, o)), `${nom}, écarté alors que sa place devant à droite était libre`);
-      }
+      const premier = etatActeur(sc.eleve, sc.etapes[r.numeros[0] - 1].t);
       for (const n of r.numeros) {
         const e = etatActeur(sc.eleve, sc.etapes[n - 1].t);
         assert.ok(Math.hypot(e.x - premier.x, e.y - premier.y) < ECART_REPERES, `${code} : étape ${n} trop loin de son repère`);
       }
-    });
+    }
   }
   assert.ok(tours > 0, "aucun repère ne porte d'étape de tour : le cas n'est pas exercé");
-  // Marche arrière : devant à droite, la place sort de la rue ; le repère des étapes 1 à 3 passe derrière à gauche.
+  // Marche arrière : devant à droite, la diagonale sort de la rue ; le repère des étapes 1 à 3 passe derrière à gauche, sur la
+  // diagonale.
   const sc = preparerScene(SCENES["marche-arriere"].construire());
-  const r = reperesEtapes(sc).find((x) => x.numeros.includes(2)), e = etatActeur(sc.eleve, 0);
+  const { r, e } = repereDuTour(sc, reperesEtapes(sc));
   assert.deepEqual(r.numeros, [1, 2, 3]);
   assert.ok(r.x < e.x && r.y > e.y, "derrière à gauche de la voiture");
+  proche(r.x - e.x, -(r.y - e.y), 1e-9, "sur la diagonale");
+});
+
+test("reperesEtapes : toute la diagonale prise, le repère du tour se replie sur le cap : devant, contre la voiture, ou derrière si la voiture d'une autre étape prend la place devant", () => {
+  const { longueur: L } = GABARITS.voiture;
+  for (const [etapeDevant, sens, ou] of [[false, 1, "devant"], [true, -1, "derrière"]]) {
+    const sc = tourAuMilieu(etapeDevant), reperes = reperesEtapes(sc);
+    assert.deepEqual(fautesReperesTour(sc, reperes), [], ou);
+    const { r, e } = repereDuTour(sc, reperes);
+    assert.deepEqual(r.numeros, [1, 2], ou);
+    // Sur le cap, au plus près : JEU_REPERE_VOITURE entre le pare-chocs et le repère.
+    proche(r.x, e.x, 1e-9, `${ou} : sur le cap`);
+    proche(sens * (e.y - r.y), L / 2 + JEU_REPERE_VOITURE + RAYON_REPERE, 1e-9, `${ou} : au plus près`);
+    // Le critère des cônes tient : devant, le repère ne couvre que le début du cône avant.
+    assert.deepEqual(conesTourMasques(sc, reperes), [], ou);
+  }
+});
+
+test("reperesEtapes : la règle du repère d'un tour mord : sur le cap alors que la diagonale a une place libre, derrière alors que la place devant est libre, ou sur une diagonale qui sort du monde, il est refusé", () => {
+  const replacer = (sc, reperes, dx, dy) => {
+    const { k, e } = repereDuTour(sc, reperes);
+    return reperes.map((x, i) => (i === k ? { ...x, x: e.x + dx, y: e.y + dy } : x));
+  };
+  const L = GABARITS.voiture.longueur;
+  // Marche arrière : le repère 1·2·3 posé devant la voiture, sur le cap, alors que la diagonale derrière à gauche est libre.
+  const ma = preparerScene(SCENES["marche-arriere"].construire());
+  const d = L / 2 + JEU_REPERE_VOITURE + RAYON_REPERE;
+  assert.deepEqual(fautesReperesTour(ma, replacer(ma, reperesEtapes(ma), 0, -d)),
+    ["repère 1·2·3 : sur le cap alors que la diagonale avait une place libre"]);
+  // Scène d'essai, la place devant libre : le repère posé derrière, puis sur la diagonale devant à droite, qui sort du monde.
+  const sc = tourAuMilieu(false);
+  assert.deepEqual(fautesReperesTour(sc, replacer(sc, reperesEtapes(sc), 0, d)),
+    ["repère 1·2 : sur le cap, écarté alors qu'une place plus proche était libre"]);
+  const d0 = (L / 2 + GABARITS.voiture.largeur / 2) * Math.SQRT1_2 + JEU_REPERE_VOITURE + (demiLargeurRepere([1, 2]) + RAYON_REPERE) * Math.SQRT1_2;
+  assert.deepEqual(fautesReperesTour(sc, replacer(sc, reperesEtapes(sc), d0 * Math.SQRT1_2, -d0 * Math.SQRT1_2)),
+    ["repère 1·2 : sur la diagonale, à une place prise"]);
 });
 
 // Abscisses t (m, depuis le point o, le long de la direction unitaire u) où le point o + t u est dans le rectangle de
@@ -387,13 +473,14 @@ function traversee(o, u, { cx, cy, angle = 0, hx, hy }) {
   return t0 <= t1 ? [t0, t1] : null;
 }
 
-// Critère : sur l'image figée d'un tour du regard (animations réduites), chaque cône part de l'œil du conducteur, et c'est
-// en le voyant sortir de la voiture dans une direction qu'on y lit un regard. Le long de l'axe de chaque cône, on mesure ce
-// que le cadre réduit en montre hors de la voiture de l'élève (dessinée par-dessus le regard) : de la carrosserie jusqu'au
-// bord du cadre, ou jusqu'au bord lointain du cône. La moitié de cette longueur la plus proche de la voiture ne doit croiser
-// aucun repère (dessinés, eux aussi, par-dessus le regard). Un repère posé contre la voiture, sur l'axe d'un cône, couperait
-// de la voiture ce qu'on voit encore de ce cône ; un repère qui en couvrirait la plus grande partie le ferait paraître
-// oublié, et le tour se lirait en trois cônes. Rend la liste des fautes, [] quand chaque cône de chaque tour figé y satisfait.
+// Critère : sur l'image figée d'un tour du regard (animations réduites), chaque cône garde une partie visible hors des
+// repères. Le long de l'axe de chaque cône, on mesure ce que le cadre réduit en montre hors de la voiture de l'élève, dessinée
+// par-dessus le regard : de la carrosserie jusqu'au bord du cadre, ou jusqu'au bord lointain du cône. Les repères, dessinés eux
+// aussi par-dessus le regard, n'en couvrent jamais plus de la moitié : un repère qui couvrirait la plus grande partie d'un cône
+// le ferait paraître oublié, et le tour se lirait en trois cônes. Posé contre la voiture, devant elle (repli de la règle de
+// placement), un repère ne couvre que le début du cône avant. Les repères ne se chevauchent pas (test plus haut), leurs
+// traversées d'un axe non plus : leurs longueurs s'ajoutent. Rend la liste des fautes, [] quand chaque cône de chaque tour figé
+// y satisfait.
 function conesTourMasques(sc, reperes) {
   const cadre = cadreReduit(sc), fautes = [];
   const boutAxe = REGARD_PORTEE * Math.cos(REGARD_OUVERTURE * DEG);   // de l'œil au bord lointain du cône, sur son axe
@@ -410,20 +497,20 @@ function conesTourMasques(sc, reperes) {
         fautes.push(`${nom} : le cadre réduit n'en montre rien hors de la voiture`);
         continue;
       }
-      const moitie = debut + (fin - debut) / 2;
+      let couvert = 0;
       for (const r of reperes) {
         const t = traversee(o, u, { cx: r.x, cy: r.y, hx: demiLargeurRepere(r.numeros), hy: RAYON_REPERE });
-        if (t && t[1] > debut && t[0] < moitie) {
-          fautes.push(`${nom} : le repère ${r.numeros.join("·")} couvre son axe à ${(Math.max(t[0], debut) - debut).toFixed(2)} m de la voiture `
-            + `(${(fin - debut).toFixed(2)} m d'axe montrés)`);
-        }
+        if (t) couvert += Math.max(0, Math.min(t[1], fin) - Math.max(t[0], debut));
+      }
+      if (couvert > (fin - debut) / 2) {
+        fautes.push(`${nom} : les repères en couvrent ${couvert.toFixed(2)} m sur ${(fin - debut).toFixed(2)} m d'axe montrés`);
       }
     }
   });
   return fautes;
 }
 
-test("reperesEtapes : sur l'image figée d'un tour du regard, aucun repère ne couvre la moitié de l'axe d'un cône la plus proche de la voiture, dans le cadre réduit", () => {
+test("reperesEtapes : sur l'image figée d'un tour du regard, les repères ne couvrent jamais plus de la moitié de ce que le cadre réduit montre de l'axe d'un cône", () => {
   let tours = 0;   // au moins une scène du registre exerce ce test
   for (const [code, sc] of scenes()) {
     tours += sc.etapes.filter((et) => et.regard && et.regard.tour).length;
@@ -432,24 +519,21 @@ test("reperesEtapes : sur l'image figée d'un tour du regard, aucun repère ne c
   assert.ok(tours > 0, "aucune scène n'a de tour du regard : le test ne vérifie rien");
 });
 
-test("reperesEtapes : le critère mord : le repère d'un tour posé comme celui d'une autre étape, sur la perpendiculaire au cap, couvre le départ d'un cône latéral, à gauche (place de la règle ordinaire dans cette rue) comme à droite", () => {
+test("reperesEtapes : le critère des cônes mord : le repère du tour posé contre le flanc droit, sur la perpendiculaire au cap, couvre la plus grande partie du cône à droite ; le seuil est la moitié de l'axe montré", () => {
   const sc = preparerScene(SCENES["marche-arriere"].construire());
-  const reperes = reperesEtapes(sc);
-  const k = reperes.findIndex((r) => r.numeros.some((n) => sc.etapes[n - 1].regard && sc.etapes[n - 1].regard.tour));
-  assert.ok(k >= 0, "un repère porte le tour du regard");
-  const r = reperes[k], e = etatActeur(sc.eleve, sc.etapes[r.numeros[0] - 1].t);
-  // Règle ordinaire : sur la perpendiculaire au cap, au plus près, à JEU_REPERE_VOITURE du flanc ; à droite, la place sort
-  // ici de la rue, le repère passe donc à gauche.
+  const reperes = reperesEtapes(sc), { k, r, e } = repereDuTour(sc, reperes);
+  // Règle ordinaire : sur la perpendiculaire au cap, au plus près à droite, à JEU_REPERE_VOITURE du flanc.
   const nx = -Math.sin(e.cap), ny = Math.cos(e.cap);
   const d0 = GABARITS.voiture.largeur / 2 + JEU_REPERE_VOITURE + demiLargeurRepere(r.numeros) * Math.abs(nx) + RAYON_REPERE * Math.abs(ny);
-  assert.ok(boiteRepere({ x: e.x + d0 * nx, y: e.y + d0 * ny, numeros: r.numeros }).some(([x]) => x > sc.monde.largeur),
-    "à droite, la place de la règle ordinaire sort du monde");
-  for (const [sens, dir] of [[-1, -90], [1, 90]]) {
-    const sabote = reperes.map((x, i) => (i === k ? { ...x, x: e.x + sens * d0 * nx, y: e.y + sens * d0 * ny } : x));
-    const fautes = conesTourMasques(sc, sabote);
-    assert.equal(fautes.length, 1, fautes.join("\n"));
-    assert.match(fautes[0], new RegExp(`^étape 2, cône à ${dir} degrés : le repère 1·2·3 couvre son axe à 0\\.30 m de la voiture`));
-  }
+  const sabote = reperes.map((x, i) => (i === k ? { ...x, x: e.x + d0 * nx, y: e.y + d0 * ny } : x));
+  assert.deepEqual(conesTourMasques(sc, sabote), ["étape 2, cône à 90 degrés : les repères en couvrent 4.00 m sur 4.30 m d'axe montrés"]);
+  // Seuil : dans la scène d'essai, le cadre montre 3,10 m de l'axe du cône à gauche, du flanc au bord du monde. Un repère d'un
+  // seul numéro posé sur cet axe, contre le bord, qui en couvre 1,60 m (plus de la moitié), est refusé ; 1,50 m, accepté.
+  const essai = tourAuMilieu(false), reperesEssai = reperesEtapes(essai), y = oeil(etatActeur(essai.eleve, essai.etapes[1].t)).y;
+  const disque = (couvre) => ({ x: couvre - RAYON_REPERE, y, numeros: [9] });
+  assert.deepEqual(conesTourMasques(essai, [...reperesEssai, disque(1.6)]),
+    ["étape 2, cône à -90 degrés : les repères en couvrent 1.60 m sur 3.10 m d'axe montrés"]);
+  assert.deepEqual(conesTourMasques(essai, [...reperesEssai, disque(1.5)]), []);
 });
 
 test("demiLargeurRepere : un disque pour un seul numéro, une pastille qui contient tout le texte quand des étapes partagent un repère", () => {
