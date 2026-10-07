@@ -1,8 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { DEG, pointDansPolygone } from "../js/scene-geometrie.js";
-import { REGARD_MAX_SUIVI, REGARD_PORTEE, REGARD_OUVERTURE, REGARD_DUREE_TOUR_MIN, DEBORD_SUIVI, oeil, angleRegard, cibleSuivie,
-  coneRegard, regardContient, longueurCone, secteurBalayage, secteurTour, etapeBornee, regardDessine } from "../js/scene-regard.js";
+import { DEG, pointDansPolygone, trajet, preparerScene, etatActeur } from "../js/scene-geometrie.js";
+import { REGARD_MAX_SUIVI, REGARD_PORTEE, REGARD_OUVERTURE, REGARD_DUREE_TOUR_MIN, DIRECTIONS_TOUR_FIGE, DEBORD_SUIVI, oeil,
+  angleRegard, cibleSuivie, coneRegard, regardContient, longueurCone, secteurBalayage, conesTour, regardDessine } from "../js/scene-regard.js";
 
 const proche = (a, b, eps = 1e-9) => assert.ok(Math.abs(a - b) <= eps, `${a} au lieu de ${b}`);
 // Écart signé (degrés) de l'angle a à l'angle b (radians), ramené dans ]-180 ; 180].
@@ -274,7 +274,7 @@ test("regardDessine : sur une image figée, un balayage montre le secteur balay�
 
 // ===== Tour du regard : contrôles tout autour avant une marche arrière (plan 2, tâche 3) =====
 
-// Étape dont le regard fait le tour, de `debut` à `fin` (s) : bornée, comme le moteur la passe (etapeBornee).
+// Étape dont le regard fait le tour, de `debut` à `fin` (s) : bornée comme les étapes que prépare preparerScene.
 const tour = (debut, fin) => ({ s: 0, t: debut, fin, regard: { tour: true } });
 // Angle du regard par rapport au cap (degrés), sans le ramener dans un intervalle : -270 et 90 ne s'y confondent pas.
 const relatifBrut = (et, e, t) => (angleRegard(et, e, t, sans) - e.cap) / DEG;
@@ -318,10 +318,10 @@ test("tour : l'angle reste borné à l'étape : devant à son début (l'étape c
   proche(relatifBrut(et, n, 9.4), -360, 1e-12);
 });
 
-test("tour : une étape sans fin, ou qui ne dure pas, est refusée par un message qui dit comment la borner", () => {
+test("tour : une étape sans fin (construite à la main), ou qui ne dure pas, est refusée par un message qui dit d'où vient la fin", () => {
   const n = voiture(-90);
-  assert.throws(() => angleRegard({ s: 0, t: 2, regard: { tour: true } }, n, 2, sans), /tour du regard.*etapeBornee/);
-  assert.throws(() => regardDessine({ s: 0, t: 2, regard: { tour: true } }, n, 2, sans), /tour du regard.*etapeBornee/);
+  assert.throws(() => angleRegard({ s: 0, t: 2, regard: { tour: true } }, n, 2, sans), /tour du regard.*preparerScene/);
+  assert.throws(() => regardDessine({ s: 0, t: 2, regard: { tour: true } }, n, 2, sans), /tour du regard.*preparerScene/);
   assert.throws(() => angleRegard(tour(2, 2), n, 2, sans), /tour du regard/);
   assert.throws(() => angleRegard(tour(2, 1.5), n, 2, sans), /tour du regard/);
 });
@@ -338,38 +338,35 @@ test("tour : le cône de toute la portée, sans usager suivi ; un balayage l'emp
   proche(ecartDeg(angleRegard(et({ balayage: true, tour: true }), n, 0.5, sans), n.cap), 75);
 });
 
-test("secteurTour : tout le tour de l'œil, le cercle de rayon REGARD_PORTEE, parcouru depuis le cap vers la gauche comme le regard", () => {
+test("conesTour : sur une image figée, un tour du regard se montre par quatre cônes ordinaires depuis l'œil : devant, à gauche, derrière, à droite", () => {
+  assert.deepEqual(DIRECTIONS_TOUR_FIGE, [0, -90, 180, 90]);
   for (const capDeg of [-90, 0, 37, -450]) {
     const e = voiture(capDeg), o = oeil(e);
-    const cercle = secteurTour(e.cap, o);
-    assert.ok(cercle.length >= 72, "cercle tracé par pas de 5 degrés au plus");
-    for (const p of cercle) proche(distance(o, p), REGARD_PORTEE);
-    proche(ecartDeg(direction(o, cercle[0]), e.cap), 0);
-    // D'un point au suivant, le dernier refermant le polygone sur le premier : vers la gauche, de 5 degrés au plus, un
-    // tour en tout.
-    let total = 0;
-    cercle.forEach((p, k) => {
-      const pas = ecartDeg(direction(o, cercle[(k + 1) % cercle.length]), direction(o, p));
-      assert.ok(pas < 0 && pas >= -5 - 1e-9, `cap ${capDeg} : pas de ${pas} degrés après le point ${k}`);
-      total += pas;
+    const cones = conesTour(e.cap, o);
+    assert.equal(cones.length, 4, `cap ${capDeg}`);
+    cones.forEach((cone, k) => {
+      const nom = `cap ${capDeg}, cône ${k + 1}`;
+      assert.deepEqual(cone, coneRegard(e.cap + DIRECTIONS_TOUR_FIGE[k] * DEG, o), nom);
+      // Géométrie d'un cône ordinaire : sommet à l'œil, pointes à REGARD_PORTEE, ouvert de 2 x REGARD_OUVERTURE degrés.
+      proche(cone[0][0], o.x); proche(cone[0][1], o.y);
+      for (const p of cone.slice(1)) proche(distance(o, p), REGARD_PORTEE);
+      proche(ecartDeg(direction(o, cone[2]), direction(o, cone[1])), 2 * REGARD_OUVERTURE);
+      // Axe : devant, 90 degrés à gauche, derrière, 90 degrés à droite (écart au cap attendu, mesuré à un tour près).
+      proche(ecartDeg(axe(o, cone), e.cap + [0, -90, 180, 90][k] * DEG), 0);
     });
-    proche(total, -360);
   }
 });
 
-test("secteurTour : c'est la réunion des cônes du tour, dont les pointes, sur son cercle, passent par toutes les directions autour de l'œil", () => {
-  const n = voiture(-90), o = oeil(n), et = tour(0, 4);
-  const directions = new Set();
-  for (let t = 0; t <= 4; t += 0.005) {
-    for (const p of coneRegard(angleRegard(et, n, t, sans), o).slice(1)) {
-      proche(distance(o, p), REGARD_PORTEE);
-      directions.add(Math.round(ecartDeg(direction(o, p), 0) + 180) % 360);
-    }
-  }
-  assert.equal(directions.size, 360, "pointes des cônes du tour, au degré près");
+test("conesTour : les quatre cônes de l'image figée sont ceux que la lecture montre au début du tour, puis au quart, à la moitié et aux trois quarts", () => {
+  const n = voiture(-90), o = oeil(n), et = tour(2, 6);
+  conesTour(n.cap, o).forEach((cone, k) => {
+    const enLecture = regardDessine(et, n, 2 + k, sans);   // 2, 3, 4 et 5 s : 0, 1/4, 1/2 et 3/4 d'un tour de 4 s
+    assert.equal(enLecture.forme, "cone");
+    cone.forEach(([x, y], j) => { proche(x, enLecture.poly[j][0]); proche(y, enLecture.poly[j][1]); });
+  });
 });
 
-test("regardDessine : un tour du regard, en lecture, le cône de toute la portée dans la direction d'angleRegard ; sur une image figée, tout le tour de l'œil (secteurTour)", () => {
+test("regardDessine : un tour du regard, en lecture, le cône de toute la portée dans la direction d'angleRegard ; sur une image figée, les quatre cônes de conesTour", () => {
   const n = voiture(-90), o = oeil(n), et = tour(2, 6);
   for (const t of [2, 3, 4.1, 5.5]) {
     const r = regardDessine(et, n, t, sans);
@@ -379,20 +376,26 @@ test("regardDessine : un tour du regard, en lecture, le cône de toute la porté
     proche(ecartDeg(axe(o, r.poly), angleRegard(et, n, t, sans)), 0);
   }
   const fige = regardDessine(et, n, 3, sans, true);
-  assert.equal(fige.forme, "secteur");
-  assert.deepEqual(fige.poly, secteurTour(n.cap, o));
-  // L'image figée montre tout le tour quel que soit l'instant, sans avoir besoin de la fin de l'étape.
+  assert.deepEqual(fige, { forme: "cones", polys: conesTour(n.cap, o) });
+  // L'image figée est la même quel que soit l'instant, et n'a pas besoin de la fin de l'étape.
   assert.deepEqual(regardDessine(et, n, 5.9, sans, true), fige);
   assert.deepEqual(regardDessine({ s: 0, t: 2, regard: { tour: true } }, n, 2, sans, true), fige);
 });
 
-test("etapeBornee : l'étape k d'une scène préparée, avec sa fin : le début de l'étape suivante, la fin de la scène pour la dernière", () => {
-  const sc = { duree: 21, etapes: [{ s: 0, t: 0, regard: { angle: 0 } }, { s: 6, t: 4.32, regard: { tour: true } },
-    { s: 6, t: 9.32, delai: 5, regard: { angle: 165 } }] };
-  assert.deepEqual(etapeBornee(sc, 0), { s: 0, t: 0, regard: { angle: 0 }, fin: 4.32 });
-  assert.deepEqual(etapeBornee(sc, 1), { s: 6, t: 4.32, regard: { tour: true }, fin: 9.32 });
-  assert.deepEqual(etapeBornee(sc, 2), { s: 6, t: 9.32, delai: 5, regard: { angle: 165 }, fin: 21 });
-  assert.equal(sc.etapes[1].fin, undefined, "l'étape de la scène n'est pas modifiée");
-  // Ainsi bornée, l'étape du tour se dessine : au quart de ses 5 s, la gauche.
-  proche(relatifBrut(etapeBornee(sc, 1), voiture(-90), 4.32 + 1.25), -90);
+test("tour : l'étape préparée porte sa fin (preparerScene), sur laquelle le tour se règle", () => {
+  // Avance de 4 m vers le nord, s'arrête 5 s au rebroussement (le tour), recule de 6 m au pas.
+  const sc = preparerScene({
+    code: "essai",
+    acteurs: [{ id: "eleve", role: "eleve", gabarit: "voiture", chemin: trajet(10, 30, -90).droit(4).inverser().droit(6).fin(),
+      profil: [{ s: 0, kmh: 0 }, { s: 1, kmh: 5 }, { s: 3, kmh: 5 }, { s: 4, kmh: 0, pause: 5 }, { s: 5, kmh: 4 }, { s: 10, kmh: 0 }] }],
+    etapes: [{ s: 0, regard: { angle: 0 } }, { s: 4, regard: { tour: true } }, { s: 4, delai: 5, regard: { angle: 165 } }],
+  });
+  const etTour = sc.etapes[1];
+  assert.equal(etTour.fin, sc.etapes[2].t);
+  proche(etTour.fin - etTour.t, 5);
+  // Au quart de ses 5 s, la gauche ; à la moitié, l'arrière.
+  for (const [part, attendu] of [[1 / 4, -90], [1 / 2, -180]]) {
+    const t = etTour.t + part * 5;
+    proche(relatifBrut(etTour, etatActeur(sc.eleve, t), t), attendu);
+  }
 });

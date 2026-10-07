@@ -53,6 +53,23 @@ test("TEINTES : les feux de recul sont blancs et se lisent sur la chaussée comm
   assert.ok(Math.max(...canaux) - Math.min(...canaux) <= 16, "blancs : sans dominante de couleur");
 });
 
+// Voitures autres que celle de l'élève qui reculent dans la scène `def` : un segment de leur trajet est parcouru en marche
+// arrière (la marche se lit sur les segments, comme dans pointA).
+const autresQuiReculent = (def) => def.acteurs
+  .filter((a) => a.role !== "eleve" && a.gabarit === "voiture" && a.chemin && a.chemin.segments.some((seg) => seg.arriere === true))
+  .map((a) => a.id);
+
+test("TEINTES : sur la carrosserie grise des autres voitures, les feux de recul n'ont que 2,96:1 (sous 3:1), ce qui est accepté tant que seule la voiture de l'élève recule", () => {
+  proche(contraste(TEINTES.recul, TEINTES.autre), 2.96, 0.005, "feux de recul sur la carrosserie grise");
+  for (const [code, entree] of Object.entries(SCENES)) {
+    assert.deepEqual(autresQuiReculent(entree.construire()), [], `${code} : une autre voiture que celle de l'élève recule`);
+  }
+  // Le contrôle mord : la voiture d'en face de tourner-gauche, mise en marche arrière, est signalée.
+  const def = structuredClone(SCENES["tourner-gauche"].construire());
+  def.acteurs.find((a) => a.id === "enFace").chemin.segments[0].arriere = true;
+  assert.deepEqual(autresQuiReculent(def), ["enFace"]);
+});
+
 // ===== Clignotant =====
 
 test("clignotantAllume : en lecture, 1,5 Hz, allumé la première moitié de chaque période, comptée depuis l'allumage du clignotant", () => {
@@ -124,7 +141,7 @@ test("scènes, en lecture : chaque clignotant de chaque acteur éclaire dès qu'
           // Étape en cours quand le clignotant s'allume, comme dans le moteur : la dernière commencée.
           let n = 0;
           sc.etapes.forEach((et, i) => { if (tAllume + 1e-9 >= et.t) n = i; });
-          const debut = sc.etapes[n].t, fin = n + 1 < sc.etapes.length ? sc.etapes[n + 1].t : sc.duree;
+          const { t: debut, fin } = sc.etapes[n];
           assert.ok(premier >= debut - 0.001 && premier < fin, `${nom} : premier éclat à t = ${premier.toFixed(3)} s, hors de l'étape ${n + 1}`);
         }
         verifies++;
@@ -377,14 +394,15 @@ test("cadreReduit : au moins la hauteur de la caméra, centré sur ce qu'il mont
 
 // ===== Regard sur les images figées =====
 
-test("scènes, images figées : le regard de chaque étape est dessiné, un cône pour un angle ou un usager suivi, le secteur parcouru pour un balayage ou un tour du regard", () => {
+test("scènes, images figées : le regard de chaque étape est dessiné, un cône pour un angle ou un usager suivi, le secteur parcouru pour un balayage, quatre cônes pour un tour du regard", () => {
   for (const [code, sc] of scenes()) {
     sc.etapes.forEach((et, i) => {
       const e = etatActeur(sc.eleve, et.t);
       const r = regardDessine(et, e, et.t, etatsA(sc, et.t), true);
       if (!et.regard) { assert.equal(r, null); return; }
       assert.ok(r, `${code}, étape ${i + 1} : pas de regard sur l'image figée`);
-      assert.equal(r.forme, et.regard.balayage || et.regard.tour ? "secteur" : "cone", `${code}, étape ${i + 1}`);
+      assert.equal(r.forme, et.regard.balayage ? "secteur" : et.regard.tour ? "cones" : "cone", `${code}, étape ${i + 1}`);
+      if (r.forme === "cones") assert.equal(r.polys.length, 4, `${code}, étape ${i + 1} : quatre cônes`);
     });
   }
 });
@@ -392,10 +410,9 @@ test("scènes, images figées : le regard de chaque étape est dessiné, un côn
 test("scènes : le cône d'un usager suivi s'arrête 2 m au-delà de lui ; ramené devant, il reprend toute la portée", () => {
   let ramene = 0;
   for (const [code, sc] of scenes()) {
-    sc.etapes.forEach((et, i) => {
+    sc.etapes.forEach((et) => {
       if (!(et.regard && et.regard.suivre)) return;
-      const fin = i + 1 < sc.etapes.length ? sc.etapes[i + 1].t : sc.duree;
-      for (let t = et.t; t < fin; t += 0.05) {
+      for (let t = et.t; t < et.fin; t += 0.05) {
         const etats = etatsA(sc, t), e = etats.get(sc.eleve.id), o = oeil(e);
         const r = regardDessine(et, e, t, etats), cible = cibleSuivie(et, e, etats);
         const attendu = cible ? Math.min(REGARD_PORTEE, Math.hypot(cible.x - o.x, cible.y - o.y) + DEBORD_SUIVI) : REGARD_PORTEE;

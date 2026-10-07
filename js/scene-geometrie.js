@@ -426,7 +426,7 @@ export function polygonesSeChevauchent(A, B) {
 // ===== Scène préparée =====
 
 /**
- * Calcule les chronologies des acteurs et l'instant de chaque étape. Refuse une
+ * Calcule les chronologies des acteurs et les bornes de chaque étape, `t` et `fin`. Refuse une
  * `apparition` autre que « debut » ou « depart » (ou absente), et un `delai` ou un
  * `delaiFin` de clignotant qui n'est pas un nombre fini de secondes, positif ou nul (voir
  * etatActeur).
@@ -451,9 +451,12 @@ export function preparerScene(def) {
   });
   const eleve = acteurs.find((a) => a.role === "eleve");
   if (!eleve || !eleve.chrono) throw new Error(`scène ${def.code} : un acteur mobile de rôle « eleve » est requis`);
-  const etapes = def.etapes.map((e) => ({ ...e, t: tempsAtteint(eleve.chrono, e.s) + (e.delai || 0) }));
-  const fin = Math.max(...acteurs.filter((a) => a.chrono).map((a) => a.chrono.duree));
-  return { ...def, acteurs, eleve, etapes, duree: fin + (def.finPause ?? 1) };
+  const debuts = def.etapes.map((e) => tempsAtteint(eleve.chrono, e.s) + (e.delai || 0));
+  const duree = Math.max(...acteurs.filter((a) => a.chrono).map((a) => a.chrono.duree)) + (def.finPause ?? 1);
+  // Bornes de chaque étape : son instant `t`, et sa fin `fin`, l'instant de l'étape suivante ou, pour la dernière, la fin
+  // de la scène. Un regard qui fait le tour se règle sur elles (js/scene-regard.js).
+  const etapes = def.etapes.map((e, i) => ({ ...e, t: debuts[i], fin: i + 1 < debuts.length ? debuts[i + 1] : duree }));
+  return { ...def, acteurs, eleve, etapes, duree };
 }
 
 /**
