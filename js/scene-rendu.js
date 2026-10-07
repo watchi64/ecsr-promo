@@ -8,7 +8,7 @@
  * et les tests (tests/scene-rendu.test.mjs) les vérifient sur les scènes du registre.
  * Le regard du conducteur, lui, est dans js/scene-regard.js.
  *
- * Teintes, clignotant, feux de recul, cadres, repères des étapes, panneaux, facteur de lecture,
+ * Teintes, clignotant, feux de recul, feux stop, cadres, repères des étapes, panneaux, facteur de lecture,
  * visibilité du schéma (quand la lecture démarre, quand elle s'interrompt).
  *
  * Toutes les valeurs ci-dessous sont des choix de dessin, sans portée réglementaire.
@@ -46,7 +46,7 @@ const CHASSE_REPERE = 0.75, JEU_REPERE = 0.3;
 /** Distance (m) en deçà de laquelle deux étapes partagent un repère. */
 export const ECART_REPERES = 1.5;
 /** Jeu (m) entre le flanc droit de la voiture de l'élève et le bord du repère de son étape, posé à sa droite : la voiture
- *  ne cache jamais un repère. */
+ *  ne cache jamais un repère. Un repère garde le même jeu autour d'un acteur posé (reperesEtapes). */
 export const JEU_REPERE_VOITURE = 0.3;
 /** Pas (m) dont un repère s'écarte de la voiture quand sa place est prise, et écart supplémentaire maximal (m) à droite du
  *  cap : au-delà, le repère passe à gauche. */
@@ -79,6 +79,22 @@ export function feuxDeRecul(e) {
   return e.marche === "arriere";
 }
 
+/** Feux stop : décélération (m/s²) au-delà de laquelle le véhicule freine, et vitesse (m/s) sous laquelle il est à
+ *  l'arrêt, le pied sur le frein. */
+export const FEUX_STOP = { deceleration: 0.3, arret: 0.05 };
+
+/**
+ * Feux stop d'un acteur dans l'état e (etatActeur) : allumés quand il freine (décélération de plus de
+ * FEUX_STOP.deceleration) ou qu'il est à l'arrêt (moins de FEUX_STOP.arret), le conducteur gardant le pied sur le frein,
+ * un acteur posé qui attend compris (cédez-le-passage, feu). Éteints pour une voiture en stationnement, acteur posé
+ * marqué `stationne: true` : personne ne freine. La règle ne dépend que de l'acteur et de son état : la même en lecture
+ * et sur une image figée.
+ */
+export function feuxStop(acteur, e) {
+  if (acteur.pose && acteur.stationne === true) return false;
+  return e.a < -FEUX_STOP.deceleration || e.v < FEUX_STOP.arret;
+}
+
 /** Cadre de la caméra en lecture, { x, y, largeur, hauteur } (m) : centré sur l'élève dans l'état e, borné au monde.
  *  Sans caméra, le monde entier. */
 export function cadreCamera(sc, e) {
@@ -94,6 +110,14 @@ function boiteRepere(r) {
   return rectangle(r.x - d, r.y - RAYON_REPERE, r.x + d, r.y + RAYON_REPERE);
 }
 
+// Emprise d'un acteur posé élargie de `jeu` m de chaque côté : rectangle de même centre et de même cap.
+function empriseElargie(acteur, jeu) {
+  const e = etatActeur(acteur, 0), { longueur: L, largeur: W } = GABARITS[acteur.gabarit];
+  const c = Math.cos(e.cap), s = Math.sin(e.cap);
+  return [[L / 2 + jeu, -W / 2 - jeu], [L / 2 + jeu, W / 2 + jeu], [-L / 2 - jeu, W / 2 + jeu], [-L / 2 - jeu, -W / 2 - jeu]]
+    .map(([u, v]) => [e.x + u * c - v * s, e.y + u * s + v * c]);
+}
+
 // Bande d'une ligne de marquage : rectangle de la largeur de la ligne, de m.de à m.a.
 function bandeLigne(m) {
   const [x0, y0] = m.de, [x1, y1] = m.a, l = Math.hypot(x1 - x0, y1 - y0);
@@ -106,9 +130,9 @@ function bandeLigne(m) {
  * perpendiculaire à son cap (celui de sa première étape). Il se pose à droite, au plus près : à la distance qui laisse
  * JEU_REPERE_VOITURE entre le flanc de la voiture et le bord du repère, quel que soit le cap (le disque ou la pastille
  * n'est pas tourné). Si cette place est prise (dessin d'un panneau, ligne de cédez-le-passage, voiture de l'élève au début
- * d'une étape, repère déjà posé) ou hors du monde, il s'écarte par pas de PAS_REPERE, jusqu'à ALLONGEMENT_MAX_REPERE plus
- * loin, puis essaie de même à gauche du cap. Une étape qui commence à moins de ECART_REPERES m de la position d'un repère
- * déjà posé le partage (numéros joints par un point médian).
+ * d'une étape, acteur posé avec JEU_REPERE_VOITURE autour de lui, repère déjà posé) ou hors du monde, il s'écarte par pas
+ * de PAS_REPERE, jusqu'à ALLONGEMENT_MAX_REPERE plus loin, puis essaie de même à gauche du cap. Une étape qui commence à
+ * moins de ECART_REPERES m de la position d'un repère déjà posé le partage (numéros joints par un point médian).
  */
 export function reperesEtapes(sc) {
   const groupes = [];
@@ -122,6 +146,10 @@ export function reperesEtapes(sc) {
     if (m.type === "ligne" && typeof m.role === "string" && m.role.startsWith("cedez-")) obstacles.push(bandeLigne(m));
   }
   for (const et of sc.etapes) obstacles.push(emprise(sc.eleve.gabarit, etatActeur(sc.eleve, et.t)));
+  // Un acteur posé (voiture garée, véhicule qui attend) est dessiné au même endroit sur toute image, par-dessus les repères :
+  // un repère garde autour de lui le jeu qu'il garde autour de la voiture de l'élève, sans quoi il se lirait comme le
+  // désignant.
+  for (const a of sc.acteurs) if (a.pose) obstacles.push(empriseElargie(a, JEU_REPERE_VOITURE));
   const libre = (r) => {
     const b = boiteRepere(r);
     const dansLeMonde = b.every(([x, y]) => x >= 0 && x <= sc.monde.largeur && y >= 0 && y <= sc.monde.hauteur);
@@ -154,7 +182,8 @@ export function demiLargeurRepere(numeros) {
 
 /**
  * Cadre fixe des animations réduites, { x, y, largeur, hauteur } (m). Il montre, à MARGE_CADRE_REDUIT près : tous les
- * repères (disques et pastilles compris), le dessin entier de chaque panneau, la voiture de l'élève au début de chaque étape et chaque usager suivi des yeux au début de
+ * repères (disques et pastilles compris), le dessin entier de chaque panneau, chaque acteur posé (voiture garée, véhicule qui
+ * attend : dessiné au même endroit sur toute image), la voiture de l'élève au début de chaque étape et chaque usager suivi des yeux au début de
  * l'étape qui le suit. Largeur de la caméra (même échelle qu'en lecture), hauteur au moins celle de la caméra, cadre
  * centré sur ce qu'il montre puis borné au monde. Sans caméra, le monde entier.
  */
@@ -170,6 +199,7 @@ export function cadreReduit(sc) {
     const r = emprisePanneau(p);
     points.push([r.x, r.y], [r.x + r.largeur, r.y + r.hauteur]);
   }
+  for (const a of sc.acteurs) if (a.pose) points.push(...emprise(a.gabarit, etatActeur(a, 0)));
   for (const et of sc.etapes) {
     points.push(...emprise(sc.eleve.gabarit, etatActeur(sc.eleve, et.t)));
     const suivi = et.regard && et.regard.suivre && sc.acteurs.find((a) => a.id === et.regard.suivre);

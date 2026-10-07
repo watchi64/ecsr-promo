@@ -68,6 +68,13 @@ export const DESSIN = {
   // Flèche maximale (m) des cordes qui dessinent les arcs de la route en virages (bordures, voies, traits de
   // l'axiale) : la chaussée garde sa largeur à 2 mm près dans les virages. Choix de dessin, sans source.
   flecheArc: 0.002,
+
+  // Stationnement le long du trottoir droit de la rue (option stationnement de rue) : largeur de la bande, non marquée,
+  // et jeu entre le flanc droit d'une voiture garée et la bordure. Choix de dessin, à recopier dans les sources de la
+  // scène qui les emploie. Avec 2,0 m de bande, une voiture garée à 0,3 m du trottoir (1,8 m de large) déborde de 0,1 m
+  // sur la voie de droite et lui laisse 3,4 m : on la dépasse sans franchir l'axe.
+  largeurStationnement: 2.0,
+  jeuStationnement: 0.3,
 };
 
 // Distance du centre d'une voiture au bord du monde pour qu'elle soit entièrement hors du cadre :
@@ -348,15 +355,30 @@ function exigerLongueur(decor, nom, valeur) {
  * commence au bord bas du monde, et bordée d'un trottoir de chaque côté, sans ligne de rive (en milieu urbain, les
  * bordures de trottoir matérialisent généralement le bord de la chaussée : IISR 114-5). Le monde a `longueur` m de
  * haut et montre `largeurTrottoir` m de trottoir de chaque côté de la chaussée. Repères : abscisses (x) du bord droit,
- * de l'axe et du bord gauche de la chaussée, pour l'élève qui roule vers le nord ; sa voie est voies.droite.
+ * de l'axe et du bord gauche de la chaussée, pour l'élève qui roule vers le nord, et celle du bord droit de sa voie,
+ * voies.droite.
+ *
+ * Option `stationnement` (m, 0 par défaut) : une bande de stationnement le long du trottoir droit, non marquée, entre
+ * la voie de droite et la bordure (voies.stationnement). Les deux voies de circulation gardent DESSIN.voie et l'axiale
+ * reste au milieu d'elles : la bande élargit la chaussée vers la droite (DESSIN.largeurStationnement pour une scène).
+ * Sans bande, le bord droit de la voie de droite est la bordure.
  *
  * Les voitures en stationnement ne font pas partie du décor : ce sont des acteurs posés des scènes.
  */
-export function rue({ longueur, largeurTrottoir } = {}) {
+export function rue({ longueur, largeurTrottoir, stationnement = 0 } = {}) {
   exigerLongueur("rue", "longueur", longueur);
   exigerLongueur("rue", "largeurTrottoir", largeurTrottoir);
+  if (!(Number.isFinite(stationnement) && stationnement >= 0)) {
+    throw new Error(`rue : « stationnement » attend un nombre de mètres positif ou nul (reçu : ${String(stationnement)})`);
+  }
   const h = DESSIN.voie;
-  const xBordGauche = largeurTrottoir, xAxe = xBordGauche + h, xBordDroit = xAxe + h;
+  const xBordGauche = largeurTrottoir, xAxe = xBordGauche + h, xBordVoieDroite = xAxe + h;
+  const xBordDroit = xBordVoieDroite + stationnement;
+  const voies = {
+    droite: rectangle(xAxe, -LOIN, xBordVoieDroite, longueur + LOIN),    // vers le nord
+    gauche: rectangle(xBordGauche, -LOIN, xAxe, longueur + LOIN),        // vers le sud
+  };
+  if (stationnement > 0) voies.stationnement = rectangle(xBordVoieDroite, -LOIN, xBordDroit, longueur + LOIN);
   return {
     monde: { largeur: xBordDroit + largeurTrottoir, hauteur: longueur },
     obstacles: [
@@ -365,12 +387,9 @@ export function rue({ longueur, largeurTrottoir } = {}) {
     ],
     marquages: [axialeT1([xAxe, longueur], [xAxe, 0])],
     panneaux: [],
-    voies: {
-      droite: rectangle(xAxe, -LOIN, xBordDroit, longueur + LOIN),     // vers le nord
-      gauche: rectangle(xBordGauche, -LOIN, xAxe, longueur + LOIN),    // vers le sud
-    },
+    voies,
     zones: {},
-    reperes: { xBordDroit, xAxe, xBordGauche },
+    reperes: { xBordDroit, xBordVoieDroite, xAxe, xBordGauche },
   };
 }
 

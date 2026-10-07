@@ -454,7 +454,8 @@ function sceneEssai(d, chemin) {
 test("rue : chaussée de deux voies de 3,5 m entre deux trottoirs, orientée sud-nord ; repères du bord droit, de l'axe et du bord gauche", () => {
   const d = rue(RUE);
   assert.deepEqual(d.monde, { largeur: 4 + 2 * DESSIN.voie + 4, hauteur: 60 });
-  assert.deepEqual(d.reperes, { xBordDroit: 11, xAxe: 7.5, xBordGauche: 4 });
+  // Sans bande de stationnement, le bord droit de la voie de droite est la bordure du trottoir.
+  assert.deepEqual(d.reperes, { xBordDroit: 11, xBordVoieDroite: 11, xAxe: 7.5, xBordGauche: 4 });
   // L'élève roule vers le nord : sa voie, la voie de droite, est à l'est de l'axe ; chacune a 3,5 m de large.
   assert.deepEqual(etendue(d.voies.droite, 0), [7.5, 11]);
   assert.deepEqual(etendue(d.voies.gauche, 0), [4, 7.5]);
@@ -704,6 +705,87 @@ test("rue : une voiture qui roule au centre de la voie de droite, d'un bout à l
   assert.deepEqual(controlerScene(sceneEssai(d, chemin)), []);
 });
 
+// ===== Rue avec une bande de stationnement (plan 2, tâche 5 : décision du contrôleur de chantier) =====
+
+const RUE_STATIONNEMENT = { ...RUE, stationnement: DESSIN.largeurStationnement };
+
+test("DESSIN : bande de stationnement de 2,0 m et jeu de 0,3 m entre le flanc droit d'une voiture garée et le trottoir, choix de dessin nommés", () => {
+  assert.equal(DESSIN.largeurStationnement, 2.0);
+  assert.equal(DESSIN.jeuStationnement, 0.3);
+});
+
+test("rue avec stationnement : bande le long du trottoir droit ; les deux voies de circulation gardent 3,5 m et l'axiale reste au milieu d'elles, pas au milieu de la chaussée", () => {
+  for (const stationnement of [DESSIN.largeurStationnement, 2.5]) {
+    const d = rue({ ...RUE, stationnement }), nom = `bande de ${stationnement} m`;
+    assert.deepEqual(d.monde, { largeur: 4 + 2 * DESSIN.voie + stationnement + 4, hauteur: 60 }, nom);
+    assert.deepEqual(d.reperes, { xBordGauche: 4, xAxe: 7.5, xBordVoieDroite: 11, xBordDroit: 11 + stationnement }, nom);
+    // Voies de circulation de 3,5 m de part et d'autre de l'axe ; la bande, de la voie de droite à la bordure.
+    assert.deepEqual(etendue(d.voies.gauche, 0), [4, 7.5], nom);
+    assert.deepEqual(etendue(d.voies.droite, 0), [7.5, 11], nom);
+    assert.deepEqual(etendue(d.voies.stationnement, 0), [11, 11 + stationnement], nom);
+    for (const voie of Object.values(d.voies)) {
+      const [yMin, yMax] = etendue(voie, 1);
+      assert.ok(yMin < 0 && yMax > 60, `${nom} : chaque voie déborde du monde aux deux bouts`);
+    }
+    // Un seul marquage, l'axiale T'1 : la bande n'est pas marquée.
+    assert.equal(d.marquages.length, 1, nom);
+    const [m] = d.marquages;
+    assert.equal(m.type, "ligne");
+    assert.equal(m.largeur, 2 * IISR.u); assert.equal(m.trait, IISR.axialeAgglo.trait); assert.equal(m.vide, IISR.axialeAgglo.vide);
+    assert.deepEqual([m.de, m.a], [[7.5, 60], [7.5, 0]], nom);
+    const { xBordGauche, xBordVoieDroite, xBordDroit } = d.reperes;
+    proche(m.de[0] - xBordGauche, xBordVoieDroite - m.de[0], 1e-12, `${nom} : axiale au milieu des voies de circulation`);
+    assert.ok(xBordDroit - m.de[0] > m.de[0] - xBordGauche + 1, `${nom} : axiale décalée du milieu de la chaussée`);
+    assert.deepEqual(d.panneaux, []);
+    assert.deepEqual(d.zones, {});
+  }
+});
+
+test("rue avec stationnement : la bande est de la chaussée, le trottoir droit commence à son bord ; aucun trottoir sur la chaussée", () => {
+  const d = rue(RUE_STATIONNEMENT);
+  const { xBordGauche, xBordVoieDroite, xBordDroit } = d.reperes;
+  assert.equal(trottoirs(d).length, 2);
+  for (let y = 0; y <= 60; y += 0.5) {
+    for (let x = xBordGauche + 0.001; x < xBordDroit; x += 0.25) assert.ok(!surUnTrottoir(d, [x, y]), `(${x} ; ${y}) : trottoir sur la chaussée`);
+    for (const x of [xBordVoieDroite + 0.001, xBordDroit - 0.001]) assert.ok(!surUnTrottoir(d, [x, y]), `(${x} ; ${y}) : trottoir sur la bande`);
+    for (const x of [0, xBordGauche - 0.001, xBordDroit + 0.001, d.monde.largeur]) {
+      assert.ok(surUnTrottoir(d, [x, y]), `(${x} ; ${y}) : pas de trottoir au-delà de la bordure`);
+    }
+  }
+});
+
+test("rue sans stationnement (option absente ou nulle) : la rue de deux voies, le bord droit de la voie de droite sur la bordure, sans bande", () => {
+  for (const d of [rue(RUE), rue({ ...RUE, stationnement: 0 })]) {
+    assert.deepEqual(d.monde, { largeur: 4 + 2 * DESSIN.voie + 4, hauteur: 60 });
+    assert.equal(d.reperes.xBordVoieDroite, d.reperes.xBordDroit);
+    assert.deepEqual(Object.keys(d.voies).sort(), ["droite", "gauche"]);
+    assert.deepEqual(etendue(d.voies.droite, 0), [7.5, 11]);
+  }
+});
+
+test("rue : une bande de stationnement négative ou non numérique est refusée, avec son nom dans le message", () => {
+  for (const stationnement of [-0.5, NaN, Infinity, "2", null]) {
+    assert.throws(() => rue({ ...RUE, stationnement }),
+      new RegExp(`rue : « stationnement » attend un nombre de mètres positif ou nul \\(reçu : ${String(stationnement)}\\)`));
+  }
+});
+
+test("rue avec stationnement : une voiture garée à DESSIN.jeuStationnement du trottoir a son centre dans la bande ; une voiture au centre de la voie de droite la dépasse à 0,75 m, sans franchir l'axe ni la toucher", () => {
+  const d = rue(RUE_STATIONNEMENT);
+  const { xAxe, xBordDroit } = d.reperes;
+  const pose = { x: xBordDroit - DESSIN.jeuStationnement - DESSIN.demiLargeurVoiture, y: 30, cap: -90 };
+  const garee = { id: "garee", gabarit: "voiture", pose };
+  const empriseGaree = emprise("voiture", { x: pose.x, y: pose.y, cap: pose.cap * DEG });
+  proche(xBordDroit - etendue(empriseGaree, 0)[1], DESSIN.jeuStationnement, 1e-9, "flanc droit de la voiture garée");
+  assert.ok(pointDansPolygone([pose.x, pose.y], d.voies.stationnement), "centre de la voiture garée dans la bande");
+  // Bande de 2,0 m, voiture de 1,8 m à 0,3 m du trottoir : elle déborde de 0,1 m sur la voie de droite.
+  proche(xAxe + DESSIN.voie - etendue(empriseGaree, 0)[0], 0.1, 1e-9, "débord sur la voie de droite");
+  const chemin = trajet(xAxe + DESSIN.voie / 2, RUE.longueur - DESSIN.retraitBord, -90).droit(RUE.longueur - 2 * DESSIN.retraitBord).fin();
+  const essai = sceneEssai(d, chemin);
+  assert.deepEqual(controlerScene({ ...essai, acteurs: [...essai.acteurs, garee] }), []);
+  proche(etendue(empriseGaree, 0)[0] - etendue(emprise("voiture", pointA(chemin, 30)), 0)[1], 0.75, 1e-9, "écart entre les flancs");
+});
+
 test("routeVirages : paramètres refusés avec leur nom dans le message (longueurs, rayon, angle, décalage du trajet)", () => {
   assert.throws(() => routeVirages({ ...VIRAGES, approche: undefined }),
     /routeVirages : « approche » attend un nombre de mètres strictement positif \(reçu : undefined\)/);
@@ -729,6 +811,8 @@ test("rue et routeVirages : décors clonables par structuredClone, comme toute d
   // dans le décor ferait échouer cette copie.
   const r = rue(RUE);
   assert.deepEqual(structuredClone(r), r);
+  const s = rue(RUE_STATIONNEMENT);
+  assert.deepEqual(structuredClone(s), s);
   const d = routeVirages(VIRAGES);
   assert.deepEqual(structuredClone(d), d);
   assert.equal(typeof d.reperes.cheminAxeVoieDroite, "function");
