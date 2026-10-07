@@ -275,7 +275,7 @@ test("la limite d'un saut de vitesse est l'accélération de confort sur un pas 
   assert.deepEqual(part(1.2), ["autre : saut de vitesse de 1.2 km/h à t = 2.0 s"]);
 });
 
-test("les contrôles s'enchaînent dans l'ordre : étapes, trajectoires, rebroussements, entrées et sorties, clignotants, attentes", () => {
+test("les contrôles s'enchaînent dans l'ordre : étapes, trajectoires, marche arrière, entrées et sorties, clignotants, attentes", () => {
   // Un élève trop rapide qui vire sans clignotant, un véhicule qui attend puis part lancé (saut de vitesse), un
   // véhicule qui surgit dans le cadre, un livreur qui change de sens de marche sans s'arrêter puis recule trop vite,
   // des étapes à l'envers et une attente sur un acteur inconnu.
@@ -291,8 +291,8 @@ test("les contrôles s'enchaînent dans l'ordre : étapes, trajectoires, rebrous
   }));
   const groupes = [
     [/étape 2/],
-    [/dépasse 50 km\/h/, /accélération latérale/, /saut de vitesse/, /recule à/],
-    [/change de sens de marche/],
+    [/dépasse 50 km\/h/, /accélération latérale/, /saut de vitesse/],
+    [/recule à/, /change de sens de marche/],
     [/apparaît dans le cadre/, /image resterait figée/],
     [/clignotant droite attendu/],
     [/« fantome » inconnu/],
@@ -316,18 +316,40 @@ const finArc = (c) => c.segments[1].debut + c.segments[1].longueur;
 const clignotantJusqua = (c, profil, a) => controlerScene(scene([eleve(c, profil, { clignotant: [{ cote: "droite", de: 0, a }] })]));
 
 test("un clignotant coupé juste après l'entrée dans l'arc est refusé", () => {
-  // Éteint à s = 21 m (t = 5,04 s) : le premier dixième de seconde échantillonné sans lui est t = 5,1 s.
+  // Éteint une fois passé s = 21 m : l'instant qui suit cette extinction (t = 5,04 s) est contrôlé.
   const c = virageDroite();
   assert.deepEqual(clignotantJusqua(c, constant(c, 15), 21),
-    ["eleve : clignotant droite éteint pendant le changement de direction (t = 5.1 s)"]);
+    ["eleve : clignotant droite éteint pendant le changement de direction (t = 5.0 s)"]);
 });
 
 test("le clignotant doit tenir jusqu'au bout de l'arc : la fin de l'arc est un instant contrôlé", () => {
   const c = virageDroite();
   assert.deepEqual(clignotantJusqua(c, constant(c, 15), finArc(c)), []);
-  // Éteint 1 cm avant la fin de l'arc, entre deux dixièmes de seconde (8,5 s et la fin, 8,57 s).
+  // Éteint 1 cm avant la fin de l'arc, entre deux dixièmes de seconde (8,5 s et la fin, 8,57 s) : vu à l'instant qui
+  // suit l'extinction (8,567 s).
   assert.deepEqual(clignotantJusqua(c, constant(c, 15), finArc(c) - 0.01),
     ["eleve : clignotant droite éteint pendant le changement de direction (t = 8.6 s)"]);
+  // Un clignotant gauche qui l'emporte (premier du tableau) dans le dernier centimètre de l'arc, sans aucune extinction
+  // dans l'arc : seul l'instant de la fin de l'arc le voit.
+  assert.deepEqual(controlerScene(scene([eleve(c, constant(c, 15), { clignotant: [
+    { cote: "gauche", de: finArc(c) - 0.01, a: c.longueur }, { cote: "droite", de: 0, a: finArc(c) },
+  ] })])), [
+    "eleve : clignotant gauche pendant un virage à droite (t = 8.6 s)",
+    "eleve : clignotant droite éteint pendant le changement de direction (t = 8.6 s)",
+  ]);
+});
+
+test("une coupure de clignotant plus brève qu'un dixième de seconde, en plein arc, est refusée", () => {
+  // Le droit s'éteint en s = 25 m (t = 6 s, delaiFin: 0) ; un autre droit se rallume 0,05 s plus tard (delai) : entre deux
+  // dixièmes de seconde, mais l'instant qui suit l'extinction est contrôlé.
+  const c = virageDroite();
+  assert.deepEqual(controlerScene(scene([eleve(c, constant(c, 15), { clignotant: [
+    { cote: "droite", de: 0, a: 25, delaiFin: 0 }, { cote: "droite", de: 25, a: finArc(c), delai: 0.05 },
+  ] })])), ["eleve : clignotant droite éteint pendant le changement de direction (t = 6.0 s)"]);
+  // Sans coupure (rallumé à l'instant même de l'extinction) : accepté.
+  assert.deepEqual(controlerScene(scene([eleve(c, constant(c, 15), { clignotant: [
+    { cote: "droite", de: 0, a: 25, delaiFin: 0 }, { cote: "droite", de: 25, a: finArc(c), delai: 0 },
+  ] })])), []);
 });
 
 test("un arrêt dans l'arc ne dispense pas du clignotant : il reste allumé jusqu'à la fin de l'arc", () => {
@@ -371,10 +393,19 @@ test("après un rebroussement, l'allure de recul est contrôlée dès que la voi
     { s: 20 + (kmh * KMH) ** 2 / (2 * 2), kmh }, { s: 40, kmh }];
   // 6 km/h tenus en recul sont admis.
   assert.deepEqual(controlerScene(scene([eleve(c, profil(6))])), []);
-  // À 2 m/s² depuis t = 6 s, le recul passe 6 km/h entre t = 6,8 s (1,6 m/s, soit 5,76 km/h) et t = 6,9 s (1,8 m/s,
-  // soit 6,48 km/h).
+  // À 2 m/s² depuis t = 6 s, le recul passe 6 km/h à t = 6,83 s. L'allure se lit sur les échantillons de la chronologie
+  // (tous les 4,9 cm sur cette rampe) : le premier au-delà est en s = 20,74 m, à t = 6,86 s et 6,20 km/h.
   assert.deepEqual(controlerScene(scene([eleve(c, profil(8))])),
-    ["eleve recule à 6.5 km/h à t = 6.9 s (au plus 6 km/h)"]);
+    ["eleve recule à 6.2 km/h à t = 6.9 s (au plus 6 km/h)"]);
+});
+
+test("un pic d'allure bref en marche arrière est vu : l'allure se lit sur les échantillons de la chronologie", () => {
+  // Recul à 5 km/h, puis une rampe jusqu'à 6,4 km/h (point du profil en s = 1,625 m) et une autre qui redescend à 5 km/h
+  // en s = 1,875 m. Le recul dépasse 6 km/h moins d'un dixième de seconde, entre les instants t = 1,1 s et t = 1,2 s des
+  // contrôles ; le premier échantillon au-delà est à t = 1,12 s, à 6,15 km/h.
+  const recul = trajet(1.75, 5, 90, { arriere: true }).droit(70).fin();
+  const profil = [{ s: 0, kmh: 5 }, { s: 1.375, kmh: 5 }, { s: 1.625, kmh: 6.4 }, { s: 1.875, kmh: 5 }, { s: 70, kmh: 5 }];
+  assert.deepEqual(controlerScene(scene([eleve(recul, profil)])), ["eleve recule à 6.1 km/h à t = 1.1 s (au plus 6 km/h)"]);
 });
 
 test("un rebroussement se fait à l'arrêt : le profil y passe par 0 km/h", () => {
@@ -415,6 +446,24 @@ test("chaque rebroussement est contrôlé, lu sur les segments du trajet", () =>
   // dans js/scenes.js) garde ses rebroussements, lus sur les segments.
   const recopie = { segments: c.segments, longueur: c.longueur };
   assert.deepEqual(controlerScene(scene([eleve(recopie, sansArret)])), ["eleve change de sens de marche sans s'arrêter (s = 30.0 m)"]);
+});
+
+test("un arrêt d'un instant, sans pause, suffit au rebroussement : la vitesse y est nulle", () => {
+  // Le profil touche 0 km/h au rebroussement (s = 20 m) et repart aussitôt en recul, sans pause.
+  const c = allerRetour();
+  assert.deepEqual(controlerScene(scene([eleve(c, [{ s: 0, kmh: 18 }, { s: 15, kmh: 18 }, { s: 20, kmh: 0 }, { s: 25, kmh: 5 },
+    { s: 40, kmh: 5 }])])), []);
+});
+
+test("les piétons sont exemptés de l'allure de recul et de l'arrêt au rebroussement ; une voiture sur le même trajet ne l'est pas", () => {
+  // 4 m vers l'est depuis (40 ; 40) à 8 km/h, rebroussement sans s'arrêter, puis 5 m à reculons jusqu'à l'arrêt.
+  const chemin = trajet(40, 40, 0).droit(4).inverser().droit(5).fin();
+  const profil = [{ s: 0, kmh: 8 }, { s: 4, kmh: 8 }, { s: 9, kmh: 0 }];
+  assert.deepEqual(controlerScene(scene([eleveNord(200), { id: "pieton", gabarit: "pieton", chemin, profil }])), []);
+  assert.deepEqual(controlerScene(scene([eleveNord(200), { id: "voiture", gabarit: "voiture", chemin, profil }])), [
+    "voiture recule à 8.0 km/h à t = 1.8 s (au plus 6 km/h)",
+    "voiture change de sens de marche sans s'arrêter (s = 4.0 m)",
+  ]);
 });
 
 // Recul en virage, à 3,6 km/h : départ en marche arrière depuis (20 ; 40), la caisse vers le nord ; 5 m vers le sud, un
@@ -559,15 +608,17 @@ test("delaiFin : refusé s'il est négatif ; une extinction pile à l'arrivée e
     ["scène essai : acteur « eleve » : délai de fin de clignotant « -0.5 » invalide (nombre fini de secondes, positif ou nul, attendu)"]);
   // Éteint dès l'arrivée à l'arrêt en fin d'arc : l'arc est couvert jusqu'à son bout, instant d'arrivée compris.
   assert.deepEqual(avec(fin, 0), []);
-  // Éteint en s = 30,5 m (t = 7,32 s), dans l'arc : le premier dixième de seconde sans lui est t = 7,4 s.
-  assert.deepEqual(avec(30.5, 0), ["eleve : clignotant droite éteint pendant le changement de direction (t = 7.4 s)"]);
+  // Éteint une fois l'arrivée en s = 30,5 m passée (t = 7,32 s), dans l'arc : l'instant qui suit cette extinction est
+  // contrôlé.
+  assert.deepEqual(avec(30.5, 0), ["eleve : clignotant droite éteint pendant le changement de direction (t = 7.3 s)"]);
 });
 
-test("demi-tour en trois temps : aucun clignotant pendant les contrôles d'un arrêt, puis celui du temps suivant, sans aucun message", () => {
-  // Arcs collés aux rebroussements comme plus haut, mais 4,5 s d'arrêt à chaque rebroussement : 2 s de contrôles, puis le
-  // clignotant du temps suivant (delai: 2), 2,5 s avant le redémarrage. Le clignotant d'un temps s'éteint dès l'arrivée
-  // à l'arrêt qui le termine (delaiFin: 0). Étapes : le départ, puis à chaque arrêt les contrôles (à l'arrivée) et le
-  // clignotant (2 s après).
+test("demi-tour en trois temps : à l'instant de chaque étape de contrôles, aucun clignotant ; l'arrivée montre encore l'ancien", () => {
+  // Arcs collés aux rebroussements comme plus haut, mais 4,5 s d'arrêt à chaque rebroussement. Le clignotant d'un temps
+  // s'éteint dès l'arrivée à l'arrêt qui le termine (delaiFin: 0) ; celui du temps suivant s'allume 2 s après l'arrivée
+  // (delai: 2), 2,5 s avant le redémarrage. Le pas à pas fige l'instant exact d'une étape : à chaque arrêt, l'étape
+  // d'arrivée ({ s: r }) montre la fin de l'arc, ancien clignotant encore allumé à cet instant précis ; les contrôles
+  // commencent 1 s après ({ s: r, delai: 1 }) et le clignotant 2 s après ({ s: r, delai: 2 }).
   const c = trajet(40, 60, -90).virage(4.1, -60).inverser().virage(4.1, -60).inverser().virage(4.1, -60).droit(5).fin();
   const [r1, r2] = rebroussements(c);
   const arc3 = c.segments[2];
@@ -577,15 +628,19 @@ test("demi-tour en trois temps : aucun clignotant pendant les contrôles d'un ar
     { cote: "gauche", de: 0, a: r1, delaiFin: 0 },
     { cote: "droite", de: r1, a: r2, delai: 2, delaiFin: 0 },
     { cote: "gauche", de: r2, a: arc3.debut + arc3.longueur, delai: 2 },
-  ] })], { etapes: [{ s: 0 }, { s: r1 }, { s: r1, delai: 2 }, { s: r2 }, { s: r2, delai: 2 }] });
+  ] })], { etapes: [{ s: 0 }, { s: r1 }, { s: r1, delai: 1 }, { s: r1, delai: 2 }, { s: r2 }, { s: r2, delai: 1 }, { s: r2, delai: 2 }] });
   assert.deepEqual(controlerScene(def), []);
   const sc = preparerScene(def), e = sc.acteurs[0];
-  for (const [controles, clignotant, cote] of [[1, 2, "droite"], [3, 4, "gauche"]]) {
-    const arrivee = sc.etapes[controles].t, allumage = sc.etapes[clignotant].t;
-    // Pendant les contrôles, après l'instant d'arrivée : aucun clignotant.
-    for (let t = arrivee + 0.05; t < allumage; t += 0.1) assert.equal(etatActeur(e, t).clignotant, null, `contrôles, t = ${t.toFixed(2)} s`);
+  const cote = (t) => etatActeur(e, t).clignotant;
+  for (const [arrivee, controles, clignotant, ancien, suivant] of [[1, 2, 3, "gauche", "droite"], [4, 5, 6, "droite", "gauche"]]) {
+    const [tArrivee, tControles, tAllumage] = [arrivee, controles, clignotant].map((k) => sc.etapes[k].t);
+    // L'étape d'arrivée, à son instant même : l'ancien clignotant brille encore (borne comprise, fin de l'arc).
+    assert.equal(cote(tArrivee), ancien);
+    // L'étape des contrôles, à son instant même, puis jusqu'à l'allumage : aucun clignotant ; et dès après l'arrivée.
+    assert.equal(cote(tControles), null);
+    for (let t = tArrivee + 0.05; t < tAllumage; t += 0.1) assert.equal(cote(t), null, `t = ${t.toFixed(2)} s`);
     // De l'allumage au redémarrage (2,5 s plus tard) : le clignotant du temps suivant, compté depuis son allumage.
-    for (let t = allumage; t < allumage + 2.5; t += 0.1) assert.equal(etatActeur(e, t).clignotant, cote, `t = ${t.toFixed(2)} s`);
-    assert.equal(etatActeur(e, allumage).clignotantDepuis, allumage);
+    assert.equal(etatActeur(e, tAllumage).clignotantDepuis, tAllumage);
+    for (let t = tAllumage; t < tAllumage + 2.5; t += 0.1) assert.equal(cote(t), suivant, `t = ${t.toFixed(2)} s`);
   }
 });

@@ -844,6 +844,11 @@ test("etatActeur : allumé pendant un arrêt, un clignotant à délai remplace c
     [["gauche", 2], ["gauche", 2], ["gauche", 2], ["gauche", 2], ["droite", 6]]);
 });
 
+// Délais refusés et leur affichage dans le message de la garde : un nombre tel quel, tout le reste avec son type (la
+// chaîne "2" ne doit pas se lire comme le nombre 2).
+const DELAIS_REFUSES = [[-1, "« -1 »"], [NaN, "« NaN »"], [Infinity, "« Infinity »"], ["2", '« "2" » (chaîne)'],
+  [null, "« null » (valeur nulle)"], [true, "« true » (booléen)"]];
+
 test("preparerScene : un délai de clignotant doit être un nombre fini de secondes, positif ou nul", () => {
   const c = trajet(0, 0, 0).droit(100).fin();
   const scene = (delai) => ({
@@ -852,11 +857,9 @@ test("preparerScene : un délai de clignotant doit être un nombre fini de secon
       clignotant: [{ cote: "droite", de: 10, a: 20, delai }] }],
     etapes: [{ s: 0 }],
   });
-  assert.throws(() => preparerScene(scene(-1)),
-    { message: "scène essai : acteur « eleve » : délai de clignotant « -1 » invalide (nombre fini de secondes, positif ou nul, attendu)" });
-  for (const delai of [NaN, Infinity, "2", null]) {
-    assert.throws(() => preparerScene(scene(delai)),
-      (e) => /délai de clignotant/.test(e.message) && /« eleve »/.test(e.message), `delai = ${String(delai)}`);
+  for (const [delai, affiche] of DELAIS_REFUSES) {
+    assert.throws(() => preparerScene(scene(delai)), { message: "scène essai : acteur « eleve » : délai de clignotant "
+      + `${affiche} invalide (nombre fini de secondes, positif ou nul, attendu)` }, `delai = ${String(delai)}`);
   }
   for (const delai of [undefined, 0, 2.5]) assert.doesNotThrow(() => preparerScene(scene(delai)), `delai = ${String(delai)}`);
 });
@@ -907,11 +910,9 @@ test("preparerScene : un délai de fin de clignotant doit être un nombre fini d
       clignotant: [{ cote: "droite", de: 10, a: 20, delaiFin }] }],
     etapes: [{ s: 0 }],
   });
-  assert.throws(() => preparerScene(scene(-1)),
-    { message: "scène essai : acteur « eleve » : délai de fin de clignotant « -1 » invalide (nombre fini de secondes, positif ou nul, attendu)" });
-  for (const delaiFin of [NaN, Infinity, "2", null]) {
-    assert.throws(() => preparerScene(scene(delaiFin)),
-      (e) => /délai de fin de clignotant/.test(e.message) && /« eleve »/.test(e.message), `delaiFin = ${String(delaiFin)}`);
+  for (const [delaiFin, affiche] of DELAIS_REFUSES) {
+    assert.throws(() => preparerScene(scene(delaiFin)), { message: "scène essai : acteur « eleve » : délai de fin de clignotant "
+      + `${affiche} invalide (nombre fini de secondes, positif ou nul, attendu)` }, `delaiFin = ${String(delaiFin)}`);
   }
   for (const delaiFin of [undefined, 0, 2.5]) assert.doesNotThrow(() => preparerScene(scene(delaiFin)), `delaiFin = ${String(delaiFin)}`);
 });

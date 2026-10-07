@@ -8,13 +8,14 @@
  * message. Les seuils de confort ne sont pas des règles du Code de la route :
  * ce sont des garde-fous de vraisemblance, consignés comme tels dans les fiches.
  *
- * Ordre des contrôles : étapes, trajectoires (contacts, limite, allure de recul,
- * accélérations, continuité de la vitesse), arrêts aux rebroussements, entrées et
- * sorties hors du monde, clignotants (assez tôt avant le départ dans l'arc, du bon
- * côté de la caisse et tout le long de l'arc), puis les attentes que la scène déclare.
+ * Ordre des contrôles : étapes, trajectoires (contacts, limite, accélérations,
+ * continuité de la vitesse), marche arrière (allure de recul et arrêt aux
+ * rebroussements, lus sur les échantillons de la chronologie), entrées et sorties hors
+ * du monde, clignotants (assez tôt avant le départ dans l'arc, du bon côté de la caisse
+ * et tout le long de l'arc), puis les attentes que la scène déclare.
  */
 import { preparerScene, etatActeur, emprise, polygonesSeChevauchent, pointDansPolygone, tempsAtteint, tempsDepart, avant,
-  apparitionDe, sortDuCadre, rebroussements, rectangle, KMH, DEG }
+  apparitionDe, sortDuCadre, rebroussements, pointA, rectangle, KMH, DEG }
   from "./scene-geometrie.js?v=20261005f";
 
 export const SEUILS = {
@@ -35,7 +36,7 @@ export function controlerScene(def) {
   const note = (m) => { if (!erreurs.includes(m)) erreurs.push(m); };
   controlerEtapes(sc, note);
   controlerTrajectoires(sc, note);
-  controlerRebroussements(sc, note);
+  controlerMarcheArriere(sc, note);
   controlerEntreesSorties(sc, note);
   controlerClignotants(sc, note);
   for (const att of sc.attentes || []) controlerAttente(sc, att, note);
@@ -74,10 +75,6 @@ function controlerTrajectoires(sc, note) {
         if (polygonesSeChevauchent(poly, o.poly)) une(`${a.id}|${o.nature}`, `${a.id} touche un ${o.nature} à t = ${f1(t)} s`);
       }
       if (e.v / KMH > sc.limite + 1e-6) une(`${a.id}|limite`, `${a.id} dépasse ${sc.limite} km/h à t = ${f1(t)} s`);
-      // Allure de recul : en marche arrière (celle du segment parcouru, etatActeur), au plus l'allure du pas.
-      if (e.marche === "arriere" && e.v / KMH > SEUILS.vitesseMarcheArriere + 1e-6) {
-        une(`${a.id}|recul`, `${a.id} recule à ${(e.v / KMH).toFixed(1)} km/h à t = ${f1(t)} s (au plus ${SEUILS.vitesseMarcheArriere} km/h)`);
-      }
       const lat = e.v * e.v * Math.abs(e.courbure);
       if (lat > SEUILS.accelerationLaterale + 1e-6) une(`${a.id}|lat`, `${a.id} : accélération latérale de ${lat.toFixed(2)} m/s² à t = ${f1(t)} s`);
       if (Math.abs(e.a) > SEUILS.accelerationLongitudinale + 1e-6) une(`${a.id}|long`, `${a.id} : accélération longitudinale de ${e.a.toFixed(2)} m/s² à t = ${f1(t)} s`);
@@ -99,16 +96,24 @@ function controlerTrajectoires(sc, note) {
   });
 }
 
-// Un véhicule ne change de sens de marche qu'à l'arrêt : à chaque rebroussement, lu sur les segments par rebroussements()
-// (qui fait foi, et non le champ chemin.rebroussements), sa vitesse est nulle. L'arrêt se lit sur les échantillons de la
-// chronologie : elle en place un à chaque point du profil, à la vitesse exacte du point, et entre deux points
-// l'accélération est constante, la vitesse ne s'annulant qu'à un bout où le profil la met à 0 km/h (deux points de suite
-// à 0 km/h sont refusés). Un échantillon de vitesse nulle à l'abscisse du rebroussement, au micron près (les arrondis
-// flottants), prouve donc l'arrêt sans interpolation ni seuil de vitesse. Un arrêt d'un instant, sans pause, suffit. Les
-// piétons en sont exemptés, comme des autres règles de vitesse : ils partent et s'arrêtent d'un coup.
-function controlerRebroussements(sc, note) {
+// Marche arrière, lue sur les échantillons de la chronologie. Elle en place un à chaque point du profil, à la vitesse
+// exacte du point, et entre deux points l'accélération est constante : la vitesse y varie de façon affine dans le temps,
+// et ne s'annule qu'à un bout où le profil la met à 0 km/h (deux points de suite à 0 km/h sont refusés). Les piétons en
+// sont exemptés, comme des autres règles de vitesse : ils partent et s'arrêtent d'un coup.
+// - Allure de recul : sur un segment parcouru en marche arrière, au plus l'allure du pas (SEUILS.vitesseMarcheArriere).
+//   La plus grande vitesse entre deux échantillons étant atteinte sur l'un d'eux, aucun pic bref ne passe entre deux
+//   instants ; le message donne le premier échantillon au-delà.
+// - Arrêt au rebroussement : un véhicule ne change de sens de marche qu'à l'arrêt. À chaque rebroussement, lu sur les
+//   segments par rebroussements() (qui fait foi, et non le champ chemin.rebroussements), un échantillon de vitesse
+//   nulle, au micron près (les arrondis flottants), prouve l'arrêt sans interpolation ni seuil de vitesse. Un arrêt d'un
+//   instant, sans pause, suffit.
+function controlerMarcheArriere(sc, note) {
   for (const a of sc.acteurs) {
     if (!a.chrono || a.gabarit === "pieton") continue;
+    const recul = a.chrono.echantillons.find((e) => e.v / KMH > SEUILS.vitesseMarcheArriere + 1e-6 && pointA(a.chemin, e.s).arriere);
+    if (recul) {
+      note(`${a.id} recule à ${(recul.v / KMH).toFixed(1)} km/h à t = ${f1(recul.t)} s (au plus ${SEUILS.vitesseMarcheArriere} km/h)`);
+    }
     for (const s of rebroussements(a.chemin)) {
       const arret = a.chrono.echantillons.some((e) => Math.abs(e.s - s) <= 1e-6 && e.v === 0);
       if (!arret) note(`${a.id} change de sens de marche sans s'arrêter (s = ${f1(s)} m)`);
@@ -178,10 +183,18 @@ function controlerClignotants(sc, note) {
       // Pendant tout l'arc (les dixièmes de seconde depuis son début, puis sa fin, un arrêt dans l'arc compris) :
       // jamais le clignotant de l'autre côté, et celui du bon côté toujours allumé (« clignotant tôt et tout le
       // long », fiche ECF C2-E). Une extinction datée (delaiFin) n'y échappe pas : pile à la fin de l'arc, elle passe
-      // (l'instant d'arrivée est encore allumé) ; plus tôt, non.
+      // (l'instant d'arrivée est encore allumé) ; plus tôt, non. S'y ajoute l'instant qui suit chaque extinction tombant
+      // dans l'arc (un micromètre après le passage de a, ou une microseconde après l'extinction datée) : une coupure
+      // plus brève qu'un pas ne passe pas entre deux instants.
       const instantsArc = [];
       for (let t = tDebut; t <= tFin + 1e-9; t += SEUILS.pas) instantsArc.push(t);
       instantsArc.push(tFin);
+      for (const x of a.clignotant || []) {
+        const apres = x.delaiFin === undefined
+          ? tempsAtteint(a.chrono, x.a + 1e-6) : tempsAtteint(a.chrono, x.a) + x.delaiFin + 1e-6;
+        if (apres > tDebut && apres < tFin) instantsArc.push(apres);
+      }
+      instantsArc.sort((p, q) => p - q);
       let autreCote = false, eteint = false;
       for (const t of instantsArc) {
         const c = etatActeur(a, t).clignotant;

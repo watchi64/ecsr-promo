@@ -425,6 +425,15 @@ export function polygonesSeChevauchent(A, B) {
 
 // ===== Scène préparée =====
 
+// Valeur reçue, telle que l'auteur d'une scène la reconnaît dans un message : entre guillemets, et avec son type quand ce
+// n'est pas un nombre (la chaîne "2" ne doit pas se lire comme le nombre 2).
+function valeurRecue(v) {
+  if (typeof v === "number") return `« ${v} »`;
+  const type = v === null ? "valeur nulle" : Array.isArray(v) ? "tableau"
+    : { string: "chaîne", boolean: "booléen", object: "objet", function: "fonction" }[typeof v] || typeof v;
+  return `« ${typeof v === "string" ? JSON.stringify(v) : String(v)} » (${type})`;
+}
+
 /**
  * Calcule les chronologies des acteurs et l'instant de chaque étape. Refuse une
  * `apparition` autre que « debut » ou « depart » (ou absente), et un `delai` ou un
@@ -440,7 +449,7 @@ export function preparerScene(def) {
     for (const x of a.clignotant || []) {
       for (const [champ, libelle] of [["delai", "délai de clignotant"], ["delaiFin", "délai de fin de clignotant"]]) {
         if (x[champ] !== undefined && !(Number.isFinite(x[champ]) && x[champ] >= 0)) {
-          throw new Error(`scène ${def.code} : acteur ${nom} : ${libelle} « ${String(x[champ])} » invalide`
+          throw new Error(`scène ${def.code} : acteur ${nom} : ${libelle} ${valeurRecue(x[champ])} invalide`
             + " (nombre fini de secondes, positif ou nul, attendu)");
         }
       }
@@ -514,6 +523,10 @@ export function sortDuCadre(acteur) {
  *   l'arrivée en `a`, ce qui laisse l'arc qui finit en `a` couvert jusqu'à son bout. C'est
  *   ainsi qu'un clignotant s'allume ou s'éteint pendant un arrêt, où l'abscisse ne bouge pas.
  *   Sans `delai` ni `delaiFin`, rien ne change.
+ *   Disposition des étapes : le pas à pas du moteur fige l'instant exact d'une étape, et
+ *   l'étape d'arrivée à un arrêt ({ s: a }) montre donc encore ce clignotant, la fin de
+ *   l'arc. Les contrôles d'un arrêt commencent au moins un instant après l'arrivée : une
+ *   étape { s: a, delai } de délai non nul, où ce clignotant est déjà éteint.
  * - Préséance, quand plusieurs intervalles sont allumés à la fois (allumage passé, extinction
  *   pas encore venue) : parmi ceux qui s'allument à l'arrivée en `de` (sans `delai`), le
  *   premier du tableau, comme toujours ; un intervalle à `delai` allumé l'emporte sur lui
