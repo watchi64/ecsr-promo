@@ -1144,3 +1144,363 @@ test("giratoire : douze étapes (fiche C2-F, ordre de sortie de C2.4 et du thèm
   proche(T[10] - T[9], 1.0, 1e-6, "angle mort gauche pendant 1,0 s");
   proche(T[11], tA(fin(arcSortie)), 1e-6, "reprendre l'allure : à la fin de l'arc de sortie");
 });
+
+// ===== regard-intersection : la scène suit les procédures de Fabrice (5.1) et les fiches ECF C1-I et C1-H =====
+//
+// Comme pour les autres scènes, les instants se lisent sur la définition (trajet, chronologie, emprises). L'élève roule
+// tout droit vers le nord : l'avant de sa voiture est le haut de son emprise, l'arrière le bas.
+
+// km/h et degrés : choix de dessin consignés dans les sources de la scène.
+const INTERSECTION_KMH = { approche: 50, reduite: 30 };
+const INTERSECTION_REGARDS = [{ angle: 0 }, { angle: 180 }, { angle: 0 }, { angle: 0 }, { angle: -30 }, { angle: 30 }, { angle: 0 }];
+
+const yAvant = (e) => Math.min(...emprise("voiture", e).map(([, y]) => y));
+const yArriere = (e) => Math.max(...emprise("voiture", e).map(([, y]) => y));
+
+function lireIntersection(def = SCENES["regard-intersection"].construire()) {
+  const sc = preparerScene(def);
+  const eleve = sc.eleve, aDroite = sc.acteurs.find((a) => a.id === "aDroite");
+  const reperes = def.decor.reperes, intersection = def.decor.zones.carrefour;
+  // Entrée dans l'intersection : premier contact de l'emprise de l'élève avec le carrefour.
+  const touche = (t) => polygonesSeChevauchent(emprise("voiture", etatActeur(eleve, t)), intersection);
+  const tEntree = premierInstant(touche, 0, sc.duree);
+  // Distance (m) de l'avant de la voiture au bord sud de l'intersection : positive avant d'y entrer.
+  const avantBord = (t) => yAvant(etatActeur(eleve, t)) - reperes.bord.sud;
+  return { def, sc, eleve, aDroite, reperes, intersection, tEntree, avantBord, T: sc.etapes.map((e) => e.t) };
+}
+
+// Angle (degrés, positif à droite) sous lequel le conducteur de la voiture dans l'état e voit le point p, depuis son œil,
+// par rapport à l'axe de la voiture.
+function releve(e, p) {
+  const o = oeil(e);
+  let a = (Math.atan2(p.y - o.y, p.x - o.x) - e.cap) / DEG;
+  while (a > 180) a -= 360;
+  while (a <= -180) a += 360;
+  return a;
+}
+
+// Entrée de la voie entrante ouest : son milieu, au bord amont de sa ligne de cédez-le-passage (là où s'arrêterait un
+// usager venant de gauche).
+function entreeOuest(def) {
+  const ligne = def.decor.marquages.find((m) => m.role === "cedez-ouest");
+  return { x: ligne.de[0] - ligne.largeur / 2, y: def.decor.reperes.cy + DESSIN.voie / 2 };
+}
+
+// Regard de l'étape k + 1 (5 : à gauche, 6 : à droite), de son début à sa fin comprise, au millième de seconde : nombre
+// d'instants relevés, instants où le cône ne contient pas le point p, instants où les coins donnés ne sont pas tous dans
+// le cadre.
+function regardLateral(def, k, p, coins) {
+  const { sc, eleve, T } = lireIntersection(def);
+  const horsCone = [], horsCadre = [];
+  let n = 0;
+  for (let j = 0; T[k] + j * 0.001 <= T[k + 1] + 1e-9; j++, n++) {
+    const t = T[k] + j * 0.001, e = etatActeur(eleve, t), c = cadre(def, e);
+    if (!regardContient(angleRegard(sc.etapes[k], e, t, etatsA(sc, t)), oeil(e), p)) horsCone.push(`t = ${t.toFixed(3)} s`);
+    if (!coins.every(([x, y]) => x >= c.x0 && x <= c.x0 + c.w && y >= c.y0 && y <= c.y0 + c.h)) horsCadre.push(`t = ${t.toFixed(3)} s`);
+  }
+  return { n, horsCone, horsCadre };
+}
+// À gauche : l'entrée de la voie entrante ouest ; à droite : le centre du véhicule qui attend, son emprise dans le cadre.
+const regardAGauche = (def) => { const p = entreeOuest(def); return regardLateral(def, 4, p, [[p.x, p.y]]); };
+const regardADroite = (def) => {
+  const v = etatActeur(lireIntersection(def).aDroite, 0);
+  return regardLateral(def, 5, v, emprise("voiture", v));
+};
+
+// Approche, du départ à l'entrée dans l'intersection, relevée au centième de seconde : la suite des regards (angle par
+// rapport au cap, en degrés arrondis) avec l'allure (« à 50 km/h », « en ralentissant », « à 30 km/h »), chaque élément
+// avec sa durée.
+function sequenceApproche(def) {
+  const { sc, eleve, tEntree } = lireIntersection(def);
+  const suite = [];
+  for (let t = 0; t < tEntree - 1e-9; t += 0.01) {
+    const e = etatActeur(eleve, t), angle = angleRegard(sc.etapes[etapeActive(sc, t)], e, t, etatsA(sc, t));
+    let a = Math.round(((angle - e.cap) / DEG) % 360);
+    if (a > 180) a -= 360;
+    else if (a <= -180) a += 360;
+    const v = e.v / KMH;
+    const allure = Math.abs(v - INTERSECTION_KMH.approche) < 1e-6 ? `à ${INTERSECTION_KMH.approche} km/h`
+      : Math.abs(v - INTERSECTION_KMH.reduite) < 1e-6 ? `à ${INTERSECTION_KMH.reduite} km/h` : "en ralentissant";
+    const libelle = `${a} ${allure}`, der = suite[suite.length - 1];
+    if (der && der.libelle === libelle) der.duree += 0.01;
+    else suite.push({ libelle, duree: 0.01 });
+  }
+  return suite;
+}
+
+// Assertion d'ordre de l'approche (fiche C1-H et méthode C.I.A. : contrôler l'arrière, puis ralentir ; procédures de
+// Fabrice, 5.1 : contrôles à l'approche en face, à gauche, à droite) : regard loin devant à 50 km/h, rétroviseur intérieur
+// à 50 km/h, regard devant en ralentissant, puis, à 30 km/h, en face, à gauche (-30), à droite (30), chacun pendant 1,0 s
+// au moins, tous achevés avant l'entrée dans l'intersection. Lève une AssertionError sinon.
+function verifierApproche(def) {
+  const suite = sequenceApproche(def);
+  const libelles = suite.map((r) => r.libelle);
+  assert.deepEqual(libelles, ["0 à 50 km/h", "180 à 50 km/h", "0 en ralentissant", "0 à 30 km/h", "-30 à 30 km/h", "30 à 30 km/h"],
+    `approche : ${libelles.join(", ")}`);
+  for (const r of suite) assert.ok(r.duree >= DUREE_MIN.etape - 0.011, `${r.libelle} pendant ${r.duree.toFixed(2)} s`);
+}
+
+// Instants (au centième de seconde) où l'élève touche déjà l'intersection alors que l'étape « Traverser en regardant
+// devant » (la dernière) n'a pas commencé : les contrôles à l'approche s'achèvent avant d'y entrer.
+function controlesDansIntersection(def) {
+  const { sc, eleve, intersection } = lireIntersection(def);
+  const tTraverser = sc.etapes[sc.etapes.length - 1].t, fautes = [];
+  for (let t = 0; t < tTraverser - 1e-9; t += 0.01) {
+    if (polygonesSeChevauchent(emprise("voiture", etatActeur(eleve, t)), intersection)) fautes.push(`t = ${t.toFixed(2)} s`);
+  }
+  return fautes;
+}
+
+// Partie de la voie entrante ouest (en son milieu) que couvre le cône du regard à gauche à la fin de ce regard, relevée au
+// millimètre : distances (m) en amont du bord amont de sa ligne de cédez-le-passage, ou null si le cône ne la touche pas.
+function gaucheEnFinDeRegard(def) {
+  const { sc, eleve, T } = lireIntersection(def);
+  const { x: xAmont, y } = entreeOuest(def);
+  const e = etatActeur(eleve, T[5]), o = oeil(e), angle = angleRegard(sc.etapes[4], e, T[5], etatsA(sc, T[5]));
+  const couverts = [];
+  for (let k = 0; k * 0.001 <= xAmont + 1e-9; k++) if (regardContient(angle, o, { x: xAmont - k * 0.001, y })) couverts.push(k * 0.001);
+  return couverts.length ? { de: Math.min(...couverts), a: Math.max(...couverts) } : null;
+}
+
+test("regard-intersection : tout droit vers le nord au centre de la voie de droite, de 22 m du bord bas à 0,5 m du bord haut, sans clignotant", () => {
+  const { def, sc, eleve, reperes } = lireIntersection();
+  assert.equal(eleve.chemin.segments.length, 1, "une seule ligne droite");
+  const [seg] = eleve.chemin.segments;
+  assert.equal(seg.type, "droite");
+  proche(seg.cap, -90 * DEG, 1e-12, "vers le nord");
+  proche(seg.x0, reperes.cx + DESSIN.voie / 2, 1e-12, "au centre de la voie de droite");
+  proche(def.monde.hauteur - seg.y0, REGARD_PORTEE, 1e-9, "départ à 22 m du bord bas");
+  proche(seg.y0 - eleve.chemin.longueur, DESSIN.retraitBord, 1e-9, "arrivée à 0,5 m du bord haut");
+  assert.ok(!(eleve.clignotant && eleve.clignotant.length), "aucun clignotant déclaré");
+  for (let t = 0; t <= sc.duree + 1e-9; t += 0.01) assert.equal(etatActeur(eleve, t).clignotant, null, `t = ${t.toFixed(2)} s`);
+});
+
+test("regard-intersection : le véhicule qui attend est posé au centre de la voie entrante est, tourné vers l'ouest, l'avant à 0,3 m de sa ligne de cédez-le-passage, à l'arrêt pendant toute la scène", () => {
+  const { def, sc, aDroite, reperes } = lireIntersection();
+  assert.ok(aDroite.pose && !aDroite.chemin && !aDroite.profil && !aDroite.chrono, "acteur posé, sans trajet");
+  const ligne = def.decor.marquages.find((m) => m.role === "cedez-est");
+  const xAmont = ligne.de[0] + ligne.largeur / 2;
+  for (let t = 0; t <= sc.duree + 1e-9; t += 0.1) {
+    const v = etatActeur(aDroite, t);
+    assert.ok(v.visible && v.v === 0 && v.clignotant === null, `t = ${t.toFixed(1)} s`);
+    proche(v.y, reperes.cy - DESSIN.voie / 2, 1e-12, "centre de la voie entrante est");
+    proche(v.cap, 180 * DEG, 1e-12, "tourné vers l'ouest");
+    proche(Math.min(...emprise("voiture", v).map(([x]) => x)) - xAmont, 0.3, 1e-9, "avant à 0,3 m du bord amont de la ligne");
+  }
+});
+
+test("regard-intersection : 50 km/h jusqu'à la fin du coup d'œil au rétroviseur intérieur, ralentissement de 2,0 m/s² jusqu'à 30 km/h, atteints au début du regard en face et tenus jusqu'à la fin, sans arrêt", () => {
+  const { sc, eleve, T } = lireIntersection();
+  for (let t = 0; t <= T[2] + 1e-9; t += 0.01) proche(kmh(eleve, t), INTERSECTION_KMH.approche, 1e-9, `allure à t = ${t.toFixed(2)} s`);
+  for (let t = T[2] + 0.01; t < T[3] - 0.01; t += 0.01) proche(etatActeur(eleve, t).a, -2.0, 1e-6, `décélération à t = ${t.toFixed(2)} s`);
+  for (let t = T[3]; t <= sc.duree + 1e-9; t += 0.01) proche(kmh(eleve, t), INTERSECTION_KMH.reduite, 1e-9, `allure à t = ${t.toFixed(2)} s`);
+});
+
+test("regard-intersection : sept étapes, dans l'ordre, chacune avec son regard, à son moment et à sa place", () => {
+  assert.deepEqual(SCENES["regard-intersection"].etapesModele, [
+    "Regarder loin devant",
+    "Contrôler au rétroviseur intérieur",
+    "Ralentir à l'approche",
+    "Regarder en face",
+    "Regarder à gauche",
+    "Regarder à droite",
+    "Traverser en regardant devant",
+  ]);
+  const { def, sc, eleve, tEntree, avantBord, T } = lireIntersection();
+  assert.deepEqual(def.etapes.map((e) => e.regard), INTERSECTION_REGARDS);
+  sc.etapes.forEach((e, k) => proche(etatActeur(eleve, T[k]).s, e.s, 1e-6, `étape ${k + 1} : abscisse atteinte à son instant`));
+  const d30 = INTERSECTION_KMH.reduite * KMH * DUREE_MIN.etape;   // m parcourus pendant un regard de 1,0 s à 30 km/h
+  // Étape 1 : regard loin devant, dès le départ, à 50 km/h.
+  proche(T[0], 0, 1e-12, "regarder loin devant : dès le départ");
+  // Étape 2 : rétroviseur intérieur pendant 1,0 s, qui s'achève quand le ralentissement commence (étape 3).
+  proche(T[2] - T[1], 1.0, 1e-9, "rétroviseur intérieur pendant 1,0 s");
+  proche(T[2], premierInstant((t) => kmh(eleve, t) < INTERSECTION_KMH.approche - 1e-9, 0, tEntree), 1e-6, "ralentir : début du ralentissement");
+  // Étapes 4 à 6 : en face dès l'allure réduite atteinte, puis à gauche, puis à droite, 1,0 s chacune, à 25, 16,67 et 8,33 m
+  // de l'intersection.
+  proche(T[3], premierInstant((t) => kmh(eleve, t) <= INTERSECTION_KMH.reduite + 1e-9, 0, tEntree), 1e-6, "en face : allure réduite atteinte");
+  for (const k of [3, 4, 5]) {
+    proche(T[k + 1] - T[k], 1.0, 1e-9, `étape ${k + 1} pendant 1,0 s`);
+    proche(avantBord(T[k]), (6 - k) * d30, 1e-6, `étape ${k + 1} : avant à ${((6 - k) * d30).toFixed(2)} m de l'intersection`);
+  }
+  // Étape 7 : traverser en regardant devant, dès que l'avant atteint le bord de l'intersection.
+  proche(T[6], tEntree, 1e-6, "traverser : à l'entrée dans l'intersection");
+  proche(avantBord(T[6]), 0, 1e-6, "traverser : avant au bord de l'intersection");
+});
+
+test("regard-intersection : contrôler l'arrière avant de ralentir, puis en face, à gauche et à droite, chacun pendant 1,0 s au moins, tous achevés avant l'intersection", () => {
+  const def = SCENES["regard-intersection"].construire();
+  verifierApproche(def);
+  assert.deepEqual(controlesDansIntersection(def), []);
+});
+
+test("regard-intersection : pendant tout le regard à droite, achevé quand l'avant atteint le bord de l'intersection, le véhicule qui attend est entier dans le cadre et dans le cône", () => {
+  const def = SCENES["regard-intersection"].construire();
+  const { n, horsCone, horsCadre } = regardADroite(def);
+  assert.ok(n >= 1000, `${n} instants relevés pendant le regard à droite`);
+  assert.deepEqual(horsCone, [], "véhicule qui attend hors du cône");
+  assert.deepEqual(horsCadre, [], "véhicule qui attend hors du cadre");
+  // Il n'est pas dans le cône du regard en face, ni dans celui du regard à gauche : seul le regard à droite le montre.
+  const { sc, eleve, aDroite, T } = lireIntersection(def);
+  const v = etatActeur(aDroite, 0);
+  for (const k of [3, 4]) {
+    for (let t = T[k]; t < T[k + 1] - 1e-9; t += 0.01) {
+      const e = etatActeur(eleve, t);
+      assert.ok(!regardContient(angleRegard(sc.etapes[k], e, t, etatsA(sc, t)), oeil(e), v), `étape ${k + 1}, t = ${t.toFixed(2)} s`);
+    }
+  }
+});
+
+test("regard-intersection : pendant tout le regard à gauche, le cône contient l'entrée de la voie entrante ouest, dans le cadre ; en fin de regard, il couvre cette voie depuis sa ligne de cédez-le-passage", () => {
+  const def = SCENES["regard-intersection"].construire();
+  const { n, horsCone, horsCadre } = regardAGauche(def);
+  assert.ok(n >= 1000, `${n} instants relevés pendant le regard à gauche`);
+  assert.deepEqual(horsCone, [], "entrée de la voie entrante ouest hors du cône");
+  assert.deepEqual(horsCadre, [], "entrée de la voie entrante ouest hors du cadre");
+  const couverte = gaucheEnFinDeRegard(def);
+  assert.ok(couverte && couverte.de === 0 && couverte.a > 0, `voie entrante ouest couverte : ${JSON.stringify(couverte)}`);
+});
+
+test("regard-intersection : cadre de 46 m qui suit l'élève sur toute la largeur ; cône du rétroviseur intérieur entier dans le monde pendant l'étape 2", () => {
+  const { def, sc, eleve, T } = lireIntersection();
+  assert.deepEqual(def.camera, { largeur: def.monde.largeur, hauteur: 46 });
+  assert.ok(def.monde.hauteur > 46, "monde plus haut que le cadre");
+  for (let t = T[1]; t < T[2]; t += 0.01) {
+    const e = etatActeur(eleve, t);
+    for (const [x, y] of coneRegard(angleRegard(sc.etapes[1], e, t, etatsA(sc, t)), oeil(e))) {
+      assert.ok(x >= 0 && x <= def.monde.largeur && y >= 0 && y <= def.monde.hauteur,
+        `cône hors du monde à t = ${t.toFixed(2)} s : (${x.toFixed(2)} ; ${y.toFixed(2)})`);
+    }
+  }
+});
+
+test("regard-intersection : branches sud, est et ouest au plus petit nombre entier de mètres : un mètre de moins, le regard loin devant durerait moins de 1,0 s, ou le cône du regard à gauche ou à droite déborderait de la largeur du dessin", () => {
+  const { def, sc, eleve, T } = lireIntersection();
+  const v50 = INTERSECTION_KMH.approche * KMH;
+  assert.ok(T[1] >= DUREE_MIN.etape - 1e-9 && T[1] - 1 / v50 < DUREE_MIN.etape, `regard loin devant pendant ${T[1].toFixed(4)} s`);
+  let xMin = Infinity, xMax = -Infinity;
+  for (const k of [4, 5]) {
+    for (let t = T[k]; t < T[k + 1] - 1e-9; t += 0.01) {
+      const e = etatActeur(eleve, t);
+      for (const [x] of coneRegard(angleRegard(sc.etapes[k], e, t, etatsA(sc, t)), oeil(e))) {
+        xMin = Math.min(xMin, x);
+        xMax = Math.max(xMax, x);
+      }
+    }
+  }
+  assert.ok(xMin >= 0 && xMin < 1, `cône du regard à gauche jusqu'à x = ${xMin.toFixed(3)} m`);
+  assert.ok(xMax <= def.monde.largeur && xMax > def.monde.largeur - 1, `cône du regard à droite jusqu'à x = ${xMax.toFixed(3)} m (largeur ${def.monde.largeur} m)`);
+});
+
+test("regard-intersection : les valeurs calculées que citent les sources (regard loin devant, ralentissement, place des trois contrôles, regards à gauche et à droite, regards à 60 degrés, sortie de l'intersection) sont celles de la scène, à l'arrondi écrit près", () => {
+  const def = SCENES["regard-intersection"].construire();
+  const { sc, eleve, aDroite, reperes, avantBord, T } = lireIntersection(def);
+  const choixDeDessin = SCENES["regard-intersection"].sources.find((s) => s.startsWith("Choix de dessin"));
+  // Nombre écrit à la française dans les sources (groupe k du motif) ; tolérance : la moitié de son dernier chiffre.
+  const ecrit = (motif, k = 1) => {
+    const m = choixDeDessin.match(motif);
+    assert.ok(m, `${motif} introuvable dans les sources`);
+    return { valeur: Number(m[k].replace(",", ".")), tolerance: 0.5 * 10 ** -(m[k].split(",")[1] || "").length };
+  };
+  const v = etatActeur(aDroite, 0), entree = entreeOuest(def);
+  // À 60 degrés : premier instant où le cône du regard à droite contient le véhicule qui attend, et où celui du regard à
+  // gauche atteint la voie entrante ouest (son triangle touche la voie).
+  const t60droite = premierInstant((t) => {
+    const e = etatActeur(eleve, t);
+    return regardContient(e.cap + 60 * DEG, oeil(e), v);
+  }, 0, sc.duree);
+  const t60gauche = premierInstant((t) => {
+    const e = etatActeur(eleve, t);
+    return polygonesSeChevauchent(coneRegard(e.cap - 60 * DEG, oeil(e)), def.decor.voies.ouestEntrante);
+  }, T[4], T[5]);
+  const gauche = gaucheEnFinDeRegard(def);
+  const mesures = [
+    ["regard loin devant (s)", T[1] - T[0], ecrit(/droit devant pendant (\d+(?:,\d+)?) s \(regarder loin devant\)/)],
+    ["durée du ralentissement (s)", T[3] - T[2], ecrit(/ramené à une valeur moyenne : (\d+(?:,\d+)?) s sur/)],
+    ["distance du ralentissement (m)", etatActeur(eleve, T[3]).s - etatActeur(eleve, T[2]).s, ecrit(/ s sur (\d+(?:,\d+)?) m\)/)],
+    ["trois contrôles à l'approche (m avant l'intersection)", avantBord(T[3]), ecrit(/tiennent sur les (\d+(?:,\d+)?) derniers mètres/)],
+    ["entrée de la voie entrante ouest, au début du regard à gauche (degrés à gauche)", -releve(etatActeur(eleve, T[4]), entree),
+      ecrit(/qui passe de (\d+(?:,\d+)?) à (\d+(?:,\d+)?) degrés à gauche/, 1)],
+    ["entrée de la voie entrante ouest, à la fin du regard à gauche (degrés à gauche)", -releve(etatActeur(eleve, T[5]), entree),
+      ecrit(/qui passe de (\d+(?:,\d+)?) à (\d+(?:,\d+)?) degrés à gauche/, 2)],
+    ["voie entrante ouest couverte en fin de regard à gauche (m en amont)", gauche.a, ecrit(/il couvre cette voie jusqu'à (\d+(?:,\d+)?) m en amont/)],
+    ["véhicule qui attend, au début du regard à droite (degrés à droite)", releve(etatActeur(eleve, T[5]), v),
+      ecrit(/qui passe de (\d+(?:,\d+)?) à (\d+(?:,\d+)?) degrés à droite/, 1)],
+    ["véhicule qui attend, à la fin du regard à droite (degrés à droite)", releve(etatActeur(eleve, T[6]), v),
+      ecrit(/qui passe de (\d+(?:,\d+)?) à (\d+(?:,\d+)?) degrés à droite/, 2)],
+    ["regard à gauche à 60 degrés : voie entrante ouest atteinte après (s)", t60gauche - T[4], ecrit(/qu'après (\d+(?:,\d+)?) s de regard/)],
+    ["regard à droite à 60 degrés : avant dans l'intersection (m)", -avantBord(t60droite), ecrit(/l'avant de la voiture à (\d+(?:,\d+)?) m dans l'intersection/)],
+    ["arrière au-delà de l'intersection, à la fin du trajet (m)", reperes.bord.nord - yArriere(etatActeur(eleve, eleve.chrono.duree)),
+      ecrit(/son arrière en est à (\d+(?:,\d+)?) m/)],
+  ];
+  for (const [nom, mesure, { valeur, tolerance }] of mesures) {
+    assert.ok(Math.abs(mesure - valeur) <= tolerance + 1e-9, `${nom} : ${mesure} dans la scène, ${valeur} dans les sources`);
+  }
+});
+
+// Sabotages : chaque défaut est refusé par le contrôle ou l'assertion qui le vise.
+
+test("regard-intersection : un regard à droite à 60 degrés laisse le véhicule qui attend hors du cône pendant tout le regard", () => {
+  const def = copie("regard-intersection");
+  def.etapes[5].regard = { angle: 60 };
+  const { n, horsCone } = regardADroite(def);
+  assert.ok(n >= 1000);
+  assert.equal(horsCone.length, n, `seulement ${horsCone.length} instants hors du cône sur ${n}`);
+});
+
+test("regard-intersection : un regard à gauche à 60 degrés laisse l'entrée de la voie entrante ouest hors du cône pendant tout le regard", () => {
+  const def = copie("regard-intersection");
+  def.etapes[4].regard = { angle: -60 };
+  const { n, horsCone } = regardAGauche(def);
+  assert.ok(n >= 1000);
+  assert.equal(horsCone.length, n, `seulement ${horsCone.length} instants hors du cône sur ${n}`);
+});
+
+test("regard-intersection : ralentir sans contrôler au rétroviseur intérieur est refusé par l'assertion d'ordre de l'approche", () => {
+  const def = copie("regard-intersection");
+  def.etapes.splice(1, 1);
+  assert.throws(() => verifierApproche(def), /approche : 0 à 50 km\/h, 0 en ralentissant, 0 à 30 km\/h, -30 à 30 km\/h, 30 à 30 km\/h(?!,)/);
+});
+
+test("regard-intersection : le rétroviseur intérieur regardé en ralentissant, et non avant, est refusé par l'assertion d'ordre de l'approche", () => {
+  const def = copie("regard-intersection");
+  [def.etapes[1].regard, def.etapes[2].regard] = [def.etapes[2].regard, def.etapes[1].regard];
+  assert.throws(() => verifierApproche(def), /approche : 0 à 50 km\/h, 180 en ralentissant, 0 à 30 km\/h/);
+});
+
+test("regard-intersection : regarder à droite avant de regarder à gauche est refusé par l'assertion d'ordre de l'approche", () => {
+  const def = copie("regard-intersection");
+  [def.etapes[4].regard, def.etapes[5].regard] = [def.etapes[5].regard, def.etapes[4].regard];
+  assert.throws(() => verifierApproche(def), /approche : 0 à 50 km\/h, 180 à 50 km\/h, 0 en ralentissant, 0 à 30 km\/h, 30 à 30 km\/h, -30 à 30 km\/h(?!,)/);
+});
+
+test("regard-intersection : un contrôle encore en cours dans l'intersection est détecté", () => {
+  const def = copie("regard-intersection");
+  def.etapes[6].s += 3;   // le regard à droite se prolonge sur les 3 premiers mètres de l'intersection
+  assert.ok(controlesDansIntersection(def).length > 0);
+});
+
+test("regard-intersection : un clignotant, à droite comme à gauche, est détecté", () => {
+  for (const cote of ["droite", "gauche"]) {
+    const def = copie("regard-intersection");
+    def.acteurs[0].clignotant = [{ cote, de: 60, a: 90 }];
+    assert.match(erreurs(def), new RegExp(`eleve : clignotant ${cote} allumé avant s = `));
+  }
+});
+
+test("regard-intersection : traverser l'intersection sans ralentir est détecté", () => {
+  const def = copie("regard-intersection");
+  def.acteurs[0].profil = def.acteurs[0].profil.map((p) => ({ ...p, kmh: INTERSECTION_KMH.approche }));
+  assert.match(erreurs(def), /eleve dépasse 30 km\/h entre s = /);
+});
+
+test("regard-intersection : une voiture qui mord sur la voie opposée est détectée", () => {
+  const def = copie("regard-intersection");
+  for (const seg of def.acteurs[0].chemin.segments) seg.x0 -= 1;
+  assert.match(erreurs(def), /eleve sort de « moitié droite de la chaussée, intersection comprise »/);
+});
+
+test("regard-intersection : un véhicule qui attend au-delà de sa ligne de cédez-le-passage est détecté", () => {
+  const def = copie("regard-intersection");
+  def.acteurs[1].pose.x -= 1;
+  assert.match(erreurs(def), /aDroite franchit « ligne de cédez-le-passage, branche est » sans s'être arrêté/);
+});

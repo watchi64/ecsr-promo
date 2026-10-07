@@ -108,6 +108,8 @@ test("scènes, images figées : à chaque étape, le clignotant en marche est de
       if (e.clignotant) enMarche++;
     });
     etapesAvecClignotant += enMarche;
+    // Une scène où l'élève a un clignotant le montre allumé à une étape au moins.
+    if ((sc.eleve.clignotant || []).length) assert.ok(enMarche > 0, `${code} : aucune étape n'a de clignotant en marche, le test ne vérifie rien`);
   }
   assert.ok(etapesAvecClignotant > 0, "aucune scène n'a d'étape avec un clignotant en marche : le test ne vérifie rien");
 });
