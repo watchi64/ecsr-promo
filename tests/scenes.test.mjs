@@ -3,9 +3,10 @@ import assert from "node:assert/strict";
 import { SCENES } from "../js/scenes.js";
 import { controlerScene, SEUILS } from "../js/scene-controles.js";
 import { REGARD_PORTEE, REGARD_DUREE_TOUR_MIN, oeil, angleRegard, cibleSuivie, coneRegard, regardContient } from "../js/scene-regard.js";
-import { KMH, DEG, preparerScene, etatActeur, emprise, tempsAtteint, centreArc, pointA, pointDansPolygone,
-  polygonesSeChevauchent, rectangle } from "../js/scene-geometrie.js";
-import { DESSIN, trajetGiratoire } from "../js/scene-decors.js";
+import { KMH, DEG, GABARITS, preparerScene, etatActeur, emprise, tempsAtteint, tempsDepart, centreArc, pointA,
+  pointDansPolygone, polygonesSeChevauchent, rectangle, trajet, rebroussements } from "../js/scene-geometrie.js";
+import { DESSIN, trajetGiratoire, rue } from "../js/scene-decors.js";
+import { feuxDeRecul, reperesEtapes, demiLargeurRepere, RAYON_REPERE } from "../js/scene-rendu.js";
 import { SIGNAUX } from "../js/signaux.js";
 
 const erreurs = (def) => controlerScene(def).join("\n");
@@ -1505,4 +1506,452 @@ test("regard-intersection : un véhicule qui attend au-delà de sa ligne de céd
   const def = copie("regard-intersection");
   def.acteurs[1].pose.x -= 1;
   assert.match(erreurs(def), /aDroite franchit « ligne de cédez-le-passage, branche est » sans s'être arrêté/);
+});
+
+// ===== demi-tour : méthode de Timy (07/10/2026), V·V·C·C (procédures de stage, section 4.3 ; fiche ECF C1-D) =====
+//
+// Comme pour les autres scènes, les instants et les positions se lisent sur la définition (trajet, chronologie, emprises).
+// La voiture pivote autour de son essieu arrière : le trajet est celui du milieu de cet essieu, pointA rend son centre.
+
+// Choix de dessin consignés dans les sources de la scène.
+const DEMI_TOUR_KMH = { avant: 5, arriere: 4 };
+const JEU_ARRETS = 0.3;                                               // m : entre l'emprise et chaque trottoir, à chaque arrêt
+const DEMI_TOUR_ESSIEU = 1.45;                                        // m : du centre de la voiture au milieu de l'essieu arrière
+const DEMI_TOUR_RAYON = Math.sqrt(4.1 ** 2 - DEMI_TOUR_ESSIEU ** 2);   // m : rayon de l'essieu, le centre de la voiture à 4,1 m
+const DEMI_TOUR_REGARDS = [{ angle: 180 }, { angle: -170 }, { angle: -120 }, { angle: 0 }, { angle: -40 }, { angle: 0 },
+  { tour: true }, { angle: 0 }, { angle: 165 }, { angle: 165 }, { angle: 180 }, { angle: -170 }, { angle: -120 }, { angle: 0 },
+  { angle: -40 }, { angle: 0 }];
+
+function lireDemiTour(def = SCENES["demi-tour"].construire()) {
+  const sc = preparerScene(def), eleve = sc.eleve, ch = eleve.chemin, segs = ch.segments;
+  const [r1, r2] = rebroussements(ch);
+  const arcs = segs.filter((s) => s.type === "arc" && !s.decalage), recentrage = segs.filter((s) => s.decalage);
+  const fin3 = arcs[2].debut + arcs[2].longueur, sMilieu = recentrage[1].debut + recentrage[1].longueur;
+  const { xBordGauche: xg, xBordDroit: xd, xAxe } = def.decor.reperes;
+  const jeux = (p) => { const xs = emprise("voiture", p).map(([x]) => x); return { gauche: Math.min(...xs) - xg, droit: xd - Math.max(...xs) }; };
+  const tA = (s) => tempsAtteint(eleve.chrono, s), tD = (s) => tempsDepart(eleve.chrono, s);
+  return { def, sc, eleve, ch, segs, r1, r2, arcs, fin3, recentrage, sMilieu, xg, xd, xAxe, jeux, tA, tD,
+    T: sc.etapes.map((e) => e.t), F: sc.etapes.map((e) => e.fin) };
+}
+
+// Plus petit jeu (m) à chaque trottoir sur la portion [a, b] du trajet, relevé tous les demi-millimètres (b exclu quand
+// c'est un rebroussement : la voiture y est déjà dans la marche qui suit, au même endroit).
+function jeuxAuPlusPres({ ch, jeux }, a, b) {
+  let gauche = Infinity, droit = Infinity;
+  for (let k = 0; a + k * 0.0005 <= b + 1e-12; k++) {
+    const j = jeux(pointA(ch, Math.min(a + k * 0.0005, b)));
+    gauche = Math.min(gauche, j.gauche); droit = Math.min(droit, j.droit);
+  }
+  return { gauche, droit };
+}
+
+// Ce que montre l'image entre deux instants, relevé au centième de seconde : le regard de l'étape en cours (« tour », ou
+// son angle par rapport à l'axe de la voiture, en degrés) et le clignotant en marche, chaque élément avec sa durée.
+function sequenceImage(sc, t0, t1) {
+  const suite = [];
+  for (let t = t0 + 0.005; t < t1; t += 0.01) {
+    const r = sc.etapes[etapeActive(sc, t)].regard, c = etatActeur(sc.eleve, t).clignotant;
+    const libelle = (r.tour ? "tour" : String(r.angle)) + (c ? ` + clignotant ${c}` : "");
+    const der = suite[suite.length - 1];
+    if (der && der.libelle === libelle) der.duree += 0.01;
+    else suite.push({ libelle, duree: 0.01 });
+  }
+  return suite;
+}
+
+// Assertion d'ordre de chaque arrêt (V·V·C·C, ordre de Timy : contrôles, puis clignotant, puis action) : du début de chaque
+// arrêt (le départ, puis l'arrivée à chaque rebroussement) au redémarrage, la suite des regards et du clignotant, chaque
+// élément pendant 1,0 s au moins. Lève une AssertionError sinon.
+function verifierArrets(def) {
+  const { sc, r1, r2, tA, tD } = lireDemiTour(def);
+  const attendus = [
+    [0, tD(0), ["180", "-170", "-120", "0 + clignotant gauche"]],
+    [tA(r1), tD(r1), ["0", "tour", "0 + clignotant droite"]],
+    [tA(r2), tD(r2), ["165", "180", "-170", "-120", "0 + clignotant gauche"]],
+  ];
+  attendus.forEach(([t0, t1, libelles], i) => {
+    const suite = sequenceImage(sc, t0, t1);
+    assert.deepEqual(suite.map((x) => x.libelle), libelles, `arrêt ${i} : ${suite.map((x) => x.libelle).join(", ")}`);
+    for (const x of suite) assert.ok(x.duree >= DUREE_MIN.etape - 0.011, `arrêt ${i} : ${x.libelle} pendant ${x.duree.toFixed(2)} s`);
+  });
+}
+
+// Le même demi-tour (braquage à fond, chaque temps jusqu'à JEU_ARRETS du trottoir qu'il approche, le troisième jusqu'au cap
+// opposé) dans une rue dont les voies ont `largeurVoie` m, calculé ici : plus petit jeu au trottoir opposé pendant le
+// troisième temps (négatif : la voiture y mord).
+function troisiemeTempsDansUneRue(largeurVoie) {
+  const d = rue({ longueur: 30, largeurTrottoir: 8, largeurVoie });
+  const { xBordGauche: xg, xBordDroit: xd } = d.reperes;
+  const jeu = (p, cote) => { const xs = emprise("voiture", p).map(([x]) => x); return cote === "gauche" ? Math.min(...xs) - xg : xd - Math.max(...xs); };
+  const depart = () => trajet(xd - JEU_ARRETS - GABARITS.voiture.largeur / 2, 8, -90, { essieu: DEMI_TOUR_ESSIEU });
+  const jusquAuTrottoir = (poser, cote) => {
+    let ok = 0, trop = 90;
+    for (let k = 0; k < 60; k++) {
+      const a = (ok + trop) / 2, ch = poser(a).fin();
+      if (jeu(pointA(ch, ch.longueur), cote) >= JEU_ARRETS) ok = a; else trop = a;
+    }
+    return ok;
+  };
+  const a1 = jusquAuTrottoir((a) => depart().virage(DEMI_TOUR_RAYON, -a), "gauche");
+  const a2 = jusquAuTrottoir((a) => depart().virage(DEMI_TOUR_RAYON, -a1).inverser().virage(DEMI_TOUR_RAYON, -a), "droit");
+  const ch = depart().virage(DEMI_TOUR_RAYON, -a1).inverser().virage(DEMI_TOUR_RAYON, -a2).inverser()
+    .virage(DEMI_TOUR_RAYON, -(180 - a1 - a2)).fin();
+  const s3 = ch.segments[2].debut;
+  let min = Infinity;
+  for (let k = 0; s3 + k * 0.0005 <= ch.longueur; k++) min = Math.min(min, jeu(pointA(ch, s3 + k * 0.0005), "gauche"));
+  return min;
+}
+
+test("demi-tour : rue de 7,2 m (deux voies de 3,6 m), 8 m de trottoir, 8 m au nord du départ et 22 m au sud ; cadre fixe, le monde entier ; départ arrêté au bord droit, vers le nord, sans autre usager", () => {
+  const { def, ch, xg, xd, xAxe } = lireDemiTour();
+  proche(xd - xg, 7.2, 1e-12, "chaussée"); proche(xAxe - xg, 3.6, 1e-12, "voie de droite du nouveau sens");
+  proche(xg, 8, 1e-12, "trottoir gauche"); proche(def.monde.largeur - xd, 8, 1e-12, "trottoir droit");
+  assert.equal(def.monde.hauteur, 8 + REGARD_PORTEE);
+  assert.deepEqual(def.camera, { largeur: def.monde.largeur, hauteur: def.monde.hauteur });
+  const p0 = pointA(ch, 0);
+  proche(p0.y, 8, 1e-9, "8 m de rue au nord du départ"); proche(def.monde.hauteur - p0.y, REGARD_PORTEE, 1e-9, "22 m au sud");
+  proche(p0.cap, -90 * DEG, 1e-12, "vers le nord");
+  proche(xd - (p0.x + GABARITS.voiture.largeur / 2), JEU_ARRETS, 1e-9, "flanc droit à 0,3 m du trottoir");
+  assert.equal(def.acteurs.length, 1, "ni circulation ni voiture garée");
+  assert.deepEqual(def.decor.panneaux, []);
+});
+
+test("demi-tour : trois arcs braqués à fond, chacun parti d'un arrêt, l'essieu arrière à 3,835 m du centre de rotation et le centre de la voiture à 4,1 m ; puis le recentrage et roues droites", () => {
+  const { ch, segs, r1, r2, arcs, fin3, recentrage } = lireDemiTour();
+  assert.deepEqual(segs.map((s) => [s.type, s.arriere, Boolean(s.decalage)]), [["arc", false, false], ["arc", true, false],
+    ["arc", false, false], ["arc", false, true], ["arc", false, true], ["droite", false, false]]);
+  for (const seg of segs) assert.equal(seg.essieu, DEMI_TOUR_ESSIEU, "la voiture pivote autour de son essieu arrière");
+  for (const arc of arcs) proche(arc.rayon, DEMI_TOUR_RAYON, 1e-12, "braquage à fond");
+  // Temps 1 et 3 en avant, volant à gauche ; temps 2 en arrière, volant à droite : la tortue, qui va vers l'arrière de la
+  // caisse, tourne alors à gauche. Chaque arc part de l'arrêt : du départ, puis de chaque rebroussement.
+  assert.ok(arcs.every((a) => a.angle < 0), "trois arcs où la tortue tourne à gauche");
+  proche(arcs[0].debut, 0, 1e-12); proche(arcs[1].debut, r1, 1e-12); proche(arcs[2].debut, r2, 1e-12);
+  for (const arc of arcs) {
+    const c = centreArc(arc);
+    for (const f of [0, 0.25, 0.5, 0.75, 1]) {
+      const p = pointA(ch, arc.debut + f * arc.longueur);
+      proche(Math.hypot(p.x - c.x, p.y - c.y), 4.1, 1e-9, "centre de la voiture à 4,1 m du centre de rotation");
+    }
+  }
+  // Demi-tour : la caisse passe du cap -90 (nord) au cap -270 (sud), sans saut, et le garde.
+  proche(pointA(ch, fin3).cap, -270 * DEG, 1e-9);
+  proche(pointA(ch, ch.longueur).cap, -270 * DEG, 1e-9);
+  // Recentrage : deux arcs de décalage, sans changement de voie, puis roues droites.
+  assert.ok(recentrage.every((s) => !s.changementDeVoie && !s.suitLaRoute), "un déplacement dans la voie");
+});
+
+test("demi-tour : à chaque arrêt, 0,3 m au moins entre la voiture et chaque trottoir ; chaque temps va jusqu'à 0,3 m du trottoir qu'il approche", () => {
+  const { ch, r1, r2, jeux } = lireDemiTour();
+  const [depart, arret1, arret2] = [0, r1, r2].map((s) => jeux(pointA(ch, s)));
+  for (const [nom, j] of [["départ", depart], ["fin du premier temps", arret1], ["fin du deuxième temps", arret2]]) {
+    assert.ok(j.gauche >= JEU_ARRETS - 1e-12 && j.droit >= JEU_ARRETS - 1e-12, `${nom} : ${j.gauche} m à gauche, ${j.droit} m à droite`);
+  }
+  proche(depart.droit, JEU_ARRETS, 1e-9, "départ au bord droit");
+  proche(arret1.gauche, JEU_ARRETS, 1e-6, "fin du premier temps, devant le trottoir opposé");
+  proche(arret2.droit, JEU_ARRETS, 1e-6, "fin du deuxième temps, devant le trottoir de départ");
+});
+
+test("demi-tour : en roulant, la voiture ne touche jamais un trottoir ; au plus près, l'arrière au premier temps et l'avant au troisième, plus près qu'aux arrêts ; en se recentrant, jamais à moins de 0,6 m de la bordure", () => {
+  const lu = lireDemiTour(), { ch, r1, r2, fin3, sMilieu } = lu;
+  const temps1 = jeuxAuPlusPres(lu, 0, r1 - 1e-9), temps2 = jeuxAuPlusPres(lu, r1, r2 - 1e-9);
+  const temps3 = jeuxAuPlusPres(lu, r2, fin3), recentrage = jeuxAuPlusPres(lu, fin3, sMilieu), fin = jeuxAuPlusPres(lu, sMilieu, ch.longueur);
+  for (const [nom, j] of [["temps 1", temps1], ["temps 2", temps2], ["temps 3", temps3], ["recentrage", recentrage], ["roues droites", fin]]) {
+    assert.ok(j.gauche > 0 && j.droit > 0, `${nom} : ${j.gauche} m à gauche, ${j.droit} m à droite`);
+  }
+  // Au premier temps, l'arrière se déporte vers le trottoir de départ (la voiture pivote autour de son essieu arrière) ; au
+  // troisième, le coin avant droit balaie le trottoir opposé.
+  assert.ok(temps1.droit < JEU_ARRETS && temps1.droit > 0.2, `temps 1 : ${temps1.droit} m du trottoir de départ`);
+  assert.ok(temps3.gauche < JEU_ARRETS && temps3.gauche > temps1.droit, `temps 3 : ${temps3.gauche} m du trottoir opposé`);
+  proche(Math.min(temps2.gauche, temps2.droit), JEU_ARRETS, 1e-3, "temps 2 : au plus près, à ses deux arrêts");
+  assert.ok(recentrage.gauche >= DESSIN.margeTrajectoire, `recentrage : ${recentrage.gauche} m de la bordure`);
+});
+
+test("demi-tour : 5 km/h en avant, 4 km/h en arrière, allure prise et perdue à 1,0 m/s² au plus ; arrêt à chaque rebroussement, le temps des gestes : 5,4 s au départ, 7,0 s puis 6,4 s", () => {
+  const { sc, eleve, r1, r2, fin3, tA, tD } = lireDemiTour();
+  const vMax = { temps1: 0, temps2: 0, temps3: 0 };
+  for (let t = 0; t <= sc.duree + 1e-9; t += 0.01) {
+    const e = etatActeur(eleve, t), kmhAtteints = e.v / KMH;
+    const max = e.marche === "arriere" ? DEMI_TOUR_KMH.arriere : DEMI_TOUR_KMH.avant;
+    assert.ok(kmhAtteints <= max + 1e-9, `${kmhAtteints.toFixed(3)} km/h en marche ${e.marche} à t = ${t.toFixed(2)} s`);
+    assert.ok(Math.abs(e.a) <= 1.0 + 1e-9, `${e.a.toFixed(3)} m/s² à t = ${t.toFixed(2)} s`);
+    const temps = e.s < r1 ? "temps1" : e.s < r2 ? "temps2" : e.s <= fin3 ? "temps3" : null;
+    if (temps) vMax[temps] = Math.max(vMax[temps], kmhAtteints);
+  }
+  proche(vMax.temps1, DEMI_TOUR_KMH.avant, 1e-9); proche(vMax.temps2, DEMI_TOUR_KMH.arriere, 1e-9); proche(vMax.temps3, DEMI_TOUR_KMH.avant, 1e-9);
+  proche(tD(0), 5.4, 1e-9, "arrêt de départ"); proche(tD(r1) - tA(r1), 7.0, 1e-9, "arrêt 1"); proche(tD(r2) - tA(r2), 6.4, 1e-9, "arrêt 2");
+  for (const [de, a] of [[0, tD(0)], [tA(r1), tD(r1)], [tA(r2), tD(r2)]]) {
+    for (let t = de; t < a - 1e-6; t += 0.01) assert.equal(etatActeur(eleve, t).v, 0, `à l'arrêt à t = ${t.toFixed(2)} s`);
+    assert.equal(etatActeur(eleve, a).v, 0, `à l'arrêt jusqu'au redémarrage, t = ${a.toFixed(2)} s`);
+  }
+});
+
+test("demi-tour : seize étapes, dans l'ordre, chacune avec son regard, à son moment et à sa place", () => {
+  assert.deepEqual(SCENES["demi-tour"].etapesModele, [
+    "Temps 1 : contrôler au rétroviseur intérieur",
+    "Contrôler au rétroviseur extérieur gauche",
+    "Contrôler l'angle mort gauche",
+    "Mettre le clignotant gauche",
+    "Avancer volant à gauche jusqu'au trottoir opposé",
+    "S'arrêter avant le trottoir, engager la marche arrière",
+    "Temps 2 : faire le tour du regard",
+    "Mettre le clignotant droit",
+    "Reculer volant à droite, par la lunette arrière",
+    "S'arrêter avant le trottoir, engager la première",
+    "Temps 3 : contrôler au rétroviseur intérieur",
+    "Contrôler au rétroviseur extérieur gauche",
+    "Contrôler l'angle mort gauche",
+    "Mettre le clignotant gauche",
+    "Repartir volant à gauche, puis se replacer au milieu de la voie",
+    "Rouler dans la voie de droite",
+  ]);
+  const { def, sc, eleve, r1, r2, sMilieu, tA, tD, T, F } = lireDemiTour();
+  assert.deepEqual(def.etapes.map((e) => e.regard), DEMI_TOUR_REGARDS);
+  const a1 = tA(r1), a2 = tA(r2);
+  // Départ : coups d'œil de 1,2, 1,2 et 1,0 s, clignotant 2,0 s avant de partir. Arrivée 1 : arrêt montré 1,0 s, tour du
+  // regard 4,0 s, clignotant 2,0 s. Arrivée 2 : arrêt montré 1,0 s, coups d'œil, clignotant 2,0 s. Étape 16 : au milieu de la voie.
+  const attendus = [0, 1.2, 2.4, 3.4, 5.4, a1, a1 + 1.0, a1 + 5.0, a1 + 7.0, a2, a2 + 1.0, a2 + 2.2, a2 + 3.4, a2 + 4.4, a2 + 6.4, tA(sMilieu)];
+  attendus.forEach((t, k) => proche(T[k], t, 1e-9, `étape ${k + 1}`));
+  proche(T[4], tD(0), 1e-9, "avancer : au départ"); proche(T[8], tD(r1), 1e-9, "reculer : au départ"); proche(T[14], tD(r2), 1e-9, "repartir : au départ");
+  proche(F[6] - T[6], REGARD_DUREE_TOUR_MIN, 1e-9, "tour du regard de 4,0 s");
+  proche(F[15] - T[15], 1.0 + 1.0, 1e-6, "roues droites 1,0 s, puis 1,0 s d'image tenue");
+  sc.etapes.forEach((e, k) => proche(etatActeur(eleve, T[k]).s, e.s, 1e-6, `étape ${k + 1} : abscisse atteinte à son instant`));
+});
+
+test("demi-tour : à chaque arrêt, V·V·C·C dans l'ordre de Timy : les contrôles, puis le clignotant, puis le mouvement, chaque geste 1,0 s au moins ; aucun clignotant à l'instant de l'étape des contrôles, l'ancien encore allumé à l'instant de l'arrivée", () => {
+  verifierArrets(SCENES["demi-tour"].construire());
+  const { eleve, r1, r2, tA, T } = lireDemiTour();
+  const cote = (t) => etatActeur(eleve, t).clignotant;
+  // L'arrivée, à son instant même, montre la fin du temps qui s'achève : son clignotant brille encore (borne comprise).
+  assert.equal(cote(tA(r1)), "gauche"); assert.equal(cote(tA(r2)), "droite");
+  proche(T[5], tA(r1), 1e-12); proche(T[9], tA(r2), 1e-12);
+  // L'étape des contrôles qui suit chaque arrivée, à son instant même : aucun clignotant ; au départ, de même.
+  for (const k of [0, 1, 2, 6, 10, 11, 12]) assert.equal(cote(T[k]), null, `étape ${k + 1}`);
+  // L'étape du clignotant, à son instant même : le clignotant du temps qui commence.
+  assert.equal(cote(T[3]), "gauche"); assert.equal(cote(T[7]), "droite"); assert.equal(cote(T[13]), "gauche");
+});
+
+test("demi-tour : clignotants gauche, droit, gauche, chacun allumé avec son étape, 2,0 s avant le départ de son arc et jusqu'au bout de cet arc ; éteint pendant le recentrage et roues droites", () => {
+  const { def, sc, eleve, arcs, fin3, tA, tD, T } = lireDemiTour();
+  assert.deepEqual(def.acteurs[0].clignotant.map((c) => c.cote), ["gauche", "droite", "gauche"]);
+  for (const [k, arc, cote] of [[3, arcs[0], "gauche"], [7, arcs[1], "droite"], [13, arcs[2], "gauche"]]) {
+    const tFin = tA(arc.debut + arc.longueur);
+    proche(tD(arc.debut) - T[k], 2.0, 1e-9, `clignotant ${cote} allumé 2,0 s avant le départ de son arc`);
+    assert.equal(etatActeur(eleve, T[k]).clignotantDepuis, T[k], `clignotement compté depuis l'allumage, étape ${k + 1}`);
+    for (let t = T[k]; t <= tFin + 1e-9; t += 0.01) assert.equal(etatActeur(eleve, t).clignotant, cote, `t = ${t.toFixed(2)} s`);
+    assert.equal(etatActeur(eleve, tFin).clignotant, cote, "jusqu'au bout de l'arc");
+  }
+  for (let t = tA(fin3) + 0.01; t <= sc.duree + 1e-9; t += 0.01) assert.equal(etatActeur(eleve, t).clignotant, null, `t = ${t.toFixed(2)} s`);
+});
+
+test("demi-tour : feux de recul allumés dès l'arrêt qui finit le premier temps (marche arrière engagée) et jusqu'à l'arrêt qui finit le deuxième (première engagée), éteints sinon", () => {
+  const { sc, eleve, r1, r2, tA } = lireDemiTour();
+  const a1 = tA(r1), a2 = tA(r2);
+  for (let t = 0; t <= sc.duree + 1e-9; t += 0.01) {
+    if (Math.abs(t - a1) < 1e-6 || Math.abs(t - a2) < 1e-6) continue;
+    assert.equal(feuxDeRecul(etatActeur(eleve, t)), t > a1 && t < a2, `t = ${t.toFixed(2)} s`);
+  }
+  assert.equal(feuxDeRecul(etatActeur(eleve, a1)), true, "dès l'arrivée du premier temps");
+  assert.equal(feuxDeRecul(etatActeur(eleve, a2)), false, "dès l'arrivée du deuxième temps");
+});
+
+test("demi-tour : au bout du troisième temps, dans sa voie à 0,65 m à gauche de son milieu, la voiture s'y replace sur 8 m sans clignotant ; l'étape 16 commence au milieu de la voie, regard devant, clignotant éteint, et dure au moins 1,0 s", () => {
+  const { def, sc, eleve, ch, fin3, sMilieu, xg, xAxe, tA, T, F } = lireDemiTour();
+  const milieu = (xg + xAxe) / 2, p3 = pointA(ch, fin3), pm = pointA(ch, sMilieu);
+  proche(p3.x - milieu, 0.65, 0.005, "écart au milieu de la voie au bout du troisième temps");
+  proche(pm.x, milieu, 1e-9, "au milieu de la voie"); proche(pm.cap, -270 * DEG, 1e-9, "vers le sud");
+  proche(pm.y - p3.y, 8, 1e-9, "8 m d'avance");
+  proche(T[15], tA(sMilieu), 1e-9, "étape 16 au milieu de la voie");
+  assert.equal(etatActeur(eleve, T[15]).clignotant, null);
+  assert.deepEqual(def.etapes[15].regard, { angle: 0 });
+  assert.ok(F[15] - T[15] >= DUREE_MIN.etape - 1e-9, `étape 16 : ${(F[15] - T[15]).toFixed(3)} s`);
+  proche(tA(ch.longueur) - tA(sMilieu), 1.0, 1e-6, "roues droites pendant 1,0 s");
+  for (let s = fin3; s <= ch.longueur + 1e-9; s += 0.01) {
+    assert.ok(emprise("voiture", pointA(ch, s)).every((q) => pointDansPolygone(q, def.decor.voies.gauche)), `hors de la voie en s = ${s.toFixed(2)} m`);
+  }
+  assert.ok(sc.duree > T[15]);
+});
+
+test("demi-tour : en avançant volant à gauche, regard à 40 degrés à gauche, vers où va la voiture : au départ du premier et du troisième temps, le cône contient la voiture 2, 3 et 4 m plus loin (à 30 degrés, plus à 4 m ; à 50, plus à 2 m ; droit devant, seulement à 1 m) ; pendant tout le premier temps, il coupe la bordure du trottoir opposé", () => {
+  const { def, eleve, ch, r1, fin3, xg, T, F } = lireDemiTour();
+  const plusLoin = (k, angle, sFin) => {
+    const e = etatActeur(eleve, T[k]);
+    return [1, 2, 3, 4].map((m) => regardContient(e.cap + angle * DEG, oeil(e), pointA(ch, Math.min(e.s + m, sFin))));
+  };
+  for (const [k, sFin] of [[4, r1], [14, fin3]]) {
+    assert.deepEqual(plusLoin(k, -40, sFin), [false, true, true, true], `étape ${k + 1}, 40 degrés à gauche`);
+    assert.deepEqual(plusLoin(k, -30, sFin), [false, true, true, false], `étape ${k + 1}, 30 degrés à gauche`);
+    assert.deepEqual(plusLoin(k, -50, sFin), [false, false, true, true], `étape ${k + 1}, 50 degrés à gauche`);
+    assert.deepEqual(plusLoin(k, 0, sFin), [true, false, false, false], `étape ${k + 1}, droit devant`);
+  }
+  const coupeBordure = (e, angle) => {
+    for (let y = 0; y <= def.monde.hauteur; y += 0.05) if (regardContient(e.cap + angle * DEG, oeil(e), { x: xg, y })) return true;
+    return false;
+  };
+  let devantNon = 0;
+  for (let t = T[4]; t < F[4]; t += 0.01) {
+    const e = etatActeur(eleve, t);
+    assert.ok(coupeBordure(e, -40), `bordure opposée hors du cône à t = ${t.toFixed(2)} s`);
+    if (!coupeBordure(e, 0)) devantNon++;
+  }
+  assert.ok(devantNon > 0, "droit devant, le cône manquerait la bordure opposée une partie du premier temps");
+});
+
+test("demi-tour : 22 m de rue au sud du départ : le cône du rétroviseur intérieur, tourné vers l'arrière, tient dans le monde pendant l'étape 1", () => {
+  const { def, sc, eleve, T } = lireDemiTour();
+  for (let t = 0; t < T[1]; t += 0.01) {
+    const e = etatActeur(eleve, t);
+    for (const [x, y] of coneRegard(angleRegard(sc.etapes[0], e, t, etatsA(sc, t)), oeil(e))) {
+      assert.ok(x >= 0 && x <= def.monde.largeur && y >= 0 && y <= def.monde.hauteur, `cône hors du monde à t = ${t.toFixed(2)} s : (${x.toFixed(2)} ; ${y.toFixed(2)})`);
+    }
+  }
+});
+
+test("demi-tour : 8 m de trottoir et 8 m de rue au nord du départ, le plus petit nombre entier de mètres qui loge à leur place les repères des animations réduites : celui des étapes 1 à 5 à droite de la voiture au départ, celui des étapes 6 à 9 au nord de la voiture arrêtée", () => {
+  const { def, sc, xd } = lireDemiTour();
+  const reperes = reperesEtapes(sc);
+  const r15 = reperes.find((r) => r.numeros.join() === "1,2,3,4,5"), r69 = reperes.find((r) => r.numeros.join() === "6,7,8,9");
+  assert.ok(r15 && r69, `repères : ${reperes.map((r) => r.numeros.join("·")).join(" | ")}`);
+  const e0 = etatActeur(sc.eleve, sc.etapes[0].t), e6 = etatActeur(sc.eleve, sc.etapes[5].t);
+  // À leur place : à droite de la voiture au départ, sur le trottoir droit ; au nord de la voiture arrêtée.
+  proche(r15.y, e0.y, 1e-9); assert.ok(r15.x - demiLargeurRepere(r15.numeros) >= xd - 1e-9, "sur le trottoir droit");
+  assert.ok(r69.y < e6.y, "au nord de la voiture arrêtée");
+  // Un mètre de moins, et chacun sortirait du monde : il faudrait le poser ailleurs.
+  const marge15 = def.monde.largeur - (r15.x + demiLargeurRepere(r15.numeros)), marge69 = r69.y - RAYON_REPERE;
+  assert.ok(marge15 >= 0 && marge15 < 1, `repère 1·2·3·4·5 à ${marge15.toFixed(3)} m du bord droit du monde`);
+  assert.ok(marge69 >= 0 && marge69 < 1, `repère 6·7·8·9 à ${marge69.toFixed(3)} m du bord haut du monde`);
+});
+
+test("demi-tour : les valeurs calculées que citent les sources (rues de 7 m et de 7,1 m, rayons, angles, jeux au plus près, recentrage, allure du centre, durées) sont celles de la scène, à l'arrondi écrit près", () => {
+  const lu = lireDemiTour(), { sc, ch, r1, r2, arcs, fin3, sMilieu, xg, xAxe, tA, tD } = lu;
+  const choixDeDessin = SCENES["demi-tour"].sources.find((s) => s.startsWith("Choix de dessin"));
+  // Nombre écrit à la française dans les sources ; tolérance : la moitié de son dernier chiffre.
+  const ecrit = (motif) => {
+    const m = choixDeDessin.match(motif);
+    assert.ok(m, `${motif} introuvable dans les sources`);
+    return { valeur: Number(m[1].replace(",", ".")), tolerance: 0.5 * 10 ** -(m[1].split(",")[1] || "").length };
+  };
+  const { longueur: L, largeur: W } = GABARITS.voiture;
+  const temps1 = jeuxAuPlusPres(lu, 0, r1 - 1e-9), temps3 = jeuxAuPlusPres(lu, r2, fin3), recentrage = jeuxAuPlusPres(lu, fin3, sMilieu);
+  // Le même recentrage (même écart), sur une autre avance : plus petit jeu à la bordure.
+  const ecart = pointA(ch, fin3).x - (xg + xAxe) / 2;
+  const recentrageSur = (avance) => {
+    const [a1, a2, a3] = arcs.map((a) => -a.angle / DEG), p0 = pointA(ch, 0);
+    const c = trajet(p0.x, p0.y, -90, { essieu: DEMI_TOUR_ESSIEU }).virage(DEMI_TOUR_RAYON, -a1).inverser().virage(DEMI_TOUR_RAYON, -a2)
+      .inverser().virage(DEMI_TOUR_RAYON, -a3).decaler(ecart, avance).fin();
+    let min = Infinity;
+    for (let k = 0; fin3 + k * 0.0005 <= c.longueur; k++) min = Math.min(min, Math.min(...emprise("voiture", pointA(c, fin3 + k * 0.0005)).map(([x]) => x)) - xg);
+    return min;
+  };
+  const mesures = [
+    ["rue de 7 m : morsure sur le trottoir opposé au troisième temps (m)", -troisiemeTempsDansUneRue(3.5), ecrit(/mordrait de (\d+(?:,\d+)?) m sur le trottoir opposé/)],
+    ["coin avant droit : rayon du cercle balayé (m)", Math.hypot(DEMI_TOUR_RAYON + W / 2, DEMI_TOUR_ESSIEU + L / 2), ecrit(/balayant un cercle de (\d+(?:,\d+)?) m de rayon/)],
+    ["rue de 7,1 m : jeu au troisième temps (m)", troisiemeTempsDansUneRue(3.55), ecrit(/ne lui laisserait que (\d+(?:,\d+)?) m/)],
+    ["rue de 7,2 m : au plus près au troisième temps (m)", temps3.gauche, ecrit(/n'en passe pas plus près \((\d+(?:,\d+)?) m\)/)],
+    ["rayon de l'essieu (m)", arcs[0].rayon, ecrit(/soit (\d+(?:,\d+)?) m à l'essieu/)],
+    ["diamètre de braquage entre trottoirs (m), 2,7 m d'empattement, 1,55 m de voie", 2 * Math.hypot(DEMI_TOUR_RAYON + 1.55 / 2, 2.7), ecrit(/diamètre de braquage d'environ (\d+(?:,\d+)?) m/)],
+    ["premier temps (degrés)", -arcs[0].angle / DEG, ecrit(/: (\d+(?:,\d+)?) degrés au premier temps/)],
+    ["deuxième temps (degrés)", -arcs[1].angle / DEG, ecrit(/degrés au premier temps, (\d+(?:,\d+)?) au deuxième/)],
+    ["troisième temps (degrés)", -arcs[2].angle / DEG, ecrit(/au deuxième, (\d+(?:,\d+)?) au troisième/)],
+    ["au plus près au premier temps (m)", temps1.droit, ecrit(/au plus près des trottoirs, (\d+(?:,\d+)?) m au premier temps/)],
+    ["déport de l'arrière au premier temps (m)", JEU_ARRETS - temps1.droit, ecrit(/l'arrière se déporte de (\d+(?:,\d+)?) m/)],
+    ["au plus près au troisième temps (m)", temps3.gauche, ecrit(/\) et (\d+(?:,\d+)?) m au troisième ;/)],
+    ["recentrage : écart au milieu de la voie (m)", ecart, ecrit(/pas un changement de direction\) : (\d+(?:,\d+)?) m vers la droite/)],
+    ["recentrage : au plus près de la bordure (m)", recentrage.gauche, ecrit(/\((\d+(?:,\d+)?) m au plus près ;/)],
+    ["recentrage sur 7 m (m)", recentrageSur(7), ecrit(/7 m la mèneraient à (\d+(?:,\d+)?) m/)],
+    ["recentrage sur 5 m (m)", recentrageSur(5), ecrit(/, 5 m à (\d+(?:,\d+)?) m\)/)],
+    ["allure du centre de la voiture dans les arcs (% de plus)", 100 * (4.1 / DEMI_TOUR_RAYON - 1), ecrit(/le centre de la voiture va (\d+(?:,\d+)?) % plus vite/)],
+    ["arrêt de départ (s)", tD(0), ecrit(/arrêts de (\d+(?:,\d+)?) s au départ/)],
+    ["arrêt au premier rebroussement (s)", tD(r1) - tA(r1), ecrit(/puis de (\d+(?:,\d+)?) s et/)],
+    ["arrêt au second rebroussement (s)", tD(r2) - tA(r2), ecrit(/ s et (\d+(?:,\d+)?) s aux deux rebroussements/)],
+    ["scène, image tenue comprise (s)", sc.duree, ecrit(/scène de (\d+(?:,\d+)?) s, dont/)],
+  ];
+  for (const [nom, mesure, { valeur, tolerance }] of mesures) {
+    assert.ok(Math.abs(mesure - valeur) <= tolerance + 1e-9, `${nom} : ${mesure} dans la scène, ${valeur} dans les sources`);
+  }
+  assert.ok(troisiemeTempsDansUneRue(3.5) < 0, "dans la rue de 7 m, la voiture mord le trottoir opposé");
+  assert.ok(troisiemeTempsDansUneRue(3.55) < temps1.droit, "en 7,1 m, plus près qu'au premier temps");
+  assert.ok(temps3.gauche > temps1.droit, "en 7,2 m, pas plus près qu'au premier temps");
+});
+
+// Sabotages : chaque défaut est refusé par le contrôle ou l'assertion qui le vise.
+
+// Premier contact avec un trottoir signalé par les contrôles automatiques dans la scène `def` : instant, et trottoir où la
+// voiture mord à cet instant (celui dont elle est le plus près), ou null.
+function premierContact(def) {
+  const m = erreurs(def).match(/eleve touche un trottoir à t = (\d+\.\d) s/);
+  if (!m) return null;
+  const t = Number(m[1]), { eleve, jeux } = lireDemiTour(def);
+  const j = jeux(etatActeur(eleve, t));
+  return { t, trottoir: j.gauche < j.droit ? "opposé" : "de départ" };
+}
+
+test("demi-tour : la même trajectoire, la voiture pivotant autour de son centre et non de son essieu arrière, mord le trottoir de départ au premier temps", () => {
+  const def = copie("demi-tour");
+  for (const seg of def.acteurs[0].chemin.segments) delete seg.essieu;
+  const contact = premierContact(def), { r1, tA, tD } = lireDemiTour();
+  assert.ok(contact && contact.t >= tD(0) && contact.t <= tA(r1), `contact : ${JSON.stringify(contact)}`);
+  assert.equal(contact.trottoir, "de départ");
+});
+
+test("demi-tour : une voiture partie 0,35 m plus à gauche mord le trottoir opposé au premier temps ; partie 0,25 m plus à droite, le trottoir de départ", () => {
+  const { r1, tA, tD } = lireDemiTour();
+  for (const [decalage, trottoir] of [[-0.35, "opposé"], [0.25, "de départ"]]) {
+    const def = copie("demi-tour");
+    for (const seg of def.acteurs[0].chemin.segments) seg.x0 += decalage;
+    const contact = premierContact(def);
+    assert.ok(contact && contact.t >= tD(0) && contact.t <= tA(r1), `décalage de ${decalage} m : ${JSON.stringify(contact)}`);
+    assert.equal(contact.trottoir, trottoir, `décalage de ${decalage} m`);
+  }
+});
+
+test("demi-tour : un clignotant droit mis pendant l'arrêt, avant le tour du regard, est refusé par l'assertion d'ordre des arrêts (les contrôles automatiques ne le voient pas) ; mis à l'instant même de l'arrivée, les contrôles le voient", () => {
+  const def = copie("demi-tour");
+  def.acteurs[0].clignotant[1].delai = 0.5;
+  assert.deepEqual(controlerScene(def), []);
+  assert.throws(() => verifierArrets(def), /arrêt 1 : 0, 0 \+ clignotant droite, tour \+ clignotant droite, 0 \+ clignotant droite(?!,)/);
+  // À l'instant même de l'arrivée, la fin du premier arc, il l'emporterait sur le gauche (le dernier allumé l'emporte).
+  const aLArrivee = copie("demi-tour");
+  aLArrivee.acteurs[0].clignotant[1].delai = 0;
+  assert.match(erreurs(aLArrivee), /eleve : clignotant droite pendant un virage à gauche/);
+});
+
+test("demi-tour : un clignotant du premier temps qui brille encore pendant les gestes du deuxième (sans extinction datée) est refusé par l'assertion d'ordre des arrêts", () => {
+  const def = copie("demi-tour");
+  delete def.acteurs[0].clignotant[0].delaiFin;
+  assert.deepEqual(controlerScene(def), []);
+  assert.throws(() => verifierArrets(def), /arrêt 1 : 0 \+ clignotant gauche, tour \+ clignotant gauche, 0 \+ clignotant droite(?!,)/);
+});
+
+test("demi-tour : reculer sans faire le tour du regard, ou contrôler l'angle mort avant les rétroviseurs au troisième temps, est refusé par l'assertion d'ordre des arrêts", () => {
+  const sansTour = copie("demi-tour");
+  sansTour.etapes[6].regard = { angle: 165 };
+  assert.throws(() => verifierArrets(sansTour), /arrêt 1 : 0, 165, 0 \+ clignotant droite(?!,)/);
+  const desordre = copie("demi-tour");
+  [desordre.etapes[10].regard, desordre.etapes[12].regard] = [desordre.etapes[12].regard, desordre.etapes[10].regard];
+  assert.throws(() => verifierArrets(desordre), /arrêt 2 : 165, -120, -170, 180, 0 \+ clignotant gauche(?!,)/);
+});
+
+test("demi-tour : un clignotant gauche au deuxième temps, ou un clignotant mis 1 s seulement avant de repartir, est refusé par les contrôles automatiques", () => {
+  const gauche = copie("demi-tour");
+  gauche.acteurs[0].clignotant[1].cote = "gauche";
+  assert.match(erreurs(gauche), /eleve : clignotant droite attendu 2 s avant le changement de direction de s = 4\.1 m/);
+  const tard = copie("demi-tour");
+  tard.acteurs[0].clignotant[2].delai += 1;
+  assert.match(erreurs(tard), /eleve : clignotant gauche attendu 2 s avant le changement de direction de s = 6\.3 m/);
+});
+
+test("demi-tour : reculer à 8 km/h, ou repartir en arrière sans s'arrêter, est refusé par les contrôles automatiques", () => {
+  const vite = copie("demi-tour");
+  vite.acteurs[0].profil = vite.acteurs[0].profil.map((p) => (p.kmh === DEMI_TOUR_KMH.arriere ? { ...p, kmh: 8 } : p));
+  assert.match(erreurs(vite), /eleve recule à \d+\.\d km\/h à t = \d+\.\d s \(au plus 6 km\/h\)/);
+  const sansArret = copie("demi-tour");
+  const r1 = rebroussements(sansArret.acteurs[0].chemin)[0];
+  sansArret.acteurs[0].profil = sansArret.acteurs[0].profil.map((p) => (Math.abs(p.s - r1) < 1e-9 ? { s: p.s, kmh: 2 } : p));
+  assert.match(erreurs(sansArret), /eleve change de sens de marche sans s'arrêter \(s = 4\.1 m\)/);
+});
+
+test("demi-tour : un tour du regard de moins de 4 s est détecté", () => {
+  const def = copie("demi-tour");
+  def.etapes[7].delai -= 0.5;
+  assert.deepEqual(etapesTropCourtes(def), ["étape 7 : 3.500 s à l'écran, 4 s au moins"]);
 });
