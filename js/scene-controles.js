@@ -102,7 +102,10 @@ function controlerTrajectoires(sc, note) {
 // sont exemptés, comme des autres règles de vitesse : ils partent et s'arrêtent d'un coup.
 // - Allure de recul : sur un segment parcouru en marche arrière, au plus l'allure du pas (SEUILS.vitesseMarcheArriere).
 //   La plus grande vitesse entre deux échantillons étant atteinte sur l'un d'eux, aucun pic bref ne passe entre deux
-//   instants ; le message donne le premier échantillon au-delà.
+//   instants, et la valeur lue sur cet échantillon est exacte. Le message donne le pic et son instant : l'échantillon de
+//   plus grande vitesse parmi ceux qui reculent au-delà de l'allure du pas (le premier à cette vitesse sur un palier).
+//   Le premier échantillon au-delà du seuil n'en dépasse que de quelques centièmes à deux dixièmes de km/h, quelle que
+//   soit l'allure finalement atteinte : il ne dirait pas de combien la scène la dépasse.
 // - Arrêt au rebroussement : un véhicule ne change de sens de marche qu'à l'arrêt. À chaque rebroussement, lu sur les
 //   segments par rebroussements() (qui fait foi, et non le champ chemin.rebroussements), un échantillon de vitesse
 //   nulle, au micron près (les arrondis flottants), prouve l'arrêt sans interpolation ni seuil de vitesse. Un arrêt d'un
@@ -110,9 +113,12 @@ function controlerTrajectoires(sc, note) {
 function controlerMarcheArriere(sc, note) {
   for (const a of sc.acteurs) {
     if (!a.chrono || a.gabarit === "pieton") continue;
-    const recul = a.chrono.echantillons.find((e) => e.v / KMH > SEUILS.vitesseMarcheArriere + 1e-6 && pointA(a.chemin, e.s).arriere);
-    if (recul) {
-      note(`${a.id} recule à ${(recul.v / KMH).toFixed(1)} km/h à t = ${f1(recul.t)} s (au plus ${SEUILS.vitesseMarcheArriere} km/h)`);
+    let pic = null;
+    for (const e of a.chrono.echantillons) {
+      if (e.v / KMH > SEUILS.vitesseMarcheArriere + 1e-6 && pointA(a.chemin, e.s).arriere && (pic === null || e.v > pic.v)) pic = e;
+    }
+    if (pic) {
+      note(`${a.id} recule à ${(pic.v / KMH).toFixed(1)} km/h à t = ${f1(pic.t)} s (au plus ${SEUILS.vitesseMarcheArriere} km/h)`);
     }
     for (const s of rebroussements(a.chemin)) {
       const arret = a.chrono.echantillons.some((e) => Math.abs(e.s - s) <= 1e-6 && e.v === 0);
@@ -160,6 +166,25 @@ function changementDeDirection(seg) {
   return Math.abs(seg.angle) >= SEUILS.angleChangementDirection * DEG - 1e-9 ? cote : null;
 }
 
+// Instants où l'état du clignotant d'un acteur peut basculer, pour chaque intervalle de a.clignotant. Une bascule plus brève
+// qu'un pas passe entre deux dixièmes de seconde ; à ces instants-là, elle se voit.
+// - Son allumage : l'instant où l'acteur atteint de (à l'arrivée, et non un micromètre plus loin : un arrêt en de y compte,
+//   le clignotant brille dès l'arrivée), plus le délai daté s'il y en a un. Les bornes sont comprises, le clignotant est déjà
+//   allumé à cet instant ; une microseconde de marge garde l'instant du côté allumé malgré les arrondis.
+// - L'instant qui suit son extinction : un micromètre après le passage de a, ou une microseconde après l'extinction
+//   datée (le clignotant est encore allumé à l'instant même).
+// Ne sont rendus que ceux qui tombent strictement entre t0 et t1 : les extrémités sont déjà des instants contrôlés.
+function bascules(a, t0, t1) {
+  const instants = [];
+  for (const x of a.clignotant || []) {
+    const allume = tempsAtteint(a.chrono, x.de) + (x.delai || 0) + 1e-6;
+    const eteint = x.delaiFin === undefined
+      ? tempsAtteint(a.chrono, x.a + 1e-6) : tempsAtteint(a.chrono, x.a) + x.delaiFin + 1e-6;
+    for (const t of [allume, eteint]) if (t > t0 && t < t1) instants.push(t);
+  }
+  return instants;
+}
+
 function controlerClignotants(sc, note) {
   for (const a of sc.acteurs) {
     if (!a.chrono || a.gabarit === "pieton") continue;
@@ -171,29 +196,27 @@ function controlerClignotants(sc, note) {
       // jusqu'à la fin de l'arc (première arrivée à son bout).
       const tDebut = tempsDepart(a.chrono, seg.debut);
       const tFin = tempsAtteint(a.chrono, seg.debut + seg.longueur);
+      // Avant le départ : à chaque dixième de seconde des 2 s qui précèdent, et à chaque bascule du clignotant qui y tombe
+      // (allumage, ou instant qui suit une extinction) : une coupure ou un allumage de l'autre côté plus brefs qu'un pas
+      // ne passent pas entre deux dixièmes de seconde. Le message donne le premier instant fautif.
       const n = Math.round(SEUILS.avanceClignotant / SEUILS.pas);
-      for (let k = n; k >= 0; k--) {
-        const t = tDebut - k * SEUILS.pas;
-        if (t < 0) continue;
-        if (etatActeur(a, t).clignotant !== cote) {
-          note(`${a.id} : clignotant ${cote} attendu ${SEUILS.avanceClignotant} s avant le changement de direction de s = ${f1(seg.debut)} m (absent à t = ${f1(t)} s)`);
-          break;
-        }
+      const fenetre = [];
+      for (let k = n; k >= 0; k--) fenetre.push(tDebut - k * SEUILS.pas);
+      fenetre.push(...bascules(a, tDebut - SEUILS.avanceClignotant, tDebut));
+      fenetre.sort((p, q) => p - q);
+      const absent = fenetre.find((t) => t >= 0 && etatActeur(a, t).clignotant !== cote);
+      if (absent !== undefined) {
+        note(`${a.id} : clignotant ${cote} attendu ${SEUILS.avanceClignotant} s avant le changement de direction de s = ${f1(seg.debut)} m (absent à t = ${f1(absent)} s)`);
       }
       // Pendant tout l'arc (les dixièmes de seconde depuis son début, puis sa fin, un arrêt dans l'arc compris) :
       // jamais le clignotant de l'autre côté, et celui du bon côté toujours allumé (« clignotant tôt et tout le
       // long », fiche ECF C2-E). Une extinction datée (delaiFin) n'y échappe pas : pile à la fin de l'arc, elle passe
-      // (l'instant d'arrivée est encore allumé) ; plus tôt, non. S'y ajoute l'instant qui suit chaque extinction tombant
-      // dans l'arc (un micromètre après le passage de a, ou une microseconde après l'extinction datée) : une coupure
-      // plus brève qu'un pas ne passe pas entre deux instants.
+      // (l'instant d'arrivée est encore allumé) ; plus tôt, non. S'y ajoutent les bascules tombant dans l'arc, comme
+      // dans la fenêtre d'avance : une coupure ou un allumage de l'autre côté plus brefs qu'un pas ne passent pas
+      // entre deux instants.
       const instantsArc = [];
       for (let t = tDebut; t <= tFin + 1e-9; t += SEUILS.pas) instantsArc.push(t);
-      instantsArc.push(tFin);
-      for (const x of a.clignotant || []) {
-        const apres = x.delaiFin === undefined
-          ? tempsAtteint(a.chrono, x.a + 1e-6) : tempsAtteint(a.chrono, x.a) + x.delaiFin + 1e-6;
-        if (apres > tDebut && apres < tFin) instantsArc.push(apres);
-      }
+      instantsArc.push(tFin, ...bascules(a, tDebut, tFin));
       instantsArc.sort((p, q) => p - q);
       let autreCote = false, eteint = false;
       for (const t of instantsArc) {
