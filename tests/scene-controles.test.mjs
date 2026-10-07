@@ -115,6 +115,52 @@ test("pasDeClignotantAvant et dans", () => {
     /acteur « fantome » inconnu/);
 });
 
+// ===== Attente pasDeDeceleration (plan 2, tâche 6 : freinage achevé avant le virage) =====
+//
+// L'élève monte 60 m vers le nord ; la fenêtre contrôlée va de s = 30 à s = 45 m (un virage, par exemple). Vitesses
+// choisies pour des distances rondes : 36 km/h (10 m/s), 18 km/h (5 m/s) ; décélérations de 2,0 m/s² au plus et
+// accélérations de 1,5 m/s² au plus, pour qu'aucun autre contrôle ne parle. Une scène refusée ne porte que ce défaut.
+const virage = { type: "pasDeDeceleration", acteur: "eleve", nom: "virage", de: 30, a: 45 };
+const nordSoixante = () => trajet(1.75, 75, -90).droit(60).fin();
+
+test("pasDeDeceleration : un freinage achevé pile à l'entrée de la fenêtre, une allure tenue, reprise, ou un freinage qui commence pile à sa sortie passent", () => {
+  const c = nordSoixante();
+  // De 36 à 18 km/h sur les 18,75 m qui précèdent s = 30 (2,0 m/s²), 18 km/h tenus jusqu'à s = 45, puis reprise.
+  const tenue = [{ s: 0, kmh: 36 }, { s: 11.25, kmh: 36 }, { s: 30, kmh: 18 }, { s: 45, kmh: 18 }, { s: 60, kmh: 30 }];
+  assert.deepEqual(controlerScene(scene([eleve(c, tenue)], { attentes: [virage] })), []);
+  // Reprise dans la fenêtre : de 18 à 25 km/h (1,0 m/s²).
+  const reprise = [{ s: 0, kmh: 36 }, { s: 11.25, kmh: 36 }, { s: 30, kmh: 18 }, { s: 45, kmh: 25 }, { s: 60, kmh: 25 }];
+  assert.deepEqual(controlerScene(scene([eleve(c, reprise)], { attentes: [virage] })), []);
+  // Freinage qui commence pile à la sortie de la fenêtre : de 18 à 10 km/h entre s = 45 et s = 50.
+  const apres = [{ s: 0, kmh: 18 }, { s: 45, kmh: 18 }, { s: 50, kmh: 10 }, { s: 60, kmh: 10 }];
+  assert.deepEqual(controlerScene(scene([eleve(c, apres)], { attentes: [virage] })), []);
+});
+
+test("pasDeDeceleration : un freinage qui déborde dans la fenêtre, ou qui y commence, est signalé avec les vitesses et les abscisses du ralentissement", () => {
+  const c = nordSoixante();
+  // Freinage de 36 à 18 km/h achevé en s = 35 au lieu de s = 30 : à l'entrée de la fenêtre, la voiture roule encore à
+  // 24,1 km/h (6,71 m/s, le carré de 10 diminué de 2 x 2 x 13,75).
+  const deborde = [{ s: 0, kmh: 36 }, { s: 16.25, kmh: 36 }, { s: 35, kmh: 18 }, { s: 45, kmh: 18 }, { s: 60, kmh: 30 }];
+  assert.deepEqual(controlerScene(scene([eleve(c, deborde)], { attentes: [virage] })),
+    [`eleve ralentit dans « virage » : de 24.1 à 18.0 km/h, de s = 30.0 à s = 35.0 m (t = ${(16.25 / 10 + (10 - Math.sqrt(45)) / 2).toFixed(1)} s)`]);
+  // Allure tenue à l'entrée, puis freinage de 18 à 10 km/h entre s = 38 et s = 42 (2,16 m/s²).
+  const dedans = [{ s: 0, kmh: 18 }, { s: 38, kmh: 18 }, { s: 42, kmh: 10 }, { s: 45, kmh: 10 }, { s: 60, kmh: 25 }];
+  assert.match(texte(scene([eleve(c, dedans)], { attentes: [virage] })),
+    /^eleve ralentit dans « virage » : de 18\.0 à 10\.0 km\/h, de s = 38\.0 à s = 42\.0 m \(t = 7\.6 s\)$/);
+});
+
+test("pasDeDeceleration : un ralentissement plus bref qu'un pas des contrôles (0,1 s) est vu, lu sur les échantillons de la chronologie", () => {
+  const c = nordSoixante();
+  // À 36 km/h, de 10 à 9,9 m/s entre s = 35,25 et s = 35,75 (1,99 m/s², 0,05 s), puis retour à 10 m/s en 1 m.
+  const bref = [{ s: 0, kmh: 36 }, { s: 35.25, kmh: 36 }, { s: 35.75, kmh: 9.9 * 3.6 }, { s: 36.75, kmh: 36 }, { s: 60, kmh: 36 }];
+  const def = scene([eleve(c, bref)], { attentes: [virage] });
+  // Aucun des instants contrôlés (tous les 0,1 s) ne tombe dans le freinage, de t = 3,525 à 3,575 s.
+  const sc = preparerScene(def);
+  for (let t = 0; t <= sc.duree + 1e-9; t += SEUILS.pas) assert.ok(etatActeur(sc.eleve, t).a >= 0, `t = ${t.toFixed(1)} s`);
+  // Abscisses de 35,25 et 35,75 m, écrites au dixième (toFixed garde l'arrondi supérieur d'une demie exacte).
+  assert.deepEqual(controlerScene(def), ["eleve ralentit dans « virage » : de 36.0 à 35.6 km/h, de s = 35.3 à s = 35.8 m (t = 3.5 s)"]);
+});
+
 // ===== Amendement du 03/10 : entrées et sorties hors du monde, continuité de la vitesse =====
 //
 // Décor des essais qui suivent : le monde fait 80 m sur 80 m (celui de scene()), l'élève monte vers le nord
