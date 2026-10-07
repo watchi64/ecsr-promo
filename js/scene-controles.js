@@ -313,6 +313,25 @@ function controlerAttente(sc, att, note) {
       if (ko !== null) note(`${a.id} : clignotant ${att.cote} allumé avant s = ${f1(att.s)} m (t = ${f1(ko)} s)`);
       break;
     }
+    case "pasDeDeceleration": {
+      // { acteur, nom, de, a } : entre les abscisses de et a, l'allure de l'acteur ne baisse jamais. Elle peut y être
+      // tenue ou reprise, jamais réduite : un freinage s'achève avant `de` (par exemple avant l'entrée d'un virage, que
+      // le freinage précède en ligne droite) et ne commence qu'à `a` ou après. Lu sur les échantillons de la
+      // chronologie, comme l'arrêt aux rebroussements : la vitesse y est exacte et, entre deux échantillons consécutifs,
+      // varie dans un seul sens. Toute paire d'échantillons qui empiète sur ]de ; a[ et dont la vitesse baisse est un
+      // ralentissement, si bref soit-il ; un freinage qui finit pile en `de` n'en est pas un. Le message donne le premier
+      // ralentissement, de la paire où il commence jusqu'à ce que la vitesse cesse de baisser ou que la fenêtre s'achève.
+      const ech = a.chrono ? a.chrono.echantillons : [];
+      const k = ech.findIndex((q, i) => i > 0 && q.s > att.de + 1e-9 && ech[i - 1].s < att.a - 1e-9 && q.v < ech[i - 1].v - 1e-9);
+      if (k > 0) {
+        let fin = k;
+        while (fin + 1 < ech.length && ech[fin].s < att.a - 1e-9 && ech[fin + 1].v < ech[fin].v - 1e-9) fin++;
+        const p = ech[k - 1], q = ech[fin];
+        note(`${a.id} ralentit dans « ${att.nom} » : de ${(p.v / KMH).toFixed(1)} à ${(q.v / KMH).toFixed(1)} km/h,`
+          + ` de s = ${f1(p.s)} à s = ${f1(q.s)} m (t = ${f1(p.t)} s)`);
+      }
+      break;
+    }
     default:
       note(`attente de type inconnu : ${att.type}`);
   }
