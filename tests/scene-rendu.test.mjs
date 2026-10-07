@@ -286,7 +286,12 @@ function distancePolygones(A, B) {
   return d;
 }
 
-test("reperesEtapes : un repère par position de l'élève au début d'une étape, à sa droite au plus près, écarté ou passé à sa gauche seulement si cette place est prise ou sort du monde ; deux étapes à moins de ECART_REPERES m partagent un repère", () => {
+// Un acteur posé se trouve-t-il entre l'élève, dans l'état e, et le repère r (le segment qui relie leurs centres traverse
+// son emprise) ?
+const acteurPoseEntre = (sc, e, r) => sc.acteurs.filter((a) => a.pose)
+  .some((a) => polygonesSeChevauchent([[e.x, e.y], [r.x, r.y]], emprise(a.gabarit, etatActeur(a, 0))));
+
+test("reperesEtapes : un repère par position de l'élève au début d'une étape, à sa droite au plus près, écarté ou passé à sa gauche seulement si cette place est prise, sort du monde ou a un acteur posé entre elle et l'élève ; deux étapes à moins de ECART_REPERES m partagent un repère", () => {
   assert.equal(RAYON_REPERE, 1.2);
   assert.equal(ECART_REPERES, 1.5);
   assert.equal(JEU_REPERE_VOITURE, 0.3);
@@ -313,13 +318,14 @@ test("reperesEtapes : un repère par position de l'élève au début d'une étap
       const d = (r.x - premier.x) * nx + (r.y - premier.y) * ny;
       assert.ok(Math.abs(d) >= d0 - 1e-9 && Math.abs(d) <= d0 + ALLONGEMENT_MAX_REPERE + 1e-9, `${nom}, à ${d.toFixed(2)} m du centre de la voiture`);
       // Au plus près à droite, sauf si cette place est prise (panneau, ligne de cédez-le-passage, acteur posé et son jeu,
-      // voiture de l'élève au début d'une étape, repère déjà posé) ou sort du monde, comme le dit la règle de rendu.
+      // voiture de l'élève au début d'une étape, repère déjà posé), sort du monde ou a un acteur posé entre elle et
+      // l'élève, comme le dit la règle de rendu.
       if (Math.abs(d - d0) > 1e-9) {
-        const auPlusPres = boiteRepere({ x: premier.x + d0 * nx, y: premier.y + d0 * ny, numeros: r.numeros });
+        const centre = { x: premier.x + d0 * nx, y: premier.y + d0 * ny, numeros: r.numeros }, auPlusPres = boiteRepere(centre);
         const dehors = auPlusPres.some(([x, y]) => x < 0 || x > sc.monde.largeur || y < 0 || y > sc.monde.hauteur);
         const obstacles = [...decor, ...voitures, ...reperes.slice(0, i).map(boiteRepere)];
-        assert.ok(dehors || obstacles.some((o) => polygonesSeChevauchent(auPlusPres, o)),
-          `${nom}, écarté alors que sa place à droite était libre et dans le monde`);
+        assert.ok(dehors || acteurPoseEntre(sc, premier, centre) || obstacles.some((o) => polygonesSeChevauchent(auPlusPres, o)),
+          `${nom}, écarté alors que sa place à droite était libre, dans le monde et sans acteur posé entre elle et l'élève`);
         deplaces++;
         if (dehors) horsDuMonde++;
       }
@@ -363,6 +369,19 @@ test("reperesEtapes : un repère garde autour de chaque acteur posé (voiture ga
     }
   }
   assert.ok(scenesAvecPoses > 0, "aucune scène n'a d'acteur posé : le test ne vérifie rien");
+});
+
+test("reperesEtapes : aucun acteur posé entre l'élève, au début de l'étape, et son repère, qui se lirait sinon comme désignant cet acteur", () => {
+  let reperesVerifies = 0;   // au moins un repère d'une scène à acteur posé exerce ce test
+  for (const [code, sc] of scenes()) {
+    if (!sc.acteurs.some((a) => a.pose)) continue;
+    for (const r of reperesEtapes(sc)) {
+      const premier = etatActeur(sc.eleve, sc.etapes[r.numeros[0] - 1].t);
+      assert.ok(!acteurPoseEntre(sc, premier, r), `${code} : un acteur posé sépare l'élève de son repère ${r.numeros.join("·")}`);
+      reperesVerifies++;
+    }
+  }
+  assert.ok(reperesVerifies > 0, "aucune scène n'a d'acteur posé : le test ne vérifie rien");
 });
 
 test("reperesEtapes : aucun repère sur le dessin d'un panneau", () => {
