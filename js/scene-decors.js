@@ -3,13 +3,14 @@
  * © 2026 watchi64 : Tous droits réservés. Voir LICENSE.
  *
  * Décors des scènes animées, construits en mètres à partir de règles écrites :
- * un carrefour en croix et un carrefour à sens giratoire. Module pur.
+ * un carrefour en croix, un carrefour à sens giratoire, une rue droite et une
+ * route en virages. Module pur.
  *
  * Les dimensions de marquage viennent de l'IISR, 7e partie (version consolidée
  * VC20130321, Cerema) ; les autres sont des choix de dessin, nommés dans DESSIN
  * et consignés dans la fiche de vérification de chaque cours qui les utilise.
  */
-import { DEG, trajet, tournerChemin, tournerPoint, rectangle, pointsArc, disque, secteurAnneau, pointDansPolygone }
+import { DEG, trajet, pointA, tournerChemin, tournerPoint, rectangle, pointsArc, disque, secteurAnneau, pointDansPolygone }
   from "./scene-geometrie.js?v=20261005f";
 
 export const IISR = {
@@ -57,6 +58,16 @@ export const DESSIN = {
   // AB25 de la branche sud : déport au-delà de la bordure droite de la voie entrante. Sa distance à l'anneau
   // est le paramètre distanceAB25 de giratoire (thème 11 : de l'ordre de 50 m en agglomération).
   deportAB25: 1.2,
+
+  // Route en virages (routeVirages) : rayon des deux virages, mesuré sur l'axe de la chaussée, et angle dont chacun
+  // fait tourner la route. Valeurs par défaut, choix de dessin à recopier dans les sources de la scène qui les
+  // emploie : 40 m, un virage d'agglomération ; 60 degrés, la route tourne franchement sans former l'angle droit
+  // d'un coin de rue.
+  rayonVirage: 40,
+  angleVirage: 60,
+  // Flèche maximale (m) des cordes qui dessinent les arcs de la route en virages (bordures, voies, traits de
+  // l'axiale) : la chaussée garde sa largeur à 2 mm près dans les virages. Choix de dessin, sans source.
+  flecheArc: 0.002,
 };
 
 // Distance du centre d'une voiture au bord du monde pour qu'elle soit entièrement hors du cadre :
@@ -318,5 +329,197 @@ export function trajetGiratoire(g, depuis, vers, { horsMonde = false } = {}) {
   return {
     chemin: tournerChemin(t.fin(), cx, cy, ROTATION[depuis]),
     s: { tangenceEntree, anneau, clignotant, sortie: debutSortie, finSortie },
+  };
+}
+
+// ===== Rue droite et route en virages =====
+
+// Une longueur de décor : un nombre fini de mètres, strictement positif. Sinon, une erreur qui nomme le décor et le
+// paramètre.
+function exigerLongueur(decor, nom, valeur) {
+  if (!(Number.isFinite(valeur) && valeur > 0)) {
+    throw new Error(`${decor} : « ${nom} » attend un nombre de mètres strictement positif (reçu : ${String(valeur)})`);
+  }
+}
+
+/**
+ * Rue droite d'agglomération, orientée sud-nord : l'élève y roule vers le haut de l'écran. Chaussée à double sens de
+ * deux voies de DESSIN.voie, séparées par une axiale T'1 de largeur 2u (IISR 113-1 et 113-2) dont le pointillé
+ * commence au bord bas du monde, et bordée d'un trottoir de chaque côté, sans ligne de rive (en milieu urbain, les
+ * bordures de trottoir matérialisent généralement le bord de la chaussée : IISR 114-5). Le monde a `longueur` m de
+ * haut et montre `largeurTrottoir` m de trottoir de chaque côté de la chaussée. Repères : abscisses (x) du bord droit,
+ * de l'axe et du bord gauche de la chaussée, pour l'élève qui roule vers le nord ; sa voie est voies.droite.
+ *
+ * Les voitures en stationnement ne font pas partie du décor : ce sont des acteurs posés des scènes.
+ */
+export function rue({ longueur, largeurTrottoir } = {}) {
+  exigerLongueur("rue", "longueur", longueur);
+  exigerLongueur("rue", "largeurTrottoir", largeurTrottoir);
+  const h = DESSIN.voie;
+  const xBordGauche = largeurTrottoir, xAxe = xBordGauche + h, xBordDroit = xAxe + h;
+  return {
+    monde: { largeur: xBordDroit + largeurTrottoir, hauteur: longueur },
+    obstacles: [
+      { nature: "trottoir", poly: rectangle(xBordDroit, -LOIN, xBordDroit + LOIN, longueur + LOIN) },
+      { nature: "trottoir", poly: rectangle(xBordGauche - LOIN, -LOIN, xBordGauche, longueur + LOIN) },
+    ],
+    marquages: [axialeT1([xAxe, longueur], [xAxe, 0])],
+    panneaux: [],
+    voies: {
+      droite: rectangle(xAxe, -LOIN, xBordDroit, longueur + LOIN),     // vers le nord
+      gauche: rectangle(xBordGauche, -LOIN, xAxe, longueur + LOIN),    // vers le sud
+    },
+    zones: {},
+    reperes: { xBordDroit, xAxe, xBordGauche },
+  };
+}
+
+// Pas angulaire (degrés) de l'échantillonnage d'un arc de rayon r : la flèche de chaque corde reste sous DESSIN.flecheArc.
+const pasArc = (r) => (2 * Math.acos(Math.max(-1, 1 - DESSIN.flecheArc / r))) / DEG;
+
+// Abscisses qui découpent la portion [s0, s1] d'un trajet en cordes : ses deux bouts, chaque jonction de segments et,
+// sur un arc, assez de points pour que la flèche de chaque corde reste sous DESSIN.flecheArc, sur le trajet et jusqu'à
+// `ecart` m de part et d'autre (le côté extérieur d'un arc, de plus grand rayon, est le plus exigeant).
+function abscissesCordes(chemin, s0, s1, ecart = 0) {
+  const abscisses = [s0];
+  for (const seg of chemin.segments) {
+    const a = Math.max(s0, seg.debut), b = Math.min(s1, seg.debut + seg.longueur);
+    if (b - a <= 1e-9) continue;
+    const n = seg.type === "arc" ? Math.ceil((b - a) / (seg.rayon * pasArc(seg.rayon + ecart) * DEG)) : 1;
+    for (let k = 1; k <= n; k++) abscisses.push(a + ((b - a) * k) / n);
+  }
+  return abscisses;
+}
+
+// Trait de l'axiale T'1 posé sur l'axe, de l'abscisse s0 à s1 : une bande de largeur 2u dessinée comme une surface, une
+// seule forme sans couture, dont les deux bords, à u de part et d'autre de l'axe, sont tracés en cordes ; ses bouts sont
+// perpendiculaires à l'axe. Le bord droit (pour le sens de l'axe) vient d'abord, puis le bord gauche, à rebours.
+function traitAxial(axe, s0, s1) {
+  const points = abscissesCordes(axe, s0, s1, IISR.u).map((s) => pointA(axe, s));
+  const bord = (cote) => points.map((p) => [p.x - cote * IISR.u * Math.sin(p.cap), p.y + cote * IISR.u * Math.cos(p.cap)]);
+  return { type: "surface", role: "axiale", poly: [...bord(1), ...bord(-1).reverse()] };
+}
+
+/**
+ * Route d'agglomération à double sens : deux voies de DESSIN.voie séparées par une axiale T'1 de largeur 2u (IISR
+ * 113-1, 113-2 et 114-5), un trottoir de chaque côté, sans ligne de rive. Du bas vers le haut de l'écran, elle
+ * enchaîne une ligne droite d'approche orientée au nord (`approche` m), un virage à droite, une ligne droite courte
+ * (`entreVirages` m), un virage à gauche qui la ramène au nord, puis une ligne droite de sortie (`sortie` m). Les deux
+ * virages ont le même `rayon`, mesuré sur l'axe de la chaussée, et tournent du même `angle`, de 0 exclu à 90 degrés
+ * (DESSIN.rayonVirage et DESSIN.angleVirage par défaut). Bordures et limites des voies sont des parallèles à l'axe :
+ * la chaussée garde sa largeur dans les virages. Le monde montre `largeurTrottoir` m de trottoir à gauche de la ligne
+ * droite d'approche et à droite de celle de sortie ; l'axe entre par le bord bas et sort par le bord haut. Rien ne
+ * masque l'intérieur des virages : la visibilité n'y est pas réduite, ils restent en section courante, où l'axiale est
+ * discontinue (IISR 114-5) ; un virage à visibilité réduite serait un point singulier (art. 115), où l'axiale devient
+ * continue (art. 116).
+ *
+ * Dessin des arcs : en cordes, assez courtes pour que leur flèche reste sous DESSIN.flecheArc (pointsArc pour les
+ * trottoirs et les voies). Le moteur ne trace que des segments droits : l'axiale est faite de ses traits eux-mêmes,
+ * 1,50 m peints et 5 m de vide comptés le long de l'axe depuis le bord bas, chacun dessiné comme une bande de largeur
+ * 2u qui suit l'axe (traitAxial).
+ *
+ * Repères : rayon et angle retenus ; xAxeApproche et xAxeSortie, abscisses (x) de l'axe de la chaussée sur les lignes
+ * droites d'approche et de sortie ; centres des deux virages ; s, abscisses curvilignes du début et de la fin de chaque
+ * virage sur l'axe de la voie de droite (celles de cheminAxeVoieDroite(0)) ; cheminAxeVoieDroite(decalage), le trajet
+ * de la voie de droite décalé latéralement.
+ */
+export function routeVirages({ approche, entreVirages, sortie, largeurTrottoir, rayon = DESSIN.rayonVirage,
+  angle = DESSIN.angleVirage } = {}) {
+  for (const [nom, valeur] of Object.entries({ approche, entreVirages, sortie, largeurTrottoir, rayon })) {
+    exigerLongueur("routeVirages", nom, valeur);
+  }
+  const h = DESSIN.voie, retrait = DESSIN.retraitBord;
+  if (!(Number.isFinite(angle) && angle > 0 && angle <= 90)) {
+    throw new Error(`routeVirages : « angle » attend un nombre de degrés, plus de 0 et au plus 90 (reçu : ${String(angle)})`);
+  }
+  if (!(rayon > h)) {
+    throw new Error(`routeVirages : « rayon » de ${rayon} m, mesuré sur l'axe : il doit dépasser la largeur d'une voie`
+      + ` (${h} m), sans quoi la bordure intérieure des virages n'existe pas`);
+  }
+  for (const [nom, valeur] of [["approche", approche], ["sortie", sortie]]) {
+    if (!(valeur > retrait)) {
+      throw new Error(`routeVirages : « ${nom} » de ${valeur} m : plus de ${retrait} m attendus, le trajet de la voie de`
+        + ` droite partant et finissant en ligne droite, à ${retrait} m à l'intérieur du monde`);
+    }
+  }
+  const a = angle * DEG;
+  const hauteur = approche + 2 * rayon * Math.sin(a) + entreVirages * Math.cos(a) + sortie;
+  const xAxeApproche = largeurTrottoir + h;
+  const xAxeSortie = xAxeApproche + 2 * rayon * (1 - Math.cos(a)) + entreVirages * Math.sin(a);
+  // Le virage à droite commence en haut de la ligne droite d'approche : son centre est à `rayon` à l'est de l'axe. Le
+  // virage à gauche finit en bas de la ligne droite de sortie : son centre est à `rayon` à l'ouest de l'axe.
+  const centreDroite = [xAxeApproche + rayon, hauteur - approche];
+  const centreGauche = [xAxeSortie - rayon, sortie];
+
+  // Parallèle à l'axe de la chaussée, à `o` m à sa droite pour l'élève qui roule vers le nord (o négatif : à sa
+  // gauche), du bas vers le haut, prolongée de LOIN au-delà du monde aux deux bouts. Le virage à droite la porte au
+  // rayon (rayon - o), de l'angle polaire 180 à 180 + angle ; le virage à gauche au rayon (rayon + o), de l'angle
+  // polaire `angle` à 0 (angles de l'écran, y vers le bas). Chaque appel rend des points neufs.
+  const parallele = (o) => [
+    [xAxeApproche + o, hauteur + LOIN],
+    ...pointsArc(centreDroite[0], centreDroite[1], rayon - o, 180, 180 + angle, pasArc(rayon - o)),
+    ...pointsArc(centreGauche[0], centreGauche[1], rayon + o, angle, 0, pasArc(rayon + o)),
+    [xAxeSortie + o, -LOIN],
+  ];
+  // Trottoirs : de la bordure jusqu'à LOIN au-delà du monde. Avec un angle d'au plus 90 degrés, la bordure va toujours
+  // vers le nord et vers l'est, sans revenir en arrière : fermé par deux points lointains, le polygone est simple.
+  const xLoinEst = xAxeSortie + h + LOIN, xLoinOuest = xAxeApproche - h - LOIN;
+  const obstacles = [
+    { nature: "trottoir", poly: [...parallele(h), [xLoinEst, -LOIN], [xLoinEst, hauteur + LOIN]] },
+    { nature: "trottoir", poly: [...parallele(-h), [xLoinOuest, -LOIN], [xLoinOuest, hauteur + LOIN]] },
+  ];
+  const voies = {
+    droite: [...parallele(0), ...parallele(h).reverse()],    // vers le nord
+    gauche: [...parallele(-h), ...parallele(0).reverse()],   // vers le sud
+  };
+
+  // Axiale : l'axe de la chaussée, du bord bas au bord haut, tracé à la tortue, porte les traits de la modulation T'1.
+  const axe = trajet(xAxeApproche, hauteur, -90).droit(approche).virage(rayon, angle).droit(entreVirages)
+    .virage(rayon, -angle).droit(sortie).fin();
+  const { trait, vide } = IISR.axialeAgglo;
+  const marquages = [];
+  for (let k = 0; k * (trait + vide) < axe.longueur - 1e-9; k++) {
+    const s0 = k * (trait + vide);
+    marquages.push(traitAxial(axe, s0, Math.min(s0 + trait, axe.longueur)));
+  }
+
+  /**
+   * Trajet de la voie de droite, { chemin, s } comme celui de trajetGiratoire : l'axe de la voie (DESSIN.voie / 2 à
+   * droite de l'axe de la chaussée), décalé de `decalage` m vers la droite (négatif : vers l'axe), pour placer la
+   * voiture « un peu écartée du bord » ou « à droite de sa voie ». Il part et finit à DESSIN.retraitBord à l'intérieur
+   * du monde, cap au nord, et ses arcs suivent la route (suitLaRoute) : y rouler n'est pas changer de direction.
+   * s : abscisses du début et de la fin de chaque virage sur ce trajet. Le trajet reste dans la voie : un décalage de
+   * DESSIN.voie / 2 ou plus, d'un côté ou de l'autre, est refusé ; tenir la voiture entière dans voies.droite revient
+   * à la scène.
+   */
+  function cheminAxeVoieDroite(decalage = 0) {
+    if (!(Number.isFinite(decalage) && Math.abs(decalage) < h / 2)) {
+      throw new Error(`routeVirages.cheminAxeVoieDroite : décalage de ${String(decalage)} m : le trajet doit rester dans`
+        + ` la voie de droite, à moins de ${h / 2} m de son axe`);
+    }
+    const o = h / 2 + decalage;
+    const t = trajet(xAxeApproche + o, hauteur - retrait, -90).droit(approche - retrait);
+    const debutVirageDroite = t.longueur;
+    t.virage(rayon - o, angle, { suitLaRoute: true });
+    const finVirageDroite = t.longueur;
+    t.droit(entreVirages);
+    const debutVirageGauche = t.longueur;
+    t.virage(rayon + o, -angle, { suitLaRoute: true });
+    const finVirageGauche = t.longueur;
+    t.droit(sortie - retrait);
+    return { chemin: t.fin(), s: { debutVirageDroite, finVirageDroite, debutVirageGauche, finVirageGauche } };
+  }
+
+  const reperes = {
+    rayon, angle, xAxeApproche, xAxeSortie,
+    centres: { virageDroite: centreDroite, virageGauche: centreGauche },
+    s: cheminAxeVoieDroite(0).s,
+  };
+  // Propriété non énumérée : le décor reste une donnée que structuredClone copie, comme tests/scenes.test.mjs le fait
+  // de chaque définition de scène, décor compris (une fonction énumérée ferait échouer la copie).
+  Object.defineProperty(reperes, "cheminAxeVoieDroite", { value: cheminAxeVoieDroite });
+  return {
+    monde: { largeur: xAxeSortie + h + largeurTrottoir, hauteur },
+    obstacles, marquages, panneaux: [], voies, zones: {}, reperes,
   };
 }
