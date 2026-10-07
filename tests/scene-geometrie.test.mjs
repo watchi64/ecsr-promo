@@ -4,7 +4,7 @@ import {
   DEG, trajet, pointA, courbureA, tournerChemin, tournerPoint, premiereAbscisse, avant,
   chronologie, etatA, tempsAtteint, emprise, rectangle, pointsArc, disque, secteurAnneau,
   pointDansPolygone, segmentsSeCoupent, polygonesSeChevauchent, preparerScene, etatActeur,
-  apparitionDe, sortDuCadre,
+  apparitionDe, sortDuCadre, pointSurSegment, rebroussements,
 } from "../js/scene-geometrie.js";
 
 const proche = (a, b, eps = 1e-6) => assert.ok(Math.abs(a - b) <= eps, `${a} au lieu de ${b}`);
@@ -523,4 +523,184 @@ test("preparerScene : une apparition inconnue est refusée en nommant l'acteur",
     () => preparerScene(avec({ gabarit: "pieton", chemin: c, profil, apparition: "tard" })),
     (e) => /n° 2/.test(e.message) && /tard/.test(e.message),
   );
+});
+
+// ===== Marche arrière : rebroussement, caisse et sens de marche =====
+
+// Deux caps égaux à un nombre entier de tours près.
+function angleProche(a, b, eps = 1e-9) {
+  const d = Math.atan2(Math.sin(a - b), Math.cos(a - b));
+  assert.ok(Math.abs(d) <= eps, `${a} au lieu de ${b}, à un tour près`);
+}
+
+test("inverser : rebroussement sur place, caisse continue, marche arrière ensuite", () => {
+  const ch = trajet(0, 0, 0).droit(5).inverser().droit(3).fin();
+  assert.equal(ch.segments.length, 2);
+  assert.equal(ch.segments[0].arriere, false);
+  assert.equal(ch.segments[1].arriere, true);
+  const avantRebroussement = pointA(ch, 5 - 1e-6), apres = pointA(ch, 6);
+  // La voiture a avancé de 5 m vers +x, puis recule de 1 m : elle est en x = 4, caisse toujours vers +x.
+  assert.ok(Math.abs(apres.x - 4) < 1e-9 && Math.abs(apres.y) < 1e-9);
+  assert.ok(Math.abs(avantRebroussement.cap - apres.cap) < 1e-9);
+  assert.ok(Math.abs(apres.capMarche - Math.PI) < 1e-9);
+  assert.deepEqual(rebroussements(ch), [5]);
+});
+
+test("inverser deux fois : retour en marche avant", () => {
+  const ch = trajet(0, 0, 0).droit(4).inverser().droit(2).inverser().droit(3).fin();
+  assert.deepEqual(ch.segments.map((s) => s.arriere), [false, true, false]);
+  assert.deepEqual(rebroussements(ch), [4, 6]);
+  assert.ok(Math.abs(pointA(ch, 9).x - 5) < 1e-9);
+});
+
+test("marche arrière en virage : volant à droite, la caisse suit, l'avant reste à l'opposé du déplacement", () => {
+  // Caisse vers le nord (cap -90), 1 m en avant, puis recul : la tortue (sens de marche, vers le sud) tourne à
+  // gauche de 90 degrés sur 5 m de rayon, l'arrière part donc vers la droite de la caisse (l'est).
+  const ch = trajet(0, 0, -90).droit(1).inverser().virage(5, -90).fin();
+  const p = pointA(ch, ch.longueur);
+  assert.ok(Math.abs(p.x - 5) < 1e-9 && Math.abs(p.y - 4) < 1e-9);
+  assert.ok(Math.abs(Math.abs(p.cap) - Math.PI) < 1e-9);   // caisse vers l'ouest
+  assert.ok(Math.abs(p.capMarche) < 1e-9);                 // déplacement vers l'est
+  const f = avant("voiture", p);
+  assert.ok(Math.abs(f.x - 2.75) < 1e-9 && Math.abs(f.y - 4) < 1e-9);
+});
+
+test("etatActeur donne la marche, arrière dès le rebroussement", () => {
+  const chemin = trajet(0, 0, 0).droit(5).inverser().droit(3).fin();
+  const acteur = { id: "v", role: "eleve", gabarit: "voiture", chemin,
+    profil: [{ s: 0, kmh: 0 }, { s: 2.5, kmh: 5 }, { s: 5, kmh: 0, pause: 1 }, { s: 6.5, kmh: 4 }, { s: 8, kmh: 0 }] };
+  acteur.chrono = chronologie(chemin, acteur.profil);
+  const tRebroussement = tempsAtteint(acteur.chrono, 5);
+  assert.equal(etatActeur(acteur, tRebroussement - 0.5).marche, "avant");
+  assert.equal(etatActeur(acteur, tRebroussement + 0.5).marche, "arriere");
+  const fin = etatActeur(acteur, acteur.chrono.duree);
+  assert.ok(Math.abs(fin.x - 2) < 1e-9);
+  assert.ok(Math.abs(fin.cap) < 1e-9);   // la caisse regarde toujours vers +x
+});
+
+test("départ directement en marche arrière", () => {
+  const ch = trajet(0, 0, 90, { arriere: true }).droit(4).fin();
+  const p = pointA(ch, 4);
+  assert.ok(Math.abs(p.x) < 1e-9 && Math.abs(p.y - 4) < 1e-9);
+  assert.ok(Math.abs(p.cap + Math.PI / 2) < 1e-9);   // caisse vers le nord
+  assert.equal(p.arriere, true);
+  assert.deepEqual(rebroussements(ch), []);
+});
+
+test("à l'abscisse du rebroussement, le point est déjà dans la nouvelle marche, au même endroit", () => {
+  const ch = trajet(0, 0, 0).droit(5).inverser().droit(3).fin();
+  const juste = pointA(ch, 5 - 1e-9), sur = pointA(ch, 5);
+  assert.equal(juste.arriere, false);
+  assert.equal(sur.arriere, true);
+  proche(sur.x, 5, 1e-12); proche(sur.y, 0, 1e-12);
+  proche(sur.cap, 0, 1e-12); proche(sur.capMarche, Math.PI, 1e-12);
+});
+
+test("départ en marche arrière puis rebroussement : marche avant ensuite, sans que la caisse pivote", () => {
+  const ch = trajet(0, 0, 90, { arriere: true }).droit(4).inverser().droit(2).fin();
+  assert.deepEqual(ch.segments.map((s) => s.arriere), [true, false]);
+  assert.deepEqual(rebroussements(ch), [4]);
+  // Caisse vers le nord tout du long : la voiture recule vers le sud jusqu'en y = 4, puis repart vers le nord.
+  const recul = pointA(ch, 4 - 1e-6), reprise = pointA(ch, 5);
+  proche(recul.cap, -Math.PI / 2, 1e-9); proche(reprise.cap, -Math.PI / 2, 1e-9);
+  proche(reprise.capMarche, -Math.PI / 2, 1e-9);
+  assert.equal(reprise.arriere, false);
+  proche(reprise.x, 0, 1e-9); proche(reprise.y, 3, 1e-9);
+  proche(pointA(ch, ch.longueur).y, 2, 1e-9);
+});
+
+test("fin() mémorise les rebroussements, les mêmes que rebroussements() lit sur les segments", () => {
+  const ch = trajet(0, 0, 0).droit(4).inverser().virage(6, 30).inverser().droit(3).inverser().droit(1).fin();
+  const arc = 6 * 30 * DEG;
+  assert.equal(ch.rebroussements.length, 3);
+  [4, 4 + arc, 7 + arc].forEach((s, i) => proche(ch.rebroussements[i], s, 1e-12));
+  assert.deepEqual(rebroussements(ch), ch.rebroussements);
+  assert.deepEqual(ch.segments.map((s) => s.arriere), [false, true, false, true]);
+  // Un trajet sans rebroussement n'en a aucun.
+  assert.deepEqual(trajet(0, 0, 0).droit(4).fin().rebroussements, []);
+});
+
+test("rebroussement refusé en tête de trajet, sans segment avant lui : partir en marche arrière se dit par l'option", () => {
+  for (const depart of [trajet(0, 0, 0), trajet(0, 0, 90, { arriere: true })]) {
+    assert.throws(() => depart.inverser(), (e) => /en tête de trajet/.test(e.message) && /\{ arriere: true \}/.test(e.message));
+  }
+});
+
+test("deux rebroussements de suite sont refusés (rebroussement vide) ; un segment entre eux suffit", () => {
+  assert.throws(() => trajet(0, 0, 0).droit(5).inverser().inverser(), /rebroussement vide/);
+  assert.doesNotThrow(() => trajet(0, 0, 0).droit(5).inverser().droit(0.5).inverser().droit(1).fin());
+});
+
+test("un trajet qui finit sur un rebroussement est refusé : aucun segment ne le parcourt", () => {
+  assert.throws(() => trajet(0, 0, 0).droit(5).inverser().fin(), /finit sur un rebroussement/);
+});
+
+test("l'option arriere attend un booléen", () => {
+  for (const valeur of ["oui", 1, null]) {
+    assert.throws(() => trajet(0, 0, 0, { arriere: valeur }), /arriere.*booléen/, `arriere = ${String(valeur)}`);
+  }
+  assert.equal(pointA(trajet(0, 0, 0, {}).droit(1).fin(), 0).arriere, false);
+  assert.equal(pointA(trajet(0, 0, 0, { arriere: false }).droit(1).fin(), 0).arriere, false);
+});
+
+test("courbureA reste dans le repère de marche : un recul où la tortue tourne à gauche a une courbure négative", () => {
+  const ch = trajet(0, 0, -90).droit(1).inverser().virage(5, -90).fin();
+  assert.equal(courbureA(ch, 0.5), 0);
+  assert.equal(courbureA(ch, 3), -1 / 5);
+  // Le même arc parcouru en marche avant a la même courbure.
+  assert.equal(courbureA(trajet(0, -1, 90).virage(5, -90).fin(), 2), -1 / 5);
+});
+
+test("emprise et avant suivent la caisse : en recul, l'avant reste du côté opposé au déplacement", () => {
+  const ch = trajet(0, 0, 0).droit(5).inverser().droit(3).fin();
+  const p = pointA(ch, 6);   // recule vers -x, en x = 4 ; caisse vers +x
+  assert.deepEqual(emprise("voiture", p).map(([x, y]) => [Math.round(x * 100) / 100, Math.round(y * 100) / 100]),
+    [[6.25, -0.9], [6.25, 0.9], [1.75, 0.9], [1.75, -0.9]]);
+  const f = avant("voiture", p);
+  proche(f.x, 6.25, 1e-9); proche(f.y, 0, 1e-9);
+});
+
+test("etatActeur rend aussi le cap de marche ; un acteur fixe est en marche avant", () => {
+  const chemin = trajet(0, 0, 0).droit(5).inverser().droit(3).fin();
+  const profil = [{ s: 0, kmh: 0 }, { s: 2.5, kmh: 5 }, { s: 5, kmh: 0, pause: 1 }, { s: 6.5, kmh: 4 }, { s: 8, kmh: 0 }];
+  const acteur = { id: "v", role: "eleve", gabarit: "voiture", chemin, profil, chrono: chronologie(chemin, profil) };
+  const tRebroussement = tempsAtteint(acteur.chrono, 5);
+  const enAvant = etatActeur(acteur, tRebroussement - 0.5), enRecul = etatActeur(acteur, tRebroussement + 1.5);
+  proche(enAvant.cap, 0, 1e-12); proche(enAvant.capMarche, 0, 1e-12);
+  assert.ok(enRecul.s > 5 && enRecul.v > 0, "en mouvement, en recul");
+  proche(enRecul.cap, 0, 1e-12); proche(enRecul.capMarche, Math.PI, 1e-12);
+  const garee = etatActeur({ id: "garee", gabarit: "voiture", pose: { x: 3, y: 4, cap: 90 } }, 2);
+  assert.equal(garee.marche, "avant");
+  proche(garee.cap, Math.PI / 2, 1e-12);
+  assert.equal(garee.capMarche, garee.cap);
+});
+
+test("tournerChemin garde la marche de chaque segment et les rebroussements", () => {
+  const c = trajet(0, 0, 0).droit(5).inverser().droit(3).fin();
+  const t = tournerChemin(c, 0, 0, 90);
+  assert.deepEqual(t.segments.map((s) => s.arriere), [false, true]);
+  assert.deepEqual(t.rebroussements, [5]);
+  assert.deepEqual(rebroussements(t), [5]);
+  const p = pointA(t, 6);
+  proche(p.x, 0, 1e-9); proche(p.y, 4, 1e-9);
+  angleProche(p.cap, Math.PI / 2);          // la caisse, tournée d'un quart de tour : vers le sud
+  angleProche(p.capMarche, -Math.PI / 2);   // elle recule vers le nord
+  assert.equal(p.arriere, true);
+});
+
+test("sans rebroussement, rien ne change : marche avant partout, cap de la caisse égal au cap de marche au bit près", () => {
+  // Le virage à gauche du pilote finit vers l'ouest au cap -180 degrés et le garde : aucune normalisation en marche
+  // avant, les caps des scènes existantes ne bougent pas.
+  const ch = trajet(0, 0, -90).droit(3).decaler(-0.6, 12).virage(4.1, -90).droit(5).fin();
+  assert.ok(ch.segments.every((seg) => seg.arriere === false));
+  assert.deepEqual(ch.rebroussements, []);
+  assert.deepEqual(rebroussements(ch), []);
+  for (let k = 0; k * 0.05 <= ch.longueur; k++) {
+    const p = pointA(ch, k * 0.05);
+    assert.equal(p.arriere, false, `s = ${k * 0.05}`);
+    assert.equal(p.cap, p.capMarche, `s = ${k * 0.05}`);
+  }
+  const der = ch.segments[ch.segments.length - 1];
+  assert.equal(pointA(ch, ch.longueur).cap, pointSurSegment(der, der.longueur).cap);
+  proche(pointA(ch, ch.longueur).cap, -Math.PI, 1e-12);
 });
