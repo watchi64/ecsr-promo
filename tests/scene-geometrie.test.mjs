@@ -860,3 +860,58 @@ test("preparerScene : un délai de clignotant doit être un nombre fini de secon
   }
   for (const delai of [undefined, 0, 2.5]) assert.doesNotThrow(() => preparerScene(scene(delai)), `delai = ${String(delai)}`);
 });
+
+// ===== Extinction datée =====
+
+// Côtés du clignotant aux instants donnés, sur 100 m vers l'est avec le profil donné.
+function cotesAux(profil, clignotant, instants) {
+  const sc = preparerScene({ code: "essai", etapes: [{ s: 0 }],
+    acteurs: [{ id: "eleve", role: "eleve", gabarit: "voiture", chemin: trajet(0, 0, 0).droit(100).fin(), profil, clignotant }] });
+  return instants.map((t) => etatActeur(sc.acteurs[0], t).clignotant);
+}
+
+test("etatActeur : un clignotant à delaiFin s'éteint à tempsAtteint(a) + delaiFin, même arrêté en a ; delaiFin: 0, dès après l'arrivée", () => {
+  // ARRET_EN_50(4) : arrivée en s = 50 à t = 6 s, départ à t = 10 s ; le gauche s'allume en s = 20 (t = 2 s).
+  const instants = [5, 6, 6.5, 6.9, 7.1, 9, 11];
+  const avec = (fin) => cotesAux(ARRET_EN_50(4), [{ cote: "gauche", de: 20, a: 50, ...fin }], instants);
+  // Sans delaiFin, rien ne change : allumé tout l'arrêt (l'abscisse reste en a), éteint une fois a passé.
+  assert.deepEqual(avec({}), ["gauche", "gauche", "gauche", "gauche", "gauche", "gauche", null]);
+  // delaiFin: 0 : allumé jusqu'à l'arrivée comprise (t = 6 s), éteint dès après, l'élève toujours arrêté.
+  assert.deepEqual(avec({ delaiFin: 0 }), ["gauche", "gauche", null, null, null, null, null]);
+  // delaiFin: 1 : éteint 1 s après l'arrivée.
+  assert.deepEqual(avec({ delaiFin: 1 }), ["gauche", "gauche", "gauche", "gauche", null, null, null]);
+  // En roulant à 10 m/s, a = 20 est atteint à t = 2 s : sans delaiFin, éteint une fois a passé ; avec delaiFin: 0,5,
+  // allumé jusqu'à t = 2,5 s, a pourtant passé.
+  const roule = [{ s: 0, kmh: 36 }, { s: 100, kmh: 36 }];
+  assert.deepEqual(cotesAux(roule, [{ cote: "droite", de: 10, a: 20 }], [1.5, 2, 2.4, 2.6]), ["droite", "droite", null, null]);
+  assert.deepEqual(cotesAux(roule, [{ cote: "droite", de: 10, a: 20, delaiFin: 0.5 }], [1.5, 2, 2.4, 2.6]),
+    ["droite", "droite", "droite", null]);
+});
+
+test("etatActeur : éteint dès l'arrivée (delaiFin: 0), le clignotant d'une marche laisse l'arrêt sans clignotant jusqu'à l'allumage daté du suivant", () => {
+  const gauche = { cote: "gauche", de: 20, a: 50, delaiFin: 0 }, droit = { cote: "droite", de: 50, a: 70, delai: 1.5 };
+  const instants = [5, 6, 7, 7.4, 7.5, 9, 11];
+  const attendu = ["gauche", "gauche", null, null, "droite", "droite", "droite"];
+  assert.deepEqual(cotesAux(ARRET_EN_50(4), [gauche, droit], instants), attendu);
+  assert.deepEqual(cotesAux(ARRET_EN_50(4), [droit, gauche], instants), attendu);
+  // Sans delaiFin, la préséance d'avant : le gauche brille jusqu'à ce que le droit le remplace.
+  assert.deepEqual(cotesAux(ARRET_EN_50(4), [{ cote: "gauche", de: 20, a: 50 }, droit], instants),
+    ["gauche", "gauche", "gauche", "gauche", "droite", "droite", "droite"]);
+});
+
+test("preparerScene : un délai de fin de clignotant doit être un nombre fini de secondes, positif ou nul", () => {
+  const c = trajet(0, 0, 0).droit(100).fin();
+  const scene = (delaiFin) => ({
+    code: "essai",
+    acteurs: [{ id: "eleve", role: "eleve", gabarit: "voiture", chemin: c, profil: [{ s: 0, kmh: 36 }, { s: 100, kmh: 36 }],
+      clignotant: [{ cote: "droite", de: 10, a: 20, delaiFin }] }],
+    etapes: [{ s: 0 }],
+  });
+  assert.throws(() => preparerScene(scene(-1)),
+    { message: "scène essai : acteur « eleve » : délai de fin de clignotant « -1 » invalide (nombre fini de secondes, positif ou nul, attendu)" });
+  for (const delaiFin of [NaN, Infinity, "2", null]) {
+    assert.throws(() => preparerScene(scene(delaiFin)),
+      (e) => /délai de fin de clignotant/.test(e.message) && /« eleve »/.test(e.message), `delaiFin = ${String(delaiFin)}`);
+  }
+  for (const delaiFin of [undefined, 0, 2.5]) assert.doesNotThrow(() => preparerScene(scene(delaiFin)), `delaiFin = ${String(delaiFin)}`);
+});

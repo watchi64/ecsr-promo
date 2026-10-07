@@ -427,8 +427,9 @@ export function polygonesSeChevauchent(A, B) {
 
 /**
  * Calcule les chronologies des acteurs et l'instant de chaque étape. Refuse une
- * `apparition` autre que « debut » ou « depart » (ou absente), et un `delai` de
- * clignotant qui n'est pas un nombre fini de secondes, positif ou nul (voir etatActeur).
+ * `apparition` autre que « debut » ou « depart » (ou absente), et un `delai` ou un
+ * `delaiFin` de clignotant qui n'est pas un nombre fini de secondes, positif ou nul (voir
+ * etatActeur).
  */
 export function preparerScene(def) {
   const acteurs = def.acteurs.map((a, i) => {
@@ -437,9 +438,11 @@ export function preparerScene(def) {
       throw new Error(`scène ${def.code} : acteur ${nom} : apparition « ${a.apparition} » inconnue (« debut » ou « depart » attendu)`);
     }
     for (const x of a.clignotant || []) {
-      if (x.delai !== undefined && !(Number.isFinite(x.delai) && x.delai >= 0)) {
-        throw new Error(`scène ${def.code} : acteur ${nom} : délai de clignotant « ${String(x.delai)} » invalide`
-          + " (nombre fini de secondes, positif ou nul, attendu)");
+      for (const [champ, libelle] of [["delai", "délai de clignotant"], ["delaiFin", "délai de fin de clignotant"]]) {
+        if (x[champ] !== undefined && !(Number.isFinite(x[champ]) && x[champ] >= 0)) {
+          throw new Error(`scène ${def.code} : acteur ${nom} : ${libelle} « ${String(x[champ])} » invalide`
+            + " (nombre fini de secondes, positif ou nul, attendu)");
+        }
       }
     }
     return a.pose
@@ -502,16 +505,23 @@ export function sortDuCadre(acteur) {
  *   successifs ont chacun le leur, et un arrêt pendant le clignotant ne le change pas. Le
  *   rendu compte la phase du clignotement depuis cet instant (`clignotantAllume`, dans
  *   `scene-rendu.js`).
- * - Allumage daté : un intervalle qui porte `delai` (secondes, nombre fini positif ou nul,
- *   vérifié par preparerScene) s'allume à l'instant tempsAtteint(de) + delai, et non à
- *   l'arrivée en `de`, puis tient jusqu'au passage de l'abscisse `a`, comme les autres ;
- *   `clignotantDepuis` vaut cet instant d'allumage. C'est ainsi qu'un clignotant s'allume
- *   pendant un arrêt, où l'abscisse ne bouge pas. Une fois allumé, il l'emporte sur
- *   l'intervalle sans délai qui contient encore l'abscisse, si ce dernier s'est allumé avant
- *   lui : le commodo n'a qu'un côté, le dernier allumé compte. Exemple : le clignotant d'une
- *   marche finit au rebroussement (`a`), celui de la marche suivante s'allume pendant l'arrêt
- *   et le remplace. Entre deux intervalles à délai allumés, le dernier allumé l'emporte aussi.
- *   Sans délai, rien ne change.
+ * - Allumage et extinction datés : un intervalle qui porte `delai` (secondes, nombre fini
+ *   positif ou nul, vérifié par preparerScene) s'allume à l'instant tempsAtteint(de) + delai,
+ *   et non à l'arrivée en `de` ; `clignotantDepuis` vaut cet instant d'allumage. Un intervalle
+ *   qui porte `delaiFin` (de même) s'éteint à l'instant tempsAtteint(a) + delaiFin, et non au
+ *   passage de `a` : même si l'acteur reste arrêté en `a`, et même s'il a déjà passé `a`.
+ *   L'instant d'extinction est encore allumé : `delaiFin: 0` éteint le clignotant dès après
+ *   l'arrivée en `a`, ce qui laisse l'arc qui finit en `a` couvert jusqu'à son bout. C'est
+ *   ainsi qu'un clignotant s'allume ou s'éteint pendant un arrêt, où l'abscisse ne bouge pas.
+ *   Sans `delai` ni `delaiFin`, rien ne change.
+ * - Préséance, quand plusieurs intervalles sont allumés à la fois (allumage passé, extinction
+ *   pas encore venue) : parmi ceux qui s'allument à l'arrivée en `de` (sans `delai`), le
+ *   premier du tableau, comme toujours ; un intervalle à `delai` allumé l'emporte sur lui
+ *   s'il s'est allumé après lui, et entre intervalles à `delai`, le dernier allumé : le
+ *   commodo n'a qu'un côté, le dernier geste compte. Exemple, le clignotant d'une marche qui
+ *   finit au rebroussement (`a`) et celui de la marche suivante, allumé par `delai` pendant
+ *   l'arrêt : sans `delaiFin`, le premier brille jusqu'à ce que le second le remplace ; avec
+ *   `delaiFin: 0`, il s'éteint dès l'arrivée et rien ne brille avant le second.
  * - Caisse et marche (pointA) : `cap` est le cap de la caisse, `capMarche` celui du
  *   déplacement, et `marche` vaut "arriere" sur un segment parcouru en marche arrière,
  *   "avant" sinon. Arrêté à un rebroussement, l'acteur est déjà dans la marche qui suit (la
@@ -541,12 +551,14 @@ export function etatActeur(acteur, t) {
 // Clignotant en marche à l'instant t, l'acteur étant à l'abscisse s : { cote, depuis } (depuis : instant d'allumage), ou
 // null. Règles dans le commentaire d'etatActeur.
 function clignotantEnMarche(acteur, t, s) {
-  const intervalles = acteur.clignotant || [];
-  const sansDelai = intervalles.find((x) => x.delai === undefined && s >= x.de - 1e-9 && s <= x.a + 1e-9);
-  let enMarche = sansDelai ? { cote: sansDelai.cote, depuis: tempsAtteint(acteur.chrono, sansDelai.de) } : null;
+  const chrono = acteur.chrono, intervalles = acteur.clignotant || [];
+  // Pas encore éteint : jusqu'au passage de a, ou jusqu'à l'extinction datée, bornes comprises.
+  const pasEteint = (x) => (x.delaiFin === undefined ? s <= x.a + 1e-9 : t <= tempsAtteint(chrono, x.a) + x.delaiFin + 1e-9);
+  const sansDelai = intervalles.find((x) => x.delai === undefined && s >= x.de - 1e-9 && pasEteint(x));
+  let enMarche = sansDelai ? { cote: sansDelai.cote, depuis: tempsAtteint(chrono, sansDelai.de) } : null;
   for (const x of intervalles) {
-    if (x.delai === undefined || s > x.a + 1e-9) continue;
-    const depuis = tempsAtteint(acteur.chrono, x.de) + x.delai;
+    if (x.delai === undefined || !pasEteint(x)) continue;
+    const depuis = tempsAtteint(chrono, x.de) + x.delai;
     if (t >= depuis - 1e-9 && (enMarche === null || depuis >= enMarche.depuis)) enMarche = { cote: x.cote, depuis };
   }
   return enMarche;

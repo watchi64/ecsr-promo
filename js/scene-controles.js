@@ -177,7 +177,8 @@ function controlerClignotants(sc, note) {
       }
       // Pendant tout l'arc (les dixièmes de seconde depuis son début, puis sa fin, un arrêt dans l'arc compris) :
       // jamais le clignotant de l'autre côté, et celui du bon côté toujours allumé (« clignotant tôt et tout le
-      // long », fiche ECF C2-E).
+      // long », fiche ECF C2-E). Une extinction datée (delaiFin) n'y échappe pas : pile à la fin de l'arc, elle passe
+      // (l'instant d'arrivée est encore allumé) ; plus tôt, non.
       const instantsArc = [];
       for (let t = tDebut; t <= tFin + 1e-9; t += SEUILS.pas) instantsArc.push(t);
       instantsArc.push(tFin);

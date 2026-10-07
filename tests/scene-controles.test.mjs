@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { trajet, rectangle, KMH, rebroussements } from "../js/scene-geometrie.js";
+import { trajet, rectangle, KMH, rebroussements, preparerScene, etatActeur } from "../js/scene-geometrie.js";
 import { controlerScene, SEUILS } from "../js/scene-controles.js";
 
 const constant = (chemin, kmh) => [{ s: 0, kmh }, { s: chemin.longueur, kmh }];
@@ -545,4 +545,47 @@ test("demi-tour en trois temps, arcs collés aux rebroussements : le clignotant 
     "eleve : clignotant droite attendu 2 s avant le changement de direction de s = 4.3 m (absent à t = 4.8 s)",
     "eleve : clignotant gauche attendu 2 s avant le changement de direction de s = 8.6 m (absent à t = 13.5 s)",
   ]);
+});
+
+// ===== Extinction datée : jamais avant la fin de l'arc =====
+
+test("delaiFin : refusé s'il est négatif ; une extinction pile à l'arrivée en fin d'arc est acceptée, une plus tôt non", () => {
+  // virageDroite à 15 km/h, freiné à partir de s = 32 m jusqu'à l'arrêt en fin d'arc (s = 35,71 m), 2 s d'arrêt, puis
+  // reprise sur 5 m.
+  const c = virageDroite(), fin = finArc(c);
+  const profil = [{ s: 0, kmh: 15 }, { s: 32, kmh: 15 }, { s: fin, kmh: 0, pause: 2 }, { s: fin + 5, kmh: 15 }, { s: c.longueur, kmh: 15 }];
+  const avec = (a, delaiFin) => controlerScene(scene([eleve(c, profil, { clignotant: [{ cote: "droite", de: 0, a, delaiFin }] })]));
+  assert.deepEqual(avec(fin, -0.5),
+    ["scène essai : acteur « eleve » : délai de fin de clignotant « -0.5 » invalide (nombre fini de secondes, positif ou nul, attendu)"]);
+  // Éteint dès l'arrivée à l'arrêt en fin d'arc : l'arc est couvert jusqu'à son bout, instant d'arrivée compris.
+  assert.deepEqual(avec(fin, 0), []);
+  // Éteint en s = 30,5 m (t = 7,32 s), dans l'arc : le premier dixième de seconde sans lui est t = 7,4 s.
+  assert.deepEqual(avec(30.5, 0), ["eleve : clignotant droite éteint pendant le changement de direction (t = 7.4 s)"]);
+});
+
+test("demi-tour en trois temps : aucun clignotant pendant les contrôles d'un arrêt, puis celui du temps suivant, sans aucun message", () => {
+  // Arcs collés aux rebroussements comme plus haut, mais 4,5 s d'arrêt à chaque rebroussement : 2 s de contrôles, puis le
+  // clignotant du temps suivant (delai: 2), 2,5 s avant le redémarrage. Le clignotant d'un temps s'éteint dès l'arrivée
+  // à l'arrêt qui le termine (delaiFin: 0). Étapes : le départ, puis à chaque arrêt les contrôles (à l'arrivée) et le
+  // clignotant (2 s après).
+  const c = trajet(40, 60, -90).virage(4.1, -60).inverser().virage(4.1, -60).inverser().virage(4.1, -60).droit(5).fin();
+  const [r1, r2] = rebroussements(c);
+  const arc3 = c.segments[2];
+  const profil = [{ s: 0, kmh: 5 }, { s: r1 - 1, kmh: 5 }, { s: r1, kmh: 0, pause: 4.5 }, { s: r1 + 1, kmh: 4 },
+    { s: r2 - 1, kmh: 4 }, { s: r2, kmh: 0, pause: 4.5 }, { s: r2 + 1, kmh: 5 }, { s: c.longueur, kmh: 5 }];
+  const def = scene([eleve(c, profil, { clignotant: [
+    { cote: "gauche", de: 0, a: r1, delaiFin: 0 },
+    { cote: "droite", de: r1, a: r2, delai: 2, delaiFin: 0 },
+    { cote: "gauche", de: r2, a: arc3.debut + arc3.longueur, delai: 2 },
+  ] })], { etapes: [{ s: 0 }, { s: r1 }, { s: r1, delai: 2 }, { s: r2 }, { s: r2, delai: 2 }] });
+  assert.deepEqual(controlerScene(def), []);
+  const sc = preparerScene(def), e = sc.acteurs[0];
+  for (const [controles, clignotant, cote] of [[1, 2, "droite"], [3, 4, "gauche"]]) {
+    const arrivee = sc.etapes[controles].t, allumage = sc.etapes[clignotant].t;
+    // Pendant les contrôles, après l'instant d'arrivée : aucun clignotant.
+    for (let t = arrivee + 0.05; t < allumage; t += 0.1) assert.equal(etatActeur(e, t).clignotant, null, `contrôles, t = ${t.toFixed(2)} s`);
+    // De l'allumage au redémarrage (2,5 s plus tard) : le clignotant du temps suivant, compté depuis son allumage.
+    for (let t = allumage; t < allumage + 2.5; t += 0.1) assert.equal(etatActeur(e, t).clignotant, cote, `t = ${t.toFixed(2)} s`);
+    assert.equal(etatActeur(e, allumage).clignotantDepuis, allumage);
+  }
 });
