@@ -6,6 +6,7 @@ import { REGARD_PORTEE, REGARD_DUREE_TOUR_MIN, oeil, angleRegard, cibleSuivie, c
 import { KMH, DEG, GABARITS, preparerScene, etatActeur, emprise, tempsAtteint, centreArc, pointA, pointDansPolygone,
   polygonesSeChevauchent, rectangle } from "../js/scene-geometrie.js";
 import { DESSIN, trajetGiratoire } from "../js/scene-decors.js";
+import { clignotantAllume, feuxStop } from "../js/scene-rendu.js";
 import { SIGNAUX } from "../js/signaux.js";
 
 const erreurs = (def) => controlerScene(def).join("\n");
@@ -1149,11 +1150,12 @@ test("giratoire : douze étapes (fiche C2-F, ordre de sortie de C2.4 et du thèm
 // Comme pour les autres scènes, les instants se lisent sur la définition (trajet, chronologie, emprises).
 
 // Choix de dessin consignés dans les sources de la scène : allures (km/h), accélérations (m/s²), durées des regards (s),
-// avances des deux décalages (m) et écarts entre pare-chocs des voitures garées (m).
+// avances des deux décalages (m), écarts entre pare-chocs des voitures garées (m), trottoirs montrés (m) et avance de
+// l'étape 6 sur la fin du déboîtement (m).
 const DEMARRER = {
   kmh: { deboitement: 10, rue: 30 }, reprise: 1.5, freinage: 1.5,
   duree: { retroviseurInterieur: 1.2, retroviseurExterieur: 1.2, angleMort: 1.0, clignotant: 2.0, rouler: 1.0 },
-  avance: { deboitement: 12, rangement: 20 }, ecartGarees: { derriere: 1.0, devant: 8 },
+  avance: { deboitement: 12, rangement: 20 }, ecartGarees: { derriere: 1.0, devant: 8 }, trottoir: 5, avanceEtapeRouler: 0.01,
 };
 // Décalage de la place au centre de la voie de droite : du centre d'une voiture garée (flanc droit à jeuStationnement du
 // trottoir) au centre de la voie, par-dessus la bande de stationnement.
@@ -1288,8 +1290,30 @@ test("demarrer-arreter : démarrer et rejoindre sa voie : décalage de 2,55 m ve
   for (let t = tDix; t <= tVoie; t += 0.01) proche(kmh(eleve, t), DEMARRER.kmh.deboitement, 1e-6, `allure à t = ${t.toFixed(2)} s`);
   // Clignotant gauche jusqu'à la fin du décalage, éteint ensuite.
   for (let t = T[3]; t <= tVoie - 1e-6; t += 0.01) assert.equal(etatActeur(eleve, t).clignotant, "gauche", `t = ${t.toFixed(2)} s`);
+  assert.equal(etatActeur(eleve, tVoie).clignotant, "gauche", "allumé jusqu'à la fin du décalage, borne comprise");
   assert.equal(etatActeur(eleve, tVoie + 0.05).clignotant, null, "éteint au centre de la voie");
-  proche(T[5], tVoie, 1e-9, "étape 6 au centre de la voie");
+  proche(T[5], tA(fin(arc2) + DEMARRER.avanceEtapeRouler), 1e-9, "étape 6, 1 cm après la fin du décalage");
+});
+
+// Clignotant que dessine l'image figée de l'étape k (pas à pas, pause, animations réduites), comme le moteur.
+function clignotantFige(def, k) {
+  const sc = preparerScene(def), t = sc.etapes[k].t;
+  return clignotantAllume(etatActeur(sc.eleve, t), t, true);
+}
+
+test("demarrer-arreter : l'image figée de l'étape 6 « Rouler au centre de sa voie » montre le clignotant gauche éteint, l'étape commençant 1 cm après la fin du déboîtement ; celle de l'étape 12 montre le clignotant droit, allumé jusqu'à l'arrêt, encore 1,98 s", () => {
+  const def = SCENES["demarrer-arreter"].construire();
+  const { eleve, deboitement: [, arc2], fin, tA, tArret, T, S } = lireDemarrerArreter(def);
+  proche(S[5] - fin(arc2), DEMARRER.avanceEtapeRouler, 1e-12, "étape 6 après la fin du déboîtement");
+  assert.equal(etatActeur(eleve, tA(fin(arc2))).clignotant, "gauche", "le clignotant tient jusqu'à la fin du déboîtement");
+  assert.equal(clignotantFige(def, 5), null, "image figée de l'étape 6 : clignotant éteint");
+  // Étape 12 : le clignotant droit n'est pas à son dernier instant, il annonce l'arrêt jusqu'au bout.
+  assert.equal(clignotantFige(def, 11), "droite", "image figée de l'étape 12 : clignotant droit");
+  proche(tArret - T[11], 1.977, 1e-3, "le clignotant droit brille encore jusqu'à l'arrêt");
+  // Sabotage : l'étape 6 posée à la fin même du déboîtement, l'image figée montre le clignotant à son dernier instant.
+  const sabote = copie("demarrer-arreter");
+  sabote.etapes[5].s = fin(arc2);
+  assert.equal(clignotantFige(sabote, 5), "gauche");
 });
 
 test("demarrer-arreter : rouler au centre de sa voie : 1,5 m/s² jusqu'à 30 km/h, tenus 1,0 s avant les contrôles de l'arrêt et jusqu'au rangement, cap au nord", () => {
@@ -1345,17 +1369,24 @@ test("demarrer-arreter : ralentir et se rapprocher du bord : décalage de 2,55 m
   proche(sc.duree - tArret, 1.0, 1e-6, "image tenue 1,0 s après l'arrêt");
 });
 
-test("demarrer-arreter : cône du rétroviseur intérieur entier dans le monde pendant l'étape 1, cône du regard devant entier dans le monde pendant l'étape 12", () => {
-  const { def, sc, eleve, T } = lireDemarrerArreter();
+test("demarrer-arreter : cône du rétroviseur intérieur entier dans le monde pendant l'étape 1, cône du regard devant entier dans le monde pendant l'étape 12 ; trottoirs montrés sur le plus petit nombre entier de mètres qui les y garde", () => {
+  const { def, sc, eleve, reperes, T } = lireDemarrerArreter();
+  let margeDroite = Infinity;
   for (const [k, t0, t1] of [[0, T[0], T[1]], [11, T[11], sc.duree]]) {
     for (let t = t0; t < t1; t += 0.01) {
       const e = etatActeur(eleve, t);
       for (const [x, y] of coneRegard(angleRegard(sc.etapes[k], e, t, etatsA(sc, t)), oeil(e))) {
         assert.ok(x >= 0 && x <= def.monde.largeur && y >= 0 && y <= def.monde.hauteur,
           `étape ${k + 1} : cône hors du monde à t = ${t.toFixed(2)} s : (${x.toFixed(2)} ; ${y.toFixed(2)})`);
+        margeDroite = Math.min(margeDroite, def.monde.largeur - x);
       }
     }
   }
+  // Un mètre de trottoir de moins de chaque côté rapprocherait le bord droit du monde de 2 m et les cônes de 1 m : il
+  // reste moins d'un mètre de marge, ces cônes sortiraient de l'image.
+  proche(def.monde.largeur - reperes.xBordDroit, DEMARRER.trottoir, 1e-12, "trottoir montré à droite");
+  proche(reperes.xBordGauche, DEMARRER.trottoir, 1e-12, "trottoir montré à gauche");
+  assert.ok(margeDroite < 1, `${margeDroite.toFixed(3)} m de marge à droite des cônes : les trottoirs pourraient être plus étroits`);
 });
 
 test("demarrer-arreter : douze étapes de la méthode de Timy, dans l'ordre, chacune avec son regard, à son moment et à son abscisse", () => {
@@ -1383,13 +1414,41 @@ test("demarrer-arreter : douze étapes de la méthode de Timy, dans l'ordre, cha
   for (let k = 0; k < 5; k++) assert.equal(S[k], 0, `étape ${k + 1} à la place de départ`);
   proche(T[1], d.retroviseurInterieur, 1e-9); proche(T[2], T[1] + d.retroviseurExterieur, 1e-9);
   proche(T[3], T[2] + d.angleMort, 1e-9); proche(T[4], tDepart, 1e-6);
-  proche(S[5], fin(arc2), 1e-9); proche(T[5], tA(fin(arc2)), 1e-9);
+  proche(S[5], fin(arc2) + DEMARRER.avanceEtapeRouler, 1e-9); proche(T[5], tA(S[5]), 1e-9);
   for (const [k, duree] of [[7, d.retroviseurInterieur], [8, d.retroviseurExterieur], [9, d.angleMort], [10, d.clignotant]]) {
     proche(S[k] - S[k - 1], vRue * duree, 1e-9, `étape ${k + 1} : abscisse`);
     proche(T[k] - T[k - 1], duree, 1e-6, `étape ${k + 1} : instant`);
   }
   for (let k = 0; k < 12; k++) proche(etatActeur(eleve, T[k]).s, S[k], 1e-6, `étape ${k + 1} : abscisse atteinte à son instant`);
   proche(S[10], arc3.debut, 1e-9); proche(S[11], fin(arc4), 1e-9);
+});
+
+test("demarrer-arreter : feux stop comme les décrivent les sources : éteints sur les voitures garées (personne au volant), allumés sur celle de l'élève à l'arrêt, le pied sur le frein", () => {
+  const { sc, eleve, garees, tDepart, tArret } = lireDemarrerArreter();
+  const choixDeDessin = SCENES["demarrer-arreter"].sources.find((s) => s.startsWith("Choix de dessin"));
+  assert.match(choixDeDessin, /les voitures garées, personne au volant, ont leurs feux stop éteints ; celle de l'élève les allume à l'arrêt, le pied sur le frein/);
+  // La phrase des voitures garées ne compte plus l'élève parmi celles qui ont les feux stop éteints.
+  assert.doesNotMatch(choixDeDessin, /celle de l'élève comprise[^;]*feux stop éteints/);
+  for (let t = 0; t < tDepart - 1e-6; t += 0.1) assert.equal(feuxStop(eleve, etatActeur(eleve, t)), true, `élève à l'arrêt, t = ${t.toFixed(1)} s`);
+  for (let t = tArret + 1e-6; t <= sc.duree; t += 0.1) assert.equal(feuxStop(eleve, etatActeur(eleve, t)), true, `élève arrêté au bord, t = ${t.toFixed(1)} s`);
+  for (const g of Object.values(garees)) {
+    for (let t = 0; t <= sc.duree; t += 0.5) assert.equal(feuxStop(g, etatActeur(g, t)), false, `${g.id}, t = ${t} s`);
+  }
+});
+
+test("demarrer-arreter : le paragraphe « Choix de dessin » donne la raison des valeurs qui n'étaient qu'en commentaire du code (avances de 12 et 20 m, 10 km/h, 1,0 m derrière), des trottoirs de 5 m et de l'avance de l'étape 6", () => {
+  const choixDeDessin = SCENES["demarrer-arreter"].sources.find((s) => s.startsWith("Choix de dessin"));
+  for (const [valeur, raison] of [
+    [/sur 12 m d'avance \(/, /\(plus court, l'arrière, qui pivote, viendrait plus près du trottoir ; plus long, le flanc droit passerait plus près de la voiture garée devant\)/],
+    [/sur 20 m d'avance \(/, /\(pour se rapprocher du bord en douceur, à l'allure de la rue\)/],
+    [/jusqu'à 10 km\/h \(/, /\(allure réduite tant que la voiture quitte sa place, entre les voitures garées\)/],
+    [/l'une 1,0 m derrière l'élève \(/, /\(garée de près, comme dans une file de voitures en stationnement : l'élève part en avant et ne s'en approche pas\)/],
+    [/trottoirs montrés sur 5 m \(/, /\(le plus petit nombre entier de mètres qui garde dans l'image le cône du rétroviseur intérieur au départ et celui du regard devant à l'arrêt\)/],
+    [/commencée 1 cm plus loin \(/, /\(la plus petite avance, au centimètre près, qui montre le clignotant gauche éteint sur l'image figée de l'étape\)/],
+  ]) {
+    assert.match(choixDeDessin, valeur);
+    assert.match(choixDeDessin, new RegExp(valeur.source + raison.source.slice(2)));
+  }
 });
 
 test("demarrer-arreter : les valeurs calculées que citent les sources (décalage, accélérations latérales, distances au trottoir et à la voiture garée devant, allure au bord, arrêt après le décalage, durée) sont celles de la scène, à l'arrondi écrit près", () => {
@@ -1409,13 +1468,25 @@ test("demarrer-arreter : les valeurs calculées que citent les sources (décalag
     }
     return max;
   };
-  let trottoir = Infinity, devant = Infinity;
-  const voitureDevant = emprise("voiture", etatActeur(garees.gareeDevant, 0));
+  // Coins d'une emprise (scene-geometrie.js, emprise) : avant gauche, avant droit, arrière droit, arrière gauche. Flanc
+  // droit de l'élève : du coin avant droit au coin arrière droit ; avant : du coin avant gauche au coin avant droit.
+  const auSegment = ([px, py], [ax, ay], [bx, by]) => {
+    const dx = bx - ax, dy = by - ay, u = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / (dx * dx + dy * dy)));
+    return Math.hypot(px - ax - u * dx, py - ay - u * dy);
+  };
+  let trottoir = Infinity, flancAngle = Infinity, plusPres = Infinity, avant = Infinity;
+  const voitureDevant = emprise("voiture", etatActeur(garees.gareeDevant, 0)), angleArriereGauche = voitureDevant[3];
   for (let s = 0; s <= fin(arc2); s += 0.001) {
-    const p = pointA(eleve.chemin, s);
+    const p = pointA(eleve.chemin, s), e = emprise("voiture", p);
     trottoir = Math.min(trottoir, reperes.xBordDroit - flancDroit(p));
-    devant = Math.min(devant, distancePolygones(emprise("voiture", p), voitureDevant));
+    flancAngle = Math.min(flancAngle, auSegment(angleArriereGauche, e[1], e[2]));
+    plusPres = Math.min(plusPres, distancePolygones(e, voitureDevant));
+    avant = Math.min(avant, distancePolygones([e[0], e[1]], voitureDevant));
   }
+  // Le plus près de la voiture garée devant, c'est bien le flanc droit de l'élève et l'angle arrière gauche de cette
+  // voiture ; l'avant de l'élève, lui, reste à 0,75 m au moins.
+  proche(plusPres, flancAngle, 1e-9, "plus petite distance à la voiture garée devant");
+  assert.ok(avant >= 0.75 - 1e-6, `l'avant de l'élève à ${avant.toFixed(4)} m de la voiture garée devant`);
   const { def } = lireDemarrerArreter();
   const flancGaucheGaree = Math.min(...emprise("voiture", etatActeur(garees.gareeDevant, 0)).map(([x]) => x));
   const mesures = [
@@ -1431,7 +1502,8 @@ test("demarrer-arreter : les valeurs calculées que citent les sources (décalag
     ["accélération latérale en rejoignant sa voie (m/s²)", lateraleMax(tDepart, tA(fin(arc2))),
       ecrit(/accélération latérale de (\d+(?:,\d+)?) m\/s² au plus en rejoignant sa voie/)],
     ["plus petite distance au trottoir en déboîtant (m)", trottoir, ecrit(/l'arrière, qui pivote, passe à (\d+(?:,\d+)?) m du trottoir/)],
-    ["plus petite distance à la voiture garée devant (m)", devant, ecrit(/l'avant à (\d+(?:,\d+)?) m de la voiture garée devant/)],
+    ["flanc droit de l'élève à l'angle arrière gauche de la voiture garée devant (m)", flancAngle,
+      ecrit(/le flanc droit à (\d+(?:,\d+)?) m de l'angle arrière gauche de la voiture garée devant/)],
     ["accélération latérale en se rapprochant du bord (m/s²)", lateraleMax(tA(arc3.debut), tA(fin(arc4))),
       ecrit(/accélération latérale de (\d+(?:,\d+)?) m\/s² au plus en se rapprochant du bord/)],
     ["allure à la fin du rangement (km/h)", kmh(eleve, tA(fin(arc4))), ecrit(/bord atteint à (\d+(?:,\d+)?) km\/h/)],
