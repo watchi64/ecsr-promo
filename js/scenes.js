@@ -14,14 +14,15 @@
  * construire() (définition calculée une seule fois, puis gelée en profondeur :
  * le moteur, l'éditeur et les tests la partagent sans pouvoir la modifier).
  */
-import { KMH, GABARITS, trajet, chronologie, tempsAtteint, premiereAbscisse, emprise, etatActeur, polygonesSeChevauchent }
-  from "./scene-geometrie.js?v=20261005f";
-import { DESSIN, HORS_MONDE, carrefourEnCroix, giratoire, trajetGiratoire } from "./scene-decors.js?v=20261005f";
+import { KMH, GABARITS, trajet, chronologie, tempsAtteint, premiereAbscisse, emprise, etatActeur, polygonesSeChevauchent,
+  rectangle } from "./scene-geometrie.js?v=20261005f";
+import { DESSIN, HORS_MONDE, carrefourEnCroix, giratoire, trajetGiratoire, rue } from "./scene-decors.js?v=20261005f";
 import { REGARD_PORTEE } from "./scene-regard.js?v=20261005f";
 import { SEUILS } from "./scene-controles.js?v=20261005f";
 
 const MARGE_ARRET = 0.3;             // m entre la voiture arrêtée et la limite (passage, ligne)
 const TOLERANCE_ARRET = 0.7;         // m : écart admis par l'attente arretAvant, mesuré au milieu du pare-chocs
+const TOLERANCE_PLACE = 0.2;         // m : écart latéral admis par l'attente d'une place le long du trottoir, au-delà du jeu
 const PIETON_KMH = 4.32;             // 1,2 m/s : allure de marche retenue pour le dessin
 const LIMITE_AGGLOMERATION = 50;     // km/h : vitesse qu'aucun véhicule d'une scène d'agglomération ne dépasse
 
@@ -472,6 +473,128 @@ function giratoireScene() {
   };
 }
 
+// ===== Démarrer et s'arrêter (C1.4 : méthode de Timy du 07/10/2026, fiche ECF C1-D) =====
+//
+// Rue calme, sans circulation (C1 : trafic faible ou nul). La voiture de l'élève, garée le long du trottoir droit entre
+// deux voitures en stationnement, rejoint sa voie, roule, puis se rapproche du bord et s'arrête. Contrôles dans l'ordre de
+// Timy : rétroviseur intérieur, rétroviseur extérieur du côté de la manœuvre, angle mort du même côté, clignotant, action.
+// Les valeurs ci-dessous sont des choix de dessin, recopiés dans les sources de la scène.
+const DEMARRER_ARRETER = geler({
+  // m de trottoir montrés de chaque côté de la chaussée : à droite de la voiture garée, le repère commun des étapes 1 à 5
+  // (cinq numéros, animations réduites) tient sur le trottoir.
+  trottoir: 8,
+  hauteurCadre: 46,           // m : cadre qui suit l'élève, sur toute la largeur du monde, sans changer l'échelle
+  kmh: { deboitement: 10, rue: 30 },   // km/h : quitter la place et rejoindre sa voie ; rue calme, trafic nul
+  reprise: 1.5,               // m/s² : accélération au départ, puis jusqu'à l'allure de la rue
+  freinage: 1.5,              // m/s² : ralentir progressivement, du début du rangement jusqu'à l'arrêt
+  // m d'avance des deux décalages : de la place au centre de la voie (l'avant passe la voiture garée devant), puis du
+  // centre de la voie au bord (en douceur, à l'allure de la rue).
+  avance: { deboitement: 12, rangement: 20 },
+  // m entre les pare-chocs : la voiture garée derrière l'élève, et celle de devant (place assez dégagée pour partir sans
+  // manœuvre).
+  ecartGarees: { derriere: 1.0, devant: 8 },
+  // s à l'écran : coups d'œil aux rétroviseurs et à l'angle mort ; clignotant allumé avant d'agir (2 s au moins, pas
+  // davantage pour ne pas allonger l'attente) ; allure de la rue tenue avant de préparer l'arrêt.
+  duree: { retroviseurInterieur: 1.2, retroviseurExterieur: 1.2, angleMort: 1.0, clignotant: 2.0, rouler: 1.0 },
+  // degrés par rapport au cap, donnés pour la droite : les contrôles du départ, à gauche, les prennent négatifs.
+  regard: { retroviseurInterieur: 180, retroviseurExterieur: 170, angleMort: 120, devant: 0 },
+});
+
+function demarrerArreter() {
+  const choix = DEMARRER_ARRETER;
+  const vitesse = { deboitement: choix.kmh.deboitement * KMH, rue: choix.kmh.rue * KMH };
+  // Décalage de la place au centre de la voie de droite, par-dessus la bande de stationnement : du centre d'une voiture
+  // garée (flanc droit à DESSIN.jeuStationnement du trottoir) au centre de la voie, 2,55 m.
+  const ecart = DESSIN.voie / 2 + DESSIN.largeurStationnement - DESSIN.jeuStationnement - DESSIN.demiLargeurVoiture;
+  const longueurDecalage = (avance) => trajet(0, 0, -90).decaler(ecart, avance).longueur;
+
+  // Abscisses du trajet. Départ : décalage vers la gauche dès le départ, reprise jusqu'à 10 km/h, tenus jusqu'au centre de
+  // la voie ; puis reprise jusqu'à 30 km/h, tenus duree.rouler avant les contrôles de l'arrêt (rétroviseur intérieur,
+  // rétroviseur extérieur droit, angle mort droit, clignotant droit), faits à 30 km/h ; rangement : décalage vers la droite
+  // en ralentissant dès son début, jusqu'à l'arrêt, en ligne droite le long du trottoir.
+  const sVoie = longueurDecalage(choix.avance.deboitement);
+  const sAllureDeboitement = vitesse.deboitement ** 2 / (2 * choix.reprise);
+  if (!(sAllureDeboitement < sVoie)) throw new Error("demarrer-arreter : 10 km/h atteints après le centre de la voie : allonger le déboîtement");
+  const sAllureRue = sVoie + (vitesse.rue ** 2 - vitesse.deboitement ** 2) / (2 * choix.reprise);
+  const sRetroInterieur = sAllureRue + vitesse.rue * choix.duree.rouler;
+  const sRetroExterieur = sRetroInterieur + vitesse.rue * choix.duree.retroviseurInterieur;
+  const sAngleMort = sRetroExterieur + vitesse.rue * choix.duree.retroviseurExterieur;
+  const sClignotant = sAngleMort + vitesse.rue * choix.duree.angleMort;
+  const sRangement = sClignotant + vitesse.rue * choix.duree.clignotant;
+  const sBord = sRangement + longueurDecalage(choix.avance.rangement);
+  const sArret = sRangement + vitesse.rue ** 2 / (2 * choix.freinage);
+  if (!(sArret > sBord)) throw new Error("demarrer-arreter : arrêt avant d'avoir rejoint le bord : freiner moins fort ou raccourcir le rangement");
+
+  // Rue : REGARD_PORTEE derrière la place de départ (le cône du rétroviseur intérieur, tourné vers l'arrière, tient dans le
+  // monde) et devant le point d'arrêt (le cône du regard devant aussi). Un décalage avance de son avance, exactement.
+  const avance = choix.avance.deboitement + (sRangement - sVoie) + choix.avance.rangement + (sArret - sBord);
+  const d = rue({ longueur: REGARD_PORTEE + avance + REGARD_PORTEE, largeurTrottoir: choix.trottoir,
+    stationnement: DESSIN.largeurStationnement });
+  const { xBordDroit, xAxe } = d.reperes;
+  const xGaree = xBordDroit - DESSIN.jeuStationnement - DESSIN.demiLargeurVoiture;    // centre d'une voiture garée
+  const y0 = d.monde.hauteur - REGARD_PORTEE;
+  const chemin = trajet(xGaree, y0, -90)
+    .decaler(-ecart, choix.avance.deboitement, { changementDeVoie: true })
+    .droit(sRangement - sVoie)
+    .decaler(ecart, choix.avance.rangement, { changementDeVoie: true })
+    .droit(sArret - sBord)
+    .fin();
+
+  // À l'arrêt : les trois contrôles, puis le clignotant gauche, allumé à la fin de l'angle mort et duree.clignotant avant
+  // le départ. Il s'éteint au centre de la voie (fin du déboîtement) ; le clignotant droit, allumé après les contrôles de
+  // l'arrêt, s'éteint à l'arrêt.
+  const d1 = choix.duree.retroviseurInterieur, d2 = d1 + choix.duree.retroviseurExterieur, d3 = d2 + choix.duree.angleMort;
+  const pause = d3 + choix.duree.clignotant;
+  const profil = [
+    { s: 0, kmh: 0, pause }, { s: sAllureDeboitement, kmh: choix.kmh.deboitement }, { s: sVoie, kmh: choix.kmh.deboitement },
+    { s: sAllureRue, kmh: choix.kmh.rue }, { s: sRangement, kmh: choix.kmh.rue }, { s: chemin.longueur, kmh: 0 },
+  ];
+  const demiLongueur = GABARITS.voiture.longueur / 2;
+  const r = choix.regard;
+  // Côté droit de la chaussée (de l'axe au trottoir) ; place d'arrivée : le long du trottoir, flanc droit à
+  // DESSIN.jeuStationnement du trottoir, à TOLERANCE_PLACE près.
+  const coteDroit = rectangle(xAxe, 0, xBordDroit, d.monde.hauteur);
+  const place = rectangle(xBordDroit - DESSIN.jeuStationnement - GABARITS.voiture.largeur - TOLERANCE_PLACE, 0, xBordDroit,
+    d.monde.hauteur);
+  return {
+    code: "demarrer-arreter", titre: "Démarrer et s'arrêter", monde: d.monde, limite: LIMITE_AGGLOMERATION, decor: d,
+    camera: { largeur: d.monde.largeur, hauteur: choix.hauteurCadre },
+    acteurs: [
+      { id: "eleve", role: "eleve", gabarit: "voiture", chemin, profil,
+        clignotant: [
+          { cote: "gauche", de: 0, a: sVoie, delai: d3, delaiFin: 0 },
+          { cote: "droite", de: sClignotant, a: chemin.longueur, delaiFin: 0 },
+        ] },
+      { id: "gareeDerriere", gabarit: "voiture", stationne: true,
+        pose: { x: xGaree, y: y0 + 2 * demiLongueur + choix.ecartGarees.derriere, cap: -90 } },
+      { id: "gareeDevant", gabarit: "voiture", stationne: true,
+        pose: { x: xGaree, y: y0 - 2 * demiLongueur - choix.ecartGarees.devant, cap: -90 } },
+    ],
+    etapes: [
+      { s: 0, regard: { angle: r.retroviseurInterieur } },
+      { s: 0, delai: d1, regard: { angle: -r.retroviseurExterieur } },
+      { s: 0, delai: d2, regard: { angle: -r.angleMort } },
+      { s: 0, delai: d3, regard: { angle: r.devant } },
+      { s: 0, delai: pause, regard: { angle: r.devant } },
+      { s: sVoie, regard: { angle: r.devant } },
+      { s: sRetroInterieur, regard: { angle: r.retroviseurInterieur } },
+      { s: sRetroExterieur, regard: { angle: r.retroviseurExterieur } },
+      { s: sAngleMort, regard: { angle: r.angleMort } },
+      { s: sClignotant, regard: { angle: r.devant } },
+      { s: sRangement, regard: { angle: r.devant } },
+      { s: sBord, regard: { angle: r.devant } },
+    ],
+    attentes: [
+      { type: "dans", acteur: "eleve", nom: "côté droit de la chaussée", zone: coteDroit, de: 0, a: chemin.longueur, emprise: true },
+      { type: "dans", acteur: "eleve", nom: "voie de droite", zone: d.voies.droite, de: sVoie, a: sRangement, emprise: true },
+      { type: "dans", acteur: "eleve", nom: "place le long du trottoir", zone: place, de: sBord, a: chemin.longueur, emprise: true },
+      { type: "vitesseMax", acteur: "eleve", nom: "quitter la place", kmh: choix.kmh.deboitement, de: 0, a: sVoie },
+      { type: "vitesseMax", acteur: "eleve", nom: "rue calme", kmh: choix.kmh.rue, de: 0, a: chemin.longueur },
+      { type: "pasDeClignotantAvant", acteur: "eleve", cote: "droite", s: sClignotant },
+    ],
+  };
+}
+
 export const SCENES = {
   "tourner-droite": {
     titre: "Tourner à droite en agglomération",
@@ -546,5 +669,31 @@ export const SCENES = {
       "Choix de dessin, sans portée réglementaire : petit giratoire urbain à une voie : îlot central de 8 m de rayon, anneau de 6 m de large (bord extérieur à 14 m du centre), raccordements de bordure de 8 m de rayon, quatre branches à double sens de voies de 3,5 m, sans îlot séparateur ; ligne de cédez-le-passage à 5 cm de l'anneau, AB3a à 1,95 m en amont de la ligne, AB25 à 50 m de l'anneau ; branches de 26 m au nord et à l'est, 76 m au sud, 40 m à l'ouest ; cadre de 40 x 46 m qui suit l'élève ; départ à 22 m du bord bas (la portée du cône du regard, pour que le cône du rétroviseur intérieur reste dans l'image), dans l'axe de la voie d'entrée ; trajectoires à 0,6 m des bordures (anneau parcouru à 12,5 m du centre, arcs d'entrée et de sortie de 9,5 m de rayon) ; 30 km/h en approche et en sortie ; allure adaptée progressivement à 15 km/h (1,0 m/s²), puis freinage de 2,0 m/s² jusqu'à l'arrêt, au début de l'arc d'entrée, le coin avant gauche à 0,3 m de la ligne ; 20 km/h dans l'anneau (petit giratoire urbain ; la fiche indique 30 à 35 km/h pour un giratoire courant) ; au plus 19 km/h dans les arcs d'entrée et de sortie, pour une accélération latérale sous 3,0 m/s² (20 km/h y donneraient 3,25 m/s²) : reprise de 1,5 m/s² depuis l'arrêt (17,8 km/h au bout de l'arc d'entrée), 20 km/h tenus 1,06 s, puis allure cassée à 11 km/h (2,0 m/s²) pendant le contrôle au rétroviseur intérieur, qui s'achève là où s'allume le clignotant, et tenue jusqu'à la fin de l'arc de sortie : à 11 km/h, le regard vers la sortie et les deux angles morts, qui suivent le clignotant, s'achèvent assez tôt pour que le balayage de la sortie commence près d'une seconde avant l'arc de sortie (ces trois regards tiendraient avant l'arc jusqu'à 14,5 km/h, mais le balayage commencerait alors à l'entrée de l'arc) ; usager de l'anneau venu de l'ouest et sorti à l'est, qui part et finit hors du dessin, à 30 km/h en approche, 18 km/h dans l'arc d'entrée, 20 km/h dans l'anneau et 15 km/h dans l'arc de sortie, et quitte la zone de conflit (le secteur de l'anneau de 40 à 125 degrés, devant l'entrée sud) 2,4 s après l'arrêt de l'élève ; regard de l'élève à gauche pendant 1,0 s, puis redémarrage (attente de 3,4 s au cédez-le-passage) ; clignotant droit allumé juste après le rétroviseur intérieur, 3,0 degrés après l'axe de la sortie précédente (3 degrés au moins) et 3,96 s avant l'arc de sortie (2 s au moins) ; les deux angles morts finissent 0,96 s avant l'arc de sortie ; cône du regard de 22 m, ouvert de 16 degrés de part et d'autre, qui s'arrête 2 m au-delà de l'usager suivi des yeux ; regard, par rapport à l'axe de la voiture : 180 degrés pendant 1,2 s (rétroviseur intérieur), droit devant, balayage de 75 degrés de part et d'autre (un aller-retour en 2 s) pendant les 2 s qui précèdent le freinage, usager de l'anneau suivi des yeux jusqu'à sa sortie de la zone de conflit, 55 degrés à gauche pendant 1,0 s à l'arrêt (l'anneau en amont, d'où viendrait un autre usager), droit devant, 180 degrés pendant 1,25 s en cassant l'allure, 21 degrés à gauche pendant 1,0 s une fois le clignotant allumé (vers la sortie : l'anneau tourne à gauche, et droit devant le regard tomberait sur la bordure extérieure, à 6,8 m), 120 degrés à droite pendant 1,0 s (angle mort droit), 120 degrés à gauche pendant 1,0 s (angle mort gauche ; tête tournée vers l'épaule pour les deux), balayage de la sortie jusqu'à la fin de l'arc de sortie, puis droit devant ; panneaux agrandis pour rester lisibles.",
     ],
     construire: unique(giratoireScene),
+  },
+  "demarrer-arreter": {
+    titre: "Démarrer et s'arrêter",
+    etapesModele: [
+      "Contrôler au rétroviseur intérieur",
+      "Contrôler au rétroviseur extérieur gauche",
+      "Contrôler l'angle mort gauche",
+      "Mettre le clignotant gauche",
+      "Démarrer et rejoindre sa voie",
+      "Rouler au centre de sa voie",
+      "Contrôler au rétroviseur intérieur",
+      "Contrôler au rétroviseur extérieur droit",
+      "Contrôler l'angle mort droit",
+      "Mettre le clignotant droit",
+      "Ralentir et se rapprocher du bord",
+      "S'arrêter au bord",
+    ],
+    sources: [
+      "Avertir les autres usagers de son intention avant de changer de direction ou de ralentir, notamment lorsque, après un arrêt ou un stationnement, on veut reprendre sa place dans le courant de la circulation : R412-10. Ici : clignotant gauche pour quitter le bord et rejoindre sa voie, clignotant droit pour se rapprocher du bord et s'arrêter.",
+      "En agglomération, sur une chaussée à double sens, un véhicule à l'arrêt ou en stationnement se place sur le côté droit de la chaussée, sauf dispositions différentes prises par l'autorité investie du pouvoir de police : R417-1 (I, 2°). Ici la voiture de l'élève part du bord droit et s'y arrête, alignée sur les voitures garées.",
+      "Ordre des gestes : méthode de Timy (07/10/2026). Au départ : rétroviseur intérieur, rétroviseur extérieur gauche, angle mort gauche, clignotant gauche, puis démarrer. À l'arrêt : rétroviseur intérieur, rétroviseur extérieur droit, angle mort droit, clignotant droit, puis ralentir et s'arrêter au bord. C'est l'ordre de Timy pour toute manœuvre : rétroviseur intérieur, rétroviseur extérieur du côté de la manœuvre, angle mort du même côté, clignotant, action.",
+      "S'arrêter : contrôler derrière (rétroviseur intérieur), casser l'allure en lâchant l'accélérateur, freiner progressivement (frein moteur et frein de service), débrayer juste avant l'arrêt complet pour ne pas caler, puis, au point mort, serrer le frein à main si l'on stationne : fiche ECF C1-D (classeur de Timy). La scène montre le contrôle derrière et un ralentissement régulier jusqu'à l'arrêt ; les pédales, le levier de vitesses et le frein à main ne se voient pas d'en haut.",
+      "Marquage : unité u de 5 cm, modulation T'1 (traits de 1,50 m, vides de 5 m) : IISR 7e partie, art. 113-1 ; axiale T'1 de largeur 2u, admise en agglomération : art. 113-2 ; pas de ligne de rive, les bordures de trottoir matérialisant généralement le bord de la chaussée en milieu urbain : art. 114-5. La bande de stationnement n'est pas marquée.",
+      "Choix de dessin, sans portée réglementaire : rue droite d'agglomération à double sens, voies de 3,5 m, bande de stationnement non marquée de 2,0 m le long du trottoir droit (une voiture garée à 0,3 m du trottoir y déborde de 0,1 m sur la voie de droite, qui garde 3,4 m), trottoirs montrés sur 8 m (le repère commun des étapes 1 à 5 tient à droite de la voiture garée, en animations réduites) ; aucune circulation (C1 : trafic faible ou nul) ; voitures garées, celle de l'élève comprise, le flanc droit à 0,3 m du trottoir, l'une 1,0 m derrière l'élève, l'autre 8 m devant (place assez dégagée pour partir sans manœuvre), feux stop éteints ; départ à 22 m du bord bas et arrêt à 22 m du bord haut (la portée du cône du regard : le cône du rétroviseur intérieur au départ et celui du regard devant à l'arrêt restent dans l'image) ; cadre de 25 x 46 m qui suit l'élève ; à l'arrêt, coups d'œil de 1,2 s au rétroviseur intérieur, de 1,2 s au rétroviseur extérieur gauche et de 1,0 s à l'angle mort gauche, puis clignotant gauche allumé, regard devant, 2,0 s avant le départ (2 s au moins, pas davantage pour ne pas allonger l'attente) ; départ en un décalage de 2,55 m vers la gauche, de la place au centre de la voie de droite, sur 12 m d'avance, commencé dès le départ, avec une reprise de 1,5 m/s² jusqu'à 10 km/h, tenus jusqu'au centre de la voie (accélération latérale de 0,52 m/s² au plus en rejoignant sa voie ; l'arrière, qui pivote, passe à 0,14 m du trottoir et l'avant à 0,63 m de la voiture garée devant) ; clignotant gauche éteint au centre de la voie ; reprise de 1,5 m/s² jusqu'à 30 km/h (rue calme, trafic nul), tenus 1,0 s avant de préparer l'arrêt ; en roulant, coups d'œil de 1,2 s au rétroviseur intérieur, de 1,2 s au rétroviseur extérieur droit et de 1,0 s à l'angle mort droit, puis clignotant droit allumé, regard devant, 2,0 s avant de se rapprocher du bord ; décalage de 2,55 m vers la droite sur 20 m d'avance, en ralentissant à 1,5 m/s² dès son début (accélération latérale de 1,74 m/s² au plus en se rapprochant du bord ; bord atteint à 10,7 km/h), puis arrêt 2,93 m plus loin, en ligne droite, le flanc droit à 0,3 m du trottoir, aligné sur les voitures garées ; clignotant droit éteint à l'arrêt ; image tenue 1,0 s : scène de 27,4 s ; cône du regard de 22 m, ouvert de 16 degrés de part et d'autre ; regard, par rapport à l'axe de la voiture : 180 degrés (rétroviseur intérieur), 170 degrés à gauche puis à droite (rétroviseurs extérieurs), 120 degrés à gauche puis à droite (angles morts, tête tournée vers l'épaule), droit devant le reste du temps.",
+    ],
+    construire: unique(demarrerArreter),
   },
 };

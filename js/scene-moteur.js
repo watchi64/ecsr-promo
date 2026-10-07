@@ -29,8 +29,8 @@
  */
 import { preparerScene, etatActeur, pointA, GABARITS, DEG } from "./scene-geometrie.js?v=20261005f";
 import { regardDessine, etapeBornee } from "./scene-regard.js?v=20261005f";
-import { TEINTES, RAYON_REPERE, clignotantAllume, feuxDeRecul, cadreCamera, cadreReduit, reperesEtapes, demiLargeurRepere,
-  emprisePanneau, facteurLecture, SEUILS_VISIBILITE, actionVisibilite } from "./scene-rendu.js?v=20261005f";
+import { TEINTES, RAYON_REPERE, clignotantAllume, feuxDeRecul, feuxStop, cadreCamera, cadreReduit, reperesEtapes,
+  demiLargeurRepere, emprisePanneau, facteurLecture, SEUILS_VISIBILITE, actionVisibilite } from "./scene-rendu.js?v=20261005f";
 import { urlSignalVerifie } from "./signaux.js?v=20261005f";
 
 const NS = "http://www.w3.org/2000/svg";
@@ -247,7 +247,7 @@ export function monterScene(def, { conteneur, etapes = [], reduit = false, onEta
         for (const cote of ["droite", "gauche"]) {
           v.clignotants[cote].forEach((n) => n.setAttribute("opacity", allume === cote ? 1 : 0));
         }
-        v.stops.forEach((n) => n.setAttribute("opacity", e.a < -0.3 || e.v < 0.05 ? 1 : 0));
+        v.stops.forEach((n) => n.setAttribute("opacity", feuxStop(a, e) ? 1 : 0));
         const recul = feuxDeRecul(e);
         v.reculs.forEach((n) => n.setAttribute("opacity", recul ? 1 : 0));
       }

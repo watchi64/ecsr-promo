@@ -5,8 +5,9 @@ import { GABARITS, preparerScene, etatActeur, emprise, tempsAtteint, trajet, poi
   from "../js/scene-geometrie.js";
 import { REGARD_PORTEE, DEBORD_SUIVI, oeil, cibleSuivie, regardDessine } from "../js/scene-regard.js";
 import { TEINTES, FREQ_CLIGNOTANT, TAILLE_PANNEAU, RAYON_REPERE, ECART_REPERES, JEU_REPERE_VOITURE, PAS_REPERE,
-  ALLONGEMENT_MAX_REPERE, MARGE_CADRE_REDUIT, clignotantAllume, feuxDeRecul, cadreCamera, reperesEtapes, demiLargeurRepere, cadreReduit,
-  emprisePanneau, facteurLecture, SEUIL_DEMARRAGE, SEUILS_VISIBILITE, actionVisibilite } from "../js/scene-rendu.js";
+  ALLONGEMENT_MAX_REPERE, MARGE_CADRE_REDUIT, FEUX_STOP, clignotantAllume, feuxDeRecul, feuxStop, cadreCamera, reperesEtapes,
+  demiLargeurRepere, cadreReduit, emprisePanneau, facteurLecture, SEUIL_DEMARRAGE, SEUILS_VISIBILITE, actionVisibilite }
+  from "../js/scene-rendu.js";
 
 // Règles pures du rendu des scènes (correction de la tâche 11) : ce que montre l'image, en lecture comme sur les images
 // figées (pas à pas, pause, animations réduites). Le moteur (js/scene-moteur.js) dessine avec ces fonctions.
@@ -105,7 +106,9 @@ test("scènes, en lecture : chaque clignotant de chaque acteur éclaire dès qu'
     for (const a of sc.acteurs) {
       for (const c of a.clignotant || []) {
         const nom = `${code}, ${a.id}, clignotant ${c.cote} à partir de s = ${c.de.toFixed(3)} m`;
-        const tAllume = tempsAtteint(a.chrono, c.de), tEteint = tempsAtteint(a.chrono, c.a);
+        // Allumage et extinction datés (delai, delaiFin : voir etatActeur) : un clignotant mis pendant un arrêt s'allume
+        // delai secondes après l'arrivée en `de`, et non à cette arrivée.
+        const tAllume = tempsAtteint(a.chrono, c.de) + (c.delai ?? 0), tEteint = tempsAtteint(a.chrono, c.a) + (c.delaiFin ?? 0);
         assert.ok(tEteint - tAllume > 3 * demiPeriode, `${nom} : intervalle trop court pour le vérifier`);
         // Au millième de seconde, depuis le millième qui précède l'allumage : premier éclat, extinction, éclat suivant.
         const eclaire = (t) => clignotantAllume(etatActeur(a, t), t, false) === c.cote;
@@ -178,6 +181,40 @@ test("feuxDeRecul : un trajet parti en marche arrière les allume dès le dépar
   assert.equal(feuxDeRecul(etatActeur(garee, 5)), false);
 });
 
+// ===== Feux stop =====
+
+test("feuxStop : allumés quand le véhicule freine (plus de 0,3 m/s²) ou qu'il est à l'arrêt (moins de 0,05 m/s), le pied sur le frein ; un acteur posé qui attend les garde allumés", () => {
+  assert.deepEqual(FEUX_STOP, { deceleration: 0.3, arret: 0.05 });
+  const roule = { id: "roule", gabarit: "voiture" };
+  assert.equal(feuxStop(roule, { v: 8, a: 0 }), false, "à allure constante");
+  assert.equal(feuxStop(roule, { v: 8, a: 1.5 }), false, "en accélérant");
+  assert.equal(feuxStop(roule, { v: 8, a: -0.3 }), false, "décélération de 0,3 m/s², sans freiner");
+  assert.equal(feuxStop(roule, { v: 8, a: -0.31 }), true, "en freinant");
+  assert.equal(feuxStop(roule, { v: 0.05, a: 0 }), false, "à 0,05 m/s");
+  assert.equal(feuxStop(roule, { v: 0.049, a: 0 }), true, "à l'arrêt");
+  // Un acteur posé sans autre marque attend (au cédez-le-passage, au feu) : il garde le pied sur le frein.
+  const attend = { id: "attend", gabarit: "voiture", pose: { x: 3, y: 4, cap: -90 } };
+  for (const t of [0, 2, 9.5]) assert.equal(feuxStop(attend, etatActeur(attend, t)), true, `acteur posé qui attend, t = ${t} s`);
+});
+
+test("feuxStop : une voiture en stationnement (acteur posé marqué `stationne`) ne les allume jamais, personne ne freine ; la marque ne vaut que pour un acteur posé", () => {
+  const garee = { id: "garee", gabarit: "voiture", pose: { x: 3, y: 4, cap: -90 }, stationne: true };
+  for (const t of [0, 2, 9.5]) assert.equal(feuxStop(garee, etatActeur(garee, t)), false, `voiture garée, t = ${t} s`);
+  // Une voiture qui roule n'est pas en stationnement : la marque ne change rien à ses feux.
+  assert.equal(feuxStop({ id: "x", gabarit: "voiture", stationne: true }, { v: 0, a: 0 }), true);
+});
+
+test("scènes : une voiture en stationnement n'allume jamais ses feux stop", () => {
+  let garees = 0;   // au moins une scène du registre exerce ce test
+  for (const [code, sc] of scenes()) {
+    for (const a of sc.acteurs.filter((x) => x.pose && x.stationne === true)) {
+      garees++;
+      for (let t = 0; t <= sc.duree; t += 0.25) assert.equal(feuxStop(a, etatActeur(a, t)), false, `${code}, ${a.id}, t = ${t} s`);
+    }
+  }
+  assert.ok(garees > 0, "aucune scène n'a de voiture en stationnement : le test ne vérifie rien");
+});
+
 // ===== Cadres =====
 
 test("cadreCamera : en lecture, le cadre de la caméra, centré sur l'élève et borné au monde ; sans caméra, le monde entier", () => {
@@ -220,7 +257,9 @@ test("reperesEtapes : un repère par position de l'élève au début d'une étap
     assert.deepEqual(reperes.flatMap((r) => r.numeros).sort((a, b) => a - b), sc.etapes.map((_, i) => i + 1),
       `${code} : chaque étape a un numéro, une seule fois`);
     const voitures = sc.etapes.map((et) => emprise(sc.eleve.gabarit, etatActeur(sc.eleve, et.t)));
-    const decor = [...sc.decor.panneaux.map(dessinPanneau), ...lignesCedez(sc).map(bande)];
+    // Le décor, et les acteurs posés, dessinés au même endroit sur toute image.
+    const decor = [...sc.decor.panneaux.map(dessinPanneau), ...lignesCedez(sc).map(bande),
+      ...sc.acteurs.filter((a) => a.pose).map((a) => emprise(a.gabarit, etatActeur(a, 0)))];
     reperes.forEach((r, i) => {
       const nom = `${code} : repère ${r.numeros.join("·")}`;
       const premier = etatActeur(sc.eleve, sc.etapes[r.numeros[0] - 1].t);
@@ -232,8 +271,8 @@ test("reperesEtapes : un repère par position de l'élève au début d'une étap
       proche((r.x - premier.x) * Math.cos(premier.cap) + (r.y - premier.y) * Math.sin(premier.cap), 0, 1e-9, `${nom}, décalé le long du cap`);
       const d = (r.x - premier.x) * nx + (r.y - premier.y) * ny;
       assert.ok(Math.abs(d) >= d0 - 1e-9 && Math.abs(d) <= d0 + ALLONGEMENT_MAX_REPERE + 1e-9, `${nom}, à ${d.toFixed(2)} m du centre de la voiture`);
-      // Au plus près à droite, sauf si cette place est prise : panneau, ligne de cédez-le-passage, voiture de l'élève au
-      // début d'une étape, ou repère déjà posé.
+      // Au plus près à droite, sauf si cette place est prise : panneau, ligne de cédez-le-passage, acteur posé, voiture de
+      // l'élève au début d'une étape, ou repère déjà posé.
       if (Math.abs(d - d0) > 1e-9) {
         const auPlusPres = boiteRepere({ x: premier.x + d0 * nx, y: premier.y + d0 * ny, numeros: r.numeros });
         const obstacles = [...decor, ...voitures, ...reperes.slice(0, i).map(boiteRepere)];
@@ -262,6 +301,22 @@ test("reperesEtapes : aucun repère n'est caché par la voiture de l'élève, qu
       }
     });
   }
+});
+
+test("reperesEtapes : aucun repère sous un acteur posé (voiture garée, véhicule qui attend), dessiné au même endroit sur toute image", () => {
+  // Les repères passent sous les usagers : un repère posé sur un acteur posé serait caché quelle que soit l'étape montrée.
+  let scenesAvecPoses = 0;   // au moins une scène du registre exerce ce test
+  for (const [code, sc] of scenes()) {
+    const poses = sc.acteurs.filter((a) => a.pose);
+    scenesAvecPoses += (poses.length > 0 ? 1 : 0);
+    for (const r of reperesEtapes(sc)) {
+      for (const a of poses) {
+        assert.ok(!polygonesSeChevauchent(boiteRepere(r), emprise(a.gabarit, etatActeur(a, 0))),
+          `${code} : le repère ${r.numeros.join("·")} passe sous ${a.id}`);
+      }
+    }
+  }
+  assert.ok(scenesAvecPoses > 0, "aucune scène n'a d'acteur posé : le test ne vérifie rien");
 });
 
 test("reperesEtapes : aucun repère sur le dessin d'un panneau", () => {
@@ -307,7 +362,7 @@ test("demiLargeurRepere : un disque pour un seul numéro, une pastille qui conti
   }
 });
 
-test("cadreReduit : un cadre fixe qui montre tous les repères, les panneaux, la voiture de l'élève à chaque étape et chaque usager suivi des yeux à l'instant de son étape", () => {
+test("cadreReduit : un cadre fixe qui montre tous les repères, les panneaux, les acteurs posés, la voiture de l'élève à chaque étape et chaque usager suivi des yeux à l'instant de son étape", () => {
   assert.equal(MARGE_CADRE_REDUIT, 1);
   let cadresQuiBougent = 0;   // au moins une scène du registre exerce ce test
   for (const [code, sc] of scenes()) {
@@ -328,6 +383,13 @@ test("cadreReduit : un cadre fixe qui montre tous les repères, les panneaux, la
       const r = emprisePanneau(panneau);
       for (const p of [[r.x, r.y], [r.x + r.largeur, r.y + r.hauteur]]) {
         assert.ok(dans(c, dansLeMonde(sc, p)), `${code} : panneau ${panneau.code} en (${panneau.x} ; ${panneau.y}) coupé par le cadre`);
+        montres.push(dansLeMonde(sc, p));
+      }
+    }
+    // Un acteur posé (voiture garée, véhicule qui attend) est dessiné au même endroit sur toute image : il y est entier.
+    for (const a of sc.acteurs.filter((x) => x.pose)) {
+      for (const p of emprise(a.gabarit, etatActeur(a, 0))) {
+        assert.ok(dans(c, dansLeMonde(sc, p)), `${code} : ${a.id} (acteur posé) coupé par le cadre`);
         montres.push(dansLeMonde(sc, p));
       }
     }
