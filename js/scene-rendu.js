@@ -8,8 +8,8 @@
  * et les tests (tests/scene-rendu.test.mjs) les vérifient sur les scènes du registre.
  * Le regard du conducteur, lui, est dans js/scene-regard.js.
  *
- * Teintes, clignotant, cadres, repères des étapes, panneaux, facteur de lecture, visibilité du
- * schéma (quand la lecture démarre, quand elle s'interrompt).
+ * Teintes, clignotant, feux de recul, cadres, repères des étapes, panneaux, facteur de lecture,
+ * visibilité du schéma (quand la lecture démarre, quand elle s'interrompt).
  *
  * Toutes les valeurs ci-dessous sont des choix de dessin, sans portée réglementaire.
  */
@@ -26,6 +26,9 @@ export const TEINTES = {
   // (WCAG 1.4.11 : 3:1 pour un graphique utile à la compréhension, tests/scene-rendu.test.mjs). La peinture routière
   // est blanche ou jaune, en traits : des points vert sauge ne passent pas pour un marquage.
   trajet: "#B5C98A",
+  // Feux de recul : blancs, comme sur une vraie voiture. 6,17:1 sur la chaussée, 4,40:1 sur la carrosserie de la voiture
+  // de l'élève et 9,45:1 sur sa bordure (WCAG 1.4.11 : 3:1, tests/scene-rendu.test.mjs).
+  recul: "#FFFFFF",
 };
 
 /** Fréquence du clignotant, en hertz. */
@@ -64,6 +67,15 @@ export function clignotantAllume(e, instant, fige) {
   if (!e.clignotant) return null;
   const ecoule = Math.max(0, instant - e.clignotantDepuis);
   return fige || Math.floor(ecoule * FREQ_CLIGNOTANT * 2) % 2 === 0 ? e.clignotant : null;
+}
+
+/**
+ * Feux de recul d'un véhicule dans l'état e (etatActeur) : allumés en marche arrière, à l'arrêt compris (la marche arrière
+ * est engagée dès le rebroussement, où l'état est déjà dans la marche qui suit), éteints en marche avant, donc pour un
+ * acteur posé. La règle ne dépend que de l'état : la même en lecture et sur une image figée. Les feux stop gardent la leur.
+ */
+export function feuxDeRecul(e) {
+  return e.marche === "arriere";
 }
 
 /** Cadre de la caméra en lecture, { x, y, largeur, hauteur } (m) : centré sur l'élève dans l'état e, borné au monde.
