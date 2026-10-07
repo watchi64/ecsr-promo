@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { trajet, rectangle, KMH } from "../js/scene-geometrie.js";
+import { trajet, rectangle, KMH, rebroussements } from "../js/scene-geometrie.js";
 import { controlerScene, SEUILS } from "../js/scene-controles.js";
 
 const constant = (chemin, kmh) => [{ s: 0, kmh }, { s: chemin.longueur, kmh }];
@@ -491,4 +491,58 @@ test("une marche arrière dans une rue à droite est conforme : arrêt au rebrou
   const arc = c.segments[2];
   const profil = [{ s: 0, kmh: 18 }, { s: 15, kmh: 18 }, { s: 20, kmh: 0, pause: 2 }, { s: 21, kmh: 5 }, { s: c.longueur, kmh: 5 }];
   assert.deepEqual(controlerScene(scene([eleve(c, profil, { clignotant: [{ cote: "droite", de: 20, a: arc.debut + arc.longueur }] })])), []);
+});
+
+// ===== Clignotant pendant un arrêt : changement de direction compté depuis le redémarrage, allumage daté =====
+
+test("départ arrêté : le clignotant allumé pendant l'attente (delai) doit l'être au moins 2 s avant le redémarrage", () => {
+  // L'élève attend 4 s en (20 ; 70), puis déboîte vers la gauche (changement de voie : décalage de 1,5 m sur 12 m
+  // d'avance, dont le premier arc commence en s = 0) en accélérant jusqu'à 10 km/h sur 3 m, et file vers le nord.
+  const c = trajet(20, 70, -90).decaler(-1.5, 12, { changementDeVoie: true }).droit(20).fin();
+  const arrete = [{ s: 0, kmh: 0, pause: 4 }, { s: 3, kmh: 10 }, { s: c.longueur, kmh: 10 }];
+  const avec = (delai, profil = arrete, extra = {}) =>
+    controlerScene(scene([eleve(c, profil, { clignotant: [{ cote: "gauche", de: 0, a: c.longueur, delai }], ...extra })]));
+  // Allumé à t = 1 s, 3 s avant le redémarrage (t = 4 s) : accepté.
+  assert.deepEqual(avec(1), []);
+  // Allumé à t = 3 s, une seconde seulement avant le redémarrage.
+  const unePlusTot = ["eleve : clignotant gauche attendu 2 s avant le changement de direction de s = 0.0 m (absent à t = 2.0 s)"];
+  assert.deepEqual(avec(3), unePlusTot);
+  // Un départ différé (depart, l'élève visible dès le début) compte de même : l'attente en s = 0 dure jusqu'à t = 4 s.
+  const differe = [{ s: 0, kmh: 0 }, { s: 3, kmh: 10 }, { s: c.longueur, kmh: 10 }];
+  assert.deepEqual(avec(1, differe, { depart: 4, apparition: "debut" }), []);
+  assert.deepEqual(avec(3, differe, { depart: 4, apparition: "debut" }), unePlusTot);
+});
+
+test("un arrêt au début d'un arc : le clignotant compte jusqu'au redémarrage, et tient de là jusqu'à la fin de l'arc", () => {
+  // virageDroite à 15 km/h, arrêté 3 s au début de l'arc (s = 20 m) : freinage et reprise sur 5 m.
+  const c = virageDroite();
+  const profil = [{ s: 0, kmh: 15 }, { s: 15, kmh: 15 }, { s: 20, kmh: 0, pause: 3 }, { s: 25, kmh: 15 }, { s: c.longueur, kmh: 15 }];
+  // Allumé à l'arrivée à l'arrêt (sans délai), il brille 3 s avant le redémarrage : accepté. Compté depuis l'arrivée,
+  // il lui aurait manqué ces 2 s.
+  assert.deepEqual(controlerScene(scene([eleve(c, profil, { clignotant: [{ cote: "droite", de: 20, a: finArc(c) }] })])), []);
+});
+
+test("demi-tour en trois temps, arcs collés aux rebroussements : le clignotant de chaque temps s'allume pendant l'arrêt qui le précède", () => {
+  // Temps 1 en avant, volant à gauche (60 degrés, 4,1 m de rayon) ; temps 2 en recul, volant à droite (tortue à
+  // gauche) ; temps 3 en avant, volant à gauche, puis 5 m. 5 km/h en avant, 4 km/h en arrière, freinage et reprise sur
+  // 1 m, 3 s d'arrêt à chaque rebroussement (r1 = 4,29 m, arrivée à t = 3,81 s ; r2 = 8,59 m, arrivée à t = 12,48 s).
+  const c = trajet(40, 60, -90).virage(4.1, -60).inverser().virage(4.1, -60).inverser().virage(4.1, -60).droit(5).fin();
+  const [r1, r2] = rebroussements(c);
+  const arc3 = c.segments[2];
+  const profil = [{ s: 0, kmh: 5 }, { s: r1 - 1, kmh: 5 }, { s: r1, kmh: 0, pause: 3 }, { s: r1 + 1, kmh: 4 },
+    { s: r2 - 1, kmh: 4 }, { s: r2, kmh: 0, pause: 3 }, { s: r2 + 1, kmh: 5 }, { s: c.longueur, kmh: 5 }];
+  // Clignotants gauche, droit, gauche : celui de la marche avant finit au rebroussement, celui du temps suivant
+  // s'allume `delai` secondes après l'arrivée à l'arrêt et le remplace.
+  const avec = (delai) => controlerScene(scene([eleve(c, profil, { clignotant: [
+    { cote: "gauche", de: 0, a: r1 }, { cote: "droite", de: r1, a: r2, delai },
+    { cote: "gauche", de: r2, a: arc3.debut + arc3.longueur, delai },
+  ] })]));
+  // Allumés 0,5 s après chaque arrivée, 2,5 s avant chaque redémarrage : accepté.
+  assert.deepEqual(avec(0.5), []);
+  // Allumés 2,5 s après l'arrivée, 0,5 s seulement avant le redémarrage : au début de la fenêtre des 2 s (1 s après
+  // l'arrivée), c'est encore le clignotant du temps précédent qui brille.
+  assert.deepEqual(avec(2.5), [
+    "eleve : clignotant droite attendu 2 s avant le changement de direction de s = 4.3 m (absent à t = 4.8 s)",
+    "eleve : clignotant gauche attendu 2 s avant le changement de direction de s = 8.6 m (absent à t = 13.5 s)",
+  ]);
 });

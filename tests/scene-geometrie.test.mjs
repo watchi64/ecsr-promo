@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   DEG, trajet, pointA, courbureA, tournerChemin, tournerPoint, premiereAbscisse, avant,
-  chronologie, etatA, tempsAtteint, emprise, rectangle, pointsArc, disque, secteurAnneau,
+  chronologie, etatA, tempsAtteint, tempsDepart, emprise, rectangle, pointsArc, disque, secteurAnneau,
   pointDansPolygone, segmentsSeCoupent, polygonesSeChevauchent, preparerScene, etatActeur,
   apparitionDe, sortDuCadre, pointSurSegment, rebroussements,
 } from "../js/scene-geometrie.js";
@@ -769,4 +769,94 @@ test("sans rebroussement, rien ne change : marche avant partout, aucun rebrousse
   const der = ch.segments[ch.segments.length - 1];
   assert.equal(fin.cap, pointSurSegment(der, der.longueur).cap);
   proche(fin.cap, -Math.PI, 1e-12);
+});
+
+// ===== Clignotant pendant un arrêt : départ d'une abscisse, allumage daté =====
+//
+// Trajet des essais : 100 m vers l'est. Profil : 10 m/s jusqu'à s = 40 m (t = 4 s), freinage jusqu'à l'arrêt en s = 50 m
+// (t = 6 s), arrêt, puis reprise jusqu'à 10 m/s en s = 60 m (2 s) et 10 m/s jusqu'au bout.
+const ARRET_EN_50 = (pause) => [{ s: 0, kmh: 36 }, { s: 40, kmh: 36 }, { s: 50, kmh: 0, pause }, { s: 60, kmh: 36 }, { s: 100, kmh: 36 }];
+
+test("tempsDepart : dernier instant passé à une abscisse, la fin de l'attente s'il y en a une, sinon tempsAtteint au bit près", () => {
+  const c = trajet(0, 0, 0).droit(100).fin();
+  const ch = chronologie(c, ARRET_EN_50(3));
+  proche(tempsAtteint(ch, 50), 6, 1e-9);
+  proche(tempsDepart(ch, 50), 9, 1e-9);
+  // Au micron près : un début d'arc calculé un demi-micron avant le point d'arrêt du profil (arrondis flottants) part
+  // bien à la fin de l'arrêt, et non à l'arrivée.
+  proche(tempsDepart(ch, 50 - 5e-7), 9, 1e-9);
+  // Sans attente : la valeur de tempsAtteint, au bit près (départ, entre deux échantillons, point du profil sans pause et
+  // un demi-micron plus loin, pendant la reprise, arrivée).
+  for (const s of [0, 12.34, 40, 40 + 5e-7, 55, 100]) assert.equal(tempsDepart(ch, s), tempsAtteint(ch, s), `s = ${s}`);
+  // Départ retardé : l'acteur attend en s = 0 jusqu'à son départ (t = 4 s).
+  const retarde = chronologie(c, [{ s: 0, kmh: 0 }, { s: 10, kmh: 36 }, { s: 100, kmh: 36 }], { depart: 4 });
+  assert.equal(tempsAtteint(retarde, 0), 0);
+  assert.equal(tempsDepart(retarde, 0), 4);
+  // Arrêt de 2 s en s = 0, au début du profil.
+  assert.equal(tempsDepart(chronologie(c, [{ s: 0, kmh: 0, pause: 2 }, { s: 10, kmh: 36 }, { s: 100, kmh: 36 }]), 0), 2);
+});
+
+test("etatActeur : un clignotant à délai s'allume à tempsAtteint(de) + delai et tient jusqu'au passage de a ; clignotantDepuis vaut cet allumage", () => {
+  // Arrêt en s = 50 de t = 6 s à t = 10 s, puis s = 60 à t = 12 s et s = 70 à t = 13 s. Le clignotant droit s'allume
+  // 1,5 s après l'arrivée à l'arrêt, à t = 7,5 s.
+  const c = trajet(0, 0, 0).droit(100).fin();
+  const sc = preparerScene({
+    code: "essai",
+    acteurs: [{ id: "eleve", role: "eleve", gabarit: "voiture", chemin: c, profil: ARRET_EN_50(4),
+      clignotant: [{ cote: "droite", de: 50, a: 70, delai: 1.5 }] }],
+    etapes: [{ s: 0 }],
+  });
+  const eleve = sc.acteurs[0];
+  for (const t of [5, 6, 7.4]) assert.equal(etatActeur(eleve, t).clignotant, null, `t = ${t} s`);
+  for (const t of [7.5, 9, 11, 12.9]) {
+    const e = etatActeur(eleve, t);
+    assert.equal(e.clignotant, "droite", `t = ${t} s`);
+    proche(e.clignotantDepuis, 7.5);
+  }
+  // En s = 75, l'abscisse a = 70 est passée.
+  assert.equal(etatActeur(eleve, 13.5).clignotant, null);
+  assert.equal(etatActeur(eleve, 13.5).clignotantDepuis, null);
+});
+
+test("etatActeur : allumé pendant un arrêt, un clignotant à délai remplace celui qui finit à cet arrêt ; sans délai, rien ne change", () => {
+  const c = trajet(0, 0, 0).droit(100).fin();
+  // [côté, instant d'allumage arrondi au millionième] à t = 5 s (freinage, s = 47,5), 7 s et 8 s (arrêt en s = 50),
+  // 9,9 s (arrêt), 11 s (reprise, s = 52,5).
+  const cotes = (clignotant) => {
+    const sc = preparerScene({ code: "essai", etapes: [{ s: 0 }],
+      acteurs: [{ id: "eleve", role: "eleve", gabarit: "voiture", chemin: c, profil: ARRET_EN_50(4), clignotant }] });
+    return [5, 7, 8, 9.9, 11].map((t) => {
+      const e = etatActeur(sc.acteurs[0], t);
+      return [e.clignotant, e.clignotantDepuis === null ? null : Math.round(e.clignotantDepuis * 1e6) / 1e6];
+    });
+  };
+  // Le gauche, allumé en s = 20 (t = 2 s), finit à l'arrêt (a = 50) ; le droit s'allume 1,5 s après l'arrivée
+  // (t = 7,5 s) et le remplace (le dernier allumé l'emporte), dans quelque ordre qu'on les donne.
+  const gauche = { cote: "gauche", de: 20, a: 50 }, droit = { cote: "droite", de: 50, a: 70, delai: 1.5 };
+  const attendu = [["gauche", 2], ["gauche", 2], ["droite", 7.5], ["droite", 7.5], ["droite", 7.5]];
+  assert.deepEqual(cotes([gauche, droit]), attendu);
+  assert.deepEqual(cotes([droit, gauche]), attendu);
+  // Deux allumages datés (le gauche avec un délai nul) : le dernier allumé l'emporte de même.
+  assert.deepEqual(cotes([{ ...gauche, delai: 0 }, droit]), attendu);
+  // Sans délai, la règle d'avant : le droit s'allumerait à l'arrivée (t = 6 s), mais le premier intervalle qui contient
+  // l'abscisse l'emporte, et le gauche tient tout l'arrêt.
+  assert.deepEqual(cotes([gauche, { cote: "droite", de: 50, a: 70 }]),
+    [["gauche", 2], ["gauche", 2], ["gauche", 2], ["gauche", 2], ["droite", 6]]);
+});
+
+test("preparerScene : un délai de clignotant doit être un nombre fini de secondes, positif ou nul", () => {
+  const c = trajet(0, 0, 0).droit(100).fin();
+  const scene = (delai) => ({
+    code: "essai",
+    acteurs: [{ id: "eleve", role: "eleve", gabarit: "voiture", chemin: c, profil: [{ s: 0, kmh: 36 }, { s: 100, kmh: 36 }],
+      clignotant: [{ cote: "droite", de: 10, a: 20, delai }] }],
+    etapes: [{ s: 0 }],
+  });
+  assert.throws(() => preparerScene(scene(-1)),
+    { message: "scène essai : acteur « eleve » : délai de clignotant « -1 » invalide (nombre fini de secondes, positif ou nul, attendu)" });
+  for (const delai of [NaN, Infinity, "2", null]) {
+    assert.throws(() => preparerScene(scene(delai)),
+      (e) => /délai de clignotant/.test(e.message) && /« eleve »/.test(e.message), `delai = ${String(delai)}`);
+  }
+  for (const delai of [undefined, 0, 2.5]) assert.doesNotThrow(() => preparerScene(scene(delai)), `delai = ${String(delai)}`);
 });

@@ -319,6 +319,20 @@ export function tempsAtteint(chrono, s) {
   return e[e.length - 1].t;
 }
 
+/** Dernier instant passé à l'abscisse s (au micron près) : la fin de l'attente si l'acteur y attend (une pause du
+ *  profil, ou le départ retardé en s = 0), sinon l'instant où il l'atteint, tempsAtteint(chrono, s) lui-même. */
+export function tempsDepart(chrono, s) {
+  let premier = null, dernier = null;
+  for (const e of chrono.echantillons) {
+    if (e.s > s + 1e-6) break;
+    if (e.s >= s - 1e-6) {
+      if (premier === null) premier = e.t;
+      dernier = e.t;
+    }
+  }
+  return premier !== null && dernier > premier ? dernier : tempsAtteint(chrono, s);
+}
+
 // ===== Emprises et polygones =====
 
 /** Emprise (rectangle orienté selon p.cap, le cap de la caisse ; quatre coins, ceux de l'avant d'abord) d'un gabarit
@@ -413,13 +427,20 @@ export function polygonesSeChevauchent(A, B) {
 
 /**
  * Calcule les chronologies des acteurs et l'instant de chaque étape. Refuse une
- * `apparition` autre que « debut » ou « depart » (ou absente).
+ * `apparition` autre que « debut » ou « depart » (ou absente), et un `delai` de
+ * clignotant qui n'est pas un nombre fini de secondes, positif ou nul (voir etatActeur).
  */
 export function preparerScene(def) {
   const acteurs = def.acteurs.map((a, i) => {
+    const nom = a.id === undefined ? `n° ${i + 1}` : `« ${a.id} »`;
     if (a.apparition !== undefined && a.apparition !== "debut" && a.apparition !== "depart") {
-      const nom = a.id === undefined ? `n° ${i + 1}` : `« ${a.id} »`;
       throw new Error(`scène ${def.code} : acteur ${nom} : apparition « ${a.apparition} » inconnue (« debut » ou « depart » attendu)`);
+    }
+    for (const x of a.clignotant || []) {
+      if (x.delai !== undefined && !(Number.isFinite(x.delai) && x.delai >= 0)) {
+        throw new Error(`scène ${def.code} : acteur ${nom} : délai de clignotant « ${String(x.delai)} » invalide`
+          + " (nombre fini de secondes, positif ou nul, attendu)");
+      }
     }
     return a.pose
       ? { ...a }
@@ -481,6 +502,16 @@ export function sortDuCadre(acteur) {
  *   successifs ont chacun le leur, et un arrêt pendant le clignotant ne le change pas. Le
  *   rendu compte la phase du clignotement depuis cet instant (`clignotantAllume`, dans
  *   `scene-rendu.js`).
+ * - Allumage daté : un intervalle qui porte `delai` (secondes, nombre fini positif ou nul,
+ *   vérifié par preparerScene) s'allume à l'instant tempsAtteint(de) + delai, et non à
+ *   l'arrivée en `de`, puis tient jusqu'au passage de l'abscisse `a`, comme les autres ;
+ *   `clignotantDepuis` vaut cet instant d'allumage. C'est ainsi qu'un clignotant s'allume
+ *   pendant un arrêt, où l'abscisse ne bouge pas. Une fois allumé, il l'emporte sur
+ *   l'intervalle sans délai qui contient encore l'abscisse, si ce dernier s'est allumé avant
+ *   lui : le commodo n'a qu'un côté, le dernier allumé compte. Exemple : le clignotant d'une
+ *   marche finit au rebroussement (`a`), celui de la marche suivante s'allume pendant l'arrêt
+ *   et le remplace. Entre deux intervalles à délai allumés, le dernier allumé l'emporte aussi.
+ *   Sans délai, rien ne change.
  * - Caisse et marche (pointA) : `cap` est le cap de la caisse, `capMarche` celui du
  *   déplacement, et `marche` vaut "arriere" sur un segment parcouru en marche arrière,
  *   "avant" sinon. Arrêté à un rebroussement, l'acteur est déjà dans la marche qui suit (la
@@ -501,8 +532,22 @@ export function etatActeur(acteur, t) {
   // Après la fin, etatA renvoie la dernière vitesse du profil : seul l'élève la garde.
   const vitesse = !parti || (termine && acteur.role !== "eleve") ? 0 : v;
   const acceleration = parti && !termine ? a : 0;
-  const c = (acteur.clignotant || []).find((x) => s >= x.de - 1e-9 && s <= x.a + 1e-9);
+  const c = clignotantEnMarche(acteur, t, s);
   return { x: p.x, y: p.y, cap: p.cap, capMarche: p.capMarche, marche: p.arriere ? "arriere" : "avant",
     v: vitesse, a: acceleration, s, courbure: courbureA(acteur.chemin, s), visible, clignotant: c ? c.cote : null,
-    clignotantDepuis: c ? tempsAtteint(acteur.chrono, c.de) : null };
+    clignotantDepuis: c ? c.depuis : null };
+}
+
+// Clignotant en marche à l'instant t, l'acteur étant à l'abscisse s : { cote, depuis } (depuis : instant d'allumage), ou
+// null. Règles dans le commentaire d'etatActeur.
+function clignotantEnMarche(acteur, t, s) {
+  const intervalles = acteur.clignotant || [];
+  const sansDelai = intervalles.find((x) => x.delai === undefined && s >= x.de - 1e-9 && s <= x.a + 1e-9);
+  let enMarche = sansDelai ? { cote: sansDelai.cote, depuis: tempsAtteint(acteur.chrono, sansDelai.de) } : null;
+  for (const x of intervalles) {
+    if (x.delai === undefined || s > x.a + 1e-9) continue;
+    const depuis = tempsAtteint(acteur.chrono, x.de) + x.delai;
+    if (t >= depuis - 1e-9 && (enMarche === null || depuis >= enMarche.depuis)) enMarche = { cote: x.cote, depuis };
+  }
+  return enMarche;
 }

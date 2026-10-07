@@ -10,10 +10,10 @@
  *
  * Ordre des contrôles : étapes, trajectoires (contacts, limite, allure de recul,
  * accélérations, continuité de la vitesse), arrêts aux rebroussements, entrées et
- * sorties hors du monde, clignotants (assez tôt, du bon côté de la caisse et tout
- * le long de l'arc), puis les attentes que la scène déclare.
+ * sorties hors du monde, clignotants (assez tôt avant le départ dans l'arc, du bon
+ * côté de la caisse et tout le long de l'arc), puis les attentes que la scène déclare.
  */
-import { preparerScene, etatActeur, emprise, polygonesSeChevauchent, pointDansPolygone, tempsAtteint, avant,
+import { preparerScene, etatActeur, emprise, polygonesSeChevauchent, pointDansPolygone, tempsAtteint, tempsDepart, avant,
   apparitionDe, sortDuCadre, rebroussements, rectangle, KMH, DEG }
   from "./scene-geometrie.js?v=20261005f";
 
@@ -161,7 +161,10 @@ function controlerClignotants(sc, note) {
     for (const seg of a.chemin.segments) {
       const cote = changementDeDirection(seg);
       if (!cote) continue;
-      const tDebut = tempsAtteint(a.chrono, seg.debut);
+      // Le changement de direction commence quand l'acteur quitte le début de l'arc (tempsDepart) : à la fin de l'arrêt
+      // s'il s'y arrête, et non à son arrivée. Le clignotant doit être allumé depuis au moins 2 s à ce départ, puis
+      // jusqu'à la fin de l'arc (première arrivée à son bout).
+      const tDebut = tempsDepart(a.chrono, seg.debut);
       const tFin = tempsAtteint(a.chrono, seg.debut + seg.longueur);
       const n = Math.round(SEUILS.avanceClignotant / SEUILS.pas);
       for (let k = n; k >= 0; k--) {
