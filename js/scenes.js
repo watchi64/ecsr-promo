@@ -852,11 +852,11 @@ function demarrerArreter() {
 //
 // La voiture de l'élève est arrêtée dans la voie de droite, le long du trottoir, tournée vers le nord ; elle recule tout
 // droit vers le sud, sans autre usager en mouvement (C1 : trafic faible ou nul). Ordre des étapes, choix du contrôleur de
-// chantier soumis à la validation de Timy, aligné sur la méthode V·V·C·C (vitesse, volant, contrôles, clignotants) et sur le
-// temps 2 du demi-tour en trois temps : la marche arrière s'engage d'abord (ses feux de recul préviennent les autres
-// usagers), puis le tour du regard, à l'arrêt ; ensuite le recul à l'allure du pas, le regard par-dessus l'épaule droite vers
-// la lunette arrière ; enfin l'arrêt, regard devant. Les valeurs ci-dessous (angles du regard compris) sont des choix de
-// dessin, recopiés dans les sources de la scène.
+// chantier soumis à la validation de Timy, aligné sur la méthode V·V·C·C (vitesse, volant, contrôles, clignotants), moyen
+// mnémotechnique du demi-tour appliqué ici par extension, et sur le temps 2 du demi-tour en trois temps : la marche arrière
+// s'engage d'abord (ses feux de recul préviennent les autres usagers), puis le tour du regard, à l'arrêt ; ensuite le recul
+// à l'allure du pas, le regard par-dessus l'épaule droite vers la lunette arrière ; enfin l'arrêt, regard devant. Les
+// valeurs ci-dessous (angles du regard compris) sont des choix de dessin, recopiés dans les sources de la scène.
 const MARCHE_ARRIERE = geler({
   // m de trottoir montrés de chaque côté : le plus petit nombre entier de mètres pour que, sur l'image figée du tour, le
   // cône du regard à droite, côté trottoir, se voie au-delà de la voiture sur au moins la largeur d'une voie (DESSIN.voie).
@@ -1300,7 +1300,7 @@ export const SCENES = {
       "S'arrêter",
     ],
     sources: [
-      "Marche arrière en ligne droite le long du trottoir, méthode de Timy enseignée à l'ECF (07/10/2026) : avant de partir, un regard qui fait le tour complet (devant, gauche avec rétroviseur et angle mort, lunette arrière, droite avec rétroviseur et angle mort) ; pendant le recul, le regard par-dessus l'épaule droite, vers la lunette arrière ; l'allure du pas. Ordre des étapes : la marche arrière s'engage d'abord, et ses feux de recul préviennent les autres usagers ; les contrôles viennent ensuite, à l'arrêt ; le mouvement en dernier ; puis s'arrêter, et regarder devant avant de repartir. C'est l'ordre de la méthode V·V·C·C des procédures de Fabrice (section 4.3 : vitesse, volant, contrôles, clignotants) et celui du temps 2 du demi-tour en trois temps (marche arrière engagée, puis tour du regard) : choix du contrôleur de chantier, soumis à la validation de Timy. Le recul se fait en ligne droite, dans sa voie : la méthode n'y prévoit ni braquage ni clignotant.",
+      "Marche arrière en ligne droite le long du trottoir, méthode de Timy enseignée à l'ECF (07/10/2026) : avant de partir, un regard qui fait le tour complet (devant, gauche avec rétroviseur et angle mort, lunette arrière, droite avec rétroviseur et angle mort) ; pendant le recul, le regard par-dessus l'épaule droite, vers la lunette arrière ; l'allure du pas. Ordre des étapes : la marche arrière s'engage d'abord, et ses feux de recul préviennent les autres usagers ; les contrôles viennent ensuite, à l'arrêt ; le mouvement en dernier ; puis s'arrêter, et regarder devant avant de repartir. C'est l'ordre de la méthode V·V·C·C (vitesse, volant, contrôles, clignotants), moyen mnémotechnique du demi-tour en trois temps (procédures de stage, section 4.3), appliquée ici par extension à la marche arrière, et celui du temps 2 de ce demi-tour (marche arrière engagée, puis tour du regard) : choix du contrôleur de chantier, soumis à la validation de Timy. Le recul se fait en ligne droite, dans sa voie : la méthode n'y prévoit ni braquage ni clignotant.",
       "Feux de recul : blancs, à l'arrière, ils s'allument d'eux-mêmes au passage de la marche arrière ; ils éclairent la zone située derrière le véhicule et signalent la manœuvre aux autres usagers : cours du thème 22, D (contrôlé). Ils comptent parmi les indications : procédures de Fabrice, section 1 (méthode C.I.A.), et fiche ECF C1-I. Le trajet part en marche arrière : les feux de recul sont allumés dès l'étape 1, voiture à l'arrêt, et jusqu'à la fin.",
       "Faire le tour du regard avant de reculer : derrière le coffre, un enfant accroupi peut n'être visible ni directement ni au rétroviseur (angle mort d'autant plus étendu que le véhicule est haut), d'où le contour du véhicule avant toute marche arrière : cours du thème 24, F (contrôlé). Ici, depuis le poste de conduite, le tour du regard de la méthode de Timy.",
       "Marche arrière inévitable : à allure très réduite, sous contrôles visuels constants : cours du thème 05 (contrôlé). Ici l'allure du pas, et le regard tourné vers l'arrière jusqu'à l'arrêt.",

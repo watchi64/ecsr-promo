@@ -2453,6 +2453,12 @@ function arriereDe(e) {
   return { x: e.x - Math.cos(e.cap) * l, y: e.y - Math.sin(e.cap) * l };
 }
 
+// Coin arrière gauche d'une voiture dans l'état e : le quatrième coin de son emprise (arrière, côté gauche de la caisse).
+function coinArriereGauche(e) {
+  const [x, y] = emprise("voiture", e)[3];
+  return { x, y };
+}
+
 // Scène relevée au centième de seconde, au milieu de chaque centième (aucun relevé ne tombe sur la borne d'une étape) : la
 // suite des regards (angle par rapport au cap, en degrés arrondis, ou « tour » pendant une étape dont le regard fait le
 // tour), avec l'état de la voiture (« arrêtée », « en reculant », « en avançant ») et celui de ses feux de recul, chaque
@@ -2477,10 +2483,10 @@ function sequenceMarcheArriere(def) {
   return suite;
 }
 
-// Assertion d'ordre (V·V·C·C, choix du contrôleur de chantier soumis à Timy : la vitesse d'abord, puis les contrôles, le
-// mouvement en dernier) : regard devant, voiture arrêtée, marche arrière engagée (feux de recul) ; tour du regard, arrêtée ;
-// 165 degrés en reculant ; regard devant, arrêtée ; chacun pendant 1,0 s au moins, le tour pendant REGARD_DUREE_TOUR_MIN au
-// moins. Lève une AssertionError sinon.
+// Assertion d'ordre (V·V·C·C, moyen mnémotechnique du demi-tour appliqué par extension ; choix du contrôleur de chantier
+// soumis à Timy : la vitesse d'abord, puis les contrôles, le mouvement en dernier) : regard devant, voiture arrêtée, marche
+// arrière engagée (feux de recul) ; tour du regard, arrêtée ; 165 degrés en reculant ; regard devant, arrêtée ; chacun
+// pendant 1,0 s au moins, le tour pendant REGARD_DUREE_TOUR_MIN au moins. Lève une AssertionError sinon.
 function verifierMarcheArriere(def) {
   const suite = sequenceMarcheArriere(def);
   const libelles = suite.map((r) => r.libelle);
@@ -2579,8 +2585,6 @@ test("marche-arriere : voiture en stationnement (feux éteints), posée au-delà
 test("marche-arriere : pendant tout le recul, regard par-dessus l'épaule droite, à 165 degrés (et non 180, le rétroviseur intérieur) : le cône contient le chemin qu'il reste au milieu du pare-chocs arrière à parcourir et l'avant de la voiture garée ; le coin arrière gauche et son chemin n'y entrent jamais", () => {
   const { sc, eleve, garee, tArret, T } = lireMarcheArriere();
   const arret = etatActeur(eleve, tArret), fin = arriereDe(arret), avantGaree = avant("voiture", etatActeur(garee, 0));
-  // Coin arrière gauche : le quatrième coin de l'emprise (arrière, côté gauche de la caisse).
-  const coinArriereGauche = (e) => { const [x, y] = emprise("voiture", e)[3]; return { x, y }; };
   const coinFin = coinArriereGauche(arret);
   let n = 0;
   for (let t = T[2]; t < tArret - 1e-9; t += 0.01, n++) {
@@ -2601,6 +2605,21 @@ test("marche-arriere : pendant tout le recul, regard par-dessus l'épaule droite
     }
   }
   assert.ok(n >= 1400, `${n} instants relevés pendant le recul`);
+});
+
+test("marche-arriere : le tour du regard a vu le coin arrière gauche et son chemin avant de partir : de 2,804 à 3,049 s, d'un seul tenant, le cône du tour contient tout le chemin de ce coin, de sa place au départ à sa place à l'arrêt", () => {
+  const { sc, eleve, tArret, T } = lireMarcheArriere();
+  const c0 = coinArriereGauche(etatActeur(eleve, 0)), c1 = coinArriereGauche(etatActeur(eleve, tArret));
+  const chemin = Array.from({ length: 21 }, (_, k) => ({ x: c0.x + ((c1.x - c0.x) * k) / 20, y: c0.y + ((c1.y - c0.y) * k) / 20 }));
+  // Millièmes de seconde du tour (étape 2) où le cône contient les 21 points du chemin.
+  const vus = [];
+  for (let i = Math.round(T[1] * 1000); i < Math.round(T[2] * 1000); i++) {
+    const t = i / 1000, e = etatActeur(eleve, t), angle = angleRegard(sc.etapes[1], e, t, etatsA(sc, t));
+    if (chemin.every((p) => regardContient(angle, oeil(e), p))) vus.push(i);
+  }
+  assert.ok(vus.length > 0, "le tour du regard ne voit jamais tout le chemin du coin arrière gauche");
+  assert.deepEqual([vus[0], vus[vus.length - 1]], [2804, 3049], "de 2,804 à 3,049 s");
+  assert.equal(vus.length, 3049 - 2804 + 1, "d'un seul tenant");
 });
 
 test("marche-arriere : au milieu du tour, le regard vers l'arrière couvre toute la zone de recul, de l'arrière de la voiture à l'endroit où elle s'arrêtera, et l'avant de la voiture garée", () => {
@@ -2658,6 +2677,13 @@ test("marche-arriere : 4 m de trottoir montrés de chaque côté, le plus petit 
   for (const [nom, l] of Object.entries(vus)) assert.ok(l >= DESSIN.voie, `cône ${nom} : ${l.toFixed(2)} m au-delà de la voiture`);
   proche(vus.droite, 4.3, 1e-9, "cône à droite, côté trottoir");
   assert.ok(vus.droite - 1 < DESSIN.voie, "avec un mètre de trottoir de moins, le cône à droite resterait sous la largeur d'une voie");
+});
+
+test("marche-arriere : les sources disent d'où vient l'ordre des étapes : la méthode V·V·C·C, moyen mnémotechnique du demi-tour appliqué ici par extension, et le temps 2 du demi-tour ; choix du contrôleur de chantier, soumis à la validation de Timy", () => {
+  const methode = SCENES["marche-arriere"].sources.find((s) => s.startsWith("Marche arrière en ligne droite le long du trottoir"));
+  assert.match(methode, /méthode V·V·C·C \(vitesse, volant, contrôles, clignotants\), moyen mnémotechnique du demi-tour en trois temps \(procédures de stage, section 4\.3\), appliquée ici par extension à la marche arrière/);
+  assert.match(methode, /et celui du temps 2 de ce demi-tour \(marche arrière engagée, puis tour du regard\) : choix du contrôleur de chantier, soumis à la validation de Timy\./);
+  assert.doesNotMatch(methode, /décision de Timy/, "l'ordre n'est pas attribué à Timy");
 });
 
 test("marche-arriere : les valeurs calculées que citent les sources (cône à droite du tour, zone libre au départ, mise en mouvement et arrêt, allure tenue, durée du recul, départ) sont celles de la scène, à l'arrondi écrit près", () => {
