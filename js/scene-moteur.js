@@ -21,20 +21,24 @@
  *
  * Image figée (pas à pas, pause, fin de lecture, animations réduites) : elle montre
  * l'état de la scène à cet instant, pas une phase d'animation : le clignotant en
- * marche y est allumé, le regard de l'étape y est dessiné.
+ * marche y est allumé, le regard de l'étape y est dessiné. Les feux de recul, eux,
+ * suivent la marche, en lecture comme sur une image figée.
  *
  * Rien n'apparaît hors du cadre : le dessin est découpé au cadre courant, et la
  * boîte du SVG prend les proportions de ce cadre (css/cours-blocs.css).
  */
-import { preparerScene, etatActeur, pointA, GABARITS, DEG } from "./scene-geometrie.js?v=20261005f";
-import { regardDessine } from "./scene-regard.js?v=20261005f";
-import { TEINTES, RAYON_REPERE, clignotantAllume, cadreCamera, cadreReduit, reperesEtapes, demiLargeurRepere, emprisePanneau,
-  facteurLecture, SEUILS_VISIBILITE, actionVisibilite } from "./scene-rendu.js?v=20261005f";
-import { urlSignalVerifie } from "./signaux.js?v=20261005f";
+import { preparerScene, etatActeur, pointA, GABARITS, DEG } from "./scene-geometrie.js?v=20261008a";
+import { regardDessine } from "./scene-regard.js?v=20261008a";
+import { TEINTES, RAYON_REPERE, clignotantAllume, feuxDeRecul, cadreCamera, cadreReduit, reperesEtapes,
+  demiLargeurRepere, libelleRepere, emprisePanneau, facteurLecture, SEUILS_VISIBILITE, actionVisibilite, feuxStop }
+  from "./scene-rendu.js?v=20261008a";
+import { urlSignalVerifie } from "./signaux.js?v=20261008a";
 
 const NS = "http://www.w3.org/2000/svg";
-// Opacité du regard : le cône, ou, plus léger, le secteur que parcourt un balayage sur une image figée.
-const OPACITE_REGARD = { cone: 0.4, secteur: 0.22 };
+// Opacité du regard : un cône, en lecture comme sur une image figée (les quatre cônes d'un tour du regard figé compris),
+// ou, plus léger, le secteur que parcourt un balayage sur une image figée.
+const OPACITE_CONE = 0.4;
+const OPACITE_REGARD = { cone: OPACITE_CONE, cones: OPACITE_CONE, secteur: 0.22 };
 // Numéro des schémas montés : chacun a sa propre découpe, plusieurs schémas pouvant partager une page.
 let numeroScene = 0;
 
@@ -107,18 +111,21 @@ function dessinerVoiture(teinte, bord) {
     gauche: [feu(L / 2 - 0.42, -W / 2 + 0.02, 0.34, 0.2, TEINTES.clignotant), feu(-L / 2 + 0.08, -W / 2 + 0.02, 0.34, 0.2, TEINTES.clignotant)],
   };
   const stops = [feu(-L / 2 - 0.02, -W / 2 + 0.3, 0.12, 0.38, TEINTES.stop), feu(-L / 2 - 0.02, W / 2 - 0.68, 0.12, 0.38, TEINTES.stop)];
-  return { g, clignotants, stops };
+  // Feux de recul : deux feux blancs, chacun juste devant un feu stop, de mêmes dimensions.
+  const reculs = [feu(-L / 2 + 0.1, -W / 2 + 0.3, 0.12, 0.38, TEINTES.recul), feu(-L / 2 + 0.1, W / 2 - 0.68, 0.12, 0.38, TEINTES.recul)];
+  return { g, clignotants, stops, reculs };
 }
 
 function dessinerPieton() {
   const g = svg("g");
   g.appendChild(svg("circle", { r: 0.95, fill: "none", stroke: TEINTES.pieton, "stroke-width": 0.12, opacity: 0.55 }));   // halo de lisibilité
   g.appendChild(svg("circle", { r: 0.25, fill: TEINTES.pieton }));
-  return { g, clignotants: null, stops: null };
+  return { g, clignotants: null, stops: null, reculs: null };
 }
 
-// Repères numérotés des étapes (animations réduites), à droite de la position de l'élève au début de chacune (jamais sous
-// sa voiture) : un disque, ou une pastille qui contient tous les numéros quand plusieurs étapes partagent le repère.
+// Repères numérotés des étapes (animations réduites), au plus près de la position de l'élève au début de chacune, à la
+// place que donne la règle (reperesEtapes ; jamais sous sa voiture) : un disque, ou une pastille qui porte le libellé de
+// toutes les étapes qui partagent le repère (libelleRepere : « 5·6·7 », « 10-15 »).
 function dessinerReperes(sc) {
   const g = svg("g", { class: "scene-reperes" });
   for (const r of reperesEtapes(sc)) {
@@ -127,7 +134,7 @@ function dessinerReperes(sc) {
       rx: RAYON_REPERE, fill: "#FFFFFF", stroke: TEINTES.repere, "stroke-width": 0.15 }));
     const texte = svg("text", { x: f3(r.x), y: f3(r.y + 0.45), "text-anchor": "middle", "font-size": 1.2,
       fill: TEINTES.repere, "font-family": "Geist Mono, ui-monospace, monospace" });
-    texte.textContent = r.numeros.join("·");
+    texte.textContent = libelleRepere(r.numeros);
     g.appendChild(texte);
   }
   return g;
@@ -242,18 +249,21 @@ export function monterScene(def, { conteneur, etapes = [], reduit = false, onEta
         for (const cote of ["droite", "gauche"]) {
           v.clignotants[cote].forEach((n) => n.setAttribute("opacity", allume === cote ? 1 : 0));
         }
-        v.stops.forEach((n) => n.setAttribute("opacity", e.a < -0.3 || e.v < 0.05 ? 1 : 0));
+        v.stops.forEach((n) => n.setAttribute("opacity", feuxStop(a, e) ? 1 : 0));
+        const recul = feuxDeRecul(e);
+        v.reculs.forEach((n) => n.setAttribute("opacity", recul ? 1 : 0));
       }
     }
     const e = etats.get(sc.eleve.id);
     // Sur une image figée, en animations réduites comme en pas à pas, le regard de l'étape reste dessiné : le cône d'un
-    // angle ou d'un usager suivi, et, pour un balayage, le secteur qu'il parcourt (75 + 16 degrés de part et d'autre du
-    // cap, sur REGARD_PORTEE), plus léger, au lieu de la direction que son va-et-vient aurait à cet instant.
+    // angle ou d'un usager suivi ; pour un balayage, plus léger, le secteur qu'il parcourt (75 + 16 degrés de part et
+    // d'autre du cap, sur REGARD_PORTEE) ; pour un tour du regard, quatre cônes (devant, à gauche, derrière, à droite) ; au
+    // lieu de la direction que leur mouvement aurait à cet instant. Les quatre cônes forment un seul tracé.
     const regard = regardDessine(sc.etapes[k], e, instant, etats, fige);
     if (!regard) {
       cone.setAttribute("display", "none");
     } else {
-      cone.setAttribute("d", chemin(regard.poly));
+      cone.setAttribute("d", (regard.polys || [regard.poly]).map(chemin).join(" "));
       cone.setAttribute("opacity", OPACITE_REGARD[regard.forme]);
       cone.setAttribute("display", "inline");
     }

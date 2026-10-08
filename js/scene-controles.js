@@ -9,17 +9,19 @@
  * ce sont des garde-fous de vraisemblance, consignés comme tels dans les fiches.
  *
  * Ordre des contrôles : étapes, trajectoires (contacts, limite, accélérations,
- * continuité de la vitesse), entrées et sorties hors du monde, clignotants (assez
- * tôt, du bon côté et tout le long de l'arc), puis les attentes que la scène
- * déclare.
+ * continuité de la vitesse), marche arrière (allure de recul et arrêt aux
+ * rebroussements, lus sur les échantillons de la chronologie), entrées et sorties hors
+ * du monde, clignotants (assez tôt avant le départ dans l'arc, du bon côté de la caisse
+ * et tout le long de l'arc), puis les attentes que la scène déclare.
  */
-import { preparerScene, etatActeur, emprise, polygonesSeChevauchent, pointDansPolygone, tempsAtteint, avant,
-  apparitionDe, sortDuCadre, rectangle, KMH, DEG }
-  from "./scene-geometrie.js?v=20261005f";
+import { preparerScene, etatActeur, emprise, polygonesSeChevauchent, pointDansPolygone, tempsAtteint, tempsDepart, avant,
+  apparitionDe, sortDuCadre, rebroussements, pointA, rectangle, KMH, DEG }
+  from "./scene-geometrie.js?v=20261008a";
 
 export const SEUILS = {
   accelerationLaterale: 3.0,        // m/s²
   accelerationLongitudinale: 3.0,   // m/s²
+  vitesseMarcheArriere: 6,          // km/h : l'allure du pas, en marche arrière
   avanceClignotant: 2.0,            // s avant le début d'un changement de direction
   angleChangementDirection: 30,     // degrés : en deçà, un arc n'est pas un changement de direction
   pas: 0.1,                         // s
@@ -34,6 +36,7 @@ export function controlerScene(def) {
   const note = (m) => { if (!erreurs.includes(m)) erreurs.push(m); };
   controlerEtapes(sc, note);
   controlerTrajectoires(sc, note);
+  controlerMarcheArriere(sc, note);
   controlerEntreesSorties(sc, note);
   controlerClignotants(sc, note);
   for (const att of sc.attentes || []) controlerAttente(sc, att, note);
@@ -93,6 +96,37 @@ function controlerTrajectoires(sc, note) {
   });
 }
 
+// Marche arrière, lue sur les échantillons de la chronologie. Elle en place un à chaque point du profil, à la vitesse
+// exacte du point, et entre deux points l'accélération est constante : la vitesse y varie de façon affine dans le temps,
+// et ne s'annule qu'à un bout où le profil la met à 0 km/h (deux points de suite à 0 km/h sont refusés). Les piétons en
+// sont exemptés, comme des autres règles de vitesse : ils partent et s'arrêtent d'un coup.
+// - Allure de recul : sur un segment parcouru en marche arrière, au plus l'allure du pas (SEUILS.vitesseMarcheArriere).
+//   La plus grande vitesse entre deux échantillons étant atteinte sur l'un d'eux, aucun pic bref ne passe entre deux
+//   instants, et la valeur lue sur cet échantillon est exacte. Le message donne le pic et son instant : l'échantillon de
+//   plus grande vitesse parmi ceux qui reculent au-delà de l'allure du pas (le premier à cette vitesse sur un palier).
+//   Le premier échantillon au-delà du seuil n'en dépasse que de quelques centièmes à deux dixièmes de km/h, quelle que
+//   soit l'allure finalement atteinte : il ne dirait pas de combien la scène la dépasse.
+// - Arrêt au rebroussement : un véhicule ne change de sens de marche qu'à l'arrêt. À chaque rebroussement, lu sur les
+//   segments par rebroussements() (qui fait foi, et non le champ chemin.rebroussements), un échantillon de vitesse
+//   nulle, au micron près (les arrondis flottants), prouve l'arrêt sans interpolation ni seuil de vitesse. Un arrêt d'un
+//   instant, sans pause, suffit.
+function controlerMarcheArriere(sc, note) {
+  for (const a of sc.acteurs) {
+    if (!a.chrono || a.gabarit === "pieton") continue;
+    let pic = null;
+    for (const e of a.chrono.echantillons) {
+      if (e.v / KMH > SEUILS.vitesseMarcheArriere + 1e-6 && pointA(a.chemin, e.s).arriere && (pic === null || e.v > pic.v)) pic = e;
+    }
+    if (pic) {
+      note(`${a.id} recule à ${(pic.v / KMH).toFixed(1)} km/h à t = ${f1(pic.t)} s (au plus ${SEUILS.vitesseMarcheArriere} km/h)`);
+    }
+    for (const s of rebroussements(a.chemin)) {
+      const arret = a.chrono.echantillons.some((e) => Math.abs(e.s - s) <= 1e-6 && e.v === 0);
+      if (!arret) note(`${a.id} change de sens de marche sans s'arrêter (s = ${f1(s)} m)`);
+    }
+  }
+}
+
 // Un véhicule ne surgit ni ne s'évanouit dans l'image : il entre et sort par les bords du monde (le rectangle
 // dessiné). Un contact avec le bord compte comme être dans le cadre.
 function controlerEntreesSorties(sc, note) {
@@ -119,11 +153,36 @@ function controlerEntreesSorties(sc, note) {
   }
 }
 
-// Côté du changement de direction que représente un segment, ou null.
+// Côté du changement de direction que représente un segment, ou null. C'est le côté de la caisse : le trajet se lit dans
+// le repère de marche (scene-geometrie.js), et en marche arrière la gauche de la marche est la droite de la caisse. Un
+// virage de la tortue à gauche en reculant (volant tourné à droite, l'arrière part vers la droite) est donc un
+// changement de direction vers la droite : sur un segment parcouru en marche arrière, le côté s'inverse. Le reste de la
+// règle ne dépend pas de la marche.
 function changementDeDirection(seg) {
   if (seg.type !== "arc" || seg.suitLaRoute) return null;
-  if (seg.decalage) return seg.premier && seg.changementDeVoie ? (seg.angle > 0 ? "droite" : "gauche") : null;
-  return Math.abs(seg.angle) >= SEUILS.angleChangementDirection * DEG - 1e-9 ? (seg.angle > 0 ? "droite" : "gauche") : null;
+  const coteMarche = seg.angle > 0 ? "droite" : "gauche";
+  const cote = seg.arriere === true ? (coteMarche === "droite" ? "gauche" : "droite") : coteMarche;
+  if (seg.decalage) return seg.premier && seg.changementDeVoie ? cote : null;
+  return Math.abs(seg.angle) >= SEUILS.angleChangementDirection * DEG - 1e-9 ? cote : null;
+}
+
+// Instants où l'état du clignotant d'un acteur peut basculer, pour chaque intervalle de a.clignotant. Une bascule plus brève
+// qu'un pas passe entre deux dixièmes de seconde ; à ces instants-là, elle se voit.
+// - Son allumage : l'instant où l'acteur atteint de (à l'arrivée, et non un micromètre plus loin : un arrêt en de y compte,
+//   le clignotant brille dès l'arrivée), plus le délai daté s'il y en a un. Les bornes sont comprises, le clignotant est déjà
+//   allumé à cet instant ; une microseconde de marge garde l'instant du côté allumé malgré les arrondis.
+// - L'instant qui suit son extinction : un micromètre après le passage de a, ou une microseconde après l'extinction
+//   datée (le clignotant est encore allumé à l'instant même).
+// Ne sont rendus que ceux qui tombent strictement entre t0 et t1 : les extrémités sont déjà des instants contrôlés.
+function bascules(a, t0, t1) {
+  const instants = [];
+  for (const x of a.clignotant || []) {
+    const allume = tempsAtteint(a.chrono, x.de) + (x.delai || 0) + 1e-6;
+    const eteint = x.delaiFin === undefined
+      ? tempsAtteint(a.chrono, x.a + 1e-6) : tempsAtteint(a.chrono, x.a) + x.delaiFin + 1e-6;
+    for (const t of [allume, eteint]) if (t > t0 && t < t1) instants.push(t);
+  }
+  return instants;
 }
 
 function controlerClignotants(sc, note) {
@@ -132,23 +191,33 @@ function controlerClignotants(sc, note) {
     for (const seg of a.chemin.segments) {
       const cote = changementDeDirection(seg);
       if (!cote) continue;
-      const tDebut = tempsAtteint(a.chrono, seg.debut);
+      // Le changement de direction commence quand l'acteur quitte le début de l'arc (tempsDepart) : à la fin de l'arrêt
+      // s'il s'y arrête, et non à son arrivée. Le clignotant doit être allumé depuis au moins 2 s à ce départ, puis
+      // jusqu'à la fin de l'arc (première arrivée à son bout).
+      const tDebut = tempsDepart(a.chrono, seg.debut);
       const tFin = tempsAtteint(a.chrono, seg.debut + seg.longueur);
+      // Avant le départ : à chaque dixième de seconde des 2 s qui précèdent, et à chaque bascule du clignotant qui y tombe
+      // (allumage, ou instant qui suit une extinction) : une coupure ou un allumage de l'autre côté plus brefs qu'un pas
+      // ne passent pas entre deux dixièmes de seconde. Le message donne le premier instant fautif.
       const n = Math.round(SEUILS.avanceClignotant / SEUILS.pas);
-      for (let k = n; k >= 0; k--) {
-        const t = tDebut - k * SEUILS.pas;
-        if (t < 0) continue;
-        if (etatActeur(a, t).clignotant !== cote) {
-          note(`${a.id} : clignotant ${cote} attendu ${SEUILS.avanceClignotant} s avant le changement de direction de s = ${f1(seg.debut)} m (absent à t = ${f1(t)} s)`);
-          break;
-        }
+      const fenetre = [];
+      for (let k = n; k >= 0; k--) fenetre.push(tDebut - k * SEUILS.pas);
+      fenetre.push(...bascules(a, tDebut - SEUILS.avanceClignotant, tDebut));
+      fenetre.sort((p, q) => p - q);
+      const absent = fenetre.find((t) => t >= 0 && etatActeur(a, t).clignotant !== cote);
+      if (absent !== undefined) {
+        note(`${a.id} : clignotant ${cote} attendu ${SEUILS.avanceClignotant} s avant le changement de direction de s = ${f1(seg.debut)} m (absent à t = ${f1(absent)} s)`);
       }
       // Pendant tout l'arc (les dixièmes de seconde depuis son début, puis sa fin, un arrêt dans l'arc compris) :
       // jamais le clignotant de l'autre côté, et celui du bon côté toujours allumé (« clignotant tôt et tout le
-      // long », fiche ECF C2-E).
+      // long », fiche ECF C2-E). Une extinction datée (delaiFin) n'y échappe pas : pile à la fin de l'arc, elle passe
+      // (l'instant d'arrivée est encore allumé) ; plus tôt, non. S'y ajoutent les bascules tombant dans l'arc, comme
+      // dans la fenêtre d'avance : une coupure ou un allumage de l'autre côté plus brefs qu'un pas ne passent pas
+      // entre deux instants.
       const instantsArc = [];
       for (let t = tDebut; t <= tFin + 1e-9; t += SEUILS.pas) instantsArc.push(t);
-      instantsArc.push(tFin);
+      instantsArc.push(tFin, ...bascules(a, tDebut, tFin));
+      instantsArc.sort((p, q) => p - q);
       let autreCote = false, eteint = false;
       for (const t of instantsArc) {
         const c = etatActeur(a, t).clignotant;
@@ -242,6 +311,27 @@ function controlerAttente(sc, att, note) {
       let ko = null;
       fenetre(0, att.s - 1e-6, (e, t) => { if (ko === null && e.clignotant === att.cote) ko = t; });
       if (ko !== null) note(`${a.id} : clignotant ${att.cote} allumé avant s = ${f1(att.s)} m (t = ${f1(ko)} s)`);
+      break;
+    }
+    case "pasDeDeceleration": {
+      // { acteur, nom, de, a } : entre les abscisses de et a, l'allure de l'acteur ne baisse jamais. Elle peut y être
+      // tenue ou reprise, jamais réduite : un freinage s'achève avant `de` (par exemple avant l'entrée d'un virage, que
+      // le freinage précède en ligne droite) et ne commence qu'à `a` ou après. Lu sur les échantillons de la
+      // chronologie, comme l'arrêt aux rebroussements : la vitesse y est exacte et, entre deux échantillons consécutifs,
+      // varie dans un seul sens. Toute paire d'échantillons qui empiète sur ]de ; a[ et dont la vitesse baisse est un
+      // ralentissement, si bref soit-il ; un freinage qui finit pile en `de` n'en est pas un. Le message donne le premier
+      // ralentissement, de la paire où il commence jusqu'à ce que la vitesse cesse de baisser ou que la fenêtre s'achève.
+      const ech = a.chrono ? a.chrono.echantillons : [];
+      const k = ech.findIndex((q, i) => i > 0 && q.s > att.de + 1e-9 && ech[i - 1].s < att.a - 1e-9 && q.v < ech[i - 1].v - 1e-9);
+      if (k > 0) {
+        let fin = k;
+        while (fin + 1 < ech.length && ech[fin].s < att.a - 1e-9 && ech[fin + 1].v < ech[fin].v - 1e-9) fin++;
+        const p = ech[k - 1], q = ech[fin];
+        // Vitesses écrites à une décimale, ou à deux quand l'arrondi à une décimale masquerait le ralentissement.
+        const chiffres = (p.v / KMH).toFixed(1) === (q.v / KMH).toFixed(1) ? 2 : 1;
+        note(`${a.id} ralentit dans « ${att.nom} » : de ${(p.v / KMH).toFixed(chiffres)} à ${(q.v / KMH).toFixed(chiffres)} km/h,`
+          + ` de s = ${f1(p.s)} à s = ${f1(q.s)} m (t = ${f1(p.t)} s)`);
+      }
       break;
     }
     default:

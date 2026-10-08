@@ -1,10 +1,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  DEG, trajet, pointA, courbureA, tournerChemin, tournerPoint, premiereAbscisse, avant,
-  chronologie, etatA, tempsAtteint, emprise, rectangle, pointsArc, disque, secteurAnneau,
+  DEG, GABARITS, trajet, pointA, courbureA, tournerChemin, tournerPoint, premiereAbscisse, avant,
+  chronologie, etatA, tempsAtteint, tempsDepart, emprise, rectangle, pointsArc, disque, secteurAnneau,
   pointDansPolygone, segmentsSeCoupent, polygonesSeChevauchent, preparerScene, etatActeur,
-  apparitionDe, sortDuCadre,
+  apparitionDe, sortDuCadre, pointSurSegment, rebroussements, centreArc,
 } from "../js/scene-geometrie.js";
 
 const proche = (a, b, eps = 1e-6) => assert.ok(Math.abs(a - b) <= eps, `${a} au lieu de ${b}`);
@@ -118,6 +118,23 @@ test("preparerScene et etatActeur : étapes, durée, visibilité, clignotant", (
   assert.equal(etatActeur(sc.acteurs[0], 3).clignotant, "droite");
   assert.equal(etatActeur(sc.acteurs[0], 5).clignotant, null);
   assert.throws(() => preparerScene({ code: "x", acteurs: [], etapes: [] }), /eleve/);
+});
+
+test("preparerScene : chaque étape porte ses bornes, son instant t et sa fin : l'instant de l'étape suivante ou, pour la dernière, la fin de la scène", () => {
+  const def = {
+    code: "essai",
+    acteurs: [{ id: "eleve", role: "eleve", gabarit: "voiture", chemin: trajet(0, 0, 0).droit(100).fin(),
+      profil: [{ s: 0, kmh: 36 }, { s: 100, kmh: 36 }] }],
+    etapes: [{ s: 0, regard: { angle: 0 } }, { s: 50 }, { s: 50, delai: 2, regard: { tour: true } }],
+  };
+  const sc = preparerScene(def);
+  sc.etapes.forEach((e, i) => assert.equal(e.fin, i + 1 < sc.etapes.length ? sc.etapes[i + 1].t : sc.duree, `étape ${i + 1}`));
+  assert.deepEqual(sc.etapes.map((e) => Math.round(e.fin * 1000) / 1000), [5, 7, 11]);
+  // L'étape préparée garde ses champs ; la définition n'est pas modifiée.
+  assert.deepEqual([sc.etapes[2].s, sc.etapes[2].delai, sc.etapes[2].regard], [50, 2, { tour: true }]);
+  assert.ok(def.etapes.every((e) => !("t" in e) && !("fin" in e)), "définition intacte");
+  // La dernière étape va jusqu'à la fin de la scène, pause finale comprise.
+  proche(preparerScene({ ...def, finPause: 2.5 }).etapes[2].fin, 12.5);
 });
 
 // ===== Acteurs figés : immobiles hors de leur trajet, sortie du cadre =====
@@ -523,4 +540,580 @@ test("preparerScene : une apparition inconnue est refusée en nommant l'acteur",
     () => preparerScene(avec({ gabarit: "pieton", chemin: c, profil, apparition: "tard" })),
     (e) => /n° 2/.test(e.message) && /tard/.test(e.message),
   );
+});
+
+// ===== Marche arrière : rebroussement, caisse et sens de marche =====
+
+test("inverser : rebroussement sur place, caisse continue, marche arrière ensuite", () => {
+  const ch = trajet(0, 0, 0).droit(5).inverser().droit(3).fin();
+  assert.equal(ch.segments.length, 2);
+  assert.equal(ch.segments[0].arriere, false);
+  assert.equal(ch.segments[1].arriere, true);
+  const avantRebroussement = pointA(ch, 5 - 1e-6), apres = pointA(ch, 6);
+  // La voiture a avancé de 5 m vers +x, puis recule de 1 m : elle est en x = 4, caisse toujours vers +x.
+  assert.ok(Math.abs(apres.x - 4) < 1e-9 && Math.abs(apres.y) < 1e-9);
+  assert.ok(Math.abs(avantRebroussement.cap - apres.cap) < 1e-9);
+  assert.ok(Math.abs(apres.capMarche - Math.PI) < 1e-9);
+  assert.deepEqual(rebroussements(ch), [5]);
+});
+
+test("inverser deux fois : retour en marche avant", () => {
+  const ch = trajet(0, 0, 0).droit(4).inverser().droit(2).inverser().droit(3).fin();
+  assert.deepEqual(ch.segments.map((s) => s.arriere), [false, true, false]);
+  assert.deepEqual(rebroussements(ch), [4, 6]);
+  assert.ok(Math.abs(pointA(ch, 9).x - 5) < 1e-9);
+});
+
+test("marche arrière en virage : volant à droite, la caisse suit, l'avant reste à l'opposé du déplacement", () => {
+  // Caisse vers le nord (cap -90), 1 m en avant, puis recul : la tortue (sens de marche, vers le sud) tourne à
+  // gauche de 90 degrés sur 5 m de rayon, l'arrière part donc vers la droite de la caisse (l'est).
+  const ch = trajet(0, 0, -90).droit(1).inverser().virage(5, -90).fin();
+  const p = pointA(ch, ch.longueur);
+  assert.ok(Math.abs(p.x - 5) < 1e-9 && Math.abs(p.y - 4) < 1e-9);
+  assert.ok(Math.abs(Math.abs(p.cap) - Math.PI) < 1e-9);   // caisse vers l'ouest
+  assert.ok(Math.abs(p.capMarche) < 1e-9);                 // déplacement vers l'est
+  const f = avant("voiture", p);
+  assert.ok(Math.abs(f.x - 2.75) < 1e-9 && Math.abs(f.y - 4) < 1e-9);
+});
+
+test("marche arrière en virage, volant à gauche : l'arrière part vers la gauche de la caisse", () => {
+  // Caisse vers le nord, 1 m en avant, puis recul : la tortue (vers le sud) tourne à droite de 90 degrés sur 5 m de
+  // rayon, l'arrière part donc vers la gauche de la caisse (l'ouest), et la caisse finit vers l'est.
+  const ch = trajet(0, 0, -90).droit(1).inverser().virage(5, 90).fin();
+  const p = pointA(ch, ch.longueur);
+  proche(p.x, -5, 1e-9); proche(p.y, 4, 1e-9);
+  proche(p.cap, 0, 1e-9);               // caisse vers l'est
+  proche(p.capMarche, Math.PI, 1e-9);   // déplacement vers l'ouest
+  const f = avant("voiture", p);
+  proche(f.x, -2.75, 1e-9); proche(f.y, 4, 1e-9);
+});
+
+test("decaler en recul : un décalage positif écarte la voiture vers la gauche de la caisse", () => {
+  // Caisse vers l'est : 1 m en avant, puis 10 m de recul vers l'ouest avec un décalage de +1 m, à droite de la tortue
+  // (le nord), donc à gauche de la caisse.
+  const ch = trajet(0, 0, 0).droit(1).inverser().decaler(1, 10).fin();
+  const p = pointA(ch, ch.longueur);
+  proche(p.x, -9, 1e-9); proche(p.y, -1, 1e-9);
+  proche(p.cap, 0, 1e-9);   // caisse toujours vers l'est
+  assert.equal(p.arriere, true);
+});
+
+test("etatActeur donne la marche, arrière dès le rebroussement", () => {
+  const chemin = trajet(0, 0, 0).droit(5).inverser().droit(3).fin();
+  const acteur = { id: "v", role: "eleve", gabarit: "voiture", chemin,
+    profil: [{ s: 0, kmh: 0 }, { s: 2.5, kmh: 5 }, { s: 5, kmh: 0, pause: 1 }, { s: 6.5, kmh: 4 }, { s: 8, kmh: 0 }] };
+  acteur.chrono = chronologie(chemin, acteur.profil);
+  const tRebroussement = tempsAtteint(acteur.chrono, 5);
+  assert.equal(etatActeur(acteur, tRebroussement - 0.5).marche, "avant");
+  assert.equal(etatActeur(acteur, tRebroussement + 0.5).marche, "arriere");
+  const fin = etatActeur(acteur, acteur.chrono.duree);
+  assert.ok(Math.abs(fin.x - 2) < 1e-9);
+  assert.ok(Math.abs(fin.cap) < 1e-9);   // la caisse regarde toujours vers +x
+});
+
+test("départ directement en marche arrière", () => {
+  const ch = trajet(0, 0, 90, { arriere: true }).droit(4).fin();
+  const p = pointA(ch, 4);
+  assert.ok(Math.abs(p.x) < 1e-9 && Math.abs(p.y - 4) < 1e-9);
+  assert.ok(Math.abs(p.cap + Math.PI / 2) < 1e-9);   // caisse vers le nord
+  assert.equal(p.arriere, true);
+  assert.deepEqual(rebroussements(ch), []);
+});
+
+test("à l'abscisse du rebroussement, le point est déjà dans la nouvelle marche, au même endroit", () => {
+  const ch = trajet(0, 0, 0).droit(5).inverser().droit(3).fin();
+  const juste = pointA(ch, 5 - 1e-9), sur = pointA(ch, 5);
+  assert.equal(juste.arriere, false);
+  assert.equal(sur.arriere, true);
+  proche(sur.x, 5, 1e-12); proche(sur.y, 0, 1e-12);
+  proche(sur.cap, 0, 1e-12); proche(sur.capMarche, Math.PI, 1e-12);
+});
+
+test("départ en marche arrière puis rebroussement : marche avant ensuite, sans que la caisse pivote", () => {
+  const ch = trajet(0, 0, 90, { arriere: true }).droit(4).inverser().droit(2).fin();
+  assert.deepEqual(ch.segments.map((s) => s.arriere), [true, false]);
+  assert.deepEqual(rebroussements(ch), [4]);
+  // Caisse vers le nord tout du long : la voiture recule vers le sud jusqu'en y = 4, puis repart vers le nord.
+  const recul = pointA(ch, 4 - 1e-6), reprise = pointA(ch, 5);
+  proche(recul.cap, -Math.PI / 2, 1e-9); proche(reprise.cap, -Math.PI / 2, 1e-9);
+  proche(reprise.capMarche, -Math.PI / 2, 1e-9);
+  assert.equal(reprise.arriere, false);
+  proche(reprise.x, 0, 1e-9); proche(reprise.y, 3, 1e-9);
+  proche(pointA(ch, ch.longueur).y, 2, 1e-9);
+});
+
+test("la caisse ne pivote pas au rebroussement, quel que soit le cap atteint : pas même d'un tour", () => {
+  for (const { chemin, capCaisse, finX, finY } of [
+    // Cas du relecteur : quart de tour à gauche depuis le nord, caisse vers l'ouest (-180 degrés), puis 2 m de recul
+    // vers l'est.
+    { chemin: trajet(0, 0, -90).virage(5, -90).inverser().droit(2).fin(), capCaisse: -Math.PI, finX: -3, finY: -5 },
+    // Trois quarts de tour à gauche depuis l'est : caisse vers le sud (-270 degrés), puis 2 m de recul vers le nord.
+    { chemin: trajet(0, 0, 0).virage(5, -270).inverser().droit(2).fin(), capCaisse: -3 * Math.PI / 2, finX: -5, finY: -7 },
+  ]) {
+    const [sRebroussement] = rebroussements(chemin);
+    const juste = pointA(chemin, sRebroussement - 1e-9), sur = pointA(chemin, sRebroussement);
+    const fin = pointA(chemin, chemin.longueur);
+    for (const p of [juste, sur, fin]) proche(p.cap, capCaisse, 1e-9);
+    proche(sur.capMarche, capCaisse + Math.PI, 1e-9);
+    assert.equal(sur.arriere, true);
+    proche(fin.x, finX, 1e-9); proche(fin.y, finY, 1e-9);
+  }
+});
+
+test("le cap de la caisse est continu tout le long d'un trajet qui recule puis repart, sans saut d'un tour", () => {
+  // Trois quarts de tour en avant, quart de tour en recul, puis 200 degrés en avant : chaque marche franchit un multiple
+  // de 180 degrés. Sur 1 cm, la caisse tourne au plus de 1 cm / 5 m (le plus petit rayon), rebroussements compris.
+  const ch = trajet(0, 0, 0).virage(5, -270).inverser().virage(5, 90).inverser().virage(6, -200).droit(1).fin();
+  assert.equal(rebroussements(ch).length, 2);
+  const pas = 0.01, rotationMax = pas / 5 + 1e-9;
+  let precedent = pointA(ch, 0);
+  for (let k = 1; k * pas <= ch.longueur; k++) {
+    const p = pointA(ch, k * pas);
+    assert.ok(Math.abs(p.cap - precedent.cap) <= rotationMax,
+      `la caisse tourne de ${p.cap - precedent.cap} rad sur 1 cm, en s = ${(k * pas).toFixed(2)} m`);
+    precedent = p;
+  }
+  proche(precedent.cap, -3 * Math.PI / 2 + Math.PI / 2 - 200 * DEG, 1e-9);
+});
+
+test("fin() mémorise les rebroussements, les mêmes que rebroussements() lit sur les segments", () => {
+  const ch = trajet(0, 0, 0).droit(4).inverser().virage(6, 30).inverser().droit(3).inverser().droit(1).fin();
+  const arc = 6 * 30 * DEG;
+  assert.equal(ch.rebroussements.length, 3);
+  [4, 4 + arc, 7 + arc].forEach((s, i) => proche(ch.rebroussements[i], s, 1e-12));
+  assert.deepEqual(rebroussements(ch), ch.rebroussements);
+  assert.deepEqual(ch.segments.map((s) => s.arriere), [false, true, false, true]);
+  // La fonction fait foi : un chemin recopié sans le champ (comme le fait raccourcirDebut) garde ses rebroussements.
+  assert.deepEqual(rebroussements({ segments: ch.segments, longueur: ch.longueur }), ch.rebroussements);
+  // Un trajet sans rebroussement n'en a aucun.
+  assert.deepEqual(trajet(0, 0, 0).droit(4).fin().rebroussements, []);
+});
+
+test("rebroussement refusé en tête de trajet, sans segment avant lui : partir en marche arrière se dit par l'option", () => {
+  for (const depart of [trajet(0, 0, 0), trajet(0, 0, 90, { arriere: true })]) {
+    assert.throws(() => depart.inverser(), (e) => /en tête de trajet/.test(e.message) && /\{ arriere: true \}/.test(e.message));
+  }
+});
+
+test("deux rebroussements de suite sont refusés (rebroussement vide) ; un segment entre eux suffit", () => {
+  assert.throws(() => trajet(0, 0, 0).droit(5).inverser().inverser(), /rebroussement vide/);
+  assert.doesNotThrow(() => trajet(0, 0, 0).droit(5).inverser().droit(0.5).inverser().droit(1).fin());
+});
+
+test("un trajet qui finit sur un rebroussement est refusé : aucun segment ne le parcourt", () => {
+  assert.throws(() => trajet(0, 0, 0).droit(5).inverser().fin(), /finit sur un rebroussement/);
+});
+
+test("l'option arriere attend un booléen", () => {
+  for (const valeur of ["oui", 1, null]) {
+    assert.throws(() => trajet(0, 0, 0, { arriere: valeur }), /arriere.*booléen/, `arriere = ${String(valeur)}`);
+  }
+  assert.equal(pointA(trajet(0, 0, 0, {}).droit(1).fin(), 0).arriere, false);
+  assert.equal(pointA(trajet(0, 0, 0, { arriere: false }).droit(1).fin(), 0).arriere, false);
+});
+
+test("une option de segment arriere est refusée : la marche se règle au départ et par inverser()", () => {
+  for (const [nom, poserSegment] of [
+    ["droit", (t) => t.droit(3, { arriere: true })],
+    ["virage", (t) => t.virage(5, 90, { arriere: false })],
+    ["decaler", (t) => t.decaler(1, 10, { arriere: true })],
+  ]) {
+    assert.throws(() => poserSegment(trajet(0, 0, 0)),
+      (e) => /segment/.test(e.message) && /arriere/.test(e.message) && /inverser/.test(e.message), nom);
+  }
+});
+
+test("courbureA reste dans le repère de marche : un recul où la tortue tourne à gauche a une courbure négative", () => {
+  const ch = trajet(0, 0, -90).droit(1).inverser().virage(5, -90).fin();
+  assert.equal(courbureA(ch, 0.5), 0);
+  assert.equal(courbureA(ch, 3), -1 / 5);
+  // Le même arc parcouru en marche avant a la même courbure.
+  assert.equal(courbureA(trajet(0, -1, 90).virage(5, -90).fin(), 2), -1 / 5);
+});
+
+test("emprise et avant suivent la caisse : en recul, l'avant reste du côté opposé au déplacement", () => {
+  const ch = trajet(0, 0, 0).droit(5).inverser().droit(3).fin();
+  const p = pointA(ch, 6);   // recule vers -x, en x = 4 ; caisse vers +x
+  assert.deepEqual(emprise("voiture", p).map(([x, y]) => [Math.round(x * 100) / 100, Math.round(y * 100) / 100]),
+    [[6.25, -0.9], [6.25, 0.9], [1.75, 0.9], [1.75, -0.9]]);
+  const f = avant("voiture", p);
+  proche(f.x, 6.25, 1e-9); proche(f.y, 0, 1e-9);
+});
+
+test("etatActeur rend aussi le cap de marche ; un acteur fixe est en marche avant", () => {
+  const chemin = trajet(0, 0, 0).droit(5).inverser().droit(3).fin();
+  const profil = [{ s: 0, kmh: 0 }, { s: 2.5, kmh: 5 }, { s: 5, kmh: 0, pause: 1 }, { s: 6.5, kmh: 4 }, { s: 8, kmh: 0 }];
+  const acteur = { id: "v", role: "eleve", gabarit: "voiture", chemin, profil, chrono: chronologie(chemin, profil) };
+  const tRebroussement = tempsAtteint(acteur.chrono, 5);
+  const enAvant = etatActeur(acteur, tRebroussement - 0.5), enRecul = etatActeur(acteur, tRebroussement + 1.5);
+  proche(enAvant.cap, 0, 1e-12); proche(enAvant.capMarche, 0, 1e-12);
+  assert.ok(enRecul.s > 5 && enRecul.v > 0, "en mouvement, en recul");
+  proche(enRecul.cap, 0, 1e-12); proche(enRecul.capMarche, Math.PI, 1e-12);
+  const garee = etatActeur({ id: "garee", gabarit: "voiture", pose: { x: 3, y: 4, cap: 90 } }, 2);
+  assert.equal(garee.marche, "avant");
+  proche(garee.cap, Math.PI / 2, 1e-12);
+  assert.equal(garee.capMarche, garee.cap);
+});
+
+test("tournerChemin garde la marche de chaque segment et les rebroussements", () => {
+  const c = trajet(0, 0, 0).droit(5).inverser().droit(3).fin();
+  const t = tournerChemin(c, 0, 0, 90);
+  assert.deepEqual(t.segments.map((s) => s.arriere), [false, true]);
+  assert.deepEqual(t.rebroussements, [5]);
+  assert.deepEqual(rebroussements(t), [5]);
+  const p = pointA(t, 6), q = pointA(c, 6);
+  proche(p.x, 0, 1e-9); proche(p.y, 4, 1e-9);
+  // Caisse et marche tournées d'un quart de tour, sans saut d'un tour : la caisse vers le sud, la voiture recule vers
+  // le nord (3π/2, soit -π/2 à un tour près).
+  proche(p.cap, q.cap + Math.PI / 2, 1e-12); proche(p.cap, Math.PI / 2, 1e-12);
+  proche(p.capMarche, q.capMarche + Math.PI / 2, 1e-12);
+  assert.equal(p.arriere, true);
+});
+
+test("sans rebroussement, rien ne change : marche avant partout, aucun rebroussement, caps de la tortue gardés tels quels", () => {
+  // Le virage à gauche du pilote : 3 m vers le nord, décalage de 0,60 m vers la gauche sur 12 m, quart de tour à gauche
+  // de 4,1 m de rayon (centre en (-4,7 ; -15)), puis 5 m vers l'ouest. Il finit au cap -180 degrés et le garde.
+  const ch = trajet(0, 0, -90).droit(3).decaler(-0.6, 12).virage(4.1, -90).droit(5).fin();
+  assert.ok(ch.segments.every((seg) => seg.arriere === false));
+  assert.deepEqual(ch.rebroussements, []);
+  assert.deepEqual(rebroussements(ch), []);
+  const arc = ch.segments.find((seg) => seg.type === "arc" && !seg.decalage);
+  const milieu = pointA(ch, arc.debut + arc.longueur / 2);
+  proche(milieu.x, -4.7 + 4.1 * Math.SQRT1_2, 1e-9); proche(milieu.y, -15 - 4.1 * Math.SQRT1_2, 1e-9);
+  proche(milieu.cap, -3 * Math.PI / 4, 1e-9);
+  const fin = pointA(ch, ch.longueur);
+  proche(fin.x, -9.7, 1e-9); proche(fin.y, -19.1, 1e-9);
+  const der = ch.segments[ch.segments.length - 1];
+  assert.equal(fin.cap, pointSurSegment(der, der.longueur).cap);
+  proche(fin.cap, -Math.PI, 1e-12);
+});
+
+// ===== Clignotant pendant un arrêt : départ d'une abscisse, allumage daté =====
+//
+// Trajet des essais : 100 m vers l'est. Profil : 10 m/s jusqu'à s = 40 m (t = 4 s), freinage jusqu'à l'arrêt en s = 50 m
+// (t = 6 s), arrêt, puis reprise jusqu'à 10 m/s en s = 60 m (2 s) et 10 m/s jusqu'au bout.
+const ARRET_EN_50 = (pause) => [{ s: 0, kmh: 36 }, { s: 40, kmh: 36 }, { s: 50, kmh: 0, pause }, { s: 60, kmh: 36 }, { s: 100, kmh: 36 }];
+
+test("tempsDepart : dernier instant passé à une abscisse, la fin de l'attente s'il y en a une, sinon tempsAtteint au bit près", () => {
+  const c = trajet(0, 0, 0).droit(100).fin();
+  const ch = chronologie(c, ARRET_EN_50(3));
+  proche(tempsAtteint(ch, 50), 6, 1e-9);
+  proche(tempsDepart(ch, 50), 9, 1e-9);
+  // Au micron près : un début d'arc calculé un demi-micron avant le point d'arrêt du profil (arrondis flottants) part
+  // bien à la fin de l'arrêt, et non à l'arrivée.
+  proche(tempsDepart(ch, 50 - 5e-7), 9, 1e-9);
+  // Sans attente : la valeur de tempsAtteint, au bit près (départ, entre deux échantillons, point du profil sans pause et
+  // un demi-micron plus loin, pendant la reprise, arrivée).
+  for (const s of [0, 12.34, 40, 40 + 5e-7, 55, 100]) assert.equal(tempsDepart(ch, s), tempsAtteint(ch, s), `s = ${s}`);
+  // Départ retardé : l'acteur attend en s = 0 jusqu'à son départ (t = 4 s).
+  const retarde = chronologie(c, [{ s: 0, kmh: 0 }, { s: 10, kmh: 36 }, { s: 100, kmh: 36 }], { depart: 4 });
+  assert.equal(tempsAtteint(retarde, 0), 0);
+  assert.equal(tempsDepart(retarde, 0), 4);
+  // Arrêt de 2 s en s = 0, au début du profil.
+  assert.equal(tempsDepart(chronologie(c, [{ s: 0, kmh: 0, pause: 2 }, { s: 10, kmh: 36 }, { s: 100, kmh: 36 }]), 0), 2);
+});
+
+test("etatActeur : un clignotant à délai s'allume à tempsAtteint(de) + delai et tient jusqu'au passage de a ; clignotantDepuis vaut cet allumage", () => {
+  // Arrêt en s = 50 de t = 6 s à t = 10 s, puis s = 60 à t = 12 s et s = 70 à t = 13 s. Le clignotant droit s'allume
+  // 1,5 s après l'arrivée à l'arrêt, à t = 7,5 s.
+  const c = trajet(0, 0, 0).droit(100).fin();
+  const sc = preparerScene({
+    code: "essai",
+    acteurs: [{ id: "eleve", role: "eleve", gabarit: "voiture", chemin: c, profil: ARRET_EN_50(4),
+      clignotant: [{ cote: "droite", de: 50, a: 70, delai: 1.5 }] }],
+    etapes: [{ s: 0 }],
+  });
+  const eleve = sc.acteurs[0];
+  for (const t of [5, 6, 7.4]) assert.equal(etatActeur(eleve, t).clignotant, null, `t = ${t} s`);
+  for (const t of [7.5, 9, 11, 12.9]) {
+    const e = etatActeur(eleve, t);
+    assert.equal(e.clignotant, "droite", `t = ${t} s`);
+    proche(e.clignotantDepuis, 7.5);
+  }
+  // En s = 75, l'abscisse a = 70 est passée.
+  assert.equal(etatActeur(eleve, 13.5).clignotant, null);
+  assert.equal(etatActeur(eleve, 13.5).clignotantDepuis, null);
+});
+
+test("etatActeur : allumé pendant un arrêt, un clignotant à délai remplace celui qui finit à cet arrêt ; sans délai, rien ne change", () => {
+  const c = trajet(0, 0, 0).droit(100).fin();
+  // [côté, instant d'allumage arrondi au millionième] à t = 5 s (freinage, s = 47,5), 7 s et 8 s (arrêt en s = 50),
+  // 9,9 s (arrêt), 11 s (reprise, s = 52,5).
+  const cotes = (clignotant) => {
+    const sc = preparerScene({ code: "essai", etapes: [{ s: 0 }],
+      acteurs: [{ id: "eleve", role: "eleve", gabarit: "voiture", chemin: c, profil: ARRET_EN_50(4), clignotant }] });
+    return [5, 7, 8, 9.9, 11].map((t) => {
+      const e = etatActeur(sc.acteurs[0], t);
+      return [e.clignotant, e.clignotantDepuis === null ? null : Math.round(e.clignotantDepuis * 1e6) / 1e6];
+    });
+  };
+  // Le gauche, allumé en s = 20 (t = 2 s), finit à l'arrêt (a = 50) ; le droit s'allume 1,5 s après l'arrivée
+  // (t = 7,5 s) et le remplace (le dernier allumé l'emporte), dans quelque ordre qu'on les donne.
+  const gauche = { cote: "gauche", de: 20, a: 50 }, droit = { cote: "droite", de: 50, a: 70, delai: 1.5 };
+  const attendu = [["gauche", 2], ["gauche", 2], ["droite", 7.5], ["droite", 7.5], ["droite", 7.5]];
+  assert.deepEqual(cotes([gauche, droit]), attendu);
+  assert.deepEqual(cotes([droit, gauche]), attendu);
+  // Deux allumages datés (le gauche avec un délai nul) : le dernier allumé l'emporte de même.
+  assert.deepEqual(cotes([{ ...gauche, delai: 0 }, droit]), attendu);
+  // Sans délai, la règle d'avant : le droit s'allumerait à l'arrivée (t = 6 s), mais le premier intervalle qui contient
+  // l'abscisse l'emporte, et le gauche tient tout l'arrêt.
+  assert.deepEqual(cotes([gauche, { cote: "droite", de: 50, a: 70 }]),
+    [["gauche", 2], ["gauche", 2], ["gauche", 2], ["gauche", 2], ["droite", 6]]);
+});
+
+// Délais refusés et leur affichage dans le message de la garde : un nombre tel quel, tout le reste avec son type (la
+// chaîne "2" ne doit pas se lire comme le nombre 2).
+const DELAIS_REFUSES = [[-1, "« -1 »"], [NaN, "« NaN »"], [Infinity, "« Infinity »"], ["2", '« "2" » (chaîne)'],
+  [null, "« null » (valeur nulle)"], [true, "« true » (booléen)"]];
+
+test("preparerScene : un délai de clignotant doit être un nombre fini de secondes, positif ou nul", () => {
+  const c = trajet(0, 0, 0).droit(100).fin();
+  const scene = (delai) => ({
+    code: "essai",
+    acteurs: [{ id: "eleve", role: "eleve", gabarit: "voiture", chemin: c, profil: [{ s: 0, kmh: 36 }, { s: 100, kmh: 36 }],
+      clignotant: [{ cote: "droite", de: 10, a: 20, delai }] }],
+    etapes: [{ s: 0 }],
+  });
+  for (const [delai, affiche] of DELAIS_REFUSES) {
+    assert.throws(() => preparerScene(scene(delai)), { message: "scène essai : acteur « eleve » : délai de clignotant "
+      + `${affiche} invalide (nombre fini de secondes, positif ou nul, attendu)` }, `delai = ${String(delai)}`);
+  }
+  for (const delai of [undefined, 0, 2.5]) assert.doesNotThrow(() => preparerScene(scene(delai)), `delai = ${String(delai)}`);
+});
+
+// ===== Extinction datée =====
+
+// Côtés du clignotant aux instants donnés, sur 100 m vers l'est avec le profil donné.
+function cotesAux(profil, clignotant, instants) {
+  const sc = preparerScene({ code: "essai", etapes: [{ s: 0 }],
+    acteurs: [{ id: "eleve", role: "eleve", gabarit: "voiture", chemin: trajet(0, 0, 0).droit(100).fin(), profil, clignotant }] });
+  return instants.map((t) => etatActeur(sc.acteurs[0], t).clignotant);
+}
+
+test("etatActeur : un clignotant à delaiFin s'éteint à tempsAtteint(a) + delaiFin, même arrêté en a ; delaiFin: 0, dès après l'arrivée", () => {
+  // ARRET_EN_50(4) : arrivée en s = 50 à t = 6 s, départ à t = 10 s ; le gauche s'allume en s = 20 (t = 2 s).
+  const instants = [5, 6, 6.5, 6.9, 7.1, 9, 11];
+  const avec = (fin) => cotesAux(ARRET_EN_50(4), [{ cote: "gauche", de: 20, a: 50, ...fin }], instants);
+  // Sans delaiFin, rien ne change : allumé tout l'arrêt (l'abscisse reste en a), éteint une fois a passé.
+  assert.deepEqual(avec({}), ["gauche", "gauche", "gauche", "gauche", "gauche", "gauche", null]);
+  // delaiFin: 0 : allumé jusqu'à l'arrivée comprise (t = 6 s), éteint dès après, l'élève toujours arrêté.
+  assert.deepEqual(avec({ delaiFin: 0 }), ["gauche", "gauche", null, null, null, null, null]);
+  // delaiFin: 1 : éteint 1 s après l'arrivée.
+  assert.deepEqual(avec({ delaiFin: 1 }), ["gauche", "gauche", "gauche", "gauche", null, null, null]);
+  // En roulant à 10 m/s, a = 20 est atteint à t = 2 s : sans delaiFin, éteint une fois a passé ; avec delaiFin: 0,5,
+  // allumé jusqu'à t = 2,5 s, a pourtant passé.
+  const roule = [{ s: 0, kmh: 36 }, { s: 100, kmh: 36 }];
+  assert.deepEqual(cotesAux(roule, [{ cote: "droite", de: 10, a: 20 }], [1.5, 2, 2.4, 2.6]), ["droite", "droite", null, null]);
+  assert.deepEqual(cotesAux(roule, [{ cote: "droite", de: 10, a: 20, delaiFin: 0.5 }], [1.5, 2, 2.4, 2.6]),
+    ["droite", "droite", "droite", null]);
+});
+
+test("etatActeur : éteint dès l'arrivée (delaiFin: 0), le clignotant d'une marche laisse l'arrêt sans clignotant jusqu'à l'allumage daté du suivant", () => {
+  const gauche = { cote: "gauche", de: 20, a: 50, delaiFin: 0 }, droit = { cote: "droite", de: 50, a: 70, delai: 1.5 };
+  const instants = [5, 6, 7, 7.4, 7.5, 9, 11];
+  const attendu = ["gauche", "gauche", null, null, "droite", "droite", "droite"];
+  assert.deepEqual(cotesAux(ARRET_EN_50(4), [gauche, droit], instants), attendu);
+  assert.deepEqual(cotesAux(ARRET_EN_50(4), [droit, gauche], instants), attendu);
+  // Sans delaiFin, la préséance d'avant : le gauche brille jusqu'à ce que le droit le remplace.
+  assert.deepEqual(cotesAux(ARRET_EN_50(4), [{ cote: "gauche", de: 20, a: 50 }, droit], instants),
+    ["gauche", "gauche", "gauche", "gauche", "droite", "droite", "droite"]);
+});
+
+test("preparerScene : un délai de fin de clignotant doit être un nombre fini de secondes, positif ou nul", () => {
+  const c = trajet(0, 0, 0).droit(100).fin();
+  const scene = (delaiFin) => ({
+    code: "essai",
+    acteurs: [{ id: "eleve", role: "eleve", gabarit: "voiture", chemin: c, profil: [{ s: 0, kmh: 36 }, { s: 100, kmh: 36 }],
+      clignotant: [{ cote: "droite", de: 10, a: 20, delaiFin }] }],
+    etapes: [{ s: 0 }],
+  });
+  for (const [delaiFin, affiche] of DELAIS_REFUSES) {
+    assert.throws(() => preparerScene(scene(delaiFin)), { message: "scène essai : acteur « eleve » : délai de fin de clignotant "
+      + `${affiche} invalide (nombre fini de secondes, positif ou nul, attendu)` }, `delaiFin = ${String(delaiFin)}`);
+  }
+  for (const delaiFin of [undefined, 0, 2.5]) assert.doesNotThrow(() => preparerScene(scene(delaiFin)), `delaiFin = ${String(delaiFin)}`);
+});
+
+// ===== Braquage autour de l'essieu arrière (option essieu du trajet) =====
+//
+// Une vraie voiture pivote autour de son essieu arrière (ses roues arrière ne sont pas directrices) : avec l'option
+// essieu, le trajet est celui du milieu de l'essieu arrière, et pointA rend le centre de la voiture, `essieu` m devant
+// lui le long de la caisse. Les attendus sont calculés à la main, ici, avec d = 1,45 m (essieu d'une voiture) et le rayon
+// de l'essieu qui met le centre de la voiture à 4,1 m du centre de rotation.
+const D_ESSIEU = 1.45;
+const R_ESSIEU = Math.sqrt(4.1 ** 2 - D_ESSIEU ** 2);   // 3,835 m
+
+test("essieu : GABARITS.voiture.essieu vaut 1,45 m, soit un porte-à-faux arrière de 0,80 m sur 4,5 m de long", () => {
+  assert.equal(GABARITS.voiture.essieu, 1.45);
+  proche(GABARITS.voiture.longueur / 2 - GABARITS.voiture.essieu, 0.8, 1e-12);
+  assert.equal(GABARITS.pieton.essieu, undefined, "un piéton n'a pas d'essieu");
+});
+
+test("essieu, ligne droite : le centre de la voiture part de (x, y) et suit la ligne ; le trajet est celui de l'essieu, 1,45 m derrière", () => {
+  const ch = trajet(10, 20, -90, { essieu: 1.45 }).droit(5).fin();
+  const p0 = pointA(ch, 0), p5 = pointA(ch, 5);
+  proche(p0.x, 10, 1e-12); proche(p0.y, 20, 1e-12); proche(p0.cap, -90 * DEG, 1e-12);
+  proche(p5.x, 10, 1e-12); proche(p5.y, 15, 1e-12); proche(p5.cap, -90 * DEG, 1e-12);
+  proche(p5.capMarche, -90 * DEG, 1e-12);
+  // L'essieu est 1,45 m derrière le centre, au sud (y croît vers le bas).
+  const [seg] = ch.segments;
+  proche(seg.x0, 10, 1e-12); proche(seg.y0, 21.45, 1e-12);
+  assert.equal(seg.essieu, 1.45);
+  // Départ oblique, au cap 30 : l'essieu part de (1 - 1,45 cos 30 ; 2 - 1,45 sin 30), le centre de (1 ; 2).
+  const oblique = trajet(1, 2, 30, { essieu: 1.45 }).droit(4).fin(), a = 30 * DEG;
+  proche(oblique.segments[0].x0, 1 - 1.45 * Math.cos(a), 1e-12); proche(oblique.segments[0].y0, 2 - 1.45 * Math.sin(a), 1e-12);
+  const q0 = pointA(oblique, 0), q4 = pointA(oblique, 4);
+  proche(q0.x, 1, 1e-12); proche(q0.y, 2, 1e-12);
+  proche(q4.x, 1 + 4 * Math.cos(a), 1e-12); proche(q4.y, 2 + 4 * Math.sin(a), 1e-12); proche(q4.cap, a, 1e-12);
+});
+
+test("essieu, quart de virage à gauche depuis le nord : l'essieu tourne autour du centre de rotation, le centre de la voiture à √(R² + d²) de lui", () => {
+  const x0 = 3, y0 = 40, d = D_ESSIEU, R = R_ESSIEU;
+  const ch = trajet(x0, y0, -90, { essieu: d }).virage(R, -90).fin();
+  const [seg] = ch.segments;
+  // L'essieu part de (x0 ; y0 + d) ; le centre de rotation est à R à sa gauche, à l'ouest : (x0 - R ; y0 + d).
+  proche(seg.x0, x0, 1e-12); proche(seg.y0, y0 + d, 1e-12);
+  const c = centreArc(seg);
+  proche(c.x, x0 - R, 1e-12); proche(c.y, y0 + d, 1e-12);
+  // À la fin, cap -180 (ouest) : essieu en (x0 - R ; y0 + d - R), centre de la voiture d plus à l'ouest.
+  const essieuFin = pointSurSegment(seg, seg.longueur), fin = pointA(ch, ch.longueur);
+  proche(essieuFin.x, x0 - R, 1e-9); proche(essieuFin.y, y0 + d - R, 1e-9);
+  proche(fin.cap, -180 * DEG, 1e-12);
+  proche(fin.x, x0 - R - d, 1e-9); proche(fin.y, y0 + d - R, 1e-9);
+  // Après avoir tourné de 30 degrés : essieu en (x0 - R + R cos 30 ; y0 + d - R sin 30), caisse au cap -120, centre de la
+  // voiture d devant l'essieu le long de la caisse.
+  const a = 30 * DEG, p30 = pointA(ch, R * a);
+  proche(p30.cap, -120 * DEG, 1e-12);
+  proche(p30.x, x0 - R + R * Math.cos(a) - d * Math.sin(a), 1e-9);
+  proche(p30.y, y0 + d - R * Math.sin(a) - d * Math.cos(a), 1e-9);
+  // Partout, le centre de la voiture est à √(R² + d²) = 4,1 m du centre de rotation ; la courbure reste celle du trajet.
+  for (const f of [0, 0.1, 0.25, 0.5, 0.75, 0.9, 1]) {
+    const p = pointA(ch, f * ch.longueur);
+    proche(Math.hypot(p.x - (x0 - R), p.y - (y0 + d)), Math.sqrt(R * R + d * d), 1e-9);
+    proche(Math.hypot(p.x - (x0 - R), p.y - (y0 + d)), 4.1, 1e-9);
+  }
+  proche(courbureA(ch, 1), -1 / R, 1e-12);
+});
+
+test("essieu : en virage à gauche pris depuis une ligne droite, le coin arrière droit ne déborde de son flanc que de 0,067 m, au lieu de 0,483 m en pivotant au centre", () => {
+  const { longueur: L, largeur: W } = GABARITS.voiture;
+  // Voiture vers le nord, flanc droit en x = 0 au départ : 2 m tout droit, quart de virage à gauche, 2 m tout droit.
+  // Déport : plus grand x atteint par le coin arrière droit (le quatrième sommet de l'emprise, [-L/2, W/2]), relevé tous
+  // les demi-millimètres du trajet.
+  const deport = (R, d) => {
+    const ch = trajet(-W / 2, 0, -90, { essieu: d }).droit(2).virage(R, -90).droit(2).fin();
+    let max = -Infinity;
+    for (let k = 0; k * 0.0005 <= ch.longueur; k++) max = Math.max(max, emprise("voiture", pointA(ch, k * 0.0005))[2][0]);
+    return max;
+  };
+  // Avec l'option : le coin, à √((R + W/2)² + p²) du centre de rotation (p = L/2 - d, porte-à-faux arrière), passe au
+  // plus loin à l'est de ce centre, qui est à R + W/2 à l'ouest de la ligne du flanc.
+  const p = L / 2 - D_ESSIEU, avecEssieu = deport(R_ESSIEU, D_ESSIEU);
+  proche(avecEssieu, Math.sqrt((R_ESSIEU + W / 2) ** 2 + p ** 2) - (R_ESSIEU + W / 2), 1e-3);
+  proche(avecEssieu, 0.067, 1e-3);
+  // Sans l'option (pivot au centre, rayon de 4,1 m) : le coin est à √((4,1 + W/2)² + (L/2)²) du centre de rotation.
+  const sansEssieu = deport(4.1, 0);
+  proche(sansEssieu, Math.sqrt((4.1 + W / 2) ** 2 + (L / 2) ** 2) - (4.1 + W / 2), 1e-3);
+  proche(sansEssieu, 0.483, 1e-3);
+});
+
+test("essieu : au rebroussement, le centre de la voiture ne saute pas et la caisse ne pivote pas ; le recul volant à gauche suit l'essieu", () => {
+  const d = D_ESSIEU, R = R_ESSIEU;
+  const ch = trajet(5, 30, -90, { essieu: d }).droit(2).inverser().virage(R, 90).fin();
+  assert.deepEqual(rebroussements(ch), [2]);
+  const juste = pointA(ch, 2 - 1e-12), sur = pointA(ch, 2);
+  assert.equal(juste.arriere, false);
+  assert.equal(sur.arriere, true);
+  proche(sur.x, 5, 1e-9); proche(sur.y, 28, 1e-9);
+  proche(juste.x, sur.x, 1e-9); proche(juste.y, sur.y, 1e-9);
+  proche(juste.cap, -90 * DEG, 1e-12); proche(sur.cap, -90 * DEG, 1e-12);
+  // Recul volant à gauche (la tortue, vers le sud, tourne à droite) : centre de rotation à l'ouest de l'essieu, en
+  // (5 - R ; 29,45) ; l'essieu finit au sud de ce centre, en (5 - R ; 29,45 + R), caisse vers l'est, centre de la voiture
+  // d plus à l'est.
+  const fin = pointA(ch, ch.longueur);
+  proche(fin.cap, 0, 1e-12); proche(fin.capMarche, Math.PI, 1e-12);
+  proche(fin.x, 5 - R + d, 1e-9); proche(fin.y, 29.45 + R, 1e-9);
+});
+
+test("essieu, départ en marche arrière : le centre part de (x, y), caisse vers le nord, l'essieu derrière lui au sud", () => {
+  const x = -4, y = 12, d = D_ESSIEU;
+  const ch = trajet(x, y, 90, { arriere: true, essieu: d }).droit(4).fin();
+  const p0 = pointA(ch, 0), p4 = pointA(ch, 4);
+  proche(p0.x, x, 1e-12); proche(p0.y, y, 1e-12); proche(p0.cap, -90 * DEG, 1e-12);
+  proche(p4.x, x, 1e-12); proche(p4.y, y + 4, 1e-12); proche(p4.cap, -90 * DEG, 1e-12);
+  proche(ch.segments[0].x0, x, 1e-12); proche(ch.segments[0].y0, y + d, 1e-12);
+});
+
+test("essieu : le centre de la voiture et la caisse sont continus à chaque raccord (droites, virages, décalage), de part et d'autre", () => {
+  const ch = trajet(2, 50, -90, { essieu: D_ESSIEU }).droit(3).virage(R_ESSIEU, -60).droit(3).virage(R_ESSIEU, 45)
+    .decaler(1, 6).droit(2).fin();
+  assert.equal(ch.segments.length, 7);
+  for (const seg of ch.segments.slice(1)) {
+    const avantRaccord = pointA(ch, seg.debut - 1e-12), apresRaccord = pointA(ch, seg.debut + 1e-12);
+    for (const k of ["x", "y", "cap"]) {
+      assert.ok(Math.abs(avantRaccord[k] - apresRaccord[k]) < 1e-9,
+        `${k} saute de ${apresRaccord[k] - avantRaccord[k]} au raccord s = ${seg.debut.toFixed(3)} m`);
+    }
+  }
+});
+
+test("essieu : etatActeur rend la position de pointA à l'abscisse atteinte, départ compris", () => {
+  const chemin = trajet(20, 30, -90, { essieu: D_ESSIEU }).virage(R_ESSIEU, -60).inverser().virage(R_ESSIEU, -30).fin();
+  const [r] = rebroussements(chemin);
+  const profil = [{ s: 0, kmh: 0, pause: 1 }, { s: 1, kmh: 5 }, { s: r, kmh: 0, pause: 2 }, { s: r + 0.5, kmh: 4 },
+    { s: chemin.longueur, kmh: 0 }];
+  const sc = preparerScene({ code: "essai", etapes: [{ s: 0 }],
+    acteurs: [{ id: "eleve", role: "eleve", gabarit: "voiture", chemin, profil }] });
+  const eleve = sc.acteurs[0];
+  for (let t = 0; t <= sc.duree + 1e-9; t += 0.25) {
+    const e = etatActeur(eleve, t), p = pointA(chemin, e.s);
+    assert.deepEqual([e.x, e.y, e.cap, e.capMarche], [p.x, p.y, p.cap, p.capMarche], `t = ${t} s`);
+  }
+  const e0 = etatActeur(eleve, 0);
+  proche(e0.x, 20, 1e-12); proche(e0.y, 30, 1e-12);
+});
+
+test("essieu : un trajet tourné garde l'essieu de ses segments, et son centre est le centre tourné", () => {
+  const c = trajet(3, 4, -90, { essieu: D_ESSIEU }).droit(2).virage(R_ESSIEU, -70).fin();
+  const t = tournerChemin(c, 1, -2, 90);
+  for (const s of [0, 1.5, 3, c.longueur]) {
+    const p = pointA(c, s), q = pointA(t, s), [x, y] = tournerPoint([p.x, p.y], 1, -2, 90);
+    proche(q.x, x, 1e-9); proche(q.y, y, 1e-9); proche(q.cap, p.cap + 90 * DEG, 1e-12);
+  }
+});
+
+test("essieu par défaut (0) : rien ne change, ni les segments ni les points, et un 0 explicite donne le même trajet", () => {
+  const poser = (t) => t.droit(3).decaler(-0.6, 12).virage(4.1, -90).inverser().virage(5, 40).fin();
+  const defaut = poser(trajet(1, 2, -90)), zero = poser(trajet(1, 2, -90, { essieu: 0 }));
+  assert.ok(defaut.segments.every((seg) => !("essieu" in seg)), "aucun segment ne porte d'essieu");
+  assert.deepEqual(zero, defaut);
+  // Le point du trajet est le centre de la voiture : pointA rend exactement le point du segment.
+  for (let s = 0; s <= defaut.longueur; s += 0.37) {
+    const p = pointA(defaut, s);
+    const seg = defaut.segments.findLast((x) => x.debut <= s) || defaut.segments[0];
+    const q = pointSurSegment(seg, s - seg.debut);
+    assert.equal(p.x, q.x); assert.equal(p.y, q.y);
+  }
+});
+
+test("trajet : l'option essieu attend un nombre fini de mètres, positif ou nul ; le message cite la valeur reçue", () => {
+  for (const [essieu, affiche] of DELAIS_REFUSES) {
+    assert.throws(() => trajet(0, 0, -90, { essieu }),
+      { message: `trajet : option essieu ${affiche} invalide (nombre fini de mètres, positif ou nul, attendu)` },
+      `essieu = ${String(essieu)}`);
+  }
+  assert.throws(() => trajet(0, 0, -90, { essieu: -Infinity }), { message: "trajet : option essieu « -Infinity » invalide"
+    + " (nombre fini de mètres, positif ou nul, attendu)" });
+  for (const essieu of [undefined, 0, 1.45]) assert.doesNotThrow(() => trajet(0, 0, -90, { essieu }).droit(1).fin(), `essieu = ${String(essieu)}`);
+});
+
+test("une option de segment essieu est refusée : l'essieu se règle au départ du trajet", () => {
+  for (const [nom, poserSegment] of [
+    ["droit", (t) => t.droit(3, { essieu: 1.45 })],
+    ["virage", (t) => t.virage(5, 90, { essieu: 0 })],
+    ["decaler", (t) => t.decaler(1, 10, { essieu: 1.45 })],
+  ]) {
+    assert.throws(() => poserSegment(trajet(0, 0, 0)),
+      (e) => /segment/.test(e.message) && /essieu/.test(e.message) && /au départ/.test(e.message), nom);
+  }
 });

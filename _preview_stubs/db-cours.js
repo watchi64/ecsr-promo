@@ -178,9 +178,14 @@ export function _simulerModifConcurrente(numero) {
   const c = magasin.find((x) => x.numero === Number(numero));
   if (c) { c.updated_by = "Hocine"; c.updated_at = new Date().toISOString(); }
 }
-// Cours du pilote, copiés depuis cours_competences/ du dépôt ECSR (dossier non versionné).
+// Cours de compétences (pilote et lot C1), copiés depuis cours_competences/ du dépôt ECSR (dossier non versionné).
 // Absents, le banc garde ses cours d'essai ; présents, ils remplacent ceux de même code.
-for (const [code, fichier] of [["C2", "c2.md"], ["C2.4", "c2-4.md"], ["C2.6", "c2-6.md"]]) {
+const COURS_COMPETENCES = [
+  ["C1", "c1.md"], ["C1.1", "c1-1.md"], ["C1.2", "c1-2.md"], ["C1.3", "c1-3.md"], ["C1.4", "c1-4.md"],
+  ["C1.5", "c1-5.md"], ["C1.6", "c1-6.md"], ["C1.7", "c1-7.md"], ["C1.8", "c1-8.md"], ["C1.9", "c1-9.md"],
+  ["C2", "c2.md"], ["C2.4", "c2-4.md"], ["C2.6", "c2-6.md"]
+];
+for (const [code, fichier] of COURS_COMPETENCES) {
   try {
     const rep = await fetch(new URL("./cours-pilote/" + fichier, import.meta.url));
     if (!rep.ok) continue;

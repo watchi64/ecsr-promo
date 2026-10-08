@@ -10,20 +10,46 @@
  * Repère de l'écran : x vers la droite, y vers le BAS. Un cap se mesure depuis
  * +x et croît dans le sens des aiguilles d'une montre à l'écran : tourner à
  * droite fait croître le cap, tourner à gauche le fait décroître.
+ *
+ * Caisse et marche : un trajet décrit le sens de déplacement, et son cap est le
+ * cap de marche. La caisse (l'avant de la voiture) regarde dans ce sens en marche
+ * avant, à l'opposé en marche arrière. pointA et etatActeur rendent les deux :
+ * `cap`, celui de la caisse (dessin, emprise, avant, regard), et `capMarche`,
+ * celui du déplacement. Un rebroussement inverse la marche sans faire pivoter la
+ * caisse : son cap ne change pas, pas même d'un tour.
+ *
+ * Essieu : par défaut, le point du trajet est le centre de la voiture, qui pivote
+ * donc autour de son centre en virage. Avec l'option `essieu` de trajet (pour une
+ * voiture, GABARITS.voiture.essieu), le point du trajet est le milieu de l'essieu
+ * arrière, autour duquel pivote une vraie voiture (ses roues arrière ne sont pas
+ * directrices : le centre de rotation est sur la droite de l'essieu arrière).
+ * pointA et etatActeur rendent toujours le centre de la voiture, `essieu` m devant
+ * ce point le long de la caisse : l'emprise, l'avant, le regard, les repères, les
+ * cadres et le dessin le reçoivent sans rien changer de leur côté. Ce qui se lit
+ * sur le trajet reste au point du trajet : `capMarche` est le sens de son
+ * déplacement, et les abscisses (profil de vitesse, donc vitesse, clignotants
+ * `de` et `a`, étapes `s`, rebroussements) comme la courbure sont les siennes.
  */
 
 export const DEG = Math.PI / 180;
 export const KMH = 1 / 3.6;
 
-/** Gabarits réels, en mètres. */
+/** Gabarits réels, en mètres. `essieu` (voiture) : distance du centre de la voiture au milieu de son essieu arrière, le
+ *  long de la caisse, pour l'option essieu de trajet. */
 export const GABARITS = {
-  voiture: { longueur: 4.5, largeur: 1.8 },
+  // essieu : 1,45 m, soit un porte-à-faux arrière de 0,80 m (2,25 - 1,45) sur 4,5 m de long, l'ordre de grandeur d'une
+  // compacte (par exemple 0,8 m de porte-à-faux arrière et 2,7 m d'empattement pour 4,4 à 4,5 m de long).
+  voiture: { longueur: 4.5, largeur: 1.8, essieu: 1.45 },
   pieton: { longueur: 0.5, largeur: 0.5 },
 };
 
 // ===== Segments et trajets =====
 
-/** Point et cap atteints après `s` mètres sur un segment (droite ou arc). */
+// Un segment est parcouru en marche arrière s'il le dit ; un segment qui ne porte pas `arriere` est en marche avant.
+const enMarcheArriere = (seg) => seg.arriere === true;
+
+/** Point et cap atteints après `s` mètres sur un segment (droite ou arc). Le cap est celui de la marche (sens de
+ *  déplacement), quelle que soit la marche du segment : le cap de la caisse, c'est pointA qui le rend. */
 export function pointSurSegment(seg, s) {
   if (seg.type === "droite") {
     return { x: seg.x0 + Math.cos(seg.cap) * s, y: seg.y0 + Math.sin(seg.cap) * s, cap: seg.cap };
@@ -42,12 +68,70 @@ export function centreArc(seg) {
 
 /**
  * Trajet « à la tortue » : un départ, puis des lignes droites, des arcs et des
- * décalages latéraux, toujours tangents entre eux.
+ * décalages latéraux, toujours tangents entre eux. La tortue avance dans le sens
+ * de déplacement : son cap est le cap de marche, et la droite et la gauche de ses
+ * virages et de ses décalages sont celles de ce sens.
+ *
+ * Marche arrière. L'option `arriere` fait partir le trajet en marche arrière :
+ * `capDeg` est alors le sens de déplacement, et la caisse regarde à l'opposé.
+ * `inverser()` marque un rebroussement sur place : la tortue fait demi-tour et la
+ * marche s'inverse. La caisse, elle, ne pivote pas : son cap ne change pas au
+ * rebroussement, pas même d'un tour. Aucun cap n'est ramené dans un intervalle :
+ * ils suivent la rotation réelle de la voiture, continus le long du trajet.
+ * Chaque segment porte `arriere`, la marche dans laquelle il est parcouru, et
+ * `fin()` rend aussi les abscisses des rebroussements. En marche arrière, la
+ * gauche de la tortue est la droite de la caisse : un virage de la tortue à
+ * gauche se fait volant tourné à droite (l'arrière de la voiture part vers la
+ * droite de la caisse), un virage à droite volant tourné à gauche, et un décalage
+ * positif écarte la voiture vers la gauche de la caisse.
+ *
+ * Essieu. L'option `essieu` (m, nombre fini, positif ou nul, 0 par défaut) est la
+ * distance du centre de la voiture au milieu de son essieu arrière, le long de la
+ * caisse. Avec `essieu` > 0, la tortue est le milieu de l'essieu arrière : les
+ * segments (droites, virages, décalages, rebroussements) décrivent son trajet, ses
+ * rayons de virage sont les siens et `position` la rend. (x, y) reste le centre
+ * de la voiture au départ : la tortue part `essieu` m derrière lui, le long de la
+ * caisse (devant lui dans le sens du déplacement en marche arrière), et pointA(_, 0)
+ * rend (x, y). Chaque segment porte alors `essieu`, comme sa marche : un trajet
+ * transformé qui garde ses segments (tourné, raccourci) le garde. Avec `essieu` nul,
+ * rien ne change : aucun segment ne le porte.
+ *
+ * Refusés : un rebroussement en tête de trajet (partir en marche arrière se dit
+ * par l'option), deux rebroussements de suite et un trajet qui finit sur un
+ * rebroussement (chacun serait un rebroussement vide, qu'aucun segment ne
+ * parcourt), ainsi qu'une option `arriere` ou `essieu` sur un segment : la marche
+ * et l'essieu d'un segment sont ceux du trajet.
  */
-export function trajet(x, y, capDeg) {
-  const segments = [];
-  let px = x, py = y, cap = capDeg * DEG, longueur = 0;
+export function trajet(x, y, capDeg, { arriere = false, essieu = 0 } = {}) {
+  if (typeof arriere !== "boolean") {
+    throw new Error(`trajet : l'option arriere attend un booléen (reçu : ${String(arriere)})`);
+  }
+  if (!(Number.isFinite(essieu) && essieu >= 0)) {
+    throw new Error(`trajet : option essieu ${valeurRecue(essieu)} invalide (nombre fini de mètres, positif ou nul, attendu)`);
+  }
+  const segments = [], abscissesRebroussement = [];
+  let px = x, py = y, cap = capDeg * DEG, longueur = 0, marcheArriere = arriere;
+  if (essieu > 0) {
+    // La tortue part du milieu de l'essieu arrière, `essieu` m derrière le centre le long de la caisse, qui regarde à
+    // l'opposé du déplacement en marche arrière.
+    const capCaisse = arriere ? cap - Math.PI : cap;
+    px = x - essieu * Math.cos(capCaisse);
+    py = y - essieu * Math.sin(capCaisse);
+  }
+  // Nombre de segments posés au dernier rebroussement : tant qu'il n'a pas changé, aucun segment ne parcourt ce
+  // rebroussement.
+  let segmentsAuRebroussement = -1;
   function poser(seg) {
+    if ("arriere" in seg) {
+      throw new Error("trajet : option arriere refusée sur un segment : la marche se règle au départ"
+        + " (trajet(x, y, cap, { arriere: true })) et par inverser()");
+    }
+    if ("essieu" in seg) {
+      throw new Error("trajet : option essieu refusée sur un segment : l'essieu se règle au départ du trajet"
+        + " (trajet(x, y, cap, { essieu }))");
+    }
+    seg.arriere = marcheArriere;
+    if (essieu > 0) seg.essieu = essieu;
     segments.push(seg);
     const fin = pointSurSegment(seg, seg.longueur);
     px = fin.x; py = fin.y; cap = fin.cap;
@@ -65,7 +149,7 @@ export function trajet(x, y, capDeg) {
       poser({ ...options, type: "arc", x0: px, y0: py, cap, rayon, angle, longueur: rayon * Math.abs(angle), debut: longueur });
       return api;
     },
-    // Décalage latéral d (positif vers la droite) pour une avance L = `l` mesurée selon le
+    // Décalage latéral d (positif vers la droite du sens de marche) pour une avance L = `l` mesurée selon le
     // cap initial : la longueur du chemin parcouru est un peu plus grande que `l`. Deux arcs
     // opposés de même rayon ; theta = 2 atan(d / L), rayon = L / (2 sin theta).
     decaler(decalage, l, options = {}) {
@@ -77,10 +161,40 @@ export function trajet(x, y, capDeg) {
       api.virage(rayon, (-sens * theta) / DEG, { ...options, decalage: true });
       return api;
     },
+    // Rebroussement sur place, à l'abscisse atteinte : la tortue fait demi-tour, + 180 degrés en entrant en marche
+    // arrière et - 180 degrés en en sortant, et la marche s'inverse. Le cap de la caisse (pointA : le cap de marche en
+    // marche avant, le cap de marche - 180 degrés en marche arrière) est donc le même avant et après : au bit près en
+    // sortant de la marche arrière, à un arrondi flottant près en y entrant.
+    inverser() {
+      if (!segments.length) {
+        throw new Error("trajet.inverser : rebroussement en tête de trajet, sans segment avant lui"
+          + " (pour partir en marche arrière : trajet(x, y, cap, { arriere: true }))");
+      }
+      if (segmentsAuRebroussement === segments.length) {
+        throw new Error(`trajet.inverser : rebroussement vide en s = ${longueur.toFixed(2)} m,`
+          + " juste après un autre, sans segment entre eux");
+      }
+      cap += marcheArriere ? -Math.PI : Math.PI;
+      marcheArriere = !marcheArriere;
+      abscissesRebroussement.push(longueur);
+      segmentsAuRebroussement = segments.length;
+      return api;
+    },
     get longueur() { return longueur; },
+    // Position et cap de la tortue : le point du trajet (le milieu de l'essieu arrière avec l'option essieu, le centre de
+    // la voiture sinon) et le cap de marche.
     get position() { return { x: px, y: py, cap }; },
     get nbSegments() { return segments.length; },
-    fin() { return { segments: segments.slice(), longueur }; },
+    // `rebroussements` : les abscisses notées à la construction, pour lecture. Ce qui fait foi est la fonction
+    // rebroussements(chemin), qui les lit sur les segments : le champ ne suit pas toutes les transformations d'un
+    // chemin (raccourcirDebut, dans js/scenes.js, ne le recopie pas).
+    fin() {
+      if (segmentsAuRebroussement === segments.length) {
+        throw new Error(`trajet.fin : le trajet finit sur un rebroussement (s = ${longueur.toFixed(2)} m),`
+          + " qu'aucun segment ne parcourt");
+      }
+      return { segments: segments.slice(), longueur, rebroussements: abscissesRebroussement.slice() };
+    },
   };
   return api;
 }
@@ -94,16 +208,41 @@ function segmentA(chemin, s) {
   return { seg: der, d: der.longueur };
 }
 
-/** Point et cap à l'abscisse curviligne s (bornée au trajet). */
+/**
+ * Point à l'abscisse curviligne s (bornée au trajet) : { x, y, cap, capMarche, arriere }. `capMarche` est le sens de
+ * déplacement (le cap de la tortue) ; `cap` est celui de la caisse, l'avant de la voiture : le cap de marche tel quel
+ * en marche avant, le cap de marche - π en marche arrière. Jamais ramené dans un intervalle, il est continu le long du
+ * trajet, rebroussements compris : la caisse n'y pivote pas, pas même d'un tour. À l'abscisse d'un rebroussement, le
+ * point est déjà dans la marche qui suit. (x, y) est le centre de la voiture : le point du trajet lui-même, ou, sur un
+ * segment qui porte `essieu` (option essieu de trajet), ce point (le milieu de l'essieu arrière) avancé de `essieu` m
+ * le long de la caisse.
+ */
 export function pointA(chemin, s) {
   const { seg, d } = segmentA(chemin, s);
-  return pointSurSegment(seg, d);
+  const p = pointSurSegment(seg, d);
+  const arriere = enMarcheArriere(seg);
+  const cap = arriere ? p.cap - Math.PI : p.cap;
+  if (seg.essieu === undefined) return { x: p.x, y: p.y, cap, capMarche: p.cap, arriere };
+  return { x: p.x + seg.essieu * Math.cos(cap), y: p.y + seg.essieu * Math.sin(cap), cap, capMarche: p.cap, arriere };
 }
 
-/** Courbure signée à l'abscisse s : > 0 à droite, < 0 à gauche, 0 en ligne droite. */
+/** Courbure signée à l'abscisse s, dans le repère de marche : > 0 quand la tortue tourne à droite, < 0 à gauche, 0 en
+ *  ligne droite. En marche arrière, une courbure > 0 se fait volant tourné à gauche (voir trajet). C'est celle du trajet,
+ *  donc, avec l'option essieu, celle de l'essieu arrière. */
 export function courbureA(chemin, s) {
   const { seg } = segmentA(chemin, s);
   return seg.type === "arc" ? Math.sign(seg.angle) / seg.rayon : 0;
+}
+
+/** Abscisses des rebroussements, dans l'ordre : là où la marche change d'un segment au suivant. Elles se lisent sur
+ *  les segments, comme la marche de pointA : un trajet transformé qui garde ses segments (tourné, raccourci) garde ses
+ *  rebroussements, à leurs nouvelles abscisses. */
+export function rebroussements(chemin) {
+  const segs = chemin.segments, abscisses = [];
+  for (let i = 1; i < segs.length; i++) {
+    if (enMarcheArriere(segs[i]) !== enMarcheArriere(segs[i - 1])) abscisses.push(segs[i].debut);
+  }
+  return abscisses;
 }
 
 /** Rotation d'un point autour de (cx, cy) ; angle en degrés, positif dans le sens horaire à l'écran. */
@@ -113,11 +252,11 @@ export function tournerPoint([x, y], cx, cy, angleDeg) {
   return [cx + dx * c - dy * s, cy + dx * s + dy * c];
 }
 
-/** Le même trajet, tourné autour de (cx, cy). */
+/** Le même trajet, tourné autour de (cx, cy) : il garde la marche de chaque segment et ses rebroussements. */
 export function tournerChemin(chemin, cx, cy, angleDeg) {
   if (!angleDeg) return chemin;
   return {
-    longueur: chemin.longueur,
+    ...chemin,
     segments: chemin.segments.map((seg) => {
       const [x0, y0] = tournerPoint([seg.x0, seg.y0], cx, cy, angleDeg);
       return { ...seg, x0, y0, cap: seg.cap + angleDeg * DEG };
@@ -135,7 +274,8 @@ export function premiereAbscisse(chemin, critere, pas = 0.01) {
   return null;
 }
 
-/** Milieu du pare-chocs avant d'un gabarit centré au point p. */
+/** Milieu du pare-chocs avant d'un gabarit centré au point p, selon p.cap : le cap de la caisse (pointA, etatActeur),
+ *  en marche arrière comme en marche avant. */
 export function avant(gabarit, p) {
   const l = GABARITS[gabarit].longueur / 2;
   return { x: p.x + Math.cos(p.cap) * l, y: p.y + Math.sin(p.cap) * l };
@@ -226,9 +366,24 @@ export function tempsAtteint(chrono, s) {
   return e[e.length - 1].t;
 }
 
+/** Dernier instant passé à l'abscisse s (au micron près) : la fin de l'attente si l'acteur y attend (une pause du
+ *  profil, ou le départ retardé en s = 0), sinon l'instant où il l'atteint, tempsAtteint(chrono, s) lui-même. */
+export function tempsDepart(chrono, s) {
+  let premier = null, dernier = null;
+  for (const e of chrono.echantillons) {
+    if (e.s > s + 1e-6) break;
+    if (e.s >= s - 1e-6) {
+      if (premier === null) premier = e.t;
+      dernier = e.t;
+    }
+  }
+  return premier !== null && dernier > premier ? dernier : tempsAtteint(chrono, s);
+}
+
 // ===== Emprises et polygones =====
 
-/** Emprise (rectangle orienté, quatre coins) d'un gabarit centré au point p. */
+/** Emprise (rectangle orienté selon p.cap, le cap de la caisse ; quatre coins, ceux de l'avant d'abord) d'un gabarit
+ *  centré au point p. */
 export function emprise(gabarit, p) {
   const { longueur: L, largeur: W } = GABARITS[gabarit];
   const c = Math.cos(p.cap), s = Math.sin(p.cap);
@@ -317,15 +472,34 @@ export function polygonesSeChevauchent(A, B) {
 
 // ===== Scène préparée =====
 
+// Valeur reçue, telle que l'auteur d'une scène la reconnaît dans un message : entre guillemets, et avec son type quand ce
+// n'est pas un nombre (la chaîne "2" ne doit pas se lire comme le nombre 2).
+function valeurRecue(v) {
+  if (typeof v === "number") return `« ${v} »`;
+  const type = v === null ? "valeur nulle" : Array.isArray(v) ? "tableau"
+    : { string: "chaîne", boolean: "booléen", object: "objet", function: "fonction" }[typeof v] || typeof v;
+  return `« ${typeof v === "string" ? JSON.stringify(v) : String(v)} » (${type})`;
+}
+
 /**
- * Calcule les chronologies des acteurs et l'instant de chaque étape. Refuse une
- * `apparition` autre que « debut » ou « depart » (ou absente).
+ * Calcule les chronologies des acteurs et les bornes de chaque étape, `t` et `fin`. Refuse une
+ * `apparition` autre que « debut » ou « depart » (ou absente), et un `delai` ou un
+ * `delaiFin` de clignotant qui n'est pas un nombre fini de secondes, positif ou nul (voir
+ * etatActeur).
  */
 export function preparerScene(def) {
   const acteurs = def.acteurs.map((a, i) => {
+    const nom = a.id === undefined ? `n° ${i + 1}` : `« ${a.id} »`;
     if (a.apparition !== undefined && a.apparition !== "debut" && a.apparition !== "depart") {
-      const nom = a.id === undefined ? `n° ${i + 1}` : `« ${a.id} »`;
       throw new Error(`scène ${def.code} : acteur ${nom} : apparition « ${a.apparition} » inconnue (« debut » ou « depart » attendu)`);
+    }
+    for (const x of a.clignotant || []) {
+      for (const [champ, libelle] of [["delai", "délai de clignotant"], ["delaiFin", "délai de fin de clignotant"]]) {
+        if (x[champ] !== undefined && !(Number.isFinite(x[champ]) && x[champ] >= 0)) {
+          throw new Error(`scène ${def.code} : acteur ${nom} : ${libelle} ${valeurRecue(x[champ])} invalide`
+            + " (nombre fini de secondes, positif ou nul, attendu)");
+        }
+      }
     }
     return a.pose
       ? { ...a }
@@ -333,9 +507,12 @@ export function preparerScene(def) {
   });
   const eleve = acteurs.find((a) => a.role === "eleve");
   if (!eleve || !eleve.chrono) throw new Error(`scène ${def.code} : un acteur mobile de rôle « eleve » est requis`);
-  const etapes = def.etapes.map((e) => ({ ...e, t: tempsAtteint(eleve.chrono, e.s) + (e.delai || 0) }));
-  const fin = Math.max(...acteurs.filter((a) => a.chrono).map((a) => a.chrono.duree));
-  return { ...def, acteurs, eleve, etapes, duree: fin + (def.finPause ?? 1) };
+  const debuts = def.etapes.map((e) => tempsAtteint(eleve.chrono, e.s) + (e.delai || 0));
+  const duree = Math.max(...acteurs.filter((a) => a.chrono).map((a) => a.chrono.duree)) + (def.finPause ?? 1);
+  // Bornes de chaque étape : son instant `t`, et sa fin `fin`, l'instant de l'étape suivante ou, pour la dernière, la fin
+  // de la scène. Un regard qui fait le tour se règle sur elles (js/scene-regard.js).
+  const etapes = def.etapes.map((e, i) => ({ ...e, t: debuts[i], fin: i + 1 < debuts.length ? debuts[i + 1] : duree }));
+  return { ...def, acteurs, eleve, etapes, duree };
 }
 
 /**
@@ -387,10 +564,36 @@ export function sortDuCadre(acteur) {
  *   successifs ont chacun le leur, et un arrêt pendant le clignotant ne le change pas. Le
  *   rendu compte la phase du clignotement depuis cet instant (`clignotantAllume`, dans
  *   `scene-rendu.js`).
+ * - Allumage et extinction datés : un intervalle qui porte `delai` (secondes, nombre fini
+ *   positif ou nul, vérifié par preparerScene) s'allume à l'instant tempsAtteint(de) + delai,
+ *   et non à l'arrivée en `de` ; `clignotantDepuis` vaut cet instant d'allumage. Un intervalle
+ *   qui porte `delaiFin` (de même) s'éteint à l'instant tempsAtteint(a) + delaiFin, et non au
+ *   passage de `a` : même si l'acteur reste arrêté en `a`, et même s'il a déjà passé `a`.
+ *   L'instant d'extinction est encore allumé : `delaiFin: 0` éteint le clignotant dès après
+ *   l'arrivée en `a`, ce qui laisse l'arc qui finit en `a` couvert jusqu'à son bout. C'est
+ *   ainsi qu'un clignotant s'allume ou s'éteint pendant un arrêt, où l'abscisse ne bouge pas.
+ *   Sans `delai` ni `delaiFin`, rien ne change.
+ *   Disposition des étapes : le pas à pas du moteur fige l'instant exact d'une étape, et
+ *   l'étape d'arrivée à un arrêt ({ s: a }) montre donc encore ce clignotant, la fin de
+ *   l'arc. Les contrôles d'un arrêt commencent au moins un instant après l'arrivée : une
+ *   étape { s: a, delai } de délai non nul, où ce clignotant est déjà éteint.
+ * - Préséance, quand plusieurs intervalles sont allumés à la fois (allumage passé, extinction
+ *   pas encore venue) : parmi ceux qui s'allument à l'arrivée en `de` (sans `delai`), le
+ *   premier du tableau, comme toujours ; un intervalle à `delai` allumé l'emporte sur lui
+ *   s'il s'est allumé après lui, et entre intervalles à `delai`, le dernier allumé : le
+ *   commodo n'a qu'un côté, le dernier geste compte. Exemple, le clignotant d'une marche qui
+ *   finit au rebroussement (`a`) et celui de la marche suivante, allumé par `delai` pendant
+ *   l'arrêt : sans `delaiFin`, le premier brille jusqu'à ce que le second le remplace ; avec
+ *   `delaiFin: 0`, il s'éteint dès l'arrivée et rien ne brille avant le second.
+ * - Caisse et marche (pointA) : `cap` est le cap de la caisse, `capMarche` celui du
+ *   déplacement, et `marche` vaut "arriere" sur un segment parcouru en marche arrière,
+ *   "avant" sinon. Arrêté à un rebroussement, l'acteur est déjà dans la marche qui suit (la
+ *   vitesse est passée avant de repartir). Un acteur fixe est en marche avant.
  */
 export function etatActeur(acteur, t) {
   if (acteur.pose) {
-    return { x: acteur.pose.x, y: acteur.pose.y, cap: acteur.pose.cap * DEG, v: 0, a: 0, s: 0,
+    const cap = acteur.pose.cap * DEG;
+    return { x: acteur.pose.x, y: acteur.pose.y, cap, capMarche: cap, marche: "avant", v: 0, a: 0, s: 0,
       courbure: 0, visible: true, clignotant: null, clignotantDepuis: null };
   }
   const { duree } = acteur.chrono;
@@ -402,8 +605,24 @@ export function etatActeur(acteur, t) {
   // Après la fin, etatA renvoie la dernière vitesse du profil : seul l'élève la garde.
   const vitesse = !parti || (termine && acteur.role !== "eleve") ? 0 : v;
   const acceleration = parti && !termine ? a : 0;
-  const c = (acteur.clignotant || []).find((x) => s >= x.de - 1e-9 && s <= x.a + 1e-9);
-  return { x: p.x, y: p.y, cap: p.cap, v: vitesse, a: acceleration, s,
-    courbure: courbureA(acteur.chemin, s), visible, clignotant: c ? c.cote : null,
-    clignotantDepuis: c ? tempsAtteint(acteur.chrono, c.de) : null };
+  const c = clignotantEnMarche(acteur, t, s);
+  return { x: p.x, y: p.y, cap: p.cap, capMarche: p.capMarche, marche: p.arriere ? "arriere" : "avant",
+    v: vitesse, a: acceleration, s, courbure: courbureA(acteur.chemin, s), visible, clignotant: c ? c.cote : null,
+    clignotantDepuis: c ? c.depuis : null };
+}
+
+// Clignotant en marche à l'instant t, l'acteur étant à l'abscisse s : { cote, depuis } (depuis : instant d'allumage), ou
+// null. Règles dans le commentaire d'etatActeur.
+function clignotantEnMarche(acteur, t, s) {
+  const chrono = acteur.chrono, intervalles = acteur.clignotant || [];
+  // Pas encore éteint : jusqu'au passage de a, ou jusqu'à l'extinction datée, bornes comprises.
+  const pasEteint = (x) => (x.delaiFin === undefined ? s <= x.a + 1e-9 : t <= tempsAtteint(chrono, x.a) + x.delaiFin + 1e-9);
+  const sansDelai = intervalles.find((x) => x.delai === undefined && s >= x.de - 1e-9 && pasEteint(x));
+  let enMarche = sansDelai ? { cote: sansDelai.cote, depuis: tempsAtteint(chrono, sansDelai.de) } : null;
+  for (const x of intervalles) {
+    if (x.delai === undefined || !pasEteint(x)) continue;
+    const depuis = tempsAtteint(chrono, x.de) + x.delai;
+    if (t >= depuis - 1e-9 && (enMarche === null || depuis >= enMarche.depuis)) enMarche = { cote: x.cote, depuis };
+  }
+  return enMarche;
 }
