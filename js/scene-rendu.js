@@ -259,10 +259,31 @@ export function reperesEtapes(sc) {
   });
 }
 
+/** Nombre de numéros consécutifs à partir duquel un repère les écrit en plage (« 10-15 ») : jusqu'à trois, la suite reste
+ *  courte et se lit étape par étape (« 5·6·7 ») ; au-delà, elle allongerait la pastille sans rien apprendre de plus
+ *  (« 10·11·12·13·14·15 » : 13,35 m de large, contre 4,35 m pour « 10-15 »). */
+export const PLAGE_REPERE = 4;
+
+/** Libellé du repère qui porte ces numéros d'étapes, dans l'ordre croissant : chaque suite d'au moins PLAGE_REPERE numéros
+ *  consécutifs s'écrit en plage, avec un trait d'union (« 10-15 ») ; les autres numéros restent séparés par un point médian
+ *  (« 5·6·7 », « 1-5·16 »). Une seule règle pour le texte que dessine le moteur et pour la largeur de la pastille. */
+export function libelleRepere(numeros) {
+  const n = [...numeros].sort((a, b) => a - b), morceaux = [];
+  for (let i = 0; i < n.length;) {
+    let j = i;
+    while (j + 1 < n.length && n[j + 1] === n[j] + 1) j++;
+    if (j - i + 1 >= PLAGE_REPERE) morceaux.push(`${n[i]}-${n[j]}`);
+    else morceaux.push(...n.slice(i, j + 1).map(String));
+    i = j + 1;
+  }
+  return morceaux.join("·");
+}
+
 /** Demi-largeur (m) du repère qui porte ces numéros : le disque de RAYON_REPERE pour un seul numéro, une pastille
- *  allongée qui contient tout le texte quand plusieurs étapes partagent le repère (« 5·6·7 »). */
+ *  allongée qui contient tout son libellé (libelleRepere) quand plusieurs étapes partagent le repère (« 5·6·7 »,
+ *  « 10-15 »). */
 export function demiLargeurRepere(numeros) {
-  return Math.max(RAYON_REPERE, (numeros.join("·").length * CHASSE_REPERE) / 2 + JEU_REPERE);
+  return Math.max(RAYON_REPERE, (libelleRepere(numeros).length * CHASSE_REPERE) / 2 + JEU_REPERE);
 }
 
 /**

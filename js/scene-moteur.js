@@ -30,7 +30,7 @@
 import { preparerScene, etatActeur, pointA, GABARITS, DEG } from "./scene-geometrie.js?v=20261005f";
 import { regardDessine } from "./scene-regard.js?v=20261005f";
 import { TEINTES, RAYON_REPERE, clignotantAllume, feuxDeRecul, cadreCamera, cadreReduit, reperesEtapes,
-  demiLargeurRepere, emprisePanneau, facteurLecture, SEUILS_VISIBILITE, actionVisibilite, feuxStop }
+  demiLargeurRepere, libelleRepere, emprisePanneau, facteurLecture, SEUILS_VISIBILITE, actionVisibilite, feuxStop }
   from "./scene-rendu.js?v=20261005f";
 import { urlSignalVerifie } from "./signaux.js?v=20261005f";
 
@@ -123,8 +123,9 @@ function dessinerPieton() {
   return { g, clignotants: null, stops: null, reculs: null };
 }
 
-// Repères numérotés des étapes (animations réduites), à droite de la position de l'élève au début de chacune (jamais sous
-// sa voiture) : un disque, ou une pastille qui contient tous les numéros quand plusieurs étapes partagent le repère.
+// Repères numérotés des étapes (animations réduites), au plus près de la position de l'élève au début de chacune, à la
+// place que donne la règle (reperesEtapes ; jamais sous sa voiture) : un disque, ou une pastille qui porte le libellé de
+// toutes les étapes qui partagent le repère (libelleRepere : « 5·6·7 », « 10-15 »).
 function dessinerReperes(sc) {
   const g = svg("g", { class: "scene-reperes" });
   for (const r of reperesEtapes(sc)) {
@@ -133,7 +134,7 @@ function dessinerReperes(sc) {
       rx: RAYON_REPERE, fill: "#FFFFFF", stroke: TEINTES.repere, "stroke-width": 0.15 }));
     const texte = svg("text", { x: f3(r.x), y: f3(r.y + 0.45), "text-anchor": "middle", "font-size": 1.2,
       fill: TEINTES.repere, "font-family": "Geist Mono, ui-monospace, monospace" });
-    texte.textContent = r.numeros.join("·");
+    texte.textContent = libelleRepere(r.numeros);
     g.appendChild(texte);
   }
   return g;

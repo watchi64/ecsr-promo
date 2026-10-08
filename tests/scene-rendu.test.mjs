@@ -8,7 +8,7 @@ import { REGARD_PORTEE, REGARD_OUVERTURE, DIRECTIONS_TOUR_FIGE, DEBORD_SUIVI, oe
 import { TEINTES, FREQ_CLIGNOTANT, TAILLE_PANNEAU, RAYON_REPERE, ECART_REPERES, JEU_REPERE_VOITURE, PAS_REPERE,
   ALLONGEMENT_MAX_REPERE, MARGE_CADRE_REDUIT, FEUX_STOP, clignotantAllume, feuxDeRecul, feuxStop, cadreCamera, reperesEtapes,
   demiLargeurRepere, cadreReduit, emprisePanneau, facteurLecture, SEUIL_DEMARRAGE, SEUILS_VISIBILITE, actionVisibilite,
-  placeRepereLibre } from "../js/scene-rendu.js";
+  placeRepereLibre, PLAGE_REPERE, libelleRepere } from "../js/scene-rendu.js";
 
 // Règles pures du rendu des scènes (correction de la tâche 11) : ce que montre l'image, en lecture comme sur les images
 // figées (pas à pas, pause, animations réduites). Le moteur (js/scene-moteur.js) dessine avec ces fonctions.
@@ -290,7 +290,7 @@ test("reperesEtapes : un repère par position de l'élève au début d'une étap
   assert.equal(JEU_REPERE_VOITURE, 0.3);
   assert.equal(PAS_REPERE, 0.1);
   assert.equal(ALLONGEMENT_MAX_REPERE, 3);
-  let deplaces = 0, horsDuMonde = 0;
+  let deplaces = 0;
   for (const [code, sc] of scenes()) {
     const reperes = reperesEtapes(sc);
     assert.deepEqual(reperes.flatMap((r) => r.numeros).sort((a, b) => a - b), sc.etapes.map((_, i) => i + 1),
@@ -314,10 +314,8 @@ test("reperesEtapes : un repère par position de l'élève au début d'une étap
       // posé entre elle et l'élève ; zone protégée d'un tour du regard figé).
       if (Math.abs(d - d0) > 1e-9) {
         const centre = { x: premier.x + d0 * nx, y: premier.y + d0 * ny, numeros: r.numeros };
-        const dehors = boiteRepere(centre).some(([x, y]) => x < 0 || x > sc.monde.largeur || y < 0 || y > sc.monde.hauteur);
         assert.ok(!libre(centre, reperes.slice(0, i), premier), `${nom}, écarté alors que sa place à droite était libre`);
         deplaces++;
-        if (dehors) horsDuMonde++;
       }
       for (const n of r.numeros) {
         const e = etatActeur(sc.eleve, sc.etapes[n - 1].t);
@@ -325,11 +323,30 @@ test("reperesEtapes : un repère par position de l'élève au début d'une étap
       }
     });
   }
+  // Une place au plus près qui sort du monde : aucune scène du registre ne l'exerce depuis l'écriture en plage (« 1-5 »
+  // tient à droite de la voiture au départ de demarrer-arreter, là où « 1·2·3·4·5 » sortait du monde) ; le test suivant
+  // l'exerce sur une scène d'essai.
   assert.ok(deplaces > 0, "aucun repère écarté : le cas n'est pas exercé");
-  assert.ok(horsDuMonde > 0, "aucun repère écarté parce que sa place sortait du monde : le cas n'est pas exercé");
   // Tourner à gauche : l'angle mort et le virage commencent au même point d'arrêt, sous un seul repère.
   const sc = preparerScene(SCENES["tourner-gauche"].construire());
   assert.ok(reperesEtapes(sc).some((r) => r.numeros.includes(6) && r.numeros.includes(7)));
+});
+
+test("reperesEtapes : un repère dont la place au plus près à droite sort du monde, et toutes celles qui s'en écartent, passe à gauche, au plus près", () => {
+  // Scène d'essai : la voiture de l'élève, tournée vers le nord en (17 ; 30), à 3 m du bord droit d'un monde de 20 m de
+  // large. À sa droite, au plus près (2,40 m du centre de la voiture), le disque de son repère sortirait du monde de 0,60 m.
+  const chemin = trajet(17, 30, -90).droit(5).fin();
+  const sc = preparerScene({
+    code: "essai", monde: { largeur: 20, hauteur: 60 }, camera: { largeur: 20, hauteur: 46 }, decor: { panneaux: [], marquages: [], obstacles: [] },
+    acteurs: [{ id: "eleve", role: "eleve", gabarit: "voiture", chemin, profil: [{ s: 0, kmh: 0, pause: 1 }, { s: 5, kmh: 5 }] }],
+    etapes: [{ s: 0, regard: { angle: 0 } }],
+  });
+  const [r] = reperesEtapes(sc), e = etatActeur(sc.eleve, 0), d0 = GABARITS.voiture.largeur / 2 + JEU_REPERE_VOITURE + RAYON_REPERE;
+  proche(r.x, e.x - d0, 1e-9, "à gauche, au plus près");
+  proche(r.y, e.y, 1e-9);
+  const aDroite = { x: e.x + d0, y: e.y, numeros: [1] };
+  proche(aDroite.x + RAYON_REPERE - sc.monde.largeur, 0.6, 1e-9, "la place à droite sort du monde");
+  assert.equal(placeRepereLibre(sc)(aDroite, [], e), false);
 });
 
 test("reperesEtapes : aucun repère n'est caché par la voiture de l'élève, quelle que soit l'étape montrée", () => {
@@ -729,12 +746,74 @@ test("placeRepereLibre : la règle unique porte aussi le jeu autour d'un acteur 
   assert.equal(libre(loin, [], { x: 25, y: 30 }), true);
 });
 
-test("demiLargeurRepere : un disque pour un seul numéro, une pastille qui contient tout le texte quand des étapes partagent un repère", () => {
+test("libelleRepere : chaque suite d'au moins PLAGE_REPERE numéros consécutifs s'écrit en plage, avec un trait d'union ; les autres numéros restent séparés par un point médian ; toujours dans l'ordre croissant", () => {
+  assert.equal(PLAGE_REPERE, 4);
+  for (const [numeros, attendu] of [
+    [[1], "1"], [[12], "12"],
+    [[6, 7], "6·7"], [[5, 6, 7], "5·6·7"],                          // trois numéros consécutifs ou moins : point médian
+    [[1, 2, 3, 4], "1-4"], [[6, 7, 8, 9], "6-9"], [[10, 11, 12, 13, 14, 15], "10-15"],   // quatre ou plus : plage
+    [[1, 2, 3, 4, 5, 16], "1-5·16"], [[1, 2, 3, 16], "1·2·3·16"],   // groupe non consécutif : découpé en suites
+    [[2, 3, 4, 5, 8, 9, 10, 11], "2-5·8-11"], [[1, 3, 5, 7], "1·3·5·7"],
+    [[16, 1, 2, 3, 4, 5], "1-5·16"], [[7, 5, 6], "5·6·7"],           // l'ordre donné ne change rien
+  ]) assert.equal(libelleRepere(numeros), attendu, numeros.join(","));
+});
+
+test("demiLargeurRepere : un disque pour un seul numéro, une pastille qui contient tout son libellé (libelleRepere) quand des étapes partagent un repère ; la largeur se calcule sur le libellé", () => {
   for (const numeros of [[1], [8], [12]]) assert.equal(demiLargeurRepere(numeros), RAYON_REPERE, numeros.join("·"));
   // Le texte est en chasse fixe de 1,2 m, soit 0,72 m par caractère (0,6 em) : la pastille le contient, avec du jeu.
-  for (const numeros of [[6, 7], [5, 6, 7], [1, 2, 3, 4]]) {
-    const texte = numeros.join("·");
+  for (const numeros of [[6, 7], [5, 6, 7], [1, 2, 3, 4], [10, 11, 12, 13, 14, 15], [1, 2, 3, 4, 5, 16]]) {
+    const texte = libelleRepere(numeros);
     assert.ok(2 * demiLargeurRepere(numeros) >= texte.length * 0.72 + 0.4, `« ${texte} » déborde de sa pastille`);
+  }
+  // « 10-15 » : cinq caractères de 0,75 m (0,72 m arrondis au-dessus pour les polices de repli), 0,3 m de jeu de chaque côté,
+  // soit 4,35 m (13,35 m pour « 10·11·12·13·14·15 », écrit en entier) ; « 1-5·16 » : six caractères, 5,10 m.
+  proche(2 * demiLargeurRepere([10, 11, 12, 13, 14, 15]), 4.35, 1e-12, "pastille de « 10-15 »");
+  proche(2 * demiLargeurRepere([1, 2, 3, 4, 5, 16]), 5.1, 1e-12, "pastille de « 1-5·16 »");
+  proche(2 * demiLargeurRepere([5, 6, 7]), 4.35, 1e-12, "pastille de « 5·6·7 »");
+});
+
+// DOM minimal, juste ce que le moteur (js/scene-moteur.js) emploie pour monter un schéma en animations réduites : éléments
+// (attributs, enfants, texte, style, écouteurs) et document (createElement, createElementNS, baseURI).
+class ElementMinimal {
+  constructor(nom) { this.nom = nom; this.attributs = new Map(); this.enfants = []; this.texte = ""; this.style = { setProperty() {} }; }
+  setAttribute(k, v) { this.attributs.set(k, String(v)); }
+  getAttribute(k) { return this.attributs.has(k) ? this.attributs.get(k) : null; }
+  removeAttribute(k) { this.attributs.delete(k); }
+  appendChild(n) { this.enfants.push(n); return n; }
+  append(...ns) { ns.forEach((n) => this.appendChild(n)); }
+  addEventListener() {}
+  get textContent() { return this.texte; }
+  set textContent(v) { this.texte = String(v); }
+}
+const descendants = (n) => [n, ...n.enfants.flatMap(descendants)];
+
+test("moteur : en animations réduites, chaque repère dessiné porte le libellé de libelleRepere, dans une pastille de la largeur de demiLargeurRepere, à la place de reperesEtapes", async () => {
+  const avant = globalThis.document;
+  globalThis.document = { baseURI: "http://localhost/", createElement: (nom) => new ElementMinimal(nom),
+    createElementNS: (_ns, nom) => new ElementMinimal(nom) };
+  try {
+    const { monterScene } = await import("../js/scene-moteur.js");
+    let plages = 0;   // au moins un repère dessiné en plage : le cas est exercé
+    for (const [code, entree] of Object.entries(SCENES)) {
+      const def = entree.construire(), conteneur = new ElementMinimal("div");
+      monterScene(def, { conteneur, reduit: true });
+      const groupe = descendants(conteneur).find((n) => n.getAttribute("class") === "scene-reperes");
+      assert.ok(groupe, `${code} : groupe des repères dessiné`);
+      const reperes = reperesEtapes(preparerScene(def));
+      assert.equal(groupe.enfants.length, 2 * reperes.length, `${code} : une pastille et un texte par repère`);
+      reperes.forEach((r, i) => {
+        const [pastille, texte] = groupe.enfants.slice(2 * i, 2 * i + 2), demi = demiLargeurRepere(r.numeros);
+        assert.equal(texte.textContent, libelleRepere(r.numeros), `${code} : texte du repère ${i + 1}`);
+        assert.equal(pastille.getAttribute("width"), (2 * demi).toFixed(3), `${code} : largeur du repère ${i + 1}`);
+        assert.equal(pastille.getAttribute("x"), (r.x - demi).toFixed(3), `${code} : place du repère ${i + 1}`);
+        assert.equal(texte.getAttribute("x"), r.x.toFixed(3), `${code} : texte centré sur le repère ${i + 1}`);
+        if (texte.textContent.includes("-")) plages++;
+      });
+    }
+    assert.ok(plages > 0, "aucun repère dessiné en plage : le cas n'est pas exercé");
+  } finally {
+    if (avant === undefined) delete globalThis.document;
+    else globalThis.document = avant;
   }
 });
 
