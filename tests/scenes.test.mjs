@@ -4,7 +4,7 @@ import { SCENES } from "../js/scenes.js";
 import { controlerScene, SEUILS } from "../js/scene-controles.js";
 import { REGARD_PORTEE, REGARD_OUVERTURE, REGARD_DUREE_TOUR_MIN, oeil, angleRegard, cibleSuivie, coneRegard, regardContient } from "../js/scene-regard.js";
 import { KMH, DEG, preparerScene, etatActeur, emprise, tempsAtteint, centreArc, pointA, pointDansPolygone,
-  polygonesSeChevauchent, rectangle, GABARITS } from "../js/scene-geometrie.js";
+  polygonesSeChevauchent, rectangle, GABARITS, trajet } from "../js/scene-geometrie.js";
 import { DESSIN, trajetGiratoire, routeVirages } from "../js/scene-decors.js";
 import { reperesEtapes, demiLargeurRepere, clignotantAllume, feuxStop } from "../js/scene-rendu.js";
 import { SIGNAUX } from "../js/signaux.js";
@@ -1924,7 +1924,7 @@ test("trajectoire-courbe : regarder droit devant dans le virage à droite, ou ve
 const DEMARRER = {
   kmh: { deboitement: 10, rue: 30 }, reprise: 1.5, freinage: 1.5,
   duree: { retroviseurInterieur: 1.2, retroviseurExterieur: 1.2, angleMort: 1.0, clignotant: 2.0, rouler: 1.0 },
-  avance: { deboitement: 12, rangement: 20 }, ecartGarees: { derriere: 1.0, devant: 8 }, trottoir: 5, avanceEtapeRouler: 0.01,
+  avance: { deboitement: 11, rangement: 20 }, ecartGarees: { derriere: 1.0, devant: 8 }, trottoir: 5, avanceEtapeRouler: 0.01,
 };
 // Décalage de la place au centre de la voie de droite : du centre d'une voiture garée (flanc droit à jeuStationnement du
 // trottoir) au centre de la voie, par-dessus la bande de stationnement.
@@ -2035,7 +2035,7 @@ test("demarrer-arreter : à l'arrêt, rétroviseur intérieur, rétroviseur ext�
   proche(T[4], tDepart, 1e-6, "étape 5 au départ");
 });
 
-test("demarrer-arreter : démarrer et rejoindre sa voie : décalage de 2,55 m vers la gauche sur 12 m d'avance dès le départ, marqué changement de voie ; 1,5 m/s² jusqu'à 10 km/h, tenus jusqu'au centre de la voie ; clignotant gauche jusque-là, puis éteint", () => {
+test("demarrer-arreter : démarrer et rejoindre sa voie : décalage de 2,55 m vers la gauche sur 11 m d'avance dès le départ, marqué changement de voie ; 1,5 m/s² jusqu'à 10 km/h, tenus jusqu'au centre de la voie ; clignotant gauche jusque-là, puis éteint", () => {
   const { eleve, deboitement: [arc1, arc2], fin, tA, tDepart, reperes, T } = lireDemarrerArreter();
   proche(ECART_PLACE_VOIE, 2.55, 1e-12);
   assert.equal(arc1.debut, 0, "le décalage commence au départ");
@@ -2205,11 +2205,11 @@ test("demarrer-arreter : feux stop comme les décrivent les sources : éteints s
   }
 });
 
-test("demarrer-arreter : le paragraphe « Choix de dessin » donne la raison des valeurs qui n'étaient qu'en commentaire du code (avances de 12 et 20 m, 10 km/h, 1,0 m derrière), des trottoirs de 5 m et de l'avance de l'étape 6", () => {
+test("demarrer-arreter : le paragraphe « Choix de dessin » donne la raison des avances de 11 et 20 m, des 10 km/h, de l'écart de 1,0 m derrière, des trottoirs de 5 m et de l'avance de l'étape 6", () => {
   const choixDeDessin = SCENES["demarrer-arreter"].sources.find((s) => s.startsWith("Choix de dessin"));
   for (const [valeur, raison] of [
-    [/sur 12 m d'avance \(/, /\(plus court, l'arrière, qui pivote, viendrait plus près du trottoir ; plus long, le flanc droit passerait plus près de la voiture garée devant\)/],
-    [/sur 20 m d'avance \(/, /\(pour se rapprocher du bord en douceur, à l'allure de la rue\)/],
+    [/sur 11 m d'avance \(/, /\(le déboîtement le plus progressif, en mètres entiers, qui n'approche jamais la voiture garée devant à moins de l'écart que laisse la voie ; plus court, la voiture braquerait plus serré\)/],
+    [/sur 20 m d'avance \(/, /\(se rapprocher du bord en douceur, à l'allure de la rue ; plus court, l'avant droit, qui balaie vers le trottoir en se rangeant, en passerait plus près ; plus long, il ne resterait presque plus de ligne droite pour s'arrêter le long du trottoir\)/],
     [/jusqu'à 10 km\/h \(/, /\(allure réduite tant que la voiture quitte sa place, entre les voitures garées\)/],
     [/l'une 1,0 m derrière l'élève \(/, /\(garée de près, comme dans une file de voitures en stationnement : l'élève part en avant et ne s'en approche pas\)/],
     [/trottoirs montrés sur 5 m \(/, /\(le plus petit nombre entier de mètres qui garde dans l'image le cône du rétroviseur intérieur au départ et celui du regard devant à l'arrêt\)/],
@@ -2243,19 +2243,38 @@ test("demarrer-arreter : les valeurs calculées que citent les sources (décalag
     const dx = bx - ax, dy = by - ay, u = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / (dx * dx + dy * dy)));
     return Math.hypot(px - ax - u * dx, py - ay - u * dy);
   };
-  let trottoir = Infinity, flancAngle = Infinity, plusPres = Infinity, avant = Infinity;
-  const voitureDevant = emprise("voiture", etatActeur(garees.gareeDevant, 0)), angleArriereGauche = voitureDevant[3];
-  for (let s = 0; s <= fin(arc2); s += 0.001) {
-    const p = pointA(eleve.chemin, s), e = emprise("voiture", p);
-    trottoir = Math.min(trottoir, reperes.xBordDroit - flancDroit(p));
-    flancAngle = Math.min(flancAngle, auSegment(angleArriereGauche, e[1], e[2]));
-    plusPres = Math.min(plusPres, distancePolygones(e, voitureDevant));
+  // Déboîtement, puis l'élève qui longe la voiture garée devant et la dépasse (10 m après la fin du décalage, son arrière
+  // est passé devant elle) : coin arrière droit au trottoir, distance à cette voiture, et celle de son avant.
+  let coinArriereDroit = Infinity, plusPresTrottoir = Infinity, plusPres = Infinity, pendantDecalage = Infinity, avant = Infinity;
+  const voitureDevant = emprise("voiture", etatActeur(garees.gareeDevant, 0));
+  for (let s = 0; s <= fin(arc2) + 10; s += 0.001) {
+    const p = pointA(eleve.chemin, s), e = emprise("voiture", p), d = distancePolygones(e, voitureDevant);
+    if (s <= fin(arc2)) {
+      coinArriereDroit = Math.min(coinArriereDroit, reperes.xBordDroit - e[2][0]);
+      plusPresTrottoir = Math.min(plusPresTrottoir, reperes.xBordDroit - flancDroit(p));
+      pendantDecalage = Math.min(pendantDecalage, d);
+    }
+    plusPres = Math.min(plusPres, d);
     avant = Math.min(avant, distancePolygones([e[0], e[1]], voitureDevant));
   }
-  // Le plus près de la voiture garée devant, c'est bien le flanc droit de l'élève et l'angle arrière gauche de cette
-  // voiture ; l'avant de l'élève, lui, reste à 0,75 m au moins.
-  proche(plusPres, flancAngle, 1e-9, "plus petite distance à la voiture garée devant");
-  assert.ok(avant >= 0.75 - 1e-6, `l'avant de l'élève à ${avant.toFixed(4)} m de la voiture garée devant`);
+  // En déboîtant, c'est le coin arrière droit qui passe le plus près du trottoir. La voiture garée devant, l'élève la
+  // longe au plus près à l'écart que laisse la voie (de son flanc droit, au centre de la voie, au flanc gauche de cette
+  // voiture : 0,75 m), et le déboîtement ne l'en approche jamais davantage ; son avant non plus.
+  proche(coinArriereDroit, plusPresTrottoir, 1e-12, "le coin arrière droit, au plus près du trottoir");
+  const ecartVoie = (pointA(eleve.chemin, 0).x - DESSIN.demiLargeurVoiture) - (reperes.xAxe + DESSIN.voie / 2 + DESSIN.demiLargeurVoiture);
+  proche(ecartVoie, 0.75, 1e-12, "écart que laisse la voie");
+  proche(plusPres, ecartVoie, 1e-9, "au plus près de la voiture garée devant");
+  assert.ok(pendantDecalage >= ecartVoie - 1e-9, `déboîtement à ${pendantDecalage.toFixed(5)} m de la voiture garée devant`);
+  assert.ok(avant >= ecartVoie - 1e-9, `l'avant de l'élève à ${avant.toFixed(4)} m de la voiture garée devant`);
+  // En se rangeant, la voiture braque autour de son essieu arrière : son avant droit balaie vers le trottoir et en passe au
+  // plus près juste avant qu'elle se redresse.
+  let avantDroit = Infinity, rangementTrottoir = Infinity;
+  for (let s = arc3.debut; s <= fin(arc4); s += 0.001) {
+    const e = emprise("voiture", pointA(eleve.chemin, s));
+    avantDroit = Math.min(avantDroit, reperes.xBordDroit - e[1][0]);
+    rangementTrottoir = Math.min(rangementTrottoir, ...e.map(([x]) => reperes.xBordDroit - x));
+  }
+  proche(avantDroit, rangementTrottoir, 1e-12, "l'avant droit, au plus près du trottoir en se rangeant");
   const { def } = lireDemarrerArreter();
   const flancGaucheGaree = Math.min(...emprise("voiture", etatActeur(garees.gareeDevant, 0)).map(([x]) => x));
   const mesures = [
@@ -2270,11 +2289,11 @@ test("demarrer-arreter : les valeurs calculées que citent les sources (décalag
       ecrit(/décalage de (\d+(?:,\d+)?) m vers la droite/)],
     ["accélération latérale en rejoignant sa voie (m/s²)", lateraleMax(tDepart, tA(fin(arc2))),
       ecrit(/accélération latérale de (\d+(?:,\d+)?) m\/s² au plus en rejoignant sa voie/)],
-    ["plus petite distance au trottoir en déboîtant (m)", trottoir, ecrit(/l'arrière, qui pivote, passe à (\d+(?:,\d+)?) m du trottoir/)],
-    ["flanc droit de l'élève à l'angle arrière gauche de la voiture garée devant (m)", flancAngle,
-      ecrit(/le flanc droit à (\d+(?:,\d+)?) m de l'angle arrière gauche de la voiture garée devant/)],
+    ["coin arrière droit au trottoir en déboîtant (m)", coinArriereDroit, ecrit(/son coin arrière droit passe à (\d+(?:,\d+)?) m du trottoir/)],
+    ["flanc droit de l'élève à la voiture garée devant (m)", plusPres, ecrit(/le flanc droit passe à (\d+(?:,\d+)?) m de la voiture garée devant/)],
     ["accélération latérale en se rapprochant du bord (m/s²)", lateraleMax(tA(arc3.debut), tA(fin(arc4))),
       ecrit(/accélération latérale de (\d+(?:,\d+)?) m\/s² au plus en se rapprochant du bord/)],
+    ["avant droit au trottoir en se rangeant (m)", avantDroit, ecrit(/l'avant droit passe à (\d+(?:,\d+)?) m du trottoir/)],
     ["allure à la fin du rangement (km/h)", kmh(eleve, tA(fin(arc4))), ecrit(/bord atteint à (\d+(?:,\d+)?) km\/h/)],
     ["arrêt après la fin du décalage (m)", eleve.chemin.longueur - fin(arc4), ecrit(/arrêt (\d+(?:,\d+)?) m plus loin/)],
     ["durée de la scène (s)", sc.duree, ecrit(/scène de (\d+(?:,\d+)?) s/)],
@@ -2282,6 +2301,54 @@ test("demarrer-arreter : les valeurs calculées que citent les sources (décalag
   for (const [nom, mesure, { valeur, tolerance }] of mesures) {
     assert.ok(Math.abs(mesure - valeur) <= tolerance + 1e-9, `${nom} : ${mesure} dans la scène, ${valeur} dans les sources`);
   }
+});
+
+// Coin arrière droit de la voiture de l'élève au plus près du trottoir pendant le déboîtement (du départ à la fin du décalage).
+function coinArriereDroitAuTrottoir(chemin, xBordDroit, sFin) {
+  let m = Infinity;
+  for (let s = 0; s <= sFin; s += 0.001) m = Math.min(m, xBordDroit - emprise("voiture", pointA(chemin, s))[2][0]);
+  return m;
+}
+
+test("demarrer-arreter : la voiture de l'élève braque autour de son essieu arrière ; sans cette option, le même trajet pivoterait autour du centre et porterait le coin arrière droit bien plus près du trottoir en déboîtant", () => {
+  const { eleve, deboitement: [, arc2], fin, reperes } = lireDemarrerArreter();
+  assert.ok(eleve.chemin.segments.every((s) => s.essieu === GABARITS.voiture.essieu), "trajet de l'essieu arrière");
+  proche(GABARITS.voiture.essieu, 1.45, 1e-12);
+  // Au départ, le centre de la voiture est bien sur la place, l'essieu 1,45 m derrière lui.
+  const depart = pointA(eleve.chemin, 0);
+  proche(reperes.xBordDroit - flancDroit(depart), DESSIN.jeuStationnement, 1e-9);
+  const avec = coinArriereDroitAuTrottoir(eleve.chemin, reperes.xBordDroit, fin(arc2));
+  const sansEssieu = { ...eleve.chemin, segments: eleve.chemin.segments.map(({ essieu, ...seg }) => seg) };
+  const sans = coinArriereDroitAuTrottoir(sansEssieu, reperes.xBordDroit, fin(arc2));
+  proche(avec, 0.276, 1e-3, "coin arrière droit, braquage autour de l'essieu");
+  proche(sans, 0.112, 1e-3, "coin arrière droit, pivot autour du centre");
+  assert.ok(avec - sans > 0.15, `essieu : ${avec.toFixed(3)} m, centre : ${sans.toFixed(3)} m`);
+});
+
+test("demarrer-arreter : le déboîtement de 11 m est le plus progressif, en mètres entiers, qui n'approche jamais la voiture garée devant à moins de l'écart de la voie ; le rangement de 20 m garde l'avant droit plus loin du trottoir qu'à 18 m et une ligne droite pour s'arrêter, qu'il n'y aurait presque plus à 22 m", () => {
+  const { eleve, garees, reperes } = lireDemarrerArreter();
+  const voitureDevant = emprise("voiture", etatActeur(garees.gareeDevant, 0)), depart = pointA(eleve.chemin, 0);
+  const essieu = { essieu: GABARITS.voiture.essieu };
+  const auPlusPres = (avance) => {
+    const c = trajet(depart.x, depart.y, -90, essieu).decaler(-ECART_PLACE_VOIE, avance).droit(10).fin();
+    let m = Infinity;
+    for (let s = 0; s <= c.longueur; s += 0.001) m = Math.min(m, distancePolygones(emprise("voiture", pointA(c, s)), voitureDevant));
+    return m;
+  };
+  assert.ok(auPlusPres(DEMARRER.avance.deboitement) >= 0.75 - 1e-9, "11 m : la voiture garée devant à l'écart de la voie");
+  assert.ok(auPlusPres(DEMARRER.avance.deboitement + 1) < 0.75 - 1e-3, "12 m : l'élève l'approcherait davantage");
+  // Rangement depuis le centre de la voie, freinage de 1,5 m/s² dès son début : avant droit au trottoir, et ligne droite
+  // qui reste avant l'arrêt.
+  const rangement = (avance) => {
+    const c = trajet(depart.x - ECART_PLACE_VOIE, depart.y, -90, essieu).decaler(ECART_PLACE_VOIE, avance).droit(1).fin();
+    let m = Infinity;
+    for (let s = 0; s <= c.longueur - 1; s += 0.001) m = Math.min(m, reperes.xBordDroit - emprise("voiture", pointA(c, s))[1][0]);
+    return { avantDroit: m, ligneDroite: (DEMARRER.kmh.rue * KMH) ** 2 / (2 * DEMARRER.freinage) - (c.longueur - 1) };
+  };
+  const [a18, a20, a22] = [18, 20, 22].map(rangement);
+  assert.ok(a18.avantDroit < a20.avantDroit - 0.03, `avant droit : ${a18.avantDroit.toFixed(3)} m à 18 m, ${a20.avantDroit.toFixed(3)} m à 20 m`);
+  proche(a20.ligneDroite, 2.932, 1e-3, "ligne droite avant l'arrêt, à 20 m");
+  assert.ok(a22.ligneDroite < 1, `ligne droite avant l'arrêt, à 22 m : ${a22.ligneDroite.toFixed(3)} m`);
 });
 
 // Sabotages : chaque défaut est refusé, par les contrôles automatiques ou par l'assertion d'ordre des contrôles de Timy.
@@ -2332,9 +2399,11 @@ test("demarrer-arreter : contrôles dans le désordre, ou clignotant mis avant l
   assert.throws(() => verifierControles(sc, 0, tDepart, "gauche"), /contrôles gauche : 180, -170, -120 \+ clignotant gauche, 0 \+ clignotant gauche(?!,)/);
 });
 
-test("demarrer-arreter : une place trop courte devant (voiture garée à 4 m) est détectée", () => {
+test("demarrer-arreter : une place trop courte devant (voiture garée à 3 m) est détectée", () => {
+  // Braquant autour de son essieu arrière, la voiture de l'élève quitte la place sans toucher la voiture garée devant
+  // jusqu'à 4 m ; à 3 m, le même déboîtement la touche.
   const def = copie("demarrer-arreter");
-  def.acteurs.find((a) => a.id === "gareeDevant").pose.y += DEMARRER.ecartGarees.devant - 4;
+  def.acteurs.find((a) => a.id === "gareeDevant").pose.y += DEMARRER.ecartGarees.devant - 3;
   assert.match(erreurs(def), /eleve et gareeDevant se touchent/);
 });
 

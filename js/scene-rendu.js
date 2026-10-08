@@ -130,9 +130,10 @@ function bandeLigne(m) {
  * perpendiculaire à son cap (celui de sa première étape). Il se pose à droite, au plus près : à la distance qui laisse
  * JEU_REPERE_VOITURE entre le flanc de la voiture et le bord du repère, quel que soit le cap (le disque ou la pastille
  * n'est pas tourné). Si cette place est prise (dessin d'un panneau, ligne de cédez-le-passage, voiture de l'élève au début
- * d'une étape, acteur posé avec JEU_REPERE_VOITURE autour de lui, repère déjà posé) ou hors du monde, il s'écarte par pas
- * de PAS_REPERE, jusqu'à ALLONGEMENT_MAX_REPERE plus loin, puis essaie de même à gauche du cap. Une étape qui commence à
- * moins de ECART_REPERES m de la position d'un repère déjà posé le partage (numéros joints par un point médian).
+ * d'une étape, acteur posé avec JEU_REPERE_VOITURE autour de lui, repère déjà posé), hors du monde, ou séparée de l'élève
+ * par un acteur posé (le segment qui relie leurs centres traverse son emprise : le repère le désignerait), il s'écarte par
+ * pas de PAS_REPERE, jusqu'à ALLONGEMENT_MAX_REPERE plus loin, puis essaie de même à gauche du cap. Une étape qui commence
+ * à moins de ECART_REPERES m de la position d'un repère déjà posé le partage (numéros joints par un point médian).
  */
 export function reperesEtapes(sc) {
   const groupes = [];
@@ -155,6 +156,9 @@ export function reperesEtapes(sc) {
     const dansLeMonde = b.every(([x, y]) => x >= 0 && x <= sc.monde.largeur && y >= 0 && y <= sc.monde.hauteur);
     return dansLeMonde && !obstacles.some((o) => polygonesSeChevauchent(b, o));
   };
+  // Aucun acteur posé entre l'élève (état e) et son repère r : le repère se lirait comme désignant cet acteur.
+  const poses = sc.acteurs.filter((a) => a.pose).map((a) => emprise(a.gabarit, etatActeur(a, 0)));
+  const separe = (e, r) => poses.some((p) => polygonesSeChevauchent([[e.x, e.y], [r.x, r.y]], p));
   const demiVoiture = GABARITS[sc.eleve.gabarit].largeur / 2, pas = Math.round(ALLONGEMENT_MAX_REPERE / PAS_REPERE);
   return groupes.map(({ e, numeros }) => {
     const nx = -Math.sin(e.cap), ny = Math.cos(e.cap);     // droite du cap, l'axe y de l'écran allant vers le bas
@@ -164,7 +168,7 @@ export function reperesEtapes(sc) {
     for (const sens of [1, -1]) {
       for (let k = 0; k <= pas && !repere; k++) {
         const r = place(sens * (d0 + k * PAS_REPERE));
-        if (libre(r)) repere = r;
+        if (libre(r) && !separe(e, r)) repere = r;
       }
       if (repere) break;
     }
