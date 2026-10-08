@@ -164,7 +164,7 @@ export function trajet(x, y, capDeg, { arriere = false, essieu = 0 } = {}) {
     // Rebroussement sur place, à l'abscisse atteinte : la tortue fait demi-tour, + 180 degrés en entrant en marche
     // arrière et - 180 degrés en en sortant, et la marche s'inverse. Le cap de la caisse (pointA : le cap de marche en
     // marche avant, le cap de marche - 180 degrés en marche arrière) est donc le même avant et après : au bit près en
-    // sortant de la marche arrière, à un arrondi flottant près (moins de 1e-15 rad) en y entrant.
+    // sortant de la marche arrière, à un arrondi flottant près en y entrant.
     inverser() {
       if (!segments.length) {
         throw new Error("trajet.inverser : rebroussement en tête de trajet, sans segment avant lui"

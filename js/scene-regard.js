@@ -213,7 +213,7 @@ export function conesTour(cap, o) {
  * - sur une image figée (`fige` : pas à pas, pause, fin de lecture, animations réduites), un regard en mouvement se
  *   montre par ce qu'il parcourt, et non par la direction qu'il aurait par hasard à cet instant : { forme: "secteur",
  *   poly } pour un balayage (secteurBalayage), { forme: "cones", polys } pour un tour du regard (les quatre cônes de
- *   conesTour). Un angle ou un usager suivi gardent le même cône qu'en lecture.
+ *   conesTour). Un angle, un regard vers un point ou un usager suivi gardent le même cône qu'en lecture.
  */
 export function regardDessine(etape, e, t, etats, fige = false) {
   const r = etape && etape.regard;
