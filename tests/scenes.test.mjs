@@ -2,11 +2,12 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { SCENES } from "../js/scenes.js";
 import { controlerScene, SEUILS } from "../js/scene-controles.js";
-import { REGARD_PORTEE, REGARD_OUVERTURE, REGARD_DUREE_TOUR_MIN, oeil, angleRegard, cibleSuivie, coneRegard, regardContient } from "../js/scene-regard.js";
+import { REGARD_PORTEE, REGARD_OUVERTURE, REGARD_DUREE_TOUR_MIN, oeil, angleRegard, cibleSuivie, coneRegard, regardContient,
+  regardDessine } from "../js/scene-regard.js";
 import { KMH, DEG, preparerScene, etatActeur, emprise, tempsAtteint, centreArc, pointA, pointDansPolygone,
-  polygonesSeChevauchent, rectangle, GABARITS, trajet } from "../js/scene-geometrie.js";
+  polygonesSeChevauchent, rectangle, GABARITS, trajet, avant, rebroussements } from "../js/scene-geometrie.js";
 import { DESSIN, trajetGiratoire, routeVirages } from "../js/scene-decors.js";
-import { reperesEtapes, demiLargeurRepere, clignotantAllume, feuxStop } from "../js/scene-rendu.js";
+import { reperesEtapes, demiLargeurRepere, clignotantAllume, feuxStop, feuxDeRecul, cadreReduit } from "../js/scene-rendu.js";
 import { SIGNAUX } from "../js/signaux.js";
 
 const erreurs = (def) => controlerScene(def).join("\n");
@@ -2425,4 +2426,323 @@ test("demarrer-arreter : rejoindre sa voie à plus de 10 km/h, ou rouler à plus
   const rapide = copie("demarrer-arreter");
   rapide.acteurs[0].profil = rapide.acteurs[0].profil.map((p) => (p.kmh === DEMARRER.kmh.rue ? { ...p, kmh: 40 } : p));
   assert.match(erreurs(rapide), /eleve dépasse 30 km\/h entre s = 0 et s = /);
+});
+
+// ===== marche-arriere : la méthode de Timy du 07/10/2026 (C1.9) =====
+//
+// La voiture de l'élève, arrêtée dans la voie de droite le long du trottoir et tournée vers le nord, recule tout droit vers
+// le sud. Comme pour les autres scènes, les instants se lisent sur la définition (trajet, chronologie, emprises).
+
+// km/h et degrés : choix de dessin consignés dans les sources de la scène.
+const MARCHE_ARRIERE_KMH = 4;
+const MARCHE_ARRIERE_REGARDS = [{ angle: 0 }, { tour: true }, { angle: 165 }, { angle: 0 }];
+
+function lireMarcheArriere(def = SCENES["marche-arriere"].construire()) {
+  const sc = preparerScene(def);
+  const eleve = sc.eleve, garee = sc.acteurs.find((a) => a.id === "garee");
+  // Départ : premier instant où la voiture bouge ; arrêt : son arrivée au bout du trajet.
+  const tDepart = premierInstant((t) => etatActeur(eleve, t).v > 0, 0, sc.duree);
+  const tArret = tempsAtteint(eleve.chrono, eleve.chemin.longueur);
+  return { def, sc, eleve, garee, tDepart, tArret, T: sc.etapes.map((e) => e.t), reperes: def.decor.reperes };
+}
+
+// Milieu du pare-chocs arrière d'une voiture dans l'état e : à l'opposé de son avant, selon le cap de la caisse.
+function arriereDe(e) {
+  const l = GABARITS.voiture.longueur / 2;
+  return { x: e.x - Math.cos(e.cap) * l, y: e.y - Math.sin(e.cap) * l };
+}
+
+// Scène relevée au centième de seconde, au milieu de chaque centième (aucun relevé ne tombe sur la borne d'une étape) : la
+// suite des regards (angle par rapport au cap, en degrés arrondis, ou « tour » pendant une étape dont le regard fait le
+// tour), avec l'état de la voiture (« arrêtée », « en reculant », « en avançant ») et celui de ses feux de recul, chaque
+// élément avec sa durée.
+function sequenceMarcheArriere(def) {
+  const sc = preparerScene(def), suite = [];
+  for (let k = 0; (k + 0.5) * 0.01 < sc.duree; k++) {
+    const t = (k + 0.5) * 0.01, etape = sc.etapes[etapeActive(sc, t)], e = etatActeur(sc.eleve, t);
+    let regard = "tour";
+    if (!(etape.regard && etape.regard.tour)) {
+      let a = Math.round(((angleRegard(etape, e, t, etatsA(sc, t)) - e.cap) / DEG) % 360);
+      if (a > 180) a -= 360;
+      else if (a <= -180) a += 360;
+      regard = String(a);
+    }
+    const etat = e.v === 0 ? "arrêtée" : e.marche === "arriere" ? "en reculant" : "en avançant";
+    const libelle = `${regard}, ${etat}, ${feuxDeRecul(e) ? "feux de recul" : "sans feux de recul"}`;
+    const der = suite[suite.length - 1];
+    if (der && der.libelle === libelle) der.duree += 0.01;
+    else suite.push({ libelle, duree: 0.01 });
+  }
+  return suite;
+}
+
+// Assertion d'ordre (V·V·C·C, choix du contrôleur de chantier soumis à Timy : la vitesse d'abord, puis les contrôles, le
+// mouvement en dernier) : regard devant, voiture arrêtée, marche arrière engagée (feux de recul) ; tour du regard, arrêtée ;
+// 165 degrés en reculant ; regard devant, arrêtée ; chacun pendant 1,0 s au moins, le tour pendant REGARD_DUREE_TOUR_MIN au
+// moins. Lève une AssertionError sinon.
+function verifierMarcheArriere(def) {
+  const suite = sequenceMarcheArriere(def);
+  const libelles = suite.map((r) => r.libelle);
+  assert.deepEqual(libelles, ["0, arrêtée, feux de recul", "tour, arrêtée, feux de recul", "165, en reculant, feux de recul",
+    "0, arrêtée, feux de recul"], `marche arrière : ${libelles.join(" ; ")}`);
+  for (const r of suite) {
+    const min = r.libelle.startsWith("tour") ? DUREE_MIN.tour : DUREE_MIN.etape;
+    assert.ok(r.duree >= min - 0.011, `${r.libelle} pendant ${r.duree.toFixed(2)} s`);
+  }
+}
+
+test("marche-arriere : quatre étapes, dans l'ordre V·V·C·C (la marche arrière engagée, puis le tour du regard), chacune avec son regard, à son moment et à sa place", () => {
+  assert.deepEqual(SCENES["marche-arriere"].etapesModele, [
+    "Engager la marche arrière",
+    "Faire le tour du regard",
+    "Reculer en regardant par la lunette arrière",
+    "S'arrêter",
+  ]);
+  const { def, sc, eleve, tDepart, tArret, T } = lireMarcheArriere();
+  assert.deepEqual(def.etapes.map((e) => e.regard), MARCHE_ARRIERE_REGARDS);
+  // Étapes 1 à 3 au point de départ (à l'arrêt, puis au redémarrage) ; étape 4 au bout des 15 m, à l'arrêt.
+  [0, 0, 0, eleve.chemin.longueur].forEach((s, k) => proche(etatActeur(eleve, T[k]).s, s, 1e-9, `étape ${k + 1} : abscisse`));
+  proche(T[0], 0, 1e-12, "engager la marche arrière : dès le début");
+  proche(T[1] - T[0], 1.0, 1e-9, "engager la marche arrière : 1,0 s");
+  proche(T[2] - T[1], REGARD_DUREE_TOUR_MIN, 1e-9, "tour du regard : 4,0 s");
+  proche(T[2], tDepart, 1e-6, "reculer : au redémarrage");
+  proche(T[3], tArret, 1e-9, "s'arrêter : à l'arrivée");
+  proche(sc.duree - T[3], 1.0, 1e-9, "s'arrêter : l'image finale, tenue 1,0 s");
+});
+
+test("marche-arriere : trajet parti en marche arrière, 15 m tout droit vers le sud depuis 23 m du bord haut, la caisse tournée vers le nord, le flanc droit à 0,3 m de la bordure du trottoir ; aucun rebroussement", () => {
+  const { sc, eleve, reperes } = lireMarcheArriere();
+  assert.equal(eleve.chemin.segments.length, 1, "une seule ligne droite");
+  const [seg] = eleve.chemin.segments;
+  assert.equal(seg.type, "droite");
+  assert.equal(seg.arriere, true, "parcourue en marche arrière");
+  proche(seg.cap, 90 * DEG, 1e-12, "déplacement vers le sud");
+  proche(seg.y0, 23, 1e-12, "départ à 23 m du bord haut");
+  proche(eleve.chemin.longueur, 15, 1e-12, "15 m de recul");
+  assert.deepEqual(rebroussements(eleve.chemin), [], "parti en marche arrière : aucun rebroussement");
+  for (let t = 0; t <= sc.duree + 1e-9; t += 0.01) {
+    const e = etatActeur(eleve, t), nom = `t = ${t.toFixed(2)} s`;
+    assert.equal(e.marche, "arriere", nom);
+    proche(e.cap, -90 * DEG, 1e-12, `caisse vers le nord, ${nom}`);
+    proche(reperes.xBordDroit - Math.max(...emprise("voiture", e).map(([x]) => x)), 0.3, 1e-9, `flanc droit, ${nom}`);
+  }
+});
+
+test("marche-arriere : la marche arrière est engagée dès le début, voiture à l'arrêt : feux de recul allumés à chaque instant, jusqu'à l'arrêt final compris ; aucun clignotant", () => {
+  const { sc, eleve } = lireMarcheArriere();
+  assert.ok(!(eleve.clignotant && eleve.clignotant.length), "aucun clignotant déclaré");
+  assert.equal(etatActeur(eleve, 0).v, 0, "à l'arrêt quand la marche arrière s'engage");
+  for (let t = 0; t <= sc.duree + 1e-9; t += 0.01) {
+    const e = etatActeur(eleve, t);
+    assert.equal(feuxDeRecul(e), true, `feux de recul éteints à t = ${t.toFixed(2)} s`);
+    assert.equal(e.clignotant, null, `clignotant à t = ${t.toFixed(2)} s`);
+  }
+});
+
+test("marche-arriere : à l'arrêt pendant l'étape 1 et le tour du regard ; recul à 4 km/h, l'allure du pas, atteints puis quittés à 1,0 m/s² ; arrêt au bout des 15 m, jusqu'à la fin", () => {
+  const { sc, eleve, tArret, T } = lireMarcheArriere();
+  for (let t = 0; t < T[2] - 1e-9; t += 0.01) assert.equal(etatActeur(eleve, t).v, 0, `en mouvement à t = ${t.toFixed(2)} s`);
+  const t4 = premierInstant((t) => kmh(eleve, t) >= MARCHE_ARRIERE_KMH - 1e-9, T[2], tArret);
+  const tFrein = premierInstant((t) => kmh(eleve, t) < MARCHE_ARRIERE_KMH - 1e-9, t4, tArret);
+  const rampe = (MARCHE_ARRIERE_KMH * KMH) / 1.0;   // s pour passer de 0 à 4 km/h, ou de 4 km/h à 0, à 1,0 m/s²
+  proche(t4 - T[2], rampe, 1e-6, "allure du pas atteinte à 1,0 m/s²");
+  proche(tArret - tFrein, rampe, 1e-6, "arrêt à 1,0 m/s²");
+  for (let t = T[2] + 0.01; t < t4 - 0.01; t += 0.01) proche(etatActeur(eleve, t).a, 1.0, 1e-6, `mise en mouvement, t = ${t.toFixed(2)} s`);
+  for (let t = t4; t <= tFrein; t += 0.01) proche(kmh(eleve, t), MARCHE_ARRIERE_KMH, 1e-9, `allure à t = ${t.toFixed(2)} s`);
+  for (let t = tFrein + 0.01; t < tArret - 0.01; t += 0.01) proche(etatActeur(eleve, t).a, -1.0, 1e-6, `arrêt, t = ${t.toFixed(2)} s`);
+  for (let t = 0; t <= sc.duree + 1e-9; t += 0.01) {
+    assert.ok(kmh(eleve, t) <= MARCHE_ARRIERE_KMH + 1e-9, `${kmh(eleve, t).toFixed(3)} km/h à t = ${t.toFixed(2)} s`);
+  }
+  for (let t = tArret; t <= sc.duree + 1e-9; t += 0.01) {
+    const e = etatActeur(eleve, t);
+    assert.equal(e.v, 0, `en mouvement à t = ${t.toFixed(2)} s`);
+    proche(e.s, eleve.chemin.longueur, 1e-9);
+  }
+});
+
+test("marche-arriere : voiture en stationnement (feux éteints), posée au-delà de la zone de recul, le long du même trottoir et tournée vers le nord, son avant à 2 m de l'arrière de la voiture arrêtée ; au départ, 17 m libres derrière la voiture", () => {
+  const { def, eleve, garee, tArret } = lireMarcheArriere();
+  assert.ok(garee.pose && !garee.chemin && !garee.profil && !garee.chrono, "acteur posé, sans trajet");
+  assert.equal(garee.stationne, true, "voiture en stationnement : feux stop éteints");
+  const g = etatActeur(garee, 0), depart = etatActeur(eleve, 0), arret = etatActeur(eleve, tArret);
+  proche(g.x, depart.x, 1e-12, "le long du même trottoir, à 0,3 m de la bordure");
+  proche(g.cap, -90 * DEG, 1e-12, "tournée vers le nord");
+  const avantGaree = avant("voiture", g);
+  proche(avantGaree.y - arriereDe(arret).y, 2, 1e-9, "écart à l'arrêt");
+  proche(avantGaree.y - arriereDe(depart).y, 17, 1e-9, "zone libre derrière la voiture au départ");
+  for (const [x, y] of emprise("voiture", g)) {
+    assert.ok(x >= 0 && x <= def.monde.largeur && y >= 0 && y <= def.monde.hauteur, `voiture garée hors du dessin en (${x} ; ${y})`);
+  }
+});
+
+test("marche-arriere : pendant tout le recul, regard par-dessus l'épaule droite, à 165 degrés (et non 180, le rétroviseur intérieur) : le cône contient le chemin qu'il reste au milieu du pare-chocs arrière à parcourir et l'avant de la voiture garée ; le coin arrière gauche et son chemin n'y entrent jamais", () => {
+  const { sc, eleve, garee, tArret, T } = lireMarcheArriere();
+  const arret = etatActeur(eleve, tArret), fin = arriereDe(arret), avantGaree = avant("voiture", etatActeur(garee, 0));
+  // Coin arrière gauche : le quatrième coin de l'emprise (arrière, côté gauche de la caisse).
+  const coinArriereGauche = (e) => { const [x, y] = emprise("voiture", e)[3]; return { x, y }; };
+  const coinFin = coinArriereGauche(arret);
+  let n = 0;
+  for (let t = T[2]; t < tArret - 1e-9; t += 0.01, n++) {
+    const e = etatActeur(eleve, t), angle = angleRegard(sc.etapes[etapeActive(sc, t)], e, t, etatsA(sc, t));
+    proche((angle - e.cap) / DEG, 165, 1e-9, `regard à t = ${t.toFixed(2)} s`);
+    // Le cône est un triangle : il contient le chemin du milieu du pare-chocs arrière, de sa place à celle de la voiture
+    // arrêtée, s'il en contient les deux bouts.
+    for (const [nom, p] of [["le milieu du pare-chocs arrière", arriereDe(e)], ["le milieu du pare-chocs arrière de la voiture arrêtée", fin],
+      ["l'avant de la voiture garée", avantGaree]]) {
+      assert.ok(regardContient(angle, oeil(e), p), `${nom} hors du cône à t = ${t.toFixed(2)} s`);
+    }
+    // Le coin arrière gauche et le chemin qu'il lui reste, relevé en 21 points : jamais dans le cône (à gauche de la voiture,
+    // le tour du regard les a vus avant de partir).
+    const coin = coinArriereGauche(e);
+    for (let k = 0; k <= 20; k++) {
+      const p = { x: coin.x + ((coinFin.x - coin.x) * k) / 20, y: coin.y + ((coinFin.y - coin.y) * k) / 20 };
+      assert.ok(!regardContient(angle, oeil(e), p), `chemin du coin arrière gauche dans le cône à t = ${t.toFixed(2)} s (point ${k})`);
+    }
+  }
+  assert.ok(n >= 1400, `${n} instants relevés pendant le recul`);
+});
+
+test("marche-arriere : au milieu du tour, le regard vers l'arrière couvre toute la zone de recul, de l'arrière de la voiture à l'endroit où elle s'arrêtera, et l'avant de la voiture garée", () => {
+  const { sc, eleve, garee, tArret, T } = lireMarcheArriere();
+  const t = (T[1] + T[2]) / 2, e = etatActeur(eleve, t), angle = angleRegard(sc.etapes[1], e, t, etatsA(sc, t));
+  proche(angle - e.cap, -Math.PI, 1e-9, "l'arrière, à la moitié du tour");
+  for (const [nom, p] of [["l'arrière de la voiture", arriereDe(e)], ["l'arrière de la voiture arrêtée", arriereDe(etatActeur(eleve, tArret))],
+    ["l'avant de la voiture garée", avant("voiture", etatActeur(garee, 0))]]) {
+    assert.ok(regardContient(angle, oeil(e), p), `${nom} hors du cône`);
+  }
+});
+
+test("marche-arriere : la marche arrière engagée, puis le tour du regard à l'arrêt, puis le recul à 165 degrés, puis le regard devant à l'arrêt, chacun pendant 1,0 s au moins, le tour pendant 4 s au moins", () => {
+  verifierMarcheArriere(SCENES["marche-arriere"].construire());
+});
+
+test("marche-arriere : cadre de 46 m de haut sur toute la largeur, qui suit l'élève ; les cônes du regard restent dans la hauteur du dessin, en lecture comme sur les images figées ; départ à 23 m du bord haut et rue de 60 m, au plus petit nombre entier de mètres", () => {
+  const { def, sc, eleve } = lireMarcheArriere();
+  assert.deepEqual(def.camera, { largeur: def.monde.largeur, hauteur: 46 });
+  assert.equal(def.monde.hauteur, 60);
+  let yMin = Infinity, yMax = -Infinity;
+  const releve = (r) => {
+    for (const poly of r.polys || [r.poly]) for (const [, y] of poly) { yMin = Math.min(yMin, y); yMax = Math.max(yMax, y); }
+  };
+  for (let t = 0; t <= sc.duree + 1e-9; t += 0.01) {
+    const etats = etatsA(sc, t);
+    releve(regardDessine(sc.etapes[etapeActive(sc, t)], etats.get("eleve"), t, etats));
+  }
+  sc.etapes.forEach((et) => { const etats = etatsA(sc, et.t); releve(regardDessine(et, etats.get("eleve"), et.t, etats, true)); });
+  assert.ok(yMin >= 0 && yMax <= def.monde.hauteur, `cônes de y = ${yMin.toFixed(3)} à y = ${yMax.toFixed(3)} m`);
+  // Un mètre de moins au départ : pendant le tour, la pointe du cône, qui passe à REGARD_PORTEE de l'œil dans toutes les
+  // directions, sortirait du dessin par le haut. Un mètre de moins à la rue : le cône de la lunette en sortirait par le
+  // bas avant l'arrêt.
+  const o = oeil(etatActeur(eleve, 0));
+  assert.ok(o.y - REGARD_PORTEE >= 0 && o.y - 1 - REGARD_PORTEE < 0, `œil à ${o.y} m du bord haut au départ`);
+  assert.ok(yMax > def.monde.hauteur - 1, `cônes jusqu'à y = ${yMax.toFixed(3)} m`);
+});
+
+test("marche-arriere : 4 m de trottoir montrés de chaque côté, le plus petit nombre entier de mètres pour que, dans le cadre réduit, chaque cône du tour figé se voie au-delà de la voiture sur au moins la largeur d'une voie", () => {
+  const { def, sc, eleve, T } = lireMarcheArriere();
+  assert.equal(def.decor.reperes.xBordGauche, 4, "trottoir montré à gauche");
+  assert.equal(def.monde.largeur - def.decor.reperes.xBordDroit, 4, "trottoir montré à droite");
+  const c = cadreReduit(sc), e = etatActeur(eleve, T[1]), o = oeil(e);
+  const L = GABARITS.voiture.longueur / 2, W = GABARITS.voiture.largeur / 2;
+  // La voiture est tournée vers le nord : les axes des quatre cônes partent de l'œil vers le nord, l'ouest, le sud et l'est.
+  // Longueur de chacun que montre le cadre au-delà de la voiture, jusqu'au bord du cadre ou au bout du cône (le bord
+  // lointain du triangle, à REGARD_PORTEE cos REGARD_OUVERTURE de l'œil).
+  const bout = REGARD_PORTEE * Math.cos(REGARD_OUVERTURE * DEG);
+  const vus = {
+    devant: (e.y - L) - Math.max(c.y, o.y - bout),
+    gauche: (e.x - W) - Math.max(c.x, o.x - bout),
+    derriere: Math.min(c.y + c.hauteur, o.y + bout) - (e.y + L),
+    droite: Math.min(c.x + c.largeur, o.x + bout) - (e.x + W),
+  };
+  for (const [nom, l] of Object.entries(vus)) assert.ok(l >= DESSIN.voie, `cône ${nom} : ${l.toFixed(2)} m au-delà de la voiture`);
+  proche(vus.droite, 4.3, 1e-9, "cône à droite, côté trottoir");
+  assert.ok(vus.droite - 1 < DESSIN.voie, "avec un mètre de trottoir de moins, le cône à droite resterait sous la largeur d'une voie");
+});
+
+test("marche-arriere : les valeurs calculées que citent les sources (cône à droite du tour, zone libre au départ, mise en mouvement et arrêt, allure tenue, durée du recul, départ) sont celles de la scène, à l'arrondi écrit près", () => {
+  const { def, sc, eleve, garee, tArret, T } = lireMarcheArriere();
+  const choixDeDessin = SCENES["marche-arriere"].sources.find((s) => s.startsWith("Choix de dessin"));
+  // Nombre écrit à la française dans les sources (groupe k du motif) ; tolérance : la moitié de son dernier chiffre.
+  const ecrit = (motif, k = 1) => {
+    const m = choixDeDessin.match(motif);
+    assert.ok(m, `${motif} introuvable dans les sources`);
+    return { valeur: Number(m[k].replace(",", ".")), tolerance: 0.5 * 10 ** -(m[k].split(",")[1] || "").length };
+  };
+  const t4 = premierInstant((t) => kmh(eleve, t) >= MARCHE_ARRIERE_KMH - 1e-9, T[2], tArret);
+  const tFrein = premierInstant((t) => kmh(eleve, t) < MARCHE_ARRIERE_KMH - 1e-9, t4, tArret);
+  const e = etatActeur(eleve, T[1]), c = cadreReduit(sc), bout = REGARD_PORTEE * Math.cos(REGARD_OUVERTURE * DEG);
+  const mesures = [
+    ["cône à droite du tour, au-delà de la voiture (m)", Math.min(c.x + c.largeur, oeil(e).x + bout) - (e.x + GABARITS.voiture.largeur / 2),
+      ecrit(/sur au moins la largeur d'une voie : (\d+(?:,\d+)?) m/)],
+    ["zone libre derrière la voiture au départ (m)", avant("voiture", etatActeur(garee, 0)).y - arriereDe(etatActeur(eleve, 0)).y,
+      ecrit(/au départ, (\d+(?:,\d+)?) m sont libres/)],
+    ["mise en mouvement (s)", t4 - T[2], ecrit(/\((\d+(?:,\d+)?) s et (\d+(?:,\d+)?) m chacun\)/, 1)],
+    ["mise en mouvement (m)", etatActeur(eleve, t4).s, ecrit(/\((\d+(?:,\d+)?) s et (\d+(?:,\d+)?) m chacun\)/, 2)],
+    ["arrêt (s)", tArret - tFrein, ecrit(/\((\d+(?:,\d+)?) s et (\d+(?:,\d+)?) m chacun\)/, 1)],
+    ["arrêt (m)", eleve.chemin.longueur - etatActeur(eleve, tFrein).s, ecrit(/\((\d+(?:,\d+)?) s et (\d+(?:,\d+)?) m chacun\)/, 2)],
+    ["allure du pas tenue (s)", tFrein - t4, ecrit(/tenus (\d+(?:,\d+)?) s/)],
+    ["durée du recul (s)", tArret - T[2], ecrit(/(\d+(?:,\d+)?) s de recul/)],
+    ["départ de la voiture (s)", T[2], ecrit(/la voiture recule (\d+(?:,\d+)?) s après le début/)],
+  ];
+  for (const [nom, mesure, { valeur, tolerance }] of mesures) {
+    assert.ok(Math.abs(mesure - valeur) <= tolerance + 1e-9, `${nom} : ${mesure} dans la scène, ${valeur} dans les sources`);
+  }
+  assert.equal(def.acteurs.length, 2, "l'élève et la voiture garée, sans autre usager");
+});
+
+// Sabotages : chaque défaut est refusé par le contrôle ou l'assertion qui le vise.
+
+test("marche-arriere : le tour du regard fait avant d'engager la marche arrière, un recul sans tour du regard, ou au rétroviseur intérieur (180) au lieu de la lunette, sont refusés par l'assertion d'ordre", () => {
+  const tourAvant = copie("marche-arriere");
+  [tourAvant.etapes[0].regard, tourAvant.etapes[1].regard] = [tourAvant.etapes[1].regard, tourAvant.etapes[0].regard];
+  assert.throws(() => verifierMarcheArriere(tourAvant),
+    /marche arrière : tour, arrêtée, feux de recul ; 0, arrêtée, feux de recul ; 165, en reculant, feux de recul ; 0, arrêtée, feux de recul(?! ;)/);
+  const sansTour = copie("marche-arriere");
+  sansTour.etapes[1].regard = { angle: 0 };
+  assert.throws(() => verifierMarcheArriere(sansTour),
+    /marche arrière : 0, arrêtée, feux de recul ; 165, en reculant, feux de recul ; 0, arrêtée, feux de recul(?! ;)/);
+  const retroviseur = copie("marche-arriere");
+  retroviseur.etapes[2].regard = { angle: 180 };
+  assert.throws(() => verifierMarcheArriere(retroviseur), /marche arrière : 0, arrêtée, feux de recul ; tour, arrêtée, feux de recul ; 180, en reculant/);
+});
+
+test("marche-arriere : reculer pendant le tour du regard, ou partir en marche avant (caisse vers le sud, feux de recul éteints), est refusé par l'assertion d'ordre", () => {
+  const sansAttente = copie("marche-arriere");
+  sansAttente.acteurs[0].profil[0] = { s: 0, kmh: 0 };   // sans attente au départ : la voiture recule dès le début
+  assert.throws(() => verifierMarcheArriere(sansAttente), /marche arrière : 0, en reculant, feux de recul ; tour, en reculant, feux de recul/);
+  const enAvant = copie("marche-arriere");
+  enAvant.acteurs[0].chemin.segments[0].arriere = false;
+  assert.throws(() => verifierMarcheArriere(enAvant), /marche arrière : 0, arrêtée, sans feux de recul ; tour, arrêtée, sans feux de recul ; 165, en avançant/);
+});
+
+test("marche-arriere : reculer plus vite que l'allure du pas est refusé : à 7 km/h par les contrôles automatiques (6 km/h au plus en marche arrière), à 5 km/h par l'attente de la scène (4 km/h)", () => {
+  for (const [kmhRecul, motif] of [[7, /eleve recule à \d+\.\d km\/h à t = \d+\.\d s \(au plus 6 km\/h\)/], [5, /eleve dépasse 4 km\/h entre s = 0 et s = 15 /]]) {
+    const def = copie("marche-arriere");
+    def.acteurs[0].profil = def.acteurs[0].profil.map((p) => (p.kmh === MARCHE_ARRIERE_KMH ? { ...p, kmh: kmhRecul } : p));
+    assert.match(erreurs(def), motif);
+  }
+});
+
+test("marche-arriere : une voiture qui touche le trottoir, qui mord la voie de gauche ou qui touche la voiture garée est détectée", () => {
+  const trottoir = copie("marche-arriere");
+  trottoir.acteurs[0].chemin.segments[0].x0 += 0.4;
+  assert.match(erreurs(trottoir), /eleve touche un trottoir/);
+  const voieGauche = copie("marche-arriere");
+  voieGauche.acteurs[0].chemin.segments[0].x0 -= 1.5;
+  assert.match(erreurs(voieGauche), /eleve sort de « voie de droite »/);
+  const contreLaGaree = copie("marche-arriere");
+  contreLaGaree.acteurs[1].pose.y -= 2.5;
+  assert.match(erreurs(contreLaGaree), /eleve et garee se touchent/);
+});
+
+test("marche-arriere : un tour du regard de moins de 4 s est refusé ; un clignotant, à droite comme à gauche, aussi", () => {
+  const court = copie("marche-arriere");
+  court.acteurs[0].profil[0].pause = 4;
+  court.etapes[2].delai = 4;
+  assert.deepEqual(etapesTropCourtes(court), ["étape 2 : 3.000 s à l'écran, 4 s au moins"]);
+  for (const cote of ["droite", "gauche"]) {
+    const def = copie("marche-arriere");
+    def.acteurs[0].clignotant = [{ cote, de: 0, a: 15 }];
+    assert.match(erreurs(def), new RegExp(`eleve : clignotant ${cote} allumé avant s = 15\\.0 m`));
+  }
 });
