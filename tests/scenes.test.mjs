@@ -1150,7 +1150,7 @@ test("giratoire : douze étapes (fiche C2-F, ordre de sortie de C2.4 et du thèm
   proche(T[11], tA(fin(arcSortie)), 1e-6, "reprendre l'allure : à la fin de l'arc de sortie");
 });
 
-// ===== regard-intersection : la scène suit les procédures de Fabrice (5.1) et les fiches ECF C1-I et C1-H =====
+// ===== regard-intersection : la scène suit les procédures de stage (5.1) et les fiches ECF C1-I et C1-H =====
 //
 // Comme pour les autres scènes, les instants se lisent sur la définition (trajet, chronologie, emprises). L'élève roule
 // tout droit vers le nord : l'avant de sa voiture est le haut de son emprise, l'arrière le bas.
@@ -1234,7 +1234,7 @@ function sequenceApproche(def) {
 }
 
 // Assertion d'ordre de l'approche (fiche C1-H et méthode C.I.A. : contrôler l'arrière, puis ralentir ; procédures de
-// Fabrice, 5.1 : contrôles à l'approche en face, à gauche, à droite) : regard loin devant à 50 km/h, rétroviseur intérieur
+// stage, 5.1 : contrôles à l'approche en face, à gauche, à droite) : regard loin devant à 50 km/h, rétroviseur intérieur
 // à 50 km/h, regard devant en ralentissant, puis, à 30 km/h, en face, à gauche (-30), à droite (30), chacun pendant 1,0 s
 // au moins, tous achevés avant l'entrée dans l'intersection. Lève une AssertionError sinon.
 function verifierApproche(def) {

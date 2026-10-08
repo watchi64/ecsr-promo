@@ -212,7 +212,7 @@ export function placeRepereLibre(sc) {
  * lui ou un repère déjà posé ; séparée de l'élève par un acteur posé, le segment qui relie leurs centres traversant son
  * emprise, ce qui ferait désigner l'acteur par le repère ; ou dans la zone protégée d'un tour du regard figé), il s'écarte
  * par pas de PAS_REPERE, jusqu'à ALLONGEMENT_MAX_REPERE plus loin, puis essaie de même à gauche du cap. Une étape qui
- * commence à moins de ECART_REPERES m de la position d'un repère déjà posé le partage (numéros joints par un point médian).
+ * commence à moins de ECART_REPERES m de la position d'un repère déjà posé le partage (son texte est celui de libelleRepere).
  * Un repère qui porte une étape où le regard fait le tour suit la même règle sur la diagonale à 45 degrés du cap (devant à
  * droite, puis derrière à gauche), hors des quatre cônes du tour figé : sur la perpendiculaire, il tomberait sur l'axe d'un
  * cône latéral. Si toute la diagonale est prise, il la suit le long du cap (devant, puis derrière), où il ne couvre que le
