@@ -374,7 +374,7 @@ Spec : `docs/superpowers/specs/2026-10-03-espace-stagiaires-design.md` · plan :
 ## Cours des compétences de conduite (programme B, C1 à C4)
 
 Spec et plans dans le dépôt ECSR : `docs/superpowers/specs/2026-10-03-cours-competences-remc-design.md`,
-`docs/superpowers/plans/2026-10-03-cours-competences-remc-plan-1.md`.
+`docs/superpowers/plans/2026-10-03-cours-competences-remc-plan-1.md`, `docs/superpowers/plans/2026-10-07-cours-competences-remc-plan-2-c1.md` (lot C1).
 
 - **Clé de cours** : un cours porte un numéro (les 57 thèmes) ou un code (`C2.4`), jamais les deux
   (contrainte `cours_numero_ou_code`). `cleCours()` dans `js/cours-rules.js` ; `getCours(cle)`.
@@ -389,6 +389,26 @@ Spec et plans dans le dépôt ECSR : `docs/superpowers/specs/2026-10-03-cours-co
   `node tests/scenes.test.mjs` passe chaque scène aux contrôles automatiques (`js/scene-controles.js`) :
   trottoirs, contacts, vitesse, accélérations, clignotant, priorités. Si un contrôle refuse, on corrige la
   géométrie, jamais le seuil. Le clignotement se compte depuis l'allumage du clignotant.
+- **Lot C1 (plan 2, 08/10/2026)** : cinq scènes de plus (`regard-intersection` C1.8, `trajectoire-courbe` C1.7,
+  `demarrer-arreter` C1.4, `marche-arriere` et `demi-tour` C1.9) et ce qu'elles demandaient au moteur :
+  - **Marche arrière** : `trajet(x, y, cap, { arriere })`, `inverser()` (rebroussement sur place), `rebroussements(chemin)`
+    fait foi ; la caisse ne pivote pas au rebroussement ; `etatActeur(...).marche` ; `feuxDeRecul(e)`.
+  - **Essieu arrière** : `trajet(..., { essieu: GABARITS.voiture.essieu })` (1,45 m) : les segments décrivent le milieu
+    de l'essieu arrière, `pointA` rend le centre ; abscisses et allures (donc les contrôles de vitesse) sont celles de
+    l'essieu ; `trajet().position` rend l'essieu. Défaut inchangé (le pilote pivote au centre).
+  - **Regards** : `{ tour: true }` (0 à -360, au moins 4 s ; quatre cônes sur image figée) ; `{ vers: [x, y] }`
+    (dirigé vers un point du monde, recalculé à chaque instant).
+  - **Feux** : `feuxStop(acteur, e)` ; une voiture posée `stationne: true` ne les allume jamais.
+  - **Contrôles** : allure de recul (`SEUILS.vitesseMarcheArriere`, 6 km/h, message au pic), arrêt à chaque
+    rebroussement, clignotants datés pendant un arrêt (`{ cote, de, a, delai, delaiFin }`, « le dernier allumé
+    l'emporte »), instants de bascule contrôlés dans l'arc et dans les 2 s d'avance, `pasDeDeceleration`.
+  - **Décors** : `rue({ longueur, largeurTrottoir, largeurVoie, stationnement })`, `routeVirages`.
+  - **Repères des animations réduites** : une seule règle des places (`placeRepereLibre`, prédicat `libre`) : jeu de
+    0,3 m autour des acteurs posés, aucun acteur posé entre l'élève et son repère, cônes du tour figé protégés ;
+    quatre numéros consécutifs ou plus s'écrivent en plage (`libelleRepere` : « 10-15 »).
+  - **À faire avant le lot suivant** : charger le moteur de scènes à la demande (import dynamique au premier bloc
+    `:::scene` ; il pèse aujourd'hui sur le démarrage de tous les utilisateurs) et sortir les `sources` (47 Ko, non
+    affichées) du module livré. Mineures restantes : `.superpowers/sdd/p2-mineures-ouvertes.md` du dépôt ECSR.
 - **Tests** : sous Node 24, `node --test tests/` échoue (dossier chargé comme un module) ; lancer
   `node --test "tests/*.test.mjs"`.
 - **Bancs** : `_preview_cours.html?cle=C2.4` (lecteur et éditeur), `_preview_scenes.html` (planche de revue,
