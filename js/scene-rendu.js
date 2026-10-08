@@ -14,7 +14,7 @@
  * Toutes les valeurs ci-dessous sont des choix de dessin, sans portée réglementaire.
  */
 import { DEG, GABARITS, etatActeur, emprise, rectangle, polygonesSeChevauchent } from "./scene-geometrie.js?v=20261005f";
-import { oeil, conesTour } from "./scene-regard.js?v=20261005f";
+import { REGARD_PORTEE, REGARD_OUVERTURE, DIRECTIONS_TOUR_FIGE, oeil, conesTour } from "./scene-regard.js?v=20261005f";
 
 // Teintes de la route réelle (donnée pédagogique), pas la palette de l'app ; la voiture de l'élève prend l'accent de l'app
 // pour être repérée d'un coup d'œil.
@@ -46,11 +46,12 @@ export const RAYON_REPERE = 1.2;
 const CHASSE_REPERE = 0.75, JEU_REPERE = 0.3;
 /** Distance (m) en deçà de laquelle deux étapes partagent un repère. */
 export const ECART_REPERES = 1.5;
-/** Jeu (m) entre le flanc droit de la voiture de l'élève et le bord du repère de son étape, posé à sa droite : la voiture
- *  ne cache jamais un repère. */
+/** Jeu (m) entre la voiture de l'élève et le bord du repère de son étape, posé au plus près dans la direction que donne la
+ *  règle (reperesEtapes : à droite du cap, ou sur la diagonale ou le cap pour un tour du regard) : la voiture ne cache
+ *  jamais un repère. */
 export const JEU_REPERE_VOITURE = 0.3;
-/** Pas (m) dont un repère s'écarte de la voiture quand sa place est prise, et écart supplémentaire maximal (m) à droite du
- *  cap : au-delà, le repère passe à gauche. */
+/** Pas (m) dont un repère s'écarte de la voiture quand sa place est prise, et écart supplémentaire maximal (m) dans chaque
+ *  sens d'une direction de la règle : au-delà, il essaie le sens opposé, puis la direction suivante (reperesEtapes). */
 export const PAS_REPERE = 0.1, ALLONGEMENT_MAX_REPERE = 3;
 /** Marge (m) du cadre des animations réduites autour de ce qu'il montre. */
 export const MARGE_CADRE_REDUIT = 1;
@@ -102,18 +103,87 @@ function bandeLigne(m) {
   return [[x0 + px, y0 + py], [x1 + px, y1 + py], [x1 - px, y1 - py], [x0 - px, y0 - py]];
 }
 
+// Abscisses t (m) où le point o + t u (u unitaire) est dans le rectangle aux coins p0, p1, p2, p3, pris dans l'ordre : [t0, t1],
+// ou null s'il n'y entre pas (méthode des tranches, sur les deux axes du rectangle).
+function traverseeRectangle(o, u, [p0, p1, p2, p3]) {
+  const cx = (p0[0] + p2[0]) / 2, cy = (p0[1] + p2[1]) / 2;
+  let t0 = -Infinity, t1 = Infinity;
+  for (const [ax, ay] of [[p1[0] - p0[0], p1[1] - p0[1]], [p3[0] - p0[0], p3[1] - p0[1]]]) {
+    const l = Math.hypot(ax, ay), p = ((o.x - cx) * ax + (o.y - cy) * ay) / l, v = (u.x * ax + u.y * ay) / l;
+    if (Math.abs(v) < 1e-12) {
+      if (Math.abs(p) > l / 2) return null;
+      continue;
+    }
+    const a = (-l / 2 - p) / v, b = (l / 2 - p) / v;
+    t0 = Math.max(t0, Math.min(a, b));
+    t1 = Math.min(t1, Math.max(a, b));
+  }
+  return t0 <= t1 ? [t0, t1] : null;
+}
+
+// Axes des quatre cônes d'un tour du regard figé, pour la voiture de l'élève dans l'état e : de l'œil, dans chaque direction
+// de DIRECTIONS_TOUR_FIGE ; [debut, fin] : la partie que le monde en montre hors de la voiture (dessinée par-dessus le
+// regard), jusqu'au bord lointain du cône ; lateral : cône à gauche ou à droite. Un axe que le monde ne montre pas est omis.
+function axesTourFige(sc, e) {
+  const o = oeil(e), voiture = emprise(sc.eleve.gabarit, e), monde = rectangle(0, 0, sc.monde.largeur, sc.monde.hauteur);
+  const bout = REGARD_PORTEE * Math.cos(REGARD_OUVERTURE * DEG);
+  return DIRECTIONS_TOUR_FIGE.map((d) => {
+    const u = { x: Math.cos(e.cap + d * DEG), y: Math.sin(e.cap + d * DEG) };
+    const dansVoiture = traverseeRectangle(o, u, voiture), dansMonde = traverseeRectangle(o, u, monde);
+    return { o, u, lateral: Math.abs(d) === 90, debut: Math.max(0, dansVoiture ? dansVoiture[1] : 0),
+      fin: Math.min(bout, dansMonde ? dansMonde[1] : 0) };
+  }).filter((a) => a.fin > a.debut);
+}
+
+/**
+ * Règle des places des repères d'étape (animations réduites), que reperesEtapes et les tests partagent : rend libre(r, posees),
+ * vrai quand le repère r ({ x, y, numeros }) tient dans le monde sans toucher le dessin d'un panneau, une ligne de
+ * cédez-le-passage, la voiture de l'élève au début d'une étape ni un repère déjà posé (posees), et sans entrer dans la zone
+ * protégée des cônes d'un tour du regard figé de la scène. Sur l'image figée, chacun des quatre côtés du tour doit se lire
+ * comme un regard qui part de la voiture : la moitié la plus proche de la voiture de l'axe d'un cône latéral (à gauche, à
+ * droite) reste libre de tout repère ; un cône avant ou arrière n'a jamais plus de la moitié de son axe couverte, repères déjà
+ * posés compris (un repère posé devant ou derrière la voiture n'en couvre que le début). L'axe d'un cône se mesure de la
+ * carrosserie jusqu'au bord du monde, ou jusqu'au bord lointain du cône.
+ */
+export function placeRepereLibre(sc) {
+  const obstacles = sc.decor.panneaux.map((p) => { const r = emprisePanneau(p); return rectangle(r.x, r.y, r.x + r.largeur, r.y + r.hauteur); });
+  for (const m of sc.decor.marquages) {
+    if (m.type === "ligne" && typeof m.role === "string" && m.role.startsWith("cedez-")) obstacles.push(bandeLigne(m));
+  }
+  for (const et of sc.etapes) obstacles.push(emprise(sc.eleve.gabarit, etatActeur(sc.eleve, et.t)));
+  const axes = sc.etapes.filter((et) => et.regard && et.regard.tour).flatMap((et) => axesTourFige(sc, etatActeur(sc.eleve, et.t)));
+  // Partie [t0, t1] de l'axe a que couvre la boîte b, dans ce que le monde en montre ; null si elle n'en couvre rien.
+  const couvert = (a, b) => {
+    const t = traverseeRectangle(a.o, a.u, b);
+    const t0 = t && Math.max(t[0], a.debut), t1 = t && Math.min(t[1], a.fin);
+    return t && t1 > t0 ? [t0, t1] : null;
+  };
+  const longueur = (c) => (c ? c[1] - c[0] : 0);
+  return (r, posees) => {
+    const b = boiteRepere(r), boites = posees.map(boiteRepere);
+    const dansLeMonde = b.every(([x, y]) => x >= 0 && x <= sc.monde.largeur && y >= 0 && y <= sc.monde.hauteur);
+    if (!dansLeMonde || [...obstacles, ...boites].some((o) => polygonesSeChevauchent(b, o))) return false;
+    return !axes.some((a) => {
+      const c = couvert(a, b), moitie = (a.fin - a.debut) / 2;
+      if (!c) return false;
+      return a.lateral ? c[0] < a.debut + moitie : longueur(c) + boites.reduce((somme, p) => somme + longueur(couvert(a, p)), 0) > moitie;
+    });
+  };
+}
+
 /**
  * Repères des étapes (animations réduites), [{ x, y, numeros }] : un par position de l'élève au début d'une étape, sur la
  * perpendiculaire à son cap (celui de sa première étape). Il se pose à droite, au plus près : à la distance qui laisse
  * JEU_REPERE_VOITURE entre le flanc de la voiture et le bord du repère, quel que soit le cap (le disque ou la pastille
- * n'est pas tourné). Si cette place est prise (dessin d'un panneau, ligne de cédez-le-passage, voiture de l'élève au début
- * d'une étape, repère déjà posé) ou hors du monde, il s'écarte par pas de PAS_REPERE, jusqu'à ALLONGEMENT_MAX_REPERE plus
- * loin, puis essaie de même à gauche du cap. Une étape qui commence à moins de ECART_REPERES m de la position d'un repère
- * déjà posé le partage (numéros joints par un point médian). Un repère qui porte une étape où le regard fait le tour suit la
- * même règle sur la diagonale à 45 degrés du cap (devant à droite, puis derrière à gauche), hors des quatre cônes du tour
- * figé : sur la perpendiculaire, il tomberait sur l'axe d'un cône latéral. Si toute la diagonale est prise, il la suit le long
- * du cap (devant, puis derrière), où il ne couvre que le début du cône avant ou arrière. Dans chaque direction, la distance
- * au plus près laisse JEU_REPERE_VOITURE entre la voiture et le repère, le long de cette direction.
+ * n'est pas tourné). Si cette place n'est pas libre (placeRepereLibre : hors du monde, sur le dessin d'un panneau, une ligne
+ * de cédez-le-passage, la voiture de l'élève au début d'une étape, un repère déjà posé, ou dans la zone protégée d'un tour du
+ * regard figé), il s'écarte par pas de PAS_REPERE, jusqu'à ALLONGEMENT_MAX_REPERE plus loin, puis essaie de même à gauche du
+ * cap. Une étape qui commence à moins de ECART_REPERES m de la position d'un repère déjà posé le partage (numéros joints par
+ * un point médian). Un repère qui porte une étape où le regard fait le tour suit la même règle sur la diagonale à 45 degrés
+ * du cap (devant à droite, puis derrière à gauche), hors des quatre cônes du tour figé : sur la perpendiculaire, il tomberait
+ * sur l'axe d'un cône latéral. Si toute la diagonale est prise, il la suit le long du cap (devant, puis derrière), où il ne
+ * couvre que le début du cône avant ou arrière. Dans chaque direction, la distance au plus près laisse JEU_REPERE_VOITURE
+ * entre la voiture et le repère, le long de cette direction.
  */
 export function reperesEtapes(sc) {
   const groupes = [];
@@ -122,16 +192,7 @@ export function reperesEtapes(sc) {
     const proche = groupes.find((g) => Math.hypot(g.e.x - e.x, g.e.y - e.y) < ECART_REPERES);
     if (proche) proche.numeros.push(i + 1); else groupes.push({ e, numeros: [i + 1] });
   });
-  const obstacles = sc.decor.panneaux.map((p) => { const r = emprisePanneau(p); return rectangle(r.x, r.y, r.x + r.largeur, r.y + r.hauteur); });
-  for (const m of sc.decor.marquages) {
-    if (m.type === "ligne" && typeof m.role === "string" && m.role.startsWith("cedez-")) obstacles.push(bandeLigne(m));
-  }
-  for (const et of sc.etapes) obstacles.push(emprise(sc.eleve.gabarit, etatActeur(sc.eleve, et.t)));
-  const libre = (r) => {
-    const b = boiteRepere(r);
-    const dansLeMonde = b.every(([x, y]) => x >= 0 && x <= sc.monde.largeur && y >= 0 && y <= sc.monde.hauteur);
-    return dansLeMonde && !obstacles.some((o) => polygonesSeChevauchent(b, o));
-  };
+  const libre = placeRepereLibre(sc), posees = [];
   const demiVoiture = GABARITS[sc.eleve.gabarit].largeur / 2, pas = Math.round(ALLONGEMENT_MAX_REPERE / PAS_REPERE);
   const demiLongueur = GABARITS[sc.eleve.gabarit].longueur / 2;
   return groupes.map(({ e, numeros }) => {
@@ -152,14 +213,14 @@ export function reperesEtapes(sc) {
       for (const sens of [1, -1]) {
         for (let k = 0; k <= pas && !repere; k++) {
           const r = place(sens * (d0 + k * PAS_REPERE));
-          if (libre(r) && !evites.some((c) => polygonesSeChevauchent(boiteRepere(r), c))) repere = r;
+          if (libre(r, posees) && !evites.some((c) => polygonesSeChevauchent(boiteRepere(r), c))) repere = r;
         }
         if (repere) break;
       }
       if (repere) break;
     }
-    repere ||= auPlusPres;                                  // aucune place libre : au plus près à droite (les tests le signalent)
-    obstacles.push(boiteRepere(repere));
+    repere ||= auPlusPres;     // aucune place libre : au plus près, dans le premier sens de la première direction (les tests le signalent)
+    posees.push(repere);
     return repere;
   });
 }

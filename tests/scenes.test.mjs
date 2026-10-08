@@ -1557,10 +1557,10 @@ function sequenceMarcheArriere(def) {
   return suite;
 }
 
-// Assertion d'ordre de la méthode de Timy (V·V·C·C : la vitesse d'abord, puis les contrôles, le mouvement en dernier) :
-// regard devant, voiture arrêtée, marche arrière engagée (feux de recul) ; tour du regard, arrêtée ; 165 degrés en
-// reculant ; regard devant, arrêtée ; chacun pendant 1,0 s au moins, le tour pendant REGARD_DUREE_TOUR_MIN au moins. Lève
-// une AssertionError sinon.
+// Assertion d'ordre (V·V·C·C, choix du contrôleur de chantier soumis à Timy : la vitesse d'abord, puis les contrôles, le
+// mouvement en dernier) : regard devant, voiture arrêtée, marche arrière engagée (feux de recul) ; tour du regard, arrêtée ;
+// 165 degrés en reculant ; regard devant, arrêtée ; chacun pendant 1,0 s au moins, le tour pendant REGARD_DUREE_TOUR_MIN au
+// moins. Lève une AssertionError sinon.
 function verifierMarcheArriere(def) {
   const suite = sequenceMarcheArriere(def);
   const libelles = suite.map((r) => r.libelle);
@@ -1572,7 +1572,7 @@ function verifierMarcheArriere(def) {
   }
 }
 
-test("marche-arriere : quatre étapes, dans l'ordre de Timy (la marche arrière engagée, puis le tour du regard), chacune avec son regard, à son moment et à sa place", () => {
+test("marche-arriere : quatre étapes, dans l'ordre V·V·C·C (la marche arrière engagée, puis le tour du regard), chacune avec son regard, à son moment et à sa place", () => {
   assert.deepEqual(SCENES["marche-arriere"].etapesModele, [
     "Engager la marche arrière",
     "Faire le tour du regard",
@@ -1656,17 +1656,28 @@ test("marche-arriere : voiture en stationnement (feux éteints), posée au-delà
   }
 });
 
-test("marche-arriere : pendant tout le recul, regard par-dessus l'épaule droite, à 165 degrés (et non 180, le rétroviseur intérieur) : le cône contient le chemin qui reste à parcourir derrière la voiture et l'avant de la voiture garée", () => {
+test("marche-arriere : pendant tout le recul, regard par-dessus l'épaule droite, à 165 degrés (et non 180, le rétroviseur intérieur) : le cône contient le chemin qu'il reste au milieu du pare-chocs arrière à parcourir et l'avant de la voiture garée ; le coin arrière gauche et son chemin n'y entrent jamais", () => {
   const { sc, eleve, garee, tArret, T } = lireMarcheArriere();
-  const fin = arriereDe(etatActeur(eleve, tArret)), avantGaree = avant("voiture", etatActeur(garee, 0));
+  const arret = etatActeur(eleve, tArret), fin = arriereDe(arret), avantGaree = avant("voiture", etatActeur(garee, 0));
+  // Coin arrière gauche : le quatrième coin de l'emprise (arrière, côté gauche de la caisse).
+  const coinArriereGauche = (e) => { const [x, y] = emprise("voiture", e)[3]; return { x, y }; };
+  const coinFin = coinArriereGauche(arret);
   let n = 0;
   for (let t = T[2]; t < tArret - 1e-9; t += 0.01, n++) {
     const e = etatActeur(eleve, t), angle = angleRegard(sc.etapes[etapeActive(sc, t)], e, t, etatsA(sc, t));
     proche((angle - e.cap) / DEG, 165, 1e-9, `regard à t = ${t.toFixed(2)} s`);
-    // Le cône est un triangle : il contient le chemin, de l'arrière de la voiture à celui de la voiture arrêtée, s'il en
-    // contient les deux bouts.
-    for (const [nom, p] of [["l'arrière de la voiture", arriereDe(e)], ["l'arrière de la voiture arrêtée", fin], ["l'avant de la voiture garée", avantGaree]]) {
+    // Le cône est un triangle : il contient le chemin du milieu du pare-chocs arrière, de sa place à celle de la voiture
+    // arrêtée, s'il en contient les deux bouts.
+    for (const [nom, p] of [["le milieu du pare-chocs arrière", arriereDe(e)], ["le milieu du pare-chocs arrière de la voiture arrêtée", fin],
+      ["l'avant de la voiture garée", avantGaree]]) {
       assert.ok(regardContient(angle, oeil(e), p), `${nom} hors du cône à t = ${t.toFixed(2)} s`);
+    }
+    // Le coin arrière gauche et le chemin qu'il lui reste, relevé en 21 points : jamais dans le cône (à gauche de la voiture,
+    // le tour du regard les a vus avant de partir).
+    const coin = coinArriereGauche(e);
+    for (let k = 0; k <= 20; k++) {
+      const p = { x: coin.x + ((coinFin.x - coin.x) * k) / 20, y: coin.y + ((coinFin.y - coin.y) * k) / 20 };
+      assert.ok(!regardContient(angle, oeil(e), p), `chemin du coin arrière gauche dans le cône à t = ${t.toFixed(2)} s (point ${k})`);
     }
   }
   assert.ok(n >= 1400, `${n} instants relevés pendant le recul`);
