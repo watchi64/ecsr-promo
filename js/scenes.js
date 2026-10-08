@@ -15,7 +15,7 @@
  * le moteur, l'éditeur et les tests la partagent sans pouvoir la modifier).
  */
 import { KMH, DEG, GABARITS, trajet, chronologie, tempsAtteint, premiereAbscisse, pointA, emprise, etatActeur,
-  polygonesSeChevauchent, rectangle } from "./scene-geometrie.js?v=20261005f";
+  polygonesSeChevauchent, rectangle, pointDansPolygone } from "./scene-geometrie.js?v=20261005f";
 import { DESSIN, HORS_MONDE, carrefourEnCroix, giratoire, trajetGiratoire, routeVirages, rue }
   from "./scene-decors.js?v=20261005f";
 import { REGARD_PORTEE, REGARD_DUREE_TOUR_MIN, oeil, regardContient, coneRegard } from "./scene-regard.js?v=20261005f";
@@ -946,6 +946,204 @@ function marcheArriere() {
   };
 }
 
+// ===== Demi-tour en trois temps (C1.9 : méthode de Timy du 07/10/2026 ; V·V·C·C, procédures de stage, section 4.3) =====
+//
+// Rue calme, sans circulation ni voiture garée (C1 : trafic faible ou nul). Arrêtée au bord droit, la voiture de l'élève fait
+// demi-tour en trois temps : en avant vers la gauche jusqu'au trottoir opposé, en arrière volant à droite jusqu'au bord de
+// départ, en avant pour repartir dans la voie de droite du nouveau sens. Chaque temps suit la méthode V·V·C·C : vitesse (le
+// rapport) et volant (tourné à fond) à l'arrêt, puis les contrôles, dans l'ordre de Timy, puis le clignotant, puis le
+// mouvement ; clignotants gauche, droit, gauche (décision de Timy). La voiture pivote autour de son essieu arrière (option
+// essieu du trajet, js/scene-geometrie.js). Les valeurs ci-dessous sont des choix de dessin, recopiés dans les sources.
+const DEMI_TOUR = geler({
+  // m : voies de 3,6 m, chaussée de 7,2 m. Dans la rue de 7 m des autres scènes, la voiture, braquée à fond et arrêtée à
+  // MARGE_ARRET de chaque trottoir, mordrait sur le trottoir opposé au troisième temps : son coin avant droit balaie un
+  // cercle de 6,01 m de rayon autour du centre de rotation. 7,2 m est la plus petite largeur, au décimètre, où elle n'y
+  // passe pas plus près d'un trottoir qu'au premier temps, quand son arrière se déporte vers le trottoir de départ.
+  largeurVoie: 3.6,
+  // m : trottoir montré de chaque côté de la chaussée, le plus petit nombre entier de mètres qui garde dans le monde le cône
+  // du rétroviseur intérieur au départ, tourné vers l'arrière (4,46 m au moins) ; il loge aussi, à droite de la voiture au
+  // départ, le repère des étapes 1 à 5 (animations réduites). Rue montrée au nord du départ : le plus petit nombre entier de
+  // mètres où chaque repère des animations réduites trouve sa place ; à 7 m, celui des étapes 6 à 9 ne tiendrait plus sur
+  // la diagonale devant la voiture arrêtée au bout du premier temps : il passerait derrière elle, sur les places de celui
+  // des étapes 10 à 15, qui n'en aurait plus aucune (au sud du départ, REGARD_PORTEE : le cône du rétroviseur intérieur,
+  // tourné vers l'arrière, tient dans le monde, comme dans les autres scènes). Le cadre, fixe, est le monde entier : la
+  // manœuvre entière se voit à chaque instant, plus grande que dans un cadre de 46 m de haut.
+  trottoir: 5,
+  nord: 8,
+  // m : rayon de braquage mesuré au centre de la voiture, le plus petit retenu au plan 1 (braquage d'une citadine, celui
+  // de tourner-gauche). Le trajet étant celui de l'essieu arrière, son rayon s'en déduit (demiTour).
+  rayonCentre: 4.1,
+  kmh: { avant: 5, arriere: 4 },   // km/h : au pas ; en marche arrière, sous le garde-fou de l'allure du pas (6 km/h)
+  reprise: 1.0,         // m/s² : la voiture prend son allure en un peu plus d'une seconde, sur moins d'un mètre
+  freinage: 1.0,        // m/s² : de même pour s'arrêter avant le trottoir
+  // m d'avance du recentrage dans la voie, après le troisième temps : le plus petit nombre entier de mètres pour que, en se
+  // replaçant au milieu de sa voie, la voiture ne passe pas à moins de DESSIN.margeTrajectoire (0,60 m) de la bordure, la
+  // marge des autres scènes entre un flanc et la bordure qu'il longe (7 m la mèneraient à 0,56 m, 5 m à 0,31 m : la caisse
+  // pivote d'autant plus que le recentrage est court).
+  avanceRecentrage: 8,
+  // s à l'écran : coups d'œil aux rétroviseurs et à l'angle mort (ceux des autres scènes) ; clignotant mis 2 s avant de
+  // repartir (le minimum : l'attente n'en est pas allongée) ; arrêt montré avant les gestes du temps suivant ; tour du regard ;
+  // roues droites au milieu de la voie, à la fin. Les durées de 1,0 s sont la durée minimale d'une étape.
+  duree: { retroviseurInterieur: 1.2, retroviseurExterieur: 1.2, angleMort: 1.0, clignotant: 2.0, arret: 1.0,
+    tour: REGARD_DUREE_TOUR_MIN, rouler: 1.0 },
+  // degrés par rapport au cap de la caisse, - à gauche. lunette : par-dessus l'épaule droite, vers la lunette arrière
+  // (distinct du rétroviseur intérieur, à 180). En avançant volant tourné à gauche, le regard va vers un point fixe, là où
+  // va la voiture (regarder où l'on va : la voiture suit le regard, fiche ECF C1-C) : au premier temps, la bordure du
+  // trottoir opposé droit devant la voiture à son arrêt (demiTour) ; au troisième, le milieu de la voie loin devant
+  // (regardLoin).
+  regard: { retroviseurInterieur: 180, retroviseurExterieur: -170, angleMort: -120, devant: 0, lunette: 165 },
+  // s : au troisième temps, du départ jusqu'au milieu de la voie, le regard va vers un point fixe, le milieu de la voie de
+  // droite du nouveau sens, loin devant : là où la voiture s'aligne sur sa voie (le bout du troisième virage), plus la
+  // distance qu'elle parcourt en ce temps à 5 km/h. Regard loin : analyser la situation 10 à 15 s devant (fiche ECF C1-I) ;
+  // 10 s, le bas de la fourchette, gardent le point dans l'image.
+  regardLoin: 10,
+});
+
+// Instants (s, comptés depuis l'arrivée à un arrêt) où commencent les gestes faits à l'arrêt, chacun pendant sa durée, et
+// instant du départ, une fois le dernier achevé.
+function enchainer(durees) {
+  const debuts = [];
+  let t = 0;
+  for (const duree of durees) { debuts.push(t); t += duree; }
+  return { debuts, depart: t };
+}
+
+function demiTour() {
+  const choix = DEMI_TOUR, dur = choix.duree, r = choix.regard;
+  const { largeur, essieu } = GABARITS.voiture;
+  // Rayon du trajet de l'essieu arrière qui met le centre de la voiture à rayonCentre du centre de rotation : 3,835 m.
+  // Vraisemblance : avec 2,7 m d'empattement et 1,55 m de voie, la roue avant extérieure tourne alors à 5,3 m de ce centre,
+  // soit un diamètre de braquage de 10,7 m entre trottoirs, l'ordre de grandeur d'une compacte.
+  const rayon = Math.sqrt(choix.rayonCentre ** 2 - essieu ** 2);
+  const vitesse = { avant: choix.kmh.avant * KMH, arriere: choix.kmh.arriere * KMH };
+  const d = rue({ longueur: choix.nord + REGARD_PORTEE, largeurTrottoir: choix.trottoir, largeurVoie: choix.largeurVoie });
+  const { xBordGauche, xBordDroit } = d.reperes;
+  // Jeux (m) entre l'emprise de la voiture, au point p, et chacun des deux trottoirs.
+  const jeux = (p) => {
+    const xs = emprise("voiture", p).map(([x]) => x);
+    return { gauche: Math.min(...xs) - xBordGauche, droit: xBordDroit - Math.max(...xs) };
+  };
+  // Départ arrêté au bord droit, flanc droit à MARGE_ARRET du trottoir, à REGARD_PORTEE du bord bas : le cône du
+  // rétroviseur intérieur, tourné vers l'arrière, tient dans le monde, comme dans les autres scènes.
+  const depart = () => trajet(xBordDroit - MARGE_ARRET - largeur / 2, d.monde.hauteur - REGARD_PORTEE, -90, { essieu });
+  // Plus grand angle (degrés) du dernier virage, posé par poser(angle), qui laisse la voiture arrêtée à MARGE_ARRET (au
+  // moins) du trottoir `cote` : dichotomie, l'emprise s'en approchant à mesure que l'angle croît, jusqu'au quart de tour.
+  const jusquAuTrottoir = (poser, cote) => {
+    let ok = 0, trop = 90;
+    for (let k = 0; k < 60; k++) {
+      const angle = (ok + trop) / 2, ch = poser(angle).fin();
+      if (jeux(pointA(ch, ch.longueur))[cote] >= MARGE_ARRET) ok = angle; else trop = angle;
+    }
+    return ok;
+  };
+  // Temps 1 : en avant, volant à gauche, jusqu'au trottoir opposé ; temps 2 : en arrière, volant à droite (la tortue, qui
+  // va vers l'arrière de la caisse, tourne à gauche), jusqu'au trottoir de départ ; temps 3 : en avant, volant à gauche,
+  // jusqu'au cap opposé à celui du départ, puis le recentrage dans la voie et roues droites.
+  const angle1 = jusquAuTrottoir((a) => depart().virage(rayon, -a), "gauche");
+  const angle2 = jusquAuTrottoir((a) => depart().virage(rayon, -angle1).inverser().virage(rayon, -a), "droit");
+  const angle3 = 180 - angle1 - angle2;
+  const t = depart().virage(rayon, -angle1);
+  const sArret1 = t.longueur;
+  t.inverser().virage(rayon, -angle2);
+  const sArret2 = t.longueur;
+  t.inverser().virage(rayon, -angle3);
+  const sFinVirage = t.longueur;
+  // Recentrage : au bout du troisième temps, la voiture est dans sa voie, mais à gauche de son milieu ; elle s'y replace
+  // en roulant (un déplacement dans la voie, pas un changement de direction : sans clignotant), puis roule roues droites.
+  const recentrage = pointA(t.fin(), sFinVirage).x - (xBordGauche + choix.largeurVoie / 2);
+  t.decaler(recentrage, choix.avanceRecentrage);
+  const sMilieuVoie = t.longueur;
+  t.droit(vitesse.avant * dur.rouler);
+  const chemin = t.fin();
+  // Gardes : la voiture ne touche jamais un trottoir (relevé au millimètre du trajet), et finit dans la voie de droite du
+  // nouveau sens.
+  for (let k = 0; k * 0.001 <= chemin.longueur; k++) {
+    const j = jeux(pointA(chemin, k * 0.001));
+    if (!(j.gauche > 0 && j.droit > 0)) {
+      throw new Error(`demi-tour : la voiture touche un trottoir en s = ${(k * 0.001).toFixed(3)} m : élargir la chaussée`);
+    }
+  }
+  if (!emprise("voiture", pointA(chemin, sFinVirage)).every((p) => pointDansPolygone(p, d.voies.gauche))) {
+    throw new Error("demi-tour : au bout du troisième temps, la voiture n'est pas dans la voie de droite du nouveau sens");
+  }
+  for (let k = 0; sFinVirage + k * 0.001 <= sMilieuVoie; k++) {
+    if (jeux(pointA(chemin, sFinVirage + k * 0.001)).gauche < DESSIN.margeTrajectoire) {
+      throw new Error(`demi-tour : en se recentrant, la voiture passe à moins de ${DESSIN.margeTrajectoire} m de la bordure :`
+        + " allonger le recentrage");
+    }
+  }
+  // Point regardé au premier temps : la bordure du trottoir opposé droit devant la voiture à son arrêt, là où l'axe de la
+  // caisse arrêtée la coupe ; il est devant elle.
+  const arret = pointA(chemin, sArret1);
+  const versBordure = (xBordGauche - arret.x) / Math.cos(arret.cap);
+  if (!(versBordure > 0)) throw new Error("demi-tour : à l'arrêt du premier temps, la voiture ne fait pas face au trottoir opposé");
+  const pointBordure = [xBordGauche, arret.y + versBordure * Math.sin(arret.cap)];
+  // Point regardé au troisième temps : le milieu de la voie de droite du nouveau sens, regardLoin s devant à l'allure du
+  // temps, au-delà du bout du troisième virage ; il doit rester dans l'image.
+  const pointLoin = [xBordGauche + choix.largeurVoie / 2, pointA(chemin, sFinVirage).y + vitesse.avant * choix.regardLoin];
+  if (!(pointLoin[1] < d.monde.hauteur)) throw new Error("demi-tour : le point regardé au troisième temps sort de l'image");
+
+  // Allures : reprise jusqu'à l'allure du temps, puis freinage jusqu'à l'arrêt avant le trottoir ; arrêt à chaque
+  // rebroussement, le temps des gestes du temps suivant.
+  const prendre = (v) => v ** 2 / (2 * choix.reprise), perdre = (v) => v ** 2 / (2 * choix.freinage);
+  for (const [nom, de, a, v] of [["premier", 0, sArret1, vitesse.avant], ["deuxième", sArret1, sArret2, vitesse.arriere]]) {
+    if (!(de + prendre(v) < a - perdre(v))) throw new Error(`demi-tour : ${nom} temps trop court pour prendre son allure et s'arrêter`);
+  }
+  if (!(sArret2 + prendre(vitesse.avant) < sFinVirage)) throw new Error("demi-tour : troisième temps trop court pour prendre son allure");
+  const arretDepart = enchainer([dur.retroviseurInterieur, dur.retroviseurExterieur, dur.angleMort, dur.clignotant]);
+  const arret1 = enchainer([dur.arret, dur.tour, dur.clignotant]);
+  const arret2 = enchainer([dur.arret, dur.retroviseurInterieur, dur.retroviseurExterieur, dur.angleMort, dur.clignotant]);
+  const profil = [
+    { s: 0, kmh: 0, pause: arretDepart.depart },
+    { s: prendre(vitesse.avant), kmh: choix.kmh.avant }, { s: sArret1 - perdre(vitesse.avant), kmh: choix.kmh.avant },
+    { s: sArret1, kmh: 0, pause: arret1.depart },
+    { s: sArret1 + prendre(vitesse.arriere), kmh: choix.kmh.arriere }, { s: sArret2 - perdre(vitesse.arriere), kmh: choix.kmh.arriere },
+    { s: sArret2, kmh: 0, pause: arret2.depart },
+    { s: sArret2 + prendre(vitesse.avant), kmh: choix.kmh.avant }, { s: chemin.longueur, kmh: choix.kmh.avant },
+  ];
+
+  return {
+    code: "demi-tour", titre: "Faire demi-tour en trois temps", monde: d.monde, limite: LIMITE_AGGLOMERATION, decor: d,
+    camera: { largeur: d.monde.largeur, hauteur: d.monde.hauteur },
+    acteurs: [
+      { id: "eleve", role: "eleve", gabarit: "voiture", chemin, profil,
+        // Chaque clignotant s'allume pendant l'arrêt, après les contrôles. Celui des deux premiers temps s'éteint dès
+        // l'arrêt qui le termine (rien ne brille pendant les contrôles du temps suivant) ; le dernier, au bout du
+        // troisième virage, avant le recentrage.
+        clignotant: [
+          { cote: "gauche", de: 0, a: sArret1, delai: arretDepart.debuts[3], delaiFin: 0 },
+          { cote: "droite", de: sArret1, a: sArret2, delai: arret1.debuts[2], delaiFin: 0 },
+          { cote: "gauche", de: sArret2, a: sFinVirage, delai: arret2.debuts[4] },
+        ] },
+    ],
+    etapes: [
+      { s: 0, regard: { angle: r.retroviseurInterieur } },
+      { s: 0, delai: arretDepart.debuts[1], regard: { angle: r.retroviseurExterieur } },
+      { s: 0, delai: arretDepart.debuts[2], regard: { angle: r.angleMort } },
+      { s: 0, delai: arretDepart.debuts[3], regard: { angle: r.devant } },
+      { s: 0, delai: arretDepart.depart, regard: { vers: pointBordure } },
+      { s: sArret1, regard: { angle: r.devant } },
+      { s: sArret1, delai: arret1.debuts[1], regard: { tour: true } },
+      { s: sArret1, delai: arret1.debuts[2], regard: { angle: r.devant } },
+      { s: sArret1, delai: arret1.depart, regard: { angle: r.lunette } },
+      { s: sArret2, regard: { angle: r.lunette } },
+      { s: sArret2, delai: arret2.debuts[1], regard: { angle: r.retroviseurInterieur } },
+      { s: sArret2, delai: arret2.debuts[2], regard: { angle: r.retroviseurExterieur } },
+      { s: sArret2, delai: arret2.debuts[3], regard: { angle: r.angleMort } },
+      { s: sArret2, delai: arret2.debuts[4], regard: { angle: r.devant } },
+      { s: sArret2, delai: arret2.depart, regard: { vers: pointLoin } },
+      { s: sMilieuVoie, regard: { angle: r.devant } },
+    ],
+    attentes: [
+      { type: "dans", acteur: "eleve", nom: "voie de droite, au départ", zone: d.voies.droite, de: 0, a: 0, emprise: true },
+      { type: "dans", acteur: "eleve", nom: "voie de droite du nouveau sens", zone: d.voies.gauche, de: sFinVirage,
+        a: chemin.longueur, emprise: true },
+      { type: "vitesseMax", acteur: "eleve", nom: "au pas", kmh: choix.kmh.avant, de: 0, a: chemin.longueur },
+      { type: "vitesseMax", acteur: "eleve", nom: "marche arrière, au pas", kmh: choix.kmh.arriere, de: sArret1, a: sArret2 },
+    ],
+  };
+}
+
 export const SCENES = {
   "tourner-droite": {
     titre: "Tourner à droite en agglomération",
@@ -1110,5 +1308,35 @@ export const SCENES = {
       "Choix de dessin, sans portée réglementaire : rue droite d'agglomération à double sens, voies de 3,5 m, sans voiture ni piéton en mouvement (C1 : trafic faible ou nul) ; 4 m de trottoir montrés de chaque côté (le plus petit nombre entier de mètres pour que, sur l'image figée du tour, le cône du regard à droite, côté trottoir, se voie au-delà de la voiture sur au moins la largeur d'une voie : 4,3 m) ; rue de 60 m (le plus petit nombre entier de mètres qui garde dans le dessin le cône du regard par la lunette jusqu'à l'arrêt) ; cadre de 46 m de haut sur toute la largeur, qui suit l'élève et montre en entier les cônes du tour tournés devant et derrière ; voiture de l'élève arrêtée dans la voie de droite, tournée vers le nord, le flanc droit à 0,3 m de la bordure du trottoir, son centre à 23 m du bord haut (le plus petit nombre entier de mètres qui garde dans le dessin le cône du regard pendant tout le tour, dont la pointe passe à 22 m de l'œil dans toutes les directions) ; recul de 15 m en ligne droite, le flanc droit toujours à 0,3 m de la bordure ; voiture en stationnement, feux éteints, posée au-delà de la zone de recul, le long du même trottoir et tournée vers le nord, son avant à 2 m de l'arrière de la voiture de l'élève arrêtée : au départ, 17 m sont libres derrière la voiture ; recul à 4 km/h, l'allure du pas, atteints puis quittés à 1,0 m/s², une mise en mouvement et un arrêt progressifs (1,11 s et 0,62 m chacun), tenus 12,39 s : 14,61 s de recul ; marche arrière engagée dès le début (feux de recul allumés), regard devant pendant 1,0 s (la durée minimale d'une étape), puis tour du regard pendant 4,0 s, à l'arrêt (sa durée minimale : un quart de tour par seconde) : la voiture recule 5,0 s après le début ; cône du regard de 22 m, ouvert de 16 degrés de part et d'autre ; regard, par rapport à l'axe de la voiture : droit devant pendant 1,0 s ; tour complet vers la gauche (devant, à gauche, l'arrière, à droite, de nouveau devant) pendant 4,0 s, montré sur une image figée par quatre cônes, devant, à gauche, derrière et à droite ; 165 degrés à droite pendant tout le recul (par-dessus l'épaule droite, vers la lunette arrière, et non 180, le rétroviseur intérieur) : le cône contient, jusqu'à l'arrêt, le chemin qu'il reste au milieu du pare-chocs arrière à parcourir et l'avant de la voiture garée ; le coin arrière gauche et son chemin, à gauche de la voiture, n'y entrent jamais (le tour du regard les a vus avant de partir) ; droit devant une fois la voiture arrêtée, pendant 1,0 s, l'image finale tenue.",
     ],
     construire: unique(marcheArriere),
+  },
+  "demi-tour": {
+    titre: "Faire demi-tour en trois temps",
+    etapesModele: [
+      "Temps 1 : contrôler au rétroviseur intérieur",
+      "Contrôler au rétroviseur extérieur gauche",
+      "Contrôler l'angle mort gauche",
+      "Mettre le clignotant gauche",
+      "Avancer volant à gauche jusqu'au trottoir opposé",
+      "S'arrêter avant le trottoir, engager la marche arrière",
+      "Temps 2 : faire le tour du regard",
+      "Mettre le clignotant droit",
+      "Reculer volant à droite, par la lunette arrière",
+      "S'arrêter avant le trottoir, engager la première",
+      "Temps 3 : contrôler au rétroviseur intérieur",
+      "Contrôler au rétroviseur extérieur gauche",
+      "Contrôler l'angle mort gauche",
+      "Mettre le clignotant gauche",
+      "Repartir volant à gauche, puis se replacer au milieu de la voie",
+      "Rouler dans la voie de droite",
+    ],
+    sources: [
+      "Avertir les autres usagers avant de changer de direction, notamment pour se porter à gauche ou traverser la chaussée, ou pour reprendre sa place dans la circulation après un arrêt : R412-10. Chaque temps du demi-tour est annoncé : clignotant gauche au premier, droit au deuxième, gauche au troisième (décision de Timy du 07/10/2026). Au deuxième temps, en marche arrière volant à droite, l'arrière de la voiture part vers sa droite : le clignotant est de ce côté.",
+      "Demi-tour en trois temps, méthode de Timy (07/10/2026) : en avant vers la gauche jusqu'au trottoir opposé ; en arrière, volant à droite, jusqu'au bord de départ ; en avant pour repartir dans la voie de droite du nouveau sens. À chaque temps, la méthode V·V·C·C (vitesse, volant, contrôles, clignotants) : procédures de stage (classeur de Timy), section 4.3, et mémo de la fiche ECF C1-D. La scène engage le rapport et tourne le volant à l'arrêt, puis montre les contrôles, le clignotant et le mouvement ; le volant ne se voit pas d'en haut, la trajectoire en montre l'effet.",
+      "Contrôles dans l'ordre de Timy (07/10/2026), du côté de la manœuvre, puis clignotant, puis action : rétroviseur intérieur, rétroviseur extérieur gauche, angle mort gauche, aux premier et troisième temps. Avant de reculer, le regard qui fait le tour complet (devant ; à gauche, rétroviseur et angle mort ; lunette arrière ; à droite, rétroviseur et angle mort) ; pendant le recul, regard par-dessus l'épaule droite vers la lunette arrière, à l'allure du pas : méthode de Timy pour la marche arrière.",
+      "Feux de recul blancs, qui s'allument au passage de la marche arrière : cours du thème 22 (contrôlé). La scène les allume dès l'arrêt qui finit le premier temps, où la marche arrière est engagée, et les éteint dès l'arrêt qui finit le deuxième, où la première l'est.",
+      "Marquage : unité u de 5 cm, modulation T'1 (traits de 1,50 m, vides de 5 m) : IISR 7e partie, art. 113-1 ; axiale T'1 de largeur 2u, admise en agglomération : art. 113-2 ; pas de ligne de rive, les bordures de trottoir matérialisant généralement le bord de la chaussée en milieu urbain : art. 114-5.",
+      "Choix de dessin, sans portée réglementaire : rue droite d'agglomération, sans circulation ni voiture garée (C1 : trafic faible ou nul) ; chaussée de 7,2 m, en deux voies de 3,6 m : dans la rue de 7 m des autres scènes, la voiture, braquée à fond et arrêtée à 0,3 m de chaque trottoir, mordrait de 0,12 m sur le trottoir opposé au troisième temps, son coin avant droit balayant un cercle de 6,01 m de rayon autour du centre de rotation, et une chaussée de 7,1 m ne lui laisserait que 0,08 m : 7,2 m est la plus petite largeur, au décimètre, où elle n'en passe pas plus près (0,28 m) qu'au premier temps ; 5 m de trottoir de chaque côté (le plus petit nombre entier de mètres qui garde dans l'image le cône du rétroviseur intérieur au départ, tourné vers l'arrière : 4,46 m au moins), 8 m de rue au nord du départ (le plus petit nombre entier de mètres où chaque repère des animations réduites trouve sa place : à 7 m, celui des étapes 6 à 9, qui ne tiendrait plus devant la voiture arrêtée au bout du premier temps, passerait derrière elle, sur les places de celui des étapes 10 à 15), 22 m au sud (la portée du cône du regard : le cône du rétroviseur intérieur, tourné vers l'arrière, tient dans l'image) ; cadre fixe de 17,2 m sur 30 m, le monde entier : toute la manœuvre se voit à chaque instant, plus grande que dans un cadre de 46 m de haut ; voiture de 4,5 m sur 1,8 m qui pivote autour de son essieu arrière, à 1,45 m de son centre (porte-à-faux arrière de 0,80 m, l'ordre de grandeur d'une compacte) ; braquage de 4,1 m de rayon au centre de la voiture (le plus petit retenu, celui d'une citadine), soit 3,835 m à l'essieu et, avec 2,7 m d'empattement et 1,55 m de voie (l'écart entre les roues d'un essieu), un diamètre de braquage d'environ 10,7 m entre trottoirs, l'ordre de grandeur d'une compacte ; volant tourné à fond à l'arrêt : chaque temps est un arc qui part de l'arrêt ; départ arrêté au bord droit, flanc droit à 0,3 m du trottoir ; chaque temps va jusqu'à 0,3 m du trottoir qu'il approche : 61,7 degrés au premier temps, 31,9 au deuxième, 86,4 au troisième, jusqu'au cap opposé à celui du départ ; en roulant, au plus près des trottoirs, 0,23 m au premier temps (l'arrière se déporte de 0,07 m vers le trottoir de départ) et 0,28 m au troisième ; recentrage dans la voie, sans clignotant (un déplacement dans sa voie, pas un changement de direction) : 0,65 m vers la droite sur 8 m d'avance, le plus petit nombre entier de mètres qui garde la voiture à 0,6 m au moins de la bordure, la marge des autres scènes entre un flanc et la bordure qu'il longe (0,63 m au plus près ; 7 m la mèneraient à 0,56 m, 5 m à 0,31 m), puis roues droites au milieu de la voie pendant 1,0 s ; 5 km/h en avant, 4 km/h en arrière, au pas, mesurés au milieu de l'essieu arrière (dans les arcs, le centre de la voiture va 7 % plus vite), allure prise et perdue à 1,0 m/s² ; arrêts de 5,4 s au départ, puis de 7,0 s et 6,4 s aux deux rebroussements : le temps des gestes faits à l'arrêt ; clignotant allumé après les contrôles, 2,0 s avant chaque départ, éteint dès l'arrêt qui finit son temps, le dernier au bout du troisième virage ; cône du regard de 22 m, ouvert de 16 degrés de part et d'autre ; regard, par rapport à l'axe de la voiture : 180 degrés pendant 1,2 s (rétroviseur intérieur), 170 degrés à gauche pendant 1,2 s (rétroviseur extérieur gauche), 120 degrés à gauche pendant 1,0 s (angle mort, tête tournée vers l'épaule), droit devant pendant les 2,0 s du clignotant ; au premier temps, en avançant volant à gauche, regard vers un point fixe, là où va la voiture (regarder où l'on va : la voiture suit le regard, fiche ECF C1-C) : la bordure du trottoir opposé droit devant la voiture à son arrêt, là où l'axe de la voiture arrêtée la coupe ; le regard part à 55,3 degrés à gauche et suit le point : pendant tout le premier temps, le cône contient l'endroit où s'arrête l'avant de la voiture ; pendant ses quatre premiers cinquièmes, le trajet de la voiture 3 m plus loin, jusqu'à l'arrêt au plus ; dès son dernier cinquième, parcouru en freinant vers le trottoir, il ne reste au centre de la voiture que 0,88 m à parcourir, à côté du conducteur : c'est l'endroit où s'arrête l'avant qui montre où va la voiture ; au troisième temps, du départ jusqu'au milieu de la voie, regard vers un point fixe, le milieu de la voie de droite du nouveau sens, loin devant : 13,9 m au-delà du bout du troisième virage, où la voiture s'aligne sur sa voie, soit 10 s à 5 km/h (regard loin, analyser la situation 10 à 15 s devant : fiche ECF C1-I ; 10 s, le bas de la fourchette, gardent le point dans l'image) ; le regard part à 78,4 degrés à gauche, vers où va la voiture, et suit le point : le cône contient, pendant toute l'étape, le milieu de la voie 10 m devant la voiture et son trajet 6 m plus loin ; pendant le dernier cinquième du virage, son trajet 2, 3, 4 et 6 m plus loin ; pendant le recentrage, son trajet 3, 4 et 6 m plus loin, et 2 m plus loin pendant 68 % du recentrage (ce point proche, vu de l'œil, passe jusqu'à 18,4 degrés à droite de l'axe de la voiture) ; dans ces deux phases, jamais le milieu de la voie opposée 10 m devant ; à chaque arrivée, pendant 1,0 s, le regard reste sur le trottoir devant lequel la voiture s'arrête (droit devant, puis par la lunette arrière) ; tour du regard en 4,0 s (devant, à gauche, derrière, à droite) ; recul par-dessus l'épaule droite, 165 degrés à droite, distinct du rétroviseur intérieur à 180 ; droit devant une fois la voiture au milieu de sa voie ; scène de 38,8 s, dont 1,0 s d'image tenue à la fin.",
+    ],
+    construire: unique(demiTour),
   },
 };

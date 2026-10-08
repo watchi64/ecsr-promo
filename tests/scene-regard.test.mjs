@@ -399,3 +399,78 @@ test("tour : l'étape préparée porte sa fin (preparerScene), sur laquelle le t
     proche(relatifBrut(etTour, etatActeur(sc.eleve, t), t), attendu);
   }
 });
+
+// ===== Regard dirigé vers un point du monde (correction 9b du plan 2) =====
+//
+// { vers: [x, y] } : l'angle est celui de la direction de l'œil du conducteur vers le point, par rapport au cap de la caisse,
+// ramené dans ]-180 ; 180] ; il se recalcule à chaque instant. Attendus calculés à la main : voiture(-90) a son œil en
+// (9,6 ; 19,8) (test de oeil ci-dessus).
+
+test("vers : voiture arrêtée vers le nord, point droit devant, à gauche, derrière, devant à droite : 0, -90, 180 (et non -180), 45 degrés", () => {
+  const n = voiture(-90);
+  for (const [point, attendu] of [[[9.6, 10], 0], [[0, 19.8], -90], [[9.6, 30], 180], [[14.6, 14.8], 45], [[4.6, 24.8], -135]]) {
+    const angle = angleRegard(etape({ vers: point }), n, 3, sans);
+    proche((angle - n.cap) / DEG, attendu, 1e-9);
+  }
+});
+
+test("vers : le même point, vu d'une voiture qui ne fait que pivoter sur place, change d'angle par rapport au cap, toujours ramené dans ]-180 ; 180]", () => {
+  // Point à 10 m au nord de l'œil, pour chaque cap : vers l'est, il est à 90 degrés à gauche ; vers le nord, droit devant ;
+  // vers l'ouest, à 90 degrés à droite ; vers le sud, derrière (180) ; au cap accumulé de -450 (le nord), droit devant.
+  for (const [capDeg, attendu] of [[0, -90], [-90, 0], [-180, 90], [90, 180], [-450, 0], [270, 0]]) {
+    const e = voiture(capDeg), o = oeil(e);
+    proche((angleRegard(etape({ vers: [o.x, o.y - 10] }), e, 0, sans) - e.cap) / DEG, attendu, 1e-9);
+  }
+});
+
+test("vers : en roulant, le cône suit le point : 45, 90 puis 135 degrés à droite d'une voiture qui file vers le nord à 10 m/s", () => {
+  // Voiture qui file vers le nord le long de x = 10, de y = 20 à y = 0, à 36 km/h ; son œil passe de (9,6 ; 19,8) à
+  // (9,6 ; -0,2). Point en (19,6 ; 9,8) : à t = 0, 10 m à l'est et 10 m au nord de l'œil ; à t = 1 s, 10 m à l'est ; à
+  // t = 2 s, 10 m à l'est et 10 m au sud.
+  const sc = preparerScene({ code: "essai", etapes: [{ s: 0, regard: { vers: [19.6, 9.8] } }],
+    acteurs: [{ id: "eleve", role: "eleve", gabarit: "voiture", chemin: trajet(10, 20, -90).droit(20).fin(),
+      profil: [{ s: 0, kmh: 36 }, { s: 20, kmh: 36 }] }] });
+  for (const [t, attendu] of [[0, 45], [1, 90], [2, 135]]) {
+    const e = etatActeur(sc.eleve, t);
+    proche((angleRegard(sc.etapes[0], e, t, sans) - e.cap) / DEG, attendu, 1e-9);
+  }
+});
+
+test("vers : un point confondu avec l'œil du conducteur, sans direction, est refusé", () => {
+  const n = voiture(-90), o = oeil(n);
+  assert.throws(() => angleRegard(etape({ vers: [o.x, o.y] }), n, 0, sans),
+    { message: "regard vers un point : le point (9.6 ; 19.8) est l'œil du conducteur, il n'a pas de direction" });
+  assert.throws(() => regardDessine(etape({ vers: [o.x, o.y] }), n, 0, sans, true), /l'œil du conducteur/);
+  // À un millimètre de l'œil, il a une direction.
+  proche((angleRegard(etape({ vers: [o.x, o.y - 0.001] }), n, 0, sans) - n.cap) / DEG, 0, 1e-6);
+});
+
+test("vers : un point qui n'est pas un couple de nombres finis est refusé, avec la valeur reçue dans le message", () => {
+  const n = voiture(-90);
+  const message = (recu) => `regard vers un point : [x, y], deux nombres finis en mètres, attendu (reçu : ${recu})`;
+  for (const [vers, recu] of [[null, "null"], ["10,20", '"10,20"'], [[10], "[10]"], [[10, 20, 30], "[10, 20, 30]"],
+    [[NaN, 0], "[NaN, 0]"], [[0, Infinity], "[0, Infinity]"], [["1", 2], '["1", 2]'], [{ x: 1, y: 2 }, "[object Object]"], [true, "true"]]) {
+    assert.throws(() => angleRegard(etape({ vers }), n, 0, sans), { message: message(recu) }, `vers = ${String(vers)}`);
+  }
+});
+
+test("vers : sur une image figée, le même cône qu'en lecture au même instant, de toute la portée, et aucun usager suivi", () => {
+  const sc = preparerScene({ code: "essai", etapes: [{ s: 0, regard: { vers: [19.6, 9.8] } }],
+    acteurs: [{ id: "eleve", role: "eleve", gabarit: "voiture", chemin: trajet(10, 20, -90).droit(5).virage(6, -90).fin(),
+      profil: [{ s: 0, kmh: 18 }, { s: 5 + 3 * Math.PI, kmh: 18 }] }] });
+  for (const t of [0, 0.7, 1.4, 2.9, 3.6]) {
+    const e = etatActeur(sc.eleve, t), et = sc.etapes[0];
+    const fige = regardDessine(et, e, t, sans, true), lecture = regardDessine(et, e, t, sans);
+    assert.equal(fige.forme, "cone", `t = ${t} s`);
+    assert.deepEqual(fige, lecture, `t = ${t} s`);
+    for (const p of fige.poly.slice(1)) proche(distance(oeil(e), p), REGARD_PORTEE, 1e-9);
+    proche(ecartDeg(axe(oeil(e), fige.poly), angleRegard(et, e, t, sans)), 0, 1e-9);
+  }
+  // Un regard vers un point n'a pas de cible suivie, même si l'étape nomme aussi un usager ; un angle l'emporte sur lui.
+  const n = voiture(-90), vue = cibleVue(n, 30, 8);
+  assert.equal(cibleSuivie(etape({ vers: [0, 19.8] }), n, vue), null);
+  assert.equal(cibleSuivie(etape({ vers: [0, 19.8], suivre: "pieton" }), n, vue), null);
+  assert.equal(longueurCone(etape({ vers: [0, 19.8], suivre: "pieton" }), n, vue), REGARD_PORTEE);
+  proche(ecartDeg(angleRegard(etape({ vers: [0, 19.8], suivre: "pieton" }), n, 0, vue), n.cap), -90, 1e-9);
+  proche(ecartDeg(angleRegard(etape({ angle: 30, vers: [0, 19.8] }), n, 0, sans), n.cap), 30, 1e-9);
+});

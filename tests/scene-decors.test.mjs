@@ -491,6 +491,32 @@ test("rue : axiale T'1 de largeur 2u sur toute la longueur (IISR 7e partie, art.
   assert.deepEqual([m.de, m.a], [[7.5, 60], [7.5, 0]]);
 });
 
+test("rue : option largeurVoie, deux voies de cette largeur et l'axiale au milieu ; par défaut DESSIN.voie, la rue de 7 m", () => {
+  // Sans l'option, ou avec DESSIN.voie : la même rue, à l'octet près.
+  assert.deepEqual(rue({ ...RUE, largeurVoie: DESSIN.voie }), rue(RUE));
+  assert.deepEqual(rue({ ...RUE, largeurVoie: undefined }), rue(RUE));
+  // Voies de 3,6 m : chaussée de 7,2 m, axiale au milieu, trottoirs au-delà des deux bordures.
+  const d = rue({ ...RUE, largeurVoie: 3.6 });
+  const { xBordDroit, xAxe, xBordGauche } = d.reperes;
+  proche(xBordGauche, 4, 1e-12); proche(xAxe, 7.6, 1e-12); proche(xBordDroit, 11.2, 1e-12);
+  proche(d.monde.largeur, 4 + 7.2 + 4, 1e-12); assert.equal(d.monde.hauteur, 60);
+  for (const [voie, [x0, x1]] of [[d.voies.droite, [7.6, 11.2]], [d.voies.gauche, [4, 7.6]]]) {
+    const [a, b] = etendue(voie, 0);
+    proche(a, x0, 1e-12); proche(b, x1, 1e-12);
+  }
+  for (let y = 0; y <= 60; y += 5) {
+    for (let x = xBordGauche + 0.001; x < xBordDroit; x += 0.1) assert.ok(!surUnTrottoir(d, [x, y]), `(${x} ; ${y}) : trottoir sur la chaussée`);
+    for (const x of [xBordGauche - 0.001, xBordDroit + 0.001]) assert.ok(surUnTrottoir(d, [x, y]), `(${x} ; ${y}) : pas de trottoir au-delà de la bordure`);
+  }
+  const [m] = d.marquages;
+  proche(m.de[0], 7.6, 1e-12); proche(m.a[0], 7.6, 1e-12);
+  // Une largeur de voie nulle, négative ou non numérique est refusée, avec son nom.
+  for (const largeurVoie of [0, -3.5, NaN, Infinity, "3.6", null]) {
+    assert.throws(() => rue({ ...RUE, largeurVoie }),
+      new RegExp(`rue : « largeurVoie » attend un nombre de mètres strictement positif \\(reçu : ${String(largeurVoie)}\\)`), `largeurVoie = ${String(largeurVoie)}`);
+  }
+});
+
 test("rue : une longueur ou une largeur de trottoir absente, nulle, négative ou non numérique est refusée, avec son nom dans le message", () => {
   assert.throws(() => rue({ largeurTrottoir: 4 }), /rue : « longueur » attend un nombre de mètres strictement positif \(reçu : undefined\)/);
   assert.throws(() => rue({ longueur: 60, largeurTrottoir: 0 }), /rue : « largeurTrottoir » attend un nombre de mètres strictement positif \(reçu : 0\)/);
@@ -760,6 +786,25 @@ test("rue sans stationnement (option absente ou nulle) : la rue de deux voies, l
     assert.equal(d.reperes.xBordVoieDroite, d.reperes.xBordDroit);
     assert.deepEqual(Object.keys(d.voies).sort(), ["droite", "gauche"]);
     assert.deepEqual(etendue(d.voies.droite, 0), [7.5, 11]);
+  }
+});
+
+test("rue : les options largeurVoie et stationnement se combinent : deux voies de largeurVoie, l'axiale au milieu d'elles, la bande entre la voie de droite et la bordure", () => {
+  const d = rue({ ...RUE, largeurVoie: 3.6, stationnement: DESSIN.largeurStationnement });
+  const { xBordGauche, xAxe, xBordVoieDroite, xBordDroit } = d.reperes;
+  proche(xBordGauche, 4, 1e-12); proche(xAxe, 7.6, 1e-12); proche(xBordVoieDroite, 11.2, 1e-12);
+  proche(xBordDroit, 11.2 + DESSIN.largeurStationnement, 1e-12);
+  proche(d.monde.largeur, 4 + 7.2 + DESSIN.largeurStationnement + 4, 1e-12); assert.equal(d.monde.hauteur, 60);
+  for (const [voie, [x0, x1]] of [[d.voies.gauche, [4, 7.6]], [d.voies.droite, [7.6, 11.2]],
+    [d.voies.stationnement, [11.2, 11.2 + DESSIN.largeurStationnement]]]) {
+    const [a, b] = etendue(voie, 0);
+    proche(a, x0, 1e-12); proche(b, x1, 1e-12);
+  }
+  const [m] = d.marquages;
+  proche(m.de[0], 7.6, 1e-12); proche(m.a[0], 7.6, 1e-12);
+  for (let y = 0; y <= 60; y += 5) {
+    for (let x = xBordGauche + 0.001; x < xBordDroit; x += 0.1) assert.ok(!surUnTrottoir(d, [x, y]), `(${x} ; ${y}) : trottoir sur la chaussée`);
+    for (const x of [xBordGauche - 0.001, xBordDroit + 0.001]) assert.ok(surUnTrottoir(d, [x, y]), `(${x} ; ${y}) : pas de trottoir au-delà de la bordure`);
   }
 });
 

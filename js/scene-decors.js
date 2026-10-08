@@ -351,27 +351,28 @@ function exigerLongueur(decor, nom, valeur) {
 
 /**
  * Rue droite d'agglomération, orientée sud-nord : l'élève y roule vers le haut de l'écran. Chaussée à double sens de
- * deux voies de DESSIN.voie, séparées par une axiale T'1 de largeur 2u (IISR 113-1 et 113-2) dont le pointillé
- * commence au bord bas du monde, et bordée d'un trottoir de chaque côté, sans ligne de rive (en milieu urbain, les
- * bordures de trottoir matérialisent généralement le bord de la chaussée : IISR 114-5). Le monde a `longueur` m de
- * haut et montre `largeurTrottoir` m de trottoir de chaque côté de la chaussée. Repères : abscisses (x) du bord droit,
- * de l'axe et du bord gauche de la chaussée, pour l'élève qui roule vers le nord, et celle du bord droit de sa voie,
- * voies.droite.
+ * deux voies de `largeurVoie` m (DESSIN.voie par défaut), séparées par une axiale T'1 de largeur 2u (IISR 113-1 et
+ * 113-2) dont le pointillé commence au bord bas du monde, et bordée d'un trottoir de chaque côté, sans ligne de rive (en
+ * milieu urbain, les bordures de trottoir matérialisent généralement le bord de la chaussée : IISR 114-5). Le monde a
+ * `longueur` m de haut et montre `largeurTrottoir` m de trottoir de chaque côté de la chaussée. Repères : abscisses (x)
+ * du bord droit, de l'axe et du bord gauche de la chaussée, pour l'élève qui roule vers le nord, et celle du bord droit
+ * de sa voie, voies.droite. Une scène qui élargit les voies le dit dans ses sources, avec sa raison.
  *
  * Option `stationnement` (m, 0 par défaut) : une bande de stationnement le long du trottoir droit, non marquée, entre
- * la voie de droite et la bordure (voies.stationnement). Les deux voies de circulation gardent DESSIN.voie et l'axiale
+ * la voie de droite et la bordure (voies.stationnement). Les deux voies de circulation gardent `largeurVoie` et l'axiale
  * reste au milieu d'elles : la bande élargit la chaussée vers la droite (DESSIN.largeurStationnement pour une scène).
  * Sans bande, le bord droit de la voie de droite est la bordure.
  *
  * Les voitures en stationnement ne font pas partie du décor : ce sont des acteurs posés des scènes.
  */
-export function rue({ longueur, largeurTrottoir, stationnement = 0 } = {}) {
+export function rue({ longueur, largeurTrottoir, largeurVoie = DESSIN.voie, stationnement = 0 } = {}) {
   exigerLongueur("rue", "longueur", longueur);
   exigerLongueur("rue", "largeurTrottoir", largeurTrottoir);
+  exigerLongueur("rue", "largeurVoie", largeurVoie);
   if (!(Number.isFinite(stationnement) && stationnement >= 0)) {
     throw new Error(`rue : « stationnement » attend un nombre de mètres positif ou nul (reçu : ${String(stationnement)})`);
   }
-  const h = DESSIN.voie;
+  const h = largeurVoie;
   const xBordGauche = largeurTrottoir, xAxe = xBordGauche + h, xBordVoieDroite = xAxe + h;
   const xBordDroit = xBordVoieDroite + stationnement;
   const voies = {
