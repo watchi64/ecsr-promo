@@ -1516,9 +1516,9 @@ test("regard-intersection : un véhicule qui attend au-delà de sa ligne de céd
 
 // Choix de dessin consignés dans les sources de la scène : km/h en ligne droite et dans les virages ; m/s² du freinage et
 // de la reprise ; m dont la voiture quitte le centre de sa voie avant chaque virage ; m au-delà de la sortie de chaque
-// virage où porte le regard pendant le virage, sur le trajet de la voiture (correction 6c), et distances (m) entre lesquelles
-// ce point convient, que citent les sources.
-const COURBE = { approche: 50, virage: 35, freinage: 2.0, reprise: 1.5, placement: 0.25, visee: 12, viseeConvient: [5, 12] };
+// virage où porte le regard pendant le virage, sur le trajet de la voiture (corrections 6c et 6d), et distances (m) entre
+// lesquelles ce point convient, que citent les sources.
+const COURBE = { approche: 50, virage: 35, freinage: 2.0, reprise: 1.5, placement: 0.25, visee: 10, viseeConvient: [5, 10] };
 
 function lireCourbe(def = SCENES["trajectoire-courbe"].construire()) {
   const sc = preparerScene(def), eleve = sc.eleve, chemin = eleve.chemin;
@@ -1599,6 +1599,23 @@ function distanceAuxTrottoirs(q, trottoirs) {
   return trottoirs.some((poly) => pointDansPolygone(q, poly)) ? -m : m;
 }
 
+// Bouts de l'axe du regard dont la place est relevée : le bout de l'axe du triangle dessiné, au milieu de son bord lointain
+// (REGARD_PORTEE cos(REGARD_OUVERTURE) de l'œil), que les sources nomment « le bout de l'axe du regard », et le point de
+// l'axe à la portée du regard (REGARD_PORTEE).
+const BOUTS_AXE = { triangle: REGARD_PORTEE * Math.cos(REGARD_OUVERTURE * DEG), portee: REGARD_PORTEE };
+const NOMS_BOUTS = { triangle: "au bout du triangle dessiné", portee: "à la portée du regard" };
+
+// Distance (m) d'un point au bord d'un polygone, mesurée sur ses côtés.
+function distanceAuBord(q, poly) {
+  let m = Infinity;
+  for (let i = 0; i < poly.length; i++) {
+    const [ax, ay] = poly[i], [bx, by] = poly[(i + 1) % poly.length], vx = bx - ax, vy = by - ay, l2 = vx * vx + vy * vy;
+    const u = l2 ? Math.max(0, Math.min(1, ((q[0] - ax) * vx + (q[1] - ay) * vy) / l2)) : 0;
+    m = Math.min(m, Math.hypot(q[0] - ax - u * vx, q[1] - ay - u * vy));
+  }
+  return m;
+}
+
 // Regard d'une étape pendant le virage qu'elle parcourt (`regard` : celui de l'étape, ou un regard essayé), relevé au
 // millième de seconde de l'entrée de l'arc au dernier instant avant la fin de l'arc, où commence l'étape suivante :
 // - sortieHorsRegard : distance (m) depuis l'entrée de l'arc où la sortie du virage (la fin de l'arc du trajet), avant que
@@ -1608,23 +1625,27 @@ function distanceAuxTrottoirs(q, trottoirs) {
 //   tant que l'avant de la voiture n'a pas atteint la sortie : plus grand dépassement de son bord lointain par la sortie
 //   (m), et, au premier instant hors du triangle, distance de la sortie à l'œil (m) et son écart à l'axe (degrés) ; null
 //   pour ces deux derniers si la sortie y est toujours ;
-// - boutSurTrottoir, boutDansVoieOpposee : distance (m) depuis l'entrée de l'arc où le bout de l'axe du regard, à
-//   REGARD_PORTEE de l'œil, est sur un trottoir ou dans la voie opposée, ou null ; partVoieOpposee : part de l'arc (de 0 à
-//   1) où il est dans la voie opposée ; trottoirMin : distance (m) du bout de l'axe au plus proche trottoir, au plus près ;
+// - bouts : pour chaque bout de l'axe du regard (BOUTS_AXE), surTrottoir et dansVoieOpposee, distance (m) depuis l'entrée
+//   de l'arc où il est sur un trottoir ou dans la voie opposée, ou null ; partVoieOpposee, part de l'arc (de 0 à 1) où il est
+//   dans la voie opposée ; margeVoie, sa distance au bord de la voie de l'élève au plus près (m, négative hors de la voie),
+//   et ouMargeVoie, la distance (m) depuis l'entrée de l'arc où elle est la plus petite ; trottoirMin, sa distance au plus
+//   proche trottoir au plus près (m) ;
 // - avanceMin : pour un regard vers un point, de combien ce point devance l'avant de la voiture au plus près (m), le long du
 //   cap (négatif : sous la voiture ou à côté du conducteur) ;
 // - angleEntree, angleFin : angle du regard (degrés par rapport au cap, + à droite) à l'entrée de l'arc et au dernier instant.
 function releveRegardVirage(L, arc, regard) {
   const etape = { regard }, E = pointA(L.chemin, L.fin(arc)), demi = GABARITS.voiture.longueur / 2;
   const trottoirs = L.def.decor.obstacles.filter((o) => o.nature === "trottoir").map((o) => o.poly);
-  const opposee = L.def.decor.voies.gauche, bordLointain = REGARD_PORTEE * Math.cos(REGARD_OUVERTURE * DEG);
+  const voie = L.def.decor.voies.droite, opposee = L.def.decor.voies.gauche, bordLointain = BOUTS_AXE.triangle;
   const degres = (x) => { let d = x / DEG; while (d > 180) d -= 360; while (d <= -180) d += 360; return d; };
   const t0 = L.tA(arc.debut), t1 = L.tA(L.fin(arc));
   const instants = [];
   for (let k = 0; t0 + k * 0.001 < t1; k++) instants.push(t0 + k * 0.001);
   instants.push(t1 - 1e-9);
-  const r = { sortieHorsRegard: null, triangle: { depassement: 0, distance: null, horsAxe: null }, boutSurTrottoir: null,
-    boutDansVoieOpposee: null, partVoieOpposee: 0, trottoirMin: Infinity, avanceMin: Infinity, angleEntree: null, angleFin: null };
+  const bouts = Object.fromEntries(Object.keys(BOUTS_AXE).map((nom) => [nom,
+    { surTrottoir: null, dansVoieOpposee: null, partVoieOpposee: 0, margeVoie: Infinity, ouMargeVoie: null, trottoirMin: Infinity }]));
+  const r = { sortieHorsRegard: null, triangle: { depassement: 0, distance: null, horsAxe: null }, bouts, avanceMin: Infinity,
+    angleEntree: null, angleFin: null };
   let sPrec = null;
   for (const t of instants) {
     const e = etatActeur(L.eleve, t), o = oeil(e), angle = angleRegard(etape, e, t, etatsA(L.sc, t));
@@ -1641,12 +1662,16 @@ function releveRegardVirage(L, arc, regard) {
         if (r.triangle.distance === null) { r.triangle.distance = distance; r.triangle.horsAxe = horsAxe; }
       }
     }
-    const bout = [o.x + REGARD_PORTEE * Math.cos(angle), o.y + REGARD_PORTEE * Math.sin(angle)];
-    const aTrottoir = distanceAuxTrottoirs(bout, trottoirs), dansOpposee = pointDansPolygone(bout, opposee);
-    r.trottoirMin = Math.min(r.trottoirMin, aTrottoir);
-    if (r.boutSurTrottoir === null && aTrottoir < 0) r.boutSurTrottoir = e.s - arc.debut;
-    if (r.boutDansVoieOpposee === null && dansOpposee) r.boutDansVoieOpposee = e.s - arc.debut;
-    if (sPrec !== null && dansOpposee) r.partVoieOpposee += (e.s - sPrec) / arc.longueur;
+    for (const [nom, longueur] of Object.entries(BOUTS_AXE)) {
+      const b = bouts[nom], bout = [o.x + longueur * Math.cos(angle), o.y + longueur * Math.sin(angle)];
+      const aTrottoir = distanceAuxTrottoirs(bout, trottoirs), dansOpposee = pointDansPolygone(bout, opposee);
+      b.trottoirMin = Math.min(b.trottoirMin, aTrottoir);
+      const marge = (pointDansPolygone(bout, voie) ? 1 : -1) * distanceAuBord(bout, voie);
+      if (marge < b.margeVoie) { b.margeVoie = marge; b.ouMargeVoie = e.s - arc.debut; }
+      if (b.surTrottoir === null && aTrottoir < 0) b.surTrottoir = e.s - arc.debut;
+      if (b.dansVoieOpposee === null && dansOpposee) b.dansVoieOpposee = e.s - arc.debut;
+      if (sPrec !== null && dansOpposee) b.partVoieOpposee += (e.s - sPrec) / arc.longueur;
+    }
     sPrec = e.s;
     if (regard.vers) {
       const devant = (regard.vers[0] - e.x) * Math.cos(e.cap) + (regard.vers[1] - e.y) * Math.sin(e.cap) - demi;
@@ -1671,7 +1696,8 @@ function finEcartTriangle(L) {
 // Regard vers la sortie du virage (méthode de Timy), dans chaque virage, pendant l'étape qui le parcourt : un point visé
 // reste devant la voiture ; jusqu'à ce que l'avant de la voiture l'atteigne, la sortie du virage est dans l'ouverture du
 // regard (16 degrés de part et d'autre de son axe) et à moins de sa portée (22 m) de l'œil ; le bout de l'axe du regard
-// reste dans la voie de l'élève, jamais sur un trottoir ni dans la voie opposée. Lève une AssertionError sinon.
+// reste dans la voie de l'élève, jamais sur un trottoir ni dans la voie opposée, qu'on le prenne au bout du triangle dessiné
+// ou à la portée du regard. Lève une AssertionError sinon.
 function verifierRegardSortie(def) {
   const L = lireCourbe(def);
   for (const [nom, arc] of [["virage à droite", L.virageDroite], ["virage à gauche", L.virageGauche]]) {
@@ -1680,8 +1706,11 @@ function verifierRegardSortie(def) {
     if (regard.vers) assert.ok(r.avanceMin > 0, `${nom} : le point visé passe sous la voiture ou à côté du conducteur`);
     assert.ok(r.sortieHorsRegard === null, `${nom} : sortie du virage hors de l'ouverture ou de la portée du regard à `
       + `${ou(r.sortieHorsRegard)}, l'avant de la voiture ne l'ayant pas atteinte`);
-    assert.ok(r.boutSurTrottoir === null, `${nom} : bout de l'axe du regard sur un trottoir à ${ou(r.boutSurTrottoir)}`);
-    assert.ok(r.boutDansVoieOpposee === null, `${nom} : bout de l'axe du regard dans la voie opposée à ${ou(r.boutDansVoieOpposee)}`);
+    for (const [bout, b] of Object.entries(r.bouts)) {
+      assert.ok(b.surTrottoir === null, `${nom} : bout de l'axe du regard (${NOMS_BOUTS[bout]}) sur un trottoir à ${ou(b.surTrottoir)}`);
+      assert.ok(b.dansVoieOpposee === null,
+        `${nom} : bout de l'axe du regard (${NOMS_BOUTS[bout]}) dans la voie opposée à ${ou(b.dansVoieOpposee)}`);
+    }
   }
 }
 
@@ -1808,7 +1837,7 @@ test("trajectoire-courbe : aucun clignotant : les placements sont des décalages
   for (let t = 0; t <= sc.duree + 1e-9; t += PAS) assert.equal(etatActeur(eleve, t).clignotant, null, `t = ${t.toFixed(1)} s`);
 });
 
-test("trajectoire-courbe : regarder la sortie du virage : pendant chaque virage, le regard vise le trajet de la voiture 12 m au-delà de la sortie, là où elle va ; jusqu'à ce que l'avant de la voiture l'atteigne, la sortie est dans l'ouverture du regard (16 degrés de part et d'autre de son axe) et à moins de sa portée (22 m) de l'œil ; le bout de l'axe reste dans la voie de l'élève ; regard à 21,4 degrés à droite et 19,8 degrés à gauche à l'entrée, à 1,9 degré à droite au raccord", () => {
+test("trajectoire-courbe : regarder la sortie du virage : pendant chaque virage, le regard vise le trajet de la voiture 10 m au-delà de la sortie, là où elle va ; jusqu'à ce que l'avant de la voiture l'atteigne, la sortie est dans l'ouverture du regard (16 degrés de part et d'autre de son axe) et à moins de sa portée (22 m) de l'œil ; le bout de l'axe reste dans la voie de l'élève, avec 11 cm de marge au bout du triangle dessiné et 27 cm à la portée du regard ; regard à 20,9 degrés à droite et 19,1 degrés à gauche à l'entrée, à 2,3 degrés à droite au raccord", () => {
   const def = SCENES["trajectoire-courbe"].construire(), L = lireCourbe(def), vises = pointsSurLeTrajet(L, COURBE.visee);
   // Les étapes 4 et 9 regardent vers le point du trajet visé.
   for (const [k, P] of [[3, vises.droite], [8, vises.gauche]]) {
@@ -1819,25 +1848,34 @@ test("trajectoire-courbe : regarder la sortie du virage : pendant chaque virage,
   verifierRegardSortie(def);
   const droite = releveRegardVirage(L, L.virageDroite, def.etapes[3].regard);
   const gauche = releveRegardVirage(L, L.virageGauche, def.etapes[8].regard);
-  proche(droite.angleEntree, 21.43, 0.01, "regard à l'entrée du virage à droite (degrés)");
-  proche(gauche.angleEntree, -19.80, 0.01, "regard à l'entrée du virage à gauche (degrés)");
-  for (const [nom, r, aTrottoir] of [["virage à droite", droite, 0.566], ["virage à gauche", gauche, 1.155]]) {
-    // Le point visé devance l'avant de la voiture de 9,75 m au plus près, au dernier instant du virage : 12 m au-delà de la
+  proche(droite.angleEntree, 20.86, 0.01, "regard à l'entrée du virage à droite (degrés)");
+  proche(gauche.angleEntree, -19.14, 0.01, "regard à l'entrée du virage à gauche (degrés)");
+  // Marge du bout de l'axe dans la voie de l'élève, la plus petite à l'entrée de chaque virage, et distance au plus proche
+  // trottoir (m), aux deux bouts.
+  const attendu = {
+    "virage à droite": { triangle: { margeVoie: 0.649, trottoirMin: 0.649 }, portee: { margeVoie: 0.784, trottoirMin: 0.784 } },
+    "virage à gauche": { triangle: { margeVoie: 0.110, trottoirMin: 1.038 }, portee: { margeVoie: 0.270, trottoirMin: 1.003 } },
+  };
+  for (const [nom, r] of [["virage à droite", droite], ["virage à gauche", gauche]]) {
+    // Le point visé devance l'avant de la voiture de 7,75 m au plus près, au dernier instant du virage : 10 m au-delà de la
     // sortie, moins la demi-longueur de la voiture.
     proche(r.avanceMin, COURBE.visee - GABARITS.voiture.longueur / 2, 1e-3, `${nom} : avance du point visé sur l'avant`);
-    // Le bout de l'axe ne quitte jamais la voie de l'élève.
-    assert.equal(r.partVoieOpposee, 0, `${nom} : part de l'arc où le bout de l'axe est dans la voie opposée`);
-    proche(r.trottoirMin, aTrottoir, 1e-3, `${nom} : bout de l'axe au plus près d'un trottoir (m)`);
+    for (const [bout, b] of Object.entries(r.bouts)) {
+      assert.equal(b.partVoieOpposee, 0, `${nom}, ${NOMS_BOUTS[bout]} : part de l'arc dans la voie opposée`);
+      proche(b.margeVoie, attendu[nom][bout].margeVoie, 1e-3, `${nom}, ${NOMS_BOUTS[bout]} : marge dans la voie (m)`);
+      proche(b.ouMargeVoie, 0, 1e-9, `${nom}, ${NOMS_BOUTS[bout]} : marge la plus petite à l'entrée du virage`);
+      proche(b.trottoirMin, attendu[nom][bout].trottoirMin, 1e-3, `${nom}, ${NOMS_BOUTS[bout]} : au plus près d'un trottoir (m)`);
+    }
     // Raccord avec l'étape suivante, droit devant : au dernier instant du virage, le point visé est droit devant la voiture,
-    // et l'œil du conducteur, assis à gauche, le voit à 1,94 degré à droite ; le regard s'aligne sur l'axe de la voiture.
-    proche(r.angleFin, 1.94, 0.01, `${nom} : regard au dernier instant (degrés)`);
+    // et l'œil du conducteur, assis à gauche, le voit à 2,34 degrés à droite ; le regard s'aligne sur l'axe de la voiture.
+    proche(r.angleFin, 2.34, 0.01, `${nom} : regard au dernier instant (degrés)`);
   }
   assert.deepEqual(def.etapes[4].regard, { angle: 0 });
   assert.deepEqual(def.etapes[9].regard, { angle: 0 });
 });
 
-test("trajectoire-courbe : l'image figée de l'entrée de chaque virage regarde vers la sortie : le même cône qu'en lecture ; il contient la sortie du virage à droite ; celle du virage à gauche est dans l'ouverture du regard et à moins de sa portée, mais 0,19 m au-delà du bord lointain du triangle dessiné", () => {
-  const L = lireCourbe(), bordLointain = REGARD_PORTEE * Math.cos(REGARD_OUVERTURE * DEG);
+test("trajectoire-courbe : l'image figée de l'entrée de chaque virage regarde vers la sortie : le même cône qu'en lecture ; il contient la sortie du virage à droite ; celle du virage à gauche est dans l'ouverture du regard et à moins de sa portée, mais 0,22 m au-delà du bord lointain du triangle dessiné", () => {
+  const L = lireCourbe(), bordLointain = BOUTS_AXE.triangle;
   for (const [nom, k, arc, contient] of [["virage à droite", 3, L.virageDroite, true], ["virage à gauche", 8, L.virageGauche, false]]) {
     const et = L.sc.etapes[k], e = etatActeur(L.eleve, et.t), etats = etatsA(L.sc, et.t);
     proche(e.s, arc.debut, 1e-6, `${nom} : image de l'entrée du virage`);
@@ -1851,23 +1889,23 @@ test("trajectoire-courbe : l'image figée de l'entrée de chaque virage regarde 
     while (horsAxe <= -180) horsAxe += 360;
     assert.ok(Math.abs(horsAxe) <= REGARD_OUVERTURE && distance < REGARD_PORTEE, `${nom} : sortie hors du regard`);
     assert.equal(pointDansPolygone([E.x, E.y], fige.poly), contient, `${nom} : sortie dans le triangle dessiné`);
-    if (!contient) proche(distance * Math.cos(horsAxe * DEG) - bordLointain, 0.193, 1e-3, `${nom} : dépassement du bord lointain (m)`);
+    if (!contient) proche(distance * Math.cos(horsAxe * DEG) - bordLointain, 0.216, 1e-3, `${nom} : dépassement du bord lointain (m)`);
   }
 });
 
-test("trajectoire-courbe : écart au triangle dessiné, écrit dans les sources : dans le virage à droite, la sortie est toujours dans le triangle ; à l'entrée du virage à gauche, à 21,45 m de l'œil et à 5,7 degrés de l'axe, elle dépasse son bord lointain de 0,19 m au plus, pendant les 0,20 premiers mètres d'arc (21 ms)", () => {
+test("trajectoire-courbe : écart au triangle dessiné, écrit dans les sources : dans le virage à droite, la sortie est toujours dans le triangle ; à l'entrée du virage à gauche, à 21,45 m de l'œil et à 5,0 degrés de l'axe, elle dépasse son bord lointain de 0,22 m au plus, pendant les 0,23 premiers mètres d'arc (23 ms)", () => {
   const L = lireCourbe();
   const droite = releveRegardVirage(L, L.virageDroite, L.def.etapes[3].regard);
   assert.equal(droite.triangle.distance, null, "virage à droite : la sortie sort du triangle");
   const gauche = releveRegardVirage(L, L.virageGauche, L.def.etapes[8].regard), fin = finEcartTriangle(L);
   proche(gauche.triangle.distance, 21.447, 1e-3, "distance de la sortie à l'œil, à l'entrée (m)");
-  proche(gauche.triangle.horsAxe, 5.69, 0.01, "écart de la sortie à l'axe du regard, à l'entrée (degrés)");
-  proche(gauche.triangle.depassement, 0.193, 1e-3, "plus grand dépassement du bord lointain (m)");
-  proche(fin.longueur, 0.2024, 1e-4, "arc parcouru hors du triangle (m)");
-  proche(fin.duree, 0.02082, 1e-5, "durée hors du triangle (s)");
+  proche(gauche.triangle.horsAxe, 5.04, 0.01, "écart de la sortie à l'axe du regard, à l'entrée (degrés)");
+  proche(gauche.triangle.depassement, 0.216, 1e-3, "plus grand dépassement du bord lointain (m)");
+  proche(fin.longueur, 0.2258, 1e-4, "arc parcouru hors du triangle (m)");
+  proche(fin.duree, 0.02323, 1e-5, "durée hors du triangle (s)");
 });
 
-test("trajectoire-courbe : le point visé convient de 5 à 12 m au-delà de la sortie, sur le trajet de la voiture : à 13 m, le bout de l'axe du regard entre dans la voie opposée à l'entrée du virage à gauche ; à 4 m, il tombe sur le trottoir de droite à la fin du virage à gauche", () => {
+test("trajectoire-courbe : le point visé convient de 5 à 10 m au-delà de la sortie, sur le trajet de la voiture, aux deux bouts de l'axe du regard, avec 7 cm de marge au plus près à 5 m (à la fin du virage à gauche) et 11 cm à 10 m (à son entrée) : à 11 m, le bout de l'axe du triangle dessiné entre dans la voie opposée à l'entrée du virage à gauche (le point à la portée du regard, non) ; à 4 m, les deux tombent sur le trottoir de droite à la fin du virage à gauche", () => {
   const def = SCENES["trajectoire-courbe"].construire(), L = lireCourbe(def);
   const [min, max] = COURBE.viseeConvient;
   const essai = (visee) => {
@@ -1875,16 +1913,31 @@ test("trajectoire-courbe : le point visé convient de 5 à 12 m au-delà de la s
     return { droite: releveRegardVirage(L, L.virageDroite, { vers: [p.droite.x, p.droite.y] }),
       gauche: releveRegardVirage(L, L.virageGauche, { vers: [p.gauche.x, p.gauche.y] }) };
   };
-  const bon = (r) => r.sortieHorsRegard === null && r.boutSurTrottoir === null && r.boutDansVoieOpposee === null && r.avanceMin > 0;
+  const essais = Object.fromEntries([min - 1, min, max, max + 1].map((visee) => [visee, essai(visee)]));
+  const dansLaVoie = (b) => b.surTrottoir === null && b.dansVoieOpposee === null;
+  const bon = (r) => r.sortieHorsRegard === null && r.avanceMin > 0 && dansLaVoie(r.bouts.triangle) && dansLaVoie(r.bouts.portee);
   for (const visee of [min, max]) {
-    const r = essai(visee);
+    const r = essais[visee];
     assert.ok(bon(r.droite) && bon(r.gauche), `${visee} m : ${JSON.stringify(r)}`);
   }
-  const loin = essai(max + 1), pres = essai(min - 1);
-  assert.ok(bon(loin.droite) && loin.gauche.sortieHorsRegard === null && loin.gauche.boutSurTrottoir === null
-    && loin.gauche.boutDansVoieOpposee === 0, `${max + 1} m : ${JSON.stringify(loin.gauche)}`);
-  assert.ok(bon(pres.droite) && pres.gauche.sortieHorsRegard === null && pres.gauche.boutDansVoieOpposee === null
-    && pres.gauche.boutSurTrottoir > L.virageGauche.longueur - 1, `${min - 1} m : ${JSON.stringify(pres.gauche)}`);
+  const loin = essais[max + 1], pres = essais[min - 1];
+  assert.ok(bon(loin.droite) && loin.gauche.sortieHorsRegard === null && loin.gauche.bouts.triangle.dansVoieOpposee === 0
+    && dansLaVoie(loin.gauche.bouts.portee), `${max + 1} m : ${JSON.stringify(loin.gauche)}`);
+  assert.ok(bon(pres.droite) && pres.gauche.sortieHorsRegard === null
+    && Object.values(pres.gauche.bouts).every((b) => b.dansVoieOpposee === null && b.surTrottoir > L.virageGauche.longueur - 1),
+  `${min - 1} m : ${JSON.stringify(pres.gauche)}`);
+  // Marge du bout de l'axe dans la voie de l'élève, dans le virage à gauche (m, négative hors de la voie), au bout du
+  // triangle dessiné et à la portée du regard, et où elle est la plus petite (m d'arc) : à la fin du virage pour un point
+  // visé près de la sortie, à son entrée pour un point visé loin.
+  const finArc = L.virageGauche.longueur;
+  for (const [visee, triangle, portee, ou] of [[min - 1, -0.314, -0.403, finArc], [min, 0.144, 0.073, finArc],
+    [max, 0.110, 0.270, 0], [max + 1, -0.012, 0.144, 0]]) {
+    for (const [bout, attendue] of [["triangle", triangle], ["portee", portee]]) {
+      const b = essais[visee].gauche.bouts[bout];
+      proche(b.margeVoie, attendue, 1e-3, `${visee} m, ${NOMS_BOUTS[bout]} : marge dans la voie (m)`);
+      proche(b.ouMargeVoie, ou, 1e-6, `${visee} m, ${NOMS_BOUTS[bout]} : où la marge est la plus petite (m d'arc)`);
+    }
+  }
 });
 
 // Étapes de la scène : l'instant et l'abscisse de chacune, lus sur le trajet et l'allure, son regard (degrés par rapport
@@ -1990,20 +2043,23 @@ test("trajectoire-courbe : les valeurs calculées que citent les sources sont ce
     ["durées des virages (s)", [T[4] - T[3], T[9] - T[8]], ecrit(/et (\d+,\d+) et (\d+,\d+) s dans chaque virage/)],
     ["regard loin devant (s)", [T[1] - T[0], T[6] - T[5]], [...ecrit(/droit devant pendant (\d+,\d) s à 50 km\/h/), ...ecrit(/droit devant pendant (\d+,\d) s à 50 km\/h/)]],
     ["point visé (m)", [COURBE.visee, COURBE.visee],
-      ecrit(/vers le trajet de la voiture (\d+) m au-delà de la sortie du virage, .*?; (\d+) m, le plus loin, en mètres entiers/)],
+      ecrit(/vers le trajet de la voiture (\d+) m au-delà de la sortie du virage, .*?; (\d+) m, la plus grande distance, en mètres entiers/)],
+    ["bout de l'axe du regard (m)", [BOUTS_AXE.triangle, BOUTS_AXE.portee],
+      ecrit(/le milieu du bord lointain du triangle dessiné, à (\d+,\d+) m de l'œil le long de son axe\) .*?à la portée du regard, (\d+) m\)/)],
+    ["marges dans la voie de l'élève (m)", [regardGauche.bouts.triangle.margeVoie, regardGauche.bouts.portee.margeVoie],
+      ecrit(/avec (\d+) cm de marge au plus près, à l'entrée du virage à gauche \((\d+) cm pour le point de l'axe/).map(
+        ({ valeur, tolerance }) => ({ valeur: valeur / 100, tolerance: tolerance / 100 }))],
     ["le point visé convient (m)", [COURBE.viseeConvient[1] + 1, COURBE.viseeConvient[0]],
-      ecrit(/à (\d+) m, il entrerait dans la voie opposée .*?en deçà de (\d+) m, il tomberait sur le trottoir/)],
+      ecrit(/à (\d+) m, ce bout entrerait dans la voie opposée .*?en deçà de (\d+) m, il tomberait sur le trottoir/)],
     ["critère de la sortie (degrés, m)", [REGARD_OUVERTURE, REGARD_PORTEE],
       ecrit(/dans l'ouverture du regard \((\d+) degrés de part et d'autre de son axe\) et à moins de sa portée \((\d+) m\) de l'œil/)],
-    ["bord lointain du triangle dessiné (m)", [REGARD_PORTEE * Math.cos(REGARD_OUVERTURE * DEG)],
-      ecrit(/le triangle dessiné, lui, s'arrête à (\d+,\d+) m de l'œil le long de son axe/)],
     ["écart au triangle dessiné", [regardGauche.triangle.distance, regardGauche.triangle.horsAxe, regardGauche.triangle.depassement,
       ecart.longueur, 1000 * ecart.duree],
-      ecrit(/la sortie, à (\d+,\d+) m de l'œil et à (\d+,\d) degrés de l'axe, le dépasse de (\d+,\d+) m au plus, pendant les (\d+,\d+) premiers mètres d'arc \((\d+) ms\)/)],
+      ecrit(/la sortie, à (\d+,\d+) m de l'œil et à (\d+,\d) degrés de l'axe, dépasse le bord lointain du triangle dessiné de (\d+,\d+) m au plus, pendant les (\d+,\d+) premiers mètres d'arc \((\d+) ms\)/)],
     ["regard à l'entrée du virage (degrés)", [regardDroite.angleEntree, -regardGauche.angleEntree],
       ecrit(/le regard porte à (\d+,\d) degrés à droite \(virage à droite\) et à (\d+,\d) degrés à gauche/)],
     ["regard au dernier instant du virage (degrés)", [regardDroite.angleFin, regardGauche.angleFin],
-      [...ecrit(/alors à (\d+,\d) degré à droite de l'axe de la voiture/), ...ecrit(/alors à (\d+,\d) degré à droite de l'axe de la voiture/)]],
+      [...ecrit(/alors à (\d+,\d) degrés à droite de l'axe de la voiture/), ...ecrit(/alors à (\d+,\d) degrés à droite de l'axe de la voiture/)]],
     ["cône du regard", [REGARD_PORTEE, REGARD_OUVERTURE], ecrit(/cône du regard de (\d+) m, ouvert de (\d+) degrés/)],
   ];
   for (const [nom, valeurs, ecrits] of mesures) {
@@ -2086,21 +2142,23 @@ test("trajectoire-courbe : rouler au centre de sa voie dans les virages, ou se p
 });
 
 test("trajectoire-courbe : l'ancien regard fixe à 15 degrés, le milieu de la chaussée visé au lieu du trajet de la voiture, ou la sortie elle-même comme point visé, sont refusés par la vérification du regard", () => {
-  // Regard fixe, virage à droite : le bout de son axe tombe sur le trottoir intérieur à partir de 13,25 m d'arc.
+  // Regard fixe, virage à droite : le bout de son axe tombe sur le trottoir intérieur à partir de 13,45 m d'arc.
   const fixeDroite = copie("trajectoire-courbe");
   fixeDroite.etapes[3].regard = { angle: 15 };
-  assert.throws(() => verifierRegardSortie(fixeDroite), /virage à droite : bout de l'axe du regard sur un trottoir à 13\.2\d\d m de l'entrée/);
+  assert.throws(() => verifierRegardSortie(fixeDroite),
+    /virage à droite : bout de l'axe du regard \(au bout du triangle dessiné\) sur un trottoir à 13\.44\d m de l'entrée/);
   // Regard fixe, virage à gauche : la sortie quitte l'ouverture du regard 5,1 m avant la fin de l'arc, l'avant de la voiture
   // ne l'ayant pas atteinte.
   const fixeGauche = copie("trajectoire-courbe");
   fixeGauche.etapes[8].regard = { angle: -15 };
   assert.throws(() => verifierRegardSortie(fixeGauche),
     /virage à gauche : sortie du virage hors de l'ouverture ou de la portée du regard à 16\.8\d\d m de l'entrée/);
-  // Le milieu de la chaussée, 25 m au-delà de la sortie (correction 6b) : le bout de l'axe du regard traverse la voie opposée
-  // dans le virage à gauche.
+  // Le milieu de la chaussée, 25 m au-delà de la sortie (correction 6b) : le bout de l'axe du regard est dans la voie opposée
+  // dès l'entrée du virage à gauche.
   const axe = copie("trajectoire-courbe"), surLAxe = pointsSurLAxe(axe, 25).gauche;
   axe.etapes[8].regard = { vers: [surLAxe.x, surLAxe.y] };
-  assert.throws(() => verifierRegardSortie(axe), /virage à gauche : bout de l'axe du regard dans la voie opposée/);
+  assert.throws(() => verifierRegardSortie(axe),
+    /virage à gauche : bout de l'axe du regard \(au bout du triangle dessiné\) dans la voie opposée à 0\.000 m de l'entrée/);
   // La sortie du virage elle-même : elle passe sous la voiture à la fin du virage.
   const sousLaVoiture = copie("trajectoire-courbe");
   const arcDroite = sousLaVoiture.acteurs[0].chemin.segments.find((s) => s.suitLaRoute);
