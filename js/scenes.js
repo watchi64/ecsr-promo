@@ -610,10 +610,14 @@ const TRAJECTOIRE_COURBE = geler({
   // l'étape dure 1,2 s.
   avanceDecalage: 12,
   duree: { loin: 1.0 },       // s à l'écran : regard loin devant, à 50 km/h, avant de freiner (la durée minimale d'une étape)
-  // Degrés par rapport au cap. Sortie : vers l'intérieur du virage, + à droite. À l'entrée de chaque virage, la direction de
-  // sa sortie (la fin de l'arc parcouru) vue de la place du conducteur : 16,3 degrés à droite dans le virage à droite, 14,1
-  // degrés à gauche dans le virage à gauche (le conducteur est assis à gauche du centre de la voiture).
-  regard: { devant: 0, sortie: 15 },
+  regard: { devant: 0 },      // degrés par rapport au cap : droit devant, hors des virages
+  // m : pendant chaque virage, le regard vise le milieu de la chaussée (son axe) ce nombre de mètres au-delà de la sortie du
+  // virage, dans la ligne droite qui suit : regard loin dans la courbe, vers sa sortie, là où va la voiture. Le cône suit ce
+  // point pendant que la voiture tourne : de l'entrée du virage jusqu'à ce que l'avant de la voiture atteigne la sortie, il
+  // contient la sortie, et le bout de son axe reste sur la chaussée. Le point convient de 24 à 30 m au-delà de la sortie :
+  // plus près, la sortie du virage à gauche quitterait le cône avant que l'avant de la voiture l'atteigne ; plus loin, le
+  // bout de l'axe tomberait sur le trottoir intérieur du virage à droite, à son entrée.
+  viseeAuDelaSortie: 25,
 });
 
 function trajectoireCourbe() {
@@ -635,9 +639,10 @@ function trajectoireCourbe() {
   // Décor : chaque ligne droite loge exactement ce qui s'y passe. Approche : départ, regard loin devant, freinage,
   // placement ; entre les virages : reprise, regard loin devant, freinage, placement ; sortie : reprise, jusqu'à
   // DESSIN.retraitBord du bord haut, où finit le trajet de l'élève comme dans les autres scènes.
+  const entreVirages = dReprise + dLoin + dFrein + choix.avanceDecalage;
   const d = routeVirages({
     approche: depart + dLoin + dFrein + choix.avanceDecalage,
-    entreVirages: dReprise + dLoin + dFrein + choix.avanceDecalage,
+    entreVirages,
     sortie: dReprise + DESSIN.retraitBord,
     largeurTrottoir: choix.largeurTrottoir, angle: choix.angleVirage,
   });
@@ -652,6 +657,20 @@ function trajectoireCourbe() {
       throw new Error(`trajectoire-courbe : ${laterale.toFixed(2)} m/s² d'accélération latérale dans le virage à ${cote},`
         + ` sur ${r} m de rayon : réduire l'allure de virage`);
     }
+  }
+  // Points visés pendant les virages : sur l'axe de la chaussée, viseeAuDelaSortie m au-delà de la fin de chaque virage, dans
+  // la ligne droite qui suit (repère de l'écran, y vers le bas). L'axe du virage à droite finit à l'angle polaire 180 + angle
+  // autour de son centre, et la route repart au cap -90 + angle ; celui du virage à gauche finit à l'angle polaire 0 autour du
+  // sien, et la route repart vers le nord. Chaque point reste dans sa ligne droite et dans le dessin.
+  const visee = choix.viseeAuDelaSortie, alpha = angle * DEG;
+  const [cdx, cdy] = d.reperes.centres.virageDroite, [cgx, cgy] = d.reperes.centres.virageGauche;
+  const vers = {
+    droite: [cdx - rayon * Math.cos(alpha) + visee * Math.sin(alpha), cdy - rayon * Math.sin(alpha) - visee * Math.cos(alpha)],
+    gauche: [cgx + rayon, cgy - visee],
+  };
+  if (!(visee > 0 && visee < entreVirages && vers.gauche[1] > 0)) {
+    throw new Error(`trajectoire-courbe : point visé à ${visee} m au-delà de la sortie : hors de la ligne droite qui suit le`
+      + " virage, ou hors du dessin");
   }
 
   // Trajet : centre de la voie, regard loin devant, freinage, placement à gauche dans la voie, virage à droite qui suit la
@@ -686,7 +705,7 @@ function trajectoireCourbe() {
     { s: sLoin2, kmh: v50 }, { s: sFrein2, kmh: v50 }, { s: sDroite, kmh: v35 }, { s: sFinVirage2, kmh: v35 },
     { s: chemin.longueur, kmh: v50 },
   ];
-  const { devant, sortie } = choix.regard;
+  const { devant } = choix.regard;
   return {
     code: "trajectoire-courbe", titre: "Diriger la voiture en ligne droite et en courbe", monde: d.monde,
     limite: LIMITE_AGGLOMERATION, decor: d,
@@ -696,12 +715,12 @@ function trajectoireCourbe() {
       { s: 0, regard: { angle: devant } },
       { s: sFrein1, regard: { angle: devant } },
       { s: sEcart, regard: { angle: devant } },
-      { s: sVirage1, regard: { angle: sortie } },
+      { s: sVirage1, regard: { vers: vers.droite } },
       { s: sFinVirage1, regard: { angle: devant } },
       { s: sLoin2, regard: { angle: devant } },
       { s: sFrein2, regard: { angle: devant } },
       { s: sDroite, regard: { angle: devant } },
-      { s: sVirage2, regard: { angle: -sortie } },
+      { s: sVirage2, regard: { vers: vers.gauche } },
       { s: sFinVirage2, regard: { angle: devant } },
     ],
     attentes: [
@@ -1261,7 +1280,7 @@ export const SCENES = {
       "Maintenir la trajectoire : regard loin dans la courbe, la voiture suit le regard ; allure dosée avant le virage ; réaccélérer dès que le véhicule est en ligne ; « lent entrée, rapide sortie » : fiche ECF C1-C (classeur de Timy). La fiche indique aussi de lâcher l'accélérateur dans le virage : la scène y tient l'allure de virage, sans ralentir, le freinage étant achevé avant l'entrée (méthode de Timy). En virage, relâcher l'accélérateur avant l'entrée et réaccélérer à la sortie ; freiner avant le danger : fiche ECF C1-E. Regard loin, la situation analysée 10 à 15 s devant ; feux stop pour avertir d'un freinage : fiche ECF C1-I. Actions dans l'ordre : ralentir, rétrograder, freiner, tourner, accélérer : procédures de Fabrice (méthode C.I.A.), section 1 ; la scène en montre le freinage avant le virage et la reprise après, sans dessiner le rétrogradage.",
       "Marquage : unité u de 5 cm, axiale T'1 de largeur 2u (traits de 1,50 m, vides de 5 m), admise en agglomération : IISR 7e partie, art. 113-1 et 113-2 ; en milieu urbain, les bordures de trottoir matérialisent généralement le bord de la chaussée, sans ligne de rive : art. 114-5. Les virages dessinés sont en section courante, à visibilité non réduite (rien ne masque leur intérieur) : l'axiale y reste discontinue (art. 114-5) ; un virage à visibilité réduite serait un point singulier (art. 115), où l'axiale devient continue (art. 116).",
       "Étapes et regards : d'après la méthode de Timy (07/10/2026) et les fiches ECF C1-C, C1-E et C1-I (classeur de Timy) : pour chaque virage, regarder loin devant, freiner avant le virage en ligne droite, se placer dans sa voie, regarder la sortie du virage en le parcourant, réaccélérer en sortie ; la même suite pour le virage à droite, puis pour le virage à gauche.",
-      "Choix de dessin, sans portée réglementaire : route d'agglomération à double sens, deux voies de 3,5 m, un trottoir de chaque côté, sans autre usager ; un virage à droite puis un virage à gauche, de 40 m de rayon mesuré sur l'axe de la chaussée (un virage d'agglomération), qui font chacun tourner la route de 30 degrés : la route tourne nettement, et toute la scène, que montre l'image fixe des animations réduites, tient dans 65 m de large ; à 60 degrés (la valeur par défaut du décor), la ligne droite entre les virages s'étirerait presque d'ouest en est, le dessin ferait 125 m de large et la voiture y serait presque deux fois plus petite ; lignes droites qui logent exactement ce qui s'y passe : 53,2 m d'approche (départ, regard loin devant, freinage, placement), 83,3 m entre les virages (reprise, regard loin devant, freinage, placement), 33,3 m de sortie (reprise) ; 3 m de trottoir montré à gauche de l'approche et à droite de la sortie (le plus petit nombre entier de mètres qui loge le repère numéroté de la dernière étape) ; cadre de 46 m de haut sur toute la largeur, qui suit l'élève ; départ au centre de la voie, l'arrière de la voiture à 0,5 m du bord bas (la voiture entière dans l'image dès le départ), arrivée à 0,5 m du bord haut ; 50 km/h en ligne droite, la vitesse maximale en agglomération ; freinage de 2,0 m/s² (le freinage progressif ramené à sa moyenne) jusqu'à 35 km/h, en 24,6 m et 2,08 s, achevé avant le placement, donc avant le virage ; 35 km/h tenus pendant le placement et dans tout le virage, sans aucun ralentissement ; reprise de 1,5 m/s² dès la sortie du virage, jusqu'à 50 km/h, en 32,8 m et 2,78 s ; placement dans la voie, sans changement de voie, sur 12 m d'avance (1,2 s) : la voiture quitte le centre de sa voie de 0,25 m vers l'axe avant le virage à droite (son flanc gauche finit à 0,60 m de l'axe, son flanc droit à 1,10 m de la bordure au lieu de 0,85 m), puis se déplace de 0,50 m vers la bordure avant le virage à gauche (son flanc droit finit à 0,60 m de la bordure) : 0,60 m, la marge des autres scènes entre un flanc et la bordure qu'il suit ; rayons parcourus de 38,50 m dans le virage à droite et de 42,00 m dans le virage à gauche, soit, à 35 km/h, 2,46 et 2,25 m/s² d'accélération latérale (3,0 m/s² au plus) et 2,07 et 2,26 s dans chaque virage ; cône du regard de 22 m, ouvert de 16 degrés de part et d'autre ; regard, par rapport à l'axe de la voiture : droit devant pendant 1,0 s à 50 km/h (regarder loin devant), puis pendant le freinage et le placement ; 15 degrés vers l'intérieur du virage pendant tout le virage (la direction de la sortie du virage vue de la place du conducteur à l'entrée du virage : 16,3 degrés à droite dans le virage à droite, 14,1 degrés à gauche dans le virage à gauche, le conducteur étant assis à gauche) ; droit devant dès la sortie du virage.",
+      "Choix de dessin, sans portée réglementaire : route d'agglomération à double sens, deux voies de 3,5 m, un trottoir de chaque côté, sans autre usager ; un virage à droite puis un virage à gauche, de 40 m de rayon mesuré sur l'axe de la chaussée (un virage d'agglomération), qui font chacun tourner la route de 30 degrés : la route tourne nettement, et toute la scène, que montre l'image fixe des animations réduites, tient dans 65 m de large ; à 60 degrés (la valeur par défaut du décor), la ligne droite entre les virages s'étirerait presque d'ouest en est, le dessin ferait 125 m de large et la voiture y serait presque deux fois plus petite ; lignes droites qui logent exactement ce qui s'y passe : 53,2 m d'approche (départ, regard loin devant, freinage, placement), 83,3 m entre les virages (reprise, regard loin devant, freinage, placement), 33,3 m de sortie (reprise) ; 3 m de trottoir montré à gauche de l'approche et à droite de la sortie (le plus petit nombre entier de mètres qui loge le repère numéroté de la dernière étape) ; cadre de 46 m de haut sur toute la largeur, qui suit l'élève ; départ au centre de la voie, l'arrière de la voiture à 0,5 m du bord bas (la voiture entière dans l'image dès le départ), arrivée à 0,5 m du bord haut ; 50 km/h en ligne droite, la vitesse maximale en agglomération ; freinage de 2,0 m/s² (le freinage progressif ramené à sa moyenne) jusqu'à 35 km/h, en 24,6 m et 2,08 s, achevé avant le placement, donc avant le virage ; 35 km/h tenus pendant le placement et dans tout le virage, sans aucun ralentissement ; reprise de 1,5 m/s² dès la sortie du virage, jusqu'à 50 km/h, en 32,8 m et 2,78 s ; placement dans la voie, sans changement de voie, sur 12 m d'avance (1,2 s) : la voiture quitte le centre de sa voie de 0,25 m vers l'axe avant le virage à droite (son flanc gauche finit à 0,60 m de l'axe, son flanc droit à 1,10 m de la bordure au lieu de 0,85 m), puis se déplace de 0,50 m vers la bordure avant le virage à gauche (son flanc droit finit à 0,60 m de la bordure) : 0,60 m, la marge des autres scènes entre un flanc et la bordure qu'il suit ; rayons parcourus de 38,50 m dans le virage à droite et de 42,00 m dans le virage à gauche, soit, à 35 km/h, 2,46 et 2,25 m/s² d'accélération latérale (3,0 m/s² au plus) et 2,07 et 2,26 s dans chaque virage ; cône du regard de 22 m, ouvert de 16 degrés de part et d'autre ; regard, par rapport à l'axe de la voiture : droit devant pendant 1,0 s à 50 km/h (regarder loin devant), puis pendant le freinage et le placement ; pendant tout le virage, vers le milieu de la chaussée 25 m au-delà de la sortie du virage, dans la ligne droite qui suit (regard loin dans la courbe, la voiture suit le regard : fiche ECF C1-C ; regard vers la sortie du virage : méthode de Timy) : le cône suit ce point pendant que la voiture tourne, contient la sortie du virage depuis l'entrée du virage jusqu'à ce que l'avant de la voiture l'atteigne, et le bout de son axe reste sur la chaussée (le point convient de 24 à 30 m au-delà de la sortie : plus près, la sortie du virage à gauche quitterait le cône avant que l'avant de la voiture l'atteigne ; plus loin, le bout de l'axe tomberait sur le trottoir intérieur du virage à droite) ; à l'entrée du virage, le regard porte ainsi à 22,0 degrés à droite (virage à droite) et à 25,1 degrés à gauche (virage à gauche) de l'axe de la voiture ; droit devant dès la sortie du virage, le regard, alors à 2,5 et à 3,7 degrés à gauche de l'axe de la voiture, s'alignant sur lui.",
     ],
     construire: unique(trajectoireCourbe),
   },
