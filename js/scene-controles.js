@@ -327,7 +327,9 @@ function controlerAttente(sc, att, note) {
         let fin = k;
         while (fin + 1 < ech.length && ech[fin].s < att.a - 1e-9 && ech[fin + 1].v < ech[fin].v - 1e-9) fin++;
         const p = ech[k - 1], q = ech[fin];
-        note(`${a.id} ralentit dans « ${att.nom} » : de ${(p.v / KMH).toFixed(1)} à ${(q.v / KMH).toFixed(1)} km/h,`
+        // Vitesses écrites à une décimale, ou à deux quand l'arrondi à une décimale masquerait le ralentissement.
+        const chiffres = (p.v / KMH).toFixed(1) === (q.v / KMH).toFixed(1) ? 2 : 1;
+        note(`${a.id} ralentit dans « ${att.nom} » : de ${(p.v / KMH).toFixed(chiffres)} à ${(q.v / KMH).toFixed(chiffres)} km/h,`
           + ` de s = ${f1(p.s)} à s = ${f1(q.s)} m (t = ${f1(p.t)} s)`);
       }
       break;

@@ -161,6 +161,14 @@ test("pasDeDeceleration : un ralentissement plus bref qu'un pas des contrôles (
   assert.deepEqual(controlerScene(def), ["eleve ralentit dans « virage » : de 36.0 à 35.6 km/h, de s = 35.3 à s = 35.8 m (t = 3.5 s)"]);
 });
 
+test("pasDeDeceleration : un ralentissement que l'arrondi au dixième masquerait s'écrit à deux décimales ; le verdict ne change pas", () => {
+  const c = nordSoixante();
+  // De 36 à 35,98 km/h entre s = 35,25 et s = 35,75, puis retour à 36 km/h en 1 m : au dixième, « de 36.0 à 36.0 ».
+  const minime = [{ s: 0, kmh: 36 }, { s: 35.25, kmh: 36 }, { s: 35.75, kmh: 35.98 }, { s: 36.75, kmh: 36 }, { s: 60, kmh: 36 }];
+  assert.deepEqual(controlerScene(scene([eleve(c, minime)], { attentes: [virage] })),
+    ["eleve ralentit dans « virage » : de 36.00 à 35.98 km/h, de s = 35.3 à s = 35.8 m (t = 3.5 s)"]);
+});
+
 // ===== Amendement du 03/10 : entrées et sorties hors du monde, continuité de la vitesse =====
 //
 // Décor des essais qui suivent : le monde fait 80 m sur 80 m (celui de scene()), l'élève monte vers le nord
