@@ -17,10 +17,15 @@
  *   puis de nouveau devant. Ce sont les contrôles tout autour de la voiture avant une marche arrière (méthode de Timy).
  *   L'étape dure au moins REGARD_DUREE_TOUR_MIN s, et le regard se règle sur ses bornes, son instant `t` et sa fin
  *   `fin`, que pose preparerScene ;
+ * - { vers: [x, y] } : vers ce point du monde (m), depuis l'œil du conducteur : l'angle par rapport au cap de la caisse,
+ *   ramené dans ]-180 ; 180], se recalcule à chaque instant, et le cône suit le point pendant que la voiture tourne et
+ *   avance ; sur une image figée, c'est l'angle à l'instant de l'image, le même cône qu'en lecture. Un point qui n'est
+ *   pas un couple de nombres finis, ou qui est l'œil lui-même (sans direction), est refusé ;
  * - { suivre: id } : vers l'acteur id, depuis l'œil du conducteur, tant qu'il est
  *   visible et à au plus REGARD_MAX_SUIVI degrés du cap (cibleSuivie le rend). Le
  *   conducteur ne suit pas des yeux ce qui passe derrière lui : au-delà, il regarde
  *   de nouveau devant lui, et le regard rend le cap.
+ * Priorités, si une étape en porte plusieurs : balayage, tour, angle, vers, puis suivre.
  * Sans regard, ou quand la cible est inconnue ou invisible, angleRegard rend null :
  * pas de cône.
  *
@@ -82,16 +87,35 @@ function directionDepuisOeil(e, cible) {
 // La cible est-elle devant le conducteur, à au plus REGARD_MAX_SUIVI degrés du cap ?
 const devantLeConducteur = (e, cible) => Math.abs(ecart(directionDepuisOeil(e, cible), e.cap)) <= REGARD_MAX_SUIVI * DEG;
 
+// Valeur reçue pour un point regardé, telle que l'auteur d'une scène la reconnaît : un tableau élément par élément, une
+// chaîne entre guillemets (la chaîne "2" ne doit pas se lire comme le nombre 2).
+const decrire = (v) => (Array.isArray(v) ? `[${v.map(decrire).join(", ")}]` : typeof v === "string" ? JSON.stringify(v) : String(v));
+
+// Direction (radians, repère de l'écran) d'un regard { vers: [x, y] } pour la voiture dans l'état e : de l'œil du
+// conducteur vers le point, exprimée comme le cap plus un écart ramené dans ]-pi ; pi]. Refuse un point qui n'est pas un
+// couple de nombres finis, et un point confondu avec l'œil (à moins d'un nanomètre), qui n'a pas de direction.
+function directionVers(vers, e) {
+  if (!(Array.isArray(vers) && vers.length === 2 && vers.every((c) => typeof c === "number" && Number.isFinite(c)))) {
+    throw new Error(`regard vers un point : [x, y], deux nombres finis en mètres, attendu (reçu : ${decrire(vers)})`);
+  }
+  const o = oeil(e), dx = vers[0] - o.x, dy = vers[1] - o.y;
+  if (Math.hypot(dx, dy) < 1e-9) {
+    throw new Error(`regard vers un point : le point (${vers[0]} ; ${vers[1]}) est l'œil du conducteur, il n'a pas de direction`);
+  }
+  return e.cap + ecart(Math.atan2(dy, dx), e.cap);
+}
+
 /**
  * Cible que le conducteur suit des yeux pendant l'étape `etape` (regard { suivre: id }), pour sa voiture dans l'état
  * e ; `etats` : Map des états des acteurs (id -> etatActeur). Rend l'état de la cible quand elle est connue, visible
  * et à au plus REGARD_MAX_SUIVI degrés du cap ; null sinon (étape sans regard qui suit, cible inconnue, invisible ou
- * passée derrière le conducteur). Mêmes priorités qu'angleRegard : un balayage, un tour du regard ou un angle l'emportent
- * sur suivre. Les tests des scènes s'en servent pour savoir si le regard est posé sur la cible ou ramené devant.
+ * passée derrière le conducteur). Mêmes priorités qu'angleRegard : un balayage, un tour du regard, un angle ou un regard
+ * vers un point l'emportent sur suivre. Les tests des scènes s'en servent pour savoir si le regard est posé sur la cible
+ * ou ramené devant.
  */
 export function cibleSuivie(etape, e, etats) {
   const r = etape && etape.regard;
-  if (!r || r.balayage || r.tour || typeof r.angle === "number" || !r.suivre) return null;
+  if (!r || r.balayage || r.tour || typeof r.angle === "number" || r.vers !== undefined || !r.suivre) return null;
   const cible = etats.get(r.suivre);
   return cible && cible.visible && devantLeConducteur(e, cible) ? cible : null;
 }
@@ -114,7 +138,8 @@ function partDuTour(etape, t) {
  * cône à dessiner (étape sans regard, cible inconnue ou invisible). Une cible suivie qui passe à plus de
  * REGARD_MAX_SUIVI degrés du cap est derrière le conducteur : il ne la suit plus des yeux et regarde de nouveau
  * devant lui (le regard rend le cap). Un tour du regard tourne vers la gauche, de 0 à -360 degrés, du début de
- * l'étape à sa fin : elle doit porter `fin`, comme toute étape préparée par preparerScene.
+ * l'étape à sa fin : elle doit porter `fin`, comme toute étape préparée par preparerScene. Un regard vers un point se
+ * recalcule à chaque instant, depuis l'œil, sur l'état e.
  */
 export function angleRegard(etape, e, t, etats) {
   const r = etape && etape.regard;
@@ -122,6 +147,7 @@ export function angleRegard(etape, e, t, etats) {
   if (r.balayage) return e.cap + BALAYAGE.amplitude * DEG * Math.sin(2 * Math.PI * BALAYAGE.frequence * t);
   if (r.tour) return e.cap - 2 * Math.PI * partDuTour(etape, t);
   if (typeof r.angle === "number") return e.cap + r.angle * DEG;
+  if (r.vers !== undefined) return directionVers(r.vers, e);
   if (r.suivre) {
     const cible = etats.get(r.suivre);
     if (!cible || !cible.visible) return null;
