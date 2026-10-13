@@ -10,6 +10,11 @@
  * règles de l'image (teintes, clignotant, cadres, repères, panneaux) celles de
  * js/scene-rendu.js, testées elles aussi.
  *
+ * Le lecteur (boutons Lecture, Pause, Revoir et Rejouer, boucle d'animation, étapes marquées,
+ * départ et pause selon la visibilité, destruction) est commun aux animations des cours : il
+ * vit dans js/lecteur-anime.js, et ses règles pures dans js/lecteur-anime-regles.js. Ce moteur
+ * lui donne l'image à dessiner à chaque instant (`rendre(instant, fige)`).
+ *
  * Sobriété : la lecture démarre quand 60 % du schéma sont visibles, une seule fois,
  * puis attend « Rejouer » ; elle se met en pause quand le schéma sort tout à fait de
  * l'écran, pas avant (sur un téléphone, le schéma et la liste de ses étapes ne tiennent
@@ -30,9 +35,11 @@
 import { preparerScene, etatActeur, pointA, GABARITS, DEG } from "./scene-geometrie.js?v=20261013a";
 import { regardDessine } from "./scene-regard.js?v=20261013a";
 import { TEINTES, RAYON_REPERE, clignotantAllume, feuxDeRecul, cadreCamera, cadreReduit, reperesEtapes,
-  demiLargeurRepere, libelleRepere, emprisePanneau, facteurLecture, SEUILS_VISIBILITE, actionVisibilite, feuxStop }
+  demiLargeurRepere, libelleRepere, emprisePanneau, feuxStop }
   from "./scene-rendu.js?v=20261013a";
 import { urlSignalVerifie } from "./signaux.js?v=20261013a";
+import { monterLecteur } from "./lecteur-anime.js?v=20261013a";
+import { etapeA } from "./lecteur-anime-regles.js?v=20261013a";
 
 const NS = "http://www.w3.org/2000/svg";
 // Opacité du regard : un cône, en lecture comme sur une image figée (les quatre cônes d'un tour du regard figé compris),
@@ -140,15 +147,6 @@ function dessinerReperes(sc) {
   return g;
 }
 
-// Étape courante : classe « on » sur l'élément de l'étape, aria-current sur son bouton (c'est lui qui reçoit le focus)
-// ou, sans bouton, sur l'élément lui-même.
-function marquerEtape(element, courante) {
-  element.classList.toggle("on", courante);
-  const cible = (element.querySelector && element.querySelector("button")) || element;
-  if (courante) cible.setAttribute("aria-current", "step");
-  else cible.removeAttribute("aria-current");
-}
-
 export function monterScene(def, { conteneur, etapes = [], reduit = false, onEtape = null } = {}) {
   const sc = preparerScene(def);
   const racine = svg("svg", { class: reduit ? "scene-svg scene-reduite" : "scene-svg", role: "img", "aria-label": sc.titre });
@@ -206,40 +204,11 @@ export function monterScene(def, { conteneur, etapes = [], reduit = false, onEta
   }
   cadrer(premierCadre);
 
-  const barre = document.createElement("div");
-  barre.className = "scene-commandes";
-  const lecture = document.createElement("button");
-  lecture.type = "button";
-  lecture.className = "btn";
-  const rejouerBtn = document.createElement("button");
-  rejouerBtn.type = "button";
-  rejouerBtn.className = "btn ghost";
-  rejouerBtn.textContent = "Rejouer";
-  barre.append(lecture, rejouerBtn);
-  const facteur = facteurLecture(sc.vitesseLecture || 1);
-  if (facteur) {
-    // « × 0,5 » à l'écran ; les lecteurs d'écran lisent la phrase en clair.
-    const span = document.createElement("span");
-    span.className = "scene-facteur";
-    const vu = document.createElement("span");
-    vu.setAttribute("aria-hidden", "true");
-    vu.textContent = facteur.texte;
-    const lu = document.createElement("span");
-    lu.className = "scene-lecteur-ecran";
-    lu.textContent = facteur.libelle;
-    span.append(vu, lu);
-    barre.append(span);
-  }
-  conteneur.append(racine, barre);
-
-  let t = 0, enCours = false, raf = 0, dernier = 0, etapeCourante = -1, dejaVu = false, observateur = null;
-
-  function rendre(instant) {
-    // Image figée (pas à pas, pause, fin de lecture, animations réduites) : l'état de la scène, pas une phase d'animation.
-    const fige = reduit || !enCours;
+  // Image de la scène à `instant` ; `fige` : pas à pas, pause, fin de lecture ou animations réduites. Elle montre l'état de la
+  // scène, pas une phase d'animation.
+  function rendre(instant, fige) {
     const etats = new Map(sc.acteurs.map((a) => [a.id, etatActeur(a, instant)]));
-    let k = 0;
-    sc.etapes.forEach((et, i) => { if (instant + 1e-9 >= et.t) k = i; });
+    const k = etapeA(sc.etapes, instant);
     for (const a of sc.acteurs) {
       const e = etats.get(a.id), v = vues.get(a.id);
       v.g.setAttribute("display", e.visible ? "inline" : "none");
@@ -269,39 +238,8 @@ export function monterScene(def, { conteneur, etapes = [], reduit = false, onEta
     }
     // La caméra suit l'élève en lecture ; en animations réduites, le cadre posé au montage ne bouge pas.
     if (sc.camera && !reduit) cadrer(cadreCamera(sc, e));
-    if (k !== etapeCourante) {
-      etapeCourante = k;
-      etapes.forEach((element, i) => marquerEtape(element, i === k));
-      if (onEtape) onEtape(k);
-    }
   }
 
-  // Le libellé du bouton porte l'état (Lecture, Pause, Revoir) : pas d'aria-pressed, qui le doublerait.
-  function majBouton() {
-    lecture.textContent = enCours ? "Pause" : (t >= sc.duree ? "Revoir" : "Lecture");
-  }
-  function arreter() { enCours = false; cancelAnimationFrame(raf); }
-  function boucle(maintenant) {
-    if (!racine.isConnected) { detruire(); return; }
-    const dt = Math.min(0.1, (maintenant - dernier) / 1000) * (sc.vitesseLecture || 1);
-    dernier = maintenant;
-    t = Math.min(sc.duree, t + dt);
-    if (t >= sc.duree) { enCours = false; rendre(t); majBouton(); return; }   // la dernière image est une image figée
-    rendre(t);
-    raf = requestAnimationFrame(boucle);
-  }
-  // Une lecture demandée, comme un appui sur une étape, l'emporte sur la lecture automatique à la première visibilité.
-  function jouer() {
-    dejaVu = true;
-    if (enCours) return;
-    if (t >= sc.duree) t = 0;
-    enCours = true;
-    dernier = performance.now();
-    raf = requestAnimationFrame(boucle);
-    majBouton();
-  }
-  function pause() { arreter(); rendre(t); majBouton(); }
-  function rejouer() { arreter(); t = 0; rendre(0); jouer(); }
   // Un appui sur une étape éloignée peut laisser la voiture de l'élève hors de l'écran (en animations réduites, le schéma
   // peut être plus haut que l'écran d'un téléphone) : on la ramène, sans animation, si elle n'est pas déjà visible. Visible,
   // c'est ce que l'œil verrait : l'élément le plus haut au centre de la voiture fait encore partie du schéma, donc elle n'est
@@ -315,22 +253,8 @@ export function monterScene(def, { conteneur, etapes = [], reduit = false, onEta
     if (dessus && racine.contains(dessus)) return;
     voiture.scrollIntoView({ block: "center", inline: "nearest", behavior: "instant" });
   }
-  function allerEtape(i) { dejaVu = true; arreter(); t = sc.etapes[i].t; rendre(t); majBouton(); montrerVoiture(); }
-  function detruire() { arreter(); if (observateur) observateur.disconnect(); majBouton(); }
 
-  lecture.addEventListener("click", () => (enCours ? pause() : jouer()));
-  rejouerBtn.addEventListener("click", rejouer);
-  rendre(0);
-  majBouton();
-  if (!reduit && typeof IntersectionObserver === "function") {
-    // Seuils 0 et 60 % : le rappel part quand le schéma sort tout à fait de l'écran et quand il atteint 60 %. La décision
-    // (démarrer, mettre en pause, ne rien faire) est celle de js/scene-rendu.js, sur la part visible de la dernière entrée.
-    observateur = new IntersectionObserver((entrees) => {
-      const action = actionVisibilite(entrees[entrees.length - 1].intersectionRatio, dejaVu, enCours);
-      if (action === "demarrer") jouer();
-      else if (action === "pause") pause();
-    }, { threshold: SEUILS_VISIBILITE });
-    observateur.observe(racine);
-  }
-  return { jouer, pause, rejouer, allerEtape, detruire, scene: sc };
+  const lecteur = monterLecteur({ racine, conteneur, duree: sc.duree, etapes: sc.etapes, vitesseLecture: sc.vitesseLecture || 1,
+    reduit, elementsEtapes: etapes, rendre, onEtape, apresEtape: montrerVoiture });
+  return { ...lecteur, scene: sc };
 }

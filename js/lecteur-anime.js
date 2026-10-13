@@ -1,0 +1,109 @@
+/*
+ * Promo ECSR : Application propriétaire.
+ * © 2026 watchi64 : Tous droits réservés. Voir LICENSE.
+ *
+ * Lecteur commun des animations des cours (scènes de route, gestes) : boutons Lecture, Pause, Revoir et Rejouer,
+ * facteur de lecture, boucle d'animation, étapes marquées et cliquables, départ quand 60 % du schéma sont visibles
+ * (une seule fois), pause quand il sort tout à fait de l'écran, arrêt quand il sort du document, destruction. Le
+ * dessin lui-même appartient au moteur qui l'appelle (`rendre(instant, fige)`) : js/scene-moteur.js pour la route,
+ * js/geste-moteur.js pour les gestes. Règles pures : js/lecteur-anime-regles.js.
+ *
+ * Image figée (`fige` vrai) : pas à pas, pause, fin de lecture, animations réduites.
+ */
+import { facteurLecture, SEUILS_VISIBILITE, actionVisibilite, etapeA } from "./lecteur-anime-regles.js?v=20261013a";
+
+// Étape courante : classe « on » sur l'élément de l'étape, aria-current sur son bouton (c'est lui qui reçoit le focus)
+// ou, sans bouton, sur l'élément lui-même.
+function marquerEtape(element, courante) {
+  element.classList.toggle("on", courante);
+  const cible = (element.querySelector && element.querySelector("button")) || element;
+  if (courante) cible.setAttribute("aria-current", "step");
+  else cible.removeAttribute("aria-current");
+}
+
+export function monterLecteur({ racine, conteneur, duree, etapes, vitesseLecture = 1, reduit = false,
+  elementsEtapes = [], rendre, onEtape = null, apresEtape = null }) {
+  const barre = document.createElement("div");
+  barre.className = "scene-commandes";
+  const lecture = document.createElement("button");
+  lecture.type = "button";
+  lecture.className = "btn";
+  const rejouerBtn = document.createElement("button");
+  rejouerBtn.type = "button";
+  rejouerBtn.className = "btn ghost";
+  rejouerBtn.textContent = "Rejouer";
+  barre.append(lecture, rejouerBtn);
+  const facteur = facteurLecture(vitesseLecture);
+  if (facteur) {
+    // « × 0,5 » à l'écran ; les lecteurs d'écran lisent la phrase en clair.
+    const span = document.createElement("span");
+    span.className = "scene-facteur";
+    const vu = document.createElement("span");
+    vu.setAttribute("aria-hidden", "true");
+    vu.textContent = facteur.texte;
+    const lu = document.createElement("span");
+    lu.className = "scene-lecteur-ecran";
+    lu.textContent = facteur.libelle;
+    span.append(vu, lu);
+    barre.append(span);
+  }
+  conteneur.append(racine, barre);
+
+  let t = 0, enCours = false, raf = 0, dernier = 0, etapeCourante = -1, dejaVu = false, observateur = null;
+
+  function dessiner(instant) {
+    rendre(instant, reduit || !enCours);
+    const k = etapeA(etapes, instant);
+    if (k !== etapeCourante) {
+      etapeCourante = k;
+      elementsEtapes.forEach((element, i) => marquerEtape(element, i === k));
+      if (onEtape) onEtape(k);
+    }
+  }
+  // Le libellé du bouton porte l'état (Lecture, Pause, Revoir) : pas d'aria-pressed, qui le doublerait.
+  function majBouton() {
+    lecture.textContent = enCours ? "Pause" : (t >= duree ? "Revoir" : "Lecture");
+  }
+  function arreter() { enCours = false; cancelAnimationFrame(raf); }
+  function boucle(maintenant) {
+    if (!racine.isConnected) { detruire(); return; }
+    const dt = Math.min(0.1, (maintenant - dernier) / 1000) * vitesseLecture;
+    dernier = maintenant;
+    t = Math.min(duree, t + dt);
+    if (t >= duree) { enCours = false; dessiner(t); majBouton(); return; }   // la dernière image est une image figée
+    dessiner(t);
+    raf = requestAnimationFrame(boucle);
+  }
+  // Une lecture demandée, comme un appui sur une étape, l'emporte sur la lecture automatique à la première visibilité.
+  function jouer() {
+    dejaVu = true;
+    if (enCours) return;
+    if (t >= duree) t = 0;
+    enCours = true;
+    dernier = performance.now();
+    raf = requestAnimationFrame(boucle);
+    majBouton();
+  }
+  function pause() { arreter(); dessiner(t); majBouton(); }
+  function rejouer() { arreter(); t = 0; dessiner(0); jouer(); }
+  function allerEtape(i) { dejaVu = true; arreter(); t = etapes[i].t; dessiner(t); majBouton(); if (apresEtape) apresEtape(i); }
+  // Image figée à un instant quelconque (planche de revue, captures).
+  function allerA(instant) { dejaVu = true; arreter(); t = Math.max(0, Math.min(duree, instant)); dessiner(t); majBouton(); }
+  function detruire() { arreter(); if (observateur) observateur.disconnect(); majBouton(); }
+
+  lecture.addEventListener("click", () => (enCours ? pause() : jouer()));
+  rejouerBtn.addEventListener("click", rejouer);
+  dessiner(0);
+  majBouton();
+  if (!reduit && typeof IntersectionObserver === "function") {
+    // Seuils 0 et 60 % : le rappel part quand le schéma sort tout à fait de l'écran et quand il atteint 60 %. La décision
+    // (démarrer, mettre en pause, ne rien faire) est celle de js/lecteur-anime-regles.js.
+    observateur = new IntersectionObserver((entrees) => {
+      const action = actionVisibilite(entrees[entrees.length - 1].intersectionRatio, dejaVu, enCours);
+      if (action === "demarrer") jouer();
+      else if (action === "pause") pause();
+    }, { threshold: SEUILS_VISIBILITE });
+    observateur.observe(racine);
+  }
+  return { jouer, pause, rejouer, allerEtape, allerA, detruire };
+}
