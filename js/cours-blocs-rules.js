@@ -21,7 +21,8 @@
  * écrite (MARQUES_CHOIX).
  * Le chargement à la demande des moteurs et des dessins (creerChargeur : un chargement par
  * module, un échec oublié ; adresseDeReprise ; montageDiffere : rien ne se monte une fois le
- * bloc détruit) est ici aussi, sans DOM : js/cours-blocs.js lui donne les imports.
+ * bloc détruit ; piloterBloc : le cycle de vie d'un bloc, ses échecs et ce qu'on en dit à
+ * l'éditeur) est ici aussi, sans DOM : js/cours-blocs.js lui donne les imports et l'affichage.
  */
 
 // Numéro en tête de ligne (« 1. », « 1.Tourner », « 3) »), retiré. Le séparateur ne doit pas
@@ -277,16 +278,95 @@ export function adresseDeReprise(chemin, recherche, essai) {
 }
 
 /** Monte un bloc quand son module est chargé, sauf s'il a été détruit entre-temps (cours fermé, aperçu refait) ;
- *  `monter(module)` rend le moteur monté (ou un objet sans detruire) ; `echec(erreur)` est appelé si le chargement
- *  échoue, ou si le montage lève, et que le bloc vit encore. */
+ *  `monter(module)` rend le moteur monté (ou un objet sans detruire) ; `echec(erreur, phase)` est appelé, tant que le bloc vit,
+ *  si le chargement échoue (phase « chargement ») ou si le montage lève (phase « montage »). */
 export function montageDiffere(charge, monter, { echec = () => {} } = {}) {
   let moteur = null, detruit = false;
   charge.then((module) => {
     if (detruit) return;
-    try { moteur = monter(module); } catch (erreur) { echec(erreur); }
-  }, (erreur) => { if (!detruit) echec(erreur); });
+    try { moteur = monter(module); } catch (erreur) { echec(erreur, "montage"); }
+  }, (erreur) => { if (!detruit) echec(erreur, "chargement"); });
   return {
     detruire() { detruit = true; if (moteur && typeof moteur.detruire === "function") moteur.detruire(); },
     get monte() { return moteur; },
+  };
+}
+
+// ===== Un bloc illustré qui ne s'affiche pas : ce qu'on en dit =====
+
+/** L'entrée d'un code dans le registre d'un module chargé (SCENES, GESTES, DESSINS). Un code que le module ne connaît pas (ou
+ *  un module sans registre) lève une erreur `nature: "absent"` : le bloc ne peut pas se monter, et « Réessayer » n'y changerait
+ *  rien, le module étant chargé. */
+export function trouverDansRegistre(registre, code, module) {
+  if (registre && Object.prototype.hasOwnProperty.call(registre, code) && registre[code]) return registre[code];
+  throw Object.assign(new Error(`« ${code} » est absent du module « ${module} »`), { nature: "absent" });
+}
+
+/** Le fichier JavaScript que cite le navigateur dans l'erreur d'un import() (Chrome : « Failed to fetch dynamically imported
+ *  module: http://…/js/dessins-poste.js?v=… »), ou null : Safari ne le dit pas. */
+export function fichierEnEchec(erreur) {
+  const m = String(erreur && erreur.message ? erreur.message : "").match(/imported module:\s*\S*\/([A-Za-z0-9_.-]+\.js)(?=[?#\s]|$)/);
+  return m ? m[1] : null;
+}
+
+const DETAIL_MAX = 140;   // caractères du détail d'une erreur de montage : une phrase, pas une trace
+const detailErreur = (erreur) => {
+  const texte = String(erreur && erreur.message ? erreur.message : erreur).replace(/\s+/g, " ").trim();
+  return texte.length > DETAIL_MAX ? `${texte.slice(0, DETAIL_MAX - 1)}…` : texte;
+};
+
+/** La phrase qui dit à l'éditeur pourquoi un bloc illustré ne s'affiche pas : son genre et son code, puis la cause. `nature` :
+ *  « reseau » (le module n'a pas pu se charger), « absent » (il s'est chargé mais ne connaît pas le code), « montage » (le
+ *  montage a levé). `module` : celui du catalogue. */
+export function messageEchecBloc({ genre = "Schéma", code, module, nature, erreur }) {
+  const tete = `${genre} « ${code} »`;
+  if (nature === "reseau") {
+    const fichier = fichierEnEchec(erreur);
+    return `${tete} : ${fichier ? `le fichier « ${fichier} »` : `le module « ${module} »`} n'a pas pu se charger.`;
+  }
+  if (nature === "absent") return `${tete} : absent du module « ${module} ».`;
+  return `${tete} : erreur au montage (${detailErreur(erreur)}).`;
+}
+
+/** Conduit un bloc illustré, sans DOM. `charger()` rend la promesse du ou des modules (appelée à chaque démarrage, donc à chaque
+ *  reprise) ; `monter(modules)` monte le moteur et le rend (il peut lever, `trouverDansRegistre` lève « absent ») ; `afficher`
+ *  dit quoi montrer : `attente()` ; `echecReseau(reessayer)` quand le module n'a pas pu se charger (panne de réseau : `reessayer`
+ *  relance le chargement) ; `indisponible(nature)` quand il s'est chargé mais que le bloc ne peut pas se monter (« absent » : le
+ *  module ne connaît pas le code ; « montage » : le montage a levé), sans reprise, qui n'y changerait rien. Chaque échec est
+ *  consigné (`journaliser(message, erreur)`) et signalé (`signaler(message)` : l'éditeur l'ajoute à ses avertissements).
+ *  Un bloc détruit ne montre rien de plus, ne recharge rien et ne signale rien. Un appui sur une étape avant le montage est
+ *  retenu (le dernier l'emporte) et appliqué au montage ; une étape qui ne s'applique pas est consignée, et le moteur monté est
+ *  gardé : il sera détruit avec le bloc. */
+export function piloterBloc({ genre = "Schéma", code, module, charger, monter, afficher, signaler = () => {}, journaliser = () => {} }) {
+  let poignee = null, etapeDemandee = null, detruit = false;
+  const appliquer = (moteur, i) => {
+    try { moteur.allerEtape(i); } catch (erreur) { journaliser(`${genre} « ${code} » : l'étape ${i + 1} n'a pas pu s'afficher`, erreur); }
+  };
+  function demarrer() {
+    if (detruit) return;
+    afficher.attente();
+    let charge;
+    try { charge = Promise.resolve(charger()); } catch (erreur) { charge = Promise.reject(erreur); }
+    poignee = montageDiffere(charge, (modules) => {
+      const moteur = monter(modules);
+      if (etapeDemandee !== null && moteur && typeof moteur.allerEtape === "function") appliquer(moteur, etapeDemandee);
+      return moteur;
+    }, {
+      echec: (erreur, phase) => {
+        const nature = phase === "chargement" ? "reseau" : erreur && erreur.nature === "absent" ? "absent" : "montage";
+        const message = messageEchecBloc({ genre, code, module, nature, erreur });
+        journaliser(message, erreur);
+        if (nature === "reseau") afficher.echecReseau(demarrer); else afficher.indisponible(nature);
+        signaler(message);
+      },
+    });
+  }
+  return {
+    demarrer,
+    detruire() { detruit = true; if (poignee) poignee.detruire(); },
+    allerEtape(i) {
+      const moteur = poignee && poignee.monte;
+      if (moteur && typeof moteur.allerEtape === "function") appliquer(moteur, i); else etapeDemandee = i;
+    },
   };
 }

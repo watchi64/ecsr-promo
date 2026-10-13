@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { analyserScene, analyserQuiz, analyserCartes, melangerSansIdentite, corrigerOrdre, corrigerChoix,
   corrigerOption, MARQUES_CHOIX,
   BLOCS_INTERACTIFS, ouvertureBloc, lireBloc, erreurDirective, erreurNonRefermee,
-  messageOrdre, messageVraiFaux, messageChoix }
+  messageOrdre, messageVraiFaux, messageChoix, trouverDansRegistre, messageEchecBloc, fichierEnEchec }
   from "../js/cours-blocs-rules.js";
 
 // Un bloc refusé dit toujours pourquoi : l'éditeur affiche ce message tel quel.
@@ -294,4 +294,48 @@ test("messageChoix : le texte brut est demandé par une fonction, le balisage ne
   const q = { question: "Q", options: [{ texte: "la **voie** de sortie", juste: true }, { texte: "x", juste: false }], explication: "Côté `trottoir`" };
   const plat = (t) => t.replace(/\*\*|`/g, "");
   assert.equal(messageChoix([q], [new Set([1])], plat), "0 sur 1 justes. Bonne réponse : la voie de sortie. Côté trottoir.");
+});
+
+// ===== Échecs d'un bloc illustré : ce que voit l'éditeur =====
+
+test("trouverDansRegistre : l'entrée d'un code connu du module, sinon une erreur « absent » qui dit le code et le module", () => {
+  const entree = { construire() {} };
+  const registre = { "mains-volant": entree };
+  assert.equal(trouverDansRegistre(registre, "mains-volant", "poste"), entree);
+  for (const code of ["pedales", "constructor", "toString", "__proto__"]) {
+    assert.throws(() => trouverDansRegistre(registre, code, "poste"),
+      (e) => e.nature === "absent" && e.message.includes(`« ${code} »`) && e.message.includes("« poste »"), code);
+  }
+  // Un module chargé qui n'exporte pas de registre est dans le même cas.
+  assert.throws(() => trouverDansRegistre(undefined, "pedales", "poste"), (e) => e.nature === "absent");
+  assert.throws(() => trouverDansRegistre({ pedales: null }, "pedales", "poste"), (e) => e.nature === "absent");
+});
+
+test("messageEchecBloc : le genre, le code et la cause, une phrase en français qui finit par un point", () => {
+  const chrome = new Error("Failed to fetch dynamically imported module: http://localhost:8762/js/dessins-voyants.js?v=20261013a");
+  assert.equal(messageEchecBloc({ code: "autotest", module: "voyants", nature: "reseau", erreur: chrome }),
+    "Schéma « autotest » : le fichier « dessins-voyants.js » n'a pas pu se charger.");
+  // Safari ne cite pas l'adresse : le module du catalogue.
+  assert.equal(messageEchecBloc({ code: "autotest", module: "voyants", nature: "reseau", erreur: new Error("Importing a module script failed.") }),
+    "Schéma « autotest » : le module « voyants » n'a pas pu se charger.");
+  assert.equal(messageEchecBloc({ code: "sortie-portiere", module: "route", nature: "absent" }),
+    "Schéma « sortie-portiere » : absent du module « route ».");
+  assert.equal(messageEchecBloc({ genre: "Dessin", code: "capot", module: "entretien", nature: "absent" }),
+    "Dessin « capot » : absent du module « entretien ».");
+  assert.equal(messageEchecBloc({ code: "tourner-droite", module: "route", nature: "montage", erreur: new TypeError("Cannot read properties of undefined") }),
+    "Schéma « tourner-droite » : erreur au montage (Cannot read properties of undefined).");
+  // Le détail d'une erreur longue ou multiligne reste sur une ligne, borné.
+  const long = messageEchecBloc({ code: "x", module: "route", nature: "montage", erreur: new Error("a\n  b ".repeat(80)) });
+  assert.ok(!long.includes("\n") && long.length < 220, long.length);
+  assert.ok(!long.includes(String.fromCharCode(0x2014)));
+});
+
+test("fichierEnEchec : le fichier que cite le navigateur dans l'erreur d'un import(), sinon null", () => {
+  assert.equal(fichierEnEchec(new Error("Failed to fetch dynamically imported module: http://h/js/dessins-poste.js?v=20261013a&essai=2")), "dessins-poste.js");
+  assert.equal(fichierEnEchec(new Error("error loading dynamically imported module: https://x.github.io/ecsr-promo/js/geste-moteur.js?v=1")), "geste-moteur.js");
+  assert.equal(fichierEnEchec(new Error("Importing a module script failed.")), null);
+  // Node cite le module qui importe, pas celui qui manque : on ne s'y fie pas.
+  assert.equal(fichierEnEchec(new Error("Cannot find module '/x/js/dessins-voyants.js' imported from /x/js/cours-blocs.js")), null);
+  assert.equal(fichierEnEchec(null), null);
+  assert.equal(fichierEnEchec("texte"), null);
 });

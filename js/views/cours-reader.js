@@ -437,12 +437,15 @@ function rendreBlocs(lignes, contexte) {
  *  contexte.erreurs les blocs mal formés, non refermés ou de directive inconnue
  *  (affichés par l'éditeur seulement),
  *  contexte.scenes les schémas animés montés : le rendu qui les jette (fermeture de
- *  la fiche, nouvel aperçu de l'éditeur) appelle d'abord detruireScenes(contexte).
+ *  la fiche, nouvel aperçu de l'éditeur) appelle d'abord detruireScenes(contexte),
+ *  contexte.signaler(message) le canal des échecs qui arrivent après le rendu (un schéma
+ *  qui n'a pu ni se charger ni se monter) : sans effet par défaut, l'éditeur l'assigne
+ *  pour ajouter le message à ses avertissements ; un rendu détruit n'y écrit plus.
  *  `cartes` regroupe chaque rubrique de niveau 2 dans une carte (compétences).
  *  `blocs: false` (assistant) laisse les blocs schéma, quiz et cartes en texte brut :
  *  une réponse qui en recopie un ne monte ni schéma ni quiz dans la bulle. */
 export function rendreMarkdown(texte, { cartes = false, blocs = true } = {}) {
-  const contexte = { sections: [], essentielVu: false, erreurs: [], scenes: [], blocs };
+  const contexte = { sections: [], essentielVu: false, erreurs: [], scenes: [], blocs, signaler: () => {} };
   const noeuds = rendreBlocs(String(texte).split("\n"), contexte);
   return { noeuds: cartes ? regrouperEnCartes(noeuds) : noeuds, contexte };
 }

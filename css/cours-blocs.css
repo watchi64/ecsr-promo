@@ -69,13 +69,14 @@
 /* Étape qui ne commande pas le schéma (scène inconnue, nombre d'étapes différent) : un texte, pas un bouton. */
 span.scene-etape { cursor: default; }
 
-/* Attente et échec du chargement d'un schéma ou d'un dessin : la place est réservée, rien ne saute. */
-.bloc-attente, .bloc-echec {
+/* Attente et échec du chargement d'un schéma ou d'un dessin : la place est réservée, rien ne saute. Le bloc indisponible
+   (module chargé, mais code absent ou montage en erreur) a le même cadre : un message, sans bouton. */
+.bloc-attente, .bloc-echec, .bloc-indisponible {
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.6rem;
   min-height: 9rem; width: 100%; border-radius: var(--r); background: var(--bg-soft);
   color: var(--text-muted); font-size: 0.85rem; text-align: center; padding: 1rem;
 }
-.bloc-echec p { margin: 0; }
+.bloc-echec p, .bloc-indisponible p { margin: 0; }
 
 /* Quiz : correction immédiate, rien n'est enregistré */
 .quiz { margin: 1.2rem 0; padding: 0.9rem 1rem; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--bg-elev); }

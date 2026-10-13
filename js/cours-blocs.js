@@ -15,11 +15,17 @@
  * chaque code ; au premier bloc qui en a besoin, ce module se charge, une fois pour
  * la session (chargerModule). La figure, la légende et la liste des étapes
  * s'affichent tout de suite ; la vue du dessin montre « Chargement du schéma… »,
- * puis le dessin, ou un message et « Réessayer » si le réseau a manqué. Un bloc
- * détruit pendant le chargement ne monte rien.
+ * puis le dessin, ou un message et « Réessayer » si le réseau a manqué. Un module
+ * chargé qui ne connaît pas le code, ou dont le montage lève, montre un message
+ * sobre sans « Réessayer » (qui n'y changerait rien). Chaque échec est aussi dit à
+ * l'éditeur (contexte.signaler). Un bloc détruit pendant le chargement ne monte rien
+ * et ne signale rien. Le cycle de vie d'un bloc est dans js/cours-blocs-rules.js
+ * (piloterBloc, testé sous Node) ; ici, l'affichage.
  *
  * Le contexte est celui de rendreMarkdown (js/views/cours-reader.js) :
  *   erreurs : les messages des blocs signalés ;
+ *   signaler : fonction (message) qu'un bloc appelle quand il n'a pu ni se charger ni se monter, après que le
+ *             rendu a rendu la main (l'éditeur l'ajoute à ses avertissements ; sans effet ailleurs) ;
  *   scenes  : les schémas montés. Un schéma arrêté garde son observateur de visibilité, donc son
  *             SVG en vie : quiconque jette le résultat d'un rendu (fermeture de la fiche, nouveau
  *             rendu de l'aperçu) appelle d'abord detruireScenes(contexte) ;
@@ -34,7 +40,7 @@
 import { el } from "./utils.js?v=20261013a";
 import { analyserScene, analyserQuiz, analyserCartes, melangerSansIdentite, corrigerOrdre, corrigerChoix,
   corrigerOption, MARQUES_CHOIX, BLOCS_INTERACTIFS, erreurDirective, erreurNonRefermee, messageOrdre, messageVraiFaux,
-  messageChoix, creerChargeur, montageDiffere, adresseDeReprise }
+  messageChoix, creerChargeur, adresseDeReprise, piloterBloc, trouverDansRegistre }
   from "./cours-blocs-rules.js?v=20261013a";
 import { entreeBloc } from "./catalogue-blocs.js?v=20261013a";
 
@@ -42,6 +48,16 @@ import { entreeBloc } from "./catalogue-blocs.js?v=20261013a";
 // `essai` : le nombre d'échecs déjà essuyés pour ce module (0 au premier chargement). Un import() qui a échoué reste en échec
 // pour la même adresse tant que la page n'est pas rechargée, même si le réseau est revenu : « Réessayer » redemande donc le
 // module sous une adresse nouvelle (adresseDeReprise), avec le jeton de ce fichier, que le même script réécrit avec les autres.
+//
+// RÈGLE des modules racines de cette table (scenes.js, scene-moteur.js, geste-moteur.js, dessins-*.js) : une reprise en évalue
+// une seconde copie (« ?v=…&essai=N »), pendant que la première, si elle s'était chargée, reste en mémoire sans servir. C'est
+// sans danger à deux conditions. 1. Le module n'a aucun effet de bord à l'évaluation (rien d'écrit dans le document, rien
+// enregistré ailleurs) : un état propre à sa copie (le compteur de scene-moteur.js) est permis, car une seule copie sert, celle
+// que rend chargerModule. 2. Aucun autre module ne l'importe statiquement : cette copie-là servirait en même temps que celle de
+// la reprise, et tout état serait en double. tests/chargement.test.mjs garde la seconde condition et la forme de cette table.
+// L'import() calculé de `importer` est l'exception voulue à la règle « import dynamique littéral » : le jeton vient de
+// l'adresse de ce fichier, donc ne peut pas se périmer, et le même test vérifie que chaque reprise vise le fichier de son import
+// littéral. Un nouveau module racine suit cette règle ; un module partagé entre familles (dessins-kit.js) n'est pas une racine.
 const JETON = new URL(import.meta.url).search;
 const importer = (essai, chemin, premier) => (essai === 0 ? premier() : import(adresseDeReprise(chemin, JETON, essai)));
 const CHARGEURS = {
@@ -121,6 +137,16 @@ function echecChargement(vue, reessayer) {
     el("p", {}, "Le schéma n'a pas pu se charger. Vérifier la connexion."),
     echecs > 1 ? el("p", {}, "Si cela persiste, recharger la page une fois la connexion rétablie.") : null, bouton));
 }
+// Un bloc dont le module est chargé mais qui ne peut pas s'afficher (le module ne connaît pas le code, ou le montage a levé) :
+// un message sobre, sans « Réessayer », qui n'y changerait rien. L'éditeur, lui, reçoit la cause précise (signalerAuContexte).
+function blocIndisponible(vue, texte) {
+  vue.replaceChildren(el("div", { class: "bloc-indisponible", role: "status" }, el("p", {}, texte)));
+}
+// Un échec qui arrive après le rendu : l'éditeur l'ajoute à ses avertissements (contexte.signaler), le lecteur l'ignore.
+function signalerAuContexte(contexte, message) {
+  if (!contexte || typeof contexte.signaler !== "function") return;
+  try { contexte.signaler(message); } catch (erreur) { console.error(erreur); }
+}
 
 function rendreScene(arg, lignes, contexte, inline) {
   const analyse = analyserScene(arg, lignes);
@@ -144,33 +170,40 @@ function rendreScene(arg, lignes, contexte, inline) {
   });
   if (!scene) return el("div", { class: "scene-bloc scene-inconnue" }, liste);
   // La figure, la liste des étapes et la place du dessin sont posées tout de suite ; le moteur se monte quand son module est
-  // chargé. Un appui sur une étape avant le montage est retenu (`etapeDemandee`) et appliqué au montage.
+  // chargé. Le cycle de vie du bloc (attente, échec de réseau et reprise, code absent, erreur de montage, appui sur une étape
+  // avant le montage, destruction) est celui de piloterBloc ; ici, seulement ce qu'on montre et d'où viennent les modules.
   const vue = el("div", { class: "scene-vue" });
   const figure = el("figure", { class: "scene-bloc" }, vue, liste);
-  let poignee = null, etapeDemandee = null;
   const options = () => ({ conteneur: vue, etapes: synchro ? items.map((x) => x.li) : [], reduit: animationsReduites() });
-  const monter = () => {
-    attente(vue, scene.cadre);
-    const charge = scene.module === "route"
-      ? chargerModule("route").then((m) => () => m.monterScene(m.SCENES[analyse.code].construire(), options()))
-      : Promise.all([chargerModule(scene.module), chargerModule("geste")])
-        .then(([famille, moteur]) => () => moteur.monterGeste(famille.GESTES[analyse.code].construire(), options()));
-    poignee = montageDiffere(charge, (lancer) => {
+  // Le registre du module dit comment construire la scène : un code qu'il ne connaît pas lève « absent » avant que la vue
+  // soit touchée ; l'attente reste affichée jusqu'au moment de monter.
+  const monter = scene.module === "route"
+    ? ({ SCENES, monterScene }) => {
+      const def = trouverDansRegistre(SCENES, analyse.code, "route").construire();
       vue.replaceChildren();
-      const moteur = lancer();
-      if (etapeDemandee !== null) moteur.allerEtape(etapeDemandee);
-      return moteur;
-    }, { echec: (erreur) => {
-      console.error(`Schéma « ${analyse.code} » : chargement impossible`, erreur);
-      echecChargement(vue, monter);
-    } });
-  };
-  contexte.scenes.push({ detruire: () => poignee && poignee.detruire() });
-  if (synchro) items.forEach((x, i) => x.etape.addEventListener("click", () => {
-    const moteur = poignee && poignee.monte;
-    if (moteur) moteur.allerEtape(i); else etapeDemandee = i;
-  }));
-  monter();
+      return monterScene(def, options());
+    }
+    : ([famille, moteur]) => {
+      const def = trouverDansRegistre(famille.GESTES, analyse.code, scene.module).construire();
+      vue.replaceChildren();
+      return moteur.monterGeste(def, options());
+    };
+  const bloc = piloterBloc({
+    genre: "Schéma", code: analyse.code, module: scene.module,
+    charger: () => (scene.module === "route" ? chargerModule("route") : Promise.all([chargerModule(scene.module), chargerModule("geste")])),
+    monter,
+    afficher: {
+      attente: () => attente(vue, scene.cadre),
+      echecReseau: (reessayer) => echecChargement(vue, reessayer),
+      indisponible: (nature) => blocIndisponible(vue,
+        nature === "absent" ? "Ce schéma n'est pas encore disponible." : "Ce schéma n'a pas pu s'afficher."),
+    },
+    signaler: (message) => signalerAuContexte(contexte, message),
+    journaliser: (message, erreur) => console.error(message, erreur),
+  });
+  contexte.scenes.push({ detruire: () => bloc.detruire() });
+  if (synchro) items.forEach((x, i) => x.etape.addEventListener("click", () => bloc.allerEtape(i)));
+  bloc.demarrer();
   return figure;
 }
 

@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { CATALOGUE, entreeBloc, MODULES_BLOCS } from "../js/catalogue-blocs.js";
 import { SCENES } from "../js/scenes.js";
 import { SOURCES_SCENES } from "../sources/scenes.js";
@@ -31,6 +32,10 @@ test("les scènes de route du registre sont exactement celles du catalogue, mêm
     assert.equal(SCENES[code].construire().titre, CATALOGUE[code].titre, `${code} : l'intitulé lu par les lecteurs d'écran`);
     assert.ok(Array.isArray(SOURCES_SCENES[code]) && SOURCES_SCENES[code].length >= 3, `${code} : sources`);
   }
+});
+
+test("js/scenes.js ne porte aucun titre en toutes lettres : le catalogue est la seule source des titres", () => {
+  assert.deepEqual(readFileSync("js/scenes.js", "utf8").match(/\btitre:\s*"[^"]*"/g) || [], []);
 });
 
 test("entreeBloc ne prend que les codes propres au catalogue", () => {

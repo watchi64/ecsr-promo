@@ -25,6 +25,9 @@ import { REGARD_PORTEE, REGARD_DUREE_TOUR_MIN, oeil, regardContient, coneRegard 
 import { SEUILS } from "./scene-controles.js?v=20261013a";
 import { CATALOGUE } from "./catalogue-blocs.js?v=20261013a";
 
+// Le code d'une scène et son titre : celui du catalogue des blocs (js/catalogue-blocs.js), la seule source des titres.
+const identite = (code) => ({ code, titre: CATALOGUE[code].titre });
+
 const MARGE_ARRET = 0.3;             // m entre la voiture arrêtée et la limite (passage, ligne)
 const TOLERANCE_ARRET = 0.7;         // m : écart admis par l'attente arretAvant, mesuré au milieu du pare-chocs
 const TOLERANCE_PLACE = 0.2;         // m : écart latéral admis par l'attente d'une place le long du trottoir, au-delà du jeu
@@ -170,7 +173,7 @@ function tournerDroite() {
   const pause = degagement + choix.attenteDegagement - tArrivee;
   const profil = profilSans.map((p) => (p.s === sArret ? { ...p, pause } : p));
   return {
-    code: "tourner-droite", titre: "Tourner à droite en agglomération", monde: d.monde, limite: LIMITE_AGGLOMERATION, decor: d,
+    ...identite("tourner-droite"), monde: d.monde, limite: LIMITE_AGGLOMERATION, decor: d,
     camera: { largeur: d.monde.largeur, hauteur: choix.hauteurCadre },
     acteurs: [
       { id: "eleve", role: "eleve", gabarit: "voiture", chemin, profil,
@@ -286,7 +289,7 @@ function tournerGauche() {
   const pause = sortieFace + choix.apresPassage + choix.duree.angleMort - tArrivee;
   const profil = profilSans.map((p) => (p.s === sVirage ? { ...p, pause } : p));
   return {
-    code: "tourner-gauche", titre: "Tourner à gauche en agglomération", monde: d.monde, limite: LIMITE_AGGLOMERATION, decor: d,
+    ...identite("tourner-gauche"), monde: d.monde, limite: LIMITE_AGGLOMERATION, decor: d,
     camera: { largeur: d.monde.largeur, hauteur: choix.hauteurCadre },
     acteurs: [
       { id: "eleve", role: "eleve", gabarit: "voiture", chemin, profil,
@@ -444,7 +447,7 @@ function giratoireScene() {
   const pause = choix.sortieAnneauApresArret + choix.duree.regardGauche;
   const profil = profilSans.map((p) => (p.s === sArret ? { ...p, pause } : p));
   return {
-    code: "giratoire", titre: "Traverser un carrefour à sens giratoire", monde: g.monde, limite: LIMITE_AGGLOMERATION, decor: g,
+    ...identite("giratoire"), monde: g.monde, limite: LIMITE_AGGLOMERATION, decor: g,
     camera: { largeur: choix.cadre.largeur, hauteur: choix.cadre.hauteur },
     acteurs: [
       { id: "eleve", role: "eleve", gabarit: "voiture", chemin, profil,
@@ -559,7 +562,7 @@ function regardIntersection() {
     { s: sEnFace, kmh: choix.kmh.reduite }, { s: chemin.longueur, kmh: choix.kmh.reduite },
   ];
   return {
-    code: "regard-intersection", titre: "Regarder autour de soi à l'approche d'une intersection", monde: d.monde,
+    ...identite("regard-intersection"), monde: d.monde,
     limite: LIMITE_AGGLOMERATION, decor: d,
     camera: { largeur: d.monde.largeur, hauteur: choix.hauteurCadre },
     acteurs: [
@@ -705,7 +708,7 @@ function trajectoireCourbe() {
   ];
   const { devant } = choix.regard;
   return {
-    code: "trajectoire-courbe", titre: "Diriger la voiture en ligne droite et en courbe", monde: d.monde,
+    ...identite("trajectoire-courbe"), monde: d.monde,
     limite: LIMITE_AGGLOMERATION, decor: d,
     camera: { largeur: d.monde.largeur, hauteur: choix.hauteurCadre },
     acteurs: [{ id: "eleve", role: "eleve", gabarit: "voiture", chemin, profil }],
@@ -827,7 +830,7 @@ function demarrerArreter() {
   const place = rectangle(xBordDroit - DESSIN.jeuStationnement - GABARITS.voiture.largeur - TOLERANCE_PLACE, 0, xBordDroit,
     d.monde.hauteur);
   return {
-    code: "demarrer-arreter", titre: "Démarrer et s'arrêter", monde: d.monde, limite: LIMITE_AGGLOMERATION, decor: d,
+    ...identite("demarrer-arreter"), monde: d.monde, limite: LIMITE_AGGLOMERATION, decor: d,
     camera: { largeur: d.monde.largeur, hauteur: choix.hauteurCadre },
     acteurs: [
       { id: "eleve", role: "eleve", gabarit: "voiture", chemin, profil,
@@ -940,7 +943,7 @@ function marcheArriere() {
   const yGaree = arret.y + 2 * demiLongueur + choix.ecartVoitureGaree;
   if (yGaree + demiLongueur > d.monde.hauteur) throw new Error("marche-arriere : la voiture garée sort du dessin, allonger la rue");
   return {
-    code: "marche-arriere", titre: "Marche arrière en ligne droite le long du trottoir", monde: d.monde,
+    ...identite("marche-arriere"), monde: d.monde,
     limite: LIMITE_AGGLOMERATION, decor: d,
     camera: { largeur: d.monde.largeur, hauteur: choix.hauteurCadre },
     acteurs: [
@@ -1120,7 +1123,7 @@ function demiTour() {
   ];
 
   return {
-    code: "demi-tour", titre: "Faire demi-tour en trois temps", monde: d.monde, limite: LIMITE_AGGLOMERATION, decor: d,
+    ...identite("demi-tour"), monde: d.monde, limite: LIMITE_AGGLOMERATION, decor: d,
     camera: { largeur: d.monde.largeur, hauteur: d.monde.hauteur },
     acteurs: [
       { id: "eleve", role: "eleve", gabarit: "voiture", chemin, profil,

@@ -348,6 +348,18 @@ export async function openCoursEditeur(cle, { onFerme } = {}) {
   // serait du gâchis ; 400 ms après la dernière frappe suffisent). =====
   let minuterie = null;
   let contexteApercu = null;   // dernier rendu de l'aperçu : ses schémas sont à arrêter avant le suivant
+  // Encadré « À corriger dans les blocs », en tête de l'aperçu : les messages du rendu, puis ceux des blocs qui échouent plus tard.
+  const boiteAvertissements = (messages) => el("div", { class: "editeur-avertissements" },
+    el("p", {}, "À corriger dans les blocs"),
+    el("ul", {}, messages.map((m) => el("li", {}, m))));
+  function ajouterAvertissement(message) {
+    let boite = apercu.querySelector(":scope > .editeur-avertissements");
+    if (!boite) { boite = boiteAvertissements([]); apercu.prepend(boite); }
+    const liste = boite.querySelector("ul");
+    if ([...liste.children].some((li) => li.textContent === message)) return;   // déjà dit (une reprise qui échoue de nouveau)
+    liste.appendChild(el("li", {}, message));
+    carteObsolete = true;      // l'encadré a déplacé l'aperçu : la carte des ancres est à refaire
+  }
   function rafraichirApercu() {
     clearTimeout(minuterie);
     minuterie = setTimeout(() => {
@@ -357,11 +369,10 @@ export async function openCoursEditeur(cle, { onFerme } = {}) {
       const { noeuds, contexte } = rendreMarkdown(zone.value, { cartes: estCodeCompetence(cle) });
       contexteApercu = contexte;
       // Les blocs mal formés ne se voient qu'ici : le stagiaire n'a jamais de message.
-      if (contexte.erreurs.length) {
-        apercu.appendChild(el("div", { class: "editeur-avertissements" },
-          el("p", {}, "À corriger dans les blocs"),
-          el("ul", {}, contexte.erreurs.map((m) => el("li", {}, m)))));
-      }
+      if (contexte.erreurs.length) apercu.appendChild(boiteAvertissements(contexte.erreurs));
+      // Un schéma qui n'a pu ni se charger ni se monter le dit après le rendu : son message rejoint la même liste. Un rendu
+      // déjà remplacé n'écrit plus rien (ses blocs sont détruits, donc muets ; cette garde le garantit aussi).
+      contexte.signaler = (message) => { if (contexteApercu === contexte) ajouterAvertissement(message); };
       noeuds.forEach((n) => apercu.appendChild(n));
       // Le re-rendu change la géométrie : carte d'ancres à reconstruire,
       // puis réalignement de l'aperçu sur la zone.
