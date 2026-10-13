@@ -5,7 +5,7 @@
 import { getCurrentUser, invalidateCache, verifyRecoveryToken } from "./db.js?v=20261008a";
 import { toast } from "./utils.js?v=20261008a";
 import { icon } from "./icons.js?v=20261008a";
-import { initAuth, onAdminChange, isAuth, isAdmin, isProf, monStagiaireId, getAdminEmail } from "./auth-admin.js?v=20261008a";
+import { initAuth, onAdminChange, isAuth, isAdmin, isProf, monStagiaireId, getAdminEmail, getProfile } from "./auth-admin.js?v=20261008a";
 import { showGate, hideGate } from "./gate.js?v=20261008a";
 import { exigerAcceptation } from "./legal.js?v=20261008a";
 import { lireJetonRecuperation } from "./gate-rules.js?v=20261008a";
@@ -318,8 +318,11 @@ async function bootApp() {
   // 3,5 s, la vraie réponse redessine la barre à son arrivée) et la vue dit « Chargement ».
   afficherChargement();
   // Conditions d'utilisation : rien ne s'ouvre tant que la version en vigueur n'est pas
-  // acceptée (fenêtre bloquante ; laisse passer si la lecture échoue).
-  await exigerAcceptation(getAdminEmail());
+  // acceptée (fenêtre bloquante ; laisse passer si la lecture échoue). Pas pour les
+  // formateurs (décision du 13/10) : le texte s'adresse aux stagiaires, et un formateur
+  // salarié du centre n'a pas à accepter en son nom les conditions de l'éditeur ; ce sera
+  // couvert par le contrat avec le centre. Vrai rôle, pas l'aperçu « Voir en tant que ».
+  if (getProfile()?.role !== "prof") await exigerAcceptation(getAdminEmail());
   await chargerModulesAuDemarrage();
   renderTabs();
   majBadgeNouveautes();
