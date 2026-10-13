@@ -22,7 +22,7 @@ import { reduireImage } from "../cours-images.js?v=20261013a";
 import { SIGNAUX, carteSignal } from "../signaux.js?v=20261013a";
 import { CATALOGUE } from "../signaux-catalogue.js?v=20261013a";
 import { MARQUAGES, carteMarquage } from "../marquage.js?v=20261013a";
-import { SCENES } from "../scenes.js?v=20261013a";
+import { CATALOGUE as CATALOGUE_BLOCS } from "../catalogue-blocs.js?v=20261013a";
 
 const OUTILS = [
   { label: "Gras", avant: "**", apres: "**", defaut: "texte" },
@@ -257,8 +257,9 @@ export async function openCoursEditeur(cle, { onFerme } = {}) {
       };
       const groupe = (titre, boutons) => el("div", { class: "editeur-blocs-groupe" },
         el("p", { class: "editeur-blocs-titre" }, titre), ...boutons);
-      panneau.appendChild(groupe("Schéma animé", Object.entries(SCENES).map(([code, s]) =>
-        bouton(s.titre, `\n:::scene ${code}\n${s.etapesModele.join("\n")}\n:::\n`))));
+      // Le catalogue des blocs, dans son ordre : le menu ne charge aucun moteur.
+      panneau.appendChild(groupe("Schéma animé", Object.entries(CATALOGUE_BLOCS).filter(([, e]) => e.bloc === "scene").map(([code, e]) =>
+        bouton(e.titre, `\n:::scene ${code}\n${e.etapesModele.join("\n")}\n:::\n`))));
       panneau.appendChild(groupe("Quiz", [
         bouton("Remettre dans l'ordre", MODELES_BLOCS.ordre),
         bouton("Vrai ou faux", MODELES_BLOCS["vrai-faux"]),

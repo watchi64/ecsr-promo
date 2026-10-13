@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { SCENES } from "../js/scenes.js";
+import { SOURCES_SCENES } from "../sources/scenes.js";
 import { controlerScene, SEUILS } from "../js/scene-controles.js";
 import { REGARD_PORTEE, REGARD_OUVERTURE, REGARD_DUREE_TOUR_MIN, oeil, angleRegard, cibleSuivie, coneRegard, regardContient,
   regardDessine } from "../js/scene-regard.js";
@@ -96,7 +97,7 @@ for (const [code, entree] of Object.entries(SCENES)) {
     const def = entree.construire();
     assert.equal(def.code, code);
     assert.equal(entree.etapesModele.length, def.etapes.length, "un intitulé proposé par étape");
-    assert.ok(entree.sources.length >= 3, "sources consignées");
+    assert.ok(SOURCES_SCENES[code].length >= 3, "sources consignées");
     for (const p of def.decor.panneaux) {
       assert.ok(SIGNAUX[p.code] && SIGNAUX[p.code].fichier, `panneau ${p.code} hors du registre vérifié`);
     }
@@ -967,7 +968,7 @@ test("giratoire : les deux angles morts finissent avant l'arc de sortie, et le b
 
 test("giratoire : les valeurs calculées que citent les sources (palier à 20 km/h, coup d'œil au rétroviseur intérieur en cassant l'allure, angle et avance du clignotant, marge des angles morts sur l'arc de sortie) sont celles de la scène, à l'arrondi écrit près", () => {
   const { def, sc, eleve, arcSortie, tA, tReprise, reperes, T } = lireGiratoire();
-  const choixDeDessin = SCENES.giratoire.sources.find((s) => s.startsWith("Choix de dessin"));
+  const choixDeDessin = SOURCES_SCENES.giratoire.find((s) => s.startsWith("Choix de dessin"));
   // Nombre écrit à la française dans les sources ; tolérance : la moitié de son dernier chiffre.
   const ecrit = (motif) => {
     const m = choixDeDessin.match(motif);
@@ -1399,7 +1400,7 @@ test("regard-intersection : branches sud, est et ouest au plus petit nombre enti
 test("regard-intersection : les valeurs calculées que citent les sources (regard loin devant, ralentissement, place des trois contrôles, regards à gauche et à droite, regards à 60 degrés, sortie de l'intersection) sont celles de la scène, à l'arrondi écrit près", () => {
   const def = SCENES["regard-intersection"].construire();
   const { sc, eleve, aDroite, reperes, avantBord, T } = lireIntersection(def);
-  const choixDeDessin = SCENES["regard-intersection"].sources.find((s) => s.startsWith("Choix de dessin"));
+  const choixDeDessin = SOURCES_SCENES["regard-intersection"].find((s) => s.startsWith("Choix de dessin"));
   // Nombre écrit à la française dans les sources (groupe k du motif) ; tolérance : la moitié de son dernier chiffre.
   const ecrit = (motif, k = 1) => {
     const m = choixDeDessin.match(motif);
@@ -2001,7 +2002,7 @@ ETAPES_COURBE.forEach((attendue, k) => {
 
 test("trajectoire-courbe : les valeurs calculées que citent les sources sont celles de la scène, à l'arrondi écrit près", () => {
   const L = lireCourbe(), { def, reperes, T, chemin } = L, h = DESSIN.voie, demiVoiture = DESSIN.demiLargeurVoiture;
-  const choixDeDessin = SCENES["trajectoire-courbe"].sources.find((s) => s.startsWith("Choix de dessin"));
+  const choixDeDessin = SOURCES_SCENES["trajectoire-courbe"].find((s) => s.startsWith("Choix de dessin"));
   // Nombres écrits à la française dans les sources ; tolérance : la moitié de leur dernier chiffre.
   const ecrit = (motif) => {
     const m = choixDeDessin.match(motif);
@@ -2447,7 +2448,7 @@ test("demarrer-arreter : douze étapes de la méthode de Timy, dans l'ordre, cha
 
 test("demarrer-arreter : feux stop comme les décrivent les sources : éteints sur les voitures garées (personne au volant), allumés sur celle de l'élève à l'arrêt, le pied sur le frein", () => {
   const { sc, eleve, garees, tDepart, tArret } = lireDemarrerArreter();
-  const choixDeDessin = SCENES["demarrer-arreter"].sources.find((s) => s.startsWith("Choix de dessin"));
+  const choixDeDessin = SOURCES_SCENES["demarrer-arreter"].find((s) => s.startsWith("Choix de dessin"));
   assert.match(choixDeDessin, /les voitures garées, personne au volant, ont leurs feux stop éteints ; celle de l'élève les allume à l'arrêt, le pied sur le frein/);
   // La phrase des voitures garées ne compte plus l'élève parmi celles qui ont les feux stop éteints.
   assert.doesNotMatch(choixDeDessin, /celle de l'élève comprise[^;]*feux stop éteints/);
@@ -2459,7 +2460,7 @@ test("demarrer-arreter : feux stop comme les décrivent les sources : éteints s
 });
 
 test("demarrer-arreter : le paragraphe « Choix de dessin » donne la raison des avances de 11 et 20 m, des 10 km/h, de l'écart de 1,0 m derrière, des trottoirs de 5 m et de l'avance de l'étape 6", () => {
-  const choixDeDessin = SCENES["demarrer-arreter"].sources.find((s) => s.startsWith("Choix de dessin"));
+  const choixDeDessin = SOURCES_SCENES["demarrer-arreter"].find((s) => s.startsWith("Choix de dessin"));
   for (const [valeur, raison] of [
     [/sur 11 m d'avance \(/, /\(le déboîtement le plus progressif, en mètres entiers, qui n'approche jamais la voiture garée devant à moins de l'écart que laisse la voie ; plus court, la voiture braquerait plus serré\)/],
     [/sur 20 m d'avance \(/, /\(se rapprocher du bord en douceur, à l'allure de la rue ; plus court, l'avant droit, qui balaie vers le trottoir en se rangeant, en passerait plus près ; plus long, il ne resterait presque plus de ligne droite pour s'arrêter le long du trottoir\)/],
@@ -2475,7 +2476,7 @@ test("demarrer-arreter : le paragraphe « Choix de dessin » donne la raison des
 
 test("demarrer-arreter : les valeurs calculées que citent les sources (décalage, accélérations latérales, distances au trottoir et à la voiture garée devant, allure au bord, arrêt après le décalage, durée) sont celles de la scène, à l'arrondi écrit près", () => {
   const { sc, eleve, garees, deboitement: [, arc2], rangement: [arc3, arc4], fin, tA, tDepart, reperes } = lireDemarrerArreter();
-  const choixDeDessin = SCENES["demarrer-arreter"].sources.find((s) => s.startsWith("Choix de dessin"));
+  const choixDeDessin = SOURCES_SCENES["demarrer-arreter"].find((s) => s.startsWith("Choix de dessin"));
   // Nombre écrit à la française dans les sources ; tolérance : la moitié de son dernier chiffre.
   const ecrit = (motif) => {
     const m = choixDeDessin.match(motif);
@@ -2931,7 +2932,7 @@ test("marche-arriere : 4 m de trottoir montrés de chaque côté, le plus petit 
 });
 
 test("marche-arriere : les sources disent d'où vient l'ordre des étapes : la méthode V·V·C·C, moyen mnémotechnique du demi-tour appliqué ici par extension, et le temps 2 du demi-tour ; choix du contrôleur de chantier, soumis à la validation de Timy", () => {
-  const methode = SCENES["marche-arriere"].sources.find((s) => s.startsWith("Marche arrière en ligne droite le long du trottoir"));
+  const methode = SOURCES_SCENES["marche-arriere"].find((s) => s.startsWith("Marche arrière en ligne droite le long du trottoir"));
   assert.match(methode, /méthode V·V·C·C \(vitesse, volant, contrôles, clignotants\), moyen mnémotechnique du demi-tour en trois temps \(procédures de stage, section 4\.3\), appliquée ici par extension à la marche arrière/);
   assert.match(methode, /et celui du temps 2 de ce demi-tour \(marche arrière engagée, puis tour du regard\) : choix du contrôleur de chantier, soumis à la validation de Timy\./);
   assert.doesNotMatch(methode, /décision de Timy/, "l'ordre n'est pas attribué à Timy");
@@ -2939,7 +2940,7 @@ test("marche-arriere : les sources disent d'où vient l'ordre des étapes : la m
 
 test("marche-arriere : les valeurs calculées que citent les sources (cône à droite du tour, zone libre au départ, mise en mouvement et arrêt, allure tenue, durée du recul, départ) sont celles de la scène, à l'arrondi écrit près", () => {
   const { def, sc, eleve, garee, tArret, T } = lireMarcheArriere();
-  const choixDeDessin = SCENES["marche-arriere"].sources.find((s) => s.startsWith("Choix de dessin"));
+  const choixDeDessin = SOURCES_SCENES["marche-arriere"].find((s) => s.startsWith("Choix de dessin"));
   // Nombre écrit à la française dans les sources (groupe k du motif) ; tolérance : la moitié de son dernier chiffre.
   const ecrit = (motif, k = 1) => {
     const m = choixDeDessin.match(motif);
@@ -3443,7 +3444,7 @@ test("demi-tour : 5 m de trottoir, le plus petit nombre entier de mètres qui ga
 
 test("demi-tour : les valeurs calculées que citent les sources (rues de 7 m et de 7,1 m, trottoir et cadre, rayons, diamètre de braquage et ses données, angles, jeux au plus près, recentrage, regard loin, allure du centre, durées) sont celles de la scène, à l'arrondi écrit près", () => {
   const lu = lireDemiTour(), { sc, eleve, ch, r1, r2, arcs, fin3, sMilieu, xg, xAxe, tA, tD, pointLoin, T } = lu;
-  const choixDeDessin = SCENES["demi-tour"].sources.find((s) => s.startsWith("Choix de dessin"));
+  const choixDeDessin = SOURCES_SCENES["demi-tour"].find((s) => s.startsWith("Choix de dessin"));
   // Nombre écrit à la française dans les sources ; tolérance : la moitié de son dernier chiffre.
   const ecrit = (motif) => {
     const m = choixDeDessin.match(motif);

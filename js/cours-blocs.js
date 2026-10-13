@@ -10,6 +10,14 @@
  * rejoint contexte.erreurs, que l'éditeur affiche (le stagiaire ne la voit
  * pas). Rien n'est enregistré.
  *
+ * Chargement à la demande : ce fichier n'importe aucun moteur de schémas ni aucun
+ * dessin. Le catalogue des blocs (js/catalogue-blocs.js) dit quel module dessine
+ * chaque code ; au premier bloc qui en a besoin, ce module se charge, une fois pour
+ * la session (chargerModule). La figure, la légende et la liste des étapes
+ * s'affichent tout de suite ; la vue du dessin montre « Chargement du schéma… »,
+ * puis le dessin, ou un message et « Réessayer » si le réseau a manqué. Un bloc
+ * détruit pendant le chargement ne monte rien.
+ *
  * Le contexte est celui de rendreMarkdown (js/views/cours-reader.js) :
  *   erreurs : les messages des blocs signalés ;
  *   scenes  : les schémas montés. Un schéma arrêté garde son observateur de visibilité, donc son
@@ -26,10 +34,30 @@
 import { el } from "./utils.js?v=20261013a";
 import { analyserScene, analyserQuiz, analyserCartes, melangerSansIdentite, corrigerOrdre, corrigerChoix,
   corrigerOption, MARQUES_CHOIX, BLOCS_INTERACTIFS, erreurDirective, erreurNonRefermee, messageOrdre, messageVraiFaux,
-  messageChoix }
+  messageChoix, creerChargeur, montageDiffere, adresseDeReprise }
   from "./cours-blocs-rules.js?v=20261013a";
-import { SCENES } from "./scenes.js?v=20261013a";
-import { monterScene } from "./scene-moteur.js?v=20261013a";
+import { entreeBloc } from "./catalogue-blocs.js?v=20261013a";
+
+// Modules chargés à la demande, un import littéral par module (le jeton de cache s'y lit et s'y réécrit, scripts/cache-bust.js).
+// `essai` : le nombre d'échecs déjà essuyés pour ce module (0 au premier chargement). Un import() qui a échoué reste en échec
+// pour la même adresse tant que la page n'est pas rechargée, même si le réseau est revenu : « Réessayer » redemande donc le
+// module sous une adresse nouvelle (adresseDeReprise), avec le jeton de ce fichier, que le même script réécrit avec les autres.
+const JETON = new URL(import.meta.url).search;
+const importer = (essai, chemin, premier) => (essai === 0 ? premier() : import(adresseDeReprise(chemin, JETON, essai)));
+const CHARGEURS = {
+  route: (essai) => Promise.all([
+    importer(essai, "./scenes.js", () => import("./scenes.js?v=20261013a")),
+    importer(essai, "./scene-moteur.js", () => import("./scene-moteur.js?v=20261013a")),
+  ]).then(([registre, moteur]) => ({ SCENES: registre.SCENES, monterScene: moteur.monterScene })),
+  geste: (essai) => importer(essai, "./geste-moteur.js", () => import("./geste-moteur.js?v=20261013a")),
+  poste: (essai) => importer(essai, "./dessins-poste.js", () => import("./dessins-poste.js?v=20261013a")),
+  voyants: (essai) => importer(essai, "./dessins-voyants.js", () => import("./dessins-voyants.js?v=20261013a")),
+  conducteur: (essai) => importer(essai, "./dessins-conducteur.js", () => import("./dessins-conducteur.js?v=20261013a")),
+  entretien: (essai) => importer(essai, "./dessins-entretien.js", () => import("./dessins-entretien.js?v=20261013a")),
+  visibilite: (essai) => importer(essai, "./dessins-visibilite.js", () => import("./dessins-visibilite.js?v=20261013a")),
+  dessus: (essai) => importer(essai, "./dessins-dessus.js", () => import("./dessins-dessus.js?v=20261013a")),
+};
+export const chargerModule = creerChargeur(CHARGEURS);
 
 // Marques écrites de la correction (en plus de la couleur), une par état ; celles du quiz choix, qui compte
 // aussi la bonne réponse non choisie, sont dans js/cours-blocs-rules.js (MARQUES_CHOIX).
@@ -77,16 +105,33 @@ export function rendreBlocInteractif(type, arg, lignes, contexte, inline, ferme 
   return cartes(c, inline);
 }
 
+// Attente puis échec d'un chargement, dans la vue du bloc. `ratio` : [largeur, hauteur] réservés (pas de saut de page).
+function attente(vue, ratio) {
+  vue.replaceChildren(el("div", { class: "bloc-attente", role: "status",
+    style: ratio ? `aspect-ratio: ${ratio[0]} / ${ratio[1]}` : "" }, "Chargement du schéma…"));
+}
+// Dès le deuxième échec de la même vue, le message ajoute de recharger la page : quand un module d'un moteur a échoué, le
+// navigateur le garde en échec jusqu'au rechargement (voir CHARGEURS), et « Réessayer » ne peut plus aboutir.
+function echecChargement(vue, reessayer) {
+  const echecs = (Number(vue.dataset.echecs) || 0) + 1;
+  vue.dataset.echecs = String(echecs);
+  const bouton = el("button", { class: "btn", type: "button" }, "Réessayer");
+  bouton.addEventListener("click", reessayer);
+  vue.replaceChildren(el("div", { class: "bloc-echec", role: "status" },
+    el("p", {}, "Le schéma n'a pas pu se charger. Vérifier la connexion."),
+    echecs > 1 ? el("p", {}, "Si cela persiste, recharger la page une fois la connexion rétablie.") : null, bouton));
+}
+
 function rendreScene(arg, lignes, contexte, inline) {
   const analyse = analyserScene(arg, lignes);
-  // Propriété propre au registre : « constructor » ou « toString » ne sont pas des schémas.
-  const entree = Object.prototype.hasOwnProperty.call(SCENES, analyse.code) ? SCENES[analyse.code] : null;
-  const def = entree ? entree.construire() : null;
-  const synchro = def !== null && analyse.etapes.length === def.etapes.length;
-  if (!entree) {
+  // Entrée propre au catalogue : « constructor » ou « toString » ne sont pas des schémas, ni un dessin fixe.
+  const entree = entreeBloc(analyse.code);
+  const scene = entree && entree.bloc === "scene" ? entree : null;
+  const synchro = scene !== null && analyse.etapes.length === scene.etapesModele.length;
+  if (!scene) {
     contexte.erreurs.push(`Schéma « ${analyse.code} » inconnu : les étapes s'affichent en simple liste.`);
   } else if (!synchro) {
-    contexte.erreurs.push(`Le schéma « ${analyse.code} » attend ${def.etapes.length} étapes, le bloc en donne ${analyse.etapes.length}.`);
+    contexte.erreurs.push(`Le schéma « ${analyse.code} » attend ${scene.etapesModele.length} étapes, le bloc en donne ${analyse.etapes.length}.`);
   }
   // Une étape est un bouton quand elle commande le schéma, un simple texte sinon (pas de bouton mort).
   const liste = el("ol", { class: "scene-etapes" });
@@ -97,12 +142,35 @@ function rendreScene(arg, lignes, contexte, inline) {
     liste.appendChild(li);
     return { li, etape };
   });
-  if (!entree) return el("div", { class: "scene-bloc scene-inconnue" }, liste);
+  if (!scene) return el("div", { class: "scene-bloc scene-inconnue" }, liste);
+  // La figure, la liste des étapes et la place du dessin sont posées tout de suite ; le moteur se monte quand son module est
+  // chargé. Un appui sur une étape avant le montage est retenu (`etapeDemandee`) et appliqué au montage.
   const vue = el("div", { class: "scene-vue" });
   const figure = el("figure", { class: "scene-bloc" }, vue, liste);
-  const moteur = monterScene(def, { conteneur: vue, etapes: synchro ? items.map((x) => x.li) : [], reduit: animationsReduites() });
-  contexte.scenes.push(moteur);
-  if (synchro) items.forEach((x, i) => x.etape.addEventListener("click", () => moteur.allerEtape(i)));
+  let poignee = null, etapeDemandee = null;
+  const options = () => ({ conteneur: vue, etapes: synchro ? items.map((x) => x.li) : [], reduit: animationsReduites() });
+  const monter = () => {
+    attente(vue, scene.cadre);
+    const charge = scene.module === "route"
+      ? chargerModule("route").then((m) => () => m.monterScene(m.SCENES[analyse.code].construire(), options()))
+      : Promise.all([chargerModule(scene.module), chargerModule("geste")])
+        .then(([famille, moteur]) => () => moteur.monterGeste(famille.GESTES[analyse.code].construire(), options()));
+    poignee = montageDiffere(charge, (lancer) => {
+      vue.replaceChildren();
+      const moteur = lancer();
+      if (etapeDemandee !== null) moteur.allerEtape(etapeDemandee);
+      return moteur;
+    }, { echec: (erreur) => {
+      console.error(`Schéma « ${analyse.code} » : chargement impossible`, erreur);
+      echecChargement(vue, monter);
+    } });
+  };
+  contexte.scenes.push({ detruire: () => poignee && poignee.detruire() });
+  if (synchro) items.forEach((x, i) => x.etape.addEventListener("click", () => {
+    const moteur = poignee && poignee.monte;
+    if (moteur) moteur.allerEtape(i); else etapeDemandee = i;
+  }));
+  monter();
   return figure;
 }
 

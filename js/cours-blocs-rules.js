@@ -19,6 +19,9 @@
  * messageChoix : du texte brut, que lisent les lecteurs d'écran) sont ici aussi, sans DOM,
  * comme l'état de correction de chaque option du quiz choix (corrigerOption) et sa marque
  * écrite (MARQUES_CHOIX).
+ * Le chargement à la demande des moteurs et des dessins (creerChargeur : un chargement par
+ * module, un échec oublié ; adresseDeReprise ; montageDiffere : rien ne se monte une fois le
+ * bloc détruit) est ici aussi, sans DOM : js/cours-blocs.js lui donne les imports.
  */
 
 // Numéro en tête de ligne (« 1. », « 1.Tourner », « 3) »), retiré. Le séparateur ne doit pas
@@ -241,4 +244,49 @@ export function messageChoix(questions, cochees, plat = (t) => t) {
     return question.explication ? `${phrase} ${finDePhrase(plat(question.explication))}` : phrase;
   });
   return `${score} ${details.join(" ")}`;
+}
+
+// ===== Chargement à la demande des moteurs et des dessins =====
+
+/** Chargeur des modules de blocs : chaque module se charge une fois pour la session (la promesse est gardée) ; un échec
+ *  s'oublie, pour que « Réessayer » relance vraiment le chargement. `chargeurs` : nom → fonction qui rend une promesse.
+ *  Cette fonction reçoit le nombre d'échecs déjà essuyés pour ce module (0 au premier chargement) : elle s'en sert pour
+ *  redemander le module sous une adresse nouvelle (adresseDeReprise). Un chargeur qui lève au lieu de rendre une promesse
+ *  est un échec comme un autre : charger() ne lève jamais. */
+export function creerChargeur(chargeurs) {
+  const charges = new Map();
+  const echecs = new Map();
+  return function charger(nom) {
+    if (!Object.prototype.hasOwnProperty.call(chargeurs, nom)) return Promise.reject(new Error(`Module de blocs inconnu : ${nom}`));
+    if (!charges.has(nom)) {
+      let promesse;
+      try { promesse = Promise.resolve(chargeurs[nom](echecs.get(nom) || 0)); } catch (erreur) { promesse = Promise.reject(erreur); }
+      charges.set(nom, promesse);
+      promesse.catch(() => { charges.delete(nom); echecs.set(nom, (echecs.get(nom) || 0) + 1); });
+    }
+    return charges.get(nom);
+  };
+}
+
+/** Adresse d'un module redemandé après un échec. Un import() qui a échoué reste en échec, pour la même adresse, tant que la
+ *  page n'est pas rechargée (le navigateur garde l'échec dans sa table des modules, même si le réseau est revenu) : la reprise
+ *  ajoute donc « essai=N » à l'adresse, jeton de cache compris, et N change à chaque reprise. `recherche` : la partie « ?v=… »
+ *  de l'adresse du module qui importe (vide s'il n'en a pas). */
+export function adresseDeReprise(chemin, recherche, essai) {
+  return `${chemin}${recherche ? `${recherche}&` : "?"}essai=${essai}`;
+}
+
+/** Monte un bloc quand son module est chargé, sauf s'il a été détruit entre-temps (cours fermé, aperçu refait) ;
+ *  `monter(module)` rend le moteur monté (ou un objet sans detruire) ; `echec(erreur)` est appelé si le chargement
+ *  échoue, ou si le montage lève, et que le bloc vit encore. */
+export function montageDiffere(charge, monter, { echec = () => {} } = {}) {
+  let moteur = null, detruit = false;
+  charge.then((module) => {
+    if (detruit) return;
+    try { moteur = monter(module); } catch (erreur) { echec(erreur); }
+  }, (erreur) => { if (!detruit) echec(erreur); });
+  return {
+    detruire() { detruit = true; if (moteur && typeof moteur.detruire === "function") moteur.detruire(); },
+    get monte() { return moteur; },
+  };
 }
