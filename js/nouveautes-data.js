@@ -16,6 +16,15 @@
 
 export const NOUVEAUTES = [
   {
+    id: "2026-10-13-formateurs-sans-conditions",
+    date: "2026-10-13",
+    pour: "formateurs",
+    titre: "Plus de fenêtre de conditions pour les formateurs",
+    resume: "La fenêtre « Avant de commencer », qui demandait d'accepter les conditions d'utilisation, "
+          + "ne s'affiche plus pour les formateurs : son texte était écrit pour les stagiaires. "
+          + "Les stagiaires, eux, la voient toujours une fois.",
+  },
+  {
     id: "2026-10-05-effacement-donnees",
     date: "2026-10-05",
     pour: "formateurs",

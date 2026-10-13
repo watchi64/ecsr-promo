@@ -2,40 +2,40 @@
  * Promo ECSR : application propriétaire.
  * © 2026 watchi64. Tous droits réservés. Voir LICENSE.
  */
-import { getCurrentUser, invalidateCache, verifyRecoveryToken } from "./db.js?v=20261008a";
-import { toast } from "./utils.js?v=20261008a";
-import { icon } from "./icons.js?v=20261008a";
-import { initAuth, onAdminChange, isAuth, isAdmin, isProf, monStagiaireId, getAdminEmail } from "./auth-admin.js?v=20261008a";
-import { showGate, hideGate } from "./gate.js?v=20261008a";
-import { exigerAcceptation } from "./legal.js?v=20261008a";
-import { lireJetonRecuperation } from "./gate-rules.js?v=20261008a";
-import { loadAccent } from "./accent-switcher.js?v=20261008a";
-import { loadTheme } from "./theme-switcher.js?v=20261008a";
-import { renderHome } from "./views/home.js?v=20261008a";
-import { renderDashboard } from "./views/dashboard.js?v=20261008a";
-import { renderMonSuivi } from "./views/mon-suivi.js?v=20261008a";
-import { renderPlanning, teardownPrintTarget, resetPlanningEditMode, requestPlanningToday } from "./views/planning.js?v=20261008a";
-import { teardownDocPrint } from "./doc-officiel.js?v=20261008a";
-import { renderNotes } from "./views/notes.js?v=20261008a";
-import { renderRessources } from "./views/ressources.js?v=20261008a";
-import { renderThemes } from "./views/themes.js?v=20261008a";
-import { renderConfig } from "./views/config.js?v=20261008a";
-import { renderCalendrier } from "./views/calendrier.js?v=20261008a";
-import { initUndoKeyboard } from "./undo.js?v=20261008a";
-import { renderNouveautes } from "./views/nouveautes.js?v=20261008a";
-import { libellePastille } from "./nouveautes.js?v=20261008a";
-import { renderCcp2 } from "./views/ccp2.js?v=20261008a";
-import { renderStagiaires } from "./views/stagiaires.js?v=20261008a";
-import { lireAdresse, pagePersonnelle } from "./route-rules.js?v=20261008a";
+import { getCurrentUser, invalidateCache, verifyRecoveryToken } from "./db.js?v=20261013a";
+import { toast } from "./utils.js?v=20261013a";
+import { icon } from "./icons.js?v=20261013a";
+import { initAuth, onAdminChange, isAuth, isAdmin, isProf, monStagiaireId, getAdminEmail, getProfile } from "./auth-admin.js?v=20261013a";
+import { showGate, hideGate } from "./gate.js?v=20261013a";
+import { exigerAcceptation } from "./legal.js?v=20261013a";
+import { lireJetonRecuperation } from "./gate-rules.js?v=20261013a";
+import { loadAccent } from "./accent-switcher.js?v=20261013a";
+import { loadTheme } from "./theme-switcher.js?v=20261013a";
+import { renderHome } from "./views/home.js?v=20261013a";
+import { renderDashboard } from "./views/dashboard.js?v=20261013a";
+import { renderMonSuivi } from "./views/mon-suivi.js?v=20261013a";
+import { renderPlanning, teardownPrintTarget, resetPlanningEditMode, requestPlanningToday } from "./views/planning.js?v=20261013a";
+import { teardownDocPrint } from "./doc-officiel.js?v=20261013a";
+import { renderNotes } from "./views/notes.js?v=20261013a";
+import { renderRessources } from "./views/ressources.js?v=20261013a";
+import { renderThemes } from "./views/themes.js?v=20261013a";
+import { renderConfig } from "./views/config.js?v=20261013a";
+import { renderCalendrier } from "./views/calendrier.js?v=20261013a";
+import { initUndoKeyboard } from "./undo.js?v=20261013a";
+import { renderNouveautes } from "./views/nouveautes.js?v=20261013a";
+import { libellePastille } from "./nouveautes.js?v=20261013a";
+import { renderCcp2 } from "./views/ccp2.js?v=20261013a";
+import { renderStagiaires } from "./views/stagiaires.js?v=20261013a";
+import { lireAdresse, pagePersonnelle } from "./route-rules.js?v=20261013a";
 import {
   peutQuitter, leverGardeSortie, majSurPlacePour, oublierMajSurPlace,
   noterAdresse, adresseCourante, remplacerAdresse, installerGardeNavigateur,
-} from "./navigation.js?v=20261008a";
-import { initChatbot, appliquerModuleAssistant } from "./chatbot.js?v=20261008a";
+} from "./navigation.js?v=20261013a";
+import { initChatbot, appliquerModuleAssistant } from "./chatbot.js?v=20261013a";
 import {
   chargerModules, chargerModulesAuDemarrage, onModulesChange, surveillerPremierPlan,
   routeVisible, routeMasquee, repereMasque, nouveautesAffichables,
-} from "./modules-etat.js?v=20261008a";
+} from "./modules-etat.js?v=20261013a";
 
 // ===== Tabs =====
 
@@ -318,8 +318,11 @@ async function bootApp() {
   // 3,5 s, la vraie réponse redessine la barre à son arrivée) et la vue dit « Chargement ».
   afficherChargement();
   // Conditions d'utilisation : rien ne s'ouvre tant que la version en vigueur n'est pas
-  // acceptée (fenêtre bloquante ; laisse passer si la lecture échoue).
-  await exigerAcceptation(getAdminEmail());
+  // acceptée (fenêtre bloquante ; laisse passer si la lecture échoue). Pas pour les
+  // formateurs (décision du 13/10) : le texte s'adresse aux stagiaires, et un formateur
+  // salarié du centre n'a pas à accepter en son nom les conditions de l'éditeur ; ce sera
+  // couvert par le contrat avec le centre. Vrai rôle, pas l'aperçu « Voir en tant que ».
+  if (getProfile()?.role !== "prof") await exigerAcceptation(getAdminEmail());
   await chargerModulesAuDemarrage();
   renderTabs();
   majBadgeNouveautes();

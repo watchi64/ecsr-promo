@@ -16,7 +16,7 @@
  */
 import { preparerScene, etatActeur, emprise, polygonesSeChevauchent, pointDansPolygone, tempsAtteint, tempsDepart, avant,
   apparitionDe, sortDuCadre, rebroussements, pointA, rectangle, KMH, DEG }
-  from "./scene-geometrie.js?v=20261008a";
+  from "./scene-geometrie.js?v=20261013a";
 
 export const SEUILS = {
   accelerationLaterale: 3.0,        // m/s²
