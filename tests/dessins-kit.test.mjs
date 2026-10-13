@@ -79,7 +79,7 @@ test("boîtes de texte : la largeur majore celle d'Outfit mesurée dans Chrome, 
   assert.ok(accent.y1 < plat.y1);
 });
 
-test("étiquette : le point sur la cible, le texte du côté de son ancrage, jamais traversé par le filet", () => {
+test("étiquette : le point sur la cible, le texte à côté du bout du filet, du côté de son ancrage, lignes centrées", () => {
   const cas = [
     { ancrage: "start", cible: [40, 60], ancre: [90, 40] },
     { ancrage: "end", cible: [200, 60], ancre: [150, 40] },
@@ -169,6 +169,8 @@ test("flèche : mêmes nœuds visible ou masquée, seul l'attribut display chang
   assert.equal(masquee.attributs.display, "none");
   assert.throws(() => fleche([[10, 10], [10, 10]]), /deux points distincts/);
   assert.equal(formeArbre(fleche([[10, 10]], { visible: false })), formeArbre(masquee));
+  // Un point non fini est une erreur dite comme telle, même sur une flèche masquée : jamais un point écarté en silence.
+  for (const visible of [true, false]) assert.throws(() => fleche([[0, 0], [NaN, 5], [10, 10]], { visible }), /non fini/);
 });
 
 test("pastille et vignette : le mot et l'icône dans la pastille, la pastille en haut à gauche de la vignette, par-dessus son contenu", () => {

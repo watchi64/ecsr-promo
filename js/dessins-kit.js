@@ -58,9 +58,11 @@ export function texte(x, y, contenu, { taille = CHARTE.tailles.etiquette, ancrag
 }
 
 /** Étiquette : un filet fin de la cible (un point posé sur l'objet) jusqu'à l'ancre, et le texte, une ligne ou plus,
- *  qui commence à l'ancre. Ancrage « start » : le texte part à droite de l'ancre ; « end » : il finit à sa gauche ;
- *  dans les deux cas, le bloc de lignes est centré en hauteur sur l'ancre. « middle » : le texte est centré sous
- *  l'ancre quand la cible est au-dessus d'elle, au-dessus sinon. Le filet ne traverse jamais le texte. */
+ *  posé à côté du bout du filet, jamais dessus. Ancrage « start » : le texte part à droite de l'ancre ; « end » : il
+ *  finit à sa gauche ; dans les deux cas, le bloc de lignes est centré en hauteur sur l'ancre. « middle » : le texte
+ *  est centré sous l'ancre quand la cible est au-dessus d'elle, au-dessus sinon. Le filet arrive donc du côté opposé
+ *  au texte quand la cible l'est aussi : pour « start », une cible à gauche de l'ancre ; pour « end », à sa droite ;
+ *  sinon le filet passerait sur le texte. */
 export function etiquette({ cible, ancre, lignes, ancrage = "start", taille = CHARTE.tailles.etiquette, role = "etiquette" }) {
   const [cx, cy] = cible, [ax, ay] = ancre;
   const pas = taille * INTERLIGNE;
@@ -183,8 +185,10 @@ function directionArrivee(segments) {
  *  une tête pleine dont la pointe est exactement le dernier point, dans l'axe de la courbe. Un arc se donne par
  *  quelques points : la courbe se prolonge à courbure constante jusqu'à ses extrémités. Masquée (visible faux), la
  *  flèche garde les mêmes nœuds : seul l'attribut display change, comme l'exige une animation. Une flèche visible a au
- *  moins deux points distincts. */
+ *  moins deux points distincts ; un point non fini est une erreur, visible ou non. */
 export function fleche(points, { couleur = CHARTE.accentFort, epaisseur = CHARTE.traits.appuye, role = "fleche", visible = true } = {}) {
+  const fautif = points.find((p) => !Number.isFinite(p[0]) || !Number.isFinite(p[1]));
+  if (fautif) throw new Error(`Flèche « ${role} » : point non fini (${fautif}).`);
   const pts = points.filter((p, i) => i === 0 || distance(points[i - 1], p) > 1e-6);
   if (!pts.length || (visible && pts.length < 2)) throw new Error(`Flèche « ${role} » : il faut au moins deux points distincts.`);
   const pointe = pts[pts.length - 1];
