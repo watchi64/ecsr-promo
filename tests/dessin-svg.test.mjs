@@ -33,20 +33,22 @@ test("mettreAJour refuse une structure changée", () => {
   assert.throws(() => mettreAJour(faux, n("g", {}, n("rect", {})), n("g", {})), /Structure du dessin changée/);
 });
 
+
+// Document minimal pour versDom et mettreAJour : il compte les écritures d'attributs de chaque élément.
+const docFactice = () => ({
+  createElementNS: (ns, balise) => ({ ns, balise, attributs: {}, ecritures: 0, childNodes: [],
+    setAttribute(k, v) { this.attributs[k] = v; this.ecritures++; },
+    removeAttribute(k) { delete this.attributs[k]; },
+    appendChild(e) { this.childNodes.push(e); return e; } }),
+  createTextNode: (t) => ({ nodeValue: t }),
+});
+
 test("mettreAJour : seuls les attributs changés sont écrits, les retirés supprimés, les textes changés ; mêmes nœuds", () => {
-  // Document minimal : il compte les écritures d'attributs.
-  const doc = {
-    createElementNS: (ns, balise) => ({ ns, balise, attributs: {}, ecritures: 0, childNodes: [],
-      setAttribute(k, v) { this.attributs[k] = v; this.ecritures++; },
-      removeAttribute(k) { delete this.attributs[k]; },
-      appendChild(e) { this.childNodes.push(e); return e; } }),
-    createTextNode: (t) => ({ nodeValue: t }),
-  };
   const ancien = n("g", { "data-r": "main", transform: "translate(1 2)", fill: "red" },
     n("circle", { cx: 1, r: 2 }), n("text", { x: 0 }, "9 h"));
   const nouveau = n("g", { "data-r": "main", transform: "translate(3 4)" },
     n("circle", { cx: 1.0001, r: 2 }), n("text", { x: 0 }, "3 h"));
-  const dom = versDom(ancien, doc);
+  const dom = versDom(ancien, docFactice());
   assert.equal(dom.ns, "http://www.w3.org/2000/svg");
   const [cercle, texte] = dom.childNodes;
   const ecritures = cercle.ecritures;
@@ -56,4 +58,50 @@ test("mettreAJour : seuls les attributs changés sont écrits, les retirés supp
   assert.equal(dom.childNodes[0], cercle);
   assert.equal(cercle.ecritures, ecritures, "cx s'écrit « 1 » dans les deux images : rien à réécrire");
   assert.equal(texte.childNodes[0].nodeValue, "3 h");
+});
+
+test("mettreAJour : une structure changée en profondeur est refusée avant toute écriture", () => {
+  const ancien = n("svg", { viewBox: "0 0 10 10" }, n("g", { transform: "translate(1 1)" }, n("rect", {}), n("circle", {})));
+  const nouveau = n("svg", { viewBox: "0 0 20 20" }, n("g", { transform: "translate(2 2)" }, n("rect", {}), n("rect", {})));
+  const dom = versDom(ancien, docFactice());
+  const groupe = dom.childNodes[0];
+  const avant = [dom.ecritures, groupe.ecritures];
+  assert.throws(() => mettreAJour(dom, ancien, nouveau), /Structure du dessin changée/);
+  assert.deepEqual([dom.ecritures, groupe.ecritures], avant, "aucun attribut écrit avant le refus");
+  assert.equal(dom.attributs.viewBox, "0 0 10 10");
+});
+
+test("mettreAJour : une valeur fautive, même en profondeur, est refusée avant toute écriture, et dite avec sa place", () => {
+  const ancien = n("g", { transform: "translate(0 0)" }, n("circle", { cx: 1 }));
+  const nouveau = n("g", { transform: "translate(5 5)" }, n("circle", { cx: NaN }));
+  const dom = versDom(ancien, docFactice());
+  assert.throws(() => mettreAJour(dom, ancien, nouveau), /non finie.*circle.*cx/);
+  assert.equal(dom.attributs.transform, "translate(0 0)");
+  assert.equal(dom.ecritures, 1, "seule l'écriture de versDom");
+});
+
+test("n : attributs copiés ; un objet d'attributs réutilisé et modifié d'une image à l'autre est bien écrit", () => {
+  const attributs = { cx: 1, r: 2 };
+  const image1 = n("circle", attributs);
+  attributs.cx = 5;
+  const image2 = n("circle", attributs);
+  assert.equal(image1.attributs.cx, 1);
+  const dom = versDom(image1, docFactice());
+  mettreAJour(dom, image1, image2);
+  assert.equal(dom.attributs.cx, "5");
+});
+
+test("n : un nombre devient du texte ; un nombre non fini ou un enfant inconnu est une erreur dite comme telle", () => {
+  assert.deepEqual(n("text", {}, 90).enfants, ["90"]);
+  assert.equal(texteDe(n("text", {}, 25, " cm")), "25 cm");
+  assert.throws(() => n("text", {}, NaN), /non fini/);
+  assert.throws(() => n("text", {}, Infinity), /non fini/);
+  assert.throws(() => n("g", {}, true), /Enfant de dessin invalide/);
+  assert.throws(() => n("g", {}, { x: 1 }), /Enfant de dessin invalide/);
+});
+
+test("ecrireValeur : une valeur absente (null, undefined) est une erreur", () => {
+  assert.throws(() => ecrireValeur(null), /Valeur d'attribut absente/);
+  assert.throws(() => ecrireValeur(undefined), /Valeur d'attribut absente/);
+  assert.throws(() => versDom(n("rect", { width: null }), docFactice()), /Valeur d'attribut absente/);
 });
