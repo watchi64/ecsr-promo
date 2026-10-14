@@ -63,6 +63,18 @@ function verifierAvantEcriture(a, b, chemin) {
   a.enfants.forEach((e, i) => verifierAvantEcriture(e, b.enfants[i], `${ici}[${i}]`));
 }
 
+/** Le refus que `mettreAJour` opposerait à la mise à jour de `ancien` vers `nouveau` : le message de son erreur, avec la
+ *  place de la faute, ou null si la mise à jour s'écrirait. C'est la vérification même de `mettreAJour` (celle qui précède
+ *  toute écriture), pure et sans DOM : un contrôle qui l'appelle refuse d'avance exactement ce que l'exécution refuserait. */
+export function problemeMiseAJour(ancien, nouveau) {
+  try {
+    verifierAvantEcriture(ancien, nouveau, "");
+    return null;
+  } catch (erreur) {
+    return erreur.message;
+  }
+}
+
 function ecrire(dom, ancien, nouveau) {
   if (typeof nouveau === "string") {
     if (ancien !== nouveau) dom.nodeValue = nouveau;

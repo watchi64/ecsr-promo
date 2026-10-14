@@ -1,11 +1,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { monterGeste } from "../js/geste-moteur.js";
-import { imageFigee } from "../js/geste-regles.js";
-import { etapeA } from "../js/lecteur-anime-regles.js";
-import { n, ecrireValeur } from "../js/dessin-svg.js";
+import { readFileSync } from "node:fs";
+import { imageFigee, imageA, problemesGeste } from "../js/geste-regles.js";
+import { n, ecrireValeur, trouverRole } from "../js/dessin-svg.js";
 import { avecBanc as banc, descendants, serialiserDom, serialiserDescription, ElementFactice } from "./aides-dom.mjs";
-import { gesteEssai } from "./geste-essai.mjs";
+import { gesteEssai, ETAPES_ESSAI, avecAttributs } from "./geste-essai.mjs";
 
 const NS = "http://www.w3.org/2000/svg";
 
@@ -22,8 +22,8 @@ const lignes = (dom, nombre = 2) => Array.from({ length: nombre }, () => {
   return li;
 });
 const jusquAuBout = (temps, ms = 100, max = 200) => { let k = 0; while (temps.enAttente() && k < max) { temps.avancer(ms); k++; } return k; };
-// L'image que le moteur doit avoir à l'instant t : le rendu neuf de la définition.
-const attendue = (def, t, fige) => serialiserDescription(def.dessiner(def.etat(t), { fige, etape: etapeA(def.etapes, t) }));
+// L'image que le moteur doit avoir à l'instant t : le rendu neuf de la définition, par imageA comme le moteur et les contrôles.
+const attendue = (def, t, fige) => serialiserDescription(imageA(def, t, fige));
 
 test("monterGeste : le SVG est créé au montage, avant la barre de commandes ; ensuite seuls des attributs et des textes changent, sur les mêmes nœuds", () => banc((dom, temps) => {
   const { g, conteneur, racine } = monter(dom);
@@ -184,3 +184,53 @@ test("monterGeste : rend les commandes du lecteur et le geste lui-même", () => 
   assert.deepEqual(Object.keys(g).sort(), ["allerA", "allerEtape", "detruire", "geste", "jouer", "pause", "rejouer"]);
   assert.equal(g.geste, def);
 }));
+
+test("monterGeste : la flèche de chaque étape est celle de l'étape, tracé mis à jour dans le DOM d'une étape à l'autre, immobile dans l'étape", () => banc((dom) => {
+  const { g, racine, def } = monter(dom);
+  const trace = () => trouver(racine, "fleche-trait").getAttribute("d");
+  g.allerEtape(0);
+  const d0 = trace();
+  g.allerEtape(1);
+  const d1 = trace();
+  assert.notEqual(d0, d1, "une flèche par étape");
+  assert.equal(d0, trouverRole(imageFigee(def, 0), "fleche-trait").attributs.d);
+  assert.equal(d1, trouverRole(imageFigee(def, 1), "fleche-trait").attributs.d);
+  // En pas à pas dans une étape (pause à des instants quelconques), la flèche ne bouge pas ; elle change avec l'étape.
+  for (const t of [0.4, 1.49]) { g.allerA(t); assert.equal(trace(), d0, `à ${t} s`); }
+  for (const t of [1.5, 1.6, 3]) { g.allerA(t); assert.equal(trace(), d1, `à ${t} s`); }
+}));
+
+test("monterGeste : ce que le contrôle des images signale est ce que l'exécution refuse, et la lecture s'y fige (la sonde du relecteur : rayon NaN près de x = 100)", () => banc((dom, temps) => {
+  const base = gesteEssai();
+  const rayon = (etat) => (Math.abs(etat.x - 100) < 2 ? Math.acos(1.0000001) : 14);
+  const sonde = gesteEssai({ dessiner: (etat, o) => avecAttributs(base.dessiner(etat, o), "disque", { r: rayon(etat) }) });
+  // Le contrôle la signale, avec son instant.
+  const pb = problemesGeste(sonde, ETAPES_ESSAI);
+  assert.equal(pb.length, 1);
+  assert.match(pb[0], /^1\.\d{3} s, image de lecture : Valeur d'attribut non finie : NaN/);
+  // Le moteur la refuse bien : en lecture, la boucle lève à la première image fautive, avant d'écrire, et ne demande pas la
+  // suivante. La lecture se fige, bouton encore sur « Pause » : c'est ce que le contrôle doit empêcher d'arriver.
+  const { g, racine, barre } = monter(dom, {}, sonde);
+  const disque = trouver(racine, "disque");
+  g.jouer();
+  let erreur = null;
+  for (let i = 0; i < 200 && erreur === null && temps.enAttente(); i++) {
+    try { temps.avancer(16); } catch (e) { erreur = e; }
+  }
+  assert.ok(erreur, "la boucle a levé");
+  assert.ok(pb[0].endsWith(erreur.message), "le contrôle dit mot pour mot ce que l'exécution refuse");
+  assert.equal(disque.getAttribute("r"), "14", "rien n'a été écrit de l'image fautive");
+  assert.equal(temps.enAttente(), 0, "plus aucune image demandée : la lecture est figée");
+  assert.equal(barre.childNodes[0].textContent, "Pause");
+}));
+
+test("le moteur et les contrôles ne dessinent un geste que par imageA : ce qu'on vérifie est exactement ce qu'on montre", () => {
+  // Test de source : les lignes de commentaire écartées, aucun appel direct à dessiner hors d'imageA.
+  const code = (chemin) => readFileSync(new URL(chemin, import.meta.url), "utf8").split("\n").filter((l) => !/^\s*(\/\/|\*|\/\*)/.test(l)).join("\n");
+  for (const chemin of ["../js/geste-moteur.js", "./aides-dessins.mjs"]) {
+    const s = code(chemin);
+    assert.ok(/\bimageA\(/.test(s), `${chemin} passe par imageA`);
+    assert.equal(/\.dessiner\(/.test(s), false, `${chemin} ne dessine pas lui-même`);
+  }
+  assert.equal(code("../js/geste-regles.js").match(/\.dessiner\(/g).length, 1, "js/geste-regles.js : un seul appel, dans imageA");
+});

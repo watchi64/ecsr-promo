@@ -1,8 +1,7 @@
 // Contrôles communs à tous les dessins du catalogue (tests/dessins-*.test.mjs) et à chaque image d'un geste.
 import { parcourir, texteDe, trouverTous } from "../js/dessin-svg.js";
 import { CHARTE, LARGEUR_TELEPHONE, TAILLE_TEXTE_MIN_PX, TRAIT_MIN_PX } from "../js/dessins-kit.js";
-import { problemesGeste, imageFigee } from "../js/geste-regles.js";
-import { etapeA } from "../js/lecteur-anime-regles.js";
+import { problemesGeste, imageFigee, imageA } from "../js/geste-regles.js";
 
 const TIRET_CADRATIN = String.fromCharCode(0x2014);
 const ESPACE_INSECABLE = String.fromCharCode(0xa0), ESPACE_FINE = String.fromCharCode(0x202f);
@@ -61,13 +60,15 @@ function facteurEchelle(transform) {
   return f;
 }
 
-// Un transform que translation() et facteurEchelle() lisent en entier : des fonctions SVG aux arguments en nombres
-// simples, sans unité, séparés par des espaces ou une virgule (« translate(10 20) », « rotate(45 160 50) »). Tout le reste
-// (« translate(400px 3px) », « translate(1-2) », une fonction inconnue) serait lu de travers : un décalage de 0 au lieu de
-// 400, ou NaN, que toutes les comparaisons de position laissent passer. Il est donc signalé.
+// Un transform que translation() et facteurEchelle() lisent en entier : translate et scale, les deux qu'elles lisent, et
+// rotate, qui ne déplace ni n'épaissit rien qu'elles mesurent (un texte ou un filet dessous est signalé par ailleurs), aux
+// arguments en nombres simples, sans unité, séparés par des espaces ou une virgule (« translate(10 20) », « rotate(45 160
+// 50) »). Tout le reste serait lu de travers ou pas lu, et est signalé : « translate(400px 3px) » (un décalage de 0 au lieu
+// de 400), « translate(1-2) » (NaN, que toutes les comparaisons de position laissent passer), une fonction inconnue, et
+// matrix, skewX et skewY même bien écrits, qu'aucune des deux ne lit (un trait d'une unité sous matrix(0.2 0 0 0.2 0 0)
+// serait lu à une unité). Les contrôles échouent fermés.
 const NB = "[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?";
-const FONCTION_TRANSFORM = `(?:(?:translate|scale)\\(\\s*${NB}(?:[ ,]+${NB})?\\s*\\)|rotate\\(\\s*${NB}(?:[ ,]+${NB}[ ,]+${NB})?\\s*\\)`
-  + `|matrix\\(\\s*${NB}(?:[ ,]+${NB}){5}\\s*\\)|skew[XY]\\(\\s*${NB}\\s*\\))`;
+const FONCTION_TRANSFORM = `(?:(?:translate|scale)\\(\\s*${NB}(?:[ ,]+${NB})?\\s*\\)|rotate\\(\\s*${NB}(?:[ ,]+${NB}[ ,]+${NB})?\\s*\\))`;
 const TRANSFORM_LISIBLE = new RegExp(`^\\s*(?:${FONCTION_TRANSFORM}(?:[ ,]*${FONCTION_TRANSFORM})*)?\\s*$`);
 
 // Conteneurs dont le contenu ne se rend pas là où il est écrit (seulement par un use) : un texte n'y a pas de place.
@@ -193,6 +194,11 @@ export function verifierDessin(racine, [largeur, hauteur]) {
     if (noeud.balise === "svg" && noeud !== racine) pb.push("svg imbriqué : son viewBox change l'échelle de ce qu'il contient, que les contrôles ne savent pas lire");
     // Un style peut changer tailles de texte et épaisseurs de trait sans qu'aucun attribut ne le dise.
     if (noeud.balise === "style") pb.push("élément style : ses règles changent textes et traits sans que les contrôles les lisent");
+    // Un attribut style, sur toute forme ou tout groupe (sur un texte, verifierTexte le dit déjà), change épaisseurs de trait,
+    // teintes et affichage sans qu'aucun attribut lu ne le dise.
+    if (noeud.balise !== "text" && a.style !== undefined && a.style !== null) {
+      pb.push(`${noeud.balise} : attribut style, que les contrôles ne savent pas lire (traits et teintes se posent par attributs)`);
+    }
     // (Une valeur absente est déjà signalée ci-dessus : pas deux fois.)
     if (a.transform !== undefined && a.transform !== null && !TRANSFORM_LISIBLE.test(String(a.transform))) {
       pb.push(`${noeud.balise} : transform « ${a.transform} » que les contrôles ne savent pas lire (nombres simples, sans unité)`);
@@ -235,8 +241,8 @@ const sansFlecheVisible = (image) => {
 
 /** Problèmes d'un geste : règles du moteur (js/geste-regles.js), cadre du catalogue, chaque image figée d'étape et des images
  *  de lecture et figées à treize instants (début et fin compris) passées à verifierDessin, flèche visible sur chaque image
- *  figée et masquée en lecture. Les images sont celles que le moteur dessine : `etape` est l'étape de l'instant. `entree` :
- *  { etapesModele, cadre }, tels que le catalogue les donne. */
+ *  figée et masquée en lecture. Les images sont celles que le moteur dessine, par imageA (js/geste-regles.js), comme lui.
+ *  `entree` : { etapesModele, cadre }, tels que le catalogue les donne. */
 export function verifierGeste(def, entree) {
   const pb = problemesGeste(def, entree.etapesModele);
   if (JSON.stringify(def.cadre) !== JSON.stringify(entree.cadre)) pb.push(`cadre ${def.cadre} au lieu de ${entree.cadre}`);
@@ -251,12 +257,12 @@ export function verifierGeste(def, entree) {
       if (sansFlecheVisible(fige)) pb.push(`étape ${i + 1} : flèche absente ou masquée`);
     });
     for (let k = 0; k <= 12; k++) {
-      const t = (def.duree * k) / 12, etat = def.etat(t), etape = etapeA(def.etapes, t);
-      const lecture = def.dessiner(etat, { fige: false, etape });
+      const t = (def.duree * k) / 12;
+      const lecture = imageA(def, t, false);
       pb.push(...verifierDessin(lecture, entree.cadre).map((p) => `${t.toFixed(2)} s : ${p}`));
       if (trouverTous(lecture, flecheVisible).length) pb.push(`${t.toFixed(2)} s : flèche visible en lecture`);
       // La pause, à n'importe quel instant, et la fin de lecture montrent une image figée : la flèche y est visible.
-      const figee = def.dessiner(etat, { fige: true, etape });
+      const figee = imageA(def, t, true);
       pb.push(...verifierDessin(figee, entree.cadre).map((p) => `${t.toFixed(2)} s, image figée : ${p}`));
       if (sansFlecheVisible(figee)) pb.push(`${t.toFixed(2)} s, image figée : flèche absente ou masquée`);
     }

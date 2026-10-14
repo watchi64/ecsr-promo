@@ -28,10 +28,31 @@ test("contrôles communs : un élément style est signalé, où qu'il soit, masq
   assert.equal(problemes(texte(10, 50, "Sans style")), "");
 });
 
-test("contrôles communs : un transform que les contrôles ne savent pas lire est signalé (unités, nombre mal écrit, fonction inconnue)", () => {
+test("contrôles communs : un attribut style sur une forme ou un groupe est signalé, masqué ou non (il change traits et couleurs sans qu'aucun attribut ne le dise)", () => {
+  // La sonde du relecteur : un trait de 1 unité que son style réduit à 0,1.
+  const trait = () => n("line", { x1: 0, y1: 5, x2: 10, y2: 5, stroke: "#000", "stroke-width": 1, style: "stroke-width:0.1" });
+  assert.match(problemes(trait()), /line : attribut style/);
+  assert.match(problemes(n("g", { style: "opacity:0" }, rect())), /g : attribut style/);
+  assert.match(problemes(n("g", { display: "none" }, trait())), /line : attribut style/);
+  assert.match(problemes(n("defs", {}, n("rect", { x: 0, y: 0, width: 5, height: 5, style: "fill:red" }))), /rect : attribut style/);
+  // Sur un texte, le contrôle du texte le dit déjà : une seule fois, pas deux.
+  const surTexte = n("text", { x: 10, y: 50, "font-size": 12, "font-family": CHARTE.police, "font-weight": 400, "text-anchor": "start", style: "font-size:4px" }, "Style");
+  assert.equal(problemes(surTexte).split(" | ").filter((p) => /style/.test(p)).length, 1);
+  // Une valeur absente est déjà dite par le contrôle des valeurs, pas deux fois.
+  const absent = problemes(n("g", { style: undefined }, rect()));
+  assert.match(absent, /g style="undefined"/);
+  assert.doesNotMatch(absent, /attribut style/);
+  // Sans style, rien à dire.
+  assert.equal(problemes(n("line", { x1: 0, y1: 5, x2: 10, y2: 5, stroke: "#000", "stroke-width": 1 })), "");
+});
+
+test("contrôles communs : un transform que les contrôles ne savent pas lire est signalé (unités, nombre mal écrit, fonction inconnue, matrix et skew)", () => {
   const illisibles = ["translate(400px 3px)", "translate(400px, 3px)", "translate(10px)", "translate(1-2)", "translate(10 20 30)",
     "translate(10 20", "translateX(10)", "translate (10 20)", "scale(0.5px)", "rotate(45deg)", "translate(10 20) bogus(1)",
-    "translate(0x10)", "translate()", "translate(,5)", "matrix(1 0 0 1 5)", "rotate(45 160)", "skewX(10px)", "translate 10 20)", "translate10)", 5];
+    "translate(0x10)", "translate()", "translate(,5)", "matrix(1 0 0 1 5)", "rotate(45 160)", "skewX(10px)", "translate 10 20)", "translate10)", 5,
+    // Ni la translation ni le facteur d'échelle ne lisent matrix, skewX et skewY, même bien écrits : un trait sous matrix(0,2 ...)
+    // serait lu à son épaisseur d'origine.
+    "matrix(1 0 0 1 5 5)", "matrix(0.2 0 0 0.2 0 0)", "skewX(10)", "skewY(-10)", "translate(10 20) matrix(1 0 0 1 0 0)"];
   for (const t of illisibles) {
     assert.match(problemes(n("g", { transform: t }, rect())), /g : transform « .* » que les contrôles ne savent pas lire/, String(t));
   }
@@ -47,10 +68,22 @@ test("contrôles communs : un transform que les contrôles ne savent pas lire es
   assert.match(problemes(n("g", { display: "none" }, n("g", { transform: "translate(1-2)" }, rect()))), /transform « translate\(1-2\) »/);
 });
 
+test("contrôles communs : un trait sous matrix ou skew, que le facteur d'échelle ne lit pas, ne passe plus pour un trait d'une unité", () => {
+  // Le trait d'une unité sous matrix(0,2 0 0 0,2 0 0) est rendu à 0,2 : les contrôles le lisaient à 1, donc le laissaient passer.
+  const trait = () => n("line", { x1: 0, y1: 5, x2: 10, y2: 5, stroke: "#000", "stroke-width": 1 });
+  for (const t of ["matrix(0.2 0 0 0.2 0 0)", "skewX(10)", "skewY(-10)"]) {
+    assert.match(problemes(n("g", { transform: t }, trait())), new RegExp(`g : transform « ${t.replace(/[()]/g, "\\$&")} » que les contrôles ne savent pas lire`), t);
+  }
+  // Le même trait sous scale(0,2), que le facteur d'échelle lit, est dit trop fin : c'est le contrôle qui s'applique.
+  assert.match(problemes(n("g", { transform: "scale(0.2)" }, trait())), /line : trait de 0\.2 unité/);
+  // Un texte sous matrix reste signalé pour son compte, en plus.
+  assert.match(problemes(n("g", { transform: "matrix(0.5 0 0 0.5 0 0)" }, texte(20, 50, "Réduit"))), /« Réduit » sous rotate, matrix ou skew/);
+});
+
 test("contrôles communs : les transform lisibles ne sont pas signalés", () => {
   const lisibles = ["translate(10 20)", "translate(10,20)", "translate(10)", "translate( 10 , 20 )", "translate(1e-7 5)", "translate(-3.5 .5)",
-    "translate(+3 -4)", "translate(5.)", "scale(0.5)", "scale(2 3)", "rotate(45)", "rotate(45 160 50)", "matrix(1 0 0 1 5 5)", "skewX(10)",
-    "skewY(-10)", "translate(10 20) rotate(30)", "translate(10)translate(5)", "translate(10) , scale(2)", "  translate(1 2)  ", ""];
+    "translate(+3 -4)", "translate(5.)", "scale(0.5)", "scale(2 3)", "rotate(45)", "rotate(45 160 50)",
+    "translate(10 20) rotate(30)", "translate(10)translate(5)", "translate(10) , scale(2)", "  translate(1 2)  ", ""];
   for (const t of lisibles) {
     assert.doesNotMatch(problemes(n("g", { transform: t }, rect())), /transform/, `« ${t} »`);
   }
@@ -147,9 +180,39 @@ test("verifierGeste : un dessin qui lève est dit dans la liste, jamais une exce
   assert.ok(pb.some((p) => /^contrôle des images interrompu : point hors tracé$/.test(p)), pb.join(" | "));
 });
 
-test("verifierGeste : la flèche du kit y passe telle quelle (liseré, tête, trait aux épaisseurs de la charte)", () => {
-  // Garde-fou du fixture : sa flèche est celle du kit, et le kit la rend identique visible ou masquée.
-  const f = fleche([[40, 150], [280, 150]], { visible: true });
-  assert.equal(f.attributs["data-r"], "fleche");
+test("verifierGeste : la flèche du kit passe telle quelle, même masquée : liseré clair, tête et trait aux épaisseurs et aux teintes de la charte", () => {
+  const jeu = Object.values(CHARTE.traits);
+  const points = [[40, 150], [280, 150]];
+  for (const visible of [true, false]) {
+    const f = fleche(points, { visible });
+    assert.equal(f.attributs["data-r"], "fleche");
+    assert.equal(f.attributs.display, visible ? "inline" : "none");
+    // Quatre pièces, dans l'ordre : le liseré du trait, celui de la tête, le trait, la tête.
+    assert.equal(f.enfants.length, 4);
+    const [lisereTrait, lisereTete, trait, tete] = f.enfants;
+    assert.equal(trait.attributs["data-r"], "fleche-trait");
+    assert.equal(tete.attributs["data-r"], "fleche-tete");
+    // Le trait : une épaisseur du jeu de quatre de la charte, la teinte de la flèche ; la tête : la même teinte, pleine.
+    assert.ok(jeu.includes(trait.attributs["stroke-width"]), `épaisseur ${trait.attributs["stroke-width"]} dans le jeu de la charte`);
+    assert.equal(trait.attributs.stroke, CHARTE.accentFort);
+    assert.equal(tete.attributs.fill, CHARTE.accentFort);
+    // Le liseré clair : teinte de la carte, un liseré de chaque côté du trait (sa largeur plus deux liserés) et de la tête.
+    assert.equal(lisereTrait.attributs.stroke, CHARTE.carte);
+    assert.equal(lisereTrait.attributs["stroke-width"], trait.attributs["stroke-width"] + 2 * CHARTE.liseres);
+    assert.equal(lisereTete.attributs.fill, CHARTE.carte);
+    assert.equal(lisereTete.attributs.stroke, CHARTE.carte);
+    assert.equal(lisereTete.attributs["stroke-width"], 2 * CHARTE.liseres);
+    // Le trait et son liseré, la tête et son liseré tracent les mêmes formes (le liseré les déborde d'autant).
+    assert.equal(lisereTrait.attributs.d, trait.attributs.d);
+    assert.equal(lisereTete.attributs.d, tete.attributs.d);
+  }
+  // Aux quatre épaisseurs de la charte, visible ou non, la flèche passe les contrôles communs (traits d'une unité au moins).
+  for (const epaisseur of jeu) {
+    for (const visible of [true, false]) {
+      const d = cadre({ largeur: 320, hauteur: 200, titre: "Essai", description: "Une flèche." }, fleche(points, { epaisseur, visible }));
+      assert.deepEqual(verifierDessin(d, [320, 200]), [], `épaisseur ${epaisseur}, visible ${visible}`);
+    }
+  }
+  // Et le geste d'essai, dont c'est la flèche, passe verifierGeste.
   assert.deepEqual(verifierGeste(def, entree), []);
 });

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { n, ecrireValeur, versChaine, trouverRole, trouverTous, texteDe, mettreAJour, versDom } from "../js/dessin-svg.js";
+import { n, ecrireValeur, versChaine, trouverRole, trouverTous, texteDe, mettreAJour, versDom, problemeMiseAJour } from "../js/dessin-svg.js";
 
 test("n : enfants aplatis, valeurs nulles ignorées", () => {
   const x = n("g", { "data-r": "a" }, [n("rect", {}), null, false, [n("circle", {})]], "texte");
@@ -104,4 +104,38 @@ test("ecrireValeur : une valeur absente (null, undefined) est une erreur", () =>
   assert.throws(() => ecrireValeur(null), /Valeur d'attribut absente/);
   assert.throws(() => ecrireValeur(undefined), /Valeur d'attribut absente/);
   assert.throws(() => versDom(n("rect", { width: null }), docFactice()), /Valeur d'attribut absente/);
+});
+
+test("problemeMiseAJour : le refus exact que mettreAJour opposerait, sans rien écrire ; null quand la mise à jour s'écrirait", () => {
+  const base = () => n("svg", { viewBox: "0 0 10 10" }, n("circle", { cx: 1, r: 2 }), n("g", { display: "none" }, n("text", { x: 0 }, "9 h")));
+  // Des mises à jour qui s'écrivent : valeurs changées, attribut ajouté ou retiré, texte changé, rien de changé.
+  const bonne = n("svg", { viewBox: "0 0 10 10", fill: "red" }, n("circle", { cx: 5.5, r: 3 }), n("g", {}, n("text", { x: 4 }, "3 h")));
+  assert.equal(problemeMiseAJour(base(), bonne), null);
+  assert.equal(problemeMiseAJour(base(), base()), null);
+  // Chaque faute : un message, qui est mot pour mot celui de l'erreur de mettreAJour (c'est sa propre vérification).
+  const sous = (...enfants) => n("svg", { viewBox: "0 0 10 10" }, ...enfants);
+  const texte = n("g", { display: "none" }, n("text", { x: 0 }, "9 h"));
+  const fautes = {
+    "balise changée": sous(n("rect", {}), texte),
+    "enfant en trop": sous(n("circle", { cx: 1, r: 2 }), texte, n("rect", {})),
+    "enfant en moins": sous(n("circle", { cx: 1, r: 2 })),
+    "texte à la place d'un nœud": sous(n("circle", { cx: 1, r: 2 }), n("g", { display: "none" }, n("text", { x: 0 }, n("tspan", {})))),
+    "nœud à la place d'un texte": n("svg", { viewBox: "0 0 10 10" }, "texte", n("g", {})),
+    "valeur non finie en profondeur": sous(n("circle", { cx: 1, r: NaN }), texte),
+    "valeur infinie": sous(n("circle", { cx: Infinity, r: 2 }), texte),
+    "valeur nulle": sous(n("circle", { cx: null, r: 2 }), texte),
+    "valeur indéfinie": sous(n("circle", { cx: 1, r: undefined }), texte),
+  };
+  for (const [nom, nouveau] of Object.entries(fautes)) {
+    const ancien = nom === "nœud à la place d'un texte" ? n("svg", { viewBox: "0 0 10 10" }, n("g", {}), n("g", {})) : base();
+    const avant = JSON.stringify(ancien), avantNouveau = JSON.stringify(nouveau);
+    const message = problemeMiseAJour(ancien, nouveau);
+    assert.equal(typeof message, "string", nom);
+    assert.equal(JSON.stringify(ancien) + JSON.stringify(nouveau), avant + avantNouveau, `${nom} : les descriptions ne sont pas modifiées`);
+    const dom = versDom(ancien, docFactice());
+    assert.throws(() => mettreAJour(dom, ancien, nouveau), (erreur) => erreur.message === message, nom);
+  }
+  // La place de la faute est dite : le chemin depuis la racine, l'attribut.
+  assert.match(problemeMiseAJour(base(), fautes["valeur non finie en profondeur"]), /non finie.*circle.*attribut r/);
+  assert.match(problemeMiseAJour(base(), fautes["enfant en trop"]), /3 enfants au lieu de 2 \(svg\)/);
 });
