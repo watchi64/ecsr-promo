@@ -17,11 +17,12 @@
  * la fiche de vérification du cours) sont dans sources/scenes.js : hors du
  * module livré, seuls les tests et les fiches les lisent.
  */
-import { KMH, DEG, GABARITS, trajet, chronologie, tempsAtteint, premiereAbscisse, pointA, emprise, etatActeur,
+import { KMH, DEG, GABARITS, PORTIERE, trajet, chronologie, tempsAtteint, premiereAbscisse, pointA, emprise, etatActeur,
   polygonesSeChevauchent, rectangle, pointDansPolygone } from "./scene-geometrie.js?v=20261013a";
 import { DESSIN, HORS_MONDE, carrefourEnCroix, giratoire, trajetGiratoire, routeVirages, rue }
   from "./scene-decors.js?v=20261013a";
-import { REGARD_PORTEE, REGARD_DUREE_TOUR_MIN, oeil, regardContient, coneRegard } from "./scene-regard.js?v=20261013a";
+import { REGARD_PORTEE, REGARD_DUREE_TOUR_MIN, REGARD_MAX_SUIVI, oeil, regardContient, coneRegard }
+  from "./scene-regard.js?v=20261013a";
 import { SEUILS } from "./scene-controles.js?v=20261013a";
 import { CATALOGUE } from "./catalogue-blocs.js?v=20261013a";
 
@@ -1164,6 +1165,96 @@ function demiTour() {
   };
 }
 
+// ===== Sortir du véhicule côté chaussée (C1.2, « Sortir » ; ordre des contrôles de Timy) =====
+//
+// Rue calme. La voiture de l'élève est garée le long du trottoir de droite, immobilisée, moteur coupé : un acteur posé, qui
+// ne bouge pas de toute la scène. Un cycliste arrive par l'arrière dans la voie de droite, le guidon assez près du flanc de
+// la voiture pour passer dans la zone de la portière. Avant d'ouvrir, le conducteur contrôle au rétroviseur intérieur, puis
+// au rétroviseur extérieur gauche, où le cycliste se voit ; il le laisse passer en le suivant des yeux, contrôle l'angle mort
+// gauche par-dessus l'épaule, puis ouvre la portière, le regard gardé vers l'arrière gauche. Les valeurs ci-dessous sont des
+// choix de dessin, recopiés dans les sources de la scène.
+const SORTIE_PORTIERE = geler({
+  // m de trottoir montrés de chaque côté de la chaussée : le plus petit nombre entier de mètres où le repère des étapes des
+  // animations réduites (« 1-5 », 2,85 m de large) tient à droite de la voiture.
+  trottoir: 3,
+  kmhCycliste: 18,            // km/h : l'allure d'un cycliste en ville, de 15 à 20 km/h
+  // m entre le flanc gauche de la voiture et le guidon du cycliste : il la longe de près, dans la zone que balaierait la
+  // portière, qui s'écarte du flanc de 0,63 m (PORTIERE, à 35 degrés).
+  ecartGuidon: 0.4,
+  // s à l'écran : coups d'œil aux rétroviseurs et à l'angle mort, ceux de demarrer-arreter ; laisser passer le cycliste, la
+  // plus courte durée, au dixième de seconde, qui le met à devantPortiere m au moins devant la portière quand elle s'ouvre,
+  // après l'angle mort ; ouverture de la portière, départ et arrivée amortis.
+  duree: { retroviseurInterieur: 1.2, retroviseurExterieur: 1.2, laisserPasser: 1.4, angleMort: 1.0, ouverture: 1.5 },
+  // degrés : où le conducteur voit le cycliste au début de l'étape où il le suit des yeux : à hauteur du conducteur, dans les
+  // REGARD_MAX_SUIVI (100) degrés où le regard suit un usager ; plus tôt, le cycliste serait encore derrière lui.
+  angleSuivi: 95,
+  ouverture: PORTIERE.ouvertureMax,   // degrés : une première ouverture, mesurée
+  devantPortiere: 10,         // m : quand la portière s'ouvre, le cycliste est au moins à cette distance devant elle
+  // degrés par rapport à l'axe de la voiture, - à gauche : rétroviseur intérieur, rétroviseur extérieur gauche, angle mort
+  // gauche (tête tournée vers l'épaule), gardé pendant l'ouverture.
+  regard: { retroviseurInterieur: 180, retroviseurExterieur: -170, angleMort: -120 },
+});
+
+function sortiePortiere() {
+  const choix = SORTIE_PORTIERE, dur = choix.duree, r = choix.regard;
+  const { largeur: W } = GABARITS.voiture, demiVelo = GABARITS.velo.longueur / 2;
+  const v = choix.kmhCycliste * KMH;
+  if (choix.angleSuivi > REGARD_MAX_SUIVI) throw new Error("sortie-portiere : le regard ne suivrait pas le cycliste, derrière le conducteur");
+  // Instants des étapes, la voiture à l'arrêt : rétroviseur intérieur dès le début, rétroviseur extérieur, le cycliste suivi
+  // des yeux, angle mort, puis l'ouverture de la portière.
+  const tExterieur = dur.retroviseurInterieur;
+  const tSuivi = tExterieur + dur.retroviseurExterieur;
+  const tAngleMort = tSuivi + dur.laisserPasser;
+  const tOuverture = tAngleMort + dur.angleMort;
+
+  // Positions du cycliste le long de la rue, mesurées depuis le centre de la voiture vers le sud (y de l'écran ; la voiture
+  // regarde le nord). Au début de l'étape 3, le conducteur le voit à angleSuivi degrés de l'axe : il est derrière l'œil de
+  // l'écart latéral fois tan(angleSuivi - 90). Il roule tout droit à allure constante.
+  const repere = { x: 0, y: 0, cap: -90 * DEG }, o = oeil(repere);
+  const dxCycliste = -W / 2 - choix.ecartGuidon - GABARITS.velo.largeur / 2;      // à gauche du centre de la voiture
+  const ySuivi = o.y + (o.x - dxCycliste) * Math.tan((choix.angleSuivi - 90) * DEG);
+  const yCycliste = (t) => ySuivi - v * (t - tSuivi);
+  // Quand la portière s'ouvre, l'arrière du cycliste est au moins à devantPortiere m devant la charnière.
+  const devant = -(yCycliste(tOuverture) + demiVelo) - PORTIERE.charniere;
+  if (devant < choix.devantPortiere) {
+    throw new Error(`sortie-portiere : le cycliste n'est qu'à ${devant.toFixed(2)} m devant la portière quand elle s'ouvre :`
+      + " le laisser passer plus longtemps");
+  }
+  // Rue : la voiture au milieu, le cycliste entier dans le dessin, à DESSIN.retraitBord au moins des bords, au début de la
+  // scène (à l'arrière) et quand la portière s'ouvre (à l'avant) : le plus petit nombre entier de mètres.
+  const demiRue = Math.max(yCycliste(0) + demiVelo, -(yCycliste(tOuverture) - demiVelo)) + DESSIN.retraitBord;
+  const d = rue({ longueur: Math.ceil(2 * demiRue), largeurTrottoir: choix.trottoir, stationnement: DESSIN.largeurStationnement });
+  const { xBordDroit } = d.reperes;
+  const voiture = { x: xBordDroit - DESSIN.jeuStationnement - W / 2, y: d.monde.hauteur / 2, cap: -90 };
+
+  // Cycliste : parti dans le dessin, dans la voie de droite, il sort par le bord haut (son trajet finit HORS_MONDE au-delà).
+  const y0 = voiture.y + yCycliste(0);
+  const chemin = trajet(voiture.x + dxCycliste, y0, -90).droit(y0 + HORS_MONDE).fin();
+  // Place de la voiture : le long du trottoir, flanc droit à DESSIN.jeuStationnement du trottoir, à TOLERANCE_PLACE près.
+  const place = rectangle(xBordDroit - DESSIN.jeuStationnement - W - TOLERANCE_PLACE, 0, xBordDroit, d.monde.hauteur);
+  return {
+    ...identite("sortie-portiere"), monde: d.monde, limite: LIMITE_AGGLOMERATION, decor: d,
+    camera: { largeur: d.monde.largeur, hauteur: d.monde.hauteur },
+    acteurs: [
+      { id: "eleve", role: "eleve", gabarit: "voiture", stationne: true, pose: voiture,
+        portiere: [{ t: tOuverture, angle: 0 }, { t: tOuverture + dur.ouverture, angle: choix.ouverture }] },
+      { id: "cycliste", gabarit: "velo", chemin,
+        profil: [{ s: 0, kmh: choix.kmhCycliste }, { s: chemin.longueur, kmh: choix.kmhCycliste }] },
+    ],
+    etapes: [
+      { s: 0, regard: { angle: r.retroviseurInterieur } },
+      { s: 0, delai: tExterieur, regard: { angle: r.retroviseurExterieur } },
+      { s: 0, delai: tSuivi, regard: { suivre: "cycliste" } },
+      { s: 0, delai: tAngleMort, regard: { angle: r.angleMort } },
+      { s: 0, delai: tOuverture, regard: { angle: r.angleMort } },
+    ],
+    attentes: [
+      { type: "dans", acteur: "eleve", nom: "place le long du trottoir", zone: place, de: 0, a: 0, emprise: true },
+      { type: "dans", acteur: "cycliste", nom: "voie de droite", zone: d.voies.droite, de: 0, a: chemin.longueur, emprise: true },
+    ],
+  };
+}
+
 // Titre et étapes modèles : ceux du catalogue des blocs (js/catalogue-blocs.js), que lit aussi l'éditeur.
 const meta = (code) => ({ titre: CATALOGUE[code].titre, etapesModele: CATALOGUE[code].etapesModele });
 
@@ -1176,4 +1267,5 @@ export const SCENES = {
   "demarrer-arreter": { ...meta("demarrer-arreter"), construire: unique(demarrerArreter) },
   "marche-arriere": { ...meta("marche-arriere"), construire: unique(marcheArriere) },
   "demi-tour": { ...meta("demi-tour"), construire: unique(demiTour) },
+  "sortie-portiere": { ...meta("sortie-portiere"), construire: unique(sortiePortiere) },
 };

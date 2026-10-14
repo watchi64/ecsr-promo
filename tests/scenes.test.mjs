@@ -5,9 +5,11 @@ import { SOURCES_SCENES } from "../sources/scenes.js";
 import { controlerScene, SEUILS } from "../js/scene-controles.js";
 import { REGARD_PORTEE, REGARD_OUVERTURE, REGARD_DUREE_TOUR_MIN, oeil, angleRegard, cibleSuivie, coneRegard, regardContient,
   regardDessine } from "../js/scene-regard.js";
+import { CATALOGUE } from "../js/catalogue-blocs.js";
 import { KMH, DEG, preparerScene, etatActeur, emprise, tempsAtteint, tempsDepart, centreArc, pointA, pointDansPolygone,
-  polygonesSeChevauchent, rectangle, GABARITS, trajet, avant, rebroussements } from "../js/scene-geometrie.js";
-import { DESSIN, trajetGiratoire, routeVirages, rue } from "../js/scene-decors.js";
+  polygonesSeChevauchent, rectangle, GABARITS, trajet, avant, rebroussements, PORTIERE, anglePortiere, zonePortiere }
+  from "../js/scene-geometrie.js";
+import { DESSIN, HORS_MONDE, trajetGiratoire, routeVirages, rue } from "../js/scene-decors.js";
 import { reperesEtapes, demiLargeurRepere, libelleRepere, clignotantAllume, feuxStop, feuxDeRecul, cadreReduit, RAYON_REPERE }
   from "../js/scene-rendu.js";
 import { SIGNAUX } from "../js/signaux.js";
@@ -116,17 +118,20 @@ for (const [code, entree] of Object.entries(SCENES)) {
     const def = entree.construire();
     assert.equal(entree.construire(), def, "même objet à chaque appel");
     assert.deepEqual(nonGeles(def), []);
-    // Les modules sont en mode strict : toute écriture dans la définition lève une erreur.
+    // Les modules sont en mode strict : toute écriture dans la définition lève une erreur. Le premier acteur qui roule
+    // (la voiture de l'élève peut être posée, garée, sans profil de vitesse) porte le profil essayé.
+    const k = def.acteurs.findIndex((a) => a.profil);
+    assert.ok(k >= 0, "un acteur au moins roule");
     assert.throws(() => { def.titre = "autre"; }, TypeError);
-    assert.throws(() => { def.acteurs[0].profil[0].kmh = 0; }, TypeError);
+    assert.throws(() => { def.acteurs[k].profil[0].kmh = 0; }, TypeError);
     assert.throws(() => { def.etapes.push({ s: 0 }); }, TypeError);
     assert.throws(() => { def.decor.obstacles[0].poly[0][0] = 0; }, TypeError);
     // Une copie se modifie librement : les tests de sabotage travaillent sur structuredClone. La valeur écrite diffère de
     // l'originale, que la scène commence en roulant ou à l'arrêt.
     const c = copie(code);
-    const kmhDepart = def.acteurs[0].profil[0].kmh;
-    c.acteurs[0].profil[0].kmh = kmhDepart + 1;
-    assert.equal(def.acteurs[0].profil[0].kmh, kmhDepart);
+    const kmhDepart = def.acteurs[k].profil[0].kmh;
+    c.acteurs[k].profil[0].kmh = kmhDepart + 1;
+    assert.equal(def.acteurs[k].profil[0].kmh, kmhDepart);
   });
 }
 
@@ -3649,4 +3654,316 @@ test("demi-tour : un tour du regard de moins de 4 s est détecté", () => {
   const def = copie("demi-tour");
   def.etapes[7].delai -= 0.5;
   assert.deepEqual(etapesTropCourtes(def), ["étape 7 : 3.500 s à l'écran, 4 s au moins"]);
+});
+
+// ===== sortie-portiere : sortir du véhicule côté chaussée (C1.2, « Sortir » ; ordre des contrôles de Timy) =====
+//
+// La voiture de l'élève est garée le long du trottoir de droite, moteur coupé (acteur posé) ; un cycliste arrive par
+// l'arrière, dans la zone de la portière. Comme pour les autres scènes, les instants se lisent sur la définition.
+
+// Choix de dessin consignés dans les sources de la scène : allure du cycliste (km/h), écart entre son guidon et le flanc
+// de la voiture (m), durées des étapes (s), angle du cycliste quand le regard commence à le suivre (degrés), ouverture de
+// la portière (degrés, durée en s), trottoirs montrés et longueur de la rue (m).
+const SORTIE = {
+  kmhCycliste: 18, ecartGuidon: 0.4, angleSuivi: 95,
+  duree: { retroviseurInterieur: 1.2, retroviseurExterieur: 1.2, laisserPasser: 1.4, angleMort: 1.0, ouverture: 1.5 },
+  ouverture: 35, trottoir: 3, longueur: 27,
+};
+
+function lireSortiePortiere(def = SCENES["sortie-portiere"].construire()) {
+  const sc = preparerScene(def);
+  const eleve = sc.eleve, cycliste = sc.acteurs.find((a) => a.id === "cycliste");
+  const voiture = etatActeur(eleve, 0);
+  // Repère de la caisse, depuis le centre de la voiture : u vers l'avant, n vers la gauche (le côté de la portière).
+  const u = ([x, y]) => (x - voiture.x) * Math.cos(voiture.cap) + (y - voiture.y) * Math.sin(voiture.cap);
+  const n = ([x, y]) => (x - voiture.x) * Math.sin(voiture.cap) - (y - voiture.y) * Math.cos(voiture.cap);
+  // Distance (m), le long de la caisse, de la charnière de la portière (son avant) à l'arrière du cycliste, à l'instant t.
+  const devantPortiere = (t) => Math.min(...emprise("velo", etatActeur(cycliste, t)).map(u)) - PORTIERE.charniere;
+  return { def, sc, eleve, cycliste, voiture, u, n, devantPortiere, T: sc.etapes.map((e) => e.t), reperes: def.decor.reperes };
+}
+
+// Angle (degrés, par rapport à l'axe de la voiture, - à gauche) sous lequel le conducteur voit le centre du cycliste.
+function angleDuCycliste(sc, t) {
+  const e = etatActeur(sc.eleve, t), c = etatActeur(sc.acteurs.find((a) => a.id === "cycliste"), t), o = oeil(e);
+  let a = (Math.atan2(c.y - o.y, c.x - o.x) - e.cap) / DEG;
+  while (a > 180) a -= 360;
+  while (a <= -180) a += 360;
+  return a;
+}
+
+// Ce que montre la scène, relevé au centième de seconde (au milieu de chaque centième, aucun relevé sur la borne d'une
+// étape) : le regard (angle par rapport à l'axe, arrondi, ou « cycliste » quand il le suit des yeux) et la portière
+// (« fermée », « s'ouvre », « ouverte »), chaque élément avec sa durée.
+function sequenceSortiePortiere(def) {
+  const sc = preparerScene(def), suite = [];
+  for (let k = 0; (k + 0.5) * 0.01 < sc.duree; k++) {
+    const t = (k + 0.5) * 0.01, etape = sc.etapes[etapeActive(sc, t)], etats = etatsA(sc, t), e = etats.get("eleve");
+    let regard;
+    if (etape.regard && etape.regard.suivre) regard = cibleSuivie(etape, e, etats) ? etape.regard.suivre : "devant, ramené";
+    else {
+      let a = Math.round(((angleRegard(etape, e, t, etats) - e.cap) / DEG) % 360);
+      if (a > 180) a -= 360;
+      else if (a <= -180) a += 360;
+      regard = String(a);
+    }
+    const angle = e.portiere, plusTard = etatActeur(sc.eleve, t + 0.01).portiere;
+    const portiere = angle === 0 ? "fermée" : plusTard > angle ? "s'ouvre" : "ouverte";
+    const libelle = `${regard}, ${portiere}`;
+    const der = suite[suite.length - 1];
+    if (der && der.libelle === libelle) der.duree += 0.01;
+    else suite.push({ libelle, duree: 0.01 });
+  }
+  return suite;
+}
+
+// Assertion d'ordre (ordre des contrôles de Timy, cours C1.2 « Sortir ») : rétroviseur intérieur, rétroviseur extérieur
+// gauche, le cycliste suivi des yeux pendant qu'il passe, angle mort gauche, portière fermée pendant tout cela ; puis la
+// portière s'ouvre, le regard gardé vers l'arrière gauche, et reste ouverte. Chaque regard pendant 1,0 s au moins. Lève une
+// AssertionError sinon.
+function verifierSortiePortiere(def) {
+  const suite = sequenceSortiePortiere(def), libelles = suite.map((r) => r.libelle);
+  assert.deepEqual(libelles, ["180, fermée", "-170, fermée", "cycliste, fermée", "-120, fermée", "-120, s'ouvre", "-120, ouverte"],
+    `sortie : ${libelles.join(" ; ")}`);
+  for (const r of suite) assert.ok(r.duree >= DUREE_MIN.etape - 0.011, `${r.libelle} pendant ${r.duree.toFixed(2)} s`);
+}
+
+test("sortie-portiere : cinq étapes, celles du catalogue, dans l'ordre de Timy, chacune avec son regard, à son instant ; la voiture ne bouge pas", () => {
+  assert.deepEqual(SCENES["sortie-portiere"].etapesModele, CATALOGUE["sortie-portiere"].etapesModele);
+  assert.deepEqual(SCENES["sortie-portiere"].etapesModele, [
+    "Contrôler au rétroviseur intérieur",
+    "Contrôler au rétroviseur extérieur gauche",
+    "Laisser passer le cycliste",
+    "Contrôler l'angle mort gauche",
+    "Ouvrir de la main droite, buste tourné",
+  ]);
+  const { def, sc, eleve, T } = lireSortiePortiere();
+  assert.equal(def.titre, "Sortir du véhicule côté chaussée");
+  assert.deepEqual(def.etapes.map((e) => e.regard), [{ angle: 180 }, { angle: -170 }, { suivre: "cycliste" }, { angle: -120 }, { angle: -120 }]);
+  for (const e of def.etapes) assert.equal(e.s, 0, "la voiture est à sa place");
+  const d = SORTIE.duree;
+  const attendus = [0, d.retroviseurInterieur, d.retroviseurInterieur + d.retroviseurExterieur];
+  attendus.push(attendus[2] + d.laisserPasser, attendus[2] + d.laisserPasser + d.angleMort);
+  attendus.forEach((t, k) => proche(T[k], t, 1e-12, `étape ${k + 1}`));
+  proche(sc.duree - T[4], d.ouverture + 1.0, 1e-12, "étape 5 : l'ouverture, puis l'image tenue 1,0 s");
+  for (let t = 0; t <= sc.duree + 1e-9; t += 0.05) {
+    const e = etatActeur(eleve, t);
+    assert.deepEqual([e.x, e.y, e.v], [eleve.pose.x, eleve.pose.y, 0], `t = ${t.toFixed(2)} s`);
+  }
+});
+
+test("sortie-portiere : l'ordre de Timy, montré tel quel : rétroviseur intérieur, rétroviseur extérieur gauche, le cycliste suivi des yeux, angle mort gauche, portière fermée ; puis la portière s'ouvre, le regard gardé vers l'arrière gauche", () => {
+  verifierSortiePortiere(SCENES["sortie-portiere"].construire());
+});
+
+test("sortie-portiere : rue à double sens, voies de 3,5 m, bande de stationnement de 2,0 m le long du trottoir droit ; voiture de l'élève garée le long du trottoir, flanc droit à 0,3 m, vers le nord, moteur coupé (posée, feux stop éteints), sans clignotant ; le cycliste, seul autre usager", () => {
+  const { def, sc, eleve, voiture, reperes } = lireSortiePortiere();
+  const { xBordDroit, xBordVoieDroite, xAxe, xBordGauche } = reperes;
+  proche(xAxe - xBordGauche, DESSIN.voie, 1e-12); proche(xBordVoieDroite - xAxe, DESSIN.voie, 1e-12);
+  proche(xBordDroit - xBordVoieDroite, DESSIN.largeurStationnement, 1e-12, "bande de stationnement");
+  assert.equal(def.decor.marquages.length, 1, "seule l'axiale est marquée");
+  assert.deepEqual(def.acteurs.map((a) => a.id), ["eleve", "cycliste"]);
+  assert.ok(eleve.pose && !eleve.chemin && !eleve.profil, "voiture posée, sans trajet");
+  assert.equal(eleve.stationne, true, "en stationnement, moteur coupé");
+  assert.ok(!(eleve.clignotant && eleve.clignotant.length), "aucun clignotant");
+  proche(voiture.cap, -90 * DEG, 1e-12);
+  proche(xBordDroit - Math.max(...emprise("voiture", voiture).map(([x]) => x)), DESSIN.jeuStationnement, 1e-12, "flanc droit");
+  for (let t = 0; t <= sc.duree + 1e-9; t += 0.1) {
+    const e = etatActeur(eleve, t);
+    assert.equal(feuxStop(eleve, e), false, `feux stop à t = ${t.toFixed(1)} s`);
+    assert.equal(e.clignotant, null);
+  }
+});
+
+test("sortie-portiere : le cycliste roule à 18 km/h, tout droit vers le nord, dans la voie de droite, le guidon à 0,4 m du flanc gauche de la voiture : il passe dans la zone de la portière ; parti dans le cadre, il en sort par le bord haut", () => {
+  const { def, sc, cycliste, voiture, n } = lireSortiePortiere();
+  assert.equal(cycliste.gabarit, "velo");
+  assert.equal(cycliste.chemin.segments.length, 1, "une seule ligne droite");
+  const [seg] = cycliste.chemin.segments;
+  assert.equal(seg.type, "droite");
+  proche(seg.cap, -90 * DEG, 1e-12, "vers le nord");
+  assert.equal(cycliste.depart || 0, 0, "dans le cadre dès le début");
+  for (let t = 0; t <= cycliste.chrono.duree + 1e-9; t += 0.01) proche(kmh(cycliste, t), SORTIE.kmhCycliste, 1e-9, `t = ${t.toFixed(2)} s`);
+  // Guidon (le bord droit de son emprise) à 0,4 m du flanc gauche de la voiture.
+  const bande = emprise("velo", etatActeur(cycliste, 0)).map(n);
+  proche(Math.min(...bande) - GABARITS.voiture.largeur / 2, SORTIE.ecartGuidon, 1e-9, "écart du guidon au flanc");
+  // La portière ouverte à 35 degrés s'écarte du flanc de 0,63 m : le guidon passe dedans. Le cycliste traverse la zone que
+  // balaie la portière, avant qu'elle s'ouvre.
+  proche(PORTIERE.longueur * Math.sin(SORTIE.ouverture * DEG), 0.631, 1e-3, "portée de la portière");
+  const zone = zonePortiere(voiture, SORTIE.ouverture), dans = [];
+  for (let t = 0; t <= sc.duree; t += 0.01) {
+    if (polygonesSeChevauchent(emprise("velo", etatActeur(cycliste, t)), zone)) dans.push(t);
+  }
+  assert.ok(dans.length > 0, "le cycliste ne passe pas dans la zone de la portière");
+  // Il part entier dans le cadre et finit hors du monde, HORS_MONDE au-delà du bord haut.
+  for (const [x, y] of emprise("velo", etatActeur(cycliste, 0))) assert.ok(x > 0 && x < def.monde.largeur && y > 0 && y < def.monde.hauteur);
+  proche(pointA(cycliste.chemin, cycliste.chemin.longueur).y, -HORS_MONDE, 1e-9, "fin du trajet, hors du monde");
+  assert.ok(sc.duree > cycliste.chrono.duree, "sorti du cadre avant la fin de la scène");
+});
+
+test("sortie-portiere : portière fermée jusqu'au début de l'étape 5 ; ouverte ensuite en 1,5 s jusqu'à 35 degrés, départ et arrivée amortis, puis tenue ouverte jusqu'à la fin", () => {
+  const { sc, eleve, T } = lireSortiePortiere();
+  assert.deepEqual(eleve.portiere, [{ t: T[4], angle: 0 }, { t: T[4] + SORTIE.duree.ouverture, angle: SORTIE.ouverture }]);
+  for (let t = 0; t < T[4]; t += 0.01) assert.equal(etatActeur(eleve, t).portiere, 0, `ouverte à t = ${t.toFixed(2)} s`);
+  assert.equal(etatActeur(eleve, T[4]).portiere, 0, "fermée à l'instant même de l'étape 5 : son image figée la montre fermée");
+  assert.ok(etatActeur(eleve, T[4] + 0.01).portiere > 0, "elle s'ouvre dès le début de l'étape 5");
+  let prec = 0;
+  for (let t = T[4] + 0.01; t <= T[4] + SORTIE.duree.ouverture; t += 0.01) {
+    const a = etatActeur(eleve, t).portiere;
+    assert.ok(a > prec - 1e-12 && a <= SORTIE.ouverture + 1e-12, `t = ${t.toFixed(2)} s : ${a}`);
+    prec = a;
+  }
+  proche(anglePortiere(eleve.portiere, T[4] + SORTIE.duree.ouverture / 2), SORTIE.ouverture / 2, 1e-12, "à mi-temps, la moitié");
+  for (let t = T[4] + SORTIE.duree.ouverture; t <= sc.duree + 1e-9; t += 0.01) assert.equal(etatActeur(eleve, t).portiere, SORTIE.ouverture);
+  proche(sc.duree - (T[4] + SORTIE.duree.ouverture), 1.0, 1e-12, "image tenue 1,0 s, portière ouverte");
+});
+
+test("sortie-portiere : quand la portière s'ouvre, le cycliste est devant elle à 10 m au moins : 10,245 m de la charnière à son arrière ; 1,4 s pour le laisser passer, la plus courte au dixième de seconde qui l'y met", () => {
+  const { devantPortiere, T } = lireSortiePortiere();
+  assert.ok(devantPortiere(T[4]) >= 10, `${devantPortiere(T[4]).toFixed(3)} m`);
+  proche(devantPortiere(T[4]), 10.245, 5e-4);
+  // À 1,3 s, l'ouverture viendrait 0,1 s plus tôt, le cycliste 0,5 m plus près : 9,745 m.
+  const v = SORTIE.kmhCycliste * KMH;
+  assert.ok(devantPortiere(T[4] - 0.1) < 10, "une étape 3 plus courte d'un dixième de seconde suffirait");
+  proche(devantPortiere(T[4]) - devantPortiere(T[4] - 0.1), v * 0.1, 1e-9);
+  // Tout le long de l'ouverture, le cycliste s'éloigne : il n'est jamais dans la zone ni en approche (contrôle automatique).
+  assert.deepEqual(controlerScene(SCENES["sortie-portiere"].construire()), []);
+});
+
+test("sortie-portiere : les regards montrent le cycliste : dans le cône du rétroviseur intérieur pendant l'étape 1 ; dans celui du rétroviseur extérieur gauche de 1,2 à 1,93 s, puis à côté de la voiture, dans l'angle mort ; suivi des yeux pendant toute l'étape 3, à 95 degrés de l'axe à son début ; personne dans le cône de l'angle mort aux étapes 4 et 5", () => {
+  const { sc, eleve, cycliste, T } = lireSortiePortiere();
+  const contient = (k, t) => {
+    const etats = etatsA(sc, t), e = etats.get("eleve"), c = etats.get("cycliste");
+    return regardContient(angleRegard(sc.etapes[k], e, t, etats), oeil(e), c);
+  };
+  for (let t = T[0]; t < T[1]; t += 0.01) assert.ok(contient(0, t), `rétroviseur intérieur, t = ${t.toFixed(2)} s`);
+  // Le cycliste quitte le cône du rétroviseur extérieur quand il passe à 26 degrés de l'arrière (170 - 16, à gauche).
+  const sortie = premierInstant((t) => !contient(1, t), T[1], T[2]);
+  proche(sortie, 1.929, 1e-3, "sortie du cône du rétroviseur extérieur");
+  // Il passe alors à côté de la voiture, dans l'angle mort, jusqu'à hauteur du conducteur : ni dans le rétroviseur, ni
+  // encore devant le conducteur.
+  for (let t = sortie + 0.01; t < T[2]; t += 0.01) {
+    const a = angleDuCycliste(sc, t);
+    assert.ok(a > -154 && a < -SORTIE.angleSuivi, `à côté de la voiture, t = ${t.toFixed(2)} s : ${a.toFixed(1)} degrés`);
+  }
+  proche(angleDuCycliste(sc, T[2]), -SORTIE.angleSuivi, 1e-9, "à hauteur du conducteur au début de l'étape 3");
+  for (let t = T[2]; t < T[3]; t += 0.01) {
+    const etats = etatsA(sc, t);
+    assert.ok(cibleSuivie(sc.etapes[2], etats.get("eleve"), etats), `regard ramené devant à t = ${t.toFixed(2)} s`);
+    assert.ok(contient(2, t), `cycliste hors du cône à t = ${t.toFixed(2)} s`);
+  }
+  for (let t = T[3]; t <= sc.duree; t += 0.01) {
+    assert.ok(!contient(etapeActive(sc, t), t), `cycliste dans le cône de l'angle mort à t = ${t.toFixed(2)} s`);
+  }
+  assert.equal(eleve.id, "eleve"); assert.equal(cycliste.id, "cycliste");
+});
+
+test("sortie-portiere : cadre fixe, le monde entier, de 15 x 27 m, la voiture au milieu ; le cycliste entier dans le cadre à 0,5 m au moins des bords au début et à l'ouverture ; 27 m, le plus petit nombre entier de mètres qui l'y garde ; trottoirs de 3 m, le plus petit nombre entier de mètres où le repère des étapes tient à droite de la voiture", () => {
+  const { def, sc, cycliste, voiture, reperes, T } = lireSortiePortiere();
+  assert.deepEqual(def.monde, { largeur: 15, hauteur: SORTIE.longueur });
+  assert.deepEqual(def.camera, { largeur: def.monde.largeur, hauteur: def.monde.hauteur });
+  proche(reperes.xBordGauche, SORTIE.trottoir, 1e-12); proche(def.monde.largeur - reperes.xBordDroit, SORTIE.trottoir, 1e-12);
+  proche(voiture.y, SORTIE.longueur / 2, 1e-12, "voiture au milieu de la rue");
+  const ys = (t) => emprise("velo", etatActeur(cycliste, t)).map(([, y]) => y);
+  const marges = [Math.min(...ys(T[4])), def.monde.hauteur - Math.max(...ys(0))];
+  for (const m of marges) assert.ok(m >= DESSIN.retraitBord - 1e-9, `${m.toFixed(3)} m du bord`);
+  // Un mètre de moins, la voiture toujours au milieu : le cycliste perdrait 0,5 m à chaque bout, sous 0,5 m d'un côté.
+  assert.ok(Math.min(...marges) - 0.5 < DESSIN.retraitBord, "une rue plus courte garderait le cycliste dans le cadre");
+  // Animations réduites : un seul repère, « 1-5 », au plus près à droite de la voiture, sur le trottoir.
+  const [r, ...autres] = reperesEtapes(sc);
+  assert.deepEqual(autres, []);
+  assert.deepEqual(r.numeros, [1, 2, 3, 4, 5]);
+  assert.equal(libelleRepere(r.numeros), "1-5");
+  const bord = r.x + demiLargeurRepere(r.numeros);
+  assert.ok(bord <= def.monde.largeur, "le repère tient dans le dessin");
+  assert.ok(bord - reperes.xBordDroit > SORTIE.trottoir - 1, "avec 2 m de trottoir, il sortirait du dessin");
+});
+
+test("sortie-portiere : contrôles automatiques conformes ; ouvrir pendant que le cycliste longe la voiture, ou quand il arrive dans le rétroviseur, est refusé ; ouvrir avant l'angle mort aussi, par l'assertion d'ordre", () => {
+  assert.deepEqual(controlerScene(SCENES["sortie-portiere"].construire()), []);
+  const ouvrirA = (t) => {
+    const def = copie("sortie-portiere");
+    def.acteurs[0].portiere = [{ t, angle: 0 }, { t: t + SORTIE.duree.ouverture, angle: SORTIE.ouverture }];
+    return def;
+  };
+  const T = preparerScene(SCENES["sortie-portiere"].construire()).etapes.map((e) => e.t);
+  // Au début de l'étape 3, le cycliste longe la voiture : il est dans la zone de la portière.
+  assert.match(erreurs(ouvrirA(T[2])), /eleve : portière ouverte alors que cycliste est dans la zone de la portière/);
+  // Au début de l'étape 2, il arrive par l'arrière, à moins de 10 m de la zone.
+  assert.match(erreurs(ouvrirA(T[1])), /eleve : portière ouverte alors que cycliste arrive par l'arrière à \d+\.\d\d m de la zone de la portière, moins de 10 m/);
+  // Au début de l'étape 4, il est passé (5,2 m devant) : les contrôles l'acceptent, mais l'angle mort n'est pas contrôlé avant
+  // d'ouvrir, et la portière s'ouvre avant 10 m : l'ordre et la distance le refusent.
+  const tropTot = ouvrirA(T[3]);
+  assert.deepEqual(controlerScene(tropTot), []);
+  assert.throws(() => verifierSortiePortiere(tropTot), /sortie : 180, fermée ; -170, fermée ; cycliste, fermée ; -120, s'ouvre/);
+  assert.ok(lireSortiePortiere(tropTot).devantPortiere(T[3]) < 10);
+  // Rétroviseurs dans le désordre, ou angle mort oublié : refusés par l'assertion d'ordre.
+  const desordre = copie("sortie-portiere");
+  [desordre.etapes[0].regard, desordre.etapes[1].regard] = [desordre.etapes[1].regard, desordre.etapes[0].regard];
+  assert.throws(() => verifierSortiePortiere(desordre), /sortie : -170, fermée ; 180, fermée/);
+  const sansAngleMort = copie("sortie-portiere");
+  sansAngleMort.etapes[3].regard = { angle: 0 };
+  assert.throws(() => verifierSortiePortiere(sansAngleMort), /sortie : 180, fermée ; -170, fermée ; cycliste, fermée ; 0, fermée ; -120, s'ouvre/);
+  // Une portière ouverte au-delà de 35 degrés est refusée.
+  const grande = copie("sortie-portiere");
+  grande.acteurs[0].portiere[1].angle = 40;
+  assert.match(erreurs(grande), /portière, clé 2 : angle « 40 » invalide \(de 0 à 35 degrés\)/);
+});
+
+test("sortie-portiere : le regard suit le cycliste dès l'étape 3 : commencée plus tôt, quand il est encore derrière le conducteur, elle montrerait un regard ramené devant", () => {
+  const def = copie("sortie-portiere");
+  def.etapes[2].delai -= 0.3;     // le cycliste est alors à 143 degrés de l'axe, derrière le conducteur
+  def.etapes[1].delai -= 0.3;
+  assert.throws(() => verifierSortiePortiere(def), /cycliste, fermée|devant, ramené/);
+  assert.match(sequenceSortiePortiere(def).map((r) => r.libelle).join(" ; "), /devant, ramené, fermée/);
+});
+
+test("sortie-portiere : les sources citent le cours C1.2, R417-7 et R417-8 et aucun autre article du Code ; les thèmes 03, 24 et 35 ; l'ordre des contrôles de Timy", () => {
+  const sources = SOURCES_SCENES["sortie-portiere"], tout = sources.join("\n");
+  assert.deepEqual([...new Set(tout.match(/\b[LRD]\d{3}-\d+(?:-\d+)?\b/g))].sort(), ["R417-7", "R417-8"]);
+  assert.match(tout, /cours C1\.2, « Sortir »/);
+  for (const theme of ["03", "24", "35"]) assert.match(tout, new RegExp(`thème ${theme}`));
+  assert.match(tout, /ordre des contrôles de Timy/);
+  assert.equal(sources.filter((s) => s.startsWith("Choix de dessin")).length, 1);
+});
+
+test("sortie-portiere : le paragraphe « Choix de dessin » donne chaque valeur et sa raison ; les valeurs calculées qu'il cite sont celles de la scène, à l'arrondi écrit près", () => {
+  const { sc, cycliste, voiture, devantPortiere, T } = lireSortiePortiere();
+  const choix = SOURCES_SCENES["sortie-portiere"].find((s) => s.startsWith("Choix de dessin"));
+  for (const [valeur, raison] of [
+    [/cycliste à 18 km\/h \(/, /\(l'allure d'un cycliste en ville, de 15 à 20 km\/h\)/],
+    [/guidon à 0,4 m du flanc gauche de la voiture \(/, /\(il la longe de près, dans la zone que balaierait la portière, qui s'écarte du flanc de 0,63 m\)/],
+    [/trottoirs montrés sur 3 m \(/, /\(le plus petit nombre entier de mètres où le repère des étapes des animations réduites tient à droite de la voiture\)/],
+    [/rue de 27 m, la voiture au milieu \(/, /\(le plus petit nombre entier de mètres qui montre le cycliste entier, à 0,5 m au moins des bords, au début de la scène et quand la portière s'ouvre\)/],
+    [/laisser passer le cycliste pendant 1,4 s \(/, /\(la plus courte durée, au dixième de seconde, qui le met à 10 m au moins devant la portière quand elle s'ouvre, après l'angle mort\)/],
+    [/à 95 degrés de l'axe de la voiture \(/, /\(à hauteur du conducteur, dans les 100 degrés où le regard suit un usager\)/],
+    [/ouverte de 35 degrés en 1,5 s \(/, /\(une première ouverture, mesurée, départ et arrivée amortis\)/],
+  ]) {
+    assert.match(choix, valeur);
+    assert.match(choix, new RegExp(valeur.source + raison.source.slice(2)));
+  }
+  // Nombre écrit à la française dans les sources (groupe k du motif) ; tolérance : la moitié de son dernier chiffre.
+  const tout = SOURCES_SCENES["sortie-portiere"].join(" ");
+  const ecrit = (motif, k = 1) => {
+    const m = tout.match(motif);
+    assert.ok(m, `${motif} introuvable dans les sources`);
+    return { valeur: Number(m[k].replace(",", ".")), tolerance: 0.5 * 10 ** -(m[k].split(",")[1] || "").length };
+  };
+  const yCycliste = (t) => etatActeur(cycliste, t).y;
+  const derriereOeil = (t) => yCycliste(t) - oeil(voiture).y;
+  const mesures = [
+    ["cycliste au départ, derrière la voiture (m)", yCycliste(0) - voiture.y, ecrit(/le cycliste part (\d+(?:,\d+)?) m derrière le centre de la voiture/)],
+    ["cycliste derrière l'œil au début de l'étape 1 (m)", derriereOeil(T[0]), ecrit(/\(de (\d+(?:,\d+)?) à (\d+(?:,\d+)?) m derrière l'œil du conducteur\)/, 1)],
+    ["cycliste derrière l'œil à la fin de l'étape 1 (m)", derriereOeil(T[1]), ecrit(/\(de (\d+(?:,\d+)?) à (\d+(?:,\d+)?) m derrière l'œil du conducteur\)/, 2)],
+    ["sortie du cône du rétroviseur extérieur (s)", premierInstant((t) => {
+      const etats = etatsA(sc, t), e = etats.get("eleve");
+      return !regardContient(angleRegard(sc.etapes[1], e, t, etats), oeil(e), etats.get("cycliste"));
+    }, T[1], T[2]), ecrit(/dans celui du rétroviseur extérieur jusqu'à (\d+(?:,\d+)?) s/)],
+    ["devant la portière à l'ouverture (m)", devantPortiere(T[4]), ecrit(/à (\d+(?:,\d+)?) m devant la portière quand elle s'ouvre/)],
+    ["sortie du cadre du cycliste (s)", premierInstant((t) => Math.max(...emprise("velo", etatActeur(cycliste, t)).map(([, y]) => y)) < 0, T[3], sc.duree),
+      ecrit(/sort du cadre à (\d+(?:,\d+)?) s/)],
+    ["durée de la scène (s)", sc.duree, ecrit(/scène de (\d+(?:,\d+)?) s/)],
+  ];
+  for (const [nom, mesure, { valeur, tolerance }] of mesures) {
+    assert.ok(Math.abs(mesure - valeur) <= tolerance + 1e-9, `${nom} : ${mesure} dans la scène, ${valeur} dans les sources`);
+  }
 });

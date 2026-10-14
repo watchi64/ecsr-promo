@@ -32,7 +32,7 @@
  * Rien n'apparaît hors du cadre : le dessin est découpé au cadre courant, et la
  * boîte du SVG prend les proportions de ce cadre (css/cours-blocs.css).
  */
-import { preparerScene, etatActeur, pointA, GABARITS, DEG } from "./scene-geometrie.js?v=20261013a";
+import { preparerScene, etatActeur, pointA, GABARITS, DEG, PORTIERE, anglePortiere } from "./scene-geometrie.js?v=20261013a";
 import { regardDessine } from "./scene-regard.js?v=20261013a";
 import { TEINTES, RAYON_REPERE, clignotantAllume, feuxDeRecul, cadreCamera, cadreReduit, reperesEtapes,
   demiLargeurRepere, libelleRepere, emprisePanneau, feuxStop }
@@ -91,8 +91,9 @@ function dessinerPanneau(parent, p) {
 }
 
 // Trajet prévu de l'élève, échantillonné tous les 0,5 m : points ronds opaques (traits quasi nuls aux bouts arrondis),
-// dans la teinte TEINTES.trajet, lisible sur la chaussée.
+// dans la teinte TEINTES.trajet, lisible sur la chaussée. Une voiture de l'élève posée (garée) n'a pas de trajet.
 function dessinerTrajet(parent, sc) {
+  if (!sc.eleve.chemin) return;
   const points = [];
   for (let s = 0; s <= sc.eleve.chemin.longueur; s += 0.5) {
     const p = pointA(sc.eleve.chemin, s);
@@ -102,8 +103,36 @@ function dessinerTrajet(parent, sc) {
     "stroke-width": 0.22, "stroke-linecap": "round", "stroke-dasharray": "0.01 0.44" }));
 }
 
-// Voiture en repère local : x vers l'avant, y vers la droite.
-function dessinerVoiture(teinte, bord) {
+// Portière avant gauche dessinée (PORTIERE, js/scene-geometrie.js), pour une voiture qui en porte l'état seulement, en repère
+// local de la voiture. Choix de dessin : battant de 12 cm d'épaisseur (la portière et le cadre de sa vitre, vus d'en haut) ;
+// ouverture laissée dans le flanc, de la même épaisseur (le seuil et le siège, sous le toit) ; flèche de l'ouverture, sur
+// l'image figée de l'étape où la portière bouge : un arc autour de la charnière, à 0,5 m au-delà du bord arrière de la
+// portière (le chemin de ce bord, agrandi pour que l'arc se lise au-delà de sa pointe), terminé par une pointe, dans la
+// teinte du trajet prévu de l'élève, liserée de la teinte de la bordure de sa voiture pour se lire sur la chaussée comme
+// dans le cône du regard ; assez épaisse pour un téléphone (3 px à 343 px de large). Aucun trait sous 0,05 m : 1 px au
+// moins à 343 px de large, dans le cadre de 15 m de sortie-portiere.
+const PORTIERE_DESSIN = { epaisseur: 0.12, trait: 0.05, ecartFleche: 0.5, traitFleche: 0.13, lisere: 0.05, pasFleche: 2.5,
+  pointe: { longueur: 0.4, largeur: 0.4 } };
+
+// Arc de la flèche d'une portière qui va de l'angle a0 à l'angle a1 (degrés), et sa pointe : deux tracés en repère local
+// de la voiture. La pointe finit sur l'arc, à l'angle a1 ; l'arc s'arrête à sa base.
+function flechePortiere(a0, a1) {
+  const hx = PORTIERE.charniere, hy = -GABARITS.voiture.largeur / 2;
+  const R = PORTIERE.longueur + PORTIERE_DESSIN.ecartFleche, { longueur: lp, largeur: wp } = PORTIERE_DESSIN.pointe;
+  const point = (a) => [hx - R * Math.cos(a * DEG), hy - R * Math.sin(a * DEG)];
+  const aBase = a1 - (Math.sign(a1 - a0) * lp) / R / DEG;
+  const n = Math.max(1, Math.ceil(Math.abs(aBase - a0) / PORTIERE_DESSIN.pasFleche));
+  const arc = "M" + Array.from({ length: n + 1 }, (_, k) => point(a0 + ((aBase - a0) * k) / n)).map(([x, y]) => f3(x) + " " + f3(y)).join(" L");
+  const [bx, by] = point(aBase), [sx, sy] = point(a1), l = Math.hypot(sx - bx, sy - by);
+  const nx = (-(sy - by) / l) * (wp / 2), ny = ((sx - bx) / l) * (wp / 2);
+  const pointe = `M${f3(sx)} ${f3(sy)} L${f3(bx + nx)} ${f3(by + ny)} L${f3(bx - nx)} ${f3(by - ny)} Z`;
+  return { arc, pointe };
+}
+
+// Voiture en repère local : x vers l'avant, y vers la droite. `avecPortiere` : la voiture porte l'état de sa portière ; on
+// lui ajoute alors, après ses feux, l'ouverture du flanc, le battant et la flèche, masqués tant que la portière est fermée.
+// Les autres voitures n'ont aucun de ces éléments : leur dessin ne change pas.
+function dessinerVoiture(teinte, bord, avecPortiere = false) {
   const { longueur: L, largeur: W } = GABARITS.voiture;
   const g = svg("g");
   g.appendChild(svg("rect", { x: -L / 2, y: -W / 2, width: L, height: W, rx: 0.4, fill: teinte, stroke: bord, "stroke-width": 0.08 }));
@@ -120,14 +149,70 @@ function dessinerVoiture(teinte, bord) {
   const stops = [feu(-L / 2 - 0.02, -W / 2 + 0.3, 0.12, 0.38, TEINTES.stop), feu(-L / 2 - 0.02, W / 2 - 0.68, 0.12, 0.38, TEINTES.stop)];
   // Feux de recul : deux feux blancs, chacun juste devant un feu stop, de mêmes dimensions.
   const reculs = [feu(-L / 2 + 0.1, -W / 2 + 0.3, 0.12, 0.38, TEINTES.recul), feu(-L / 2 + 0.1, W / 2 - 0.68, 0.12, 0.38, TEINTES.recul)];
-  return { g, clignotants, stops, reculs };
+  if (!avecPortiere) return { g, clignotants, stops, reculs, portiere: null };
+  const { charniere: hx, longueur: lp } = PORTIERE, hy = -W / 2, ep = PORTIERE_DESSIN.epaisseur;
+  const ouverture = svg("rect", { x: hx - lp, y: hy, width: lp, height: ep, fill: TEINTES.habitacle, display: "none" });
+  const battant = svg("g", { class: "scene-portiere", display: "none" });
+  battant.appendChild(svg("rect", { x: -lp, y: 0, width: lp, height: ep, rx: ep / 3, fill: teinte, stroke: bord,
+    "stroke-width": PORTIERE_DESSIN.trait }));
+  const fleche = svg("g", { class: "scene-fleche-portiere", display: "none" });
+  const { traitFleche, lisere } = PORTIERE_DESSIN;
+  const arcLisere = svg("path", { fill: "none", stroke: bord, "stroke-width": traitFleche + 2 * lisere, "stroke-linecap": "round" });
+  const arc = svg("path", { fill: "none", stroke: TEINTES.trajet, "stroke-width": traitFleche, "stroke-linecap": "round" });
+  const pointe = svg("path", { fill: TEINTES.trajet, stroke: bord, "stroke-width": lisere, "stroke-linejoin": "round" });
+  fleche.append(arcLisere, arc, pointe);
+  g.append(ouverture, battant, fleche);
+  return { g, clignotants, stops, reculs, portiere: { ouverture, battant, fleche, arcs: [arcLisere, arc], pointe } };
+}
+
+// Cycliste vu du dessus, dans son gabarit (GABARITS.velo : 1,8 x 0,6 m), en repère local : x vers l'avant, y vers la droite.
+// Choix de dessin : deux roues de 0,7 m (la roue « 700 » d'un vélo de ville) aux deux bouts du gabarit, soit 1,1 m
+// d'empattement ; pneus dessinés de 6 cm (35 mm en vrai, élargis pour rester visibles sur un téléphone) ; cadre dans l'axe ;
+// guidon de 0,6 m, la largeur du gabarit ; le cycliste penché vers le guidon : le dos, des hanches (sur la selle) aux
+// épaules, les bras jusqu'aux poignées, la tête en avant des épaules. Aucun trait sous 0,05 m : 1 px au moins à 343 px de
+// large, dans le cadre de 15 m de sortie-portiere.
+const VELO = {
+  roue: 0.7, pneu: 0.06, cadre: 0.05, guidon: { x: 0.42, epaisseur: 0.05 },
+  // Dos, en m le long du vélo et de part et d'autre de son axe : épaules (0,42 m de large) et hanches (0,30 m, sur la selle).
+  dos: { epaules: 0.05, hanches: -0.33, demiEpaules: 0.21, demiHanches: 0.15, cou: 0.07, bassin: 0.09 },
+  // Bras : de l'articulation de l'épaule au coude, un peu écarté, puis à la poignée du guidon.
+  bras: { epaisseur: 0.075, epaule: [0.03, 0.18], coude: [0.22, 0.235], main: [0.42, 0.26] },
+  tete: { x: 0.13, demiLongueur: 0.12, demiLargeur: 0.095 },
+  contour: 0.05,
+};
+
+function dessinerVelo() {
+  const { longueur: L } = GABARITS.velo, { roue, pneu, cadre, guidon, dos, bras, tete, contour } = VELO;
+  const g = svg("g", { class: "scene-velo" });
+  // Roues (pneus vus d'en haut), cadre et guidon.
+  for (const cx of [-(L - roue) / 2, (L - roue) / 2]) {
+    g.appendChild(svg("rect", { x: n3(cx - roue / 2), y: n3(-pneu / 2), width: roue, height: pneu, rx: pneu / 2, fill: TEINTES.pneu }));
+  }
+  g.appendChild(svg("rect", { x: n3(-(L - roue) / 2), y: n3(-cadre / 2), width: n3(guidon.x + (L - roue) / 2), height: cadre, fill: TEINTES.velo }));
+  const demiGuidon = GABARITS.velo.largeur / 2;
+  g.appendChild(svg("rect", { x: n3(guidon.x - guidon.epaisseur / 2), y: n3(-demiGuidon), width: guidon.epaisseur,
+    height: n3(2 * demiGuidon), rx: guidon.epaisseur / 2, fill: TEINTES.velo }));
+  // Le dos : les épaules à l'avant, arrondies vers le cou ; les flancs ; les hanches à l'arrière, arrondies sur la selle.
+  const { epaules: xe, hanches: xh, demiEpaules: we, demiHanches: wh, cou, bassin } = dos;
+  const d = `M${n3(xe)} ${n3(-we)} C${n3(xe + cou)} ${n3(-we)} ${n3(xe + cou)} ${n3(we)} ${n3(xe)} ${n3(we)}`
+    + ` L${n3(xh)} ${n3(wh)} C${n3(xh - bassin)} ${n3(wh)} ${n3(xh - bassin)} ${n3(-wh)} ${n3(xh)} ${n3(-wh)} Z`;
+  g.appendChild(svg("path", { d, fill: TEINTES.cycliste, stroke: TEINTES.cyclisteBord, "stroke-width": contour, "stroke-linejoin": "round" }));
+  // Les bras, de l'épaule au coude puis à la poignée du guidon, dans l'ombre de la veste.
+  for (const s of [-1, 1]) {
+    const pts = [bras.epaule, bras.coude, bras.main].map(([x, y]) => `${n3(x)},${n3(s * y)}`).join(" ");
+    g.appendChild(svg("polyline", { points: pts, fill: "none", stroke: TEINTES.cyclisteOmbre, "stroke-width": bras.epaisseur,
+      "stroke-linecap": "round", "stroke-linejoin": "round" }));
+  }
+  g.appendChild(svg("ellipse", { cx: n3(tete.x), cy: 0, rx: tete.demiLongueur, ry: tete.demiLargeur, fill: TEINTES.tete,
+    stroke: TEINTES.cyclisteBord, "stroke-width": contour }));
+  return { g, clignotants: null, stops: null, reculs: null, portiere: null };
 }
 
 function dessinerPieton() {
   const g = svg("g");
   g.appendChild(svg("circle", { r: 0.95, fill: "none", stroke: TEINTES.pieton, "stroke-width": 0.12, opacity: 0.55 }));   // halo de lisibilité
   g.appendChild(svg("circle", { r: 0.25, fill: TEINTES.pieton }));
-  return { g, clignotants: null, stops: null, reculs: null };
+  return { g, clignotants: null, stops: null, reculs: null, portiere: null };
 }
 
 // Repères numérotés des étapes (animations réduites), au plus près de la position de l'élève au début de chacune, à la
@@ -145,6 +230,26 @@ function dessinerReperes(sc) {
     g.appendChild(texte);
   }
   return g;
+}
+
+// Portière d'une voiture dans l'état e (son angle, e.portiere, en degrés) : le battant tourne autour de la charnière ;
+// l'ouverture du flanc et le battant se montrent dès que la portière quitte 0 degré. Sur une image figée (pas à pas, pause,
+// fin de lecture, animations réduites), la flèche montre le mouvement de la portière pendant l'étape en cours, de son angle
+// au début de l'étape à son angle à la fin ; une étape où elle ne bouge pas n'a pas de flèche, la lecture non plus.
+function rendrePortiere(p, acteur, e, etape, fige) {
+  const ouverte = e.portiere > 0;
+  p.ouverture.setAttribute("display", ouverte ? "inline" : "none");
+  p.battant.setAttribute("display", ouverte ? "inline" : "none");
+  p.battant.setAttribute("transform", `translate(${n3(PORTIERE.charniere)} ${n3(-GABARITS.voiture.largeur / 2)}) rotate(${e.portiere.toFixed(2)})`);
+  const a0 = anglePortiere(acteur.portiere, etape.t), a1 = anglePortiere(acteur.portiere, etape.fin);
+  if (fige && Math.abs(a1 - a0) > 1e-9) {
+    const f = flechePortiere(a0, a1);
+    p.arcs.forEach((arc) => arc.setAttribute("d", f.arc));
+    p.pointe.setAttribute("d", f.pointe);
+    p.fleche.setAttribute("display", "inline");
+  } else {
+    p.fleche.setAttribute("display", "none");
+  }
 }
 
 export function monterScene(def, { conteneur, etapes = [], reduit = false, onEtape = null } = {}) {
@@ -178,7 +283,9 @@ export function monterScene(def, { conteneur, etapes = [], reduit = false, onEta
   const vues = new Map();
   for (const a of sc.acteurs) {
     const v = a.gabarit === "pieton" ? dessinerPieton()
-      : dessinerVoiture(a.role === "eleve" ? TEINTES.eleve : TEINTES.autre, a.role === "eleve" ? TEINTES.eleveBord : TEINTES.autreBord);
+      : a.gabarit === "velo" ? dessinerVelo()
+        : dessinerVoiture(a.role === "eleve" ? TEINTES.eleve : TEINTES.autre, a.role === "eleve" ? TEINTES.eleveBord : TEINTES.autreBord,
+          Boolean(a.portiere));
     dessin.appendChild(v.g);
     vues.set(a.id, v);
   }
@@ -222,6 +329,7 @@ export function monterScene(def, { conteneur, etapes = [], reduit = false, onEta
         const recul = feuxDeRecul(e);
         v.reculs.forEach((n) => n.setAttribute("opacity", recul ? 1 : 0));
       }
+      if (v.portiere) rendrePortiere(v.portiere, a, e, sc.etapes[k], fige);
     }
     const e = etats.get(sc.eleve.id);
     // Sur une image figée, en animations réduites comme en pas à pas, le regard de l'étape reste dessiné : le cône d'un

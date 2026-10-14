@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { SCENES } from "../js/scenes.js";
 import { DEG, GABARITS, preparerScene, etatActeur, emprise, tempsAtteint, trajet, pointDansPolygone, polygonesSeChevauchent, rectangle,
-  rebroussements } from "../js/scene-geometrie.js";
+  rebroussements, PORTIERE, anglePortiere } from "../js/scene-geometrie.js";
 import { REGARD_PORTEE, REGARD_OUVERTURE, DIRECTIONS_TOUR_FIGE, DEBORD_SUIVI, oeil, cibleSuivie, regardDessine, conesTour }
   from "../js/scene-regard.js";
 import { TEINTES, FREQ_CLIGNOTANT, TAILLE_PANNEAU, RAYON_REPERE, ECART_REPERES, JEU_REPERE_VOITURE, PAS_REPERE,
@@ -43,6 +43,23 @@ test("TEINTES : le trajet prévu se lit sur la chaussée (3:1 au moins, WCAG 1.4
   assert.ok(Math.abs(teinteDeg(TEINTES.trajet) - teinteDeg(TEINTES.eleve)) <= 10, "même famille de teinte que la voiture de l'élève");
   assert.ok(luminance(TEINTES.trajet) > luminance(TEINTES.eleve), "plus claire que la voiture de l'élève");
   assert.notEqual(TEINTES.trajet, TEINTES.peinture, "jamais le blanc de la peinture");
+});
+
+// Teinte #RRGGBB de `dessus` posée avec l'opacité `op` sur `fond`, arrondie à l'unité par canal.
+const melange = (fond, dessus, op) => "#" + [0, 1, 2].map((i) => {
+  const f = parseInt(fond.slice(1 + 2 * i, 3 + 2 * i), 16), d = parseInt(dessus.slice(1 + 2 * i, 3 + 2 * i), 16);
+  return Math.round(f * (1 - op) + d * op).toString(16).padStart(2, "0");
+}).join("");
+
+test("TEINTES : le cycliste se détache sur la chaussée par sa veste, et sur la chaussée vue à travers le cône du regard par son contour (3:1 au moins, WCAG 1.4.11)", () => {
+  // Le cône du regard est dessiné sous les usagers, à l'opacité 0,4 (js/scene-moteur.js, OPACITE_CONE).
+  const sousLeCone = melange(TEINTES.chaussee, TEINTES.regard, 0.4);
+  assert.equal(sousLeCone, "#9e905b");
+  proche(contraste(TEINTES.cycliste, TEINTES.chaussee), 3.32, 0.005, "veste sur la chaussée");
+  proche(contraste(TEINTES.cyclisteBord, sousLeCone), 4.94, 0.005, "contour dans le cône");
+  assert.ok(contraste(TEINTES.cycliste, TEINTES.chaussee) >= 3 && contraste(TEINTES.cyclisteBord, sousLeCone) >= 3);
+  // La veste n'est ni la couleur de la voiture de l'élève, ni celle du regard, ni celle d'un clignotant.
+  for (const autre of ["eleve", "regard", "clignotant", "trajet"]) assert.notEqual(TEINTES.cycliste, TEINTES[autre], autre);
 });
 
 test("TEINTES : les feux de recul sont blancs et se lisent sur la chaussée comme sur la voiture de l'élève, carrosserie et bordure (3:1 au moins, WCAG 1.4.11)", () => {
@@ -280,8 +297,8 @@ function distancePolygones(A, B) {
 }
 
 // Un acteur posé se trouve-t-il entre l'élève, dans l'état e, et le repère r (le segment qui relie leurs centres traverse
-// son emprise) ?
-const acteurPoseEntre = (sc, e, r) => sc.acteurs.filter((a) => a.pose)
+// son emprise) ? La voiture de l'élève, quand elle est posée (garée), n'est pas un autre acteur.
+const acteurPoseEntre = (sc, e, r) => sc.acteurs.filter((a) => a.pose && a !== sc.eleve)
   .some((a) => polygonesSeChevauchent([[e.x, e.y], [r.x, r.y]], emprise(a.gabarit, etatActeur(a, 0))));
 
 test("reperesEtapes : un repère par position de l'élève au début d'une étape, à sa droite au plus près, écarté ou passé à sa gauche seulement si cette place est prise, sort du monde, a un acteur posé entre elle et l'élève ou entre dans la zone protégée d'un tour du regard figé ; deux étapes à moins de ECART_REPERES m partagent un repère", () => {
@@ -381,7 +398,7 @@ test("reperesEtapes : un repère garde autour de chaque acteur posé (voiture ga
 test("reperesEtapes : aucun acteur posé entre l'élève, au début de l'étape, et son repère, qui se lirait sinon comme désignant cet acteur", () => {
   let reperesVerifies = 0;   // au moins un repère d'une scène à acteur posé exerce ce test
   for (const [code, sc] of scenes()) {
-    if (!sc.acteurs.some((a) => a.pose)) continue;
+    if (!sc.acteurs.some((a) => a.pose && a !== sc.eleve)) continue;
     for (const r of reperesEtapes(sc)) {
       const premier = etatActeur(sc.eleve, sc.etapes[r.numeros[0] - 1].t);
       assert.ok(!acteurPoseEntre(sc, premier, r), `${code} : un acteur posé sépare l'élève de son repère ${r.numeros.join("·")}`);
@@ -389,6 +406,17 @@ test("reperesEtapes : aucun acteur posé entre l'élève, au début de l'étape,
     }
   }
   assert.ok(reperesVerifies > 0, "aucune scène n'a d'acteur posé : le test ne vérifie rien");
+});
+
+test("reperesEtapes : une voiture de l'élève posée (garée, sortie-portiere) n'est pas un autre acteur posé : elle ne sépare pas l'élève de son repère, dont la place au plus près à droite est libre", () => {
+  const sc = preparerScene(SCENES["sortie-portiere"].construire()), e = etatActeur(sc.eleve, 0);
+  assert.ok(sc.eleve.pose, "voiture de l'élève posée");
+  const [r] = reperesEtapes(sc);
+  const d0 = GABARITS.voiture.largeur / 2 + JEU_REPERE_VOITURE + demiLargeurRepere(r.numeros);
+  proche(r.x - e.x, d0, 1e-9, "au plus près, à droite (la voiture regarde le nord)");
+  proche(r.y, e.y, 1e-9);
+  assert.equal(placeRepereLibre(sc)(r, [], e), true, "sa place est libre");
+  assert.equal(acteurPoseEntre(sc, e, r), false);
 });
 
 test("reperesEtapes : aucun repère sur le dessin d'un panneau", () => {
@@ -784,6 +812,8 @@ class ElementMinimal {
   addEventListener() {}
   get textContent() { return this.texte; }
   set textContent(v) { this.texte = String(v); }
+  // Boîte vide : le moteur, après un appui sur une étape, ne ramène rien à l'écran (montrerVoiture).
+  getBoundingClientRect() { return { left: 0, top: 0, width: 0, height: 0 }; }
 }
 const descendants = (n) => [n, ...n.enfants.flatMap(descendants)];
 
@@ -815,6 +845,120 @@ test("moteur : en animations réduites, chaque repère dessiné porte le libell�
     if (avant === undefined) delete globalThis.document;
     else globalThis.document = avant;
   }
+});
+
+// Exécute f(monterScene) avec le DOM minimal comme document, puis rend le document d'avant.
+async function avecDomMinimal(f) {
+  const avant = globalThis.document;
+  globalThis.document = { baseURI: "http://localhost/", createElement: (nom) => new ElementMinimal(nom),
+    createElementNS: (_ns, nom) => new ElementMinimal(nom) };
+  try {
+    const { monterScene } = await import("../js/scene-moteur.js");
+    return await f(monterScene);
+  } finally {
+    if (avant === undefined) delete globalThis.document;
+    else globalThis.document = avant;
+  }
+}
+const parClasse = (racine, classe) => descendants(racine).filter((n) => n.getAttribute("class") === classe);
+
+test("moteur : le cycliste et la portière ne se dessinent que pour un acteur qui en a le gabarit ou l'état ; aucune des huit autres scènes n'en a", async () => {
+  await avecDomMinimal((monterScene) => {
+    let avecVelo = 0;
+    for (const [code, entree] of Object.entries(SCENES)) {
+      const def = entree.construire();
+      for (const reduit of [false, true]) {
+        const conteneur = new ElementMinimal("div");
+        monterScene(def, { conteneur, reduit });
+        const velos = def.acteurs.filter((a) => a.gabarit === "velo").length, portieres = def.acteurs.filter((a) => a.portiere).length;
+        assert.equal(parClasse(conteneur, "scene-velo").length, velos, `${code} : cyclistes dessinés`);
+        assert.equal(parClasse(conteneur, "scene-portiere").length, portieres, `${code} : portières dessinées`);
+        assert.equal(parClasse(conteneur, "scene-fleche-portiere").length, portieres, `${code} : flèches de portière`);
+        assert.equal(descendants(conteneur).filter((n) => n.getAttribute("fill") === TEINTES.habitacle).length, portieres,
+          `${code} : ouvertures de portière`);
+        if (code !== "sortie-portiere") assert.equal(velos + portieres, 0, `${code} : ni cycliste ni portière`);
+        avecVelo += velos;
+      }
+    }
+    assert.ok(avecVelo > 0, "aucune scène n'a de cycliste : le test ne vérifie rien");
+  });
+});
+
+test("moteur : la portière de sortie-portiere, cachée tant qu'elle est fermée, tourne autour de sa charnière de l'angle de son état ; la flèche de l'ouverture se montre sur les images figées de l'étape 5 (pas à pas, pause, fin), jamais en lecture ni aux autres étapes", async () => {
+  const def = SCENES["sortie-portiere"].construire(), sc = preparerScene(def), cles = def.acteurs[0].portiere;
+  const T = sc.etapes.map((e) => e.t), charniere = `translate(${PORTIERE.charniere} ${-GABARITS.voiture.largeur / 2})`;
+  // Horloge et requestAnimationFrame doublés (absents de Node) : le lecteur s'en sert dès qu'on appuie sur une étape.
+  const file = [];
+  let maintenant = 1000;
+  globalThis.requestAnimationFrame = (cb) => { file.push(cb); return file.length; };
+  globalThis.cancelAnimationFrame = () => {};
+  Object.defineProperty(performance, "now", { value: () => maintenant, configurable: true });
+  try {
+    await avecDomMinimal((monterScene) => {
+      const conteneur = new ElementMinimal("div"), moteur = monterScene(def, { conteneur });
+      conteneur.enfants[0].isConnected = true;     // le schéma est dans le document : la lecture ne s'arrête pas d'elle-même
+      const [battant] = parClasse(conteneur, "scene-portiere"), [fleche] = parClasse(conteneur, "scene-fleche-portiere");
+      const ouverture = descendants(conteneur).find((n) => n.getAttribute("fill") === TEINTES.habitacle);
+      const vus = () => [ouverture, battant, fleche].map((n) => n.getAttribute("display"));
+      for (let k = 0; k < 4; k++) {
+        moteur.allerEtape(k);
+        assert.deepEqual(vus(), ["none", "none", "none"], `étape ${k + 1} : portière fermée, sans flèche`);
+      }
+      moteur.allerEtape(4);
+      assert.deepEqual(vus(), ["none", "none", "inline"], "étape 5, à son début : portière encore fermée, flèche de l'ouverture");
+      // La flèche suit l'arc décrit autour de la charnière, du bord arrière de la portière fermée (0 degré) à sa place ouverte
+      // (35 degrés), à 0,5 m au-delà de ce bord ; sa pointe finit sur l'arc, à 35 degrés.
+      const [arcLisere, arc, pointe] = fleche.enfants, R = PORTIERE.longueur + 0.5, hy = -GABARITS.voiture.largeur / 2;
+      const nombres = (d) => d.match(/-?\d+(?:\.\d+)?/g).map(Number);
+      assert.equal(arcLisere.getAttribute("d"), arc.getAttribute("d"));
+      const [x0, y0] = nombres(arc.getAttribute("d"));
+      proche(x0, PORTIERE.charniere - R, 1e-3); proche(y0, hy, 1e-3);
+      const [sx, sy] = nombres(pointe.getAttribute("d"));
+      proche(sx, PORTIERE.charniere - R * Math.cos(35 * DEG), 1e-3); proche(sy, hy - R * Math.sin(35 * DEG), 1e-3);
+      // En pause pendant l'ouverture, puis à la fin : la portière à l'angle de son état, la flèche toujours là.
+      for (const t of [T[4] + 0.75, sc.duree]) {
+        moteur.allerA(t);
+        assert.deepEqual(vus(), ["inline", "inline", "inline"], `t = ${t} s`);
+        assert.equal(battant.getAttribute("transform"), `${charniere} rotate(${anglePortiere(cles, t).toFixed(2)})`, `t = ${t} s`);
+      }
+      proche(anglePortiere(cles, T[4] + 0.75), 17.5, 1e-12);
+      // En lecture (une image de 16 ms, pompée à la main) : la portière tourne, sans flèche ; en pause, la flèche revient.
+      moteur.allerA(T[4] + 0.75);
+      moteur.jouer();
+      maintenant += 16;
+      file.splice(0).forEach((cb) => cb(maintenant));
+      assert.deepEqual(vus(), ["inline", "inline", "none"], "en lecture : pas de flèche");
+      assert.equal(battant.getAttribute("transform"), `${charniere} rotate(${anglePortiere(cles, T[4] + 0.766).toFixed(2)})`);
+      moteur.pause();
+      assert.equal(fleche.getAttribute("display"), "inline", "en pause : la flèche revient");
+    });
+  } finally {
+    delete globalThis.requestAnimationFrame;
+    delete globalThis.cancelAnimationFrame;
+    delete performance.now;
+  }
+});
+
+test("moteur : rendu à 343 px de large, chaque trait du cycliste et de la portière de sortie-portiere mesure au moins 1 px, chaque forme fine aussi", async () => {
+  const def = SCENES["sortie-portiere"].construire(), unPixel = def.monde.largeur / 343;   // m par pixel, le cadre étant le monde
+  await avecDomMinimal((monterScene) => {
+    const conteneur = new ElementMinimal("div");
+    monterScene(def, { conteneur });
+    const groupes = ["scene-velo", "scene-portiere", "scene-fleche-portiere"].flatMap((c) => parClasse(conteneur, c));
+    const ouverture = descendants(conteneur).find((n) => n.getAttribute("fill") === TEINTES.habitacle);
+    const elements = [...groupes.flatMap(descendants), ouverture].filter((n) => n.nom !== "g");
+    let mesures = 0;
+    for (const n of elements) {
+      const nom = `${n.nom} ${n.getAttribute("fill") || ""} ${n.getAttribute("stroke") || ""}`;
+      if (n.getAttribute("stroke")) { assert.ok(Number(n.getAttribute("stroke-width")) >= unPixel, `${nom} : trait sous 1 px`); mesures++; }
+      if (n.nom === "rect") {
+        assert.ok(Math.min(Number(n.getAttribute("width")), Number(n.getAttribute("height"))) >= unPixel, `${nom} : forme sous 1 px`);
+        mesures++;
+      }
+      if (n.nom === "ellipse") { assert.ok(Math.min(Number(n.getAttribute("rx")), Number(n.getAttribute("ry"))) * 2 >= unPixel, nom); mesures++; }
+    }
+    assert.ok(mesures >= 12, `${mesures} mesures seulement`);
+  });
 });
 
 test("cadreReduit : un cadre fixe qui montre tous les repères, les panneaux, les acteurs posés, la voiture de l'élève à chaque étape et chaque usager suivi des yeux à l'instant de son étape", () => {
