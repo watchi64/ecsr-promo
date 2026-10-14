@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import { CATALOGUE } from "../js/catalogue-blocs.js";
 import * as famille from "../js/dessins-poste.js";
 import { SOURCES } from "../sources/dessins-poste.js";
-import { trouverRole, trouverTous, texteDe } from "../js/dessin-svg.js";
+import { trouverRole, trouverTous, texteDe, parcourir } from "../js/dessin-svg.js";
+import { CHARTE } from "../js/dessins-kit.js";
 import { verifierDessin, formeArbre } from "./aides-dessins.mjs";
 
 // Ruling R2 (tâche 6) : les deux contrôles communs ne portent que sur les dessins fixes de la famille. Les trois gestes du
@@ -159,11 +160,14 @@ test("volant : centre, rayon et angle sur le groupe ; trois branches à 3 h, 6 h
   assert.ok(famille.EPAISSEUR_JANTE > 0.1 && famille.EPAISSEUR_JANTE < 0.3, "épaisseur de jante en fraction du rayon");
 });
 
-test("main : posée sur la jante à son heure ; pouce sur la jante ou à l'intérieur ; même forme, ouverte ou fermée", () => {
+test("main : posée sur la jante à son heure ; pouce sur la jante ou à l'intérieur ; même forme, ouverte ou fermée, avec ou sans avant-bras", () => {
   const C = { cx: 160, cy: 100, rayon: 50 };
   const e = C.rayon * famille.EPAISSEUR_JANTE;
   const dist = (n) => Math.hypot(n.attributs["data-x"] - C.cx, n.attributs["data-y"] - C.cy);
+  const avantBras = { coude: [C.cx - 70, C.cy + 90], limite: [0, 0, 320, 200] };
   const forme = formeArbre(famille.main({ ...C, heure: 9, cote: "gauche" }));
+  const formeBras = formeArbre(famille.main({ ...C, heure: 9, cote: "gauche", avantBras }));
+  assert.notEqual(formeBras, forme, "l'avant-bras ajoute ses nœuds");
   for (const [cote, heure] of [["gauche", 9], ["droite", 3], ["droite", 12], ["gauche", 10.5], ["droite", 1.25]]) {
     for (const prise of [0, 0.5, 1]) {
       const jante = famille.main({ ...C, heure, cote, prise });
@@ -171,11 +175,16 @@ test("main : posée sur la jante à son heure ; pouce sur la jante ou à l'inté
       const m = trouverRole(jante, `main-${cote}`);
       const [x, y] = famille.pointHeure(C.cx, C.cy, C.rayon, heure);
       assert.ok(proche(m.attributs["data-x"], x, 1e-6) && proche(m.attributs["data-y"], y, 1e-6), `${cote} à ${heure} h`);
-      assert.ok(Math.abs(dist(trouverRole(jante, `pouce-${cote}`)) - C.rayon) <= e / 2, `${cote} ${heure} h prise ${prise} : pouce sur la jante`);
-      assert.ok(dist(trouverRole(interieur, `pouce-${cote}`)) < C.rayon - e / 2, `${cote} ${heure} h prise ${prise} : pouce dans la jante`);
-      // Une animation garde ses nœuds : ni l'heure, ni la prise, ni le pouce, ni le côté ne changent la forme de l'arbre.
+      // Tant que la main tient ou glisse (prise d'au moins 0,5), le pouce est sur la jante, ou dedans s'il y est engagé.
+      if (prise >= 0.5) {
+        assert.ok(Math.abs(dist(trouverRole(jante, `pouce-${cote}`)) - C.rayon) <= e / 2, `${cote} ${heure} h prise ${prise} : pouce sur la jante`);
+        assert.ok(dist(trouverRole(interieur, `pouce-${cote}`)) < C.rayon - e / 2, `${cote} ${heure} h prise ${prise} : pouce dans la jante`);
+      }
+      // Une animation garde ses nœuds : ni l'heure, ni la prise, ni le pouce, ni le côté ne changent la forme de l'arbre,
+      // avec ou sans avant-bras.
       assert.equal(formeArbre(jante), forme);
       assert.equal(formeArbre(interieur), forme);
+      assert.equal(formeArbre(famille.main({ ...C, heure, cote, prise, avantBras })), formeBras, `${cote} ${heure} h prise ${prise}, avant-bras`);
     }
   }
 });
@@ -192,10 +201,14 @@ test("main : le pouce posé sur la jante file vers le haut à 9 h et à 3 h, les
   assert.ok(proche(g.attributs["data-x"] - C.cx, -(d.attributs["data-x"] - C.cx), 1e-6) && proche(g.attributs["data-y"], d.attributs["data-y"], 1e-6));
 });
 
-test("main : la prise se voit, doigts refermés sur la jante (prise 1), cachés main ouverte (prise 0)", () => {
+test("main : la prise se voit, doigts refermés sur la jante (prise 1) ; main ouverte (prise 0), doigts cachés et main écartée de la jante", () => {
   const C = { cx: 160, cy: 100, rayon: 50, heure: 9, cote: "gauche" };
+  const e = C.rayon * famille.EPAISSEUR_JANTE;
   assert.equal(trouverRole(famille.main({ ...C, prise: 1 }), "doigts-gauche").attributs.display, "inline");
-  assert.equal(trouverRole(famille.main({ ...C, prise: 0 }), "doigts-gauche").attributs.display, "none");
+  const ouverte = famille.main({ ...C, prise: 0 });
+  assert.equal(trouverRole(ouverte, "doigts-gauche").attributs.display, "none");
+  const pouce = trouverRole(ouverte, "pouce-gauche").attributs;
+  assert.ok(Math.hypot(pouce["data-x"] - C.cx, pouce["data-y"] - C.cy) > C.rayon + e / 2, "main ouverte : le pouce a quitté la jante");
 });
 
 test("main : un côté, un pouce ou une prise hors de leurs valeurs est une erreur, jamais un choix par défaut", () => {
@@ -204,4 +217,85 @@ test("main : un côté, un pouce ou une prise hors de leurs valeurs est une erre
   assert.throws(() => famille.main({ ...C, cote: "gauche", pouce: "dedans" }), /pouce « dedans » inconnu/);
   assert.throws(() => famille.main({ ...C, cote: "gauche", prise: 1.5 }), /prise/);
   assert.throws(() => famille.main({ ...C, cote: "gauche", heure: Number.NaN }), /heure/);
+});
+
+// ===== Relecture de la tâche 6 : charte, peau, anneau, levier, contacteur, flèche =====
+
+const DESSINS_POSTE = () => codes.map((code) => [code, famille.DESSINS[code]()]);
+
+test("poste : traits pris dans le jeu de quatre de la charte, liserés clairs à part, volant à tout angle et mains à toute prise", () => {
+  const jeu = Object.values(CHARTE.traits);
+  const liseres = new Set([2 * CHARTE.liseres, ...jeu.map((t) => t + 2 * CHARTE.liseres)]);
+  const pieces = [famille.volant({ cx: 160, cy: 100, rayon: 50, angle: 37 }), famille.volant({ cx: 160, cy: 100, rayon: 30, avertisseur: true }),
+    ...[0, 0.5, 1].map((prise) => famille.main({ cx: 160, cy: 100, rayon: 50, heure: 11, cote: "droite", prise,
+      avantBras: { coude: [230, 190], limite: [0, 0, 320, 200] } }))];
+  let vus = 0;
+  for (const [quoi, d] of [...DESSINS_POSTE(), ...pieces.map((x, i) => [`pièce ${i}`, x])]) {
+    for (const x of trouverTous(d, (y) => "stroke-width" in y.attributs)) {
+      const l = x.attributs["stroke-width"], lisere = x.attributs.stroke === CHARTE.carte;
+      assert.ok(lisere ? liseres.has(l) : jeu.includes(l), `${quoi} : ${x.balise} ${x.attributs["data-r"] || ""} épaisseur ${l}`);
+      vus++;
+    }
+  }
+  assert.ok(vus > 30);
+});
+
+test("poste : la peau n'a que les deux tons de la charte, et seulement dans les mains", () => {
+  const peau = new Set([CHARTE.peau, CHARTE.peauOmbre]);
+  for (const [code, d] of DESSINS_POSTE()) {
+    // Dans une main (hors de sa manche), rien que de la peau ; hors des mains, aucune peau.
+    const dansMain = new Set();
+    for (const m of trouverTous(d, (x) => /^main-/.test(x.attributs["data-r"] || ""))) {
+      parcourir(m, (x) => dansMain.add(x));
+      for (const manche of trouverTous(m, (x) => /^manche-/.test(x.attributs["data-r"] || ""))) parcourir(manche, (x) => dansMain.delete(x));
+    }
+    parcourir(d, (x) => {
+      for (const k of ["fill", "stroke"]) {
+        const c = x.attributs[k];
+        if (!c || c === "none") continue;
+        if (dansMain.has(x)) assert.ok(peau.has(c), `${code} : ${k} ${c} dans une main`);
+        else assert.ok(!peau.has(c), `${code} : peau ${c} hors d'une main (${x.balise} ${x.attributs["data-r"] || ""})`);
+      }
+    });
+  }
+});
+
+test("mains-volant : l'anneau de la vignette faux entoure le bout du pouce engagé ; pas d'anneau dans la vignette juste", () => {
+  const d = famille.DESSINS["mains-volant"]();
+  const faux = trouverRole(d, "vignette-faux");
+  const a = trouverRole(faux, "anneau-pouce").attributs, p = trouverRole(faux, "pouce-gauche").attributs;
+  assert.ok(Math.hypot(p["data-x"] - a["data-x"], p["data-y"] - a["data-y"]) < a["data-rayon"], "le bout du pouce est dans l'anneau");
+  assert.equal(trouverRole(trouverRole(d, "vignette-juste"), "anneau-pouce"), null);
+});
+
+test("poste-commandes : levier du frein de stationnement, bouton et poignée à l'avant, soufflet du pivot à l'arrière", () => {
+  const f = trouverRole(famille.DESSINS["poste-commandes"](), "frein-stationnement");
+  const bouton = trouverRole(f, "bouton-deverrouillage").attributs, soufflet = trouverRole(f, "soufflet").attributs;
+  const poignee = trouverRole(f, "poignee").attributs;
+  const ySoufflet = soufflet.y + soufflet.height / 2;
+  assert.ok(bouton.cy < ySoufflet, "le bouton est vers la planche (en haut), le soufflet vers le siège");
+  assert.ok(poignee.y + poignee.height / 2 < ySoufflet && bouton.cy >= poignee.y && bouton.cy <= poignee.y + poignee.height, "bouton au bout de la poignée, à l'avant");
+});
+
+test("poste-commandes : le point de l'étiquette du contacteur laisse voir la fente de la clé", () => {
+  const d = famille.DESSINS["poste-commandes"]();
+  const fente = trouverRole(trouverRole(d, "contacteur"), "fente").attributs;
+  const etiquette = trouverRole(d, "etiquette-contacteur");
+  const filet = trouverRole(etiquette, "filet").attributs;
+  const rayonPoint = Math.max(...trouverTous(etiquette, (x) => x.balise === "circle").map((c) => Number(c.attributs.r)));
+  const [a, b, c] = [[fente["data-x1"], fente["data-y1"]], [fente["data-x2"], fente["data-y2"]], [Number(filet.x1), Number(filet.y1)]];
+  const ab = [b[0] - a[0], b[1] - a[1]], t = Math.max(0, Math.min(1, ((c[0] - a[0]) * ab[0] + (c[1] - a[1]) * ab[1]) / (ab[0] ** 2 + ab[1] ** 2)));
+  const ecart = Math.hypot(c[0] - (a[0] + t * ab[0]), c[1] - (a[1] + t * ab[1]));
+  assert.ok(ecart > rayonPoint + fente["data-epaisseur"] / 2, `point à ${ecart.toFixed(2)} de l'axe de la fente`);
+});
+
+test("pedales : la flèche du pied droit ne touche ni les bras ni le patin de l'accélérateur, liseré compris", () => {
+  const d = famille.DESSINS.pedales();
+  const pivot = trouverRole(d, "pivot");
+  const demi = Math.max(...trouverTous(pivot, (x) => x.balise === "path" && "stroke-width" in x.attributs).map((x) => x.attributs["stroke-width"])) / 2;
+  const rect = (role, partie) => trouverRole(trouverRole(d, role), partie).attributs;
+  const distanceRect = ([x, y], r) => Math.hypot(Math.max(r.x - x, 0, x - (r.x + r.width)), Math.max(r.y - y, 0, y - (r.y + r.height)));
+  const [depart, arrivee] = [["data-x1", "data-y1"], ["data-x2", "data-y2"]].map((ks) => ks.map((k) => Number(pivot.attributs[k])));
+  assert.ok(distanceRect(depart, rect("frein", "bras")) > demi, "départ à côté du bras du frein");
+  for (const partie of ["bras", "patin"]) assert.ok(distanceRect(arrivee, rect("accelerateur", partie)) > demi, `arrivée hors de ${partie} de l'accélérateur`);
 });

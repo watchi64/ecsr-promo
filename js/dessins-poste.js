@@ -11,8 +11,8 @@
  * portée réglementaire sont des choix de dessin, recopiés avec leur raison dans sources/dessins-poste.js. Titres et cadres
  * viennent du catalogue des blocs (js/catalogue-blocs.js), la seule source de ces métadonnées.
  */
-import { n } from "./dessin-svg.js?v=20261013a";
-import { CHARTE, cadre, texte, etiquette, vignette, fleche } from "./dessins-kit.js?v=20261013a";
+import { n, trouverRole } from "./dessin-svg.js?v=20261013a";
+import { CHARTE, cadre, texte, etiquette, vignette, fleche, couper, arc } from "./dessins-kit.js?v=20261013a";
 import { CATALOGUE } from "./catalogue-blocs.js?v=20261013a";
 
 // ===== Teintes de l'habitacle (choix de dessin) =====
@@ -93,30 +93,10 @@ function contourSur(segments, autre) {
   return morceaux.map((m) => m.join(" ")).join(" ") || `M${pt(segments[0][0])}`;
 }
 
-// Découpe d'un polygone convexe ou non par un rectangle [x1, y1, x2, y2] (Sutherland et Hodgman) : un avant-bras qui sort du
-// cadre d'une vignette s'arrête à son bord.
-function decouper(points, [x1, y1, x2, y2]) {
-  const bords = [
-    [(p) => p[0] >= x1, (a, b) => [x1, a[1] + ((b[1] - a[1]) * (x1 - a[0])) / (b[0] - a[0])]],
-    [(p) => p[0] <= x2, (a, b) => [x2, a[1] + ((b[1] - a[1]) * (x2 - a[0])) / (b[0] - a[0])]],
-    [(p) => p[1] >= y1, (a, b) => [a[0] + ((b[0] - a[0]) * (y1 - a[1])) / (b[1] - a[1]), y1]],
-    [(p) => p[1] <= y2, (a, b) => [a[0] + ((b[0] - a[0]) * (y2 - a[1])) / (b[1] - a[1]), y2]],
-  ];
-  let sortie = points;
-  for (const [garde, couper] of bords) {
-    const entree = sortie;
-    sortie = [];
-    entree.forEach((p, i) => {
-      const precedent = entree[(i + entree.length - 1) % entree.length];
-      if (garde(p)) {
-        if (!garde(precedent)) sortie.push(couper(precedent, p));
-        sortie.push(p);
-      } else if (garde(precedent)) sortie.push(couper(precedent, p));
-    });
-    if (!sortie.length) break;
-  }
-  return sortie;
-}
+// Partie d'un polygone comprise dans le rectangle [x1, y1, x2, y2] (quatre demi-plans, `couper` du kit) : un avant-bras qui
+// sort d'une vignette s'arrête à son bord.
+const dansRectangle = (poly, [x1, y1, x2, y2]) =>
+  [(p) => x1 - p[0], (p) => p[0] - x2, (p) => y1 - p[1], (p) => p[1] - y2].reduce((q, f) => (q.length ? couper(q, f) : q), poly);
 
 // ===== Volant =====
 
@@ -128,14 +108,14 @@ export function pointHeure(cx, cy, rayon, heure) {
 
 // Volant d'une voiture particulière, vu de face, en centimètres : ligne médiane de la jante (37 cm de diamètre), épaisseur
 // de la jante, moyeu (le coussin de l'airbag, où est l'avertisseur), branches de 3 h et 9 h, branche de 6 h plus large.
+// Reflets (lumière venue d'en haut à gauche, qui ne tourne pas avec le volant) : un trait moyen de la charte, de 9 h 40 à
+// 11 h 20 sur la moitié intérieure de la jante, de 9 h 30 à 11 h 30 au bord du moyeu.
 const VOLANT = {
   rayon: 18.5, jante: 3.4, moyeu: 6.6,
   branche: { moyeu: 5.6, jante: 4.4, depart: 3.0 },
   brancheBas: { moyeu: 6.4, jante: 4.8, depart: 3.0 },
-  // Reflet de la jante (lumière venue d'en haut à gauche) : de 9 h 40 à 11 h 20, sur la moitié intérieure de la jante.
-  reflet: { debut: 9.67, fin: 11.33, decalage: -0.75, largeur: 0.6 },
-  // Bord clair du moyeu, du même côté.
-  refletMoyeu: { debut: 9.5, fin: 11.5, decalage: -0.6, largeur: 0.5 },
+  reflet: { debut: 9.67, fin: 11.33, decalage: -0.75 },
+  refletMoyeu: { debut: 9.5, fin: 11.5, decalage: -0.6 },
 };
 /** Épaisseur de la jante vue de face, en fraction du rayon de sa ligne médiane. */
 export const EPAISSEUR_JANTE = VOLANT.jante / VOLANT.rayon;
@@ -153,15 +133,20 @@ function arcHeures(cx, cy, rayon, debut, fin) {
   const grand = (fin - debut) * DEGRES_PAR_HEURE > 180 ? 1 : 0;
   return `M${pt(a)} A${coord(rayon)} ${coord(rayon)} 0 ${grand} 1 ${pt(b)}`;
 }
+// Anneau plein entre deux cercles de même centre (la jante) : une surface, pas un trait épais hors du jeu de la charte.
+function anneau(cx, cy, exterieur, interieur) {
+  const cercle = (r) => `M${pt([cx - r, cy])} A${coord(r)} ${coord(r)} 0 1 0 ${pt([cx + r, cy])} A${coord(r)} ${coord(r)} 0 1 0 ${pt([cx - r, cy])} Z`;
+  return `${cercle(exterieur)} ${cercle(interieur)}`;
+}
 
 /** Volant vu du conducteur : jante, trois branches à 3 h, 6 h et 9 h tournées de `angle` degrés (sens horaire positif),
  *  moyeu. Le groupe porte le centre (data-x, data-y), le rayon de la ligne médiane de la jante (data-rayon) et l'angle
- *  (data-angle). Les branches et le moyeu tournent autour du centre (groupe « volant-tournant ») ; la jante et son reflet ne
- *  tournent pas (un cercle reste un cercle, la lumière ne tourne pas). `avertisseur` : le pictogramme du klaxon sur le moyeu,
- *  qui prend alors le rôle « avertisseur » et sa boîte. */
+ *  (data-angle). Les branches et le moyeu tournent autour du centre (groupe « volant-tournant », avec le klaxon) ; la jante
+ *  et les reflets ne tournent pas (un cercle reste un cercle, la lumière ne tourne pas). `avertisseur` : le pictogramme du
+ *  klaxon sur le moyeu, qui prend alors le rôle « avertisseur » et sa boîte. */
 export function volant({ cx, cy, rayon, angle = 0, role = "volant", avertisseur = false }) {
   const k = rayon / VOLANT.rayon;
-  const centre = [cx, cy];
+  const centre = [cx, cy], e = EPAISSEUR_JANTE * rayon;
   const branche = (heure, { moyeu, jante, depart }) => {
     const a = heure * PAS_HEURE;
     const d = [Math.sin(a), -Math.cos(a)], p = normale(d);
@@ -178,15 +163,15 @@ export function volant({ cx, cy, rayon, angle = 0, role = "volant", avertisseur 
     ? { "data-r": "avertisseur", "data-x": cx, "data-y": cy, "data-largeur": 2 * rMoyeu, "data-hauteur": 2 * rMoyeu }
     : { "data-r": "moyeu" },
   n("circle", { cx, cy, r: rMoyeu, fill: TEINTES.commande }),
-  n("path", { d: arcHeures(cx, cy, rMoyeu + VOLANT.refletMoyeu.decalage * k, VOLANT.refletMoyeu.debut, VOLANT.refletMoyeu.fin),
-    fill: "none", stroke: TEINTES.commandeReflet, "stroke-width": VOLANT.refletMoyeu.largeur * k, "stroke-linecap": "round" }),
   avertisseur ? pictoAvertisseur(cx, cy, AVERTISSEUR.longueur * k, TEINTES.commande) : null);
+  const reflet = (r, { debut, fin }, roleReflet) => n("path", { d: arcHeures(cx, cy, r, debut, fin), fill: "none",
+    stroke: TEINTES.commandeReflet, "stroke-width": CHARTE.traits.moyen, "stroke-linecap": "round", "data-r": roleReflet });
   return n("g", { "data-r": role, "data-x": cx, "data-y": cy, "data-rayon": rayon, "data-angle": angle },
     n("g", { "data-r": "volant-tournant", transform: `rotate(${angle} ${cx} ${cy})` },
       branche(3, VOLANT.branche), branche(9, VOLANT.branche), branche(6, VOLANT.brancheBas), moyeu),
-    n("circle", { cx, cy, r: rayon, fill: "none", stroke: TEINTES.commande, "stroke-width": EPAISSEUR_JANTE * rayon, "data-r": "jante" }),
-    n("path", { d: arcHeures(cx, cy, rayon + VOLANT.reflet.decalage * k, VOLANT.reflet.debut, VOLANT.reflet.fin),
-      fill: "none", stroke: TEINTES.commandeReflet, "stroke-width": VOLANT.reflet.largeur * k, "stroke-linecap": "round" }));
+    reflet(rMoyeu + VOLANT.refletMoyeu.decalage * k, VOLANT.refletMoyeu, "reflet-moyeu"),
+    n("path", { d: anneau(cx, cy, rayon + e / 2, rayon - e / 2), fill: TEINTES.commande, "fill-rule": "evenodd", "data-r": "jante" }),
+    reflet(rayon + VOLANT.reflet.decalage * k, VOLANT.reflet, "reflet-jante"));
 }
 
 // Le klaxon en plein, sur le fond `fond` (celui du moyeu, qui fait le creux de l'ouverture).
@@ -227,8 +212,10 @@ const MAIN = {
   poignet: { point: [-2.4, 2.6], largeur: 3.8, peau: 3.6, recul: 1.5 },
   // Manche : largeur vers le coude, longueur du revers (bande plus sombre au bord de la manche).
   manche: { coude: 6.0, revers: 1.1 },
-  // Main ouverte (prise 0) : elle s'écarte de la jante de 0,8 cm ; les doigts sont cachés sous ce seuil de prise.
-  ouverture: 0.8, seuilDoigts: 0.06,
+  // Main qui relâche : elle s'écarte de la jante, de 0 (prise 1) à 3,2 cm (prise 0, main ouverte) : le dos de la main, qui
+  // couvre la jante jusqu'à 0,2 cm au-delà de sa ligne médiane, en est alors à 1,3 cm, et la jante se voit tout entière. Les
+  // doigts se retirent derrière la jante à mesure que la prise baisse ; sous ce seuil de prise, ils sont cachés.
+  ouverture: 3.2, seuilDoigts: 0.06,
 };
 const COTES = { gauche: 1, droite: -1 };   // sens du pouce : horaire pour la main gauche, inverse pour la droite
 const POUCES = ["jante", "interieur"];
@@ -311,9 +298,9 @@ export function main({ cx, cy, rayon, heure, cote, prise = 1, pouce = "jante", a
     const finRevers = plus(finPeau, fois(axe, mc.revers * k));
     const total = longueur(moins(avantBras.coude, w)) / k;
     const largeurA = (dist) => (p.largeur + ((mc.coude - p.largeur) * dist) / total) * k;   // la manche s'élargit vers le coude
-    const peauBras = decouper(troncon(debut, finPeau, p.largeur * k, largeurA(p.peau)), avantBras.limite);
-    const manche = decouper(troncon(finPeau, avantBras.coude, largeurA(p.peau), mc.coude * k), avantBras.limite);
-    const revers = decouper(troncon(finPeau, finRevers, largeurA(p.peau), largeurA(p.peau + mc.revers)), avantBras.limite);
+    const peauBras = dansRectangle(troncon(debut, finPeau, p.largeur * k, largeurA(p.peau)), avantBras.limite);
+    const manche = dansRectangle(troncon(finPeau, avantBras.coude, largeurA(p.peau), mc.coude * k), avantBras.limite);
+    const revers = dansRectangle(troncon(finPeau, finRevers, largeurA(p.peau), largeurA(p.peau + mc.revers)), avantBras.limite);
     bras = { peau: traceOuPoint(peauBras, w), manche: traceOuPoint(manche, w), revers: traceOuPoint(revers, w),
       pli: peauBras.length >= 3 ? contourSur(segmentsDos, peauBras) : `M${pt(dos[0])}` };
   }
@@ -341,8 +328,9 @@ export function main({ cx, cy, rayon, heure, cote, prise = 1, pouce = "jante", a
   const pli = { fill: "none", stroke: CHARTE.peauOmbre, "stroke-width": CHARTE.traits.fin, "stroke-linecap": "round", "stroke-linejoin": "round" };
   return n("g", { "data-r": `main-${cote}`, "data-x": prisePoint[0], "data-y": prisePoint[1], "data-heure": heure, "data-prise": prise },
     bras ? n("g", { "data-r": `avant-bras-${cote}` },
-      n("path", { d: bras.manche, fill: MANCHE.tissu }),
-      n("path", { d: bras.revers, fill: MANCHE.revers }),
+      n("g", { "data-r": `manche-${cote}` },
+        n("path", { d: bras.manche, fill: MANCHE.tissu }),
+        n("path", { d: bras.revers, fill: MANCHE.revers })),
       n("path", { d: bras.peau, ...peau })) : null,
     n("path", { d: `M${pt(dos[0])} ${traceSegments(segmentsDos)} Z`, ...peau, "data-r": `dos-${cote}` }),
     bras ? n("path", { d: bras.pli, ...pli }) : null,
@@ -362,8 +350,9 @@ const MAINS_VOLANT = {
   // de la vignette par son bord bas, jamais par un coin).
   coude: { dessous: 30, dehors: 4 },
   legende: { taille: 11, base: 15 },
-  // Anneau qui désigne le pouce engagé : centré sur sa partie passée à l'intérieur de la jante, 3,5 cm de rayon.
-  anneau: { s: 2.6, rho: -2.2, rayon: 3.5 },
+  // Anneau qui désigne le pouce engagé, lu sur son repère (le bout du pouce, rôle pouce-gauche) : centré 1,9 cm plus loin
+  // du centre du volant que ce bout, donc sur la partie du pouce passée à l'intérieur de la jante ; 3,5 cm de rayon.
+  anneau: { versJante: 1.9, rayon: 3.5 },
 };
 
 function mainsVolant() {
@@ -378,17 +367,19 @@ function mainsVolant() {
     const limite = [x + bord, m.marge + bord, x + carte.largeur - bord, m.marge + carte.hauteur - bord];
     const coude = (cote) => [cx + COTES[cote] * -1 * (rayon + m.coude.dehors * k), cy + m.coude.dessous * k];
     const mainDe = (cote, heure, sonPouce) => main({ cx, cy, rayon, heure, cote, pouce: sonPouce, avantBras: { coude: coude(cote), limite } });
-    let anneau = null;
+    const gauche = mainDe("gauche", 9, pouce);
+    let cercle = null;
     if (pouce === "interieur") {
-      const [ax, ay] = pointHeure(cx, cy, rayon + m.anneau.rho * k, 9 + (m.anneau.s * k * HEURES_PAR_TOUR) / (2 * Math.PI * rayon));
-      anneau = n("g", { "data-r": "anneau-pouce" },
+      const repere = trouverRole(gauche, "pouce-gauche").attributs, bout = [repere["data-x"], repere["data-y"]];
+      const [ax, ay] = plus(bout, fois(unitaire(moins(bout, [cx, cy])), m.anneau.versJante * k));
+      cercle = n("g", { "data-r": "anneau-pouce", "data-x": ax, "data-y": ay, "data-rayon": m.anneau.rayon * k },
         n("circle", { cx: ax, cy: ay, r: m.anneau.rayon * k, fill: "none", stroke: CHARTE.carte, "stroke-width": CHARTE.traits.moyen + 2 * CHARTE.liseres }),
         n("circle", { cx: ax, cy: ay, r: m.anneau.rayon * k, fill: "none", stroke: CHARTE.faux, "stroke-width": CHARTE.traits.moyen }));
     }
     return vignette({ x, y: m.marge, largeur: carte.largeur, hauteur: carte.hauteur, etat },
       volant({ cx, cy, rayon }),
-      mainDe("gauche", 9, pouce), mainDe("droite", 3, "jante"),
-      anneau,
+      gauche, mainDe("droite", 3, "jante"),
+      cercle,
       texte(cx, m.marge + carte.hauteur + m.legende.base, legende, { taille: m.legende.taille, ancrage: "middle", role: `legende-${etat}` }));
   };
   return cadre({ largeur: L, hauteur: H, titre: CATALOGUE[code].titre,
@@ -410,7 +401,7 @@ const PICTO = {
   pareBrise: { bas: 0.62, bombeHaut: 0.12, bombeBas: 0.08, hauteur: 0.62 },
   lunette: { hauteur: 0.6, rayon: 0.13, talon: 0.16 },
   helice: { centre: 0.55, longueur: 0.44, largeur: 0.25, vrille: 20, moyeu: 0.17 },
-  flocon: { branche: 0.62, longueurBranche: 0.3, ouverture: 40 },
+  flocon: { bras: 6, premier: 90, branche: 0.62, longueurBranche: 0.3, ouverture: 40 },
 };
 
 function pictoDetresse(x, y, t) {
@@ -458,7 +449,7 @@ function pictoLunette(x, y, t) {
 
 function pictoHelice(x, y, t, fond) {
   const p = PICTO.helice, r = t / 2;
-  const pales = [0, 1, 2, 3].map((i) => i * ANGLE_ENTRE_PALES).map((a) => {
+  const pales = Array.from({ length: 360 / ANGLE_ENTRE_PALES }, (_, i) => i * ANGLE_ENTRE_PALES).map((a) => {
     const rad = ((a + p.vrille) * Math.PI) / 180;
     const [px, py] = [x + p.centre * r * Math.cos(rad), y + p.centre * r * Math.sin(rad)];
     return n("ellipse", { cx: px, cy: py, rx: p.longueur * r, ry: p.largeur * r, fill: TEINTES.symbole,
@@ -470,11 +461,12 @@ function pictoHelice(x, y, t, fond) {
 function pictoFlocon(x, y, t) {
   const p = PICTO.flocon, r = t / 2;
   const fin = { fill: "none", stroke: TEINTES.symbole, "stroke-linecap": "round" };
-  const bras = [90, 30, 150].map((a) => {
+  const angles = Array.from({ length: p.bras }, (_, i) => p.premier + (360 * i) / p.bras);   // un bras tous les 60 degrés
+  const bras = angles.slice(0, p.bras / 2).map((a) => {
     const [dx, dy] = [r * Math.cos((a * Math.PI) / 180), -r * Math.sin((a * Math.PI) / 180)];
     return `M${pt([x - dx, y - dy])} L${pt([x + dx, y + dy])}`;
   }).join(" ");
-  const branches = [30, 90, 150, 210, 270, 330].map((a) => {
+  const branches = angles.map((a) => {
     const u = [Math.cos((a * Math.PI) / 180), -Math.sin((a * Math.PI) / 180)];
     const depart = [x + u[0] * p.branche * r, y + u[1] * p.branche * r];
     return [-1, 1].map((s) => {
@@ -507,18 +499,21 @@ const POSTE = {
   console: { x1: 188, x2: 228, rayon: 8 },
   // Colonne de direction (son carénage, derrière le volant), en centimètres depuis le centre du volant.
   colonne: { largeur: 13, haut: -4, bas: 11.5, rayon: 3 },
-  // Commodo gauche (le droit en miroir), en centimètres depuis le centre du volant : du carénage au bout, 7 cm au-delà de la
-  // jante ; tige, bague au bout (commande tournante) et ses rainures.
+  // Commodo gauche (le droit en miroir), en centimètres depuis le centre du volant : du carénage au bout, à 29,2 cm du
+  // centre et 2,2 cm au-dessus, soit 9,1 cm au-delà du bord de la jante ; tige, bague au bout (commande tournante), rainures.
   commodo: { base: [-7, 0], bout: [-29.2, -2.2], tige: 2.0, bague: 2.8, longueurBague: 5.0, rainures: [0.3, 0.7] },
   // Contacteur à droite de la colonne, vu par l'ouverture du volant entre 3 h et 6 h : centre, collerette, cœur, fente.
-  contacteur: { centre: [6.6, 7.6], rayon: 2.2, coeur: 1.5, fente: 2.3, largeurFente: 0.55, angleFente: -30 },
+  contacteur: { centre: [6.6, 7.6], rayon: 2.5, coeur: 1.6, fente: 2.3, largeurFente: 0.55, angleFente: -30 },
   boutons: { x: 208, largeur: 30, hauteur: 19, rayon: 4, picto: 16, cible: 2.5 },
   detresse: { y: 62, picto: 13 },
   ventilation: { y: 93, rayon: 11.5, picto: 16 },
   desembuage: { avant: 123, arriere: 147 },
   climatisation: { y: 171, picto: 13 },
   // Frein de stationnement (levier, vu d'au-dessus), entre les sièges.
-  frein: { x: 208, haut: 192, bas: 233, largeur: 6, poignee: 22, largeurPoignee: 8, bouton: 2.6, soufflet: { largeur: 14, hauteur: 9 } },
+  // Levier entre les sièges, vu d'au-dessus : son bout avant (vers la planche, en haut) porte la poignée et le bouton de
+  // déverrouillage ; son pivot, sous le soufflet, est à l'arrière (vers le siège, en bas).
+  frein: { x: 208, avant: 192, arriere: 233, largeur: 6, poignee: 22, largeurPoignee: 8, bouton: 2.6, cible: 2,
+    soufflet: { largeur: 14, hauteur: 9 } },
   etiquettes: { taille: 11, colonneDroite: 230, commodoGauche: [40, 44], commodoDroit: [140, 44], avertisseur: [40, 192],
     contacteur: [128, 192], mention: [8, 232], ciblePosteVolant: 0.55 },
 };
@@ -565,7 +560,9 @@ function posteCommandes() {
   const contacteur = n("g", { "data-r": "contacteur", ...boite(kx, ky, 2 * ct.rayon * k, 2 * ct.rayon * k) },
     n("circle", { cx: kx, cy: ky, r: ct.rayon * k, fill: TEINTES.metal }),
     n("circle", { cx: kx, cy: ky, r: ct.coeur * k, fill: TEINTES.commande }),
-    n("path", { d: polygone(fente), fill: TEINTES.metal }));
+    n("path", { d: polygone(fente), fill: TEINTES.metal, "data-r": "fente", "data-epaisseur": ct.largeurFente * k,
+      "data-x1": (fente[0][0] + fente[3][0]) / 2, "data-y1": (fente[0][1] + fente[3][1]) / 2,
+      "data-x2": (fente[1][0] + fente[2][0]) / 2, "data-y2": (fente[1][1] + fente[2][1]) / 2 }));
 
   // Commandes de la console centrale : un bouton, son pictogramme.
   const bouton = (y, role, ...picto) => n("g", { "data-r": role, ...boite(b.x, y, b.largeur, b.hauteur) },
@@ -579,14 +576,15 @@ function posteCommandes() {
     bouton(p.desembuage.avant, "desembuage-avant", pictoPareBrise(b.x, p.desembuage.avant, b.picto)),
     bouton(p.desembuage.arriere, "desembuage-arriere", pictoLunette(b.x, p.desembuage.arriere, b.picto)));
 
-  // Frein de stationnement : soufflet, levier, poignée, bouton de déverrouillage au bout.
+  // Frein de stationnement : soufflet du pivot à l'arrière, levier, poignée et bouton de déverrouillage à l'avant.
   const f = p.frein;
-  const frein = n("g", { "data-r": "frein-stationnement", ...boite(f.x, (f.haut + f.bas) / 2, f.largeurPoignee, f.bas - f.haut) },
-    n("rect", { x: f.x - f.soufflet.largeur / 2, y: f.haut - f.soufflet.hauteur / 2, width: f.soufflet.largeur, height: f.soufflet.hauteur,
-      rx: f.soufflet.hauteur / 2, fill: TEINTES.commandeOmbre }),
-    n("rect", { x: f.x - f.largeur / 2, y: f.haut, width: f.largeur, height: f.bas - f.haut, rx: f.largeur / 2, fill: TEINTES.commande }),
-    n("rect", { x: f.x - f.largeurPoignee / 2, y: f.bas - f.poignee, width: f.largeurPoignee, height: f.poignee, rx: f.largeurPoignee / 2, fill: TEINTES.commandeReflet }),
-    n("circle", { cx: f.x, cy: f.bas - f.largeurPoignee / 2, r: f.bouton, fill: TEINTES.metal }));
+  const frein = n("g", { "data-r": "frein-stationnement", ...boite(f.x, (f.avant + f.arriere) / 2, f.largeurPoignee, f.arriere - f.avant) },
+    n("rect", { x: f.x - f.soufflet.largeur / 2, y: f.arriere - f.soufflet.hauteur / 2, width: f.soufflet.largeur, height: f.soufflet.hauteur,
+      rx: f.soufflet.hauteur / 2, fill: TEINTES.commandeOmbre, "data-r": "soufflet" }),
+    n("rect", { x: f.x - f.largeur / 2, y: f.avant, width: f.largeur, height: f.arriere - f.avant, rx: f.largeur / 2, fill: TEINTES.commande }),
+    n("rect", { x: f.x - f.largeurPoignee / 2, y: f.avant, width: f.largeurPoignee, height: f.poignee, rx: f.largeurPoignee / 2, fill: TEINTES.commandeReflet,
+      "data-r": "poignee" }),
+    n("circle", { cx: f.x, cy: f.avant + f.largeurPoignee / 2, r: f.bouton, fill: TEINTES.metal, "data-r": "bouton-deverrouillage" }));
 
   // Étiquettes : les mots du cours ; à droite de la console, en colonne ; les autres au-dessus ou au-dessous de leur commande.
   const e = p.etiquettes, droite = e.colonneDroite;
@@ -603,14 +601,14 @@ function posteCommandes() {
     lab("commodo-gauche", centreBague("commodo-gauche"), e.commodoGauche, ["Feux et", "clignotants"], "middle"),
     lab("commodo-droit", centreBague("commodo-droit"), e.commodoDroit, ["Essuie-glaces", "et lave-glace"], "middle"),
     lab("avertisseur", cibleAvertisseur, e.avertisseur, ["Avertisseur"], "middle"),
-    lab("contacteur", [kx, ky], e.contacteur, ["Contacteur"], "middle"),
+    lab("contacteur", plus([kx, ky], fois(unitaire(moins(e.contacteur, [kx, ky])), ((ct.rayon + ct.coeur) / 2) * k)), e.contacteur, ["Contacteur"], "middle"),
     lab("feux-detresse", [bordBouton, p.detresse.y], [droite, p.detresse.y], ["Feux de", "détresse"]),
     lab("ventilation", pointHeure(b.x, v.y, v.rayon - b.cible, heureEntrePales), [droite, v.y], ["Ventilation"]),
     n("g", { "data-r": "etiquette-desembuage" },
       etiquette({ cible: [bordBouton, p.desembuage.avant], ancre: [droite, (p.desembuage.avant + p.desembuage.arriere) / 2], lignes: ["Désembuage"], taille: t }),
       etiquette({ cible: [bordBouton, p.desembuage.arriere], ancre: [droite, (p.desembuage.avant + p.desembuage.arriere) / 2], lignes: [], taille: t })),
     lab("climatisation", [bordBouton, p.climatisation.y], [droite, p.climatisation.y], ["Climatisation"]),
-    lab("frein-stationnement", [f.x + f.largeurPoignee / 2 - 1, f.bas - f.poignee / 2], [droite, f.bas - f.poignee / 2], ["Frein de", "stationnement"]),
+    lab("frein-stationnement", [f.x + f.largeurPoignee / 2 - f.cible, f.avant + f.poignee / 2], [droite, f.avant + f.poignee / 2], ["Frein de", "stationnement"]),
   ];
 
   return cadre({ largeur: L, hauteur: H, titre: CATALOGUE[code].titre,
@@ -640,11 +638,14 @@ const PEDALES = {
   // Chaussures : le bout à mi-hauteur du patin (le haut du patin reste visible), le talon au sol ; longueur vue du siège
   // (inclinée du talon au patin, une chaussure paraît plus courte qu'à plat), largeur au plus large ; appui : là où la
   // semelle presse le patin, 1,5 cm derrière le bout.
+  // Inclinaison de chaque chaussure (degrés, du bout vers le talon, comptée vers la droite) : le talon gauche un peu à
+  // l'extérieur, le talon droit posé entre le frein et l'accélérateur (à 21,5 cm de l'embrayage), d'où le pied pivote.
   chaussure: { longueur: 25, largeur: 10, semelle: 0.5, appui: 1.5 },
-  talons: { gauche: [-1.0, 44.5], droit: [21.5, 44.5] },
-  // Flèche du pied droit : un arc centré sur le talon, du frein vers l'accélérateur, passant 5 cm au-delà du bout de la
-  // chaussure, donc au-dessus des patins.
-  pivot: { dessus: 5, points: 7 },
+  inclinaison: { gauche: -2.3, droit: 12.7 },
+  // Flèche du pied droit : un arc centré sur le talon droit, du frein vers l'accélérateur ; elle part à côté du bras du
+  // frein et finit à côté de celui de l'accélérateur, au-dessus de son patin, son axe à 1,4 cm de chacun (son liseré, de
+  // 0,8 cm de demi-largeur, ne les touche pas).
+  pivot: { jeu: 1.4 },
   // Étiquettes : taille, écart (cm) entre l'objet et le bout du filet, ancre de « Frein » (cm), point de la chaussure désigné,
   // ligne de base de la règle du cours au-dessus du bas du cadre (unités).
   etiquettes: { taille: 11, ecart: 2.4, frein: [8.5, 9.0], cibleChaussure: [0.3, 0.55], regleBas: 16 },
@@ -666,6 +667,11 @@ function pedales() {
   const p = PEDALES, k = p.echelle;
   const cm = ([x, y]) => [p.origine[0] + x * k, p.origine[1] + y * k];
   const t = p.etiquettes.taille;
+  // Talon d'une chaussure : à sa longueur de son bout, posé à mi-hauteur du patin, selon son inclinaison.
+  const talonDe = (cote) => {
+    const q = p[cote === "gauche" ? "embrayage" : "frein"], a = (p.inclinaison[cote] * Math.PI) / 180;
+    return [q.x + p.chaussure.longueur * Math.sin(a), q.y + p.chaussure.longueur * Math.cos(a)];
+  };
 
   // Une pédale : bras qui monte sous la planche, patin et ses rainures ; la boîte de l'élément est celle du patin.
   const pedale = (role) => {
@@ -675,8 +681,8 @@ function pedales() {
       return `M${pt([x - l / 2 + p.rayonPatin * k, yy])} L${pt([x + l / 2 - p.rayonPatin * k, yy])}`;
     }).join(" ");
     return n("g", { "data-r": role, ...boite(x, y, l, h) },
-      n("rect", { x: x - (p.bras * k) / 2, y: 0, width: p.bras * k, height: y, fill: PEDALIER.bras }),
-      n("rect", { x: x - l / 2, y: y - h / 2, width: l, height: h, rx: p.rayonPatin * k, fill: PEDALIER.patin }),
+      n("rect", { x: x - (p.bras * k) / 2, y: 0, width: p.bras * k, height: y, fill: PEDALIER.bras, "data-r": "bras" }),
+      n("rect", { x: x - l / 2, y: y - h / 2, width: l, height: h, rx: p.rayonPatin * k, fill: PEDALIER.patin, "data-r": "patin" }),
       n("path", { d: rainures, fill: "none", stroke: PEDALIER.rainure, "stroke-width": CHARTE.traits.fin, "stroke-linecap": "round" }));
   };
 
@@ -684,7 +690,7 @@ function pedales() {
   // la semelle sur le patin ; `cible` : un point de la chaussure, côté extérieur, que désigne son étiquette.
   const pied = (cote, pedaleSous) => {
     const c = p.chaussure, q = p[pedaleSous], sens = cote === "gauche" ? 1 : -1;   // côté extérieur : à gauche pour le pied gauche
-    const bout = [q.x, q.y], talon = p.talons[cote];
+    const bout = [q.x, q.y], talon = talonDe(cote);
     const axe = unitaire(moins(talon, bout)), nrm = normale(axe);
     const longueurAxe = longueur(moins(talon, bout));
     // Repère de la chaussure (fx en largeurs, côté extérieur positif ; fy en longueurs, du bout au talon) vers le cadre.
@@ -709,18 +715,15 @@ function pedales() {
   const gauche = pied("gauche", "embrayage"), droit = pied("droit", "frein");
 
   // Flèche du pied droit : arc centré sur le talon droit, du frein à l'accélérateur.
-  const [tx, ty] = cm(p.talons.droit);
-  const [fx, fy] = cm([p.frein.x, p.frein.y]), [ax] = cm([p.accelerateur.x, p.accelerateur.y]);
-  const rayon = Math.hypot(fx - tx, fy - ty) + p.pivot.dessus * k;
-  const angleDe = (x) => Math.asin((x - tx) / rayon);
-  const [a1, a2] = [angleDe(fx), angleDe(ax)];
-  const arc = Array.from({ length: p.pivot.points }, (_, i) => {
-    const a = a1 + ((a2 - a1) * i) / (p.pivot.points - 1);
-    return [tx + rayon * Math.sin(a), ty - rayon * Math.cos(a)];
-  });
-  const [depart, arrivee] = [arc[0], arc[arc.length - 1]];
+  const [tx, ty] = cm(talonDe("droit"));
+  const ecartBras = (p.bras / 2 + p.pivot.jeu) * k;
+  const fin = [cm([p.accelerateur.x, 0])[0] - ecartBras, cm([0, p.accelerateur.y - p.accelerateur.hauteur / 2 - p.pivot.jeu])[1]];
+  const rayon = Math.hypot(fin[0] - tx, fin[1] - ty);
+  const angleDe = (x) => (Math.asin((x - tx) / rayon) * 180) / Math.PI - 90;   // angle du kit (degrés, sens horaire depuis 3 h)
+  const trajet = arc([tx, ty], rayon, angleDe(cm([p.frein.x, 0])[0] + ecartBras), angleDe(fin[0]));
+  const [depart, arrivee] = [trajet[0], trajet[trajet.length - 1]];
   const pivot = n("g", { "data-r": "pivot", "data-x1": depart[0], "data-y1": depart[1], "data-x2": arrivee[0], "data-y2": arrivee[1] },
-    fleche(arc));
+    fleche(trajet));
 
   // Étiquettes : chaque pédale, chaque pied, puis la règle du cours.
   const e = p.etiquettes, ecart = e.ecart * k;
