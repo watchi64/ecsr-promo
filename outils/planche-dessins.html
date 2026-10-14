@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Planche des dessins</title>
+<!--
+  Planche de revue des dessins et des animations des cours de compétences : outil local, jamais lié depuis l'app, sans base.
+  Elle montre chaque bloc comme le lecteur de cours le montre, dans une colonne dont la largeur, en pixels, est celle du
+  paramètre « largeur » (343 : un iPhone, marges du cours déduites ; 680 : un écran d'ordinateur), quelle que soit la
+  fenêtre : un Chrome sans interface ne met jamais une page en forme à moins de 492 px environ. outils/captures.mjs la
+  photographie.
+
+  Servir la racine du dépôt (python -m http.server 8762), puis ouvrir
+  http://localhost:8762/outils/planche-dessins.html?code=mains-volant&largeur=343&etape=0&t=1.2&reduit=1&liste=1
+    code     un code du catalogue (js/catalogue-blocs.js), « kit » (toutes les pièces du kit, outils/planche-kit.js) ou
+             « kit-... » (une pièce) ; sans code, tout ce qui existe déjà.
+    largeur  largeur de la colonne, en pixels (343 par défaut).
+    etape    pour une animation : numéro de l'étape montrée, à partir de 0 (0 par défaut).
+    t        pour une animation : instant montré, en secondes ; il l'emporte sur « etape ».
+    reduit   1 : animations réduites (chaque étape figée, avec ses repères).
+    liste    1 : ne rien dessiner, dire seulement quels codes existent déjà (data-disponibles).
+
+  Un module qui n'existe pas encore (dessins-*.js, geste-moteur.js) et un code absent de son registre sont sautés sans erreur.
+  Une vraie panne (module qui ne se charge pas, dessin ou animation qui lève) s'affiche en rouge dans sa case et compte dans
+  data-erreurs. Fin de la construction : document.title vaut « pret » et le corps porte data-largeur, data-hauteur (pixels),
+  data-rendus, data-absents, data-erreurs, data-mesures (largeur réelle du premier SVG de chaque case) et data-disponibles.
+
+  Le jeton de cache des modules est lu dans index.html : scripts/cache-bust.js ne réécrit pas ce dossier.
+-->
+<link rel="stylesheet" href="../css/fonts.css">
+<link rel="stylesheet" href="../css/style.css">
+<link rel="stylesheet" href="../css/cours-blocs.css">
+<style>
+  /* Mise en page de la planche seule : tout le reste vient de css/style.css et css/cours-blocs.css, comme dans le lecteur.
+     Un div, pas un main : style.css donne au main un retrait et 4 rem de marge basse. */
+  body { padding: 12px 16px 16px; }
+  .planche { display: flex; flex-direction: column; align-items: flex-start; gap: 20px; }
+  .section { margin: 6px 0 -6px; font-family: var(--font); font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted); }
+  .case { display: flex; flex-direction: column; gap: 4px; }
+  .case h2 { margin: 0; font-family: var(--font); font-size: 13px; font-weight: 600; letter-spacing: 0; line-height: 1.3; }
+  .case h2 code { font-family: var(--font-mono); font-size: 12px; font-weight: 500; color: var(--accent-strong); }
+  .case h2 .largeur { font-weight: 400; color: var(--text-muted); }
+  .info { margin: 0; font-size: 12px; line-height: 1.35; color: var(--text-soft); }
+  .info:empty { display: none; }
+  /* Le bord de la colonne (343 ou 680 px) : tracé hors du dessin, jamais dedans. */
+  .colonne { outline: 1px dashed var(--line-strong); }
+  .manque, .erreur { margin: 0; padding: 8px 10px; font-size: 12px; line-height: 1.4; border-radius: 6px; }
+  .manque { color: var(--text-muted); background: var(--bg-soft); }
+  .erreur { color: var(--c-stop); background: var(--c-stop-soft); border: 1px solid var(--c-stop); white-space: pre-wrap; font-family: var(--font); }
+  .absents { margin: 0; max-width: 640px; font-size: 12px; line-height: 1.4; color: var(--text-muted); }
+  /* Le lecteur borne la hauteur d'un schéma à 72 % de l'écran : la planche, elle, ne dépend jamais de la fenêtre. */
+  .planche .dessin-bloc, .planche .scene-bloc { margin: 0; }
+  .planche .dessin-svg, .planche .scene-svg, .planche .scene-svg.scene-reduite { max-width: none; max-height: none; }
+</style>
+</head>
+<body>
+<div id="planche" class="planche"></div>
+<script type="module">
+const planche = document.getElementById("planche");
+const parametres = new URLSearchParams(location.search);
+const nombre = (nom) => {
+  const v = parametres.get(nom);
+  return v !== null && v.trim() !== "" && Number.isFinite(Number(v)) ? Number(v) : null;
+};
+const LARGEUR = nombre("largeur") ?? 343;
+const ETAPE = nombre("etape");
+const INSTANT = nombre("t");
+const REDUIT = parametres.get("reduit") === "1";
+const LISTE = parametres.get("liste") === "1";
+const CODE = parametres.get("code") || null;
+
+const etat = { rendus: 0, erreurs: 0, absents: [], disponibles: [], mesures: [] };
+const fabriquer = (balise, classe, texte) => {
+  const x = document.createElement(balise);
+  if (classe) x.className = classe;
+  if (texte !== undefined) x.textContent = texte;
+  return x;
+};
+function publier() {
+  const d = document.body.dataset;
+  d.largeur = String(LARGEUR);
+  d.hauteur = String(Math.ceil(document.body.getBoundingClientRect().height));
+  d.rendus = String(etat.rendus);
+  d.absents = etat.absents.join(",");
+  d.erreurs = String(etat.erreurs);
+  d.mesures = etat.mesures.join(",");
+  d.disponibles = etat.disponibles.join(",");
+}
+// Une erreur qui arrive plus tard (une animation, une promesse oubliée) compte aussi.
+window.addEventListener("error", () => { etat.erreurs++; publier(); });
+window.addEventListener("unhandledrejection", () => { etat.erreurs++; publier(); });
+
+// Modules : le jeton de cache est celui d'index.html, donc celui que portent déjà les imports de js/. Un fichier qui n'existe pas
+// encore (404) rend null ; toute autre panne est une erreur, montrée dans la case.
+let jeton = "";
+try { jeton = ((await (await fetch("../index.html")).text()).match(/\?v=([0-9a-z]+)/) || [])[1] || ""; } catch (e) { /* sans jeton */ }
+const adresse = (chemin) => `${chemin}${jeton ? `?v=${jeton}` : ""}`;
+const charges = new Map();
+function charger(fichier, dossier = "../js/") {
+  if (!charges.has(fichier)) {
+    charges.set(fichier, (async () => {
+      const reponse = await fetch(adresse(dossier + fichier), { method: "HEAD" });
+      if (reponse.status === 404) return null;
+      if (!reponse.ok) throw new Error(`${dossier + fichier} : réponse ${reponse.status}`);
+      return import(adresse(dossier + fichier));
+    })());
+  }
+  return charges.get(fichier);
+}
+
+function nouvelleCase(code, titre) {
+  const section = fabriquer("section", "case");
+  section.dataset.code = code;
+  section.style.width = `${LARGEUR}px`;   // le titre et l'information se replient dans la largeur de la colonne, jamais au-delà
+  const entete = fabriquer("h2");
+  entete.append(fabriquer("code", "", code), ` ${titre} `, fabriquer("span", "largeur", `${LARGEUR} px`));
+  const info = fabriquer("p", "info");
+  const colonne = fabriquer("div", "colonne");
+  colonne.style.width = `${LARGEUR}px`;
+  section.append(entete, info, colonne);
+  planche.append(section);
+  return { section, colonne, info };
+}
+
+// Position d'une animation montée : un instant (t) ou une étape (etape, à partir de 0). Dit ce qu'elle montre.
+function positionner(moteur, entree) {
+  const suffixe = REDUIT ? ", animations réduites" : "";
+  if (INSTANT !== null) { moteur.allerA(INSTANT); return `Instant ${INSTANT} s${suffixe}`; }
+  const i = ETAPE ?? 0, n = entree.etapesModele.length;
+  if (!Number.isInteger(i) || i < 0 || i >= n) throw new Error(`Étape ${ETAPE} inexistante : ${n} étapes, de 0 à ${n - 1}.`);
+  moteur.allerEtape(i);
+  return `Étape ${i + 1} sur ${n} : ${entree.etapesModele[i]}${suffixe}`;
+}
+
+// Ce qu'il faut pour montrer un code : { genre, code, titre, rendre(colonne) → texte d'information }, ou { absent: raison } quand
+// le module ou le registre n'a pas encore le code. Mêmes appels que le lecteur (js/cours-blocs.js).
+const { CATALOGUE } = await charger("catalogue-blocs.js");
+const kit = await charger("dessins-kit.js");
+const svg = await charger("dessin-svg.js");
+const { PIECES_KIT } = await import(adresse("./planche-kit.js"));
+
+async function preparer(code) {
+  const piece = PIECES_KIT.find((p) => p.code === code);
+  if (piece) {
+    return { genre: "kit", code, titre: piece.titre, rendre: (colonne) => { colonne.append(svg.versDom(piece.construire({ kit, svg }))); return ""; } };
+  }
+  const e = Object.hasOwn(CATALOGUE, code) ? CATALOGUE[code] : null;
+  if (!e) return { genre: "inconnu", code, titre: "", inconnu: true };
+  const propre = (registre) => (registre && Object.hasOwn(registre, code) && registre[code] ? registre[code] : null);
+  if (e.bloc === "dessin") {
+    const famille = await charger(`dessins-${e.module}.js`);
+    const dessiner = propre(famille && famille.DESSINS);
+    if (!dessiner) return { genre: "dessin", code, titre: e.titre, absent: famille ? `absent du module « ${e.module} »` : `module « ${e.module} » pas encore écrit` };
+    return { genre: "dessin", code, titre: e.titre, rendre: (colonne) => {
+      const figure = fabriquer("figure", "dessin-bloc"), vue = fabriquer("div", "dessin-vue");
+      vue.append(famille.versDom(dessiner()));
+      figure.append(vue, fabriquer("figcaption", "signaux-legende", e.legendeModele));
+      colonne.append(figure);
+      return "";
+    } };
+  }
+  if (e.module === "route") {
+    const [registre, moteur] = await Promise.all([charger("scenes.js"), charger("scene-moteur.js")]);
+    const scene = propre(registre && registre.SCENES);
+    if (!scene || !moteur) return { genre: "scene", code, titre: e.titre, absent: "scène absente de js/scenes.js" };
+    return { genre: "scene", code, titre: e.titre, rendre: (colonne) => positionner(
+      moteur.monterScene(scene.construire(), { conteneur: colonne, etapes: [], reduit: REDUIT }), e) };
+  }
+  const [famille, moteur] = await Promise.all([charger(`dessins-${e.module}.js`), charger("geste-moteur.js")]);
+  const geste = propre(famille && famille.GESTES);
+  if (!geste || !moteur) {
+    return { genre: "geste", code, titre: e.titre, absent: !moteur ? "js/geste-moteur.js pas encore écrit" : famille ? `absent du module « ${e.module} »` : `module « ${e.module} » pas encore écrit` };
+  }
+  return { genre: "geste", code, titre: e.titre, rendre: (colonne) => positionner(
+    moteur.monterGeste(geste.construire(), { conteneur: colonne, etapes: [], reduit: REDUIT }), e) };
+}
+
+const TITRES_SECTIONS = { kit: "Kit", dessin: "Dessins", geste: "Gestes animés", scene: "Scènes de route" };
+const ORDRE = Object.keys(TITRES_SECTIONS);
+
+try {
+  const codes = CODE === null ? [...PIECES_KIT.map((p) => p.code), ...Object.keys(CATALOGUE)]
+    : CODE === "kit" ? PIECES_KIT.map((p) => p.code) : [CODE];
+  const preparees = await Promise.all(codes.map(async (code) => {
+    try { return await preparer(code); } catch (erreur) { return { genre: "erreur", code, titre: "", erreur }; }
+  }));
+  preparees.sort((a, b) => ORDRE.indexOf(a.genre) - ORDRE.indexOf(b.genre));   // tri stable : l'ordre du catalogue est gardé
+  if (CODE === null || CODE === "kit") etat.disponibles.push("kit");
+  let titreCourant = null;
+  for (const p of preparees) {
+    if (p.inconnu || p.erreur) {
+      etat.erreurs++;
+      if (LISTE) continue;
+      const { section } = nouvelleCase(p.code, p.titre);
+      section.append(fabriquer("p", "erreur", p.inconnu ? "Code inconnu : ni une pièce du kit, ni un code du catalogue (js/catalogue-blocs.js)." : `Panne au chargement : ${p.erreur && p.erreur.message}`));
+      console.error(p.code, p.inconnu ? "code inconnu" : p.erreur);
+      continue;
+    }
+    if (p.absent) {
+      etat.absents.push(p.code);
+      if (!LISTE && CODE !== null) nouvelleCase(p.code, p.titre).section.append(fabriquer("p", "manque", `Pas encore disponible : ${p.absent}.`));
+      continue;
+    }
+    etat.disponibles.push(p.code);
+    if (LISTE) continue;
+    if (CODE === null && p.genre !== titreCourant) {
+      titreCourant = p.genre;
+      planche.append(fabriquer("h1", "section", TITRES_SECTIONS[p.genre]));
+    }
+    const { section, colonne, info } = nouvelleCase(p.code, p.titre);
+    try {
+      info.textContent = p.rendre(colonne) || "";
+      etat.rendus++;
+    } catch (erreur) {
+      etat.erreurs++;
+      console.error(p.code, erreur);
+      section.append(fabriquer("pre", "erreur", `Erreur : ${erreur && erreur.message}`));
+    }
+  }
+  if (CODE === null && !LISTE && etat.absents.length) {
+    planche.append(fabriquer("p", "absents", `Pas encore disponibles (${etat.absents.length}) : ${etat.absents.join(", ")}.`));
+  }
+} catch (erreur) {
+  etat.erreurs++;
+  console.error(erreur);
+  planche.append(fabriquer("pre", "erreur", `Planche impossible : ${erreur && erreur.message}`));
+}
+
+// Les polices d'abord (Outfit, quatre graisses) : le texte des dessins est mesuré et photographié avec la vraie police.
+try {
+  await Promise.all([400, 500, 600, 700].map((graisse) => document.fonts.load(`${graisse} 12px Outfit`, "AÉéàçŒ")));
+  await document.fonts.ready;
+} catch (erreur) { console.error(erreur); }
+for (const colonne of document.querySelectorAll(".colonne")) {
+  const premier = colonne.querySelector("svg");
+  if (premier) etat.mesures.push(Math.round(premier.getBoundingClientRect().width * 100) / 100);
+}
+window.scrollTo(0, 0);
+publier();
+document.title = "pret";
+</script>
+</body>
+</html>
