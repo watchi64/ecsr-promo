@@ -130,7 +130,7 @@ export const CATALOGUE = {
   voyants: { bloc: "dessin", module: "voyants", titre: "Les voyants et leur couleur",
     legendeModele: "Rouge : s'arrêter dès que possible en sécurité. Orange : faire contrôler sans attendre. Vert ou bleu : information.", cadre: [320, 380] },
   "tour-vehicule": { bloc: "dessin", module: "dessus", titre: "Le tour du véhicule",
-    legendeModele: "Toujours le même parcours : extérieur, capot, habitacle.", cadre: [320, 260] },
+    legendeModele: "Toujours le même parcours : extérieur, capot, habitacle.", cadre: [320, 240] },
   capot: { bloc: "dessin", module: "entretien", titre: "Sous le capot",
     legendeModele: "La disposition varie selon les modèles.", cadre: [320, 240] },
   niveaux: { bloc: "dessin", module: "entretien", titre: "Lire un niveau",
@@ -158,11 +158,11 @@ export const CATALOGUE = {
   pedales: { bloc: "dessin", module: "poste", titre: "Les pédales et les pieds",
     legendeModele: "Pied gauche : embrayage. Pied droit : frein ou accélérateur.", cadre: [320, 200] },
   "roues-trottoir": { bloc: "dessin", module: "dessus", titre: "Immobiliser en pente",
-    legendeModele: "En pente, roues braquées vers le trottoir.", cadre: [320, 220] },
+    legendeModele: "En pente, roues braquées vers le trottoir.", cadre: [320, 240] },
 
   // C1.3
   "sous-survirage": { bloc: "dessin", module: "dessus", titre: "Sous-virage et survirage",
-    legendeModele: "Sous-virage : la voiture tire tout droit. Survirage : l'arrière chasse.", cadre: [320, 230] },
+    legendeModele: "Sous-virage : la voiture tire tout droit. Survirage : l'arrière chasse.", cadre: [320, 290] },
   "mains-volant": { bloc: "dessin", module: "poste", titre: "Tenir le volant",
     legendeModele: "Mains à 9 h et 3 h (ou 10 h 10), pouces sur la jante.", cadre: [320, 200] },
   "tirer-glisser": { bloc: "scene", module: "poste", titre: "Tourner en tirer-glisser",
