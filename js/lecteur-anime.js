@@ -9,6 +9,11 @@
  * js/geste-moteur.js pour les gestes. Règles pures : js/lecteur-anime-regles.js.
  *
  * Image figée (`fige` vrai) : pas à pas, pause, fin de lecture, animations réduites.
+ *
+ * Contrat de ce que reçoit monterLecteur (le lecteur ne le vérifie pas ; pour les gestes, js/geste-regles.js le contrôle) :
+ * `etapes` compte au moins une étape, [{ t }] aux instants strictement croissants, la première à 0 ; `duree` dépasse
+ * l'instant de la dernière étape ; `vitesseLecture` est un nombre fini strictement positif. Hors de ce contrat, une
+ * lecture peut ne jamais finir ou une étape ne pas s'afficher.
  */
 import { facteurLecture, SEUILS_VISIBILITE, actionVisibilite, etapeA } from "./lecteur-anime-regles.js?v=20261013a";
 
@@ -87,8 +92,14 @@ export function monterLecteur({ racine, conteneur, duree, etapes, vitesseLecture
   function pause() { arreter(); dessiner(t); majBouton(); }
   function rejouer() { arreter(); t = 0; dessiner(0); jouer(); }
   function allerEtape(i) { dejaVu = true; arreter(); t = etapes[i].t; dessiner(t); majBouton(); if (apresEtape) apresEtape(i); }
-  // Image figée à un instant quelconque (planche de revue, captures).
-  function allerA(instant) { dejaVu = true; arreter(); t = Math.max(0, Math.min(duree, instant)); dessiner(t); majBouton(); }
+  // Image figée à un instant quelconque (planche de revue, captures), ramené dans [0, duree]. Un instant qui n'est pas un
+  // nombre fini (NaN, undefined, Infinity, une chaîne) est ignoré : l'appel ne change rien, la lecture en cours continue.
+  // Il ne le ramène pas à 0, ce qui arrêterait une lecture et rembobinerait le schéma pour une faute d'appel, et surtout
+  // il ne pose jamais t = NaN, que plus aucune lecture ne ferait atteindre la durée.
+  function allerA(instant) {
+    if (!Number.isFinite(instant)) return;
+    dejaVu = true; arreter(); t = Math.max(0, Math.min(duree, instant)); dessiner(t); majBouton();
+  }
   function detruire() { arreter(); if (observateur) observateur.disconnect(); majBouton(); }
 
   lecture.addEventListener("click", () => (enCours ? pause() : jouer()));
