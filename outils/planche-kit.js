@@ -16,11 +16,13 @@
  */
 
 const LARGEUR = 320;
+// Hauteur du cadre de chaque pièce : écrite une seule fois, lue par la fonction qui la dessine et par PIECES_KIT qui l'annonce.
+const HAUTEUR_PAIRE = 200, HAUTEUR_ETIQUETTES = 190;
 
 // Paire juste et faux : deux cartes côte à côte, séparées d'une marge, chacune avec un objet d'essai (un disque et son moyeu).
 function paire({ kit, svg }) {
   const { CHARTE, cadre, vignette, etiquette, fleche } = kit, { n } = svg;
-  const HAUTEUR = 200, MARGE = 8, GOUTTIERE = 8;
+  const HAUTEUR = HAUTEUR_PAIRE, MARGE = 8, GOUTTIERE = 8;
   const carte = { largeur: (LARGEUR - 2 * MARGE - GOUTTIERE) / 2, hauteur: HAUTEUR - 2 * MARGE };
   const gauche = MARGE, droite = MARGE + carte.largeur + GOUTTIERE;
   const RAYON = 34, PART_MOYEU = 1 / 4, DESCENTE = 104;   // disque d'essai, son moyeu (un quart du rayon) ; son centre sous le haut de la carte
@@ -47,7 +49,7 @@ function paire({ kit, svg }) {
 // Étiquettes aux trois ancrages (à gauche du filet, à droite, sous l'objet sur deux lignes), flèche droite et flèche courbe.
 function etiquettes({ kit, svg }) {
   const { CHARTE, cadre, etiquette, fleche, texte } = kit, { n } = svg;
-  const HAUTEUR = 190;
+  const HAUTEUR = HAUTEUR_ETIQUETTES;
   const objet = { largeur: 100, hauteur: 52, rayon: 8, centreY: 70 };
   const gauche = (LARGEUR - objet.largeur) / 2, droite = gauche + objet.largeur;
   const haut = objet.centreY - objet.hauteur / 2, bas = haut + objet.hauteur, milieu = LARGEUR / 2;
@@ -72,6 +74,6 @@ function etiquettes({ kit, svg }) {
 }
 
 export const PIECES_KIT = [
-  { code: "kit-paire", titre: "Paire juste et faux : vignettes, pastilles, étiquette, flèche", cadre: [LARGEUR, 200], construire: paire },
-  { code: "kit-etiquettes", titre: "Étiquettes aux trois ancrages, flèche droite et flèche courbe", cadre: [LARGEUR, 190], construire: etiquettes },
+  { code: "kit-paire", titre: "Paire juste et faux : vignettes, pastilles, étiquette, flèche", cadre: [LARGEUR, HAUTEUR_PAIRE], construire: paire },
+  { code: "kit-etiquettes", titre: "Étiquettes aux trois ancrages, flèche droite et flèche courbe", cadre: [LARGEUR, HAUTEUR_ETIQUETTES], construire: etiquettes },
 ];

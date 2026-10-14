@@ -26,6 +26,9 @@
   data-erreurs. Fin de la construction : document.title vaut « pret » et le corps porte data-largeur, data-hauteur (pixels),
   data-rendus, data-absents, data-erreurs, data-mesures (largeur réelle du premier SVG de chaque case) et data-disponibles.
 
+  La planche lève la borne de hauteur des scènes (72 % de l'écran dans le lecteur) pour ne jamais dépendre de la fenêtre : une
+  scène de route haute y paraît plus grande que sur un téléphone. Les dessins fixes n'ont plus cette borne nulle part.
+
   Le jeton de cache des modules est lu dans index.html : scripts/cache-bust.js ne réécrit pas ce dossier.
 -->
 <link rel="stylesheet" href="../css/fonts.css">
@@ -49,9 +52,9 @@
   .manque { color: var(--text-muted); background: var(--bg-soft); }
   .erreur { color: var(--c-stop); background: var(--c-stop-soft); border: 1px solid var(--c-stop); white-space: pre-wrap; font-family: var(--font); }
   .absents { margin: 0; max-width: 640px; font-size: 12px; line-height: 1.4; color: var(--text-muted); }
-  /* Le lecteur borne la hauteur d'un schéma à 72 % de l'écran : la planche, elle, ne dépend jamais de la fenêtre. */
+  /* Le lecteur borne la hauteur d'une scène animée à 72 % de l'écran : la planche lève cette borne, pour ne jamais dépendre de la fenêtre. */
   .planche .dessin-bloc, .planche .scene-bloc { margin: 0; }
-  .planche .dessin-svg, .planche .scene-svg, .planche .scene-svg.scene-reduite { max-width: none; max-height: none; }
+  .planche .scene-svg, .planche .scene-svg.scene-reduite { max-width: none; max-height: none; }
 </style>
 </head>
 <body>
@@ -133,13 +136,21 @@ function positionner(moteur, entree) {
   return `Étape ${i + 1} sur ${n} : ${entree.etapesModele[i]}${suffixe}`;
 }
 
+// Les quatre fichiers dont la planche ne peut pas se passer, chargés dans le try principal plus bas : une panne de l'un d'eux (404,
+// erreur de syntaxe) s'affiche sur la page, que le titre « pret » et data-erreurs rapportent, au lieu d'arrêter le script avant.
+let CATALOGUE = {}, kit = null, svg = null, PIECES_KIT = [];
+async function exiger(fichier, dossier = "js/") {
+  try {
+    const module = dossier === "js/" ? await charger(fichier) : await import(adresse(`./${fichier}`));
+    if (!module) throw new Error("introuvable (404)");
+    return module;
+  } catch (erreur) {
+    throw new Error(`${dossier}${fichier} : ${erreur && erreur.message}`);   // la page dit quel fichier, pas seulement la faute
+  }
+}
+
 // Ce qu'il faut pour montrer un code : { genre, code, titre, rendre(colonne) → texte d'information }, ou { absent: raison } quand
 // le module ou le registre n'a pas encore le code. Mêmes appels que le lecteur (js/cours-blocs.js).
-const { CATALOGUE } = await charger("catalogue-blocs.js");
-const kit = await charger("dessins-kit.js");
-const svg = await charger("dessin-svg.js");
-const { PIECES_KIT } = await import(adresse("./planche-kit.js"));
-
 async function preparer(code) {
   const piece = PIECES_KIT.find((p) => p.code === code);
   if (piece) {
@@ -180,6 +191,10 @@ const TITRES_SECTIONS = { kit: "Kit", dessin: "Dessins", geste: "Gestes animés"
 const ORDRE = Object.keys(TITRES_SECTIONS);
 
 try {
+  ({ CATALOGUE } = await exiger("catalogue-blocs.js"));
+  kit = await exiger("dessins-kit.js");
+  svg = await exiger("dessin-svg.js");
+  ({ PIECES_KIT } = await exiger("planche-kit.js", "outils/"));
   const codes = CODE === null ? [...PIECES_KIT.map((p) => p.code), ...Object.keys(CATALOGUE)]
     : CODE === "kit" ? PIECES_KIT.map((p) => p.code) : [CODE];
   const preparees = await Promise.all(codes.map(async (code) => {
