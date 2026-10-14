@@ -132,7 +132,7 @@ export const CATALOGUE = {
   "tour-vehicule": { bloc: "dessin", module: "dessus", titre: "Le tour du véhicule",
     legendeModele: "Toujours le même parcours : extérieur, capot, habitacle.", cadre: [320, 260] },
   capot: { bloc: "dessin", module: "entretien", titre: "Sous le capot",
-    legendeModele: "La disposition varie selon les modèles.", cadre: [320, 240] },
+    legendeModele: "La disposition varie selon les modèles.", cadre: [320, 260] },
   niveaux: { bloc: "dessin", module: "entretien", titre: "Lire un niveau",
     legendeModele: "Entre mini et maxi, sur sol plat.", cadre: [320, 200] },
   pneu: { bloc: "dessin", module: "entretien", titre: "Contrôler un pneu",
