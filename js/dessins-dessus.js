@@ -30,6 +30,16 @@ export const RECOPIE_SCENES = Object.freeze({
   regard: Object.freeze({ portee: 22, ouverture: 16, opacite: 0.4 }),
 });
 
+/** Valeurs du kit (js/dessins-kit.js) qu'il n'exporte pas, recopiées : ligne de base sous le milieu des chiffres et des capitales
+ *  d'Outfit (MILIEU_CAPITALES, en tailles de texte) ; rayon des coins d'une vignette (RAYON_VIGNETTE, unités) ; joints du capot de
+ *  la voiture vue du dessus (DESSUS.capot), du bord arrière du capot, côté pare-brise, à son bord avant, et la distance de chacun à
+ *  l'axe (m). tests/dessins-dessus.test.mjs vérifie la recopie ; la tâche d'intégration les exportera du kit. */
+export const RECOPIE_KIT = Object.freeze({
+  milieuCapitales: 0.35,
+  rayonVignette: 8,
+  jointsCapot: Object.freeze({ arriere: Object.freeze([1.32, 0.74]), avant: Object.freeze([1.94, 0.68]) }),
+});
+
 // ===== Géométrie plane =====
 
 const RAD = Math.PI / 180;
@@ -203,13 +213,14 @@ function virageAGauche({ centre, rayon, entree, sortie, voie, echelle, fenetre, 
 }
 const PAS_TRAIT = 2;   // degrés : un trait de l'axiale suit l'arc à mieux qu'un millième d'unité près
 
-// Repère numéroté d'une étape : un disque clair cerclé de foncé et son numéro, comme les repères des scènes.
+// Repère numéroté d'une étape : un disque clair cerclé de foncé, son numéro au centre, comme les repères des étapes des scènes
+// (disque blanc cerclé de #1F2924, le texte de la charte) ; le numéro est en Outfit 700, la police des dessins, et le cercle d'un
+// trait moyen, pour se lire à côté des étiquettes.
 const REPERE = { rayon: 7.5, taille: CHARTE.tailles.etiquette, graisse: 700, trait: CHARTE.traits.moyen };
-const MILIEU_CAPITALES = 0.35;   // ligne de base sous le milieu des chiffres et des capitales d'Outfit, en tailles de texte
 function repere(numero, [x, y]) {
   return n("g", { "data-r": `repere-${numero}`, "data-x": x, "data-y": y },
     n("circle", { cx: x, cy: y, r: REPERE.rayon, fill: CHARTE.carte, stroke: CHARTE.texte, "stroke-width": REPERE.trait }),
-    texte(x, y + MILIEU_CAPITALES * REPERE.taille, String(numero), { taille: REPERE.taille, ancrage: "middle", graisse: REPERE.graisse }));
+    texte(x, y + RECOPIE_KIT.milieuCapitales * REPERE.taille, String(numero), { taille: REPERE.taille, ancrage: "middle", graisse: REPERE.graisse }));
 }
 
 // Points du tracé d'une pièce du kit (M ... L ... Z), dans le repère local de la voiture.
@@ -251,46 +262,49 @@ function pointAuBout(contour, vers, retrait) {
 // ===== Tour du véhicule =====
 // Vue du dessus, cap 0 : l'avant à droite du cadre, le côté du conducteur (gauche) en haut. Mètres dans le repère de la
 // voiture : x vers l'avant, y vers sa droite ; un angle d'arc part de l'avant et tourne vers la droite de la voiture.
+// Le parcours suit l'ordre du cours (thème 25) : l'avant, un côté, l'arrière, l'autre côté, puis le capot, puis l'habitacle. Il
+// part de devant le phare droit et longe l'avant vers la gauche : le côté du conducteur vient d'abord. Revenu par le flanc droit, il
+// coupe le coin avant droit, plus près de la caisse, pour gagner le devant du capot, puis repart le long du flanc du conducteur
+// jusqu'à sa portière : une spirale du dehors vers la voiture, qui ne repasse jamais sur le tour.
 const TOUR = {
   echelle: 36,              // unités par mètre
-  centre: [150, 132],       // centre de la voiture : un peu à gauche, pour loger « Capot » à droite du repère 2
+  centre: [130, 128],       // centre de la voiture : à gauche du cadre, pour loger à droite les noms des repères 1 et 2
   ecartTour: 0.75,          // m : du tour extérieur à la caisse
-  ecartPortiere: 0.33,      // m : du chemin vers la portière à la caisse, au-delà du rétroviseur (1,02 m de l'axe)
-  depart: -45,              // degrés : départ du tour, au milieu du coin avant gauche
-  raccord: 0.25,            // m : tangentes du raccord, devant le capot, entre le tour et le chemin vers la portière
+  // m : du chemin intérieur à la caisse (devant le capot, puis le long du flanc du conducteur), au-delà du rétroviseur (1,02 m de
+  // l'axe) et 0,42 m en dedans du tour extérieur (15 unités).
+  ecartInterieur: 0.33,
   // m, en avant de l'œil : le chemin quitte le flanc à `entree`, puis gagne la place du conducteur en biais (point de contrôle de
   // la courbe à `controleEntree`) : il y arrive par l'avant et laisse libre le côté où part l'étiquette « Habitacle ».
   entree: 0.7, controleEntree: 0.55,
   pointille: { epaisseur: CHARTE.traits.appuye, pas: 6 },
-  pasCourbe: 12,            // segments d'une courbe de raccord
+  pasCourbe: 12,            // segments de la courbe qui gagne la place du conducteur
   fleche: 10,               // unités : longueur d'une flèche du sens de marche
+  ecartFleche: 4,           // unités : du disque du repère 1 à la flèche qui part de lui le long de l'avant
   ouvertureCapot: 60,       // degrés : capot relevé, tenu par sa béquille
   nom: 4,                   // unités : du disque d'un repère au texte de son nom
-  // Étiquettes : ancre de chacune, en unités depuis le centre de la voiture. En haut, « Habitacle » et les balais ; en bas, sur
-  // une même ligne, l'arrière, les pneus, les vitres et l'avant ; « Extérieur » au-dessus de son repère, à `dessusRepere` de son
-  // centre.
-  ancres: { habitacle: [-38, -78], balais: [55, -82], feuxArriere: [-92, 74], pneus: [-52, 68], vitres: [10, 68], feuxAvant: [88, 74] },
-  dessusRepere: 18.5,
+  // Étiquettes et nom du repère 2 : ancre de chacun, en unités depuis le centre de la voiture. En haut, « Habitacle » et les
+  // balais ; en bas, sur une même ligne, l'arrière, les pneus, les vitres et l'avant ; à droite, « Capot », au-dessus du nom du
+  // repère 1, écrit à droite de son disque.
+  ancres: { habitacle: [-38, -78], balais: [55, -82], feuxArriere: [-98, 70], pneus: [-52, 70], vitres: [10, 70], feuxAvant: [88, 74],
+    capot: [118, -32] },
   retraitPoint: 1,          // unités : du contour de la pièce désignée au point de son étiquette, vers l'intérieur
 };
-// Joints du capot de la voiture du kit (DESSUS.capot de js/dessins-kit.js, non exporté) : du bord arrière du capot, côté
-// pare-brise, à son bord avant ; distance de chaque joint à l'axe. tests/dessins-dessus.test.mjs vérifie que le compartiment
-// ouvert s'appuie exactement sur les joints que dessine le kit.
-const JOINTS_CAPOT = { arriere: [1.32, 0.74], avant: [1.94, 0.68] };
+// Noms des trois temps du tour, les mots du cours (C1.1), dans son ordre.
+const NOMS_REPERES = ["Extérieur", "Capot", "Habitacle"];
 // Compartiment moteur, sombre comme celui du dessin « capot » (js/dessins-entretien.js).
 const COMPARTIMENT = "#2B302D";
 
 /** Compartiment moteur découvert et capot relevé, dans le repère local de la voiture (le groupe a la pose de la voiture) : le
- *  capot tourne autour de sa charnière, son bord arrière, côté pare-brise ; vu du dessus, il ne s'étend plus vers l'avant que de
- *  sa longueur multipliée par le cosinus de l'ouverture, et il cache l'arrière du compartiment. */
+ *  capot tourne autour de sa charnière, son bord arrière, côté pare-brise ; vu du dessus, chacun de ses points garde sa distance à
+ *  l'axe et ne s'avance plus que de sa distance à la charnière multipliée par le cosinus de l'ouverture : son bord avant relevé
+ *  garde la largeur de son bord avant fermé, et le capot cache l'arrière du compartiment. */
 function capotOuvert({ x, y, cap, echelle, ouverture }) {
-  const { arriere: [xa, ya], avant: [xv, yv] } = JOINTS_CAPOT;
+  const { arriere: [xa, ya], avant: [xv, yv] } = RECOPIE_KIT.jointsCapot;
   const m = ([mx, my]) => [mx * echelle, my * echelle];
-  const demi = (px) => ya + ((px - xa) / (xv - xa)) * (yv - ya);   // demi-largeur du capot à l'abscisse px
   const portee = xa + (xv - xa) * Math.cos(ouverture * RAD);
   return n("g", { "data-r": "capot-ouvert", "data-angle": ouverture, transform: `translate(${ecrit(x)} ${ecrit(y)}) rotate(${ecrit(cap)})` },
     n("path", { d: trace([[xa, -ya], [xv, -yv], [xv, yv], [xa, ya]].map(m)), fill: COMPARTIMENT, "data-r": "compartiment" }),
-    n("path", { d: trace([[xa, -ya], [portee, -demi(portee)], [portee, demi(portee)], [xa, ya]].map(m)), fill: TEINTES_ROUTE.eleve,
+    n("path", { d: trace([[xa, -ya], [portee, -yv], [portee, yv], [xa, ya]].map(m)), fill: TEINTES_ROUTE.eleve,
       stroke: TEINTES_ROUTE.eleveBord, "stroke-width": CHARTE.traits.fin, "stroke-linejoin": "round", "data-r": "capot-releve" }));
 }
 
@@ -302,30 +316,33 @@ function tourVehicule() {
   const versCadre = ([mx, my]) => [pose.x + mx * E, pose.y + my * E];
   const demiL = VOITURE.longueur / 2, demiW = VOITURE.largeur / 2, r = VOITURE.rayon;
   const coin = (sx, sy) => [sx * (demiL - r), sy * (demiW - r)];   // centre de l'arrondi d'un coin de la caisse
+  const R = r + T.ecartTour, Ri = r + T.ecartInterieur;
 
-  // Tour extérieur, à `ecartTour` de la caisse : du milieu du coin avant gauche, le long du flanc du conducteur vers l'arrière,
-  // l'arrière, le flanc droit, l'avant, jusque devant le milieu du capot.
-  const R = r + T.ecartTour, devantCapot = [demiL + T.ecartTour, 0];
-  const exterieur = [...arc(coin(1, -1), R, T.depart, -QUART), ...arc(coin(-1, -1), R, -QUART, -2 * QUART),
-    ...arc(coin(-1, 1), R, 2 * QUART, QUART), ...arc(coin(1, 1), R, QUART, 0), devantCapot].map(versCadre);
-  // Puis l'habitacle : de devant le capot, plus près de la caisse, le long du flanc du conducteur jusqu'à la portière, puis à la
-  // place du conducteur, l'œil du conducteur de la voiture du kit.
-  const Rp = r + T.ecartPortiere, flanc = -(demiW + T.ecartPortiere);
+  // Tour extérieur, à `ecartTour` de la caisse : de devant le phare droit (au bout de la partie droite de l'avant), l'avant vers la
+  // gauche, le flanc du conducteur, l'arrière, puis le flanc droit jusqu'au droit du coin avant droit.
+  const exterieur = [[demiL + T.ecartTour, demiW - r], ...arc(coin(1, -1), R, 0, -QUART), ...arc(coin(-1, -1), R, -QUART, -2 * QUART),
+    ...arc(coin(-1, 1), R, 2 * QUART, QUART), [demiL - r, demiW + T.ecartTour]].map(versCadre);
+  // Puis le capot : du flanc droit, le chemin coupe le coin avant droit au plus court (un quart de cercle de rayon Ri, tangent au
+  // tour et au chemin intérieur) et gagne le devant du capot, à `ecartInterieur` du nez, dans l'axe.
+  const devantCapot = [demiL + T.ecartInterieur, 0];
+  const capot = [...arc([demiL - r, demiW + T.ecartTour - Ri], Ri, QUART, 0), devantCapot].map(versCadre);
+  // Puis l'habitacle : de devant le capot, le long du nez vers la gauche, le coin avant gauche et le flanc du conducteur, à
+  // `ecartInterieur` de la caisse, jusqu'à sa portière ; puis la place du conducteur, l'œil du conducteur de la voiture du kit.
+  const flanc = -(demiW + T.ecartInterieur);
   const oeil = reperesDessus(pose).oeil, oeilM = [VOITURE.oeil.avant, -VOITURE.oeil.gauche];
-  const raccord = bezier([devantCapot, plus(devantCapot, [0, -T.raccord]), [demiL + T.ecartPortiere, -(demiW - r) + T.raccord],
-    [demiL + T.ecartPortiere, -(demiW - r)]], T.pasCourbe);
   const verseSiege = bezier([[oeilM[0] + T.entree, flanc], [oeilM[0] + T.controleEntree, flanc], oeilM], T.pasCourbe);
-  const habitacle = [...raccord, ...arc(coin(1, -1), Rp, 0, -QUART).slice(1), ...verseSiege].map(versCadre);
+  const habitacle = [devantCapot, ...arc(coin(1, -1), Ri, 0, -QUART), ...verseSiege].map(versCadre);
   habitacle[habitacle.length - 1] = oeil;
-  const parcours = [...exterieur, ...habitacle.slice(1)];
+  const parcours = [...exterieur, ...capot.slice(1), ...habitacle.slice(1)];
+  const reperes = [exterieur[0], habitacle[0], oeil];
 
-  // Flèches du sens de marche du tour, la pointe au milieu du flanc gauche, de l'arrière et du flanc droit ; le chemin vers la
-  // portière n'en a pas : il va du repère 2 au repère 3.
+  // Flèches du sens de marche du tour : la première part du repère 1 le long de l'avant ; les autres ont leur pointe au milieu du
+  // flanc gauche, de l'arrière et du flanc droit. Les chemins du capot et de l'habitacle n'en ont pas : ils vont d'un repère au
+  // suivant.
+  const premiere = morceau(parcours, REPERE.rayon + T.ecartFleche, REPERE.rayon + T.ecartFleche + T.fleche);
   const pointes = [[0, -(demiW + T.ecartTour)], [-(demiL + T.ecartTour), 0], [0, demiW + T.ecartTour]].map(versCadre);
-  const fleches = pointes.map((p) => {
-    const s = abscisse(parcours, p);
-    return fleche(morceau(parcours, s - T.fleche, s), { couleur: CHARTE.accentFort, epaisseur: CHARTE.traits.appuye, role: "sens-parcours" });
-  });
+  const fleches = [premiere, ...pointes.map((p) => { const s = abscisse(parcours, p); return morceau(parcours, s - T.fleche, s); })]
+    .map((trait) => fleche(trait, { couleur: CHARTE.accentFort, epaisseur: CHARTE.traits.appuye, role: "sens-parcours" }));
 
   const voiture = voitureDessus({ ...pose, retroviseurs: true, roues: true });
   const vers = localVersCadre(pose), A = Object.fromEntries(Object.entries(T.ancres).map(([k, [dx, dy]]) => [k, [pose.x + dx, pose.y + dy]]));
@@ -334,25 +351,28 @@ function tourVehicule() {
   const contour = (role) => pointsDuTrace(trouverRole(voiture, role)).map(vers);
   const balai = trouverRole(voiture, "essuie-glaces").enfants[0].attributs;
   const lab = (role, cible, ancre, lignes, ancrage) => etiquette({ cible, ancre, lignes, ancrage, role: `etiquette-${role}` });
-  const reperes = [exterieur[0], exterieur[exterieur.length - 1], oeil];
+  // Nom d'un repère au bout d'un filet : le filet part du bord de son disque, du côté de son ancre.
+  const nomAuFilet = (k, ancre, ancrage) => etiquette({ cible: plus(reperes[k - 1], fois(direction(angleDe(reperes[k - 1], ancre)), REPERE.rayon)),
+    ancre, lignes: [NOMS_REPERES[k - 1]], ancrage, role: `nom-${k}` });
   return cadre({ largeur: L, hauteur: H, titre: CATALOGUE[code].titre,
-    description: "La voiture vue du dessus et le parcours, toujours le même : 1, l'extérieur, tout autour de la voiture (feux et "
-      + "clignotants, pneus, balais d'essuie-glace, vitres, feux et plaque) ; 2, le capot ouvert ; 3, l'habitacle, à la place du conducteur." },
+    description: "La voiture vue du dessus et le parcours, toujours le même : 1, l'extérieur, en commençant par l'avant, puis un côté, "
+      + "l'arrière et l'autre côté (feux et clignotants, pneus, balais d'essuie-glace, vitres, feux et plaque) ; 2, le capot ouvert ; "
+      + "3, l'habitacle, à la place du conducteur." },
   voiture,
   capotOuvert({ ...pose, ouverture: T.ouvertureCapot }),
   pointille(exterieur, { couleur: CHARTE.accentFort, ...T.pointille, role: "parcours-exterieur", lisere: true }),
+  pointille(capot, { couleur: CHARTE.accentFort, ...T.pointille, role: "parcours-capot", lisere: true }),
   pointille(habitacle, { couleur: CHARTE.accentFort, ...T.pointille, role: "parcours-habitacle", lisere: true }),
   fleches,
   lab("feux-avant", pointVers(contour("phare-droit"), A.feuxAvant, T.retraitPoint), A.feuxAvant, ["Feux et", "clignotants"], "start"),
   lab("pneus", pointVers(contourRoue(trouverRole(voiture, "roue-arriere-droite"), pose), A.pneus, T.retraitPoint), A.pneus, ["Pneus"], "middle"),
   lab("vitres", pointVers(contour("vitre-avant-droite"), A.vitres, T.retraitPoint), A.vitres, ["Vitres"], "middle"),
-  lab("feux-arriere", pointAuBout(contour("feu-droit"), pose.cap, T.retraitPoint), A.feuxArriere, ["Feux et", "plaque"], "end"),
+  lab("feux-arriere", pointAuBout(contour("feu-droit"), pose.cap, T.retraitPoint), A.feuxArriere, ["Feux et", "plaque"], "middle"),
   etiquette({ cible: vers([balai.x1, balai.y1]), ancre: A.balais, lignes: ["Balais", "d'essuie-glace"], ancrage: "middle", role: "etiquette-balais" }),
   reperes.map((p, i) => repere(i + 1, p)),
-  texte(reperes[0][0], reperes[0][1] - T.dessusRepere, "Extérieur", { ancrage: "middle", role: "nom-1" }),
-  texte(reperes[1][0] + REPERE.rayon + T.nom, reperes[1][1] + MILIEU_CAPITALES * CHARTE.tailles.etiquette, "Capot", { role: "nom-2" }),
-  etiquette({ cible: plus(oeil, fois(direction(angleDe(oeil, A.habitacle)), REPERE.rayon)), ancre: A.habitacle, lignes: ["Habitacle"],
-    ancrage: "end", role: "nom-3" }));
+  texte(reperes[0][0] + REPERE.rayon + T.nom, reperes[0][1] + RECOPIE_KIT.milieuCapitales * CHARTE.tailles.etiquette, NOMS_REPERES[0], { role: "nom-1" }),
+  nomAuFilet(2, A.capot, "start"),
+  nomAuFilet(3, A.habitacle, "end"));
 }
 
 // ===== Roues braquées vers le trottoir en pente =====
@@ -360,14 +380,15 @@ function tourVehicule() {
 // est en bas. En dessous, la même voiture de profil, vue du trottoir (côté droit, avant à droite), garée dans la descente.
 const PENTE = {
   marge: 8,
-  plan: { echelle: 32, hauteur: 124, rayon: 8, axeVoiture: 52 },   // unités par mètre ; ordonnée du centre de la voiture
+  // Unités par mètre ; hauteur et rayon des coins de la vue du dessus (celui d'une vignette du kit) ; ordonnée du centre de la voiture.
+  plan: { echelle: 32, hauteur: 124, rayon: RECOPIE_KIT.rayonVignette, axeVoiture: 52 },
   braquage: 30,             // degrés : roues avant braquées vers le trottoir, nettement, en deçà de la butée (40)
   ancreRoues: [200, 96],    // ancre de l'étiquette des roues, sur le trottoir
   roue: 0.03,               // m : point de l'étiquette, en deçà du bout arrière de la roue braquée (une unité), sur son axe
   nomTrottoir: [18, 116],   // départ du mot « Trottoir »
   // Profil, à l'échelle de la vue du dessus : haut et hauteur de sa vignette (unités) ; point du sol sous le milieu de la
   // voiture ; pente de la rue (pour cent) ; épaisseur de la chaussée montrée sous sa surface (m).
-  profil: { haut: 140, hauteur: 92, rayon: 8, sol: [160, 198], pourcent: 12, epaisseurSol: 0.3 },
+  profil: { haut: 140, hauteur: 92, rayon: RECOPIE_KIT.rayonVignette, sol: [160, 198], pourcent: 12, epaisseurSol: 0.3 },
   // Flèche de la pente, au-dessus du sol, devant la voiture : de son départ à sa pointe le long de la pente (m), et sa hauteur
   // au-dessus du sol (m) ; le texte « En pente » au-dessus d'elle (unités).
   flechePente: { debut: 3.0, fin: 4.4, hauteur: 1.0 },
@@ -384,7 +405,8 @@ function rouesTrottoir() {
   const bordure = pose.y + (VOITURE.largeur / 2 + RECOPIE_SCENES.jeuStationnement) * E;
   const chaussee = dansFenetre(rectangle(0, 0, L, bordure), fenetre);
   const trottoir = dansFenetre(rectangle(0, bordure, L, H), fenetre);
-  const voiture = voitureDessus({ ...pose, retroviseurs: true, roues: true, braquage: P.braquage });
+  // Sans rétroviseurs : ils n'apprennent rien ici, et le gauche se poserait sur le bout arrière de la roue avant gauche braquée.
+  const voiture = voitureDessus({ ...pose, roues: true, braquage: P.braquage });
   const roue = trouverRole(voiture, "roue-avant-droite").attributs;
   const pointRoue = plus([Number(roue["data-x"]), Number(roue["data-y"])],
     fois(direction(pose.cap + P.braquage), -(VOITURE.roue.diametre / 2 - P.roue) * E));
@@ -419,44 +441,45 @@ function rouesTrottoir() {
 // ===== Sous-virage et survirage =====
 // Deux vignettes l'une sous l'autre, le même virage à gauche, vu du dessus : la voiture le prend dans la voie de droite (à
 // l'extérieur), la trajectoire voulue est l'axe de cette voie. Quatre positions de la voiture, tous les `pas` mètres, à partir
-// du décrochage : trois estompées, puis la position finale. Le virage est posé en creux (son centre au-dessus) et symétrique
-// autour des positions : on y entre en haut à gauche, on en sort en haut à droite. Angles polaires autour du centre du virage :
-// CREUX, le point le plus bas, sous le centre ; dans un virage à gauche, le cap vaut l'angle polaire moins un quart de tour.
+// du décrochage : trois estompées, puis la position finale. Le virage est posé en creux (son centre au-dessus) : on y entre en
+// haut à gauche, on en sort en haut à droite ; les huit voitures des deux vignettes sont centrées dans chacune. Angles polaires
+// autour du centre du virage : CREUX, le point le plus bas, sous le centre ; dans un virage à gauche, le cap vaut l'angle polaire
+// moins un quart de tour.
 const CREUX = QUART;
 const VIRAGE = {
-  echelle: 10.5,            // unités par mètre
+  echelle: 14,              // unités par mètre : une roue fait 9 unités de long, 9,6 px sur un téléphone
   rayonVoie: 16,            // m : axe de la voie de droite, la trajectoire voulue
   angle: 90,                // degrés dont le virage fait tourner la route
-  pas: 7.5,                 // m entre deux positions, le long de la trajectoire de la voiture
-  deriveFinale: 2.0,        // m : sous-virage, écart final de la voiture à la trajectoire voulue
+  pas: 5.5,                 // m entre deux positions, le long de la trajectoire de la voiture : sa longueur et 1 m d'intervalle
+  entree: 20,               // degrés : la première position, avant le creux du virage (angle polaire CREUX + entree)
+  // Sous-virage : rayon de la trajectoire de la voiture, en rayons de la trajectoire voulue. Elle la quitte tangentiellement à la
+  // première position et tourne trois fois moins qu'elle : elle tire tout droit.
+  elargissement: 3,
   braquage: -25,            // degrés : sous-virage, roues avant braquées à gauche, vers l'intérieur
   lacets: [0, 7, 16, 30],   // degrés : survirage, rotation de la caisse au-delà de la tangente, position par position
   opacites: [0.3, 0.45, 0.6, 1],
-  marge: 8, rayonPanneau: 8,
+  marge: 8, rayonPanneau: RECOPIE_KIT.rayonVignette,
   titre: { taille: CHARTE.tailles.titre, graisse: 600, haut: 0.8, bas: 0.25, ecart: 5 },   // haut et bas en tailles de texte
   entrePanneaux: 8,         // unités entre la première vignette et le titre de la seconde ; la hauteur des vignettes suit le cadre
   pointille: { epaisseur: CHARTE.traits.appuye, pas: 4.5 },
   // Étiquette de la trajectoire voulue (première vignette) : son point sur la trajectoire voulue, au milieu de l'intervalle entre
   // les deux premières positions, que rien ne cache ; son ancre (unités depuis le coin haut gauche de la vignette), son texte
   // centré dessous, dans le coin bas gauche, sur le trottoir extérieur.
-  trajectoire: { ancre: [55.5, 92.4], taille: CHARTE.tailles.petite },
+  trajectoire: { ancre: [75, 110], taille: CHARTE.tailles.petite },
 };
 
 /** Positions de la voiture dans les deux vignettes, en mètres, autour du centre du virage (repère du cadre) : sous-virage, la
- *  voiture quitte la trajectoire voulue tangentiellement à la première position et suit un cercle plus large, de rayon tel
- *  que son écart final vaille `deriveFinale` ; survirage, son centre reste sur la trajectoire voulue (son écart éventuel n'est
+ *  voiture quitte la trajectoire voulue tangentiellement à la première position et suit un cercle `elargissement` fois plus
+ *  large, la caisse dans l'axe de sa trajectoire ; survirage, son centre reste sur la trajectoire voulue (son écart éventuel n'est
  *  pas dessiné) et la caisse tourne au-delà de la tangente. */
 function positionsVirage() {
-  const V = VIRAGE, R = V.rayonVoie, s = V.lacets.map((_, k) => k * V.pas), sFinale = s[s.length - 1];
-  const premier = CREUX + sFinale / R / RAD / 2;   // angle polaire de la première position : positions symétriques autour du creux
-  const ecart = (R2) => Math.sqrt((R - R2) ** 2 + R2 ** 2 + 2 * R2 * (R - R2) * Math.cos(sFinale / R2)) - R - V.deriveFinale;
-  const rayon2 = Math.exp(annuler((x) => ecart(Math.exp(x)), Math.log(R), Math.log(R * RAYON_MAX)));
-  const centre2 = fois(direction(premier), R - rayon2);
+  const V = VIRAGE, R = V.rayonVoie, s = V.lacets.map((_, k) => k * V.pas);
+  const premier = CREUX + V.entree, rayon2 = V.elargissement * R;
+  const centre2 = fois(direction(premier), R - rayon2);   // sur le rayon de la première position, au-delà du centre du virage
   const sous = s.map((sk) => { const t = premier - sk / rayon2 / RAD; return { p: polaire(centre2, rayon2, t), cap: t - QUART }; });
   const sur = s.map((sk, k) => { const t = premier - sk / R / RAD; return { p: polaire([0, 0], R, t), cap: t - QUART - V.lacets[k] }; });
   return { premier, sous, sur };
 }
-const RAYON_MAX = 1000;   // le cercle du sous-virage reste plus serré que mille fois le virage : la dichotomie y trouve son rayon
 
 function sousSurvirage() {
   const code = "sous-survirage";
@@ -479,7 +502,7 @@ function sousSurvirage() {
     const route = virageAGauche({ centre, rayon: axe, entree: CREUX + V.angle / 2, sortie: CREUX - V.angle / 2, voie, echelle: E, fenetre,
       fenetreLignes: fenetreRentree(geometrie, V.pointille.epaisseur / 2) });
     const voulue = route.parallele(voie / 2);
-    const positions = poses.map(({ p, cap }, k) => n("g", { "data-r": `position-${k + 1}`, ...(k < 3 ? { opacity: V.opacites[k] } : {}) },
+    const positions = poses.map(({ p, cap }, k) => n("g", { "data-r": `position-${k + 1}`, ...(V.opacites[k] < 1 ? { opacity: V.opacites[k] } : {}) },
       voitureDessus({ x: centre[0] + p[0] * E, y: centre[1] + p[1] * E, cap, echelle: E, roues, braquage: roues ? V.braquage : 0 })));
     const etiquetteVoulue = rang === 0 && (() => {
       const cible = polaire(centre, V.rayonVoie * E, premier - V.pas / 2 / V.rayonVoie / RAD);
@@ -495,9 +518,9 @@ function sousSurvirage() {
       positions, etiquetteVoulue);
   };
   return cadre({ largeur: L, hauteur: H, titre: CATALOGUE[code].titre,
-    description: "Le même virage à gauche, deux fois, la trajectoire voulue en pointillé. Sous-virage : le train avant glisse, roues "
-      + "avant braquées, la voiture élargit et tire tout droit, vers l'extérieur. Survirage : le train arrière glisse, l'arrière chasse vers l'extérieur, "
-      + "la voiture tourne sur elle-même : amorce du tête-à-queue." },
+    description: "Le même virage à gauche, deux fois, la trajectoire voulue en pointillé. Sous-virage : le train avant glisse ; roues "
+      + "avant braquées, la voiture tire tout droit, élargit et sort de la chaussée, vers l'extérieur du virage. Survirage : le train arrière "
+      + "glisse, l'arrière chasse vers l'extérieur, la voiture tourne sur elle-même : amorce du tête-à-queue." },
   vignette(0, "sous-virage", "Sous-virage : le train avant glisse", sous, true),
   vignette(1, "survirage", "Survirage : le train arrière glisse", sur, false));
 }

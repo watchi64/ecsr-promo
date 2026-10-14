@@ -6,7 +6,7 @@ import * as famille from "../js/dessins-dessus.js";
 import { SOURCES } from "../sources/dessins-dessus.js";
 import { verifierDessin, verifierGeste } from "./aides-dessins.mjs";
 import { trouverRole, trouverTous, texteDe } from "../js/dessin-svg.js";
-import { VOITURE, reperesDessus } from "../js/dessins-kit.js";
+import { VOITURE, reperesDessus, LARGEUR_TELEPHONE, TRAIT_MIN_PX } from "../js/dessins-kit.js";
 import { GABARITS } from "../js/scene-geometrie.js";
 import { TEINTES } from "../js/scene-rendu.js";
 import { REGARD_PORTEE, REGARD_OUVERTURE } from "../js/scene-regard.js";
@@ -151,6 +151,24 @@ function distanceAuBord(p, forme) {
 }
 // Rayon du disque du point d'une étiquette, liseré compris : le plus grand cercle de l'étiquette.
 const rayonPoint = (etiquette) => Math.max(...trouverTous(etiquette, (x) => x.balise === "circle").map((c) => Number(c.attributs.r)));
+// Px d'un téléphone par unité du cadre (le cadre fait 320 unités de large).
+const PX = LARGEUR_TELEPHONE / 320;
+// Distance de deux segments, nulle s'ils se coupent.
+function distanceSegments(a, b, c, e) {
+  const cote = (p, q, r) => (q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0]);
+  if (cote(a, b, c) * cote(a, b, e) < 0 && cote(c, e, a) * cote(c, e, b) < 0) return 0;
+  return Math.min(distanceSegment(a, c, e), distanceSegment(b, c, e), distanceSegment(c, a, b), distanceSegment(e, a, b));
+}
+// Deux polygones se recouvrent-ils ? Un sommet de l'un dans l'autre, ou deux côtés qui se coupent.
+function seRecouvrent(P, Q) {
+  if (P.some((p) => dansPolygone(p, Q)) || Q.some((q) => dansPolygone(q, P))) return true;
+  return P.some((a, i) => Q.some((c, j) => distanceSegments(a, P[(i + 1) % P.length], c, Q[(j + 1) % Q.length]) === 0));
+}
+// Polygone de la caisse d'une voiture du kit vue du dessus, dans le cadre (rectangle, coins vifs).
+function caisseDe(voiture, pose) {
+  const c = trouverRole(voiture, "caisse").attributs;
+  return [[c.x, c.y], [c.x + c.width, c.y], [c.x + c.width, c.y + c.height], [c.x, c.y + c.height]].map(localVersCadre(pose));
+}
 // Un point d'étiquette cache au plus le quart de ce qu'il désigne (décision commune 3 du lot : le détail se reconnaît sur un
 // téléphone et le point ne le recouvre pas). Posé au milieu d'un phare, d'un feu ou d'une roue braquée, il en cacherait de 27 à
 // 31 % (mesures du 15/10/2026).
@@ -173,50 +191,118 @@ test("dessus : les valeurs reprises des scènes sont celles des scènes (voie, a
   assert.match(source, /fill: TEINTES\.regard, opacity: OPACITE_REGARD\.cone/);
 });
 
+test("dessus : les valeurs du kit recopiées ici, qu'il n'exporte pas, sont celles du kit", () => {
+  const r = famille.RECOPIE_KIT;
+  const source = readFileSync(new URL("../js/dessins-kit.js", import.meta.url), "utf8");
+  const valeur = (motif) => {
+    const m = source.match(motif);
+    assert.ok(m, `js/dessins-kit.js a changé : revoir la recopie (${motif})`);
+    return m.slice(1).map(Number);
+  };
+  assert.deepEqual([r.milieuCapitales], valeur(/const MILIEU_CAPITALES = ([\d.]+);/), "milieu des capitales d'Outfit");
+  assert.deepEqual([r.rayonVignette], valeur(/const RAYON_VIGNETTE = ([\d.]+);/), "rayon des coins d'une vignette");
+  assert.deepEqual([...r.jointsCapot.arriere, ...r.jointsCapot.avant], valeur(/capot: \[\[([\d.]+), ([\d.]+)\], \[([\d.]+), ([\d.]+)\]\]/),
+    "joints du capot de la voiture vue du dessus");
+});
+
 // ===== tour-vehicule =====
 
-test("tour-vehicule : le tour extérieur entoure la caisse, coins et rétroviseurs compris, à distance d'elle", () => {
+// Parcours du tour : le tour extérieur, puis le chemin qui gagne le devant du capot, puis celui de l'habitacle, bout à bout.
+function parcoursDe(d) {
+  const [exterieur, capot, habitacle] = ["parcours-exterieur", "parcours-capot", "parcours-habitacle"].map((r) => pointsDe(trouverRole(d, r)));
+  return { exterieur, capot, habitacle, tout: [...exterieur, ...capot.slice(1), ...habitacle.slice(1)] };
+}
+// Écart d'un point (mètres de la voiture) au rectangle de la caisse.
+const ecartCaisse = ([mx, my]) => Math.hypot(Math.max(Math.abs(mx) - GABARITS.voiture.longueur / 2, 0),
+  Math.max(Math.abs(my) - GABARITS.voiture.largeur / 2, 0));
+// Région d'un point (mètres de la voiture) autour d'elle : devant, derrière, à sa gauche, à sa droite, ou dans un coin.
+function region([mx, my]) {
+  const [dl, dw] = [GABARITS.voiture.longueur / 2, GABARITS.voiture.largeur / 2];
+  if (Math.abs(my) <= dw) return mx > dl ? "avant" : mx < -dl ? "arriere" : "caisse";
+  if (Math.abs(mx) <= dl) return my < 0 ? "gauche" : "droite";
+  return "coin";
+}
+
+test("tour-vehicule : le tour entoure la caisse, coins et rétroviseurs compris, à distance d'elle", () => {
   const d = dessin("tour-vehicule");
   const voiture = trouverRole(d, "voiture"), pose = poseDe(voiture);
-  const tour = pointsDe(trouverRole(d, "parcours-exterieur"));
-  const c = trouverRole(voiture, "caisse").attributs;
-  const coins = [[c.x, c.y], [c.x + c.width, c.y], [c.x + c.width, c.y + c.height], [c.x, c.y + c.height]].map(localVersCadre(pose));
-  for (const coin of coins) assert.ok(dansPolygone(coin, tour), `coin de la caisse hors du tour : ${coin}`);
+  const { exterieur, capot } = parcoursDe(d);
+  const tour = [...exterieur, ...capot.slice(1)];
+  for (const coin of caisseDe(voiture, pose)) assert.ok(dansPolygone(coin, tour), `coin de la caisse hors du tour : ${coin}`);
   for (const r of ["retroviseur-gauche", "retroviseur-droit"]) assert.ok(dansPolygone(point(trouverRole(voiture, r)), tour), r);
-  // On tourne autour de la voiture sans la frôler : chaque point du tour à 0,5 m au moins du rectangle de la caisse.
-  const demi = [GABARITS.voiture.longueur / 2, GABARITS.voiture.largeur / 2];
-  for (const p of tour) {
-    const [mx, my] = cadreVersMetres(pose)(p);
-    const ecart = Math.hypot(Math.max(Math.abs(mx) - demi[0], 0), Math.max(Math.abs(my) - demi[1], 0));
-    assert.ok(ecart >= 0.5, `point du tour à ${ecart.toFixed(2)} m de la caisse`);
+  // On tourne autour de la voiture sans la frôler : le tour extérieur à 0,5 m au moins du rectangle de la caisse ; le chemin qui
+  // gagne le devant du capot, plus près, à 0,25 m au moins (au-delà des rétroviseurs, 0,12 m hors de la caisse).
+  for (const p of exterieur) {
+    const e = ecartCaisse(cadreVersMetres(pose)(p));
+    assert.ok(e >= 0.5, `point du tour à ${e.toFixed(2)} m de la caisse`);
+  }
+  for (const p of capot) {
+    const e = ecartCaisse(cadreVersMetres(pose)(p));
+    assert.ok(e >= 0.25, `point du chemin du capot à ${e.toFixed(2)} m de la caisse`);
+  }
+});
+
+test("tour-vehicule : le tour suit l'ordre du cours : l'avant d'abord, un côté, l'arrière, l'autre côté ; puis le capot, puis l'habitacle", () => {
+  const d = dessin("tour-vehicule");
+  const pose = poseDe(trouverRole(d, "voiture"));
+  const { exterieur, capot, habitacle } = parcoursDe(d);
+  const enMetres = exterieur.map(cadreVersMetres(pose)), regions = enMetres.map(region);
+  assert.equal(regions[0], "avant", `le tour commence devant la voiture, pas ${regions[0]}`);
+  const troncons = regions.filter((r) => r !== "coin").filter((r, i, t) => i === 0 || r !== t[i - 1]);
+  assert.equal(troncons.length, 4, `tronçons du tour : ${troncons.join(", ")}`);
+  assert.deepEqual([troncons[0], troncons[2]], ["avant", "arriere"], `tronçons du tour : ${troncons.join(", ")}`);
+  assert.deepEqual([troncons[1], troncons[3]].sort(), ["droite", "gauche"], `tronçons du tour : ${troncons.join(", ")}`);
+  // Le premier tronçon longe tout l'avant, d'un coin de la caisse à l'autre.
+  const premier = enMetres.slice(0, regions.findIndex((r) => r !== "avant")).map((p) => p[1]);
+  assert.ok(Math.max(...premier) - Math.min(...premier) >= 2 * (VOITURE.largeur / 2 - VOITURE.rayon) - 0.01, "le tour longe tout l'avant d'abord");
+  // Puis le capot : le chemin qui suit le tour finit devant le capot (en avant du nez, dans l'axe) ; puis l'habitacle : le parcours
+  // finit à la place du conducteur.
+  const [m2x, m2y] = cadreVersMetres(pose)(capot[capot.length - 1]);
+  assert.ok(region([m2x, m2y]) === "avant" && Math.abs(m2y) < 0.45, `le chemin du capot finit devant le capot : ${m2x}, ${m2y}`);
+  assert.ok(distance(habitacle[habitacle.length - 1], reperesDessus(pose).oeil) < 0.01, "le parcours finit à la place du conducteur");
+});
+
+// Deux passages du parcours, à plus de ELOIGNES unités l'un de l'autre le long du parcours, restent à ECART_PASSAGES unités au
+// moins l'un de l'autre : le tour ne repasse pas sur lui-même (ses deux chemins, extérieur et intérieur, sont à 15 unités).
+const ELOIGNES = 40, ECART_PASSAGES = 12;
+
+test("tour-vehicule : le parcours ne repasse jamais sur lui-même, ses passages restent séparés", () => {
+  const { tout } = parcoursDe(dessin("tour-vehicule"));
+  const s = [0];
+  for (let i = 1; i < tout.length; i++) s.push(s[i - 1] + distance(tout[i - 1], tout[i]));
+  for (let i = 0; i + 1 < tout.length; i++) {
+    for (let j = i + 1; j + 1 < tout.length; j++) {
+      if (s[j] - s[i + 1] <= ELOIGNES) continue;
+      const e = distanceSegments(tout[i], tout[i + 1], tout[j], tout[j + 1]);
+      assert.ok(e >= ECART_PASSAGES, `deux passages à ${e.toFixed(1)} unités, vers ${tout[i].map((x) => x.toFixed(0))} et ${tout[j].map((x) => x.toFixed(0))}`);
+    }
   }
 });
 
 test("tour-vehicule : les repères 1, 2 et 3 se suivent dans l'ordre du parcours : extérieur, puis capot, puis habitacle", () => {
   const d = dessin("tour-vehicule");
   const pose = poseDe(trouverRole(d, "voiture"));
-  const exterieur = pointsDe(trouverRole(d, "parcours-exterieur")), habitacle = pointsDe(trouverRole(d, "parcours-habitacle"));
-  assert.ok(distance(exterieur[exterieur.length - 1], habitacle[0]) < 1e-6, "le parcours est d'un seul tenant");
-  const parcours = [...exterieur, ...habitacle.slice(1)];
+  const { exterieur, capot, habitacle, tout } = parcoursDe(d);
+  assert.ok(distance(exterieur[exterieur.length - 1], capot[0]) < 1e-6 && distance(capot[capot.length - 1], habitacle[0]) < 1e-6,
+    "le parcours est d'un seul tenant");
   const reperes = [1, 2, 3].map((k) => {
     const g = trouverRole(d, `repere-${k}`);
     assert.equal(textesDe(g).join(""), String(k), `numéro du repère ${k}`);
     return point(g);
   });
   const abscisses = reperes.map((p, i) => {
-    const pr = projeter(p, parcours);
+    const pr = projeter(p, tout);
     assert.ok(pr.distance < 0.01, `repère ${i + 1} hors du parcours`);
     return pr.s;
   });
   assert.ok(abscisses[0] < abscisses[1] && abscisses[1] < abscisses[2], `ordre du parcours : ${abscisses.map((s) => s.toFixed(1))}`);
-  // 1 au départ du tour extérieur ; 2 à son bout, devant le capot (en avant du nez, dans l'axe) ; 3 au bout du parcours, à la
-  // place du conducteur (l'œil du conducteur de la voiture du kit, à gauche).
+  // 1 au départ du tour extérieur ; 2 au bout du chemin qui gagne le devant du capot ; 3 au bout du parcours, à la place du
+  // conducteur (l'œil du conducteur de la voiture du kit, à gauche).
   assert.ok(abscisses[0] < 0.01, "repère 1 au départ");
-  assert.ok(Math.abs(abscisses[1] - longueur(exterieur)) < 0.01, "repère 2 au bout du tour extérieur");
-  assert.ok(Math.abs(abscisses[2] - longueur(parcours)) < 0.01, "repère 3 au bout du parcours");
-  const [m2x, m2y] = cadreVersMetres(pose)(reperes[1]);
-  assert.ok(m2x > GABARITS.voiture.longueur / 2 && Math.abs(m2y) < 0.45, `repère 2 devant le capot : ${m2x}, ${m2y}`);
+  assert.ok(Math.abs(abscisses[1] - (longueur(exterieur) + longueur(capot))) < 0.01, "repère 2 au bout du chemin du capot");
+  assert.ok(Math.abs(abscisses[2] - longueur(tout)) < 0.01, "repère 3 au bout du parcours");
   assert.ok(distance(reperes[2], reperesDessus(pose).oeil) < 0.01, "repère 3 à la place du conducteur");
+  assert.ok(longueur(habitacle) > 0, "chemin de l'habitacle");
   // Chaque repère porte le nom de son étape, les mots du cours.
   const noms = { 1: "Extérieur", 2: "Capot", 3: "Habitacle" };
   for (const k of [1, 2, 3]) {
@@ -235,7 +321,7 @@ test("tour-vehicule : les repères 1, 2 et 3 se suivent dans l'ordre du parcours
 
 test("tour-vehicule : les flèches du sens de marche suivent le parcours", () => {
   const d = dessin("tour-vehicule");
-  const parcours = [...pointsDe(trouverRole(d, "parcours-exterieur")), ...pointsDe(trouverRole(d, "parcours-habitacle")).slice(1)];
+  const parcours = parcoursDe(d).tout;
   const fleches = trouverTous(d, (x) => x.attributs["data-r"] === "sens-parcours");
   assert.ok(fleches.length >= 3, `${fleches.length} flèches`);
   for (const f of fleches) {
@@ -272,6 +358,33 @@ test("tour-vehicule : chaque étiquette de l'extérieur reprend les mots du cour
   }
 });
 
+// Aire et périmètre d'un polygone ; épaisseur et longueur d'une pièce mince : pour un polygone, son aire sur son demi-périmètre et
+// son demi-périmètre ; pour un segment épais (balai), sa largeur et sa longueur.
+const aire = (poly) => Math.abs(poly.reduce((somme, p, i) => { const q = poly[(i + 1) % poly.length]; return somme + p[0] * q[1] - q[0] * p[1]; }, 0)) / 2;
+const perimetre = (poly) => poly.reduce((somme, p, i) => somme + distance(p, poly[(i + 1) % poly.length]), 0);
+function dimensions(forme, centre) {
+  const segment = forme.segments.find((s) => distanceSegment(centre, s.a, s.b) <= s.demi);
+  if (segment) return { epaisseur: 2 * segment.demi, longueur: distance(segment.a, segment.b) };
+  const poly = forme.polygones.find((q) => dansPolygone(centre, q)), demiPerimetre = perimetre(poly) / 2;
+  return { epaisseur: aire(poly) / demiPerimetre, longueur: demiPerimetre };
+}
+
+test("tour-vehicule : chaque pièce désignée se voit sur un téléphone, épaisse d'un trait, longue de deux points d'étiquette", () => {
+  const d = dessin("tour-vehicule");
+  const voiture = trouverRole(d, "voiture"), pose = poseDe(voiture);
+  const PARTIES = { "feux-avant": ["phare-gauche", "phare-droit"], pneus: ["roue-avant-gauche", "roue-avant-droite", "roue-arriere-gauche", "roue-arriere-droite"],
+    balais: ["essuie-glaces"], "feux-arriere": ["feu-gauche", "feu-droit"], vitres: ["vitre-avant-gauche", "vitre-avant-droite", "vitre-arriere-gauche", "vitre-arriere-droite"] };
+  for (const [role, parties] of Object.entries(PARTIES)) {
+    const e = trouverRole(d, `etiquette-${role}`), centre = point(e);
+    const forme = parties.map((p) => formeDe(trouverRole(voiture, p), pose)).find((f) => poseSur(centre, f));
+    const { epaisseur, longueur: long } = dimensions(forme, centre);
+    // Épaisse d'au moins un trait sur un téléphone, et plus longue que deux fois le point de son étiquette (liseré compris) : le point
+    // n'en couvre qu'un bout.
+    assert.ok(epaisseur * PX >= TRAIT_MIN_PX, `${role} : ${(epaisseur * PX).toFixed(2)} px d'épaisseur`);
+    assert.ok(long >= 2 * 2 * rayonPoint(e), `${role} : ${long.toFixed(1)} unités de long, moins de deux points d'étiquette`);
+  }
+});
+
 test("tour-vehicule : capot ouvert, charnière côté pare-brise, compartiment découvert devant le capot relevé", () => {
   const d = dessin("tour-vehicule");
   const voiture = trouverRole(d, "voiture"), pose = poseDe(voiture);
@@ -296,6 +409,15 @@ test("tour-vehicule : capot ouvert, charnière côté pare-brise, compartiment d
   const rx = releve.map((p) => p[0]);
   assert.ok(Math.abs(Math.min(...rx) - charniere) < 0.005, "le capot relevé part de la charnière");
   assert.ok(Math.abs(Math.max(...rx) - (charniere + long * Math.cos(ouverture * DEG))) < 0.005, "raccourci du capot relevé");
+  // En pivotant autour de sa charnière, le capot garde ses largeurs : vu du dessus, son bord avant relevé a la largeur de son bord
+  // avant fermé (le bout avant des joints) ; son bord arrière, celle de la charnière.
+  const bouts = joints.flat(), xAvant = Math.max(...bouts.map((p) => p[0])), xArriere = Math.min(...bouts.map((p) => p[0]));
+  const demiLargeur = (x) => Math.abs(bouts.find((p) => Math.abs(p[0] - x) < 1e-6)[1]);
+  const bord = (x) => releve.filter((p) => Math.abs(p[0] - x) < 0.005);
+  for (const [nom, x, demi] of [["avant", Math.max(...rx), demiLargeur(xAvant)], ["arrière", Math.min(...rx), demiLargeur(xArriere)]]) {
+    assert.ok(bord(x).length >= 2 && bord(x).every((p) => Math.abs(Math.abs(p[1]) - demi) < 0.005),
+      `bord ${nom} du capot relevé à ${bord(x).map((p) => Math.abs(p[1]).toFixed(3))} m de l'axe, ${demi} m attendu`);
+  }
 });
 
 // ===== roues-trottoir =====
@@ -350,6 +472,18 @@ test("roues-trottoir : la vignette de profil montre la pente, la voiture tourné
   assert.ok(pointe[1] > depart[1] && pointe[0] > depart[0], "la flèche descend la pente");
   assert.ok(Math.abs(Math.atan2(pointe[1] - depart[1], pointe[0] - depart[0]) / DEG - a) < 1, "la flèche suit la pente");
   assert.ok(textesDe(vignette).includes("En pente"));
+});
+
+test("roues-trottoir : rien ne recouvre les roues avant braquées, aucun rétroviseur posé dessus", () => {
+  const d = dessin("roues-trottoir");
+  const voiture = trouverRole(d, "voiture"), pose = poseDe(voiture);
+  const roues = ["roue-avant-gauche", "roue-avant-droite"].map((r) => formeDe(trouverRole(voiture, r), pose).polygones[0]);
+  for (const r of ["retroviseur-gauche", "retroviseur-droit"]) {
+    const g = trouverRole(voiture, r);
+    if (!g) continue;
+    const boitier = pointsDe(trouverTous(g, (x) => x.balise === "path")[0]).map(localVersCadre(pose));
+    roues.forEach((roue, i) => assert.ok(!seRecouvrent(boitier, roue), `${r} posé sur la roue avant ${i ? "droite" : "gauche"}`));
+  }
 });
 
 test("roues-trottoir : étiquettes aux mots du cours ; le point désigne la roue avant côté trottoir sans la cacher", () => {
@@ -439,20 +573,69 @@ test("sous-survirage : la trajectoire voulue suit l'axe de la voie de droite de 
   }
 });
 
-test("sous-survirage : sous-virage, la voiture élargit d'au moins une demi-voie, cap à 10 degrés au plus de la tangente, roues avant braquées vers l'intérieur", () => {
+// Cap (degrés) de la trajectoire qui passe par trois positions A, B et C, au point P : la tangente du cercle qui passe par elles
+// (la droite, si elles sont alignées), dans le sens de la marche, de A vers C.
+function capTrajectoire(A, B, C, P) {
+  const d = 2 * (A[0] * (B[1] - C[1]) + B[0] * (C[1] - A[1]) + C[0] * (A[1] - B[1]));
+  let t = [C[0] - A[0], C[1] - A[1]];
+  if (Math.abs(d) > 1e-9) {
+    const [a2, b2, c2] = [A, B, C].map((q) => q[0] ** 2 + q[1] ** 2);
+    const O = [(a2 * (B[1] - C[1]) + b2 * (C[1] - A[1]) + c2 * (A[1] - B[1])) / d, (a2 * (C[0] - B[0]) + b2 * (A[0] - C[0]) + c2 * (B[0] - A[0])) / d];
+    const n = [-(P[1] - O[1]), P[0] - O[0]];
+    t = n[0] * t[0] + n[1] * t[1] < 0 ? [-n[0], -n[1]] : n;
+  }
+  return Math.atan2(t[1], t[0]) / DEG;
+}
+
+test("sous-survirage : sous-virage, la voiture tire tout droit : dans l'axe de sa trajectoire, elle tourne deux fois moins que la route au plus et sort de sa voie ; roues avant braquées vers l'intérieur", () => {
   const d = dessin("sous-survirage");
   const v = virageDe(trouverRole(d, "vignette-sous-virage"));
-  const derives = v.positions.map(({ pose }) => (distance([pose.x, pose.y], v.centre) - v.rayon) / v.echelle);
-  const finale = v.positions[3].pose, c = [finale.x, finale.y];
+  const P = v.positions.map(({ pose }) => [pose.x, pose.y]), caps = v.positions.map(({ pose }) => pose.cap);
+  // Pas de tête-à-queue : à chaque position, la caisse est dans l'axe de sa propre trajectoire, à 10 degrés près.
+  P.forEach((p, k) => {
+    const [a, b, c] = k === 0 ? [0, 1, 2] : k === 3 ? [1, 2, 3] : [k - 1, k, k + 1];
+    const ecart = ecartAngle(caps[k], capTrajectoire(P[a], P[b], P[c], p));
+    assert.ok(Math.abs(ecart) <= 10, `position ${k + 1} : cap à ${ecart.toFixed(1)} degrés de sa trajectoire`);
+  });
+  // Tout droit : de la première à la dernière position, la caisse tourne au plus de la moitié de l'angle dont tourne la route.
+  const polaire = (p) => Math.atan2(p[1] - v.centre[1], p[0] - v.centre[0]) / DEG;
+  const route = -ecartAngle(polaire(P[3]), polaire(P[0])), caisse = Math.abs(ecartAngle(caps[3], caps[0]));
+  assert.ok(route > 0 && caisse <= route / 2, `la caisse tourne de ${caisse.toFixed(1)} degrés quand la route tourne de ${route.toFixed(1)}`);
+  // Sortie de sa voie : la dernière position est plus loin du centre du virage que la trajectoire voulue, d'une demi-voie au moins ;
+  // l'écart croît de position en position.
+  const derives = P.map((p) => (distance(p, v.centre) - v.rayon) / v.echelle);
   assert.ok(derives[3] >= DESSIN.voie / 2, `dérive finale de ${derives[3].toFixed(2)} m, moins d'une demi-voie`);
-  for (let k = 1; k < 4; k++) assert.ok(derives[k] > derives[k - 1], "la voiture élargit de position en position");
-  const ecart = ecartAngle(finale.cap, tangente(v, c));
-  assert.ok(Math.abs(ecart) <= 10, `cap à ${ecart.toFixed(1)} degrés de la tangente`);
+  for (let k = 1; k < 4; k++) assert.ok(derives[k] > derives[k - 1], `la voiture s'écarte de position en position : ${derives.map((x) => x.toFixed(2))}`);
   // Le train avant glisse : roues avant braquées vers l'intérieur du virage (à gauche, angle négatif), nettement.
   for (const r of ["roue-avant-gauche", "roue-avant-droite"]) {
     const angle = Number(trouverRole(v.positions[3].voiture, r).attributs["data-angle"]);
     assert.ok(angle <= -10, `${r} : ${angle} degrés`);
   }
+});
+
+// Roues avant du sous-virage : leur braquage est ce que le dessin oppose à la trajectoire ; à 7 px sur 2 (première version), il se
+// lisait à peine sur un téléphone (relecture du 15/10/2026).
+const ROUE_LISIBLE = { longueur: 9, largeur: 3 };   // px sur un téléphone
+
+test("sous-survirage : les roues avant braquées de la position finale se lisent sur un téléphone", () => {
+  const v = virageDe(trouverRole(dessin("sous-survirage"), "vignette-sous-virage"));
+  for (const r of ["roue-avant-gauche", "roue-avant-droite"]) {
+    const pneu = trouverTous(trouverRole(v.positions[3].voiture, r), (x) => x.balise === "rect")[0].attributs;
+    const [long, large] = [pneu.width * PX, pneu.height * PX];
+    assert.ok(long >= ROUE_LISIBLE.longueur && large >= ROUE_LISIBLE.largeur, `${r} : ${long.toFixed(1)} px sur ${large.toFixed(1)} sur un téléphone`);
+  }
+});
+
+test("sous-survirage : le point de l'étiquette « Trajectoire voulue » est posé sur le pointillé, hors des voitures", () => {
+  const vignette = trouverRole(dessin("sous-survirage"), "vignette-sous-virage"), v = virageDe(vignette);
+  const e = trouverRole(vignette, "etiquette-trajectoire"), p = point(e);
+  assert.equal(textesDe(e).join(" "), "Trajectoire voulue");
+  assert.ok(projeter(p, pointsDe(v.tv)).distance < 0.05, "le point est posé sur la trajectoire voulue");
+  v.positions.forEach(({ voiture, pose }, k) => {
+    const caisse = caisseDe(voiture, pose);
+    const ecart = dansPolygone(p, caisse) ? 0 : Math.min(...caisse.map((a, i) => distanceSegment(p, a, caisse[(i + 1) % caisse.length])));
+    assert.ok(ecart >= rayonPoint(e), `le point touche la voiture de la position ${k + 1} (${ecart.toFixed(1)} unités)`);
+  });
 });
 
 test("sous-survirage : survirage, la caisse tourne vers l'intérieur d'au moins 20 degrés au-delà de la tangente, l'arrière plus loin du centre que l'avant", () => {
