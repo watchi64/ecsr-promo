@@ -16,8 +16,8 @@
  * d'un adulte de taille moyenne, voiture courante), avec sa raison dans sources/dessins-conducteur.js.
  */
 import { n } from "./dessin-svg.js?v=20261013a";
-import { CHARTE, cadre, texte, vignette, fleche } from "./dessins-kit.js?v=20261013a";
-import { adoucir, sortieDouce, avancement } from "./animation-courbes.js?v=20261013a";
+import { CHARTE, cadre, texte, vignette, fleche, arrondir } from "./dessins-kit.js?v=20261013a";
+import { adoucir, sortieDouce, avancement, interpoler, cles } from "./animation-courbes.js?v=20261013a";
 
 // ===================================================================================================================
 // Échelle, valeurs du cours, choix de dessin
@@ -48,13 +48,13 @@ const MORPHO = {
   hanches: [11, -2], oreille: [66.5, 4.5],
   teteSuit: 0.3,           // part de la rotation du buste que suit la tête (le cou garde le regard horizontal)
 };
-// Épaisseurs des membres de profil (rayons, cm) : bras (épaule, coude), avant-bras (coude, poignet).
-const MEMBRES = { epaule: 5.0, coude: 4.2, coudeAvant: 4.0, poignet: 2.9 };
-// Le coude part vers le bas et un peu vers l'extérieur du corps (part de l'écart vers l'extérieur dans sa direction) ; quand la
-// main monte à hauteur de l'épaule ou plus haut (appuie-tête, rétroviseur), il se lève, s'avance et s'écarte, comme un bras qu'on lève : la direction
-// du coude passe de l'une à l'autre entre `seuil` et `seuil + plage` cm de hauteur de la main au-dessus de l'épaule.
-const BRAS_DEHORS = 0.45;
-const COUDE_LEVE = { seuil: -2, plage: 10, direction: [0.5, 0.7, 0.5] };
+/** Épaisseurs des membres de profil (rayons, cm) : bras (épaule, coude), avant-bras (coude, poignet). */
+export const MEMBRES = Object.freeze({ epaule: 5.0, coude: 4.2, coudeAvant: 4.0, poignet: 2.9 });
+// Direction que prend le coude (repère de la voiture : x vers l'avant, y vers l'extérieur du corps, z vers le haut), autour
+// de l'axe épaule-poignet : vers le bas et un peu en dehors au repos ; vers l'avant et le bas quand la main va chercher la
+// languette derrière l'épaule ; en dehors quand le bras droit s'allonge vers le rétroviseur. Le geste passe de l'une à
+// l'autre par des clés dans le temps (adoucir) : le coude ne dépend jamais d'un seuil sur la place de la main.
+const COUDE = { bas: [0, 0.45, -1], avantBas: [0.75, 0.35, -0.55], dehors: [0.1, 0.9, -0.4] };
 
 // Contour du buste (s, f, poids) : le poids dit quelle part de la rotation du buste suit le point (0 : le bassin, posé sur
 // l'assise ; 1 : le haut du corps, contre le dossier). Les points du dos, de 42 à -4, sont sur la face du dossier (f = -dos).
@@ -80,9 +80,12 @@ const COU = { menton: [3.0, -9.6], nuque: [-5.6, -5.2], devant: [51.6, 4.6], der
 // Cuisse, jambe, pied (cm). La cuisse se décrit dans son repère (u le long de la cuisse depuis le point H, v au-dessus) :
 // elle se pose sur l'assise, qui monte vers l'avant ; la jambe va du genou à la cheville, posée au-dessus du plancher.
 const ANGLE_ASSISE = 10;
-const CUISSE = { dessous: -8.5, dessusRacine: 8.6, dessusGenou: 6.4, genou: 5.6, arriere: -10, hanche: -9, rotule: 2.4, creux: -5.6 };
-const MOLLET = { genou: 6.0, mollet: 6.2, cheville: 4.0, partMollet: 0.3, partTibia: 0.45, dessusGenou: 1.4 };
-const CHAUSSURE = { talon: 5.5, pointe: 21, semelle: 2.2, cou: 9.5, bout: 3.4, retraitBout: 2, coudePied: 4, arrondi: 2.2, arrondiSemelle: 1 };
+const CUISSE = { dessous: -8.5, dessusRacine: 8.6, dessusGenou: 6.4, genou: 5.6, arriere: -10, hanche: -9, rotule: 2.4, creux: -5.6,
+  avantGenou: 1, rotuleHaut: 1.6, dessousRacine: 3 };
+const MOLLET = { genou: 6.0, mollet: 6.2, cheville: 4.0, partMollet: 0.3, partTibia: 0.45, dessusGenou: 1.4, hautGenou: 2,
+  avantCheville: 3, hautTibia: 1, rondGenou: 4.5 };
+const CHAUSSURE = { talon: 5.5, pointe: 21, semelle: 2.2, cou: 9.5, bout: 3.4, retraitBout: 2, coudePied: 4, retraitCou: 0.5,
+  retraitSemelle: 0.5, arrondi: 2.2, arrondiSemelle: 1 };
 
 // Siège (cm). Assise sous la cuisse ; dossier qui pivote autour du point H (son articulation est à hauteur de la hanche : le
 // dos reste contre lui pendant le réglage) ; appuie-tête sur deux tiges qui coulissent dans le haut du dossier ; base qui
@@ -114,9 +117,9 @@ const VOLANT_SOUS_STERNUM = { regle: 11, depart: -6 };
 const COLONNE_REGLEE = { inclinaison: 24, longueur: 30 };
 
 // Ceinture (cm). Renvoi (haut du brin diagonal) sur le montant milieu, placé derrière et au-dessus de l'épaule du conducteur
-// installé ; ancrage bas et boucle sur le siège (repère du point H) ; sangle de 4,8 cm ; languette ; place de la languette
-// au repos le long de la sangle (part du chemin du renvoi à l'ancrage). Le chemin bouclé passe sur le dessus de l'épaule,
-// en travers de la poitrine, puis bas sur le bassin, sous la crête iliaque.
+// installé ; ancrage bas sur le siège (repère du point H) ; boucle sur le siège, du côté droit du conducteur : de profil,
+// elle est cachée par la cuisse et la hanche proches, et la sangle bouclée tourne à l'avant de la hanche ; sangle de 4,8 cm ;
+// languette ; place de la languette au repos le long de la sangle (part du chemin du renvoi à l'ancrage).
 const CEINTURE = {
   sangle: 4.8, renvoiDerriere: 21, renvoiDessus: 9, ancrage: [-13, -9], boucle: [8, 4.5],
   languette: { longueur: 5.5, largeur: 2.6 }, boitier: { longueur: 6, largeur: 3.4 }, renvoi: { longueur: 6.5, largeur: 3.2 },
@@ -139,12 +142,16 @@ const TEINTES = {
   metal: "#9AA29C", metalOmbre: "#7C847E",
   volant: "#2F3532", moyeu: "#3D4440", colonne: "#4A514D",
   sangle: "#2E3430", boucle: "#8E9690",
-  plancher: "#C7CEC2", tableau: "#C9CFC4", tableauOmbre: "#C1C8BC", vitre: "#DCE5EA", pavillon: "#E2E6DE", montant: "#CDD3C8",
+  plancher: "#C7CEC2", tableau: "#C9CFC4", montant: "#CDD3C8",
   cote: CHARTE.texteDoux, guide: CHARTE.accentFort,
 };
 // Teintes de l'objet dont parle le cours (le vert de la charte) : siège, appuie-tête, ceinture.
 const ACCENT = { base: CHARTE.accent, ombre: CHARTE.accentFort, clair: "#7E9163" };
 const NEUTRE_SIEGE = { base: TEINTES.siege, ombre: TEINTES.siegeOmbre, clair: TEINTES.siegeClair };
+// Contour qui sépare l'avant-bras proche du bras proche (même teinte) quand il passe dessus.
+const CONTOUR_AVANT_BRAS = { couleur: TEINTES.pullOmbre, epaisseur: CHARTE.traits.fin };
+// Petits boîtiers (renvoi, boucle, languette, ancrage) : arrondi de leurs coins, en part de leur petit côté.
+const ARRONDI_BOITIER = 0.25;
 
 // ===================================================================================================================
 // Géométrie plane
@@ -163,7 +170,6 @@ const entre = (a, b, u) => [a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u];
 const direction = (degres) => [Math.cos(degres * RAD), Math.sin(degres * RAD)];
 const coord = (v) => String(Number(v.toFixed(2)));
 const ecrirePoint = ([x, y]) => `${coord(x)} ${coord(y)}`;
-const melange = (a, b, u) => a + (b - a) * u;
 const MILIEU = 0.5;
 
 // Spline de Catmull-Rom centripète en segments de Bézier cubiques [départ, contrôle, contrôle, arrivée] : la courbe passe
@@ -220,32 +226,12 @@ function plusHautCubique(segments) {
   return meilleur;
 }
 
-// Polygone aux coins arrondis : chaque coin devient un arc de Bézier quadratique (le sommet en point de contrôle) qui part et
-// finit à son rayon du sommet, au plus à la moitié de chaque côté. Rend les arcs [départ, sommet, arrivée].
-function coinsArrondis(sommets, rayon) {
-  const m = sommets.length, arcs = [];
-  for (let i = 0; i < m; i++) {
-    const v = sommets[i], avant = sommets[(i - 1 + m) % m], apres = sommets[(i + 1) % m];
-    const r = Math.min(rayon, dist(v, avant) * MILIEU, dist(v, apres) * MILIEU);
-    arcs.push([entre(v, avant, r / dist(v, avant)), v, entre(v, apres, r / dist(v, apres))]);
-  }
-  return arcs;
-}
-const traceArrondi = (arcs) => `M${ecrirePoint(arcs[0][0])} ${arcs.map((a, i) => `${i ? `L${ecrirePoint(a[0])} ` : ""}Q${ecrirePoint(a[1])} ${ecrirePoint(a[2])}`).join(" ")} Z`;
-const arrondi = (sommets, rayon) => traceArrondi(coinsArrondis(sommets, rayon));
-function plusHautArrondi(arcs) {
-  let meilleur = arcs[0][0];
-  for (const [p0, p1, p2] of arcs) {
-    const den = p0[1] - 2 * p1[1] + p2[1];
-    const candidats = [p0, p2];
-    if (Math.abs(den) > 1e-12) {
-      const t = (p0[1] - p1[1]) / den;
-      if (t > 0 && t < 1) candidats.push([0, 1].map((k) => (1 - t) * (1 - t) * p0[k] + 2 * (1 - t) * t * p1[k] + t * t * p2[k]));
-    }
-    for (const p of candidats) if (p[1] < meilleur[1]) meilleur = p;
-  }
-  return meilleur;
-}
+// Polygones : le tracé de points (segments seuls) ; coins arrondis par `arrondir` du kit, un même rayon à chaque coin ; le
+// point le plus haut d'une liste (y le plus petit).
+const polygone = (points) => `M${points.map(ecrirePoint).join(" L")} Z`;
+const pointsArrondis = (sommets, rayon) => arrondir(sommets, sommets.map(() => rayon));
+const formeArrondie = (sommets, rayon) => polygone(pointsArrondis(sommets, rayon));
+const plusHautPoints = (points) => points.reduce((m, p) => (p[1] < m[1] ? p : m));
 
 // Membre en forme de gélule : enveloppe de deux disques (rayons r1 et r2), arcs exacts. Coordonnées du cadre.
 function gelule(p1, r1, p2, r2) {
@@ -260,10 +246,11 @@ function gelule(p1, r1, p2, r2) {
     + `L${ecrirePoint(b1)} A${coord(r1)} ${coord(r1)} 0 ${sb > 0 ? 1 : 0} ${sens1} ${ecrirePoint(a1)} Z`;
 }
 
-// Bande d'une largeur donnée le long d'une courbe lisse (la sangle) : contour fermé fait de ses deux bords échantillonnés.
-const PAS_BANDE = 8;
-function bande(points, largeur) {
-  const centre = echantillons(spline(points, false), PAS_BANDE);
+// Ruban d'une largeur donnée le long d'une courbe lisse (la sangle) : contour fermé fait de ses deux bords échantillonnés.
+// (À ne pas confondre avec `bande` du kit, qui découpe un polygone entre deux droites.)
+const PAS_RUBAN = 8;
+function ruban(points, largeur) {
+  const centre = echantillons(spline(points, false), PAS_RUBAN);
   const normales = centre.map((p, i) => {
     const a = centre[Math.max(0, i - 1)], b = centre[Math.min(centre.length - 1, i + 1)];
     const t = unitaire(moins(b, a));
@@ -271,32 +258,44 @@ function bande(points, largeur) {
   });
   const bordA = centre.map((p, i) => plus(p, fois(normales[i], largeur / 2)));
   const bordB = centre.map((p, i) => plus(p, fois(normales[i], -largeur / 2)));
-  return { centre, bordA, bordB, d: `M${[...bordA, ...[...bordB].reverse()].map(ecrirePoint).join(" L")} Z` };
+  return { centre, bordA, bordB, d: polygone([...bordA, ...[...bordB].reverse()]) };
 }
 const listePoints = (points) => points.map(([x, y]) => `${coord(x)},${coord(y)}`).join(" ");
+// Bord haut d'un ruban : celui de ses deux bords qui est le plus haut dans le cadre.
+const bordHaut = (r) => (r.bordA.reduce((s, p) => s + p[1], 0) < r.bordB.reduce((s, p) => s + p[1], 0) ? r.bordA : r.bordB);
+
+// Petit boîtier (renvoi, boucle, languette, ancrage) : rectangle centré sur `centre` (repère de la vue), coins arrondis.
+const boitier = (P, centre, longueur, largeur, teinte, attributs = {}) => {
+  const [x, y] = P(centre);
+  return n("rect", { x: x - longueur * CM / 2, y: y - largeur * CM / 2, width: longueur * CM, height: largeur * CM,
+    rx: Math.min(longueur, largeur) * CM * ARRONDI_BOITIER, fill: teinte, ...attributs });
+};
 
 // Bras en trois dimensions (repère de la voiture, cm) : coude à l'intersection des deux sphères (bras, avant-bras), du côté
-// du bas et de l'extérieur du corps.
+// que donne sa consigne (y vers l'extérieur du corps, d'où le facteur `cote` : +1 à gauche, -1 à droite).
 const plus3 = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
 const moins3 = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const fois3 = (a, k) => [a[0] * k, a[1] * k, a[2] * k];
 const scal3 = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 const norme3 = (a) => Math.sqrt(scal3(a, a));
-function coude(epaule, poignet, cote) {
+function coude(epaule, poignet, cote, [cx, cy, cz]) {
   const { bras, avantBras } = MORPHO;
   const v = moins3(poignet, epaule);
   const d = Math.min(Math.max(norme3(v), Math.abs(bras - avantBras) + 1e-6), bras + avantBras - 1e-6);
   const u = fois3(v, 1 / norme3(v));
   const a = (bras * bras - avantBras * avantBras + d * d) / (2 * d), h = Math.sqrt(Math.max(0, bras * bras - a * a));
-  const leve = Math.min(1, Math.max(0, (poignet[2] - epaule[2] - COUDE_LEVE.seuil) / COUDE_LEVE.plage));
-  const [ax, ay, az] = COUDE_LEVE.direction;
-  const indice = [melange(0, ax, leve), cote * melange(BRAS_DEHORS, ay, leve), melange(-1, az, leve)];
-  const w = moins3(indice, fois3(u, scal3(indice, u)));
+  const consigne = [cx, cote * cy, cz];
+  const w = moins3(consigne, fois3(u, scal3(consigne, u)));
   return plus3(plus3(epaule, fois3(u, a)), fois3(w, h / (norme3(w) || 1)));
 }
 
 const repere = (role, [x, y], plusAttributs = {}) => n("g", { "data-r": role, "data-x": Number(x.toFixed(3)), "data-y": Number(y.toFixed(3)), ...plusAttributs });
 const affiche = (opacite) => ({ display: opacite > 0 ? "inline" : "none", opacity: Number(Math.min(1, Math.max(0, opacite)).toFixed(3)) });
+
+// Identifiants des découpes (clip-path) : un numéro par montage, pour que deux montages du même dessin dans une page ne se
+// les disputent pas (comme js/scene-moteur.js).
+let montages = 0;
+const nouvelId = (nom) => `conducteur-${nom}-${++montages}`;
 
 // ===================================================================================================================
 // Le conducteur de profil : pose
@@ -332,15 +331,51 @@ const reglageVolant = (centre) => ({
 /** Volant réglé (étape 3 finie) ; volant avant réglage. */
 export const VOLANT_REGLE = Object.freeze(reglageVolant(centreVoulu(VOLANT_SOUS_STERNUM.regle)));
 const VOLANT_DEPART = Object.freeze(reglageVolant(centreVoulu(VOLANT_SOUS_STERNUM.depart)));
-function geometrieVolant({ inclinaison, longueur }) {
-  const axe = direction(-inclinaison);                         // du centre vers le pied de colonne (vers l'avant, en bas)
+/** Géométrie du volant de profil (repère de la voiture) : centre, axe de la colonne (du centre vers son pied, vers l'avant et
+ *  le bas), et direction du haut de la jante dans son plan. Le plan de la jante contient l'axe y (la largeur de la voiture). */
+export function geometrieVolant({ inclinaison, longueur }) {
+  const axe = direction(-inclinaison);
   const centre = moins(PIED_COLONNE, fois(axe, longueur));
-  const haut = [-axe[1], axe[0]];                              // dans le plan de la jante, vers le haut
+  const haut = [-axe[1], axe[0]];
   return { centre, axe, haut: haut[1] > 0 ? haut : fois(haut, -1) };
 }
 
 // Renvoi de la ceinture (repère de la voiture), derrière et au-dessus de l'épaule du conducteur installé.
 const RENVOI = [EPAULE_REGLEE[0] - CEINTURE.renvoiDerriere, EPAULE_REGLEE[1] + CEINTURE.renvoiDessus];
+
+// Appuie-tête : les tiges sortent du haut du dossier à la place `avanceTiges` (f, repère du dossier), inclinées de versAvant
+// degrés vers l'avant par rapport au dossier ; le coussin, face avant parallèle aux tiges, coulisse avec elles (`sortie`, cm).
+function appuieTeteDe(surDossier, dossier, sortie, avanceTiges) {
+  const AT = SIEGE.appuieTete;
+  const { a, f } = axesDossier(dossier);
+  const v = AT.versAvant * RAD;
+  const d = plus(fois(a, Math.cos(v)), fois(f, Math.sin(v)));            // le long des tiges, vers le haut
+  const av = [d[1], -d[0]][0] > 0 ? [d[1], -d[0]] : [-d[1], d[0]];        // perpendiculaire, vers l'avant
+  const pied = surDossier(SIEGE.dossier.haut, avanceTiges);
+  const sur = (le, de) => plus(pied, plus(fois(d, le), fois(av, de)));
+  const bas = sortie - AT.enfoncement;
+  const coussinAT = [[bas, AT.epaisseur / 2], [bas + AT.hauteur, AT.epaisseur / 2], [bas + AT.hauteur, -AT.epaisseur / 2], [bas, -AT.epaisseur / 2]].map(([le, de]) => sur(le, de));
+  const tigeAT = [[bas + AT.recouvrement, AT.tige / 2], [bas + AT.recouvrement, -AT.tige / 2], [-AT.enfoncement, -AT.tige / 2], [-AT.enfoncement, AT.tige / 2]].map(([le, de]) => sur(le, de));
+  return { coussinAT, tigeAT, faceATDir: d, faceATAvant: av };
+}
+
+// Place des tiges de l'appuie-tête (f, repère du dossier), calculée une fois : la face du coussin passe à ECART_APPUIE_TETE
+// de l'arrière de la tête du conducteur installé, dos contre le dossier (le point du contour de la tête le moins avancé
+// perpendiculairement à la face).
+const PAS_CONTOUR_TETE = 48;
+const AVANCE_TIGES = (() => {
+  const H = pointH(SIEGE_REGLE);
+  const oreille = corpsDe(H, SIEGE_REGLE.dossier, 0)(MORPHO.oreille);
+  const { a, f } = axesDossier(SIEGE_REGLE.dossier);
+  const surDossier = (s, d) => plus(H, plus(fois(a, s), fois(f, d)));
+  const zero = appuieTeteDe(surDossier, SIEGE_REGLE.dossier, 0, 0);
+  const av = zero.faceATAvant;
+  const contour = echantillons(spline(TETE.map((p) => plus(oreille, p)), true), PAS_CONTOUR_TETE);
+  const arriere = Math.min(...contour.map((p) => scalaire(p, av)));
+  const face0 = scalaire(zero.coussinAT[0], av);                       // face avant du coussin, tiges en f = 0
+  // Déplacer les tiges de 1 selon f avance la face de f·av.
+  return (arriere - ECART_APPUIE_TETE - face0) / scalaire(f, av);
+})();
 
 // Ce qui ne dépend pas des mains : siège, corps, tête, jambes, appuie-tête. Repère de la voiture.
 function poseCorps({ siege = SIEGE_REGLE, sortieAT = 0, dosColle = true }) {
@@ -357,63 +392,26 @@ function poseCorps({ siege = SIEGE_REGLE, sortieAT = 0, dosColle = true }) {
   const cuisse = (u, v) => plus(H, plus(fois(t, u), fois(nt, v)));
   const genou = cuisse(MORPHO.cuisse, 0);
   const cheville = [genou[0] + Math.sqrt(MORPHO.jambe ** 2 - (genou[1] - MORPHO.cheville) ** 2), MORPHO.cheville];
-  const at = appuieTeteDe(surDossier, siege.dossier, sortieAT);
+  const at = appuieTeteDe(surDossier, siege.dossier, sortieAT, AVANCE_TIGES);
   return { H, a, f, corps, surDossier, oreille, tete, cuisse, t, nt, genou, cheville, siege, penche, ...at };
 }
 
-// Appuie-tête : les tiges sortent du haut du dossier à la place `avanceTiges` (f, repère du dossier), inclinées de versAvant
-// degrés vers l'avant par rapport au dossier ; le coussin, face avant parallèle aux tiges, coulisse avec elles (`sortie`, cm).
-function appuieTeteDe(surDossier, dossier, sortie, avanceTiges = AVANCE_TIGES()) {
-  const AT = SIEGE.appuieTete;
-  const { a, f } = axesDossier(dossier);
-  const v = AT.versAvant * RAD;
-  const d = plus(fois(a, Math.cos(v)), fois(f, Math.sin(v)));            // le long des tiges, vers le haut
-  const av = [d[1], -d[0]][0] > 0 ? [d[1], -d[0]] : [-d[1], d[0]];        // perpendiculaire, vers l'avant
-  const pied = surDossier(SIEGE.dossier.haut, avanceTiges);
-  const sur = (le, de) => plus(pied, plus(fois(d, le), fois(av, de)));
-  const bas = sortie - AT.enfoncement;
-  const coussinAT = [[bas, AT.epaisseur / 2], [bas + AT.hauteur, AT.epaisseur / 2], [bas + AT.hauteur, -AT.epaisseur / 2], [bas, -AT.epaisseur / 2]].map(([le, de]) => sur(le, de));
-  const tigeAT = [[bas + AT.recouvrement, AT.tige / 2], [bas + AT.recouvrement, -AT.tige / 2], [-AT.enfoncement, -AT.tige / 2], [-AT.enfoncement, AT.tige / 2]].map(([le, de]) => sur(le, de));
-  return { coussinAT, tigeAT, faceATDir: d, faceATAvant: av };
-}
-
-// Place des tiges de l'appuie-tête (f, repère du dossier) : la face du coussin passe à ECART_APPUIE_TETE de l'arrière de la
-// tête du conducteur installé, dos contre le dossier (le point du contour de la tête le moins avancé perpendiculairement à
-// la face). Calculée une fois.
-let avanceTiges = null;
-function AVANCE_TIGES() {
-  if (avanceTiges !== null) return avanceTiges;
-  const H = pointH(SIEGE_REGLE);
-  const oreille = corpsDe(H, SIEGE_REGLE.dossier, 0)(MORPHO.oreille);
-  const { a, f } = axesDossier(SIEGE_REGLE.dossier);
-  const surDossier = (s, d) => plus(H, plus(fois(a, s), fois(f, d)));
-  const zero = appuieTeteDe(surDossier, SIEGE_REGLE.dossier, 0, 0);
-  const av = zero.faceATAvant;
-  const contour = echantillons(spline(TETE.map((p) => plus(oreille, p)), true), PAS_CONTOUR_TETE);
-  const arriere = Math.min(...contour.map((p) => scalaire(p, av)));
-  const face0 = scalaire(zero.coussinAT[0], av);                       // face avant du coussin, tiges en f = 0
-  // Déplacer les tiges de 1 selon f avance la face de f·av.
-  avanceTiges = (arriere - ECART_APPUIE_TETE - face0) / scalaire(f, av);
-  return avanceTiges;
-}
-const PAS_CONTOUR_TETE = 48;
-
 // Sortie de l'appuie-tête (cm, le long des tiges) qui met le haut de son coussin au niveau voulu : « sommet » (sommet du
 // crâne) ou « nuque », pour ce siège, dos contre le dossier ; un nombre est la sortie même. Le coussin monte le long des
-// tiges : son point le plus haut s'élève de la composante verticale de leur direction par cm de sortie.
+// tiges : son point le plus haut (coins arrondis compris) s'élève de la composante verticale de leur direction par cm.
 function sortieAppuieTete(siege, hauteur) {
   if (typeof hauteur === "number") return hauteur;
   const geo = poseCorps({ siege, sortieAT: 0, dosColle: true });
   const versHaut = ([x, z]) => [x, -z];                        // le plus haut devient le plus petit y
   const sommet = -plusHautCubique(spline(TETE.map(geo.tete), true).map((s) => s.map(versHaut)))[1];
   const nuque = geo.tete(TETE[TETE_NUQUE])[1];
-  const haut = -plusHautArrondi(coinsArrondis(geo.coussinAT.map(versHaut), SIEGE.appuieTete.arrondi))[1];
+  const haut = -plusHautPoints(pointsArrondis(geo.coussinAT.map(versHaut), SIEGE.appuieTete.arrondi))[1];
   const cible = hauteur === "nuque" ? nuque : sommet;
   return (cible - haut) / geo.faceATDir[1];
 }
 
 // --- Mains : { x, y, z } (cm, repère de la voiture), angle (degrés, axe de la main de profil), prise (0 : ouverte, 1 :
-// refermée sur la jante, la sangle, l'appuie-tête ou le rétroviseur).
+// refermée sur la jante, la sangle ou le rétroviseur), coude (consigne de direction du coude, COUDE.bas si absente).
 const ANGLE_MAIN_VOLANT = -8;
 function mainsSurVolant(volant) {
   const { centre } = geometrieVolant(volant);
@@ -422,7 +420,8 @@ function mainsSurVolant(volant) {
     droite: { x: centre[0], y: -VOLANT.rayon, z: centre[1], angle: ANGLE_MAIN_VOLANT, prise: 1 },
   };
 }
-const MAIN_CUISSE = { part: 0.6, dessus: 1.8, y: 12 };
+// Main posée à plat sur la cuisse, près de la hanche : en arrière du plan du volant, et en dehors de sa jante.
+const MAIN_CUISSE = { part: 0.3, dessus: 1.8, y: 14 };
 function mainSurCuisse(geo, cote) {
   const p = geo.cuisse(MAIN_CUISSE.part * MORPHO.cuisse, CUISSE.dessusRacine + MAIN_CUISSE.dessus);
   return { x: p[0], y: cote * MAIN_CUISSE.y, z: p[1], angle: ANGLE_ASSISE, prise: 0 };
@@ -438,14 +437,23 @@ const MAIN_POING = [[0, 3.2], [3.6, 4.4], [7.4, 4.6], [10.6, 3.2], [11.4, 0], [1
 const MAIN_OUVERTE = [[0, 2.6], [5.0, 2.8], [11.0, 2.4], [16.4, 1.2], [17.6, 0], [16.4, -1.0], [11.0, -2.0], [5.0, -2.6], [0, -2.6]];
 const POUCE = { poing: [[3.0, 4.0], [6.2, 6.0], [8.6, 5.6], [8.0, 4.0]], ouverte: [[2.6, 2.4], [6.0, 3.8], [9.0, 3.4], [8.4, 2.2]] };
 
+// État de la ceinture de profil : { avancement (0 rangée, 1 bouclée), languette (opacité de la languette tenue en main) }.
+function etatCeinture(ceinture) {
+  if (ceinture === false) return null;
+  if (ceinture === true) return { avancement: 1, languette: 0 };
+  if (typeof ceinture === "number") return { avancement: ceinture, languette: 1 };
+  return ceinture;
+}
+
 /**
  * Le conducteur de profil, son siège et son volant, à l'échelle CM. `x`, `y` : place dans le cadre du repère de la voiture
  * (le plancher, au talon). `siege` : { recul, hauteur, dossier } ; `appuieTete` : { hauteur } (« sommet », « nuque », ou la
  * sortie des tiges en cm) ; `dosColle` : dos contre le dossier, sinon buste penché de PENCHE degrés ; `ceinture` : false
- * (rangée), true (bouclée) ou l'avancement du geste qui la boucle (0 à 1, la languette dans la main gauche) ; `mainsVolant` :
- * mains à 9 h et 3 h, sinon posées sur les cuisses ; `mains` : place des mains, qui l'emporte ; `volant` : { inclinaison,
- * longueur } ; `accent` : la partie dont parle le cours, en vert (« siege », « appuie-tete », « ceinture »).
- * Rend { noeud, reperes, geo } ; chaque repère est aussi un rôle du nœud (data-x, data-y, unités du cadre).
+ * (rangée, non dessinée), true (bouclée), l'avancement du geste qui la boucle (0 à 1, la languette dans la main gauche) ou
+ * { avancement, languette } ; `mainsVolant` : mains à 9 h et 3 h, sinon posées sur les cuisses ; `mains` : place des mains,
+ * qui l'emporte ; `volant` : { inclinaison, longueur } ; `accent` : la partie dont parle le cours, en vert (« siege »,
+ * « appuie-tete », « ceinture »). Rend { noeud, reperes, geo, P } ; chaque repère est aussi un rôle du nœud (data-x, data-y,
+ * unités du cadre), de même que les articulations des bras (épaule, coude, poignet, main, de chaque côté).
  */
 export function conducteurProfil({ x = 0, y = 0, siege = SIEGE_REGLE, appuieTete = { hauteur: "sommet" }, dosColle = true,
   ceinture = false, mainsVolant = true, mains = null, volant = VOLANT_REGLE, accent = null } = {}) {
@@ -462,17 +470,17 @@ export function conducteurProfil({ x = 0, y = 0, siege = SIEGE_REGLE, appuieTete
   // --- Siège : patin et base (glissent sur le rail), assise, dossier, tiges et coussin de l'appuie-tête.
   const dessousAssise = (u) => geo.cuisse(u, CUISSE.dessous - S.assise.epaisseur);
   const hautPatin = S.rail.hauteur + S.base.patin;
-  const base = arrondi([dessousAssise(S.base.arriere), dessousAssise(S.base.avant), [H[0] + S.base.avant, hautPatin], [H[0] + S.base.arriere, hautPatin]].map(P), S.base.arrondi * CM);
-  const patin = arrondi([[H[0] + S.base.arriere - S.base.glissiere, hautPatin], [H[0] + S.base.avant + S.base.glissiere, hautPatin],
+  const base = formeArrondie([dessousAssise(S.base.arriere), dessousAssise(S.base.avant), [H[0] + S.base.avant, hautPatin], [H[0] + S.base.arriere, hautPatin]].map(P), S.base.arrondi * CM);
+  const patin = formeArrondie([[H[0] + S.base.arriere - S.base.glissiere, hautPatin], [H[0] + S.base.avant + S.base.glissiere, hautPatin],
     [H[0] + S.base.avant + S.base.glissiere, S.rail.hauteur], [H[0] + S.base.arriere - S.base.glissiere, S.rail.hauteur]].map(P), S.base.arrondi * CM);
-  const assise = arrondi([geo.cuisse(S.assise.arriere, CUISSE.dessous), geo.cuisse(S.assise.avant, CUISSE.dessous),
+  const assise = formeArrondie([geo.cuisse(S.assise.arriere, CUISSE.dessous), geo.cuisse(S.assise.avant, CUISSE.dessous),
     geo.cuisse(S.assise.avant, CUISSE.dessous - S.assise.epaisseur), geo.cuisse(S.assise.arriere, CUISSE.dessous - S.assise.epaisseur)].map(P), S.assise.arrondi * CM);
   const faceDossier = -MORPHO.dos;
-  const dossier = arrondi([geo.surDossier(S.dossier.bas, faceDossier), geo.surDossier(S.dossier.haut, faceDossier),
+  const dossier = formeArrondie([geo.surDossier(S.dossier.bas, faceDossier), geo.surDossier(S.dossier.haut, faceDossier),
     geo.surDossier(S.dossier.haut, faceDossier - S.dossier.epaisseur), geo.surDossier(S.dossier.bas, faceDossier - S.dossier.epaisseur)].map(P), S.dossier.arrondi * CM);
   const AT = S.appuieTete;
-  const tige = arrondi(geo.tigeAT.map(P), AT.tige / 2 * CM);
-  const arcsCoussin = coinsArrondis(geo.coussinAT.map(P), AT.arrondi * CM);
+  const tige = formeArrondie(geo.tigeAT.map(P), AT.tige / 2 * CM);
+  const coussin = pointsArrondis(geo.coussinAT.map(P), AT.arrondi * CM);
 
   // --- Corps : buste, tête (cheveux, oreille), cou ; cuisse, jambe, pied.
   const torse = PS(spline(TORSE.map(geo.corps), true));
@@ -485,28 +493,28 @@ export function conducteurProfil({ x = 0, y = 0, siege = SIEGE_REGLE, appuieTete
     return P(geo.tete(plus(OREILLE.centre, [OREILLE.demiLargeur * Math.cos(angle), OREILLE.demiHauteur * Math.sin(angle)])));
   });
   const cou = [geo.tete(COU.menton), geo.corps(COU.devant), geo.corps(COU.derriere), geo.tete(COU.nuque), geo.tete(COU.machoire)].map(P);
-  const C = geo.cuisse, Lc = MORPHO.cuisse;
-  const cuisse = [C(CUISSE.arriere, -CUISSE.rotule), C(-CUISSE.rotule, CUISSE.dessusRacine), C(Lc * MILIEU, (CUISSE.dessusRacine + CUISSE.dessusGenou) * MILIEU),
-    C(Lc - 1, CUISSE.dessusGenou), C(Lc + CUISSE.genou, CUISSE.rotule * 0.66), C(Lc + CUISSE.rotule, CUISSE.creux), C(Lc * MILIEU, CUISSE.dessous),
-    C(CUISSE.hanche + 3, CUISSE.dessous), C(CUISSE.arriere, CUISSE.dessous * MILIEU)].map(P);
+  const C = geo.cuisse, Lc = MORPHO.cuisse, Q = CUISSE;
+  const cuisse = [C(Q.arriere, -Q.rotule), C(-Q.rotule, Q.dessusRacine), C(Lc * MILIEU, (Q.dessusRacine + Q.dessusGenou) * MILIEU),
+    C(Lc - Q.avantGenou, Q.dessusGenou), C(Lc + Q.genou, Q.rotuleHaut), C(Lc + Q.rotule, Q.creux), C(Lc * MILIEU, Q.dessous),
+    C(Q.hanche + Q.dessousRacine, Q.dessous), C(Q.arriere, Q.dessous * MILIEU)].map(P);
   const axeJambe = unitaire(moins(geo.cheville, geo.genou));
   const arriereJambe = axeJambe[1] < 0 ? [axeJambe[1], -axeJambe[0]] : [-axeJambe[1], axeJambe[0]];   // vers l'arrière (le mollet)
   const J = (u, v) => plus(geo.genou, plus(fois(axeJambe, u), fois(arriereJambe, v)));
   const Lj = MORPHO.jambe, M = MOLLET;
-  const jambe = [J(-2, M.genou), J(Lj * M.partMollet, M.mollet), J(Lj - 3, M.cheville), J(Lj, 0), J(Lj - 3, -M.cheville),
-    J(Lj * M.partTibia, -(M.genou - M.dessusGenou)), J(-1, -M.genou), J(-4.5, 0)].map(P);
+  const jambe = [J(-M.hautGenou, M.genou), J(Lj * M.partMollet, M.mollet), J(Lj - M.avantCheville, M.cheville), J(Lj, 0),
+    J(Lj - M.avantCheville, -M.cheville), J(Lj * M.partTibia, -(M.genou - M.dessusGenou)), J(-M.hautTibia, -M.genou), J(-M.rondGenou, 0)].map(P);
   const ch = geo.cheville, K = CHAUSSURE;
-  const pied = arrondi([[ch[0] - K.talon, 0], [ch[0] + K.pointe, 0], [ch[0] + K.pointe - K.retraitBout, K.semelle + K.bout],
-    [ch[0] + K.coudePied, K.cou], [ch[0] - K.talon + MILIEU, K.cou]].map(P), K.arrondi * CM);
-  const semelle = arrondi([[ch[0] - K.talon, 0], [ch[0] + K.pointe, 0], [ch[0] + K.pointe - MILIEU, K.semelle], [ch[0] - K.talon, K.semelle]].map(P), K.arrondiSemelle * CM);
+  const pied = formeArrondie([[ch[0] - K.talon, 0], [ch[0] + K.pointe, 0], [ch[0] + K.pointe - K.retraitBout, K.semelle + K.bout],
+    [ch[0] + K.coudePied, K.cou], [ch[0] - K.talon + K.retraitCou, K.cou]].map(P), K.arrondi * CM);
+  const semelle = formeArrondie([[ch[0] - K.talon, 0], [ch[0] + K.pointe, 0], [ch[0] + K.pointe - K.retraitSemelle, K.semelle], [ch[0] - K.talon, K.semelle]].map(P), K.arrondiSemelle * CM);
 
-  // --- Bras : coude placé en trois dimensions, projeté de profil ; main au bout.
+  // --- Bras : coude placé en trois dimensions selon sa consigne, projeté de profil ; main au bout.
   const epaule = geo.corps(MORPHO.epaule);
   const bras = (main, cote) => {
     const axe = direction(main.angle);
     const poignet = [main.x - axe[0] * MORPHO.main, main.y, main.z - axe[1] * MORPHO.main];
     const e3 = [epaule[0], cote * MORPHO.epauleY, epaule[1]];
-    const c3 = coude(e3, poignet, cote);
+    const c3 = coude(e3, poignet, cote, main.coude ? [main.coude.x, main.coude.y, main.coude.z] : COUDE.bas);
     const pp = (p3) => P([p3[0], p3[2]]);
     const cotes = [-axe[1], axe[0]];
     const place = ([u, v]) => P(plus([poignet[0], poignet[2]], plus(fois(axe, u), fois(cotes, v))));
@@ -515,7 +523,8 @@ export function conducteurProfil({ x = 0, y = 0, siege = SIEGE_REGLE, appuieTete
     return {
       haut: gelule(pp(e3), MEMBRES.epaule * CM, pp(c3), MEMBRES.coude * CM),
       avant: gelule(pp(c3), MEMBRES.coudeAvant * CM, pp(poignet), MEMBRES.poignet * CM),
-      main: courbe(contour), pouce: courbe(pouce), prise: P([main.x, main.z]),
+      main: courbe(contour), pouce: courbe(pouce),
+      articulations: { epaule: pp(e3), coude: pp(c3), poignet: pp(poignet), main: P([main.x, main.z]) },
     };
   };
   const brasG = bras(lesMains.gauche, 1), brasD = bras(lesMains.droite, -1);
@@ -523,12 +532,14 @@ export function conducteurProfil({ x = 0, y = 0, siege = SIEGE_REGLE, appuieTete
   // --- Volant : colonne, moyeu, jante vue par la tranche.
   const V = VOLANT, c = vol.centre;
   const bord = (h, d) => plus(plus(c, fois(vol.haut, h)), fois(vol.axe, d));
-  const jante = gelule(P(plus(c, fois(vol.haut, V.rayon))), V.jante / 2 * CM, P(plus(c, fois(vol.haut, -V.rayon))), V.jante / 2 * CM);
-  const moyeu = arrondi([bord(V.moyeu / 2, -V.saillieMoyeu), bord(V.moyeu / 2, V.colonne), bord(-V.moyeu / 2, V.colonne), bord(-V.moyeu / 2, -V.saillieMoyeu)].map(P), V.arrondiMoyeu * CM);
+  const hautJante = P(plus(c, fois(vol.haut, V.rayon))), basJante = P(plus(c, fois(vol.haut, -V.rayon)));
+  const jante = gelule(hautJante, V.jante / 2 * CM, basJante, V.jante / 2 * CM);
+  const moyeu = formeArrondie([bord(V.moyeu / 2, -V.saillieMoyeu), bord(V.moyeu / 2, V.colonne), bord(-V.moyeu / 2, V.colonne), bord(-V.moyeu / 2, -V.saillieMoyeu)].map(P), V.arrondiMoyeu * CM);
   const colonne = gelule(P(bord(0, V.colonne)), V.colonne / 2 * CM, P(PIED_COLONNE), V.colonne / 2 * CM);
 
   // --- Ceinture.
-  const sangle = ceinture === false ? null : cheminCeinture(geo, ceinture === true ? 1 : ceinture, lesMains.gauche);
+  const ceint = etatCeinture(ceinture);
+  const sangle = ceint ? cheminCeinture(geo, ceint.avancement, lesMains.gauche) : null;
 
   // --- Repères (unités du cadre).
   const reperes = {
@@ -540,7 +551,7 @@ export function conducteurProfil({ x = 0, y = 0, siege = SIEGE_REGLE, appuieTete
     hanches: P(geo.corps([...MORPHO.hanches, 0])),
     nuque: P(geo.tete(TETE[TETE_NUQUE])),
     sommetCrane: plusHautCubique(teteSeg),
-    hautAppuieTete: plusHautArrondi(arcsCoussin),
+    hautAppuieTete: plusHautPoints(coussin),
   };
   const face = [P(geo.surDossier(S.dossier.bas, faceDossier)), P(geo.surDossier(S.dossier.haut, faceDossier))];
   const ud = unitaire(moins(face[1], face[0]));
@@ -552,13 +563,14 @@ export function conducteurProfil({ x = 0, y = 0, siege = SIEGE_REGLE, appuieTete
   const peau = { fill: CHARTE.peau };
   const ecrit = (v) => Number(v.toFixed(3));
   const segment = (role, [a, b]) => ({ "data-r": role, "data-x1": ecrit(a[0]), "data-y1": ecrit(a[1]), "data-x2": ecrit(b[0]), "data-y2": ecrit(b[1]) });
+  const articulations = (b, cote) => Object.entries(b.articulations).map(([nom, p]) => repere(`${nom}-${cote}`, p));
   const noeud = n("g", { "data-r": "conducteur-profil" },
-    n("path", { d: arrondi([[H[0] + S.rail.arriere, S.rail.hauteur], [H[0] + S.rail.avant, S.rail.hauteur], [H[0] + S.rail.avant, 0], [H[0] + S.rail.arriere, 0]].map(P), S.rail.arrondi * CM), fill: TEINTES.metalOmbre }),
+    n("path", { d: formeArrondie([[H[0] + S.rail.arriere, S.rail.hauteur], [H[0] + S.rail.avant, S.rail.hauteur], [H[0] + S.rail.avant, 0], [H[0] + S.rail.arriere, 0]].map(P), S.rail.arrondi * CM), fill: TEINTES.metalOmbre }),
     n("g", { "data-r": "siege", "data-recul": siege.recul, "data-hauteur": siege.hauteur, "data-dossier": siege.dossier },
       n("path", { d: patin, fill: TEINTES.metal }),
       n("path", { d: base, fill: teinteSiege.ombre }),
       n("path", { d: tige, fill: TEINTES.metal }),
-      n("g", segment("appuie-tete", faceAT), n("path", { d: traceArrondi(arcsCoussin), fill: teinteAT.base, "data-r": "appuie-tete-coussin" })),
+      n("g", segment("appuie-tete", faceAT), n("path", { d: polygone(coussin), fill: teinteAT.base, "data-r": "appuie-tete-coussin" })),
       n("g", segment("siege-dossier", face), n("path", { d: dossier, fill: teinteSiege.base })),
       n("path", { d: assise, fill: teinteSiege.clair })),
     n("g", { "data-r": "bras-droit" },
@@ -572,22 +584,25 @@ export function conducteurProfil({ x = 0, y = 0, siege = SIEGE_REGLE, appuieTete
     n("path", { d: pied, fill: TEINTES.chaussure }),
     n("path", { d: semelle, fill: TEINTES.semelle }),
     n("path", { d: courbe(jambe), fill: TEINTES.pantalon }),
+    // Boucle (côté droit du conducteur) et languette engagée : derrière la cuisse et la hanche proches, donc cachées.
+    sangle ? dessinBoucle(sangle, P) : null,
     n("path", { d: courbe(cuisse), fill: TEINTES.pantalon }),
     sangle ? dessinSangle(sangle, P, accent === "ceinture") : null,
     n("path", { d: colonne, fill: TEINTES.colonne }),
     n("path", { d: moyeu, fill: TEINTES.moyeu }),
-    n("path", { d: jante, fill: TEINTES.volant, "data-r": "volant" }),
+    n("path", { d: jante, fill: TEINTES.volant, "data-r": "volant", "data-x1": ecrit(hautJante[0]), "data-y1": ecrit(hautJante[1]),
+      "data-x2": ecrit(basJante[0]), "data-y2": ecrit(basJante[1]) }),
     n("g", { "data-r": "bras-gauche" },
-      n("path", { d: brasG.haut, fill: TEINTES.pullClair }), n("path", { d: brasG.avant, fill: TEINTES.pullClair }),
-      n("path", { d: brasG.main, ...peau }), n("path", { d: brasG.pouce, fill: CHARTE.peauOmbre })),
-    sangle ? dessinLanguette(sangle, P) : null,
-    repere("main-gauche", brasG.prise), repere("main-droite", brasD.prise),
+      n("path", { d: brasG.haut, fill: TEINTES.pullClair }),
+      n("path", { d: brasG.avant, fill: TEINTES.pullClair, stroke: CONTOUR_AVANT_BRAS.couleur, "stroke-width": CONTOUR_AVANT_BRAS.epaisseur, "data-r": "avant-bras-gauche" }),
+      n("path", { d: brasG.main, ...peau, "data-r": "main-gauche-forme" }), n("path", { d: brasG.pouce, fill: CHARTE.peauOmbre })),
+    sangle ? dessinRenvoiLanguette(sangle, P, ceint.languette) : null,
+    ...articulations(brasG, "gauche"), ...articulations(brasD, "droite"),
     ...Object.entries(reperes).map(([role, p]) => repere(role, p)));
   return { noeud, reperes, geo, P };
 }
 
 // --- Ceinture de profil : renvoi, languette, boucle, ancrage ; chemin selon l'avancement du geste.
-const POINTS_CEINTURE = 5;
 function cheminCeinture(geo, u, mainGauche) {
   const C = CEINTURE;
   const ancrage = plus(geo.H, C.ancrage), boucle = plus(geo.H, C.boucle);
@@ -608,22 +623,26 @@ function cheminCeinture(geo, u, mainGauche) {
 }
 function dessinSangle(sangle, P, accent) {
   const teinte = accent ? ACCENT.ombre : TEINTES.sangle;
-  const diag = bande(sangle.diagonal.map(P), CEINTURE.sangle * CM);
-  const vent = bande(sangle.ventral.map(P), CEINTURE.sangle * CM);
-  // Bord haut du brin ventral : celui des deux bords qui est le plus haut dans le cadre.
-  const haut = vent.bordA.reduce((s, p) => s + p[1], 0) < vent.bordB.reduce((s, p) => s + p[1], 0) ? vent.bordA : vent.bordB;
+  const diag = ruban(sangle.diagonal.map(P), CEINTURE.sangle * CM);
+  const vent = ruban(sangle.ventral.map(P), CEINTURE.sangle * CM);
   return n("g", { "data-r": "ceinture" },
     n("path", { d: diag.d, fill: teinte, "data-r": "brin-diagonal", "data-points": listePoints(diag.centre) }),
-    n("path", { d: vent.d, fill: teinte, "data-r": "brin-ventral", "data-points": listePoints(vent.centre), "data-haut": listePoints(haut) }));
+    n("path", { d: vent.d, fill: teinte, "data-r": "brin-ventral", "data-points": listePoints(vent.centre), "data-haut": listePoints(bordHaut(vent)) }));
 }
-function dessinLanguette(sangle, P) {
+// Boucle sur sa place et languette qui y est engagée (visible quand la ceinture est bouclée) : dessinées sous la cuisse.
+function dessinBoucle(sangle, P) {
   const C = CEINTURE;
-  const boitier = (centre, { longueur, largeur }, teinte) => n("rect", { x: P(centre)[0] - longueur * CM / 2, y: P(centre)[1] - largeur * CM / 2,
-    width: longueur * CM, height: largeur * CM, rx: largeur * CM / 4, fill: teinte });
   return n("g", { "data-r": "boucle-ceinture" },
-    boitier(RENVOI, C.renvoi, TEINTES.siegeOmbre),
-    boitier(sangle.boucle, C.boitier, TEINTES.sangle),
-    boitier(sangle.languette, C.languette, TEINTES.boucle));
+    boitier(P, sangle.boucle, C.boitier.longueur, C.boitier.largeur, TEINTES.sangle),
+    boitier(P, sangle.boucle, C.languette.longueur, C.languette.largeur, TEINTES.boucle, { display: sangle.avancement >= 1 ? "inline" : "none" }));
+}
+// Renvoi (côté portière, au-dessus du dos) et languette tenue en main ou rangée, dessinés devant.
+function dessinRenvoiLanguette(sangle, P, opaciteLanguette) {
+  const C = CEINTURE;
+  return n("g", { "data-r": "renvoi-ceinture" },
+    boitier(P, RENVOI, C.renvoi.longueur, C.renvoi.largeur, TEINTES.siegeOmbre),
+    n("g", { "data-r": "languette", ...affiche(opaciteLanguette) },
+      boitier(P, sangle.languette, C.languette.longueur, C.languette.largeur, TEINTES.boucle)));
 }
 
 // ===================================================================================================================
@@ -633,15 +652,18 @@ function dessinLanguette(sangle, P) {
 const L_CADRE = 320;
 const MARGE = 8, GOUTTIERE = 8;
 const LEGENDE = { bas: 12, taille: CHARTE.tailles.etiquette };      // légende sous le dessin, dans la vignette
+const JEU_LEGENDE = 3, HAUT_TEXTE = 0.8, INTERLIGNE = 1.25;
 
 function paire(hauteur) {
   const largeur = (L_CADRE - 2 * MARGE - GOUTTIERE) / 2;
   return { largeur, hauteur: hauteur - 2 * MARGE, xJuste: MARGE, xFaux: MARGE + largeur + GOUTTIERE, y: MARGE };
 }
 
-// Vignette dont le dessin est rogné au bord de sa carte (les jambes du conducteur en sortent), avec sa légende au bas.
+// Vignette dont le dessin est rogné au bord de sa carte (les jambes du conducteur en sortent), avec sa légende au bas. La
+// découpe a un identifiant propre à chaque montage.
 const RAYON_CARTE = 8, LISERE_CARTE = 0.5;
-function vignetteRognee({ x, y, largeur, hauteur, etat, id, legende }, dessin, ...dessus) {
+function vignetteRognee({ x, y, largeur, hauteur, etat, nom, legende }, dessin, ...dessus) {
+  const id = nouvelId(nom);
   return vignette({ x, y, largeur, hauteur, etat },
     n("clipPath", { id }, n("rect", { x: x + LISERE_CARTE, y: y + LISERE_CARTE, width: largeur - 2 * LISERE_CARTE, height: hauteur - 2 * LISERE_CARTE, rx: RAYON_CARTE - LISERE_CARTE })),
     n("g", { "clip-path": `url(#${id})` }, dessin),
@@ -653,14 +675,14 @@ function vignetteRognee({ x, y, largeur, hauteur, etat, id, legende }, dessin, .
 // Plancher et planche de bord (repère de la voiture), sous le conducteur de profil.
 const PLANCHER = { epaisseur: 3, arriere: -170, avant: 60 };
 function plancher(P) {
-  return n("path", { d: arrondi([[PLANCHER.arriere, 0], [PLANCHER.avant, 0], [PLANCHER.avant, -PLANCHER.epaisseur], [PLANCHER.arriere, -PLANCHER.epaisseur]].map(P), 0), fill: TEINTES.plancher });
+  return n("path", { d: polygone([[PLANCHER.arriere, 0], [PLANCHER.avant, 0], [PLANCHER.avant, -PLANCHER.epaisseur], [PLANCHER.arriere, -PLANCHER.epaisseur]].map(P)), fill: TEINTES.plancher });
 }
 // Planche de bord de profil (repère de la voiture), coins arrondis : dessus, du pied du pare-brise au capuchon du combiné
 // au-dessus du volant ; face arrière, où entre la colonne de direction ; dessous (place des genoux) ; tablier, qui descend au
 // plancher devant les pieds.
 const TABLEAU = [[56, 75], [-30, 82], [-36, 80], [-34, 72], [-27, 52], [-22, 44], [0, 41], [26, 37], [40, 26], [46, 8], [50, 0], [66, 0], [66, 74]];
 const ARRONDI_TABLEAU = 3;
-const traceTableau = (P) => arrondi(TABLEAU.map(P), ARRONDI_TABLEAU * CM);
+const traceTableau = (P) => formeArrondie(TABLEAU.map(P), ARRONDI_TABLEAU * CM);
 function tableau(P) {
   return n("path", { d: traceTableau(P), fill: TEINTES.tableau });
 }
@@ -669,7 +691,6 @@ function tableau(P) {
 const H_SIEGE = 210;
 const PLACE_H = 86;           // abscisse du point H dans chaque vignette : le siège y est à la même place, la voiture bouge
 // Place du plancher dans une vignette : au-dessus de la légende (lignes de 1,25 taille), d'un jeu de 3 unités.
-const JEU_LEGENDE = 3, HAUT_TEXTE = 0.8, INTERLIGNE = 1.25;
 const solVignette = (p, lignes) => p.y + p.hauteur - LEGENDE.bas - HAUT_TEXTE * LEGENDE.taille - (lignes - 1) * INTERLIGNE * LEGENDE.taille
   - JEU_LEGENDE - PLANCHER.epaisseur * CM;
 function vignetteProfil(xCarte, p, lignes, options) {
@@ -684,9 +705,9 @@ function dessinSiege() {
   const faux = vignetteProfil(p.xFaux, p, 1, { siege: { ...SIEGE_REGLE, recul: SIEGE_REGLE.recul + RECUL_TROP }, dosColle: false, accent: "siege" });
   return cadre({ largeur: L_CADRE, hauteur: H_SIEGE, titre: "Régler le siège",
     description: "Juste : dos contre le dossier, environ 25 cm entre le sternum et le centre du volant, obtenus en reculant le siège. Faux : siège trop reculé, dos décollé du dossier pour atteindre le volant." },
-  vignetteRognee({ x: p.xJuste, y: p.y, largeur: p.largeur, hauteur: p.hauteur, etat: "juste", id: "conducteur-siege-juste", legende: ["Dos contre le dossier"] },
+  vignetteRognee({ x: p.xJuste, y: p.y, largeur: p.largeur, hauteur: p.hauteur, etat: "juste", nom: "siege-juste", legende: ["Dos contre le dossier"] },
     [...juste.decor, juste.noeud], cote(juste.reperes.sternum, juste.reperes.centreVolant, "25 cm")),
-  vignetteRognee({ x: p.xFaux, y: p.y, largeur: p.largeur, hauteur: p.hauteur, etat: "faux", id: "conducteur-siege-faux", legende: ["Dos décollé du dossier"] },
+  vignetteRognee({ x: p.xFaux, y: p.y, largeur: p.largeur, hauteur: p.hauteur, etat: "faux", nom: "siege-faux", legende: ["Dos décollé du dossier"] },
     [...faux.decor, faux.noeud], ecartDos(faux.reperes.dos, faux.reperes.dossier)));
 }
 
@@ -702,13 +723,14 @@ function cote(a, b, libelle) {
   return n("g", { "data-r": "cote" }, trait(a, a2), trait(b, b2), trait(a2, b2),
     texte(m[0], m[1] - TEXTE_COTE, libelle, { ancrage: "middle", graisse: 600 }));
 }
-// Écart entre le dos et le dossier : petite double flèche.
+// Écart entre le dos et le dossier : petite double flèche (pointes de 3 unités de long, 2 de demi-largeur).
+const POINTE_ECART = { longueur: 3, demiLargeur: 2 };
 function ecartDos(dos, dossier) {
   const u = unitaire(moins(dossier, dos));
   const pointe = (p, sens) => {
-    const q = plus(p, fois(u, -sens * 3));
+    const q = plus(p, fois(u, -sens * POINTE_ECART.longueur));
     const nn = [-u[1], u[0]];
-    return `M${ecrirePoint(plus(q, fois(nn, 2)))} L${ecrirePoint(p)} L${ecrirePoint(plus(q, fois(nn, -2)))}`;
+    return `M${ecrirePoint(plus(q, fois(nn, POINTE_ECART.demiLargeur)))} L${ecrirePoint(p)} L${ecrirePoint(plus(q, fois(nn, -POINTE_ECART.demiLargeur)))}`;
   };
   return n("g", { "data-r": "ecart-dos" },
     n("line", { x1: dos[0], y1: dos[1], x2: dossier[0], y2: dossier[1], stroke: CHARTE.faux, "stroke-width": CHARTE.traits.moyen }),
@@ -728,13 +750,13 @@ function dessinAppuieTete() {
   };
   return cadre({ largeur: L_CADRE, hauteur: H_APPUIE_TETE, titre: "Régler l'appuie-tête",
     description: "Juste : le haut de l'appuie-tête au niveau du sommet du crâne, au plus près de la tête. Faux : appuie-tête trop bas, au niveau de la nuque." },
-  vignetteRognee({ x: p.xJuste, y: p.y, largeur: p.largeur, hauteur: p.hauteur, etat: "juste", id: "conducteur-appuie-tete-juste", legende: ["Haut au niveau", "du sommet du crâne"] },
+  vignetteRognee({ x: p.xJuste, y: p.y, largeur: p.largeur, hauteur: p.hauteur, etat: "juste", nom: "appuie-tete-juste", legende: ["Haut au niveau", "du sommet du crâne"] },
     [...juste.decor, juste.noeud], guide(p.xJuste, juste.reperes)),
-  vignetteRognee({ x: p.xFaux, y: p.y, largeur: p.largeur, hauteur: p.hauteur, etat: "faux", id: "conducteur-appuie-tete-faux", legende: ["Trop bas, au niveau", "de la nuque"] },
+  vignetteRognee({ x: p.xFaux, y: p.y, largeur: p.largeur, hauteur: p.hauteur, etat: "faux", nom: "appuie-tete-faux", legende: ["Trop bas, au niveau", "de la nuque"] },
     [...faux.decor, faux.noeud], guide(p.xFaux, faux.reperes)));
 }
 
-/// ===================================================================================================================
+// ===================================================================================================================
 // Le conducteur de face (ceinture)
 // ===================================================================================================================
 
@@ -807,7 +829,7 @@ export function conducteurFace({ x = 0, y = 0, ceinture = "juste" } = {}) {
   const zSommet = (y - plusHautCubique(teteSeg)[1]) / CM;
   const AT = F.appuieTete;
   const coussin = rect({ demiLargeur: AT.demiLargeur, bas: zSommet - AT.hauteur, haut: zSommet });
-  const tiges = [-1, 1].map((k) => arrondi(decale(rect({ demiLargeur: AT.tige, bas: F.dossier.haut - AT.arrondi, haut: zSommet - AT.hauteur + AT.arrondi }), k * AT.ecartTiges).map(P), AT.tige * CM));
+  const tiges = [-1, 1].map((k) => formeArrondie(decale(rect({ demiLargeur: AT.tige, bas: F.dossier.haut - AT.arrondi, haut: zSommet - AT.hauteur + AT.arrondi }), k * AT.ecartTiges).map(P), AT.tige * CM));
   // Cheveux : le contour de la tête d'une tempe à l'autre en passant par le sommet (mêmes segments), puis la lisière.
   const n2 = tete.length;
   const segCheveux = [...teteSeg.slice(n2 - F.tempe), ...teteSeg.slice(0, F.tempe)];
@@ -818,7 +840,7 @@ export function conducteurFace({ x = 0, y = 0, ceinture = "juste" } = {}) {
     const a = (i / OREILLE.points) * 2 * Math.PI;
     return P([k * F.oreille.centre[0] + F.oreille.demiLargeur * Math.cos(a), F.oreille.centre[1] + F.oreille.demiHauteur * Math.sin(a)]);
   })));
-  const cou = arrondi(rect({ demiLargeur: F.cou.demiLargeur, bas: F.cou.bas, haut: F.cou.haut }).map(P), F.cou.demiLargeur * CM * MILIEU);
+  const cou = formeArrondie(rect({ demiLargeur: F.cou.demiLargeur, bas: F.cou.bas, haut: F.cou.haut }).map(P), F.cou.demiLargeur * CM * MILIEU);
   const buste = courbe(symetrique(F.buste).map(P));
   const bassin = courbe(symetrique(F.bassin).map(P));
   const jambes = [1, -1].map((k) => courbe(F.jambe.map(([px, pz]) => P([k * px, pz]))));
@@ -832,28 +854,25 @@ export function conducteurFace({ x = 0, y = 0, ceinture = "juste" } = {}) {
   // Ceinture.
   const chemin = CHEMINS_FACE[ceinture];
   const largeur = CEINTURE.sangle * CM;
-  const diag = bande(chemin.diagonal.map(P), largeur), vent = bande(chemin.ventral.map(P), largeur);
-  const hautVentral = vent.bordA.reduce((s, p) => s + p[1], 0) < vent.bordB.reduce((s, p) => s + p[1], 0) ? vent.bordA : vent.bordB;
-  const cache = chemin.cache ? bande(chemin.cache.map(P), largeur) : null;
+  const diag = ruban(chemin.diagonal.map(P), largeur), vent = ruban(chemin.ventral.map(P), largeur);
+  const cache = chemin.cache ? ruban(chemin.cache.map(P), largeur) : null;
   const teinte = ACCENT.ombre;
   const R = F.reperes;
   const reperes = {
     epauleGauche: P(R.epaule), epauleDroite: P([-R.epaule[0], R.epaule[1]]), cou: P(R.cou), aisselleGauche: P(R.aisselle),
     hanches: P([0, R.hanches]), nombril: P(R.nombril),
   };
-  const boitier = ([cx, cz], l, h, teinteB) => n("rect", { x: P([cx, cz])[0] - l * CM / 2, y: P([cx, cz])[1] - h * CM / 2,
-    width: l * CM, height: h * CM, rx: Math.min(l, h) * CM / 4, fill: teinteB });
   const C = CEINTURE, M = F.montant;
   const noeud = n("g", { "data-r": "conducteur-face", "data-ceinture": ceinture },
-    n("path", { d: arrondi(rect({ demiLargeur: (M.droite - M.gauche) / 2, bas: M.bas, haut: M.haut }).map(([px, pz]) => P([px + (M.droite + M.gauche) / 2, pz])), 0), fill: TEINTES.montant }),
-    n("path", { d: arrondi(rect(F.base).map(P), F.base.arrondi * CM), fill: TEINTES.siegeOmbre }),
-    n("path", { d: arrondi(rect(F.dossier).map(P), F.dossier.arrondi * CM), fill: TEINTES.siege }),
+    n("path", { d: polygone(rect({ demiLargeur: (M.droite - M.gauche) / 2, bas: M.bas, haut: M.haut }).map(([px, pz]) => P([px + (M.droite + M.gauche) / 2, pz]))), fill: TEINTES.montant }),
+    n("path", { d: formeArrondie(rect(F.base).map(P), F.base.arrondi * CM), fill: TEINTES.siegeOmbre }),
+    n("path", { d: formeArrondie(rect(F.dossier).map(P), F.dossier.arrondi * CM), fill: TEINTES.siege }),
     ...tiges.map((d) => n("path", { d, fill: TEINTES.metal })),
-    n("path", { d: arrondi(coussin.map(P), AT.arrondi * CM), fill: TEINTES.siege, "data-r": "appuie-tete-coussin" }),
-    n("path", { d: arrondi(rect(F.assise).map(P), F.assise.arrondi * CM), fill: TEINTES.siegeClair }),
-    n("path", { d: arrondi(decale(rect({ demiLargeur: F.tigeBoucle.demiLargeur, bas: F.tigeBoucle.bas, haut: F.boucle[1] }), F.boucle[0]).map(P), 0), fill: TEINTES.sangle }),
+    n("path", { d: formeArrondie(coussin.map(P), AT.arrondi * CM), fill: TEINTES.siege, "data-r": "appuie-tete-coussin" }),
+    n("path", { d: formeArrondie(rect(F.assise).map(P), F.assise.arrondi * CM), fill: TEINTES.siegeClair }),
+    n("path", { d: polygone(decale(rect({ demiLargeur: F.tigeBoucle.demiLargeur, bas: F.tigeBoucle.bas, haut: F.boucle[1] }), F.boucle[0]).map(P)), fill: TEINTES.sangle }),
     cache ? n("path", { d: cache.d, fill: teinte, "data-r": "brin-cache" }) : null,
-    boitier(F.renvoi, C.renvoi.largeur, C.renvoi.longueur, TEINTES.siegeOmbre),
+    boitier(P, F.renvoi, C.renvoi.largeur, C.renvoi.longueur, TEINTES.siegeOmbre),
     ...oreilles.map((d) => n("path", { d, fill: CHARTE.peauOmbre })),
     n("path", { d: cou, fill: CHARTE.peauOmbre }),
     n("path", { d: traceSegments(teteSeg), fill: CHARTE.peau, "data-r": "tete" }),
@@ -863,11 +882,11 @@ export function conducteurFace({ x = 0, y = 0, ceinture = "juste" } = {}) {
     n("path", { d: bassin, fill: TEINTES.pantalon }),
     n("path", { d: buste, fill: TEINTES.pull, "data-r": "buste" }),
     n("g", { "data-r": "ceinture" },
-      n("path", { d: vent.d, fill: teinte, "data-r": "brin-ventral", "data-points": listePoints(vent.centre), "data-haut": listePoints(hautVentral) }),
+      n("path", { d: vent.d, fill: teinte, "data-r": "brin-ventral", "data-points": listePoints(vent.centre), "data-haut": listePoints(bordHaut(vent)) }),
       n("path", { d: diag.d, fill: teinte, "data-r": "brin-diagonal", "data-points": listePoints(diag.centre) })),
-    boitier(F.boucle, C.boitier.largeur, C.boitier.longueur, TEINTES.sangle),
-    boitier(plus(F.boucle, [C.boitier.largeur * MILIEU, 0]), C.languette.longueur, C.languette.largeur, TEINTES.boucle),
-    boitier(F.ancrage, C.renvoi.largeur, C.renvoi.longueur * MILIEU, TEINTES.siegeOmbre),
+    boitier(P, F.boucle, C.boitier.largeur, C.boitier.longueur, TEINTES.sangle),
+    boitier(P, plus(F.boucle, [C.boitier.largeur * MILIEU, 0]), C.languette.longueur, C.languette.largeur, TEINTES.boucle),
+    boitier(P, F.ancrage, C.renvoi.largeur, C.renvoi.longueur * MILIEU, TEINTES.siegeOmbre),
     ...bras.map(([h, a, m]) => n("g", {}, n("path", { d: h, fill: TEINTES.pullClair }), n("path", { d: a, fill: TEINTES.pullClair }), n("path", { d: m, fill: CHARTE.peau }))),
     ...Object.entries(reperes).map(([role, p]) => repere(role, p)));
   return { noeud, reperes };
@@ -881,12 +900,12 @@ function dessinCeinture() {
   const sol = solVignette(p, 2);
   const juste = conducteurFace({ x: p.xJuste + p.largeur / 2, y: sol, ceinture: "juste" });
   const faux = conducteurFace({ x: p.xFaux + p.largeur / 2, y: sol, ceinture: "faux" });
-  const decor = (xCarte) => n("path", { d: arrondi([[xCarte, sol], [xCarte + p.largeur, sol], [xCarte + p.largeur, sol + PLANCHER.epaisseur * CM], [xCarte, sol + PLANCHER.epaisseur * CM]], 0), fill: TEINTES.plancher });
+  const decor = (xCarte) => n("path", { d: polygone([[xCarte, sol], [xCarte + p.largeur, sol], [xCarte + p.largeur, sol + PLANCHER.epaisseur * CM], [xCarte, sol + PLANCHER.epaisseur * CM]]), fill: TEINTES.plancher });
   return cadre({ largeur: L_CADRE, hauteur: H_CEINTURE, titre: "Placer la ceinture",
     description: "Conducteur vu de face. Juste : brin ventral bas sur le bassin, brin diagonal à plat au milieu de l'épaule. Faux : brin ventral sur le ventre, brin diagonal sous le bras." },
-  vignetteRognee({ x: p.xJuste, y: p.y, largeur: p.largeur, hauteur: p.hauteur, etat: "juste", id: "conducteur-ceinture-juste", legende: ["Bas sur le bassin", "Milieu de l'épaule"] },
+  vignetteRognee({ x: p.xJuste, y: p.y, largeur: p.largeur, hauteur: p.hauteur, etat: "juste", nom: "ceinture-juste", legende: ["Bas sur le bassin", "Milieu de l'épaule"] },
     [decor(p.xJuste), juste.noeud]),
-  vignetteRognee({ x: p.xFaux, y: p.y, largeur: p.largeur, hauteur: p.hauteur, etat: "faux", id: "conducteur-ceinture-faux", legende: ["Sur le ventre", "Sous le bras"] },
+  vignetteRognee({ x: p.xFaux, y: p.y, largeur: p.largeur, hauteur: p.hauteur, etat: "faux", nom: "ceinture-faux", legende: ["Sur le ventre", "Sous le bras"] },
     [decor(p.xFaux), faux.noeud]));
 }
 
@@ -903,9 +922,11 @@ const CABINE = {
   montant: { largeur: 8, bas: 0, haut: 118, arrondi: 3 },      // le renvoi est fixé sur sa face avant
   plancher: { arriere: -150, avant: 52 },
 };
-// Rétroviseur intérieur de profil : rotule sous la traverse, boîtier (profondeur, hauteur) centré sous elle, tangage (degrés,
-// verre tourné vers le haut quand il est positif) avant et après réglage. Main droite : écart vers la droite du conducteur.
-const RETRO = { rotule: [-42, 105], centre: [-1.5, -3.3], profondeur: 2.6, hauteur: 6.8, arrondi: 1.2, tangageDepart: 9, tangageRegle: 0, mainY: -34 };
+// Rétroviseur intérieur de profil : rotule sous la traverse, tige (qui mord d'un cm dans la traverse), boîtier (profondeur,
+// hauteur) centré sous la rotule, tangage (degrés, verre tourné vers le haut quand il est positif) avant et après réglage ;
+// la main droite le tient par son bas, côté conducteur (prise : écart depuis le centre du boîtier, cm ; y de la main).
+const RETRO = { rotule: [-42, 105], recouvrementTige: 1, centre: [-1.5, -3.3], profondeur: 2.6, hauteur: 6.8, arrondi: 1.2,
+  tangageDepart: 9, tangageRegle: 0, prise: [-2, -3], mainY: -28 };
 // Vignette du rétroviseur (unités du cadre) : la carte, le miroir, ce qu'il montre (lunette arrière, ciel, sol, route) ;
 // décalage de la vue avant réglage (le verre tourné vers le haut montre le pavillon : la lunette descend dans le miroir).
 const VIGNETTE = {
@@ -921,128 +942,153 @@ const VIGNETTE = {
 };
 const TEINTES_VUE = { habitacle: "#4D5550", boitier: "#2F3532", ciel: "#E6ECEF", sol: "#B9C3B6", route: "#8C938D", filet: CHARTE.texteDoux };
 
-// Calendrier du geste (secondes). Chaque mouvement de main ou de réglage dure de 0,7 à 1,4 s (adoucir) ; une prise ou un
-// lâcher 0,2 s ; une apparition 0,2 s (sortieDouce), une disparition 0,13 s ; chaque étape finit par une courte pause.
+// Calendrier du geste (secondes). Les mouvements de main durent 0,8 s et les réglages de 0,7 à 1,4 s (adoucir) ; une prise
+// ou un lâcher 0,2 s (adoucir) ; une apparition 0,2 s, une disparition 0,13 s (sortieDouce). Les repères d'une étape
+// (cote, ligne du sommet du crâne) disparaissent avant la fin de leur étape ; la vignette du rétroviseur apparaît à
+// l'étape 5, quand la main le saisit.
 const T = {
-  recul: [0.35, 1.45], hauteur: [1.6, 2.3], dossier: [2.45, 3.15], cote: 3.2,
-  etape2: 3.9, versAT: [4.05, 4.75], saisieAT: [4.75, 4.95], monteeAT: [5.0, 5.9], lacheAT: [5.9, 6.1], retourAT: [6.1, 6.8], guide: 5.95,
-  etape3: 7.3, versVolant: [7.45, 8.15], saisieVolant: [7.95, 8.15], reglageVolant: [8.3, 9.2],
-  etape4: 10.0, lacheG: [10.15, 10.35], versLanguette: [10.3, 11.0], saisieLanguette: [11.0, 11.2], tirage: [11.25, 12.65],
-  lacheBoucle: [12.65, 12.85], retourG: [12.85, 13.55], resaisieG: [13.35, 13.55], vignette: 14.05,
-  etape5: 14.3, lacheD: [14.45, 14.65], versRetro: [14.6, 15.3], saisieRetro: [15.3, 15.5], orientation: [15.55, 16.65],
-  lacheRetro: [16.65, 16.85], retourD: [16.85, 17.55], resaisieD: [17.35, 17.55], texteLunette: 16.7,
-  duree: 18.4,
+  recul: [0.35, 1.45], hauteur: [1.6, 2.3], dossier: [2.45, 3.15], cote: [3.2, 4.05],
+  etape2: 4.3, monteeAT: [4.6, 5.6], guide: [5.65, 6.65],
+  etape3: 6.9, versVolant: [7.05, 7.85], fermeVolant: [7.65, 7.85], reglageVolant: [8.1, 9.1],
+  etape4: 10.1, lacheG: [10.25, 10.45], versLanguette: [10.4, 11.2], saisieLanguette: [11.2, 11.4], tirage: [11.45, 12.85],
+  coudeTirage: 12.08, clic: [12.85, 13.05], retourG: [13.05, 13.85], resaisieG: [13.65, 13.85],
+  etape5: 14.5, lacheD: [14.65, 14.85], versRetro: [14.8, 15.6], saisieRetro: [15.6, 15.8], vignette: 15.6,
+  orientation: [15.85, 16.95], lacheRetro: [16.95, 17.15], retourD: [17.15, 17.95], resaisieD: [17.75, 17.95], lunette: 17.0,
+  duree: 18.7,
 };
-const APPARITION = 0.2, DISPARITION = 0.13, MAINTIEN = 0.3;     // les repères d'une étape restent au début de la suivante
-const PRISE_AT = 0.85, PRISE_RETRO = 0.8;
-// Places des mains (cm, degrés) : sur l'appuie-tête, de côté ; sur la languette rangée ; à la boucle ; au rétroviseur.
-const MAIN_AT = { y: 14, angle: 160 }, MAIN_LANGUETTE = { y: 26, angle: 120 }, MAIN_BOUCLE = { y: -14, angle: -60 }, MAIN_RETRO = { angle: 25 };
-// Chemin de la languette tirée (repère du buste) : à côté de l'épaule (la main passe en dehors du corps, côté portière), devant
-// la poitrine ; écart de la main sur y (de la portière vers la boucle).
-const TIRAGE = { epaule: [44, 2], poitrine: [30, 17], y: [26, 22, 6, -14] };
-// Bombement des trajets de la main (cm, vers le haut) : vers l'appuie-tête, vers la languette.
-const BOMBE = { appuieTete: 10, languette: 3, retour: 6 };
+const APPARITION = 0.2, DISPARITION = 0.13;
+// Prises : main à plat (0), main entrouverte qui se déplace (PRISE_EN_ROUTE), refermée sur la jante ou la languette (1), sur
+// le rétroviseur (PRISE_RETRO).
+const PRISE_EN_ROUTE = 0.45, PRISE_RETRO = 0.8;
+// Places des mains (cm, degrés) : sur la languette rangée ; à la boucle ; au rétroviseur.
+const MAIN_LANGUETTE = { y: 26, angle: 120 }, MAIN_BOUCLE = { y: -14, angle: -60 }, MAIN_RETRO = { angle: 25 };
+// Chemin de la languette tirée (repère du buste) : en dehors de l'épaule, à sa hauteur (la main la contourne côté portière,
+// jamais dessous : le coude resterait sans côté), devant la poitrine ; écart de la main sur y (de la portière vers la boucle).
+const TIRAGE = { cote: [47, -1], poitrine: [30, 17], y: [26, 34, 4, -14] };
+// Passages des mains (cm) : vers la jante, la main passe derrière le plan du volant (côté conducteur), sous son centre, pour
+// la saisir par l'arrière ; vers la languette, en dehors de l'épaule, à sa hauteur (jamais devant le visage ni sous l'épaule).
+const VERS_JANTE = { sousCentre: 10, derriere: 9 };
+const VERS_LANGUETTE = { epaule: TIRAGE.cote, y: TIRAGE.y[1] };
 
-const SORTIE_BASSE = () => sortieAppuieTete(SIEGE_REGLE, "nuque"), SORTIE_HAUTE = () => sortieAppuieTete(SIEGE_REGLE, "sommet");
+// Constantes du geste, calculées une fois : sorties basse et haute de l'appuie-tête (haut à la nuque, puis au sommet du
+// crâne), pour le siège réglé.
+const SORTIE_BASSE = sortieAppuieTete(SIEGE_REGLE, "nuque"), SORTIE_HAUTE = sortieAppuieTete(SIEGE_REGLE, "sommet");
 
+const suivant = (t, [t0, t1]) => adoucir(avancement(t, t0, t1));
 function reglagesA(t) {
-  const k = (de, a, [t0, t1]) => melange(de, a, adoucir(avancement(t, t0, t1)));
+  const k = (de, a, intervalle) => interpoler(de, a, suivant(t, intervalle));
   return {
     siege: { recul: k(SIEGE_DEPART.recul, SIEGE_REGLE.recul, T.recul), hauteur: k(SIEGE_DEPART.hauteur, SIEGE_REGLE.hauteur, T.hauteur),
       dossier: k(SIEGE_DEPART.dossier, SIEGE_REGLE.dossier, T.dossier) },
-    appuieTete: { hauteur: k(SORTIE_BASSE(), SORTIE_HAUTE(), T.monteeAT) },
+    appuieTete: { hauteur: k(SORTIE_BASSE, SORTIE_HAUTE, T.monteeAT) },
     volant: { inclinaison: k(VOLANT_DEPART.inclinaison, VOLANT_REGLE.inclinaison, T.reglageVolant),
       longueur: k(VOLANT_DEPART.longueur, VOLANT_REGLE.longueur, T.reglageVolant) },
-    ceinture: { avancement: adoucir(avancement(t, ...T.tirage)) },
-    retroviseur: { orientation: adoucir(avancement(t, ...T.orientation)) },
+    // La languette tenue en main disparaît dans la boucle (cachée par la hanche) au clic.
+    ceinture: { avancement: suivant(t, T.tirage), languette: 1 - sortieDouce(avancement(t, ...T.clic)) },
+    retroviseur: { orientation: suivant(t, T.orientation) },
   };
 }
 
 // Rétroviseur de profil : boîtier tourné autour de sa rotule.
 function retroviseurDe(orientation) {
-  const tangage = melange(RETRO.tangageDepart, RETRO.tangageRegle, orientation) * RAD;
+  const tangage = interpoler(RETRO.tangageDepart, RETRO.tangageRegle, orientation) * RAD;
   const centre = plus(RETRO.rotule, tourner(RETRO.centre, tangage));
   const coins = [[-1, 1], [1, 1], [1, -1], [-1, -1]].map(([a, b]) => plus(centre, tourner([a * RETRO.profondeur / 2, b * RETRO.hauteur / 2], tangage)));
   return { centre, coins, tangage };
 }
 
-// Places des mains, fonctions de l'instant (les places suivent le siège, le volant, l'appuie-tête, le rétroviseur).
-function placesMains(t, reglages) {
+// Places des mains (les places suivent le siège, le volant et le rétroviseur).
+function placesMains(reglages) {
   const geo = poseCorps({ siege: reglages.siege, sortieAT: reglages.appuieTete.hauteur, dosColle: true });
   const volant = mainsSurVolant(reglages.volant);
-  const centreAT = entre(geo.coussinAT[0], geo.coussinAT[2], MILIEU);
+  const vol = geometrieVolant(reglages.volant);
   const ancrage = plus(geo.H, CEINTURE.ancrage);
   const repos = entre(RENVOI, ancrage, CEINTURE.rangee);
   const retro = retroviseurDe(reglages.retroviseur.orientation);
+  const prise = plus(retro.centre, tourner(RETRO.prise, retro.tangage));
+  const boucle = plus(geo.H, CEINTURE.boucle);
+  // Point de passage vers la jante : sous le centre du volant, derrière son plan (côté conducteur).
+  const passage = plus(plus(vol.centre, fois(vol.haut, -VERS_JANTE.sousCentre)), fois(vol.axe, -VERS_JANTE.derriere));
+  const versLanguette = geo.corps(VERS_LANGUETTE.epaule);
   return {
     cuisseG: mainSurCuisse(geo, 1), cuisseD: mainSurCuisse(geo, -1), volantG: volant.gauche, volantD: volant.droite,
-    appuieTete: { x: centreAT[0], y: MAIN_AT.y, z: centreAT[1], angle: MAIN_AT.angle },
     languette: { x: repos[0], y: MAIN_LANGUETTE.y, z: repos[1], angle: MAIN_LANGUETTE.angle },
-    boucle: { ...(() => { const b = plus(geo.H, CEINTURE.boucle); return { x: b[0], z: b[1] }; })(), y: MAIN_BOUCLE.y, angle: MAIN_BOUCLE.angle },
-    retro: { x: retro.centre[0], y: RETRO.mainY, z: retro.centre[1], angle: MAIN_RETRO.angle },
+    boucle: { x: boucle[0], y: MAIN_BOUCLE.y, z: boucle[1], angle: MAIN_BOUCLE.angle },
+    retro: { x: prise[0], y: RETRO.mainY, z: prise[1], angle: MAIN_RETRO.angle },
+    passageJante: (y) => ({ x: passage[0], y, z: passage[1] }),
+    passageLanguette: { x: versLanguette[0], y: VERS_LANGUETTE.y, z: versLanguette[1] },
     geo,
   };
 }
 
-// Chemin de la languette tirée par la main gauche (repère de la voiture) : du repos, devant l'épaule, devant la poitrine, à
-// la boucle ; paramétré par la longueur parcourue, pour une vitesse régulière avant la courbe d'accélération.
+// Chemin de la languette tirée par la main gauche (repère de la voiture) : du repos, à côté de l'épaule, devant la poitrine,
+// à la boucle ; paramétré par la longueur parcourue, pour une vitesse régulière avant la courbe d'accélération.
 const PAS_TIRAGE = 64;
 function cheminTirage(places) {
   const geo = places.geo;
-  const pts = [[places.languette.x, places.languette.z], geo.corps(TIRAGE.epaule), geo.corps(TIRAGE.poitrine), [places.boucle.x, places.boucle.z]];
+  const pts = [[places.languette.x, places.languette.z], geo.corps(TIRAGE.cote), geo.corps(TIRAGE.poitrine), [places.boucle.x, places.boucle.z]];
   const echant = echantillons(spline(pts, false), PAS_TIRAGE / (pts.length - 1));
   const cumul = [0];
   for (let i = 1; i < echant.length; i++) cumul.push(cumul[i - 1] + dist(echant[i - 1], echant[i]));
   const total = cumul[cumul.length - 1];
   return (u) => {
-    const cible = Math.min(1, Math.max(0, u)) * total;
+    const part = Math.min(1, Math.max(0, u));
+    const cible = part * total;
     let i = 1;
     while (i < cumul.length - 1 && cumul[i] < cible) i++;
     const r = (cible - cumul[i - 1]) / ((cumul[i] - cumul[i - 1]) || 1);
     const p = entre(echant[i - 1], echant[i], r);
-    const yIndice = Math.min(1, Math.max(0, u)) * (TIRAGE.y.length - 1);
+    const yIndice = part * (TIRAGE.y.length - 1);
     const j = Math.min(TIRAGE.y.length - 2, Math.floor(yIndice));
-    return { x: p[0], z: p[1], y: melange(TIRAGE.y[j], TIRAGE.y[j + 1], yIndice - j),
-      angle: melange(MAIN_LANGUETTE.angle, MAIN_BOUCLE.angle, Math.min(1, Math.max(0, u))) };
+    return { x: p[0], z: p[1], y: interpoler(TIRAGE.y[j], TIRAGE.y[j + 1], yIndice - j), angle: interpoler(MAIN_LANGUETTE.angle, MAIN_BOUCLE.angle, part) };
   };
 }
 
-// Une main qui va d'une place à une autre (x, y, z, angle), sur adoucir, bombée vers le haut au milieu du trajet.
-function trajetMain(t, [t0, t1], de, vers, bombe = 0) {
-  const u = adoucir(avancement(t, t0, t1));
-  const bosse = 4 * u * (1 - u) * bombe;
-  return { x: melange(de.x, vers.x, u), y: melange(de.y, vers.y, u), z: melange(de.z, vers.z, u) + bosse, angle: melange(de.angle, vers.angle, u) };
+// Une main qui va d'une place à une autre (x, y, z, angle) sur adoucir, par un point de passage facultatif (x, y, z) : la
+// trajectoire est une courbe de Bézier quadratique qui passe par lui au milieu du mouvement.
+function trajetMain(t, intervalle, de, vers, passage = null) {
+  const u = suivant(t, intervalle);
+  const position = (k) => {
+    if (!passage) return interpoler(de[k], vers[k], u);
+    const controle = 2 * passage[k] - (de[k] + vers[k]) / 2;
+    return (1 - u) * (1 - u) * de[k] + 2 * u * (1 - u) * controle + u * u * vers[k];
+  };
+  return { x: position("x"), y: position("y"), z: position("z"), angle: interpoler(de.angle, vers.angle, u) };
 }
-// Prise d'une main : suite de clés (instant de début, durée, valeur d'arrivée), adoucie.
-function prise(t, depart, changements) {
-  let v = depart;
-  for (const [[t0, t1], vers] of changements) v = melange(v, vers, adoucir(avancement(t, t0, t1)));
-  return v;
-}
+// Valeur d'une suite de clés [instant, valeur] (adoucir entre deux clés), pour un nombre ou un vecteur.
+const clesNombre = (liste, t) => cles(liste.map(([ti, v]) => ({ t: ti, v })), t);
+const clesVecteur = (liste, t) => [0, 1, 2].map((k) => clesNombre(liste.map(([ti, v]) => [ti, v[k]]), t));
 
 function mainsA(t, reglages) {
-  const p = placesMains(t, reglages);
-  // Main gauche : cuisse, appuie-tête (monte avec lui), cuisse, volant (suit son réglage), languette, boucle (le long du
-  // chemin de tirage), volant.
+  const p = placesMains(reglages);
+  // Main gauche : cuisse, volant (par l'arrière ; suit son réglage), languette (par le côté de l'épaule), boucle (le long du
+  // chemin de tirage), volant (par l'arrière).
   let g;
-  if (t < T.versAT[1]) g = trajetMain(t, T.versAT, p.cuisseG, p.appuieTete, BOMBE.appuieTete);
-  else if (t < T.retourAT[0]) g = p.appuieTete;
-  else if (t < T.versVolant[0]) g = trajetMain(t, T.retourAT, p.appuieTete, p.cuisseG, BOMBE.appuieTete);
-  else if (t < T.versLanguette[0]) g = trajetMain(t, T.versVolant, p.cuisseG, p.volantG);
-  else if (t < T.tirage[0]) g = trajetMain(t, T.versLanguette, p.volantG, p.languette, BOMBE.languette);
+  if (t < T.versLanguette[0]) g = trajetMain(t, T.versVolant, p.cuisseG, p.volantG, p.passageJante(interpoler(p.cuisseG.y, p.volantG.y, MILIEU)));
+  else if (t < T.tirage[0]) g = trajetMain(t, T.versLanguette, p.volantG, p.languette, p.passageLanguette);
   else if (t < T.retourG[0]) g = cheminTirage(p)(reglages.ceinture.avancement);
-  else g = trajetMain(t, T.retourG, p.boucle, p.volantG, BOMBE.retour);
-  // Main droite : cuisse, volant, rétroviseur (tourne avec lui), volant.
+  else g = trajetMain(t, T.retourG, p.boucle, p.volantG, p.passageJante(interpoler(p.boucle.y, p.volantG.y, MILIEU)));
+  // Main droite : cuisse, volant (par l'arrière), rétroviseur (tourne avec lui), volant.
   let d;
-  if (t < T.versRetro[0]) d = trajetMain(t, T.versVolant, p.cuisseD, p.volantD);
+  if (t < T.versRetro[0]) d = trajetMain(t, T.versVolant, p.cuisseD, p.volantD, p.passageJante(interpoler(p.cuisseD.y, p.volantD.y, MILIEU)));
   else if (t < T.retourD[0]) d = trajetMain(t, T.versRetro, p.volantD, p.retro);
   else d = trajetMain(t, T.retourD, p.retro, p.volantD);
-  const priseG = prise(t, 0, [[T.saisieAT, PRISE_AT], [T.lacheAT, 0], [T.saisieVolant, 1], [T.lacheG, 0], [T.saisieLanguette, 1], [T.lacheBoucle, 0], [T.resaisieG, 1]]);
-  const priseD = prise(t, 0, [[T.saisieVolant, 1], [T.lacheD, 0], [T.saisieRetro, PRISE_RETRO], [T.lacheRetro, 0], [T.resaisieD, 1]]);
-  return { gauche: { ...g, prise: priseG }, droite: { ...d, prise: priseD } };
+  const priseG = clesNombre([[0, 0], [T.versVolant[0], 0], [T.fermeVolant[0], PRISE_EN_ROUTE], [T.fermeVolant[1], 1], [T.lacheG[0], 1],
+    [T.lacheG[1], PRISE_EN_ROUTE], [T.saisieLanguette[0], PRISE_EN_ROUTE], [T.saisieLanguette[1], 1], [T.clic[0], 1], [T.clic[1], PRISE_EN_ROUTE],
+    [T.resaisieG[0], PRISE_EN_ROUTE], [T.resaisieG[1], 1]], t);
+  const priseD = clesNombre([[0, 0], [T.versVolant[0], 0], [T.fermeVolant[0], PRISE_EN_ROUTE], [T.fermeVolant[1], 1], [T.lacheD[0], 1],
+    [T.lacheD[1], PRISE_EN_ROUTE], [T.saisieRetro[0], PRISE_EN_ROUTE], [T.saisieRetro[1], PRISE_RETRO], [T.lacheRetro[0], PRISE_RETRO],
+    [T.lacheRetro[1], PRISE_EN_ROUTE], [T.resaisieD[0], PRISE_EN_ROUTE], [T.resaisieD[1], 1]], t);
+  // Consignes des coudes : vers l'avant et le bas pour aller chercher la languette, puis en bas dès que la main a contourné
+  // l'épaule (T.coudeTirage, au premier tiers du tirage) ; en dehors pour le bras droit tendu vers le rétroviseur.
+  const [gx, gy, gz] = clesVecteur([[0, COUDE.bas], [T.versLanguette[0], COUDE.bas], [T.versLanguette[1], COUDE.avantBas],
+    [T.tirage[0], COUDE.avantBas], [T.coudeTirage, COUDE.bas]], t);
+  const [dx, dy, dz] = clesVecteur([[0, COUDE.bas], [T.versRetro[0], COUDE.bas], [T.versRetro[1], COUDE.dehors],
+    [T.retourD[0], COUDE.dehors], [T.retourD[1], COUDE.bas]], t);
+  return { gauche: { ...g, prise: priseG, coude: { x: gx, y: gy, z: gz } }, droite: { ...d, prise: priseD, coude: { x: dx, y: dy, z: dz } } };
 }
 
-// Opacité d'un repère qui apparaît à `debut` et disparaît à `fin` (ou reste).
+// Opacité d'un repère qui apparaît au début de `[debut, fin]` et disparaît à sa fin (sans fin : il reste).
 function opacite(t, debut, fin = Infinity) {
   const entree = sortieDouce(avancement(t, debut, debut + APPARITION));
   const sortie = fin === Infinity ? 0 : sortieDouce(avancement(t, fin, fin + DISPARITION));
@@ -1055,31 +1101,30 @@ function etatInstallation(t) {
     ...reglages,
     mains: mainsA(t, reglages),
     reperes: {
-      cote: opacite(t, T.cote, T.etape2 + MAINTIEN), guide: opacite(t, T.guide, T.etape3 + MAINTIEN),
-      vignette: opacite(t, T.vignette), lunette: opacite(t, T.texteLunette),
+      cote: opacite(t, ...T.cote), guide: opacite(t, ...T.guide), vignette: opacite(t, T.vignette), lunette: opacite(t, T.lunette),
     },
   };
 }
 
 // Vue dans le rétroviseur : habitacle sombre, lunette (ciel, sol, route vers l'horizon), décalée tant que le miroir n'est pas
 // réglé. Tous les points sont dans le repère du cadre.
-function vueRetroviseur(orientation, opaciteVue) {
+function vueRetroviseur(orientation, opaciteVue, idMiroir) {
   const V = VIGNETTE, M = V.miroir;
   const centre = [M.x + M.largeur / 2, M.y + M.hauteur / 2];
   const decal = fois(V.decalage, 1 - orientation);
   const lunette = V.lunette.map((p) => plus(plus(centre, p), decal));
   const [hg, hd, bd, bg] = lunette;
-  const yHorizon = melange(hg[1], bg[1], V.horizon);
+  const yHorizon = interpoler(hg[1], bg[1], V.horizon);
   const surBord = (a, b, y) => entre(a, b, (y - a[1]) / (b[1] - a[1]));
   const gH = surBord(hg, bg, yHorizon), dH = surBord(hd, bd, yHorizon);
   const milieuX = (gH[0] + dH[0]) / 2;
   const route = [[milieuX - V.route.haut, yHorizon], [milieuX + V.route.haut, yHorizon], [milieuX + V.route.bas, bd[1]], [milieuX - V.route.bas, bg[1]]];
-  const { carte, boitier } = V;
+  const { carte, boitier: b } = V;
   return n("g", { "data-r": "vignette-retroviseur", ...affiche(opaciteVue) },
     n("rect", { x: carte.x, y: carte.y, width: carte.largeur, height: carte.hauteur, rx: carte.arrondi, fill: CHARTE.carte, stroke: CHARTE.filet, "stroke-width": CHARTE.traits.fin }),
-    n("rect", { x: boitier.x, y: boitier.y, width: boitier.largeur, height: boitier.hauteur, rx: boitier.arrondi, fill: TEINTES_VUE.boitier }),
-    n("clipPath", { id: "conducteur-installation-miroir" }, n("rect", { x: M.x, y: M.y, width: M.largeur, height: M.hauteur, rx: M.arrondi })),
-    n("g", { "clip-path": "url(#conducteur-installation-miroir)" },
+    n("rect", { x: b.x, y: b.y, width: b.largeur, height: b.hauteur, rx: b.arrondi, fill: TEINTES_VUE.boitier }),
+    n("clipPath", { id: idMiroir }, n("rect", { x: M.x, y: M.y, width: M.largeur, height: M.hauteur, rx: M.arrondi })),
+    n("g", { "clip-path": `url(#${idMiroir})` },
       n("rect", { x: M.x, y: M.y, width: M.largeur, height: M.hauteur, fill: TEINTES_VUE.habitacle }),
       n("polygon", { points: listePoints(lunette), fill: TEINTES_VUE.ciel, "data-r": "lunette" }),
       n("polygon", { points: listePoints([gH, dH, bd, bg]), fill: TEINTES_VUE.sol }),
@@ -1087,34 +1132,93 @@ function vueRetroviseur(orientation, opaciteVue) {
     n("rect", { x: M.x, y: M.y, width: M.largeur, height: M.hauteur, rx: M.arrondi, fill: "none", stroke: TEINTES_VUE.boitier, "stroke-width": CHARTE.traits.moyen, "data-r": "miroir" }));
 }
 
-// Image du geste à un état.
-function dessinerInstallation(etat, { fige, etape }) {
-  const L = L_CADRE, H = H_INSTALLATION;
-  const origine = ORIGINE_INSTALLATION;
-  const P = ([px, pz]) => [origine[0] - px * CM, origine[1] - pz * CM];
-  const profil = conducteurProfil({ x: origine[0], y: origine[1], siege: etat.siege, appuieTete: { hauteur: etat.appuieTete.hauteur },
-    ceinture: etat.ceinture.avancement, mains: etat.mains, volant: etat.volant });
+const H_INSTALLATION = 220;
+// Place du repère de la voiture dans le cadre : plancher à 12 unités du bas, talon à 143 unités du bord gauche. Cadre de 320
+// sur 220 (catalogue) : la cabine et le conducteur, à l'échelle de la famille, font 145 unités de haut ; la vignette du
+// rétroviseur tient au-dessus de la planche de bord, à gauche du rétroviseur.
+const ORIGINE_INSTALLATION = [143, H_INSTALLATION - 12];
+const P_INSTALLATION = ([px, pz]) => [ORIGINE_INSTALLATION[0] - px * CM, ORIGINE_INSTALLATION[1] - pz * CM];
+// Ligne du sommet du crâne : de juste après le rétroviseur au montant ; son libellé au-dessus de la traverse, qui finit 10
+// unités avant le montant (unités du cadre).
+const GUIDE = { apresRetro: 6, dessusTraverse: 3, avantMontant: 10 };
+const RAYON_POINT_FILET = 2.2;
+const TITRE_INSTALLATION = "S'installer, dans l'ordre";
+const DESCRIPTION_INSTALLATION = "Le conducteur s'installe à l'arrêt, dans l'ordre : il recule et règle le siège jusqu'à environ 25 cm entre le sternum et le centre du volant, dos contre le dossier ; l'appuie-tête monte au niveau du sommet du crâne ; il règle le volant, mains à 9 h et 3 h ; il boucle la ceinture ; il oriente le rétroviseur intérieur, qui cadre alors toute la lunette arrière.";
+
+// Flèches des cinq étapes (repère du cadre), à partir des états de début et de fin de chaque étape ; calculées une fois par
+// construction du geste.
+const FLECHE_SIEGE = { devant: 22, hauteur: 6 };           // cm : devant la base (la pointe s'arrête 8 cm devant elle), au-dessus du plancher
+const FLECHE_AT = { derriere: 5 };                           // cm derrière le coussin
+// Volant : arc autour du pied de colonne, 12 cm au-dessus du haut de la jante, prolongé de part et d'autre d'un quart de la
+// rotation réelle (le volant ne bouge que de quelques centimètres : la flèche doit se lire sur un téléphone).
+const FLECHE_VOLANT = { ecart: 12, prolongement: 0.25, points: 5 };
+const FLECHE_CEINTURE = { parts: [0.04, 0.3, 0.55, 0.8, 0.97] };
+// Rétroviseur : arc autour de la rotule, à 16 cm, six fois plus ouvert que le tangage réel (9 degrés), dans son sens : le
+// boîtier ne tourne que de quelques millimètres, la flèche doit se lire sur un téléphone.
+const FLECHE_RETRO = { rayon: 16, ouverture: 6, points: 7 };
+const EPAISSEUR_FLECHES = [CHARTE.traits.appuye, CHARTE.traits.appuye, CHARTE.traits.appuye, CHARTE.traits.appuye, CHARTE.traits.moyen];
+function flechesInstallation() {
+  const P = P_INSTALLATION;
+  // 1. Le siège recule : le long du rail, devant la base, du recul de départ au recul réglé.
+  const avant0 = pointH(SIEGE_DEPART)[0] + SIEGE.base.avant + FLECHE_SIEGE.devant;
+  const fl1 = [P([avant0, FLECHE_SIEGE.hauteur]), P([avant0 - (SIEGE_REGLE.recul - SIEGE_DEPART.recul), FLECHE_SIEGE.hauteur])];
+  // 2. L'appuie-tête monte le long de ses tiges : derrière le coussin, de son haut en position basse à son haut réglé.
+  const geoB = poseCorps({ siege: SIEGE_REGLE, sortieAT: SORTIE_BASSE }), geoH = poseCorps({ siege: SIEGE_REGLE, sortieAT: SORTIE_HAUTE });
+  const derriere = (g) => plus(g.coussinAT[2], fois(g.faceATAvant, -FLECHE_AT.derriere));
+  const fl2 = [P(derriere(geoB)), P(derriere(geoH))];
+  // 3. Le volant se règle : arc autour du pied de colonne, du haut de la jante au départ à son haut réglé, prolongé.
+  const hautJante = (v) => { const g = geometrieVolant(v); return plus(g.centre, fois(g.haut, VOLANT.rayon)); };
+  const angleDepuisPied = (p) => Math.atan2(p[1] - PIED_COLONNE[1], p[0] - PIED_COLONNE[0]);
+  const [h0, h1] = [hautJante(VOLANT_DEPART), hautJante(VOLANT_REGLE)];
+  const [a0, a1] = [angleDepuisPied(h0), angleDepuisPied(h1)];
+  const rayonV = dist(h1, PIED_COLONNE) + FLECHE_VOLANT.ecart;
+  const ouvertureV = (a1 - a0) * FLECHE_VOLANT.prolongement;
+  const fl3 = Array.from({ length: FLECHE_VOLANT.points }, (_, i) => {
+    const a = interpoler(a0 - ouvertureV, a1 + ouvertureV, i / (FLECHE_VOLANT.points - 1));
+    return P(plus(PIED_COLONNE, fois([Math.cos(a), Math.sin(a)], rayonV)));
+  });
+  // 4. La ceinture se boucle : le chemin de la languette, du repos à la boucle.
+  const chemin = cheminTirage(placesMains(reglagesA(T.tirage[0])));
+  const fl4 = FLECHE_CEINTURE.parts.map((u) => { const m = chemin(u); return P([m.x, m.z]); });
+  // 5. Le rétroviseur s'oriente : arc autour de sa rotule, dans le sens de son tangage.
+  const base = Math.atan2(RETRO.centre[1], RETRO.centre[0]);
+  const [r0, r1] = [RETRO.tangageDepart * RAD, RETRO.tangageRegle * RAD];
+  const milieu = (r0 + r1) / 2, demi = ((r1 - r0) / 2) * FLECHE_RETRO.ouverture;
+  const fl5 = Array.from({ length: FLECHE_RETRO.points }, (_, i) => {
+    const a = base + interpoler(milieu - demi, milieu + demi, i / (FLECHE_RETRO.points - 1));
+    return P(plus(RETRO.rotule, fois([Math.cos(a), Math.sin(a)], FLECHE_RETRO.rayon)));
+  });
+  return [fl1, fl2, fl3, fl4, fl5];
+}
+
+// Image du geste à un état. L'image figée est la même image, flèche de l'étape visible.
+function dessinerInstallation(etat, { fige, etape }, { fleches, idMiroir }) {
+  const P = P_INSTALLATION;
+  const profil = conducteurProfil({ x: ORIGINE_INSTALLATION[0], y: ORIGINE_INSTALLATION[1], siege: etat.siege,
+    appuieTete: { hauteur: etat.appuieTete.hauteur }, ceinture: etat.ceinture, mains: etat.mains, volant: etat.volant });
   const r = profil.reperes;
   // Cabine.
   const C = CABINE;
   const pb = C.pareBrise, nPb = fois(unitaire([pb.haut[1] - pb.pied[1], pb.pied[0] - pb.haut[0]]), pb.epaisseur / 2);
-  const pareBrise = arrondi([plus(pb.pied, nPb), plus(pb.haut, nPb), moins(pb.haut, nPb), moins(pb.pied, nPb)].map(P), 0);
+  const pareBrise = polygone([plus(pb.pied, nPb), plus(pb.haut, nPb), moins(pb.haut, nPb), moins(pb.pied, nPb)].map(P));
   const tr = C.traverse;
-  const traverse = arrondi([[tr.avant, tr.haut], [tr.arriere, tr.haut], [tr.arriere, tr.bas], [tr.avant, tr.bas]].map(P), tr.arrondi * CM);
+  const traverse = formeArrondie([[tr.avant, tr.haut], [tr.arriere, tr.haut], [tr.arriere, tr.bas], [tr.avant, tr.bas]].map(P), tr.arrondi * CM);
   const mo = C.montant, xm = RENVOI[0] - mo.largeur / 2;
-  const montant = arrondi([[xm + mo.largeur / 2, mo.haut], [xm - mo.largeur / 2, mo.haut], [xm - mo.largeur / 2, mo.bas], [xm + mo.largeur / 2, mo.bas]].map(P), mo.arrondi * CM);
+  const montant = formeArrondie([[xm + mo.largeur / 2, mo.haut], [xm - mo.largeur / 2, mo.haut], [xm - mo.largeur / 2, mo.bas], [xm + mo.largeur / 2, mo.bas]].map(P), mo.arrondi * CM);
   const pl = C.plancher;
-  const sol = arrondi([[pl.arriere, 0], [pl.avant, 0], [pl.avant, -PLANCHER.epaisseur], [pl.arriere, -PLANCHER.epaisseur]].map(P), 0);
+  const sol = polygone([[pl.arriere, 0], [pl.avant, 0], [pl.avant, -PLANCHER.epaisseur], [pl.arriere, -PLANCHER.epaisseur]].map(P));
   const retro = retroviseurDe(etat.retroviseur.orientation);
-  const tigeRetro = [plus(RETRO.rotule, [0, (tr.bas - RETRO.rotule[1]) + 1]), RETRO.rotule];
-  // Repères : cote des 25 cm, ligne du sommet du crâne.
+  const tigeRetro = [plus(RETRO.rotule, [0, tr.bas - RETRO.rotule[1] + RETRO.recouvrementTige]), RETRO.rotule];
+  // Repères : cote des 25 cm (étape 1), ligne du sommet du crâne (étape 2).
   const sommet = r.sommetCrane;
+  const xMontant = P([RENVOI[0], 0])[0];
   const guide = n("g", { "data-r": "repere-sommet", ...affiche(etat.reperes.guide) },
-    n("line", { x1: sommet[0] - GUIDE.avant, y1: sommet[1], x2: P([RENVOI[0], 0])[0], y2: sommet[1], stroke: TEINTES.guide, "stroke-width": CHARTE.traits.fin, "stroke-dasharray": "3 2" }),
-    texte(P([CABINE.traverse.arriere, 0])[0] + GUIDE.apresTraverse, sommet[1] - GUIDE.dessus, "Sommet du crâne", { taille: CHARTE.tailles.petite, graisse: 600, couleur: TEINTES.guide }));
+    n("line", { x1: P(RETRO.rotule)[0] + GUIDE.apresRetro, y1: sommet[1], x2: xMontant, y2: sommet[1], stroke: TEINTES.guide, "stroke-width": CHARTE.traits.fin, "stroke-dasharray": "3 2" }),
+    texte(xMontant - GUIDE.avantMontant, P([0, tr.haut])[1] - GUIDE.dessusTraverse, "Sommet du crâne",
+      { taille: CHARTE.tailles.petite, ancrage: "end", graisse: 600, couleur: TEINTES.guide }));
   const coteVolant = n("g", { "data-r": "repere-25", ...affiche(etat.reperes.cote) }, cote(r.sternum, r.centreVolant, "25 cm"));
   // Vignette du rétroviseur et son filet vers le rétroviseur.
-  const vueNoeud = vueRetroviseur(etat.retroviseur.orientation, etat.reperes.vignette);
+  const vue = vueRetroviseur(etat.retroviseur.orientation, etat.reperes.vignette, idMiroir);
   const cible = P(retro.centre);
   const filetVue = n("g", { ...affiche(etat.reperes.vignette) },
     n("line", { x1: VIGNETTE.attache[0], y1: VIGNETTE.attache[1], x2: cible[0], y2: cible[1], stroke: TEINTES_VUE.filet, "stroke-width": CHARTE.traits.fin }),
@@ -1122,82 +1226,34 @@ function dessinerInstallation(etat, { fige, etape }) {
   const legendeVue = n("g", { "data-r": "legende-lunette", ...affiche(etat.reperes.lunette) },
     texte(VIGNETTE.carte.x + VIGNETTE.carte.largeur / 2, VIGNETTE.legende.y, "Toute la lunette", { ancrage: "middle", graisse: 600 }));
   // Flèche de l'étape (mêmes points dans toute l'étape), visible sur l'image figée seulement.
-  const flecheEtape = fleche(FLECHES_INSTALLATION()[etape], { visible: Boolean(fige), epaisseur: EPAISSEUR_FLECHES[etape] });
-  return cadre({ largeur: L, hauteur: H, titre: TITRE_INSTALLATION, description: DESCRIPTION_INSTALLATION },
+  const flecheEtape = fleche(fleches[etape], { visible: Boolean(fige), epaisseur: EPAISSEUR_FLECHES[etape] });
+  return cadre({ largeur: L_CADRE, hauteur: H_INSTALLATION, titre: TITRE_INSTALLATION, description: DESCRIPTION_INSTALLATION },
     n("path", { d: montant, fill: TEINTES.montant }),
     n("path", { d: traceTableau(P), fill: TEINTES.tableau }),
     n("path", { d: pareBrise, fill: TEINTES_VUE.ciel, stroke: TEINTES.montant, "stroke-width": CHARTE.traits.fin }),
     n("path", { d: traverse, fill: TEINTES.montant }),
     n("line", { x1: P(tigeRetro[0])[0], y1: P(tigeRetro[0])[1], x2: P(tigeRetro[1])[0], y2: P(tigeRetro[1])[1], stroke: TEINTES.volant, "stroke-width": CHARTE.traits.appuye, "stroke-linecap": "round" }),
-    n("path", { d: arrondi(retro.coins.map(P), RETRO.arrondi * CM), fill: TEINTES_VUE.boitier, "data-r": "retroviseur", "data-angle": Number((retro.tangage / RAD).toFixed(3)) }),
+    n("path", { d: formeArrondie(retro.coins.map(P), RETRO.arrondi * CM), fill: TEINTES_VUE.boitier, "data-r": "retroviseur", "data-angle": Number((retro.tangage / RAD).toFixed(3)) }),
     n("path", { d: sol, fill: TEINTES.plancher }),
     profil.noeud,
     coteVolant, guide,
-    filetVue, vueNoeud, legendeVue,
+    filetVue, vue, legendeVue,
     flecheEtape);
 }
 
-// Cadre de 320 sur 220 (catalogue) : la cabine et le conducteur, à l'échelle de la famille, font 145 unités de haut ; la vignette
-// du rétroviseur tient au-dessus de la planche de bord, à gauche du rétroviseur.
-const H_INSTALLATION = 220;
-// Place du repère de la voiture dans le cadre : plancher à 12 unités du bas, talon à 143 unités du bord gauche.
-const ORIGINE_INSTALLATION = [143, H_INSTALLATION - 12];
-const GUIDE = { avant: 44, dessus: 4, apresTraverse: 4 };
-const RAYON_POINT_FILET = 2.2;
-const TITRE_INSTALLATION = "S'installer, dans l'ordre";
-const DESCRIPTION_INSTALLATION = "Le conducteur s'installe à l'arrêt, dans l'ordre : il recule et règle le siège jusqu'à environ 25 cm entre le sternum et le centre du volant, dos contre le dossier ; il monte l'appuie-tête au niveau du sommet du crâne ; il règle le volant, mains à 9 h et 3 h ; il boucle la ceinture ; il oriente le rétroviseur intérieur, qui cadre alors toute la lunette arrière.";
-
-// Flèches des cinq étapes (repère du cadre), calculées une fois à partir des états de début et de fin de chaque étape.
-let fleches = null;
-function FLECHES_INSTALLATION() {
-  if (fleches) return fleches;
-  const o = ORIGINE_INSTALLATION;
-  const P = ([px, pz]) => [o[0] - px * CM, o[1] - pz * CM];
-  // 1. Le siège recule : le long du rail, devant la base, du recul de départ au recul réglé.
-  const avant0 = pointH(SIEGE_DEPART)[0] + SIEGE.base.avant + FLECHE_SIEGE.devant;
-  const fl1 = [P([avant0, FLECHE_SIEGE.hauteur]), P([avant0 - (SIEGE_REGLE.recul - SIEGE_DEPART.recul), FLECHE_SIEGE.hauteur])];
-  // 2. L'appuie-tête monte le long de ses tiges : derrière le coussin, de son haut en position basse à son haut réglé.
-  const geoB = poseCorps({ siege: SIEGE_REGLE, sortieAT: SORTIE_BASSE() }), geoH = poseCorps({ siege: SIEGE_REGLE, sortieAT: SORTIE_HAUTE() });
-  const derriere = (g) => plus(g.coussinAT[2], fois(g.faceATAvant, -FLECHE_AT.derriere));
-  const fl2 = [P(derriere(geoB)), P(derriere(geoH))];
-  // 3. Le volant se règle : le haut de la jante, de sa place de départ à sa place réglée, autour du pied de colonne.
-  const hautJante = (part) => {
-    const g = geometrieVolant({ inclinaison: melange(VOLANT_DEPART.inclinaison, VOLANT_REGLE.inclinaison, part), longueur: melange(VOLANT_DEPART.longueur, VOLANT_REGLE.longueur, part) });
-    return plus(plus(g.centre, fois(g.haut, VOLANT.rayon + FLECHE_VOLANT.dessus)), fois(g.axe, FLECHE_VOLANT.devant));
-  };
-  const fl3 = [0, MILIEU, 1].map((part) => P(hautJante(part)));
-  // 4. La ceinture se boucle : le chemin de la languette, du repos à la boucle.
-  const places = placesMains(T.tirage[0], reglagesA(T.tirage[0]));
-  const chemin = cheminTirage(places);
-  const fl4 = FLECHE_CEINTURE.parts.map((u) => { const m = chemin(u); return P([m.x, m.z]); });
-  // 5. Le rétroviseur s'oriente : dans la vignette, la lunette vient au centre du miroir.
-  const M = VIGNETTE.miroir, centre = [M.x + M.largeur / 2, M.y + M.hauteur / 2];
-  const fl5 = [plus(centre, VIGNETTE.decalage), plus(centre, fois(VIGNETTE.decalage, FLECHE_RETRO.arret))];
-  fleches = [fl1, fl2, fl3, fl4, fl5];
-  return fleches;
-}
-// Épaisseur de chaque flèche : la plus courte (le volant bouge de quelques centimètres) prend le trait moyen, pour que sa tête
-// ne mange pas son trait.
-const EPAISSEUR_FLECHES = [CHARTE.traits.appuye, CHARTE.traits.appuye, CHARTE.traits.moyen, CHARTE.traits.appuye, CHARTE.traits.appuye];
-const FLECHE_SIEGE = { devant: 22, hauteur: 6 };           // cm : devant la base (la pointe s'arrête 8 cm devant elle), au-dessus du plancher
-const FLECHE_AT = { derriere: 5 };                           // cm derrière le coussin
-const FLECHE_VOLANT = { dessus: 8, devant: 2 };              // cm au-dessus et en avant du haut de la jante
-const FLECHE_CEINTURE = { parts: [0.04, 0.3, 0.55, 0.8, 0.97] };
-const FLECHE_RETRO = { arret: 0.12 };                       // la pointe s'arrête juste avant le centre (place de la lunette réglée)
-
 function construireInstallation() {
+  const montage = { fleches: flechesInstallation(), idMiroir: nouvelId("installation-miroir") };
   return {
     titre: TITRE_INSTALLATION,
     description: DESCRIPTION_INSTALLATION,
     cadre: [L_CADRE, H_INSTALLATION],
     duree: T.duree,
     etapes: [0, T.etape2, T.etape3, T.etape4, T.etape5].map((t) => ({ t })),
-    // Apparitions (0,2 s) et disparitions (0,13 s) des repères, sur sortieDouce : jusqu'au tiers de leur plage en une image.
-    // Prises et lâchers de la main (0,2 s, adoucir) : les doigts se referment vite, jusqu'au quart de la plage en une image.
-    sautsMax: { "reperes.cote": 0.35, "reperes.guide": 0.35, "reperes.vignette": 0.35, "reperes.lunette": 0.35,
-      "mains.gauche.prise": 0.25, "mains.droite.prise": 0.25 },
+    // Apparitions (0,2 s) et disparitions (0,13 s) sur sortieDouce, des repères et de la languette qui entre dans la boucle :
+    // jusqu'au tiers de leur plage en une image.
+    sautsMax: { "reperes.cote": 0.35, "reperes.guide": 0.35, "reperes.vignette": 0.35, "reperes.lunette": 0.35, "ceinture.languette": 0.35 },
     etat: etatInstallation,
-    dessiner: dessinerInstallation,
+    dessiner: (etat, options) => dessinerInstallation(etat, options, montage),
   };
 }
 

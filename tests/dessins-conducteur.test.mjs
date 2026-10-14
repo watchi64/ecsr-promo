@@ -322,3 +322,99 @@ test("installation : à la fin, le rétroviseur intérieur cadre toute la lunett
   const sommet = (t) => point(imageA(def, t, false), "sommetCrane");
   assert.ok(distance(sommet(debut(4)), sommet(def.duree)) < 1e-6, "la tête reste immobile à l'étape 5");
 });
+
+// ===== Correctif, tour 1 : continuité des bras, main hors du visage, volant, découpes, repères =====
+
+// Une articulation du bras ne va pas plus vite que ARTICULATION_MAX unités par image de 1/60 s : les mouvements de main les
+// plus rapides du geste (0,8 s, adoucir) restent sous 5 unités par image ; au-delà de 8 (7,5 px sur un téléphone, 480 unités
+// par seconde), une articulation saute. Lu dans le dessin (data-x, data-y des rôles), pas dans l'état.
+const ARTICULATION_MAX = 8;
+const ARTICULATIONS = ["epaule", "coude", "poignet", "main"].flatMap((a) => [`${a}-gauche`, `${a}-droite`]);
+const images = instants.map((t) => imageA(def, t, false));
+
+test("installation : aucune articulation dessinée (épaule, coude, poignet, main) ne bouge de plus de 8 unités en une image", () => {
+  for (const role of ARTICULATIONS) {
+    let pire = { d: 0, t: 0 };
+    for (let i = 1; i < images.length; i++) {
+      const d = distance(point(images[i - 1], role), point(images[i], role));
+      if (d > pire.d) pire = { d, t: instants[i] };
+    }
+    assert.ok(pire.d <= ARTICULATION_MAX, `${role} : ${pire.d.toFixed(1)} unités en une image à ${pire.t.toFixed(3)} s`);
+  }
+});
+
+// Point dans un polygone (règle du rayon) ; distance d'un point à un polygone (au plus près de ses côtés).
+function dansPolygone([x, y], poly) {
+  let dedans = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const [xi, yi] = poly[i], [xj, yj] = poly[j];
+    if ((yi > y) !== (yj > y) && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) dedans = !dedans;
+  }
+  return dedans;
+}
+function distancePolygone(p, poly) {
+  let m = Infinity;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const [a, b] = [poly[j], poly[i]], ab = [b[0] - a[0], b[1] - a[1]];
+    const k = Math.max(0, Math.min(1, ((p[0] - a[0]) * ab[0] + (p[1] - a[1]) * ab[1]) / (ab[0] ** 2 + ab[1] ** 2 || 1)));
+    m = Math.min(m, distance(p, [a[0] + k * ab[0], a[1] + k * ab[1]]));
+  }
+  return m;
+}
+
+test("installation : la main proche ne passe jamais sur le visage ni sur le crâne, l'avant-bras non plus", () => {
+  const rayonAvantBras = famille.MEMBRES.poignet * CM;
+  for (let i = 0; i < images.length; i++) {
+    const image = images[i], t = instants[i].toFixed(3);
+    const tete = contour(trouverRole(image, "tete").attributs.d);
+    const main = contour(trouverRole(image, "main-gauche-forme").attributs.d);
+    assert.ok(main.every((p) => !dansPolygone(p, tete)), `main sur la tête à ${t} s`);
+    const [c, w] = [point(image, "coude-gauche"), point(image, "poignet-gauche")];
+    for (let k = 0; k <= 10; k++) {
+      const p = [c[0] + ((w[0] - c[0]) * k) / 10, c[1] + ((w[1] - c[1]) * k) / 10];
+      assert.ok(!dansPolygone(p, tete) && distancePolygone(p, tete) >= rayonAvantBras, `avant-bras sur la tête à ${t} s`);
+    }
+  }
+});
+
+test("installation : aucune main ne passe devant le plan du volant à l'intérieur de sa jante (elle ne le traverse pas)", () => {
+  // Dans le cercle de la jante, une main reste du côté du conducteur (derrière le plan) ou sur la jante (dans le plan, quand
+  // elle la tient) : passer devant voudrait dire traverser le volant.
+  const { rayon, jante } = famille.VOLANT;
+  for (const cote of ["gauche", "droite"]) {
+    for (const t of instants) {
+      const e = def.etat(t), m = e.mains[cote], g = famille.geometrieVolant(e.volant);
+      const rel = [m.x - g.centre[0], m.z - g.centre[1]];
+      const s = rel[0] * g.axe[0] + rel[1] * g.axe[1];                 // distance signée au plan de la jante (vers l'avant)
+      const h = rel[0] * g.haut[0] + rel[1] * g.haut[1];               // dans le plan, vers le haut
+      if (Math.hypot(h, m.y) < rayon + jante) assert.ok(s <= 1e-6, `main ${cote} devant le volant, dans sa jante, à ${t.toFixed(3)} s (${s.toFixed(2)} cm)`);
+    }
+  }
+});
+
+test("dessins et geste : chaque montage a ses propres identifiants de découpe", () => {
+  const ids = (d) => trouverTous(d, (x) => x.balise === "clipPath").map((x) => x.attributs.id);
+  for (const code of ["siege", "appuie-tete", "ceinture"]) {
+    const [a, b] = [ids(famille.DESSINS[code]()), ids(famille.DESSINS[code]())];
+    assert.equal(a.length, 2, code);
+    assert.ok(a.every((id) => !b.includes(id)), `${code} : deux montages, mêmes identifiants`);
+    assert.equal(new Set(a).size, a.length, `${code} : identifiants en double dans un même dessin`);
+  }
+  const geste = (d) => ids(imageA(d, 0, false));
+  const [g1, g2] = [famille.GESTES.installation.construire(), famille.GESTES.installation.construire()];
+  assert.ok(geste(g1).every((id) => !geste(g2).includes(id)), "installation : deux montages, mêmes identifiants");
+  assert.deepEqual(geste(g1), ids(imageA(g1, def.duree, true)), "installation : identifiants constants d'une image à l'autre");
+});
+
+test("installation : les repères d'une étape restent dans leur étape ; la vignette du rétroviseur n'apparaît qu'à l'étape 5", () => {
+  const dans = (t, k) => t >= debut(k) && t < fin(k);
+  for (const t of instants) {
+    const r = def.etat(t).reperes;
+    if (r.cote > 0) assert.ok(dans(t, 0), `cote visible à ${t.toFixed(3)} s`);
+    if (r.guide > 0) assert.ok(dans(t, 1), `ligne du sommet du crâne visible à ${t.toFixed(3)} s`);
+    if (r.vignette > 0 || r.lunette > 0) assert.ok(t >= debut(4), `vignette visible à ${t.toFixed(3)} s`);
+  }
+  // Chaque repère se montre bien dans son étape.
+  assert.ok(instants.some((t) => def.etat(t).reperes.cote === 1) && instants.some((t) => def.etat(t).reperes.guide === 1));
+  assert.equal(def.etat(def.duree).reperes.vignette, 1);
+});
