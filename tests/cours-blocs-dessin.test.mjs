@@ -308,10 +308,9 @@ test(":::scene garde le mot « schéma » : attente, échec de réseau avec « R
   });
 });
 
-test("le DOM minimal sait rendre un dessin (versDom) : de quoi écrire, à la tâche 6, le test du montage réussi d'un dessin réel", async () => {
-  // Tâche 6 : dès qu'un module de famille existe (js/dessins-poste.js…), ajouter ici le montage réussi : un code de DESSINS rendu
-  // par rendreDessin dans cette même vue (figure.dessin-bloc > div.dessin-vue > svg, l'attente remplacée, rien signalé). Ce test-ci
-  // garantit seulement que le DOM de ce fichier porte ce que versDom lui demande (createElementNS, attributs, texte).
+test("le DOM minimal sait rendre un dessin (versDom) : de quoi tester le montage réussi d'un dessin réel", async () => {
+  // Le montage réussi d'un dessin réel (famille « poste ») est le test suivant. Ce test-ci garantit seulement que le DOM de ce
+  // fichier porte ce que versDom lui demande (createElementNS, attributs, texte).
   const { n, versDom } = await import("../js/dessin-svg.js");
   const racine = versDom(n("svg", { viewBox: "0 0 320 200", role: "img" }, n("text", { x: 160, y: 100 }, "Essai")));
   assert.equal(racine.nom, "svg");
@@ -320,4 +319,37 @@ test("le DOM minimal sait rendre un dessin (versDom) : de quoi écrire, à la t�
   assert.equal(racine.enfants[0].nom, "text");
   assert.equal(racine.enfants[0].getAttribute("x"), "160");
   assert.equal(racine.textContent, "Essai");
+});
+
+test(":::dessin d'un dessin réel (famille « poste ») : le dessin remplace l'attente dans sa vue, la légende reste, rien n'est signalé", async () => {
+  // Les dessins fixes de la famille « poste » (js/dessins-poste.js), chargés pour de vrai sous Node par le chargeur du lecteur,
+  // montés par rendreDessin dans le DOM minimal de ce fichier : figure.dessin-bloc > div.dessin-vue > svg.
+  const codes = Object.keys(CATALOGUE).filter((c) => CATALOGUE[c].module === "poste" && CATALOGUE[c].bloc === "dessin");
+  assert.deepEqual(codes.sort(), ["mains-volant", "pedales", "poste-commandes"]);
+  await avecEntrees({}, async (journal) => {
+    for (const code of codes) {
+      const signaux = [];
+      const contexte = nouveauContexte({ signaler: (m) => signaux.push(m) });
+      const figure = dessiner(code, ["Légende du cours."], contexte);
+      const vue = figure.enfants[0];
+      assert.equal(vue.enfants[0].className, "bloc-attente", `${code} : l'attente d'abord`);
+      await attendreQue(() => vue.enfants[0].className !== "bloc-attente");
+      assert.equal(vue.enfants.length, 1, `${code} : le dessin seul dans la vue`);
+      const svg = vue.enfants[0];
+      assert.equal(svg.nom, "svg", code);
+      assert.equal(svg.getAttribute("viewBox"), `0 0 ${CATALOGUE[code].cadre[0]} ${CATALOGUE[code].cadre[1]}`, `${code} : le cadre du catalogue`);
+      assert.equal(svg.getAttribute("class"), "dessin-svg");
+      assert.equal(svg.getAttribute("role"), "img");
+      assert.ok(svg.getAttribute("aria-label").startsWith(`${CATALOGUE[code].titre}. `), `${code} : titre du catalogue, puis la description`);
+      assert.ok(avecNom(svg, "text").length > 0, `${code} : les textes du dessin sont des nœuds de texte du DOM`);
+      assert.deepEqual(figure.enfants.map((e) => e.className), ["dessin-vue", "signaux-legende"]);
+      assert.equal(figure.enfants[1].textContent, "Légende du cours.");
+      assert.deepEqual(signaux, [], `${code} : rien à dire à l'éditeur`);
+      assert.deepEqual(contexte.erreurs, []);
+      assert.equal(contexte.scenes.length, 1, `${code} : inscrit pour la destruction`);
+      detruireScenes(contexte);
+      assert.equal(vue.enfants[0], svg, `${code} : détruire un dessin monté le laisse affiché`);
+    }
+    assert.deepEqual(journal, [], "rien en console");
+  });
 });
