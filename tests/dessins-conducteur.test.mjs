@@ -309,11 +309,11 @@ test("installation : fin de l'étape 4, ceinture placée comme le juste (brin ve
 
 test("installation : à la fin, le rétroviseur intérieur cadre toute la lunette arrière", () => {
   const dedans = (image) => {
-    const m = trouverRole(image, "miroir");
+    const m = trouverRole(vivante(image), "miroir");
     assert.ok(m, "rôle « miroir » absent");
     const [x, y, l, h, r] = ["x", "y", "width", "height", "rx"].map((k) => Number(m.attributs[k]));
     // Rectangle aux coins arrondis : un point est sûrement dedans s'il est dans le rectangle rentré du rayon des coins.
-    return pointsRole(image, "lunette", "points").every(([px, py]) => px >= x + r && px <= x + l - r && py >= y + r && py <= y + h - r);
+    return pointsRole(vivante(image), "lunette", "points").every(([px, py]) => px >= x + r && px <= x + l - r && py >= y + r && py <= y + h - r);
   };
   assert.ok(dedans(imageA(def, def.duree, false)), "fin : lunette entière dans le miroir");
   assert.ok(dedans(imageA(def, def.duree, true)), "fin, image figée : lunette entière dans le miroir");
@@ -417,4 +417,216 @@ test("installation : les repères d'une étape restent dans leur étape ; la vig
   // Chaque repère se montre bien dans son étape.
   assert.ok(instants.some((t) => def.etat(t).reperes.cote === 1) && instants.some((t) => def.etat(t).reperes.guide === 1));
   assert.equal(def.etat(def.duree).reperes.vignette, 1);
+});
+
+// ===== Correctif, tour 2 : sens du rétroviseur, filet, vue visée, flèche du volant, coussin, continuité de tous les points =====
+
+/** Vignette vivante (hors du groupe des flèches) et vue visée (rangée dans le groupe des flèches) d'une image du geste. */
+function vivante(image) {
+  const g = trouverRole(image, "vignette-vivante");
+  assert.ok(g, "rôle « vignette-vivante » absent");
+  return g;
+}
+function visee(image) {
+  const g = trouverRole(image, "vue-visee");
+  assert.ok(g, "rôle « vue-visee » absent");
+  return g;
+}
+const centreDe = (pts) => [0, 1].map((k) => pts.reduce((s, p) => s + p[k], 0) / pts.length);
+function centreMiroir(g) {
+  const m = trouverRole(g, "miroir");
+  return [Number(m.attributs.x) + Number(m.attributs.width) / 2, Number(m.attributs.y) + Number(m.attributs.height) / 2];
+}
+// Sens de rotation de a vers b autour de o : signe du produit vectoriel, dans le repère du cadre.
+const sens = (o, a, b) => Math.sign((a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]));
+/** Trait (points) et tête (contour) de la flèche d'une image figée : le groupe « fleche » porte une flèche du kit. */
+function flecheDe(image) {
+  const groupe = trouverRole(image, "fleche");
+  assert.ok(groupe, "groupe des flèches absent");
+  return { trait: contour(trouverRole(groupe, "fleche-trait").attributs.d), tete: contour(trouverRole(groupe, "fleche-tete").attributs.d) };
+}
+/** Part d'un polygone que cache une forme (`cache(point)` vrai sous elle), comptée sur une grille de `pas` unité. */
+function partCachee(poly, cache, pas = 0.1) {
+  const [xs, ys] = [poly.map((p) => p[0]), poly.map((p) => p[1])];
+  let dedans = 0, caches = 0;
+  for (let x = Math.min(...xs); x <= Math.max(...xs); x += pas) {
+    for (let y = Math.min(...ys); y <= Math.max(...ys); y += pas) {
+      if (!dansPolygone([x, y], poly)) continue;
+      dedans++;
+      if (cache([x, y])) caches++;
+    }
+  }
+  return dedans ? caches / dedans : 0;
+}
+
+test("installation : le rétroviseur, sa flèche et sa vignette tournent dans le même sens (verre d'abord vers le pavillon)", () => {
+  // Inclinaison du boîtier dessiné : x de son bas moins x de son haut (data-x1..y2 du rôle « retroviseur »). Positive, le bas
+  // est du côté du conducteur et le verre regarde le pavillon ; quand elle baisse, le verre se tourne vers le plancher et
+  // montre plus bas : la lunette monte dans le miroir (le y de son centre baisse). La vue de la vignette et le boîtier
+  // tiennent leur sens du même tangage : ce test lie les deux, lus dans le dessin.
+  // Les bouts du boîtier s'écrivent au millième, la lunette au centième : au tout début et à la toute fin du réglage
+  // (adoucir), les variations d'une image restent sous l'arrondi ; on ne compare que les images où le boîtier tourne de plus
+  // de BRUIT_INCLINAISON (la lunette bouge alors de plus de quatre centièmes).
+  const BRUIT_INCLINAISON = 0.005;
+  const inclinaison = (image) => { const [haut, bas] = segment(image, "retroviseur"); return bas[0] - haut[0]; };
+  const lunette = (image) => centreDe(pointsRole(vivante(image), "lunette", "points"))[1];
+  let tourne = false;
+  for (let i = 1; i < images.length; i++) {
+    if (instants[i - 1] < debut(4)) continue;
+    const t = instants[i].toFixed(3);
+    const dI = inclinaison(images[i]) - inclinaison(images[i - 1]), dL = lunette(images[i]) - lunette(images[i - 1]);
+    if (Math.abs(dI) < BRUIT_INCLINAISON) continue;
+    tourne = true;
+    assert.equal(Math.sign(dL), Math.sign(dI),
+      `à ${t} s, le verre se tourne vers le ${dI < 0 ? "plancher" : "pavillon"} et la lunette ${dL < 0 ? "monte" : "descend"} dans le miroir`);
+  }
+  assert.ok(tourne, "le rétroviseur ne tourne pas à l'étape 5");
+  // Au départ, verre vers le pavillon (comme le disent les sources) : lunette basse dans le miroir ; à la fin, boîtier droit et
+  // lunette au centre du miroir.
+  const [depart, arrivee] = [imageA(def, debut(4), false), imageA(def, def.duree, false)];
+  assert.ok(inclinaison(depart) > 0, "au départ, le verre regarde le plancher (les sources disent : vers le pavillon)");
+  assert.ok(lunette(depart) > centreMiroir(vivante(depart))[1], "au départ, la lunette est basse dans le miroir");
+  assert.ok(Math.abs(inclinaison(arrivee)) < 1e-6, "à la fin, boîtier droit");
+  assert.ok(Math.abs(lunette(arrivee) - centreMiroir(vivante(arrivee))[1]) < 1e-6, "à la fin, lunette au centre du miroir");
+  // La flèche de l'étape tourne autour de la rotule dans le sens où va le bas du boîtier.
+  const tige = trouverRole(depart, "tige-retroviseur");
+  assert.ok(tige, "rôle « tige-retroviseur » absent");
+  const rotule = [Number(tige.attributs.x2), Number(tige.attributs.y2)];
+  const fleche5 = flecheDe(imageA(def, debut(4), true));
+  const [basDepart, basArrivee] = [segment(depart, "retroviseur")[1], segment(arrivee, "retroviseur")[1]];
+  assert.equal(sens(rotule, fleche5.trait[0], fleche5.tete[0]), sens(rotule, basDepart, basArrivee), "la flèche tourne à l'envers du bas du boîtier");
+});
+
+test("installation : ni le point ni le trait du filet ne cachent le boîtier du rétroviseur (décision commune 3) ; la main en laisse voir plus de la moitié", () => {
+  // Le filet est l'étiquette du kit : un trait et un point, chacun sur un liseré clair. Part du boîtier sous le liseré du
+  // point ou sous celui du trait, à chaque image de l'étape 5 (le boîtier tourne, le filet ne bouge pas).
+  for (let i = 0; i < images.length; i++) {
+    if (instants[i] < debut(4)) continue;
+    const image = images[i], t = instants[i].toFixed(3);
+    const filet = trouverRole(vivante(image), "filet-retroviseur");
+    assert.ok(filet, "rôle « filet-retroviseur » absent");
+    const disque = trouverTous(filet, (x) => x.balise === "circle").sort((a, b) => b.attributs.r - a.attributs.r)[0];
+    const trait = trouverTous(filet, (x) => x.balise === "line").sort((a, b) => b.attributs["stroke-width"] - a.attributs["stroke-width"])[0];
+    const centre = [Number(disque.attributs.cx), Number(disque.attributs.cy)], rayon = Number(disque.attributs.r);
+    const seg = [[Number(trait.attributs.x1), Number(trait.attributs.y1)], [Number(trait.attributs.x2), Number(trait.attributs.y2)]];
+    const demi = Number(trait.attributs["stroke-width"]) / 2;
+    const boitier = contour(trouverRole(image, "retroviseur").attributs.d);
+    const part = partCachee(boitier, (p) => distance(p, centre) <= rayon || distancePolygone(p, seg) <= demi);
+    assert.equal(part, 0, `le filet cache ${Math.round(part * 100)} % du boîtier à ${t} s`);
+  }
+  // Pendant que le rétroviseur tourne, la main droite le tient par-dessous et en laisse voir plus de la moitié : on le voit
+  // tourner.
+  let reglage = false;
+  for (let i = 0; i < images.length; i++) {
+    const o = def.etat(instants[i]).retroviseur.orientation;
+    if (o <= 0 || o >= 1) continue;
+    reglage = true;
+    const image = images[i];
+    const boitier = contour(trouverRole(image, "retroviseur").attributs.d);
+    const [main, pouce] = ["main-droite-forme", "pouce-droit"].map((r) => contour(trouverRole(image, r).attributs.d));
+    const part = partCachee(boitier, (p) => dansPolygone(p, main) || dansPolygone(p, pouce));
+    assert.ok(part <= 0.5, `la main cache ${Math.round(part * 100)} % du boîtier à ${instants[i].toFixed(3)} s`);
+  }
+  assert.ok(reglage, "le rétroviseur ne tourne jamais");
+});
+
+test("installation : l'image figée de l'étape 5 montre la vue visée, rangée avec la flèche et identique à la fin de la lecture", () => {
+  const sansIdentifiants = (noeuds) => JSON.stringify(noeuds).replace(/conducteur-installation-miroir(?:-vise)?-\d+/g, "decoupe");
+  const figee = imageA(def, debut(4), true);
+  // Rangée dans le groupe des flèches ; montrée sur l'image figée de l'étape 5, et sur elle seule parmi les images figées
+  // d'étape ; la vignette vivante y est encore à l'opacité 0 : les deux vues ne se superposent pas.
+  assert.ok(trouverRole(trouverRole(figee, "fleche"), "vue-visee"), "la vue visée n'est pas dans le groupe des flèches");
+  assert.equal(visee(figee).attributs.display, "inline", "image figée de l'étape 5 : vue visée masquée");
+  for (const partie of vivante(figee).enfants) {
+    assert.ok(partie.attributs.display === "none" && Number(partie.attributs.opacity) === 0,
+      `image figée de l'étape 5 : « ${partie.attributs["data-r"]} » de la vignette vivante visible sous la vue visée`);
+  }
+  for (let k = 0; k < 4; k++) assert.equal(visee(imageA(def, debut(k), true)).attributs.display, "none", `image figée de l'étape ${k + 1} : vue visée affichée`);
+  // Même vue que la fin de la lecture (filet et vignette) : mêmes nœuds, mêmes attributs ; seuls les identifiants de découpe
+  // diffèrent.
+  assert.equal(sansIdentifiants(visee(figee).enfants), sansIdentifiants(vivante(imageA(def, def.duree, false)).enfants),
+    "la vue visée n'est pas la vue de fin de lecture");
+  // La légende « Toute la lunette » se lit sur l'image figée de fin, par-dessus la vue visée : dessinée après le groupe des
+  // flèches.
+  const fin = imageA(def, def.duree, true);
+  const ordre = trouverTous(fin, (x) => ["fleche", "legende-lunette"].includes(x.attributs["data-r"])).map((x) => x.attributs["data-r"]);
+  assert.deepEqual(ordre, ["fleche", "legende-lunette"], "la légende est cachée par la vue visée sur l'image figée de fin");
+  assert.equal(trouverRole(fin, "legende-lunette").attributs.display, "inline", "image figée de fin : légende masquée");
+});
+
+test("installation : la flèche de l'étape 3 part de la jante, loin de celle de l'étape 5", () => {
+  const f3 = imageA(def, debut(2), true), f5 = imageA(def, debut(4), true);
+  const [fl3, fl5] = [flecheDe(f3), flecheDe(f5)];
+  const jante = segment(f3, "volant");
+  const ecart = Math.min(...fl3.trait.map((p) => distancePolygone(p, jante)));
+  assert.ok(ecart <= 5 * CM, `flèche de l'étape 3 à ${(ecart / CM).toFixed(1)} cm de la jante`);
+  const boite = (pts) => [Math.min(...pts.map((p) => p[0])), Math.min(...pts.map((p) => p[1])), Math.max(...pts.map((p) => p[0])), Math.max(...pts.map((p) => p[1]))];
+  // Boîtes des deux flèches (axe du trait et tête) séparées d'au moins ECART_FLECHES : la moitié du trait et le liseré de
+  // chacune (2,5 unités pour le trait appuyé de l'étape 3, 2 pour le trait moyen de l'étape 5) ne se touchent pas.
+  const ECART_FLECHES = 4.5;
+  const [a, b] = [boite([...fl3.trait, ...fl3.tete]), boite([...fl5.trait, ...fl5.tete])];
+  const separees = Math.max(b[0] - a[2], a[0] - b[2], b[1] - a[3], a[1] - b[3]);
+  assert.ok(separees >= ECART_FLECHES,
+    `flèches des étapes 3 et 5 au même endroit (x ${a[0].toFixed(0)} à ${a[2].toFixed(0)}, y ${a[1].toFixed(0)} à ${a[3].toFixed(0)} ; x ${b[0].toFixed(0)} à ${b[2].toFixed(0)}, y ${b[1].toFixed(0)} à ${b[3].toFixed(0)})`);
+});
+
+test("installation : coussin de l'appuie-tête et dossier, de même teinte, séparés par un contour", () => {
+  // En position basse (étapes 1 et 2), le coussin passe sous le haut du dossier : le dossier, dessiné par-dessus, porte un
+  // contour d'une autre teinte que son fond.
+  for (const t of [0, debut(1)]) {
+    const image = imageA(def, t, true);
+    const coussin = trouverRole(image, "appuie-tete-coussin"), dossier = trouverRole(image, "siege-dossier").enfants[0];
+    assert.ok(contour(coussin.attributs.d).some((p) => dansPolygone(p, contour(dossier.attributs.d))), `${t} s : le coussin bas ne passe pas sous le dossier`);
+    assert.equal(coussin.attributs.fill, dossier.attributs.fill, `${t} s : coussin et dossier de teintes différentes`);
+    assert.ok(dossier.attributs.stroke && dossier.attributs.stroke !== dossier.attributs.fill && Number(dossier.attributs["stroke-width"]) > 0,
+      `${t} s : coussin et dossier de même teinte, sans contour de séparation`);
+  }
+});
+
+// Tous les points dessinés, pas seulement les articulations des bras : chaque point de chaque nœud visible d'une image de
+// lecture à la suivante (tracés d, points, data-points, data-haut ; paires x/y, cx/cy, x1/y1, x2/y2, data-x/data-y,
+// data-x1/data-y1, data-x2/data-y2), même borne que les articulations. Un tracé qui change de nombre de points est un saut.
+const LISTES_COORDONNEES = ["d", "points", "data-points", "data-haut"];
+const PAIRES_COORDONNEES = [["x", "y"], ["cx", "cy"], ["x1", "y1"], ["x2", "y2"], ["data-x", "data-y"], ["data-x1", "data-y1"], ["data-x2", "data-y2"]];
+/** Points d'un tracé « d » (M, L, C, Q, A, Z absolus), courbes non échantillonnées : extrémités et points de contrôle ; d'un
+ *  arc, ses deux rayons (lus comme un point) et son extrémité. */
+function pointsDuTrace(d) {
+  const ARGUMENTS = { M: 2, L: 2, C: 6, Q: 4, A: 7, Z: 0 };
+  const jetons = String(d).match(/[A-Za-z]|-?\d+(?:\.\d+)?(?:e-?\d+)?/g) || [];
+  const sortie = [];
+  let i = 0, commande = null;
+  while (i < jetons.length) {
+    if (/[A-Za-z]/.test(jetons[i])) commande = jetons[i++];
+    assert.ok(Object.hasOwn(ARGUMENTS, commande), `commande de tracé inattendue : ${commande}`);
+    if (commande === "Z") { assert.ok(i >= jetons.length || /[A-Za-z]/.test(jetons[i]), "nombre après Z"); continue; }
+    const v = jetons.slice(i, i + ARGUMENTS[commande]).map(Number);
+    i += ARGUMENTS[commande];
+    if (commande === "A") sortie.push([v[0], v[1]], [v[5], v[6]]);
+    else for (let k = 0; k < v.length; k += 2) sortie.push([v[k], v[k + 1]]);
+  }
+  return sortie;
+}
+
+test("installation : aucun point dessiné (siège, appuie-tête, volant, rétroviseur, sangle, vignette, corps) ne bouge de plus de 8 unités en une image", () => {
+  const pire = { d: 0, role: "", t: "" };
+  const garder = (d, role, t) => { if (d > pire.d) Object.assign(pire, { d, role, t }); };
+  function comparer(a, b, role, t) {
+    if (typeof a === "string" || a.attributs.display === "none" || b.attributs.display === "none") return;
+    const ici = a.attributs["data-r"] || role;
+    for (const k of LISTES_COORDONNEES) {
+      if (!(k in a.attributs)) continue;
+      const lire = k === "d" ? pointsDuTrace : points;
+      const [pa, pb] = [lire(a.attributs[k]), lire(b.attributs[k])];
+      assert.equal(pb.length, pa.length, `${ici} : ${k} change de nombre de points à ${t} s`);
+      pa.forEach((p, i) => garder(distance(p, pb[i]), ici, t));
+    }
+    for (const [kx, ky] of PAIRES_COORDONNEES) {
+      if (kx in a.attributs && ky in a.attributs) {
+        garder(Math.hypot(Number(b.attributs[kx]) - Number(a.attributs[kx]), Number(b.attributs[ky]) - Number(a.attributs[ky])), ici, t);
+      }
+    }
+    a.enfants.forEach((e, i) => comparer(e, b.enfants[i], ici, t));
+  }
+  for (let i = 1; i < images.length; i++) comparer(images[i - 1], images[i], "cadre", instants[i].toFixed(3));
+  assert.ok(pire.d <= ARTICULATION_MAX, `${pire.role} : ${pire.d.toFixed(1)} unités en une image à ${pire.t} s`);
 });

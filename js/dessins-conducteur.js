@@ -16,7 +16,7 @@
  * d'un adulte de taille moyenne, voiture courante), avec sa raison dans sources/dessins-conducteur.js.
  */
 import { n } from "./dessin-svg.js?v=20261013a";
-import { CHARTE, cadre, texte, vignette, fleche, arrondir } from "./dessins-kit.js?v=20261013a";
+import { CHARTE, cadre, texte, etiquette, vignette, fleche, arrondir } from "./dessins-kit.js?v=20261013a";
 import { adoucir, sortieDouce, avancement, interpoler, cles } from "./animation-courbes.js?v=20261013a";
 
 // ===================================================================================================================
@@ -150,6 +150,8 @@ const ACCENT = { base: CHARTE.accent, ombre: CHARTE.accentFort, clair: "#7E9163"
 const NEUTRE_SIEGE = { base: TEINTES.siege, ombre: TEINTES.siegeOmbre, clair: TEINTES.siegeClair };
 // Contour qui sépare l'avant-bras proche du bras proche (même teinte) quand il passe dessus.
 const CONTOUR_AVANT_BRAS = { couleur: TEINTES.pullOmbre, epaisseur: CHARTE.traits.fin };
+// Contour du dossier quand le coussin de l'appuie-tête a sa teinte (geste sans accent) : teinte d'ombre du siège.
+const CONTOUR_DOSSIER = { epaisseur: CHARTE.traits.fin };
 // Petits boîtiers (renvoi, boucle, languette, ancrage) : arrondi de leurs coins, en part de leur petit côté.
 const ARRONDI_BOITIER = 0.25;
 
@@ -290,6 +292,9 @@ function coude(epaule, poignet, cote, [cx, cy, cz]) {
 }
 
 const repere = (role, [x, y], plusAttributs = {}) => n("g", { "data-r": role, "data-x": Number(x.toFixed(3)), "data-y": Number(y.toFixed(3)), ...plusAttributs });
+// Un nombre écrit au millième ; un segment [a, b] porté par un rôle (data-x1, data-y1, data-x2, data-y2).
+const ecrit = (v) => Number(v.toFixed(3));
+const segmentRole = (role, [a, b]) => ({ "data-r": role, "data-x1": ecrit(a[0]), "data-y1": ecrit(a[1]), "data-x2": ecrit(b[0]), "data-y2": ecrit(b[1]) });
 const affiche = (opacite) => ({ display: opacite > 0 ? "inline" : "none", opacity: Number(Math.min(1, Math.max(0, opacite)).toFixed(3)) });
 
 // Identifiants des découpes (clip-path) : un numéro par montage, pour que deux montages du même dessin dans une page ne se
@@ -561,21 +566,22 @@ export function conducteurProfil({ x = 0, y = 0, siege = SIEGE_REGLE, appuieTete
   const faceAT = [P(geo.coussinAT[0]), P(geo.coussinAT[1])];
 
   const peau = { fill: CHARTE.peau };
-  const ecrit = (v) => Number(v.toFixed(3));
-  const segment = (role, [a, b]) => ({ "data-r": role, "data-x1": ecrit(a[0]), "data-y1": ecrit(a[1]), "data-x2": ecrit(b[0]), "data-y2": ecrit(b[1]) });
   const articulations = (b, cote) => Object.entries(b.articulations).map(([nom, p]) => repere(`${nom}-${cote}`, p));
+  // Coussin et dossier de même teinte (sans accent) : le dossier, dessiné par-dessus le coussin en position basse, porte un
+  // contour qui les sépare (même règle que l'avant-bras proche).
+  const contourDossier = teinteAT === teinteSiege ? { stroke: teinteSiege.ombre, "stroke-width": CONTOUR_DOSSIER.epaisseur } : {};
   const noeud = n("g", { "data-r": "conducteur-profil" },
     n("path", { d: formeArrondie([[H[0] + S.rail.arriere, S.rail.hauteur], [H[0] + S.rail.avant, S.rail.hauteur], [H[0] + S.rail.avant, 0], [H[0] + S.rail.arriere, 0]].map(P), S.rail.arrondi * CM), fill: TEINTES.metalOmbre }),
     n("g", { "data-r": "siege", "data-recul": siege.recul, "data-hauteur": siege.hauteur, "data-dossier": siege.dossier },
       n("path", { d: patin, fill: TEINTES.metal }),
       n("path", { d: base, fill: teinteSiege.ombre }),
       n("path", { d: tige, fill: TEINTES.metal }),
-      n("g", segment("appuie-tete", faceAT), n("path", { d: polygone(coussin), fill: teinteAT.base, "data-r": "appuie-tete-coussin" })),
-      n("g", segment("siege-dossier", face), n("path", { d: dossier, fill: teinteSiege.base })),
+      n("g", segmentRole("appuie-tete", faceAT), n("path", { d: polygone(coussin), fill: teinteAT.base, "data-r": "appuie-tete-coussin" })),
+      n("g", segmentRole("siege-dossier", face), n("path", { d: dossier, fill: teinteSiege.base, ...contourDossier })),
       n("path", { d: assise, fill: teinteSiege.clair })),
     n("g", { "data-r": "bras-droit" },
       n("path", { d: brasD.haut, fill: TEINTES.pullOmbre }), n("path", { d: brasD.avant, fill: TEINTES.pullOmbre }),
-      n("path", { d: brasD.main, fill: CHARTE.peauOmbre }), n("path", { d: brasD.pouce, fill: CHARTE.peauOmbre })),
+      n("path", { d: brasD.main, fill: CHARTE.peauOmbre, "data-r": "main-droite-forme" }), n("path", { d: brasD.pouce, fill: CHARTE.peauOmbre, "data-r": "pouce-droit" })),
     n("path", { d: courbe(cou), fill: CHARTE.peauOmbre }),
     n("path", { d: traceSegments(torse), fill: TEINTES.pull, "data-r": "buste" }),
     n("path", { d: traceSegments(teteSeg), ...peau, "data-r": "tete" }),
@@ -923,12 +929,18 @@ const CABINE = {
   plancher: { arriere: -150, avant: 52 },
 };
 // Rétroviseur intérieur de profil : rotule sous la traverse, tige (qui mord d'un cm dans la traverse), boîtier (profondeur,
-// hauteur) centré sous la rotule, tangage (degrés, verre tourné vers le haut quand il est positif) avant et après réglage ;
-// la main droite le tient par son bas, côté conducteur (prise : écart depuis le centre du boîtier, cm ; y de la main).
+// hauteur) centré sous la rotule ; tangage (degrés) avant et après réglage : positif, le bas du boîtier part vers l'avant et
+// le verre se tourne vers le plancher ; négatif, le bas vient vers le conducteur et le verre regarde le pavillon (départ). La
+// main droite le tient par-dessous, côté conducteur, et pousse son bas vers l'avant ; sa prise, sous le boîtier, n'en cache
+// que le bas (40 % au plus) : on voit le boîtier tourner (prise : écart du milieu de la prise au centre du boîtier, cm ; y de
+// la main).
 const RETRO = { rotule: [-42, 105], recouvrementTige: 1, centre: [-1.5, -3.3], profondeur: 2.6, hauteur: 6.8, arrondi: 1.2,
-  tangageDepart: 9, tangageRegle: 0, prise: [-2, -3], mainY: -28 };
-// Vignette du rétroviseur (unités du cadre) : la carte, le miroir, ce qu'il montre (lunette arrière, ciel, sol, route) ;
-// décalage de la vue avant réglage (le verre tourné vers le haut montre le pavillon : la lunette descend dans le miroir).
+  tangageDepart: -9, tangageRegle: 0, prise: [-2, -6.5], mainY: -28 };
+// Vignette du rétroviseur (unités du cadre) : la carte, le miroir, ce qu'il montre (lunette arrière, ciel, sol, route).
+// Avant réglage, la vue est décalée : de côté par le lacet du miroir (que le profil ne montre pas), en hauteur par son
+// tangage, de `parDegre` unités par degré. Un verre tourné vers le pavillon (tangage négatif) montre plus haut : la lunette
+// descend dans le miroir. C'est le tangage du boîtier dessiné qui place la vue : boîtier et vignette ne peuvent pas se
+// contredire.
 const VIGNETTE = {
   carte: { x: 10, y: 10, largeur: 128, hauteur: 82, arrondi: 8 },
   boitier: { x: 16, y: 16, largeur: 116, hauteur: 50, arrondi: 9 },
@@ -936,11 +948,12 @@ const VIGNETTE = {
   lunette: [[-32, -12], [32, -12], [39, 12], [-39, 12]],      // autour du centre du miroir
   horizon: 0.42,                                               // part de la hauteur de la lunette, depuis son haut
   route: { haut: 3, bas: 30 },                                 // demi-largeurs de la route à l'horizon et au bas
-  decalage: [24, 12],
+  lacet: 24,                                                   // décalage de côté avant réglage
+  parDegre: 1.33,                                              // décalage en hauteur par degré de tangage
   legende: { y: 82 },
   attache: [138, 66],                                          // départ du filet vers le rétroviseur
 };
-const TEINTES_VUE = { habitacle: "#4D5550", boitier: "#2F3532", ciel: "#E6ECEF", sol: "#B9C3B6", route: "#8C938D", filet: CHARTE.texteDoux };
+const TEINTES_VUE = { habitacle: "#4D5550", boitier: "#2F3532", ciel: "#E6ECEF", sol: "#B9C3B6", route: "#8C938D" };
 
 // Calendrier du geste (secondes). Les mouvements de main durent 0,8 s et les réglages de 0,7 à 1,4 s (adoucir) ; une prise
 // ou un lâcher 0,2 s (adoucir) ; une apparition 0,2 s, une disparition 0,13 s (sortieDouce). Les repères d'une étape
@@ -961,7 +974,7 @@ const APPARITION = 0.2, DISPARITION = 0.13;
 // le rétroviseur (PRISE_RETRO).
 const PRISE_EN_ROUTE = 0.45, PRISE_RETRO = 0.8;
 // Places des mains (cm, degrés) : sur la languette rangée ; à la boucle ; au rétroviseur.
-const MAIN_LANGUETTE = { y: 26, angle: 120 }, MAIN_BOUCLE = { y: -14, angle: -60 }, MAIN_RETRO = { angle: 25 };
+const MAIN_LANGUETTE = { y: 26, angle: 120 }, MAIN_BOUCLE = { y: -14, angle: -60 }, MAIN_RETRO = { angle: 45 };
 // Chemin de la languette tirée (repère du buste) : en dehors de l'épaule, à sa hauteur (la main la contourne côté portière,
 // jamais dessous : le coude resterait sans côté), devant la poitrine ; écart de la main sur y (de la portière vers la boucle).
 const TIRAGE = { cote: [47, -1], poitrine: [30, 17], y: [26, 34, 4, -14] };
@@ -989,12 +1002,13 @@ function reglagesA(t) {
   };
 }
 
-// Rétroviseur de profil : boîtier tourné autour de sa rotule.
+// Rétroviseur de profil : boîtier tourné autour de sa rotule (haut et bas : milieux de ses deux petits côtés).
 function retroviseurDe(orientation) {
   const tangage = interpoler(RETRO.tangageDepart, RETRO.tangageRegle, orientation) * RAD;
   const centre = plus(RETRO.rotule, tourner(RETRO.centre, tangage));
   const coins = [[-1, 1], [1, 1], [1, -1], [-1, -1]].map(([a, b]) => plus(centre, tourner([a * RETRO.profondeur / 2, b * RETRO.hauteur / 2], tangage)));
-  return { centre, coins, tangage };
+  const [haut, bas] = [1, -1].map((b) => plus(centre, tourner([0, b * RETRO.hauteur / 2], tangage)));
+  return { centre, coins, haut, bas, tangage, orientation };
 }
 
 // Places des mains (les places suivent le siège, le volant et le rétroviseur).
@@ -1106,12 +1120,13 @@ function etatInstallation(t) {
   };
 }
 
-// Vue dans le rétroviseur : habitacle sombre, lunette (ciel, sol, route vers l'horizon), décalée tant que le miroir n'est pas
-// réglé. Tous les points sont dans le repère du cadre.
-function vueRetroviseur(orientation, opaciteVue, idMiroir) {
+// Vue dans le rétroviseur `retro` (retroviseurDe) : habitacle sombre, lunette (ciel, sol, route vers l'horizon), décalée tant
+// que le miroir n'est pas réglé (de côté par son lacet, en hauteur par le tangage même du boîtier dessiné). Tous les points
+// sont dans le repère du cadre.
+function vueRetroviseur(retro, opaciteVue, idMiroir) {
   const V = VIGNETTE, M = V.miroir;
   const centre = [M.x + M.largeur / 2, M.y + M.hauteur / 2];
-  const decal = fois(V.decalage, 1 - orientation);
+  const decal = [V.lacet * (1 - retro.orientation), -V.parDegre * (retro.tangage / RAD)];
   const lunette = V.lunette.map((p) => plus(plus(centre, p), decal));
   const [hg, hd, bd, bg] = lunette;
   const yHorizon = interpoler(hg[1], bg[1], V.horizon);
@@ -1141,7 +1156,29 @@ const P_INSTALLATION = ([px, pz]) => [ORIGINE_INSTALLATION[0] - px * CM, ORIGINE
 // Ligne du sommet du crâne : de juste après le rétroviseur au montant ; son libellé au-dessus de la traverse, qui finit 10
 // unités avant le montant (unités du cadre).
 const GUIDE = { apresRetro: 6, dessusTraverse: 3, avantMontant: 10 };
-const RAYON_POINT_FILET = 2.2;
+// Filet de la vignette : l'étiquette du kit (trait et point sur leur liseré), qui finit devant la face avant du boîtier réglé,
+// à mi-hauteur, sans le toucher (décision commune 3 : le point d'une étiquette ne cache pas le détail désigné). Le point (2,2
+// unités de rayon, liseré de 1,25) a son centre à RECUL_POINT_FILET unités de la face. Pendant le réglage, le boîtier s'en
+// écarte (son bas recule vers le conducteur au départ) : le filet ne bouge pas, et la vue visée a le même.
+const RECUL_POINT_FILET = 4;
+const CIBLE_FILET = (() => {
+  const r = retroviseurDe(1);
+  const normale = tourner([1, 0], r.tangage);                              // face avant, vers le pare-brise
+  const faceAvant = plus(r.centre, fois(normale, RETRO.profondeur / 2));
+  return P_INSTALLATION(plus(faceAvant, fois(normale, RECUL_POINT_FILET / CM)));
+})();
+const ETAPE_RETROVISEUR = 4;                                               // indice de l'étape 5
+// Vignette du rétroviseur et son filet, à l'opacité donnée : la vignette vivante (état du geste) et la vue visée (rangée avec
+// la flèche de l'étape 5) sont le même dessin. La légende « Toute la lunette » est à part, dessinée après le groupe des
+// flèches : sur une image figée prise après 17 s (pause, fin), elle passe par-dessus la vue visée ; une seconde légende dans
+// la vue visée ferait deux textes l'un sur l'autre.
+function vignetteRetroviseur(retro, opacite, idMiroir) {
+  return [
+    n("g", { "data-r": "filet-vignette", ...affiche(opacite) },
+      etiquette({ cible: CIBLE_FILET, ancre: VIGNETTE.attache, lignes: [], role: "filet-retroviseur" })),
+    vueRetroviseur(retro, opacite, idMiroir),
+  ];
+}
 const TITRE_INSTALLATION = "S'installer, dans l'ordre";
 const DESCRIPTION_INSTALLATION = "Le conducteur s'installe à l'arrêt, dans l'ordre : il recule et règle le siège jusqu'à environ 25 cm entre le sternum et le centre du volant, dos contre le dossier ; l'appuie-tête monte au niveau du sommet du crâne ; il règle le volant, mains à 9 h et 3 h ; il boucle la ceinture ; il oriente le rétroviseur intérieur, qui cadre alors toute la lunette arrière.";
 
@@ -1149,13 +1186,15 @@ const DESCRIPTION_INSTALLATION = "Le conducteur s'installe à l'arrêt, dans l'o
 // construction du geste.
 const FLECHE_SIEGE = { devant: 22, hauteur: 6 };           // cm : devant la base (la pointe s'arrête 8 cm devant elle), au-dessus du plancher
 const FLECHE_AT = { derriere: 5 };                           // cm derrière le coussin
-// Volant : arc autour du pied de colonne, 12 cm au-dessus du haut de la jante, prolongé de part et d'autre d'un quart de la
-// rotation réelle (le volant ne bouge que de quelques centimètres : la flèche doit se lire sur un téléphone).
-const FLECHE_VOLANT = { ecart: 12, prolongement: 0.25, points: 5 };
+// Volant : arc autour du pied de colonne, 4 cm au-dessus du haut de la jante (elle part de lui, loin de la flèche du
+// rétroviseur), prolongé de part et d'autre des trois quarts de la rotation réelle (le volant ne bouge que de quelques
+// centimètres : la flèche doit se lire sur un téléphone).
+const FLECHE_VOLANT = { ecart: 4, prolongement: 0.75, points: 5 };
 const FLECHE_CEINTURE = { parts: [0.04, 0.3, 0.55, 0.8, 0.97] };
-// Rétroviseur : arc autour de la rotule, à 16 cm, six fois plus ouvert que le tangage réel (9 degrés), dans son sens : le
-// boîtier ne tourne que de quelques millimètres, la flèche doit se lire sur un téléphone.
-const FLECHE_RETRO = { rayon: 16, ouverture: 6, points: 7 };
+// Rétroviseur : arc autour de la rotule, à 12 cm (juste sous le boîtier, au-dessus de la flèche du volant), sept fois plus
+// ouvert que le tangage réel (9 degrés), dans son sens : le boîtier ne tourne que de quelques millimètres, la flèche doit se
+// lire sur un téléphone.
+const FLECHE_RETRO = { rayon: 12, ouverture: 7, points: 7 };
 const EPAISSEUR_FLECHES = [CHARTE.traits.appuye, CHARTE.traits.appuye, CHARTE.traits.appuye, CHARTE.traits.appuye, CHARTE.traits.moyen];
 function flechesInstallation() {
   const P = P_INSTALLATION;
@@ -1191,8 +1230,10 @@ function flechesInstallation() {
   return [fl1, fl2, fl3, fl4, fl5];
 }
 
-// Image du geste à un état. L'image figée est la même image, flèche de l'étape visible.
-function dessinerInstallation(etat, { fige, etape }, { fleches, idMiroir }) {
+// Image du geste à un état. L'image figée est la même image, groupe des flèches visible : la flèche de l'étape et, à
+// l'étape 5, la vue visée (miroir réglé, lunette cadrée), à la place de la vignette vivante, encore à l'opacité 0 au début de
+// l'étape.
+function dessinerInstallation(etat, { fige, etape }, { fleches, idMiroir, vueVisee }) {
   const P = P_INSTALLATION;
   const profil = conducteurProfil({ x: ORIGINE_INSTALLATION[0], y: ORIGINE_INSTALLATION[1], siege: etat.siege,
     appuieTete: { hauteur: etat.appuieTete.hauteur }, ceinture: etat.ceinture, mains: etat.mains, volant: etat.volant });
@@ -1217,32 +1258,38 @@ function dessinerInstallation(etat, { fige, etape }, { fleches, idMiroir }) {
     texte(xMontant - GUIDE.avantMontant, P([0, tr.haut])[1] - GUIDE.dessusTraverse, "Sommet du crâne",
       { taille: CHARTE.tailles.petite, ancrage: "end", graisse: 600, couleur: TEINTES.guide }));
   const coteVolant = n("g", { "data-r": "repere-25", ...affiche(etat.reperes.cote) }, cote(r.sternum, r.centreVolant, "25 cm"));
-  // Vignette du rétroviseur et son filet vers le rétroviseur.
-  const vue = vueRetroviseur(etat.retroviseur.orientation, etat.reperes.vignette, idMiroir);
-  const cible = P(retro.centre);
-  const filetVue = n("g", { ...affiche(etat.reperes.vignette) },
-    n("line", { x1: VIGNETTE.attache[0], y1: VIGNETTE.attache[1], x2: cible[0], y2: cible[1], stroke: TEINTES_VUE.filet, "stroke-width": CHARTE.traits.fin }),
-    n("circle", { cx: cible[0], cy: cible[1], r: RAYON_POINT_FILET, fill: TEINTES_VUE.filet }));
-  const legendeVue = n("g", { "data-r": "legende-lunette", ...affiche(etat.reperes.lunette) },
+  // Vignette vivante du rétroviseur (son filet, la vue) ; sa légende, dessinée après le groupe des flèches.
+  const vignetteVivante = n("g", { "data-r": "vignette-vivante" }, vignetteRetroviseur(retro, etat.reperes.vignette, idMiroir));
+  const legendeLunette = n("g", { "data-r": "legende-lunette", ...affiche(etat.reperes.lunette) },
     texte(VIGNETTE.carte.x + VIGNETTE.carte.largeur / 2, VIGNETTE.legende.y, "Toute la lunette", { ancrage: "middle", graisse: 600 }));
-  // Flèche de l'étape (mêmes points dans toute l'étape), visible sur l'image figée seulement.
-  const flecheEtape = fleche(fleches[etape], { visible: Boolean(fige), epaisseur: EPAISSEUR_FLECHES[etape] });
+  // Groupe des flèches, visible sur l'image figée seulement : la flèche de l'étape (mêmes points dans toute l'étape) et la vue
+  // visée, montrée à l'étape 5 seule.
+  const groupeFleches = n("g", { "data-r": "fleche", display: fige ? "inline" : "none" },
+    fleche(fleches[etape], { role: "fleche-etape", epaisseur: EPAISSEUR_FLECHES[etape] }),
+    n("g", { "data-r": "vue-visee", display: etape === ETAPE_RETROVISEUR ? "inline" : "none" }, vueVisee));
   return cadre({ largeur: L_CADRE, hauteur: H_INSTALLATION, titre: TITRE_INSTALLATION, description: DESCRIPTION_INSTALLATION },
     n("path", { d: montant, fill: TEINTES.montant }),
     n("path", { d: traceTableau(P), fill: TEINTES.tableau }),
     n("path", { d: pareBrise, fill: TEINTES_VUE.ciel, stroke: TEINTES.montant, "stroke-width": CHARTE.traits.fin }),
     n("path", { d: traverse, fill: TEINTES.montant }),
-    n("line", { x1: P(tigeRetro[0])[0], y1: P(tigeRetro[0])[1], x2: P(tigeRetro[1])[0], y2: P(tigeRetro[1])[1], stroke: TEINTES.volant, "stroke-width": CHARTE.traits.appuye, "stroke-linecap": "round" }),
-    n("path", { d: formeArrondie(retro.coins.map(P), RETRO.arrondi * CM), fill: TEINTES_VUE.boitier, "data-r": "retroviseur", "data-angle": Number((retro.tangage / RAD).toFixed(3)) }),
+    n("line", { x1: P(tigeRetro[0])[0], y1: P(tigeRetro[0])[1], x2: P(tigeRetro[1])[0], y2: P(tigeRetro[1])[1], stroke: TEINTES.volant, "stroke-width": CHARTE.traits.appuye, "stroke-linecap": "round", "data-r": "tige-retroviseur" }),
+    n("path", { d: formeArrondie(retro.coins.map(P), RETRO.arrondi * CM), fill: TEINTES_VUE.boitier, ...segmentRole("retroviseur", [P(retro.haut), P(retro.bas)]),
+      "data-angle": ecrit(retro.tangage / RAD) }),
     n("path", { d: sol, fill: TEINTES.plancher }),
     profil.noeud,
     coteVolant, guide,
-    filetVue, vue, legendeVue,
-    flecheEtape);
+    vignetteVivante,
+    groupeFleches,
+    legendeLunette);
 }
 
 function construireInstallation() {
-  const montage = { fleches: flechesInstallation(), idMiroir: nouvelId("installation-miroir") };
+  const montage = {
+    fleches: flechesInstallation(),
+    idMiroir: nouvelId("installation-miroir"),
+    // Vue visée : la vignette du rétroviseur réglé, telle que la lecture la montre à la fin (calculée une fois par montage).
+    vueVisee: vignetteRetroviseur(retroviseurDe(1), 1, nouvelId("installation-miroir-vise")),
+  };
   return {
     titre: TITRE_INSTALLATION,
     description: DESCRIPTION_INSTALLATION,
