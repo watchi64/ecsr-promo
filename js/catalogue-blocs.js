@@ -144,7 +144,7 @@ export const CATALOGUE = {
   "zones-invisibles": { bloc: "dessin", module: "visibilite", titre: "Ce qu'on ne voit pas depuis le siège",
     legendeModele: "Devant le capot et derrière le coffre, le sol échappe au regard.", cadre: [320, 170] },
   installation: { bloc: "scene", module: "conducteur", titre: "S'installer, dans l'ordre",
-    etapesModele: ["Régler le siège", "Régler l'appuie-tête", "Régler le volant", "Boucler la ceinture", "Régler les rétroviseurs"], cadre: [320, 250] },
+    etapesModele: ["Régler le siège", "Régler l'appuie-tête", "Régler le volant", "Boucler la ceinture", "Régler les rétroviseurs"], cadre: [320, 220] },
   siege: { bloc: "dessin", module: "conducteur", titre: "Régler le siège",
     legendeModele: "Environ 25 cm entre le sternum et le centre du volant, en reculant le siège.", cadre: [320, 210] },
   "appuie-tete": { bloc: "dessin", module: "conducteur", titre: "Régler l'appuie-tête",
