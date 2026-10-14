@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { analyserScene, analyserDessin, analyserQuiz, analyserCartes, melangerSansIdentite, corrigerOrdre, corrigerChoix,
   corrigerOption, MARQUES_CHOIX,
   BLOCS_INTERACTIFS, ouvertureBloc, lireBloc, erreurDirective, erreurNonRefermee,
-  messageOrdre, messageVraiFaux, messageChoix, trouverDansRegistre, messageEchecBloc, fichierEnEchec }
+  messageOrdre, messageVraiFaux, messageChoix, trouverDansRegistre, messageEchecBloc, fichierEnEchec, messageCodeInconnu }
   from "../js/cours-blocs-rules.js";
 
 // Un bloc refusé dit toujours pourquoi : l'éditeur affiche ce message tel quel.
@@ -271,6 +271,17 @@ test("erreurs de bloc : la directive inconnue et le bloc non refermé sont nomm�
   assert.match(erreurDirective("Quiz"), /scene, quiz, cartes, dessin, signaux ou marquage/);
   assert.match(erreurNonRefermee("quiz"), /« :::quiz » non refermé/);
   assert.match(erreurNonRefermee("quiz"), /« ::: »/);
+});
+
+test("messageCodeInconnu : un code inconnu dit ce qui s'affiche ; un code de l'autre directive nomme la bonne", () => {
+  // Inconnu (faute de frappe, propriété héritée) : les messages d'origine, mot pour mot.
+  assert.equal(messageCodeInconnu("scene", "tourner-droit", null), "Schéma « tourner-droit » inconnu : les étapes s'affichent en simple liste.");
+  assert.equal(messageCodeInconnu("dessin", "mains-volnt", null), "Dessin « mains-volnt » inconnu : seule la légende s'affiche.");
+  // Un schéma animé écrit dans :::dessin, ou un dessin écrit dans :::scene : la faute la plus probable, dite avec sa correction.
+  assert.equal(messageCodeInconnu("dessin", "tirer-glisser", { bloc: "scene" }),
+    "« tirer-glisser » est un schéma animé, pas un dessin : écrire « :::scene tirer-glisser » avec ses étapes. Seule la légende s'affiche.");
+  assert.equal(messageCodeInconnu("scene", "mains-volant", { bloc: "dessin" }),
+    "« mains-volant » est un dessin, pas un schéma animé : écrire « :::dessin mains-volant » avec sa légende. Les étapes s'affichent en simple liste.");
 });
 
 // ===== Messages de correction : texte brut, lu par les lecteurs d'écran =====

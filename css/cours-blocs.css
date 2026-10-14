@@ -79,9 +79,14 @@ span.scene-etape { cursor: default; }
 .bloc-echec p, .bloc-indisponible p { margin: 0; }
 
 /* Dessin du catalogue : pleine largeur de la colonne du cours, proportions de son cadre. La légende est celle des planches
-   de panneaux (.signaux-legende, style.css). */
+   de panneaux (.signaux-legende, style.css).
+   Pas de hauteur maximale, contrairement à .scene-svg : une fois bornée (72vh), elle réduit le dessin sur un téléphone tenu en
+   travers (270 px de haut ou moins), sous l'échelle de 1 px par unité du cadre : un texte de 11 unités y tombe à 9 px environ,
+   sous le plancher de lisibilité de 11 px. Un dessin fixe n'a pas de lecture automatique à déclencher : la borne d'une animation
+   sert à la garder visible à 60 %, le seuil où sa lecture démarre (les gestes y restent en paysage) ; un dessin n'en a pas
+   besoin, et en paysage la page défile. */
 .dessin-bloc { margin: 1.2rem 0; }
-.dessin-svg { display: block; width: 100%; height: auto; max-height: 72vh; }
+.dessin-svg { display: block; width: 100%; height: auto; }
 
 /* Quiz : correction immédiate, rien n'est enregistré */
 .quiz { margin: 1.2rem 0; padding: 0.9rem 1rem; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--bg-elev); }

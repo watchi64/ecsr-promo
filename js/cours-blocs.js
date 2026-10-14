@@ -14,8 +14,8 @@
  * dessin. Le catalogue des blocs (js/catalogue-blocs.js) dit quel module dessine
  * chaque code ; au premier bloc qui en a besoin, ce module se charge, une fois pour
  * la session (chargerModule). La figure, la légende et la liste des étapes
- * s'affichent tout de suite ; la vue du dessin montre « Chargement du schéma… »,
- * puis le dessin, ou un message et « Réessayer » si le réseau a manqué. Un module
+ * s'affichent tout de suite ; la vue du bloc montre « Chargement du schéma… » (« du dessin… » pour
+ * un dessin), puis le bloc, ou un message et « Réessayer » si le réseau a manqué. Un module
  * chargé qui ne connaît pas le code, ou dont le montage lève, montre un message
  * sobre sans « Réessayer » (qui n'y changerait rien). Chaque échec est aussi dit à
  * l'éditeur (contexte.signaler). Un bloc détruit pendant le chargement ne monte rien
@@ -40,7 +40,7 @@
 import { el } from "./utils.js?v=20261013a";
 import { analyserScene, analyserDessin, analyserQuiz, analyserCartes, melangerSansIdentite, corrigerOrdre, corrigerChoix,
   corrigerOption, MARQUES_CHOIX, BLOCS_INTERACTIFS, erreurDirective, erreurNonRefermee, messageOrdre, messageVraiFaux,
-  messageChoix, creerChargeur, adresseDeReprise, piloterBloc, trouverDansRegistre }
+  messageChoix, creerChargeur, adresseDeReprise, piloterBloc, trouverDansRegistre, messageCodeInconnu }
   from "./cours-blocs-rules.js?v=20261013a";
 import { entreeBloc } from "./catalogue-blocs.js?v=20261013a";
 
@@ -122,20 +122,21 @@ export function rendreBlocInteractif(type, arg, lignes, contexte, inline, ferme 
   return cartes(c, inline);
 }
 
-// Attente puis échec d'un chargement, dans la vue du bloc. `ratio` : [largeur, hauteur] réservés (pas de saut de page).
-function attente(vue, ratio) {
+// Attente puis échec d'un chargement, dans la vue du bloc. `ratio` : [largeur, hauteur] réservés (pas de saut de page). `nom` :
+// le mot du bloc (« schéma » pour une scène, « dessin » pour un dessin), deux noms masculins : « du », « Le » et « Ce » valent pour les deux.
+function attente(vue, ratio, nom = "schéma") {
   vue.replaceChildren(el("div", { class: "bloc-attente", role: "status",
-    style: ratio ? `aspect-ratio: ${ratio[0]} / ${ratio[1]}` : "" }, "Chargement du schéma…"));
+    style: ratio ? `aspect-ratio: ${ratio[0]} / ${ratio[1]}` : "" }, `Chargement du ${nom}…`));
 }
 // Dès le deuxième échec de la même vue, le message ajoute de recharger la page : quand un module d'un moteur a échoué, le
 // navigateur le garde en échec jusqu'au rechargement (voir CHARGEURS), et « Réessayer » ne peut plus aboutir.
-function echecChargement(vue, reessayer) {
+function echecChargement(vue, reessayer, nom = "schéma") {
   const echecs = (Number(vue.dataset.echecs) || 0) + 1;
   vue.dataset.echecs = String(echecs);
   const bouton = el("button", { class: "btn", type: "button" }, "Réessayer");
   bouton.addEventListener("click", reessayer);
   vue.replaceChildren(el("div", { class: "bloc-echec", role: "status" },
-    el("p", {}, "Le schéma n'a pas pu se charger. Vérifier la connexion."),
+    el("p", {}, `Le ${nom} n'a pas pu se charger. Vérifier la connexion.`),
     echecs > 1 ? el("p", {}, "Si cela persiste, recharger la page une fois la connexion rétablie.") : null, bouton));
 }
 // Un bloc dont le module est chargé mais qui ne peut pas s'afficher (le module ne connaît pas le code, ou le montage a levé) :
@@ -149,6 +150,28 @@ function signalerAuContexte(contexte, message) {
   try { contexte.signaler(message); } catch (erreur) { console.error(erreur); }
 }
 
+// Le cycle de vie commun d'un bloc illustré, schéma animé ou dessin (piloterBloc : attente, échec de réseau et reprise, code absent,
+// erreur de montage, destruction), et tout ce qu'il montre, avec le mot du bloc dans chaque phrase : `genre` « Schéma » ou « Dessin »
+// (l'éditeur le lit aussi dans ses messages). `vue` : où le bloc se montre ; `cadre` : la place qu'on lui réserve pendant le chargement ;
+// `charger()` et `monter(modules)` : d'où viennent les modules et comment on monte le bloc. Le bloc est inscrit dans `contexte.scenes`
+// (détruit avec le cours ou l'aperçu) et démarré : l'appelant n'a plus qu'à brancher ses étapes.
+function lancerBlocIllustre({ genre, code, module, cadre, vue, contexte, charger, monter }) {
+  const nom = genre.toLowerCase();
+  const bloc = piloterBloc({
+    genre, code, module, charger, monter,
+    afficher: {
+      attente: () => attente(vue, cadre, nom),
+      echecReseau: (reessayer) => echecChargement(vue, reessayer, nom),
+      indisponible: (nature) => blocIndisponible(vue, nature === "absent" ? `Ce ${nom} n'est pas encore disponible.` : `Ce ${nom} n'a pas pu s'afficher.`),
+    },
+    signaler: (message) => signalerAuContexte(contexte, message),
+    journaliser: (message, erreur) => console.error(message, erreur),
+  });
+  contexte.scenes.push({ detruire: () => bloc.detruire() });
+  bloc.demarrer();
+  return bloc;
+}
+
 function rendreScene(arg, lignes, contexte, inline) {
   const analyse = analyserScene(arg, lignes);
   // Entrée propre au catalogue : « constructor » ou « toString » ne sont pas des schémas, ni un dessin fixe.
@@ -156,7 +179,7 @@ function rendreScene(arg, lignes, contexte, inline) {
   const scene = entree && entree.bloc === "scene" ? entree : null;
   const synchro = scene !== null && analyse.etapes.length === scene.etapesModele.length;
   if (!scene) {
-    contexte.erreurs.push(`Schéma « ${analyse.code} » inconnu : les étapes s'affichent en simple liste.`);
+    contexte.erreurs.push(messageCodeInconnu("scene", analyse.code, entree));
   } else if (!synchro) {
     contexte.erreurs.push(`Le schéma « ${analyse.code} » attend ${scene.etapesModele.length} étapes, le bloc en donne ${analyse.etapes.length}.`);
   }
@@ -172,7 +195,8 @@ function rendreScene(arg, lignes, contexte, inline) {
   if (!scene) return el("div", { class: "scene-bloc scene-inconnue" }, liste);
   // La figure, la liste des étapes et la place du dessin sont posées tout de suite ; le moteur se monte quand son module est
   // chargé. Le cycle de vie du bloc (attente, échec de réseau et reprise, code absent, erreur de montage, appui sur une étape
-  // avant le montage, destruction) est celui de piloterBloc ; ici, seulement ce qu'on montre et d'où viennent les modules.
+  // avant le montage, destruction) est celui de piloterBloc, par lancerBlocIllustre (commun avec le dessin, qui y met son mot) ; ici,
+  // seulement ce qu'on montre et d'où viennent les modules.
   const vue = el("div", { class: "scene-vue" });
   const figure = el("figure", { class: "scene-bloc" }, vue, liste);
   const options = () => ({ conteneur: vue, etapes: synchro ? items.map((x) => x.li) : [], reduit: animationsReduites() });
@@ -189,22 +213,11 @@ function rendreScene(arg, lignes, contexte, inline) {
       vue.replaceChildren();
       return moteur.monterGeste(def, options());
     };
-  const bloc = piloterBloc({
-    genre: "Schéma", code: analyse.code, module: scene.module,
+  const bloc = lancerBlocIllustre({
+    genre: "Schéma", code: analyse.code, module: scene.module, cadre: scene.cadre, vue, contexte, monter,
     charger: () => (scene.module === "route" ? chargerModule("route") : Promise.all([chargerModule(scene.module), chargerModule("geste")])),
-    monter,
-    afficher: {
-      attente: () => attente(vue, scene.cadre),
-      echecReseau: (reessayer) => echecChargement(vue, reessayer),
-      indisponible: (nature) => blocIndisponible(vue,
-        nature === "absent" ? "Ce schéma n'est pas encore disponible." : "Ce schéma n'a pas pu s'afficher."),
-    },
-    signaler: (message) => signalerAuContexte(contexte, message),
-    journaliser: (message, erreur) => console.error(message, erreur),
   });
-  contexte.scenes.push({ detruire: () => bloc.detruire() });
   if (synchro) items.forEach((x, i) => x.etape.addEventListener("click", () => bloc.allerEtape(i)));
-  bloc.demarrer();
   return figure;
 }
 
@@ -220,30 +233,20 @@ function rendreDessin(arg, lignes, contexte, inline) {
   const dessin = entree && entree.bloc === "dessin" ? entree : null;
   const legende = analyse.legende ? el("figcaption", { class: "signaux-legende" }, inline(analyse.legende)) : null;
   if (!dessin) {
-    contexte.erreurs.push(`Dessin « ${analyse.code} » inconnu : seule la légende s'affiche.`);
+    contexte.erreurs.push(messageCodeInconnu("dessin", analyse.code, entree));
     return el("figure", { class: "dessin-bloc dessin-inconnu" }, legende);
   }
   const vue = el("div", { class: "dessin-vue" });
   const figure = el("figure", { class: "dessin-bloc" }, vue, legende);
-  const bloc = piloterBloc({
-    genre: "Dessin", code: analyse.code, module: dessin.module,
+  lancerBlocIllustre({
+    genre: "Dessin", code: analyse.code, module: dessin.module, cadre: dessin.cadre, vue, contexte,
     charger: () => chargerModule(dessin.module),
     monter: (module) => {
       const dessiner = trouverDansRegistre(module.DESSINS, analyse.code, dessin.module);
       vue.replaceChildren(module.versDom(dessiner()));
       return null;
     },
-    afficher: {
-      attente: () => attente(vue, dessin.cadre),
-      echecReseau: (reessayer) => echecChargement(vue, reessayer),
-      indisponible: (nature) => blocIndisponible(vue,
-        nature === "absent" ? "Ce dessin n'est pas encore disponible." : "Ce dessin n'a pas pu s'afficher."),
-    },
-    signaler: (message) => signalerAuContexte(contexte, message),
-    journaliser: (message, erreur) => console.error(message, erreur),
   });
-  contexte.scenes.push({ detruire: () => bloc.detruire() });
-  bloc.demarrer();
   return figure;
 }
 

@@ -8,8 +8,9 @@ import { rendreBlocInteractif, detruireScenes } from "../js/cours-blocs.js";
 const jeton = readFileSync("js/cours-blocs.js", "utf8").match(/catalogue-blocs\.js(\?v=[0-9a-z]+)/)[1];
 const { CATALOGUE } = await import(`../js/catalogue-blocs.js${jeton}`);
 
-// Le bloc « :::dessin » sous Node : ce que le stagiaire voit (jamais un dessin deviné), ce que l'éditeur reçoit, ce que
-// l'assistant garde en texte. DOM minimal, juste ce que lit le rendu (js/utils.js : el, qui lit document et Node).
+// Les blocs illustrés sous Node : le bloc « :::dessin » (ce que le stagiaire voit, jamais un dessin deviné ; ce que l'éditeur
+// reçoit ; ce que l'assistant garde en texte) et, pour que chacun garde son mot (« dessin » ou « schéma »), le bloc « :::scene ».
+// DOM minimal, juste ce que lit le rendu : js/utils.js (el : document et Node), et js/dessin-svg.js (versDom : createElementNS).
 class Noeud {}
 class Texte extends Noeud {
   constructor(texte) { super(); this.texte = texte; }
@@ -26,12 +27,17 @@ class Element extends Noeud {
 }
 const descendants = (n) => (n instanceof Element ? [n, ...n.enfants.flatMap(descendants)] : [n]);
 const avecClasse = (n, classe) => descendants(n).filter((x) => x instanceof Element && x.className.split(" ").includes(classe));
+const avecNom = (n, nom) => descendants(n).filter((x) => x instanceof Element && x.nom === nom);
 
 let avant;
 before(() => {
   avant = { document: globalThis.document, Node: globalThis.Node };
   globalThis.Node = Noeud;
-  globalThis.document = { createElement: (nom) => new Element(nom), createTextNode: (t) => new Texte(t) };
+  globalThis.document = {
+    createElement: (nom) => new Element(nom),
+    createElementNS: (_espace, nom) => new Element(nom),   // versDom : un dessin se monte dans cette même vue
+    createTextNode: (t) => new Texte(t),
+  };
 });
 after(() => {
   for (const [k, v] of Object.entries(avant)) { if (v === undefined) delete globalThis[k]; else globalThis[k] = v; }
@@ -40,7 +46,25 @@ after(() => {
 const inline = (texte) => document.createTextNode(texte);
 const nouveauContexte = (extra = {}) => ({ erreurs: [], scenes: [], ...extra });
 const attendre = () => new Promise((resolu) => setTimeout(resolu, 0));
+// Attend qu'une condition soit vraie (un module qui se charge pour de vrai, comme « route » sous Node, prend quelques millisecondes).
+async function attendreQue(condition, delai = 5000) {
+  const fin = Date.now() + delai;
+  while (!condition()) {
+    if (Date.now() > fin) throw new Error("délai dépassé : l'état attendu n'est pas venu");
+    await new Promise((resolu) => setTimeout(resolu, 2));
+  }
+}
 const dessiner = (arg, lignes, contexte, ferme = true) => rendreBlocInteractif("dessin", arg, lignes, contexte, inline, ferme);
+// Une entrée d'essai du catalogue, retirée à la fin du test ; la console, captée pour que le test dise ce qui s'y est écrit.
+async function avecEntrees(entrees, essai) {
+  const journal = [], erreurConsole = console.error;
+  Object.assign(CATALOGUE, entrees);
+  console.error = (...args) => journal.push(args);
+  try { await essai(journal); } finally {
+    for (const code of Object.keys(entrees)) delete CATALOGUE[code];
+    console.error = erreurConsole;
+  }
+}
 
 test(":::dessin sans code ou avec deux codes : l'erreur va à l'éditeur, le bloc reste du texte brut, rien n'est monté", () => {
   const sans = nouveauContexte();
@@ -69,7 +93,7 @@ test(":::dessin inconnu : seule la légende s'affiche, jamais un dessin deviné,
   assert.equal(figure.enfants[0].className, "signaux-legende");
   assert.equal(figure.enfants[0].textContent, "Juste : 9 h et 3 h. Faux : pouce engagé.");
   assert.equal(avecClasse(figure, "dessin-vue").length, 0);
-  assert.equal(descendants(figure).filter((x) => x instanceof Element && x.nom === "svg").length, 0);
+  assert.equal(avecNom(figure, "svg").length, 0);
   assert.equal(contexte.scenes.length, 0, "rien à détruire : aucun module n'a été demandé");
 
   // Sans légende, le bloc est vide : l'erreur reste dite à l'éditeur.
@@ -78,16 +102,35 @@ test(":::dessin inconnu : seule la légende s'affiche, jamais un dessin deviné,
   assert.equal(sansLegende.erreurs.length, 1);
 });
 
-test(":::dessin ne dessine que ce que le catalogue donne comme dessin : ni propriété héritée, ni schéma animé", () => {
-  for (const code of ["constructor", "toString", "__proto__", "hasOwnProperty", "tourner-droite", "tirer-glisser", "autotest"]) {
+test(":::dessin ne dessine que ce que le catalogue donne comme dessin : ni propriété héritée, ni schéma animé (dont le message nomme :::scene)", () => {
+  const cas = [
+    ...["constructor", "toString", "__proto__", "hasOwnProperty"].map((code) => [code, `Dessin « ${code} » inconnu : seule la légende s'affiche.`]),
+    ...["tourner-droite", "tirer-glisser", "autotest"].map((code) =>
+      [code, `« ${code} » est un schéma animé, pas un dessin : écrire « :::scene ${code} » avec ses étapes. Seule la légende s'affiche.`]),
+  ];
+  for (const [code, message] of cas) {
     const contexte = nouveauContexte();
     const figure = dessiner(code, ["Légende."], contexte);
-    assert.equal(contexte.erreurs.length, 1, `${code} : une erreur pour l'éditeur`);
-    assert.match(contexte.erreurs[0], new RegExp(`^Dessin « ${code} » inconnu`), code);
+    assert.deepEqual(contexte.erreurs, [message], `${code} : l'erreur de l'éditeur`);
     assert.deepEqual(figure.className.split(" "), ["dessin-bloc", "dessin-inconnu"], `${code} : bloc sans dessin`);
     assert.equal(avecClasse(figure, "dessin-vue").length, 0, `${code} : aucune vue de dessin`);
     assert.equal(contexte.scenes.length, 0, `${code} : rien de monté`);
   }
+});
+
+test(":::scene d'un code de dessin : les étapes en simple liste, et le message nomme :::dessin ; un code inconnu garde son message", () => {
+  const contexte = nouveauContexte();
+  const bloc = rendreBlocInteractif("scene", "mains-volant", ["Première étape", "Deuxième étape"], contexte, inline, true);
+  assert.deepEqual(contexte.erreurs,
+    ["« mains-volant » est un dessin, pas un schéma animé : écrire « :::dessin mains-volant » avec sa légende. Les étapes s'affichent en simple liste."]);
+  assert.deepEqual(bloc.className.split(" "), ["scene-bloc", "scene-inconnue"]);
+  assert.equal(avecClasse(bloc, "scene-vue").length, 0);
+  assert.equal(avecNom(bloc, "button").length, 0, "des étapes en texte, pas de bouton mort");
+  assert.equal(contexte.scenes.length, 0);
+
+  const inconnu = nouveauContexte();
+  rendreBlocInteractif("scene", "tourner-droit", ["Une étape"], inconnu, inline, true);
+  assert.deepEqual(inconnu.erreurs, ["Schéma « tourner-droit » inconnu : les étapes s'affichent en simple liste."]);
 });
 
 test(":::dessin non refermé, ou dans l'assistant : du texte brut, rien n'est chargé ni monté", () => {
@@ -111,10 +154,8 @@ test(":::dessin non refermé, ou dans l'assistant : du texte brut, rien n'est ch
 });
 
 test(":::dessin d'un code du catalogue : cadre, légende et place du dessin tout de suite, détruit avec le cours", async () => {
-  const signaux = [], journal = [];
-  const erreurConsole = console.error;
-  console.error = (...args) => journal.push(args);
-  try {
+  const signaux = [];
+  await avecEntrees({}, async (journal) => {
     const contexte = nouveauContexte({ signaler: (m) => signaux.push(m) });
     const figure = dessiner("mains-volant", ["Juste : 9 h et 3 h."], contexte);
     assert.deepEqual(contexte.erreurs, []);
@@ -126,7 +167,7 @@ test(":::dessin d'un code du catalogue : cadre, légende et place du dessin tout
     const [attente] = figure.enfants[0].enfants;
     assert.equal(attente.className, "bloc-attente");
     assert.equal(attente.getAttribute("style"), `aspect-ratio: ${CATALOGUE["mains-volant"].cadre[0]} / ${CATALOGUE["mains-volant"].cadre[1]}`);
-    assert.equal(attente.textContent, "Chargement du schéma…");
+    assert.equal(attente.textContent, "Chargement du dessin…", "un dessin dit « dessin », jamais « schéma »");
     // Le bloc est enregistré pour être détruit à la fermeture du cours ou au nouveau rendu de l'aperçu.
     assert.equal(contexte.scenes.length, 1);
     detruireScenes(contexte);
@@ -137,30 +178,27 @@ test(":::dessin d'un code du catalogue : cadre, légende et place du dessin tout
     assert.equal(figure.enfants[0].enfants[0].className, "bloc-attente");
     assert.deepEqual(signaux, []);
     assert.deepEqual(journal, []);
-  } finally {
-    console.error = erreurConsole;
-  }
+  });
 });
 
 test(":::dessin dont le module ne vient pas : message de réseau et « Réessayer » qui relance vraiment le chargement, l'éditeur est prévenu", async () => {
   // Entrée d'essai : un nom de module que la table des chargeurs ne connaît pas, donc un échec de chargement à coup sûr,
   // où que tourne le test (les modules de famille existeront un à un, au fil des tâches).
-  CATALOGUE["essai-reseau"] = { bloc: "dessin", module: "inexistant", titre: "Essai", legendeModele: "Légende d'essai.", cadre: [320, 240] };
-  const signaux = [], journal = [];
-  const erreurConsole = console.error;
-  console.error = (...args) => journal.push(args);
-  try {
+  const entree = { bloc: "dessin", module: "inexistant", titre: "Essai", legendeModele: "Légende d'essai.", cadre: [320, 240] };
+  const signaux = [];
+  await avecEntrees({ "essai-reseau": entree }, async (journal) => {
     const contexte = nouveauContexte({ signaler: (m) => signaux.push(m) });
     const figure = dessiner("essai-reseau", ["Légende du cours."], contexte);
     const vue = figure.enfants[0];
     assert.equal(vue.enfants[0].className, "bloc-attente");
     assert.equal(vue.enfants[0].getAttribute("style"), "aspect-ratio: 320 / 240");
+    assert.equal(vue.enfants[0].textContent, "Chargement du dessin…");
 
     await attendre();
     const echec = vue.enfants[0];
     assert.equal(echec.className, "bloc-echec");
     const [message, ...suite] = echec.enfants;
-    assert.equal(message.textContent, "Le schéma n'a pas pu se charger. Vérifier la connexion.");
+    assert.equal(message.textContent, "Le dessin n'a pas pu se charger. Vérifier la connexion.");
     const bouton = suite[suite.length - 1];
     assert.equal(bouton.nom, "button");
     assert.equal(bouton.textContent, "Réessayer");
@@ -174,10 +212,12 @@ test(":::dessin dont le module ne vient pas : message de réseau et « Réessaye
     // « Réessayer » relance le chargement : l'attente revient tout de suite, puis le deuxième échec ajoute de recharger la page.
     bouton.ecouteurs.click[0]();
     assert.equal(vue.enfants[0].className, "bloc-attente");
+    assert.equal(vue.enfants[0].textContent, "Chargement du dessin…");
     await attendre();
     const echec2 = vue.enfants[0];
     assert.equal(echec2.className, "bloc-echec");
     assert.equal(echec2.enfants.length, 3);
+    assert.equal(echec2.enfants[0].textContent, "Le dessin n'a pas pu se charger. Vérifier la connexion.");
     assert.match(echec2.enfants[1].textContent, /recharger la page/);
     assert.equal(signaux.length, 2, "chaque échec est dit à l'éditeur (qui ne répète pas une ligne identique)");
     assert.equal(signaux[1], signaux[0]);
@@ -189,8 +229,95 @@ test(":::dessin dont le module ne vient pas : message de réseau et « Réessaye
     await attendre();
     assert.equal(signaux.length, 2);
     assert.equal(vue.enfants[0].className, "bloc-echec", "le bloc détruit ne montre rien de plus");
-  } finally {
-    delete CATALOGUE["essai-reseau"];
-    console.error = erreurConsole;
-  }
+  });
+});
+
+test(":::dessin dont le module est chargé mais ne connaît pas le code : message sobre sans « Réessayer », l'éditeur dit où il manque", async () => {
+  // Entrée d'essai : le module « route » se charge pour de vrai sous Node (scenes.js et scene-moteur.js n'ont pas besoin de DOM à
+  // l'import) et n'a aucun registre DESSINS : le code est absent de son module, un cas qui ne dépend d'aucune famille à venir.
+  const entree = { bloc: "dessin", module: "route", titre: "Essai", legendeModele: "Légende d'essai.", cadre: [320, 200] };
+  const signaux = [];
+  await avecEntrees({ "essai-absent": entree }, async (journal) => {
+    const contexte = nouveauContexte({ signaler: (m) => signaux.push(m) });
+    const figure = dessiner("essai-absent", ["Légende du cours."], contexte);
+    const vue = figure.enfants[0];
+    assert.equal(vue.enfants[0].className, "bloc-attente");
+
+    await attendreQue(() => vue.enfants[0].className !== "bloc-attente");
+    const indisponible = vue.enfants[0];
+    assert.equal(indisponible.className, "bloc-indisponible");
+    assert.equal(indisponible.textContent, "Ce dessin n'est pas encore disponible.");
+    assert.equal(avecClasse(vue, "bloc-echec").length, 0, "pas une panne de réseau");
+    assert.equal(avecNom(vue, "button").length, 0, "pas de « Réessayer » : le module est chargé, il n'y changerait rien");
+    assert.equal(figure.enfants[1].textContent, "Légende du cours.", "la légende reste affichée");
+    // L'éditeur apprend où il manque ; la console garde la trace ; le rendu n'a rien eu à dire.
+    assert.deepEqual(signaux, ["Dessin « essai-absent » : absent du module « route »."]);
+    assert.equal(journal.length, 1);
+    assert.deepEqual(contexte.erreurs, []);
+    detruireScenes(contexte);
+  });
+});
+
+test(":::scene garde le mot « schéma » : attente, échec de réseau avec « Réessayer », code absent de son module", async () => {
+  // Deux scènes d'essai : l'une dont le module ne vient pas, l'autre dans le module « route », qui ne la connaît pas.
+  const etapesModele = ["Une étape", "Une autre étape"];
+  const entrees = {
+    "essai-scene-reseau": { bloc: "scene", module: "inexistant", titre: "Essai", etapesModele },
+    "essai-scene-absente": { bloc: "scene", module: "route", titre: "Essai", etapesModele },
+  };
+  const signaux = [];
+  await avecEntrees(entrees, async (journal) => {
+    const lancer = (code) => {
+      const contexte = nouveauContexte({ signaler: (m) => signaux.push(m) });
+      const figure = rendreBlocInteractif("scene", code, etapesModele, contexte, inline, true);
+      return { contexte, figure, vue: figure.enfants[0] };
+    };
+    // Réseau.
+    const reseau = lancer("essai-scene-reseau");
+    assert.equal(reseau.figure.className, "scene-bloc");
+    assert.equal(reseau.vue.className, "scene-vue");
+    assert.equal(reseau.vue.enfants[0].textContent, "Chargement du schéma…");
+    assert.equal(avecClasse(reseau.figure, "scene-etapes").length, 1, "la liste des étapes est là tout de suite");
+    await attendre();
+    assert.equal(reseau.vue.enfants[0].className, "bloc-echec");
+    assert.equal(reseau.vue.enfants[0].enfants[0].textContent, "Le schéma n'a pas pu se charger. Vérifier la connexion.");
+    assert.equal(avecNom(reseau.vue, "button")[0].textContent, "Réessayer");
+    // Les étapes sont des boutons branchés sur le bloc que l'aide a déjà démarré : un appui, module absent, est retenu sans erreur.
+    const etapes = avecClasse(reseau.figure, "scene-etape");
+    assert.equal(etapes.length, 2);
+    assert.doesNotThrow(() => etapes[1].ecouteurs.click[0]());
+    // Code absent de son module.
+    const absente = lancer("essai-scene-absente");
+    await attendreQue(() => absente.vue.enfants[0].className !== "bloc-attente");
+    assert.equal(absente.vue.enfants[0].className, "bloc-indisponible");
+    assert.equal(absente.vue.enfants[0].textContent, "Ce schéma n'est pas encore disponible.");
+    assert.equal(avecNom(absente.vue, "button").length, 0);
+    // L'éditeur lit le genre de chaque bloc : « Schéma » pour une scène.
+    assert.deepEqual(signaux, [
+      "Schéma « essai-scene-reseau » : le module « inexistant » n'a pas pu se charger.",
+      "Schéma « essai-scene-absente » : absent du module « route ».",
+    ]);
+    assert.equal(journal.length, 2);
+    // Le cycle de vie est celui du dessin, par la même aide : chaque scène est inscrite pour la destruction, et démarrée.
+    assert.equal(reseau.contexte.scenes.length, 1);
+    assert.equal(absente.contexte.scenes.length, 1);
+    detruireScenes(reseau.contexte);
+    detruireScenes(absente.contexte);
+    assert.equal(reseau.contexte.scenes.length, 0);
+    assert.equal(absente.contexte.scenes.length, 0);
+  });
+});
+
+test("le DOM minimal sait rendre un dessin (versDom) : de quoi écrire, à la tâche 6, le test du montage réussi d'un dessin réel", async () => {
+  // Tâche 6 : dès qu'un module de famille existe (js/dessins-poste.js…), ajouter ici le montage réussi : un code de DESSINS rendu
+  // par rendreDessin dans cette même vue (figure.dessin-bloc > div.dessin-vue > svg, l'attente remplacée, rien signalé). Ce test-ci
+  // garantit seulement que le DOM de ce fichier porte ce que versDom lui demande (createElementNS, attributs, texte).
+  const { n, versDom } = await import("../js/dessin-svg.js");
+  const racine = versDom(n("svg", { viewBox: "0 0 320 200", role: "img" }, n("text", { x: 160, y: 100 }, "Essai")));
+  assert.equal(racine.nom, "svg");
+  assert.equal(racine.getAttribute("viewBox"), "0 0 320 200");
+  assert.equal(racine.getAttribute("role"), "img");
+  assert.equal(racine.enfants[0].nom, "text");
+  assert.equal(racine.enfants[0].getAttribute("x"), "160");
+  assert.equal(racine.textContent, "Essai");
 });

@@ -339,7 +339,7 @@ function rendreBlocs(lignes, contexte) {
       continue;
     }
 
-    // Blocs interactifs des cours de compétences (schéma animé, quiz, cartes). Après les planches :
+    // Blocs interactifs des cours de compétences (schéma animé, dessin, quiz, cartes). Après les planches :
     // toute autre directive « ::: » est signalée (scène, Quiz...), et un bloc sans fermeture aussi.
     const ouverture = ouvertureBloc(nu);
     if (ouverture) {

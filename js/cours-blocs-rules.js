@@ -338,6 +338,17 @@ export function messageEchecBloc({ genre = "Schéma", code, module, nature, erre
   return `${tete} : erreur au montage (${detailErreur(erreur)}).`;
 }
 
+/** Le message de l'éditeur pour un code que la directive ne dessine pas. `directive` : « scene » ou « dessin » ; `entree` : l'entrée
+ *  du catalogue pour ce code, ou null. Un code qui existe pour l'autre directive le dit et nomme la bonne (« :::dessin tirer-glisser » :
+ *  c'est un schéma animé), c'est la faute la plus probable ; sinon le code est inconnu, et le message dit ce qui s'affiche. */
+export function messageCodeInconnu(directive, code, entree) {
+  const scene = directive === "scene";
+  const suite = scene ? "Les étapes s'affichent en simple liste." : "Seule la légende s'affiche.";
+  if (!scene && entree && entree.bloc === "scene") return `« ${code} » est un schéma animé, pas un dessin : écrire « :::scene ${code} » avec ses étapes. ${suite}`;
+  if (scene && entree && entree.bloc === "dessin") return `« ${code} » est un dessin, pas un schéma animé : écrire « :::dessin ${code} » avec sa légende. ${suite}`;
+  return scene ? `Schéma « ${code} » inconnu : les étapes s'affichent en simple liste.` : `Dessin « ${code} » inconnu : seule la légende s'affiche.`;
+}
+
 /** Conduit un bloc illustré, sans DOM. `charger()` rend la promesse du ou des modules (appelée à chaque démarrage, donc à chaque
  *  reprise) ; `monter(modules)` monte le moteur et le rend (il peut lever, `trouverDansRegistre` lève « absent ») ; `afficher`
  *  dit quoi montrer : `attente()` ; `echecReseau(reessayer)` quand le module n'a pas pu se charger (panne de réseau : `reessayer`
