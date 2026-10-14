@@ -154,7 +154,7 @@ export const CATALOGUE = {
   retroviseurs: { bloc: "dessin", module: "visibilite", titre: "Ce que montrent les rétroviseurs",
     legendeModele: "L'horizon à mi-hauteur, un mince liseré de carrosserie.", cadre: [320, 306] },
   "angles-morts": { bloc: "dessin", module: "visibilite", titre: "Les angles morts",
-    legendeModele: "Ce qu'aucun rétroviseur ne montre : un coup d'œil par-dessus l'épaule.", cadre: [320, 330] },
+    legendeModele: "Ce qu'aucun rétroviseur ne montre : un coup d'œil par-dessus l'épaule.", cadre: [320, 326] },
   pedales: { bloc: "dessin", module: "poste", titre: "Les pédales et les pieds",
     legendeModele: "Pied gauche : embrayage. Pied droit : frein ou accélérateur.", cadre: [320, 200] },
   "roues-trottoir": { bloc: "dessin", module: "dessus", titre: "Immobiliser en pente",
