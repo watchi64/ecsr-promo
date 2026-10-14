@@ -21,9 +21,7 @@ test("chaque entrée du catalogue est complète et bien formée", () => {
 });
 
 test("les scènes de route du registre sont exactement celles du catalogue, mêmes titres et étapes", () => {
-  // Filtre provisoire : « sortie-portiere » est au catalogue avant d'exister dans le registre (tâche 13, qui retire ce filtre).
-  const route = Object.keys(CATALOGUE).filter((c) => CATALOGUE[c].module === "route")
-    .filter((c) => c in SCENES || c !== "sortie-portiere").sort();
+  const route = Object.keys(CATALOGUE).filter((c) => CATALOGUE[c].module === "route").sort();
   assert.deepEqual(Object.keys(SCENES).sort(), route);
   for (const code of route) {
     assert.equal(SCENES[code].titre, CATALOGUE[code].titre);
