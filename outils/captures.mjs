@@ -44,7 +44,8 @@ function chrome(argsChrome) {
     return execFileSync(CHROME, ["--headless=new", "--disable-gpu", "--hide-scrollbars", "--no-first-run", "--no-default-browser-check",
       `--user-data-dir=${profil}`, ...argsChrome], { encoding: "utf8", maxBuffer: 1 << 28, timeout: 120000, stdio: ["ignore", "pipe", "ignore"] });
   } finally {
-    rmSync(profil, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+    // Windows garde parfois un verrou un instant après la sortie de Chrome : un profil qui reste ne fait pas échouer la capture.
+    try { rmSync(profil, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 }); } catch { /* nettoyé plus tard avec le dossier temporaire */ }
   }
 }
 const adresse = (requete) => `http://localhost:${port}/outils/planche-dessins.html?${new URLSearchParams(requete)}`;
@@ -53,7 +54,9 @@ const adresse = (requete) => `http://localhost:${port}/outils/planche-dessins.ht
 function sonder(requete, largeur) {
   const html = chrome(["--force-device-scale-factor=1", `--window-size=${fenetre(largeur)},1000`, "--virtual-time-budget=8000",
     "--dump-dom", adresse(requete)]);
-  if (!/<title>pret<\/title>/.test(html)) throw new Error(`la planche n'a pas fini de se construire : ${adresse(requete)}`);
+  if (!/<title>pret<\/title>/.test(html)) {
+    throw new Error(`la planche n'a pas fini de se construire (serveur lancé sur le port ${port} ?) : ${adresse(requete)}`);
+  }
   const corps = (html.match(/<body[^>]*>/) || [""])[0];
   const lire = (nom) => (corps.match(new RegExp(`data-${nom}="([^"]*)"`)) || [, ""])[1];
   const virgules = (nom) => lire(nom).split(",").filter(Boolean);
@@ -90,6 +93,14 @@ function capturer(requete, fichier, largeur) {
   console.log(`${fichier} (${dimensionsPng(fichier)}, ${m.mesures.length ? `colonne mesurée ${m.mesures.join(" / ")} px` : "aucun dessin"})`);
 }
 
+// Une image qui échoue (Chrome qui plante, serveur absent) est comptée et signalée, sans arrêter les suivantes.
+function essayer(requete, fichier, largeur) {
+  try { capturer(requete, fichier, largeur); } catch (erreur) {
+    problemes++;
+    console.warn(`ECHEC ${fichier} : ${String(erreur.message).split("\n")[0]}`);
+  }
+}
+
 mkdirSync(sortie, { recursive: true });
 let codes = liste(args.codes, null);
 if (!codes) {
@@ -100,10 +111,10 @@ if (!codes) {
 for (const code of codes) {
   const entree = Object.hasOwn(CATALOGUE, code) ? CATALOGUE[code] : null;
   for (const largeur of largeurs) {
-    if (!entree || entree.bloc === "dessin") { capturer({ code, largeur }, `${sortie}/${code}-${largeur}.png`, largeur); continue; }
-    entree.etapesModele.forEach((_, i) => capturer({ code, largeur, etape: i }, `${sortie}/${code}-e${i + 1}-${largeur}.png`, largeur));
-    for (const t of instants) capturer({ code, largeur, t }, `${sortie}/${code}-t${t}-${largeur}.png`, largeur);
-    capturer({ code, largeur, etape: 0, reduit: 1 }, `${sortie}/${code}-reduit-${largeur}.png`, largeur);
+    if (!entree || entree.bloc === "dessin") { essayer({ code, largeur }, `${sortie}/${code}-${largeur}.png`, largeur); continue; }
+    entree.etapesModele.forEach((_, i) => essayer({ code, largeur, etape: i }, `${sortie}/${code}-e${i + 1}-${largeur}.png`, largeur));
+    for (const t of instants) essayer({ code, largeur, t }, `${sortie}/${code}-t${t}-${largeur}.png`, largeur);
+    essayer({ code, largeur, etape: 0, reduit: 1 }, `${sortie}/${code}-reduit-${largeur}.png`, largeur);
   }
 }
-if (problemes) { console.error(`${problemes} problème(s) : voir les lignes ERREUR et LARGEUR ci-dessus.`); process.exitCode = 1; }
+if (problemes) { console.error(`${problemes} problème(s) : voir les lignes ECHEC, ERREUR et LARGEUR ci-dessus.`); process.exitCode = 1; }
