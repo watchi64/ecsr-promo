@@ -9,7 +9,6 @@
 import { n } from "./dessin-svg.js?v=20261013a";
 import { CHARTE, cadre, texte, fleche } from "./dessins-kit.js?v=20261013a";
 import { adoucir, sortieDouce, avancement } from "./animation-courbes.js?v=20261013a";
-import { etapeA } from "./lecteur-anime-regles.js?v=20261013a";
 
 // ------------------------------------------------------------------------------------------------ Couleurs et tons
 
@@ -425,7 +424,7 @@ const GROUPES = [
 // Les mots du tableau du cours, sur une ou deux lignes ; le seul voyant bleu est dit bleu, comme dans le cours.
 const NOMS_PLANCHE = {
   huile: ["Pression", "d'huile"], temperature: ["Température", "moteur"], freinage: ["Freinage"],
-  batterie: ["Charge de la", "batterie"], airbag: ["Airbag"], abs: ["ABS"], pneus: ["Pression", "des pneus"],
+  batterie: ["Charge", "de la batterie"], airbag: ["Airbag"], abs: ["ABS"], pneus: ["Pression", "des pneus"],
   prechauffage: ["Préchauffage"], reserve: ["Réserve de", "carburant"], clignotants: ["Clignotants"],
   croisement: ["Feux de", "croisement"], route: ["Feux de route", "(bleu)"],
 };
@@ -494,11 +493,13 @@ function planche() {
 /** Régime de ralenti montré par l'aiguille du compte-tours une fois le moteur démarré (tr/min). */
 export const RALENTI = 800;
 
-// Déroulé : début des trois étapes et durée (s) ; un voyant s'éteint en `extinction` s ; le repère « Moteur » s'allume en
-// `apparition`, « Contact » s'éteint en `disparition` ; l'aiguille monte au ralenti en `montee` s.
-const DEROULE = { debuts: [0, 2.2, 4.4], duree: 6.8, extinction: 0.12, apparition: 0.2, disparition: 0.13, montee: 1.0 };
+// Déroulé (secondes) : début des trois étapes et durée ; le changement de chaque étape arrive `delai` après son début (le
+// temps de lire l'étape) : mise du contact, fin de l'autotest, démarrage du moteur. Les six voyants et la pastille
+// « Contact » s'allument ensemble en `allumage` ; un voyant s'éteint en `extinction` ; la pastille « Moteur » s'allume en
+// `allumage` ; l'aiguille monte au ralenti en `montee`, et huile et charge finissent de s'éteindre quand elle l'atteint.
+const DEROULE = { debuts: [0, 2.4, 4.4], duree: 7, delai: 0.4, allumage: 0.2, extinction: 0.12, montee: 1 };
 
-// Les six voyants du combiné, en deux rangées ; ceux qui s'éteignent à la fin de l'autotest, puis au démarrage du moteur.
+// Les six voyants du combiné, en deux rangées ; ceux qui s'éteignent à la fin de l'autotest, puis quand le moteur tourne.
 const RANGEES_AUTOTEST = [["airbag", "abs", "pneus"], ["temperature", "huile", "batterie"]];
 const FIN_AUTOTEST = ["airbag", "abs", "pneus", "temperature"];
 const DEMARRAGE = ["huile", "batterie"];
@@ -508,21 +509,29 @@ const NOMS_AUTOTEST = { airbag: "Airbag", abs: "ABS", pneus: "Pneus", temperatur
 
 // Combiné (le cadre sombre), cadran du compte-tours (gradué de 0 à 7 000 tr/min sur 240 degrés, de 8 h à 4 h, un grand trait
 // tous les 1 000 tr/min, un petit à mi-chemin ; nommé dessous), voyants en deux rangées de trois, repère « Contact » et
-// « Moteur » sous les voyants. La flèche de la montée de l'aiguille court juste hors du cadran, le long de sa course.
+// « Moteur » sous les voyants.
 const COMBINE = {
   largeur: 320, hauteur: 200,
   panneau: { x: 8, y: 8, largeur: 304, hauteur: 138, rayon: 14 },
   cadran: { cx: 76, cy: 74, rayon: 46, regimeMax: 7000, pasGrands: 1000, pasGraduations: 500, angleZero: -120, angleMax: 120,
     graduation: 39, sousGraduation: 42.5, aiguille: 40, queue: 7, moyeu: 4.5, ecartNom: 4, flecheRayon: 52 },
-  voyants: { colonnes: [168, 226, 284], rangees: [42, 98], taille: 24, ecartNom: 4 },
-  // Repère : deux pastilles ; dans chacune, un témoin rond (plein quand l'état est le bon, creux sinon) puis le mot.
+  voyants: { colonnes: [168, 226, 284], rangees: [42, 98], taille: 24, ecartNom: 6 },
+  // Repère : deux pastilles ; dans chacune, un témoin rond (plein quand l'état est atteint, creux sinon) puis le mot.
   repere: { centre: 226, y: 164, largeur: 78, hauteur: 22, ecart: 6, temoin: 4, xTemoin: 12, xMot: 22 },
-  // Flèches des étapes 1 et 2, au départ du haut de la pastille « Contact » : l'étape 1 monte droit, de son milieu au bord
-  // du combiné ; l'étape 2 part à cette part de sa largeur depuis sa gauche et monte entre « Huile » et « Charge » ; `jeu` :
-  // de la pointe au bord ou au bas des noms.
-  fleches: { departEtape2: 0.75, jeu: 2 },
+  // Marques des étapes : jeu de la pointe de la flèche du contact au bord du combiné ; rayon de l'anneau autour d'un voyant
+  // (il passe entre le symbole et son nom).
+  marques: { jeu: 2, anneau: 14 },
 };
 const NOM_CADRAN = "Compte-tours";
+
+// Ce que chaque étape change, montré par ses marques (dans le groupe de la flèche, visibles sur une image figée seulement) :
+// étape 1, la flèche du repère « Contact » vers le combiné, qui s'allume ; étapes 2 et 3, un anneau autour de chaque voyant
+// qui va s'éteindre ; étape 3, en plus, la flèche de la montée de l'aiguille.
+const MARQUES = [
+  { contact: true, anneaux: [], aiguille: false },
+  { contact: false, anneaux: FIN_AUTOTEST, aiguille: false },
+  { contact: false, anneaux: DEMARRAGE, aiguille: true },
+];
 
 // Angle (degrés depuis midi, sens horaire) et point du cadran à un régime donné.
 const angleRegime = (regime) => {
@@ -535,50 +544,49 @@ const surCadran = (angle, r) => {
 };
 
 function etatAutotest(t) {
-  const D = DEROULE, [, fin, moteur] = D.debuts;
-  const etape = etapeA(D.debuts.map((d) => ({ t: d })), t);
-  const extinction = (debut) => 1 - sortieDouce(avancement(t, debut, debut + D.extinction));
+  const D = DEROULE, [debut1, debut2, debut3] = D.debuts;
+  const contact = debut1 + D.delai, finAutotest = debut2 + D.delai, demarrage = debut3 + D.delai;
+  // Huile et charge restent allumés tant que le moteur ne tourne pas : ils finissent de s'éteindre à l'instant où l'aiguille
+  // atteint le ralenti.
+  const finHuileCharge = demarrage + D.montee - D.extinction;
+  const allume = sortieDouce(avancement(t, contact, contact + D.allumage));
+  const eteint = (debut) => sortieDouce(avancement(t, debut, debut + D.extinction));
   const voyants = {};
-  for (const nom of FIN_AUTOTEST) voyants[nom] = extinction(fin);
-  for (const nom of DEMARRAGE) voyants[nom] = extinction(moteur);
+  for (const nom of FIN_AUTOTEST) voyants[nom] = allume * (1 - eteint(finAutotest));
+  for (const nom of DEMARRAGE) voyants[nom] = allume * (1 - eteint(finHuileCharge));
   return {
-    // Luminosité de lecture de chaque voyant (1 allumé, 0 éteint), et ceux que l'étape commande allumés.
+    // Luminosité de chaque voyant (0 éteint, 1 allumé), et ceux qui éclairent à cet instant.
     voyants,
-    allumes: SIX.filter((nom) => (FIN_AUTOTEST.includes(nom) ? etape < 1 : etape < 2)),
-    // Repère : état commandé (moteur démarré), et part de chaque pastille allumée en lecture.
-    moteur: etape >= 2,
+    allumes: SIX.filter((nom) => voyants[nom] > 0),
+    // Repère : part allumée de chaque pastille ; « Contact » reste allumé une fois le moteur démarré.
     repere: {
-      contact: 1 - sortieDouce(avancement(t, moteur, moteur + D.disparition)),
-      moteur: sortieDouce(avancement(t, moteur, moteur + D.apparition)),
+      contact: sortieDouce(avancement(t, contact, contact + D.allumage)),
+      moteur: sortieDouce(avancement(t, demarrage, demarrage + D.allumage)),
     },
-    regime: RALENTI * adoucir(avancement(t, moteur, moteur + D.montee)),
+    regime: RALENTI * adoucir(avancement(t, demarrage, demarrage + D.montee)),
   };
 }
 
 function pointsFleches() {
-  const C = COMBINE, R = C.repere, V = C.voyants, F = C.fleches, P = C.panneau;
-  const [, c1, c2] = V.colonnes;
-  const xContact = R.centre - (R.largeur + R.ecart) / 2, haut = R.y - TRAIT;
-  const basNoms = V.rangees[1] + V.taille / 2 + V.ecartNom + (HAUT_TEXTE + BAS_TEXTE) * NOM.taille;
-  const depart2 = [xContact - R.largeur / 2 + F.departEtape2 * R.largeur, haut];
-  const fin2 = [(c1 + c2) / 2, basNoms + F.jeu];
+  const C = COMBINE, R = C.repere, P = C.panneau;
+  const xContact = R.centre - (R.largeur + R.ecart) / 2;
   const a0 = angleRegime(0), a1 = angleRegime(RALENTI), r = C.cadran.flecheRayon;
-  return [
-    // Étape 1 : la mise du contact allume le combiné (du repère « Contact » au bord du combiné).
-    [[xContact, haut], [xContact, P.y + P.hauteur + F.jeu]],
-    // Étape 2 : huile et charge restent allumés (la flèche arrive par-dessous, entre leurs deux noms).
-    [depart2, [fin2[0], depart2[1] - (depart2[1] - fin2[1]) / 2], fin2],
-    // Étape 3 : l'aiguille du compte-tours monte au ralenti (la flèche court juste hors du cadran, le long de sa course).
-    [surCadran(a0, r), surCadran((a0 + a1) / 2, r), surCadran(a1, r)],
-  ];
+  return {
+    // Du haut de la pastille « Contact » au bord du combiné.
+    contact: [[xContact, R.y - TRAIT], [xContact, P.y + P.hauteur + C.marques.jeu]],
+    // Juste hors du cadran, le long de la course de l'aiguille, de 0 au ralenti.
+    aiguille: [surCadran(a0, r), surCadran((a0 + a1) / 2, r), surCadran(a1, r)],
+  };
 }
 
 const TITRE_AUTOTEST = "L'autotest des voyants";
-const DESCRIPTION_AUTOTEST = "Combiné d'instruments. À la mise du contact, six voyants s'allument : airbag, ABS, pression des "
-  + "pneus, température moteur, pression d'huile, charge de la batterie. À la fin de l'autotest, ils s'éteignent, sauf "
-  + "huile et charge, qui restent allumés jusqu'au démarrage du moteur : l'aiguille du compte-tours monte au ralenti et "
-  + "ils s'éteignent à leur tour.";
+const DESCRIPTION_AUTOTEST = "Combiné d'instruments, contact coupé : tout est éteint. À la mise du contact, six voyants "
+  + "s'allument ensemble : airbag, ABS, pression des pneus, température moteur, pression d'huile, charge de la batterie. À "
+  + "la fin de l'autotest, ils s'éteignent, sauf huile et charge, qui restent allumés jusqu'à ce que le moteur tourne : au "
+  + "démarrage, l'aiguille du compte-tours monte au ralenti, puis ils s'éteignent à leur tour.";
 
+// Une image du geste : l'état de l'instant, toujours ; `fige` ne fait que montrer le groupe de la flèche de l'étape (ses
+// marques), seule différence entre une image figée et l'image de lecture du même instant.
 function dessinerAutotest(etat, { fige, etape }) {
   const C = COMBINE, P = C.panneau, D = C.cadran, V = C.voyants, R = C.repere;
   const cadranNoeuds = [
@@ -598,21 +606,18 @@ function dessinerAutotest(etat, { fige, etape }) {
       "data-r": "aiguille", "data-angle": angle }),
     n("circle", { cx: D.cx, cy: D.cy, r: D.moyeu, fill: TABLEAU.aiguille }));
 
-  const voyants = RANGEES_AUTOTEST.flatMap((rangee, k) => rangee.map((nom, i) => {
-    const x = V.colonnes[i], y = V.rangees[k];
-    const luminosite = fige ? (etat.allumes.includes(nom) ? 1 : 0) : etat.voyants[nom];
-    return n("g", { "data-r": `combine-${nom}` },
-      pictogramme(nom, { x, y, taille: V.taille, couleur: TABLEAU.eteint }),
-      n("g", { "data-r": `allume-${nom}`, opacity: luminosite },
-        pictogramme(nom, { x, y, taille: V.taille, couleur: COULEURS_VOYANTS[COULEUR_DE[nom]] })),
-      texte(x, y + V.taille / 2 + V.ecartNom + HAUT_TEXTE * NOM.taille, NOMS_AUTOTEST[nom],
-        { taille: NOM.taille, ancrage: "middle", graisse: NOM.graisse, couleur: TABLEAU.legende }));
-  }));
+  const places = RANGEES_AUTOTEST.flatMap((rangee, k) => rangee.map((nom, i) => ({ nom, x: V.colonnes[i], y: V.rangees[k] })));
+  const voyants = places.map(({ nom, x, y }) => n("g", { "data-r": `combine-${nom}` },
+    pictogramme(nom, { x, y, taille: V.taille, couleur: TABLEAU.eteint }),
+    n("g", { "data-r": `allume-${nom}`, opacity: etat.voyants[nom] },
+      pictogramme(nom, { x, y, taille: V.taille, couleur: COULEURS_VOYANTS[COULEUR_DE[nom]] })),
+    texte(x, y + V.taille / 2 + V.ecartNom + HAUT_TEXTE * NOM.taille, NOMS_AUTOTEST[nom],
+      { taille: NOM.taille, ancrage: "middle", graisse: NOM.graisse, couleur: TABLEAU.legende })));
 
   // Le mot reste sombre sur la pastille claire, l'état passe par le témoin (plein ou creux) et par le fond de la pastille :
-  // lisible à chaque image du passage de « Contact » à « Moteur ».
+  // lisible à chaque image.
   const pastilles = [["contact", "Contact", -1], ["moteur", "Moteur", 1]].map(([cle, mot, cote]) => {
-    const actif = fige ? ((cle === "moteur") === etat.moteur ? 1 : 0) : etat.repere[cle];
+    const actif = etat.repere[cle];
     const x0 = R.centre + cote * (R.largeur + R.ecart) / 2 - R.largeur / 2, yc = R.y + R.hauteur / 2;
     const forme = { x: x0, y: R.y, width: R.largeur, height: R.hauteur, rx: R.hauteur / 2 };
     const taille = CHARTE.tailles.etiquette;
@@ -624,20 +629,27 @@ function dessinerAutotest(etat, { fige, etape }) {
       texte(x0 + R.xMot, yc + MILIEU_CAPITALES * taille, mot, { taille, graisse: 600, role: `repere-${cle}` }));
   });
 
+  const m = MARQUES[etape], f = pointsFleches(), montre = (oui) => (oui ? "inline" : "none");
+  const marques = n("g", { "data-r": "fleche", display: montre(fige) },
+    fleche(f.contact, { role: "fleche-contact", visible: m.contact }),
+    fleche(f.aiguille, { role: "fleche-aiguille", visible: m.aiguille }),
+    places.map(({ nom, x, y }) => n("circle", { cx: x, cy: y, r: C.marques.anneau, fill: "none", stroke: CHARTE.accentDoux2,
+      "stroke-width": TRAIT, display: montre(m.anneaux.includes(nom)), "data-r": `anneau-${nom}` })));
+
   return cadre({ largeur: C.largeur, hauteur: C.hauteur, titre: TITRE_AUTOTEST, description: DESCRIPTION_AUTOTEST },
     n("rect", { x: P.x, y: P.y, width: P.largeur, height: P.hauteur, rx: P.rayon, fill: TABLEAU.fond, stroke: TABLEAU.bord,
       "stroke-width": TRAIT_FIN, "data-r": "combine" }),
     n("g", { "data-r": "compte-tours" }, cadranNoeuds),
     voyants,
     pastilles,
-    fleche(pointsFleches()[etape], { visible: fige }));
+    marques);
 }
 
 function autotest() {
   const D = DEROULE;
-  // Variation maximale en une image (1/60 s) : une extinction en 0,12 s change la luminosité de 0,36 au plus ; « Contact »
-  // s'éteint en 0,13 s (0,34), « Moteur » s'allume en 0,2 s (0,23). La raison est dans les sources du geste.
-  const sautsMax = { "repere.contact": 0.4, "repere.moteur": 0.3 };
+  // Variation maximale en une image (1/60 s) : allumage en 0,2 s, 0,23 au plus ; extinction en 0,12 s, 0,36 au plus ; une
+  // pastille du repère s'allume en 0,2 s, 0,23 au plus. La raison est dans les sources du geste.
+  const sautsMax = { "repere.contact": 0.3, "repere.moteur": 0.3 };
   for (const nom of SIX) sautsMax[`voyants.${nom}`] = 0.4;
   return {
     titre: TITRE_AUTOTEST,

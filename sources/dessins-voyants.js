@@ -74,21 +74,23 @@ export const SOURCES = {
       + "C1.4 (800 tr/min, régime du moteur au ralenti, sans accélérer).",
     REFERENCES_PICTOGRAMMES,
     REFERENCES_COULEURS,
-    "Choix de dessin : le dessin commence contact mis, les six voyants allumés : sa première image, celle d'avant la lecture "
-      + "et des animations réduites, est l'image figée de l'étape 1 ; un allumage animé depuis le noir la ferait différer de "
-      + "la lecture (un éclair à chaque départ). Les quatre voyants de l'autotest s'éteignent ensemble à 2,2 s (la durée réelle "
-      + "varie selon les systèmes et les modèles, de 3 à 6 s environ), huile et charge au démarrage du moteur, à 4,4 s, "
-      + "en même temps que l'aiguille commence à monter ; fin à 6,8 s.",
-    "Choix de dessin : un voyant s'éteint en 0,12 s et le repère passe de « Contact » à « Moteur » en 0,2 s (courbe "
-      + "sortieDouce, arrivée amortie, sans rebond) : une lampe de tableau de bord change d'état presque instantanément, et ces "
-      + "durées laissent seulement l'œil voir le changement ; la luminosité varie donc de 0,36 au plus d'une image à la "
-      + "suivante (1/60 s), plus vite que la règle générale de continuité (15 % de la plage par image), d'où les sautsMax "
-      + "déclarés (0,4 pour un voyant et pour « Contact », 0,3 pour « Moteur »). L'aiguille monte au ralenti en 1,0 s "
-      + "(adoucir), sans dépasser le ralenti.",
-    "Choix de dessin : image figée (pas à pas, pause, fin, animations réduites) : chaque voyant et le repère dans l'état que "
-      + "commande l'étape (allumé ou éteint ; « Contact » ou « Moteur »), sans leur transition de quelques centièmes de "
-      + "seconde ; l'aiguille, un objet qui se déplace, à sa place, avec la flèche de sa montée. Flèches : étape 1, du repère "
-      + "« Contact » vers les voyants qu'il allume ; étape 2, vers huile et charge, qui restent allumés ; étape 3, le long du "
+    "Choix de dessin : déroulé en trois étapes (0 ; 2,4 ; 4,4 s ; fin à 7 s), le changement de chaque étape 0,4 s après son "
+      + "début, le temps de lire l'étape. Étape 1 : combiné éteint, contact coupé (les deux pastilles creuses) ; à 0,4 s, la "
+      + "mise du contact allume ensemble les six voyants et la pastille « Contact ». Étape 2 : à 2,8 s, les quatre voyants de "
+      + "l'autotest s'éteignent ensemble (la durée réelle varie selon les systèmes et les modèles, de 3 à 6 s environ). Étape "
+      + "3 : à 4,8 s, la pastille « Moteur » s'allume (« Contact » reste allumé : le contact reste mis moteur tournant) et "
+      + "l'aiguille monte au ralenti en 1,0 s ; huile et charge s'éteignent quand elle l'atteint (de 5,68 à 5,8 s), jamais "
+      + "pendant que le compte-tours lit à peu près zéro (« Il reste allumé jusqu'au démarrage du moteur »).",
+    "Choix de dessin : les six voyants s'allument en 0,2 s et la pastille « Contact » avec eux, la pastille « Moteur » en 0,2 "
+      + "s, un voyant s'éteint en 0,12 s (courbe sortieDouce, arrivée amortie, sans rebond) : une lampe de tableau de bord "
+      + "change d'état presque instantanément, et ces durées laissent seulement l'œil voir le changement ; d'une image à la "
+      + "suivante (1/60 s), la luminosité varie donc de 0,23 au plus à l'allumage et de 0,36 à l'extinction, et une pastille "
+      + "de 0,23, plus vite que la règle générale de continuité (15 % de la plage par image), d'où les sautsMax déclarés (0,4 "
+      + "pour un voyant, 0,3 pour une pastille). L'aiguille monte en 1,0 s (adoucir), sans dépasser le ralenti.",
+    "Choix de dessin : une image figée (pas à pas, pause, fin, animations réduites) est l'image de l'animation à cet instant ; "
+      + "seules s'y ajoutent les marques de l'étape, rangées dans le groupe de sa flèche : étape 1, la flèche de la pastille "
+      + "« Contact » vers le combiné, qui va s'allumer ; étape 2, un anneau autour de chacun des quatre voyants qui vont "
+      + "s'éteindre ; étape 3, un anneau autour de huile et de charge et la flèche de la montée de l'aiguille, juste hors du "
       + "cadran, de 0 au ralenti.",
     "Choix de dessin : cadran du compte-tours gradué de 0 à 7 000 tr/min sur 240 degrés (de 8 h à 4 h), un grand trait "
       + "tous les 1 000 tr/min, un petit à mi-chemin, ordre de grandeur d'un moteur à essence ; sans chiffres (au repos, "
