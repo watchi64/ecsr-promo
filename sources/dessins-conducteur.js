@@ -1,0 +1,47 @@
+/*
+ * Promo ECSR : Application propriétaire.
+ * © 2026 watchi64 : Tous droits réservés. Voir LICENSE.
+ *
+ * Sources des dessins de la famille « conducteur » (js/dessins-conducteur.js) : hors des modules livrés, lues seulement par
+ * les tests et recopiées dans la fiche de vérification du cours C1.2. Pour chaque dessin : la phrase du cours qu'il illustre,
+ * ses sources (cours de thème contrôlés, fiches ECF), puis ses choix de dessin, sans portée réglementaire.
+ */
+const ECHELLE = "Choix de dessin, échelle et proportions : 1,2 unité du cadre par centimètre (CM) pour les quatre dessins de la famille, "
+  + "pour qu'un conducteur assis de profil tienne dans une vignette de 148 unités, ses jambes rognées au bord de la carte ; adulte de "
+  + "taille moyenne, en ordres de grandeur courants arrondis (et non tirés d'une table anthropométrique) : de la hanche au genou 44 cm, "
+  + "du genou à la cheville 43, de l'épaule au coude 31, du coude au poignet 26, du poignet au milieu de la prise 8, buste de 26 cm "
+  + "d'épaisseur, tête de 23 cm de haut, épaules à 40 cm l'une de l'autre. Siège de voiture courante : dossier incliné de 20 degrés, "
+  + "assise qui monte de 10 degrés vers l'avant, articulation du dossier à hauteur de la hanche (le dos reste contre lui quand il "
+  + "s'incline), appuie-tête de 18 cm sur 9 sur deux tiges inclinées de 12 degrés vers l'avant par rapport au dossier. Volant de 37 cm "
+  + "de diamètre, colonne de 30 cm inclinée de 24 degrés une fois réglée. On voit le côté gauche du conducteur (celui de la portière).";
+
+export const SOURCES = {
+  siege: [
+    "Cours C1.2, « S'installer », 1 : « Siège : recul, hauteur, inclinaison du dossier ; dos contre le dossier, assis droit. Environ 25 cm entre le sternum et le centre du volant, où loge l'airbag, s'obtiennent en reculant le siège, pas en s'éloignant du dossier. » ; « Risques » : « Assis trop près du volant : l'airbag ne protège plus correctement. »",
+    "Thème 44, E (les airbags) : une marge entre le sternum et le moyeu du volant de l'ordre de 25 cm, obtenue en reculant le siège plutôt qu'en s'éloignant du dossier ; posture : dos contre le dossier, assis droit ; chiffres clés du thème 44 : distance recommandée de l'ordre de 25 cm (documentation constructeurs).",
+    "Faux : c'est l'erreur que nomme le cours (« pas en s'éloignant du dossier ») : le siège trop reculé, le conducteur décolle son dos du dossier pour atteindre le volant.",
+    ECHELLE,
+    "Choix de dessin du siège : juste, centre du volant à 25 cm exactement du sternum (milieu du sternum, à la surface de la poitrine), 11 degrés sous l'horizontale, dos contre le dossier ; faux, le même siège 12 cm plus reculé, même inclinaison du dossier, buste penché de 22 degrés, soit 15 cm entre le dos et le dossier à hauteur des omoplates, mains à 9 h et 3 h comme dans le juste ; la cote des 25 cm est tracée 9 cm au-dessus de la ligne sternum-volant pour ne pas passer sur l'avant-bras ; une double flèche marque l'écart du dos ; le siège, objet de la règle, est vert ; le conducteur n'a pas encore bouclé sa ceinture (elle vient après le siège dans l'ordre du cours).",
+  ],
+  "appuie-tete": [
+    "Cours C1.2, « S'installer », 2 : « Appuie-tête : le haut au niveau du sommet du crâne, au plus près de la tête. » ; « Erreurs fréquentes des élèves » : « Laisser l'appuie-tête trop bas. » ; « Risques » : « Appuie-tête trop bas ou trop loin : entorse cervicale (« coup du lapin ») en choc arrière. »",
+    "Thème 44, D (l'appuie-tête) : le haut de l'appuie-tête au niveau du sommet du crâne, jamais au niveau de la nuque ; l'espace entre l'appuie-tête et l'arrière de la tête le plus faible possible, quelques centimètres au plus.",
+    ECHELLE,
+    "Choix de dessin de l'appuie-tête : juste, haut du coussin exactement au niveau du sommet du crâne (point le plus haut des deux contours dessinés), face du coussin à 2,5 cm de l'arrière de la tête (« quelques centimètres au plus ») ; faux, le même appuie-tête descendu le long de ses tiges, son haut au niveau de la nuque (18 cm sous le sommet du crâne), l'erreur que nomme le thème 44 ; une ligne pointillée au niveau du sommet du crâne traverse les deux vignettes ; l'appuie-tête, objet de la règle, est vert.",
+  ],
+  ceinture: [
+    "Cours C1.2, « S'installer », 4 : « Ceinture : brin ventral bas sur le bassin, jamais sur le ventre ; brin diagonal à plat au milieu de l'épaule, ni sous le bras ni dans le dos ; sans vrille ni vêtement épais dessous. » ; « Erreurs fréquentes des élèves » : « Placer le brin ventral sur le ventre, le brin diagonal sous le bras. »",
+    "Thème 44, B (la ceinture) : le brin ventral se place bas sur le bassin, jamais sur le ventre ; le brin diagonal passe à plat au milieu de l'épaule, sur la clavicule et le sternum, jamais sous le bras ni derrière le dos ; risques du thème 44 : sangle mal placée, brin ventral sur l'abdomen ou brin diagonal sous le bras.",
+    "Orientation : la France roulant à droite, le conducteur est à gauche ; le brin diagonal part du montant milieu, côté portière, au-dessus de l'épaule gauche du conducteur (à droite du dessin, vu de face), et descend vers la boucle, à sa hanche droite.",
+    ECHELLE,
+    "Choix de dessin de la ceinture : conducteur vu de face ; crête iliaque 10 cm au-dessus de la hanche (ligne des hanches), nombril 3 cm au-dessus d'elle ; sangle de 4,8 cm ; juste, bord haut du brin ventral à 6 cm sous la ligne des hanches, brin diagonal qui passe au milieu de la ligne qui va de la naissance du cou au bout de l'épaule, puis sur le sternum ; faux, brin ventral remonté sur le ventre (son axe 4 cm au-dessus du nombril), brin diagonal passé derrière l'épaule et le bras, qui ne ressort que sous l'aisselle ; seuls les brins changent d'une vignette à l'autre (appuie-tête au sommet du crâne dans les deux) ; mains posées sur l'assise, de part et d'autre, pour ne cacher aucun brin ; la ceinture, objet de la règle, est verte.",
+  ],
+  installation: [
+    "Cours C1.2, « S'installer » : « À l'arrêt, toujours dans cet ordre : 1. Siège : recul, hauteur, inclinaison du dossier ; dos contre le dossier, assis droit. Environ 25 cm entre le sternum et le centre du volant [...] s'obtiennent en reculant le siège [...] 2. Appuie-tête : le haut au niveau du sommet du crâne, au plus près de la tête. 3. Volant : réglé après le siège, s'il se règle ; mains à 9 h et 3 h (C1.3). 4. Ceinture : brin ventral bas sur le bassin [...] ; brin diagonal à plat au milieu de l'épaule [...] 5. Rétroviseurs : l'intérieur cadre toute la lunette arrière sans bouger la tête [...] »",
+    "Thème 24, G : l'ordre complet de l'installation (siège : recul, hauteur, inclinaison du dossier ; appuie-tête ; volant ; ceinture ; puis rétroviseurs), à l'arrêt ; rétroviseur intérieur : cadrer la lunette arrière en entier, sans bouger la tête. Thème 44, B, D et E : placement des brins, de l'appuie-tête, distance au volant.",
+    "Fiche ECF C1-C (classeur de Timy) : main gauche à 9 h, main droite à 3 h ; deux mains au volant. Fiche ECF C1-D : position des pédales et des pieds (les pieds restent ici posés au plancher : le geste ne les montre pas sur les pédales).",
+    ECHELLE,
+    "Choix de dessin du geste : 18,4 s en cinq étapes. 1, siège : recul de 14 cm sur le rail (0,35 à 1,45 s), hauteur de 4 cm (1,6 à 2,3 s), dossier de 26 à 20 degrés (2,45 à 3,15 s), dos contre le dossier tout du long ; au départ, 16 cm environ du sternum au volant, à la fin 25 cm exactement ; la cote des 25 cm apparaît à 3,2 s. Les mains restent posées sur les cuisses : le geste ne montre pas les commandes du siège, dont la disposition varie selon les modèles. 2, appuie-tête : la main gauche le saisit sur le côté et le monte le long de ses tiges, de la nuque au sommet du crâne (5,0 à 5,9 s). 3, volant, s'il se règle : les deux mains le saisissent à 9 h et 3 h, puis la colonne s'incline et raccourcit (8,3 à 9,2 s) : son centre passe de 6 degrés au-dessus de l'horizontale du sternum à 11 degrés au-dessous, à 25 cm du sternum aux deux bouts. 4, ceinture : la main gauche prend la languette rangée derrière l'épaule, la tire à côté de l'épaule puis devant la poitrine jusqu'à la boucle (11,25 à 12,65 s) ; la sangle se pose sur le dessus de l'épaule, la poitrine, le ventre puis la hanche à mesure, brin ventral sous la crête iliaque. 5, rétroviseur intérieur : la main droite le saisit et l'oriente (15,55 à 16,65 s), la tête ne bouge pas ; une vignette montre ce que montre le miroir : la lunette arrière, d'abord décalée (verre tourné vers le pavillon), puis entière au centre ; seul le rétroviseur intérieur est montré (les extérieurs : dessin « retroviseurs »).",
+    "Choix de dessin, mouvements : mouvements de main de 0,7 s et réglages de 0,7 à 1,4 s sur la courbe adoucir ; prises et lâchers de 0,2 s (adoucir), plus rapides que la règle générale de continuité, déclarés dans sautsMax (un quart de la prise par image au plus : les doigts se referment vite) ; apparitions de 0,2 s et disparitions de 0,13 s sur sortieDouce, déclarées aussi (un tiers par image au plus) ; repères d'une étape gardés 0,3 s au début de la suivante ; une pause courte finit chaque étape ; pivots vrais : siège le long du rail, dossier autour de son articulation, appuie-tête le long de ses tiges, colonne autour de son pied, rétroviseur autour de sa rotule ; la main qui tient la jante, l'appuie-tête, la languette ou le rétroviseur bouge avec eux. Cabine en écorché : toit ôté au-dessus du conducteur.",
+  ],
+};
