@@ -78,6 +78,11 @@ span.scene-etape { cursor: default; }
 }
 .bloc-echec p, .bloc-indisponible p { margin: 0; }
 
+/* Dessin du catalogue : pleine largeur de la colonne du cours, proportions de son cadre. La légende est celle des planches
+   de panneaux (.signaux-legende, style.css). */
+.dessin-bloc { margin: 1.2rem 0; }
+.dessin-svg { display: block; width: 100%; height: auto; max-height: 72vh; }
+
 /* Quiz : correction immédiate, rien n'est enregistré */
 .quiz { margin: 1.2rem 0; padding: 0.9rem 1rem; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--bg-elev); }
 .quiz-consigne, .quiz-question { margin: 0 0 0.5rem; font-weight: 500; }

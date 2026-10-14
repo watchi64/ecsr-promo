@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { analyserScene, analyserQuiz, analyserCartes, melangerSansIdentite, corrigerOrdre, corrigerChoix,
+import { analyserScene, analyserDessin, analyserQuiz, analyserCartes, melangerSansIdentite, corrigerOrdre, corrigerChoix,
   corrigerOption, MARQUES_CHOIX,
   BLOCS_INTERACTIFS, ouvertureBloc, lireBloc, erreurDirective, erreurNonRefermee,
   messageOrdre, messageVraiFaux, messageChoix, trouverDansRegistre, messageEchecBloc, fichierEnEchec }
@@ -30,6 +30,36 @@ test("analyserScene : « 1. », « 2.Tourner » et « 3) » sont retirés, un nu
   assert.deepEqual(analyserScene("x", ["1. Tourner", "2.Tourner", "3) Tourner", "10. Tourner"]).etapes,
     ["Tourner", "Tourner", "Tourner", "Tourner"]);
   assert.deepEqual(analyserScene("x", ["A", "3.", "B"]).etapes, ["A", "B"]);
+});
+
+test("analyserDessin : un code, une légende facultative ; erreurs lisibles", () => {
+  assert.deepEqual(analyserDessin("mains-volant", ["Juste : 9 h et 3 h.", "", "Faux : pouce engagé."]),
+    { ok: true, code: "mains-volant", legende: "Juste : 9 h et 3 h. Faux : pouce engagé." });
+  assert.equal(analyserDessin("", []).ok, false);
+  assert.match(analyserDessin("", []).erreur, /Bloc « :::dessin » sans code/);
+  assert.match(analyserDessin("a b", []).erreur, /un seul dessin par bloc/);
+});
+
+test("analyserDessin : sans légende, légende rognée, espaces autour du code ; rien d'autre n'est deviné", () => {
+  // Pas de légende : chaîne vide, le bloc reste valable (le dessin se suffit).
+  assert.deepEqual(analyserDessin("capot", []), { ok: true, code: "capot", legende: "" });
+  assert.deepEqual(analyserDessin("capot", ["", "   "]), { ok: true, code: "capot", legende: "" });
+  // Espaces autour du code et des lignes de légende : retirés ; lignes vides ignorées, lignes jointes par une espace.
+  assert.deepEqual(analyserDessin("  capot  ", ["  La disposition varie ", "selon les modèles.  "]),
+    { ok: true, code: "capot", legende: "La disposition varie selon les modèles." });
+  // Une légende n'est pas une liste d'étapes : un numéro en tête de ligne reste dans le texte (« 1,6 mm », « 3. »).
+  assert.equal(analyserDessin("pneu", ["1. Témoins d'usure à 1,6 mm"]).legende, "1. Témoins d'usure à 1,6 mm");
+  // Un argument absent vaut un argument vide : même erreur, jamais une exception.
+  for (const arg of [undefined, null]) assert.match(analyserDessin(arg, []).erreur, /sans code/);
+  // L'erreur de deux codes cite le bloc tel qu'il est écrit, pour que l'éditeur retrouve la ligne.
+  assert.equal(analyserDessin("a b", []).erreur, "Bloc « :::dessin a b » : un seul dessin par bloc.");
+  assert.equal(analyserDessin("a   b  c", []).ok, false);
+  // Les cas refusés n'emportent ni code ni légende : le lecteur n'a rien à deviner.
+  for (const refuse of [analyserDessin("", ["Une légende."]), analyserDessin("a b", ["Une légende."])]) {
+    assert.equal(refuse.ok, false);
+    assert.equal("code" in refuse, false);
+    assert.equal("legende" in refuse, false);
+  }
 });
 
 test("quiz ordre : consigne facultative, éléments dans l'ordre juste", () => {
@@ -202,8 +232,8 @@ test("MARQUES_CHOIX : une marque écrite par état, la bonne réponse oubliée n
 
 // ===== Lecture des blocs « ::: » du texte =====
 
-test("BLOCS_INTERACTIFS : les trois blocs que rend js/cours-blocs.js", () => {
-  assert.deepEqual(BLOCS_INTERACTIFS, ["scene", "quiz", "cartes"]);
+test("BLOCS_INTERACTIFS : les quatre blocs que rend js/cours-blocs.js", () => {
+  assert.deepEqual(BLOCS_INTERACTIFS, ["scene", "quiz", "cartes", "dessin"]);
 });
 
 test("ouvertureBloc : nom et argument d'une ligne d'ouverture, nom lu tel qu'écrit", () => {
@@ -238,7 +268,7 @@ test("lireBloc : un bloc sans fermeture est signalé et va jusqu'à la fin du te
 
 test("erreurs de bloc : la directive inconnue et le bloc non refermé sont nommés", () => {
   assert.match(erreurDirective("scène"), /« :::scène » inconnue/);
-  assert.match(erreurDirective("Quiz"), /scene, quiz, cartes, signaux ou marquage/);
+  assert.match(erreurDirective("Quiz"), /scene, quiz, cartes, dessin, signaux ou marquage/);
   assert.match(erreurNonRefermee("quiz"), /« :::quiz » non refermé/);
   assert.match(erreurNonRefermee("quiz"), /« ::: »/);
 });

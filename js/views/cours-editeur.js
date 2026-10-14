@@ -257,9 +257,12 @@ export async function openCoursEditeur(cle, { onFerme } = {}) {
       };
       const groupe = (titre, boutons) => el("div", { class: "editeur-blocs-groupe" },
         el("p", { class: "editeur-blocs-titre" }, titre), ...boutons);
-      // Le catalogue des blocs, dans son ordre : le menu ne charge aucun moteur.
+      // Le catalogue des blocs, dans son ordre : le menu ne charge aucun moteur ni aucun dessin. Un bouton par entrée, qui insère
+      // l'ouverture du bloc, son modèle (les étapes d'un schéma, la légende d'un dessin) et la fermeture.
       panneau.appendChild(groupe("Schéma animé", Object.entries(CATALOGUE_BLOCS).filter(([, e]) => e.bloc === "scene").map(([code, e]) =>
         bouton(e.titre, `\n:::scene ${code}\n${e.etapesModele.join("\n")}\n:::\n`))));
+      panneau.appendChild(groupe("Dessin", Object.entries(CATALOGUE_BLOCS).filter(([, e]) => e.bloc === "dessin").map(([code, e]) =>
+        bouton(e.titre, `\n:::dessin ${code}\n${e.legendeModele}\n:::\n`))));
       panneau.appendChild(groupe("Quiz", [
         bouton("Remettre dans l'ordre", MODELES_BLOCS.ordre),
         bouton("Vrai ou faux", MODELES_BLOCS["vrai-faux"]),

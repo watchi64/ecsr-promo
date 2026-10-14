@@ -3,8 +3,8 @@
  * © 2026 watchi64 : Tous droits réservés. Voir LICENSE.
  *
  * Rendu des blocs interactifs des cours de compétences : schéma animé
- * (:::scene), quiz (:::quiz ordre | vrai-faux | choix) et cartes
- * d'autoévaluation (:::cartes). L'analyse est dans js/cours-blocs-rules.js
+ * (:::scene), dessin fixe du catalogue (:::dessin), quiz (:::quiz ordre | vrai-faux | choix)
+ * et cartes d'autoévaluation (:::cartes). L'analyse est dans js/cours-blocs-rules.js
  * (testée sous Node) ; ici le DOM seul, sans innerHTML. Un bloc mal formé,
  * non refermé ou de directive inconnue s'affiche en texte brut et son erreur
  * rejoint contexte.erreurs, que l'éditeur affiche (le stagiaire ne la voit
@@ -38,7 +38,7 @@
  * ce qui est faux ; une option verrouillée est aria-disabled ; chaque question est un groupe nommé.
  */
 import { el } from "./utils.js?v=20261013a";
-import { analyserScene, analyserQuiz, analyserCartes, melangerSansIdentite, corrigerOrdre, corrigerChoix,
+import { analyserScene, analyserDessin, analyserQuiz, analyserCartes, melangerSansIdentite, corrigerOrdre, corrigerChoix,
   corrigerOption, MARQUES_CHOIX, BLOCS_INTERACTIFS, erreurDirective, erreurNonRefermee, messageOrdre, messageVraiFaux,
   messageChoix, creerChargeur, adresseDeReprise, piloterBloc, trouverDansRegistre }
   from "./cours-blocs-rules.js?v=20261013a";
@@ -109,6 +109,7 @@ export function rendreBlocInteractif(type, arg, lignes, contexte, inline, ferme 
   if (!ferme) { contexte.erreurs.push(erreurNonRefermee(type)); return brut(type, arg, lignes, false); }
   if (!BLOCS_INTERACTIFS.includes(type)) { contexte.erreurs.push(erreurDirective(type)); return brut(type, arg, lignes); }
   if (type === "scene") return rendreScene(arg, lignes, contexte, inline);
+  if (type === "dessin") return rendreDessin(arg, lignes, contexte, inline);
   if (type === "quiz") {
     const q = analyserQuiz(arg, lignes);
     if (!q.ok) { contexte.erreurs.push(q.erreur); return brut(type, arg, lignes); }
@@ -203,6 +204,45 @@ function rendreScene(arg, lignes, contexte, inline) {
   });
   contexte.scenes.push({ detruire: () => bloc.detruire() });
   if (synchro) items.forEach((x, i) => x.etape.addEventListener("click", () => bloc.allerEtape(i)));
+  bloc.demarrer();
+  return figure;
+}
+
+// Un dessin fixe du catalogue (:::dessin code, légende facultative). Même cycle de vie qu'un schéma (piloterBloc : attente,
+// échec de réseau et reprise, code absent du module, erreur de montage, destruction), sans moteur ni étapes : le module de la
+// famille rend le dessin (`DESSINS[code]()` puis `versDom`, réexporté par le module). Un code que le catalogue ne donne pas
+// comme dessin (faute de frappe, schéma animé, propriété héritée) n'en dessine aucun : la légende seule s'affiche, jamais un
+// dessin deviné, et l'éditeur reçoit l'erreur.
+function rendreDessin(arg, lignes, contexte, inline) {
+  const analyse = analyserDessin(arg, lignes);
+  if (!analyse.ok) { contexte.erreurs.push(analyse.erreur); return brut("dessin", arg, lignes); }
+  const entree = entreeBloc(analyse.code);
+  const dessin = entree && entree.bloc === "dessin" ? entree : null;
+  const legende = analyse.legende ? el("figcaption", { class: "signaux-legende" }, inline(analyse.legende)) : null;
+  if (!dessin) {
+    contexte.erreurs.push(`Dessin « ${analyse.code} » inconnu : seule la légende s'affiche.`);
+    return el("figure", { class: "dessin-bloc dessin-inconnu" }, legende);
+  }
+  const vue = el("div", { class: "dessin-vue" });
+  const figure = el("figure", { class: "dessin-bloc" }, vue, legende);
+  const bloc = piloterBloc({
+    genre: "Dessin", code: analyse.code, module: dessin.module,
+    charger: () => chargerModule(dessin.module),
+    monter: (module) => {
+      const dessiner = trouverDansRegistre(module.DESSINS, analyse.code, dessin.module);
+      vue.replaceChildren(module.versDom(dessiner()));
+      return null;
+    },
+    afficher: {
+      attente: () => attente(vue, dessin.cadre),
+      echecReseau: (reessayer) => echecChargement(vue, reessayer),
+      indisponible: (nature) => blocIndisponible(vue,
+        nature === "absent" ? "Ce dessin n'est pas encore disponible." : "Ce dessin n'a pas pu s'afficher."),
+    },
+    signaler: (message) => signalerAuContexte(contexte, message),
+    journaliser: (message, erreur) => console.error(message, erreur),
+  });
+  contexte.scenes.push({ detruire: () => bloc.detruire() });
   bloc.demarrer();
   return figure;
 }

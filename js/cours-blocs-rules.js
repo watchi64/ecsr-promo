@@ -5,6 +5,7 @@
  * Analyse des blocs interactifs des cours de compétences, sans DOM (testée
  * sous Node). Le markdown écrit :
  *   :::scene <code>          puis une étape par ligne, puis :::
+ *   :::dessin <code>         puis la légende (facultative, lignes jointes), puis :::
  *   :::quiz ordre            « ? consigne » facultative, puis les éléments dans l'ordre juste
  *   :::quiz vrai-faux        « affirmation | vrai ou faux | explication facultative »
  *   :::quiz choix            « ? question », options « - … » (fausse explicite : « - [ ] … »),
@@ -33,6 +34,15 @@ export function analyserScene(arg, lignes) {
   const code = String(arg || "").trim().split(/\s+/)[0] || "";
   const etapes = lignes.map((l) => l.trim().replace(NUMERO, "").trim()).filter(Boolean);
   return { code, etapes };
+}
+
+/** Bloc « :::dessin code » : un seul code, puis la légende (lignes non vides, jointes par une espace). Un bloc refusé
+ *  n'emporte ni code ni légende : le lecteur n'a rien à deviner, l'éditeur lit l'erreur. */
+export function analyserDessin(arg, lignes) {
+  const codes = String(arg ?? "").split(/\s+/).filter(Boolean);
+  if (!codes.length) return { ok: false, erreur: "Bloc « :::dessin » sans code : ajouter le code du dessin après « :::dessin »." };
+  if (codes.length > 1) return { ok: false, erreur: `Bloc « :::dessin ${codes.join(" ")} » : un seul dessin par bloc.` };
+  return { ok: true, code: codes[0], legende: lignes.map((l) => l.trim()).filter(Boolean).join(" ") };
 }
 
 export function analyserQuiz(forme, lignes) {
@@ -169,7 +179,7 @@ export const MARQUES_CHOIX = { juste: "Réponse juste", faux: "Réponse fausse",
 
 /** Les blocs que rend js/cours-blocs.js. Les planches « :::signaux » et « :::marquage » ont leur
  *  propre rendu, dans le lecteur. */
-export const BLOCS_INTERACTIFS = ["scene", "quiz", "cartes"];
+export const BLOCS_INTERACTIFS = ["scene", "quiz", "cartes", "dessin"];
 const DIRECTIVES_CONNUES = [...BLOCS_INTERACTIFS, "signaux", "marquage"];
 
 /** Ligne d'ouverture d'un bloc (« :::quiz ordre ») : { nom, arg }, ou null si la ligne n'ouvre rien
