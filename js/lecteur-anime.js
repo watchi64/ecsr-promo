@@ -72,7 +72,9 @@ export function monterLecteur({ racine, conteneur, duree, etapes, vitesseLecture
   function arreter() { enCours = false; cancelAnimationFrame(raf); }
   function boucle(maintenant) {
     if (!racine.isConnected) { detruire(); return; }
-    const dt = Math.min(0.1, (maintenant - dernier) / 1000) * vitesseLecture;
+    // Avance plafonnée à 0,1 s (onglet en arrière-plan) et jamais négative : l'horodatage de la première image peut précéder
+    // l'instant noté au clic (Chrome), et la lecture reculerait d'une image.
+    const dt = Math.max(0, Math.min(0.1, (maintenant - dernier) / 1000)) * vitesseLecture;
     dernier = maintenant;
     t = Math.min(duree, t + dt);
     if (t >= duree) { enCours = false; dessiner(t); majBouton(); return; }   // la dernière image est une image figée

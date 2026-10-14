@@ -212,6 +212,17 @@ test("monterLecteur : la lecture avance d'au plus 0,1 s par image, s'arrête à 
   assert.equal(m.lecture.textContent, "Revoir");
 }));
 
+test("monterLecteur : une image horodatée avant l'instant noté au clic (Chrome) ne fait jamais reculer la lecture", () => banc((dom, temps) => {
+  const m = monter(dom);
+  m.lecteur.jouer();
+  temps.avancer(-4);                                     // l'horodatage de la première image précède performance.now() du clic
+  assert.deepEqual(m.rendus.at(-1), [0, false], "la première image reste à 0, non figée");
+  temps.avancer(16);
+  assert.ok(proche(m.rendus.at(-1)[0], 0.016));
+  const instants = m.rendus.slice(1).map(([t]) => t);
+  assert.ok(instants.every((t, i) => t >= 0 && (i === 0 || t >= instants[i - 1])), "les instants ne reculent jamais");
+}));
+
 test("monterLecteur : la vitesse de lecture multiplie l'avance ; le facteur s'affiche sous le schéma seulement quand elle n'est pas 1", () => banc((dom, temps) => {
   const lent = monter(dom, { vitesseLecture: 0.5 });
   lent.lecteur.jouer();
