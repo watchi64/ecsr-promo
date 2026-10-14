@@ -5,17 +5,18 @@ import * as famille from "../js/dessins-poste.js";
 import { SOURCES } from "../sources/dessins-poste.js";
 import { trouverRole, trouverTous, texteDe, parcourir } from "../js/dessin-svg.js";
 import { CHARTE } from "../js/dessins-kit.js";
-import { verifierDessin, formeArbre } from "./aides-dessins.mjs";
+import { PAS_IMAGE, imageA, imageFigee } from "../js/geste-regles.js";
+import { verifierDessin, verifierGeste, formeArbre } from "./aides-dessins.mjs";
 
-// Ruling R2 (tâche 6) : les deux contrôles communs ne portent que sur les dessins fixes de la famille. Les trois gestes du
-// volant que le catalogue range aussi dans « poste » (tirer-glisser, chevauchement, retour-volant) arrivent avec la tâche 7,
-// qui retire ce filtre, importe verifierGeste et contrôle chaque geste par verifierGeste(famille.GESTES[code].construire(), e).
-const codes = Object.keys(CATALOGUE).filter((c) => CATALOGUE[c].module === "poste" && CATALOGUE[c].bloc === "dessin");
+// Tous les codes « poste » du catalogue : les trois dessins fixes et les trois gestes du volant (le filtre des dessins fixes du
+// Ruling R2, tâche 6, est retiré avec l'arrivée des gestes).
+const codes = Object.keys(CATALOGUE).filter((c) => CATALOGUE[c].module === "poste");
 
 test("poste : chaque code du catalogue est dessiné et passe les contrôles communs", () => {
   for (const code of codes) {
     const e = CATALOGUE[code];
-    assert.deepEqual(verifierDessin(famille.DESSINS[code](), e.cadre), [], code);
+    if (e.bloc === "dessin") assert.deepEqual(verifierDessin(famille.DESSINS[code](), e.cadre), [], code);
+    else assert.deepEqual(verifierGeste(famille.GESTES[code].construire(), e), [], code);
   }
   const fournis = [...Object.keys(famille.DESSINS), ...Object.keys(famille.GESTES || {})].sort();
   assert.deepEqual(fournis, [...codes].sort());
@@ -201,14 +202,67 @@ test("main : le pouce posé sur la jante file vers le haut à 9 h et à 3 h, les
   assert.ok(proche(g.attributs["data-x"] - C.cx, -(d.attributs["data-x"] - C.cx), 1e-6) && proche(g.attributs["data-y"], d.attributs["data-y"], 1e-6));
 });
 
-test("main : la prise se voit, doigts refermés sur la jante (prise 1) ; main ouverte (prise 0), doigts cachés et main écartée de la jante", () => {
+// Points d'un tracé (couples de nombres, dans l'ordre) : exacts pour un polygone, points de contrôle compris pour une courbe.
+const pointsDe = (d) => {
+  const nombres = String(d).match(/-?\d+(?:\.\d+)?(?:e-?\d+)?/g).map(Number);
+  return Array.from({ length: nombres.length / 2 }, (_, i) => [nombres[2 * i], nombres[2 * i + 1]]);
+};
+const doigtsDe = (main, cote) => trouverTous(trouverRole(main, `doigts-${cote}`), (x) => x.balise === "path" && x.attributs.fill === CHARTE.peau)
+  .map((x) => pointsDe(x.attributs.d));
+
+test("main : la prise se voit ; refermée (prise 1), entrouverte (0,5 : la jante glisse dedans), lâchée (0 : main ouverte, écartée de la jante, doigts tendus devant elle)", () => {
   const C = { cx: 160, cy: 100, rayon: 50, heure: 9, cote: "gauche" };
   const e = C.rayon * famille.EPAISSEUR_JANTE;
-  assert.equal(trouverRole(famille.main({ ...C, prise: 1 }), "doigts-gauche").attributs.display, "inline");
+  const dist = ([x, y]) => Math.hypot(x - C.cx, y - C.cy);
+  const etendue = (pts) => [Math.min(...pts.map(dist)), Math.max(...pts.map(dist))];
+  // Refermée : chaque doigt déborde du bord intérieur de la jante et revient sur sa face avant, au-delà de sa ligne médiane.
+  for (const pts of doigtsDe(famille.main({ ...C, prise: 1 }), "gauche")) {
+    const [min, max] = etendue(pts);
+    assert.ok(min < C.rayon - e / 2 && max > C.rayon, `refermée : de ${min.toFixed(1)} à ${max.toFixed(1)}`);
+  }
+  // Entrouverte : les doigts ont quitté la face avant de la jante, ils sortent de derrière elle par son bord intérieur.
+  for (const pts of doigtsDe(famille.main({ ...C, prise: 0.5 }), "gauche")) {
+    const [min, max] = etendue(pts);
+    // (les tracés s'écrivent à deux décimales : 0,02 unité de jeu)
+    assert.ok(max <= C.rayon - e / 2 + 0.02 && min < C.rayon - e, `entrouverte : de ${min.toFixed(2)} à ${max.toFixed(2)}`);
+  }
+  // Lâchée : la main ouverte, devant la jante : les doigts tendus la traversent, de son dedans jusqu'au dos de la main.
   const ouverte = famille.main({ ...C, prise: 0 });
-  assert.equal(trouverRole(ouverte, "doigts-gauche").attributs.display, "none");
+  for (const pts of doigtsDe(ouverte, "gauche")) {
+    const [min, max] = etendue(pts);
+    assert.ok(min < C.rayon - e / 2 && max > C.rayon + e / 2, `lâchée : de ${min.toFixed(1)} à ${max.toFixed(1)}`);
+  }
   const pouce = trouverRole(ouverte, "pouce-gauche").attributs;
-  assert.ok(Math.hypot(pouce["data-x"] - C.cx, pouce["data-y"] - C.cy) > C.rayon + e / 2, "main ouverte : le pouce a quitté la jante");
+  assert.ok(dist([pouce["data-x"], pouce["data-y"]]) > C.rayon + e / 2, "main ouverte : le pouce a quitté la jante");
+});
+
+test("main : doigts entrouverts lisibles sur un téléphone, à l'échelle des gestes : des doigts allongés, pas des perles sur la jante", () => {
+  const C = { cx: 160, cy: 130, rayon: 59.2, heure: 9, cote: "gauche", prise: 0.5 };   // échelle des gestes : 3,2 unités par cm
+  const pxParUnite = 343 / 320;
+  for (const pts of doigtsDe(famille.main(C), "gauche")) {
+    // Repère local : le long de la jante (tangente) et en travers (vers le centre), au milieu du doigt.
+    const [mx, my] = [0, 1].map((i) => pts.reduce((somme, q) => somme + q[i], 0) / pts.length);
+    const radial = [mx - C.cx, my - C.cy].map((v) => v / Math.hypot(mx - C.cx, my - C.cy)), tangent = [-radial[1], radial[0]];
+    const proj = (u) => pts.map(([x, y]) => (x - mx) * u[0] + (y - my) * u[1]);
+    const longueur = Math.max(...proj(radial)) - Math.min(...proj(radial)), largeur = Math.max(...proj(tangent)) - Math.min(...proj(tangent));
+    assert.ok(longueur >= 1.8 * largeur, `doigt de ${longueur.toFixed(1)} sur ${largeur.toFixed(1)} unités : trop court pour un doigt`);
+    assert.ok(longueur * pxParUnite >= 12, `doigt de ${(longueur * pxParUnite).toFixed(1)} px sur un téléphone`);
+  }
+});
+
+test("main : le poignet quitte la main du côté du coude, à toute heure ; à midi, l'avant-bras part donc sous la main et descend devant le volant", () => {
+  const C = { cx: 160, cy: 130, rayon: 59.2 };
+  const k = C.rayon / 18.5;
+  const coude = (cote) => [C.cx + (cote === "gauche" ? -1 : 1) * (C.rayon + 4 * k), C.cy + 48 * k];
+  const angle = (u, v) => (Math.acos((u[0] * v[0] + u[1] * v[1]) / (Math.hypot(...u) * Math.hypot(...v))) * 180) / Math.PI;
+  for (const [cote, heure] of [["gauche", 9], ["droite", 3], ["gauche", 12], ["droite", 0], ["droite", 5], ["gauche", 13.5], ["droite", 10.5]]) {
+    const m = famille.main({ ...C, heure, cote, avantBras: { coude: coude(cote), limite: [0, 0, 320, 260] } });
+    const dos = pointsDe(trouverRole(m, `dos-${cote}`).attributs.d);
+    const centre = [0, 1].map((i) => dos.reduce((somme, q) => somme + q[i], 0) / dos.length);
+    const a = trouverRole(m, `avant-bras-${cote}`).attributs, poignet = [a["data-x"], a["data-y"]];
+    const ecart = angle([poignet[0] - centre[0], poignet[1] - centre[1]], [coude(cote)[0] - centre[0], coude(cote)[1] - centre[1]]);
+    assert.ok(ecart < 15, `${cote} à ${heure} h : le poignet part à ${ecart.toFixed(0)} degrés de la direction du coude`);
+  }
 });
 
 test("main : un côté, un pouce ou une prise hors de leurs valeurs est une erreur, jamais un choix par défaut", () => {
@@ -221,7 +275,9 @@ test("main : un côté, un pouce ou une prise hors de leurs valeurs est une erre
 
 // ===== Relecture de la tâche 6 : charte, peau, anneau, levier, contacteur, flèche =====
 
-const DESSINS_POSTE = () => codes.map((code) => [code, famille.DESSINS[code]()]);
+// Les dessins fixes, et les images figées de chaque étape des gestes (la peau et les traits s'y contrôlent aussi).
+const DESSINS_POSTE = () => [...Object.entries(famille.DESSINS).map(([code, f]) => [code, f()]),
+  ...Object.entries(famille.GESTES).flatMap(([code, g]) => { const def = g.construire(); return def.etapes.map((_, i) => [`${code} étape ${i + 1}`, imageFigee(def, i)]); })];
 
 test("poste : traits pris dans le jeu de quatre de la charte, liserés clairs à part, volant à tout angle et mains à toute prise", () => {
   const jeu = Object.values(CHARTE.traits);
@@ -298,4 +354,305 @@ test("pedales : la flèche du pied droit ne touche ni les bras ni le patin de l'
   const [depart, arrivee] = [["data-x1", "data-y1"], ["data-x2", "data-y2"]].map((ks) => ks.map((k) => Number(pivot.attributs[k])));
   assert.ok(distanceRect(depart, rect("frein", "bras")) > demi, "départ à côté du bras du frein");
   for (const partie of ["bras", "patin"]) assert.ok(distanceRect(arrivee, rect("accelerateur", partie)) > demi, `arrivée hors de ${partie} de l'accélérateur`);
+});
+
+// ===== Gestes du volant (tâche 7) : tirer-glisser, chevauchement, retour du volant =====
+
+const geste = (code) => famille.GESTES[code].construire();
+const CODES_GESTES = ["tirer-glisser", "chevauchement", "retour-volant"];
+const COTES_MAINS = ["gauche", "droite"];
+// Instants d'une image (1/60 s), fin comprise.
+const instantsDe = (def) => {
+  const nombre = Math.ceil(def.duree / PAS_IMAGE);
+  return Array.from({ length: nombre + 1 }, (_, k) => (k === nombre ? def.duree : k * PAS_IMAGE));
+};
+// Place d'une main sur la jante (heures) : constante tant qu'elle la tient.
+const surJante = (etat, cote) => etat.mains[cote].heure - etat.volant / 30;
+
+// --- Tests du brief, recopiés ---
+
+test("tirer-glisser : la main gauche reste à 9 h, les mains ne se croisent jamais", () => {
+  const def = famille.GESTES["tirer-glisser"].construire();
+  for (let t = 0; t <= def.duree; t += 1 / 60) {
+    const e = def.etat(t);
+    assert.ok(Math.abs(e.mains.gauche.heure - 9) < 0.05, `gauche à ${e.mains.gauche.heure} h à ${t}`);
+    const xGauche = Math.sin(e.mains.gauche.heure * Math.PI / 6), xDroite = Math.sin(e.mains.droite.heure * Math.PI / 6);
+    assert.ok(xDroite > xGauche + 0.25, `mains croisées à ${t}`);
+  }
+  const e1 = def.etat(def.etapes[1].t - 1e-6), fin = def.etat(def.duree);
+  const ecartMidi = (h) => Math.min(((h % 12) + 12) % 12, 12 - (((h % 12) + 12) % 12));
+  assert.ok(Math.abs(e1.volant) < 1e-6 && ecartMidi(e1.mains.droite.heure) < 0.05);   // fin de l'étape 1 : midi, volant droit
+  assert.ok(fin.volant >= 90);
+});
+
+test("tirer-glisser : pendant l'étape 2, la droite garde sa place sur la jante (elle tire le volant) et la gauche le laisse glisser", () => {
+  const def = geste("tirer-glisser");
+  const T2 = def.etapes[1].t, reference = surJante(def.etat(T2), "droite");
+  let tourne = false;
+  for (const t of instantsDe(def).filter((t) => t >= T2)) {
+    const e = def.etat(t);
+    assert.ok(Math.abs(surJante(e, "droite") - reference) <= 0.02, `droite à ${surJante(e, "droite")} sur la jante à ${t.toFixed(3)} s`);
+    assert.ok(e.mains.gauche.prise < 1, `gauche refermée à ${t.toFixed(3)} s`);
+    tourne ||= e.volant > 0;
+  }
+  assert.ok(tourne, "le volant tourne à l'étape 2");
+});
+
+test("chevauchement : la gauche suit sans lâcher prise jusqu'à midi, puis tire pendant que la droite a lâché ; jamais de volant qui tourne sans une main qui le tient", () => {
+  const def = geste("chevauchement");
+  const [T2, T3, T4] = [1, 2, 3].map((i) => def.etapes[i].t);
+  assert.ok(Math.abs(def.etat(T3 - 1e-6).mains.gauche.heure - 12) <= 0.1, "fin de l'étape 2 : la gauche à midi");
+  const ts = instantsDe(def);
+  const reference = surJante(def.etat(T2), "gauche");
+  for (const t of ts.filter((t) => t >= T2 && t < T3)) {
+    assert.ok(Math.abs(surJante(def.etat(t), "gauche") - reference) < 1e-9, `étape 2 : la gauche glisse sur la jante à ${t.toFixed(3)} s`);
+  }
+  let tourneEtape3 = false;
+  for (let i = 1; i < ts.length; i++) {
+    const [a, b] = [def.etat(ts[i - 1]), def.etat(ts[i])];
+    const tourne = Math.abs(b.volant - a.volant) > 1e-9;
+    if (ts[i - 1] >= T3 && ts[i] < T4) {
+      assert.equal(b.mains.droite.prise, 0, `étape 3 : la droite a lâché, à ${ts[i].toFixed(3)} s`);
+      assert.equal(b.mains.gauche.prise, 1, `étape 3 : la gauche tient, à ${ts[i].toFixed(3)} s`);
+      if (tourne) {
+        tourneEtape3 = true;
+        assert.ok(Math.abs(surJante(b, "gauche") - surJante(a, "gauche")) < 1e-9, `étape 3 : le volant tourne avec la gauche, à ${ts[i].toFixed(3)} s`);
+      }
+    }
+    if (tourne) {
+      assert.ok(COTES_MAINS.some((c) => a.mains[c].prise === 1 && b.mains[c].prise === 1), `volant qui tourne sans être tenu, à ${ts[i].toFixed(3)} s`);
+    }
+  }
+  assert.ok(tourneEtape3, "la gauche tire le volant à l'étape 3");
+});
+
+test("retour-volant : doigts qui s'entrouvrent, volant qui revient droit seul en roulant, ramené par les mains à basse allure", () => {
+  const def = geste("retour-volant");
+  const [T2, T3] = [def.etapes[1].t, def.etapes[2].t];
+  // Étape 1 : en sortie de virage, volant encore tourné, les doigts s'entrouvrent.
+  const depart = def.etat(0), finEtape1 = def.etat(T2 - 1e-6);
+  assert.ok(depart.volant > 0 && finEtape1.volant === depart.volant, "volant tourné, immobile à l'étape 1");
+  for (const c of COTES_MAINS) assert.ok(depart.mains[c].prise === 1 && finEtape1.mains[c].prise < 1, `${c} : doigts qui s'entrouvrent`);
+  const ts = instantsDe(def);
+  // Étape 2 : le volant décroît jusqu'à 0, les mains ne bougent pas, en roulant.
+  const mains2 = def.etat(T2).mains;
+  let precedent = def.etat(T2).volant;
+  for (const t of ts.filter((t) => t >= T2 && t < T3)) {
+    const e = def.etat(t);
+    assert.ok(e.volant <= precedent + 1e-12, `étape 2 : le volant remonte à ${t.toFixed(3)} s`);
+    precedent = e.volant;
+    for (const c of COTES_MAINS) assert.equal(e.mains[c].heure, mains2[c].heure, `étape 2 : la main ${c} bouge à ${t.toFixed(3)} s`);
+    assert.equal(e.allure, "roulant");
+  }
+  assert.ok(Math.abs(def.etat(T3 - 1e-6).volant) < 1e-9, "fin de l'étape 2 : volant droit");
+  // Étape 3 : basse allure ; le volant ne change que tenu, et la main qui le tient garde sa place sur la jante.
+  let change = false;
+  for (let i = 1; i < ts.length; i++) {
+    if (ts[i - 1] < T3) continue;
+    const [a, b] = [def.etat(ts[i - 1]), def.etat(ts[i])];
+    assert.equal(b.allure, "basse");
+    if (Math.abs(b.volant - a.volant) > 1e-12) {
+      change = true;
+      const tenantes = COTES_MAINS.filter((c) => a.mains[c].prise === 1 && b.mains[c].prise === 1);
+      assert.ok(tenantes.length > 0, `étape 3 : le volant tourne sans main qui le tient, à ${ts[i].toFixed(3)} s`);
+      for (const c of tenantes) assert.ok(Math.abs(surJante(b, c) - surJante(a, c)) < 1e-9, `étape 3 : la ${c} glisse, à ${ts[i].toFixed(3)} s`);
+    }
+  }
+  assert.ok(change, "étape 3 : les mains tournent puis ramènent le volant");
+  assert.ok(Math.abs(def.etat(def.duree).volant) < 1e-9, "fin : volant ramené droit");
+});
+
+// --- Règle de prise, commune aux trois gestes ---
+
+test("gestes du volant : une main qui tient la jante tourne avec le volant ; une main qui glisse ne bouge pas pendant qu'il tourne ; posée, elle est sur la jante ; le volant ne tourne sans être tenu qu'en revenant droit, en roulant", () => {
+  for (const code of CODES_GESTES) {
+    const def = geste(code), ts = instantsDe(def);
+    for (let i = 1; i < ts.length; i++) {
+      const [a, b] = [def.etat(ts[i - 1]), def.etat(ts[i])];
+      const tourne = Math.abs(b.volant - a.volant) > 1e-9, quand = `${code}, ${ts[i].toFixed(3)} s`;
+      const revientSeul = a.allure === "roulant" && b.allure === "roulant" && Math.abs(b.volant) < Math.abs(a.volant);
+      if (tourne && !revientSeul) assert.ok(COTES_MAINS.some((c) => a.mains[c].prise === 1 && b.mains[c].prise === 1), `${quand} : volant qui tourne sans être tenu`);
+      for (const c of COTES_MAINS) {
+        const [m, n] = [a.mains[c], b.mains[c]];
+        for (const x of [m, n]) if (x.prise > 0) assert.equal(x.decalage, 0, `${quand} : main ${c} posée hors de la jante`);
+        if (m.prise === 1 && n.prise === 1) assert.ok(Math.abs(surJante(b, c) - surJante(a, c)) < 1e-9, `${quand} : main ${c} qui tient et glisse`);
+        else if (tourne && (m.prise > 0 || n.prise > 0)) {
+          assert.ok(Math.abs(n.heure - m.heure) < 1e-9 && Math.abs(n.prise - m.prise) < 1e-9, `${quand} : main ${c} entrouverte qui bouge pendant que le volant tourne`);
+        }
+      }
+    }
+  }
+});
+
+// --- Ce que montre l'image ---
+
+const ROLE_POINT = /^(main|doigts|pouce|avant-bras)-(gauche|droite)$|^branche-\d+$/;
+const pointsDessines = (image) => new Map(trouverTous(image, (x) => ROLE_POINT.test(x.attributs["data-r"] || "") && "data-x" in x.attributs)
+  .map((x) => [x.attributs["data-r"], [Number(x.attributs["data-x"]), Number(x.attributs["data-y"])]]));
+
+test("gestes du volant : aucun point dessiné (mains, doigts, pouces, poignets, branches du volant) ne bouge de plus de 8 unités en une image", () => {
+  const SAUT_IMAGE = 8;   // unités par image de 1/60 s (7,5 px sur un téléphone), comme la tâche 9
+  for (const code of CODES_GESTES) {
+    const def = geste(code);
+    let avant = null, pire = { saut: 0 };
+    for (const t of instantsDe(def)) {
+      const points = pointsDessines(imageA(def, t, false));
+      assert.equal(points.size, 4 * 2 + 3, `${code} : points dessinés absents à ${t.toFixed(3)} s`);
+      if (avant) {
+        for (const [role, [x, y]] of points) {
+          const [x0, y0] = avant.get(role), saut = Math.hypot(x - x0, y - y0);
+          if (saut > pire.saut) pire = { saut, role, t };
+        }
+      }
+      avant = points;
+    }
+    assert.ok(pire.saut <= SAUT_IMAGE, `${code} : ${pire.role} : ${pire.saut.toFixed(1)} unités en une image à ${pire.t.toFixed(3)} s`);
+  }
+});
+
+// Différences d'attributs (et de textes) entre deux images de même forme.
+function differences(a, b, chemin = "", sortie = []) {
+  if (typeof a === "string") {
+    if (a !== b) sortie.push({ chemin, attribut: "#texte", role: "" });
+    return sortie;
+  }
+  for (const k of new Set([...Object.keys(a.attributs), ...Object.keys(b.attributs)])) {
+    if (String(a.attributs[k]) !== String(b.attributs[k])) sortie.push({ chemin: `${chemin}/${a.balise}`, attribut: k, role: a.attributs["data-r"] || "" });
+  }
+  a.enfants.forEach((e, i) => differences(e, b.enfants[i], `${chemin}/${a.balise}[${i}]`, sortie));
+  return sortie;
+}
+
+test("gestes du volant : une image figée est l'image de l'animation à cet instant, seul le groupe des flèches s'y montre", () => {
+  for (const code of CODES_GESTES) {
+    const def = geste(code);
+    const ts = [...def.etapes.map((e) => e.t), ...instantsDe(def).filter((_, k) => k % 4 === 0)];
+    for (const t of ts) {
+      const diff = differences(imageA(def, t, true), imageA(def, t, false));
+      assert.equal(diff.length, 1, `${code}, ${t.toFixed(3)} s : ${diff.length} différences`);
+      assert.deepEqual([diff[0].attribut, diff[0].role], ["display", "fleche"], `${code}, ${t.toFixed(3)} s`);
+    }
+  }
+});
+
+// Flèches visibles de l'image figée d'une étape : l'heure (autour du centre du volant) de leur queue et de leur pointe, et
+// leur sens de rotation à la pointe (1 horaire, -1 antihoraire).
+function flechesEtape(def, i) {
+  const image = imageFigee(def, i);
+  const v = trouverRole(image, "volant").attributs, [cx, cy] = [v["data-x"], v["data-y"]];
+  const heureDe = ([x, y]) => ((((Math.atan2(x - cx, cy - y) * 6) / Math.PI) % 12) + 12) % 12;
+  return trouverTous(trouverRole(image, "fleche"), (x) => /^fleche-\d+$/.test(x.attributs["data-r"] || "") && x.attributs.display !== "none")
+    .map((f) => {
+      // La tête : sa pointe, ses deux ailes et son encoche ; elle file de l'encoche vers la pointe.
+      const queue = pointsDe(trouverRole(f, "fleche-trait").attributs.d)[0];
+      const [pointe, , encoche] = pointsDe(trouverRole(f, "fleche-tete").attributs.d);
+      const [r, dir] = [[pointe[0] - cx, pointe[1] - cy], [pointe[0] - encoche[0], pointe[1] - encoche[1]]];
+      return { queue: heureDe(queue), pointe: heureDe(pointe), sens: Math.sign(r[0] * dir[1] - r[1] * dir[0]) };
+    });
+}
+const procheHeure = (h, cible, tolerance = 0.6) => Math.abs(((((h - cible) % 12) + 18) % 12) - 6) <= tolerance;
+const trouve = (fleches, { de, a, sens }) => fleches.some((f) => procheHeure(f.queue, de) && procheHeure(f.pointe, a) && f.sens === sens);
+
+test("gestes du volant : les flèches de chaque étape montrent le mouvement qu'elle décrit", () => {
+  const tg = geste("tirer-glisser");
+  assert.ok(trouve(flechesEtape(tg, 0), { de: 3, a: 0, sens: -1 }), "tirer-glisser, étape 1 : la droite monte de 3 h à midi");
+  assert.ok(trouve(flechesEtape(tg, 1), { de: 0, a: 5, sens: 1 }), "tirer-glisser, étape 2 : la droite tire de midi à 5 h");
+  assert.ok(trouve(flechesEtape(tg, 1), { de: 8.75, a: 9.25, sens: 1 }), "tirer-glisser, étape 2 : la jante glisse vers le haut dans la gauche");
+  const ch = geste("chevauchement");
+  assert.ok(trouve(flechesEtape(ch, 0), { de: 3, a: 0, sens: -1 }), "chevauchement, étape 1 : la droite monte à midi");
+  assert.ok(trouve(flechesEtape(ch, 1), { de: 0, a: 3, sens: 1 }) && trouve(flechesEtape(ch, 1), { de: 9, a: 0, sens: 1 }),
+    "chevauchement, étape 2 : la droite tire jusqu'à 3 h, la gauche suit de 9 h à midi");
+  // La flèche de la droite qui remonte part au-delà du bout de ses doigts (vers 2 h 30) et s'arrête sous la main gauche, qui est
+  // encore à midi au début de l'étape (vers midi et demi) : elle va de 3 h vers midi, en dedans de la jante.
+  assert.ok(trouve(flechesEtape(ch, 2), { de: 0, a: 6, sens: 1 }) && trouve(flechesEtape(ch, 2), { de: 2.5, a: 0.5, sens: -1 }),
+    "chevauchement, étape 3 : la gauche tire de midi à 6 h, la droite remonte de 3 h vers midi");
+  assert.ok(trouve(flechesEtape(ch, 3), { de: 0, a: 6, sens: 1 }) && trouve(flechesEtape(ch, 3), { de: 6, a: 0, sens: 1 }),
+    "chevauchement, étape 4 : la droite tire de midi à 6 h, la gauche suit de 6 h à midi");
+  const rv = geste("retour-volant");
+  const e1 = flechesEtape(rv, 0);
+  assert.ok(e1.length === 2 && e1.every((f) => f.sens === -1), "retour-volant, étape 1 : la jante glisse dans les deux mains, dans le sens du retour");
+  assert.ok(e1.some((f) => procheHeure(f.queue, 8.35, 0.4)) && e1.some((f) => procheHeure(f.pointe, 3.65, 0.4)), "retour-volant, étape 1 : au bord des mains");
+  const e2 = flechesEtape(rv, 1);
+  assert.ok(e2.length === 1 && e2[0].sens === -1 && procheHeure(e2[0].queue, 2.5) && procheHeure(e2[0].pointe, 9.5), "retour-volant, étape 2 : le volant revient d'un demi-tour");
+  const e3 = flechesEtape(rv, 2);
+  assert.ok(e3.length === 2 && e3.some((f) => f.sens === 1) && e3.some((f) => f.sens === -1), "retour-volant, étape 3 : tourné, puis ramené");
+});
+
+test("gestes du volant : la voiture braque ses roues avant dans le sens du volant, au rapport de direction, et le compteur dit l'angle du volant", () => {
+  for (const code of CODES_GESTES) {
+    const def = geste(code);
+    for (const t of instantsDe(def).filter((_, k) => k % 6 === 0)) {
+      const e = def.etat(t), image = imageA(def, t, false);
+      for (const roue of ["roue-avant-gauche", "roue-avant-droite"]) {
+        const angle = Number(trouverRole(image, roue).attributs["data-angle"]);
+        assert.ok(Math.abs(angle - e.volant / 15) < 1e-6, `${code}, ${t.toFixed(2)} s : ${roue} à ${angle} degrés pour un volant à ${e.volant}`);
+      }
+      assert.equal(texteDe(trouverRole(image, "compteur")), `${Math.round(e.volant)}°`, `${code}, ${t.toFixed(2)} s`);
+    }
+  }
+});
+
+// Un point dans un polygone (parité des croisements), à `marge` unités au moins de ses côtés.
+function dedansAvecMarge([x, y], poly, marge) {
+  let dedans = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const [xi, yi] = poly[i], [xj, yj] = poly[j];
+    if ((yi > y) !== (yj > y) && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) dedans = !dedans;
+  }
+  if (!dedans) return false;
+  return poly.every((a, i) => {
+    const b = poly[(i + 1) % poly.length], ab = [b[0] - a[0], b[1] - a[1]];
+    const u = Math.max(0, Math.min(1, ((x - a[0]) * ab[0] + (y - a[1]) * ab[1]) / (ab[0] ** 2 + ab[1] ** 2 || 1)));
+    return Math.hypot(x - (a[0] + u * ab[0]), y - (a[1] + u * ab[1])) >= marge;
+  });
+}
+// Surfaces d'une main dans l'image, en polygones (points de contrôle compris) : sa peau (dos, doigts, pouce, poignet) et sa
+// manche (tissu et revers).
+function surfacesMain(image, cote) {
+  const m = trouverRole(image, `main-${cote}`), manche = trouverRole(m, `manche-${cote}`);
+  const pleins = (noeud, garder) => trouverTous(noeud, (x) => x.balise === "path" && garder(x.attributs.fill)).map((x) => pointsDe(x.attributs.d)).filter((p) => p.length >= 3);
+  return { peau: pleins(m, (f) => f === CHARTE.peau), manche: pleins(manche, (f) => f && f !== "none") };
+}
+const recouvre = (dessus, dessous, marge = 1) => dessus.some((a) => dessous.some((b) => a.some((p) => dedansAvecMarge(p, b, marge)) || b.some((p) => dedansAvecMarge(p, a, marge))));
+const traceVide = (d) => !/[CL]/.test(String(d));
+
+test("chevauchement : à l'étape 3, la main droite passe par-dessus le bras gauche, dessinée au premier plan", () => {
+  const def = geste("chevauchement");
+  const [T3, T4] = [def.etapes[2].t, def.etapes[3].t];
+  let passe = false;
+  for (const t of instantsDe(def).filter((t) => t >= T3 && t < T4)) {
+    const image = imageA(def, t, false);
+    const droite = trouverRole(image, "main-droite"), gauche = trouverRole(image, "main-gauche");
+    // Premier plan : la main droite et son avant-bras sont dessinés après la gauche, dans le même parent.
+    const freres = trouverTous(image, (x) => x.enfants.includes(droite))[0].enfants;
+    assert.ok(freres.indexOf(droite) > freres.indexOf(gauche) && freres.includes(gauche), `${t.toFixed(3)} s : la droite sous la gauche`);
+    // Par-dessus le bras gauche : le centre du dos de la main droite passe sur l'avant-bras gauche (poignet ou manche).
+    const dos = pointsDe(trouverRole(image, "dos-droite").attributs.d);
+    const centre = [0, 1].map((i) => dos.reduce((somme, q) => somme + q[i], 0) / dos.length);
+    const bras = trouverRole(image, "avant-bras-gauche");
+    const surfacesBras = trouverTous(bras, (x) => x.balise === "path" && x.attributs.fill && x.attributs.fill !== "none").map((x) => pointsDe(x.attributs.d)).filter((p) => p.length >= 3);
+    if (surfacesBras.some((p) => dedansAvecMarge(centre, p, 0))) passe = true;
+  }
+  assert.ok(passe, "la main droite ne passe jamais sur l'avant-bras gauche");
+});
+
+test("gestes du volant : là où une main passe sur l'autre, un contour sépare les deux peaux, et les deux manches", () => {
+  let vus = 0;
+  for (const code of CODES_GESTES) {
+    const def = geste(code);
+    for (const t of instantsDe(def).filter((_, k) => k % 2 === 0)) {
+      const image = imageA(def, t, false);
+      const [g, d] = [surfacesMain(image, "gauche"), surfacesMain(image, "droite")];
+      const contours = (matiere) => trouverTous(trouverRole(image, "main-droite"), (x) => x.attributs["data-r"] === `contour-${matiere}-droite`);
+      if (recouvre(d.peau, g.peau)) {
+        vus++;
+        assert.ok(contours("peau").some((x) => !traceVide(x.attributs.d)), `${code}, ${t.toFixed(3)} s : peau sur peau sans contour`);
+      }
+      if (recouvre(d.manche, g.manche)) {
+        vus++;
+        assert.ok(contours("manche").some((x) => !traceVide(x.attributs.d)), `${code}, ${t.toFixed(3)} s : manche sur manche sans contour`);
+      }
+    }
+  }
+  assert.ok(vus > 0, "aucun recouvrement vu : le contrôle ne contrôle rien");
 });
