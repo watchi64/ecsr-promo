@@ -128,7 +128,7 @@ export const CATALOGUE = {
     etapesModele: ["Mise du contact : tous les voyants s'allument", "Fin de l'autotest : ils s'éteignent, sauf huile et charge",
       "Moteur démarré : huile et charge s'éteignent"], cadre: [320, 200] },
   voyants: { bloc: "dessin", module: "voyants", titre: "Les voyants et leur couleur",
-    legendeModele: "Rouge : s'arrêter dès que possible en sécurité. Orange : faire contrôler sans attendre. Vert ou bleu : information.", cadre: [320, 330] },
+    legendeModele: "Rouge : s'arrêter dès que possible en sécurité. Orange : faire contrôler sans attendre. Vert ou bleu : information.", cadre: [320, 380] },
   "tour-vehicule": { bloc: "dessin", module: "dessus", titre: "Le tour du véhicule",
     legendeModele: "Toujours le même parcours : extérieur, capot, habitacle.", cadre: [320, 260] },
   capot: { bloc: "dessin", module: "entretien", titre: "Sous le capot",
