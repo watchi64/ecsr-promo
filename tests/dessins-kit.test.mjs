@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { CHARTE, cadre, etiquette, vignette, pastille, fleche, texte } from "../js/dessins-kit.js";
 import { VOITURE, TEINTES_ROUTE, voitureDessus, reperesDessus, voitureProfil, reperesProfil } from "../js/dessins-kit.js";
+import { arrondir, arc, couper, bande } from "../js/dessins-kit.js";
 import { n, trouverRole, trouverTous, texteDe } from "../js/dessin-svg.js";
 import { verifierDessin, boitesTextes, largeurTexte, formeArbre } from "./aides-dessins.mjs";
 import { GABARITS, DEG } from "../js/scene-geometrie.js";
@@ -650,4 +651,79 @@ test("voiture de profil : portière ouverte, le montant se découvre ; trappe ou
   assert.ok(Math.max(...voletFerme.map((q) => q[1])) < Math.min(...passage.map((q) => q[1])), "au-dessus du passage de roue");
   const feu = paires(trouverRole(ferme, "feu").attributs.d);
   assert.ok(Math.min(...voletFerme.map((q) => q[0])) > Math.max(...feu.map((q) => q[0])), "devant le feu arrière");
+});
+
+// Relecture de la tâche 5, premier tour.
+test("voiture de profil : une compacte à hayon, pas un break : toit arrêté à 0,7 m de l'arrière, lunette penchée de plus de 45 degrés", () => {
+  const [haut, bas] = [VOITURE.lunette.haut, VOITURE.lunette.bas];
+  assert.ok(VOITURE.longueur / 2 + haut[0] >= 0.7, `toit arrêté à ${(VOITURE.longueur / 2 + haut[0]).toFixed(2)} m de l'arrière`);
+  const inclinaison = Math.atan2(haut[0] - bas[0], haut[1] - bas[1]) / DEG;
+  assert.ok(inclinaison > 45 && inclinaison < 60, `lunette penchée de ${inclinaison.toFixed(1)} degrés sur la verticale`);
+  // Le contour dessiné suit ces choix : le haut de la lunette et son pied sont sur la caisse.
+  const pts = paires(trouverRole(voitureProfil({ x: 160, y: 140, echelle: 20 }), "caisse").attributs.d);
+  assert.ok(surContour([160 + bas[0] * 20, 140 - bas[1] * 20], pts), "pied de la lunette sur la caisse");
+});
+
+test("voiture vue du dessus : l'habitacle découvert est l'empreinte de la portière fermée ; il croît avec l'angle, sans saut", () => {
+  const pose = { x: 160, y: 100, cap: 0, echelle: 20 }, e = pose.echelle;
+  const { charniere } = VOITURE.portiere, pivot = [charniere[0] * e, -charniere[1] * e];
+  for (const angle of [0, 1, 40]) {
+    const v = voitureDessus({ ...pose, retroviseurs: true, portiere: angle });
+    // La portière qui tourne est exactement l'empreinte de l'ouverture : à 0 degré, elle la couvre tout entière.
+    assert.equal(trouverRole(trouverRole(v, "portiere"), "panneau").attributs.d, trouverRole(v, "ouverture").attributs.d, `${angle} degré(s)`);
+  }
+  // À 1 degré, aucun point de l'empreinte ne bouge de plus de 2 cm : l'habitacle découvert n'est qu'un mince coin.
+  const empreinte = paires(trouverRole(voitureDessus({ ...pose, portiere: 1 }), "ouverture").attributs.d);
+  const deplacement = Math.max(...empreinte.map((p) => { const q = tournerAutour(p, pivot, 1); return Math.hypot(q[0] - p[0], q[1] - p[1]); }));
+  assert.ok(deplacement <= 0.02 * e, `déplacement de ${(deplacement / e).toFixed(3)} m à 1 degré`);
+  // Le contour de la portière apparaît sur ses premiers degrés, sans saut ; il est entier à 40 degrés.
+  const contour = (angle) => trouverRole(trouverRole(voitureDessus({ ...pose, portiere: angle }), "portiere"), "panneau").attributs["stroke-opacity"];
+  assert.ok(contour(1) > 0 && contour(1) < 0.5 && contour(40) === 1, `opacités ${contour(1)} et ${contour(40)}`);
+});
+
+test("voiture vue du dessus : les roues passent sous la portière ouverte et sous les rétroviseurs", () => {
+  const v = voitureDessus({ x: 160, y: 100, echelle: 20, roues: true, retroviseurs: true, portiere: 40 });
+  const rang = (role) => v.enfants.findIndex((x) => typeof x !== "string" && x.attributs["data-r"] === role);
+  for (const role of ["roue-avant-gauche", "ouverture", "portiere", "retroviseur-gauche"]) assert.ok(rang(role) >= 0, role);
+  assert.ok(rang("roue-avant-gauche") < rang("ouverture") && rang("ouverture") < rang("portiere") && rang("portiere") < rang("retroviseur-gauche"),
+    "roues, puis l'habitacle découvert, puis la portière, puis les rétroviseurs");
+});
+
+test("voitures : à petite échelle les détails de finition s'effacent, les pièces demandées et les grandes surfaces restent", () => {
+  const options = { retroviseurs: true, roues: true, portiere: 30 };
+  const petit = voitureDessus({ x: 40, y: 40, echelle: 6, ...options }), grand = voitureDessus({ x: 160, y: 100, echelle: 20, ...options });
+  for (const role of ["phare-gauche", "feu-droit", "vitre-avant-gauche", "essuie-glaces", "reflet-pare-brise"]) {
+    assert.equal(trouverRole(petit, role), null, `${role} à l'échelle 6`);
+    assert.ok(trouverRole(grand, role), `${role} à l'échelle 20`);
+  }
+  for (const role of ["caisse", "toit", "pare-brise", "lunette", "retroviseur-gauche", "retroviseur-interieur", "roue-avant-gauche", "portiere"]) {
+    assert.ok(trouverRole(petit, role), `${role} à l'échelle 6`);
+  }
+  const profil = { portiereOuverte: true, trappeOuverte: true };
+  // De profil, à l'échelle 40 (une poignée de 4 cm n'y fait que 1,6 unité).
+  const p6 = voitureProfil({ x: 40, y: 60, echelle: 6 }), p40 = voitureProfil({ x: 160, y: 140, echelle: 40 });
+  for (const role of ["phare", "feu", "montant-milieu", "poignee-arriere", "retroviseur", "bas-de-caisse"]) {
+    assert.equal(trouverRole(p6, role), null, `${role} de profil à l'échelle 6`);
+    assert.ok(trouverRole(p40, role), `${role} de profil à l'échelle 40`);
+  }
+  const p6o = voitureProfil({ x: 40, y: 60, echelle: 6, ...profil });
+  for (const role of ["caisse", "vitrage", "roue-avant", "passage-arriere", "portiere-ouverte", "trappe-ouverte"]) assert.ok(trouverRole(p6o, role), role);
+});
+
+test("formes du kit : coins arrondis, arcs, demi-plans et bandes, pour les familles de dessins", () => {
+  // Coin arrondi : le sommet devient une courbe qui part et finit à son rayon du sommet, sans l'atteindre ; rayon nul, coin vif.
+  const carre = [[0, 0], [10, 0], [10, 10], [0, 10]];
+  const rond = arrondir(carre, [2, 0, 0, 0]);
+  assert.deepEqual(rond.slice(-3), [[10, 0], [10, 10], [0, 10]]);
+  assert.deepEqual(rond[0], [0, 2]);
+  assert.deepEqual(rond[rond.length - 4], [2, 0]);
+  assert.ok(rond.every(([x, y]) => x >= 0 && y >= 0) && !rond.some(([x, y]) => x === 0 && y === 0));
+  // Arc : extrémités comprises, chaque point sur le cercle, pas d'au plus six degrés.
+  const a = arc([1, 2], 3, 0, 90);
+  proche(a[0][0], 4, 1e-12, "arc, début"); proche(a.at(-1)[1], 5, 1e-12, "arc, fin");
+  assert.ok(a.length >= 16 && a.every(([x, y]) => Math.abs(Math.hypot(x - 1, y - 2) - 3) < 1e-12));
+  // Demi-plan : ce qui reste où f <= 0, le bord coupé exactement sur la droite.
+  assert.deepEqual(couper(carre, (p) => p[0] - 4), [[0, 0], [4, 0], [4, 10], [0, 10]]);
+  // Bande : entre deux droites parallèles (ici verticales, pente nulle).
+  assert.deepEqual(bande(carre, { pente: 0, debut: 3, fin: 6 }).map(([x]) => x).sort((u, w) => u - w), [3, 3, 6, 6]);
 });
