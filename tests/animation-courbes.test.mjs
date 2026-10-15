@@ -44,3 +44,17 @@ test("formes : chaque courbe amortit ce qu'elle dit amortir, et cles applique la
   assert.equal(cles([{ t: 1, v: 7 }], 0), 7);
   assert.equal(cles([{ t: 1, v: 7 }], 5), 7);
 });
+
+// Les courbes et la suite de clés ne s'écrivent qu'ici : une scène ou un geste les importe (la portière de « sortie-portiere »
+// passe par cles et adoucir). Une copie, même exacte, divergerait au premier réglage d'un côté seulement.
+test("les courbes d'animation ne sont écrites qu'une fois, dans js/animation-courbes.js", async () => {
+  const { readdirSync, readFileSync } = await import("node:fs");
+  const motifs = [/Math\.pow\(-2 \* \w+ \+ 2, 3\)/, /1 - Math\.pow\(1 - \w+, 3\)/, /\b(?:const|let|function)\s+(?:adoucir|sortieDouce|entreeDouce)\b/];
+  const fautes = [];
+  for (const f of readdirSync(new URL("../js/", import.meta.url))) {
+    if (!f.endsWith(".js") || f === "animation-courbes.js") continue;
+    const src = readFileSync(new URL(`../js/${f}`, import.meta.url), "utf8");
+    for (const m of motifs) if (m.test(src)) fautes.push(`${f} : ${m}`);
+  }
+  assert.deepEqual(fautes, []);
+});

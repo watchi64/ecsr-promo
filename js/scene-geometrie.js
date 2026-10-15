@@ -32,6 +32,7 @@
  */
 
 import { GABARIT_VELO } from "./piece-cycliste.js?v=20261013a";
+import { adoucir, cles as valeurDesCles } from "./animation-courbes.js?v=20261013a";
 
 export const DEG = Math.PI / 180;
 export const KMH = 1 / 3.6;
@@ -59,24 +60,14 @@ export const GABARITS = {
  */
 export const PORTIERE = { charniere: 0.95, longueur: 1.1, ouvertureMax: 35 };
 
-// Courbe d'un mouvement qui part et arrive en douceur (départ et arrivée amortis, cubique), de 0 à 1 quand u va de 0 à 1 :
-// la courbe adoucir du moteur des gestes (js/animation-courbes.js, plan 3, tâche 4), écrite ici tant que ce module n'est
-// pas sur la branche de la scène (tâches menées en parallèle). Vitesse nulle aux deux bouts, de pointe (3 fois la moyenne)
-// à mi-chemin.
-const adoucir = (u) => (u < 0.5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2);
-
 /**
- * Angle d'ouverture (degrés) d'une portière à l'instant t, d'après ses clés `cles` : [{ t, angle }], instants croissants
- * (secondes, horloge de la scène). Entre deux clés, le mouvement suit la courbe adoucir : il part et arrive en douceur.
- * Avant la première clé, l'angle de la première ; après la dernière, celui de la dernière (la portière reste où elle est).
+ * Angle d'ouverture (degrés) d'une portière à l'instant t, d'après ses clés `clesPortiere` : [{ t, angle }], instants
+ * croissants (secondes, horloge de la scène). C'est la suite de clés des gestes (cles de js/animation-courbes.js), sur la
+ * courbe adoucir : entre deux clés, le mouvement part et arrive en douceur ; avant la première clé, l'angle de la première ;
+ * après la dernière, celui de la dernière (la portière reste où elle est).
  */
-export function anglePortiere(cles, t) {
-  if (t <= cles[0].t) return cles[0].angle;
-  for (let i = 1; i < cles.length; i++) {
-    const a = cles[i - 1], b = cles[i];
-    if (t <= b.t) return a.angle + (b.angle - a.angle) * adoucir((t - a.t) / (b.t - a.t));
-  }
-  return cles[cles.length - 1].angle;
+export function anglePortiere(clesPortiere, t) {
+  return valeurDesCles(clesPortiere.map((cle) => ({ t: cle.t, v: cle.angle })), t, adoucir);
 }
 
 // Point (x, y) du repère de la caisse (x vers l'avant, y vers la droite, depuis le centre) d'une voiture dans l'état e,

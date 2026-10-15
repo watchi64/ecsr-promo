@@ -3924,6 +3924,11 @@ test("sortie-portiere : les sources citent le cours C1.2, R417-7 et R417-8 et au
   for (const theme of ["03", "24", "35"]) assert.match(tout, new RegExp(`thème ${theme}`));
   assert.match(tout, /ordre des contrôles de Timy/);
   assert.equal(sources.filter((s) => s.startsWith("Choix de dessin")).length, 1);
+  // R417-8 dit ce que l'article dit (fiche du cours C1.2) : le conducteur ne s'éloigne du lieu de stationnement qu'après les
+  // précautions utiles ; les images figées de l'étape 5 sont dites telles que le moteur les dessine (pas à pas, pause, fin).
+  assert.match(tout, /ne s'éloigne du lieu de stationnement qu'après avoir pris les précautions utiles[^.]*: R417-8/);
+  assert.doesNotMatch(tout, /ne quitte son véhicule/);
+  assert.match(tout, /en pas à pas et en animations réduites, la portière y est encore fermée[^.]*; en pause, elle est à l'angle de l'instant ; en fin de lecture, ouverte\./);
 });
 
 test("sortie-portiere : le paragraphe « Choix de dessin » donne chaque valeur et sa raison ; les valeurs calculées qu'il cite sont celles de la scène, à l'arrondi écrit près", () => {
