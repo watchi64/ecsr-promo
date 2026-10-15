@@ -5,7 +5,7 @@ import * as famille from "../js/dessins-conducteur.js";
 import { SOURCES } from "../sources/dessins-conducteur.js";
 import { verifierDessin, verifierGeste } from "./aides-dessins.mjs";
 import { trouverRole, trouverTous, texteDe } from "../js/dessin-svg.js";
-import { imageA, PAS_IMAGE } from "../js/geste-regles.js";
+import { imageA, PAS_IMAGE, SAUT_POINT_MAX, pointsDessines } from "../js/geste-regles.js";
 
 const codes = Object.keys(CATALOGUE).filter((c) => CATALOGUE[c].module === "conducteur");
 
@@ -325,22 +325,19 @@ test("installation : à la fin, le rétroviseur intérieur cadre toute la lunett
 
 // ===== Correctif, tour 1 : continuité des bras, main hors du visage, volant, découpes, repères =====
 
-// Une articulation du bras ne va pas plus vite que ARTICULATION_MAX unités par image de 1/60 s : les mouvements de main les
-// plus rapides du geste (0,8 s, adoucir) restent sous 5 unités par image ; au-delà de 8 (7,5 px sur un téléphone, 480 unités
-// par seconde), une articulation saute. Lu dans le dessin (data-x, data-y des rôles), pas dans l'état.
-const ARTICULATION_MAX = 8;
+// Une articulation du bras ne va pas plus vite que SAUT_POINT_MAX unités par image de 1/60 s (js/geste-regles.js) : les
+// mouvements de main les plus rapides du geste (0,8 s, adoucir) restent sous 5 unités par image ; au-delà de 8 (7,5 px sur un
+// téléphone, 480 unités par seconde), une articulation saute. Le contrôle commun des gestes (pointsDessines, par verifierGeste)
+// le vérifie sur chaque point dessiné (data-x, data-y des rôles) ; ce test garde que les articulations en sont, à chaque image.
+const ARTICULATION_MAX = SAUT_POINT_MAX;
 const ARTICULATIONS = ["epaule", "coude", "poignet", "main"].flatMap((a) => [`${a}-gauche`, `${a}-droite`]);
 const images = instants.map((t) => imageA(def, t, false));
 
-test("installation : aucune articulation dessinée (épaule, coude, poignet, main) ne bouge de plus de 8 unités en une image", () => {
-  for (const role of ARTICULATIONS) {
-    let pire = { d: 0, t: 0 };
-    for (let i = 1; i < images.length; i++) {
-      const d = distance(point(images[i - 1], role), point(images[i], role));
-      if (d > pire.d) pire = { d, t: instants[i] };
-    }
-    assert.ok(pire.d <= ARTICULATION_MAX, `${role} : ${pire.d.toFixed(1)} unités en une image à ${pire.t.toFixed(3)} s`);
-  }
+test("installation : les articulations dessinées (épaule, coude, poignet, main) sont des points dessinés, suivis par le contrôle commun de continuité", () => {
+  images.forEach((image, i) => {
+    const roles = new Set([...pointsDessines(image).values()].map((p) => p.role));
+    for (const role of ARTICULATIONS) assert.ok(roles.has(role), `${role} absent des points dessinés à ${instants[i].toFixed(3)} s`);
+  });
 });
 
 // Point dans un polygone (règle du rayon) ; distance d'un point à un polygone (au plus près de ses côtés).

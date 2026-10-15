@@ -253,29 +253,8 @@ test("autotest : repère éteint avant le contact, « Contact » au contact et j
   for (const nom of SIX) assert.deepEqual(teintes(trouverRole(image, `allume-${nom}`)), [famille.COULEURS_VOYANTS[famille.COULEUR_DE[nom]]], nom);
 });
 
-// Différences entre deux images de même forme : chaque attribut qui change, avec son chemin et le rôle de son nœud.
-function differences(a, b, chemin = "", sortie = []) {
-  if (typeof a === "string" || typeof b === "string") {
-    if (a !== b) sortie.push({ chemin, attribut: "#texte", role: "" });
-    return sortie;
-  }
-  const cles = new Set([...Object.keys(a.attributs), ...Object.keys(b.attributs)]);
-  for (const k of cles) {
-    if (String(a.attributs[k]) !== String(b.attributs[k])) sortie.push({ chemin: `${chemin}/${a.balise}`, attribut: k, role: role(a) });
-  }
-  a.enfants.forEach((e, i) => differences(e, b.enfants[i], `${chemin}/${a.balise}[${i}]`, sortie));
-  return sortie;
-}
-
-test("autotest : une image figée est une image de l'animation, seul le groupe de la flèche de l'étape s'y montre", () => {
-  const def = geste();
-  const instants = [...def.etapes.map((e) => e.t), ...Array.from({ length: 141 }, (_, k) => (def.duree * k) / 140)];
-  for (const t of instants) {
-    const diff = differences(imageA(def, t, true), imageA(def, t, false));
-    assert.deepEqual(diff.filter((d) => !(d.attribut === "display" && d.role === "fleche")), [], `${t.toFixed(3)} s`);
-    assert.equal(diff.length, 1, `${t.toFixed(3)} s : le seul affichage du groupe de la flèche`);
-  }
-});
+// Une image figée est l'image de l'animation au même instant, au seul affichage du groupe de la flèche près : le contrôle commun
+// des gestes le vérifie à chaque image (ecartsFigeeLecture de js/geste-regles.js, par verifierGeste).
 
 test("autotest : les marques de chaque étape montrent ce qu'elle change", () => {
   const def = geste();

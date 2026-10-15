@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { problemesGeste, imageFigee, imageA, ETAPE_MIN, PAS_IMAGE, PART_SAUT_MAX, BRUIT_CALCUL } from "../js/geste-regles.js";
+import { problemesGeste, imageFigee, imageA, ETAPE_MIN, PAS_IMAGE, PART_SAUT_MAX, BRUIT_CALCUL, SAUT_POINT_MAX, pointsDessines,
+  ecartsFigeeLecture } from "../js/geste-regles.js";
 import { n, trouverRole, trouverTous, problemeMiseAJour } from "../js/dessin-svg.js";
 import { fleche } from "../js/dessins-kit.js";
 import { cles, adoucir } from "../js/animation-courbes.js";
@@ -266,10 +267,14 @@ test("la flèche d'une étape garde tous ses attributs d'une image figée à l'a
   // Un attribut de la flèche elle-même, display compris (visible au début de l'étape seulement).
   const sEteint = gesteEssai({ dessiner: (etat, o) => avecAttributs(def.dessiner(etat, o), "fleche", { display: o.fige && etat.x < 100 ? "inline" : "none" }) });
   assert.match(problemesGeste(sEteint, ETAPES_ESSAI).join(" | "), /la flèche de l'étape 1 change à l'intérieur de l'étape/);
-  // Elle ne se juge que sur les images figées : en lecture, elle est masquée et peut porter n'importe quels points.
+  // Sa constance ne se juge que sur les images figées ; en lecture, masquée, elle doit pourtant porter les mêmes points que sur
+  // l'image figée du même instant (une image figée est l'image de lecture au seul affichage des flèches près) : c'est cette
+  // règle-là, et elle seule, qui la signale.
   const libreEnLecture = gesteEssai({ dessiner: (etat, o) => (o.fige ? def.dessiner(etat, o)
     : modifier(def.dessiner(etat, o), "fleche", () => fleche([[40, 150], [etat.x + 50, 150]], { visible: false }))) });
-  assert.deepEqual(problemesGeste(libreEnLecture, ETAPES_ESSAI), []);
+  const pbLecture = problemesGeste(libreEnLecture, ETAPES_ESSAI);
+  assert.ok(pbLecture.length > 0 && pbLecture.every((p) => /l'image figée diffère de l'image de lecture ailleurs que par l'affichage du groupe des flèches/.test(p)),
+    pbLecture.join(" | "));
   // Sans flèche du tout, il n'y a rien à comparer ici (verifierGeste dit qu'elle manque).
   const sansFleche = gesteEssai({ dessiner: (etat, o) => { const d = def.dessiner(etat, o); return { ...d, enfants: d.enfants.filter((x) => x.attributs["data-r"] !== "fleche") }; } });
   assert.deepEqual(problemesGeste(sansFleche, ETAPES_ESSAI), []);
@@ -319,4 +324,59 @@ test("une image impossible à produire, ou un état qui lève, est un problème 
     dessiner: (etat, o) => { const d = def.dessiner(etat, o); return etat.x > 150 ? fleche([[10, 10], [10, 10]]) : d; },
   });
   assert.match(problemesGeste(flecheDegeneree, ETAPES_ESSAI).join(" | "), /image impossible à produire à \d\.\d{3} s : Flèche « fleche » : il faut au moins deux points distincts/);
+});
+
+// ===== Règles communes ajoutées à l'intégration du lot D1 : image figée et image de lecture, continuité des points dessinés =====
+
+const ecartsFiges = (g) => problemesGeste(g, ETAPES_ESSAI).filter((p) => /l'image figée diffère de l'image de lecture/.test(p));
+const sautsPoints = (g) => problemesGeste(g, ETAPES_ESSAI).filter((p) => /^saut du point/.test(p));
+
+test("image figée : l'image de lecture du même instant, au seul affichage du groupe des flèches près ; tout autre écart est dit, une fois", () => {
+  // Le geste d'essai : seul le display du groupe de la flèche distingue les deux images, à chaque instant.
+  for (const t of [0, 0.7, 1.5, 2.2, 3]) assert.deepEqual(ecartsFigeeLecture(imageA(def, t, true), imageA(def, t, false)), [], `${t} s`);
+  assert.deepEqual(ecartsFiges(def), []);
+  // Le disque posé ailleurs sur l'image figée : l'image figée ne serait plus une image de l'animation (un saut au passage du pas
+  // à pas à la lecture). Dit une fois, avec le premier instant, le nœud et l'attribut.
+  const deplace = gesteEssai({ dessiner: (etat, o) => avecAttributs(def.dessiner(etat, o), "disque", o.fige ? { cx: etat.x + 3 } : {}) });
+  assert.deepEqual(ecartsFiges(deplace), ["0.000 s : l'image figée diffère de l'image de lecture ailleurs que par l'affichage du groupe des flèches (/svg[1]/circle[disque] cx)"]);
+  // Un texte, une marque rangée dans le groupe des flèches ou la flèche elle-même qui changent : signalés aussi. Seul le display
+  // du groupe des flèches peut différer.
+  const libelle = gesteEssai({ dessiner: (etat, o) => modifier(def.dessiner(etat, o), "libelle", (x) => (o.fige ? { ...x, enfants: ["Pause"] } : x)) });
+  assert.match(ecartsFiges(libelle).join(" | "), /\(\/svg\[2\]\/text\[libelle\]\[0\] texte\)/);
+  const marque = gesteEssai({ dessiner: (etat, o) => avecAttributs(def.dessiner(etat, o), "fleche-tete", o.fige ? {} : { fill: "#000000" }) });
+  assert.match(ecartsFiges(marque).join(" | "), /fleche-tete\] fill\)/);
+  const groupe = gesteEssai({ dessiner: (etat, o) => avecAttributs(def.dessiner(etat, o), "fleche", o.fige ? {} : { opacity: 0.5 }) });
+  assert.match(ecartsFiges(groupe).join(" | "), /g\[fleche\] opacity\)/);
+  // Le display d'un autre nœud que le groupe des flèches n'a pas cette exemption.
+  const cache = gesteEssai({ dessiner: (etat, o) => avecAttributs(def.dessiner(etat, o), "disque", { display: o.fige ? "inline" : "none" }) });
+  assert.match(ecartsFiges(cache).join(" | "), /circle\[disque\] display\)/);
+});
+
+test("points dessinés : data-x et data-y d'un rôle, bouts data-x1 à data-y2 d'un segment ; un nœud masqué, ou sous un groupe masqué, n'en a pas", () => {
+  const image = n("svg", {},
+    n("g", { "data-r": "main", "data-x": 10, "data-y": 20 }, n("circle", { "data-r": "doigt", "data-x": "11.5", "data-y": "21" })),
+    n("line", { "data-r": "brin", "data-x1": 0, "data-y1": 1, "data-x2": 2, "data-y2": 3 }),
+    n("g", { display: "none" }, n("circle", { "data-r": "cache", "data-x": 1, "data-y": 1 })),
+    n("circle", { "data-r": "sans-y", "data-x": 4 }));
+  assert.deepEqual([...pointsDessines(image).values()], [
+    { role: "main", point: [10, 20] }, { role: "doigt", point: [11.5, 21] },
+    { role: "brin (bout 1)", point: [0, 1] }, { role: "brin (bout 2)", point: [2, 3] }]);
+  assert.equal(SAUT_POINT_MAX, 8);
+});
+
+test("continuité des points dessinés : aucun ne bouge de plus de SAUT_POINT_MAX unités d'une image de lecture à la suivante, lu dans le dessin", () => {
+  // Le disque porte son point : 240 unités en 3 s sur une course adoucie, 2 unités par image au plus. En règle.
+  const avecPoint = (decaler) => gesteEssai({ dessiner: (etat, o) => avecAttributs(def.dessiner(etat, o), "disque",
+    { "data-x": etat.x + decaler(etat), "data-y": 100 }) });
+  assert.deepEqual(sautsPoints(avecPoint(() => 0)), []);
+  // Un décalage de 9 unités quand le disque passe le milieu, où il va déjà à 4 unités par image : l'état est continu, le dessin
+  // saute de 13 unités. Dit une fois, avec le rôle et les deux instants ; un décalage de 3 unités (7 en tout) passe.
+  const pb = sautsPoints(avecPoint((e) => (e.x > 160 ? 9 : 0)));
+  assert.equal(pb.length, 1);
+  assert.match(pb[0], /^saut du point « disque » de 1\.500 à 1\.517 s : 12\.\d{2} unités en une image \(8 au plus\)$/);
+  assert.deepEqual(sautsPoints(avecPoint((e) => (e.x > 160 ? 3 : 0))), []);
+  // Un point masqué ne se juge pas ; un point qui apparaît ailleurs non plus (une apparition n'est pas un saut).
+  const masque = gesteEssai({ dessiner: (etat, o) => avecAttributs(def.dessiner(etat, o), "disque",
+    { "data-x": etat.x > 160 ? 300 : 0, "data-y": 100, display: etat.x > 150 && etat.x < 170 ? "none" : "inline" }) });
+  assert.deepEqual(sautsPoints(masque), []);
 });

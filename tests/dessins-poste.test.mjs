@@ -6,7 +6,7 @@ import { SOURCES } from "../sources/dessins-poste.js";
 import { trouverRole, trouverTous, texteDe, parcourir } from "../js/dessin-svg.js";
 import { CHARTE, COULEURS_VOYANTS } from "../js/dessins-kit.js";
 import * as voyants from "../js/dessins-voyants.js";
-import { PAS_IMAGE, imageA, imageFigee } from "../js/geste-regles.js";
+import { PAS_IMAGE, imageA, imageFigee, pointsDessines } from "../js/geste-regles.js";
 import { verifierDessin, verifierGeste, formeArbre } from "./aides-dessins.mjs";
 
 // Tous les codes « poste » du catalogue : les trois dessins fixes et les trois gestes du volant (le filtre des dessins fixes du
@@ -697,51 +697,17 @@ test("retour-volant : le libellé dit l'allure de l'état à chaque instant ; il
 
 // --- Ce que montre l'image ---
 
+// Mains, doigts, pouces, poignets (avant-bras) et branches du volant : des points dessinés (data-x, data-y), affichés à chaque
+// image. Le contrôle commun des gestes (js/geste-regles.js, par verifierGeste) les suit d'une image de lecture à la suivante
+// (SAUT_POINT_MAX, 8 unités par image) et vérifie qu'une image figée est l'image de l'animation au même instant, au seul
+// affichage du groupe des flèches près ; ce test garde qu'ils sont bien là pour être suivis.
 const ROLE_POINT = /^(main|doigts|pouce|avant-bras)-(gauche|droite)$|^branche-\d+$/;
-const pointsDessines = (image) => new Map(trouverTous(image, (x) => ROLE_POINT.test(x.attributs["data-r"] || "") && "data-x" in x.attributs)
-  .map((x) => [x.attributs["data-r"], [Number(x.attributs["data-x"]), Number(x.attributs["data-y"])]]));
-
-test("gestes du volant : aucun point dessiné (mains, doigts, pouces, poignets, branches du volant) ne bouge de plus de 8 unités en une image", () => {
-  const SAUT_IMAGE = 8;   // unités par image de 1/60 s (7,5 px sur un téléphone), comme la tâche 9
+test("gestes du volant : mains, doigts, pouces, poignets et branches du volant sont des points dessinés, suivis par le contrôle commun de continuité", () => {
   for (const code of CODES_GESTES) {
     const def = geste(code);
-    let avant = null, pire = { saut: 0 };
     for (const t of instantsDe(def)) {
-      const points = pointsDessines(imageA(def, t, false));
-      assert.equal(points.size, 4 * 2 + 3, `${code} : points dessinés absents à ${t.toFixed(3)} s`);
-      if (avant) {
-        for (const [role, [x, y]] of points) {
-          const [x0, y0] = avant.get(role), saut = Math.hypot(x - x0, y - y0);
-          if (saut > pire.saut) pire = { saut, role, t };
-        }
-      }
-      avant = points;
-    }
-    assert.ok(pire.saut <= SAUT_IMAGE, `${code} : ${pire.role} : ${pire.saut.toFixed(1)} unités en une image à ${pire.t.toFixed(3)} s`);
-  }
-});
-
-// Différences d'attributs (et de textes) entre deux images de même forme.
-function differences(a, b, chemin = "", sortie = []) {
-  if (typeof a === "string") {
-    if (a !== b) sortie.push({ chemin, attribut: "#texte", role: "" });
-    return sortie;
-  }
-  for (const k of new Set([...Object.keys(a.attributs), ...Object.keys(b.attributs)])) {
-    if (String(a.attributs[k]) !== String(b.attributs[k])) sortie.push({ chemin: `${chemin}/${a.balise}`, attribut: k, role: a.attributs["data-r"] || "" });
-  }
-  a.enfants.forEach((e, i) => differences(e, b.enfants[i], `${chemin}/${a.balise}[${i}]`, sortie));
-  return sortie;
-}
-
-test("gestes du volant : une image figée est l'image de l'animation à cet instant, seul le groupe des flèches s'y montre", () => {
-  for (const code of CODES_GESTES) {
-    const def = geste(code);
-    const ts = [...def.etapes.map((e) => e.t), ...instantsDe(def).filter((_, k) => k % 4 === 0)];
-    for (const t of ts) {
-      const diff = differences(imageA(def, t, true), imageA(def, t, false));
-      assert.equal(diff.length, 1, `${code}, ${t.toFixed(3)} s : ${diff.length} différences`);
-      assert.deepEqual([diff[0].attribut, diff[0].role], ["display", "fleche"], `${code}, ${t.toFixed(3)} s`);
+      const roles = [...pointsDessines(imageA(def, t, false)).values()].map((p) => p.role).filter((r) => ROLE_POINT.test(r));
+      assert.equal(new Set(roles).size, 4 * 2 + 3, `${code} : points dessinés absents à ${t.toFixed(3)} s`);
     }
   }
 });

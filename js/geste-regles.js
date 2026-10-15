@@ -4,7 +4,8 @@
  *
  * Règles pures des gestes animés (js/geste-moteur.js) : l'image d'un geste à un instant (imageA, la même pour le moteur et
  * pour les contrôles), image figée d'une étape, problèmes (étapes, durées, images que l'exécution accepterait et de même
- * forme, continuité de l'état, flèche constante dans son étape). Testées sous Node.
+ * forme, continuité de l'état, flèche constante dans son étape, image figée qui ne diffère de l'image de lecture que par
+ * l'affichage des flèches, continuité des points dessinés). Testées sous Node.
  *
  * Une définition de geste : { titre, description, cadre: [320, H], duree, vitesseLecture?, sautsMax?, etapes: [{ t }],
  * etat(t), dessiner(etat, { fige, etape }) }. `etat(t)` est pur et sans DOM ; `dessiner` rend un nœud (js/dessin-svg.js) de
@@ -33,6 +34,12 @@ export const PART_SAUT_MAX = 0.15;
  *  valeur mathématiquement constante, calculée en virgule flottante (100 * (cos² + sin²)), varie de l'ordre de 1e-13 ; sa
  *  plage serait alors du bruit, et chaque variation un « saut » de toute sa plage. */
 export const BRUIT_CALCUL = 1e-9;
+/** Déplacement maximal, d'une image de lecture à la suivante (1/60 s), d'un point dessiné : le point d'un rôle (data-x et
+ *  data-y) ou un bout d'un segment de rôle (data-x1 à data-y2), lus dans le dessin, non dans l'état. 8 unités du cadre, 7,5 px
+ *  sur un téléphone (480 unités par seconde) : au-delà, le point saute à l'œil. Les mains les plus rapides des gestes du lot
+ *  restent sous 6,2 unités par image (mesuré le 15/10/2026). C'est la borne que les tests des familles « poste » et
+ *  « conducteur » vérifiaient chacun de leur côté, réunie ici pour tous les gestes. */
+export const SAUT_POINT_MAX = 8;
 
 /** L'image du geste à l'instant `t`, telle que le moteur la dessine : l'état de l'instant, l'étape de l'instant, image
  *  figée (flèche de l'étape visible) ou image de lecture. Le moteur, les contrôles et les tests passent tous par elle : ce
@@ -66,6 +73,52 @@ const signature = (noeud) => {
   return `${noeud.balise}{${attributs.map(([k, v]) => `${k}=${JSON.stringify(v)}`).join(",")}}(${noeud.enfants.map(signature).join(",")})`;
 };
 const fleches = (image) => trouverTous(image, (x) => x.attributs["data-r"] === "fleche").map(signature).join("|");
+
+const nombreFini = (v) => (typeof v === "number" || (typeof v === "string" && v.trim() !== "")) && Number.isFinite(Number(v));
+
+/** Points dessinés d'une image, par nœud affiché (ni lui ni un ancêtre en display none) : le point d'un rôle (data-x et data-y)
+ *  et les deux bouts d'un segment de rôle (data-x1 à data-y2). Map : chemin du point dans l'arbre (indices des enfants, puis le
+ *  bout du segment) vers { role, point }. Le chemin, non le rôle, apparie les points d'une image à la suivante : deux nœuds
+ *  peuvent porter le même rôle, et un geste garde ses nœuds d'une image à l'autre. */
+export function pointsDessines(image) {
+  const points = new Map();
+  (function visiter(noeud, chemin, cache) {
+    if (typeof noeud === "string") return;
+    const a = noeud.attributs, masque = cache || a.display === "none";
+    if (!masque) {
+      const role = a["data-r"] || noeud.balise;
+      if (nombreFini(a["data-x"]) && nombreFini(a["data-y"])) points.set(chemin, { role, point: [Number(a["data-x"]), Number(a["data-y"])] });
+      for (const bout of ["1", "2"]) {
+        const [kx, ky] = [`data-x${bout}`, `data-y${bout}`];
+        if (nombreFini(a[kx]) && nombreFini(a[ky])) points.set(`${chemin}:${bout}`, { role: `${role} (bout ${bout})`, point: [Number(a[kx]), Number(a[ky])] });
+      }
+    }
+    noeud.enfants.forEach((e, i) => visiter(e, `${chemin}/${i}`, masque));
+  })(image, "", false);
+  return points;
+}
+
+/** Ce qui distingue une image figée de l'image de lecture au même instant, hors de ce qui doit les distinguer : l'affichage
+ *  (display) des groupes des flèches (data-r="fleche", qui rangent aussi les marques et vues propres aux images figées). Liste
+ *  de « chemin attribut » ; vide si l'image figée est bien l'image de l'animation à cet instant. Les deux images ont la même
+ *  forme (vérifié avant). */
+export function ecartsFigeeLecture(figee, lecture) {
+  const ecarts = [];
+  (function comparer(a, b, chemin) {
+    if (typeof a === "string" || typeof b === "string") {
+      if (a !== b) ecarts.push(`${chemin} texte`);
+      return;
+    }
+    const ici = `${chemin}/${a.balise}${a.attributs["data-r"] ? `[${a.attributs["data-r"]}]` : ""}`;
+    for (const k of new Set([...Object.keys(a.attributs), ...Object.keys(b.attributs)])) {
+      if (k === "display" && a.attributs["data-r"] === "fleche") continue;
+      const [va, vb] = [a.attributs[k], b.attributs[k]];
+      if (va === undefined || vb === undefined || ecrireValeur(va) !== ecrireValeur(vb)) ecarts.push(`${ici} ${k}`);
+    }
+    a.enfants.forEach((e, i) => comparer(e, b.enfants[i], `${ici}[${i}]`));
+  })(figee, lecture, "");
+  return ecarts;
+}
 
 /** Instants échantillonnés : toutes les 1/60 s, et exactement `duree` à la fin. */
 function instantsDe(duree) {
@@ -133,16 +186,21 @@ function controlerEtat(def, instants, etats, pb) {
 // comparées à la première, celle du montage (figée à 0 s), par la vérification même de mettreAJour (problemeMiseAJour) :
 // même forme, valeurs que l'écriture accepte. Ce qu'elle refuserait à l'exécution, et qui figerait la lecture, est dit ici
 // avec son instant, une fois par message. Sur les images figées, la flèche de l'étape garde tous ses attributs d'une image
-// à l'autre dans l'étape (une flèche qui bougerait en pause d'un instant à l'autre). `aInstant(t)` note l'instant pour le
-// message d'une erreur levée par le geste lui-même.
+// à l'autre dans l'étape (une flèche qui bougerait en pause d'un instant à l'autre). Une image figée est l'image de lecture du
+// même instant, au seul affichage du groupe des flèches près (ecartsFigeeLecture) : sinon le passage du pas à pas à la lecture
+// ferait sauter le dessin. Aucun point dessiné (pointsDessines) ne bouge de plus de SAUT_POINT_MAX d'une image de lecture à la
+// suivante. Chaque écart n'est dit qu'une fois, à son premier instant. `aInstant(t)` note l'instant pour le message d'une
+// erreur levée par le geste lui-même.
 function controlerImages(def, instants, pb, aInstant) {
   const reference = imageA(def, 0, true);
   const dits = new Set();
   const flechesDeLEtape = new Map();
   const etapesDites = new Set();
+  let precedents = null, tPrecedent = 0;
   for (const t of instants) {
     aInstant(t);
     const etape = etapeA(def.etapes, t);
+    const images = {};
     for (const fige of [false, true]) {
       const image = imageA(def, t, fige);
       const probleme = problemeMiseAJour(reference, image);
@@ -150,6 +208,7 @@ function controlerImages(def, instants, pb, aInstant) {
         if (!dits.has(probleme)) { dits.add(probleme); pb.push(`${t.toFixed(3)} s, image ${fige ? "figée" : "de lecture"} : ${probleme}`); }
         continue;
       }
+      images[fige ? "figee" : "lecture"] = image;
       if (!fige) continue;
       const flechesDeLImage = fleches(image);
       if (!flechesDeLEtape.has(etape)) flechesDeLEtape.set(etape, flechesDeLImage);
@@ -158,6 +217,31 @@ function controlerImages(def, instants, pb, aInstant) {
         pb.push(`la flèche de l'étape ${etape + 1} change à l'intérieur de l'étape (à ${t.toFixed(3)} s) : elle garde ses points et ses attributs d'une image figée à l'autre`);
       }
     }
+    if (images.figee && images.lecture) {
+      for (const ecart of ecartsFigeeLecture(images.figee, images.lecture)) {
+        const cle = `figée ${ecart}`;
+        if (!dits.has(cle)) {
+          dits.add(cle);
+          pb.push(`${t.toFixed(3)} s : l'image figée diffère de l'image de lecture ailleurs que par l'affichage du groupe des flèches (${ecart})`);
+        }
+      }
+    }
+    if (!images.lecture) { precedents = null; continue; }
+    const points = pointsDessines(images.lecture);
+    if (precedents) {
+      for (const [chemin, { role, point }] of points) {
+        const avant = precedents.get(chemin);
+        if (!avant) continue;
+        const saut = Math.hypot(point[0] - avant.point[0], point[1] - avant.point[1]);
+        const cle = `point ${chemin}`;
+        if (saut > SAUT_POINT_MAX + BRUIT_CALCUL && !dits.has(cle)) {
+          dits.add(cle);
+          pb.push(`saut du point « ${role} » de ${tPrecedent.toFixed(3)} à ${t.toFixed(3)} s : ${saut.toFixed(2)} unités en une image (${SAUT_POINT_MAX} au plus)`);
+        }
+      }
+    }
+    precedents = points;
+    tPrecedent = t;
   }
 }
 
