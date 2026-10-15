@@ -557,7 +557,7 @@ test("angles-morts : la voiture, la rue, le marquage, le cône du regard et le c
   assert.equal(TEINTES_ROUTE.chaussee, TEINTES.chaussee);
 });
 
-test("angles-morts : chaque nom désigne ce qu'il nomme (angle mort dans sa zone, hors du deux-roues ; coup d'œil dans son cône, hors de la zone ; rétroviseurs dans leur champ)", () => {
+test("angles-morts : chaque nom désigne ce qu'il nomme (angle mort dans sa zone, hors du deux-roues ; coup d'œil dans son cône ; rétroviseurs dans leur champ)", () => {
   const d = famille.DESSINS["angles-morts"]();
   const g = trouverRole(d, "deux-roues");
   const [x, y, lo, la] = ["data-x", "data-y", "data-longueur", "data-largeur"].map((k) => Number(g.attributs[k]));
@@ -568,7 +568,6 @@ test("angles-morts : chaque nom désigne ce qu'il nomme (angle mort dans sa zone
   const c = cible("nom-gauche");
   assert.ok(Math.abs(c[0] - x) > la / 2 + 3 || Math.abs(c[1] - y) > lo / 2 + 3, "le point de l'étiquette ne couvre pas le deux-roues");
   assert.ok(dansPolygoneConvexe(cible("nom-regard"), pointsRole(d, "coup-d-oeil"), 2), "le coup d'œil désigne son cône");
-  assert.ok(!dansPolygoneConvexe(cible("nom-regard"), zoneDe(d, "angle-mort-gauche")), "le coup d'œil désigné hors de la zone");
   const champs = { "nom-champGauche": "champ-gauche", "nom-champInterieur": "champ-interieur", "nom-champDroit": "champ-droit" };
   for (const [role, champ] of Object.entries(champs)) {
     assert.ok(dansPolygoneConvexe(cible(role), pointsRole(d, champ), 1), `${role} : la cible n'est pas dans ${champ}`);
@@ -578,6 +577,58 @@ test("angles-morts : chaque nom désigne ce qu'il nomme (angle mort dans sa zone
   }
   const t = textes(d);
   for (const mot of ["Angle mort", "Coup d'œil", "par-dessus l'épaule", "Rétroviseur", "gauche", "intérieur", "droit"]) assert.ok(t.includes(mot), mot);
+});
+
+// Le coup d'œil se lit par-dessus l'épaule, vers l'arrière : le point de son étiquette est derrière l'œil (le long du cap), dans le
+// cône, sur son axe (à 5 degrés près), à 2 m au moins de l'œil ; posé devant l'œil, au bord avant du cône, il faisait lire « regarder
+// à gauche » (relecture finale du lot D1).
+const AXE_REGARD_ECART_MAX = 5, DISTANCE_REGARD_MIN = 2;
+test("angles-morts : l'étiquette du coup d'œil désigne sa partie tournée vers l'arrière : derrière l'œil, sur l'axe du regard, dans le cône", () => {
+  const d = famille.DESSINS["angles-morts"]();
+  const v = vueDessus(d), e = trouverRole(d, "nom-regard");
+  const p = [Number(e.attributs["data-x"]), Number(e.attributs["data-y"])];
+  const cone = pointsRole(d, "coup-d-oeil");
+  assert.ok(dansPolygoneConvexe(p, cone, 2), "le point est hors du cône");
+  // Le long du cap (vers le haut du cadre), le point est derrière l'œil.
+  const avance = (v.r.oeil[1] - p[1]) / v.s;
+  assert.ok(avance < 0, `le point est ${avance.toFixed(2)} m devant l'œil`);
+  const ecart = Math.abs(angleDepuisCap(v.r.oeil, p) + 120);
+  assert.ok(ecart <= AXE_REGARD_ECART_MAX, `le point est à ${ecart.toFixed(1)} degrés de l'axe du regard (-120)`);
+  assert.ok(Math.hypot(p[0] - v.r.oeil[0], p[1] - v.r.oeil[1]) / v.s >= DISTANCE_REGARD_MIN, "le point colle à l'œil");
+  // Il ne touche pas le point de l'étiquette « Angle mort » ni le deux-roues.
+  const autre = trouverRole(d, "nom-gauche"), q = [Number(autre.attributs["data-x"]), Number(autre.attributs["data-y"])];
+  const rayon = (x) => Math.max(...trouverTous(x, (y) => y.balise === "circle").map((c) => Number(c.attributs.r)));
+  assert.ok(Math.hypot(p[0] - q[0], p[1] - q[1]) > rayon(e) + rayon(autre) + 4, "les points des deux étiquettes se touchent");
+  const g = trouverRole(d, "deux-roues");
+  const [x, y, lo, la] = ["data-x", "data-y", "data-longueur", "data-largeur"].map((k) => Number(g.attributs[k]));
+  assert.ok(Math.abs(p[0] - x) > la / 2 + rayon(e) || Math.abs(p[1] - y) > lo / 2 + rayon(e), "le point couvre le deux-roues");
+});
+
+// Sous le cône du coup d'œil, la zone d'angle mort qu'il couvre est voilée de son propre fond : ses hachures s'y éclaircissent, et la
+// teinte du regard y domine, comme sur la chaussée devant le conducteur ; sans ce voile, derrière le conducteur, le cône n'était
+// qu'une teinte sur la hachure (relecture finale du lot D1). La zone que le coup d'œil ne couvre pas (à droite) garde ses hachures.
+test("angles-morts : le cône du coup d'œil se lit sur la zone gauche qu'il couvre : un voile du fond de la zone, entre ses hachures et le cône", () => {
+  const d = famille.DESSINS["angles-morts"]();
+  const cone = pointsRole(d, "coup-d-oeil"), zone = zoneDe(d, "angle-mort-gauche");
+  const voile = trouverRole(d, "voile-coup-d-oeil");
+  assert.ok(voile, "aucun voile sous le cône");
+  const pts = pointsDe(voile.attributs.d);
+  assert.equal(voile.attributs.fill, trouverRole(trouverRole(d, "angle-mort-gauche"), "zone").attributs.fill, "voile du fond de la zone");
+  const opacite = Number(voile.attributs["fill-opacity"]);
+  assert.ok(opacite >= 0.3 && opacite <= 0.7, `voile à ${opacite} d'opacité`);
+  // Le voile est la part de la zone gauche sous le cône : dans les deux, et de même aire que leur partie commune.
+  for (const q of pts) {
+    assert.ok(dansPolygoneConvexe(q, cone, -0.01) && dansPolygoneConvexe(q, zone, -0.01), `point ${q} du voile hors du cône ou de la zone`);
+  }
+  const commun = dansConvexe(zone, cone);
+  assert.ok(Math.abs(aire(pts) - aire(commun)) <= 0.5, `voile de ${aire(pts).toFixed(1)} unités carrées pour ${aire(commun).toFixed(1)} de zone sous le cône`);
+  // Empilement : les hachures de la zone, puis le voile, puis le cône.
+  const ordre = trouverTous(d, () => true);   // ordre du document : de dessous à dessus
+  const rang = (x) => ordre.indexOf(x);
+  const hachuresGauche = trouverRole(d, "angle-mort-gauche").enfants.find((x) => x.balise === "path" && x.attributs["data-r"] !== "zone");
+  assert.ok(rang(hachuresGauche) < rang(voile) && rang(voile) < rang(trouverRole(d, "coup-d-oeil")), "voile hors de sa place, entre hachures et cône");
+  // La zone droite, hors du cône, n'est pas voilée.
+  assert.equal(trouverTous(d, (x) => /^voile/.test(x.attributs["data-r"] || "")).length, 1, "un seul voile");
 });
 
 test("angles-morts : les champs extérieurs partent du verre du miroir et s'arrêtent au rayon qui frôle le coin arrière ; le champ intérieur est dans l'axe", () => {

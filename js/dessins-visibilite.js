@@ -428,10 +428,14 @@ const ANGLES_MORTS = {
   oeil: 1.8,               // rayon du point de l'œil
   champs: { opacite: 0.42 },
   zones: { opacite: 0.85 },
+  // Sous le cône du coup d'œil, la zone qu'il couvre est voilée de son propre fond, à cette opacité : ses hachures s'éclaircissent et la
+  // teinte du regard y domine, comme sur la chaussée devant le conducteur.
+  voile: 0.5,
   // Étiquettes : ancre x (unités) et cible (m) ; en haut, le texte au-dessus de l'ancre, posée au bas de la bande ; en bas, le
-  // texte sous l'ancre, posée en haut de la bande.
+  // texte sous l'ancre, posée en haut de la bande. Le coup d'œil : sa cible sur l'axe du regard, à `distance` m de l'œil, derrière lui,
+  // entre le deux-roues et le point de l'étiquette « Angle mort ».
   etiquettes: {
-    gauche: { x: 38, cible: [-1.0, -3.4] }, regard: { x: 128, cible: [0.6, -2.4] }, droite: { x: 282, cible: [-1.0, 2.3] },
+    gauche: { x: 38, cible: [-1.0, -3.4] }, regard: { x: 128, distance: 2.6 }, droite: { x: 282, cible: [-1.0, 2.3] },
     champGauche: { x: 64, cible: [-3.3, -1.3] }, champInterieur: { x: 192, cible: [-3.3, 0] }, champDroit: { x: 266, cible: [-3.3, 1.1] },
     jeu: 4,                // de l'ancre au bord de la chaussée
   },
@@ -494,6 +498,10 @@ function anglesMorts() {
   };
   const cone = surSol([r.oeil, plusLoin(r.oeil, direction(R.angle - R.demiOuverture), R.portee * s),
     plusLoin(r.oeil, direction(R.angle + R.demiOuverture), R.portee * s)]);
+  // La part de la zone gauche sous le cône, voilée (les deux sont convexes ; dansConvexe veut le cône dans le sens des aiguilles
+  // d'une montre à l'écran).
+  const horaire = (poly) => (poly.reduce((somme, p, i) => { const q = poly[(i + 1) % poly.length]; return somme + p[0] * q[1] - q[0] * p[1]; }, 0) > 0 ? poly : [...poly].reverse());
+  const voile = dansConvexe(zone(miroirs.gauche), horaire(cone));
 
   // Les champs, clairs, sans contour ; seuls leurs bords qui s'écartent sont tracés (le bord extérieur d'un champ extérieur, qui
   // borne l'angle mort, et les deux bords du champ intérieur) : un trait le long d'un flanc passerait pour du marquage.
@@ -505,8 +513,8 @@ function anglesMorts() {
       "stroke-linecap": "round", "data-r": role });
   };
   const t = CHARTE.tailles.petite;
-  const nomHaut = (cle, lignes) => etiquette({ cible: versCadre(Et[cle].cible), ancre: [Et[cle].x, haut - Et.jeu], lignes, ancrage: "middle",
-    taille: t, role: `nom-${cle}` });
+  const nomHaut = (cle, lignes, cible = versCadre(Et[cle].cible)) => etiquette({ cible, ancre: [Et[cle].x, haut - Et.jeu], lignes,
+    ancrage: "middle", taille: t, role: `nom-${cle}` });
   const nomBas = (cle, lignes) => etiquette({ cible: versCadre(Et[cle].cible), ancre: [Et[cle].x, basChaussee + Et.jeu], lignes,
     ancrage: "middle", taille: t, role: `nom-${cle}` });
   const eg = bordDe(miroirs.gauche.bordExterieur), ed = bordDe(miroirs.droit.bordExterieur);
@@ -524,12 +532,14 @@ function anglesMorts() {
   bord("bord-interieur-droit", bordsLunette[1], unitaire([bordsLunette[1][0] - reflet[0], bordsLunette[1][1] - reflet[1]])),
   bord("bord-gauche", eg.depart, eg.direction), bord("bord-droit", ed.depart, ed.direction),
   zoneHachuree("angle-mort-gauche", zone(miroirs.gauche), A.zones.opacite), zoneHachuree("angle-mort-droit", zone(miroirs.droit), A.zones.opacite),
+  voile.length > 2 && n("path", { d: trace(voile), fill: TEINTES_ZONE.fond, "fill-opacity": A.voile, "data-r": "voile-coup-d-oeil" }),
   n("path", { d: trace(cone), fill: TEINTES_ROUTE.regard, opacity: R.opacite, "data-r": "coup-d-oeil" }),
   n("g", { "data-r": "vue-dessus", "data-echelle": s, "data-x": cx, "data-y": cy }, voiture),
   n("circle", { cx: r.oeil[0], cy: r.oeil[1], r: A.oeil + CHARTE.liseres, fill: CHARTE.carte }),
   n("circle", { cx: r.oeil[0], cy: r.oeil[1], r: A.oeil, fill: CHARTE.texte, "data-r": "oeil" }),
   cyclisteDessus(versCadre(A.cycliste), s),
-  nomHaut("gauche", ["Angle mort"]), nomHaut("regard", ["Coup d'œil", "par-dessus l'épaule"]), nomHaut("droite", ["Angle mort"]),
+  nomHaut("gauche", ["Angle mort"]), nomHaut("droite", ["Angle mort"]),
+  nomHaut("regard", ["Coup d'œil", "par-dessus l'épaule"], plusLoin(r.oeil, direction(R.angle), Et.regard.distance * s)),
   nomBas("champGauche", ["Rétroviseur", "gauche"]), nomBas("champInterieur", ["Rétroviseur", "intérieur"]), nomBas("champDroit", ["Rétroviseur", "droit"]));
 }
 

@@ -151,12 +151,17 @@ export const SOURCES = {
       + "ouverture, 100 degrés (50 de part et d'autre de l'axe), est le champ visuel utile à faible allure (thème 26 : environ "
       + "100 degrés à 40 km/h) : la tête tournée vers l'épaule porte ce champ vers l'arrière gauche. Il couvre toute la zone gauche "
       + "dessinée, vue de l'œil de 90 à 162 degrés du cap. Le cône des scènes (16 degrés de part et d'autre) montre où se pose le "
-      + "regard au fil d'une manœuvre ; ici, le dessin montre ce que le coup d'œil embrasse.",
+      + "regard au fil d'une manœuvre ; ici, le dessin montre ce que le coup d'œil embrasse. Sous le cône, la zone gauche est voilée "
+      + "de son propre fond (opacité 0,5) : ses hachures s'éclaircissent et la teinte du regard y domine, comme sur la chaussée devant "
+      + "le conducteur ; sans ce voile, derrière le conducteur, le cône n'était qu'une teinte sur la hachure. La zone droite, que le coup "
+      + "d'œil ne couvre pas, garde ses hachures.",
     "Choix de dessin, deux-roues : le cycliste de la scène « sortie-portiere », la même pièce (js/piece-cycliste.js : 1,8 sur "
       + "0,6 m, roues de 0,7 m aux bouts arrondis, guidon arrondi, teintes des scènes), posée cap vers le haut ; centré 1,85 m à gauche "
       + "de l'axe et 1,0 m derrière le centre de la voiture, il longe la portière arrière et l'aile arrière entre 0,65 et 1,25 m du "
       + "flanc : tout entier dans la zone gauche, à 0,1 m au moins de ses bords, hors du champ du rétroviseur gauche. C'est le "
       + "cycliste que le rétroviseur ne montre pas au moment d'ouvrir la portière. Étiquettes : « Angle mort » de chaque côté et "
-      + "« Coup d'œil par-dessus l'épaule » en haut, les trois rétroviseurs en bas, chacune avec son point dans ce qu'elle nomme.",
+      + "« Coup d'œil par-dessus l'épaule » en haut, les trois rétroviseurs en bas, chacune avec son point dans ce qu'elle nomme. Le "
+      + "point du coup d'œil est sur l'axe du regard, à 2,6 m derrière l'œil (vers l'arrière gauche, à -120 degrés du cap), entre le "
+      + "deux-roues et le point de l'étiquette « Angle mort » : il dit un regard tourné vers l'arrière, par-dessus l'épaule.",
   ],
 };
