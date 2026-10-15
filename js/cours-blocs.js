@@ -59,8 +59,16 @@ import { entreeBloc } from "./catalogue-blocs.js?v=20261015a";
 // l'adresse de ce fichier, donc ne peut pas se périmer, et le même test vérifie que chaque reprise vise le fichier de son import
 // littéral. Un nouveau module racine suit cette règle ; un module partagé entre familles (dessins-kit.js) n'est pas une racine.
 const JETON = new URL(import.meta.url).search;
-const importer = (essai, chemin, premier) => (essai === 0 ? premier() : import(adresseDeReprise(chemin, JETON, essai)));
-const CHARGEURS = {
+/** L'import d'un module racine de la table : au premier essai (`essai` 0), son import littéral (`premier`) ; à l'essai N, le même
+ *  fichier (`chemin`) sous une adresse nouvelle, avec le jeton `jeton` et « essai=N » (adresseDeReprise), demandée par
+ *  `importDynamique`. Exporté pour les tests, qui y passent un import factice. */
+export function creerImporteur(jeton, importDynamique) {
+  return (essai, chemin, premier) => (essai === 0 ? premier() : importDynamique(adresseDeReprise(chemin, jeton, essai)));
+}
+const importer = creerImporteur(JETON, (adresse) => import(adresse));
+/** Un chargeur par module de blocs : `(essai) => promesse du module`. Exportée pour les tests, qui vérifient qu'une reprise
+ *  redemande vraiment le module (tests/chargement.test.mjs). */
+export const CHARGEURS = {
   route: (essai) => Promise.all([
     importer(essai, "./scenes.js", () => import("./scenes.js?v=20261015a")),
     importer(essai, "./scene-moteur.js", () => import("./scene-moteur.js?v=20261015a")),
