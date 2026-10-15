@@ -173,8 +173,9 @@ export const CATALOGUE = {
   "retour-volant": { bloc: "scene", module: "poste", titre: "Le retour du volant",
     etapesModele: ["En sortie de virage, les doigts laissent glisser le volant", "Il revient droit seul",
       "À basse allure, les mains braquent ; relâché, le volant ne revient pas seul", "Les mains le ramènent"], cadre: [320, 210] },
-  "regard-loin": { bloc: "dessin", module: "dessus", titre: "Regarder loin",
-    legendeModele: "La voiture suit le regard : regarder loin, là où l'on veut aller.", cadre: [320, 230] },
+  "regard-loin": { bloc: "scene", module: "dessus", titre: "Regarder loin",
+    etapesModele: ["En entrée de virage, le regard vise la corde, dans sa voie", "À la corde, il porte déjà vers la sortie",
+      "En sortie, il porte loin, droit devant"], cadre: [320, 270] },
 };
 
 /** L'entrée d'un code, ou null : seules les propriétés propres comptent (« constructor » n'est pas un bloc). */

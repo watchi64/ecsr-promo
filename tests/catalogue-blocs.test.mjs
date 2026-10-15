@@ -59,7 +59,7 @@ test("les 24 codes du lot D1 sont au catalogue, dans leur module", () => {
   }
   const animes = Object.values(attendus).flat().filter((c) => CATALOGUE[c].bloc === "scene");
   assert.equal(Object.values(attendus).flat().length, 24);
-  assert.equal(animes.length, 6);
+  assert.equal(animes.length, 7);
 });
 
 // Complétude : chaque code du catalogue est fourni par son module, du genre que le catalogue annonce (un dessin fixe dans DESSINS,
