@@ -4,10 +4,10 @@ import { CATALOGUE } from "../js/catalogue-blocs.js";
 import * as famille from "../js/dessins-poste.js";
 import { SOURCES } from "../sources/dessins-poste.js";
 import { trouverRole, trouverTous, texteDe, parcourir } from "../js/dessin-svg.js";
-import { CHARTE, COULEURS_VOYANTS } from "../js/dessins-kit.js";
+import { CHARTE, COULEURS_VOYANTS, LARGEUR_TELEPHONE, TAILLE_TEXTE_MIN_PX } from "../js/dessins-kit.js";
 import * as voyants from "../js/dessins-voyants.js";
-import { PAS_IMAGE, imageA, imageFigee, pointsDessines } from "../js/geste-regles.js";
-import { verifierDessin, verifierGeste, formeArbre } from "./aides-dessins.mjs";
+import { PAS_IMAGE, SAUT_POINT_MAX, imageA, imageFigee, pointsDessines } from "../js/geste-regles.js";
+import { verifierDessin, verifierGeste, formeArbre, boitesTextes } from "./aides-dessins.mjs";
 
 // Tous les codes « poste » du catalogue : les trois dessins fixes et les trois gestes du volant (le filtre des dessins fixes du
 // Ruling R2, tâche 6, est retiré avec l'arrivée des gestes).
@@ -32,34 +32,91 @@ test("poste : chaque dessin a ses sources, dont ses choix de dessin", () => {
 
 // ===== Exactitude : un dessin dit ce que dit le cours =====
 
-test("mains-volant : 9 h et 3 h, pouces sur la jante (juste), pouce dans la jante (faux)", () => {
-  const d = famille.DESSINS["mains-volant"]();
-  const juste = trouverRole(d, "vignette-juste"), faux = trouverRole(d, "vignette-faux");
-  for (const [vignette, attendu] of [[juste, "jante"], [faux, "interieur"]]) {
-    const v = trouverRole(vignette, "volant");
-    const [cx, cy, r] = ["data-x", "data-y", "data-rayon"].map((k) => v.attributs[k]);
-    const e = r * famille.EPAISSEUR_JANTE;
-    const distance = (role) => { const p = trouverRole(vignette, role); return Math.hypot(p.attributs["data-x"] - cx, p.attributs["data-y"] - cy); };
-    const angle = (role) => { const p = trouverRole(vignette, role); return Math.atan2(cy - p.attributs["data-y"], p.attributs["data-x"] - cx) * 180 / Math.PI; };
-    assert.ok(Math.abs(Math.abs(angle("main-gauche")) - 180) < 0.5 && Math.abs(angle("main-droite")) < 0.5);
-    assert.ok(Math.abs(distance("pouce-droite") - r) <= e / 2);
-    if (attendu === "jante") assert.ok(Math.abs(distance("pouce-gauche") - r) <= e / 2);
-    else assert.ok(distance("pouce-gauche") < r - e / 2);
-  }
-});
-
 const textesDe = (noeud) => trouverTous(noeud, (x) => x.balise === "text").map(texteDe).join(" ").toLocaleLowerCase("fr");
 
-test("mains-volant : « ou 10 h 10 » écrit sous la vignette juste, l'erreur nommée sous la vignette faux", () => {
+// Style schématique (décision du formateur du 15/10/2026) : chaque main est un repère, un disque marqué « G » ou « D ». Lecture
+// d'un repère dans un dessin, autour du volant de centre (cx, cy) : son centre, son heure (12 en haut, de 0 à 12), sa distance au
+// centre ; plein (disque du ton sombre de la peau, lettre claire) ou creux (disque du fond clair, lettre du ton de la peau) ; sa
+// lettre, sa teinte et son opacité (celle de ses ancêtres dans le repère) ; la part de son remplissage, de 0 (creux) à 1 (plein),
+// lue dans la teinte du disque.
+function lireRepere(noeud, cote, [cx, cy]) {
+  const m = trouverRole(noeud, `main-${cote}`);
+  const [x, y] = [Number(m.attributs["data-x"]), Number(m.attributs["data-y"])];
+  const disque = trouverRole(m, `disque-${cote}`), lettre = trouverRole(m, `lettre-${cote}`);
+  const heure = ((((Math.atan2(x - cx, cy - y) * 6) / Math.PI) % 12) + 12) % 12;
+  const opacite = opaciteDans(m, lettre);
+  return { x, y, heure, distance: Math.hypot(x - cx, y - cy), noeud: m, lettre: texteDe(lettre), rayon: Number(disque.attributs.r),
+    teinteDisque: disque.attributs.fill, teinteLettre: lettre.attributs.fill, opaciteLettre: opacite,
+    plein: disque.attributs.fill === CHARTE.peauOmbre && lettre.attributs.fill === CHARTE.carte && opacite === 1,
+    creux: disque.attributs.fill === CHARTE.carte && lettre.attributs.fill === CHARTE.peauOmbre && opacite === 1,
+    remplissage: partEntre(disque.attributs.fill, CHARTE.carte, CHARTE.peauOmbre) };
+}
+// Opacité d'un nœud dans une racine : le produit des opacités du chemin qui y mène, lui compris.
+function opaciteDans(racine, cible) {
+  const chemin = (x) => {
+    if (x === cible) return [x];
+    for (const e of x.enfants || []) {
+      if (typeof e === "string") continue;
+      const suite = chemin(e);
+      if (suite) return [x, ...suite];
+    }
+    return null;
+  };
+  return (chemin(racine) || []).reduce((o, x) => o * (x.attributs.opacity === undefined ? 1 : Number(x.attributs.opacity)), 1);
+}
+// Part du chemin de la couleur a à la couleur b où se trouve la couleur c (#RRGGBB), lue sur leurs trois composantes.
+function partEntre(c, a, b) {
+  const comp = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+  const [cc, ca, cb] = [comp(c), comp(a), comp(b)];
+  const parts = [0, 1, 2].filter((i) => ca[i] !== cb[i]).map((i) => (cc[i] - ca[i]) / (cb[i] - ca[i]));
+  return parts.reduce((s, p) => s + p, 0) / parts.length;
+}
+const ecartHeure = (a, b) => Math.abs(((((a - b) % 12) + 18) % 12) - 6);
+const centreVolant = (noeud) => {
+  const v = trouverRole(noeud, "volant").attributs;
+  return [Number(v["data-x"]), Number(v["data-y"]), Number(v["data-rayon"])];
+};
+
+test("mains-volant : deux volants, la position de référence (main gauche à 9 h, main droite à 3 h) puis la variante 10 h 10 (10 h et 2 h) ; les mains en repères G et D pleins, posés sur la jante, chaque position écrite sous son volant", () => {
   const d = famille.DESSINS["mains-volant"]();
-  const carte = (etat) => trouverRole(d, `vignette-${etat}`).enfants[0].attributs;
-  for (const [etat, mot] of [["juste", "ou 10 h 10"], ["faux", "pouce engagé dans la jante"]]) {
-    const legende = trouverRole(d, `legende-${etat}`);
-    assert.ok(legende && texteDe(legende).toLocaleLowerCase("fr").includes(mot), `${etat} : « ${mot} »`);
-    const c = carte(etat);
-    const x = Number(legende.attributs.x), y = Number(legende.attributs.y);
-    assert.ok(x > c.x && x < c.x + c.width, `${etat} : légende sous sa vignette, pas sous l'autre`);
-    assert.ok(y > c.y + c.height, `${etat} : légende sous la vignette`);
+  const attendu = [{ gauche: 9, droite: 3, legende: "9 h et 3 h" }, { gauche: 10, droite: 2, legende: "ou 10 h 10" }];
+  attendu.forEach((a, i) => {
+    const position = trouverRole(d, `position-${i + 1}`);
+    assert.ok(position, `position ${i + 1}`);
+    const [cx, cy, r] = centreVolant(position);
+    for (const cote of ["gauche", "droite"]) {
+      const rep = lireRepere(position, cote, [cx, cy]);
+      assert.ok(ecartHeure(rep.heure, a[cote]) < 1e-6, `position ${i + 1}, main ${cote} à ${rep.heure.toFixed(3)} h au lieu de ${a[cote]} h`);
+      assert.ok(Math.abs(rep.distance - r) < 1e-6, `position ${i + 1}, main ${cote} hors de la ligne médiane de la jante`);
+      assert.ok(rep.plein, `position ${i + 1}, main ${cote} : elle tient la jante, repère plein`);
+      assert.equal(rep.lettre, cote === "gauche" ? "G" : "D");
+    }
+    const legende = trouverRole(position, "legende");
+    assert.equal(texteDe(legende), a.legende);
+    assert.ok(Number(legende.attributs.y) > cy + r && Math.abs(Number(legende.attributs.x) - cx) < 1e-6, `légende ${i + 1} sous son volant`);
+  });
+  // Le volant de gauche est la référence, celui de droite la variante.
+  assert.ok(centreVolant(trouverRole(d, "position-1"))[0] < centreVolant(trouverRole(d, "position-2"))[0]);
+  // Plus aucun pouce dessiné, ni d'anneau qui le désigne : la règle des pouces reste dans le texte du cours.
+  assert.equal(trouverTous(d, (x) => /pouce/.test(x.attributs["data-r"] || "")).length, 0);
+  assert.ok(!textesDe(d).includes("pouce"));
+});
+
+test("mains-volant : « Midi » en haut de chaque volant, écrit dans sa couronne, entre le moyeu et le bord intérieur de la jante", () => {
+  const d = famille.DESSINS["mains-volant"]();
+  for (const i of [1, 2]) {
+    const position = trouverRole(d, `position-${i}`), [cx, cy, r] = centreVolant(position);
+    const e = r * famille.EPAISSEUR_JANTE, rMoyeu = Number(trouverRole(position, "moyeu").enfants[0].attributs.r);
+    const midi = trouverRole(position, "midi");
+    assert.equal(texteDe(midi), "Midi");
+    const [b] = boitesTextes(midi);
+    assert.ok(Math.abs((b.x1 + b.x2) / 2 - cx) < 1e-6, `volant ${i} : « Midi » centré au-dessus du centre`);
+    assert.ok(b.y1 > cy - (r - e / 2) && b.y2 < cy - rMoyeu, `volant ${i} : « Midi » hors de la couronne (de ${b.y1.toFixed(1)} à ${b.y2.toFixed(1)})`);
+    // Il ne touche ni un repère ni une branche : les branches sont à 3 h, 6 h et 9 h, le haut de la couronne est libre.
+    for (const cote of ["gauche", "droite"]) {
+      const rep = lireRepere(position, cote, [cx, cy]), lim = rep.rayon + CHARTE.liseres;
+      assert.ok(rep.x + lim < b.x1 || rep.x - lim > b.x2 || rep.y + lim < b.y1 || rep.y - lim > b.y2, `volant ${i} : « Midi » sur le repère ${cote}`);
+    }
   }
 });
 
@@ -162,45 +219,83 @@ test("volant : centre, rayon et angle sur le groupe ; trois branches à 3 h, 6 h
   assert.ok(famille.EPAISSEUR_JANTE > 0.1 && famille.EPAISSEUR_JANTE < 0.3, "épaisseur de jante en fraction du rayon");
 });
 
-test("main : posée sur la jante à son heure ; pouce sur la jante ou à l'intérieur ; même forme, ouverte ou fermée, avec ou sans avant-bras", () => {
-  const C = { cx: 160, cy: 100, rayon: 50 };
-  const e = C.rayon * famille.EPAISSEUR_JANTE;
-  const dist = (n) => Math.hypot(n.attributs["data-x"] - C.cx, n.attributs["data-y"] - C.cy);
-  const avantBras = { coude: [C.cx - 70, C.cy + 90], limite: [0, 0, 320, 200] };
-  const forme = formeArbre(famille.main({ ...C, heure: 9, cote: "gauche" }));
-  const formeBras = formeArbre(famille.main({ ...C, heure: 9, cote: "gauche", avantBras }));
-  assert.notEqual(formeBras, forme, "l'avant-bras ajoute ses nœuds");
-  for (const [cote, heure] of [["gauche", 9], ["droite", 3], ["droite", 12], ["gauche", 10.5], ["droite", 1.25]]) {
-    for (const prise of [0, 0.5, 1]) {
-      const jante = famille.main({ ...C, heure, cote, prise });
-      const interieur = famille.main({ ...C, heure, cote, prise, pouce: "interieur" });
-      const m = trouverRole(jante, `main-${cote}`);
-      const [x, y] = famille.pointHeure(C.cx, C.cy, C.rayon, heure);
-      assert.ok(proche(m.attributs["data-x"], x, 1e-6) && proche(m.attributs["data-y"], y, 1e-6), `${cote} à ${heure} h`);
-      // Tant que la main tient ou glisse (prise d'au moins 0,5), le pouce est sur la jante, ou dedans s'il y est engagé.
-      if (prise >= 0.5) {
-        assert.ok(Math.abs(dist(trouverRole(jante, `pouce-${cote}`)) - C.rayon) <= e / 2, `${cote} ${heure} h prise ${prise} : pouce sur la jante`);
-        assert.ok(dist(trouverRole(interieur, `pouce-${cote}`)) < C.rayon - e / 2, `${cote} ${heure} h prise ${prise} : pouce dans la jante`);
-      }
-      // Une animation garde ses nœuds : ni l'heure, ni la prise, ni le pouce, ni le côté ne changent la forme de l'arbre,
-      // avec ou sans avant-bras.
-      assert.equal(formeArbre(jante), forme);
-      assert.equal(formeArbre(interieur), forme);
-      assert.equal(formeArbre(famille.main({ ...C, heure, cote, prise, avantBras })), formeBras, `${cote} ${heure} h prise ${prise}, avant-bras`);
+test("volant schématique : la même jante, le même moyeu et les mêmes trois branches, à plat, sans reflet, d'une seule teinte", () => {
+  for (const angle of [0, 75, -120]) {
+    const plat = famille.volant({ cx: 120, cy: 90, rayon: 50, angle, schema: true }), detaille = famille.volant({ cx: 120, cy: 90, rayon: 50, angle });
+    for (const role of ["reflet-jante", "reflet-moyeu"]) {
+      assert.ok(trouverRole(detaille, role), `${role} du volant détaillé`);
+      assert.equal(trouverRole(plat, role), null, `${role} dans le volant schématique`);
     }
+    for (const role of ["volant", "volant-tournant", "jante", "moyeu", "branche-3", "branche-6", "branche-9"]) {
+      assert.deepEqual(trouverRole(plat, role).attributs, trouverRole(detaille, role).attributs, `${role}, angle ${angle}`);
+    }
+    const teintes = new Set();
+    parcourir(plat, (x) => { for (const k of ["fill", "stroke"]) if (x.attributs[k] && x.attributs[k] !== "none") teintes.add(x.attributs[k]); });
+    assert.equal(teintes.size, 1, `teintes : ${[...teintes].join(", ")}`);
   }
 });
 
-test("main : le pouce posé sur la jante file vers le haut à 9 h et à 3 h, les deux mains en miroir", () => {
-  const C = { cx: 160, cy: 100, rayon: 50 };
-  for (const [cote, heure] of [["gauche", 9], ["droite", 3]]) {
-    const m = famille.main({ ...C, heure, cote });
-    const main = trouverRole(m, `main-${cote}`), pouce = trouverRole(m, `pouce-${cote}`);
-    assert.ok(pouce.attributs["data-y"] < main.attributs["data-y"] - 0.1 * C.rayon, `${cote} : pouce au-dessus de la main`);
+// Pièces des repères des mains (style schématique), sur un volant d'essai à l'échelle des gestes.
+const VOLANT_ESSAI = { cx: 160, cy: 100, rayon: 59.2 };
+const LETTRE = { gauche: "G", droite: "D" };
+
+test("repereMain : un disque G ou D posé sur la ligne médiane de la jante à son heure, ou déplacé vers le centre ; plein quand la main tient la jante, creux dès qu'elle la laisse glisser ou l'a lâchée ; mêmes nœuds dans tous les états", () => {
+  const { cx, cy, rayon } = VOLANT_ESSAI;
+  const forme = formeArbre(famille.repereMain({ ...VOLANT_ESSAI, heure: 9, cote: "gauche" }));
+  let [pleins, creux, entre] = [0, 0, 0];
+  for (const cote of ["gauche", "droite"]) {
+    for (const heure of [0, 1.5, 2, 3, 9, 10, 13.25]) {
+      for (const prise of [0, 0.25, 0.5, 0.75, 0.9, 1]) {
+        for (const decalage of [0, 12]) {
+          const quand = `${cote}, ${heure} h, prise ${prise}, décalage ${decalage}`;
+          const noeud = famille.repereMain({ ...VOLANT_ESSAI, heure, cote, prise, decalage });
+          const rep = lireRepere(noeud, cote, [cx, cy]);
+          const [x, y] = famille.pointHeure(cx, cy, rayon - decalage, heure);
+          assert.ok(Math.hypot(rep.x - x, rep.y - y) < 1e-9, `${quand} : repère hors de sa place`);
+          // Disque, anneau et lettre centrés sur le repère ; la lettre est celle de la main.
+          for (const role of ["liseret", "disque", "anneau"]) {
+            const c = trouverRole(noeud, `${role}-${cote}`).attributs;
+            assert.ok(Math.hypot(c.cx - x, c.cy - y) < 1e-9, `${quand} : ${role} décentré`);
+          }
+          const lettre = trouverRole(noeud, `lettre-${cote}`).attributs;
+          assert.ok(Math.abs(lettre.x - x) < 1e-9 && lettre["text-anchor"] === "middle", `${quand} : lettre décentrée`);
+          assert.equal(rep.lettre, LETTRE[cote]);
+          assert.equal(trouverRole(noeud, `anneau-${cote}`).attributs.stroke, CHARTE.peauOmbre, `${quand} : anneau`);
+          if (prise === 1) { pleins++; assert.ok(rep.plein, `${quand} : la main tient la jante, repère plein`); }
+          else if (prise <= 0.5) { creux++; assert.ok(rep.creux, `${quand} : la main laisse glisser ou a lâché la jante, repère creux`); }
+          else { entre++; assert.ok(!rep.plein && !rep.creux && rep.remplissage > 0 && rep.remplissage < 1, `${quand} : ni plein ni creux pendant le fondu`); }
+          assert.equal(formeArbre(noeud), forme, `${quand} : d'autres nœuds`);
+        }
+      }
+    }
   }
-  const g = trouverRole(famille.main({ ...C, heure: 9, cote: "gauche" }), "pouce-gauche");
-  const d = trouverRole(famille.main({ ...C, heure: 3, cote: "droite" }), "pouce-droite");
-  assert.ok(proche(g.attributs["data-x"] - C.cx, -(d.attributs["data-x"] - C.cx), 1e-6) && proche(g.attributs["data-y"], d.attributs["data-y"], 1e-6));
+  assert.ok(pleins > 0 && creux > 0 && entre > 0);
+});
+
+test("repereMain : lisible sur un téléphone ; lettre de 11 px au moins, disque de 20 px au moins ; lettre claire sur le disque plein et lettre du ton de la peau sur le disque creux à 4,5:1 au moins (un texte), anneau à 3:1 sur le fond ; un liseré clair le borde, dessous", () => {
+  const px = LARGEUR_TELEPHONE / 320;   // les cadres de C1.3 font 320 unités de large
+  for (const prise of [1, 0.5, 0]) {
+    const noeud = famille.repereMain({ ...VOLANT_ESSAI, heure: 3, cote: "droite", prise });
+    const disque = trouverRole(noeud, "disque-droite").attributs, lettre = trouverRole(noeud, "lettre-droite").attributs;
+    assert.ok(Number(lettre["font-size"]) * px >= TAILLE_TEXTE_MIN_PX, `lettre de ${(lettre["font-size"] * px).toFixed(1)} px`);
+    assert.ok(2 * disque.r * px >= 20, `disque de ${(2 * disque.r * px).toFixed(1)} px`);
+    assert.ok(contraste(lettre.fill, disque.fill) >= 4.5, `prise ${prise} : lettre à ${contraste(lettre.fill, disque.fill).toFixed(2)}:1 sur son disque`);
+    const [liseret] = noeud.enfants;
+    assert.ok(liseret.attributs["data-r"] === "liseret-droite" && liseret.attributs.fill === CHARTE.carte && liseret.attributs.r > disque.r,
+      "le liseré clair, plus large que le disque, dessiné le premier");
+  }
+  assert.ok(contraste(CHARTE.peauOmbre, CHARTE.fond) >= 3, "anneau et disque plein sur le fond");
+  assert.ok(contraste(CHARTE.peauOmbre, CHARTE.carte) >= 3, "anneau et disque plein sur la carte");
+});
+
+test("repereMain : un côté inconnu, une prise hors de 0 à 1, une heure non finie ou un décalage hors de la jante est une erreur, jamais un repère deviné", () => {
+  const C = { ...VOLANT_ESSAI, heure: 9 };
+  assert.throws(() => famille.repereMain({ ...C, cote: "Gauche" }), /côté « Gauche » inconnu/);
+  assert.throws(() => famille.repereMain({ ...C, cote: "gauche", prise: 1.5 }), /prise/);
+  assert.throws(() => famille.repereMain({ ...C, cote: "gauche", prise: -0.1 }), /prise/);
+  assert.throws(() => famille.repereMain({ ...C, cote: "gauche", heure: Number.NaN }), /heure/);
+  assert.throws(() => famille.repereMain({ ...C, cote: "gauche", decalage: -1 }), /décalage/);
+  assert.throws(() => famille.repereMain({ ...C, cote: "gauche", decalage: VOLANT_ESSAI.rayon + 1 }), /décalage/);
 });
 
 // Points d'un tracé (couples de nombres, dans l'ordre) : exacts pour un polygone, points de contrôle compris pour une courbe.
@@ -208,261 +303,6 @@ const pointsDe = (d) => {
   const nombres = String(d).match(/-?\d+(?:\.\d+)?(?:e-?\d+)?/g).map(Number);
   return Array.from({ length: nombres.length / 2 }, (_, i) => [nombres[2 * i], nombres[2 * i + 1]]);
 };
-const doigtsDe = (main, cote) => trouverTous(trouverRole(main, `doigts-${cote}`), (x) => x.balise === "path" && x.attributs.fill === CHARTE.peau)
-  .map((x) => pointsDe(x.attributs.d));
-// Axe principal d'un nuage de points, celui de sa plus grande dispersion : en degrés, défini à un demi-tour près ; écart de deux
-// axes, de 0 à 90 degrés.
-function axePrincipal(points) {
-  const [mx, my] = [0, 1].map((i) => points.reduce((somme, q) => somme + q[i], 0) / points.length);
-  let [xx, yy, xy] = [0, 0, 0];
-  for (const [x, y] of points) { xx += (x - mx) ** 2; yy += (y - my) ** 2; xy += (x - mx) * (y - my); }
-  return (Math.atan2(2 * xy, xx - yy) * 90) / Math.PI;
-}
-const ecartAxes = (a, b) => { const d = (((a - b) % 180) + 180) % 180; return Math.min(d, 180 - d); };
-// Axe moyen de plusieurs axes (moyenne des angles doublés : 89 et -89 degrés font 90, pas 0).
-const axeMoyen = (axes) => (Math.atan2(axes.reduce((s, a) => s + Math.sin((a * Math.PI) / 90), 0),
-  axes.reduce((s, a) => s + Math.cos((a * Math.PI) / 90), 0)) * 90) / Math.PI;
-// Contour du pouce d'une main, échantillonné le long de ses courbes (echantillons, plus bas).
-const pouceDe = (main, cote) => echantillons(trouverTous(trouverRole(main, `pouce-${cote}`), (x) => x.balise === "path" && x.attributs.fill === CHARTE.peau)[0].attributs.d);
-
-test("main : la prise se voit ; refermée (prise 1), entrouverte (0,5 : la jante glisse dedans), lâchée (0 : main ouverte, écartée de la jante, doigts tendus devant elle)", () => {
-  const C = { cx: 160, cy: 100, rayon: 50, heure: 9, cote: "gauche" };
-  const e = C.rayon * famille.EPAISSEUR_JANTE;
-  const dist = ([x, y]) => Math.hypot(x - C.cx, y - C.cy);
-  const etendue = (pts) => [Math.min(...pts.map(dist)), Math.max(...pts.map(dist))];
-  // Refermée : chaque doigt déborde du bord intérieur de la jante et revient sur sa face avant, au-delà de sa ligne médiane.
-  for (const pts of doigtsDe(famille.main({ ...C, prise: 1 }), "gauche")) {
-    const [min, max] = etendue(pts);
-    assert.ok(min < C.rayon - e / 2 && max > C.rayon, `refermée : de ${min.toFixed(1)} à ${max.toFixed(1)}`);
-  }
-  // Entrouverte : les doigts ont quitté la face avant de la jante, ils sortent de derrière elle par son bord intérieur.
-  for (const pts of doigtsDe(famille.main({ ...C, prise: 0.5 }), "gauche")) {
-    const [min, max] = etendue(pts);
-    // (les tracés s'écrivent à deux décimales : 0,02 unité de jeu)
-    assert.ok(max <= C.rayon - e / 2 + 0.02 && min < C.rayon - e, `entrouverte : de ${min.toFixed(2)} à ${max.toFixed(2)}`);
-  }
-  // Lâchée : la main ouverte, devant la jante : les doigts tendus la traversent, de son dedans jusqu'au dos de la main.
-  const ouverte = famille.main({ ...C, prise: 0 });
-  for (const pts of doigtsDe(ouverte, "gauche")) {
-    const [min, max] = etendue(pts);
-    assert.ok(min < C.rayon - e / 2 && max > C.rayon + e / 2, `lâchée : de ${min.toFixed(1)} à ${max.toFixed(1)}`);
-  }
-  // Le pouce n'est plus posé le long de la jante (à 9 h, sa tangente est verticale) : il suit les doigts tendus (test suivant).
-  const tangente = 90;
-  const ecartJante = ecartAxes(axePrincipal(pouceDe(ouverte, "gauche")), tangente);
-  assert.ok(ecartJante >= 90 - ECART_POUCE_MAX, `main ouverte : le pouce à ${ecartJante.toFixed(0)} degrés de la jante, encore posé le long d'elle`);
-});
-
-// Main lâchée, ouverte et détendue (relecture finale, I2) : le pouce, venu se poser contre l'index, a son axe à une trentaine de
-// degrés au plus de celui des doigts tendus ; à angle droit, la main se lirait comme un pouce levé, ou baissé.
-const ECART_POUCE_MAX = 30;
-// Main lâchée d'une image, lue dans le dessin : l'axe des doigts tendus (l'axe moyen des quatre, qui suivent chacun le rayon du
-// volant à sa place sur la jante : ils convergent un peu, à 10 degrés au plus de cet axe), l'écart de l'axe du pouce à cet axe,
-// et, le long d'une droite perpendiculaire aux doigts, la place du centre de chaque doigt (de l'auriculaire à l'index) puis du
-// pouce.
-function mainLachee(m, cote) {
-  const doigts = doigtsDe(m, cote), pouce = pouceDe(m, cote);
-  const axes = doigts.map(axePrincipal), axe = axeMoyen(axes), rad = (axe * Math.PI) / 180;
-  const travers = [-Math.sin(rad), Math.cos(rad)];
-  const place = (pts) => pts.reduce((somme, q) => somme + q[0] * travers[0] + q[1] * travers[1], 0) / pts.length;
-  return { paralleles: axes.every((a) => ecartAxes(a, axe) <= 10), ecart: ecartAxes(axePrincipal(pouce), axe),
-    places: [...doigts.map(place), place(pouce)] };
-}
-
-test("main : lâchée, elle se lit ouverte et détendue, jamais en pouce levé : le pouce a quitté la jante et s'est posé le long de l'index, son axe à 30 degrés au plus de celui des doigts tendus", () => {
-  const verifier = (m, cote, quand) => {
-    const { paralleles, ecart, places } = mainLachee(m, cote);
-    assert.ok(paralleles, `${quand} : un doigt tendu à plus de 10 degrés de l'axe des doigts`);
-    assert.ok(ecart <= ECART_POUCE_MAX, `${quand} : axe du pouce à ${ecart.toFixed(0)} degrés de celui des doigts tendus`);
-    // Contre l'index : en travers des doigts, le pouce vient après l'index, du côté opposé aux autres doigts.
-    const sens = Math.sign(places[3] - places[0]);
-    assert.ok(places.every((p, i) => i === 0 || sens * (p - places[i - 1]) > 0), `${quand} : le pouce n'est pas à côté de l'index (${places.map((p) => p.toFixed(1))})`);
-  };
-  for (const cote of COTES_MAINS) {
-    for (let heure = 0; heure < 12; heure += 1.5) verifier(trouverRole(mainGeste(cote, heure, 0), `main-${cote}`), cote, `${cote}, ${heure} h`);
-  }
-  // Dans les gestes, chaque image d'une main lâchée, en l'air comprise : la droite à 4,5 s, la gauche à 6,9 s du chevauchement...
-  let vues = 0;
-  for (const code of CODES_GESTES) {
-    const def = geste(code);
-    for (const t of instantsDe(def).filter((_, k) => k % 2 === 0)) {
-      const e = def.etat(t), image = imageA(def, t, false);
-      for (const c of COTES_MAINS) {
-        if (e.mains[c].prise !== 0) continue;
-        vues++;
-        verifier(trouverRole(image, `main-${c}`), c, `${code}, ${t.toFixed(3)} s, main ${c}`);
-      }
-    }
-  }
-  assert.ok(vues > 0, "aucune main lâchée : le contrôle ne contrôle rien");
-});
-
-// Doigts entrouverts : 2,6 fois plus longs que larges au moins, 14 px au moins sur un téléphone. À 2,35 à 2,55 fois (4,4 cm
-// au-delà de la jante), ils se lisaient encore comme des perles posées au bord de la jante (relecture finale du lot D1).
-const DOIGT_ENTROUVERT = { rapport: 2.6, px: 14 };
-test("main : doigts entrouverts lisibles sur un téléphone, à l'échelle des gestes : des doigts allongés, pas des perles sur la jante", () => {
-  const C = { cx: 160, cy: 130, rayon: 59.2, heure: 9, cote: "gauche", prise: 0.5 };   // échelle des gestes : 3,2 unités par cm
-  const pxParUnite = 343 / 320;
-  for (const pts of doigtsDe(famille.main(C), "gauche")) {
-    // Repère local : le long de la jante (tangente) et en travers (vers le centre), au milieu du doigt.
-    const [mx, my] = [0, 1].map((i) => pts.reduce((somme, q) => somme + q[i], 0) / pts.length);
-    const radial = [mx - C.cx, my - C.cy].map((v) => v / Math.hypot(mx - C.cx, my - C.cy)), tangent = [-radial[1], radial[0]];
-    const proj = (u) => pts.map(([x, y]) => (x - mx) * u[0] + (y - my) * u[1]);
-    const longueur = Math.max(...proj(radial)) - Math.min(...proj(radial)), largeur = Math.max(...proj(tangent)) - Math.min(...proj(tangent));
-    assert.ok(longueur >= DOIGT_ENTROUVERT.rapport * largeur, `doigt de ${longueur.toFixed(1)} sur ${largeur.toFixed(1)} unités : trop court pour un doigt`);
-    assert.ok(longueur * pxParUnite >= DOIGT_ENTROUVERT.px, `doigt de ${(longueur * pxParUnite).toFixed(1)} px sur un téléphone`);
-  }
-});
-
-// Main du côté `cote`, à `heure` et à `prise`, dans le repère des gestes du volant (volant, coude et cadre des gestes).
-const mainGeste = (cote, heure, prise = 1) => {
-  const R = famille.repereGeste(cote);
-  return famille.main({ cx: R.cx, cy: R.cy, rayon: R.rayon, heure, cote, prise, avantBras: { coude: R.coude, limite: [0, 0, ...CATALOGUE["tirer-glisser"].cadre] } });
-};
-
-test("main : le poignet quitte la main du côté du coude, à toute heure ; à midi, l'avant-bras part donc sous la main et descend devant le volant", () => {
-  const angle = (u, v) => (Math.acos((u[0] * v[0] + u[1] * v[1]) / (Math.hypot(...u) * Math.hypot(...v))) * 180) / Math.PI;
-  for (const [cote, heure] of [["gauche", 9], ["droite", 3], ["gauche", 12], ["droite", 0], ["droite", 5], ["gauche", 13.5], ["droite", 10.5]]) {
-    const m = mainGeste(cote, heure), coude = famille.repereGeste(cote).coude;
-    const dos = pointsDe(trouverRole(m, `dos-${cote}`).attributs.d);
-    const centre = [0, 1].map((i) => dos.reduce((somme, q) => somme + q[i], 0) / dos.length);
-    const a = trouverRole(m, `avant-bras-${cote}`).attributs, poignet = [a["data-x"], a["data-y"]];
-    const ecart = angle([poignet[0] - centre[0], poignet[1] - centre[1]], [coude[0] - centre[0], coude[1] - centre[1]]);
-    assert.ok(ecart < 15, `${cote} à ${heure} h : le poignet part à ${ecart.toFixed(0)} degrés de la direction du coude`);
-  }
-});
-
-// Points d'un tracé de segments M, L, C et Z : ses sommets, et des points pris le long de chaque courbe de Bézier cubique (ses
-// points de contrôle exclus), pour juger de la place d'une surface lisse.
-function echantillons(d, pas = 8) {
-  const jetons = String(d).match(/[MLCZ]|-?\d+(?:\.\d+)?(?:e-?\d+)?/g), points = [];
-  let commande = "M", courant = null;
-  for (let i = 0; i < jetons.length;) {
-    if (/[MLCZ]/.test(jetons[i])) { commande = jetons[i++]; continue; }
-    const lire = (k) => [Number(jetons[i + 2 * k]), Number(jetons[i + 2 * k + 1])];
-    if (commande === "C") {
-      const [c1, c2, fin] = [lire(0), lire(1), lire(2)];
-      for (let j = 1; j <= pas; j++) {
-        const t = j / pas, u = 1 - t;
-        points.push([0, 1].map((k) => u * u * u * courant[k] + 3 * u * u * t * c1[k] + 3 * u * t * t * c2[k] + t * t * t * fin[k]));
-      }
-      courant = fin;
-      i += 6;
-    } else {
-      courant = lire(0);
-      points.push(courant);
-      i += 2;
-    }
-  }
-  return points;
-}
-// Distance d'un point à un polygone : 0 dedans, sinon au plus proche de ses côtés.
-function distancePolygone(p, poly) {
-  if (dedansAvecMarge(p, poly, 0)) return 0;
-  return Math.min(...poly.map((a, i) => {
-    const b = poly[(i + 1) % poly.length], ab = [b[0] - a[0], b[1] - a[1]];
-    const u = Math.max(0, Math.min(1, ((p[0] - a[0]) * ab[0] + (p[1] - a[1]) * ab[1]) / (ab[0] ** 2 + ab[1] ** 2 || 1)));
-    return Math.hypot(p[0] - (a[0] + u * ab[0]), p[1] - (a[1] + u * ab[1]));
-  }));
-}
-
-test("main : l'avant-bras passe sous le dos de la main et devant les doigts, à toute heure et à toute prise ; un pli là où sa peau passe sur la leur", () => {
-  let couverts = 0;
-  for (const cote of ["gauche", "droite"]) {
-    for (let heure = 0; heure < 12; heure += 0.5) {
-      for (const prise of [0, 0.25, 0.5, 0.75, 1]) {
-        const quand = `${cote}, ${heure} h, prise ${prise}`;
-        const m = trouverRole(mainGeste(cote, heure, prise), `main-${cote}`);
-        // De dessous à dessus : la peau du poignet, le dos de la main, les doigts, le reste de l'avant-bras, le pouce.
-        const rangs = ["poignet", "dos", "doigts", "avant-bras", "pouce"].map((r) => m.enfants.findIndex((x) => x && typeof x !== "string" && x.attributs["data-r"] === `${r}-${cote}`));
-        assert.ok(rangs.every((r, i) => r >= 0 && (i === 0 || r > rangs[i - 1])), `${quand} : rangs ${rangs}`);
-        // L'avant-bras posé sur les doigts commence au-delà du dos de la main et de son pli (un trait fin centré sur son bord).
-        const bras = trouverRole(m, `avant-bras-${cote}`);
-        const pleins = (garder) => trouverTous(bras, (x) => x.balise === "path" && garder(x.attributs.fill)).map((x) => pointsDe(x.attributs.d)).filter((p) => p.length >= 3);
-        const ecart = Math.min(...echantillons(trouverRole(m, `dos-${cote}`).attributs.d).flatMap((q) => pleins((f) => f && f !== "none").map((p) => distancePolygone(q, p))));
-        assert.ok(ecart >= CHARTE.traits.fin / 2, `${quand} : l'avant-bras passe à ${ecart.toFixed(2)} unité du bord du dos de la main`);
-        // Là où sa peau passe sur les doigts, un pli la borde.
-        const traceDuPli = trouverRole(m, `pli-avant-bras-${cote}`).attributs.d;
-        if (recouvre(pleins((f) => f === CHARTE.peau), doigtsDe(m, cote))) {
-          couverts++;
-          assert.ok(!traceVide(traceDuPli), `${quand} : peau de l'avant-bras sur les doigts sans pli`);
-        }
-        // Mais pas sur sa couture avec la manche, d'un autre ton, sous laquelle les doigts continuent : au plus ses coins y
-        // touchent (longueur du pli à moins d'un quart de trait fin de la manche, chaque morceau du pli pris à part).
-        const manche = trouverTous(trouverRole(m, `manche-${cote}`), (x) => x.balise === "path" && x.attributs.fill && x.attributs.fill !== "none")
-          .map((x) => pointsDe(x.attributs.d)).filter((p) => p.length >= 3);
-        const pres = (q) => manche.some((p) => distancePolygone(q, p) <= CHARTE.traits.fin / 4);
-        let surCouture = 0;
-        for (const morceau of String(traceDuPli).split(/(?=M)/)) {
-          const points = echantillons(morceau);
-          for (let i = 1; i < points.length; i++) {
-            if (pres(points[i - 1]) && pres(points[i])) surCouture += Math.hypot(points[i][0] - points[i - 1][0], points[i][1] - points[i - 1][1]);
-          }
-        }
-        assert.ok(surCouture <= CHARTE.traits.fin, `${quand} : pli de ${surCouture.toFixed(1)} unités sur la couture de la manche`);
-      }
-    }
-  }
-  assert.ok(couverts > 0, "l'avant-bras ne passe jamais sur les doigts : le contrôle ne contrôle rien");
-});
-
-test("main : lâchée, ses doigts tendus passent devant son avant-bras (une main ouverte se lit comme telle) ; dès qu'ils passent derrière la jante, l'avant-bras passe devant eux", () => {
-  const traces = (noeud) => trouverTous(noeud, (x) => x.balise === "path" && x.attributs.fill === CHARTE.peau).map((x) => x.attributs.d);
-  let [avantFin, enPassage] = [0, 0];
-  for (const cote of ["gauche", "droite"]) {
-    const R = famille.repereGeste(cote), e = R.rayon * famille.EPAISSEUR_JANTE;
-    for (let heure = 0; heure < 12; heure += 0.5) {
-      let precedente = 1;
-      for (const prise of [0, 0.1, 0.25, 0.3, 0.4, 0.45, 0.5, 0.75, 1]) {
-        const quand = `${cote}, ${heure} h, prise ${prise}`;
-        const m = trouverRole(mainGeste(cote, heure, prise), `main-${cote}`);
-        const rang = (role) => m.enfants.findIndex((x) => x && typeof x !== "string" && x.attributs["data-r"] === `${role}-${cote}`);
-        // Les mêmes doigts, redessinés entre l'avant-bras et le pouce.
-        assert.ok(rang("avant-bras") >= 0 && rang("avant-bras") < rang("doigts-devant") && rang("doigts-devant") < rang("pouce"), `${quand} : rangs`);
-        const devant = trouverRole(m, `doigts-devant-${cote}`);
-        assert.deepEqual(traces(devant), traces(trouverRole(m, `doigts-${cote}`)), `${quand} : d'autres doigts`);
-        // Effacés tant que la main tient ou laisse glisser la jante (prise d'au moins 0,5) ; opaques main ouverte (prise 0) ;
-        // entre les deux, un fondu qui ne recule jamais, et jamais opaques tant que les doigts n'ont pas couvert toute la largeur
-        // de la jante (encore derrière elle en partie, ils ne peuvent pas passer devant l'avant-bras).
-        const opacite = Number(devant.attributs.opacity);
-        const loin = Math.max(...doigtsDe(m, cote).flat().map(([x, y]) => Math.hypot(x - R.cx, y - R.cy)));
-        if (prise >= 0.5) assert.equal(opacite, 0, quand);
-        else assert.ok(opacite > 0, `${quand} : main qui lâche, doigts effacés`);
-        if (prise === 0) assert.equal(opacite, 1, quand);
-        else if (opacite === 1) avantFin++;
-        if (prise < 0.5 && loin < R.rayon + e / 2) {
-          enPassage++;
-          assert.ok(opacite < 1, `${quand} : doigts encore en partie derrière la jante, opacité ${opacite}`);
-        }
-        assert.ok(opacite <= precedente, `${quand} : le fondu recule (${precedente} puis ${opacite})`);
-        precedente = opacite;
-      }
-    }
-  }
-  assert.ok(enPassage > 0 && avantFin > 0, `doigts en passage : ${enPassage} fois ; opaques avant la fin du lâcher : ${avantFin} fois`);
-  // Dans les gestes, toute main lâchée, en l'air comprise, montre ses doigts devant son avant-bras.
-  let vues = 0;
-  for (const code of CODES_GESTES) {
-    const def = geste(code);
-    for (const t of instantsDe(def).filter((_, k) => k % 2 === 0)) {
-      const e = def.etat(t), image = imageA(def, t, false);
-      for (const c of COTES_MAINS) {
-        if (e.mains[c].prise !== 0) continue;
-        vues++;
-        assert.equal(Number(trouverRole(image, `doigts-devant-${c}`).attributs.opacity), 1, `${code}, ${t.toFixed(3)} s : main ${c} lâchée, doigts cachés`);
-      }
-    }
-  }
-  assert.ok(vues > 0, "aucune main lâchée : le contrôle ne contrôle rien");
-});
-
-test("main : un côté, un pouce ou une prise hors de leurs valeurs est une erreur, jamais un choix par défaut", () => {
-  const C = { cx: 160, cy: 100, rayon: 50, heure: 9 };
-  assert.throws(() => famille.main({ ...C, cote: "Gauche" }), /côté « Gauche » inconnu/);
-  assert.throws(() => famille.main({ ...C, cote: "gauche", pouce: "dedans" }), /pouce « dedans » inconnu/);
-  assert.throws(() => famille.main({ ...C, cote: "gauche", prise: 1.5 }), /prise/);
-  assert.throws(() => famille.main({ ...C, cote: "gauche", heure: Number.NaN }), /heure/);
-});
 
 // ===== Relecture de la tâche 6 : charte, peau, anneau, levier, contacteur, flèche =====
 
@@ -470,12 +310,12 @@ test("main : un côté, un pouce ou une prise hors de leurs valeurs est une erre
 const DESSINS_POSTE = () => [...Object.entries(famille.DESSINS).map(([code, f]) => [code, f()]),
   ...Object.entries(famille.GESTES).flatMap(([code, g]) => { const def = g.construire(); return def.etapes.map((_, i) => [`${code} étape ${i + 1}`, imageFigee(def, i)]); })];
 
-test("poste : traits pris dans le jeu de quatre de la charte, liserés clairs à part, volant à tout angle et mains à toute prise", () => {
+test("poste : traits pris dans le jeu de quatre de la charte, liserés clairs à part, volant à tout angle, détaillé ou schématique, et repères à toute prise", () => {
   const jeu = Object.values(CHARTE.traits);
   const liseres = new Set([2 * CHARTE.liseres, ...jeu.map((t) => t + 2 * CHARTE.liseres)]);
   const pieces = [famille.volant({ cx: 160, cy: 100, rayon: 50, angle: 37 }), famille.volant({ cx: 160, cy: 100, rayon: 30, avertisseur: true }),
-    ...[0, 0.5, 1].map((prise) => famille.main({ cx: 160, cy: 100, rayon: 50, heure: 11, cote: "droite", prise,
-      avantBras: { coude: [230, 190], limite: [0, 0, 320, 200] } }))];
+    famille.volant({ cx: 160, cy: 100, rayon: 50, angle: 37, schema: true }),
+    ...[0, 0.5, 0.75, 1].map((prise) => famille.repereMain({ ...VOLANT_ESSAI, heure: 11, cote: "droite", prise, decalage: 6 }))];
   let vus = 0;
   for (const [quoi, d] of [...DESSINS_POSTE(), ...pieces.map((x, i) => [`pièce ${i}`, x])]) {
     for (const x of trouverTous(d, (y) => "stroke-width" in y.attributs)) {
@@ -487,32 +327,22 @@ test("poste : traits pris dans le jeu de quatre de la charte, liserés clairs à
   assert.ok(vus > 30);
 });
 
-test("poste : la peau n'a que les deux tons de la charte, et seulement dans les mains", () => {
-  const peau = new Set([CHARTE.peau, CHARTE.peauOmbre]);
+test("poste : la peau n'a qu'un ton, le sombre de la charte, et seulement dans les repères des mains, avec le fond clair ; ni sur les dessins fixes ni sur les images figées, aucune autre teinte n'y entre", () => {
+  const peau = new Set([CHARTE.peau, CHARTE.peauOmbre]), dansRepere = new Set([CHARTE.peauOmbre, CHARTE.carte]);
+  let reperes = 0;
   for (const [code, d] of DESSINS_POSTE()) {
-    // Dans une main (hors de sa manche), rien que de la peau ; hors des mains, aucune peau.
     const dansMain = new Set();
-    for (const m of trouverTous(d, (x) => /^main-/.test(x.attributs["data-r"] || ""))) {
-      parcourir(m, (x) => dansMain.add(x));
-      for (const manche of trouverTous(m, (x) => /^manche-/.test(x.attributs["data-r"] || ""))) parcourir(manche, (x) => dansMain.delete(x));
-    }
+    for (const m of trouverTous(d, (x) => /^main-/.test(x.attributs["data-r"] || ""))) { reperes++; parcourir(m, (x) => dansMain.add(x)); }
     parcourir(d, (x) => {
       for (const k of ["fill", "stroke"]) {
         const c = x.attributs[k];
         if (!c || c === "none") continue;
-        if (dansMain.has(x)) assert.ok(peau.has(c), `${code} : ${k} ${c} dans une main`);
-        else assert.ok(!peau.has(c), `${code} : peau ${c} hors d'une main (${x.balise} ${x.attributs["data-r"] || ""})`);
+        if (dansMain.has(x)) assert.ok(dansRepere.has(c), `${code} : ${k} ${c} dans un repère`);
+        else assert.ok(!peau.has(c), `${code} : peau ${c} hors d'un repère (${x.balise} ${x.attributs["data-r"] || ""})`);
       }
     });
   }
-});
-
-test("mains-volant : l'anneau de la vignette faux entoure le bout du pouce engagé ; pas d'anneau dans la vignette juste", () => {
-  const d = famille.DESSINS["mains-volant"]();
-  const faux = trouverRole(d, "vignette-faux");
-  const a = trouverRole(faux, "anneau-pouce").attributs, p = trouverRole(faux, "pouce-gauche").attributs;
-  assert.ok(Math.hypot(p["data-x"] - a["data-x"], p["data-y"] - a["data-y"]) < a["data-rayon"], "le bout du pouce est dans l'anneau");
-  assert.equal(trouverRole(trouverRole(d, "vignette-juste"), "anneau-pouce"), null);
+  assert.ok(reperes >= 4 + 2 * 10, `${reperes} repères vus`);
 });
 
 // Luminance relative (WCAG) d'une couleur #RRGGBB, et contraste de deux couleurs.
@@ -774,19 +604,239 @@ test("retour-volant : le libellé dit l'allure de l'état à chaque instant ; il
 
 // --- Ce que montre l'image ---
 
-// Mains, doigts, pouces, poignets (avant-bras) et branches du volant : des points dessinés (data-x, data-y), affichés à chaque
+// Repères des mains (main-gauche, main-droite) et branches du volant : des points dessinés (data-x, data-y), affichés à chaque
 // image. Le contrôle commun des gestes (js/geste-regles.js, par verifierGeste) les suit d'une image de lecture à la suivante
 // (SAUT_POINT_MAX, 8 unités par image) et vérifie qu'une image figée est l'image de l'animation au même instant, au seul
 // affichage du groupe des flèches près ; ce test garde qu'ils sont bien là pour être suivis.
-const ROLE_POINT = /^(main|doigts|pouce|avant-bras)-(gauche|droite)$|^branche-\d+$/;
-test("gestes du volant : mains, doigts, pouces, poignets et branches du volant sont des points dessinés, suivis par le contrôle commun de continuité", () => {
+const ROLE_POINT = /^main-(gauche|droite)$|^branche-\d+$/;
+test("gestes du volant : repères des mains et branches du volant sont des points dessinés, suivis par le contrôle commun de continuité", () => {
   for (const code of CODES_GESTES) {
     const def = geste(code);
     for (const t of instantsDe(def)) {
       const roles = [...pointsDessines(imageA(def, t, false)).values()].map((p) => p.role).filter((r) => ROLE_POINT.test(r));
-      assert.equal(new Set(roles).size, 4 * 2 + 3, `${code} : points dessinés absents à ${t.toFixed(3)} s`);
+      assert.equal(new Set(roles).size, 2 + 3, `${code} : points dessinés absents à ${t.toFixed(3)} s`);
     }
   }
+});
+
+test("gestes du volant : à chaque image, chaque repère est dessiné là où l'état met la main, sur la jante à son heure ou en l'air, déplacé vers le centre ; plein quand elle tient la jante, creux dès qu'elle la laisse glisser ou l'a lâchée", () => {
+  const { cx, cy, rayon, echelle } = famille.repereGeste();
+  let [pleins, creux, enLAir] = [0, 0, 0];
+  for (const code of CODES_GESTES) {
+    const def = geste(code);
+    for (const t of instantsDe(def)) {
+      const e = def.etat(t), image = imageA(def, t, false), quand = `${code}, ${t.toFixed(3)} s`;
+      for (const cote of COTES_MAINS) {
+        const m = e.mains[cote], rep = lireRepere(image, cote, [cx, cy]);
+        const [x, y] = famille.pointHeure(cx, cy, rayon - m.decalage * echelle, m.heure);
+        assert.ok(Math.hypot(rep.x - x, rep.y - y) < 1e-6, `${quand} : repère ${cote} à ${Math.hypot(rep.x - x, rep.y - y).toFixed(2)} unités de la main`);
+        if (m.decalage > 0) enLAir++;
+        if (m.prise === 1) { pleins++; assert.ok(rep.plein, `${quand} : la main ${cote} tient la jante, repère creux`); }
+        if (m.prise <= 0.5) { creux++; assert.ok(rep.creux, `${quand} : la main ${cote} laisse glisser ou a lâché la jante, repère plein`); }
+      }
+    }
+  }
+  assert.ok(pleins > 0 && creux > 0 && enLAir > 0, `${pleins} pleins, ${creux} creux, ${enLAir} en l'air`);
+});
+
+test("gestes du volant, lus dans le dessin seul : un repère plein tourne avec la jante, du même angle que les branches du volant, sans la quitter ; un repère posé sur la jante qui n'est pas plein ne bouge pas pendant que le volant tourne (la jante glisse dessous)", () => {
+  const { cx, cy, rayon } = famille.repereGeste();
+  const angle = ([x, y]) => (Math.atan2(x - cx, cy - y) * 180) / Math.PI;   // degrés, sens horaire depuis midi
+  const ecart = (a, b) => ((((b - a) % 360) + 540) % 360) - 180;
+  const branche = (image) => { const b = trouverRole(image, "branche-3").attributs; return angle([b["data-x"], b["data-y"]]); };
+  let [tournent, restent] = [0, 0];
+  for (const code of CODES_GESTES) {
+    const def = geste(code), ts = instantsDe(def);
+    let avant = imageA(def, 0, false);
+    for (let i = 1; i < ts.length; i++) {
+      const apres = imageA(def, ts[i], false), quand = `${code}, ${ts[i].toFixed(3)} s`;
+      const tour = ecart(branche(avant), branche(apres));
+      for (const cote of COTES_MAINS) {
+        const [a, b] = [lireRepere(avant, cote, [cx, cy]), lireRepere(apres, cote, [cx, cy])];
+        if (a.plein && b.plein) {
+          assert.ok(Math.abs(ecart(angle([a.x, a.y]), angle([b.x, b.y])) - tour) < 1e-6, `${quand} : repère ${cote} plein qui glisse sur la jante`);
+          assert.ok(Math.abs(b.distance - rayon) < 1e-6, `${quand} : repère ${cote} plein hors de la jante`);
+          if (Math.abs(tour) > 1e-9) tournent++;
+        } else if (!a.plein && !b.plein && Math.abs(tour) > 1e-9 && Math.abs(a.distance - rayon) < 1e-6) {
+          // (une main en l'air, qui a quitté la jante, se déplace pendant que l'autre tourne le volant : elle n'est pas posée)
+          assert.ok(Math.hypot(b.x - a.x, b.y - a.y) < 1e-9, `${quand} : repère ${cote} posé, pas plein, qui bouge pendant que le volant tourne`);
+          restent++;
+        }
+      }
+      avant = apres;
+    }
+  }
+  assert.ok(tournent > 0 && restent > 0, `${tournent} images d'un repère qui tourne avec la jante, ${restent} d'un repère qui reste`);
+});
+
+// Image figée de chaque étape, à l'instant où elle commence (pas à pas, pause, animations réduites) : angle du volant, puis, pour
+// chaque main, son heure et son repère, plein ou creux.
+const FIGEES = {
+  "tirer-glisser": [
+    { volant: 0, gauche: [9, "plein"], droite: [3, "plein"] },
+    { volant: 0, gauche: [9, "creux"], droite: [0, "plein"] },
+  ],
+  chevauchement: [
+    { volant: 0, gauche: [9, "plein"], droite: [3, "plein"] },
+    { volant: 0, gauche: [9, "plein"], droite: [0, "plein"] },
+    { volant: 90, gauche: [0, "plein"], droite: [3, "plein"] },
+    { volant: 180, gauche: [3, "plein"], droite: [0, "creux"] },
+  ],
+  "retour-volant": [
+    { volant: 180, gauche: [9, "plein"], droite: [3, "plein"] },
+    { volant: 180, gauche: [9, "creux"], droite: [3, "creux"] },
+    { volant: 0, gauche: [9, "creux"], droite: [3, "creux"] },
+    { volant: 90, gauche: [0, "creux"], droite: [6, "creux"] },
+  ],
+};
+test("gestes du volant : l'image figée de chaque étape (pas à pas, pause, animations réduites) montre le volant à son angle, chaque repère sur la jante à son heure, plein ou creux, et la flèche de l'étape", () => {
+  const { cx, cy, rayon } = famille.repereGeste();
+  for (const code of CODES_GESTES) {
+    const def = geste(code);
+    assert.equal(def.etapes.length, FIGEES[code].length, code);
+    FIGEES[code].forEach((attendu, i) => {
+      const image = imageFigee(def, i), quand = `${code}, étape ${i + 1}`;
+      assert.equal(Number(trouverRole(image, "volant").attributs["data-angle"]), attendu.volant, `${quand} : volant`);
+      assert.equal(texteDe(trouverRole(image, "compteur")), `${attendu.volant}°`, `${quand} : compteur`);
+      for (const cote of COTES_MAINS) {
+        const [heure, etat] = attendu[cote], rep = lireRepere(image, cote, [cx, cy]);
+        assert.ok(ecartHeure(rep.heure, heure) < 0.01 && Math.abs(rep.distance - rayon) < 1e-6, `${quand} : main ${cote} à ${rep.heure.toFixed(2)} h`);
+        assert.ok(rep[etat], `${quand} : main ${cote} ${etat === "plein" ? "creuse" : "pleine"}`);
+      }
+      assert.equal(trouverRole(image, "fleche").attributs.display, "inline", `${quand} : flèche masquée`);
+    });
+  }
+});
+
+// Le chevauchement : la main du côté du virage, la droite, passe par-dessus la gauche (étape 3) ; la gauche remonte sous la droite
+// (étape 4). Les deux repères se recouvrent alors, la droite dessinée au-dessus, d'au moins 4 unités (4 px sur un téléphone) ;
+// leurs lettres, jamais (CROISEMENT, et le test qui suit).
+const CROISEMENT = { recouvrementMin: 4 };
+test("chevauchement : la droite passe par-dessus la gauche (étape 3), la gauche remonte sous la droite (étape 4) : leurs disques se recouvrent, D toujours dessiné au-dessus de G, la main qui remonte creuse et celle qui tire pleine", () => {
+  const def = geste("chevauchement"), [T3, T4] = [def.etapes[2].t, def.etapes[3].t], { cx, cy } = famille.repereGeste();
+  let [dessus, dessous] = [0, 0];
+  for (const t of instantsDe(def)) {
+    const image = imageA(def, t, false), quand = `${t.toFixed(3)} s`;
+    const [g, d] = [trouverRole(image, "main-gauche"), trouverRole(image, "main-droite")];
+    const freres = trouverTous(image, (x) => x.enfants.includes(d))[0].enfants;
+    assert.ok(freres.includes(g) && freres.indexOf(g) < freres.indexOf(d), `${quand} : G dessiné au-dessus de D`);
+    const [rg, rd] = [lireRepere(image, "gauche", [cx, cy]), lireRepere(image, "droite", [cx, cy])];
+    const recouvrement = rg.rayon + rd.rayon - Math.hypot(rg.x - rd.x, rg.y - rd.y);
+    if (recouvrement <= 0) continue;
+    if (t >= T3 && t < T4) {
+      assert.ok(rd.creux && rg.plein, `${quand} : à l'étape 3, la droite remonte creuse par-dessus la gauche qui tire`);
+      dessus = Math.max(dessus, recouvrement);
+    } else if (t >= T4) {
+      assert.ok(rg.creux && rd.plein, `${quand} : à l'étape 4, la gauche remonte creuse sous la droite qui tire`);
+      dessous = Math.max(dessous, recouvrement);
+    } else assert.fail(`${quand} : repères qui se recouvrent hors du croisement`);
+  }
+  assert.ok(dessus >= CROISEMENT.recouvrementMin, `étape 3 : la droite ne passe sur la gauche que de ${dessus.toFixed(1)} unités`);
+  assert.ok(dessous >= CROISEMENT.recouvrementMin, `étape 4 : la gauche ne passe sous la droite que de ${dessous.toFixed(1)} unités`);
+});
+
+test("gestes du volant : les lettres G et D ne se recouvrent jamais, à aucune image (la lettre d'un repère se lit, même quand l'autre passe dessus)", () => {
+  let plusPres = Infinity;
+  for (const code of CODES_GESTES) {
+    const def = geste(code);
+    for (const t of instantsDe(def)) {
+      const image = imageA(def, t, false);
+      const [a] = boitesTextes(trouverRole(image, "lettre-gauche")), [b] = boitesTextes(trouverRole(image, "lettre-droite"));
+      // La règle des contrôles communs (tests/aides-dessins.mjs) : deux boîtes se chevauchent au-delà d'une demi-unité dans les deux sens.
+      const [dx, dy] = [Math.min(a.x2, b.x2) - Math.max(a.x1, b.x1), Math.min(a.y2, b.y2) - Math.max(a.y1, b.y1)];
+      assert.ok(!(dx > 0.5 && dy > 0.5), `${code}, ${t.toFixed(3)} s : lettres G et D qui se recouvrent`);
+      plusPres = Math.min(plusPres, Math.max(-dx, -dy));
+    }
+  }
+  assert.ok(Number.isFinite(plusPres));
+});
+
+test("gestes du volant : un repère passe de plein à creux, ou l'inverse, en fondu (sur 4 images au moins, jamais d'une image à l'autre), et il ne saute pas : 8 unités par image au plus", () => {
+  const { cx, cy } = famille.repereGeste();
+  const PART_MAX = 0.3;   // part du remplissage qui change en une image : au moins quatre images par fondu
+  let fondus = 0;
+  for (const code of CODES_GESTES) {
+    const def = geste(code), ts = instantsDe(def);
+    let avant = imageA(def, 0, false);
+    for (let i = 1; i < ts.length; i++) {
+      const apres = imageA(def, ts[i], false), quand = `${code}, ${ts[i].toFixed(3)} s`;
+      for (const cote of COTES_MAINS) {
+        const [a, b] = [lireRepere(avant, cote, [cx, cy]), lireRepere(apres, cote, [cx, cy])];
+        const change = Math.abs(b.remplissage - a.remplissage);
+        assert.ok(change <= PART_MAX + 1e-9, `${quand} : repère ${cote} rempli de ${a.remplissage.toFixed(2)} puis ${b.remplissage.toFixed(2)}`);
+        assert.ok(Math.hypot(b.x - a.x, b.y - a.y) <= SAUT_POINT_MAX, `${quand} : repère ${cote} qui saute`);
+        if (change > 0.01) fondus++;
+      }
+      avant = apres;
+    }
+  }
+  assert.ok(fondus > 0, "aucun fondu vu : le contrôle ne contrôle rien");
+});
+
+// Pendant un fondu, le disque passe par des teintes mêlées : la lettre ne doit jamais s'y perdre. À demi visible ou plus, elle a
+// sur son disque un contraste de 3:1 au moins (celui d'un élément graphique) ; plein ou creux, 4,5:1 (test de repereMain).
+test("repères : la lettre se lit à chaque image, même pendant le fondu ; à demi visible ou plus, elle a 3:1 au moins sur son disque", () => {
+  const verifier = (rep, quand) => {
+    if (rep.opaciteLettre < 0.5) return;
+    const c = contraste(rep.teinteLettre, rep.teinteDisque);
+    assert.ok(c >= 3, `${quand} : lettre ${rep.lettre} à ${c.toFixed(2)}:1 sur son disque, opacité ${rep.opaciteLettre.toFixed(2)}`);
+  };
+  for (let p = 0; p <= 100; p++) {
+    const noeud = famille.repereMain({ ...VOLANT_ESSAI, heure: 3, cote: "droite", prise: p / 100 });
+    verifier(lireRepere(noeud, "droite", [VOLANT_ESSAI.cx, VOLANT_ESSAI.cy]), `prise ${p / 100}`);
+  }
+  const { cx, cy } = famille.repereGeste();
+  let fondus = 0;
+  for (const code of CODES_GESTES) {
+    const def = geste(code);
+    for (const t of instantsDe(def)) {
+      const image = imageA(def, t, false);
+      for (const cote of COTES_MAINS) {
+        const rep = lireRepere(image, cote, [cx, cy]);
+        verifier(rep, `${code}, ${t.toFixed(3)} s, main ${cote}`);
+        if (rep.remplissage > 0.01 && rep.remplissage < 0.99) fondus++;
+      }
+    }
+  }
+  assert.ok(fondus > 0, "aucun fondu vu : le contrôle ne contrôle rien");
+});
+
+test("gestes du volant : les flèches de l'image figée passent sous les repères, et la pointe de chacune se voit, hors de leurs disques et de leurs liserés", () => {
+  const { cx, cy } = famille.repereGeste();
+  let pointes = 0;
+  for (const code of CODES_GESTES) {
+    const def = geste(code);
+    def.etapes.forEach((_, i) => {
+      const image = imageFigee(def, i), quand = `${code}, étape ${i + 1}`;
+      const rang = (role) => image.enfants.findIndex((x) => typeof x !== "string" && x.attributs["data-r"] === role);
+      assert.ok(rang("fleche") >= 0 && rang("fleche") < rang("main-gauche") && rang("main-gauche") < rang("main-droite"), `${quand} : rangs`);
+      const reperes = COTES_MAINS.map((cote) => lireRepere(image, cote, [cx, cy]));
+      for (const f of trouverTous(trouverRole(image, "fleche"), (x) => /^fleche-\d+$/.test(x.attributs["data-r"] || "") && x.attributs.display !== "none")) {
+        for (const p of pointsDe(trouverRole(f, "fleche-tete").attributs.d)) {
+          for (const r of reperes) {
+            assert.ok(Math.hypot(p[0] - r.x, p[1] - r.y) > r.rayon + CHARTE.liseres, `${quand} : pointe de ${f.attributs["data-r"]} cachée sous un repère`);
+          }
+          pointes++;
+        }
+      }
+    });
+  }
+  assert.ok(pointes > 0);
+});
+
+test("tirer-glisser : la flèche de la jante qui glisse dans la main gauche suit la ligne médiane de la jante et passe sous le repère G, creux ; sa queue et sa pointe dépassent de part et d'autre", () => {
+  const def = geste("tirer-glisser"), image = imageFigee(def, 1), { cx, cy, rayon } = famille.repereGeste();
+  const g = lireRepere(image, "gauche", [cx, cy]);
+  assert.ok(g.creux && ecartHeure(g.heure, 9) < 1e-6, "la gauche, creuse, à 9 h");
+  const sous = trouverTous(trouverRole(image, "fleche"), (x) => /^fleche-\d+$/.test(x.attributs["data-r"] || "") && x.attributs.display !== "none")
+    .filter((f) => {
+      const [queue] = pointsDe(trouverRole(f, "fleche-trait").attributs.d), [pointe] = pointsDe(trouverRole(f, "fleche-tete").attributs.d);
+      const surJanteMediane = (p) => Math.abs(Math.hypot(p[0] - cx, p[1] - cy) - rayon) < 0.05;
+      const dehors = (p) => Math.hypot(p[0] - g.x, p[1] - g.y) > g.rayon + CHARTE.liseres;
+      const heure = (p) => ((((Math.atan2(p[0] - cx, cy - p[1]) * 6) / Math.PI) % 12) + 12) % 12;
+      return surJanteMediane(queue) && surJanteMediane(pointe) && dehors(queue) && dehors(pointe) && heure(queue) < 9 && heure(pointe) > 9;
+    });
+  assert.equal(sous.length, 1, "une flèche, de sous la main gauche à au-dessus, le long de la jante");
 });
 
 // Flèches visibles de l'image figée d'une étape : l'heure (autour du centre du volant) de leur queue et de leur pointe, et
@@ -805,22 +855,25 @@ function flechesEtape(def, i) {
     });
 }
 const procheHeure = (h, cible, tolerance = 0.6) => Math.abs(((((h - cible) % 12) + 18) % 12) - 6) <= tolerance;
-const trouve = (fleches, { de, a, sens }) => fleches.some((f) => procheHeure(f.queue, de) && procheHeure(f.pointe, a) && f.sens === sens);
+const trouve = (fleches, { de, a, sens, tolerance }) => fleches.some((f) => procheHeure(f.queue, de, tolerance) && procheHeure(f.pointe, a, tolerance)
+  && f.sens === sens);
 
 test("gestes du volant : les flèches de chaque étape montrent le mouvement qu'elle décrit", () => {
   const tg = geste("tirer-glisser");
   assert.ok(trouve(flechesEtape(tg, 0), { de: 3, a: 0, sens: -1 }), "tirer-glisser, étape 1 : la droite monte de 3 h à midi");
   assert.ok(trouve(flechesEtape(tg, 1), { de: 0, a: 5, sens: 1 }), "tirer-glisser, étape 2 : la droite tire de midi à 5 h");
-  assert.ok(trouve(flechesEtape(tg, 1), { de: 8.75, a: 9.25, sens: 1 }), "tirer-glisser, étape 2 : la jante glisse vers le haut dans la gauche");
+  // La jante qui glisse dans la gauche : le long de sa ligne médiane, sous le repère G, de 8 h 15 à 9 h 45.
+  assert.ok(trouve(flechesEtape(tg, 1), { de: 8.25, a: 9.75, sens: 1, tolerance: 0.02 }), "tirer-glisser, étape 2 : la jante glisse vers le haut dans la gauche");
   const ch = geste("chevauchement");
   assert.ok(trouve(flechesEtape(ch, 0), { de: 3, a: 0, sens: -1 }), "chevauchement, étape 1 : la droite monte à midi");
   assert.ok(trouve(flechesEtape(ch, 1), { de: 0, a: 3, sens: 1 }) && trouve(flechesEtape(ch, 1), { de: 9, a: 0, sens: 1 }),
     "chevauchement, étape 2 : la droite tire jusqu'à 3 h, la gauche suit de 9 h à midi");
-  // La flèche de la main qui remonte part au-delà du bout des doigts de la main qui tient encore la jante à 3 h (vers 2 h 30) et
-  // s'arrête sous la main qui est à midi au début de l'étape (vers midi et demi) : elle va de 3 h vers midi, en dedans de la jante.
-  assert.ok(trouve(flechesEtape(ch, 2), { de: 0, a: 3, sens: 1 }) && trouve(flechesEtape(ch, 2), { de: 2.5, a: 0.5, sens: -1 }),
+  // La flèche de la main qui remonte part du bord de son repère, à 3 h (vers 2 h 37), et s'arrête avant le repère qui est à midi au
+  // début de l'étape (vers 0 h 23) : elle va de 3 h vers midi, en dedans de la jante.
+  const remonte = { de: 2.61, a: 0.39, sens: -1, tolerance: 0.05 };
+  assert.ok(trouve(flechesEtape(ch, 2), { de: 0, a: 3, sens: 1 }) && trouve(flechesEtape(ch, 2), remonte),
     "chevauchement, étape 3 : la gauche tire de midi à 3 h, la droite remonte de 3 h vers midi");
-  assert.ok(trouve(flechesEtape(ch, 3), { de: 0, a: 3, sens: 1 }) && trouve(flechesEtape(ch, 3), { de: 2.5, a: 0.5, sens: -1 }),
+  assert.ok(trouve(flechesEtape(ch, 3), { de: 0, a: 3, sens: 1 }) && trouve(flechesEtape(ch, 3), remonte),
     "chevauchement, étape 4 : la droite tire de midi à 3 h, la gauche remonte de 3 h vers midi");
   const rv = geste("retour-volant");
   const e1 = flechesEtape(rv, 0);
@@ -850,110 +903,6 @@ test("gestes du volant : la voiture braque ses roues avant dans le sens du volan
       assert.equal(texteDe(trouverRole(image, "compteur")), `${Math.round(e.volant)}°`, `${code}, ${t.toFixed(2)} s`);
     }
   }
-});
-
-// Un point dans un polygone (parité des croisements), à `marge` unités au moins de ses côtés.
-function dedansAvecMarge([x, y], poly, marge) {
-  let dedans = false;
-  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
-    const [xi, yi] = poly[i], [xj, yj] = poly[j];
-    if ((yi > y) !== (yj > y) && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) dedans = !dedans;
-  }
-  if (!dedans) return false;
-  return poly.every((a, i) => {
-    const b = poly[(i + 1) % poly.length], ab = [b[0] - a[0], b[1] - a[1]];
-    const u = Math.max(0, Math.min(1, ((x - a[0]) * ab[0] + (y - a[1]) * ab[1]) / (ab[0] ** 2 + ab[1] ** 2 || 1)));
-    return Math.hypot(x - (a[0] + u * ab[0]), y - (a[1] + u * ab[1])) >= marge;
-  });
-}
-// Surfaces d'une main dans l'image, en polygones (points de contrôle compris) : sa peau (dos, doigts, pouce, poignet) et sa
-// manche (tissu et revers).
-function surfacesMain(image, cote) {
-  const m = trouverRole(image, `main-${cote}`), manche = trouverRole(m, `manche-${cote}`);
-  const pleins = (noeud, garder) => trouverTous(noeud, (x) => x.balise === "path" && garder(x.attributs.fill)).map((x) => pointsDe(x.attributs.d)).filter((p) => p.length >= 3);
-  return { peau: pleins(m, (f) => f === CHARTE.peau), manche: pleins(manche, (f) => f && f !== "none") };
-}
-const recouvre = (dessus, dessous, marge = 1) => dessus.some((a) => dessous.some((b) => a.some((p) => dedansAvecMarge(p, b, marge)) || b.some((p) => dedansAvecMarge(p, a, marge))));
-const traceVide = (d) => !/[CL]/.test(String(d));
-
-// Centre du dos d'une main (moyenne des points de son tracé) et surfaces pleines de son avant-bras (peau du poignet, peau et
-// manche du reste de l'avant-bras).
-function centreDos(image, cote) {
-  const dos = pointsDe(trouverRole(image, `dos-${cote}`).attributs.d);
-  return [0, 1].map((i) => dos.reduce((somme, q) => somme + q[i], 0) / dos.length);
-}
-const surfacesAvantBras = (image, cote) => [`poignet-${cote}`, `avant-bras-${cote}`].flatMap((role) => trouverTous(trouverRole(image, role),
-  (x) => x.balise === "path" && x.attributs.fill && x.attributs.fill !== "none").map((x) => pointsDe(x.attributs.d)).filter((p) => p.length >= 3));
-
-test("chevauchement : la main qui croise passe devant l'avant-bras qu'elle croise, la droite par-dessus le bras gauche (étape 3) ; la gauche remonte sous le bras droit (étape 4), jamais devant lui", () => {
-  const def = geste("chevauchement");
-  const [T3, T4] = [def.etapes[2].t, def.etapes[3].t];
-  let [dessus, dessous] = [false, false];
-  for (const t of instantsDe(def)) {
-    const image = imageA(def, t, false);
-    // Empilement constant : la gauche (main et avant-bras) dessinée d'abord, la droite par-dessus, dans le même parent.
-    const droite = trouverRole(image, "main-droite"), gauche = trouverRole(image, "main-gauche");
-    const freres = trouverTous(image, (x) => x.enfants.includes(droite))[0].enfants;
-    assert.ok(freres.includes(gauche) && freres.indexOf(gauche) < freres.indexOf(droite), `${t.toFixed(3)} s : la gauche devant la droite`);
-    // La main qui croise passe sur l'avant-bras de l'autre : le centre de son dos tombe sur la peau ou la manche de cet avant-bras.
-    const sur = (cote, bras) => surfacesAvantBras(image, bras).some((p) => dedansAvecMarge(centreDos(image, cote), p, 0));
-    if (t >= T3 && t < T4 && sur("droite", "gauche")) dessus = true;
-    if (t >= T4 && sur("gauche", "droite")) dessous = true;
-  }
-  assert.ok(dessus, "étape 3 : la main droite ne passe jamais sur l'avant-bras gauche");
-  assert.ok(dessous, "étape 4 : la main gauche ne passe jamais sous l'avant-bras droit");
-});
-
-// Une main qui lâche la jante, ou la reprend, fait passer ses doigts de derrière la jante à devant elle (ou l'inverse). Pendant
-// ce passage, les doigts déjà devant la jante n'ont pas encore rejoint le dos de la main : la jante se voit entre eux et lui, des
-// doigts détachés de la main. Une image au plus par passage, à 60 images par seconde : sur six images, ils se lisaient comme des
-// perles posées sur la jante (relecture finale du lot D1).
-const IMAGES_DETACHEES_MAX = 1;
-test("chevauchement : une main qui lâche ou reprend la jante ne montre ses doigts détachés d'elle, la jante entre eux et le dos de la main, qu'une image au plus par passage", () => {
-  const def = geste("chevauchement");
-  let passages = 0;
-  for (const cote of COTES_MAINS) {
-    const R = famille.repereGeste(cote), e = R.rayon * famille.EPAISSEUR_JANTE;
-    const dist = ([x, y]) => Math.hypot(x - R.cx, y - R.cy);
-    let suite = [];
-    const finir = () => {
-      if (suite.length) passages++;
-      assert.ok(suite.length <= IMAGES_DETACHEES_MAX, `main ${cote} : doigts détachés de la main sur ${suite.length} images (${suite.join(", ")} s)`);
-      suite = [];
-    };
-    for (const t of instantsDe(def)) {
-      if (def.etat(t).mains[cote].prise >= 0.5) { finir(); continue; }
-      const m = trouverRole(imageA(def, t, false), `main-${cote}`);
-      const loin = Math.max(...doigtsDe(m, cote).flat().map(dist));
-      const dos = Math.min(...echantillons(trouverRole(m, `dos-${cote}`).attributs.d).map(dist));
-      // En partie devant la jante (au-delà de son bord intérieur), sans atteindre le bord du dos de la main.
-      if (loin > R.rayon - e / 2 + CHARTE.traits.fin && loin < dos) suite.push(t.toFixed(3));
-      else finir();
-    }
-    finir();
-  }
-  assert.ok(passages > 0, "aucun passage vu : le contrôle ne contrôle rien");
-});
-
-test("gestes du volant : là où une main passe sur l'autre, un contour sépare les deux peaux, et les deux manches", () => {
-  let vus = 0;
-  for (const code of CODES_GESTES) {
-    const def = geste(code);
-    for (const t of instantsDe(def).filter((_, k) => k % 2 === 0)) {
-      const image = imageA(def, t, false);
-      const [g, d] = [surfacesMain(image, "gauche"), surfacesMain(image, "droite")];
-      const contours = (matiere) => trouverTous(trouverRole(image, "main-droite"), (x) => x.attributs["data-r"] === `contour-${matiere}-droite`);
-      if (recouvre(d.peau, g.peau)) {
-        vus++;
-        assert.ok(contours("peau").some((x) => !traceVide(x.attributs.d)), `${code}, ${t.toFixed(3)} s : peau sur peau sans contour`);
-      }
-      if (recouvre(d.manche, g.manche)) {
-        vus++;
-        assert.ok(contours("manche").some((x) => !traceVide(x.attributs.d)), `${code}, ${t.toFixed(3)} s : manche sur manche sans contour`);
-      }
-    }
-  }
-  assert.ok(vus > 0, "aucun recouvrement vu : le contrôle ne contrôle rien");
 });
 
 // Chaque étape où les mains tournent le volant (prise pleine des deux mains pendant qu'il tourne) les nomme dans son intitulé
