@@ -749,3 +749,13 @@ test("regard-loin : la marque du point visé se lit sur un téléphone et le poi
     b: [centre[0] + rayon * Math.cos((k + 1) * DEG), centre[1] + rayon * Math.sin((k + 1) * DEG)], demi: 0.5 })) };
   assert.ok(partCachee(p, rayonPoint(e), cercleMarque) <= PART_CACHEE_MAX, "le point ne cache pas la marque");
 });
+
+// Style schématique (décision du formateur du 15/10/2026, essai sur C1.3) : la voiture du regard porté loin est la silhouette du
+// kit ; à cette échelle (11,5 unités par mètre), la voiture détaillée dessinerait ses vitres latérales, ses phares et ses feux.
+test("regard-loin : la voiture en silhouette (style schématique) : la caisse, le pare-brise et la lunette, sans toit, vitres latérales, phares ni feux", () => {
+  const voiture = trouverRole(dessin("regard-loin"), "voiture");
+  for (const role of ["toit", "vitre-avant-gauche", "vitre-arriere-droite", "phare-gauche", "feu-droit", "reflet-pare-brise"]) {
+    assert.equal(trouverRole(voiture, role), null, `${role} dans la silhouette`);
+  }
+  for (const role of ["caisse", "pare-brise", "lunette"]) assert.ok(trouverRole(voiture, role), role);
+});

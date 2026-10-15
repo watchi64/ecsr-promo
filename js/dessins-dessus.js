@@ -538,6 +538,7 @@ function sousSurvirage() {
 }
 
 // ===== Regard porté loin =====
+// Style schématique (décision du formateur du 15/10/2026, essai sur C1.3) : la voiture en silhouette (voitureDessus, option schema).
 // Un virage à gauche, vu du dessus : la voiture à son entrée, dans la voie de droite, cap 0 (avant à droite du cadre) ; le cône
 // du regard des scènes vise l'axe de sa voie, loin dans le virage : son axe passe par le milieu de son bord lointain, à
 // 22 cos 16 degrés (21,15 m) de l'œil, sur l'axe de la voie.
@@ -587,7 +588,7 @@ function regardLoin() {
   route.noeud,
   pointille(trajet, { couleur: TEINTES_ROUTE.trajet, ...RL.pointille, role: "trajet" }),
   n("path", { d: trace(cone), fill: TEINTES_ROUTE.regard, opacity: opacite, "data-r": "regard" }),
-  voitureDessus(pose),
+  voitureDessus({ ...pose, schema: true }),
   n("g", { "data-r": "point-vise", "data-x": vise[0], "data-y": vise[1] },
     n("circle", { cx: vise[0], cy: vise[1], r: v.rayon, fill: "none", stroke: CHARTE.carte, "stroke-width": v.lisere }),
     n("circle", { cx: vise[0], cy: vise[1], r: v.rayon, fill: "none", stroke: CHARTE.texte, "stroke-width": v.trait })),
