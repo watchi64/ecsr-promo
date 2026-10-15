@@ -828,19 +828,24 @@ test("gestes du volant : les flèches de l'image figée passent sous les repère
   assert.ok(pointes > 0);
 });
 
-test("tirer-glisser : la flèche de la jante qui glisse dans la main gauche suit la ligne médiane de la jante et passe sous le repère G, creux ; sa queue et sa pointe dépassent de part et d'autre", () => {
-  const def = geste("tirer-glisser"), image = imageFigee(def, 1), { cx, cy, rayon } = famille.repereGeste();
-  const g = lireRepere(image, "gauche", [cx, cy]);
-  assert.ok(g.creux && ecartHeure(g.heure, 9) < 1e-6, "la gauche, creuse, à 9 h");
-  const sous = trouverTous(trouverRole(image, "fleche"), (x) => /^fleche-\d+$/.test(x.attributs["data-r"] || "") && x.attributs.display !== "none")
-    .filter((f) => {
-      const [queue] = pointsDe(trouverRole(f, "fleche-trait").attributs.d), [pointe] = pointsDe(trouverRole(f, "fleche-tete").attributs.d);
-      const surJanteMediane = (p) => Math.abs(Math.hypot(p[0] - cx, p[1] - cy) - rayon) < 0.05;
-      const dehors = (p) => Math.hypot(p[0] - g.x, p[1] - g.y) > g.rayon + CHARTE.liseres;
-      const heure = (p) => ((((Math.atan2(p[0] - cx, cy - p[1]) * 6) / Math.PI) % 12) + 12) % 12;
-      return surJanteMediane(queue) && surJanteMediane(pointe) && dehors(queue) && dehors(pointe) && heure(queue) < 9 && heure(pointe) > 9;
+// Remarque du formateur du 15/10/2026 sur le tirer-glisser : « la petite flèche sur la main gauche n'est pas utile et peut porter à
+// confusion ». La jante qui glisse dans une main se lit à son repère creux : aucune flèche ne court sur la ligne médiane de la jante
+// (là où passait celle de la jante qui glisse, dans le tirer-glisser et à l'étape 1 du retour du volant) ; les flèches des mains et
+// du volant qui revient passent au-delà des repères, celle d'une main qui remonte en dedans de la jante.
+test("gestes du volant : aucune flèche sur la jante, au droit des mains : le repère creux dit seul que la jante glisse", () => {
+  const { cx, cy, rayon } = famille.repereGeste();
+  for (const code of CODES_GESTES) {
+    const def = geste(code);
+    def.etapes.forEach((_, i) => {
+      const fleches = trouverTous(trouverRole(imageFigee(def, i), "fleche"), (x) => /^fleche-\d+$/.test(x.attributs["data-r"] || "")
+        && x.attributs.display !== "none");
+      for (const f of fleches) {
+        const trait = pointsDe(trouverRole(f, "fleche-trait").attributs.d), [pointe] = pointsDe(trouverRole(f, "fleche-tete").attributs.d);
+        const surJante = [trait[0], pointe].filter((p) => Math.abs(Math.hypot(p[0] - cx, p[1] - cy) - rayon) < 0.05);
+        assert.equal(surJante.length, 0, `${code}, étape ${i + 1} : ${f.attributs["data-r"]} court sur la ligne médiane de la jante`);
+      }
     });
-  assert.equal(sous.length, 1, "une flèche, de sous la main gauche à au-dessus, le long de la jante");
+  }
 });
 
 // Flèches visibles de l'image figée d'une étape : l'heure (autour du centre du volant) de leur queue et de leur pointe, et
@@ -866,8 +871,7 @@ test("gestes du volant : les flèches de chaque étape montrent le mouvement qu'
   const tg = geste("tirer-glisser");
   assert.ok(trouve(flechesEtape(tg, 0), { de: 3, a: 0, sens: -1 }), "tirer-glisser, étape 1 : la droite monte de 3 h à midi");
   assert.ok(trouve(flechesEtape(tg, 1), { de: 0, a: 3, sens: 1 }), "tirer-glisser, étape 2 : la droite tire de midi à 3 h");
-  // La jante qui glisse dans la gauche : le long de sa ligne médiane, sous le repère G, de 8 h 15 à 9 h 45.
-  assert.ok(trouve(flechesEtape(tg, 1), { de: 8.25, a: 9.75, sens: 1, tolerance: 0.02 }), "tirer-glisser, étape 2 : la jante glisse vers le haut dans la gauche");
+  assert.equal(flechesEtape(tg, 1).length, 1, "tirer-glisser, étape 2 : la seule traction ; la jante qui glisse dans la gauche se lit à son repère creux");
   const ch = geste("chevauchement");
   assert.ok(trouve(flechesEtape(ch, 0), { de: 3, a: 0, sens: -1 }), "chevauchement, étape 1 : la droite monte à midi");
   assert.ok(trouve(flechesEtape(ch, 1), { de: 0, a: 3, sens: 1 }) && trouve(flechesEtape(ch, 1), { de: 9, a: 0, sens: 1 }),
@@ -880,9 +884,7 @@ test("gestes du volant : les flèches de chaque étape montrent le mouvement qu'
   assert.ok(trouve(flechesEtape(ch, 3), { de: 0, a: 3, sens: 1 }) && trouve(flechesEtape(ch, 3), remonte),
     "chevauchement, étape 4 : la droite tire de midi à 3 h, la gauche remonte de 3 h vers midi");
   const rv = geste("retour-volant");
-  const e1 = flechesEtape(rv, 0);
-  assert.ok(e1.length === 2 && e1.every((f) => f.sens === -1), "retour-volant, étape 1 : la jante glisse dans les deux mains, dans le sens du retour");
-  assert.ok(e1.some((f) => procheHeure(f.queue, 8.35, 0.4)) && e1.some((f) => procheHeure(f.pointe, 3.65, 0.4)), "retour-volant, étape 1 : au bord des mains");
+  assert.equal(flechesEtape(rv, 0).length, 0, "retour-volant, étape 1 : aucune flèche, les repères creux disent que la jante glisse");
   const e2 = flechesEtape(rv, 1);
   assert.ok(e2.length === 1 && e2[0].sens === -1 && procheHeure(e2[0].queue, 2.5) && procheHeure(e2[0].pointe, 9.5), "retour-volant, étape 2 : le volant revient d'un demi-tour");
   // Étapes 3 et 4 : les flèches partent des mains ; chacune tourne le volant d'un quart de tour, puis le ramène.

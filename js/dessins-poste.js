@@ -653,9 +653,6 @@ const GESTE = {
   // revient droit : arcs à 24,5 cm du centre, juste au-delà des repères (le bord de leur liseré est à 22,2 cm) ; écart (heures)
   // qui sépare deux flèches qui se suivent, à leur jonction.
   fleche: { rayon: 24.5, jeu: 0.25 },
-  // Flèche de la jante qui glisse dans la main gauche (tirer-glisser) : sur la ligne médiane de la jante, de 8 h 15 à 9 h 45 :
-  // elle passe sous le repère G, sa queue et sa pointe dépassent de part et d'autre.
-  glisse: { avant: 0.75, apres: 0.75 },
   // Flèche d'une main qui remonte en l'air (chevauchement) : elle part du bord du repère, à 3 h, et s'arrête avant celui qui
   // est à midi, à `jeu` unités de leur liseré.
   traversee: { echantillons: 24, jeu: 2 },
@@ -739,11 +736,11 @@ function etatTirerGlisser(t) {
   const gauche = posee(POSITION.gauche, cles([{ t: T.reprise[0], v: 1 }, { t: T.reprise[1], v: G }], t));
   return { volant, mains: { gauche, droite } };
 }
+// Flèches : étape 1, la droite qui monte ; étape 2, sa traction. La jante qui glisse dans la main gauche ne porte pas de flèche :
+// son repère creux le dit (remarque du formateur du 15/10/2026 : une flèche sur la main gauche peut porter à confusion).
 const FLECHES_TIRER_GLISSER = [
   [flecheArc(POSITION.droite, POSITION.midi), null],
-  [flecheArc(POSITION.midi, TIRER_GLISSER.angle / DEGRES_PAR_HEURE),
-    // la jante qui glisse vers le haut dans la main gauche, sur sa ligne médiane, sous le repère G
-    arcAutour(POSITION.gauche - GESTE.glisse.avant, POSITION.gauche + GESTE.glisse.apres, VOLANT.rayon)],
+  [flecheArc(POSITION.midi, TIRER_GLISSER.angle / DEGRES_PAR_HEURE), null],
 ];
 
 // 2. Chevauchement, virage à droite en manœuvre (le cours : la main du côté où l'on tourne monte vers midi et tire ; l'autre
@@ -863,19 +860,18 @@ function etatRetourVolant(t) {
     allure: basse ? "basse" : "roulant",
   };
 }
-// Flèches de la jante qui glisse (étape 1) : sur sa ligne médiane, elles partent `depart` heure au-delà du centre du repère (au-delà
-// de son liseré), sur `longueur` heure ; le volant qui revient (étape 2) : arc en haut, raccourci de `bord` heure de chaque côté
-// pour ne pas toucher les repères.
-const RETOUR_FLECHES = { depart: 0.65, longueur: 0.9, bord: 0.5 };
-// Flèches : étape 1, la jante qui glisse dans chaque main (vers le bas dans la gauche, vers le haut dans la droite), sur sa ligne
-// médiane, juste au-delà du repère ; étape 2, le volant qui revient droit (arc en haut) ; étape 3, à basse allure, chaque main
-// qui tourne le volant d'un quart de tour ; étape 4, chaque main qui le ramène, à partir de là où elle l'a laissé.
+// Flèche du volant qui revient (étape 2) : arc en haut, raccourci de `bord` heure de chaque côté pour ne pas toucher les repères.
+const RETOUR_FLECHES = { bord: 0.5 };
+// Flèches : étape 1, aucune : les doigts s'entrouvrent, et les repères creux disent que la jante glisse dans les mains (comme dans
+// le tirer-glisser, une flèche sur la jante au bord d'une main peut porter à confusion, remarque du formateur du 15/10/2026) ;
+// étape 2, le volant qui revient droit (arc en haut) ; étape 3, à basse allure, chaque main qui tourne le volant d'un quart de
+// tour ; étape 4, chaque main qui le ramène, à partir de là où elle l'a laissé.
 const FLECHES_RETOUR_VOLANT = (() => {
   const R = RETOUR_VOLANT, F = RETOUR_FLECHES, f = GESTE.fleche;
   const [demi, quart] = [R.angle / DEGRES_PAR_HEURE / 2, R.angleBasse / DEGRES_PAR_HEURE];
   const [g, d] = [POSITION.gauche, POSITION.droite];
   return [
-    [arcAutour(g - F.depart, g - F.depart - F.longueur, VOLANT.rayon), arcAutour(d + F.depart + F.longueur, d + F.depart, VOLANT.rayon)],
+    [null, null],
     [arcAutour(POSITION.midi + demi - F.bord, POSITION.midi - demi + F.bord, f.rayon), null],
     [flecheArc(g, g + quart), flecheArc(d, d + quart)],
     [flecheArc(g + quart, g), flecheArc(d + quart, d)],
