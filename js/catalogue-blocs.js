@@ -177,7 +177,7 @@ export const CATALOGUE = {
       "À basse allure, les mains braquent ; relâché, le volant ne revient pas seul", "Les mains le ramènent"], cadre: [320, 210] },
   "regard-loin": { bloc: "scene", module: "dessus", titre: "Regarder loin",
     etapesModele: ["En entrée de virage, le regard vise la corde, dans sa voie", "À la corde, il porte déjà vers la sortie",
-      "En sortie, il porte loin, droit devant"], cadre: [320, 270] },
+      "En sortie, il porte loin, droit devant"], cadre: [320, 243] },
 };
 
 /** L'entrée d'un code, ou null : seules les propriétés propres comptent (« constructor » n'est pas un bloc). */
