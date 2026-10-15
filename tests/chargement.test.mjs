@@ -27,7 +27,7 @@ test("le démarrage de l'app n'atteint ni moteur, ni registre de scènes, ni des
     assert.ok(noms.includes(attendu), `${attendu} devrait être atteint depuis main.js`);
   }
   const lourds = noms
-    .filter((n) => /^(scenes|scene-[a-z]+|lecteur-anime|geste-moteur|geste-regles|animation-courbes|dessin-svg|dessins-[a-z]+)\.js$/.test(n));
+    .filter((n) => /^(scenes|scene-[a-z]+|lecteur-anime|geste-moteur|geste-regles|animation-courbes|dessin-svg|dessins-[a-z]+|piece-[a-z]+)\.js$/.test(n));
   assert.deepEqual(lourds, []);
 });
 

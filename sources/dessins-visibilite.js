@@ -143,8 +143,8 @@ export const SOURCES = {
       + "100 degrés à 40 km/h) : la tête tournée vers l'épaule porte ce champ vers l'arrière gauche. Il couvre toute la zone gauche "
       + "dessinée, vue de l'œil de 90 à 162 degrés du cap. Le cône des scènes (16 degrés de part et d'autre) montre où se pose le "
       + "regard au fil d'une manœuvre ; ici, le dessin montre ce que le coup d'œil embrasse.",
-    "Choix de dessin, deux-roues : le cycliste des scènes (js/scene-moteur.js, dessinerVelo, non exporté : 1,8 sur 0,6 m, roues de "
-      + "0,7 m aux bouts arrondis, guidon arrondi, teintes de js/scene-rendu.js), recopié en description pure ; centré 1,85 m à gauche "
+    "Choix de dessin, deux-roues : le cycliste de la scène « sortie-portiere », la même pièce (js/piece-cycliste.js : 1,8 sur "
+      + "0,6 m, roues de 0,7 m aux bouts arrondis, guidon arrondi, teintes des scènes), posée cap vers le haut ; centré 1,85 m à gauche "
       + "de l'axe et 1,0 m derrière le centre de la voiture, il longe la portière arrière et l'aile arrière entre 0,65 et 1,25 m du "
       + "flanc : tout entier dans la zone gauche, à 0,1 m au moins de ses bords, hors du champ du rétroviseur gauche. C'est le "
       + "cycliste que le rétroviseur ne montre pas au moment d'ouvrir la portière. Étiquettes : « Angle mort » de chaque côté et "

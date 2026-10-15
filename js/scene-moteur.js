@@ -40,6 +40,8 @@ import { TEINTES, RAYON_REPERE, clignotantAllume, feuxDeRecul, cadreCamera, cadr
 import { urlSignalVerifie } from "./signaux.js?v=20261013a";
 import { monterLecteur } from "./lecteur-anime.js?v=20261013a";
 import { etapeA } from "./lecteur-anime-regles.js?v=20261013a";
+import { versDom } from "./dessin-svg.js?v=20261013a";
+import { cycliste } from "./piece-cycliste.js?v=20261013a";
 
 const NS = "http://www.w3.org/2000/svg";
 // Opacité du regard : un cône, en lecture comme sur une image figée (les quatre cônes d'un tour du regard figé compris),
@@ -166,47 +168,10 @@ function dessinerVoiture(teinte, bord, avecPortiere = false) {
   return { g, clignotants, stops, reculs, portiere: { ouverture, battant, fleche, arcs: [arcLisere, arc], pointe } };
 }
 
-// Cycliste vu du dessus, dans son gabarit (GABARITS.velo : 1,8 x 0,6 m), en repère local : x vers l'avant, y vers la droite.
-// Choix de dessin : deux roues de 0,7 m (la roue « 700 » d'un vélo de ville) aux deux bouts du gabarit, soit 1,1 m
-// d'empattement ; pneus dessinés de 6 cm (35 mm en vrai, élargis pour rester visibles sur un téléphone) ; cadre dans l'axe ;
-// guidon de 0,6 m, la largeur du gabarit ; le cycliste penché vers le guidon : le dos, des hanches (sur la selle) aux
-// épaules, les bras jusqu'aux poignées, la tête en avant des épaules. Aucun trait sous 0,05 m : 1 px au moins à 343 px de
-// large, dans le cadre de 15 m de sortie-portiere.
-const VELO = {
-  roue: 0.7, pneu: 0.06, cadre: 0.05, guidon: { x: 0.42, epaisseur: 0.05 },
-  // Dos, en m le long du vélo et de part et d'autre de son axe : épaules (0,42 m de large) et hanches (0,30 m, sur la selle).
-  dos: { epaules: 0.05, hanches: -0.33, demiEpaules: 0.21, demiHanches: 0.15, cou: 0.07, bassin: 0.09 },
-  // Bras : de l'articulation de l'épaule au coude, un peu écarté, puis à la poignée du guidon.
-  bras: { epaisseur: 0.075, epaule: [0.03, 0.18], coude: [0.22, 0.235], main: [0.42, 0.26] },
-  tete: { x: 0.13, demiLongueur: 0.12, demiLargeur: 0.095 },
-  contour: 0.05,
-};
-
+// Cycliste vu du dessus : la pièce partagée avec le dessin des angles morts (js/piece-cycliste.js : gabarit, teintes, choix de
+// dessin), en repère local (x vers l'avant, y vers la droite, en mètres), que chaque image pose par le transform du groupe.
 function dessinerVelo() {
-  const { longueur: L } = GABARITS.velo, { roue, pneu, cadre, guidon, dos, bras, tete, contour } = VELO;
-  const g = svg("g", { class: "scene-velo" });
-  // Roues (pneus vus d'en haut), cadre et guidon.
-  for (const cx of [-(L - roue) / 2, (L - roue) / 2]) {
-    g.appendChild(svg("rect", { x: n3(cx - roue / 2), y: n3(-pneu / 2), width: roue, height: pneu, rx: pneu / 2, fill: TEINTES.pneu }));
-  }
-  g.appendChild(svg("rect", { x: n3(-(L - roue) / 2), y: n3(-cadre / 2), width: n3(guidon.x + (L - roue) / 2), height: cadre, fill: TEINTES.velo }));
-  const demiGuidon = GABARITS.velo.largeur / 2;
-  g.appendChild(svg("rect", { x: n3(guidon.x - guidon.epaisseur / 2), y: n3(-demiGuidon), width: guidon.epaisseur,
-    height: n3(2 * demiGuidon), rx: guidon.epaisseur / 2, fill: TEINTES.velo }));
-  // Le dos : les épaules à l'avant, arrondies vers le cou ; les flancs ; les hanches à l'arrière, arrondies sur la selle.
-  const { epaules: xe, hanches: xh, demiEpaules: we, demiHanches: wh, cou, bassin } = dos;
-  const d = `M${n3(xe)} ${n3(-we)} C${n3(xe + cou)} ${n3(-we)} ${n3(xe + cou)} ${n3(we)} ${n3(xe)} ${n3(we)}`
-    + ` L${n3(xh)} ${n3(wh)} C${n3(xh - bassin)} ${n3(wh)} ${n3(xh - bassin)} ${n3(-wh)} ${n3(xh)} ${n3(-wh)} Z`;
-  g.appendChild(svg("path", { d, fill: TEINTES.cycliste, stroke: TEINTES.cyclisteBord, "stroke-width": contour, "stroke-linejoin": "round" }));
-  // Les bras, de l'épaule au coude puis à la poignée du guidon, dans l'ombre de la veste.
-  for (const s of [-1, 1]) {
-    const pts = [bras.epaule, bras.coude, bras.main].map(([x, y]) => `${n3(x)},${n3(s * y)}`).join(" ");
-    g.appendChild(svg("polyline", { points: pts, fill: "none", stroke: TEINTES.cyclisteOmbre, "stroke-width": bras.epaisseur,
-      "stroke-linecap": "round", "stroke-linejoin": "round" }));
-  }
-  g.appendChild(svg("ellipse", { cx: n3(tete.x), cy: 0, rx: tete.demiLongueur, ry: tete.demiLargeur, fill: TEINTES.tete,
-    stroke: TEINTES.cyclisteBord, "stroke-width": contour }));
-  return { g, clignotants: null, stops: null, reculs: null, portiere: null };
+  return { g: versDom(cycliste({ class: "scene-velo" })), clignotants: null, stops: null, reculs: null, portiere: null };
 }
 
 function dessinerPieton() {

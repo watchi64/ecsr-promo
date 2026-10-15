@@ -9,6 +9,8 @@ import { reperesProfil, reperesDessus, voitureDessus, TEINTES_ROUTE, VOITURE } f
 import { REGARD_PORTEE, oeil as oeilScene } from "../js/scene-regard.js";
 import { TEINTES } from "../js/scene-rendu.js";
 import { OPACITE_CONE } from "../js/scene-moteur.js";
+import { cycliste, GABARIT_VELO, TEINTES_VELO } from "../js/piece-cycliste.js";
+import { versChaine } from "../js/dessin-svg.js";
 import { GABARITS } from "../js/scene-geometrie.js";
 import { DESSIN, IISR } from "../js/scene-decors.js";
 
@@ -47,6 +49,22 @@ const pointsNoeud = (n) => (n.balise === "rect"
   ? [["x", "y"], ["x+", "y"], ["x+", "y+"], ["x", "y+"]].map(([kx, ky]) => [Number(n.attributs.x) + (kx === "x+" ? Number(n.attributs.width) : 0),
     Number(n.attributs.y) + (ky === "y+" ? Number(n.attributs.height) : 0)])
   : pointsDe(n.attributs.d));
+// Points d'un groupe posé par son transform (translate, rotate en degrés, scale), dans le cadre : ceux de ses rectangles, tracés et
+// lignes brisées, et les coins de la boîte de chaque ellipse (qui la contient).
+function pointsPoses(g) {
+  const t = String(g.attributs.transform || "");
+  const tr = t.match(/translate\(([-\d.]+) ([-\d.]+)\)/), ro = t.match(/rotate\(([-\d.]+)\)/), sc = t.match(/scale\(([-\d.]+)\)/);
+  const [tx, ty] = tr ? [Number(tr[1]), Number(tr[2])] : [0, 0], a = ro ? (Number(ro[1]) * Math.PI) / 180 : 0, k = sc ? Number(sc[1]) : 1;
+  const poser = ([px, py]) => [tx + k * (px * Math.cos(a) - py * Math.sin(a)), ty + k * (px * Math.sin(a) + py * Math.cos(a))];
+  return trouverTous(g, (x) => x !== g).flatMap((x) => {
+    if (x.balise === "polyline") return String(x.attributs.points).trim().split(/\s+/).map((c) => c.split(",").map(Number));
+    if (x.balise === "ellipse") {
+      const [cx, cy, rx, ry] = ["cx", "cy", "rx", "ry"].map((c) => Number(x.attributs[c]));
+      return [[cx - rx, cy - ry], [cx + rx, cy - ry], [cx + rx, cy + ry], [cx - rx, cy + ry]];
+    }
+    return x.balise === "rect" || x.balise === "path" ? pointsNoeud(x) : [];
+  }).map(poser);
+}
 const boite = (pts) => ({
   x1: Math.min(...pts.map((p) => p[0])), x2: Math.max(...pts.map((p) => p[0])),
   y1: Math.min(...pts.map((p) => p[1])), y2: Math.max(...pts.map((p) => p[1])),
@@ -490,12 +508,24 @@ test("angles-morts : le deux-roues est tout entier dans la zone gauche, le long 
   const v = vueDessus(d);
   assert.ok(Math.abs(lo - GABARITS.velo.longueur * v.s) < 1e-9 && Math.abs(la - GABARITS.velo.largeur * v.s) < 1e-9, "gabarit du vélo des scènes");
   const emprise = [[x - la / 2, y - lo / 2], [x + la / 2, y - lo / 2], [x + la / 2, y + lo / 2], [x - la / 2, y + lo / 2]];
-  const dessin = trouverTous(g, (n) => n.balise === "path" || n.balise === "rect").flatMap(pointsNoeud);
+  const dessin = pointsPoses(g);
+  assert.ok(dessin.length >= 4 * 4 + 8 + 6 + 4, "roues, cadre, guidon, dos, bras et tête du cycliste lus");
   for (const p of [...emprise, ...dessin]) assert.ok(dansPolygoneConvexe(p, z), `le point ${p} du deux-roues sort de la zone gauche`);
   const flanc = v.x - (VOITURE.largeur / 2) * v.s;
   assert.ok(emprise.every((p) => flanc - p[0] < 1.5 * v.s), "à moins de 1,5 m du flanc");
   const X = (v.y - y) / v.s;
   assert.ok(X <= VOITURE.portiere.arriere && X >= -VOITURE.longueur / 2, `centre à X = ${X.toFixed(2)} m : le long de la portière arrière ou de l'aile arrière`);
+});
+
+test("angles-morts : le cycliste est la pièce de la scène « sortie-portiere » (js/piece-cycliste.js), posée cap vers le haut à l'échelle du dessin", () => {
+  const d = famille.DESSINS["angles-morts"]();
+  const g = trouverRole(d, "deux-roues"), v = vueDessus(d);
+  // Les mêmes nœuds, au caractère près : ni copie ni variante.
+  assert.equal(g.enfants.map((x) => versChaine(x, false)).join(""), cycliste().enfants.map((x) => versChaine(x, false)).join(""));
+  assert.equal(g.attributs.transform, `translate(${g.attributs["data-x"]} ${g.attributs["data-y"]}) rotate(-90) scale(${v.s})`);
+  // La pièce porte le gabarit et les teintes des scènes.
+  assert.deepEqual(GABARITS.velo, GABARIT_VELO);   // par valeur : sous Node, x.js et x.js?v=... sont deux instances du module
+  for (const [k, c] of Object.entries(TEINTES_VELO)) assert.equal(TEINTES[k], c, k);
 });
 
 test("angles-morts : la voiture, la rue, le marquage, le cône du regard et le cycliste ont les teintes et les dimensions des scènes", () => {

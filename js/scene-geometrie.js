@@ -31,6 +31,8 @@
  * `de` et `a`, étapes `s`, rebroussements) comme la courbure sont les siennes.
  */
 
+import { GABARIT_VELO } from "./piece-cycliste.js?v=20261013a";
+
 export const DEG = Math.PI / 180;
 export const KMH = 1 / 3.6;
 
@@ -42,8 +44,9 @@ export const GABARITS = {
   voiture: { longueur: 4.5, largeur: 1.8, essieu: 1.45 },
   pieton: { longueur: 0.5, largeur: 0.5 },
   // velo : un cycliste sur son vélo, vu du dessus (choix de dessin, plan 3, tâche 13) : 1,8 m de long, deux roues de
-  // 0,7 m de diamètre et 1,1 m d'empattement ; 0,6 m de large, la largeur du guidon.
-  velo: { longueur: 1.8, largeur: 0.6 },
+  // 0,7 m de diamètre et 1,1 m d'empattement ; 0,6 m de large, la largeur du guidon. Le gabarit de la pièce partagée avec le
+  // dessin des angles morts (js/piece-cycliste.js).
+  velo: GABARIT_VELO,
 };
 
 /**

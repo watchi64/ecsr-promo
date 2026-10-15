@@ -12,6 +12,7 @@ import { n, trouverRole } from "./dessin-svg.js?v=20261013a";
 import { CHARTE, METRIQUES_POLICE, MISE_EN_PAGE, REGARD_SCENES, cadre, texte, etiquette, vignette, largeurPastille, voitureProfil, reperesProfil,
   voitureDessus, reperesDessus, VOITURE, VITRAGE_CONTOUR, TEINTES_ROUTE, arrondir, couper, bande, ceinture, coord, trace, entre } from "./dessins-kit.js?v=20261013a";
 import { CATALOGUE } from "./catalogue-blocs.js?v=20261013a";
+import { cycliste, GABARIT_VELO } from "./piece-cycliste.js?v=20261013a";
 
 // ===== Géométrie plane =====
 const DEG = Math.PI / 180;
@@ -432,47 +433,12 @@ const ANGLES_MORTS = {
     jeu: 4,                // de l'ancre au bord de la chaussée
   },
 };
-const TEINTES_DESSUS = {
-  champ: CHARTE.carte, champBord: CHARTE.carte,
-  // Cycliste vu du dessus : teintes des scènes (TEINTES de js/scene-rendu.js, plan 3, tâche 13), absentes de TEINTES_ROUTE.
-  cycliste: "#F5B06A", cyclisteOmbre: "#D98E4A", cyclisteBord: "#1F2422", tete: "#5A4636", velo: "#2E2E2B", pneu: "#1F2422",
-};
-// Cycliste sur son vélo vu du dessus, celui des scènes (js/scene-moteur.js, dessinerVelo, non exporté ; GABARITS.velo : 1,8 sur
-// 0,6 m) : roues de 0,7 m aux bouts arrondis, cadre, guidon arrondi, dos du cycliste penché, bras, tête. Repère local : x vers
-// l'avant, y vers la droite (m).
-const VELO = {
-  longueur: 1.8, largeur: 0.6,
-  roue: 0.7, pneu: 0.06, cadre: 0.05, guidon: { x: 0.42, epaisseur: 0.05 },
-  dos: { epaules: 0.05, hanches: -0.33, demiEpaules: 0.21, demiHanches: 0.15, cou: 0.07, bassin: 0.09 },
-  bras: { epaisseur: 0.075, epaule: [0.03, 0.18], coude: [0.22, 0.235], main: [0.42, 0.26] },
-  tete: { x: 0.13, demiLongueur: 0.12, demiLargeur: 0.095 },
-  contour: 0.05,
-};
-
-// Le cycliste, centré en (x, y) du cadre, cap vers le haut, à `s` unités par mètre.
+const TEINTES_DESSUS = { champ: CHARTE.carte, champBord: CHARTE.carte };
+// Le cycliste de la scène « sortie-portiere » (js/piece-cycliste.js : gabarit, teintes, dessin en mètres, x vers l'avant), centré
+// en (x, y) du cadre, cap vers le haut (rotate(-90) : l'avant du vélo vers le haut du cadre), à `s` unités par mètre (scale).
 function cyclisteDessus([x, y], s) {
-  const V = VELO, d = V.dos, demiL = V.longueur / 2, roue = demiL - V.roue / 2;
-  const p = ([lx, ly]) => [x + ly * s, y - lx * s];
-  const ecrit = (q) => { const [px, py] = p(q); return `${coord(px)} ${coord(py)}`; };
-  // Un rectangle du repère local (x de x1 à x2 vers l'avant, y de y1 à y2), droit dans le cadre puisque le cap est vers le haut.
-  const rect = (x1, y1, x2, y2, arrondi, attributs) => {
-    const [ax, ay] = p([x2, y1]);
-    return n("rect", { x: ax, y: ay, width: (y2 - y1) * s, height: (x2 - x1) * s, ...(arrondi ? { rx: arrondi * s } : {}), ...attributs });
-  };
-  const { epaules: xe, hanches: xh, demiEpaules: we, demiHanches: wh, cou, bassin } = d;
-  const dos = `M${ecrit([xe, -we])} C${ecrit([xe + cou, -we])} ${ecrit([xe + cou, we])} ${ecrit([xe, we])}`
-    + ` L${ecrit([xh, wh])} C${ecrit([xh - bassin, wh])} ${ecrit([xh - bassin, -wh])} ${ecrit([xh, -wh])} Z`;
-  const [tx, ty] = p([V.tete.x, 0]);
-  return n("g", { "data-r": "deux-roues", "data-x": x, "data-y": y, "data-longueur": V.longueur * s, "data-largeur": V.largeur * s },
-    [-1, 1].map((sg) => rect(sg * roue - V.roue / 2, -V.pneu / 2, sg * roue + V.roue / 2, V.pneu / 2, V.pneu / 2, { fill: TEINTES_DESSUS.pneu })),
-    rect(-roue, -V.cadre / 2, V.guidon.x, V.cadre / 2, 0, { fill: TEINTES_DESSUS.velo }),
-    rect(V.guidon.x - V.guidon.epaisseur / 2, -V.largeur / 2, V.guidon.x + V.guidon.epaisseur / 2, V.largeur / 2, V.guidon.epaisseur / 2,
-      { fill: TEINTES_DESSUS.velo }),
-    n("path", { d: dos, fill: TEINTES_DESSUS.cycliste, stroke: TEINTES_DESSUS.cyclisteBord, "stroke-width": V.contour * s, "stroke-linejoin": "round" }),
-    [-1, 1].map((sg) => n("path", { d: trace([V.bras.epaule, V.bras.coude, V.bras.main].map(([lx, ly]) => p([lx, sg * ly])), false), fill: "none",
-      stroke: TEINTES_DESSUS.cyclisteOmbre, "stroke-width": V.bras.epaisseur * s, "stroke-linecap": "round", "stroke-linejoin": "round" })),
-    n("ellipse", { cx: tx, cy: ty, rx: V.tete.demiLargeur * s, ry: V.tete.demiLongueur * s, fill: TEINTES_DESSUS.tete,
-      stroke: TEINTES_DESSUS.cyclisteBord, "stroke-width": V.contour * s }));
+  return cycliste({ "data-r": "deux-roues", "data-x": x, "data-y": y, "data-longueur": GABARIT_VELO.longueur * s,
+    "data-largeur": GABARIT_VELO.largeur * s, transform: `translate(${coord(x)} ${coord(y)}) rotate(-90) scale(${coord(s)})` });
 }
 
 function anglesMorts() {

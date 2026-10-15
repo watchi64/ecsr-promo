@@ -16,6 +16,7 @@
  */
 import { DEG, GABARITS, etatActeur, emprise, rectangle, polygonesSeChevauchent } from "./scene-geometrie.js?v=20261013a";
 import { REGARD_PORTEE, REGARD_OUVERTURE, DIRECTIONS_TOUR_FIGE, oeil, conesTour } from "./scene-regard.js?v=20261013a";
+import { TEINTES_VELO } from "./piece-cycliste.js?v=20261013a";
 
 // Règles du lecteur commun des animations, réexportées ici pour les modules et les tests qui les lisaient dans ce fichier.
 export { facteurLecture, SEUIL_DEMARRAGE, SEUILS_VISIBILITE, actionVisibilite } from "./lecteur-anime-regles.js?v=20261013a";
@@ -36,9 +37,10 @@ export const TEINTES = {
   // autres voitures, 2,96:1 seulement : accepté tant que seule la voiture de l'élève recule, ce qu'un test épingle.
   recul: "#FFFFFF",
   // Cycliste vu du dessus (plan 3, tâche 13) : veste (le dos) et son ombre (les bras), contour, tête, vélo (cadre et guidon),
-  // pneus. La veste, orange clair, se lit sur la chaussée (3,32:1), le contour, foncé, sur la chaussée vue à travers le cône
-  // du regard (4,94:1) (WCAG 1.4.11 : 3:1, tests/scene-rendu.test.mjs) : le cycliste se détache partout.
-  cycliste: "#F5B06A", cyclisteOmbre: "#D98E4A", cyclisteBord: "#1F2422", tete: "#5A4636", velo: "#2E2E2B", pneu: "#1F2422",
+  // pneus, ceux de la pièce partagée avec le dessin des angles morts (js/piece-cycliste.js). La veste, orange clair, se lit sur
+  // la chaussée (3,32:1), le contour, foncé, sur la chaussée vue à travers le cône du regard (4,94:1) (WCAG 1.4.11 : 3:1,
+  // tests/scene-rendu.test.mjs) : le cycliste se détache partout.
+  ...TEINTES_VELO,
   // Ouverture laissée dans le flanc quand la portière s'ouvre : le seuil et le siège, sous le toit.
   habitacle: "#2F3631",
 };
