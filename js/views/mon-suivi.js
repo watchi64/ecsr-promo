@@ -10,6 +10,7 @@ import { renderSubTabs } from "../subtabs.js?v=20261013a";
 import { renderDp } from "./dp.js?v=20261013a";
 import { renderEpcfLivret } from "./epcf-livret.js?v=20261013a";
 import { rolesPourEntry, ROLE_ORDER } from "../creneaux-rules.js?v=20261013a";
+import { bandeauAvis } from "../avis.js?v=20261013a";
 import { statsPassages } from "../passages-stats.js?v=20261013a";
 import { moduleVisible, moduleMasque, repereMasque } from "../modules-etat.js?v=20261013a";
 import { icon } from "../icons.js?v=20261013a";
@@ -699,7 +700,9 @@ export async function renderMonSuivi(container) {
     ),
   );
   const corps = el("div", { class: "ms-body" });
+  const bandeau = bandeauAvis();
   container.appendChild(header);
+  if (bandeau) container.appendChild(bandeau);
   container.appendChild(corps);
   if (monId == null) {
     corps.appendChild(el("p", { class: "muted" }, "Aucun profil stagiaire n'est relié à ce compte."));
@@ -716,6 +719,7 @@ export async function renderMonSuivi(container) {
     });
     // iPhone, dans une partie : le retour « ‹ Mon espace » remplace l'en-tête.
     header.hidden = affiche === "partie";
+    if (bandeau) bandeau.hidden = affiche === "partie";
     if (disposition === "sommaire") window.scrollTo(0, 0);
   };
   const charger = async () => {

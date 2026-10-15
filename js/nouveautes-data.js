@@ -16,6 +16,16 @@
 
 export const NOUVEAUTES = [
   {
+    id: "2026-10-15-avis-stagiaires",
+    date: "2026-10-15",
+    pour: "formateurs",
+    titre: "Un bandeau pour recueillir l'avis des stagiaires de Nîmes",
+    resume: "Jusqu'au 30 novembre, les stagiaires de la promo de Nîmes voient en haut de « Mon espace » "
+          + "une invitation à donner leur avis sur l'app, en cinq minutes. Le questionnaire est anonyme : "
+          + "il se remplit sur Google Forms, sans nom ni adresse, et l'app n'enregistre aucune réponse. "
+          + "Chacun peut répondre, repousser au lendemain ou ne plus afficher le bandeau.",
+  },
+  {
     id: "2026-10-13-formateurs-sans-conditions",
     date: "2026-10-13",
     pour: "formateurs",
