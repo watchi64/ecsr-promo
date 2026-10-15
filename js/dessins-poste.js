@@ -715,16 +715,18 @@ function dessinGeste({ code, description, fleches, libelle }) {
 
 // Durées (secondes ; choix de dessin, raisons dans les sources) : doigts qui s'entrouvrent ou se referment en 0,3 s, main qui
 // lâche ou reprend la jante tout à fait en 0,35 s, main qui glisse d'un quart de tour sur la jante en 1 s, main qui remonte en
-// l'air de 3 h à midi en 1,1 s, volant tourné d'un quart de tour en 1 s, de 150 degrés en 1,4 s, d'un demi-tour en 1,5 s ;
+// l'air de 3 h à midi en 1,1 s, volant tourné d'un quart de tour en 1 s, d'un demi-tour en 1,5 s ;
 // chaque étape commence par une pause de 0,3 s (0,4 s à la première étape du retour du volant), le temps de lire l'étape, et
 // finit sur une pause courte (le volant laissé tourné, 1,1 s, à l'étape 3 du retour du volant).
 // Une main qui tient la jante tourne avec le volant : sa place se calcule à partir de l'angle du volant, jamais à part.
 
 // 1. Tirer-glisser, virage à droite.
+// Traction d'un quart de tour au plus, de midi à 3 h (remarque du formateur du 15/10/2026 : « pas plus de 90 degrés, de petits
+// gestes pour être précis ») ; un virage qui demande plus de braquage répète le geste.
 const TIRER_GLISSER = {
-  debuts: [0, 2.2], duree: 4.6,
+  debuts: [0, 2.2], duree: 4.2,
   lacher: [0.3, 0.6], montee: [0.6, 1.6], reprise: [1.6, 1.9],   // étape 1 : la droite monte à midi en glissant sur la jante
-  tirage: [2.5, 3.9], angle: 150,                                // étape 2 : elle tire le volant vers le bas, jusqu'à 5 h
+  tirage: [2.5, 3.5], angle: 90,                                 // étape 2 : elle tire le volant vers le bas, jusqu'à 3 h
 };
 function etatTirerGlisser(t) {
   const T = TIRER_GLISSER, G = PRISE.glisse;
@@ -896,7 +898,8 @@ function geste(code, { debuts, duree }, etat, fleches, description, libelle) {
 const DESCRIPTIONS = {
   "tirer-glisser": "Volant vu du siège, virage à droite ; chaque main est un repère, G ou D, posé sur la jante, plein quand elle "
     + "tient la jante, creux quand elle la laisse glisser. La main droite monte de 3 h à midi en glissant sur la jante, volant "
-    + "immobile, puis tire le volant vers le bas ; la main gauche reste à 9 h et laisse le volant glisser entre ses doigts. Les mains "
+    + "immobile, puis tire le volant vers le bas, d'un quart de tour, jusqu'à 3 h ; la main gauche reste à 9 h et laisse le volant "
+    + "glisser entre ses doigts. Les mains "
     + "ne se croisent jamais. À côté, la voiture vue du dessus braque ses roues avant à droite ; un compteur dit l'angle du volant.",
   chevauchement: "Volant vu du siège, virage à droite en manœuvre ; chaque main est un repère, G ou D, plein quand elle tient la "
     + "jante, creux quand elle l'a lâchée. La main droite monte à midi et tire d'un quart de tour ; la gauche suit sans lâcher prise "

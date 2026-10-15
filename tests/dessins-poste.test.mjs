@@ -420,7 +420,11 @@ test("tirer-glisser : la main gauche reste à 9 h, les mains ne se croisent jama
   const e1 = def.etat(def.etapes[1].t - 1e-6), fin = def.etat(def.duree);
   const ecartMidi = (h) => Math.min(((h % 12) + 12) % 12, 12 - (((h % 12) + 12) % 12));
   assert.ok(Math.abs(e1.volant) < 1e-6 && ecartMidi(e1.mains.droite.heure) < 0.05);   // fin de l'étape 1 : midi, volant droit
-  assert.ok(fin.volant >= 90);
+  // Traction d'un quart de tour au plus (remarque du formateur du 15/10/2026 : « pas plus de 90 degrés, de petits gestes pour
+  // être précis »), et assez grande pour se lire : au moins 60 degrés, deux heures de cadran parcourues par le repère D.
+  const angles = instantsDe(def).map((t) => def.etat(t).volant);
+  assert.ok(Math.max(...angles) <= 90 + 1e-9, `volant tourné jusqu'à ${Math.max(...angles).toFixed(1)} degrés, plus d'un quart de tour`);
+  assert.ok(fin.volant >= 60, `traction de ${fin.volant.toFixed(1)} degrés : moins de 60, elle se lit mal`);
 });
 
 test("tirer-glisser : pendant l'étape 2, la droite garde sa place sur la jante (elle tire le volant) et la gauche le laisse glisser", () => {
@@ -861,7 +865,7 @@ const trouve = (fleches, { de, a, sens, tolerance }) => fleches.some((f) => proc
 test("gestes du volant : les flèches de chaque étape montrent le mouvement qu'elle décrit", () => {
   const tg = geste("tirer-glisser");
   assert.ok(trouve(flechesEtape(tg, 0), { de: 3, a: 0, sens: -1 }), "tirer-glisser, étape 1 : la droite monte de 3 h à midi");
-  assert.ok(trouve(flechesEtape(tg, 1), { de: 0, a: 5, sens: 1 }), "tirer-glisser, étape 2 : la droite tire de midi à 5 h");
+  assert.ok(trouve(flechesEtape(tg, 1), { de: 0, a: 3, sens: 1 }), "tirer-glisser, étape 2 : la droite tire de midi à 3 h");
   // La jante qui glisse dans la gauche : le long de sa ligne médiane, sous le repère G, de 8 h 15 à 9 h 45.
   assert.ok(trouve(flechesEtape(tg, 1), { de: 8.25, a: 9.75, sens: 1, tolerance: 0.02 }), "tirer-glisser, étape 2 : la jante glisse vers le haut dans la gauche");
   const ch = geste("chevauchement");
