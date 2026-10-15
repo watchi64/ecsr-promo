@@ -374,7 +374,7 @@ async function avecGesteReel(reduit, corps) {
     await attendreQue(() => vue.childNodes.some((x) => x.nodeName === "svg"));
     const svg = vue.childNodes.find((x) => x.nodeName === "svg");
     const boutons = descendantsFactices(figure.childNodes[1]).filter((x) => x.nodeName === "button");
-    await corps({ temps, svg, boutons, contexte, lecture: descendantsFactices(vue).find((x) => x.nodeName === "button") });
+    await corps({ temps, vue, svg, boutons, contexte, lecture: descendantsFactices(vue).find((x) => x.nodeName === "button") });
   } finally {
     detruireScenes(contexte);
     for (const [nom, valeur] of avant) { if (valeur) Object.defineProperty(globalThis, nom, valeur); else delete globalThis[nom]; }
@@ -409,4 +409,19 @@ test(":::scene d'un geste sans animations réduites : l'observateur de visibilit
     detruireScenes(contexte);
     assert.ok(temps.observateurs[0].deconnecte, "détruit, le geste déconnecte son observateur");
   });
+});
+
+// Un geste porte le cadre du catalogue en variables CSS sur sa vue : css/cours-blocs.css en borne la hauteur à 72 % de l'écran et
+// la largeur d'autant, sans bande autour du dessin (relecture finale du lot D1, M1 : sur un téléphone tenu en travers, le geste
+// tient alors à l'écran, et sa lecture automatique, qui attend 60 % visibles, peut partir).
+test(":::scene d'un geste : sa vue porte le cadre du catalogue (--cadre-l, --cadre-h), que css/cours-blocs.css lit pour borner sa hauteur", async () => {
+  await avecGesteReel(false, ({ vue }) => {
+    const [l, h] = CATALOGUE["tirer-glisser"].cadre;
+    assert.equal(vue.getAttribute("style"), `--cadre-l: ${l}; --cadre-h: ${h}`);
+  });
+  const css = readFileSync(new URL("../css/cours-blocs.css", import.meta.url), "utf8");
+  const regle = css.match(/\.scene-vue > \.dessin-svg\s*\{([^}]*)\}/);
+  assert.ok(regle, "règle des gestes (.scene-vue > .dessin-svg) absente");
+  assert.match(regle[1], /max-height:\s*72vh/);
+  assert.match(regle[1], /max-width:\s*calc\(72vh \* var\(--cadre-l\) \/ var\(--cadre-h\)\)/);
 });

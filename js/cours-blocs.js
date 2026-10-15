@@ -205,7 +205,10 @@ function rendreScene(arg, lignes, contexte, inline) {
   // chargé. Le cycle de vie du bloc (attente, échec de réseau et reprise, code absent, erreur de montage, appui sur une étape
   // avant le montage, destruction) est celui de piloterBloc, par lancerBlocIllustre (commun avec le dessin, qui y met son mot) ; ici,
   // seulement ce qu'on montre et d'où viennent les modules.
-  const vue = el("div", { class: "scene-vue" });
+  // Un geste (dessin d'une famille) porte le cadre que lui donne le catalogue en variables CSS : css/cours-blocs.css en borne la
+  // hauteur à 72 % de l'écran, et la largeur d'autant. Une scène de route n'a pas de cadre au catalogue : .scene-svg a les siennes.
+  const cadre = Array.isArray(scene.cadre) ? scene.cadre : null;
+  const vue = el("div", { class: "scene-vue", style: cadre ? `--cadre-l: ${cadre[0]}; --cadre-h: ${cadre[1]}` : null });
   const figure = el("figure", { class: "scene-bloc" }, vue, liste);
   const options = () => ({ conteneur: vue, etapes: synchro ? items.map((x) => x.li) : [], reduit: animationsReduites() });
   // Le registre du module dit comment construire la scène : un code qu'il ne connaît pas lève « absent » avant que la vue
