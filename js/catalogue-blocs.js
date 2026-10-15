@@ -172,7 +172,7 @@ export const CATALOGUE = {
       "La gauche tire à son tour, la droite remonte", "L'alternance continue"], cadre: [320, 260] },
   "retour-volant": { bloc: "scene", module: "poste", titre: "Le retour du volant",
     etapesModele: ["En sortie de virage, les doigts laissent glisser le volant", "Il revient droit seul",
-      "À basse allure, le ramener soi-même"], cadre: [320, 260] },
+      "À basse allure, il ne revient pas seul", "Les mains le ramènent"], cadre: [320, 260] },
   "regard-loin": { bloc: "dessin", module: "dessus", titre: "Regarder loin",
     legendeModele: "La voiture suit le regard : regarder loin, là où l'on veut aller.", cadre: [320, 230] },
 };
