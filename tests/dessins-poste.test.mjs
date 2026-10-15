@@ -955,3 +955,24 @@ test("gestes du volant : là où une main passe sur l'autre, un contour sépare 
   }
   assert.ok(vus > 0, "aucun recouvrement vu : le contrôle ne contrôle rien");
 });
+
+// Chaque étape où les mains tournent le volant (prise pleine des deux mains pendant qu'il tourne) les nomme dans son intitulé
+// modèle : l'image figée de l'étape 3 montre des mains qui braquent, que « À basse allure, il ne revient pas seul » ne disait pas
+// (relecture finale du lot D1, m3 ; contrôle du lot, I3).
+test("retour-volant : l'intitulé modèle de chaque étape où les mains tournent le volant les nomme", () => {
+  const def = famille.GESTES["retour-volant"].construire();
+  const bornes = [...def.etapes.map((e) => e.t), def.duree];
+  const intitules = CATALOGUE["retour-volant"].etapesModele;
+  let etapesTournees = 0;
+  intitules.forEach((intitule, i) => {
+    let tournent = false;
+    for (let t = bornes[i]; t + PAS_IMAGE <= bornes[i + 1]; t += PAS_IMAGE) {
+      const a = def.etat(t), b = def.etat(t + PAS_IMAGE);
+      if (Math.abs(b.volant - a.volant) > 1e-9 && a.mains.gauche.prise === 1 && a.mains.droite.prise === 1) tournent = true;
+    }
+    if (!tournent) return;
+    etapesTournees++;
+    assert.match(intitule, /\bmains\b/i, `étape ${i + 1} : « ${intitule} »`);
+  });
+  assert.equal(etapesTournees, 2, "les mains tournent le volant aux étapes 3 et 4");
+});
