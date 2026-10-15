@@ -238,6 +238,9 @@ const BORD_DOS = Math.min(...MAIN.dos.map((p) => p[1]));
 // Coupe de l'avant-bras, en traits fins au-delà du point du dos de la main le plus avancé vers le coude : le demi-trait du pli
 // de ce bord, son bout arrondi et le flou de son bord (le contour du dos de la main est lu en points échantillonnés).
 const MARGE_COUPE = 1.5;
+// Écart à la couture de la peau et de la manche en deçà duquel un sommet de la peau de l'avant-bras est sur elle (unités) : ses
+// deux sommets y sont posés par le calcul, au bruit près.
+const COUTURE_JEU = 1e-6;
 const COTES = { gauche: 1, droite: -1 };   // sens du pouce : horaire pour la main gauche, inverse pour la droite
 const POUCES = ["jante", "interieur"];
 // Teintes de la manche (un tissu neutre, deux tons).
@@ -320,14 +323,15 @@ function contourDoigt({ s, largeur, longueur: relative }, prise) {
 // Côtés d'un polygone en segments de Bézier droits d'au plus PAS_COTE unités : contourSur juge chaque segment par son milieu,
 // un long côté droit se borde donc au plus près morceau par morceau.
 const PAS_COTE = 2;
-function segmentsDroits(poly) {
-  return poly.flatMap((a, i) => {
-    const b = poly[(i + 1) % poly.length], nombre = Math.max(1, Math.ceil(longueur(moins(b, a)) / PAS_COTE));
-    return Array.from({ length: nombre }, (_, j) => {
-      const [p, q] = [j / nombre, (j + 1) / nombre].map((t) => plus(a, fois(moins(b, a), t)));
-      return [p, plus(p, fois(moins(q, p), 1 / 3)), plus(p, fois(moins(q, p), 2 / 3)), q];
-    });
+function segmentsCote(a, b) {
+  const nombre = Math.max(1, Math.ceil(longueur(moins(b, a)) / PAS_COTE));
+  return Array.from({ length: nombre }, (_, j) => {
+    const [p, q] = [j / nombre, (j + 1) / nombre].map((t) => plus(a, fois(moins(b, a), t)));
+    return [p, plus(p, fois(moins(q, p), 1 / 3)), plus(p, fois(moins(q, p), 2 / 3)), q];
   });
+}
+function segmentsDroits(poly) {
+  return poly.flatMap((a, i) => segmentsCote(a, poly[(i + 1) % poly.length]));
 }
 // Contour de chaque courbe fermée de `listes` là où elle passe sur l'un des `polygones` (une autre surface du même ton), en un
 // tracé ; `repli` quand il n'y a rien à border (le nœud reste, une animation ne change que ses attributs).
@@ -348,7 +352,7 @@ function contoursSur(listes, polygones, repli) {
  *  contour sépare alors deux surfaces de même ton. Rôles : main-<cote> (point de prise sur la ligne médiane de la jante,
  *  déplacement compris, data-x et data-y), pouce-<cote> (centre de l'arrondi du bout du pouce), doigts-<cote> (milieu des
  *  doigts), poignet-<cote> (la peau du poignet sous le dos de la main), avant-bras-<cote> (le reste de l'avant-bras, sa
- *  manche comprise ; repère : le poignet). Mêmes nœuds quelles que soient l'heure, la prise, le pouce, le côté et le
+ *  manche comprise ; repère : le poignet), doigts-devant-<cote> (les doigts redessinés devant l'avant-bras, main ouverte). Mêmes nœuds quelles que soient l'heure, la prise, le pouce, le côté et le
  *  déplacement : une animation ne fait que changer leurs attributs. */
 export function main(options) {
   return construireMain(options).noeud;
@@ -399,7 +403,8 @@ function construireMain({ cx, cy, rayon, heure, cote, prise = 1, pouce = "jante"
     const peauSous = tronconPeau(-p.recul, coupe), peauDessus = tronconPeau(coupe - reprise, p.peau);
     const manche = dansRectangle(troncon(point(p.peau), avantBras.coude, largeurA(p.peau), mc.coude * k), avantBras.limite);
     const revers = dansRectangle(troncon(point(p.peau), point(p.peau + mc.revers), largeurA(p.peau), largeurA(p.peau + mc.revers)), avantBras.limite);
-    bras = { w, peauSous, peauDessus, manche, revers, pli: peauSous.length >= 3 ? contourSur(segmentsDos, peauSous) : `M${pt(dos[0])}` };
+    bras = { w, peauSous, peauDessus, manche, revers, couture: { point: point(p.peau), axe },
+      pli: peauSous.length >= 3 ? contourSur(segmentsDos, peauSous) : `M${pt(dos[0])}` };
     if (peauSous.length >= 3) surfaces.push(peauSous);
   }
 
@@ -407,19 +412,28 @@ function construireMain({ cx, cy, rayon, heure, cote, prise = 1, pouce = "jante"
   const doigts = [...MAIN.doigts].reverse().map((doigt) => {
     const forme = contourDoigt(doigt, prise).map(local);
     const segments = segmentsDroits(forme);
-    const plis = surfaces.map((surface) => contourSur(segments, surface)).join(" ");
+    const sous = [...surfaces];   // ce qu'il recouvre
+    const plis = sous.map((surface) => contourSur(segments, surface)).join(" ");
     surfaces.push(forme);
-    return { trace: polygone(forme), plis, segments, forme };
+    return { trace: polygone(forme), plis, segments, forme, sous };
   });
   // Repère des doigts : le milieu de leurs contours.
   const tousPoints = doigts.flatMap((x) => x.forme);
   const milieuDoigts = [0, 1].map((i) => tousPoints.reduce((somme, q) => somme + q[i], 0) / tousPoints.length);
-  // L'avant-bras posé sur les doigts : un pli là où sa peau passe sur la leur (sa manche est d'un autre ton).
-  let plisBras = null;
+  // L'avant-bras posé sur les doigts : un pli là où sa peau passe sur la leur, côté par côté, sauf sur sa couture avec la
+  // manche (d'un autre ton, les doigts continuent dessous). Main lâchée (prise sous MAIN.doigt.glisse), ses doigts tendus
+  // devant la jante passent aussi devant son avant-bras : les mêmes doigts, redessinés par-dessus lui, opaques main ouverte,
+  // effacés dès qu'ils passent derrière la jante (`devant`, un fondu entre les deux), leurs plis posés aussi sur l'avant-bras.
+  let plisBras = null, plisDevant = null;
+  const devant = Math.min(1, Math.max(0, 1 - prise / MAIN.doigt.glisse));
   if (bras) {
-    const segments = bras.peauDessus.length >= 3 ? [segmentsDroits(bras.peauDessus)] : [];
-    plisBras = contoursSur(segments, doigts.map((x) => x.forme), bras.w);
-    if (bras.peauDessus.length >= 3) surfaces.push(bras.peauDessus);
+    const { point: c, axe } = bras.couture, q = bras.peauDessus;
+    const surCouture = (p) => Math.abs((p[0] - c[0]) * axe[0] + (p[1] - c[1]) * axe[1]) < COUTURE_JEU;
+    const cotes = q.length >= 3 ? q.map((a, i) => [a, q[(i + 1) % q.length]]).filter(([a, b]) => !(surCouture(a) && surCouture(b))) : [];
+    plisBras = contoursSur(cotes.map(([a, b]) => segmentsCote(a, b)), doigts.map((x) => x.forme), bras.w);
+    const dessousDevant = q.length >= 3 ? [q] : [];
+    plisDevant = doigts.map((x) => [...x.sous, ...dessousDevant].map((surface) => contourSur(x.segments, surface)).join(" "));
+    if (q.length >= 3) surfaces.push(q);
   }
 
   // Pouce, posé sur tout ce qui précède.
@@ -438,7 +452,7 @@ function construireMain({ cx, cy, rayon, heure, cote, prise = 1, pouce = "jante"
     "data-r": `contour-manche-${cote}` });
   const surPeau = (poly) => (poly.length >= 3 ? [segmentsDroits(poly)] : []);
   // De dessous à dessus : la peau du poignet sous le dos de la main, le dos de la main, les doigts, le reste de l'avant-bras
-  // (peau et manche, qui passent devant les doigts), le pouce.
+  // (peau et manche, qui passent devant les doigts), les doigts redessinés devant lui (main ouverte), le pouce.
   const noeud = n("g", { "data-r": `main-${cote}`, "data-x": prisePoint[0], "data-y": prisePoint[1], "data-heure": heure, "data-prise": prise },
     bras ? n("g", { "data-r": `poignet-${cote}` },
       n("path", { d: traceOuPoint(bras.peauSous, bras.w), ...peau }),
@@ -457,6 +471,9 @@ function construireMain({ cx, cy, rayon, heure, cote, prise = 1, pouce = "jante"
       n("path", { d: traceOuPoint(bras.peauDessus, bras.w), ...peau }),
       n("path", { d: plisBras, ...pli, "data-r": `pli-avant-bras-${cote}` }),
       dessous ? sur(surPeau(bras.peauDessus), dessous.peau, bras.w) : null) : null,
+    bras ? n("g", { "data-r": `doigts-devant-${cote}`, opacity: devant },
+      doigts.map((x, i) => n("g", {}, n("path", { d: x.trace, ...peau }), n("path", { d: plisDevant[i], ...pli }),
+        dessous ? sur([x.segments], dessous.peau, x.forme[0]) : null))) : null,
     n("g", { "data-r": `pouce-${cote}`, "data-x": boutPouce[0], "data-y": boutPouce[1] },
       n("path", { d: `M${pt(formePouce[0])} ${traceSegments(segmentsPouce)} Z`, ...peau }),
       n("path", { d: plisPouce, ...pli }),

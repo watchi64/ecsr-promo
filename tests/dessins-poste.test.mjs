@@ -318,14 +318,64 @@ test("main : l'avant-bras passe sous le dos de la main et devant les doigts, à 
         const ecart = Math.min(...echantillons(trouverRole(m, `dos-${cote}`).attributs.d).flatMap((q) => pleins((f) => f && f !== "none").map((p) => distancePolygone(q, p))));
         assert.ok(ecart >= CHARTE.traits.fin / 2, `${quand} : l'avant-bras passe à ${ecart.toFixed(2)} unité du bord du dos de la main`);
         // Là où sa peau passe sur les doigts, un pli la borde.
+        const traceDuPli = trouverRole(m, `pli-avant-bras-${cote}`).attributs.d;
         if (recouvre(pleins((f) => f === CHARTE.peau), doigtsDe(m, cote))) {
           couverts++;
-          assert.ok(!traceVide(trouverRole(m, `pli-avant-bras-${cote}`).attributs.d), `${quand} : peau de l'avant-bras sur les doigts sans pli`);
+          assert.ok(!traceVide(traceDuPli), `${quand} : peau de l'avant-bras sur les doigts sans pli`);
         }
+        // Mais pas sur sa couture avec la manche, d'un autre ton, sous laquelle les doigts continuent : au plus ses coins y
+        // touchent (longueur du pli à moins d'un quart de trait fin de la manche, chaque morceau du pli pris à part).
+        const manche = trouverTous(trouverRole(m, `manche-${cote}`), (x) => x.balise === "path" && x.attributs.fill && x.attributs.fill !== "none")
+          .map((x) => pointsDe(x.attributs.d)).filter((p) => p.length >= 3);
+        const pres = (q) => manche.some((p) => distancePolygone(q, p) <= CHARTE.traits.fin / 4);
+        let surCouture = 0;
+        for (const morceau of String(traceDuPli).split(/(?=M)/)) {
+          const points = echantillons(morceau);
+          for (let i = 1; i < points.length; i++) {
+            if (pres(points[i - 1]) && pres(points[i])) surCouture += Math.hypot(points[i][0] - points[i - 1][0], points[i][1] - points[i - 1][1]);
+          }
+        }
+        assert.ok(surCouture <= CHARTE.traits.fin, `${quand} : pli de ${surCouture.toFixed(1)} unités sur la couture de la manche`);
       }
     }
   }
   assert.ok(couverts > 0, "l'avant-bras ne passe jamais sur les doigts : le contrôle ne contrôle rien");
+});
+
+test("main : lâchée, ses doigts tendus passent devant son avant-bras (une main ouverte se lit comme telle) ; dès qu'ils passent derrière la jante, l'avant-bras passe devant eux", () => {
+  const traces = (noeud) => trouverTous(noeud, (x) => x.balise === "path" && x.attributs.fill === CHARTE.peau).map((x) => x.attributs.d);
+  for (const cote of ["gauche", "droite"]) {
+    for (let heure = 0; heure < 12; heure += 0.5) {
+      for (const prise of [0, 0.1, 0.25, 0.4, 0.5, 0.75, 1]) {
+        const quand = `${cote}, ${heure} h, prise ${prise}`;
+        const m = trouverRole(mainGeste(cote, heure, prise), `main-${cote}`);
+        const rang = (role) => m.enfants.findIndex((x) => x && typeof x !== "string" && x.attributs["data-r"] === `${role}-${cote}`);
+        // Les mêmes doigts, redessinés entre l'avant-bras et le pouce.
+        assert.ok(rang("avant-bras") >= 0 && rang("avant-bras") < rang("doigts-devant") && rang("doigts-devant") < rang("pouce"), `${quand} : rangs`);
+        const devant = trouverRole(m, `doigts-devant-${cote}`);
+        assert.deepEqual(traces(devant), traces(trouverRole(m, `doigts-${cote}`)), `${quand} : d'autres doigts`);
+        // Opaques main ouverte (prise 0), effacés dès que les doigts passent derrière la jante (prise 0,5), un fondu entre les deux.
+        const opacite = Number(devant.attributs.opacity);
+        if (prise === 0) assert.equal(opacite, 1, quand);
+        else if (prise >= 0.5) assert.equal(opacite, 0, quand);
+        else assert.ok(opacite > 0 && opacite < 1, `${quand} : opacité ${opacite}`);
+      }
+    }
+  }
+  // Dans les gestes, toute main lâchée, en l'air comprise, montre ses doigts devant son avant-bras.
+  let vues = 0;
+  for (const code of CODES_GESTES) {
+    const def = geste(code);
+    for (const t of instantsDe(def).filter((_, k) => k % 2 === 0)) {
+      const e = def.etat(t), image = imageA(def, t, false);
+      for (const c of COTES_MAINS) {
+        if (e.mains[c].prise !== 0) continue;
+        vues++;
+        assert.equal(Number(trouverRole(image, `doigts-devant-${c}`).attributs.opacity), 1, `${code}, ${t.toFixed(3)} s : main ${c} lâchée, doigts cachés`);
+      }
+    }
+  }
+  assert.ok(vues > 0, "aucune main lâchée : le contrôle ne contrôle rien");
 });
 
 test("main : un côté, un pouce ou une prise hors de leurs valeurs est une erreur, jamais un choix par défaut", () => {
@@ -566,8 +616,9 @@ test("gestes du volant : une main qui tient la jante tourne avec le volant ; une
   }
 });
 
-// Une main qui tient la jante tourne avec elle ; l'avant-bras ne tourne sur lui-même que d'environ un demi-tour (pronation et
-// supination réunies) : au-delà, la main doit lâcher la jante (raison et source dans les choix de dessin des gestes).
+// Une main qui tient la jante tourne avec elle ; l'avant-bras ne tourne sur lui-même que d'environ 160 degrés, l'épaule et le
+// poignet accompagnant sa rotation : un demi-tour environ, au-delà duquel la main doit lâcher la jante (raison et source dans
+// les choix de dessin des gestes).
 const TENUE_MAX = 180;
 
 test("gestes du volant : aucune main ne tient la jante plus d'un demi-tour d'un seul tenant", () => {
