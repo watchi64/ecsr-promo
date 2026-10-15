@@ -10,7 +10,7 @@
 export const AVIS = {
   id: "2026-10-avis-nimes",
   promoId: 1,              // Nîmes, mars 2026
-  url: "",                 // lien du Google Form (https://forms.gle/...)
+  url: "https://forms.gle/Vstq9xDEz8VQW7r26", // Google Form des stagiaires (anonyme)
   fin: "2026-11-30",       // dernier jour d'affichage, avant les épreuves de décembre
 };
 
