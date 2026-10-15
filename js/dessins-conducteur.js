@@ -16,8 +16,8 @@
  * d'un adulte de taille moyenne, voiture courante), avec sa raison dans sources/dessins-conducteur.js.
  */
 import { n } from "./dessin-svg.js?v=20261015a";
-import { CHARTE, METRIQUES_POLICE, MISE_EN_PAGE, cadre, texte, etiquette, vignette, fleche, arrondir, coord, point as ecrirePoint, trace, entre }
-  from "./dessins-kit.js?v=20261015a";
+import { CHARTE, METRIQUES_POLICE, MISE_EN_PAGE, cadre, texte, etiquette, vignette, fleche, arrondir, couper, miroirInterieur, coord,
+  point as ecrirePoint, trace, entre } from "./dessins-kit.js?v=20261015a";
 import { adoucir, sortieDouce, avancement, interpoler, cles } from "./animation-courbes.js?v=20261015a";
 
 // ===================================================================================================================
@@ -933,21 +933,20 @@ const CABINE = {
 // la main).
 const RETRO = { rotule: [-42, 105], recouvrementTige: 1, centre: [-1.5, -3.3], profondeur: 2.6, hauteur: 6.8, arrondi: 1.2,
   tangageDepart: -9, tangageRegle: 0, prise: [-2, -6.5], mainY: -28 };
-// Vignette du rétroviseur (unités du cadre) : la carte, le miroir, ce qu'il montre (lunette arrière, ciel, sol, route).
-// Avant réglage, la vue est décalée : de côté par le lacet du miroir (que le profil ne montre pas), en hauteur par son
-// tangage, de `parDegre` unités par degré. Un verre tourné vers le pavillon (tangage négatif) montre plus haut : la lunette
-// descend dans le miroir. C'est le tangage du boîtier dessiné qui place la vue : boîtier et vignette ne peuvent pas se
-// contredire.
+// Vignette du rétroviseur (unités du cadre) : la carte, le boîtier, le verre et ce qu'il montre (lunette arrière, ciel, sol,
+// route). Verre, lunette et horizon sont la pièce du kit (miroirInterieur), la même que dans « retroviseurs » : un seul
+// rétroviseur intérieur dans le cours. Avant réglage, la vue est décalée : de côté par le lacet du miroir (que le profil ne
+// montre pas), en hauteur par son tangage, de `parDegre` unités par degré. Un verre tourné vers le pavillon (tangage négatif)
+// montre plus haut : la lunette descend dans le miroir. C'est le tangage du boîtier dessiné qui place la vue : boîtier et
+// vignette ne peuvent pas se contredire.
 const VIGNETTE = {
-  carte: { x: 10, y: 10, largeur: 128, hauteur: 82, arrondi: 8 },
-  boitier: { x: 16, y: 16, largeur: 116, hauteur: 50, arrondi: 9 },
-  miroir: { x: 20, y: 20, largeur: 108, hauteur: 42, arrondi: 6 },
-  lunette: [[-32, -12], [32, -12], [39, 12], [-39, 12]],      // autour du centre du miroir
-  horizon: 0.42,                                               // part de la hauteur de la lunette, depuis son haut
+  carte: { x: 10, y: 10, largeur: 128, hauteur: 70, arrondi: 8 },
+  boitier: 4,                                                  // épaisseur du boîtier autour du verre
+  miroir: { x: 20, y: 20, largeur: 108 },                      // coin haut gauche et largeur du verre (30,24 de haut : 25 sur 7)
   route: { haut: 3, bas: 30 },                                 // demi-largeurs de la route à l'horizon et au bas
   lacet: 24,                                                   // décalage de côté avant réglage
   parDegre: 1.33,                                              // décalage en hauteur par degré de tangage
-  legende: { y: 82 },
+  legende: { y: 70 },
   attache: [138, 66],                                          // départ du filet vers le rétroviseur
 };
 const TEINTES_VUE = { habitacle: "#4D5550", boitier: "#2F3532", ciel: "#E6ECEF", sol: "#B9C3B6", route: "#8C938D" };
@@ -1121,27 +1120,28 @@ function etatInstallation(t) {
 // que le miroir n'est pas réglé (de côté par son lacet, en hauteur par le tangage même du boîtier dessiné). Tous les points
 // sont dans le repère du cadre.
 function vueRetroviseur(retro, opaciteVue, idMiroir) {
-  const V = VIGNETTE, M = V.miroir;
-  const centre = [M.x + M.largeur / 2, M.y + M.hauteur / 2];
+  const V = VIGNETTE, M = V.miroir, e = V.boitier;
   const decal = [V.lacet * (1 - retro.orientation), -V.parDegre * (retro.tangage / RAD)];
-  const lunette = V.lunette.map((p) => plus(plus(centre, p), decal));
-  const [hg, hd, bd, bg] = lunette;
-  const yHorizon = interpoler(hg[1], bg[1], V.horizon);
+  const { hauteur, rayon, verre, coins: [hg, hd, bd, bg], lunette, horizon: yHorizon } = miroirInterieur(M, decal);
   const surBord = (a, b, y) => entre(a, b, (y - a[1]) / (b[1] - a[1]));
   const gH = surBord(hg, bg, yHorizon), dH = surBord(hd, bd, yHorizon);
   const milieuX = (gH[0] + dH[0]) / 2;
   const route = [[milieuX - V.route.haut, yHorizon], [milieuX + V.route.haut, yHorizon], [milieuX + V.route.bas, bd[1]], [milieuX - V.route.bas, bg[1]]];
-  const { carte, boitier: b } = V;
+  const sol = couper(lunette, (p) => yHorizon - p[1]);                     // la part de la lunette sous l'horizon
+  const boitier = arrondir([[M.x - e, M.y - e], [M.x + M.largeur + e, M.y - e], [M.x + M.largeur + e, M.y + hauteur + e],
+    [M.x - e, M.y + hauteur + e]], [rayon + e, rayon + e, rayon + e, rayon + e]);
+  const { carte } = V;
   return n("g", { "data-r": "vignette-retroviseur", ...affiche(opaciteVue) },
     n("rect", { x: carte.x, y: carte.y, width: carte.largeur, height: carte.hauteur, rx: carte.arrondi, fill: CHARTE.carte, stroke: CHARTE.filet, "stroke-width": CHARTE.traits.fin }),
-    n("rect", { x: b.x, y: b.y, width: b.largeur, height: b.hauteur, rx: b.arrondi, fill: TEINTES_VUE.boitier }),
-    n("clipPath", { id: idMiroir }, n("rect", { x: M.x, y: M.y, width: M.largeur, height: M.hauteur, rx: M.arrondi })),
+    n("path", { d: trace(boitier), fill: TEINTES_VUE.boitier, "data-r": "boitier-vignette" }),
+    n("clipPath", { id: idMiroir }, n("path", { d: trace(verre) })),
     n("g", { "clip-path": `url(#${idMiroir})` },
-      n("rect", { x: M.x, y: M.y, width: M.largeur, height: M.hauteur, fill: TEINTES_VUE.habitacle }),
-      n("polygon", { points: listePoints(lunette), fill: TEINTES_VUE.ciel, "data-r": "lunette" }),
-      n("polygon", { points: listePoints([gH, dH, bd, bg]), fill: TEINTES_VUE.sol }),
+      n("path", { d: trace(verre), fill: TEINTES_VUE.habitacle }),
+      n("path", { d: trace(lunette), fill: TEINTES_VUE.ciel, "data-r": "lunette", "data-points": listePoints(lunette) }),
+      n("path", { d: trace(sol), fill: TEINTES_VUE.sol }),
       n("polygon", { points: listePoints(route), fill: TEINTES_VUE.route })),
-    n("rect", { x: M.x, y: M.y, width: M.largeur, height: M.hauteur, rx: M.arrondi, fill: "none", stroke: TEINTES_VUE.boitier, "stroke-width": CHARTE.traits.moyen, "data-r": "miroir" }));
+    n("path", { d: trace(verre), fill: "none", stroke: TEINTES_VUE.boitier, "stroke-width": CHARTE.traits.moyen, "data-r": "miroir",
+      "data-points": listePoints(verre) }));
 }
 
 const H_INSTALLATION = 220;

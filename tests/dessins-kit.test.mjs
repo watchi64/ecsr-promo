@@ -820,3 +820,32 @@ test("aucune famille de dessins ne recopie une aide, une matière ou une mesure 
   }
   assert.deepEqual(fautes, []);
 });
+
+// Rétroviseur intérieur vu de face, pièce commune de « retroviseurs » et de la vignette d'« installation » (relecture finale du
+// lot D1, m5) : verre de 25 sur 7 aux bouts arrondis ; lunette centrée qui le remplit presque, plus large en haut ; horizon dans
+// son quart haut ; décalée (miroir pas encore réglé), elle sort du verre.
+test("rétroviseur intérieur vu de face : verre de 25 sur 7, lunette centrée et plus large en haut, horizon au quart haut", () => {
+  const m = kit.miroirInterieur({ x: 10, y: 20, largeur: 125 });
+  proche(m.hauteur, 35, 1e-9, "verre de 25 sur 7");
+  proche(m.rayon, 0.45 * 35, 1e-9, "bouts du verre arrondis");
+  const [hg, hd, bd, bg] = m.coins;
+  proche(hd[0] - hg[0], 0.80 * 125, 1e-9, "80 % de la largeur du verre en haut");
+  proche(bd[0] - bg[0], 0.75 * 125, 1e-9, "75 % en bas");
+  proche(bg[1] - hg[1], 0.78 * 35, 1e-9, "78 % de sa hauteur");
+  proche((hg[1] + bg[1]) / 2, 20 + 35 / 2, 1e-9, "centrée en hauteur");
+  proche((hg[0] + hd[0] + bg[0] + bd[0]) / 4, 10 + 125 / 2, 1e-9, "centrée en largeur");
+  proche(m.horizon, hg[1] + 0.25 * (bg[1] - hg[1]), 1e-9, "horizon au quart haut de la lunette");
+  // Contours : le verre et la lunette sont convexes, tournés dans le même sens ; un point est dedans s'il est du même côté
+  // de chaque côté.
+  const dedans = (p, poly) => poly.every((a, i) => {
+    const b = poly[(i + 1) % poly.length];
+    return (b[0] - a[0]) * (p[1] - a[1]) - (b[1] - a[1]) * (p[0] - a[0]) >= -1e-9;
+  });
+  assert.ok(m.lunette.every((p) => dedans(p, m.verre)), "la lunette tient dans le verre");
+  assert.ok(m.lunette.every((p) => p[1] >= hg[1] - 1e-9 && p[1] <= bg[1] + 1e-9), "coins arrondis : la lunette ne dépasse pas ses bords");
+  const decale = kit.miroirInterieur({ x: 10, y: 20, largeur: 125 }, [20, 10]);
+  assert.ok(decale.lunette.some((p) => !dedans(p, decale.verre)), "décalée, la lunette sort du verre");
+  proche(decale.hauteur, m.hauteur, 1e-9, "le décalage ne touche pas au verre");
+  assert.throws(() => kit.miroirInterieur({ x: 0, y: 0, largeur: 0 }), /largeur/);
+  assert.throws(() => kit.miroirInterieur({ x: 0, y: 0, largeur: 10 }, [Number.NaN, 0]), /décalage/);
+});

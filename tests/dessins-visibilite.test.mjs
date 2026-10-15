@@ -13,6 +13,8 @@ import { cycliste, GABARIT_VELO, TEINTES_VELO } from "../js/piece-cycliste.js";
 import { versChaine } from "../js/dessin-svg.js";
 import { GABARITS } from "../js/scene-geometrie.js";
 import { DESSIN, IISR } from "../js/scene-decors.js";
+import * as conducteur from "../js/dessins-conducteur.js";
+import { imageA } from "../js/geste-regles.js";
 
 const codes = Object.keys(CATALOGUE).filter((c) => CATALOGUE[c].module === "visibilite");
 
@@ -654,4 +656,40 @@ test("angles-morts : les champs extérieurs partent du verre du miroir et s'arr�
   }
   const ci = boite(pointsRole(d, "champ-interieur"));
   assert.ok(Math.abs((ci.x1 + ci.x2) / 2 - v.x) < 0.01, "champ intérieur dans l'axe");
+});
+
+// Un seul rétroviseur intérieur dans le cours C1.2 : la vignette d'« installation » (fin du réglage) et la rangée « Intérieur »
+// de « retroviseurs » montrent le même verre et la même lunette, rapportés au verre ; lunette plus large en haut, son bord haut
+// étant le plus près de l'œil reflété (relecture finale du lot D1, m5).
+test("retroviseurs et installation : le même rétroviseur intérieur, même verre et même lunette, plus large en haut", () => {
+  const nombres = (s) => String(s).match(/-?\d+(?:\.\d+)?(?:e-?\d+)?/g).map(Number);
+  const paires = (v) => v.flatMap((_, i) => (i % 2 ? [] : [[v[i], v[i + 1]]]));
+  const contourDe = (noeud) => {
+    assert.ok(noeud, "rôle absent");
+    if (noeud.balise === "rect") {
+      const [x, y, l, h] = ["x", "y", "width", "height"].map((k) => Number(noeud.attributs[k]));
+      return [[x, y], [x + l, y], [x + l, y + h], [x, y + h]];
+    }
+    return paires(nombres(noeud.balise === "polygon" ? noeud.attributs.points : noeud.attributs.d));
+  };
+  const lire = (g, roleVerre) => {
+    const verre = contourDe(trouverRole(g, roleVerre)), xs = verre.map((p) => p[0]), ys = verre.map((p) => p[1]);
+    const [x0, x1, y0, y1] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
+    const l = x1 - x0, h = y1 - y0;
+    return { rapport: l / h, lunette: contourDe(trouverRole(g, "lunette")).map(([x, y]) => [(x - x0) / l, (y - y0) / h]) };
+  };
+  const retro = lire(trouverRole(famille.DESSINS.retroviseurs(), "miroir-interieur"), "verre");
+  const def = conducteur.GESTES.installation.construire();
+  for (const [quand, image] of [["fin de lecture", imageA(def, def.duree, false)], ["image figée de fin", imageA(def, def.duree, true)]]) {
+    const inst = lire(trouverRole(image, "vignette-vivante"), "miroir");
+    assert.ok(Math.abs(inst.rapport - retro.rapport) < 0.005 * retro.rapport,
+      `${quand} : verre de ${inst.rapport.toFixed(3)} fois sa hauteur, ${retro.rapport.toFixed(3)} dans « retroviseurs »`);
+    assert.equal(inst.lunette.length, retro.lunette.length, `${quand} : la lunette n'a pas le même contour`);
+    inst.lunette.forEach((p, i) => assert.ok(Math.hypot(p[0] - retro.lunette[i][0], p[1] - retro.lunette[i][1]) < 0.003,
+      `${quand} : point ${i} de la lunette en (${p.map((v) => v.toFixed(3))}), (${retro.lunette[i].map((v) => v.toFixed(3))}) dans « retroviseurs »`));
+  }
+  // Plus large en haut : son étendue au dixième de sa hauteur dépasse celle aux neuf dixièmes.
+  const ys = retro.lunette.map((p) => p[1]), [haut, bas] = [Math.min(...ys), Math.max(...ys)];
+  const largeur = (part) => { const e = etendueA(retro.lunette, haut + part * (bas - haut)); return e[1] - e[0]; };
+  assert.ok(largeur(0.1) > largeur(0.9), "la lunette est plus large en haut");
 });

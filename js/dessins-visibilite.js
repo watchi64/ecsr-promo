@@ -10,7 +10,8 @@
  */
 import { n, trouverRole } from "./dessin-svg.js?v=20261015a";
 import { CHARTE, METRIQUES_POLICE, MISE_EN_PAGE, REGARD_SCENES, cadre, texte, etiquette, vignette, largeurPastille, voitureProfil, reperesProfil,
-  voitureDessus, reperesDessus, VOITURE, VITRAGE_CONTOUR, TEINTES_ROUTE, arrondir, couper, bande, ceinture, coord, trace, entre } from "./dessins-kit.js?v=20261015a";
+  voitureDessus, reperesDessus, VOITURE, VITRAGE_CONTOUR, TEINTES_ROUTE, MIROIR_INTERIEUR, miroirInterieur, arrondir, couper, bande, ceinture, coord,
+  trace, entre } from "./dessins-kit.js?v=20261015a";
 import { CATALOGUE } from "./catalogue-blocs.js?v=20261015a";
 import { cycliste, GABARIT_VELO } from "./piece-cycliste.js?v=20261015a";
 
@@ -253,10 +254,9 @@ const RETROVISEURS = {
   legende: { taille: CHARTE.tailles.petite, interligne: METRIQUES_POLICE.interligne, degagement: 6 },
   capitales: METRIQUES_POLICE.milieuCapitales, haut: METRIQUES_POLICE.haut,   // repères d'Outfit, en tailles de texte
   boitier: 3,                              // épaisseur du boîtier autour du miroir
-  interieur: { largeur: 134, hauteur: 37, arrondi: 0.45, bras: { largeur: 8, hauteur: 6 },
-    // Lunette dans le miroir (fractions du miroir) : plus large en haut, plus près de l'œil ; l'horizon dans son quart haut ; œil
-    // reflété à 1,3 m du sol.
-    lunette: { haut: 0.80, bas: 0.75, hauteur: 0.78, arrondi: 4 }, horizon: 0.25, hauteurOeil: 1.3 },
+  // Rétroviseur intérieur : verre de 134 unités de large ; le verre, la lunette qu'il cadre et l'horizon sont ceux de la pièce du
+  // kit (miroirInterieur), la même que dans la vignette d'« installation » ; œil reflété à 1,3 m du sol.
+  interieur: { largeur: 134, bras: { largeur: 8, hauteur: 6 }, hauteurOeil: 1.3 },
   exterieur: { largeur: 100, hauteur: 56, arrondis: { exterieurHaut: 18, exterieurBas: 12, interieurHaut: 7, interieurBas: 5 } },
   horizon: { juste: 0.5, droit: 0.36 },    // fraction de la hauteur du miroir, depuis le haut
   hauteurMiroir: 1.04,     // m : hauteur du centre du miroir extérieur (kit : de 0,97 à 1,105 m), celle de son œil reflété
@@ -346,16 +346,12 @@ function vueExterieure({ x, y, cote, horizon, faux = false, bord = false, axiale
 }
 
 function vueInterieure({ x, y }) {
-  const R = RETROVISEURS, I = R.interieur, W = I.largeur, Hm = I.hauteur, b = R.boitier, Lu = I.lunette, h = I.hauteurOeil;
-  const rx = I.arrondi * Hm;
-  const verre = rectangleArrondi(x, y, x + W, y + Hm, [rx, rx, rx, rx]);
+  const R = RETROVISEURS, I = R.interieur, W = I.largeur, b = R.boitier, h = I.hauteurOeil;
+  const { hauteur: Hm, rayon: rx, verre, coins, lunette, horizon: yH } = miroirInterieur({ x, y, largeur: W });
   const boitier = rectangleArrondi(x - b, y - b, x + W + b, y + Hm + b, [rx + b, rx + b, rx + b, rx + b]);
-  const cx = x + W / 2, hl = Lu.hauteur * Hm, yHaut = y + (Hm - hl) / 2, yBas = yHaut + hl;
-  const lunette = arrondir([[cx - (Lu.haut * W) / 2, yHaut], [cx + (Lu.haut * W) / 2, yHaut], [cx + (Lu.bas * W) / 2, yBas],
-    [cx - (Lu.bas * W) / 2, yBas]], [Lu.arrondi, Lu.arrondi, Lu.arrondi, Lu.arrondi]);
-  const yH = yHaut + I.horizon * hl;
+  const cx = x + W / 2;
   // Focale : le haut de la lunette, sa partie la plus large dans l'image, couvre le champ du rétroviseur intérieur (angles-morts).
-  const f = ((Lu.haut * W) / 2) / Math.tan(champInterieur().demiAngle * DEG);
+  const f = ((coins[1][0] - coins[0][0]) / 2) / Math.tan(champInterieur().demiAngle * DEG);
   const ciel = couper(lunette, (p) => p[1] - yH), route = couper(lunette, (p) => yH - p[1]);
   // Le miroir intérieur garde la gauche et la droite du conducteur : l'axiale à gauche, la bordure et le trottoir à droite.
   const aDroiteDe = (l) => (p) => l * (p[1] - yH) - (p[0] - cx) * h;   // <= 0 : à droite de la droite du sol d'écart l, à droite
@@ -394,7 +390,7 @@ function retroviseurs() {
         lignes.map((l, k) => texte(xTexte, premiereLigne + k * pas, l, { taille: t }))));
   };
   const exterieur = (cote, horizon, options) => (y) => vueExterieure({ x: droiteVerre - E.largeur, y: y + (R.rangee - E.hauteur) / 2, cote, horizon, ...options });
-  const hauteurInterieur = I.bras.hauteur + 2 * b + I.hauteur;
+  const hauteurInterieur = I.bras.hauteur + 2 * b + I.largeur / MIROIR_INTERIEUR.rapport;
   return cadre({ largeur: L, hauteur: H, titre: CATALOGUE[code].titre,
     description: "Juste : le rétroviseur intérieur cadre toute la lunette arrière. Juste : l'extérieur gauche montre l'horizon à "
       + "mi-hauteur et un mince liseré de carrosserie au bord intérieur. Juste : le droit, souvent un peu plus bas, montre le bord de "

@@ -308,12 +308,13 @@ test("installation : fin de l'étape 4, ceinture placée comme le juste (brin ve
 });
 
 test("installation : à la fin, le rétroviseur intérieur cadre toute la lunette arrière", () => {
+  // Le verre (pièce du kit, miroirInterieur) est convexe : un point est dedans s'il est du même côté de chacun de ses côtés.
   const dedans = (image) => {
-    const m = trouverRole(vivante(image), "miroir");
-    assert.ok(m, "rôle « miroir » absent");
-    const [x, y, l, h, r] = ["x", "y", "width", "height", "rx"].map((k) => Number(m.attributs[k]));
-    // Rectangle aux coins arrondis : un point est sûrement dedans s'il est dans le rectangle rentré du rayon des coins.
-    return pointsRole(vivante(image), "lunette", "points").every(([px, py]) => px >= x + r && px <= x + l - r && py >= y + r && py <= y + h - r);
+    const verre = pointsRole(vivante(image), "miroir");
+    return pointsRole(vivante(image), "lunette").every((p) => verre.every((a, i) => {
+      const b = verre[(i + 1) % verre.length];
+      return (b[0] - a[0]) * (p[1] - a[1]) - (b[1] - a[1]) * (p[0] - a[0]) >= 0;
+    }));
   };
   assert.ok(dedans(imageA(def, def.duree, false)), "fin : lunette entière dans le miroir");
   assert.ok(dedans(imageA(def, def.duree, true)), "fin, image figée : lunette entière dans le miroir");
@@ -429,11 +430,10 @@ function visee(image) {
   assert.ok(g, "rôle « vue-visee » absent");
   return g;
 }
-const centreDe = (pts) => [0, 1].map((k) => pts.reduce((s, p) => s + p[k], 0) / pts.length);
-function centreMiroir(g) {
-  const m = trouverRole(g, "miroir");
-  return [Number(m.attributs.x) + Number(m.attributs.width) / 2, Number(m.attributs.y) + Number(m.attributs.height) / 2];
-}
+// Milieu de l'encombrement d'un contour : celui du verre, celui de la lunette (coins arrondis : la moyenne des points ne
+// tomberait pas au milieu d'un trapèze).
+const milieuDe = (pts) => [0, 1].map((k) => (Math.min(...pts.map((p) => p[k])) + Math.max(...pts.map((p) => p[k]))) / 2);
+const centreMiroir = (g) => milieuDe(pointsRole(g, "miroir"));
 // Sens de rotation de a vers b autour de o : signe du produit vectoriel, dans le repère du cadre.
 const sens = (o, a, b) => Math.sign((a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]));
 /** Trait (points) et tête (contour) de la flèche d'une image figée : le groupe « fleche » porte une flèche du kit. */
@@ -466,7 +466,7 @@ test("installation : le rétroviseur, sa flèche et sa vignette tournent dans le
   // de BRUIT_INCLINAISON (la lunette bouge alors de plus de quatre centièmes).
   const BRUIT_INCLINAISON = 0.005;
   const inclinaison = (image) => { const [haut, bas] = segment(image, "retroviseur"); return bas[0] - haut[0]; };
-  const lunette = (image) => centreDe(pointsRole(vivante(image), "lunette", "points"))[1];
+  const lunette = (image) => milieuDe(pointsRole(vivante(image), "lunette"))[1];
   let tourne = false;
   for (let i = 1; i < images.length; i++) {
     if (instants[i - 1] < debut(4)) continue;
