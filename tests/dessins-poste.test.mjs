@@ -4,7 +4,8 @@ import { CATALOGUE } from "../js/catalogue-blocs.js";
 import * as famille from "../js/dessins-poste.js";
 import { SOURCES } from "../sources/dessins-poste.js";
 import { trouverRole, trouverTous, texteDe, parcourir } from "../js/dessin-svg.js";
-import { CHARTE } from "../js/dessins-kit.js";
+import { CHARTE, COULEURS_VOYANTS } from "../js/dessins-kit.js";
+import * as voyants from "../js/dessins-voyants.js";
 import { PAS_IMAGE, imageA, imageFigee } from "../js/geste-regles.js";
 import { verifierDessin, verifierGeste, formeArbre } from "./aides-dessins.mjs";
 
@@ -435,6 +436,23 @@ test("mains-volant : l'anneau de la vignette faux entoure le bout du pouce engag
   const a = trouverRole(faux, "anneau-pouce").attributs, p = trouverRole(faux, "pouce-gauche").attributs;
   assert.ok(Math.hypot(p["data-x"] - a["data-x"], p["data-y"] - a["data-y"]) < a["data-rayon"], "le bout du pouce est dans l'anneau");
   assert.equal(trouverRole(trouverRole(d, "vignette-juste"), "anneau-pouce"), null);
+});
+
+// Luminance relative (WCAG) d'une couleur #RRGGBB, et contraste de deux couleurs.
+function luminance(hex) {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+const contraste = (a, b) => { const [x, y] = [luminance(a), luminance(b)].sort((m, n) => n - m); return (x + 0.05) / (y + 0.05); };
+
+test("poste-commandes : le symbole des feux de détresse est du rouge normalisé des voyants, lisible sur sa commande sombre", () => {
+  const bouton = trouverRole(famille.DESSINS["poste-commandes"](), "feux-detresse");
+  const fond = bouton.enfants[0].attributs.fill;
+  const traits = trouverTous(bouton, (x) => x.balise === "path" && x.attributs.fill === "none").map((x) => x.attributs.stroke);
+  assert.deepEqual(traits, [COULEURS_VOYANTS.rouge, COULEURS_VOYANTS.rouge], "les deux triangles, du rouge des voyants");
+  // Le même rouge que celui des voyants rouges du dessin « voyants » (huile, freinage...).
+  assert.equal(voyants.COULEURS_VOYANTS.rouge, COULEURS_VOYANTS.rouge);
+  assert.ok(contraste(COULEURS_VOYANTS.rouge, fond) >= 3, `contraste de ${contraste(COULEURS_VOYANTS.rouge, fond).toFixed(2)} sur la commande`);
 });
 
 test("poste-commandes : levier du frein de stationnement, bouton et poignée à l'avant, soufflet du pivot à l'arrière", () => {

@@ -12,21 +12,21 @@
  * viennent du catalogue des blocs (js/catalogue-blocs.js), la seule source de ces métadonnées.
  */
 import { n, trouverRole } from "./dessin-svg.js?v=20261013a";
-import { CHARTE, METRIQUES_POLICE, cadre, texte, etiquette, vignette, fleche, couper, arc, voitureDessus, coord, point as pt, trace }
+import { CHARTE, COULEURS_VOYANTS, METRIQUES_POLICE, cadre, texte, etiquette, vignette, fleche, couper, arc, voitureDessus, coord, point as pt, trace }
   from "./dessins-kit.js?v=20261013a";
 import { CATALOGUE } from "./catalogue-blocs.js?v=20261013a";
 import { interpoler, cles } from "./animation-courbes.js?v=20261013a";
 
 // ===== Teintes de l'habitacle (choix de dessin) =====
 // Tons neutres (spec § 3) : plastique sombre des commandes en trois tons (base, reflet, ombre), planche claire, symboles clairs
-// sur les commandes ; le rouge est celui du témoin des feux de détresse (couleur normalisée, règlement ONU n° 121, symbole 6).
+// sur les commandes ; le symbole des feux de détresse est rouge (règlement ONU n° 121, symbole 6), du rouge normalisé des voyants
+// (COULEURS_VOYANTS du kit, celui du dessin « voyants »).
 const TEINTES = {
   commande: "#2E3732", commandeReflet: "#56635B", commandeOmbre: "#1D2420",
   colonne: "#3E4843",
   planche: "#E1E6DB", plancheOmbre: "#CBD3C4", console: "#D3DACC",
   symbole: "#EEF2EB",
   metal: "#A9B2A8", metalOmbre: "#7F8A80",
-  rouge: "#D3392B",
 };
 
 // ===== Géométrie de base =====
@@ -549,7 +549,7 @@ function pictoDetresse(x, y, t) {
     const h = (c * Math.sqrt(3)) / 2;
     return [[x, y - (2 * h) / 3], [x + c / 2, y + h / 3], [x - c / 2, y + h / 3]];
   };
-  const trait = { fill: "none", stroke: TEINTES.rouge, "stroke-width": CHARTE.traits.moyen };
+  const trait = { fill: "none", stroke: COULEURS_VOYANTS.rouge, "stroke-width": CHARTE.traits.moyen };
   return [n("path", { d: trace(triangle(t)), ...trait }), n("path", { d: trace(triangle(t * PICTO.detresse.interieur)), ...trait })];
 }
 
