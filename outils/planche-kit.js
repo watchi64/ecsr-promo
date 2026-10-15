@@ -10,7 +10,7 @@
  * les modules qu'on lui passe (kit : js/dessins-kit.js ; svg : js/dessin-svg.js). Ce fichier n'importe rien : la planche
  * (navigateur, jeton de cache de l'app) et tests/planche-kit.test.mjs (Node, contrôles communs) le chargent chacun à leur façon.
  *
- * Tâche 5 (les voitures du kit) : ajouter ici une pièce par voiture, sur le même modèle ; le test les contrôle toutes.
+ * Les voitures du kit (tâche 5) y ont chacune leur pièce, vue du dessus et profil, dans leurs états ; le test les contrôle toutes.
  *
  * Choix de dessin : positions et dimensions sont des constantes nommées, en unités du cadre (320 de large, rendu à 343 px).
  */
@@ -73,7 +73,47 @@ function etiquettes({ kit, svg }) {
   texte(LARGEUR - MARGE - PORTEE_COURBE / 2, LEGENDE_Y, "Flèche courbe", { ancrage: "middle" }));
 }
 
+// Les voitures du kit (tâche 5), telles que les familles les posent : vue du dessus, puis de profil, chacune dans un état sobre et
+// dans un état chargé (toutes ses pièces à la demande), avec une légende qui nomme l'état. Échelles choisies pour la revue : la
+// plus grande qui tient dans le cadre, le détail de finition s'y voit (voir DETAIL_MIN du kit).
+const HAUTEUR_DESSUS = 296, HAUTEUR_PROFIL = 240;
+const LEGENDE = { taille: 11, ecart: 16 };   // légende sous chaque voiture : taille, et écart à la ligne de base
+
+function voituresDessus({ kit }) {
+  const { CHARTE, cadre, texte, voitureDessus } = kit;
+  const ECHELLE = 48, X = LARGEUR / 2;
+  // Deux voitures, cap 0 (l'avant à droite) : la première avec ses rétroviseurs, la seconde avec roues avant braquées de 25 degrés
+  // à droite et portière du conducteur ouverte de 40 degrés (elle s'ouvre vers le haut du cadre, côté gauche de la voiture).
+  // Centres et lignes de base des légendes : la voiture fermée déborde de 49 unités de son centre (rétroviseurs), la portière
+  // ouverte de 82 au-dessus ; 13 unités de la voiture à sa légende, 10 de la légende à la voiture suivante.
+  const Y1 = 58, Y2 = 218, BAS1 = 122, BAS2 = 282;
+  return cadre({ largeur: LARGEUR, hauteur: HAUTEUR_DESSUS, titre: "Voiture du kit vue du dessus",
+    description: "Exemple pour la revue : la voiture des scènes vue du dessus, avec ses rétroviseurs ; puis roues avant braquées et portière du conducteur ouverte." },
+  voitureDessus({ x: X, y: Y1, cap: 0, echelle: ECHELLE, retroviseurs: true }),
+  texte(X, BAS1, "Rétroviseurs", { taille: LEGENDE.taille, ancrage: "middle", couleur: CHARTE.texteDoux }),
+  voitureDessus({ x: X, y: Y2, cap: 0, echelle: ECHELLE, retroviseurs: true, roues: true, braquage: 25, portiere: 40 }),
+  texte(X, BAS2, "Roues braquées de 25 degrés, portière ouverte de 40", { taille: LEGENDE.taille, ancrage: "middle", couleur: CHARTE.texteDoux }));
+}
+
+function voituresProfil({ kit }) {
+  const { CHARTE, cadre, texte, voitureProfil } = kit;
+  const ECHELLE = 60, X = LARGEUR / 2;
+  // De profil : côté droit (sens « droite », l'avant à droite), puis côté conducteur (sens « gauche »), portière avant et trappe
+  // à carburant ouvertes. Sol de chaque voiture, puis sa légende dessous.
+  const SOL1 = 96, SOL2 = 212;   // le toit à 87 unités du sol ; la légende à 16 sous le sol, puis 9 jusqu'au toit suivant
+  return cadre({ largeur: LARGEUR, hauteur: HAUTEUR_PROFIL, titre: "Voiture du kit de profil",
+    description: "Exemple pour la revue : la compacte à hayon du kit de profil, côté droit ; puis côté conducteur, portière avant et trappe à carburant ouvertes." },
+  voitureProfil({ x: X, y: SOL1, echelle: ECHELLE }),
+  texte(X, SOL1 + LEGENDE.ecart, "Côté droit", { taille: LEGENDE.taille, ancrage: "middle", couleur: CHARTE.texteDoux }),
+  voitureProfil({ x: X, y: SOL2, echelle: ECHELLE, sens: "gauche", portiereOuverte: true, trappeOuverte: true }),
+  texte(X, SOL2 + LEGENDE.ecart, "Côté conducteur, portière et trappe ouvertes", { taille: LEGENDE.taille, ancrage: "middle", couleur: CHARTE.texteDoux }));
+}
+
 export const PIECES_KIT = [
   { code: "kit-paire", titre: "Paire juste et faux : vignettes, pastilles, étiquette, flèche", cadre: [LARGEUR, HAUTEUR_PAIRE], construire: paire },
   { code: "kit-etiquettes", titre: "Étiquettes aux trois ancrages, flèche droite et flèche courbe", cadre: [LARGEUR, HAUTEUR_ETIQUETTES], construire: etiquettes },
+  { code: "kit-voiture-dessus", titre: "Voiture vue du dessus : rétroviseurs, roues braquées, portière ouverte", cadre: [LARGEUR, HAUTEUR_DESSUS],
+    construire: voituresDessus },
+  { code: "kit-voiture-profil", titre: "Voiture de profil : côté droit, côté conducteur portière et trappe ouvertes", cadre: [LARGEUR, HAUTEUR_PROFIL],
+    construire: voituresProfil },
 ];

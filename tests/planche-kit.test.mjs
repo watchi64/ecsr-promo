@@ -44,3 +44,18 @@ test("les étiquettes du kit montrent les trois ancrages et une étiquette sur d
   assert.ok(svg.trouverTous(dessin, (x) => x.attributs["data-r"] === "etiquette").some((g) => svg.trouverTous(g, (x) => x.balise === "text").length === 2));
   assert.ok(svg.trouverTous(dessin, (x) => x.attributs["data-r"] === "fleche").length >= 2, "une flèche droite et une flèche courbe");
 });
+
+test("la section Kit montre les voitures du kit : vue du dessus et profil, dans leur état sobre et avec toutes leurs pièces", () => {
+  const piece = (code) => { const p = PIECES_KIT.find((x) => x.code === code); assert.ok(p, code); return p.construire({ kit, svg }); };
+  const montre = (noeud) => noeud && noeud.attributs.display !== "none";
+  const dessus = svg.trouverTous(piece("kit-voiture-dessus"), (x) => x.attributs["data-r"] === "voiture");
+  assert.equal(dessus.length, 2, "deux voitures vues du dessus");
+  for (const v of dessus) assert.ok(svg.trouverRole(v, "retroviseur-gauche") && svg.trouverRole(v, "retroviseur-interieur"), "rétroviseurs");
+  assert.equal(svg.trouverRole(dessus[0], "roue-avant-gauche"), null, "la première, sans roues");
+  assert.equal(svg.trouverRole(dessus[1], "roue-avant-gauche").attributs["data-angle"], 25, "la seconde, roues braquées");
+  assert.ok(!montre(svg.trouverRole(dessus[0], "portiere")) && montre(svg.trouverRole(dessus[1], "portiere")), "portière fermée, puis ouverte");
+  const profils = svg.trouverTous(piece("kit-voiture-profil"), (x) => x.attributs["data-r"] === "voiture-profil");
+  assert.equal(profils.length, 2, "deux voitures de profil");
+  assert.ok(!montre(svg.trouverRole(profils[0], "portiere-ouverte")) && montre(svg.trouverRole(profils[1], "portiere-ouverte")), "portière ouverte sur la seconde");
+  assert.ok(montre(svg.trouverRole(profils[1], "trappe-ouverte")), "trappe ouverte sur la seconde");
+});
