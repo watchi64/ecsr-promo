@@ -200,7 +200,7 @@ test("monterGeste : la flèche de chaque étape est celle de l'étape, tracé mi
   for (const t of [1.5, 1.6, 3]) { g.allerA(t); assert.equal(trace(), d1, `à ${t} s`); }
 }));
 
-test("monterGeste : ce que le contrôle des images signale est ce que l'exécution refuse, et la lecture s'y fige (la sonde du relecteur : rayon NaN près de x = 100)", () => banc((dom, temps) => {
+test("monterGeste : ce que le contrôle des images signale est ce que l'exécution refuse, et la lecture s'y arrête (la sonde du relecteur : rayon NaN près de x = 100)", () => banc((dom, temps) => {
   const base = gesteEssai();
   const rayon = (etat) => (Math.abs(etat.x - 100) < 2 ? Math.acos(1.0000001) : 14);
   const sonde = gesteEssai({ dessiner: (etat, o) => avecAttributs(base.dessiner(etat, o), "disque", { r: rayon(etat) }) });
@@ -208,20 +208,25 @@ test("monterGeste : ce que le contrôle des images signale est ce que l'exécuti
   const pb = problemesGeste(sonde, ETAPES_ESSAI);
   assert.equal(pb.length, 1);
   assert.match(pb[0], /^1\.\d{3} s, image de lecture : Valeur d'attribut non finie : NaN/);
-  // Le moteur la refuse bien : en lecture, la boucle lève à la première image fautive, avant d'écrire, et ne demande pas la
-  // suivante. La lecture se fige, bouton encore sur « Pause » : c'est ce que le contrôle doit empêcher d'arriver.
+  // Le moteur la refuse bien : en lecture, l'image fautive lève avant d'écrire. La boucle l'arrête (relecture finale du lot D1,
+  // M5) : plus aucune image demandée, le bouton redit Lecture, l'erreur part en console. C'est ce que le contrôle doit empêcher
+  // d'arriver.
   const { g, racine, barre } = monter(dom, {}, sonde);
   const disque = trouver(racine, "disque");
-  g.jouer();
-  let erreur = null;
-  for (let i = 0; i < 200 && erreur === null && temps.enAttente(); i++) {
-    try { temps.avancer(16); } catch (e) { erreur = e; }
+  const traces = [], consoleError = console.error;
+  console.error = (...args) => traces.push(args);
+  try {
+    g.jouer();
+    for (let i = 0; i < 200 && traces.length === 0 && temps.enAttente(); i++) temps.avancer(16);
+  } finally {
+    console.error = consoleError;
   }
-  assert.ok(erreur, "la boucle a levé");
-  assert.ok(pb[0].endsWith(erreur.message), "le contrôle dit mot pour mot ce que l'exécution refuse");
+  assert.equal(traces.length, 1, "l'image fautive a levé, une trace en console");
+  const erreur = traces[0].at(-1);
+  assert.ok(erreur instanceof Error && pb[0].endsWith(erreur.message), "le contrôle dit mot pour mot ce que l'exécution refuse");
   assert.equal(disque.getAttribute("r"), "14", "rien n'a été écrit de l'image fautive");
-  assert.equal(temps.enAttente(), 0, "plus aucune image demandée : la lecture est figée");
-  assert.equal(barre.childNodes[0].textContent, "Pause");
+  assert.equal(temps.enAttente(), 0, "plus aucune image demandée : la lecture est arrêtée");
+  assert.equal(barre.childNodes[0].textContent, "Lecture");
 }));
 
 test("le moteur et les contrôles ne dessinent un geste que par imageA : ce qu'on vérifie est exactement ce qu'on montre", () => {
