@@ -691,6 +691,35 @@ test("voiture vue du dessus : les roues passent sous la portière ouverte et sou
     "roues, puis l'habitacle découvert, puis la portière, puis les rétroviseurs");
 });
 
+// Style schématique (décision du formateur du 15/10/2026, essai sur C1.3) : la voiture vue du dessus en silhouette, pour les dessins
+// qui la montrent en pictogramme (gestes du volant, regard porté loin).
+test("voiture vue du dessus, schématique : la caisse et son contour, le pare-brise, la lunette et les roues, aux mêmes tracés que la voiture du kit ; trois teintes au plus, aucun détail de finition", () => {
+  const finition = ["toit", "reflet-pare-brise", "vitre-avant-gauche", "vitre-arriere-droite", "phare-gauche", "feu-droit", "essuie-glaces"];
+  const poses = [[{ x: 160, y: 100, cap: 0, echelle: 20 }, { roues: true, braquage: 12 }], [{ x: 120, y: 90, cap: -90, echelle: 40 }, { roues: true }],
+    [{ x: 80, y: 60, cap: 30, echelle: 11.5 }, {}]];
+  for (const [pose, options] of poses) {
+    const detaillee = voitureDessus({ ...pose, ...options }), silhouette = voitureDessus({ ...pose, ...options, schema: true });
+    for (const role of finition) {
+      assert.equal(trouverRole(silhouette, role), null, `${role} dans la silhouette, échelle ${pose.echelle}`);
+      if (pose.echelle >= 20) assert.ok(trouverRole(detaillee, role), `${role} de la voiture détaillée, échelle ${pose.echelle}`);
+    }
+    const roues = options.roues ? ["roue-avant-gauche", "roue-avant-droite", "roue-arriere-gauche", "roue-arriere-droite"] : [];
+    for (const role of ["voiture", "caisse", "pare-brise", "lunette", ...roues]) {
+      assert.deepEqual(trouverRole(silhouette, role).attributs, trouverRole(detaillee, role).attributs, `${role}, échelle ${pose.echelle}`);
+    }
+    // Teintes de ce qui s'affiche (la portière fermée garde ses nœuds masqués, pour s'animer sans saut).
+    const [teintes, traits] = [new Set(), new Set()];
+    (function voir(x) {
+      if (typeof x === "string" || x.attributs.display === "none") return;
+      if (x.attributs.fill && x.attributs.fill !== "none") teintes.add(x.attributs.fill);
+      if (x.attributs.stroke) traits.add(x.attributs.stroke);
+      x.enfants.forEach(voir);
+    })(silhouette);
+    assert.deepEqual([...teintes].sort(), [TEINTES_ROUTE.eleve, TEINTES_ROUTE.vitre, ...(options.roues ? [kit.MATIERES.pneu] : [])].sort(), `teintes, échelle ${pose.echelle}`);
+    assert.deepEqual([...traits], [TEINTES_ROUTE.eleveBord], `contour, échelle ${pose.echelle}`);
+  }
+});
+
 test("voitures : à petite échelle les détails de finition s'effacent, les pièces demandées et les grandes surfaces restent", () => {
   const options = { retroviseurs: true, roues: true, portiere: 30 };
   const petit = voitureDessus({ x: 40, y: 40, echelle: 6, ...options }), grand = voitureDessus({ x: 160, y: 100, echelle: 20, ...options });
