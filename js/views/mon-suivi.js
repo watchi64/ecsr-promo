@@ -1,21 +1,22 @@
 import { listStagiaires, listEvaluations, getPlanning, getHalfMetaForWeek, getJoursOff, getSetting,
          listProfs, listEpcf, getEpcfMoyennes, listThemes,
          getStagiaire, setDateNaissance, listPassages,
-         listLivretsIndex, listDossiersIndex } from "../db.js?v=20261015b";
-import { el, clear, isoDate, getMonday, addDays, formatDate, displayStagiaire, toast } from "../utils.js?v=20261015b";
-import { HALF_DAYS, RESULTATS } from "../config.js?v=20261015b";
-import { isAdmin, isProf, monStagiaireId } from "../auth-admin.js?v=20261015b";
-import { renderEpcfPersonne } from "./epcf.js?v=20261015b";
-import { renderSubTabs } from "../subtabs.js?v=20261015b";
-import { renderDp } from "./dp.js?v=20261015b";
-import { renderEpcfLivret } from "./epcf-livret.js?v=20261015b";
-import { rolesPourEntry, ROLE_ORDER } from "../creneaux-rules.js?v=20261015b";
-import { statsPassages } from "../passages-stats.js?v=20261015b";
-import { moduleVisible, moduleMasque, repereMasque } from "../modules-etat.js?v=20261015b";
-import { icon } from "../icons.js?v=20261015b";
-import { PARTIES, lireAdresse, adresseFiche } from "../route-rules.js?v=20261015b";
-import { etatsSommaire, passagesAVenir, EVT_DOCUMENT } from "../fiche-rules.js?v=20261015b";
-import { surChangementAdresse, remplacerAdresse, peutQuitter } from "../navigation.js?v=20261015b";
+         listLivretsIndex, listDossiersIndex } from "../db.js?v=20261015c";
+import { el, clear, isoDate, getMonday, addDays, formatDate, displayStagiaire, toast } from "../utils.js?v=20261015c";
+import { HALF_DAYS, RESULTATS } from "../config.js?v=20261015c";
+import { isAdmin, isProf, monStagiaireId } from "../auth-admin.js?v=20261015c";
+import { renderEpcfPersonne } from "./epcf.js?v=20261015c";
+import { renderSubTabs } from "../subtabs.js?v=20261015c";
+import { renderDp } from "./dp.js?v=20261015c";
+import { renderEpcfLivret } from "./epcf-livret.js?v=20261015c";
+import { rolesPourEntry, ROLE_ORDER } from "../creneaux-rules.js?v=20261015c";
+import { bandeauAvis } from "../avis.js?v=20261015c";
+import { statsPassages } from "../passages-stats.js?v=20261015c";
+import { moduleVisible, moduleMasque, repereMasque } from "../modules-etat.js?v=20261015c";
+import { icon } from "../icons.js?v=20261015c";
+import { PARTIES, lireAdresse, adresseFiche } from "../route-rules.js?v=20261015c";
+import { etatsSommaire, passagesAVenir, EVT_DOCUMENT } from "../fiche-rules.js?v=20261015c";
+import { surChangementAdresse, remplacerAdresse, peutQuitter } from "../navigation.js?v=20261015c";
 
 const HALF_ORDER = { matin: 0, aprem: 1 };
 
@@ -699,7 +700,9 @@ export async function renderMonSuivi(container) {
     ),
   );
   const corps = el("div", { class: "ms-body" });
+  const bandeau = bandeauAvis();
   container.appendChild(header);
+  if (bandeau) container.appendChild(bandeau);
   container.appendChild(corps);
   if (monId == null) {
     corps.appendChild(el("p", { class: "muted" }, "Aucun profil stagiaire n'est relié à ce compte."));
@@ -716,6 +719,7 @@ export async function renderMonSuivi(container) {
     });
     // iPhone, dans une partie : le retour « ‹ Mon espace » remplace l'en-tête.
     header.hidden = affiche === "partie";
+    if (bandeau) bandeau.hidden = affiche === "partie";
     if (disposition === "sommaire") window.scrollTo(0, 0);
   };
   const charger = async () => {

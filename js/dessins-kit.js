@@ -12,7 +12,7 @@
  * pour qu'ils restent lisibles quand ils passent sur un objet sombre. Mains et silhouettes : une seule teinte de peau,
  * en deux tons seulement, CHARTE.peau et CHARTE.peauOmbre.
  */
-import { n } from "./dessin-svg.js?v=20261015b";
+import { n } from "./dessin-svg.js?v=20261015c";
 
 export const CHARTE = {
   fond: "#F1F4F0", carte: "#FBFCFA", texte: "#1F2924", texteDoux: "#46554A", texteDiscret: "#6E7A6F",

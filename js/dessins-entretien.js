@@ -12,10 +12,10 @@
  * leur raison dans sources/dessins-entretien.js. La voiture, de profil comme vue du dessus, est celle du kit. Titres et cadres
  * viennent du catalogue des blocs (js/catalogue-blocs.js), la seule source de ces métadonnées.
  */
-import { n } from "./dessin-svg.js?v=20261015b";
+import { n } from "./dessin-svg.js?v=20261015c";
 import { CHARTE, MATIERES, METRIQUES_POLICE, MISE_EN_PAGE, cadre, texte, etiquette, vignette, arrondir, arc, couper, trace, VOITURE,
-  voitureDessus, voitureProfil, reperesProfil } from "./dessins-kit.js?v=20261015b";
-import { CATALOGUE } from "./catalogue-blocs.js?v=20261015b";
+  voitureDessus, voitureProfil, reperesProfil } from "./dessins-kit.js?v=20261015c";
+import { CATALOGUE } from "./catalogue-blocs.js?v=20261015c";
 
 // ===== Mise en page commune (unités du cadre) =====
 // Textes posés comme ceux du kit : espace du bout d'un filet à son texte, pas des lignes, repères d'Outfit (METRIQUES_POLICE).
@@ -540,4 +540,4 @@ function pression() {
 
 export const DESSINS = { capot, niveaux, pneu, pression };
 export const GESTES = {};
-export { versDom } from "./dessin-svg.js?v=20261015b";
+export { versDom } from "./dessin-svg.js?v=20261015c";

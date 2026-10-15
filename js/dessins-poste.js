@@ -11,11 +11,11 @@
  * portée réglementaire sont des choix de dessin, recopiés avec leur raison dans sources/dessins-poste.js. Titres et cadres
  * viennent du catalogue des blocs (js/catalogue-blocs.js), la seule source de ces métadonnées.
  */
-import { n, trouverRole } from "./dessin-svg.js?v=20261015b";
+import { n, trouverRole } from "./dessin-svg.js?v=20261015c";
 import { CHARTE, COULEURS_VOYANTS, METRIQUES_POLICE, cadre, texte, etiquette, vignette, fleche, couper, arc, voitureDessus, coord, point as pt, trace }
-  from "./dessins-kit.js?v=20261015b";
-import { CATALOGUE } from "./catalogue-blocs.js?v=20261015b";
-import { interpoler, cles } from "./animation-courbes.js?v=20261015b";
+  from "./dessins-kit.js?v=20261015c";
+import { CATALOGUE } from "./catalogue-blocs.js?v=20261015c";
+import { interpoler, cles } from "./animation-courbes.js?v=20261015c";
 
 // ===== Teintes de l'habitacle (choix de dessin) =====
 // Tons neutres (spec § 3) : plastique sombre des commandes en trois tons (base, reflet, ombre), planche claire, symboles clairs
@@ -1231,4 +1231,4 @@ export const GESTES = {
   chevauchement: { construire: () => geste("chevauchement", CHEVAUCHEMENT, etatChevauchement, FLECHES_CHEVAUCHEMENT, DESCRIPTIONS.chevauchement, LIBELLES.chevauchement) },
   "retour-volant": { construire: () => geste("retour-volant", RETOUR_VOLANT, etatRetourVolant, FLECHES_RETOUR_VOLANT, DESCRIPTIONS["retour-volant"], LIBELLES["retour-volant"]) },
 };
-export { versDom } from "./dessin-svg.js?v=20261015b";
+export { versDom } from "./dessin-svg.js?v=20261015c";
