@@ -406,9 +406,16 @@ Spec et plans dans le dépôt ECSR : `docs/superpowers/specs/2026-10-03-cours-co
   - **Repères des animations réduites** : une seule règle des places (`placeRepereLibre`, prédicat `libre`) : jeu de
     0,3 m autour des acteurs posés, aucun acteur posé entre l'élève et son repère, cônes du tour figé protégés ;
     quatre numéros consécutifs ou plus s'écrivent en plage (`libelleRepere` : « 10-15 »).
-  - **À faire avant le lot suivant** : charger le moteur de scènes à la demande (import dynamique au premier bloc
-    `:::scene` ; il pèse aujourd'hui sur le démarrage de tous les utilisateurs) et sortir les `sources` (47 Ko, non
-    affichées) du module livré. Mineures restantes : `.superpowers/sdd/p2-mineures-ouvertes.md` du dépôt ECSR.
+  - Mineures restantes du lot C1 : `.superpowers/sdd/p2-mineures-ouvertes.md` du dépôt ECSR.
+- **Lot D1 (plan 3, octobre 2026) : dessins des cours de compétences** (24 blocs `:::dessin` et `:::scene` pour C1.1 à
+  C1.3). Moteurs, registres et dessins se chargent à la demande, au premier bloc qui en a besoin (`chargerModule` de
+  `js/cours-blocs.js`, table `CHARGEURS`) ; les sources des scènes et des dessins vivent dans `sources/`, jamais
+  chargées par l'app. **Octets de JavaScript au démarrage** (mesure du 15/10/2026 : l'app entière sur le banc
+  `_harness.html`, Chrome à 375 px, chaque module demandé jusqu'au silence du réseau, rôles stagiaire et formateur,
+  octets des blobs git, fins de ligne LF comme sur Pages) : avant le lot (`7c95cbf`), 77 modules, 1 334 487 octets
+  (412 434 en gzip), dont les sept modules des scènes ; après (`cours-remc`), 71 modules, 1 086 510 octets (340 643 en
+  gzip), aucun moteur, registre ni dessin, `js/catalogue-blocs.js` en plus : **-247 977 octets (-18,6 %), -71 791 en
+  gzip (-17,4 %)**. Le test `tests/chargement.test.mjs` garde le graphe des imports statiques depuis `js/main.js`.
 - **Tests** : sous Node 24, `node --test tests/` échoue (dossier chargé comme un module) ; lancer
   `node --test "tests/*.test.mjs"`.
 - **Bancs** : `_preview_cours.html?cle=C2.4` (lecteur et éditeur), `_preview_scenes.html` (planche de revue,
