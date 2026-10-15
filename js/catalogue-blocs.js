@@ -157,8 +157,8 @@ export const CATALOGUE = {
     legendeModele: "Ce qu'aucun rétroviseur ne montre : un coup d'œil par-dessus l'épaule.", cadre: [320, 326] },
   pedales: { bloc: "dessin", module: "poste", titre: "Les pédales et les pieds",
     legendeModele: "Pied gauche : embrayage. Pied droit : frein ou accélérateur.", cadre: [320, 200] },
-  "roues-trottoir": { bloc: "dessin", module: "dessus", titre: "Immobiliser en pente",
-    legendeModele: "En pente, roues braquées vers le trottoir.", cadre: [320, 240] },
+  "roues-trottoir": { bloc: "dessin", module: "dessus", titre: "Immobiliser en descente et en montée",
+    legendeModele: "En descente, roues braquées vers le trottoir ; en montée, vers la chaussée.", cadre: [320, 232] },
 
   // C1.3
   "sous-survirage": { bloc: "dessin", module: "dessus", titre: "Sous-virage et survirage",

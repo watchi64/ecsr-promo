@@ -405,84 +405,124 @@ test("tour-vehicule : capot ouvert, charnière côté pare-brise, compartiment d
 });
 
 // ===== roues-trottoir =====
+// Deux cas côte à côte : en descente (à gauche), en montée (à droite). Dans chaque cas (groupe cas-<nom>) : son titre, l'étiquette
+// des roues, la rue vue du dessus (groupe plan) et la voiture de profil sur la pente (groupe vignette-pente).
+const CAS_PENTE = [
+  { nom: "descente", titre: "En descente", roues: "Roues braquées vers le trottoir" },
+  { nom: "montee", titre: "En montée", roues: "Roues braquées vers la chaussée" },
+];
+// Un cas lu dans le dessin : la voiture vue du dessus et sa pose ; le côté du trottoir dans le repère de la voiture (1 : à sa droite)
+// et le jeu entre son flanc et la bordure (m) ; l'angle des roues avant et arrière ; de profil, la pente (degrés), les centres des
+// roues avant et arrière une fois la voiture tournée de la pente, et l'échelle de la voiture de profil (empattement dessiné).
+function casDe(d, nom) {
+  const g = trouverRole(d, `cas-${nom}`);
+  assert.ok(g, `cas ${nom} absent`);
+  const plan = trouverRole(g, "plan"), voiture = trouverRole(plan, "voiture"), pose = poseDe(voiture);
+  const trottoir = pointsDe(trouverRole(plan, "trottoir"));
+  const ys = trottoir.map(cadreVersMetres(pose)).map((p) => p[1]);
+  const [cote, coteMax] = [Math.sign(Math.min(...ys)), Math.sign(Math.max(...ys))];
+  const angle = (r) => Number(trouverRole(voiture, r).attributs["data-angle"]);
+  const vignette = trouverRole(g, "vignette-pente"), pente = trouverRole(vignette, "pente"), t = transformDe(pente);
+  const profil = trouverRole(pente, "voiture-profil");
+  const brut = ["roue-avant", "roue-arriere"].map((r) => point(trouverRole(profil, r)));
+  const [av, ar] = brut.map((p) => tourner(p, [t.rx, t.ry], t.angle));
+  return { g, plan, voiture, pose, trottoir, cote: cote === coteMax ? cote : 0, jeu: Math.min(...ys.map(Math.abs)) - GABARITS.voiture.largeur / 2,
+    avant: ["roue-avant-gauche", "roue-avant-droite"].map(angle), arriere: ["roue-arriere-gauche", "roue-arriere-droite"].map(angle),
+    vignette, pente, t, profil, av, ar, echelleProfil: distance(brut[0], brut[1]) / VOITURE.empattement };
+}
 
-test("roues-trottoir : voiture garée le long du trottoir de droite, roues avant braquées vers lui, roues arrière droites", () => {
+test("roues-trottoir : deux cas côte à côte, « En descente » à gauche puis « En montée », chacun sous son titre", () => {
   const d = dessin("roues-trottoir");
-  const voiture = trouverRole(d, "voiture"), pose = poseDe(voiture);
-  const trottoir = pointsDe(trouverRole(d, "trottoir")).map(cadreVersMetres(pose));
-  const ys = trottoir.map((p) => p[1]);
-  // Le trottoir est tout entier d'un côté de la voiture ; ici, à sa droite (y positif dans le repère de la voiture).
-  const cote = Math.sign(Math.min(...ys));
-  assert.equal(cote, Math.sign(Math.max(...ys)), "trottoir d'un seul côté");
-  assert.equal(cote, 1, "trottoir de droite");
-  // Le long du trottoir : flanc droit parallèle à la bordure, à moins de 0,5 m, sans la toucher.
-  const bordure = trottoir.filter((p) => Math.abs(p[1] - Math.min(...ys)) < 1e-6);
-  assert.ok(bordure.length >= 2 && Math.max(...bordure.map((p) => p[0])) - Math.min(...bordure.map((p) => p[0])) > GABARITS.voiture.longueur, "bordure parallèle à la voiture, plus longue qu'elle");
-  const jeu = Math.min(...ys) - GABARITS.voiture.largeur / 2;
-  assert.ok(jeu > 0 && jeu <= 0.5, `jeu de ${jeu.toFixed(2)} m`);
-  for (const r of ["roue-avant-gauche", "roue-avant-droite"]) {
-    const angle = Number(trouverRole(voiture, r).attributs["data-angle"]);
-    assert.equal(Math.sign(angle), cote, `${r} : braquée vers le trottoir (angle ${angle})`);
-    assert.ok(Math.abs(angle) >= 15, `${r} : braquage visible (${angle} degrés)`);
+  const [descente, montee] = CAS_PENTE.map((c) => casDe(d, c.nom));
+  for (const [c, cas] of [[CAS_PENTE[0], descente], [CAS_PENTE[1], montee]]) {
+    assert.deepEqual(textesDe(trouverRole(cas.g, `titre-${c.nom}`)), [c.titre], c.nom);
   }
-  for (const r of ["roue-arriere-gauche", "roue-arriere-droite"]) assert.equal(Number(trouverRole(voiture, r).attributs["data-angle"]), 0, r);
+  assert.ok(descente.pose.x < montee.pose.x, "la descente à gauche, la montée à droite");
+  assert.equal(descente.pose.y, montee.pose.y, "les deux vues du dessus à la même hauteur");
+  assert.equal(descente.t.ry, montee.t.ry, "les deux profils à la même hauteur");
 });
 
-test("roues-trottoir : la vignette de profil montre la pente, la voiture tournée vers le bas, une flèche qui descend", () => {
+test("roues-trottoir : dans chaque cas, la voiture garée le long du trottoir de droite, roues avant nettement braquées, roues arrière droites ; de profil, la même voiture à la même échelle, l'avant du même côté", () => {
   const d = dessin("roues-trottoir");
-  const vignette = trouverRole(d, "vignette-pente");
-  const pente = trouverRole(vignette, "pente"), a = Number(pente.attributs["data-angle"]);
-  assert.ok(a >= 3 && a <= 20, `pente de ${a} degrés`);
-  const t = transformDe(pente);
-  assert.equal(t.angle, a, "la voiture de profil tourne de la pente");
-  // Le sol suit la pente ; il descend vers la droite (y croît avec x dans le cadre). Son tracé commence par sa surface, de
-  // gauche à droite.
-  const [s0, s1] = pointsDe(trouverRole(vignette, "sol"));
-  assert.ok(Math.abs(Math.atan2(s1[1] - s0[1], s1[0] - s0[0]) / DEG - a) < 0.01, "sol incliné de la pente");
-  // La voiture de profil, avant à droite comme sur la vue du dessus, a l'avant plus bas que l'arrière : garée tournée vers le bas.
-  const profil = trouverRole(pente, "voiture-profil");
-  const [av, ar] = ["roue-avant", "roue-arriere"].map((r) => tourner(point(trouverRole(profil, r)), [t.rx, t.ry], t.angle));
-  assert.ok(av[0] > ar[0] && av[1] > ar[1], "avant à droite et plus bas que l'arrière");
-  assert.equal(Number(trouverRole(d, "voiture").attributs["data-angle"]), 0, "vue du dessus : avant à droite aussi");
-  // Chaque roue de profil touche le sol.
-  const rayon = (r) => Number(trouverTous(trouverRole(profil, r), (x) => x.attributs["data-r"] === "pneu")[0].attributs.r);
-  for (const [r, centre] of [["roue-avant", av], ["roue-arriere", ar]]) {
-    const pied = [centre[0] - rayon(r) * Math.sin(a * DEG), centre[1] + rayon(r) * Math.cos(a * DEG)];
-    assert.ok(distanceSegment(pied, s0, s1) < 0.05, `${r} posée sur le sol`);
+  for (const c of CAS_PENTE) {
+    const cas = casDe(d, c.nom);
+    assert.equal(cas.cote, 1, `${c.nom} : trottoir d'un seul côté, à droite de la voiture`);
+    assert.ok(cas.jeu > 0 && cas.jeu <= 0.5, `${c.nom} : jeu de ${cas.jeu.toFixed(2)} m au trottoir`);
+    // Le long du trottoir : bordure parallèle à la voiture, plus longue qu'elle.
+    const bordure = cas.trottoir.map(cadreVersMetres(cas.pose)).filter((p) => Math.abs(p[1] - (GABARITS.voiture.largeur / 2 + cas.jeu)) < 1e-6);
+    assert.ok(bordure.length >= 2 && Math.max(...bordure.map((p) => p[0])) - Math.min(...bordure.map((p) => p[0])) > GABARITS.voiture.longueur, `${c.nom} : bordure le long de la voiture`);
+    assert.equal(cas.avant[0], cas.avant[1], `${c.nom} : les deux roues avant au même angle`);
+    assert.ok(Math.abs(cas.avant[0]) >= 15, `${c.nom} : braquage visible (${cas.avant[0]} degrés)`);
+    assert.deepEqual(cas.arriere, [0, 0], `${c.nom} : roues arrière droites`);
+    assert.equal(cas.pose.cap, 0, `${c.nom} : vue du dessus, l'avant à droite`);
+    assert.ok(cas.av[0] > cas.ar[0], `${c.nom} : de profil, l'avant à droite aussi (vue du trottoir)`);
+    assert.ok(Math.abs(cas.echelleProfil - cas.pose.echelle) < 1e-6, `${c.nom} : profil à ${cas.echelleProfil} unités par mètre, vue du dessus à ${cas.pose.echelle}`);
   }
-  // Une flèche le long de la pente, vers le bas, et les mots du cours.
-  const f = trouverRole(vignette, "fleche-pente");
-  const depart = pointsDe(trouverRole(f, "fleche-trait"))[0], pointe = pointsDe(trouverRole(f, "fleche-tete"))[0];
-  assert.ok(pointe[1] > depart[1] && pointe[0] > depart[0], "la flèche descend la pente");
-  assert.ok(Math.abs(Math.atan2(pointe[1] - depart[1], pointe[0] - depart[0]) / DEG - a) < 1, "la flèche suit la pente");
-  assert.ok(textesDe(vignette).includes("En pente"));
+});
+
+test("roues-trottoir : le braquage suit la pente, lu dans le dessin : l'avant plus bas que l'arrière (en descente), roues vers le trottoir ; l'avant plus haut (en montée), vers la chaussée", () => {
+  const d = dessin("roues-trottoir");
+  const vus = new Set();
+  for (const c of CAS_PENTE) {
+    const cas = casDe(d, c.nom);
+    assert.notEqual(cas.av[1], cas.ar[1], `${c.nom} : voiture de profil à plat`);
+    const descend = cas.av[1] > cas.ar[1];   // l'avant plus bas : y croît vers le bas du cadre
+    assert.equal(c.titre, descend ? "En descente" : "En montée", `${c.nom} : le titre ne dit pas la pente dessinée`);
+    // Vers le trottoir : braquage du signe du côté du trottoir (à droite, positif) ; vers la chaussée : du signe opposé.
+    const vers = Math.sign(cas.avant[0]) === cas.cote ? "le trottoir" : "la chaussée";
+    assert.equal(vers, descend ? "le trottoir" : "la chaussée", `${c.nom} : roues avant braquées vers ${vers} (${cas.avant[0]} degrés)`);
+    vus.add(descend);
+  }
+  assert.equal(vus.size, 2, "une descente et une montée");
+});
+
+test("roues-trottoir : de profil, le sol et la voiture suivent la même pente, nette, les deux roues posées sur le sol", () => {
+  const d = dessin("roues-trottoir");
+  for (const c of CAS_PENTE) {
+    const cas = casDe(d, c.nom), a = Number(cas.pente.attributs["data-angle"]);
+    assert.ok(Math.abs(a) >= 3 && Math.abs(a) <= 20, `${c.nom} : pente de ${a} degrés`);
+    assert.equal(cas.t.angle, a, `${c.nom} : la voiture de profil tourne de la pente`);
+    // Le sol suit la pente ; son tracé commence par sa surface, de gauche à droite.
+    const [s0, s1] = pointsDe(trouverRole(cas.vignette, "sol"));
+    assert.ok(s1[0] > s0[0] && Math.abs(Math.atan2(s1[1] - s0[1], s1[0] - s0[0]) / DEG - a) < 0.01, `${c.nom} : sol incliné de la pente`);
+    const rayon = (r) => Number(trouverTous(trouverRole(cas.profil, r), (x) => x.attributs["data-r"] === "pneu")[0].attributs.r);
+    for (const [r, centre] of [["roue-avant", cas.av], ["roue-arriere", cas.ar]]) {
+      const pied = [centre[0] - rayon(r) * Math.sin(a * DEG), centre[1] + rayon(r) * Math.cos(a * DEG)];
+      assert.ok(distanceSegment(pied, s0, s1) < 0.05, `${c.nom} : ${r} posée sur le sol`);
+    }
+  }
 });
 
 test("roues-trottoir : rien ne recouvre les roues avant braquées, aucun rétroviseur posé dessus", () => {
   const d = dessin("roues-trottoir");
-  const voiture = trouverRole(d, "voiture"), pose = poseDe(voiture);
-  const roues = ["roue-avant-gauche", "roue-avant-droite"].map((r) => formeDe(trouverRole(voiture, r), pose).polygones[0]);
-  for (const r of ["retroviseur-gauche", "retroviseur-droit"]) {
-    const g = trouverRole(voiture, r);
-    if (!g) continue;
-    const boitier = pointsDe(trouverTous(g, (x) => x.balise === "path")[0]).map(localVersCadre(pose));
-    roues.forEach((roue, i) => assert.ok(!seRecouvrent(boitier, roue), `${r} posé sur la roue avant ${i ? "droite" : "gauche"}`));
+  for (const c of CAS_PENTE) {
+    const cas = casDe(d, c.nom);
+    const roues = ["roue-avant-gauche", "roue-avant-droite"].map((r) => formeDe(trouverRole(cas.voiture, r), cas.pose).polygones[0]);
+    for (const r of ["retroviseur-gauche", "retroviseur-droit"]) {
+      const g = trouverRole(cas.voiture, r);
+      if (!g) continue;
+      const boitier = pointsDe(trouverTous(g, (x) => x.balise === "path")[0]).map(localVersCadre(cas.pose));
+      roues.forEach((roue, i) => assert.ok(!seRecouvrent(boitier, roue), `${c.nom} : ${r} posé sur la roue avant ${i ? "droite" : "gauche"}`));
+    }
   }
 });
 
-test("roues-trottoir : étiquettes aux mots du cours ; le point désigne la roue avant côté trottoir sans la cacher", () => {
+test("roues-trottoir : étiquettes aux mots du cours ; leur point désigne une roue avant sans la cacher ; le mot « Trottoir » écrit sur le trottoir", () => {
   const d = dessin("roues-trottoir");
-  const voiture = trouverRole(d, "voiture"), pose = poseDe(voiture);
-  const e = trouverRole(d, "etiquette-roues");
-  assert.equal(textesDe(e).join(" "), "Roues avant braquées vers le trottoir");
-  const roue = formeDe(trouverRole(voiture, "roue-avant-droite"), pose);
-  assert.ok(poseSur(point(e), roue), "le point est sur la roue avant droite");
-  assert.ok(partCachee(point(e), rayonPoint(e), roue) <= PART_CACHEE_MAX, "le point ne cache pas la roue");
-  assert.ok(distanceAuBord(point(e), roue) <= rayonPoint(e) / 2, "le point mord sur le bord de la roue, pas en son milieu");
-  const nom = trouverRole(d, "nom-trottoir");
-  assert.equal(textesDe(nom).join(" "), "Trottoir");
-  const t = trouverTous(nom, (x) => x.balise === "text")[0].attributs;
-  assert.ok(dansPolygone([Number(t.x), Number(t.y)], pointsDe(trouverRole(d, "trottoir"))), "le mot « Trottoir » est écrit sur le trottoir");
+  for (const c of CAS_PENTE) {
+    const cas = casDe(d, c.nom);
+    const e = trouverRole(cas.g, `etiquette-roues-${c.nom}`);
+    assert.ok(e, `${c.nom} : étiquette des roues`);
+    assert.equal(textesDe(e).join(" "), c.roues, c.nom);
+    const roue = ["roue-avant-gauche", "roue-avant-droite"].map((r) => formeDe(trouverRole(cas.voiture, r), cas.pose)).find((f) => poseSur(point(e), f));
+    assert.ok(roue, `${c.nom} : le point n'est posé sur aucune roue avant`);
+    assert.ok(partCachee(point(e), rayonPoint(e), roue) <= PART_CACHEE_MAX, `${c.nom} : le point cache la roue`);
+    assert.ok(distanceAuBord(point(e), roue) <= rayonPoint(e) / 2, `${c.nom} : le point en plein milieu de la roue`);
+    const nom = trouverRole(cas.plan, "nom-trottoir");
+    assert.deepEqual(textesDe(nom), ["Trottoir"], c.nom);
+    const t = trouverTous(nom, (x) => x.balise === "text")[0].attributs;
+    assert.ok(dansPolygone([Number(t.x), Number(t.y)], cas.trottoir), `${c.nom} : le mot « Trottoir » est écrit sur le trottoir`);
+  }
 });
 
 // ===== sous-survirage =====
