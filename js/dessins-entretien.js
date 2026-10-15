@@ -84,7 +84,7 @@ const GOMME = MATIERES.pneu, JANTE = MATIERES.jante;
 const DEMI_LONGUEUR = VOITURE.longueur / 2, DEMI_LARGEUR = VOITURE.largeur / 2;
 const PIED_PARE_BRISE = DEMI_LONGUEUR - VOITURE.pareBrise.recul + VOITURE.pareBrise.profondeur;
 const CAPOT = {
-  colonnes: { gauche: 103, droite: 62 },   // largeur des textes d'étiquettes : « de refroidissement » et « Lave-glace » à 11 unités
+  colonnes: { gauche: 103, droite: 62 },   // largeur prêtée par les contrôles communs à « de refroidissement » et « Lave-glace »
   jeu: 2,                                  // de l'ancre d'une étiquette au bord du dessin
   ecartMention: 10,                        // du bas du dessin au haut de la mention
   vitre: 0.08,                             // part du pare-brise montrée, derrière son pied
@@ -133,7 +133,7 @@ function capot() {
   const voiture = [
     n("defs", {}, n("clipPath", { id: idDecoupe },
       n("rect", { x: fx1, y: fy1 - fin, width: fx2 - fx1 + fin, height: fy2 - fy1 + 2 * fin }))),
-    n("g", { "clip-path": `url(#${idDecoupe})`, "data-r": "caisse" },
+    n("g", { "clip-path": `url(#${idDecoupe})`, "data-r": "decoupe" },
       voitureDessus({ x: v([0, 0])[0], y: v([0, 0])[1], cap: 0, echelle: E }))];
 
   // Compartiment ouvert, auvent devant le pare-brise ; moteur et boîte de vitesses (sans nom : le cours ne les cite pas).
@@ -385,7 +385,8 @@ const PNEU = {
     cibleTemoin: 1.2,               // le point du nom du témoin, à cette distance (mm) de la paroi droite de la rainure
   },
   // Noms des vignettes, en haut à droite (flanc, hernie, témoin) ou à gauche (sculptures) : largeur réservée au plus long, à 11
-  // unités (« Hernie » 36,5 ; « Sculptures » 57,3 ; « d'usure » 39,7), et hauteur de l'ancre sous le haut de la vignette.
+  // unités, celle que lui prêtent les contrôles communs (« Hernie » 36,5 ; « Sculptures » 57,3 ; « d'usure » 39,7), un majorant de
+  // sa largeur en Outfit (32,5 ; 50,3 ; 35,0 dans Chrome) ; et hauteur de l'ancre sous le haut de la vignette.
   noms: { flanc: 38, sculptures: 58, temoin: 44, ancreFlanc: 36, ancreBande: 66 },
 };
 
