@@ -166,7 +166,10 @@ test("capot : la voiture est celle du kit, vue du dessus, découpée à un ident
     const decoupe = trouverTous(d, (x) => x.balise === "clipPath");
     assert.equal(decoupe.length, 1);
     const id = decoupe[0].attributs.id;
-    assert.equal(trouverRole(d, "caisse").attributs["clip-path"], `url(#${id})`);
+    assert.equal(trouverRole(d, "decoupe").attributs["clip-path"], `url(#${id})`);
+    // Un seul rôle « caisse », celui de la voiture du kit : le groupe de la découpe a son nom à lui (relecture finale du lot
+    // D1, T10 n° 4 : deux « caisse » faisaient lire au premier trouvé le groupe au lieu de la caisse).
+    assert.equal(trouverTous(d, (x) => x.attributs["data-r"] === "caisse").length, 1, "un seul rôle « caisse »");
     return id;
   });
   assert.notEqual(ids[0], ids[1], "deux dessins du capot partagent un identifiant de découpe");

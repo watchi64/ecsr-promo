@@ -31,6 +31,14 @@ test("le démarrage de l'app n'atteint ni moteur, ni registre de scènes, ni des
   assert.deepEqual(lourds, []);
 });
 
+// Object.hasOwn n'existe qu'à partir de Safari 15.4 : sur un iPhone resté plus ancien, un dessin qui l'appelle afficherait « Ce
+// dessin n'a pas pu s'afficher » (relecture finale du lot D1, M7). L'app écrit Object.prototype.hasOwnProperty.call.
+test("le code de l'app n'emploie pas Object.hasOwn (Safari 15.4 et plus)", () => {
+  const fautes = fichiersJs(resolve("js")).filter((f) => /\bObject\.hasOwn\s*\(/.test(readFileSync(f, "utf8")))
+    .map((f) => relative(resolve("."), f).replace(/\\/g, "/"));
+  assert.deepEqual(fautes, []);
+});
+
 test("creerChargeur : un seul chargement par module, un échec oublié, un nom inconnu refusé", async () => {
   let appels = 0, echoue = true;
   const charger = creerChargeur({ route: () => { appels++; return echoue ? Promise.reject(new Error("réseau")) : Promise.resolve({ ok: 1 }); } });
@@ -70,6 +78,34 @@ test("adresseDeReprise : le même fichier et le même jeton de cache, sous un pa
   assert.equal(adresseDeReprise("./scenes.js", "?v=20261013a", 1), "./scenes.js?v=20261013a&essai=1");
   assert.equal(adresseDeReprise("./scenes.js", "?v=20261013a", 2), "./scenes.js?v=20261013a&essai=2");
   assert.equal(adresseDeReprise("./dessins-poste.js", "", 1), "./dessins-poste.js?essai=1");
+});
+
+// « Réessayer » (Review Focus 1) : un import() qui a échoué reste en échec pour la même adresse jusqu'au rechargement de la page.
+// La reprise doit donc demander le module sous une adresse nouvelle ; sinon, le bouton ne relance rien.
+test("creerImporteur : au premier essai, l'import littéral du module ; à l'essai N, le même fichier sous le jeton et « essai=N », jamais l'adresse d'avant", async () => {
+  const { creerImporteur } = await import("../js/cours-blocs.js");
+  const demandes = [];
+  const importer = creerImporteur("?v=20261015a", (adresse) => { demandes.push(adresse); return Promise.resolve({ adresse }); });
+  let premiers = 0;
+  const premier = () => { premiers++; return Promise.resolve({ premier: true }); };
+  assert.deepEqual(await importer(0, "./dessins-poste.js", premier), { premier: true });
+  assert.deepEqual(demandes, [], "au premier essai, aucune adresse calculée : l'import littéral sert");
+  assert.deepEqual(await importer(1, "./dessins-poste.js", premier), { adresse: "./dessins-poste.js?v=20261015a&essai=1" });
+  assert.deepEqual(await importer(2, "./dessins-poste.js", premier), { adresse: "./dessins-poste.js?v=20261015a&essai=2" });
+  assert.equal(premiers, 1, "une reprise ne redemande jamais l'import littéral, que le navigateur garde en échec");
+});
+
+test("CHARGEURS de cours-blocs.js : chaque reprise redemande vraiment son module, sous une adresse nouvelle (sous Node, une autre instance du module)", async () => {
+  const { CHARGEURS } = await import("../js/cours-blocs.js");
+  // Ce qu'un chargeur rend : le module, ou, pour « route », ses deux pièces utiles (le moteur dit de quelle instance elles viennent).
+  const instance = (m) => (typeof m.monterScene === "function" ? m.monterScene : m);
+  assert.deepEqual(Object.keys(CHARGEURS).sort(), [...MODULES_BLOCS, "geste"].sort());
+  for (const nom of Object.keys(CHARGEURS)) {
+    const [premier, reprise, autre] = await Promise.all([0, 1, 2].map((essai) => CHARGEURS[nom](essai)));
+    assert.notEqual(instance(reprise), instance(premier), `${nom} : la reprise rend le module déjà demandé à la même adresse`);
+    assert.notEqual(instance(autre), instance(reprise), `${nom} : deux reprises sous la même adresse`);
+    assert.deepEqual(Object.keys(reprise).sort(), Object.keys(premier).sort(), `${nom} : la reprise charge un autre module`);
+  }
 });
 
 test("montageDiffere : rien ne se monte après une destruction ; un moteur monté est détruit", async () => {

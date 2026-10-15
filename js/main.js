@@ -2,40 +2,40 @@
  * Promo ECSR : application propriétaire.
  * © 2026 watchi64. Tous droits réservés. Voir LICENSE.
  */
-import { getCurrentUser, invalidateCache, verifyRecoveryToken } from "./db.js?v=20261015a";
-import { toast } from "./utils.js?v=20261015a";
-import { icon } from "./icons.js?v=20261015a";
-import { initAuth, onAdminChange, isAuth, isAdmin, isProf, monStagiaireId, getAdminEmail, getProfile } from "./auth-admin.js?v=20261015a";
-import { showGate, hideGate } from "./gate.js?v=20261015a";
-import { exigerAcceptation } from "./legal.js?v=20261015a";
-import { lireJetonRecuperation } from "./gate-rules.js?v=20261015a";
-import { loadAccent } from "./accent-switcher.js?v=20261015a";
-import { loadTheme } from "./theme-switcher.js?v=20261015a";
-import { renderHome } from "./views/home.js?v=20261015a";
-import { renderDashboard } from "./views/dashboard.js?v=20261015a";
-import { renderMonSuivi } from "./views/mon-suivi.js?v=20261015a";
-import { renderPlanning, teardownPrintTarget, resetPlanningEditMode, requestPlanningToday } from "./views/planning.js?v=20261015a";
-import { teardownDocPrint } from "./doc-officiel.js?v=20261015a";
-import { renderNotes } from "./views/notes.js?v=20261015a";
-import { renderRessources } from "./views/ressources.js?v=20261015a";
-import { renderThemes } from "./views/themes.js?v=20261015a";
-import { renderConfig } from "./views/config.js?v=20261015a";
-import { renderCalendrier } from "./views/calendrier.js?v=20261015a";
-import { initUndoKeyboard } from "./undo.js?v=20261015a";
-import { renderNouveautes } from "./views/nouveautes.js?v=20261015a";
-import { libellePastille } from "./nouveautes.js?v=20261015a";
-import { renderCcp2 } from "./views/ccp2.js?v=20261015a";
-import { renderStagiaires } from "./views/stagiaires.js?v=20261015a";
-import { lireAdresse, pagePersonnelle } from "./route-rules.js?v=20261015a";
+import { getCurrentUser, invalidateCache, verifyRecoveryToken } from "./db.js?v=20261015b";
+import { toast } from "./utils.js?v=20261015b";
+import { icon } from "./icons.js?v=20261015b";
+import { initAuth, onAdminChange, isAuth, isAdmin, isProf, monStagiaireId, getAdminEmail, getProfile } from "./auth-admin.js?v=20261015b";
+import { showGate, hideGate } from "./gate.js?v=20261015b";
+import { exigerAcceptation } from "./legal.js?v=20261015b";
+import { lireJetonRecuperation } from "./gate-rules.js?v=20261015b";
+import { loadAccent } from "./accent-switcher.js?v=20261015b";
+import { loadTheme } from "./theme-switcher.js?v=20261015b";
+import { renderHome } from "./views/home.js?v=20261015b";
+import { renderDashboard } from "./views/dashboard.js?v=20261015b";
+import { renderMonSuivi } from "./views/mon-suivi.js?v=20261015b";
+import { renderPlanning, teardownPrintTarget, resetPlanningEditMode, requestPlanningToday } from "./views/planning.js?v=20261015b";
+import { teardownDocPrint } from "./doc-officiel.js?v=20261015b";
+import { renderNotes } from "./views/notes.js?v=20261015b";
+import { renderRessources } from "./views/ressources.js?v=20261015b";
+import { renderThemes } from "./views/themes.js?v=20261015b";
+import { renderConfig } from "./views/config.js?v=20261015b";
+import { renderCalendrier } from "./views/calendrier.js?v=20261015b";
+import { initUndoKeyboard } from "./undo.js?v=20261015b";
+import { renderNouveautes } from "./views/nouveautes.js?v=20261015b";
+import { libellePastille } from "./nouveautes.js?v=20261015b";
+import { renderCcp2 } from "./views/ccp2.js?v=20261015b";
+import { renderStagiaires } from "./views/stagiaires.js?v=20261015b";
+import { lireAdresse, pagePersonnelle } from "./route-rules.js?v=20261015b";
 import {
   peutQuitter, leverGardeSortie, majSurPlacePour, oublierMajSurPlace,
   noterAdresse, adresseCourante, remplacerAdresse, installerGardeNavigateur,
-} from "./navigation.js?v=20261015a";
-import { initChatbot, appliquerModuleAssistant } from "./chatbot.js?v=20261015a";
+} from "./navigation.js?v=20261015b";
+import { initChatbot, appliquerModuleAssistant } from "./chatbot.js?v=20261015b";
 import {
   chargerModules, chargerModulesAuDemarrage, onModulesChange, surveillerPremierPlan,
   routeVisible, routeMasquee, repereMasque, nouveautesAffichables,
-} from "./modules-etat.js?v=20261015a";
+} from "./modules-etat.js?v=20261015b";
 
 // ===== Tabs =====
 

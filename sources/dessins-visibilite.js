@@ -100,9 +100,11 @@ export const SOURCES = {
       + "en retrait : le montant commence à 28 unités du point de fuite (le pied de la lunette), la vitre à 33 (le pied du montant) ; "
       + "le pied des vitres passe sous l'horizon près du bord intérieur et remonte vers l'arrière. Entre le montant et le point de "
       + "fuite, le ciel derrière la voiture.",
-    "Choix de dessin, intérieur : miroir de 134 sur 37 unités (un miroir intérieur courant de 25 cm sur 7), boîtier et bras gris "
-      + "foncé #2E3430, habitacle #262B28 ; la lunette le remplit presque (80 % de sa largeur en haut, 75 % en bas, 78 % de sa "
-      + "hauteur), plus large en haut, son bord haut étant le plus près de l'œil ; l'horizon dans son quart haut, le miroir étant au "
+    "Choix de dessin, intérieur : verre de 134 sur 37,5 unités (un miroir intérieur courant de 25 cm sur 7), aux bouts arrondis "
+      + "(rayon de 45 % de sa hauteur), boîtier et bras gris foncé #2E3430, habitacle #262B28 ; verre, lunette et horizon sont la "
+      + "pièce du kit (miroirInterieur), la même que dans la vignette d'« installation » : la lunette remplit presque le verre (80 % "
+      + "de sa largeur en haut, 75 % en bas, 78 % de sa hauteur, coins arrondis de 4/37 de la hauteur du verre, 4,06 unités ici), "
+      + "plus large en haut, son bord haut étant le plus près de l'œil ; l'horizon dans son quart haut, le miroir étant au "
       + "haut du pare-brise, au-dessus de l'œil (œil reflété à 1,3 m du sol), d'où le regard plonge un peu par la lunette inclinée. "
       + "Le miroir intérieur du kit vu du dessus (26 cm, à 0,66 m de l'œil) ne couvrirait que 21,5 degrés pour les 23 de la "
       + "lunette : le dessin suit le cours (toute la lunette cadrée), comme un miroir plus large que celui du kit, d'environ 29 "
@@ -151,12 +153,17 @@ export const SOURCES = {
       + "ouverture, 100 degrés (50 de part et d'autre de l'axe), est le champ visuel utile à faible allure (thème 26 : environ "
       + "100 degrés à 40 km/h) : la tête tournée vers l'épaule porte ce champ vers l'arrière gauche. Il couvre toute la zone gauche "
       + "dessinée, vue de l'œil de 90 à 162 degrés du cap. Le cône des scènes (16 degrés de part et d'autre) montre où se pose le "
-      + "regard au fil d'une manœuvre ; ici, le dessin montre ce que le coup d'œil embrasse.",
+      + "regard au fil d'une manœuvre ; ici, le dessin montre ce que le coup d'œil embrasse. Sous le cône, la zone gauche est voilée "
+      + "de son propre fond (opacité 0,5) : ses hachures s'éclaircissent et la teinte du regard y domine, comme sur la chaussée devant "
+      + "le conducteur ; sans ce voile, derrière le conducteur, le cône n'était qu'une teinte sur la hachure. La zone droite, que le coup "
+      + "d'œil ne couvre pas, garde ses hachures.",
     "Choix de dessin, deux-roues : le cycliste de la scène « sortie-portiere », la même pièce (js/piece-cycliste.js : 1,8 sur "
       + "0,6 m, roues de 0,7 m aux bouts arrondis, guidon arrondi, teintes des scènes), posée cap vers le haut ; centré 1,85 m à gauche "
       + "de l'axe et 1,0 m derrière le centre de la voiture, il longe la portière arrière et l'aile arrière entre 0,65 et 1,25 m du "
       + "flanc : tout entier dans la zone gauche, à 0,1 m au moins de ses bords, hors du champ du rétroviseur gauche. C'est le "
       + "cycliste que le rétroviseur ne montre pas au moment d'ouvrir la portière. Étiquettes : « Angle mort » de chaque côté et "
-      + "« Coup d'œil par-dessus l'épaule » en haut, les trois rétroviseurs en bas, chacune avec son point dans ce qu'elle nomme.",
+      + "« Coup d'œil par-dessus l'épaule » en haut, les trois rétroviseurs en bas, chacune avec son point dans ce qu'elle nomme. Le "
+      + "point du coup d'œil est sur l'axe du regard, à 2,6 m derrière l'œil (vers l'arrière gauche, à -120 degrés du cap), entre le "
+      + "deux-roues et le point de l'étiquette « Angle mort » : il dit un regard tourné vers l'arrière, par-dessus l'épaule.",
   ],
 };

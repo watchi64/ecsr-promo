@@ -80,13 +80,19 @@ span.scene-etape { cursor: default; }
 
 /* Dessin du catalogue : pleine largeur de la colonne du cours, proportions de son cadre. La légende est celle des planches
    de panneaux (.signaux-legende, style.css).
-   Pas de hauteur maximale, contrairement à .scene-svg : une fois bornée (72vh), elle réduit le dessin sur un téléphone tenu en
-   travers (270 px de haut ou moins), sous l'échelle de 1 px par unité du cadre : un texte de 11 unités y tombe à 9 px environ,
-   sous le plancher de lisibilité de 11 px. Un dessin fixe n'a pas de lecture automatique à déclencher : la borne d'une animation
-   sert à la garder visible à 60 %, le seuil où sa lecture démarre (les gestes y restent en paysage) ; un dessin n'en a pas
-   besoin, et en paysage la page défile. */
+   Pas de hauteur maximale pour un dessin fixe, contrairement à .scene-svg et aux gestes (règle suivante) : une fois bornée
+   (72vh), elle réduirait le dessin sur un téléphone tenu en travers (270 px de haut ou moins), sous l'échelle de 1 px par
+   unité du cadre : un texte de 11 unités y tomberait à 9 px environ, sous le plancher de lisibilité de 11 px. Un dessin fixe
+   n'a pas de lecture automatique à déclencher : en paysage, la page défile. */
 .dessin-bloc { margin: 1.2rem 0; }
 .dessin-svg { display: block; width: 100%; height: auto; }
+/* Geste animé : le SVG du kit (.dessin-svg) dans la vue d'un schéma. Borné comme une scène, à 72 % de l'écran, pour tenir à
+   l'écran d'un téléphone tenu en travers et y rester visible à 60 %, le seuil où sa lecture démarre ; la largeur suit, aux
+   proportions du cadre du catalogue (--cadre-l sur --cadre-h, posés sur la vue par js/cours-blocs.js), sans bande autour du
+   dessin. Le plus haut des gestes (320 sur 260 unités) garde ainsi 1,04 px par unité sur un écran de 375 px de haut, le plus
+   bas des iPhone actuels en travers : un texte de 11 unités y fait 11,4 px. En portrait et sur un ordinateur, la borne ne
+   joue pas ou presque. */
+.scene-vue > .dessin-svg { max-height: 72vh; max-width: calc(72vh * var(--cadre-l) / var(--cadre-h)); }
 
 /* Quiz : correction immédiate, rien n'est enregistré */
 .quiz { margin: 1.2rem 0; padding: 0.9rem 1rem; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--bg-elev); }

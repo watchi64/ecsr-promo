@@ -15,8 +15,8 @@
  *
  * Toutes les valeurs ci-dessous sont des choix de dessin, sans portée réglementaire.
  */
-import { etapeA } from "./lecteur-anime-regles.js?v=20261015a";
-import { problemeMiseAJour, trouverTous, ecrireValeur } from "./dessin-svg.js?v=20261015a";
+import { etapeA } from "./lecteur-anime-regles.js?v=20261015b";
+import { problemeMiseAJour, trouverTous, ecrireValeur } from "./dessin-svg.js?v=20261015b";
 
 /** Durée minimale d'une étape à l'écran, en secondes (convention des scènes). */
 export const ETAPE_MIN = 1.0;
@@ -165,7 +165,7 @@ function controlerEtat(def, instants, etats, pb) {
       const avant = etats[i - 1][cle];
       if (dites.has(cle) || avant === undefined || !Number.isFinite(v) || !Number.isFinite(avant)) continue;
       const plage = plages.get(cle)[1] - plages.get(cle)[0];
-      const declare = Object.hasOwn(bornes, cle) && positif(bornes[cle]) ? bornes[cle] : null;
+      const declare = Object.prototype.hasOwnProperty.call(bornes, cle) && positif(bornes[cle]) ? bornes[cle] : null;
       let limite, raison;
       if (declare !== null) {
         limite = declare;

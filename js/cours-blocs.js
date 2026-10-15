@@ -37,12 +37,12 @@
  * affirmation) ; la zone d'état (role="status") dit le score, la bonne réponse et l'explication de
  * ce qui est faux ; une option verrouillée est aria-disabled ; chaque question est un groupe nommé.
  */
-import { el } from "./utils.js?v=20261015a";
+import { el } from "./utils.js?v=20261015b";
 import { analyserScene, analyserDessin, analyserQuiz, analyserCartes, melangerSansIdentite, corrigerOrdre, corrigerChoix,
   corrigerOption, MARQUES_CHOIX, BLOCS_INTERACTIFS, erreurDirective, erreurNonRefermee, messageOrdre, messageVraiFaux,
   messageChoix, creerChargeur, adresseDeReprise, piloterBloc, trouverDansRegistre, messageCodeInconnu }
-  from "./cours-blocs-rules.js?v=20261015a";
-import { entreeBloc } from "./catalogue-blocs.js?v=20261015a";
+  from "./cours-blocs-rules.js?v=20261015b";
+import { entreeBloc } from "./catalogue-blocs.js?v=20261015b";
 
 // Modules chargés à la demande, un import littéral par module (le jeton de cache s'y lit et s'y réécrit, scripts/cache-bust.js).
 // `essai` : le nombre d'échecs déjà essuyés pour ce module (0 au premier chargement). Un import() qui a échoué reste en échec
@@ -59,19 +59,27 @@ import { entreeBloc } from "./catalogue-blocs.js?v=20261015a";
 // l'adresse de ce fichier, donc ne peut pas se périmer, et le même test vérifie que chaque reprise vise le fichier de son import
 // littéral. Un nouveau module racine suit cette règle ; un module partagé entre familles (dessins-kit.js) n'est pas une racine.
 const JETON = new URL(import.meta.url).search;
-const importer = (essai, chemin, premier) => (essai === 0 ? premier() : import(adresseDeReprise(chemin, JETON, essai)));
-const CHARGEURS = {
+/** L'import d'un module racine de la table : au premier essai (`essai` 0), son import littéral (`premier`) ; à l'essai N, le même
+ *  fichier (`chemin`) sous une adresse nouvelle, avec le jeton `jeton` et « essai=N » (adresseDeReprise), demandée par
+ *  `importDynamique`. Exporté pour les tests, qui y passent un import factice. */
+export function creerImporteur(jeton, importDynamique) {
+  return (essai, chemin, premier) => (essai === 0 ? premier() : importDynamique(adresseDeReprise(chemin, jeton, essai)));
+}
+const importer = creerImporteur(JETON, (adresse) => import(adresse));
+/** Un chargeur par module de blocs : `(essai) => promesse du module`. Exportée pour les tests, qui vérifient qu'une reprise
+ *  redemande vraiment le module (tests/chargement.test.mjs). */
+export const CHARGEURS = {
   route: (essai) => Promise.all([
-    importer(essai, "./scenes.js", () => import("./scenes.js?v=20261015a")),
-    importer(essai, "./scene-moteur.js", () => import("./scene-moteur.js?v=20261015a")),
+    importer(essai, "./scenes.js", () => import("./scenes.js?v=20261015b")),
+    importer(essai, "./scene-moteur.js", () => import("./scene-moteur.js?v=20261015b")),
   ]).then(([registre, moteur]) => ({ SCENES: registre.SCENES, monterScene: moteur.monterScene })),
-  geste: (essai) => importer(essai, "./geste-moteur.js", () => import("./geste-moteur.js?v=20261015a")),
-  poste: (essai) => importer(essai, "./dessins-poste.js", () => import("./dessins-poste.js?v=20261015a")),
-  voyants: (essai) => importer(essai, "./dessins-voyants.js", () => import("./dessins-voyants.js?v=20261015a")),
-  conducteur: (essai) => importer(essai, "./dessins-conducteur.js", () => import("./dessins-conducteur.js?v=20261015a")),
-  entretien: (essai) => importer(essai, "./dessins-entretien.js", () => import("./dessins-entretien.js?v=20261015a")),
-  visibilite: (essai) => importer(essai, "./dessins-visibilite.js", () => import("./dessins-visibilite.js?v=20261015a")),
-  dessus: (essai) => importer(essai, "./dessins-dessus.js", () => import("./dessins-dessus.js?v=20261015a")),
+  geste: (essai) => importer(essai, "./geste-moteur.js", () => import("./geste-moteur.js?v=20261015b")),
+  poste: (essai) => importer(essai, "./dessins-poste.js", () => import("./dessins-poste.js?v=20261015b")),
+  voyants: (essai) => importer(essai, "./dessins-voyants.js", () => import("./dessins-voyants.js?v=20261015b")),
+  conducteur: (essai) => importer(essai, "./dessins-conducteur.js", () => import("./dessins-conducteur.js?v=20261015b")),
+  entretien: (essai) => importer(essai, "./dessins-entretien.js", () => import("./dessins-entretien.js?v=20261015b")),
+  visibilite: (essai) => importer(essai, "./dessins-visibilite.js", () => import("./dessins-visibilite.js?v=20261015b")),
+  dessus: (essai) => importer(essai, "./dessins-dessus.js", () => import("./dessins-dessus.js?v=20261015b")),
 };
 export const chargerModule = creerChargeur(CHARGEURS);
 
@@ -197,7 +205,10 @@ function rendreScene(arg, lignes, contexte, inline) {
   // chargé. Le cycle de vie du bloc (attente, échec de réseau et reprise, code absent, erreur de montage, appui sur une étape
   // avant le montage, destruction) est celui de piloterBloc, par lancerBlocIllustre (commun avec le dessin, qui y met son mot) ; ici,
   // seulement ce qu'on montre et d'où viennent les modules.
-  const vue = el("div", { class: "scene-vue" });
+  // Un geste (dessin d'une famille) porte le cadre que lui donne le catalogue en variables CSS : css/cours-blocs.css en borne la
+  // hauteur à 72 % de l'écran, et la largeur d'autant. Une scène de route n'a pas de cadre au catalogue : .scene-svg a les siennes.
+  const cadre = Array.isArray(scene.cadre) ? scene.cadre : null;
+  const vue = el("div", { class: "scene-vue", style: cadre ? `--cadre-l: ${cadre[0]}; --cadre-h: ${cadre[1]}` : null });
   const figure = el("figure", { class: "scene-bloc" }, vue, liste);
   const options = () => ({ conteneur: vue, etapes: synchro ? items.map((x) => x.li) : [], reduit: animationsReduites() });
   // Le registre du module dit comment construire la scène : un code qu'il ne connaît pas lève « absent » avant que la vue

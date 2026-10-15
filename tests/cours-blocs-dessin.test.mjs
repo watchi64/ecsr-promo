@@ -2,6 +2,7 @@ import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { rendreBlocInteractif, detruireScenes } from "../js/cours-blocs.js";
+import { installerDocument, installerTemps, NoeudFactice, descendants as descendantsFactices } from "./aides-dom.mjs";
 
 // Le rendu lit le catalogue sous l'adresse que porte son import, jeton de cache compris : pour Node, c'est un autre module que
 // « catalogue-blocs.js » seul. C'est cette instance-là qu'on lit et qu'on complète, avec le jeton que le fichier porte aujourd'hui.
@@ -354,4 +355,73 @@ test(":::dessin d'un dessin réel, de chaque famille (entretien compris) : le de
     }
     assert.deepEqual(journal, [], "rien en console");
   });
+});
+
+// Animations réduites (Review Focus 4) : le rendu lit la préférence du téléphone (matchMedia) et la passe au moteur. Un geste réel,
+// monté par le vrai rendu avec le document et le temps factices de tests/aides-dom.mjs (`reduit` : ce que répond matchMedia), puis
+// `corps` lit ce qu'il faut (observateurs de visibilité créés, images d'animation demandées, le SVG, les boutons d'étape) ; à la fin,
+// le geste est démonté et le document de ce fichier remis, que le corps réussisse ou non.
+async function avecGesteReel(reduit, corps) {
+  const dom = installerDocument(), temps = installerTemps();
+  const avant = ["window", "Node"].map((nom) => [nom, Object.getOwnPropertyDescriptor(globalThis, nom)]);
+  const poser = (nom, valeur) => Object.defineProperty(globalThis, nom, { value: valeur, configurable: true, writable: true });
+  poser("window", { matchMedia: (requete) => ({ media: requete, matches: reduit && requete === "(prefers-reduced-motion: reduce)" }) });
+  poser("Node", NoeudFactice);
+  const contexte = nouveauContexte();
+  try {
+    const figure = rendreBlocInteractif("scene", "tirer-glisser", CATALOGUE["tirer-glisser"].etapesModele, contexte, inline, true);
+    const vue = figure.childNodes[0];
+    await attendreQue(() => vue.childNodes.some((x) => x.nodeName === "svg"));
+    const svg = vue.childNodes.find((x) => x.nodeName === "svg");
+    const boutons = descendantsFactices(figure.childNodes[1]).filter((x) => x.nodeName === "button");
+    await corps({ temps, vue, svg, boutons, contexte, lecture: descendantsFactices(vue).find((x) => x.nodeName === "button") });
+  } finally {
+    detruireScenes(contexte);
+    for (const [nom, valeur] of avant) { if (valeur) Object.defineProperty(globalThis, nom, valeur); else delete globalThis[nom]; }
+    temps.restaurer();
+    dom.restaurer();
+  }
+}
+const flechesVisibles = (svg) => descendantsFactices(svg).filter((x) => x.getAttribute && x.getAttribute("data-r") === "fleche" && x.getAttribute("display") !== "none");
+const traceFleche = (svg) => descendantsFactices(flechesVisibles(svg)[0]).filter((x) => x.getAttribute && x.getAttribute("data-r") === "fleche-trait")
+  .map((x) => x.getAttribute("d")).join(" ");
+
+test(":::scene d'un geste en animations réduites : aucune lecture automatique (ni observateur de visibilité, ni image demandée), l'image figée de l'étape 1 avec sa flèche ; les étapes restent cliquables", async () => {
+  await avecGesteReel(true, ({ temps, svg, boutons, lecture }) => {
+    assert.equal(temps.observateurs.length, 0, "un observateur de visibilité lancerait la lecture automatique");
+    assert.equal(temps.demandes, 0, "aucune image d'animation demandée");
+    assert.equal(lecture.textContent, "Lecture", "le bouton Lecture reste");
+    assert.equal(flechesVisibles(svg).length, 1, "la flèche de l'étape 1, visible");
+    const etape1 = traceFleche(svg);
+    // Un appui sur l'étape 2 montre son image figée, avec sa flèche (celle de l'étape 2) ; toujours aucune lecture.
+    boutons[1].click();
+    assert.equal(flechesVisibles(svg).length, 1, "la flèche de l'étape 2, visible");
+    assert.notEqual(traceFleche(svg), etape1, "l'image figée de l'étape 2 montre sa propre flèche");
+    assert.equal(temps.demandes, 0, "toujours aucune lecture");
+  });
+});
+
+test(":::scene d'un geste sans animations réduites : l'observateur de visibilité est là, et lance la lecture à 60 % visibles (ce que le test précédent exclut)", async () => {
+  await avecGesteReel(false, ({ temps, contexte }) => {
+    assert.equal(temps.observateurs.length, 1, "l'observateur de visibilité");
+    temps.observateurs[0].declencher(0.6);
+    assert.ok(temps.demandes > 0, "la lecture automatique demande des images");
+    detruireScenes(contexte);
+    assert.ok(temps.observateurs[0].deconnecte, "détruit, le geste déconnecte son observateur");
+  });
+});
+
+// Un geste porte le cadre du catalogue en variables CSS sur sa vue : css/cours-blocs.css en borne la hauteur à 72 % de l'écran et
+// la largeur d'autant, sans bande autour du dessin (relecture finale du lot D1, M1 : sur un téléphone tenu en travers, le geste
+// tient alors à l'écran, et sa lecture automatique, qui attend 60 % visibles, peut partir).
+test(":::scene d'un geste : sa vue porte le cadre du catalogue (--cadre-l, --cadre-h), que css/cours-blocs.css lit pour borner sa hauteur", async () => {
+  await avecGesteReel(false, ({ vue }) => {
+    const [l, h] = CATALOGUE["tirer-glisser"].cadre;
+    assert.equal(vue.getAttribute("style"), `--cadre-l: ${l}; --cadre-h: ${h}`);
+  });
+  const css = readFileSync(new URL("../css/cours-blocs.css", import.meta.url), "utf8");
+  const regle = css.match(/\.scene-vue > \.dessin-svg\s*\{([^}]*)\}/);
+  assert.ok(regle, "règle des gestes (.scene-vue > .dessin-svg) absente");
+  assert.match(regle[1], /max-height:\s*72vh/);
+  assert.match(regle[1], /max-width:\s*calc\(72vh \* var\(--cadre-l\) \/ var\(--cadre-h\)\)/);
 });

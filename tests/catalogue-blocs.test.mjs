@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { CATALOGUE, entreeBloc, MODULES_BLOCS } from "../js/catalogue-blocs.js";
 import { SCENES } from "../js/scenes.js";
 import { SOURCES_SCENES } from "../sources/scenes.js";
+import { trouverTous, texteDe } from "../js/dessin-svg.js";
 
 const TIRET_CADRATIN = String.fromCharCode(0x2014);
 
@@ -97,4 +98,21 @@ test("complétude : chaque code du catalogue est fourni par son module (DESSINS,
     }
   }
   for (const code of Object.keys(fournis)) assert.ok(entreeBloc(code), `${code} : fourni par ${fournis[code].module}, absent du catalogue`);
+});
+
+// Une légende modèle ne répète pas la mention que le dessin écrit lui-même (« Disposition la plus courante », « La disposition
+// varie selon les modèles ») : sous le dessin, l'élève la lirait deux fois (relecture finale du lot D1, T14).
+test("légende modèle : elle ne répète pas la mention écrite dans le dessin", async () => {
+  const normaliser = (s) => s.toLocaleLowerCase("fr").replace(/[.\s]+$/u, "").trim();
+  let mentions = 0;
+  for (const [code, e] of Object.entries(CATALOGUE)) {
+    if (e.bloc !== "dessin") continue;
+    const { DESSINS } = await import(`../js/dessins-${e.module}.js`);
+    for (const noeud of trouverTous(DESSINS[code](), (x) => x.attributs?.["data-r"] === "mention")) {
+      mentions++;
+      assert.ok(!normaliser(e.legendeModele).includes(normaliser(texteDe(noeud))),
+        `${code} : « ${texteDe(noeud)} », écrit dans le dessin, revient dans la légende modèle`);
+    }
+  }
+  assert.ok(mentions >= 2, `${mentions} mention(s) lue(s) : poste-commandes et capot en portent une`);
 });

@@ -11,11 +11,11 @@
  * portée réglementaire sont des choix de dessin, recopiés avec leur raison dans sources/dessins-poste.js. Titres et cadres
  * viennent du catalogue des blocs (js/catalogue-blocs.js), la seule source de ces métadonnées.
  */
-import { n, trouverRole } from "./dessin-svg.js?v=20261015a";
+import { n, trouverRole } from "./dessin-svg.js?v=20261015b";
 import { CHARTE, COULEURS_VOYANTS, METRIQUES_POLICE, cadre, texte, etiquette, vignette, fleche, couper, arc, voitureDessus, coord, point as pt, trace }
-  from "./dessins-kit.js?v=20261015a";
-import { CATALOGUE } from "./catalogue-blocs.js?v=20261015a";
-import { interpoler, cles } from "./animation-courbes.js?v=20261015a";
+  from "./dessins-kit.js?v=20261015b";
+import { CATALOGUE } from "./catalogue-blocs.js?v=20261015b";
+import { interpoler, cles } from "./animation-courbes.js?v=20261015b";
 
 // ===== Teintes de l'habitacle (choix de dessin) =====
 // Tons neutres (spec § 3) : plastique sombre des commandes en trois tons (base, reflet, ombre), planche claire, symboles clairs
@@ -210,14 +210,21 @@ const MAIN = {
   // continûment : leur bout extérieur quitte la face avant de la jante (coupé `recouvre` cm avant son extrémité, ce qui
   // passe derrière), leur bout intérieur s'allonge vers le centre. Main lâchée (prise 0) : main ouverte, écartée de la jante,
   // doigts tendus devant elle, de `ouverte.longueur` cm (fois leur longueur relative) au-delà du bord du dos de la main, où
-  // ils commencent `ouverte.recouvre` cm sous lui ; entre la prise `glisse` et 0, ils passent de derrière la jante à
-  // devant elle (la coupe recule du bord intérieur de la jante jusqu'à leur base). `points` : points du contour d'un doigt.
-  doigt: { debord: 1.2, bout: 0.15, exposant: 3, points: 32, glisse: 0.5, depasse: 4.4, recouvre: 1.0,
-    ouvert: { bout: 2, cotes: 4 }, ouverte: { longueur: 6.2, recouvre: 0.6 } },
-  // Pouce : axe de la base au bout (centre de l'arrondi), largeur à la base et au bout.
+  // ils commencent `ouverte.recouvre` cm sous lui. Entre la prise `glisse` et 0, leur base suit le bord du dos de la main, et
+  // ils passent de derrière la jante à devant elle au début du lâcher, sur la part `passage` de la plage (la coupe va du bord
+  // intérieur de la jante à leur base) : passés plus lentement, ils restaient plusieurs images détachés de la main, la jante
+  // entre eux et le dos de la main. `points` : points du contour d'un doigt. Entrouverts, ils dépassent la jante de 5 cm :
+  // plus courts (4,4 cm), ils se lisaient comme des perles posées à son bord.
+  doigt: { debord: 1.2, bout: 0.15, exposant: 3, points: 32, glisse: 0.5, depasse: 5.0, recouvre: 1.0, passage: 0.4,
+    ouvert: { bout: 2.4, cotes: 4 }, ouverte: { longueur: 6.8, recouvre: 0.6 } },
+  // Pouce : axe de la base au bout (centre de l'arrondi), largeur à la base et au bout. Main qui lâche (prise sous
+  // `doigt.glisse`) : il quitte la jante et se pose le long de l'index, comme dans une main ouverte et détendue (`ouvert`, plus
+  // court que posé sur la jante, et un peu écarté de l'index) ; son axe s'interpole sur toute la plage du lâcher. Posé le long
+  // de la jante sur une main ouverte, il se lisait comme un pouce levé (main droite à 3 h) ou baissé (main gauche à 3 h).
   pouce: {
     jante: [[1.4, 1.3], [4.0, 0.35], [6.8, 0.05]],
     interieur: [[2.0, 1.2], [3.3, -1.2], [2.1, -4.1]],
+    ouvert: [[3.0, 1.3], [4.2, -0.7], [4.8, -2.8]],
     base: 2.15, bout: 1.75, points: 9,
   },
   // Poignet : il quitte la main par son bord tourné vers le coude, à `rayon` cm du centre de la main (repère de la jante) :
@@ -233,6 +240,10 @@ const MAIN = {
 };
 // Bord intérieur du dos de la main (repère de la jante, main refermée) : là où commencent les doigts tendus d'une main ouverte.
 const BORD_DOS = Math.min(...MAIN.dos.map((p) => p[1]));
+// Lâcher d'une main, de 0 (elle tient ou laisse glisser la jante, prise d'au moins `glisse`) à 1 (lâchée, prise 0) ; et ses
+// doigts devant la jante, de 0 (derrière elle) à 1 (tout entiers devant), au début du lâcher (MAIN.doigt.passage).
+const lacher = (prise) => Math.min(1, Math.max(0, 1 - prise / MAIN.doigt.glisse));
+const doigtsDevant = (prise) => Math.min(1, lacher(prise) / MAIN.doigt.passage);
 // Coupe de l'avant-bras, en traits fins au-delà du point du dos de la main le plus avancé vers le coude : le demi-trait du pli
 // de ce bord, son bout arrondi et le flou de son bord (le contour du dos de la main est lu en points échantillonnés).
 const MARGE_COUPE = 1.5;
@@ -298,8 +309,10 @@ function contourDoigt({ s, largeur, longueur: relative }, prise) {
     const v = prise / d.glisse;                       // 0 : lâché ; 1 : entrouvert
     const pied = BORD_DOS + MAIN.ouverture;           // bord du dos de la main ouverte, écartée de la jante
     interieur = interpoler(pied - d.ouverte.longueur * relative, entrouvert.interieur, v);
-    exterieur = interpoler(pied + d.ouverte.recouvre, entrouvert.exterieur, v);
-    coupe = interpoler(exterieur, entrouvert.coupe, v);
+    // Leur base suit le bord du dos de la main, qui s'écarte de la jante (derrière la jante, elle ne se voit pas) ; la coupe va du
+    // bord intérieur de la jante à cette base pendant qu'ils passent devant elle.
+    exterieur = BORD_DOS + (1 - prise) * MAIN.ouverture + d.ouverte.recouvre;
+    coupe = interpoler(entrouvert.coupe, exterieur, doigtsDevant(prise));
     base = interpoler(d.exposant, o.cotes, v);
   }
   const u = Math.min(1, Math.max(0, (prise - d.glisse) / (1 - d.glisse)));
@@ -317,6 +330,23 @@ function contourDoigt({ s, largeur, longueur: relative }, prise) {
   const coupes = couper(points, (p) => p[1] - coupe);
   return coupes.length >= 3 ? coupes : [[s - a, coupe], [s + a, coupe], [s, coupe - Number.EPSILON]];
 }
+
+// Centre de surface de polygones de même orientation (leurs centres, pondérés par leur aire) : il glisse continûment quand la
+// coupe d'un doigt avance, là où la moyenne des points de leurs contours sauterait dès qu'un groupe de points est découvert.
+// Sans surface, la moyenne de leurs points.
+function centreSurface(polygones) {
+  let [aire, sx, sy] = [0, 0, 0];
+  for (const p of polygones) {
+    p.forEach(([x0, y0], i) => {
+      const [x1, y1] = p[(i + 1) % p.length], c = x0 * y1 - x1 * y0;
+      aire += c; sx += (x0 + x1) * c; sy += (y0 + y1) * c;
+    });
+  }
+  if (Math.abs(aire) > SURFACE_MIN) return [sx / (3 * aire), sy / (3 * aire)];
+  const points = polygones.flat();
+  return [0, 1].map((i) => points.reduce((somme, q) => somme + q[i], 0) / points.length);
+}
+const SURFACE_MIN = 1e-9;   // deux fois l'aire, en unités carrées : en deçà, des polygones sans surface
 
 // Côtés d'un polygone en segments de Bézier droits d'au plus PAS_COTE unités : contourSur juge chaque segment par son milieu,
 // un long côté droit se borde donc au plus près morceau par morceau.
@@ -342,14 +372,16 @@ function contoursSur(listes, polygones, repli) {
 /** Main posée sur la jante d'un volant de centre (cx, cy) et de rayon `rayon` (ligne médiane de la jante), à `heure` (12 en
  *  haut, 3 à droite). `cote` : « gauche » ou « droite » (le pouce file dans le sens horaire pour la main gauche, en sens
  *  inverse pour la droite : les deux mains sont en miroir). `prise` : de 0 (main ouverte, écartée de la jante, doigts tendus
- *  devant elle) à 1 (main refermée, les doigts repliés sur la face avant de la jante), en passant par 0,5 (doigts entrouverts,
- *  sortis de derrière la jante par son bord intérieur : la jante glisse dans la main). `pouce` : « jante » (posé le long de la jante) ou « interieur » (engagé à l'intérieur de la jante).
+ *  devant elle, le pouce posé le long de l'index) à 1 (main refermée, les doigts repliés sur la face avant de la jante), en
+ *  passant par 0,5 (doigts entrouverts, sortis de derrière la jante par son bord intérieur : la jante glisse dans la main).
+ *  `pouce` : « jante » (posé le long de la jante) ou « interieur » (engagé à l'intérieur de la jante), tant que la main tient
+ *  ou glisse.
  *  `avantBras` : { coude: [x, y], limite: [x1, y1, x2, y2] } ajoute l'avant-bras (poignet, puis manche) du poignet vers le
  *  coude, coupé au rectangle `limite` : il passe sous le dos de la main et devant les doigts. `deplacement` : [dx, dy], la main en l'air, déplacée d'un bloc (le coude reste en
  *  place). `dessous` : { peau, manche }, les surfaces d'une autre main que celle-ci recouvre (construireMain les rend) : un
  *  contour sépare alors deux surfaces de même ton. Rôles : main-<cote> (point de prise sur la ligne médiane de la jante,
- *  déplacement compris, data-x et data-y), pouce-<cote> (centre de l'arrondi du bout du pouce), doigts-<cote> (milieu des
- *  doigts), poignet-<cote> (la peau du poignet sous le dos de la main), avant-bras-<cote> (le reste de l'avant-bras, sa
+ *  déplacement compris, data-x et data-y), pouce-<cote> (centre de l'arrondi du bout du pouce), doigts-<cote> (centre de la
+ *  surface visible des doigts), poignet-<cote> (la peau du poignet sous le dos de la main), avant-bras-<cote> (le reste de l'avant-bras, sa
  *  manche comprise ; repère : le poignet), doigts-devant-<cote> (les doigts redessinés devant l'avant-bras, main ouverte). Mêmes nœuds quelles que soient l'heure, la prise, le pouce, le côté et le
  *  déplacement : une animation ne fait que changer leurs attributs. */
 export function main(options) {
@@ -415,15 +447,15 @@ function construireMain({ cx, cy, rayon, heure, cote, prise = 1, pouce = "jante"
     surfaces.push(forme);
     return { trace: trace(forme), plis, segments, forme, sous };
   });
-  // Repère des doigts : le milieu de leurs contours.
-  const tousPoints = doigts.flatMap((x) => x.forme);
-  const milieuDoigts = [0, 1].map((i) => tousPoints.reduce((somme, q) => somme + q[i], 0) / tousPoints.length);
+  // Repère des doigts : le centre de leur surface visible.
+  const milieuDoigts = centreSurface(doigts.map((x) => x.forme));
   // L'avant-bras posé sur les doigts : un pli là où sa peau passe sur la leur, côté par côté, sauf sur sa couture avec la
   // manche (d'un autre ton, les doigts continuent dessous). Main lâchée (prise sous MAIN.doigt.glisse), ses doigts tendus
-  // devant la jante passent aussi devant son avant-bras : les mêmes doigts, redessinés par-dessus lui, opaques main ouverte,
-  // effacés dès qu'ils passent derrière la jante (`devant`, un fondu entre les deux), leurs plis posés aussi sur l'avant-bras.
+  // devant la jante passent aussi devant son avant-bras : les mêmes doigts, redessinés par-dessus lui, opaques tant qu'ils sont
+  // tout entiers devant la jante, effacés dès qu'ils sont derrière elle (`devant`, un fondu pendant qu'ils passent de l'un à
+  // l'autre), leurs plis posés aussi sur l'avant-bras.
   let plisBras = null, plisDevant = null;
-  const devant = Math.min(1, Math.max(0, 1 - prise / MAIN.doigt.glisse));
+  const devant = doigtsDevant(prise);
   if (bras) {
     const { point: c, axe } = bras.couture, q = bras.peauDessus;
     const surCouture = (p) => Math.abs((p[0] - c[0]) * axe[0] + (p[1] - c[1]) * axe[1]) < COUTURE_JEU;
@@ -434,11 +466,13 @@ function construireMain({ cx, cy, rayon, heure, cote, prise = 1, pouce = "jante"
     if (q.length >= 3) surfaces.push(q);
   }
 
-  // Pouce, posé sur tout ce qui précède.
-  const formePouce = contourPouce(MAIN.pouce[pouce], MAIN.pouce.base, MAIN.pouce.bout, MAIN.pouce.points).map(decale);
+  // Pouce, posé sur tout ce qui précède. La main qui lâche (prise sous MAIN.doigt.glisse) l'amène le long de l'index, sur toute
+  // la plage du lâcher.
+  const axePouce = MAIN.pouce[pouce].map((p, i) => [0, 1].map((k) => interpoler(p[k], MAIN.pouce.ouvert[i][k], lacher(prise))));
+  const formePouce = contourPouce(axePouce, MAIN.pouce.base, MAIN.pouce.bout, MAIN.pouce.points).map(decale);
   const segmentsPouce = segmentsLisses(formePouce, true);
   const plisPouce = surfaces.map((surface) => contourSur(segmentsPouce, surface)).join(" ");
-  const boutPouce = decale(MAIN.pouce[pouce][2]);
+  const boutPouce = decale(axePouce[2]);
   const prisePoint = local([0, 0]);
 
   const peau = { fill: CHARTE.peau };
@@ -1197,4 +1231,4 @@ export const GESTES = {
   chevauchement: { construire: () => geste("chevauchement", CHEVAUCHEMENT, etatChevauchement, FLECHES_CHEVAUCHEMENT, DESCRIPTIONS.chevauchement, LIBELLES.chevauchement) },
   "retour-volant": { construire: () => geste("retour-volant", RETOUR_VOLANT, etatRetourVolant, FLECHES_RETOUR_VOLANT, DESCRIPTIONS["retour-volant"], LIBELLES["retour-volant"]) },
 };
-export { versDom } from "./dessin-svg.js?v=20261015a";
+export { versDom } from "./dessin-svg.js?v=20261015b";

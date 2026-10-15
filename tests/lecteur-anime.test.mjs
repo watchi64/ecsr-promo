@@ -309,3 +309,32 @@ test("monterLecteur : detruire annule l'image en attente et déconnecte l'observ
   assert.equal(temps.enAttente(), 0, "aucune image redemandée");
   assert.equal(temps.observateurs[1].deconnecte, true);
 }));
+
+// Une image qui lève pendant la lecture (une valeur non finie à un instant que les contrôles n'échantillonnent pas) arrête la
+// lecture au lieu de la figer sur « Pause » : plus d'image en attente, le bouton redit Lecture (« Pause » relevait l'erreur au
+// même instant), une trace en console ; Lecture reprend à l'instant suivant (relecture finale du lot D1, M5).
+test("monterLecteur : une image qui lève arrête la lecture, redit Lecture et le trace en console ; la lecture peut reprendre", () => banc((dom, temps) => {
+  const traces = [], consoleError = console.error;
+  console.error = (...args) => traces.push(args);
+  try {
+    let leve = false;
+    const m = monter(dom, { rendre: (instant, fige) => { if (leve && !fige) throw new Error(`image impossible à ${instant}`); } });
+    m.lecture.click();
+    temps.avancer(100);
+    leve = true;
+    assert.doesNotThrow(() => temps.avancer(100), "l'erreur d'une image ne sort pas de la boucle");
+    assert.equal(temps.enAttente(), 0, "aucune image redemandée");
+    assert.equal(m.lecture.textContent, "Lecture", "le bouton redit Lecture");
+    assert.equal(traces.length, 1, "une trace en console");
+    assert.match(String(traces[0].at(-1)?.message), /image impossible/);
+    // L'image figée, elle, se dessine : Lecture puis Pause ne lèvent pas, et une fois l'image réparée, la lecture va au bout.
+    leve = false;
+    m.lecture.click();
+    assert.equal(m.lecture.textContent, "Pause");
+    assert.ok(jusquAuBout(temps) > 0);
+    assert.equal(m.lecture.textContent, "Revoir");
+    assert.equal(traces.length, 1);
+  } finally {
+    console.error = consoleError;
+  }
+}));

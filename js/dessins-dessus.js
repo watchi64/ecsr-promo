@@ -3,8 +3,8 @@
  * © 2026 watchi64 : Tous droits réservés. Voir LICENSE.
  *
  * Dessins de la famille « dessus » : la voiture et la route vues du dessus, comme dans les scènes de route. Le tour du
- * véhicule (C1.1), les roues braquées vers le trottoir en pente (C1.2), le sous-virage et le survirage (C1.3), le regard
- * porté loin dans un virage (C1.3).
+ * véhicule (C1.1), les roues braquées en pente, vers le trottoir en descente et vers la chaussée en montée (C1.2), le
+ * sous-virage et le survirage (C1.3), le regard porté loin dans un virage (C1.3).
  *
  * La voiture est celle du kit (js/dessins-kit.js : dimensions et teintes des scènes) ; la route reprend celle des scènes
  * (js/scene-decors.js : voies de 3,50 m, axiale T'1, trottoirs ; teintes de js/scene-rendu.js) et le regard, le cône des
@@ -13,10 +13,10 @@
  * unités du cadre par l'échelle du dessin ; les valeurs sans portée réglementaire sont des choix de dessin, recopiés avec leur
  * raison dans sources/dessins-dessus.js. Titres et cadres viennent du catalogue des blocs (js/catalogue-blocs.js).
  */
-import { n, trouverRole } from "./dessin-svg.js?v=20261015a";
+import { n, trouverRole } from "./dessin-svg.js?v=20261015b";
 import { CHARTE, TEINTES_ROUTE, REGARD_SCENES, VOITURE, MATIERES, METRIQUES_POLICE, MISE_EN_PAGE, cadre, texte, etiquette, fleche,
-  voitureDessus, reperesDessus, voitureProfil, arc, couper, coord, trace, entre } from "./dessins-kit.js?v=20261015a";
-import { CATALOGUE } from "./catalogue-blocs.js?v=20261015a";
+  voitureDessus, reperesDessus, voitureProfil, arc, couper, coord, trace, entre } from "./dessins-kit.js?v=20261015b";
+import { CATALOGUE } from "./catalogue-blocs.js?v=20261015b";
 
 /** Valeurs de la rue des scènes reprises ici, recopiées : largeur d'une voie et axiale T'1 d'agglomération (js/scene-decors.js,
  *  DESSIN.voie et IISR : 1,50 m de trait, 5 m de vide, 2u = 0,10 m de large) ; jeu entre le flanc d'une voiture garée et la
@@ -356,67 +356,98 @@ function tourVehicule() {
   nomAuFilet(3, A.habitacle, "end"));
 }
 
-// ===== Roues braquées vers le trottoir en pente =====
-// En haut, la rue vue du dessus, la voiture garée le long du trottoir de droite, cap 0 (avant à droite du cadre) : le trottoir
-// est en bas. En dessous, la même voiture de profil, vue du trottoir (côté droit, avant à droite), garée dans la descente.
+// ===== Roues braquées en pente : en descente, en montée =====
+// Deux colonnes, la descente à gauche, la montée à droite. Dans chacune, de haut en bas : son titre ; l'étiquette des roues, au-dessus
+// de la rue, dont le filet descend jusqu'à la roue avant gauche ; la rue vue du dessus, la voiture garée le long du trottoir de droite,
+// cap 0 (l'avant à droite du cadre, le trottoir en bas) ; la même voiture de profil, vue du trottoir (côté droit, l'avant à droite),
+// garée sur la pente. Même voiture, même trottoir, même échelle dans les deux colonnes : seuls changent le sens de la pente et celui
+// du braquage. En descente, les roues avant sont braquées vers le trottoir : si la voiture avance, la roue bute contre lui ; en
+// montée, vers la chaussée : si elle recule, la roue vient buter contre lui (cours C1.2).
 const PENTE = {
-  marge: 8,
-  // Unités par mètre ; hauteur et rayon des coins de la vue du dessus (celui d'une vignette du kit) ; ordonnée du centre de la voiture.
-  plan: { echelle: 32, hauteur: 124, rayon: MISE_EN_PAGE.rayonVignette, axeVoiture: 52 },
-  braquage: 30,             // degrés : roues avant braquées vers le trottoir, nettement, en deçà de la butée (40)
-  ancreRoues: [200, 96],    // ancre de l'étiquette des roues, sur le trottoir
-  roue: 0.03,               // m : point de l'étiquette, en deçà du bout arrière de la roue braquée (une unité), sur son axe
-  nomTrottoir: [18, 116],   // départ du mot « Trottoir »
-  // Profil, à l'échelle de la vue du dessus : haut et hauteur de sa vignette (unités) ; point du sol sous le milieu de la
-  // voiture ; pente de la rue (pour cent) ; épaisseur de la chaussée montrée sous sa surface (m).
-  profil: { haut: 140, hauteur: 92, rayon: MISE_EN_PAGE.rayonVignette, sol: [160, 198], pourcent: 12, epaisseurSol: 0.3 },
-  // Flèche de la pente, au-dessus du sol, devant la voiture : de son départ à sa pointe le long de la pente (m), et sa hauteur
-  // au-dessus du sol (m) ; le texte « En pente » au-dessus d'elle (unités).
-  flechePente: { debut: 3.0, fin: 4.4, hauteur: 1.0 },
-  textePente: 6,
+  marge: 8, gouttiere: 8,      // bords du cadre ; entre les deux colonnes
+  echelle: 26,                 // unités par mètre, pour les deux vues des deux colonnes
+  titre: { taille: CHARTE.tailles.titre, graisse: 600 },
+  // Étiquette des roues : son texte sous le titre, à `ecartTitre` unités ; son ancre à `ancre` unités du bord gauche de la colonne
+  // (le texte, 98 unités au plus, tient dans la colonne, au-dessus des roues avant) et `jour` unités au-dessus de la vue du dessus ;
+  // son point sur le bout de la roue avant gauche tourné vers la chaussée, `retrait` unité en dedans de son contour : ce bout
+  // dépasse de la caisse, et le point ne couvre que lui.
+  etiquette: { ecartTitre: 4, ancre: 96, jour: 4, retrait: 1 },
+  // Vue du dessus : chaussée au-dessus de la voiture, trottoir sous la bordure (m) ; rayon de ses coins ; mot « Trottoir » à `nom`
+  // unités de son bord gauche.
+  plan: { chaussee: 0.5, trottoir: 0.95, rayon: MISE_EN_PAGE.rayonVignette, nom: 6 },
+  braquage: 30,                // degrés : roues avant nettement braquées, en deçà de la butée de la voiture du kit (40)
+  entreVues: 6,                // unités entre la vue du dessus et le profil
+  // Profil : pente de la rue (pour cent) ; épaisseur de la chaussée montrée sous sa surface (m), qui finit juste au bas de la vignette,
+  // au bord où la rue descend ; jour au-dessus du toit (unités, au moins) ; rayon des coins de sa vignette.
+  profil: { pourcent: 12, epaisseurSol: 0.3, jour: 7, rayon: MISE_EN_PAGE.rayonVignette },
 };
+// Les deux cas : nom (rôles), titre, sens de la pente (1 : l'avant plus bas que l'arrière), mots de l'étiquette des roues. Le
+// braquage en découle : vers le trottoir en descente, vers la chaussée en montée.
+const CAS_PENTE = [
+  { nom: "descente", titre: "En descente", descend: 1, lignes: ["Roues braquées", "vers le trottoir"] },
+  { nom: "montee", titre: "En montée", descend: -1, lignes: ["Roues braquées", "vers la chaussée"] },
+];
+const COTE_TROTTOIR = 1;       // le trottoir à droite de la voiture : un braquage positif tourne les roues vers lui
 
 function rouesTrottoir() {
   const code = "roues-trottoir";
   const [L, H] = CATALOGUE[code].cadre;
-  const P = PENTE, Pl = P.plan, E = Pl.echelle;
-  const pose = { x: L / 2, y: Pl.axeVoiture, cap: 0, echelle: E };
-  // Rue vue du dessus : chaussée au-dessus de la bordure, trottoir dessous ; la bordure à `jeuStationnement` du flanc droit.
-  const fenetre = fenetreArrondie(P.marge, P.marge, L - 2 * P.marge, Pl.hauteur, Pl.rayon);
-  const bordure = pose.y + (VOITURE.largeur / 2 + RECOPIE_SCENES.jeuStationnement) * E;
-  const chaussee = dansFenetre(rectangle(0, 0, L, bordure), fenetre);
-  const trottoir = dansFenetre(rectangle(0, bordure, L, H), fenetre);
-  // Sans rétroviseurs : ils n'apprennent rien ici, et le gauche se poserait sur le bout arrière de la roue avant gauche braquée.
-  const voiture = voitureDessus({ ...pose, roues: true, braquage: P.braquage });
-  const roue = trouverRole(voiture, "roue-avant-droite").attributs;
-  const pointRoue = plus([Number(roue["data-x"]), Number(roue["data-y"])],
-    fois(direction(pose.cap + P.braquage), -(VOITURE.roue.diametre / 2 - P.roue) * E));
+  const P = PENTE, E = P.echelle, Pl = P.plan, Pr = P.profil, Et = P.etiquette, M = METRIQUES_POLICE;
+  const largeur = (L - 2 * P.marge - P.gouttiere) / 2;
+  const angle = Math.atan(Pr.pourcent / 100) / RAD;   // degrés ; positif, le sol descend vers la droite du cadre
+  // Haut de la voiture de profil au-dessus du point du sol sous son milieu (m), dans les deux sens de la pente (le plus haut des
+  // deux) : les sommets de son contour de profil (VOITURE.profil), tournés de la pente ; l'arrondi des coins ne fait que rentrer
+  // le contour.
+  const hauteurProfil = Math.max(...[angle, -angle].flatMap((a) => Object.values(VOITURE.profil).filter(Array.isArray)
+    .map(([px, ph]) => ph * Math.cos(a * RAD) - px * Math.sin(a * RAD))));
+  // Rangées, de haut en bas : titre, étiquette (son ancre), vue du dessus, profil.
+  const baseTitre = P.marge + M.haut * P.titre.taille;
+  const ancreY = baseTitre + M.bas * P.titre.taille + Et.ecartTitre + M.haut * CHARTE.tailles.etiquette
+    + (CAS_PENTE[0].lignes.length - 1) * M.interligne * CHARTE.tailles.etiquette + M.bas * CHARTE.tailles.etiquette + MISE_EN_PAGE.espaceEtiquette;
+  const hautPlan = ancreY + Et.jour, hauteurPlan = (Pl.chaussee + VOITURE.largeur + RECOPIE_SCENES.jeuStationnement + Pl.trottoir) * E;
+  // Le profil va de sous la vue du dessus à la marge du bas du cadre ; la chaussée, en coupe, y finit au bord où la rue descend.
+  const hautProfil = hautPlan + hauteurPlan + P.entreVues, basProfil = H - P.marge;
+  const solY = basProfil - (largeur / 2) * Math.tan(angle * RAD) - (Pr.epaisseurSol * E) / Math.cos(angle * RAD);
+  const jour = solY - hauteurProfil * E - hautProfil;
+  if (jour < Pr.jour) throw new Error(`Roues en pente : cadre de ${H} unités de haut, il en faut ${H + Pr.jour - jour}.`);
 
-  // Profil : le sol de la rue (sa surface d'abord, de gauche à droite), incliné de la pente ; la voiture posée dessus, tournée de
-  // la pente autour du point du sol sous son milieu ; une flèche qui descend la pente.
-  const Pr = P.profil, Ep = E, angle = Math.atan(Pr.pourcent / 100) / RAD;
-  const fenetreProfil = fenetreArrondie(P.marge, Pr.haut, L - 2 * P.marge, Pr.hauteur, Pr.rayon);
-  const surPente = (s, h) => plus(Pr.sol, plus(fois(direction(angle), s * Ep), fois(direction(angle - QUART), h * Ep)));   // s le long, h au-dessus
-  const loin = L / Ep;
-  const sol = dansFenetre([surPente(-loin, 0), surPente(loin, 0), surPente(loin, -Pr.epaisseurSol), surPente(-loin, -Pr.epaisseurSol)], fenetreProfil);
-  const fp = P.flechePente;
-  const [depart, pointe] = [surPente(fp.debut, fp.hauteur), surPente(fp.fin, fp.hauteur)];
+  const colonne = (cas, x0) => {
+    const cx = x0 + largeur / 2, braquage = cas.descend * COTE_TROTTOIR * P.braquage, a = cas.descend * angle;
+    // Rue vue du dessus : chaussée au-dessus de la bordure, trottoir dessous ; la bordure à `jeuStationnement` du flanc droit.
+    const pose = { x: cx, y: hautPlan + (Pl.chaussee + VOITURE.largeur / 2) * E, cap: 0, echelle: E };
+    const fenetre = fenetreArrondie(x0, hautPlan, largeur, hauteurPlan, Pl.rayon);
+    const bordure = pose.y + (VOITURE.largeur / 2 + RECOPIE_SCENES.jeuStationnement) * E;
+    // Sans rétroviseurs : ils n'apprennent rien ici, et le gauche se poserait sur le bout arrière de la roue avant gauche braquée.
+    const voiture = voitureDessus({ ...pose, roues: true, braquage });
+    const roue = trouverRole(voiture, "roue-avant-gauche"), axeRoue = pose.cap + braquage;
+    const versChaussee = Math.sin(axeRoue * RAD) < 0 ? axeRoue : axeRoue + 2 * QUART;   // le bout de la roue tourné vers le haut du cadre
+    const ancre = [x0 + Et.ancre, ancreY], cible = pointAuBout(contourRoue(roue, pose), versChaussee, Et.retrait);
+    // Profil : le sol de la rue (sa surface d'abord, de gauche à droite), incliné de la pente ; la voiture posée dessus, tournée de
+    // la pente autour du point du sol sous son milieu.
+    const sol0 = [cx, solY];
+    const fenetreProfil = fenetreArrondie(x0, hautProfil, largeur, basProfil - hautProfil, Pr.rayon);
+    const surPente = (s, h) => plus(sol0, plus(fois(direction(a), s * E), fois(direction(a - QUART), h * E)));   // s le long, h au-dessus
+    const loin = L / E;
+    const sol = dansFenetre([surPente(-loin, 0), surPente(loin, 0), surPente(loin, -Pr.epaisseurSol), surPente(-loin, -Pr.epaisseurSol)], fenetreProfil);
+    return n("g", { "data-r": `cas-${cas.nom}` },
+      texte(x0, baseTitre, cas.titre, { taille: P.titre.taille, graisse: P.titre.graisse, role: `titre-${cas.nom}` }),
+      n("g", { "data-r": "plan" },
+        n("path", { d: trace(dansFenetre(rectangle(0, 0, L, bordure), fenetre)), fill: TEINTES_ROUTE.chaussee, "data-r": "chaussee" }),
+        n("path", { d: trace(dansFenetre(rectangle(0, bordure, L, H), fenetre)), fill: TEINTES_ROUTE.trottoir, "data-r": "trottoir" }),
+        voiture,
+        texte(x0 + Pl.nom, bordure + (Pl.trottoir * E) / 2 + M.milieuCapitales * CHARTE.tailles.etiquette, "Trottoir", { role: "nom-trottoir" })),
+      etiquette({ cible, ancre, lignes: cas.lignes, ancrage: "middle", role: `etiquette-roues-${cas.nom}` }),
+      n("g", { "data-r": "vignette-pente" },
+        n("path", { d: trace(fenetreProfil), fill: CHARTE.carte, stroke: CHARTE.filet, "stroke-width": CHARTE.traits.fin }),
+        n("path", { d: trace(sol), fill: TEINTES_ROUTE.chaussee, "data-r": "sol" }),
+        n("g", { "data-r": "pente", "data-angle": a, transform: `rotate(${a} ${sol0[0]} ${sol0[1]})` },
+          voitureProfil({ x: sol0[0], y: sol0[1], echelle: E, sens: "droite" }))));
+  };
   return cadre({ largeur: L, hauteur: H, titre: CATALOGUE[code].titre,
-    description: "La voiture garée le long du trottoir de droite, vue du dessus : roues avant braquées vers le trottoir, roues arrière "
-      + "droites. Dessous, la même voiture de profil, garée dans une rue en pente, l'avant vers le bas." },
-  n("g", { "data-r": "plan" },
-    n("path", { d: trace(chaussee), fill: TEINTES_ROUTE.chaussee, "data-r": "chaussee" }),
-    n("path", { d: trace(trottoir), fill: TEINTES_ROUTE.trottoir, "data-r": "trottoir" }),
-    voiture,
-    etiquette({ cible: pointRoue, ancre: P.ancreRoues, lignes: ["Roues avant braquées", "vers le trottoir"], ancrage: "middle", role: "etiquette-roues" }),
-    texte(P.nomTrottoir[0], P.nomTrottoir[1], "Trottoir", { role: "nom-trottoir" })),
-  n("g", { "data-r": "vignette-pente" },
-    n("path", { d: trace(fenetreProfil), fill: CHARTE.carte, stroke: CHARTE.filet, "stroke-width": CHARTE.traits.fin }),
-    n("path", { d: trace(sol), fill: TEINTES_ROUTE.chaussee, "data-r": "sol" }),
-    n("g", { "data-r": "pente", "data-angle": angle, transform: `rotate(${angle} ${Pr.sol[0]} ${Pr.sol[1]})` },
-      voitureProfil({ x: Pr.sol[0], y: Pr.sol[1], echelle: Ep, sens: "droite" })),
-    fleche([depart, pointe], { role: "fleche-pente" }),
-    texte((depart[0] + pointe[0]) / 2, Math.min(depart[1], pointe[1]) - P.textePente, "En pente", { ancrage: "middle", role: "nom-pente" })));
+    description: "Deux cas, la même voiture garée le long du trottoir de droite, vue du dessus puis de profil. En descente, l'avant vers "
+      + "le bas de la pente : roues avant braquées vers le trottoir. En montée, l'avant vers le haut : roues avant braquées vers la "
+      + "chaussée ; si la voiture recule, la roue vient buter contre le trottoir." },
+  CAS_PENTE.map((cas, i) => colonne(cas, P.marge + i * (largeur + P.gouttiere))));
 }
 
 // ===== Sous-virage et survirage =====
@@ -572,4 +603,4 @@ export const DESSINS = {
   "regard-loin": regardLoin,
 };
 export const GESTES = {};
-export { versDom } from "./dessin-svg.js?v=20261015a";
+export { versDom } from "./dessin-svg.js?v=20261015b";

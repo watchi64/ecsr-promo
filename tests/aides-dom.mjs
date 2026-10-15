@@ -6,8 +6,11 @@ import { ecrireValeur } from "../js/dessin-svg.js";
 
 const echapper = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
-export class NoeudTexte {
-  constructor(valeur) { this.nodeValue = String(valeur); this.parentNode = null; }
+/** Ancêtre commun des nœuds factices : ce que `x instanceof Node` reconnaît (js/utils.js, el) quand le test pose Node. */
+export class NoeudFactice {}
+
+export class NoeudTexte extends NoeudFactice {
+  constructor(valeur) { super(); this.nodeValue = String(valeur); this.parentNode = null; }
   get textContent() { return this.nodeValue; }
 }
 
@@ -16,8 +19,9 @@ export function descendants(noeud) {
   return [noeud, ...(noeud.childNodes || []).flatMap(descendants)];
 }
 
-export class ElementFactice {
+export class ElementFactice extends NoeudFactice {
   constructor(nom, espace = null) {
+    super();
     this.nodeName = nom;
     this.namespaceURI = espace;
     this.attributs = new Map();
@@ -27,6 +31,7 @@ export class ElementFactice {
     this.ecouteurs = new Map();
     this.dansLeDocument = false;   // vrai pour un conteneur posé dans le document ; ses descendants en héritent
     this.type = "";
+    this.dataset = {};
   }
   get isConnected() { return this.dansLeDocument || (this.parentNode !== null && this.parentNode.isConnected); }
   setAttribute(k, v) { this.attributs.set(k, String(v)); }
@@ -35,6 +40,11 @@ export class ElementFactice {
   removeAttribute(k) { this.attributs.delete(k); }
   appendChild(noeud) { noeud.parentNode = this; this.childNodes.push(noeud); return noeud; }
   append(...noeuds) { for (const x of noeuds) this.appendChild(typeof x === "string" ? new NoeudTexte(x) : x); }
+  replaceChildren(...noeuds) {
+    for (const x of this.childNodes) x.parentNode = null;
+    this.childNodes = [];
+    this.append(...noeuds);
+  }
   get classList() {
     const el = this;
     return {

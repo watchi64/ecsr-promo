@@ -15,7 +15,7 @@
  * l'instant de la dernière étape ; `vitesseLecture` est un nombre fini strictement positif. Hors de ce contrat, une
  * lecture peut ne jamais finir ou une étape ne pas s'afficher.
  */
-import { facteurLecture, SEUILS_VISIBILITE, actionVisibilite, etapeA } from "./lecteur-anime-regles.js?v=20261015a";
+import { facteurLecture, SEUILS_VISIBILITE, actionVisibilite, etapeA } from "./lecteur-anime-regles.js?v=20261015b";
 
 // Étape courante : classe « on » sur l'élément de l'étape, aria-current sur son bouton (c'est lui qui reçoit le focus)
 // ou, sans bouton, sur l'élément lui-même.
@@ -77,8 +77,17 @@ export function monterLecteur({ racine, conteneur, duree, etapes, vitesseLecture
     const dt = Math.max(0, Math.min(0.1, (maintenant - dernier) / 1000)) * vitesseLecture;
     dernier = maintenant;
     t = Math.min(duree, t + dt);
-    if (t >= duree) { enCours = false; dessiner(t); majBouton(); return; }   // la dernière image est une image figée
-    dessiner(t);
+    // Une image qui lève (une valeur non finie à un instant que les contrôles n'échantillonnent pas) arrête la lecture au lieu
+    // de la figer sur « Pause » : le bouton redit Lecture, la console garde la trace, et la lecture peut reprendre.
+    try {
+      if (t >= duree) { enCours = false; dessiner(t); majBouton(); return; }   // la dernière image est une image figée
+      dessiner(t);
+    } catch (erreur) {
+      arreter();
+      majBouton();
+      console.error("Animation arrêtée : une image n'a pas pu se dessiner.", erreur);
+      return;
+    }
     raf = requestAnimationFrame(boucle);
   }
   // Une lecture demandée, comme un appui sur une étape, l'emporte sur la lecture automatique à la première visibilité.

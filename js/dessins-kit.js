@@ -12,7 +12,7 @@
  * pour qu'ils restent lisibles quand ils passent sur un objet sombre. Mains et silhouettes : une seule teinte de peau,
  * en deux tons seulement, CHARTE.peau et CHARTE.peauOmbre.
  */
-import { n } from "./dessin-svg.js?v=20261015a";
+import { n } from "./dessin-svg.js?v=20261015b";
 
 export const CHARTE = {
   fond: "#F1F4F0", carte: "#FBFCFA", texte: "#1F2924", texteDoux: "#46554A", texteDiscret: "#6E7A6F",
@@ -881,4 +881,41 @@ export function voitureProfil({ x, y, echelle, teinte = "eleve", sens = "droite"
     assez(petiteDimension(FEU_PROFIL.points)) && forme(arrondir(FEU_PROFIL.points, FEU_PROFIL.arrondis), { fill: MATIERES.feu, "data-r": "feu",
       ...repere(FEU_PROFIL.points[0]) }),
     trappeFermee, trappeOuverteG, portiereFermee, portiereOuverteG);
+}
+
+// ===== Rétroviseur intérieur vu de face =====
+// Le verre d'un rétroviseur intérieur courant, 25 cm sur 7, aux bouts arrondis (rayon de 45 % de sa hauteur), et ce qu'il
+// montre une fois réglé : toute la lunette arrière, qui le remplit presque, centrée ; 80 % de la largeur du verre en haut, 75 %
+// en bas (son bord haut, plus près de l'œil reflété, paraît plus large), 78 % de sa hauteur, coins arrondis (rayon de 4/37 de
+// la hauteur du verre) ; l'horizon dans le quart haut de la lunette (le miroir, au haut du pare-brise, est au-dessus de l'œil :
+// le regard plonge un peu par la lunette inclinée). Pièce commune des dessins qui le montrent de face (« retroviseurs »,
+// vignette d'« installation ») : un seul verre, une seule lunette, à l'échelle que chacun choisit.
+export const MIROIR_INTERIEUR = figer({
+  rapport: 25 / 7,                                              // largeur du verre sur sa hauteur
+  arrondi: 0.45,                                                // rayon des bouts du verre, en part de sa hauteur
+  lunette: { haut: 0.80, bas: 0.75, hauteur: 0.78, arrondi: 4 / 37 },   // parts du verre (largeur, hauteur ; arrondi : hauteur)
+  horizon: 0.25,                                                // part de la hauteur de la lunette, depuis son haut
+});
+
+/** Verre d'un rétroviseur intérieur de `largeur` unités, son coin haut gauche en (x, y), et la lunette arrière qu'il montre,
+ *  décalée de `decal` (unités, [dx, dy]) tant que le miroir n'est pas réglé : hauteur du verre et rayon de ses bouts, contour
+ *  du verre, coins de la lunette (haut gauche, haut droit, bas droit, bas gauche), son contour aux coins arrondis, ordonnée de
+ *  l'horizon. Les contours sont des listes de points reliés par des segments, comme ceux d'arrondir. */
+export function miroirInterieur({ x, y, largeur }, decal = [0, 0]) {
+  const qui = "Rétroviseur intérieur";
+  fini(x, `${qui} : x`);
+  fini(y, `${qui} : y`);
+  if (!(typeof largeur === "number" && Number.isFinite(largeur) && largeur > 0)) {
+    throw new Error(`${qui} : largeur ${String(largeur)} invalide (nombre fini positif attendu).`);
+  }
+  decal.forEach((d, i) => fini(d, `${qui} : décalage ${i ? "vertical" : "de côté"}`));
+  const M = MIROIR_INTERIEUR, L = M.lunette;
+  const hauteur = largeur / M.rapport, rayon = M.arrondi * hauteur;
+  const verre = arrondir([[x, y], [x + largeur, y], [x + largeur, y + hauteur], [x, y + hauteur]], [rayon, rayon, rayon, rayon]);
+  const cx = x + largeur / 2 + decal[0], h = L.hauteur * hauteur;
+  const yHaut = y + (hauteur - h) / 2 + decal[1], yBas = yHaut + h;
+  const coins = [[cx - (L.haut * largeur) / 2, yHaut], [cx + (L.haut * largeur) / 2, yHaut], [cx + (L.bas * largeur) / 2, yBas],
+    [cx - (L.bas * largeur) / 2, yBas]];
+  const r = L.arrondi * hauteur;
+  return { hauteur, rayon, verre, coins, lunette: arrondir(coins, [r, r, r, r]), horizon: yHaut + M.horizon * h };
 }
