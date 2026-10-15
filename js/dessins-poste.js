@@ -229,16 +229,18 @@ export function repereMain({ cx, cy, rayon, heure, cote, prise = PRISE.tient, de
 // Deux volants côte à côte, vus du siège, les mains en repères pleins (elles tiennent la jante) : à gauche la position de
 // référence, main gauche à 9 h et main droite à 3 h ; à droite la variante que le cours admet, 10 h 10 (main gauche à 10 h,
 // main droite à 2 h). « Midi » est écrit en haut de chaque volant, dans sa couronne, comme le 12 d'un cadran ; la position est
-// écrite sous chaque volant. Échelle des gestes : 3,2 unités par centimètre (un volant de 37 cm fait 118 unités, 127 px sur un
-// téléphone).
+// écrite sous chaque volant ; sous la position de référence, son usage : « Lignes droites et courbes » (remarque du formateur du
+// 15/10/2026 : 9 h 15 dans les courbes et lignes droites, tirer-glisser dans les virages, chevauchement dans les tournants et
+// les manœuvres). Échelle des gestes : 3,2 unités par centimètre (un volant de 37 cm fait 118 unités, 127 px sur un téléphone).
 const MAINS_VOLANT = {
   echelle: 3.2,
   colonnes: [80, 240],   // centres des deux volants : au quart et aux trois quarts du cadre
   positions: [
-    { heures: { gauche: 9, droite: 3 }, legende: "9 h et 3 h" },
+    { heures: { gauche: 9, droite: 3 }, legende: "9 h et 3 h", usage: "Lignes droites et courbes" },
     { heures: { gauche: 10, droite: 2 }, legende: "ou 10 h 10" },
   ],
   legende: { taille: CHARTE.tailles.etiquette, ecart: 6 },   // la position sous le volant, à `ecart` unités du bord de la jante
+  usage: { taille: CHARTE.tailles.petite },                  // l'usage, une ligne plus bas (interligne d'Outfit), plus discret
   // « Midi » : au milieu de la couronne, entre le moyeu et le bord intérieur de la jante, vers le haut.
   midi: { taille: CHARTE.tailles.petite, place: 0.5 },
 };
@@ -248,20 +250,23 @@ function mainsVolant() {
   const [L, H] = CATALOGUE[code].cadre;
   const m = MAINS_VOLANT, M = METRIQUES_POLICE;
   const rayon = VOLANT.rayon * m.echelle, e = EPAISSEUR_JANTE * rayon, rMoyeu = VOLANT.moyeu * m.echelle;
-  // Le volant et sa légende, centrés en hauteur dans le cadre.
-  const hauteurLegende = (M.haut + M.bas) * m.legende.taille;
+  // Le volant, sa légende et la ligne d'usage, centrés en hauteur dans le cadre.
+  const pasUsage = M.interligne * m.usage.taille;
+  const hauteurLegende = M.haut * m.legende.taille + pasUsage + M.bas * m.usage.taille;
   const cy = (H - (2 * rayon + e + m.legende.ecart + hauteurLegende)) / 2 + rayon + e / 2;
   const rMidi = rMoyeu + m.midi.place * (rayon - e / 2 - rMoyeu);
-  const colonne = (cx, { heures, legende }, i) => n("g", { "data-r": `position-${i + 1}` },
+  const yLegende = cy + rayon + e / 2 + m.legende.ecart + M.haut * m.legende.taille;
+  const colonne = (cx, { heures, legende, usage }, i) => n("g", { "data-r": `position-${i + 1}` },
     volant({ cx, cy, rayon, schema: true }),
     texte(cx, cy - rMidi + M.milieuCapitales * m.midi.taille, "Midi", { taille: m.midi.taille, ancrage: "middle", couleur: CHARTE.texteDoux,
       role: "midi" }),
     COTES.map((cote) => repereMain({ cx, cy, rayon, heure: heures[cote], cote })),
-    texte(cx, cy + rayon + e / 2 + m.legende.ecart + M.haut * m.legende.taille, legende, { taille: m.legende.taille, ancrage: "middle",
-      role: "legende" }));
+    texte(cx, yLegende, legende, { taille: m.legende.taille, ancrage: "middle", role: "legende" }),
+    usage && texte(cx, yLegende + pasUsage, usage, { taille: m.usage.taille, ancrage: "middle", couleur: CHARTE.texteDoux, role: "mention" }));
   return cadre({ largeur: L, hauteur: H, titre: CATALOGUE[code].titre,
     description: "Deux volants vus du siège, midi en haut, les mains en repères G et D posés sur la jante. À gauche, la position de "
-      + "référence : main gauche à 9 h, main droite à 3 h. À droite, la variante admise, 10 h 10 : main gauche à 10 h, main droite à 2 h." },
+      + "référence : main gauche à 9 h, main droite à 3 h, dans les lignes droites et les courbes. À droite, la variante admise, 10 h 10 : "
+      + "main gauche à 10 h, main droite à 2 h." },
   m.colonnes.map((cx, i) => colonne(cx, m.positions[i], i)));
 }
 
@@ -632,7 +637,7 @@ function pedales() {
 // Le volant vu du siège, comme dans « mains-volant », les mains en repères G et D (repereMain : plein, la main tient la jante ;
 // creux, elle l'a relâchée, la laisse glisser ou se déplace en l'air) ; à côté, la voiture vue du dessus, en silhouette, braque
 // ses roues avant dans le même sens que le volant, et un compteur dit l'angle du volant ; en haut à droite, un libellé dit la
-// situation (en circulation, en manœuvre, en roulant, basse allure). Les trois gestes tournent à droite (le cours : « Symétrique
+// situation (dans les virages, tournants et manœuvres, en roulant, basse allure). Les trois gestes tournent à droite (le cours : « Symétrique
 // pour la gauche »).
 //
 // État d'une image : { volant, mains: { gauche, droite }, allure? }. `volant` : degrés, sens horaire positif vu du conducteur.
@@ -648,7 +653,9 @@ const GESTE = {
   voiture: { x: 268, y: 106, echelle: 24, cap: -90 },   // vue du dessus, l'avant vers le haut (unités par mètre)
   rapport: 15,              // rapport de direction : degrés au volant pour un degré aux roues avant
   compteur: { x: 268, libelle: 180, valeur: 198, tailleLibelle: 11, tailleValeur: 14 },
-  indication: { x: 268, haut: 8, hauteur: 22, largeur: 92, taille: 11 },
+  // Pastille du libellé de situation, calée sur le bord droit du cadre (à 8 unités) : sa largeur, par geste, loge son plus long
+  // libellé, Outfit 600 à 11 unités, avec 7 unités au moins de chaque côté (« Tournants et manœuvres » : 137 unités au plus).
+  indication: { droite: 312, haut: 8, hauteur: 22, taille: 11, largeurs: { "tirer-glisser": 106, chevauchement: 154, "retour-volant": 92 } },
   // Flèches d'une main qui se déplace le long de la jante (qu'elle y glisse ou qu'elle tourne avec le volant), et du volant qui
   // revient droit : arcs à 24,5 cm du centre, juste au-delà des repères (le bord de leur liseré est à 22,2 cm) ; écart (heures)
   // qui sépare deux flèches qui se suivent, à leur jonction.
@@ -690,6 +697,7 @@ function dessinGeste({ code, description, fleches, libelle }) {
   const { cx, cy, rayon, echelle } = repereGeste(), g = GESTE;
   const repli = [[cx, cy], [cx + 1, cy]];   // trajet d'une flèche masquée : elle garde sa forme (le kit l'exige)
   const repere = (cote, { heure, prise, decalage }) => repereMain({ cx, cy, rayon, heure, cote, prise, decalage: decalage * echelle });
+  const largeurIndication = g.indication.largeurs[code];
   return (etat, { fige, etape }) => {
     const c = g.compteur, ind = g.indication, v = g.voiture;
     const trajets = fleches(etape);
@@ -703,9 +711,9 @@ function dessinGeste({ code, description, fleches, libelle }) {
       texte(c.x, c.libelle, "Volant", { taille: c.tailleLibelle, ancrage: "middle", couleur: CHARTE.texteDoux }),
       texte(c.x, c.valeur, `${Math.round(etat.volant)}°`, { taille: c.tailleValeur, ancrage: "middle", graisse: 600, role: "compteur" }),
       n("g", { "data-r": "indication" },
-        n("rect", { x: ind.x - ind.largeur / 2, y: ind.haut, width: ind.largeur, height: ind.hauteur, rx: ind.hauteur / 2,
-          fill: CHARTE.accentDoux, stroke: CHARTE.accent, "stroke-width": CHARTE.traits.fin }),
-        texte(ind.x, ind.haut + ind.hauteur / 2 + MILIEU_CAPITALES * ind.taille, libelle(etat),
+        n("rect", { x: ind.droite - largeurIndication, y: ind.haut, width: largeurIndication, height: ind.hauteur, rx: ind.hauteur / 2,
+          fill: CHARTE.accentDoux, stroke: CHARTE.accent, "stroke-width": CHARTE.traits.fin, "data-r": "indication-pastille" }),
+        texte(ind.droite - largeurIndication / 2, ind.haut + ind.hauteur / 2 + MILIEU_CAPITALES * ind.taille, libelle(etat),
           { taille: ind.taille, ancrage: "middle", graisse: 600, role: "indication-texte" })));
   };
 }
@@ -743,7 +751,7 @@ const FLECHES_TIRER_GLISSER = [
   [flecheArc(POSITION.midi, TIRER_GLISSER.angle / DEGRES_PAR_HEURE), null],
 ];
 
-// 2. Chevauchement, virage à droite en manœuvre (le cours : la main du côté où l'on tourne monte vers midi et tire ; l'autre
+// 2. Chevauchement, tournant à droite (tournants et manœuvres ; le cours : la main du côté où l'on tourne monte vers midi et tire ; l'autre
 // suit sans lâcher prise jusqu'à midi, puis tire à son tour pendant que la première remonte ; l'alternance continue). Chaque
 // traction fait un quart de tour, de midi à 3 h : la gauche, qui suit de 9 h à midi puis tire jusqu'à 3 h, tient ainsi la
 // jante un demi-tour sans la lâcher, ce que permet la rotation de l'avant-bras (raison dans les sources). Celle qui a tiré
@@ -897,7 +905,7 @@ const DESCRIPTIONS = {
     + "immobile, puis tire le volant vers le bas, d'un quart de tour, jusqu'à 3 h ; la main gauche reste à 9 h et laisse le volant "
     + "glisser entre ses doigts. Les mains "
     + "ne se croisent jamais. À côté, la voiture vue du dessus braque ses roues avant à droite ; un compteur dit l'angle du volant.",
-  chevauchement: "Volant vu du siège, virage à droite en manœuvre ; chaque main est un repère, G ou D, plein quand elle tient la "
+  chevauchement: "Volant vu du siège, tournant à droite ; chaque main est un repère, G ou D, plein quand elle tient la "
     + "jante, creux quand elle l'a lâchée. La main droite monte à midi et tire d'un quart de tour ; la gauche suit sans lâcher prise "
     + "jusqu'à midi, puis tire à son tour d'un quart de tour pendant que la droite lâche la jante et remonte à midi en passant "
     + "par-dessus la gauche. Puis la droite reprend la jante et tire, pendant que la gauche la lâche et remonte à midi en passant "
@@ -910,8 +918,8 @@ const DESCRIPTIONS = {
 };
 // Libellé de situation de chaque geste, lu dans l'état.
 const LIBELLES = {
-  "tirer-glisser": () => "En circulation",
-  chevauchement: () => "En manœuvre",
+  "tirer-glisser": () => "Dans les virages",
+  chevauchement: () => "Tournants et manœuvres",
   "retour-volant": (etat) => LIBELLES_ALLURE[etat.allure],
 };
 

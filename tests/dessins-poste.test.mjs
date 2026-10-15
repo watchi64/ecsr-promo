@@ -7,7 +7,7 @@ import { trouverRole, trouverTous, texteDe, parcourir } from "../js/dessin-svg.j
 import { CHARTE, COULEURS_VOYANTS, LARGEUR_TELEPHONE, TAILLE_TEXTE_MIN_PX } from "../js/dessins-kit.js";
 import * as voyants from "../js/dessins-voyants.js";
 import { PAS_IMAGE, SAUT_POINT_MAX, imageA, imageFigee, pointsDessines } from "../js/geste-regles.js";
-import { verifierDessin, verifierGeste, formeArbre, boitesTextes } from "./aides-dessins.mjs";
+import { verifierDessin, verifierGeste, formeArbre, boitesTextes, largeurTexte } from "./aides-dessins.mjs";
 
 // Tous les codes « poste » du catalogue : les trois dessins fixes et les trois gestes du volant (le filtre des dessins fixes du
 // Ruling R2, tâche 6, est retiré avec l'arrivée des gestes).
@@ -79,7 +79,7 @@ const centreVolant = (noeud) => {
 
 test("mains-volant : deux volants, la position de référence (main gauche à 9 h, main droite à 3 h) puis la variante 10 h 10 (10 h et 2 h) ; les mains en repères G et D pleins, posés sur la jante, chaque position écrite sous son volant", () => {
   const d = famille.DESSINS["mains-volant"]();
-  const attendu = [{ gauche: 9, droite: 3, legende: "9 h et 3 h" }, { gauche: 10, droite: 2, legende: "ou 10 h 10" }];
+  const attendu = [{ gauche: 9, droite: 3, legende: "9 h et 3 h", usage: "Lignes droites et courbes" }, { gauche: 10, droite: 2, legende: "ou 10 h 10", usage: null }];
   attendu.forEach((a, i) => {
     const position = trouverRole(d, `position-${i + 1}`);
     assert.ok(position, `position ${i + 1}`);
@@ -94,6 +94,10 @@ test("mains-volant : deux volants, la position de référence (main gauche à 9 
     const legende = trouverRole(position, "legende");
     assert.equal(texteDe(legende), a.legende);
     assert.ok(Number(legende.attributs.y) > cy + r && Math.abs(Number(legende.attributs.x) - cx) < 1e-6, `légende ${i + 1} sous son volant`);
+    // L'usage de la position de référence (remarque du formateur du 15/10/2026), sous sa légende ; aucun sous la variante.
+    const usage = trouverRole(position, "mention");
+    assert.equal(usage ? texteDe(usage) : null, a.usage, `position ${i + 1} : usage`);
+    if (usage) assert.ok(Number(usage.attributs.y) > Number(legende.attributs.y) && Math.abs(Number(usage.attributs.x) - cx) < 1e-6, "usage sous la légende");
   });
   // Le volant de gauche est la référence, celui de droite la variante.
   assert.ok(centreVolant(trouverRole(d, "position-1"))[0] < centreVolant(trouverRole(d, "position-2"))[0]);
@@ -602,7 +606,21 @@ test("retour-volant : le libellé dit l'allure de l'état à chaque instant ; il
   });
   for (const code of ["tirer-glisser", "chevauchement"]) {
     const d = geste(code), lus = new Set(instantsDe(d).map((t) => texteDe(trouverRole(imageA(d, t, false), "indication-texte"))));
-    assert.deepEqual([...lus], [code === "chevauchement" ? "En manœuvre" : "En circulation"], code);
+    assert.deepEqual([...lus], [code === "chevauchement" ? "Tournants et manœuvres" : "Dans les virages"], code);
+  }
+});
+
+// Remarque du formateur du 15/10/2026 : lignes droites et courbes, 9 h 15 ; virages, tirer-glisser ; tournants et manœuvres,
+// chevauchement. Le libellé de chaque geste tient dans sa pastille, 7 unités au moins de chaque côté (largeur majorée d'Outfit).
+test("gestes du volant : chaque libellé de situation tient dans sa pastille, sans toucher ses bords, et la pastille dans le cadre", () => {
+  for (const code of CODES_GESTES) {
+    const def = geste(code);
+    for (const t of instantsDe(def)) {
+      const image = imageA(def, t, false), p = trouverRole(image, "indication-pastille").attributs, txt = trouverRole(image, "indication-texte");
+      const largeur = largeurTexte(texteDe(txt), Number(txt.attributs["font-size"])), x = Number(txt.attributs.x);
+      assert.ok(x - largeur / 2 >= p.x + 7 && x + largeur / 2 <= p.x + p.width - 7, `${code} : « ${texteDe(txt)} » déborde de sa pastille`);
+      assert.ok(p.x >= 0 && p.x + p.width <= def.cadre[0], `${code} : pastille hors du cadre`);
+    }
   }
 });
 
