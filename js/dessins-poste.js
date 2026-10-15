@@ -15,11 +15,11 @@
  * main ; chaque main est un repère, un disque marqué « G » ou « D » posé sur la jante (repereMain), et le volant comme la
  * voiture sont des silhouettes à plat. Les dessins de C1.1 et de C1.2 gardent le leur jusqu'à ce que l'essai soit validé.
  */
-import { n } from "./dessin-svg.js?v=20261015b";
+import { n } from "./dessin-svg.js?v=20261015c";
 import { CHARTE, COULEURS_VOYANTS, METRIQUES_POLICE, cadre, texte, etiquette, fleche, arc, voitureDessus, coord, point as pt, trace }
-  from "./dessins-kit.js?v=20261015b";
-import { CATALOGUE } from "./catalogue-blocs.js?v=20261015b";
-import { interpoler, cles } from "./animation-courbes.js?v=20261015b";
+  from "./dessins-kit.js?v=20261015c";
+import { CATALOGUE } from "./catalogue-blocs.js?v=20261015c";
+import { interpoler, cles } from "./animation-courbes.js?v=20261015c";
 
 // ===== Teintes de l'habitacle (choix de dessin) =====
 // Tons neutres (spec § 3) : plastique sombre des commandes en trois tons (base, reflet, ombre), planche claire, symboles clairs
@@ -927,4 +927,4 @@ export const GESTES = {
   chevauchement: { construire: () => geste("chevauchement", CHEVAUCHEMENT, etatChevauchement, FLECHES_CHEVAUCHEMENT, DESCRIPTIONS.chevauchement, LIBELLES.chevauchement) },
   "retour-volant": { construire: () => geste("retour-volant", RETOUR_VOLANT, etatRetourVolant, FLECHES_RETOUR_VOLANT, DESCRIPTIONS["retour-volant"], LIBELLES["retour-volant"]) },
 };
-export { versDom } from "./dessin-svg.js?v=20261015b";
+export { versDom } from "./dessin-svg.js?v=20261015c";

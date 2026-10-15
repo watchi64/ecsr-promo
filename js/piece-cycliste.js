@@ -15,7 +15,7 @@
  * clair au contour foncé : la veste se lit sur la chaussée (3,32:1), le contour sur la chaussée vue à travers le cône du regard
  * (4,94:1), contrastes vérifiés par tests/scene-rendu.test.mjs.
  */
-import { n, ecrireValeur } from "./dessin-svg.js?v=20261015b";
+import { n, ecrireValeur } from "./dessin-svg.js?v=20261015c";
 
 /** Gabarit du cycliste sur son vélo, vu du dessus (m). */
 export const GABARIT_VELO = Object.freeze({ longueur: 1.8, largeur: 0.6 });
