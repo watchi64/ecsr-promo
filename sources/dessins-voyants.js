@@ -46,7 +46,8 @@ export const SOURCES = {
       + "de lumière, qu'un écran ne reproduit qu'à peu près. Chaque voyant est nommé sous sa tuile avec les mots du tableau "
       + "du cours, et les feux de route sont dits bleus, comme dans le cours : la couleur ne porte jamais seule l'information.",
     "Choix de dessin : trois groupes dans l'ordre du tableau du cours (rouge, orange, vert ou bleu), chacun avec sa couleur "
-      + "nommée et sa conduite à tenir mot pour mot ; cinq voyants rouges en deux rangées (trois, puis deux) : sur une seule, "
+      + "nommée et sa conduite à tenir mot pour mot, le nom de la couleur à 6 unités de ses pastilles ; chaque voyant nommé à 4 "
+      + "unités sous sa tuile ; cinq voyants rouges en deux rangées (trois, puis deux) : sur une seule, "
       + "« Température » (72 unités) ne tiendrait pas dans le pas d'une tuile ; cadre de 320 sur 380 unités au lieu de 330 : "
       + "les douze noms du cours en 11 px sous leur tuile et les trois conduites à tenir en entier ne tiennent pas dans 330 "
       + "sans serrer les noms les uns contre les autres.",
@@ -90,13 +91,20 @@ export const SOURCES = {
     "Choix de dessin : une image figée (pas à pas, pause, fin, animations réduites) est l'image de l'animation à cet instant ; "
       + "seules s'y ajoutent les marques de l'étape, rangées dans le groupe de sa flèche : étape 1, la flèche de la pastille "
       + "« Contact » vers le combiné, qui va s'allumer ; étape 2, un anneau autour de chacun des quatre voyants qui vont "
-      + "s'éteindre ; étape 3, un anneau autour de huile et de charge et la flèche de la montée de l'aiguille, juste hors du "
-      + "cadran, de 0 au ralenti.",
+      + "s'éteindre ; étape 3, la flèche de la pastille « Moteur » vers le combiné (le moteur démarre), comme celle de « Contact » "
+      + "à l'étape 1, un anneau autour de huile et de charge et la flèche de la montée de l'aiguille, juste hors du cadran, de 0 "
+      + "au ralenti. Les flèches des pastilles partent 1,5 unité au-dessus de leur pastille, à la verticale de son milieu, et "
+      + "s'arrêtent 2 unités sous le bord bas du combiné. Un anneau a 14 unités de rayon et un trait de 1,5 unité ; il passe "
+      + "entre le symbole et son nom : son bord intérieur, à 13,25 unités du centre du voyant, reste à 0,7 unité au moins de "
+      + "l'encre du symbole (12,54 unités du centre au plus, pour la pression des pneus, mesuré dans Chrome le 15/10/2026), son "
+      + "bord extérieur, à 14,75 unités, à 3,25 unités du haut du nom.",
     "Choix de dessin : cadran du compte-tours gradué de 0 à 7 000 tr/min sur 240 degrés (de 8 h à 4 h), un grand trait "
       + "tous les 1 000 tr/min, un petit à mi-chemin, ordre de grandeur d'un moteur à essence ; sans chiffres (au repos, "
-      + "l'aiguille couvrirait le zéro), nommé « Compte-tours » dessous ; voyants éteints à peine visibles (un symbole qu'on "
-      + "devine sous la vitre du combiné) ; noms courts sous les voyants (Airbag, ABS, Pneus, Température, Huile, Charge), ceux "
-      + "des étapes du cours (« sauf huile et charge ») ; repère en deux pastilles au mot toujours sombre, l'état porté par un "
+      + "l'aiguille couvrirait le zéro), nommé « Compte-tours » dessous, à 4 unités du cadran (46 unités de rayon) ; voyants "
+      + "dans un carré de 24 unités, éteints à peine visibles (un symbole qu'on devine sous la vitre du combiné) ; noms courts "
+      + "sous les voyants (Airbag, ABS, Pneus, Température, Huile, Charge), ceux des étapes du cours (« sauf huile et charge »), "
+      + "en 11 unités, à 6 unités sous le carré du voyant : à 4, les anneaux des étapes touchaient le haut des noms à 680 px ; "
+      + "repère en deux pastilles au mot toujours sombre, l'état porté par un "
       + "témoin rond plein ou creux et par le fond de la pastille, lisibles à chaque image du passage de l'un à l'autre.",
   ],
 };

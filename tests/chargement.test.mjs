@@ -31,6 +31,14 @@ test("le démarrage de l'app n'atteint ni moteur, ni registre de scènes, ni des
   assert.deepEqual(lourds, []);
 });
 
+// Object.hasOwn n'existe qu'à partir de Safari 15.4 : sur un iPhone resté plus ancien, un dessin qui l'appelle afficherait « Ce
+// dessin n'a pas pu s'afficher » (relecture finale du lot D1, M7). L'app écrit Object.prototype.hasOwnProperty.call.
+test("le code de l'app n'emploie pas Object.hasOwn (Safari 15.4 et plus)", () => {
+  const fautes = fichiersJs(resolve("js")).filter((f) => /\bObject\.hasOwn\s*\(/.test(readFileSync(f, "utf8")))
+    .map((f) => relative(resolve("."), f).replace(/\\/g, "/"));
+  assert.deepEqual(fautes, []);
+});
+
 test("creerChargeur : un seul chargement par module, un échec oublié, un nom inconnu refusé", async () => {
   let appels = 0, echoue = true;
   const charger = creerChargeur({ route: () => { appels++; return echoue ? Promise.reject(new Error("réseau")) : Promise.resolve({ ok: 1 }); } });

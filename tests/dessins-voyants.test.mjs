@@ -270,6 +270,24 @@ test("autotest : les marques de chaque étape montrent ce qu'elle change", () =>
     const allume = SIX.every((nom) => avant.voyants[nom] === 0 && apres.voyants[nom] === 1);
     assert.equal(montre(image, "fleche-contact"), allume, `étape ${i + 1} : flèche du contact`);
     assert.equal(montre(image, "fleche-aiguille"), apres.regime > avant.regime, `étape ${i + 1} : flèche de l'aiguille`);
+    // La flèche de la pastille « Moteur » vers le combiné quand l'étape démarre le moteur (la pastille s'allume), comme celle de
+    // « Contact » à la mise du contact : sur l'image figée, « Moteur démarré » ne se lit pas sous une pastille éteinte et sans marque.
+    assert.equal(montre(image, "fleche-moteur"), apres.repere.moteur > avant.repere.moteur, `étape ${i + 1} : flèche du moteur`);
     assert.ok(allume || vaSEteindre.length > 0, `étape ${i + 1} : une marque au moins`);
   });
+});
+
+test("autotest : les flèches « Contact » et « Moteur » partent chacune du haut de sa pastille et montent jusqu'au bord du combiné", () => {
+  const image = imageFigee(geste(), 0);
+  const combine = trouverRole(image, "combine").attributs, bas = Number(combine.y) + Number(combine.height);
+  for (const cle of ["contact", "moteur"]) {
+    const pastille = trouverRole(image, `pastille-${cle}`).enfants[0].attributs;
+    const f = trouverRole(image, `fleche-${cle}`);
+    const queue = String(trouverRole(f, "fleche-trait").attributs.d).match(/-?\d+(?:\.\d+)?/g).slice(0, 2).map(Number);
+    const pointe = String(trouverRole(f, "fleche-tete").attributs.d).match(/-?\d+(?:\.\d+)?/g).slice(0, 2).map(Number);
+    const [x0, x1] = [Number(pastille.x), Number(pastille.x) + Number(pastille.width)];
+    assert.ok(queue[0] > x0 && queue[0] < x1 && Math.abs(queue[0] - pointe[0]) < 1e-6, `${cle} : flèche verticale au-dessus de sa pastille`);
+    assert.ok(queue[1] <= Number(pastille.y) && queue[1] >= Number(pastille.y) - 2, `${cle} : la flèche part du haut de sa pastille`);
+    assert.ok(pointe[1] > bas && pointe[1] <= bas + 3, `${cle} : la pointe au bord du combiné (${pointe[1].toFixed(1)} pour ${bas})`);
+  }
 });

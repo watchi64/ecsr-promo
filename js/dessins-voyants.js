@@ -381,7 +381,7 @@ const PICTOGRAMMES = {
 /** Le pictogramme normalisé du voyant `nom`, centré en (x, y) dans un carré de côté `taille` (le carré de base de la norme),
  *  tracé de la seule `couleur`. Un nom inconnu est une erreur, jamais un symbole deviné. */
 export function pictogramme(nom, { x, y, taille, couleur }) {
-  if (!Object.hasOwn(PICTOGRAMMES, nom)) throw new Error(`Pictogramme « ${nom} » inconnu : ${Object.keys(PICTOGRAMMES).join(", ")} attendu.`);
+  if (!Object.prototype.hasOwnProperty.call(PICTOGRAMMES, nom)) throw new Error(`Pictogramme « ${nom} » inconnu : ${Object.keys(PICTOGRAMMES).join(", ")} attendu.`);
   const q = (u, v) => [x - taille / 2 + u * taille, y - taille / 2 + v * taille];
   return n("g", { "data-r": `picto-${nom}`, "data-x": x, "data-y": y }, PICTOGRAMMES[nom]({ q, s: taille, couleur }));
 }
@@ -512,19 +512,20 @@ const COMBINE = {
   voyants: { colonnes: [168, 226, 284], rangees: [42, 98], taille: 24, ecartNom: 6 },
   // Repère : deux pastilles ; dans chacune, un témoin rond (plein quand l'état est atteint, creux sinon) puis le mot.
   repere: { centre: 226, y: 164, largeur: 78, hauteur: 22, ecart: 6, temoin: 4, xTemoin: 12, xMot: 22 },
-  // Marques des étapes : jeu de la pointe de la flèche du contact au bord du combiné ; rayon de l'anneau autour d'un voyant
-  // (il passe entre le symbole et son nom).
+  // Marques des étapes : jeu de la pointe des flèches du contact et du moteur au bord du combiné ; rayon de l'anneau autour d'un
+  // voyant (il passe entre le symbole et son nom).
   marques: { jeu: 2, anneau: 14 },
 };
 const NOM_CADRAN = "Compte-tours";
 
 // Ce que chaque étape change, montré par ses marques (dans le groupe de la flèche, visibles sur une image figée seulement) :
 // étape 1, la flèche du repère « Contact » vers le combiné, qui s'allume ; étapes 2 et 3, un anneau autour de chaque voyant
-// qui va s'éteindre ; étape 3, en plus, la flèche de la montée de l'aiguille.
+// qui va s'éteindre ; étape 3, en plus, la flèche du repère « Moteur » vers le combiné (le moteur démarre) et celle de la montée
+// de l'aiguille.
 const MARQUES = [
-  { contact: true, anneaux: [], aiguille: false },
-  { contact: false, anneaux: FIN_AUTOTEST, aiguille: false },
-  { contact: false, anneaux: DEMARRAGE, aiguille: true },
+  { contact: true, moteur: false, anneaux: [], aiguille: false },
+  { contact: false, moteur: false, anneaux: FIN_AUTOTEST, aiguille: false },
+  { contact: false, moteur: true, anneaux: DEMARRAGE, aiguille: true },
 ];
 
 // Angle (degrés depuis midi, sens horaire) et point du cadran à un régime donné.
@@ -563,11 +564,11 @@ function etatAutotest(t) {
 
 function pointsFleches() {
   const C = COMBINE, R = C.repere, P = C.panneau;
-  const xContact = R.centre - (R.largeur + R.ecart) / 2;
+  const vers = (cote) => { const x = R.centre + (cote * (R.largeur + R.ecart)) / 2; return [[x, R.y - TRAIT], [x, P.y + P.hauteur + C.marques.jeu]]; };
   const a0 = angleRegime(0), a1 = angleRegime(RALENTI), r = C.cadran.flecheRayon;
   return {
-    // Du haut de la pastille « Contact » au bord du combiné.
-    contact: [[xContact, R.y - TRAIT], [xContact, P.y + P.hauteur + C.marques.jeu]],
+    // Du haut de la pastille « Contact », puis de celle de « Moteur », au bord du combiné.
+    contact: vers(-1), moteur: vers(1),
     // Juste hors du cadran, le long de la course de l'aiguille, de 0 au ralenti.
     aiguille: [surCadran(a0, r), surCadran((a0 + a1) / 2, r), surCadran(a1, r)],
   };
@@ -626,6 +627,7 @@ function dessinerAutotest(etat, { fige, etape }) {
   const m = MARQUES[etape], f = pointsFleches(), montre = (oui) => (oui ? "inline" : "none");
   const marques = n("g", { "data-r": "fleche", display: montre(fige) },
     fleche(f.contact, { role: "fleche-contact", visible: m.contact }),
+    fleche(f.moteur, { role: "fleche-moteur", visible: m.moteur }),
     fleche(f.aiguille, { role: "fleche-aiguille", visible: m.aiguille }),
     places.map(({ nom, x, y }) => n("circle", { cx: x, cy: y, r: C.marques.anneau, fill: "none", stroke: CHARTE.accentDoux2,
       "stroke-width": TRAIT, display: montre(m.anneaux.includes(nom)), "data-r": `anneau-${nom}` })));
