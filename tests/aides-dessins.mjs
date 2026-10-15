@@ -33,6 +33,8 @@ const CHASSE = new Map(PALIERS.flatMap(([chasse, caracteres]) => [...caracteres]
 // hampes compris, 0,98 pour une capitale accentuée (mesures du même jour) ; jambages : 0,22.
 const HAUT = 0.8, HAUT_CAPITALE_ACCENTUEE = 1.0, BAS = 0.25;
 const CAPITALE_ACCENTUEE = /[ÀÂÄÉÈÊËÎÏÔÖÙÛÜŸ]/;
+/** Les hauteurs mesurées ci-dessus, pour vérifier que le kit pose ses textes (METRIQUES_POLICE) sur les mêmes repères. */
+export const HAUTEURS_MESUREES = Object.freeze({ haut: HAUT, hautAccent: HAUT_CAPITALE_ACCENTUEE, bas: BAS });
 
 /** Largeur majorée d'un texte d'une ligne, en unités du dessin. */
 export function largeurTexte(contenu, taille) {

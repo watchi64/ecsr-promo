@@ -7,14 +7,14 @@
  * la mise du contact (autotest, animé). Sources, références et choix de dessin : sources/dessins-voyants.js.
  */
 import { n } from "./dessin-svg.js?v=20261013a";
-import { CHARTE, cadre, texte, fleche } from "./dessins-kit.js?v=20261013a";
+import { CHARTE, COULEURS_VOYANTS, METRIQUES_POLICE, cadre, texte, fleche, coord as ecrit, point as pt, trace, entre } from "./dessins-kit.js?v=20261013a";
 import { adoucir, sortieDouce, avancement } from "./animation-courbes.js?v=20261013a";
 
 // ------------------------------------------------------------------------------------------------ Couleurs et tons
 
-/** Teintes d'écran des quatre couleurs de voyant de la norme (rouge, orange ou jaune ambre, vert, bleu) : franches, et
- *  lisibles allumées sur la tuile sombre du tableau de bord (contraste de 3:1 au moins, tests/dessins-voyants.test.mjs). */
-export const COULEURS_VOYANTS = { rouge: "#FF453A", orange: "#FFAA00", vert: "#30D158", bleu: "#3D8BFF" };
+// Les quatre couleurs de voyant de la norme sont celles de la charte (COULEURS_VOYANTS du kit), partagées avec le témoin des
+// feux de détresse sur sa commande (js/dessins-poste.js) ; réexportées ici pour les tests de la famille.
+export { COULEURS_VOYANTS };
 
 /** Couleur de chacun des douze voyants du cours (C1.1, tableau « Les voyants » ; thèmes 25 et 48). */
 export const COULEUR_DE = {
@@ -38,13 +38,9 @@ const TRAIT_FIN = CHARTE.traits.fin;
 
 // ------------------------------------------------------------------------------------------------ Géométrie
 
-// Tracés écrits à deux décimales, comme ceux du kit.
-const ecrit = (v) => String(Number(v.toFixed(2)));
-const pt = ([x, y]) => `${ecrit(x)} ${ecrit(y)}`;
 const somme = (a, b) => [a[0] + b[0], a[1] + b[1]];
 const ecart = (a, b) => [a[0] - b[0], a[1] - b[1]];
 const fois = (a, k) => [a[0] * k, a[1] * k];
-const entre = (a, b, t) => somme(a, fois(ecart(b, a), t));
 const unitaire = (a) => fois(a, 1 / Math.hypot(a[0], a[1]));
 const normale = (a) => [-a[1], a[0]];
 const scalaire = (a, b) => a[0] * b[0] + a[1] * b[1];
@@ -54,11 +50,10 @@ function rencontre(p, d, r, e) {
   const t = ((r[0] - p[0]) * e[1] - (r[1] - p[1]) * e[0]) / (d[0] * e[1] - d[1] * e[0]);
   return somme(p, fois(d, t));
 }
-const trace = (couleur, epaisseur, bout = "round") => ({
+const traitDe = (couleur, epaisseur, bout = "round") => ({
   fill: "none", stroke: couleur, "stroke-width": epaisseur, "stroke-linecap": bout, "stroke-linejoin": "round",
 });
 const plein = (couleur) => ({ fill: couleur });
-const polyligne = (points) => `M${points.map(pt).join(" L")}`;
 // Courbe de Bézier qui approche une demi-onde de sinusoïde : poignées au tiers et aux deux tiers, à 4/3 de l'amplitude.
 const TIERS = 1 / 3, POIGNEE_ONDE = 4 / 3;
 
@@ -90,10 +85,10 @@ function huile({ q, s, couleur }) {
     + `${pt([gx + r, gCentre])} A${ecrit(r)} ${ecrit(r)} 0 0 1 ${pt([gx - r, gCentre])} `
     + `C${pt([gx - r, gCentre - r * g.flanc])} ${pt([gx - r * g.col, gHaut + h * g.epaule])} ${pt([gx, gHaut])} Z`;
   return [
-    n("path", { d: polyligne(F.poignee.map(([u, v]) => q(u, v))), ...trace(couleur, TRAIT) }),
-    n("path", { d: `${polyligne(contour)} Z`, ...trace(couleur, TRAIT), "data-r": "bec", "data-x": bec[0], "data-y": bec[1] }),
-    n("path", { d: `${polyligne([q(c.gauche, c.haut), q(c.droite, c.haut)])} ${polyligne([q(c.u, c.haut), q(c.u, c.bas)])}`,
-      ...trace(couleur, TRAIT), "data-r": "couvercle", "data-x": q(c.u, c.haut)[0] }),
+    n("path", { d: trace(F.poignee.map(([u, v]) => q(u, v)), false), ...traitDe(couleur, TRAIT) }),
+    n("path", { d: `${trace(contour, false)} Z`, ...traitDe(couleur, TRAIT), "data-r": "bec", "data-x": bec[0], "data-y": bec[1] }),
+    n("path", { d: `${trace([q(c.gauche, c.haut), q(c.droite, c.haut)], false)} ${trace([q(c.u, c.haut), q(c.u, c.bas)], false)}`,
+      ...traitDe(couleur, TRAIT), "data-r": "couvercle", "data-x": q(c.u, c.haut)[0] }),
     n("path", { d: goutte, ...plein(couleur), "data-r": "goutte", "data-x": gx, "data-y": gCentre }),
   ];
 }
@@ -125,10 +120,10 @@ function temperature({ q, s, couleur }) {
   const F = TEMPERATURE, g = F.graduations;
   const [bx, by] = q(F.tige.u, F.bulbe.v);
   return [
-    n("path", { d: polyligne([q(F.tige.u, F.tige.haut), [bx, by]]), ...trace(couleur, TRAIT) }),
+    n("path", { d: trace([q(F.tige.u, F.tige.haut), [bx, by]], false), ...traitDe(couleur, TRAIT) }),
     n("circle", { cx: bx, cy: by, r: F.bulbe.rayon * s, ...plein(couleur) }),
-    n("path", { d: g.v.map((v) => polyligne([q(g.gauche, v), q(g.droite, v)])).join(" "), ...trace(couleur, TRAIT, "butt") }),
-    n("path", { d: F.vagues.map((w) => vague(q, w, F.amplitude)).join(" "), ...trace(couleur, TRAIT, "butt") }),
+    n("path", { d: g.v.map((v) => trace([q(g.gauche, v), q(g.droite, v)], false)).join(" "), ...traitDe(couleur, TRAIT, "butt") }),
+    n("path", { d: F.vagues.map((w) => vague(q, w, F.amplitude)).join(" "), ...traitDe(couleur, TRAIT, "butt") }),
   ];
 }
 
@@ -149,10 +144,10 @@ function arcsLateraux(q, s, { rayon, demiOuverture }) {
 function freinage({ q, s, couleur }) {
   const F = FREINAGE, e = F.exclamation, [cx, cy] = q(MILIEU, MILIEU);
   return [
-    n("circle", { cx, cy, r: F.cercle * s, ...trace(couleur, TRAIT_FIN) }),
-    n("path", { d: polyligne([q(MILIEU, e.haut), q(MILIEU, e.bas)]), ...trace(couleur, TRAIT) }),
+    n("circle", { cx, cy, r: F.cercle * s, ...traitDe(couleur, TRAIT_FIN) }),
+    n("path", { d: trace([q(MILIEU, e.haut), q(MILIEU, e.bas)], false), ...traitDe(couleur, TRAIT) }),
     n("circle", { cx, cy: q(MILIEU, e.point)[1], r: e.rayonPoint * s, ...plein(couleur) }),
-    n("path", { d: arcsLateraux(q, s, F.arcs), ...trace(couleur, TRAIT, "butt") }),
+    n("path", { d: arcsLateraux(q, s, F.arcs), ...traitDe(couleur, TRAIT, "butt") }),
   ];
 }
 
@@ -168,14 +163,14 @@ function batterie({ q, s, couleur }) {
   const [x0, y0] = q(b.gauche, b.haut), [x1, y1] = q(b.droite, b.bas);
   const [mx, my] = q(g.moins, g.v), [px, py] = q(g.plus, g.v), demi = g.demi * s;
   return [
-    n("rect", { x: x0, y: y0, width: x1 - x0, height: y1 - y0, ...trace(couleur, TRAIT, "butt") }),
+    n("rect", { x: x0, y: y0, width: x1 - x0, height: y1 - y0, ...traitDe(couleur, TRAIT, "butt") }),
     F.bornes.centres.map((u) => {
       const [bx, by] = q(u - F.bornes.largeur / 2, b.haut - F.bornes.hauteur);
       return n("rect", { x: bx, y: by, width: F.bornes.largeur * s, height: F.bornes.hauteur * s, ...plein(couleur) });
     }),
-    n("path", { d: polyligne([[mx - demi, my], [mx + demi, my]]), ...trace(couleur, TRAIT, "butt"), "data-r": "moins", "data-x": mx }),
-    n("path", { d: `${polyligne([[px - demi, py], [px + demi, py]])} ${polyligne([[px, py - demi], [px, py + demi]])}`,
-      ...trace(couleur, TRAIT, "butt"), "data-r": "plus", "data-x": px }),
+    n("path", { d: trace([[mx - demi, my], [mx + demi, my]], false), ...traitDe(couleur, TRAIT, "butt"), "data-r": "moins", "data-x": mx }),
+    n("path", { d: `${trace([[px - demi, py], [px + demi, py]], false)} ${trace([[px, py - demi], [px, py + demi]], false)}`,
+      ...traitDe(couleur, TRAIT, "butt"), "data-r": "plus", "data-x": px }),
   ];
 }
 
@@ -221,7 +216,7 @@ function airbag({ q, s, couleur }) {
     n("path", { d: membre(epaule, auDela(epaule), F.buste.largeur * s, b1, e, retrait, true), ...plein(couleur) }),
     n("path", { d: membre(genou, auDela(genou), F.jambe.largeur * s, b1, e, retrait, false), ...plein(couleur) }),
     n("path", { d: capsule(Q(F.jambe.pied), genou, F.jambe.largeur * s), ...plein(couleur) }),
-    n("path", { d: `${polyligne([b1, b2])} ${polyligne(cb.haut.map(Q))}`, ...trace(couleur, TRAIT_FIN, "butt") }),
+    n("path", { d: `${trace([b1, b2], false)} ${trace(cb.haut.map(Q), false)}`, ...traitDe(couleur, TRAIT_FIN, "butt") }),
   ];
 }
 
@@ -239,7 +234,7 @@ function lettresABS(q, s) {
   let x = x0 - total / 2;
   // A : deux jambages et la barre, posée sur les jambages.
   const yBarre = bas - h * L.barreA, retrait = (la / 2) * L.barreA;
-  const a = `${polyligne([[x, bas], [x + la / 2, haut], [x + la, bas]])} ${polyligne([[x + retrait, yBarre], [x + la - retrait, yBarre]])}`;
+  const a = `${trace([[x, bas], [x + la / 2, haut], [x + la, bas]], false)} ${trace([[x + retrait, yBarre], [x + la - retrait, yBarre]], false)}`;
   x += la + L.espace * s;
   // B : le fût et deux panses en demi-cercles.
   const rh = (milieu - haut) / 2, rb = (bas - milieu) / 2, lh = lb * L.panseHaute;
@@ -257,9 +252,9 @@ function lettresABS(q, s) {
 function abs({ q, s, couleur }) {
   const [cx, cy] = q(MILIEU, MILIEU);
   return [
-    n("circle", { cx, cy, r: ABS.cercle * s, ...trace(couleur, TRAIT_FIN) }),
-    n("path", { d: lettresABS(q, s), ...trace(couleur, TRAIT_FIN) }),
-    n("path", { d: arcsLateraux(q, s, FREINAGE.arcs), ...trace(couleur, TRAIT, "butt") }),
+    n("circle", { cx, cy, r: ABS.cercle * s, ...traitDe(couleur, TRAIT_FIN) }),
+    n("path", { d: lettresABS(q, s), ...traitDe(couleur, TRAIT_FIN) }),
+    n("path", { d: arcsLateraux(q, s, FREINAGE.arcs), ...traitDe(couleur, TRAIT, "butt") }),
   ];
 }
 
@@ -285,7 +280,7 @@ function pneus({ q, s, couleur }) {
   const barre = `M${pt([cx - rh, haut])} A${ecrit(rh)} ${ecrit(rh)} 0 0 1 ${pt([cx + rh, haut])} L${pt([cx + rb, bas])} `
     + `A${ecrit(rb)} ${ecrit(rb)} 0 0 1 ${pt([cx - rb, bas])} Z`;
   return [
-    n("path", { d: coupe, ...trace(couleur, TRAIT) }),
+    n("path", { d: coupe, ...traitDe(couleur, TRAIT) }),
     Array.from({ length: p.nombre }, (_, i) => {
       const [x, y] = q(MILIEU + (i - (p.nombre - 1) / 2) * p.pas - p.largeur / 2, c.v);
       return n("rect", { x, y, width: p.largeur * s, height: (p.bas - c.v) * s, ...plein(couleur) });
@@ -311,7 +306,7 @@ function prechauffage({ q, couleur }) {
     const a = debut + i * h, b = a + h;
     d += ` C${pt(q(u(a) + du(a) * h * TIERS, v(a) + dv(a) * h * TIERS))} ${pt(q(u(b) - du(b) * h * TIERS, v(b) - dv(b) * h * TIERS))} ${pt(q(u(b), v(b)))}`;
   }
-  return [n("path", { d, ...trace(couleur, TRAIT) })];
+  return [n("path", { d, ...traitDe(couleur, TRAIT) })];
 }
 
 const RESERVE = {
@@ -334,8 +329,8 @@ function reserve({ q, s, couleur }) {
     + `L${Q(t.coude, t.descente)} A${ecrit(rayonU)} ${ecrit(rayonU)} 0 0 0 ${Q(t.remontee, t.descente)} L${Q(t.remontee, t.haut)}`;
   const pistolet = `M${Q(...p.pointe)} Q${Q(...p.dos[0])} ${Q(...p.dos[1])} L${Q(...p.ventre[1])} Q${Q(...p.ventre[0])} ${Q(...p.pointe)} Z`;
   return [
-    n("path", { d: colonne, ...trace(couleur, TRAIT, "butt"), "data-r": "colonne", "data-x": q((c.gauche + c.droite) / 2, c.haut)[0] }),
-    n("path", { d: tuyau, ...trace(couleur, TRAIT, "butt"), "data-r": "tuyau", "data-x": q(t.remontee, t.haut)[0] }),
+    n("path", { d: colonne, ...traitDe(couleur, TRAIT, "butt"), "data-r": "colonne", "data-x": q((c.gauche + c.droite) / 2, c.haut)[0] }),
+    n("path", { d: tuyau, ...traitDe(couleur, TRAIT, "butt"), "data-r": "tuyau", "data-x": q(t.remontee, t.haut)[0] }),
     n("path", { d: pistolet, ...plein(couleur) }),
   ];
 }
@@ -350,7 +345,7 @@ function clignotants({ q, couleur }) {
   ].map(([a, b]) => q(a, b));
   return [["gauche", (u) => u], ["droite", (u) => 1 - u]].map(([cote, u]) => {
     const points = forme(u);
-    return n("path", { d: `${polyligne(points)} Z`, ...plein(couleur), "data-r": `cligno-${cote}`, "data-x": points[1][0], "data-pointe": points[0][0] });
+    return n("path", { d: `${trace(points, false)} Z`, ...plein(couleur), "data-r": `cligno-${cote}`, "data-x": points[1][0], "data-pointe": points[0][0] });
   });
 }
 
@@ -369,11 +364,11 @@ function phare({ q, s, couleur }, croisement) {
     + `L${Q(L.gauche, L.bas)} Q${Q(L.gauche - 2 * L.renflement, (L.haut + L.bas) / 2)} ${Q(L.gauche, L.haut)} Z`;
   const chute = croisement ? F.chute : 0;
   return [
-    n("path", { d: lampe, ...trace(couleur, TRAIT), "data-r": "lampe", "data-x": q(L.gauche, L.haut)[0] }),
+    n("path", { d: lampe, ...traitDe(couleur, TRAIT), "data-r": "lampe", "data-x": q(L.gauche, L.haut)[0] }),
     Array.from({ length: F.nombre }, (_, i) => {
       const v = F.haut + (i * (F.bas - F.haut)) / (F.nombre - 1);
       const [a, b] = [q(F.droite, v), q(F.gauche, v + chute)];
-      return n("path", { d: polyligne([a, b]), ...trace(couleur, TRAIT, "butt"), "data-r": "faisceau", "data-x": b[0], "data-chute": chute * s });
+      return n("path", { d: trace([a, b], false), ...traitDe(couleur, TRAIT, "butt"), "data-r": "faisceau", "data-x": b[0], "data-chute": chute * s });
     }),
   ];
 }
@@ -393,11 +388,10 @@ export function pictogramme(nom, { x, y, taille, couleur }) {
 
 // ------------------------------------------------------------------------------------------------ Texte
 
-// Repères d'Outfit, en tailles de texte (ceux du kit) : haut d'une ligne de minuscules ou de capitales sans accent, bas des
-// jambages, milieu des capitales au-dessus de la ligne de base.
-const HAUT_TEXTE = 0.8, BAS_TEXTE = 0.25, MILIEU_CAPITALES = 0.35;
-// Noms sous les voyants : taille et graisse ; pas des lignes, celui des étiquettes du kit (1,25 taille).
-const INTERLIGNE = 1.25;
+// Repères d'Outfit, en tailles de texte (METRIQUES_POLICE du kit) : haut d'une ligne de minuscules ou de capitales sans accent,
+// bas des jambages, milieu des capitales au-dessus de la ligne de base ; pas des lignes, celui des étiquettes du kit.
+const { haut: HAUT_TEXTE, bas: BAS_TEXTE, milieuCapitales: MILIEU_CAPITALES, interligne: INTERLIGNE } = METRIQUES_POLICE;
+// Noms sous les voyants : taille et graisse.
 const NOM = { taille: CHARTE.tailles.petite, interligne: CHARTE.tailles.petite * INTERLIGNE, graisse: 500 };
 
 // ------------------------------------------------------------------------------------------------ Planche « voyants »

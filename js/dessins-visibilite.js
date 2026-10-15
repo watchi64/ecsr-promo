@@ -9,16 +9,12 @@
  * catalogue des blocs (js/catalogue-blocs.js).
  */
 import { n, trouverRole } from "./dessin-svg.js?v=20261013a";
-import { CHARTE, cadre, texte, etiquette, vignette, voitureProfil, reperesProfil, voitureDessus, reperesDessus, VOITURE, TEINTES_ROUTE, arrondir,
-  couper, bande } from "./dessins-kit.js?v=20261013a";
+import { CHARTE, METRIQUES_POLICE, MISE_EN_PAGE, REGARD_SCENES, cadre, texte, etiquette, vignette, largeurPastille, voitureProfil, reperesProfil,
+  voitureDessus, reperesDessus, VOITURE, VITRAGE_CONTOUR, TEINTES_ROUTE, arrondir, couper, bande, ceinture, coord, trace, entre } from "./dessins-kit.js?v=20261013a";
 import { CATALOGUE } from "./catalogue-blocs.js?v=20261013a";
 
 // ===== Géométrie plane =====
-// coord, trace et entre : copies des aides privées du kit (js/dessins-kit.js), signalées pour la tâche d'intégration.
 const DEG = Math.PI / 180;
-const coord = (v) => String(Number(v.toFixed(2)));
-const trace = (pts, ferme = true) => `M${pts.map(([x, y]) => `${coord(x)} ${coord(y)}`).join(" L")}${ferme ? " Z" : ""}`;
-const entre = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
 // Point de la droite (a, b) d'ordonnée y, puis d'abscisse x.
 const aOrdonnee = (a, b, y) => entre(a, b, (y - a[1]) / (b[1] - a[1]));
 const aAbscisse = (a, b, x) => entre(a, b, (x - a[0]) / (b[0] - a[0]));
@@ -245,11 +241,13 @@ export function champInterieur() {
 const RUE = { voie: 3.5, bordure: 0.15 };
 const RETROVISEURS = {
   marge: 8, ecart: 6, rangee: 68,          // bords du cadre ; entre deux rangées ; hauteur d'une rangée
-  // Pastille d'une vignette du kit (à 8 unités des bords, 20 de haut, « Juste » de 52,9 de large) : recopie de valeurs privées.
-  pastille: { marge: 8, haut: 20, largeur: 53 },
+  // Pastille d'une vignette du kit : sa marge, sa hauteur et la largeur de la plus large des deux (« Juste »), après laquelle
+  // les titres des quatre rangées s'alignent.
+  pastille: { marge: MISE_EN_PAGE.margePastille, haut: MISE_EN_PAGE.hauteurPastille,
+    largeur: Math.max(largeurPastille("juste"), largeurPastille("faux")) },
   titre: { ecart: 6 },                     // de la pastille au titre
-  legende: { taille: CHARTE.tailles.petite, interligne: 1.25, degagement: 6 },
-  capitales: 0.35, haut: 0.8,              // milieu des capitales et haut du texte d'Outfit, en tailles de texte (recopie du kit)
+  legende: { taille: CHARTE.tailles.petite, interligne: METRIQUES_POLICE.interligne, degagement: 6 },
+  capitales: METRIQUES_POLICE.milieuCapitales, haut: METRIQUES_POLICE.haut,   // repères d'Outfit, en tailles de texte
   boitier: 3,                              // épaisseur du boîtier autour du miroir
   interieur: { largeur: 134, hauteur: 37, arrondi: 0.45, bras: { largeur: 8, hauteur: 6 },
     // Lunette dans le miroir (fractions du miroir) : plus large en haut, plus près de l'œil ; l'horizon dans son quart haut ; œil
@@ -271,16 +269,8 @@ const RETROVISEURS = {
 };
 // La caisse du kit vue d'un rétroviseur extérieur, en volume simple : le flanc, à la demi-largeur de la voiture, de son bas à la
 // ligne de ceinture ; au-dessus, en retrait (RETROVISEURS.vitre), les vitres latérales et le montant arrière jusqu'à la lunette ;
-// entre les deux, l'épaule, à hauteur de ceinture. La ligne de ceinture est le bas des vitres du kit, droite prolongée sur toute la
-// longueur comme le fait le kit pour son épaule ; le contour des vitres est celui du kit, arrondi de ses arrondis. Copies de l'aide
-// privée ceinture et de la constante privée VITRAGE_CONTOUR de js/dessins-kit.js, refaites de ses valeurs exportées et signalées
-// pour la tâche d'intégration.
-function ceinture(X) {
-  const { arriereBas: a, avantBas: b } = VOITURE.vitrage;
-  return a[1] + ((X - a[0]) / (b[0] - a[0])) * (b[1] - a[1]);
-}
-const VITRES_PROFIL = arrondir(["avantBas", "avantHaut", "hautAvant", "hautArriere", "arriereHaut", "arriereBas"].map((k) => VOITURE.vitrage[k]),
-  VOITURE.vitrage.arrondis);
+// entre les deux, l'épaule, à hauteur de ceinture. La ligne de ceinture est celle du kit (ceinture : le bas des vitres, droite
+// prolongée sur toute la longueur, comme pour son épaule) ; le contour des vitres est celui du kit (VITRAGE_CONTOUR).
 // Montant arrière, de profil : du pied de la vitre arrière au haut de son cadre, puis le long du toit jusqu'à la lunette, dont il suit
 // le bord jusqu'à son pied (la vitre, dessinée par-dessus, en couvre la part qui lui revient).
 const MONTANT_PROFIL = [VOITURE.vitrage.arriereBas, VOITURE.vitrage.hautArriere, VOITURE.lunette.haut, VOITURE.lunette.bas];
@@ -328,7 +318,7 @@ function vueExterieure({ x, y, cote, horizon, faux = false, bord = false, axiale
     return [fuite + (s * f * (VOITURE.retroviseur.centre - d)) / D, yH + (f * (h - z)) / D];
   };
   const montant = dansConvexe(MONTANT_PROFIL.map(([X, z]) => vu([X, R.vitre, z])), verre);
-  const vitre = dansConvexe(VITRES_PROFIL.map(([X, z]) => vu([X, R.vitre, z])), verre);
+  const vitre = dansConvexe(VITRAGE_CONTOUR.map(([X, z]) => vu([X, R.vitre, z])), verre);
   // Flanc et épaule : du bord intérieur au coin arrière que frôle le rayon rasant, sous le haut de l'épaule au coin et sous le pied
   // des vitres (dans l'image, la droite de la ceinture en retrait).
   const [xCoin, yCoin] = vu([m.coin[0], Math.abs(m.coin[1]), ceinture(m.coin[0])]);
@@ -429,7 +419,7 @@ const ANGLES_MORTS = {
   peripherie: 90,          // degrés de part et d'autre du cap : la vision périphérique en regardant devant (thème 26)
   // Coup d'œil par-dessus l'épaule gauche : l'axe, la portée, la teinte et l'opacité du regard des scènes ; l'ouverture, le champ
   // visuel utile à faible allure (thème 26 : environ 100 degrés à 40 km/h).
-  regard: { angle: -120, demiOuverture: 50, portee: 22, opacite: 0.4 },
+  regard: { angle: -120, demiOuverture: 50, portee: REGARD_SCENES.portee, opacite: REGARD_SCENES.opacite },
   cycliste: [-1.0, -1.85], // m : centre du deux-roues, le long du flanc arrière gauche
   oeil: 1.8,               // rayon du point de l'œil
   champs: { opacite: 0.42 },

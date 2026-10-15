@@ -8,45 +8,29 @@
  *
  * La voiture est celle du kit (js/dessins-kit.js : dimensions et teintes des scènes) ; la route reprend celle des scènes
  * (js/scene-decors.js : voies de 3,50 m, axiale T'1, trottoirs ; teintes de js/scene-rendu.js) et le regard, le cône des
- * scènes (js/scene-regard.js : 22 m, 16 degrés ; js/scene-moteur.js : opacité). Ces valeurs sont recopiées dans
- * RECOPIE_SCENES (le module ne charge pas les scènes, trop lourdes) ; tests/dessins-dessus.test.mjs vérifie la recopie.
- * Chaque dimension part d'une mesure en mètres, ramenée en unités du cadre par l'échelle du dessin ; les valeurs sans portée
- * réglementaire sont des choix de dessin, recopiés avec leur raison dans sources/dessins-dessus.js. Titres et cadres viennent
- * du catalogue des blocs (js/catalogue-blocs.js).
+ * scènes (REGARD_SCENES du kit). Les valeurs de la rue sont recopiées dans RECOPIE_SCENES (le module ne charge pas les scènes,
+ * trop lourdes) ; tests/dessins-dessus.test.mjs vérifie la recopie. Chaque dimension part d'une mesure en mètres, ramenée en
+ * unités du cadre par l'échelle du dessin ; les valeurs sans portée réglementaire sont des choix de dessin, recopiés avec leur
+ * raison dans sources/dessins-dessus.js. Titres et cadres viennent du catalogue des blocs (js/catalogue-blocs.js).
  */
 import { n, trouverRole } from "./dessin-svg.js?v=20261013a";
-import { CHARTE, TEINTES_ROUTE, VOITURE, cadre, texte, etiquette, fleche, voitureDessus, reperesDessus, voitureProfil,
-  arc, couper } from "./dessins-kit.js?v=20261013a";
+import { CHARTE, TEINTES_ROUTE, REGARD_SCENES, VOITURE, MATIERES, METRIQUES_POLICE, MISE_EN_PAGE, cadre, texte, etiquette, fleche,
+  voitureDessus, reperesDessus, voitureProfil, arc, couper, coord, trace, entre } from "./dessins-kit.js?v=20261013a";
 import { CATALOGUE } from "./catalogue-blocs.js?v=20261013a";
 
-/** Valeurs des scènes de route reprises ici, recopiées : largeur d'une voie et axiale T'1 d'agglomération (js/scene-decors.js,
+/** Valeurs de la rue des scènes reprises ici, recopiées : largeur d'une voie et axiale T'1 d'agglomération (js/scene-decors.js,
  *  DESSIN.voie et IISR : 1,50 m de trait, 5 m de vide, 2u = 0,10 m de large) ; jeu entre le flanc d'une voiture garée et la
- *  bordure (DESSIN.jeuStationnement) ; portée et demi-ouverture du cône du regard (js/scene-regard.js) et son opacité
- *  (js/scene-moteur.js, OPACITE_CONE). */
+ *  bordure (DESSIN.jeuStationnement). */
 export const RECOPIE_SCENES = Object.freeze({
   voie: 3.5,
   axiale: Object.freeze({ trait: 1.5, vide: 5, largeur: 0.1 }),
   jeuStationnement: 0.3,
-  regard: Object.freeze({ portee: 22, ouverture: 16, opacite: 0.4 }),
-});
-
-/** Valeurs du kit (js/dessins-kit.js) qu'il n'exporte pas, recopiées : ligne de base sous le milieu des chiffres et des capitales
- *  d'Outfit (MILIEU_CAPITALES, en tailles de texte) ; rayon des coins d'une vignette (RAYON_VIGNETTE, unités) ; joints du capot de
- *  la voiture vue du dessus (DESSUS.capot), du bord arrière du capot, côté pare-brise, à son bord avant, et la distance de chacun à
- *  l'axe (m). tests/dessins-dessus.test.mjs vérifie la recopie ; la tâche d'intégration les exportera du kit. */
-export const RECOPIE_KIT = Object.freeze({
-  milieuCapitales: 0.35,
-  rayonVignette: 8,
-  jointsCapot: Object.freeze({ arriere: Object.freeze([1.32, 0.74]), avant: Object.freeze([1.94, 0.68]) }),
 });
 
 // ===== Géométrie plane =====
 
 const RAD = Math.PI / 180;
 const QUART = 90;     // degrés : un quart de tour ; dans le repère du cadre (y vers le bas), + QUART tourne vers la droite
-const ecrit = (v) => String(Number(v.toFixed(2)));
-// Tracé d'une ligne brisée (fermée ou non), coordonnées à deux décimales, comme les tracés du kit.
-const trace = (pts, ferme = true) => `M${pts.map(([x, y]) => `${ecrit(x)} ${ecrit(y)}`).join(" L")}${ferme ? " Z" : ""}`;
 const plus = (a, b) => [a[0] + b[0], a[1] + b[1]];
 const fois = (a, k) => [a[0] * k, a[1] * k];
 const distance = (a, b) => Math.hypot(b[0] - a[0], b[1] - a[1]);
@@ -54,7 +38,6 @@ const direction = (angle) => [Math.cos(angle * RAD), Math.sin(angle * RAD)];
 const polaire = (centre, rayon, angle) => plus(centre, fois(direction(angle), rayon));
 const angleDe = (a, b) => Math.atan2(b[1] - a[1], b[0] - a[0]) / RAD;
 const centreDe = (pts) => [0, 1].map((k) => pts.reduce((somme, p) => somme + p[k], 0) / pts.length);
-const entre = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
 const rectangle = (x, y, largeur, hauteur) => [[x, y], [x + largeur, y], [x + largeur, y + hauteur], [x, y + hauteur]];
 const boite = (pts) => {
   const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
@@ -163,7 +146,7 @@ function abscisse(points, p) {
 const PRESQUE_NUL = 0.01;
 function pointille(points, { couleur, epaisseur, pas, role, attributs = {}, lisere = false }) {
   const trait = (couleurTrait, largeur, autres) => n("path", { d: trace(points, false), fill: "none", stroke: couleurTrait, "stroke-width": largeur,
-    "stroke-linecap": "round", "stroke-linejoin": "round", "stroke-dasharray": `${PRESQUE_NUL} ${ecrit(pas - PRESQUE_NUL)}`, ...autres });
+    "stroke-linecap": "round", "stroke-linejoin": "round", "stroke-dasharray": `${PRESQUE_NUL} ${coord(pas - PRESQUE_NUL)}`, ...autres });
   return [lisere && trait(CHARTE.carte, epaisseur + 2 * CHARTE.liseres, {}), trait(couleur, epaisseur, { "data-r": role, ...attributs })];
 }
 
@@ -220,7 +203,7 @@ const REPERE = { rayon: 7.5, taille: CHARTE.tailles.etiquette, graisse: 700, tra
 function repere(numero, [x, y]) {
   return n("g", { "data-r": `repere-${numero}`, "data-x": x, "data-y": y },
     n("circle", { cx: x, cy: y, r: REPERE.rayon, fill: CHARTE.carte, stroke: CHARTE.texte, "stroke-width": REPERE.trait }),
-    texte(x, y + RECOPIE_KIT.milieuCapitales * REPERE.taille, String(numero), { taille: REPERE.taille, ancrage: "middle", graisse: REPERE.graisse }));
+    texte(x, y + METRIQUES_POLICE.milieuCapitales * REPERE.taille, String(numero), { taille: REPERE.taille, ancrage: "middle", graisse: REPERE.graisse }));
 }
 
 // Points du tracé d'une pièce du kit (M ... L ... Z), dans le repère local de la voiture.
@@ -291,19 +274,17 @@ const TOUR = {
 };
 // Noms des trois temps du tour, les mots du cours (C1.1), dans son ordre.
 const NOMS_REPERES = ["Extérieur", "Capot", "Habitacle"];
-// Compartiment moteur, sombre comme celui du dessin « capot » (js/dessins-entretien.js).
-const COMPARTIMENT = "#2B302D";
 
 /** Compartiment moteur découvert et capot relevé, dans le repère local de la voiture (le groupe a la pose de la voiture) : le
  *  capot tourne autour de sa charnière, son bord arrière, côté pare-brise ; vu du dessus, chacun de ses points garde sa distance à
  *  l'axe et ne s'avance plus que de sa distance à la charnière multipliée par le cosinus de l'ouverture : son bord avant relevé
  *  garde la largeur de son bord avant fermé, et le capot cache l'arrière du compartiment. */
 function capotOuvert({ x, y, cap, echelle, ouverture }) {
-  const { arriere: [xa, ya], avant: [xv, yv] } = RECOPIE_KIT.jointsCapot;
+  const { arriere: [xa, ya], avant: [xv, yv] } = VOITURE.jointsCapot;
   const m = ([mx, my]) => [mx * echelle, my * echelle];
   const portee = xa + (xv - xa) * Math.cos(ouverture * RAD);
-  return n("g", { "data-r": "capot-ouvert", "data-angle": ouverture, transform: `translate(${ecrit(x)} ${ecrit(y)}) rotate(${ecrit(cap)})` },
-    n("path", { d: trace([[xa, -ya], [xv, -yv], [xv, yv], [xa, ya]].map(m)), fill: COMPARTIMENT, "data-r": "compartiment" }),
+  return n("g", { "data-r": "capot-ouvert", "data-angle": ouverture, transform: `translate(${coord(x)} ${coord(y)}) rotate(${coord(cap)})` },
+    n("path", { d: trace([[xa, -ya], [xv, -yv], [xv, yv], [xa, ya]].map(m)), fill: MATIERES.compartiment, "data-r": "compartiment" }),
     n("path", { d: trace([[xa, -ya], [portee, -yv], [portee, yv], [xa, ya]].map(m)), fill: TEINTES_ROUTE.eleve,
       stroke: TEINTES_ROUTE.eleveBord, "stroke-width": CHARTE.traits.fin, "stroke-linejoin": "round", "data-r": "capot-releve" }));
 }
@@ -370,7 +351,7 @@ function tourVehicule() {
   lab("feux-arriere", pointAuBout(contour("feu-droit"), pose.cap, T.retraitPoint), A.feuxArriere, ["Feux et", "plaque"], "middle"),
   etiquette({ cible: vers([balai.x1, balai.y1]), ancre: A.balais, lignes: ["Balais", "d'essuie-glace"], ancrage: "middle", role: "etiquette-balais" }),
   reperes.map((p, i) => repere(i + 1, p)),
-  texte(reperes[0][0] + REPERE.rayon + T.nom, reperes[0][1] + RECOPIE_KIT.milieuCapitales * CHARTE.tailles.etiquette, NOMS_REPERES[0], { role: "nom-1" }),
+  texte(reperes[0][0] + REPERE.rayon + T.nom, reperes[0][1] + METRIQUES_POLICE.milieuCapitales * CHARTE.tailles.etiquette, NOMS_REPERES[0], { role: "nom-1" }),
   nomAuFilet(2, A.capot, "start"),
   nomAuFilet(3, A.habitacle, "end"));
 }
@@ -381,14 +362,14 @@ function tourVehicule() {
 const PENTE = {
   marge: 8,
   // Unités par mètre ; hauteur et rayon des coins de la vue du dessus (celui d'une vignette du kit) ; ordonnée du centre de la voiture.
-  plan: { echelle: 32, hauteur: 124, rayon: RECOPIE_KIT.rayonVignette, axeVoiture: 52 },
+  plan: { echelle: 32, hauteur: 124, rayon: MISE_EN_PAGE.rayonVignette, axeVoiture: 52 },
   braquage: 30,             // degrés : roues avant braquées vers le trottoir, nettement, en deçà de la butée (40)
   ancreRoues: [200, 96],    // ancre de l'étiquette des roues, sur le trottoir
   roue: 0.03,               // m : point de l'étiquette, en deçà du bout arrière de la roue braquée (une unité), sur son axe
   nomTrottoir: [18, 116],   // départ du mot « Trottoir »
   // Profil, à l'échelle de la vue du dessus : haut et hauteur de sa vignette (unités) ; point du sol sous le milieu de la
   // voiture ; pente de la rue (pour cent) ; épaisseur de la chaussée montrée sous sa surface (m).
-  profil: { haut: 140, hauteur: 92, rayon: RECOPIE_KIT.rayonVignette, sol: [160, 198], pourcent: 12, epaisseurSol: 0.3 },
+  profil: { haut: 140, hauteur: 92, rayon: MISE_EN_PAGE.rayonVignette, sol: [160, 198], pourcent: 12, epaisseurSol: 0.3 },
   // Flèche de la pente, au-dessus du sol, devant la voiture : de son départ à sa pointe le long de la pente (m), et sa hauteur
   // au-dessus du sol (m) ; le texte « En pente » au-dessus d'elle (unités).
   flechePente: { debut: 3.0, fin: 4.4, hauteur: 1.0 },
@@ -458,7 +439,7 @@ const VIRAGE = {
   braquage: -25,            // degrés : sous-virage, roues avant braquées à gauche, vers l'intérieur
   lacets: [0, 7, 16, 30],   // degrés : survirage, rotation de la caisse au-delà de la tangente, position par position
   opacites: [0.3, 0.45, 0.6, 1],
-  marge: 8, rayonPanneau: RECOPIE_KIT.rayonVignette,
+  marge: 8, rayonPanneau: MISE_EN_PAGE.rayonVignette,
   titre: { taille: CHARTE.tailles.titre, graisse: 600, haut: 0.8, bas: 0.25, ecart: 5 },   // haut et bas en tailles de texte
   entrePanneaux: 8,         // unités entre la première vignette et le titre de la seconde ; la hauteur des vignettes suit le cadre
   pointille: { epaisseur: CHARTE.traits.appuye, pas: 4.5 },
@@ -543,7 +524,7 @@ const REGARD_LOIN = {
 function regardLoin() {
   const code = "regard-loin";
   const [L, H] = CATALOGUE[code].cadre;
-  const RL = REGARD_LOIN, E = RL.echelle, { portee, ouverture, opacite } = RECOPIE_SCENES.regard;
+  const RL = REGARD_LOIN, E = RL.echelle, { portee, demiOuverture: ouverture, opacite } = REGARD_SCENES;
   const rVoie = RL.rayonChaussee + RECOPIE_SCENES.voie / 2;   // virage à gauche : la voie de droite est à l'extérieur
   // En mètres, autour du centre du virage : la voiture à l'entrée, sous le centre (angle polaire CREUX), cap 0 ; son œil (kit) ;
   // le point visé, sur l'axe de sa voie, à la distance de l'œil où l'axe du cône rencontre son bord lointain.

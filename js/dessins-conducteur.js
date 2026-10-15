@@ -16,7 +16,8 @@
  * d'un adulte de taille moyenne, voiture courante), avec sa raison dans sources/dessins-conducteur.js.
  */
 import { n } from "./dessin-svg.js?v=20261013a";
-import { CHARTE, cadre, texte, etiquette, vignette, fleche, arrondir } from "./dessins-kit.js?v=20261013a";
+import { CHARTE, METRIQUES_POLICE, MISE_EN_PAGE, cadre, texte, etiquette, vignette, fleche, arrondir, coord, point as ecrirePoint, trace, entre }
+  from "./dessins-kit.js?v=20261013a";
 import { adoucir, sortieDouce, avancement, interpoler, cles } from "./animation-courbes.js?v=20261013a";
 
 // ===================================================================================================================
@@ -168,10 +169,7 @@ const dist = (a, b) => Math.hypot(b[0] - a[0], b[1] - a[1]);
 const unitaire = (a) => fois(a, 1 / norme(a));
 const scalaire = (a, b) => a[0] * b[0] + a[1] * b[1];
 const tourner = ([x, y], angle) => [x * Math.cos(angle) - y * Math.sin(angle), x * Math.sin(angle) + y * Math.cos(angle)];
-const entre = (a, b, u) => [a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u];
 const direction = (degres) => [Math.cos(degres * RAD), Math.sin(degres * RAD)];
-const coord = (v) => String(Number(v.toFixed(2)));
-const ecrirePoint = ([x, y]) => `${coord(x)} ${coord(y)}`;
 const MILIEU = 0.5;
 
 // Spline de Catmull-Rom centripète en segments de Bézier cubiques [départ, contrôle, contrôle, arrivée] : la courbe passe
@@ -228,11 +226,10 @@ function plusHautCubique(segments) {
   return meilleur;
 }
 
-// Polygones : le tracé de points (segments seuls) ; coins arrondis par `arrondir` du kit, un même rayon à chaque coin ; le
-// point le plus haut d'une liste (y le plus petit).
-const polygone = (points) => `M${points.map(ecrirePoint).join(" L")} Z`;
+// Polygones : le tracé de points (segments seuls), `trace` du kit ; coins arrondis par `arrondir` du kit, un même rayon à chaque
+// coin ; le point le plus haut d'une liste (y le plus petit).
 const pointsArrondis = (sommets, rayon) => arrondir(sommets, sommets.map(() => rayon));
-const formeArrondie = (sommets, rayon) => polygone(pointsArrondis(sommets, rayon));
+const formeArrondie = (sommets, rayon) => trace(pointsArrondis(sommets, rayon));
 const plusHautPoints = (points) => points.reduce((m, p) => (p[1] < m[1] ? p : m));
 
 // Membre en forme de gélule : enveloppe de deux disques (rayons r1 et r2), arcs exacts. Coordonnées du cadre.
@@ -260,7 +257,7 @@ function ruban(points, largeur) {
   });
   const bordA = centre.map((p, i) => plus(p, fois(normales[i], largeur / 2)));
   const bordB = centre.map((p, i) => plus(p, fois(normales[i], -largeur / 2)));
-  return { centre, bordA, bordB, d: polygone([...bordA, ...[...bordB].reverse()]) };
+  return { centre, bordA, bordB, d: trace([...bordA, ...[...bordB].reverse()]) };
 }
 const listePoints = (points) => points.map(([x, y]) => `${coord(x)},${coord(y)}`).join(" ");
 // Bord haut d'un ruban : celui de ses deux bords qui est le plus haut dans le cadre.
@@ -576,7 +573,7 @@ export function conducteurProfil({ x = 0, y = 0, siege = SIEGE_REGLE, appuieTete
       n("path", { d: patin, fill: TEINTES.metal }),
       n("path", { d: base, fill: teinteSiege.ombre }),
       n("path", { d: tige, fill: TEINTES.metal }),
-      n("g", segmentRole("appuie-tete", faceAT), n("path", { d: polygone(coussin), fill: teinteAT.base, "data-r": "appuie-tete-coussin" })),
+      n("g", segmentRole("appuie-tete", faceAT), n("path", { d: trace(coussin), fill: teinteAT.base, "data-r": "appuie-tete-coussin" })),
       n("g", segmentRole("siege-dossier", face), n("path", { d: dossier, fill: teinteSiege.base, ...contourDossier })),
       n("path", { d: assise, fill: teinteSiege.clair })),
     n("g", { "data-r": "bras-droit" },
@@ -658,7 +655,7 @@ function dessinRenvoiLanguette(sangle, P, opaciteLanguette) {
 const L_CADRE = 320;
 const MARGE = 8, GOUTTIERE = 8;
 const LEGENDE = { bas: 12, taille: CHARTE.tailles.etiquette };      // légende sous le dessin, dans la vignette
-const JEU_LEGENDE = 3, HAUT_TEXTE = 0.8, INTERLIGNE = 1.25;
+const JEU_LEGENDE = 3, { haut: HAUT_TEXTE, interligne: INTERLIGNE } = METRIQUES_POLICE;
 
 function paire(hauteur) {
   const largeur = (L_CADRE - 2 * MARGE - GOUTTIERE) / 2;
@@ -667,7 +664,7 @@ function paire(hauteur) {
 
 // Vignette dont le dessin est rogné au bord de sa carte (les jambes du conducteur en sortent), avec sa légende au bas. La
 // découpe a un identifiant propre à chaque montage.
-const RAYON_CARTE = 8, LISERE_CARTE = 0.5;
+const RAYON_CARTE = MISE_EN_PAGE.rayonVignette, LISERE_CARTE = 0.5;
 function vignetteRognee({ x, y, largeur, hauteur, etat, nom, legende }, dessin, ...dessus) {
   const id = nouvelId(nom);
   return vignette({ x, y, largeur, hauteur, etat },
@@ -681,7 +678,7 @@ function vignetteRognee({ x, y, largeur, hauteur, etat, nom, legende }, dessin, 
 // Plancher et planche de bord (repère de la voiture), sous le conducteur de profil.
 const PLANCHER = { epaisseur: 3, arriere: -170, avant: 60 };
 function plancher(P) {
-  return n("path", { d: polygone([[PLANCHER.arriere, 0], [PLANCHER.avant, 0], [PLANCHER.avant, -PLANCHER.epaisseur], [PLANCHER.arriere, -PLANCHER.epaisseur]].map(P)), fill: TEINTES.plancher });
+  return n("path", { d: trace([[PLANCHER.arriere, 0], [PLANCHER.avant, 0], [PLANCHER.avant, -PLANCHER.epaisseur], [PLANCHER.arriere, -PLANCHER.epaisseur]].map(P)), fill: TEINTES.plancher });
 }
 // Planche de bord de profil (repère de la voiture), coins arrondis : dessus, du pied du pare-brise au capuchon du combiné
 // au-dessus du volant ; face arrière, où entre la colonne de direction ; dessous (place des genoux) ; tablier, qui descend au
@@ -870,13 +867,13 @@ export function conducteurFace({ x = 0, y = 0, ceinture = "juste" } = {}) {
   };
   const C = CEINTURE, M = F.montant;
   const noeud = n("g", { "data-r": "conducteur-face", "data-ceinture": ceinture },
-    n("path", { d: polygone(rect({ demiLargeur: (M.droite - M.gauche) / 2, bas: M.bas, haut: M.haut }).map(([px, pz]) => P([px + (M.droite + M.gauche) / 2, pz]))), fill: TEINTES.montant }),
+    n("path", { d: trace(rect({ demiLargeur: (M.droite - M.gauche) / 2, bas: M.bas, haut: M.haut }).map(([px, pz]) => P([px + (M.droite + M.gauche) / 2, pz]))), fill: TEINTES.montant }),
     n("path", { d: formeArrondie(rect(F.base).map(P), F.base.arrondi * CM), fill: TEINTES.siegeOmbre }),
     n("path", { d: formeArrondie(rect(F.dossier).map(P), F.dossier.arrondi * CM), fill: TEINTES.siege }),
     ...tiges.map((d) => n("path", { d, fill: TEINTES.metal })),
     n("path", { d: formeArrondie(coussin.map(P), AT.arrondi * CM), fill: TEINTES.siege, "data-r": "appuie-tete-coussin" }),
     n("path", { d: formeArrondie(rect(F.assise).map(P), F.assise.arrondi * CM), fill: TEINTES.siegeClair }),
-    n("path", { d: polygone(decale(rect({ demiLargeur: F.tigeBoucle.demiLargeur, bas: F.tigeBoucle.bas, haut: F.boucle[1] }), F.boucle[0]).map(P)), fill: TEINTES.sangle }),
+    n("path", { d: trace(decale(rect({ demiLargeur: F.tigeBoucle.demiLargeur, bas: F.tigeBoucle.bas, haut: F.boucle[1] }), F.boucle[0]).map(P)), fill: TEINTES.sangle }),
     cache ? n("path", { d: cache.d, fill: teinte, "data-r": "brin-cache" }) : null,
     boitier(P, F.renvoi, C.renvoi.largeur, C.renvoi.longueur, TEINTES.siegeOmbre),
     ...oreilles.map((d) => n("path", { d, fill: CHARTE.peauOmbre })),
@@ -906,7 +903,7 @@ function dessinCeinture() {
   const sol = solVignette(p, 2);
   const juste = conducteurFace({ x: p.xJuste + p.largeur / 2, y: sol, ceinture: "juste" });
   const faux = conducteurFace({ x: p.xFaux + p.largeur / 2, y: sol, ceinture: "faux" });
-  const decor = (xCarte) => n("path", { d: polygone([[xCarte, sol], [xCarte + p.largeur, sol], [xCarte + p.largeur, sol + PLANCHER.epaisseur * CM], [xCarte, sol + PLANCHER.epaisseur * CM]]), fill: TEINTES.plancher });
+  const decor = (xCarte) => n("path", { d: trace([[xCarte, sol], [xCarte + p.largeur, sol], [xCarte + p.largeur, sol + PLANCHER.epaisseur * CM], [xCarte, sol + PLANCHER.epaisseur * CM]]), fill: TEINTES.plancher });
   return cadre({ largeur: L_CADRE, hauteur: H_CEINTURE, titre: "Placer la ceinture",
     description: "Conducteur vu de face. Juste : brin ventral bas sur le bassin, brin diagonal à plat au milieu de l'épaule. Faux : brin ventral sur le ventre, brin diagonal sous le bras." },
   vignetteRognee({ x: p.xJuste, y: p.y, largeur: p.largeur, hauteur: p.hauteur, etat: "juste", nom: "ceinture-juste", legende: ["Bas sur le bassin", "Milieu de l'épaule"] },
@@ -1241,13 +1238,13 @@ function dessinerInstallation(etat, { fige, etape }, { fleches, idMiroir, vueVis
   // Cabine.
   const C = CABINE;
   const pb = C.pareBrise, nPb = fois(unitaire([pb.haut[1] - pb.pied[1], pb.pied[0] - pb.haut[0]]), pb.epaisseur / 2);
-  const pareBrise = polygone([plus(pb.pied, nPb), plus(pb.haut, nPb), moins(pb.haut, nPb), moins(pb.pied, nPb)].map(P));
+  const pareBrise = trace([plus(pb.pied, nPb), plus(pb.haut, nPb), moins(pb.haut, nPb), moins(pb.pied, nPb)].map(P));
   const tr = C.traverse;
   const traverse = formeArrondie([[tr.avant, tr.haut], [tr.arriere, tr.haut], [tr.arriere, tr.bas], [tr.avant, tr.bas]].map(P), tr.arrondi * CM);
   const mo = C.montant, xm = RENVOI[0] - mo.largeur / 2;
   const montant = formeArrondie([[xm + mo.largeur / 2, mo.haut], [xm - mo.largeur / 2, mo.haut], [xm - mo.largeur / 2, mo.bas], [xm + mo.largeur / 2, mo.bas]].map(P), mo.arrondi * CM);
   const pl = C.plancher;
-  const sol = polygone([[pl.arriere, 0], [pl.avant, 0], [pl.avant, -PLANCHER.epaisseur], [pl.arriere, -PLANCHER.epaisseur]].map(P));
+  const sol = trace([[pl.arriere, 0], [pl.avant, 0], [pl.avant, -PLANCHER.epaisseur], [pl.arriere, -PLANCHER.epaisseur]].map(P));
   const retro = retroviseurDe(etat.retroviseur.orientation);
   const tigeRetro = [plus(RETRO.rotule, [0, tr.bas - RETRO.rotule[1] + RETRO.recouvrementTige]), RETRO.rotule];
   // Repères : cote des 25 cm (étape 1), ligne du sommet du crâne (étape 2).

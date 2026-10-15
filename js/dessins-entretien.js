@@ -12,26 +12,22 @@
  * leur raison dans sources/dessins-entretien.js. La voiture, de profil comme vue du dessus, est celle du kit. Titres et cadres
  * viennent du catalogue des blocs (js/catalogue-blocs.js), la seule source de ces métadonnées.
  */
-import { n, trouverRole } from "./dessin-svg.js?v=20261013a";
-import { CHARTE, cadre, texte, etiquette, vignette, arrondir, arc, couper, VOITURE, voitureDessus, voitureProfil, reperesProfil }
-  from "./dessins-kit.js?v=20261013a";
+import { n } from "./dessin-svg.js?v=20261013a";
+import { CHARTE, MATIERES, METRIQUES_POLICE, MISE_EN_PAGE, cadre, texte, etiquette, vignette, arrondir, arc, couper, trace, VOITURE,
+  voitureDessus, voitureProfil, reperesProfil } from "./dessins-kit.js?v=20261013a";
 import { CATALOGUE } from "./catalogue-blocs.js?v=20261013a";
 
 // ===== Mise en page commune (unités du cadre) =====
+// Textes posés comme ceux du kit : espace du bout d'un filet à son texte, pas des lignes, repères d'Outfit (METRIQUES_POLICE).
 const MARGE = 8;                          // du bord du cadre au contenu
-const ESPACE_TEXTE = 4;                   // du bout d'un filet d'étiquette à son texte (celui du kit)
+const ESPACE_TEXTE = MISE_EN_PAGE.espaceEtiquette;
 const PETIT = CHARTE.tailles.petite;      // 11 : étiquettes serrées
 const MOYEN = CHARTE.tailles.etiquette;   // 12
-const INTERLIGNE = 1.25;                  // pas des lignes, en tailles de texte (celui des étiquettes du kit)
-const MILIEU_CAPITALES = 0.35;            // ligne de base sous le milieu des capitales, en tailles (celui du kit)
-const HAUT_TEXTE = 0.8, BAS_TEXTE = 0.25; // place d'un texte au-dessus et au-dessous de sa ligne de base, en tailles
+const { interligne: INTERLIGNE, milieuCapitales: MILIEU_CAPITALES, haut: HAUT_TEXTE, bas: BAS_TEXTE } = METRIQUES_POLICE;
 const GOUTTIERE = 8;                      // entre deux vignettes
 const QUART = 90;                         // un quart de tour, en degrés
 
 // ===== Géométrie =====
-const coord = (v) => String(Number(v.toFixed(2)));
-const pt = ([x, y]) => `${coord(x)} ${coord(y)}`;
-const trace = (pts, ferme = true) => `M${pts.map(pt).join(" L")}${ferme ? " Z" : ""}`;
 const coins = (x1, y1, x2, y2) => [[x1, y1], [x2, y1], [x2, y2], [x1, y2]];
 const rectArrondi = (x1, y1, x2, y2, r) => arrondir(coins(x1, y1, x2, y2), [r, r, r, r]);
 const forme = (pts, attributs) => n("path", { d: trace(pts), ...attributs });
@@ -61,13 +57,14 @@ function mettreEnGarde(noeud, lignes) {
 }
 
 // ===== Teintes =====
-// La voiture (caisse, vitres, phares, roues) garde les teintes du kit : c'est lui qui la dessine. Le reste est propre à cette
-// famille (choix de dessin) : sous le capot, tons neutres, fond sombre du compartiment, moteur gris en trois tons, plastique
-// translucide clair des réservoirs, plastique noir des bouchons et de la poignée de jauge, batterie sombre aux bornes de plomb ;
-// lame d'acier et huile ambrée de la jauge ; liquide dans le vert doux de la charte ; témoin d'usure d'un ton plus clair que la
-// gomme, pour qu'on le distingue (dans le pneu, c'est la même gomme).
+// La voiture (caisse, vitres, phares, roues) garde les teintes du kit : c'est lui qui la dessine. Le fond sombre du compartiment
+// et la gomme et la jante du pneu en coupe sont des matières du kit (MATIERES), celles de sa voiture. Le reste est propre à cette
+// famille (choix de dessin) : sous le capot, tons neutres, moteur gris en trois tons, plastique translucide clair des réservoirs,
+// plastique noir des bouchons et de la poignée de jauge, batterie sombre aux bornes de plomb ; lame d'acier et huile ambrée de la
+// jauge ; liquide dans le vert doux de la charte ; témoin d'usure d'un ton plus clair que la gomme, pour qu'on le distingue (dans
+// le pneu, c'est la même gomme).
 const TEINTES = {
-  fond: "#2B302D", auvent: "#353B37",
+  fond: MATIERES.compartiment, auvent: "#353B37",
   moteur: "#646E67", moteurCache: "#828C85", moteurReflet: "#99A29B", boite: "#59625C",
   plastique: "#E3E8E1", plastiqueBord: "#A9B3A5", plastiqueReflet: "#F6F8F4",
   bouchon: "#262B28", bouchonHaut: "#3D4440", cable: "#202421",
@@ -77,9 +74,7 @@ const TEINTES = {
   air: CHARTE.carte, janteBord: "#8E968F", temoin: "#7E8A82", cote: CHARTE.carte,
   etiquette: CHARTE.carte, etiquetteBord: CHARTE.texteDoux,
 };
-// Gomme et jante du pneu en coupe : celles des roues du kit, lues sur la roue qu'il dessine (le kit n'exporte pas ses matières).
-const ROUE_DU_KIT = voitureProfil({ x: 0, y: 0, echelle: 1 });
-const GOMME = trouverRole(ROUE_DU_KIT, "pneu").attributs.fill, JANTE = trouverRole(ROUE_DU_KIT, "jante").attributs.fill;
+const GOMME = MATIERES.pneu, JANTE = MATIERES.jante;
 
 // ===== Sous le capot =====
 // La voiture du kit vue du dessus (voitureDessus, cap 0 : l'avant à droite du dessin, la gauche de la voiture, côté conducteur,
@@ -352,7 +347,7 @@ function niveaux() {
 // témoin (juste), témoin qui affleure (faux).
 export const MM = 5;                // unités par millimètre, coupe de la bande de roulement
 const TEMOIN_MM = 1.6;              // profondeur minimale des sculptures : la hauteur des témoins d'usure
-const SOUS_PASTILLE = 28;           // bas de la pastille d'une vignette, depuis son haut (marge et hauteur de la pastille du kit)
+const SOUS_PASTILLE = MISE_EN_PAGE.margePastille + MISE_EN_PAGE.hauteurPastille;   // bas de la pastille d'une vignette, depuis son haut
 const RECOUVREMENT = 1;             // deux formes de même teinte se chevauchent d'une unité : aucun joint clair entre elles
 const PNEU = {
   hauteurFlanc: 104,                // hauteur des vignettes du flanc ; celles de la bande prennent le reste

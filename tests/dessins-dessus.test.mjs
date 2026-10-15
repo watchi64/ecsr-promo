@@ -1,15 +1,15 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import { CATALOGUE } from "../js/catalogue-blocs.js";
 import * as famille from "../js/dessins-dessus.js";
 import { SOURCES } from "../sources/dessins-dessus.js";
 import { verifierDessin, verifierGeste } from "./aides-dessins.mjs";
 import { trouverRole, trouverTous, texteDe } from "../js/dessin-svg.js";
-import { VOITURE, reperesDessus, LARGEUR_TELEPHONE, TRAIT_MIN_PX } from "../js/dessins-kit.js";
+import { VOITURE, MATIERES, reperesDessus, LARGEUR_TELEPHONE, TRAIT_MIN_PX } from "../js/dessins-kit.js";
 import { GABARITS } from "../js/scene-geometrie.js";
 import { TEINTES } from "../js/scene-rendu.js";
 import { REGARD_PORTEE, REGARD_OUVERTURE } from "../js/scene-regard.js";
+import { OPACITE_CONE } from "../js/scene-moteur.js";
 import { DESSIN, IISR } from "../js/scene-decors.js";
 
 const codes = Object.keys(CATALOGUE).filter((c) => CATALOGUE[c].module === "dessus");
@@ -176,33 +176,15 @@ const PART_CACHEE_MAX = 0.25;
 
 // ===== Recopie des valeurs des scènes =====
 
-test("dessus : les valeurs reprises des scènes sont celles des scènes (voie, axiale, regard, teintes)", () => {
+test("dessus : les valeurs de la rue reprises des scènes sont celles des scènes (voie, axiale, jeu au trottoir)", () => {
   const r = famille.RECOPIE_SCENES;
   assert.equal(r.voie, DESSIN.voie);
   assert.deepEqual(r.axiale, { trait: IISR.axialeAgglo.trait, vide: IISR.axialeAgglo.vide, largeur: 2 * IISR.u });
   assert.equal(r.jeuStationnement, DESSIN.jeuStationnement);
-  assert.equal(r.regard.portee, REGARD_PORTEE);
-  assert.equal(r.regard.ouverture, REGARD_OUVERTURE);
-  const source = readFileSync(new URL("../js/scene-moteur.js", import.meta.url), "utf8");
-  const opacite = source.match(/const OPACITE_CONE = ([\d.]+);/);
-  assert.ok(opacite, "js/scene-moteur.js a changé : revoir la recopie de l'opacité du cône");
-  assert.equal(r.regard.opacite, Number(opacite[1]));
-  // Les scènes dessinent bien ce cône dans cette teinte, à cette opacité.
-  assert.match(source, /fill: TEINTES\.regard, opacity: OPACITE_REGARD\.cone/);
-});
-
-test("dessus : les valeurs du kit recopiées ici, qu'il n'exporte pas, sont celles du kit", () => {
-  const r = famille.RECOPIE_KIT;
-  const source = readFileSync(new URL("../js/dessins-kit.js", import.meta.url), "utf8");
-  const valeur = (motif) => {
-    const m = source.match(motif);
-    assert.ok(m, `js/dessins-kit.js a changé : revoir la recopie (${motif})`);
-    return m.slice(1).map(Number);
-  };
-  assert.deepEqual([r.milieuCapitales], valeur(/const MILIEU_CAPITALES = ([\d.]+);/), "milieu des capitales d'Outfit");
-  assert.deepEqual([r.rayonVignette], valeur(/const RAYON_VIGNETTE = ([\d.]+);/), "rayon des coins d'une vignette");
-  assert.deepEqual([...r.jointsCapot.arriere, ...r.jointsCapot.avant], valeur(/capot: \[\[([\d.]+), ([\d.]+)\], \[([\d.]+), ([\d.]+)\]\]/),
-    "joints du capot de la voiture vue du dessus");
+  // Le regard et les valeurs du kit (repères d'Outfit, rayon des vignettes, joints du capot, matières) ne sont plus recopiés
+  // ici : le module les lit dans le kit (REGARD_SCENES, METRIQUES_POLICE, MISE_EN_PAGE, VOITURE, MATIERES).
+  assert.deepEqual(Object.keys(r).sort(), ["axiale", "jeuStationnement", "voie"]);
+  assert.equal(famille.RECOPIE_KIT, undefined);
 });
 
 // ===== tour-vehicule =====
@@ -395,6 +377,8 @@ test("tour-vehicule : capot ouvert, charnière côté pare-brise, compartiment d
   const versM = (p) => cadreVersMetres(pose)(localVersCadre(pose)(p));
   const compartiment = pointsDe(trouverRole(capot, "compartiment")).map(versM);
   const releve = pointsDe(trouverRole(capot, "capot-releve")).map(versM);
+  // Le fond sombre du compartiment est la matière du kit, celle du compartiment du dessin « capot ».
+  assert.equal(trouverRole(capot, "compartiment").attributs.fill, MATIERES.compartiment);
   // Le compartiment est le capot fermé de la voiture du kit : ses deux joints (les traits de la caisse) en sont les bords.
   const joints = voiture.enfants.filter((x) => x.balise === "line").map((l) => [[l.attributs.x1, l.attributs.y1], [l.attributs.x2, l.attributs.y2]].map(versM));
   assert.equal(joints.length, 2, "les deux joints du capot de la voiture du kit");
@@ -678,11 +662,12 @@ test("regard-loin : le cône du regard des scènes, sommet à l'œil, 22 m de po
   const [sommet, p1, p2] = pts;
   const oeil = reperesDessus(pose).oeil;
   assert.ok(distance(sommet, oeil) < 0.01, "sommet à l'œil du conducteur");
-  for (const p of [p1, p2]) assert.ok(Math.abs(distance(p, sommet) - 22 * pose.echelle) < 0.01, "côtés de 22 m");
+  assert.deepEqual([REGARD_PORTEE, REGARD_OUVERTURE], [22, 16], "le cône des scènes");
+  for (const p of [p1, p2]) assert.ok(Math.abs(distance(p, sommet) - REGARD_PORTEE * pose.echelle) < 0.01, "côtés de 22 m");
   const ouverture = Math.abs(ecartAngle(Math.atan2(p1[1] - sommet[1], p1[0] - sommet[0]) / DEG, Math.atan2(p2[1] - sommet[1], p2[0] - sommet[0]) / DEG));
-  assert.ok(Math.abs(ouverture - 2 * 16) < 0.01, `ouverture de ${ouverture} degrés`);
+  assert.ok(Math.abs(ouverture - 2 * REGARD_OUVERTURE) < 0.01, `ouverture de ${ouverture} degrés`);
   assert.equal(cone.attributs.fill, TEINTES.regard);
-  assert.equal(Number(cone.attributs.opacity), 0.4);
+  assert.equal(Number(cone.attributs.opacity), OPACITE_CONE);
   // Le cône passe sous la voiture, comme dans les scènes.
   const ordre = trouverTous(d, (x) => ["regard", "voiture"].includes(x.attributs["data-r"])).map((x) => x.attributs["data-r"]);
   assert.deepEqual(ordre, ["regard", "voiture"]);

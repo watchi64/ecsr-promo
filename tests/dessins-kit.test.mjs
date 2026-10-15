@@ -1,14 +1,16 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { CHARTE, cadre, etiquette, vignette, pastille, fleche, texte } from "../js/dessins-kit.js";
 import { VOITURE, TEINTES_ROUTE, voitureDessus, reperesDessus, voitureProfil, reperesProfil } from "../js/dessins-kit.js";
 import { arrondir, arc, couper, bande } from "../js/dessins-kit.js";
 import { n, trouverRole, trouverTous, texteDe } from "../js/dessin-svg.js";
-import { verifierDessin, boitesTextes, largeurTexte, formeArbre } from "./aides-dessins.mjs";
+import { verifierDessin, boitesTextes, largeurTexte, formeArbre, HAUTEURS_MESUREES } from "./aides-dessins.mjs";
+import * as kit from "../js/dessins-kit.js";
 import { GABARITS, DEG } from "../js/scene-geometrie.js";
 import { TEINTES } from "../js/scene-rendu.js";
-import { oeil } from "../js/scene-regard.js";
+import { oeil, REGARD_PORTEE, REGARD_OUVERTURE } from "../js/scene-regard.js";
+import { OPACITE_CONE } from "../js/scene-moteur.js";
 
 test("la charte reprend les teintes de l'app", () => {
   assert.equal(CHARTE.fond, "#F1F4F0");
@@ -726,4 +728,95 @@ test("formes du kit : coins arrondis, arcs, demi-plans et bandes, pour les famil
   assert.deepEqual(couper(carre, (p) => p[0] - 4), [[0, 0], [4, 0], [4, 10], [0, 10]]);
   // Bande : entre deux droites parallèles (ici verticales, pente nulle).
   assert.deepEqual(bande(carre, { pente: 0, debut: 3, fin: 6 }).map(([x]) => x).sort((u, w) => u - w), [3, 3, 6, 6]);
+});
+
+// ===== Ce que le kit exporte pour les familles (tâche d'intégration du lot D1) : une seule définition, celle qu'il dessine =====
+
+test("tracés : coord, point et trace écrivent chaque coordonnée à deux décimales au plus, fermé par défaut", () => {
+  assert.equal(kit.coord(12), "12");
+  assert.equal(kit.coord(3.14159), "3.14");
+  assert.equal(kit.point([1.005, -2.5]), "1 -2.5");
+  assert.equal(kit.trace([[0, 0], [10.126, 0], [10, 5.5]]), "M0 0 L10.13 0 L10 5.5 Z");
+  assert.equal(kit.trace([[0, 0], [1, 1]], false), "M0 0 L1 1");
+  assert.deepEqual(kit.entre([0, 10], [10, 30], 0.25), [2.5, 15]);
+});
+
+test("METRIQUES_POLICE : les repères d'Outfit que mesurent les contrôles communs, et ceux qui posent les étiquettes du kit", () => {
+  const m = kit.METRIQUES_POLICE;
+  assert.deepEqual({ haut: m.haut, hautAccent: m.hautAccent, bas: m.bas }, HAUTEURS_MESUREES);
+  // Une étiquette d'une ligne, ancrée à gauche : texte à l'espace d'étiquette de l'ancre, ligne de base sous le milieu des capitales.
+  const une = etiquette({ cible: [10, 50], ancre: [40, 50], lignes: ["Jante"] });
+  const [t1] = trouverTous(une, (x) => x.balise === "text");
+  assert.equal(t1.attributs.x, 40 + kit.MISE_EN_PAGE.espaceEtiquette);
+  proche(t1.attributs.y, 50 + m.milieuCapitales * CHARTE.tailles.etiquette, 1e-9, "ligne de base");
+  // Deux lignes : pas de l'interligne, en tailles de texte.
+  const deux = trouverTous(etiquette({ cible: [10, 50], ancre: [40, 50], lignes: ["Feux et", "clignotants"] }), (x) => x.balise === "text");
+  proche(deux[1].attributs.y - deux[0].attributs.y, m.interligne * CHARTE.tailles.etiquette, 1e-9, "interligne");
+});
+
+test("MISE_EN_PAGE et largeurPastille : les mesures de la vignette et de sa pastille que le kit dessine", () => {
+  const P = kit.MISE_EN_PAGE;
+  for (const etat of ["juste", "faux"]) {
+    const v = vignette({ x: 20, y: 30, largeur: 140, hauteur: 100, etat });
+    assert.equal(v.enfants[0].attributs.rx, P.rayonVignette, `${etat} : rayon de la carte`);
+    const fond = trouverRole(v, `pastille-${etat}`).enfants[0].attributs;
+    assert.deepEqual([fond.x, fond.y], [20 + P.margePastille, 30 + P.margePastille], `${etat} : marge de la pastille`);
+    assert.equal(fond.height, P.hauteurPastille, `${etat} : hauteur de la pastille`);
+    proche(fond.width, kit.largeurPastille(etat), 1e-9, `${etat} : largeur de la pastille`);
+  }
+  assert.throws(() => kit.largeurPastille("vrai"), /état « vrai » inconnu/);
+});
+
+test("REGARD_SCENES : le cône du regard des scènes, portée, demi-ouverture et opacité, celui que dessine leur moteur", () => {
+  assert.deepEqual(kit.REGARD_SCENES, { portee: REGARD_PORTEE, demiOuverture: REGARD_OUVERTURE, opacite: OPACITE_CONE });
+  // Le moteur dessine bien le cône dans la teinte du regard, à cette opacité.
+  const source = readFileSync(new URL("../js/scene-moteur.js", import.meta.url), "utf8");
+  assert.match(source, /OPACITE_REGARD = \{ cone: OPACITE_CONE,/);
+  assert.match(source, /fill: TEINTES\.regard, opacity: OPACITE_REGARD\.cone/);
+  assert.equal(kit.TEINTES_ROUTE.regard, TEINTES.regard);
+});
+
+test("MATIERES, jointsCapot, VITRAGE_CONTOUR, ceinture : ce que dessinent les voitures du kit", () => {
+  const M = kit.MATIERES, e = 20;
+  const dessus = voitureDessus({ x: 0, y: 0, cap: 0, echelle: e, roues: true });
+  for (const [role, matiere] of [["pare-brise", "vitre"], ["lunette", "vitre"], ["phare-gauche", "phare"], ["feu-droit", "feu"]]) {
+    assert.equal(trouverRole(dessus, role).attributs.fill, M[matiere], role);
+  }
+  assert.equal(trouverRole(trouverRole(dessus, "roue-avant-gauche"), "pneu").attributs.fill, M.pneu);
+  const profil = voitureProfil({ x: 0, y: 0, echelle: e });
+  assert.equal(trouverRole(profil, "pneu").attributs.fill, M.pneu);
+  assert.equal(trouverRole(profil, "jante").attributs.fill, M.jante);
+  assert.equal(trouverRole(profil, "vitrage").attributs.fill, M.vitre);
+  // Les deux joints du capot vus du dessus : les traits de la caisse, de chaque côté, du bord arrière du capot à son bord avant.
+  const { arriere, avant } = VOITURE.jointsCapot;
+  const joints = dessus.enfants.filter((x) => x.balise === "line").map((l) => [l.attributs.x1, l.attributs.y1, l.attributs.x2, l.attributs.y2]);
+  assert.deepEqual(joints, [-1, 1].map((c) => [arriere[0] * e, c * arriere[1] * e, avant[0] * e, c * avant[1] * e]));
+  // Le contour des vitres de profil est celui que le kit dessine (sens « droite » : x vers la droite, hauteur vers le haut).
+  assert.equal(trouverRole(profil, "vitrage").attributs.d, kit.trace(kit.VITRAGE_CONTOUR.map(([x, h]) => [x * e, -h * e])));
+  // Ligne de ceinture : le bas des vitres, du pied du montant arrière au pied du montant de pare-brise.
+  const { arriereBas, avantBas } = VOITURE.vitrage;
+  proche(kit.ceinture(arriereBas[0]), arriereBas[1], 1e-12, "ceinture au montant arrière");
+  proche(kit.ceinture(avantBas[0]), avantBas[1], 1e-12, "ceinture au pied du pare-brise");
+});
+
+// Les familles de dessins lisent dans le kit ce qu'il exporte (décision commune 1 du lot : réutiliser, jamais recopier). Trois
+// façons de recopier, que ce test refuse : déclarer au premier niveau d'une famille un nom que le kit exporte (une copie de trace,
+// de coord, de MATIERES...) ; réécrire l'écriture des coordonnées du kit sous un autre nom (String(Number(x.toFixed(2)))) ;
+// redonner en dur un repère d'Outfit ou une mesure de vignette (MILIEU_CAPITALES = 0.35...).
+test("aucune famille de dessins ne recopie une aide, une matière ou une mesure que le kit exporte", () => {
+  const exports = new Set(Object.keys(kit));
+  const familles = readdirSync(new URL("../js/", import.meta.url)).filter((f) => /^dessins-[a-z]+\.js$/.test(f) && f !== "dessins-kit.js");
+  assert.ok(familles.length >= 6, "les six familles sont lues");
+  const fautes = [];
+  for (const f of familles) {
+    const src = readFileSync(new URL(`../js/${f}`, import.meta.url), "utf8");
+    for (const m of src.matchAll(/^(?:export\s+)?(?:const|let|var|function)\s+([A-Za-z_$][\w$]*)/gm)) {
+      if (exports.has(m[1])) fautes.push(`${f} : déclare ${m[1]}, qu'exporte le kit`);
+    }
+    if (/String\(Number\([^()]*\.toFixed\(2\)\)\)/.test(src)) fautes.push(`${f} : réécrit coord`);
+    for (const m of src.matchAll(/\b(MILIEU_CAPITALES|HAUT_TEXTE|BAS_TEXTE|INTERLIGNE|ESPACE_TEXTE|RAYON_VIGNETTE|RAYON_CARTE|SOUS_PASTILLE)\s*=\s*[\d.]+[,;]/g)) {
+      fautes.push(`${f} : ${m[1]} écrit en dur`);
+    }
+  }
+  assert.deepEqual(fautes, []);
 });

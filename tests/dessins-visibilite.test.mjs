@@ -8,6 +8,7 @@ import { trouverRole, trouverTous, texteDe } from "../js/dessin-svg.js";
 import { reperesProfil, reperesDessus, voitureDessus, TEINTES_ROUTE, VOITURE } from "../js/dessins-kit.js";
 import { REGARD_PORTEE, oeil as oeilScene } from "../js/scene-regard.js";
 import { TEINTES } from "../js/scene-rendu.js";
+import { OPACITE_CONE } from "../js/scene-moteur.js";
 import { GABARITS } from "../js/scene-geometrie.js";
 import { DESSIN, IISR } from "../js/scene-decors.js";
 
@@ -468,7 +469,7 @@ test("angles-morts : le coup d'œil par-dessus l'épaule gauche couvre toute la 
   assert.ok(Math.hypot(os.x * v.s - v.r.oeil[0], os.y * v.s - v.r.oeil[1]) < 1e-6, "œil des scènes");
   const coneNoeud = trouverRole(d, "coup-d-oeil"), cone = pointsDe(coneNoeud.attributs.d);
   assert.equal(coneNoeud.attributs.fill, TEINTES.regard);
-  assert.equal(Number(coneNoeud.attributs.opacity), 0.4);
+  assert.equal(Number(coneNoeud.attributs.opacity), OPACITE_CONE);
   assert.ok(cone.some((p) => Math.hypot(p[0] - v.r.oeil[0], p[1] - v.r.oeil[1]) < 0.01), "le cône part de l'œil");
   const angles = cone.filter((p) => Math.hypot(p[0] - v.r.oeil[0], p[1] - v.r.oeil[1]) > 1).map((p) => angleDepuisCap(v.r.oeil, p));
   const [min, max] = [Math.min(...angles), Math.max(...angles)];

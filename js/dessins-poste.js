@@ -12,7 +12,8 @@
  * viennent du catalogue des blocs (js/catalogue-blocs.js), la seule source de ces métadonnées.
  */
 import { n, trouverRole } from "./dessin-svg.js?v=20261013a";
-import { CHARTE, cadre, texte, etiquette, vignette, fleche, couper, arc, voitureDessus } from "./dessins-kit.js?v=20261013a";
+import { CHARTE, METRIQUES_POLICE, cadre, texte, etiquette, vignette, fleche, couper, arc, voitureDessus, coord, point as pt, trace }
+  from "./dessins-kit.js?v=20261013a";
 import { CATALOGUE } from "./catalogue-blocs.js?v=20261013a";
 import { interpoler, cles } from "./animation-courbes.js?v=20261013a";
 
@@ -29,8 +30,6 @@ const TEINTES = {
 };
 
 // ===== Géométrie de base =====
-const coord = (v) => String(Number(v.toFixed(2)));
-const pt = ([x, y]) => `${coord(x)} ${coord(y)}`;
 const plus = (a, b) => [a[0] + b[0], a[1] + b[1]];
 const fois = (a, k) => [a[0] * k, a[1] * k];
 const moins = (a, b) => [a[0] - b[0], a[1] - b[1]];
@@ -59,7 +58,6 @@ function cheminLisse(points, ferme = true) {
   const segments = segmentsLisses(points, ferme);
   return `M${pt(points[0])} ${traceSegments(segments)}${ferme ? " Z" : ""}`;
 }
-const polygone = (points) => `M${points.map(pt).join(" L")} Z`;
 
 // Point d'un segment de Bézier à l'instant t.
 function surBezier([a, b, c, d], t) {
@@ -159,7 +157,7 @@ export function volant({ cx, cy, rayon, angle = 0, role = "volant", avertisseur 
     const vrai = (((heure * DEGRES_PAR_HEURE + angle) % 360) + 360) % 360;
     // Repère : le bout de la branche sur la ligne médiane de la jante, tourné avec le volant (unités du cadre).
     const [bx, by] = pointHeure(cx, cy, rayon, heure + angle / DEGRES_PAR_HEURE);
-    return n("path", { d: polygone(points), fill: TEINTES.commande, "data-r": `branche-${heure}`, "data-angle": vrai, "data-x": bx, "data-y": by });
+    return n("path", { d: trace(points), fill: TEINTES.commande, "data-r": `branche-${heure}`, "data-angle": vrai, "data-x": bx, "data-y": by });
   };
   const rMoyeu = VOLANT.moyeu * k;
   const moyeu = n("g", avertisseur
@@ -186,7 +184,7 @@ function pictoAvertisseur(cx, cy, longueur, fond) {
   const corps = [...haut.map(([px, dy]) => [px, cy - dy]), ...[...haut].reverse().map(([px, dy]) => [px, cy + dy])];
   const o = a.ouverture;
   return n("g", { "data-r": "pictogramme-avertisseur" },
-    n("path", { d: polygone(corps), fill: TEINTES.symbole }),
+    n("path", { d: trace(corps), fill: TEINTES.symbole }),
     n("ellipse", { cx: x(o.centre), cy, rx: h(o.rx), ry: h(o.ry), fill: TEINTES.symbole }),
     n("ellipse", { cx: x(o.centre), cy, rx: h(o.rx - o.epaisseur), ry: h(o.ry - o.epaisseur), fill: fond }));
 }
@@ -278,7 +276,7 @@ function troncon(a, b, la, lb) {
   const nrm = normale(unitaire(moins(b, a)));
   return [plus(a, fois(nrm, la / 2)), plus(b, fois(nrm, lb / 2)), plus(b, fois(nrm, -lb / 2)), plus(a, fois(nrm, -la / 2))];
 }
-const traceOuPoint = (points, repli) => (points.length >= 3 ? polygone(points) : `M${pt(repli)}`);
+const traceOuPoint = (points, repli) => (points.length >= 3 ? trace(points) : `M${pt(repli)}`);
 
 /** Contour d'un doigt, en centimètres du repère de la jante, selon la prise (MAIN.doigt) : `s` et `largeur` le placent le
  *  long de la jante, `longueur` est sa longueur dépliée relative. Deux bouts de superellipse (le bout intérieur, le bout
@@ -415,7 +413,7 @@ function construireMain({ cx, cy, rayon, heure, cote, prise = 1, pouce = "jante"
     const sous = [...surfaces];   // ce qu'il recouvre
     const plis = sous.map((surface) => contourSur(segments, surface)).join(" ");
     surfaces.push(forme);
-    return { trace: polygone(forme), plis, segments, forme, sous };
+    return { trace: trace(forme), plis, segments, forme, sous };
   });
   // Repère des doigts : le milieu de leurs contours.
   const tousPoints = doigts.flatMap((x) => x.forme);
@@ -552,7 +550,7 @@ function pictoDetresse(x, y, t) {
     return [[x, y - (2 * h) / 3], [x + c / 2, y + h / 3], [x - c / 2, y + h / 3]];
   };
   const trait = { fill: "none", stroke: TEINTES.rouge, "stroke-width": CHARTE.traits.moyen };
-  return [n("path", { d: polygone(triangle(t)), ...trait }), n("path", { d: polygone(triangle(t * PICTO.detresse.interieur)), ...trait })];
+  return [n("path", { d: trace(triangle(t)), ...trait }), n("path", { d: trace(triangle(t * PICTO.detresse.interieur)), ...trait })];
 }
 
 // Flèche ondulée qui monte de yBas à yHaut (une période de sinusoïde), tête pleine.
@@ -565,8 +563,8 @@ function flecheOndulee(x, yBas, yHaut, t) {
   });
   const demi = (o.tete.largeur * t) / 2;
   return [
-    n("path", { d: `M${points.map(pt).join(" L")}`, fill: "none", stroke: TEINTES.symbole, "stroke-width": CHARTE.traits.fin, "stroke-linejoin": "round" }),
-    n("path", { d: polygone([[x, yHaut], [x + demi, finTige], [x - demi, finTige]]), fill: TEINTES.symbole }),
+    n("path", { d: trace(points, false), fill: "none", stroke: TEINTES.symbole, "stroke-width": CHARTE.traits.fin, "stroke-linejoin": "round" }),
+    n("path", { d: trace([[x, yHaut], [x + demi, finTige], [x - demi, finTige]]), fill: TEINTES.symbole }),
   ];
 }
 const troisFleches = (x, yBas, yHaut, t) => [-1, 0, 1].map((i) => flecheOndulee(x + i * PICTO.ondulee.ecart * t, yBas, yHaut, t));
@@ -690,8 +688,8 @@ function posteCommandes() {
       return `M${pt(plus(centre, fois(nrm, (c.bague * k) / 2)))} L${pt(plus(centre, fois(nrm, (-c.bague * k) / 2)))}`;
     }).join(" ");
     return n("g", { "data-r": `commodo-${cote}`, ...boiteDe(bague) },
-      n("path", { d: polygone(troncon(base, debutBague, c.tige * k, c.tige * k)), fill: TEINTES.colonne }),
-      n("path", { d: polygone(bague), fill: TEINTES.commande, stroke: TEINTES.commande, "stroke-width": CHARTE.traits.fin, "stroke-linejoin": "round" }),
+      n("path", { d: trace(troncon(base, debutBague, c.tige * k, c.tige * k)), fill: TEINTES.colonne }),
+      n("path", { d: trace(bague), fill: TEINTES.commande, stroke: TEINTES.commande, "stroke-width": CHARTE.traits.fin, "stroke-linejoin": "round" }),
       n("path", { d: rainures, fill: "none", stroke: TEINTES.commandeReflet, "stroke-width": CHARTE.traits.fin }));
   };
 
@@ -702,7 +700,7 @@ function posteCommandes() {
   const contacteur = n("g", { "data-r": "contacteur", ...boite(kx, ky, 2 * ct.rayon * k, 2 * ct.rayon * k) },
     n("circle", { cx: kx, cy: ky, r: ct.rayon * k, fill: TEINTES.metal }),
     n("circle", { cx: kx, cy: ky, r: ct.coeur * k, fill: TEINTES.commande }),
-    n("path", { d: polygone(fente), fill: TEINTES.metal, "data-r": "fente", "data-epaisseur": ct.largeurFente * k,
+    n("path", { d: trace(fente), fill: TEINTES.metal, "data-r": "fente", "data-epaisseur": ct.largeurFente * k,
       "data-x1": (fente[0][0] + fente[3][0]) / 2, "data-y1": (fente[0][1] + fente[3][1]) / 2,
       "data-x2": (fente[1][0] + fente[2][0]) / 2, "data-y2": (fente[1][1] + fente[2][1]) / 2 }));
 
@@ -923,7 +921,7 @@ const GESTE = {
   // Flèche de la jante qui glisse dans la main gauche (tirer-glisser) : heures avant et après 9 h.
   glisse: { avant: 0.55, apres: 0.1 },
 };
-const MILIEU_CAPITALES = 0.35;   // ligne de base sous le milieu des capitales d'Outfit, en tailles de texte (repère du kit)
+const MILIEU_CAPITALES = METRIQUES_POLICE.milieuCapitales;   // ligne de base sous le milieu des capitales d'Outfit
 // Position de référence du cours : main gauche à 9 h, main droite à 3 h ; midi en haut.
 const POSITION = { gauche: 9, droite: 3, midi: 0 };
 const posee = (heure, prise, decalage = 0) => ({ heure, prise, decalage });

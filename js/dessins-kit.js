@@ -33,16 +33,31 @@ export const LARGEUR_TELEPHONE = 343;
 export const TAILLE_TEXTE_MIN_PX = 11;
 export const TRAIT_MIN_PX = 1;
 
-// Choix de dessin des pièces communes, en unités du cadre. Repères d'Outfit en tailles de texte (mesurés dans Chrome) :
-// capitales 0,70 au-dessus de la ligne de base, accents des capitales 0,98, jambages 0,22.
+/** Teintes d'écran des quatre couleurs de voyant de la norme (rouge, orange ou jaune ambre, vert, bleu) : franches, et
+ *  lisibles allumées sur la tuile sombre du tableau de bord (contraste de 3:1 au moins, tests/dessins-voyants.test.mjs). Les
+ *  voyants (js/dessins-voyants.js) et le témoin des feux de détresse sur sa commande (js/dessins-poste.js) les partagent. */
+export const COULEURS_VOYANTS = figer({ rouge: "#FF453A", orange: "#FFAA00", vert: "#30D158", bleu: "#3D8BFF" });
+
+/** Repères d'Outfit, la police des dessins, en tailles de texte (mesurés dans Chrome : capitales 0,70 au-dessus de la ligne
+ *  de base, accents des capitales 0,98, jambages 0,22), arrondis vers le large : ligne de base sous le milieu des capitales
+ *  (milieuCapitales) ; place d'une ligne au-dessus de sa ligne de base, sans capitale accentuée (haut) ou avec (hautAccent),
+ *  et au-dessous (bas) ; pas des lignes d'une étiquette (interligne). Les familles posent leurs textes avec eux, comme le kit
+ *  pose les siens. */
+export const METRIQUES_POLICE = figer({ milieuCapitales: 0.35, haut: 0.8, hautAccent: 1.0, bas: 0.25, interligne: 1.25 });
+
+/** Mise en page des pièces communes, en unités du cadre : rayon des coins d'une vignette ; marge de sa pastille (de la pastille
+ *  aux bords de la vignette) et hauteur de la pastille ; espace du bout d'un filet d'étiquette à son texte. */
+export const MISE_EN_PAGE = figer({ rayonVignette: 8, margePastille: 8, hauteurPastille: 20, espaceEtiquette: 4 });
+
+// Choix de dessin des pièces communes, en unités du cadre.
 const RAYON_CADRE = 10;
-const RAYON_VIGNETTE = 8;
-const MARGE_PASTILLE = 8;           // de la pastille aux bords de sa vignette
-const ESPACE_ETIQUETTE = 4;         // du bout du filet au texte
-const INTERLIGNE = 1.25;            // pas des lignes d'une étiquette, en tailles de texte
+const RAYON_VIGNETTE = MISE_EN_PAGE.rayonVignette;
+const MARGE_PASTILLE = MISE_EN_PAGE.margePastille;
+const ESPACE_ETIQUETTE = MISE_EN_PAGE.espaceEtiquette;
+const INTERLIGNE = METRIQUES_POLICE.interligne;
 const RAYON_POINT = 2.2;            // point posé sur l'objet désigné
-const MILIEU_CAPITALES = 0.35;      // ligne de base sous le milieu des capitales
-const HAUT_TEXTE = 0.8, HAUT_TEXTE_ACCENT = 1.0, BAS_TEXTE = 0.25;
+const MILIEU_CAPITALES = METRIQUES_POLICE.milieuCapitales;
+const HAUT_TEXTE = METRIQUES_POLICE.haut, HAUT_TEXTE_ACCENT = METRIQUES_POLICE.hautAccent, BAS_TEXTE = METRIQUES_POLICE.bas;
 const CAPITALE_ACCENTUEE = /[ÀÂÄÉÈÊËÎÏÔÖÙÛÜŸ]/;
 const ANCRAGES = ["start", "middle", "end"];
 const ETATS = ["juste", "faux"];
@@ -56,12 +71,18 @@ function connu(valeur, permises, quoi) {
   return valeur;
 }
 
-// Géométrie plane. Les tracés (attribut d) s'écrivent à deux décimales : jamais d'écriture flottante à rallonge.
-const coord = (v) => String(Number(v.toFixed(2)));
-const point = ([x, y]) => `${coord(x)} ${coord(y)}`;
+// Géométrie plane. Les tracés (attribut d) s'écrivent à deux décimales : jamais d'écriture flottante à rallonge. Les familles
+// écrivent les leurs avec les mêmes aides.
+/** Une coordonnée d'un tracé, à deux décimales au plus (« 12 », « 3.14 »). */
+export const coord = (v) => String(Number(v.toFixed(2)));
+/** Un point [x, y] d'un tracé : « x y », chaque coordonnée écrite par coord. */
+export const point = ([x, y]) => `${coord(x)} ${coord(y)}`;
+/** Tracé « M x y L x y ... » d'une ligne brisée, fermé (« Z ») sauf si `ferme` est faux, chaque point écrit par point. */
+export const trace = (pts, ferme = true) => `M${pts.map(point).join(" L")}${ferme ? " Z" : ""}`;
 const distance = (a, b) => Math.hypot(b[0] - a[0], b[1] - a[1]);
 const moins = (a, b) => [a[0] - b[0], a[1] - b[1]];
-const entre = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+/** Le point de [a, b] à la fraction t (0 : a ; 1 : b). */
+export const entre = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
 const tourner = ([x, y], a) => [x * Math.cos(a) - y * Math.sin(a), x * Math.sin(a) + y * Math.cos(a)];
 const angleEntre = (u, v) => Math.atan2(u[0] * v[1] - u[1] * v[0], u[0] * v[0] + u[1] * v[1]);
 
@@ -108,8 +129,15 @@ export function etiquette({ cible, ancre, lignes, ancrage = "start", taille = CH
 // Pastille : icône (coche ou croix) puis le mot, en texte sombre sur le fond clair de l'état, la couleur de l'état
 // dans le liseré et l'icône (comme les marques de correction des quiz du cours : css/cours-blocs.css). Largeur des
 // mots dans Outfit 600 à 11 unités, mesurée dans Chrome : « Juste » 26,4, « Faux » 24,2.
-const PASTILLE = { hauteur: 20, taille: 11, graisse: 600, gauche: 7, icone: 8, espace: 4.5, droite: 7, trait: CHARTE.traits.moyen };
+const PASTILLE = { hauteur: MISE_EN_PAGE.hauteurPastille, taille: 11, graisse: 600, gauche: 7, icone: 8, espace: 4.5, droite: 7,
+  trait: CHARTE.traits.moyen };
 const MOTS = { juste: { mot: "Juste", largeur: 26.4 }, faux: { mot: "Faux", largeur: 24.2 } };
+
+/** Largeur de la pastille d'un état (« juste » ou « faux »), en unités du cadre : pour poser un texte à côté d'elle. */
+export function largeurPastille(etat) {
+  const p = PASTILLE;
+  return p.gauche + p.icone + p.espace + MOTS[connu(etat, ETATS, "Pastille : état")].largeur + p.droite;
+}
 
 /** Pastille d'état (« juste » ou « faux », toute autre valeur est une erreur) : coche ou croix, et le mot. */
 export function pastille({ x, y, etat }) {
@@ -118,13 +146,13 @@ export function pastille({ x, y, etat }) {
   const { mot, largeur: largeurMot } = MOTS[juste ? "juste" : "faux"];
   const p = PASTILLE, ix = x + p.gauche, iy = y + (p.hauteur - p.icone) / 2;
   const q = (dx, dy) => point([ix + dx, iy + dy]);
-  const trace = juste
+  const icone = juste
     ? `M${q(0.6, 4.4)} L${q(3.1, 6.9)} L${q(7.6, 1.5)}`
     : `M${q(1.1, 1.1)} L${q(6.9, 6.9)} M${q(6.9, 1.1)} L${q(1.1, 6.9)}`;
   return n("g", { "data-r": `pastille-${etat}` },
     n("rect", { x, y, width: p.gauche + p.icone + p.espace + largeurMot + p.droite, height: p.hauteur, rx: p.hauteur / 2,
       fill: juste ? CHARTE.justeFond : CHARTE.fauxFond, stroke: couleur, "stroke-width": CHARTE.traits.fin }),
-    n("path", { d: trace, fill: "none", stroke: couleur, "stroke-width": p.trait, "stroke-linecap": "round", "stroke-linejoin": "round" }),
+    n("path", { d: icone, fill: "none", stroke: couleur, "stroke-width": p.trait, "stroke-linecap": "round", "stroke-linejoin": "round" }),
     texte(ix + p.icone + p.espace, y + p.hauteur / 2 + MILIEU_CAPITALES * p.taille, mot, { taille: p.taille, graisse: p.graisse }));
 }
 
@@ -292,6 +320,11 @@ export const TEINTES_ROUTE = figer({
   clignotant: "#F4A900", stop: "#D2232A", recul: "#FFFFFF", vitre: "#C9D6DF", regard: "#FFD45C", trajet: "#B5C98A",
 });
 
+/** Cône du regard des scènes, recopié comme ses teintes : portée (m) et demi-ouverture (degrés) de js/scene-regard.js
+ *  (REGARD_PORTEE, REGARD_OUVERTURE), opacité de js/scene-moteur.js (OPACITE_CONE). tests/dessins-kit.test.mjs vérifie la
+ *  recopie : un dessin qui montre le regard le montre comme les scènes. */
+export const REGARD_SCENES = figer({ portee: 22, demiOuverture: 16, opacite: 0.4 });
+
 // Repère de la caisse : x vers l'avant, depuis le centre ; vue du dessus, y vers la droite de la voiture ; de profil, la
 // hauteur au-dessus du sol. Un point de profil est [x, hauteur] ; un point vu du dessus, [x, y].
 const GABARIT = { longueur: 4.5, largeur: 1.8, rayon: 0.4, essieu: 1.45 };          // scènes
@@ -324,13 +357,17 @@ const PORTIERE = { avant: VITRAGE.avantBas[0], arriere: -0.06, bas: 0.27, epaiss
   ouvertureMax: 70, ouvertureProfil: 60, fondu: 6 };
 // Trappe à carburant (profil) : centre, taille, arrondi, ouverture (degrés), rayon du bouchon.
 const TRAPPE = { centre: [-1.70, 0.86], largeur: 0.17, hauteur: 0.16, arrondi: 0.03, ouverture: 120, bouchon: 0.045 };
+// Joints du capot vue du dessus, de chaque côté : du bord arrière du capot (côté pare-brise) à son bord avant, chacun [x, distance
+// à l'axe]. Le capot fermé est entre eux.
+const JOINTS_CAPOT = { arriere: [1.32, 0.74], avant: [1.94, 0.68] };
 
-/** Dimensions (mètres) et choix de dessin des voitures du kit ; `profil` : les points du contour de profil, [x, hauteur].
- *  Figées, comme TEINTES_ROUTE : un dessin ne peut pas déformer la voiture des autres. */
+/** Dimensions (mètres) et choix de dessin des voitures du kit ; `profil` : les points du contour de profil, [x, hauteur] ;
+ *  `jointsCapot` : les joints du capot vus du dessus. Figées, comme TEINTES_ROUTE : un dessin ne peut pas déformer la voiture
+ *  des autres. */
 export const VOITURE = figer({
   ...GABARIT, pareBrise: PARE_BRISE, empattement: EMPATTEMENT, voie: VOIE, roue: ROUE, retroviseur: RETRO,
   retroviseurInterieur: RETRO_INTERIEUR, oeil: OEIL_CONDUCTEUR, hauteur: HAUTEUR_TOIT, braquageMax: BRAQUAGE_MAX,
-  vitrage: VITRAGE, lunette: LUNETTE, portiere: PORTIERE, trappe: TRAPPE,
+  vitrage: VITRAGE, lunette: LUNETTE, portiere: PORTIERE, trappe: TRAPPE, jointsCapot: JOINTS_CAPOT,
   profil: {
     basCaisse: 0.20, nez: 0.40, arriere: 0.45, jeuPassage: 0.045,
     bouclierAvant: [2.13, 0.22], nezBas: [DEMI_L, 0.32], nezHaut: [DEMI_L, 0.50], levreCapot: [2.13, 0.80],
@@ -358,7 +395,7 @@ const DESSUS = {
   vitres: { interieur: 0.62, exterieur: 0.75, arrondi: 0.03 },
   phare: { debut: 0.36, angle: 58, retrait: 0.03, profondeur: 0.18, arrondi: 0.03 },
   feu: { debut: 0.44, angle: 72, retrait: 0.025, profondeur: 0.12, arrondi: 0.02 },
-  capot: [[1.32, 0.74], [1.94, 0.68]],
+  capot: [JOINTS_CAPOT.arriere, JOINTS_CAPOT.avant],
   essuieGlaces: [[[1.225, -0.60], [1.215, -0.12]], [[1.225, -0.04], [1.215, 0.44]]],
   reflet: { pente: 0.55, debut: 0.86, fin: 0.98 },
   arrondiPneu: 0.06,
@@ -390,11 +427,14 @@ const CARROSSERIES = {
   eleve: { base: TEINTES_ROUTE.eleve, bord: TEINTES_ROUTE.eleveBord, ombre: "#58683F", reflet: "#819269" },
   autre: { base: TEINTES_ROUTE.autre, bord: TEINTES_ROUTE.autreBord, ombre: "#737D89", reflet: "#A2ABB5" },
 };
-const MATIERES = {
+/** Matières des voitures du kit : vitres et leur reflet, joints, habitacle, siège, pneu, passage de roue, jante (fond et
+ *  moyeu), phare, feu, bouchon ; et le fond sombre du compartiment moteur, capot ouvert (dessins « capot » et
+ *  « tour-vehicule »). Les familles qui montrent une pièce de la voiture de plus près la peignent de la même matière. */
+export const MATIERES = figer({
   vitre: TEINTES_ROUTE.vitre, vitreReflet: "#E3EAEF", joint: "#2E3430", habitacle: "#3A403C", siege: "#545B56",
   pneu: "#343A36", passage: "#1E2220", jante: "#CBD0CC", janteFond: "#9DA59F", moyeu: "#7E8781", fenetres: "#464D48",
-  phare: "#E9EEEA", feu: TEINTES_ROUTE.stop, bouchon: "#5E6660",
-};
+  phare: "#E9EEEA", feu: TEINTES_ROUTE.stop, bouchon: "#5E6660", compartiment: "#2B302D",
+});
 
 const DETAIL_MIN = 1.2;
 const TRAIT_DETAIL_MAX = 0.05;
@@ -402,8 +442,6 @@ const PAS_ARRONDI = 8;     // segments d'un coin arrondi
 const PAS_ARC = 6;         // degrés au plus entre deux points d'un arc
 const PAS_FEU = 6;         // segments du bord d'un feu vu du dessus
 const RAD = Math.PI / 180;
-
-const trace = (pts, ferme = true) => `M${pts.map(point).join(" L")}${ferme ? " Z" : ""}`;
 
 // Formes planes des dessins, partagées par les familles. Un polygone est une liste de points [x, y] (unités ou mètres,
 // au choix de l'appelant), fermé implicitement ; les fonctions rendent de nouvelles listes, sans toucher à leurs entrées.
@@ -667,10 +705,13 @@ function frole(garder, pente) {
 const HAUT_CAPOT = frole((p) => p[0] >= PROFIL.auvent[0], ([px, ph]) => (ph - OEIL_CONDUCTEUR.hauteur) / (px - OEIL_CONDUCTEUR.avant));
 const HAUT_COFFRE = frole((p) => p[0] <= PROFIL.basLunette[0], ([px, ph]) => (ph - OEIL_CONDUCTEUR.hauteur) / (OEIL_CONDUCTEUR.avant - px));
 
-const VITRAGE_CONTOUR = arrondir(["avantBas", "avantHaut", "hautAvant", "hautArriere", "arriereHaut", "arriereBas"].map((k) => VITRAGE[k]),
-  VITRAGE.arrondis);
-// Ligne de ceinture : le bas des vitres, du pied du montant arrière au pied du montant de pare-brise.
-const ceinture = (px) => VITRAGE.arriereBas[1]
+/** Contour des vitres latérales de profil, [x, hauteur] (m), coins arrondis : du pied du montant de pare-brise au pied du
+ *  montant arrière, par le haut du cadre. */
+export const VITRAGE_CONTOUR = Object.freeze(arrondir(["avantBas", "avantHaut", "hautAvant", "hautArriere", "arriereHaut", "arriereBas"]
+  .map((k) => VITRAGE[k]), VITRAGE.arrondis));
+/** Ligne de ceinture : hauteur (m) du bas des vitres à l'abscisse px, droite du pied du montant arrière au pied du montant de
+ *  pare-brise, prolongée au-delà. */
+export const ceinture = (px) => VITRAGE.arriereBas[1]
   + ((px - VITRAGE.arriereBas[0]) / (VITRAGE.avantBas[0] - VITRAGE.arriereBas[0])) * (VITRAGE.avantBas[1] - VITRAGE.arriereBas[1]);
 // Joints : le bord avant de la portière avant, qui contourne la roue avant ; le bord arrière de la portière arrière, qui
 // contourne la roue arrière ; le joint du montant milieu.

@@ -43,8 +43,9 @@ import { etapeA } from "./lecteur-anime-regles.js?v=20261013a";
 
 const NS = "http://www.w3.org/2000/svg";
 // Opacité du regard : un cône, en lecture comme sur une image figée (les quatre cônes d'un tour du regard figé compris),
-// ou, plus léger, le secteur que parcourt un balayage sur une image figée.
-const OPACITE_CONE = 0.4;
+// ou, plus léger, le secteur que parcourt un balayage sur une image figée. Celle du cône est exportée pour les tests : les
+// dessins qui montrent le regard (REGARD_SCENES de js/dessins-kit.js) la recopient, sans charger ce module.
+export const OPACITE_CONE = 0.4;
 const OPACITE_REGARD = { cone: OPACITE_CONE, cones: OPACITE_CONE, secteur: 0.22 };
 // Numéro des schémas montés : chacun a sa propre découpe, plusieurs schémas pouvant partager une page.
 let numeroScene = 0;
