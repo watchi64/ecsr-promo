@@ -321,11 +321,13 @@ test("le DOM minimal sait rendre un dessin (versDom) : de quoi tester le montage
   assert.equal(racine.textContent, "Essai");
 });
 
-test(":::dessin d'un dessin réel (famille « poste ») : le dessin remplace l'attente dans sa vue, la légende reste, rien n'est signalé", async () => {
-  // Les dessins fixes de la famille « poste » (js/dessins-poste.js), chargés pour de vrai sous Node par le chargeur du lecteur,
-  // montés par rendreDessin dans le DOM minimal de ce fichier : figure.dessin-bloc > div.dessin-vue > svg.
-  const codes = Object.keys(CATALOGUE).filter((c) => CATALOGUE[c].module === "poste" && CATALOGUE[c].bloc === "dessin");
-  assert.deepEqual(codes.sort(), ["mains-volant", "pedales", "poste-commandes"]);
+test(":::dessin d'un dessin réel, de chaque famille (entretien compris) : le dessin remplace l'attente dans sa vue, la légende reste, rien n'est signalé", async () => {
+  // Les dessins fixes des six familles (js/dessins-*.js), chargés pour de vrai sous Node par le chargeur du lecteur, montés par
+  // rendreDessin dans le DOM minimal de ce fichier : figure.dessin-bloc > div.dessin-vue > svg.
+  const codes = Object.keys(CATALOGUE).filter((c) => CATALOGUE[c].bloc === "dessin");
+  assert.equal(codes.length, 18, "les dix-huit dessins fixes du lot D1");
+  assert.deepEqual([...new Set(codes.map((c) => CATALOGUE[c].module))].sort(), ["conducteur", "dessus", "entretien", "poste", "visibilite", "voyants"]);
+  assert.ok(codes.includes("capot") && codes.includes("pression"), "les dessins d'entretien en sont");
   await avecEntrees({}, async (journal) => {
     for (const code of codes) {
       const signaux = [];

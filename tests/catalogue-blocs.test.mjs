@@ -60,3 +60,41 @@ test("les 24 codes du lot D1 sont au catalogue, dans leur module", () => {
   assert.equal(Object.values(attendus).flat().length, 24);
   assert.equal(animes.length, 6);
 });
+
+// Complétude : chaque code du catalogue est fourni par son module, du genre que le catalogue annonce (un dessin fixe dans DESSINS,
+// une animation dans GESTES, une scène de route dans SCENES), et chaque module ne fournit que des codes que le catalogue lui donne.
+// Un code au catalogue sans dessin serait un bloc « pas encore disponible » dans un cours ; un dessin hors du catalogue, un dessin
+// qu'aucun cours ne peut appeler. Titre et cadre du dessin rendu sont ceux du catalogue (le titre est lu par les lecteurs d'écran).
+test("complétude : chaque code du catalogue est fourni par son module (DESSINS, GESTES ou SCENES) et réciproquement", async () => {
+  const familles = MODULES_BLOCS.filter((m) => m !== "route");
+  const fournis = {};
+  for (const module of familles) {
+    const f = await import(`../js/dessins-${module}.js`);
+    assert.ok(f.DESSINS && typeof f.DESSINS === "object", `${module} : DESSINS exporté`);
+    assert.equal(typeof f.versDom, "function", `${module} : versDom réexporté`);
+    for (const [cle, genre] of [["DESSINS", "dessin"], ["GESTES", "scene"]]) {
+      for (const code of Object.keys(f[cle] || {})) {
+        assert.equal(fournis[code], undefined, `${code} : fourni deux fois`);
+        fournis[code] = { module, genre, f };
+      }
+    }
+  }
+  for (const code of Object.keys(SCENES)) fournis[code] = { module: "route", genre: "scene" };
+  for (const [code, e] of Object.entries(CATALOGUE)) {
+    const p = fournis[code];
+    assert.ok(p, `${code} : au catalogue, fourni par aucun module`);
+    assert.equal(p.module, e.module, `${code} : fourni par ${p.module}, le catalogue dit ${e.module}`);
+    assert.equal(p.genre, e.bloc, `${code} : ${p.genre === "dessin" ? "dans DESSINS" : "animé"}, le catalogue dit ${e.bloc}`);
+    if (e.module === "route") continue;
+    if (e.bloc === "dessin") {
+      const d = p.f.DESSINS[code]();
+      assert.equal(d.attributs.viewBox, `0 0 ${e.cadre[0]} ${e.cadre[1]}`, `${code} : cadre du catalogue`);
+      assert.ok(String(d.attributs["aria-label"]).startsWith(`${e.titre}. `), `${code} : titre du catalogue, puis la description`);
+    } else {
+      const def = p.f.GESTES[code].construire();
+      assert.equal(def.titre, e.titre, `${code} : titre du catalogue`);
+      assert.deepEqual(def.cadre, e.cadre, `${code} : cadre du catalogue`);
+    }
+  }
+  for (const code of Object.keys(fournis)) assert.ok(entreeBloc(code), `${code} : fourni par ${fournis[code].module}, absent du catalogue`);
+});
