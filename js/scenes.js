@@ -8,18 +8,26 @@
  * attentes que vérifient les contrôles automatiques (tests/scenes.test.mjs).
  * Règle du chantier : une scène qu'on ne sait pas rendre exacte n'entre pas ici.
  *
- * Chaque entrée : titre ; etapesModele (intitulés que propose l'éditeur : un
- * cours peut les reformuler, pas en changer le nombre) ; sources (ce que montre
- * la scène et d'où cela vient, recopié dans la fiche de vérification du cours) ;
+ * Chaque entrée : titre et etapesModele (intitulés que propose l'éditeur : un
+ * cours peut les reformuler, pas en changer le nombre), repris du catalogue des
+ * blocs (js/catalogue-blocs.js, que l'éditeur lit sans charger ce module) ;
  * construire() (définition calculée une seule fois, puis gelée en profondeur :
  * le moteur, l'éditeur et les tests la partagent sans pouvoir la modifier).
+ * Les sources de chaque scène (ce qu'elle montre et d'où cela vient, recopié dans
+ * la fiche de vérification du cours) sont dans sources/scenes.js : hors du
+ * module livré, seuls les tests et les fiches les lisent.
  */
-import { KMH, DEG, GABARITS, trajet, chronologie, tempsAtteint, premiereAbscisse, pointA, emprise, etatActeur,
-  polygonesSeChevauchent, rectangle, pointDansPolygone } from "./scene-geometrie.js?v=20261013a";
+import { KMH, DEG, GABARITS, PORTIERE, trajet, chronologie, tempsAtteint, premiereAbscisse, pointA, emprise, etatActeur,
+  polygonesSeChevauchent, rectangle, pointDansPolygone } from "./scene-geometrie.js?v=20261015b";
 import { DESSIN, HORS_MONDE, carrefourEnCroix, giratoire, trajetGiratoire, routeVirages, rue }
-  from "./scene-decors.js?v=20261013a";
-import { REGARD_PORTEE, REGARD_DUREE_TOUR_MIN, oeil, regardContient, coneRegard } from "./scene-regard.js?v=20261013a";
-import { SEUILS } from "./scene-controles.js?v=20261013a";
+  from "./scene-decors.js?v=20261015b";
+import { REGARD_PORTEE, REGARD_DUREE_TOUR_MIN, REGARD_MAX_SUIVI, oeil, regardContient, coneRegard }
+  from "./scene-regard.js?v=20261015b";
+import { SEUILS } from "./scene-controles.js?v=20261015b";
+import { CATALOGUE } from "./catalogue-blocs.js?v=20261015b";
+
+// Le code d'une scène et son titre : celui du catalogue des blocs (js/catalogue-blocs.js), la seule source des titres.
+const identite = (code) => ({ code, titre: CATALOGUE[code].titre });
 
 const MARGE_ARRET = 0.3;             // m entre la voiture arrêtée et la limite (passage, ligne)
 const TOLERANCE_ARRET = 0.7;         // m : écart admis par l'attente arretAvant, mesuré au milieu du pare-chocs
@@ -166,7 +174,7 @@ function tournerDroite() {
   const pause = degagement + choix.attenteDegagement - tArrivee;
   const profil = profilSans.map((p) => (p.s === sArret ? { ...p, pause } : p));
   return {
-    code: "tourner-droite", titre: "Tourner à droite en agglomération", monde: d.monde, limite: LIMITE_AGGLOMERATION, decor: d,
+    ...identite("tourner-droite"), monde: d.monde, limite: LIMITE_AGGLOMERATION, decor: d,
     camera: { largeur: d.monde.largeur, hauteur: choix.hauteurCadre },
     acteurs: [
       { id: "eleve", role: "eleve", gabarit: "voiture", chemin, profil,
@@ -282,7 +290,7 @@ function tournerGauche() {
   const pause = sortieFace + choix.apresPassage + choix.duree.angleMort - tArrivee;
   const profil = profilSans.map((p) => (p.s === sVirage ? { ...p, pause } : p));
   return {
-    code: "tourner-gauche", titre: "Tourner à gauche en agglomération", monde: d.monde, limite: LIMITE_AGGLOMERATION, decor: d,
+    ...identite("tourner-gauche"), monde: d.monde, limite: LIMITE_AGGLOMERATION, decor: d,
     camera: { largeur: d.monde.largeur, hauteur: choix.hauteurCadre },
     acteurs: [
       { id: "eleve", role: "eleve", gabarit: "voiture", chemin, profil,
@@ -440,7 +448,7 @@ function giratoireScene() {
   const pause = choix.sortieAnneauApresArret + choix.duree.regardGauche;
   const profil = profilSans.map((p) => (p.s === sArret ? { ...p, pause } : p));
   return {
-    code: "giratoire", titre: "Traverser un carrefour à sens giratoire", monde: g.monde, limite: LIMITE_AGGLOMERATION, decor: g,
+    ...identite("giratoire"), monde: g.monde, limite: LIMITE_AGGLOMERATION, decor: g,
     camera: { largeur: choix.cadre.largeur, hauteur: choix.cadre.hauteur },
     acteurs: [
       { id: "eleve", role: "eleve", gabarit: "voiture", chemin, profil,
@@ -555,7 +563,7 @@ function regardIntersection() {
     { s: sEnFace, kmh: choix.kmh.reduite }, { s: chemin.longueur, kmh: choix.kmh.reduite },
   ];
   return {
-    code: "regard-intersection", titre: "Regarder autour de soi à l'approche d'une intersection", monde: d.monde,
+    ...identite("regard-intersection"), monde: d.monde,
     limite: LIMITE_AGGLOMERATION, decor: d,
     camera: { largeur: d.monde.largeur, hauteur: choix.hauteurCadre },
     acteurs: [
@@ -701,7 +709,7 @@ function trajectoireCourbe() {
   ];
   const { devant } = choix.regard;
   return {
-    code: "trajectoire-courbe", titre: "Diriger la voiture en ligne droite et en courbe", monde: d.monde,
+    ...identite("trajectoire-courbe"), monde: d.monde,
     limite: LIMITE_AGGLOMERATION, decor: d,
     camera: { largeur: d.monde.largeur, hauteur: choix.hauteurCadre },
     acteurs: [{ id: "eleve", role: "eleve", gabarit: "voiture", chemin, profil }],
@@ -823,7 +831,7 @@ function demarrerArreter() {
   const place = rectangle(xBordDroit - DESSIN.jeuStationnement - GABARITS.voiture.largeur - TOLERANCE_PLACE, 0, xBordDroit,
     d.monde.hauteur);
   return {
-    code: "demarrer-arreter", titre: "Démarrer et s'arrêter", monde: d.monde, limite: LIMITE_AGGLOMERATION, decor: d,
+    ...identite("demarrer-arreter"), monde: d.monde, limite: LIMITE_AGGLOMERATION, decor: d,
     camera: { largeur: d.monde.largeur, hauteur: choix.hauteurCadre },
     acteurs: [
       { id: "eleve", role: "eleve", gabarit: "voiture", chemin, profil,
@@ -936,7 +944,7 @@ function marcheArriere() {
   const yGaree = arret.y + 2 * demiLongueur + choix.ecartVoitureGaree;
   if (yGaree + demiLongueur > d.monde.hauteur) throw new Error("marche-arriere : la voiture garée sort du dessin, allonger la rue");
   return {
-    code: "marche-arriere", titre: "Marche arrière en ligne droite le long du trottoir", monde: d.monde,
+    ...identite("marche-arriere"), monde: d.monde,
     limite: LIMITE_AGGLOMERATION, decor: d,
     camera: { largeur: d.monde.largeur, hauteur: choix.hauteurCadre },
     acteurs: [
@@ -1116,7 +1124,7 @@ function demiTour() {
   ];
 
   return {
-    code: "demi-tour", titre: "Faire demi-tour en trois temps", monde: d.monde, limite: LIMITE_AGGLOMERATION, decor: d,
+    ...identite("demi-tour"), monde: d.monde, limite: LIMITE_AGGLOMERATION, decor: d,
     camera: { largeur: d.monde.largeur, hauteur: d.monde.hauteur },
     acteurs: [
       { id: "eleve", role: "eleve", gabarit: "voiture", chemin, profil,
@@ -1157,199 +1165,107 @@ function demiTour() {
   };
 }
 
+// ===== Sortir du véhicule côté chaussée (C1.2, « Sortir » ; ordre des contrôles de Timy) =====
+//
+// Rue calme. La voiture de l'élève est garée le long du trottoir de droite, immobilisée, moteur coupé : un acteur posé, qui
+// ne bouge pas de toute la scène. Un cycliste arrive par l'arrière dans la voie de droite, le guidon assez près du flanc de
+// la voiture pour passer dans la zone de la portière. Avant d'ouvrir, le conducteur contrôle au rétroviseur intérieur, puis
+// au rétroviseur extérieur gauche, où le cycliste se voit ; il le laisse passer en le suivant des yeux, contrôle l'angle mort
+// gauche par-dessus l'épaule, puis ouvre la portière, le regard gardé vers l'arrière gauche. Les valeurs ci-dessous sont des
+// choix de dessin, recopiés dans les sources de la scène.
+const SORTIE_PORTIERE = geler({
+  // m de trottoir montrés de chaque côté de la chaussée : le plus petit nombre entier de mètres où le repère des étapes des
+  // animations réduites (« 1-5 », 2,85 m de large) tient à droite de la voiture.
+  trottoir: 3,
+  kmhCycliste: 18,            // km/h : l'allure d'un cycliste en ville, de 15 à 20 km/h
+  // m entre le flanc gauche de la voiture et le guidon du cycliste : il la longe de près, dans la zone que balaierait la
+  // portière, qui s'écarte du flanc de 0,63 m (PORTIERE, à 35 degrés).
+  ecartGuidon: 0.4,
+  // s à l'écran : coups d'œil aux rétroviseurs et à l'angle mort, ceux de demarrer-arreter ; laisser passer le cycliste, la
+  // plus courte durée, au dixième de seconde, qui le met à devantPortiere m au moins devant la portière quand elle s'ouvre,
+  // après l'angle mort ; ouverture de la portière, départ et arrivée amortis.
+  duree: { retroviseurInterieur: 1.2, retroviseurExterieur: 1.2, laisserPasser: 1.4, angleMort: 1.0, ouverture: 1.5 },
+  // degrés : où le conducteur voit le cycliste au début de l'étape où il le suit des yeux : à hauteur du conducteur, dans les
+  // REGARD_MAX_SUIVI (100) degrés où le regard suit un usager ; plus tôt, le cycliste serait encore derrière lui.
+  angleSuivi: 95,
+  ouverture: PORTIERE.ouvertureMax,   // degrés : une première ouverture, mesurée
+  devantPortiere: 10,         // m : quand la portière s'ouvre, le cycliste est au moins à cette distance devant elle
+  // degrés par rapport à l'axe de la voiture, - à gauche : rétroviseur intérieur, rétroviseur extérieur gauche, angle mort
+  // gauche (tête tournée vers l'épaule), gardé pendant l'ouverture.
+  regard: { retroviseurInterieur: 180, retroviseurExterieur: -170, angleMort: -120 },
+});
+
+function sortiePortiere() {
+  const choix = SORTIE_PORTIERE, dur = choix.duree, r = choix.regard;
+  const { largeur: W } = GABARITS.voiture, demiVelo = GABARITS.velo.longueur / 2;
+  const v = choix.kmhCycliste * KMH;
+  if (choix.angleSuivi > REGARD_MAX_SUIVI) throw new Error("sortie-portiere : le regard ne suivrait pas le cycliste, derrière le conducteur");
+  // Instants des étapes, la voiture à l'arrêt : rétroviseur intérieur dès le début, rétroviseur extérieur, le cycliste suivi
+  // des yeux, angle mort, puis l'ouverture de la portière.
+  const tExterieur = dur.retroviseurInterieur;
+  const tSuivi = tExterieur + dur.retroviseurExterieur;
+  const tAngleMort = tSuivi + dur.laisserPasser;
+  const tOuverture = tAngleMort + dur.angleMort;
+
+  // Positions du cycliste le long de la rue, mesurées depuis le centre de la voiture vers le sud (y de l'écran ; la voiture
+  // regarde le nord). Au début de l'étape 3, le conducteur le voit à angleSuivi degrés de l'axe : il est derrière l'œil de
+  // l'écart latéral fois tan(angleSuivi - 90). Il roule tout droit à allure constante.
+  const repere = { x: 0, y: 0, cap: -90 * DEG }, o = oeil(repere);
+  const dxCycliste = -W / 2 - choix.ecartGuidon - GABARITS.velo.largeur / 2;      // à gauche du centre de la voiture
+  const ySuivi = o.y + (o.x - dxCycliste) * Math.tan((choix.angleSuivi - 90) * DEG);
+  const yCycliste = (t) => ySuivi - v * (t - tSuivi);
+  // Quand la portière s'ouvre, l'arrière du cycliste est au moins à devantPortiere m devant la charnière.
+  const devant = -(yCycliste(tOuverture) + demiVelo) - PORTIERE.charniere;
+  if (devant < choix.devantPortiere) {
+    throw new Error(`sortie-portiere : le cycliste n'est qu'à ${devant.toFixed(2)} m devant la portière quand elle s'ouvre :`
+      + " le laisser passer plus longtemps");
+  }
+  // Rue : la voiture au milieu, le cycliste entier dans le dessin, à DESSIN.retraitBord au moins des bords, au début de la
+  // scène (à l'arrière) et quand la portière s'ouvre (à l'avant) : le plus petit nombre entier de mètres.
+  const demiRue = Math.max(yCycliste(0) + demiVelo, -(yCycliste(tOuverture) - demiVelo)) + DESSIN.retraitBord;
+  const d = rue({ longueur: Math.ceil(2 * demiRue), largeurTrottoir: choix.trottoir, stationnement: DESSIN.largeurStationnement });
+  const { xBordDroit } = d.reperes;
+  const voiture = { x: xBordDroit - DESSIN.jeuStationnement - W / 2, y: d.monde.hauteur / 2, cap: -90 };
+
+  // Cycliste : parti dans le dessin, dans la voie de droite, il sort par le bord haut (son trajet finit HORS_MONDE au-delà).
+  const y0 = voiture.y + yCycliste(0);
+  const chemin = trajet(voiture.x + dxCycliste, y0, -90).droit(y0 + HORS_MONDE).fin();
+  // Place de la voiture : le long du trottoir, flanc droit à DESSIN.jeuStationnement du trottoir, à TOLERANCE_PLACE près.
+  const place = rectangle(xBordDroit - DESSIN.jeuStationnement - W - TOLERANCE_PLACE, 0, xBordDroit, d.monde.hauteur);
+  return {
+    ...identite("sortie-portiere"), monde: d.monde, limite: LIMITE_AGGLOMERATION, decor: d,
+    camera: { largeur: d.monde.largeur, hauteur: d.monde.hauteur },
+    acteurs: [
+      { id: "eleve", role: "eleve", gabarit: "voiture", stationne: true, pose: voiture,
+        portiere: [{ t: tOuverture, angle: 0 }, { t: tOuverture + dur.ouverture, angle: choix.ouverture }] },
+      { id: "cycliste", gabarit: "velo", chemin,
+        profil: [{ s: 0, kmh: choix.kmhCycliste }, { s: chemin.longueur, kmh: choix.kmhCycliste }] },
+    ],
+    etapes: [
+      { s: 0, regard: { angle: r.retroviseurInterieur } },
+      { s: 0, delai: tExterieur, regard: { angle: r.retroviseurExterieur } },
+      { s: 0, delai: tSuivi, regard: { suivre: "cycliste" } },
+      { s: 0, delai: tAngleMort, regard: { angle: r.angleMort } },
+      { s: 0, delai: tOuverture, regard: { angle: r.angleMort } },
+    ],
+    attentes: [
+      { type: "dans", acteur: "eleve", nom: "place le long du trottoir", zone: place, de: 0, a: 0, emprise: true },
+      { type: "dans", acteur: "cycliste", nom: "voie de droite", zone: d.voies.droite, de: 0, a: chemin.longueur, emprise: true },
+    ],
+  };
+}
+
+// Titre et étapes modèles : ceux du catalogue des blocs (js/catalogue-blocs.js), que lit aussi l'éditeur.
+const meta = (code) => ({ titre: CATALOGUE[code].titre, etapesModele: CATALOGUE[code].etapesModele });
+
 export const SCENES = {
-  "tourner-droite": {
-    titre: "Tourner à droite en agglomération",
-    etapesModele: [
-      "Contrôler et mettre le clignotant",
-      "Serrer à droite, sans se coller au trottoir",
-      "Réduire l'allure avant le virage",
-      "Balayer l'intersection du regard",
-      "Contrôler l'angle mort droit",
-      "Tourner en regardant la sortie",
-      "Céder le passage au piéton",
-      "Repartir une fois le passage dégagé",
-    ],
-    sources: [
-      "Avertir les autres usagers avant de changer de direction (clignotant) : R412-10. Contrôler, puis indiquer : fiche ECF C2-E (mémo R·A·P·S·C) ; méthode C.I.A. (contrôles, indications, actions) : fiche ECF C2-F.",
-      "Serrer le bord droit de la chaussée avant de quitter la route sur sa droite : R415-3 I. Sans se coller au trottoir, pour laisser de la place à un vélo : fiche ECF C2-E.",
-      "Céder le passage, au besoin en s'arrêtant, au piéton qui s'engage dans la traversée ou manifeste clairement l'intention de traverser : R415-11. Ici le piéton attend au bord du passage : repéré pendant le balayage, il voit la voiture s'arrêter pour lui avant de s'engager.",
-      "Rester constamment maître de sa vitesse et la régler selon les difficultés de la circulation et les obstacles prévisibles : R413-17 II. La réduire avant le virage et non pendant : fiche ECF C2-E.",
-      "Marquage : unité u de 5 cm, modulations T'1 (traits de 1,50 m, vides de 5 m) et T'2 (traits et vides de 0,50 m) : IISR 7e partie, art. 113-1 ; axiale T'1 de largeur 2u, admise en agglomération, et ligne de cédez-le-passage T'2 de 0,50 m de large : art. 113-2 ; cette ligne s'étend sur toute la largeur de la voie entrante, de l'axe jusqu'à la bordure, marque la limite de la chaussée prioritaire et est précédée d'une axiale continue de largeur 2u sur 10 à 20 m (15 m retenus) : art. 117-4 B ; passage piéton de bandes de 0,50 m, espacées de 0,50 m (0,50 à 0,80 m admis) et longues de 2,50 m (minimum en ville), axiale interrompue à 0,50 m de part et d'autre : art. 118.",
-      "Étapes et regards : d'après la fiche ECF C2-E (classeur de Timy), dont le clignotant maintenu jusqu'à la fin du virage et l'attente du dégagement complet du piéton.",
-      "Choix de dessin, sans portée réglementaire : voies de 3,5 m ; arrondi de bordure de 6 m ; passage piéton à 0,5 m de la fin de l'arrondi ; axe nord-sud prioritaire (cédez-le-passage sur les branches est et ouest) ; branches de 8 m au nord et à l'ouest, 67 m au sud, 22 m à l'est ; cadre de 46 m de haut sur toute la largeur, qui suit l'élève ; départ à 22 m du bord bas (la portée du cône du regard, pour que le cône des rétroviseurs reste dans l'image) ; départ au centre de la voie, décalage de 0,25 m vers la droite sur 12 m (flanc droit à 0,60 m de la bordure), virage de 7,5 m de rayon concentrique à la bordure ; 25 km/h en approche et en sortie, 10 km/h avant et dans le virage ; décélération de 2,0 m/s² pour réduire l'allure ; freinage doux pour le piéton, commencé 1,0 s après l'entrée dans le virage (0,57 m/s², 1,0 m/s² au plus) ; accélération de 1,5 m/s² au redémarrage ; cône du regard de 22 m, ouvert de 16 degrés de part et d'autre, qui s'arrête 2 m au-delà de l'usager suivi des yeux ; regard, par rapport à l'axe de la voiture : 170 degrés à droite pendant 1,2 s (rétroviseurs), balayage de 75 degrés de part et d'autre (un aller-retour en 2 s) pendant 2 s au plus près de l'intersection, 120 degrés à droite pendant 1,0 s (angle mort, tête tournée vers l'épaule), 40 degrés à droite pendant 1,0 s (sortie), puis le piéton suivi des yeux ; clignotant allumé 0,5 s avant la fin du coup d'œil aux rétroviseurs ; piéton à 1,2 m/s, qui attend à 0,5 m du bord nord, se met en marche 0,5 s avant l'arrêt de la voiture et s'arrête à 0,5 m du bord sud ; redémarrage 0,6 s après son dégagement complet ; arrêt à 0,3 m du passage ; panneaux agrandis pour rester lisibles.",
-    ],
-    construire: unique(tournerDroite),
-  },
-  "tourner-gauche": {
-    titre: "Tourner à gauche en agglomération",
-    etapesModele: [
-      "Contrôler et mettre le clignotant",
-      "Serrer à gauche, près de l'axe sans le franchir",
-      "Réduire l'allure",
-      "Balayer l'intersection du regard",
-      "Céder le passage au véhicule d'en face",
-      "Contrôler l'angle mort gauche",
-      "Tourner après le point central",
-      "Rejoindre la voie de droite",
-    ],
-    sources: [
-      "Avertir les autres usagers avant de changer de direction, notamment pour se porter à gauche (clignotant) : R412-10. Contrôler, puis indiquer : fiche ECF C2-E (mémo R·A·P·S·C) ; méthode C.I.A. (contrôles, indications, actions) : fiche ECF C2-F.",
-      "Serrer à gauche avant de quitter la route sur sa gauche et, la chaussée étant à double sens, ne pas en dépasser l'axe médian : R415-4 I et II. Se placer près de la ligne centrale : fiche ECF C2-E.",
-      "Céder le passage aux véhicules venant en sens inverse sur la chaussée que l'on s'apprête à quitter : R415-4 III. Ici l'élève s'arrête parce que le véhicule d'en face arrive : il le suit des yeux dès qu'il ralentit pour lui et jusqu'à ce qu'il soit passé, regarde de nouveau devant lui la voie d'en face (un autre véhicule pourrait suivre le premier), contrôle l'angle mort gauche une fois le carrefour dégagé, puis tourne.",
-      "Rester constamment maître de sa vitesse et la régler selon les difficultés de la circulation et les obstacles prévisibles : R413-17 II. La réduire avant le virage et non pendant : fiche ECF C2-E.",
-      "Marquage : unité u de 5 cm, modulations T'1 (traits de 1,50 m, vides de 5 m) et T'2 (traits et vides de 0,50 m) : IISR 7e partie, art. 113-1 ; axiale T'1 de largeur 2u, admise en agglomération, et ligne de cédez-le-passage T'2 de 0,50 m de large : art. 113-2 ; cette ligne s'étend sur toute la largeur de la voie entrante, de l'axe jusqu'à la bordure, marque la limite de la chaussée prioritaire et est précédée d'une axiale continue de largeur 2u sur 10 à 20 m (15 m retenus) : art. 117-4 B ; passage piéton de bandes de 0,50 m, espacées de 0,50 m (0,50 à 0,80 m admis) et longues de 2,50 m (minimum en ville), axiale interrompue à 0,50 m de part et d'autre : art. 118.",
-      "Étapes et trajectoire : d'après la fiche ECF C2-E (classeur de Timy) : placement près de l'axe médian, clignotant mis tôt et maintenu jusqu'à la fin du virage, angle mort gauche contrôlé avant de braquer, priorité laissée aux véhicules venant en face, attente sans trop s'avancer dans l'intersection, virage pris après le point central de l'intersection (ne pas couper le virage).",
-      "Choix de dessin, sans portée réglementaire : voies de 3,5 m ; arrondi de bordure de 6 m ; passage piéton sur la branche ouest, à 0,5 m de la fin de l'arrondi ; axe nord-sud prioritaire (cédez-le-passage sur les branches est et ouest) ; branches de 18 m au nord, 58 m au sud, 8 m à l'est et 20 m à l'ouest ; cadre de 46 m de haut sur toute la largeur, qui suit l'élève ; départ à 22 m du bord bas (la portée du cône du regard, pour que le cône des rétroviseurs reste dans l'image) ; départ au centre de la voie, décalage de 0,60 m vers la gauche sur 12 m (flanc gauche à 0,25 m de l'axe médian) ; attente l'avant à 0,10 m de la hauteur du centre de l'intersection, puis virage de 4,1 m de rayon (le plus petit retenu, braquage d'une citadine) jusqu'au centre de la voie de sortie, qui laisse le point central de l'intersection à 0,33 m à gauche du centre de la voiture ; 25 km/h en approche et en sortie, 8 km/h pour le balayage ; décélération de 2,0 m/s² pour réduire l'allure, puis pour s'arrêter ; reprise à 1,5 m/s² jusqu'à 10 km/h dans le virage, puis jusqu'à 25 km/h ; véhicule d'en face à 30 km/h, qui part et finit hors du dessin et entre dans le carrefour 0,3 s après l'arrêt de l'élève ; cône du regard de 22 m, ouvert de 16 degrés de part et d'autre, qui s'arrête 2 m au-delà de l'usager suivi des yeux ; regard, par rapport à l'axe de la voiture : 170 degrés à gauche pendant 1,2 s (rétroviseurs), balayage de 75 degrés de part et d'autre (un aller-retour en 2 s) pendant les 2 s qui précèdent le freinage, véhicule d'en face suivi des yeux dès le début du freinage puis, une fois passé derrière l'élève (à plus de 100 degrés de l'axe de la voiture), regard ramené droit devant, 120 degrés à gauche pendant 1,2 s (angle mort, tête tournée vers l'épaule) à partir de 0,4 s après que le véhicule d'en face a quitté le carrefour, 40 degrés à gauche dans le virage (sortie), puis droit devant ; clignotant allumé 0,5 s avant la fin du coup d'œil aux rétroviseurs ; panneaux agrandis pour rester lisibles.",
-    ],
-    construire: unique(tournerGauche),
-  },
-  giratoire: {
-    titre: "Traverser un carrefour à sens giratoire",
-    etapesModele: [
-      "Contrôler au rétroviseur intérieur, sans clignotant",
-      "Adapter l'allure à l'approche",
-      "Balayer les véhicules engagés",
-      "Céder le passage à l'usager de l'anneau",
-      "Regarder à gauche avant de s'insérer",
-      "S'insérer et circuler dans l'anneau",
-      "Casser l'allure, rétroviseur intérieur",
-      "Clignotant à droite après la sortie précédente",
-      "Contrôler l'angle mort droit",
-      "Contrôler l'angle mort gauche",
-      "Balayer la sortie et sortir",
-      "Reprendre l'allure dans la voie de sortie",
-    ],
-    sources: [
-      "Carrefour à sens giratoire : place ou carrefour dont le terre-plein central est matériellement infranchissable, ceinturé par une chaussée mise à sens unique par la droite (on tourne en laissant l'îlot à sa gauche) et annoncé par une signalisation spécifique : R110-2.",
-      "Céder le passage aux usagers circulant sur l'anneau, quel que soit le classement de la route que l'on quitte : R415-10. Ici l'usager de l'anneau passe devant l'entrée sud au moment où l'élève s'y arrête : repéré pendant le balayage, il est suivi des yeux dès que l'élève ralentit pour lui et pendant l'arrêt ; une fois qu'il a quitté la zone de conflit, l'élève regarde à gauche l'anneau en amont, d'où viendrait un autre usager, puis s'insère, le regard devant.",
-      "Avertir les autres usagers avant de changer de direction, donc pour sortir du giratoire (clignotant) : R412-10. En face, pas de clignotant à l'entrée et clignotant droit à la sortie : fiche ECF C2-F ; ce clignotant s'allume après avoir dépassé la sortie qui précède la sienne : cours du thème 11 (contrôlé). Contrôler, puis indiquer, ici le rétroviseur intérieur avant le clignotant : fiche ECF C2-E (mémo R·A·P·S·C) et fiche ECF C2-F (méthode C.I.A. : contrôles, indications, actions). Les angles morts viennent ensuite, après le clignotant, dans l'ordre « rétroviseurs, clignotant, angle mort, manœuvre » du cours du thème 38 (contrôlé), retenu par Timy le 04/10. La scène allume le clignotant juste après le contrôle au rétroviseur intérieur, après la sortie précédente et au moins 2 s avant l'arc de sortie, et le garde jusqu'à la fin de cet arc ; la fiche C2-F place « sortir en allumant le clignotant droit » après le balayage de la sortie.",
-      "Dans un anneau à plusieurs voies, le conducteur qui vise une sortie située sur sa gauche par rapport à son axe d'entrée peut serrer à gauche, et tout changement de voie dans l'anneau reste soumis à la priorité et doit être signalé : R412-9. Non montré : l'anneau dessiné n'a qu'une voie.",
-      "Rester constamment maître de sa vitesse et la régler selon les difficultés de la circulation et les obstacles prévisibles : R413-17 II. Adapter l'allure à l'approche, puis casser l'allure avant de sortir : fiche ECF C2-F.",
-      "Signalisation : panneau AB25 de l'ordre de 50 m avant le giratoire en agglomération, panneau AB3a et ligne de cédez-le-passage à chaque entrée : cours du thème 11 (contrôlé). Marquage : unité u de 5 cm, modulations T'1 (traits de 1,50 m, vides de 5 m) et T'2 (traits et vides de 0,50 m) : IISR 7e partie, art. 113-1 ; axiale T'1 de largeur 2u, admise en agglomération, et ligne de cédez-le-passage T'2 de 0,50 m de large : art. 113-2 ; cette ligne s'étend sur toute la largeur de la voie entrante, de l'axe jusqu'à la bordure, marque la limite de la chaussée prioritaire (ici le bord de l'anneau) et est précédée d'une axiale continue de largeur 2u sur 10 à 20 m (15 m retenus) : art. 117-4 B.",
-      "Étapes et regards : d'après la fiche ECF C2-F (classeur de Timy) : à l'insertion, contrôles, allure adaptée, balayage des véhicules engagés, recherche de l'indice (allure de l'usager de l'anneau, son clignotant, sa position dans l'anneau), puis la décision, ici attendre ; l'usager passé, l'élève regarde de nouveau à gauche les véhicules qui pourraient être engagés avant de s'insérer. Sortie dans l'ordre « rétroviseurs, clignotant, angle mort, manœuvre » : cours du thème 38 (contrôlé), que suit le cours C2.4 (décision de Timy du 04/10). Soit, dans la scène : allure cassée sous le contrôle au rétroviseur intérieur (fiche ECF C2-F) ; clignotant droit après la sortie précédente (cours du thème 11, contrôlé) ; angle mort droit, un cycliste ou un cyclomotoriste pouvant longer le bord extérieur de l'anneau (cours du thème 11, contrôlé) ; angle mort gauche, vélo ou véhicule encore dans le giratoire (fiche ECF C2-F) ; balayage de la sortie. La fiche C2-F, elle, place l'angle mort avant le clignotant. L'anneau dessiné n'ayant qu'une voie, l'étape « se replacer sur la voie extérieure » de la fiche n'a pas lieu d'être.",
-      "Choix de dessin, sans portée réglementaire : petit giratoire urbain à une voie : îlot central de 8 m de rayon, anneau de 6 m de large (bord extérieur à 14 m du centre), raccordements de bordure de 8 m de rayon, quatre branches à double sens de voies de 3,5 m, sans îlot séparateur ; ligne de cédez-le-passage à 5 cm de l'anneau, AB3a à 1,95 m en amont de la ligne, AB25 à 50 m de l'anneau ; branches de 26 m au nord et à l'est, 76 m au sud, 40 m à l'ouest ; cadre de 40 x 46 m qui suit l'élève ; départ à 22 m du bord bas (la portée du cône du regard, pour que le cône du rétroviseur intérieur reste dans l'image), dans l'axe de la voie d'entrée ; trajectoires à 0,6 m des bordures (anneau parcouru à 12,5 m du centre, arcs d'entrée et de sortie de 9,5 m de rayon) ; 30 km/h en approche et en sortie ; allure adaptée progressivement à 15 km/h (1,0 m/s²), puis freinage de 2,0 m/s² jusqu'à l'arrêt, au début de l'arc d'entrée, le coin avant gauche à 0,3 m de la ligne ; 20 km/h dans l'anneau (petit giratoire urbain ; la fiche indique 30 à 35 km/h pour un giratoire courant) ; au plus 19 km/h dans les arcs d'entrée et de sortie, pour une accélération latérale sous 3,0 m/s² (20 km/h y donneraient 3,25 m/s²) : reprise de 1,5 m/s² depuis l'arrêt (17,8 km/h au bout de l'arc d'entrée), 20 km/h tenus 1,06 s, puis allure cassée à 11 km/h (2,0 m/s²) pendant le contrôle au rétroviseur intérieur, qui s'achève là où s'allume le clignotant, et tenue jusqu'à la fin de l'arc de sortie : à 11 km/h, le regard vers la sortie et les deux angles morts, qui suivent le clignotant, s'achèvent assez tôt pour que le balayage de la sortie commence près d'une seconde avant l'arc de sortie (ces trois regards tiendraient avant l'arc jusqu'à 14,5 km/h, mais le balayage commencerait alors à l'entrée de l'arc) ; usager de l'anneau venu de l'ouest et sorti à l'est, qui part et finit hors du dessin, à 30 km/h en approche, 18 km/h dans l'arc d'entrée, 20 km/h dans l'anneau et 15 km/h dans l'arc de sortie, et quitte la zone de conflit (le secteur de l'anneau de 40 à 125 degrés, devant l'entrée sud) 2,4 s après l'arrêt de l'élève ; regard de l'élève à gauche pendant 1,0 s, puis redémarrage (attente de 3,4 s au cédez-le-passage) ; clignotant droit allumé juste après le rétroviseur intérieur, 3,0 degrés après l'axe de la sortie précédente (3 degrés au moins) et 3,96 s avant l'arc de sortie (2 s au moins) ; les deux angles morts finissent 0,96 s avant l'arc de sortie ; cône du regard de 22 m, ouvert de 16 degrés de part et d'autre, qui s'arrête 2 m au-delà de l'usager suivi des yeux ; regard, par rapport à l'axe de la voiture : 180 degrés pendant 1,2 s (rétroviseur intérieur), droit devant, balayage de 75 degrés de part et d'autre (un aller-retour en 2 s) pendant les 2 s qui précèdent le freinage, usager de l'anneau suivi des yeux jusqu'à sa sortie de la zone de conflit, 55 degrés à gauche pendant 1,0 s à l'arrêt (l'anneau en amont, d'où viendrait un autre usager), droit devant, 180 degrés pendant 1,25 s en cassant l'allure, 21 degrés à gauche pendant 1,0 s une fois le clignotant allumé (vers la sortie : l'anneau tourne à gauche, et droit devant le regard tomberait sur la bordure extérieure, à 6,8 m), 120 degrés à droite pendant 1,0 s (angle mort droit), 120 degrés à gauche pendant 1,0 s (angle mort gauche ; tête tournée vers l'épaule pour les deux), balayage de la sortie jusqu'à la fin de l'arc de sortie, puis droit devant ; panneaux agrandis pour rester lisibles.",
-    ],
-    construire: unique(giratoireScene),
-  },
-  "regard-intersection": {
-    titre: "Regarder autour de soi à l'approche d'une intersection",
-    etapesModele: [
-      "Regarder loin devant",
-      "Contrôler au rétroviseur intérieur",
-      "Ralentir à l'approche",
-      "Regarder en face",
-      "Regarder à gauche",
-      "Regarder à droite",
-      "Traverser en regardant devant",
-    ],
-    sources: [
-      "Franchir une intersection, méthode P.P.D.A. : percevoir (regard loin et large), prévoir (« on s'attend toujours au pire »), décider, agir ; contrôles à l'approche : en face, à gauche, à droite ; rechercher les indices utiles, formels (panneaux, marquages, feux) et informels (regard, vitesse, attitude des autres) : procédures de stage (classeur de Timy), section 5.1. Ici l'indice à repérer est le véhicule arrêté à la ligne de cédez-le-passage de la branche est : indice informel (il attend), sur une branche qui porte un panneau et une ligne de cédez-le-passage (indices formels).",
-      "Regarder autour de soi : regard loin (analyser la situation 10 à 15 s devant), balayage gauche, centre, droite et rétroviseurs toutes les 4 à 5 s : fiche ECF C1-I (classeur de Timy), qui nomme la méthode PADA : percevoir, analyser, décider, agir. Les clignotants servent lors d'un arrêt, d'un départ et d'un changement de direction (même fiche) : l'élève va tout droit, sans clignotant.",
-      "Contrôler l'arrière au rétroviseur intérieur, puis casser l'allure et freiner progressivement : fiche ECF C1-H (freinage normal) ; contrôler avant d'agir, la première action étant de ralentir : méthode C.I.A. (contrôles, indications, actions), procédures de stage, section 1, et fiche ECF C1-I. L'élève ralentit sans se déporter : le contrôle est le coup d'œil au rétroviseur intérieur, le premier de l'ordre de Timy (rétroviseur intérieur, rétroviseur extérieur, angle mort).",
-      "Marquage : unité u de 5 cm, modulations T'1 (traits de 1,50 m, vides de 5 m) et T'2 (traits et vides de 0,50 m) : IISR 7e partie, art. 113-1 ; axiale T'1 de largeur 2u, admise en agglomération, et ligne de cédez-le-passage T'2 de 0,50 m de large : art. 113-2 ; cette ligne s'étend sur toute la largeur de la voie entrante, de l'axe jusqu'à la bordure, marque la limite de la chaussée prioritaire et est précédée d'une axiale continue de largeur 2u sur 10 à 20 m (15 m retenus) : art. 117-4 B.",
-      "Étapes et regards : d'après les procédures de stage (section 5.1) et les fiches ECF C1-I et C1-H (classeur de Timy) : regarder loin devant, contrôler au rétroviseur intérieur avant de ralentir, ralentir à l'approche, regarder en face, à gauche, puis à droite, où attend le véhicule à repérer, les trois contrôles achevés avant d'entrer dans l'intersection, puis traverser en regardant devant. La scène montre une méthode de regard ; la règle de priorité (ici l'axe nord-sud, choix de dessin) relève de C2.5.",
-      "Choix de dessin, sans portée réglementaire : voies de 3,5 m ; arrondi de bordure de 6 m ; axe nord-sud prioritaire (cédez-le-passage sur les branches est et ouest), sans passage piéton ; branches de 108 m au sud (le recul du départ et l'approche : le plus petit nombre entier de mètres qui loge les étapes, le regard loin devant durant au moins 1,0 s), 14 m à l'est et 11 m à l'ouest (le plus petit nombre entier de mètres pour que le cône du regard à droite, puis celui du regard à gauche, tiennent dans la largeur du dessin), 8 m au nord (la voiture de l'élève sort de l'intersection : son arrière en est à 5,25 m quand son trajet s'achève) ; cadre de 46 m de haut sur toute la largeur, qui suit l'élève ; départ à 22 m du bord bas (la portée du cône du regard : tourné vers l'arrière, le cône du rétroviseur intérieur reste dans l'image), au centre de la voie de droite, trajet tout droit vers le nord ; 50 km/h en approche, la vitesse maximale en agglomération ; décélération constante de 2,0 m/s² (le freinage progressif de la fiche C1-H ramené à une valeur moyenne : 2,78 s sur 30,9 m) jusqu'à 30 km/h, allure réduite à l'approche de l'intersection, tenue jusqu'à la fin : les trois contrôles à l'approche, de 1,0 s chacun, tiennent sur les 25 derniers mètres avant l'intersection, que l'élève traverse sans s'arrêter ; véhicule qui attend posé au centre de la voie entrante est, tourné vers l'ouest, l'avant à 0,3 m de la ligne de cédez-le-passage, feux stop allumés comme tout véhicule à l'arrêt ; cône du regard de 22 m, ouvert de 16 degrés de part et d'autre ; regard, par rapport à l'axe de la voiture : droit devant pendant 1,01 s (regarder loin devant) ; 180 degrés pendant 1,0 s (rétroviseur intérieur), achevé quand le ralentissement commence ; droit devant pendant le ralentissement, puis pendant 1,0 s (en face) ; 30 degrés à gauche pendant 1,0 s, vers l'entrée de la branche ouest : pendant tout le regard, le cône contient l'entrée de sa voie entrante (au bord amont de la ligne de cédez-le-passage), qui passe de 14,6 à 23,8 degrés à gauche de l'axe de la voiture, vu de l'œil du conducteur, et, en fin de regard, il couvre cette voie jusqu'à 7,2 m en amont de la ligne ; 30 degrés à droite pendant 1,0 s, vers l'entrée de la branche est, achevé quand l'avant de la voiture atteint le bord de l'intersection : pendant tout le regard, le cône contient le véhicule qui attend, qui passe de 18,4 à 35,5 degrés à droite ; à 60 degrés de part et d'autre, le cône du regard à gauche n'atteindrait la voie entrante ouest qu'après 0,35 s de regard, et celui du regard à droite ne contiendrait le véhicule qui attend qu'une fois l'avant de la voiture à 1,9 m dans l'intersection ; droit devant pour traverser ; panneaux agrandis pour rester lisibles.",
-    ],
-    construire: unique(regardIntersection),
-  },
-  "trajectoire-courbe": {
-    titre: "Diriger la voiture en ligne droite et en courbe",
-    etapesModele: [
-      "Regarder loin devant",
-      "Freiner avant le virage, en ligne droite",
-      "S'écarter un peu du bord",
-      "Regarder la sortie du virage",
-      "Réaccélérer en sortie",
-      "Regarder loin devant",
-      "Freiner avant le virage, en ligne droite",
-      "Rester à droite de sa voie",
-      "Regarder la sortie du virage",
-      "Réaccélérer en sortie",
-    ],
-    sources: [
-      "Diriger la voiture en courbe : freiner avant la courbe, en ligne droite ; en virage à droite, s'écarter un peu du bord ; en virage à gauche, rester à droite de sa voie ; regarder vers la sortie du virage ; réaccélérer en sortie : méthode de Timy pour C1.7 (07/10/2026).",
-      "Rester constamment maître de sa vitesse et la régler en fonction de l'état de la chaussée, des difficultés de la circulation et des obstacles prévisibles : R413-17 II ; la réduire dans les virages : R413-17 III 6°. Ici l'élève la réduit avant chaque virage, en ligne droite, et la tient dans le virage.",
-      "En marche normale, maintenir son véhicule près du bord droit de la chaussée, autant que le lui permet l'état ou le profil de celle-ci : R412-9. Ici l'élève reste dans sa voie de bout en bout : un peu écarté du bord dans le virage à droite, à droite de sa voie dans le virage à gauche (méthode de Timy). Ces déplacements dans la voie ne sont pas des changements de direction : pas de clignotant, qui sert lors d'un arrêt, d'un départ et d'un changement de direction (fiche ECF C1-I).",
-      "Maintenir la trajectoire : regard loin dans la courbe, la voiture suit le regard ; allure dosée avant le virage ; réaccélérer dès que le véhicule est en ligne ; « lent entrée, rapide sortie » : fiche ECF C1-C (classeur de Timy). La fiche indique aussi de lâcher l'accélérateur dans le virage : la scène y tient l'allure de virage, sans ralentir, le freinage étant achevé avant l'entrée (méthode de Timy). En virage, relâcher l'accélérateur avant l'entrée et réaccélérer à la sortie ; freiner avant le danger : fiche ECF C1-E. Regard loin, la situation analysée 10 à 15 s devant ; feux stop pour avertir d'un freinage : fiche ECF C1-I. Actions dans l'ordre : ralentir, rétrograder, freiner, tourner, accélérer : procédures de stage (méthode C.I.A.), section 1 ; la scène en montre le freinage avant le virage et la reprise après, sans dessiner le rétrogradage.",
-      "Marquage : unité u de 5 cm, axiale T'1 de largeur 2u (traits de 1,50 m, vides de 5 m), admise en agglomération : IISR 7e partie, art. 113-1 et 113-2 ; en milieu urbain, les bordures de trottoir matérialisent généralement le bord de la chaussée, sans ligne de rive : art. 114-5. Les virages dessinés sont en section courante, à visibilité non réduite (rien ne masque leur intérieur) : l'axiale y reste discontinue (art. 114-5) ; un virage à visibilité réduite serait un point singulier (art. 115), où l'axiale devient continue (art. 116).",
-      "Étapes et regards : d'après la méthode de Timy (07/10/2026) et les fiches ECF C1-C, C1-E et C1-I (classeur de Timy) : pour chaque virage, regarder loin devant, freiner avant le virage en ligne droite, se placer dans sa voie, regarder la sortie du virage en le parcourant, réaccélérer en sortie ; la même suite pour le virage à droite, puis pour le virage à gauche.",
-      "Choix de dessin, sans portée réglementaire : route d'agglomération à double sens, deux voies de 3,5 m, un trottoir de chaque côté, sans autre usager ; un virage à droite puis un virage à gauche, de 40 m de rayon mesuré sur l'axe de la chaussée (un virage d'agglomération), qui font chacun tourner la route de 30 degrés : la route tourne nettement, et toute la scène, que montre l'image fixe des animations réduites, tient dans 65 m de large ; à 60 degrés (la valeur par défaut du décor), la ligne droite entre les virages s'étirerait presque d'ouest en est, le dessin ferait 125 m de large et la voiture y serait presque deux fois plus petite ; lignes droites qui logent exactement ce qui s'y passe : 53,2 m d'approche (départ, regard loin devant, freinage, placement), 83,3 m entre les virages (reprise, regard loin devant, freinage, placement), 33,3 m de sortie (reprise) ; 3 m de trottoir montré à gauche de l'approche et à droite de la sortie (le plus petit nombre entier de mètres qui loge le repère numéroté de la dernière étape) ; cadre de 46 m de haut sur toute la largeur, qui suit l'élève ; départ au centre de la voie, l'arrière de la voiture à 0,5 m du bord bas (la voiture entière dans l'image dès le départ), arrivée à 0,5 m du bord haut ; 50 km/h en ligne droite, la vitesse maximale en agglomération ; freinage de 2,0 m/s² (le freinage progressif ramené à sa moyenne) jusqu'à 35 km/h, en 24,6 m et 2,08 s, achevé avant le placement, donc avant le virage ; 35 km/h tenus pendant le placement et dans tout le virage, sans aucun ralentissement ; reprise de 1,5 m/s² dès la sortie du virage, jusqu'à 50 km/h, en 32,8 m et 2,78 s ; placement dans la voie, sans changement de voie, sur 12 m d'avance (1,2 s) : la voiture quitte le centre de sa voie de 0,25 m vers l'axe avant le virage à droite (son flanc gauche finit à 0,60 m de l'axe, son flanc droit à 1,10 m de la bordure au lieu de 0,85 m), puis se déplace de 0,50 m vers la bordure avant le virage à gauche (son flanc droit finit à 0,60 m de la bordure) : 0,60 m, la marge des autres scènes entre un flanc et la bordure qu'il suit ; rayons parcourus de 38,50 m dans le virage à droite et de 42,00 m dans le virage à gauche, soit, à 35 km/h, 2,46 et 2,25 m/s² d'accélération latérale (3,0 m/s² au plus) et 2,07 et 2,26 s dans chaque virage ; cône du regard de 22 m, ouvert de 16 degrés de part et d'autre ; regard, par rapport à l'axe de la voiture : droit devant pendant 1,0 s à 50 km/h (regarder loin devant), puis pendant le freinage et le placement ; pendant tout le virage, vers le trajet de la voiture 10 m au-delà de la sortie du virage, dans la ligne droite qui suit : là où va la voiture, le regard porté loin dans la courbe (la voiture suit le regard : fiche ECF C1-C ; regard vers la sortie du virage : méthode de Timy) ; 10 m, la plus grande distance, en mètres entiers, qui garde le bout de l'axe du regard (le milieu du bord lointain du triangle dessiné, à 21,15 m de l'œil le long de son axe) dans la voie de l'élève pendant les deux virages, avec 11 cm de marge au plus près, à l'entrée du virage à gauche (27 cm pour le point de l'axe à la portée du regard, 22 m) ; à 11 m, ce bout entrerait dans la voie opposée à l'entrée du virage à gauche ; en deçà de 5 m, il tomberait sur le trottoir de droite à la fin du virage à gauche ; le cône suit ce point pendant que la voiture tourne : jusqu'à ce que l'avant de la voiture l'atteigne, la sortie du virage est dans l'ouverture du regard (16 degrés de part et d'autre de son axe) et à moins de sa portée (22 m) de l'œil ; à l'entrée du virage à gauche, image figée de l'étape comprise, la sortie, à 21,45 m de l'œil et à 5,0 degrés de l'axe, dépasse le bord lointain du triangle dessiné de 0,22 m au plus, pendant les 0,23 premiers mètres d'arc (23 ms) ; à l'entrée du virage, le regard porte à 20,9 degrés à droite (virage à droite) et à 19,1 degrés à gauche (virage à gauche) de l'axe de la voiture ; droit devant dès la sortie du virage, le regard, alors à 2,3 degrés à droite de l'axe de la voiture (le point visé est droit devant elle, et le conducteur est assis à gauche), s'alignant sur lui.",
-    ],
-    construire: unique(trajectoireCourbe),
-  },
-  "demarrer-arreter": {
-    titre: "Démarrer et s'arrêter",
-    etapesModele: [
-      "Contrôler au rétroviseur intérieur",
-      "Contrôler au rétroviseur extérieur gauche",
-      "Contrôler l'angle mort gauche",
-      "Mettre le clignotant gauche",
-      "Démarrer et rejoindre sa voie",
-      "Rouler au centre de sa voie",
-      "Contrôler au rétroviseur intérieur",
-      "Contrôler au rétroviseur extérieur droit",
-      "Contrôler l'angle mort droit",
-      "Mettre le clignotant droit",
-      "Ralentir et se rapprocher du bord",
-      "S'arrêter au bord",
-    ],
-    sources: [
-      "Avertir les autres usagers de son intention avant de changer de direction ou de ralentir, notamment lorsque, après un arrêt ou un stationnement, on veut reprendre sa place dans le courant de la circulation : R412-10. Ici : clignotant gauche pour quitter le bord et rejoindre sa voie, clignotant droit pour se rapprocher du bord et s'arrêter.",
-      "En agglomération, sur une chaussée à double sens, un véhicule à l'arrêt ou en stationnement se place sur le côté droit de la chaussée, sauf dispositions différentes prises par l'autorité investie du pouvoir de police : R417-1 (I, 2°). Ici la voiture de l'élève part du bord droit et s'y arrête, alignée sur les voitures garées.",
-      "Ordre des gestes : méthode de Timy (07/10/2026). Au départ : rétroviseur intérieur, rétroviseur extérieur gauche, angle mort gauche, clignotant gauche, puis démarrer. À l'arrêt : rétroviseur intérieur, rétroviseur extérieur droit, angle mort droit, clignotant droit, puis ralentir et s'arrêter au bord. C'est l'ordre de Timy pour toute manœuvre : rétroviseur intérieur, rétroviseur extérieur du côté de la manœuvre, angle mort du même côté, clignotant, action.",
-      "S'arrêter : contrôler derrière (rétroviseur intérieur), casser l'allure en lâchant l'accélérateur, freiner progressivement (frein moteur et frein de service), débrayer juste avant l'arrêt complet pour ne pas caler, puis, au point mort, serrer le frein à main si l'on stationne : fiche ECF C1-D (classeur de Timy). La scène montre le contrôle derrière et un ralentissement régulier jusqu'à l'arrêt ; les pédales, le levier de vitesses et le frein à main ne se voient pas d'en haut.",
-      "Marquage : unité u de 5 cm, modulation T'1 (traits de 1,50 m, vides de 5 m) : IISR 7e partie, art. 113-1 ; axiale T'1 de largeur 2u, admise en agglomération : art. 113-2 ; pas de ligne de rive, les bordures de trottoir matérialisant généralement le bord de la chaussée en milieu urbain : art. 114-5. La bande de stationnement n'est pas marquée.",
-      "Choix de dessin, sans portée réglementaire : rue droite d'agglomération à double sens, voies de 3,5 m, bande de stationnement non marquée de 2,0 m le long du trottoir droit (une voiture garée à 0,3 m du trottoir y déborde de 0,1 m sur la voie de droite, qui garde 3,4 m), trottoirs montrés sur 5 m (le plus petit nombre entier de mètres qui garde dans l'image le cône du rétroviseur intérieur au départ et celui du regard devant à l'arrêt) ; aucune circulation (C1 : trafic faible ou nul) ; voitures garées, celle de l'élève comprise, le flanc droit à 0,3 m du trottoir, l'une 1,0 m derrière l'élève (garée de près, comme dans une file de voitures en stationnement : l'élève part en avant et ne s'en approche pas), l'autre 8 m devant (place assez dégagée pour partir sans manœuvre) ; les voitures garées, personne au volant, ont leurs feux stop éteints ; celle de l'élève les allume à l'arrêt, le pied sur le frein ; la voiture de l'élève braque autour du milieu de son essieu arrière, 1,45 m derrière son centre (porte-à-faux arrière de 0,80 m), comme une vraie voiture, dont les roues arrière ne braquent pas ; départ à 22 m du bord bas et arrêt à 22 m du bord haut (la portée du cône du regard : le cône du rétroviseur intérieur au départ et celui du regard devant à l'arrêt restent dans l'image) ; cadre de 19 x 46 m qui suit l'élève ; à l'arrêt, coups d'œil de 1,2 s au rétroviseur intérieur, de 1,2 s au rétroviseur extérieur gauche et de 1,0 s à l'angle mort gauche, puis clignotant gauche allumé, regard devant, 2,0 s avant le départ (2 s au moins, pas davantage pour ne pas allonger l'attente) ; départ en un décalage de 2,55 m vers la gauche, de la place au centre de la voie de droite, sur 11 m d'avance (le déboîtement le plus progressif, en mètres entiers, qui n'approche jamais la voiture garée devant à moins de l'écart que laisse la voie ; plus court, la voiture braquerait plus serré), commencé dès le départ, avec une reprise de 1,5 m/s² jusqu'à 10 km/h (allure réduite tant que la voiture quitte sa place, entre les voitures garées), tenus jusqu'au centre de la voie (accélération latérale de 0,62 m/s² au plus en rejoignant sa voie ; son coin arrière droit passe à 0,28 m du trottoir, et le flanc droit passe à 0,75 m de la voiture garée devant, l'écart que laisse la voie) ; clignotant gauche éteint au centre de la voie, et étape « Rouler au centre de sa voie » commencée 1 cm plus loin (la plus petite avance, au centimètre près, qui montre le clignotant gauche éteint sur l'image figée de l'étape) ; reprise de 1,5 m/s² jusqu'à 30 km/h (rue calme, trafic nul), tenus 1,0 s avant de préparer l'arrêt ; en roulant, coups d'œil de 1,2 s au rétroviseur intérieur, de 1,2 s au rétroviseur extérieur droit et de 1,0 s à l'angle mort droit, puis clignotant droit allumé, regard devant, 2,0 s avant de se rapprocher du bord ; décalage de 2,55 m vers la droite sur 20 m d'avance (se rapprocher du bord en douceur, à l'allure de la rue ; plus court, l'avant droit, qui balaie vers le trottoir en se rangeant, en passerait plus près ; plus long, il ne resterait presque plus de ligne droite pour s'arrêter le long du trottoir), en ralentissant à 1,5 m/s² dès son début (accélération latérale de 1,74 m/s² au plus en se rapprochant du bord ; l'avant droit passe à 0,13 m du trottoir avant que la voiture se redresse ; bord atteint à 10,7 km/h), puis arrêt 2,93 m plus loin, en ligne droite, le flanc droit à 0,3 m du trottoir, aligné sur les voitures garées ; clignotant droit éteint à l'arrêt ; image tenue 1,0 s : scène de 27,1 s ; cône du regard de 22 m, ouvert de 16 degrés de part et d'autre ; regard, par rapport à l'axe de la voiture : 180 degrés (rétroviseur intérieur), 170 degrés à gauche puis à droite (rétroviseurs extérieurs), 120 degrés à gauche puis à droite (angles morts, tête tournée vers l'épaule), droit devant le reste du temps.",
-    ],
-    construire: unique(demarrerArreter),
-  },
-  "marche-arriere": {
-    titre: "Marche arrière en ligne droite le long du trottoir",
-    etapesModele: [
-      "Engager la marche arrière",
-      "Faire le tour du regard",
-      "Reculer en regardant par la lunette arrière",
-      "S'arrêter",
-    ],
-    sources: [
-      "Marche arrière en ligne droite le long du trottoir, méthode de Timy enseignée à l'ECF (07/10/2026) : avant de partir, un regard qui fait le tour complet (devant, gauche avec rétroviseur et angle mort, lunette arrière, droite avec rétroviseur et angle mort) ; pendant le recul, le regard par-dessus l'épaule droite, vers la lunette arrière ; l'allure du pas. Ordre des étapes : la marche arrière s'engage d'abord, et ses feux de recul préviennent les autres usagers ; les contrôles viennent ensuite, à l'arrêt ; le mouvement en dernier ; puis s'arrêter, et regarder devant avant de repartir. C'est l'ordre de la méthode V·V·C·C (vitesse, volant, contrôles, clignotants), moyen mnémotechnique du demi-tour en trois temps (procédures de stage, section 4.3), appliquée ici par extension à la marche arrière, et celui du temps 2 de ce demi-tour (marche arrière engagée, puis tour du regard) : choix du contrôleur de chantier, soumis à la validation de Timy. Le recul se fait en ligne droite, dans sa voie : la méthode n'y prévoit ni braquage ni clignotant.",
-      "Feux de recul : blancs, à l'arrière, ils s'allument d'eux-mêmes au passage de la marche arrière ; ils éclairent la zone située derrière le véhicule et signalent la manœuvre aux autres usagers : cours du thème 22, D (contrôlé). Ils comptent parmi les indications : procédures de stage, section 1 (méthode C.I.A.), et fiche ECF C1-I. Le trajet part en marche arrière : les feux de recul sont allumés dès l'étape 1, voiture à l'arrêt, et jusqu'à la fin.",
-      "Faire le tour du regard avant de reculer : derrière le coffre, un enfant accroupi peut n'être visible ni directement ni au rétroviseur (angle mort d'autant plus étendu que le véhicule est haut), d'où le contour du véhicule avant toute marche arrière : cours du thème 24, F (contrôlé). Ici, depuis le poste de conduite, le tour du regard de la méthode de Timy.",
-      "Marche arrière inévitable : à allure très réduite, sous contrôles visuels constants : cours du thème 05 (contrôlé). Ici l'allure du pas, et le regard tourné vers l'arrière jusqu'à l'arrêt.",
-      "Marquage : unité u de 5 cm, modulation T'1 (traits de 1,50 m, vides de 5 m) : IISR 7e partie, art. 113-1 ; axiale T'1 de largeur 2u, admise en agglomération : art. 113-2 ; pas de ligne de rive, les bordures de trottoir matérialisant généralement le bord de la chaussée en milieu urbain : art. 114-5.",
-      "Choix de dessin, sans portée réglementaire : rue droite d'agglomération à double sens, voies de 3,5 m, sans voiture ni piéton en mouvement (C1 : trafic faible ou nul) ; 4 m de trottoir montrés de chaque côté (le plus petit nombre entier de mètres pour que, sur l'image figée du tour, le cône du regard à droite, côté trottoir, se voie au-delà de la voiture sur au moins la largeur d'une voie : 4,3 m) ; rue de 60 m (le plus petit nombre entier de mètres qui garde dans le dessin le cône du regard par la lunette jusqu'à l'arrêt) ; cadre de 46 m de haut sur toute la largeur, qui suit l'élève et montre en entier les cônes du tour tournés devant et derrière ; voiture de l'élève arrêtée dans la voie de droite, tournée vers le nord, le flanc droit à 0,3 m de la bordure du trottoir, son centre à 23 m du bord haut (le plus petit nombre entier de mètres qui garde dans le dessin le cône du regard pendant tout le tour, dont la pointe passe à 22 m de l'œil dans toutes les directions) ; recul de 15 m en ligne droite, le flanc droit toujours à 0,3 m de la bordure ; voiture en stationnement, feux éteints, posée au-delà de la zone de recul, le long du même trottoir et tournée vers le nord, son avant à 2 m de l'arrière de la voiture de l'élève arrêtée : au départ, 17 m sont libres derrière la voiture ; recul à 4 km/h, l'allure du pas, atteints puis quittés à 1,0 m/s², une mise en mouvement et un arrêt progressifs (1,11 s et 0,62 m chacun), tenus 12,39 s : 14,61 s de recul ; marche arrière engagée dès le début (feux de recul allumés), regard devant pendant 1,0 s (la durée minimale d'une étape), puis tour du regard pendant 4,0 s, à l'arrêt (sa durée minimale : un quart de tour par seconde) : la voiture recule 5,0 s après le début ; cône du regard de 22 m, ouvert de 16 degrés de part et d'autre ; regard, par rapport à l'axe de la voiture : droit devant pendant 1,0 s ; tour complet vers la gauche (devant, à gauche, l'arrière, à droite, de nouveau devant) pendant 4,0 s, montré sur une image figée par quatre cônes, devant, à gauche, derrière et à droite ; 165 degrés à droite pendant tout le recul (par-dessus l'épaule droite, vers la lunette arrière, et non 180, le rétroviseur intérieur) : le cône contient, jusqu'à l'arrêt, le chemin qu'il reste au milieu du pare-chocs arrière à parcourir et l'avant de la voiture garée ; le coin arrière gauche et son chemin, à gauche de la voiture, n'y entrent jamais (le tour du regard les a vus avant de partir) ; droit devant une fois la voiture arrêtée, pendant 1,0 s, l'image finale tenue.",
-    ],
-    construire: unique(marcheArriere),
-  },
-  "demi-tour": {
-    titre: "Faire demi-tour en trois temps",
-    etapesModele: [
-      "Temps 1 : contrôler au rétroviseur intérieur",
-      "Contrôler au rétroviseur extérieur gauche",
-      "Contrôler l'angle mort gauche",
-      "Mettre le clignotant gauche",
-      "Avancer volant à gauche jusqu'au trottoir opposé",
-      "S'arrêter avant le trottoir, engager la marche arrière",
-      "Temps 2 : faire le tour du regard",
-      "Mettre le clignotant droit",
-      "Reculer volant à droite, par la lunette arrière",
-      "S'arrêter avant le trottoir, engager la première",
-      "Temps 3 : contrôler au rétroviseur intérieur",
-      "Contrôler au rétroviseur extérieur gauche",
-      "Contrôler l'angle mort gauche",
-      "Mettre le clignotant gauche",
-      "Repartir volant à gauche, puis se replacer au milieu de la voie",
-      "Rouler dans la voie de droite",
-    ],
-    sources: [
-      "Avertir les autres usagers avant de changer de direction, notamment pour se porter à gauche ou traverser la chaussée, ou pour reprendre sa place dans la circulation après un arrêt : R412-10. Chaque temps du demi-tour est annoncé : clignotant gauche au premier, droit au deuxième, gauche au troisième (décision de Timy du 07/10/2026). Au deuxième temps, en marche arrière volant à droite, l'arrière de la voiture part vers sa droite : le clignotant est de ce côté.",
-      "Demi-tour en trois temps, méthode de Timy (07/10/2026) : en avant vers la gauche jusqu'au trottoir opposé ; en arrière, volant à droite, jusqu'au bord de départ ; en avant pour repartir dans la voie de droite du nouveau sens. À chaque temps, la méthode V·V·C·C (vitesse, volant, contrôles, clignotants) : procédures de stage (classeur de Timy), section 4.3, et mémo de la fiche ECF C1-D. La scène engage le rapport et tourne le volant à l'arrêt, puis montre les contrôles, le clignotant et le mouvement ; le volant ne se voit pas d'en haut, la trajectoire en montre l'effet.",
-      "Contrôles dans l'ordre de Timy (07/10/2026), du côté de la manœuvre, puis clignotant, puis action : rétroviseur intérieur, rétroviseur extérieur gauche, angle mort gauche, aux premier et troisième temps. Avant de reculer, le regard qui fait le tour complet (devant ; à gauche, rétroviseur et angle mort ; lunette arrière ; à droite, rétroviseur et angle mort) ; pendant le recul, regard par-dessus l'épaule droite vers la lunette arrière, à l'allure du pas : méthode de Timy pour la marche arrière.",
-      "Feux de recul blancs, qui s'allument au passage de la marche arrière : cours du thème 22 (contrôlé). La scène les allume dès l'arrêt qui finit le premier temps, où la marche arrière est engagée, et les éteint dès l'arrêt qui finit le deuxième, où la première l'est.",
-      "Marquage : unité u de 5 cm, modulation T'1 (traits de 1,50 m, vides de 5 m) : IISR 7e partie, art. 113-1 ; axiale T'1 de largeur 2u, admise en agglomération : art. 113-2 ; pas de ligne de rive, les bordures de trottoir matérialisant généralement le bord de la chaussée en milieu urbain : art. 114-5.",
-      "Choix de dessin, sans portée réglementaire : rue droite d'agglomération, sans circulation ni voiture garée (C1 : trafic faible ou nul) ; chaussée de 7,2 m, en deux voies de 3,6 m : dans la rue de 7 m des autres scènes, la voiture, braquée à fond et arrêtée à 0,3 m de chaque trottoir, mordrait de 0,12 m sur le trottoir opposé au troisième temps, son coin avant droit balayant un cercle de 6,01 m de rayon autour du centre de rotation, et une chaussée de 7,1 m ne lui laisserait que 0,08 m : 7,2 m est la plus petite largeur, au décimètre, où elle n'en passe pas plus près (0,28 m) qu'au premier temps ; 5 m de trottoir de chaque côté (le plus petit nombre entier de mètres qui garde dans l'image le cône du rétroviseur intérieur au départ, tourné vers l'arrière : 4,46 m au moins), 8 m de rue au nord du départ (le plus petit nombre entier de mètres où chaque repère des animations réduites trouve sa place : à 7 m, celui des étapes 6 à 9, qui ne tiendrait plus devant la voiture arrêtée au bout du premier temps, passerait derrière elle, sur les places de celui des étapes 10 à 15), 22 m au sud (la portée du cône du regard : le cône du rétroviseur intérieur, tourné vers l'arrière, tient dans l'image) ; cadre fixe de 17,2 m sur 30 m, le monde entier : toute la manœuvre se voit à chaque instant, plus grande que dans un cadre de 46 m de haut ; voiture de 4,5 m sur 1,8 m qui pivote autour de son essieu arrière, à 1,45 m de son centre (porte-à-faux arrière de 0,80 m, l'ordre de grandeur d'une compacte) ; braquage de 4,1 m de rayon au centre de la voiture (le plus petit retenu, celui d'une citadine), soit 3,835 m à l'essieu et, avec 2,7 m d'empattement et 1,55 m de voie (l'écart entre les roues d'un essieu), un diamètre de braquage d'environ 10,7 m entre trottoirs, l'ordre de grandeur d'une compacte ; volant tourné à fond à l'arrêt : chaque temps est un arc qui part de l'arrêt ; départ arrêté au bord droit, flanc droit à 0,3 m du trottoir ; chaque temps va jusqu'à 0,3 m du trottoir qu'il approche : 61,7 degrés au premier temps, 31,9 au deuxième, 86,4 au troisième, jusqu'au cap opposé à celui du départ ; en roulant, au plus près des trottoirs, 0,23 m au premier temps (l'arrière se déporte de 0,07 m vers le trottoir de départ) et 0,28 m au troisième ; recentrage dans la voie, sans clignotant (un déplacement dans sa voie, pas un changement de direction) : 0,65 m vers la droite sur 8 m d'avance, le plus petit nombre entier de mètres qui garde la voiture à 0,6 m au moins de la bordure, la marge des autres scènes entre un flanc et la bordure qu'il longe (0,63 m au plus près ; 7 m la mèneraient à 0,56 m, 5 m à 0,31 m), puis roues droites au milieu de la voie pendant 1,0 s ; 5 km/h en avant, 4 km/h en arrière, au pas, mesurés au milieu de l'essieu arrière (dans les arcs, le centre de la voiture va 7 % plus vite), allure prise et perdue à 1,0 m/s² ; arrêts de 5,4 s au départ, puis de 7,0 s et 6,4 s aux deux rebroussements : le temps des gestes faits à l'arrêt ; clignotant allumé après les contrôles, 2,0 s avant chaque départ, éteint dès l'arrêt qui finit son temps, le dernier au bout du troisième virage ; cône du regard de 22 m, ouvert de 16 degrés de part et d'autre ; regard, par rapport à l'axe de la voiture : 180 degrés pendant 1,2 s (rétroviseur intérieur), 170 degrés à gauche pendant 1,2 s (rétroviseur extérieur gauche), 120 degrés à gauche pendant 1,0 s (angle mort, tête tournée vers l'épaule), droit devant pendant les 2,0 s du clignotant ; au premier temps, en avançant volant à gauche, regard vers un point fixe, là où va la voiture (regarder où l'on va : la voiture suit le regard, fiche ECF C1-C) : la bordure du trottoir opposé droit devant la voiture à son arrêt, là où l'axe de la voiture arrêtée la coupe ; le regard part à 55,3 degrés à gauche et suit le point : pendant tout le premier temps, le cône contient l'endroit où s'arrête l'avant de la voiture ; pendant ses quatre premiers cinquièmes, le trajet de la voiture 3 m plus loin, jusqu'à l'arrêt au plus ; dès son dernier cinquième, parcouru en freinant vers le trottoir, il ne reste au centre de la voiture que 0,88 m à parcourir, à côté du conducteur : c'est l'endroit où s'arrête l'avant qui montre où va la voiture ; au troisième temps, du départ jusqu'au milieu de la voie, regard vers un point fixe, le milieu de la voie de droite du nouveau sens, loin devant : 13,9 m au-delà du bout du troisième virage, où la voiture s'aligne sur sa voie, soit 10 s à 5 km/h (regard loin, analyser la situation 10 à 15 s devant : fiche ECF C1-I ; 10 s, le bas de la fourchette, gardent le point dans l'image) ; le regard part à 78,4 degrés à gauche, vers où va la voiture, et suit le point : le cône contient, pendant toute l'étape, le milieu de la voie 10 m devant la voiture et son trajet 6 m plus loin ; pendant le dernier cinquième du virage, son trajet 2, 3, 4 et 6 m plus loin ; pendant le recentrage, son trajet 3, 4 et 6 m plus loin, et 2 m plus loin pendant 68 % du recentrage (ce point proche, vu de l'œil, passe jusqu'à 18,4 degrés à droite de l'axe de la voiture) ; dans ces deux phases, jamais le milieu de la voie opposée 10 m devant ; à chaque arrivée, pendant 1,0 s, le regard reste sur le trottoir devant lequel la voiture s'arrête (droit devant, puis par la lunette arrière) ; tour du regard en 4,0 s (devant, à gauche, derrière, à droite) ; recul par-dessus l'épaule droite, 165 degrés à droite, distinct du rétroviseur intérieur à 180 ; droit devant une fois la voiture au milieu de sa voie ; scène de 38,8 s, dont 1,0 s d'image tenue à la fin.",
-    ],
-    construire: unique(demiTour),
-  },
+  "tourner-droite": { ...meta("tourner-droite"), construire: unique(tournerDroite) },
+  "tourner-gauche": { ...meta("tourner-gauche"), construire: unique(tournerGauche) },
+  giratoire: { ...meta("giratoire"), construire: unique(giratoireScene) },
+  "regard-intersection": { ...meta("regard-intersection"), construire: unique(regardIntersection) },
+  "trajectoire-courbe": { ...meta("trajectoire-courbe"), construire: unique(trajectoireCourbe) },
+  "demarrer-arreter": { ...meta("demarrer-arreter"), construire: unique(demarrerArreter) },
+  "marche-arriere": { ...meta("marche-arriere"), construire: unique(marcheArriere) },
+  "demi-tour": { ...meta("demi-tour"), construire: unique(demiTour) },
+  "sortie-portiere": { ...meta("sortie-portiere"), construire: unique(sortiePortiere) },
 };

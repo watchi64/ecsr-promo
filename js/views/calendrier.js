@@ -4,11 +4,11 @@
  */
 import {
   listAgendaEvents, addAgendaEvent, updateAgendaEvent, deleteAgendaEvent,
-} from "../db.js?v=20261013a";
-import { el, clear, isoDate, formatDate, formatLongDate, parseDate, toast } from "../utils.js?v=20261013a";
-import { icon } from "../icons.js?v=20261013a";
-import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20261013a";
-import { recordUndo } from "../undo.js?v=20261013a";
+} from "../db.js?v=20261015b";
+import { el, clear, isoDate, formatDate, formatLongDate, parseDate, toast } from "../utils.js?v=20261015b";
+import { icon } from "../icons.js?v=20261015b";
+import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20261015b";
+import { recordUndo } from "../undo.js?v=20261015b";
 
 let events = [];
 

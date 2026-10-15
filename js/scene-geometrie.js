@@ -31,6 +31,9 @@
  * `de` et `a`, étapes `s`, rebroussements) comme la courbure sont les siennes.
  */
 
+import { GABARIT_VELO } from "./piece-cycliste.js?v=20261015b";
+import { adoucir, cles as valeurDesCles } from "./animation-courbes.js?v=20261015b";
+
 export const DEG = Math.PI / 180;
 export const KMH = 1 / 3.6;
 
@@ -41,7 +44,69 @@ export const GABARITS = {
   // compacte (par exemple 0,8 m de porte-à-faux arrière et 2,7 m d'empattement pour 4,4 à 4,5 m de long).
   voiture: { longueur: 4.5, largeur: 1.8, essieu: 1.45 },
   pieton: { longueur: 0.5, largeur: 0.5 },
+  // velo : un cycliste sur son vélo, vu du dessus (choix de dessin, plan 3, tâche 13) : 1,8 m de long, deux roues de
+  // 0,7 m de diamètre et 1,1 m d'empattement ; 0,6 m de large, la largeur du guidon. Le gabarit de la pièce partagée avec le
+  // dessin des angles morts (js/piece-cycliste.js).
+  velo: GABARIT_VELO,
 };
+
+/**
+ * Portière avant gauche d'une voiture (GABARITS.voiture), côté conducteur, dans le repère de la caisse : charnière sur le
+ * flanc gauche, à `charniere` m devant le centre de la voiture, à l'avant de la portière (elle s'ouvre par l'arrière) ;
+ * `longueur` m de la charnière au bord arrière ; ouverture d'au plus `ouvertureMax` degrés. Choix de dessin (plan 3,
+ * tâche 13), sans portée réglementaire : l'ordre de grandeur d'une portière avant de compacte, qui commence derrière la
+ * roue avant et finit derrière le conducteur (de 0,95 m devant le centre de la voiture à 0,15 m derrière lui, l'œil du
+ * conducteur étant à 0,2 m devant) ; 35 degrés, une première ouverture, mesurée, sans l'ouvrir en grand.
+ */
+export const PORTIERE = { charniere: 0.95, longueur: 1.1, ouvertureMax: 35 };
+
+/**
+ * Angle d'ouverture (degrés) d'une portière à l'instant t, d'après ses clés `clesPortiere` : [{ t, angle }], instants
+ * croissants (secondes, horloge de la scène). C'est la suite de clés des gestes (cles de js/animation-courbes.js), sur la
+ * courbe adoucir : entre deux clés, le mouvement part et arrive en douceur ; avant la première clé, l'angle de la première ;
+ * après la dernière, celui de la dernière (la portière reste où elle est).
+ */
+export function anglePortiere(clesPortiere, t) {
+  return valeurDesCles(clesPortiere.map((cle) => ({ t: cle.t, v: cle.angle })), t, adoucir);
+}
+
+// Point (x, y) du repère de la caisse (x vers l'avant, y vers la droite, depuis le centre) d'une voiture dans l'état e,
+// exprimé dans le repère de l'écran : la règle d'emprise.
+function depuisCaisse(e, x, y) {
+  const c = Math.cos(e.cap), s = Math.sin(e.cap);
+  return { x: e.x + x * c - y * s, y: e.y + x * s + y * c };
+}
+
+/**
+ * Portière avant gauche (PORTIERE) d'une voiture dans l'état e (x, y, cap de la caisse), ouverte de `angleDeg` degrés :
+ * { charniere: { x, y }, bord: { x, y } }, la charnière et le bord arrière de sa face extérieure, en m dans le repère de
+ * l'écran. Fermée, la portière court le long du flanc gauche, de la charnière vers l'arrière ; en s'ouvrant, elle tourne
+ * autour de la charnière, son bord arrière s'écartant de la caisse vers la gauche.
+ */
+export function portiereA(e, angleDeg) {
+  const flanc = -GABARITS.voiture.largeur / 2, a = angleDeg * DEG;
+  return {
+    charniere: depuisCaisse(e, PORTIERE.charniere, flanc),
+    bord: depuisCaisse(e, PORTIERE.charniere - PORTIERE.longueur * Math.cos(a), flanc - PORTIERE.longueur * Math.sin(a)),
+  };
+}
+
+/**
+ * Zone de la portière d'une voiture dans l'état e : le secteur que balaie la portière quand elle s'ouvre, de fermée à
+ * `angleMaxDeg` degrés. Polygone [[x, y], ...] : la charnière, puis l'arc que décrit le bord arrière, par pas d'au plus
+ * `pasDeg` degrés. L'arc est circonscrit (ses cordes sont tangentes au cercle de la portière, comme pour disque) : une zone
+ * de danger ne se rogne jamais ; elle déborde du secteur d'au plus 1,1 mm avec des pas de 5 degrés.
+ */
+export function zonePortiere(e, angleMaxDeg, pasDeg = 5) {
+  const { charniere } = portiereA(e, 0);
+  const n = Math.max(1, Math.ceil(angleMaxDeg / pasDeg));
+  const etirement = 1 / Math.cos(((angleMaxDeg / n) * DEG) / 2);
+  const arc = Array.from({ length: n + 1 }, (_, k) => {
+    const { bord } = portiereA(e, (angleMaxDeg * k) / n);
+    return [charniere.x + (bord.x - charniere.x) * etirement, charniere.y + (bord.y - charniere.y) * etirement];
+  });
+  return [[charniere.x, charniere.y], ...arc];
+}
 
 // ===== Segments et trajets =====
 
@@ -481,11 +546,34 @@ function valeurRecue(v) {
   return `« ${typeof v === "string" ? JSON.stringify(v) : String(v)} » (${type})`;
 }
 
+// Clés de la portière d'un acteur (état portiere, voir etatActeur) : au moins deux, aux instants croissants (nombres finis de
+// secondes, positifs ou nuls), d'angles de 0 à PORTIERE.ouvertureMax degrés ; seule une voiture a une portière.
+function verifierPortiere(code, nom, a) {
+  const debut = `scène ${code} : acteur ${nom} : portière`;
+  if (a.gabarit !== "voiture") throw new Error(`${debut} sur un gabarit « ${a.gabarit} » : seule une voiture en a une`);
+  if (!Array.isArray(a.portiere) || a.portiere.length < 2) throw new Error(`${debut} : au moins deux clés { t, angle } attendues`);
+  a.portiere.forEach((cle, k) => {
+    const precedent = k > 0 ? a.portiere[k - 1].t : -Infinity;
+    if (!(typeof cle.t === "number" && Number.isFinite(cle.t) && cle.t >= 0 && cle.t > precedent)) {
+      throw new Error(`${debut}, clé ${k + 1} : instant ${valeurRecue(cle.t)} invalide`
+        + " (nombre fini de secondes, positif ou nul, après celui de la clé précédente)");
+    }
+    if (!(typeof cle.angle === "number" && cle.angle >= 0 && cle.angle <= PORTIERE.ouvertureMax)) {
+      throw new Error(`${debut}, clé ${k + 1} : angle ${valeurRecue(cle.angle)} invalide (de 0 à ${PORTIERE.ouvertureMax} degrés)`);
+    }
+  });
+}
+
 /**
  * Calcule les chronologies des acteurs et les bornes de chaque étape, `t` et `fin`. Refuse une
- * `apparition` autre que « debut » ou « depart » (ou absente), et un `delai` ou un
+ * `apparition` autre que « debut » ou « depart » (ou absente), un `delai` ou un
  * `delaiFin` de clignotant qui n'est pas un nombre fini de secondes, positif ou nul (voir
- * etatActeur).
+ * etatActeur), et des clés de portière mal formées (verifierPortiere).
+ *
+ * La voiture de l'élève roule d'ordinaire (trajet et profil) ; elle peut aussi être posée (`pose` : garée, moteur coupé,
+ * pour une scène où elle ne bouge pas). Ses étapes se placent alors par leur seul délai, compté depuis le début de la
+ * scène : `s` vaut 0 ou est absent, faute de trajet le long duquel le compter. La scène dure jusqu'à la fin du dernier
+ * trajet ou jusqu'à la dernière clé de portière, plus la pause de fin (`finPause`, 1 s par défaut).
  */
 export function preparerScene(def) {
   const acteurs = def.acteurs.map((a, i) => {
@@ -501,14 +589,26 @@ export function preparerScene(def) {
         }
       }
     }
+    if (a.portiere !== undefined) verifierPortiere(def.code, nom, a);
     return a.pose
       ? { ...a }
       : { ...a, chrono: chronologie(a.chemin, a.profil, { depart: a.depart || 0 }) };
   });
   const eleve = acteurs.find((a) => a.role === "eleve");
-  if (!eleve || !eleve.chrono) throw new Error(`scène ${def.code} : un acteur mobile de rôle « eleve » est requis`);
-  const debuts = def.etapes.map((e) => tempsAtteint(eleve.chrono, e.s) + (e.delai || 0));
-  const duree = Math.max(...acteurs.filter((a) => a.chrono).map((a) => a.chrono.duree)) + (def.finPause ?? 1);
+  if (!eleve || !(eleve.chrono || eleve.pose)) {
+    throw new Error(`scène ${def.code} : un acteur de rôle « eleve » est requis, mobile ou posé (voiture garée)`);
+  }
+  const debuts = def.etapes.map((e, i) => {
+    if (eleve.chrono) return tempsAtteint(eleve.chrono, e.s) + (e.delai || 0);
+    if (e.s !== undefined && e.s !== 0) {
+      throw new Error(`scène ${def.code} : étape ${i + 1} : la voiture de l'élève est posée (garée) : une étape se place par son`
+        + ` délai, à s = 0 (reçu : s = ${e.s})`);
+    }
+    return e.delai || 0;
+  });
+  const fins = [...acteurs.filter((a) => a.chrono).map((a) => a.chrono.duree),
+    ...acteurs.flatMap((a) => (a.portiere || []).map((cle) => cle.t))];
+  const duree = Math.max(0, ...fins) + (def.finPause ?? 1);
   // Bornes de chaque étape : son instant `t`, et sa fin `fin`, l'instant de l'étape suivante ou, pour la dernière, la fin
   // de la scène. Un regard qui fait le tour se règle sur elles (js/scene-regard.js).
   const etapes = def.etapes.map((e, i) => ({ ...e, t: debuts[i], fin: i + 1 < debuts.length ? debuts[i + 1] : duree }));
@@ -589,8 +689,17 @@ export function sortDuCadre(acteur) {
  *   déplacement, et `marche` vaut "arriere" sur un segment parcouru en marche arrière,
  *   "avant" sinon. Arrêté à un rebroussement, l'acteur est déjà dans la marche qui suit (la
  *   vitesse est passée avant de repartir). Un acteur fixe est en marche avant.
+ * - Portière : un acteur qui en porte les clés (`portiere`, voir preparerScene) a dans son
+ *   état `portiere`, l'angle d'ouverture de sa portière avant gauche (degrés, anglePortiere),
+ *   posé comme mobile. Aucun autre acteur n'a ce champ : son état ne change pas.
  */
 export function etatActeur(acteur, t) {
+  const e = etatSansPortiere(acteur, t);
+  if (acteur.portiere) e.portiere = anglePortiere(acteur.portiere, t);
+  return e;
+}
+
+function etatSansPortiere(acteur, t) {
   if (acteur.pose) {
     const cap = acteur.pose.cap * DEG;
     return { x: acteur.pose.x, y: acteur.pose.y, cap, capMarche: cap, marche: "avant", v: 0, a: 0, s: 0,

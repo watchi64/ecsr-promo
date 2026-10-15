@@ -811,3 +811,75 @@ test("demi-tour en trois temps : à l'instant de chaque étape de contrôles, au
     for (let t = tAllumage; t < tAllumage + 2.5; t += 0.1) assert.equal(cote(t), suivant, `t = ${t.toFixed(2)} s`);
   }
 });
+
+// ===== Portière (plan 3, tâche 13) : la portière ne s'ouvre jamais sur un usager =====
+//
+// Voiture de l'élève posée, garée vers le nord en (10 ; 40), moteur coupé : flanc gauche en x = 9,1, charnière de la
+// portière en y = 39,05, bord arrière (fermée) en y = 40,15 ; ouverte à 35 degrés, la portière s'écarte du flanc de 0,63 m
+// (zone de x = 8,47 à 9,1). Cycliste vers le nord à 18 km/h (5 m/s), le guidon à 0,4 m du flanc (centre en x = 8,4, de
+// x = 8,1 à 8,7) : il passe dans la zone de la portière. Il part de y = 58 (centre en y = 58 - 5 t, avant en y = 57,1 - 5 t)
+// et sort du monde (20 x 60 m) par le bord haut. Sur sa bande, la zone commence en y = 40,075 (le bord du secteur à 0,4 m
+// du flanc : 39,05 + √(1,1² - 0,4²), et 0,2 mm de l'arc circonscrit) : il lui reste 17,025 - 5 t m à faire pour la toucher.
+const garee = (portiere) => ({ id: "eleve", role: "eleve", gabarit: "voiture", stationne: true, pose: { x: 10, y: 40, cap: -90 }, portiere });
+function cycliste(x = 8.4, extra = {}) {
+  const chemin = trajet(x, 58, -90).droit(61).fin();
+  return { id: "cycliste", gabarit: "velo", chemin, profil: constant(chemin, 18), ...extra };
+}
+const ouvrirA = (t) => [{ t, angle: 0 }, { t: t + 1.5, angle: 35 }];
+const scenePortiere = (portiere, autres = [cycliste()], extra = {}) => scene([garee(portiere), ...autres],
+  { monde: { largeur: 20, hauteur: 60 }, etapes: [{ s: 0 }, { s: 0, delai: 1 }], ...extra });
+
+test("portière : ouverte une fois le cycliste passé, à plus de 10 m devant elle, elle est conforme", () => {
+  // À t = 7 s, l'arrière du cycliste (y = 23,9) est à 15,15 m devant la charnière.
+  assert.deepEqual(controlerScene(scenePortiere(ouvrirA(7))), []);
+});
+
+test("portière : ouverte quand le cycliste est dans la zone de la portière, elle est refusée dès le premier instant de l'ouverture ; une fois passé, il n'est plus « en approche »", () => {
+  // À t = 3,5 s, le cycliste, de y = 39,6 à 41,4, longe la portière : il est dans le secteur qu'elle balaie. La portière
+  // quitte 0 degré à cet instant même (départ amorti : 1e-17 degré une microseconde plus tard) : elle s'ouvre déjà.
+  // Sorti de la zone par l'avant, le cycliste s'en éloigne : aucun autre message.
+  assert.deepEqual(controlerScene(scenePortiere(ouvrirA(3.5))),
+    ["eleve : portière ouverte alors que cycliste est dans la zone de la portière (t = 3.5 s)"]);
+});
+
+test("portière : ouverte quand le cycliste arrive par l'arrière à moins de 10 m de sa zone, elle est refusée, avant même qu'il y entre", () => {
+  // À t = 1,8 s, il lui reste 8,025 m à faire pour toucher la zone.
+  const messages = controlerScene(scenePortiere(ouvrirA(1.8)));
+  assert.equal(messages[0], "eleve : portière ouverte alors que cycliste arrive par l'arrière à 8.03 m de la zone de la portière,"
+    + " moins de 10 m (t = 1.8 s)");
+  // Restée ouverte, la portière l'a ensuite dans sa zone : à t = 3,5 s (à 3,4 s, son avant, en y = 40,1, n'y est pas encore).
+  assert.match(messages.join("\n"), /cycliste est dans la zone de la portière \(t = 3\.5 s\)/);
+  assert.equal(SEUILS.approchePortiere, 10);
+});
+
+test("portière : le seuil de 10 m se lit jusqu'au dernier instant de l'ouverture : entrouverte puis refermée, le cycliste encore à 10,23 m de la zone, elle est conforme ; à 9,78 m, refusée", () => {
+  // Ouverte de t0 à t0 + 1 s (35 degrés à mi-temps, refermée ensuite) : le chemin le plus court qui reste au cycliste est
+  // au dernier instant contrôlé avant la fermeture, une milliseconde avant elle, 12,03 - 5 t0. À t0 = 0,45 s, il est encore
+  // de 10,025 m au dernier dixième de seconde contrôlé (t = 1,4 s) : seul l'instant qui précède la fermeture le voit sous 10 m.
+  const entrouvrir = (t0) => [{ t: t0, angle: 0 }, { t: t0 + 0.5, angle: 35 }, { t: t0 + 1, angle: 0 }];
+  assert.deepEqual(controlerScene(scenePortiere(entrouvrir(0.36))), []);
+  assert.deepEqual(controlerScene(scenePortiere(entrouvrir(0.45))),
+    ["eleve : portière ouverte alors que cycliste arrive par l'arrière à 9.78 m de la zone de la portière, moins de 10 m (t = 1.4 s)"]);
+});
+
+test("portière : un usager qui passe hors de sa zone, un usager à l'arrêt derrière elle ou une portière qui ne s'ouvre jamais ne sont pas refusés", () => {
+  // Cycliste dont le guidon passe à 0,9 m du flanc (de x = 7,6 à 8,2) : au-delà des 0,63 m que balaie la portière.
+  assert.deepEqual(controlerScene(scenePortiere(ouvrirA(3.5), [cycliste(7.9)])), []);
+  // Voiture garée 3 m derrière, sur la même ligne : à l'arrêt, elle n'arrive pas.
+  const derriere = { id: "garee", gabarit: "voiture", stationne: true, pose: { x: 10, y: 49.5, cap: -90 } };
+  assert.deepEqual(controlerScene(scenePortiere(ouvrirA(7), [cycliste(), derriere])), []);
+  // Clés à 0 degré : la portière ne s'ouvre pas, même avec le cycliste à côté.
+  assert.deepEqual(controlerScene(scenePortiere([{ t: 3, angle: 0 }, { t: 4, angle: 0 }])), []);
+});
+
+test("portière : son contrôle vient après les clignotants et avant les attentes", () => {
+  const def = scenePortiere(ouvrirA(3.5), [cycliste()],
+    { attentes: [{ type: "dans", acteur: "fantome", nom: "voie", zone: rectangle(0, 0, 1, 1), de: 0, a: 1 }] });
+  // Un autre véhicule qui vire sans clignotant.
+  const c = trajet(15, 58, -90).droit(20).virage(10, 90).droit(10).fin();
+  def.acteurs.push({ id: "autre", gabarit: "voiture", chemin: c, profil: constant(c, 15), depart: 0 });
+  const messages = controlerScene(def);
+  const rang = (motif) => messages.findIndex((m) => motif.test(m));
+  assert.ok(rang(/clignotant droite attendu/) >= 0 && rang(/portière ouverte/) >= 0 && rang(/« fantome » inconnu/) >= 0, messages.join("\n"));
+  assert.ok(rang(/clignotant droite attendu/) < rang(/portière ouverte/) && rang(/portière ouverte/) < rang(/« fantome » inconnu/), messages.join("\n"));
+});

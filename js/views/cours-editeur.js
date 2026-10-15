@@ -10,19 +10,19 @@
  * enregistrement ; si le cours a bougé entre-temps, un bandeau propose
  * d'écraser ou d'abandonner, rien ne part sans décision.
  */
-import { el, clear, debounce } from "../utils.js?v=20261013a";
-import { icon } from "../icons.js?v=20261013a";
+import { el, clear, debounce } from "../utils.js?v=20261015b";
+import { icon } from "../icons.js?v=20261015b";
 import { getCours, saveCours, setCoursPublie, listCoursVersions, getCoursVersion, uploadCoursImage }
-  from "../db.js?v=20261013a";
-import { rendreMarkdown, detruireScenes } from "./cours-reader.js?v=20261013a";
+  from "../db.js?v=20261015b";
+import { rendreMarkdown, detruireScenes } from "./cours-reader.js?v=20261015b";
 import { insererSyntaxe, titreDepuisMarkdown, cheminImage, interpolerAncres, libelleCle, estCodeCompetence }
-  from "../cours-rules.js?v=20261013a";
-import { getProfileWho } from "../auth-admin.js?v=20261013a";
-import { reduireImage } from "../cours-images.js?v=20261013a";
-import { SIGNAUX, carteSignal } from "../signaux.js?v=20261013a";
-import { CATALOGUE } from "../signaux-catalogue.js?v=20261013a";
-import { MARQUAGES, carteMarquage } from "../marquage.js?v=20261013a";
-import { SCENES } from "../scenes.js?v=20261013a";
+  from "../cours-rules.js?v=20261015b";
+import { getProfileWho } from "../auth-admin.js?v=20261015b";
+import { reduireImage } from "../cours-images.js?v=20261015b";
+import { SIGNAUX, carteSignal } from "../signaux.js?v=20261015b";
+import { CATALOGUE } from "../signaux-catalogue.js?v=20261015b";
+import { MARQUAGES, carteMarquage } from "../marquage.js?v=20261015b";
+import { CATALOGUE as CATALOGUE_BLOCS } from "../catalogue-blocs.js?v=20261015b";
 
 const OUTILS = [
   { label: "Gras", avant: "**", apres: "**", defaut: "texte" },
@@ -257,8 +257,12 @@ export async function openCoursEditeur(cle, { onFerme } = {}) {
       };
       const groupe = (titre, boutons) => el("div", { class: "editeur-blocs-groupe" },
         el("p", { class: "editeur-blocs-titre" }, titre), ...boutons);
-      panneau.appendChild(groupe("Schéma animé", Object.entries(SCENES).map(([code, s]) =>
-        bouton(s.titre, `\n:::scene ${code}\n${s.etapesModele.join("\n")}\n:::\n`))));
+      // Le catalogue des blocs, dans son ordre : le menu ne charge aucun moteur ni aucun dessin. Un bouton par entrée, qui insère
+      // l'ouverture du bloc, son modèle (les étapes d'un schéma, la légende d'un dessin) et la fermeture.
+      panneau.appendChild(groupe("Schéma animé", Object.entries(CATALOGUE_BLOCS).filter(([, e]) => e.bloc === "scene").map(([code, e]) =>
+        bouton(e.titre, `\n:::scene ${code}\n${e.etapesModele.join("\n")}\n:::\n`))));
+      panneau.appendChild(groupe("Dessin", Object.entries(CATALOGUE_BLOCS).filter(([, e]) => e.bloc === "dessin").map(([code, e]) =>
+        bouton(e.titre, `\n:::dessin ${code}\n${e.legendeModele}\n:::\n`))));
       panneau.appendChild(groupe("Quiz", [
         bouton("Remettre dans l'ordre", MODELES_BLOCS.ordre),
         bouton("Vrai ou faux", MODELES_BLOCS["vrai-faux"]),
@@ -347,6 +351,18 @@ export async function openCoursEditeur(cle, { onFerme } = {}) {
   // serait du gâchis ; 400 ms après la dernière frappe suffisent). =====
   let minuterie = null;
   let contexteApercu = null;   // dernier rendu de l'aperçu : ses schémas sont à arrêter avant le suivant
+  // Encadré « À corriger dans les blocs », en tête de l'aperçu : les messages du rendu, puis ceux des blocs qui échouent plus tard.
+  const boiteAvertissements = (messages) => el("div", { class: "editeur-avertissements" },
+    el("p", {}, "À corriger dans les blocs"),
+    el("ul", {}, messages.map((m) => el("li", {}, m))));
+  function ajouterAvertissement(message) {
+    let boite = apercu.querySelector(":scope > .editeur-avertissements");
+    if (!boite) { boite = boiteAvertissements([]); apercu.prepend(boite); }
+    const liste = boite.querySelector("ul");
+    if ([...liste.children].some((li) => li.textContent === message)) return;   // déjà dit (une reprise qui échoue de nouveau)
+    liste.appendChild(el("li", {}, message));
+    carteObsolete = true;      // l'encadré a déplacé l'aperçu : la carte des ancres est à refaire
+  }
   function rafraichirApercu() {
     clearTimeout(minuterie);
     minuterie = setTimeout(() => {
@@ -356,11 +372,10 @@ export async function openCoursEditeur(cle, { onFerme } = {}) {
       const { noeuds, contexte } = rendreMarkdown(zone.value, { cartes: estCodeCompetence(cle) });
       contexteApercu = contexte;
       // Les blocs mal formés ne se voient qu'ici : le stagiaire n'a jamais de message.
-      if (contexte.erreurs.length) {
-        apercu.appendChild(el("div", { class: "editeur-avertissements" },
-          el("p", {}, "À corriger dans les blocs"),
-          el("ul", {}, contexte.erreurs.map((m) => el("li", {}, m)))));
-      }
+      if (contexte.erreurs.length) apercu.appendChild(boiteAvertissements(contexte.erreurs));
+      // Un schéma qui n'a pu ni se charger ni se monter le dit après le rendu : son message rejoint la même liste. Un rendu
+      // déjà remplacé n'écrit plus rien (ses blocs sont détruits, donc muets ; cette garde le garantit aussi).
+      contexte.signaler = (message) => { if (contexteApercu === contexte) ajouterAvertissement(message); };
       noeuds.forEach((n) => apercu.appendChild(n));
       // Le re-rendu change la géométrie : carte d'ancres à reconstruire,
       // puis réalignement de l'aperçu sur la zone.

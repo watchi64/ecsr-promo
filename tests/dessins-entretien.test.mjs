@@ -1,0 +1,361 @@
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { CATALOGUE } from "../js/catalogue-blocs.js";
+import * as famille from "../js/dessins-entretien.js";
+import { SOURCES } from "../sources/dessins-entretien.js";
+import { verifierDessin, verifierGeste } from "./aides-dessins.mjs";
+import { trouverRole, trouverTous, texteDe } from "../js/dessin-svg.js";
+import { CHARTE, reperesProfil, VOITURE } from "../js/dessins-kit.js";
+
+const codes = Object.keys(CATALOGUE).filter((c) => CATALOGUE[c].module === "entretien");
+
+test("entretien : chaque code du catalogue est dessiné et passe les contrôles communs", () => {
+  for (const code of codes) {
+    const e = CATALOGUE[code];
+    if (e.bloc === "dessin") assert.deepEqual(verifierDessin(famille.DESSINS[code](), e.cadre), [], code);
+    else assert.deepEqual(verifierGeste(famille.GESTES[code].construire(), e), [], code);
+  }
+  const fournis = [...Object.keys(famille.DESSINS), ...Object.keys(famille.GESTES || {})].sort();
+  assert.deepEqual(fournis, [...codes].sort());
+});
+
+test("entretien : chaque dessin a ses sources, dont ses choix de dessin", () => {
+  for (const code of codes) {
+    assert.ok(Array.isArray(SOURCES[code]) && SOURCES[code].length >= 2, code);
+    assert.ok(SOURCES[code].some((s) => s.startsWith("Choix de dessin")), code);
+  }
+});
+
+// ----- Aides de lecture -----
+
+const nb = (noeud, attribut) => {
+  const v = Number(noeud.attributs[attribut]);
+  assert.ok(Number.isFinite(v), `${noeud.attributs["data-r"] || noeud.balise} : ${attribut} absent ou non numérique`);
+  return v;
+};
+const textes = (noeud) => trouverTous(noeud, (x) => x.balise === "text").map(texteDe);
+// Lignes d'une étiquette du kit, jointes par une espace.
+const lignes = (etiquette) => textes(etiquette).join(" ");
+// Point désigné par une étiquette du kit (son filet part de là).
+const cible = (etiquette) => [nb(etiquette, "data-x"), nb(etiquette, "data-y")];
+// Point d'une étiquette du kit tel qu'il est dessiné : son centre, le rayon du disque sombre et celui de son liseré clair.
+function pointDe(etiquette) {
+  const rayons = trouverTous(etiquette, (x) => x.balise === "circle").map((c) => nb(c, "r"));
+  const [x, y] = cible(etiquette);
+  return { x, y, rayon: Math.min(...rayons), lisere: Math.max(...rayons) };
+}
+// Boîte d'une partie : centre (data-x, data-y), largeur et hauteur (data-largeur, data-hauteur).
+function boite(partie) {
+  const [x, y, l, h] = ["data-x", "data-y", "data-largeur", "data-hauteur"].map((k) => nb(partie, k));
+  return { x1: x - l / 2, x2: x + l / 2, y1: y - h / 2, y2: y + h / 2 };
+}
+const dans = ([x, y], b) => x >= b.x1 && x <= b.x2 && y >= b.y1 && y <= b.y2;
+const auBord = ([x, y], b) => Math.min(x - b.x1, b.x2 - x, y - b.y1, b.y2 - y);
+// Nombres d'un tracé, lus par paires [x, y].
+function points(d) {
+  const v = String(d).match(/-?\d+(?:\.\d+)?/g).map(Number), r = [];
+  for (let i = 0; i + 1 < v.length; i += 2) r.push([v[i], v[i + 1]]);
+  return r;
+}
+const hautDe = (chemin) => Math.min(...points(chemin.attributs.d).map((p) => p[1]));
+const basDe = (chemin) => Math.max(...points(chemin.attributs.d).map((p) => p[1]));
+const droiteDe = (chemin) => Math.max(...points(chemin.attributs.d).map((p) => p[0]));
+const gaucheDe = (chemin) => Math.min(...points(chemin.attributs.d).map((p) => p[0]));
+// Translation d'un groupe (« translate(x y) », suivi ou non d'une rotation).
+const translation = (g) => String(g.attributs.transform).match(/translate\(\s*(-?[\d.]+)[ ,]+(-?[\d.]+)/).slice(1).map(Number);
+// Point dans un polygone (règle pair-impair) ; distance d'un point au contour d'un polygone.
+function dansPolygone([px, py], poly) {
+  let dedans = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const [xi, yi] = poly[i], [xj, yj] = poly[j];
+    if ((yi > py) !== (yj > py) && px < ((xj - xi) * (py - yi)) / (yj - yi) + xi) dedans = !dedans;
+  }
+  return dedans;
+}
+function distanceContour([px, py], poly) {
+  let d = Infinity;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const [ax, ay] = poly[j], [bx, by] = poly[i], l2 = (bx - ax) ** 2 + (by - ay) ** 2;
+    const t = l2 ? Math.max(0, Math.min(1, ((px - ax) * (bx - ax) + (py - ay) * (by - ay)) / l2)) : 0;
+    d = Math.min(d, Math.hypot(px - (ax + t * (bx - ax)), py - (ay + t * (by - ay))));
+  }
+  return d;
+}
+
+// ----- Sous le capot -----
+
+const ORGANES = {
+  huile: "Huile moteur",
+  jauge: "Jauge",
+  "vase-expansion": "Liquide de refroidissement (vase d'expansion)",
+  "liquide-frein": "Liquide de frein",
+  "lave-glace": "Lave-glace",
+  batterie: "Batterie",
+};
+
+test("capot : chaque organe à vérifier est dessiné et nommé des mots du cours, le point du filet posé sur lui", () => {
+  const d = famille.DESSINS.capot();
+  for (const [role, attendu] of Object.entries(ORGANES)) {
+    const partie = trouverRole(d, role);
+    assert.ok(partie, `partie « ${role} » absente`);
+    const e = trouverRole(d, `etiquette-${role}`);
+    assert.ok(e, `étiquette de « ${role} » absente`);
+    assert.ok(lignes(e) === attendu || lignes(e).startsWith(`${attendu} `), `${role} : « ${lignes(e)} »`);
+    assert.ok(dans(cible(e), boite(partie)), `${role} : le filet ne part pas de la partie désignée`);
+  }
+});
+
+// Un organe désigné se reconnaît sur un téléphone et le point de son étiquette ne le cache pas : dans sa plus petite dimension,
+// il mesure au moins une fois et demie le point (liseré compris), et le centre du point est sur lui, à moins d'un rayon de
+// point de son bord (le point en déborde). Pour la mise en garde, l'organe désigné est le bouchon du vase.
+test("capot : chaque organe se lit sur un téléphone et le point de son étiquette n'en couvre qu'un bord", () => {
+  const d = famille.DESSINS.capot();
+  for (const role of Object.keys(ORGANES)) {
+    const p = pointDe(trouverRole(d, `etiquette-${role}`));
+    const partie = trouverRole(d, role);
+    if (role === "vase-expansion") {
+      const bouchon = trouverRole(partie, "bouchon"), r = nb(bouchon, "r");
+      const ecart = Math.hypot(p.x - nb(bouchon, "cx"), p.y - nb(bouchon, "cy"));
+      assert.ok(2 * r >= 3 * p.lisere, `bouchon du vase de ${2 * r} unités pour un point de ${2 * p.lisere}`);
+      assert.ok(ecart <= r && r - ecart <= p.rayon, `vase : point à ${(r - ecart).toFixed(2)} du bord du bouchon`);
+      continue;
+    }
+    const b = boite(partie), petite = Math.min(b.x2 - b.x1, b.y2 - b.y1);
+    assert.ok(petite >= 3 * p.lisere, `${role} : ${petite.toFixed(1)} unités dans sa plus petite dimension, point de ${2 * p.lisere}`);
+    assert.ok(dans([p.x, p.y], b) && auBord([p.x, p.y], b) <= p.rayon, `${role} : point à ${auBord([p.x, p.y], b).toFixed(2)} du bord`);
+  }
+});
+
+test("capot : « Jamais moteur chaud » désigne le bouchon du vase d'expansion, dans la teinte « faux » ; la disposition varie, c'est écrit", () => {
+  const d = famille.DESSINS.capot();
+  assert.ok(textes(d).includes("La disposition varie selon les modèles"));
+  const e = trouverRole(d, "etiquette-vase-expansion");
+  assert.ok(lignes(e).endsWith("Jamais moteur chaud"), `étiquette du vase : « ${lignes(e)} »`);
+  const bouchon = trouverRole(trouverRole(d, "vase-expansion"), "bouchon");
+  assert.ok(bouchon, "bouchon du vase d'expansion absent");
+  const [cx, cy] = cible(e);
+  assert.ok(Math.hypot(cx - nb(bouchon, "cx"), cy - nb(bouchon, "cy")) <= nb(bouchon, "r"), "le filet ne part pas du bouchon");
+  // La mise en garde, et elle seule, dans la teinte « faux », en demi-gras.
+  for (const t of trouverTous(e, (x) => x.balise === "text")) {
+    const garde = ["Jamais", "moteur chaud"].includes(texteDe(t));
+    assert.equal(t.attributs.fill === CHARTE.faux && Number(t.attributs["font-weight"]) === 600, garde, `ligne « ${texteDe(t)} »`);
+  }
+});
+
+test("capot : la batterie porte ses deux cosses, marquées + et −, chacune au bout d'un câble", () => {
+  const d = famille.DESSINS.capot();
+  const batterie = trouverRole(d, "batterie"), b = boite(batterie);
+  const signes = trouverTous(batterie, (x) => x.balise === "text");
+  assert.deepEqual(signes.map(texteDe).sort(), ["+", "−"].sort());
+  for (const s of signes) assert.ok(dans([nb(s, "x"), nb(s, "y")], b), `signe « ${texteDe(s)} » hors de la batterie`);
+  const cosses = trouverTous(batterie, (x) => /^cosse-/.test(x.attributs["data-r"] || ""));
+  assert.equal(cosses.length, 2);
+  for (const c of cosses) {
+    assert.ok(dans([nb(c, "data-x"), nb(c, "data-y")], b), "cosse hors de la batterie");
+    const cable = trouverRole(c, "cable"), pince = trouverTous(c, (x) => x.balise === "path")[0];
+    assert.ok(cable, "cosse sans câble");
+    assert.ok(Math.abs(nb(cable, "x1") - gaucheDe(pince)) < 0.01, "le câble ne part pas de la cosse");
+    assert.ok(Math.hypot(nb(cable, "x2") - nb(cable, "x1"), nb(cable, "y2") - nb(cable, "y1")) >= 2 * pointDe(trouverRole(d, "etiquette-batterie")).lisere,
+      "amorce de câble trop courte pour se voir");
+  }
+});
+
+test("capot : la voiture est celle du kit, vue du dessus, découpée à un identifiant propre à chaque dessin ; le compartiment est sous son capot", () => {
+  const d1 = famille.DESSINS.capot(), d2 = famille.DESSINS.capot();
+  const ids = [d1, d2].map((d) => {
+    const decoupe = trouverTous(d, (x) => x.balise === "clipPath");
+    assert.equal(decoupe.length, 1);
+    const id = decoupe[0].attributs.id;
+    assert.equal(trouverRole(d, "decoupe").attributs["clip-path"], `url(#${id})`);
+    // Un seul rôle « caisse », celui de la voiture du kit : le groupe de la découpe a son nom à lui (relecture finale du lot
+    // D1, T10 n° 4 : deux « caisse » faisaient lire au premier trouvé le groupe au lieu de la caisse).
+    assert.equal(trouverTous(d, (x) => x.attributs["data-r"] === "caisse").length, 1, "un seul rôle « caisse »");
+    return id;
+  });
+  assert.notEqual(ids[0], ids[1], "deux dessins du capot partagent un identifiant de découpe");
+  const voiture = trouverRole(d1, "voiture");
+  assert.ok(voiture, "voiture du kit absente");
+  assert.equal(nb(voiture, "data-angle"), 0, "l'avant à droite, comme les vues du dessus du kit");
+  // Le compartiment ouvert est dans la caisse du kit (entre ses flancs, avant son nez) et devant son pare-brise.
+  const [tx, ty] = translation(voiture);
+  const caisse = trouverRole(voiture, "caisse"), pareBrise = trouverRole(voiture, "pare-brise");
+  const [cx1, cy1] = [tx + nb(caisse, "x"), ty + nb(caisse, "y")], [cx2, cy2] = [cx1 + nb(caisse, "width"), cy1 + nb(caisse, "height")];
+  assert.ok(Math.abs((cx2 - cx1) / (cy2 - cy1) - VOITURE.longueur / VOITURE.largeur) < 1e-6, "proportions de la caisse du kit");
+  const compartiment = points(trouverRole(d1, "compartiment").attributs.d);
+  for (const [x, y] of compartiment) assert.ok(x > cx1 && x < cx2 && y > cy1 && y < cy2, `compartiment hors de la caisse en ${x}, ${y}`);
+  assert.ok(Math.min(...compartiment.map((p) => p[0])) > tx + droiteDe(pareBrise), "compartiment sur le pare-brise");
+});
+
+// ----- Lire un niveau -----
+
+test("niveaux : jauge tenue pointe en bas, repère mini sous le repère maxi, haut de la trace d'huile entre les deux", () => {
+  const d = famille.DESSINS.niveaux();
+  const [poignee, pointe, mini, maxi, trace] = ["poignee-jauge", "pointe-jauge", "repere-mini", "repere-maxi", "trace-huile"]
+    .map((r) => { const x = trouverRole(d, r); assert.ok(x, `${r} absent`); return x; });
+  assert.ok(nb(poignee, "data-y") < nb(pointe, "data-y"), "jauge tenue pointe en bas");
+  assert.ok(nb(mini, "data-y") > nb(maxi, "data-y"), "mini sous maxi");
+  const haut = hautDe(trace);
+  assert.ok(Math.abs(haut - nb(trace, "data-y")) < 0.01, "data-y de la trace : son haut tracé");
+  assert.ok(haut > nb(maxi, "data-y") && haut < nb(mini, "data-y"), `haut de la trace (${haut}) hors de l'intervalle`);
+  assert.ok(Math.abs(basDe(trace) - nb(pointe, "data-y")) < 0.01, "la trace part de la pointe");
+  assert.ok(textes(mini).includes("mini") && textes(maxi).includes("maxi"));
+});
+
+test("niveaux : chaque encoche de la lame est à la hauteur de son repère, de part et d'autre de la lame", () => {
+  const d = famille.DESSINS.niveaux();
+  const lame = points(trouverRole(d, "pointe-jauge").attributs.d);
+  const [x1, x2] = [Math.min(...lame.map((p) => p[0])), Math.max(...lame.map((p) => p[0]))];
+  const bas = Math.max(...lame.map((p) => p[1])), demi = (x2 - x1) / 2;
+  // Sommets rentrants : ni sur un bord de la lame, ni dans l'arrondi de la pointe.
+  const fonds = lame.filter(([x, y]) => x > x1 + 0.01 && x < x2 - 0.01 && y < bas - demi);
+  const attendus = ["repere-mini", "repere-maxi"].map((r) => nb(trouverRole(d, r), "data-y"));
+  assert.equal(fonds.length, 2 * attendus.length, `${fonds.length} sommets rentrants`);
+  for (const y of attendus) {
+    const deux = fonds.filter((p) => Math.abs(p[1] - y) < 0.01);
+    assert.equal(deux.length, 2, `encoches du repère à ${y} : ${deux.length}`);
+    assert.ok(deux.some((p) => p[0] < (x1 + x2) / 2) && deux.some((p) => p[0] > (x1 + x2) / 2), "une encoche de chaque côté");
+  }
+});
+
+test("niveaux : réservoir translucide, niveau strictement entre MIN et MAX ; voiture posée sur un sol horizontal", () => {
+  const d = famille.DESSINS.niveaux();
+  const [min, max, niveau] = ["repere-min", "repere-max", "niveau"].map((r) => { const x = trouverRole(d, r); assert.ok(x, r); return x; });
+  assert.ok(textes(min).includes("MIN") && textes(max).includes("MAX"));
+  assert.ok(nb(min, "data-y") > nb(max, "data-y"), "MIN sous MAX");
+  assert.ok(nb(niveau, "data-y") > nb(max, "data-y") && nb(niveau, "data-y") < nb(min, "data-y"), "niveau hors de l'intervalle");
+  const liquide = trouverRole(d, "liquide");
+  assert.ok(Math.abs(hautDe(liquide) - nb(niveau, "data-y")) < 0.01, "le liquide monte jusqu'au niveau dessiné");
+  const sol = trouverRole(d, "sol");
+  assert.equal(sol.balise, "line");
+  assert.equal(nb(sol, "y1"), nb(sol, "y2"), "sol horizontal");
+  const voiture = trouverRole(d, "voiture-profil");
+  assert.equal(nb(voiture, "data-y"), nb(sol, "y1"), "la voiture est posée sur ce sol");
+  assert.ok(nb(voiture, "data-x") > nb(sol, "x1") && nb(voiture, "data-x") < nb(sol, "x2"));
+  assert.ok(textes(d).includes("Sol plat"));
+});
+
+// ----- Contrôler un pneu -----
+
+test("pneu : le témoin d'usure mesure 1,6 mm à l'échelle de la coupe, coté « 1,6 mm »", () => {
+  const d = famille.DESSINS.pneu();
+  assert.ok(Number.isFinite(famille.MM) && famille.MM > 0);
+  for (const etat of ["juste", "faux"]) {
+    const v = trouverRole(d, `bande-${etat}`);
+    assert.ok(v, `coupe de la bande de roulement (${etat}) absente`);
+    const temoin = trouverRole(v, "temoin");
+    const hauteur = basDe(temoin) - hautDe(temoin);
+    assert.ok(Math.abs(hauteur - 1.6 * famille.MM) <= 0.1, `${etat} : témoin de ${hauteur} unités`);
+    const cote = trouverRole(v, "cote");
+    assert.ok(textes(cote).includes("1,6 mm"), `${etat} : cote absente`);
+    assert.ok(Math.abs(nb(cote, "data-y1") - hautDe(temoin)) <= 0.1 && Math.abs(nb(cote, "data-y2") - basDe(temoin)) <= 0.1,
+      `${etat} : la cote ne mesure pas le témoin`);
+  }
+});
+
+test("pneu : bon, sculptures plus hautes que le témoin d'au moins 2 mm ; à remplacer, sculptures au niveau du témoin", () => {
+  const d = famille.DESSINS.pneu();
+  const bon = trouverRole(d, "bande-juste"), use = trouverRole(d, "bande-faux");
+  const sculptures = (v) => trouverTous(v, (x) => x.attributs["data-r"] === "sculpture");
+  for (const v of [bon, use]) assert.ok(sculptures(v).length >= 2, "au moins deux pains de sculpture");
+  const temoinBon = hautDe(trouverRole(bon, "temoin"));
+  for (const s of sculptures(bon)) assert.ok(temoinBon - hautDe(s) >= 2 * famille.MM, `bon : sculpture ${temoinBon - hautDe(s)} unités au-dessus`);
+  const temoinUse = hautDe(trouverRole(use, "temoin"));
+  for (const s of sculptures(use)) assert.ok(Math.abs(hautDe(s) - temoinUse) <= 0.5, `à remplacer : écart ${hautDe(s) - temoinUse}`);
+  assert.ok(textes(use).join(" ").includes("affleure"));
+});
+
+test("pneu : la rainure de la bande de roulement a la largeur de celles de la coupe du haut ; les pains sont arrêtés par une brisure", () => {
+  const d = famille.DESSINS.pneu();
+  const sain = trouverRole(d, "flanc-juste"), k = nb(sain, "data-echelle");
+  const rainures = trouverTous(sain, (x) => x.attributs["data-r"] === "rainure");
+  assert.ok(rainures.length >= 2, "rainures de la coupe du haut absentes");
+  const largeurs = rainures.map((r) => (droiteDe(r) - gaucheDe(r)) / k);
+  for (const etat of ["juste", "faux"]) {
+    const v = trouverRole(d, `bande-${etat}`), temoin = trouverRole(v, "temoin");
+    const rainure = (droiteDe(temoin) - gaucheDe(temoin)) / famille.MM;
+    for (const l of largeurs) assert.ok(Math.abs(l - rainure) < 0.05, `${etat} : rainure de ${rainure} mm, ${l} mm en haut`);
+    // Un pain coupé au bord de la coupe : son bord extérieur (à l'opposé de la rainure) ondule, trait de brisure, et n'est pas
+    // droit. Les sommets de ce bord sont ceux du quart du pain tourné vers l'extérieur.
+    const milieuRainure = (gaucheDe(temoin) + droiteDe(temoin)) / 2;
+    for (const s of trouverTous(v, (x) => x.attributs["data-r"] === "sculpture")) {
+      const [g, dr] = [gaucheDe(s), droiteDe(s)], quart = (dr - g) / 4, aGauche = (g + dr) / 2 < milieuRainure;
+      const xs = points(s.attributs.d).map((p) => p[0]).filter((x) => (aGauche ? x < g + quart : x > dr - quart));
+      assert.ok(Math.max(...xs) - Math.min(...xs) > 1, `${etat} : pain sans trait de brisure`);
+    }
+  }
+});
+
+test("pneu : flanc sain d'un côté, hernie de l'autre, une bosse vers l'extérieur du flanc", () => {
+  const d = famille.DESSINS.pneu();
+  const sain = trouverRole(d, "flanc-juste"), malade = trouverRole(d, "flanc-faux");
+  assert.ok(sain && malade);
+  assert.equal(trouverRole(sain, "hernie"), null, "aucune hernie dans la vignette juste");
+  const hernie = trouverRole(malade, "hernie");
+  assert.ok(hernie, "hernie absente");
+  // Demi-largeur du pneu sain, mesurée sur le contour de son flanc, depuis l'axe de la coupe.
+  const demiSain = droiteDe(trouverRole(sain, "pneu")) - nb(sain, "data-x");
+  const sommet = nb(hernie, "data-x") - nb(malade, "data-x");
+  const echelle = nb(malade, "data-echelle");
+  assert.ok(sommet - demiSain >= 8 * echelle, `bosse de ${(sommet - demiSain) / echelle} mm seulement`);
+  assert.ok(Math.abs(droiteDe(trouverRole(malade, "pneu")) - nb(hernie, "data-x")) < 0.01, "le sommet de la bosse est sur le contour");
+  // La bosse est sur le flanc : entre l'épaule et le talon.
+  const y = nb(hernie, "data-y");
+  assert.ok(y > nb(malade, "data-epaule") && y < nb(malade, "data-talon"), "la hernie n'est pas sur le flanc");
+  assert.ok(textes(malade).includes("Hernie"));
+});
+
+// La paroi du pneu est plus mince que le point d'une étiquette : le point se pose hors de la gomme et la touche, sans couvrir
+// la paroi.
+test("pneu : le point des noms « Flanc » et « Hernie » touche la paroi de l'extérieur, sans la couvrir", () => {
+  const d = famille.DESSINS.pneu();
+  for (const [vignette, role] of [["flanc-juste", "nom-flanc"], ["flanc-faux", "nom-hernie"]]) {
+    const v = trouverRole(d, vignette), p = pointDe(trouverRole(v, role));
+    const contour = points(trouverRole(v, "pneu").attributs.d);
+    assert.ok(!dansPolygone([p.x, p.y], contour), `${role} : point dans la gomme`);
+    assert.ok(distanceContour([p.x, p.y], contour) <= p.rayon, `${role} : point à ${distanceContour([p.x, p.y], contour).toFixed(2)} du flanc`);
+  }
+});
+
+// ----- La pression des pneus -----
+
+test("pression : étiquette sur le montant de la portière conducteur et dans la trappe ; à froid, roue de secours comprise", () => {
+  const d = famille.DESSINS.pression();
+  const montant = trouverRole(d, "etiquette-montant"), trappe = trouverRole(d, "etiquette-trappe");
+  assert.ok(montant && trappe);
+  assert.ok(textes(d).some((t) => t.includes("À froid")));
+  assert.ok(textes(d).some((t) => t.includes("roue de secours comprise")));
+  assert.ok(textes(d).some((t) => t.includes("Souvent")), "l'emplacement varie : « souvent »");
+  // Côté conducteur : l'avant de la voiture à gauche (sens « gauche » du kit), portière et trappe ouvertes.
+  const v = trouverRole(d, "voiture-profil");
+  const [x, y] = [nb(v, "data-x"), nb(v, "data-y")];
+  const roueAvant = trouverRole(v, "roue-avant");
+  assert.ok(nb(roueAvant, "data-x") < x, "avant à gauche : on voit le côté du conducteur");
+  const echelle = (x - nb(roueAvant, "data-x")) / (VOITURE.empattement - VOITURE.essieu);
+  const r = reperesProfil({ x, y, echelle, sens: "gauche", trappeOuverte: true });
+  assert.equal(trouverRole(v, "portiere-ouverte").attributs.display, "inline");
+  assert.equal(trouverRole(v, "trappe-ouverte").attributs.display, "inline");
+  const pres = (p, q) => Math.hypot(p[0] - q[0], p[1] - q[1]) < 0.01;
+  assert.ok(pres([nb(montant, "data-x"), nb(montant, "data-y")], r.montantPortiere), "étiquette hors du montant");
+  assert.ok(pres([nb(trappe, "data-x"), nb(trappe, "data-y")], r.trappe), "étiquette hors de la trappe");
+  // Chaque étiquette est nommée : un filet part du cercle qui la désigne.
+  for (const [role, mots] of [["montant", "montant de la portière conducteur"], ["trappe", "trappe à carburant"]]) {
+    const e = trouverRole(d, `nom-${role}`);
+    assert.ok(e && lignes(e).includes(mots), `${role} : « ${e && lignes(e)} »`);
+    const repere = trouverRole(d, `repere-${role}`);
+    const [cx, cy] = cible(e);
+    const ecart = Math.hypot(cx - nb(repere, "cx"), cy - nb(repere, "cy"));
+    assert.ok(Math.abs(ecart - nb(repere, "r")) < 0.01, `${role} : le filet ne part pas du cercle`);
+  }
+});
+
+// ----- Typographie -----
+
+test("entretien : aucune ligne ne finit par un article ou une préposition courte", () => {
+  const mots = new Set(["de", "la", "le", "les", "du", "des", "à", "au", "aux", "un", "une", "et", "ou", "en", "sur"]);
+  for (const code of codes) {
+    for (const t of textes(famille.DESSINS[code]())) {
+      const dernier = t.trim().split(/\s+/).pop().toLowerCase();
+      assert.ok(!mots.has(dernier) && !/'$/.test(dernier), `${code} : ligne « ${t} »`);
+    }
+  }
+});
