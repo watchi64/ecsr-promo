@@ -319,7 +319,7 @@ test("retroviseurs et angles-morts : le champ de chaque rétroviseur extérieur 
   }
 });
 
-test("retroviseurs : la caisse vue du miroir s'arrête au coin arrière de la voiture du kit, sous l'épaule, et prend la part annoncée de la largeur", () => {
+test("retroviseurs : selon le modèle de l'œil reflété tenu devant le miroir, la caisse vue du miroir s'arrête au coin arrière de la voiture du kit, sous l'épaule, et prend la part annoncée de la largeur", () => {
   const r = famille.DESSINS.retroviseurs();
   for (const [role, cote, part, nom] of IMAGES) {
     const im = imageDe(r, role), c = coinAttendu(cote), b = boite(pointsRole(im.g, nom));

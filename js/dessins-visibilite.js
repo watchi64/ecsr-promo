@@ -176,6 +176,9 @@ function zonesInvisibles() {
 // de la largeur (le « mince liseré » du cours : PART_LISERE) quand fuite - flanc / (k recul) = part. Vu du dessus, le champ va de
 // -beta (vers la caisse) à champ - beta, beta = atan(fuite k) ; au-delà du verre, la caisse en cache la partie intérieure
 // jusqu'au rayon rasant, de l'œil reflété par le coin.
+// Simplification, écrite dans les sources : l'œil reflété est tenu devant le miroir, 3 cm hors du flanc, quelle que soit
+// l'orientation, comme pour un verre au ras du flanc. Un miroir plan réellement tourné déplace son œil reflété ; avec le verre du
+// kit, dont les 5 cm intérieurs sont en dedans du flanc, la caisse se verrait en coin, plus large vers le bas du miroir.
 export const PART_LISERE = 0.09;
 export const PART_FAUX = 0.46;
 const ARRIERE = [-1, 0];
