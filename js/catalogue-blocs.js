@@ -164,7 +164,7 @@ export const CATALOGUE = {
   "sous-survirage": { bloc: "dessin", module: "dessus", titre: "Sous-virage et survirage",
     legendeModele: "Sous-virage : la voiture tire tout droit. Survirage : l'arrière chasse.", cadre: [320, 333] },
   "mains-volant": { bloc: "dessin", module: "poste", titre: "Tenir le volant",
-    legendeModele: "Main gauche à 9 h, main droite à 3 h, ou 10 h 10, sans changer de prise. Virages : tirer-glisser ; tournants et manœuvres : chevauchement.",
+    legendeModele: "Mains à 9 h 15 (G à 9 h, D à 3 h), ou 10 h 10, sans changer de prise. Virages : tirer-glisser ; tournants et manœuvres : chevauchement.",
     cadre: [320, 190] },
   "tirer-glisser": { bloc: "scene", module: "poste", titre: "Tourner en tirer-glisser",
     etapesModele: ["Virage à droite : la main droite monte vers midi", "Elle tire le volant vers le bas, d'un quart de tour au plus ; la gauche reste à 9 h et le laisse glisser"],

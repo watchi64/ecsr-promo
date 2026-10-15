@@ -79,7 +79,7 @@ const centreVolant = (noeud) => {
 
 test("mains-volant : deux volants, la position de référence (main gauche à 9 h, main droite à 3 h) puis la variante 10 h 10 (10 h et 2 h) ; les mains en repères G et D pleins, posés sur la jante, chaque position écrite sous son volant", () => {
   const d = famille.DESSINS["mains-volant"]();
-  const attendu = [{ gauche: 9, droite: 3, legende: "9 h et 3 h", usage: "Lignes droites et courbes" }, { gauche: 10, droite: 2, legende: "ou 10 h 10", usage: null }];
+  const attendu = [{ gauche: 9, droite: 3, legende: "9 h 15", usage: "Lignes droites et courbes" }, { gauche: 10, droite: 2, legende: "ou 10 h 10", usage: null }];
   attendu.forEach((a, i) => {
     const position = trouverRole(d, `position-${i + 1}`);
     assert.ok(position, `position ${i + 1}`);

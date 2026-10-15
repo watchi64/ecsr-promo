@@ -227,7 +227,8 @@ export function repereMain({ cx, cy, rayon, heure, cote, prise = PRISE.tient, de
 
 // ===== Dessin 1 : tenir le volant (C1.3) =====
 // Deux volants côte à côte, vus du siège, les mains en repères pleins (elles tiennent la jante) : à gauche la position de
-// référence, main gauche à 9 h et main droite à 3 h ; à droite la variante que le cours admet, 10 h 10 (main gauche à 10 h,
+// référence, 9 h 15 (main gauche à 9 h, main droite à 3 h ; remarque du formateur du 15/10/2026 : « 9 h 15, pas 9 h et 3 h ») ;
+// à droite la variante que le cours admet, 10 h 10 (main gauche à 10 h,
 // main droite à 2 h). « Midi » est écrit en haut de chaque volant, dans sa couronne, comme le 12 d'un cadran ; la position est
 // écrite sous chaque volant ; sous la position de référence, son usage : « Lignes droites et courbes » (remarque du formateur du
 // 15/10/2026 : 9 h 15 dans les courbes et lignes droites, tirer-glisser dans les virages, chevauchement dans les tournants et
@@ -236,7 +237,7 @@ const MAINS_VOLANT = {
   echelle: 3.2,
   colonnes: [80, 240],   // centres des deux volants : au quart et aux trois quarts du cadre
   positions: [
-    { heures: { gauche: 9, droite: 3 }, legende: "9 h et 3 h", usage: "Lignes droites et courbes" },
+    { heures: { gauche: 9, droite: 3 }, legende: "9 h 15", usage: "Lignes droites et courbes" },
     { heures: { gauche: 10, droite: 2 }, legende: "ou 10 h 10" },
   ],
   legende: { taille: CHARTE.tailles.etiquette, ecart: 6 },   // la position sous le volant, à `ecart` unités du bord de la jante
@@ -265,7 +266,7 @@ function mainsVolant() {
     usage && texte(cx, yLegende + pasUsage, usage, { taille: m.usage.taille, ancrage: "middle", couleur: CHARTE.texteDoux, role: "mention" }));
   return cadre({ largeur: L, hauteur: H, titre: CATALOGUE[code].titre,
     description: "Deux volants vus du siège, midi en haut, les mains en repères G et D posés sur la jante. À gauche, la position de "
-      + "référence : main gauche à 9 h, main droite à 3 h, dans les lignes droites et les courbes. À droite, la variante admise, 10 h 10 : "
+      + "référence, 9 h 15 : main gauche à 9 h, main droite à 3 h, dans les lignes droites et les courbes. À droite, la variante admise, 10 h 10 : "
       + "main gauche à 10 h, main droite à 2 h." },
   m.colonnes.map((cx, i) => colonne(cx, m.positions[i], i)));
 }
@@ -665,7 +666,7 @@ const GESTE = {
   traversee: { echantillons: 24, jeu: 2 },
 };
 const MILIEU_CAPITALES = METRIQUES_POLICE.milieuCapitales;   // ligne de base sous le milieu des capitales d'Outfit
-// Position de référence du cours : main gauche à 9 h, main droite à 3 h ; midi en haut.
+// Position de référence du cours, 9 h 15 : main gauche à 9 h, main droite à 3 h ; midi en haut.
 const POSITION = { gauche: 9, droite: 3, midi: 0 };
 const posee = (heure, prise, decalage = 0) => ({ heure, prise, decalage });
 
@@ -859,7 +860,7 @@ function etatRetourVolant(t) {
   const prise = cles([{ t: R.ouverture[0], v: 1 }, { t: R.ouverture[1], v: G }, { t: R.prise[0], v: G }, { t: R.prise[1], v: 1 },
     { t: R.lache[0], v: 1 }, { t: R.lache[1], v: G }, { t: R.reprise[0], v: G }, { t: R.reprise[1], v: 1 }], t);
   const basse = t >= R.debuts[2];
-  // En roulant, les mains restent à 9 h et 3 h dans l'espace (la jante glisse dedans) ; à basse allure, elles tournent avec le
+  // En roulant, les mains restent à 9 h 15 dans l'espace (la jante glisse dedans) ; à basse allure, elles tournent avec le
   // volant quand elles le tiennent, et il ne bouge pas quand elles l'ont lâché (le volant est droit quand l'étape 3 commence).
   const place = (base) => (basse ? base + volant / DEGRES_PAR_HEURE : base);
   return {
@@ -912,7 +913,7 @@ const DESCRIPTIONS = {
     + "sous la droite. À côté, la voiture vue du dessus braque ses roues avant à droite ; un compteur dit l'angle du volant.",
   "retour-volant": "Volant vu du siège, en sortie d'un virage à droite ; chaque main est un repère, G ou D, plein quand elle tient "
     + "la jante, creux quand elle la laisse glisser. En roulant, les doigts s'entrouvrent et le volant revient droit seul en glissant "
-    + "dans les mains, qui restent à 9 h et 3 h. À basse allure, les mains tournent le volant d'un quart de tour puis entrouvrent les "
+    + "dans les mains, qui restent à 9 h 15. À basse allure, les mains tournent le volant d'un quart de tour puis entrouvrent les "
     + "doigts : il reste tourné, il ne revient pas seul ; elles le reprennent et le ramènent droit. À côté, la voiture vue du dessus "
     + "et ses roues avant ; un compteur dit l'angle du volant.",
 };
