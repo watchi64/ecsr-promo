@@ -3,16 +3,16 @@
 // (onglets). iPhone : la liste, puis la fiche en sommaire, puis une partie en
 // plein écran. Adresses : #/stagiaires, #/stagiaires/<id>, #/stagiaires/<id>/<partie>.
 
-import { listEpcfEtats, listLivretsIndex, listDossiersIndex } from "../db.js?v=20261013a";
-import { el, clear, displayStagiaire, compareByNom } from "../utils.js?v=20261013a";
-import { icon } from "../icons.js?v=20261013a";
-import { adresseFiche, lireAdresse } from "../route-rules.js?v=20261013a";
-import { ligneListe } from "../fiche-rules.js?v=20261013a";
-import { surChangementAdresse, remplacerAdresse } from "../navigation.js?v=20261013a";
+import { listEpcfEtats, listLivretsIndex, listDossiersIndex } from "../db.js?v=20261015a";
+import { el, clear, displayStagiaire, compareByNom } from "../utils.js?v=20261015a";
+import { icon } from "../icons.js?v=20261015a";
+import { adresseFiche, lireAdresse } from "../route-rules.js?v=20261015a";
+import { ligneListe } from "../fiche-rules.js?v=20261015a";
+import { surChangementAdresse, remplacerAdresse } from "../navigation.js?v=20261015a";
 import {
   chargerContexteFiche, chargerFiche, renderFiche, dispositionFiche,
   noterDocument, ecouterDocuments, afficherErreur,
-} from "./mon-suivi.js?v=20261013a";
+} from "./mon-suivi.js?v=20261015a";
 
 const CLE_DERNIERE = "ecsr_stagiaires_derniere";
 const CLE_ONGLET = "ecsr_stagiaires_subtab";

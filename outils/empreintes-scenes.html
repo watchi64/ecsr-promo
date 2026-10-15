@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><title>Empreintes des scènes</title>
+<link rel="stylesheet" href="../css/style.css"><link rel="stylesheet" href="../css/cours-blocs.css"></head>
+<body><div id="zone" style="width:343px"></div><pre id="empreintes"></pre>
+<script type="module">
+// Empreinte de chaque scène de route : le SVG de chaque étape, en lecture et en animations réduites. Sert à prouver
+// qu'un changement du moteur ne change pas l'image (comparer deux sorties de Chrome --dump-dom).
+import { SCENES } from "../js/scenes.js?v=20261013a";
+import { monterScene } from "../js/scene-moteur.js?v=20261013a";
+const zone = document.getElementById("zone");
+const lignes = [];
+for (const code of Object.keys(SCENES).sort()) {
+  for (const reduit of [false, true]) {
+    const conteneur = document.createElement("div");
+    zone.appendChild(conteneur);
+    const def = SCENES[code].construire();
+    const moteur = monterScene(def, { conteneur, etapes: [], reduit });
+    def.etapes.forEach((_, i) => {
+      moteur.allerEtape(i);
+      lignes.push(`== ${code} ${reduit ? "reduit" : "lecture"} etape ${i + 1}\n${conteneur.querySelector("svg").outerHTML}`);
+    });
+    moteur.detruire();
+    conteneur.remove();
+  }
+}
+document.getElementById("empreintes").textContent = lignes.join("\n");
+document.title = "pret";
+</script></body></html>

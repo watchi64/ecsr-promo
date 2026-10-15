@@ -12,11 +12,12 @@
  * continuité de la vitesse), marche arrière (allure de recul et arrêt aux
  * rebroussements, lus sur les échantillons de la chronologie), entrées et sorties hors
  * du monde, clignotants (assez tôt avant le départ dans l'arc, du bon côté de la caisse
- * et tout le long de l'arc), puis les attentes que la scène déclare.
+ * et tout le long de l'arc), portières (jamais ouvertes sur un usager), puis les attentes
+ * que la scène déclare.
  */
 import { preparerScene, etatActeur, emprise, polygonesSeChevauchent, pointDansPolygone, tempsAtteint, tempsDepart, avant,
-  apparitionDe, sortDuCadre, rebroussements, pointA, rectangle, KMH, DEG }
-  from "./scene-geometrie.js?v=20261013a";
+  apparitionDe, sortDuCadre, rebroussements, pointA, rectangle, KMH, DEG, zonePortiere }
+  from "./scene-geometrie.js?v=20261015a";
 
 export const SEUILS = {
   accelerationLaterale: 3.0,        // m/s²
@@ -24,6 +25,9 @@ export const SEUILS = {
   vitesseMarcheArriere: 6,          // km/h : l'allure du pas, en marche arrière
   avanceClignotant: 2.0,            // s avant le début d'un changement de direction
   angleChangementDirection: 30,     // degrés : en deçà, un arc n'est pas un changement de direction
+  // m : une portière ne s'ouvre pas quand un usager arrive par l'arrière à moins de cette distance de sa zone (plan 3,
+  // tâche 13) ; 2 s à 18 km/h, l'allure d'un cycliste en ville.
+  approchePortiere: 10,
   pas: 0.1,                         // s
 };
 
@@ -39,6 +43,7 @@ export function controlerScene(def) {
   controlerMarcheArriere(sc, note);
   controlerEntreesSorties(sc, note);
   controlerClignotants(sc, note);
+  controlerPortieres(sc, note);
   for (const att of sc.attentes || []) controlerAttente(sc, att, note);
   return erreurs;
 }
@@ -50,8 +55,10 @@ function instants(sc, f) {
 
 function controlerEtapes(sc, note) {
   if (sc.etapes.length < 2) note("la scène doit compter au moins deux étapes");
+  // Une voiture de l'élève posée (garée) n'a pas de trajet : ses étapes sont toutes en s = 0 (preparerScene).
+  const longueur = sc.eleve.chemin ? sc.eleve.chemin.longueur : 0;
   sc.etapes.forEach((e, i) => {
-    if (e.s < -1e-9 || e.s > sc.eleve.chemin.longueur + 1e-9) note(`étape ${i + 1} : abscisse hors du trajet`);
+    if (e.s < -1e-9 || e.s > longueur + 1e-9) note(`étape ${i + 1} : abscisse hors du trajet`);
     if (i > 0 && !(e.t > sc.etapes[i - 1].t + 1e-9)) note(`étape ${i + 1} : commence au plus tôt avec la précédente`);
   });
 }
@@ -143,9 +150,9 @@ function controlerEntreesSorties(sc, note) {
     }
   }
   // L'élève qui finit en mouvement garde son image jusqu'à la fin de la scène : aucun autre acteur mobile
-  // ne doit encore bouger après lui.
+  // ne doit encore bouger après lui. Une voiture de l'élève posée (garée) ne roule jamais.
   const chronoEleve = sc.eleve.chrono;
-  if (chronoEleve.echantillons[chronoEleve.echantillons.length - 1].v > 0) {
+  if (chronoEleve && chronoEleve.echantillons[chronoEleve.echantillons.length - 1].v > 0) {
     for (const a of sc.acteurs) {
       if (a === sc.eleve || !a.chrono || a.chrono.duree <= chronoEleve.duree + 1e-9) continue;
       note(`l'élève finit en mouvement à t = ${f1(chronoEleve.duree)} s alors que ${a.id} bouge jusqu'à t = ${f1(a.chrono.duree)} s : son image resterait figée`);
@@ -229,6 +236,72 @@ function controlerClignotants(sc, note) {
           eteint = true;
           note(`${a.id} : clignotant ${cote} éteint pendant le changement de direction (t = ${f1(t)} s)`);
         }
+      }
+    }
+  }
+}
+
+// Morceaux de l'aire que balaie le polygone convexe `poly` déplacé de `d` m dans la direction unitaire (dx, dy) : le
+// polygone, sa copie au bout du déplacement, et le parallélogramme que décrit chacun de ses côtés. Leur réunion est l'aire
+// balayée ; elle croît avec d.
+function balayage(poly, dx, dy, d) {
+  const bout = poly.map(([x, y]) => [x + dx * d, y + dy * d]);
+  return [poly, bout, ...poly.map((p, i) => [p, poly[(i + 1) % poly.length], bout[(i + 1) % poly.length], bout[i]])];
+}
+const balayageTouche = (poly, dx, dy, d, zone) => balayage(poly, dx, dy, d).some((morceau) => polygonesSeChevauchent(morceau, zone));
+
+// Portières : une portière (état portiere, js/scene-geometrie.js) ne s'ouvre jamais sur un usager : ouvrir une portière est
+// interdit à tout occupant quand la manœuvre est un danger pour les autres usagers (R417-7). À chaque instant où elle est
+// ouverte (angle strictement positif : elle s'ouvre dès qu'elle quitte 0 degré, si peu que ce soit), aucun autre usager
+// visible :
+// - n'est dans sa zone, le secteur qu'elle balaie jusqu'à la plus grande ouverture de ses clés (zonePortiere) ;
+// - ni ne s'en approche par l'arrière à moins de SEUILS.approchePortiere : il roule vers l'avant de la voiture, et son
+//   emprise, poussée de cette distance dans son sens de marche, toucherait la zone. La distance donnée par le message est
+//   le chemin qui lui reste à faire pour la toucher (au centimètre près). Un usager qui a dépassé la zone, qui passe à
+//   côté d'elle ou qui s'en éloigne ne s'en approche pas.
+// Les instants : ceux des contrôles (tous les dixièmes de seconde), plus le premier instant de chaque ouverture (une
+// microseconde après le départ) et le dernier avant chaque refermeture complète (une milliseconde avant : une microseconde
+// avant, l'angle d'une portière qui finit de se refermer en douceur s'arrondit déjà à 0) : une portière entrouverte un
+// instant se lit aussi, jusqu'au bout. Un message par usager et par cas, au premier instant fautif.
+function controlerPortieres(sc, note) {
+  for (const a of sc.acteurs) {
+    if (!a.portiere) continue;
+    const angleMax = Math.max(...a.portiere.map((cle) => cle.angle));
+    if (!(angleMax > 0)) continue;
+    const temps = [];
+    instants(sc, (t) => temps.push(t));
+    a.portiere.forEach((cle, k) => {
+      const suivante = a.portiere[k + 1];
+      if (suivante && cle.angle === 0 && suivante.angle > 0) temps.push(cle.t + 1e-6);
+      if (suivante && cle.angle > 0 && suivante.angle === 0) temps.push(suivante.t - 1e-3);
+    });
+    temps.sort((p, q) => p - q);
+    const vus = new Set();
+    const une = (cle, message) => { if (!vus.has(cle)) { vus.add(cle); note(message); } };
+    for (const t of temps) {
+      const ea = etatActeur(a, t);
+      if (!(ea.portiere > 0) || !ea.visible) continue;
+      const zone = zonePortiere(ea, angleMax);
+      for (const b of sc.acteurs) {
+        if (b === a) continue;
+        const eb = etatActeur(b, t);
+        if (!eb.visible) continue;
+        const poly = emprise(b.gabarit, eb);
+        if (polygonesSeChevauchent(poly, zone)) {
+          une(`${b.id}|zone`, `${a.id} : portière ouverte alors que ${b.id} est dans la zone de la portière (t = ${f1(t)} s)`);
+          continue;
+        }
+        const dx = Math.cos(eb.capMarche), dy = Math.sin(eb.capMarche);
+        const arrive = eb.v > 0 && Math.cos(eb.capMarche - ea.cap) > 0;
+        if (!arrive || !balayageTouche(poly, dx, dy, SEUILS.approchePortiere, zone)) continue;
+        // Chemin qui reste à faire avant de toucher la zone : par dichotomie, l'aire balayée croissant avec le chemin.
+        let loin = 0, pres = SEUILS.approchePortiere;
+        while (pres - loin > 1e-4) {
+          const milieu = (loin + pres) / 2;
+          if (balayageTouche(poly, dx, dy, milieu, zone)) pres = milieu; else loin = milieu;
+        }
+        une(`${b.id}|approche`, `${a.id} : portière ouverte alors que ${b.id} arrive par l'arrière à ${pres.toFixed(2)} m`
+          + ` de la zone de la portière, moins de ${SEUILS.approchePortiere} m (t = ${f1(t)} s)`);
       }
     }
   }

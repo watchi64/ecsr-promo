@@ -4,7 +4,7 @@ import {
   DEG, GABARITS, trajet, pointA, courbureA, tournerChemin, tournerPoint, premiereAbscisse, avant,
   chronologie, etatA, tempsAtteint, tempsDepart, emprise, rectangle, pointsArc, disque, secteurAnneau,
   pointDansPolygone, segmentsSeCoupent, polygonesSeChevauchent, preparerScene, etatActeur,
-  apparitionDe, sortDuCadre, pointSurSegment, rebroussements, centreArc,
+  apparitionDe, sortDuCadre, pointSurSegment, rebroussements, centreArc, PORTIERE, anglePortiere, portiereA, zonePortiere,
 } from "../js/scene-geometrie.js";
 
 const proche = (a, b, eps = 1e-6) => assert.ok(Math.abs(a - b) <= eps, `${a} au lieu de ${b}`);
@@ -1116,4 +1116,180 @@ test("une option de segment essieu est refusée : l'essieu se règle au départ 
     assert.throws(() => poserSegment(trajet(0, 0, 0)),
       (e) => /segment/.test(e.message) && /essieu/.test(e.message) && /au départ/.test(e.message), nom);
   }
+});
+
+// ===== Cycliste et portière (plan 3, tâche 13 : scène « sortir du véhicule côté chaussée ») =====
+//
+// Un cycliste vu du dessus (gabarit velo), la portière avant gauche d'une voiture (état portiere : angle d'ouverture en
+// degrés, clés dans le temps) et la voiture de l'élève posée, garée moteur coupé. Les attendus sont calculés à la main.
+
+test("velo : un cycliste sur son vélo, vu du dessus : 1,8 m de long, 0,6 m de large ; emprise orientée et avant comme pour une voiture", () => {
+  assert.deepEqual(GABARITS.velo, { longueur: 1.8, largeur: 0.6 });
+  // Vers le nord en (10 ; 20) : 1,8 m le long de y, 0,6 m le long de x ; l'avant (le pneu avant) au nord.
+  const e = { x: 10, y: 20, cap: -90 * DEG }, coins = emprise("velo", e);
+  const xs = coins.map(([x]) => x), ys = coins.map(([, y]) => y);
+  proche(Math.min(...xs), 9.7, 1e-12); proche(Math.max(...xs), 10.3, 1e-12);
+  proche(Math.min(...ys), 19.1, 1e-12); proche(Math.max(...ys), 20.9, 1e-12);
+  const a = avant("velo", e);
+  proche(a.x, 10, 1e-12); proche(a.y, 19.1, 1e-12);
+});
+
+test("PORTIERE : portière avant gauche, charnière sur le flanc gauche, 0,95 m devant le centre de la voiture, à l'avant de la portière ; 1,1 m de la charnière au bord arrière ; 35 degrés d'ouverture au plus", () => {
+  assert.deepEqual(PORTIERE, { charniere: 0.95, longueur: 1.1, ouvertureMax: 35 });
+  // Fermée, la portière tient dans le flanc de la caisse : de 0,95 m devant le centre à 0,15 m derrière lui, soit autour
+  // de l'œil du conducteur (0,2 m devant le centre) ; la charnière est derrière l'avant de la voiture (2,25 m).
+  const L = GABARITS.voiture.longueur / 2;
+  assert.ok(PORTIERE.charniere < L && PORTIERE.charniere - PORTIERE.longueur > -L, "dans la longueur de la caisse");
+  assert.ok(PORTIERE.charniere > 0.2 && PORTIERE.charniere - PORTIERE.longueur < 0.2, "à hauteur du conducteur");
+});
+
+test("portiereA : fermée, la portière court le long du flanc gauche, de la charnière vers l'arrière ; ouverte, son bord arrière s'écarte de la caisse, la charnière ne bouge pas", () => {
+  const { charniere: c, longueur: l } = PORTIERE;
+  // Voiture vers le nord en (10 ; 20) : flanc gauche à l'ouest, en x = 9,1 ; l'avant au nord (y décroissant).
+  const e = { x: 10, y: 20, cap: -90 * DEG };
+  const fermee = portiereA(e, 0);
+  proche(fermee.charniere.x, 9.1, 1e-12); proche(fermee.charniere.y, 20 - c, 1e-12);
+  proche(fermee.bord.x, 9.1, 1e-12); proche(fermee.bord.y, 20 - c + l, 1e-12);
+  const ouverte = portiereA(e, 35);
+  proche(ouverte.charniere.x, fermee.charniere.x, 1e-12); proche(ouverte.charniere.y, fermee.charniere.y, 1e-12);
+  proche(ouverte.bord.x, 9.1 - l * Math.sin(35 * DEG), 1e-12);         // vers l'ouest, hors de la caisse
+  proche(ouverte.bord.y, 20 - c + l * Math.cos(35 * DEG), 1e-12);      // toujours derrière la charnière
+  // Même règle à tout cap : vers l'est en (0 ; 0), le flanc gauche est au nord (y = -0,9) ; ouverte à 90 degrés, la
+  // portière est perpendiculaire au flanc, le bord arrière au nord de la charnière.
+  const est = portiereA({ x: 0, y: 0, cap: 0 }, 90);
+  proche(est.charniere.x, c, 1e-12); proche(est.charniere.y, -0.9, 1e-12);
+  proche(est.bord.x, c, 1e-12); proche(est.bord.y, -0.9 - l, 1e-12);
+});
+
+test("zonePortiere : le secteur que balaie la portière, de fermée à l'angle donné, autour de la charnière ; il contient la portière à chaque angle, jamais rogné, et rien au-delà de son bord ni de l'ouverture", () => {
+  const e = { x: 10, y: 20, cap: -90 * DEG }, zone = zonePortiere(e, 35);
+  const { charniere } = portiereA(e, 0);
+  proche(zone[0][0], charniere.x, 1e-12); proche(zone[0][1], charniere.y, 1e-12);
+  // Chaque point de la portière, de la charnière au bord arrière, à chaque angle de 0,5 à 34,5 degrés, est dans la zone
+  // (pris à un millimètre en deçà du bord arrière : le bord du polygone est le bord de la zone).
+  for (let angle = 0.5; angle <= 34.5; angle += 0.5) {
+    const { bord } = portiereA(e, angle);
+    for (let k = 1; k <= 10; k++) {
+      const f = (k / 10) * (1 - 0.001 / PORTIERE.longueur);
+      const p = [charniere.x + (bord.x - charniere.x) * f, charniere.y + (bord.y - charniere.y) * f];
+      assert.ok(pointDansPolygone(p, zone), `portière à ${angle} degrés, point ${k} hors de la zone`);
+    }
+  }
+  // Au-delà du bord arrière (1 cm plus loin que la portière), ou au-delà de l'ouverture (36 degrés) : hors de la zone.
+  const loin = portiereA(e, 20).bord, dehors = portiereA(e, 36).bord;
+  const plusLoin = [charniere.x + (loin.x - charniere.x) * 1.01, charniere.y + (loin.y - charniere.y) * 1.01];
+  assert.ok(!pointDansPolygone(plusLoin, zone), "au-delà du bord arrière");
+  const auDela = [charniere.x + (dehors.x - charniere.x) * 0.5, charniere.y + (dehors.y - charniere.y) * 0.5];
+  assert.ok(!pointDansPolygone(auDela, zone), "au-delà de l'ouverture");
+  // Arc circonscrit : chaque corde est tangente au cercle de la portière (la zone n'est jamais rognée, le bord arrière
+  // y est à chaque angle) et la zone ne déborde du secteur que de 1,1 mm au plus (pas de 5 degrés).
+  for (let k = 1; k + 1 < zone.length; k++) {
+    const [ax, ay] = zone[k], [bx, by] = zone[k + 1];
+    const distance = Math.abs((bx - ax) * (ay - charniere.y) - (by - ay) * (ax - charniere.x)) / Math.hypot(bx - ax, by - ay);
+    proche(distance, PORTIERE.longueur, 1e-12);
+  }
+  for (const [x, y] of zone.slice(1)) {
+    const r = Math.hypot(x - charniere.x, y - charniere.y);
+    assert.ok(r >= PORTIERE.longueur && r <= PORTIERE.longueur + 0.0011, `sommet à ${r.toFixed(5)} m de la charnière`);
+  }
+});
+
+test("anglePortiere : clés dans le temps, angle fermé avant la première, tenu après la dernière ; départ et arrivée amortis, symétrique, croissant, sans saut", () => {
+  const cles = [{ t: 2, angle: 0 }, { t: 3.5, angle: 35 }];
+  assert.equal(anglePortiere(cles, 0), 0);
+  assert.equal(anglePortiere(cles, 2), 0);
+  assert.equal(anglePortiere(cles, 3.5), 35);
+  assert.equal(anglePortiere(cles, 9), 35);
+  proche(anglePortiere(cles, 2.75), 17.5, 1e-12);                      // à mi-chemin, la moitié
+  for (let u = 0; u <= 1; u += 0.05) {
+    proche(anglePortiere(cles, 2 + 1.5 * u) + anglePortiere(cles, 3.5 - 1.5 * u), 35, 1e-9);   // symétrique
+  }
+  // Départ amorti : après 1/60 s, bien moins que la part d'un mouvement à vitesse constante ; arrivée de même.
+  const pas = 1 / 60, lineaire = (35 * pas) / 1.5;
+  assert.ok(anglePortiere(cles, 2 + pas) < lineaire / 10, "départ amorti");
+  assert.ok(35 - anglePortiere(cles, 3.5 - pas) < lineaire / 10, "arrivée amortie");
+  // Croissant et sans saut : d'une image à la suivante (1/60 s), au plus la vitesse de pointe de la courbe, 3 fois la
+  // vitesse moyenne (35 degrés en 1,5 s), atteinte à mi-chemin.
+  let prec = anglePortiere(cles, 1.9);
+  for (let t = 1.9 + pas; t <= 3.6; t += pas) {
+    const a = anglePortiere(cles, t);
+    assert.ok(a >= prec - 1e-12, `t = ${t.toFixed(3)} s : la portière se referme`);
+    assert.ok(a - prec <= 3 * lineaire + 1e-9, `t = ${t.toFixed(3)} s : saut de ${(a - prec).toFixed(3)} degrés`);
+    prec = a;
+  }
+  // Plusieurs clés : ouvrir, tenir, refermer.
+  const aller = [{ t: 0, angle: 0 }, { t: 1, angle: 30 }, { t: 2, angle: 30 }, { t: 3, angle: 0 }];
+  proche(anglePortiere(aller, 1.5), 30, 1e-12); proche(anglePortiere(aller, 2.5), 15, 1e-12);
+});
+
+// Voiture de l'élève posée, garée moteur coupé, portière qui s'ouvre de t = 3 à 4,5 s ; un cycliste qui roule 10 m à 18 km/h.
+const sceneGaree = (extra = {}, eleveExtra = {}) => ({
+  code: "essai",
+  acteurs: [
+    { id: "eleve", role: "eleve", gabarit: "voiture", stationne: true, pose: { x: 10, y: 20, cap: -90 },
+      portiere: [{ t: 3, angle: 0 }, { t: 4.5, angle: 35 }], ...eleveExtra },
+    { id: "cycliste", gabarit: "velo", chemin: trajet(8.5, 40, -90).droit(10).fin(), profil: [{ s: 0, kmh: 18 }, { s: 10, kmh: 18 }] },
+  ],
+  etapes: [{ s: 0 }, { s: 0, delai: 1.2 }, { s: 0, delai: 3 }],
+  ...extra,
+});
+
+test("etatActeur : la portière d'un acteur qui en a les clés suit anglePortiere, posé comme mobile ; aucun autre acteur ne porte d'état portiere", () => {
+  const sc = preparerScene(sceneGaree());
+  const [eleve, cycliste] = sc.acteurs;
+  for (const t of [0, 2.9, 3, 3.4, 3.75, 4.2, 4.5, 7]) assert.equal(etatActeur(eleve, t).portiere, anglePortiere(eleve.portiere, t), `t = ${t} s`);
+  assert.ok(!("portiere" in etatActeur(cycliste, 1)), "le cycliste n'a pas de portière");
+  // Une voiture mobile peut aussi porter des clés : son état les suit pendant qu'elle roule.
+  const mobile = { id: "eleve", role: "eleve", gabarit: "voiture", chemin: trajet(0, 0, 0).droit(10).fin(),
+    profil: [{ s: 0, kmh: 10 }, { s: 10, kmh: 10 }], portiere: [{ t: 1, angle: 0 }, { t: 2, angle: 20 }] };
+  const scMobile = preparerScene({ code: "essai", acteurs: [mobile], etapes: [{ s: 0 }] });
+  proche(etatActeur(scMobile.acteurs[0], 1.5).portiere, 10, 1e-12);
+  // Les voitures des huit scènes historiques n'ont pas de portière : leur état ne change pas.
+  const garee = { id: "garee", gabarit: "voiture", stationne: true, pose: { x: 3, y: 4, cap: -90 } };
+  assert.ok(!("portiere" in etatActeur(garee, 0)));
+});
+
+test("preparerScene : la voiture de l'élève peut être posée (garée, moteur coupé) : chaque étape se place par son délai, et la scène dure jusqu'à la fin du dernier trajet ou la dernière clé de portière, plus la pause de fin", () => {
+  const sc = preparerScene(sceneGaree());
+  assert.equal(sc.eleve.id, "eleve");
+  assert.ok(!sc.eleve.chrono, "l'élève posé n'a pas de chronologie");
+  assert.deepEqual(sc.etapes.map((e) => e.t), [0, 1.2, 3]);
+  // Cycliste : 10 m à 5 m/s, 2 s ; portière ouverte jusqu'à 4,5 s : la scène dure 4,5 s, plus 1 s de pause de fin.
+  proche(sc.duree, 5.5, 1e-12);
+  assert.deepEqual(sc.etapes.map((e) => e.fin), [1.2, 3, 5.5]);
+  // Sans portière, c'est le trajet du cycliste qui fixe la fin.
+  proche(preparerScene(sceneGaree({}, { portiere: undefined })).duree, 3, 1e-12);
+  // L'élève posé reste à sa place et à l'arrêt.
+  for (const t of [0, 2, 5]) {
+    const e = etatActeur(sc.eleve, t);
+    assert.deepEqual([e.x, e.y, e.v, e.a, e.visible], [10, 20, 0, 0, true], `t = ${t} s`);
+  }
+});
+
+test("preparerScene : avec l'élève posé, une étape placée par une abscisse est refusée ; une scène sans voiture de l'élève aussi", () => {
+  assert.throws(() => preparerScene(sceneGaree({ etapes: [{ s: 0 }, { s: 5 }] })),
+    { message: "scène essai : étape 2 : la voiture de l'élève est posée (garée) : une étape se place par son délai, à s = 0 (reçu : s = 5)" });
+  assert.doesNotThrow(() => preparerScene(sceneGaree({ etapes: [{ delai: 0 }, { s: 0, delai: 2 }] })), "s absent : s = 0");
+  assert.throws(() => preparerScene({ code: "essai", acteurs: [{ id: "x", role: "autre", gabarit: "voiture", pose: { x: 0, y: 0, cap: 0 } }],
+    etapes: [{ s: 0 }] }), /« eleve »/);
+});
+
+test("preparerScene : des clés de portière qui ne sont pas des instants croissants et des angles de 0 à 35 degrés sont refusées, comme une portière sur un autre gabarit qu'une voiture", () => {
+  const avec = (portiere, gabarit = "voiture") => sceneGaree({}, { portiere, gabarit });
+  const refus = (portiere, message, gabarit) => assert.throws(() => preparerScene(avec(portiere, gabarit)), { message }, message);
+  refus([{ t: 3, angle: 0 }], "scène essai : acteur « eleve » : portière : au moins deux clés { t, angle } attendues");
+  refus("ouverte", "scène essai : acteur « eleve » : portière : au moins deux clés { t, angle } attendues");
+  refus([{ t: 3, angle: 0 }, { t: 3, angle: 35 }],
+    "scène essai : acteur « eleve » : portière, clé 2 : instant « 3 » invalide (nombre fini de secondes, positif ou nul, après celui de la clé précédente)");
+  refus([{ t: -1, angle: 0 }, { t: 3, angle: 35 }],
+    "scène essai : acteur « eleve » : portière, clé 1 : instant « -1 » invalide (nombre fini de secondes, positif ou nul, après celui de la clé précédente)");
+  refus([{ t: 3, angle: 0 }, { t: "4", angle: 35 }],
+    "scène essai : acteur « eleve » : portière, clé 2 : instant « \"4\" » (chaîne) invalide (nombre fini de secondes, positif ou nul, après celui de la clé précédente)");
+  refus([{ t: 3, angle: 0 }, { t: 4.5, angle: 40 }],
+    "scène essai : acteur « eleve » : portière, clé 2 : angle « 40 » invalide (de 0 à 35 degrés)");
+  refus([{ t: 3, angle: -5 }, { t: 4.5, angle: 35 }],
+    "scène essai : acteur « eleve » : portière, clé 1 : angle « -5 » invalide (de 0 à 35 degrés)");
+  refus([{ t: 3, angle: 0 }, { t: 4.5, angle: 35 }],
+    "scène essai : acteur « eleve » : portière sur un gabarit « velo » : seule une voiture en a une", "velo");
+  assert.doesNotThrow(() => preparerScene(avec([{ t: 0, angle: 35 }, { t: 1, angle: 0 }])), "une portière peut se refermer");
 });

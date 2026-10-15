@@ -14,17 +14,17 @@
  *   - un tableau qui porte une colonne « Amende » devient un tableau de
  *     sanctions (montants et points en chiffres tabulaires).
  */
-import { el, clear } from "../utils.js?v=20261013a";
-import { icon } from "../icons.js?v=20261013a";
-import { carteSignal, signalConnu } from "../signaux.js?v=20261013a";
-import { carteMarquage, marquageConnu } from "../marquage.js?v=20261013a";
-import { rendreBlocInteractif, detruireScenes } from "../cours-blocs.js?v=20261013a";
-import { ouvertureBloc, lireBloc } from "../cours-blocs-rules.js?v=20261013a";
-import { listCoursIndex, getCours } from "../db.js?v=20261013a";
-import { isAdmin, isProf, getViewAs } from "../auth-admin.js?v=20261013a";
+import { el, clear } from "../utils.js?v=20261015a";
+import { icon } from "../icons.js?v=20261015a";
+import { carteSignal, signalConnu } from "../signaux.js?v=20261015a";
+import { carteMarquage, marquageConnu } from "../marquage.js?v=20261015a";
+import { rendreBlocInteractif, detruireScenes } from "../cours-blocs.js?v=20261015a";
+import { ouvertureBloc, lireBloc } from "../cours-blocs-rules.js?v=20261015a";
+import { listCoursIndex, getCours } from "../db.js?v=20261015a";
+import { isAdmin, isProf, getViewAs } from "../auth-admin.js?v=20261015a";
 import { titreDepuisMarkdown, tempsLecture, cleCours, estCodeCompetence, libelleCle, coursSuivant, cibleLienCours,
   coursVisibleEnApercu }
-  from "../cours-rules.js?v=20261013a";
+  from "../cours-rules.js?v=20261015a";
 
 // Index des cours visibles, chargé une fois par rendu de la page Thèmes.
 let coursIndex = null;  // Map clé (numéro ou code) -> { id, numero, code, titre, published, updated_by, updated_at }
@@ -339,7 +339,7 @@ function rendreBlocs(lignes, contexte) {
       continue;
     }
 
-    // Blocs interactifs des cours de compétences (schéma animé, quiz, cartes). Après les planches :
+    // Blocs interactifs des cours de compétences (schéma animé, dessin, quiz, cartes). Après les planches :
     // toute autre directive « ::: » est signalée (scène, Quiz...), et un bloc sans fermeture aussi.
     const ouverture = ouvertureBloc(nu);
     if (ouverture) {
@@ -436,13 +436,16 @@ function rendreBlocs(lignes, contexte) {
  *  contexte.sections liste les titres de niveau 2 (pour le sommaire),
  *  contexte.erreurs les blocs mal formés, non refermés ou de directive inconnue
  *  (affichés par l'éditeur seulement),
- *  contexte.scenes les schémas animés montés : le rendu qui les jette (fermeture de
- *  la fiche, nouvel aperçu de l'éditeur) appelle d'abord detruireScenes(contexte).
+ *  contexte.scenes les schémas animés et les dessins montés : le rendu qui les jette (fermeture
+ *  de la fiche, nouvel aperçu de l'éditeur) appelle d'abord detruireScenes(contexte),
+ *  contexte.signaler(message) le canal des échecs qui arrivent après le rendu (un schéma ou
+ *  un dessin qui n'a pu ni se charger ni se monter) : sans effet par défaut, l'éditeur l'assigne
+ *  pour ajouter le message à ses avertissements ; un rendu détruit n'y écrit plus.
  *  `cartes` regroupe chaque rubrique de niveau 2 dans une carte (compétences).
- *  `blocs: false` (assistant) laisse les blocs schéma, quiz et cartes en texte brut :
- *  une réponse qui en recopie un ne monte ni schéma ni quiz dans la bulle. */
+ *  `blocs: false` (assistant) laisse les blocs schéma, dessin, quiz et cartes en texte brut :
+ *  une réponse qui en recopie un ne monte ni schéma, ni dessin, ni quiz dans la bulle. */
 export function rendreMarkdown(texte, { cartes = false, blocs = true } = {}) {
-  const contexte = { sections: [], essentielVu: false, erreurs: [], scenes: [], blocs };
+  const contexte = { sections: [], essentielVu: false, erreurs: [], scenes: [], blocs, signaler: () => {} };
   const noeuds = rendreBlocs(String(texte).split("\n"), contexte);
   return { noeuds: cartes ? regrouperEnCartes(noeuds) : noeuds, contexte };
 }
@@ -491,7 +494,7 @@ export async function openCoursSheet(theme, { onQcm } = {}) {
   // ce bouton. L'import dynamique évite de charger l'éditeur pour lui.
   const modifier = (isAdmin() || isProf())
     ? el("button", { class: "btn cours-modifier", type: "button", onClick: async () => {
-        const { openCoursEditeur } = await import("./cours-editeur.js?v=20261013a");
+        const { openCoursEditeur } = await import("./cours-editeur.js?v=20261015a");
         close();
         openCoursEditeur(cle, {
           onFerme: (aChange) => { if (aChange) openCoursSheet(theme); },

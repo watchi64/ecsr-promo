@@ -1,0 +1,183 @@
+/*
+ * Promo ECSR : Application propriétaire.
+ * © 2026 watchi64 : Tous droits réservés. Voir LICENSE.
+ *
+ * Index des blocs illustrés des cours de compétences (scènes animées et dessins) : pour chaque code, le genre de bloc,
+ * le module qui le dessine, son titre, son modèle (étapes ou légende) et le cadre d'un dessin. Chargé avec le lecteur :
+ * il ne contient aucun dessin. Les registres reprennent ces métadonnées ; tests/catalogue-blocs.test.mjs vérifie
+ * qu'ils s'accordent.
+ *
+ * Une entrée : bloc ("scene" pour une animation, "dessin" pour un dessin fixe), module (la famille qui le dessine),
+ * titre (celui du menu Blocs de l'éditeur), etapesModele (intitulés proposés par l'éditeur pour une scène : un cours
+ * peut les reformuler, pas en changer le nombre) ou legendeModele (légende proposée pour un dessin), cadre (largeur et
+ * hauteur réservées à un dessin pendant son chargement ; une scène de route calcule le sien).
+ */
+export const MODULES_BLOCS = ["route", "poste", "voyants", "conducteur", "entretien", "visibilite", "dessus"];
+
+export const CATALOGUE = {
+  // Scènes de route (js/scenes.js) : titres et étapes modèles déplacés ici, mot pour mot, depuis le registre.
+  "tourner-droite": { bloc: "scene", module: "route", titre: "Tourner à droite en agglomération",
+    etapesModele: [
+      "Contrôler et mettre le clignotant",
+      "Serrer à droite, sans se coller au trottoir",
+      "Réduire l'allure avant le virage",
+      "Balayer l'intersection du regard",
+      "Contrôler l'angle mort droit",
+      "Tourner en regardant la sortie",
+      "Céder le passage au piéton",
+      "Repartir une fois le passage dégagé",
+    ] },
+  "tourner-gauche": { bloc: "scene", module: "route", titre: "Tourner à gauche en agglomération",
+    etapesModele: [
+      "Contrôler et mettre le clignotant",
+      "Serrer à gauche, près de l'axe sans le franchir",
+      "Réduire l'allure",
+      "Balayer l'intersection du regard",
+      "Céder le passage au véhicule d'en face",
+      "Contrôler l'angle mort gauche",
+      "Tourner après le point central",
+      "Rejoindre la voie de droite",
+    ] },
+  giratoire: { bloc: "scene", module: "route", titre: "Traverser un carrefour à sens giratoire",
+    etapesModele: [
+      "Contrôler au rétroviseur intérieur, sans clignotant",
+      "Adapter l'allure à l'approche",
+      "Balayer les véhicules engagés",
+      "Céder le passage à l'usager de l'anneau",
+      "Regarder à gauche avant de s'insérer",
+      "S'insérer et circuler dans l'anneau",
+      "Casser l'allure, rétroviseur intérieur",
+      "Clignotant à droite après la sortie précédente",
+      "Contrôler l'angle mort droit",
+      "Contrôler l'angle mort gauche",
+      "Balayer la sortie et sortir",
+      "Reprendre l'allure dans la voie de sortie",
+    ] },
+  "regard-intersection": { bloc: "scene", module: "route", titre: "Regarder autour de soi à l'approche d'une intersection",
+    etapesModele: [
+      "Regarder loin devant",
+      "Contrôler au rétroviseur intérieur",
+      "Ralentir à l'approche",
+      "Regarder en face",
+      "Regarder à gauche",
+      "Regarder à droite",
+      "Traverser en regardant devant",
+    ] },
+  "trajectoire-courbe": { bloc: "scene", module: "route", titre: "Diriger la voiture en ligne droite et en courbe",
+    etapesModele: [
+      "Regarder loin devant",
+      "Freiner avant le virage, en ligne droite",
+      "S'écarter un peu du bord",
+      "Regarder la sortie du virage",
+      "Réaccélérer en sortie",
+      "Regarder loin devant",
+      "Freiner avant le virage, en ligne droite",
+      "Rester à droite de sa voie",
+      "Regarder la sortie du virage",
+      "Réaccélérer en sortie",
+    ] },
+  "demarrer-arreter": { bloc: "scene", module: "route", titre: "Démarrer et s'arrêter",
+    etapesModele: [
+      "Contrôler au rétroviseur intérieur",
+      "Contrôler au rétroviseur extérieur gauche",
+      "Contrôler l'angle mort gauche",
+      "Mettre le clignotant gauche",
+      "Démarrer et rejoindre sa voie",
+      "Rouler au centre de sa voie",
+      "Contrôler au rétroviseur intérieur",
+      "Contrôler au rétroviseur extérieur droit",
+      "Contrôler l'angle mort droit",
+      "Mettre le clignotant droit",
+      "Ralentir et se rapprocher du bord",
+      "S'arrêter au bord",
+    ] },
+  "marche-arriere": { bloc: "scene", module: "route", titre: "Marche arrière en ligne droite le long du trottoir",
+    etapesModele: [
+      "Engager la marche arrière",
+      "Faire le tour du regard",
+      "Reculer en regardant par la lunette arrière",
+      "S'arrêter",
+    ] },
+  "demi-tour": { bloc: "scene", module: "route", titre: "Faire demi-tour en trois temps",
+    etapesModele: [
+      "Temps 1 : contrôler au rétroviseur intérieur",
+      "Contrôler au rétroviseur extérieur gauche",
+      "Contrôler l'angle mort gauche",
+      "Mettre le clignotant gauche",
+      "Avancer volant à gauche jusqu'au trottoir opposé",
+      "S'arrêter avant le trottoir, engager la marche arrière",
+      "Temps 2 : faire le tour du regard",
+      "Mettre le clignotant droit",
+      "Reculer volant à droite, par la lunette arrière",
+      "S'arrêter avant le trottoir, engager la première",
+      "Temps 3 : contrôler au rétroviseur intérieur",
+      "Contrôler au rétroviseur extérieur gauche",
+      "Contrôler l'angle mort gauche",
+      "Mettre le clignotant gauche",
+      "Repartir volant à gauche, puis se replacer au milieu de la voie",
+      "Rouler dans la voie de droite",
+    ] },
+  "sortie-portiere": { bloc: "scene", module: "route", titre: "Sortir du véhicule côté chaussée",
+    etapesModele: ["Contrôler au rétroviseur intérieur", "Contrôler au rétroviseur extérieur gauche", "Laisser passer le cycliste",
+      "Contrôler l'angle mort gauche", "Ouvrir de la main droite, buste tourné"] },
+
+  // C1.1
+  "poste-commandes": { bloc: "dessin", module: "poste", titre: "Les commandes du poste de conduite",
+    legendeModele: "Disposition la plus courante : feux et clignotants à gauche, essuie-glaces à droite.", cadre: [320, 240] },
+  autotest: { bloc: "scene", module: "voyants", titre: "L'autotest des voyants",
+    etapesModele: ["Mise du contact : tous les voyants s'allument", "Fin de l'autotest : ils s'éteignent, sauf huile et charge",
+      "Moteur démarré : huile et charge s'éteignent"], cadre: [320, 200] },
+  voyants: { bloc: "dessin", module: "voyants", titre: "Les voyants et leur couleur",
+    legendeModele: "Rouge : s'arrêter dès que possible en sécurité. Orange : faire contrôler sans attendre. Vert ou bleu : information.", cadre: [320, 380] },
+  "tour-vehicule": { bloc: "dessin", module: "dessus", titre: "Le tour du véhicule",
+    legendeModele: "Toujours le même parcours : extérieur, capot, habitacle.", cadre: [320, 240] },
+  capot: { bloc: "dessin", module: "entretien", titre: "Sous le capot",
+    legendeModele: "La disposition varie selon les modèles.", cadre: [320, 260] },
+  niveaux: { bloc: "dessin", module: "entretien", titre: "Lire un niveau",
+    legendeModele: "Entre mini et maxi, sur sol plat.", cadre: [320, 200] },
+  pneu: { bloc: "dessin", module: "entretien", titre: "Contrôler un pneu",
+    legendeModele: "Flanc sans hernie ; quand les témoins d'usure affleurent (1,6 mm), le pneu se remplace.", cadre: [320, 300] },
+  pression: { bloc: "dessin", module: "entretien", titre: "La pression des pneus",
+    legendeModele: "À froid, roue de secours comprise, aux valeurs de l'étiquette.", cadre: [320, 200] },
+
+  // C1.2
+  "zones-invisibles": { bloc: "dessin", module: "visibilite", titre: "Ce qu'on ne voit pas depuis le siège",
+    legendeModele: "Devant le capot et derrière le coffre, le sol échappe au regard.", cadre: [320, 170] },
+  installation: { bloc: "scene", module: "conducteur", titre: "S'installer, dans l'ordre",
+    etapesModele: ["Régler le siège", "Régler l'appuie-tête", "Régler le volant", "Boucler la ceinture", "Régler les rétroviseurs"], cadre: [320, 220] },
+  siege: { bloc: "dessin", module: "conducteur", titre: "Régler le siège",
+    legendeModele: "Environ 25 cm entre le sternum et le centre du volant, en reculant le siège.", cadre: [320, 210] },
+  "appuie-tete": { bloc: "dessin", module: "conducteur", titre: "Régler l'appuie-tête",
+    legendeModele: "Le haut au niveau du sommet du crâne, au plus près de la tête.", cadre: [320, 200] },
+  ceinture: { bloc: "dessin", module: "conducteur", titre: "Placer la ceinture",
+    legendeModele: "Brin ventral bas sur le bassin, brin diagonal au milieu de l'épaule.", cadre: [320, 220] },
+  retroviseurs: { bloc: "dessin", module: "visibilite", titre: "Ce que montrent les rétroviseurs",
+    legendeModele: "L'horizon à mi-hauteur, un mince liseré de carrosserie.", cadre: [320, 306] },
+  "angles-morts": { bloc: "dessin", module: "visibilite", titre: "Les angles morts",
+    legendeModele: "Ce qu'aucun rétroviseur ne montre : un coup d'œil par-dessus l'épaule.", cadre: [320, 326] },
+  pedales: { bloc: "dessin", module: "poste", titre: "Les pédales et les pieds",
+    legendeModele: "Pied gauche : embrayage. Pied droit : frein ou accélérateur.", cadre: [320, 200] },
+  "roues-trottoir": { bloc: "dessin", module: "dessus", titre: "Immobiliser en pente",
+    legendeModele: "En pente, roues braquées vers le trottoir.", cadre: [320, 240] },
+
+  // C1.3
+  "sous-survirage": { bloc: "dessin", module: "dessus", titre: "Sous-virage et survirage",
+    legendeModele: "Sous-virage : la voiture tire tout droit. Survirage : l'arrière chasse.", cadre: [320, 333] },
+  "mains-volant": { bloc: "dessin", module: "poste", titre: "Tenir le volant",
+    legendeModele: "Mains à 9 h et 3 h (ou 10 h 10), pouces sur la jante.", cadre: [320, 200] },
+  "tirer-glisser": { bloc: "scene", module: "poste", titre: "Tourner en tirer-glisser",
+    etapesModele: ["La main droite monte vers midi", "Elle tire le volant vers le bas, la gauche le laisse glisser"], cadre: [320, 260] },
+  chevauchement: { bloc: "scene", module: "poste", titre: "Tourner en chevauchement",
+    etapesModele: ["La main droite monte vers midi", "Elle tire, la gauche suit sans lâcher prise jusqu'à midi",
+      "La gauche tire à son tour, la droite remonte", "L'alternance continue"], cadre: [320, 260] },
+  "retour-volant": { bloc: "scene", module: "poste", titre: "Le retour du volant",
+    etapesModele: ["En sortie de virage, les doigts laissent glisser le volant", "Il revient droit seul",
+      "À basse allure, il ne revient pas seul", "Les mains le ramènent"], cadre: [320, 260] },
+  "regard-loin": { bloc: "dessin", module: "dessus", titre: "Regarder loin",
+    legendeModele: "La voiture suit le regard : regarder loin, là où l'on veut aller.", cadre: [320, 230] },
+};
+
+/** L'entrée d'un code, ou null : seules les propriétés propres comptent (« constructor » n'est pas un bloc). */
+export function entreeBloc(code) {
+  return Object.prototype.hasOwnProperty.call(CATALOGUE, code) ? CATALOGUE[code] : null;
+}

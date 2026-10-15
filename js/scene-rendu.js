@@ -8,13 +8,18 @@
  * et les tests (tests/scene-rendu.test.mjs) les vérifient sur les scènes du registre.
  * Le regard du conducteur, lui, est dans js/scene-regard.js.
  *
- * Teintes, clignotant, feux de recul, feux stop, cadres, repères des étapes, panneaux, facteur de lecture,
- * visibilité du schéma (quand la lecture démarre, quand elle s'interrompt).
+ * Teintes, clignotant, feux de recul, feux stop, cadres, repères des étapes, panneaux. Le facteur de lecture et la
+ * visibilité du schéma (quand la lecture démarre, quand elle s'interrompt) sont ceux du lecteur commun des animations
+ * (js/lecteur-anime-regles.js) : ce fichier les réexporte.
  *
  * Toutes les valeurs ci-dessous sont des choix de dessin, sans portée réglementaire.
  */
-import { DEG, GABARITS, etatActeur, emprise, rectangle, polygonesSeChevauchent } from "./scene-geometrie.js?v=20261013a";
-import { REGARD_PORTEE, REGARD_OUVERTURE, DIRECTIONS_TOUR_FIGE, oeil, conesTour } from "./scene-regard.js?v=20261013a";
+import { DEG, GABARITS, etatActeur, emprise, rectangle, polygonesSeChevauchent } from "./scene-geometrie.js?v=20261015a";
+import { REGARD_PORTEE, REGARD_OUVERTURE, DIRECTIONS_TOUR_FIGE, oeil, conesTour } from "./scene-regard.js?v=20261015a";
+import { TEINTES_VELO } from "./piece-cycliste.js?v=20261015a";
+
+// Règles du lecteur commun des animations, réexportées ici pour les modules et les tests qui les lisaient dans ce fichier.
+export { facteurLecture, SEUIL_DEMARRAGE, SEUILS_VISIBILITE, actionVisibilite } from "./lecteur-anime-regles.js?v=20261015a";
 
 // Teintes de la route réelle (donnée pédagogique), pas la palette de l'app ; la voiture de l'élève prend l'accent de l'app
 // pour être repérée d'un coup d'œil.
@@ -31,6 +36,13 @@ export const TEINTES = {
   // de l'élève et 9,45:1 sur sa bordure (WCAG 1.4.11 : 3:1, tests/scene-rendu.test.mjs). Sur la carrosserie grise des
   // autres voitures, 2,96:1 seulement : accepté tant que seule la voiture de l'élève recule, ce qu'un test épingle.
   recul: "#FFFFFF",
+  // Cycliste vu du dessus (plan 3, tâche 13) : veste (le dos) et son ombre (les bras), contour, tête, vélo (cadre et guidon),
+  // pneus, ceux de la pièce partagée avec le dessin des angles morts (js/piece-cycliste.js). La veste, orange clair, se lit sur
+  // la chaussée (3,32:1), le contour, foncé, sur la chaussée vue à travers le cône du regard (4,94:1) (WCAG 1.4.11 : 3:1,
+  // tests/scene-rendu.test.mjs) : le cycliste se détache partout.
+  ...TEINTES_VELO,
+  // Ouverture laissée dans le flanc quand la portière s'ouvre : le seuil et le siège, sous le toit.
+  habitacle: "#2F3631",
 };
 
 /** Fréquence du clignotant, en hertz. */
@@ -164,7 +176,8 @@ function axesTourFige(sc, e) {
  * libre(r, posees, e), vrai quand le repère r ({ x, y, numeros }) de l'élève dans l'état e (au début de la première étape du
  * repère) tient dans le monde sans toucher le dessin d'un panneau, une ligne de cédez-le-passage, la voiture de l'élève au
  * début d'une étape, un acteur posé avec JEU_REPERE_VOITURE autour de lui ni un repère déjà posé (posees), sans acteur posé
- * entre l'élève et lui, et sans entrer dans la zone protégée des cônes d'un tour du regard figé de la scène. Sur l'image
+ * entre l'élève et lui, et sans entrer dans la zone protégée des cônes d'un tour du regard figé de la scène (les acteurs
+ * posés sont les autres que l'élève : sa voiture peut être posée, garée, et reste la voiture de l'élève). Sur l'image
  * figée, chacun des quatre côtés du tour doit se lire comme un regard qui part de la voiture : la moitié la plus proche de la
  * voiture de l'axe d'un cône latéral (à gauche, à droite) reste libre de tout repère ; un cône avant ou arrière n'a jamais
  * plus de la moitié de son axe couverte, repères déjà posés compris (un repère posé devant ou derrière la voiture n'en couvre
@@ -178,10 +191,12 @@ export function placeRepereLibre(sc) {
   for (const et of sc.etapes) obstacles.push(emprise(sc.eleve.gabarit, etatActeur(sc.eleve, et.t)));
   // Un acteur posé (voiture garée, véhicule qui attend) est dessiné au même endroit sur toute image, par-dessus les repères :
   // un repère garde autour de lui le jeu qu'il garde autour de la voiture de l'élève, sans quoi il se lirait comme le
-  // désignant.
-  for (const a of sc.acteurs) if (a.pose) obstacles.push(empriseElargie(a, JEU_REPERE_VOITURE));
+  // désignant. La voiture de l'élève peut elle-même être posée (garée, moteur coupé) : elle n'est pas un autre acteur, et son
+  // jeu est celui de la règle des repères (reperesEtapes).
+  const autresPoses = sc.acteurs.filter((a) => a.pose && a !== sc.eleve);
+  for (const a of autresPoses) obstacles.push(empriseElargie(a, JEU_REPERE_VOITURE));
   // Aucun acteur posé entre l'élève (état e) et son repère r : le repère se lirait comme désignant cet acteur.
-  const poses = sc.acteurs.filter((a) => a.pose).map((a) => emprise(a.gabarit, etatActeur(a, 0)));
+  const poses = autresPoses.map((a) => emprise(a.gabarit, etatActeur(a, 0)));
   const separe = (e, r) => poses.some((p) => polygonesSeChevauchent([[e.x, e.y], [r.x, r.y]], p));
   const axes = sc.etapes.filter((et) => et.regard && et.regard.tour).flatMap((et) => axesTourFige(sc, etatActeur(sc.eleve, et.t)));
   // Partie [t0, t1] de l'axe a que couvre la boîte b, dans ce que le monde en montre ; null si elle n'en couvre rien.
@@ -325,32 +340,4 @@ export function cadreReduit(sc) {
 /** Rectangle { x, y, largeur, hauteur } (m) du dessin d'un panneau posé en (p.x ; p.y) : centré sur sa position. */
 export function emprisePanneau(p) {
   return { x: p.x - TAILLE_PANNEAU / 2, y: p.y - TAILLE_PANNEAU / 2, largeur: TAILLE_PANNEAU, hauteur: TAILLE_PANNEAU };
-}
-
-/**
- * Facteur de lecture affiché sous le schéma quand la scène ne se joue pas à sa vitesse réelle : { texte, libelle }
- * (« × 0,5 » et sa lecture en clair pour les lecteurs d'écran), ou null à vitesse réelle.
- */
-export function facteurLecture(vitesse) {
-  if (vitesse === 1) return null;
-  const nombre = String(vitesse).replace(".", ",");
-  return { texte: "× " + nombre, libelle: `Lecture ${vitesse < 1 ? "ralentie" : "accélérée"} : ${nombre} fois la vitesse réelle` };
-}
-
-/** Part visible du schéma (de 0 à 1) à partir de laquelle la première lecture démarre. */
-export const SEUIL_DEMARRAGE = 0.6;
-/** Seuils de l'observateur de visibilité du schéma : 0, pour être prévenu quand il sort tout à fait de l'écran, et
- *  SEUIL_DEMARRAGE. */
-export const SEUILS_VISIBILITE = [0, SEUIL_DEMARRAGE];
-
-/**
- * Ce que fait la lecture quand la part visible du schéma (`rapport`, de 0 à 1) change : "demarrer" la première fois que
- * 60 % au moins du schéma sont visibles, "pause" quand il sort tout à fait de l'écran en pleine lecture, sinon rien
- * (null). Lire les dernières étapes de la liste, sous un schéma à moitié sorti de l'écran, ne l'interrompt donc pas.
- * `dejaVu` : la première lecture a déjà été lancée (automatique ou demandée) ; `enCours` : la lecture tourne.
- */
-export function actionVisibilite(rapport, dejaVu, enCours) {
-  if (rapport >= SEUIL_DEMARRAGE && !dejaVu) return "demarrer";
-  if (rapport <= 0 && enCours) return "pause";
-  return null;
 }
