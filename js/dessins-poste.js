@@ -660,7 +660,8 @@ const GESTE = {
   // Flèches d'une main qui se déplace le long de la jante (qu'elle y glisse ou qu'elle tourne avec le volant), et du volant qui
   // revient droit : arcs à 24,5 cm du centre, juste au-delà des repères (le bord de leur liseré est à 22,2 cm) ; écart (heures)
   // qui sépare deux flèches qui se suivent, à leur jonction.
-  fleche: { rayon: 24.5, jeu: 0.25 },
+  // Arc d'une traction dessinée avec la montée de la même main, dans la même étape (retour du volant, cas 2) : 3,5 cm plus loin.
+  fleche: { rayon: 24.5, jeu: 0.25, rayonTraction: 28 },
   // Flèche d'une main qui remonte en l'air (chevauchement) : elle part du bord du repère, à 3 h, et s'arrête avant celui qui
   // est à midi, à `jeu` unités de leur liseré.
   traversee: { echantillons: 24, jeu: 2 },
@@ -721,9 +722,9 @@ function dessinGeste({ code, description, fleches, libelle }) {
 
 // Durées (secondes ; choix de dessin, raisons dans les sources) : doigts qui s'entrouvrent ou se referment en 0,3 s, main qui
 // lâche ou reprend la jante tout à fait en 0,35 s, main qui glisse d'un quart de tour sur la jante en 1 s, main qui remonte en
-// l'air de 3 h à midi en 1,1 s, volant tourné d'un quart de tour en 1 s, d'un demi-tour en 1,5 s ;
+// l'air de 3 h à midi en 1,1 s, volant tourné de 30 degrés en 0,65 s, d'un quart de tour en 1 s, d'un demi-tour en 1,5 s ;
 // chaque étape commence par une pause de 0,3 s (0,4 s à la première étape du retour du volant), le temps de lire l'étape, et
-// finit sur une pause courte (le volant laissé tourné, 1,1 s, à l'étape 3 du retour du volant).
+// finit sur une pause courte, de 0,3 à 0,7 s.
 // Une main qui tient la jante tourne avec le volant : sa place se calcule à partir de l'angle du volant, jamais à part.
 
 // 1. Tirer-glisser, virage à droite.
@@ -841,49 +842,89 @@ const FLECHES_CHEVAUCHEMENT = (() => {
   ];
 })();
 
-// 3. Retour du volant, en sortie d'un virage à droite.
+// 3. Retour du volant, en sortie d'un virage à droite. En roulant (étapes 1 et 2), les doigts s'entrouvrent et le volant revient
+// droit seul. À basse allure, la méthode du formateur (15/10/2026) : « soit on a toujours les mains à 9 h 15 parce qu'on a tourné
+// le volant de moins de 45 degrés, alors on le ramène à deux mains ; soit on a fait un tirer-glisser, et dans ce cas, s'il faut
+// ramener les roues de plus de 45 degrés, je refais un tirer-glisser ; je ne pousse jamais le volant ». Chaque cas en deux étapes,
+// pour que l'image figée de son retour s'ouvre sur le volant tourné : le volant est tourné dans la première, ramené dans la
+// seconde. Cas 1 (étapes 3 et 4) : les mains reprennent la jante à 9 h 15, la tournent de 30 degrés ensemble, puis la ramènent
+// ensemble. Cas 2 (étapes 5 et 6) : un tirer-glisser vers la droite tourne le volant d'un quart de tour (la droite monte à midi
+// en glissant sur la jante et tire jusqu'à 3 h, la gauche reste à 9 h, la jante glisse dessous) ; un tirer-glisser vers la
+// gauche le ramène (la gauche monte à midi et tire jusqu'à 9 h, la droite reste à 3 h, la jante glisse dessous), puis la droite
+// reprend la jante : mains à 9 h 15. Aucune main seule ne pousse le volant : celle qui le tourne seule descend toujours.
 const RETOUR_VOLANT = {
-  debuts: [0, 1.3, 3.6, 6.9], duree: 9.2,
+  debuts: [0, 1.3, 3.6, 5.4, 6.8, 10.2], duree: 13.9,
   angle: 180,                                     // en roulant : volant tourné d'un demi-tour en sortie de virage
   ouverture: [0.4, 0.7],                          // étape 1 : les doigts s'entrouvrent, volant encore tourné
   retour: [1.6, 3.1],                             // étape 2 : il revient droit seul, en glissant dans les doigts
-  angleBasse: 90,                                 // étape 3 : à basse allure, d'un quart de tour : les mains
-  prise: [3.9, 4.2], braquage: [4.35, 5.35],      //   reprennent la jante et tournent le volant,
-  lache: [5.5, 5.8],                              //   entrouvrent les doigts : il reste tourné, jusqu'à l'étape 4 ;
-  reprise: [7.2, 7.5], ramene: [7.65, 8.65],      // étape 4 : elles le reprennent et le ramènent droit
+  petit: 30,                                      // cas 1 : moins de 45 degrés, mains restées à 9 h 15
+  prise: [3.9, 4.2], tourne: [4.35, 5.0],         // étape 3 : les mains reprennent la jante et la tournent ensemble
+  ramene: [5.7, 6.35],                            // étape 4 : elles la ramènent ensemble
+  grand: 90,                                      // cas 2 : un tirer-glisser, un quart de tour (plus de 45 degrés)
+  lacheDroite: [7.1, 7.4], monteDroite: [7.4, 8.4], // étape 5 : la droite entrouvre les doigts et monte à midi sur la jante,
+  repriseDroite: [8.4, 8.7], tireDroite: [8.85, 9.85], //   la reprend (la gauche entrouvre les siens) et tire jusqu'à 3 h ;
+  monteGauche: [10.5, 11.5], repriseGauche: [11.5, 11.8], // étape 6 : la gauche monte à midi sur la jante, la reprend (la
+  tireGauche: [11.95, 12.95], repriseFin: [13.1, 13.4],   //   droite entrouvre les siens), tire jusqu'à 9 h ; la droite reprend
 };
 const LIBELLES_ALLURE = { roulant: "En roulant", basse: "Basse allure" };
 function etatRetourVolant(t) {
-  const R = RETOUR_VOLANT, G = PRISE.glisse;
-  const volant = cles([{ t: R.retour[0], v: R.angle }, { t: R.retour[1], v: 0 }, { t: R.braquage[0], v: 0 }, { t: R.braquage[1], v: R.angleBasse },
-    { t: R.ramene[0], v: R.angleBasse }, { t: R.ramene[1], v: 0 }], t);
-  const prise = cles([{ t: R.ouverture[0], v: 1 }, { t: R.ouverture[1], v: G }, { t: R.prise[0], v: G }, { t: R.prise[1], v: 1 },
-    { t: R.lache[0], v: 1 }, { t: R.lache[1], v: G }, { t: R.reprise[0], v: G }, { t: R.reprise[1], v: 1 }], t);
-  const basse = t >= R.debuts[2];
-  // En roulant, les mains restent à 9 h 15 dans l'espace (la jante glisse dedans) ; à basse allure, elles tournent avec le
-  // volant quand elles le tiennent, et il ne bouge pas quand elles l'ont lâché (le volant est droit quand l'étape 3 commence).
-  const place = (base) => (basse ? base + volant / DEGRES_PAR_HEURE : base);
-  return {
-    volant,
-    mains: { gauche: posee(place(POSITION.gauche), prise), droite: posee(place(POSITION.droite), prise) },
-    allure: basse ? "basse" : "roulant",
-  };
+  const R = RETOUR_VOLANT, G = PRISE.glisse, h = DEGRES_PAR_HEURE;
+  const volant = cles([{ t: R.retour[0], v: R.angle }, { t: R.retour[1], v: 0 }, { t: R.tourne[0], v: 0 }, { t: R.tourne[1], v: R.petit },
+    { t: R.ramene[0], v: R.petit }, { t: R.ramene[1], v: 0 }, { t: R.tireDroite[0], v: 0 }, { t: R.tireDroite[1], v: R.grand },
+    { t: R.tireGauche[0], v: R.grand }, { t: R.tireGauche[1], v: 0 }], t);
+  const [, , T3, , T5] = R.debuts;
+  const allure = t >= T3 ? "basse" : "roulant";
+  if (t < T5) {
+    // En roulant, les mains restent à 9 h 15 dans l'espace (la jante glisse dedans) ; à basse allure (cas 1), elles reprennent la
+    // jante et tournent avec elle : leur place sur la jante ne change pas.
+    const prise = cles([{ t: R.ouverture[0], v: 1 }, { t: R.ouverture[1], v: G }, { t: R.prise[0], v: G }, { t: R.prise[1], v: 1 }], t);
+    const place = (base) => (t >= T3 ? base + volant / h : base);
+    return { volant, mains: { gauche: posee(place(POSITION.gauche), prise), droite: posee(place(POSITION.droite), prise) }, allure };
+  }
+  // Cas 2 : deux tirer-glisser, l'un vers la droite, l'autre vers la gauche ; volant droit au début de l'étape 5.
+  const droite = (() => {
+    if (t < R.repriseDroite[0]) {
+      return posee(cles([{ t: R.monteDroite[0], v: POSITION.droite }, { t: R.monteDroite[1], v: POSITION.midi }], t),
+        cles([{ t: R.lacheDroite[0], v: 1 }, { t: R.lacheDroite[1], v: G }], t));
+    }
+    // Elle reprend la jante à midi, la tire jusqu'à 3 h (elle tourne avec elle), puis entrouvre les doigts et reste à 3 h pendant
+    // que la gauche ramène le volant, et reprend la jante à la fin.
+    const tient = t < R.repriseGauche[0];
+    return posee(tient ? POSITION.midi + volant / h : POSITION.droite,
+      cles([{ t: R.repriseDroite[0], v: G }, { t: R.repriseDroite[1], v: 1 }, { t: R.repriseGauche[0], v: 1 }, { t: R.repriseGauche[1], v: G },
+        { t: R.repriseFin[0], v: G }, { t: R.repriseFin[1], v: 1 }], t));
+  })();
+  const gauche = (() => {
+    if (t < R.repriseGauche[0]) {
+      // Elle tient à 9 h, entrouvre les doigts quand la droite reprend la jante à midi (la jante glisse dessous pendant la traction),
+      // puis monte à midi sur la jante, volant immobile.
+      return posee(cles([{ t: R.monteGauche[0], v: POSITION.gauche }, { t: R.monteGauche[1], v: HEURES_PAR_TOUR }], t),
+        cles([{ t: R.repriseDroite[0], v: 1 }, { t: R.repriseDroite[1], v: G }], t));
+    }
+    // Elle reprend la jante à midi et tire jusqu'à 9 h : elle tourne avec elle.
+    return posee(HEURES_PAR_TOUR + (volant - R.grand) / h, cles([{ t: R.repriseGauche[0], v: G }, { t: R.repriseGauche[1], v: 1 }], t));
+  })();
+  return { volant, mains: { gauche, droite }, allure };
 }
 // Flèche du volant qui revient (étape 2) : arc en haut, raccourci de `bord` heure de chaque côté pour ne pas toucher les repères.
 const RETOUR_FLECHES = { bord: 0.5 };
 // Flèches : étape 1, aucune : les doigts s'entrouvrent, et les repères creux disent que la jante glisse dans les mains (comme dans
 // le tirer-glisser, une flèche sur la jante au bord d'une main peut porter à confusion, remarque du formateur du 15/10/2026) ;
-// étape 2, le volant qui revient droit (arc en haut) ; étape 3, à basse allure, chaque main qui tourne le volant d'un quart de
-// tour ; étape 4, chaque main qui le ramène, à partir de là où elle l'a laissé.
+// étape 2, le volant qui revient droit (arc en haut) ; étape 3, chaque main qui tourne le volant de 30 degrés ; étape 4, chaque
+// main qui le ramène ; étapes 5 et 6, un tirer-glisser : la main qui monte à midi en glissant sur la jante (arc proche) puis tire
+// (arc plus loin, GESTE.fleche.rayonTraction : les deux arcs, de sens contraires sur le même quart de tour, ne se recouvrent pas).
 const FLECHES_RETOUR_VOLANT = (() => {
   const R = RETOUR_VOLANT, F = RETOUR_FLECHES, f = GESTE.fleche;
-  const [demi, quart] = [R.angle / DEGRES_PAR_HEURE / 2, R.angleBasse / DEGRES_PAR_HEURE];
-  const [g, d] = [POSITION.gauche, POSITION.droite];
+  const [demi, petit] = [R.angle / DEGRES_PAR_HEURE / 2, R.petit / DEGRES_PAR_HEURE];
+  const [g, d, midi] = [POSITION.gauche, POSITION.droite, POSITION.midi];
+  const traction = (debut, fin) => arcAutour(debut, fin, f.rayonTraction);
   return [
     [null, null],
     [arcAutour(POSITION.midi + demi - F.bord, POSITION.midi - demi + F.bord, f.rayon), null],
-    [flecheArc(g, g + quart), flecheArc(d, d + quart)],
-    [flecheArc(g + quart, g), flecheArc(d + quart, d)],
+    [flecheArc(g, g + petit), flecheArc(d, d + petit)],
+    [flecheArc(g + petit, g), flecheArc(d + petit, d)],
+    [flecheArc(d, midi), traction(midi, R.grand / DEGRES_PAR_HEURE)],
+    [flecheArc(g, HEURES_PAR_TOUR), traction(HEURES_PAR_TOUR, g)],
   ];
 })();
 
@@ -913,9 +954,11 @@ const DESCRIPTIONS = {
     + "sous la droite. À côté, la voiture vue du dessus braque ses roues avant à droite ; un compteur dit l'angle du volant.",
   "retour-volant": "Volant vu du siège, en sortie d'un virage à droite ; chaque main est un repère, G ou D, plein quand elle tient "
     + "la jante, creux quand elle la laisse glisser. En roulant, les doigts s'entrouvrent et le volant revient droit seul en glissant "
-    + "dans les mains, qui restent à 9 h 15. À basse allure, les mains tournent le volant d'un quart de tour puis entrouvrent les "
-    + "doigts : il reste tourné, il ne revient pas seul ; elles le reprennent et le ramènent droit. À côté, la voiture vue du dessus "
-    + "et ses roues avant ; un compteur dit l'angle du volant.",
+    + "dans les mains, qui restent à 9 h 15. À basse allure, il ne revient pas seul. Tourné de 30 degrés, moins de 45, par les deux "
+    + "mains restées à 9 h 15, elles le ramènent ensemble. Tourné d'un quart de tour, plus de 45 degrés, par un tirer-glisser, un "
+    + "tirer-glisser dans l'autre sens le ramène : la main gauche monte à midi en glissant sur la jante et tire vers le bas, la droite "
+    + "reste à 3 h et la jante glisse dessous ; aucune main ne pousse le volant. À côté, la voiture vue du dessus et ses roues avant ; "
+    + "un compteur dit l'angle du volant.",
 };
 // Libellé de situation de chaque geste, lu dans l'état.
 const LIBELLES = {

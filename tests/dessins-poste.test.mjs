@@ -482,9 +482,9 @@ test("chevauchement : la gauche suit sans lâcher prise jusqu'à midi, puis tire
   assert.ok(Math.abs(def.etat(def.duree).mains.gauche.heure - 12) <= 0.05, "fin : la gauche remontée à midi");
 });
 
-test("retour-volant : doigts qui s'entrouvrent, volant qui revient droit seul en roulant ; à basse allure, tourné par les mains, il ne revient pas seul, puis elles le ramènent", () => {
+test("retour-volant : en roulant, les doigts s'entrouvrent et le volant revient droit seul, les mains restant à 9 h 15 ; à basse allure, il ne tourne que tenu", () => {
   const def = geste("retour-volant");
-  const [T2, T3, T4] = [1, 2, 3].map((i) => def.etapes[i].t);
+  const [T2, T3] = [1, 2].map((i) => def.etapes[i].t);
   // Étape 1 : en sortie de virage, volant encore tourné, les doigts s'entrouvrent.
   const depart = def.etat(0), finEtape1 = def.etat(T2 - 1e-6);
   assert.ok(depart.volant > 0 && finEtape1.volant === depart.volant, "volant tourné, immobile à l'étape 1");
@@ -501,7 +501,7 @@ test("retour-volant : doigts qui s'entrouvrent, volant qui revient droit seul en
     assert.equal(e.allure, "roulant");
   }
   assert.ok(Math.abs(def.etat(T3 - 1e-6).volant) < 1e-9, "fin de l'étape 2 : volant droit");
-  // Étapes 3 et 4 : basse allure ; le volant ne change que tenu, et la main qui le tient garde sa place sur la jante.
+  // Étapes 3 à 6 : basse allure ; le volant ne change que tenu, et la main qui le tient garde sa place sur la jante.
   let change = false;
   for (let i = 1; i < ts.length; i++) {
     if (ts[i - 1] < T3) continue;
@@ -515,16 +515,122 @@ test("retour-volant : doigts qui s'entrouvrent, volant qui revient droit seul en
     }
   }
   assert.ok(change, "basse allure : les mains tournent puis ramènent le volant");
-  // Étape 3 : les mains ont tourné le volant, puis entrouvert les doigts ; il reste tourné, immobile, au moins 1,0 s.
-  const tenu = (e) => COTES_MAINS.some((c) => e.mains[c].prise === 1);
-  const laisse = ts.filter((t) => t >= T3 && t < T4 && !tenu(def.etat(t)) && Math.abs(def.etat(t).volant) > 1e-9);
-  assert.ok(laisse.length && laisse.every((t) => def.etat(t).volant === def.etat(laisse[0]).volant), "étape 3 : volant laissé tourné, immobile");
-  assert.ok(laisse[laisse.length - 1] - laisse[0] >= 1.0 - PAS_IMAGE, `étape 3 : volant laissé tourné ${(laisse[laisse.length - 1] - laisse[0]).toFixed(2)} s`);
-  // Étape 4 : son image figée montre le fait de l'étape 3 (volant tourné, doigts entrouverts) ; à la fin, volant ramené droit.
-  const debut4 = def.etat(T4);
-  assert.ok(Math.abs(debut4.volant) > 1e-9 && COTES_MAINS.every((c) => debut4.mains[c].prise > 0 && debut4.mains[c].prise < 1),
-    "début de l'étape 4 : volant tourné, doigts entrouverts");
-  assert.ok(Math.abs(def.etat(def.duree).volant) < 1e-9, "fin : volant ramené droit");
+});
+
+// Méthode du formateur (15/10/2026) pour ramener le volant à basse allure : « soit on a toujours les mains à 9 h 15 parce qu'on
+// a tourné le volant de moins de 45 degrés, alors on le ramène à deux mains ; soit on a fait un tirer-glisser, et dans ce cas,
+// s'il faut ramener les roues de plus de 45 degrés, je refais un tirer-glisser ; je ne pousse jamais le volant ». Chaque cas en
+// deux étapes : le volant est tourné dans la première, ramené dans la seconde, dont l'image figée s'ouvre ainsi sur lui tourné.
+const LIMITE_DEUX_MAINS = 45;            // degrés : au-delà, le volant se ramène par un tirer-glisser
+const ANGLE_LISIBLE = 20;                // degrés : en deçà, le volant tourné et ramené se lirait mal
+const tenue = (a, b, c) => a.mains[c].prise === 1 && b.mains[c].prise === 1;
+// Hauteur d'une main dans l'espace (1 à midi, 0 à 3 h et à 9 h) : une main qui tient la jante et descend tire le volant ; une
+// main qui tient la jante et monte le pousse.
+const hauteur = (main) => Math.cos((main.heure * Math.PI) / 6);
+const autreMain = (c) => (c === "gauche" ? "droite" : "gauche");
+const PLACES_9H15 = { gauche: 9, droite: 3 };
+
+test("retour-volant, à basse allure, tourné de moins de 45 degrés (étapes 3 et 4) : les deux mains, restées à 9 h 15, le tournent puis le ramènent ; elles tiennent la jante à la même place tout du long, et il finit droit", () => {
+  const def = geste("retour-volant"), [T3, T4, T5] = [2, 3, 4].map((i) => def.etapes[i].t);
+  assert.match(CATALOGUE["retour-volant"].etapesModele[2], /moins de 45 degrés/, "l'intitulé de l'étape 3 dit le cas");
+  assert.equal(def.etat(T3).volant, 0, "début de l'étape 3 : volant droit (il est revenu seul à l'étape 2)");
+  const ts = instantsDe(def).filter((t) => t >= T3 && t < T5);
+  // Chaque main garde sa place de 9 h 15 sur la jante, posée sur elle (la jante ne glisse pas : le volant est droit tant
+  // qu'elles ne l'ont pas reprise, et elles le tiennent dès qu'il tourne).
+  for (const t of ts) {
+    const e = def.etat(t);
+    for (const c of COTES_MAINS) {
+      assert.ok(ecartHeure(surJante(e, c), PLACES_9H15[c]) < 1e-9, `${t.toFixed(3)} s : la ${c} à ${surJante(e, c).toFixed(3)} h sur la jante`);
+      assert.equal(e.mains[c].decalage, 0, `${t.toFixed(3)} s : la ${c} quitte la jante`);
+    }
+  }
+  // Quand il tourne, les deux mains le tiennent ; il s'éloigne du droit à l'étape 3 et y revient à l'étape 4.
+  const tournent = { 2: 0, 3: 0 };
+  for (let i = 1; i < ts.length; i++) {
+    const [a, b] = [def.etat(ts[i - 1]), def.etat(ts[i])], quand = `${ts[i].toFixed(3)} s`;
+    if (Math.abs(b.volant - a.volant) <= 1e-9) continue;
+    const etape = ts[i] < T4 ? 2 : 3;
+    tournent[etape]++;
+    for (const c of COTES_MAINS) assert.ok(tenue(a, b, c), `${quand} : le volant tourne sans que la ${c} le tienne`);
+    if (etape === 2) assert.ok(Math.abs(b.volant) > Math.abs(a.volant), `${quand} : étape 3, le volant revient`);
+    else assert.ok(Math.abs(b.volant) < Math.abs(a.volant), `${quand} : étape 4, le volant s'éloigne du droit`);
+  }
+  assert.ok(tournent[2] > 0 && tournent[3] > 0, "les mains tournent le volant à l'étape 3 et le ramènent à l'étape 4");
+  const plusLoin = Math.max(...ts.map((t) => Math.abs(def.etat(t).volant)));
+  assert.ok(plusLoin < LIMITE_DEUX_MAINS, `tourné de ${plusLoin.toFixed(1)} degrés : 45 ou plus, il se ramène par un tirer-glisser`);
+  assert.ok(plusLoin >= ANGLE_LISIBLE, `tourné de ${plusLoin.toFixed(1)} degrés seulement : il se lit mal`);
+  // L'image figée de l'étape 4 s'ouvre sur le volant tourné, tenu des deux mains ; à la fin de l'étape, il est droit.
+  const [debut4, fin4] = [def.etat(T4), def.etat(T5 - 1e-6)];
+  assert.ok(Math.abs(debut4.volant) === plusLoin && COTES_MAINS.every((c) => debut4.mains[c].prise === 1), "début de l'étape 4 : volant tourné, tenu des deux mains");
+  assert.ok(Math.abs(fin4.volant) < 1e-9, "fin de l'étape 4 : volant droit");
+  for (const c of COTES_MAINS) {
+    assert.ok(fin4.mains[c].prise === 1 && ecartHeure(fin4.mains[c].heure, PLACES_9H15[c]) < 1e-9, `fin de l'étape 4 : la ${c} à 9 h 15, sur la jante`);
+  }
+});
+
+test("retour-volant, tourné de plus de 45 degrés par un tirer-glisser (étapes 5 et 6) : un tirer-glisser dans l'autre sens le ramène ; pendant qu'il tourne, une seule main le tient, celle qui tire, et l'autre, posée, le laisse glisser sans bouger ; il finit droit, mains à 9 h 15", () => {
+  const def = geste("retour-volant"), [T5, T6] = [4, 5].map((i) => def.etapes[i].t);
+  const intitules = CATALOGUE["retour-volant"].etapesModele;
+  assert.match(intitules[4], /plus de 45 degrés/, "l'intitulé de l'étape 5 dit le cas");
+  assert.match(intitules[4], /tirer-glisser/, "l'intitulé de l'étape 5 dit le geste");
+  assert.match(intitules[5], /tirer-glisser dans l'autre sens/, "l'intitulé de l'étape 6 dit le geste");
+  assert.equal(def.etat(T5).volant, 0, "début de l'étape 5 : volant droit (ramené à l'étape 4)");
+  const ts = instantsDe(def).filter((t) => t >= T5);
+  // Le tirer-glisser de l'étape 5 tourne le volant à droite (la droite tire), celui de l'étape 6 le ramène (la gauche tire).
+  const attendu = { 4: { tire: "droite", sens: 1 }, 5: { tire: "gauche", sens: -1 } }, tournent = { 4: 0, 5: 0 };
+  for (let i = 1; i < ts.length; i++) {
+    const [a, b] = [def.etat(ts[i - 1]), def.etat(ts[i])], quand = `${ts[i].toFixed(3)} s`;
+    if (Math.abs(b.volant - a.volant) <= 1e-9) continue;
+    const etape = ts[i] < T6 ? 4 : 5, { tire, sens } = attendu[etape], laisse = autreMain(tire);
+    tournent[etape]++;
+    assert.equal(Math.sign(b.volant - a.volant), sens, `${quand} : étape ${etape + 1}, le volant tourne dans le mauvais sens`);
+    assert.deepEqual(COTES_MAINS.filter((c) => tenue(a, b, c)), [tire], `${quand} : étape ${etape + 1}, une seule main tient le volant, la ${tire}`);
+    assert.ok(hauteur(b.mains[tire]) < hauteur(a.mains[tire]), `${quand} : la ${tire} tient le volant sans le tirer vers le bas`);
+    const [m, n] = [a.mains[laisse], b.mains[laisse]];
+    assert.ok([m, n].every((x) => x.prise > 0 && x.prise < 1 && x.decalage === 0), `${quand} : la ${laisse} n'est pas posée, doigts entrouverts`);
+    assert.ok(Math.abs(n.heure - m.heure) < 1e-9, `${quand} : la ${laisse} bouge pendant que la jante glisse dessous`);
+  }
+  assert.ok(tournent[4] > 0 && tournent[5] > 0, "un tirer-glisser tourne le volant à l'étape 5, un autre le ramène à l'étape 6");
+  const plusLoin = Math.max(...ts.map((t) => Math.abs(def.etat(t).volant)));
+  assert.ok(plusLoin > LIMITE_DEUX_MAINS, `tourné de ${plusLoin.toFixed(1)} degrés : 45 ou moins, il se ramène à deux mains`);
+  assert.ok(plusLoin <= 90 + 1e-9, `tourné de ${plusLoin.toFixed(1)} degrés : une traction fait un quart de tour au plus`);
+  // L'image figée de l'étape 6 s'ouvre sur le volant tourné ; à la fin, il est droit, les deux mains à 9 h 15 sur la jante.
+  assert.equal(Math.abs(def.etat(T6).volant), plusLoin, "début de l'étape 6 : volant tourné");
+  const fin = def.etat(def.duree);
+  assert.ok(Math.abs(fin.volant) < 1e-9, "fin : volant droit");
+  for (const c of COTES_MAINS) {
+    assert.ok(fin.mains[c].prise === 1 && ecartHeure(fin.mains[c].heure, PLACES_9H15[c]) < 1e-9 && fin.mains[c].decalage === 0,
+      `fin : la ${c} à 9 h 15, sur la jante`);
+  }
+});
+
+// « Je ne pousse jamais le volant » (méthode du formateur, 15/10/2026). Une main qui tient la jante tourne avec elle : elle la
+// tire si elle descend, elle la pousse si elle monte. Quand le volant tourne tenu, une main qui le tient le tire donc toujours
+// vers le bas ; une main seule qui le tient descend. Deux mains peuvent le tourner ensemble (l'une monte, l'autre descend) :
+// au retour à basse allure, sous 45 degrés seulement. Contrôlé dans les trois gestes.
+test("gestes du volant : aucune main ne pousse le volant ; quand il tourne tenu, une main qui le tient le tire vers le bas, et une main seule qui le tient descend toujours ; au retour à basse allure, les deux mains ne le tournent ensemble que sous 45 degrés", () => {
+  let [seules, deux] = [0, 0];
+  for (const code of CODES_GESTES) {
+    const def = geste(code), ts = instantsDe(def);
+    for (let i = 1; i < ts.length; i++) {
+      const [a, b] = [def.etat(ts[i - 1]), def.etat(ts[i])], quand = `${code}, ${ts[i].toFixed(3)} s`;
+      if (Math.abs(b.volant - a.volant) <= 1e-9) continue;
+      const tenantes = COTES_MAINS.filter((c) => tenue(a, b, c));
+      if (!tenantes.length) continue;   // le volant qui revient droit seul, en roulant (la règle de prise le garde)
+      const tirent = tenantes.filter((c) => hauteur(b.mains[c]) < hauteur(a.mains[c]));
+      if (tenantes.length === 1) {
+        seules++;
+        assert.equal(tirent.length, 1, `${quand} : la ${tenantes[0]}, seule à tenir le volant, le pousse (elle monte)`);
+      } else {
+        deux++;
+        assert.ok(tirent.length > 0, `${quand} : les deux mains poussent le volant, aucune ne le tire vers le bas`);
+        if (code === "retour-volant" && b.allure === "basse") {
+          assert.ok(Math.max(Math.abs(a.volant), Math.abs(b.volant)) < LIMITE_DEUX_MAINS, `${quand} : deux mains tournent le volant au-delà de 45 degrés`);
+        }
+      }
+    }
+  }
+  assert.ok(seules > 0 && deux > 0, `${seules} images d'une main seule qui tourne le volant, ${deux} de deux mains : le contrôle ne contrôle rien`);
 });
 
 // --- Règle de prise, commune aux trois gestes ---
@@ -708,7 +814,9 @@ const FIGEES = {
     { volant: 180, gauche: [9, "plein"], droite: [3, "plein"] },
     { volant: 180, gauche: [9, "creux"], droite: [3, "creux"] },
     { volant: 0, gauche: [9, "creux"], droite: [3, "creux"] },
-    { volant: 90, gauche: [0, "creux"], droite: [6, "creux"] },
+    { volant: 30, gauche: [10, "plein"], droite: [4, "plein"] },
+    { volant: 0, gauche: [9, "plein"], droite: [3, "plein"] },
+    { volant: 90, gauche: [9, "creux"], droite: [3, "plein"] },
   ],
 };
 test("gestes du volant : l'image figée de chaque étape (pas à pas, pause, animations réduites) montre le volant à son angle, chaque repère sur la jante à son heure, plein ou creux, et la flèche de l'étape", () => {
@@ -905,14 +1013,23 @@ test("gestes du volant : les flèches de chaque étape montrent le mouvement qu'
   assert.equal(flechesEtape(rv, 0).length, 0, "retour-volant, étape 1 : aucune flèche, les repères creux disent que la jante glisse");
   const e2 = flechesEtape(rv, 1);
   assert.ok(e2.length === 1 && e2[0].sens === -1 && procheHeure(e2[0].queue, 2.5) && procheHeure(e2[0].pointe, 9.5), "retour-volant, étape 2 : le volant revient d'un demi-tour");
-  // Étapes 3 et 4 : les flèches partent des mains ; chacune tourne le volant d'un quart de tour, puis le ramène.
-  const [e3, e4] = [flechesEtape(rv, 2), flechesEtape(rv, 3)];
-  assert.ok(e3.length === 2 && trouve(e3, { de: 9, a: 0, sens: 1 }) && trouve(e3, { de: 3, a: 6, sens: 1 }),
-    "retour-volant, étape 3 : les mains tournent le volant d'un quart de tour, de 9 h à midi et de 3 h à 6 h");
-  assert.ok(e4.length === 2 && trouve(e4, { de: 0, a: 9, sens: -1 }) && trouve(e4, { de: 6, a: 3, sens: -1 }),
-    "retour-volant, étape 4 : les mains le ramènent, de midi à 9 h et de 6 h à 3 h");
+  // Étapes 3 et 4 : les flèches partent des mains ; chacune tourne le volant de 30 degrés (une heure de cadran), puis le ramène.
+  const [e3, e4] = [flechesEtape(rv, 2), flechesEtape(rv, 3)], fin = 0.1;
+  assert.ok(e3.length === 2 && trouve(e3, { de: 9, a: 10, sens: 1, tolerance: fin }) && trouve(e3, { de: 3, a: 4, sens: 1, tolerance: fin }),
+    "retour-volant, étape 3 : les deux mains tournent le volant de 30 degrés, de 9 h à 10 h et de 3 h à 4 h");
+  assert.ok(e4.length === 2 && trouve(e4, { de: 10, a: 9, sens: -1, tolerance: fin }) && trouve(e4, { de: 4, a: 3, sens: -1, tolerance: fin }),
+    "retour-volant, étape 4 : les deux mains le ramènent, de 10 h à 9 h et de 4 h à 3 h");
   const debut4 = rv.etat(rv.etapes[3].t).mains;
-  assert.ok(procheHeure(debut4.gauche.heure, 0, 0.05) && procheHeure(debut4.droite.heure, 6, 0.05), "retour-volant, étape 4 : les flèches partent des mains");
+  assert.ok(procheHeure(debut4.gauche.heure, 10, 0.05) && procheHeure(debut4.droite.heure, 4, 0.05), "retour-volant, étape 4 : les flèches partent des mains");
+  // Étapes 5 et 6 : un tirer-glisser, la main qui monte à midi en glissant sur la jante, puis sa traction ; à l'étape 6, dans
+  // l'autre sens (la gauche).
+  const [e5, e6] = [flechesEtape(rv, 4), flechesEtape(rv, 5)];
+  assert.ok(e5.length === 2 && trouve(e5, { de: 3, a: 0, sens: -1, tolerance: fin }) && trouve(e5, { de: 0, a: 3, sens: 1, tolerance: fin }),
+    "retour-volant, étape 5 : la droite monte de 3 h à midi, puis tire jusqu'à 3 h");
+  assert.ok(e6.length === 2 && trouve(e6, { de: 9, a: 0, sens: 1, tolerance: fin }) && trouve(e6, { de: 0, a: 9, sens: -1, tolerance: fin }),
+    "retour-volant, étape 6 : la gauche monte de 9 h à midi, puis tire jusqu'à 9 h");
+  const debut6 = rv.etat(rv.etapes[5].t).mains;
+  assert.ok(procheHeure(debut6.gauche.heure, 9, 0.05) && procheHeure(debut6.droite.heure, 3, 0.05), "retour-volant, étape 6 : la flèche de la montée part de la gauche");
 });
 
 test("gestes du volant : la voiture braque ses roues avant dans le sens du volant, au rapport de direction, et le compteur dit l'angle du volant", () => {
@@ -929,23 +1046,23 @@ test("gestes du volant : la voiture braque ses roues avant dans le sens du volan
   }
 });
 
-// Chaque étape où les mains tournent le volant (prise pleine des deux mains pendant qu'il tourne) les nomme dans son intitulé
-// modèle : l'image figée de l'étape 3 montre des mains qui braquent, que « À basse allure, il ne revient pas seul » ne disait pas
-// (relecture finale du lot D1, m3 ; contrôle du lot, I3).
-test("retour-volant : l'intitulé modèle de chaque étape où les mains tournent le volant les nomme", () => {
+// Chaque étape où les mains tournent le volant dit dans son intitulé modèle comment : les deux ensemble (prise pleine des deux
+// mains pendant qu'il tourne), il nomme les mains ; une seule, à basse allure, il nomme le tirer-glisser. L'image figée d'une
+// étape montre des mains qui braquent, que « À basse allure, il ne revient pas seul » ne disait pas (relecture finale du lot D1,
+// m3 ; contrôle du lot, I3).
+test("retour-volant : l'intitulé modèle de chaque étape où les mains tournent le volant dit comment : les mains, quand les deux le tournent ensemble ; le tirer-glisser, quand une seule le tire", () => {
   const def = famille.GESTES["retour-volant"].construire();
   const bornes = [...def.etapes.map((e) => e.t), def.duree];
   const intitules = CATALOGUE["retour-volant"].etapesModele;
-  let etapesTournees = 0;
+  const vues = { deux: [], une: [] };
   intitules.forEach((intitule, i) => {
-    let tournent = false;
+    const tenues = new Set();
     for (let t = bornes[i]; t + PAS_IMAGE <= bornes[i + 1]; t += PAS_IMAGE) {
       const a = def.etat(t), b = def.etat(t + PAS_IMAGE);
-      if (Math.abs(b.volant - a.volant) > 1e-9 && a.mains.gauche.prise === 1 && a.mains.droite.prise === 1) tournent = true;
+      if (Math.abs(b.volant - a.volant) > 1e-9 && a.allure === "basse") tenues.add(COTES_MAINS.filter((c) => tenue(a, b, c)).length);
     }
-    if (!tournent) return;
-    etapesTournees++;
-    assert.match(intitule, /\bmains\b/i, `étape ${i + 1} : « ${intitule} »`);
+    if (tenues.has(2)) { vues.deux.push(i + 1); assert.match(intitule, /\bmains\b/i, `étape ${i + 1} : « ${intitule} »`); }
+    if (tenues.has(1)) { vues.une.push(i + 1); assert.match(intitule, /tirer-glisser/i, `étape ${i + 1} : « ${intitule} »`); }
   });
-  assert.equal(etapesTournees, 2, "les mains tournent le volant aux étapes 3 et 4");
+  assert.deepEqual(vues, { deux: [3, 4], une: [5, 6] }, "les deux mains tournent le volant aux étapes 3 et 4, une seule aux étapes 5 et 6");
 });
