@@ -760,16 +760,17 @@ test("regard-loin : le cône du regard des scènes, sommet à l'œil, 22 m de po
   assert.ok(Math.abs(Math.abs(ecartAngle(versLe(s, p1), versLe(s, p2))) - 2 * REGARD_OUVERTURE) < 0.01, "ouverture de 32 degrés");
 });
 
-// Tolérance sur la place du point visé sur le bord intérieur : 0,05 m, un demi-pixel sur un téléphone (invisible), bien en deçà
-// de ce qu'un point mal placé déplacerait : l'axe de la voie est à 1,75 m du bord, un degré d'arc fait 0,21 m sur ce bord.
-const TOLERANCE_BORD = 0.05;
-test("regard-loin, étape 1 : en entrée de virage, le point visé est le point de corde, au bord intérieur de la voie, au sommet du virage, nommé « Point de corde »", () => {
+// Le point visé suit le bord intérieur de la voie à 0,50 m en dedans, côté voie (consigne du formateur du 16/10/2026 : « point de
+// corde décalé de 50 cm à gauche »). Tolérance : 0,05 m, un demi-pixel sur un téléphone (invisible), dix fois moins que le
+// décalage : un point posé sur le bord, ou décalé du mauvais côté, sort de la tolérance ; un degré d'arc fait 0,22 m à ce rayon.
+const DECALAGE_CORDE = 0.5, TOLERANCE_BORD = 0.05;
+test("regard-loin, étape 1 : en entrée de virage, le point visé est le point de corde, au sommet du virage, 0,50 m en dedans du bord intérieur de la voie, nommé « Point de corde »", () => {
   const def = geste(), image = imageFigee(def, 0);
   const { route, pose, oeil, vise } = lireRegard(image), E = pose.echelle;
   assert.ok(Math.abs(route.voie / E - DESSIN.voie) < 1e-9, "voie des scènes");
   assert.deepEqual(route.angles, [180, 270], "virage d'un quart de tour, à droite : l'approche monte, la sortie va vers la droite");
   const bord = route.rayon - route.voie, sommet = (route.angles[0] + route.angles[1]) / 2;
-  const corde = surCercle(route.centre, bord, sommet);
+  const corde = surCercle(route.centre, bord + DECALAGE_CORDE * E, sommet);
   assert.ok(distance(vise, corde) <= TOLERANCE_BORD * E, `point visé à ${(distance(vise, corde) / E).toFixed(3)} m du point de corde`);
   const etiquetteCorde = trouverRole(image, "etiquette-corde");
   assert.equal(textesDe(etiquetteCorde).join(" "), "Point de corde");
@@ -784,14 +785,16 @@ test("regard-loin, étape 1 : en entrée de virage, le point visé est le point 
   assert.ok(Math.abs(ecartAngle(pose.cap, -90)) < 1e-6, "cap vers le haut");
 });
 
-test("regard-loin : à chaque image, l'axe du cône et le trait de visée vont de l'œil au point visé, son anneau affiché", () => {
+test("regard-loin : à chaque image, l'axe du cône et le trait de visée partent de l'œil et passent par le point visé, son anneau affiché", () => {
   const def = geste();
   for (const t of instantsDe(def)) {
     for (const fige of [false, true]) {
       const image = imageA(def, t, fige), { oeil, cone, vise, anneau, visee } = lireRegard(image), quand = `${t.toFixed(3)} s`;
       assert.ok(Math.abs(ecartAngle(cone.direction, versLe(oeil, vise))) < 0.01, `${quand} : l'axe du regard ne passe pas par le point visé`);
-      const trait = pointsDe(visee);
-      assert.ok(distance(trait[0], oeil) < 0.01 && distance(trait[trait.length - 1], vise) < 0.01, `${quand} : trait de visée de l'œil au point visé`);
+      const trait = pointsDe(visee), bout = trait[trait.length - 1];
+      assert.ok(distance(trait[0], oeil) < 0.01, `${quand} : trait de visée qui ne part pas de l'œil`);
+      assert.ok(Math.abs(ecartAngle(versLe(oeil, bout), versLe(oeil, vise))) < 0.01 && distance(oeil, bout) >= distance(oeil, vise) - 0.01,
+        `${quand} : trait de visée qui ne va pas jusqu'au point visé, sur l'axe du regard`);
       for (const noeud of [visee, anneau, ...trouverTous(anneau, (x) => x.balise === "circle")]) {
         assert.ok(noeud.attributs.display !== "none" && (noeud.attributs.opacity === undefined || Number(noeud.attributs.opacity) === 1),
           `${quand} : ${noeud.attributs["data-r"] || noeud.balise} masqué`);
@@ -800,7 +803,7 @@ test("regard-loin : à chaque image, l'axe du cône et le trait de visée vont d
   }
 });
 
-test("regard-loin : le point visé glisse sans revenir en arrière le long du bord intérieur de la voie, de la corde à la fin de l'arc, puis jusqu'au fond de la sortie, dans la voie", () => {
+test("regard-loin : le point visé glisse sans revenir en arrière le long du bord intérieur de la voie, 0,50 m en dedans, de la corde à la fin de l'arc, puis jusqu'au fond de la sortie, dans la voie", () => {
   const def = geste(), [, t2, t3] = def.etapes.map((e) => e.t);
   let precedente = -Infinity;
   for (const t of instantsDe(def)) {
@@ -810,8 +813,8 @@ test("regard-loin : le point visé glisse sans revenir en arrière le long du bo
     precedente = a;
     const d = auCentre(route, vise);
     if (t <= t2) {
-      // Jusqu'à l'étape 2, sur le bord intérieur, entre le sommet et la fin de l'arc.
-      assert.ok(Math.abs(d - bord) <= TOLERANCE_BORD * E, `${quand} : point visé à ${((d - bord) / E).toFixed(3)} m du bord intérieur`);
+      // Jusqu'à l'étape 2, 0,50 m en dedans du bord intérieur, entre le sommet et la fin de l'arc.
+      assert.ok(Math.abs(d - bord - DECALAGE_CORDE * E) <= TOLERANCE_BORD * E, `${quand} : point visé à ${((d - bord) / E).toFixed(3)} m du bord intérieur`);
       assert.ok(a >= (route.angles[0] + route.angles[1]) / 2 - 1e-6 && a <= route.angles[1] + 1e-6, `${quand} : point visé hors de la seconde moitié de l'arc`);
     } else {
       // Puis dans la voie de la voiture, sur la ligne droite de sortie.
@@ -820,8 +823,9 @@ test("regard-loin : le point visé glisse sans revenir en arrière le long du bo
     }
   }
   // À l'étape 2, la voiture au sommet : le point visé à la fin de l'arc, sur le bord intérieur.
-  const e2 = lireRegard(imageFigee(def, 1)), fin = surCercle(e2.route.centre, e2.route.rayon - e2.route.voie, e2.route.angles[1]);
-  assert.ok(distance(e2.vise, fin) <= TOLERANCE_BORD * e2.pose.echelle, "étape 2 : le point visé à la fin de l'arc, au bord intérieur");
+  const e2 = lireRegard(imageFigee(def, 1)), E2 = e2.pose.echelle;
+  const fin = surCercle(e2.route.centre, e2.route.rayon - e2.route.voie + DECALAGE_CORDE * E2, e2.route.angles[1]);
+  assert.ok(distance(e2.vise, fin) <= TOLERANCE_BORD * E2, "étape 2 : le point visé à la fin de l'arc, 0,50 m en dedans du bord intérieur");
   // À l'étape 3 et jusqu'à la fin : au fond de la sortie, au moins 10 m après l'arc, son anneau entier dans le cadre, nommé « Sortie ».
   for (const t of instantsDe(def).filter((x) => x >= t3)) {
     const image = imageA(def, t, false), { route, pose, vise, anneau } = lireRegard(image), E = pose.echelle;
@@ -832,6 +836,23 @@ test("regard-loin : le point visé glisse sans revenir en arrière le long du bo
     const sortie = trouverRole(image, "etiquette-sortie");
     assert.equal(textesDe(sortie).join(" "), "Sortie");
     assert.ok(distance(point(sortie), vise) < 0.01, "l'étiquette nomme le fond de la sortie");
+  }
+});
+
+// Consigne du formateur du 16/10/2026 : « regard au loin : tire le vecteur jusqu'au bout ». Jusqu'au début de l'étape 2, le trait
+// de visée s'arrête au point visé ; à l'étape 3, il va jusqu'au bord du cadre (le bout de la route visible), au-delà du fond de la
+// sortie, à la demi-épaisseur du trait près (et un demi-unité de mesure).
+test("regard-loin : le trait de visée s'arrête au point visé jusqu'à l'étape 2, puis, le regard portant au loin, se prolonge jusqu'au bord du cadre à l'étape 3", () => {
+  const def = geste(), [, t2, t3] = def.etapes.map((e) => e.t), [L, H] = def.cadre;
+  for (const t of instantsDe(def)) {
+    const { vise, visee, anneau } = lireRegard(imageA(def, t, false)), trait = pointsDe(visee), bout = trait[trait.length - 1];
+    if (t <= t2) assert.ok(distance(bout, vise) < 0.01, `${t.toFixed(3)} s : trait prolongé avant que le regard porte au loin`);
+    if (t >= t3) {
+      const auBord = Math.min(bout[0], bout[1], L - bout[0], H - bout[1]);
+      assert.ok(auBord <= Number(visee.attributs["stroke-width"]) / 2 + 0.5, `${t.toFixed(3)} s : trait arrêté à ${auBord.toFixed(1)} unités du bord du cadre`);
+      const rayon = Number(trouverTous(anneau, (x) => x.balise === "circle")[0].attributs.r);
+      assert.ok(distance(bout, vise) >= 2 * rayon, `${t.toFixed(3)} s : trait qui dépasse à peine l'anneau du fond de la sortie`);
+    }
   }
 });
 

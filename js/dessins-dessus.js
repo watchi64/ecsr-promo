@@ -18,6 +18,7 @@ import { n, trouverRole } from "./dessin-svg.js?v=20261015c";
 import { CHARTE, TEINTES_ROUTE, REGARD_SCENES, VOITURE, MATIERES, METRIQUES_POLICE, MISE_EN_PAGE, cadre, texte, etiquette, fleche,
   voitureDessus, reperesDessus, voitureProfil, arc, couper, coord, trace, entre } from "./dessins-kit.js?v=20261015c";
 import { CATALOGUE } from "./catalogue-blocs.js?v=20261015c";
+import { adoucir, avancement } from "./animation-courbes.js?v=20261015c";
 
 /** Valeurs de la rue des scènes reprises ici, recopiées : largeur d'une voie et axiale T'1 d'agglomération (js/scene-decors.js,
  *  DESSIN.voie et IISR : 1,50 m de trait, 5 m de vide, 2u = 0,10 m de large) ; jeu entre le flanc d'une voiture garée et la
@@ -551,9 +552,12 @@ function sousSurvirage() {
 // avant le virage), et s'arrête en sortie (arrivée amortie) ; l'étape 3 la montre arrêtée, le regard au fond de la sortie.
 // Le point visé avance avec le regard (remarque du formateur du 15/10/2026 : « il faut que le vecteur du point de corde progresse
 // à mesure que le regard du conducteur avance, jusqu'au fond de la sortie du virage ») : il part de la corde quand la voiture
-// démarre, glisse en continu le long du bord intérieur de la voie jusqu'à la fin de l'arc, qu'il atteint quand la voiture est
-// au sommet, puis jusqu'au fond de la sortie, sur la ligne de l'œil, qu'il atteint quand elle s'arrête. Le cône des scènes
-// (REGARD_SCENES) et le trait de visée, en tirets, vont de l'œil du conducteur à ce point, marqué d'un anneau, à chaque image.
+// démarre, glisse en continu le long du bord intérieur de la voie, 0,50 m en dedans (consigne du formateur du 16/10/2026 :
+// « point de corde décalé de 50 cm à gauche »), jusqu'à la fin de l'arc, qu'il atteint quand la voiture est au sommet, puis
+// jusqu'au fond de la sortie, sur la ligne de l'œil, qu'il atteint quand elle s'arrête. Le cône des scènes (REGARD_SCENES) et le
+// trait de visée, en tirets, vont de l'œil du conducteur à ce point, marqué d'un anneau, à chaque image ; quand le regard porte
+// au loin (seconde moitié de l'étape 2, étape 3), le trait se prolonge au-delà, jusqu'au bord du cadre (consigne du même jour :
+// « regard au loin : tire le vecteur jusqu'au bout »).
 // Deux étiquettes fixes nomment le départ et l'arrivée du point visé : « Point de corde » et « Sortie ».
 // Mètres autour du centre du virage (O), y vers le bas : l'approche monte le long de x = -rVoie jusqu'à y = 0 ; l'arc va de
 // l'angle polaire 180 à 270 degrés (sens horaire à l'écran : un virage à droite) ; la sortie file vers la droite.
@@ -563,13 +567,15 @@ const REGARD_LOIN = {
   angle: 90,                // degrés dont le virage fait tourner la route
   approche: 3,              // m : étape 1, centre de la voiture avant le début de l'arc (son avant à 0,75 m de lui)
   sortie: 2.25,             // m : étape 3, centre de la voiture après la fin de l'arc (son arrière quitte l'arc)
-  fond: 13,                 // m : fond de la sortie, après la fin de l'arc, sur la ligne de l'œil : le dernier point visé
+  decalage: 0.5,            // m : le point visé, 0,50 m en dedans du bord intérieur, côté voie (consigne du formateur)
+  fond: 11,                 // m : fond de la sortie, après la fin de l'arc, sur la ligne de l'œil : le dernier point visé
   // m de trottoir au-delà du bord extérieur de la chaussée (en haut et à gauche) ; le bas du cadre se lit dans le catalogue.
   exterieur: 1.5,
   // Allure (m/s à l'écran) tenue dans tout le virage : 6,4 m/s (23 km/h), 3 m/s² d'accélération latérale sur l'axe de la voie.
   allure: 6.4,
-  // Instants (s) : départ de la voiture, après une pause ; pause finale, la voiture arrêtée en sortie (l'étape 3).
-  temps: { depart: 0.6, pause: 1.4 },
+  // Instants (s) : départ de la voiture, après une pause ; pause finale, la voiture arrêtée en sortie (l'étape 3). Le trait de
+  // visée se prolonge jusqu'au bord du cadre pendant la seconde moitié de l'étape 2 (part `prolonge` de l'étape, adoucir).
+  temps: { depart: 0.6, pause: 1.4, prolonge: 0.5 },
   visee: { epaisseur: CHARTE.traits.moyen, tiret: 4, vide: 3 },
   vise: { rayon: 6, trait: CHARTE.traits.moyen, lisere: CHARTE.traits.appuye },   // anneau du point visé : 13 px de large sur un téléphone
   // Ancres des étiquettes (unités, depuis le point qu'elles nomment), sur le trottoir intérieur, hors de tout cône du geste.
@@ -582,9 +588,9 @@ const REGARD_LOIN = {
 /** Géométrie du virage du regard porté loin, en mètres autour du centre du virage (y vers le bas) : rayons de l'axe de la voie
  *  de la voiture (rVoie) et de la ligne médiane (rAxe) ; pose de la voiture à l'abscisse s, le long de l'axe de sa voie depuis
  *  sa place à l'étape 1 ({ p, cap }, cap en degrés, continu) ; œil du conducteur ; abscisses de la voiture au sommet et en
- *  sortie ; chemin du point visé (pointVise(u), u de 0 à 1 le long du chemin) : le bord intérieur de la voie, de la corde (le
- *  sommet de l'arc) à la fin de l'arc, puis le segment jusqu'au fond de la sortie, sur la ligne de l'œil ; uSortie, la part du
- *  chemin à la fin de l'arc. */
+ *  sortie ; chemin du point visé (pointVise(u), u de 0 à 1 le long du chemin) : la parallèle au bord intérieur de la voie,
+ *  RL.decalage m en dedans, de la corde (au sommet de l'arc) à la fin de l'arc, puis le segment jusqu'au fond de la sortie, sur
+ *  la ligne de l'œil ; uSortie, la part du chemin à la fin de l'arc. */
 function virageRegard() {
   const RL = REGARD_LOIN, voie = RECOPIE_SCENES.voie;
   const rVoie = RL.rayonBord + voie / 2, rAxe = RL.rayonBord + voie;
@@ -604,16 +610,15 @@ function virageRegard() {
   // Fond de la sortie : sur la ligne de l'œil de la voiture arrêtée en sortie (le regard y est droit devant), RL.fond m après la
   // fin de l'arc.
   const fond = oeil(pose(finArc + RL.fond - oeil({ p: [0, 0], cap: 0 })[0]));
-  const finBord = polaire([0, 0], RL.rayonBord, angleFin);
-  const longueurBord = RL.rayonBord * (angleFin - sommet) * RAD, longueurFond = distance(finBord, fond);
+  const rVise = RL.rayonBord + RL.decalage, finBord = polaire([0, 0], rVise, angleFin);
+  const longueurBord = rVise * (angleFin - sommet) * RAD, longueurFond = distance(finBord, fond);
   const pointVise = (u) => {
     const d = u * (longueurBord + longueurFond);
-    return d <= longueurBord ? polaire([0, 0], RL.rayonBord, sommet + d / RL.rayonBord / RAD)
-      : entre(finBord, fond, (d - longueurBord) / longueurFond);
+    return d <= longueurBord ? polaire([0, 0], rVise, sommet + d / rVise / RAD) : entre(finBord, fond, (d - longueurBord) / longueurFond);
   };
   return {
     rVoie, rAxe, angleDebut, angleFin, debutArc, finArc, sommet, sCorde, sSortie, pose, oeil, pointVise, fond,
-    corde: polaire([0, 0], RL.rayonBord, sommet), uSortie: longueurBord / (longueurBord + longueurFond),
+    corde: polaire([0, 0], rVise, sommet), uSortie: longueurBord / (longueurBord + longueurFond),
   };
 }
 
@@ -675,9 +680,10 @@ function regardLoin() {
   // Point visé : à la corde jusqu'au départ, à la fin de l'arc quand la voiture est au sommet, au fond de la sortie quand elle
   // s'arrête ; entre les deux, il avance sans s'arrêter (progression).
   const avance = [{ t: T.depart, v: 0 }, { t: tCorde, v: g.uSortie }, { t: arrivee, v: 1 }];
+  const debutProlonge = arrivee - T.prolonge * (arrivee - tCorde);
   function etat(t) {
     const s = course(t), pose = g.pose(s), u = progression(avance, t), cible = g.pointVise(u), o = g.oeil(pose);
-    return { s, u, cible: { x: cible[0], y: cible[1] }, regard: angleDe(o, cible) };
+    return { s, u, cible: { x: cible[0], y: cible[1] }, regard: angleDe(o, cible), prolonge: adoucir(avancement(t, debutProlonge, arrivee)) };
   }
 
   // Parties fixes : la route, les étiquettes du point de corde et de la sortie (leur point sur le point qu'elles nomment), les
@@ -695,20 +701,26 @@ function regardLoin() {
   };
   const trajets = [trajet(avant + F.jeu, g.sCorde + avant), trajet(g.sCorde + avant + F.jeu, g.sSortie + avant)];
   const description = "Un virage à droite vu du dessus ; la voiture le parcourt dans sa voie, à droite. En entrée de virage, le regard "
-    + "vise le point de corde, au bord intérieur de la voie, au sommet du virage ; à mesure que la voiture avance, le point visé glisse "
-    + "le long de ce bord vers la sortie, qu'il atteint quand la voiture est à la corde, puis jusqu'au fond de la sortie, droit devant. "
-    + "La voiture suit le regard.";
+    + "vise le point de corde, au sommet du virage, 50 cm en dedans du bord intérieur de la voie ; à mesure que la voiture avance, le "
+    + "point visé glisse le long de ce bord vers la sortie, qu'il atteint quand la voiture est à la corde, puis jusqu'au fond de la "
+    + "sortie, droit devant, et le regard porte au loin, jusqu'au bout de la route. La voiture suit le regard.";
 
+  const diagonale = Math.hypot(L, H);
   function dessiner(e, { fige, etape }) {
     const pose = g.pose(e.s), centre = versCadre(pose.p), o = versCadre(g.oeil(pose)), vise = versCadre([e.cible.x, e.cible.y]);
+    // Trait de visée : de l'œil au point visé, puis, à mesure que le regard porte au loin, prolongé sur le même axe jusqu'au bord
+    // du cadre (rentré de la demi-épaisseur du trait).
+    const versBord = ligneDansFenetre([o, plus(o, fois(direction(e.regard), diagonale))], fenetreVisee);
+    const bout = entre(vise, versBord[versBord.length - 1], e.prolonge);
     const cone = [o, ...[-ouverture, ouverture].map((d) => plus(o, fois(direction(e.regard + d), portee * E)))];
     const v = RL.visee, r = RL.vise;
     return cadre({ largeur: L, hauteur: H, titre: CATALOGUE[code].titre, description },
       route.noeud,
       n("path", { d: trace(dansFenetre(cone, fenetre)), fill: TEINTES_ROUTE.regard, opacity: opacite, "data-r": "regard",
         "data-x": o[0], "data-y": o[1], "data-angle": e.regard }),
-      n("path", { d: trace(ligneDansFenetre([o, vise], fenetreVisee), false), fill: "none", stroke: CHARTE.texte,
-        "stroke-width": v.epaisseur, "stroke-dasharray": `${v.tiret} ${v.vide}`, "stroke-linecap": "butt", "data-r": "visee" }),
+      n("path", { d: trace([o, bout], false), fill: "none", stroke: CHARTE.texte, "stroke-width": v.epaisseur,
+        "stroke-dasharray": `${v.tiret} ${v.vide}`, "stroke-linecap": "butt", "data-r": "visee", "data-x1": o[0], "data-y1": o[1],
+        "data-x2": bout[0], "data-y2": bout[1] }),
       // Flèches sous la voiture : sur une image figée prise en cours d'étape, la voiture roule sur la sienne au lieu d'être barrée.
       n("g", { "data-r": "fleche", display: fige ? "inline" : "none" },
         trajets.map((pts, k) => fleche(pts, { role: `fleche-${k + 1}`, visible: k === etape }))),
