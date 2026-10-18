@@ -18,7 +18,7 @@ import { n, trouverRole } from "./dessin-svg.js?v=20261015c";
 import { CHARTE, TEINTES_ROUTE, REGARD_SCENES, VOITURE, MATIERES, METRIQUES_POLICE, MISE_EN_PAGE, cadre, texte, etiquette, fleche,
   voitureDessus, reperesDessus, voitureProfil, arc, couper, coord, trace, entre } from "./dessins-kit.js?v=20261015c";
 import { CATALOGUE } from "./catalogue-blocs.js?v=20261015c";
-import { adoucir, avancement } from "./animation-courbes.js?v=20261015c";
+import { sortieDouce, avancement } from "./animation-courbes.js?v=20261015c";
 
 /** Valeurs de la rue des scènes reprises ici, recopiées : largeur d'une voie et axiale T'1 d'agglomération (js/scene-decors.js,
  *  DESSIN.voie et IISR : 1,50 m de trait, 5 m de vide, 2u = 0,10 m de large) ; jeu entre le flanc d'une voiture garée et la
@@ -554,11 +554,14 @@ function sousSurvirage() {
 // à mesure que le regard du conducteur avance, jusqu'au fond de la sortie du virage ») : il part de la corde quand la voiture
 // démarre, glisse en continu le long du bord intérieur de la voie, 0,50 m en dedans (consigne du formateur du 16/10/2026 :
 // « point de corde décalé de 50 cm à gauche »), jusqu'à la fin de l'arc, qu'il atteint quand la voiture est au sommet, puis
-// jusqu'au fond de la sortie, sur la ligne de l'œil, qu'il atteint quand elle s'arrête. Le cône des scènes (REGARD_SCENES) et le
-// trait de visée, en tirets, vont de l'œil du conducteur à ce point, marqué d'un anneau, à chaque image ; quand le regard porte
-// au loin (seconde moitié de l'étape 2, étape 3), le trait se prolonge au-delà, jusqu'au bord du cadre (consigne du même jour :
-// « regard au loin : tire le vecteur jusqu'au bout »).
-// Deux étiquettes fixes nomment le départ et l'arrivée du point visé : « Point de corde » et « Sortie ».
+// jusqu'au fond de la sortie, sur la ligne de l'œil, qu'il atteint quand elle s'arrête. Le cône des scènes (REGARD_SCENES) a son
+// axe sur ce point, et le trait de visée, en tirets, part de l'œil du conducteur, passe par lui et file jusqu'au bord du cadre,
+// à chaque image (consigne du même jour : « regard au loin : tire le vecteur jusqu'au bout »). Le point visé est un disque plein
+// assez petit pour ne jamais recouvrir le bord de la chaussée (0,50 m n'y fait que 4,5 unités).
+// Deux étiquettes fixes nomment le départ et l'arrivée du point visé : « Point de corde » et « Sortie ». À l'étape 1, une loupe,
+// sous l'étiquette « Point de corde », montre le coin de la corde agrandi six fois, dans sa vraie orientation : le bord de la
+// chaussée, le point de corde 0,50 m à l'intérieur de la voie et la cote « 50 cm » entre les deux ; elle s'efface à la fin de
+// l'étape.
 // Mètres autour du centre du virage (O), y vers le bas : l'approche monte le long de x = -rVoie jusqu'à y = 0 ; l'arc va de
 // l'angle polaire 180 à 270 degrés (sens horaire à l'écran : un virage à droite) ; la sortie file vers la droite.
 const REGARD_LOIN = {
@@ -573,11 +576,18 @@ const REGARD_LOIN = {
   exterieur: 1.5,
   // Allure (m/s à l'écran) tenue dans tout le virage : 6,4 m/s (23 km/h), 3 m/s² d'accélération latérale sur l'axe de la voie.
   allure: 6.4,
-  // Instants (s) : départ de la voiture, après une pause ; pause finale, la voiture arrêtée en sortie (l'étape 3). Le trait de
-  // visée se prolonge jusqu'au bord du cadre pendant la seconde moitié de l'étape 2 (part `prolonge` de l'étape, adoucir).
-  temps: { depart: 0.6, pause: 1.4, prolonge: 0.5 },
+  // Instants (s) : départ de la voiture, après une pause ; pause finale, la voiture arrêtée en sortie (l'étape 3) ; disparition
+  // de la loupe à la fin de l'étape 1 (les deux tiers d'une apparition de 0,2 s à 0,25 s, regles-animation.md).
+  temps: { depart: 0.6, pause: 1.4, finLoupe: 0.15 },
   visee: { epaisseur: CHARTE.traits.moyen, tiret: 4, vide: 3 },
-  vise: { rayon: 6, trait: CHARTE.traits.moyen, lisere: CHARTE.traits.appuye },   // anneau du point visé : 13 px de large sur un téléphone
+  // Point visé : disque plein foncé sur un liseré clair, de la taille du point des étiquettes du kit (2,2 unités) : 3,45 unités
+  // liseré compris, 1,05 unité en deçà du bord de la chaussée quand il en est à 0,50 m (4,5 unités).
+  vise: { rayon: 2.2, lisere: CHARTE.liseres },
+  // Loupe de l'étape 1 (unités du cadre) : son centre depuis le point de corde (sous le texte de l'étiquette « Point de corde »,
+  // centrée sur lui) ; son rayon ; grossissement (6 : 54 unités par mètre, la cote de 0,50 m fait 27 unités, 29 px sur un
+  // téléphone) ; centre du texte de la cote, dans son prolongement, de l'autre côté du bord, sur le trottoir (à 20 unités du
+  // bord : la boîte du texte en reste à 3 unités) ; pointes de la cote (longueur, demi-largeur).
+  loupe: { centre: [71, 87], rayon: 42, grossissement: 6, texte: 20, pointe: [4, 2.5] },
   // Ancres des étiquettes (unités, depuis le point qu'elles nomment), sur le trottoir intérieur, hors de tout cône du geste.
   etiquettes: { corde: [24, 30], sortie: [-14, 46] },
   // Flèches des images figées, le long de l'axe de la voie (m) : jeu entre l'avant de la voiture et la queue de la flèche, pas
@@ -680,10 +690,11 @@ function regardLoin() {
   // Point visé : à la corde jusqu'au départ, à la fin de l'arc quand la voiture est au sommet, au fond de la sortie quand elle
   // s'arrête ; entre les deux, il avance sans s'arrêter (progression).
   const avance = [{ t: T.depart, v: 0 }, { t: tCorde, v: g.uSortie }, { t: arrivee, v: 1 }];
-  const debutProlonge = arrivee - T.prolonge * (arrivee - tCorde);
+  // Loupe : entière pendant l'étape 1, elle s'efface sur ses dernières T.finLoupe s (sortieDouce) ; absente aux étapes 2 et 3.
   function etat(t) {
     const s = course(t), pose = g.pose(s), u = progression(avance, t), cible = g.pointVise(u), o = g.oeil(pose);
-    return { s, u, cible: { x: cible[0], y: cible[1] }, regard: angleDe(o, cible), prolonge: adoucir(avancement(t, debutProlonge, arrivee)) };
+    return { s, u, cible: { x: cible[0], y: cible[1] }, regard: angleDe(o, cible),
+      loupe: 1 - sortieDouce(avancement(t, tCorde - T.finLoupe, tCorde)) };
   }
 
   // Parties fixes : la route, les étiquettes du point de corde et de la sortie (leur point sur le point qu'elles nomment), les
@@ -701,38 +712,99 @@ function regardLoin() {
   };
   const trajets = [trajet(avant + F.jeu, g.sCorde + avant), trajet(g.sCorde + avant + F.jeu, g.sSortie + avant)];
   const description = "Un virage à droite vu du dessus ; la voiture le parcourt dans sa voie, à droite. En entrée de virage, le regard "
-    + "vise le point de corde, au sommet du virage, 50 cm en dedans du bord intérieur de la voie ; à mesure que la voiture avance, le "
-    + "point visé glisse le long de ce bord vers la sortie, qu'il atteint quand la voiture est à la corde, puis jusqu'au fond de la "
-    + "sortie, droit devant, et le regard porte au loin, jusqu'au bout de la route. La voiture suit le regard.";
+    + "vise le point de corde, au sommet du virage, 50 cm en dedans du bord intérieur de la voie ; une loupe montre ce coin agrandi : "
+    + "le bord de la chaussée, le point 50 cm à l'intérieur de la voie. À mesure que la voiture avance, le point visé glisse le long de "
+    + "ce bord vers la sortie, qu'il atteint quand la voiture est à la corde, puis jusqu'au fond de la sortie, droit devant. Le trait "
+    + "du regard part de l'œil, passe par le point visé et file jusqu'au bout de la route visible. La voiture suit le regard.";
+
+  // Loupe de l'étape 1, fixe : le coin de la corde agrandi RL.loupe.grossissement fois autour du pied du point de corde sur le bord
+  // (le point du bord au sommet du virage, au centre de la loupe), dans sa vraie orientation. La route y est la même : chaussée,
+  // trottoir intérieur jusqu'au bord, un arc de cercle de même centre agrandi ; le point de corde y est le disque du point visé ;
+  // la cote va du bord au disque, le long du rayon du virage. Ni cône ni trait de visée : la loupe détaille la place du point.
+  const Lp = RL.loupe, k = Lp.grossissement, r = RL.vise;
+  const piedCorde = versCadre(polaire([0, 0], RL.rayonBord, g.sommet)), centreLoupe = plus(corde, Lp.centre);
+  const agrandir = (p) => plus(centreLoupe, fois(plus(p, fois(piedCorde, -1)), k));
+  const disqueLoupe = arcFin(centreLoupe, Lp.rayon, 0, 4 * QUART).slice(0, -1);
+  const centreBord = agrandir(origine), rayonBordLoupe = k * RL.rayonBord * E;
+  const ouvertureSecteur = Math.asin(Lp.rayon / rayonBordLoupe) / RAD + 1;     // degrés : le secteur déborde la loupe
+  const secteurTrottoir = [centreBord, ...arcFin(centreBord, rayonBordLoupe, g.sommet - ouvertureSecteur, g.sommet + ouvertureSecteur)];
+  const cordeLoupe = agrandir(corde), versTrottoir = fois(plus(centreBord, fois(centreLoupe, -1)), 1 / distance(centreBord, centreLoupe));
+  const M = METRIQUES_POLICE, tailleCote = CHARTE.tailles.etiquette, texteCote = plus(centreLoupe, fois(versTrottoir, Lp.texte));
+  const loupe = (opaciteLoupe) => n("g", { "data-r": "loupe", ...afficheA(opaciteLoupe), "data-x": centreLoupe[0], "data-y": centreLoupe[1],
+    "data-rayon": Lp.rayon, "data-grossissement": k, "data-qx": piedCorde[0], "data-qy": piedCorde[1] },
+  n("path", { d: trace(disqueLoupe), fill: TEINTES_ROUTE.chaussee, "data-r": "loupe-chaussee" }),
+  n("path", { d: trace(dansFenetre(disqueLoupe, secteurTrottoir)), fill: TEINTES_ROUTE.trottoir, "data-r": "loupe-trottoir",
+    "data-cx": centreBord[0], "data-cy": centreBord[1], "data-rayon": rayonBordLoupe }),
+  coteFlechee(centreLoupe, entre(centreLoupe, cordeLoupe, 1 - (r.rayon + r.lisere) / distance(centreLoupe, cordeLoupe)), Lp.pointe, "loupe-cote"),
+  pointVise(cordeLoupe, "loupe-point"),
+  texte(texteCote[0], texteCote[1] + M.milieuCapitales * tailleCote, `${Math.round(RL.decalage * CM_PAR_M)} cm`,
+    { taille: tailleCote, ancrage: "middle", graisse: GRAISSE_COTE, role: "loupe-texte" }),
+  n("circle", { cx: centreLoupe[0], cy: centreLoupe[1], r: Lp.rayon, fill: "none", stroke: CHARTE.carte,
+    "stroke-width": CHARTE.traits.moyen + 2 * CHARTE.liseres }),
+  n("circle", { cx: centreLoupe[0], cy: centreLoupe[1], r: Lp.rayon, fill: "none", stroke: CHARTE.texte, "stroke-width": CHARTE.traits.moyen,
+    "data-r": "loupe-bord" }));
 
   const diagonale = Math.hypot(L, H);
   function dessiner(e, { fige, etape }) {
     const pose = g.pose(e.s), centre = versCadre(pose.p), o = versCadre(g.oeil(pose)), vise = versCadre([e.cible.x, e.cible.y]);
-    // Trait de visée : de l'œil au point visé, puis, à mesure que le regard porte au loin, prolongé sur le même axe jusqu'au bord
-    // du cadre (rentré de la demi-épaisseur du trait).
+    // Trait de visée : de l'œil au point visé, puis, sur le même axe, jusqu'au bord du cadre (rentré de la demi-épaisseur du
+    // trait), à chaque image : un seul tracé, même tireté et même ton de bout en bout (un ton plus léger se perdrait sur la
+    // chaussée sombre), qui passe par le point visé.
     const versBord = ligneDansFenetre([o, plus(o, fois(direction(e.regard), diagonale))], fenetreVisee);
-    const bout = entre(vise, versBord[versBord.length - 1], e.prolonge);
+    const bout = versBord[versBord.length - 1];
     const cone = [o, ...[-ouverture, ouverture].map((d) => plus(o, fois(direction(e.regard + d), portee * E)))];
-    const v = RL.visee, r = RL.vise;
+    const v = RL.visee;
     return cadre({ largeur: L, hauteur: H, titre: CATALOGUE[code].titre, description },
       route.noeud,
       n("path", { d: trace(dansFenetre(cone, fenetre)), fill: TEINTES_ROUTE.regard, opacity: opacite, "data-r": "regard",
         "data-x": o[0], "data-y": o[1], "data-angle": e.regard }),
-      n("path", { d: trace([o, bout], false), fill: "none", stroke: CHARTE.texte, "stroke-width": v.epaisseur,
+      n("path", { d: trace([o, vise, bout], false), fill: "none", stroke: CHARTE.texte, "stroke-width": v.epaisseur,
         "stroke-dasharray": `${v.tiret} ${v.vide}`, "stroke-linecap": "butt", "data-r": "visee", "data-x1": o[0], "data-y1": o[1],
         "data-x2": bout[0], "data-y2": bout[1] }),
       // Flèches sous la voiture : sur une image figée prise en cours d'étape, la voiture roule sur la sienne au lieu d'être barrée.
       n("g", { "data-r": "fleche", display: fige ? "inline" : "none" },
-        trajets.map((pts, k) => fleche(pts, { role: `fleche-${k + 1}`, visible: k === etape }))),
+        trajets.map((pts, i) => fleche(pts, { role: `fleche-${i + 1}`, visible: i === etape }))),
       voitureDessus({ x: centre[0], y: centre[1], cap: pose.cap, echelle: E, schema: true }),
       etiquettes,
-      n("g", { "data-r": "point-vise", "data-x": vise[0], "data-y": vise[1] },
-        n("circle", { cx: vise[0], cy: vise[1], r: r.rayon, fill: "none", stroke: CHARTE.carte, "stroke-width": r.lisere }),
-        n("circle", { cx: vise[0], cy: vise[1], r: r.rayon, fill: "none", stroke: CHARTE.texte, "stroke-width": r.trait })));
+      loupe(e.loupe),
+      pointVise(vise, "point-vise"));
   }
+  // Disparition de la loupe (sortieDouce sur 0,15 s) : jusqu'au tiers de sa plage en une image.
   return { titre: CATALOGUE[code].titre, description, cadre: [L, H], duree,
-    etapes: [{ t: 0 }, { t: tCorde }, { t: arrivee }], etat, dessiner };
+    etapes: [{ t: 0 }, { t: tCorde }, { t: arrivee }], sautsMax: { loupe: SAUT_DISPARITION }, etat, dessiner };
 }
+
+// Point visé du regard porté loin, et le point de corde de la loupe : un disque plein foncé sur son liseré clair (REGARD_LOIN.vise).
+function pointVise(p, role) {
+  const r = REGARD_LOIN.vise;
+  return n("g", { "data-r": role, "data-x": p[0], "data-y": p[1] },
+    n("circle", { cx: p[0], cy: p[1], r: r.rayon + r.lisere, fill: CHARTE.carte }),
+    n("circle", { cx: p[0], cy: p[1], r: r.rayon, fill: CHARTE.texte }));
+}
+
+// Cote fléchée de a à b : un trait fin foncé et une pointe pleine à chaque bout, la pointe exactement sur a et sur b, le tout
+// sur un liseré clair (CHARTE.liseres), comme les flèches du kit : elle se lit sur la chaussée sombre. `pointe` : longueur et
+// demi-largeur d'une pointe. Les bouts sont écrits sur le groupe (data-x1 à data-y2).
+function coteFlechee(a, b, [longueur, demi], role) {
+  const u = fois(plus(b, fois(a, -1)), 1 / distance(a, b)), normale = [-u[1], u[0]];
+  const tete = (bout, sens) => {
+    const base = plus(bout, fois(u, -sens * longueur));
+    return [bout, plus(base, fois(normale, demi)), plus(base, fois(normale, -demi))];
+  };
+  const tetes = [tete(a, -1), tete(b, 1)], trait = [plus(a, fois(u, longueur)), plus(b, fois(u, -longueur))];
+  const liseres = { stroke: CHARTE.carte, "stroke-linejoin": "round" };
+  return n("g", { "data-r": role, "data-x1": a[0], "data-y1": a[1], "data-x2": b[0], "data-y2": b[1] },
+    n("path", { d: trace(trait, false), fill: "none", ...liseres, "stroke-width": CHARTE.traits.fin + 2 * CHARTE.liseres }),
+    tetes.map((pts) => n("path", { d: trace(pts), fill: CHARTE.carte, ...liseres, "stroke-width": 2 * CHARTE.liseres })),
+    n("path", { d: trace(trait, false), fill: "none", stroke: CHARTE.texte, "stroke-width": CHARTE.traits.fin }),
+    tetes.map((pts) => n("path", { d: trace(pts), fill: CHARTE.texte })));
+}
+const CM_PAR_M = 100, GRAISSE_COTE = 600;
+// Opacité d'un élément qui apparaît ou s'efface : masqué (display none) à l'opacité nulle, comme les repères des gestes du
+// conducteur (js/dessins-conducteur.js, aide privée).
+const afficheA = (opacite) => ({ display: opacite > 0 ? "inline" : "none", opacity: Number(Math.min(1, Math.max(0, opacite)).toFixed(3)) });
+// Variation maximale par image d'une opacité qui s'efface en 0,15 s sur sortieDouce (pente 3 au départ : 3 / 0,15 / 60 = 0,33).
+const SAUT_DISPARITION = 0.35;
 
 // ===== Registre =====
 export const DESSINS = {
