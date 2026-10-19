@@ -178,8 +178,9 @@ export const CATALOGUE = {
       "Tourné de plus de 45 degrés, par un tirer-glisser", "Un tirer-glisser dans l'autre sens le ramène, sans jamais pousser le volant"],
     cadre: [320, 210] },
   "regard-loin": { bloc: "scene", module: "dessus", titre: "Regarder loin",
-    etapesModele: ["En entrée de virage, le regard vise la corde, dans sa voie", "À la corde, il porte déjà vers la sortie",
-      "En sortie, il porte loin, droit devant"], cadre: [320, 243] },
+    etapesModele: ["En entrée de virage, le regard frôle la corde, sans regarder le trottoir",
+      "À la corde, il porte déjà vers la sortie, dans sa voie", "En sortie, il porte loin, droit devant, sans regarder la voie d'en face"],
+    cadre: [320, 243] },
 };
 
 /** L'entrée d'un code, ou null : seules les propriétés propres comptent (« constructor » n'est pas un bloc). */

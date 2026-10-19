@@ -689,7 +689,7 @@ test("sous-survirage : titres aux mots du cours", () => {
 // ===== regard-loin (geste animé) =====
 // Tout se lit dans les images que le moteur dessine (imageA, imageFigee) : la route (centre, rayon de la ligne médiane, largeur
 // d'une voie, angles polaires des bouts de l'arc), la voiture (pose), le cône (sommet, direction, tracé), le point visé (son
-// disque), le trait de visée, les étiquettes, la loupe ; la géométrie attendue se recalcule ici, sans les aides du module.
+// disque), le trait de visée, les étiquettes ; la géométrie attendue se recalcule ici, sans les aides du module.
 
 const geste = () => famille.GESTES["regard-loin"].construire();
 const IMAGE = 1 / 60;
@@ -763,29 +763,96 @@ test("regard-loin : le cône du regard des scènes, sommet à l'œil, 22 m de po
   assert.ok(Math.abs(Math.abs(ecartAngle(versLe(s, p1), versLe(s, p2))) - 2 * REGARD_OUVERTURE) < 0.01, "ouverture de 32 degrés");
 });
 
-// Le point visé suit le bord intérieur de la voie à 0,50 m en dedans, côté voie (consigne du formateur du 16/10/2026 : « point de
-// corde décalé de 50 cm à gauche »). Tolérance : 0,05 m, un demi-pixel sur un téléphone (invisible), dix fois moins que le
-// décalage : un point posé sur le bord, ou décalé du mauvais côté, sort de la tolérance ; un degré d'arc fait 0,22 m à ce rayon.
-const DECALAGE_CORDE = 0.5, TOLERANCE_BORD = 0.05;
-test("regard-loin, étape 1 : en entrée de virage, le point visé est le point de corde, au sommet du virage, 0,50 m en dedans du bord intérieur de la voie, nommé « Point de corde »", () => {
-  const def = geste(), image = imageFigee(def, 0);
-  const { route, pose, oeil, vise } = lireRegard(image), E = pose.echelle;
+// Consigne du formateur du 19/10/2026 : « le vecteur n'est pas collé au trottoir, il y a un très léger espace ; si l'élève regarde
+// le trottoir, il va aller dans le trottoir » ; ce très léger espace, ce sont les « 50 cm » de sa consigne du 16/10/2026. La ligne
+// du regard est la tangente menée de l'œil au bord intérieur élargi de 0,50 m vers la voie (le cercle de rayon bord + 0,50 m
+// autour du centre du virage), tant que son point de tangence est dans l'arc ; puis, en sortie, la ligne de l'œil dans l'axe de la
+// sortie. Le point de tangence se recalcule ici depuis l'œil lu dans le dessin : à acos(r / d) de l'angle polaire de l'œil, vers
+// l'avant (r : rayon du cercle élargi ; d : distance de l'œil au centre). Tolérance : 0,02 m (0,2 px sur un téléphone, le double
+// de l'arrondi des tracés au centième d'unité), vingt-cinq fois moins que l'espace : une tangente au bord lui-même, ou à 0,40 m,
+// en sort.
+const DECALAGE_CORDE = 0.5, TOLERANCE_FROLE = 0.02;
+const tangenceDe = ({ route, oeil, pose }) => {
+  const r = route.rayon - route.voie + DECALAGE_CORDE * pose.echelle;
+  return { r, angle: polaireDe(route.centre, oeil) + Math.acos(r / distance(oeil, route.centre)) / DEG };
+};
+// Distance d'un point à une droite (a, b).
+const versDroite = (p, a, b) => Math.abs((b[0] - a[0]) * (p[1] - a[1]) - (b[1] - a[1]) * (p[0] - a[0])) / distance(a, b);
+// Distance d'un point au bord intérieur du virage, positive hors du trottoir intérieur. Ce trottoir est l'ensemble des points à
+// moins du rayon du bord (route.rayon - route.voie) du quart de plan situé derrière les deux bouts de l'arc (côté centre, vu de
+// l'approche et de la sortie) : sa distance à ce quart de plan, moins ce rayon.
+function horsTrottoir({ centre, rayon, voie, angles: [a0, a1] }, p) {
+  const v = [p[0] - centre[0], p[1] - centre[1]];
+  return Math.hypot(Math.max(scal(v, dir(a0)), 0), Math.max(scal(v, dir(a1)), 0)) - (rayon - voie);
+}
+// Le trait de visée, échantillonné tous les PAS_TRAIT_VISEE unités, bouts compris.
+const PAS_TRAIT_VISEE = 0.5;
+function echantillons(trait) {
+  const r = [];
+  for (let i = 0; i + 1 < trait.length; i++) {
+    const nombre = Math.max(1, Math.ceil(distance(trait[i], trait[i + 1]) / PAS_TRAIT_VISEE));
+    for (let j = 0; j <= nombre; j++) r.push([trait[i][0] + ((trait[i + 1][0] - trait[i][0]) * j) / nombre, trait[i][1] + ((trait[i + 1][1] - trait[i][1]) * j) / nombre]);
+  }
+  return r;
+}
+
+test("regard-loin, étape 1 : en entrée de virage, le regard frôle la corde : le point visé est le point de tangence, dans la première moitié de l'arc, 0,50 m en dedans du bord intérieur, nommé « Point de corde »", () => {
+  const def = geste(), image = imageFigee(def, 0), lu = lireRegard(image), { route, pose, oeil, vise } = lu, E = pose.echelle;
   assert.ok(Math.abs(route.voie / E - DESSIN.voie) < 1e-9, "voie des scènes");
   assert.deepEqual(route.angles, [180, 270], "virage d'un quart de tour, à droite : l'approche monte, la sortie va vers la droite");
-  const bord = route.rayon - route.voie, sommet = (route.angles[0] + route.angles[1]) / 2;
-  const corde = surCercle(route.centre, bord + DECALAGE_CORDE * E, sommet);
-  assert.ok(distance(vise, corde) <= TOLERANCE_BORD * E, `point visé à ${(distance(vise, corde) / E).toFixed(3)} m du point de corde`);
+  const { r, angle } = tangenceDe(lu), sommet = (route.angles[0] + route.angles[1]) / 2, corde = surCercle(route.centre, r, angle);
+  assert.ok(distance(vise, corde) <= TOLERANCE_FROLE * E, `point visé à ${(distance(vise, corde) / E).toFixed(3)} m du point de tangence`);
+  assert.ok(Math.abs(distance(vise, route.centre) - (route.rayon - route.voie) - DECALAGE_CORDE * E) <= TOLERANCE_FROLE * E, "point visé hors des 0,50 m");
+  assert.ok(angle > route.angles[0] && angle < sommet, `point de tangence à ${angle.toFixed(1)} degrés : hors de l'entrée du virage`);
   const etiquetteCorde = trouverRole(image, "etiquette-corde");
   assert.equal(textesDe(etiquetteCorde).join(" "), "Point de corde");
-  assert.ok(distance(point(etiquetteCorde), corde) <= TOLERANCE_BORD * E, "l'étiquette nomme le point de corde");
-  // Le cône l'atteint (sinon l'axe serait prolongé jusqu'à lui), loin devant.
+  assert.ok(distance(point(etiquetteCorde), corde) <= TOLERANCE_FROLE * E, "l'étiquette nomme le point de tangence de l'étape 1");
+  // Le cône l'atteint (sinon l'axe serait prolongé jusqu'à lui).
   assert.ok(distance(oeil, corde) <= REGARD_PORTEE * Math.cos(REGARD_OUVERTURE * DEG) * E, "le cône atteint le point de corde");
-  assert.ok(distance(oeil, corde) >= 10 * E, `point de corde à ${(distance(oeil, corde) / E).toFixed(1)} m de l'œil : loin devant`);
   // La voiture, en entrée de virage : sur l'approche, son avant au plus à une longueur de voiture du début de l'arc, cap vers le haut.
   const debut = surCercle(route.centre, route.rayon - route.voie / 2, route.angles[0]);
   const avant = metresVersCadre(pose)([GABARITS.voiture.longueur / 2, 0]);
   assert.ok(avant[1] > debut[1] && avant[1] - debut[1] <= GABARITS.voiture.longueur * E, "avant de la voiture juste avant le virage");
   assert.ok(Math.abs(ecartAngle(pose.cap, -90)) < 1e-6, "cap vers le haut");
+});
+
+test("regard-loin : à chaque image, la ligne du regard est tangente au bord intérieur élargi de 0,50 m, le point visé au point de tangence, tant que ce point est dans l'arc ; ensuite, droit dans l'axe de la sortie, le point visé et le bout du trait dans la voie de la voiture, entre le bord et la ligne médiane", () => {
+  const def = geste(), [, t2, t3] = def.etapes.map((e) => e.t);
+  let dansArc = 0, enSortie = 0, premiereSortie = null;
+  for (const t of instantsDe(def)) {
+    for (const fige of [false, true]) {
+      const lu = lireRegard(imageA(def, t, fige)), { route, pose, oeil, vise, visee } = lu, E = pose.echelle, quand = `${t.toFixed(3)} s`;
+      const trait = pointsDe(visee), bout = trait[trait.length - 1], bord = route.rayon - route.voie, { r, angle } = tangenceDe(lu);
+      if (angle <= route.angles[1]) {
+        if (!fige) dansArc++;
+        const ecart = versDroite(route.centre, trait[0], bout);
+        assert.ok(Math.abs(ecart - r) <= TOLERANCE_FROLE * E, `${quand} : ligne du regard à ${((ecart - bord) / E).toFixed(3)} m du bord intérieur, au plus près`);
+        assert.ok(distance(vise, surCercle(route.centre, r, angle)) <= TOLERANCE_FROLE * E, `${quand} : point visé à ${(distance(vise, surCercle(route.centre, r, angle)) / E).toFixed(3)} m du point de tangence`);
+      } else {
+        if (!fige) { enSortie++; if (premiereSortie === null) premiereSortie = t; }
+        assert.ok(Math.abs(ecartAngle(versLe(oeil, bout), route.angles[1] + 90)) < 0.01, `${quand} : regard à ${ecartAngle(versLe(oeil, bout), route.angles[1] + 90).toFixed(3)} degrés de l'axe de la sortie`);
+        assert.equal(partie(route, vise).nom, "sortie", `${quand} : point visé hors de la sortie`);
+        for (const [nom, p] of [["point visé", vise], ["bout du trait", bout]]) {
+          const d = auCentre(route, p);
+          assert.ok(d >= bord + (DECALAGE_CORDE - TOLERANCE_FROLE) * E && d < route.rayon, `${quand} : ${nom} à ${((d - bord) / E).toFixed(2)} m du bord intérieur, hors de la voie`);
+        }
+      }
+    }
+  }
+  // Les deux temps se voient : le point de tangence quitte l'arc pendant l'étape 2, la voiture passée le sommet, avant son arrêt.
+  assert.ok(dansArc > 0 && enSortie > 0, "les deux temps du regard");
+  assert.ok(premiereSortie > t2 && premiereSortie < t3, `regard dans l'axe de la sortie dès ${premiereSortie} s`);
+});
+
+test("regard-loin : à chaque image, le trait de visée garde 0,50 m du bord intérieur sur toute sa longueur, de l'œil au bord du cadre : il ne coupe ni le bord ni le trottoir", () => {
+  const def = geste();
+  for (const t of instantsDe(def)) {
+    for (const fige of [false, true]) {
+      const { route, pose, visee } = lireRegard(imageA(def, t, fige)), E = pose.echelle;
+      const plusPres = Math.min(...echantillons(pointsDe(visee)).map((p) => horsTrottoir(route, p)));
+      assert.ok(plusPres >= (DECALAGE_CORDE - TOLERANCE_FROLE) * E, `${t.toFixed(3)} s : trait de visée à ${(plusPres / E).toFixed(3)} m du bord intérieur`);
+    }
+  }
 });
 
 // Consigne du formateur du 16/10/2026 : « regard au loin : tire le vecteur jusqu'au bout ». À chaque image, de lecture comme
@@ -833,29 +900,17 @@ test("regard-loin : à chaque image, le point visé, liseré compris, reste sur 
   }
 });
 
-test("regard-loin : le point visé glisse sans revenir en arrière le long du bord intérieur de la voie, 0,50 m en dedans, de la corde à la fin de l'arc, puis jusqu'au fond de la sortie, dans la voie", () => {
-  const def = geste(), [, t2, t3] = def.etapes.map((e) => e.t);
+test("regard-loin : le point visé glisse sans revenir en arrière, le long du virage puis de la sortie ; à l'étape 2, il a passé le sommet ; de l'étape 3 à la fin, il est au fond de la sortie, nommé « Sortie »", () => {
+  const def = geste(), t3 = def.etapes[2].t;
   let precedente = -Infinity;
   for (const t of instantsDe(def)) {
-    const { route, pose, vise } = lireRegard(imageA(def, t, false)), E = pose.echelle, quand = `${t.toFixed(3)} s`;
-    const bord = route.rayon - route.voie, a = avancee(route, vise);
-    assert.ok(a >= precedente - 1e-6, `${quand} : le point visé revient en arrière`);
+    const { route, vise } = lireRegard(imageA(def, t, false)), a = avancee(route, vise);
+    assert.ok(a >= precedente - 1e-6, `${t.toFixed(3)} s : le point visé revient en arrière`);
     precedente = a;
-    const d = auCentre(route, vise);
-    if (t <= t2) {
-      // Jusqu'à l'étape 2, 0,50 m en dedans du bord intérieur, entre le sommet et la fin de l'arc.
-      assert.ok(Math.abs(d - bord - DECALAGE_CORDE * E) <= TOLERANCE_BORD * E, `${quand} : point visé à ${((d - bord) / E).toFixed(3)} m du bord intérieur`);
-      assert.ok(a >= (route.angles[0] + route.angles[1]) / 2 - 1e-6 && a <= route.angles[1] + 1e-6, `${quand} : point visé hors de la seconde moitié de l'arc`);
-    } else {
-      // Puis dans la voie de la voiture, sur la ligne droite de sortie.
-      assert.ok(d >= bord - TOLERANCE_BORD * E && d < route.rayon, `${quand} : point visé hors de la voie`);
-      assert.equal(partie(route, vise).nom, "sortie", `${quand} : point visé hors de la sortie`);
-    }
   }
-  // À l'étape 2, la voiture au sommet : le point visé à la fin de l'arc, sur le bord intérieur.
-  const e2 = lireRegard(imageFigee(def, 1)), E2 = e2.pose.echelle;
-  const fin = surCercle(e2.route.centre, e2.route.rayon - e2.route.voie + DECALAGE_CORDE * E2, e2.route.angles[1]);
-  assert.ok(distance(e2.vise, fin) <= TOLERANCE_BORD * E2, "étape 2 : le point visé à la fin de l'arc, 0,50 m en dedans du bord intérieur");
+  // À l'étape 2, la voiture au sommet : le regard porte déjà vers la sortie, le point de tangence au-delà du sommet, dans l'arc.
+  const e2 = lireRegard(imageFigee(def, 1)), { angle } = tangenceDe(e2), sommet = (e2.route.angles[0] + e2.route.angles[1]) / 2;
+  assert.ok(angle > sommet && angle < e2.route.angles[1], `étape 2 : point de tangence à ${angle.toFixed(1)} degrés, hors de la seconde moitié de l'arc`);
   // À l'étape 3 et jusqu'à la fin : au fond de la sortie, au moins 10 m après l'arc, son disque entier dans le cadre, nommé « Sortie ».
   for (const t of instantsDe(def).filter((x) => x >= t3)) {
     const image = imageA(def, t, false), { route, pose, vise, rayonVise: r } = lireRegard(image), E = pose.echelle;
@@ -903,9 +958,9 @@ test("regard-loin : la voiture reste dans sa voie, à droite, sur l'axe de sa vo
 });
 
 // Continuité propre au regard, au-delà des contrôles communs (état, points dessinés, dont le disque du point visé) : d'une image
-// (1/60 s) à la suivante, la direction du regard tourne de 1 degré au plus (60 degrés par seconde ; mesuré : 0,43), le cap de la
+// (1/60 s) à la suivante, la direction du regard tourne de 1 degré au plus (60 degrés par seconde ; mesuré : 0,44), le cap de la
 // voiture de 0,5 degré au plus (30 degrés par seconde : à allure constante dans le virage, 6,4 m/s sur 13,75 m de rayon, il
-// tourne de 26,7 degrés par seconde, 0,44 par image), le point visé avance de 0,2 m au plus (12 m/s ; mesuré : 0,12).
+// tourne de 26,7 degrés par seconde, 0,44 par image), le point visé avance de 0,2 m au plus (12 m/s ; mesuré : 0,14).
 const ROTATION_REGARD_MAX = 1, ROTATION_CAP_MAX = 0.5, PAS_VISE_MAX = 0.2;
 test("regard-loin : le regard, la voiture et le point visé avancent sans saut, d'une image à la suivante", () => {
   const def = geste();
@@ -942,7 +997,25 @@ test("regard-loin : chaque étape dure au moins 1 s ; aux étapes 1 et 2, l'imag
   });
 });
 
-// Le trait de visée, tiré jusqu'au bord du cadre, ne passe sur aucun texte (étiquettes, cote de la loupe), à aucune image : il
+// Défaut corrigé le 19/10/2026 : au milieu de l'étape 2, la flèche de la voiture recouvrait le début du trait de visée. En sortie,
+// la ligne de l'œil croise l'axe de la voie, où court la flèche : ils se recouvrent un moment (le test le vérifie, sinon il ne
+// prouverait rien), et le trait passe par-dessus la flèche, la voiture par-dessus les deux.
+test("regard-loin : sur les images figées, la flèche de la voiture passe sous le trait de visée, qui reste entier là où ils se recouvrent ; la voiture passe sur les deux", () => {
+  const def = geste(), [, t2, t3] = def.etapes.map((e) => e.t);
+  let recouvrement = false;
+  for (const t of instantsDe(def)) {
+    const image = imageA(def, t, true), quand = `${t.toFixed(3)} s`;
+    const ordre = trouverTous(image, (x) => ["fleche", "visee", "voiture"].includes(x.attributs["data-r"])).map((x) => x.attributs["data-r"]);
+    assert.deepEqual(ordre, ["fleche", "visee", "voiture"], `${quand} : ordre des calques`);
+    if (t < t2 || t >= t3) continue;
+    const { visee } = lireRegard(image), tige = trouverRole(trouverRole(image, "fleche-2"), "fleche-trait");
+    const proche = (Number(tige.attributs["stroke-width"]) + Number(visee.attributs["stroke-width"])) / 2;
+    if (echantillons(pointsDe(visee)).some((p) => projeter(p, pointsDe(tige)).distance < proche)) recouvrement = true;
+  }
+  assert.ok(recouvrement, "au milieu de l'étape 2, le trait de visée et la flèche se recouvrent");
+});
+
+// Le trait de visée, tiré jusqu'au bord du cadre, ne passe sur aucun texte (les étiquettes), à aucune image : il
 // est échantillonné tous les demi-unités, chaque point à une demi-épaisseur de trait au moins de la boîte de chaque texte.
 const PAS_ECHANTILLON = 0.5;
 const ecartBoite = ([x, y], b) => Math.hypot(Math.max(b.x1 - x, 0, x - b.x2), Math.max(b.y1 - y, 0, y - b.y2));
@@ -963,104 +1036,15 @@ test("regard-loin : à chaque image, le trait de visée ne passe sur aucun texte
   }
 });
 
-// ===== La loupe de l'étape 1 =====
-// Consigne du formateur du 16/10/2026 : « point de corde décalé de 50 cm à gauche ». À l'échelle de la vue d'ensemble, 0,50 m ne
-// fait que 4,5 unités (5 px sur un téléphone) : une loupe montre le coin de la corde agrandi. Elle n'invente rien : chaque point p
-// de la vue d'ensemble y est en centre + k (p - q) (k : grossissement ; q : le point de la vue d'ensemble au centre de la loupe),
-// dans sa vraie orientation. Tout se lit sur son groupe (centre, rayon, grossissement, q) et sur ses parties.
-// Marge du texte de la cote au bord de la loupe : plus que la demi-épaisseur de son trait (0,75).
-const FIN_LOUPE = 0.15, COTE_MIN_PX = 20, JEU_LOUPE = 1, MARGE_BORD_LOUPE = 1;
-function lireLoupe(image) {
-  const g = trouverRole(image, "loupe"), a = g.attributs, trottoir = trouverRole(g, "loupe-trottoir"), ta = trottoir.attributs;
-  const disque = trouverRole(g, "loupe-point"), cote = trouverRole(g, "loupe-cote").attributs;
-  const bords = trouverTous(g, (x) => x.balise === "circle" && x.attributs.fill === "none");
-  return {
-    noeud: g, visible: a.display !== "none", opacite: Number(a.opacity ?? 1), centre: point(g), rayon: Number(a["data-rayon"]),
-    k: Number(a["data-grossissement"]), q: [Number(a["data-qx"]), Number(a["data-qy"])],
-    // Rayon que couvre la loupe, son bord compris (le trait et son liseré).
-    couvert: Math.max(...bords.map((c) => Number(c.attributs.r) + Number(c.attributs["stroke-width"]) / 2)),
-    trottoir: pointsDe(trottoir), chaussee: pointsDe(trouverRole(g, "loupe-chaussee")),
-    bord: { centre: [Number(ta["data-cx"]), Number(ta["data-cy"])], rayon: Number(ta["data-rayon"]) },
-    point: point(disque), rayonPoint: rayonCouvert(disque),
-    cote: [[Number(cote["data-x1"]), Number(cote["data-y1"])], [Number(cote["data-x2"]), Number(cote["data-y2"])]],
-    texte: trouverRole(g, "loupe-texte"),
-  };
-}
-
-test("regard-loin, étape 1 : la loupe montre le coin de la corde agrandi, sans rien inventer : le bord de la chaussée, le point de corde 0,50 m à l'intérieur de la voie à son échelle, la cote « 50 cm » du bord au point", () => {
-  const def = geste(), image = imageFigee(def, 0), { route, pose } = lireRegard(image), E = pose.echelle, lp = lireLoupe(image);
-  assert.ok(lp.visible && lp.opacite === 1, "loupe affichée à l'étape 1");
-  const bord = route.rayon - route.voie, sommet = (route.angles[0] + route.angles[1]) / 2, echelle = lp.k * E;
-  const agrandir = (p) => [lp.centre[0] + lp.k * (p[0] - lp.q[0]), lp.centre[1] + lp.k * (p[1] - lp.q[1])];
-  // Au centre de la loupe : le pied du point de corde sur le bord de la chaussée, au sommet du virage.
-  assert.ok(distance(lp.q, surCercle(route.centre, bord, sommet)) < 0.01, "la loupe centrée sur le bord, au sommet du virage");
-  assert.ok(0.5 * echelle * (LARGEUR_TELEPHONE / def.cadre[0]) >= COTE_MIN_PX, `0,50 m fait ${(0.5 * echelle).toFixed(1)} unités dans la loupe`);
-  // Sa route est celle de la vue d'ensemble, agrandie : le bord est un arc du même cercle, agrandi ; la chaussée occupe tout le
-  // disque de la loupe, le trottoir par-dessus, exactement la part du disque en deçà du bord (grille de 2 unités, à 0,2 unité près).
-  assert.ok(distance(lp.bord.centre, agrandir(route.centre)) < 0.01 && Math.abs(lp.bord.rayon - lp.k * bord) < 0.01, "le bord de la loupe est celui du virage, agrandi");
-  for (const p of lp.chaussee) assert.ok(Math.abs(distance(p, lp.centre) - lp.rayon) < 0.01, "la chaussée de la loupe est son disque");
-  for (let x = -lp.rayon; x <= lp.rayon; x += 2) {
-    for (let y = -lp.rayon; y <= lp.rayon; y += 2) {
-      const p = [lp.centre[0] + x, lp.centre[1] + y], dBord = distance(p, lp.bord.centre) - lp.bord.rayon;
-      if (distance(p, lp.centre) > lp.rayon - 0.2 || Math.abs(dBord) < 0.2) continue;
-      assert.equal(dansPolygone(p, lp.trottoir), dBord < 0, `point (${x}, ${y}) de la loupe ${dBord < 0 ? "hors du" : "sur le"} trottoir`);
-    }
-  }
-  // Le point de corde : où la loupe met celui de la vue d'ensemble, 0,50 m à l'intérieur de la voie, à l'échelle de la loupe ;
-  // son disque ne recouvre pas le bord.
-  assert.ok(distance(lp.point, agrandir(surCercle(route.centre, bord + DECALAGE_CORDE * E, sommet))) < 0.01, "le point de la loupe est le point de corde, agrandi");
-  const ecart = distance(lp.point, lp.bord.centre) - lp.bord.rayon;
-  assert.ok(Math.abs(ecart / echelle - DECALAGE_CORDE) <= TOLERANCE_BORD, `point de la loupe à ${(ecart / echelle).toFixed(3)} m du bord, côté chaussée`);
-  assert.ok(ecart - lp.rayonPoint >= JEU_LOUPE, "le disque du point de la loupe recouvre le bord");
-  // La cote : du bord au disque du point, le long du rayon du virage (perpendiculaire au bord), et son texte, « 50 cm ».
-  const [a, b] = lp.cote;
-  assert.ok(Math.abs(distance(a, lp.bord.centre) - lp.bord.rayon) < 0.01, "la cote part du bord");
-  assert.ok(Math.abs(distance(b, lp.point) - lp.rayonPoint) < 0.01, "la cote arrive au disque du point");
-  for (const p of [b, lp.point]) assert.ok(Math.abs(ecartAngle(versLe(a, p), versLe(lp.bord.centre, a))) < 0.01, "la cote suit le rayon du virage");
-  assert.equal(texteDe(lp.texte), "50 cm");
-  // Le texte de la cote, sur le trottoir de la loupe (à une unité au moins du bord), entier dans la loupe, sans toucher la cote.
-  const boite = boitesTextes(image).find((x) => x.texte === "50 cm");
-  for (const c of [[boite.x1, boite.y1], [boite.x2, boite.y1], [boite.x2, boite.y2], [boite.x1, boite.y2]]) {
-    assert.ok(distance(c, lp.centre) <= lp.rayon - MARGE_BORD_LOUPE, "texte de la cote hors de la loupe");
-    assert.ok(distance(c, lp.bord.centre) <= lp.bord.rayon - JEU_LOUPE, "texte de la cote hors du trottoir de la loupe");
-  }
-  assert.ok(ecartBoite(a, boite) >= JEU_LOUPE && ecartBoite(b, boite) >= JEU_LOUPE, "texte de la cote sur la cote");
-});
-// Distance d'un point à un polygone (0 dedans).
-const ecartPolygone = (p, poly) => (dansPolygone(p, poly) ? 0 : Math.min(...poly.map((a, i) => distanceSegment(p, a, poly[(i + 1) % poly.length]))));
-test("regard-loin : la loupe, sous l'étiquette « Point de corde » qui la nomme, reste affichée toute l'étape 1, s'efface sur ses 0,15 dernières secondes et n'est plus là aux étapes 2 et 3 ; tant qu'elle est là, rien ne passe sur elle", () => {
-  const def = geste(), t2 = def.etapes[1].t, [L, H] = def.cadre;
-  let avant = Infinity;
+// Consigne du formateur du 19/10/2026 : « Pas besoin du petit rond avec les 50 cm. » Ni loupe ni cote, à aucune image : les seuls
+// textes du dessin sont les deux étiquettes.
+test("regard-loin : ni loupe ni cote « 50 cm », à aucune image : les seuls textes sont « Point de corde » et « Sortie »", () => {
+  const def = geste();
   for (const t of instantsDe(def)) {
     for (const fige of [false, true]) {
-      const image = imageA(def, t, fige), lp = lireLoupe(image), quand = `${t.toFixed(3)} s`;
-      if (t >= t2) { assert.ok(!lp.visible, `${quand} : loupe affichée après l'étape 1`); continue; }
-      assert.ok(lp.visible, `${quand} : loupe masquée pendant l'étape 1`);
-      if (t <= t2 - FIN_LOUPE) assert.equal(lp.opacite, 1, `${quand} : loupe estompée avant la fin de l'étape 1`);
-      else if (!fige) { assert.ok(lp.opacite < 1 && lp.opacite <= avant, `${quand} : la loupe ne s'efface pas`); avant = lp.opacite; }
-      // Sous le texte de l'étiquette « Point de corde », centrée sur lui, entière dans le cadre.
-      const { pose, cone, visee, vise, rayonVise } = lireRegard(image), R = lp.couvert, boites = boitesTextes(image);
-      const titre = boites.find((b) => b.texte === "Point de corde");
-      assert.ok(lp.centre[1] - R >= titre.y2 + JEU_LOUPE, `${quand} : la loupe touche l'étiquette « Point de corde »`);
-      assert.ok(Math.abs(lp.centre[0] - (titre.x1 + titre.x2) / 2) <= 1, `${quand} : la loupe n'est pas centrée sous l'étiquette`);
-      assert.ok(lp.centre[0] - R >= 0 && lp.centre[0] + R <= L && lp.centre[1] - R >= 0 && lp.centre[1] + R <= H, `${quand} : loupe hors du cadre`);
-      // Rien ne passe sur elle : la voiture, le cône, le trait de visée, le point visé, les autres textes, les filets des
-      // étiquettes, la flèche de l'image figée.
-      const c = lp.centre;
-      assert.ok(ecartPolygone(c, coinsCaisse(pose)) >= R + JEU_LOUPE, `${quand} : la voiture passe sur la loupe`);
-      assert.ok(ecartPolygone(c, cone.pts) >= R + JEU_LOUPE, `${quand} : le cône passe sur la loupe`);
-      const trait = pointsDe(visee), demi = Number(visee.attributs["stroke-width"]) / 2;
-      for (let i = 0; i + 1 < trait.length; i++) assert.ok(distanceSegment(c, trait[i], trait[i + 1]) >= R + demi + JEU_LOUPE, `${quand} : le trait de visée passe sur la loupe`);
-      assert.ok(distance(c, vise) >= R + rayonVise + JEU_LOUPE, `${quand} : le point visé passe sur la loupe`);
-      for (const b of boites.filter((x) => x.texte !== "50 cm")) assert.ok(ecartBoite(c, b) >= R + JEU_LOUPE, `${quand} : « ${b.texte} » sur la loupe`);
-      for (const f of trouverTous(image, (x) => x.attributs["data-r"] === "filet")) {
-        const fa = f.attributs;
-        assert.ok(distanceSegment(c, [Number(fa.x1), Number(fa.y1)], [Number(fa.x2), Number(fa.y2)]) >= R + JEU_LOUPE, `${quand} : filet d'étiquette sur la loupe`);
-      }
-      for (const f of trouverTous(image, (x) => /^fleche-\d$/.test(x.attributs["data-r"] || "") && x.attributs.display !== "none")) {
-        if (!fige) continue;
-        for (const p of pointsDe(trouverRole(f, "fleche-trait"))) assert.ok(distance(c, p) >= R + JEU_LOUPE, `${quand} : la flèche passe sur la loupe`);
-      }
+      const image = imageA(def, t, fige);
+      assert.equal(trouverTous(image, (x) => /loupe/.test(x.attributs["data-r"] || "")).length, 0, `${t.toFixed(3)} s : loupe dessinée`);
+      assert.deepEqual(textesDe(image).sort(), ["Point de corde", "Sortie"], `${t.toFixed(3)} s : textes du dessin`);
     }
   }
 });
