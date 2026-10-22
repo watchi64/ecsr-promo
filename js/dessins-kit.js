@@ -784,11 +784,11 @@ export function reperesProfil({ x, y, echelle, sens = "droite", trappeOuverte = 
  *  ce côté, ouverte. Ouvertes ou fermées, la portière et la trappe gardent leurs nœuds (display none). `schema` : le style
  *  schématique (décision du formateur du 15/10/2026, « pictogramme plutôt qu'illustration »), comme voitureDessus : la
  *  silhouette de la caisse et son contour, les vitres latérales (le montant milieu, assez grand pour se voir, les sépare dans
- *  la teinte de la caisse), les roues en deux tons, pneu et jante pleine ; portière et trappe ouvertes à la demande, en
- *  aplats (l'habitacle découvert, le montant, le seuil, la portière, son chant et sa vitre ; le logement et le volet de la
- *  trappe) ; aux mêmes tracés que la voiture détaillée. Aucun détail de finition : ni passages de roue, ni fond, fenêtres ou
- *  moyeu des jantes, ni bas de caisse, ni épaule, ni reflets, ni phare, ni feu, ni rétroviseur, ni poignées, ni joints, ni
- *  trappe fermée, ni bouchon, ni siège. */
+ *  la teinte de la caisse), les roues en deux tons, pneu et jante pleine, et leurs passages de la teinte du pneu (la roue
+ *  remplit son passage : aucun anneau clair autour d'elle) ; portière et trappe ouvertes à la demande, en aplats (l'habitacle
+ *  découvert, le montant, le seuil, la portière, son chant et sa vitre ; le logement et le volet de la trappe) ; aux mêmes
+ *  tracés que la voiture détaillée. Aucun détail de finition : ni fond, fenêtres ou moyeu des jantes, ni bas de caisse, ni
+ *  épaule, ni reflets, ni phare, ni feu, ni rétroviseur, ni poignées, ni joints, ni trappe fermée, ni bouchon, ni siège. */
 export function voitureProfil({ x, y, echelle, teinte = "eleve", sens = "droite", portiereOuverte = false, trappeOuverte = false,
   schema = false, role = "voiture-profil" }) {
   const qui = "Voiture de profil";
@@ -875,8 +875,9 @@ export function voitureProfil({ x, y, echelle, teinte = "eleve", sens = "droite"
   retroVisible && forme(retroOuvert, { fill: c.base, stroke: c.bord, "stroke-width": fin, "stroke-linejoin": "round" }));
 
   return n("g", { "data-r": role, "data-x": x, "data-y": y },
-    finition && forme(passage(ESSIEU_AVANT), { fill: MATIERES.passage, "data-r": "passage-avant" }),
-    finition && forme(passage(ESSIEU_ARRIERE), { fill: MATIERES.passage, "data-r": "passage-arriere" }),
+    // Passages de roue : sombres ; en silhouette, de la teinte du pneu, que la roue prolonge sans anneau clair autour d'elle.
+    forme(passage(ESSIEU_AVANT), { fill: finition ? MATIERES.passage : MATIERES.pneu, "data-r": "passage-avant" }),
+    forme(passage(ESSIEU_ARRIERE), { fill: finition ? MATIERES.passage : MATIERES.pneu, "data-r": "passage-arriere" }),
     roue("roue-avant", ESSIEU_AVANT), roue("roue-arriere", ESSIEU_ARRIERE),
     forme(CONTOUR_PROFIL, { fill: c.base, stroke: c.bord, "stroke-width": fin, "stroke-linejoin": "round", "data-r": "caisse" }),
     assez(PORTIERE.bas - PROFIL.basCaisse) && forme(BAS_DE_CAISSE, { fill: c.ombre, "data-r": "bas-de-caisse" }),

@@ -733,8 +733,8 @@ function teintesAffichees(noeud) {
 }
 
 test("voiture de profil, schématique : caisse, vitres et roues aux mêmes tracés que la voiture du kit ; portière et trappe ouvertes à la demande ; aucun détail de finition ; deux tons par pièce", () => {
-  const finition = ["passage-avant", "passage-arriere", "bas-de-caisse", "phare", "feu", "retroviseur", "poignee-avant", "poignee-arriere", "siege"];
-  const memes = ["caisse", "vitrage", "roue-avant", "roue-arriere", "pneu", "jante", "portiere-fermee", "trappe-fermee", "portiere-ouverte",
+  const finition = ["bas-de-caisse", "phare", "feu", "retroviseur", "poignee-avant", "poignee-arriere", "siege"];
+  const memes = ["caisse", "vitrage", "roue-avant", "roue-arriere", "pneu", "jante", "passage-avant", "passage-arriere", "portiere-fermee", "trappe-fermee", "portiere-ouverte",
     "ouverture", "montant", "chant", "panneau", "trappe-ouverte", "trappe-ouverte/volet"];
   for (const [pose, options] of [[{ x: 160, y: 140, echelle: 40 }, {}], [{ x: 160, y: 140, echelle: 40, sens: "gauche" }, { portiereOuverte: true, trappeOuverte: true }],
     [{ x: 120, y: 120, echelle: 26, teinte: "autre" }, { portiereOuverte: true }], [{ x: 60, y: 80, echelle: 8 }, { trappeOuverte: true }]]) {
@@ -768,9 +768,13 @@ test("voiture de profil, schématique : caisse, vitres et roues aux mêmes trac�
     if (options.portiereOuverte) [kit.MATIERES.habitacle, ombre].forEach((t) => attendues.add(t));
     if (options.trappeOuverte) [kit.MATIERES.joint, ombre].forEach((t) => attendues.add(t));
     assert.deepEqual(teintesAffichees(silhouette), { remplis: [...attendues].sort(), contours: [c.bord] }, `teintes, ${quoi}`);
-    // Une roue : deux tons, le pneu et la jante pleine.
+    // Une roue : deux tons, le pneu et la jante pleine ; son passage, dessiné sous elle, de la teinte du pneu : entre la roue et le bord
+    // du passage découpé dans la caisse, aucun anneau clair (retour de la relecture du 22/10/2026).
     for (const role of ["roue-avant", "roue-arriere"]) {
       assert.deepEqual(trouverRole(silhouette, role).enfants.map((x) => x.attributs.fill), [kit.MATIERES.pneu, kit.MATIERES.jante], `${role}, ${quoi}`);
+      const passage = trouverRole(silhouette, role.replace("roue", "passage"));
+      assert.equal(passage.attributs.fill, kit.MATIERES.pneu, `${role} : passage de la teinte du pneu, ${quoi}`);
+      assert.ok(silhouette.enfants.indexOf(passage) < silhouette.enfants.indexOf(trouverRole(silhouette, role)), `${role} : passage sous la roue, ${quoi}`);
     }
   }
   // Contrôles communs et traits du jeu de la charte, dans tous les états.
