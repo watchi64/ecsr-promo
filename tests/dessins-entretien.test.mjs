@@ -5,7 +5,7 @@ import * as famille from "../js/dessins-entretien.js";
 import { SOURCES } from "../sources/dessins-entretien.js";
 import { verifierDessin, verifierGeste } from "./aides-dessins.mjs";
 import { trouverRole, trouverTous, texteDe } from "../js/dessin-svg.js";
-import { CHARTE, reperesProfil, VOITURE, VOITURE_PROFIL, SYMBOLE_FREIN } from "../js/dessins-kit.js";
+import { CHARTE, reperesProfil, VOITURE, VOITURE_PROFIL, SYMBOLE_FREIN, SYMBOLE_TEMPERATURE } from "../js/dessins-kit.js";
 
 const codes = Object.keys(CATALOGUE).filter((c) => CATALOGUE[c].module === "entretien");
 
@@ -246,7 +246,7 @@ function tsl(hex) {
 // Retour du formateur du 22/10/2026 : « l'idée est bonne, mais assez peu représentative. On ne connaît pas suffisamment les
 // éléments, et les logos, types voyants, sur les différents récipients, ça pourrait être intéressant de les ajouter. »
 const proche = (a, b, tolerance, quoi) => assert.ok(Math.abs(a - b) <= tolerance, `${quoi} : ${a} au lieu de ${b}`);
-const PICTOS_CAPOT = { huile: "7000-0248", "vase-expansion": "7000-1377", "lave-glace": "7000-0088", "liquide-frein": "7000-0239" };
+const PICTOS_CAPOT = { huile: "7000-0248", "vase-expansion": "7000-0246", "lave-glace": "7000-0088", "liquide-frein": "7000-0239" };
 
 test("capot : chaque bouchon de remplissage porte son pictogramme normalisé, sur lui, lisible sur un téléphone", () => {
   const d = famille.DESSINS.capot();
@@ -278,6 +278,41 @@ test("capot : chaque bouchon de remplissage porte son pictogramme normalisé, su
     // Chaque symbole dessiné est cité dans les sources, avec sa référence.
     assert.ok(SOURCES.capot.some((t) => t.includes(`ISO ${iso}`)), `${role} : ISO ${iso} absent des sources`);
   }
+});
+
+// Consigne du formateur du 22/10/2026, après le bouchon du frein : « pareil pour le liquide de refroidissement, c'est le même que le
+// voyant ». Le bouchon du vase d'expansion porte le symbole du voyant de température du liquide de refroidissement.
+test("capot : le bouchon du vase d'expansion porte le symbole du voyant de température : le thermomètre dans les vagues, aux proportions du voyant", () => {
+  const d = famille.DESSINS.capot();
+  const vase = trouverRole(d, "vase-expansion"), bouchon = trouverRole(vase, "bouchon"), picto = trouverRole(vase, "pictogramme");
+  assert.ok(picto, "symbole absent du bouchon du vase d'expansion");
+  const F = SYMBOLE_TEMPERATURE, [bx, by] = ["cx", "cy"].map((k) => nb(bouchon, k));
+  // Le carré du symbole, lu sur le pictogramme : sa largeur dessinée est celle des vagues.
+  const parts = Math.max(...F.vagues.map((w) => w.droite)) - Math.min(...F.vagues.map((w) => w.gauche)), cote = nb(picto, "data-largeur") / parts;
+  const [tige, bulbe, graduations, vagues] = ["tige", "bulbe", "graduations", "vagues"].map((r) => { const x = trouverRole(picto, r); assert.ok(x, `${r} absent`); return x; });
+  // La tige, verticale, du haut du symbole au bulbe plein, centré sur l'axe du bouchon.
+  const [t1, t2] = points(tige.attributs.d);
+  proche(t1[0], t2[0], 0.01, "tige verticale");
+  proche(t1[0], bx, 0.01, "tige dans l'axe du bouchon");
+  proche(t2[1] - t1[1], (F.bulbe.v - F.tige.haut) * cote, 0.02, "longueur de la tige");
+  proche(nb(bulbe, "cx"), t2[0], 0.01, "bulbe au pied de la tige");
+  proche(nb(bulbe, "cy"), t2[1], 0.01, "bulbe au pied de la tige");
+  proche(nb(bulbe, "r"), F.bulbe.rayon * cote, 0.01, "rayon du bulbe");
+  assert.notEqual(bulbe.attributs.fill, "none", "bulbe plein");
+  // Trois graduations à droite de la tige ; trois morceaux de vagues, sous le haut du bulbe.
+  const traits = String(graduations.attributs.d).split(/(?=M)/).map((x) => points(x));
+  assert.equal(traits.length, F.graduations.v.length, "graduations");
+  for (const [a, b] of traits) assert.ok(Math.abs(a[1] - b[1]) < 0.01 && Math.min(a[0], b[0]) > t1[0], "graduation horizontale, à droite de la tige");
+  const morceaux = String(vagues.attributs.d).split(/(?=M)/);
+  assert.equal(morceaux.length, F.vagues.length, "morceaux de vagues");
+  for (const m of morceaux) {
+    assert.ok(/C/.test(m), "vague en courbes");
+    for (const q of points(m)) assert.ok(q[1] > nb(bulbe, "cy") - nb(bulbe, "r") - 0.01, "vague au-dessus du bulbe");
+  }
+  // Ni flacon ni point d'exclamation : rien d'autre que ces quatre pièces.
+  assert.equal(picto.enfants.filter((x) => typeof x !== "string").length, 4, "pièces en trop");
+  assert.ok(Math.hypot(nb(picto, "data-x") - bx, nb(picto, "data-y") - by) < 0.01, "symbole centré sur le bouchon");
+  assert.ok(SOURCES.capot.some((t) => t.includes("22/10/2026") && t.includes("ISO 7000-0246") && t.includes("même que le voyant")), "sources du symbole");
 });
 
 // Retour du formateur du 22/10/2026, photo d'un vrai bouchon à l'appui : le bouchon du liquide de frein porte « simplement un voyant
