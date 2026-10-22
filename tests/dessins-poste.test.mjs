@@ -4,7 +4,7 @@ import { CATALOGUE } from "../js/catalogue-blocs.js";
 import * as famille from "../js/dessins-poste.js";
 import { SOURCES } from "../sources/dessins-poste.js";
 import { trouverRole, trouverTous, texteDe, parcourir } from "../js/dessin-svg.js";
-import { CHARTE, COULEURS_VOYANTS, LARGEUR_TELEPHONE, TAILLE_TEXTE_MIN_PX } from "../js/dessins-kit.js";
+import { CHARTE, COULEURS_VOYANTS, LARGEUR_TELEPHONE, TAILLE_TEXTE_MIN_PX, SILHOUETTE } from "../js/dessins-kit.js";
 import * as voyants from "../js/dessins-voyants.js";
 import { PAS_IMAGE, SAUT_POINT_MAX, imageA, imageFigee, pointsDessines } from "../js/geste-regles.js";
 import { verifierDessin, verifierGeste, formeArbre, boitesTextes, largeurTexte } from "./aides-dessins.mjs";
@@ -366,13 +366,14 @@ test("poste-commandes : le symbole des feux de détresse est du rouge normalisé
   assert.ok(contraste(COULEURS_VOYANTS.rouge, fond) >= 3, `contraste de ${contraste(COULEURS_VOYANTS.rouge, fond).toFixed(2)} sur la commande`);
 });
 
-test("poste-commandes : levier du frein de stationnement, bouton et poignée à l'avant, soufflet du pivot à l'arrière", () => {
+test("poste-commandes : levier du frein de stationnement, poignée à l'avant (vers la planche), soufflet du pivot à l'arrière (vers le siège) ; pas de bouton, un détail", () => {
   const f = trouverRole(famille.DESSINS["poste-commandes"](), "frein-stationnement");
-  const bouton = trouverRole(f, "bouton-deverrouillage").attributs, soufflet = trouverRole(f, "soufflet").attributs;
-  const poignee = trouverRole(f, "poignee").attributs;
+  const soufflet = trouverRole(f, "soufflet").attributs, poignee = trouverRole(f, "poignee").attributs;
   const ySoufflet = soufflet.y + soufflet.height / 2;
-  assert.ok(bouton.cy < ySoufflet, "le bouton est vers la planche (en haut), le soufflet vers le siège");
-  assert.ok(poignee.y + poignee.height / 2 < ySoufflet && bouton.cy >= poignee.y && bouton.cy <= poignee.y + poignee.height, "bouton au bout de la poignée, à l'avant");
+  assert.ok(poignee.y + poignee.height / 2 < ySoufflet, "la poignée est vers la planche (en haut), le soufflet vers le siège");
+  const haut = Math.min(...trouverTous(f, (x) => x.balise === "rect").map((r) => r.attributs.y));
+  assert.equal(poignee.y, haut, "la poignée au bout avant du levier");
+  assert.equal(trouverRole(f, "bouton-deverrouillage"), null, "le bouton de déverrouillage ne se dessine plus (style schématique)");
 });
 
 test("poste-commandes : le point de l'étiquette du contacteur laisse voir la fente de la clé", () => {
@@ -1065,4 +1066,46 @@ test("retour-volant : l'intitulé modèle de chaque étape où les mains tournen
     if (tenues.has(1)) { vues.une.push(i + 1); assert.match(intitule, /tirer-glisser/i, `étape ${i + 1} : « ${intitule} »`); }
   });
   assert.deepEqual(vues, { deux: [3, 4], une: [5, 6] }, "les deux mains tournent le volant aux étapes 3 et 4, une seule aux étapes 5 et 6");
+});
+
+// ===== Style schématique de C1.1 et C1.2 (décision du formateur du 15/10/2026) : poste-commandes et pédales =====
+
+test("pedales : chaque pied est un pictogramme, une gélule de la teinte des personnes du kit, plus large au bout qu'au talon, bordée d'un liseré clair ; ni lacets, ni reflet, ni semelle", () => {
+  const d = famille.DESSINS.pedales();
+  for (const cote of ["gauche", "droit"]) {
+    const pied = trouverRole(d, `pied-${cote}`);
+    const formes = trouverTous(pied, (x) => x.balise === "path");
+    assert.equal(formes.length, 2, `pied ${cote} : un liseré et une forme pleine, rien d'autre`);
+    const [lisere, plein] = formes;
+    assert.deepEqual([lisere.attributs.fill, lisere.attributs.stroke, lisere.attributs["stroke-width"]], [CHARTE.carte, CHARTE.carte, 2 * CHARTE.liseres], `pied ${cote} : liseré`);
+    assert.equal(plein.attributs.fill, SILHOUETTE.teinte, `pied ${cote} : teinte`);
+    assert.equal(lisere.attributs.d, plein.attributs.d);
+    // La gélule : son premier arc (au bout, posé sur le patin) plus grand que le second (au talon).
+    const arcs = [...String(plein.attributs.d).matchAll(/A(-?[\d.]+) /g)].map((m) => Number(m[1]));
+    assert.equal(arcs.length, 2, `pied ${cote} : une gélule`);
+    assert.ok(arcs[1] > arcs[0], `pied ${cote} : bout de ${arcs[1]}, talon de ${arcs[0]}`);
+  }
+});
+
+test("pedales : chaque pédale en aplats, son bras et son patin, sans rainures", () => {
+  const d = famille.DESSINS.pedales();
+  for (const role of ["embrayage", "frein", "accelerateur"]) {
+    const p = trouverRole(d, role);
+    assert.deepEqual(p.enfants.map((x) => [x.balise, x.attributs["data-r"]]), [["rect", "bras"], ["rect", "patin"]], role);
+  }
+});
+
+test("poste-commandes : volant à plat, sans reflet ; chaque commodo d'une seule forme et d'une seule teinte, plus épaisse à son bout ; contacteur en collerette et fente", () => {
+  const d = famille.DESSINS["poste-commandes"]();
+  for (const role of ["reflet-jante", "reflet-moyeu"]) assert.equal(trouverRole(d, role), null, role);
+  for (const cote of ["gauche", "droit"]) {
+    const c = trouverRole(d, `commodo-${cote}`);
+    const formes = trouverTous(c, (x) => x.balise === "path");
+    assert.equal(formes.length, 1, `commodo ${cote} : une forme`);
+    const arcs = [...String(formes[0].attributs.d).matchAll(/A(-?[\d.]+) /g)].map((m) => Number(m[1]));
+    assert.ok(arcs.length === 2 && arcs[0] > arcs[1], `commodo ${cote} : bout de ${arcs[0]}, base de ${arcs[1]}`);
+  }
+  const contacteur = trouverRole(d, "contacteur");
+  assert.deepEqual(contacteur.enfants.map((x) => x.balise), ["circle", "path"], "collerette et fente");
+  assert.notEqual(contacteur.enfants[0].attributs.fill, contacteur.enfants[1].attributs.fill, "la fente se lit sur la collerette");
 });
