@@ -1076,7 +1076,7 @@ function vignetteRetroviseur(retro, opacite, idMiroir) {
   ];
 }
 const TITRE_INSTALLATION = "S'installer, dans l'ordre";
-const DESCRIPTION_INSTALLATION = "Le conducteur s'installe à l'arrêt, dans l'ordre : il recule et règle le siège jusqu'à environ 25 cm entre le sternum et le centre du volant, dos contre le dossier ; l'appuie-tête monte au niveau du sommet du crâne ; il règle le volant, mains à 9 h et 3 h ; il boucle la ceinture ; il oriente le rétroviseur intérieur, qui cadre alors toute la lunette arrière.";
+const DESCRIPTION_INSTALLATION = "Le conducteur s'installe à l'arrêt, dans l'ordre : il recule et règle le siège jusqu'à environ 25 cm entre le sternum et le centre du volant, dos contre le dossier ; l'appuie-tête monte au niveau du sommet du crâne ; il règle le volant, mains à 9 h 15 ; il boucle la ceinture ; il oriente le rétroviseur intérieur, qui cadre alors toute la lunette arrière.";
 
 // Flèches des cinq étapes (repère du cadre), à partir des états de début et de fin de chaque étape ; calculées une fois par
 // construction du geste.
