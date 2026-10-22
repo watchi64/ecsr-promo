@@ -72,41 +72,117 @@ const TEINTES = {
   plastique: "#E3E8E1", plastiqueBord: "#A9B3A5", bouchon: "#262B28",
   batterie: "#5E6862", cosse: "#C5CAC4", cable: "#8E968F",
   lame: "#C3C9C4", lameBord: "#8E968F", huile: "#B07A1E", striesSeches: "#7E867F", striesHuile: "#6A4510",
-  poignee: "#F3C21B", poigneeBord: "#A57F00", bouchonStries: "#59615C",
+  poignee: "#F3C21B", poigneeBord: "#A57F00", bouchonStries: "#59615C", bouchonLaveGlace: "#2B64B0", pictogramme: "#F1F4F0",
   liquide: "#C7D4A6", liquideSurface: CHARTE.accent, repere: CHARTE.texteDiscret, sol: CHARTE.texteDoux,
   air: CHARTE.carte, janteBord: "#8E968F", temoin: "#7E8A82", cote: CHARTE.carte,
   etiquette: CHARTE.carte, etiquetteBord: CHARTE.texteDoux,
 };
 const GOMME = MATIERES.pneu, JANTE = MATIERES.jante;
 
+// ===== Pictogrammes des bouchons =====
+// Retour du formateur du 22/10/2026 : « les logos, types voyants, sur les différents récipients, ça pourrait être intéressant de
+// les ajouter ». Chaque bouchon porte le symbole normalisé que portent les vrais : ISO 7000-0248 « Engine oil » (la burette, qui
+// repère le bouchon de remplissage d'huile), ISO 7000-1377 « Engine coolant » (le flacon et son liquide, qui repère le remplissage
+// du liquide de refroidissement et son réservoir), ISO 7000-0088 « Windscreen washer » (le pare-brise et son jet, celui du
+// lave-glace). Contours relevés sur leurs vectorisations de Wikimedia Commons (domaine public), dans leur carré d'origine
+// (`boite` : x1, y1, x2, y2), puis simplifiés pour un téléphone : la burette en silhouette pleine (son anse ajourée), le flacon et
+// le pare-brise en traits de la charte, le jet du lave-glace en deux arcs pleins (des tirets dans la norme). Aucun symbole pour le
+// liquide de frein : aucun symbole de remplissage n'a été trouvé dans ISO 7000 (ISO 9128, qui fixe ceux des liquides de frein,
+// n'a pas pu être consultée) ; il n'est pas deviné.
+const PICTOGRAMMES = {
+  huile: {
+    iso: "7000-0248", boite: [4.1, 58.9, 190.4, 133.1],
+    contour: [[11.95, 58.87], [4.14, 88.01], [42.04, 102.08], [42.04, 133.09], [129.69, 133.09], [171.48, 82.64], [179.99, 79.95],
+      [184.55, 84.72], [190.22, 77.84], [181.58, 69.01], [162.53, 77.04], [113.84, 89.55], [105.89, 81.59], [83.6, 81.59], [83.6, 71.53],
+      [94.86, 71.53], [94.86, 61.53], [62.34, 61.53], [62.34, 71.53], [73.6, 71.53], [73.6, 81.59], [52.04, 81.59], [52.04, 73.75]],
+    anse: [[18.77, 72.06], [42.04, 80.7], [42.04, 91.41], [16.16, 81.81]],
+    goutte: { pointe: [184.4, 96.7], centre: [184.8, 113.9], rayon: 5.6 },
+  },
+  refroidissement: {
+    iso: "7000-1377", boite: [11.49, 8.2, 42.23, 45.51],
+    col: [18.18, 35.53, 8.2], ballon: { centre: [26.86, 30.14], rayon: 15.37 },
+    vagues: { y: 28.33, rayon: 2.98, centres: [17.7, 23.75, 29.96, 36.01] },
+  },
+  laveGlace: {
+    iso: "7000-0088", boite: [12.82, 17.41, 187.18, 161.79],
+    // Pare-brise : bas (de droite à gauche, bombé vers le haut), côté gauche, haut (de gauche à droite), côté droit.
+    pareBrise: { bas: [[143.59, 161.79], [116.62, 146.22], [83.39, 146.22], [56.42, 161.79]], haut: [[12.82, 86.28], [66.77, 55.13], [133.24, 55.13], [187.18, 86.28]] },
+    jet: { centres: [[70.65, 46.76], [129.35, 46.76]], rayon: 29.35 },
+  },
+};
+const PAS_COURBE = 12;          // segments d'une courbe de Bézier d'un pictogramme
+const bezier = ([a, b, c, d]) => Array.from({ length: PAS_COURBE + 1 }, (_, k) => {
+  const t = k / PAS_COURBE, u = 1 - t;
+  return [0, 1].map((i) => u * u * u * a[i] + 3 * u * u * t * b[i] + 3 * u * t * t * c[i] + t * t * t * d[i]);
+});
+const ouvert = (pts) => trace(pts, false);
+
+/** Pictogramme `nom` centré en (cx, cy), large de `largeur` unités (sa hauteur suit), de la teinte `couleur` : le groupe
+ *  « pictogramme », sa référence ISO (data-iso), sa boîte (data-x, data-y, data-largeur, data-hauteur). */
+function pictogramme(nom, [cx, cy], largeur, couleur) {
+  const P = PICTOGRAMMES[nom], [bx1, by1, bx2, by2] = P.boite;
+  const k = largeur / (bx2 - bx1), hauteur = (by2 - by1) * k;
+  const vp = ([x, y]) => [cx + (x - (bx1 + bx2) / 2) * k, cy + (y - (by1 + by2) / 2) * k];
+  const trait = (epaisseur) => ({ fill: "none", stroke: couleur, "stroke-width": epaisseur, "stroke-linecap": "round", "stroke-linejoin": "round" });
+  let dessin;
+  if (nom === "huile") {
+    const g = P.goutte, d = Math.hypot(g.pointe[0] - g.centre[0], g.pointe[1] - g.centre[1]);
+    const vers = Math.atan2(g.pointe[1] - g.centre[1], g.pointe[0] - g.centre[0]) / (Math.PI / 180), ecart = Math.acos(g.rayon / d) / (Math.PI / 180);
+    const goutte = [g.pointe, ...arc(g.centre, g.rayon, vers + ecart, vers + 360 - ecart)];
+    dessin = [n("path", { d: `${trace(P.contour.map(vp))} ${trace(P.anse.map(vp))}`, fill: couleur, "fill-rule": "evenodd" }),
+      n("path", { d: trace(goutte.map(vp)), fill: couleur })];
+  } else if (nom === "refroidissement") {
+    const [g, dr, haut] = P.col, b = P.ballon, V = P.vagues;
+    const pied = (x) => Math.atan2(-Math.sqrt(b.rayon ** 2 - (x - b.centre[0]) ** 2), x - b.centre[0]) / (Math.PI / 180);
+    const flacon = [[g, haut], ...arc(b.centre, b.rayon, pied(g) + 360, pied(dr)), [dr, haut]];
+    const vagues = [...arc([V.centres[0], V.y], V.rayon, 90, 0), ...arc([V.centres[1], V.y], V.rayon, 180, 0),
+      ...arc([V.centres[2], V.y], V.rayon, 180, 0), ...arc([V.centres[3], V.y], V.rayon, 180, 90)];
+    dessin = [n("path", { d: trace(flacon.map(vp)), ...trait(CHARTE.traits.moyen) }),
+      n("path", { d: ouvert(vagues.map(vp)), ...trait(CHARTE.traits.fin) })];
+  } else {
+    const pb = P.pareBrise, J = P.jet;
+    const contour = [...bezier(pb.bas), ...bezier(pb.haut)];
+    dessin = [n("path", { d: trace(contour.map(vp)), ...trait(CHARTE.traits.moyen) }),
+      ...J.centres.map((c) => n("path", { d: ouvert(arc(c, J.rayon, 180, 360).map(vp)), ...trait(CHARTE.traits.fin) }))];
+  }
+  return n("g", { "data-r": "pictogramme", "data-iso": P.iso, "data-x": cx, "data-y": cy, "data-largeur": largeur, "data-hauteur": hauteur }, dessin);
+}
+
 // ===== Sous le capot =====
 // La voiture du kit vue du dessus, en silhouette (voitureDessus, option schema, cap 0 : l'avant à droite du dessin, la gauche de
 // la voiture, côté conducteur, en haut), découpée du bas du pare-brise au nez : contour, pare-brise et teintes sont les siens.
-// Capot ouvert (il n'est pas dessiné), le compartiment et ses organes, un schéma, sont posés par-dessus. Repère de la voiture
-// du kit, en mètres : x vers l'avant depuis son centre, y vers sa droite.
+// Capot ouvert (il n'est pas dessiné), le compartiment et ses organes, un schéma, sont posés par-dessus, chacun à sa place la plus
+// courante, de sa forme et de la couleur usuelle de son bouchon : bouchon d'huile noir sur le moteur, anneau jaune de la jauge,
+// réservoirs translucides aux bouchons noirs, bouchon bleu du lave-glace ; chaque bouchon de remplissage porte son pictogramme
+// normalisé (voir plus haut). Repère de la voiture du kit, en mètres : x vers l'avant depuis son centre, y vers sa droite.
 const DEMI_LONGUEUR = VOITURE.longueur / 2, DEMI_LARGEUR = VOITURE.largeur / 2;
 const PIED_PARE_BRISE = DEMI_LONGUEUR - VOITURE.pareBrise.recul + VOITURE.pareBrise.profondeur;
 const CAPOT = {
-  colonnes: { gauche: 103, droite: 62 },   // largeur prêtée par les contrôles communs à « de refroidissement » et « Lave-glace »
+  // Vue : la voiture, l'avant en haut (cap -90 : sa gauche, côté conducteur, à gauche du dessin), découpée sur cette demi-largeur
+  // (m) : le compartiment et une bande d'aile de chaque côté ; elle remplit la largeur du cadre, marges comprises. Les noms des
+  // organes sont au-dessus (ceux de l'avant) et au-dessous (ceux du côté du pare-brise) : la vue garde toute la largeur.
+  demiLargeurVue: 0.80,
   jeu: 2,                                  // de l'ancre d'une étiquette au bord du dessin
-  ecartMention: 10,                        // du bas du dessin au haut de la mention
+  ecartMention: 10,                        // du bas des noms du dessous au haut de la mention
   vitre: 0.08,                             // part du pare-brise montrée, derrière son pied
   auvent: 0.08,                            // du pied du pare-brise au fond du compartiment (la caisse entre les deux)
   devant: 0.23,                            // du bord avant du compartiment au nez : la traverse et les phares
   aile: 0.24,                              // du bord du compartiment au flanc : le dessus des ailes, joints du capot compris
   arrondi: 0.10,                           // coins du compartiment
-  // Lignes des étiquettes, à pas égal : l'ordonnée (mètres) de l'organe que désigne chacune ; à gauche frein, huile, vase, à
-  // droite batterie, jauge, lave-glace.
-  lignes: { gauche: [-0.40, 0.02, 0.44], droite: [-0.51, 0.02, 0.55] },
+  // Place de chaque organe en travers de la voiture (m, vers sa droite) : frein, huile, vase ; batterie, jauge, lave-glace.
+  lateraux: { frein: -0.40, huile: 0.02, vase: 0.44, batterie: -0.51, jauge: 0.02, laveGlace: 0.55 },
+  // Décalage de l'ancre d'un nom par rapport à son organe (unités, vers la droite) : les noms du dessous ne se touchent pas.
+  decalages: { "vase-expansion": 7 },
   retrait: 1.2,                            // le point d'une étiquette, à cette distance (unités) du bord de l'organe : il en déborde
   moteur: { arriere: 1.48, avant: 1.88, gauche: -0.32, droite: 0.24, arrondi: 0.05 },
   // Organes à vérifier, agrandis (schéma) pour se reconnaître sur un téléphone : chacun mesure au moins une fois et demie le point
-  // de son étiquette dans sa plus petite dimension.
-  huile: { x: 1.64, rayon: 0.058 },
+  // de son étiquette dans sa plus petite dimension ; un bouchon qui porte un pictogramme, assez grand pour qu'il se lise.
+  // pictogramme : sa largeur, en part du diamètre de son bouchon.
+  huile: { x: 1.64, rayon: 0.10, pictogramme: 0.66 },
   jauge: { x: 1.83, longueur: 0.14, largeur: 0.09, arrondi: 0.035, trou: [0.08, 0.036], arrondiTrou: 0.018 },
-  frein: { arriere: 1.34, avant: 1.50, demiLargeur: 0.11, arrondi: 0.03, bouchon: 0.044 },
-  vase: { arriere: 1.55, avant: 1.79, demiLargeur: 0.14, arrondi: 0.035, bouchon: 0.052 },
-  laveGlace: { x: 1.92, col: 0.072, bouchon: 0.05 },
+  frein: { arriere: 1.34, avant: 1.50, demiLargeur: 0.11, arrondi: 0.03, bouchon: 0.05 },
+  vase: { arriere: 1.55, avant: 1.79, demiLargeur: 0.14, arrondi: 0.035, bouchon: 0.085, pictogramme: 0.50 },
+  laveGlace: { x: 1.92, col: 0.095, bouchon: 0.085, pictogramme: 0.70 },
   batterie: { arriere: 1.73, avant: 1.94, demiLargeur: 0.14, arrondi: 0.015,
     bornes: [{ dy: -0.09, signe: "+" }, { dy: 0.09, signe: "−" }], xBorne: 1.78, cosse: [0.04, 0.054], arrondiCosse: 0.008, xSigne: 1.87,
     cable: 0.08 },                         // amorce de chaque câble, depuis sa cosse vers l'arrière
@@ -115,28 +191,38 @@ let numeroCapot = 0;                       // numéro de chaque dessin du capot 
 
 function capot() {
   const [L, H] = CATALOGUE.capot.cadre;
-  const C = CAPOT, debut = PIED_PARE_BRISE - C.vitre;
-  const xAncreG = MARGE + C.colonnes.gauche + ESPACE_TEXTE, xAncreD = L - MARGE - C.colonnes.droite - ESPACE_TEXTE;
-  // Unités par mètre : le dessin remplit l'entre-deux des colonnes d'étiquettes.
-  const E = (xAncreD - xAncreG - 2 * C.jeu) / (DEMI_LONGUEUR - debut);
-  const hauteurDessin = 2 * DEMI_LARGEUR * E, hauteurMention = (HAUT_TEXTE + BAS_TEXTE) * PETIT;
-  const Y0 = MARGE + (H - 2 * MARGE - hauteurDessin - C.ecartMention - hauteurMention) / 2;
-  const X0 = xAncreG + C.jeu;
-  const v = ([x, y]) => [X0 + (x - debut) * E, Y0 + (y + DEMI_LARGEUR) * E];
+  const C = CAPOT, debut = PIED_PARE_BRISE - C.vitre, T = C.lateraux;
+  const E = (L - 2 * MARGE) / (2 * C.demiLargeurVue);          // unités par mètre
+  const fin = CHARTE.traits.fin, pas = INTERLIGNE * PETIT;
+  const ALERTE = ["Jamais moteur chaud"];
+  const NOMS = {
+    haut: [["batterie", ["Batterie"]], ["jauge", ["Jauge"]], ["lave-glace", ["Lave-glace"]]],
+    bas: [["liquide-frein", ["Liquide", "de frein"]], ["huile", ["Huile", "moteur"]],
+      ["vase-expansion", ["Liquide", "de refroidissement", "(vase d'expansion)", ...ALERTE]]],
+  };
+  const lignesMax = (cote) => Math.max(...NOMS[cote].map(([, l]) => l.length));
+  // Hauteurs : les noms du dessus (une ligne), la voiture, les noms du dessous, la mention ; le tout tient dans le cadre.
+  const hautNoms = (nb) => ESPACE_TEXTE + (HAUT_TEXTE + BAS_TEXTE) * PETIT + (nb - 1) * pas;
+  const Ynez = MARGE + hautNoms(lignesMax("haut")) + C.jeu;
+  const hauteurDessin = (DEMI_LONGUEUR - debut) * E, basDessin = Ynez + hauteurDessin;
+  const basNoms = basDessin + C.jeu + hautNoms(lignesMax("bas"));
+  const yMention = basNoms + C.ecartMention + HAUT_TEXTE * PETIT;
+  if (yMention + BAS_TEXTE * PETIT > H - MARGE) throw new Error(`Sous le capot : cadre de ${H} unités de haut, il en faut ${Math.ceil(yMention + BAS_TEXTE * PETIT + MARGE)}.`);
+  // Repère de la voiture (x vers l'avant, y vers sa droite, m) ramené au cadre : l'avant en haut.
+  const X0 = L / 2, Y0 = Ynez + DEMI_LONGUEUR * E;
+  const v = ([x, y]) => [X0 + y * E, Y0 - x * E];
   const rect = (x1, y1, x2, y2, r) => rectArrondi(x1, y1, x2, y2, r).map(v);
   const rond = ([cx, cy], r, attributs) => { const [x, y] = v([cx, cy]); return n("circle", { cx: x, cy: y, r: r * E, ...attributs }); };
   const boiteM = (x1, y1, x2, y2) => { const [a, b] = v([x1, y1]), [c, d] = v([x2, y2]); return boiteDe(a, b, c, d); };
-  const fin = CHARTE.traits.fin;
-  const [yFrein, yHuile, yVase] = C.lignes.gauche, [yBatterie, yJauge, yLave] = C.lignes.droite;
 
   // La voiture du kit, découpée à la fenêtre du dessin (son trait de contour compris) ; identifiant propre à ce montage.
   const idDecoupe = `capot-decoupe-${++numeroCapot}`;
-  const [fx1, fy1] = v([debut, -DEMI_LARGEUR]), [fx2, fy2] = v([DEMI_LONGUEUR, DEMI_LARGEUR]);
+  const [fx1, fy1] = v([DEMI_LONGUEUR, -C.demiLargeurVue]), [fx2, fy2] = v([debut, C.demiLargeurVue]);
   const voiture = [
     n("defs", {}, n("clipPath", { id: idDecoupe },
-      n("rect", { x: fx1, y: fy1 - fin, width: fx2 - fx1 + fin, height: fy2 - fy1 + 2 * fin }))),
+      n("rect", { x: fx1, y: fy1 - fin, width: fx2 - fx1, height: fy2 - fy1 + fin }))),
     n("g", { "clip-path": `url(#${idDecoupe})`, "data-r": "decoupe" },
-      voitureDessus({ x: v([0, 0])[0], y: v([0, 0])[1], cap: 0, echelle: E, schema: true }))];
+      voitureDessus({ x: X0, y: Y0, cap: -QUART, echelle: E, schema: true }))];
 
   // Compartiment ouvert, en retrait du pied du pare-brise ; le moteur, un seul aplat (sans nom : le cours ne le cite pas).
   const fond = PIED_PARE_BRISE + C.auvent, nez = DEMI_LONGUEUR - C.devant, demi = DEMI_LARGEUR - C.aile;
@@ -145,74 +231,74 @@ function capot() {
     forme(rect(fond, -demi, nez, demi, C.arrondi), { fill: TEINTES.fond, "data-r": "compartiment" }),
     forme(rect(m.arriere, m.gauche, m.avant, m.droite, m.arrondi), { fill: TEINTES.moteur, "data-r": "moteur" })];
 
-  // Bouchon de remplissage d'huile, sur le moteur : un disque sombre.
-  const hu = C.huile, ch = [hu.x, yHuile];
-  const huile = n("g", { "data-r": "huile", ...boiteM(hu.x - hu.rayon, yHuile - hu.rayon, hu.x + hu.rayon, yHuile + hu.rayon) },
-    rond(ch, hu.rayon, { fill: TEINTES.bouchon, "data-r": "bouchon" }));
+  // Bouchon de remplissage d'huile, sur le moteur : un disque noir, la burette dessus.
+  const hu = C.huile, ch = [hu.x, T.huile];
+  const huile = n("g", { "data-r": "huile", ...boiteM(hu.x - hu.rayon, T.huile - hu.rayon, hu.x + hu.rayon, T.huile + hu.rayon) },
+    rond(ch, hu.rayon, { fill: TEINTES.bouchon, "data-r": "bouchon" }),
+    pictogramme("huile", v(ch), 2 * hu.rayon * E * hu.pictogramme, TEINTES.pictogramme));
 
-  // Poignée de la jauge d'huile, devant le moteur : un anneau franc.
+  // Poignée de la jauge d'huile, devant le moteur : un anneau jaune, celui du dessin « niveaux ».
   const ja = C.jauge, jx1 = ja.x - ja.longueur / 2, jx2 = ja.x + ja.longueur / 2;
-  const anneau = [rect(jx1, yJauge - ja.largeur / 2, jx2, yJauge + ja.largeur / 2, ja.arrondi),
-    rect(ja.x - ja.trou[0] / 2, yJauge - ja.trou[1] / 2, ja.x + ja.trou[0] / 2, yJauge + ja.trou[1] / 2, ja.arrondiTrou)];
-  const jauge = n("g", { "data-r": "jauge", ...boiteM(jx1, yJauge - ja.largeur / 2, jx2, yJauge + ja.largeur / 2) },
-    n("path", { d: anneau.map((p) => trace(p)).join(" "), fill: TEINTES.bouchon, "fill-rule": "evenodd" }));
+  const anneau = [rect(jx1, T.jauge - ja.largeur / 2, jx2, T.jauge + ja.largeur / 2, ja.arrondi),
+    rect(ja.x - ja.trou[0] / 2, T.jauge - ja.trou[1] / 2, ja.x + ja.trou[0] / 2, T.jauge + ja.trou[1] / 2, ja.arrondiTrou)];
+  const jauge = n("g", { "data-r": "jauge", ...boiteM(jx1, T.jauge - ja.largeur / 2, jx2, T.jauge + ja.largeur / 2) },
+    n("path", { d: anneau.map((p) => trace(p)).join(" "), fill: TEINTES.poignee, "fill-rule": "evenodd", "data-r": "anneau" }));
 
-  // Réservoirs translucides et leur bouchon, au milieu : le plastique clair, le bouchon sombre.
-  const reservoir = (role, R, y) => {
+  // Réservoirs translucides et leur bouchon noir ; le vase d'expansion, le flacon du liquide de refroidissement sur le sien.
+  const reservoir = (role, R, y, picto) => {
     const centreR = [(R.arriere + R.avant) / 2, y];
     return n("g", { "data-r": role, ...boiteM(R.arriere, y - R.demiLargeur, R.avant, y + R.demiLargeur) },
       forme(rect(R.arriere, y - R.demiLargeur, R.avant, y + R.demiLargeur, R.arrondi), { fill: TEINTES.plastique }),
-      rond(centreR, R.bouchon, { fill: TEINTES.bouchon, "data-r": "bouchon" }));
+      rond(centreR, R.bouchon, { fill: TEINTES.bouchon, "data-r": "bouchon" }),
+      picto && pictogramme(picto, v(centreR), 2 * R.bouchon * E * R.pictogramme, TEINTES.pictogramme));
   };
-  const frein = reservoir("liquide-frein", C.frein, yFrein);
-  const vase = reservoir("vase-expansion", C.vase, yVase);
-  // Remplissage du lave-glace, dans le coin avant : le col translucide, son bouchon.
-  const lg = C.laveGlace, cl = [lg.x, yLave];
-  const laveGlace = n("g", { "data-r": "lave-glace", ...boiteM(lg.x - lg.col, yLave - lg.col, lg.x + lg.col, yLave + lg.col) },
+  const frein = reservoir("liquide-frein", C.frein, T.frein);
+  const vase = reservoir("vase-expansion", C.vase, T.vase, "refroidissement");
+  // Remplissage du lave-glace, dans le coin avant : le col translucide, son bouchon bleu, le pare-brise et son jet dessus.
+  const lg = C.laveGlace, cl = [lg.x, T.laveGlace];
+  const laveGlace = n("g", { "data-r": "lave-glace", ...boiteM(lg.x - lg.col, T.laveGlace - lg.col, lg.x + lg.col, T.laveGlace + lg.col) },
     rond(cl, lg.col, { fill: TEINTES.plastique }),
-    rond(cl, lg.bouchon, { fill: TEINTES.bouchon, "data-r": "bouchon" }));
+    rond(cl, lg.bouchon, { fill: TEINTES.bouchonLaveGlace, "data-r": "bouchon" }),
+    pictogramme("laveGlace", v(cl), 2 * lg.bouchon * E * lg.pictogramme, TEINTES.pictogramme));
 
   // Batterie : le bac, deux cosses serrées sur ses bornes, chacune au bout d'un câble, les signes + et − moulés à côté.
   const ba = C.batterie;
   const borne = ({ dy, signe }) => {
-    const y = yBatterie + dy, [cx, cy] = v([ba.xBorne, y]), arriereCosse = ba.xBorne - ba.cosse[0] / 2;
-    const [sx, sy] = v([ba.xSigne, y]);
+    const y = T.batterie + dy, [cx, cy] = v([ba.xBorne, y]), arriereCosse = ba.xBorne - ba.cosse[0] / 2;
+    const [sx, sy] = v([ba.xSigne, y]), [a1, b1] = v([arriereCosse, y]), [a2, b2] = v([arriereCosse - ba.cable, y]);
     return [n("g", { "data-r": `cosse-${signe === "+" ? "plus" : "moins"}`, "data-x": cx, "data-y": cy },
-      n("line", { x1: v([arriereCosse, y])[0], y1: cy, x2: v([arriereCosse - ba.cable, y])[0], y2: cy, stroke: TEINTES.cable,
-        "stroke-width": CHARTE.traits.fort, "stroke-linecap": "round", "data-r": "cable" }),
+      n("line", { x1: a1, y1: b1, x2: a2, y2: b2, stroke: TEINTES.cable, "stroke-width": CHARTE.traits.fort, "stroke-linecap": "round",
+        "data-r": "cable" }),
       forme(rect(arriereCosse, y - ba.cosse[1] / 2, ba.xBorne + ba.cosse[0] / 2, y + ba.cosse[1] / 2, ba.arrondiCosse), { fill: TEINTES.cosse })),
     texte(sx, sy + MILIEU_CAPITALES * PETIT, signe, { taille: PETIT, ancrage: "middle", graisse: 600, couleur: CHARTE.fond })];
   };
-  const batterie = n("g", { "data-r": "batterie", ...boiteM(ba.arriere, yBatterie - ba.demiLargeur, ba.avant, yBatterie + ba.demiLargeur) },
-    forme(rect(ba.arriere, yBatterie - ba.demiLargeur, ba.avant, yBatterie + ba.demiLargeur, ba.arrondi), { fill: TEINTES.batterie }),
+  const batterie = n("g", { "data-r": "batterie", ...boiteM(ba.arriere, T.batterie - ba.demiLargeur, ba.avant, T.batterie + ba.demiLargeur) },
+    forme(rect(ba.arriere, T.batterie - ba.demiLargeur, ba.avant, T.batterie + ba.demiLargeur, ba.arrondi), { fill: TEINTES.batterie }),
     ba.bornes.map(borne));
 
-  // Étiquettes : chaque point part du bord de l'organe tourné vers son étiquette, à C.retrait unité dedans ; à gauche, les
-  // organes du côté du pare-brise et du moteur, à droite ceux de l'avant.
-  const gauche = (role, xBord, y, lignesTexte) => {
-    const [x, yc] = v([xBord, y]);
-    return etiquette({ cible: [x + C.retrait, yc], ancre: [xAncreG, yc], lignes: lignesTexte, ancrage: "end", taille: PETIT, role: `etiquette-${role}` });
+  // Étiquettes : chaque point part du bord de l'organe tourné vers son nom, à C.retrait unité dedans ; au-dessus, les organes de
+  // l'avant ; au-dessous, ceux du côté du pare-brise et du moteur. Le nom est centré sur son ancre, au-dessus ou au-dessous.
+  const nom = (role, [xBord, y], lignesTexte, enHaut) => {
+    const [x, yc] = v([xBord, y]), ancre = [x + (C.decalages[role] || 0), enHaut ? Ynez - C.jeu : basDessin + C.jeu];
+    return etiquette({ cible: [x, yc + (enHaut ? C.retrait : -C.retrait)], ancre, lignes: lignesTexte, ancrage: "middle", taille: PETIT,
+      role: `etiquette-${role}` });
   };
-  const droite = (role, xBord, y, lignesTexte) => {
-    const [x, yc] = v([xBord, y]);
-    return etiquette({ cible: [x - C.retrait, yc], ancre: [xAncreD, yc], lignes: lignesTexte, ancrage: "start", taille: PETIT, role: `etiquette-${role}` });
+  const centreVase = (C.vase.arriere + C.vase.avant) / 2;
+  const bords = {
+    batterie: [ba.avant, T.batterie], jauge: [jx2, T.jauge], "lave-glace": [lg.x + lg.col, T.laveGlace],
+    "liquide-frein": [C.frein.arriere, T.frein], huile: [hu.x - hu.rayon, T.huile], "vase-expansion": [centreVase - C.vase.bouchon, T.vase],
   };
-  const ALERTE = ["Jamais", "moteur chaud"];
-  const bas = Y0 + hauteurDessin;
+  const noms = [...NOMS.haut.map(([role, l]) => nom(role, bords[role], l, true)),
+    ...NOMS.bas.map(([role, l]) => (role === "vase-expansion" ? mettreEnGarde(nom(role, bords[role], l, false), ALERTE) : nom(role, bords[role], l, false)))];
 
   return cadre({ largeur: L, hauteur: H, titre: CATALOGUE.capot.titre,
-    description: "Le compartiment moteur vu du dessus, l'avant de la voiture à droite : bouchon de remplissage et jauge d'huile, "
+    description: "Le compartiment moteur vu du dessus, l'avant de la voiture en haut : bouchon de remplissage et jauge d'huile, "
       + "vase d'expansion du liquide de refroidissement (jamais ouvert moteur chaud), réservoir de liquide de frein, remplissage du "
-      + "lave-glace, batterie et ses cosses + et −. La disposition varie selon les modèles." },
-  voiture, compartiment, huile, jauge, frein, vase, laveGlace, batterie,
-  gauche("liquide-frein", C.frein.arriere, yFrein, ["Liquide de frein"]),
-  gauche("huile", hu.x - hu.rayon, yHuile, ["Huile moteur"]),
-  mettreEnGarde(gauche("vase-expansion", (C.vase.arriere + C.vase.avant) / 2 - C.vase.bouchon, yVase,
-    ["Liquide", "de refroidissement", "(vase d'expansion)", ...ALERTE]), ALERTE),
-  droite("batterie", ba.avant, yBatterie, ["Batterie"]),
-  droite("jauge", jx2, yJauge, ["Jauge"]),
-  droite("lave-glace", lg.x + lg.col, yLave, ["Lave-glace"]),
-  texte(L / 2, bas + C.ecartMention + HAUT_TEXTE * PETIT, "La disposition varie selon les modèles",
+      + "lave-glace, batterie et ses cosses + et −. Chaque bouchon de remplissage porte son pictogramme : la burette sur celui de "
+      + "l'huile, le flacon sur celui du liquide de refroidissement, le pare-brise et son jet sur celui du lave-glace. Disposition "
+      + "la plus courante : elle varie selon les modèles." },
+  voiture, compartiment, huile, jauge, frein, vase, laveGlace, batterie, noms,
+  texte(L / 2, yMention, "Disposition la plus courante ; elle varie selon les modèles",
     { taille: PETIT, ancrage: "middle", couleur: CHARTE.texteDoux, role: "mention" }));
 }
 

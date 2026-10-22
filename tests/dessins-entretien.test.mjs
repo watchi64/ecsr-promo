@@ -126,9 +126,9 @@ test("capot : chaque organe se lit sur un téléphone et le point de son étique
   }
 });
 
-test("capot : « Jamais moteur chaud » désigne le bouchon du vase d'expansion, dans la teinte « faux » ; la disposition varie, c'est écrit", () => {
+test("capot : « Jamais moteur chaud » désigne le bouchon du vase d'expansion, dans la teinte « faux » ; la disposition la plus courante, qui varie, c'est écrit", () => {
   const d = famille.DESSINS.capot();
-  assert.ok(textes(d).includes("La disposition varie selon les modèles"));
+  assert.ok(textes(d).includes("Disposition la plus courante ; elle varie selon les modèles"));
   const e = trouverRole(d, "etiquette-vase-expansion");
   assert.ok(lignes(e).endsWith("Jamais moteur chaud"), `étiquette du vase : « ${lignes(e)} »`);
   const bouchon = trouverRole(trouverRole(d, "vase-expansion"), "bouchon");
@@ -137,7 +137,7 @@ test("capot : « Jamais moteur chaud » désigne le bouchon du vase d'expansion,
   assert.ok(Math.hypot(cx - nb(bouchon, "cx"), cy - nb(bouchon, "cy")) <= nb(bouchon, "r"), "le filet ne part pas du bouchon");
   // La mise en garde, et elle seule, dans la teinte « faux », en demi-gras.
   for (const t of trouverTous(e, (x) => x.balise === "text")) {
-    const garde = ["Jamais", "moteur chaud"].includes(texteDe(t));
+    const garde = texteDe(t) === "Jamais moteur chaud";
     assert.equal(t.attributs.fill === CHARTE.faux && Number(t.attributs["font-weight"]) === 600, garde, `ligne « ${texteDe(t)} »`);
   }
 });
@@ -154,13 +154,16 @@ test("capot : la batterie porte ses deux cosses, marquées + et −, chacune au 
     assert.ok(dans([nb(c, "data-x"), nb(c, "data-y")], b), "cosse hors de la batterie");
     const cable = trouverRole(c, "cable"), pince = trouverTous(c, (x) => x.balise === "path")[0];
     assert.ok(cable, "cosse sans câble");
-    assert.ok(Math.abs(nb(cable, "x1") - gaucheDe(pince)) < 0.01, "le câble ne part pas de la cosse");
+    // Le câble part du bord de la cosse tourné vers l'arrière de la voiture (le bas du dessin), et s'en éloigne.
+    assert.ok(Math.abs(nb(cable, "y1") - basDe(pince)) < 0.01 && nb(cable, "x1") > gaucheDe(pince) && nb(cable, "x1") < droiteDe(pince),
+      "le câble ne part pas de la cosse");
+    assert.ok(nb(cable, "y2") > nb(cable, "y1"), "le câble part vers l'arrière");
     assert.ok(Math.hypot(nb(cable, "x2") - nb(cable, "x1"), nb(cable, "y2") - nb(cable, "y1")) >= 2 * pointDe(trouverRole(d, "etiquette-batterie")).lisere,
       "amorce de câble trop courte pour se voir");
   }
 });
 
-test("capot : la voiture est celle du kit, vue du dessus, découpée à un identifiant propre à chaque dessin ; le compartiment est sous son capot", () => {
+test("capot : la voiture est celle du kit, vue du dessus, l'avant en haut, découpée à un identifiant propre à chaque dessin ; le compartiment est sous son capot", () => {
   const d1 = famille.DESSINS.capot(), d2 = famille.DESSINS.capot();
   const ids = [d1, d2].map((d) => {
     const decoupe = trouverTous(d, (x) => x.balise === "clipPath");
@@ -175,15 +178,19 @@ test("capot : la voiture est celle du kit, vue du dessus, découpée à un ident
   assert.notEqual(ids[0], ids[1], "deux dessins du capot partagent un identifiant de découpe");
   const voiture = trouverRole(d1, "voiture");
   assert.ok(voiture, "voiture du kit absente");
-  assert.equal(nb(voiture, "data-angle"), 0, "l'avant à droite, comme les vues du dessus du kit");
-  // Le compartiment ouvert est dans la caisse du kit (entre ses flancs, avant son nez) et devant son pare-brise.
+  assert.equal(nb(voiture, "data-angle"), -90, "l'avant en haut");
+  // Tournée d'un quart de tour, la caisse (rectangle du kit, x le long de la voiture) est en hauteur dans le dessin : un point
+  // [lx, ly] du repère de la voiture se voit en [tx + ly, ty - lx].
   const [tx, ty] = translation(voiture);
   const caisse = trouverRole(voiture, "caisse"), pareBrise = trouverRole(voiture, "pare-brise");
-  const [cx1, cy1] = [tx + nb(caisse, "x"), ty + nb(caisse, "y")], [cx2, cy2] = [cx1 + nb(caisse, "width"), cy1 + nb(caisse, "height")];
-  assert.ok(Math.abs((cx2 - cx1) / (cy2 - cy1) - VOITURE.longueur / VOITURE.largeur) < 1e-6, "proportions de la caisse du kit");
+  const [lx1, ly1, lx2, ly2] = [nb(caisse, "x"), nb(caisse, "y"), nb(caisse, "x") + nb(caisse, "width"), nb(caisse, "y") + nb(caisse, "height")];
+  const [cx1, cx2, cy1, cy2] = [tx + ly1, tx + ly2, ty - lx2, ty - lx1];
+  assert.ok(Math.abs((cy2 - cy1) / (cx2 - cx1) - VOITURE.longueur / VOITURE.largeur) < 1e-6, "proportions de la caisse du kit");
   const compartiment = points(trouverRole(d1, "compartiment").attributs.d);
   for (const [x, y] of compartiment) assert.ok(x > cx1 && x < cx2 && y > cy1 && y < cy2, `compartiment hors de la caisse en ${x}, ${y}`);
-  assert.ok(Math.min(...compartiment.map((p) => p[0])) > tx + droiteDe(pareBrise), "compartiment sur le pare-brise");
+  // Le pare-brise, derrière le compartiment : plus bas dans le dessin.
+  const avantPareBrise = ty - Math.max(...points(pareBrise.attributs.d).map((q) => q[0]));
+  assert.ok(Math.max(...compartiment.map((q) => q[1])) < avantPareBrise, "compartiment sur le pare-brise");
 });
 
 // ----- Style schématique (décision du formateur du 15/10/2026 : « pictogramme plutôt qu'illustration ») -----
@@ -218,10 +225,70 @@ test("capot : en pictogramme : la voiture en silhouette du kit ; sous le capot, 
   assert.deepEqual(teintesFormes(trouverRole(d, "moteur")), [trouverRole(d, "moteur").attributs.fill], "moteur d'un seul ton");
   for (const role of Object.keys(ORGANES)) {
     const partie = trouverRole(d, role);
+    // Le pictogramme d'un bouchon est fait de traits (sans aplat) ou d'aplats (sans trait) : jamais d'une forme bordée.
     assert.deepEqual(bordees(partie).length, 0, `${role} : forme bordée`);
-    const tons = teintesFormes(partie).length, max = role === "batterie" ? 3 : 2;
+    // Deux tons par organe ; trois pour la batterie (bac, cosses, câbles) et pour un réservoir dont le bouchon porte un
+    // pictogramme (plastique, bouchon, pictogramme).
+    const tons = teintesFormes(partie).length, max = role === "batterie" || trouverRole(partie, "pictogramme") ? 3 : 2;
     assert.ok(tons <= max, `${role} : ${tons} tons pour ${max} au plus`);
   }
+});
+
+// Teinte (degrés), saturation et clarté (de 0 à 1) d'une couleur #RRGGBB.
+function tsl(hex) {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
+  const max = Math.max(r, g, b), min = Math.min(r, g, b), l = (max + min) / 2, dd = max - min;
+  if (!dd) return { t: 0, s: 0, l };
+  const s = dd / (1 - Math.abs(2 * l - 1));
+  const t = max === r ? 60 * (((g - b) / dd) % 6) : max === g ? 60 * ((b - r) / dd + 2) : 60 * ((r - g) / dd + 4);
+  return { t: (t + 360) % 360, s, l };
+}
+// Retour du formateur du 22/10/2026 : « l'idée est bonne, mais assez peu représentative. On ne connaît pas suffisamment les
+// éléments, et les logos, types voyants, sur les différents récipients, ça pourrait être intéressant de les ajouter. »
+const PICTOS_CAPOT = { huile: "7000-0248", "vase-expansion": "7000-1377", "lave-glace": "7000-0088" };
+
+test("capot : chaque bouchon de remplissage porte son pictogramme normalisé, sur lui, lisible sur un téléphone ; aucun symbole deviné pour le liquide de frein", () => {
+  const d = famille.DESSINS.capot();
+  const [L] = CATALOGUE.capot.cadre, px = 343 / L;
+  for (const [role, iso] of Object.entries(PICTOS_CAPOT)) {
+    const partie = trouverRole(d, role), bouchon = trouverRole(partie, "bouchon"), picto = trouverRole(partie, "pictogramme");
+    assert.ok(picto, `${role} : pictogramme absent`);
+    assert.equal(picto.attributs["data-iso"], iso, `${role} : symbole ISO ${picto.attributs["data-iso"]}`);
+    // Sur le bouchon : chaque point de ses tracés est dans le disque du bouchon, et le pictogramme est centré sur lui.
+    const [bx, by, br] = ["cx", "cy", "r"].map((k) => nb(bouchon, k));
+    for (const chemin of trouverTous(picto, (x) => x.balise === "path")) {
+      for (const q of points(chemin.attributs.d)) assert.ok(Math.hypot(q[0] - bx, q[1] - by) < br, `${role} : point ${q} hors du bouchon`);
+    }
+    assert.ok(Math.hypot(nb(picto, "data-x") - bx, nb(picto, "data-y") - by) < 0.01, `${role} : pictogramme décentré`);
+    // Lisible : 18 px au moins dans sa plus grande dimension sur un téléphone, d'une teinte à 4,5:1 au moins sur le bouchon.
+    const taille = Math.max(nb(picto, "data-largeur"), nb(picto, "data-hauteur")) * px;
+    assert.ok(taille >= 18, `${role} : pictogramme de ${taille.toFixed(1)} px sur un téléphone`);
+    for (const forme of trouverTous(picto, (x) => x.balise === "path")) {
+      const teinte = forme.attributs.fill !== "none" ? forme.attributs.fill : forme.attributs.stroke;
+      assert.ok(contraste(teinte, bouchon.attributs.fill) >= 4.5, `${role} : pictogramme à ${contraste(teinte, bouchon.attributs.fill).toFixed(2)}:1 sur le bouchon`);
+    }
+    // Le point de l'étiquette ne couvre pas le pictogramme : son disque (liseré compris) reste hors de sa boîte.
+    const point = pointDe(trouverRole(d, `etiquette-${role}`)), b = boite(picto);
+    const dx = Math.max(b.x1 - point.x, 0, point.x - b.x2), dy = Math.max(b.y1 - point.y, 0, point.y - b.y2);
+    assert.ok(Math.hypot(dx, dy) >= point.lisere, `${role} : le point de l'étiquette couvre le pictogramme`);
+    // Chaque symbole dessiné est cité dans les sources, avec sa référence.
+    assert.ok(SOURCES.capot.some((t) => t.includes(`ISO ${iso}`)), `${role} : ISO ${iso} absent des sources`);
+  }
+  // Le liquide de frein : aucun symbole de remplissage fiable trouvé, aucun dessiné ; les sources le disent.
+  assert.equal(trouverRole(trouverRole(d, "liquide-frein"), "pictogramme"), null, "liquide de frein : symbole deviné");
+  assert.ok(SOURCES.capot.some((t) => t.includes("liquide de frein") && t.includes("ISO 9128")), "liquide de frein : l'absence de symbole n'est pas justifiée");
+});
+
+test("capot : les couleurs usuelles : anneau de la jauge jaune, bouchon du lave-glace bleu, bouchons d'huile et des réservoirs noirs", () => {
+  const d = famille.DESSINS.capot();
+  const teinte = (role, sous) => trouverRole(trouverRole(d, role), sous).attributs.fill;
+  const { t, s: sat, l } = tsl(teinte("jauge", "anneau"));
+  assert.ok(t >= 40 && t <= 56 && sat >= 0.7 && l >= 0.4 && l <= 0.7, `anneau de la jauge de teinte ${teinte("jauge", "anneau")}`);
+  const bleu = tsl(teinte("lave-glace", "bouchon"));
+  assert.ok(bleu.t >= 200 && bleu.t <= 230 && bleu.s >= 0.5, `bouchon du lave-glace de teinte ${teinte("lave-glace", "bouchon")}`);
+  for (const role of ["huile", "vase-expansion", "liquide-frein"]) assert.ok(luminance(teinte(role, "bouchon")) < 0.05, `${role} : bouchon noir`);
+  // L'anneau jaune se détache du fond du compartiment, où il est posé.
+  assert.ok(contraste(teinte("jauge", "anneau"), trouverRole(d, "compartiment").attributs.fill) >= 3, "anneau lisible sur le compartiment");
 });
 
 test("capot : les cosses, leurs câbles et les signes + et − se lisent sur la batterie et le fond du compartiment", () => {
@@ -291,15 +358,6 @@ test("niveaux : réservoir translucide, niveau strictement entre MIN et MAX ; vo
 const DETAILS_PROFIL = /^(phare$|feu$|poignee-|retroviseur$|siege$|bas-de-caisse$)/;
 const detailsProfil = (v) => trouverTous(v, (x) => DETAILS_PROFIL.test(x.attributs["data-r"] || "")).map((x) => x.attributs["data-r"]);
 
-// Teinte (degrés), saturation et clarté (de 0 à 1) d'une couleur #RRGGBB.
-function tsl(hex) {
-  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
-  const max = Math.max(r, g, b), min = Math.min(r, g, b), l = (max + min) / 2, dd = max - min;
-  if (!dd) return { t: 0, s: 0, l };
-  const s = dd / (1 - Math.abs(2 * l - 1));
-  const t = max === r ? 60 * (((g - b) / dd) % 6) : max === g ? 60 * ((b - r) / dd + 2) : 60 * ((r - g) / dd + 4);
-  return { t: (t + 360) % 360, s, l };
-}
 const jaune = (hex) => { const c = tsl(hex); return c.t >= 40 && c.t <= 56 && c.s >= 0.7 && c.l >= 0.4 && c.l <= 0.7; };
 
 // Retour du formateur du 22/10/2026 : « mettre quelque chose de plus représentatif de la réalité : un thème de design et un thème
