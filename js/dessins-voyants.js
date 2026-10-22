@@ -7,7 +7,7 @@
  * la mise du contact (autotest, animé). Sources, références et choix de dessin : sources/dessins-voyants.js.
  */
 import { n } from "./dessin-svg.js?v=20261022b";
-import { CHARTE, COULEURS_VOYANTS, METRIQUES_POLICE, cadre, texte, fleche, coord as ecrit, point as pt, trace, entre } from "./dessins-kit.js?v=20261022b";
+import { CHARTE, COULEURS_VOYANTS, SYMBOLE_FREIN, METRIQUES_POLICE, cadre, texte, fleche, coord as ecrit, point as pt, trace, entre } from "./dessins-kit.js?v=20261022b";
 import { adoucir, sortieDouce, avancement } from "./animation-courbes.js?v=20261022b";
 
 // ------------------------------------------------------------------------------------------------ Couleurs et tons
@@ -127,11 +127,12 @@ function temperature({ q, s, couleur }) {
   ];
 }
 
+// Le cercle et les deux arcs de part et d'autre (rayon, demi-ouverture de chacun autour de l'horizontale, degrés) : le symbole du
+// freinage du kit (SYMBOLE_FREIN), que reprend le bouchon du liquide de frein (js/dessins-entretien.js) ; le point d'exclamation.
 const FREINAGE = {
-  cercle: 0.277,
+  cercle: SYMBOLE_FREIN.cercle,
   exclamation: { haut: 0.315, bas: 0.615, point: 0.69, rayonPoint: 0.036 },
-  // Les deux arcs de part et d'autre du cercle : rayon, et demi-ouverture de chacun autour de l'horizontale (degrés).
-  arcs: { rayon: 0.372, demiOuverture: 44 },
+  arcs: SYMBOLE_FREIN.arcs,
 };
 
 function arcsLateraux(q, s, { rayon, demiOuverture }) {

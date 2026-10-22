@@ -14,7 +14,8 @@
  * Titres et cadres viennent du catalogue des blocs (js/catalogue-blocs.js), la seule source de ces métadonnées.
  */
 import { n } from "./dessin-svg.js?v=20261022b";
-import { CHARTE, MATIERES, METRIQUES_POLICE, MISE_EN_PAGE, cadre, texte, etiquette, vignette, arrondir, arc, couper, trace, point, VOITURE,
+import { CHARTE, MATIERES, METRIQUES_POLICE, MISE_EN_PAGE, SYMBOLE_FREIN, cadre, texte, etiquette, vignette, arrondir, arc, couper, trace,
+  point, VOITURE,
   VOITURE_PROFIL, voitureDessus, voitureProfil, reperesProfil } from "./dessins-kit.js?v=20261022b";
 import { CATALOGUE } from "./catalogue-blocs.js?v=20261022b";
 
@@ -90,9 +91,10 @@ const GOMME = MATIERES.pneu, JANTE = MATIERES.jante;
 // du liquide de refroidissement et son réservoir), ISO 7000-0088 « Windscreen washer » (le pare-brise et son jet, celui du
 // lave-glace). Contours relevés sur leurs vectorisations de Wikimedia Commons (domaine public), dans leur carré d'origine
 // (`boite` : x1, y1, x2, y2), puis simplifiés pour un téléphone : la burette en silhouette pleine (son anse ajourée), le flacon et
-// le pare-brise en traits de la charte, le jet du lave-glace en deux arcs pleins (des tirets dans la norme). Aucun symbole pour le
-// liquide de frein : aucun symbole de remplissage n'a été trouvé dans ISO 7000 (ISO 9128, qui fixe ceux des liquides de frein,
-// n'a pas pu être consultée) ; il n'est pas deviné.
+// le pare-brise en traits de la charte, le jet du lave-glace en deux arcs pleins (des tirets dans la norme). Le bouchon du liquide
+// de frein porte le symbole du freinage, celui du voyant (ISO 7000-0239 ; SYMBOLE_FREIN du kit : cercle et deux arcs), le point
+// d'exclamation remplacé par un disque plein, comme sur le bouchon photographié par le formateur (22/10/2026) ; sa `boite` est en
+// parts du carré du voyant.
 const PICTOGRAMMES = {
   huile: {
     iso: "7000-0248", boite: [4.1, 58.9, 190.4, 133.1],
@@ -112,6 +114,10 @@ const PICTOGRAMMES = {
     // Pare-brise : bas (de droite à gauche, bombé vers le haut), côté gauche, haut (de gauche à droite), côté droit.
     pareBrise: { bas: [[143.59, 161.79], [116.62, 146.22], [83.39, 146.22], [56.42, 161.79]], haut: [[12.82, 86.28], [66.77, 55.13], [133.24, 55.13], [187.18, 86.28]] },
     jet: { centres: [[70.65, 46.76], [129.35, 46.76]], rayon: 29.35 },
+  },
+  frein: {
+    iso: "7000-0239", disque: 0.13,   // rayon du disque plein du centre, en part du carré (choix de dessin, d'après la photo)
+    boite: [0.5 - SYMBOLE_FREIN.arcs.rayon, 0.5 - SYMBOLE_FREIN.cercle, 0.5 + SYMBOLE_FREIN.arcs.rayon, 0.5 + SYMBOLE_FREIN.cercle],
   },
 };
 const PAS_COURBE = 12;          // segments d'une courbe de Bézier d'un pictogramme
@@ -143,6 +149,14 @@ function pictogramme(nom, [cx, cy], largeur, couleur) {
       ...arc([V.centres[2], V.y], V.rayon, 180, 0), ...arc([V.centres[3], V.y], V.rayon, 180, 90)];
     dessin = [n("path", { d: trace(flacon.map(vp)), ...trait(CHARTE.traits.moyen) }),
       n("path", { d: ouvert(vagues.map(vp)), ...trait(CHARTE.traits.fin) })];
+  } else if (nom === "frein") {
+    // Le carré du symbole a pour côté 1 : k unités par part. Cercle en trait fin, disque plein au centre, deux arcs de part et
+    // d'autre en trait moyen, bouts francs, comme le voyant.
+    const centre = vp([0.5, 0.5]), A = SYMBOLE_FREIN.arcs, a = A.demiOuverture;
+    dessin = [n("circle", { cx: centre[0], cy: centre[1], r: SYMBOLE_FREIN.cercle * k, ...trait(CHARTE.traits.fin), "data-r": "cercle" }),
+      n("circle", { cx: centre[0], cy: centre[1], r: P.disque * k, fill: couleur, "data-r": "disque" }),
+      ...[[180 - a, 180 + a], [-a, a]].map(([de, vers]) => n("path", { d: ouvert(arc([0.5, 0.5], A.rayon, de, vers).map(vp)),
+        ...trait(CHARTE.traits.moyen), "stroke-linecap": "butt", "data-r": "arc" }))];
   } else {
     const pb = P.pareBrise, J = P.jet;
     const contour = [...bezier(pb.bas), ...bezier(pb.haut)];
@@ -184,7 +198,7 @@ const CAPOT = {
   // pictogramme : sa largeur, en part du diamètre de son bouchon.
   huile: { x: 1.64, rayon: 0.10, pictogramme: 0.66 },
   jauge: { x: 1.83, longueur: 0.14, largeur: 0.09, arrondi: 0.035, trou: [0.08, 0.036], arrondiTrou: 0.018 },
-  frein: { arriere: 1.34, avant: 1.50, demiLargeur: 0.11, arrondi: 0.03, bouchon: 0.05 },
+  frein: { arriere: 1.34, avant: 1.50, demiLargeur: 0.11, arrondi: 0.03, bouchon: 0.075, pictogramme: 0.70 },
   vase: { arriere: 1.55, avant: 1.79, demiLargeur: 0.14, arrondi: 0.035, bouchon: 0.085, pictogramme: 0.50 },
   laveGlace: { x: 1.92, col: 0.095, bouchon: 0.085, pictogramme: 0.70 },
   batterie: { arriere: 1.73, avant: 1.94, demiLargeur: 0.14, arrondi: 0.015,
@@ -248,7 +262,8 @@ function capot() {
   const jauge = n("g", { "data-r": "jauge", ...boiteM(jx1, T.jauge - ja.largeur / 2, jx2, T.jauge + ja.largeur / 2) },
     n("path", { d: anneau.map((p) => trace(p)).join(" "), fill: TEINTES.poignee, "fill-rule": "evenodd", "data-r": "anneau" }));
 
-  // Réservoirs translucides et leur bouchon noir ; le vase d'expansion, le flacon du liquide de refroidissement sur le sien.
+  // Réservoirs translucides et leur bouchon noir : le symbole du freinage sur celui du liquide de frein, le flacon du liquide de
+  // refroidissement sur celui du vase d'expansion.
   const reservoir = (role, R, y, picto) => {
     const centreR = [(R.arriere + R.avant) / 2, y];
     return n("g", { "data-r": role, ...boiteM(R.arriere, y - R.demiLargeur, R.avant, y + R.demiLargeur) },
@@ -256,7 +271,7 @@ function capot() {
       rond(centreR, R.bouchon, { fill: TEINTES.bouchon, "data-r": "bouchon" }),
       picto && pictogramme(picto, v(centreR), 2 * R.bouchon * E * R.pictogramme, TEINTES.pictogramme));
   };
-  const frein = reservoir("liquide-frein", C.frein, T.frein);
+  const frein = reservoir("liquide-frein", C.frein, T.frein, "frein");
   const vase = reservoir("vase-expansion", C.vase, T.vase, "refroidissement");
   // Remplissage du lave-glace, dans le coin avant : le col translucide, son bouchon bleu, le pare-brise et son jet dessus.
   const lg = C.laveGlace, cl = [lg.x, T.laveGlace];
@@ -299,7 +314,8 @@ function capot() {
     description: "Le compartiment moteur vu du dessus, l'avant de la voiture en haut : bouchon de remplissage et jauge d'huile, "
       + "vase d'expansion du liquide de refroidissement (jamais ouvert moteur chaud), réservoir de liquide de frein, remplissage du "
       + "lave-glace, batterie et ses cosses + et −. Chaque bouchon de remplissage porte son pictogramme : la burette sur celui de "
-      + "l'huile, le flacon sur celui du liquide de refroidissement, le pare-brise et son jet sur celui du lave-glace. Disposition "
+      + "l'huile, le flacon sur celui du liquide de refroidissement, le symbole du freinage sur celui du liquide de frein, le "
+      + "pare-brise et son jet sur celui du lave-glace. Disposition "
       + "la plus courante : elle varie selon les modèles." },
   voiture, compartiment, huile, jauge, frein, vase, laveGlace, batterie, noms,
   texte(L / 2, yMention, "Disposition la plus courante ; elle varie selon les modèles",

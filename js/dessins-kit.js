@@ -39,6 +39,11 @@ export const TRAIT_MIN_PX = 1;
  *  voyants (js/dessins-voyants.js) et le témoin des feux de détresse sur sa commande (js/dessins-poste.js) les partagent. */
 export const COULEURS_VOYANTS = figer({ rouge: "#FF453A", orange: "#FFAA00", vert: "#30D158", bleu: "#3D8BFF" });
 
+/** Le symbole du freinage (ISO 7000-0239, celui du voyant), en parts de son carré : rayon du cercle ; les deux arcs de part et
+ *  d'autre (rayon, demi-ouverture de chacun autour de l'horizontale, en degrés). Le voyant du freinage et celui de l'ABS
+ *  (js/dessins-voyants.js) et le pictogramme du bouchon du liquide de frein (js/dessins-entretien.js) le partagent. */
+export const SYMBOLE_FREIN = figer({ cercle: 0.277, arcs: { rayon: 0.372, demiOuverture: 44 } });
+
 /** Repères d'Outfit, la police des dessins, en tailles de texte (mesurés dans Chrome : capitales 0,70 au-dessus de la ligne
  *  de base, accents des capitales 0,98, jambages 0,22), arrondis vers le large : ligne de base sous le milieu des capitales
  *  (milieuCapitales) ; place d'une ligne au-dessus de sa ligne de base, sans capitale accentuée (haut) ou avec (hautAccent),

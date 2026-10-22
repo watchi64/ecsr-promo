@@ -5,7 +5,7 @@ import * as famille from "../js/dessins-entretien.js";
 import { SOURCES } from "../sources/dessins-entretien.js";
 import { verifierDessin, verifierGeste } from "./aides-dessins.mjs";
 import { trouverRole, trouverTous, texteDe } from "../js/dessin-svg.js";
-import { CHARTE, reperesProfil, VOITURE, VOITURE_PROFIL } from "../js/dessins-kit.js";
+import { CHARTE, reperesProfil, VOITURE, VOITURE_PROFIL, SYMBOLE_FREIN } from "../js/dessins-kit.js";
 
 const codes = Object.keys(CATALOGUE).filter((c) => CATALOGUE[c].module === "entretien");
 
@@ -245,9 +245,10 @@ function tsl(hex) {
 }
 // Retour du formateur du 22/10/2026 : « l'idée est bonne, mais assez peu représentative. On ne connaît pas suffisamment les
 // éléments, et les logos, types voyants, sur les différents récipients, ça pourrait être intéressant de les ajouter. »
-const PICTOS_CAPOT = { huile: "7000-0248", "vase-expansion": "7000-1377", "lave-glace": "7000-0088" };
+const proche = (a, b, tolerance, quoi) => assert.ok(Math.abs(a - b) <= tolerance, `${quoi} : ${a} au lieu de ${b}`);
+const PICTOS_CAPOT = { huile: "7000-0248", "vase-expansion": "7000-1377", "lave-glace": "7000-0088", "liquide-frein": "7000-0239" };
 
-test("capot : chaque bouchon de remplissage porte son pictogramme normalisé, sur lui, lisible sur un téléphone ; aucun symbole deviné pour le liquide de frein", () => {
+test("capot : chaque bouchon de remplissage porte son pictogramme normalisé, sur lui, lisible sur un téléphone", () => {
   const d = famille.DESSINS.capot();
   const [L] = CATALOGUE.capot.cadre, px = 343 / L;
   for (const [role, iso] of Object.entries(PICTOS_CAPOT)) {
@@ -259,11 +260,14 @@ test("capot : chaque bouchon de remplissage porte son pictogramme normalisé, su
     for (const chemin of trouverTous(picto, (x) => x.balise === "path")) {
       for (const q of points(chemin.attributs.d)) assert.ok(Math.hypot(q[0] - bx, q[1] - by) < br, `${role} : point ${q} hors du bouchon`);
     }
+    for (const c of trouverTous(picto, (x) => x.balise === "circle")) {
+      assert.ok(Math.hypot(nb(c, "cx") - bx, nb(c, "cy") - by) + nb(c, "r") < br, `${role} : cercle hors du bouchon`);
+    }
     assert.ok(Math.hypot(nb(picto, "data-x") - bx, nb(picto, "data-y") - by) < 0.01, `${role} : pictogramme décentré`);
     // Lisible : 18 px au moins dans sa plus grande dimension sur un téléphone, d'une teinte à 4,5:1 au moins sur le bouchon.
     const taille = Math.max(nb(picto, "data-largeur"), nb(picto, "data-hauteur")) * px;
     assert.ok(taille >= 18, `${role} : pictogramme de ${taille.toFixed(1)} px sur un téléphone`);
-    for (const forme of trouverTous(picto, (x) => x.balise === "path")) {
+    for (const forme of trouverTous(picto, (x) => x.balise === "path" || x.balise === "circle")) {
       const teinte = forme.attributs.fill !== "none" ? forme.attributs.fill : forme.attributs.stroke;
       assert.ok(contraste(teinte, bouchon.attributs.fill) >= 4.5, `${role} : pictogramme à ${contraste(teinte, bouchon.attributs.fill).toFixed(2)}:1 sur le bouchon`);
     }
@@ -274,9 +278,31 @@ test("capot : chaque bouchon de remplissage porte son pictogramme normalisé, su
     // Chaque symbole dessiné est cité dans les sources, avec sa référence.
     assert.ok(SOURCES.capot.some((t) => t.includes(`ISO ${iso}`)), `${role} : ISO ${iso} absent des sources`);
   }
-  // Le liquide de frein : aucun symbole de remplissage fiable trouvé, aucun dessiné ; les sources le disent.
-  assert.equal(trouverRole(trouverRole(d, "liquide-frein"), "pictogramme"), null, "liquide de frein : symbole deviné");
-  assert.ok(SOURCES.capot.some((t) => t.includes("liquide de frein") && t.includes("ISO 9128")), "liquide de frein : l'absence de symbole n'est pas justifiée");
+});
+
+// Retour du formateur du 22/10/2026, photo d'un vrai bouchon à l'appui : le bouchon du liquide de frein porte « simplement un voyant
+// de frein » : un cercle, un disque plein au centre, deux arcs de part et d'autre, sans point d'exclamation.
+test("capot : le bouchon du liquide de frein porte le symbole du freinage du voyant, cercle et deux arcs, un disque plein au centre, sans point d'exclamation", () => {
+  const d = famille.DESSINS.capot();
+  const bouchon = trouverRole(trouverRole(d, "liquide-frein"), "bouchon"), picto = trouverRole(trouverRole(d, "liquide-frein"), "pictogramme");
+  assert.ok(picto, "symbole absent du bouchon du liquide de frein");
+  const [bx, by] = ["cx", "cy"].map((k) => nb(bouchon, k));
+  const cercles = trouverTous(picto, (x) => x.balise === "circle"), chemins = trouverTous(picto, (x) => x.balise === "path");
+  const cercle = cercles.find((c) => c.attributs.fill === "none"), disque = cercles.find((c) => c.attributs.fill !== "none");
+  assert.ok(cercle && disque && cercles.length === 2, "un cercle et un disque plein");
+  for (const c of cercles) assert.ok(Math.hypot(nb(c, "cx") - bx, nb(c, "cy") - by) < 0.01, "cercle et disque centrés sur le bouchon");
+  assert.ok(nb(disque, "r") < nb(cercle, "r") - nb(cercle, "stroke-width"), "le disque est dans le cercle, détaché de lui");
+  // Deux arcs, de part et d'autre, au rayon du voyant (SYMBOLE_FREIN : même proportion au cercle), symétriques ; aucun autre trait :
+  // pas de point d'exclamation.
+  assert.equal(chemins.length, 2, `${chemins.length} traits au lieu des deux arcs`);
+  const rayons = chemins.map((c) => points(c.attributs.d).map((q) => Math.hypot(q[0] - bx, q[1] - by)));
+  for (const r of rayons.flat()) proche(r / nb(cercle, "r"), SYMBOLE_FREIN.arcs.rayon / SYMBOLE_FREIN.cercle, 0.01, "arc au rayon du voyant");
+  const [gauche, droite] = chemins.map((c) => points(c.attributs.d).map((q) => q[0] - bx)).sort((a, b) => a[0] - b[0]);
+  assert.ok(Math.max(...gauche) < 0 && Math.min(...droite) > 0, "un arc de chaque côté");
+  proche(Math.min(...gauche), -Math.max(...droite), 0.01, "arcs symétriques");
+  assert.equal(trouverTous(picto, (x) => x.balise === "line").length, 0, "point d'exclamation");
+  // Sources : la photo du formateur et la norme du voyant.
+  assert.ok(SOURCES.capot.some((t) => t.includes("photo") && t.includes("22/10/2026") && t.includes("ISO 7000-0239")), "sources du symbole du frein");
 });
 
 test("capot : les couleurs usuelles : anneau de la jauge jaune, bouchon du lave-glace bleu, bouchons d'huile et des réservoirs noirs", () => {
