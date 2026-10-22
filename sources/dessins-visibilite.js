@@ -51,7 +51,8 @@ export const SOURCES = {
     "Choix de dessin : style schématique, décision du formateur du 15/10/2026 (« pictogramme plutôt qu'illustration » : aplats, "
       + "aucune texture). La voiture est la silhouette de profil du kit (voitureProfil, option schema), aux mêmes tracés que la voiture "
       + "détaillée, si bien que les lignes de visée frôlent les mêmes repères : la caisse et son contour, les vitres latérales, les "
-      + "roues en deux tons ; ni passages de roue, ni phare, ni feu, ni rétroviseur, ni poignées, ni joints. Les zones, hachurées "
+      + "roues en deux tons, leurs passages de la teinte du pneu (sans anneau clair autour des roues) ; ni phare, ni feu, ni "
+      + "rétroviseur, ni poignées, ni joints. Les zones, hachurées "
       + "jusque-là, deviennent des aplats ; le cône garde ses trois tons (socle, cône, bande blanche).",
     "Choix de dessin, obstacle : un cône de signalisation courant de 45 cm, rouge à bande blanche, base de 30 cm (socle de 36 cm, "
       + "gris foncé #2E3430), posé 0,3 m devant le pare-chocs : un objet bas que chacun reconnaît. Sa pointe reste 0,24 m (8,4 unités) "
