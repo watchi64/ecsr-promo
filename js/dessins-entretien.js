@@ -74,7 +74,11 @@ const TEINTES = {
   lame: "#C3C9C4", lameBord: "#8E968F", huile: "#B07A1E", striesSeches: "#7E867F", striesHuile: "#6A4510",
   poignee: "#F3C21B", poigneeBord: "#A57F00", bouchonStries: "#59615C", bouchonLaveGlace: "#2B64B0", pictogramme: "#F1F4F0",
   liquide: "#C7D4A6", liquideSurface: CHARTE.accent, repere: CHARTE.texteDiscret, sol: CHARTE.texteDoux,
-  air: CHARTE.carte, janteBord: "#8E968F", temoin: "#7E8A82", cote: CHARTE.carte,
+  air: CHARTE.carte, janteBord: "#8E968F", cote: CHARTE.carte,
+  // Morceau de bande de roulement : dessus des pains (le plus clair, celui qui touche la route), faces avant de la gomme (celle
+  // de la coupe du haut), faces de côté, fond de la rainure (le plus sombre) ; le témoin, de la même gomme, d'un ton plus clair
+  // pour qu'on le distingue.
+  bande: { dessus: "#6B736E", cote: "#4B524E", fond: "#232825", temoinDessus: "#A3ACA6", temoinFace: "#87918A" },
   etiquette: CHARTE.carte, etiquetteBord: CHARTE.texteDoux,
 };
 const GOMME = MATIERES.pneu, JANTE = MATIERES.jante;
@@ -461,13 +465,14 @@ function niveaux() {
 
 // ===== Contrôler un pneu =====
 // Quatre vignettes. En haut, le pneu 205/55 R16 des roues du kit coupé en travers sur sa jante (millimètres) : flanc sans
-// déformation (juste), flanc avec une hernie (faux). En bas, un détail de la bande de roulement coupé en travers d'une rainure
-// qui porte un témoin d'usure (millimètres, à l'échelle MM), les pains arrêtés par un trait de brisure : sculptures au-dessus du
-// témoin (juste), témoin qui affleure (faux).
-export const MM = 5;                // unités par millimètre, coupe de la bande de roulement
+// déformation (juste), flanc avec une hernie (faux). En bas (retour du formateur du 22/10/2026 sur la coupe précédente : « le bas
+// pour la sculpture, on ne comprend pas »), un morceau de la bande de roulement vu en perspective (millimètres, à l'échelle MM) :
+// deux pains et la rainure qui les sépare, le témoin d'usure, petite bosse au fond de la rainure, à l'avant du morceau, coté
+// « 1,6 mm » ; sculptures nettement au-dessus du témoin (juste), pains usés au niveau du témoin : il affleure (faux).
+export const MM = 4.4;              // unités par millimètre, morceau de la bande de roulement
 const TEMOIN_MM = 1.6;              // profondeur minimale des sculptures : la hauteur des témoins d'usure
 const SOUS_PASTILLE = MISE_EN_PAGE.margePastille + MISE_EN_PAGE.hauteurPastille;   // bas de la pastille d'une vignette, depuis son haut
-const RECOUVREMENT = 1;             // deux formes de même teinte se chevauchent d'une unité : aucun joint clair entre elles
+const RECOUVREMENT_MM = 0.2;        // deux faces de même teinte se chevauchent de 0,2 mm : aucun joint clair entre elles
 const PNEU = {
   hauteurFlanc: 104,                // hauteur des vignettes du flanc ; celles de la bande prennent le reste
   section: {
@@ -494,13 +499,15 @@ const PNEU = {
   // couvrir la paroi, plus mince que lui.
   ecartPoint: 2,
   bande: {
-    rainure: 9, base: 3, sculpture: 7, arrondiTemoin: 0.4,   // millimètres ; la rainure, celle de la coupe du haut ;
-    // sculpture : profondeur du pneu bon
-    hautPains: 76,                  // haut des pains du pneu bon, depuis le haut de la vignette
-    bord: 8,                        // de la coupe au bord de la vignette, de chaque côté
-    brisure: { amplitude: 1.6, points: 12 },   // trait de brisure (unités) : une onde sur la hauteur de la coupe
+    // Millimètres : la rainure (celle de la coupe du haut), la part montrée de chaque pain, la gomme sous la rainure, la
+    // profondeur des sculptures du pneu bon, la longueur du morceau le long de la bande, celle du témoin le long de la rainure.
+    rainure: 9, pain: 6, base: 3.5, sculpture: 7, longueur: 18, temoin: 6,
+    // Perspective cavalière : l'axe de la longueur fuit vers le haut et la droite, de cet angle (degrés), raccourci de ce rapport.
+    fuite: { angle: 30, rapport: 0.5 },
+    fondFace: 116,                  // du haut de la vignette au fond de la rainure, sur la face avant
     tic: 1.2,                       // demi-longueur des traits de la cote, millimètres
-    cibleTemoin: 1.2,               // le point du nom du témoin, à cette distance (mm) de la paroi droite de la rainure
+    cibleTemoin: [0.15, 2],         // le point du nom du témoin, sur son dessus : à cette part de la rainure depuis sa paroi gauche,
+                                    // à tant de millimètres de l'avant (hors de la cote, au milieu)
   },
   // Noms des vignettes, en haut à droite (flanc, hernie, témoin) ou à gauche (sculptures) : largeur réservée au plus long, à 11
   // unités, celle que lui prêtent les contrôles communs (« Hernie » 36,5 ; « Sculptures » 57,3 ; « d'usure » 39,7), un majorant de
@@ -561,51 +568,51 @@ function pneu() {
           `nom-${hernie ? "hernie" : "flanc"}`)));
   };
 
-  // Vignettes de la bande de roulement : un pain, la rainure et son témoin, un pain, la base sous la rainure ; chaque pain
-  // s'arrête au bord de la coupe par un trait de brisure (le pneu continue). Le fond de la rainure est au même niveau dans les
-  // deux vignettes.
+  // Vignettes de la bande de roulement : un morceau de gomme en perspective cavalière, vu de devant, d'au-dessus et de la droite.
+  // Repère du morceau (millimètres) : u en travers, depuis son bord gauche ; h au-dessus du fond de la rainure ; z le long de la
+  // bande, depuis sa face avant. Peint du fond vers l'avant : fond de la rainure, sa paroi gauche (la face droite du pain gauche,
+  // tournée vers nous), le dessus du témoin, les faces avant, les dessus des pains, la face droite du morceau. Le pain droit, peint
+  // après, cache ce que la rainure a derrière lui.
   const bande = (etat, x) => {
-    const bon = etat === "juste";
-    const sculpture = bon ? B.sculpture : TEMOIN_MM;
-    const total = (largeur - 2 * B.bord) / MM;                     // largeur de la coupe, millimètres
-    const g1 = (total - B.rainure) / 2, g2 = g1 + B.rainure;        // parois de la rainure
-    const gx = x + B.bord;
-    const yFond = yBande + B.hautPains + B.sculpture * MM;
-    const vb = ([mx, my]) => [gx + mx * MM, yFond - my * MM];       // mx depuis le bord gauche de la coupe, my au-dessus du fond
-    // Trait de brisure d'un bord de la coupe (abscisse mx), du bas de la base au haut du pain : une onde.
-    const brisure = (mx) => Array.from({ length: B.brisure.points + 1 }, (_, k) => {
-      const t = k / B.brisure.points;
-      return [mx + (B.brisure.amplitude / MM) * Math.sin(2 * Math.PI * t), -B.base + t * (sculpture + B.base)];
-    });
-    const painGauche = [[g1, sculpture], [g1, -B.base], ...brisure(0)];
-    const painDroit = [[g2, sculpture], ...brisure(total).reverse(), [g2, -B.base]];
-    // Les pains descendent jusqu'au bas de la base, qui ne garnit que le dessous de la rainure : aucun bord n'est tracé deux fois.
-    const base = coins(vb([g1, 0])[0] - RECOUVREMENT, yFond - RECOUVREMENT, vb([g2, 0])[0] + RECOUVREMENT, vb([0, -B.base])[1]);
-    const t = B.arrondiTemoin * MM;
-    const temoin = arrondir(coins(...vb([g1, TEMOIN_MM]), ...vb([g2, 0])), [t, t, 0, 0]);
-    const xMilieu = vb([(g1 + g2) / 2, 0])[0], yTemoin = vb([0, TEMOIN_MM])[1], tic = B.tic * MM;
+    const bon = etat === "juste", S = bon ? B.sculpture : TEMOIN_MM;
+    const g1 = B.pain, g2 = B.pain + B.rainure, W = 2 * B.pain + B.rainure, D = B.longueur, T = TEMOIN_MM;
+    const fx = B.fuite.rapport * Math.cos((B.fuite.angle * Math.PI) / (2 * QUART)), fy = B.fuite.rapport * Math.sin((B.fuite.angle * Math.PI) / (2 * QUART));
+    const ox = x + (largeur - (W + D * fx) * MM) / 2, oy = yBande + B.fondFace;
+    const vb = ([u, h, z]) => [ox + (u + z * fx) * MM, oy - (h + z * fy) * MM];
+    const face = (pts, teinte, role) => forme(pts.map(vb), { fill: teinte, ...(role ? { "data-r": role } : {}) });
+    const T3 = TEINTES.bande;
+    const fondRainure = face([[g1, 0, 0], [g2, 0, 0], [g2, 0, D], [g1, 0, D]], T3.fond, "fond-rainure");
+    const paroi = face([[g1, 0, 0], [g1, 0, D], [g1, S, D], [g1, S, 0]], T3.cote, "paroi");
+    const temoinDessus = face([[g1, T, 0], [g2, T, 0], [g2, T, B.temoin], [g1, T, B.temoin]], T3.temoinDessus, "temoin-dessus");
+    const faces = [face([[0, -B.base, 0], [g1, -B.base, 0], [g1, S, 0], [0, S, 0]], GOMME, "sculpture"),
+      face([[g2, -B.base, 0], [W, -B.base, 0], [W, S, 0], [g2, S, 0]], GOMME, "sculpture"),
+      face([[g1 - RECOUVREMENT_MM, -B.base, 0], [g2 + RECOUVREMENT_MM, -B.base, 0], [g2 + RECOUVREMENT_MM, 0, 0], [g1 - RECOUVREMENT_MM, 0, 0]], GOMME, "base"),
+      face([[g1, 0, 0], [g2, 0, 0], [g2, T, 0], [g1, T, 0]], T3.temoinFace, "temoin")];
+    const dessus = [[0, g1], [g2, W]].map(([a, b]) => face([[a, S, 0], [b, S, 0], [b, S, D], [a, S, D]], T3.dessus, "dessus-pain"));
+    const flanc = face([[W, -B.base, 0], [W, -B.base, D], [W, S, D], [W, S, 0]], T3.cote, "cote-droite");
+    // Cote du témoin, sur sa face avant ; « 1,6 mm » dessous, sur la gomme de la face avant.
+    const um = (g1 + g2) / 2, [xc, yTemoin] = vb([um, T, 0]), yFond = vb([um, 0, 0])[1], tic = B.tic * MM;
     const cote = n("g", { "data-r": "cote", "data-y1": yTemoin, "data-y2": yFond },
-      n("line", { x1: xMilieu, y1: yTemoin, x2: xMilieu, y2: yFond, stroke: TEINTES.cote, "stroke-width": fin }),
-      [yTemoin, yFond].map((y) => n("line", { x1: xMilieu - tic, y1: y, x2: xMilieu + tic, y2: y, stroke: TEINTES.cote, "stroke-width": fin,
+      n("line", { x1: xc, y1: yTemoin, x2: xc, y2: yFond, stroke: TEINTES.cote, "stroke-width": fin }),
+      [yTemoin, yFond].map((y) => n("line", { x1: xc - tic, y1: y, x2: xc + tic, y2: y, stroke: TEINTES.cote, "stroke-width": fin,
         "stroke-linecap": "round" })),
-      texte(xMilieu, yTemoin - ESPACE_TEXTE - BAS_TEXTE * PETIT, "1,6 mm", { taille: PETIT, ancrage: "middle", graisse: 600 }));
+      texte(xc, vb([um, -B.base / 2, 0])[1] + MILIEU_CAPITALES * PETIT, "1,6 mm", { taille: PETIT, ancrage: "middle", graisse: 600,
+        couleur: TEINTES.cote }));
     const legende = bon ? ["Sculptures au-dessus", "du témoin d'usure"] : ["Le témoin affleure :", "le pneu se remplace"];
     const yLegende = yBande + hauteurBande - MARGE - BAS_TEXTE * PETIT - INTERLIGNE * PETIT;
     const ancreY = yBande + N.ancreBande;
     return vignette({ x, y: yBande, largeur, hauteur: hauteurBande, etat },
-      n("g", { "data-r": `bande-${etat}` },
-        forme(base, { fill: GOMME }),
-        [painGauche, painDroit].map((p) => forme(p.map(vb), { fill: GOMME, "data-r": "sculpture" })),
-        forme(temoin, { fill: TEINTES.temoin, "data-r": "temoin" }),
-        cote,
-        nom(vb([g1 / 2, sculpture / 2]), [x + MARGE + N.sculptures / 2, ancreY], ["Sculptures"], "nom-sculptures"),
-        nom(vb([g2 - B.cibleTemoin, TEMOIN_MM / 2]), [x + largeur - MARGE - N.temoin / 2, ancreY], ["Témoin", "d'usure"], "nom-temoin"),
+      n("g", { "data-r": `bande-${etat}`, "data-x": ox, "data-y": oy, "data-echelle": MM },
+        fondRainure, paroi, temoinDessus, faces, dessus, flanc, cote,
+        nom(vb([g1 / 2, S, D / 2]), [x + MARGE + N.sculptures / 2, ancreY], ["Sculptures"], "nom-sculptures"),
+        nom(vb([g1 + B.cibleTemoin[0] * B.rainure, T, B.cibleTemoin[1]]), [x + largeur - MARGE - N.temoin / 2, ancreY], ["Témoin", "d'usure"], "nom-temoin"),
         legende.map((l, i) => texte(x + largeur / 2, yLegende + i * INTERLIGNE * PETIT, l, { taille: PETIT, ancrage: "middle", couleur: CHARTE.texteDoux }))));
   };
 
   return cadre({ largeur: L, hauteur: H, titre: CATALOGUE.pneu.titre,
-    description: "Juste : flanc sans déformation. Faux : hernie, une bosse sur le flanc. Juste : la bande de roulement coupée en travers, "
-      + "sculptures au-dessus du témoin d'usure de 1,6 mm. Faux : le témoin affleure, le pneu se remplace." },
+    description: "Juste : flanc sans déformation. Faux : hernie, une bosse sur le flanc. Juste : un morceau de la bande de roulement, "
+      + "deux pains et la rainure qui les sépare, le témoin d'usure, une bosse de 1,6 mm au fond de la rainure, sous les sculptures. "
+      + "Faux : les pains sont usés au niveau du témoin, il affleure : le pneu se remplace." },
   flanc("juste", xs[0]), flanc("faux", xs[1]), bande("juste", xs[0]), bande("faux", xs[1]));
 }
 

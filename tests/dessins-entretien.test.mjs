@@ -431,12 +431,12 @@ test("niveaux : la voiture du kit en silhouette ; le réservoir : corps transluc
 
 // ----- Contrôler un pneu -----
 
-test("pneu : le témoin d'usure mesure 1,6 mm à l'échelle de la coupe, coté « 1,6 mm »", () => {
+test("pneu : le témoin d'usure mesure 1,6 mm à l'échelle du morceau de bande de roulement, coté « 1,6 mm »", () => {
   const d = famille.DESSINS.pneu();
   assert.ok(Number.isFinite(famille.MM) && famille.MM > 0);
   for (const etat of ["juste", "faux"]) {
     const v = trouverRole(d, `bande-${etat}`);
-    assert.ok(v, `coupe de la bande de roulement (${etat}) absente`);
+    assert.ok(v, `bande de roulement (${etat}) absente`);
     const temoin = trouverRole(v, "temoin");
     const hauteur = basDe(temoin) - hautDe(temoin);
     assert.ok(Math.abs(hauteur - 1.6 * famille.MM) <= 0.1, `${etat} : témoin de ${hauteur} unités`);
@@ -447,7 +447,7 @@ test("pneu : le témoin d'usure mesure 1,6 mm à l'échelle de la coupe, coté �
   }
 });
 
-test("pneu : bon, sculptures plus hautes que le témoin d'au moins 2 mm ; à remplacer, sculptures au niveau du témoin", () => {
+test("pneu : bon, sculptures plus hautes que le témoin d'au moins 2 mm ; à remplacer, sculptures au niveau du témoin, son dessus à fleur de celui des pains", () => {
   const d = famille.DESSINS.pneu();
   const bon = trouverRole(d, "bande-juste"), use = trouverRole(d, "bande-faux");
   const sculptures = (v) => trouverTous(v, (x) => x.attributs["data-r"] === "sculpture");
@@ -456,26 +456,65 @@ test("pneu : bon, sculptures plus hautes que le témoin d'au moins 2 mm ; à rem
   for (const s of sculptures(bon)) assert.ok(temoinBon - hautDe(s) >= 2 * famille.MM, `bon : sculpture ${temoinBon - hautDe(s)} unités au-dessus`);
   const temoinUse = hautDe(trouverRole(use, "temoin"));
   for (const s of sculptures(use)) assert.ok(Math.abs(hautDe(s) - temoinUse) <= 0.5, `à remplacer : écart ${hautDe(s) - temoinUse}`);
+  // En perspective : le bord avant du dessus du témoin est au niveau de celui des pains quand il affleure, nettement dessous sinon.
+  const bordAvant = (forme) => basDe(forme);
+  const dessusTemoin = (v) => bordAvant(trouverRole(v, "temoin-dessus"));
+  const dessusPains = (v) => trouverTous(v, (x) => x.attributs["data-r"] === "dessus-pain").map(bordAvant);
+  for (const y of dessusPains(use)) assert.ok(Math.abs(y - dessusTemoin(use)) <= 0.5, "à remplacer : le témoin n'affleure pas");
+  for (const y of dessusPains(bon)) assert.ok(dessusTemoin(bon) - y >= 2 * famille.MM, "bon : le témoin n'est pas au fond de la rainure");
   assert.ok(textes(use).join(" ").includes("affleure"));
 });
 
-test("pneu : la rainure de la bande de roulement a la largeur de celles de la coupe du haut ; les pains sont arrêtés par une brisure", () => {
+// Retour du formateur du 22/10/2026 sur la coupe précédente : « le bas pour la sculpture, on ne comprend pas ». Un morceau de la
+// bande de roulement, en perspective : deux pains vus de dessus, la rainure entre eux, le témoin, une bosse au fond de la rainure.
+test("pneu : un morceau de bande de roulement en perspective : deux pains vus de dessus, la rainure entre eux, de la largeur de celles de la coupe du haut, le témoin au fond", () => {
   const d = famille.DESSINS.pneu();
   const sain = trouverRole(d, "flanc-juste"), k = nb(sain, "data-echelle");
   const rainures = trouverTous(sain, (x) => x.attributs["data-r"] === "rainure");
   assert.ok(rainures.length >= 2, "rainures de la coupe du haut absentes");
   const largeurs = rainures.map((r) => (droiteDe(r) - gaucheDe(r)) / k);
+  const fonds = [];
   for (const etat of ["juste", "faux"]) {
     const v = trouverRole(d, `bande-${etat}`), temoin = trouverRole(v, "temoin");
     const rainure = (droiteDe(temoin) - gaucheDe(temoin)) / famille.MM;
     for (const l of largeurs) assert.ok(Math.abs(l - rainure) < 0.05, `${etat} : rainure de ${rainure} mm, ${l} mm en haut`);
-    // Un pain coupé au bord de la coupe : son bord extérieur (à l'opposé de la rainure) ondule, trait de brisure, et n'est pas
-    // droit. Les sommets de ce bord sont ceux du quart du pain tourné vers l'extérieur.
-    const milieuRainure = (gaucheDe(temoin) + droiteDe(temoin)) / 2;
-    for (const s of trouverTous(v, (x) => x.attributs["data-r"] === "sculpture")) {
-      const [g, dr] = [gaucheDe(s), droiteDe(s)], quart = (dr - g) / 4, aGauche = (g + dr) / 2 < milieuRainure;
-      const xs = points(s.attributs.d).map((p) => p[0]).filter((x) => (aGauche ? x < g + quart : x > dr - quart));
-      assert.ok(Math.max(...xs) - Math.min(...xs) > 1, `${etat} : pain sans trait de brisure`);
+    // Le témoin est dans la rainure : entre les faces avant des deux pains, posé sur la gomme sous la rainure.
+    const [gauche, droit] = trouverTous(v, (x) => x.attributs["data-r"] === "sculpture").sort((a, b) => gaucheDe(a) - gaucheDe(b));
+    assert.ok(gaucheDe(temoin) >= droiteDe(gauche) - 0.01 && droiteDe(temoin) <= gaucheDe(droit) + 0.01, `${etat} : témoin hors de la rainure`);
+    assert.ok(Math.abs(basDe(temoin) - hautDe(trouverRole(v, "base"))) < 0.01, `${etat} : témoin pas posé au fond de la rainure`);
+    // Les dessus des pains fuient vers le haut et la droite : chacun est un parallélogramme, décalé du même vecteur que le fond.
+    const fuite = (forme) => { const q = points(forme.attributs.d); return [q[3][0] - q[0][0], q[3][1] - q[0][1]]; };
+    const dessus = trouverTous(v, (x) => x.attributs["data-r"] === "dessus-pain");
+    assert.equal(dessus.length, 2, `${etat} : dessus des deux pains`);
+    const [fx, fy] = fuite(trouverRole(v, "fond-rainure"));
+    assert.ok(fx > 0 && fy < 0, `${etat} : la longueur du morceau ne fuit pas vers le haut et la droite`);
+    for (const f of dessus) { const [ax, ay] = fuite(f); assert.ok(Math.abs(ax - fx) < 0.02 && Math.abs(ay - fy) < 0.02, `${etat} : dessus de pain`); }
+    // Le témoin, lui, ne va pas jusqu'au bout du morceau : la rainure continue derrière lui.
+    const [tx] = fuite(trouverRole(v, "temoin-dessus"));
+    assert.ok(tx > 0 && tx < fx / 2, `${etat} : témoin aussi long que la rainure`);
+    fonds.push(points(trouverRole(v, "fond-rainure").attributs.d));
+  }
+  // Le même morceau dans les deux vignettes : le même fond de rainure, décalé d'une vignette à l'autre, au même niveau.
+  const decalage = fonds[1][0][0] - fonds[0][0][0];
+  fonds[0].forEach((q, i) => {
+    assert.ok(Math.abs(fonds[1][i][0] - q[0] - decalage) < 0.01 && Math.abs(fonds[1][i][1] - q[1]) < 0.01, "fond de la rainure différent d'une vignette à l'autre");
+  });
+});
+
+test("pneu : les noms désignent ce qu'ils nomment : « Sculptures » le dessus d'un pain, « Témoin d'usure » le dessus du témoin, hors de la cote", () => {
+  const d = famille.DESSINS.pneu();
+  for (const etat of ["juste", "faux"]) {
+    const v = trouverRole(d, `bande-${etat}`);
+    const sculptures = pointDe(trouverRole(v, "nom-sculptures")), temoin = pointDe(trouverRole(v, "nom-temoin"));
+    const dessus = trouverTous(v, (x) => x.attributs["data-r"] === "dessus-pain").map((f) => points(f.attributs.d));
+    assert.ok(dessus.some((poly) => dansPolygone([sculptures.x, sculptures.y], poly)), `${etat} : « Sculptures » hors du dessus des pains`);
+    assert.ok(dansPolygone([temoin.x, temoin.y], points(trouverRole(v, "temoin-dessus").attributs.d)), `${etat} : « Témoin d'usure » hors du dessus du témoin`);
+    // Le point ne couvre pas la cote : son liseré reste hors des traits de la cote.
+    for (const l of trouverTous(trouverRole(v, "cote"), (x) => x.balise === "line")) {
+      const [a, b] = [[nb(l, "x1"), nb(l, "y1")], [nb(l, "x2"), nb(l, "y2")]];
+      const t = Math.max(0, Math.min(1, ((temoin.x - a[0]) * (b[0] - a[0]) + (temoin.y - a[1]) * (b[1] - a[1])) / ((b[0] - a[0]) ** 2 + (b[1] - a[1]) ** 2 || 1)));
+      const ecart = Math.hypot(temoin.x - a[0] - t * (b[0] - a[0]), temoin.y - a[1] - t * (b[1] - a[1]));
+      assert.ok(ecart >= temoin.lisere, `${etat} : le point du témoin couvre la cote (${ecart.toFixed(2)} unité)`);
     }
   }
 });
