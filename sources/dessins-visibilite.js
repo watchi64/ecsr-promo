@@ -19,7 +19,7 @@ const MIROIR_PLAN = "Choix de dessin, rétroviseur extérieur (le même dans « 
   + "caisse à gauche, 4,7 cm à droite, pour ce réglage). Le verre du kit, dont les 5 cm intérieurs sont au-dessus de la portière, "
   + "en dedans du flanc, réellement tourné jusque-là, montrerait la caisse en coin, plus large vers le bas du miroir (calcul exact "
   + "sur le volume simple de la caisse : réglé pour 9 % à 1,7 degré sous l'horizon, de rien à l'horizon à 31 % au bas du verre) ; un "
-  + "verre au ras du flanc donnerait le liseré droit du dessin (9 à 10 % du haut au bas du verre, même calcul). La direction de "
+  + "verre au ras du flanc donnerait un liseré droit (9 à 10 % du haut au bas du verre, même calcul). La direction de "
   + "l'arrière fuit à 13,9 % de la largeur depuis le bord intérieur à gauche, 16,6 % à "
   + "droite ; vu du dessus, le champ entre de 1,3 degré dans la caisse à gauche (0,9 à droite) et s'écarte de 8,1 degrés vers "
   + "l'extérieur (4,3 à droite). Au-delà du verre, la caisse en cache la partie intérieure : le champ visible s'arrête au rayon "
@@ -76,42 +76,60 @@ export const SOURCES = {
     "Thème 24, G (réglage des rétroviseurs) : intérieur, cadrer la lunette arrière en entier, sans bouger la tête ; extérieur "
       + "gauche, ligne d'horizon à mi-hauteur du miroir, un mince liseré de la carrosserie visible au bord intérieur, pas "
       + "davantage ; extérieur droit, même principe, souvent légèrement plus bas pour voir le bord de la chaussée lors des "
-      + "manœuvres et du stationnement. Thème 24, F : orienté trop vers l'intérieur, le rétroviseur extérieur montre une large part "
-      + "du flanc de la voiture, et l'espace non couvert s'élargit d'autant.",
-    "Choix de dessin : quatre rangées dans l'ordre du cours (intérieur, gauche, droit, puis l'erreur que le cours nomme), chacune "
-      + "une vignette du kit avec sa pastille, son titre et la phrase du cours ; le miroir à droite. Cadre de 320 sur 306 unités : "
-      + "un miroir extérieur de 100 unités de large, où le liseré de 9 unités fait 9,6 px sur un téléphone.",
+      + "manœuvres et du stationnement.",
+    "Retour du formateur sur le dessin (22/10/2026), mot pour mot : « aller proprement au rétroviseur intérieur, puis au "
+      + "rétroviseur extérieur, déjà dans un premier temps. Ensuite, il faut la ligne d'horizon au milieu. Il faut qu'on aperçoive "
+      + "la poignée de la portière arrière dans le coin inférieur, du côté voiture : pour le rétroviseur gauche dans le coin "
+      + "inférieur droit, pour le rétroviseur droit dans le coin inférieur gauche. Cela doit être très net dans l'exemple, ou ne pas "
+      + "le mettre. » Son principe pour tous les dessins : pas d'illustration plutôt qu'une illustration peu représentative.",
+    "Choix de dessin, mise en page : deux temps numérotés, dans l'ordre du formateur, chacun sur une carte avec son numéro (un "
+      + "disque clair cerclé de foncé, comme les repères numérotés des étapes), son titre et une ligne de légende : 1, « Rétroviseur "
+      + "intérieur », « toute la lunette arrière », le miroir à droite de la carte ; 2, « Rétroviseurs extérieurs », « l'horizon au "
+      + "milieu », puis les deux miroirs côte à côte comme le conducteur les voit, le gauche à gauche, chacun sous son nom, et "
+      + "dessous l'étiquette « Poignée de la portière arrière », dont les deux filets partent des deux poignées. Cadre de 320 sur "
+      + "270 unités ; verres extérieurs de 122 sur 74 unités (131 sur 79 px sur un téléphone). L'ancienne rangée « faux » "
+      + "(rétroviseur tourné vers la carrosserie) quitte le dessin, qui ne garde que ce que le formateur demande ; le cours dit "
+      + "toujours cette erreur dans ses risques et ses erreurs fréquentes.",
     MIROIR_PLAN,
     "Choix de dessin, image d'un miroir extérieur : ce que voit l'œil reflété, en projection plane perpendiculaire à l'axe de la "
-      + "voiture ; la direction de l'arrière y fuit vers un point. La focale tient le champ du miroir dans la largeur de l'image "
-      + "(604 unités à gauche, 1 105 à droite pour 100 de large). Un point à l'écart l (m) de l'œil reflété vers la caisse, à la "
-      + "hauteur z et au recul D, se voit à f l / D du point de fuite et à f (h - z) / D sous l'horizon, h = 1,04 m étant la hauteur "
-      + "du miroir (kit : de 0,97 à 1,105 m) et de son œil reflété. L'image est une bande de 56 unités de haut placée selon le "
-      + "réglage de l'horizon : le verre du kit, haut de 13,5 cm, en montrerait 87 à gauche ; le dessin omet le haut du ciel et le "
-      + "sol le plus proche.",
-    "Choix de dessin, la rue des images : à double sens, voies de 3,5 m (celles des scènes), la voiture au milieu de la voie de "
-      + "droite ; à sa gauche l'axiale T'1 de la rue des scènes (traits de 1,5 m, intervalles de 5 m, 0,10 m de large), la voie d'en "
-      + "face et la bordure d'en face (à 4,32 m du miroir gauche), puis le trottoir ; à sa droite la bordure (à 0,82 m du miroir "
-      + "droit) et le trottoir. Bordure de 0,15 m, teinte #B3AE9F ; trottoir et chaussée aux teintes des scènes ; ciel #E6EFF4. Au "
-      + "bas de l'image gauche, le sol est à 22 m : les traits de l'axiale y sont à 23 et 29,5 m, le trottoir d'en face près de "
-      + "l'horizon ; un trait plus court qu'une unité dans l'image n'est plus dessiné.",
-    "Choix de dessin, la caisse dans l'image : le flanc de la voiture du kit, à sa demi-largeur (3 cm en dedans de l'œil reflété, "
-      + "tenu devant le miroir : voir le rétroviseur extérieur), "
-      + "jusqu'à la ligne de ceinture (le bas des vitres du kit, de 0,985 m à l'avant à 1,05 m au pied du montant arrière, droite "
-      + "prolongée comme le fait le kit) ; au-dessus, en retrait de 0,15 m (les vitres du kit vues du dessus, à 0,75 m de l'axe), "
-      + "les vitres latérales et le montant arrière jusqu'à la lunette, tracés des contours du kit ; entre les deux, l'épaule. Dans "
-      + "une image juste, la caisse va du bord intérieur au coin arrière, 9 % de la largeur, et du bas du miroir à l'épaule au "
-      + "coin, un peu au-dessus de l'horizon (3 unités à gauche, 5 à droite : la ceinture y dépasse de 2 cm la hauteur du miroir) ; "
-      + "les vitres, en retrait, restent hors du champ. Entre la caisse et le point de fuite, la route derrière la voiture.",
-    "Choix de dessin, extérieur gauche juste : l'horizon à mi-hauteur et le liseré de 9 % (12 % au plus, test). Extérieur droit "
-      + "juste : l'horizon au tiers haut (36 % de la hauteur) ; avec la focale du miroir droit, la vue reflétée baisse de "
-      + "0,4 degré et le miroir de 0,2 degré (un miroir tourné d'un angle tourne l'image du double) ; on y voit la voie jusqu'à la "
-      + "bordure, puis le trottoir.",
-    "Choix de dessin, faux : le miroir gauche tourné vers la carrosserie, qui prend 46 % de la largeur (40 % au moins, test) ; la "
-      + "direction de l'arrière fuit à 51 % de la largeur. Au-dessus de la caisse, la vitre latérale arrière et le montant arrière, "
-      + "en retrait : le montant commence à 28 unités du point de fuite (le pied de la lunette), la vitre à 33 (le pied du montant) ; "
-      + "le pied des vitres passe sous l'horizon près du bord intérieur et remonte vers l'arrière. Entre le montant et le point de "
-      + "fuite, le ciel derrière la voiture.",
+      + "voiture ; la direction de l'arrière y fuit vers un point de l'horizon, au réglage du miroir plan ci-dessus (13,9 % de la "
+      + "largeur depuis le bord intérieur à gauche, 16,6 % à droite), le même que dans le dessin angles-morts. La focale tient le "
+      + "champ du miroir dans la largeur de l'image (737 unités à gauche, 1 348 à droite, pour 122 de large). Un point du sol à "
+      + "l'écart l (m) de l'œil reflété, au recul D, se voit à f l / D du point de fuite et à f h / D sous l'horizon, h = 1,04 m "
+      + "étant la hauteur du miroir (kit : de 0,97 à 1,105 m) et de son œil reflété. Les deux miroirs ont l'horizon au milieu de leur "
+      + "hauteur, comme le demande le formateur : le droit « un peu plus bas » du cours n'est pas dessiné. L'image est une bande de "
+      + "74 unités de haut centrée sur l'horizon : le verre du kit, haut de 13,5 cm, en montrerait 107 à gauche ; le dessin omet le "
+      + "haut du ciel et le sol le plus proche (au bas de l'image, le sol est à 20,7 m à gauche, 37,9 m à droite).",
+    "Choix de dessin, la ligne d'horizon : un trait fin gris (#6E7A6F) en travers du verre, à mi-hauteur, dans l'alignement de deux "
+      + "repères de mi-hauteur posés hors du boîtier, de chaque côté ; c'est la « ligne d'horizon » du formateur. Sans lui, la limite "
+      + "du ciel (#E6EFF4) et du trottoir (#DAD6CA), deux teintes claires, se voyait mal sur un téléphone.",
+    "Choix de dessin, la rue des images, celle des scènes avec stationnement (js/scene-decors.js) : à double sens, voies de 3,5 m, "
+      + "une bande de stationnement de 2 m le long de chaque trottoir, axiale T'1 (traits de 1,5 m, intervalles de 5 m, 0,10 m de "
+      + "large), la voiture au milieu de la voie de droite. Dans le miroir gauche, l'axiale à 0,82 m et la bordure d'en face à "
+      + "6,32 m ; dans le droit, la bordure de droite à 2,82 m ; dans l'intérieur, l'axiale à 1,75 m à gauche, la bordure à 3,75 m "
+      + "à droite et celle d'en face à 7,25 m à gauche. Bordure de 0,15 m, teinte #B3AE9F ; trottoir et chaussée aux teintes des "
+      + "scènes ; ciel #E6EFF4. Les bandes de stationnement, vides, laissent la route occuper le bas des miroirs (sans elles, le "
+      + "trottoir prenait la plus grande part du miroir droit). Au bas de l'image gauche, les traits de l'axiale commencent à 23 m ; "
+      + "un trait plus court qu'une unité dans l'image n'est plus dessiné.",
+    "Choix de dessin, la caisse dans un miroir extérieur : un schéma, sous l'horizon, au bord intérieur du verre ; à l'horizon, elle "
+      + "prend 9 % de la largeur (le mince liseré du cours, celui du réglage du miroir plan), puis s'élargit vite et descend presque "
+      + "droite jusqu'à 32 % au bas du verre (écart au bord intérieur : 9 % + 23 % (1 - (1 - t)²), t allant de 0 à l'horizon à 1 au "
+      + "bas) ; le vert de la voiture de l'élève, son bord tracé de la teinte du bord de la voiture (#3E4A2D). Pourquoi un coin plus "
+      + "large en bas : le calcul exact sur le volume simple de la caisse et le verre du kit (voir le rétroviseur extérieur) la "
+      + "montre en coin, de rien à l'horizon à 31 % au bas du verre ; les flancs réels, plus larges en bas qu'à la ligne de "
+      + "ceinture, font de même. Pourquoi un bord arrondi plutôt que droit : un bord droit, qui file vers le haut du miroir comme "
+      + "une ligne de la route, se lisait comme un bas-côté. La caisse prend 24 % du bas du miroir (un tiers au plus, test) : le "
+      + "reste montre la route derrière.",
+    "Choix de dessin, la poignée de la portière arrière : le modèle du miroir plan (l'œil reflété 3 cm hors du flanc) place la "
+      + "poignée arrière de la voiture du kit (de 1,17 à 1,37 m derrière le centre, de 0,925 à 0,965 m du sol, 10 cm sous la ligne de "
+      + "ceinture) à 8 % de la largeur depuis le bord intérieur et à 80 % de la hauteur dans le miroir gauche (8 % et 96 % dans le "
+      + "droit) : le coin inférieur côté voiture que décrit le formateur. Mais vue presque par la tranche, elle n'y ferait que 0,4 "
+      + "unité de large sur 9 de haut (0,6 sur 14 à droite) : un trait. Le dessin pose au même coin un pictogramme de 20 sur 7 "
+      + "unités (21 sur 7,5 px sur un téléphone), son centre à 14 % de la largeur depuis le bord intérieur et à 82 % de la hauteur, "
+      + "pour qu'il tienne entier sur la caisse (1,5 unité au moins de ses bords), à 7 unités du bord intérieur et à 10 du bas du "
+      + "verre : un creux sombre aux bouts ronds (#1F2924, le texte de la charte, à 3,4:1 sur la caisse) et, au milieu, son levier "
+      + "clair de 14 sur 2,6 (#9DAE84, à 6,3:1 sur le creux), l'allure d'une poignée de portière. Le point de l'étiquette est 4 "
+      + "unités sous la poignée, sans la toucher.",
     "Choix de dessin, intérieur : verre de 134 sur 37,5 unités (un miroir intérieur courant de 25 cm sur 7), aux bouts arrondis "
       + "(rayon de 45 % de sa hauteur), boîtier et bras gris foncé #2E3430, habitacle #262B28 ; verre, lunette et horizon sont la "
       + "pièce du kit (miroirInterieur), la même que dans la vignette d'« installation » : la lunette remplit presque le verre (80 % "
@@ -123,8 +141,8 @@ export const SOURCES = {
       + "degrés. Focale : le haut de la lunette couvre le champ du rétroviseur intérieur d'angles-morts (11,5 degrés de part et d'autre de "
       + "l'axe) ; ce champ est celui de la lunette, que le cours demande de cadrer en entier (le verre du miroir intérieur du kit, "
       + "26 cm, vu de l'œil, en couvrirait 21 degrés sur 23). Le miroir garde la gauche et la droite du conducteur : l'axiale et la "
-      + "bordure d'en face à gauche, la bordure et le trottoir à droite. Repères de mi-hauteur de part et d'autre de chaque miroir "
-      + "extérieur ; boîtiers gris foncé, pour que le liseré vert se distingue.",
+      + "bordure d'en face à gauche, la bordure et le trottoir à droite. Boîtiers des trois miroirs gris foncé, pour que la caisse "
+      + "verte et la route se distinguent du cadre.",
   ],
   "angles-morts": [
     "Cours C1.2, « Sortir », 2 : contrôler : rétroviseur intérieur, rétroviseur extérieur du côté de la portière, puis angle mort "
