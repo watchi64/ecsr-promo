@@ -720,6 +720,73 @@ test("voiture vue du dessus, schématique : la caisse et son contour, le pare-br
   }
 });
 
+// Teintes de remplissage et de contour de ce qui s'affiche d'un nœud (une partie masquée garde ses nœuds, display none).
+function teintesAffichees(noeud) {
+  const [remplis, contours] = [new Set(), new Set()];
+  (function voir(x) {
+    if (typeof x === "string" || x.attributs.display === "none") return;
+    if (x.attributs.fill && x.attributs.fill !== "none") remplis.add(x.attributs.fill);
+    if (x.attributs.stroke) contours.add(x.attributs.stroke);
+    x.enfants.forEach(voir);
+  })(noeud);
+  return { remplis: [...remplis].sort(), contours: [...contours].sort() };
+}
+
+test("voiture de profil, schématique : caisse, vitres et roues aux mêmes tracés que la voiture du kit ; portière et trappe ouvertes à la demande ; aucun détail de finition ; deux tons par pièce", () => {
+  const finition = ["passage-avant", "passage-arriere", "bas-de-caisse", "phare", "feu", "retroviseur", "poignee-avant", "poignee-arriere", "siege"];
+  const memes = ["caisse", "vitrage", "roue-avant", "roue-arriere", "pneu", "jante", "portiere-fermee", "trappe-fermee", "portiere-ouverte",
+    "ouverture", "montant", "chant", "panneau", "trappe-ouverte", "trappe-ouverte/volet"];
+  for (const [pose, options] of [[{ x: 160, y: 140, echelle: 40 }, {}], [{ x: 160, y: 140, echelle: 40, sens: "gauche" }, { portiereOuverte: true, trappeOuverte: true }],
+    [{ x: 120, y: 120, echelle: 26, teinte: "autre" }, { portiereOuverte: true }], [{ x: 60, y: 80, echelle: 8 }, { trappeOuverte: true }]]) {
+    const quoi = `échelle ${pose.echelle}, ${JSON.stringify(options)}`;
+    const detaillee = voitureProfil({ ...pose, ...options }), silhouette = voitureProfil({ ...pose, ...options, schema: true });
+    assert.equal(formeArbre(silhouette), formeArbre(voitureProfil({ ...pose, schema: true, portiereOuverte: !options.portiereOuverte,
+      trappeOuverte: !options.trappeOuverte })), `${quoi} : mêmes nœuds, portière et trappe ouvertes ou fermées`);
+    for (const role of finition) {
+      assert.equal(trouverRole(silhouette, role), null, `${role} dans la silhouette, ${quoi}`);
+      if (pose.echelle >= 40) assert.ok(trouverRole(detaillee, role), `${role} de la voiture détaillée, ${quoi}`);
+    }
+    // Mêmes tracés : la silhouette et la voiture détaillée gardent les mêmes mesures (la caisse, les vitres, les roues, les pièces ouvertes).
+    for (const role of memes) {
+      const lire = (v) => role.split("/").reduce((x, r) => x && trouverRole(x, r), v);   // « groupe/pièce » : la pièce de ce groupe
+      const [a, b] = [lire(silhouette), lire(detaillee)];
+      assert.ok(a && b, `${role}, ${quoi}`);
+      for (const cle of ["d", "cx", "cy", "r", "display", "data-x", "data-y", "data-angle"]) assert.equal(a.attributs[cle], b.attributs[cle], `${role}.${cle}, ${quoi}`);
+    }
+    // Le montant milieu, s'il se voit, sépare les vitres dans la teinte de la caisse, au même tracé.
+    const montant = trouverRole(silhouette, "montant-milieu");
+    assert.equal(Boolean(montant), pose.echelle * (VOITURE.vitrage.montant[1] - VOITURE.vitrage.montant[0]) >= 1.2, `montant milieu, ${quoi}`);
+    if (montant) {
+      assert.equal(montant.attributs.d, trouverRole(detaillee, "montant-milieu").attributs.d, `montant milieu, ${quoi}`);
+      assert.equal(montant.attributs.fill, trouverRole(silhouette, "caisse").attributs.fill, `montant milieu dans la teinte de la caisse, ${quoi}`);
+    }
+    // Teintes : la caisse (et son contour), les vitres, le pneu et la jante ; une pièce ouverte ajoute l'habitacle découvert, l'ombre
+    // de la caisse (montant, chant, volet) et le logement de la trappe.
+    const c = pose.teinte === "autre" ? { base: TEINTES_ROUTE.autre, bord: TEINTES_ROUTE.autreBord } : { base: TEINTES_ROUTE.eleve, bord: TEINTES_ROUTE.eleveBord };
+    const ombre = trouverRole(trouverRole(detaillee, "portiere-ouverte"), "chant").attributs.fill;
+    const attendues = new Set([c.base, kit.MATIERES.vitre, kit.MATIERES.pneu, kit.MATIERES.jante]);
+    if (options.portiereOuverte) [kit.MATIERES.habitacle, ombre].forEach((t) => attendues.add(t));
+    if (options.trappeOuverte) [kit.MATIERES.joint, ombre].forEach((t) => attendues.add(t));
+    assert.deepEqual(teintesAffichees(silhouette), { remplis: [...attendues].sort(), contours: [c.bord] }, `teintes, ${quoi}`);
+    // Une roue : deux tons, le pneu et la jante pleine.
+    for (const role of ["roue-avant", "roue-arriere"]) {
+      assert.deepEqual(trouverRole(silhouette, role).enfants.map((x) => x.attributs.fill), [kit.MATIERES.pneu, kit.MATIERES.jante], `${role}, ${quoi}`);
+    }
+  }
+  // Contrôles communs et traits du jeu de la charte, dans tous les états.
+  const d = cadre({ largeur: 320, hauteur: 300, titre: "Silhouettes", description: "Essai." },
+    voitureProfil({ x: 60, y: 80, echelle: 10, schema: true }),
+    voitureProfil({ x: 220, y: 90, echelle: 25, sens: "gauche", teinte: "autre", portiereOuverte: true, trappeOuverte: true, schema: true }),
+    voitureProfil({ x: 160, y: 290, echelle: 60, portiereOuverte: true, trappeOuverte: true, schema: true }));
+  assert.deepEqual(verifierDessin(d, [320, 300]), []);
+  const jeu = Object.values(CHARTE.traits);
+  for (const x of trouverTous(d, (x) => "stroke-width" in x.attributs && x.attributs["data-r"] !== "fond")) {
+    assert.ok(jeu.includes(x.attributs["stroke-width"]), `${x.balise} ${x.attributs["data-r"] || ""} : épaisseur ${x.attributs["stroke-width"]}`);
+  }
+  // Sans l'option, la voiture détaillée : rien ne change pour les dessins qui ne la demandent pas.
+  assert.equal(JSON.stringify(voitureProfil({ x: 1, y: 2, echelle: 30, schema: false })), JSON.stringify(voitureProfil({ x: 1, y: 2, echelle: 30 })));
+});
+
 test("voitures : à petite échelle les détails de finition s'effacent, les pièces demandées et les grandes surfaces restent", () => {
   const options = { retroviseurs: true, roues: true, portiere: 30 };
   const petit = voitureDessus({ x: 40, y: 40, echelle: 6, ...options }), grand = voitureDessus({ x: 160, y: 100, echelle: 20, ...options });

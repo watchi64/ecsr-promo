@@ -781,9 +781,16 @@ export function reperesProfil({ x, y, echelle, sens = "droite", trappeOuverte = 
  *  rétroviseur, poignées, joints, trappe à carburant. (x, y) : point du sol sous le milieu de la voiture ; échelle en unités
  *  par mètre ; sens : vers où regarde l'avant, « droite » montre le côté droit de la voiture, « gauche » son côté gauche,
  *  celui du conducteur ; portiereOuverte : la portière avant de ce côté, ouverte ; trappeOuverte : la trappe à carburant de
- *  ce côté, ouverte. Ouvertes ou fermées, la portière et la trappe gardent leurs nœuds (display none). */
+ *  ce côté, ouverte. Ouvertes ou fermées, la portière et la trappe gardent leurs nœuds (display none). `schema` : le style
+ *  schématique (décision du formateur du 15/10/2026, « pictogramme plutôt qu'illustration »), comme voitureDessus : la
+ *  silhouette de la caisse et son contour, les vitres latérales (le montant milieu, assez grand pour se voir, les sépare dans
+ *  la teinte de la caisse), les roues en deux tons, pneu et jante pleine ; portière et trappe ouvertes à la demande, en
+ *  aplats (l'habitacle découvert, le montant, le seuil, la portière, son chant et sa vitre ; le logement et le volet de la
+ *  trappe) ; aux mêmes tracés que la voiture détaillée. Aucun détail de finition : ni passages de roue, ni fond, fenêtres ou
+ *  moyeu des jantes, ni bas de caisse, ni épaule, ni reflets, ni phare, ni feu, ni rétroviseur, ni poignées, ni joints, ni
+ *  trappe fermée, ni bouchon, ni siège. */
 export function voitureProfil({ x, y, echelle, teinte = "eleve", sens = "droite", portiereOuverte = false, trappeOuverte = false,
-  role = "voiture-profil" }) {
+  schema = false, role = "voiture-profil" }) {
   const qui = "Voiture de profil";
   verifierPose(qui, { x, y, echelle });
   const c = carrosserie(teinte, qui), s = signeSens(sens, qui), e = echelle;
@@ -792,7 +799,9 @@ export function voitureProfil({ x, y, echelle, teinte = "eleve", sens = "droite"
   const ligne = (pts, attributs) => n("path", { d: trace(pts.map(v), false), fill: "none", "stroke-linecap": "round",
     "stroke-linejoin": "round", ...attributs });
   const repere = (p) => { const [px, py] = v(p); return { "data-x": px, "data-y": py }; };
-  const assez = (metres) => metres * e >= DETAIL_MIN, traitDetail = 1 / e <= TRAIT_DETAIL_MAX;
+  // Détails de finition : seulement hors du style schématique, et assez grands pour se voir.
+  const finition = !schema, visible = (metres) => metres * e >= DETAIL_MIN;
+  const assez = (metres) => finition && visible(metres), traitDetail = finition && 1 / e <= TRAIT_DETAIL_MAX;
   const fin = CHARTE.traits.fin;
   const affiche = (oui) => (oui ? "inline" : "none");
 
@@ -829,7 +838,7 @@ export function voitureProfil({ x, y, echelle, teinte = "eleve", sens = "droite"
   const trappeOuverteG = n("g", { "data-r": "trappe-ouverte", display: affiche(trappeOuverte), "data-angle": TRAPPE.ouverture,
     ...repere(TRAPPE_OUVERTE_CENTRE) },
   forme(TRAPPE_CONTOUR, { fill: MATIERES.joint }),
-  n("circle", { cx: v(TRAPPE.centre)[0], cy: v(TRAPPE.centre)[1], r: TRAPPE.bouchon * e, fill: MATIERES.bouchon }),
+  finition && n("circle", { cx: v(TRAPPE.centre)[0], cy: v(TRAPPE.centre)[1], r: TRAPPE.bouchon * e, fill: MATIERES.bouchon }),
   forme(TRAPPE_CONTOUR.map(ouvrirTrappe), { fill: c.ombre, stroke: c.bord, "stroke-width": fin, "stroke-linejoin": "round", "data-r": "volet" }));
 
   // Portière fermée : son joint avant, sa poignée, son rétroviseur. Ouverte : l'habitacle découvert (siège, montant milieu,
@@ -854,7 +863,7 @@ export function voitureProfil({ x, y, echelle, teinte = "eleve", sens = "droite"
   const portiereOuverteG = n("g", { "data-r": "portiere-ouverte", display: affiche(portiereOuverte), "data-angle": PORTIERE.ouvertureProfil,
     ...repere([PORTIERE.charniere[0], PORTIERE.bas]) },
   forme(CONTOUR_PORTIERE, { fill: MATIERES.habitacle, "data-r": "ouverture" }),
-  n("g", { "data-r": "siege" }, ["assise", "dossier", "appuieTete"].map((k) =>
+  finition && n("g", { "data-r": "siege" }, ["assise", "dossier", "appuieTete"].map((k) =>
     forme(couper(arrondir(SIEGE[k], SIEGE[k].map(() => SIEGE.arrondi)), (p) => PORTIERE.arriere - p[0]), { fill: MATIERES.siege }))),
   forme(couper(CONTOUR_PORTIERE, (p) => p[0] - MONTANT.avant), { fill: c.ombre, "data-r": "montant", ...repere(MONTANT.etiquette) }),
   forme(couper(CONTOUR_PORTIERE, (p) => p[1] - SEUIL_PORTE), { fill: c.base }),
@@ -866,8 +875,8 @@ export function voitureProfil({ x, y, echelle, teinte = "eleve", sens = "droite"
   retroVisible && forme(retroOuvert, { fill: c.base, stroke: c.bord, "stroke-width": fin, "stroke-linejoin": "round" }));
 
   return n("g", { "data-r": role, "data-x": x, "data-y": y },
-    forme(passage(ESSIEU_AVANT), { fill: MATIERES.passage, "data-r": "passage-avant" }),
-    forme(passage(ESSIEU_ARRIERE), { fill: MATIERES.passage, "data-r": "passage-arriere" }),
+    finition && forme(passage(ESSIEU_AVANT), { fill: MATIERES.passage, "data-r": "passage-avant" }),
+    finition && forme(passage(ESSIEU_ARRIERE), { fill: MATIERES.passage, "data-r": "passage-arriere" }),
     roue("roue-avant", ESSIEU_AVANT), roue("roue-arriere", ESSIEU_ARRIERE),
     forme(CONTOUR_PROFIL, { fill: c.base, stroke: c.bord, "stroke-width": fin, "stroke-linejoin": "round", "data-r": "caisse" }),
     assez(PORTIERE.bas - PROFIL.basCaisse) && forme(BAS_DE_CAISSE, { fill: c.ombre, "data-r": "bas-de-caisse" }),
@@ -877,7 +886,7 @@ export function voitureProfil({ x, y, echelle, teinte = "eleve", sens = "droite"
       const b = bande(vitre, r);
       return assez(largeurBande(r)) && b.length > 2 && forme(b, { fill: MATIERES.vitreReflet });
     })),
-    assez(VITRAGE.montant[1] - VITRAGE.montant[0]) && forme(montantMilieu, { fill: MATIERES.joint, "data-r": "montant-milieu" }),
+    visible(VITRAGE.montant[1] - VITRAGE.montant[0]) && forme(montantMilieu, { fill: finition ? MATIERES.joint : c.base, "data-r": "montant-milieu" }),
     traitDetail && ligne(JOINT_MILIEU, { stroke: c.ombre, "stroke-width": fin }),
     traitDetail && ligne(JOINT_ARRIERE, { stroke: c.ombre, "stroke-width": fin }),
     assez(POIGNEES.hauteur) && forme(poignee(POIGNEES.arriere), { fill: c.ombre, "data-r": "poignee-arriere" }),
