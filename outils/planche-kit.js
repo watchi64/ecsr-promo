@@ -73,6 +73,39 @@ function etiquettes({ kit, svg }) {
   texte(LARGEUR - MARGE - PORTEE_COURBE / 2, LEGENDE_Y, "Flèche courbe", { ancrage: "middle" }));
 }
 
+// Personne en pictogramme et repères des mains (style schématique) : une silhouette de face faite des pièces du kit (tête ronde,
+// buste arrondi, bras « devant » bordés d'un liseré, jambes), un bras du ton éloigné à côté d'elle, puis les repères G et D,
+// pleins (la main tient) et creux (elle a lâché ou se déplace), chacun avec sa légende.
+const HAUTEUR_PERSONNE = 200;
+function personne({ kit, svg }) {
+  const { CHARTE, cadre, texte, gelule, formePictogramme, membrePictogramme, tetePictogramme, disqueMain, arrondir, trace } = kit;
+  const { n } = svg;
+  const LEGENDE = { taille: 11, y: 186 };
+  // Silhouette de face (unités du cadre) : centre, tête, buste (demi-largeur, haut, bas, arrondis), bras, jambes.
+  const X = 70, TETE = { y: 34, r: 16 }, BUSTE = { demi: 26, haut: 56, bas: 128, arrondiHaut: 11, arrondiBas: 6 };
+  const BRAS = { x: 36, haut: 70, bas: 122, rayons: [7, 6] }, JAMBES = { x: 13, haut: 128, bas: 166, rayons: [10, 8.5] };
+  const buste = arrondir([[X - BUSTE.demi, BUSTE.haut], [X + BUSTE.demi, BUSTE.haut], [X + BUSTE.demi, BUSTE.bas], [X - BUSTE.demi, BUSTE.bas]],
+    [BUSTE.arrondiHaut, BUSTE.arrondiHaut, BUSTE.arrondiBas, BUSTE.arrondiBas]);
+  // Bras du ton éloigné, isolé, pour montrer le second ton : de l'épaule au coude puis à la main.
+  const LOIN = { points: [[150, 64], [146, 104], [168, 128]], rayons: [7, 6, 5.5] };
+  // Repères : deux colonnes (G puis D), plein en haut, creux en bas.
+  const REPERES = { x: [218, 268], y: [70, 128], rayon: 10.5, lettre: 12 };
+  return cadre({ largeur: LARGEUR, hauteur: HAUTEUR_PERSONNE, titre: "Personne en pictogramme et repères des mains",
+    description: "Exemple pour la revue : une silhouette de face faite des pièces du kit, un bras du ton éloigné, puis les repères G et D, pleins et creux." },
+  formePictogramme([gelule([X - JAMBES.x, JAMBES.haut], JAMBES.rayons[0], [X - JAMBES.x, JAMBES.bas], JAMBES.rayons[1]),
+    gelule([X + JAMBES.x, JAMBES.haut], JAMBES.rayons[0], [X + JAMBES.x, JAMBES.bas], JAMBES.rayons[1])]),
+  formePictogramme(trace(buste)),
+  tetePictogramme({ centre: [X, TETE.y], rayon: TETE.r }),
+  [-1, 1].map((k) => membrePictogramme({ points: [[X + k * BRAS.x, BRAS.haut], [X + k * BRAS.x, BRAS.bas]], rayons: BRAS.rayons, plan: "devant" })),
+  membrePictogramme({ ...LOIN, plan: "loin" }),
+  ["gauche", "droite"].flatMap((cote, i) => [1, 0].map((plein, j) => disqueMain({ x: REPERES.x[i], y: REPERES.y[j], cote, plein,
+    rayon: REPERES.rayon, lettre: REPERES.lettre, anneau: CHARTE.traits.appuye }))),
+  texte(X, LEGENDE.y, "Silhouette", { taille: LEGENDE.taille, ancrage: "middle", couleur: CHARTE.texteDoux }),
+  texte(LOIN.points[1][0], LEGENDE.y, "Ton éloigné", { taille: LEGENDE.taille, ancrage: "middle", couleur: CHARTE.texteDoux }),
+  texte((REPERES.x[0] + REPERES.x[1]) / 2, REPERES.y[0] - 22, "Tient", { taille: LEGENDE.taille, ancrage: "middle", couleur: CHARTE.texteDoux }),
+  texte((REPERES.x[0] + REPERES.x[1]) / 2, REPERES.y[1] + 30, "Lâchée", { taille: LEGENDE.taille, ancrage: "middle", couleur: CHARTE.texteDoux }));
+}
+
 // Les voitures du kit (tâche 5), telles que les familles les posent : vue du dessus, puis de profil, chacune dans un état sobre et
 // dans un état chargé (toutes ses pièces à la demande), avec une légende qui nomme l'état. Échelles choisies pour la revue : la
 // plus grande qui tient dans le cadre, le détail de finition s'y voit (voir DETAIL_MIN du kit).
@@ -112,6 +145,8 @@ function voituresProfil({ kit }) {
 export const PIECES_KIT = [
   { code: "kit-paire", titre: "Paire juste et faux : vignettes, pastilles, étiquette, flèche", cadre: [LARGEUR, HAUTEUR_PAIRE], construire: paire },
   { code: "kit-etiquettes", titre: "Étiquettes aux trois ancrages, flèche droite et flèche courbe", cadre: [LARGEUR, HAUTEUR_ETIQUETTES], construire: etiquettes },
+  { code: "kit-personne", titre: "Personne en pictogramme et repères des mains (style schématique)", cadre: [LARGEUR, HAUTEUR_PERSONNE],
+    construire: personne },
   { code: "kit-voiture-dessus", titre: "Voiture vue du dessus : rétroviseurs, roues braquées, portière ouverte", cadre: [LARGEUR, HAUTEUR_DESSUS],
     construire: voituresDessus },
   { code: "kit-voiture-profil", titre: "Voiture de profil : côté droit, côté conducteur portière et trappe ouvertes", cadre: [LARGEUR, HAUTEUR_PROFIL],

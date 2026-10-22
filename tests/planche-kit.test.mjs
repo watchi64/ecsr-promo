@@ -59,3 +59,17 @@ test("la section Kit montre les voitures du kit : vue du dessus et profil, dans 
   assert.ok(!montre(svg.trouverRole(profils[0], "portiere-ouverte")) && montre(svg.trouverRole(profils[1], "portiere-ouverte")), "portière ouverte sur la seconde");
   assert.ok(montre(svg.trouverRole(profils[1], "trappe-ouverte")), "trappe ouverte sur la seconde");
 });
+
+test("la section Kit montre la personne en pictogramme (tête ronde, formes de la teinte et du ton éloigné, liserés des bras) et les repères G et D, pleins et creux", () => {
+  const p = PIECES_KIT.find((x) => x.code === "kit-personne");
+  assert.ok(p, "kit-personne");
+  const d = p.construire({ kit, svg });
+  assert.equal(svg.trouverRole(d, "tete").balise, "circle");
+  const teintes = new Set(svg.trouverTous(d, (x) => x.balise === "path").map((x) => x.attributs.fill));
+  assert.ok(teintes.has(kit.SILHOUETTE.teinte) && teintes.has(kit.SILHOUETTE.loin), "la teinte et le ton éloigné");
+  assert.ok(svg.trouverTous(d, (x) => x.attributs["data-plan"] === "devant").length >= 2, "les deux bras bordés d'un liseré");
+  for (const cote of ["gauche", "droite"]) {
+    const disques = svg.trouverTous(d, (x) => x.attributs["data-r"] === `disque-${cote}`).map((x) => x.attributs.fill);
+    assert.deepEqual(disques, [kit.CHARTE.peauOmbre, kit.CHARTE.carte], `${cote} : plein puis creux`);
+  }
+});

@@ -949,3 +949,97 @@ test("rétroviseur intérieur vu de face : verre de 25 sur 7, lunette centrée e
   assert.throws(() => kit.miroirInterieur({ x: 0, y: 0, largeur: 0 }), /largeur/);
   assert.throws(() => kit.miroirInterieur({ x: 0, y: 0, largeur: 10 }, [Number.NaN, 0]), /décalage/);
 });
+
+// ===== Personnes et mains en pictogramme (style schématique, extension à C1.1 et C1.2) =====
+
+const lumi = (hex) => {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+};
+const contrasteDe = (a, b) => { const [x, y] = [lumi(a), lumi(b)].sort((m, q) => q - m); return (x + 0.05) / (y + 0.05); };
+
+test("personne en pictogramme : une teinte sombre, lisible sur le fond et la carte ; le ton éloigné, plus clair, se lit sur le fond et se sépare de la teinte ; ni l'un ni l'autre n'est la peau", () => {
+  const { teinte, loin } = kit.SILHOUETTE;
+  for (const fond of [CHARTE.fond, CHARTE.carte]) {
+    assert.ok(contrasteDe(teinte, fond) >= 7, `teinte à ${contrasteDe(teinte, fond).toFixed(2)}:1 sur ${fond}`);
+    assert.ok(contrasteDe(loin, fond) >= 3, `ton éloigné à ${contrasteDe(loin, fond).toFixed(2)}:1 sur ${fond}`);
+  }
+  assert.ok(lumi(loin) > lumi(teinte) && contrasteDe(loin, teinte) >= 2.5, `ton éloigné à ${contrasteDe(loin, teinte).toFixed(2)}:1 sur la teinte`);
+  for (const peau of [CHARTE.peau, CHARTE.peauOmbre]) assert.ok(![teinte, loin].includes(peau), "la silhouette n'est pas de la peau");
+  assert.ok(Object.isFrozen(kit.SILHOUETTE));
+});
+
+// Les points d'une gélule, lus dans son tracé « M a1 L a2 A ... b2 L b1 A ... a1 Z ».
+function lireGelule(d) {
+  const v = String(d).match(/-?\d+(?:\.\d+)?/g).map(Number);
+  assert.match(String(d), /^M[^A-Z]+ L[^A-Z]+ A[^A-Z]+ L[^A-Z]+ A[^A-Z]+ Z$/);
+  return { a1: [v[0], v[1]], a2: [v[2], v[3]], r2: v[4], b2: [v[9], v[10]], b1: [v[11], v[12]], r1: v[13] };
+}
+
+test("gelule : l'enveloppe de ses deux disques, ses côtés droits tangents aux deux cercles, arcs exacts", () => {
+  for (const [p1, r1, p2, r2] of [[[10, 20], 6, [60, 50], 4], [[0, 0], 3, [0, -40], 8], [[5, 5], 5, [45, 5], 5]]) {
+    const g = lireGelule(kit.gelule(p1, r1, p2, r2));
+    const d = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
+    proche(g.r1, r1, 0.01, "rayon du premier arc");
+    proche(g.r2, r2, 0.01, "rayon du second arc");
+    for (const [p, c, r] of [[g.a1, p1, r1], [g.b1, p1, r1], [g.a2, p2, r2], [g.b2, p2, r2]]) proche(d(p, c), r, 0.02, "point sur son cercle");
+    // Tangence : chaque côté droit est perpendiculaire aux rayons qui le touchent.
+    for (const [a, b, ca, cb] of [[g.a1, g.a2, p1, p2], [g.b1, g.b2, p1, p2]]) {
+      const u = [b[0] - a[0], b[1] - a[1]], l = Math.hypot(...u);
+      proche(((a[0] - ca[0]) * u[0] + (a[1] - ca[1]) * u[1]) / l / Math.max(r1, 1e-9), 0, 0.01, "côté tangent au premier cercle");
+      proche(((b[0] - cb[0]) * u[0] + (b[1] - cb[1]) * u[1]) / l / Math.max(r2, 1e-9), 0, 0.01, "côté tangent au second cercle");
+    }
+  }
+});
+
+test("formePictogramme : « devant », un liseré clair sous chaque forme, puis toutes les formes pleines (deux formes jointes sans trait clair) ; « corps » et « loin » sans liseré ; les rôles sur les formes pleines ; un plan inconnu est une erreur", () => {
+  const [d1, d2] = [kit.gelule([0, 0], 5, [30, 0], 4), kit.gelule([30, 0], 4, [30, 30], 3)];
+  const devant = kit.formePictogramme([d1, d2], { plan: "devant", roles: ["bras", "avant-bras"] });
+  const [l1, l2, f1, f2] = devant.enfants;
+  for (const l of [l1, l2]) {
+    assert.equal(l.attributs.fill, CHARTE.carte);
+    assert.equal(l.attributs.stroke, CHARTE.carte);
+    assert.equal(l.attributs["stroke-width"], 2 * CHARTE.liseres, "liseré : CHARTE.liseres de chaque côté");
+  }
+  assert.deepEqual([l1.attributs.d, l2.attributs.d], [d1, d2]);
+  assert.deepEqual([f1, f2].map((f) => [f.attributs.d, f.attributs.fill, f.attributs["data-r"]]), [[d1, kit.SILHOUETTE.teinte, "bras"], [d2, kit.SILHOUETTE.teinte, "avant-bras"]]);
+  for (const [plan, teinte] of [["corps", kit.SILHOUETTE.teinte], ["loin", kit.SILHOUETTE.loin]]) {
+    const g = kit.formePictogramme(d1, { plan, roles: ["x"] });
+    assert.equal(g.enfants.length, 1, `${plan} : aucun liseré`);
+    assert.equal(g.enfants[0].attributs.fill, teinte, plan);
+    assert.equal(g.enfants[0].attributs.stroke, undefined, plan);
+  }
+  assert.throws(() => kit.formePictogramme(d1, { plan: "derriere" }), /plan « derriere » inconnu/);
+});
+
+test("membrePictogramme : une gélule par segment, d'articulation en articulation, du même rayon de part et d'autre de chaque articulation ; points ou rayons qui manquent, rayon nul : erreur", () => {
+  const points = [[0, 0], [20, 30], [50, 30]], rayons = [6, 5, 4];
+  const m = kit.membrePictogramme({ points, rayons, roles: ["haut", "bas"] });
+  assert.deepEqual(m.enfants.map((x) => x.attributs.d), [kit.gelule(points[0], 6, points[1], 5), kit.gelule(points[1], 5, points[2], 4)]);
+  assert.deepEqual(m.enfants.map((x) => x.attributs["data-r"]), ["haut", "bas"]);
+  assert.throws(() => kit.membrePictogramme({ points: [[0, 0]], rayons: [3] }), /au moins deux points/);
+  assert.throws(() => kit.membrePictogramme({ points, rayons: [6, 5] }), /un rayon par point/);
+  assert.throws(() => kit.membrePictogramme({ points, rayons: [6, 0, 4] }), /rayon 1 non positif/);
+  assert.throws(() => kit.membrePictogramme({ points: [[0, 0], [Number.NaN, 1]], rayons: [1, 1] }), /nombre fini/);
+  const t = kit.tetePictogramme({ centre: [12, 34], rayon: 9 });
+  assert.deepEqual([t.balise, t.attributs.cx, t.attributs.cy, t.attributs.r, t.attributs.fill, t.attributs["data-r"]], ["circle", 12, 34, 9, kit.SILHOUETTE.teinte, "tete"]);
+});
+
+test("disqueMain : le repère d'une main ; sa lettre peut se masquer (lettreVisible 0 : display none ; entre 0 et 1, son opacité en est multipliée) ; sans lettreVisible, aucun attribut display (repères des gestes du volant) ; erreurs", () => {
+  const base = { x: 50, y: 40, cote: "droite", rayon: 8, lettre: 11, anneau: CHARTE.traits.moyen };
+  const fondu = (noeud) => trouverRole(noeud, "lettre-fondu-droite").attributs;
+  assert.equal("display" in fondu(kit.disqueMain(base)), false);
+  assert.equal(fondu(kit.disqueMain(base)).opacity, 1);
+  assert.equal(fondu(kit.disqueMain({ ...base, lettreVisible: 0 })).display, "none");
+  assert.deepEqual([fondu(kit.disqueMain({ ...base, lettreVisible: 0.5 })).display, fondu(kit.disqueMain({ ...base, lettreVisible: 0.5 })).opacity], ["inline", 0.5]);
+  assert.equal(formeArbre(kit.disqueMain({ ...base, lettreVisible: 0 })), formeArbre(kit.disqueMain(base)), "mêmes nœuds");
+  const plein = kit.disqueMain(base), creux = kit.disqueMain({ ...base, plein: 0 });
+  assert.equal(trouverRole(plein, "disque-droite").attributs.fill, CHARTE.peauOmbre);
+  assert.equal(trouverRole(creux, "disque-droite").attributs.fill, CHARTE.carte);
+  assert.equal(texteDe(trouverRole(plein, "lettre-droite")), "D");
+  assert.equal(texteDe(trouverRole(kit.disqueMain({ ...base, cote: "gauche" }), "lettre-gauche")), "G");
+  assert.throws(() => kit.disqueMain({ ...base, cote: "Droite" }), /côté « Droite » inconnu/);
+  assert.throws(() => kit.disqueMain({ ...base, plein: 1.2 }), /plein/);
+  assert.throws(() => kit.disqueMain({ ...base, lettreVisible: -0.1 }), /lettre visible/);
+  assert.throws(() => kit.disqueMain({ ...base, rayon: Number.NaN }), /rayon/);
+});

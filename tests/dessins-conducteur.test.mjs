@@ -4,7 +4,8 @@ import { CATALOGUE } from "../js/catalogue-blocs.js";
 import * as famille from "../js/dessins-conducteur.js";
 import { SOURCES } from "../sources/dessins-conducteur.js";
 import { verifierDessin, verifierGeste } from "./aides-dessins.mjs";
-import { trouverRole, trouverTous, texteDe } from "../js/dessin-svg.js";
+import { trouverRole, trouverTous, texteDe, parcourir } from "../js/dessin-svg.js";
+import { CHARTE, SILHOUETTE } from "../js/dessins-kit.js";
 import { imageA, PAS_IMAGE, SAUT_POINT_MAX, pointsDessines } from "../js/geste-regles.js";
 
 const codes = Object.keys(CATALOGUE).filter((c) => CATALOGUE[c].module === "conducteur");
@@ -93,9 +94,11 @@ function contour(d) {
   }
   return sortie;
 }
+// Haut d'une forme dessinée (y le plus petit) : d'un cercle (la tête ronde du pictogramme), ou d'un tracé.
 const hautDuContour = (noeud, role) => {
   const r = trouverRole(noeud, role);
   assert.ok(r, `rôle « ${role} » absent`);
+  if (r.balise === "circle") return Number(r.attributs.cy) - Number(r.attributs.r);
   return Math.min(...contour(r.attributs.d).map((p) => p[1]));
 };
 /** Intersection de deux segments, ou null. */
@@ -331,10 +334,10 @@ test("installation : à la fin, le rétroviseur intérieur cadre toute la lunett
 // téléphone, 480 unités par seconde), une articulation saute. Le contrôle commun des gestes (pointsDessines, par verifierGeste)
 // le vérifie sur chaque point dessiné (data-x, data-y des rôles) ; ce test garde que les articulations en sont, à chaque image.
 const ARTICULATION_MAX = SAUT_POINT_MAX;
-const ARTICULATIONS = ["epaule", "coude", "poignet", "main"].flatMap((a) => [`${a}-gauche`, `${a}-droite`]);
+const ARTICULATIONS = ["epaule", "coude", "main"].flatMap((a) => [`${a}-gauche`, `${a}-droite`]);
 const images = instants.map((t) => imageA(def, t, false));
 
-test("installation : les articulations dessinées (épaule, coude, poignet, main) sont des points dessinés, suivis par le contrôle commun de continuité", () => {
+test("installation : les articulations dessinées (épaule, coude) et les repères des mains sont des points dessinés, suivis par le contrôle commun de continuité", () => {
   images.forEach((image, i) => {
     const roles = new Set([...pointsDessines(image).values()].map((p) => p.role));
     for (const role of ARTICULATIONS) assert.ok(roles.has(role), `${role} absent des points dessinés à ${instants[i].toFixed(3)} s`);
@@ -360,18 +363,30 @@ function distancePolygone(p, poly) {
   return m;
 }
 
-test("installation : la main proche ne passe jamais sur le visage ni sur le crâne, l'avant-bras non plus", () => {
-  const rayonAvantBras = famille.MEMBRES.poignet * CM;
+// Un disque dessiné : centre et rayon d'un rôle « circle ».
+function disque(noeud, role) {
+  const c = trouverRole(noeud, role);
+  assert.ok(c && c.balise === "circle", `rôle « ${role} » : cercle absent`);
+  return { centre: [Number(c.attributs.cx), Number(c.attributs.cy)], rayon: Number(c.attributs.r) };
+}
+// Distance d'un point au segment [a, b].
+function distanceSegment(p, [a, b]) {
+  const ab = [b[0] - a[0], b[1] - a[1]];
+  const k = Math.max(0, Math.min(1, ((p[0] - a[0]) * ab[0] + (p[1] - a[1]) * ab[1]) / (ab[0] ** 2 + ab[1] ** 2 || 1)));
+  return distance(p, [a[0] + k * ab[0], a[1] + k * ab[1]]);
+}
+
+test("installation : la main proche ne passe jamais sur la tête : ni son repère (liseré compris), ni son bras ni son avant-bras", () => {
+  const [rBras, rCoude, rMain] = famille.MEMBRES.bras.map((r) => r * CM);
   for (let i = 0; i < images.length; i++) {
     const image = images[i], t = instants[i].toFixed(3);
-    const tete = contour(trouverRole(image, "tete").attributs.d);
-    const main = contour(trouverRole(image, "main-gauche-forme").attributs.d);
-    assert.ok(main.every((p) => !dansPolygone(p, tete)), `main sur la tête à ${t} s`);
-    const [c, w] = [point(image, "coude-gauche"), point(image, "poignet-gauche")];
-    for (let k = 0; k <= 10; k++) {
-      const p = [c[0] + ((w[0] - c[0]) * k) / 10, c[1] + ((w[1] - c[1]) * k) / 10];
-      assert.ok(!dansPolygone(p, tete) && distancePolygone(p, tete) >= rayonAvantBras, `avant-bras sur la tête à ${t} s`);
-    }
+    const tete = disque(image, "tete");
+    const repere = disque(trouverRole(image, "main-gauche"), "liseret-gauche");
+    assert.ok(distance(repere.centre, tete.centre) >= repere.rayon + tete.rayon, `repère de la main gauche sur la tête à ${t} s`);
+    const [e, c, m] = ["epaule-gauche", "coude-gauche", "main-gauche"].map((r) => point(image, r));
+    // Les gélules du bras (de l'épaule au coude) et de l'avant-bras (du coude à la main) restent hors de la tête, leur liseré compris.
+    assert.ok(distanceSegment(tete.centre, [e, c]) >= tete.rayon + Math.max(rBras, rCoude) + CHARTE.liseres, `bras sur la tête à ${t} s`);
+    assert.ok(distanceSegment(tete.centre, [c, m]) >= tete.rayon + Math.max(rCoude, rMain) + CHARTE.liseres, `avant-bras sur la tête à ${t} s`);
   }
 });
 
@@ -520,8 +535,9 @@ test("installation : ni le point ni le trait du filet ne cachent le boîtier du 
     reglage = true;
     const image = images[i];
     const boitier = contour(trouverRole(image, "retroviseur").attributs.d);
-    const [main, pouce] = ["main-droite-forme", "pouce-droit"].map((r) => contour(trouverRole(image, r).attributs.d));
-    const part = partCachee(boitier, (p) => dansPolygone(p, main) || dansPolygone(p, pouce));
+    // Le repère de la main droite, son liseré compris (pièce du kit : le plus grand de ses disques).
+    const repere = disque(trouverRole(image, "main-droite"), "liseret-droite");
+    const part = partCachee(boitier, (p) => distance(p, repere.centre) <= repere.rayon);
     assert.ok(part <= 0.5, `la main cache ${Math.round(part * 100)} % du boîtier à ${instants[i].toFixed(3)} s`);
   }
   assert.ok(reglage, "le rétroviseur ne tourne jamais");
@@ -626,4 +642,136 @@ test("installation : aucun point dessiné (siège, appuie-tête, volant, rétrov
   }
   for (let i = 1; i < images.length; i++) comparer(images[i - 1], images[i], "cadre", instants[i].toFixed(3));
   assert.ok(pire.d <= ARTICULATION_MAX, `${pire.role} : ${pire.d.toFixed(1)} unités en une image à ${pire.t} s`);
+});
+
+// ===== Style schématique (décision du formateur du 15/10/2026) : le conducteur en pictogramme, les mains en repères =====
+
+// Les dessins fixes, les images figées de chaque étape de l'installation, puis des images de lecture où les mains agissent.
+const DESSINS_CONDUCTEUR = () => [...["siege", "appuie-tete", "ceinture"].map((code) => [code, famille.DESSINS[code]()]),
+  ...def.etapes.map((_, i) => [`installation, étape ${i + 1}`, imageA(def, debut(i), true)]),
+  ...[11.1, 12.2, 16.4].map((t) => [`installation à ${t} s`, imageA(def, t, false)])];
+// Rôles des formes pleines du pictogramme : buste, tête, membres (de profil et de face), pied.
+const PARTIES_PICTOGRAMME = new Set(["tete", "buste", "cuisse", "jambe", "pied", "bras-gauche-haut", "avant-bras-gauche", "bras-droit-haut",
+  "avant-bras-droit", "bras-gauche", "bras-droit", "jambe-gauche", "jambe-droite"]);
+
+test("le conducteur est une silhouette de pictogramme : tête ronde, buste et membres en formes simples de la teinte du kit (le bras du côté opposé, du ton éloigné), sans visage, cheveux ni main dessinée ; la peau n'est que dans les repères des mains", () => {
+  const silhouette = new Set([SILHOUETTE.teinte, SILHOUETTE.loin]), peau = new Set([CHARTE.peau, CHARTE.peauOmbre]);
+  for (const [quoi, d] of DESSINS_CONDUCTEUR()) {
+    const dansRepere = new Set();
+    for (const m of trouverTous(d, (x) => /^main-(gauche|droite)$/.test(x.attributs["data-r"] || ""))) parcourir(m, (x) => dansRepere.add(x));
+    const parties = new Set();
+    parcourir(d, (x) => {
+      const fill = x.attributs.fill;
+      if (silhouette.has(fill)) {
+        const role = x.attributs["data-r"];
+        assert.ok(PARTIES_PICTOGRAMME.has(role), `${quoi} : forme de la teinte du pictogramme hors de ses parties (${x.balise} ${role || "sans rôle"})`);
+        parties.add(role);
+        if (role === "tete") assert.equal(x.balise, "circle", `${quoi} : la tête n'est pas ronde`);
+        if (fill === SILHOUETTE.loin) assert.match(role, /droit/, `${quoi} : ton éloigné hors du côté opposé`);
+      }
+      for (const k of ["fill", "stroke"]) {
+        if (peau.has(x.attributs[k])) assert.ok(dansRepere.has(x), `${quoi} : peau hors d'un repère de main (${x.balise} ${x.attributs["data-r"] || ""})`);
+      }
+    });
+    for (const role of ["tete", "buste"]) assert.ok(parties.has(role), `${quoi} : ${role} absent`);
+  }
+});
+
+// Disque d'un repère de main : plein, creux, ou entre les deux (fondu).
+const pleinRepere = (image, cote) => {
+  const f = trouverRole(trouverRole(image, `main-${cote}`), `disque-${cote}`).attributs.fill;
+  return f === CHARTE.peauOmbre ? "plein" : f === CHARTE.carte ? "creux" : "fondu";
+};
+
+test("repères des mains : creux quand la main est posée (sur la cuisse) ou se déplace, pleins quand elle tient le volant, la languette ou le rétroviseur", () => {
+  const cas = [
+    [0, "creux", "creux", "posées sur les cuisses"],
+    [7.3, "creux", "creux", "en route vers le volant"],
+    [fin(2), "plein", "plein", "elles tiennent le volant"],
+    [10.8, "creux", "plein", "la gauche va chercher la languette"],
+    [12.2, "plein", "plein", "la gauche tire la languette"],
+    [15.2, "plein", "creux", "la droite va vers le rétroviseur"],
+    [16.4, "plein", "plein", "la droite tient le rétroviseur"],
+    [def.duree, "plein", "plein", "les deux au volant"],
+  ];
+  for (const [t, g, d, quoi] of cas) {
+    const image = imageA(def, t, false);
+    assert.deepEqual([pleinRepere(image, "gauche"), pleinRepere(image, "droite")], [g, d], `${t} s, ${quoi}`);
+  }
+  // Dessins fixes : la main gauche tient le volant, son repère plein au centre de la jante vue par la tranche.
+  for (const code of ["siege", "appuie-tete"]) {
+    for (const v of vignettes(famille.DESSINS[code]())) {
+      assert.equal(pleinRepere(v, "gauche"), "plein", code);
+      assert.ok(distance(point(v, "main-gauche"), point(v, "centreVolant")) < 0.5, `${code} : repère G hors du centre du volant`);
+    }
+  }
+});
+
+test("de profil, le repère de la main droite est sous celui de la gauche : sa lettre est masquée tant que la gauche la recouvre, visible dès qu'elles sont séparées", () => {
+  const { rayon } = famille.REPERE_MAIN;
+  let cache = 0, vu = 0;
+  for (let i = 0; i < images.length; i++) {
+    const image = images[i], t = instants[i].toFixed(3);
+    const d = distance(point(image, "main-gauche"), point(image, "main-droite"));
+    const fondu = trouverRole(trouverRole(image, "main-droite"), "lettre-fondu-droite").attributs;
+    if (d < rayon + CHARTE.liseres) { cache++; assert.equal(fondu.display, "none", `${t} s : lettre D visible sous le repère G (${d.toFixed(1)} unités)`); }
+    // Hors des fondus de prise (la main tient, ou elle est posée ou se déplace), la lettre est entière.
+    const prise = def.etat(instants[i]).mains.droite.prise;
+    if (d > 2 * (rayon + CHARTE.liseres) + 2 && (prise === 1 || prise <= 0.45)) {
+      vu++;
+      assert.ok(fondu.display === "inline" && Number(fondu.opacity) === 1, `${t} s : lettre D masquée alors que les repères sont séparés`);
+    }
+  }
+  assert.ok(cache > 100 && vu > 100, `${cache} images cachées, ${vu} visibles`);
+  // Ordre de dessin : le repère D avant le bras gauche, le bras gauche avant le repère G.
+  const ordre = trouverTous(images[0], (x) => ["main-droite", "bras-gauche", "main-gauche"].includes(x.attributs["data-r"])).map((x) => x.attributs["data-r"]);
+  assert.deepEqual(ordre, ["main-droite", "bras-gauche", "main-gauche"]);
+});
+
+test("repères des mains de profil : lettre de 11 px au moins, disque de 16 px au moins sur un téléphone", () => {
+  const px = 343 / 320;
+  const { rayon, lettre } = famille.REPERE_MAIN;
+  assert.ok(lettre * px >= 11 && 2 * rayon * px >= 16, `lettre de ${(lettre * px).toFixed(1)} px, disque de ${(2 * rayon * px).toFixed(1)} px`);
+  const image = imageA(def, 16.4, false);
+  assert.equal(Number(trouverRole(image, "lettre-droite").attributs["font-size"]), lettre);
+  assert.equal(Number(trouverRole(image, "disque-droite").attributs.r), rayon);
+});
+
+test("ceinture : chaque brin est posé sur un liseré clair (il se lit sur le buste sombre), de profil comme de face ; vert dans le dessin de la ceinture, dont elle est l'objet, d'un gris neutre dans le geste, où elle passe devant le siège et l'appuie-tête", () => {
+  const dessins = [["ceinture", famille.DESSINS.ceinture(), CHARTE.accent], ["installation, fin", imageA(def, def.duree, false), "neutre"],
+    ["installation, rangée", imageA(def, 0, false), "neutre"]];
+  const neutres = new Set();
+  for (const [quoi, d, attendu] of dessins) {
+    const groupes = trouverTous(d, (x) => x.attributs["data-r"] === "ceinture");
+    assert.ok(groupes.length >= 1, `${quoi} : ceinture absente`);
+    for (const g of groupes) {
+      for (const role of ["brin-diagonal", "brin-ventral"]) {
+        const brin = trouverRole(g, role);
+        if (attendu === "neutre") {
+          neutres.add(brin.attributs.fill);
+          assert.ok(![CHARTE.accent, CHARTE.accentFort, SILHOUETTE.teinte, SILHOUETTE.loin, CHARTE.peau, CHARTE.peauOmbre].includes(brin.attributs.fill),
+            `${quoi} : ${role} de la teinte ${brin.attributs.fill}`);
+        } else assert.equal(brin.attributs.fill, attendu, `${quoi} : ${role}`);
+        const lisere = g.enfants.find((x) => x.attributs.d === brin.attributs.d && x.attributs.fill === CHARTE.carte);
+        assert.ok(lisere && lisere.attributs.stroke === CHARTE.carte && lisere.attributs["stroke-width"] === 2 * CHARTE.liseres, `${quoi} : ${role} sans liseré`);
+        assert.ok(g.enfants.indexOf(lisere) < g.enfants.indexOf(brin), `${quoi} : liseré de ${role} dessiné par-dessus`);
+      }
+    }
+  }
+  assert.equal(neutres.size, 1, "une seule teinte neutre de la sangle");
+});
+
+test("installation : la flèche de l'étape 5 ne touche pas le repère de la main droite qui tient le rétroviseur (liserés compris)", () => {
+  const fl = flecheDe(imageA(def, debut(4), true)).trait;
+  let tenu = 0;
+  for (let i = 0; i < images.length; i++) {
+    const o = def.etat(instants[i]).retroviseur.orientation;
+    if (o <= 0 || o >= 1) continue;
+    tenu++;
+    const repere = disque(trouverRole(images[i], "main-droite"), "liseret-droite");
+    const marge = repere.rayon + CHARTE.traits.moyen / 2 + CHARTE.liseres;
+    const ecart = Math.min(...fl.map((p) => distance(p, repere.centre)));
+    assert.ok(ecart >= marge, `à ${instants[i].toFixed(3)} s, la flèche passe à ${ecart.toFixed(1)} unités du repère (${marge.toFixed(1)} au moins)`);
+  }
+  assert.ok(tenu > 30);
 });
