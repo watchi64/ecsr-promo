@@ -31,8 +31,8 @@
  * `de` et `a`, étapes `s`, rebroussements) comme la courbure sont les siennes.
  */
 
-import { GABARIT_VELO } from "./piece-cycliste.js?v=20261015c";
-import { adoucir, cles as valeurDesCles } from "./animation-courbes.js?v=20261015c";
+import { GABARIT_VELO } from "./piece-cycliste.js?v=20261022a";
+import { adoucir, cles as valeurDesCles } from "./animation-courbes.js?v=20261022a";
 
 export const DEG = Math.PI / 180;
 export const KMH = 1 / 3.6;

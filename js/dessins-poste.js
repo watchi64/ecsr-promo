@@ -3,19 +3,23 @@
  * © 2026 watchi64 : Tous droits réservés. Voir LICENSE.
  *
  * Dessins de la famille « poste » : tenir le volant (C1.3), les commandes du poste de conduite (C1.1), les pédales et les
- * pieds (C1.2). Les pièces volant, main et pointHeure servent aussi aux gestes du volant (tâche 7, registre GESTES).
+ * pieds (C1.2). Les pièces volant, repereMain et pointHeure servent aussi aux gestes du volant (registre GESTES).
  *
  * Vue du siège : le volant est vu de face, comme le conducteur le voit ; « sens horaire » est celui des aiguilles d'une
  * montre pour lui, et les heures du volant sont celles d'un cadran (12 en haut, 3 à droite). Chaque dimension part d'une
  * mesure en centimètres, ramenée en unités du cadre par l'échelle du dessin : rien n'est placé à l'œil. Les valeurs sans
  * portée réglementaire sont des choix de dessin, recopiés avec leur raison dans sources/dessins-poste.js. Titres et cadres
  * viennent du catalogue des blocs (js/catalogue-blocs.js), la seule source de ces métadonnées.
+ *
+ * Style schématique (décision du formateur du 15/10/2026, essayé d'abord sur C1.3) : les dessins de C1.3 ne dessinent aucune
+ * main ; chaque main est un repère, un disque marqué « G » ou « D » posé sur la jante (repereMain), et le volant comme la
+ * voiture sont des silhouettes à plat. Les dessins de C1.1 et de C1.2 gardent le leur jusqu'à ce que l'essai soit validé.
  */
-import { n, trouverRole } from "./dessin-svg.js?v=20261015c";
-import { CHARTE, COULEURS_VOYANTS, METRIQUES_POLICE, cadre, texte, etiquette, vignette, fleche, couper, arc, voitureDessus, coord, point as pt, trace }
-  from "./dessins-kit.js?v=20261015c";
-import { CATALOGUE } from "./catalogue-blocs.js?v=20261015c";
-import { interpoler, cles } from "./animation-courbes.js?v=20261015c";
+import { n } from "./dessin-svg.js?v=20261022a";
+import { CHARTE, COULEURS_VOYANTS, METRIQUES_POLICE, cadre, texte, etiquette, fleche, arc, voitureDessus, coord, point as pt, trace }
+  from "./dessins-kit.js?v=20261022a";
+import { CATALOGUE } from "./catalogue-blocs.js?v=20261022a";
+import { interpoler, cles } from "./animation-courbes.js?v=20261022a";
 
 // ===== Teintes de l'habitacle (choix de dessin) =====
 // Tons neutres (spec § 3) : plastique sombre des commandes en trois tons (base, reflet, ombre), planche claire, symboles clairs
@@ -59,43 +63,11 @@ function cheminLisse(points, ferme = true) {
   return `M${pt(points[0])} ${traceSegments(segments)}${ferme ? " Z" : ""}`;
 }
 
-// Point d'un segment de Bézier à l'instant t.
-function surBezier([a, b, c, d], t) {
-  const u = 1 - t;
-  return [0, 1].map((k) => u * u * u * a[k] + 3 * u * u * t * b[k] + 3 * u * t * t * c[k] + t * t * t * d[k]);
+// Quadrilatère d'une tige, de `a` à `b`, de largeurs la et lb (commodos, fente de la clé).
+function troncon(a, b, la, lb) {
+  const nrm = normale(unitaire(moins(b, a)));
+  return [plus(a, fois(nrm, la / 2)), plus(b, fois(nrm, lb / 2)), plus(b, fois(nrm, -lb / 2)), plus(a, fois(nrm, -la / 2))];
 }
-// Contour échantillonné d'une courbe lisse fermée (pour savoir si un point est dedans).
-const ECHANTILLONS_SEGMENT = 4;
-function contourEchantillonne(segments) {
-  return segments.flatMap((s) => Array.from({ length: ECHANTILLONS_SEGMENT }, (_, i) => surBezier(s, i / ECHANTILLONS_SEGMENT)));
-}
-// Un point dans un polygone quelconque (parité des croisements d'une demi-droite horizontale).
-function dedans([x, y], poly) {
-  let compte = false;
-  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
-    const [xi, yi] = poly[i], [xj, yj] = poly[j];
-    if ((yi > y) !== (yj > y) && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) compte = !compte;
-  }
-  return compte;
-}
-// Contour entre deux surfaces de même ton (spec § 3) : les morceaux d'une courbe fermée qui passent sur une autre surface,
-// et eux seuls, en un tracé ouvert.
-function contourSur(segments, autre) {
-  const morceaux = [];
-  let courant = null;
-  for (const s of segments) {
-    if (dedans(surBezier(s, 1 / 2), autre)) {
-      if (!courant) { courant = [`M${pt(s[0])}`]; morceaux.push(courant); }
-      courant.push(`C${pt(s[1])} ${pt(s[2])} ${pt(s[3])}`);
-    } else courant = null;
-  }
-  return morceaux.map((m) => m.join(" ")).join(" ") || `M${pt(segments[0][0])}`;
-}
-
-// Partie d'un polygone comprise dans le rectangle [x1, y1, x2, y2] (quatre demi-plans, `couper` du kit) : un avant-bras qui
-// sort d'une vignette s'arrête à son bord.
-const dansRectangle = (poly, [x1, y1, x2, y2]) =>
-  [(p) => x1 - p[0], (p) => p[0] - x2, (p) => y1 - p[1], (p) => p[1] - y2].reduce((q, f) => (q.length ? couper(q, f) : q), poly);
 
 // ===== Volant =====
 
@@ -142,8 +114,9 @@ function anneau(cx, cy, exterieur, interieur) {
  *  moyeu. Le groupe porte le centre (data-x, data-y), le rayon de la ligne médiane de la jante (data-rayon) et l'angle
  *  (data-angle). Les branches et le moyeu tournent autour du centre (groupe « volant-tournant », avec le klaxon) ; la jante
  *  et les reflets ne tournent pas (un cercle reste un cercle, la lumière ne tourne pas). `avertisseur` : le pictogramme du
- *  klaxon sur le moyeu, qui prend alors le rôle « avertisseur » et sa boîte. */
-export function volant({ cx, cy, rayon, angle = 0, role = "volant", avertisseur = false }) {
+ *  klaxon sur le moyeu, qui prend alors le rôle « avertisseur » et sa boîte. `schema` : le style schématique, à plat, sans
+ *  reflet (jante, moyeu et trois branches en aplats). */
+export function volant({ cx, cy, rayon, angle = 0, role = "volant", avertisseur = false, schema = false }) {
   const k = rayon / VOLANT.rayon;
   const centre = [cx, cy], e = EPAISSEUR_JANTE * rayon;
   const branche = (heure, { moyeu, jante, depart }) => {
@@ -170,9 +143,9 @@ export function volant({ cx, cy, rayon, angle = 0, role = "volant", avertisseur 
   return n("g", { "data-r": role, "data-x": cx, "data-y": cy, "data-rayon": rayon, "data-angle": angle },
     n("g", { "data-r": "volant-tournant", transform: `rotate(${angle} ${cx} ${cy})` },
       branche(3, VOLANT.branche), branche(9, VOLANT.branche), branche(6, VOLANT.brancheBas), moyeu),
-    reflet(rMoyeu + VOLANT.refletMoyeu.decalage * k, VOLANT.refletMoyeu, "reflet-moyeu"),
+    !schema && reflet(rMoyeu + VOLANT.refletMoyeu.decalage * k, VOLANT.refletMoyeu, "reflet-moyeu"),
     n("path", { d: anneau(cx, cy, rayon + e / 2, rayon - e / 2), fill: TEINTES.commande, "fill-rule": "evenodd", "data-r": "jante" }),
-    reflet(rayon + VOLANT.reflet.decalage * k, VOLANT.reflet, "reflet-jante"));
+    !schema && reflet(rayon + VOLANT.reflet.decalage * k, VOLANT.reflet, "reflet-jante"));
 }
 
 // Le klaxon en plein, sur le fond `fond` (celui du moyeu, qui fait le creux de l'ouverture).
@@ -189,377 +162,113 @@ function pictoAvertisseur(cx, cy, longueur, fond) {
     n("ellipse", { cx: x(o.centre), cy, rx: h(o.rx - o.epaisseur), ry: h(o.ry - o.epaisseur), fill: fond }));
 }
 
-// ===== Main sur la jante =====
-// Repère de la jante, en centimètres : s le long de la ligne médiane de la jante, compté vers le pouce ; ρ (rho) en travers,
-// compté vers l'extérieur du volant. Main gauche à 9 h : s monte, ρ va vers la gauche. La prise (cours C1.3, fiche ECF C1-C,
-// thème 44) : la main entoure la jante ; vue du siège, le dos de la main en couvre la moitié extérieure, les doigts passent
-// derrière elle et reviennent par son bord intérieur sur sa face avant, le pouce est posé le long de la jante. Engagé, le
-// pouce passe à l'intérieur de la jante, autour de la branche. Dimensions d'une main adulte.
-const MAIN = {
-  // Dos de la main : contour lissé, de l'index (s positif) à l'auriculaire ; il couvre la moitié extérieure de la jante.
-  dos: [[3.6, 1.5], [3.0, 3.9], [1.0, 4.7], [-2.0, 4.6], [-3.9, 3.9], [-4.6, 2.2], [-4.1, 0.3], [-2.0, -0.15], [1.0, -0.2], [3.0, 0.2]],
-  // Doigts, de l'index à l'auriculaire : place le long de la jante, largeur, et longueur dépliée relative (le majeur est le
-  // plus long, l'auriculaire le plus court) ; ils se chevauchent un peu, un pli les sépare.
-  doigts: [{ s: 2.45, largeur: 1.95, longueur: 0.95 }, { s: 0.6, largeur: 2.0, longueur: 1.05 }, { s: -1.3, largeur: 1.95, longueur: 1 },
-    { s: -3.1, largeur: 1.7, longueur: 0.85 }],
-  // Doigt refermé (prise 1) : il déborde du bord intérieur de la jante de 1,2 cm et revient sur sa face avant jusqu'à 0,15 cm
-  // au-delà de la ligne médiane ; forme d'un rectangle à coins ronds (superellipse d'exposant 3). Doigts entrouverts (prise
-  // `glisse`, 0,5 : la jante glisse dans la main) : dépliés, ils sortent de derrière la jante par son bord intérieur, qui
-  // les coupe net, et le dépassent de `depasse` cm (fois leur longueur relative), côtés droits (exposant `cotes`), bout
-  // arrondi (exposant `bout`) ; la jante se voit entre eux et le dos de la main. Entre ces deux prises, ils se déplient
-  // continûment : leur bout extérieur quitte la face avant de la jante (coupé `recouvre` cm avant son extrémité, ce qui
-  // passe derrière), leur bout intérieur s'allonge vers le centre. Main lâchée (prise 0) : main ouverte, écartée de la jante,
-  // doigts tendus devant elle, de `ouverte.longueur` cm (fois leur longueur relative) au-delà du bord du dos de la main, où
-  // ils commencent `ouverte.recouvre` cm sous lui. Entre la prise `glisse` et 0, leur base suit le bord du dos de la main, et
-  // ils passent de derrière la jante à devant elle au début du lâcher, sur la part `passage` de la plage (la coupe va du bord
-  // intérieur de la jante à leur base) : passés plus lentement, ils restaient plusieurs images détachés de la main, la jante
-  // entre eux et le dos de la main. `points` : points du contour d'un doigt. Entrouverts, ils dépassent la jante de 5 cm :
-  // plus courts (4,4 cm), ils se lisaient comme des perles posées à son bord.
-  doigt: { debord: 1.2, bout: 0.15, exposant: 3, points: 32, glisse: 0.5, depasse: 5.0, recouvre: 1.0, passage: 0.4,
-    ouvert: { bout: 2.4, cotes: 4 }, ouverte: { longueur: 6.8, recouvre: 0.6 } },
-  // Pouce : axe de la base au bout (centre de l'arrondi), largeur à la base et au bout. Main qui lâche (prise sous
-  // `doigt.glisse`) : il quitte la jante et se pose le long de l'index, comme dans une main ouverte et détendue (`ouvert`, plus
-  // court que posé sur la jante, et un peu écarté de l'index) ; son axe s'interpole sur toute la plage du lâcher. Posé le long
-  // de la jante sur une main ouverte, il se lisait comme un pouce levé (main droite à 3 h) ou baissé (main gauche à 3 h).
-  pouce: {
-    jante: [[1.4, 1.3], [4.0, 0.35], [6.8, 0.05]],
-    interieur: [[2.0, 1.2], [3.3, -1.2], [2.1, -4.1]],
-    ouvert: [[3.0, 1.3], [4.2, -0.7], [4.8, -2.8]],
-    base: 2.15, bout: 1.75, points: 9,
-  },
-  // Poignet : il quitte la main par son bord tourné vers le coude, à `rayon` cm du centre de la main (repère de la jante) :
-  // à 9 h et à 3 h, coude en bas, sous le dos de la main (-2,4 et 2,6) ; main à midi, au-dessous de la jante, l'avant-bras
-  // descendant devant le volant. Puis sa largeur, la longueur de peau avant la manche, son départ sous la main. L'avant-bras
-  // passe devant la jante et devant les doigts, mais sous le dos de la main, qui le prolonge : voir construireMain.
-  poignet: { centre: [-0.5, 2.5], rayon: 1.9, largeur: 3.8, peau: 3.6, recul: 1.5 },
-  // Manche : largeur vers le coude, longueur du revers (bande plus sombre au bord de la manche).
-  manche: { coude: 6.0, revers: 1.1 },
-  // Main qui relâche : elle s'écarte de la jante, de 0 (prise 1) à 3,2 cm (prise 0, main ouverte) : le dos de la main, qui
-  // couvre la jante jusqu'à 0,2 cm au-delà de sa ligne médiane, en est alors à 1,3 cm, et la jante se voit tout entière.
-  ouverture: 3.2,
+// ===== Mains : les repères G et D =====
+// Style schématique : aucune main n'est dessinée. Chaque main est un disque marqué « G » (main gauche) ou « D » (main droite),
+// posé sur la ligne médiane de la jante à sa place horaire, ou, main en l'air, déplacé vers le centre du volant. Plein (le ton
+// sombre de la peau, la lettre claire) : la main tient la jante et tourne avec elle. Creux (un anneau de ce ton sur le fond
+// clair, la lettre du ton de l'anneau) : la main a relâché la jante, la jante glisse dessous, ou la main se déplace hors d'elle.
+// Un liseré clair borde chaque disque : il le détache de la jante sombre, et de l'autre repère quand l'un passe sur l'autre.
+// Le ton sombre de la peau (CHARTE.peauOmbre) porte la lettre claire à un contraste de 5:1 (4,5:1 exigé pour un texte de cette
+// taille), le ton clair (CHARTE.peau) ne la porterait qu'à 3,5:1.
+const REPERE = {
+  rayon: 10.5,                    // unités : 22,5 px de large sur un téléphone (343 px pour 320 unités)
+  lettre: 12,                     // unités : 12,9 px sur un téléphone, au-dessus des 11 px de la charte
+  graisse: 700,                   // la plus forte d'Outfit dans l'app
+  anneau: CHARTE.traits.appuye,   // trait de l'anneau du repère creux
 };
-// Bord intérieur du dos de la main (repère de la jante, main refermée) : là où commencent les doigts tendus d'une main ouverte.
-const BORD_DOS = Math.min(...MAIN.dos.map((p) => p[1]));
-// Lâcher d'une main, de 0 (elle tient ou laisse glisser la jante, prise d'au moins `glisse`) à 1 (lâchée, prise 0) ; et ses
-// doigts devant la jante, de 0 (derrière elle) à 1 (tout entiers devant), au début du lâcher (MAIN.doigt.passage).
-const lacher = (prise) => Math.min(1, Math.max(0, 1 - prise / MAIN.doigt.glisse));
-const doigtsDevant = (prise) => Math.min(1, lacher(prise) / MAIN.doigt.passage);
-// Coupe de l'avant-bras, en traits fins au-delà du point du dos de la main le plus avancé vers le coude : le demi-trait du pli
-// de ce bord, son bout arrondi et le flou de son bord (le contour du dos de la main est lu en points échantillonnés).
-const MARGE_COUPE = 1.5;
-// Écart à la couture de la peau et de la manche en deçà duquel un sommet de la peau de l'avant-bras est sur elle (unités) : ses
-// deux sommets y sont posés par le calcul, au bruit près.
-const COUTURE_JEU = 1e-6;
-const COTES = { gauche: 1, droite: -1 };   // sens du pouce : horaire pour la main gauche, inverse pour la droite
-const POUCES = ["jante", "interieur"];
-// Teintes de la manche (un tissu neutre, deux tons).
-const MANCHE = { tissu: "#7E8B81", revers: "#66736A" };
+const LETTRES = { gauche: "G", droite: "D" };
+const COTES = Object.keys(LETTRES);
+/** Prises d'une main : 1, elle tient la jante ; `glisse`, la jante glisse dans ses doigts entrouverts ; 0, elle l'a lâchée. */
+const PRISE = Object.freeze({ tient: 1, glisse: 0.5, lachee: 0 });
+// Remplissage d'un repère, de 0 (creux) à 1 (plein) : plein quand la main tient la jante, creux dès qu'elle la laisse glisser ;
+// entre les deux, le temps qu'elle referme ou ouvre les doigts (volant immobile), la teinte passe de l'un à l'autre en fondu.
+// Courbe en S (3v² - 2v³, de pente nulle à ses deux bouts) : une main qui lâche la jante d'un coup (prise de 1 à 0 en 0,35 s)
+// passe par PRISE.glisse à sa plus grande vitesse ; une simple proportion y arrêterait le fondu net.
+const remplissage = (prise) => {
+  const v = Math.min(1, Math.max(0, (prise - PRISE.glisse) / (PRISE.tient - PRISE.glisse)));
+  return v * v * (3 - 2 * v);
+};
+// Teinte à la part t du chemin de la couleur a à la couleur b (#RRGGBB, composantes arrondies à l'entier) : a à 0, b à 1.
+function teinteEntre(a, b, t) {
+  const composante = (hex, i) => parseInt(hex.slice(1 + 2 * i, 3 + 2 * i), 16);
+  return `#${[0, 1, 2].map((i) => Math.round(interpoler(composante(a, i), composante(b, i), t)).toString(16).padStart(2, "0")).join("").toUpperCase()}`;
+}
 
 function connu(valeur, permises, quoi) {
-  if (!permises.includes(valeur)) throw new Error(`Main : ${quoi} « ${valeur} » inconnu : ${permises.map((v) => `« ${v} »`).join(", ")} attendu.`);
+  if (!permises.includes(valeur)) throw new Error(`Repère : ${quoi} « ${valeur} » inconnu : ${permises.map((v) => `« ${v} »`).join(", ")} attendu.`);
   return valeur;
 }
 
-// Pouce : contour en centimètres du repère de la jante, le long d'un axe courbe (Bézier quadratique qui passe par les trois
-// points), de largeur décroissante, arrondi aux deux bouts.
-const ARRONDI = [Math.PI / 4, 0, -Math.PI / 4];
-function contourPouce(axe, base, bout, nombre) {
-  const [p0, p1, p2] = axe;
-  const c = moins(fois(p1, 2), fois(plus(p0, p2), 1 / 2));
-  const point = (t) => plus(plus(fois(p0, (1 - t) * (1 - t)), fois(c, 2 * t * (1 - t))), fois(p2, t * t));
-  const tangente = (t) => unitaire(plus(fois(moins(c, p0), 2 * (1 - t)), fois(moins(p2, c), 2 * t)));
-  const gauche = [], droite = [];
-  for (let i = 0; i <= nombre; i++) {
-    const t = i / nombre, demi = (base + (bout - base) * t) / 2;
-    const nrm = normale(tangente(t));
-    gauche.push(plus(point(t), fois(nrm, demi)));
-    droite.push(plus(point(t), fois(nrm, -demi)));
-  }
-  const arrondi = (centre, dir, demi) => {
-    const nrm = normale(dir);
-    return ARRONDI.map((a) => plus(centre, plus(fois(dir, demi * Math.cos(a)), fois(nrm, demi * Math.sin(a)))));
-  };
-  return [...gauche, ...arrondi(p2, tangente(1), bout / 2), ...droite.reverse(), ...arrondi(p0, fois(tangente(0), -1), base / 2)];
-}
-
-// Quadrilatère d'une portion d'avant-bras, de `a` à `b`, de largeurs la et lb.
-function troncon(a, b, la, lb) {
-  const nrm = normale(unitaire(moins(b, a)));
-  return [plus(a, fois(nrm, la / 2)), plus(b, fois(nrm, lb / 2)), plus(b, fois(nrm, -lb / 2)), plus(a, fois(nrm, -la / 2))];
-}
-const traceOuPoint = (points, repli) => (points.length >= 3 ? trace(points) : `M${pt(repli)}`);
-
-/** Contour d'un doigt, en centimètres du repère de la jante, selon la prise (MAIN.doigt) : `s` et `largeur` le placent le
- *  long de la jante, `longueur` est sa longueur dépliée relative. Deux bouts de superellipse (le bout intérieur, le bout
- *  extérieur), chacun de sa demi-hauteur et de son exposant, reliés par des côtés droits ; refermé, les deux bouts ont le
- *  même centre (la superellipse entière). Le tout est coupé par la droite ρ = coupe : ce qui est au-delà passe derrière la
- *  jante. */
-function contourDoigt({ s, largeur, longueur: relative }, prise) {
-  const bord = -VOLANT.jante / 2, d = MAIN.doigt, o = d.ouvert, a = largeur / 2;
-  // Trois états clés : refermé (prise 1), entrouvert (prise d.glisse), lâché (prise 0) ; entre deux, tout s'interpole.
-  const entrouvert = { interieur: bord - d.depasse * relative, exterieur: bord + d.recouvre, coupe: bord, base: o.cotes };
-  let interieur, exterieur, coupe, base;
-  if (prise >= d.glisse) {
-    const u = (prise - d.glisse) / (1 - d.glisse);   // 0 : entrouvert ; 1 : refermé
-    interieur = interpoler(entrouvert.interieur, bord - d.debord, u);
-    exterieur = interpoler(entrouvert.exterieur, d.bout, u);
-    coupe = exterieur - (1 - u) * d.recouvre;
-    base = interpoler(o.cotes, d.exposant, u);
-  } else {
-    const v = prise / d.glisse;                       // 0 : lâché ; 1 : entrouvert
-    const pied = BORD_DOS + MAIN.ouverture;           // bord du dos de la main ouverte, écartée de la jante
-    interieur = interpoler(pied - d.ouverte.longueur * relative, entrouvert.interieur, v);
-    // Leur base suit le bord du dos de la main, qui s'écarte de la jante (derrière la jante, elle ne se voit pas) ; la coupe va du
-    // bord intérieur de la jante à cette base pendant qu'ils passent devant elle.
-    exterieur = BORD_DOS + (1 - prise) * MAIN.ouverture + d.ouverte.recouvre;
-    coupe = interpoler(entrouvert.coupe, exterieur, doigtsDevant(prise));
-    base = interpoler(d.exposant, o.cotes, v);
-  }
-  const u = Math.min(1, Math.max(0, (prise - d.glisse) / (1 - d.glisse)));
-  const demi = (exterieur - interieur) / 2;
-  const hauteur = Math.max(Math.min(interpoler(a, demi, u), demi), Number.EPSILON);   // demi-hauteur de chaque bout
-  const bouts = [   // [centre, exposant] : extérieur (sinus positif), intérieur
-    [exterieur - hauteur, base],
-    [interieur + hauteur, interpoler(o.bout, d.exposant, u)],
-  ];
-  const points = Array.from({ length: d.points }, (_, i) => {
-    const t = (2 * Math.PI * i) / d.points, c = Math.cos(t), si = Math.sin(t);
-    const [centre, e] = bouts[si < 0 ? 1 : 0];
-    return [s + a * Math.sign(c) * Math.abs(c) ** (2 / e), centre + hauteur * Math.sign(si) * Math.abs(si) ** (2 / e)];
-  });
-  const coupes = couper(points, (p) => p[1] - coupe);
-  return coupes.length >= 3 ? coupes : [[s - a, coupe], [s + a, coupe], [s, coupe - Number.EPSILON]];
-}
-
-// Centre de surface de polygones de même orientation (leurs centres, pondérés par leur aire) : il glisse continûment quand la
-// coupe d'un doigt avance, là où la moyenne des points de leurs contours sauterait dès qu'un groupe de points est découvert.
-// Sans surface, la moyenne de leurs points.
-function centreSurface(polygones) {
-  let [aire, sx, sy] = [0, 0, 0];
-  for (const p of polygones) {
-    p.forEach(([x0, y0], i) => {
-      const [x1, y1] = p[(i + 1) % p.length], c = x0 * y1 - x1 * y0;
-      aire += c; sx += (x0 + x1) * c; sy += (y0 + y1) * c;
-    });
-  }
-  if (Math.abs(aire) > SURFACE_MIN) return [sx / (3 * aire), sy / (3 * aire)];
-  const points = polygones.flat();
-  return [0, 1].map((i) => points.reduce((somme, q) => somme + q[i], 0) / points.length);
-}
-const SURFACE_MIN = 1e-9;   // deux fois l'aire, en unités carrées : en deçà, des polygones sans surface
-
-// Côtés d'un polygone en segments de Bézier droits d'au plus PAS_COTE unités : contourSur juge chaque segment par son milieu,
-// un long côté droit se borde donc au plus près morceau par morceau.
-const PAS_COTE = 2;
-function segmentsCote(a, b) {
-  const nombre = Math.max(1, Math.ceil(longueur(moins(b, a)) / PAS_COTE));
-  return Array.from({ length: nombre }, (_, j) => {
-    const [p, q] = [j / nombre, (j + 1) / nombre].map((t) => plus(a, fois(moins(b, a), t)));
-    return [p, plus(p, fois(moins(q, p), 1 / 3)), plus(p, fois(moins(q, p), 2 / 3)), q];
-  });
-}
-function segmentsDroits(poly) {
-  return poly.flatMap((a, i) => segmentsCote(a, poly[(i + 1) % poly.length]));
-}
-// Contour de chaque courbe fermée de `listes` là où elle passe sur l'un des `polygones` (une autre surface du même ton), en un
-// tracé ; `repli` quand il n'y a rien à border (le nœud reste, une animation ne change que ses attributs).
-function contoursSur(listes, polygones, repli) {
-  const morceaux = listes.flatMap((segments) => polygones.map((poly) => contourSur(segments, poly)))
-    .filter((trace) => /C/.test(trace));
-  return morceaux.length ? morceaux.join(" ") : `M${pt(repli)}`;
-}
-
-/** Main posée sur la jante d'un volant de centre (cx, cy) et de rayon `rayon` (ligne médiane de la jante), à `heure` (12 en
- *  haut, 3 à droite). `cote` : « gauche » ou « droite » (le pouce file dans le sens horaire pour la main gauche, en sens
- *  inverse pour la droite : les deux mains sont en miroir). `prise` : de 0 (main ouverte, écartée de la jante, doigts tendus
- *  devant elle, le pouce posé le long de l'index) à 1 (main refermée, les doigts repliés sur la face avant de la jante), en
- *  passant par 0,5 (doigts entrouverts, sortis de derrière la jante par son bord intérieur : la jante glisse dans la main).
- *  `pouce` : « jante » (posé le long de la jante) ou « interieur » (engagé à l'intérieur de la jante), tant que la main tient
- *  ou glisse.
- *  `avantBras` : { coude: [x, y], limite: [x1, y1, x2, y2] } ajoute l'avant-bras (poignet, puis manche) du poignet vers le
- *  coude, coupé au rectangle `limite` : il passe sous le dos de la main et devant les doigts. `deplacement` : [dx, dy], la main en l'air, déplacée d'un bloc (le coude reste en
- *  place). `dessous` : { peau, manche }, les surfaces d'une autre main que celle-ci recouvre (construireMain les rend) : un
- *  contour sépare alors deux surfaces de même ton. Rôles : main-<cote> (point de prise sur la ligne médiane de la jante,
- *  déplacement compris, data-x et data-y), pouce-<cote> (centre de l'arrondi du bout du pouce), doigts-<cote> (centre de la
- *  surface visible des doigts), poignet-<cote> (la peau du poignet sous le dos de la main), avant-bras-<cote> (le reste de l'avant-bras, sa
- *  manche comprise ; repère : le poignet), doigts-devant-<cote> (les doigts redessinés devant l'avant-bras, main ouverte). Mêmes nœuds quelles que soient l'heure, la prise, le pouce, le côté et le
- *  déplacement : une animation ne fait que changer leurs attributs. */
-export function main(options) {
-  return construireMain(options).noeud;
-}
-
-/** La main (voir main) et ses surfaces : { noeud, surfaces: { peau, manche } }, les polygones de sa peau et de sa manche, à
- *  passer en `dessous` à une main qui la recouvre. */
-function construireMain({ cx, cy, rayon, heure, cote, prise = 1, pouce = "jante", avantBras = null, deplacement = [0, 0], dessous = null }) {
-  const sens = COTES[connu(cote, Object.keys(COTES), "côté")];
-  connu(pouce, POUCES, "pouce");
-  if (!Number.isFinite(heure)) throw new Error(`Main : heure « ${heure} » non finie.`);
-  if (!(prise >= 0 && prise <= 1)) throw new Error(`Main : prise « ${prise} » hors de 0 à 1.`);
-  if (!(Array.isArray(deplacement) && deplacement.length === 2 && deplacement.every(Number.isFinite))) {
-    throw new Error(`Main : déplacement « ${deplacement} » invalide, [dx, dy] attendu.`);
-  }
-  const k = rayon / VOLANT.rayon;
-  const ecart = (1 - prise) * MAIN.ouverture;
-  const local = ([s, r]) => plus(pointHeure(cx, cy, rayon + r * k, heure + (sens * s * k * HEURES_PAR_TOUR) / (2 * Math.PI * rayon)), deplacement);
-  const decale = ([s, r]) => local([s, r + ecart]);
-
-  // Dos de la main, et la surface qu'il couvre (pour poser les plis entre deux surfaces de peau).
-  const dos = MAIN.dos.map(decale);
-  const segmentsDos = segmentsLisses(dos, true);
-  const surfaces = [contourEchantillonne(segmentsDos)];
-
-  // Avant-bras : la peau du poignet, puis la manche et son revers. Le poignet part du bord de la main tourné vers le coude
-  // (direction du coude lue dans le repère de la jante, depuis le centre de la main). L'avant-bras passe devant la jante et
-  // devant les doigts, mais sous le dos de la main, qui le prolonge : sa peau se coupe au-delà du point du dos de la main le
-  // plus avancé vers le coude, d'un trait fin (le pli du bord du dos de la main, centré sur ce bord, reste entier) ; la partie
-  // d'avant la coupe passe sous le dos de la main, le reste et la manche passent sur les doigts, en reprenant la première sur
-  // un demi-trait fin (pas de jour entre les deux).
-  let bras = null;
-  if (avantBras) {
-    const { poignet: p, manche: mc } = MAIN;
-    const a = heure * PAS_HEURE, dehors = [Math.sin(a), -Math.cos(a)], long = fois([Math.cos(a), Math.sin(a)], sens);
-    const vers = unitaire(moins(avantBras.coude, decale(p.centre)));
-    const w = decale(plus(p.centre, fois([vers[0] * long[0] + vers[1] * long[1], vers[0] * dehors[0] + vers[1] * dehors[1]], p.rayon)));
-    const axe = unitaire(moins(avantBras.coude, w));
-    const point = (d) => plus(w, fois(axe, d * k));   // à d cm du poignet, vers le coude
-    const total = longueur(moins(avantBras.coude, w)) / k;
-    const largeurA = (dist) => (p.largeur + ((mc.coude - p.largeur) * dist) / total) * k;   // la manche s'élargit vers le coude
-    // Peau du poignet, de `recul` cm sous la main jusqu'à la manche, sa largeur passant de celle du poignet à celle de la manche.
-    const largeurPeau = (d) => interpoler(p.largeur * k, largeurA(p.peau), (d + p.recul) / (p.recul + p.peau));
-    const tronconPeau = (de, jusqua) => dansRectangle(troncon(point(de), point(jusqua), largeurPeau(de), largeurPeau(jusqua)), avantBras.limite);
-    const avancee = Math.max(...surfaces[0].map((q) => ((q[0] - w[0]) * axe[0] + (q[1] - w[1]) * axe[1]) / k));
-    const [marge, reprise] = [MARGE_COUPE * CHARTE.traits.fin / k, CHARTE.traits.fin / 2 / k];   // en centimètres
-    const coupe = Math.min(avancee + marge + reprise, p.peau);
-    const peauSous = tronconPeau(-p.recul, coupe), peauDessus = tronconPeau(coupe - reprise, p.peau);
-    const manche = dansRectangle(troncon(point(p.peau), avantBras.coude, largeurA(p.peau), mc.coude * k), avantBras.limite);
-    const revers = dansRectangle(troncon(point(p.peau), point(p.peau + mc.revers), largeurA(p.peau), largeurA(p.peau + mc.revers)), avantBras.limite);
-    bras = { w, peauSous, peauDessus, manche, revers, couture: { point: point(p.peau), axe },
-      pli: peauSous.length >= 3 ? contourSur(segmentsDos, peauSous) : `M${pt(dos[0])}` };
-    if (peauSous.length >= 3) surfaces.push(peauSous);
-  }
-
-  // Doigts, de l'auriculaire à l'index (chacun pose son pli sur le précédent, sur le dos de la main et sur le poignet).
-  const doigts = [...MAIN.doigts].reverse().map((doigt) => {
-    const forme = contourDoigt(doigt, prise).map(local);
-    const segments = segmentsDroits(forme);
-    const sous = [...surfaces];   // ce qu'il recouvre
-    const plis = sous.map((surface) => contourSur(segments, surface)).join(" ");
-    surfaces.push(forme);
-    return { trace: trace(forme), plis, segments, forme, sous };
-  });
-  // Repère des doigts : le centre de leur surface visible.
-  const milieuDoigts = centreSurface(doigts.map((x) => x.forme));
-  // L'avant-bras posé sur les doigts : un pli là où sa peau passe sur la leur, côté par côté, sauf sur sa couture avec la
-  // manche (d'un autre ton, les doigts continuent dessous). Main lâchée (prise sous MAIN.doigt.glisse), ses doigts tendus
-  // devant la jante passent aussi devant son avant-bras : les mêmes doigts, redessinés par-dessus lui, opaques tant qu'ils sont
-  // tout entiers devant la jante, effacés dès qu'ils sont derrière elle (`devant`, un fondu pendant qu'ils passent de l'un à
-  // l'autre), leurs plis posés aussi sur l'avant-bras.
-  let plisBras = null, plisDevant = null;
-  const devant = doigtsDevant(prise);
-  if (bras) {
-    const { point: c, axe } = bras.couture, q = bras.peauDessus;
-    const surCouture = (p) => Math.abs((p[0] - c[0]) * axe[0] + (p[1] - c[1]) * axe[1]) < COUTURE_JEU;
-    const cotes = q.length >= 3 ? q.map((a, i) => [a, q[(i + 1) % q.length]]).filter(([a, b]) => !(surCouture(a) && surCouture(b))) : [];
-    plisBras = contoursSur(cotes.map(([a, b]) => segmentsCote(a, b)), doigts.map((x) => x.forme), bras.w);
-    const dessousDevant = q.length >= 3 ? [q] : [];
-    plisDevant = doigts.map((x) => [...x.sous, ...dessousDevant].map((surface) => contourSur(x.segments, surface)).join(" "));
-    if (q.length >= 3) surfaces.push(q);
-  }
-
-  // Pouce, posé sur tout ce qui précède. La main qui lâche (prise sous MAIN.doigt.glisse) l'amène le long de l'index, sur toute
-  // la plage du lâcher.
-  const axePouce = MAIN.pouce[pouce].map((p, i) => [0, 1].map((k) => interpoler(p[k], MAIN.pouce.ouvert[i][k], lacher(prise))));
-  const formePouce = contourPouce(axePouce, MAIN.pouce.base, MAIN.pouce.bout, MAIN.pouce.points).map(decale);
-  const segmentsPouce = segmentsLisses(formePouce, true);
-  const plisPouce = surfaces.map((surface) => contourSur(segmentsPouce, surface)).join(" ");
-  const boutPouce = decale(axePouce[2]);
-  const prisePoint = local([0, 0]);
-
-  const peau = { fill: CHARTE.peau };
-  const pli = { fill: "none", stroke: CHARTE.peauOmbre, "stroke-width": CHARTE.traits.fin, "stroke-linecap": "round", "stroke-linejoin": "round" };
-  // Sur une autre main (`dessous`) : le contour de chaque surface de celle-ci là où elle passe sur une surface de même ton de
-  // l'autre, posé juste après elle (ce qui la recouvre dans cette main le recouvre aussi).
-  const sur = (listes, polygones, repli) => n("path", { d: contoursSur(listes, polygones, repli), ...pli, "data-r": `contour-peau-${cote}` });
-  const surManche = (listes, repli) => n("path", { d: contoursSur(listes, dessous.manche, repli), ...pli, stroke: MANCHE.revers,
-    "data-r": `contour-manche-${cote}` });
-  const surPeau = (poly) => (poly.length >= 3 ? [segmentsDroits(poly)] : []);
-  // De dessous à dessus : la peau du poignet sous le dos de la main, le dos de la main, les doigts, le reste de l'avant-bras
-  // (peau et manche, qui passent devant les doigts), les doigts redessinés devant lui (main ouverte), le pouce.
-  const noeud = n("g", { "data-r": `main-${cote}`, "data-x": prisePoint[0], "data-y": prisePoint[1], "data-heure": heure, "data-prise": prise },
-    bras ? n("g", { "data-r": `poignet-${cote}` },
-      n("path", { d: traceOuPoint(bras.peauSous, bras.w), ...peau }),
-      dessous ? sur(surPeau(bras.peauSous), dessous.peau, bras.w) : null) : null,
-    n("path", { d: `M${pt(dos[0])} ${traceSegments(segmentsDos)} Z`, ...peau, "data-r": `dos-${cote}` }),
-    dessous ? sur([segmentsDos], dessous.peau, dos[0]) : null,
-    bras ? n("path", { d: bras.pli, ...pli }) : null,
-    n("g", { "data-r": `doigts-${cote}`, "data-x": milieuDoigts[0], "data-y": milieuDoigts[1] },
-      doigts.map((x) => n("g", {}, n("path", { d: x.trace, ...peau }), n("path", { d: x.plis, ...pli }),
-        dessous ? sur([x.segments], dessous.peau, x.forme[0]) : null))),
-    bras ? n("g", { "data-r": `avant-bras-${cote}`, "data-x": bras.w[0], "data-y": bras.w[1] },
-      n("g", { "data-r": `manche-${cote}` },
-        n("path", { d: traceOuPoint(bras.manche, bras.w), fill: MANCHE.tissu }),
-        n("path", { d: traceOuPoint(bras.revers, bras.w), fill: MANCHE.revers }),
-        dessous ? surManche([bras.manche, bras.revers].filter((q) => q.length >= 3).map(segmentsDroits), bras.w) : null),
-      n("path", { d: traceOuPoint(bras.peauDessus, bras.w), ...peau }),
-      n("path", { d: plisBras, ...pli, "data-r": `pli-avant-bras-${cote}` }),
-      dessous ? sur(surPeau(bras.peauDessus), dessous.peau, bras.w) : null) : null,
-    bras ? n("g", { "data-r": `doigts-devant-${cote}`, opacity: devant },
-      doigts.map((x, i) => n("g", {}, n("path", { d: x.trace, ...peau }), n("path", { d: plisDevant[i], ...pli }),
-        dessous ? sur([x.segments], dessous.peau, x.forme[0]) : null))) : null,
-    n("g", { "data-r": `pouce-${cote}`, "data-x": boutPouce[0], "data-y": boutPouce[1] },
-      n("path", { d: `M${pt(formePouce[0])} ${traceSegments(segmentsPouce)} Z`, ...peau }),
-      n("path", { d: plisPouce, ...pli }),
-      dessous ? sur([segmentsPouce], dessous.peau, formePouce[0]) : null));
-  const surfacesPeau = [surfaces[0], ...(bras ? [bras.peauSous, bras.peauDessus].filter((q) => q.length >= 3) : []),
-    ...doigts.map((x) => x.forme), contourEchantillonne(segmentsPouce)];
-  return { noeud, surfaces: { peau: surfacesPeau, manche: bras ? [bras.manche, bras.revers].filter((q) => q.length >= 3) : [] } };
+/** Repère d'une main sur un volant de centre (cx, cy) et de rayon `rayon` (ligne médiane de la jante, en unités), à `heure`
+ *  (12 en haut, 3 à droite ; nombre continu), déplacé de `decalage` unités vers le centre du volant (0 : posé sur la jante ;
+ *  plus : la main en l'air). `cote` : « gauche » (G) ou « droite » (D). `prise` : de 0 (lâchée) à 1 (elle tient la jante) ;
+ *  plein à 1, creux dès 0,5 (PRISE.glisse). Rôles : main-<cote> (centre du disque en data-x et data-y ; data-heure, data-prise),
+ *  disque-<cote> (le disque, plein ou du fond clair), anneau-<cote> (son contour), lettre-<cote>. Mêmes nœuds quels que soient
+ *  l'heure, la prise, le décalage et le côté : une animation ne fait que changer leurs attributs. */
+export function repereMain({ cx, cy, rayon, heure, cote, prise = PRISE.tient, decalage = 0 }) {
+  connu(cote, COTES, "côté");
+  if (!Number.isFinite(heure)) throw new Error(`Repère : heure « ${heure} » non finie.`);
+  if (!(prise >= PRISE.lachee && prise <= PRISE.tient)) throw new Error(`Repère : prise « ${prise} » hors de 0 à 1.`);
+  if (!(decalage >= 0 && decalage <= rayon)) throw new Error(`Repère : décalage « ${decalage} » hors de 0 au rayon du volant.`);
+  const [x, y] = pointHeure(cx, cy, rayon - decalage, heure);
+  const f = remplissage(prise), R = REPERE;
+  // Pendant le fondu, le disque passe par des teintes mêlées : la lettre garde une des deux teintes pures, claire sur la moitié
+  // pleine du fondu, sombre sur la moitié creuse, et s'efface au milieu (opacité |2f - 1|), là où elle change de teinte : elle
+  // ne se pose jamais sur un disque de sa propre teinte (à demi visible, elle y garde un contraste de 3:1 au moins).
+  return n("g", { "data-r": `main-${cote}`, "data-x": x, "data-y": y, "data-heure": heure, "data-prise": prise },
+    n("circle", { cx: x, cy: y, r: R.rayon + CHARTE.liseres, fill: CHARTE.carte, "data-r": `liseret-${cote}` }),
+    n("circle", { cx: x, cy: y, r: R.rayon, fill: teinteEntre(CHARTE.carte, CHARTE.peauOmbre, f), "data-r": `disque-${cote}` }),
+    n("circle", { cx: x, cy: y, r: R.rayon - R.anneau / 2, fill: "none", stroke: CHARTE.peauOmbre, "stroke-width": R.anneau,
+      "data-r": `anneau-${cote}` }),
+    n("g", { opacity: Math.abs(2 * f - 1), "data-r": `lettre-fondu-${cote}` },
+      texte(x, y + METRIQUES_POLICE.milieuCapitales * R.lettre, LETTRES[cote], { taille: R.lettre, ancrage: "middle", graisse: R.graisse,
+        couleur: f >= 1 / 2 ? CHARTE.carte : CHARTE.peauOmbre, role: `lettre-${cote}` })));
 }
 
 // ===== Dessin 1 : tenir le volant (C1.3) =====
-// Deux vignettes côte à côte, la légende de chacune écrite dessous. Échelle : 2,7 unités par centimètre (un volant de 37 cm
-// fait 100 unités, 107 px sur un téléphone). Avant-bras coupés au bord de la vignette, sous son filet.
+// Deux volants côte à côte, vus du siège, les mains en repères pleins (elles tiennent la jante) : à gauche la position de
+// référence, 9 h 15 (main gauche à 9 h, main droite à 3 h ; remarque du formateur du 15/10/2026 : « 9 h 15, pas 9 h et 3 h ») ;
+// à droite la variante que le cours admet, 10 h 10 (main gauche à 10 h,
+// main droite à 2 h). « Midi » est écrit en haut de chaque volant, dans sa couronne, comme le 12 d'un cadran ; la position est
+// écrite sous chaque volant ; sous la position de référence, son usage : « Lignes droites et courbes » (remarque du formateur du
+// 15/10/2026 : 9 h 15 dans les courbes et lignes droites, tirer-glisser dans les virages, chevauchement dans les tournants et
+// les manœuvres). Échelle des gestes : 3,2 unités par centimètre (un volant de 37 cm fait 118 unités, 127 px sur un téléphone).
 const MAINS_VOLANT = {
-  echelle: 2.7, marge: 8, gouttiere: 8, bandeLegende: 26, hautPastille: 36, degagement: 7,
-  // Coudes : 30 cm sous le centre du volant, 4 cm plus à l'extérieur que la ligne médiane de la jante (l'avant-bras sort
-  // de la vignette par son bord bas, jamais par un coin).
-  coude: { dessous: 30, dehors: 4 },
-  legende: { taille: 11, base: 15 },
-  // Anneau qui désigne le pouce engagé, lu sur son repère (le bout du pouce, rôle pouce-gauche) : centré 1,9 cm plus loin
-  // du centre du volant que ce bout, donc sur la partie du pouce passée à l'intérieur de la jante ; 3,5 cm de rayon.
-  anneau: { versJante: 1.9, rayon: 3.5 },
+  echelle: 3.2,
+  colonnes: [80, 240],   // centres des deux volants : au quart et aux trois quarts du cadre
+  positions: [
+    { heures: { gauche: 9, droite: 3 }, legende: "9 h 15", usage: "Lignes droites et courbes" },
+    { heures: { gauche: 10, droite: 2 }, legende: "ou 10 h 10" },
+  ],
+  legende: { taille: CHARTE.tailles.etiquette, ecart: 6 },   // la position sous le volant, à `ecart` unités du bord de la jante
+  usage: { taille: CHARTE.tailles.petite },                  // l'usage, une ligne plus bas (interligne d'Outfit), plus discret
+  // « Midi » : au milieu de la couronne, entre le moyeu et le bord intérieur de la jante, vers le haut.
+  midi: { taille: CHARTE.tailles.petite, place: 0.5 },
 };
 
 function mainsVolant() {
   const code = "mains-volant";
   const [L, H] = CATALOGUE[code].cadre;
-  const m = MAINS_VOLANT, k = m.echelle;
-  const carte = { largeur: (L - 2 * m.marge - m.gouttiere) / 2, hauteur: H - m.marge - m.bandeLegende };
-  const rayon = VOLANT.rayon * k, e = EPAISSEUR_JANTE * rayon;
-  const vignetteMains = (x, etat, pouce, legende) => {
-    const cx = x + carte.largeur / 2, cy = m.marge + m.hautPastille + m.degagement + rayon + e / 2;
-    const bord = CHARTE.traits.fin / 2;   // l'avant-bras passe sous le filet de la carte, qui reste entier
-    const limite = [x + bord, m.marge + bord, x + carte.largeur - bord, m.marge + carte.hauteur - bord];
-    const coude = (cote) => [cx + COTES[cote] * -1 * (rayon + m.coude.dehors * k), cy + m.coude.dessous * k];
-    const mainDe = (cote, heure, sonPouce) => main({ cx, cy, rayon, heure, cote, pouce: sonPouce, avantBras: { coude: coude(cote), limite } });
-    const gauche = mainDe("gauche", 9, pouce);
-    let cercle = null;
-    if (pouce === "interieur") {
-      const repere = trouverRole(gauche, "pouce-gauche").attributs, bout = [repere["data-x"], repere["data-y"]];
-      const [ax, ay] = plus(bout, fois(unitaire(moins(bout, [cx, cy])), m.anneau.versJante * k));
-      cercle = n("g", { "data-r": "anneau-pouce", "data-x": ax, "data-y": ay, "data-rayon": m.anneau.rayon * k },
-        n("circle", { cx: ax, cy: ay, r: m.anneau.rayon * k, fill: "none", stroke: CHARTE.carte, "stroke-width": CHARTE.traits.moyen + 2 * CHARTE.liseres }),
-        n("circle", { cx: ax, cy: ay, r: m.anneau.rayon * k, fill: "none", stroke: CHARTE.faux, "stroke-width": CHARTE.traits.moyen }));
-    }
-    return vignette({ x, y: m.marge, largeur: carte.largeur, hauteur: carte.hauteur, etat },
-      volant({ cx, cy, rayon }),
-      gauche, mainDe("droite", 3, "jante"),
-      cercle,
-      texte(cx, m.marge + carte.hauteur + m.legende.base, legende, { taille: m.legende.taille, ancrage: "middle", role: `legende-${etat}` }));
-  };
+  const m = MAINS_VOLANT, M = METRIQUES_POLICE;
+  const rayon = VOLANT.rayon * m.echelle, e = EPAISSEUR_JANTE * rayon, rMoyeu = VOLANT.moyeu * m.echelle;
+  // Le volant, sa légende et la ligne d'usage, centrés en hauteur dans le cadre.
+  const pasUsage = M.interligne * m.usage.taille;
+  const hauteurLegende = M.haut * m.legende.taille + pasUsage + M.bas * m.usage.taille;
+  const cy = (H - (2 * rayon + e + m.legende.ecart + hauteurLegende)) / 2 + rayon + e / 2;
+  const rMidi = rMoyeu + m.midi.place * (rayon - e / 2 - rMoyeu);
+  const yLegende = cy + rayon + e / 2 + m.legende.ecart + M.haut * m.legende.taille;
+  const colonne = (cx, { heures, legende, usage }, i) => n("g", { "data-r": `position-${i + 1}` },
+    volant({ cx, cy, rayon, schema: true }),
+    texte(cx, cy - rMidi + M.milieuCapitales * m.midi.taille, "Midi", { taille: m.midi.taille, ancrage: "middle", couleur: CHARTE.texteDoux,
+      role: "midi" }),
+    COTES.map((cote) => repereMain({ cx, cy, rayon, heure: heures[cote], cote })),
+    texte(cx, yLegende, legende, { taille: m.legende.taille, ancrage: "middle", role: "legende" }),
+    usage && texte(cx, yLegende + pasUsage, usage, { taille: m.usage.taille, ancrage: "middle", couleur: CHARTE.texteDoux, role: "mention" }));
   return cadre({ largeur: L, hauteur: H, titre: CATALOGUE[code].titre,
-    description: "Juste : mains à 9 h et 3 h, ou 10 h 10, les pouces posés le long de la jante. Faux : le pouce gauche engagé à l'intérieur de la jante, autour de la branche." },
-  vignetteMains(m.marge, "juste", "jante", "9 h et 3 h, ou 10 h 10"),
-  vignetteMains(m.marge + carte.largeur + m.gouttiere, "faux", "interieur", "Pouce engagé dans la jante"));
+    description: "Deux volants vus du siège, midi en haut, les mains en repères G et D posés sur la jante. À gauche, la position de "
+      + "référence, 9 h 15 : main gauche à 9 h, main droite à 3 h, dans les lignes droites et les courbes. À droite, la variante admise, 10 h 10 : "
+      + "main gauche à 10 h, main droite à 2 h." },
+  m.colonnes.map((cx, i) => colonne(cx, m.positions[i], i)));
 }
 
 // ===== Pictogrammes normalisés des commandes =====
@@ -926,119 +635,108 @@ function pedales() {
 }
 
 // ===== Gestes du volant (C1.3) : tirer-glisser, chevauchement, retour du volant =====
-// Le volant vu du siège, comme dans « mains-volant », à plus grande échelle, les deux avant-bras en manche sortant du cadre par
-// le bas ; à côté, la voiture vue du dessus (celle des scènes) braque ses roues avant dans le même sens que le volant, et un
-// compteur discret dit l'angle du volant ; en haut à droite, un libellé dit la situation (en circulation, en manœuvre, en
-// roulant, basse allure). Les trois gestes tournent à droite (le cours : « Symétrique pour la gauche »).
+// Le volant vu du siège, comme dans « mains-volant », les mains en repères G et D (repereMain : plein, la main tient la jante ;
+// creux, elle l'a relâchée, la laisse glisser ou se déplace en l'air) ; à côté, la voiture vue du dessus, en silhouette, braque
+// ses roues avant dans le même sens que le volant, et un compteur dit l'angle du volant ; en haut à droite, un libellé dit la
+// situation (dans les virages, tournants et manœuvres, en roulant, basse allure). Les trois gestes tournent à droite (le cours : « Symétrique
+// pour la gauche »).
 //
 // État d'une image : { volant, mains: { gauche, droite }, allure? }. `volant` : degrés, sens horaire positif vu du conducteur.
 // Une main : { heure, prise, decalage } : `heure`, sa place dans l'espace (12 en haut ; nombre continu, 15 est 3 h un tour
-// plus loin) ; `prise`, 1 quand elle tient la jante (elle tourne alors avec le volant : heure - volant / 30 reste constant),
-// moins de 1 quand la jante glisse dans ses doigts (elle reste en place quand le volant tourne, ou se déplace volant
-// immobile), 0 quand elle l'a lâchée ; `decalage`, en centimètres vers le centre du volant, la main en l'air (0 sur la
-// jante). `allure` (retour du volant) : « roulant » ou « basse ». Le libellé de situation se lit dans l'état : il nomme la
-// situation d'une étape et change à l'instant où l'étape commence, comme la légende des étapes du lecteur, sans fondu.
+// plus loin) ; `prise` (PRISE), 1 quand elle tient la jante (elle tourne alors avec le volant : heure - volant / 30 reste
+// constant), moins de 1 quand la jante glisse dans ses doigts (elle reste en place quand le volant tourne, ou se déplace volant
+// immobile), 0 quand elle l'a lâchée ; `decalage`, en centimètres vers le centre du volant, la main en l'air (0 sur la jante).
+// `allure` (retour du volant) : « roulant » ou « basse ». Le libellé de situation se lit dans l'état : il nomme la situation
+// d'une étape et change à l'instant où l'étape commence, comme la légende des étapes du lecteur, sans fondu.
 const GESTE = {
   echelle: 3.2,             // unités par centimètre : un volant de 37 cm fait 118 unités, 127 px sur un téléphone
-  centre: [112, 118],
-  // Coudes : 48 cm sous le centre du volant, 4 cm au-delà de la ligne médiane de la jante : hors du cadre, les manches en
-  // sortent par le bas.
-  coude: { dessous: 48, dehors: 4 },
-  voiture: { x: 268, y: 132, echelle: 30, cap: -90 },   // vue du dessus, l'avant vers le haut (unités par mètre)
+  centre: [114, 102],
+  voiture: { x: 268, y: 106, echelle: 24, cap: -90 },   // vue du dessus, l'avant vers le haut (unités par mètre)
   rapport: 15,              // rapport de direction : degrés au volant pour un degré aux roues avant
-  compteur: { x: 268, libelle: 220, valeur: 240, tailleLibelle: 11, tailleValeur: 14 },
-  indication: { x: 268, haut: 14, hauteur: 22, largeur: 92, taille: 11 },
+  compteur: { x: 268, libelle: 180, valeur: 198, tailleLibelle: 11, tailleValeur: 14 },
+  // Pastille du libellé de situation, calée sur le bord droit du cadre (à 8 unités) : sa largeur, par geste, loge son plus long
+  // libellé, Outfit 600 à 11 unités, avec 7 unités au moins de chaque côté (« Tournants et manœuvres » : 137 unités au plus).
+  indication: { droite: 312, haut: 8, hauteur: 22, taille: 11, largeurs: { "tirer-glisser": 106, chevauchement: 154, "retour-volant": 92 } },
   // Flèches d'une main qui se déplace le long de la jante (qu'elle y glisse ou qu'elle tourne avec le volant), et du volant qui
-  // revient droit : arcs à 28 cm du centre, au-delà des mains, même ouvertes ; écart (heures) qui sépare deux flèches qui se
-  // suivent, à leur jonction.
-  fleche: { rayon: 28, jeu: 0.25 },
-  // Flèche de la jante qui glisse dans la main gauche (tirer-glisser) : heures avant et après 9 h.
-  glisse: { avant: 0.55, apres: 0.1 },
+  // revient droit : arcs à 24,5 cm du centre, juste au-delà des repères (le bord de leur liseré est à 22,2 cm) ; écart (heures)
+  // qui sépare deux flèches qui se suivent, à leur jonction.
+  // Arc d'une traction dessinée avec la montée de la même main, dans la même étape (retour du volant, cas 2) : 3,5 cm plus loin.
+  fleche: { rayon: 24.5, jeu: 0.25, rayonTraction: 28 },
+  // Flèche d'une main qui remonte en l'air (chevauchement) : elle part du bord du repère, à 3 h, et s'arrête avant celui qui
+  // est à midi, à `jeu` unités de leur liseré.
+  traversee: { echantillons: 24, jeu: 2 },
 };
 const MILIEU_CAPITALES = METRIQUES_POLICE.milieuCapitales;   // ligne de base sous le milieu des capitales d'Outfit
-// Position de référence du cours : main gauche à 9 h, main droite à 3 h ; midi en haut.
+// Position de référence du cours, 9 h 15 : main gauche à 9 h, main droite à 3 h ; midi en haut.
 const POSITION = { gauche: 9, droite: 3, midi: 0 };
 const posee = (heure, prise, decalage = 0) => ({ heure, prise, decalage });
 
-/** Repère des gestes du volant, en unités du cadre : centre (cx, cy) et rayon (ligne médiane de la jante) du volant, et coude
- *  de l'avant-bras du côté `cote`, hors du cadre (GESTE.coude). */
-export function repereGeste(cote) {
-  const g = GESTE, k = g.echelle, [cx, cy] = g.centre;
-  const dehors = -COTES[connu(cote, Object.keys(COTES), "côté")];   // le coude gauche à gauche, le droit à droite
-  return { cx, cy, rayon: VOLANT.rayon * k, coude: [cx + dehors * (VOLANT.rayon + g.coude.dehors) * k, cy + g.coude.dessous * k] };
+/** Volant des gestes du volant, en unités du cadre : centre (cx, cy), rayon de la ligne médiane de la jante, et échelle (unités
+ *  par centimètre, celle du décalage d'une main en l'air). */
+export function repereGeste() {
+  const g = GESTE, [cx, cy] = g.centre;
+  return { cx, cy, rayon: VOLANT.rayon * g.echelle, echelle: g.echelle };
 }
 
 // Arc de cercle autour du volant, de l'heure `debut` à l'heure `fin` (sens horaire si fin > debut), à `rayonCm` du centre.
 const arcAutour = (debut, fin, rayonCm) => arc(GESTE.centre, rayonCm * GESTE.echelle, (debut - HEURE_DROITE) * DEGRES_PAR_HEURE,
   (fin - HEURE_DROITE) * DEGRES_PAR_HEURE);
-// Flèche d'une main qui tourne avec le volant (ou qui glisse sur la jante) de `debut` à `fin`, en arc hors des mains ; `jeu`
+// Flèche d'une main qui tourne avec le volant (ou qui glisse sur la jante) de `debut` à `fin`, en arc hors des repères ; `jeu`
 // retranché aux bouts quand deux flèches se suivent.
 const flecheArc = (debut, fin, { avant = 0, apres = 0 } = {}) => {
   const sens = Math.sign(fin - debut);
   return arcAutour(debut + sens * avant, fin - sens * apres, GESTE.fleche.rayon);
 };
 
-// Places d'une main dans le dessin : son repère sur le volant, son avant-bras et son déplacement en l'air.
-function placeMain(cote, { heure, prise, decalage }, limite) {
-  const { cx, cy, rayon, coude } = repereGeste(cote), k = GESTE.echelle, a = heure * PAS_HEURE;
-  return { cx, cy, rayon, heure, cote, prise, avantBras: { coude, limite },
-    deplacement: [-Math.sin(a) * decalage * k, Math.cos(a) * decalage * k] };
-}
-
-// Centre visible d'une main en l'air (dos de la main), pour la flèche qui suit son trajet.
-function centreMain({ heure, prise, decalage }) {
-  const k = GESTE.echelle, ecart = (1 - prise) * MAIN.ouverture;
-  return pointHeure(...GESTE.centre, (VOLANT.rayon + MAIN.poignet.centre[1] + ecart - decalage) * k, heure);
-}
-
 /** Dessin d'une image d'un geste du volant : `code` (titre et cadre du catalogue), `description` (lecteurs d'écran),
  *  `fleches(etape)` : les trajets (listes de points) que montrent les flèches de l'étape, deux au plus, null pour aucune ;
- *  `libelle(etat)` : le libellé de situation. Mains : la gauche d'abord, la droite par-dessus, toujours : dans le
- *  chevauchement, la droite (la main du côté du virage) passe par-dessus le bras gauche, et la gauche remonte sous le bras
- *  droit. Un contour sépare la peau de la droite de celle de la gauche là où elle passe dessus, et les deux manches. */
+ *  `libelle(etat)` : le libellé de situation. De dessous à dessus : le volant, les flèches de l'image figée (sous les repères :
+ *  la flèche de la jante qui glisse passe sous la main qui la laisse glisser), le repère G, puis le repère D, toujours : dans le
+ *  chevauchement, la droite (la main du côté du virage) passe par-dessus la gauche, et la gauche remonte sous la droite. */
 const FLECHES_PAR_ETAPE = 2;
 function dessinGeste({ code, description, fleches, libelle }) {
   const [L, H] = CATALOGUE[code].cadre;
-  const g = GESTE, [cx, cy] = g.centre, rayon = VOLANT.rayon * g.echelle;
-  const limite = [0, 0, L, H];
+  const { cx, cy, rayon, echelle } = repereGeste(), g = GESTE;
   const repli = [[cx, cy], [cx + 1, cy]];   // trajet d'une flèche masquée : elle garde sa forme (le kit l'exige)
+  const repere = (cote, { heure, prise, decalage }) => repereMain({ cx, cy, rayon, heure, cote, prise, decalage: decalage * echelle });
+  const largeurIndication = g.indication.largeurs[code];
   return (etat, { fige, etape }) => {
-    const gauche = construireMain(placeMain("gauche", etat.mains.gauche, limite));
-    const droite = construireMain({ ...placeMain("droite", etat.mains.droite, limite), dessous: gauche.surfaces });
     const c = g.compteur, ind = g.indication, v = g.voiture;
     const trajets = fleches(etape);
     return cadre({ largeur: L, hauteur: H, titre: CATALOGUE[code].titre, description },
-      volant({ cx, cy, rayon, angle: etat.volant }),
-      gauche.noeud, droite.noeud,
-      voitureDessus({ x: v.x, y: v.y, cap: v.cap, echelle: v.echelle, roues: true, braquage: etat.volant / g.rapport }),
+      volant({ cx, cy, rayon, angle: etat.volant, schema: true }),
+      n("g", { "data-r": "fleche", display: fige ? "inline" : "none" },
+        Array.from({ length: FLECHES_PAR_ETAPE }, (_, i) =>
+          fleche(trajets[i] || repli, { role: `fleche-${i + 1}`, visible: Boolean(trajets[i]) }))),
+      repere("gauche", etat.mains.gauche), repere("droite", etat.mains.droite),
+      voitureDessus({ x: v.x, y: v.y, cap: v.cap, echelle: v.echelle, roues: true, braquage: etat.volant / g.rapport, schema: true }),
       texte(c.x, c.libelle, "Volant", { taille: c.tailleLibelle, ancrage: "middle", couleur: CHARTE.texteDoux }),
       texte(c.x, c.valeur, `${Math.round(etat.volant)}°`, { taille: c.tailleValeur, ancrage: "middle", graisse: 600, role: "compteur" }),
       n("g", { "data-r": "indication" },
-        n("rect", { x: ind.x - ind.largeur / 2, y: ind.haut, width: ind.largeur, height: ind.hauteur, rx: ind.hauteur / 2,
-          fill: CHARTE.accentDoux, stroke: CHARTE.accent, "stroke-width": CHARTE.traits.fin }),
-        texte(ind.x, ind.haut + ind.hauteur / 2 + MILIEU_CAPITALES * ind.taille, libelle(etat),
-          { taille: ind.taille, ancrage: "middle", graisse: 600, role: "indication-texte" })),
-      n("g", { "data-r": "fleche", display: fige ? "inline" : "none" },
-        Array.from({ length: FLECHES_PAR_ETAPE }, (_, i) =>
-          fleche(trajets[i] || repli, { role: `fleche-${i + 1}`, visible: Boolean(trajets[i]) }))));
+        n("rect", { x: ind.droite - largeurIndication, y: ind.haut, width: largeurIndication, height: ind.hauteur, rx: ind.hauteur / 2,
+          fill: CHARTE.accentDoux, stroke: CHARTE.accent, "stroke-width": CHARTE.traits.fin, "data-r": "indication-pastille" }),
+        texte(ind.droite - largeurIndication / 2, ind.haut + ind.hauteur / 2 + MILIEU_CAPITALES * ind.taille, libelle(etat),
+          { taille: ind.taille, ancrage: "middle", graisse: 600, role: "indication-texte" })));
   };
 }
 
 // Durées (secondes ; choix de dessin, raisons dans les sources) : doigts qui s'entrouvrent ou se referment en 0,3 s, main qui
 // lâche ou reprend la jante tout à fait en 0,35 s, main qui glisse d'un quart de tour sur la jante en 1 s, main qui remonte en
-// l'air de 3 h à midi en 1,1 s, volant tourné d'un quart de tour en 1 s, de 150 degrés en 1,4 s, d'un demi-tour en 1,5 s ;
+// l'air de 3 h à midi en 1,1 s, volant tourné de 30 degrés en 0,65 s, d'un quart de tour en 1 s, d'un demi-tour en 1,5 s ;
 // chaque étape commence par une pause de 0,3 s (0,4 s à la première étape du retour du volant), le temps de lire l'étape, et
-// finit sur une pause courte (le volant laissé tourné, 1,1 s, à l'étape 3 du retour du volant).
+// finit sur une pause courte, de 0,3 à 0,7 s.
 // Une main qui tient la jante tourne avec le volant : sa place se calcule à partir de l'angle du volant, jamais à part.
 
 // 1. Tirer-glisser, virage à droite.
+// Traction d'un quart de tour au plus, de midi à 3 h (remarque du formateur du 15/10/2026 : « pas plus de 90 degrés, de petits
+// gestes pour être précis ») ; un virage qui demande plus de braquage répète le geste.
 const TIRER_GLISSER = {
-  debuts: [0, 2.2], duree: 4.6,
+  debuts: [0, 2.2], duree: 4.2,
   lacher: [0.3, 0.6], montee: [0.6, 1.6], reprise: [1.6, 1.9],   // étape 1 : la droite monte à midi en glissant sur la jante
-  tirage: [2.5, 3.9], angle: 150,                                // étape 2 : elle tire le volant vers le bas, jusqu'à 5 h
+  tirage: [2.5, 3.5], angle: 90,                                 // étape 2 : elle tire le volant vers le bas, jusqu'à 3 h
 };
 function etatTirerGlisser(t) {
-  const T = TIRER_GLISSER, G = MAIN.doigt.glisse;
+  const T = TIRER_GLISSER, G = PRISE.glisse;
   const volant = cles([{ t: T.tirage[0], v: 0 }, { t: T.tirage[1], v: T.angle }], t);
   const droite = t < T.reprise[1]
     ? posee(cles([{ t: T.montee[0], v: POSITION.droite }, { t: T.montee[1], v: POSITION.midi }], t),
@@ -1048,20 +746,19 @@ function etatTirerGlisser(t) {
   const gauche = posee(POSITION.gauche, cles([{ t: T.reprise[0], v: 1 }, { t: T.reprise[1], v: G }], t));
   return { volant, mains: { gauche, droite } };
 }
+// Flèches : étape 1, la droite qui monte ; étape 2, sa traction. La jante qui glisse dans la main gauche ne porte pas de flèche :
+// son repère creux le dit (remarque du formateur du 15/10/2026 : une flèche sur la main gauche peut porter à confusion).
 const FLECHES_TIRER_GLISSER = [
   [flecheArc(POSITION.droite, POSITION.midi), null],
-  [flecheArc(POSITION.midi, TIRER_GLISSER.angle / DEGRES_PAR_HEURE),
-    // la jante qui glisse vers le haut dans la main gauche, sur sa ligne médiane, entre le dos de la main et les doigts, sa
-    // pointe sous la base du pouce
-    arcAutour(POSITION.gauche - GESTE.glisse.avant, POSITION.gauche + GESTE.glisse.apres, VOLANT.rayon)],
+  [flecheArc(POSITION.midi, TIRER_GLISSER.angle / DEGRES_PAR_HEURE), null],
 ];
 
-// 2. Chevauchement, virage à droite en manœuvre (le cours : la main du côté où l'on tourne monte vers midi et tire ; l'autre
+// 2. Chevauchement, tournant à droite (tournants et manœuvres ; le cours : la main du côté où l'on tourne monte vers midi et tire ; l'autre
 // suit sans lâcher prise jusqu'à midi, puis tire à son tour pendant que la première remonte ; l'alternance continue). Chaque
 // traction fait un quart de tour, de midi à 3 h : la gauche, qui suit de 9 h à midi puis tire jusqu'à 3 h, tient ainsi la
 // jante un demi-tour sans la lâcher, ce que permet la rotation de l'avant-bras (raison dans les sources). Celle qui a tiré
-// lâche la jante et remonte à midi pendant que l'autre tire : la droite par-dessus le bras gauche (étape 3), la gauche sous
-// le bras droit (étape 4).
+// lâche la jante et remonte à midi pendant que l'autre tire : la droite par-dessus la gauche (étape 3), la gauche sous la
+// droite (étape 4).
 const CHEVAUCHEMENT = {
   debuts: [0, 2.2, 3.8, 5.9], duree: 9.0,
   traction: 90,                                                  // degrés : un quart de tour, de midi à 3 h
@@ -1069,28 +766,28 @@ const CHEVAUCHEMENT = {
   tirage1: [2.5, 3.5],                                           // étape 2 : elle tire ; la gauche suit, de 9 h à midi
   lacherDroite: [4.1, 4.45],                                     // étape 3 : la droite lâche la jante à 3 h ;
   tirage2: [4.6, 5.6], traversee: [4.5, 5.6],                    //   la gauche tire, la droite remonte à midi en l'air,
-  passage: 10.5,                                                 //   en dedans de la jante, par-dessus le bras gauche
+  passage: 13.5,                                                 //   en dedans de la jante, par-dessus la gauche
   repriseDroite: [6.2, 6.55], lacherGauche: [6.55, 6.9],         // étape 4 : la droite reprend la jante, la gauche la lâche ;
-  tirage3: [7.0, 8.0], traverseeGauche: [6.95, 8.05],            //   la droite tire, la gauche remonte à midi sous le bras droit
+  tirage3: [7.0, 8.0], traverseeGauche: [6.95, 8.05],            //   la droite tire, la gauche remonte à midi sous la droite
   repriseGauche: [8.2, 8.55],                                    //   et reprend la jante
 };
 // Une main en l'air qui remonte de 3 h à midi (la droite à l'étape 3, la gauche à l'étape 4), à l'avancée `u` (0 à 3 h, 1 à
-// midi) : le centre de la main suit une courbe de Bézier quadratique, de sa place lâchée à 3 h à sa place lâchée à midi, qui
-// passe à mi-chemin à `passage` cm du centre du volant, sur la bissectrice : en dedans de la jante, là où passe l'avant-bras
-// de l'autre main. La main garde le repère de la jante à l'angle où elle se trouve, déplacée vers le centre ; `tours` : tours
-// ajoutés à son heure (la gauche, à 3 h un tour plus loin que 9 h, y est à 15 h).
+// midi) : le centre de son repère suit une courbe de Bézier quadratique, du point de la jante à 3 h à celui de midi, qui passe à
+// mi-chemin à `passage` cm du centre du volant, sur la bissectrice : en dedans de la jante, là où passe la main qui tire. La
+// main a lâché la jante (prise 0) ; son décalage est l'écart à la ligne médiane de la jante ; `tours` : tours ajoutés à son heure
+// (la gauche, à 3 h un tour plus loin que 9 h, y est à 15 h).
 function enTraversee(u, tours = 0) {
-  const C = CHEVAUCHEMENT, lachee = VOLANT.rayon + MAIN.poignet.centre[1] + MAIN.ouverture;   // centre de la main lâchée
-  const [a, b] = [POSITION.droite, POSITION.midi].map((h) => fois([Math.sin(h * PAS_HEURE), -Math.cos(h * PAS_HEURE)], lachee));
-  const bissectrice = (POSITION.droite + POSITION.midi) / 2 * PAS_HEURE;
+  const C = CHEVAUCHEMENT, R = VOLANT.rayon;
+  const [a, b] = [POSITION.droite, POSITION.midi].map((h) => fois([Math.sin(h * PAS_HEURE), -Math.cos(h * PAS_HEURE)], R));
+  const bissectrice = ((POSITION.droite + POSITION.midi) / 2) * PAS_HEURE;
   const m = fois([Math.sin(bissectrice), -Math.cos(bissectrice)], C.passage);
   const q = moins(fois(m, 2), fois(plus(a, b), 1 / 2));   // point de contrôle : la courbe passe par m à mi-chemin
   const p = plus(plus(fois(a, (1 - u) ** 2), fois(q, 2 * u * (1 - u))), fois(b, u ** 2));
   const heure = Math.atan2(p[0], -p[1]) / PAS_HEURE + tours * HEURES_PAR_TOUR;
-  return posee(heure, 0, lachee - longueur(p));
+  return posee(heure, PRISE.lachee, Math.max(0, R - longueur(p)));
 }
 function etatChevauchement(t) {
-  const C = CHEVAUCHEMENT, G = MAIN.doigt.glisse, q = C.traction;
+  const C = CHEVAUCHEMENT, G = PRISE.glisse, q = C.traction;
   const volant = cles([{ t: C.tirage1[0], v: 0 }, { t: C.tirage1[1], v: q }, { t: C.tirage2[0], v: q }, { t: C.tirage2[1], v: 2 * q },
     { t: C.tirage3[0], v: 2 * q }, { t: C.tirage3[1], v: 3 * q }], t);
   const avancee = ([debut, fin]) => cles([{ t: debut, v: 0 }, { t: fin, v: 1 }], t);
@@ -1118,13 +815,19 @@ function etatChevauchement(t) {
   }
   return { volant, mains: { gauche, droite } };
 }
-// Trajet d'une main en l'air qui remonte (centre visible de la main), pour sa flèche : la part de la courbe qui va de juste
-// après le bout des doigts de la main qui tient encore la jante à 3 h, au début de l'étape, jusqu'à juste avant la main qui
-// est à midi.
-const TRAJET_TRAVERSEE = { echantillons: 24, depart: 0.3, arrivee: 0.75 };
+// Trajet d'une main en l'air qui remonte (centre de son repère), pour sa flèche : la part de la courbe qui va du bord du repère
+// à 3 h jusqu'avant celui qui est à midi, au début de l'étape (GESTE.traversee.jeu unités au-delà de leur liseré).
 function trajetTraversee() {
-  const T = TRAJET_TRAVERSEE;
-  return Array.from({ length: T.echantillons + 1 }, (_, i) => centreMain(enTraversee(interpoler(T.depart, T.arrivee, i / T.echantillons))));
+  const T = GESTE.traversee, k = GESTE.echelle;
+  const points = Array.from({ length: T.echantillons * 8 + 1 }, (_, i) => {
+    const { heure, decalage } = enTraversee(i / (T.echantillons * 8));
+    return pointHeure(...GESTE.centre, (VOLANT.rayon - decalage) * k, heure);
+  });
+  const [depart, arrivee] = [points[0], points[points.length - 1]];
+  const libre = (REPERE.rayon + CHARTE.liseres + T.jeu);
+  const loin = (p) => Math.hypot(p[0] - depart[0], p[1] - depart[1]) >= libre && Math.hypot(p[0] - arrivee[0], p[1] - arrivee[1]) >= libre;
+  const vus = points.filter(loin);
+  return Array.from({ length: T.echantillons + 1 }, (_, i) => vus[Math.round((i * (vus.length - 1)) / T.echantillons)]);
 }
 // Flèches : étape 1, la droite qui monte ; étape 2, la droite qui tire, la gauche qui suit jusqu'à midi ; étapes 3 et 4, la
 // main à midi qui tire jusqu'à 3 h et l'autre qui remonte de 3 h à midi, en dedans de la jante.
@@ -1139,50 +842,89 @@ const FLECHES_CHEVAUCHEMENT = (() => {
   ];
 })();
 
-// 3. Retour du volant, en sortie d'un virage à droite.
+// 3. Retour du volant, en sortie d'un virage à droite. En roulant (étapes 1 et 2), les doigts s'entrouvrent et le volant revient
+// droit seul. À basse allure, la méthode du formateur (15/10/2026) : « soit on a toujours les mains à 9 h 15 parce qu'on a tourné
+// le volant de moins de 45 degrés, alors on le ramène à deux mains ; soit on a fait un tirer-glisser, et dans ce cas, s'il faut
+// ramener les roues de plus de 45 degrés, je refais un tirer-glisser ; je ne pousse jamais le volant ». Chaque cas en deux étapes,
+// pour que l'image figée de son retour s'ouvre sur le volant tourné : le volant est tourné dans la première, ramené dans la
+// seconde. Cas 1 (étapes 3 et 4) : les mains reprennent la jante à 9 h 15, la tournent de 30 degrés ensemble, puis la ramènent
+// ensemble. Cas 2 (étapes 5 et 6) : un tirer-glisser vers la droite tourne le volant d'un quart de tour (la droite monte à midi
+// en glissant sur la jante et tire jusqu'à 3 h, la gauche reste à 9 h, la jante glisse dessous) ; un tirer-glisser vers la
+// gauche le ramène (la gauche monte à midi et tire jusqu'à 9 h, la droite reste à 3 h, la jante glisse dessous), puis la droite
+// reprend la jante : mains à 9 h 15. Aucune main seule ne pousse le volant : celle qui le tourne seule descend toujours.
 const RETOUR_VOLANT = {
-  debuts: [0, 1.3, 3.6, 6.9], duree: 9.2,
+  debuts: [0, 1.3, 3.6, 5.4, 6.8, 10.2], duree: 13.9,
   angle: 180,                                     // en roulant : volant tourné d'un demi-tour en sortie de virage
   ouverture: [0.4, 0.7],                          // étape 1 : les doigts s'entrouvrent, volant encore tourné
   retour: [1.6, 3.1],                             // étape 2 : il revient droit seul, en glissant dans les doigts
-  angleBasse: 90,                                 // étape 3 : à basse allure, d'un quart de tour : les mains
-  prise: [3.9, 4.2], braquage: [4.35, 5.35],      //   reprennent la jante et tournent le volant,
-  lache: [5.5, 5.8],                              //   entrouvrent les doigts : il reste tourné, jusqu'à l'étape 4 ;
-  reprise: [7.2, 7.5], ramene: [7.65, 8.65],      // étape 4 : elles le reprennent et le ramènent droit
+  petit: 30,                                      // cas 1 : moins de 45 degrés, mains restées à 9 h 15
+  prise: [3.9, 4.2], tourne: [4.35, 5.0],         // étape 3 : les mains reprennent la jante et la tournent ensemble
+  ramene: [5.7, 6.35],                            // étape 4 : elles la ramènent ensemble
+  grand: 90,                                      // cas 2 : un tirer-glisser, un quart de tour (plus de 45 degrés)
+  lacheDroite: [7.1, 7.4], monteDroite: [7.4, 8.4], // étape 5 : la droite entrouvre les doigts et monte à midi sur la jante,
+  repriseDroite: [8.4, 8.7], tireDroite: [8.85, 9.85], //   la reprend (la gauche entrouvre les siens) et tire jusqu'à 3 h ;
+  monteGauche: [10.5, 11.5], repriseGauche: [11.5, 11.8], // étape 6 : la gauche monte à midi sur la jante, la reprend (la
+  tireGauche: [11.95, 12.95], repriseFin: [13.1, 13.4],   //   droite entrouvre les siens), tire jusqu'à 9 h ; la droite reprend
 };
 const LIBELLES_ALLURE = { roulant: "En roulant", basse: "Basse allure" };
 function etatRetourVolant(t) {
-  const R = RETOUR_VOLANT, G = MAIN.doigt.glisse;
-  const volant = cles([{ t: R.retour[0], v: R.angle }, { t: R.retour[1], v: 0 }, { t: R.braquage[0], v: 0 }, { t: R.braquage[1], v: R.angleBasse },
-    { t: R.ramene[0], v: R.angleBasse }, { t: R.ramene[1], v: 0 }], t);
-  const prise = cles([{ t: R.ouverture[0], v: 1 }, { t: R.ouverture[1], v: G }, { t: R.prise[0], v: G }, { t: R.prise[1], v: 1 },
-    { t: R.lache[0], v: 1 }, { t: R.lache[1], v: G }, { t: R.reprise[0], v: G }, { t: R.reprise[1], v: 1 }], t);
-  const basse = t >= R.debuts[2];
-  // En roulant, les mains restent à 9 h et 3 h dans l'espace (la jante glisse dedans) ; à basse allure, elles tournent avec le
-  // volant quand elles le tiennent, et il ne bouge pas quand elles l'ont lâché (le volant est droit quand l'étape 3 commence).
-  const place = (base) => (basse ? base + volant / DEGRES_PAR_HEURE : base);
-  return {
-    volant,
-    mains: { gauche: posee(place(POSITION.gauche), prise), droite: posee(place(POSITION.droite), prise) },
-    allure: basse ? "basse" : "roulant",
-  };
+  const R = RETOUR_VOLANT, G = PRISE.glisse, h = DEGRES_PAR_HEURE;
+  const volant = cles([{ t: R.retour[0], v: R.angle }, { t: R.retour[1], v: 0 }, { t: R.tourne[0], v: 0 }, { t: R.tourne[1], v: R.petit },
+    { t: R.ramene[0], v: R.petit }, { t: R.ramene[1], v: 0 }, { t: R.tireDroite[0], v: 0 }, { t: R.tireDroite[1], v: R.grand },
+    { t: R.tireGauche[0], v: R.grand }, { t: R.tireGauche[1], v: 0 }], t);
+  const [, , T3, , T5] = R.debuts;
+  const allure = t >= T3 ? "basse" : "roulant";
+  if (t < T5) {
+    // En roulant, les mains restent à 9 h 15 dans l'espace (la jante glisse dedans) ; à basse allure (cas 1), elles reprennent la
+    // jante et tournent avec elle : leur place sur la jante ne change pas.
+    const prise = cles([{ t: R.ouverture[0], v: 1 }, { t: R.ouverture[1], v: G }, { t: R.prise[0], v: G }, { t: R.prise[1], v: 1 }], t);
+    const place = (base) => (t >= T3 ? base + volant / h : base);
+    return { volant, mains: { gauche: posee(place(POSITION.gauche), prise), droite: posee(place(POSITION.droite), prise) }, allure };
+  }
+  // Cas 2 : deux tirer-glisser, l'un vers la droite, l'autre vers la gauche ; volant droit au début de l'étape 5.
+  const droite = (() => {
+    if (t < R.repriseDroite[0]) {
+      return posee(cles([{ t: R.monteDroite[0], v: POSITION.droite }, { t: R.monteDroite[1], v: POSITION.midi }], t),
+        cles([{ t: R.lacheDroite[0], v: 1 }, { t: R.lacheDroite[1], v: G }], t));
+    }
+    // Elle reprend la jante à midi, la tire jusqu'à 3 h (elle tourne avec elle), puis entrouvre les doigts et reste à 3 h pendant
+    // que la gauche ramène le volant, et reprend la jante à la fin.
+    const tient = t < R.repriseGauche[0];
+    return posee(tient ? POSITION.midi + volant / h : POSITION.droite,
+      cles([{ t: R.repriseDroite[0], v: G }, { t: R.repriseDroite[1], v: 1 }, { t: R.repriseGauche[0], v: 1 }, { t: R.repriseGauche[1], v: G },
+        { t: R.repriseFin[0], v: G }, { t: R.repriseFin[1], v: 1 }], t));
+  })();
+  const gauche = (() => {
+    if (t < R.repriseGauche[0]) {
+      // Elle tient à 9 h, entrouvre les doigts quand la droite reprend la jante à midi (la jante glisse dessous pendant la traction),
+      // puis monte à midi sur la jante, volant immobile.
+      return posee(cles([{ t: R.monteGauche[0], v: POSITION.gauche }, { t: R.monteGauche[1], v: HEURES_PAR_TOUR }], t),
+        cles([{ t: R.repriseDroite[0], v: 1 }, { t: R.repriseDroite[1], v: G }], t));
+    }
+    // Elle reprend la jante à midi et tire jusqu'à 9 h : elle tourne avec elle.
+    return posee(HEURES_PAR_TOUR + (volant - R.grand) / h, cles([{ t: R.repriseGauche[0], v: G }, { t: R.repriseGauche[1], v: 1 }], t));
+  })();
+  return { volant, mains: { gauche, droite }, allure };
 }
-// Flèches de la jante qui glisse (étape 1) : sur sa ligne médiane, elles partent `depart` heure au-delà du bord de la main,
-// sur `longueur` heure ; le volant qui revient (étape 2) : arc en haut, raccourci de `bord` heure de chaque côté pour ne pas
-// toucher les mains.
-const RETOUR_FLECHES = { depart: 0.65, longueur: 0.9, bord: 0.5 };
-// Flèches : étape 1, la jante qui glisse dans chaque main (vers le bas dans la gauche, vers le haut dans la droite), sur sa ligne
-// médiane, juste au-delà de la main ; étape 2, le volant qui revient droit (arc en haut) ; étape 3, à basse allure, chaque main
-// qui tourne le volant d'un quart de tour ; étape 4, chaque main qui le ramène, à partir de là où elle l'a laissé.
+// Flèche du volant qui revient (étape 2) : arc en haut, raccourci de `bord` heure de chaque côté pour ne pas toucher les repères.
+const RETOUR_FLECHES = { bord: 0.5 };
+// Flèches : étape 1, aucune : les doigts s'entrouvrent, et les repères creux disent que la jante glisse dans les mains (comme dans
+// le tirer-glisser, une flèche sur la jante au bord d'une main peut porter à confusion, remarque du formateur du 15/10/2026) ;
+// étape 2, le volant qui revient droit (arc en haut) ; étape 3, chaque main qui tourne le volant de 30 degrés ; étape 4, chaque
+// main qui le ramène ; étapes 5 et 6, un tirer-glisser : la main qui monte à midi en glissant sur la jante (arc proche) puis tire
+// (arc plus loin, GESTE.fleche.rayonTraction : les deux arcs, de sens contraires sur le même quart de tour, ne se recouvrent pas).
 const FLECHES_RETOUR_VOLANT = (() => {
   const R = RETOUR_VOLANT, F = RETOUR_FLECHES, f = GESTE.fleche;
-  const [demi, quart] = [R.angle / DEGRES_PAR_HEURE / 2, R.angleBasse / DEGRES_PAR_HEURE];
-  const [g, d] = [POSITION.gauche, POSITION.droite];
+  const [demi, petit] = [R.angle / DEGRES_PAR_HEURE / 2, R.petit / DEGRES_PAR_HEURE];
+  const [g, d, midi] = [POSITION.gauche, POSITION.droite, POSITION.midi];
+  const traction = (debut, fin) => arcAutour(debut, fin, f.rayonTraction);
   return [
-    [arcAutour(g - F.depart, g - F.depart - F.longueur, VOLANT.rayon), arcAutour(d + F.depart + F.longueur, d + F.depart, VOLANT.rayon)],
+    [null, null],
     [arcAutour(POSITION.midi + demi - F.bord, POSITION.midi - demi + F.bord, f.rayon), null],
-    [flecheArc(g, g + quart), flecheArc(d, d + quart)],
-    [flecheArc(g + quart, g), flecheArc(d + quart, d)],
+    [flecheArc(g, g + petit), flecheArc(d, d + petit)],
+    [flecheArc(g + petit, g), flecheArc(d + petit, d)],
+    [flecheArc(d, midi), traction(midi, R.grand / DEGRES_PAR_HEURE)],
+    [flecheArc(g, HEURES_PAR_TOUR), traction(HEURES_PAR_TOUR, g)],
   ];
 })();
 
@@ -1200,23 +942,28 @@ function geste(code, { debuts, duree }, etat, fleches, description, libelle) {
 }
 
 const DESCRIPTIONS = {
-  "tirer-glisser": "Volant vu du siège, virage à droite. La main droite monte de 3 h à midi en glissant sur la jante, volant immobile, "
-    + "puis tire le volant vers le bas ; la main gauche reste à 9 h et laisse le volant glisser entre ses doigts. Les mains ne se "
-    + "croisent jamais. À côté, la voiture vue du dessus braque ses roues avant à droite ; un compteur dit l'angle du volant.",
-  chevauchement: "Volant vu du siège, virage à droite en manœuvre. La main droite monte à midi et tire d'un quart de tour ; la gauche "
-    + "suit sans lâcher prise jusqu'à midi, puis tire à son tour d'un quart de tour pendant que la droite lâche la jante et remonte "
-    + "à midi en passant par-dessus le bras gauche. Puis la droite reprend la jante et tire, pendant que la gauche la lâche et "
-    + "remonte à midi en passant sous le bras droit. À côté, la voiture vue du dessus braque ses roues avant à droite ; un "
-    + "compteur dit l'angle du volant.",
-  "retour-volant": "Volant vu du siège, en sortie d'un virage à droite. En roulant, les doigts s'entrouvrent et le volant revient "
-    + "droit seul en glissant dans les mains, qui restent à 9 h et 3 h. À basse allure, les mains tournent le volant d'un quart de "
-    + "tour puis entrouvrent les doigts : il reste tourné, il ne revient pas seul ; elles le reprennent et le ramènent droit. À "
-    + "côté, la voiture vue du dessus et ses roues avant ; un compteur dit l'angle du volant.",
+  "tirer-glisser": "Volant vu du siège, virage à droite ; chaque main est un repère, G ou D, posé sur la jante, plein quand elle "
+    + "tient la jante, creux quand elle la laisse glisser. La main droite monte de 3 h à midi en glissant sur la jante, volant "
+    + "immobile, puis tire le volant vers le bas, d'un quart de tour, jusqu'à 3 h ; la main gauche reste à 9 h et laisse le volant "
+    + "glisser entre ses doigts. Les mains "
+    + "ne se croisent jamais. À côté, la voiture vue du dessus braque ses roues avant à droite ; un compteur dit l'angle du volant.",
+  chevauchement: "Volant vu du siège, tournant à droite ; chaque main est un repère, G ou D, plein quand elle tient la "
+    + "jante, creux quand elle l'a lâchée. La main droite monte à midi et tire d'un quart de tour ; la gauche suit sans lâcher prise "
+    + "jusqu'à midi, puis tire à son tour d'un quart de tour pendant que la droite lâche la jante et remonte à midi en passant "
+    + "par-dessus la gauche. Puis la droite reprend la jante et tire, pendant que la gauche la lâche et remonte à midi en passant "
+    + "sous la droite. À côté, la voiture vue du dessus braque ses roues avant à droite ; un compteur dit l'angle du volant.",
+  "retour-volant": "Volant vu du siège, en sortie d'un virage à droite ; chaque main est un repère, G ou D, plein quand elle tient "
+    + "la jante, creux quand elle la laisse glisser. En roulant, les doigts s'entrouvrent et le volant revient droit seul en glissant "
+    + "dans les mains, qui restent à 9 h 15. À basse allure, il ne revient pas seul. Tourné de 30 degrés, moins de 45, par les deux "
+    + "mains restées à 9 h 15, elles le ramènent ensemble. Tourné d'un quart de tour, plus de 45 degrés, par un tirer-glisser, un "
+    + "tirer-glisser dans l'autre sens le ramène : la main gauche monte à midi en glissant sur la jante et tire vers le bas, la droite "
+    + "reste à 3 h et la jante glisse dessous ; aucune main ne pousse le volant. À côté, la voiture vue du dessus et ses roues avant ; "
+    + "un compteur dit l'angle du volant.",
 };
 // Libellé de situation de chaque geste, lu dans l'état.
 const LIBELLES = {
-  "tirer-glisser": () => "En circulation",
-  chevauchement: () => "En manœuvre",
+  "tirer-glisser": () => "Dans les virages",
+  chevauchement: () => "Tournants et manœuvres",
   "retour-volant": (etat) => LIBELLES_ALLURE[etat.allure],
 };
 
@@ -1231,4 +978,4 @@ export const GESTES = {
   chevauchement: { construire: () => geste("chevauchement", CHEVAUCHEMENT, etatChevauchement, FLECHES_CHEVAUCHEMENT, DESCRIPTIONS.chevauchement, LIBELLES.chevauchement) },
   "retour-volant": { construire: () => geste("retour-volant", RETOUR_VOLANT, etatRetourVolant, FLECHES_RETOUR_VOLANT, DESCRIPTIONS["retour-volant"], LIBELLES["retour-volant"]) },
 };
-export { versDom } from "./dessin-svg.js?v=20261015c";
+export { versDom } from "./dessin-svg.js?v=20261022a";

@@ -326,7 +326,7 @@ test(":::dessin d'un dessin réel, de chaque famille (entretien compris) : le de
   // Les dessins fixes des six familles (js/dessins-*.js), chargés pour de vrai sous Node par le chargeur du lecteur, montés par
   // rendreDessin dans le DOM minimal de ce fichier : figure.dessin-bloc > div.dessin-vue > svg.
   const codes = Object.keys(CATALOGUE).filter((c) => CATALOGUE[c].bloc === "dessin");
-  assert.equal(codes.length, 18, "les dix-huit dessins fixes du lot D1");
+  assert.equal(codes.length, 17, "les dix-sept dessins fixes du lot D1 (regard-loin est devenu un geste animé)");
   assert.deepEqual([...new Set(codes.map((c) => CATALOGUE[c].module))].sort(), ["conducteur", "dessus", "entretien", "poste", "visibilite", "voyants"]);
   assert.ok(codes.includes("capot") && codes.includes("pression"), "les dessins d'entretien en sont");
   await avecEntrees({}, async (journal) => {

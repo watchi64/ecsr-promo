@@ -12,7 +12,7 @@
  * pour qu'ils restent lisibles quand ils passent sur un objet sombre. Mains et silhouettes : une seule teinte de peau,
  * en deux tons seulement, CHARTE.peau et CHARTE.peauOmbre.
  */
-import { n } from "./dessin-svg.js?v=20261015c";
+import { n } from "./dessin-svg.js?v=20261022a";
 
 export const CHARTE = {
   fond: "#F1F4F0", carte: "#FBFCFA", texte: "#1F2924", texteDoux: "#46554A", texteDiscret: "#6E7A6F",
@@ -595,9 +595,12 @@ const petiteDimension = (pts) => Math.min(...[0, 1].map((k) => Math.max(...pts.m
  *  croissant dans le sens des aiguilles d'une montre ; échelle en unités par mètre ; teinte « eleve » ou « autre ». La
  *  portière garde ses nœuds fermée (display none) et s'anime sans saut : l'habitacle qu'elle découvre croît avec l'angle
  *  depuis 0, et son contour apparaît sur ses premiers degrés. Les roues, cachées sous la caisse, se dessinent en écorché,
- *  sous la portière ouverte et les rétroviseurs. */
+ *  sous la portière ouverte et les rétroviseurs. `schema` : le style schématique (décision du formateur du 15/10/2026,
+ *  « pictogramme plutôt qu'illustration ») : la silhouette de la caisse et son contour, le pare-brise et la lunette, aux mêmes
+ *  tracés ; roues, rétroviseurs et portière à la demande ; aucun détail de finition (ni toit, ni vitres latérales, ni phares,
+ *  ni feux, ni essuie-glaces, ni reflet, ni joints) : trois teintes, celles de la caisse, des vitres et des pneus. */
 export function voitureDessus({ x, y, cap = 0, echelle, teinte = "eleve", retroviseurs = false, roues = false, braquage = 0,
-  portiere = 0, role = "voiture" }) {
+  portiere = 0, schema = false, role = "voiture" }) {
   const qui = "Voiture vue du dessus";
   verifierPose(qui, { x, y, cap, echelle });
   const c = carrosserie(teinte, qui);
@@ -607,7 +610,9 @@ export function voitureDessus({ x, y, cap = 0, echelle, teinte = "eleve", retrov
   const u = ([px, py]) => [px * e, py * e];
   const forme = (pts, attributs) => n("path", { d: trace(pts.map(u)), ...attributs });
   const repere = (p) => { const [px, py] = vers(p); return { "data-x": px, "data-y": py }; };
-  const assez = (metres) => metres * e >= DETAIL_MIN, traitDetail = 1 / e <= TRAIT_DETAIL_MAX;
+  // Détails de finition : seulement hors du style schématique, et assez grands pour se voir.
+  const finition = !schema;
+  const assez = (metres) => finition && metres * e >= DETAIL_MIN, traitDetail = finition && 1 / e <= TRAIT_DETAIL_MAX;
   const fin = CHARTE.traits.fin;
   const D = DESSUS;
   const rotationPortiere = `rotate(${coord(portiere)} ${coord(PIVOT_PORTIERE[0] * e)} ${coord(PIVOT_PORTIERE[1] * e)})`;
@@ -674,7 +679,7 @@ export function voitureDessus({ x, y, cap = 0, echelle, teinte = "eleve", retrov
   return n("g", { "data-r": role, transform: `translate(${coord(x)} ${coord(y)}) rotate(${coord(cap)})`, "data-x": x, "data-y": y,
     "data-angle": cap },
   caisse, joints,
-  forme(arrondir(toit, toit.map(() => D.toit.arrondi)), { fill: c.reflet, "data-r": "toit", ...repere([(HAUT_PARE_BRISE + LUNETTE.haut[0]) / 2, 0]) }),
+  finition && forme(arrondir(toit, toit.map(() => D.toit.arrondi)), { fill: c.reflet, "data-r": "toit", ...repere([(HAUT_PARE_BRISE + LUNETTE.haut[0]) / 2, 0]) }),
   forme(pareBrise, { fill: MATIERES.vitre, "data-r": "pare-brise", ...repere([(HAUT_PARE_BRISE + PIED_PARE_BRISE) / 2, 0]) }),
   assez(largeurBande(D.reflet)) && forme(bande(pareBrise, D.reflet), { fill: MATIERES.vitreReflet, "data-r": "reflet-pare-brise" }),
   forme(arrondir(lunette, lunette.map(() => D.lunette.arrondi)), { fill: MATIERES.vitre, "data-r": "lunette",

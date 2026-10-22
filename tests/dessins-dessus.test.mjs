@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import { CATALOGUE } from "../js/catalogue-blocs.js";
 import * as famille from "../js/dessins-dessus.js";
 import { SOURCES } from "../sources/dessins-dessus.js";
-import { verifierDessin, verifierGeste } from "./aides-dessins.mjs";
+import { verifierDessin, verifierGeste, boitesTextes } from "./aides-dessins.mjs";
+import { imageA, imageFigee } from "../js/geste-regles.js";
 import { trouverRole, trouverTous, texteDe } from "../js/dessin-svg.js";
 import { VOITURE, MATIERES, reperesDessus, LARGEUR_TELEPHONE, TRAIT_MIN_PX } from "../js/dessins-kit.js";
 import { GABARITS } from "../js/scene-geometrie.js";
@@ -685,67 +686,375 @@ test("sous-survirage : titres aux mots du cours", () => {
   assert.equal(titres("survirage"), "Survirage : le train arrière glisse");
 });
 
-// ===== regard-loin =====
+// ===== regard-loin (geste animé) =====
+// Tout se lit dans les images que le moteur dessine (imageA, imageFigee) : la route (centre, rayon de la ligne médiane, largeur
+// d'une voie, angles polaires des bouts de l'arc), la voiture (pose), le cône (sommet, direction, tracé), le point visé (son
+// disque), le trait de visée, les étiquettes ; la géométrie attendue se recalcule ici, sans les aides du module.
 
-function regardDe() {
-  const d = dessin("regard-loin");
-  const voiture = trouverRole(d, "voiture"), pose = poseDe(voiture);
-  const cone = trouverRole(d, "regard"), pts = pointsDe(cone);
-  const route = trouverRole(d, "route").attributs;
-  return { d, pose, cone, pts, centre: [Number(route["data-cx"]), Number(route["data-cy"])], axe: Number(route["data-rayon"]),
-    voie: Number(route["data-voie"]) };
+const geste = () => famille.GESTES["regard-loin"].construire();
+const IMAGE = 1 / 60;
+const instantsDe = (def) => Array.from({ length: Math.ceil(def.duree / IMAGE) + 1 }, (_, k) => Math.min(def.duree, k * IMAGE));
+// Lecture d'une image : route, pose de la voiture, œil, cône (sommet, direction, points), point visé (son disque et le rayon qu'il
+// couvre, liseré compris), trait de visée.
+const rayonCouvert = (noeud) => Math.max(...trouverTous(noeud, (x) => x.balise === "circle").map((c) => Number(c.attributs.r)
+  + (c.attributs.stroke && c.attributs.stroke !== "none" ? Number(c.attributs["stroke-width"]) / 2 : 0)));
+function lireRegard(image) {
+  const r = trouverRole(image, "route").attributs, voiture = trouverRole(image, "voiture"), cone = trouverRole(image, "regard");
+  const route = { centre: [Number(r["data-cx"]), Number(r["data-cy"])], rayon: Number(r["data-rayon"]), voie: Number(r["data-voie"]),
+    angles: [Number(r["data-entree"]), Number(r["data-sortie"])].sort((a, b) => a - b) };
+  const pose = poseDe(voiture), disque = trouverRole(image, "point-vise");
+  return { route, pose, oeil: reperesDessus(pose).oeil, cone: { sommet: point(cone), direction: Number(cone.attributs["data-angle"]),
+    pts: pointsDe(cone), noeud: cone }, vise: point(disque), disque, rayonVise: rayonCouvert(disque), visee: trouverRole(image, "visee") };
 }
+const versLe = (a, b) => Math.atan2(b[1] - a[1], b[0] - a[0]) / DEG;
+const polaireDe = (centre, p) => ((versLe(centre, p) % 360) + 360) % 360;
+const surCercle = (centre, rayon, angle) => [centre[0] + rayon * Math.cos(angle * DEG), centre[1] + rayon * Math.sin(angle * DEG)];
+// Virage à droite, voiture dans la voie de droite, à l'intérieur : bord intérieur de sa voie (le bord de la chaussée) une voie en
+// deçà de la ligne médiane, axe de sa voie une demi-voie en deçà. Distance « au centre » d'un point : dans le secteur de l'arc, sa
+// distance au centre ; sur l'approche ou la sortie (lignes droites tangentes aux bouts de l'arc), sa coordonnée le long du rayon
+// du bout le plus proche. Le point est dans la voie de la voiture quand elle est entre le bord intérieur et la ligne médiane.
+const dir = (a) => [Math.cos(a * DEG), Math.sin(a * DEG)], scal = (u, w) => u[0] * w[0] + u[1] * w[1];
+function partie({ centre, angles: [a0, a1] }, p) {
+  const v = [p[0] - centre[0], p[1] - centre[1]], phi = polaireDe(centre, p);
+  if (phi >= a0 && phi <= a1) return { nom: "arc", v, phi };
+  return scal(v, dir(a0 - 90)) > 0 ? { nom: "approche", v, angle: a0 } : { nom: "sortie", v, angle: a1 };
+}
+function auCentre(route, p) {
+  const q = partie(route, p);
+  return q.nom === "arc" ? Math.hypot(...q.v) : scal(q.v, dir(q.angle));
+}
+// Cap d'une voiture qui roule sur l'axe de sa voie, au point p : perpendiculaire au rayon dans l'arc, celui de la ligne droite
+// sur l'approche et la sortie (sens horaire : le rayon plus un quart de tour).
+function capTangent(route, p) {
+  const q = partie(route, p);
+  return (q.nom === "arc" ? q.phi : q.angle) + 90;
+}
+// Avancée d'un point le long du virage, en degrés d'arc dans le secteur, puis au-delà, en mètres après la fin de l'arc ramenés en
+// degrés du bord intérieur : elle ne fait que croître quand un point avance vers la sortie.
+function avancee(route, p) {
+  const q = partie(route, p), bord = route.rayon - route.voie;
+  if (q.nom === "arc") return q.phi;
+  if (q.nom === "sortie") return route.angles[1] + (scal(q.v, dir(route.angles[1] + 90)) / bord) / DEG;
+  return route.angles[0] - (scal(q.v, dir(route.angles[0] - 90)) / bord) / DEG;
+}
+const coinsCaisse = (pose) => [[1, 1], [1, -1], [-1, -1], [-1, 1]].map(([a, b]) =>
+  metresVersCadre(pose)([(a * GABARITS.voiture.longueur) / 2, (b * GABARITS.voiture.largeur) / 2]));
 
 test("regard-loin : le cône du regard des scènes, sommet à l'œil, 22 m de portée, 16 degrés de demi-ouverture, teinte et opacité des scènes", () => {
-  const { d, pose, cone, pts } = regardDe();
-  assert.equal(pts.length, 3, "un triangle");
-  const [sommet, p1, p2] = pts;
-  const oeil = reperesDessus(pose).oeil;
-  assert.ok(distance(sommet, oeil) < 0.01, "sommet à l'œil du conducteur");
+  const def = geste();
   assert.deepEqual([REGARD_PORTEE, REGARD_OUVERTURE], [22, 16], "le cône des scènes");
-  for (const p of [p1, p2]) assert.ok(Math.abs(distance(p, sommet) - REGARD_PORTEE * pose.echelle) < 0.01, "côtés de 22 m");
-  const ouverture = Math.abs(ecartAngle(Math.atan2(p1[1] - sommet[1], p1[0] - sommet[0]) / DEG, Math.atan2(p2[1] - sommet[1], p2[0] - sommet[0]) / DEG));
-  assert.ok(Math.abs(ouverture - 2 * REGARD_OUVERTURE) < 0.01, `ouverture de ${ouverture} degrés`);
-  assert.equal(cone.attributs.fill, TEINTES.regard);
-  assert.equal(Number(cone.attributs.opacity), OPACITE_CONE);
-  // Le cône passe sous la voiture, comme dans les scènes.
-  const ordre = trouverTous(d, (x) => ["regard", "voiture"].includes(x.attributs["data-r"])).map((x) => x.attributs["data-r"]);
-  assert.deepEqual(ordre, ["regard", "voiture"]);
+  for (const t of [0, ...def.etapes.map((e) => e.t), def.duree]) {
+    const image = imageA(def, t, false), { pose, oeil, cone } = lireRegard(image), portee = REGARD_PORTEE * pose.echelle;
+    assert.ok(distance(cone.sommet, oeil) < 0.01 && distance(cone.pts[0], oeil) < 0.01, `${t} s : sommet à l'œil du conducteur`);
+    // Le tracé est le triangle des scènes, découpé au bord du cadre : chaque point est dans l'ouverture et à la portée.
+    for (const p of cone.pts.slice(1)) {
+      assert.ok(distance(p, oeil) <= portee + 0.01, `${t} s : point du cône au-delà de 22 m`);
+      assert.ok(Math.abs(ecartAngle(versLe(oeil, p), cone.direction)) <= REGARD_OUVERTURE + 0.01, `${t} s : point hors de l'ouverture`);
+    }
+    assert.equal(cone.noeud.attributs.fill, TEINTES.regard);
+    assert.equal(Number(cone.noeud.attributs.opacity), OPACITE_CONE);
+    const ordre = trouverTous(image, (x) => ["regard", "voiture"].includes(x.attributs["data-r"])).map((x) => x.attributs["data-r"]);
+    assert.deepEqual(ordre, ["regard", "voiture"], "le cône passe sous la voiture, comme dans les scènes");
+  }
+  // Au début, le cône tient dans le cadre : le triangle entier, ses deux côtés de 22 m, 32 degrés d'ouverture.
+  const { pose, cone } = lireRegard(imageA(def, 0, false)), [s, p1, p2] = cone.pts;
+  assert.equal(cone.pts.length, 3, "un triangle entier");
+  for (const p of [p1, p2]) assert.ok(Math.abs(distance(p, s) - REGARD_PORTEE * pose.echelle) < 0.01, "côtés de 22 m");
+  assert.ok(Math.abs(Math.abs(ecartAngle(versLe(s, p1), versLe(s, p2))) - 2 * REGARD_OUVERTURE) < 0.01, "ouverture de 32 degrés");
 });
 
-test("regard-loin : l'axe du cône vise l'axe de la voie de la voiture, au moins 20 m plus loin le long du virage", () => {
-  const { d, pose, pts, centre, axe, voie } = regardDe();
-  const E = pose.echelle;
-  assert.ok(Math.abs(voie / E - DESSIN.voie) < 1e-9, "voie des scènes");
-  // Virage à gauche, voiture dans la voie de droite, à l'extérieur : axe de la voie une demi-voie au-delà de l'axe de la chaussée.
-  const rVoie = axe + voie / 2;
-  const c = [pose.x, pose.y];
-  assert.ok(Math.abs(distance(c, centre) - rVoie) < 0.01, "voiture sur l'axe de sa voie");
-  const cap = [Math.cos(pose.cap * DEG), Math.sin(pose.cap * DEG)], versCentre = [centre[0] - c[0], centre[1] - c[1]];
-  assert.ok(cap[0] * versCentre[1] - cap[1] * versCentre[0] < 0, "virage à gauche : le centre à gauche de la voiture");
-  assert.ok(Math.abs(ecartAngle(pose.cap, Math.atan2(c[1] - centre[1], c[0] - centre[0]) / DEG - 90)) < 0.01, "voiture dans l'axe de sa voie");
-  // Point visé : sur l'axe du cône, au milieu de son bord lointain.
-  const [, p1, p2] = pts, vise = [(p1[0] + p2[0]) / 2, (p1[1] + p2[1]) / 2];
-  assert.ok(Math.abs(distance(vise, centre) - rVoie) <= (DESSIN.voie / 4) * E, "point visé sur l'axe de la voie, à un quart de voie près");
-  const angle = (p) => Math.atan2(p[1] - centre[1], p[0] - centre[0]);
-  let balaye = angle(c) - angle(vise);
-  if (balaye < 0) balaye += 2 * Math.PI;
-  assert.ok(rVoie * balaye >= 20 * E, `point visé à ${((rVoie * balaye) / E).toFixed(1)} m le long de la voie`);
-  // Le repère du point visé est là, et son étiquette dit où l'on veut aller.
-  assert.ok(distance(point(trouverRole(d, "point-vise")), vise) < 0.01, "repère du point visé");
-  assert.equal(textesDe(trouverRole(d, "etiquette-point-vise")).join(" "), "Là où l'on veut aller");
+// Consigne du formateur du 19/10/2026 : « le vecteur n'est pas collé au trottoir, il y a un très léger espace ; si l'élève regarde
+// le trottoir, il va aller dans le trottoir » ; ce très léger espace, ce sont les « 50 cm » de sa consigne du 16/10/2026. La ligne
+// du regard est la tangente menée de l'œil au bord intérieur élargi de 0,50 m vers la voie (le cercle de rayon bord + 0,50 m
+// autour du centre du virage), tant que son point de tangence est dans l'arc ; puis, en sortie, la ligne de l'œil dans l'axe de la
+// sortie. Le point de tangence se recalcule ici depuis l'œil lu dans le dessin : à acos(r / d) de l'angle polaire de l'œil, vers
+// l'avant (r : rayon du cercle élargi ; d : distance de l'œil au centre). Tolérance : 0,02 m (0,2 px sur un téléphone, le double
+// de l'arrondi des tracés au centième d'unité), vingt-cinq fois moins que l'espace : une tangente au bord lui-même, ou à 0,40 m,
+// en sort.
+const DECALAGE_CORDE = 0.5, TOLERANCE_FROLE = 0.02;
+const tangenceDe = ({ route, oeil, pose }) => {
+  const r = route.rayon - route.voie + DECALAGE_CORDE * pose.echelle;
+  return { r, angle: polaireDe(route.centre, oeil) + Math.acos(r / distance(oeil, route.centre)) / DEG };
+};
+// Distance d'un point à une droite (a, b).
+const versDroite = (p, a, b) => Math.abs((b[0] - a[0]) * (p[1] - a[1]) - (b[1] - a[1]) * (p[0] - a[0])) / distance(a, b);
+// Distance d'un point au bord intérieur du virage, positive hors du trottoir intérieur. Ce trottoir est l'ensemble des points à
+// moins du rayon du bord (route.rayon - route.voie) du quart de plan situé derrière les deux bouts de l'arc (côté centre, vu de
+// l'approche et de la sortie) : sa distance à ce quart de plan, moins ce rayon.
+function horsTrottoir({ centre, rayon, voie, angles: [a0, a1] }, p) {
+  const v = [p[0] - centre[0], p[1] - centre[1]];
+  return Math.hypot(Math.max(scal(v, dir(a0)), 0), Math.max(scal(v, dir(a1)), 0)) - (rayon - voie);
+}
+// Le trait de visée, échantillonné tous les PAS_TRAIT_VISEE unités, bouts compris.
+const PAS_TRAIT_VISEE = 0.5;
+function echantillons(trait) {
+  const r = [];
+  for (let i = 0; i + 1 < trait.length; i++) {
+    const nombre = Math.max(1, Math.ceil(distance(trait[i], trait[i + 1]) / PAS_TRAIT_VISEE));
+    for (let j = 0; j <= nombre; j++) r.push([trait[i][0] + ((trait[i + 1][0] - trait[i][0]) * j) / nombre, trait[i][1] + ((trait[i + 1][1] - trait[i][1]) * j) / nombre]);
+  }
+  return r;
+}
+
+test("regard-loin, étape 1 : en entrée de virage, le regard frôle la corde : le point visé est le point de tangence, dans la première moitié de l'arc, 0,50 m en dedans du bord intérieur, nommé « Point de corde »", () => {
+  const def = geste(), image = imageFigee(def, 0), lu = lireRegard(image), { route, pose, oeil, vise } = lu, E = pose.echelle;
+  assert.ok(Math.abs(route.voie / E - DESSIN.voie) < 1e-9, "voie des scènes");
+  assert.deepEqual(route.angles, [180, 270], "virage d'un quart de tour, à droite : l'approche monte, la sortie va vers la droite");
+  const { r, angle } = tangenceDe(lu), sommet = (route.angles[0] + route.angles[1]) / 2, corde = surCercle(route.centre, r, angle);
+  assert.ok(distance(vise, corde) <= TOLERANCE_FROLE * E, `point visé à ${(distance(vise, corde) / E).toFixed(3)} m du point de tangence`);
+  assert.ok(Math.abs(distance(vise, route.centre) - (route.rayon - route.voie) - DECALAGE_CORDE * E) <= TOLERANCE_FROLE * E, "point visé hors des 0,50 m");
+  assert.ok(angle > route.angles[0] && angle < sommet, `point de tangence à ${angle.toFixed(1)} degrés : hors de l'entrée du virage`);
+  const etiquetteCorde = trouverRole(image, "etiquette-corde");
+  assert.equal(textesDe(etiquetteCorde).join(" "), "Point de corde");
+  assert.ok(distance(point(etiquetteCorde), corde) <= TOLERANCE_FROLE * E, "l'étiquette nomme le point de tangence de l'étape 1");
+  // Le cône l'atteint (sinon l'axe serait prolongé jusqu'à lui).
+  assert.ok(distance(oeil, corde) <= REGARD_PORTEE * Math.cos(REGARD_OUVERTURE * DEG) * E, "le cône atteint le point de corde");
+  // La voiture, en entrée de virage : sur l'approche, son avant au plus à une longueur de voiture du début de l'arc, cap vers le haut.
+  const debut = surCercle(route.centre, route.rayon - route.voie / 2, route.angles[0]);
+  const avant = metresVersCadre(pose)([GABARITS.voiture.longueur / 2, 0]);
+  assert.ok(avant[1] > debut[1] && avant[1] - debut[1] <= GABARITS.voiture.longueur * E, "avant de la voiture juste avant le virage");
+  assert.ok(Math.abs(ecartAngle(pose.cap, -90)) < 1e-6, "cap vers le haut");
 });
 
-test("regard-loin : la marque du point visé se lit sur un téléphone et le point de son étiquette n'en cache qu'une petite part", () => {
-  const { d } = regardDe();
-  const marque = trouverRole(d, "point-vise"), e = trouverRole(d, "etiquette-point-vise");
-  const rayon = Math.max(...trouverTous(marque, (x) => x.balise === "circle").map((c) => Number(c.attributs.r)));
-  assert.ok(rayon * (343 / 320) >= 7, `marque de ${(rayon * (343 / 320)).toFixed(1)} px de rayon sur un téléphone, moins de 7`);
-  // Le point de l'étiquette est posé sur le cercle de la marque et n'en couvre qu'un arc court.
-  const centre = point(marque), p = point(e);
-  assert.ok(Math.abs(distance(p, centre) - rayon) < 0.01, "point posé sur le cercle de la marque");
-  const cercleMarque = { polygones: [], segments: Array.from({ length: 360 }, (_, k) => ({
-    a: [centre[0] + rayon * Math.cos(k * DEG), centre[1] + rayon * Math.sin(k * DEG)],
-    b: [centre[0] + rayon * Math.cos((k + 1) * DEG), centre[1] + rayon * Math.sin((k + 1) * DEG)], demi: 0.5 })) };
-  assert.ok(partCachee(p, rayonPoint(e), cercleMarque) <= PART_CACHEE_MAX, "le point ne cache pas la marque");
+test("regard-loin : à chaque image, la ligne du regard est tangente au bord intérieur élargi de 0,50 m, le point visé au point de tangence, tant que ce point est dans l'arc ; ensuite, droit dans l'axe de la sortie, le point visé et le bout du trait dans la voie de la voiture, entre le bord et la ligne médiane", () => {
+  const def = geste(), [, t2, t3] = def.etapes.map((e) => e.t);
+  let dansArc = 0, enSortie = 0, premiereSortie = null;
+  for (const t of instantsDe(def)) {
+    for (const fige of [false, true]) {
+      const lu = lireRegard(imageA(def, t, fige)), { route, pose, oeil, vise, visee } = lu, E = pose.echelle, quand = `${t.toFixed(3)} s`;
+      const trait = pointsDe(visee), bout = trait[trait.length - 1], bord = route.rayon - route.voie, { r, angle } = tangenceDe(lu);
+      if (angle <= route.angles[1]) {
+        if (!fige) dansArc++;
+        const ecart = versDroite(route.centre, trait[0], bout);
+        assert.ok(Math.abs(ecart - r) <= TOLERANCE_FROLE * E, `${quand} : ligne du regard à ${((ecart - bord) / E).toFixed(3)} m du bord intérieur, au plus près`);
+        assert.ok(distance(vise, surCercle(route.centre, r, angle)) <= TOLERANCE_FROLE * E, `${quand} : point visé à ${(distance(vise, surCercle(route.centre, r, angle)) / E).toFixed(3)} m du point de tangence`);
+      } else {
+        if (!fige) { enSortie++; if (premiereSortie === null) premiereSortie = t; }
+        assert.ok(Math.abs(ecartAngle(versLe(oeil, bout), route.angles[1] + 90)) < 0.01, `${quand} : regard à ${ecartAngle(versLe(oeil, bout), route.angles[1] + 90).toFixed(3)} degrés de l'axe de la sortie`);
+        assert.equal(partie(route, vise).nom, "sortie", `${quand} : point visé hors de la sortie`);
+        for (const [nom, p] of [["point visé", vise], ["bout du trait", bout]]) {
+          const d = auCentre(route, p);
+          assert.ok(d >= bord + (DECALAGE_CORDE - TOLERANCE_FROLE) * E && d < route.rayon, `${quand} : ${nom} à ${((d - bord) / E).toFixed(2)} m du bord intérieur, hors de la voie`);
+        }
+      }
+    }
+  }
+  // Les deux temps se voient : le point de tangence quitte l'arc pendant l'étape 2, la voiture passée le sommet, avant son arrêt.
+  assert.ok(dansArc > 0 && enSortie > 0, "les deux temps du regard");
+  assert.ok(premiereSortie > t2 && premiereSortie < t3, `regard dans l'axe de la sortie dès ${premiereSortie} s`);
+});
+
+test("regard-loin : à chaque image, le trait de visée garde 0,50 m du bord intérieur sur toute sa longueur, de l'œil au bord du cadre : il ne coupe ni le bord ni le trottoir", () => {
+  const def = geste();
+  for (const t of instantsDe(def)) {
+    for (const fige of [false, true]) {
+      const { route, pose, visee } = lireRegard(imageA(def, t, fige)), E = pose.echelle;
+      const plusPres = Math.min(...echantillons(pointsDe(visee)).map((p) => horsTrottoir(route, p)));
+      assert.ok(plusPres >= (DECALAGE_CORDE - TOLERANCE_FROLE) * E, `${t.toFixed(3)} s : trait de visée à ${(plusPres / E).toFixed(3)} m du bord intérieur`);
+    }
+  }
+});
+
+// Consigne du formateur du 16/10/2026 : « regard au loin : tire le vecteur jusqu'au bout ». À chaque image, de lecture comme
+// figée, le trait de visée part de l'œil, passe par le point visé et file sur le même axe jusqu'au bord du cadre (rentré de sa
+// demi-épaisseur, coins arrondis compris, à un demi-unité près), d'un seul tracé, d'un seul tireté.
+const TOLERANCE_BORD_CADRE = 0.5;
+// Écart signé d'un point au bord d'un rectangle aux coins arrondis (négatif dedans) : le cadre, rentré de `retrait`.
+function ecartAuCadre([x, y], [L, H], rayon, retrait) {
+  const [demiL, demiH, r] = [L / 2 - retrait, H / 2 - retrait, rayon - retrait];
+  const q = [Math.abs(x - L / 2) - (demiL - r), Math.abs(y - H / 2) - (demiH - r)];
+  return Math.hypot(Math.max(q[0], 0), Math.max(q[1], 0)) + Math.min(Math.max(q[0], q[1]), 0) - r;
+}
+test("regard-loin : à chaque image, lecture et figée, l'axe du cône et le trait de visée partent de l'œil et passent par le point visé, affiché ; le trait file au-delà, jusqu'au bord du cadre", () => {
+  const def = geste();
+  for (const t of instantsDe(def)) {
+    for (const fige of [false, true]) {
+      const image = imageA(def, t, fige), { oeil, cone, vise, disque, visee } = lireRegard(image), quand = `${t.toFixed(3)} s`;
+      assert.ok(Math.abs(ecartAngle(cone.direction, versLe(oeil, vise))) < 0.01, `${quand} : l'axe du regard ne passe pas par le point visé`);
+      const trait = pointsDe(visee), bout = trait[trait.length - 1], axe = versLe(oeil, vise);
+      assert.ok(distance(trait[0], oeil) < 0.01, `${quand} : trait de visée qui ne part pas de l'œil`);
+      for (const p of trait.slice(1)) assert.ok(Math.abs(ecartAngle(versLe(oeil, p), axe)) < 0.01, `${quand} : trait de visée hors de l'axe du regard`);
+      assert.ok(projeter(vise, trait).distance < 0.01, `${quand} : trait de visée qui ne passe pas par le point visé`);
+      assert.ok(distance(oeil, bout) >= distance(oeil, vise) + 2 * rayonCouvert(disque), `${quand} : trait de visée arrêté au point visé`);
+      const fond = trouverRole(image, "fond").attributs, demi = Number(visee.attributs["stroke-width"]) / 2;
+      const ecart = ecartAuCadre(bout, def.cadre, Number(fond.rx), demi);
+      assert.ok(Math.abs(ecart) <= TOLERANCE_BORD_CADRE, `${quand} : trait de visée arrêté à ${(-ecart).toFixed(2)} unités du bord du cadre`);
+      assert.equal(trouverTous(image, (x) => x.attributs["data-r"] === "visee").length, 1, `${quand} : un seul trait de visée`);
+      assert.ok(visee.attributs["stroke-dasharray"], `${quand} : trait de visée sans tireté`);
+      for (const noeud of [visee, disque, ...trouverTous(disque, (x) => x.balise === "circle")]) {
+        assert.ok(noeud.attributs.display !== "none" && (noeud.attributs.opacity === undefined || Number(noeud.attributs.opacity) === 1),
+          `${quand} : ${noeud.attributs["data-r"] || noeud.balise} masqué`);
+      }
+    }
+  }
+});
+
+// Le point visé, disque plein sur son liseré, reste sur la chaussée sans jamais recouvrir le bord intérieur de la voie : il en
+// garde au moins un demi-pixel de chaussée sur un téléphone (à 0,50 m du bord, il n'a que 4,5 unités de place).
+const JEU_BORD_PX = 0.5;
+test("regard-loin : à chaque image, le point visé, liseré compris, reste sur la chaussée, sans recouvrir le bord intérieur de la voie", () => {
+  const def = geste(), pxParUnite = LARGEUR_TELEPHONE / def.cadre[0];
+  for (const t of instantsDe(def)) {
+    const { route, vise, rayonVise } = lireRegard(imageA(def, t, false)), jeu = auCentre(route, vise) - (route.rayon - route.voie) - rayonVise;
+    assert.ok(jeu * pxParUnite >= JEU_BORD_PX, `${t.toFixed(3)} s : point visé à ${(jeu * pxParUnite).toFixed(2)} px du bord de la chaussée`);
+  }
+});
+
+test("regard-loin : le point visé glisse sans revenir en arrière, le long du virage puis de la sortie ; à l'étape 2, il a passé le sommet ; de l'étape 3 à la fin, il est au fond de la sortie, nommé « Sortie »", () => {
+  const def = geste(), t3 = def.etapes[2].t;
+  let precedente = -Infinity;
+  for (const t of instantsDe(def)) {
+    const { route, vise } = lireRegard(imageA(def, t, false)), a = avancee(route, vise);
+    assert.ok(a >= precedente - 1e-6, `${t.toFixed(3)} s : le point visé revient en arrière`);
+    precedente = a;
+  }
+  // À l'étape 2, la voiture au sommet : le regard porte déjà vers la sortie, le point de tangence au-delà du sommet, dans l'arc.
+  const e2 = lireRegard(imageFigee(def, 1)), { angle } = tangenceDe(e2), sommet = (e2.route.angles[0] + e2.route.angles[1]) / 2;
+  assert.ok(angle > sommet && angle < e2.route.angles[1], `étape 2 : point de tangence à ${angle.toFixed(1)} degrés, hors de la seconde moitié de l'arc`);
+  // À l'étape 3 et jusqu'à la fin : au fond de la sortie, au moins 10 m après l'arc, son disque entier dans le cadre, nommé « Sortie ».
+  for (const t of instantsDe(def).filter((x) => x >= t3)) {
+    const image = imageA(def, t, false), { route, pose, vise, rayonVise: r } = lireRegard(image), E = pose.echelle;
+    const finVoie = surCercle(route.centre, route.rayon - route.voie / 2, route.angles[1]);
+    assert.ok(scal([vise[0] - finVoie[0], vise[1] - finVoie[1]], dir(route.angles[1] + 90)) >= 10 * E, `${t.toFixed(3)} s : fond de la sortie à moins de 10 m`);
+    assert.ok(vise[0] + r <= def.cadre[0] && vise[0] - r >= 0 && vise[1] - r >= 0 && vise[1] + r <= def.cadre[1], "point visé du fond dans le cadre");
+    const sortie = trouverRole(image, "etiquette-sortie");
+    assert.equal(textesDe(sortie).join(" "), "Sortie");
+    assert.ok(distance(point(sortie), vise) < 0.01, "l'étiquette nomme le fond de la sortie");
+  }
+});
+
+test("regard-loin, étape 2 : la voiture au sommet du virage, à la corde, sur l'axe de sa voie", () => {
+  const { route, pose } = lireRegard(imageFigee(geste(), 1));
+  const rVoie = route.rayon - route.voie / 2, sommet = (route.angles[0] + route.angles[1]) / 2, c = [pose.x, pose.y];
+  assert.ok(Math.abs(distance(c, route.centre) - rVoie) < 0.01, "voiture sur l'axe de sa voie");
+  assert.ok(Math.abs(polaireDe(route.centre, c) - sommet) < 0.5, `voiture à ${polaireDe(route.centre, c).toFixed(2)} degrés, au sommet (${sommet})`);
+});
+
+test("regard-loin, étape 3 : en sortie, la voiture a quitté l'arc, et le regard porte droit devant, jusqu'à la fin", () => {
+  const def = geste(), debut = def.etapes[2].t;
+  for (const t of instantsDe(def).filter((x) => x >= debut)) {
+    const { route, pose, cone } = lireRegard(imageA(def, t, false));
+    const fin = surCercle(route.centre, route.rayon - route.voie / 2, route.angles[1]);
+    const arriere = metresVersCadre(pose)([-GABARITS.voiture.longueur / 2, 0]);
+    assert.ok(Math.abs(ecartAngle(pose.cap, route.angles[1] + 90)) < 1e-6, `${t.toFixed(3)} s : cap de la sortie`);
+    assert.ok(arriere[0] >= fin[0] - 0.01, `${t.toFixed(3)} s : l'arrière de la voiture encore dans l'arc`);
+    assert.ok(Math.abs(ecartAngle(cone.direction, pose.cap)) < 0.01, `${t.toFixed(3)} s : regard à ${ecartAngle(cone.direction, pose.cap).toFixed(3)} degrés du cap`);
+  }
+});
+
+test("regard-loin : la voiture reste dans sa voie, à droite, sur l'axe de sa voie, à chaque image du geste", () => {
+  const def = geste();
+  for (const t of instantsDe(def)) {
+    const { route, pose } = lireRegard(imageA(def, t, false)), E = pose.echelle;
+    const bord = route.rayon - route.voie, mediane = route.rayon;
+    for (const p of coinsCaisse(pose)) {
+      const d = auCentre(route, p);
+      assert.ok(d > bord && d < mediane, `${t.toFixed(3)} s : coin de la caisse à ${((d - bord) / E).toFixed(2)} m du bord intérieur (voie de ${route.voie / E} m)`);
+    }
+    assert.ok(Math.abs(auCentre(route, [pose.x, pose.y]) - (route.rayon - route.voie / 2)) < 0.01, `${t.toFixed(3)} s : centre hors de l'axe de la voie`);
+    const tangente = capTangent(route, [pose.x, pose.y]);
+    assert.ok(Math.abs(ecartAngle(pose.cap, tangente)) < 1e-6, `${t.toFixed(3)} s : cap ${pose.cap} au lieu de ${tangente}`);
+  }
+});
+
+// Continuité propre au regard, au-delà des contrôles communs (état, points dessinés, dont le disque du point visé) : d'une image
+// (1/60 s) à la suivante, la direction du regard tourne de 1 degré au plus (60 degrés par seconde ; mesuré : 0,44), le cap de la
+// voiture de 0,5 degré au plus (30 degrés par seconde : à allure constante dans le virage, 6,4 m/s sur 13,75 m de rayon, il
+// tourne de 26,7 degrés par seconde, 0,44 par image), le point visé avance de 0,2 m au plus (12 m/s ; mesuré : 0,14).
+const ROTATION_REGARD_MAX = 1, ROTATION_CAP_MAX = 0.5, PAS_VISE_MAX = 0.2;
+test("regard-loin : le regard, la voiture et le point visé avancent sans saut, d'une image à la suivante", () => {
+  const def = geste();
+  let avant = null;
+  for (const t of instantsDe(def)) {
+    const { pose, cone, vise } = lireRegard(imageA(def, t, false));
+    if (avant) {
+      const dRegard = Math.abs(ecartAngle(cone.direction, avant.direction)), dCap = Math.abs(ecartAngle(pose.cap, avant.cap));
+      const dVise = distance(vise, avant.vise) / pose.echelle;
+      assert.ok(dRegard <= ROTATION_REGARD_MAX, `${t.toFixed(3)} s : le regard tourne de ${dRegard.toFixed(2)} degrés en une image`);
+      assert.ok(dCap <= ROTATION_CAP_MAX, `${t.toFixed(3)} s : la voiture tourne de ${dCap.toFixed(2)} degrés en une image`);
+      assert.ok(dVise <= PAS_VISE_MAX, `${t.toFixed(3)} s : le point visé saute de ${dVise.toFixed(2)} m en une image`);
+    }
+    avant = { direction: cone.direction, cap: pose.cap, vise };
+  }
+});
+
+test("regard-loin : chaque étape dure au moins 1 s ; aux étapes 1 et 2, l'image figée montre la flèche de la voiture, devant elle, dans sa voie ; à l'étape 3, la voiture arrêtée, aucune", () => {
+  const def = geste();
+  def.etapes.forEach((e, i) => {
+    const fin = i + 1 < def.etapes.length ? def.etapes[i + 1].t : def.duree;
+    assert.ok(fin - e.t >= 1, `étape ${i + 1} : ${(fin - e.t).toFixed(2)} s`);
+    const image = imageFigee(def, i), { route, pose } = lireRegard(image);
+    const visibles = trouverTous(image, (x) => /^fleche-\d$/.test(x.attributs["data-r"] || "") && x.attributs.display !== "none");
+    if (i === 2) { assert.equal(visibles.length, 0, "étape 3 : aucune flèche"); return; }
+    assert.deepEqual(visibles.map((x) => x.attributs["data-r"]), [`fleche-${i + 1}`]);
+    const trait = pointsDe(trouverRole(visibles[0], "fleche-trait"));
+    assert.ok(cadreVersMetres(pose)(trait[0])[0] > GABARITS.voiture.longueur / 2, "la flèche part devant la voiture");
+    assert.ok(Math.abs(auCentre(route, trait[0]) - (route.rayon - route.voie / 2)) < 0.01, "la flèche part de l'axe de la voie");
+    for (const p of trait) {
+      const d = auCentre(route, p);
+      assert.ok(d > route.rayon - route.voie && d < route.rayon, "la flèche reste dans la voie de la voiture");
+    }
+  });
+});
+
+// Défaut corrigé le 19/10/2026 : au milieu de l'étape 2, la flèche de la voiture recouvrait le début du trait de visée. En sortie,
+// la ligne de l'œil croise l'axe de la voie, où court la flèche : ils se recouvrent un moment (le test le vérifie, sinon il ne
+// prouverait rien), et le trait passe par-dessus la flèche, la voiture par-dessus les deux.
+test("regard-loin : sur les images figées, la flèche de la voiture passe sous le trait de visée, qui reste entier là où ils se recouvrent ; la voiture passe sur les deux", () => {
+  const def = geste(), [, t2, t3] = def.etapes.map((e) => e.t);
+  let recouvrement = false;
+  for (const t of instantsDe(def)) {
+    const image = imageA(def, t, true), quand = `${t.toFixed(3)} s`;
+    const ordre = trouverTous(image, (x) => ["fleche", "visee", "voiture"].includes(x.attributs["data-r"])).map((x) => x.attributs["data-r"]);
+    assert.deepEqual(ordre, ["fleche", "visee", "voiture"], `${quand} : ordre des calques`);
+    if (t < t2 || t >= t3) continue;
+    const { visee } = lireRegard(image), tige = trouverRole(trouverRole(image, "fleche-2"), "fleche-trait");
+    const proche = (Number(tige.attributs["stroke-width"]) + Number(visee.attributs["stroke-width"])) / 2;
+    if (echantillons(pointsDe(visee)).some((p) => projeter(p, pointsDe(tige)).distance < proche)) recouvrement = true;
+  }
+  assert.ok(recouvrement, "au milieu de l'étape 2, le trait de visée et la flèche se recouvrent");
+});
+
+// Le trait de visée, tiré jusqu'au bord du cadre, ne passe sur aucun texte (les étiquettes), à aucune image : il
+// est échantillonné tous les demi-unités, chaque point à une demi-épaisseur de trait au moins de la boîte de chaque texte.
+const PAS_ECHANTILLON = 0.5;
+const ecartBoite = ([x, y], b) => Math.hypot(Math.max(b.x1 - x, 0, x - b.x2), Math.max(b.y1 - y, 0, y - b.y2));
+test("regard-loin : à chaque image, le trait de visée ne passe sur aucun texte", () => {
+  const def = geste();
+  for (const t of instantsDe(def)) {
+    for (const fige of [false, true]) {
+      const image = imageA(def, t, fige), { visee } = lireRegard(image), trait = pointsDe(visee), demi = Number(visee.attributs["stroke-width"]) / 2;
+      const boites = boitesTextes(image);
+      for (let i = 0; i + 1 < trait.length; i++) {
+        const nombre = Math.max(1, Math.ceil(distance(trait[i], trait[i + 1]) / PAS_ECHANTILLON));
+        for (let j = 0; j <= nombre; j++) {
+          const p = [trait[i][0] + ((trait[i + 1][0] - trait[i][0]) * j) / nombre, trait[i][1] + ((trait[i + 1][1] - trait[i][1]) * j) / nombre];
+          for (const b of boites) assert.ok(ecartBoite(p, b) >= demi, `${t.toFixed(3)} s : le trait de visée passe sur « ${b.texte} »`);
+        }
+      }
+    }
+  }
+});
+
+// Consigne du formateur du 19/10/2026 : « Pas besoin du petit rond avec les 50 cm. » Ni loupe ni cote, à aucune image : les seuls
+// textes du dessin sont les deux étiquettes.
+test("regard-loin : ni loupe ni cote « 50 cm », à aucune image : les seuls textes sont « Point de corde » et « Sortie »", () => {
+  const def = geste();
+  for (const t of instantsDe(def)) {
+    for (const fige of [false, true]) {
+      const image = imageA(def, t, fige);
+      assert.equal(trouverTous(image, (x) => /loupe/.test(x.attributs["data-r"] || "")).length, 0, `${t.toFixed(3)} s : loupe dessinée`);
+      assert.deepEqual(textesDe(image).sort(), ["Point de corde", "Sortie"], `${t.toFixed(3)} s : textes du dessin`);
+    }
+  }
+});
+
+// Style schématique (décision du formateur du 15/10/2026, essai sur C1.3) : la voiture est la silhouette du kit ; à cette
+// échelle (9 unités par mètre), la voiture détaillée dessinerait ses vitres latérales, ses phares et ses feux.
+test("regard-loin : la voiture en silhouette (style schématique) : la caisse, le pare-brise et la lunette, sans toit, vitres latérales, phares ni feux", () => {
+  const voiture = trouverRole(imageFigee(geste(), 0), "voiture");
+  for (const role of ["toit", "vitre-avant-gauche", "vitre-arriere-droite", "phare-gauche", "feu-droit", "reflet-pare-brise"]) {
+    assert.equal(trouverRole(voiture, role), null, `${role} dans la silhouette`);
+  }
+  for (const role of ["caisse", "pare-brise", "lunette"]) assert.ok(trouverRole(voiture, role), role);
 });
