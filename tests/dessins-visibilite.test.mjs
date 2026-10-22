@@ -263,10 +263,6 @@ function coinAttendu(cote) {
   }).reduce((m, q) => (sg * q[1] > sg * m[1] ? q : m));
   return { P, T, flanc: Math.abs(P[1]) - Math.abs(T[1]), recul: P[0] - T[0] };
 }
-const ceintureAttendue = (X) => {
-  const { arriereBas: a, avantBas: b } = VOITURE.vitrage;
-  return a[1] + ((X - a[0]) / (b[0] - a[0])) * (b[1] - a[1]);
-};
 // Une image de rétroviseur extérieur lue dans le dessin : verre, côté de la caisse (s = 1 si elle est à droite de l'image),
 // bord intérieur, point de fuite, focale, horizon, hauteur de l'œil reflété.
 function imageDe(r, role) {
@@ -276,8 +272,7 @@ function imageDe(r, role) {
   return { g, v, s, W: v.x2 - v.x1, interieur: s > 0 ? v.x2 : v.x1, fuite: Number(g.attributs["data-fuite"]), f: Number(g.attributs["data-focale"]),
     yH: boite(pointsRole(g, "route")).y1, h: Number(g.attributs["data-hauteur"]) };
 }
-const IMAGES = [["miroir-gauche", "gauche", famille.PART_LISERE, "lisere"], ["miroir-droit", "droit", famille.PART_LISERE, "lisere"],
-  ["miroir-gauche-faux", "gauche", famille.PART_FAUX, "carrosserie"]];
+const IMAGES = [["miroir-gauche", "gauche"], ["miroir-droit", "droit"]];
 
 test("retroviseurs et angles-morts : le champ de chaque rétroviseur extérieur est celui du miroir plan du kit, le même dans les deux dessins", () => {
   const r = famille.DESSINS.retroviseurs(), a = famille.DESSINS["angles-morts"]();
@@ -322,90 +317,174 @@ test("retroviseurs et angles-morts : le champ de chaque rétroviseur extérieur 
   }
 });
 
-test("retroviseurs : selon le modèle de l'œil reflété tenu devant le miroir, la caisse vue du miroir s'arrête au coin arrière de la voiture du kit, sous l'épaule, et prend la part annoncée de la largeur", () => {
-  const r = famille.DESSINS.retroviseurs();
-  for (const [role, cote, part, nom] of IMAGES) {
-    const im = imageDe(r, role), c = coinAttendu(cote), b = boite(pointsRole(im.g, nom));
-    const [interieur, exterieur] = im.s > 0 ? [b.x2, b.x1] : [b.x1, b.x2];
-    assert.ok(Math.abs(interieur - im.interieur) < 0.01, `${role} : la caisse au bord intérieur`);
-    const coin = im.fuite + (im.s * im.f * c.flanc) / c.recul;
-    assert.ok(Math.abs(exterieur - coin) < 0.05, `${role} : la caisse s'arrête à ${exterieur.toFixed(2)}, le coin arrière est à ${coin.toFixed(2)}`);
-    assert.ok(Math.abs((im.s * (im.interieur - exterieur)) / im.W - part) < 0.001, `${role} : la caisse prend ${((100 * im.s * (im.interieur - exterieur)) / im.W).toFixed(1)} % de la largeur`);
-    const haut = im.yH + (im.f * (im.h - ceintureAttendue(c.T[0]))) / c.recul;
-    assert.ok(Math.abs(b.y1 - haut) < 0.05, `${role} : haut de la caisse à ${b.y1.toFixed(2)}, l'épaule au coin à ${haut.toFixed(2)}`);
-    assert.ok(Math.abs(b.y2 - im.v.y2) < 0.01, `${role} : la caisse jusqu'au bas du miroir`);
-  }
-});
-
-// ===== Ce que montrent les rétroviseurs =====
+// ===== Régler les rétroviseurs =====
+// Retour du formateur du 22/10/2026 : d'abord le rétroviseur intérieur, puis les extérieurs ; dans ceux-ci, la ligne d'horizon au
+// milieu, et la poignée de la portière arrière dans le coin inférieur côté voiture (en bas à droite du gauche, en bas à gauche du
+// droit), très nette, ou pas de dessin.
 function miroir(d, role) {
   const g = trouverRole(d, role);
   assert.ok(g, `${role} absent`);
   const verre = boite(pointsRole(g, "verre"));
   return { g, verre, largeur: verre.x2 - verre.x1, hauteur: verre.y2 - verre.y1, milieu: (verre.y1 + verre.y2) / 2 };
 }
-const horizonDe = (m) => boite(pointsRole(m.g, "route")).y1;
+// Les deux miroirs extérieurs et le côté de leur voiture : le bord intérieur du verre, à droite du gauche, à gauche du droit.
+const EXTERIEURS = [["miroir-gauche", "droite"], ["miroir-droit", "gauche"]];
+const bordInterieur = (m, cote) => (cote === "droite" ? m.verre.x2 : m.verre.x1);
+// Un polygone sans ses points répétés (un découpage en laisse) : un côté de longueur nulle n'a pas de direction.
+const sansDoublons = (poly) => poly.filter((p, i) => Math.hypot(p[0] - poly[(i + 1) % poly.length][0], p[1] - poly[(i + 1) % poly.length][1]) > 1e-6);
+// Contraste de deux teintes (#RRGGBB), au sens des WCAG.
+const luminance = (hex) => {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+};
+const contraste = (a, b) => {
+  const [la, lb] = [luminance(a), luminance(b)];
+  return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
+};
 
-test("retroviseurs : extérieur gauche juste, l'horizon à mi-hauteur à 2 % près, un liseré de carrosserie d'au plus 12 % de la largeur, au bord intérieur (à droite)", () => {
+test("retroviseurs : deux temps dans l'ordre, 1 le rétroviseur intérieur, puis 2 les extérieurs (numéros, place, ordre de lecture, description)", () => {
   const d = famille.DESSINS.retroviseurs();
-  const m = miroir(d, "miroir-gauche");
-  const yH = horizonDe(m);
-  assert.ok(Math.abs(yH - m.milieu) <= 0.02 * m.hauteur, `horizon à ${(((yH - m.verre.y1) / m.hauteur) * 100).toFixed(1)} % de la hauteur`);
-  const l = boite(pointsRole(m.g, "lisere"));
-  assert.ok(l.x2 - l.x1 <= 0.12 * m.largeur, `liseré de ${(((l.x2 - l.x1) / m.largeur) * 100).toFixed(1)} % de la largeur`);
-  assert.ok(Math.abs(l.x2 - m.verre.x2) <= 0.5 && l.x1 > m.verre.x1 + 0.88 * m.largeur, "liseré au bord droit du miroir gauche");
-});
-
-test("retroviseurs : extérieur droit juste, un peu plus bas (l'horizon au-dessus du milieu, le bord de la chaussée visible), liseré au bord intérieur (à gauche)", () => {
-  const d = famille.DESSINS.retroviseurs();
-  const m = miroir(d, "miroir-droit");
-  assert.ok(horizonDe(m) < m.milieu, "horizon au-dessus du milieu");
-  const l = boite(pointsRole(m.g, "lisere"));
-  assert.ok(l.x2 - l.x1 <= 0.12 * m.largeur, "liseré mince");
-  assert.ok(Math.abs(l.x1 - m.verre.x1) <= 0.5 && l.x2 < m.verre.x1 + 0.12 * m.largeur, "liseré au bord gauche du miroir droit");
-  const bord = pointsRole(m.g, "bord-chaussee");
-  assert.ok(aire(bord) > 1, "le bord de la chaussée se voit");
-});
-
-test("retroviseurs : extérieur tourné vers la carrosserie (faux), une bande de carrosserie d'au moins 40 % de la largeur, côté intérieur", () => {
-  const d = famille.DESSINS.retroviseurs();
-  const m = miroir(d, "miroir-gauche-faux");
-  const c = boite(pointsRole(m.g, "carrosserie"));
-  assert.ok(c.x2 - c.x1 >= 0.4 * m.largeur, `bande de ${(((c.x2 - c.x1) / m.largeur) * 100).toFixed(1)} % de la largeur`);
-  assert.ok(Math.abs(c.x2 - m.verre.x2) <= 0.5, "du côté de la voiture");
-});
-
-test("retroviseurs : les vitres et le montant arrière, en retrait du flanc, ne se voient que dans le faux, au-dessus de la caisse et loin du point de fuite", () => {
-  const d = famille.DESSINS.retroviseurs();
-  const im = imageDe(d, "miroir-gauche-faux"), { P } = coinAttendu("gauche");
-  // Face extérieure des vitres : relue sur la vitre arrière gauche de la voiture du kit vue du dessus, à 100 unités par mètre.
-  const vitresDessus = Math.max(...pointsDe(trouverRole(voitureDessus({ x: 0, y: 0, cap: 0, echelle: 100 }), "vitre-arriere-gauche").attributs.d)
-    .map((p) => Math.abs(p[1]))) / 100;
-  assert.ok(Math.abs(vitresDessus - (VOITURE.largeur / 2 - 0.15)) < 1e-9, "vitres du kit à 0,15 m en retrait du flanc");
-  const ecart = (X) => (im.f * (Math.abs(P[1]) - vitresDessus)) / (P[0] - X);     // écart au point de fuite d'un point des vitres, à X
-  const vitre = pointsRole(im.g, "vitre"), montant = pointsRole(im.g, "montant"), caisse = pointsRole(im.g, "carrosserie");
-  const [vb, mb] = [boite(vitre), boite(montant)];
-  // Le plus près du point de fuite : le pied de la lunette pour le montant, le pied de la vitre arrière pour la vitre.
-  assert.ok(Math.abs(mb.x1 - im.fuite - ecart(VOITURE.lunette.bas[0])) < 0.05, `montant à ${(mb.x1 - im.fuite).toFixed(2)} unités du point de fuite`);
-  assert.ok(vb.x1 - im.fuite >= ecart(VOITURE.vitrage.arriereBas[0]) - 0.05, `vitre à ${(vb.x1 - im.fuite).toFixed(2)} unités du point de fuite`);
-  assert.ok(mb.x1 - im.fuite >= 20, "loin du point de fuite");
-  assert.ok(mb.x1 < vb.x1, "le montant plus près du point de fuite que la vitre");
-  const commun = dansConvexe(vitre, caisse);
-  assert.ok(commun.length < 3 || aire(commun) < 0.5, "la vitre au-dessus de la caisse, sans la recouvrir");
-  for (const role of ["miroir-gauche", "miroir-droit"]) {
-    const g = trouverRole(d, role);
-    for (const r of ["vitre", "montant"]) {
-      const n = trouverRole(g, r);
-      assert.ok(!n || pointsDe(n.attributs.d).length < 3 || aire(pointsDe(n.attributs.d)) < 0.01, `${role} : aucune vitre au-dessus du liseré`);
-    }
+  const [t1, t2] = ["temps-1", "temps-2"].map((r) => trouverRole(d, r));
+  assert.ok(t1 && t2, "deux temps");
+  assert.deepEqual(textes(trouverRole(t1, "numero-1")), ["1"]);
+  assert.deepEqual(textes(trouverRole(t2, "numero-2")), ["2"]);
+  assert.ok(trouverRole(t1, "miroir-interieur") && !trouverRole(t1, "miroir-gauche") && !trouverRole(t1, "miroir-droit"), "1 : l'intérieur seul");
+  assert.ok(trouverRole(t2, "miroir-gauche") && trouverRole(t2, "miroir-droit") && !trouverRole(t2, "miroir-interieur"), "2 : les extérieurs seuls");
+  assert.deepEqual(textes(trouverRole(t1, "legende-1")), ["Rétroviseur intérieur", "toute la lunette arrière"]);
+  assert.deepEqual(textes(trouverRole(t2, "legende-2")), ["Rétroviseurs extérieurs", "l'horizon au milieu"]);
+  // Le temps 1 au-dessus du temps 2, lu avant lui, et dit avant lui.
+  const [c1, c2] = [t1, t2].map((t) => trouverRole(t, "carte").attributs).map((a) => ({ y1: Number(a.y), y2: Number(a.y) + Number(a.height) }));
+  assert.ok(c1.y2 <= c2.y1, `carte 1 de ${c1.y1} à ${c1.y2}, carte 2 dès ${c2.y1}`);
+  const ordre = trouverTous(d, () => true);
+  assert.ok(ordre.indexOf(t1) < ordre.indexOf(t2), "le temps 1 se lit avant le temps 2");
+  const description = d.attributs["aria-label"];
+  const [i1, i2] = ["1 : le rétroviseur intérieur", "2 : les rétroviseurs extérieurs"].map((m) => description.indexOf(m));
+  assert.ok(i1 >= 0 && i2 > i1, "la description dit l'intérieur, puis les extérieurs");
+  // Les extérieurs comme le conducteur les voit : le gauche à gauche, chacun sous son nom.
+  const [g, dr] = ["miroir-gauche", "miroir-droit"].map((r) => miroir(d, r));
+  assert.ok(g.verre.x2 < dr.verre.x1, "le gauche à gauche du droit");
+  for (const [m, role, mot] of [[g, "nom-gauche", "Gauche"], [dr, "nom-droit", "Droit"]]) {
+    const nom = trouverRole(d, role);
+    assert.equal(texteDe(nom), mot);
+    assert.ok(Math.abs(Number(nom.attributs.x) - (m.verre.x1 + m.verre.x2) / 2) < 0.01 && Number(nom.attributs.y) < m.verre.y1, `${mot} au-dessus de son miroir`);
   }
 });
 
-test("retroviseurs : les images montrent la rue des sources (axiale à gauche, bordure à droite, bord d'en face à gauche)", () => {
+test("retroviseurs : dans chaque miroir extérieur, l'horizon au milieu de la hauteur du verre (ciel dessus, route dessous, ligne d'horizon, repères de mi-hauteur), à 0,01 unité près", () => {
+  const d = famille.DESSINS.retroviseurs();
+  for (const [role] of EXTERIEURS) {
+    const m = miroir(d, role), route = boite(pointsRole(m.g, "route"));
+    assert.ok(Math.abs(route.y1 - m.milieu) < 0.01, `${role} : horizon à ${(((route.y1 - m.verre.y1) / m.hauteur) * 100).toFixed(1)} % de la hauteur`);
+    assert.ok(Math.abs(route.y2 - m.verre.y2) < 0.01, `${role} : la route jusqu'au bas du verre`);
+    const h = trouverRole(m.g, "horizon").attributs;
+    assert.ok([h.y1, h.y2].every((y) => Math.abs(Number(y) - m.milieu) < 0.01), `${role} : ligne d'horizon hors du milieu`);
+    assert.ok(Math.abs(Number(h.x1) - m.verre.x1) < 0.01 && Math.abs(Number(h.x2) - m.verre.x2) < 0.01, `${role} : la ligne d'horizon traverse le verre`);
+    const reperes = trouverTous(m.g, (x) => x.attributs["data-r"] === "mi-hauteur").map((x) => x.attributs);
+    assert.equal(reperes.length, 2, `${role} : deux repères de mi-hauteur`);
+    for (const r of reperes) assert.ok(Math.abs(Number(r.y1) - m.milieu) < 0.01 && Math.abs(Number(r.y2) - m.milieu) < 0.01, `${role} : repère hors du milieu`);
+    assert.ok(reperes.some((r) => Number(r.x2) < m.verre.x1) && reperes.some((r) => Number(r.x1) > m.verre.x2), `${role} : un repère de chaque côté, hors du verre`);
+    assert.ok(boite(pointsRole(m.g, "caisse")).y1 >= m.milieu - 0.01, `${role} : la caisse ne monte pas au-dessus de l'horizon`);
+  }
+});
+
+test("retroviseurs : la poignée de la portière arrière, entière dans le coin inférieur côté voiture (en bas à droite du gauche, en bas à gauche du droit), sur la caisse", () => {
+  const d = famille.DESSINS.retroviseurs();
+  for (const [role, cote] of EXTERIEURS) {
+    const m = miroir(d, role), p = boite(pointsRole(m.g, "poignee")), xi = bordInterieur(m, cote);
+    const loin = Math.max(Math.abs(p.x1 - xi), Math.abs(p.x2 - xi)), pres = Math.min(Math.abs(p.x1 - xi), Math.abs(p.x2 - xi));
+    assert.ok(loin <= m.largeur / 3, `${role} : la poignée va à ${((100 * loin) / m.largeur).toFixed(0)} % de la largeur depuis le bord ${cote}`);
+    assert.ok(pres >= 3, `${role} : la poignée colle au bord du verre (${pres.toFixed(1)} unités)`);
+    assert.ok(p.y1 >= m.verre.y1 + 0.6 * m.hauteur, `${role} : le haut de la poignée à ${(((p.y1 - m.verre.y1) / m.hauteur) * 100).toFixed(0)} % de la hauteur`);
+    assert.ok((p.y1 + p.y2) / 2 >= m.verre.y1 + 0.75 * m.hauteur, `${role} : la poignée hors du quart bas`);
+    assert.ok(m.verre.y2 - p.y2 >= 3, `${role} : la poignée colle au bas du verre`);
+    const caisse = sansDoublons(pointsRole(m.g, "caisse"));
+    for (const q of pointsRole(m.g, "poignee")) assert.ok(dansPolygoneConvexe(q, caisse, 1.5), `${role} : le point ${q} de la poignée n'est pas sur la caisse`);
+  }
+});
+
+test("retroviseurs : la poignée est dans le coin où le miroir plan du kit la montre (le quart bas, le quart côté voiture), ce qu'il ne ferait que d'un trait", () => {
+  const d = famille.DESSINS.retroviseurs();
+  // La poignée arrière de la voiture du kit de profil (relue sur son tracé, à 100 unités par mètre) : de X1 à X2, de z1 à z2.
+  const pts = pointsRole(voitureProfil({ x: 0, y: 0, echelle: 100, sens: "droite" }), "poignee-arriere").map(([x, y]) => [x / 100, -y / 100]);
+  const b = boite(pts);
+  for (const [role, cote] of EXTERIEURS) {
+    const im = imageDe(d, role), m = miroir(d, role), { P } = coinAttendu(role === "miroir-gauche" ? "gauche" : "droit");
+    const flanc = Math.abs(P[1]) - VOITURE.largeur / 2;
+    // Vue de l'œil reflété P, le flanc à `flanc` en dedans de lui : un point de la poignée au recul D est à f flanc / D du point de
+    // fuite vers la caisse, et à f (h - z) / D sous l'horizon.
+    const D = P[0] - (b.x1 + b.x2) / 2, z = (b.y1 + b.y2) / 2;
+    const xModele = im.fuite + (im.s * im.f * flanc) / D, yModele = im.yH + (im.f * (im.h - z)) / D;
+    const xi = bordInterieur(m, cote), partX = (x) => Math.abs(x - xi) / m.largeur, partY = (y) => (y - m.verre.y1) / m.hauteur;
+    assert.ok(partX(xModele) < 0.25 && partY(yModele) > 0.75, `${role} : le modèle met la poignée à ${(100 * partX(xModele)).toFixed(0)} % et ${(100 * partY(yModele)).toFixed(0)} %`);
+    const p = boite(pointsRole(m.g, "poignee")), centre = [(p.x1 + p.x2) / 2, (p.y1 + p.y2) / 2];
+    assert.ok(partX(centre[0]) < 0.25 && partY(centre[1]) > 0.75, `${role} : la poignée dessinée hors du coin du modèle`);
+    // Le modèle exact n'en montrerait qu'un trait : moins d'une unité de large.
+    const large = im.f * flanc * (1 / (P[0] - b.x2) - 1 / (P[0] - b.x1));
+    assert.ok(large < 1 && p.x2 - p.x1 >= 15 * large, `${role} : ${large.toFixed(2)} unité de large dans le modèle, ${(p.x2 - p.x1).toFixed(1)} dessinées`);
+  }
+});
+
+test("retroviseurs : la poignée se lit sur un téléphone (taille, contraste, levier), et le point de son étiquette la désigne sans la couvrir", () => {
+  const d = famille.DESSINS.retroviseurs();
+  const [L] = CATALOGUE.retroviseurs.cadre, px = 343 / L;
+  const rayon = (x) => Math.max(...trouverTous(x, (y) => y.balise === "circle").map((c) => Number(c.attributs.r)));
+  const ancres = new Set();
+  for (const [role] of EXTERIEURS) {
+    const m = miroir(d, role), noeud = trouverRole(m.g, "poignee"), p = boite(pointsDe(noeud.attributs.d));
+    assert.ok((p.x2 - p.x1) * px >= 18 && (p.y2 - p.y1) * px >= 6.5, `${role} : poignée de ${((p.x2 - p.x1) * px).toFixed(1)} sur ${((p.y2 - p.y1) * px).toFixed(1)} px`);
+    const levier = trouverRole(m.g, "levier"), l = boite(pointsDe(levier.attributs.d));
+    assert.ok(l.x1 > p.x1 && l.x2 < p.x2 && l.y1 > p.y1 && l.y2 < p.y2, `${role} : le levier dans son creux`);
+    assert.ok((l.x2 - l.x1) * px >= 12 && (l.y2 - l.y1) * px >= 2, `${role} : levier trop petit`);
+    const caisse = trouverRole(m.g, "caisse").attributs.fill;
+    assert.ok(contraste(noeud.attributs.fill, caisse) >= 3, `${role} : creux à ${contraste(noeud.attributs.fill, caisse).toFixed(2)}:1 sur la caisse`);
+    assert.ok(contraste(levier.attributs.fill, noeud.attributs.fill) >= 3, `${role} : levier à ${contraste(levier.attributs.fill, noeud.attributs.fill).toFixed(2)}:1 sur le creux`);
+    // L'étiquette : son point juste sous la poignée, dans sa longueur, sans la toucher (liseré compris).
+    const e = trouverRole(d, `nom-poignee-${role.slice("miroir-".length)}`);
+    const [cx, cy] = [Number(e.attributs["data-x"]), Number(e.attributs["data-y"])], r = rayon(e);
+    assert.ok(cx > p.x1 && cx < p.x2, `${role} : le point n'est pas sous la poignée`);
+    assert.ok(cy - p.y2 >= r && cy - p.y2 <= r + 1, `${role} : le point à ${(cy - p.y2).toFixed(2)} unité du bas de la poignée, rayon ${r}`);
+    const filet = trouverRole(e, "filet").attributs;
+    ancres.add(`${filet.x2} ${filet.y2}`);
+  }
+  assert.equal(ancres.size, 1, "les deux filets mènent au même nom");
+  assert.equal(textes(d).filter((t) => t === "Poignée de la portière arrière").length, 1, "le nom, une fois");
+});
+
+test("retroviseurs : la caisse, au bord intérieur sous l'horizon, mince à l'horizon (le liseré du réglage) et large en bas, tient dans le tiers côté voiture ; le reste du miroir montre la route", () => {
+  const d = famille.DESSINS.retroviseurs();
+  for (const [role, cote] of EXTERIEURS) {
+    const m = miroir(d, role), xi = bordInterieur(m, cote), c = sansDoublons(pointsRole(m.g, "caisse"));
+    // Part de la largeur, du bord intérieur au bord de la caisse ; au-dessus de l'arrondi du coin du verre, la caisse touche le bord.
+    const largeurA = (y) => {
+      const e = etendueA(c, y);
+      assert.ok(e, `${role} : pas de caisse à ${y}`);
+      if (y < m.verre.y2 - 7) assert.ok(Math.abs((cote === "droite" ? e[1] : e[0]) - xi) < 0.01, `${role} : la caisse quitte le bord intérieur à ${y}`);
+      return Math.max(...e.map((x) => Math.abs(x - xi))) / m.largeur;
+    };
+    const haut = largeurA(m.milieu + 0.01), bas = largeurA(m.verre.y2 - 0.5);
+    assert.ok(Math.abs(haut - famille.PART_LISERE) < 0.01, `${role} : ${(100 * haut).toFixed(1)} % de la largeur à l'horizon`);
+    assert.ok(bas >= 0.25 && bas <= 1 / 3, `${role} : ${(100 * bas).toFixed(1)} % de la largeur en bas`);
+    for (let y = m.milieu + 1; y < m.verre.y2 - 1; y += 1) assert.ok(largeurA(y) <= bas + 0.005, `${role} : la caisse plus large au-dessus du bas`);
+    const route = sansDoublons(pointsRole(m.g, "route"));
+    assert.ok(aire(c) / aire(route) <= 1 / 3, `${role} : la caisse prend ${((100 * aire(c)) / aire(route)).toFixed(0)} % du bas du miroir`);
+  }
+});
+
+test("retroviseurs : les images montrent la rue des sources, celle des scènes avec stationnement (axiale à gauche, bordure à droite, bord d'en face à gauche)", () => {
   const d = famille.DESSINS.retroviseurs();
   const gauche = miroir(d, "miroir-gauche"), interieur = trouverRole(d, "miroir-interieur");
   assert.ok(aire(pointsRole(gauche.g, "bord-en-face")) > 1, "gauche : le bord d'en face");
   assert.ok(trouverTous(gauche.g, (x) => x.attributs["data-r"] === "tiret").length >= 1, "gauche : l'axiale");
+  assert.ok(aire(pointsRole(miroir(d, "miroir-droit").g, "bord-chaussee")) > 1, "droit : le bord de la chaussée");
+  // Chaque bordure part du point de fuite à l'écart de la rue des scènes : voie de 3,5 m, bande de stationnement de 2 m, la voiture
+  // au milieu de sa voie ; un sommet sous l'horizon de son bord le plus proche est à l'écart l, l = |x - fuite| h / (y - horizon).
+  const R = VOITURE.retroviseur.centre;
+  for (const [role, bord, l] of [["miroir-droit", "bord-chaussee", DESSIN.voie / 2 + DESSIN.largeurStationnement - R],
+    ["miroir-gauche", "bord-en-face", (3 * DESSIN.voie) / 2 + DESSIN.largeurStationnement - R]]) {
+    const im = imageDe(d, role);
+    const ecarts = pointsRole(im.g, bord).filter((p) => p[1] > im.yH + 1).map((p) => (Math.abs(p[0] - im.fuite) * im.h) / (p[1] - im.yH));
+    assert.ok(ecarts.length && Math.abs(Math.min(...ecarts) - l) < 0.01, `${role} : bordure à ${Math.min(...ecarts).toFixed(3)} m du miroir au lieu de ${l.toFixed(3)}`);
+  }
   const ci = boite(pointsRole(interieur, "verre")), milieu = (ci.x1 + ci.x2) / 2;
   const tirets = trouverTous(interieur, (x) => x.attributs["data-r"] === "tiret");
   assert.ok(tirets.length >= 1 && tirets.every((t) => boite(pointsDe(t.attributs.d)).x2 < milieu), "intérieur : l'axiale, à gauche");
@@ -418,28 +497,6 @@ test("retroviseurs : intérieur, la lunette arrière entière dans le miroir", (
   const g = trouverRole(d, "miroir-interieur");
   const verre = pointsRole(g, "verre"), lunette = pointsRole(g, "lunette");
   for (const p of lunette) assert.ok(dansPolygoneConvexe(p, verre), `le point ${p} de la lunette sort du miroir`);
-});
-
-test("retroviseurs : le liseré se reconnaît sur un téléphone, et chaque rangée porte sa pastille et les mots du cours", () => {
-  const d = famille.DESSINS.retroviseurs();
-  const [L] = CATALOGUE.retroviseurs.cadre;
-  for (const role of ["miroir-gauche", "miroir-droit"]) {
-    const l = boite(pointsRole(trouverRole(d, role), "lisere"));
-    assert.ok((l.x2 - l.x1) * (343 / L) >= 6 && (l.y2 - l.y1) * (343 / L) >= 20, `${role} : liseré trop petit sur un téléphone`);
-  }
-  const attendus = [
-    ["juste", ["Intérieur", "toute la lunette arrière"]],
-    ["juste", ["Extérieur gauche", "horizon à mi-hauteur,", "mince liseré de carrosserie"]],
-    ["juste", ["Extérieur droit", "souvent un peu plus bas :", "le bord de la chaussée"]],
-    ["faux", ["Extérieur gauche", "tourné vers la carrosserie :", "angle mort élargi"]],
-  ];
-  const vignettes = trouverTous(d, (x) => /^vignette-/.test(x.attributs["data-r"] || ""));
-  assert.equal(vignettes.length, attendus.length);
-  vignettes.forEach((v, i) => {
-    assert.equal(v.attributs["data-r"], `vignette-${attendus[i][0]}`, `rangée ${i}`);
-    assert.deepEqual(textes(trouverRole(v, `legende-${i}`)), attendus[i][1], `rangée ${i}`);
-  });
-  assert.ok(trouverRole(trouverTous(d, (x) => x.attributs["data-r"] === "vignette-juste")[1], "miroir-gauche"), "le gauche juste dans la deuxième rangée");
 });
 
 // ===== Les angles morts =====
