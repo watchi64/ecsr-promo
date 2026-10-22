@@ -14,8 +14,8 @@
  * Titres et cadres viennent du catalogue des blocs (js/catalogue-blocs.js), la seule source de ces métadonnées.
  */
 import { n } from "./dessin-svg.js?v=20261022c";
-import { CHARTE, MATIERES, METRIQUES_POLICE, MISE_EN_PAGE, SYMBOLE_FREIN, cadre, texte, etiquette, vignette, arrondir, arc, couper, trace,
-  point, VOITURE,
+import { CHARTE, MATIERES, METRIQUES_POLICE, MISE_EN_PAGE, SYMBOLE_FREIN, SYMBOLE_TEMPERATURE, vagueSymbole, cadre, texte, etiquette,
+  vignette, arrondir, arc, couper, trace, point, VOITURE,
   VOITURE_PROFIL, voitureDessus, voitureProfil, reperesProfil } from "./dessins-kit.js?v=20261022c";
 import { CATALOGUE } from "./catalogue-blocs.js?v=20261022c";
 
@@ -86,15 +86,15 @@ const GOMME = MATIERES.pneu, JANTE = MATIERES.jante;
 
 // ===== Pictogrammes des bouchons =====
 // Retour du formateur du 22/10/2026 : « les logos, types voyants, sur les différents récipients, ça pourrait être intéressant de
-// les ajouter ». Chaque bouchon porte le symbole normalisé que portent les vrais : ISO 7000-0248 « Engine oil » (la burette, qui
-// repère le bouchon de remplissage d'huile), ISO 7000-1377 « Engine coolant » (le flacon et son liquide, qui repère le remplissage
-// du liquide de refroidissement et son réservoir), ISO 7000-0088 « Windscreen washer » (le pare-brise et son jet, celui du
-// lave-glace). Contours relevés sur leurs vectorisations de Wikimedia Commons (domaine public), dans leur carré d'origine
-// (`boite` : x1, y1, x2, y2), puis simplifiés pour un téléphone : la burette en silhouette pleine (son anse ajourée), le flacon et
-// le pare-brise en traits de la charte, le jet du lave-glace en deux arcs pleins (des tirets dans la norme). Le bouchon du liquide
-// de frein porte le symbole du freinage, celui du voyant (ISO 7000-0239 ; SYMBOLE_FREIN du kit : cercle et deux arcs), le point
-// d'exclamation remplacé par un disque plein, comme sur le bouchon photographié par le formateur (22/10/2026) ; sa `boite` est en
-// parts du carré du voyant.
+// les ajouter ». Chaque bouchon porte le symbole que portent les vrais : ISO 7000-0248 « Engine oil » (la burette, qui repère le
+// bouchon de remplissage d'huile), ISO 7000-0088 « Windscreen washer » (le pare-brise et son jet, celui du lave-glace) ; contours
+// relevés sur leurs vectorisations de Wikimedia Commons (domaine public), dans leur carré d'origine (`boite` : x1, y1, x2, y2),
+// puis simplifiés pour un téléphone : la burette en silhouette pleine (son anse ajourée), le pare-brise en trait de la charte, son
+// jet en deux arcs pleins (des tirets dans la norme). Les bouchons du liquide de frein et du liquide de refroidissement portent le
+// symbole de leur voyant (consignes du formateur du 22/10/2026, « c'est le même que le voyant ») : le freinage (ISO 7000-0239 ;
+// SYMBOLE_FREIN du kit : cercle et deux arcs), le point d'exclamation remplacé par un disque plein, comme sur le bouchon
+// photographié par le formateur ; la température du liquide de refroidissement (ISO 7000-0246 ; SYMBOLE_TEMPERATURE du kit : le
+// thermomètre dans les vagues), tel quel. Leur `boite` est en parts du carré du voyant.
 const PICTOGRAMMES = {
   huile: {
     iso: "7000-0248", boite: [4.1, 58.9, 190.4, 133.1],
@@ -105,9 +105,10 @@ const PICTOGRAMMES = {
     goutte: { pointe: [184.4, 96.7], centre: [184.8, 113.9], rayon: 5.6 },
   },
   refroidissement: {
-    iso: "7000-1377", boite: [11.49, 8.2, 42.23, 45.51],
-    col: [18.18, 35.53, 8.2], ballon: { centre: [26.86, 30.14], rayon: 15.37 },
-    vagues: { y: 28.33, rayon: 2.98, centres: [17.7, 23.75, 29.96, 36.01] },
+    iso: "7000-0246",
+    // Du bord gauche des vagues à leur bord droit, du haut de la tige au bas de la vague basse (son creux).
+    boite: [Math.min(...SYMBOLE_TEMPERATURE.vagues.map((w) => w.gauche)), SYMBOLE_TEMPERATURE.tige.haut,
+      Math.max(...SYMBOLE_TEMPERATURE.vagues.map((w) => w.droite)), Math.max(...SYMBOLE_TEMPERATURE.vagues.map((w) => w.v)) + SYMBOLE_TEMPERATURE.amplitude],
   },
   laveGlace: {
     iso: "7000-0088", boite: [12.82, 17.41, 187.18, 161.79],
@@ -142,13 +143,15 @@ function pictogramme(nom, [cx, cy], largeur, couleur) {
     dessin = [n("path", { d: `${trace(P.contour.map(vp))} ${trace(P.anse.map(vp))}`, fill: couleur, "fill-rule": "evenodd" }),
       n("path", { d: trace(goutte.map(vp)), fill: couleur })];
   } else if (nom === "refroidissement") {
-    const [g, dr, haut] = P.col, b = P.ballon, V = P.vagues;
-    const pied = (x) => Math.atan2(-Math.sqrt(b.rayon ** 2 - (x - b.centre[0]) ** 2), x - b.centre[0]) / (Math.PI / 180);
-    const flacon = [[g, haut], ...arc(b.centre, b.rayon, pied(g) + 360, pied(dr)), [dr, haut]];
-    const vagues = [...arc([V.centres[0], V.y], V.rayon, 90, 0), ...arc([V.centres[1], V.y], V.rayon, 180, 0),
-      ...arc([V.centres[2], V.y], V.rayon, 180, 0), ...arc([V.centres[3], V.y], V.rayon, 180, 90)];
-    dessin = [n("path", { d: trace(flacon.map(vp)), ...trait(CHARTE.traits.moyen) }),
-      n("path", { d: ouvert(vagues.map(vp)), ...trait(CHARTE.traits.fin) })];
+    // Le carré du symbole a pour côté 1 : k unités par part. Comme le voyant : tige, graduations et vagues en trait moyen (bouts
+    // francs pour les graduations et les vagues), bulbe plein.
+    const F = SYMBOLE_TEMPERATURE, g = F.graduations, q = (u, v) => vp([u, v]), bulbe = q(F.tige.u, F.bulbe.v);
+    dessin = [n("path", { d: ouvert([q(F.tige.u, F.tige.haut), bulbe]), ...trait(CHARTE.traits.moyen), "data-r": "tige" }),
+      n("circle", { cx: bulbe[0], cy: bulbe[1], r: F.bulbe.rayon * k, fill: couleur, "data-r": "bulbe" }),
+      n("path", { d: g.v.map((v) => ouvert([q(g.gauche, v), q(g.droite, v)])).join(" "), ...trait(CHARTE.traits.moyen), "stroke-linecap": "butt",
+        "data-r": "graduations" }),
+      n("path", { d: F.vagues.map((w) => vagueSymbole(q, w, F.amplitude)).join(" "), ...trait(CHARTE.traits.moyen), "stroke-linecap": "butt",
+        "data-r": "vagues" })];
   } else if (nom === "frein") {
     // Le carré du symbole a pour côté 1 : k unités par part. Cercle en trait fin, disque plein au centre, deux arcs de part et
     // d'autre en trait moyen, bouts francs, comme le voyant.
@@ -199,7 +202,7 @@ const CAPOT = {
   huile: { x: 1.64, rayon: 0.10, pictogramme: 0.66 },
   jauge: { x: 1.83, longueur: 0.14, largeur: 0.09, arrondi: 0.035, trou: [0.08, 0.036], arrondiTrou: 0.018 },
   frein: { arriere: 1.34, avant: 1.50, demiLargeur: 0.11, arrondi: 0.03, bouchon: 0.075, pictogramme: 0.70 },
-  vase: { arriere: 1.55, avant: 1.79, demiLargeur: 0.14, arrondi: 0.035, bouchon: 0.085, pictogramme: 0.50 },
+  vase: { arriere: 1.55, avant: 1.79, demiLargeur: 0.14, arrondi: 0.035, bouchon: 0.085, pictogramme: 0.70 },
   laveGlace: { x: 1.92, col: 0.095, bouchon: 0.085, pictogramme: 0.70 },
   batterie: { arriere: 1.73, avant: 1.94, demiLargeur: 0.14, arrondi: 0.015,
     bornes: [{ dy: -0.09, signe: "+" }, { dy: 0.09, signe: "−" }], xBorne: 1.78, cosse: [0.04, 0.054], arrondiCosse: 0.008, xSigne: 1.87,
@@ -262,8 +265,8 @@ function capot() {
   const jauge = n("g", { "data-r": "jauge", ...boiteM(jx1, T.jauge - ja.largeur / 2, jx2, T.jauge + ja.largeur / 2) },
     n("path", { d: anneau.map((p) => trace(p)).join(" "), fill: TEINTES.poignee, "fill-rule": "evenodd", "data-r": "anneau" }));
 
-  // Réservoirs translucides et leur bouchon noir : le symbole du freinage sur celui du liquide de frein, le flacon du liquide de
-  // refroidissement sur celui du vase d'expansion.
+  // Réservoirs translucides et leur bouchon noir : le symbole du freinage sur celui du liquide de frein, le thermomètre dans les
+  // vagues sur celui du vase d'expansion.
   const reservoir = (role, R, y, picto) => {
     const centreR = [(R.arriere + R.avant) / 2, y];
     return n("g", { "data-r": role, ...boiteM(R.arriere, y - R.demiLargeur, R.avant, y + R.demiLargeur) },
@@ -314,9 +317,9 @@ function capot() {
     description: "Le compartiment moteur vu du dessus, l'avant de la voiture en haut : bouchon de remplissage et jauge d'huile, "
       + "vase d'expansion du liquide de refroidissement (jamais ouvert moteur chaud), réservoir de liquide de frein, remplissage du "
       + "lave-glace, batterie et ses cosses + et −. Chaque bouchon de remplissage porte son pictogramme : la burette sur celui de "
-      + "l'huile, le flacon sur celui du liquide de refroidissement, le symbole du freinage sur celui du liquide de frein, le "
-      + "pare-brise et son jet sur celui du lave-glace. Disposition "
-      + "la plus courante : elle varie selon les modèles." },
+      + "l'huile, le thermomètre dans les vagues sur celui du liquide de refroidissement, le symbole du freinage sur celui du "
+      + "liquide de frein, le pare-brise et son jet sur celui du lave-glace. Disposition la plus courante : elle varie selon les "
+      + "modèles." },
   voiture, compartiment, huile, jauge, frein, vase, laveGlace, batterie, noms,
   texte(L / 2, yMention, "Disposition la plus courante ; elle varie selon les modèles",
     { taille: PETIT, ancrage: "middle", couleur: CHARTE.texteDoux, role: "mention" }));
