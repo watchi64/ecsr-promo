@@ -35,15 +35,21 @@ export const SOURCES = {
       + "coffre, d'où le contour du véhicule avant toute marche arrière ; § 3, comportement attendu : faire le tour du véhicule "
       + "avant de reculer, et considérer que l'avant du capot et l'arrière du coffre ne sont pas vus. Fiche ECF C1-A (points "
       + "clés) : tour du véhicule avant chaque départ.",
-    "Choix de dessin : la voiture du kit (compacte à hayon de 4,5 m, js/dessins-kit.js) de profil, côté conducteur, l'avant à "
-      + "gauche ; l'œil du conducteur à 1,15 m du sol et 0,20 m devant le centre de la voiture (choix du kit). Chaque ligne de "
-      + "visée part de l'œil et frôle le repère du kit cherché sur le contour dessiné : le rebord avant du capot (hautCapot) et le "
-      + "pied de la lunette arrière (hautCoffre, la lunette laissant voir) ; pour cette voiture, elles touchent le sol 4,2 m devant "
-      + "elle et 14,6 m derrière. Ces longueurs dépendent de la voiture et ne sont pas au cours : aucune n'est écrite dans le dessin.",
-    "Choix de dessin, deux vues : la zone arrière de 14,6 m impose, pour tout montrer, 13,0 unités par mètre (les 23,4 m d'un "
-      + "point au sol à l'autre dans 304 unités) : la voiture n'y fait que 58,5 unités (63 px sur un téléphone) et un obstacle de "
-      + "45 cm 6 unités. D'où, en haut, le détail de l'avant à 34,8 unités par mètre (la voiture entière et la zone avant dans "
-      + "304 unités), où l'obstacle se reconnaît (16 unités), et en bas la vue d'ensemble, où les deux zones se comparent.",
+    "Choix de dessin : la voiture de profil du kit (une citadine à hayon réelle, la Dacia Sandero III, à ses cotes : 4,09 m sur "
+      + "1,50 m, js/dessins-kit.js), côté conducteur, l'avant à gauche ; l'œil du conducteur à 1,20 m du sol et 0,15 m derrière le "
+      + "milieu de la voiture (choix du kit). Chaque ligne de visée part de l'œil et frôle le repère du kit cherché sur le contour "
+      + "dessiné : le point du capot le plus haut vu de l'œil (hautCapot ; le capot de cette voiture monte jusqu'au pare-brise, la "
+      + "ligne le frôle près de lui) et le pied de la lunette arrière (hautCoffre, la lunette laissant voir) ; pour cette voiture, "
+      + "elles touchent le sol 6,8 m devant elle et 21,8 m derrière (relevé de la silhouette, dans l'axe de la voiture : la ligne "
+      + "réelle, de l'œil décalé à gauche, passe un peu plus bas sur le capot). Ces longueurs dépendent de la voiture et ne sont pas "
+      + "au cours : aucune n'est écrite dans le dessin.",
+    "Choix de dessin, deux vues : la zone arrière de 21,8 m impose, pour tout montrer, 9,3 unités par mètre (les 32,7 m d'un "
+      + "point au sol à l'autre dans 304 unités) : la voiture n'y fait que 38 unités (41 px sur un téléphone) et un obstacle de "
+      + "50 cm 4,6 unités. D'où, en haut, le détail de l'avant à 28,0 unités par mètre (la voiture entière et la zone avant dans "
+      + "304 unités), où l'obstacle se reconnaît (14 unités), et en bas la vue d'ensemble, où les deux zones se comparent. Cône de "
+      + "50 cm, une hauteur courante de cône de signalisation, et non plus 45 : à 45 cm, il ne ferait que 12,6 px de haut sur un "
+      + "téléphone (test : 14 au moins) ; le point de son étiquette est posé sur sa pointe, son centre 1,2 unité au-dessus, pour "
+      + "n'en cacher qu'une part (test : moins de 10 %).",
     "Choix de dessin, zones : la partie de l'espace sous la ligne de visée, entre la verticale de l'avant (ou de l'arrière) de la "
       + "voiture et le point où la ligne touche le sol : ce qui s'y trouve n'est pas vu depuis le siège. Un aplat translucide de la "
       + "teinte de correction du cours (faux, #A05A3D, à 0,4 d'opacité), sans contour ni hachures : le même que les angles morts du "

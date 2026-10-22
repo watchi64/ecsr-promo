@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
 import { CHARTE, cadre, etiquette, vignette, pastille, fleche, texte } from "../js/dessins-kit.js";
-import { VOITURE, TEINTES_ROUTE, voitureDessus, reperesDessus, voitureProfil, reperesProfil } from "../js/dessins-kit.js";
+import { VOITURE, VOITURE_PROFIL, TEINTES_ROUTE, voitureDessus, reperesDessus, voitureProfil, reperesProfil } from "../js/dessins-kit.js";
 import { arrondir, arc, couper, bande } from "../js/dessins-kit.js";
 import { n, trouverRole, trouverTous, texteDe } from "../js/dessin-svg.js";
 import { verifierDessin, boitesTextes, largeurTexte, formeArbre, HAUTEURS_MESUREES } from "./aides-dessins.mjs";
@@ -543,45 +543,44 @@ test("voitures : contrôles communs et traits du jeu de la charte, à toutes les
   assert.ok(vus > 20);
 });
 
-test("voiture de profil : roues posées au sol, aux essieux et à la taille de la vue du dessus", () => {
+test("voiture de profil : roues posées au sol, à leurs essieux et à leur taille : l'empattement, les porte-à-faux et le pneu cotés", () => {
   const [x, y, e] = [160, 140, 20];
   const v = voitureProfil({ x, y, echelle: e }), p = reperesProfil({ x, y, echelle: e });
-  const rayon = VOITURE.roue.diametre / 2;
-  for (const [role, ax] of [["roue-avant", VOITURE.empattement - VOITURE.essieu], ["roue-arriere", -VOITURE.essieu]]) {
+  const P = VOITURE_PROFIL, rayon = P.pneu / 2;
+  for (const [role, ax] of [["roue-avant", P.longueur / 2 - P.porteAFauxAvant], ["roue-arriere", -P.longueur / 2 + P.porteAFauxArriere]]) {
     const roue = trouverRole(v, role), pneu = trouverRole(roue, "pneu").attributs;
     proche(roue.attributs["data-x"], x + ax * e, 1e-9, role);
     proche(roue.attributs["data-y"], y - rayon * e, 1e-9, role);
     [[pneu.cx, x + ax * e], [pneu.cy, y - rayon * e], [pneu.r, rayon * e]].forEach(([a, b]) => proche(a, b, 1e-9, `${role}, pneu`));
     proche(pneu.cy + pneu.r, y, 1e-9, `${role} posée au sol`);
-    proche(trouverRole(roue, "jante").attributs.r, (VOITURE.roue.jante / 2) * e, 1e-9, `${role}, jante`);
+    proche(trouverRole(roue, "jante").attributs.r, (P.jante / 2) * e, 1e-9, `${role}, jante`);
   }
-  assert.deepEqual(p.solAvant, [x + 2.25 * e, y]);
-  assert.deepEqual(p.solArriere, [x - 2.25 * e, y]);
+  assert.deepEqual(p.solAvant, [x + (P.longueur / 2) * e, y]);
+  assert.deepEqual(p.solArriere, [x - (P.longueur / 2) * e, y]);
 });
 
-test("voiture de profil : caisse de 4,5 m à la hauteur choisie, avant et arrière à ses extrémités, œil derrière la vitre", () => {
+test("voiture de profil : caisse à la longueur et à la hauteur cotées, avant et arrière à ses extrémités, œil derrière la vitre", () => {
   const [x, y, e] = [160, 140, 20];
   const v = voitureProfil({ x, y, echelle: e }), p = reperesProfil({ x, y, echelle: e });
   const pts = paires(trouverRole(v, "caisse").attributs.d), xs = pts.map((q) => q[0]), ys = pts.map((q) => q[1]);
-  proche(Math.max(...xs), x + 2.25 * e, 0.01, "avant");
-  proche(Math.min(...xs), x - 2.25 * e, 0.01, "arrière");
-  assert.equal(VOITURE.hauteur, 1.45);
-  proche(Math.min(...ys), y - VOITURE.hauteur * e, 0.01, "toit");
-  proche(Math.max(...ys), y - VOITURE.profil.basCaisse * e, 0.01, "bas de caisse");
+  proche(Math.max(...xs), x + (VOITURE_PROFIL.longueur / 2) * e, 0.01, "avant");
+  proche(Math.min(...xs), x - (VOITURE_PROFIL.longueur / 2) * e, 0.01, "arrière");
+  proche(Math.min(...ys), y - VOITURE_PROFIL.hauteur * e, 0.01, "toit");
+  proche(Math.max(...ys), y - VOITURE_PROFIL.basCaisse * e, 0.01, "bas de caisse");
   proche(p.avantCapot[0], Math.max(...xs), 0.01, "avantCapot : le point le plus avancé");
   proche(p.arriereCoffre[0], Math.min(...xs), 0.01, "arriereCoffre : le point le plus reculé");
   assert.ok(surContour(p.avantCapot, pts) && surContour(p.arriereCoffre, pts), "sur le contour de la caisse");
-  proche(p.oeil[0], x + VOITURE.oeil.avant * e, 1e-9, "œil, x");
-  proche(p.oeil[1], y - VOITURE.oeil.hauteur * e, 1e-9, "œil, y");
+  proche(p.oeil[0], x + VOITURE_PROFIL.oeil[0] * e, 1e-9, "œil, x");
+  proche(p.oeil[1], y - VOITURE_PROFIL.oeil[1] * e, 1e-9, "œil, y");
   assert.ok(dansPolygone(p.oeil, paires(trouverRole(v, "vitrage").attributs.d)), "œil derrière les vitres latérales");
 });
 
-test("voiture de profil : la ligne de visée frôle le rebord du capot (hautCapot) et le pied de la lunette (hautCoffre), sans entrer dans la caisse", () => {
+test("voiture de profil : la ligne de visée frôle le capot (hautCapot) et le pied de la lunette (hautCoffre), sans entrer dans la caisse", () => {
   for (const sens of ["droite", "gauche"]) {
     const [x, y, e] = [160, 140, 20], s = sens === "droite" ? 1 : -1;
     const pts = paires(trouverRole(voitureProfil({ x, y, echelle: e, sens }), "caisse").attributs.d);
     const p = reperesProfil({ x, y, echelle: e, sens });
-    const auvent = x + s * VOITURE.profil.auvent[0] * e, basLunette = x + s * VOITURE.profil.basLunette[0] * e;
+    const auvent = x + s * VOITURE_PROFIL.profil.auvent[0] * e, basLunette = x + s * VOITURE_PROFIL.profil.basLunette[0] * e;
     // Ordonnée de la ligne œil-repère à l'abscisse de q ; « sous la ligne » : y du cadre plus grand, au rendu près.
     const sous = (repere, q) => q[1] >= p.oeil[1] + ((q[0] - p.oeil[0]) / (repere[0] - p.oeil[0])) * (repere[1] - p.oeil[1]) - 0.02;
     let devant = 0, derriere = 0;
@@ -591,11 +590,11 @@ test("voiture de profil : la ligne de visée frôle le rebord du capot (hautCapo
     }
     assert.ok(devant > 10 && derriere > 10, `${sens} : contour lu`);
     assert.ok(surContour(p.hautCapot, pts) && surContour(p.hautCoffre, pts), `${sens} : repères sur la caisse`);
-    // Le repère du capot est à son rebord avant ; celui du coffre, au pied de la lunette.
-    assert.ok(s * (p.hautCapot[0] - auvent) > 0 && s * (p.avantCapot[0] - p.hautCapot[0]) > 0, `${sens} : sur le capot`);
-    proche(p.hautCapot[0], x + s * VOITURE.profil.levreCapot[0] * e, 0.15 * e, `${sens} : au rebord avant du capot`);
+    // Le repère du capot est sur le capot, devant le pied du pare-brise (le capot de la citadine monte jusqu'au pare-brise : la
+    // ligne de visée le frôle près de lui) ; celui du coffre, au pied de la lunette.
+    assert.ok(s * (p.hautCapot[0] - auvent) >= 0 && s * (p.avantCapot[0] - p.hautCapot[0]) > 0, `${sens} : sur le capot`);
     proche(p.hautCoffre[0], basLunette, 0.01, `${sens} : pied de la lunette, x`);
-    proche(p.hautCoffre[1], y - VOITURE.profil.basLunette[1] * e, 0.01, `${sens} : pied de la lunette, y`);
+    proche(p.hautCoffre[1], y - VOITURE_PROFIL.profil.basLunette[1] * e, 0.01, `${sens} : pied de la lunette, y`);
   }
 });
 
@@ -625,11 +624,11 @@ test("voiture de profil : portière ouverte, le montant se découvre ; trappe ou
   // Portière : tournée autour de sa charnière verticale, à l'avant, elle se voit raccourcie du cosinus de son ouverture ;
   // sa peau, à dz hors de l'axe de la charnière, glisse de dz sinus ; son chant (l'épaisseur de son bord arrière) se montre
   // derrière elle. La part devant la charnière rentre sous l'aile.
-  const { charniere, arriere, epaisseur, ouvertureProfil } = VOITURE.portiere;
+  const { charniere, arriere, epaisseur, ouverture: ouvertureProfil } = VOITURE_PROFIL.portiere;
   const porte = trouverRole(ouvert, "portiere-ouverte");
   assert.equal(porte.attributs["data-angle"], ouvertureProfil);
   proche(porte.attributs["data-x"], x + charniere[0] * e, 1e-9, "charnière");
-  const cos = Math.cos(ouvertureProfil * DEG), sin = Math.sin(ouvertureProfil * DEG), peau = VOITURE.largeur / 2 - charniere[1];
+  const cos = Math.cos(ouvertureProfil * DEG), sin = Math.sin(ouvertureProfil * DEG), peau = VOITURE_PROFIL.largeur / 2 - charniere[1];
   const vu = (xl, dz) => x + (charniere[0] + (xl - charniere[0]) * cos + dz * sin) * e;
   const panneau = paires(trouverRole(porte, "panneau").attributs.d).map((q) => q[0]);
   proche(Math.min(...panneau), vu(arriere, peau), 0.01, "bord arrière de la portière ouverte");
@@ -656,11 +655,65 @@ test("voiture de profil : portière ouverte, le montant se découvre ; trappe ou
 });
 
 // Relecture de la tâche 5, premier tour.
-test("voiture de profil : une compacte à hayon, pas un break : toit arrêté à 0,7 m de l'arrière, lunette penchée de plus de 45 degrés", () => {
-  const [haut, bas] = [VOITURE.lunette.haut, VOITURE.lunette.bas];
-  assert.ok(VOITURE.longueur / 2 + haut[0] >= 0.7, `toit arrêté à ${(VOITURE.longueur / 2 + haut[0]).toFixed(2)} m de l'arrière`);
+// Retour du formateur du 22/10/2026 : « les proportions sont complètement disproportionnées. La porte avant est toute petite,
+// alors que l'arrière est immense. Je dirais : un break étrange. » La voiture de profil est une citadine à hayon cinq portes réelle
+// (Dacia Sandero III), tirée de ses cotes : chaque mesure est relue sur le dessin, à l'échelle, contre la cote du constructeur.
+const COTES_SANDERO = { longueur: 4.088, hauteur: 1.499, largeur: 1.85, empattement: 2.604, porteAFauxAvant: 0.819, porteAFauxArriere: 0.665, pneu: 0.62 };
+
+test("voiture de profil : une citadine à hayon cinq portes réelle, ses proportions relues sur le dessin contre ses cotes", () => {
+  for (const [k, cote] of Object.entries(COTES_SANDERO)) assert.equal(VOITURE_PROFIL[k], cote, `cote ${k}`);
+  for (const sens of ["droite", "gauche"]) {
+    const [x, y, e] = [160, 200, 30], s = sens === "droite" ? 1 : -1;
+    const v = voitureProfil({ x, y, echelle: e, sens });
+    const caisse = paires(trouverRole(v, "caisse").attributs.d), xs = caisse.map((q) => q[0]), ys = caisse.map((q) => q[1]);
+    const [av, ar] = ["roue-avant", "roue-arriere"].map((r) => trouverRole(v, r).attributs["data-x"]);
+    const nez = s > 0 ? Math.max(...xs) : Math.min(...xs), cul = s > 0 ? Math.min(...xs) : Math.max(...xs);
+    const m = (u) => u / e;
+    proche(m(Math.max(...xs) - Math.min(...xs)), COTES_SANDERO.longueur, 0.001, `${sens} : longueur`);
+    proche(m(y - Math.min(...ys)), COTES_SANDERO.hauteur, 0.001, `${sens} : hauteur`);
+    proche(m(s * (av - ar)), COTES_SANDERO.empattement, 0.001, `${sens} : empattement`);
+    proche(m(s * (nez - av)), COTES_SANDERO.porteAFauxAvant, 0.001, `${sens} : porte-à-faux avant`);
+    proche(m(s * (ar - cul)), COTES_SANDERO.porteAFauxArriere, 0.001, `${sens} : porte-à-faux arrière`);
+    proche(m(2 * trouverRole(trouverRole(v, "roue-avant"), "pneu").attributs.r), COTES_SANDERO.pneu, 0.001, `${sens} : pneu`);
+    // L'allure d'une citadine : 2,7 fois plus longue que haute (un break de cette hauteur passerait 3).
+    const allure = (Math.max(...xs) - Math.min(...xs)) / (y - Math.min(...ys));
+    assert.ok(allure > 2.6 && allure < 2.85, `${sens} : longueur sur hauteur ${allure.toFixed(2)}`);
+  }
+});
+
+test("voiture de profil : la portière avant est plus longue que la portière arrière, la vitre avant plus longue que la vitre arrière", () => {
+  const [x, y, e] = [160, 200, 30];
+  // Portières, lues sur les joints de la voiture détaillée : bord avant, joint du montant milieu, bord arrière de la portière
+  // arrière (vertical sous la vitre de custode, puis en arc autour de la roue arrière, jusqu'au bas des portières).
+  const v = voitureProfil({ x, y, echelle: e });
+  const joint = (r) => paires(trouverRole(v, r).attributs.d);
+  const [avant, milieu, arriere] = ["joint-avant", "joint-milieu", "joint-arriere"].map(joint);
+  const xAvant = avant[0][0], xMilieu = milieu[0][0];
+  const xArriereHaut = arriere[0][0], xArriereBas = arriere[arriere.length - 1][0];
+  const [porteAvant, porteArriereHaut, porteArriereBas] = [xAvant - xMilieu, xMilieu - xArriereHaut, xMilieu - xArriereBas].map((u) => u / e);
+  assert.ok(porteAvant > porteArriereHaut + 0.05, `à la ceinture : portière avant de ${porteAvant.toFixed(2)} m, arrière de ${porteArriereHaut.toFixed(2)} m`);
+  assert.ok(porteAvant > porteArriereBas + 0.25, `en bas : portière avant de ${porteAvant.toFixed(2)} m, arrière de ${porteArriereBas.toFixed(2)} m`);
+  proche(porteAvant, 1.04, 0.01, "portière avant relevée sur la photo, mise à l'échelle par l'empattement");
+  // Vitres, lues sur la silhouette (ce que montrent les dessins) : le montant milieu les sépare ; à la ceinture, la vitre avant va de
+  // la pointe avant au montant, la vitre arrière du montant au point où le bas des vitres remonte vers la pointe arrière.
+  const sil = voitureProfil({ x, y, echelle: e, schema: true });
+  const vitres = paires(trouverRole(sil, "vitrage").attributs.d), montant = paires(trouverRole(sil, "montant-milieu").attributs.d);
+  const ceintureY = Math.max(...montant.map((q) => q[1]));
+  const bas = vitres.filter((q) => q[1] >= ceintureY - 0.12 * e);   // le bas des vitres, à 12 cm de la ceinture au montant
+  const vitreAvant = (Math.max(...vitres.map((q) => q[0])) - Math.max(...montant.map((q) => q[0]))) / e;
+  const vitreArriere = (Math.min(...montant.map((q) => q[0])) - Math.min(...bas.map((q) => q[0]))) / e;
+  assert.ok(vitreAvant > vitreArriere, `à la ceinture : vitre avant de ${vitreAvant.toFixed(2)} m, arrière de ${vitreArriere.toFixed(2)} m`);
+});
+
+test("voiture de profil : un hayon, pas un break : toit arrêté loin de l'arrière, lunette penchée, bas des vitres qui remonte vers l'arrière", () => {
+  const P = VOITURE_PROFIL.profil, V = VOITURE_PROFIL.vitrage;
+  const [haut, bas] = [P.hautLunette, P.basLunette];
+  assert.ok(VOITURE_PROFIL.longueur / 2 + haut[0] >= 0.5, `toit arrêté à ${(VOITURE_PROFIL.longueur / 2 + haut[0]).toFixed(2)} m de l'arrière`);
   const inclinaison = Math.atan2(haut[0] - bas[0], haut[1] - bas[1]) / DEG;
   assert.ok(inclinaison > 45 && inclinaison < 60, `lunette penchée de ${inclinaison.toFixed(1)} degrés sur la verticale`);
+  // Les vitres s'arrêtent bien avant la lunette (un montant arrière large) ; leur bas remonte vers leur pointe arrière.
+  assert.ok(V.pointe[0] - haut[0] >= 0.15, `montant arrière de ${(V.pointe[0] - haut[0]).toFixed(2)} m au haut`);
+  assert.ok(V.pointe[1] - V.arriereBas[1] >= 0.2, `bas des vitres remontant de ${(V.pointe[1] - V.arriereBas[1]).toFixed(2)} m`);
   // Le contour dessiné suit ces choix : le haut de la lunette et son pied sont sur la caisse.
   const pts = paires(trouverRole(voitureProfil({ x: 160, y: 140, echelle: 20 }), "caisse").attributs.d);
   assert.ok(surContour([160 + bas[0] * 20, 140 - bas[1] * 20], pts), "pied de la lunette sur la caisse");
@@ -755,7 +808,7 @@ test("voiture de profil, schématique : caisse, vitres et roues aux mêmes trac�
     }
     // Le montant milieu, s'il se voit, sépare les vitres dans la teinte de la caisse, au même tracé.
     const montant = trouverRole(silhouette, "montant-milieu");
-    assert.equal(Boolean(montant), pose.echelle * (VOITURE.vitrage.montant[1] - VOITURE.vitrage.montant[0]) >= 1.2, `montant milieu, ${quoi}`);
+    assert.equal(Boolean(montant), pose.echelle * (VOITURE_PROFIL.vitrage.montant[1] - VOITURE_PROFIL.vitrage.montant[0]) >= 1.2, `montant milieu, ${quoi}`);
     if (montant) {
       assert.equal(montant.attributs.d, trouverRole(detaillee, "montant-milieu").attributs.d, `montant milieu, ${quoi}`);
       assert.equal(montant.attributs.fill, trouverRole(silhouette, "caisse").attributs.fill, `montant milieu dans la teinte de la caisse, ${quoi}`);
@@ -892,7 +945,10 @@ test("MATIERES, jointsCapot, VITRAGE_CONTOUR, ceinture : ce que dessinent les vo
   const joints = dessus.enfants.filter((x) => x.balise === "line").map((l) => [l.attributs.x1, l.attributs.y1, l.attributs.x2, l.attributs.y2]);
   assert.deepEqual(joints, [-1, 1].map((c) => [arriere[0] * e, c * arriere[1] * e, avant[0] * e, c * avant[1] * e]));
   // Le contour des vitres de profil est celui que le kit dessine (sens « droite » : x vers la droite, hauteur vers le haut).
-  assert.equal(trouverRole(profil, "vitrage").attributs.d, kit.trace(kit.VITRAGE_CONTOUR.map(([x, h]) => [x * e, -h * e])));
+  assert.equal(trouverRole(profil, "vitrage").attributs.d, kit.trace(kit.VITRAGE_PROFIL.map(([x, h]) => [x * e, -h * e])));
+  // Le flanc de la voiture vue du dessus (celui que montrent les rétroviseurs) : son contour des vitres va du pied du montant de
+  // pare-brise au pied du montant arrière.
+  proche(kit.VITRAGE_CONTOUR[0][0], VOITURE.vitrage.avantBas[0], 0.05, "flanc vu du dessus : pied du montant de pare-brise");
   // Ligne de ceinture : le bas des vitres, du pied du montant arrière au pied du montant de pare-brise.
   const { arriereBas, avantBas } = VOITURE.vitrage;
   proche(kit.ceinture(arriereBas[0]), arriereBas[1], 1e-12, "ceinture au montant arrière");

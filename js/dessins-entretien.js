@@ -15,7 +15,7 @@
  */
 import { n } from "./dessin-svg.js?v=20261022b";
 import { CHARTE, MATIERES, METRIQUES_POLICE, MISE_EN_PAGE, cadre, texte, etiquette, vignette, arrondir, arc, couper, trace, VOITURE,
-  voitureDessus, voitureProfil, reperesProfil } from "./dessins-kit.js?v=20261022b";
+  VOITURE_PROFIL, voitureDessus, voitureProfil, reperesProfil } from "./dessins-kit.js?v=20261022b";
 import { CATALOGUE } from "./catalogue-blocs.js?v=20261022b";
 
 // ===== Mise en page commune (unités du cadre) =====
@@ -472,9 +472,9 @@ function pneu() {
 // portière avant et trappe à carburant ouvertes ; l'étiquette des pressions sur le montant découvert et dans la trappe, chacune
 // entourée d'un cercle.
 const PRESSION = {
-  echelle: 62,                 // unités par mètre : la plus grande voiture qui tient dans le cadre, marges comprises
+  echelle: 62,                 // unités par mètre : la voiture et ses noms au-dessus tiennent dans le cadre, marges comprises
   sol: 150,                    // ligne du sol
-  etiquette: { largeur: 0.08, hauteur: 0.12 },   // mètres : une étiquette courante, aussi large que le montant découvert
+  etiquette: { largeur: 0.08, hauteur: 0.12 },   // mètres : une étiquette courante, sur le montant découvert (9 cm)
   cercle: 7,                   // rayon du cercle qui désigne chaque étiquette
   ancres: { montant: [124, 54], trappe: [272, 54] },   // ancres des deux noms (le texte au-dessus)
   bas: 172,                    // ligne de base de la première ligne du bas
@@ -492,7 +492,7 @@ function pression() {
       { fill: TEINTES.etiquette, stroke: TEINTES.etiquetteBord, "stroke-width": CHARTE.traits.fin, "data-r": role, "data-x": cx, "data-y": cy });
   };
   // Sur la trappe ouverte, l'étiquette est vue de biais, comme la face intérieure de la trappe (son ouverture, celle du kit).
-  const biais = Math.abs(Math.cos((VOITURE.trappe.ouverture * Math.PI) / (2 * QUART)));
+  const biais = Math.abs(Math.cos((VOITURE_PROFIL.trappe.ouverture * Math.PI) / (2 * QUART)));
   // Cercle qui désigne une étiquette : un trait sombre bordé d'un liseré clair, comme les filets du kit, lisible sur la caisse.
   const cercle = (role, [cx, cy]) => [
     n("circle", { cx, cy, r: P.cercle, fill: "none", stroke: CHARTE.carte, "stroke-width": CHARTE.traits.moyen + 2 * CHARTE.liseres }),

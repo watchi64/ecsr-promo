@@ -5,7 +5,7 @@ import * as famille from "../js/dessins-entretien.js";
 import { SOURCES } from "../sources/dessins-entretien.js";
 import { verifierDessin, verifierGeste } from "./aides-dessins.mjs";
 import { trouverRole, trouverTous, texteDe } from "../js/dessin-svg.js";
-import { CHARTE, reperesProfil, VOITURE } from "../js/dessins-kit.js";
+import { CHARTE, reperesProfil, VOITURE, VOITURE_PROFIL } from "../js/dessins-kit.js";
 
 const codes = Object.keys(CATALOGUE).filter((c) => CATALOGUE[c].module === "entretien");
 
@@ -415,7 +415,7 @@ test("pression : étiquette sur le montant de la portière conducteur et dans la
   const [x, y] = [nb(v, "data-x"), nb(v, "data-y")];
   const roueAvant = trouverRole(v, "roue-avant");
   assert.ok(nb(roueAvant, "data-x") < x, "avant à gauche : on voit le côté du conducteur");
-  const echelle = (x - nb(roueAvant, "data-x")) / (VOITURE.empattement - VOITURE.essieu);
+  const echelle = (x - nb(roueAvant, "data-x")) / VOITURE_PROFIL.essieuAvant;
   const r = reperesProfil({ x, y, echelle, sens: "gauche", trappeOuverte: true });
   assert.equal(trouverRole(v, "portiere-ouverte").attributs.display, "inline");
   assert.equal(trouverRole(v, "trappe-ouverte").attributs.display, "inline");

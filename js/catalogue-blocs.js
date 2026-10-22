@@ -158,7 +158,7 @@ export const CATALOGUE = {
   pedales: { bloc: "dessin", module: "poste", titre: "Les pédales et les pieds",
     legendeModele: "Pied gauche : embrayage. Pied droit : frein ou accélérateur.", cadre: [320, 200] },
   "roues-trottoir": { bloc: "dessin", module: "dessus", titre: "Immobiliser en descente et en montée",
-    legendeModele: "En descente, roues braquées vers le trottoir ; en montée, vers la chaussée.", cadre: [320, 232] },
+    legendeModele: "En descente, roues braquées vers le trottoir ; en montée, vers la chaussée.", cadre: [320, 234] },
 
   // C1.3
   "sous-survirage": { bloc: "dessin", module: "dessus", titre: "Sous-virage et survirage",

@@ -72,18 +72,19 @@ const zoneMasquee = (role, poly) => n("g", { "data-r": role },
 // Deux vues de la voiture du kit de profil, côté conducteur (sens « gauche » : l'avant à gauche). En haut, le détail de l'avant :
 // la voiture entière et la zone avant, au plus grand qui tienne, avec l'œil, la ligne de visée qui frôle le capot et un cône
 // caché dessous. En bas, la vue d'ensemble : les deux lignes de visée jusqu'au sol, la zone avant et la zone arrière, celle-ci
-// longue de 14,6 m pour la voiture du kit, ce qui impose une petite échelle. Style schématique (décision du formateur du
+// longue de 21,8 m pour la voiture du kit, ce qui impose une petite échelle. Style schématique (décision du formateur du
 // 15/10/2026) : la voiture en silhouette (voitureProfil, option schema), les zones en aplats.
 const ZONES = {
   marge: 8,                // du bord du cadre au point où une ligne de visée touche le sol, ou à l'arrière de la voiture
   detail: { sol: 86 },
   ensemble: { sol: 136 },
   legende: 16,             // de la ligne du sol à la ligne de base du nom d'une zone
-  // Cône de signalisation courant de 45 cm, rouge à bande blanche, posé 30 cm devant le pare-chocs (m) : hauteur, largeur à la
-  // base et au sommet, socle, bande blanche (de 20 à 30 cm du sol).
-  cone: { hauteur: 0.45, base: 0.30, sommet: 0.04, socle: 0.36, epaisseurSocle: 0.03, bande: [0.20, 0.30], devant: 0.3 },
+  // Cône de signalisation courant de 50 cm, rouge à bande blanche, posé 30 cm devant le pare-chocs (m) : hauteur, largeur à la
+  // base et au sommet, socle, bande blanche (de 22 à 33 cm du sol).
+  cone: { hauteur: 0.50, base: 0.30, sommet: 0.04, socle: 0.36, epaisseurSocle: 0.03, bande: [0.22, 0.33], devant: 0.3 },
   tirets: "4 3",           // pointillé des lignes de visée
   etiquettes: { oeil: [-30, -28], obstacle: [-22, -26] },   // ancres, depuis l'œil et depuis la pointe du cône
+  surPointe: 1.2,          // le point de l'étiquette de l'obstacle, posé sur la pointe du cône : son centre, à cette distance au-dessus
 };
 const TEINTES_PROFIL = { sol: CHARTE.texteDiscret, visee: CHARTE.texte, cone: TEINTES_ROUTE.stop, coneBande: TEINTES_ROUTE.peinture, socle: "#2E3430" };
 
@@ -136,12 +137,13 @@ function zonesInvisibles() {
   const E = ensemble, nomZone = { taille: CHARTE.tailles.etiquette };    // la taille des étiquettes du kit, pour tous les textes
   const [eo, eb] = [Z.etiquettes.oeil, Z.etiquettes.obstacle];
   return cadre({ largeur: L, hauteur: H, titre: CATALOGUE[code].titre,
-    description: "La voiture de profil et l'œil du conducteur : la ligne de visée qui frôle l'avant du capot touche le sol devant la "
+    description: "La voiture de profil et l'œil du conducteur : la ligne de visée qui frôle le capot touche le sol devant la "
       + "voiture, celle qui frôle le bas de la lunette arrière touche le sol loin derrière. Devant le capot et derrière le coffre, "
       + "le sol n'est pas visible depuis le siège : un obstacle bas posé devant la voiture reste caché." },
   detail.noeud, cone,
   etiquette({ cible: r.oeil, ancre: [r.oeil[0] + eo[0], r.oeil[1] + eo[1]], lignes: ["Œil du conducteur"], ancrage: "end", role: "nom-oeil" }),
-  etiquette({ cible: pointe, ancre: [pointe[0] + eb[0], pointe[1] + eb[1]], lignes: ["Obstacle caché"], ancrage: "end", role: "nom-obstacle" }),
+  etiquette({ cible: [pointe[0], pointe[1] - Z.surPointe], ancre: [pointe[0] + eb[0], pointe[1] + eb[1]], lignes: ["Obstacle caché"], ancrage: "end",
+    role: "nom-obstacle" }),
   texte((detail.solAv[0] + r.solAvant[0]) / 2, Z.detail.sol + Z.legende, "Non visible", { ...nomZone, ancrage: "middle", role: "nom-zone-detail" }),
   E.noeud,
   texte(Z.marge, Z.ensemble.sol + Z.legende, "Devant le capot", { ...nomZone, role: "nom-zone-avant" }),

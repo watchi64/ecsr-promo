@@ -15,7 +15,7 @@
  * raison dans sources/dessins-dessus.js. Titres et cadres viennent du catalogue des blocs (js/catalogue-blocs.js).
  */
 import { n, trouverRole } from "./dessin-svg.js?v=20261022b";
-import { CHARTE, TEINTES_ROUTE, REGARD_SCENES, VOITURE, MATIERES, METRIQUES_POLICE, MISE_EN_PAGE, cadre, texte, etiquette, fleche,
+import { CHARTE, TEINTES_ROUTE, REGARD_SCENES, VOITURE, VOITURE_PROFIL, MATIERES, METRIQUES_POLICE, MISE_EN_PAGE, cadre, texte, etiquette, fleche,
   voitureDessus, reperesDessus, voitureProfil, arc, couper, coord, trace, entre } from "./dessins-kit.js?v=20261022b";
 import { CATALOGUE } from "./catalogue-blocs.js?v=20261022b";
 
@@ -413,9 +413,9 @@ function rouesTrottoir() {
   const largeur = (L - 2 * P.marge - P.gouttiere) / 2;
   const angle = Math.atan(Pr.pourcent / 100) / RAD;   // degrés ; positif, le sol descend vers la droite du cadre
   // Haut de la voiture de profil au-dessus du point du sol sous son milieu (m), dans les deux sens de la pente (le plus haut des
-  // deux) : les sommets de son contour de profil (VOITURE.profil), tournés de la pente ; l'arrondi des coins ne fait que rentrer
+  // deux) : les sommets de son contour de profil (VOITURE_PROFIL.profil), tournés de la pente ; l'arrondi des coins ne fait que rentrer
   // le contour.
-  const hauteurProfil = Math.max(...[angle, -angle].flatMap((a) => Object.values(VOITURE.profil).filter(Array.isArray)
+  const hauteurProfil = Math.max(...[angle, -angle].flatMap((a) => Object.values(VOITURE_PROFIL.profil)
     .map(([px, ph]) => ph * Math.cos(a * RAD) - px * Math.sin(a * RAD))));
   // Rangées, de haut en bas : titre, étiquette (son ancre), vue du dessus, profil.
   const baseTitre = P.marge + M.haut * P.titre.taille;

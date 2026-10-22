@@ -268,13 +268,15 @@ export function fleche(points, { couleur = CHARTE.accentFort, epaisseur = CHARTE
 
 // ===== Voitures : vue du dessus et profil =====
 //
-// Choix de dessin (mètres, sans portée réglementaire). Sont repris des scènes de route, pour qu'un dessin et une scène
-// d'un même cours montrent la même voiture : la caisse vue du dessus, 4,5 m sur 1,8 m, coins de 0,4 m de rayon, essieu
-// arrière 1,45 m derrière le centre (GABARITS.voiture de js/scene-geometrie.js) ; son pare-brise, de 1,55 m à 1,00 m de
-// l'avant et à 0,18 m des flancs (dessinerVoiture de js/scene-moteur.js) ; ses teintes (TEINTES de js/scene-rendu.js) ;
-// l'œil du conducteur, 0,20 m devant le centre et 0,40 m à sa gauche, la France roulant à droite (js/scene-regard.js).
-// Le kit, chargé par chaque famille de dessins, n'importe pas ces modules lourds : il recopie leurs valeurs, et
-// tests/dessins-kit.test.mjs vérifie la recopie. Le reste est choisi ici, pour une voiture courante :
+// Deux voitures. Vue du dessus, celle des scènes de route, pour qu'un dessin et une scène d'un même cours montrent la même
+// voiture ; de profil, une citadine à hayon réelle, à ses cotes (voir « Profil » plus bas).
+//
+// Vue du dessus : choix de dessin (mètres, sans portée réglementaire). Sont repris des scènes : la caisse, 4,5 m sur 1,8 m,
+// coins de 0,4 m de rayon, essieu arrière 1,45 m derrière le centre (GABARITS.voiture de js/scene-geometrie.js) ; son
+// pare-brise, de 1,55 m à 1,00 m de l'avant et à 0,18 m des flancs (dessinerVoiture de js/scene-moteur.js) ; ses teintes
+// (TEINTES de js/scene-rendu.js) ; l'œil du conducteur, 0,20 m devant le centre et 0,40 m à sa gauche, la France roulant à
+// droite (js/scene-regard.js). Le kit, chargé par chaque famille de dessins, n'importe pas ces modules lourds : il recopie
+// leurs valeurs, et tests/dessins-kit.test.mjs vérifie la recopie. Le reste est choisi ici, pour une voiture courante :
 // - empattement 2,6 m : l'essieu avant est alors 1,15 m devant le centre ; porte-à-faux de 1,10 m à l'avant et de
 //   0,80 m à l'arrière, l'ordre de grandeur d'une compacte de 4,5 m de long ;
 // - voie 1,52 m, celle d'une voiture de 1,8 m de large (Clio V : 1,51 m) ;
@@ -282,32 +284,22 @@ export function fleche(points, { couleur = CHARTE.accentFort, epaisseur = CHARTE
 // - rétroviseurs extérieurs au coin avant des vitres avant : miroir 0,96 m devant le centre, centré à 0,93 m de l'axe,
 //   soit 3 cm hors de la caisse ; largeur hors tout 2,04 m (Clio V : 1,99 m) ; rétroviseur intérieur collé au haut du
 //   pare-brise, dans l'axe, visible à travers lui ;
-// - œil du conducteur à 1,15 m du sol (assise vers 0,5 m, œil 0,65 m au-dessus) ;
-// - profil d'une compacte à hayon, celle que donnent ces 4,5 m et cet empattement (une compacte, dit le commentaire de
-//   GABARITS) : toit à 1,45 m (Golf 8 : 1,46 m), au plus haut au-dessus du conducteur puis descendant vers le hayon ; toit
-//   arrêté à 0,70 m de l'arrière ; lunette penchée de 53 degrés sur la verticale, de 1,55 m à 2,03 m derrière le centre,
-//   son pied à 1,00 m ; hayon penché de 22 degrés sous la lunette ; vitres latérales arrêtées au montant arrière, épais ;
-//   bas de caisse à 0,20 m ; capot de 0,93 m au pied du pare-brise à 0,80 m à son rebord avant ; vitres latérales,
-//   montants et lunette aux mêmes abscisses dans les deux vues. La ligne de visée qui frôle le capot touche le sol 4,2 m
-//   devant la voiture, celle qui frôle le pied de la lunette 14,6 m derrière ;
-// - portières avant de 1,16 m (de 1,10 m devant le centre au joint du montant milieu, 6 cm derrière le centre), épaisses
-//   de 12 cm, charnière verticale à l'avant, 4 cm derrière le bord et 6 cm en dedans du flanc ; vue du dessus, la
-//   portière du conducteur s'ouvre de 0 à 70 degrés, la butée d'une portière courante, et son rétroviseur tourne avec
-//   elle ; elle découvre l'habitacle à mesure qu'elle s'ouvre, et son contour apparaît sur ses 6 premiers degrés, pour
-//   qu'une animation n'ait aucun saut ; de profil, une portière ouverte l'est à 60 degrés, et la portière est tenue pour
-//   plane ;
-// - trappe à carburant de 17 cm sur 16 au-dessus de la roue arrière, charnière à l'avant ; ouverte à 120 degrés, sa face
-//   intérieure, où se colle souvent l'étiquette des pressions, se voit de profil ;
+// - flanc (vitres latérales, montants, lunette), celui que montrent les rétroviseurs extérieurs (dessin « retroviseurs ») :
+//   VITRAGE_CONTOUR et ceinture ; lunette de 1,55 m à 2,03 m derrière le centre ;
+// - portière avant de 1,16 m (de 1,10 m devant le centre au joint du montant milieu, 6 cm derrière le centre), charnière
+//   verticale à l'avant, 4 cm derrière le bord et 6 cm en dedans du flanc ; la portière du conducteur s'ouvre de 0 à 70
+//   degrés, la butée d'une portière courante, et son rétroviseur tourne avec elle ; elle découvre l'habitacle à mesure
+//   qu'elle s'ouvre, et son contour apparaît sur ses 6 premiers degrés, pour qu'une animation n'ait aucun saut ;
 // - braquage des roues avant de 40 degrés au plus, la butée d'une voiture courante ; les deux roues avant prennent le
 //   même angle : l'épure de braquage, qui tourne un peu plus la roue intérieure au virage, n'est pas dessinée ;
-// - vue du dessus, les roues sont cachées sous la caisse (la voie et le pneu tiennent dans sa largeur) : demandées, elles se
-//   dessinent par-dessus elle, en écorché, sous la portière ouverte et sous les rétroviseurs ;
-// - un détail de finition plus petit que DETAIL_MIN unités (1,3 px sur un téléphone) ne se dessine pas : vitres latérales
-//   vues du dessus (portière comprise), phares et feux, reflets des vitres, montant milieu, bas de caisse, épaule, poignées,
-//   rétroviseur vu de profil, fond, fenêtres et moyeu des jantes ; un trait de détail (joints, essuie-glaces, joint de la
-//   trappe fermée) seulement quand son unité d'épaisseur figure au plus TRAIT_DETAIL_MAX mètre. Se dessinent toujours la
-//   caisse, le toit, le pare-brise, la lunette, le vitrage de profil, les pneus et les jantes, les passages de roue, et
-//   les pièces demandées : roues, rétroviseurs vus du dessus, portière, trappe ouverte.
+// - les roues sont cachées sous la caisse (la voie et le pneu tiennent dans sa largeur) : demandées, elles se dessinent
+//   par-dessus elle, en écorché, sous la portière ouverte et sous les rétroviseurs.
+// Les deux voitures : un détail de finition plus petit que DETAIL_MIN unités (1,3 px sur un téléphone) ne se dessine pas :
+// vitres latérales vues du dessus (portière comprise), phares et feux, reflets des vitres, montant milieu, bas de caisse,
+// épaule, poignées, rétroviseur vu de profil, fond, fenêtres et moyeu des jantes ; un trait de détail (joints, essuie-glaces,
+// joint de la trappe fermée) seulement quand son unité d'épaisseur figure au plus TRAIT_DETAIL_MAX mètre. Se dessinent
+// toujours la caisse, le toit, le pare-brise, la lunette, le vitrage de profil, les pneus et les jantes, les passages de roue,
+// et les pièces demandées : roues, rétroviseurs vus du dessus, portière, trappe ouverte.
 
 function figer(objet) {
   for (const v of Object.values(objet)) if (v && typeof v === "object") figer(v);
@@ -327,64 +319,45 @@ export const TEINTES_ROUTE = figer({
 export const REGARD_SCENES = figer({ portee: 22, demiOuverture: 16, opacite: 0.4 });
 
 // Repère de la caisse : x vers l'avant, depuis le centre ; vue du dessus, y vers la droite de la voiture ; de profil, la
-// hauteur au-dessus du sol. Un point de profil est [x, hauteur] ; un point vu du dessus, [x, y].
+// hauteur au-dessus du sol. Un point de profil est [x, hauteur] ; un point vu du dessus, [x, y]. Ici, la voiture vue du dessus.
 const GABARIT = { longueur: 4.5, largeur: 1.8, rayon: 0.4, essieu: 1.45 };          // scènes
 const PARE_BRISE = { recul: 1.55, profondeur: 0.55, marge: 0.18 };                 // scènes
 const DEMI_L = GABARIT.longueur / 2, DEMI_W = GABARIT.largeur / 2;
 const HAUT_PARE_BRISE = DEMI_L - PARE_BRISE.recul, PIED_PARE_BRISE = HAUT_PARE_BRISE + PARE_BRISE.profondeur;
-const OEIL_CONDUCTEUR = { avant: 0.2, gauche: 0.4, hauteur: 1.15 };              // avant et gauche : scènes
+const OEIL_CONDUCTEUR = { avant: 0.2, gauche: 0.4 };                             // scènes
 const EMPATTEMENT = 2.6, VOIE = 1.52;
 const ESSIEU_AVANT = EMPATTEMENT - GABARIT.essieu, ESSIEU_ARRIERE = -GABARIT.essieu;
 const ROUE = { diametre: 0.64, largeur: 0.21, jante: 0.41 };
 const RAYON_ROUE = ROUE.diametre / 2;
-const HAUTEUR_TOIT = 1.45;
 const BRAQUAGE_MAX = 40;
 // Rétroviseur extérieur droit (le gauche en miroir) : miroir sur la face arrière du boîtier, son centre, et le boîtier vu
-// du dessus (avant, pied sur la portière, bout) ; de profil, entre bas et haut.
-const RETRO = { miroir: 0.96, centre: 0.93, avant: 1.08, pied: 0.85, bout: 1.02, bas: 0.97, haut: 1.105,
-  boitier: [[0.96, 0.85], [1.05, 0.85], [1.08, 0.93], [1.04, 1.02], [0.96, 1.01]], arrondis: [0.01, 0.03, 0.04, 0.03, 0.01],
-  profil: [[0.965, 0.975], [1.07, 0.99], [1.08, 1.085], [0.975, 1.105]], arrondisProfil: [0.02, 0.035, 0.035, 0.02] };
+// du dessus (avant, pied sur la portière, bout).
+const RETRO = { miroir: 0.96, centre: 0.93, avant: 1.08, pied: 0.85, bout: 1.02,
+  boitier: [[0.96, 0.85], [1.05, 0.85], [1.08, 0.93], [1.04, 1.02], [0.96, 1.01]], arrondis: [0.01, 0.03, 0.04, 0.03, 0.01] };
 const RETRO_INTERIEUR = { miroir: 0.72, avant: 0.78, demiLargeur: 0.13, arrondi: 0.025 };
-// Vitres latérales, de profil comme vues du dessus : pied et haut du montant de pare-brise, haut du cadre, haut et pied du
-// montant arrière ; montant milieu entre les deux portières (de l'arrière à l'avant).
+// Flanc de la voiture vue du dessus. Vitres latérales, vues du dessus et de profil (VITRAGE_CONTOUR, que montrent les
+// rétroviseurs) : pied et haut du montant de pare-brise, haut du cadre, haut et pied du montant arrière ; montant milieu entre
+// les deux portières (de l'arrière à l'avant).
 const VITRAGE = { avantBas: [1.10, 0.985], avantHaut: [0.68, 1.36], hautAvant: [0.10, 1.385], hautArriere: [-0.70, 1.38],
   arriereHaut: [-1.16, 1.335], arriereBas: [-1.45, 1.05], montant: [-0.105, -0.015],
   arrondis: [0.03, 0.10, 0.4, 0.4, 0.08, 0.03] };
 const LUNETTE = { haut: [-1.55, 1.36], bas: [-2.03, 1.00] };
-// Portière avant : bord avant (au pied du montant de pare-brise), bord arrière (joint du montant milieu), bas, épaisseur ;
-// charnière [x, distance à l'axe] ; ouvertures en degrés ; fondu : les premiers degrés d'ouverture, sur lesquels le contour
-// de la portière vue du dessus apparaît.
-const PORTIERE = { avant: VITRAGE.avantBas[0], arriere: -0.06, bas: 0.27, epaisseur: 0.12, charniere: [1.06, 0.84],
-  ouvertureMax: 70, ouvertureProfil: 60, fondu: 6 };
-// Trappe à carburant (profil) : centre, taille, arrondi, ouverture (degrés), rayon du bouchon.
-const TRAPPE = { centre: [-1.70, 0.86], largeur: 0.17, hauteur: 0.16, arrondi: 0.03, ouverture: 120, bouchon: 0.045 };
+// Portière avant : bord avant (au pied du montant de pare-brise), bord arrière (joint du montant milieu) ; charnière [x, distance
+// à l'axe] ; ouverture maximale en degrés ; fondu : les premiers degrés d'ouverture, sur lesquels le contour de la portière
+// vue du dessus apparaît.
+const PORTIERE = { avant: VITRAGE.avantBas[0], arriere: -0.06, charniere: [1.06, 0.84], ouvertureMax: 70, fondu: 6 };
 // Joints du capot vue du dessus, de chaque côté : du bord arrière du capot (côté pare-brise) à son bord avant, chacun [x, distance
 // à l'axe]. Le capot fermé est entre eux.
 const JOINTS_CAPOT = { arriere: [1.32, 0.74], avant: [1.94, 0.68] };
 
-/** Dimensions (mètres) et choix de dessin des voitures du kit ; `profil` : les points du contour de profil, [x, hauteur] ;
+/** Dimensions (mètres) et choix de dessin de la voiture vue du dessus (celle des scènes) ; `vitrage` et `lunette` : son flanc ;
  *  `jointsCapot` : les joints du capot vus du dessus. Figées, comme TEINTES_ROUTE : un dessin ne peut pas déformer la voiture
- *  des autres. */
+ *  des autres. La voiture de profil a les siennes : VOITURE_PROFIL. */
 export const VOITURE = figer({
   ...GABARIT, pareBrise: PARE_BRISE, empattement: EMPATTEMENT, voie: VOIE, roue: ROUE, retroviseur: RETRO,
-  retroviseurInterieur: RETRO_INTERIEUR, oeil: OEIL_CONDUCTEUR, hauteur: HAUTEUR_TOIT, braquageMax: BRAQUAGE_MAX,
-  vitrage: VITRAGE, lunette: LUNETTE, portiere: PORTIERE, trappe: TRAPPE, jointsCapot: JOINTS_CAPOT,
-  profil: {
-    basCaisse: 0.20, nez: 0.40, arriere: 0.45, jeuPassage: 0.045,
-    bouclierAvant: [2.13, 0.22], nezBas: [DEMI_L, 0.32], nezHaut: [DEMI_L, 0.50], levreCapot: [2.13, 0.80],
-    auvent: [PIED_PARE_BRISE, 0.93], tetePareBrise: [HAUT_PARE_BRISE, 1.40], toitAvant: [0.30, HAUTEUR_TOIT],
-    toitArriere: [-0.20, HAUTEUR_TOIT], hautLunette: LUNETTE.haut, basLunette: LUNETTE.bas, hayon: [-2.17, 0.66],
-    arriereHaut: [-DEMI_L, 0.55], arriereBas: [-DEMI_L, 0.34], bouclierArriere: [-2.14, 0.22],
-  },
+  retroviseurInterieur: RETRO_INTERIEUR, oeil: OEIL_CONDUCTEUR, braquageMax: BRAQUAGE_MAX,
+  vitrage: VITRAGE, lunette: LUNETTE, portiere: PORTIERE, jointsCapot: JOINTS_CAPOT,
 });
-const PROFIL = VOITURE.profil;
-// Arrondis du contour de profil (mètres le long de chaque côté) ; le pied de la lunette reste vif : c'est le repère que
-// frôle la ligne de visée vers l'arrière.
-const ARRONDIS_PROFIL = { bouclierAvant: 0.06, nezBas: 0.06, nezHaut: 0.09, levreCapot: 0.10, auvent: 0.03, tetePareBrise: 0.12,
-  toitAvant: 0.45, toitArriere: 0.45, hautLunette: 0.14, basLunette: 0, hayon: 0.06, arriereHaut: 0.06, arriereBas: 0.06,
-  bouclierArriere: 0.06 };
-const ORDRE_PROFIL = ["bouclierAvant", "nezBas", "nezHaut", "levreCapot", "auvent", "tetePareBrise", "toitAvant", "toitArriere",
-  "hautLunette", "basLunette", "hayon", "arriereHaut", "arriereBas", "bouclierArriere"];
 
 // Vue du dessus : toit, pare-brise et lunette (demi-largeurs), bandes des vitres latérales (distances à l'axe), phares et
 // feux (voir feuDessus), joints du capot, essuie-glaces au repos au pied du pare-brise, reflet du pare-brise (bande des
@@ -401,29 +374,6 @@ const DESSUS = {
   reflet: { pente: 0.55, debut: 0.86, fin: 0.98 },
   arrondiPneu: 0.06,
 };
-// Profil : jeu entre le pneu et les joints des portières qui contournent les roues, poignées, feux, reflets des vitres
-// (bandes des points où x + pente (hauteur - origine) va de debut à fin ; l'origine, 1 m du sol, tient leurs bornes à
-// mi-hauteur des vitres), jante (calage : angle d'un rayon, vers le bas ; cinq
-// fenêtres entre les rayons), siège du conducteur et montant découverts portière ouverte.
-const COUTURE = { jeu: 0.11 };
-const RAYON_COUTURE = RAYON_ROUE + COUTURE.jeu;
-const POIGNEES = { longueur: 0.20, hauteur: 0.04, sousCeinture: 0.10, avant: 0.12, arriere: -1.27, arrondi: 0.02 };
-const PHARE_PROFIL = { points: [[2.125, 0.755], [2.185, 0.63], [2.0, 0.65], [1.90, 0.775]], arrondis: [0.02, 0.03, 0.05, 0.03] };
-const FEU_PROFIL = { points: [[-2.044, 0.93], [-2.114, 0.76], [-2.0, 0.775], [-1.88, 0.915]], arrondis: [0.02, 0.02, 0.04, 0.03] };
-const REFLETS_PROFIL = [{ pente: -0.45, debut: 0.42, fin: 0.56, origine: 1 }, { pente: -0.45, debut: -0.62, fin: -0.52, origine: 1 }];
-const JANTE = { fond: 0.175, moyeu: 0.05, cache: 0.022, fenetres: 5, ouverture: 44, interieur: 0.065, exterieur: 0.16, arrondi: 0.02,
-  calage: -90 };
-const SIEGE = {
-  assise: [[0.27, 0.45], [0.70, 0.48], [0.71, 0.56], [0.33, 0.57]],
-  dossier: [[0.27, 0.50], [0.39, 0.55], [0.14, 1.04], [0.02, 1.01]],
-  appuieTete: [[-0.03, 1.07], [0.09, 1.08], [0.08, 1.27], [-0.03, 1.26]],
-  arrondi: 0.04,
-};
-const MONTANT = { avant: 0.03, etiquette: [-0.015, 0.74] };
-// Épaule : la bande claire du flanc, sous la ligne de ceinture, sur cette hauteur.
-const EPAULE = 0.18;
-const SEUIL_PORTE = 0.31;
-
 const CARROSSERIES = {
   eleve: { base: TEINTES_ROUTE.eleve, bord: TEINTES_ROUTE.eleveBord, ombre: "#58683F", reflet: "#819269" },
   autre: { base: TEINTES_ROUTE.autre, bord: TEINTES_ROUTE.autreBord, ombre: "#737D89", reflet: "#A2ABB5" },
@@ -526,6 +476,15 @@ const SENS = { droite: 1, gauche: -1 };
 const signeSens = (sens, qui) => SENS[connu(sens, Object.keys(SENS), `${qui} : sens`)];
 
 // ----- Vue du dessus -----
+
+/** Contour des vitres latérales de la voiture vue du dessus, de profil, [x, hauteur] (m), coins arrondis : du pied du montant de
+ *  pare-brise au pied du montant arrière, par le haut du cadre. Le flanc que montrent les rétroviseurs extérieurs. */
+export const VITRAGE_CONTOUR = Object.freeze(arrondir(["avantBas", "avantHaut", "hautAvant", "hautArriere", "arriereHaut", "arriereBas"]
+  .map((k) => VITRAGE[k]), VITRAGE.arrondis));
+/** Ligne de ceinture de la voiture vue du dessus : hauteur (m) du bas des vitres à l'abscisse px, droite du pied du montant arrière
+ *  au pied du montant de pare-brise, prolongée au-delà. */
+export const ceinture = (px) => VITRAGE.arriereBas[1]
+  + ((px - VITRAGE.arriereBas[0]) / (VITRAGE.avantBas[0] - VITRAGE.arriereBas[0])) * (VITRAGE.avantBas[1] - VITRAGE.arriereBas[1]);
 
 // Point du repère de la caisse dans le cadre, pour une voiture posée en (x, y), de cap `cap` degrés (0 vers la droite du
 // cadre, croissant dans le sens des aiguilles d'une montre, comme dans les scènes), à `echelle` unités par mètre.
@@ -688,17 +647,106 @@ export function voitureDessus({ x, y, cap = 0, echelle, teinte = "eleve", retrov
   vitres, feux, essuieGlaces, lesRoues, ouverture, laPortiere, lesRetroviseurs);
 }
 
-// ----- Profil -----
+// ----- Profil : une citadine à hayon réelle -----
+//
+// Retour du formateur du 22/10/2026 sur la voiture de profil précédente (une compacte de 4,5 m tracée sans modèle) : « les
+// proportions sont complètement disproportionnées. La porte avant est toute petite, alors que l'arrière est immense. Je dirais :
+// un break étrange. » La voiture de profil est désormais une citadine à hayon cinq portes réelle, la Dacia Sandero III (depuis
+// 2020), dont la silhouette se dérive de ses cotes :
+// - cotes du constructeur, reprises telles quelles : longueur 4,088 m, largeur 1,85 m, hauteur 1,499 m, empattement 2,604 m,
+//   porte-à-faux avant 0,819 m et arrière 0,665 m ; pneus 195/55 R16, 0,62 m de diamètre (185/65 R15 sur d'autres versions : le
+//   même diamètre) ; garde au sol 0,162 m (fiche technique de L'argus, Sandero III 1.0 TCe 90 Confort, largus.fr ; mêmes cotes
+//   chez autotijd.be, Sandero TCe 90 ; consultées le 22/10/2026) ;
+// - le reste relevé sur une vue de côté de la voiture (carsized.com, « Dacia Sandero 2020 side view », consultée le 22/10/2026),
+//   mise à l'échelle par l'empattement (les roues et le flanc sont dans le même plan, face à l'objectif) : capot, pare-brise, toit,
+//   lunette, vitres et montants, portières et leurs joints, poignées, trappe, phare et feu. La photo, prise en perspective,
+//   raccourcit les extrémités, plus éloignées de l'objectif que le flanc : ce qui est devant l'essieu avant ou derrière l'essieu
+//   arrière est étiré jusqu'aux porte-à-faux cotés, et le toit, de même, porté à la hauteur cotée ;
+// - relevés, en mètres, x vers l'avant depuis le milieu de la voiture : capot de 0,83 m à son rebord avant à 1,05 m au pied du
+//   pare-brise, 0,26 m derrière l'essieu avant ; pare-brise penché de 64 degrés sur la verticale ; toit au plus haut au-dessus des
+//   sièges avant, puis descendant jusqu'au becquet, 0,10 m derrière l'essieu arrière ; lunette penchée de 48 degrés, puis hayon
+//   presque vertical ; bas de caisse à 0,245 m ; passages de roue de 0,37 m de rayon ;
+// - vitres : de la pointe du montant de pare-brise (0,34 m derrière l'essieu avant, au pied du rétroviseur) à la pointe arrière de
+//   la vitre de custode, 1,28 m derrière le milieu ; la ligne de ceinture monte doucement de 0,965 à 1,04 m, puis le bas des vitres
+//   remonte d'un coup vers la pointe arrière : un montant arrière large, plein, celui d'une berline à hayon. Montant milieu de
+//   0,17 m (noir sur la voiture : de la teinte des joints dans la voiture détaillée, de celle de la caisse en silhouette) ;
+// - portière avant de 1,04 m de long, de son bord avant, juste derrière le passage de la roue avant, au joint du montant milieu ;
+//   portière arrière de 0,97 m à la ceinture, 0,68 m en bas, son bord arrière contournant le passage de la roue arrière : la
+//   portière avant est la plus longue ; poignées de 0,22 m à l'arrière de chaque portière ;
+// - trappe à carburant de 0,26 m sur 0,16 au-dessus de la roue arrière, devant le feu (elle est à droite sur la voiture : dessinée
+//   du côté que montre la vue), charnière à l'avant ; ouverte à 120 degrés, sa face intérieure, où se colle souvent l'étiquette des
+//   pressions, se voit de profil ; une portière ouverte l'est à 60 degrés, la portière tenue pour plane ;
+// - œil du conducteur à 1,20 m du sol (assise vers 0,55 m, œil 0,65 m au-dessus) et 0,15 m derrière le milieu : la tête juste
+//   devant le montant milieu, l'appuie-tête derrière lui sur la photo. Choix de dessin, sans référence mesurée ;
+// - la vue du dessus garde la voiture des scènes (4,5 m sur 1,8 m) : la voiture de profil est plus courte qu'elle de 41 cm.
 
-const RAYON_PASSAGE = RAYON_ROUE + PROFIL.jeuPassage;
+// Cotes du constructeur (mètres).
+const COTES_PROFIL = { longueur: 4.088, largeur: 1.85, hauteur: 1.499, empattement: 2.604, porteAFauxAvant: 0.819,
+  porteAFauxArriere: 0.665, pneu: 0.62, gardeAuSol: 0.162 };
+const DEMI_LP = COTES_PROFIL.longueur / 2, DEMI_WP = COTES_PROFIL.largeur / 2;
+const ESSIEU_AVANT_P = DEMI_LP - COTES_PROFIL.porteAFauxAvant, ESSIEU_ARRIERE_P = ESSIEU_AVANT_P - COTES_PROFIL.empattement;
+const RAYON_ROUE_P = COTES_PROFIL.pneu / 2;
+const JANTE_P = 0.41;                     // jante de 16 pouces, rebord compris
+const BAS_CAISSE_P = 0.245, JEU_PASSAGE_P = 0.06;
+// Contour de la caisse (relevé), sommets [x, hauteur], de l'avant du bouclier, sous le nez, au bas du bouclier arrière, par le
+// toit ; puis les passages de roue. Le pied de la lunette est sur la pente qui va du becquet au coin du hayon.
+const PROFIL_P = {
+  bouclierAvant: [1.88, 0.25], nezBas: [DEMI_LP, 0.34], nezHaut: [DEMI_LP, 0.66], levreCapot: [1.94, 0.83], capot: [1.45, 0.975],
+  auvent: [0.95, 1.05], tetePareBrise: [0.12, 1.45], toitAvant: [-0.30, COTES_PROFIL.hauteur], toitArriere: [-0.70, COTES_PROFIL.hauteur],
+  hautLunette: [-1.48, 1.426], basLunette: [-1.83, 1.115], hayon: [-1.92, 1.035], arriereHaut: [-DEMI_LP, 0.66],
+  arriereBas: [-DEMI_LP, 0.42], bouclierArriere: [-1.90, 0.27],
+};
+// Arrondis du contour (mètres le long de chaque côté) ; le pied de la lunette reste vif : c'est le repère que frôle la ligne de
+// visée vers l'arrière.
+const ARRONDIS_P = { bouclierAvant: 0.05, nezBas: 0.06, nezHaut: 0.12, levreCapot: 0.10, capot: 0.40, auvent: 0.04, tetePareBrise: 0.25,
+  toitAvant: 0.30, toitArriere: 0.60, hautLunette: 0.05, basLunette: 0, hayon: 0.08, arriereHaut: 0.08, arriereBas: 0.08, bouclierArriere: 0.06 };
+const ORDRE_P = Object.keys(PROFIL_P);
+// Points du nez et de l'arrière que désignent les repères avantCapot et arriereCoffre : sur les faces verticales du bouclier.
+const NEZ_P = 0.45, ARRIERE_P = 0.54;
+// Vitres latérales (relevé) : pointe avant, coude du montant de pare-brise, haut du cadre (avant, milieu, arrière), pointe
+// arrière, remontée du bas de la vitre de custode, pied de la ceinture à l'arrière ; montant milieu entre les deux portières.
+const VITRAGE_P = { avantBas: [0.88, 0.965], pilier: [0.66, 1.135], hautAvant: [0.02, 1.415], haut: [-0.55, 1.437],
+  hautArriere: [-1.22, 1.37], pointe: [-1.285, 1.29], coude: [-1.10, 1.125], arriereBas: [-0.82, 1.04], montant: [-0.36, -0.19] };
+const ARRONDIS_VITRAGE_P = [0.02, 0.06, 0.25, 0.35, 0.06, 0.03, 0.08, 0.12];
+const ORDRE_VITRAGE_P = ["avantBas", "pilier", "hautAvant", "haut", "hautArriere", "pointe", "coude", "arriereBas"];
+// Portière avant : bord avant, joint du montant milieu, bas, épaisseur ; charnière [x, distance à l'axe] ; ouverture (degrés).
+const PORTIERE_P = { avant: 0.80, arriere: -0.24, bas: 0.29, epaisseur: 0.12, charniere: [0.78, 0.86], ouverture: 60 };
+// Portière arrière : son bord arrière, vertical sous la vitre de custode, puis un arc de ce rayon autour de la roue arrière.
+const PORTE_ARRIERE_P = { bord: -1.21, rayon: 0.46 };
+// Poignées : longueur, hauteur, arrondi ; centre de celle de la portière avant et de la portière arrière.
+const POIGNEES_P = { longueur: 0.22, hauteur: 0.045, arrondi: 0.02, avant: [-0.06, 0.817], arriere: [-0.97, 0.871] };
+// Trappe à carburant : centre, taille, arrondi, ouverture (degrés), rayon du bouchon.
+const TRAPPE_P = { centre: [-1.40, 0.90], largeur: 0.26, hauteur: 0.16, arrondi: 0.04, ouverture: 120, bouchon: 0.045 };
+const PHARE_P = { points: [[1.58, 0.86], [1.90, 0.815], [1.96, 0.72], [1.66, 0.80]], arrondis: [0.03, 0.03, 0.03, 0.05] };
+const FEU_P = { points: [[-1.56, 1.028], [-1.885, 1.035], [-1.945, 0.905], [-1.76, 0.935]], arrondis: [0.02, 0.03, 0.03, 0.05] };
+// Rétroviseur, au pied du montant de pare-brise : de profil, entre miroir (arrière) et avant, bas et haut ; vu du dessus, du pied
+// (sur la portière) au bout, distances à l'axe.
+const RETRO_P = { miroir: 0.53, avant: 0.70, pied: 0.88, bout: 1.00,
+  profil: [[0.545, 0.965], [0.70, 0.985], [0.695, 1.10], [0.56, 1.12]], arrondis: [0.02, 0.04, 0.04, 0.03] };
+const OEIL_P = [-0.15, 1.20];
+// Montant découvert portière ouverte (la face où se colle souvent l'étiquette des pressions) : son bord avant ; le repère.
+const MONTANT_P = { avant: -0.15, etiquette: [-0.195, 0.74] };
+// Reflets des vitres (voiture détaillée), siège du conducteur découvert portière ouverte, épaule, seuil.
+const REFLETS_P = [{ pente: -0.45, debut: 0.25, fin: 0.39, origine: 1 }, { pente: -0.45, debut: -0.80, fin: -0.70, origine: 1 }];
+const SIEGE_P = {
+  assise: [[-0.12, 0.50], [0.40, 0.53], [0.41, 0.61], [-0.06, 0.62]],
+  dossier: [[-0.12, 0.55], [0.00, 0.60], [-0.22, 1.10], [-0.34, 1.07]],
+  appuieTete: [[-0.37, 1.13], [-0.25, 1.14], [-0.26, 1.33], [-0.37, 1.32]],
+  arrondi: 0.04,
+};
+const EPAULE_P = 0.18, SEUIL_PORTE_P = 0.34;
+const JANTE = { fond: 0.175, moyeu: 0.05, cache: 0.022, fenetres: 5, ouverture: 44, interieur: 0.065, exterieur: 0.16, arrondi: 0.02,
+  calage: -90 };
+
+const RAYON_PASSAGE_P = RAYON_ROUE_P + JEU_PASSAGE_P;
 // Passage de roue : l'arc du bas de caisse, à l'arrière de la roue, jusqu'au bas de caisse, à l'avant, par le haut.
 function passage(essieu) {
-  const pied = Math.asin((PROFIL.basCaisse - RAYON_ROUE) / RAYON_PASSAGE) / RAD;
-  return arc([essieu, RAYON_ROUE], RAYON_PASSAGE, 180 - pied, pied);
+  const pied = Math.asin((BAS_CAISSE_P - RAYON_ROUE_P) / RAYON_PASSAGE_P) / RAD;
+  return arc([essieu, RAYON_ROUE_P], RAYON_PASSAGE_P, 180 - pied, pied);
 }
 const CONTOUR_PROFIL = (() => {
-  const sommets = [...ORDRE_PROFIL.map((k) => [PROFIL[k], ARRONDIS_PROFIL[k]]),
-    ...passage(ESSIEU_ARRIERE).map((p) => [p, 0]), ...passage(ESSIEU_AVANT).map((p) => [p, 0])];
+  const sommets = [...ORDRE_P.map((k) => [PROFIL_P[k], ARRONDIS_P[k]]),
+    ...passage(ESSIEU_ARRIERE_P).map((p) => [p, 0]), ...passage(ESSIEU_AVANT_P).map((p) => [p, 0])];
   return arrondir(sommets.map(([p]) => p), sommets.map(([, r]) => r));
 })();
 // Repères que frôlent les lignes de visée de l'œil : le point du capot (devant le pied du pare-brise) et celui du hayon
@@ -708,88 +756,108 @@ function frole(garder, pente) {
   for (const p of CONTOUR_PROFIL) if (garder(p) && pente(p) > max) { max = pente(p); meilleur = p; }
   return meilleur;
 }
-const HAUT_CAPOT = frole((p) => p[0] >= PROFIL.auvent[0], ([px, ph]) => (ph - OEIL_CONDUCTEUR.hauteur) / (px - OEIL_CONDUCTEUR.avant));
-const HAUT_COFFRE = frole((p) => p[0] <= PROFIL.basLunette[0], ([px, ph]) => (ph - OEIL_CONDUCTEUR.hauteur) / (OEIL_CONDUCTEUR.avant - px));
+const [OEIL_X, OEIL_H] = OEIL_P;
+const HAUT_CAPOT = frole((p) => p[0] >= PROFIL_P.auvent[0], ([px, ph]) => (ph - OEIL_H) / (px - OEIL_X));
+const HAUT_COFFRE = frole((p) => p[0] <= PROFIL_P.basLunette[0], ([px, ph]) => (ph - OEIL_H) / (OEIL_X - px));
 
-/** Contour des vitres latérales de profil, [x, hauteur] (m), coins arrondis : du pied du montant de pare-brise au pied du
- *  montant arrière, par le haut du cadre. */
-export const VITRAGE_CONTOUR = Object.freeze(arrondir(["avantBas", "avantHaut", "hautAvant", "hautArriere", "arriereHaut", "arriereBas"]
-  .map((k) => VITRAGE[k]), VITRAGE.arrondis));
-/** Ligne de ceinture : hauteur (m) du bas des vitres à l'abscisse px, droite du pied du montant arrière au pied du montant de
- *  pare-brise, prolongée au-delà. */
-export const ceinture = (px) => VITRAGE.arriereBas[1]
-  + ((px - VITRAGE.arriereBas[0]) / (VITRAGE.avantBas[0] - VITRAGE.arriereBas[0])) * (VITRAGE.avantBas[1] - VITRAGE.arriereBas[1]);
-// Joints : le bord avant de la portière avant, qui contourne la roue avant ; le bord arrière de la portière arrière, qui
-// contourne la roue arrière ; le joint du montant milieu.
-// (Angles en degrés dans le plan [x, hauteur] : 90, le sommet du cercle ; 180 - a, le symétrique de a vers l'arrière.)
-const angleCouture = (dh) => Math.asin(dh / RAYON_COUTURE) / RAD;
-const JOINT_AVANT = [VITRAGE.avantBas, ...arc([ESSIEU_AVANT, RAYON_ROUE], RAYON_COUTURE,
-  Math.acos((PORTIERE.avant - ESSIEU_AVANT) / RAYON_COUTURE) / RAD, 180 - angleCouture(PORTIERE.bas - RAYON_ROUE))];
-const JOINT_ARRIERE = [...arc([ESSIEU_ARRIERE, RAYON_ROUE], RAYON_COUTURE, angleCouture(PORTIERE.bas - RAYON_ROUE), 90),
-  VITRAGE.arriereBas];
-const JOINT_MILIEU = [[PORTIERE.arriere, PORTIERE.bas], [PORTIERE.arriere, ceinture(PORTIERE.arriere)]];
-// Cadre de la vitre de la portière avant : le contour des vitres, du pied du montant de pare-brise jusqu'au joint du
-// montant milieu (RANG_JOINT_MILIEU, premier point derrière lui), et le haut du bord arrière de la portière, où ce joint
-// coupe le haut du cadre.
-const RANG_JOINT_MILIEU = VITRAGE_CONTOUR.findIndex((p, i) => i > 0 && p[0] < PORTIERE.arriere);
-const HAUT_BORD_ARRIERE = (() => {
-  const a = VITRAGE_CONTOUR[RANG_JOINT_MILIEU - 1], b = VITRAGE_CONTOUR[RANG_JOINT_MILIEU];
-  return entre(a, b, (PORTIERE.arriere - a[0]) / (b[0] - a[0]));
+/** Contour des vitres latérales de la voiture de profil, [x, hauteur] (m), coins arrondis : de la pointe avant, par le montant
+ *  de pare-brise et le haut du cadre, à la pointe arrière, puis le bas des vitres. */
+export const VITRAGE_PROFIL = Object.freeze(arrondir(ORDRE_VITRAGE_P.map((k) => VITRAGE_P[k]), ARRONDIS_VITRAGE_P));
+// Ligne de ceinture de la voiture de profil : hauteur (m) du bas des vitres à l'abscisse px, droite du pied arrière de la ceinture
+// à la pointe avant, prolongée au-delà.
+const ceintureP = (px) => VITRAGE_P.arriereBas[1]
+  + ((px - VITRAGE_P.arriereBas[0]) / (VITRAGE_P.avantBas[0] - VITRAGE_P.arriereBas[0])) * (VITRAGE_P.avantBas[1] - VITRAGE_P.arriereBas[1]);
+// Hauteur du bas des vitres à l'abscisse px (la plus basse des traversées du contour), entre les deux pointes.
+function basDesVitres(px) {
+  let bas = Infinity;
+  VITRAGE_PROFIL.forEach((a, i) => {
+    const b = VITRAGE_PROFIL[(i + 1) % VITRAGE_PROFIL.length];
+    if ((a[0] - px) * (b[0] - px) <= 0 && a[0] !== b[0]) bas = Math.min(bas, a[1] + ((px - a[0]) / (b[0] - a[0])) * (b[1] - a[1]));
+  });
+  return bas;
+}
+// Joints : le bord avant de la portière avant, vertical, juste derrière le passage de la roue avant ; le joint du montant milieu ;
+// le bord arrière de la portière arrière, vertical sous la vitre de custode puis en arc autour du passage de la roue arrière.
+const JOINT_AVANT = [[PORTIERE_P.avant, PORTIERE_P.bas], [PORTIERE_P.avant, ceintureP(PORTIERE_P.avant)]];
+const JOINT_MILIEU = [[PORTIERE_P.arriere, PORTIERE_P.bas], [PORTIERE_P.arriere, ceintureP(PORTIERE_P.arriere)]];
+const JOINT_ARRIERE = (() => {
+  const { bord, rayon } = PORTE_ARRIERE_P;
+  const de = Math.acos((bord - ESSIEU_ARRIERE_P) / rayon) / RAD, a = Math.asin((PORTIERE_P.bas - RAYON_ROUE_P) / rayon) / RAD;
+  return [[bord, basDesVitres(bord)], ...arc([ESSIEU_ARRIERE_P, RAYON_ROUE_P], rayon, de, a)];
 })();
-// Bord arrière de la portière avant, du bas au haut du cadre ; contour de la portière fermée, vitre comprise : joint avant,
-// bas, bord arrière, cadre.
-const BORD_ARRIERE_PORTIERE = [[PORTIERE.arriere, PORTIERE.bas], [PORTIERE.arriere, ceinture(PORTIERE.arriere)], HAUT_BORD_ARRIERE];
-const CONTOUR_PORTIERE = [...JOINT_AVANT, ...BORD_ARRIERE_PORTIERE, ...VITRAGE_CONTOUR.slice(0, RANG_JOINT_MILIEU).reverse()];
+// Cadre de la vitre de la portière avant : le contour des vitres, de la pointe avant jusqu'au joint du montant milieu
+// (RANG_JOINT_MILIEU, premier point derrière lui), et le haut du bord arrière de la portière, où ce joint coupe le haut du cadre.
+const RANG_JOINT_MILIEU = VITRAGE_PROFIL.findIndex((p, i) => i > 0 && p[0] < PORTIERE_P.arriere);
+const HAUT_BORD_ARRIERE = (() => {
+  const a = VITRAGE_PROFIL[RANG_JOINT_MILIEU - 1], b = VITRAGE_PROFIL[RANG_JOINT_MILIEU];
+  return entre(a, b, (PORTIERE_P.arriere - a[0]) / (b[0] - a[0]));
+})();
+// Bord arrière de la portière avant, du bas au haut du cadre ; contour de la portière fermée, vitre comprise : bord avant, bas,
+// bord arrière, cadre.
+const BORD_ARRIERE_PORTIERE = [[PORTIERE_P.arriere, PORTIERE_P.bas], [PORTIERE_P.arriere, ceintureP(PORTIERE_P.arriere)], HAUT_BORD_ARRIERE];
+const CONTOUR_PORTIERE = [...JOINT_AVANT.slice().reverse(), ...BORD_ARRIERE_PORTIERE,
+  ...VITRAGE_PROFIL.slice(0, RANG_JOINT_MILIEU).reverse()];
 const BAS_DE_CAISSE = (() => {
-  const angle = (dh) => Math.asin(dh / RAYON_PASSAGE) / RAD;
-  const [bas, haut] = [angle(PROFIL.basCaisse - RAYON_ROUE), angle(PORTIERE.bas - RAYON_ROUE)];
-  return [...arc([ESSIEU_AVANT, RAYON_ROUE], RAYON_PASSAGE, 180 - haut, 180 - bas),
-    ...arc([ESSIEU_ARRIERE, RAYON_ROUE], RAYON_PASSAGE, bas, haut)];
+  const angle = (dh) => Math.asin(dh / RAYON_PASSAGE_P) / RAD;
+  const [bas, haut] = [angle(BAS_CAISSE_P - RAYON_ROUE_P), angle(PORTIERE_P.bas - RAYON_ROUE_P)];
+  return [...arc([ESSIEU_AVANT_P, RAYON_ROUE_P], RAYON_PASSAGE_P, 180 - haut, 180 - bas),
+    ...arc([ESSIEU_ARRIERE_P, RAYON_ROUE_P], RAYON_PASSAGE_P, bas, haut)];
 })();
 // Portière ouverte de profil, tenue pour plane : un point à x, à dz mètre hors de l'axe de la charnière (vers l'extérieur),
-// se voit en charnière + (x - charnière) cos a + dz sin a. La peau extérieure est à DEMI_W de l'axe de la voiture.
-const DZ_PEAU = DEMI_W - PORTIERE.charniere[1];
-function projeterPortiere([px, ph], dz, angle = PORTIERE.ouvertureProfil) {
-  return [PORTIERE.charniere[0] + (px - PORTIERE.charniere[0]) * Math.cos(angle * RAD) + dz * Math.sin(angle * RAD), ph];
+// se voit en charnière + (x - charnière) cos a + dz sin a. La peau extérieure est à la demi-largeur de la voiture.
+const DZ_PEAU = DEMI_WP - PORTIERE_P.charniere[1];
+function projeterPortiere([px, ph], dz, angle = PORTIERE_P.ouverture) {
+  return [PORTIERE_P.charniere[0] + (px - PORTIERE_P.charniere[0]) * Math.cos(angle * RAD) + dz * Math.sin(angle * RAD), ph];
 }
-const EPAULE_CONTOUR = couper(couper(CONTOUR_PROFIL, (p) => ceinture(p[0]) - EPAULE - p[1]), (p) => p[1] - ceinture(p[0]));
+const devantCharniereP = (p) => p[0] - PORTIERE_P.charniere[0];
+const EPAULE_CONTOUR = couper(couper(CONTOUR_PROFIL, (p) => ceintureP(p[0]) - EPAULE_P - p[1]), (p) => p[1] - ceintureP(p[0]));
 // Trappe : rectangle arrondi ; ouverte, tournée autour de sa charnière (bord avant) au-delà de l'angle droit.
 const TRAPPE_CONTOUR = (() => {
-  const [cx, ch] = TRAPPE.centre, dl = TRAPPE.largeur / 2, dh = TRAPPE.hauteur / 2;
+  const [cx, ch] = TRAPPE_P.centre, dl = TRAPPE_P.largeur / 2, dh = TRAPPE_P.hauteur / 2;
   const coins = [[cx - dl, ch - dh], [cx + dl, ch - dh], [cx + dl, ch + dh], [cx - dl, ch + dh]];
-  return arrondir(coins, coins.map(() => TRAPPE.arrondi));
+  return arrondir(coins, coins.map(() => TRAPPE_P.arrondi));
 })();
-const CHARNIERE_TRAPPE = TRAPPE.centre[0] + TRAPPE.largeur / 2;
-const ouvrirTrappe = ([px, ph]) => [CHARNIERE_TRAPPE + (px - CHARNIERE_TRAPPE) * Math.cos(TRAPPE.ouverture * RAD), ph];
-const TRAPPE_OUVERTE_CENTRE = ouvrirTrappe(TRAPPE.centre);
+const CHARNIERE_TRAPPE = TRAPPE_P.centre[0] + TRAPPE_P.largeur / 2;
+const ouvrirTrappe = ([px, ph]) => [CHARNIERE_TRAPPE + (px - CHARNIERE_TRAPPE) * Math.cos(TRAPPE_P.ouverture * RAD), ph];
+const TRAPPE_OUVERTE_CENTRE = ouvrirTrappe(TRAPPE_P.centre);
 
-/** Repères d'une voiture de profil, en points du cadre : œil du conducteur ; avant et arrière de la caisse (points les plus
- *  avancé et reculé) ; hautCapot et hautCoffre, les points que frôlent les lignes de visée de l'œil par-dessus le capot et
- *  par le pied de la lunette ; montant milieu découvert portière ouverte (là où se colle souvent l'étiquette des pressions) ;
- *  trappe à carburant (son centre, ou, ouverte, celui de sa face intérieure) ; sol sous l'avant et sous l'arrière. */
+/** La voiture de profil (Dacia Sandero III), cotes et choix de dessin, en mètres, x vers l'avant depuis le milieu de la voiture,
+ *  hauteur au-dessus du sol : cotes du constructeur (longueur, largeur, hauteur, empattement, porte-à-faux, diamètre du pneu, garde
+ *  au sol) ; essieux ; contour de la caisse (`profil`, ses sommets) ; vitres et montant milieu ; portières, poignées, trappe à
+ *  carburant, rétroviseur ; œil du conducteur. Figée, comme VOITURE. */
+export const VOITURE_PROFIL = figer({
+  ...COTES_PROFIL, essieuAvant: ESSIEU_AVANT_P, essieuArriere: ESSIEU_ARRIERE_P, jante: JANTE_P, basCaisse: BAS_CAISSE_P,
+  jeuPassage: JEU_PASSAGE_P, profil: PROFIL_P, vitrage: VITRAGE_P, portiere: PORTIERE_P, porteArriere: PORTE_ARRIERE_P,
+  poignees: POIGNEES_P, trappe: TRAPPE_P, retroviseur: RETRO_P, oeil: OEIL_P,
+});
+
+/** Repères d'une voiture de profil, en points du cadre : œil du conducteur ; avant et arrière de la caisse (sur les faces des
+ *  boucliers, aux points les plus avancé et reculé) ; hautCapot et hautCoffre, les points que frôlent les lignes de visée de l'œil
+ *  par-dessus le capot et par le pied de la lunette ; montant milieu découvert portière ouverte (là où se colle souvent l'étiquette
+ *  des pressions) ; trappe à carburant (son centre, ou, ouverte, celui de sa face intérieure) ; sol sous l'avant et sous l'arrière. */
 export function reperesProfil({ x, y, echelle, sens = "droite", trappeOuverte = false }) {
   const qui = "Repères de la voiture de profil";
   verifierPose(qui, { x, y, echelle });
   const s = signeSens(sens, qui), v = ([px, ph]) => [x + s * px * echelle, y - ph * echelle];
   return {
-    oeil: v([OEIL_CONDUCTEUR.avant, OEIL_CONDUCTEUR.hauteur]), avantCapot: v([DEMI_L, PROFIL.nez]), hautCapot: v(HAUT_CAPOT),
-    arriereCoffre: v([-DEMI_L, PROFIL.arriere]), hautCoffre: v(HAUT_COFFRE), montantPortiere: v(MONTANT.etiquette),
-    trappe: v(trappeOuverte ? TRAPPE_OUVERTE_CENTRE : TRAPPE.centre), solAvant: v([DEMI_L, 0]), solArriere: v([-DEMI_L, 0]),
+    oeil: v(OEIL_P), avantCapot: v([DEMI_LP, NEZ_P]), hautCapot: v(HAUT_CAPOT),
+    arriereCoffre: v([-DEMI_LP, ARRIERE_P]), hautCoffre: v(HAUT_COFFRE), montantPortiere: v(MONTANT_P.etiquette),
+    trappe: v(trappeOuverte ? TRAPPE_OUVERTE_CENTRE : TRAPPE_P.centre), solAvant: v([DEMI_LP, 0]), solArriere: v([-DEMI_LP, 0]),
   };
 }
 
-/** Voiture de profil, une compacte à hayon : caisse, vitres et montants, roues (pneu, jante), passages de roue, phare et feu,
- *  rétroviseur, poignées, joints, trappe à carburant. (x, y) : point du sol sous le milieu de la voiture ; échelle en unités
- *  par mètre ; sens : vers où regarde l'avant, « droite » montre le côté droit de la voiture, « gauche » son côté gauche,
- *  celui du conducteur ; portiereOuverte : la portière avant de ce côté, ouverte ; trappeOuverte : la trappe à carburant de
- *  ce côté, ouverte. Ouvertes ou fermées, la portière et la trappe gardent leurs nœuds (display none). `schema` : le style
- *  schématique (décision du formateur du 15/10/2026, « pictogramme plutôt qu'illustration »), comme voitureDessus : la
- *  silhouette de la caisse et son contour, les vitres latérales (le montant milieu, assez grand pour se voir, les sépare dans
- *  la teinte de la caisse), les roues en deux tons, pneu et jante pleine, et leurs passages de la teinte du pneu (la roue
- *  remplit son passage : aucun anneau clair autour d'elle) ; portière et trappe ouvertes à la demande, en aplats (l'habitacle
- *  découvert, le montant, le seuil, la portière, son chant et sa vitre ; le logement et le volet de la trappe) ; aux mêmes
- *  tracés que la voiture détaillée. Aucun détail de finition : ni fond, fenêtres ou moyeu des jantes, ni bas de caisse, ni
- *  épaule, ni reflets, ni phare, ni feu, ni rétroviseur, ni poignées, ni joints, ni trappe fermée, ni bouchon, ni siège. */
+/** Voiture de profil, une citadine à hayon cinq portes (Dacia Sandero III, à ses cotes) : caisse, vitres et montants, roues (pneu,
+ *  jante), passages de roue, phare et feu, rétroviseur, poignées, joints, trappe à carburant. (x, y) : point du sol sous le milieu
+ *  de la voiture ; échelle en unités par mètre ; sens : vers où regarde l'avant, « droite » montre le côté droit de la voiture,
+ *  « gauche » son côté gauche, celui du conducteur ; portiereOuverte : la portière avant de ce côté, ouverte ; trappeOuverte : la
+ *  trappe à carburant de ce côté, ouverte. Ouvertes ou fermées, la portière et la trappe gardent leurs nœuds (display none).
+ *  `schema` : le style schématique (décision du formateur du 15/10/2026, « pictogramme plutôt qu'illustration »), comme
+ *  voitureDessus : la silhouette de la caisse et son contour, les vitres latérales (le montant milieu, assez grand pour se voir, les
+ *  sépare dans la teinte de la caisse), les roues en deux tons, pneu et jante pleine, et leurs passages de la teinte du pneu (la
+ *  roue remplit son passage : aucun anneau clair autour d'elle) ; portière et trappe ouvertes à la demande, en aplats (l'habitacle
+ *  découvert, le montant, le seuil, la portière, son chant et sa vitre ; le logement et le volet de la trappe) ; aux mêmes tracés
+ *  que la voiture détaillée. Aucun détail de finition : ni fond, fenêtres ou moyeu des jantes, ni bas de caisse, ni épaule, ni
+ *  reflets, ni phare, ni feu, ni rétroviseur, ni poignées, ni joints, ni trappe fermée, ni bouchon, ni siège. */
 export function voitureProfil({ x, y, echelle, teinte = "eleve", sens = "droite", portiereOuverte = false, trappeOuverte = false,
   schema = false, role = "voiture-profil" }) {
   const qui = "Voiture de profil";
@@ -807,95 +875,96 @@ export function voitureProfil({ x, y, echelle, teinte = "eleve", sens = "droite"
   const affiche = (oui) => (oui ? "inline" : "none");
 
   const roue = (role, essieu) => {
-    const [cx, cy] = v([essieu, RAYON_ROUE]), j = JANTE;
+    const [cx, cy] = v([essieu, RAYON_ROUE_P]), j = JANTE;
     const fenetres = assez(j.exterieur - j.interieur) && Array.from({ length: j.fenetres }, (_, k) => {
       const milieu = j.calage + (360 / j.fenetres) * (k + 1 / 2), de = milieu - j.ouverture / 2, a = milieu + j.ouverture / 2;
-      const pts = [...arc([essieu, RAYON_ROUE], j.exterieur, de, a), ...arc([essieu, RAYON_ROUE], j.interieur, a, de)];
+      const pts = [...arc([essieu, RAYON_ROUE_P], j.exterieur, de, a), ...arc([essieu, RAYON_ROUE_P], j.interieur, a, de)];
       const coins = [0, pts.length / 2 - 1, pts.length / 2, pts.length - 1];
       return forme(arrondir(pts, pts.map((_, i) => (coins.includes(i) ? j.arrondi : 0))), { fill: MATIERES.fenetres });
     });
-    return n("g", { "data-r": role, ...repere([essieu, RAYON_ROUE]) },
-      n("circle", { cx, cy, r: RAYON_ROUE * e, fill: MATIERES.pneu, "data-r": "pneu" }),
-      n("circle", { cx, cy, r: (ROUE.jante / 2) * e, fill: MATIERES.jante, "data-r": "jante" }),
-      assez(ROUE.jante / 2 - j.fond) && n("circle", { cx, cy, r: j.fond * e, fill: MATIERES.janteFond }),
+    return n("g", { "data-r": role, ...repere([essieu, RAYON_ROUE_P]) },
+      n("circle", { cx, cy, r: RAYON_ROUE_P * e, fill: MATIERES.pneu, "data-r": "pneu" }),
+      n("circle", { cx, cy, r: (JANTE_P / 2) * e, fill: MATIERES.jante, "data-r": "jante" }),
+      assez(JANTE_P / 2 - j.fond) && n("circle", { cx, cy, r: j.fond * e, fill: MATIERES.janteFond }),
       fenetres,
       assez(j.moyeu) && n("circle", { cx, cy, r: j.moyeu * e, fill: MATIERES.jante }),
       assez(j.cache) && n("circle", { cx, cy, r: j.cache * e, fill: MATIERES.moyeu }));
   };
 
-  const montantMilieu = couper(couper(VITRAGE_CONTOUR, (p) => VITRAGE.montant[0] - p[0]), (p) => p[0] - VITRAGE.montant[1]);
-  const vitreAvant = couper(VITRAGE_CONTOUR, (p) => VITRAGE.montant[1] - p[0]);
-  const vitreArriere = couper(VITRAGE_CONTOUR, (p) => p[0] - VITRAGE.montant[0]);
-  const poignee = (px) => {
-    const p = POIGNEES, h = ceinture(px) - p.sousCeinture, dl = p.longueur / 2, dh = p.hauteur / 2;
-    const coins = [[px - dl, h - dh], [px + dl, h - dh], [px + dl, h + dh], [px - dl, h + dh]];
+  const montantMilieu = couper(couper(VITRAGE_PROFIL, (p) => VITRAGE_P.montant[0] - p[0]), (p) => p[0] - VITRAGE_P.montant[1]);
+  const vitreAvant = couper(VITRAGE_PROFIL, (p) => VITRAGE_P.montant[1] - p[0]);
+  const vitreArriere = couper(VITRAGE_PROFIL, (p) => p[0] - VITRAGE_P.montant[0]);
+  const poignee = ([px, ph]) => {
+    const p = POIGNEES_P, dl = p.longueur / 2, dh = p.hauteur / 2;
+    const coins = [[px - dl, ph - dh], [px + dl, ph - dh], [px + dl, ph + dh], [px - dl, ph + dh]];
     return arrondir(coins, coins.map(() => p.arrondi));
   };
-  const retroviseur = arrondir(RETRO.profil, RETRO.arrondisProfil), retroVisible = assez(RETRO.avant - RETRO.miroir);
+  const retroviseur = arrondir(RETRO_P.profil, RETRO_P.arrondis), retroVisible = assez(RETRO_P.avant - RETRO_P.miroir);
+  const [retroBas, retroHaut] = [Math.min(...RETRO_P.profil.map((p) => p[1])), Math.max(...RETRO_P.profil.map((p) => p[1]))];
 
   // Trappe fermée (son joint) ou ouverte : le logement sombre et le bouchon, la trappe tournée devant sa charnière.
-  const trappeFermee = n("g", { "data-r": "trappe-fermee", display: affiche(!trappeOuverte), ...repere(TRAPPE.centre) },
+  const trappeFermee = n("g", { "data-r": "trappe-fermee", display: affiche(!trappeOuverte), ...repere(TRAPPE_P.centre) },
     traitDetail && forme(TRAPPE_CONTOUR, { fill: c.base, stroke: c.ombre, "stroke-width": fin, "data-r": "volet" }));
-  const trappeOuverteG = n("g", { "data-r": "trappe-ouverte", display: affiche(trappeOuverte), "data-angle": TRAPPE.ouverture,
+  const trappeOuverteG = n("g", { "data-r": "trappe-ouverte", display: affiche(trappeOuverte), "data-angle": TRAPPE_P.ouverture,
     ...repere(TRAPPE_OUVERTE_CENTRE) },
   forme(TRAPPE_CONTOUR, { fill: MATIERES.joint }),
-  finition && n("circle", { cx: v(TRAPPE.centre)[0], cy: v(TRAPPE.centre)[1], r: TRAPPE.bouchon * e, fill: MATIERES.bouchon }),
+  finition && n("circle", { cx: v(TRAPPE_P.centre)[0], cy: v(TRAPPE_P.centre)[1], r: TRAPPE_P.bouchon * e, fill: MATIERES.bouchon }),
   forme(TRAPPE_CONTOUR.map(ouvrirTrappe), { fill: c.ombre, stroke: c.bord, "stroke-width": fin, "stroke-linejoin": "round", "data-r": "volet" }));
 
   // Portière fermée : son joint avant, sa poignée, son rétroviseur. Ouverte : l'habitacle découvert (siège, montant milieu,
   // seuil), puis la portière vue de biais, son chant derrière elle.
   const portiereFermee = n("g", { "data-r": "portiere-fermee", display: affiche(!portiereOuverte) },
-    traitDetail && ligne(JOINT_AVANT, { stroke: c.ombre, "stroke-width": fin }),
-    assez(POIGNEES.hauteur) && forme(poignee(POIGNEES.avant), { fill: c.ombre, "data-r": "poignee-avant" }),
+    traitDetail && ligne(JOINT_AVANT, { stroke: c.ombre, "stroke-width": fin, "data-r": "joint-avant" }),
+    assez(POIGNEES_P.hauteur) && forme(poignee(POIGNEES_P.avant), { fill: c.ombre, "data-r": "poignee-avant" }),
     retroVisible && forme(retroviseur, { fill: c.base, stroke: c.bord, "stroke-width": fin, "stroke-linejoin": "round", "data-r": "retroviseur",
-      ...repere([(RETRO.miroir + RETRO.avant) / 2, (RETRO.bas + RETRO.haut) / 2]) }));
-  const derriere = (pts) => couper(pts, devantCharniere);
+      ...repere([(RETRO_P.miroir + RETRO_P.avant) / 2, (retroBas + retroHaut) / 2]) }));
+  const derriere = (pts) => couper(pts, devantCharniereP);
   const panneau = derriere(CONTOUR_PORTIERE).map((p) => projeterPortiere(p, DZ_PEAU));
   const vitreOuverte = derriere(vitreAvant).map((p) => projeterPortiere(p, DZ_PEAU));
-  const epauleOuverte = derriere(couper(couper(CONTOUR_PORTIERE, (p) => ceinture(p[0]) - EPAULE - p[1]), (p) => p[1] - ceinture(p[0])))
+  const epauleOuverte = derriere(couper(couper(CONTOUR_PORTIERE, (p) => ceintureP(p[0]) - EPAULE_P - p[1]), (p) => p[1] - ceintureP(p[0])))
     .map((p) => projeterPortiere(p, DZ_PEAU));
   const chant = [...BORD_ARRIERE_PORTIERE.map((p) => projeterPortiere(p, DZ_PEAU)),
-    ...BORD_ARRIERE_PORTIERE.map((p) => projeterPortiere(p, DZ_PEAU - PORTIERE.epaisseur)).reverse()];
+    ...BORD_ARRIERE_PORTIERE.map((p) => projeterPortiere(p, DZ_PEAU - PORTIERE_P.epaisseur)).reverse()];
   // Rétroviseur de la portière ouverte : son boîtier, du pied au bout, se voit entre les projections de ses coins.
-  const coinsRetro = [RETRO.miroir, RETRO.avant].flatMap((px) => [RETRO.pied, RETRO.bout].map((d) =>
-    projeterPortiere([px, 0], d - PORTIERE.charniere[1])[0]));
+  const coinsRetro = [RETRO_P.miroir, RETRO_P.avant].flatMap((px) => [RETRO_P.pied, RETRO_P.bout].map((d) =>
+    projeterPortiere([px, 0], d - PORTIERE_P.charniere[1])[0]));
   const [retroDe, retroA] = [Math.min(...coinsRetro), Math.max(...coinsRetro)];
-  const retroOuvert = retroviseur.map(([px, ph]) => [retroDe + ((px - RETRO.miroir) / (RETRO.avant - RETRO.miroir)) * (retroA - retroDe), ph]);
-  const portiereOuverteG = n("g", { "data-r": "portiere-ouverte", display: affiche(portiereOuverte), "data-angle": PORTIERE.ouvertureProfil,
-    ...repere([PORTIERE.charniere[0], PORTIERE.bas]) },
+  const retroOuvert = retroviseur.map(([px, ph]) => [retroDe + ((px - RETRO_P.miroir) / (RETRO_P.avant - RETRO_P.miroir)) * (retroA - retroDe), ph]);
+  const portiereOuverteG = n("g", { "data-r": "portiere-ouverte", display: affiche(portiereOuverte), "data-angle": PORTIERE_P.ouverture,
+    ...repere([PORTIERE_P.charniere[0], PORTIERE_P.bas]) },
   forme(CONTOUR_PORTIERE, { fill: MATIERES.habitacle, "data-r": "ouverture" }),
   finition && n("g", { "data-r": "siege" }, ["assise", "dossier", "appuieTete"].map((k) =>
-    forme(couper(arrondir(SIEGE[k], SIEGE[k].map(() => SIEGE.arrondi)), (p) => PORTIERE.arriere - p[0]), { fill: MATIERES.siege }))),
-  forme(couper(CONTOUR_PORTIERE, (p) => p[0] - MONTANT.avant), { fill: c.ombre, "data-r": "montant", ...repere(MONTANT.etiquette) }),
-  forme(couper(CONTOUR_PORTIERE, (p) => p[1] - SEUIL_PORTE), { fill: c.base }),
+    forme(couper(arrondir(SIEGE_P[k], SIEGE_P[k].map(() => SIEGE_P.arrondi)), (p) => PORTIERE_P.arriere - p[0]), { fill: MATIERES.siege }))),
+  forme(couper(CONTOUR_PORTIERE, (p) => p[0] - MONTANT_P.avant), { fill: c.ombre, "data-r": "montant", ...repere(MONTANT_P.etiquette) }),
+  forme(couper(CONTOUR_PORTIERE, (p) => p[1] - SEUIL_PORTE_P), { fill: c.base }),
   forme(chant, { fill: c.ombre, "data-r": "chant" }),
   forme(panneau, { fill: c.base, stroke: c.bord, "stroke-width": fin, "stroke-linejoin": "round", "data-r": "panneau" }),
-  assez(EPAULE) && forme(epauleOuverte, { fill: c.reflet }),
+  assez(EPAULE_P) && forme(epauleOuverte, { fill: c.reflet }),
   forme(vitreOuverte, { fill: MATIERES.vitre }),
-  assez(POIGNEES.hauteur) && forme(derriere(poignee(POIGNEES.avant)).map((p) => projeterPortiere(p, DZ_PEAU)), { fill: c.ombre }),
+  assez(POIGNEES_P.hauteur) && forme(derriere(poignee(POIGNEES_P.avant)).map((p) => projeterPortiere(p, DZ_PEAU)), { fill: c.ombre }),
   retroVisible && forme(retroOuvert, { fill: c.base, stroke: c.bord, "stroke-width": fin, "stroke-linejoin": "round" }));
 
   return n("g", { "data-r": role, "data-x": x, "data-y": y },
     // Passages de roue : sombres ; en silhouette, de la teinte du pneu, que la roue prolonge sans anneau clair autour d'elle.
-    forme(passage(ESSIEU_AVANT), { fill: finition ? MATIERES.passage : MATIERES.pneu, "data-r": "passage-avant" }),
-    forme(passage(ESSIEU_ARRIERE), { fill: finition ? MATIERES.passage : MATIERES.pneu, "data-r": "passage-arriere" }),
-    roue("roue-avant", ESSIEU_AVANT), roue("roue-arriere", ESSIEU_ARRIERE),
+    forme(passage(ESSIEU_AVANT_P), { fill: finition ? MATIERES.passage : MATIERES.pneu, "data-r": "passage-avant" }),
+    forme(passage(ESSIEU_ARRIERE_P), { fill: finition ? MATIERES.passage : MATIERES.pneu, "data-r": "passage-arriere" }),
+    roue("roue-avant", ESSIEU_AVANT_P), roue("roue-arriere", ESSIEU_ARRIERE_P),
     forme(CONTOUR_PROFIL, { fill: c.base, stroke: c.bord, "stroke-width": fin, "stroke-linejoin": "round", "data-r": "caisse" }),
-    assez(PORTIERE.bas - PROFIL.basCaisse) && forme(BAS_DE_CAISSE, { fill: c.ombre, "data-r": "bas-de-caisse" }),
-    assez(EPAULE) && forme(EPAULE_CONTOUR, { fill: c.reflet }),
-    forme(VITRAGE_CONTOUR, { fill: MATIERES.vitre, "data-r": "vitrage" }),
-    REFLETS_PROFIL.map((r) => [vitreAvant, vitreArriere].map((vitre) => {
+    assez(PORTIERE_P.bas - BAS_CAISSE_P) && forme(BAS_DE_CAISSE, { fill: c.ombre, "data-r": "bas-de-caisse" }),
+    assez(EPAULE_P) && forme(EPAULE_CONTOUR, { fill: c.reflet }),
+    forme(VITRAGE_PROFIL, { fill: MATIERES.vitre, "data-r": "vitrage" }),
+    REFLETS_P.map((r) => [vitreAvant, vitreArriere].map((vitre) => {
       const b = bande(vitre, r);
       return assez(largeurBande(r)) && b.length > 2 && forme(b, { fill: MATIERES.vitreReflet });
     })),
-    visible(VITRAGE.montant[1] - VITRAGE.montant[0]) && forme(montantMilieu, { fill: finition ? MATIERES.joint : c.base, "data-r": "montant-milieu" }),
-    traitDetail && ligne(JOINT_MILIEU, { stroke: c.ombre, "stroke-width": fin }),
-    traitDetail && ligne(JOINT_ARRIERE, { stroke: c.ombre, "stroke-width": fin }),
-    assez(POIGNEES.hauteur) && forme(poignee(POIGNEES.arriere), { fill: c.ombre, "data-r": "poignee-arriere" }),
-    assez(petiteDimension(PHARE_PROFIL.points)) && forme(arrondir(PHARE_PROFIL.points, PHARE_PROFIL.arrondis), { fill: MATIERES.phare, "data-r": "phare",
-      ...repere(PHARE_PROFIL.points[0]) }),
-    assez(petiteDimension(FEU_PROFIL.points)) && forme(arrondir(FEU_PROFIL.points, FEU_PROFIL.arrondis), { fill: MATIERES.feu, "data-r": "feu",
-      ...repere(FEU_PROFIL.points[0]) }),
+    visible(VITRAGE_P.montant[1] - VITRAGE_P.montant[0]) && forme(montantMilieu, { fill: finition ? MATIERES.joint : c.base, "data-r": "montant-milieu" }),
+    traitDetail && ligne(JOINT_MILIEU, { stroke: c.ombre, "stroke-width": fin, "data-r": "joint-milieu" }),
+    traitDetail && ligne(JOINT_ARRIERE, { stroke: c.ombre, "stroke-width": fin, "data-r": "joint-arriere" }),
+    assez(POIGNEES_P.hauteur) && forme(poignee(POIGNEES_P.arriere), { fill: c.ombre, "data-r": "poignee-arriere" }),
+    assez(petiteDimension(PHARE_P.points)) && forme(arrondir(PHARE_P.points, PHARE_P.arrondis), { fill: MATIERES.phare, "data-r": "phare",
+      ...repere(PHARE_P.points[0]) }),
+    assez(petiteDimension(FEU_P.points)) && forme(arrondir(FEU_P.points, FEU_P.arrondis), { fill: MATIERES.feu, "data-r": "feu",
+      ...repere(FEU_P.points[0]) }),
     trappeFermee, trappeOuverteG, portiereFermee, portiereOuverteG);
 }
 
