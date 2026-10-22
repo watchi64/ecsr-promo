@@ -6,9 +6,9 @@
  * la planche des voyants groupés par couleur avec leur conduite à tenir (voyants), et l'autotest du combiné d'instruments à
  * la mise du contact (autotest, animé). Sources, références et choix de dessin : sources/dessins-voyants.js.
  */
-import { n } from "./dessin-svg.js?v=20261022c";
-import { CHARTE, COULEURS_VOYANTS, SYMBOLE_FREIN, METRIQUES_POLICE, cadre, texte, fleche, coord as ecrit, point as pt, trace, entre } from "./dessins-kit.js?v=20261022c";
-import { adoucir, sortieDouce, avancement } from "./animation-courbes.js?v=20261022c";
+import { n } from "./dessin-svg.js?v=20261022d";
+import { CHARTE, COULEURS_VOYANTS, SYMBOLE_FREIN, SYMBOLE_TEMPERATURE, vagueSymbole, METRIQUES_POLICE, cadre, texte, fleche, coord as ecrit, point as pt, trace, entre } from "./dessins-kit.js?v=20261022d";
+import { adoucir, sortieDouce, avancement } from "./animation-courbes.js?v=20261022d";
 
 // ------------------------------------------------------------------------------------------------ Couleurs et tons
 
@@ -54,8 +54,8 @@ const traitDe = (couleur, epaisseur, bout = "round") => ({
   fill: "none", stroke: couleur, "stroke-width": epaisseur, "stroke-linecap": bout, "stroke-linejoin": "round",
 });
 const plein = (couleur) => ({ fill: couleur });
-// Courbe de Bézier qui approche une demi-onde de sinusoïde : poignées au tiers et aux deux tiers, à 4/3 de l'amplitude.
-const TIERS = 1 / 3, POIGNEE_ONDE = 4 / 3;
+// Poignées d'une courbe de Bézier au tiers et aux deux tiers (les vagues des symboles : vagueSymbole du kit).
+const TIERS = 1 / 3;
 
 // ------------------------------------------------------------------------------------------------ Pictogrammes
 
@@ -93,28 +93,9 @@ function huile({ q, s, couleur }) {
   ];
 }
 
-const TEMPERATURE = {
-  tige: { u: MILIEU, haut: 0.13 },
-  bulbe: { v: 0.628, rayon: 0.072 },
-  graduations: { gauche: 0.535, droite: 0.71, v: [0.226, 0.341, 0.462] },
-  // Liquide : la vague haute, coupée par le bulbe, et la vague basse ; nombre de demi-ondes de chaque morceau.
-  vagues: [
-    { gauche: 0.09, droite: 0.37, v: 0.615, demiOndes: 2 },
-    { gauche: 0.63, droite: 0.91, v: 0.615, demiOndes: 2 },
-    { gauche: 0.16, droite: 0.84, v: 0.75, demiOndes: 5 },
-  ],
-  amplitude: 0.026,
-};
-
-function vague(q, { gauche, droite, v, demiOndes }, amplitude) {
-  const l = (droite - gauche) / demiOndes, creux = POIGNEE_ONDE * amplitude;
-  let d = `M${pt(q(gauche, v))}`;
-  for (let i = 0; i < demiOndes; i++) {
-    const u = gauche + i * l, dv = i % 2 === 0 ? -creux : creux;
-    d += ` C${pt(q(u + l * TIERS, v + dv))} ${pt(q(u + 2 * l * TIERS, v + dv))} ${pt(q(u + l, v))}`;
-  }
-  return d;
-}
+// Le thermomètre dans les vagues : le symbole du kit (SYMBOLE_TEMPERATURE), que reprend le bouchon du vase d'expansion
+// (js/dessins-entretien.js).
+const TEMPERATURE = SYMBOLE_TEMPERATURE;
 
 function temperature({ q, s, couleur }) {
   const F = TEMPERATURE, g = F.graduations;
@@ -123,7 +104,7 @@ function temperature({ q, s, couleur }) {
     n("path", { d: trace([q(F.tige.u, F.tige.haut), [bx, by]], false), ...traitDe(couleur, TRAIT) }),
     n("circle", { cx: bx, cy: by, r: F.bulbe.rayon * s, ...plein(couleur) }),
     n("path", { d: g.v.map((v) => trace([q(g.gauche, v), q(g.droite, v)], false)).join(" "), ...traitDe(couleur, TRAIT, "butt") }),
-    n("path", { d: F.vagues.map((w) => vague(q, w, F.amplitude)).join(" "), ...traitDe(couleur, TRAIT, "butt") }),
+    n("path", { d: F.vagues.map((w) => vagueSymbole(q, w, F.amplitude)).join(" "), ...traitDe(couleur, TRAIT, "butt") }),
   ];
 }
 
@@ -666,4 +647,4 @@ function autotest() {
 
 export const DESSINS = { voyants: planche };
 export const GESTES = { autotest: { construire: autotest } };
-export { versDom } from "./dessin-svg.js?v=20261022c";
+export { versDom } from "./dessin-svg.js?v=20261022d";

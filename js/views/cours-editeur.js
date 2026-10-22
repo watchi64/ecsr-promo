@@ -10,19 +10,19 @@
  * enregistrement ; si le cours a bougé entre-temps, un bandeau propose
  * d'écraser ou d'abandonner, rien ne part sans décision.
  */
-import { el, clear, debounce } from "../utils.js?v=20261022c";
-import { icon } from "../icons.js?v=20261022c";
+import { el, clear, debounce } from "../utils.js?v=20261022d";
+import { icon } from "../icons.js?v=20261022d";
 import { getCours, saveCours, setCoursPublie, listCoursVersions, getCoursVersion, uploadCoursImage }
-  from "../db.js?v=20261022c";
-import { rendreMarkdown, detruireScenes } from "./cours-reader.js?v=20261022c";
+  from "../db.js?v=20261022d";
+import { rendreMarkdown, detruireScenes } from "./cours-reader.js?v=20261022d";
 import { insererSyntaxe, titreDepuisMarkdown, cheminImage, interpolerAncres, libelleCle, estCodeCompetence }
-  from "../cours-rules.js?v=20261022c";
-import { getProfileWho } from "../auth-admin.js?v=20261022c";
-import { reduireImage } from "../cours-images.js?v=20261022c";
-import { SIGNAUX, carteSignal } from "../signaux.js?v=20261022c";
-import { CATALOGUE } from "../signaux-catalogue.js?v=20261022c";
-import { MARQUAGES, carteMarquage } from "../marquage.js?v=20261022c";
-import { CATALOGUE as CATALOGUE_BLOCS } from "../catalogue-blocs.js?v=20261022c";
+  from "../cours-rules.js?v=20261022d";
+import { getProfileWho } from "../auth-admin.js?v=20261022d";
+import { reduireImage } from "../cours-images.js?v=20261022d";
+import { SIGNAUX, carteSignal } from "../signaux.js?v=20261022d";
+import { CATALOGUE } from "../signaux-catalogue.js?v=20261022d";
+import { MARQUAGES, carteMarquage } from "../marquage.js?v=20261022d";
+import { CATALOGUE as CATALOGUE_BLOCS } from "../catalogue-blocs.js?v=20261022d";
 
 const OUTILS = [
   { label: "Gras", avant: "**", apres: "**", defaut: "texte" },

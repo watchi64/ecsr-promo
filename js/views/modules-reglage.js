@@ -5,14 +5,14 @@
 // js/modules-data.js, ouvert avec le multi-promo). La section se
 // redessine elle-même après chaque écriture, réussie ou non (voir redessiner) :
 // pas de rechargement de toute la page Paramètres.
-import { el, toast } from "../utils.js?v=20261022c";
-import { icon } from "../icons.js?v=20261022c";
-import { MODULES, GROUPES } from "../modules-data.js?v=20261022c";
-import { estReglee, estOuvert, jourParis, accorder } from "../modules.js?v=20261022c";
+import { el, toast } from "../utils.js?v=20261022d";
+import { icon } from "../icons.js?v=20261022d";
+import { MODULES, GROUPES } from "../modules-data.js?v=20261022d";
+import { estReglee, estOuvert, jourParis, accorder } from "../modules.js?v=20261022d";
 import {
   etatModules, peutRegler, basculerModule, appliquerEnsembleDeDepart,
-} from "../modules-etat.js?v=20261022c";
-import { getPromoCourante } from "../db.js?v=20261022c";
+} from "../modules-etat.js?v=20261022d";
+import { getPromoCourante } from "../db.js?v=20261022d";
 
 // La section règle la promo AFFICHÉE (pastille) : on la nomme partout, pour qu'un formateur
 // arrivé par défaut sur une promo ne règle jamais l'autre par mégarde.

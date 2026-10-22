@@ -13,7 +13,7 @@
  * CHARTE.peau et CHARTE.peauOmbre ; dans le style schématique, elle ne sert plus qu'aux repères des mains (disqueMain), et les
  * personnes sont des silhouettes de pictogramme (SILHOUETTE, en fin de fichier).
  */
-import { n } from "./dessin-svg.js?v=20261022c";
+import { n } from "./dessin-svg.js?v=20261022d";
 
 export const CHARTE = {
   fond: "#F1F4F0", carte: "#FBFCFA", texte: "#1F2924", texteDoux: "#46554A", texteDiscret: "#6E7A6F",
@@ -43,6 +43,36 @@ export const COULEURS_VOYANTS = figer({ rouge: "#FF453A", orange: "#FFAA00", ver
  *  d'autre (rayon, demi-ouverture de chacun autour de l'horizontale, en degrés). Le voyant du freinage et celui de l'ABS
  *  (js/dessins-voyants.js) et le pictogramme du bouchon du liquide de frein (js/dessins-entretien.js) le partagent. */
 export const SYMBOLE_FREIN = figer({ cercle: 0.277, arcs: { rayon: 0.372, demiOuverture: 44 } });
+
+/** Le symbole de la température du liquide de refroidissement (ISO 7000-0246, celui du voyant : un thermomètre dans les vagues),
+ *  en parts de son carré, u vers la droite, v vers le bas : tige (son axe, son haut) ; bulbe plein (sa hauteur, son rayon) ;
+ *  graduations, à droite de la tige (de gauche à droite, leurs hauteurs) ; vagues, chaque morceau (bords, hauteur, nombre de
+ *  demi-ondes ; la vague haute coupée par le bulbe, la vague basse) ; amplitude des vagues. Le voyant (js/dessins-voyants.js) et
+ *  le pictogramme du bouchon du vase d'expansion (js/dessins-entretien.js) le partagent, et tracent ses vagues par vagueSymbole. */
+export const SYMBOLE_TEMPERATURE = figer({
+  tige: { u: 0.5, haut: 0.13 },
+  bulbe: { v: 0.628, rayon: 0.072 },
+  graduations: { gauche: 0.535, droite: 0.71, v: [0.226, 0.341, 0.462] },
+  vagues: [
+    { gauche: 0.09, droite: 0.37, v: 0.615, demiOndes: 2 },
+    { gauche: 0.63, droite: 0.91, v: 0.615, demiOndes: 2 },
+    { gauche: 0.16, droite: 0.84, v: 0.75, demiOndes: 5 },
+  ],
+  amplitude: 0.026,
+});
+// Demi-onde de sinusoïde en courbe de Bézier : poignées au tiers et aux deux tiers, à 4/3 de l'amplitude.
+const TIERS_ONDE = 1 / 3, POIGNEE_ONDE = 4 / 3;
+/** Tracé d'un morceau de vague d'un symbole (SYMBOLE_TEMPERATURE.vagues) : ses demi-ondes, chacune une courbe de Bézier, la
+ *  première vers le haut ; q(u, v) ramène un point du carré du symbole au cadre. */
+export function vagueSymbole(q, { gauche, droite, v, demiOndes }, amplitude) {
+  const l = (droite - gauche) / demiOndes, creux = POIGNEE_ONDE * amplitude;
+  let d = `M${point(q(gauche, v))}`;
+  for (let i = 0; i < demiOndes; i++) {
+    const u = gauche + i * l, dv = i % 2 === 0 ? -creux : creux;
+    d += ` C${point(q(u + l * TIERS_ONDE, v + dv))} ${point(q(u + 2 * l * TIERS_ONDE, v + dv))} ${point(q(u + l, v))}`;
+  }
+  return d;
+}
 
 /** Repères d'Outfit, la police des dessins, en tailles de texte (mesurés dans Chrome : capitales 0,70 au-dessus de la ligne
  *  de base, accents des capitales 0,98, jambages 0,22), arrondis vers le large : ligne de base sous le milieu des capitales
