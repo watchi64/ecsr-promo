@@ -18,13 +18,13 @@
  * module livré, seuls les tests et les fiches les lisent.
  */
 import { KMH, DEG, GABARITS, PORTIERE, trajet, chronologie, tempsAtteint, premiereAbscisse, pointA, emprise, etatActeur,
-  polygonesSeChevauchent, rectangle, pointDansPolygone } from "./scene-geometrie.js?v=20261022b";
+  polygonesSeChevauchent, rectangle, pointDansPolygone } from "./scene-geometrie.js?v=20261022c";
 import { DESSIN, HORS_MONDE, carrefourEnCroix, giratoire, trajetGiratoire, routeVirages, rue }
-  from "./scene-decors.js?v=20261022b";
+  from "./scene-decors.js?v=20261022c";
 import { REGARD_PORTEE, REGARD_DUREE_TOUR_MIN, REGARD_MAX_SUIVI, oeil, regardContient, coneRegard }
-  from "./scene-regard.js?v=20261022b";
-import { SEUILS } from "./scene-controles.js?v=20261022b";
-import { CATALOGUE } from "./catalogue-blocs.js?v=20261022b";
+  from "./scene-regard.js?v=20261022c";
+import { SEUILS } from "./scene-controles.js?v=20261022c";
+import { CATALOGUE } from "./catalogue-blocs.js?v=20261022c";
 
 // Le code d'une scène et son titre : celui du catalogue des blocs (js/catalogue-blocs.js), la seule source des titres.
 const identite = (code) => ({ code, titre: CATALOGUE[code].titre });

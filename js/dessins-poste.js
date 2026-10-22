@@ -17,11 +17,11 @@
  * et commandes en formes simples (poste-commandes), pédales en aplats et pieds en pictogrammes (pedales). Le repère d'une main est
  * la pièce du kit (disqueMain), commune à la famille « conducteur ».
  */
-import { n } from "./dessin-svg.js?v=20261022b";
+import { n } from "./dessin-svg.js?v=20261022c";
 import { CHARTE, COULEURS_VOYANTS, METRIQUES_POLICE, cadre, texte, etiquette, fleche, arc, voitureDessus, coord, point as pt, trace,
-  disqueMain, gelule, formePictogramme } from "./dessins-kit.js?v=20261022b";
-import { CATALOGUE } from "./catalogue-blocs.js?v=20261022b";
-import { cles } from "./animation-courbes.js?v=20261022b";
+  disqueMain, gelule, formePictogramme } from "./dessins-kit.js?v=20261022c";
+import { CATALOGUE } from "./catalogue-blocs.js?v=20261022c";
+import { cles } from "./animation-courbes.js?v=20261022c";
 
 // ===== Teintes de l'habitacle (choix de dessin) =====
 // Tons neutres (spec § 3) : plastique sombre des commandes en trois tons (base, reflet, ombre), planche claire, symboles clairs
@@ -926,4 +926,4 @@ export const GESTES = {
   chevauchement: { construire: () => geste("chevauchement", CHEVAUCHEMENT, etatChevauchement, FLECHES_CHEVAUCHEMENT, DESCRIPTIONS.chevauchement, LIBELLES.chevauchement) },
   "retour-volant": { construire: () => geste("retour-volant", RETOUR_VOLANT, etatRetourVolant, FLECHES_RETOUR_VOLANT, DESCRIPTIONS["retour-volant"], LIBELLES["retour-volant"]) },
 };
-export { versDom } from "./dessin-svg.js?v=20261022b";
+export { versDom } from "./dessin-svg.js?v=20261022c";

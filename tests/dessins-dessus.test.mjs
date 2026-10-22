@@ -6,7 +6,7 @@ import { SOURCES } from "../sources/dessins-dessus.js";
 import { verifierDessin, verifierGeste, boitesTextes } from "./aides-dessins.mjs";
 import { imageA, imageFigee } from "../js/geste-regles.js";
 import { trouverRole, trouverTous, texteDe } from "../js/dessin-svg.js";
-import { VOITURE, MATIERES, reperesDessus, voitureDessus, LARGEUR_TELEPHONE, TRAIT_MIN_PX } from "../js/dessins-kit.js";
+import { VOITURE, VOITURE_PROFIL, MATIERES, reperesDessus, voitureDessus, LARGEUR_TELEPHONE, TRAIT_MIN_PX } from "../js/dessins-kit.js";
 import { GABARITS } from "../js/scene-geometrie.js";
 import { TEINTES } from "../js/scene-rendu.js";
 import { REGARD_PORTEE, REGARD_OUVERTURE } from "../js/scene-regard.js";
@@ -484,7 +484,7 @@ function casDe(d, nom) {
   const [av, ar] = brut.map((p) => tourner(p, [t.rx, t.ry], t.angle));
   return { g, plan, voiture, pose, trottoir, cote: cote === coteMax ? cote : 0, jeu: Math.min(...ys.map(Math.abs)) - GABARITS.voiture.largeur / 2,
     avant: ["roue-avant-gauche", "roue-avant-droite"].map(angle), arriere: ["roue-arriere-gauche", "roue-arriere-droite"].map(angle),
-    vignette, pente, t, profil, av, ar, echelleProfil: distance(brut[0], brut[1]) / VOITURE.empattement };
+    vignette, pente, t, profil, av, ar, echelleProfil: distance(brut[0], brut[1]) / VOITURE_PROFIL.empattement };
 }
 
 test("roues-trottoir : deux cas côte à côte, « En descente » à gauche puis « En montée », chacun sous son titre", () => {

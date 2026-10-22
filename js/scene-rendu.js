@@ -14,12 +14,12 @@
  *
  * Toutes les valeurs ci-dessous sont des choix de dessin, sans portée réglementaire.
  */
-import { DEG, GABARITS, etatActeur, emprise, rectangle, polygonesSeChevauchent } from "./scene-geometrie.js?v=20261022b";
-import { REGARD_PORTEE, REGARD_OUVERTURE, DIRECTIONS_TOUR_FIGE, oeil, conesTour } from "./scene-regard.js?v=20261022b";
-import { TEINTES_VELO } from "./piece-cycliste.js?v=20261022b";
+import { DEG, GABARITS, etatActeur, emprise, rectangle, polygonesSeChevauchent } from "./scene-geometrie.js?v=20261022c";
+import { REGARD_PORTEE, REGARD_OUVERTURE, DIRECTIONS_TOUR_FIGE, oeil, conesTour } from "./scene-regard.js?v=20261022c";
+import { TEINTES_VELO } from "./piece-cycliste.js?v=20261022c";
 
 // Règles du lecteur commun des animations, réexportées ici pour les modules et les tests qui les lisaient dans ce fichier.
-export { facteurLecture, SEUIL_DEMARRAGE, SEUILS_VISIBILITE, actionVisibilite } from "./lecteur-anime-regles.js?v=20261022b";
+export { facteurLecture, SEUIL_DEMARRAGE, SEUILS_VISIBILITE, actionVisibilite } from "./lecteur-anime-regles.js?v=20261022c";
 
 // Teintes de la route réelle (donnée pédagogique), pas la palette de l'app ; la voiture de l'élève prend l'accent de l'app
 // pour être repérée d'un coup d'œil.

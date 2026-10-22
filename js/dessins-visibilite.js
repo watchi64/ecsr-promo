@@ -2,18 +2,17 @@
  * Promo ECSR : Application propriétaire.
  * © 2026 watchi64 : Tous droits réservés. Voir LICENSE.
  *
- * Dessins de la famille « visibilité » (C1.2) : ce qu'on ne voit pas depuis le siège (zones-invisibles), ce que montrent les
+ * Dessins de la famille « visibilité » (C1.2) : ce qu'on ne voit pas depuis le siège (zones-invisibles), le réglage des
  * rétroviseurs (retroviseurs) et les angles morts (angles-morts). Les voitures sont celles du kit (js/dessins-kit.js) ; un seul
  * modèle de rétroviseur, tiré de la géométrie du kit, sert aux deux derniers dessins. Les valeurs sans portée réglementaire
  * sont des choix de dessin, recopiés avec leur raison dans sources/dessins-visibilite.js. Titres et cadres viennent du
  * catalogue des blocs (js/catalogue-blocs.js).
  */
-import { n, trouverRole } from "./dessin-svg.js?v=20261022b";
-import { CHARTE, METRIQUES_POLICE, MISE_EN_PAGE, REGARD_SCENES, cadre, texte, etiquette, vignette, largeurPastille, voitureProfil, reperesProfil,
-  voitureDessus, reperesDessus, VOITURE, VITRAGE_CONTOUR, TEINTES_ROUTE, MIROIR_INTERIEUR, miroirInterieur, arrondir, couper, ceinture, coord,
-  trace, entre } from "./dessins-kit.js?v=20261022b";
-import { CATALOGUE } from "./catalogue-blocs.js?v=20261022b";
-import { cycliste, GABARIT_VELO } from "./piece-cycliste.js?v=20261022b";
+import { n, trouverRole } from "./dessin-svg.js?v=20261022c";
+import { CHARTE, METRIQUES_POLICE, MISE_EN_PAGE, REGARD_SCENES, cadre, texte, etiquette, voitureProfil, reperesProfil,
+  voitureDessus, reperesDessus, VOITURE, TEINTES_ROUTE, MIROIR_INTERIEUR, miroirInterieur, arrondir, couper, coord, trace, entre } from "./dessins-kit.js?v=20261022c";
+import { CATALOGUE } from "./catalogue-blocs.js?v=20261022c";
+import { cycliste, GABARIT_VELO } from "./piece-cycliste.js?v=20261022c";
 
 // ===== Géométrie plane =====
 const DEG = Math.PI / 180;
@@ -72,18 +71,19 @@ const zoneMasquee = (role, poly) => n("g", { "data-r": role },
 // Deux vues de la voiture du kit de profil, côté conducteur (sens « gauche » : l'avant à gauche). En haut, le détail de l'avant :
 // la voiture entière et la zone avant, au plus grand qui tienne, avec l'œil, la ligne de visée qui frôle le capot et un cône
 // caché dessous. En bas, la vue d'ensemble : les deux lignes de visée jusqu'au sol, la zone avant et la zone arrière, celle-ci
-// longue de 14,6 m pour la voiture du kit, ce qui impose une petite échelle. Style schématique (décision du formateur du
+// longue de 21,8 m pour la voiture du kit, ce qui impose une petite échelle. Style schématique (décision du formateur du
 // 15/10/2026) : la voiture en silhouette (voitureProfil, option schema), les zones en aplats.
 const ZONES = {
   marge: 8,                // du bord du cadre au point où une ligne de visée touche le sol, ou à l'arrière de la voiture
   detail: { sol: 86 },
   ensemble: { sol: 136 },
   legende: 16,             // de la ligne du sol à la ligne de base du nom d'une zone
-  // Cône de signalisation courant de 45 cm, rouge à bande blanche, posé 30 cm devant le pare-chocs (m) : hauteur, largeur à la
-  // base et au sommet, socle, bande blanche (de 20 à 30 cm du sol).
-  cone: { hauteur: 0.45, base: 0.30, sommet: 0.04, socle: 0.36, epaisseurSocle: 0.03, bande: [0.20, 0.30], devant: 0.3 },
+  // Cône de signalisation courant de 50 cm, rouge à bande blanche, posé 30 cm devant le pare-chocs (m) : hauteur, largeur à la
+  // base et au sommet, socle, bande blanche (de 22 à 33 cm du sol).
+  cone: { hauteur: 0.50, base: 0.30, sommet: 0.04, socle: 0.36, epaisseurSocle: 0.03, bande: [0.22, 0.33], devant: 0.3 },
   tirets: "4 3",           // pointillé des lignes de visée
   etiquettes: { oeil: [-30, -28], obstacle: [-22, -26] },   // ancres, depuis l'œil et depuis la pointe du cône
+  surPointe: 1.2,          // le point de l'étiquette de l'obstacle, posé sur la pointe du cône : son centre, à cette distance au-dessus
 };
 const TEINTES_PROFIL = { sol: CHARTE.texteDiscret, visee: CHARTE.texte, cone: TEINTES_ROUTE.stop, coneBande: TEINTES_ROUTE.peinture, socle: "#2E3430" };
 
@@ -136,12 +136,13 @@ function zonesInvisibles() {
   const E = ensemble, nomZone = { taille: CHARTE.tailles.etiquette };    // la taille des étiquettes du kit, pour tous les textes
   const [eo, eb] = [Z.etiquettes.oeil, Z.etiquettes.obstacle];
   return cadre({ largeur: L, hauteur: H, titre: CATALOGUE[code].titre,
-    description: "La voiture de profil et l'œil du conducteur : la ligne de visée qui frôle l'avant du capot touche le sol devant la "
+    description: "La voiture de profil et l'œil du conducteur : la ligne de visée qui frôle le capot touche le sol devant la "
       + "voiture, celle qui frôle le bas de la lunette arrière touche le sol loin derrière. Devant le capot et derrière le coffre, "
       + "le sol n'est pas visible depuis le siège : un obstacle bas posé devant la voiture reste caché." },
   detail.noeud, cone,
   etiquette({ cible: r.oeil, ancre: [r.oeil[0] + eo[0], r.oeil[1] + eo[1]], lignes: ["Œil du conducteur"], ancrage: "end", role: "nom-oeil" }),
-  etiquette({ cible: pointe, ancre: [pointe[0] + eb[0], pointe[1] + eb[1]], lignes: ["Obstacle caché"], ancrage: "end", role: "nom-obstacle" }),
+  etiquette({ cible: [pointe[0], pointe[1] - Z.surPointe], ancre: [pointe[0] + eb[0], pointe[1] + eb[1]], lignes: ["Obstacle caché"], ancrage: "end",
+    role: "nom-obstacle" }),
   texte((detail.solAv[0] + r.solAvant[0]) / 2, Z.detail.sol + Z.legende, "Non visible", { ...nomZone, ancrage: "middle", role: "nom-zone-detail" }),
   E.noeud,
   texte(Z.marge, Z.ensemble.sol + Z.legende, "Devant le capot", { ...nomZone, role: "nom-zone-avant" }),
@@ -165,9 +166,9 @@ function zonesInvisibles() {
 // jusqu'au rayon rasant, de l'œil reflété par le coin.
 // Simplification, écrite dans les sources : l'œil reflété est tenu devant le miroir, 3 cm hors du flanc, quelle que soit
 // l'orientation, comme pour un verre au ras du flanc. Un miroir plan réellement tourné déplace son œil reflété ; avec le verre du
-// kit, dont les 5 cm intérieurs sont en dedans du flanc, la caisse se verrait en coin, plus large vers le bas du miroir.
+// kit, dont les 5 cm intérieurs sont en dedans du flanc, la caisse se verrait en coin, plus large vers le bas du miroir. Le dessin
+// « retroviseurs » garde ce réglage (son point de fuite) et dessine la caisse en coin, en schéma (voir sa section).
 export const PART_LISERE = 0.09;
-export const PART_FAUX = 0.46;
 const ARRIERE = [-1, 0];
 const LARGEUR_K_MAX = 4;                 // borne haute de la recherche de k (un champ de plus de 100 degrés)
 
@@ -224,49 +225,59 @@ export function champInterieur() {
   return { demiAngle: angle(bord) / DEG, oeilReflete: reflet, bord: [bord[0], Math.abs(bord[1])] };
 }
 
-// ===== Ce que montrent les rétroviseurs =====
-// La rue des images : à double sens, voies de 3,5 m (celles des scènes), la voiture au milieu de la voie de droite ; à sa gauche
-// l'axiale T'1, la voie d'en face et le trottoir d'en face ; à sa droite la bordure et le trottoir. Une droite du sol parallèle à la
-// voiture, à l'écart l (m) de l'œil reflété, part du point de fuite avec la pente h / l (h, hauteur de l'œil reflété) ; son point à
-// la distance D (m, le long de l'axe) est à f l / D et f h / D du point de fuite.
-const RUE = { voie: 3.5, bordure: 0.15 };
+// ===== Régler les rétroviseurs =====
+// Deux temps, dans l'ordre du cours et du formateur (retour du 22/10/2026) : 1, le rétroviseur intérieur cadre toute la lunette
+// arrière ; 2, les rétroviseurs extérieurs, côte à côte comme le conducteur les voit (le gauche à gauche) : l'horizon au milieu de
+// la hauteur du miroir et, dans le coin inférieur côté voiture (en bas à droite du gauche, en bas à gauche du droit), la poignée de
+// la portière arrière ; le reste du miroir montre la route derrière.
+//
+// La route d'une image extérieure est celle du miroir plan du kit, au réglage d'« angles-morts » (miroirExterieur, PART_LISERE) : la
+// direction de l'arrière y fuit vers un point de l'horizon ; une droite du sol parallèle à la voiture, à l'écart l (m) de l'œil
+// reflété, part de ce point avec la pente h / l (h, hauteur de l'œil reflété) ; son point à la distance D (m, le long de l'axe) est
+// à f l / D et f h / D du point de fuite. La rue, celle des scènes avec stationnement : à double sens, voies de 3,5 m, une bande
+// de stationnement de 2 m le long de chaque trottoir, la voiture au milieu de la voie de droite ; à sa gauche l'axiale T'1, la voie
+// d'en face et le trottoir d'en face ; à sa droite la bande de stationnement, la bordure et le trottoir.
+// La caisse et la poignée sont un schéma, dont les choix sont écrits dans les sources : la caisse, un coin dans le bas du miroir
+// côté voiture, mince à l'horizon et large en bas ; la poignée, un pictogramme assez grand pour se reconnaître sur un téléphone,
+// posé dans ce coin. Le miroir plan du kit, vu exactement, ne la montrerait que comme un trait de moins d'une unité de large.
+const RUE = { voie: 3.5, stationnement: 2.0, bordure: 0.15 };
 const RETROVISEURS = {
-  marge: 8, ecart: 6, rangee: 68,          // bords du cadre ; entre deux rangées ; hauteur d'une rangée
-  // Pastille d'une vignette du kit : sa marge, sa hauteur et la largeur de la plus large des deux (« Juste »), après laquelle
-  // les titres des quatre rangées s'alignent.
-  pastille: { marge: MISE_EN_PAGE.margePastille, haut: MISE_EN_PAGE.hauteurPastille,
-    largeur: Math.max(largeurPastille("juste"), largeurPastille("faux")) },
-  titre: { ecart: 6 },                     // de la pastille au titre
-  legende: { taille: CHARTE.tailles.petite, interligne: METRIQUES_POLICE.interligne, degagement: 6 },
-  capitales: METRIQUES_POLICE.milieuCapitales, haut: METRIQUES_POLICE.haut,   // repères d'Outfit, en tailles de texte
+  marge: 8, ecart: 6,                      // bords du cadre ; entre les deux temps
+  carte: MISE_EN_PAGE.margePastille,       // du bord d'une carte à son contenu
+  // Numéro d'un temps : de la hauteur de la pastille du kit, le numéro en Outfit 700, le cercle d'un trait moyen.
+  numero: { rayon: MISE_EN_PAGE.hauteurPastille / 2, taille: CHARTE.tailles.etiquette, graisse: 700, trait: CHARTE.traits.moyen },
+  titre: { ecart: 6 },                     // du numéro au titre
+  legende: { taille: CHARTE.tailles.petite, degagement: 6 },
+  capitales: METRIQUES_POLICE.milieuCapitales, haut: METRIQUES_POLICE.haut, bas: METRIQUES_POLICE.bas,   // repères d'Outfit
   boitier: 3,                              // épaisseur du boîtier autour du miroir
   // Rétroviseur intérieur : verre de 134 unités de large ; le verre, la lunette qu'il cadre et l'horizon sont ceux de la pièce du
-  // kit (miroirInterieur), la même que dans la vignette d'« installation » ; œil reflété à 1,3 m du sol.
-  interieur: { largeur: 134, bras: { largeur: 8, hauteur: 6 }, hauteurOeil: 1.3 },
-  exterieur: { largeur: 100, hauteur: 56, arrondis: { exterieurHaut: 18, exterieurBas: 12, interieurHaut: 7, interieurBas: 5 } },
-  horizon: { juste: 0.5, droit: 0.36 },    // fraction de la hauteur du miroir, depuis le haut
+  // kit (miroirInterieur), la même que dans la vignette d'« installation » ; œil reflété à 1,3 m du sol ; carte de 68 unités.
+  interieur: { largeur: 134, bras: { largeur: 8, hauteur: 6 }, hauteurOeil: 1.3, carte: 68 },
+  // Rétroviseurs extérieurs : verre de 122 sur 74 unités (le côté extérieur plus arrondi) ; de la ligne de légende à celle des noms
+  // (« Gauche », « Droit »), puis du bas des noms au haut des boîtiers.
+  exterieur: { largeur: 122, hauteur: 74, arrondis: { exterieurHaut: 20, exterieurBas: 14, interieurHaut: 8, interieurBas: 6 },
+    noms: 17, degagement: 5 },
+  horizon: 0.5,                            // fraction de la hauteur d'un miroir extérieur, depuis le haut : le milieu
   hauteurMiroir: 1.04,     // m : hauteur du centre du miroir extérieur (kit : de 0,97 à 1,105 m), celle de son œil reflété
   // Axiale T'1 de la rue des scènes : traits de 1,5 m, intervalles de 5 m, 0,10 m de large ; premier trait (m de l'œil reflété),
   // un par image extérieure et intérieure ; un trait plus court que `tiretMin` unités dans l'image n'est plus dessiné.
   axiale: { largeur: 0.10, trait: 1.5, vide: 5, exterieur: 23, interieur: 16, tiretMin: 1 },
-  // Vitres latérales : leur face extérieure, à 0,75 m de l'axe (0,15 m en retrait du flanc), relue sur la vitre arrière gauche de
-  // la voiture du kit vue du dessus (ce n'est pas un repère du kit).
-  vitre: (() => {
-    const v = voitureDessus({ x: 0, y: 0, cap: 0, echelle: ECHELLE_LECTURE });
-    return Math.max(...pointsDe(trouverRole(v, "vitre-arriere-gauche").attributs.d).map((p) => Math.abs(p[1]))) / ECHELLE_LECTURE;
-  })(),
+  // La caisse dans un miroir extérieur : sous l'horizon, du bord intérieur à une courbe qui part, à l'horizon, de la part `haut` de
+  // la largeur (le liseré du réglage, PART_LISERE) et s'en écarte jusqu'à la part `bas`, au bas du verre ; elle s'élargit vite sous
+  // l'horizon puis descend presque droite, en `pas` segments ; `hors` : de combien ses sommets du bord intérieur sont posés hors du
+  // verre, que le découpage par le verre ramène sur son bord.
+  caisse: { haut: PART_LISERE, bas: 0.32, courbure: 2, pas: 16, hors: 1 },
+  // La poignée : centre (parts de la largeur depuis le bord intérieur et de la hauteur depuis le haut), longueur et hauteur
+  // (unités) ; le point de son étiquette, sous elle (de son bord bas au centre du point).
+  poignee: { centre: [0.14, 0.82], longueur: 20, hauteur: 7, point: 4, levier: { longueur: 14, hauteur: 2.6 } },
+  filet: 9,                                // du bas des boîtiers extérieurs à l'ancre de l'étiquette des poignées
   repere: 4, jeuRepere: 1, // repères de mi-hauteur : longueur, et jeu au boîtier
 };
-// La caisse du kit vue d'un rétroviseur extérieur, en volume simple : le flanc, à la demi-largeur de la voiture, de son bas à la
-// ligne de ceinture ; au-dessus, en retrait (RETROVISEURS.vitre), les vitres latérales et le montant arrière jusqu'à la lunette ;
-// entre les deux, l'épaule, à hauteur de ceinture. La ligne de ceinture est celle du kit (ceinture : le bas des vitres, droite
-// prolongée sur toute la longueur, comme pour son épaule) ; le contour des vitres est celui du kit (VITRAGE_CONTOUR).
-// Montant arrière, de profil : du pied de la vitre arrière au haut de son cadre, puis le long du toit jusqu'à la lunette, dont il suit
-// le bord jusqu'à son pied (la vitre, dessinée par-dessus, en couvre la part qui lui revient).
-const MONTANT_PROFIL = [VOITURE.vitrage.arriereBas, VOITURE.vitrage.hautArriere, VOITURE.lunette.haut, VOITURE.lunette.bas];
+// La voiture dans un miroir extérieur : la caisse et son bord aux teintes de la voiture de l'élève ; la poignée, un creux sombre
+// (le texte de la charte) et son levier clair.
 const TEINTES_RETRO = {
   ciel: "#E6EFF4", route: TEINTES_ROUTE.chaussee, trottoir: TEINTES_ROUTE.trottoir, bordure: "#B3AE9F",
-  caisse: TEINTES_ROUTE.eleve, caisseBord: TEINTES_ROUTE.eleveBord, vitre: TEINTES_ROUTE.vitre,
+  caisse: TEINTES_ROUTE.eleve, caisseBord: TEINTES_ROUTE.eleveBord, poignee: CHARTE.texte, levier: "#9DAE84",
   habitacle: "#262B28", boitier: "#2E3430", peinture: TEINTES_ROUTE.peinture,
 };
 const COTE_IMAGE = { gauche: 1, droit: -1 };   // côté de la caisse dans l'image : à droite du miroir gauche, à gauche du droit
@@ -285,50 +296,61 @@ function tiretsAxiale({ fuite, yH, f, h, l, signe, debut, dans }) {
   return tirets;
 }
 
-function vueExterieure({ x, y, cote, horizon, faux = false, bord = false, axiale = false, enFace = false }) {
+// Un miroir extérieur, son verre de coin haut gauche (x, y) : le boîtier, le ciel, la route, la caisse et sa poignée, les repères de
+// mi-hauteur. Rend le nœud et la poignée (son centre et son bord bas), que vise l'étiquette.
+function vueExterieure({ x, y, cote }) {
   const R = RETROVISEURS, E = R.exterieur, W = E.largeur, Hm = E.hauteur, a = E.arrondis, s = COTE_IMAGE[cote], b = R.boitier;
-  const m = miroirExterieur(cote, faux ? PART_FAUX : PART_LISERE), f = m.focale * W, h = R.hauteurMiroir;
+  const m = miroirExterieur(cote, PART_LISERE), f = m.focale * W, h = R.hauteurMiroir;
   // Coins (haut gauche, haut droit, bas droit, bas gauche) : le côté extérieur, plus arrondi, est à gauche pour le miroir gauche.
   const rayons = s > 0 ? [a.exterieurHaut, a.interieurHaut, a.interieurBas, a.exterieurBas] : [a.interieurHaut, a.exterieurHaut, a.exterieurBas, a.interieurBas];
   const verre = rectangleArrondi(x, y, x + W, y + Hm, rayons);
   const boitier = rectangleArrondi(x - b, y - b, x + W + b, y + Hm + b, rayons.map((r) => r + b));
-  const yH = y + horizon * Hm;
-  const fuite = (s > 0 ? x + W : x) - s * m.fuite * W;          // point de fuite de la direction de l'arrière
-  const ciel = couper(verre, (p) => p[1] - yH), route = couper(verre, (p) => yH - p[1]);
+  const yH = y + R.horizon * Hm, bas = y + Hm;
+  const interieur = s > 0 ? x + W : x;                          // bord du verre côté voiture
+  const fuite = interieur - s * m.fuite * W;                    // point de fuite de la direction de l'arrière
+  const route = couper(verre, (p) => yH - p[1]);
   const auDelaDe = (l) => (p) => s * (p[0] - fuite) * h + l * (p[1] - yH);   // <= 0 : au-delà de la droite d'écart l
   const dehors = couper(route, (p) => s * (p[0] - fuite));     // la route du côté extérieur du point de fuite
-  // Écarts au miroir (m) : bord de sa voie (l'axiale à gauche, la bordure à droite), bord opposé de la chaussée à gauche.
-  const ecartBord = RUE.voie / 2 - VOITURE.retroviseur.centre, ecartEnFace = (3 * RUE.voie) / 2 - VOITURE.retroviseur.centre;
+  // Écarts au miroir (m) : l'axiale à gauche, la bordure de droite, au-delà de la bande de stationnement ; la bordure d'en face.
+  const centre = VOITURE.retroviseur.centre;
+  const ecartAxiale = RUE.voie / 2 - centre, ecartBord = RUE.voie / 2 + RUE.stationnement - centre;
+  const ecartEnFace = (3 * RUE.voie) / 2 + RUE.stationnement - centre;
   const trottoir = (l, role) => [n("path", { d: trace(couper(dehors, auDelaDe(l))), fill: TEINTES_RETRO.bordure, "data-r": role }),
     n("path", { d: trace(couper(dehors, auDelaDe(l + RUE.bordure))), fill: TEINTES_RETRO.trottoir })];
-  const tirets = axiale ? tiretsAxiale({ fuite, yH, f, h, l: ecartBord, signe: s, debut: R.axiale.exterieur, dans: verre }) : [];
-  // La caisse : un point [X, distance à l'axe, hauteur] (m) se voit, de l'œil reflété, à l'écart l vers l'intérieur et au recul D.
-  const vu = ([X, d, z]) => {
-    const D = m.oeilReflete[0] - X;
-    return [fuite + (s * f * (VOITURE.retroviseur.centre - d)) / D, yH + (f * (h - z)) / D];
-  };
-  const montant = dansConvexe(MONTANT_PROFIL.map(([X, z]) => vu([X, R.vitre, z])), verre);
-  const vitre = dansConvexe(VITRAGE_CONTOUR.map(([X, z]) => vu([X, R.vitre, z])), verre);
-  // Flanc et épaule : du bord intérieur au coin arrière que frôle le rayon rasant, sous le haut de l'épaule au coin et sous le pied
-  // des vitres (dans l'image, la droite de la ceinture en retrait).
-  const [xCoin, yCoin] = vu([m.coin[0], Math.abs(m.coin[1]), ceinture(m.coin[0])]);
-  const [piedA, piedB] = [VOITURE.vitrage.arriereBas[0], VOITURE.vitrage.avantBas[0]].map((X) => vu([X, R.vitre, ceinture(X)]));
-  const sousPied = (p) => piedA[1] + ((p[0] - piedA[0]) / (piedB[0] - piedA[0])) * (piedB[1] - piedA[1]) - p[1];   // <= 0 : dessous
-  const caisse = couper(couper(couper(verre, (p) => s * (xCoin - p[0])), (p) => yCoin - p[1]), sousPied);
-  const yMi = y + Hm / 2, j = R.jeuRepere;
-  const repere = (x1, x2) => n("line", { x1, y1: yMi, x2, y2: yMi, stroke: CHARTE.texteDiscret, "stroke-width": CHARTE.traits.fin, "data-r": "mi-hauteur" });
-  return n("g", { "data-r": `miroir-${cote}${faux ? "-faux" : ""}`, "data-champ": m.champ, "data-lisere": m.beta, "data-focale": f,
-    "data-hauteur": h, "data-fuite": fuite },
-    n("path", { d: trace(boitier), fill: TEINTES_RETRO.boitier, "data-r": "boitier" }),
-    n("path", { d: trace(verre), fill: TEINTES_RETRO.ciel, "data-r": "verre" }),
-    n("path", { d: trace(route), fill: TEINTES_RETRO.route, "data-r": "route" }),
-    bord && trottoir(ecartBord, "bord-chaussee"), enFace && trottoir(ecartEnFace, "bord-en-face"),
-    tirets.map((t) => n("path", { d: trace(t.coins), fill: TEINTES_RETRO.peinture, "data-r": "tiret", "data-d1": t.d1, "data-d2": t.d2,
-      "data-l": ecartBord })),
-    montant.length > 2 && n("path", { d: trace(montant), fill: TEINTES_RETRO.caisse, "data-r": "montant" }),
-    vitre.length > 2 && n("path", { d: trace(vitre), fill: TEINTES_RETRO.vitre, "data-r": "vitre" }),
-    n("path", { d: trace(caisse), fill: TEINTES_RETRO.caisse, "data-r": faux ? "carrosserie" : "lisere" }),
-    repere(x - b - j - R.repere, x - b - j), repere(x + W + b + j, x + W + b + j + R.repere));
+  const gauche = cote === "gauche";
+  const tirets = gauche ? tiretsAxiale({ fuite, yH, f, h, l: ecartAxiale, signe: s, debut: R.axiale.exterieur, dans: verre }) : [];
+  // La caisse : sous l'horizon, du bord intérieur à une courbe qui s'écarte de lui de la part `haut` de la largeur, à l'horizon, à
+  // la part `bas`, au bas du verre : 1 - (1 - t) ** courbure de l'écart, t allant de 0 à l'horizon à 1 au bas.
+  const C = R.caisse;
+  const bordCaisse = Array.from({ length: C.pas + 1 }, (_, k) => {
+    const t = k / C.pas;
+    return [interieur - s * W * (C.haut + (C.bas - C.haut) * (1 - (1 - t) ** C.courbure)), yH + t * (bas - yH)];
+  });
+  const caisse = dansConvexe([[interieur + s * C.hors, yH], ...bordCaisse, [interieur + s * C.hors, bas + C.hors]], verre);
+  // La poignée, en pictogramme : un creux aux bouts ronds, couché, et son levier, plus court et plus mince, au milieu.
+  const P = R.poignee, milieu = [interieur - s * P.centre[0] * W, y + P.centre[1] * Hm];
+  const [l2, h2] = [P.longueur / 2, P.hauteur / 2];
+  const poignee = rectangleArrondi(milieu[0] - l2, milieu[1] - h2, milieu[0] + l2, milieu[1] + h2, [h2, h2, h2, h2]);
+  const [lv2, hv2] = [P.levier.longueur / 2, P.levier.hauteur / 2];
+  const levier = rectangleArrondi(milieu[0] - lv2, milieu[1] - hv2, milieu[0] + lv2, milieu[1] + hv2, [hv2, hv2, hv2, hv2]);
+  const j = R.jeuRepere;
+  const repere = (x1, x2) => n("line", { x1, y1: yH, x2, y2: yH, stroke: CHARTE.texteDiscret, "stroke-width": CHARTE.traits.fin, "data-r": "mi-hauteur" });
+  const noeud = n("g", { "data-r": `miroir-${cote}`, "data-champ": m.champ, "data-lisere": m.beta, "data-focale": f, "data-hauteur": h,
+    "data-fuite": fuite },
+  n("path", { d: trace(boitier), fill: TEINTES_RETRO.boitier, "data-r": "boitier" }),
+  n("path", { d: trace(verre), fill: TEINTES_RETRO.ciel, "data-r": "verre" }),
+  n("path", { d: trace(route), fill: TEINTES_RETRO.route, "data-r": "route" }),
+  gauche ? trottoir(ecartEnFace, "bord-en-face") : trottoir(ecartBord, "bord-chaussee"),
+  tirets.map((t) => n("path", { d: trace(t.coins), fill: TEINTES_RETRO.peinture, "data-r": "tiret", "data-d1": t.d1, "data-d2": t.d2,
+    "data-l": ecartAxiale })),
+  n("line", { x1: x, y1: yH, x2: x + W, y2: yH, stroke: CHARTE.texteDiscret, "stroke-width": CHARTE.traits.fin, "data-r": "horizon" }),
+  n("path", { d: trace(caisse), fill: TEINTES_RETRO.caisse, "data-r": "caisse" }),
+  n("path", { d: trace(dansConvexe(bordCaisse, verre), false), fill: "none", stroke: TEINTES_RETRO.caisseBord, "stroke-width": CHARTE.traits.fin,
+    "stroke-linejoin": "round", "data-r": "bord-caisse" }),
+  n("path", { d: trace(poignee), fill: TEINTES_RETRO.poignee, "data-r": "poignee", "data-x": milieu[0], "data-y": milieu[1] }),
+  n("path", { d: trace(levier), fill: TEINTES_RETRO.levier, "data-r": "levier" }),
+  repere(x - b - j - R.repere, x - b - j), repere(x + W + b + j, x + W + b + j + R.repere));
+  return { noeud, poignee: { centre: milieu, bas: milieu[1] + h2 } };
 }
 
 function vueInterieure({ x, y }) {
@@ -342,8 +364,7 @@ function vueInterieure({ x, y }) {
   // Le miroir intérieur garde la gauche et la droite du conducteur : l'axiale à gauche, la bordure et le trottoir à droite.
   const aDroiteDe = (l) => (p) => l * (p[1] - yH) - (p[0] - cx) * h;   // <= 0 : à droite de la droite du sol d'écart l, à droite
   const aGaucheDe = (l) => (p) => l * (p[1] - yH) + (p[0] - cx) * h;   // <= 0 : à gauche de la droite du sol d'écart l, à gauche
-  const enFace = (3 * RUE.voie) / 2;
-  const ecart = RUE.voie / 2;
+  const ecart = RUE.voie / 2, bord = RUE.voie / 2 + RUE.stationnement, enFace = (3 * RUE.voie) / 2 + RUE.stationnement;
   const tirets = tiretsAxiale({ fuite: cx, yH, f, h, l: ecart, signe: 1, debut: R.axiale.interieur, dans: route });
   return n("g", { "data-r": "miroir-interieur", "data-champ": 2 * champInterieur().demiAngle, "data-focale": f },
     n("rect", { x: cx - I.bras.largeur / 2, y: y - b - I.bras.hauteur, width: I.bras.largeur, height: I.bras.hauteur + b, fill: TEINTES_RETRO.boitier }),
@@ -351,43 +372,70 @@ function vueInterieure({ x, y }) {
     n("path", { d: trace(verre), fill: TEINTES_RETRO.habitacle, "data-r": "verre" }),
     n("path", { d: trace(ciel), fill: TEINTES_RETRO.ciel }),
     n("path", { d: trace(route), fill: TEINTES_RETRO.route }),
-    n("path", { d: trace(couper(route, aDroiteDe(ecart))), fill: TEINTES_RETRO.bordure, "data-r": "bord-chaussee" }),
-    n("path", { d: trace(couper(route, aDroiteDe(ecart + RUE.bordure))), fill: TEINTES_RETRO.trottoir }),
+    n("path", { d: trace(couper(route, aDroiteDe(bord))), fill: TEINTES_RETRO.bordure, "data-r": "bord-chaussee" }),
+    n("path", { d: trace(couper(route, aDroiteDe(bord + RUE.bordure))), fill: TEINTES_RETRO.trottoir }),
     n("path", { d: trace(couper(route, aGaucheDe(enFace))), fill: TEINTES_RETRO.bordure, "data-r": "bord-en-face" }),
     n("path", { d: trace(couper(route, aGaucheDe(enFace + RUE.bordure))), fill: TEINTES_RETRO.trottoir }),
     tirets.map((t) => n("path", { d: trace(t.coins), fill: TEINTES_RETRO.peinture, "data-r": "tiret" })),
     n("path", { d: trace(lunette), fill: "none", stroke: TEINTES_RETRO.habitacle, "stroke-width": CHARTE.traits.fin, "data-r": "lunette" }));
 }
 
+// Numéro d'un temps : un disque clair cerclé de foncé, son numéro au centre, comme les repères numérotés des étapes de
+// js/dessins-dessus.js (copie privée : ce repère n'est pas exporté).
+function numero(rang, [x, y]) {
+  const N = RETROVISEURS.numero;
+  return n("g", { "data-r": `numero-${rang}`, "data-x": x, "data-y": y },
+    n("circle", { cx: x, cy: y, r: N.rayon, fill: CHARTE.carte, stroke: CHARTE.texte, "stroke-width": N.trait }),
+    texte(x, y + METRIQUES_POLICE.milieuCapitales * N.taille, String(rang), { taille: N.taille, ancrage: "middle", graisse: N.graisse }));
+}
+
 function retroviseurs() {
   const code = "retroviseurs";
   const [L, H] = CATALOGUE[code].cadre;
-  const R = RETROVISEURS, P = R.pastille, I = R.interieur, E = R.exterieur, b = R.boitier, t = R.legende.taille;
-  const largeur = L - 2 * R.marge, droiteVerre = R.marge + largeur - P.marge - b;
-  const pas = t * R.legende.interligne;
-  // Une rangée : la vignette, sa pastille et le titre à côté, une ou deux lignes de légende dessous, le miroir à droite.
-  const rangee = (i, etat, titre, lignes, miroir) => {
-    const y = R.marge + i * (R.rangee + R.ecart), xTexte = R.marge + P.marge;
-    const premiereLigne = y + P.marge + P.haut + R.legende.degagement + R.haut * t;
-    return vignette({ x: R.marge, y, largeur, hauteur: R.rangee, etat },
-      miroir(y),
-      n("g", { "data-r": `legende-${i}` },
-        texte(xTexte + P.largeur + R.titre.ecart, y + P.marge + P.haut / 2 + R.capitales * t, titre, { taille: t, graisse: 600 }),
-        lignes.map((l, k) => texte(xTexte, premiereLigne + k * pas, l, { taille: t }))));
+  const R = RETROVISEURS, N = R.numero, I = R.interieur, E = R.exterieur, b = R.boitier, t = R.legende.taille, c = R.carte;
+  const largeur = L - 2 * R.marge;
+  // Un temps : sa carte, son numéro en haut à gauche, le titre à côté, une ligne de légende dessous, puis ses miroirs.
+  const temps = (rang, y, hauteur, titre, legende, miroirs) => {
+    const centre = [R.marge + c + N.rayon, y + c + N.rayon];
+    const base = y + c + 2 * N.rayon + R.legende.degagement + R.haut * t;
+    return n("g", { "data-r": `temps-${rang}`, "data-y": y },
+      n("rect", { x: R.marge, y, width: largeur, height: hauteur, rx: MISE_EN_PAGE.rayonVignette, fill: CHARTE.carte, stroke: CHARTE.filet,
+        "stroke-width": CHARTE.traits.fin, "data-r": "carte" }),
+      numero(rang, centre),
+      n("g", { "data-r": `legende-${rang}` },
+        texte(centre[0] + N.rayon + R.titre.ecart, centre[1] + R.capitales * t, titre, { taille: t, graisse: 600 }),
+        texte(R.marge + c, base, legende, { taille: t })),
+      miroirs(base));
   };
-  const exterieur = (cote, horizon, options) => (y) => vueExterieure({ x: droiteVerre - E.largeur, y: y + (R.rangee - E.hauteur) / 2, cote, horizon, ...options });
-  const hauteurInterieur = I.bras.hauteur + 2 * b + I.largeur / MIROIR_INTERIEUR.rapport;
+  // 1 : le rétroviseur intérieur, à droite de sa carte, centré en hauteur.
+  const y1 = R.marge, hauteurInterieur = I.bras.hauteur + 2 * b + I.largeur / MIROIR_INTERIEUR.rapport;
+  const droiteVerre = R.marge + largeur - c - b;
+  // 2 : les rétroviseurs extérieurs, le gauche à gauche, chacun avec ses repères de mi-hauteur, sous leurs noms ; dessous,
+  // l'étiquette commune des deux poignées.
+  const y2 = y1 + I.carte + R.ecart;
+  const groupe = E.largeur + 2 * (b + R.jeuRepere + R.repere);
+  const ecartMiroirs = largeur - 2 * c - 2 * groupe;
+  const xGauche = R.marge + c + (groupe - E.largeur) / 2, xDroit = xGauche + groupe + ecartMiroirs;
+  const exterieurs = (base) => {
+    const yNoms = base + E.noms, yVerre = yNoms + R.bas * t + E.degagement + b;
+    const [g, d] = [["gauche", xGauche], ["droit", xDroit]].map(([cote, x]) => vueExterieure({ x, y: yVerre, cote }));
+    const ancre = [L / 2, yVerre + E.hauteur + b + R.filet];
+    const sous = (v) => [v.poignee.centre[0], v.poignee.bas + R.poignee.point];
+    return [
+      texte(xGauche + E.largeur / 2, yNoms, "Gauche", { taille: t, ancrage: "middle", role: "nom-gauche" }),
+      texte(xDroit + E.largeur / 2, yNoms, "Droit", { taille: t, ancrage: "middle", role: "nom-droit" }),
+      g.noeud, d.noeud,
+      etiquette({ cible: sous(g), ancre, lignes: ["Poignée de la portière arrière"], ancrage: "middle", taille: t, role: "nom-poignee-gauche" }),
+      etiquette({ cible: sous(d), ancre, lignes: [], ancrage: "middle", taille: t, role: "nom-poignee-droit" })];
+  };
   return cadre({ largeur: L, hauteur: H, titre: CATALOGUE[code].titre,
-    description: "Juste : le rétroviseur intérieur cadre toute la lunette arrière. Juste : l'extérieur gauche montre l'horizon à "
-      + "mi-hauteur et un mince liseré de carrosserie au bord intérieur. Juste : le droit, souvent un peu plus bas, montre le bord de "
-      + "la chaussée. Faux : l'extérieur gauche tourné vers la carrosserie en montre une large bande, l'angle mort s'élargit." },
-  rangee(0, "juste", "Intérieur", ["toute la lunette arrière"],
-    (y) => vueInterieure({ x: droiteVerre - I.largeur, y: y + (R.rangee - hauteurInterieur) / 2 + I.bras.hauteur + b })),
-  rangee(1, "juste", "Extérieur gauche", ["horizon à mi-hauteur,", "mince liseré de carrosserie"],
-    exterieur("gauche", R.horizon.juste, { axiale: true, enFace: true })),
-  rangee(2, "juste", "Extérieur droit", ["souvent un peu plus bas :", "le bord de la chaussée"], exterieur("droit", R.horizon.droit, { bord: true })),
-  rangee(3, "faux", "Extérieur gauche", ["tourné vers la carrosserie :", "angle mort élargi"],
-    exterieur("gauche", R.horizon.juste, { faux: true, axiale: true, enFace: true })));
+    description: "Dans l'ordre. 1 : le rétroviseur intérieur cadre toute la lunette arrière. 2 : les rétroviseurs extérieurs, le gauche "
+      + "et le droit, côte à côte : l'horizon au milieu de la hauteur du miroir ; dans le coin inférieur côté voiture, en bas à droite "
+      + "du gauche et en bas à gauche du droit, un coin de carrosserie et la poignée de la portière arrière ; le reste du miroir "
+      + "montre la route derrière." },
+  temps(1, y1, I.carte, "Rétroviseur intérieur", "toute la lunette arrière",
+    () => vueInterieure({ x: droiteVerre - I.largeur, y: y1 + (I.carte - hauteurInterieur) / 2 + I.bras.hauteur + b })),
+  temps(2, y2, H - R.marge - y2, "Rétroviseurs extérieurs", "l'horizon au milieu", exterieurs));
 }
 
 // ===== Les angles morts =====
@@ -520,4 +568,4 @@ function anglesMorts() {
 
 export const DESSINS = { "zones-invisibles": zonesInvisibles, retroviseurs, "angles-morts": anglesMorts };
 export const GESTES = {};
-export { versDom } from "./dessin-svg.js?v=20261022b";
+export { versDom } from "./dessin-svg.js?v=20261022c";

@@ -133,9 +133,9 @@ function voituresProfil({ kit }) {
   const ECHELLE = 60, X = LARGEUR / 2;
   // De profil : côté droit (sens « droite », l'avant à droite), puis côté conducteur (sens « gauche »), portière avant et trappe
   // à carburant ouvertes. Sol de chaque voiture, puis sa légende dessous.
-  const SOL1 = 96, SOL2 = 212;   // le toit à 87 unités du sol ; la légende à 16 sous le sol, puis 9 jusqu'au toit suivant
+  const SOL1 = 96, SOL2 = 212;   // le toit à 90 unités du sol ; la légende à 16 sous le sol, puis 6 jusqu'au toit suivant
   return cadre({ largeur: LARGEUR, hauteur: HAUTEUR_PROFIL, titre: "Voiture du kit de profil",
-    description: "Exemple pour la revue : la compacte à hayon du kit de profil, côté droit ; puis côté conducteur, portière avant et trappe à carburant ouvertes." },
+    description: "Exemple pour la revue : la citadine à hayon du kit de profil (Dacia Sandero III, à ses cotes), côté droit ; puis côté conducteur, portière avant et trappe à carburant ouvertes." },
   voitureProfil({ x: X, y: SOL1, echelle: ECHELLE }),
   texte(X, SOL1 + LEGENDE.ecart, "Côté droit", { taille: LEGENDE.taille, ancrage: "middle", couleur: CHARTE.texteDoux }),
   voitureProfil({ x: X, y: SOL2, echelle: ECHELLE, sens: "gauche", portiereOuverte: true, trappeOuverte: true }),

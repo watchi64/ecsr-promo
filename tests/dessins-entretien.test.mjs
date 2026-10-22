@@ -5,7 +5,7 @@ import * as famille from "../js/dessins-entretien.js";
 import { SOURCES } from "../sources/dessins-entretien.js";
 import { verifierDessin, verifierGeste } from "./aides-dessins.mjs";
 import { trouverRole, trouverTous, texteDe } from "../js/dessin-svg.js";
-import { CHARTE, reperesProfil, VOITURE } from "../js/dessins-kit.js";
+import { CHARTE, reperesProfil, VOITURE, VOITURE_PROFIL, SYMBOLE_FREIN } from "../js/dessins-kit.js";
 
 const codes = Object.keys(CATALOGUE).filter((c) => CATALOGUE[c].module === "entretien");
 
@@ -126,9 +126,9 @@ test("capot : chaque organe se lit sur un téléphone et le point de son étique
   }
 });
 
-test("capot : « Jamais moteur chaud » désigne le bouchon du vase d'expansion, dans la teinte « faux » ; la disposition varie, c'est écrit", () => {
+test("capot : « Jamais moteur chaud » désigne le bouchon du vase d'expansion, dans la teinte « faux » ; la disposition la plus courante, qui varie, c'est écrit", () => {
   const d = famille.DESSINS.capot();
-  assert.ok(textes(d).includes("La disposition varie selon les modèles"));
+  assert.ok(textes(d).includes("Disposition la plus courante ; elle varie selon les modèles"));
   const e = trouverRole(d, "etiquette-vase-expansion");
   assert.ok(lignes(e).endsWith("Jamais moteur chaud"), `étiquette du vase : « ${lignes(e)} »`);
   const bouchon = trouverRole(trouverRole(d, "vase-expansion"), "bouchon");
@@ -137,7 +137,7 @@ test("capot : « Jamais moteur chaud » désigne le bouchon du vase d'expansion,
   assert.ok(Math.hypot(cx - nb(bouchon, "cx"), cy - nb(bouchon, "cy")) <= nb(bouchon, "r"), "le filet ne part pas du bouchon");
   // La mise en garde, et elle seule, dans la teinte « faux », en demi-gras.
   for (const t of trouverTous(e, (x) => x.balise === "text")) {
-    const garde = ["Jamais", "moteur chaud"].includes(texteDe(t));
+    const garde = texteDe(t) === "Jamais moteur chaud";
     assert.equal(t.attributs.fill === CHARTE.faux && Number(t.attributs["font-weight"]) === 600, garde, `ligne « ${texteDe(t)} »`);
   }
 });
@@ -154,13 +154,16 @@ test("capot : la batterie porte ses deux cosses, marquées + et −, chacune au 
     assert.ok(dans([nb(c, "data-x"), nb(c, "data-y")], b), "cosse hors de la batterie");
     const cable = trouverRole(c, "cable"), pince = trouverTous(c, (x) => x.balise === "path")[0];
     assert.ok(cable, "cosse sans câble");
-    assert.ok(Math.abs(nb(cable, "x1") - gaucheDe(pince)) < 0.01, "le câble ne part pas de la cosse");
+    // Le câble part du bord de la cosse tourné vers l'arrière de la voiture (le bas du dessin), et s'en éloigne.
+    assert.ok(Math.abs(nb(cable, "y1") - basDe(pince)) < 0.01 && nb(cable, "x1") > gaucheDe(pince) && nb(cable, "x1") < droiteDe(pince),
+      "le câble ne part pas de la cosse");
+    assert.ok(nb(cable, "y2") > nb(cable, "y1"), "le câble part vers l'arrière");
     assert.ok(Math.hypot(nb(cable, "x2") - nb(cable, "x1"), nb(cable, "y2") - nb(cable, "y1")) >= 2 * pointDe(trouverRole(d, "etiquette-batterie")).lisere,
       "amorce de câble trop courte pour se voir");
   }
 });
 
-test("capot : la voiture est celle du kit, vue du dessus, découpée à un identifiant propre à chaque dessin ; le compartiment est sous son capot", () => {
+test("capot : la voiture est celle du kit, vue du dessus, l'avant en haut, découpée à un identifiant propre à chaque dessin ; le compartiment est sous son capot", () => {
   const d1 = famille.DESSINS.capot(), d2 = famille.DESSINS.capot();
   const ids = [d1, d2].map((d) => {
     const decoupe = trouverTous(d, (x) => x.balise === "clipPath");
@@ -175,15 +178,19 @@ test("capot : la voiture est celle du kit, vue du dessus, découpée à un ident
   assert.notEqual(ids[0], ids[1], "deux dessins du capot partagent un identifiant de découpe");
   const voiture = trouverRole(d1, "voiture");
   assert.ok(voiture, "voiture du kit absente");
-  assert.equal(nb(voiture, "data-angle"), 0, "l'avant à droite, comme les vues du dessus du kit");
-  // Le compartiment ouvert est dans la caisse du kit (entre ses flancs, avant son nez) et devant son pare-brise.
+  assert.equal(nb(voiture, "data-angle"), -90, "l'avant en haut");
+  // Tournée d'un quart de tour, la caisse (rectangle du kit, x le long de la voiture) est en hauteur dans le dessin : un point
+  // [lx, ly] du repère de la voiture se voit en [tx + ly, ty - lx].
   const [tx, ty] = translation(voiture);
   const caisse = trouverRole(voiture, "caisse"), pareBrise = trouverRole(voiture, "pare-brise");
-  const [cx1, cy1] = [tx + nb(caisse, "x"), ty + nb(caisse, "y")], [cx2, cy2] = [cx1 + nb(caisse, "width"), cy1 + nb(caisse, "height")];
-  assert.ok(Math.abs((cx2 - cx1) / (cy2 - cy1) - VOITURE.longueur / VOITURE.largeur) < 1e-6, "proportions de la caisse du kit");
+  const [lx1, ly1, lx2, ly2] = [nb(caisse, "x"), nb(caisse, "y"), nb(caisse, "x") + nb(caisse, "width"), nb(caisse, "y") + nb(caisse, "height")];
+  const [cx1, cx2, cy1, cy2] = [tx + ly1, tx + ly2, ty - lx2, ty - lx1];
+  assert.ok(Math.abs((cy2 - cy1) / (cx2 - cx1) - VOITURE.longueur / VOITURE.largeur) < 1e-6, "proportions de la caisse du kit");
   const compartiment = points(trouverRole(d1, "compartiment").attributs.d);
   for (const [x, y] of compartiment) assert.ok(x > cx1 && x < cx2 && y > cy1 && y < cy2, `compartiment hors de la caisse en ${x}, ${y}`);
-  assert.ok(Math.min(...compartiment.map((p) => p[0])) > tx + droiteDe(pareBrise), "compartiment sur le pare-brise");
+  // Le pare-brise, derrière le compartiment : plus bas dans le dessin.
+  const avantPareBrise = ty - Math.max(...points(pareBrise.attributs.d).map((q) => q[0]));
+  assert.ok(Math.max(...compartiment.map((q) => q[1])) < avantPareBrise, "compartiment sur le pare-brise");
 });
 
 // ----- Style schématique (décision du formateur du 15/10/2026 : « pictogramme plutôt qu'illustration ») -----
@@ -218,10 +225,96 @@ test("capot : en pictogramme : la voiture en silhouette du kit ; sous le capot, 
   assert.deepEqual(teintesFormes(trouverRole(d, "moteur")), [trouverRole(d, "moteur").attributs.fill], "moteur d'un seul ton");
   for (const role of Object.keys(ORGANES)) {
     const partie = trouverRole(d, role);
+    // Le pictogramme d'un bouchon est fait de traits (sans aplat) ou d'aplats (sans trait) : jamais d'une forme bordée.
     assert.deepEqual(bordees(partie).length, 0, `${role} : forme bordée`);
-    const tons = teintesFormes(partie).length, max = role === "batterie" ? 3 : 2;
+    // Deux tons par organe ; trois pour la batterie (bac, cosses, câbles) et pour un réservoir dont le bouchon porte un
+    // pictogramme (plastique, bouchon, pictogramme).
+    const tons = teintesFormes(partie).length, max = role === "batterie" || trouverRole(partie, "pictogramme") ? 3 : 2;
     assert.ok(tons <= max, `${role} : ${tons} tons pour ${max} au plus`);
   }
+});
+
+// Teinte (degrés), saturation et clarté (de 0 à 1) d'une couleur #RRGGBB.
+function tsl(hex) {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
+  const max = Math.max(r, g, b), min = Math.min(r, g, b), l = (max + min) / 2, dd = max - min;
+  if (!dd) return { t: 0, s: 0, l };
+  const s = dd / (1 - Math.abs(2 * l - 1));
+  const t = max === r ? 60 * (((g - b) / dd) % 6) : max === g ? 60 * ((b - r) / dd + 2) : 60 * ((r - g) / dd + 4);
+  return { t: (t + 360) % 360, s, l };
+}
+// Retour du formateur du 22/10/2026 : « l'idée est bonne, mais assez peu représentative. On ne connaît pas suffisamment les
+// éléments, et les logos, types voyants, sur les différents récipients, ça pourrait être intéressant de les ajouter. »
+const proche = (a, b, tolerance, quoi) => assert.ok(Math.abs(a - b) <= tolerance, `${quoi} : ${a} au lieu de ${b}`);
+const PICTOS_CAPOT = { huile: "7000-0248", "vase-expansion": "7000-1377", "lave-glace": "7000-0088", "liquide-frein": "7000-0239" };
+
+test("capot : chaque bouchon de remplissage porte son pictogramme normalisé, sur lui, lisible sur un téléphone", () => {
+  const d = famille.DESSINS.capot();
+  const [L] = CATALOGUE.capot.cadre, px = 343 / L;
+  for (const [role, iso] of Object.entries(PICTOS_CAPOT)) {
+    const partie = trouverRole(d, role), bouchon = trouverRole(partie, "bouchon"), picto = trouverRole(partie, "pictogramme");
+    assert.ok(picto, `${role} : pictogramme absent`);
+    assert.equal(picto.attributs["data-iso"], iso, `${role} : symbole ISO ${picto.attributs["data-iso"]}`);
+    // Sur le bouchon : chaque point de ses tracés est dans le disque du bouchon, et le pictogramme est centré sur lui.
+    const [bx, by, br] = ["cx", "cy", "r"].map((k) => nb(bouchon, k));
+    for (const chemin of trouverTous(picto, (x) => x.balise === "path")) {
+      for (const q of points(chemin.attributs.d)) assert.ok(Math.hypot(q[0] - bx, q[1] - by) < br, `${role} : point ${q} hors du bouchon`);
+    }
+    for (const c of trouverTous(picto, (x) => x.balise === "circle")) {
+      assert.ok(Math.hypot(nb(c, "cx") - bx, nb(c, "cy") - by) + nb(c, "r") < br, `${role} : cercle hors du bouchon`);
+    }
+    assert.ok(Math.hypot(nb(picto, "data-x") - bx, nb(picto, "data-y") - by) < 0.01, `${role} : pictogramme décentré`);
+    // Lisible : 18 px au moins dans sa plus grande dimension sur un téléphone, d'une teinte à 4,5:1 au moins sur le bouchon.
+    const taille = Math.max(nb(picto, "data-largeur"), nb(picto, "data-hauteur")) * px;
+    assert.ok(taille >= 18, `${role} : pictogramme de ${taille.toFixed(1)} px sur un téléphone`);
+    for (const forme of trouverTous(picto, (x) => x.balise === "path" || x.balise === "circle")) {
+      const teinte = forme.attributs.fill !== "none" ? forme.attributs.fill : forme.attributs.stroke;
+      assert.ok(contraste(teinte, bouchon.attributs.fill) >= 4.5, `${role} : pictogramme à ${contraste(teinte, bouchon.attributs.fill).toFixed(2)}:1 sur le bouchon`);
+    }
+    // Le point de l'étiquette ne couvre pas le pictogramme : son disque (liseré compris) reste hors de sa boîte.
+    const point = pointDe(trouverRole(d, `etiquette-${role}`)), b = boite(picto);
+    const dx = Math.max(b.x1 - point.x, 0, point.x - b.x2), dy = Math.max(b.y1 - point.y, 0, point.y - b.y2);
+    assert.ok(Math.hypot(dx, dy) >= point.lisere, `${role} : le point de l'étiquette couvre le pictogramme`);
+    // Chaque symbole dessiné est cité dans les sources, avec sa référence.
+    assert.ok(SOURCES.capot.some((t) => t.includes(`ISO ${iso}`)), `${role} : ISO ${iso} absent des sources`);
+  }
+});
+
+// Retour du formateur du 22/10/2026, photo d'un vrai bouchon à l'appui : le bouchon du liquide de frein porte « simplement un voyant
+// de frein » : un cercle, un disque plein au centre, deux arcs de part et d'autre, sans point d'exclamation.
+test("capot : le bouchon du liquide de frein porte le symbole du freinage du voyant, cercle et deux arcs, un disque plein au centre, sans point d'exclamation", () => {
+  const d = famille.DESSINS.capot();
+  const bouchon = trouverRole(trouverRole(d, "liquide-frein"), "bouchon"), picto = trouverRole(trouverRole(d, "liquide-frein"), "pictogramme");
+  assert.ok(picto, "symbole absent du bouchon du liquide de frein");
+  const [bx, by] = ["cx", "cy"].map((k) => nb(bouchon, k));
+  const cercles = trouverTous(picto, (x) => x.balise === "circle"), chemins = trouverTous(picto, (x) => x.balise === "path");
+  const cercle = cercles.find((c) => c.attributs.fill === "none"), disque = cercles.find((c) => c.attributs.fill !== "none");
+  assert.ok(cercle && disque && cercles.length === 2, "un cercle et un disque plein");
+  for (const c of cercles) assert.ok(Math.hypot(nb(c, "cx") - bx, nb(c, "cy") - by) < 0.01, "cercle et disque centrés sur le bouchon");
+  assert.ok(nb(disque, "r") < nb(cercle, "r") - nb(cercle, "stroke-width"), "le disque est dans le cercle, détaché de lui");
+  // Deux arcs, de part et d'autre, au rayon du voyant (SYMBOLE_FREIN : même proportion au cercle), symétriques ; aucun autre trait :
+  // pas de point d'exclamation.
+  assert.equal(chemins.length, 2, `${chemins.length} traits au lieu des deux arcs`);
+  const rayons = chemins.map((c) => points(c.attributs.d).map((q) => Math.hypot(q[0] - bx, q[1] - by)));
+  for (const r of rayons.flat()) proche(r / nb(cercle, "r"), SYMBOLE_FREIN.arcs.rayon / SYMBOLE_FREIN.cercle, 0.01, "arc au rayon du voyant");
+  const [gauche, droite] = chemins.map((c) => points(c.attributs.d).map((q) => q[0] - bx)).sort((a, b) => a[0] - b[0]);
+  assert.ok(Math.max(...gauche) < 0 && Math.min(...droite) > 0, "un arc de chaque côté");
+  proche(Math.min(...gauche), -Math.max(...droite), 0.01, "arcs symétriques");
+  assert.equal(trouverTous(picto, (x) => x.balise === "line").length, 0, "point d'exclamation");
+  // Sources : la photo du formateur et la norme du voyant.
+  assert.ok(SOURCES.capot.some((t) => t.includes("photo") && t.includes("22/10/2026") && t.includes("ISO 7000-0239")), "sources du symbole du frein");
+});
+
+test("capot : les couleurs usuelles : anneau de la jauge jaune, bouchon du lave-glace bleu, bouchons d'huile et des réservoirs noirs", () => {
+  const d = famille.DESSINS.capot();
+  const teinte = (role, sous) => trouverRole(trouverRole(d, role), sous).attributs.fill;
+  const { t, s: sat, l } = tsl(teinte("jauge", "anneau"));
+  assert.ok(t >= 40 && t <= 56 && sat >= 0.7 && l >= 0.4 && l <= 0.7, `anneau de la jauge de teinte ${teinte("jauge", "anneau")}`);
+  const bleu = tsl(teinte("lave-glace", "bouchon"));
+  assert.ok(bleu.t >= 200 && bleu.t <= 230 && bleu.s >= 0.5, `bouchon du lave-glace de teinte ${teinte("lave-glace", "bouchon")}`);
+  for (const role of ["huile", "vase-expansion", "liquide-frein"]) assert.ok(luminance(teinte(role, "bouchon")) < 0.05, `${role} : bouchon noir`);
+  // L'anneau jaune se détache du fond du compartiment, où il est posé.
+  assert.ok(contraste(teinte("jauge", "anneau"), trouverRole(d, "compartiment").attributs.fill) >= 3, "anneau lisible sur le compartiment");
 });
 
 test("capot : les cosses, leurs câbles et les signes + et − se lisent sur la batterie et le fond du compartiment", () => {
@@ -250,7 +343,7 @@ test("niveaux : jauge tenue pointe en bas, repère mini sous le repère maxi, ha
   assert.ok(Math.abs(haut - nb(trace, "data-y")) < 0.01, "data-y de la trace : son haut tracé");
   assert.ok(haut > nb(maxi, "data-y") && haut < nb(mini, "data-y"), `haut de la trace (${haut}) hors de l'intervalle`);
   assert.ok(Math.abs(basDe(trace) - nb(pointe, "data-y")) < 0.01, "la trace part de la pointe");
-  assert.ok(textes(mini).includes("mini") && textes(maxi).includes("maxi"));
+  assert.ok(textes(mini).includes("MIN") && textes(maxi).includes("MAX"), "repères MIN et MAX, écrits comme sur la jauge");
 });
 
 test("niveaux : chaque encoche de la lame est à la hauteur de son repère, de part et d'autre de la lame", () => {
@@ -291,28 +384,85 @@ test("niveaux : réservoir translucide, niveau strictement entre MIN et MAX ; vo
 const DETAILS_PROFIL = /^(phare$|feu$|poignee-|retroviseur$|siege$|bas-de-caisse$)/;
 const detailsProfil = (v) => trouverTous(v, (x) => DETAILS_PROFIL.test(x.attributs["data-r"] || "")).map((x) => x.attributs["data-r"]);
 
-test("niveaux : en pictogramme, la voiture du kit en silhouette ; le réservoir sans reflet ni col, son bouchon posé dessus", () => {
+const jaune = (hex) => { const c = tsl(hex); return c.t >= 40 && c.t <= 56 && c.s >= 0.7 && c.l >= 0.4 && c.l <= 0.7; };
+
+// Retour du formateur du 22/10/2026 : « mettre quelque chose de plus représentatif de la réalité : un thème de design et un thème
+// de couleurs ; l'anneau où on vient tirer dessus est souvent jaune ».
+test("niveaux : la jauge d'une voiture courante : anneau de prise jaune, troué, au-dessus d'un col jaune et de la lame d'acier", () => {
+  const d = famille.DESSINS.niveaux();
+  const [poignee, col, pointe] = ["poignee-jauge", "col-jauge", "pointe-jauge"].map((r) => { const x = trouverRole(d, r); assert.ok(x, `${r} absent`); return x; });
+  assert.ok(jaune(poignee.attributs.fill), `anneau de teinte ${poignee.attributs.fill}, pas jaune`);
+  assert.equal(col.attributs.fill, poignee.attributs.fill, "col de la teinte de l'anneau");
+  // Un anneau : deux contours, le second (le trou) découpé du premier.
+  assert.equal(poignee.attributs["fill-rule"], "evenodd");
+  const [exterieur, trou] = String(poignee.attributs.d).split(/(?=M)/).map((t) => points(t));
+  assert.ok(trou && trou.length > 2, "anneau sans trou");
+  const boiteDe = (pts) => ({ x1: Math.min(...pts.map((q) => q[0])), x2: Math.max(...pts.map((q) => q[0])), y1: Math.min(...pts.map((q) => q[1])), y2: Math.max(...pts.map((q) => q[1])) });
+  const [be, bt] = [boiteDe(exterieur), boiteDe(trou)];
+  assert.ok(bt.x1 > be.x1 && bt.x2 < be.x2 && bt.y1 > be.y1 && bt.y2 < be.y2, "le trou est dans l'anneau");
+  // Son bord se détache du fond du dessin (3:1, un élément graphique).
+  assert.ok(contraste(poignee.attributs.stroke, CHARTE.fond) >= 3, `bord de l'anneau à ${contraste(poignee.attributs.stroke, CHARTE.fond).toFixed(2)}:1`);
+  // L'anneau en haut, le col dessous, puis la lame, tenue pointe en bas.
+  assert.ok(basDe(poignee) <= hautDe(col) + 0.01 && basDe(col) < hautDe(pointe), "anneau, col, puis lame");
+  assert.ok(!jaune(pointe.attributs.fill), "lame d'acier, pas jaune");
+});
+
+test("niveaux : la zone striée occupe la lame entre MIN et MAX ; la trace d'huile s'y arrête, les stries mouillées sous elle, sèches au-dessus", () => {
+  const d = famille.DESSINS.niveaux();
+  const z = trouverRole(d, "stries"), [x1, x2, y1, y2] = ["data-x1", "data-x2", "data-y1", "data-y2"].map((k) => nb(z, k));
+  const [mini, maxi] = ["repere-mini", "repere-maxi"].map((r) => nb(trouverRole(d, r), "data-y"));
+  const lame = points(trouverRole(d, "pointe-jauge").attributs.d), largeur = Math.max(...lame.map((q) => q[0])) - Math.min(...lame.map((q) => q[0]));
+  assert.ok(y1 > maxi && y2 < mini && y1 - maxi < 3 && mini - y2 < 3, `zone de ${y1} à ${y2}, repères à ${maxi} et ${mini}`);
+  assert.ok(x2 - x1 >= 0.8 * largeur, `zone de ${(x2 - x1).toFixed(1)} unités sur une lame de ${largeur.toFixed(1)}`);
+  const haut = hautDe(trouverRole(d, "trace-huile"));
+  assert.ok(haut > y1 && haut < y2, "le haut de la trace d'huile est dans la zone striée");
+  for (const [role, de, a] of [["stries-seches", y1, haut], ["stries-huile", haut, y2]]) {
+    const segments = String(trouverRole(z, role).attributs.d).split(/(?=M)/).map((t) => points(t));
+    // Hachures croisées : des stries dans les deux sens.
+    const montantes = segments.filter(([p, q]) => (q[0] - p[0]) * (q[1] - p[1]) > 0).length;
+    assert.ok(montantes >= 2 && segments.length - montantes >= 2, `${role} : ${montantes} et ${segments.length - montantes} stries par sens`);
+    for (const q of segments.flat()) {
+      assert.ok(q[0] >= x1 - 0.01 && q[0] <= x2 + 0.01 && q[1] >= de - 0.01 && q[1] <= a + 0.01, `${role} : point ${q} hors de sa part de la zone`);
+    }
+  }
+  // Mouillées, les stries prennent la teinte de l'huile, plus sombre : on lit le niveau à la frontière.
+  const [seches, huile] = ["stries-seches", "stries-huile"].map((r) => trouverRole(z, r).attributs.stroke);
+  assert.notEqual(seches, huile);
+  assert.ok(contraste(huile, trouverRole(d, "trace-huile").attributs.fill) >= 2, "stries mouillées visibles sur l'huile");
+  assert.ok(contraste(seches, trouverRole(d, "pointe-jauge").attributs.fill) >= 1.8, "stries sèches visibles sur l'acier");
+});
+
+// Style schématique : la voiture du kit en silhouette ; le réservoir d'une voiture : plastique translucide, col, bouchon noir strié
+// posé sur le col, tuyau de sortie sur son flanc, sans reflet.
+test("niveaux : la voiture du kit en silhouette ; le réservoir : corps translucide, col, bouchon noir strié posé sur le col, tuyau sur le flanc", () => {
   const d = famille.DESSINS.niveaux();
   assert.deepEqual(detailsProfil(trouverRole(d, "voiture-profil")), [], "détails de finition de la voiture");
   const r = trouverRole(d, "reservoir");
   assert.deepEqual(trouverTous(r, (x) => x.attributs.opacity !== undefined).length, 0, "forme translucide (reflet)");
-  const formes = trouverTous(r, (x) => x.balise === "path" || x.balise === "line");
-  assert.equal(formes.length, 5 + 2, `${formes.length} formes : corps, liquide, niveau, contour, bouchon, et les deux traits des repères`);
-  const bouchon = trouverRole(r, "bouchon"), liquide = trouverRole(r, "liquide");
-  const corps = formes.find((x) => x.attributs.fill === "none");
-  assert.ok(Math.abs(basDe(bouchon) - hautDe(corps)) < 0.01, `bouchon à ${(hautDe(corps) - basDe(bouchon)).toFixed(2)} du haut du réservoir`);
-  assert.ok(gaucheDe(bouchon) > gaucheDe(corps) && droiteDe(bouchon) < droiteDe(corps), "bouchon plus large que le réservoir");
-  assert.ok(hautDe(liquide) > hautDe(corps), "liquide au-dessus du réservoir");
+  const [corps, col, bouchon, stries, tuyau, liquide] = ["corps", "col", "bouchon-corps", "bouchon-stries", "tuyau", "liquide"]
+    .map((role) => { const x = trouverRole(r, role); assert.ok(x, `${role} absent`); return x; });
+  assert.ok(Math.abs(basDe(col) - hautDe(corps)) < 0.01, "col posé sur le corps");
+  assert.ok(Math.abs(basDe(bouchon) - hautDe(col)) < 0.01, `bouchon à ${(hautDe(col) - basDe(bouchon)).toFixed(2)} du haut du col`);
+  assert.ok(gaucheDe(bouchon) < gaucheDe(col) && droiteDe(bouchon) > droiteDe(col), "bouchon plus large que le col");
+  assert.ok(gaucheDe(col) > gaucheDe(corps) && droiteDe(col) < droiteDe(corps), "col plus étroit que le corps");
+  assert.ok(luminance(bouchon.attributs.fill) < 0.05, "bouchon noir");
+  assert.ok(luminance(corps.attributs.fill) > 0.7, "plastique blanc translucide");
+  assert.ok(String(stries.attributs.d).split(/(?=M)/).length >= 4, "bouchon strié pour la prise");
+  for (const q of points(stries.attributs.d)) assert.ok(q[0] > gaucheDe(bouchon) && q[0] < droiteDe(bouchon) && q[1] > hautDe(bouchon) && q[1] < basDe(bouchon), "stries sur le bouchon");
+  // Le tuyau sort du flanc droit, sous le niveau : il est plein de liquide.
+  assert.ok(gaucheDe(tuyau) < droiteDe(corps) && droiteDe(tuyau) > droiteDe(corps), "tuyau sur le flanc");
+  assert.ok(hautDe(tuyau) > hautDe(liquide), "tuyau sous le niveau");
+  assert.equal(tuyau.attributs.fill, liquide.attributs.fill, "tuyau plein de liquide");
 });
 
 // ----- Contrôler un pneu -----
 
-test("pneu : le témoin d'usure mesure 1,6 mm à l'échelle de la coupe, coté « 1,6 mm »", () => {
+test("pneu : le témoin d'usure mesure 1,6 mm à l'échelle du morceau de bande de roulement, coté « 1,6 mm »", () => {
   const d = famille.DESSINS.pneu();
   assert.ok(Number.isFinite(famille.MM) && famille.MM > 0);
   for (const etat of ["juste", "faux"]) {
     const v = trouverRole(d, `bande-${etat}`);
-    assert.ok(v, `coupe de la bande de roulement (${etat}) absente`);
+    assert.ok(v, `bande de roulement (${etat}) absente`);
     const temoin = trouverRole(v, "temoin");
     const hauteur = basDe(temoin) - hautDe(temoin);
     assert.ok(Math.abs(hauteur - 1.6 * famille.MM) <= 0.1, `${etat} : témoin de ${hauteur} unités`);
@@ -323,7 +473,7 @@ test("pneu : le témoin d'usure mesure 1,6 mm à l'échelle de la coupe, coté �
   }
 });
 
-test("pneu : bon, sculptures plus hautes que le témoin d'au moins 2 mm ; à remplacer, sculptures au niveau du témoin", () => {
+test("pneu : bon, sculptures plus hautes que le témoin d'au moins 2 mm ; à remplacer, sculptures au niveau du témoin, son dessus à fleur de celui des pains", () => {
   const d = famille.DESSINS.pneu();
   const bon = trouverRole(d, "bande-juste"), use = trouverRole(d, "bande-faux");
   const sculptures = (v) => trouverTous(v, (x) => x.attributs["data-r"] === "sculpture");
@@ -332,26 +482,65 @@ test("pneu : bon, sculptures plus hautes que le témoin d'au moins 2 mm ; à rem
   for (const s of sculptures(bon)) assert.ok(temoinBon - hautDe(s) >= 2 * famille.MM, `bon : sculpture ${temoinBon - hautDe(s)} unités au-dessus`);
   const temoinUse = hautDe(trouverRole(use, "temoin"));
   for (const s of sculptures(use)) assert.ok(Math.abs(hautDe(s) - temoinUse) <= 0.5, `à remplacer : écart ${hautDe(s) - temoinUse}`);
+  // En perspective : le bord avant du dessus du témoin est au niveau de celui des pains quand il affleure, nettement dessous sinon.
+  const bordAvant = (forme) => basDe(forme);
+  const dessusTemoin = (v) => bordAvant(trouverRole(v, "temoin-dessus"));
+  const dessusPains = (v) => trouverTous(v, (x) => x.attributs["data-r"] === "dessus-pain").map(bordAvant);
+  for (const y of dessusPains(use)) assert.ok(Math.abs(y - dessusTemoin(use)) <= 0.5, "à remplacer : le témoin n'affleure pas");
+  for (const y of dessusPains(bon)) assert.ok(dessusTemoin(bon) - y >= 2 * famille.MM, "bon : le témoin n'est pas au fond de la rainure");
   assert.ok(textes(use).join(" ").includes("affleure"));
 });
 
-test("pneu : la rainure de la bande de roulement a la largeur de celles de la coupe du haut ; les pains sont arrêtés par une brisure", () => {
+// Retour du formateur du 22/10/2026 sur la coupe précédente : « le bas pour la sculpture, on ne comprend pas ». Un morceau de la
+// bande de roulement, en perspective : deux pains vus de dessus, la rainure entre eux, le témoin, une bosse au fond de la rainure.
+test("pneu : un morceau de bande de roulement en perspective : deux pains vus de dessus, la rainure entre eux, de la largeur de celles de la coupe du haut, le témoin au fond", () => {
   const d = famille.DESSINS.pneu();
   const sain = trouverRole(d, "flanc-juste"), k = nb(sain, "data-echelle");
   const rainures = trouverTous(sain, (x) => x.attributs["data-r"] === "rainure");
   assert.ok(rainures.length >= 2, "rainures de la coupe du haut absentes");
   const largeurs = rainures.map((r) => (droiteDe(r) - gaucheDe(r)) / k);
+  const fonds = [];
   for (const etat of ["juste", "faux"]) {
     const v = trouverRole(d, `bande-${etat}`), temoin = trouverRole(v, "temoin");
     const rainure = (droiteDe(temoin) - gaucheDe(temoin)) / famille.MM;
     for (const l of largeurs) assert.ok(Math.abs(l - rainure) < 0.05, `${etat} : rainure de ${rainure} mm, ${l} mm en haut`);
-    // Un pain coupé au bord de la coupe : son bord extérieur (à l'opposé de la rainure) ondule, trait de brisure, et n'est pas
-    // droit. Les sommets de ce bord sont ceux du quart du pain tourné vers l'extérieur.
-    const milieuRainure = (gaucheDe(temoin) + droiteDe(temoin)) / 2;
-    for (const s of trouverTous(v, (x) => x.attributs["data-r"] === "sculpture")) {
-      const [g, dr] = [gaucheDe(s), droiteDe(s)], quart = (dr - g) / 4, aGauche = (g + dr) / 2 < milieuRainure;
-      const xs = points(s.attributs.d).map((p) => p[0]).filter((x) => (aGauche ? x < g + quart : x > dr - quart));
-      assert.ok(Math.max(...xs) - Math.min(...xs) > 1, `${etat} : pain sans trait de brisure`);
+    // Le témoin est dans la rainure : entre les faces avant des deux pains, posé sur la gomme sous la rainure.
+    const [gauche, droit] = trouverTous(v, (x) => x.attributs["data-r"] === "sculpture").sort((a, b) => gaucheDe(a) - gaucheDe(b));
+    assert.ok(gaucheDe(temoin) >= droiteDe(gauche) - 0.01 && droiteDe(temoin) <= gaucheDe(droit) + 0.01, `${etat} : témoin hors de la rainure`);
+    assert.ok(Math.abs(basDe(temoin) - hautDe(trouverRole(v, "base"))) < 0.01, `${etat} : témoin pas posé au fond de la rainure`);
+    // Les dessus des pains fuient vers le haut et la droite : chacun est un parallélogramme, décalé du même vecteur que le fond.
+    const fuite = (forme) => { const q = points(forme.attributs.d); return [q[3][0] - q[0][0], q[3][1] - q[0][1]]; };
+    const dessus = trouverTous(v, (x) => x.attributs["data-r"] === "dessus-pain");
+    assert.equal(dessus.length, 2, `${etat} : dessus des deux pains`);
+    const [fx, fy] = fuite(trouverRole(v, "fond-rainure"));
+    assert.ok(fx > 0 && fy < 0, `${etat} : la longueur du morceau ne fuit pas vers le haut et la droite`);
+    for (const f of dessus) { const [ax, ay] = fuite(f); assert.ok(Math.abs(ax - fx) < 0.02 && Math.abs(ay - fy) < 0.02, `${etat} : dessus de pain`); }
+    // Le témoin, lui, ne va pas jusqu'au bout du morceau : la rainure continue derrière lui.
+    const [tx] = fuite(trouverRole(v, "temoin-dessus"));
+    assert.ok(tx > 0 && tx < fx / 2, `${etat} : témoin aussi long que la rainure`);
+    fonds.push(points(trouverRole(v, "fond-rainure").attributs.d));
+  }
+  // Le même morceau dans les deux vignettes : le même fond de rainure, décalé d'une vignette à l'autre, au même niveau.
+  const decalage = fonds[1][0][0] - fonds[0][0][0];
+  fonds[0].forEach((q, i) => {
+    assert.ok(Math.abs(fonds[1][i][0] - q[0] - decalage) < 0.01 && Math.abs(fonds[1][i][1] - q[1]) < 0.01, "fond de la rainure différent d'une vignette à l'autre");
+  });
+});
+
+test("pneu : les noms désignent ce qu'ils nomment : « Sculptures » le dessus d'un pain, « Témoin d'usure » le dessus du témoin, hors de la cote", () => {
+  const d = famille.DESSINS.pneu();
+  for (const etat of ["juste", "faux"]) {
+    const v = trouverRole(d, `bande-${etat}`);
+    const sculptures = pointDe(trouverRole(v, "nom-sculptures")), temoin = pointDe(trouverRole(v, "nom-temoin"));
+    const dessus = trouverTous(v, (x) => x.attributs["data-r"] === "dessus-pain").map((f) => points(f.attributs.d));
+    assert.ok(dessus.some((poly) => dansPolygone([sculptures.x, sculptures.y], poly)), `${etat} : « Sculptures » hors du dessus des pains`);
+    assert.ok(dansPolygone([temoin.x, temoin.y], points(trouverRole(v, "temoin-dessus").attributs.d)), `${etat} : « Témoin d'usure » hors du dessus du témoin`);
+    // Le point ne couvre pas la cote : son liseré reste hors des traits de la cote.
+    for (const l of trouverTous(trouverRole(v, "cote"), (x) => x.balise === "line")) {
+      const [a, b] = [[nb(l, "x1"), nb(l, "y1")], [nb(l, "x2"), nb(l, "y2")]];
+      const t = Math.max(0, Math.min(1, ((temoin.x - a[0]) * (b[0] - a[0]) + (temoin.y - a[1]) * (b[1] - a[1])) / ((b[0] - a[0]) ** 2 + (b[1] - a[1]) ** 2 || 1)));
+      const ecart = Math.hypot(temoin.x - a[0] - t * (b[0] - a[0]), temoin.y - a[1] - t * (b[1] - a[1]));
+      assert.ok(ecart >= temoin.lisere, `${etat} : le point du témoin couvre la cote (${ecart.toFixed(2)} unité)`);
     }
   }
 });
@@ -415,7 +604,7 @@ test("pression : étiquette sur le montant de la portière conducteur et dans la
   const [x, y] = [nb(v, "data-x"), nb(v, "data-y")];
   const roueAvant = trouverRole(v, "roue-avant");
   assert.ok(nb(roueAvant, "data-x") < x, "avant à gauche : on voit le côté du conducteur");
-  const echelle = (x - nb(roueAvant, "data-x")) / (VOITURE.empattement - VOITURE.essieu);
+  const echelle = (x - nb(roueAvant, "data-x")) / VOITURE_PROFIL.essieuAvant;
   const r = reperesProfil({ x, y, echelle, sens: "gauche", trappeOuverte: true });
   assert.equal(trouverRole(v, "portiere-ouverte").attributs.display, "inline");
   assert.equal(trouverRole(v, "trappe-ouverte").attributs.display, "inline");
