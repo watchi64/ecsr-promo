@@ -9,8 +9,9 @@
  * pneu) et les places de la mise en page (colonnes, lignes d'étiquettes, ancres, marges) sont des constantes nommées ; les
  * points des étiquettes se déduisent des organes qu'ils désignent. La seule valeur réglementaire est la profondeur minimale
  * des sculptures, 1,6 mm, que marquent les témoins d'usure (TEMOIN_MM) ; les autres sont des choix de dessin, recopiés avec
- * leur raison dans sources/dessins-entretien.js. La voiture, de profil comme vue du dessus, est celle du kit. Titres et cadres
- * viennent du catalogue des blocs (js/catalogue-blocs.js), la seule source de ces métadonnées.
+ * leur raison dans sources/dessins-entretien.js. Style schématique (décision du formateur du 15/10/2026) : des aplats, deux ou
+ * trois tons par objet, aucun détail décoratif ; la voiture, de profil comme vue du dessus, est celle du kit, en silhouette.
+ * Titres et cadres viennent du catalogue des blocs (js/catalogue-blocs.js), la seule source de ces métadonnées.
  */
 import { n } from "./dessin-svg.js?v=20261022a";
 import { CHARTE, MATIERES, METRIQUES_POLICE, MISE_EN_PAGE, cadre, texte, etiquette, vignette, arrondir, arc, couper, trace, VOITURE,
@@ -67,8 +68,7 @@ function mettreEnGarde(noeud, lignes) {
 // c'est la même gomme).
 const TEINTES = {
   fond: MATIERES.compartiment, moteur: "#7A847D",
-  plastique: "#E3E8E1", plastiqueBord: "#A9B3A5", plastiqueReflet: "#F6F8F4",
-  bouchon: "#262B28", bouchonHaut: "#3D4440",
+  plastique: "#E3E8E1", plastiqueBord: "#A9B3A5", bouchon: "#262B28",
   batterie: "#5E6862", cosse: "#C5CAC4", cable: "#8E968F",
   lame: "#C3C9C4", lameBord: "#8E968F", huile: "#9A7234",
   liquide: "#C7D4A6", liquideSurface: CHARTE.accent, repere: CHARTE.texteDiscret, sol: CHARTE.texteDoux,
@@ -216,7 +216,8 @@ function capot() {
 
 // ===== Lire un niveau =====
 // Trois colonnes alignées sur une même base : la jauge d'huile (centimètres, tenue pointe en bas), un réservoir translucide
-// (centimètres), une petite voiture de profil (mètres, la voiture du kit) posée sur un sol plat ; une légende sous chacune.
+// (centimètres), une petite voiture de profil (mètres, la voiture du kit en silhouette) posée sur un sol plat ; une légende sous
+// chacune. Style schématique : des aplats, ni reflet, ni col, ni dessus de bouchon.
 const NIVEAUX = {
   base: 172,          // pointe de la jauge, fond du réservoir, sol
   legende: 187,       // ligne de base des légendes
@@ -230,11 +231,9 @@ const NIVEAUX = {
   },
   reservoir: {
     echelle: 6.8, largeur: 14, hauteur: 16, arrondi: 1.6,
-    // Col de remplissage et bouchon vissé dessus : il en couvre le haut, le col dépasse d'un liseré au-dessus du réservoir.
-    col: { largeur: 4.2, hauteur: 1.0 }, bouchon: { largeur: 5.6, hauteur: 2.0, bas: 0.45, arrondi: 0.6, dessus: 0.55 },
+    bouchon: { largeur: 5.6, hauteur: 2.0, arrondi: 0.6 },   // posé sur le haut du réservoir
     max: 11.5, min: 5.0, niveau: 8.0,        // hauteurs au-dessus du fond
     trait: { debut: 1.0, fin: 4.0 }, texte: 4.6,
-    reflet: { debut: 11.0, fin: 12.2, haut: 1.4, bas: 1.4, opacite: 0.7 },   // bande claire : le plastique est translucide
   },
   voiture: { echelle: 16, sol: 92 },         // unités par mètre ; longueur du sol dessiné
 };
@@ -286,11 +285,8 @@ function niveaux() {
   const yNiveau = vr([0, R.niveau])[1];
   const liquide = couper(corps, (p) => yNiveau - p[1]);
   const xg = vr([0, 0])[0], xd = vr([R.largeur, 0])[0];
-  const col = coins(...vr([(R.largeur - R.col.largeur) / 2, R.hauteur]), ...vr([(R.largeur + R.col.largeur) / 2, R.hauteur + R.col.hauteur]));
-  const B = R.bouchon, basBouchon = R.hauteur + B.bas;
-  const bouchon = rectArrondi(...vr([(R.largeur - B.largeur) / 2, basBouchon + B.hauteur]), ...vr([(R.largeur + B.largeur) / 2, basBouchon]), B.arrondi);
-  const dessusBouchon = rectArrondi(...vr([(R.largeur - B.largeur) / 2, basBouchon + B.hauteur]),
-    ...vr([(R.largeur + B.largeur) / 2, basBouchon + B.hauteur - B.dessus]), B.arrondi);
+  const B = R.bouchon;
+  const bouchon = rectArrondi(...vr([(R.largeur - B.largeur) / 2, R.hauteur + B.hauteur]), ...vr([(R.largeur + B.largeur) / 2, R.hauteur]), B.arrondi);
   const marque = (nom, h) => {
     const y = vr([0, h])[1];
     return n("g", { "data-r": `repere-${nom.toLowerCase()}`, "data-y": y },
@@ -298,24 +294,20 @@ function niveaux() {
         "stroke-linecap": "round" }),
       texte(vr([R.texte, 0])[0], y + MILIEU_CAPITALES * PETIT, nom, { taille: PETIT, graisse: 600, couleur: CHARTE.texteDoux }));
   };
-  const reflet = rectArrondi(...vr([R.reflet.debut, R.hauteur - R.reflet.haut]), ...vr([R.reflet.fin, R.reflet.bas]), (R.reflet.fin - R.reflet.debut) / 2 * R.echelle);
   const reservoir = n("g", { "data-r": "reservoir" },
-    forme(col, { fill: TEINTES.plastique, stroke: TEINTES.plastiqueBord, "stroke-width": fin }),
-    forme(bouchon, { fill: TEINTES.bouchon }),
-    forme(dessusBouchon, { fill: TEINTES.bouchonHaut }),
     forme(corps, { fill: TEINTES.plastique }),
     forme(liquide, { fill: TEINTES.liquide, "data-r": "liquide" }),
     n("line", { x1: xg, y1: yNiveau, x2: xd, y2: yNiveau, stroke: TEINTES.liquideSurface, "stroke-width": moyen, "data-r": "niveau", "data-y": yNiveau }),
-    forme(reflet, { fill: TEINTES.plastiqueReflet, opacity: R.reflet.opacite }),
     forme(corps, { fill: "none", stroke: TEINTES.plastiqueBord, "stroke-width": moyen }),
+    forme(bouchon, { fill: TEINTES.bouchon, "data-r": "bouchon" }),
     marque("MAX", R.max), marque("MIN", R.min));
 
-  // Voiture du kit, posée sur un sol horizontal.
+  // Voiture du kit en silhouette, posée sur un sol horizontal.
   const xv = milieu(2), demiSol = N.voiture.sol / 2;
   const voiture = [
     n("line", { x1: xv - demiSol, y1: N.base, x2: xv + demiSol, y2: N.base, stroke: TEINTES.sol, "stroke-width": moyen, "stroke-linecap": "round",
       "data-r": "sol" }),
-    voitureProfil({ x: xv, y: N.base, echelle: N.voiture.echelle })];
+    voitureProfil({ x: xv, y: N.base, echelle: N.voiture.echelle, schema: true })];
 
   const legende = (i, mots) => texte(milieu(i), N.legende, mots, { taille: MOYEN, ancrage: "middle", graisse: 500, couleur: CHARTE.texteDoux });
   return cadre({ largeur: L, hauteur: H, titre: CATALOGUE.niveaux.titre,
@@ -476,8 +468,9 @@ function pneu() {
 }
 
 // ===== La pression des pneus =====
-// La voiture du kit de profil, côté conducteur (son avant à gauche : sens « gauche » du kit), portière avant et trappe à
-// carburant ouvertes ; l'étiquette des pressions sur le montant découvert et dans la trappe, chacune entourée d'un cercle.
+// La voiture du kit de profil, en silhouette (option schema), côté conducteur (son avant à gauche : sens « gauche » du kit),
+// portière avant et trappe à carburant ouvertes ; l'étiquette des pressions sur le montant découvert et dans la trappe, chacune
+// entourée d'un cercle.
 const PRESSION = {
   echelle: 62,                 // unités par mètre : la plus grande voiture qui tient dans le cadre, marges comprises
   sol: 150,                    // ligne du sol
@@ -492,7 +485,7 @@ function pression() {
   const [L, H] = CATALOGUE.pression.cadre;
   const P = PRESSION, e = P.echelle, x = L / 2;
   const r = reperesProfil({ x, y: P.sol, echelle: e, sens: "gauche", trappeOuverte: true });
-  const voiture = voitureProfil({ x, y: P.sol, echelle: e, sens: "gauche", portiereOuverte: true, trappeOuverte: true });
+  const voiture = voitureProfil({ x, y: P.sol, echelle: e, sens: "gauche", portiereOuverte: true, trappeOuverte: true, schema: true });
   const autocollant = (role, [cx, cy], largeurM) => {
     const l = largeurM * e, h = P.etiquette.hauteur * e;
     return forme(rectArrondi(cx - l / 2, cy - h / 2, cx + l / 2, cy + h / 2, CHARTE.traits.fin),

@@ -286,6 +286,25 @@ test("niveaux : réservoir translucide, niveau strictement entre MIN et MAX ; vo
   assert.ok(textes(d).includes("Sol plat"));
 });
 
+// Style schématique : la voiture du kit en silhouette (ni passages de roue, ni phare, ni feu, ni poignée, ni rétroviseur, ni
+// siège) ; le réservoir en aplats, sans reflet ni col, le bouchon posé sur son haut.
+const DETAILS_PROFIL = /^(passage-|phare$|feu$|poignee-|retroviseur$|siege$|bas-de-caisse$)/;
+const detailsProfil = (v) => trouverTous(v, (x) => DETAILS_PROFIL.test(x.attributs["data-r"] || "")).map((x) => x.attributs["data-r"]);
+
+test("niveaux : en pictogramme, la voiture du kit en silhouette ; le réservoir sans reflet ni col, son bouchon posé dessus", () => {
+  const d = famille.DESSINS.niveaux();
+  assert.deepEqual(detailsProfil(trouverRole(d, "voiture-profil")), [], "détails de finition de la voiture");
+  const r = trouverRole(d, "reservoir");
+  assert.deepEqual(trouverTous(r, (x) => x.attributs.opacity !== undefined).length, 0, "forme translucide (reflet)");
+  const formes = trouverTous(r, (x) => x.balise === "path" || x.balise === "line");
+  assert.equal(formes.length, 5 + 2, `${formes.length} formes : corps, liquide, niveau, contour, bouchon, et les deux traits des repères`);
+  const bouchon = trouverRole(r, "bouchon"), liquide = trouverRole(r, "liquide");
+  const corps = formes.find((x) => x.attributs.fill === "none");
+  assert.ok(Math.abs(basDe(bouchon) - hautDe(corps)) < 0.01, `bouchon à ${(hautDe(corps) - basDe(bouchon)).toFixed(2)} du haut du réservoir`);
+  assert.ok(gaucheDe(bouchon) > gaucheDe(corps) && droiteDe(bouchon) < droiteDe(corps), "bouchon plus large que le réservoir");
+  assert.ok(hautDe(liquide) > hautDe(corps), "liquide au-dessus du réservoir");
+});
+
 // ----- Contrôler un pneu -----
 
 test("pneu : le témoin d'usure mesure 1,6 mm à l'échelle de la coupe, coté « 1,6 mm »", () => {
@@ -411,6 +430,20 @@ test("pression : étiquette sur le montant de la portière conducteur et dans la
     const [cx, cy] = cible(e);
     const ecart = Math.hypot(cx - nb(repere, "cx"), cy - nb(repere, "cy"));
     assert.ok(Math.abs(ecart - nb(repere, "r")) < 0.01, `${role} : le filet ne part pas du cercle`);
+  }
+});
+
+// Style schématique : la voiture du kit en silhouette ; chaque étiquette reste entière sur la pièce qu'elle désigne, le montant
+// découvert par la portière et la face intérieure de la trappe ouverte, toutes deux dessinées.
+test("pression : en pictogramme, la voiture du kit en silhouette ; chaque étiquette entière sur le montant et sur le volet de la trappe", () => {
+  const d = famille.DESSINS.pression();
+  const v = trouverRole(d, "voiture-profil");
+  assert.deepEqual(detailsProfil(v), [], "détails de finition de la voiture");
+  const montant = points(trouverRole(trouverRole(v, "portiere-ouverte"), "montant").attributs.d);
+  const volet = points(trouverRole(trouverRole(v, "trappe-ouverte"), "volet").attributs.d);
+  for (const [role, piece] of [["etiquette-montant", montant], ["etiquette-trappe", volet]]) {
+    const coinsEtiquette = points(trouverRole(d, role).attributs.d);
+    for (const p of coinsEtiquette) assert.ok(dansPolygone(p, piece), `${role} : point ${p} hors de sa pièce`);
   }
 });
 
