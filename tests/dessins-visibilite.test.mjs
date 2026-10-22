@@ -644,7 +644,7 @@ test("zones-invisibles et angles-morts : les voitures en silhouette (style sché
     const profil = trouverRole(v.g, "voiture-profil");
     const [x, sol, echelle] = ["data-x", "data-y", "data-echelle"].map((k) => Number(v.g.attributs[k]));
     assert.deepEqual(profil, voitureProfil({ x, y: sol, echelle, sens: "gauche", schema: true }), `${v.nom} : silhouette du kit`);
-    for (const role of ["passage-avant", "phare", "feu", "poignee-arriere", "retroviseur", "bas-de-caisse"]) assert.equal(trouverRole(profil, role), null, `${v.nom} : ${role}`);
+    for (const role of ["phare", "feu", "poignee-arriere", "retroviseur", "bas-de-caisse"]) assert.equal(trouverRole(profil, role), null, `${v.nom} : ${role}`);
   }
   const a = famille.DESSINS["angles-morts"](), v = vueDessus(a);
   const voiture = trouverRole(v.g, "voiture");

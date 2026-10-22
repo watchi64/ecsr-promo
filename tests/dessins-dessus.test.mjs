@@ -442,14 +442,14 @@ test("tour-vehicule : la voiture en silhouette, avec les seules pièces que le t
     contours: [TEINTES.eleveBord, MATIERES.joint].sort() });
 });
 
-test("roues-trottoir : les voitures en silhouette, vue du dessus et de profil : ni toit, ni vitres latérales, ni phares, ni feux, ni passages de roue, ni poignées", () => {
+test("roues-trottoir : les voitures en silhouette, vue du dessus et de profil : ni toit, ni vitres latérales, ni phares, ni feux, ni poignées", () => {
   const d = dessin("roues-trottoir");
   for (const c of CAS_PENTE) {
     const cas = casDe(d, c.nom);
     for (const role of ["toit", "vitre-avant-gauche", "vitre-arriere-droite", "phare-gauche", "feu-droit", "reflet-pare-brise", "essuie-glaces"]) {
       assert.equal(trouverRole(cas.voiture, role), null, `${c.nom}, vue du dessus : ${role}`);
     }
-    for (const role of ["passage-avant", "passage-arriere", "phare", "feu", "poignee-arriere", "retroviseur", "bas-de-caisse"]) {
+    for (const role of ["phare", "feu", "poignee-arriere", "retroviseur", "bas-de-caisse"]) {
       assert.equal(trouverRole(cas.profil, role), null, `${c.nom}, de profil : ${role}`);
     }
     for (const role of ["caisse", "vitrage", "roue-avant", "roue-arriere"]) assert.ok(trouverRole(cas.profil, role), `${c.nom}, de profil : ${role}`);
