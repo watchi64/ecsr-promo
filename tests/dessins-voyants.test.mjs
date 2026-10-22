@@ -316,3 +316,72 @@ test("autotest : l'intitulé modèle de la mise du contact ne dit pas « tous »
   assert.ok(allumes > 0 && allumes < planche, `${allumes} voyants allumés à la fin de l'étape 1, ${planche} sur la planche`);
   assert.doesNotMatch(CATALOGUE.autotest.etapesModele[0], /\btous\b/i);
 });
+
+// ----- Style schématique (décision du formateur du 15/10/2026 : « pictogramme plutôt qu'illustration ») -----
+// Les pictogrammes normalisés gardent leur forme exacte (tests ci-dessus) ; tout le reste est en aplats, sans bord ni relief.
+
+// Teintes peintes par les formes d'un nœud (textes exclus), « none » exclu.
+const teintesFormes = (noeud) => {
+  const vues = new Set();
+  for (const x of trouverTous(noeud, (y) => y.balise !== "text" && y.balise !== "g")) {
+    for (const k of ["fill", "stroke"]) if (x.attributs[k] !== undefined && x.attributs[k] !== "none") vues.add(x.attributs[k]);
+  }
+  return [...vues].sort();
+};
+
+test("voyants : chaque tuile est un seul aplat sombre, sans bord", () => {
+  const d = famille.DESSINS.voyants();
+  for (const nom of Object.keys(famille.COULEUR_DE)) {
+    const tuile = trouverRole(trouverRole(d, `voyant-${nom}`), "tuile");
+    assert.ok(tuile, `${nom} : tuile absente`);
+    assert.equal(tuile.attributs.fill, famille.TABLEAU.fond, nom);
+    assert.ok(tuile.attributs.stroke === undefined || tuile.attributs.stroke === "none", `${nom} : tuile bordée`);
+  }
+});
+
+// Lecture du cadran dans le dessin : centre (le moyeu), et angle (degrés depuis midi, sens horaire) d'un point vu du centre.
+function cadranDessine(image) {
+  const ct = trouverRole(image, "compte-tours"), moyeu = trouverRole(ct, "moyeu");
+  const centre = [Number(moyeu.attributs.cx), Number(moyeu.attributs.cy)];
+  const angle = ([x, y]) => (Math.atan2(x - centre[0], centre[1] - y) * 180) / Math.PI;
+  const graduations = trouverTous(ct, (x) => x.attributs["data-r"] === "graduation")
+    .map((g) => [Number(g.attributs.x2), Number(g.attributs.y2)]);
+  return { ct, centre, angle, graduations };
+}
+
+test("autotest : combiné en pictogramme : un aplat sans bord ; cadran réduit à son arc, un trait par 1 000 tr/min et l'aiguille, en deux tons", () => {
+  const image = imageFigee(geste(), 0);
+  const combine = trouverRole(image, "combine");
+  assert.equal(combine.attributs.fill, famille.TABLEAU.fond);
+  assert.ok(combine.attributs.stroke === undefined || combine.attributs.stroke === "none", "combiné bordé");
+  const { ct, centre, angle, graduations } = cadranDessine(image);
+  // Huit traits, de 0 à 7 000 tr/min, à pas égal sur 240 degrés, de 8 h à 4 h : ni sous-graduation, ni disque de cadran.
+  assert.equal(graduations.length, 8, `${graduations.length} graduations`);
+  const angles = graduations.map(angle);
+  angles.forEach((a, i) => assert.ok(Math.abs(a - (-120 + (240 * i) / 7)) < 0.01, `graduation ${i} à ${a.toFixed(2)} degrés`));
+  assert.deepEqual(trouverTous(ct, (x) => x.balise === "circle").map((c) => c.attributs["data-r"]), ["moyeu"], "un seul disque : le moyeu");
+  // L'arc va de la première graduation à la dernière, par le haut.
+  const arc = trouverRole(ct, "arc-cadran");
+  const nombres = String(arc.attributs.d).match(/-?\d+(?:\.\d+)?/g).map(Number);
+  const [debut, fin] = [nombres.slice(0, 2), nombres.slice(-2)];
+  const pres = (p, q) => Math.hypot(p[0] - q[0], p[1] - q[1]) < 0.01;
+  assert.ok(pres(debut, graduations[0]) && pres(fin, graduations[7]), "l'arc ne joint pas 0 à 7 000 tr/min");
+  assert.match(String(arc.attributs.d), / 0 1 1 /, "l'arc passe par le haut (grand arc, sens horaire)");
+  assert.deepEqual(teintesFormes(ct), [famille.TABLEAU.aiguille, famille.TABLEAU.graduation].sort(), "deux tons");
+  assert.ok(Math.hypot(centre[0] - Number(trouverRole(ct, "aiguille").attributs.x1), centre[1] - Number(trouverRole(ct, "aiguille").attributs.y1)) < 0.01,
+    "l'aiguille part du moyeu, sans queue");
+});
+
+test("autotest : à chaque image, l'aiguille lue dans le dessin part du moyeu et montre le régime de l'état sur l'échelle des graduations", () => {
+  const def = geste();
+  echantillonner(def, (t, e) => {
+    const image = imageA(def, t, false);
+    const { ct, centre, angle, graduations } = cadranDessine(image);
+    const [a0, a7] = [angle(graduations[0]), angle(graduations[7])];
+    const aiguille = trouverRole(ct, "aiguille").attributs;
+    assert.ok(Math.hypot(Number(aiguille.x1) - centre[0], Number(aiguille.y1) - centre[1]) < 0.01, `${t.toFixed(3)} s : aiguille hors du moyeu`);
+    const lu = angle([Number(aiguille.x2), Number(aiguille.y2)]), attendu = a0 + ((a7 - a0) * e.regime) / 7000;
+    assert.ok(Math.abs(lu - attendu) < 0.01, `${t.toFixed(3)} s : aiguille à ${lu.toFixed(2)} degrés pour ${attendu.toFixed(2)} (${e.regime.toFixed(0)} tr/min)`);
+    assert.deepEqual([Number(aiguille["data-x"]), Number(aiguille["data-y"])], [Number(aiguille.x2), Number(aiguille.y2)], "point suivi : la pointe");
+  });
+});

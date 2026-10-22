@@ -13,13 +13,15 @@
  *
  * Style schématique (décision du formateur du 15/10/2026, essayé d'abord sur C1.3) : les dessins de C1.3 ne dessinent aucune
  * main ; chaque main est un repère, un disque marqué « G » ou « D » posé sur la jante (repereMain), et le volant comme la
- * voiture sont des silhouettes à plat. Les dessins de C1.1 et de C1.2 gardent le leur jusqu'à ce que l'essai soit validé.
+ * voiture sont des silhouettes à plat. L'essai validé (22/10/2026), le style s'étend aux dessins de C1.1 et de C1.2 : volant à plat
+ * et commandes en formes simples (poste-commandes), pédales en aplats et pieds en pictogrammes (pedales). Le repère d'une main est
+ * la pièce du kit (disqueMain), commune à la famille « conducteur ».
  */
-import { n } from "./dessin-svg.js?v=20261022a";
-import { CHARTE, COULEURS_VOYANTS, METRIQUES_POLICE, cadre, texte, etiquette, fleche, arc, voitureDessus, coord, point as pt, trace }
-  from "./dessins-kit.js?v=20261022a";
-import { CATALOGUE } from "./catalogue-blocs.js?v=20261022a";
-import { interpoler, cles } from "./animation-courbes.js?v=20261022a";
+import { n } from "./dessin-svg.js?v=20261022b";
+import { CHARTE, COULEURS_VOYANTS, METRIQUES_POLICE, cadre, texte, etiquette, fleche, arc, voitureDessus, coord, point as pt, trace,
+  disqueMain, gelule, formePictogramme } from "./dessins-kit.js?v=20261022b";
+import { CATALOGUE } from "./catalogue-blocs.js?v=20261022b";
+import { cles } from "./animation-courbes.js?v=20261022b";
 
 // ===== Teintes de l'habitacle (choix de dessin) =====
 // Tons neutres (spec § 3) : plastique sombre des commandes en trois tons (base, reflet, ombre), planche claire, symboles clairs
@@ -43,25 +45,6 @@ const normale = ([x, y]) => [-y, x];
 const PAS_HEURE = Math.PI / 6;           // une heure du cadran, en radians
 const HEURES_PAR_TOUR = 12;
 const DEGRES_PAR_HEURE = 30;
-
-// Courbe lisse qui passe par chaque point (Catmull-Rom uniforme), en segments de Bézier cubiques [départ, contrôle,
-// contrôle, arrivée] ; fermée, elle revient au premier point.
-const TENSION = 6;   // 1/6 de la corde entre voisins : la tangente de Catmull-Rom uniforme
-function segmentsLisses(points, ferme) {
-  const m = points.length;
-  const p = (i) => (ferme ? points[(i + m) % m] : points[Math.max(0, Math.min(m - 1, i))]);
-  const segments = [];
-  for (let i = 0; i < (ferme ? m : m - 1); i++) {
-    const [p0, p1, p2, p3] = [p(i - 1), p(i), p(i + 1), p(i + 2)];
-    segments.push([p1, plus(p1, fois(moins(p2, p0), 1 / TENSION)), moins(p2, fois(moins(p3, p1), 1 / TENSION)), p2]);
-  }
-  return segments;
-}
-const traceSegments = (segments) => segments.map((s) => `C${pt(s[1])} ${pt(s[2])} ${pt(s[3])}`).join(" ");
-function cheminLisse(points, ferme = true) {
-  const segments = segmentsLisses(points, ferme);
-  return `M${pt(points[0])} ${traceSegments(segments)}${ferme ? " Z" : ""}`;
-}
 
 // Quadrilatère d'une tige, de `a` à `b`, de largeurs la et lb (commodos, fente de la clé).
 function troncon(a, b, la, lb) {
@@ -169,15 +152,14 @@ function pictoAvertisseur(cx, cy, longueur, fond) {
 // clair, la lettre du ton de l'anneau) : la main a relâché la jante, la jante glisse dessous, ou la main se déplace hors d'elle.
 // Un liseré clair borde chaque disque : il le détache de la jante sombre, et de l'autre repère quand l'un passe sur l'autre.
 // Le ton sombre de la peau (CHARTE.peauOmbre) porte la lettre claire à un contraste de 5:1 (4,5:1 exigé pour un texte de cette
-// taille), le ton clair (CHARTE.peau) ne la porterait qu'à 3,5:1.
+// taille), le ton clair (CHARTE.peau) ne la porterait qu'à 3,5:1. Le disque, son liseré, son anneau et sa lettre sont la pièce du
+// kit (disqueMain, Outfit 700, la graisse la plus forte de l'app), commune à tous les repères de main ; ses mesures sur le volant :
 const REPERE = {
   rayon: 10.5,                    // unités : 22,5 px de large sur un téléphone (343 px pour 320 unités)
   lettre: 12,                     // unités : 12,9 px sur un téléphone, au-dessus des 11 px de la charte
-  graisse: 700,                   // la plus forte d'Outfit dans l'app
   anneau: CHARTE.traits.appuye,   // trait de l'anneau du repère creux
 };
-const LETTRES = { gauche: "G", droite: "D" };
-const COTES = Object.keys(LETTRES);
+const COTES = ["gauche", "droite"];
 /** Prises d'une main : 1, elle tient la jante ; `glisse`, la jante glisse dans ses doigts entrouverts ; 0, elle l'a lâchée. */
 const PRISE = Object.freeze({ tient: 1, glisse: 0.5, lachee: 0 });
 // Remplissage d'un repère, de 0 (creux) à 1 (plein) : plein quand la main tient la jante, creux dès qu'elle la laisse glisser ;
@@ -188,11 +170,6 @@ const remplissage = (prise) => {
   const v = Math.min(1, Math.max(0, (prise - PRISE.glisse) / (PRISE.tient - PRISE.glisse)));
   return v * v * (3 - 2 * v);
 };
-// Teinte à la part t du chemin de la couleur a à la couleur b (#RRGGBB, composantes arrondies à l'entier) : a à 0, b à 1.
-function teinteEntre(a, b, t) {
-  const composante = (hex, i) => parseInt(hex.slice(1 + 2 * i, 3 + 2 * i), 16);
-  return `#${[0, 1, 2].map((i) => Math.round(interpoler(composante(a, i), composante(b, i), t)).toString(16).padStart(2, "0")).join("").toUpperCase()}`;
-}
 
 function connu(valeur, permises, quoi) {
   if (!permises.includes(valeur)) throw new Error(`Repère : ${quoi} « ${valeur} » inconnu : ${permises.map((v) => `« ${v} »`).join(", ")} attendu.`);
@@ -211,18 +188,10 @@ export function repereMain({ cx, cy, rayon, heure, cote, prise = PRISE.tient, de
   if (!(prise >= PRISE.lachee && prise <= PRISE.tient)) throw new Error(`Repère : prise « ${prise} » hors de 0 à 1.`);
   if (!(decalage >= 0 && decalage <= rayon)) throw new Error(`Repère : décalage « ${decalage} » hors de 0 au rayon du volant.`);
   const [x, y] = pointHeure(cx, cy, rayon - decalage, heure);
-  const f = remplissage(prise), R = REPERE;
   // Pendant le fondu, le disque passe par des teintes mêlées : la lettre garde une des deux teintes pures, claire sur la moitié
   // pleine du fondu, sombre sur la moitié creuse, et s'efface au milieu (opacité |2f - 1|), là où elle change de teinte : elle
   // ne se pose jamais sur un disque de sa propre teinte (à demi visible, elle y garde un contraste de 3:1 au moins).
-  return n("g", { "data-r": `main-${cote}`, "data-x": x, "data-y": y, "data-heure": heure, "data-prise": prise },
-    n("circle", { cx: x, cy: y, r: R.rayon + CHARTE.liseres, fill: CHARTE.carte, "data-r": `liseret-${cote}` }),
-    n("circle", { cx: x, cy: y, r: R.rayon, fill: teinteEntre(CHARTE.carte, CHARTE.peauOmbre, f), "data-r": `disque-${cote}` }),
-    n("circle", { cx: x, cy: y, r: R.rayon - R.anneau / 2, fill: "none", stroke: CHARTE.peauOmbre, "stroke-width": R.anneau,
-      "data-r": `anneau-${cote}` }),
-    n("g", { opacity: Math.abs(2 * f - 1), "data-r": `lettre-fondu-${cote}` },
-      texte(x, y + METRIQUES_POLICE.milieuCapitales * R.lettre, LETTRES[cote], { taille: R.lettre, ancrage: "middle", graisse: R.graisse,
-        couleur: f >= 1 / 2 ? CHARTE.carte : CHARTE.peauOmbre, role: `lettre-${cote}` })));
+  return disqueMain({ x, y, cote, plein: remplissage(prise), ...REPERE, attributs: { "data-heure": heure, "data-prise": prise } });
 }
 
 // ===== Dessin 1 : tenir le volant (C1.3) =====
@@ -374,7 +343,9 @@ function boiteDe(points) {
 // des feux de détresse, puis les commandes de ventilation, de désembuage et de climatisation ; entre les sièges, le frein de
 // stationnement. Plan schématique : le volant, sa colonne, ses commodos et le contacteur sont à l'échelle (2,6 unités par
 // centimètre) ; la console centrale est placée à sa place relative courante, ses commandes à la taille qui garde leurs
-// pictogrammes lisibles sur un téléphone.
+// pictogrammes lisibles sur un téléphone. Style schématique (décision du formateur du 15/10/2026) : volant à plat ; commodo en
+// une seule forme, une tige qui s'épaissit vers son bout ; contacteur en collerette et fente ; levier du frein sans bouton ;
+// les pictogrammes normalisés des commandes gardent leur forme exacte.
 const POSTE = {
   echelle: 2.6,
   volant: { cx: 96, cy: 116 },
@@ -383,10 +354,12 @@ const POSTE = {
   // Colonne de direction (son carénage, derrière le volant), en centimètres depuis le centre du volant.
   colonne: { largeur: 13, haut: -4, bas: 11.5, rayon: 3 },
   // Commodo gauche (le droit en miroir), en centimètres depuis le centre du volant : du carénage au bout, à 29,2 cm du
-  // centre et 2,2 cm au-dessus, soit 9,1 cm au-delà du bord de la jante ; tige, bague au bout (commande tournante), rainures.
-  commodo: { base: [-7, 0], bout: [-29.2, -2.2], tige: 2.0, bague: 2.8, longueurBague: 5.0, rainures: [0.3, 0.7] },
-  // Contacteur à droite de la colonne, vu par l'ouverture du volant entre 3 h et 6 h : centre, collerette, cœur, fente.
-  contacteur: { centre: [6.6, 7.6], rayon: 2.5, coeur: 1.6, fente: 2.3, largeurFente: 0.55, angleFente: -30 },
+  // centre et 2,2 cm au-dessus, soit 9,1 cm au-delà du bord de la jante ; une tige de 2 cm qui s'épaissit jusqu'à 2,8 cm à son
+  // bout (la commande tournante, que désigne l'étiquette sur ses derniers 5 cm).
+  commodo: { base: [-7, 0], bout: [-29.2, -2.2], tige: 2.0, epaisseurBout: 2.8, longueurBout: 5.0 },
+  // Contacteur à droite de la colonne, vu par l'ouverture du volant entre 3 h et 6 h : centre, collerette, place du point de son
+  // étiquette (entre la fente et le bord, à cette distance du centre), fente.
+  contacteur: { centre: [6.6, 7.6], rayon: 2.5, cible: 2.05, fente: 2.3, largeurFente: 0.55, angleFente: -30 },
   boutons: { x: 208, largeur: 30, hauteur: 19, rayon: 4, picto: 16, cible: 2.5 },
   detresse: { y: 62, picto: 13 },
   ventilation: { y: 93, rayon: 11.5, picto: 16 },
@@ -395,7 +368,7 @@ const POSTE = {
   // Frein de stationnement (levier, vu d'au-dessus), entre les sièges.
   // Levier entre les sièges, vu d'au-dessus : son bout avant (vers la planche, en haut) porte la poignée et le bouton de
   // déverrouillage ; son pivot, sous le soufflet, est à l'arrière (vers le siège, en bas).
-  frein: { x: 208, avant: 192, arriere: 233, largeur: 6, poignee: 22, largeurPoignee: 8, bouton: 2.6, cible: 2,
+  frein: { x: 208, avant: 192, arriere: 233, largeur: 6, poignee: 22, largeurPoignee: 8, cible: 2,
     soufflet: { largeur: 14, hauteur: 9 } },
   etiquettes: { taille: 11, colonneDroite: 230, commodoGauche: [40, 44], commodoDroit: [140, 44], avertisseur: [40, 192],
     contacteur: [128, 192], mention: [8, 232], ciblePosteVolant: 0.55 },
@@ -419,31 +392,24 @@ function posteCommandes() {
   const colonne = n("rect", { x: cx - (col.largeur * k) / 2, y: cy + col.haut * k, width: col.largeur * k, height: (col.bas - col.haut) * k, rx: col.rayon * k,
     fill: TEINTES.colonne, "data-r": "colonne" });
 
-  // Commodos : tige, bague et rainures ; la boîte de l'élément est celle de la bague, ce que l'étiquette désigne.
+  // Commodos : une gélule, de la tige au bout épaissi ; la boîte de l'élément est celle de son bout (ses derniers centimètres),
+  // ce que l'étiquette désigne.
   const commodo = (cote) => {
     const c = p.commodo, sym = cote === "gauche" ? (q) => q : miroir;
     const [base, bout] = [cm(sym(c.base)), cm(sym(c.bout))];
-    const axe = unitaire(moins(bout, base));
-    const debutBague = moins(bout, fois(axe, c.longueurBague * k));
-    const bague = troncon(debutBague, bout, c.bague * k, c.bague * k);
-    const rainures = c.rainures.map((f) => {
-      const centre = plus(debutBague, fois(axe, f * c.longueurBague * k)), nrm = normale(axe);
-      return `M${pt(plus(centre, fois(nrm, (c.bague * k) / 2)))} L${pt(plus(centre, fois(nrm, (-c.bague * k) / 2)))}`;
-    }).join(" ");
-    return n("g", { "data-r": `commodo-${cote}`, ...boiteDe(bague) },
-      n("path", { d: trace(troncon(base, debutBague, c.tige * k, c.tige * k)), fill: TEINTES.colonne }),
-      n("path", { d: trace(bague), fill: TEINTES.commande, stroke: TEINTES.commande, "stroke-width": CHARTE.traits.fin, "stroke-linejoin": "round" }),
-      n("path", { d: rainures, fill: "none", stroke: TEINTES.commandeReflet, "stroke-width": CHARTE.traits.fin }));
+    const axe = unitaire(moins(bout, base)), rBout = (c.epaisseurBout * k) / 2;
+    const debutBout = moins(bout, fois(axe, c.longueurBout * k));
+    return n("g", { "data-r": `commodo-${cote}`, ...boiteDe(troncon(debutBout, bout, 2 * rBout, 2 * rBout)) },
+      n("path", { d: gelule(base, (c.tige * k) / 2, moins(bout, fois(axe, rBout)), rBout), fill: TEINTES.commande, "data-r": "levier" }));
   };
 
-  // Contacteur : collerette métallique, cœur sombre, fente de la clé.
+  // Contacteur : collerette métallique, fente de la clé, sombre.
   const ct = p.contacteur, [kx, ky] = cm(ct.centre);
   const fente = troncon(...[-1, 1].map((s) => [kx + s * Math.cos((ct.angleFente * Math.PI) / 180) * (ct.fente * k) / 2,
     ky + s * Math.sin((ct.angleFente * Math.PI) / 180) * (ct.fente * k) / 2]), ct.largeurFente * k, ct.largeurFente * k);
   const contacteur = n("g", { "data-r": "contacteur", ...boite(kx, ky, 2 * ct.rayon * k, 2 * ct.rayon * k) },
     n("circle", { cx: kx, cy: ky, r: ct.rayon * k, fill: TEINTES.metal }),
-    n("circle", { cx: kx, cy: ky, r: ct.coeur * k, fill: TEINTES.commande }),
-    n("path", { d: trace(fente), fill: TEINTES.metal, "data-r": "fente", "data-epaisseur": ct.largeurFente * k,
+    n("path", { d: trace(fente), fill: TEINTES.commande, "data-r": "fente", "data-epaisseur": ct.largeurFente * k,
       "data-x1": (fente[0][0] + fente[3][0]) / 2, "data-y1": (fente[0][1] + fente[3][1]) / 2,
       "data-x2": (fente[1][0] + fente[2][0]) / 2, "data-y2": (fente[1][1] + fente[2][1]) / 2 }));
 
@@ -459,15 +425,15 @@ function posteCommandes() {
     bouton(p.desembuage.avant, "desembuage-avant", pictoPareBrise(b.x, p.desembuage.avant, b.picto)),
     bouton(p.desembuage.arriere, "desembuage-arriere", pictoLunette(b.x, p.desembuage.arriere, b.picto)));
 
-  // Frein de stationnement : soufflet du pivot à l'arrière, levier, poignée et bouton de déverrouillage à l'avant.
+  // Frein de stationnement : soufflet du pivot à l'arrière, levier, poignée à l'avant (le bouton de déverrouillage, un détail, ne
+  // se dessine pas).
   const f = p.frein;
   const frein = n("g", { "data-r": "frein-stationnement", ...boite(f.x, (f.avant + f.arriere) / 2, f.largeurPoignee, f.arriere - f.avant) },
     n("rect", { x: f.x - f.soufflet.largeur / 2, y: f.arriere - f.soufflet.hauteur / 2, width: f.soufflet.largeur, height: f.soufflet.hauteur,
       rx: f.soufflet.hauteur / 2, fill: TEINTES.commandeOmbre, "data-r": "soufflet" }),
     n("rect", { x: f.x - f.largeur / 2, y: f.avant, width: f.largeur, height: f.arriere - f.avant, rx: f.largeur / 2, fill: TEINTES.commande }),
     n("rect", { x: f.x - f.largeurPoignee / 2, y: f.avant, width: f.largeurPoignee, height: f.poignee, rx: f.largeurPoignee / 2, fill: TEINTES.commandeReflet,
-      "data-r": "poignee" }),
-    n("circle", { cx: f.x, cy: f.avant + f.largeurPoignee / 2, r: f.bouton, fill: TEINTES.metal, "data-r": "bouton-deverrouillage" }));
+      "data-r": "poignee" }));
 
   // Étiquettes : les mots du cours ; à droite de la console, en colonne ; les autres au-dessus ou au-dessous de leur commande.
   const e = p.etiquettes, droite = e.colonneDroite;
@@ -484,7 +450,7 @@ function posteCommandes() {
     lab("commodo-gauche", centreBague("commodo-gauche"), e.commodoGauche, ["Feux et", "clignotants"], "middle"),
     lab("commodo-droit", centreBague("commodo-droit"), e.commodoDroit, ["Essuie-glaces", "et lave-glace"], "middle"),
     lab("avertisseur", cibleAvertisseur, e.avertisseur, ["Avertisseur"], "middle"),
-    lab("contacteur", plus([kx, ky], fois(unitaire(moins(e.contacteur, [kx, ky])), ((ct.rayon + ct.coeur) / 2) * k)), e.contacteur, ["Contacteur"], "middle"),
+    lab("contacteur", plus([kx, ky], fois(unitaire(moins(e.contacteur, [kx, ky])), ct.cible * k)), e.contacteur, ["Contacteur"], "middle"),
     lab("feux-detresse", [bordBouton, p.detresse.y], [droite, p.detresse.y], ["Feux de", "détresse"]),
     lab("ventilation", pointHeure(b.x, v.y, v.rayon - b.cible, heureEntrePales), [droite, v.y], ["Ventilation"]),
     n("g", { "data-r": "etiquette-desembuage" },
@@ -497,7 +463,7 @@ function posteCommandes() {
   return cadre({ largeur: L, hauteur: H, titre: CATALOGUE[code].titre,
     description: "Vu du siège, disposition la plus courante : le commodo gauche commande les feux et les clignotants, le droit les essuie-glaces et le lave-glace ; l'avertisseur est au centre du volant, le contacteur à droite de la colonne ; au centre de la planche, les feux de détresse, la ventilation, le désembuage et la climatisation ; entre les sièges, le frein de stationnement." },
   planche, colonne, commodos["commodo-gauche"], commodos["commodo-droit"], contacteur,
-  volant({ cx, cy, rayon, avertisseur: true }),
+  volant({ cx, cy, rayon, avertisseur: true, schema: true }),
   bouton(p.detresse.y, "feux-detresse", pictoDetresse(b.x, p.detresse.y, p.detresse.picto)),
   ventilation, desembuage,
   bouton(p.climatisation.y, "climatisation", pictoFlocon(b.x, p.climatisation.y, p.climatisation.picto)),
@@ -510,39 +476,34 @@ function posteCommandes() {
 // Le pédalier vu du siège : de gauche à droite l'embrayage, le frein, l'accélérateur, suspendus (leurs bras montent sous la
 // planche, hors du cadre). Pied gauche sur l'embrayage, pied droit sur le frein, son talon posé entre le frein et
 // l'accélérateur, d'où il pivote vers l'accélérateur (flèche). Échelle : 3,2 unités par centimètre. Mesures en centimètres
-// depuis le centre de l'embrayage (x vers la droite) et le haut du cadre (y vers le bas, vers le siège).
+// depuis le centre de l'embrayage (x vers la droite) et le haut du cadre (y vers le bas, vers le siège). Style schématique
+// (décision du formateur du 15/10/2026) : pédales en aplats, sans rainures ; pieds en pictogrammes, de la teinte des personnes
+// du kit (SILHOUETTE), une gélule plus large au bout qu'au talon, bordée d'un liseré clair, sans lacets ni reflet.
 const PEDALES = {
   echelle: 3.2, origine: [112, 8],
   // Centre des patins, largeur et hauteur ; l'accélérateur, plus étroit et plus long, descend un peu plus bas.
   embrayage: { x: 0, y: 19.5, largeur: 7, hauteur: 6.5 },
   frein: { x: 16, y: 19.5, largeur: 8, hauteur: 6.5 },
   accelerateur: { x: 30, y: 21, largeur: 5, hauteur: 11 },
-  bras: 1.6, rainures: 3, rayonPatin: 1.1,
-  // Chaussures : le bout à mi-hauteur du patin (le haut du patin reste visible), le talon au sol ; longueur vue du siège
-  // (inclinée du talon au patin, une chaussure paraît plus courte qu'à plat), largeur au plus large ; appui : là où la
-  // semelle presse le patin, 1,5 cm derrière le bout.
-  // Inclinaison de chaque chaussure (degrés, du bout vers le talon, comptée vers la droite) : le talon gauche un peu à
+  bras: 1.6, rayonPatin: 1.1,
+  // Pieds : le bout à mi-hauteur du patin (le haut du patin reste visible), le talon au sol ; longueur vue du siège
+  // (inclinée du talon au patin, une chaussure paraît plus courte qu'à plat), largeur au bout (10 cm) et au talon (8 cm) ;
+  // appui : là où la semelle presse le patin, 1,5 cm derrière le bout.
+  // Inclinaison de chaque pied (degrés, du bout vers le talon, comptée vers la droite) : le talon gauche un peu à
   // l'extérieur, le talon droit posé entre le frein et l'accélérateur (à 21,5 cm de l'embrayage), d'où le pied pivote.
-  chaussure: { longueur: 25, largeur: 10, semelle: 0.5, appui: 1.5 },
+  chaussure: { longueur: 25, largeur: 10, talon: 8, appui: 1.5 },
   inclinaison: { gauche: -2.3, droit: 12.7 },
   // Flèche du pied droit : un arc centré sur le talon droit, du frein vers l'accélérateur ; elle part à côté du bras du
   // frein et finit à côté de celui de l'accélérateur, au-dessus de son patin, son axe à 1,4 cm de chacun (son liseré, de
   // 0,8 cm de demi-largeur, ne les touche pas).
   pivot: { jeu: 1.4 },
-  // Étiquettes : taille, écart (cm) entre l'objet et le bout du filet, ancre de « Frein » (cm), point de la chaussure désigné,
-  // ligne de base de la règle du cours au-dessus du bas du cadre (unités).
+  // Étiquettes : taille, écart (cm) entre l'objet et le bout du filet, ancre de « Frein » (cm), point du pied désigné (en
+  // largeurs, côté extérieur, et en longueurs, depuis le bout), ligne de base de la règle du cours au-dessus du bas du cadre
+  // (unités).
   etiquettes: { taille: 11, ecart: 2.4, frein: [8.5, 9.0], cibleChaussure: [0.3, 0.55], regleBas: 16 },
 };
-const CHAUSSURE = { dessus: "#3A4540", semelle: "#232A26", reflet: "#5A675F", lacets: "#6E7B72" };
-const PEDALIER = { patin: "#2B322E", rainure: "#4C5852", bras: "#6E7A70" };
-
-// Contour d'une chaussure vue de dessus, bout vers le haut, en fractions de sa longueur (y, du bout au talon) et de sa largeur
-// (x, positif côté extérieur du pied) : le bord intérieur, côté du gros orteil, est le plus droit. Puis les lacets (quatre
-// traits clairs en travers, au milieu) et le reflet du bout.
-const SEMELLE = [[0.05, 0], [0.4, 0.05], [0.5, 0.2], [0.43, 0.42], [0.36, 0.62], [0.38, 0.82], [0.24, 0.97], [0, 1],
-  [-0.24, 0.97], [-0.36, 0.82], [-0.33, 0.62], [-0.45, 0.4], [-0.47, 0.2], [-0.34, 0.05]];
-const LACETS = { debut: 0.3, fin: 0.6, nombre: 4, largeur: 0.34 };
-const REFLET_BOUT = [[0.32, 0.1], [0.1, 0.05], [-0.15, 0.07]];
+// Pédalier : le bras (métal) et le patin (sombre), deux tons.
+const PEDALIER = { patin: "#2B322E", bras: "#6E7A70" };
 
 function pedales() {
   const code = "pedales";
@@ -556,43 +517,33 @@ function pedales() {
     return [q.x + p.chaussure.longueur * Math.sin(a), q.y + p.chaussure.longueur * Math.cos(a)];
   };
 
-  // Une pédale : bras qui monte sous la planche, patin et ses rainures ; la boîte de l'élément est celle du patin.
+  // Une pédale : bras qui monte sous la planche, patin ; la boîte de l'élément est celle du patin.
   const pedale = (role) => {
     const q = p[role], [x, y] = cm([q.x, q.y]), [l, h] = [q.largeur * k, q.hauteur * k];
-    const rainures = Array.from({ length: p.rainures }, (_, i) => {
-      const yy = y - h / 2 + ((i + 1) * h) / (p.rainures + 1);
-      return `M${pt([x - l / 2 + p.rayonPatin * k, yy])} L${pt([x + l / 2 - p.rayonPatin * k, yy])}`;
-    }).join(" ");
     return n("g", { "data-r": role, ...boite(x, y, l, h) },
       n("rect", { x: x - (p.bras * k) / 2, y: 0, width: p.bras * k, height: y, fill: PEDALIER.bras, "data-r": "bras" }),
-      n("rect", { x: x - l / 2, y: y - h / 2, width: l, height: h, rx: p.rayonPatin * k, fill: PEDALIER.patin, "data-r": "patin" }),
-      n("path", { d: rainures, fill: "none", stroke: PEDALIER.rainure, "stroke-width": CHARTE.traits.fin, "stroke-linecap": "round" }));
+      n("rect", { x: x - l / 2, y: y - h / 2, width: l, height: h, rx: p.rayonPatin * k, fill: PEDALIER.patin, "data-r": "patin" }));
   };
 
-  // Un pied : la chaussure, de son bout posé sur le patin à son talon au sol. Point de référence (data-x, data-y) : l'appui de
-  // la semelle sur le patin ; `cible` : un point de la chaussure, côté extérieur, que désigne son étiquette.
+  // Un pied en pictogramme : une gélule, de son bout posé sur le patin (le disque du bout le touche) à son talon au sol, plus
+  // large au bout qu'au talon, bordée d'un liseré clair (pièce du kit). Point de référence (data-x, data-y) : l'appui de la
+  // semelle sur le patin ; `cible` : un point du pied, côté extérieur, que désigne son étiquette ; `bords` : ses abscisses
+  // extrêmes (unités du cadre).
   const pied = (cote, pedaleSous) => {
     const c = p.chaussure, q = p[pedaleSous], sens = cote === "gauche" ? 1 : -1;   // côté extérieur : à gauche pour le pied gauche
     const bout = [q.x, q.y], talon = talonDe(cote);
     const axe = unitaire(moins(talon, bout)), nrm = normale(axe);
     const longueurAxe = longueur(moins(talon, bout));
-    // Repère de la chaussure (fx en largeurs, côté extérieur positif ; fy en longueurs, du bout au talon) vers le cadre.
+    // Repère du pied (fx en largeurs, côté extérieur positif ; fy en longueurs, du bout au talon) vers le cadre.
     const versCadre = ([fx, fy]) => cm(plus(plus(bout, fois(axe, fy * longueurAxe)), fois(nrm, sens * fx * c.largeur)));
-    const dessus = SEMELLE.map(versCadre);
-    const marge = c.semelle / c.largeur, margeL = c.semelle / longueurAxe;
-    const semelle = SEMELLE.map(([fx, fy]) => versCadre([fx * (1 + 2 * marge), fy * (1 + 2 * margeL) - margeL]));
-    const lacets = Array.from({ length: LACETS.nombre }, (_, i) => {
-      const fy = LACETS.debut + ((LACETS.fin - LACETS.debut) * i) / (LACETS.nombre - 1);
-      return `M${pt(versCadre([-LACETS.largeur / 2, fy]))} L${pt(versCadre([LACETS.largeur / 2, fy]))}`;
-    }).join(" ");
+    const [rBout, rTalon] = [c.largeur / 2, c.talon / 2];
+    const [centreBout, centreTalon] = [cm(plus(bout, fois(axe, rBout))), cm(moins(talon, fois(axe, rTalon)))];
     const appui = cm(plus(bout, fois(axe, c.appui)));
+    const xs = [centreBout[0] - rBout * k, centreBout[0] + rBout * k, centreTalon[0] - rTalon * k, centreTalon[0] + rTalon * k];
     return {
-      cible: versCadre(p.etiquettes.cibleChaussure), contour: dessus,
+      cible: versCadre(p.etiquettes.cibleChaussure), bords: [Math.min(...xs), Math.max(...xs)],
       noeud: n("g", { "data-r": `pied-${cote}`, "data-x": appui[0], "data-y": appui[1] },
-        n("path", { d: cheminLisse(semelle), fill: CHAUSSURE.semelle }),
-        n("path", { d: cheminLisse(dessus), fill: CHAUSSURE.dessus }),
-        n("path", { d: lacets, fill: "none", stroke: CHAUSSURE.lacets, "stroke-width": CHARTE.traits.moyen, "stroke-linecap": "round" }),
-        n("path", { d: cheminLisse(REFLET_BOUT.map(versCadre), false), fill: "none", stroke: CHAUSSURE.reflet, "stroke-width": CHARTE.traits.moyen, "stroke-linecap": "round" })),
+        formePictogramme(gelule(centreBout, rBout * k, centreTalon, rTalon * k), { plan: "devant", roles: [`semelle-${cote}`] })),
     };
   };
   const gauche = pied("gauche", "embrayage"), droit = pied("droit", "frein");
@@ -617,10 +568,7 @@ function pedales() {
   const bordPatin = (role, cote) => p[role].x * k + p.origine[0] + (cote * p[role].largeur * k) / 2;
   const lab = (role, cible, ancre, lignes, ancrage) => etiquette({ cible, ancre, lignes, ancrage, taille: t, role: `etiquette-${role}` });
   const [cibleEmb, cibleFrein, cibleAcc] = [coinPatin("embrayage", -1), coinPatin("frein", -1), coinPatin("accelerateur", 1)];
-  const bordChaussure = (pied, cote) => {   // abscisse du bord extérieur de la chaussure (la semelle comprise)
-    const xs = pied.contour.map((q) => q[0]);
-    return cote < 0 ? Math.min(...xs) - p.chaussure.semelle * k : Math.max(...xs) + p.chaussure.semelle * k;
-  };
+  const bordChaussure = (pied, cote) => (cote < 0 ? pied.bords[0] : pied.bords[1]);   // abscisse du bord extérieur du pied
   return cadre({ largeur: L, hauteur: H, titre: CATALOGUE[code].titre,
     description: "Vu du siège, de gauche à droite : embrayage, frein, accélérateur. Pied gauche sur l'embrayage, pied droit sur le frein, prêt à pivoter vers l'accélérateur. Jamais deux pieds sur la même pédale." },
   pedale("embrayage"), pedale("frein"), pedale("accelerateur"),
@@ -978,4 +926,4 @@ export const GESTES = {
   chevauchement: { construire: () => geste("chevauchement", CHEVAUCHEMENT, etatChevauchement, FLECHES_CHEVAUCHEMENT, DESCRIPTIONS.chevauchement, LIBELLES.chevauchement) },
   "retour-volant": { construire: () => geste("retour-volant", RETOUR_VOLANT, etatRetourVolant, FLECHES_RETOUR_VOLANT, DESCRIPTIONS["retour-volant"], LIBELLES["retour-volant"]) },
 };
-export { versDom } from "./dessin-svg.js?v=20261022a";
+export { versDom } from "./dessin-svg.js?v=20261022b";

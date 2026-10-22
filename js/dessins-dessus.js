@@ -14,10 +14,10 @@
  * unités du cadre par l'échelle du dessin ; les valeurs sans portée réglementaire sont des choix de dessin, recopiés avec leur
  * raison dans sources/dessins-dessus.js. Titres et cadres viennent du catalogue des blocs (js/catalogue-blocs.js).
  */
-import { n, trouverRole } from "./dessin-svg.js?v=20261022a";
+import { n, trouverRole } from "./dessin-svg.js?v=20261022b";
 import { CHARTE, TEINTES_ROUTE, REGARD_SCENES, VOITURE, MATIERES, METRIQUES_POLICE, MISE_EN_PAGE, cadre, texte, etiquette, fleche,
-  voitureDessus, reperesDessus, voitureProfil, arc, couper, coord, trace, entre } from "./dessins-kit.js?v=20261022a";
-import { CATALOGUE } from "./catalogue-blocs.js?v=20261022a";
+  voitureDessus, reperesDessus, voitureProfil, arc, couper, coord, trace, entre } from "./dessins-kit.js?v=20261022b";
+import { CATALOGUE } from "./catalogue-blocs.js?v=20261022b";
 
 /** Valeurs de la rue des scènes reprises ici, recopiées : largeur d'une voie et axiale T'1 d'agglomération (js/scene-decors.js,
  *  DESSIN.voie et IISR : 1,50 m de trait, 5 m de vide, 2u = 0,10 m de large) ; jeu entre le flanc d'une voiture garée et la
@@ -245,6 +245,10 @@ function pointAuBout(contour, vers, retrait) {
 }
 
 // ===== Tour du véhicule =====
+// Style schématique (décision du formateur du 15/10/2026) : la voiture en silhouette (voitureDessus, option schema), ses roues
+// en écorché, et, posées sur elle, les seules pièces que le tour contrôle et que la silhouette ne dessine pas : phares, feux
+// et balais d'essuie-glace, pris tels quels de la voiture détaillée du kit (piecesControlees). Ni toit, ni vitres latérales, ni
+// reflet, ni joints du capot, ni rétroviseurs.
 // Vue du dessus, cap 0 : l'avant à droite du cadre, le côté du conducteur (gauche) en haut. Mètres dans le repère de la
 // voiture : x vers l'avant, y vers sa droite ; un angle d'arc part de l'avant et tourne vers la droite de la voiture.
 // Le parcours suit l'ordre du cours (thème 25) : l'avant, un côté, l'arrière, l'autre côté, puis le capot, puis l'habitacle. Il
@@ -268,14 +272,24 @@ const TOUR = {
   ouvertureCapot: 60,       // degrés : capot relevé, tenu par sa béquille
   nom: 4,                   // unités : du disque d'un repère au texte de son nom
   // Étiquettes et nom du repère 2 : ancre de chacun, en unités depuis le centre de la voiture. En haut, « Habitacle » et les
-  // balais ; en bas, sur une même ligne, l'arrière, les pneus, les vitres et l'avant ; à droite, « Capot », au-dessus du nom du
-  // repère 1, écrit à droite de son disque.
+  // balais ; en bas, sur une même ligne, l'arrière, les pneus, les vitres (le pare-brise) et l'avant ; à droite, « Capot »,
+  // au-dessus du nom du repère 1, écrit à droite de son disque.
   ancres: { habitacle: [-38, -78], balais: [55, -82], feuxArriere: [-98, 70], pneus: [-52, 70], vitres: [10, 70], feuxAvant: [88, 74],
     capot: [118, -32] },
   retraitPoint: 1,          // unités : du contour de la pièce désignée au point de son étiquette, vers l'intérieur
 };
 // Noms des trois temps du tour, les mots du cours (C1.1), dans son ordre.
 const NOMS_REPERES = ["Extérieur", "Capot", "Habitacle"];
+
+// Pièces que le tour contrôle, absentes de la silhouette : prises de la voiture détaillée du kit à la même pose, avec leurs
+// rôles et leurs tracés, et rangées dans la silhouette là où la voiture détaillée les range (après la lunette, avant les roues).
+const PIECES_CONTROLEES = ["phare-gauche", "feu-gauche", "phare-droit", "feu-droit", "essuie-glaces"];
+function piecesControlees(pose) {
+  const silhouette = voitureDessus({ ...pose, roues: true, schema: true }), detaillee = voitureDessus({ ...pose, roues: true });
+  const pieces = PIECES_CONTROLEES.map((role) => trouverRole(detaillee, role));
+  const rang = silhouette.enfants.findIndex((x) => x.attributs["data-r"] === "lunette") + 1;
+  return n("g", silhouette.attributs, ...silhouette.enfants.slice(0, rang), ...pieces, ...silhouette.enfants.slice(rang));
+}
 
 /** Compartiment moteur découvert et capot relevé, dans le repère local de la voiture (le groupe a la pose de la voiture) : le
  *  capot tourne autour de sa charnière, son bord arrière, côté pare-brise ; vu du dessus, chacun de ses points garde sa distance à
@@ -327,10 +341,10 @@ function tourVehicule() {
   const fleches = [premiere, ...pointes.map((p) => { const s = abscisse(parcours, p); return morceau(parcours, s - T.fleche, s); })]
     .map((trait) => fleche(trait, { couleur: CHARTE.accentFort, epaisseur: CHARTE.traits.appuye, role: "sens-parcours" }));
 
-  const voiture = voitureDessus({ ...pose, retroviseurs: true, roues: true });
+  const voiture = piecesControlees(pose);
   const vers = localVersCadre(pose), A = Object.fromEntries(Object.entries(T.ancres).map(([k, [dx, dy]]) => [k, [pose.x + dx, pose.y + dy]]));
-  // Points des étiquettes, sur la pièce qu'elles désignent (pointVers) : phare avant droit, roue arrière droite, vitre avant
-  // droite, feu arrière droit ; balai d'essuie-glace gauche, son bout extérieur.
+  // Points des étiquettes, sur la pièce qu'elles désignent (pointVers) : phare avant droit, roue arrière droite, pare-brise, feu
+  // arrière droit ; balai d'essuie-glace gauche, son bout extérieur.
   const contour = (role) => pointsDuTrace(trouverRole(voiture, role)).map(vers);
   const balai = trouverRole(voiture, "essuie-glaces").enfants[0].attributs;
   const lab = (role, cible, ancre, lignes, ancrage) => etiquette({ cible, ancre, lignes, ancrage, role: `etiquette-${role}` });
@@ -349,7 +363,7 @@ function tourVehicule() {
   fleches,
   lab("feux-avant", pointVers(contour("phare-droit"), A.feuxAvant, T.retraitPoint), A.feuxAvant, ["Feux et", "clignotants"], "start"),
   lab("pneus", pointVers(contourRoue(trouverRole(voiture, "roue-arriere-droite"), pose), A.pneus, T.retraitPoint), A.pneus, ["Pneus"], "middle"),
-  lab("vitres", pointVers(contour("vitre-avant-droite"), A.vitres, T.retraitPoint), A.vitres, ["Vitres"], "middle"),
+  lab("vitres", pointVers(contour("pare-brise"), A.vitres, T.retraitPoint), A.vitres, ["Vitres"], "middle"),
   lab("feux-arriere", pointAuBout(contour("feu-droit"), pose.cap, T.retraitPoint), A.feuxArriere, ["Feux et", "plaque"], "middle"),
   etiquette({ cible: vers([balai.x1, balai.y1]), ancre: A.balais, lignes: ["Balais", "d'essuie-glace"], ancrage: "middle", role: "etiquette-balais" }),
   reperes.map((p, i) => repere(i + 1, p)),
@@ -364,7 +378,8 @@ function tourVehicule() {
 // cap 0 (l'avant à droite du cadre, le trottoir en bas) ; la même voiture de profil, vue du trottoir (côté droit, l'avant à droite),
 // garée sur la pente. Même voiture, même trottoir, même échelle dans les deux colonnes : seuls changent le sens de la pente et celui
 // du braquage. En descente, les roues avant sont braquées vers le trottoir : si la voiture avance, la roue bute contre lui ; en
-// montée, vers la chaussée : si elle recule, la roue vient buter contre lui (cours C1.2).
+// montée, vers la chaussée : si elle recule, la roue vient buter contre lui (cours C1.2). Style schématique (décision du formateur
+// du 15/10/2026) : les deux vues montrent les silhouettes du kit (voitureDessus et voitureProfil, option schema).
 const PENTE = {
   marge: 8, gouttiere: 8,      // bords du cadre ; entre les deux colonnes
   echelle: 26,                 // unités par mètre, pour les deux vues des deux colonnes
@@ -420,7 +435,7 @@ function rouesTrottoir() {
     const fenetre = fenetreArrondie(x0, hautPlan, largeur, hauteurPlan, Pl.rayon);
     const bordure = pose.y + (VOITURE.largeur / 2 + RECOPIE_SCENES.jeuStationnement) * E;
     // Sans rétroviseurs : ils n'apprennent rien ici, et le gauche se poserait sur le bout arrière de la roue avant gauche braquée.
-    const voiture = voitureDessus({ ...pose, roues: true, braquage });
+    const voiture = voitureDessus({ ...pose, roues: true, braquage, schema: true });
     const roue = trouverRole(voiture, "roue-avant-gauche"), axeRoue = pose.cap + braquage;
     const versChaussee = Math.sin(axeRoue * RAD) < 0 ? axeRoue : axeRoue + 2 * QUART;   // le bout de la roue tourné vers le haut du cadre
     const ancre = [x0 + Et.ancre, ancreY], cible = pointAuBout(contourRoue(roue, pose), versChaussee, Et.retrait);
@@ -443,7 +458,7 @@ function rouesTrottoir() {
         n("path", { d: trace(fenetreProfil), fill: CHARTE.carte, stroke: CHARTE.filet, "stroke-width": CHARTE.traits.fin }),
         n("path", { d: trace(sol), fill: TEINTES_ROUTE.chaussee, "data-r": "sol" }),
         n("g", { "data-r": "pente", "data-angle": a, transform: `rotate(${a} ${sol0[0]} ${sol0[1]})` },
-          voitureProfil({ x: sol0[0], y: sol0[1], echelle: E, sens: "droite" }))));
+          voitureProfil({ x: sol0[0], y: sol0[1], echelle: E, sens: "droite", schema: true }))));
   };
   return cadre({ largeur: L, hauteur: H, titre: CATALOGUE[code].titre,
     description: "Deux cas, la même voiture garée le long du trottoir de droite, vue du dessus puis de profil. En descente, l'avant vers "
@@ -756,4 +771,4 @@ export const DESSINS = {
   "sous-survirage": sousSurvirage,
 };
 export const GESTES = { "regard-loin": { construire: regardLoin } };
-export { versDom } from "./dessin-svg.js?v=20261022a";
+export { versDom } from "./dessin-svg.js?v=20261022b";

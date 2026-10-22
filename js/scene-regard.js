@@ -35,7 +35,7 @@
  * image figée, le secteur que parcourt un balayage (secteurBalayage), ou quatre cônes pour un tour du regard (conesTour :
  * devant, à gauche, derrière, à droite).
  */
-import { DEG } from "./scene-geometrie.js?v=20261022a";
+import { DEG } from "./scene-geometrie.js?v=20261022b";
 
 /** Écart maximal, en degrés, entre le cap et la direction d'une cible suivie des yeux : au-delà, elle est passée derrière
  *  le conducteur, qui regarde de nouveau devant lui. */

@@ -5,7 +5,7 @@ import * as famille from "../js/dessins-visibilite.js";
 import { SOURCES } from "../sources/dessins-visibilite.js";
 import { verifierDessin, verifierGeste } from "./aides-dessins.mjs";
 import { trouverRole, trouverTous, texteDe } from "../js/dessin-svg.js";
-import { reperesProfil, reperesDessus, voitureDessus, TEINTES_ROUTE, VOITURE } from "../js/dessins-kit.js";
+import { reperesProfil, reperesDessus, voitureDessus, voitureProfil, TEINTES_ROUTE, VOITURE, CHARTE, MATIERES } from "../js/dessins-kit.js";
 import { REGARD_PORTEE, oeil as oeilScene } from "../js/scene-regard.js";
 import { TEINTES } from "../js/scene-rendu.js";
 import { OPACITE_CONE } from "../js/scene-moteur.js";
@@ -52,7 +52,7 @@ const pointsNoeud = (n) => (n.balise === "rect"
     Number(n.attributs.y) + (ky === "y+" ? Number(n.attributs.height) : 0)])
   : pointsDe(n.attributs.d));
 // Points d'un groupe posé par son transform (translate, rotate en degrés, scale), dans le cadre : ceux de ses rectangles, tracés et
-// lignes brisées, et les coins de la boîte de chaque ellipse (qui la contient).
+// lignes brisées, et les coins de la boîte de chaque ellipse ou cercle (qui le contient).
 function pointsPoses(g) {
   const t = String(g.attributs.transform || "");
   const tr = t.match(/translate\(([-\d.]+) ([-\d.]+)\)/), ro = t.match(/rotate\(([-\d.]+)\)/), sc = t.match(/scale\(([-\d.]+)\)/);
@@ -60,8 +60,9 @@ function pointsPoses(g) {
   const poser = ([px, py]) => [tx + k * (px * Math.cos(a) - py * Math.sin(a)), ty + k * (px * Math.sin(a) + py * Math.cos(a))];
   return trouverTous(g, (x) => x !== g).flatMap((x) => {
     if (x.balise === "polyline") return String(x.attributs.points).trim().split(/\s+/).map((c) => c.split(",").map(Number));
-    if (x.balise === "ellipse") {
-      const [cx, cy, rx, ry] = ["cx", "cy", "rx", "ry"].map((c) => Number(x.attributs[c]));
+    if (x.balise === "ellipse" || x.balise === "circle") {
+      const [cx, cy, rx, ry] = x.balise === "circle" ? ["cx", "cy", "r", "r"].map((c) => Number(x.attributs[c]))
+        : ["cx", "cy", "rx", "ry"].map((c) => Number(x.attributs[c]));
       return [[cx - rx, cy - ry], [cx + rx, cy - ry], [cx + rx, cy + ry], [cx - rx, cy + ry]];
     }
     return x.balise === "rect" || x.balise === "path" ? pointsNoeud(x) : [];
@@ -554,7 +555,7 @@ test("angles-morts : la voiture, la rue, le marquage, le cône du regard et le c
   for (const t of trouverTous(d, (x) => x.attributs["data-r"] === "axiale")) assert.equal(t.attributs.fill, TEINTES.peinture);
   assert.equal(trouverRole(d, "coup-d-oeil").attributs.fill, TEINTES.regard);
   const couleurs = new Set(trouverTous(trouverRole(d, "deux-roues"), () => true).flatMap((x) => [x.attributs.fill, x.attributs.stroke]).filter((c) => c && c !== "none"));
-  const attendues = new Set([TEINTES.cycliste, TEINTES.cyclisteOmbre, TEINTES.cyclisteBord, TEINTES.tete, TEINTES.velo, TEINTES.pneu]);
+  const attendues = new Set([TEINTES.cycliste, TEINTES.cyclisteBord, TEINTES.velo]);
   assert.deepEqual([...couleurs].sort(), [...attendues].sort(), "teintes du cycliste des scènes");
   assert.equal(TEINTES_ROUTE.chaussee, TEINTES.chaussee);
 });
@@ -606,31 +607,68 @@ test("angles-morts : l'étiquette du coup d'œil désigne sa partie tournée ver
   assert.ok(Math.abs(p[0] - x) > la / 2 + rayon(e) || Math.abs(p[1] - y) > lo / 2 + rayon(e), "le point couvre le deux-roues");
 });
 
-// Sous le cône du coup d'œil, la zone d'angle mort qu'il couvre est voilée de son propre fond : ses hachures s'y éclaircissent, et la
-// teinte du regard y domine, comme sur la chaussée devant le conducteur ; sans ce voile, derrière le conducteur, le cône n'était
-// qu'une teinte sur la hachure (relecture finale du lot D1). La zone que le coup d'œil ne couvre pas (à droite) garde ses hachures.
-test("angles-morts : le cône du coup d'œil se lit sur la zone gauche qu'il couvre : un voile du fond de la zone, entre ses hachures et le cône", () => {
-  const d = famille.DESSINS["angles-morts"]();
-  const cone = pointsRole(d, "coup-d-oeil"), zone = zoneDe(d, "angle-mort-gauche");
-  const voile = trouverRole(d, "voile-coup-d-oeil");
-  assert.ok(voile, "aucun voile sous le cône");
-  const pts = pointsDe(voile.attributs.d);
-  assert.equal(voile.attributs.fill, trouverRole(trouverRole(d, "angle-mort-gauche"), "zone").attributs.fill, "voile du fond de la zone");
-  const opacite = Number(voile.attributs["fill-opacity"]);
-  assert.ok(opacite >= 0.3 && opacite <= 0.7, `voile à ${opacite} d'opacité`);
-  // Le voile est la part de la zone gauche sous le cône : dans les deux, et de même aire que leur partie commune.
-  for (const q of pts) {
-    assert.ok(dansPolygoneConvexe(q, cone, -0.01) && dansPolygoneConvexe(q, zone, -0.01), `point ${q} du voile hors du cône ou de la zone`);
+// Style schématique (décision du formateur du 15/10/2026 : aplats, aucune texture) : une zone que le conducteur ne voit pas est un
+// aplat translucide de la teinte « faux » de la charte, le même dans les deux dessins qui en montrent, sans hachures. Le cône du coup
+// d'œil, translucide aussi, passe par-dessus la zone gauche qu'il couvre : elle s'y teinte du regard (la zone droite, hors du cône,
+// non) ; il n'y a plus de voile, qui éclaircissait les hachures sous le cône.
+test("zones-invisibles et angles-morts : chaque zone non visible est un aplat translucide de la teinte « faux », le même partout, sans hachures ; le coup d'œil passe par-dessus la zone gauche", () => {
+  const zones = [["zones-invisibles", ["zone-avant", "zone-arriere"]], ["angles-morts", ["angle-mort-gauche", "angle-mort-droit"]]];
+  const aplats = new Set();
+  for (const [code, roles] of zones) {
+    const d = famille.DESSINS[code]();
+    for (const role of roles) {
+      const g = trouverTous(d, (x) => x.attributs["data-r"] === role);
+      assert.ok(g.length >= 1, `${code} : ${role}`);
+      for (const z of g) {
+        assert.equal(z.enfants.length, 1, `${code}, ${role} : un seul aplat, sans hachures`);
+        const a = z.enfants[0].attributs;
+        assert.equal(a["data-r"], "zone", `${code}, ${role}`);
+        assert.ok(!a.stroke, `${code}, ${role} : sans contour`);
+        aplats.add(`${a.fill} ${a["fill-opacity"]}`);
+      }
+    }
+    assert.equal(trouverTous(d, (x) => /^voile/.test(x.attributs["data-r"] || "")).length, 0, `${code} : voile`);
   }
-  const commun = dansConvexe(zone, cone);
-  assert.ok(Math.abs(aire(pts) - aire(commun)) <= 0.5, `voile de ${aire(pts).toFixed(1)} unités carrées pour ${aire(commun).toFixed(1)} de zone sous le cône`);
-  // Empilement : les hachures de la zone, puis le voile, puis le cône.
-  const ordre = trouverTous(d, () => true);   // ordre du document : de dessous à dessus
-  const rang = (x) => ordre.indexOf(x);
-  const hachuresGauche = trouverRole(d, "angle-mort-gauche").enfants.find((x) => x.balise === "path" && x.attributs["data-r"] !== "zone");
-  assert.ok(rang(hachuresGauche) < rang(voile) && rang(voile) < rang(trouverRole(d, "coup-d-oeil")), "voile hors de sa place, entre hachures et cône");
-  // La zone droite, hors du cône, n'est pas voilée.
-  assert.equal(trouverTous(d, (x) => /^voile/.test(x.attributs["data-r"] || "")).length, 1, "un seul voile");
+  assert.equal(aplats.size, 1, `aplats : ${[...aplats].join(", ")}`);
+  const [teinte, opacite] = [...aplats][0].split(" ");
+  assert.equal(teinte, CHARTE.faux);
+  assert.ok(Number(opacite) >= 0.3 && Number(opacite) <= 0.5, `opacité ${opacite}`);
+  // Empilement : la zone gauche, puis le cône du coup d'œil, puis la voiture.
+  const d = famille.DESSINS["angles-morts"](), ordre = trouverTous(d, () => true), rang = (role) => ordre.indexOf(trouverRole(d, role));
+  assert.ok(rang("angle-mort-gauche") < rang("coup-d-oeil") && rang("coup-d-oeil") < rang("vue-dessus"), "zone, puis coup d'œil, puis voiture");
+});
+
+test("zones-invisibles et angles-morts : les voitures en silhouette (style schématique), aux mêmes tracés que les voitures du kit", () => {
+  const d = famille.DESSINS["zones-invisibles"]();
+  for (const v of VUES(d)) {
+    const profil = trouverRole(v.g, "voiture-profil");
+    const [x, sol, echelle] = ["data-x", "data-y", "data-echelle"].map((k) => Number(v.g.attributs[k]));
+    assert.deepEqual(profil, voitureProfil({ x, y: sol, echelle, sens: "gauche", schema: true }), `${v.nom} : silhouette du kit`);
+    for (const role of ["phare", "feu", "poignee-arriere", "retroviseur", "bas-de-caisse"]) assert.equal(trouverRole(profil, role), null, `${v.nom} : ${role}`);
+  }
+  const a = famille.DESSINS["angles-morts"](), v = vueDessus(a);
+  const voiture = trouverRole(v.g, "voiture");
+  assert.deepEqual(voiture, voitureDessus({ x: v.x, y: v.y, cap: CAP_HAUT, echelle: v.s, retroviseurs: true, schema: true }), "angles-morts : silhouette du kit");
+  for (const role of ["toit", "vitre-avant-gauche", "phare-gauche", "feu-droit", "essuie-glaces", "reflet-pare-brise"]) assert.equal(trouverRole(voiture, role), null, role);
+  for (const role of ["retroviseur-gauche", "retroviseur-droit", "retroviseur-interieur"]) assert.ok(trouverRole(voiture, role), role);
+});
+
+// Le cycliste en pictogramme (style schématique) : trois teintes, le cycliste d'une seule teinte (dos, bras et tête ronde, le dos et
+// la tête bordés de foncé), le vélo d'une seule teinte foncée ; sans visage ni détail.
+test("cycliste : une silhouette de pictogramme, trois teintes ; la tête ronde ; les bras et la tête de la teinte du dos ; pneus, cadre et guidon d'une teinte", () => {
+  const c = cycliste();
+  assert.deepEqual(Object.keys(TEINTES_VELO).sort(), ["cycliste", "cyclisteBord", "velo"]);
+  const couleurs = new Set(trouverTous(c, () => true).flatMap((x) => [x.attributs.fill, x.attributs.stroke]).filter((t) => t && t !== "none"));
+  assert.deepEqual([...couleurs].sort(), Object.values(TEINTES_VELO).sort());
+  const tete = trouverTous(c, (x) => x.balise === "circle");
+  assert.equal(tete.length, 1, "une tête ronde");
+  assert.equal(trouverTous(c, (x) => x.balise === "ellipse").length, 0, "aucune ellipse");
+  assert.equal(tete[0].attributs.fill, TEINTES_VELO.cycliste);
+  for (const b of trouverTous(c, (x) => x.balise === "polyline")) assert.equal(b.attributs.stroke, TEINTES_VELO.cycliste, "bras");
+  for (const r of trouverTous(c, (x) => x.balise === "rect")) assert.equal(r.attributs.fill, TEINTES_VELO.velo, "vélo");
+  // Tête ronde devant les épaules, dans la largeur des épaules.
+  const { cx, r } = tete[0].attributs;
+  assert.ok(Number(cx) > 0 && Number(r) * 2 < GABARIT_VELO.largeur, "tête");
 });
 
 test("angles-morts : les champs extérieurs partent du verre du miroir et s'arrêtent au rayon qui frôle le coin arrière ; le champ intérieur est dans l'axe", () => {

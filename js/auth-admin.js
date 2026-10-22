@@ -17,11 +17,11 @@ import {
   getMyProfile, listStagiaires, listProfs,
   chargerMesPromos, oublierPromo, getPromoCourante, rechargerApresEnregistrements,
   bloquerRequetesJusquAuRechargement,
-} from "./db.js?v=20261022a";
-import { el, toast, displayStagiaire } from "./utils.js?v=20261022a";
-import { icon } from "./icons.js?v=20261022a";
-import { construirePastille } from "./promo-pastille.js?v=20261022a";
-import { pagePersonnelle } from "./route-rules.js?v=20261022a";
+} from "./db.js?v=20261022b";
+import { el, toast, displayStagiaire } from "./utils.js?v=20261022b";
+import { icon } from "./icons.js?v=20261022b";
+import { construirePastille } from "./promo-pastille.js?v=20261022b";
+import { pagePersonnelle } from "./route-rules.js?v=20261022b";
 
 let currentUser = null;     // Supabase auth user
 let currentProfile = null;  // row user_profiles
@@ -379,7 +379,7 @@ function openProfileMenu() {
     logoutBtn,
     el("button", { class: "gate-link compte-legal", type: "button", onClick: () => {
       backdrop.remove();
-      import("./legal.js?v=20261022a").then((m) => m.ouvrirInformationsLegales());
+      import("./legal.js?v=20261022b").then((m) => m.ouvrirInformationsLegales());
     } }, "Informations légales et données personnelles"),
     el("div", { class: "modal-actions" },
       el("button", { class: "btn ghost", onClick: () => backdrop.remove() }, "Fermer"),

@@ -9,10 +9,11 @@
  *
  * Traits : le jeu de quatre épaisseurs de CHARTE.traits, et lui seul. Les liserés (CHARTE.liseres) ne sont pas des
  * traits : un liseré clair, de cette largeur de part et d'autre, borde un filet d'étiquette, son point ou une flèche,
- * pour qu'ils restent lisibles quand ils passent sur un objet sombre. Mains et silhouettes : une seule teinte de peau,
- * en deux tons seulement, CHARTE.peau et CHARTE.peauOmbre.
+ * pour qu'ils restent lisibles quand ils passent sur un objet sombre. Peau : une seule teinte, en deux tons seulement,
+ * CHARTE.peau et CHARTE.peauOmbre ; dans le style schématique, elle ne sert plus qu'aux repères des mains (disqueMain), et les
+ * personnes sont des silhouettes de pictogramme (SILHOUETTE, en fin de fichier).
  */
-import { n } from "./dessin-svg.js?v=20261022a";
+import { n } from "./dessin-svg.js?v=20261022b";
 
 export const CHARTE = {
   fond: "#F1F4F0", carte: "#FBFCFA", texte: "#1F2924", texteDoux: "#46554A", texteDiscret: "#6E7A6F",
@@ -781,9 +782,16 @@ export function reperesProfil({ x, y, echelle, sens = "droite", trappeOuverte = 
  *  rétroviseur, poignées, joints, trappe à carburant. (x, y) : point du sol sous le milieu de la voiture ; échelle en unités
  *  par mètre ; sens : vers où regarde l'avant, « droite » montre le côté droit de la voiture, « gauche » son côté gauche,
  *  celui du conducteur ; portiereOuverte : la portière avant de ce côté, ouverte ; trappeOuverte : la trappe à carburant de
- *  ce côté, ouverte. Ouvertes ou fermées, la portière et la trappe gardent leurs nœuds (display none). */
+ *  ce côté, ouverte. Ouvertes ou fermées, la portière et la trappe gardent leurs nœuds (display none). `schema` : le style
+ *  schématique (décision du formateur du 15/10/2026, « pictogramme plutôt qu'illustration »), comme voitureDessus : la
+ *  silhouette de la caisse et son contour, les vitres latérales (le montant milieu, assez grand pour se voir, les sépare dans
+ *  la teinte de la caisse), les roues en deux tons, pneu et jante pleine, et leurs passages de la teinte du pneu (la roue
+ *  remplit son passage : aucun anneau clair autour d'elle) ; portière et trappe ouvertes à la demande, en aplats (l'habitacle
+ *  découvert, le montant, le seuil, la portière, son chant et sa vitre ; le logement et le volet de la trappe) ; aux mêmes
+ *  tracés que la voiture détaillée. Aucun détail de finition : ni fond, fenêtres ou moyeu des jantes, ni bas de caisse, ni
+ *  épaule, ni reflets, ni phare, ni feu, ni rétroviseur, ni poignées, ni joints, ni trappe fermée, ni bouchon, ni siège. */
 export function voitureProfil({ x, y, echelle, teinte = "eleve", sens = "droite", portiereOuverte = false, trappeOuverte = false,
-  role = "voiture-profil" }) {
+  schema = false, role = "voiture-profil" }) {
   const qui = "Voiture de profil";
   verifierPose(qui, { x, y, echelle });
   const c = carrosserie(teinte, qui), s = signeSens(sens, qui), e = echelle;
@@ -792,7 +800,9 @@ export function voitureProfil({ x, y, echelle, teinte = "eleve", sens = "droite"
   const ligne = (pts, attributs) => n("path", { d: trace(pts.map(v), false), fill: "none", "stroke-linecap": "round",
     "stroke-linejoin": "round", ...attributs });
   const repere = (p) => { const [px, py] = v(p); return { "data-x": px, "data-y": py }; };
-  const assez = (metres) => metres * e >= DETAIL_MIN, traitDetail = 1 / e <= TRAIT_DETAIL_MAX;
+  // Détails de finition : seulement hors du style schématique, et assez grands pour se voir.
+  const finition = !schema, visible = (metres) => metres * e >= DETAIL_MIN;
+  const assez = (metres) => finition && visible(metres), traitDetail = finition && 1 / e <= TRAIT_DETAIL_MAX;
   const fin = CHARTE.traits.fin;
   const affiche = (oui) => (oui ? "inline" : "none");
 
@@ -829,7 +839,7 @@ export function voitureProfil({ x, y, echelle, teinte = "eleve", sens = "droite"
   const trappeOuverteG = n("g", { "data-r": "trappe-ouverte", display: affiche(trappeOuverte), "data-angle": TRAPPE.ouverture,
     ...repere(TRAPPE_OUVERTE_CENTRE) },
   forme(TRAPPE_CONTOUR, { fill: MATIERES.joint }),
-  n("circle", { cx: v(TRAPPE.centre)[0], cy: v(TRAPPE.centre)[1], r: TRAPPE.bouchon * e, fill: MATIERES.bouchon }),
+  finition && n("circle", { cx: v(TRAPPE.centre)[0], cy: v(TRAPPE.centre)[1], r: TRAPPE.bouchon * e, fill: MATIERES.bouchon }),
   forme(TRAPPE_CONTOUR.map(ouvrirTrappe), { fill: c.ombre, stroke: c.bord, "stroke-width": fin, "stroke-linejoin": "round", "data-r": "volet" }));
 
   // Portière fermée : son joint avant, sa poignée, son rétroviseur. Ouverte : l'habitacle découvert (siège, montant milieu,
@@ -854,7 +864,7 @@ export function voitureProfil({ x, y, echelle, teinte = "eleve", sens = "droite"
   const portiereOuverteG = n("g", { "data-r": "portiere-ouverte", display: affiche(portiereOuverte), "data-angle": PORTIERE.ouvertureProfil,
     ...repere([PORTIERE.charniere[0], PORTIERE.bas]) },
   forme(CONTOUR_PORTIERE, { fill: MATIERES.habitacle, "data-r": "ouverture" }),
-  n("g", { "data-r": "siege" }, ["assise", "dossier", "appuieTete"].map((k) =>
+  finition && n("g", { "data-r": "siege" }, ["assise", "dossier", "appuieTete"].map((k) =>
     forme(couper(arrondir(SIEGE[k], SIEGE[k].map(() => SIEGE.arrondi)), (p) => PORTIERE.arriere - p[0]), { fill: MATIERES.siege }))),
   forme(couper(CONTOUR_PORTIERE, (p) => p[0] - MONTANT.avant), { fill: c.ombre, "data-r": "montant", ...repere(MONTANT.etiquette) }),
   forme(couper(CONTOUR_PORTIERE, (p) => p[1] - SEUIL_PORTE), { fill: c.base }),
@@ -866,8 +876,9 @@ export function voitureProfil({ x, y, echelle, teinte = "eleve", sens = "droite"
   retroVisible && forme(retroOuvert, { fill: c.base, stroke: c.bord, "stroke-width": fin, "stroke-linejoin": "round" }));
 
   return n("g", { "data-r": role, "data-x": x, "data-y": y },
-    forme(passage(ESSIEU_AVANT), { fill: MATIERES.passage, "data-r": "passage-avant" }),
-    forme(passage(ESSIEU_ARRIERE), { fill: MATIERES.passage, "data-r": "passage-arriere" }),
+    // Passages de roue : sombres ; en silhouette, de la teinte du pneu, que la roue prolonge sans anneau clair autour d'elle.
+    forme(passage(ESSIEU_AVANT), { fill: finition ? MATIERES.passage : MATIERES.pneu, "data-r": "passage-avant" }),
+    forme(passage(ESSIEU_ARRIERE), { fill: finition ? MATIERES.passage : MATIERES.pneu, "data-r": "passage-arriere" }),
     roue("roue-avant", ESSIEU_AVANT), roue("roue-arriere", ESSIEU_ARRIERE),
     forme(CONTOUR_PROFIL, { fill: c.base, stroke: c.bord, "stroke-width": fin, "stroke-linejoin": "round", "data-r": "caisse" }),
     assez(PORTIERE.bas - PROFIL.basCaisse) && forme(BAS_DE_CAISSE, { fill: c.ombre, "data-r": "bas-de-caisse" }),
@@ -877,7 +888,7 @@ export function voitureProfil({ x, y, echelle, teinte = "eleve", sens = "droite"
       const b = bande(vitre, r);
       return assez(largeurBande(r)) && b.length > 2 && forme(b, { fill: MATIERES.vitreReflet });
     })),
-    assez(VITRAGE.montant[1] - VITRAGE.montant[0]) && forme(montantMilieu, { fill: MATIERES.joint, "data-r": "montant-milieu" }),
+    visible(VITRAGE.montant[1] - VITRAGE.montant[0]) && forme(montantMilieu, { fill: finition ? MATIERES.joint : c.base, "data-r": "montant-milieu" }),
     traitDetail && ligne(JOINT_MILIEU, { stroke: c.ombre, "stroke-width": fin }),
     traitDetail && ligne(JOINT_ARRIERE, { stroke: c.ombre, "stroke-width": fin }),
     assez(POIGNEES.hauteur) && forme(poignee(POIGNEES.arriere), { fill: c.ombre, "data-r": "poignee-arriere" }),
@@ -923,4 +934,106 @@ export function miroirInterieur({ x, y, largeur }, decal = [0, 0]) {
     [cx - (L.bas * largeur) / 2, yBas]];
   const r = L.arrondi * hauteur;
   return { hauteur, rayon, verre, coins, lunette: arrondir(coins, [r, r, r, r]), horizon: yHaut + M.horizon * h };
+}
+
+// ===== Personnes et mains en pictogramme (style schématique) =====
+// Décision du formateur du 15/10/2026 : « quelque chose de très schématisé et simple » pour tous les dessins. Une personne est
+// une silhouette de pictogramme, comme sur un panneau : une tête ronde, un buste et des membres en formes simples (gélules,
+// formes arrondies), d'une seule teinte, sans visage, sans cheveux, sans doigts ; un membre n'est dessiné que si la règle en a
+// besoin. Une main n'est jamais dessinée : là où elle tient ou agit, un repère la marque (disqueMain), un disque du ton sombre de
+// la peau marqué « G » ou « D », plein quand elle tient, creux quand elle a lâché ou se déplace.
+//
+// Teintes : la personne est sombre, comme le piéton des scènes, et se lit sur le fond, la carte et les objets clairs ; le membre
+// du côté opposé (derrière le buste, de profil) prend un ton éclairci de la même teinte, qui le sépare du buste qu'il croise.
+// Une partie posée devant une autre de la même teinte (le bras proche sur le buste) est bordée d'un liseré clair, comme sur un
+// pictogramme : deux formes de même teinte ne se touchent jamais sans séparation.
+
+/** Teintes d'une personne en pictogramme : la silhouette (teinte), et le membre du côté opposé (loin). Contrastes : la teinte à
+ *  9,5:1 sur le fond, le ton éloigné à 3,2:1 sur le fond et à 2,9:1 sur la teinte (tests/dessins-kit.test.mjs). */
+export const SILHOUETTE = figer({ teinte: "#36423C", loin: "#7E8982" });
+const PLANS_SILHOUETTE = ["corps", "devant", "loin"];
+
+/** Tracé d'une gélule : l'enveloppe de deux disques, de centres p1 et p2 et de rayons r1 et r2, arcs exacts (coordonnées du
+ *  cadre). Le membre d'un pictogramme : bras, avant-bras, cuisse, jambe, buste vu de profil, pied vu du dessus. */
+export function gelule(p1, r1, p2, r2) {
+  const d = Math.max(distance(p1, p2), 1e-6);
+  const u = [(p2[0] - p1[0]) * (1 / d), (p2[1] - p1[1]) * (1 / d)], v = [-u[1], u[0]];
+  const sb = Math.max(-1, Math.min(1, (r1 - r2) / d)), cb = Math.sqrt(1 - sb * sb);
+  const nA = [u[0] * sb + v[0] * cb, u[1] * sb + v[1] * cb], nB = [u[0] * sb - v[0] * cb, u[1] * sb - v[1] * cb];
+  const sur = (p, nn, r) => [p[0] + nn[0] * r, p[1] + nn[1] * r];
+  const a1 = sur(p1, nA, r1), a2 = sur(p2, nA, r2), b2 = sur(p2, nB, r2), b1 = sur(p1, nB, r1);
+  const vectoriel = (a, b) => a[0] * b[1] - a[1] * b[0];
+  const sens2 = vectoriel(moins(a2, p2), u) > 0 ? 1 : 0, sens1 = vectoriel(moins(b1, p1), [-u[0], -u[1]]) > 0 ? 1 : 0;
+  return `M${point(a1)} L${point(a2)} A${coord(r2)} ${coord(r2)} 0 ${sb < 0 ? 1 : 0} ${sens2} ${point(b2)} `
+    + `L${point(b1)} A${coord(r1)} ${coord(r1)} 0 ${sb > 0 ? 1 : 0} ${sens1} ${point(a1)} Z`;
+}
+
+/** Une partie d'une personne en pictogramme, faite d'un ou de plusieurs tracés fermés (gélules, formes arrondies) : plan
+ *  « corps », de la teinte ; « devant », de la teinte, bordée d'un liseré clair (CHARTE.liseres de chaque côté) qui la détache de
+ *  ce qu'elle recouvre ; « loin », du ton éloigné. Les liserés de tous les tracés passent sous toutes les formes pleines : deux
+ *  tracés d'une même partie (le bras et l'avant-bras) se joignent sans trait clair entre eux. `roles` : le rôle de chaque forme
+ *  pleine (son tracé se relit), dans l'ordre des tracés. */
+export function formePictogramme(traces, { plan = "corps", roles = [] } = {}) {
+  connu(plan, PLANS_SILHOUETTE, "Pictogramme : plan");
+  const liste = Array.isArray(traces) ? traces : [traces], noms = Array.isArray(roles) ? roles : [roles];
+  const pleins = liste.map((d, i) => n("path", { d, fill: plan === "loin" ? SILHOUETTE.loin : SILHOUETTE.teinte,
+    ...(noms[i] ? { "data-r": noms[i] } : {}) }));
+  const liseres = plan === "devant" ? liste.map((d) => n("path", { d, fill: CHARTE.carte, stroke: CHARTE.carte,
+    "stroke-width": 2 * CHARTE.liseres, "stroke-linejoin": "round" })) : [];
+  return n("g", { "data-r": "pictogramme", "data-plan": plan }, ...liseres, ...pleins);
+}
+
+/** Un membre en gélules, d'articulation en articulation : `points` (au moins deux, unités du cadre) et leurs `rayons`, un par
+ *  point ; chaque segment est une gélule, et deux segments voisins ont le même rayon à leur articulation : le membre se plie sans
+ *  cassure. Le buste vu de profil est un membre d'un seul segment. */
+export function membrePictogramme({ points, rayons, plan = "corps", roles = [] }) {
+  if (!Array.isArray(points) || points.length < 2 || !Array.isArray(rayons) || rayons.length !== points.length) {
+    throw new Error("Membre en pictogramme : au moins deux points, et un rayon par point.");
+  }
+  points.forEach((p, i) => { fini(p[0], `Membre en pictogramme : x du point ${i}`); fini(p[1], `Membre en pictogramme : y du point ${i}`); });
+  rayons.forEach((r, i) => { if (!(fini(r, `Membre en pictogramme : rayon ${i}`) > 0)) throw new Error(`Membre en pictogramme : rayon ${i} non positif.`); });
+  const traces = points.slice(1).map((p, i) => gelule(points[i], rayons[i], p, rayons[i + 1]));
+  return formePictogramme(traces, { plan, roles });
+}
+
+/** La tête ronde d'une personne en pictogramme : un disque de la teinte, de centre `centre` et de rayon `rayon` (unités du
+ *  cadre). Un pictogramme la sépare du buste par un vide : rien ne la relie au cou. */
+export function tetePictogramme({ centre, rayon, role = "tete" }) {
+  return n("circle", { cx: centre[0], cy: centre[1], r: rayon, fill: SILHOUETTE.teinte, "data-r": role });
+}
+
+// Repère d'une main : un disque de rayon `rayon`, marqué « G » ou « D » (Outfit 700 de `lettre` unités), bordé d'un liseré clair,
+// son contour un anneau de `anneau` unités. `plein` : de 0 (creux : le fond clair, la lettre du ton de la peau) à 1 (plein : le ton
+// sombre de la peau, la lettre claire) ; entre les deux, le disque passe d'une teinte à l'autre en fondu, la lettre garde une
+// teinte pure et s'efface au milieu du fondu (opacité |2 plein - 1|), là où elle change de teinte. Le ton sombre de la peau porte
+// la lettre claire à 5:1 (le ton clair ne la porterait qu'à 3,5:1, sous les 4,5:1 d'un texte de cette taille).
+const LETTRES_MAINS = { gauche: "G", droite: "D" };
+const GRAISSE_REPERE = 700;
+// Teinte à la part t du chemin de la couleur a à la couleur b (#RRGGBB, composantes arrondies à l'entier) : a à 0, b à 1.
+function teinteEntre(a, b, t) {
+  const composante = (hex, i) => parseInt(hex.slice(1 + 2 * i, 3 + 2 * i), 16);
+  return `#${[0, 1, 2].map((i) => Math.round(composante(a, i) + (composante(b, i) - composante(a, i)) * t).toString(16).padStart(2, "0")).join("").toUpperCase()}`;
+}
+
+/** Repère d'une main en (x, y) : « gauche » (G) ou « droite » (D) ; plein de 0 (creux) à 1 (plein) ; rayon, taille de la
+ *  lettre et épaisseur de l'anneau en unités du cadre ; `attributs` : ceux que la famille ajoute au groupe (data-heure...) ;
+ *  `lettreVisible` (0 à 1), le cas échéant : la part de la lettre qui se montre, quand l'autre repère passe sur celui-ci (la
+ *  lettre d'un repère caché ne se lit pas à travers l'autre) ; à 0, elle est masquée (display none). Rôles : main-<cote> (centre
+ *  en data-x et data-y), liseret-<cote>, disque-<cote>, anneau-<cote>, lettre-fondu-<cote>, lettre-<cote>. Mêmes nœuds quel que
+ *  soit l'état : une animation ne change que leurs attributs. */
+export function disqueMain({ x, y, cote, plein = 1, rayon, lettre, anneau, attributs = {}, lettreVisible }) {
+  connu(cote, Object.keys(LETTRES_MAINS), "Repère de main : côté");
+  [x, y, rayon, lettre, anneau].forEach((v, i) => fini(v, `Repère de main : ${["x", "y", "rayon", "lettre", "anneau"][i]}`));
+  borne(plein, 0, 1, "Repère de main : plein");
+  const f = plein;
+  const opaciteLettre = Math.abs(2 * f - 1) * (lettreVisible === undefined ? 1 : borne(lettreVisible, 0, 1, "Repère de main : lettre visible"));
+  const masque = lettreVisible === undefined ? {} : { display: opaciteLettre > 0 ? "inline" : "none" };
+  return n("g", { "data-r": `main-${cote}`, "data-x": x, "data-y": y, ...attributs },
+    n("circle", { cx: x, cy: y, r: rayon + CHARTE.liseres, fill: CHARTE.carte, "data-r": `liseret-${cote}` }),
+    n("circle", { cx: x, cy: y, r: rayon, fill: teinteEntre(CHARTE.carte, CHARTE.peauOmbre, f), "data-r": `disque-${cote}` }),
+    n("circle", { cx: x, cy: y, r: rayon - anneau / 2, fill: "none", stroke: CHARTE.peauOmbre, "stroke-width": anneau,
+      "data-r": `anneau-${cote}` }),
+    n("g", { opacity: opaciteLettre, ...masque, "data-r": `lettre-fondu-${cote}` },
+      texte(x, y + MILIEU_CAPITALES * lettre, LETTRES_MAINS[cote], { taille: lettre, ancrage: "middle", graisse: GRAISSE_REPERE,
+        couleur: f >= 1 / 2 ? CHARTE.carte : CHARTE.peauOmbre, role: `lettre-${cote}` })));
 }

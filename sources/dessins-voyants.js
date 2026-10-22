@@ -35,9 +35,10 @@ export const SOURCES = {
     REFERENCES_PICTOGRAMMES,
     REFERENCES_COULEURS,
     "Choix de dessin : chaque pictogramme se dessine dans le carré de base de son symbole ISO 7000, de 27 unités de côté "
-      + "(28,9 px sur un téléphone), sur une tuile sombre de 32 unités comme au tableau de bord ; proportions relevées sur les "
-      + "dessins de référence ; traits de 1,5 unité, un peu plus appuyés que ceux des dessins ISO 7000 (0,04 du carré) pour "
-      + "rester nets à cette taille, et 1 unité pour les traits fins (cercle intérieur du freinage et de l'ABS, lettres ABS, "
+      + "(28,9 px sur un téléphone), sur une tuile sombre de 32 unités comme au tableau de bord, un seul aplat sans bord (style "
+      + "schématique, décision du formateur du 15/10/2026 : le symbole normalisé garde sa forme exacte, le reste se simplifie) ; "
+      + "proportions relevées sur les dessins de référence ; traits de 1,5 unité, un peu plus appuyés que ceux des dessins ISO "
+      + "7000 (0,04 du carré) pour rester nets à cette taille, et 1 unité pour les traits fins (cercle intérieur du freinage et de l'ABS, lettres ABS, "
       + "ceinture de l'airbag) ; flèches des indicateurs de direction et silhouette de l'airbag pleines (zones encadrées "
       + "pleines, permises par la note 1) ; quatre faisceaux aux feux (quatre ou cinq permis, note 13), plus lisibles que cinq "
       + "à cette taille.",
@@ -98,9 +99,12 @@ export const SOURCES = {
       + "entre le symbole et son nom : son bord intérieur, à 13,25 unités du centre du voyant, reste à 0,7 unité au moins de "
       + "l'encre du symbole (12,54 unités du centre au plus, pour la pression des pneus, mesuré dans Chrome le 15/10/2026), son "
       + "bord extérieur, à 14,75 unités, à 3,25 unités du haut du nom.",
-    "Choix de dessin : cadran du compte-tours gradué de 0 à 7 000 tr/min sur 240 degrés (de 8 h à 4 h), un grand trait "
-      + "tous les 1 000 tr/min, un petit à mi-chemin, ordre de grandeur d'un moteur à essence ; sans chiffres (au repos, "
-      + "l'aiguille couvrirait le zéro), nommé « Compte-tours » dessous, à 4 unités du cadran (46 unités de rayon) ; voyants "
+    "Choix de dessin : style schématique (décision du formateur du 15/10/2026, « pictogramme plutôt qu'illustration ») : les "
+      + "six pictogrammes normalisés gardent leur forme exacte ; le combiné est un seul aplat sombre, sans bord ; le compte-tours "
+      + "se réduit à son arc, de 0 à 7 000 tr/min sur 240 degrés (de 8 h à 4 h, ordre de grandeur d'un moteur à essence), de "
+      + "46 unités de rayon, à un trait tous les 1 000 tr/min (ni sous-graduation, ni disque de cadran : deux tons, celui des "
+      + "graduations et celui de l'aiguille), et à l'aiguille, du moyeu à sa pointe, sans queue ; sans chiffres (au repos, "
+      + "l'aiguille couvrirait le zéro), nommé « Compte-tours » dessous, à 4 unités sous le cercle de l'arc ; voyants "
       + "dans un carré de 24 unités, éteints à peine visibles (un symbole qu'on devine sous la vitre du combiné) ; noms courts "
       + "sous les voyants (Airbag, ABS, Pneus, Température, Huile, Charge), ceux des étapes du cours (« sauf huile et charge »), "
       + "en 11 unités, à 6 unités sous le carré du voyant : à 4, les anneaux des étapes touchaient le haut des noms à 680 px ; "

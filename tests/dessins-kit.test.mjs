@@ -720,6 +720,77 @@ test("voiture vue du dessus, schématique : la caisse et son contour, le pare-br
   }
 });
 
+// Teintes de remplissage et de contour de ce qui s'affiche d'un nœud (une partie masquée garde ses nœuds, display none).
+function teintesAffichees(noeud) {
+  const [remplis, contours] = [new Set(), new Set()];
+  (function voir(x) {
+    if (typeof x === "string" || x.attributs.display === "none") return;
+    if (x.attributs.fill && x.attributs.fill !== "none") remplis.add(x.attributs.fill);
+    if (x.attributs.stroke) contours.add(x.attributs.stroke);
+    x.enfants.forEach(voir);
+  })(noeud);
+  return { remplis: [...remplis].sort(), contours: [...contours].sort() };
+}
+
+test("voiture de profil, schématique : caisse, vitres et roues aux mêmes tracés que la voiture du kit ; portière et trappe ouvertes à la demande ; aucun détail de finition ; deux tons par pièce", () => {
+  const finition = ["bas-de-caisse", "phare", "feu", "retroviseur", "poignee-avant", "poignee-arriere", "siege"];
+  const memes = ["caisse", "vitrage", "roue-avant", "roue-arriere", "pneu", "jante", "passage-avant", "passage-arriere", "portiere-fermee", "trappe-fermee", "portiere-ouverte",
+    "ouverture", "montant", "chant", "panneau", "trappe-ouverte", "trappe-ouverte/volet"];
+  for (const [pose, options] of [[{ x: 160, y: 140, echelle: 40 }, {}], [{ x: 160, y: 140, echelle: 40, sens: "gauche" }, { portiereOuverte: true, trappeOuverte: true }],
+    [{ x: 120, y: 120, echelle: 26, teinte: "autre" }, { portiereOuverte: true }], [{ x: 60, y: 80, echelle: 8 }, { trappeOuverte: true }]]) {
+    const quoi = `échelle ${pose.echelle}, ${JSON.stringify(options)}`;
+    const detaillee = voitureProfil({ ...pose, ...options }), silhouette = voitureProfil({ ...pose, ...options, schema: true });
+    assert.equal(formeArbre(silhouette), formeArbre(voitureProfil({ ...pose, schema: true, portiereOuverte: !options.portiereOuverte,
+      trappeOuverte: !options.trappeOuverte })), `${quoi} : mêmes nœuds, portière et trappe ouvertes ou fermées`);
+    for (const role of finition) {
+      assert.equal(trouverRole(silhouette, role), null, `${role} dans la silhouette, ${quoi}`);
+      if (pose.echelle >= 40) assert.ok(trouverRole(detaillee, role), `${role} de la voiture détaillée, ${quoi}`);
+    }
+    // Mêmes tracés : la silhouette et la voiture détaillée gardent les mêmes mesures (la caisse, les vitres, les roues, les pièces ouvertes).
+    for (const role of memes) {
+      const lire = (v) => role.split("/").reduce((x, r) => x && trouverRole(x, r), v);   // « groupe/pièce » : la pièce de ce groupe
+      const [a, b] = [lire(silhouette), lire(detaillee)];
+      assert.ok(a && b, `${role}, ${quoi}`);
+      for (const cle of ["d", "cx", "cy", "r", "display", "data-x", "data-y", "data-angle"]) assert.equal(a.attributs[cle], b.attributs[cle], `${role}.${cle}, ${quoi}`);
+    }
+    // Le montant milieu, s'il se voit, sépare les vitres dans la teinte de la caisse, au même tracé.
+    const montant = trouverRole(silhouette, "montant-milieu");
+    assert.equal(Boolean(montant), pose.echelle * (VOITURE.vitrage.montant[1] - VOITURE.vitrage.montant[0]) >= 1.2, `montant milieu, ${quoi}`);
+    if (montant) {
+      assert.equal(montant.attributs.d, trouverRole(detaillee, "montant-milieu").attributs.d, `montant milieu, ${quoi}`);
+      assert.equal(montant.attributs.fill, trouverRole(silhouette, "caisse").attributs.fill, `montant milieu dans la teinte de la caisse, ${quoi}`);
+    }
+    // Teintes : la caisse (et son contour), les vitres, le pneu et la jante ; une pièce ouverte ajoute l'habitacle découvert, l'ombre
+    // de la caisse (montant, chant, volet) et le logement de la trappe.
+    const c = pose.teinte === "autre" ? { base: TEINTES_ROUTE.autre, bord: TEINTES_ROUTE.autreBord } : { base: TEINTES_ROUTE.eleve, bord: TEINTES_ROUTE.eleveBord };
+    const ombre = trouverRole(trouverRole(detaillee, "portiere-ouverte"), "chant").attributs.fill;
+    const attendues = new Set([c.base, kit.MATIERES.vitre, kit.MATIERES.pneu, kit.MATIERES.jante]);
+    if (options.portiereOuverte) [kit.MATIERES.habitacle, ombre].forEach((t) => attendues.add(t));
+    if (options.trappeOuverte) [kit.MATIERES.joint, ombre].forEach((t) => attendues.add(t));
+    assert.deepEqual(teintesAffichees(silhouette), { remplis: [...attendues].sort(), contours: [c.bord] }, `teintes, ${quoi}`);
+    // Une roue : deux tons, le pneu et la jante pleine ; son passage, dessiné sous elle, de la teinte du pneu : entre la roue et le bord
+    // du passage découpé dans la caisse, aucun anneau clair (retour de la relecture du 22/10/2026).
+    for (const role of ["roue-avant", "roue-arriere"]) {
+      assert.deepEqual(trouverRole(silhouette, role).enfants.map((x) => x.attributs.fill), [kit.MATIERES.pneu, kit.MATIERES.jante], `${role}, ${quoi}`);
+      const passage = trouverRole(silhouette, role.replace("roue", "passage"));
+      assert.equal(passage.attributs.fill, kit.MATIERES.pneu, `${role} : passage de la teinte du pneu, ${quoi}`);
+      assert.ok(silhouette.enfants.indexOf(passage) < silhouette.enfants.indexOf(trouverRole(silhouette, role)), `${role} : passage sous la roue, ${quoi}`);
+    }
+  }
+  // Contrôles communs et traits du jeu de la charte, dans tous les états.
+  const d = cadre({ largeur: 320, hauteur: 300, titre: "Silhouettes", description: "Essai." },
+    voitureProfil({ x: 60, y: 80, echelle: 10, schema: true }),
+    voitureProfil({ x: 220, y: 90, echelle: 25, sens: "gauche", teinte: "autre", portiereOuverte: true, trappeOuverte: true, schema: true }),
+    voitureProfil({ x: 160, y: 290, echelle: 60, portiereOuverte: true, trappeOuverte: true, schema: true }));
+  assert.deepEqual(verifierDessin(d, [320, 300]), []);
+  const jeu = Object.values(CHARTE.traits);
+  for (const x of trouverTous(d, (x) => "stroke-width" in x.attributs && x.attributs["data-r"] !== "fond")) {
+    assert.ok(jeu.includes(x.attributs["stroke-width"]), `${x.balise} ${x.attributs["data-r"] || ""} : épaisseur ${x.attributs["stroke-width"]}`);
+  }
+  // Sans l'option, la voiture détaillée : rien ne change pour les dessins qui ne la demandent pas.
+  assert.equal(JSON.stringify(voitureProfil({ x: 1, y: 2, echelle: 30, schema: false })), JSON.stringify(voitureProfil({ x: 1, y: 2, echelle: 30 })));
+});
+
 test("voitures : à petite échelle les détails de finition s'effacent, les pièces demandées et les grandes surfaces restent", () => {
   const options = { retroviseurs: true, roues: true, portiere: 30 };
   const petit = voitureDessus({ x: 40, y: 40, echelle: 6, ...options }), grand = voitureDessus({ x: 160, y: 100, echelle: 20, ...options });
@@ -877,4 +948,98 @@ test("rétroviseur intérieur vu de face : verre de 25 sur 7, lunette centrée e
   proche(decale.hauteur, m.hauteur, 1e-9, "le décalage ne touche pas au verre");
   assert.throws(() => kit.miroirInterieur({ x: 0, y: 0, largeur: 0 }), /largeur/);
   assert.throws(() => kit.miroirInterieur({ x: 0, y: 0, largeur: 10 }, [Number.NaN, 0]), /décalage/);
+});
+
+// ===== Personnes et mains en pictogramme (style schématique, extension à C1.1 et C1.2) =====
+
+const lumi = (hex) => {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+};
+const contrasteDe = (a, b) => { const [x, y] = [lumi(a), lumi(b)].sort((m, q) => q - m); return (x + 0.05) / (y + 0.05); };
+
+test("personne en pictogramme : une teinte sombre, lisible sur le fond et la carte ; le ton éloigné, plus clair, se lit sur le fond et se sépare de la teinte ; ni l'un ni l'autre n'est la peau", () => {
+  const { teinte, loin } = kit.SILHOUETTE;
+  for (const fond of [CHARTE.fond, CHARTE.carte]) {
+    assert.ok(contrasteDe(teinte, fond) >= 7, `teinte à ${contrasteDe(teinte, fond).toFixed(2)}:1 sur ${fond}`);
+    assert.ok(contrasteDe(loin, fond) >= 3, `ton éloigné à ${contrasteDe(loin, fond).toFixed(2)}:1 sur ${fond}`);
+  }
+  assert.ok(lumi(loin) > lumi(teinte) && contrasteDe(loin, teinte) >= 2.5, `ton éloigné à ${contrasteDe(loin, teinte).toFixed(2)}:1 sur la teinte`);
+  for (const peau of [CHARTE.peau, CHARTE.peauOmbre]) assert.ok(![teinte, loin].includes(peau), "la silhouette n'est pas de la peau");
+  assert.ok(Object.isFrozen(kit.SILHOUETTE));
+});
+
+// Les points d'une gélule, lus dans son tracé « M a1 L a2 A ... b2 L b1 A ... a1 Z ».
+function lireGelule(d) {
+  const v = String(d).match(/-?\d+(?:\.\d+)?/g).map(Number);
+  assert.match(String(d), /^M[^A-Z]+ L[^A-Z]+ A[^A-Z]+ L[^A-Z]+ A[^A-Z]+ Z$/);
+  return { a1: [v[0], v[1]], a2: [v[2], v[3]], r2: v[4], b2: [v[9], v[10]], b1: [v[11], v[12]], r1: v[13] };
+}
+
+test("gelule : l'enveloppe de ses deux disques, ses côtés droits tangents aux deux cercles, arcs exacts", () => {
+  for (const [p1, r1, p2, r2] of [[[10, 20], 6, [60, 50], 4], [[0, 0], 3, [0, -40], 8], [[5, 5], 5, [45, 5], 5]]) {
+    const g = lireGelule(kit.gelule(p1, r1, p2, r2));
+    const d = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
+    proche(g.r1, r1, 0.01, "rayon du premier arc");
+    proche(g.r2, r2, 0.01, "rayon du second arc");
+    for (const [p, c, r] of [[g.a1, p1, r1], [g.b1, p1, r1], [g.a2, p2, r2], [g.b2, p2, r2]]) proche(d(p, c), r, 0.02, "point sur son cercle");
+    // Tangence : chaque côté droit est perpendiculaire aux rayons qui le touchent.
+    for (const [a, b, ca, cb] of [[g.a1, g.a2, p1, p2], [g.b1, g.b2, p1, p2]]) {
+      const u = [b[0] - a[0], b[1] - a[1]], l = Math.hypot(...u);
+      proche(((a[0] - ca[0]) * u[0] + (a[1] - ca[1]) * u[1]) / l / Math.max(r1, 1e-9), 0, 0.01, "côté tangent au premier cercle");
+      proche(((b[0] - cb[0]) * u[0] + (b[1] - cb[1]) * u[1]) / l / Math.max(r2, 1e-9), 0, 0.01, "côté tangent au second cercle");
+    }
+  }
+});
+
+test("formePictogramme : « devant », un liseré clair sous chaque forme, puis toutes les formes pleines (deux formes jointes sans trait clair) ; « corps » et « loin » sans liseré ; les rôles sur les formes pleines ; un plan inconnu est une erreur", () => {
+  const [d1, d2] = [kit.gelule([0, 0], 5, [30, 0], 4), kit.gelule([30, 0], 4, [30, 30], 3)];
+  const devant = kit.formePictogramme([d1, d2], { plan: "devant", roles: ["bras", "avant-bras"] });
+  const [l1, l2, f1, f2] = devant.enfants;
+  for (const l of [l1, l2]) {
+    assert.equal(l.attributs.fill, CHARTE.carte);
+    assert.equal(l.attributs.stroke, CHARTE.carte);
+    assert.equal(l.attributs["stroke-width"], 2 * CHARTE.liseres, "liseré : CHARTE.liseres de chaque côté");
+  }
+  assert.deepEqual([l1.attributs.d, l2.attributs.d], [d1, d2]);
+  assert.deepEqual([f1, f2].map((f) => [f.attributs.d, f.attributs.fill, f.attributs["data-r"]]), [[d1, kit.SILHOUETTE.teinte, "bras"], [d2, kit.SILHOUETTE.teinte, "avant-bras"]]);
+  for (const [plan, teinte] of [["corps", kit.SILHOUETTE.teinte], ["loin", kit.SILHOUETTE.loin]]) {
+    const g = kit.formePictogramme(d1, { plan, roles: ["x"] });
+    assert.equal(g.enfants.length, 1, `${plan} : aucun liseré`);
+    assert.equal(g.enfants[0].attributs.fill, teinte, plan);
+    assert.equal(g.enfants[0].attributs.stroke, undefined, plan);
+  }
+  assert.throws(() => kit.formePictogramme(d1, { plan: "derriere" }), /plan « derriere » inconnu/);
+});
+
+test("membrePictogramme : une gélule par segment, d'articulation en articulation, du même rayon de part et d'autre de chaque articulation ; points ou rayons qui manquent, rayon nul : erreur", () => {
+  const points = [[0, 0], [20, 30], [50, 30]], rayons = [6, 5, 4];
+  const m = kit.membrePictogramme({ points, rayons, roles: ["haut", "bas"] });
+  assert.deepEqual(m.enfants.map((x) => x.attributs.d), [kit.gelule(points[0], 6, points[1], 5), kit.gelule(points[1], 5, points[2], 4)]);
+  assert.deepEqual(m.enfants.map((x) => x.attributs["data-r"]), ["haut", "bas"]);
+  assert.throws(() => kit.membrePictogramme({ points: [[0, 0]], rayons: [3] }), /au moins deux points/);
+  assert.throws(() => kit.membrePictogramme({ points, rayons: [6, 5] }), /un rayon par point/);
+  assert.throws(() => kit.membrePictogramme({ points, rayons: [6, 0, 4] }), /rayon 1 non positif/);
+  assert.throws(() => kit.membrePictogramme({ points: [[0, 0], [Number.NaN, 1]], rayons: [1, 1] }), /nombre fini/);
+  const t = kit.tetePictogramme({ centre: [12, 34], rayon: 9 });
+  assert.deepEqual([t.balise, t.attributs.cx, t.attributs.cy, t.attributs.r, t.attributs.fill, t.attributs["data-r"]], ["circle", 12, 34, 9, kit.SILHOUETTE.teinte, "tete"]);
+});
+
+test("disqueMain : le repère d'une main ; sa lettre peut se masquer (lettreVisible 0 : display none ; entre 0 et 1, son opacité en est multipliée) ; sans lettreVisible, aucun attribut display (repères des gestes du volant) ; erreurs", () => {
+  const base = { x: 50, y: 40, cote: "droite", rayon: 8, lettre: 11, anneau: CHARTE.traits.moyen };
+  const fondu = (noeud) => trouverRole(noeud, "lettre-fondu-droite").attributs;
+  assert.equal("display" in fondu(kit.disqueMain(base)), false);
+  assert.equal(fondu(kit.disqueMain(base)).opacity, 1);
+  assert.equal(fondu(kit.disqueMain({ ...base, lettreVisible: 0 })).display, "none");
+  assert.deepEqual([fondu(kit.disqueMain({ ...base, lettreVisible: 0.5 })).display, fondu(kit.disqueMain({ ...base, lettreVisible: 0.5 })).opacity], ["inline", 0.5]);
+  assert.equal(formeArbre(kit.disqueMain({ ...base, lettreVisible: 0 })), formeArbre(kit.disqueMain(base)), "mêmes nœuds");
+  const plein = kit.disqueMain(base), creux = kit.disqueMain({ ...base, plein: 0 });
+  assert.equal(trouverRole(plein, "disque-droite").attributs.fill, CHARTE.peauOmbre);
+  assert.equal(trouverRole(creux, "disque-droite").attributs.fill, CHARTE.carte);
+  assert.equal(texteDe(trouverRole(plein, "lettre-droite")), "D");
+  assert.equal(texteDe(trouverRole(kit.disqueMain({ ...base, cote: "gauche" }), "lettre-gauche")), "G");
+  assert.throws(() => kit.disqueMain({ ...base, cote: "Droite" }), /côté « Droite » inconnu/);
+  assert.throws(() => kit.disqueMain({ ...base, plein: 1.2 }), /plein/);
+  assert.throws(() => kit.disqueMain({ ...base, lettreVisible: -0.1 }), /lettre visible/);
+  assert.throws(() => kit.disqueMain({ ...base, rayon: Number.NaN }), /rayon/);
 });

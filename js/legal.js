@@ -1,12 +1,12 @@
 // Informations légales : lecture des conditions d'utilisation et des mentions légales
 // (plein écran, ouvrable même sans être connecté, depuis l'écran de connexion), et fenêtre
 // d'acceptation bloquante au démarrage quand la version en vigueur n'a pas été acceptée.
-import { el, clear, toast } from "./utils.js?v=20261022a";
-import { icon } from "./icons.js?v=20261022a";
-import { rendreMarkdown } from "./views/cours-reader.js?v=20261022a";
-import { CONDITIONS_MD, MENTIONS_MD, VERSION_CONDITIONS } from "./legal-data.js?v=20261022a";
-import { doitAccepter, aDejaAccepte, lignesEssentiel, dateVersion } from "./legal-rules.js?v=20261022a";
-import { listMesAcceptations, accepterConditions, signOut } from "./db.js?v=20261022a";
+import { el, clear, toast } from "./utils.js?v=20261022b";
+import { icon } from "./icons.js?v=20261022b";
+import { rendreMarkdown } from "./views/cours-reader.js?v=20261022b";
+import { CONDITIONS_MD, MENTIONS_MD, VERSION_CONDITIONS } from "./legal-data.js?v=20261022b";
+import { doitAccepter, aDejaAccepte, lignesEssentiel, dateVersion } from "./legal-rules.js?v=20261022b";
+import { listMesAcceptations, accepterConditions, signOut } from "./db.js?v=20261022b";
 
 const ONGLETS = [
   { cle: "conditions", libelle: "Conditions d'utilisation", md: CONDITIONS_MD },
