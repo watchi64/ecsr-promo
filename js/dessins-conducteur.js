@@ -17,7 +17,7 @@
  */
 import { n } from "./dessin-svg.js?v=20261022a";
 import { CHARTE, METRIQUES_POLICE, MISE_EN_PAGE, cadre, texte, etiquette, vignette, fleche, arrondir, couper, miroirInterieur, coord,
-  point as ecrirePoint, trace, entre } from "./dessins-kit.js?v=20261022a";
+  point as ecrirePoint, trace, entre, gelule } from "./dessins-kit.js?v=20261022a";
 import { adoucir, sortieDouce, avancement, interpoler, cles } from "./animation-courbes.js?v=20261022a";
 
 // ===================================================================================================================
@@ -231,19 +231,6 @@ function plusHautCubique(segments) {
 const pointsArrondis = (sommets, rayon) => arrondir(sommets, sommets.map(() => rayon));
 const formeArrondie = (sommets, rayon) => trace(pointsArrondis(sommets, rayon));
 const plusHautPoints = (points) => points.reduce((m, p) => (p[1] < m[1] ? p : m));
-
-// Membre en forme de gélule : enveloppe de deux disques (rayons r1 et r2), arcs exacts. Coordonnées du cadre.
-function gelule(p1, r1, p2, r2) {
-  const d = Math.max(dist(p1, p2), 1e-6);
-  const u = fois(moins(p2, p1), 1 / d), v = [-u[1], u[0]];
-  const sb = Math.max(-1, Math.min(1, (r1 - r2) / d)), cb = Math.sqrt(1 - sb * sb);
-  const nA = plus(fois(u, sb), fois(v, cb)), nB = plus(fois(u, sb), fois(v, -cb));
-  const a1 = plus(p1, fois(nA, r1)), a2 = plus(p2, fois(nA, r2)), b2 = plus(p2, fois(nB, r2)), b1 = plus(p1, fois(nB, r1));
-  const vectoriel = (a, b) => a[0] * b[1] - a[1] * b[0];
-  const sens2 = vectoriel(moins(a2, p2), u) > 0 ? 1 : 0, sens1 = vectoriel(moins(b1, p1), fois(u, -1)) > 0 ? 1 : 0;
-  return `M${ecrirePoint(a1)} L${ecrirePoint(a2)} A${coord(r2)} ${coord(r2)} 0 ${sb < 0 ? 1 : 0} ${sens2} ${ecrirePoint(b2)} `
-    + `L${ecrirePoint(b1)} A${coord(r1)} ${coord(r1)} 0 ${sb > 0 ? 1 : 0} ${sens1} ${ecrirePoint(a1)} Z`;
-}
 
 // Ruban d'une largeur donnée le long d'une courbe lisse (la sangle) : contour fermé fait de ses deux bords échantillonnés.
 // (À ne pas confondre avec `bande` du kit, qui découpe un polygone entre deux droites.)

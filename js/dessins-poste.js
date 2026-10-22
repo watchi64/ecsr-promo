@@ -16,10 +16,10 @@
  * voiture sont des silhouettes à plat. Les dessins de C1.1 et de C1.2 gardent le leur jusqu'à ce que l'essai soit validé.
  */
 import { n } from "./dessin-svg.js?v=20261022a";
-import { CHARTE, COULEURS_VOYANTS, METRIQUES_POLICE, cadre, texte, etiquette, fleche, arc, voitureDessus, coord, point as pt, trace }
-  from "./dessins-kit.js?v=20261022a";
+import { CHARTE, COULEURS_VOYANTS, METRIQUES_POLICE, cadre, texte, etiquette, fleche, arc, voitureDessus, coord, point as pt, trace,
+  disqueMain } from "./dessins-kit.js?v=20261022a";
 import { CATALOGUE } from "./catalogue-blocs.js?v=20261022a";
-import { interpoler, cles } from "./animation-courbes.js?v=20261022a";
+import { cles } from "./animation-courbes.js?v=20261022a";
 
 // ===== Teintes de l'habitacle (choix de dessin) =====
 // Tons neutres (spec § 3) : plastique sombre des commandes en trois tons (base, reflet, ombre), planche claire, symboles clairs
@@ -169,15 +169,14 @@ function pictoAvertisseur(cx, cy, longueur, fond) {
 // clair, la lettre du ton de l'anneau) : la main a relâché la jante, la jante glisse dessous, ou la main se déplace hors d'elle.
 // Un liseré clair borde chaque disque : il le détache de la jante sombre, et de l'autre repère quand l'un passe sur l'autre.
 // Le ton sombre de la peau (CHARTE.peauOmbre) porte la lettre claire à un contraste de 5:1 (4,5:1 exigé pour un texte de cette
-// taille), le ton clair (CHARTE.peau) ne la porterait qu'à 3,5:1.
+// taille), le ton clair (CHARTE.peau) ne la porterait qu'à 3,5:1. Le disque, son liseré, son anneau et sa lettre sont la pièce du
+// kit (disqueMain, Outfit 700, la graisse la plus forte de l'app), commune à tous les repères de main ; ses mesures sur le volant :
 const REPERE = {
   rayon: 10.5,                    // unités : 22,5 px de large sur un téléphone (343 px pour 320 unités)
   lettre: 12,                     // unités : 12,9 px sur un téléphone, au-dessus des 11 px de la charte
-  graisse: 700,                   // la plus forte d'Outfit dans l'app
   anneau: CHARTE.traits.appuye,   // trait de l'anneau du repère creux
 };
-const LETTRES = { gauche: "G", droite: "D" };
-const COTES = Object.keys(LETTRES);
+const COTES = ["gauche", "droite"];
 /** Prises d'une main : 1, elle tient la jante ; `glisse`, la jante glisse dans ses doigts entrouverts ; 0, elle l'a lâchée. */
 const PRISE = Object.freeze({ tient: 1, glisse: 0.5, lachee: 0 });
 // Remplissage d'un repère, de 0 (creux) à 1 (plein) : plein quand la main tient la jante, creux dès qu'elle la laisse glisser ;
@@ -188,11 +187,6 @@ const remplissage = (prise) => {
   const v = Math.min(1, Math.max(0, (prise - PRISE.glisse) / (PRISE.tient - PRISE.glisse)));
   return v * v * (3 - 2 * v);
 };
-// Teinte à la part t du chemin de la couleur a à la couleur b (#RRGGBB, composantes arrondies à l'entier) : a à 0, b à 1.
-function teinteEntre(a, b, t) {
-  const composante = (hex, i) => parseInt(hex.slice(1 + 2 * i, 3 + 2 * i), 16);
-  return `#${[0, 1, 2].map((i) => Math.round(interpoler(composante(a, i), composante(b, i), t)).toString(16).padStart(2, "0")).join("").toUpperCase()}`;
-}
 
 function connu(valeur, permises, quoi) {
   if (!permises.includes(valeur)) throw new Error(`Repère : ${quoi} « ${valeur} » inconnu : ${permises.map((v) => `« ${v} »`).join(", ")} attendu.`);
@@ -211,18 +205,10 @@ export function repereMain({ cx, cy, rayon, heure, cote, prise = PRISE.tient, de
   if (!(prise >= PRISE.lachee && prise <= PRISE.tient)) throw new Error(`Repère : prise « ${prise} » hors de 0 à 1.`);
   if (!(decalage >= 0 && decalage <= rayon)) throw new Error(`Repère : décalage « ${decalage} » hors de 0 au rayon du volant.`);
   const [x, y] = pointHeure(cx, cy, rayon - decalage, heure);
-  const f = remplissage(prise), R = REPERE;
   // Pendant le fondu, le disque passe par des teintes mêlées : la lettre garde une des deux teintes pures, claire sur la moitié
   // pleine du fondu, sombre sur la moitié creuse, et s'efface au milieu (opacité |2f - 1|), là où elle change de teinte : elle
   // ne se pose jamais sur un disque de sa propre teinte (à demi visible, elle y garde un contraste de 3:1 au moins).
-  return n("g", { "data-r": `main-${cote}`, "data-x": x, "data-y": y, "data-heure": heure, "data-prise": prise },
-    n("circle", { cx: x, cy: y, r: R.rayon + CHARTE.liseres, fill: CHARTE.carte, "data-r": `liseret-${cote}` }),
-    n("circle", { cx: x, cy: y, r: R.rayon, fill: teinteEntre(CHARTE.carte, CHARTE.peauOmbre, f), "data-r": `disque-${cote}` }),
-    n("circle", { cx: x, cy: y, r: R.rayon - R.anneau / 2, fill: "none", stroke: CHARTE.peauOmbre, "stroke-width": R.anneau,
-      "data-r": `anneau-${cote}` }),
-    n("g", { opacity: Math.abs(2 * f - 1), "data-r": `lettre-fondu-${cote}` },
-      texte(x, y + METRIQUES_POLICE.milieuCapitales * R.lettre, LETTRES[cote], { taille: R.lettre, ancrage: "middle", graisse: R.graisse,
-        couleur: f >= 1 / 2 ? CHARTE.carte : CHARTE.peauOmbre, role: `lettre-${cote}` })));
+  return disqueMain({ x, y, cote, plein: remplissage(prise), ...REPERE, attributs: { "data-heure": heure, "data-prise": prise } });
 }
 
 // ===== Dessin 1 : tenir le volant (C1.3) =====
