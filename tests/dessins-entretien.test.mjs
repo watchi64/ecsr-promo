@@ -186,6 +186,58 @@ test("capot : la voiture est celle du kit, vue du dessus, découpée à un ident
   assert.ok(Math.min(...compartiment.map((p) => p[0])) > tx + droiteDe(pareBrise), "compartiment sur le pare-brise");
 });
 
+// ----- Style schématique (décision du formateur du 15/10/2026 : « pictogramme plutôt qu'illustration ») -----
+
+// Teintes peintes par les formes d'un nœud (ni textes ni groupes), « none » exclu ; présence d'un bord sur une forme pleine.
+const teintesFormes = (noeud) => {
+  const vues = new Set();
+  for (const x of trouverTous(noeud, (y) => y.balise !== "text" && y.balise !== "g")) {
+    for (const k of ["fill", "stroke"]) if (x.attributs[k] !== undefined && x.attributs[k] !== "none") vues.add(x.attributs[k]);
+  }
+  return [...vues];
+};
+const bordees = (noeud) => trouverTous(noeud, (x) => x.balise !== "line" && x.balise !== "text" && x.balise !== "g"
+  && x.attributs.stroke !== undefined && x.attributs.stroke !== "none" && x.attributs.fill !== "none");
+// Luminance relative (WCAG) d'une couleur #RRGGBB et contraste de deux couleurs.
+function luminance(hex) {
+  const lineaire = (c) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+  const [r, g, b] = [1, 3, 5].map((i) => lineaire(parseInt(hex.slice(i, i + 2), 16) / 255));
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+const contraste = (a, b) => { const [x, y] = [luminance(a), luminance(b)].sort((m, n) => n - m); return (x + 0.05) / (y + 0.05); };
+
+test("capot : en pictogramme : la voiture en silhouette du kit ; sous le capot, le compartiment, le moteur d'un ton et les organes nommés, en aplats sans bord", () => {
+  const d = famille.DESSINS.capot();
+  const voiture = trouverRole(d, "voiture");
+  const details = trouverTous(voiture, (x) => /^(toit|phare-|feu-|essuie-glaces|reflet-|vitre-)/.test(x.attributs["data-r"] || ""));
+  assert.deepEqual(details.map((x) => x.attributs["data-r"]), [], "détails de finition de la voiture");
+  // Hors de la voiture et des étiquettes, seulement le compartiment, le moteur et les six organes du cours, chacun en aplats.
+  const racines = d.enfants.filter((x) => typeof x !== "string" && x.balise !== "defs" && x.balise !== "text"
+    && !/^(fond|decoupe|etiquette-)/.test(x.attributs["data-r"] || ""));
+  assert.deepEqual(racines.map((x) => x.attributs["data-r"]).sort(), ["compartiment", "moteur", ...Object.keys(ORGANES)].sort());
+  assert.deepEqual(teintesFormes(trouverRole(d, "moteur")), [trouverRole(d, "moteur").attributs.fill], "moteur d'un seul ton");
+  for (const role of Object.keys(ORGANES)) {
+    const partie = trouverRole(d, role);
+    assert.deepEqual(bordees(partie).length, 0, `${role} : forme bordée`);
+    const tons = teintesFormes(partie).length, max = role === "batterie" ? 3 : 2;
+    assert.ok(tons <= max, `${role} : ${tons} tons pour ${max} au plus`);
+  }
+});
+
+test("capot : les cosses, leurs câbles et les signes + et − se lisent sur la batterie et le fond du compartiment", () => {
+  const d = famille.DESSINS.capot();
+  const fondCompartiment = trouverRole(d, "compartiment").attributs.fill;
+  const batterie = trouverRole(d, "batterie"), bac = trouverTous(batterie, (x) => x.balise === "path")[0].attributs.fill;
+  for (const s of trouverTous(batterie, (x) => x.balise === "text")) {
+    assert.ok(contraste(s.attributs.fill, bac) >= 4.5, `signe « ${texteDe(s)} » à ${contraste(s.attributs.fill, bac).toFixed(2)}:1 sur la batterie`);
+  }
+  for (const c of trouverTous(batterie, (x) => /^cosse-/.test(x.attributs["data-r"] || ""))) {
+    const cable = trouverRole(c, "cable").attributs.stroke, pince = trouverTous(c, (x) => x.balise === "path")[0].attributs.fill;
+    assert.ok(contraste(cable, fondCompartiment) >= 3, `câble à ${contraste(cable, fondCompartiment).toFixed(2)}:1 sur le compartiment`);
+    assert.ok(contraste(pince, bac) >= 3, `cosse à ${contraste(pince, bac).toFixed(2)}:1 sur la batterie`);
+  }
+});
+
 // ----- Lire un niveau -----
 
 test("niveaux : jauge tenue pointe en bas, repère mini sous le repère maxi, haut de la trace d'huile entre les deux", () => {
@@ -302,6 +354,20 @@ test("pneu : flanc sain d'un côté, hernie de l'autre, une bosse vers l'extéri
   const y = nb(hernie, "data-y");
   assert.ok(y > nb(malade, "data-epaule") && y < nb(malade, "data-talon"), "la hernie n'est pas sur le flanc");
   assert.ok(textes(malade).includes("Hernie"));
+});
+
+// Style schématique : la jante est une bande plate et ses rebords, sans le creux de montage ; elle ne descend pas sous le pied
+// des talons de plus que son épaisseur (5,75 mm). Le pneu est d'une seule gomme, la jante d'un aplat et de son bord.
+test("pneu : en pictogramme, la jante est une bande plate sous les talons, le pneu d'une seule gomme", () => {
+  const d = famille.DESSINS.pneu();
+  for (const etat of ["juste", "faux"]) {
+    const v = trouverRole(d, `flanc-${etat}`), k = nb(v, "data-echelle");
+    const jante = trouverRole(v, "jante"), pneu = trouverRole(v, "pneu");
+    const pied = basDe(pneu);
+    assert.ok(basDe(jante) - pied <= 5.75 * k + 0.05, `${etat} : la jante descend de ${((basDe(jante) - pied) / k).toFixed(1)} mm sous les talons`);
+    assert.deepEqual(teintesFormes(pneu).length, 1, `${etat} : pneu en plusieurs tons`);
+    assert.deepEqual(teintesFormes(jante).length, 2, `${etat} : jante, un aplat et son bord`);
+  }
 });
 
 // La paroi du pneu est plus mince que le point d'une étiquette : le point se pose hors de la gomme et la touche, sans couvrir

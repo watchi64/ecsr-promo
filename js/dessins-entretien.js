@@ -57,18 +57,19 @@ function mettreEnGarde(noeud, lignes) {
 }
 
 // ===== Teintes =====
-// La voiture (caisse, vitres, phares, roues) garde les teintes du kit : c'est lui qui la dessine. Le fond sombre du compartiment
-// et la gomme et la jante du pneu en coupe sont des matières du kit (MATIERES), celles de sa voiture. Le reste est propre à cette
-// famille (choix de dessin) : sous le capot, tons neutres, moteur gris en trois tons, plastique translucide clair des réservoirs,
-// plastique noir des bouchons et de la poignée de jauge, batterie sombre aux bornes de plomb ; lame d'acier et huile ambrée de la
-// jauge ; liquide dans le vert doux de la charte ; témoin d'usure d'un ton plus clair que la gomme, pour qu'on le distingue (dans
-// le pneu, c'est la même gomme).
+// Style schématique (décision du formateur du 15/10/2026, « pictogramme plutôt qu'illustration ») : des aplats, sans relief ni
+// reflet, deux tons par objet, trois au plus. La voiture, en silhouette (option schema), garde les teintes du kit : c'est lui qui
+// la dessine. Le fond sombre du compartiment et la gomme et la jante du pneu en coupe sont des matières du kit (MATIERES), celles
+// de sa voiture. Le reste est propre à cette famille (choix de dessin) : sous le capot, moteur gris d'un seul ton, plastique
+// translucide clair des réservoirs, plastique noir des bouchons et de la poignée de jauge, batterie d'un gris sombre aux cosses
+// claires et aux câbles gris, assez clairs pour se lire sur le fond du compartiment ; lame d'acier et huile ambrée de la jauge ;
+// liquide dans le vert doux de la charte ; témoin d'usure d'un ton plus clair que la gomme, pour qu'on le distingue (dans le pneu,
+// c'est la même gomme).
 const TEINTES = {
-  fond: MATIERES.compartiment, auvent: "#353B37",
-  moteur: "#646E67", moteurCache: "#828C85", moteurReflet: "#99A29B", boite: "#59625C",
+  fond: MATIERES.compartiment, moteur: "#7A847D",
   plastique: "#E3E8E1", plastiqueBord: "#A9B3A5", plastiqueReflet: "#F6F8F4",
-  bouchon: "#262B28", bouchonHaut: "#3D4440", cable: "#202421",
-  batterie: "#3F4642", batterieCouvercle: "#535B56", plomb: "#C5CAC4", cosse: "#8E968F",
+  bouchon: "#262B28", bouchonHaut: "#3D4440",
+  batterie: "#5E6862", cosse: "#C5CAC4", cable: "#8E968F",
   lame: "#C3C9C4", lameBord: "#8E968F", huile: "#9A7234",
   liquide: "#C7D4A6", liquideSurface: CHARTE.accent, repere: CHARTE.texteDiscret, sol: CHARTE.texteDoux,
   air: CHARTE.carte, janteBord: "#8E968F", temoin: "#7E8A82", cote: CHARTE.carte,
@@ -77,10 +78,10 @@ const TEINTES = {
 const GOMME = MATIERES.pneu, JANTE = MATIERES.jante;
 
 // ===== Sous le capot =====
-// La voiture du kit vue du dessus (voitureDessus, cap 0 : l'avant à droite du dessin, la gauche de la voiture, côté conducteur,
-// en haut), découpée du bas du pare-brise au nez : contour, pare-brise et balais, phares, joints du capot et teintes sont les
-// siens. Capot ouvert (il n'est pas dessiné), le compartiment et ses organes, un schéma, sont posés par-dessus. Repère de la
-// voiture du kit, en mètres : x vers l'avant depuis son centre, y vers sa droite.
+// La voiture du kit vue du dessus, en silhouette (voitureDessus, option schema, cap 0 : l'avant à droite du dessin, la gauche de
+// la voiture, côté conducteur, en haut), découpée du bas du pare-brise au nez : contour, pare-brise et teintes sont les siens.
+// Capot ouvert (il n'est pas dessiné), le compartiment et ses organes, un schéma, sont posés par-dessus. Repère de la voiture
+// du kit, en mètres : x vers l'avant depuis son centre, y vers sa droite.
 const DEMI_LONGUEUR = VOITURE.longueur / 2, DEMI_LARGEUR = VOITURE.largeur / 2;
 const PIED_PARE_BRISE = DEMI_LONGUEUR - VOITURE.pareBrise.recul + VOITURE.pareBrise.profondeur;
 const CAPOT = {
@@ -88,7 +89,7 @@ const CAPOT = {
   jeu: 2,                                  // de l'ancre d'une étiquette au bord du dessin
   ecartMention: 10,                        // du bas du dessin au haut de la mention
   vitre: 0.08,                             // part du pare-brise montrée, derrière son pied
-  auvent: 0.08,                            // du pied du pare-brise au fond du compartiment
+  auvent: 0.08,                            // du pied du pare-brise au fond du compartiment (la caisse entre les deux)
   devant: 0.23,                            // du bord avant du compartiment au nez : la traverse et les phares
   aile: 0.24,                              // du bord du compartiment au flanc : le dessus des ailes, joints du capot compris
   arrondi: 0.10,                           // coins du compartiment
@@ -96,17 +97,16 @@ const CAPOT = {
   // droite batterie, jauge, lave-glace.
   lignes: { gauche: [-0.40, 0.02, 0.44], droite: [-0.51, 0.02, 0.55] },
   retrait: 1.2,                            // le point d'une étiquette, à cette distance (unités) du bord de l'organe : il en déborde
-  moteur: { arriere: 1.48, avant: 1.88, gauche: -0.32, droite: 0.24, arrondi: 0.05, cache: 0.035, arrondiCache: 0.04, reflet: 0.05 },
-  boite: { arriere: 1.54, avant: 1.80, gauche: -0.56, droite: -0.32, arrondi: 0.04 },
+  moteur: { arriere: 1.48, avant: 1.88, gauche: -0.32, droite: 0.24, arrondi: 0.05 },
   // Organes à vérifier, agrandis (schéma) pour se reconnaître sur un téléphone : chacun mesure au moins une fois et demie le point
   // de son étiquette dans sa plus petite dimension.
-  huile: { x: 1.64, rayon: 0.058, dessus: 0.04, prise: [0.086, 0.022] },
+  huile: { x: 1.64, rayon: 0.058 },
   jauge: { x: 1.83, longueur: 0.14, largeur: 0.09, arrondi: 0.035, trou: [0.08, 0.036], arrondiTrou: 0.018 },
-  frein: { arriere: 1.34, avant: 1.50, demiLargeur: 0.11, arrondi: 0.03, bouchon: 0.044, dessus: 0.028 },
-  vase: { arriere: 1.55, avant: 1.79, demiLargeur: 0.14, arrondi: 0.035, bouchon: 0.052, dessus: 0.034 },
-  laveGlace: { x: 1.92, col: 0.072, bouchon: 0.05, dessus: 0.032 },
-  batterie: { arriere: 1.73, avant: 1.94, demiLargeur: 0.14, arrondi: 0.015, couvercle: 0.012,
-    bornes: [{ dy: -0.09, signe: "+" }, { dy: 0.09, signe: "−" }], xBorne: 1.78, rayonBorne: 0.016, cosse: [0.04, 0.054], xSigne: 1.87,
+  frein: { arriere: 1.34, avant: 1.50, demiLargeur: 0.11, arrondi: 0.03, bouchon: 0.044 },
+  vase: { arriere: 1.55, avant: 1.79, demiLargeur: 0.14, arrondi: 0.035, bouchon: 0.052 },
+  laveGlace: { x: 1.92, col: 0.072, bouchon: 0.05 },
+  batterie: { arriere: 1.73, avant: 1.94, demiLargeur: 0.14, arrondi: 0.015,
+    bornes: [{ dy: -0.09, signe: "+" }, { dy: 0.09, signe: "−" }], xBorne: 1.78, cosse: [0.04, 0.054], arrondiCosse: 0.008, xSigne: 1.87,
     cable: 0.08 },                         // amorce de chaque câble, depuis sa cosse vers l'arrière
 };
 let numeroCapot = 0;                       // numéro de chaque dessin du capot : identifiant de découpe unique par montage
@@ -134,28 +134,19 @@ function capot() {
     n("defs", {}, n("clipPath", { id: idDecoupe },
       n("rect", { x: fx1, y: fy1 - fin, width: fx2 - fx1 + fin, height: fy2 - fy1 + 2 * fin }))),
     n("g", { "clip-path": `url(#${idDecoupe})`, "data-r": "decoupe" },
-      voitureDessus({ x: v([0, 0])[0], y: v([0, 0])[1], cap: 0, echelle: E }))];
+      voitureDessus({ x: v([0, 0])[0], y: v([0, 0])[1], cap: 0, echelle: E, schema: true }))];
 
-  // Compartiment ouvert, auvent devant le pare-brise ; moteur et boîte de vitesses (sans nom : le cours ne les cite pas).
+  // Compartiment ouvert, en retrait du pied du pare-brise ; le moteur, un seul aplat (sans nom : le cours ne le cite pas).
   const fond = PIED_PARE_BRISE + C.auvent, nez = DEMI_LONGUEUR - C.devant, demi = DEMI_LARGEUR - C.aile;
-  const m = C.moteur, bo = C.boite;
+  const m = C.moteur;
   const compartiment = [
-    forme(coins(...v([PIED_PARE_BRISE, -demi]), ...v([fond, demi])), { fill: TEINTES.auvent, "data-r": "auvent" }),
     forme(rect(fond, -demi, nez, demi, C.arrondi), { fill: TEINTES.fond, "data-r": "compartiment" }),
-    forme(rect(bo.arriere, bo.gauche, bo.avant, bo.droite, bo.arrondi), { fill: TEINTES.boite, "data-r": "boite" }),
-    n("g", { "data-r": "moteur" },
-      forme(rect(m.arriere, m.gauche, m.avant, m.droite, m.arrondi), { fill: TEINTES.moteur }),
-      forme(rect(m.arriere + m.cache, m.gauche + m.cache, m.avant - m.cache, m.droite - m.cache, m.arrondiCache), { fill: TEINTES.moteurCache }),
-      forme(rect(m.arriere + m.cache, m.gauche + m.cache, m.arriere + m.cache + m.reflet, m.droite - m.cache, m.arrondiCache),
-        { fill: TEINTES.moteurReflet }))];
+    forme(rect(m.arriere, m.gauche, m.avant, m.droite, m.arrondi), { fill: TEINTES.moteur, "data-r": "moteur" })];
 
-  // Bouchon de remplissage d'huile, sur le cache du moteur : disque noir, dessus, barre de prise.
+  // Bouchon de remplissage d'huile, sur le moteur : un disque sombre.
   const hu = C.huile, ch = [hu.x, yHuile];
   const huile = n("g", { "data-r": "huile", ...boiteM(hu.x - hu.rayon, yHuile - hu.rayon, hu.x + hu.rayon, yHuile + hu.rayon) },
-    rond(ch, hu.rayon, { fill: TEINTES.bouchon }),
-    rond(ch, hu.dessus, { fill: TEINTES.bouchonHaut }),
-    forme(rect(hu.x - hu.prise[1] / 2, yHuile - hu.prise[0] / 2, hu.x + hu.prise[1] / 2, yHuile + hu.prise[0] / 2, hu.prise[1] / 2),
-      { fill: TEINTES.bouchon }));
+    rond(ch, hu.rayon, { fill: TEINTES.bouchon, "data-r": "bouchon" }));
 
   // Poignée de la jauge d'huile, devant le moteur : un anneau franc.
   const ja = C.jauge, jx1 = ja.x - ja.longueur / 2, jx2 = ja.x + ja.longueur / 2;
@@ -164,25 +155,22 @@ function capot() {
   const jauge = n("g", { "data-r": "jauge", ...boiteM(jx1, yJauge - ja.largeur / 2, jx2, yJauge + ja.largeur / 2) },
     n("path", { d: anneau.map((p) => trace(p)).join(" "), fill: TEINTES.bouchon, "fill-rule": "evenodd" }));
 
-  // Réservoirs translucides et leur bouchon, au milieu.
+  // Réservoirs translucides et leur bouchon, au milieu : le plastique clair, le bouchon sombre.
   const reservoir = (role, R, y) => {
     const centreR = [(R.arriere + R.avant) / 2, y];
     return n("g", { "data-r": role, ...boiteM(R.arriere, y - R.demiLargeur, R.avant, y + R.demiLargeur) },
-      forme(rect(R.arriere, y - R.demiLargeur, R.avant, y + R.demiLargeur, R.arrondi), { fill: TEINTES.plastique, stroke: TEINTES.plastiqueBord,
-        "stroke-width": fin }),
-      rond(centreR, R.bouchon, { fill: TEINTES.bouchon, "data-r": "bouchon" }),
-      rond(centreR, R.dessus, { fill: TEINTES.bouchonHaut }));
+      forme(rect(R.arriere, y - R.demiLargeur, R.avant, y + R.demiLargeur, R.arrondi), { fill: TEINTES.plastique }),
+      rond(centreR, R.bouchon, { fill: TEINTES.bouchon, "data-r": "bouchon" }));
   };
   const frein = reservoir("liquide-frein", C.frein, yFrein);
   const vase = reservoir("vase-expansion", C.vase, yVase);
   // Remplissage du lave-glace, dans le coin avant : le col translucide, son bouchon.
   const lg = C.laveGlace, cl = [lg.x, yLave];
   const laveGlace = n("g", { "data-r": "lave-glace", ...boiteM(lg.x - lg.col, yLave - lg.col, lg.x + lg.col, yLave + lg.col) },
-    rond(cl, lg.col, { fill: TEINTES.plastique, stroke: TEINTES.plastiqueBord, "stroke-width": fin }),
-    rond(cl, lg.bouchon, { fill: TEINTES.bouchon, "data-r": "bouchon" }),
-    rond(cl, lg.dessus, { fill: TEINTES.bouchonHaut }));
+    rond(cl, lg.col, { fill: TEINTES.plastique }),
+    rond(cl, lg.bouchon, { fill: TEINTES.bouchon, "data-r": "bouchon" }));
 
-  // Batterie : bac, couvercle, deux bornes et leurs cosses serrées au bout d'un câble, les signes + et − moulés à côté.
+  // Batterie : le bac, deux cosses serrées sur ses bornes, chacune au bout d'un câble, les signes + et − moulés à côté.
   const ba = C.batterie;
   const borne = ({ dy, signe }) => {
     const y = yBatterie + dy, [cx, cy] = v([ba.xBorne, y]), arriereCosse = ba.xBorne - ba.cosse[0] / 2;
@@ -190,14 +178,11 @@ function capot() {
     return [n("g", { "data-r": `cosse-${signe === "+" ? "plus" : "moins"}`, "data-x": cx, "data-y": cy },
       n("line", { x1: v([arriereCosse, y])[0], y1: cy, x2: v([arriereCosse - ba.cable, y])[0], y2: cy, stroke: TEINTES.cable,
         "stroke-width": CHARTE.traits.fort, "stroke-linecap": "round", "data-r": "cable" }),
-      forme(rect(arriereCosse, y - ba.cosse[1] / 2, ba.xBorne + ba.cosse[0] / 2, y + ba.cosse[1] / 2, ba.rayonBorne / 2), { fill: TEINTES.cosse }),
-      rond([ba.xBorne, y], ba.rayonBorne, { fill: TEINTES.plomb })),
+      forme(rect(arriereCosse, y - ba.cosse[1] / 2, ba.xBorne + ba.cosse[0] / 2, y + ba.cosse[1] / 2, ba.arrondiCosse), { fill: TEINTES.cosse })),
     texte(sx, sy + MILIEU_CAPITALES * PETIT, signe, { taille: PETIT, ancrage: "middle", graisse: 600, couleur: CHARTE.fond })];
   };
   const batterie = n("g", { "data-r": "batterie", ...boiteM(ba.arriere, yBatterie - ba.demiLargeur, ba.avant, yBatterie + ba.demiLargeur) },
     forme(rect(ba.arriere, yBatterie - ba.demiLargeur, ba.avant, yBatterie + ba.demiLargeur, ba.arrondi), { fill: TEINTES.batterie }),
-    forme(rect(ba.arriere + ba.couvercle, yBatterie - ba.demiLargeur + ba.couvercle, ba.avant - ba.couvercle, yBatterie + ba.demiLargeur - ba.couvercle,
-      ba.arrondi), { fill: TEINTES.batterieCouvercle }),
     ba.bornes.map(borne));
 
   // Étiquettes : chaque point part du bord de l'organe tourné vers son étiquette, à C.retrait unité dedans ; à gauche, les
@@ -359,12 +344,11 @@ const PNEU = {
     exterieur: [[78, 0, 18], [107, 50, 45], [90, 100, 12], [84, 112.75, 2], [68, 112.75, 3]],
     interieur: [[70, 98, 6], [95, 50, 40], [72, 16, 14]],
     rainures: { centres: [21, 55], largeur: 9, profondeur: 8, arrondi: 1.5 },
-    // Jante coupée en travers : une tôle de rebord à rebord (dessus, puis dessous, millimètres, et leurs arrondis), les talons
-    // posés sur ses portées, son creux au milieu.
+    // Jante coupée en travers, en pictogramme : une bande plate de rebord à rebord (dessus, puis dessous, millimètres, et leurs
+    // arrondis), les talons posés sur elle contre ses rebords ; le creux de montage n'est pas dessiné (style schématique).
     jante: {
-      dessus: [[-93, 104, 4], [-84, 104, 1], [-84, 112.75, 1], [-62, 112.75, 3], [-52, 124, 3], [52, 124, 3], [62, 112.75, 3],
-        [84, 112.75, 1], [84, 104, 1], [93, 104, 4]],
-      dessous: [[93, 118.5, 2], [66, 118.5, 3], [56, 129.5, 3], [-56, 129.5, 3], [-66, 118.5, 3], [-93, 118.5, 2]],
+      dessus: [[-93, 104, 4], [-84, 104, 1], [-84, 112.75, 1], [84, 112.75, 1], [84, 104, 1], [93, 104, 4]],
+      dessous: [[93, 118.5, 2], [-93, 118.5, 2]],
     },
     // Hernie : une bulle (profil en demi-ellipse, plein au sommet, qui naît net du flanc), la paroi amincie.
     hernie: { centre: 52, demiHauteur: 26, saillie: 13, amincissement: 4 },
