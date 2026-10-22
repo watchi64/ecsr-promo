@@ -45,9 +45,14 @@ export const SOURCES = {
       + "45 cm 6 unités. D'où, en haut, le détail de l'avant à 34,8 unités par mètre (la voiture entière et la zone avant dans "
       + "304 unités), où l'obstacle se reconnaît (16 unités), et en bas la vue d'ensemble, où les deux zones se comparent.",
     "Choix de dessin, zones : la partie de l'espace sous la ligne de visée, entre la verticale de l'avant (ou de l'arrière) de la "
-      + "voiture et le point où la ligne touche le sol : ce qui s'y trouve n'est pas vu depuis le siège. Fond clair et hachures à "
-      + "45 degrés (bandes d'une unité, pas de 4,5 unités), aux teintes de correction du cours (faux) : les mêmes que les angles "
-      + "morts du dessin angles-morts. Lignes de visée en tirets (4 et 3 unités) bordés d'un liseré clair, sol en trait moyen.",
+      + "voiture et le point où la ligne touche le sol : ce qui s'y trouve n'est pas vu depuis le siège. Un aplat translucide de la "
+      + "teinte de correction du cours (faux, #A05A3D, à 0,4 d'opacité), sans contour ni hachures : le même que les angles morts du "
+      + "dessin angles-morts. Lignes de visée en tirets (4 et 3 unités) bordés d'un liseré clair, sol en trait moyen.",
+    "Choix de dessin : style schématique, décision du formateur du 15/10/2026 (« pictogramme plutôt qu'illustration » : aplats, "
+      + "aucune texture). La voiture est la silhouette de profil du kit (voitureProfil, option schema), aux mêmes tracés que la voiture "
+      + "détaillée, si bien que les lignes de visée frôlent les mêmes repères : la caisse et son contour, les vitres latérales, les "
+      + "roues en deux tons ; ni passages de roue, ni phare, ni feu, ni rétroviseur, ni poignées, ni joints. Les zones, hachurées "
+      + "jusque-là, deviennent des aplats ; le cône garde ses trois tons (socle, cône, bande blanche).",
     "Choix de dessin, obstacle : un cône de signalisation courant de 45 cm, rouge à bande blanche, base de 30 cm (socle de 36 cm, "
       + "gris foncé #2E3430), posé 0,3 m devant le pare-chocs : un objet bas que chacun reconnaît. Sa pointe reste 0,24 m (8,4 unités) "
       + "sous la ligne de visée. Le point de son étiquette est posé sur sa pointe : il en cache moins de 10 % et laisse 2 unités au "
@@ -142,21 +147,21 @@ export const SOURCES = {
       + "du verre vers l'arrière, entre le rayon rasant et le bord extérieur. Champs clairs à 0,42 d'opacité ; seuls leurs bords qui "
       + "s'écartent sont tracés : le bord extérieur de chaque champ extérieur, qui borne l'angle mort, et les deux bords du champ "
       + "intérieur. Juste derrière chaque coin arrière, entre le rayon rasant et le champ intérieur, un petit secteur, jusqu'à 0,75 m "
-      + "derrière la voiture, n'est dans aucun champ ; il n'est pas hachuré : le dessin montre l'angle mort latéral que le cours "
+      + "derrière la voiture, n'est dans aucun champ ; il n'est pas teinté : le dessin montre l'angle mort latéral que le cours "
       + "nomme.",
     "Choix de dessin, angles morts : chacun commence à hauteur du conducteur, sur le rayon issu de l'œil à 90 degrés du cap (la "
       + "vision périphérique en regardant devant : les deux yeux couvrent environ 180 degrés, thème 26), là où ce rayon sort du champ "
       + "du rétroviseur : à 0,21 m du flanc à gauche, 0,15 m à droite ; il longe le flanc arrière (0,56 m du flanc à l'arrière de la "
       + "voiture à gauche, 0,34 m à droite) et s'étend vers l'arrière jusqu'au bord extérieur du champ du rétroviseur, et jusqu'aux "
-      + "bords du dessin. Fond clair à 0,85 d'opacité et hachures, comme les zones du dessin zones-invisibles.",
+      + "bords du dessin. Un aplat translucide de la teinte « faux » (0,4 d'opacité), comme les zones du dessin zones-invisibles : "
+      + "il laisse voir la rue dessous.",
     "Choix de dessin, coup d'œil : l'axe du regard des scènes (-120 degrés), leur portée, leur teinte et leur opacité ; son "
       + "ouverture, 100 degrés (50 de part et d'autre de l'axe), est le champ visuel utile à faible allure (thème 26 : environ "
       + "100 degrés à 40 km/h) : la tête tournée vers l'épaule porte ce champ vers l'arrière gauche. Il couvre toute la zone gauche "
       + "dessinée, vue de l'œil de 90 à 162 degrés du cap. Le cône des scènes (16 degrés de part et d'autre) montre où se pose le "
-      + "regard au fil d'une manœuvre ; ici, le dessin montre ce que le coup d'œil embrasse. Sous le cône, la zone gauche est voilée "
-      + "de son propre fond (opacité 0,5) : ses hachures s'éclaircissent et la teinte du regard y domine, comme sur la chaussée devant "
-      + "le conducteur ; sans ce voile, derrière le conducteur, le cône n'était qu'une teinte sur la hachure. La zone droite, que le coup "
-      + "d'œil ne couvre pas, garde ses hachures.",
+      + "regard au fil d'une manœuvre ; ici, le dessin montre ce que le coup d'œil embrasse. Le cône, translucide, passe par-dessus la "
+      + "zone gauche : elle prend la teinte du regard, la zone droite, que le coup d'œil ne couvre pas, garde la sienne. Le voile de la "
+      + "version hachurée (il éclaircissait les hachures sous le cône) n'a plus lieu d'être avec des aplats.",
     "Choix de dessin, deux-roues : le cycliste de la scène « sortie-portiere », la même pièce (js/piece-cycliste.js : 1,8 sur "
       + "0,6 m, roues de 0,7 m aux bouts arrondis, guidon arrondi, teintes des scènes), posée cap vers le haut ; centré 1,85 m à gauche "
       + "de l'axe et 1,0 m derrière le centre de la voiture, il longe la portière arrière et l'aile arrière entre 0,65 et 1,25 m du "
@@ -165,5 +170,12 @@ export const SOURCES = {
       + "« Coup d'œil par-dessus l'épaule » en haut, les trois rétroviseurs en bas, chacune avec son point dans ce qu'elle nomme. Le "
       + "point du coup d'œil est sur l'axe du regard, à 2,6 m derrière l'œil (vers l'arrière gauche, à -120 degrés du cap), entre le "
       + "deux-roues et le point de l'étiquette « Angle mort » : il dit un regard tourné vers l'arrière, par-dessus l'épaule.",
+    "Choix de dessin : style schématique, décision du formateur du 15/10/2026 (« pictogramme plutôt qu'illustration »). La voiture est "
+      + "la silhouette du kit vue du dessus (voitureDessus, option schema), avec ses rétroviseurs, d'où partent les champs : la caisse "
+      + "et son contour, le pare-brise, la lunette, les rétroviseurs ; ni toit, ni vitres latérales, ni phares, ni feux, ni "
+      + "essuie-glaces ; mêmes tracés que la voiture détaillée, donc mêmes champs. Les angles morts sont des aplats. Le cycliste est "
+      + "un pictogramme (js/piece-cycliste.js, la pièce de la scène « sortie-portiere ») : le cycliste d'une seule teinte, sa veste "
+      + "orange clair (dos, bras et tête ronde, le dos et la tête bordés de foncé), le vélo d'une seule teinte foncée (pneus, cadre et "
+      + "guidon), sans visage ni détail : trois teintes en tout.",
   ],
 };

@@ -36,8 +36,8 @@ export const TEINTES = {
   // de l'élève et 9,45:1 sur sa bordure (WCAG 1.4.11 : 3:1, tests/scene-rendu.test.mjs). Sur la carrosserie grise des
   // autres voitures, 2,96:1 seulement : accepté tant que seule la voiture de l'élève recule, ce qu'un test épingle.
   recul: "#FFFFFF",
-  // Cycliste vu du dessus (plan 3, tâche 13) : veste (le dos) et son ombre (les bras), contour, tête, vélo (cadre et guidon),
-  // pneus, ceux de la pièce partagée avec le dessin des angles morts (js/piece-cycliste.js). La veste, orange clair, se lit sur
+  // Cycliste vu du dessus (plan 3, tâche 13), en pictogramme : le cycliste (dos, bras et tête), son contour, le vélo (pneus, cadre
+  // et guidon), ceux de la pièce partagée avec le dessin des angles morts (js/piece-cycliste.js). La veste, orange clair, se lit sur
   // la chaussée (3,32:1), le contour, foncé, sur la chaussée vue à travers le cône du regard (4,94:1) (WCAG 1.4.11 : 3:1,
   // tests/scene-rendu.test.mjs) : le cycliste se détache partout.
   ...TEINTES_VELO,

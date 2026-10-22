@@ -10,7 +10,7 @@
  */
 import { n, trouverRole } from "./dessin-svg.js?v=20261022a";
 import { CHARTE, METRIQUES_POLICE, MISE_EN_PAGE, REGARD_SCENES, cadre, texte, etiquette, vignette, largeurPastille, voitureProfil, reperesProfil,
-  voitureDessus, reperesDessus, VOITURE, VITRAGE_CONTOUR, TEINTES_ROUTE, MIROIR_INTERIEUR, miroirInterieur, arrondir, couper, bande, ceinture, coord,
+  voitureDessus, reperesDessus, VOITURE, VITRAGE_CONTOUR, TEINTES_ROUTE, MIROIR_INTERIEUR, miroirInterieur, arrondir, couper, ceinture, coord,
   trace, entre } from "./dessins-kit.js?v=20261022a";
 import { CATALOGUE } from "./catalogue-blocs.js?v=20261022a";
 import { cycliste, GABARIT_VELO } from "./piece-cycliste.js?v=20261022a";
@@ -61,33 +61,19 @@ function racine(f, a, b) {
   return (a + b) / 2;
 }
 
-// ===== Hachures =====
-// Bandes pleines parallèles, découpées exactement dans le polygone (bande du kit) : une hachure se lit comme un trait, sans motif
-// SVG ni identifiant. Pente 1 : des bandes à 45 degrés, montant vers la droite.
-const HACHURES = { pas: 4.5, epaisseur: CHARTE.traits.fin, pente: 1 };
-function hachures(poly) {
-  const { pas, epaisseur, pente } = HACHURES;
-  const etendue = Math.hypot(1, pente);                 // largeur mesurée le long de x d'une bande d'une unité
-  const valeurs = poly.map(([x, y]) => x + pente * y);
-  const [min, max] = [Math.min(...valeurs), Math.max(...valeurs)];
-  const morceaux = [];
-  for (let c = min + (pas * etendue) / 2; c < max; c += pas * etendue) {
-    const b = bande(poly, { pente, debut: c - (epaisseur * etendue) / 2, fin: c + (epaisseur * etendue) / 2 });
-    if (b.length > 2) morceaux.push(trace(b));
-  }
-  return morceaux.join(" ");
-}
-// Une zone que le conducteur ne voit pas : un fond clair et des hachures, dans les deux dessins qui en montrent.
-const TEINTES_ZONE = { fond: CHARTE.fauxFond, hachure: CHARTE.faux };
-const zoneHachuree = (role, poly, opacite = 1) => n("g", { "data-r": role },
-  n("path", { d: trace(poly), fill: TEINTES_ZONE.fond, "fill-opacity": opacite, "data-r": "zone" }),
-  n("path", { d: hachures(poly), fill: TEINTES_ZONE.hachure }));
+// ===== Zones que le conducteur ne voit pas =====
+// Style schématique (décision du formateur du 15/10/2026 : aplats, aucune texture) : un aplat de la teinte « faux » de la charte,
+// translucide (TEINTES_ZONE.opacite), le même dans les deux dessins qui en montrent ; il laisse voir le sol dessous.
+const TEINTES_ZONE = { fond: CHARTE.faux, opacite: 0.4 };
+const zoneMasquee = (role, poly) => n("g", { "data-r": role },
+  n("path", { d: trace(poly), fill: TEINTES_ZONE.fond, "fill-opacity": TEINTES_ZONE.opacite, "data-r": "zone" }));
 
 // ===== Ce qu'on ne voit pas depuis le siège =====
 // Deux vues de la voiture du kit de profil, côté conducteur (sens « gauche » : l'avant à gauche). En haut, le détail de l'avant :
 // la voiture entière et la zone avant, au plus grand qui tienne, avec l'œil, la ligne de visée qui frôle le capot et un cône
 // caché dessous. En bas, la vue d'ensemble : les deux lignes de visée jusqu'au sol, la zone avant et la zone arrière, celle-ci
-// longue de 14,6 m pour la voiture du kit, ce qui impose une petite échelle.
+// longue de 14,6 m pour la voiture du kit, ce qui impose une petite échelle. Style schématique (décision du formateur du
+// 15/10/2026) : la voiture en silhouette (voitureProfil, option schema), les zones en aplats.
 const ZONES = {
   marge: 8,                // du bord du cadre au point où une ligne de visée touche le sol, ou à l'arrière de la voiture
   detail: { sol: 86 },
@@ -114,11 +100,11 @@ function vueProfil({ x, sol, echelle, arriere, role }) {
   return {
     r, solAv, solAr,
     noeud: n("g", { "data-r": role, "data-echelle": echelle, "data-x": x, "data-y": sol },
-      zoneHachuree("zone-avant", [r.solAvant, solAv, aAbscisse(r.oeil, r.hautCapot, r.solAvant[0])]),
-      arriere && zoneHachuree("zone-arriere", [r.solArriere, aAbscisse(r.oeil, r.hautCoffre, r.solArriere[0]), solAr]),
+      zoneMasquee("zone-avant", [r.solAvant, solAv, aAbscisse(r.oeil, r.hautCapot, r.solAvant[0])]),
+      arriere && zoneMasquee("zone-arriere", [r.solArriere, aAbscisse(r.oeil, r.hautCoffre, r.solArriere[0]), solAr]),
       n("line", { x1: solAv[0] - ZONES.marge / 2, y1: sol, x2: finSol + ZONES.marge / 2, y2: sol, stroke: TEINTES_PROFIL.sol,
         "stroke-width": CHARTE.traits.moyen, "stroke-linecap": "round", "data-r": "sol" }),
-      voitureProfil({ x, y: sol, echelle, sens: "gauche" }),
+      voitureProfil({ x, y: sol, echelle, sens: "gauche", schema: true }),
       visee("visee-avant", r.hautCapot, solAv), arriere && visee("visee-arriere", r.hautCoffre, solAr)),
   };
 }
@@ -405,6 +391,8 @@ function retroviseurs() {
 }
 
 // ===== Les angles morts =====
+// Style schématique (décision du formateur du 15/10/2026) : la voiture en silhouette (voitureDessus, option schema), avec ses
+// rétroviseurs, d'où partent les champs ; les angles morts en aplats, le cycliste en pictogramme (js/piece-cycliste.js).
 // La voiture garée le long du trottoir de droite, vue du dessus, dans la rue des scènes avec stationnement (js/scene-decors.js) :
 // bande de 2 m, voiture à 0,3 m de la bordure, voie de 3,5 m, axiale T'1. Tout le dessin est bâti cap vers le haut du cadre
 // (CAP_HAUT) : versCadre et direction le supposent. Un angle se compte depuis le cap, en degrés, négatif à gauche, comme le
@@ -423,10 +411,6 @@ const ANGLES_MORTS = {
   cycliste: [-1.0, -1.85], // m : centre du deux-roues, le long du flanc arrière gauche
   oeil: 1.8,               // rayon du point de l'œil
   champs: { opacite: 0.42 },
-  zones: { opacite: 0.85 },
-  // Sous le cône du coup d'œil, la zone qu'il couvre est voilée de son propre fond, à cette opacité : ses hachures s'éclaircissent et la
-  // teinte du regard y domine, comme sur la chaussée devant le conducteur.
-  voile: 0.5,
   // Étiquettes : ancre x (unités) et cible (m) ; en haut, le texte au-dessus de l'ancre, posée au bas de la bande ; en bas, le
   // texte sous l'ancre, posée en haut de la bande. Le coup d'œil : sa cible sur l'axe du regard, à `distance` m de l'œil, derrière lui,
   // entre le deux-roues et le point de l'étiquette « Angle mort ».
@@ -452,7 +436,7 @@ function anglesMorts() {
   const versCadre = ([X, Y]) => [cx + Y * s, cy - X * s];                   // cap vers le haut
   const versCadreDirection = ([dX, dY]) => [dY, -dX];
   const r = reperesDessus({ x: cx, y: cy, cap: CAP_HAUT, echelle: s });
-  const voiture = voitureDessus({ x: cx, y: cy, cap: CAP_HAUT, echelle: s, retroviseurs: true });
+  const voiture = voitureDessus({ x: cx, y: cy, cap: CAP_HAUT, echelle: s, retroviseurs: true, schema: true });
   const haut = A.bande, basChaussee = cy + A.arriere * s;
   const sol = [[0, haut], [L, haut], [L, basChaussee], [0, basChaussee]];   // chaussée et trottoir, entre les deux bandes
   const surSol = (poly) => dansConvexe(poly, sol);
@@ -494,10 +478,6 @@ function anglesMorts() {
   };
   const cone = surSol([r.oeil, plusLoin(r.oeil, direction(R.angle - R.demiOuverture), R.portee * s),
     plusLoin(r.oeil, direction(R.angle + R.demiOuverture), R.portee * s)]);
-  // La part de la zone gauche sous le cône, voilée (les deux sont convexes ; dansConvexe veut le cône dans le sens des aiguilles
-  // d'une montre à l'écran).
-  const horaire = (poly) => (poly.reduce((somme, p, i) => { const q = poly[(i + 1) % poly.length]; return somme + p[0] * q[1] - q[0] * p[1]; }, 0) > 0 ? poly : [...poly].reverse());
-  const voile = dansConvexe(zone(miroirs.gauche), horaire(cone));
 
   // Les champs, clairs, sans contour ; seuls leurs bords qui s'écartent sont tracés (le bord extérieur d'un champ extérieur, qui
   // borne l'angle mort, et les deux bords du champ intérieur) : un trait le long d'un flanc passerait pour du marquage.
@@ -527,8 +507,7 @@ function anglesMorts() {
   bord("bord-interieur-gauche", bordsLunette[0], unitaire([bordsLunette[0][0] - reflet[0], bordsLunette[0][1] - reflet[1]])),
   bord("bord-interieur-droit", bordsLunette[1], unitaire([bordsLunette[1][0] - reflet[0], bordsLunette[1][1] - reflet[1]])),
   bord("bord-gauche", eg.depart, eg.direction), bord("bord-droit", ed.depart, ed.direction),
-  zoneHachuree("angle-mort-gauche", zone(miroirs.gauche), A.zones.opacite), zoneHachuree("angle-mort-droit", zone(miroirs.droit), A.zones.opacite),
-  voile.length > 2 && n("path", { d: trace(voile), fill: TEINTES_ZONE.fond, "fill-opacity": A.voile, "data-r": "voile-coup-d-oeil" }),
+  zoneMasquee("angle-mort-gauche", zone(miroirs.gauche)), zoneMasquee("angle-mort-droit", zone(miroirs.droit)),
   n("path", { d: trace(cone), fill: TEINTES_ROUTE.regard, opacity: R.opacite, "data-r": "coup-d-oeil" }),
   n("g", { "data-r": "vue-dessus", "data-echelle": s, "data-x": cx, "data-y": cy }, voiture),
   n("circle", { cx: r.oeil[0], cy: r.oeil[1], r: A.oeil + CHARTE.liseres, fill: CHARTE.carte }),
