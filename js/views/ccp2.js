@@ -1,13 +1,13 @@
 // Onglet CCP2 (chantier D) : parcours guidé du certificat « Sensibiliser
 // l'ensemble des usagers de la route ». Texte dans js/ccp2-parcours-data.js,
 // dates tirées du Calendrier de la promo. Lecture seule : aucun contrôle d'édition.
-import { el, clear, formatDate, isoDate } from "../utils.js?v=20261022d";
-import { listAgendaEvents } from "../db.js?v=20261022d";
-import { routeVisible, moduleVisible } from "../modules-etat.js?v=20261022d";
-import { STORAGE_SOUS_ONGLET } from "../nouveautes.js?v=20261022d";
-import { hrefLien } from "../route-rules.js?v=20261022d";
-import { datesCcp2, insecables } from "../ccp-rules.js?v=20261022d";
-import { EPREUVE, ETAPES } from "../ccp2-parcours-data.js?v=20261022d";
+import { el, clear, formatDate, isoDate } from "../utils.js?v=20261022e";
+import { listAgendaEvents } from "../db.js?v=20261022e";
+import { routeVisible, moduleVisible } from "../modules-etat.js?v=20261022e";
+import { STORAGE_SOUS_ONGLET } from "../nouveautes.js?v=20261022e";
+import { hrefLien } from "../route-rules.js?v=20261022e";
+import { datesCcp2, insecables } from "../ccp-rules.js?v=20261022e";
+import { EPREUVE, ETAPES } from "../ccp2-parcours-data.js?v=20261022e";
 
 // Dernière étape ouverte, rouverte au retour sur l'onglet.
 const CLE_ETAPE = "ecsr_ccp2_etape";

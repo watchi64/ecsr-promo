@@ -1,10 +1,10 @@
-import { createClient } from "../vendor/supabase-js-2.117.2.js?v=20261022d";
-import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261022d";
-import { compteDansEquite } from "./passage-rules.js?v=20261022d";
+import { createClient } from "../vendor/supabase-js-2.117.2.js?v=20261022e";
+import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261022e";
+import { compteDansEquite } from "./passage-rules.js?v=20261022e";
 import {
   ENTETE_PROMO, doitPorterEntetePromo, choisirPromoInitiale, profilEffectif,
   separerChamps, CHAMPS_PROGRESSION, CHAMPS_EXAMEN, fusionnerProgression, fusionnerExamen,
-} from "./promo-rules.js?v=20261022d";
+} from "./promo-rules.js?v=20261022e";
 
 // Contexte de promo (spec multi-promo, C.1). La promo courante voyage dans l'en-tête
 // x-promo-id de chaque requête de données ; la base vérifie le droit et filtre.

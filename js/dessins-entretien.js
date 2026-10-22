@@ -13,11 +13,11 @@
  * trois tons par objet, aucun détail décoratif ; la voiture, de profil comme vue du dessus, est celle du kit, en silhouette.
  * Titres et cadres viennent du catalogue des blocs (js/catalogue-blocs.js), la seule source de ces métadonnées.
  */
-import { n } from "./dessin-svg.js?v=20261022d";
+import { n } from "./dessin-svg.js?v=20261022e";
 import { CHARTE, MATIERES, METRIQUES_POLICE, MISE_EN_PAGE, SYMBOLE_FREIN, SYMBOLE_TEMPERATURE, vagueSymbole, cadre, texte, etiquette,
   vignette, arrondir, arc, couper, trace, point, VOITURE,
-  VOITURE_PROFIL, voitureDessus, voitureProfil, reperesProfil } from "./dessins-kit.js?v=20261022d";
-import { CATALOGUE } from "./catalogue-blocs.js?v=20261022d";
+  VOITURE_PROFIL, voitureDessus, voitureProfil, reperesProfil } from "./dessins-kit.js?v=20261022e";
+import { CATALOGUE } from "./catalogue-blocs.js?v=20261022e";
 
 // ===== Mise en page commune (unités du cadre) =====
 // Textes posés comme ceux du kit : espace du bout d'un filet à son texte, pas des lignes, repères d'Outfit (METRIQUES_POLICE).
@@ -179,9 +179,11 @@ function pictogramme(nom, [cx, cy], largeur, couleur) {
 const DEMI_LONGUEUR = VOITURE.longueur / 2, DEMI_LARGEUR = VOITURE.largeur / 2;
 const PIED_PARE_BRISE = DEMI_LONGUEUR - VOITURE.pareBrise.recul + VOITURE.pareBrise.profondeur;
 const CAPOT = {
-  // Vue : la voiture, l'avant en haut (cap -90 : sa gauche, côté conducteur, à gauche du dessin), découpée sur cette demi-largeur
-  // (m) : le compartiment et une bande d'aile de chaque côté ; elle remplit la largeur du cadre, marges comprises. Les noms des
-  // organes sont au-dessus (ceux de l'avant) et au-dessous (ceux du côté du pare-brise) : la vue garde toute la largeur.
+  // Vue : capot ouvert, vu de l'avant, comme par celui qui se tient devant la voiture (consigne du formateur du 22/10/2026 : « le
+  // côté extérieur de la voiture en bas ») : l'avant en bas, le pare-brise en haut (cap 90 : la gauche de la voiture, côté
+  // conducteur, à droite du dessin) ; découpée sur cette demi-largeur (m) : le compartiment et une bande d'aile de chaque côté ;
+  // elle remplit la largeur du cadre, marges comprises. Les noms des organes sont au-dessus (ceux du côté du pare-brise) et
+  // au-dessous (ceux de l'avant) : la vue garde toute la largeur.
   demiLargeurVue: 0.80,
   jeu: 2,                                  // de l'ancre d'une étiquette au bord du dessin
   ecartMention: 10,                        // du bas des noms du dessous au haut de la mention
@@ -192,8 +194,8 @@ const CAPOT = {
   arrondi: 0.10,                           // coins du compartiment
   // Place de chaque organe en travers de la voiture (m, vers sa droite) : frein, huile, vase ; batterie, jauge, lave-glace.
   lateraux: { frein: -0.40, huile: 0.02, vase: 0.44, batterie: -0.51, jauge: 0.02, laveGlace: 0.55 },
-  // Décalage de l'ancre d'un nom par rapport à son organe (unités, vers la droite) : les noms du dessous ne se touchent pas.
-  decalages: { "vase-expansion": 7 },
+  // Décalage de l'ancre d'un nom par rapport à son organe (unités, vers la droite) : les noms du dessus ne se touchent pas.
+  decalages: { "vase-expansion": -7 },
   retrait: 1.2,                            // le point d'une étiquette, à cette distance (unités) du bord de l'organe : il en déborde
   moteur: { arriere: 1.48, avant: 1.88, gauche: -0.32, droite: 0.24, arrondi: 0.05 },
   // Organes à vérifier, agrandis (schéma) pour se reconnaître sur un téléphone : chacun mesure au moins une fois et demie le point
@@ -217,33 +219,34 @@ function capot() {
   const fin = CHARTE.traits.fin, pas = INTERLIGNE * PETIT;
   const ALERTE = ["Jamais moteur chaud"];
   const NOMS = {
-    haut: [["batterie", ["Batterie"]], ["jauge", ["Jauge"]], ["lave-glace", ["Lave-glace"]]],
-    bas: [["liquide-frein", ["Liquide", "de frein"]], ["huile", ["Huile", "moteur"]],
-      ["vase-expansion", ["Liquide", "de refroidissement", "(vase d'expansion)", ...ALERTE]]],
+    haut: [["vase-expansion", ["Liquide", "de refroidissement", "(vase d'expansion)", ...ALERTE]], ["huile", ["Huile", "moteur"]],
+      ["liquide-frein", ["Liquide", "de frein"]]],
+    bas: [["lave-glace", ["Lave-glace"]], ["jauge", ["Jauge"]], ["batterie", ["Batterie"]]],
   };
   const lignesMax = (cote) => Math.max(...NOMS[cote].map(([, l]) => l.length));
-  // Hauteurs : les noms du dessus (une ligne), la voiture, les noms du dessous, la mention ; le tout tient dans le cadre.
+  // Hauteurs : les noms du dessus, la voiture (du pare-brise, en haut, au nez), les noms du dessous, la mention ; le tout tient dans
+  // le cadre.
   const hautNoms = (nb) => ESPACE_TEXTE + (HAUT_TEXTE + BAS_TEXTE) * PETIT + (nb - 1) * pas;
-  const Ynez = MARGE + hautNoms(lignesMax("haut")) + C.jeu;
-  const hauteurDessin = (DEMI_LONGUEUR - debut) * E, basDessin = Ynez + hauteurDessin;
+  const hautDessin = MARGE + hautNoms(lignesMax("haut")) + C.jeu;
+  const hauteurDessin = (DEMI_LONGUEUR - debut) * E, basDessin = hautDessin + hauteurDessin;
   const basNoms = basDessin + C.jeu + hautNoms(lignesMax("bas"));
   const yMention = basNoms + C.ecartMention + HAUT_TEXTE * PETIT;
   if (yMention + BAS_TEXTE * PETIT > H - MARGE) throw new Error(`Sous le capot : cadre de ${H} unités de haut, il en faut ${Math.ceil(yMention + BAS_TEXTE * PETIT + MARGE)}.`);
-  // Repère de la voiture (x vers l'avant, y vers sa droite, m) ramené au cadre : l'avant en haut.
-  const X0 = L / 2, Y0 = Ynez + DEMI_LONGUEUR * E;
-  const v = ([x, y]) => [X0 + y * E, Y0 - x * E];
+  // Repère de la voiture (x vers l'avant, y vers sa droite, m) ramené au cadre : l'avant en bas, la droite de la voiture à gauche.
+  const X0 = L / 2, Y0 = hautDessin - debut * E;
+  const v = ([x, y]) => [X0 - y * E, Y0 + x * E];
   const rect = (x1, y1, x2, y2, r) => rectArrondi(x1, y1, x2, y2, r).map(v);
   const rond = ([cx, cy], r, attributs) => { const [x, y] = v([cx, cy]); return n("circle", { cx: x, cy: y, r: r * E, ...attributs }); };
   const boiteM = (x1, y1, x2, y2) => { const [a, b] = v([x1, y1]), [c, d] = v([x2, y2]); return boiteDe(a, b, c, d); };
 
   // La voiture du kit, découpée à la fenêtre du dessin (son trait de contour compris) ; identifiant propre à ce montage.
   const idDecoupe = `capot-decoupe-${++numeroCapot}`;
-  const [fx1, fy1] = v([DEMI_LONGUEUR, -C.demiLargeurVue]), [fx2, fy2] = v([debut, C.demiLargeurVue]);
+  const [gx, hy] = v([debut, C.demiLargeurVue]), [dx, by] = v([DEMI_LONGUEUR, -C.demiLargeurVue]);   // coins haut gauche, bas droit
   const voiture = [
     n("defs", {}, n("clipPath", { id: idDecoupe },
-      n("rect", { x: fx1, y: fy1 - fin, width: fx2 - fx1, height: fy2 - fy1 + fin }))),
+      n("rect", { x: gx, y: hy, width: dx - gx, height: by - hy + fin }))),
     n("g", { "clip-path": `url(#${idDecoupe})`, "data-r": "decoupe" },
-      voitureDessus({ x: X0, y: Y0, cap: -QUART, echelle: E, schema: true }))];
+      voitureDessus({ x: X0, y: Y0, cap: QUART, echelle: E, schema: true }))];
 
   // Compartiment ouvert, en retrait du pied du pare-brise ; le moteur, un seul aplat (sans nom : le cours ne le cite pas).
   const fond = PIED_PARE_BRISE + C.auvent, nez = DEMI_LONGUEUR - C.devant, demi = DEMI_LARGEUR - C.aile;
@@ -298,10 +301,10 @@ function capot() {
     forme(rect(ba.arriere, T.batterie - ba.demiLargeur, ba.avant, T.batterie + ba.demiLargeur, ba.arrondi), { fill: TEINTES.batterie }),
     ba.bornes.map(borne));
 
-  // Étiquettes : chaque point part du bord de l'organe tourné vers son nom, à C.retrait unité dedans ; au-dessus, les organes de
-  // l'avant ; au-dessous, ceux du côté du pare-brise et du moteur. Le nom est centré sur son ancre, au-dessus ou au-dessous.
+  // Étiquettes : chaque point part du bord de l'organe tourné vers son nom, à C.retrait unité dedans ; au-dessus, les organes du
+  // côté du pare-brise et du moteur ; au-dessous, ceux de l'avant. Le nom est centré sur son ancre, au-dessus ou au-dessous.
   const nom = (role, [xBord, y], lignesTexte, enHaut) => {
-    const [x, yc] = v([xBord, y]), ancre = [x + (C.decalages[role] || 0), enHaut ? Ynez - C.jeu : basDessin + C.jeu];
+    const [x, yc] = v([xBord, y]), ancre = [x + (C.decalages[role] || 0), enHaut ? hautDessin - C.jeu : basDessin + C.jeu];
     return etiquette({ cible: [x, yc + (enHaut ? C.retrait : -C.retrait)], ancre, lignes: lignesTexte, ancrage: "middle", taille: PETIT,
       role: `etiquette-${role}` });
   };
@@ -310,11 +313,12 @@ function capot() {
     batterie: [ba.avant, T.batterie], jauge: [jx2, T.jauge], "lave-glace": [lg.x + lg.col, T.laveGlace],
     "liquide-frein": [C.frein.arriere, T.frein], huile: [hu.x - hu.rayon, T.huile], "vase-expansion": [centreVase - C.vase.bouchon, T.vase],
   };
-  const noms = [...NOMS.haut.map(([role, l]) => nom(role, bords[role], l, true)),
-    ...NOMS.bas.map(([role, l]) => (role === "vase-expansion" ? mettreEnGarde(nom(role, bords[role], l, false), ALERTE) : nom(role, bords[role], l, false)))];
+  const nomme = (role, l, enHaut) => (role === "vase-expansion" ? mettreEnGarde(nom(role, bords[role], l, enHaut), ALERTE) : nom(role, bords[role], l, enHaut));
+  const noms = [...NOMS.haut.map(([role, l]) => nomme(role, l, true)), ...NOMS.bas.map(([role, l]) => nomme(role, l, false))];
 
   return cadre({ largeur: L, hauteur: H, titre: CATALOGUE.capot.titre,
-    description: "Le compartiment moteur vu du dessus, l'avant de la voiture en haut : bouchon de remplissage et jauge d'huile, "
+    description: "Capot ouvert, le compartiment moteur vu de l'avant, comme par celui qui se tient devant la voiture : l'avant en bas, "
+      + "le pare-brise en haut. Bouchon de remplissage et jauge d'huile, "
       + "vase d'expansion du liquide de refroidissement (jamais ouvert moteur chaud), réservoir de liquide de frein, remplissage du "
       + "lave-glace, batterie et ses cosses + et −. Chaque bouchon de remplissage porte son pictogramme : la burette sur celui de "
       + "l'huile, le thermomètre dans les vagues sur celui du liquide de refroidissement, le symbole du freinage sur celui du "
@@ -685,4 +689,4 @@ function pression() {
 
 export const DESSINS = { capot, niveaux, pneu, pression };
 export const GESTES = {};
-export { versDom } from "./dessin-svg.js?v=20261022d";
+export { versDom } from "./dessin-svg.js?v=20261022e";

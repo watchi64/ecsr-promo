@@ -154,16 +154,16 @@ test("capot : la batterie porte ses deux cosses, marquées + et −, chacune au 
     assert.ok(dans([nb(c, "data-x"), nb(c, "data-y")], b), "cosse hors de la batterie");
     const cable = trouverRole(c, "cable"), pince = trouverTous(c, (x) => x.balise === "path")[0];
     assert.ok(cable, "cosse sans câble");
-    // Le câble part du bord de la cosse tourné vers l'arrière de la voiture (le bas du dessin), et s'en éloigne.
-    assert.ok(Math.abs(nb(cable, "y1") - basDe(pince)) < 0.01 && nb(cable, "x1") > gaucheDe(pince) && nb(cable, "x1") < droiteDe(pince),
+    // Le câble part du bord de la cosse tourné vers l'arrière de la voiture (le haut du dessin, vu de l'avant), et s'en éloigne.
+    assert.ok(Math.abs(nb(cable, "y1") - hautDe(pince)) < 0.01 && nb(cable, "x1") > gaucheDe(pince) && nb(cable, "x1") < droiteDe(pince),
       "le câble ne part pas de la cosse");
-    assert.ok(nb(cable, "y2") > nb(cable, "y1"), "le câble part vers l'arrière");
+    assert.ok(nb(cable, "y2") < nb(cable, "y1"), "le câble part vers l'arrière");
     assert.ok(Math.hypot(nb(cable, "x2") - nb(cable, "x1"), nb(cable, "y2") - nb(cable, "y1")) >= 2 * pointDe(trouverRole(d, "etiquette-batterie")).lisere,
       "amorce de câble trop courte pour se voir");
   }
 });
 
-test("capot : la voiture est celle du kit, vue du dessus, l'avant en haut, découpée à un identifiant propre à chaque dessin ; le compartiment est sous son capot", () => {
+test("capot : la voiture est celle du kit, capot ouvert vue de l'avant (l'avant en bas), découpée à un identifiant propre à chaque dessin ; le compartiment est sous son capot", () => {
   const d1 = famille.DESSINS.capot(), d2 = famille.DESSINS.capot();
   const ids = [d1, d2].map((d) => {
     const decoupe = trouverTous(d, (x) => x.balise === "clipPath");
@@ -178,19 +178,42 @@ test("capot : la voiture est celle du kit, vue du dessus, l'avant en haut, déco
   assert.notEqual(ids[0], ids[1], "deux dessins du capot partagent un identifiant de découpe");
   const voiture = trouverRole(d1, "voiture");
   assert.ok(voiture, "voiture du kit absente");
-  assert.equal(nb(voiture, "data-angle"), -90, "l'avant en haut");
-  // Tournée d'un quart de tour, la caisse (rectangle du kit, x le long de la voiture) est en hauteur dans le dessin : un point
-  // [lx, ly] du repère de la voiture se voit en [tx + ly, ty - lx].
+  assert.equal(nb(voiture, "data-angle"), 90, "l'avant en bas");
+  // Tournée d'un quart de tour vers le bas, la caisse (rectangle du kit, x le long de la voiture) est en hauteur dans le dessin : un
+  // point [lx, ly] du repère de la voiture se voit en [tx - ly, ty + lx].
   const [tx, ty] = translation(voiture);
   const caisse = trouverRole(voiture, "caisse"), pareBrise = trouverRole(voiture, "pare-brise");
   const [lx1, ly1, lx2, ly2] = [nb(caisse, "x"), nb(caisse, "y"), nb(caisse, "x") + nb(caisse, "width"), nb(caisse, "y") + nb(caisse, "height")];
-  const [cx1, cx2, cy1, cy2] = [tx + ly1, tx + ly2, ty - lx2, ty - lx1];
+  const [cx1, cx2, cy1, cy2] = [tx - ly2, tx - ly1, ty + lx1, ty + lx2];
   assert.ok(Math.abs((cy2 - cy1) / (cx2 - cx1) - VOITURE.longueur / VOITURE.largeur) < 1e-6, "proportions de la caisse du kit");
   const compartiment = points(trouverRole(d1, "compartiment").attributs.d);
   for (const [x, y] of compartiment) assert.ok(x > cx1 && x < cx2 && y > cy1 && y < cy2, `compartiment hors de la caisse en ${x}, ${y}`);
-  // Le pare-brise, derrière le compartiment : plus bas dans le dessin.
-  const avantPareBrise = ty - Math.max(...points(pareBrise.attributs.d).map((q) => q[0]));
-  assert.ok(Math.max(...compartiment.map((q) => q[1])) < avantPareBrise, "compartiment sur le pare-brise");
+  // Le pare-brise, derrière le compartiment : plus haut dans le dessin.
+  const basPareBrise = ty + Math.max(...points(pareBrise.attributs.d).map((q) => q[0]));
+  assert.ok(Math.min(...compartiment.map((q) => q[1])) > basPareBrise, "compartiment sous le pare-brise");
+});
+
+// Consigne du formateur du 22/10/2026 : « tourne le capot dans l'autre sens, le côté extérieur de la voiture en bas » : la vue de
+// celui qui se tient devant la voiture, capot ouvert ; l'implantation tournée d'un demi-tour (gauche et droite inversées, comme vu de
+// face), pictogrammes, bouchons et noms à l'endroit.
+test("capot : vu de l'avant : l'avant en bas, le pare-brise en haut, la droite de la voiture à gauche ; noms du côté du pare-brise au-dessus, de l'avant au-dessous", () => {
+  const d = famille.DESSINS.capot(), [L] = CATALOGUE.capot.cadre;
+  const compartiment = points(trouverRole(d, "compartiment").attributs.d);
+  const [haut, bas] = [Math.min(...compartiment.map((q) => q[1])), Math.max(...compartiment.map((q) => q[1]))], milieu = (haut + bas) / 2;
+  const centre = (role) => { const b = boite(trouverRole(d, role)); return [(b.x1 + b.x2) / 2, (b.y1 + b.y2) / 2]; };
+  // Organes de l'avant (batterie, jauge, lave-glace) dans la moitié basse ; liquide de frein, contre le pare-brise, dans la haute.
+  for (const role of ["batterie", "jauge", "lave-glace"]) assert.ok(centre(role)[1] > milieu, `${role} : pas à l'avant (en bas)`);
+  assert.ok(centre("liquide-frein")[1] < milieu, "liquide de frein : pas contre le pare-brise (en haut)");
+  assert.ok(centre("batterie")[1] > centre("huile")[1] && centre("liquide-frein")[1] < centre("huile")[1], "l'avant plus bas que le moteur");
+  // Côté conducteur (gauche de la voiture : batterie, liquide de frein) à droite du dessin ; côté passager (vase, lave-glace) à gauche.
+  for (const role of ["batterie", "liquide-frein"]) assert.ok(centre(role)[0] > L / 2, `${role} : pas à droite du dessin`);
+  for (const role of ["vase-expansion", "lave-glace"]) assert.ok(centre(role)[0] < L / 2, `${role} : pas à gauche du dessin`);
+  // Les noms : au-dessus du dessin pour le pare-brise et le moteur, au-dessous pour l'avant ; chacun à l'endroit (aucun texte tourné).
+  const texteMilieu = (role) => { const t = trouverTous(trouverRole(d, `etiquette-${role}`), (x) => x.balise === "text"); return t.reduce((a, x) => a + nb(x, "y"), 0) / t.length; };
+  for (const role of ["vase-expansion", "huile", "liquide-frein"]) assert.ok(texteMilieu(role) < haut, `${role} : nom pas au-dessus`);
+  for (const role of ["batterie", "jauge", "lave-glace"]) assert.ok(texteMilieu(role) > bas, `${role} : nom pas au-dessous`);
+  assert.equal(trouverTous(d, (x) => x.balise === "text" && /rotate/.test(String(x.attributs.transform || ""))).length, 0, "texte tourné");
+  assert.equal(CATALOGUE.capot.legendeModele, "Capot ouvert, vu de l'avant : l'avant de la voiture en bas.");
 });
 
 // ----- Style schématique (décision du formateur du 15/10/2026 : « pictogramme plutôt qu'illustration ») -----
