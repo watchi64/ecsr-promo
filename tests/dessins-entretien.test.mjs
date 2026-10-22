@@ -286,9 +286,9 @@ test("niveaux : réservoir translucide, niveau strictement entre MIN et MAX ; vo
   assert.ok(textes(d).includes("Sol plat"));
 });
 
-// Style schématique : la voiture du kit en silhouette (ni passages de roue, ni phare, ni feu, ni poignée, ni rétroviseur, ni
+// Style schématique : la voiture du kit en silhouette (ni phare, ni feu, ni poignée, ni rétroviseur, ni
 // siège) ; le réservoir en aplats, sans reflet ni col, le bouchon posé sur son haut.
-const DETAILS_PROFIL = /^(passage-|phare$|feu$|poignee-|retroviseur$|siege$|bas-de-caisse$)/;
+const DETAILS_PROFIL = /^(phare$|feu$|poignee-|retroviseur$|siege$|bas-de-caisse$)/;
 const detailsProfil = (v) => trouverTous(v, (x) => DETAILS_PROFIL.test(x.attributs["data-r"] || "")).map((x) => x.attributs["data-r"]);
 
 test("niveaux : en pictogramme, la voiture du kit en silhouette ; le réservoir sans reflet ni col, son bouchon posé dessus", () => {
