@@ -6,7 +6,7 @@ import { SOURCES } from "../sources/dessins-dessus.js";
 import { verifierDessin, verifierGeste, boitesTextes } from "./aides-dessins.mjs";
 import { imageA, imageFigee } from "../js/geste-regles.js";
 import { trouverRole, trouverTous, texteDe } from "../js/dessin-svg.js";
-import { VOITURE, MATIERES, reperesDessus, LARGEUR_TELEPHONE, TRAIT_MIN_PX } from "../js/dessins-kit.js";
+import { VOITURE, MATIERES, reperesDessus, voitureDessus, LARGEUR_TELEPHONE, TRAIT_MIN_PX } from "../js/dessins-kit.js";
 import { GABARITS } from "../js/scene-geometrie.js";
 import { TEINTES } from "../js/scene-rendu.js";
 import { REGARD_PORTEE, REGARD_OUVERTURE } from "../js/scene-regard.js";
@@ -212,7 +212,9 @@ test("tour-vehicule : le tour entoure la caisse, coins et rétroviseurs compris,
   const { exterieur, capot } = parcoursDe(d);
   const tour = [...exterieur, ...capot.slice(1)];
   for (const coin of caisseDe(voiture, pose)) assert.ok(dansPolygone(coin, tour), `coin de la caisse hors du tour : ${coin}`);
-  for (const r of ["retroviseur-gauche", "retroviseur-droit"]) assert.ok(dansPolygone(point(trouverRole(voiture, r)), tour), r);
+  // Les rétroviseurs ne sont pas dessinés (silhouette), mais la voiture en a : le tour passe au-delà.
+  const r = reperesDessus(pose);
+  for (const k of ["retroGauche", "retroDroit"]) assert.ok(dansPolygone(r[k], tour), k);
   // On tourne autour de la voiture sans la frôler : le tour extérieur à 0,5 m au moins du rectangle de la caisse ; le chemin qui
   // gagne le devant du capot, plus près, à 0,25 m au moins (au-delà des rétroviseurs, 0,12 m hors de la caisse).
   for (const p of exterieur) {
@@ -323,7 +325,7 @@ test("tour-vehicule : chaque étiquette de l'extérieur reprend les mots du cour
     ["pneus", "Pneus", ["roue-avant-gauche", "roue-avant-droite", "roue-arriere-gauche", "roue-arriere-droite"]],
     ["balais", "Balais d'essuie-glace", ["essuie-glaces"]],
     ["feux-arriere", "Feux et plaque", ["feu-gauche", "feu-droit"]],
-    ["vitres", "Vitres", ["vitre-avant-gauche", "vitre-avant-droite", "vitre-arriere-gauche", "vitre-arriere-droite"]],
+    ["vitres", "Vitres", ["pare-brise"]],
   ];
   for (const [role, mots, parties] of ATTENDUS) {
     const e = trouverRole(d, `etiquette-${role}`);
@@ -356,7 +358,7 @@ test("tour-vehicule : chaque pièce désignée se voit sur un téléphone, épai
   const d = dessin("tour-vehicule");
   const voiture = trouverRole(d, "voiture"), pose = poseDe(voiture);
   const PARTIES = { "feux-avant": ["phare-gauche", "phare-droit"], pneus: ["roue-avant-gauche", "roue-avant-droite", "roue-arriere-gauche", "roue-arriere-droite"],
-    balais: ["essuie-glaces"], "feux-arriere": ["feu-gauche", "feu-droit"], vitres: ["vitre-avant-gauche", "vitre-avant-droite", "vitre-arriere-gauche", "vitre-arriere-droite"] };
+    balais: ["essuie-glaces"], "feux-arriere": ["feu-gauche", "feu-droit"], vitres: ["pare-brise"] };
   for (const [role, parties] of Object.entries(PARTIES)) {
     const e = trouverRole(d, `etiquette-${role}`), centre = point(e);
     const forme = parties.map((p) => formeDe(trouverRole(voiture, p), pose)).find((f) => poseSur(centre, f));
@@ -380,9 +382,10 @@ test("tour-vehicule : capot ouvert, charnière côté pare-brise, compartiment d
   const releve = pointsDe(trouverRole(capot, "capot-releve")).map(versM);
   // Le fond sombre du compartiment est la matière du kit, celle du compartiment du dessin « capot ».
   assert.equal(trouverRole(capot, "compartiment").attributs.fill, MATIERES.compartiment);
-  // Le compartiment est le capot fermé de la voiture du kit : ses deux joints (les traits de la caisse) en sont les bords.
-  const joints = voiture.enfants.filter((x) => x.balise === "line").map((l) => [[l.attributs.x1, l.attributs.y1], [l.attributs.x2, l.attributs.y2]].map(versM));
-  assert.equal(joints.length, 2, "les deux joints du capot de la voiture du kit");
+  // Le compartiment est le capot fermé de la voiture du kit : ses deux joints (VOITURE.jointsCapot, que la silhouette ne trace pas)
+  // en sont les bords.
+  const { arriere: ja, avant: jv } = VOITURE.jointsCapot;
+  const joints = [-1, 1].map((c) => [[ja[0], c * ja[1]], [jv[0], c * jv[1]]]);
   for (const joint of joints) {
     for (const bout of joint) assert.ok(compartiment.some((p) => distance(p, bout) < 0.005), `bout de joint ${bout} hors du bord du compartiment`);
   }
@@ -402,6 +405,58 @@ test("tour-vehicule : capot ouvert, charnière côté pare-brise, compartiment d
   for (const [nom, x, demi] of [["avant", Math.max(...rx), demiLargeur(xAvant)], ["arrière", Math.min(...rx), demiLargeur(xArriere)]]) {
     assert.ok(bord(x).length >= 2 && bord(x).every((p) => Math.abs(Math.abs(p[1]) - demi) < 0.005),
       `bord ${nom} du capot relevé à ${bord(x).map((p) => Math.abs(p[1]).toFixed(3))} m de l'axe, ${demi} m attendu`);
+  }
+});
+
+// Style schématique (décision du formateur du 15/10/2026) : teintes de remplissage et de contour de ce qui s'affiche d'un nœud.
+function teintesAffichees(noeud) {
+  const [remplis, contours] = [new Set(), new Set()];
+  (function voir(x) {
+    if (typeof x === "string" || x.attributs.display === "none") return;
+    if (x.attributs.fill && x.attributs.fill !== "none") remplis.add(x.attributs.fill);
+    if (x.attributs.stroke) contours.add(x.attributs.stroke);
+    x.enfants.forEach(voir);
+  })(noeud);
+  return { remplis: [...remplis].sort(), contours: [...contours].sort() };
+}
+
+test("tour-vehicule : la voiture en silhouette, avec les seules pièces que le tour contrôle (phares, feux, balais), prises telles quelles de la voiture détaillée du kit ; ni toit, ni vitres latérales, ni reflet, ni joints, ni rétroviseurs", () => {
+  const voiture = trouverRole(dessin("tour-vehicule"), "voiture"), pose = poseDe(voiture);
+  const silhouette = voitureDessus({ ...pose, roues: true, schema: true }), detaillee = voitureDessus({ ...pose, roues: true });
+  const finition = ["toit", "reflet-pare-brise", "vitre-avant-gauche", "vitre-avant-droite", "vitre-arriere-gauche", "vitre-arriere-droite",
+    "retroviseur-gauche", "retroviseur-droit", "retroviseur-interieur"];
+  for (const role of finition) assert.equal(trouverRole(voiture, role), null, `${role} dessiné`);
+  assert.equal(voiture.enfants.filter((x) => x.balise === "line").length, 0, "joints du capot dessinés");
+  assert.deepEqual(voiture.attributs, silhouette.attributs, "pose de la silhouette");
+  for (const role of ["caisse", "pare-brise", "lunette", "roue-avant-gauche", "roue-avant-droite", "roue-arriere-gauche", "roue-arriere-droite"]) {
+    assert.deepEqual(trouverRole(voiture, role), trouverRole(silhouette, role), `${role} de la silhouette du kit`);
+  }
+  const pieces = ["phare-gauche", "phare-droit", "feu-gauche", "feu-droit", "essuie-glaces"];
+  for (const role of pieces) assert.deepEqual(trouverRole(voiture, role), trouverRole(detaillee, role), `${role} de la voiture détaillée du kit`);
+  // Rangées comme dans la voiture détaillée : après la lunette, avant les roues.
+  const rang = (role) => voiture.enfants.findIndex((x) => x.attributs["data-r"] === role);
+  for (const role of pieces) assert.ok(rang("lunette") < rang(role) && rang(role) < rang("roue-avant-gauche"), `${role} hors de sa place`);
+  // Teintes : celles de la silhouette (caisse, vitres, pneus), plus les phares, les feux et le trait des balais.
+  assert.deepEqual(teintesAffichees(voiture), {
+    remplis: [TEINTES.eleve, MATIERES.vitre, MATIERES.pneu, MATIERES.phare, MATIERES.feu].sort(),
+    contours: [TEINTES.eleveBord, MATIERES.joint].sort() });
+});
+
+test("roues-trottoir : les voitures en silhouette, vue du dessus et de profil : ni toit, ni vitres latérales, ni phares, ni feux, ni passages de roue, ni poignées", () => {
+  const d = dessin("roues-trottoir");
+  for (const c of CAS_PENTE) {
+    const cas = casDe(d, c.nom);
+    for (const role of ["toit", "vitre-avant-gauche", "vitre-arriere-droite", "phare-gauche", "feu-droit", "reflet-pare-brise", "essuie-glaces"]) {
+      assert.equal(trouverRole(cas.voiture, role), null, `${c.nom}, vue du dessus : ${role}`);
+    }
+    for (const role of ["passage-avant", "passage-arriere", "phare", "feu", "poignee-arriere", "retroviseur", "bas-de-caisse"]) {
+      assert.equal(trouverRole(cas.profil, role), null, `${c.nom}, de profil : ${role}`);
+    }
+    for (const role of ["caisse", "vitrage", "roue-avant", "roue-arriere"]) assert.ok(trouverRole(cas.profil, role), `${c.nom}, de profil : ${role}`);
+    assert.deepEqual(teintesAffichees(cas.voiture), { remplis: [TEINTES.eleve, MATIERES.vitre, MATIERES.pneu].sort(), contours: [TEINTES.eleveBord] },
+      `${c.nom}, vue du dessus`);
+    assert.deepEqual(teintesAffichees(cas.profil), { remplis: [TEINTES.eleve, MATIERES.vitre, MATIERES.pneu, MATIERES.jante].sort(),
+      contours: [TEINTES.eleveBord] }, `${c.nom}, de profil`);
   }
 });
 
