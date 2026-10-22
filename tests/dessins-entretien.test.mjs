@@ -250,7 +250,7 @@ test("niveaux : jauge tenue pointe en bas, repère mini sous le repère maxi, ha
   assert.ok(Math.abs(haut - nb(trace, "data-y")) < 0.01, "data-y de la trace : son haut tracé");
   assert.ok(haut > nb(maxi, "data-y") && haut < nb(mini, "data-y"), `haut de la trace (${haut}) hors de l'intervalle`);
   assert.ok(Math.abs(basDe(trace) - nb(pointe, "data-y")) < 0.01, "la trace part de la pointe");
-  assert.ok(textes(mini).includes("mini") && textes(maxi).includes("maxi"));
+  assert.ok(textes(mini).includes("MIN") && textes(maxi).includes("MAX"), "repères MIN et MAX, écrits comme sur la jauge");
 });
 
 test("niveaux : chaque encoche de la lame est à la hauteur de son repère, de part et d'autre de la lame", () => {
@@ -291,18 +291,84 @@ test("niveaux : réservoir translucide, niveau strictement entre MIN et MAX ; vo
 const DETAILS_PROFIL = /^(phare$|feu$|poignee-|retroviseur$|siege$|bas-de-caisse$)/;
 const detailsProfil = (v) => trouverTous(v, (x) => DETAILS_PROFIL.test(x.attributs["data-r"] || "")).map((x) => x.attributs["data-r"]);
 
-test("niveaux : en pictogramme, la voiture du kit en silhouette ; le réservoir sans reflet ni col, son bouchon posé dessus", () => {
+// Teinte (degrés), saturation et clarté (de 0 à 1) d'une couleur #RRGGBB.
+function tsl(hex) {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
+  const max = Math.max(r, g, b), min = Math.min(r, g, b), l = (max + min) / 2, dd = max - min;
+  if (!dd) return { t: 0, s: 0, l };
+  const s = dd / (1 - Math.abs(2 * l - 1));
+  const t = max === r ? 60 * (((g - b) / dd) % 6) : max === g ? 60 * ((b - r) / dd + 2) : 60 * ((r - g) / dd + 4);
+  return { t: (t + 360) % 360, s, l };
+}
+const jaune = (hex) => { const c = tsl(hex); return c.t >= 40 && c.t <= 56 && c.s >= 0.7 && c.l >= 0.4 && c.l <= 0.7; };
+
+// Retour du formateur du 22/10/2026 : « mettre quelque chose de plus représentatif de la réalité : un thème de design et un thème
+// de couleurs ; l'anneau où on vient tirer dessus est souvent jaune ».
+test("niveaux : la jauge d'une voiture courante : anneau de prise jaune, troué, au-dessus d'un col jaune et de la lame d'acier", () => {
+  const d = famille.DESSINS.niveaux();
+  const [poignee, col, pointe] = ["poignee-jauge", "col-jauge", "pointe-jauge"].map((r) => { const x = trouverRole(d, r); assert.ok(x, `${r} absent`); return x; });
+  assert.ok(jaune(poignee.attributs.fill), `anneau de teinte ${poignee.attributs.fill}, pas jaune`);
+  assert.equal(col.attributs.fill, poignee.attributs.fill, "col de la teinte de l'anneau");
+  // Un anneau : deux contours, le second (le trou) découpé du premier.
+  assert.equal(poignee.attributs["fill-rule"], "evenodd");
+  const [exterieur, trou] = String(poignee.attributs.d).split(/(?=M)/).map((t) => points(t));
+  assert.ok(trou && trou.length > 2, "anneau sans trou");
+  const boiteDe = (pts) => ({ x1: Math.min(...pts.map((q) => q[0])), x2: Math.max(...pts.map((q) => q[0])), y1: Math.min(...pts.map((q) => q[1])), y2: Math.max(...pts.map((q) => q[1])) });
+  const [be, bt] = [boiteDe(exterieur), boiteDe(trou)];
+  assert.ok(bt.x1 > be.x1 && bt.x2 < be.x2 && bt.y1 > be.y1 && bt.y2 < be.y2, "le trou est dans l'anneau");
+  // Son bord se détache du fond du dessin (3:1, un élément graphique).
+  assert.ok(contraste(poignee.attributs.stroke, CHARTE.fond) >= 3, `bord de l'anneau à ${contraste(poignee.attributs.stroke, CHARTE.fond).toFixed(2)}:1`);
+  // L'anneau en haut, le col dessous, puis la lame, tenue pointe en bas.
+  assert.ok(basDe(poignee) <= hautDe(col) + 0.01 && basDe(col) < hautDe(pointe), "anneau, col, puis lame");
+  assert.ok(!jaune(pointe.attributs.fill), "lame d'acier, pas jaune");
+});
+
+test("niveaux : la zone striée occupe la lame entre MIN et MAX ; la trace d'huile s'y arrête, les stries mouillées sous elle, sèches au-dessus", () => {
+  const d = famille.DESSINS.niveaux();
+  const z = trouverRole(d, "stries"), [x1, x2, y1, y2] = ["data-x1", "data-x2", "data-y1", "data-y2"].map((k) => nb(z, k));
+  const [mini, maxi] = ["repere-mini", "repere-maxi"].map((r) => nb(trouverRole(d, r), "data-y"));
+  const lame = points(trouverRole(d, "pointe-jauge").attributs.d), largeur = Math.max(...lame.map((q) => q[0])) - Math.min(...lame.map((q) => q[0]));
+  assert.ok(y1 > maxi && y2 < mini && y1 - maxi < 3 && mini - y2 < 3, `zone de ${y1} à ${y2}, repères à ${maxi} et ${mini}`);
+  assert.ok(x2 - x1 >= 0.8 * largeur, `zone de ${(x2 - x1).toFixed(1)} unités sur une lame de ${largeur.toFixed(1)}`);
+  const haut = hautDe(trouverRole(d, "trace-huile"));
+  assert.ok(haut > y1 && haut < y2, "le haut de la trace d'huile est dans la zone striée");
+  for (const [role, de, a] of [["stries-seches", y1, haut], ["stries-huile", haut, y2]]) {
+    const segments = String(trouverRole(z, role).attributs.d).split(/(?=M)/).map((t) => points(t));
+    // Hachures croisées : des stries dans les deux sens.
+    const montantes = segments.filter(([p, q]) => (q[0] - p[0]) * (q[1] - p[1]) > 0).length;
+    assert.ok(montantes >= 2 && segments.length - montantes >= 2, `${role} : ${montantes} et ${segments.length - montantes} stries par sens`);
+    for (const q of segments.flat()) {
+      assert.ok(q[0] >= x1 - 0.01 && q[0] <= x2 + 0.01 && q[1] >= de - 0.01 && q[1] <= a + 0.01, `${role} : point ${q} hors de sa part de la zone`);
+    }
+  }
+  // Mouillées, les stries prennent la teinte de l'huile, plus sombre : on lit le niveau à la frontière.
+  const [seches, huile] = ["stries-seches", "stries-huile"].map((r) => trouverRole(z, r).attributs.stroke);
+  assert.notEqual(seches, huile);
+  assert.ok(contraste(huile, trouverRole(d, "trace-huile").attributs.fill) >= 2, "stries mouillées visibles sur l'huile");
+  assert.ok(contraste(seches, trouverRole(d, "pointe-jauge").attributs.fill) >= 1.8, "stries sèches visibles sur l'acier");
+});
+
+// Style schématique : la voiture du kit en silhouette ; le réservoir d'une voiture : plastique translucide, col, bouchon noir strié
+// posé sur le col, tuyau de sortie sur son flanc, sans reflet.
+test("niveaux : la voiture du kit en silhouette ; le réservoir : corps translucide, col, bouchon noir strié posé sur le col, tuyau sur le flanc", () => {
   const d = famille.DESSINS.niveaux();
   assert.deepEqual(detailsProfil(trouverRole(d, "voiture-profil")), [], "détails de finition de la voiture");
   const r = trouverRole(d, "reservoir");
   assert.deepEqual(trouverTous(r, (x) => x.attributs.opacity !== undefined).length, 0, "forme translucide (reflet)");
-  const formes = trouverTous(r, (x) => x.balise === "path" || x.balise === "line");
-  assert.equal(formes.length, 5 + 2, `${formes.length} formes : corps, liquide, niveau, contour, bouchon, et les deux traits des repères`);
-  const bouchon = trouverRole(r, "bouchon"), liquide = trouverRole(r, "liquide");
-  const corps = formes.find((x) => x.attributs.fill === "none");
-  assert.ok(Math.abs(basDe(bouchon) - hautDe(corps)) < 0.01, `bouchon à ${(hautDe(corps) - basDe(bouchon)).toFixed(2)} du haut du réservoir`);
-  assert.ok(gaucheDe(bouchon) > gaucheDe(corps) && droiteDe(bouchon) < droiteDe(corps), "bouchon plus large que le réservoir");
-  assert.ok(hautDe(liquide) > hautDe(corps), "liquide au-dessus du réservoir");
+  const [corps, col, bouchon, stries, tuyau, liquide] = ["corps", "col", "bouchon-corps", "bouchon-stries", "tuyau", "liquide"]
+    .map((role) => { const x = trouverRole(r, role); assert.ok(x, `${role} absent`); return x; });
+  assert.ok(Math.abs(basDe(col) - hautDe(corps)) < 0.01, "col posé sur le corps");
+  assert.ok(Math.abs(basDe(bouchon) - hautDe(col)) < 0.01, `bouchon à ${(hautDe(col) - basDe(bouchon)).toFixed(2)} du haut du col`);
+  assert.ok(gaucheDe(bouchon) < gaucheDe(col) && droiteDe(bouchon) > droiteDe(col), "bouchon plus large que le col");
+  assert.ok(gaucheDe(col) > gaucheDe(corps) && droiteDe(col) < droiteDe(corps), "col plus étroit que le corps");
+  assert.ok(luminance(bouchon.attributs.fill) < 0.05, "bouchon noir");
+  assert.ok(luminance(corps.attributs.fill) > 0.7, "plastique blanc translucide");
+  assert.ok(String(stries.attributs.d).split(/(?=M)/).length >= 4, "bouchon strié pour la prise");
+  for (const q of points(stries.attributs.d)) assert.ok(q[0] > gaucheDe(bouchon) && q[0] < droiteDe(bouchon) && q[1] > hautDe(bouchon) && q[1] < basDe(bouchon), "stries sur le bouchon");
+  // Le tuyau sort du flanc droit, sous le niveau : il est plein de liquide.
+  assert.ok(gaucheDe(tuyau) < droiteDe(corps) && droiteDe(tuyau) > droiteDe(corps), "tuyau sur le flanc");
+  assert.ok(hautDe(tuyau) > hautDe(liquide), "tuyau sous le niveau");
+  assert.equal(tuyau.attributs.fill, liquide.attributs.fill, "tuyau plein de liquide");
 });
 
 // ----- Contrôler un pneu -----

@@ -14,7 +14,7 @@
  * Titres et cadres viennent du catalogue des blocs (js/catalogue-blocs.js), la seule source de ces métadonnées.
  */
 import { n } from "./dessin-svg.js?v=20261022b";
-import { CHARTE, MATIERES, METRIQUES_POLICE, MISE_EN_PAGE, cadre, texte, etiquette, vignette, arrondir, arc, couper, trace, VOITURE,
+import { CHARTE, MATIERES, METRIQUES_POLICE, MISE_EN_PAGE, cadre, texte, etiquette, vignette, arrondir, arc, couper, trace, point, VOITURE,
   VOITURE_PROFIL, voitureDessus, voitureProfil, reperesProfil } from "./dessins-kit.js?v=20261022b";
 import { CATALOGUE } from "./catalogue-blocs.js?v=20261022b";
 
@@ -62,15 +62,17 @@ function mettreEnGarde(noeud, lignes) {
 // reflet, deux tons par objet, trois au plus. La voiture, en silhouette (option schema), garde les teintes du kit : c'est lui qui
 // la dessine. Le fond sombre du compartiment et la gomme et la jante du pneu en coupe sont des matières du kit (MATIERES), celles
 // de sa voiture. Le reste est propre à cette famille (choix de dessin) : sous le capot, moteur gris d'un seul ton, plastique
-// translucide clair des réservoirs, plastique noir des bouchons et de la poignée de jauge, batterie d'un gris sombre aux cosses
-// claires et aux câbles gris, assez clairs pour se lire sur le fond du compartiment ; lame d'acier et huile ambrée de la jauge ;
+// translucide clair des réservoirs, plastique noir des bouchons, batterie d'un gris sombre aux cosses claires et aux câbles
+// gris, assez clairs pour se lire sur le fond du compartiment ; jauge : anneau de prise et col jaunes (retour du formateur du
+// 22/10/2026 : « l'anneau où on vient tirer dessus est souvent jaune »), lame d'acier, huile ambrée, stries sèches et mouillées ;
 // liquide dans le vert doux de la charte ; témoin d'usure d'un ton plus clair que la gomme, pour qu'on le distingue (dans le pneu,
 // c'est la même gomme).
 const TEINTES = {
   fond: MATIERES.compartiment, moteur: "#7A847D",
   plastique: "#E3E8E1", plastiqueBord: "#A9B3A5", bouchon: "#262B28",
   batterie: "#5E6862", cosse: "#C5CAC4", cable: "#8E968F",
-  lame: "#C3C9C4", lameBord: "#8E968F", huile: "#9A7234",
+  lame: "#C3C9C4", lameBord: "#8E968F", huile: "#B07A1E", striesSeches: "#7E867F", striesHuile: "#6A4510",
+  poignee: "#F3C21B", poigneeBord: "#A57F00", bouchonStries: "#59615C",
   liquide: "#C7D4A6", liquideSurface: CHARTE.accent, repere: CHARTE.texteDiscret, sol: CHARTE.texteDoux,
   air: CHARTE.carte, janteBord: "#8E968F", temoin: "#7E8A82", cote: CHARTE.carte,
   etiquette: CHARTE.carte, etiquetteBord: CHARTE.texteDoux,
@@ -217,26 +219,53 @@ function capot() {
 // ===== Lire un niveau =====
 // Trois colonnes alignées sur une même base : la jauge d'huile (centimètres, tenue pointe en bas), un réservoir translucide
 // (centimètres), une petite voiture de profil (mètres, la voiture du kit en silhouette) posée sur un sol plat ; une légende sous
-// chacune. Style schématique : des aplats, ni reflet, ni col, ni dessus de bouchon.
+// chacune. Retour du formateur du 22/10/2026 (« quelque chose de plus représentatif de la réalité : un thème de design et un thème
+// de couleurs ; l'anneau où on vient tirer dessus est souvent jaune ») : la jauge d'une voiture courante, anneau de prise et col
+// en plastique jaune, lame d'acier, repères MIN et MAX à son extrémité, la zone striée entre eux, la trace d'huile ambrée qui
+// s'y arrête ; le réservoir d'un circuit (un vase d'expansion) : plastique blanc translucide, col et bouchon noir strié, tuyau de
+// sortie, repères MIN et MAX moulés, le liquide vu au travers. Aplats, deux tons par pièce, sans reflet ni dégradé.
 const NIVEAUX = {
   base: 172,          // pointe de la jauge, fond du réservoir, sol
   legende: 187,       // ligne de base des légendes
   jauge: {
     echelle: 11, decalage: -12,              // unités par centimètre ; axe de la lame, depuis le milieu de la colonne
-    lame: 0.6, mini: 2.0, maxi: 4.5, huile: 3.4,   // hauteurs au-dessus de la pointe, en centimètres
-    bas: 9.0, coupure: 0.7, pente: 0.15, haut: 1.2,  // lame dessinée jusqu'à 9 cm, coupure, morceau du haut jusqu'à la poignée
-    encoche: { profondeur: 0.14, demiHauteur: 0.14 },
-    poignee: { largeur: 3.4, hauteur: 2.6, arrondi: 1.0, trou: [2.0, 1.1], arrondiTrou: 0.5 },
+    lame: 1.0, mini: 2.0, maxi: 4.5, huile: 3.4,   // largeur de la lame ; hauteurs au-dessus de la pointe, en centimètres
+    bas: 8.0, coupure: 0.7, pente: 0.15, haut: 1.0,  // lame dessinée jusqu'à 8 cm, coupure, morceau du haut jusqu'au col
+    encoche: { profondeur: 0.16, demiHauteur: 0.16 },
+    stries: { pas: 0.26, retrait: 0.07 },   // zone striée : écart des stries (cm), retrait des bords de la lame
+    col: { largeur: 1.1, hauteur: 0.9, arrondi: 0.2 },
+    poignee: { largeur: 3.6, hauteur: 2.8, arrondi: 1.1, trou: [2.2, 1.3], arrondiTrou: 0.55 },
     trait: { ecart: 0.25, longueur: 0.5 }, texte: 0.3,   // trait de chaque repère, puis son nom
   },
   reservoir: {
-    echelle: 6.8, largeur: 14, hauteur: 16, arrondi: 1.6,
-    bouchon: { largeur: 5.6, hauteur: 2.0, arrondi: 0.6 },   // posé sur le haut du réservoir
-    max: 11.5, min: 5.0, niveau: 8.0,        // hauteurs au-dessus du fond
-    trait: { debut: 1.0, fin: 4.0 }, texte: 4.6,
+    echelle: 6.8,
+    corps: { largeur: 12.6, hauteur: 13, arrondi: 2.0 },
+    col: { gauche: 3.0, droite: 7.4, hauteur: 1.6 },                    // sur le haut du corps
+    bouchon: { gauche: 2.3, droite: 8.1, hauteur: 2.4, arrondi: 0.5, stries: 5 },   // posé sur le col
+    tuyau: { longueur: 1.4, bas: 1.0, haut: 2.6, dedans: 0.3 },        // sortie sur le flanc droit, près du fond ; part sous le corps
+    max: 10.5, min: 4.5, niveau: 7.5,        // hauteurs au-dessus du fond
+    trait: { debut: 1.0, fin: 3.6 }, texte: 4.2,
   },
   voiture: { echelle: 16, sol: 92 },         // unités par mètre ; longueur du sol dessiné
 };
+
+// Hachures croisées (à 45 degrés dans les deux sens) d'un rectangle du cadre [x1, x2] sur [y1, y2], à `pas` unités d'écart : la
+// liste des segments, coupés aux bords du rectangle.
+function hachures(x1, y1, x2, y2, pas) {
+  const segments = [], ecart = pas * Math.SQRT2;
+  for (const sens of [1, -1]) {
+    // Droites y = sens x + c ; c va d'un coin à l'autre du rectangle.
+    const cs = [[x1, y1], [x2, y1], [x1, y2], [x2, y2]].map(([x, y]) => y - sens * x);
+    const [cMin, cMax] = [Math.min(...cs), Math.max(...cs)];
+    const premier = cMin + ((cMax - cMin) % ecart) / 2;
+    for (let c = premier; c <= cMax; c += ecart) {
+      const [a, b] = sens > 0 ? [Math.max(x1, y1 - c), Math.min(x2, y2 - c)] : [Math.max(x1, c - y2), Math.min(x2, c - y1)];
+      if (b - a > 1e-6) segments.push([[a, sens * a + c], [b, sens * b + c]]);
+    }
+  }
+  return segments;
+}
+const traceSegments = (segments) => segments.map(([a, b]) => `M${point(a)} L${point(b)}`).join(" ");
 
 function niveaux() {
   const [L, H] = CATALOGUE.niveaux.cadre;
@@ -256,37 +285,58 @@ function niveaux() {
   const lameBasPts = arrondir(lameBas, arrondisLame).map(vj);
   const yHuile = vj([0, J.huile])[1];
   const traceHuile = couper(lameBasPts, (p) => yHuile - p[1]);
+  // Zone striée, entre les deux repères, en retrait des bords et des encoches : sèche au-dessus de la trace d'huile, mouillée
+  // dessous (les stries retiennent l'huile : c'est là que se lit le niveau).
+  const S = J.stries, [sx1, sx2] = [vj([-d + S.retrait, 0])[0], vj([d - S.retrait, 0])[0]];
+  const [yMaxi, yMini] = [vj([0, J.maxi - e.demiHauteur])[1], vj([0, J.mini + e.demiHauteur])[1]];
+  const pas = S.pas * J.echelle;
+  const striesSeches = hachures(sx1, yMaxi, sx2, yHuile, pas), striesMouillees = hachures(sx1, yHuile, sx2, yMini, pas);
   const hautCoupure = J.bas + J.coupure;
   const lameHaut = [[d, hautCoupure - J.pente], [d, hautCoupure + J.haut], [-d, hautCoupure + J.haut], [-d, hautCoupure + J.pente]].map(vj);
-  const P = J.poignee, basPoignee = hautCoupure + J.haut;
+  const C = J.col, basCol = hautCoupure + J.haut;
+  const col = rectArrondi(-C.largeur / 2, basCol, C.largeur / 2, basCol + C.hauteur, C.arrondi).map(vj);
+  const P = J.poignee, basPoignee = basCol + C.hauteur;
   const poigneePts = [rectArrondi(-P.largeur / 2, basPoignee, P.largeur / 2, basPoignee + P.hauteur, P.arrondi),
     rectArrondi(-P.trou[0] / 2, basPoignee + (P.hauteur - P.trou[1]) / 2, P.trou[0] / 2, basPoignee + (P.hauteur + P.trou[1]) / 2, P.arrondiTrou)]
     .map((pts) => pts.map(vj));
   const centrePoignee = vj([0, basPoignee + P.hauteur / 2]);
-  const repere = (nom, h) => {
+  const repere = (role, nom, h) => {
     const y = vj([0, h])[1], x1 = vj([d + J.trait.ecart, 0])[0], x2 = vj([d + J.trait.ecart + J.trait.longueur, 0])[0];
-    return n("g", { "data-r": `repere-${nom}`, "data-y": y },
+    return n("g", { "data-r": `repere-${role}`, "data-y": y },
       n("line", { x1, y1: y, x2, y2: y, stroke: TEINTES.repere, "stroke-width": fin, "stroke-linecap": "round" }),
-      texte(x2 + J.texte * J.echelle, y + MILIEU_CAPITALES * PETIT, nom, { taille: PETIT, couleur: CHARTE.texteDoux }));
+      texte(x2 + J.texte * J.echelle, y + MILIEU_CAPITALES * PETIT, nom, { taille: PETIT, graisse: 600, couleur: CHARTE.texteDoux }));
   };
   const jauge = n("g", { "data-r": "jauge" },
-    n("path", { d: poigneePts.map((p) => trace(p)).join(" "), fill: TEINTES.bouchon, "fill-rule": "evenodd", "data-r": "poignee-jauge",
-      "data-x": centrePoignee[0], "data-y": centrePoignee[1] }),
     forme(lameHaut, { fill: TEINTES.lame, stroke: TEINTES.lameBord, "stroke-width": fin, "stroke-linejoin": "round" }),
+    forme(col, { fill: TEINTES.poignee, stroke: TEINTES.poigneeBord, "stroke-width": fin, "data-r": "col-jauge" }),
+    n("path", { d: poigneePts.map((p) => trace(p)).join(" "), fill: TEINTES.poignee, stroke: TEINTES.poigneeBord, "stroke-width": fin,
+      "fill-rule": "evenodd", "data-r": "poignee-jauge", "data-x": centrePoignee[0], "data-y": centrePoignee[1] }),
     forme(lameBasPts, { fill: TEINTES.lame, stroke: TEINTES.lameBord, "stroke-width": fin, "stroke-linejoin": "round", "data-r": "pointe-jauge",
       "data-x": ax, "data-y": N.base }),
     forme(traceHuile, { fill: TEINTES.huile, "data-r": "trace-huile", "data-y": yHuile }),
-    repere("maxi", J.maxi), repere("mini", J.mini));
+    n("g", { "data-r": "stries", "data-x1": sx1, "data-x2": sx2, "data-y1": yMaxi, "data-y2": yMini },
+      n("path", { d: traceSegments(striesSeches), fill: "none", stroke: TEINTES.striesSeches, "stroke-width": fin, "data-r": "stries-seches" }),
+      n("path", { d: traceSegments(striesMouillees), fill: "none", stroke: TEINTES.striesHuile, "stroke-width": fin, "data-r": "stries-huile" })),
+    repere("maxi", "MAX", J.maxi), repere("mini", "MIN", J.mini));
 
-  // Réservoir : repère (u depuis le bord gauche, h au-dessus du fond, centimètres) ramené au cadre.
-  const R = N.reservoir, gaucheR = milieu(1) - (R.largeur * R.echelle) / 2;
+  // Réservoir : repère (u depuis le bord gauche du corps, h au-dessus du fond, centimètres) ramené au cadre ; le corps et son
+  // tuyau, centrés dans la colonne.
+  const R = N.reservoir, K = R.corps, T = R.tuyau;
+  const gaucheR = milieu(1) - ((K.largeur + T.longueur) * R.echelle) / 2;
   const vr = ([u, h]) => [gaucheR + u * R.echelle, N.base - h * R.echelle];
-  const corps = rectArrondi(0, 0, R.largeur, R.hauteur, R.arrondi).map(vr);
+  const corps = rectArrondi(0, 0, K.largeur, K.hauteur, K.arrondi).map(vr);
+  const colR = coins(R.col.gauche, K.hauteur, R.col.droite, K.hauteur + R.col.hauteur).map(vr);
+  const tuyau = coins(K.largeur - T.dedans, T.bas, K.largeur + T.longueur, T.haut).map(vr);
   const yNiveau = vr([0, R.niveau])[1];
   const liquide = couper(corps, (p) => yNiveau - p[1]);
-  const xg = vr([0, 0])[0], xd = vr([R.largeur, 0])[0];
-  const B = R.bouchon;
-  const bouchon = rectArrondi(...vr([(R.largeur - B.largeur) / 2, R.hauteur + B.hauteur]), ...vr([(R.largeur + B.largeur) / 2, R.hauteur]), B.arrondi);
+  const xg = vr([0, 0])[0], xd = vr([K.largeur, 0])[0];
+  const B = R.bouchon, basBouchon = K.hauteur + R.col.hauteur;
+  const bouchon = rectArrondi(B.gauche, basBouchon, B.droite, basBouchon + B.hauteur, B.arrondi).map(vr);
+  // Stries de prise du bouchon : des traits verticaux, à pas égal entre ses bords arrondis.
+  const stries = Array.from({ length: B.stries }, (_, k) => {
+    const u = B.gauche + B.arrondi + ((B.droite - B.gauche - 2 * B.arrondi) * (k + 1)) / (B.stries + 1);
+    return [vr([u, basBouchon + B.arrondi / 2]), vr([u, basBouchon + B.hauteur - B.arrondi / 2])];
+  });
   const marque = (nom, h) => {
     const y = vr([0, h])[1];
     return n("g", { "data-r": `repere-${nom.toLowerCase()}`, "data-y": y },
@@ -295,11 +345,16 @@ function niveaux() {
       texte(vr([R.texte, 0])[0], y + MILIEU_CAPITALES * PETIT, nom, { taille: PETIT, graisse: 600, couleur: CHARTE.texteDoux }));
   };
   const reservoir = n("g", { "data-r": "reservoir" },
-    forme(corps, { fill: TEINTES.plastique }),
+    forme(tuyau, { fill: TEINTES.liquide, stroke: TEINTES.plastiqueBord, "stroke-width": moyen, "stroke-linejoin": "round", "data-r": "tuyau" }),
+    forme(colR, { fill: TEINTES.plastique, stroke: TEINTES.plastiqueBord, "stroke-width": moyen, "stroke-linejoin": "round", "data-r": "col" }),
+    forme(corps, { fill: TEINTES.plastique, "data-r": "corps" }),
     forme(liquide, { fill: TEINTES.liquide, "data-r": "liquide" }),
     n("line", { x1: xg, y1: yNiveau, x2: xd, y2: yNiveau, stroke: TEINTES.liquideSurface, "stroke-width": moyen, "data-r": "niveau", "data-y": yNiveau }),
-    forme(corps, { fill: "none", stroke: TEINTES.plastiqueBord, "stroke-width": moyen }),
-    forme(bouchon, { fill: TEINTES.bouchon, "data-r": "bouchon" }),
+    forme(corps, { fill: "none", stroke: TEINTES.plastiqueBord, "stroke-width": moyen, "data-r": "contour" }),
+    n("g", { "data-r": "bouchon" },
+      forme(bouchon, { fill: TEINTES.bouchon, "data-r": "bouchon-corps" }),
+      n("path", { d: traceSegments(stries), fill: "none", stroke: TEINTES.bouchonStries, "stroke-width": fin, "stroke-linecap": "round",
+        "data-r": "bouchon-stries" })),
     marque("MAX", R.max), marque("MIN", R.min));
 
   // Voiture du kit en silhouette, posée sur un sol horizontal.
@@ -311,8 +366,9 @@ function niveaux() {
 
   const legende = (i, mots) => texte(milieu(i), N.legende, mots, { taille: MOYEN, ancrage: "middle", graisse: 500, couleur: CHARTE.texteDoux });
   return cadre({ largeur: L, hauteur: H, titre: CATALOGUE.niveaux.titre,
-    description: "À gauche, la jauge d'huile tenue pointe en bas : la trace d'huile s'arrête entre les repères mini et maxi. Au milieu, "
-      + "un réservoir translucide : le niveau est entre MIN et MAX. À droite, la voiture sur un sol plat." },
+    description: "À gauche, la jauge d'huile tenue pointe en bas, son anneau jaune en haut : la trace d'huile s'arrête dans la zone "
+      + "striée, entre les repères MIN et MAX. Au milieu, un réservoir translucide : le niveau du liquide est entre MIN et MAX. À droite, "
+      + "la voiture sur un sol plat." },
   jauge, reservoir, voiture,
   legende(0, "Jauge d'huile"), legende(1, "Réservoir"), legende(2, "Sol plat"));
 }
