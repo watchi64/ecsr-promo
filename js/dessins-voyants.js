@@ -23,11 +23,11 @@ export const COULEUR_DE = {
   clignotants: "vert", croisement: "vert", route: "bleu",
 };
 
-/** Tons du tableau de bord : tuile et combiné sombres en deux tons (fond, bord), cadran un ton plus clair ; voyant éteint
- *  à peine plus clair que le fond (on le devine, comme un symbole sous la vitre du combiné) ; graduations, légendes et
- *  aiguille claires. */
+/** Tons du tableau de bord, en pictogramme (style schématique, décision du formateur du 15/10/2026) : tuile et combiné d'un
+ *  seul aplat sombre, sans bord ; voyant éteint à peine plus clair que le fond (on le devine, comme un symbole sous la vitre
+ *  du combiné) ; graduations, légendes et aiguille claires, l'aiguille la plus claire. */
 export const TABLEAU = {
-  fond: CHARTE.texte, bord: "#34413A", cadran: "#28332D", eteint: "#3A4741",
+  fond: CHARTE.texte, eteint: "#3A4741",
   graduation: "#C7D0C2", legende: "#A7B2A3", aiguille: "#F2F5EF",
 };
 
@@ -433,8 +433,7 @@ function tuileVoyant(nom, x, yHaut) {
   const P = PLANCHE, yCentre = yHaut + P.tuile / 2, lignes = NOMS_PLANCHE[nom];
   const premiere = yHaut + P.tuile + P.ecartNom + HAUT_TEXTE * NOM.taille;
   return n("g", { "data-r": `voyant-${nom}`, "data-couleur": COULEUR_DE[nom], "data-x": x, "data-y": yCentre },
-    n("rect", { x: x - P.tuile / 2, y: yHaut, width: P.tuile, height: P.tuile, rx: P.rayonTuile, fill: TABLEAU.fond,
-      stroke: TABLEAU.bord, "stroke-width": TRAIT_FIN }),
+    n("rect", { x: x - P.tuile / 2, y: yHaut, width: P.tuile, height: P.tuile, rx: P.rayonTuile, fill: TABLEAU.fond, "data-r": "tuile" }),
     pictogramme(nom, { x, y: yCentre, taille: P.picto, couleur: COULEURS_VOYANTS[COULEUR_DE[nom]] }),
     lignes.map((l, i) => texte(x, premiere + i * NOM.interligne, l, { taille: NOM.taille, ancrage: "middle", graisse: NOM.graisse })));
 }
@@ -501,14 +500,14 @@ const SIX = [...FIN_AUTOTEST, ...DEMARRAGE];
 // Noms courts sous les voyants du combiné : ceux des étapes du cours (« sauf huile et charge »).
 const NOMS_AUTOTEST = { airbag: "Airbag", abs: "ABS", pneus: "Pneus", temperature: "Température", huile: "Huile", batterie: "Charge" };
 
-// Combiné (le cadre sombre), cadran du compte-tours (gradué de 0 à 7 000 tr/min sur 240 degrés, de 8 h à 4 h, un grand trait
-// tous les 1 000 tr/min, un petit à mi-chemin ; nommé dessous), voyants en deux rangées de trois, repère « Contact » et
-// « Moteur » sous les voyants.
+// Combiné (le cadre sombre, un aplat), cadran du compte-tours en pictogramme (son arc, de 0 à 7 000 tr/min sur 240 degrés, de
+// 8 h à 4 h, un trait tous les 1 000 tr/min, l'aiguille du moyeu à sa pointe ; nommé dessous), voyants en deux rangées de
+// trois, repère « Contact » et « Moteur » sous les voyants.
 const COMBINE = {
   largeur: 320, hauteur: 200,
   panneau: { x: 8, y: 8, largeur: 304, hauteur: 138, rayon: 14 },
-  cadran: { cx: 76, cy: 74, rayon: 46, regimeMax: 7000, pasGrands: 1000, pasGraduations: 500, angleZero: -120, angleMax: 120,
-    graduation: 39, sousGraduation: 42.5, aiguille: 40, queue: 7, moyeu: 4.5, ecartNom: 4, flecheRayon: 52 },
+  cadran: { cx: 76, cy: 74, rayon: 46, regimeMax: 7000, pasGraduations: 1000, angleZero: -120, angleMax: 120,
+    graduation: 39, aiguille: 40, moyeu: 4.5, ecartNom: 4, flecheRayon: 52 },
   voyants: { colonnes: [168, 226, 284], rangees: [42, 98], taille: 24, ecartNom: 6 },
   // Repère : deux pastilles ; dans chacune, un témoin rond (plein quand l'état est atteint, creux sinon) puis le mot.
   repere: { centre: 226, y: 164, largeur: 78, hauteur: 22, ecart: 6, temoin: 4, xTemoin: 12, xMot: 22 },
@@ -584,22 +583,26 @@ const DESCRIPTION_AUTOTEST = "Combiné d'instruments, contact coupé : tout est 
 // marques), seule différence entre une image figée et l'image de lecture du même instant.
 function dessinerAutotest(etat, { fige, etape }) {
   const C = COMBINE, P = C.panneau, D = C.cadran, V = C.voyants, R = C.repere;
+  // L'arc du cadran, de 0 au régime maximal par le haut (plus d'un demi-tour, dans le sens des aiguilles d'une montre).
+  const [xDebut, yDebut] = surCadran(D.angleZero, D.rayon), [xFin, yFin] = surCadran(D.angleMax, D.rayon);
   const cadranNoeuds = [
-    n("circle", { cx: D.cx, cy: D.cy, r: D.rayon, fill: TABLEAU.cadran, stroke: TABLEAU.bord, "stroke-width": TRAIT_FIN }),
+    n("path", { d: `M${pt([xDebut, yDebut])} A${ecrit(D.rayon)} ${ecrit(D.rayon)} 0 1 1 ${pt([xFin, yFin])}`,
+      ...traitDe(TABLEAU.graduation, TRAIT, "butt"), "data-r": "arc-cadran" }),
   ];
   for (let regime = 0; regime <= D.regimeMax; regime += D.pasGraduations) {
-    const a = angleRegime(regime), grand = regime % D.pasGrands === 0;
-    const [x1, y1] = surCadran(a, grand ? D.graduation : D.sousGraduation), [x2, y2] = surCadran(a, D.rayon);
-    cadranNoeuds.push(n("line", { x1, y1, x2, y2, stroke: TABLEAU.graduation, "stroke-width": grand ? TRAIT : TRAIT_FIN }));
+    const a = angleRegime(regime);
+    const [x1, y1] = surCadran(a, D.graduation), [x2, y2] = surCadran(a, D.rayon);
+    cadranNoeuds.push(n("line", { x1, y1, x2, y2, stroke: TABLEAU.graduation, "stroke-width": TRAIT, "data-r": "graduation" }));
   }
   cadranNoeuds.push(texte(D.cx, D.cy + D.rayon + D.ecartNom + HAUT_TEXTE * NOM.taille, NOM_CADRAN,
     { taille: NOM.taille, ancrage: "middle", graisse: NOM.graisse, couleur: TABLEAU.legende }));
+  // L'aiguille part du moyeu ; sa pointe est un point dessiné (data-x, data-y), suivi par le contrôle de continuité commun.
   const angle = angleRegime(etat.regime);
-  const [xa, ya] = surCadran(angle, D.aiguille), [xq, yq] = surCadran(angle + 180, D.queue);
+  const [xa, ya] = surCadran(angle, D.aiguille);
   cadranNoeuds.push(
-    n("line", { x1: xq, y1: yq, x2: xa, y2: ya, stroke: TABLEAU.aiguille, "stroke-width": CHARTE.traits.appuye, "stroke-linecap": "round",
-      "data-r": "aiguille", "data-angle": angle }),
-    n("circle", { cx: D.cx, cy: D.cy, r: D.moyeu, fill: TABLEAU.aiguille }));
+    n("line", { x1: D.cx, y1: D.cy, x2: xa, y2: ya, stroke: TABLEAU.aiguille, "stroke-width": CHARTE.traits.appuye, "stroke-linecap": "round",
+      "data-r": "aiguille", "data-angle": angle, "data-x": xa, "data-y": ya }),
+    n("circle", { cx: D.cx, cy: D.cy, r: D.moyeu, fill: TABLEAU.aiguille, "data-r": "moyeu" }));
 
   const places = RANGEES_AUTOTEST.flatMap((rangee, k) => rangee.map((nom, i) => ({ nom, x: V.colonnes[i], y: V.rangees[k] })));
   const voyants = places.map(({ nom, x, y }) => n("g", { "data-r": `combine-${nom}` },
@@ -633,8 +636,7 @@ function dessinerAutotest(etat, { fige, etape }) {
       "stroke-width": TRAIT, display: montre(m.anneaux.includes(nom)), "data-r": `anneau-${nom}` })));
 
   return cadre({ largeur: C.largeur, hauteur: C.hauteur, titre: TITRE_AUTOTEST, description: DESCRIPTION_AUTOTEST },
-    n("rect", { x: P.x, y: P.y, width: P.largeur, height: P.hauteur, rx: P.rayon, fill: TABLEAU.fond, stroke: TABLEAU.bord,
-      "stroke-width": TRAIT_FIN, "data-r": "combine" }),
+    n("rect", { x: P.x, y: P.y, width: P.largeur, height: P.hauteur, rx: P.rayon, fill: TABLEAU.fond, "data-r": "combine" }),
     n("g", { "data-r": "compte-tours" }, cadranNoeuds),
     voyants,
     pastilles,
