@@ -77,6 +77,18 @@ export function absentsDuPlanning(entries, dayIndex, demi) {
   return ids;
 }
 
+// Passage prévu au planning de la demi-journée (mêmes rôles que les absences de la refonte du
+// 19/07 : tableau en salle, élève en voiture) : « au tableau », « en voiture » ou null.
+export function roleAuPlanning(entries, dayIndex, demi, sid) {
+  for (const e of entries || []) {
+    if (e.day_index !== dayIndex || e.half_day !== demi) continue;
+    if (e.activite === "Pédagogie salle"
+        && (e.pedagogue_id === sid || (e.salle_double && e.pedagogue_id_2 === sid))) return "au tableau";
+    if (e.activite === "Voiture (conduite)" && (e.eleves_ids || []).includes(sid)) return "en voiture";
+  }
+  return null;
+}
+
 const LIBELLE_ABSENCE = {
   planning: "Absent (noté au planning)",
   non_signe: "Absent (non signé)",
@@ -211,6 +223,31 @@ export function jourFerie(jourIso) {
 }
 
 export const DEMI_JOURNEES = ["matin", "aprem"];
+
+// Demi-journée suivante (sens 1) ou précédente (sens -1), en sautant samedi et dimanche.
+export function demiVoisine(jour, demi, sens) {
+  if (sens > 0 && demi === "matin") return { jour, demi: "aprem" };
+  if (sens < 0 && demi === "aprem") return { jour, demi: "matin" };
+  let j = jourDe(jour, sens > 0 ? 1 : -1);
+  while (dayIndexDe(j) > 4) j = jourDe(j, sens > 0 ? 1 : -1);
+  return { jour: j, demi: sens > 0 ? "matin" : "aprem" };
+}
+
+// Notes proposées en un clic : situations courantes (retard et départ à l'heure donnée),
+// puis les notes déjà écrites sur les feuilles affichées, sans doublon, dix au plus.
+export function notesProposees(dejaEcrites, heure) {
+  const courantes = ["Absence injustifiée", "Absence justifiée", `Arrivé à ${heure}`, `Parti à ${heure}`,
+    "Rendez-vous médical", "Téléphone déchargé : signé sur l'appareil du formateur"];
+  const vues = new Set(courantes);
+  const autres = [];
+  for (const n of dejaEcrites || []) {
+    const t = String(n || "").trim();
+    if (!t || vues.has(t) || /^(Arrivé|Parti) à \d{1,2}h\d{2}$/.test(t)) continue;
+    vues.add(t);
+    autres.push(t);
+  }
+  return [...courantes, ...autres].slice(0, 10);
+}
 
 // « Émargement du matin », « de l'après-midi ».
 export function deLaDemi(demi) {

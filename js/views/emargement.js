@@ -14,6 +14,7 @@ import { isAdmin, isProf, getProfile } from "../auth-admin.js?v=20261024a";
 import {
   etatLigne, resumeSeance, absentsDuPlanning, libelleCreneau, heureLocale, jourLocal, lireAdresseEmargement,
   adresseSeance, lundiDe, jourDe, dayIndexDe, jourFerie, nomsFormateursProposes, DEMI_JOURNEES,
+  demiVoisine, notesProposees, roleAuPlanning,
 } from "../emargement-rules.js?v=20261024a";
 import { ouvrirSignature, rendreSignature } from "../signature-pad.js?v=20261024a";
 import {
@@ -129,7 +130,10 @@ function dessinerSemaine(ctx) {
     onClick: () => aller(jourDe(lundi, -7)) }, icon.chevronLeft());
   const next = el("button", { class: "btn small icon-only", type: "button", "aria-label": "Semaine suivante",
     onClick: () => aller(jourDe(lundi, 7)) }, icon.chevronRight());
-  const cette = el("button", { class: "btn small", type: "button", onClick: () => aller(aujourdhui) }, "Cette semaine");
+  const cette = el("button", { class: "btn small", type: "button", onClick: () => aller(aujourdhui) }, "Aujourd'hui");
+  // Calendrier natif, comme la date de la page Notes : n'importe quel jour mène à sa semaine.
+  const choixDate = el("input", { type: "date", class: "em-date", value: ctx.jour, "aria-label": "Aller à une date" });
+  choixDate.addEventListener("change", () => { if (choixDate.value) aller(choixDate.value); });
   const imprimerSemaine = el("button", { class: "btn small", type: "button",
     onClick: () => imprimer(feuilleSemaine({
       entete: ctx.entete, promo: ctx.promo, lundi, seances: ctx.seances,
@@ -139,7 +143,7 @@ function dessinerSemaine(ctx) {
   const reglerEntete = el("button", { class: "btn small", type: "button", onClick: () => ouvrirEntete(ctx) },
     "En-tête");
   page.appendChild(el("div", { class: "em-barre" },
-    el("div", { class: "em-barre-nav" }, prev, el("span", { class: "em-barre-titre" }, titre), next, cette),
+    el("div", { class: "em-barre-nav" }, el("span", { class: "em-barre-titre" }, titre), prev, choixDate, next, cette),
     el("div", { class: "em-barre-actions" }, imprimerSemaine, reglerEntete),
   ));
 
@@ -225,7 +229,28 @@ function dessinerSeance(ctx) {
   const off = jourOff(ctx, jour);
   const libelleStatut = s ? (s.statut === "ouverte" ? "Ouverte" : "Close") : "Pas ouverte";
 
-  page.appendChild(el("a", { class: "em-retour", href: adresseSeance(jour, null) }, icon.chevronLeft(), "Semaine"));
+  // Navigation de la demi-journée : retour à la semaine, précédente et suivante (sans week-end),
+  // calendrier, matin ou après-midi, retour à aujourd'hui.
+  const voisine = (sens) => { const v = demiVoisine(jour, demi, sens); location.hash = adresseSeance(v.jour, v.demi); };
+  const choixDate = el("input", { type: "date", class: "em-date", value: jour, "aria-label": "Aller à une date" });
+  choixDate.addEventListener("change", () => { if (choixDate.value) location.hash = adresseSeance(choixDate.value, demi); });
+  const bascule = (d, libelle) => el("a", { class: "em-demi" + (d === demi ? " actif" : ""), href: adresseSeance(jour, d),
+    "aria-current": d === demi ? "page" : null }, libelle);
+  const demiDuMoment = new Date().getHours() * 60 + new Date().getMinutes() < 12 * 60 + 45 ? "matin" : "aprem";
+  page.appendChild(el("div", { class: "em-nav-seance" },
+    el("a", { class: "em-retour", href: adresseSeance(jour, null) }, icon.chevronLeft(), "Semaine"),
+    el("div", { class: "em-nav-groupe" },
+      el("button", { class: "btn small icon-only", type: "button", "aria-label": "Demi-journée précédente",
+        onClick: () => voisine(-1) }, icon.chevronLeft()),
+      choixDate,
+      el("div", { class: "em-demis", role: "group", "aria-label": "Demi-journée" }, bascule("matin", "Matin"), bascule("aprem", "Après-midi")),
+      el("button", { class: "btn small icon-only", type: "button", "aria-label": "Demi-journée suivante",
+        onClick: () => voisine(1) }, icon.chevronRight()),
+      jour !== aujourdhui || demi !== demiDuMoment
+        ? el("a", { class: "btn small", href: adresseSeance(aujourdhui, demiDuMoment) }, "Maintenant")
+        : null,
+    ),
+  ));
   page.appendChild(el("div", { class: "view-header" },
     el("div", { class: "view-header-text" },
       el("p", { class: "eyebrow" }, "Émargement" + (ctx.promo ? " · " + ctx.promo.nom : "")),
@@ -268,7 +293,7 @@ function dessinerSeance(ctx) {
     }
     if (ouverte && etat.code === "attente") {
       actions.appendChild(el("button", { class: "btn small", type: "button",
-        onClick: () => annoter(ctx, s, st, { absent: true }, `${nomComplet(st)} noté absent.`) }, "Absent"));
+        onClick: () => ouvrirAbsence(ctx, s, st) }, "Absent"));
     }
     if (ouverte && etat.code === "absent") {
       actions.appendChild(el("button", { class: "btn small", type: "button",
@@ -410,9 +435,47 @@ async function annoter(ctx, s, st, changement, message) {
   } catch (e) { enErreur(e); }
 }
 
+// Notes déjà écrites sur les feuilles de la semaine affichée : proposées en un clic.
+function notesDeLaSemaine(ctx) {
+  return notesProposees(ctx.seances.flatMap((x) => x.lignes.map((l) => l.observation)),
+    heureLocale(new Date().toISOString()));
+}
+
+function pucesDeNotes(notes, choisir) {
+  return el("div", { class: "em-puces" }, ...notes.map((t) =>
+    el("button", { type: "button", class: "em-puce", onClick: () => choisir(t) }, t)));
+}
+
+// Marquer absent : la raison en un clic (ou une précision libre). Si le stagiaire est prévu au
+// planning de la demi-journée, rappel de le remplacer sur sa carte.
+function ouvrirAbsence(ctx, s, st) {
+  const precision = el("input", { type: "text", maxlength: "200", placeholder: "Autre précision (facultatif)" });
+  const fond = el("div", { class: "modal-backdrop" });
+  const fermer = () => fond.remove();
+  const marquer = async (observation) => {
+    fermer();
+    await annoter(ctx, s, st, { absent: true, observation: observation || null }, `${nomComplet(st)} noté absent.`);
+  };
+  const role = roleAuPlanning(ctx.entries, dayIndexDe(s.jour), s.demi_journee, st.id);
+  fond.appendChild(el("div", { class: "modal", role: "dialog", "aria-modal": "true", "aria-label": "Marquer absent" },
+    el("h3", {}, "Absent : " + nomComplet(st)),
+    role ? el("p", { class: "em-alerte" }, `Prévu ${role} sur le planning de cette demi-journée : pense à le remplacer sur sa carte. `,
+      el("a", { href: "#/planning" }, "Ouvrir le planning")) : null,
+    el("div", { class: "modal-form" },
+      pucesDeNotes(["Absence injustifiée", "Absence justifiée", "Rendez-vous médical"], marquer),
+      el("label", {}, "Ou une autre précision", precision)),
+    el("div", { class: "modal-actions" },
+      el("button", { class: "btn ghost", type: "button", onClick: fermer }, "Annuler"),
+      el("button", { class: "btn primary", type: "button", onClick: () => marquer(precision.value.trim()) },
+        "Marquer absent")),
+  ));
+  document.body.appendChild(fond);
+}
+
 function ouvrirObservation(ctx, s, st, ligne) {
   const champ = el("input", { type: "text", value: ligne?.observation || "", maxlength: "200",
     placeholder: "Ex. : arrivé à 9h40, absence justifiée" });
+  const puces = pucesDeNotes(notesDeLaSemaine(ctx), (t) => { champ.value = t; champ.focus(); });
   const fond = el("div", { class: "modal-backdrop" });
   const fermer = () => fond.remove();
   const enregistrer = async (texte) => {
@@ -426,6 +489,7 @@ function ouvrirObservation(ctx, s, st, ligne) {
   fond.appendChild(el("div", { class: "modal", role: "dialog", "aria-modal": "true", "aria-label": "Note sur la feuille" },
     el("h3", {}, "Note : " + nomComplet(st)),
     el("div", { class: "modal-form" },
+      puces,
       el("label", {}, "Imprimée dans la colonne Observations", champ)),
     el("div", { class: "modal-actions" },
       el("button", { class: "btn ghost", type: "button", onClick: fermer }, "Annuler"),
