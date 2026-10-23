@@ -1553,9 +1553,12 @@ async function toutesLesLignes(fabrique) {
   }
 }
 
+// promoId nul (liste des promos non chargée) : promo courante, sans en-tête de lecture.
 export async function lireDonneesCentre(promoId) {
-  const lire = (table, colonnes, ordre) => toutesLesLignes(() => supabase
-    .from(table).select(colonnes).order(ordre).setHeader(ENTETE_LECTURE_PROMO, String(promoId)));
+  const lire = (table, colonnes, ordre) => toutesLesLignes(() => {
+    const q = supabase.from(table).select(colonnes).order(ordre);
+    return promoId == null ? q : q.setHeader(ENTETE_LECTURE_PROMO, String(promoId));
+  });
   const [stagiaires, passages, evaluations, tentatives, epcf] = await Promise.all([
     lire("stagiaires", "id, prenom, nom, actif, ordre, anonymise_le", "id"),
     lire("passages", "id, stagiaire_id, type, resultat, date", "id"),

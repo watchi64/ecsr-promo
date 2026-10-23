@@ -26,6 +26,7 @@ import { renderNouveautes } from "./views/nouveautes.js?v=20261022e";
 import { libellePastille } from "./nouveautes.js?v=20261022e";
 import { renderCcp2 } from "./views/ccp2.js?v=20261022e";
 import { renderStagiaires } from "./views/stagiaires.js?v=20261022e";
+import { renderCentre, teardownCentrePrint } from "./views/centre.js?v=20261022e";
 import { lireAdresse, pagePersonnelle } from "./route-rules.js?v=20261022e";
 import {
   peutQuitter, leverGardeSortie, majSurPlacePour, oublierMajSurPlace,
@@ -123,6 +124,7 @@ const routes = {
   notes:      renderNotes,
   ccp2:       renderCcp2,
   stagiaires: renderStagiaires,
+  centre:     renderCentre,
   ressources: renderRessources,
   config:     renderConfig,
   nouveautes: renderNouveautes,
@@ -132,7 +134,7 @@ const routes = {
 // sur #/nouveautes depuis Accueil, et sur #/dashboard (Priorités) depuis le
 // Planning : laisser la barre sans onglet actif donnerait l'impression d'être
 // sorti de l'app.
-const ONGLET_POUR_ROUTE = { nouveautes: "home", dashboard: "planning" };
+const ONGLET_POUR_ROUTE = { nouveautes: "home", dashboard: "planning", centre: "home" };
 
 let lastRoute = null;
 
@@ -181,7 +183,7 @@ async function navigate({ force = false } = {}) {
   if (route === "mon-suivi" && pagePersonnelle({ formateur, stagiaireId: monStagiaireId() }) === "stagiaires") {
     try { history.replaceState(null, "", "#/stagiaires"); } catch (e) { /* ignore */ }
     route = "stagiaires";
-  } else if (route === "stagiaires" && !formateur) {
+  } else if ((route === "stagiaires" || route === "centre") && !formateur) {
     try { history.replaceState(null, "", "#/mon-suivi"); } catch (e) { /* ignore */ }
     route = "mon-suivi";
   }
@@ -213,6 +215,8 @@ async function navigate({ force = false } = {}) {
   // Idem pour les documents officiels, livret EPCF et Dossier Professionnel
   // (re-montés à l'ouverture d'un document).
   teardownDocPrint();
+  // Et pour le tableau de bord du centre (format A4 portrait injecté le temps d'imprimer).
+  teardownCentrePrint();
   try {
     await routes[route](view);
   } catch (e) {
