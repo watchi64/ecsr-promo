@@ -143,7 +143,7 @@ for (const cle of ["effectif", "abandon", "valeurAbandons", "absences", "passage
   assert.ok(METHODES[cle] && ind[cle].methode === METHODES[cle], "méthode de " + cle); n++;
   assert.ok(["mesuré", "estimé", "non mesuré"].includes(ind[cle].nature), "nature de " + cle); n++;
 }
-assert.ok(!JSON.stringify(METHODES).includes("—"), "aucun tiret cadratin"); n++;
+assert.ok(!JSON.stringify(METHODES).includes(String.fromCharCode(0x2014)), "aucun tiret cadratin"); n++;
 
 // Comparaison des promos : textes courts.
 eq(ligneComparaison(ind), {
