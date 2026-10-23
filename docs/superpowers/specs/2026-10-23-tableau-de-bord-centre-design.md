@@ -152,6 +152,8 @@ Mise en forme des cartes (dans la charte mint existante), libellés exacts, ordr
 
 ## Constats en passant (hors périmètre)
 
-- La synthèse de la page Notes compte les notes des stagiaires en abandon dans la moyenne générale
+- La synthèse de la page Notes comptait les notes des stagiaires en abandon dans la moyenne générale
   (99 notes de 3 abandons pour la promo de Nîmes) ; le tableau de bord, lui, ne compte que les
-  stagiaires en formation. Les deux chiffres diffèrent donc pour Nîmes : à trancher par Timy.
+  stagiaires en formation. **Tranché par Timy le 23/10/2026** : la page Notes ne compte plus que les
+  stagiaires en formation (`statsLocales` et migration `20261023_notes_stats_en_formation`), règle
+  écrite sous « Synthèse classe ». Les deux pages donnent les mêmes chiffres.

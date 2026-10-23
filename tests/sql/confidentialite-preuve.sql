@@ -9,6 +9,9 @@
 -- c'est la fuite que la preuve doit détecter.
 --
 -- Le jeu de notes et les attendus des statistiques sont ceux de tests/notes-stats.test.mjs.
+-- Depuis le 23/10/2026, les statistiques ne comptent que les stagiaires en formation (la note
+-- de PreuveD, en abandon, est écartée) : avant d'appliquer 20261023_notes_stats_en_formation,
+-- envoyer dans UNE SEULE requête le texte de cette migration suivi de ce fichier.
 
 set local lock_timeout = '3s';
 
@@ -80,7 +83,7 @@ begin
     end loop;
   end;
 
-  -- Statistiques du groupe : identiques pour tous, anonymes comprises -------------------
+  -- Statistiques du groupe : identiques pour tous, anonymes comprises, abandon écarté ----
   declare
     p text;
   begin
@@ -94,14 +97,14 @@ begin
       end;
       reset role;
       if st is not null
-         and (st->>'n_lignes')::int = 9 and (st->>'n')::int = 7
-         and abs((st->>'somme')::numeric - 84) < 1e-9 and (st->>'mediane')::numeric = 12
-         and (st->>'sous_10')::int = 2 and st->'repartition' = '[1,0,2,2,2]'::jsonb
+         and (st->>'n_lignes')::int = 8 and (st->>'n')::int = 6
+         and abs((st->>'somme')::numeric - 81) < 1e-9 and (st->>'mediane')::numeric = 13.5
+         and (st->>'sous_10')::int = 1 and st->'repartition' = '[0,0,2,2,2]'::jsonb
          and jsonb_array_length(st->'themes') = 2
          and (st->'themes'->0->>'num')::int = 1 and (st->'themes'->0->>'n')::int = 3
          and abs((st->'themes'->0->>'somme')::numeric - 41) < 1e-9 and (st->'themes'->0->>'mediane')::numeric = 15
-         and (st->'themes'->1->>'num')::int = 2 and (st->'themes'->1->>'n')::int = 2
-         and abs((st->'themes'->1->>'somme')::numeric - 11) < 1e-9 and (st->'themes'->1->>'mediane')::numeric = 5.5
+         and (st->'themes'->1->>'num')::int = 2 and (st->'themes'->1->>'n')::int = 1
+         and abs((st->'themes'->1->>'somme')::numeric - 8) < 1e-9 and (st->'themes'->1->>'mediane')::numeric = 8
          and jsonb_array_length(st->'competences') = 2
          and st->'competences'->0->>'code' = c1 and abs((st->'competences'->0->>'somme')::numeric - 20) < 1e-9
          and st->'competences'->1->>'code' = c2 and abs((st->'competences'->1->>'somme')::numeric - 12) < 1e-9
