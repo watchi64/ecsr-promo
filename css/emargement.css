@@ -1,0 +1,50 @@
+/* ============================================================
+   Émargement (spec 2026-10-23) : fenêtre de signature, page des
+   formateurs, bandeau, feuilles imprimables.
+   ============================================================ */
+
+/* --- Fenêtre de signature ------------------------------------------- */
+
+body.sig-ouverte { overflow: hidden; }
+.sig-backdrop { z-index: 1200; }
+.sig-modal { max-width: 640px; }
+.sig-modal h3 { margin-bottom: 0.6rem; }
+.sig-attestation { margin: 0 0 0.9rem; font-size: 0.9rem; color: var(--text-soft); line-height: 1.45; }
+.sig-zone {
+  position: relative;
+  border: 1.5px dashed var(--line-strong);
+  border-radius: var(--r);
+  background: #fff;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.sig-canvas {
+  display: block;
+  width: 100%;
+  aspect-ratio: 400 / 160;
+  touch-action: none;
+  cursor: crosshair;
+  border-radius: var(--r);
+}
+.sig-ligne {
+  position: absolute; left: 7%; right: 7%; bottom: 24%;
+  border-bottom: 1px solid var(--line);
+  pointer-events: none;
+}
+.sig-invite {
+  position: absolute; left: 7%; bottom: 26%;
+  color: var(--text-faint); font-size: 0.85rem;
+  pointer-events: none;
+}
+.sig-message { min-height: 1.2em; margin: 0.5rem 0 0; color: var(--c-stop); font-size: 0.85rem; }
+.sig-actions { flex-wrap: wrap; }
+.sig-rendu { display: block; width: 100%; height: auto; color: #1F2924; }
+
+@media (max-width: 760px) {
+  .sig-backdrop { padding: 0.5rem; align-items: flex-start; padding-top: 1.5rem; }
+  .sig-modal { padding: 1rem; }
+  .sig-actions { justify-content: stretch; }
+  .sig-actions .btn { flex: 1 1 auto; }
+  .sig-actions .btn.primary { flex-basis: 100%; order: -1; }
+}
