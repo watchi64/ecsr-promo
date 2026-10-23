@@ -57,7 +57,7 @@ const scaleway = !!env.SCW_SECRET_KEY;
 if (!scaleway && !env.MISTRAL_API_KEY) { console.error("Variable manquante : SCW_SECRET_KEY ou MISTRAL_API_KEY"); process.exit(2); }
 const url = scaleway ? "https://api.scaleway.ai/v1/chat/completions" : "https://api.mistral.ai/v1/chat/completions";
 const cleIA = scaleway ? env.SCW_SECRET_KEY : env.MISTRAL_API_KEY;
-const modele = env.QCM_IA_MODEL || (scaleway ? env.SCALEWAY_MODEL || "mistral-small-3.2-24b-instruct-2506" : env.MISTRAL_MODEL || "mistral-medium-latest");
+const modele = env.QCM_IA_MODEL || (scaleway ? env.SCALEWAY_MODEL || "mistral-medium-3.5-128b" : env.MISTRAL_MODEL || "mistral-medium-latest");
 
 const debut = Date.now();
 const resp = await fetch(url, {

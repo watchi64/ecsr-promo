@@ -17,8 +17,8 @@ test("fournisseursDisponibles : Mistral seul, la cle Gemini est ignoree (conditi
 test("les modeles se surchargent par variable d'environnement", () => {
   const [m] = fournisseursDisponibles(envDe({ MISTRAL_API_KEY: "m", MISTRAL_MODEL: "mistral-medium-latest" }));
   assert.equal(m.modele, "mistral-medium-latest");
-  const [s] = fournisseursDisponibles(envDe({ SCW_SECRET_KEY: "s", SCALEWAY_MODEL: "mistral-medium-3.5-128b" }));
-  assert.equal(s.modele, "mistral-medium-3.5-128b");
+  const [s] = fournisseursDisponibles(envDe({ SCW_SECRET_KEY: "s", SCALEWAY_MODEL: "mistral-small-3.2-24b-instruct-2506" }));
+  assert.equal(s.modele, "mistral-small-3.2-24b-instruct-2506");
 });
 
 test("fournisseursDisponibles : Scaleway (Paris) d'abord, Mistral ensuite, jamais hors Europe", () => {
@@ -26,7 +26,7 @@ test("fournisseursDisponibles : Scaleway (Paris) d'abord, Mistral ensuite, jamai
   assert.deepEqual(fs.map((f) => f.nom), ["scaleway", "mistral"]);
   assert.equal(fs[0].url, "https://api.scaleway.ai/v1/chat/completions");
   assert.equal(fs[0].cle, "s");
-  assert.equal(fs[0].modele, "mistral-small-3.2-24b-instruct-2506");
+  assert.equal(fs[0].modele, "mistral-medium-3.5-128b");
   assert.deepEqual(fournisseursDisponibles(envDe({ SCW_SECRET_KEY: "s" })).map((f) => f.nom), ["scaleway"]);
 });
 

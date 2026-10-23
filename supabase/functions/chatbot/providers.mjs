@@ -15,7 +15,7 @@ export function fournisseursDisponibles(env) {
       nom: "scaleway",
       url: "https://api.scaleway.ai/v1/chat/completions",
       cle: env("SCW_SECRET_KEY"),
-      modele: env("SCALEWAY_MODEL") || "mistral-small-3.2-24b-instruct-2506",
+      modele: env("SCALEWAY_MODEL") || "mistral-medium-3.5-128b",
     });
   }
   if (env("MISTRAL_API_KEY")) {

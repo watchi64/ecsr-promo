@@ -41,7 +41,7 @@ function fournisseurs(): Fournisseur[] {
   const liste: Fournisseur[] = [];
   if (env("SCW_SECRET_KEY")) {
     liste.push({ nom: "scaleway", url: "https://api.scaleway.ai/v1/chat/completions", cle: env("SCW_SECRET_KEY"),
-      modele: env("QCM_IA_MODEL") || env("SCALEWAY_MODEL") || "mistral-small-3.2-24b-instruct-2506" });
+      modele: env("QCM_IA_MODEL") || env("SCALEWAY_MODEL") || "mistral-medium-3.5-128b" });
   }
   if (env("MISTRAL_API_KEY")) {
     liste.push({ nom: "mistral", url: "https://api.mistral.ai/v1/chat/completions", cle: env("MISTRAL_API_KEY"),
