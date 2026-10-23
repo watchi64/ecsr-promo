@@ -16,14 +16,14 @@ test("chaque signature fictive est un tracé valide, assez large", () => {
   }
 });
 
-test("migration de démonstration : 200 lignes, tracés valides, aucun cadratin, à jour dans le dépôt", async () => {
+test("migration de démonstration : 24 tracés valides, 8 exceptions, aucun cadratin, à jour dans le dépôt", async () => {
   const texte = migrationDemo();
   assert.ok(!texte.includes(String.fromCharCode(0x2014)), "tiret cadratin");
   const traces = [...texte.matchAll(/\('[^']+', \d, '(M[^']+)'\)/g)].map((m) => m[1]);
-  assert.equal(traces.length, 36);
+  assert.equal(traces.length, 24);
   for (const t of traces) assert.ok(cheminValide(t));
-  const lignes = texte.match(/\('2026-10-\d\d', '(matin|aprem)', /g) || [];
-  assert.equal(lignes.length, 200);
+  const exceptions = texte.match(/\('2026-10-\d\d', '(matin|aprem)', '[^']+', (true|false)/g) || [];
+  assert.equal(exceptions.length, 8);
   const { readFileSync } = await import("node:fs");
   assert.equal(readFileSync("supabase/migrations/20261023_emargement_demo.sql", "utf8").replace(/\r\n/g, "\n"), texte,
     "fichier de migration à regénérer : node scripts/emargement-demo.mjs");

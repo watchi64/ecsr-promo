@@ -109,7 +109,7 @@ const STAGIAIRES_DEMO = [
   ["Nadia", "Girard"], ["Kevin", "Mercier"],
 ];
 const FORMATEURS_DEMO = ["Claire", "Marc"];
-const VARIANTES = 3;
+const VARIANTES = 2;
 // Moins de points par courbe que le banc : la migration reste assez légère pour être appliquée en une fois.
 const PAS_DEMO = 4;
 const HORAIRES = { matin: ["09:00", "12:30"], aprem: ["13:30", "17:00"] };
@@ -129,39 +129,25 @@ const EXCEPTIONS = {
 const sql = (v) => (v === null || v === undefined ? "null" : typeof v === "string" ? "'" + v.replace(/'/g, "''") + "'" : String(v));
 
 export function migrationDemo() {
-  const jours = [];
-  for (const lundi of ["2026-10-12", "2026-10-19"]) {
-    for (let d = 0; d < 5; d++) {
-      const date = new Date(lundi + "T00:00:00Z");
-      date.setUTCDate(date.getUTCDate() + d);
-      jours.push(date.toISOString().slice(0, 10));
-    }
-  }
-  const seances = jours.flatMap((jour) => ["matin", "aprem"].map((demi) => ({ jour, demi })));
   const traces = [];
   for (const [prenom, nom] of STAGIAIRES_DEMO) {
     for (let v = 0; v < VARIANTES; v++) traces.push([prenom + " " + nom, v, signatureFictive(prenom + " " + nom, v, { pas: PAS_DEMO })]);
   }
   for (const f of FORMATEURS_DEMO) for (let v = 0; v < VARIANTES; v++) traces.push([f, v, signatureFictive(f, v, { pas: PAS_DEMO })]);
-
-  const lignes = [];
-  seances.forEach(({ jour, demi }, i) => {
-    STAGIAIRES_DEMO.forEach(([prenom, nom], rang) => {
-      const e = EXCEPTIONS[`${jour} ${demi} ${prenom}`] || {};
-      // Arrivées étalées : 2 à 22 minutes après le début, jamais deux fois le même ordre.
-      const minute = e.retard ?? (2 + ((rang * 7 + i * 3) % 21));
-      lignes.push([jour, demi, prenom, nom, (i + rang) % VARIANTES, minute, !!e.appareil, !!e.absent,
-        e.absent ? e.origine : null, e.observation || null]);
-    });
+  const personnes = STAGIAIRES_DEMO.map(([prenom, nom], rang) => [prenom, nom, rang]);
+  const exceptions = Object.entries(EXCEPTIONS).map(([cle, e]) => {
+    const [jour, demi, prenom] = cle.split(" ");
+    return [jour, demi, prenom, !!e.absent, e.absent ? e.origine : null, e.observation || null, !!e.appareil, e.retard ?? null];
   });
 
-  const valeurs = (rangs) => rangs.map((r) => "  (" + r.map(sql).join(", ") + ")").join(",\n");
+  const valeurs = (rangs) => rangs.map((r) => "  (" + r.map(sql).join(", ") + ")").join("," + String.fromCharCode(10));
   return `-- Émargements fictifs de la promo de démonstration (id 7, « Démonstration (données fictives) »),
 -- pour le rendez-vous de la semaine du 26/10/2026. Écrit par scripts/emargement-demo.mjs : ne pas
 -- modifier à la main. Semaines du 12 et du 19 octobre, dix demi-journées closes chacune, signatures
 -- générées (aucune donnée réelle), et l'interrupteur de l'émargement allumé pour cette seule
--- promo. Gardée : sans la promo 7, ou si elle a déjà des feuilles, rien
--- n'est écrit. Ménage : 20261023_emargement_demo_retour.sql (ou la suppression de la promo 7).
+-- promo. Les 200 lignes sont calculées ici à partir de quelques règles (arrivées étalées, variantes
+-- de signature alternées, exceptions listées). Gardée : sans la promo 7, ou si elle a déjà des
+-- feuilles, rien n'est écrit. Ménage : 20261023_emargement_demo_retour.sql (ou la suppression de la promo 7).
 set local lock_timeout = '3s';
 
 do $garde$
@@ -178,18 +164,38 @@ create temp table demo_traces (cle text, variante integer, trace text) on commit
 insert into demo_traces values
 ${valeurs(traces)};
 
-create temp table demo_lignes (jour date, demi text, prenom text, nom text, variante integer, minute integer,
-  appareil boolean, absent boolean, origine text, observation text) on commit drop;
-insert into demo_lignes values
-${valeurs(lignes)};
+create temp table demo_personnes (prenom text, nom text, rang integer) on commit drop;
+insert into demo_personnes values
+${valeurs(personnes)};
+
+create temp table demo_exceptions (jour date, demi text, prenom text, absent boolean, origine text,
+  observation text, appareil boolean, retard integer) on commit drop;
+insert into demo_exceptions values
+${valeurs(exceptions)};
+
+-- Les vingt demi-journées (lundi à vendredi des deux semaines), numérotées dans l'ordre.
+create temp table demo_seances on commit drop as
+select (row_number() over (order by j, d.ordre) - 1)::integer as i, j::date as jour, d.demi, d.debut, d.fin
+  from generate_series(date '2026-10-12', date '2026-10-23', interval '1 day') j
+  cross join (values (0, 'matin', '${HORAIRES.matin[0]}', '${HORAIRES.matin[1]}'),
+                     (1, 'aprem', '${HORAIRES.aprem[0]}', '${HORAIRES.aprem[1]}')) d(ordre, demi, debut, fin)
+ where extract(isodow from j) <= 5;
+
+-- Une ligne par stagiaire et par demi-journée : arrivée 2 à 22 minutes après le début, variante
+-- de signature alternée, sauf exception (absence, retard, signature sur l'appareil du formateur).
+create temp table demo_lignes on commit drop as
+select s.jour, s.demi, p.prenom, p.nom, (s.i + p.rang) % ${VARIANTES} as variante,
+       coalesce(e.retard, 2 + ((p.rang * 7 + s.i * 3) % 21)) as minute,
+       coalesce(e.appareil, false) as appareil, coalesce(e.absent, false) as absent, e.origine, e.observation
+  from demo_seances s
+  cross join demo_personnes p
+  left join demo_exceptions e on e.jour = s.jour and e.demi = s.demi and e.prenom = p.prenom;
 
 insert into public.emargement_seances (promo_id, jour, demi_journee, debut, fin, statut, ouverte_le, ouverte_par, close_le, close_par)
-select distinct 7, l.jour, l.demi, h.debut, h.fin, 'close',
-       ((l.jour + h.debut::time) at time zone 'Europe/Paris') - interval '4 minutes', 'demonstration',
-       ((l.jour + h.fin::time) at time zone 'Europe/Paris') + interval '3 minutes', 'demonstration'
-  from demo_lignes l
-  join (values ('matin', '${HORAIRES.matin[0]}', '${HORAIRES.matin[1]}'), ('aprem', '${HORAIRES.aprem[0]}', '${HORAIRES.aprem[1]}')) h(demi, debut, fin)
-    on h.demi = l.demi;
+select 7, s.jour, s.demi, s.debut, s.fin, 'close',
+       ((s.jour + s.debut::time) at time zone 'Europe/Paris') - interval '4 minutes', 'demonstration',
+       ((s.jour + s.fin::time) at time zone 'Europe/Paris') + interval '3 minutes', 'demonstration'
+  from demo_seances s;
 
 insert into public.emargement_lignes (seance_id, promo_id, stagiaire_id, trace, signe_le, signe_par,
   sur_appareil_formateur, absent, absence_origine, observation, maj_le, maj_par)
@@ -230,7 +236,7 @@ begin
   select count(*) into n_s from public.emargement_seances where promo_id = 7;
   select count(*) into n_l from public.emargement_lignes where promo_id = 7;
   select count(*) into n_f from public.emargement_formateurs where promo_id = 7;
-  if n_s <> ${seances.length} or n_l <> ${lignes.length} or n_f <> ${seances.length * FORMATEURS_DEMO.length} then
+  if n_s <> 20 or n_l <> 200 or n_f <> 40 then
     raise exception 'Démonstration incomplète : % feuilles, % lignes, % signatures de formateurs', n_s, n_l, n_f;
   end if;
 end $controle$;
