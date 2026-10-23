@@ -1,12 +1,23 @@
 // Appel des fournisseurs LLM (format OpenAI) avec streaming et bascule.
-// Mistral seul (retry 1 fois). Le secours Gemini a ete retire le 2026-10-04 :
-// les conditions d'utilisation promettent que les messages restent chez un
-// prestataire de l'Union europeenne (GEMINI_API_KEY est donc ignoree). La
-// bascule reste generique : un futur fournisseur s'ajouterait a la liste.
+// Fournisseurs europeens uniquement : les conditions d'utilisation promettent que
+// les messages restent chez un prestataire de l'Union europeenne (le secours Gemini
+// a ete retire le 2026-10-04, GEMINI_API_KEY est donc ignoree).
+// Scaleway d'abord (2026-10-23) : Mistral ne sert plus son API sur le plan gratuit
+// depuis la mi-octobre (refus 429 constates le 20/10). Scaleway heberge les memes
+// modeles Mistral a Paris, sans conservation des messages. Mistral reste en second,
+// pour le jour ou son compte repasse sur un plan actif. Chaque fournisseur a une relance.
 import { extraireLignesSSE, nouvelEtat, accumulerChunk } from "./sse.mjs";
 
 export function fournisseursDisponibles(env) {
   const liste = [];
+  if (env("SCW_SECRET_KEY")) {
+    liste.push({
+      nom: "scaleway",
+      url: "https://api.scaleway.ai/v1/chat/completions",
+      cle: env("SCW_SECRET_KEY"),
+      modele: env("SCALEWAY_MODEL") || "mistral-small-3.2-24b-instruct-2506",
+    });
+  }
   if (env("MISTRAL_API_KEY")) {
     liste.push({
       nom: "mistral",
@@ -20,10 +31,7 @@ export function fournisseursDisponibles(env) {
 
 export function planTentatives(fournisseurs) {
   const plan = [];
-  for (const f of fournisseurs) {
-    plan.push(f);
-    if (f.nom === "mistral") plan.push(f);
-  }
+  for (const f of fournisseurs) plan.push(f, f);
   return plan;
 }
 

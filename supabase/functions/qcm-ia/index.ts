@@ -2,9 +2,12 @@
 // d'un theme. Reservee aux formateurs. Rien n'entre dans qcm_questions ici : les brouillons
 // vont dans qcm_ia_brouillons (lisible des seuls formateurs), et seule l'acceptation par un
 // formateur (rpc accepter_brouillon_ia) cree la question.
-// Secrets : MISTRAL_API_KEY (celle de l'assistant), QCM_IA_MODEL ou MISTRAL_MODEL (facultatifs).
-// Fournisseur : Mistral seul, heberge dans l'Union europeenne, aucun secours hors Europe.
-// Seuls partent chez Mistral le texte du cours et les enonces deja presents dans le QCM.
+// Secrets : SCW_SECRET_KEY (Scaleway, celle de l'assistant) ou MISTRAL_API_KEY ; facultatifs :
+// QCM_IA_MODEL, SCALEWAY_MODEL, MISTRAL_MODEL.
+// Fournisseurs europeens uniquement, dans l'ordre : Scaleway (modeles Mistral heberges a
+// Paris, sans conservation), puis Mistral (API coupee sur le plan gratuit depuis la
+// mi-octobre 2026). Aucun secours hors Europe.
+// Seuls partent chez le fournisseur le texte du cours et les enonces deja presents dans le QCM.
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { analyserReponse, articlesCites, construireMessages, titresDuCours } from "./brouillons.mjs";
 
@@ -14,8 +17,10 @@ const CORS = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 const QUOTA_DEFAUT = 10;
-// Deux tentatives doivent tenir sous la limite de 150 s d'une Edge Function.
+// Une tentative au plus 65 s, l'ensemble au plus 135 s : sous la limite de 150 s d'une
+// Edge Function, avec de quoi enregistrer les brouillons.
 const DELAI_MS = 65_000;
+const BUDGET_MS = 135_000;
 
 function reponseJson(corps: unknown, statut = 200): Response {
   return new Response(JSON.stringify(corps), {
@@ -28,34 +33,55 @@ function erreur(message: string, statut: number): Response {
   return reponseJson({ error: message }, statut);
 }
 
-// Un appel, une relance : la meme regle que l'assistant (planTentatives).
-async function appelMistral(cle: string, modele: string, messages: unknown[]): Promise<string> {
+type Fournisseur = { nom: string; url: string; cle: string; modele: string };
+
+// Meme ordre que l'assistant (chatbot/providers.mjs) : Scaleway, puis Mistral.
+function fournisseurs(): Fournisseur[] {
+  const env = (k: string) => Deno.env.get(k) || "";
+  const liste: Fournisseur[] = [];
+  if (env("SCW_SECRET_KEY")) {
+    liste.push({ nom: "scaleway", url: "https://api.scaleway.ai/v1/chat/completions", cle: env("SCW_SECRET_KEY"),
+      modele: env("QCM_IA_MODEL") || env("SCALEWAY_MODEL") || "mistral-small-3.2-24b-instruct-2506" });
+  }
+  if (env("MISTRAL_API_KEY")) {
+    liste.push({ nom: "mistral", url: "https://api.mistral.ai/v1/chat/completions", cle: env("MISTRAL_API_KEY"),
+      modele: env("MISTRAL_MODEL") || "mistral-medium-latest" });
+  }
+  return liste;
+}
+
+// Un appel, une relance par fournisseur : la meme regle que l'assistant (planTentatives).
+// Le tout tient dans BUDGET_MS, sous la limite de 150 s d'une Edge Function.
+async function appelLLM(liste: Fournisseur[], messages: unknown[]): Promise<{ contenu: string; modele: string }> {
   let derniere: unknown = null;
-  for (let tentative = 0; tentative < 2; tentative++) {
+  const debut = Date.now();
+  for (const f of liste.flatMap((x) => [x, x])) {
+    const reste = BUDGET_MS - (Date.now() - debut);
+    if (reste < 15_000) break;
     try {
-      const resp = await fetch("https://api.mistral.ai/v1/chat/completions", {
+      const resp = await fetch(f.url, {
         method: "POST",
-        headers: { Authorization: `Bearer ${cle}`, "Content-Type": "application/json" },
+        headers: { Authorization: `Bearer ${f.cle}`, "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: modele,
+          model: f.modele,
           messages,
           temperature: 0.4,
           max_tokens: 4000,
           response_format: { type: "json_object" },
         }),
-        signal: AbortSignal.timeout(DELAI_MS),
+        signal: AbortSignal.timeout(Math.min(DELAI_MS, reste)),
       });
-      if (!resp.ok) throw new Error(`mistral ${resp.status} : ${(await resp.text()).slice(0, 300)}`);
+      if (!resp.ok) throw new Error(`${f.nom} ${resp.status} : ${(await resp.text()).slice(0, 300)}`);
       const data = await resp.json();
       const contenu = data?.choices?.[0]?.message?.content;
-      if (typeof contenu !== "string" || !contenu.trim()) throw new Error("mistral : reponse vide");
-      return contenu;
+      if (typeof contenu !== "string" || !contenu.trim()) throw new Error(`${f.nom} : reponse vide`);
+      return { contenu, modele: `${f.nom}:${f.modele}` };
     } catch (e) {
-      console.error("qcm-ia mistral:", (e as Error)?.message ?? e);
+      console.error("qcm-ia fournisseur", f.nom, ":", (e as Error)?.message ?? e);
       derniere = e;
     }
   }
-  throw derniere ?? new Error("mistral indisponible");
+  throw derniere ?? new Error("aucun fournisseur disponible");
 }
 
 Deno.serve(async (req) => {
@@ -88,9 +114,8 @@ Deno.serve(async (req) => {
   if (!Number.isInteger(qcmId) || qcmId <= 0) return erreur("qcm_id invalide", 400);
   if (!Number.isInteger(nombre) || nombre < 1 || nombre > 5) return erreur("nombre entre 1 et 5", 400);
 
-  const cleMistral = Deno.env.get("MISTRAL_API_KEY");
-  if (!cleMistral) return erreur("Clé Mistral absente", 500);
-  const modele = Deno.env.get("QCM_IA_MODEL") || Deno.env.get("MISTRAL_MODEL") || "mistral-medium-latest";
+  const liste = fournisseurs();
+  if (!liste.length) return erreur("Aucune clé d'IA configurée", 500);
 
   // QCM -> theme -> cours verifie du theme (les cours de competences ont un code).
   const { data: qcm } = await sr.from("qcm").select("id, theme_id").eq("id", qcmId).maybeSingle();
@@ -128,9 +153,11 @@ Deno.serve(async (req) => {
   });
 
   let resultat;
+  let modele = "";
   try {
-    const contenu = await appelMistral(cleMistral, modele, messages);
-    resultat = analyserReponse(contenu, {
+    const reponse = await appelLLM(liste, messages);
+    modele = reponse.modele;
+    resultat = analyserReponse(reponse.contenu, {
       articlesCours: articlesCites(cours.corps_md), titres, existants, nombre,
     });
   } catch (e) {
