@@ -45,6 +45,45 @@ export const NOUVEAUTES = [
     ],
   },
   {
+    id: "2026-10-23-notes-en-formation",
+    date: "2026-10-23",
+    pour: "tous",
+    titre: "Les moyennes de la classe ne comptent que les stagiaires en formation",
+    resume: "Dans Notes, la synthèse de la classe (moyenne, médiane, notes sous 10, moyennes par thème "
+          + "et par compétence) ne compte plus les notes des stagiaires qui ont arrêté la formation. "
+          + "La règle est écrite sous « Synthèse classe ». Le tableau de bord des formateurs donne "
+          + "désormais exactement les mêmes chiffres.",
+    ou: { label: "Notes, Synthèse classe", route: "notes" },
+  },
+  {
+    id: "2026-10-23-tableau-de-bord-centre",
+    date: "2026-10-23",
+    pour: "formateurs",
+    titre: "Un tableau de bord du centre, promo par promo",
+    resume: "Une nouvelle page réunit les chiffres d'une promo : effectif, taux d'abandon, absences aux "
+          + "passages, passages réalisés, QCM, examens, notes et EPCF, les thèmes où la promo échoue le "
+          + "plus et les stagiaires à suivre de près. Chaque chiffre dit comment il est calculé et s'il est "
+          + "mesuré ou estimé. Les promos se comparent côte à côte, la page s'imprime en PDF et la matrice "
+          + "des notes se télécharge pour Excel, avec ou sans les noms.",
+    ou: { label: "Accueil, tuile Tableau de bord", route: "centre" },
+    guide: [
+      "Ouvre l'Accueil, puis la tuile « Tableau de bord ».",
+      "Touche « Méthode » sous un chiffre pour voir son calcul.",
+      "« Exporter en PDF » pour l'imprimer ; « Matrice des notes (CSV) » pour l'ouvrir dans Excel.",
+    ],
+  },
+  {
+    id: "2026-10-23-marquage-t4",
+    date: "2026-10-23",
+    pour: "tous",
+    titre: "Marquage au sol : la ligne de la bande d'arrêt d'urgence est une T4",
+    resume: "Dans le cours sur la signalisation horizontale, la ligne qui borde la bande d'arrêt d'urgence "
+          + "sur autoroute (traits de 39 m, intervalles de 13 m) portait le code T'3. Son vrai nom est T4. "
+          + "Le code T'3 désigne une autre ligne, de 20 m et 6 m, qu'on trouve sur les bretelles. "
+          + "Les longueurs à retenir ne changent pas.",
+    ou: { label: "Cours", route: "themes" },
+  },
+  {
     id: "2026-10-15-avis-stagiaires",
     date: "2026-10-15",
     pour: "formateurs",

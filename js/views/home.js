@@ -2,14 +2,15 @@
  * Page d'accueil : version actualisée après les refontes (auth, calendrier, contacts).
  * Affichage personnalisé : salutation + prochains événements + raccourcis.
  */
-import { listAgendaEvents } from "../db.js?v=20261022e";
-import { el, clear, parseDate, formatDate, isoDate } from "../utils.js?v=20261022e";
-import { icon } from "../icons.js?v=20261022e";
-import { isAdmin, isProf, getProfile, getProfileWho } from "../auth-admin.js?v=20261022e";
+import { listAgendaEvents } from "../db.js?v=20261023d";
+import { el, clear, parseDate, formatDate, isoDate } from "../utils.js?v=20261023d";
+import { icon } from "../icons.js?v=20261023d";
+import { isAdmin, isProf, getProfile, getProfileWho } from "../auth-admin.js?v=20261023d";
 import {
   nouveautesAffichables, marquerLues, routeVisible, routeMasquee, repereMasque,
-} from "../modules-etat.js?v=20261022e";
-import { carteNouveaute } from "./nouveautes.js?v=20261022e";
+} from "../modules-etat.js?v=20261023d";
+import { carteNouveaute } from "./nouveautes.js?v=20261023d";
+import { emargementActif } from "../emargement-etat.js?v=20261023d";
 
 function greetingByHour() {
   const h = new Date().getHours();
@@ -129,7 +130,12 @@ export async function renderHome(container) {
     // La page Stagiaires (chantier D, lot 2) en tête, chez un formateur ou un admin.
     // Les autres tuiles suivent la barre d'onglets (Priorités se rejoint depuis le Planning).
     ...((isAdmin() || isProf())
-      ? [{ route: "stagiaires", icon: "users", title: "Stagiaires", desc: "La promo, une fiche par personne" }]
+      ? [{ route: "stagiaires", icon: "users", title: "Stagiaires", desc: "La promo, une fiche par personne" },
+         { route: "centre", icon: "progress", title: "Tableau de bord", desc: "Assiduité, abandons, résultats par promo" }]
+      : []),
+    // Émargement : seulement si le fondateur l'a activé pour la promo (js/emargement-etat.js).
+    ...((isAdmin() || isProf()) && emargementActif()
+      ? [{ route: "emargement", icon: "clipboard", title: "Émargement", desc: "Signatures et feuilles de présence" }]
       : []),
     { route: "planning",   icon: "calendar",     title: "Planning",         desc: "Cette semaine, créneaux & tirages" },
     { route: "calendrier", icon: "clock",        title: "Calendrier",       desc: "Examens, stages, dates clés" },

@@ -8379,3 +8379,134 @@ span.bnv-nom-num { font-size: 0.8rem; font-style: italic; color: var(--text-mute
 @media (max-width: 600px) {
   .qcm-actions:has(.qcm-ia-bouton) { flex-direction: column; }
 }
+
+/* ============================================================
+   Tableau de bord du centre (#/centre, personnel seulement)
+   ============================================================ */
+
+.centre { max-width: 1100px; }
+.centre-entete { margin-bottom: 1rem; }
+.centre-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.centre-legende { font-size: 0.85rem; color: var(--text-muted); margin: 0 0 1.25rem; line-height: 1.8; }
+.centre-section { margin: 0 0 1.75rem; }
+.centre-section > h3, .centre-section-tete h3 { font-size: 1.05rem; margin: 0 0 0.75rem; }
+.centre-section-tete { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 0.75rem; }
+.centre-section-tete h3 { margin: 0; }
+.centre-intro { color: var(--text-muted); font-size: 0.9rem; margin: 0 0 0.75rem; }
+
+.centre-grille {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 0.75rem;
+}
+.centre-carte {
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 0.85rem 0.95rem 0.7rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 0;
+}
+.centre-carte-tete { display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem; }
+.centre-carte h4 { margin: 0; font-size: 0.85rem; font-weight: 600; color: var(--text-soft); }
+.centre-valeur { margin: 0.15rem 0 0; font-family: var(--font-mono); font-size: 1.45rem; font-weight: 600; letter-spacing: -0.02em; color: var(--text); }
+.centre-valeur.vide { font-family: var(--font); font-size: 1rem; font-weight: 500; color: var(--text-faint); }
+.centre-detail { margin: 0; font-size: 0.85rem; color: var(--text-muted); line-height: 1.4; }
+
+.centre-nature {
+  flex: none;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 0.12rem 0.45rem;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.centre-nature.mesure { background: var(--c-go-soft); color: var(--c-go); }
+.centre-nature.estime { background: var(--c-wait-soft); color: var(--c-wait); }
+.centre-nature.non-mesure { background: var(--bg-soft); color: var(--text-muted); }
+
+.centre-methode { margin-top: auto; padding-top: 0.25rem; font-size: 0.8rem; }
+.centre-methode summary { cursor: pointer; color: var(--accent-strong); font-weight: 500; }
+.centre-methode p { margin: 0.35rem 0 0; color: var(--text-soft); line-height: 1.45; }
+.centre-section > .centre-methode { margin-top: 0.75rem; }
+
+.centre-themes { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+.centre-themes-liste {
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 0.8rem 0.95rem;
+  min-width: 0;
+}
+.centre-themes-liste h4 { margin: 0 0 0.5rem; font-size: 0.85rem; color: var(--text-soft); }
+.centre-themes-liste ol { margin: 0; padding-left: 1.2rem; display: flex; flex-direction: column; gap: 0.35rem; }
+.centre-themes-liste li { font-size: 0.88rem; }
+.centre-theme-nom { display: block; }
+.centre-theme-val { display: block; font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-muted); }
+.centre-themes-tout { margin-top: 0.75rem; font-size: 0.9rem; }
+.centre-themes-tout summary, .centre-methodes summary { cursor: pointer; font-weight: 500; color: var(--accent-strong); }
+
+.centre-defile { overflow-x: auto; margin-top: 0.5rem; -webkit-overflow-scrolling: touch; }
+.centre-table { border-collapse: collapse; width: 100%; font-size: 0.85rem; background: var(--bg-elev); }
+.centre-table th, .centre-table td { border-bottom: 1px solid var(--line-faint); padding: 0.4rem 0.55rem; text-align: left; vertical-align: top; }
+.centre-table thead th { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); white-space: nowrap; }
+.centre-table td.num { font-family: var(--font-mono); white-space: nowrap; text-align: right; }
+.centre-comparaison td.courante { background: var(--accent-soft); }
+.centre-comparaison tbody th { font-weight: 500; color: var(--text-soft); }
+
+.centre-suivre { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; }
+.centre-suivre li {
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 0.6rem 0.8rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.75rem;
+}
+.centre-suivre-nom { font-weight: 600; color: var(--text); }
+.centre-signaux { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+.centre-signal { background: var(--c-wait-soft); color: var(--c-wait); white-space: normal; }
+
+.centre-methodes dl { margin: 0.5rem 0 0; font-size: 0.85rem; }
+.centre-methodes dt { font-weight: 600; margin-top: 0.6rem; }
+.centre-methodes dd { margin: 0.15rem 0 0; color: var(--text-soft); line-height: 1.45; }
+
+.centre-modal p { line-height: 1.5; font-size: 0.92rem; }
+.centre-avertissement { background: var(--c-wait-soft); color: var(--text); border-radius: var(--r-sm); padding: 0.55rem 0.7rem; }
+.centre-case { display: flex; align-items: center; gap: 0.5rem; font-weight: 500; }
+.centre-erreur { padding: 1rem 0; }
+
+@media (max-width: 640px) {
+  .centre-themes { grid-template-columns: 1fr; }
+  .centre-grille { grid-template-columns: 1fr; }
+  .centre-valeur { font-size: 1.3rem; }
+}
+
+@media print {
+  body.centre-printable > *:not(#app) { display: none !important; }
+  body.centre-printable #app > *:not(#view) { display: none !important; }
+  body.centre-printable, body.centre-printable #app, body.centre-printable #view { background: #fff; padding: 0; margin: 0; }
+  body.centre-printable .centre { max-width: none; font-size: 10pt; }
+  body.centre-printable .centre-actions { display: none !important; }
+  /* Les méthodes des cartes sont toutes dans la section « Méthodes de calcul », dépliée à l'impression. */
+  body.centre-printable .centre-carte .centre-methode,
+  body.centre-printable .centre-section > .centre-methode { display: none !important; }
+  body.centre-printable .centre-grille { grid-template-columns: repeat(3, 1fr); gap: 2.5mm; }
+  body.centre-printable .centre-carte,
+  body.centre-printable .centre-themes-liste,
+  body.centre-printable .centre-suivre li,
+  body.centre-printable .centre-table tr { break-inside: avoid; }
+  body.centre-printable .centre-section > h3,
+  body.centre-printable .centre-section-tete { break-after: avoid; }
+  body.centre-printable .centre-defile { overflow: visible; }
+  body.centre-printable .centre-methode summary,
+  body.centre-printable .centre-themes-tout summary,
+  body.centre-printable .centre-methodes summary { color: var(--text); }
+  body.centre-printable .centre-themes { grid-template-columns: 1fr 1fr; }
+}

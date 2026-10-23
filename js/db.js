@@ -1,10 +1,10 @@
-import { createClient } from "../vendor/supabase-js-2.117.2.js?v=20261022e";
-import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261022e";
-import { compteDansEquite } from "./passage-rules.js?v=20261022e";
+import { createClient } from "../vendor/supabase-js-2.117.2.js?v=20261023d";
+import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261023d";
+import { compteDansEquite } from "./passage-rules.js?v=20261023d";
 import {
-  ENTETE_PROMO, doitPorterEntetePromo, choisirPromoInitiale, profilEffectif,
+  ENTETE_PROMO, ENTETE_LECTURE_PROMO, promoDeLaRequete, doitPorterEntetePromo, choisirPromoInitiale, profilEffectif,
   separerChamps, CHAMPS_PROGRESSION, CHAMPS_EXAMEN, fusionnerProgression, fusionnerExamen,
-} from "./promo-rules.js?v=20261022e";
+} from "./promo-rules.js?v=20261023d";
 
 // Contexte de promo (spec multi-promo, C.1). La promo courante voyage dans l'en-tête
 // x-promo-id de chaque requête de données ; la base vérifie le droit et filtre.
@@ -26,6 +26,26 @@ function fetchWithTimeout(input, init = {}) {
   if (requetesBloquees && doitPorterEntetePromo(url, SUPABASE_URL)) {
     return Promise.reject(new Error("Rechargement en cours"));
   }
+  // En-tête de promo : seulement vers l'API de données (cf. promo-rules.js). La promo est la
+  // courante, sauf pour une lecture qui en demande une autre par l'en-tête interne
+  // x-promo-lecture (tableau de bord du centre), toujours retiré avant l'envoi.
+  let options = init;
+  if (doitPorterEntetePromo(url, SUPABASE_URL)) {
+    const estRequete = typeof Request !== "undefined" && input instanceof Request;
+    // Un Request garde ses propres en-têtes (apikey, Authorization) s'il n'y en a pas dans init.
+    const entetes = new Headers(init.headers || (estRequete ? input.headers : {}));
+    const demandee = entetes.get(ENTETE_LECTURE_PROMO);
+    entetes.delete(ENTETE_LECTURE_PROMO);
+    const { promo, erreur } = promoDeLaRequete({
+      methode: init.method || (estRequete ? input.method : "GET"),
+      demandee,
+      courante: promoCouranteId,
+      accessibles: mesPromos.map((p) => p.id),
+    });
+    if (erreur) return Promise.reject(new Error(erreur));
+    if (promo != null) entetes.set(ENTETE_PROMO, String(promo));
+    if (promo != null || demandee != null) options = { ...init, headers: entetes };
+  }
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 15000);
   // Si un signal externe existe déjà (rare), on le respecte aussi
@@ -33,15 +53,6 @@ function fetchWithTimeout(input, init = {}) {
   if (externalSignal) {
     if (externalSignal.aborted) controller.abort();
     else externalSignal.addEventListener("abort", () => controller.abort(), { once: true });
-  }
-  // En-tête de promo : seulement vers l'API de données (cf. promo-rules.js).
-  let options = init;
-  if (promoCouranteId != null && doitPorterEntetePromo(url, SUPABASE_URL)) {
-    // Un Request garde ses propres en-têtes (apikey, Authorization) s'il n'y en a pas dans init.
-    const entetes = new Headers(init.headers
-      || (typeof Request !== "undefined" && input instanceof Request ? input.headers : {}));
-    entetes.set(ENTETE_PROMO, String(promoCouranteId));
-    options = { ...init, headers: entetes };
   }
   return fetch(input, { ...options, signal: controller.signal })
     .finally(() => clearTimeout(timeoutId));
@@ -964,7 +975,7 @@ export async function deleteEvaluation(id) {
   if (error) throw error;
 }
 
-// Moyennes du groupe (anonymes comprises, sans rien de nominatif), calculées par la base
+// Moyennes du groupe (anonymes comprises, abandons exclus, sans rien de nominatif), calculées par la base
 // pour les stagiaires qui ne lisent pas toutes les notes. Forme : js/notes-stats.js.
 export async function getNotesStatsGroupe() {
   const { data, error } = await supabase.rpc("notes_stats_groupe");
@@ -1580,6 +1591,49 @@ export async function getSalleAggregats() {
   return map;
 }
 
+// --- Tableau de bord du centre ---
+// Lectures du personnel pour une promo choisie (courante ou autre promo accessible, cf.
+// promoDeLaRequete) : la base filtre chaque table sur l'en-tête x-promo-id et vérifie le droit.
+
+// PostgREST rend au plus 1 000 lignes par réponse : on lit par pages jusqu'à une page incomplète.
+async function toutesLesLignes(fabrique) {
+  const PAGE = 1000;
+  const lignes = [];
+  for (let debut = 0; ; debut += PAGE) {
+    const { data, error } = await fabrique().range(debut, debut + PAGE - 1);
+    if (error) throw error;
+    lignes.push(...(data || []));
+    if (!data || data.length < PAGE) return lignes;
+  }
+}
+
+// promoId nul (liste des promos non chargée) : promo courante, sans en-tête de lecture.
+export async function lireDonneesCentre(promoId) {
+  const lire = (table, colonnes, ordre) => toutesLesLignes(() => {
+    const q = supabase.from(table).select(colonnes).order(ordre);
+    return promoId == null ? q : q.setHeader(ENTETE_LECTURE_PROMO, String(promoId));
+  });
+  const [stagiaires, passages, evaluations, tentatives, epcf] = await Promise.all([
+    lire("stagiaires", "id, prenom, nom, actif, ordre, anonymise_le", "id"),
+    lire("passages", "id, stagiaire_id, type, resultat, date", "id"),
+    lire("evaluations", "id, stagiaire_id, type, theme_numero, competence_code, controle_libelle, note, note_max, date_eval", "id"),
+    lire("qcm_attempts", "id, qcm_id, stagiaire_id, mode, score, total, note_20, finished_at", "id"),
+    lire("epcf_evaluations", "id, stagiaire_id, trame, contexte, auto_eval, date_eval, scores", "id"),
+  ]);
+  return { stagiaires, passages, evaluations, tentatives, epcf };
+}
+
+// Référentiel commun à toutes les promos : QCM (thème, seuil d'examen) et thèmes.
+export async function lireReferentielCentre() {
+  return cachedQuery("referentiel_centre", async () => {
+    const [qcm, themes] = await Promise.all([
+      toutesLesLignes(() => supabase.from("qcm").select("id, theme_id, titre, exam_pass_20").order("id")),
+      toutesLesLignes(() => supabase.from("themes").select("id, numero, titre, type").order("id")),
+    ]);
+    return { qcm, themes };
+  });
+}
+
 // --- Signalements sur les questions de QCM ---
 // Objectif : un élève qui trouve une question douteuse la signale en un clic,
 // au lieu de le dire dans le groupe. Le formateur tranche depuis l'éditeur.
@@ -1683,4 +1737,94 @@ export async function setQcmSignalementStatut(id, statut, email) {
     .update({ statut, traite_at: new Date().toISOString(), traite_par_email: email || null })
     .eq("id", id);
   if (error) throw error;
+}
+
+// === Émargement (spec 2026-10-23) ===
+// Écritures uniquement par les fonctions serveur emargement_* : la base vérifie le rôle,
+// la promo, l'état de la feuille et le jour, et horodate elle-même. Leurs refus commencent
+// par « emargement: » ; la phrase qui suit est montrée telle quelle.
+
+function erreurEmargement(error) {
+  const m = String(error?.message || error || "");
+  const i = m.indexOf("emargement:");
+  return new Error(i >= 0 ? m.slice(i + "emargement:".length).trim() : (m || "Erreur inconnue."));
+}
+
+async function rpcEmargement(nom, params) {
+  const { data, error } = await supabase.rpc(nom, params);
+  if (error) throw erreurEmargement(error);
+  return data;
+}
+
+// Feuilles d'une période (jours AAAA-MM-JJ inclus), avec lignes et signatures de formateurs.
+// Un stagiaire ne reçoit que SA ligne et aucune signature de formateur (règles de lecture).
+export async function listEmargementSeances(jourDebut, jourFin) {
+  const { data, error } = await supabase
+    .from("emargement_seances")
+    .select("*, lignes:emargement_lignes(*), formateurs:emargement_formateurs(*)")
+    .gte("jour", jourDebut)
+    .lte("jour", jourFin)
+    .order("jour");
+  if (error) throw error;
+  return (data || []).map((s) => ({ ...s, lignes: s.lignes || [], formateurs: s.formateurs || [] }));
+}
+
+// Feuilles ouvertes d'un jour, légères (sans tracé) : sert au bandeau, relu souvent.
+export async function getEmargementsOuverts(jour) {
+  const { data, error } = await supabase
+    .from("emargement_seances")
+    .select("id, jour, demi_journee, debut, fin, statut, lignes:emargement_lignes(stagiaire_id, absent, signe_le)")
+    .eq("jour", jour)
+    .eq("statut", "ouverte");
+  if (error) throw error;
+  return (data || []).map((s) => ({ ...s, lignes: s.lignes || [] }));
+}
+
+export function ouvrirEmargement(demi, debut, fin) {
+  return rpcEmargement("emargement_ouvrir", { p_demi: demi, p_debut: debut, p_fin: fin });
+}
+
+export function signerEmargement(seanceId, stagiaireId, trace) {
+  return rpcEmargement("emargement_signer", { p_seance: seanceId, p_stagiaire: stagiaireId, p_trace: trace });
+}
+
+export function signerEmargementFormateur(seanceId, nom, trace) {
+  return rpcEmargement("emargement_signer_formateur", { p_seance: seanceId, p_nom: nom, p_trace: trace });
+}
+
+// absent : true / false, ou null pour ne pas y toucher ; observation : texte, "" pour
+// l'effacer, null pour ne pas y toucher.
+export function annoterEmargement(seanceId, stagiaireId, { absent = null, observation = null } = {}) {
+  return rpcEmargement("emargement_annoter", {
+    p_seance: seanceId, p_stagiaire: stagiaireId, p_absent: absent, p_observation: observation,
+  });
+}
+
+export function cloreEmargement(seanceId) {
+  return rpcEmargement("emargement_clore", { p_seance: seanceId });
+}
+
+export function rouvrirEmargement(seanceId) {
+  return rpcEmargement("emargement_rouvrir", { p_seance: seanceId });
+}
+
+// En-tête des feuilles, propre à la promo (réglage `emargement_entete`, JSON).
+export const ENTETE_EMARGEMENT_DEFAUT = {
+  organisme: "ECF BOUSCAREN",
+  intitule: "Titre professionnel Enseignant de la conduite et de la sécurité routière (ECSR)",
+};
+
+export async function getEnteteEmargement() {
+  let lu = null;
+  try { lu = JSON.parse(await getSetting("emargement_entete") || "null"); } catch (e) { lu = null; }
+  return {
+    organisme: (lu && typeof lu.organisme === "string" && lu.organisme.trim()) || ENTETE_EMARGEMENT_DEFAUT.organisme,
+    intitule: (lu && typeof lu.intitule === "string" && lu.intitule.trim()) || ENTETE_EMARGEMENT_DEFAUT.intitule,
+  };
+}
+
+export async function setEnteteEmargement({ organisme, intitule }) {
+  await setSetting("emargement_entete", JSON.stringify({
+    organisme: String(organisme || "").trim(), intitule: String(intitule || "").trim(),
+  }));
 }
