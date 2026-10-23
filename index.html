@@ -30,6 +30,15 @@
        carrés : iOS applique lui-même son masque arrondi. Généré depuis le logo SVG. -->
   <link rel="apple-touch-icon" sizes="180x180" href="assets/logo/apple-touch-icon.png" />
   <meta name="apple-mobile-web-app-title" content="TP ECSR" />
+  <!-- App installable : ouverte depuis l'écran d'accueil, elle s'affiche en plein écran,
+       sans barre de navigateur. Aucun service worker, donc pas de mode hors ligne ni de
+       cache à part : chaque ouverture charge la version en ligne. Barre d'état iOS
+       « black » (et non « black-translucent ») : la barre du haut de l'app ne réserve pas
+       la place de l'encoche. -->
+  <link rel="manifest" href="manifest.webmanifest" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black" />
 </head>
 <body>
 
