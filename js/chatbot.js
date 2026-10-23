@@ -3,11 +3,11 @@
  * Aucune cle ici : tout passe par l'Edge Function `chatbot` (JWT verifie).
  * Historique ephemere (sessionStorage), fenetre des 8 derniers messages envoyee.
  */
-import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261023b";
-import { supabase } from "./db.js?v=20261023b";
-import { icon } from "./icons.js?v=20261023b";
-import { fenetreMessages, pageDepuisHash, extraireEvenements } from "./chatbot-rules.js?v=20261023b";
-import { moduleVisible, moduleMasque, repereMasque } from "./modules-etat.js?v=20261023b";
+import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261023c";
+import { supabase } from "./db.js?v=20261023c";
+import { icon } from "./icons.js?v=20261023c";
+import { fenetreMessages, pageDepuisHash, extraireEvenements } from "./chatbot-rules.js?v=20261023c";
+import { moduleVisible, moduleMasque, repereMasque } from "./modules-etat.js?v=20261023c";
 
 const CLE_HISTO = "chatbot_histo";
 let histo = [];
@@ -25,7 +25,7 @@ function sauverHisto() {
 
 async function rendreEnMarkdown(noeud, texte) {
   try {
-    const { rendreMarkdown } = await import("./views/cours-reader.js?v=20261023b");
+    const { rendreMarkdown } = await import("./views/cours-reader.js?v=20261023c");
     // blocs: false : une réponse qui recopie un bloc de cours (schéma, quiz, cartes) le laisse en texte brut,
     // elle ne monte ni schéma animé ni quiz dans la bulle.
     const { noeuds } = rendreMarkdown(texte, { blocs: false });
