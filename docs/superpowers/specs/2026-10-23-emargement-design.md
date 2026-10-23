@@ -165,7 +165,24 @@ plus) : quelques kilo-octets par signature, net à l'impression.
   le mécanisme des documents officiels (`doc-officiel.js`), qui accepte désormais le format
   de page.
 
-### 4.4 Démonstration
+### 4.4 Interrupteur par promo (décision de Timy du 23/10)
+
+À la mise en ligne, l'émargement est **éteint partout** et **allumé pour la seule promo de
+démonstration**. Réglage `emargement_actif` de `settings` (propre à la promo), basculé par le
+fondateur seul dans Paramètres, section « Émargement ». Éteint : ni tuile, ni bouton au
+Planning, ni bandeau, la page renvoie à l'Accueil avec un message, et la base refuse d'ouvrir
+une feuille (`emargement_ouvrir`). Les feuilles existantes restent consultables seulement si
+l'interrupteur est rallumé.
+
+Pas d'entrée Nouveautés tant qu'aucune vraie promo n'est allumée (une annonce sans bouton
+tromperait les formateurs). Texte prêt pour ce jour-là, à mettre dans `js/nouveautes-data.js`
+(pour : formateurs, lien `emargement`) : « Émargement signé sur téléphone. Chaque
+demi-journée, ouvre la feuille d'émargement : les stagiaires signent au doigt sur leur
+téléphone, tu signes à ton tour, puis tu clos la feuille. Les absences notées au planning sont
+reprises, chaque signature porte son heure et ne se modifie plus. Les feuilles s'impriment en
+PDF, par demi-journée ou pour la semaine entière. »
+
+### 4.5 Démonstration
 
 Migration séparée `20261023_emargement_demo.sql`, gardée par l'existence de la promo 7 :
 semaines du 12/10 et du 19/10 closes (dix demi-journées chacune), signatures fictives

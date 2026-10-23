@@ -28,6 +28,7 @@ import { renderCcp2 } from "./views/ccp2.js?v=20261022e";
 import { renderStagiaires } from "./views/stagiaires.js?v=20261022e";
 import { renderEmargement } from "./views/emargement.js?v=20261022e";
 import { initBandeauEmargement, rafraichirBandeauEmargement } from "./emargement-bandeau.js?v=20261022e";
+import { chargerEmargementActif, emargementActif } from "./emargement-etat.js?v=20261022e";
 import { lireAdresse, pagePersonnelle } from "./route-rules.js?v=20261022e";
 import {
   peutQuitter, leverGardeSortie, majSurPlacePour, oublierMajSurPlace,
@@ -189,6 +190,11 @@ async function navigate({ force = false } = {}) {
     // le bandeau, sur n'importe quelle page.
     try { history.replaceState(null, "", "#/mon-suivi"); } catch (e) { /* ignore */ }
     route = "mon-suivi";
+  } else if (route === "emargement" && !emargementActif()) {
+    // Interrupteur éteint pour la promo (réglage du fondateur dans Paramètres).
+    toast("L'émargement n'est pas activé pour cette promo.", "info", 3500);
+    try { history.replaceState(null, "", "#/home"); } catch (e) { /* ignore */ }
+    route = "home";
   }
   memoriserRoute(route);
   noterAdresse(location.hash);
@@ -328,7 +334,8 @@ async function bootApp() {
   // salarié du centre n'a pas à accepter en son nom les conditions de l'éditeur ; ce sera
   // couvert par le contrat avec le centre. Vrai rôle, pas l'aperçu « Voir en tant que ».
   if (getProfile()?.role !== "prof") await exigerAcceptation(getAdminEmail());
-  await chargerModulesAuDemarrage();
+  // Interrupteur de l'émargement (propre à la promo) lu en même temps que les modules.
+  await Promise.all([chargerModulesAuDemarrage(), chargerEmargementActif()]);
   renderTabs();
   majBadgeNouveautes();
   setupRefreshBtn();

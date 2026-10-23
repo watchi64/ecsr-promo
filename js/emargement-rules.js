@@ -2,6 +2,14 @@
 // (tests/emargement-rules.test.mjs), par l'app et par le générateur de signatures
 // fictives de la démonstration (scripts/emargement-demo.mjs).
 
+// Interrupteur par promo (demande de Timy du 23/10 : éteint partout, allumé pour la seule
+// promo de démonstration tant qu'il n'en décide pas autrement). Réglage `settings`
+// propre à la promo ; la base refuse d'ouvrir une feuille quand il n'est pas allumé.
+export const CLE_ACTIVATION = "emargement_actif";
+export function estActif(valeur) {
+  return valeur === true || valeur === "true";
+}
+
 // Repère fixe du tracé, quel que soit l'écran : la signature imprimée garde ses
 // proportions, et le serveur vérifie les mêmes bornes (migration 20261023_emargement).
 export const REPERE = { largeur: 400, hauteur: 160 };
@@ -203,6 +211,11 @@ export function jourFerie(jourIso) {
 }
 
 export const DEMI_JOURNEES = ["matin", "aprem"];
+
+// « Émargement du matin », « de l'après-midi ».
+export function deLaDemi(demi) {
+  return demi === "aprem" ? "de l'après-midi" : "du matin";
+}
 
 // "#/emargement/2026-10-26/matin" → { jour, demi } ; tout segment illisible vaut null.
 export function lireAdresseEmargement(hash) {

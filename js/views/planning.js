@@ -18,6 +18,7 @@ import { getCurrentWho } from "../identity.js?v=20261022e";
 import { openBenevolesPanel, telLink } from "./benevoles.js?v=20261022e";
 import { meilleurResultat } from "../passage-rules.js?v=20261022e";
 import { routeVisible, routeMasquee, repereMasque } from "../modules-etat.js?v=20261022e";
+import { emargementActif } from "../emargement-etat.js?v=20261022e";
 
 let stagiaires = [];
 let profs = [];
@@ -2824,8 +2825,8 @@ function renderInto(container) {
             onClick: () => { location.hash = "#/dashboard"; } },
             icon.target(), "Priorités"), routeMasquee("dashboard"))
         : null,
-      // Émargement (spec 2026-10-23) : page des formateurs.
-      admin || isProf()
+      // Émargement (spec 2026-10-23) : page des formateurs, si le fondateur l'a activé pour la promo.
+      (admin || isProf()) && emargementActif()
         ? el("button", { class: "btn small", type: "button",
             title: "Ouvrir l'émargement du jour, imprimer les feuilles",
             onClick: () => { location.hash = "#/emargement"; } },

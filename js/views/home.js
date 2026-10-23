@@ -10,6 +10,7 @@ import {
   nouveautesAffichables, marquerLues, routeVisible, routeMasquee, repereMasque,
 } from "../modules-etat.js?v=20261022e";
 import { carteNouveaute } from "./nouveautes.js?v=20261022e";
+import { emargementActif } from "../emargement-etat.js?v=20261022e";
 
 function greetingByHour() {
   const h = new Date().getHours();
@@ -129,10 +130,11 @@ export async function renderHome(container) {
     // La page Stagiaires (chantier D, lot 2) en tête, chez un formateur ou un admin.
     // Les autres tuiles suivent la barre d'onglets (Priorités se rejoint depuis le Planning).
     ...((isAdmin() || isProf())
-      ? [
-          { route: "stagiaires", icon: "users", title: "Stagiaires", desc: "La promo, une fiche par personne" },
-          { route: "emargement", icon: "clipboard", title: "Émargement", desc: "Signatures et feuilles de présence" },
-        ]
+      ? [{ route: "stagiaires", icon: "users", title: "Stagiaires", desc: "La promo, une fiche par personne" }]
+      : []),
+    // Émargement : seulement si le fondateur l'a activé pour la promo (js/emargement-etat.js).
+    ...((isAdmin() || isProf()) && emargementActif()
+      ? [{ route: "emargement", icon: "clipboard", title: "Émargement", desc: "Signatures et feuilles de présence" }]
       : []),
     { route: "planning",   icon: "calendar",     title: "Planning",         desc: "Cette semaine, créneaux & tirages" },
     { route: "calendrier", icon: "clock",        title: "Calendrier",       desc: "Examens, stages, dates clés" },

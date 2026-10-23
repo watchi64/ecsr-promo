@@ -156,7 +156,8 @@ $function$;
 revoke all on function public.emargement_jour_paris(), public.emargement_trace_valide(text),
   public.emargement_feuille(bigint, boolean) from anon, public, authenticated;
 
--- Ouvrir la feuille d'une demi-journée du jour. Déjà ouverte : rend son id (double appui).
+-- Ouvrir la feuille d'une demi-journée du jour, si l'émargement est activé pour la promo.
+-- Déjà ouverte : rend son id (double appui).
 create function public.emargement_ouvrir(p_demi text, p_debut text, p_fin text)
 returns bigint language plpgsql security definer set search_path to 'public', 'pg_temp' as $function$
 declare
@@ -174,6 +175,10 @@ begin
   end if;
   if v_promo is null then
     raise exception 'emargement: Promo introuvable.';
+  end if;
+  -- Interrupteur par promo (réglage emargement_actif, posé par le fondateur dans Paramètres).
+  if not exists (select 1 from settings where promo_id = v_promo and key = 'emargement_actif' and value = 'true') then
+    raise exception 'emargement: L''émargement n''est pas activé pour cette promo.';
   end if;
   if p_demi is null or p_demi not in ('matin', 'aprem') then
     raise exception 'emargement: Demi-journée inconnue.';

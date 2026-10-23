@@ -1,7 +1,8 @@
 -- Émargements fictifs de la promo de démonstration (id 7, « Démonstration (données fictives) »),
 -- pour le rendez-vous de la semaine du 26/10/2026. Écrit par scripts/emargement-demo.mjs : ne pas
 -- modifier à la main. Semaines du 12 et du 19 octobre, dix demi-journées closes chacune, signatures
--- générées (aucune donnée réelle). Gardée : sans la promo 7, ou si elle a déjà des feuilles, rien
+-- générées (aucune donnée réelle), et l'interrupteur de l'émargement allumé pour cette seule
+-- promo. Gardée : sans la promo 7, ou si elle a déjà des feuilles, rien
 -- n'est écrit. Ménage : 20261023_emargement_demo_retour.sql (ou la suppression de la promo 7).
 set local lock_timeout = '3s';
 
@@ -305,6 +306,11 @@ values ('emargement_entete',
         '{"organisme":"ECF (centre de démonstration)","intitule":"Titre professionnel Enseignant de la conduite et de la sécurité routière (ECSR)"}',
         7, now())
 on conflict (promo_id, key) do nothing;
+
+-- L'émargement n'est allumé que pour la promo de démonstration (décision de Timy du 23/10).
+insert into public.settings (key, value, promo_id, updated_at)
+values ('emargement_actif', 'true', 7, now())
+on conflict (promo_id, key) do update set value = 'true', updated_at = now();
 
 do $controle$
 declare n_s integer; n_l integer; n_f integer;

@@ -446,14 +446,20 @@ Spec : `docs/superpowers/specs/2026-10-23-emargement-design.md` · plan :
 - **Feuilles** (`js/emargement-feuilles.js`) : demi-journée en A4 portrait, semaine en A4 paysage (une page
   jusqu'à 16 stagiaires), imprimées par `doc-officiel.js` (option `page` de `bindDocPrint`). En-tête propre à
   la promo : réglage `emargement_entete` (organisme, intitulé ; défaut « ECF BOUSCAREN »).
-- **Pas un module** : route du socle (`ROUTES_SOCLE`), rien n'apparaît aux stagiaires sans feuille ouverte.
+- **Interrupteur par promo** (décision de Timy du 23/10) : réglage `emargement_actif` de `settings`,
+  basculé par le seul fondateur (Paramètres › Émargement, `js/emargement-etat.js`), lu au démarrage avec
+  les modules. **Éteint partout, allumé pour la promo de démonstration (7)** à la mise en ligne. Éteint :
+  ni tuile, ni bouton, ni bandeau (aucune lecture périodique), page renvoyée à l'Accueil, et
+  `emargement_ouvrir` refuse. Pas un module (route du socle) : les modules ne cachent rien aux formateurs.
+- **Nouveautés** : aucune entrée tant qu'aucune vraie promo n'est allumée ; texte prêt dans la spec (§ 4.4).
 - **Preuve** : `tests/sql/emargement-preuve.sql` (71 contrôles, verdict dans l'exception finale, rien
   n'est écrit ; rougit si l'on retire la règle de lecture, le déclencheur ou un refus d'écriture).
 - **Démonstration** : `20261023_emargement_demo.sql` (généré par `node scripts/emargement-demo.mjs`) pose
-  les feuilles fictives des semaines du 12 et du 19 octobre de la promo 7. Ménage : supprimer les feuilles
-  `promo_id = 7` (lignes et signatures suivent), ou `..._demo_retour.sql`.
-- **Banc** : `?emargement=1` (semaine précédente close, matin du jour ouvert) ; les six fonctions sont
-  jouées en mémoire par `_harness_supabase.js` avec les mêmes règles et messages.
+  les feuilles fictives des semaines du 12 et du 19 octobre de la promo 7 et allume son interrupteur.
+  Ménage : supprimer les feuilles `promo_id = 7` (lignes et signatures suivent) et les réglages de la promo,
+  ou `..._demo_retour.sql`.
+- **Banc** : `?emargement=1` (interrupteur allumé, semaine précédente close, matin du jour ouvert) ; les six
+  fonctions sont jouées en mémoire par `_harness_supabase.js` avec les mêmes règles et messages.
 
 ## Décisions UX importantes (à respecter)
 

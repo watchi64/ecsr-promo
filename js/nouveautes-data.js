@@ -16,23 +16,6 @@
 
 export const NOUVEAUTES = [
   {
-    id: "2026-10-23-emargement",
-    date: "2026-10-23",
-    pour: "formateurs",
-    titre: "Émargement signé sur téléphone",
-    resume: "Chaque demi-journée, ouvre la feuille d'émargement : les stagiaires signent au doigt sur leur "
-          + "téléphone, tu signes à ton tour, puis tu clos la feuille. Les absences notées au planning sont "
-          + "reprises, chaque signature porte son heure et ne se modifie plus. Les feuilles s'impriment en "
-          + "PDF, par demi-journée ou pour la semaine entière.",
-    ou: { label: "Émargement", route: "emargement" },
-    guide: [
-      "Planning, bouton « Émargement » (ou la tuile de l'Accueil) : ouvre la demi-journée en cours.",
-      "Les stagiaires voient un bandeau « Signer » en haut de l'app. Sans téléphone : « Faire signer ici » sur ton appareil.",
-      "Signe en formateur, puis « Clore l'émargement » : qui n'a pas signé est noté absent.",
-      "« Imprimer la feuille » ou « Feuille de la semaine » pour obtenir le PDF.",
-    ],
-  },
-  {
     id: "2026-10-15-avis-stagiaires",
     date: "2026-10-15",
     pour: "formateurs",

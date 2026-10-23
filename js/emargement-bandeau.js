@@ -8,8 +8,9 @@ import { getEmargementsOuverts, signerEmargement, listStagiaires } from "./db.js
 import { el, clear, isoDate, toast } from "./utils.js?v=20261022e";
 import { isAuth, isAdmin, isProf, monStagiaireId } from "./auth-admin.js?v=20261022e";
 import { ouvrirSignature } from "./signature-pad.js?v=20261022e";
-import { libelleCreneau, heureLocale, adresseSeance, resumeSeance } from "./emargement-rules.js?v=20261022e";
+import { libelleCreneau, heureLocale, adresseSeance, resumeSeance, deLaDemi } from "./emargement-rules.js?v=20261022e";
 import { jourLong, DEMI_LONG, nomComplet } from "./emargement-feuilles.js?v=20261022e";
+import { emargementActif } from "./emargement-etat.js?v=20261022e";
 
 const INTERVALLE_MS = 60000;
 let initialise = false;
@@ -22,6 +23,8 @@ export function initBandeauEmargement() {
     initialise = true;
     window.addEventListener("hashchange", () => rafraichirBandeauEmargement());
     document.addEventListener("visibilitychange", () => { if (!document.hidden) rafraichirBandeauEmargement(); });
+    // Interrupteur basculé dans Paramètres (js/emargement-etat.js).
+    window.addEventListener("emargement-actif", () => rafraichirBandeauEmargement());
     setInterval(() => { if (!document.hidden) rafraichirBandeauEmargement(); }, INTERVALLE_MS);
   }
   return rafraichirBandeauEmargement();
@@ -44,7 +47,8 @@ export function rafraichirBandeauEmargement() {
   lecture = (async () => {
     const b = bandeau();
     if (!b) return;
-    if (!isAuth() || signatureOuverte) { if (!signatureOuverte) b.hidden = true; return; }
+    // Promo où l'émargement est éteint : aucun bandeau, et aucune lecture toutes les minutes.
+    if (!isAuth() || !emargementActif() || signatureOuverte) { if (!signatureOuverte) b.hidden = true; return; }
     try {
       const jour = isoDate(new Date());
       const seances = await getEmargementsOuverts(jour);
@@ -80,7 +84,7 @@ function dessiner(b, seances, actifs) {
       return !l || (!l.signe_le && !l.absent);
     });
     if (aSigner) {
-      b.appendChild(el("p", {}, el("strong", {}, `Émargement du ${DEMI_LONG[aSigner.demi_journee]} ouvert`),
+      b.appendChild(el("p", {}, el("strong", {}, `Émargement ${deLaDemi(aSigner.demi_journee)} ouvert`),
         ` (${libelleCreneau(aSigner)})`));
       b.appendChild(el("button", { class: "btn small primary", type: "button",
         onClick: () => signer(aSigner, moi) }, "Signer"));
@@ -90,7 +94,7 @@ function dessiner(b, seances, actifs) {
     const absent = tries.find((s) => s.lignes.some((x) => x.stagiaire_id === moi && x.absent));
     if (absent && !(isAdmin() || isProf())) {
       b.classList.add("em-bandeau-info");
-      b.appendChild(el("p", {}, `Tu es noté absent sur la feuille du ${DEMI_LONG[absent.demi_journee]}. `
+      b.appendChild(el("p", {}, `Tu es noté absent sur la feuille ${deLaDemi(absent.demi_journee)}. `
         + "Si tu es là, vois-le avec ton formateur."));
       b.hidden = false;
       return;
@@ -107,7 +111,7 @@ function dessiner(b, seances, actifs) {
     const lignes = s.lignes.map((l) => ({ ...l, trace: l.signe_le ? "signé" : null }));
     const r = resumeSeance(lignes, [...ids], false);
     b.classList.add("em-bandeau-info");
-    b.appendChild(el("p", {}, el("strong", {}, `Émargement du ${DEMI_LONG[s.demi_journee]} ouvert`),
+    b.appendChild(el("p", {}, el("strong", {}, `Émargement ${deLaDemi(s.demi_journee)} ouvert`),
       ` : ${r.signes} sur ${r.total} ont signé`));
     b.appendChild(el("a", { class: "btn small", href: adresse }, "Voir"));
     b.hidden = false;

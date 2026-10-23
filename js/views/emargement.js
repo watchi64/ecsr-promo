@@ -20,6 +20,7 @@ import {
   feuilleSeance, feuilleSemaine, imprimer, nomComplet, jourLong, DEMI_LONG, stagiairesDeFeuille,
 } from "../emargement-feuilles.js?v=20261022e";
 import { rafraichirBandeauEmargement } from "../emargement-bandeau.js?v=20261022e";
+import { emargementActif } from "../emargement-etat.js?v=20261022e";
 
 // Horaires par défaut, comme DEFAULT_HALF_META du planning.
 const HORAIRES_DEFAUT = { matin: { debut: "09:00", fin: "12:30" }, aprem: { debut: "13:30", fin: "17:00" } };
@@ -40,6 +41,10 @@ export async function renderEmargement(container) {
   clear(container);
   if (!(isAdmin() || isProf())) {
     container.appendChild(el("p", { class: "muted" }, "L'émargement se gère par les formateurs."));
+    return;
+  }
+  if (!emargementActif()) {
+    container.appendChild(el("p", { class: "muted" }, "L'émargement n'est pas activé pour cette promo."));
     return;
   }
   const { jour: jourAdresse, demi } = lireAdresseEmargement(location.hash);

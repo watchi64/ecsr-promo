@@ -136,7 +136,14 @@ begin
   r := pg_temp.essai(a, p, format('insert into public.emargement_seances (promo_id, jour, demi_journee, debut, fin, ouverte_par) values (%s, %L, %L, %L, %L, %L) returning id', p, aujourdhui, demi, '09:00', '12:30', a));
   perform pg_temp.verifier('stagiaire : insertion directe d''une séance refusée', r like 'REFUS 42501%', r);
 
-  -- 2. Ouverture.
+  -- 2. Interrupteur de la promo : éteint, aucune feuille ne s'ouvre ; la preuve l'allume ensuite
+  -- (en propriétaire, annulé avec le reste).
+  delete from settings where promo_id = p and key = 'emargement_actif';
+  r := pg_temp.essai(f, p, format('select public.emargement_ouvrir(%L, %L, %L)::text', demi, '09:00', '12:30'));
+  perform pg_temp.verifier('émargement éteint pour la promo : ouverture refusée', r like 'REFUS P0001%activ%', r);
+  insert into settings (key, value, promo_id) values ('emargement_actif', 'true', p);
+
+  -- Ouverture.
   r := pg_temp.essai(a, p, format('select public.emargement_ouvrir(%L, %L, %L)::text', demi, '09:00', '12:30'));
   perform pg_temp.verifier('stagiaire : ouverture refusée', r like 'REFUS P0001%', r);
   r := pg_temp.essai(f, p, format('select public.emargement_ouvrir(%L, %L, %L)::text', demi, '12:30', '09:00'));

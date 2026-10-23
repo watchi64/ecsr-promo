@@ -4,7 +4,7 @@ import {
   REPERE, TRACE_MAX, cheminDepuisTraits, cheminValide, traitsSuffisants,
   absentsDuPlanning, etatLigne, resumeSeance, libelleHeure, libelleCreneau, dureeMinutes,
   heureLocale, jourDe, lundiDe, dayIndexDe, lireAdresseEmargement, nomsFormateursProposes,
-  minutesPresence, libelleDuree, jourFerie,
+  minutesPresence, libelleDuree, jourFerie, estActif, CLE_ACTIVATION, deLaDemi,
 } from "../js/emargement-rules.js";
 
 const pts = (...xy) => xy.map(([x, y]) => ({ x, y }));
@@ -148,6 +148,17 @@ test("noms proposés pour la signature du formateur", () => {
   assert.deepEqual(nomsFormateursProposes({ entries, profs, monNom: "Romain" }), ["Romain", "Claire", "Hocine"]);
   assert.deepEqual(nomsFormateursProposes({ entries, profs, monNom: null }), ["Claire", "Hocine", "Romain"]);
   assert.deepEqual(nomsFormateursProposes({ entries: [], profs, monNom: null }), []);
+});
+
+test("« du matin », « de l'après-midi »", () => {
+  assert.equal(deLaDemi("matin"), "du matin");
+  assert.equal(deLaDemi("aprem"), "de l'après-midi");
+});
+
+test("interrupteur par promo : seul « true » allume l'émargement", () => {
+  assert.equal(estActif("true"), true);
+  assert.equal(estActif(true), true);
+  for (const v of [null, undefined, "", "false", "TRUE ", "1", false, "oui"]) assert.equal(estActif(v), false, String(v));
 });
 
 test("jours fériés (mêmes règles que le planning)", () => {
