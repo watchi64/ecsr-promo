@@ -19,7 +19,7 @@
  * sans visage) : trois teintes en tout. Le cycliste, d'une seule teinte, celle de la veste : le dos et la tête, ronde, bordés
  * du contour foncé, et les bras ; le vélo, d'une seule teinte foncée : pneus, cadre et guidon.
  */
-import { n, ecrireValeur } from "./dessin-svg.js?v=20261023d";
+import { n, ecrireValeur } from "./dessin-svg.js?v=20261024a";
 
 /** Gabarit du cycliste sur son vélo, vu du dessus (m). */
 export const GABARIT_VELO = Object.freeze({ longueur: 1.8, largeur: 0.6 });

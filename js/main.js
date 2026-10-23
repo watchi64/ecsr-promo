@@ -2,44 +2,44 @@
  * Promo ECSR : application propriétaire.
  * © 2026 watchi64. Tous droits réservés. Voir LICENSE.
  */
-import { getCurrentUser, invalidateCache, verifyRecoveryToken } from "./db.js?v=20261023d";
-import { toast } from "./utils.js?v=20261023d";
-import { icon } from "./icons.js?v=20261023d";
-import { initAuth, onAdminChange, isAuth, isAdmin, isProf, monStagiaireId, getAdminEmail, getProfile } from "./auth-admin.js?v=20261023d";
-import { showGate, hideGate } from "./gate.js?v=20261023d";
-import { exigerAcceptation } from "./legal.js?v=20261023d";
-import { lireJetonRecuperation } from "./gate-rules.js?v=20261023d";
-import { loadAccent } from "./accent-switcher.js?v=20261023d";
-import { loadTheme } from "./theme-switcher.js?v=20261023d";
-import { renderHome } from "./views/home.js?v=20261023d";
-import { renderDashboard } from "./views/dashboard.js?v=20261023d";
-import { renderMonSuivi } from "./views/mon-suivi.js?v=20261023d";
-import { renderPlanning, teardownPrintTarget, resetPlanningEditMode, requestPlanningToday } from "./views/planning.js?v=20261023d";
-import { teardownDocPrint } from "./doc-officiel.js?v=20261023d";
-import { renderNotes } from "./views/notes.js?v=20261023d";
-import { renderRessources } from "./views/ressources.js?v=20261023d";
-import { renderThemes } from "./views/themes.js?v=20261023d";
-import { renderConfig } from "./views/config.js?v=20261023d";
-import { renderCalendrier } from "./views/calendrier.js?v=20261023d";
-import { initUndoKeyboard } from "./undo.js?v=20261023d";
-import { renderNouveautes } from "./views/nouveautes.js?v=20261023d";
-import { libellePastille } from "./nouveautes.js?v=20261023d";
-import { renderCcp2 } from "./views/ccp2.js?v=20261023d";
-import { renderStagiaires } from "./views/stagiaires.js?v=20261023d";
-import { renderCentre, teardownCentrePrint } from "./views/centre.js?v=20261023d";
-import { renderEmargement } from "./views/emargement.js?v=20261023d";
-import { initBandeauEmargement, rafraichirBandeauEmargement } from "./emargement-bandeau.js?v=20261023d";
-import { chargerEmargementActif, emargementActif } from "./emargement-etat.js?v=20261023d";
-import { lireAdresse, pagePersonnelle } from "./route-rules.js?v=20261023d";
+import { getCurrentUser, invalidateCache, verifyRecoveryToken } from "./db.js?v=20261024a";
+import { toast } from "./utils.js?v=20261024a";
+import { icon } from "./icons.js?v=20261024a";
+import { initAuth, onAdminChange, isAuth, isAdmin, isProf, monStagiaireId, getAdminEmail, getProfile } from "./auth-admin.js?v=20261024a";
+import { showGate, hideGate } from "./gate.js?v=20261024a";
+import { exigerAcceptation } from "./legal.js?v=20261024a";
+import { lireJetonRecuperation } from "./gate-rules.js?v=20261024a";
+import { loadAccent } from "./accent-switcher.js?v=20261024a";
+import { loadTheme } from "./theme-switcher.js?v=20261024a";
+import { renderHome } from "./views/home.js?v=20261024a";
+import { renderDashboard } from "./views/dashboard.js?v=20261024a";
+import { renderMonSuivi } from "./views/mon-suivi.js?v=20261024a";
+import { renderPlanning, teardownPrintTarget, resetPlanningEditMode, requestPlanningToday } from "./views/planning.js?v=20261024a";
+import { teardownDocPrint } from "./doc-officiel.js?v=20261024a";
+import { renderNotes } from "./views/notes.js?v=20261024a";
+import { renderRessources } from "./views/ressources.js?v=20261024a";
+import { renderThemes } from "./views/themes.js?v=20261024a";
+import { renderConfig } from "./views/config.js?v=20261024a";
+import { renderCalendrier } from "./views/calendrier.js?v=20261024a";
+import { initUndoKeyboard } from "./undo.js?v=20261024a";
+import { renderNouveautes } from "./views/nouveautes.js?v=20261024a";
+import { libellePastille } from "./nouveautes.js?v=20261024a";
+import { renderCcp2 } from "./views/ccp2.js?v=20261024a";
+import { renderStagiaires } from "./views/stagiaires.js?v=20261024a";
+import { renderCentre, teardownCentrePrint } from "./views/centre.js?v=20261024a";
+import { renderEmargement } from "./views/emargement.js?v=20261024a";
+import { initBandeauEmargement, rafraichirBandeauEmargement } from "./emargement-bandeau.js?v=20261024a";
+import { chargerEmargementActif, emargementActif } from "./emargement-etat.js?v=20261024a";
+import { lireAdresse, pagePersonnelle } from "./route-rules.js?v=20261024a";
 import {
   peutQuitter, leverGardeSortie, majSurPlacePour, oublierMajSurPlace,
   noterAdresse, adresseCourante, remplacerAdresse, installerGardeNavigateur,
-} from "./navigation.js?v=20261023d";
-import { initChatbot, appliquerModuleAssistant } from "./chatbot.js?v=20261023d";
+} from "./navigation.js?v=20261024a";
+import { initChatbot, appliquerModuleAssistant } from "./chatbot.js?v=20261024a";
 import {
   chargerModules, chargerModulesAuDemarrage, onModulesChange, surveillerPremierPlan,
   routeVisible, routeMasquee, repereMasque, nouveautesAffichables,
-} from "./modules-etat.js?v=20261023d";
+} from "./modules-etat.js?v=20261024a";
 
 // ===== Tabs =====
 

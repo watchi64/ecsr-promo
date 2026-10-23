@@ -7,9 +7,9 @@
 // Population : les inscrits sont toutes les fiches de la promo, les « en formation » les
 // fiches actives. Tout sauf l'effectif et les abandons porte sur les stagiaires en formation.
 
-import { estNotee, score20, mediane } from "./notes-stats.js?v=20261023d";
-import { NOTE_VALUES } from "./epcf-trames.js?v=20261023d";
-import { compareByNom } from "./utils.js?v=20261023d";
+import { estNotee, score20, mediane } from "./notes-stats.js?v=20261024a";
+import { NOTE_VALUES } from "./epcf-trames.js?v=20261024a";
+import { compareByNom } from "./utils.js?v=20261024a";
 
 // Hypothèse du réseau : un parcours de formation représente 3 500 à 5 000 €.
 export const COUT_ABANDON_ESTIME = [3500, 5000];

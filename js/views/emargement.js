@@ -7,20 +7,20 @@ import {
   listStagiaires, listProfs, getPlanning, getHalfMetaForWeek, getJoursOff, getPromoCourante,
   listEmargementSeances, ouvrirEmargement, signerEmargement, signerEmargementFormateur,
   annoterEmargement, cloreEmargement, rouvrirEmargement, getEnteteEmargement, setEnteteEmargement,
-} from "../db.js?v=20261023d";
-import { el, clear, toast, isoDate } from "../utils.js?v=20261023d";
-import { icon } from "../icons.js?v=20261023d";
-import { isAdmin, isProf, getProfile } from "../auth-admin.js?v=20261023d";
+} from "../db.js?v=20261024a";
+import { el, clear, toast, isoDate } from "../utils.js?v=20261024a";
+import { icon } from "../icons.js?v=20261024a";
+import { isAdmin, isProf, getProfile } from "../auth-admin.js?v=20261024a";
 import {
   etatLigne, resumeSeance, absentsDuPlanning, libelleCreneau, heureLocale, jourLocal, lireAdresseEmargement,
   adresseSeance, lundiDe, jourDe, dayIndexDe, jourFerie, nomsFormateursProposes, DEMI_JOURNEES,
-} from "../emargement-rules.js?v=20261023d";
-import { ouvrirSignature, rendreSignature } from "../signature-pad.js?v=20261023d";
+} from "../emargement-rules.js?v=20261024a";
+import { ouvrirSignature, rendreSignature } from "../signature-pad.js?v=20261024a";
 import {
   feuilleSeance, feuilleSemaine, imprimer, nomComplet, jourLong, DEMI_LONG, stagiairesDeFeuille,
-} from "../emargement-feuilles.js?v=20261023d";
-import { rafraichirBandeauEmargement } from "../emargement-bandeau.js?v=20261023d";
-import { emargementActif } from "../emargement-etat.js?v=20261023d";
+} from "../emargement-feuilles.js?v=20261024a";
+import { rafraichirBandeauEmargement } from "../emargement-bandeau.js?v=20261024a";
+import { emargementActif } from "../emargement-etat.js?v=20261024a";
 
 // Horaires par défaut, comme DEFAULT_HALF_META du planning.
 const HORAIRES_DEFAUT = { matin: { debut: "09:00", fin: "12:30" }, aprem: { debut: "13:30", fin: "17:00" } };
