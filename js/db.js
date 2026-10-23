@@ -921,7 +921,7 @@ export async function deleteEvaluation(id) {
   if (error) throw error;
 }
 
-// Moyennes du groupe (anonymes comprises, sans rien de nominatif), calculées par la base
+// Moyennes du groupe (anonymes comprises, abandons exclus, sans rien de nominatif), calculées par la base
 // pour les stagiaires qui ne lisent pas toutes les notes. Forme : js/notes-stats.js.
 export async function getNotesStatsGroupe() {
   const { data, error } = await supabase.rpc("notes_stats_groupe");

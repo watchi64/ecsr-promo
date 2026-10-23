@@ -3,8 +3,8 @@
 -- naissance) est comparé à ce que la règle de la spec autorise, calculé sans les règles
 -- d'accès ; et les moyennes du serveur doivent être les mêmes pour tous dans une promo.
 -- Ne sort que des compteurs (aucun email). Lève TOUJOURS une exception : rien n'est écrit.
--- Répétition : envoyer dans une seule requête 20261004_confidentialite_2_fermeture.sql puis
--- ce fichier.
+-- Répétition : envoyer dans une seule requête la migration à éprouver (par exemple
+-- 20261023_notes_stats_en_formation.sql) puis ce fichier.
 
 set local lock_timeout = '3s';
 
@@ -13,7 +13,7 @@ declare
   r record; t text; n bigint; att bigint; st jsonb;
   v_sid integer; v_anon boolean; v_staff boolean;
   ok integer := 0; ko text[] := '{}'; nb_comptes integer := 0;
-  ref jsonb; stats_ref jsonb := '{}'::jsonb;
+  ref jsonb; stats_ref jsonb := '{}'::jsonb; v_somme numeric;
 begin
   for r in
     select up.email, up.is_admin, up.role, p.id as promo
@@ -82,12 +82,17 @@ begin
     end if;
   end loop;
 
-  -- Les statistiques correspondent au calcul direct sur toutes les notes de la promo.
+  -- Les statistiques correspondent au calcul direct sur les notes des stagiaires en formation
+  -- de la promo (fiches actives : les abandons ne comptent pas, règle du 23/10/2026).
   for r in select id from promos loop
     if stats_ref ? r.id::text then
-      select count(*) into n from evaluations where promo_id = r.id and note is not null and note_max is not null and note_max <> 0;
-      if (stats_ref -> r.id::text ->> 'n')::bigint = n then ok := ok + 1;
-      else ko := ko || format('promo %s : %s notes comptées, %s en base', r.id, stats_ref -> r.id::text ->> 'n', n);
+      select count(*), coalesce(sum((e.note::numeric / e.note_max::numeric) * 20), 0) into n, v_somme
+        from evaluations e join stagiaires s on s.id = e.stagiaire_id and s.actif
+       where e.promo_id = r.id and e.note is not null and e.note_max is not null and e.note_max <> 0;
+      if (stats_ref -> r.id::text ->> 'n')::bigint = n
+         and abs((stats_ref -> r.id::text ->> 'somme')::numeric - v_somme) < 1e-9 then ok := ok + 1;
+      else ko := ko || format('promo %s : %s notes comptées (somme %s), %s en base (somme %s)', r.id,
+                              stats_ref -> r.id::text ->> 'n', stats_ref -> r.id::text ->> 'somme', n, v_somme);
       end if;
     end if;
   end loop;

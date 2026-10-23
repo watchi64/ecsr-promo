@@ -19,7 +19,8 @@ let stagiaires = [];
 let competences = [];
 let evaluations = [];
 let themesOfficiels = [];  // les 57 thèmes du référentiel (chargés en + pour les titres dans la matrice)
-// Moyennes du groupe calculées par le serveur, anonymes comprises : un stagiaire ne lit que
+// Moyennes du groupe calculées par le serveur, anonymes comprises (stagiaires en formation
+// seulement, comme le calcul local : js/notes-stats.js) : un stagiaire ne lit que
 // ses notes et celles des profils non masqués (règle de la base), il ne peut donc pas les
 // calculer lui-même. Le personnel, qui lit tout, calcule en local (saisies reflétées aussitôt).
 let statsServeurGroupe = null;
@@ -1193,6 +1194,9 @@ function renderSynthese() {
 
   const wrap = el("section", { class: "notes-synthese" },
     el("h3", { class: "notes-chart-title" }, "Synthèse classe"),
+    // Règle du 23/10/2026, la même que le tableau de bord du centre (js/notes-stats.js).
+    el("p", { class: "muted notes-chart-sub" },
+      "Calculée sur les stagiaires en formation : les notes des stagiaires en abandon ne sont pas comptées."),
   );
 
   // KPIs
