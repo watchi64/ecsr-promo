@@ -2,13 +2,13 @@
 // semaine (paysage). Construites hors écran puis clonées pour l'impression par le mécanisme
 // des documents officiels (js/doc-officiel.js) : seul #emargement-print s'imprime.
 
-import { el, compareByNom } from "./utils.js?v=20261024a";
-import { bindDocPrint } from "./doc-officiel.js?v=20261024a";
-import { rendreSignature } from "./signature-pad.js?v=20261024a";
+import { el, compareByNom } from "./utils.js?v=20261024b";
+import { bindDocPrint } from "./doc-officiel.js?v=20261024b";
+import { rendreSignature } from "./signature-pad.js?v=20261024b";
 import {
   etatLigne, libelleCreneau, heureLocale, jourLocal, dureeMinutes, libelleDuree, minutesPresence,
   jourDe, jourFerie, DEMI_JOURNEES,
-} from "./emargement-rules.js?v=20261024a";
+} from "./emargement-rules.js?v=20261024b";
 
 // Nom complet sur un document officiel : NOM en capitales, puis le prénom.
 export function nomComplet(s) {
@@ -39,6 +39,15 @@ export function stagiairesDeFeuille(seance, stagiairesTous) {
   return stagiairesTous
     .filter((s) => ids.has(s.id) || (seance?.statut !== "close" && s.actif))
     .sort(compareByNom);
+}
+
+// Bandeau de tête : logo, titre et ce dont parle la feuille, aux couleurs de l'app.
+function bandeau(titre, sousTitre) {
+  return el("div", { class: "emf-bandeau" },
+    el("img", { class: "emf-logo", src: "assets/logo/tpecsr-logo.svg", alt: "" }),
+    el("div", { class: "emf-bandeau-texte" },
+      el("p", { class: "emf-titre" }, titre),
+      el("p", { class: "emf-sous-titre" }, sousTitre)));
 }
 
 function infos(lignes) {
@@ -94,7 +103,8 @@ export function feuilleSeance({ entete, promo, seance, stagiairesTous, absentsPl
 
   const feuille = el("div", { class: "em-feuille em-feuille-seance" },
     el("header", { class: "emf-entete" },
-      el("p", { class: "emf-titre" }, "Feuille d'émargement"),
+      bandeau("Feuille d'émargement",
+        `${jourLong(seance.jour)} · ${seance.demi_journee === "matin" ? "matin" : "après-midi"}, ${libelleCreneau(seance)}`),
       infos([
         ["Organisme de formation", entete.organisme],
         ["Formation", entete.intitule],
@@ -116,8 +126,10 @@ export function feuilleSeance({ entete, promo, seance, stagiairesTous, absentsPl
       el("tbody", {}, ...formateurs),
     ),
     el("footer", { class: "emf-pied" },
-      el("p", {}, `Présents : ${presents} · Absents : ${absents}`
-        + (close ? "" : ` · Sans signature : ${liste.length - presents - absents}`)),
+      el("p", { class: "emf-totaux" },
+        el("span", { class: "emf-total emf-total-ok" }, `Présents : ${presents}`),
+        el("span", { class: "emf-total emf-total-ko" }, `Absents : ${absents}`),
+        close ? null : el("span", { class: "emf-total" }, `Sans signature : ${liste.length - presents - absents}`)),
       el("p", {}, mentionSignatures()),
       el("p", {}, `Feuille ouverte le ${horodatage(seance.ouverte_le)}`
         + (close ? `, close le ${horodatage(seance.close_le)}.` : ", pas encore close.")),
@@ -183,7 +195,8 @@ export function feuilleSemaine({ entete, promo, lundi, seances, stagiairesTous, 
   const vendredi = jourDe(lundi, 4);
   return el("div", { class: "em-feuille em-feuille-semaine" },
     el("header", { class: "emf-entete" },
-      el("p", { class: "emf-titre" }, "Feuille d'émargement de la semaine"),
+      bandeau("Feuille d'émargement de la semaine",
+        `Du ${jourLong(lundi, { annee: false }).toLowerCase()} au ${jourLong(vendredi).toLowerCase()}`),
       infos([
         ["Organisme de formation", entete.organisme],
         ["Formation", entete.intitule],

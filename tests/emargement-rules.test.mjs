@@ -4,7 +4,7 @@ import {
   REPERE, TRACE_MAX, cheminDepuisTraits, cheminValide, traitsSuffisants,
   absentsDuPlanning, etatLigne, resumeSeance, libelleHeure, libelleCreneau, dureeMinutes,
   heureLocale, jourDe, lundiDe, dayIndexDe, lireAdresseEmargement, nomsFormateursProposes,
-  minutesPresence, libelleDuree, jourFerie, estActif, CLE_ACTIVATION, deLaDemi,
+  minutesPresence, libelleDuree, jourFerie, estActif, CLE_ACTIVATION, deLaDemi, demiVoisine, notesProposees, roleAuPlanning,
 } from "../js/emargement-rules.js";
 
 const pts = (...xy) => xy.map(([x, y]) => ({ x, y }));
@@ -148,6 +148,36 @@ test("noms proposés pour la signature du formateur", () => {
   assert.deepEqual(nomsFormateursProposes({ entries, profs, monNom: "Romain" }), ["Romain", "Claire", "Hocine"]);
   assert.deepEqual(nomsFormateursProposes({ entries, profs, monNom: null }), ["Claire", "Hocine", "Romain"]);
   assert.deepEqual(nomsFormateursProposes({ entries: [], profs, monNom: null }), []);
+});
+
+test("demi-journée voisine : matin et après-midi, sans samedi ni dimanche", () => {
+  assert.deepEqual(demiVoisine("2026-10-27", "matin", 1), { jour: "2026-10-27", demi: "aprem" });
+  assert.deepEqual(demiVoisine("2026-10-27", "aprem", 1), { jour: "2026-10-28", demi: "matin" });
+  assert.deepEqual(demiVoisine("2026-10-27", "matin", -1), { jour: "2026-10-26", demi: "aprem" });
+  assert.deepEqual(demiVoisine("2026-10-30", "aprem", 1), { jour: "2026-11-02", demi: "matin" });   // vendredi → lundi
+  assert.deepEqual(demiVoisine("2026-11-02", "matin", -1), { jour: "2026-10-30", demi: "aprem" }); // lundi → vendredi
+});
+
+test("notes proposées : situations courantes, puis celles déjà écrites, sans doublon", () => {
+  const n = notesProposees(["Absence injustifiée", "Stage en entreprise", "", null, "Stage en entreprise"], "9h40");
+  assert.deepEqual(n.slice(0, 4), ["Absence injustifiée", "Absence justifiée", "Arrivé à 9h40", "Parti à 9h40"]);
+  assert.ok(n.includes("Stage en entreprise"));
+  assert.equal(n.filter((x) => x === "Absence injustifiée").length, 1);
+  assert.equal(n.filter((x) => x === "Stage en entreprise").length, 1);
+  assert.ok(n.length <= 10);
+});
+
+test("rôle au planning de la demi-journée : au tableau, en voiture, ou rien", () => {
+  const entries = [
+    { day_index: 1, half_day: "matin", activite: "Pédagogie salle", pedagogue_id: 3, eleves_ids: [5, 6], salle_double: true, pedagogue_id_2: 7 },
+    { day_index: 1, half_day: "matin", activite: "Voiture (conduite)", eleves_ids: [8] },
+    { day_index: 1, half_day: "aprem", activite: "Voiture (conduite)", eleves_ids: [9] },
+  ];
+  assert.equal(roleAuPlanning(entries, 1, "matin", 3), "au tableau");
+  assert.equal(roleAuPlanning(entries, 1, "matin", 7), "au tableau");
+  assert.equal(roleAuPlanning(entries, 1, "matin", 8), "en voiture");
+  assert.equal(roleAuPlanning(entries, 1, "matin", 5), null);   // simple élève en salle : pas de passage
+  assert.equal(roleAuPlanning(entries, 1, "matin", 9), null);   // prévu l'après-midi
 });
 
 test("« du matin », « de l'après-midi »", () => {

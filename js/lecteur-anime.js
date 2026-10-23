@@ -15,7 +15,7 @@
  * l'instant de la dernière étape ; `vitesseLecture` est un nombre fini strictement positif. Hors de ce contrat, une
  * lecture peut ne jamais finir ou une étape ne pas s'afficher.
  */
-import { facteurLecture, SEUILS_VISIBILITE, actionVisibilite, etapeA } from "./lecteur-anime-regles.js?v=20261024a";
+import { facteurLecture, SEUILS_VISIBILITE, actionVisibilite, etapeA } from "./lecteur-anime-regles.js?v=20261024b";
 
 // Étape courante : classe « on » sur l'élément de l'étape, aria-current sur son bouton (c'est lui qui reçoit le focus)
 // ou, sans bouton, sur l'élément lui-même.
