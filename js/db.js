@@ -775,6 +775,60 @@ export async function uploadQcmImage(file, qcmId, questionId) {
   return data.publicUrl;
 }
 
+// --- Questions proposées par l'IA (formateur) ---
+// Les brouillons vivent dans qcm_ia_brouillons, que seuls les formateurs lisent : ils
+// n'entrent dans qcm_questions (lisible de tous) qu'à l'acceptation.
+
+// Demande des brouillons à l'Edge Function qcm-ia. fetch direct, comme l'assistant : le
+// client de données coupe toute requête à 15 s, et l'IA met souvent plus longtemps.
+export async function proposerQuestionsIa(qcmId, nombre, partie) {
+  const { data } = await supabase.auth.getSession();
+  const jeton = data?.session?.access_token;
+  if (!data?.session) throw new Error("Reconnecte-toi pour utiliser l'IA.");
+  const resp = await fetch(`${SUPABASE_URL}/functions/v1/qcm-ia`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", apikey: SUPABASE_KEY, Authorization: `Bearer ${jeton}` },
+    body: JSON.stringify({ qcm_id: qcmId, nombre, partie: partie || "" }),
+    signal: AbortSignal.timeout(150000),
+  });
+  let corps = null;
+  try { corps = await resp.json(); } catch { /* corps vide ou illisible */ }
+  if (!resp.ok) throw new Error(corps?.message || corps?.error || `Service indisponible (${resp.status})`);
+  return corps;
+}
+
+// Brouillons à relire d'un QCM, du plus ancien au plus récent.
+export async function listBrouillonsIa(qcmId) {
+  const { data, error } = await supabase
+    .from("qcm_ia_brouillons")
+    .select("*")
+    .eq("qcm_id", qcmId)
+    .eq("statut", "a_relire")
+    .order("created_at", { ascending: true });
+  if (error) throw error;
+  return data || [];
+}
+
+// Accepte un brouillon tel que le formateur l'a relu : la base crée la question, ses
+// options et la trace (nom du formateur, date). Renvoie l'id de la question.
+export async function accepterBrouillonIa(brouillonId, q) {
+  const { data, error } = await supabase.rpc("accepter_brouillon_ia", {
+    p_brouillon_id: brouillonId,
+    p_section: q.section || null,
+    p_enonce: q.enonce,
+    p_explication: q.explication || null,
+    p_options: q.options,
+  });
+  if (error) throw error;
+  invalidateCache("qcm_index");
+  return data;
+}
+
+export async function rejeterBrouillonIa(brouillonId) {
+  const { error } = await supabase.rpc("rejeter_brouillon_ia", { p_brouillon_id: brouillonId });
+  if (error) throw error;
+}
+
 // === Cours (par thème) ===
 
 // Index léger des cours visibles (la RLS filtre : un stagiaire ne voit que le

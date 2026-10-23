@@ -16,6 +16,25 @@
 
 export const NOUVEAUTES = [
   {
+    id: "2026-10-23-questions-ia",
+    date: "2026-10-23",
+    pour: "formateurs",
+    titre: "Des questions de QCM proposées par l'IA, validées par vous",
+    resume: "Dans l'éditeur du QCM d'un thème, « Proposer avec l'IA » rédige des brouillons de questions "
+          + "à partir du seul cours vérifié du thème. Les brouillons restent invisibles des stagiaires : "
+          + "chacun se relit, se corrige, puis s'accepte ou se rejette. Une question acceptée entre dans le QCM "
+          + "avec la mention « IA · validée par » et le nom du formateur. Un brouillon qui cite un article de loi "
+          + "absent du cours est écarté d'office. Seul le texte du cours est envoyé à l'IA (Mistral, hébergée "
+          + "en Europe), jamais une donnée de stagiaire ; dix demandes par jour et par formateur.",
+    ou: { label: "Cours", route: "themes" },
+    module: "qcm",
+    guide: [
+      "Cours, sous-onglet Thèmes : ouvre le QCM d'un thème, puis « Modifier » et « Éditer les questions ».",
+      "En bas de l'éditeur, « Proposer avec l'IA » : choisis le nombre de questions et la partie du cours.",
+      "Chaque brouillon : « Relire et accepter » (corrige si besoin, puis « Accepter dans le QCM ») ou « Rejeter ».",
+    ],
+  },
+  {
     id: "2026-10-15-avis-stagiaires",
     date: "2026-10-15",
     pour: "formateurs",

@@ -8343,3 +8343,39 @@ span.bnv-nom-num { font-size: 0.8rem; font-style: italic; color: var(--text-mute
   cursor: pointer;
 }
 .avis-refus:hover { color: var(--text); }
+
+/* === Questions proposées par l'IA (éditeur QCM, formateurs) ===
+   Teinte « cours » (lilas) : l'IA ne travaille que sur le cours vérifié du thème. */
+.qcm-ia-panel {
+  margin: 0 0 1rem; padding: 0.85rem 1rem; border-radius: 12px;
+  background: var(--act-cours); border: 1px solid var(--act-cours-border);
+}
+.qcm-ia-panel h4 { margin: 0 0 0.3rem; font-size: 0.9rem; color: var(--text); }
+.qcm-ia-note { margin: 0 0 0.7rem; font-size: 0.8rem; color: var(--text-soft); line-height: 1.45; }
+.qcm-ia-card {
+  margin-top: 0.6rem; padding: 0.75rem 0.85rem; border-radius: 10px;
+  background: var(--bg-elev); border: 1px dashed var(--act-cours-border);
+}
+.qcm-ia-badge {
+  font-size: 0.72rem; font-weight: 700; color: var(--text-soft);
+  background: var(--act-cours); border-radius: 999px; padding: 0.1rem 0.5rem;
+}
+.qcm-ia-explication { margin: 0.55rem 0 0; font-size: 0.82rem; color: var(--text-soft); line-height: 1.45; }
+.qcm-ia-ecartes-bloc { margin-top: 0.8rem; padding-top: 0.6rem; border-top: 1px solid var(--act-cours-border); }
+.qcm-ia-ecartes-titre { margin: 0 0 0.35rem; font-size: 0.8rem; font-weight: 700; color: var(--c-stop); }
+.qcm-ia-ecartes { margin: 0; padding-left: 1.1rem; font-size: 0.8rem; color: var(--text-soft); }
+.qcm-ia-ecartes li { margin: 0.2rem 0; }
+.qcm-ia-ecarte-enonce { font-style: italic; }
+.qcm-ia-ecarte-motif { margin-left: 0.4rem; font-weight: 600; color: var(--c-stop); }
+.qcm-ia-ecarte-motif::before { content: "("; }
+.qcm-ia-ecarte-motif::after { content: ")"; }
+.qcm-ia-etat { min-height: 1.2em; margin: 0.4rem 0 0; font-size: 0.85rem; color: var(--text-soft); }
+.qcm-ia-modal select { width: 100%; }
+.qcm-editor-ia {
+  font-size: 0.72rem; font-weight: 600; color: var(--text-soft);
+  background: var(--act-cours); border: 1px solid var(--act-cours-border);
+  border-radius: 999px; padding: 0.1rem 0.45rem;
+}
+@media (max-width: 600px) {
+  .qcm-actions:has(.qcm-ia-bouton) { flex-direction: column; }
+}

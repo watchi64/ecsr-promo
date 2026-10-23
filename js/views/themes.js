@@ -1,4 +1,4 @@
-import { listThemes, updateTheme, addTheme, deleteTheme, listQcmIndex, getQcmFull, publishQcm, unpublishQcm, updateExamConfig, listExamAttempts, resetExamAttempt, listMyQcmAttempts, getMyProfile, listEvaluations, getOrCreateQcm, saveQcmQuestion, deleteQcmQuestion, reorderQcmQuestions, uploadQcmImage, listQcmSignalements, setQcmSignalementStatut, countQcmSignalementsOuverts } from "../db.js?v=20261022e";
+import { listThemes, updateTheme, addTheme, deleteTheme, listQcmIndex, getQcmFull, publishQcm, unpublishQcm, updateExamConfig, listExamAttempts, resetExamAttempt, listMyQcmAttempts, getMyProfile, listEvaluations, getOrCreateQcm, saveQcmQuestion, deleteQcmQuestion, reorderQcmQuestions, uploadQcmImage, listQcmSignalements, setQcmSignalementStatut, countQcmSignalementsOuverts, getCours, proposerQuestionsIa, listBrouillonsIa, accepterBrouillonIa, rejeterBrouillonIa } from "../db.js?v=20261022e";
 import { el, clear, isoDate, formatDate, toast, debounce } from "../utils.js?v=20261022e";
 import { icon } from "../icons.js?v=20261022e";
 import { examenDemarrable, tempsRestantMs, formatTempsRestant,
@@ -11,6 +11,7 @@ import { renderSubTabs } from "../subtabs.js?v=20261022e";
 import { hasCours, openCoursSheet, chargerCoursIndex, coursDejaOuvert } from "./cours-reader.js?v=20261022e";
 import { cleCours } from "../cours-rules.js?v=20261022e";
 import { moduleVisible, moduleMasque, repereMasque } from "../modules-etat.js?v=20261022e";
+import { articlesCites, articlesHorsCours, titresDuCours, libelleTraceIa, brouillonVersQuestion, resumeProposition } from "../qcm-ia-rules.js?v=20261022e";
 
 let themes = [];
 let qcmByTheme = new Map();  // theme_id -> { id, nb_questions, published, ... }
@@ -622,6 +623,24 @@ async function openQcmEditor(theme, qcmId, questionIdCible = null, onFerme = nul
   // jamais empêcher l'édition : on retombe sur « aucun signalement ».
   let signalements = { liste: [], parQuestion: {} };
 
+  // Questions proposées par l'IA : seulement pour un thème qui a un cours vérifié (la
+  // seule source de l'IA). Les brouillons à relire sont rechargés avec l'éditeur ; les
+  // brouillons écartés par le contrôle ne sont montrés qu'après la demande qui les a produits.
+  const iaPossible = isAdmin() && !!theme.numero && hasCours(theme);
+  let brouillons = [];
+  let ecartesRecents = [];
+  let coursIaMd = null;
+  let articlesCoursIa = null;
+
+  async function chargerCoursIa() {
+    if (coursIaMd === null) {
+      const c = await getCours(Number(theme.numero));
+      coursIaMd = c?.corps_md || "";
+      articlesCoursIa = articlesCites(coursIaMd);
+    }
+    return coursIaMd;
+  }
+
   async function reloadEditor() {
     let full;
     try {
@@ -632,6 +651,14 @@ async function openQcmEditor(theme, qcmId, questionIdCible = null, onFerme = nul
     } catch (e) {
       console.error("Signalements illisibles :", e);
       signalements = { liste: [], parQuestion: {} };
+    }
+    if (iaPossible) {
+      try {
+        brouillons = await listBrouillonsIa(qcmId);
+      } catch (e) {
+        console.error("Brouillons de l'IA illisibles :", e);
+        brouillons = [];
+      }
     }
     try {
       full = await getQcmFull(qcmId);
@@ -655,6 +682,7 @@ async function openQcmEditor(theme, qcmId, questionIdCible = null, onFerme = nul
     panel.appendChild(editorHead(questions.length + " question" + (questions.length > 1 ? "s" : "")));
 
     if (signalements.liste.length) panel.appendChild(signalPanel(questions));
+    if (iaPossible && (brouillons.length || ecartesRecents.length)) panel.appendChild(brouillonsPanel(questions));
 
     const list = el("div", { class: "qcm-editor-list" });
     if (!questions.length) {
@@ -678,7 +706,153 @@ async function openQcmEditor(theme, qcmId, questionIdCible = null, onFerme = nul
       el("button", { class: "btn primary full", type: "button",
         onClick: () => openQuestionForm(qcmId, null, questions.length, onSaved, questions) },
         icon.plus(), "Ajouter une question"),
+      iaPossible
+        ? el("button", { class: "btn ghost full qcm-ia-bouton", type: "button", onClick: () => openPropositionIa() },
+            "✦ Proposer avec l'IA")
+        : null,
     ));
+  }
+
+  // Les brouillons en tête de l'éditeur, comme les signalements : c'est là que le
+  // formateur travaille. Rien de ce panneau n'est visible des stagiaires.
+  function brouillonsPanel(questions) {
+    const box = el("div", { class: "qcm-ia-panel" });
+    const n = brouillons.length;
+    box.appendChild(el("h4", {}, n
+      ? `✦ ${n} brouillon${n > 1 ? "s" : ""} de l'IA à relire`
+      : "✦ Brouillons de l'IA"));
+    box.appendChild(el("p", { class: "qcm-ia-note" },
+      "Rédigés par l'IA à partir du cours vérifié du thème. Invisibles des stagiaires tant qu'un formateur ne les a pas acceptés."));
+    brouillons.forEach((b) => box.appendChild(carteBrouillon(b, questions)));
+    if (ecartesRecents.length) {
+      const liste = el("ul", { class: "qcm-ia-ecartes" });
+      ecartesRecents.forEach((e) => liste.appendChild(el("li", {},
+        el("span", { class: "qcm-ia-ecarte-enonce" }, e.enonce || "(énoncé vide)"),
+        el("span", { class: "qcm-ia-ecarte-motif" }, e.motif || "écarté"),
+      )));
+      box.appendChild(el("div", { class: "qcm-ia-ecartes-bloc" },
+        el("p", { class: "qcm-ia-ecartes-titre" },
+          `${ecartesRecents.length > 1 ? "Écartés" : "Écarté"} automatiquement (contrôle des articles de loi et de la forme)`),
+        liste,
+      ));
+    }
+    return box;
+  }
+
+  function carteBrouillon(b, questions) {
+    const opts = Array.isArray(b.options) ? b.options : [];
+    const card = el("div", { class: "qcm-ia-card", dataset: { brouillonId: String(b.id) } });
+    card.appendChild(el("div", { class: "qcm-editor-card-head" },
+      el("span", { class: "qcm-ia-badge" }, "Brouillon IA"),
+      b.section ? el("span", { class: "qcm-editor-section" }, b.section) : null,
+      opts.filter((o) => o.is_correct).length > 1 ? el("span", { class: "qcm-editor-multi" }, "Plusieurs réponses") : null,
+      el("div", { class: "qcm-editor-card-order" },
+        el("button", { class: "btn primary small", type: "button",
+          onClick: () => relireBrouillon(b, questions) }, "Relire et accepter"),
+        el("button", { class: "btn ghost small", type: "button",
+          onClick: (ev) => rejeter(b, ev.currentTarget) }, "Rejeter"),
+      ),
+    ));
+    card.appendChild(el("p", { class: "qcm-editor-enonce" }, b.enonce));
+    const ul = el("ul", { class: "qcm-editor-opts" });
+    opts.forEach((o) => ul.appendChild(el("li", { class: "qcm-editor-opt" + (o.is_correct ? " correct" : "") },
+      el("span", { class: "qcm-editor-opt-mark" }, o.is_correct ? "✓" : ""),
+      el("span", { class: "qcm-editor-opt-text" }, o.texte),
+    )));
+    card.appendChild(ul);
+    if (b.explication) card.appendChild(el("p", { class: "qcm-ia-explication" }, b.explication));
+    return card;
+  }
+
+  async function relireBrouillon(b, questions) {
+    // Sans le cours, pas d'alerte locale sur les articles : le contrôle du serveur, lui,
+    // a déjà eu lieu à la création du brouillon.
+    try { await chargerCoursIa(); } catch (e) { console.error("Cours illisible :", e); }
+    openQuestionForm(qcmId, brouillonVersQuestion(b), questions.length, onSaved, [],
+      { brouillon: b, articlesCours: articlesCoursIa });
+  }
+
+  async function rejeter(b, bouton) {
+    if (!window.confirm("Rejeter ce brouillon ? Il ne sera pas ajouté au QCM.")) return;
+    bouton.disabled = true;
+    try {
+      await rejeterBrouillonIa(b.id);
+      toast("Brouillon rejeté.", "success");
+      await reloadEditor();
+    } catch (e) {
+      bouton.disabled = false;
+      toast("Rejet impossible : " + (e?.message || e), "error");
+    }
+  }
+
+  // Demande de brouillons : nombre et partie du cours. Au-dessus de l'éditeur (classe
+  // qcm-form-backdrop), et l'Échap de l'éditeur s'efface devant elle.
+  function openPropositionIa() {
+    const backdrop = el("div", { class: "modal-backdrop qcm-form-backdrop" });
+    const nombre = el("select", {}, ...[1, 2, 3, 4, 5].map((k) => el("option", { value: String(k) }, String(k))));
+    nombre.value = "3";
+    const partie = el("select", { disabled: true }, el("option", { value: "" }, "Chargement du cours…"));
+    const etat = el("p", { class: "qcm-ia-etat", role: "status", "aria-live": "polite" });
+    const annuler = el("button", { class: "btn ghost", type: "button" }, "Annuler");
+    const proposer = el("button", { class: "btn primary", type: "button", disabled: true }, "Proposer");
+    let enCours = false;
+
+    function fermer() {
+      if (enCours) return;
+      document.removeEventListener("keydown", onKey);
+      backdrop.remove();
+    }
+    function onKey(e) {
+      if (e.key === "Escape") { e.preventDefault(); fermer(); }
+    }
+    function bloquer(oui) {
+      enCours = oui;
+      [nombre, partie, annuler, proposer].forEach((c) => { c.disabled = oui; });
+    }
+    annuler.addEventListener("click", fermer);
+
+    chargerCoursIa().then((md) => {
+      clear(partie);
+      partie.appendChild(el("option", { value: "" }, "Tout le cours"));
+      titresDuCours(md).forEach((t) => partie.appendChild(
+        el("option", { value: t.titre }, (t.niveau === 3 ? "   " : "") + t.titre)));
+      partie.disabled = false;
+      proposer.disabled = false;
+    }).catch((e) => {
+      clear(partie);
+      partie.appendChild(el("option", { value: "" }, "Cours illisible"));
+      etat.textContent = "Le cours du thème n'a pas pu être lu : " + (e?.message || e);
+    });
+
+    proposer.addEventListener("click", async () => {
+      bloquer(true);
+      etat.textContent = "L'IA lit le cours et rédige les brouillons. Cela prend souvent 20 à 60 secondes.";
+      try {
+        const res = await proposerQuestionsIa(qcmId, Number(nombre.value), partie.value);
+        ecartesRecents = res?.ecartes || [];
+        if (Array.isArray(res?.articles_cours)) articlesCoursIa = res.articles_cours;
+        bloquer(false);
+        fermer();
+        toast(resumeProposition((res?.brouillons || []).length, ecartesRecents.length), "success");
+        await reloadEditor();
+      } catch (e) {
+        bloquer(false);
+        etat.textContent = e?.message || String(e);
+      }
+    });
+
+    backdrop.appendChild(el("div", { class: "modal qcm-form-modal qcm-ia-modal" },
+      el("h3", {}, "Proposer des questions avec l'IA"),
+      el("p", { class: "qcm-ia-note" },
+        "L'IA lit le cours vérifié de ce thème et rédige des brouillons. Ils restent invisibles des stagiaires : "
+        + "rien n'entre dans le QCM sans ta validation. Seul le texte du cours lui est envoyé, aucune donnée de stagiaire."),
+      el("div", { class: "field" }, el("label", {}, "Nombre de questions"), nombre),
+      el("div", { class: "field" }, el("label", {}, "Partie du cours"), partie),
+      etat,
+      el("div", { class: "modal-actions" }, annuler, proposer),
+    ));
+    document.addEventListener("keydown", onKey);
+    document.body.appendChild(backdrop);
   }
 
   // Les signalements en tête de l'éditeur : c'est là que le formateur corrige,
@@ -720,6 +894,10 @@ async function openQcmEditor(theme, qcmId, questionIdCible = null, onFerme = nul
       el("span", { class: "qcm-editor-card-num" }, String(i + 1)),
       q.section ? el("span", { class: "qcm-editor-section" }, q.section) : null,
       correctCount > 1 ? el("span", { class: "qcm-editor-multi" }, "Plusieurs réponses") : null,
+      libelleTraceIa(q)
+        ? el("span", { class: "qcm-editor-ia", title: "Proposée par l'IA à partir du cours, relue et acceptée par un formateur" },
+            libelleTraceIa(q))
+        : null,
       (signalements.parQuestion[q.id] || []).length
         ? el("span", { class: "qcm-editor-signal", title: "Signalements ouverts sur cette question" },
             "⚑ " + signalements.parQuestion[q.id].length)
@@ -785,8 +963,11 @@ async function openQcmEditor(theme, qcmId, questionIdCible = null, onFerme = nul
 
 // Modale de création / édition d'une question (multi-réponses).
 // nextOrdre = ordre à donner à une nouvelle question (ignoré en édition).
-function openQuestionForm(qcmId, question, nextOrdre, onSaved, siblings = []) {
-  const isEdit = !!question;
+// Avec `brouillon` (brouillon de l'IA à relire), le formulaire est prérempli et
+// « Accepter » passe par la base, qui crée la question avec sa trace. articlesCours
+// (numéros du cours du thème) sert à prévenir si la relecture ajoute un article absent.
+function openQuestionForm(qcmId, question, nextOrdre, onSaved, siblings = [], { brouillon = null, articlesCours = null } = {}) {
+  const isEdit = !!question && !brouillon;
   let pendingImageUrl = question?.image_url ?? null;
 
   // Position : déplacer une question n'importe où sans cliquer ↑ ou ↓ vingt fois.
@@ -885,6 +1066,7 @@ function openQuestionForm(qcmId, question, nextOrdre, onSaved, siblings = []) {
       ordre: question?.ordre ?? nextOrdre,
       options,
     };
+    if (brouillon) { await accepter(q); return; }
     try {
       await saveQcmQuestion(qcmId, q);
       const moved = await applyPosition();
@@ -893,6 +1075,31 @@ function openQuestionForm(qcmId, question, nextOrdre, onSaved, siblings = []) {
       onSaved();
     } catch (e) {
       toast("Enregistrement impossible : " + (e?.message || e), "error");
+    }
+  }
+
+  // Acceptation d'un brouillon de l'IA. Le serveur a déjà écarté tout brouillon citant un
+  // article absent du cours ; si la relecture en ajoute un, le formateur est prévenu (c'est
+  // lui qui valide, comme pour une question saisie à la main).
+  let envoi = false;
+  async function accepter(q) {
+    if (envoi) return;
+    if (articlesCours) {
+      const hors = articlesHorsCours([q.section, q.enonce, q.explication, ...q.options.map((o) => o.texte)], articlesCours);
+      if (hors.length && !window.confirm(
+        `Le texte cite ${hors.join(", ")}, qui n'apparaît pas dans le cours du thème. `
+        + "Vérifie-le sur Légifrance avant d'accepter.\n\nAccepter quand même ?")) return;
+    }
+    envoi = true;
+    try {
+      await accepterBrouillonIa(brouillon.id, q);
+      closeForm();
+      toast("Question acceptée : elle entre dans le QCM.", "success");
+      onSaved();
+    } catch (e) {
+      toast("Acceptation impossible : " + (e?.message || e), "error");
+    } finally {
+      envoi = false;
     }
   }
 
@@ -913,8 +1120,13 @@ function openQuestionForm(qcmId, question, nextOrdre, onSaved, siblings = []) {
   }
 
   const modal = el("div", { class: "modal qcm-form-modal" },
-    el("h3", {}, isEdit ? "Modifier la question" : "Nouvelle question"),
+    el("h3", {}, brouillon ? "Relire le brouillon de l'IA" : isEdit ? "Modifier la question" : "Nouvelle question"),
     el("div", { class: "qcm-form-body" },
+      brouillon
+        ? el("p", { class: "qcm-ia-note" },
+            "Proposé par l'IA à partir du cours vérifié du thème. Vérifie chaque réponse et l'explication, "
+            + "corrige si besoin, puis accepte : la question entrera dans le QCM avec la mention « validée par » et ton nom.")
+        : null,
       isEdit && siblings.length > 1
         ? el("div", { class: "field qcm-form-pos" },
             el("label", {}, "Position"),
@@ -926,7 +1138,9 @@ function openQuestionForm(qcmId, question, nextOrdre, onSaved, siblings = []) {
       el("div", { class: "field" }, el("label", {}, "Section"), sectionInput),
       el("div", { class: "field" }, el("label", {}, "Énoncé"), enonceInput),
       el("div", { class: "field" }, el("label", {}, "Explication"), explicInput),
-      el("div", { class: "field" },
+      // Un brouillon n'a pas encore de question où accrocher une image : elle s'ajoute
+      // après l'acceptation, en éditant la question.
+      brouillon ? null : el("div", { class: "field" },
         el("label", {}, "Image"),
         imgPreview,
         fileInput,
@@ -941,7 +1155,8 @@ function openQuestionForm(qcmId, question, nextOrdre, onSaved, siblings = []) {
     ),
     el("div", { class: "modal-actions" },
       el("button", { class: "btn ghost", type: "button", onClick: () => requestCancel() }, "Annuler"),
-      el("button", { class: "btn primary", type: "button", onClick: save }, icon.check(), "Enregistrer"),
+      el("button", { class: "btn primary", type: "button", onClick: save }, icon.check(),
+        brouillon ? "Accepter dans le QCM" : "Enregistrer"),
     ),
   );
   backdrop.appendChild(modal);
