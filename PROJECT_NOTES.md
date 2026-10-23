@@ -425,6 +425,36 @@ Spec et plans dans le dépôt ECSR : `docs/superpowers/specs/2026-10-03-cours-co
   n'est visible et modifiable que du fondateur (`is_founder()`, un seul compte) ; Timy vérifie chaque cours, un par un,
   puis le publie lui-même. Publié, il suit les règles des autres cours. L'assistant ne cite que les cours publiés.
 
+## Émargement signé (octobre 2026)
+
+Spec : `docs/superpowers/specs/2026-10-23-emargement-design.md` · plan :
+`docs/superpowers/plans/2026-10-23-emargement.md`.
+
+- **Déroulé** : le formateur ouvre la demi-journée du jour (page `#/emargement`, tuile d'Accueil, bouton
+  du Planning) ; chaque stagiaire signe au doigt depuis le bandeau « Signer » (`js/emargement-bandeau.js`,
+  relu au changement de page, au retour au premier plan et toutes les 60 s) ; « Faire signer ici » sur
+  l'appareil du formateur en secours (c'est aussi ce qui sert à la démonstration) ; le formateur signe puis
+  clôt : tout stagiaire actif sans signature devient absent (origine « planning » s'il est noté absent sur
+  une carte de la demi-journée, sinon « non signé »). Rouvrir : le jour même seulement.
+- **Base** (migration `20261023_emargement.sql`) : `emargement_seances`, `emargement_lignes`,
+  `emargement_formateurs`, toutes à `promo_id`. **Aucun droit d'écriture direct** : six fonctions
+  `emargement_*` (security definer) vérifient rôle, promo courante, état, jour (heure de Paris) et
+  horodatent. Un déclencheur fige toute signature posée ; seule porte : `set_config('emargement.effacement',
+  'on', true)` pour une future migration d'effacement. Lecture : un stagiaire ne voit que sa ligne.
+- **Tracé** : chemin SVG `M x y L x y` en entiers dans un repère 400 x 160, validé à l'identique par
+  `js/emargement-rules.js` et par la base (20 000 caractères au plus) ; environ 1,3 Ko par signature.
+- **Feuilles** (`js/emargement-feuilles.js`) : demi-journée en A4 portrait, semaine en A4 paysage (une page
+  jusqu'à 16 stagiaires), imprimées par `doc-officiel.js` (option `page` de `bindDocPrint`). En-tête propre à
+  la promo : réglage `emargement_entete` (organisme, intitulé ; défaut « ECF BOUSCAREN »).
+- **Pas un module** : route du socle (`ROUTES_SOCLE`), rien n'apparaît aux stagiaires sans feuille ouverte.
+- **Preuve** : `tests/sql/emargement-preuve.sql` (71 contrôles, verdict dans l'exception finale, rien
+  n'est écrit ; rougit si l'on retire la règle de lecture, le déclencheur ou un refus d'écriture).
+- **Démonstration** : `20261023_emargement_demo.sql` (généré par `node scripts/emargement-demo.mjs`) pose
+  les feuilles fictives des semaines du 12 et du 19 octobre de la promo 7. Ménage : supprimer les feuilles
+  `promo_id = 7` (lignes et signatures suivent), ou `..._demo_retour.sql`.
+- **Banc** : `?emargement=1` (semaine précédente close, matin du jour ouvert) ; les six fonctions sont
+  jouées en mémoire par `_harness_supabase.js` avec les mêmes règles et messages.
+
 ## Décisions UX importantes (à respecter)
 
 - ❌ **Pas de tiret cadratin (U+2014)** dans les libellés UI. Régression à éviter.

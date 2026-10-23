@@ -18,7 +18,7 @@ test("chaque signature fictive est un tracé valide, assez large", () => {
 
 test("migration de démonstration : 200 lignes, tracés valides, aucun cadratin, à jour dans le dépôt", async () => {
   const texte = migrationDemo();
-  assert.ok(!texte.includes("—"), "tiret cadratin");
+  assert.ok(!texte.includes(String.fromCharCode(0x2014)), "tiret cadratin");
   const traces = [...texte.matchAll(/\('[^']+', \d, '(M[^']+)'\)/g)].map((m) => m[1]);
   assert.equal(traces.length, 48);
   for (const t of traces) assert.ok(cheminValide(t));
