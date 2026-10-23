@@ -104,9 +104,11 @@ export function construireMessages({ titreTheme, coursMd, partie, nombre, exista
 }
 
 // Jamais de tiret cadratin dans la base : le modele en produit parfois malgre la consigne.
+// Construit par son code (8212) : ni le caractere ni une sequence d'echappement dans le source.
+const TIRET_CADRATIN = String.fromCharCode(8212);
 function propre(v, max) {
   return String(v ?? "")
-    .replace(/\s*\u2014\s*/g, " : ")
+    .split(TIRET_CADRATIN).map((x) => x.trim()).join(" : ")
     .replace(/\s+/g, " ")
     .trim()
     .replace(/^[:,;\s]+/, "")

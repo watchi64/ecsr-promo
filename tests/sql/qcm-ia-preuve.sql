@@ -22,7 +22,14 @@ declare
 begin
   -- Donnees fictives ---------------------------------------------------------------------
   insert into profs (nom) values ('Formateur Preuve') returning id into v_prof;
-  insert into stagiaires (prenom) values ('StagiairePreuve') returning id into v_stag;
+  -- En prod, un stagiaire appartient à une promo (colonne obligatoire, absente du schéma minimal).
+  if exists (select 1 from information_schema.columns
+              where table_schema = 'public' and table_name = 'stagiaires' and column_name = 'promo_id') then
+    execute 'insert into stagiaires (prenom, promo_id) values ($1, (select min(id) from promos)) returning id'
+      into v_stag using 'StagiairePreuve';
+  else
+    insert into stagiaires (prenom) values ('StagiairePreuve') returning id into v_stag;
+  end if;
   insert into user_profiles (email, role, is_admin, prof_id) values (e_adm, 'prof', true, v_prof);
   insert into user_profiles (email, role, is_admin, stagiaire_id) values (e_sta, 'stagiaire', false, v_stag);
   insert into auth.users (id, email) values (u, e_adm);
