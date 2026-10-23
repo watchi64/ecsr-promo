@@ -8458,6 +8458,9 @@ span.bnv-nom-num { font-size: 0.8rem; font-style: italic; color: var(--text-mute
   body.centre-printable, body.centre-printable #app, body.centre-printable #view { background: #fff; padding: 0; margin: 0; }
   body.centre-printable .centre { max-width: none; font-size: 10pt; }
   body.centre-printable .centre-actions { display: none !important; }
+  /* Les méthodes des cartes sont toutes dans la section « Méthodes de calcul », dépliée à l'impression. */
+  body.centre-printable .centre-carte .centre-methode,
+  body.centre-printable .centre-section > .centre-methode { display: none !important; }
   body.centre-printable .centre-grille { grid-template-columns: repeat(3, 1fr); gap: 2.5mm; }
   body.centre-printable .centre-carte,
   body.centre-printable .centre-themes-liste,
