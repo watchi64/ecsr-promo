@@ -40,7 +40,7 @@ function lisser(points, pas = 8) {
   return out;
 }
 
-export function signatureFictive(graine, variation = 0) {
+export function signatureFictive(graine, variation = 0, { pas = 8 } = {}) {
   const r = alea(hacher(graine));                      // allure propre à la personne
   const j = alea(hacher(graine + "#" + variation));    // variation de la séance
   const ligne = 105;
@@ -86,7 +86,7 @@ export function signatureFictive(graine, variation = 0) {
     x: (p.x + pente * (ligne - p.y)) * echelle + dx + (j() - 0.5) * 1.2,
     y: (p.y - ligne) * echelle + ligne + dy + (j() - 0.5) * 1.2,
   });
-  let traits = [lisser(corps).map(transforme), lisser(paraphe).map(transforme)];
+  let traits = [lisser(corps, pas).map(transforme), lisser(paraphe, pas).map(transforme)];
 
   // Recadrage dans le repère, avec une marge : jamais de point écrasé contre un bord.
   const tous = traits.flat();
@@ -109,7 +109,9 @@ const STAGIAIRES_DEMO = [
   ["Nadia", "Girard"], ["Kevin", "Mercier"],
 ];
 const FORMATEURS_DEMO = ["Claire", "Marc"];
-const VARIANTES = 4;
+const VARIANTES = 3;
+// Moins de points par courbe que le banc : la migration reste assez légère pour être appliquée en une fois.
+const PAS_DEMO = 4;
 const HORAIRES = { matin: ["09:00", "12:30"], aprem: ["13:30", "17:00"] };
 
 // Exceptions à la présence : « jour demi prénom » → ligne particulière.
@@ -138,9 +140,9 @@ export function migrationDemo() {
   const seances = jours.flatMap((jour) => ["matin", "aprem"].map((demi) => ({ jour, demi })));
   const traces = [];
   for (const [prenom, nom] of STAGIAIRES_DEMO) {
-    for (let v = 0; v < VARIANTES; v++) traces.push([prenom + " " + nom, v, signatureFictive(prenom + " " + nom, v)]);
+    for (let v = 0; v < VARIANTES; v++) traces.push([prenom + " " + nom, v, signatureFictive(prenom + " " + nom, v, { pas: PAS_DEMO })]);
   }
-  for (const f of FORMATEURS_DEMO) for (let v = 0; v < VARIANTES; v++) traces.push([f, v, signatureFictive(f, v)]);
+  for (const f of FORMATEURS_DEMO) for (let v = 0; v < VARIANTES; v++) traces.push([f, v, signatureFictive(f, v, { pas: PAS_DEMO })]);
 
   const lignes = [];
   seances.forEach(({ jour, demi }, i) => {

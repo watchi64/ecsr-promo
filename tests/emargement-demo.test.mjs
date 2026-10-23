@@ -20,7 +20,7 @@ test("migration de démonstration : 200 lignes, tracés valides, aucun cadratin,
   const texte = migrationDemo();
   assert.ok(!texte.includes(String.fromCharCode(0x2014)), "tiret cadratin");
   const traces = [...texte.matchAll(/\('[^']+', \d, '(M[^']+)'\)/g)].map((m) => m[1]);
-  assert.equal(traces.length, 48);
+  assert.equal(traces.length, 36);
   for (const t of traces) assert.ok(cheminValide(t));
   const lignes = texte.match(/\('2026-10-\d\d', '(matin|aprem)', /g) || [];
   assert.equal(lignes.length, 200);
