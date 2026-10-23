@@ -2817,19 +2817,21 @@ function renderInto(container) {
     // Priorités de passage : rangées dans le Planning, plus d'onglet (chantier D).
     // Visibles des formateurs, et des stagiaires si le module est ouvert pour leur
     // promo ; repère « Masqué aux stagiaires » chez un formateur quand il est fermé.
-    routeVisible("dashboard")
-      ? repereMasque(el("button", { class: "btn small", type: "button",
-          title: "Qui doit passer en priorité, au tableau et en voiture",
-          onClick: () => { location.hash = "#/dashboard"; } },
-          icon.target(), "Priorités"), routeMasquee("dashboard"))
-      : null,
-    // Émargement (spec 2026-10-23) : page des formateurs.
-    admin || isProf()
-      ? el("button", { class: "btn small", type: "button",
-          title: "Ouvrir l'émargement du jour, imprimer les feuilles",
-          onClick: () => { location.hash = "#/emargement"; } },
-          icon.clipboard(), "Émargement")
-      : null,
+    el("div", { class: "p-entete-actions" },
+      routeVisible("dashboard")
+        ? repereMasque(el("button", { class: "btn small", type: "button",
+            title: "Qui doit passer en priorité, au tableau et en voiture",
+            onClick: () => { location.hash = "#/dashboard"; } },
+            icon.target(), "Priorités"), routeMasquee("dashboard"))
+        : null,
+      // Émargement (spec 2026-10-23) : page des formateurs.
+      admin || isProf()
+        ? el("button", { class: "btn small", type: "button",
+            title: "Ouvrir l'émargement du jour, imprimer les feuilles",
+            onClick: () => { location.hash = "#/emargement"; } },
+            icon.clipboard(), "Émargement")
+        : null,
+    ),
   ));
 
   // Toolbar semaine

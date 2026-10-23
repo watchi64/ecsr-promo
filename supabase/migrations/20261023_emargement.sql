@@ -244,7 +244,9 @@ begin
 end;
 $function$;
 
--- Signature d'un formateur (nom imprimé sur la feuille).
+-- Signature d'un formateur (nom imprimé sur la feuille). Permise après le jour de la feuille :
+-- une feuille oubliée doit pouvoir être signée puis close ; l'heure enregistrée reste l'heure
+-- réelle, et la feuille imprime alors la date de la signature.
 create function public.emargement_signer_formateur(p_seance bigint, p_nom text, p_trace text)
 returns timestamptz language plpgsql security definer set search_path to 'public', 'pg_temp' as $function$
 declare
@@ -256,9 +258,6 @@ declare
 begin
   if s.statut <> 'ouverte' then
     raise exception 'emargement: La feuille est close.';
-  end if;
-  if s.jour <> emargement_jour_paris() then
-    raise exception 'emargement: Une feuille ne se signe que le jour même.';
   end if;
   if length(v_nom) not between 1 and 80 then
     raise exception 'emargement: Nom du formateur requis.';

@@ -12,7 +12,7 @@ import { el, clear, toast, isoDate } from "../utils.js?v=20261022e";
 import { icon } from "../icons.js?v=20261022e";
 import { isAdmin, isProf, getProfile } from "../auth-admin.js?v=20261022e";
 import {
-  etatLigne, resumeSeance, absentsDuPlanning, libelleCreneau, heureLocale, lireAdresseEmargement,
+  etatLigne, resumeSeance, absentsDuPlanning, libelleCreneau, heureLocale, jourLocal, lireAdresseEmargement,
   adresseSeance, lundiDe, jourDe, dayIndexDe, jourFerie, nomsFormateursProposes, DEMI_JOURNEES,
 } from "../emargement-rules.js?v=20261022e";
 import { ouvrirSignature, rendreSignature } from "../signature-pad.js?v=20261022e";
@@ -30,8 +30,13 @@ function arreterRelecture() {
   if (minuteur) { clearInterval(minuteur); minuteur = null; }
 }
 
+// Numéro du dernier affichage demandé : une lecture lente d'une page quittée entre-temps ne
+// doit pas remplacer la page affichée depuis (deux changements de demi-journée rapprochés).
+let rendu = 0;
+
 export async function renderEmargement(container) {
   arreterRelecture();
+  const jeton = ++rendu;
   clear(container);
   if (!(isAdmin() || isProf())) {
     container.appendChild(el("p", { class: "muted" }, "L'émargement se gère par les formateurs."));
@@ -46,7 +51,9 @@ export async function renderEmargement(container) {
     listStagiaires({ includeInactive: true }), listProfs(), getPlanning(lundi), getHalfMetaForWeek(lundi),
     getJoursOff(lundi), listEmargementSeances(lundi, jourDe(lundi, 4)), getEnteteEmargement(),
   ]);
+  if (jeton !== rendu) return;
   const ctx = {
+    jeton,
     container, jour, demi, lundi, aujourdhui, stagiairesTous, profs, entries, metas, joursOff, seances, entete,
     promo: getPromoCourante(),
   };
@@ -66,6 +73,7 @@ async function recharger(ctx) {
   const [seances, entries] = await Promise.all([
     listEmargementSeances(ctx.lundi, jourDe(ctx.lundi, 4)), getPlanning(ctx.lundi),
   ]);
+  if (ctx.jeton !== rendu) return;
   ctx.seances = seances;
   ctx.entries = entries;
   dessiner(ctx);
@@ -240,7 +248,7 @@ function dessinerSeance(ctx) {
   ));
   if (ouverte && !duJour) {
     page.appendChild(el("p", { class: "em-alerte" },
-      "Cette feuille date d'un autre jour : plus personne ne peut la signer. Signe-la si ce n'est pas fait, puis clos-la."));
+      "Cette feuille date d'un autre jour : les stagiaires ne peuvent plus la signer. Signe-la si ce n'est pas fait, puis clos-la."));
   }
 
   const ul = el("ul", { class: "em-liste" });
@@ -276,7 +284,7 @@ function dessinerSeance(ctx) {
   }
   page.appendChild(ul);
 
-  dessinerFormateurs(ctx, s, { ouverte, duJour });
+  dessinerFormateurs(ctx, s, { ouverte });
 
   const pied = el("div", { class: "em-pied" });
   pied.appendChild(el("button", { class: "btn", type: "button",
@@ -334,16 +342,20 @@ function dessinerOuverture(ctx, { off }) {
   ));
 }
 
-function dessinerFormateurs(ctx, s, { ouverte, duJour }) {
+function dessinerFormateurs(ctx, s, { ouverte }) {
   const bloc = el("div", { class: "em-formateurs" }, el("h3", {}, "Formateur"));
   for (const f of s.formateurs) {
     bloc.appendChild(el("div", { class: "em-formateur" },
       el("div", { class: "em-ligne-sig" }, rendreSignature(f.trace, { titre: "Signature de " + f.nom })),
       el("div", { class: "em-ligne-corps" },
         el("span", { class: "em-ligne-nom" }, f.nom),
-        el("span", { class: "em-ligne-etat" }, "Signé à " + heureLocale(f.signe_le)))));
+        el("span", { class: "em-ligne-etat" }, jourLocal(f.signe_le) === s.jour
+          ? "Signé à " + heureLocale(f.signe_le)
+          : "Signé le " + jourLong(jourLocal(f.signe_le), { annee: false }).toLowerCase() + " à " + heureLocale(f.signe_le)))));
   }
-  if (ouverte && duJour) {
+  // Le formateur peut signer une feuille oubliée un autre jour (heure réelle) : sans cela
+  // elle ne pourrait jamais être close.
+  if (ouverte) {
     const profil = getProfile();
     const monNom = ctx.profs.find((p) => p.id === profil?.prof_id)?.nom || null;
     const entries = ctx.entries.filter((e) => e.day_index === dayIndexDe(s.jour) && e.half_day === s.demi_journee);
@@ -447,7 +459,7 @@ function lancerRelecture(ctx) {
     try {
       const seances = await listEmargementSeances(ctx.lundi, jourDe(ctx.lundi, 4));
       const nouvelle = empreinteSemaine(seances);
-      if (nouvelle === empreinte || !location.hash.startsWith(adresse)) return;
+      if (nouvelle === empreinte || !location.hash.startsWith(adresse) || ctx.jeton !== rendu) return;
       empreinte = nouvelle;
       ctx.seances = seances;
       dessiner(ctx);

@@ -316,9 +316,12 @@ begin
   perform pg_temp.verifier('séance de la veille : signature du stagiaire refusée', r like 'REFUS P0001%', r);
   r := pg_temp.essai(f, p, format('select public.emargement_signer(%s, %s, %L)::text', s2, c_sid, t_ok));
   perform pg_temp.verifier('séance de la veille : signature sur l''appareil du formateur refusée', r like 'REFUS P0001%', r);
+  -- Feuille oubliée : le formateur peut encore la signer (heure réelle, imprimée avec sa date)
+  -- puis la clore ; sans cela elle resterait ouverte pour toujours.
   r := pg_temp.essai(f, p, format('select public.emargement_signer_formateur(%s, %L, %L)::text', s2, 'Romain', t_ok));
-  perform pg_temp.verifier('séance de la veille : signature du formateur refusée', r like 'REFUS P0001%', r);
-  insert into emargement_formateurs (seance_id, promo_id, nom, trace, signe_par) values (s2, p, 'Romain', t_ok, lower(f));
+  perform pg_temp.verifier('séance de la veille : le formateur peut encore signer', r like 'OK 2%', r);
+  perform pg_temp.verifier('séance de la veille : signature du formateur à l''heure réelle',
+    exists (select 1 from emargement_formateurs where seance_id = s2 and (signe_le at time zone 'Europe/Paris')::date = aujourdhui));
   r := pg_temp.essai(f, p, format('select public.emargement_clore(%s)::text', s2));
   perform pg_temp.verifier('séance de la veille oubliée : clôture permise', r like 'OK%', r);
   r := pg_temp.essai(f, p, format('select public.emargement_rouvrir(%s)::text', s2));

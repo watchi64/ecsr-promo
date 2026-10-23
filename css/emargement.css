@@ -65,6 +65,10 @@ body.sig-ouverte { overflow: hidden; }
 .em-bandeau-info { border-color: var(--line-strong); background: var(--bg-elev); }
 .em-bandeau-ok { border-color: var(--c-go); background: var(--c-go-soft); }
 
+/* Boutons de l'en-tête du Planning (Priorités, Émargement), côte à côte. */
+.p-entete-actions { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.p-entete-actions:empty { display: none; }
+
 /* --- Page Émargement ------------------------------------------------- */
 
 .em-page { max-width: 1100px; }
