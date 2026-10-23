@@ -16,6 +16,17 @@
 
 export const NOUVEAUTES = [
   {
+    id: "2026-10-23-notes-en-formation",
+    date: "2026-10-23",
+    pour: "tous",
+    titre: "Les moyennes de la classe ne comptent que les stagiaires en formation",
+    resume: "Dans Notes, la synthèse de la classe (moyenne, médiane, notes sous 10, moyennes par thème "
+          + "et par compétence) ne compte plus les notes des stagiaires qui ont arrêté la formation. "
+          + "La règle est écrite sous « Synthèse classe ». Le tableau de bord des formateurs donne "
+          + "désormais exactement les mêmes chiffres.",
+    ou: { label: "Notes, Synthèse classe", route: "notes" },
+  },
+  {
     id: "2026-10-23-tableau-de-bord-centre",
     date: "2026-10-23",
     pour: "formateurs",

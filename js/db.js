@@ -1,10 +1,10 @@
-import { createClient } from "../vendor/supabase-js-2.117.2.js?v=20261023b";
-import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261023b";
-import { compteDansEquite } from "./passage-rules.js?v=20261023b";
+import { createClient } from "../vendor/supabase-js-2.117.2.js?v=20261023c";
+import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261023c";
+import { compteDansEquite } from "./passage-rules.js?v=20261023c";
 import {
   ENTETE_PROMO, ENTETE_LECTURE_PROMO, promoDeLaRequete, doitPorterEntetePromo, choisirPromoInitiale, profilEffectif,
   separerChamps, CHAMPS_PROGRESSION, CHAMPS_EXAMEN, fusionnerProgression, fusionnerExamen,
-} from "./promo-rules.js?v=20261023b";
+} from "./promo-rules.js?v=20261023c";
 
 // Contexte de promo (spec multi-promo, C.1). La promo courante voyage dans l'en-tête
 // x-promo-id de chaque requête de données ; la base vérifie le droit et filtre.
@@ -921,7 +921,7 @@ export async function deleteEvaluation(id) {
   if (error) throw error;
 }
 
-// Moyennes du groupe (anonymes comprises, sans rien de nominatif), calculées par la base
+// Moyennes du groupe (anonymes comprises, abandons exclus, sans rien de nominatif), calculées par la base
 // pour les stagiaires qui ne lisent pas toutes les notes. Forme : js/notes-stats.js.
 export async function getNotesStatsGroupe() {
   const { data, error } = await supabase.rpc("notes_stats_groupe");
