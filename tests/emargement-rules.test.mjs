@@ -4,7 +4,7 @@ import {
   REPERE, TRACE_MAX, cheminDepuisTraits, cheminValide, traitsSuffisants,
   absentsDuPlanning, etatLigne, resumeSeance, libelleHeure, libelleCreneau, dureeMinutes,
   heureLocale, jourDe, lundiDe, dayIndexDe, lireAdresseEmargement, nomsFormateursProposes,
-  minutesPresence, libelleDuree,
+  minutesPresence, libelleDuree, jourFerie,
 } from "../js/emargement-rules.js";
 
 const pts = (...xy) => xy.map(([x, y]) => ({ x, y }));
@@ -148,6 +148,16 @@ test("noms proposés pour la signature du formateur", () => {
   assert.deepEqual(nomsFormateursProposes({ entries, profs, monNom: "Romain" }), ["Romain", "Claire", "Hocine"]);
   assert.deepEqual(nomsFormateursProposes({ entries, profs, monNom: null }), ["Claire", "Hocine", "Romain"]);
   assert.deepEqual(nomsFormateursProposes({ entries: [], profs, monNom: null }), []);
+});
+
+test("jours fériés (mêmes règles que le planning)", () => {
+  assert.equal(jourFerie("2026-11-01"), "Toussaint");
+  assert.equal(jourFerie("2026-11-11"), "Armistice");
+  assert.equal(jourFerie("2026-04-06"), "Lundi de Pâques");
+  assert.equal(jourFerie("2026-05-14"), "Ascension");
+  assert.equal(jourFerie("2026-05-25"), "Lundi de Pentecôte");
+  assert.equal(jourFerie("2027-03-29"), "Lundi de Pâques");
+  assert.equal(jourFerie("2026-10-26"), null);
 });
 
 test("minutes de présence d'un stagiaire sur une semaine", () => {

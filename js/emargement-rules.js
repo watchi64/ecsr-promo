@@ -176,6 +176,32 @@ function jourValide(s) {
   return !Number.isNaN(d.getTime()) && versIso(d) === s;
 }
 
+// Jours fériés nationaux (métropole), mêmes règles que js/views/planning.js
+// (frenchHolidays, non exporté) : libellé du jour, ou null.
+function paques(annee) {
+  const a = annee % 19, b = Math.floor(annee / 100), c = annee % 100;
+  const d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25);
+  const g = Math.floor((b - f + 1) / 3), h = (19 * a + b - d - g + 15) % 30;
+  const i = Math.floor(c / 4), k = c % 4, l = (32 + 2 * e + 2 * i - h - k) % 7;
+  const m = Math.floor((a + 11 * h + 22 * l) / 451);
+  const mois = Math.floor((h + l - 7 * m + 114) / 31);
+  const jour = ((h + l - 7 * m + 114) % 31) + 1;
+  return `${annee}-${String(mois).padStart(2, "0")}-${String(jour).padStart(2, "0")}`;
+}
+
+export function jourFerie(jourIso) {
+  const annee = Number(String(jourIso).slice(0, 4));
+  const fixes = {
+    "01-01": "Jour de l'an", "05-01": "Fête du Travail", "05-08": "Victoire 1945",
+    "07-14": "Fête nationale", "08-15": "Assomption", "11-01": "Toussaint",
+    "11-11": "Armistice", "12-25": "Noël",
+  };
+  if (fixes[String(jourIso).slice(5)]) return fixes[String(jourIso).slice(5)];
+  const p = paques(annee);
+  const mobiles = { [jourDe(p, 1)]: "Lundi de Pâques", [jourDe(p, 39)]: "Ascension", [jourDe(p, 50)]: "Lundi de Pentecôte" };
+  return mobiles[jourIso] || null;
+}
+
 export const DEMI_JOURNEES = ["matin", "aprem"];
 
 // "#/emargement/2026-10-26/matin" → { jour, demi } ; tout segment illisible vaut null.

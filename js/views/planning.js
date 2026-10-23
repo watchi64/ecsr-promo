@@ -12,7 +12,7 @@ import {
 import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20261022e";
 import { icon } from "../icons.js?v=20261022e";
 import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20261022e";
-import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20261022e";
+import { isAdmin, isProf, getAdminEmail } from "../auth-admin.js?v=20261022e";
 import { recordUndo } from "../undo.js?v=20261022e";
 import { getCurrentWho } from "../identity.js?v=20261022e";
 import { openBenevolesPanel, telLink } from "./benevoles.js?v=20261022e";
@@ -2822,6 +2822,13 @@ function renderInto(container) {
           title: "Qui doit passer en priorité, au tableau et en voiture",
           onClick: () => { location.hash = "#/dashboard"; } },
           icon.target(), "Priorités"), routeMasquee("dashboard"))
+      : null,
+    // Émargement (spec 2026-10-23) : page des formateurs.
+    admin || isProf()
+      ? el("button", { class: "btn small", type: "button",
+          title: "Ouvrir l'émargement du jour, imprimer les feuilles",
+          onClick: () => { location.hash = "#/emargement"; } },
+          icon.clipboard(), "Émargement")
       : null,
   ));
 

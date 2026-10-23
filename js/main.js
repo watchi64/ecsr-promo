@@ -26,6 +26,8 @@ import { renderNouveautes } from "./views/nouveautes.js?v=20261022e";
 import { libellePastille } from "./nouveautes.js?v=20261022e";
 import { renderCcp2 } from "./views/ccp2.js?v=20261022e";
 import { renderStagiaires } from "./views/stagiaires.js?v=20261022e";
+import { renderEmargement } from "./views/emargement.js?v=20261022e";
+import { initBandeauEmargement, rafraichirBandeauEmargement } from "./emargement-bandeau.js?v=20261022e";
 import { lireAdresse, pagePersonnelle } from "./route-rules.js?v=20261022e";
 import {
   peutQuitter, leverGardeSortie, majSurPlacePour, oublierMajSurPlace,
@@ -123,6 +125,7 @@ const routes = {
   notes:      renderNotes,
   ccp2:       renderCcp2,
   stagiaires: renderStagiaires,
+  emargement: renderEmargement,
   ressources: renderRessources,
   config:     renderConfig,
   nouveautes: renderNouveautes,
@@ -132,7 +135,7 @@ const routes = {
 // sur #/nouveautes depuis Accueil, et sur #/dashboard (Priorités) depuis le
 // Planning : laisser la barre sans onglet actif donnerait l'impression d'être
 // sorti de l'app.
-const ONGLET_POUR_ROUTE = { nouveautes: "home", dashboard: "planning" };
+const ONGLET_POUR_ROUTE = { nouveautes: "home", dashboard: "planning", emargement: "planning" };
 
 let lastRoute = null;
 
@@ -181,7 +184,9 @@ async function navigate({ force = false } = {}) {
   if (route === "mon-suivi" && pagePersonnelle({ formateur, stagiaireId: monStagiaireId() }) === "stagiaires") {
     try { history.replaceState(null, "", "#/stagiaires"); } catch (e) { /* ignore */ }
     route = "stagiaires";
-  } else if (route === "stagiaires" && !formateur) {
+  } else if ((route === "stagiaires" || route === "emargement") && !formateur) {
+    // Page Émargement (spec 2026-10-23) : formateurs seulement ; un stagiaire signe par
+    // le bandeau, sur n'importe quelle page.
     try { history.replaceState(null, "", "#/mon-suivi"); } catch (e) { /* ignore */ }
     route = "mon-suivi";
   }
@@ -331,7 +336,7 @@ async function bootApp() {
   initChatbot();
   majPresenceModules();
   // Le changement de rôle change l'audience, donc le compte, et ce qu'on voit des modules.
-  onAdminChange(() => { renderTabs(); majBadgeNouveautes(); majPresenceModules(); navigate({ force: true }); });
+  onAdminChange(() => { renderTabs(); majBadgeNouveautes(); majPresenceModules(); navigate({ force: true }); rafraichirBandeauEmargement(); });
   // Un module ouvert ou fermé (réglage d'un formateur, relecture au premier plan) :
   // barre, pastille et raccourcis suivent. La vue n'est rejouée que si elle vient
   // d'être fermée, pour ne pas détruire une saisie en cours.
@@ -346,6 +351,8 @@ async function bootApp() {
   window.addEventListener("nouveautes-vues", majBadgeNouveautes);
   initUndoKeyboard();
   installerGardeNavigateur();
+  // Bandeau d'émargement (signer, ou rappel d'une feuille ouverte) : relu seul ensuite.
+  initBandeauEmargement();
   // À l'ouverture, on revient sur la page quittée la dernière fois, et à défaut
   // sur « Mon suivi ». replaceState plutôt que location.hash : pas de
   // `hashchange` (donc pas de double rendu avec le navigate() ci-dessous) et pas
