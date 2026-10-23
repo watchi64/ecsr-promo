@@ -94,8 +94,10 @@ Ce qui compte pour Timy et les centres :
 7. **Rouvrir** : le jour même seulement ; les absences posées par la clôture s'effacent, les
    autres restent.
 
-Règle unique de temps : toute signature se fait le jour de la séance (heure de Paris), et
-l'heure enregistrée est celle du serveur.
+Règle de temps : un stagiaire ne signe que le jour de la séance (heure de Paris) ; l'heure
+enregistrée est toujours celle du serveur. Exception (relecture du 23/10) : le formateur peut
+encore signer une feuille oubliée un autre jour, à l'heure réelle imprimée avec sa date, pour
+pouvoir la clore.
 
 ### 4.2 Base (migration `20261023_emargement.sql`)
 
