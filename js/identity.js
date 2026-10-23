@@ -2,7 +2,7 @@
  * Identité : auth-driven (post refonte invitation).
  * Plus de prénom anonyme en localStorage : l'identité vient du profil Supabase.
  */
-import { getProfileWho, getAdminEmail } from "./auth-admin.js?v=20261022e";
+import { getProfileWho, getAdminEmail } from "./auth-admin.js?v=20261023a";
 
 /** Renvoie un identifiant lisible pour la personne courante. */
 export function getCurrentWho() {

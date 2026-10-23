@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import {
   ENTETE_PROMO, doitPorterEntetePromo, choisirPromoInitiale, libelleCourtPromo, resumePromo, profilEffectif,
   CHAMPS_PROGRESSION, CHAMPS_EXAMEN, separerChamps, fusionnerProgression, fusionnerExamen,
+  ENTETE_LECTURE_PROMO, promoDeLaRequete,
 } from "../js/promo-rules.js";
 
 const SB = "https://exemple.supabase.co";
@@ -213,4 +214,34 @@ assert.equal(ouvert.exam_draw_mode, "manual");
 assert.deepEqual([...CHAMPS_EXAMEN].sort(), ["exam_draw_mode", "exam_ferme_a", "exam_nb_questions",
   "exam_question_ids", "exam_seconds_per_question", "published", "published_at", "published_by_email"]);
 
-console.log("promo-rules : 116 assertions OK");
+// Lecture d'une promo choisie (tableau de bord du centre) : l'en-tête interne x-promo-lecture
+// n'est honoré que pour une lecture vers une promo de la liste ; sinon refus, jamais de repli
+// silencieux sur la promo courante (les chiffres seraient étiquetés d'une autre promo).
+assert.equal(ENTETE_LECTURE_PROMO, "x-promo-lecture");
+const ACC = [1, 2, 7];
+assert.deepEqual(promoDeLaRequete({ methode: "GET", demandee: null, courante: 1, accessibles: ACC }),
+  { promo: 1, erreur: null });
+assert.deepEqual(promoDeLaRequete({ methode: "POST", demandee: null, courante: 2, accessibles: ACC }),
+  { promo: 2, erreur: null });
+assert.deepEqual(promoDeLaRequete({ methode: "GET", demandee: "7", courante: 1, accessibles: ACC }),
+  { promo: 7, erreur: null });
+assert.deepEqual(promoDeLaRequete({ methode: "get", demandee: "2", courante: 1, accessibles: ACC }),
+  { promo: 2, erreur: null });
+assert.deepEqual(promoDeLaRequete({ methode: "HEAD", demandee: "2", courante: 1, accessibles: ACC }),
+  { promo: 2, erreur: null });
+assert.deepEqual(promoDeLaRequete({ methode: undefined, demandee: "2", courante: 1, accessibles: ACC }),
+  { promo: 2, erreur: null });
+for (const m of ["POST", "PATCH", "DELETE", "PUT"]) {
+  const r = promoDeLaRequete({ methode: m, demandee: "2", courante: 1, accessibles: ACC });
+  assert.equal(r.promo, null);
+  assert.ok(r.erreur, m + " avec en-tête de lecture : refus");
+}
+for (const d of ["5", "abc", "", "2.5", "-1"]) {
+  const r = promoDeLaRequete({ methode: "GET", demandee: d, courante: 1, accessibles: ACC });
+  assert.equal(r.promo, null, "promo demandée « " + d + " » : aucune");
+  assert.ok(r.erreur, "promo demandée « " + d + " » : refus");
+}
+assert.deepEqual(promoDeLaRequete({ methode: "GET", demandee: null, courante: null, accessibles: [] }),
+  { promo: null, erreur: null });
+
+console.log("promo-rules : 116 assertions OK, plus la lecture par promo");

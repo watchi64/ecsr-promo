@@ -1,10 +1,10 @@
-import { createClient } from "../vendor/supabase-js-2.117.2.js?v=20261022e";
-import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261022e";
-import { compteDansEquite } from "./passage-rules.js?v=20261022e";
+import { createClient } from "../vendor/supabase-js-2.117.2.js?v=20261023a";
+import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261023a";
+import { compteDansEquite } from "./passage-rules.js?v=20261023a";
 import {
-  ENTETE_PROMO, doitPorterEntetePromo, choisirPromoInitiale, profilEffectif,
+  ENTETE_PROMO, ENTETE_LECTURE_PROMO, promoDeLaRequete, doitPorterEntetePromo, choisirPromoInitiale, profilEffectif,
   separerChamps, CHAMPS_PROGRESSION, CHAMPS_EXAMEN, fusionnerProgression, fusionnerExamen,
-} from "./promo-rules.js?v=20261022e";
+} from "./promo-rules.js?v=20261023a";
 
 // Contexte de promo (spec multi-promo, C.1). La promo courante voyage dans l'en-tête
 // x-promo-id de chaque requête de données ; la base vérifie le droit et filtre.
@@ -26,6 +26,26 @@ function fetchWithTimeout(input, init = {}) {
   if (requetesBloquees && doitPorterEntetePromo(url, SUPABASE_URL)) {
     return Promise.reject(new Error("Rechargement en cours"));
   }
+  // En-tête de promo : seulement vers l'API de données (cf. promo-rules.js). La promo est la
+  // courante, sauf pour une lecture qui en demande une autre par l'en-tête interne
+  // x-promo-lecture (tableau de bord du centre), toujours retiré avant l'envoi.
+  let options = init;
+  if (doitPorterEntetePromo(url, SUPABASE_URL)) {
+    const estRequete = typeof Request !== "undefined" && input instanceof Request;
+    // Un Request garde ses propres en-têtes (apikey, Authorization) s'il n'y en a pas dans init.
+    const entetes = new Headers(init.headers || (estRequete ? input.headers : {}));
+    const demandee = entetes.get(ENTETE_LECTURE_PROMO);
+    entetes.delete(ENTETE_LECTURE_PROMO);
+    const { promo, erreur } = promoDeLaRequete({
+      methode: init.method || (estRequete ? input.method : "GET"),
+      demandee,
+      courante: promoCouranteId,
+      accessibles: mesPromos.map((p) => p.id),
+    });
+    if (erreur) return Promise.reject(new Error(erreur));
+    if (promo != null) entetes.set(ENTETE_PROMO, String(promo));
+    if (promo != null || demandee != null) options = { ...init, headers: entetes };
+  }
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 15000);
   // Si un signal externe existe déjà (rare), on le respecte aussi
@@ -33,15 +53,6 @@ function fetchWithTimeout(input, init = {}) {
   if (externalSignal) {
     if (externalSignal.aborted) controller.abort();
     else externalSignal.addEventListener("abort", () => controller.abort(), { once: true });
-  }
-  // En-tête de promo : seulement vers l'API de données (cf. promo-rules.js).
-  let options = init;
-  if (promoCouranteId != null && doitPorterEntetePromo(url, SUPABASE_URL)) {
-    // Un Request garde ses propres en-têtes (apikey, Authorization) s'il n'y en a pas dans init.
-    const entetes = new Headers(init.headers
-      || (typeof Request !== "undefined" && input instanceof Request ? input.headers : {}));
-    entetes.set(ENTETE_PROMO, String(promoCouranteId));
-    options = { ...init, headers: entetes };
   }
   return fetch(input, { ...options, signal: controller.signal })
     .finally(() => clearTimeout(timeoutId));
@@ -1524,6 +1535,49 @@ export async function getSalleAggregats() {
     map[p.stagiaire_id] = (map[p.stagiaire_id] || 0) + 1;
   });
   return map;
+}
+
+// --- Tableau de bord du centre ---
+// Lectures du personnel pour une promo choisie (courante ou autre promo accessible, cf.
+// promoDeLaRequete) : la base filtre chaque table sur l'en-tête x-promo-id et vérifie le droit.
+
+// PostgREST rend au plus 1 000 lignes par réponse : on lit par pages jusqu'à une page incomplète.
+async function toutesLesLignes(fabrique) {
+  const PAGE = 1000;
+  const lignes = [];
+  for (let debut = 0; ; debut += PAGE) {
+    const { data, error } = await fabrique().range(debut, debut + PAGE - 1);
+    if (error) throw error;
+    lignes.push(...(data || []));
+    if (!data || data.length < PAGE) return lignes;
+  }
+}
+
+// promoId nul (liste des promos non chargée) : promo courante, sans en-tête de lecture.
+export async function lireDonneesCentre(promoId) {
+  const lire = (table, colonnes, ordre) => toutesLesLignes(() => {
+    const q = supabase.from(table).select(colonnes).order(ordre);
+    return promoId == null ? q : q.setHeader(ENTETE_LECTURE_PROMO, String(promoId));
+  });
+  const [stagiaires, passages, evaluations, tentatives, epcf] = await Promise.all([
+    lire("stagiaires", "id, prenom, nom, actif, ordre, anonymise_le", "id"),
+    lire("passages", "id, stagiaire_id, type, resultat, date", "id"),
+    lire("evaluations", "id, stagiaire_id, type, theme_numero, competence_code, controle_libelle, note, note_max, date_eval", "id"),
+    lire("qcm_attempts", "id, qcm_id, stagiaire_id, mode, score, total, note_20, finished_at", "id"),
+    lire("epcf_evaluations", "id, stagiaire_id, trame, contexte, auto_eval, date_eval, scores", "id"),
+  ]);
+  return { stagiaires, passages, evaluations, tentatives, epcf };
+}
+
+// Référentiel commun à toutes les promos : QCM (thème, seuil d'examen) et thèmes.
+export async function lireReferentielCentre() {
+  return cachedQuery("referentiel_centre", async () => {
+    const [qcm, themes] = await Promise.all([
+      toutesLesLignes(() => supabase.from("qcm").select("id, theme_id, titre, exam_pass_20").order("id")),
+      toutesLesLignes(() => supabase.from("themes").select("id, numero, titre, type").order("id")),
+    ]);
+    return { qcm, themes };
+  });
 }
 
 // --- Signalements sur les questions de QCM ---

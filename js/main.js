@@ -2,40 +2,41 @@
  * Promo ECSR : application propriétaire.
  * © 2026 watchi64. Tous droits réservés. Voir LICENSE.
  */
-import { getCurrentUser, invalidateCache, verifyRecoveryToken } from "./db.js?v=20261022e";
-import { toast } from "./utils.js?v=20261022e";
-import { icon } from "./icons.js?v=20261022e";
-import { initAuth, onAdminChange, isAuth, isAdmin, isProf, monStagiaireId, getAdminEmail, getProfile } from "./auth-admin.js?v=20261022e";
-import { showGate, hideGate } from "./gate.js?v=20261022e";
-import { exigerAcceptation } from "./legal.js?v=20261022e";
-import { lireJetonRecuperation } from "./gate-rules.js?v=20261022e";
-import { loadAccent } from "./accent-switcher.js?v=20261022e";
-import { loadTheme } from "./theme-switcher.js?v=20261022e";
-import { renderHome } from "./views/home.js?v=20261022e";
-import { renderDashboard } from "./views/dashboard.js?v=20261022e";
-import { renderMonSuivi } from "./views/mon-suivi.js?v=20261022e";
-import { renderPlanning, teardownPrintTarget, resetPlanningEditMode, requestPlanningToday } from "./views/planning.js?v=20261022e";
-import { teardownDocPrint } from "./doc-officiel.js?v=20261022e";
-import { renderNotes } from "./views/notes.js?v=20261022e";
-import { renderRessources } from "./views/ressources.js?v=20261022e";
-import { renderThemes } from "./views/themes.js?v=20261022e";
-import { renderConfig } from "./views/config.js?v=20261022e";
-import { renderCalendrier } from "./views/calendrier.js?v=20261022e";
-import { initUndoKeyboard } from "./undo.js?v=20261022e";
-import { renderNouveautes } from "./views/nouveautes.js?v=20261022e";
-import { libellePastille } from "./nouveautes.js?v=20261022e";
-import { renderCcp2 } from "./views/ccp2.js?v=20261022e";
-import { renderStagiaires } from "./views/stagiaires.js?v=20261022e";
-import { lireAdresse, pagePersonnelle } from "./route-rules.js?v=20261022e";
+import { getCurrentUser, invalidateCache, verifyRecoveryToken } from "./db.js?v=20261023a";
+import { toast } from "./utils.js?v=20261023a";
+import { icon } from "./icons.js?v=20261023a";
+import { initAuth, onAdminChange, isAuth, isAdmin, isProf, monStagiaireId, getAdminEmail, getProfile } from "./auth-admin.js?v=20261023a";
+import { showGate, hideGate } from "./gate.js?v=20261023a";
+import { exigerAcceptation } from "./legal.js?v=20261023a";
+import { lireJetonRecuperation } from "./gate-rules.js?v=20261023a";
+import { loadAccent } from "./accent-switcher.js?v=20261023a";
+import { loadTheme } from "./theme-switcher.js?v=20261023a";
+import { renderHome } from "./views/home.js?v=20261023a";
+import { renderDashboard } from "./views/dashboard.js?v=20261023a";
+import { renderMonSuivi } from "./views/mon-suivi.js?v=20261023a";
+import { renderPlanning, teardownPrintTarget, resetPlanningEditMode, requestPlanningToday } from "./views/planning.js?v=20261023a";
+import { teardownDocPrint } from "./doc-officiel.js?v=20261023a";
+import { renderNotes } from "./views/notes.js?v=20261023a";
+import { renderRessources } from "./views/ressources.js?v=20261023a";
+import { renderThemes } from "./views/themes.js?v=20261023a";
+import { renderConfig } from "./views/config.js?v=20261023a";
+import { renderCalendrier } from "./views/calendrier.js?v=20261023a";
+import { initUndoKeyboard } from "./undo.js?v=20261023a";
+import { renderNouveautes } from "./views/nouveautes.js?v=20261023a";
+import { libellePastille } from "./nouveautes.js?v=20261023a";
+import { renderCcp2 } from "./views/ccp2.js?v=20261023a";
+import { renderStagiaires } from "./views/stagiaires.js?v=20261023a";
+import { renderCentre, teardownCentrePrint } from "./views/centre.js?v=20261023a";
+import { lireAdresse, pagePersonnelle } from "./route-rules.js?v=20261023a";
 import {
   peutQuitter, leverGardeSortie, majSurPlacePour, oublierMajSurPlace,
   noterAdresse, adresseCourante, remplacerAdresse, installerGardeNavigateur,
-} from "./navigation.js?v=20261022e";
-import { initChatbot, appliquerModuleAssistant } from "./chatbot.js?v=20261022e";
+} from "./navigation.js?v=20261023a";
+import { initChatbot, appliquerModuleAssistant } from "./chatbot.js?v=20261023a";
 import {
   chargerModules, chargerModulesAuDemarrage, onModulesChange, surveillerPremierPlan,
   routeVisible, routeMasquee, repereMasque, nouveautesAffichables,
-} from "./modules-etat.js?v=20261022e";
+} from "./modules-etat.js?v=20261023a";
 
 // ===== Tabs =====
 
@@ -123,6 +124,7 @@ const routes = {
   notes:      renderNotes,
   ccp2:       renderCcp2,
   stagiaires: renderStagiaires,
+  centre:     renderCentre,
   ressources: renderRessources,
   config:     renderConfig,
   nouveautes: renderNouveautes,
@@ -132,7 +134,7 @@ const routes = {
 // sur #/nouveautes depuis Accueil, et sur #/dashboard (Priorités) depuis le
 // Planning : laisser la barre sans onglet actif donnerait l'impression d'être
 // sorti de l'app.
-const ONGLET_POUR_ROUTE = { nouveautes: "home", dashboard: "planning" };
+const ONGLET_POUR_ROUTE = { nouveautes: "home", dashboard: "planning", centre: "home" };
 
 let lastRoute = null;
 
@@ -181,7 +183,7 @@ async function navigate({ force = false } = {}) {
   if (route === "mon-suivi" && pagePersonnelle({ formateur, stagiaireId: monStagiaireId() }) === "stagiaires") {
     try { history.replaceState(null, "", "#/stagiaires"); } catch (e) { /* ignore */ }
     route = "stagiaires";
-  } else if (route === "stagiaires" && !formateur) {
+  } else if ((route === "stagiaires" || route === "centre") && !formateur) {
     try { history.replaceState(null, "", "#/mon-suivi"); } catch (e) { /* ignore */ }
     route = "mon-suivi";
   }
@@ -213,6 +215,8 @@ async function navigate({ force = false } = {}) {
   // Idem pour les documents officiels, livret EPCF et Dossier Professionnel
   // (re-montés à l'ouverture d'un document).
   teardownDocPrint();
+  // Et pour le tableau de bord du centre (format A4 portrait injecté le temps d'imprimer).
+  teardownCentrePrint();
   try {
     await routes[route](view);
   } catch (e) {
