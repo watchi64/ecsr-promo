@@ -97,3 +97,141 @@ export function signatureFictive(graine, variation = 0) {
   traits = traits.map((t) => t.map((p) => ({ x: (p.x - minX) * k + ox, y: (p.y - minY) * k + oy })));
   return cheminDepuisTraits(traits, REPERE);
 }
+
+// ===================================================================== Migration
+// node scripts/emargement-demo.mjs : écrit supabase/migrations/20261023_emargement_demo.sql,
+// les feuilles des semaines du 12 et du 19 octobre de la promo 7 « Démonstration (données
+// fictives) ». Personnes fictives de cette promo, retrouvées par nom (jamais par id).
+
+const STAGIAIRES_DEMO = [
+  ["Camille", "Martin"], ["Lucas", "Bernard"], ["Inès", "Moreau"], ["Julien", "Petit"],
+  ["Sarah", "Laurent"], ["Mehdi", "Garcia"], ["Laura", "Roux"], ["Thomas", "Fournier"],
+  ["Nadia", "Girard"], ["Kevin", "Mercier"],
+];
+const FORMATEURS_DEMO = ["Claire", "Marc"];
+const VARIANTES = 4;
+const HORAIRES = { matin: ["09:00", "12:30"], aprem: ["13:30", "17:00"] };
+
+// Exceptions à la présence : « jour demi prénom » → ligne particulière.
+const EXCEPTIONS = {
+  "2026-10-13 matin Sarah": { absent: true, origine: "formateur", observation: "Absence justifiée (certificat médical)" },
+  "2026-10-13 aprem Sarah": { absent: true, origine: "formateur", observation: "Absence justifiée (certificat médical)" },
+  "2026-10-15 matin Lucas": { retard: 40, observation: "Arrivé à 9h40" },
+  "2026-10-15 aprem Kevin": { absent: true, origine: "non_signe" },
+  "2026-10-19 matin Kevin": { absent: true, origine: "formateur", observation: "Absence non justifiée" },
+  "2026-10-20 aprem Nadia": { appareil: true, observation: "Téléphone déchargé : signé sur l'appareil du formateur" },
+  "2026-10-21 aprem Kevin": { absent: true, origine: "non_signe" },
+  "2026-10-23 aprem Mehdi": { depart: true, observation: "Parti à 15h30 (rendez-vous médical)" },
+};
+
+const sql = (v) => (v === null || v === undefined ? "null" : typeof v === "string" ? "'" + v.replace(/'/g, "''") + "'" : String(v));
+
+export function migrationDemo() {
+  const jours = [];
+  for (const lundi of ["2026-10-12", "2026-10-19"]) {
+    for (let d = 0; d < 5; d++) {
+      const date = new Date(lundi + "T00:00:00Z");
+      date.setUTCDate(date.getUTCDate() + d);
+      jours.push(date.toISOString().slice(0, 10));
+    }
+  }
+  const seances = jours.flatMap((jour) => ["matin", "aprem"].map((demi) => ({ jour, demi })));
+  const traces = [];
+  for (const [prenom, nom] of STAGIAIRES_DEMO) {
+    for (let v = 0; v < VARIANTES; v++) traces.push([prenom + " " + nom, v, signatureFictive(prenom + " " + nom, v)]);
+  }
+  for (const f of FORMATEURS_DEMO) for (let v = 0; v < VARIANTES; v++) traces.push([f, v, signatureFictive(f, v)]);
+
+  const lignes = [];
+  seances.forEach(({ jour, demi }, i) => {
+    STAGIAIRES_DEMO.forEach(([prenom, nom], rang) => {
+      const e = EXCEPTIONS[`${jour} ${demi} ${prenom}`] || {};
+      // Arrivées étalées : 2 à 22 minutes après le début, jamais deux fois le même ordre.
+      const minute = e.retard ?? (2 + ((rang * 7 + i * 3) % 21));
+      lignes.push([jour, demi, prenom, nom, (i + rang) % VARIANTES, minute, !!e.appareil, !!e.absent,
+        e.absent ? e.origine : null, e.observation || null]);
+    });
+  });
+
+  const valeurs = (rangs) => rangs.map((r) => "  (" + r.map(sql).join(", ") + ")").join(",\n");
+  return `-- Émargements fictifs de la promo de démonstration (id 7, « Démonstration (données fictives) »),
+-- pour le rendez-vous de la semaine du 26/10/2026. Écrit par scripts/emargement-demo.mjs : ne pas
+-- modifier à la main. Semaines du 12 et du 19 octobre, dix demi-journées closes chacune, signatures
+-- générées (aucune donnée réelle). Gardée : sans la promo 7, ou si elle a déjà des feuilles, rien
+-- n'est écrit. Ménage : 20261023_emargement_demo_retour.sql (ou la suppression de la promo 7).
+set local lock_timeout = '3s';
+
+do $garde$
+begin
+  if not exists (select 1 from public.promos where id = 7 and nom like 'Démonstration%') then
+    raise exception 'Promo de démonstration (id 7) introuvable : rien n''est écrit.';
+  end if;
+  if exists (select 1 from public.emargement_seances where promo_id = 7) then
+    raise exception 'La promo de démonstration a déjà des feuilles d''émargement : rien n''est écrit.';
+  end if;
+end $garde$;
+
+create temp table demo_traces (cle text, variante integer, trace text) on commit drop;
+insert into demo_traces values
+${valeurs(traces)};
+
+create temp table demo_lignes (jour date, demi text, prenom text, nom text, variante integer, minute integer,
+  appareil boolean, absent boolean, origine text, observation text) on commit drop;
+insert into demo_lignes values
+${valeurs(lignes)};
+
+insert into public.emargement_seances (promo_id, jour, demi_journee, debut, fin, statut, ouverte_le, ouverte_par, close_le, close_par)
+select distinct 7, l.jour, l.demi, h.debut, h.fin, 'close',
+       ((l.jour + h.debut::time) at time zone 'Europe/Paris') - interval '4 minutes', 'demonstration',
+       ((l.jour + h.fin::time) at time zone 'Europe/Paris') + interval '3 minutes', 'demonstration'
+  from demo_lignes l
+  join (values ('matin', '${HORAIRES.matin[0]}', '${HORAIRES.matin[1]}'), ('aprem', '${HORAIRES.aprem[0]}', '${HORAIRES.aprem[1]}')) h(demi, debut, fin)
+    on h.demi = l.demi;
+
+insert into public.emargement_lignes (seance_id, promo_id, stagiaire_id, trace, signe_le, signe_par,
+  sur_appareil_formateur, absent, absence_origine, observation, maj_le, maj_par)
+select s.id, 7, st.id,
+       case when l.absent then null else t.trace end,
+       case when l.absent then null
+            else ((s.jour + s.debut::time) at time zone 'Europe/Paris') + l.minute * interval '1 minute' end,
+       case when l.absent then null else 'demonstration' end,
+       l.appareil, l.absent, l.origine, l.observation, s.close_le, 'demonstration'
+  from demo_lignes l
+  join public.emargement_seances s on s.promo_id = 7 and s.jour = l.jour and s.demi_journee = l.demi
+  join public.stagiaires st on st.promo_id = 7 and st.prenom = l.prenom and st.nom = l.nom
+  join demo_traces t on t.cle = l.prenom || ' ' || l.nom and t.variante = l.variante;
+
+insert into public.emargement_formateurs (seance_id, promo_id, nom, prof_id, trace, signe_le, signe_par)
+select s.id, 7, f.nom, null, t.trace,
+       ((s.jour + s.fin::time) at time zone 'Europe/Paris') - f.avance * interval '1 minute', 'demonstration'
+  from public.emargement_seances s
+  cross join (values ('Claire', 6), ('Marc', 4)) f(nom, avance)
+  join demo_traces t on t.cle = f.nom
+   and t.variante = (extract(day from s.jour)::integer + case when s.demi_journee = 'aprem' then 1 else 0 end) % ${VARIANTES}
+ where s.promo_id = 7;
+
+insert into public.settings (key, value, promo_id, updated_at)
+values ('emargement_entete',
+        '{"organisme":"ECF (centre de démonstration)","intitule":"Titre professionnel Enseignant de la conduite et de la sécurité routière (ECSR)"}',
+        7, now())
+on conflict (promo_id, key) do nothing;
+
+do $controle$
+declare n_s integer; n_l integer; n_f integer;
+begin
+  select count(*) into n_s from public.emargement_seances where promo_id = 7;
+  select count(*) into n_l from public.emargement_lignes where promo_id = 7;
+  select count(*) into n_f from public.emargement_formateurs where promo_id = 7;
+  if n_s <> ${seances.length} or n_l <> ${lignes.length} or n_f <> ${seances.length * FORMATEURS_DEMO.length} then
+    raise exception 'Démonstration incomplète : % feuilles, % lignes, % signatures de formateurs', n_s, n_l, n_f;
+  end if;
+end $controle$;
+`;
+}
+
+if (typeof process !== "undefined" && process.argv?.[1] && import.meta.url.endsWith(process.argv[1].replace(/\\/g, "/").split("/").pop())) {
+  const { writeFileSync } = await import("node:fs");
+  const chemin = "supabase/migrations/20261023_emargement_demo.sql";
+  writeFileSync(chemin, migrationDemo());
+  console.log("écrit :", chemin);
+}
