@@ -16,6 +16,23 @@
 
 export const NOUVEAUTES = [
   {
+    id: "2026-10-23-tableau-de-bord-centre",
+    date: "2026-10-23",
+    pour: "formateurs",
+    titre: "Un tableau de bord du centre, promo par promo",
+    resume: "Une nouvelle page réunit les chiffres d'une promo : effectif, taux d'abandon, absences aux "
+          + "passages, passages réalisés, QCM, examens, notes et EPCF, les thèmes où la promo échoue le "
+          + "plus et les stagiaires à suivre de près. Chaque chiffre dit comment il est calculé et s'il est "
+          + "mesuré ou estimé. Les promos se comparent côte à côte, la page s'imprime en PDF et la matrice "
+          + "des notes se télécharge pour Excel, avec ou sans les noms.",
+    ou: { label: "Accueil, tuile Tableau de bord", route: "centre" },
+    guide: [
+      "Ouvre l'Accueil, puis la tuile « Tableau de bord ».",
+      "Touche « Méthode » sous un chiffre pour voir son calcul.",
+      "« Exporter en PDF » pour l'imprimer ; « Matrice des notes (CSV) » pour l'ouvrir dans Excel.",
+    ],
+  },
+  {
     id: "2026-10-15-avis-stagiaires",
     date: "2026-10-15",
     pour: "formateurs",

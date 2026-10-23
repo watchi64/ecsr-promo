@@ -25,6 +25,26 @@ export function doitPorterEntetePromo(url, supabaseUrl) {
   }
 }
 
+// Lecture d'une promo choisie (tableau de bord du centre, comparaison des promos). Une requête
+// qui porte cet en-tête INTERNE (retiré avant l'envoi) lit la promo demandée au lieu de la
+// courante. Seulement en lecture et vers une promo de la liste : sinon refus, jamais de repli
+// sur la promo courante, qui ferait afficher ses chiffres sous le nom d'une autre. La base
+// reste juge du droit (promo_courante() vérifie l'en-tête x-promo-id).
+export const ENTETE_LECTURE_PROMO = "x-promo-lecture";
+
+export function promoDeLaRequete({ methode, demandee, courante, accessibles }) {
+  if (demandee == null) return { promo: courante ?? null, erreur: null };
+  const verbe = String(methode || "GET").toUpperCase();
+  if (verbe !== "GET" && verbe !== "HEAD") {
+    return { promo: null, erreur: "Lecture d'une autre promo : écriture refusée." };
+  }
+  const id = /^[0-9]{1,9}$/.test(String(demandee)) ? Number(demandee) : NaN;
+  if (!(accessibles || []).includes(id)) {
+    return { promo: null, erreur: "Lecture d'une autre promo : promo inaccessible." };
+  }
+  return { promo: id, erreur: null };
+}
+
 // Promo de départ : celle mémorisée sur l'appareil si elle est toujours accessible,
 // sinon celle que la base marque par défaut, sinon la première de la liste.
 export function choisirPromoInitiale(promos, memorisee) {

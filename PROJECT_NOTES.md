@@ -425,6 +425,30 @@ Spec et plans dans le dépôt ECSR : `docs/superpowers/specs/2026-10-03-cours-co
   n'est visible et modifiable que du fondateur (`is_founder()`, un seul compte) ; Timy vérifie chaque cours, un par un,
   puis le publie lui-même. Publié, il suit les règles des autres cours. L'assistant ne cite que les cours publiés.
 
+## Tableau de bord du centre (23/10/2026)
+
+Spec : `docs/superpowers/specs/2026-10-23-tableau-de-bord-centre-design.md` · plan :
+`docs/superpowers/plans/2026-10-23-tableau-de-bord-centre.md`.
+
+- **Page** `#/centre` (`js/views/centre.js`), personnel seulement (même porte que Stagiaires), tuile
+  « Tableau de bord » de l'Accueil, `ONGLET_POUR_ROUTE.centre = "home"`. Aucune migration.
+- **Calculs purs** : `js/centre-stats.js` (indicateurs `{ valeur, detail, nature, methode, n }`, thèmes,
+  signaux ; `node tests/centre-stats.test.mjs`) et `js/centre-csv.js` (matrice des notes pour Excel ;
+  `node tests/centre-csv.test.mjs`). Les textes de méthode sont dans `METHODES` : les modifier là.
+  Tout sauf l'effectif et les abandons porte sur les stagiaires en formation (fiches actives).
+- **Lire une autre promo** : `lireDonneesCentre(promoId)` pose l'en-tête INTERNE `x-promo-lecture` ;
+  `fetchWithTimeout` le retire toujours et, par `promoDeLaRequete` (`js/promo-rules.js`), le traduit en
+  `x-promo-id` pour une lecture vers une promo de `mes_promos()`. Écriture ou promo hors liste : refus,
+  jamais de repli sur la promo courante. La base reste juge (`promo_courante()`).
+- **PDF** : `@page A4 portrait` injectée au clic et retirée à `afterprint` et dans `navigate()`
+  (`teardownCentrePrint`), comme les documents officiels.
+- **Banc** : `_harness.html?role=prof&centre=1&demo=1` charge la promo de démonstration (données fictives
+  exportées en lecture seule dans `_banc_centre_demo.js`, non versionné) ; `&abandon=<id>` passe une
+  fiche en abandon, `&fragile=<id>` lui donne deux absences et trois notes basses. Le faux client honore
+  `setHeader("x-promo-lecture")` et `.range()`.
+- **Limites dites sur la page** : pas de date d'abandon en base ; absences = seulement les passages
+  prévus (l'émargement couvrira la présence) ; réussite au titre non saisie.
+
 ## Émargement signé (octobre 2026)
 
 Spec : `docs/superpowers/specs/2026-10-23-emargement-design.md` · plan :
@@ -452,7 +476,7 @@ Spec : `docs/superpowers/specs/2026-10-23-emargement-design.md` · plan :
   ni tuile, ni bouton, ni bandeau (aucune lecture périodique), page renvoyée à l'Accueil, et
   `emargement_ouvrir` refuse. Pas un module (route du socle) : les modules ne cachent rien aux formateurs.
 - **Nouveautés** : aucune entrée tant qu'aucune vraie promo n'est allumée ; texte prêt dans la spec (§ 4.4).
-- **Preuve** : `tests/sql/emargement-preuve.sql` (71 contrôles, verdict dans l'exception finale, rien
+- **Preuve** : `tests/sql/emargement-preuve.sql` (73 contrôles, verdict dans l'exception finale, rien
   n'est écrit ; rougit si l'on retire la règle de lecture, le déclencheur ou un refus d'écriture).
 - **Démonstration** : `20261023_emargement_demo.sql` (généré par `node scripts/emargement-demo.mjs`) pose
   les feuilles fictives des semaines du 12 et du 19 octobre de la promo 7 et allume son interrupteur.
