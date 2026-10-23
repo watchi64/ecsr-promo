@@ -6,9 +6,9 @@
  * la planche des voyants groupés par couleur avec leur conduite à tenir (voyants), et l'autotest du combiné d'instruments à
  * la mise du contact (autotest, animé). Sources, références et choix de dessin : sources/dessins-voyants.js.
  */
-import { n } from "./dessin-svg.js?v=20261023c";
-import { CHARTE, COULEURS_VOYANTS, SYMBOLE_FREIN, SYMBOLE_TEMPERATURE, vagueSymbole, METRIQUES_POLICE, cadre, texte, fleche, coord as ecrit, point as pt, trace, entre } from "./dessins-kit.js?v=20261023c";
-import { adoucir, sortieDouce, avancement } from "./animation-courbes.js?v=20261023c";
+import { n } from "./dessin-svg.js?v=20261023d";
+import { CHARTE, COULEURS_VOYANTS, SYMBOLE_FREIN, SYMBOLE_TEMPERATURE, vagueSymbole, METRIQUES_POLICE, cadre, texte, fleche, coord as ecrit, point as pt, trace, entre } from "./dessins-kit.js?v=20261023d";
+import { adoucir, sortieDouce, avancement } from "./animation-courbes.js?v=20261023d";
 
 // ------------------------------------------------------------------------------------------------ Couleurs et tons
 
@@ -647,4 +647,4 @@ function autotest() {
 
 export const DESSINS = { voyants: planche };
 export const GESTES = { autotest: { construire: autotest } };
-export { versDom } from "./dessin-svg.js?v=20261023c";
+export { versDom } from "./dessin-svg.js?v=20261023d";

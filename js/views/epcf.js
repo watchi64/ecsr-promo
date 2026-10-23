@@ -5,13 +5,13 @@
 //    véhicule ; chez un formateur, la saisie (Évaluer, Modifier, Nouvelle évaluation).
 // L'écriture reste réservée par la base aux formateurs et aux admins.
 
-import { listProfs, listEpcf, upsertEpcf, getEpcfMoyennes } from "../db.js?v=20261023c";
-import { el, clear, isoDate, formatDate, displayStagiaire, toast } from "../utils.js?v=20261023c";
-import { getProfile } from "../auth-admin.js?v=20261023c";
-import { getCurrentWho } from "../identity.js?v=20261023c";
-import { EPCF_TRAMES, NOTE_LABELS } from "../epcf-trames.js?v=20261023c";
-import { renderEpcfTrameSection, renderEpcfClasse } from "../epcf-restitution.js?v=20261023c";
-import { poserGardeSortie, leverGardeSortie } from "../navigation.js?v=20261023c";
+import { listProfs, listEpcf, upsertEpcf, getEpcfMoyennes } from "../db.js?v=20261023d";
+import { el, clear, isoDate, formatDate, displayStagiaire, toast } from "../utils.js?v=20261023d";
+import { getProfile } from "../auth-admin.js?v=20261023d";
+import { getCurrentWho } from "../identity.js?v=20261023d";
+import { EPCF_TRAMES, NOTE_LABELS } from "../epcf-trames.js?v=20261023d";
+import { renderEpcfTrameSection, renderEpcfClasse } from "../epcf-restitution.js?v=20261023d";
+import { poserGardeSortie, leverGardeSortie } from "../navigation.js?v=20261023d";
 
 const TRAME_KEYS = ["salle", "vehicule"];
 

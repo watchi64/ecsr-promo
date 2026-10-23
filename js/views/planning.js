@@ -8,16 +8,17 @@ import {
   listBenevoles, listBenevolesNoms,
   getVoitureAggregats, listFiches, getSalleAggregats,
   avantChangementPromo,
-} from "../db.js?v=20261023c";
-import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20261023c";
-import { icon } from "../icons.js?v=20261023c";
-import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20261023c";
-import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20261023c";
-import { recordUndo } from "../undo.js?v=20261023c";
-import { getCurrentWho } from "../identity.js?v=20261023c";
-import { openBenevolesPanel, telLink } from "./benevoles.js?v=20261023c";
-import { meilleurResultat } from "../passage-rules.js?v=20261023c";
-import { routeVisible, routeMasquee, repereMasque } from "../modules-etat.js?v=20261023c";
+} from "../db.js?v=20261023d";
+import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20261023d";
+import { icon } from "../icons.js?v=20261023d";
+import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20261023d";
+import { isAdmin, isProf, getAdminEmail } from "../auth-admin.js?v=20261023d";
+import { recordUndo } from "../undo.js?v=20261023d";
+import { getCurrentWho } from "../identity.js?v=20261023d";
+import { openBenevolesPanel, telLink } from "./benevoles.js?v=20261023d";
+import { meilleurResultat } from "../passage-rules.js?v=20261023d";
+import { routeVisible, routeMasquee, repereMasque } from "../modules-etat.js?v=20261023d";
+import { emargementActif } from "../emargement-etat.js?v=20261023d";
 
 let stagiaires = [];
 let profs = [];
@@ -2817,12 +2818,21 @@ function renderInto(container) {
     // Priorités de passage : rangées dans le Planning, plus d'onglet (chantier D).
     // Visibles des formateurs, et des stagiaires si le module est ouvert pour leur
     // promo ; repère « Masqué aux stagiaires » chez un formateur quand il est fermé.
-    routeVisible("dashboard")
-      ? repereMasque(el("button", { class: "btn small", type: "button",
-          title: "Qui doit passer en priorité, au tableau et en voiture",
-          onClick: () => { location.hash = "#/dashboard"; } },
-          icon.target(), "Priorités"), routeMasquee("dashboard"))
-      : null,
+    el("div", { class: "p-entete-actions" },
+      routeVisible("dashboard")
+        ? repereMasque(el("button", { class: "btn small", type: "button",
+            title: "Qui doit passer en priorité, au tableau et en voiture",
+            onClick: () => { location.hash = "#/dashboard"; } },
+            icon.target(), "Priorités"), routeMasquee("dashboard"))
+        : null,
+      // Émargement (spec 2026-10-23) : page des formateurs, si le fondateur l'a activé pour la promo.
+      (admin || isProf()) && emargementActif()
+        ? el("button", { class: "btn small", type: "button",
+            title: "Ouvrir l'émargement du jour, imprimer les feuilles",
+            onClick: () => { location.hash = "#/emargement"; } },
+            icon.clipboard(), "Émargement")
+        : null,
+    ),
   ));
 
   // Toolbar semaine

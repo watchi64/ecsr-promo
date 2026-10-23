@@ -13,7 +13,7 @@
  * CHARTE.peau et CHARTE.peauOmbre ; dans le style schématique, elle ne sert plus qu'aux repères des mains (disqueMain), et les
  * personnes sont des silhouettes de pictogramme (SILHOUETTE, en fin de fichier).
  */
-import { n } from "./dessin-svg.js?v=20261023c";
+import { n } from "./dessin-svg.js?v=20261023d";
 
 export const CHARTE = {
   fond: "#F1F4F0", carte: "#FBFCFA", texte: "#1F2924", texteDoux: "#46554A", texteDiscret: "#6E7A6F",
