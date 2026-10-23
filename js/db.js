@@ -1630,3 +1630,93 @@ export async function setQcmSignalementStatut(id, statut, email) {
     .eq("id", id);
   if (error) throw error;
 }
+
+// === Émargement (spec 2026-10-23) ===
+// Écritures uniquement par les fonctions serveur emargement_* : la base vérifie le rôle,
+// la promo, l'état de la feuille et le jour, et horodate elle-même. Leurs refus commencent
+// par « emargement: » ; la phrase qui suit est montrée telle quelle.
+
+function erreurEmargement(error) {
+  const m = String(error?.message || error || "");
+  const i = m.indexOf("emargement:");
+  return new Error(i >= 0 ? m.slice(i + "emargement:".length).trim() : (m || "Erreur inconnue."));
+}
+
+async function rpcEmargement(nom, params) {
+  const { data, error } = await supabase.rpc(nom, params);
+  if (error) throw erreurEmargement(error);
+  return data;
+}
+
+// Feuilles d'une période (jours AAAA-MM-JJ inclus), avec lignes et signatures de formateurs.
+// Un stagiaire ne reçoit que SA ligne et aucune signature de formateur (règles de lecture).
+export async function listEmargementSeances(jourDebut, jourFin) {
+  const { data, error } = await supabase
+    .from("emargement_seances")
+    .select("*, lignes:emargement_lignes(*), formateurs:emargement_formateurs(*)")
+    .gte("jour", jourDebut)
+    .lte("jour", jourFin)
+    .order("jour");
+  if (error) throw error;
+  return (data || []).map((s) => ({ ...s, lignes: s.lignes || [], formateurs: s.formateurs || [] }));
+}
+
+// Feuilles ouvertes d'un jour, légères (sans tracé) : sert au bandeau, relu souvent.
+export async function getEmargementsOuverts(jour) {
+  const { data, error } = await supabase
+    .from("emargement_seances")
+    .select("id, jour, demi_journee, debut, fin, statut, lignes:emargement_lignes(stagiaire_id, absent, signe_le)")
+    .eq("jour", jour)
+    .eq("statut", "ouverte");
+  if (error) throw error;
+  return (data || []).map((s) => ({ ...s, lignes: s.lignes || [] }));
+}
+
+export function ouvrirEmargement(demi, debut, fin) {
+  return rpcEmargement("emargement_ouvrir", { p_demi: demi, p_debut: debut, p_fin: fin });
+}
+
+export function signerEmargement(seanceId, stagiaireId, trace) {
+  return rpcEmargement("emargement_signer", { p_seance: seanceId, p_stagiaire: stagiaireId, p_trace: trace });
+}
+
+export function signerEmargementFormateur(seanceId, nom, trace) {
+  return rpcEmargement("emargement_signer_formateur", { p_seance: seanceId, p_nom: nom, p_trace: trace });
+}
+
+// absent : true / false, ou null pour ne pas y toucher ; observation : texte, "" pour
+// l'effacer, null pour ne pas y toucher.
+export function annoterEmargement(seanceId, stagiaireId, { absent = null, observation = null } = {}) {
+  return rpcEmargement("emargement_annoter", {
+    p_seance: seanceId, p_stagiaire: stagiaireId, p_absent: absent, p_observation: observation,
+  });
+}
+
+export function cloreEmargement(seanceId) {
+  return rpcEmargement("emargement_clore", { p_seance: seanceId });
+}
+
+export function rouvrirEmargement(seanceId) {
+  return rpcEmargement("emargement_rouvrir", { p_seance: seanceId });
+}
+
+// En-tête des feuilles, propre à la promo (réglage `emargement_entete`, JSON).
+export const ENTETE_EMARGEMENT_DEFAUT = {
+  organisme: "ECF BOUSCAREN",
+  intitule: "Titre professionnel Enseignant de la conduite et de la sécurité routière (ECSR)",
+};
+
+export async function getEnteteEmargement() {
+  let lu = null;
+  try { lu = JSON.parse(await getSetting("emargement_entete") || "null"); } catch (e) { lu = null; }
+  return {
+    organisme: (lu && typeof lu.organisme === "string" && lu.organisme.trim()) || ENTETE_EMARGEMENT_DEFAUT.organisme,
+    intitule: (lu && typeof lu.intitule === "string" && lu.intitule.trim()) || ENTETE_EMARGEMENT_DEFAUT.intitule,
+  };
+}
+
+export async function setEnteteEmargement({ organisme, intitule }) {
+  await setSetting("emargement_entete", JSON.stringify({
+    organisme: String(organisme || "").trim(), intitule: String(intitule || "").trim(),
+  }));
+}
