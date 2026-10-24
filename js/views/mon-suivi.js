@@ -1,22 +1,22 @@
 import { listStagiaires, listEvaluations, getPlanning, getHalfMetaForWeek, getJoursOff, getSetting,
          listProfs, listEpcf, getEpcfMoyennes, listThemes,
          getStagiaire, setDateNaissance, listPassages,
-         listLivretsIndex, listDossiersIndex } from "../db.js?v=20261024c";
-import { el, clear, isoDate, getMonday, addDays, formatDate, displayStagiaire, toast } from "../utils.js?v=20261024c";
-import { HALF_DAYS, RESULTATS } from "../config.js?v=20261024c";
-import { isAdmin, isProf, monStagiaireId } from "../auth-admin.js?v=20261024c";
-import { renderEpcfPersonne } from "./epcf.js?v=20261024c";
-import { renderSubTabs } from "../subtabs.js?v=20261024c";
-import { renderDp } from "./dp.js?v=20261024c";
-import { renderEpcfLivret } from "./epcf-livret.js?v=20261024c";
-import { rolesPourEntry, ROLE_ORDER } from "../creneaux-rules.js?v=20261024c";
-import { bandeauAvis } from "../avis.js?v=20261024c";
-import { statsPassages } from "../passages-stats.js?v=20261024c";
-import { moduleVisible, moduleMasque, repereMasque } from "../modules-etat.js?v=20261024c";
-import { icon } from "../icons.js?v=20261024c";
-import { PARTIES, lireAdresse, adresseFiche } from "../route-rules.js?v=20261024c";
-import { etatsSommaire, passagesAVenir, EVT_DOCUMENT } from "../fiche-rules.js?v=20261024c";
-import { surChangementAdresse, remplacerAdresse, peutQuitter } from "../navigation.js?v=20261024c";
+         listLivretsIndex, listDossiersIndex } from "../db.js?v=20261024d";
+import { el, clear, isoDate, getMonday, addDays, formatDate, displayStagiaire, toast } from "../utils.js?v=20261024d";
+import { HALF_DAYS, RESULTATS } from "../config.js?v=20261024d";
+import { isAdmin, isProf, monStagiaireId } from "../auth-admin.js?v=20261024d";
+import { renderEpcfPersonne } from "./epcf.js?v=20261024d";
+import { renderSubTabs } from "../subtabs.js?v=20261024d";
+import { renderDp } from "./dp.js?v=20261024d";
+import { renderEpcfLivret } from "./epcf-livret.js?v=20261024d";
+import { rolesPourEntry, ROLE_ORDER } from "../creneaux-rules.js?v=20261024d";
+import { bandeauAvis } from "../avis.js?v=20261024d";
+import { statsPassages } from "../passages-stats.js?v=20261024d";
+import { moduleVisible, moduleMasque, repereMasque } from "../modules-etat.js?v=20261024d";
+import { icon } from "../icons.js?v=20261024d";
+import { PARTIES, lireAdresse, adresseFiche } from "../route-rules.js?v=20261024d";
+import { etatsSommaire, passagesAVenir, EVT_DOCUMENT } from "../fiche-rules.js?v=20261024d";
+import { surChangementAdresse, remplacerAdresse, peutQuitter } from "../navigation.js?v=20261024d";
 
 const HALF_ORDER = { matin: 0, aprem: 1 };
 
