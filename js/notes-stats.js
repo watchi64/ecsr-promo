@@ -5,8 +5,11 @@
 //   les notes et doit voir ses saisies se refléter aussitôt ;
 // - le serveur (RPC notes_stats_groupe) rend la même forme aux stagiaires, qui ne lisent plus
 //   les notes des profils anonymes mais doivent voir des moyennes qui les comptent.
-// Toute modification d'une définition ici se reporte dans la fonction SQL (migration
-// 20261004_confidentialite_1_preparation), et inversement : tests/notes-stats.test.mjs.
+// Toute modification d'une définition ici se reporte dans la fonction SQL (dernière version :
+// migration 20261023_notes_stats_en_formation), et inversement : tests/notes-stats.test.mjs.
+//
+// Population : les stagiaires en formation seulement. Les notes d'un stagiaire passé en
+// abandon ne comptent dans aucun chiffre (même règle que le tableau de bord du centre).
 //
 // Forme : { n_lignes, n, somme, mediane, sous_10, repartition: [5 nombres],
 //           themes: [{ num, n, somme, mediane }], competences: [{ code, n, somme }],
@@ -30,9 +33,11 @@ export function mediane(valeurs) {
   return v.length % 2 ? v[mid] : (v[mid - 1] + v[mid]) / 2;
 }
 
-// idsActifs : ensemble des stagiaires actifs (moyennes haute et basse).
+// idsActifs : ensemble des stagiaires en formation (fiches actives) ; les autres lignes
+// sont écartées avant tout calcul.
 export function statsLocales(evaluations, idsActifs) {
-  const notees = evaluations.filter(estNotee);
+  const enFormation = evaluations.filter((e) => idsActifs.has(e.stagiaire_id));
+  const notees = enFormation.filter(estNotee);
   const scores = notees.map(score20);
   const parTheme = new Map();
   const parCompetence = new Map();
@@ -47,15 +52,13 @@ export function statsLocales(evaluations, idsActifs) {
       if (!parCompetence.has(e.competence_code)) parCompetence.set(e.competence_code, []);
       parCompetence.get(e.competence_code).push(s);
     }
-    if (idsActifs.has(e.stagiaire_id)) {
-      if (!parStagiaire.has(e.stagiaire_id)) parStagiaire.set(e.stagiaire_id, []);
-      parStagiaire.get(e.stagiaire_id).push(s);
-    }
+    if (!parStagiaire.has(e.stagiaire_id)) parStagiaire.set(e.stagiaire_id, []);
+    parStagiaire.get(e.stagiaire_id).push(s);
   });
   const somme = (l) => l.reduce((a, b) => a + b, 0);
   const moyennes = [...parStagiaire.values()].map((l) => somme(l) / l.length);
   return {
-    n_lignes: evaluations.length,
+    n_lignes: enFormation.length,
     n: scores.length,
     somme: somme(scores),
     mediane: mediane(scores),

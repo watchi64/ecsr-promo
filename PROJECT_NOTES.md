@@ -76,7 +76,7 @@ datent de mai et juin : Thèmes, Priorités et Notes y sont décrits comme avant
 - **Calendrier** : 9 événements 2026 déjà insérés (Formation CCP1 30/03→21/09, stages 26/05, 03/08, Examens CCP1 22-25/09, Formation CCP2 28/09→07/12, stages 12/10, 26/10, 16/11, Examens CCP2 08-11/12). Types : examen/stage/formation/férié/autre, chacun couleur dédiée. Filtres « À venir » / « Tout ». Vue par mois.
 - **Thèmes** : 4 sections en pills (Tout / Thèmes 57 / TP ECSR 12 / REMC 35 / Notions 2). Statut **binaire** (À faire ↔ Fait), pas « En cours ». Clic prénom titre = modal « Contenu à venir ». Date éditable côté admin via modale (force statut à Fait). Mobile : 2 lignes + corbeille (sur notions) en 4e col pour éviter chevauchement.
 - **Passages** : table avec colonne « Ajouté par », filter, modal audit. Anti-backdating date ≥ J−2 pour non-admin (RLS + JS).
-- **Notes** : vue matrice unique (stagiaires × Moy + C1 + C2 + REMC + GDE + 57 thèmes). Headers thèmes verticaux rotatés. Édition inline cellule (click → input, Enter sauve, Esc annule). Date globale en toolbar. **Save en place** (pas de re-render complet, n'écrase plus les autres inputs ouverts). Tri : défaut / alpha / moyenne ↑/↓ / nb notes ↓. **Synthèse classe** (KPI moyenne/médiane/saisies/notes<10 + Top 3 thèmes faibles/solides). **Graphiques tabs** : par stagiaire / par thème / distribution. **Mode anonyme** (toggle perso) : nom remplacé par « Anonyme » sauf pour admins. Couleurs notes pêche→vert (F1DBC8 / FBE5C1 / DBE9C4 / BFE0A6, pas de rouge vif : ressenti rabaissant). Tap sur prénom = modal détail vertical (utile mobile). Lignes alternées gris léger.
+- **Notes** : vue matrice unique (stagiaires × Moy + C1 + C2 + REMC + GDE + 57 thèmes). Headers thèmes verticaux rotatés. Édition inline cellule (click → input, Enter sauve, Esc annule). Date globale en toolbar. **Save en place** (pas de re-render complet, n'écrase plus les autres inputs ouverts). Tri : défaut / alpha / moyenne ↑/↓ / nb notes ↓. **Synthèse classe** (KPI moyenne/médiane/saisies/notes<10 + Top 3 thèmes faibles/solides ; stagiaires en formation seulement, les notes des abandons ne comptent pas : décision du 23/10/2026, même règle que le tableau de bord du centre). **Graphiques tabs** : par stagiaire / par thème / distribution. **Mode anonyme** (toggle perso) : nom remplacé par « Anonyme » sauf pour admins. Couleurs notes pêche→vert (F1DBC8 / FBE5C1 / DBE9C4 / BFE0A6, pas de rouge vif : ressenti rabaissant). Tap sur prénom = modal détail vertical (utile mobile). Lignes alternées gris léger.
 - **Ressources & contacts** : section **Contacts** (Myriam/Séverine/Fanny pré-remplis depuis procédure absences ECF + bouton « Ajouter un contact »), section **Ressources externes** (liens curés Légifrance/REMC/SRRR…). Tap-to-call (`tel:`) et tap-to-mail (`mailto:`).
 - **Paramètres** : sections **Accès & invitations** (form invitation + liste avec pills rôle/admin), **Mes préférences** (toggle anonymat notes), **Promo** (stagiaires/profs CRUD admin), **Infos**. **Plus de section Apparence** (mint unique).
 
@@ -424,6 +424,66 @@ Spec et plans dans le dépôt ECSR : `docs/superpowers/specs/2026-10-03-cours-co
 - **Visibilité** (migration `20261005_cours_competences_4_fondateur.sql`) : un cours de compétence non publié
   n'est visible et modifiable que du fondateur (`is_founder()`, un seul compte) ; Timy vérifie chaque cours, un par un,
   puis le publie lui-même. Publié, il suit les règles des autres cours. L'assistant ne cite que les cours publiés.
+
+## Tableau de bord du centre (23/10/2026)
+
+Spec : `docs/superpowers/specs/2026-10-23-tableau-de-bord-centre-design.md` · plan :
+`docs/superpowers/plans/2026-10-23-tableau-de-bord-centre.md`.
+
+- **Page** `#/centre` (`js/views/centre.js`), personnel seulement (même porte que Stagiaires), tuile
+  « Tableau de bord » de l'Accueil, `ONGLET_POUR_ROUTE.centre = "home"`. Aucune migration.
+- **Calculs purs** : `js/centre-stats.js` (indicateurs `{ valeur, detail, nature, methode, n }`, thèmes,
+  signaux ; `node tests/centre-stats.test.mjs`) et `js/centre-csv.js` (matrice des notes pour Excel ;
+  `node tests/centre-csv.test.mjs`). Les textes de méthode sont dans `METHODES` : les modifier là.
+  Tout sauf l'effectif et les abandons porte sur les stagiaires en formation (fiches actives).
+- **Lire une autre promo** : `lireDonneesCentre(promoId)` pose l'en-tête INTERNE `x-promo-lecture` ;
+  `fetchWithTimeout` le retire toujours et, par `promoDeLaRequete` (`js/promo-rules.js`), le traduit en
+  `x-promo-id` pour une lecture vers une promo de `mes_promos()`. Écriture ou promo hors liste : refus,
+  jamais de repli sur la promo courante. La base reste juge (`promo_courante()`).
+- **PDF** : `@page A4 portrait` injectée au clic et retirée à `afterprint` et dans `navigate()`
+  (`teardownCentrePrint`), comme les documents officiels.
+- **Banc** : `_harness.html?role=prof&centre=1&demo=1` charge la promo de démonstration (données fictives
+  exportées en lecture seule dans `_banc_centre_demo.js`, non versionné) ; `&abandon=<id>` passe une
+  fiche en abandon, `&fragile=<id>` lui donne deux absences et trois notes basses. Le faux client honore
+  `setHeader("x-promo-lecture")` et `.range()`.
+- **Limites dites sur la page** : pas de date d'abandon en base ; absences = seulement les passages
+  prévus (l'émargement couvrira la présence) ; réussite au titre non saisie.
+
+## Émargement signé (octobre 2026)
+
+Spec : `docs/superpowers/specs/2026-10-23-emargement-design.md` · plan :
+`docs/superpowers/plans/2026-10-23-emargement.md`.
+
+- **Déroulé** : le formateur ouvre la demi-journée du jour (page `#/emargement`, tuile d'Accueil, bouton
+  du Planning) ; chaque stagiaire signe au doigt depuis le bandeau « Signer » (`js/emargement-bandeau.js`,
+  relu au changement de page, au retour au premier plan et toutes les 60 s) ; « Faire signer ici » sur
+  l'appareil du formateur en secours (c'est aussi ce qui sert à la démonstration) ; le formateur signe puis
+  clôt : tout stagiaire actif sans signature devient absent (origine « planning » s'il est noté absent sur
+  une carte de la demi-journée, sinon « non signé »). Rouvrir : le jour même seulement.
+- **Base** (migration `20261023_emargement.sql`) : `emargement_seances`, `emargement_lignes`,
+  `emargement_formateurs`, toutes à `promo_id`. **Aucun droit d'écriture direct** : six fonctions
+  `emargement_*` (security definer) vérifient rôle, promo courante, état, jour (heure de Paris) et
+  horodatent. Un déclencheur fige toute signature posée ; seule porte : `set_config('emargement.effacement',
+  'on', true)` pour une future migration d'effacement. Lecture : un stagiaire ne voit que sa ligne.
+- **Tracé** : chemin SVG `M x y L x y` en entiers dans un repère 400 x 160, validé à l'identique par
+  `js/emargement-rules.js` et par la base (20 000 caractères au plus) ; environ 1,3 Ko par signature.
+- **Feuilles** (`js/emargement-feuilles.js`) : demi-journée en A4 portrait, semaine en A4 paysage (une page
+  jusqu'à 16 stagiaires), imprimées par `doc-officiel.js` (option `page` de `bindDocPrint`). En-tête propre à
+  la promo : réglage `emargement_entete` (organisme, intitulé ; défaut « ECF BOUSCAREN »).
+- **Interrupteur par promo** (décision de Timy du 23/10) : réglage `emargement_actif` de `settings`,
+  basculé par le seul fondateur (Paramètres › Émargement, `js/emargement-etat.js`), lu au démarrage avec
+  les modules. **Éteint partout, allumé pour la promo de démonstration (7)** à la mise en ligne. Éteint :
+  ni tuile, ni bouton, ni bandeau (aucune lecture périodique), page renvoyée à l'Accueil, et
+  `emargement_ouvrir` refuse. Pas un module (route du socle) : les modules ne cachent rien aux formateurs.
+- **Nouveautés** : aucune entrée tant qu'aucune vraie promo n'est allumée ; texte prêt dans la spec (§ 4.4).
+- **Preuve** : `tests/sql/emargement-preuve.sql` (73 contrôles, verdict dans l'exception finale, rien
+  n'est écrit ; rougit si l'on retire la règle de lecture, le déclencheur ou un refus d'écriture).
+- **Démonstration** : `20261023_emargement_demo.sql` (généré par `node scripts/emargement-demo.mjs`) pose
+  les feuilles fictives des semaines du 12 et du 19 octobre de la promo 7 et allume son interrupteur.
+  Ménage : supprimer les feuilles `promo_id = 7` (lignes et signatures suivent) et les réglages de la promo,
+  ou `..._demo_retour.sql`.
+- **Banc** : `?emargement=1` (interrupteur allumé, semaine précédente close, matin du jour ouvert) ; les six
+  fonctions sont jouées en mémoire par `_harness_supabase.js` avec les mêmes règles et messages.
 
 ## Décisions UX importantes (à respecter)
 

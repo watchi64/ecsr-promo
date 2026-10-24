@@ -4,10 +4,10 @@
 // La page n'est PAS dans la barre d'onglets : on y arrive par le lien
 // « Tout voir » d'Accueil, comme #/mon-suivi n'a pas d'onglet non plus.
 
-import { el, clear, formatDate } from "../utils.js?v=20261022e";
-import { nouveautesAffichables, marquerLues } from "../modules-etat.js?v=20261022e";
-import { STORAGE_SOUS_ONGLET } from "../nouveautes.js?v=20261022e";
-import { hrefLien } from "../route-rules.js?v=20261022e";
+import { el, clear, formatDate } from "../utils.js?v=20261024b";
+import { nouveautesAffichables, marquerLues } from "../modules-etat.js?v=20261024b";
+import { STORAGE_SOUS_ONGLET } from "../nouveautes.js?v=20261024b";
+import { hrefLien } from "../route-rules.js?v=20261024b";
 
 // Lien « Où le trouver ». Une partie de Mon espace se vise par l'adresse
 // (#/mon-suivi/dp) ; un sous-onglet de Notes ou de Cours, par la clé que

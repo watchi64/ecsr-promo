@@ -96,8 +96,9 @@ export const MARQUAGES = {
     mesure: "3 m de trait, 1,33 m d'intervalle",
     dessin: () => bandeDiscontinue(3, 1.33),
   },
-  "T'3": {
-    nom: "T'3", detail: "Rive de bande d'arrêt d'urgence",
+  // 39 m / 13 m : T4 pour l'IISR (art. 114-4 B), pas T'3, qui est la modulation 20 m / 6 m des rives de bretelles.
+  T4: {
+    nom: "T4", detail: "Rive de bande d'arrêt d'urgence",
     mesure: "39 m de trait, 13 m d'intervalle",
     dessin: () => bandeDiscontinue(39, 13),
   },

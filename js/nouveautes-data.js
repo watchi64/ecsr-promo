@@ -16,8 +16,8 @@
 
 export const NOUVEAUTES = [
   {
-    id: "2026-10-23-app-installable",
-    date: "2026-10-23",
+    id: "2026-10-24-app-installable",
+    date: "2026-10-24",
     pour: "tous",
     titre: "L'app s'installe sur le téléphone",
     resume: "Ajoutée à l'écran d'accueil, l'app s'ouvre maintenant en plein écran, comme une application, "
@@ -29,6 +29,74 @@ export const NOUVEAUTES = [
       "Ouvre l'app depuis sa nouvelle icône. Sur iPhone, connecte-toi une fois à l'intérieur : elle ne partage pas la connexion de Safari.",
       "Tu avais déjà mis l'icône ? Supprime-la puis ajoute-la à nouveau pour avoir le plein écran.",
     ],
+  },
+  {
+    id: "2026-10-23-assistant-scaleway",
+    date: "2026-10-23",
+    pour: "tous",
+    titre: "L'assistant répond de nouveau",
+    resume: "L'assistant ne répondait plus depuis le 20 octobre : son fournisseur d'IA a fermé son offre gratuite. "
+          + "Il passe maintenant par Scaleway, hébergeur français : mêmes modèles d'IA, hébergés à Paris, "
+          + "et vos messages ne sont ni conservés ni utilisés pour entraîner l'IA. Ce changement de prestataire "
+          + "met à jour les conditions d'utilisation : elles vous seront présentées à votre prochaine connexion.",
+  },
+  {
+    id: "2026-10-23-questions-ia",
+    date: "2026-10-23",
+    pour: "formateurs",
+    titre: "Des questions de QCM proposées par l'IA, validées par vous",
+    resume: "Dans l'éditeur du QCM d'un thème, « Proposer avec l'IA » rédige des brouillons de questions "
+          + "à partir du seul cours vérifié du thème. Les brouillons restent invisibles des stagiaires : "
+          + "chacun se relit, se corrige, puis s'accepte ou se rejette. Une question acceptée entre dans le QCM "
+          + "avec la mention « IA · validée par » et le nom du formateur. Un brouillon qui cite un article de loi "
+          + "absent du cours est écarté d'office. Seul le texte du cours est envoyé à l'IA (hébergée à Paris "
+          + "par Scaleway), jamais une donnée de stagiaire ; dix demandes par jour et par formateur.",
+    ou: { label: "Cours", route: "themes" },
+    module: "qcm",
+    guide: [
+      "Cours, sous-onglet Thèmes : ouvre le QCM d'un thème, puis « Modifier » et « Éditer les questions ».",
+      "En bas de l'éditeur, « Proposer avec l'IA » : choisis le nombre de questions et la partie du cours.",
+      "Chaque brouillon : « Relire et accepter » (corrige si besoin, puis « Accepter dans le QCM ») ou « Rejeter ».",
+    ],
+  },
+  {
+    id: "2026-10-23-notes-en-formation",
+    date: "2026-10-23",
+    pour: "tous",
+    titre: "Les moyennes de la classe ne comptent que les stagiaires en formation",
+    resume: "Dans Notes, la synthèse de la classe (moyenne, médiane, notes sous 10, moyennes par thème "
+          + "et par compétence) ne compte plus les notes des stagiaires qui ont arrêté la formation. "
+          + "La règle est écrite sous « Synthèse classe ». Le tableau de bord des formateurs donne "
+          + "désormais exactement les mêmes chiffres.",
+    ou: { label: "Notes, Synthèse classe", route: "notes" },
+  },
+  {
+    id: "2026-10-23-tableau-de-bord-centre",
+    date: "2026-10-23",
+    pour: "formateurs",
+    titre: "Un tableau de bord du centre, promo par promo",
+    resume: "Une nouvelle page réunit les chiffres d'une promo : effectif, taux d'abandon, absences aux "
+          + "passages, passages réalisés, QCM, examens, notes et EPCF, les thèmes où la promo échoue le "
+          + "plus et les stagiaires à suivre de près. Chaque chiffre dit comment il est calculé et s'il est "
+          + "mesuré ou estimé. Les promos se comparent côte à côte, la page s'imprime en PDF et la matrice "
+          + "des notes se télécharge pour Excel, avec ou sans les noms.",
+    ou: { label: "Accueil, tuile Tableau de bord", route: "centre" },
+    guide: [
+      "Ouvre l'Accueil, puis la tuile « Tableau de bord ».",
+      "Touche « Méthode » sous un chiffre pour voir son calcul.",
+      "« Exporter en PDF » pour l'imprimer ; « Matrice des notes (CSV) » pour l'ouvrir dans Excel.",
+    ],
+  },
+  {
+    id: "2026-10-23-marquage-t4",
+    date: "2026-10-23",
+    pour: "tous",
+    titre: "Marquage au sol : la ligne de la bande d'arrêt d'urgence est une T4",
+    resume: "Dans le cours sur la signalisation horizontale, la ligne qui borde la bande d'arrêt d'urgence "
+          + "sur autoroute (traits de 39 m, intervalles de 13 m) portait le code T'3. Son vrai nom est T4. "
+          + "Le code T'3 désigne une autre ligne, de 20 m et 6 m, qu'on trouve sur les bretelles. "
+          + "Les longueurs à retenir ne changent pas.",
+    ou: { label: "Cours", route: "themes" },
   },
   {
     id: "2026-10-15-avis-stagiaires",

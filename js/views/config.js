@@ -1,7 +1,8 @@
 /*
  * Vue Paramètres.
  * Sections : Accès & invitations · Mes préférences · Modules de la promo
- * (js/views/modules-reglage.js) · Promo · Données personnelles (admins) · Infos.
+ * (js/views/modules-reglage.js) · Émargement (fondateur, js/emargement-etat.js) · Promo ·
+ * Données personnelles (admins) · Infos.
  */
 import {
   listStagiaires, listProfs,
@@ -11,13 +12,14 @@ import {
   addProf, updateProf, deleteProf,
   listUserProfiles, deleteUserProfile, inviteUser,
   setMyAnonymousNotes,
-} from "../db.js?v=20261022e";
-import { el, clear, toast, displayStagiaire } from "../utils.js?v=20261022e";
-import { icon } from "../icons.js?v=20261022e";
-import { isAdmin, getAdminEmail, getProfile } from "../auth-admin.js?v=20261022e";
-import { moduleVisible } from "../modules-etat.js?v=20261022e";
-import { renderModulesSection } from "./modules-reglage.js?v=20261022e";
-import { confirmationValide, dateCourte, etatFinDePromo, resumeEffacement } from "../effacement-rules.js?v=20261022e";
+} from "../db.js?v=20261024b";
+import { el, clear, toast, displayStagiaire } from "../utils.js?v=20261024b";
+import { icon } from "../icons.js?v=20261024b";
+import { isAdmin, getAdminEmail, getProfile } from "../auth-admin.js?v=20261024b";
+import { moduleVisible } from "../modules-etat.js?v=20261024b";
+import { renderModulesSection } from "./modules-reglage.js?v=20261024b";
+import { renderEmargementReglage } from "../emargement-etat.js?v=20261024b";
+import { confirmationValide, dateCourte, etatFinDePromo, resumeEffacement } from "../effacement-rules.js?v=20261024b";
 
 // ====== SECTION Accès & invitations ======
 
@@ -713,6 +715,8 @@ async function rerender(container) {
     // pendant « Chargement » : redessiner() (js/views/modules-reglage.js) ne trouve alors
     // aucune section à l'écran, et l'ancienne, rendue d'avant l'écriture, serait insérée ensuite.
     const modules = renderModulesSection();
+    // Interrupteur de l'émargement, propre à la promo (fondateur seulement, sinon null).
+    const emargement = renderEmargementReglage();
 
     clear(container);
     container.appendChild(el("div", { class: "view-header" },
@@ -724,7 +728,7 @@ async function rerender(container) {
     ));
 
     const grid = el("div", { class: "param-grid" });
-    [acces, preferences, modules, promo, donnees, infos].filter(Boolean).forEach((s) => grid.appendChild(s));
+    [acces, preferences, modules, emargement, promo, donnees, infos].filter(Boolean).forEach((s) => grid.appendChild(s));
     container.appendChild(grid);
   } catch (e) {
     console.error("Paramètres : erreur de chargement", e);

@@ -7,7 +7,7 @@
 // à tous les documents : le préfixe est celui du livret, premier document
 // implémenté, et n'a pas été renommé pour ne pas toucher un gabarit validé.
 
-import { el, clear } from "./utils.js?v=20261022e";
+import { el, clear } from "./utils.js?v=20261024b";
 
 // ---------------------------------------------------------------------------
 // Sérialisation <-> DOM
@@ -180,24 +180,27 @@ let listenersPrets = false;
 // DOM, qui ne peut donc pas servir de témoin. Sans `source`, on clone
 // l'ancre elle-même : comportement inchangé pour le livret EPCF, qui ne
 // passe ni l'une ni l'autre option.
-export function bindDocPrint(ancre, { printId, bodyClass, avantClone = null, source = null }) {
-  courant = { ancre, printId, bodyClass, avantClone, source };
+// page : format de la règle @page (« A4 portrait » par défaut ; la feuille d'émargement
+// de la semaine passe « A4 landscape »).
+export function bindDocPrint(ancre, { printId, bodyClass, avantClone = null, source = null, page = "A4 portrait" }) {
+  courant = { ancre, printId, bodyClass, avantClone, source, page };
   ensurePrintListeners();
   refreshDocPrint();
 }
 
 export function refreshDocPrint() {
   if (!courant) return;
-  const { ancre, printId, bodyClass, avantClone, source } = courant;
+  const { ancre, printId, bodyClass, avantClone, source, page } = courant;
   if (avantClone) avantClone();
   // Format de page injecté seulement tant qu'un document est ouvert : une règle
   // @page en dur écraserait le « A4 landscape » de l'impression du planning.
-  if (!document.getElementById("doc-officiel-page-style")) {
-    const st = document.createElement("style");
+  let st = document.getElementById("doc-officiel-page-style");
+  if (!st) {
+    st = document.createElement("style");
     st.id = "doc-officiel-page-style";
-    st.textContent = "@page { size: A4 portrait; margin: 0; }";
     document.head.appendChild(st);
   }
+  st.textContent = `@page { size: ${page}; margin: 0; }`;
   let c = document.getElementById(printId);
   if (!c) {
     c = document.createElement("div");
@@ -223,7 +226,8 @@ export function teardownDocPrint() {
   // change alors qu'un autre document était monté.
   document.getElementById("livret-print")?.remove();
   document.getElementById("dp-print")?.remove();
-  document.body.classList.remove("livret-printable", "dp-printable");
+  document.getElementById("emargement-print")?.remove();
+  document.body.classList.remove("livret-printable", "dp-printable", "emargement-printable");
   document.getElementById("dp-hors-ecran")?.remove();
   document.getElementById("doc-officiel-page-style")?.remove();
   courant = null;

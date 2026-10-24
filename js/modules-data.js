@@ -18,7 +18,9 @@ export const GROUPES = ["Démarrage", "Suivi de la formation", "CCP1", "Dossier 
 
 // Routes jamais fermées. Elles n'ont pas de module.
 // stagiaires : page des formateurs, hors modules (chantier D, lot 2).
-export const ROUTES_SOCLE = ["home", "mon-suivi", "config", "nouveautes", "stagiaires"];
+// emargement : page des formateurs (spec 2026-10-23) ; un stagiaire ne voit rien tant
+// qu'aucune feuille n'est ouverte, il n'y a donc rien à masquer par un module.
+export const ROUTES_SOCLE = ["home", "mon-suivi", "config", "nouveautes", "stagiaires", "emargement"];
 
 // Route d'un onglet vers le module qui la gouverne.
 export const MODULE_DE_ROUTE = {

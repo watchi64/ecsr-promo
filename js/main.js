@@ -2,40 +2,44 @@
  * Promo ECSR : application propriétaire.
  * © 2026 watchi64. Tous droits réservés. Voir LICENSE.
  */
-import { getCurrentUser, invalidateCache, verifyRecoveryToken } from "./db.js?v=20261022e";
-import { toast } from "./utils.js?v=20261022e";
-import { icon } from "./icons.js?v=20261022e";
-import { initAuth, onAdminChange, isAuth, isAdmin, isProf, monStagiaireId, getAdminEmail, getProfile } from "./auth-admin.js?v=20261022e";
-import { showGate, hideGate } from "./gate.js?v=20261022e";
-import { exigerAcceptation } from "./legal.js?v=20261022e";
-import { lireJetonRecuperation } from "./gate-rules.js?v=20261022e";
-import { loadAccent } from "./accent-switcher.js?v=20261022e";
-import { loadTheme } from "./theme-switcher.js?v=20261022e";
-import { renderHome } from "./views/home.js?v=20261022e";
-import { renderDashboard } from "./views/dashboard.js?v=20261022e";
-import { renderMonSuivi } from "./views/mon-suivi.js?v=20261022e";
-import { renderPlanning, teardownPrintTarget, resetPlanningEditMode, requestPlanningToday } from "./views/planning.js?v=20261022e";
-import { teardownDocPrint } from "./doc-officiel.js?v=20261022e";
-import { renderNotes } from "./views/notes.js?v=20261022e";
-import { renderRessources } from "./views/ressources.js?v=20261022e";
-import { renderThemes } from "./views/themes.js?v=20261022e";
-import { renderConfig } from "./views/config.js?v=20261022e";
-import { renderCalendrier } from "./views/calendrier.js?v=20261022e";
-import { initUndoKeyboard } from "./undo.js?v=20261022e";
-import { renderNouveautes } from "./views/nouveautes.js?v=20261022e";
-import { libellePastille } from "./nouveautes.js?v=20261022e";
-import { renderCcp2 } from "./views/ccp2.js?v=20261022e";
-import { renderStagiaires } from "./views/stagiaires.js?v=20261022e";
-import { lireAdresse, pagePersonnelle } from "./route-rules.js?v=20261022e";
+import { getCurrentUser, invalidateCache, verifyRecoveryToken } from "./db.js?v=20261024b";
+import { toast } from "./utils.js?v=20261024b";
+import { icon } from "./icons.js?v=20261024b";
+import { initAuth, onAdminChange, isAuth, isAdmin, isProf, monStagiaireId, getAdminEmail, getProfile } from "./auth-admin.js?v=20261024b";
+import { showGate, hideGate } from "./gate.js?v=20261024b";
+import { exigerAcceptation } from "./legal.js?v=20261024b";
+import { lireJetonRecuperation } from "./gate-rules.js?v=20261024b";
+import { loadAccent } from "./accent-switcher.js?v=20261024b";
+import { loadTheme } from "./theme-switcher.js?v=20261024b";
+import { renderHome } from "./views/home.js?v=20261024b";
+import { renderDashboard } from "./views/dashboard.js?v=20261024b";
+import { renderMonSuivi } from "./views/mon-suivi.js?v=20261024b";
+import { renderPlanning, teardownPrintTarget, resetPlanningEditMode, requestPlanningToday } from "./views/planning.js?v=20261024b";
+import { teardownDocPrint } from "./doc-officiel.js?v=20261024b";
+import { renderNotes } from "./views/notes.js?v=20261024b";
+import { renderRessources } from "./views/ressources.js?v=20261024b";
+import { renderThemes } from "./views/themes.js?v=20261024b";
+import { renderConfig } from "./views/config.js?v=20261024b";
+import { renderCalendrier } from "./views/calendrier.js?v=20261024b";
+import { initUndoKeyboard } from "./undo.js?v=20261024b";
+import { renderNouveautes } from "./views/nouveautes.js?v=20261024b";
+import { libellePastille } from "./nouveautes.js?v=20261024b";
+import { renderCcp2 } from "./views/ccp2.js?v=20261024b";
+import { renderStagiaires } from "./views/stagiaires.js?v=20261024b";
+import { renderCentre, teardownCentrePrint } from "./views/centre.js?v=20261024b";
+import { renderEmargement } from "./views/emargement.js?v=20261024b";
+import { initBandeauEmargement, rafraichirBandeauEmargement } from "./emargement-bandeau.js?v=20261024b";
+import { chargerEmargementActif, emargementActif } from "./emargement-etat.js?v=20261024b";
+import { lireAdresse, pagePersonnelle } from "./route-rules.js?v=20261024b";
 import {
   peutQuitter, leverGardeSortie, majSurPlacePour, oublierMajSurPlace,
   noterAdresse, adresseCourante, remplacerAdresse, installerGardeNavigateur,
-} from "./navigation.js?v=20261022e";
-import { initChatbot, appliquerModuleAssistant } from "./chatbot.js?v=20261022e";
+} from "./navigation.js?v=20261024b";
+import { initChatbot, appliquerModuleAssistant } from "./chatbot.js?v=20261024b";
 import {
   chargerModules, chargerModulesAuDemarrage, onModulesChange, surveillerPremierPlan,
   routeVisible, routeMasquee, repereMasque, nouveautesAffichables,
-} from "./modules-etat.js?v=20261022e";
+} from "./modules-etat.js?v=20261024b";
 
 // ===== Tabs =====
 
@@ -123,6 +127,8 @@ const routes = {
   notes:      renderNotes,
   ccp2:       renderCcp2,
   stagiaires: renderStagiaires,
+  centre:     renderCentre,
+  emargement: renderEmargement,
   ressources: renderRessources,
   config:     renderConfig,
   nouveautes: renderNouveautes,
@@ -132,7 +138,7 @@ const routes = {
 // sur #/nouveautes depuis Accueil, et sur #/dashboard (Priorités) depuis le
 // Planning : laisser la barre sans onglet actif donnerait l'impression d'être
 // sorti de l'app.
-const ONGLET_POUR_ROUTE = { nouveautes: "home", dashboard: "planning" };
+const ONGLET_POUR_ROUTE = { nouveautes: "home", dashboard: "planning", centre: "home", emargement: "planning" };
 
 let lastRoute = null;
 
@@ -181,9 +187,16 @@ async function navigate({ force = false } = {}) {
   if (route === "mon-suivi" && pagePersonnelle({ formateur, stagiaireId: monStagiaireId() }) === "stagiaires") {
     try { history.replaceState(null, "", "#/stagiaires"); } catch (e) { /* ignore */ }
     route = "stagiaires";
-  } else if (route === "stagiaires" && !formateur) {
+  } else if ((route === "stagiaires" || route === "centre" || route === "emargement") && !formateur) {
+    // Page Émargement (spec 2026-10-23) : formateurs seulement ; un stagiaire signe par
+    // le bandeau, sur n'importe quelle page.
     try { history.replaceState(null, "", "#/mon-suivi"); } catch (e) { /* ignore */ }
     route = "mon-suivi";
+  } else if (route === "emargement" && !emargementActif()) {
+    // Interrupteur éteint pour la promo (réglage du fondateur dans Paramètres).
+    toast("L'émargement n'est pas activé pour cette promo.", "info", 3500);
+    try { history.replaceState(null, "", "#/home"); } catch (e) { /* ignore */ }
+    route = "home";
   }
   memoriserRoute(route);
   noterAdresse(location.hash);
@@ -213,6 +226,8 @@ async function navigate({ force = false } = {}) {
   // Idem pour les documents officiels, livret EPCF et Dossier Professionnel
   // (re-montés à l'ouverture d'un document).
   teardownDocPrint();
+  // Et pour le tableau de bord du centre (format A4 portrait injecté le temps d'imprimer).
+  teardownCentrePrint();
   try {
     await routes[route](view);
   } catch (e) {
@@ -323,7 +338,8 @@ async function bootApp() {
   // salarié du centre n'a pas à accepter en son nom les conditions de l'éditeur ; ce sera
   // couvert par le contrat avec le centre. Vrai rôle, pas l'aperçu « Voir en tant que ».
   if (getProfile()?.role !== "prof") await exigerAcceptation(getAdminEmail());
-  await chargerModulesAuDemarrage();
+  // Interrupteur de l'émargement (propre à la promo) lu en même temps que les modules.
+  await Promise.all([chargerModulesAuDemarrage(), chargerEmargementActif()]);
   renderTabs();
   majBadgeNouveautes();
   setupRefreshBtn();
@@ -331,7 +347,7 @@ async function bootApp() {
   initChatbot();
   majPresenceModules();
   // Le changement de rôle change l'audience, donc le compte, et ce qu'on voit des modules.
-  onAdminChange(() => { renderTabs(); majBadgeNouveautes(); majPresenceModules(); navigate({ force: true }); });
+  onAdminChange(() => { renderTabs(); majBadgeNouveautes(); majPresenceModules(); navigate({ force: true }); rafraichirBandeauEmargement(); });
   // Un module ouvert ou fermé (réglage d'un formateur, relecture au premier plan) :
   // barre, pastille et raccourcis suivent. La vue n'est rejouée que si elle vient
   // d'être fermée, pour ne pas détruire une saisie en cours.
@@ -346,6 +362,8 @@ async function bootApp() {
   window.addEventListener("nouveautes-vues", majBadgeNouveautes);
   initUndoKeyboard();
   installerGardeNavigateur();
+  // Bandeau d'émargement (signer, ou rappel d'une feuille ouverte) : relu seul ensuite.
+  initBandeauEmargement();
   // À l'ouverture, on revient sur la page quittée la dernière fois, et à défaut
   // sur « Mon suivi ». replaceState plutôt que location.hash : pas de
   // `hashchange` (donc pas de double rendu avec le navigate() ci-dessous) et pas

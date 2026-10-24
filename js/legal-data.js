@@ -8,7 +8,7 @@
 // forme (faute, tournure) ne change pas la version.
 //
 
-export const VERSION_CONDITIONS = "2026-10-04";
+export const VERSION_CONDITIONS = "2026-10-23";
 
 export const CONDITIONS_MD = `# Conditions d'utilisation et données personnelles
 
@@ -17,7 +17,7 @@ export const CONDITIONS_MD = `# Conditions d'utilisation et données personnelle
 > Elle enregistre ce qui sert à la formation : profil, notes, QCM, passages, absences, livret, dossier professionnel.
 > Vos notes sont visibles des autres stagiaires de votre promo, sauf si vous choisissez de les masquer.
 > Personne d'extérieur à la formation n'y accède, à une exception près : ECF peut consulter des résultats nominatifs.
-> La base de données est hébergée en France ; l'assistant passe par Mistral AI, entreprise française.
+> La base de données est hébergée en France ; l'assistant passe par Scaleway, hébergeur français, qui ne conserve pas les messages.
 > Rien n'est vendu, rien ne sert à la publicité, aucun traceur publicitaire ni mesure d'audience.
 > Douze mois après la formation, les données nominatives sont supprimées ou anonymisées.
 > Chacun peut consulter, corriger ou faire supprimer ses données, et saisir la CNIL.
@@ -103,7 +103,7 @@ Pour organiser les séances de conduite, les formateurs enregistrent les **élè
 |-------------|------|---------------|----|
 | Supabase | Base de données et comptes | L'ensemble des données de l'application | Union européenne (région de Paris) |
 | GitHub (GitHub Pages) | Hébergement des pages de l'application | L'adresse IP de connexion, conservée pour la sécurité | États-Unis |
-| Mistral AI | Moteur de l'assistant | Les messages envoyés à l'assistant | France, Union européenne |
+| Scaleway | Moteur de l'assistant (modèles d'IA de Mistral AI, hébergés par Scaleway) | Les messages envoyés à l'assistant, le temps de générer la réponse | France (Paris), Union européenne |
 | Resend | Envoi des e-mails du compte | L'adresse e-mail du destinataire et le contenu de l'e-mail | États-Unis |
 
 Les transferts vers les États-Unis (GitHub, Resend) sont encadrés par le cadre de protection des données UE-États-Unis (Data Privacy Framework) et par les clauses contractuelles types de la Commission européenne.
@@ -112,7 +112,7 @@ Les transferts vers les États-Unis (GitHub, Resend) sont encadrés par le cadre
 
 L'assistant est une **intelligence artificielle** : ses réponses sont générées automatiquement et peuvent contenir des erreurs. Elles s'appuient sur les cours de l'application et, pour les articles de loi, sur Légifrance ; elles ne remplacent ni un formateur ni les textes officiels.
 
-- Vos messages sont transmis à Mistral AI le temps de générer la réponse. L'option qui permettrait à Mistral d'utiliser ces messages pour entraîner ses modèles est désactivée.
+- Vos messages sont transmis à Scaleway le temps de générer la réponse. Scaleway ne les conserve pas et ne s'en sert pas pour entraîner des modèles d'IA.
 - L'application ne conserve pas vos échanges sur ses serveurs : l'historique reste dans votre navigateur et disparaît à la fermeture de l'onglet. Seul le nombre de messages du jour est compté, pour appliquer la limite quotidienne.
 - N'écrivez pas à l'assistant d'informations sensibles sur vous ou sur autrui (santé, vie privée).
 
