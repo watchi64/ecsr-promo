@@ -19,10 +19,11 @@ export const NOUVEAUTES = [
     id: "2026-10-24-app-installable",
     date: "2026-10-24",
     pour: "tous",
-    titre: "L'app s'installe sur le téléphone",
-    resume: "Ajoutée à l'écran d'accueil, l'app s'ouvre maintenant en plein écran, comme une application, "
-          + "sans la barre du navigateur. Rien à télécharger dans une boutique : elle se met à jour toute "
-          + "seule. Une connexion internet reste nécessaire.",
+    titre: "L'app, encore plus pratique sur le téléphone",
+    resume: "Tu utilisais déjà l'app sur ton téléphone, dans le navigateur. Ajoutée à l'écran d'accueil, "
+          + "elle s'ouvre maintenant en plein écran, comme une application, sans la barre du navigateur. "
+          + "Rien à télécharger dans une boutique : elle se met à jour toute seule. Une connexion internet "
+          + "reste nécessaire.",
     guide: [
       "Sur iPhone, dans Safari : bouton Partager (le carré avec une flèche), puis « Sur l'écran d'accueil ».",
       "Sur Android, dans Chrome : menu en haut à droite, puis « Installer l'application » ou « Ajouter à l'écran d'accueil ».",
