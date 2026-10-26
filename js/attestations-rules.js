@@ -7,9 +7,9 @@ import { dureeMinutes, lundiDe, jourDe, dayIndexDe, jourFerie } from "./emargeme
 import { compareByNom } from "./utils.js?v=20261024d";
 
 export const LIBELLE_ORIGINE = {
-  non_signe: "Non signé",
-  planning: "Noté absent au planning",
-  formateur: "Marqué absent par le formateur",
+  non_signe: "non signé",
+  planning: "noté au planning",
+  formateur: "marqué par le formateur",
 };
 
 const ORDRE_DEMI = { matin: 0, aprem: 1 };

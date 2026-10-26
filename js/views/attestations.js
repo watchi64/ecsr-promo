@@ -5,7 +5,7 @@
 
 import { listStagiaires, listEmargementPresences, getEnteteEmargement, getPromoCourante } from "../db.js?v=20261024d";
 import { el, clear, toast, isoDate } from "../utils.js?v=20261024d";
-import { libelleDuree } from "../emargement-rules.js?v=20261024d";
+import { libelleDuree, jourDe } from "../emargement-rules.js?v=20261024d";
 import { imprimer, nomComplet } from "../emargement-feuilles.js?v=20261024d";
 import {
   bilanStagiaire, stagiairesDeLaPeriode, feuillesOuvertes, demiJourneesSansFeuille, periodeParDefaut,
@@ -95,7 +95,9 @@ function dessiner(ctx) {
 
   const seances = seancesDeLaPeriode(ctx);
   const ouvertes = feuillesOuvertes(seances);
-  const sansFeuille = demiJourneesSansFeuille(seances, ctx.periode.du, ctx.periode.au);
+  // Jusqu'à la veille : la journée en cours n'a peut-être pas encore sa feuille.
+  const veille = jourDe(ctx.aujourdhui, -1);
+  const sansFeuille = demiJourneesSansFeuille(seances, ctx.periode.du, ctx.periode.au < veille ? ctx.periode.au : veille);
   if (ouvertes) {
     page.appendChild(el("p", { class: "em-alerte" },
       ouvertes > 1 ? `${ouvertes} feuilles encore ouvertes sur la période : non comptées tant qu'elles ne sont pas closes.`

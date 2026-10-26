@@ -170,6 +170,9 @@ body.sig-ouverte { overflow: hidden; }
 
 /* --- Page Attestations (spec 2026-10-24) ------------------------------ */
 
+/* Dialogue d'en-tête : sept champs, il défile sur un petit écran ou clavier ouvert. */
+.em-modal-entete { max-height: calc(100dvh - 2rem); overflow-y: auto; }
+
 .at-periode {
   display: flex; flex-wrap: wrap; align-items: flex-end; gap: 0.8rem 1.2rem; margin: 0 0 1rem;
   padding: 0.8rem 1rem; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--bg-elev);
@@ -343,10 +346,10 @@ body.sig-ouverte { overflow: hidden; }
 .at-table { font-size: 9pt; }
 .at-table td { vertical-align: top; }
 .at-nombre { white-space: nowrap; }
-.at-table-evenements th:nth-child(1) { width: 38mm; }
-.at-table-evenements th:nth-child(2) { width: 38mm; }
-.at-table-evenements th:nth-child(3) { width: 15mm; }
-.at-table-evenements th:nth-child(4) { width: 36mm; }
+.at-table-evenements th:nth-child(1) { width: 36mm; }
+.at-table-evenements th:nth-child(2) { width: 44mm; }
+.at-table-evenements th:nth-child(3) { width: 14mm; }
+.at-table-evenements th:nth-child(4) { width: 34mm; }
 .at-source { margin-top: 3mm !important; font-size: 8.5pt; color: #333; }
 
 @media print {

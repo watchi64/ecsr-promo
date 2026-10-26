@@ -225,7 +225,7 @@ export function ouvrirEntete(ctx, { apres = null } = {}) {
       if (apres) apres(ctx.entete);
     } catch (e) { enregistrer.disabled = false; enErreur(e); }
   } }, "Enregistrer");
-  fond.appendChild(el("div", { class: "modal", role: "dialog", "aria-modal": "true", "aria-label": "En-tête des documents" },
+  fond.appendChild(el("div", { class: "modal em-modal-entete", role: "dialog", "aria-modal": "true", "aria-label": "En-tête des documents" },
     el("h3", {}, "En-tête des documents"),
     el("div", { class: "modal-form" },
       el("label", {}, "Organisme de formation", organisme),

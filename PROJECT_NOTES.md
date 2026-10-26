@@ -485,6 +485,31 @@ Spec : `docs/superpowers/specs/2026-10-23-emargement-design.md` · plan :
 - **Banc** : `?emargement=1` (interrupteur allumé, semaine précédente close, matin du jour ouvert) ; les six
   fonctions sont jouées en mémoire par `_harness_supabase.js` avec les mêmes règles et messages.
 
+### Certificats de réalisation et attestations d'assiduité (octobre 2026)
+
+Spec : `docs/superpowers/specs/2026-10-24-attestations-design.md` · plan :
+`docs/superpowers/plans/2026-10-26-attestations.md`.
+
+- **Page** `#/emargement/attestations` (bouton « Attestations » de la semaine), mêmes portes que
+  l'Émargement (formateurs, interrupteur allumé) : période (toute la formation par défaut, un bouton par
+  mois), heures par stagiaire, certificat et attestation un à un ou pour toute la promo.
+- **Calcul** (`js/attestations-rules.js`, testé) : seules les feuilles **closes** comptent ; prévues = durée
+  des feuilles où le stagiaire a une ligne, réalisées = lignes signées (`signe_le`), une demi-journée signée
+  compte en entier (décision de Timy du 24/10). Feuilles ouvertes et demi-journées sans feuille : signalées
+  à l'écran, jamais comptées. Lecture légère sans tracés : `listEmargementPresences` (`js/db.js`).
+- **Certificat** (`js/attestations-documents.js`) : texte du modèle du ministère du Travail (version au
+  1er juin 2020) mot pour mot, sur l'en-tête de l'organisme, sans logo ; dates = premier et dernier jour
+  signés ; durée = heures réalisées ; champs inconnus (employeur, signataire) en pointillés. Bouton grisé
+  pour un stagiaire sans demi-journée signée.
+- **Attestation** : résumé (prévues, réalisées, absences, taux), détail par semaine, chaque absence et
+  chaque note avec sa date.
+- **En-tête** : le réglage `emargement_entete` gagne adresse (deux lignes), signataire, qualité, lieu
+  « Fait à » (défaut : lieu de la promo). Aucune migration.
+- **Nouveautés** : aucune entrée (même règle que l'émargement) ; texte prêt dans la spec (§ 8).
+- **Banc** : `?role=prof&centre=1&demo=1&emargement=7` charge les 20 feuilles de la promo 7, relevées en
+  lecture seule (`_banc_emargement_demo.js`, non versionné). Contrôle du 26/10 : MERCIER Kevin 59 h 30 sur
+  70 h (85 %), LAURENT Sarah 63 h (90 %), les huit autres 70 h, conformes au recomptage sur la base.
+
 ## Décisions UX importantes (à respecter)
 
 - ❌ **Pas de tiret cadratin (U+2014)** dans les libellés UI. Régression à éviter.

@@ -54,7 +54,7 @@ test("absences et notes : chaque absence, et la note d'une demi-journée signée
     { jour: "2026-10-12", demi: "matin", debut: "09:00", fin: "12:30", minutes: 210, absent: true, origine: "planning", observation: "Absence justifiée" },
     { jour: "2026-10-19", demi: "aprem", debut: "13:30", fin: "17:00", minutes: 210, absent: false, origine: null, observation: "Arrivée à 13h50" },
   ]);
-  assert.equal(LIBELLE_ORIGINE.planning, "Noté absent au planning");
+  assert.equal(LIBELLE_ORIGINE.planning, "noté au planning");
 });
 
 test("matin avant après-midi le même jour, quel que soit l'ordre reçu", () => {

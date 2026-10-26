@@ -85,7 +85,7 @@ export function attestationAssiduite({ entete, lieuDefaut, promo, stagiaire, bil
     el("td", {}, jourLong(e.jour)),
     el("td", {}, `${DEMI[e.demi] || e.demi}, ${libelleCreneau(e)}`),
     el("td", { class: "at-nombre" }, libelleDuree(e.minutes)),
-    el("td", {}, e.absent ? "Absent : " + (LIBELLE_ORIGINE[e.origine] || "absent").toLowerCase() : "Présent, signé"),
+    el("td", {}, e.absent ? "Absent" + (LIBELLE_ORIGINE[e.origine] ? " : " + LIBELLE_ORIGINE[e.origine] : "") : "Présent, signé"),
     el("td", {}, e.observation || "")));
   const qualite = entete.qualite ? ", " + entete.qualite : "";
 
@@ -94,7 +94,7 @@ export function attestationAssiduite({ entete, lieuDefaut, promo, stagiaire, bil
     el("h1", { class: "at-titre" }, "ATTESTATION D'ASSIDUITÉ"),
     el("p", { class: "at-justifie" }, "Je soussigné(e) ", champ(entete.signataire, "(prénom et nom)"), qualite,
       ", représentant l'organisme de formation ", entete.organisme, ", atteste que ", el("strong", {}, nomComplet(stagiaire)),
-      " a suivi la formation « ", entete.intitule, " »", promo?.nom ? ` (promotion ${promo.nom})` : "",
+      " a suivi la formation « ", entete.intitule, " »", promo?.nom ? `, promotion « ${promo.nom} »` : "",
       ", avec l'assiduité suivante, du ", dateFr(bilan.premierPrevu), " au ", dateFr(bilan.dernierPrevu), "."),
     el("table", { class: "at-resume" }, el("tbody", {},
       ligneResume("Heures prévues", libelleDuree(bilan.prevuesMin)),
