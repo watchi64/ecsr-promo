@@ -1769,6 +1769,21 @@ export async function listEmargementSeances(jourDebut, jourFin) {
   return (data || []).map((s) => ({ ...s, lignes: s.lignes || [], formateurs: s.formateurs || [] }));
 }
 
+// Feuilles d'une période, légères (sans tracé ni signature de formateur) : sert aux
+// certificats et attestations (spec 2026-10-24), qui peuvent couvrir toute une formation.
+// Une ligne est signée quand `signe_le` est posé (la base lie tracé et heure).
+export async function listEmargementPresences(jourDebut, jourFin) {
+  const { data, error } = await supabase
+    .from("emargement_seances")
+    .select("id, promo_id, jour, demi_journee, debut, fin, statut, "
+      + "lignes:emargement_lignes(stagiaire_id, signe_le, absent, absence_origine, observation, sur_appareil_formateur)")
+    .gte("jour", jourDebut)
+    .lte("jour", jourFin)
+    .order("jour");
+  if (error) throw error;
+  return (data || []).map((s) => ({ ...s, lignes: s.lignes || [] }));
+}
+
 // Feuilles ouvertes d'un jour, légères (sans tracé) : sert au bandeau, relu souvent.
 export async function getEmargementsOuverts(jour) {
   const { data, error } = await supabase
@@ -1808,23 +1823,30 @@ export function rouvrirEmargement(seanceId) {
   return rpcEmargement("emargement_rouvrir", { p_seance: seanceId });
 }
 
-// En-tête des feuilles, propre à la promo (réglage `emargement_entete`, JSON).
+// En-tête des feuilles, propre à la promo (réglage `emargement_entete`, JSON). Les champs
+// facultatifs (adresse, signataire, qualité, lieu) servent aux certificats et attestations
+// (spec 2026-10-24) : vides, ils s'impriment en pointillés à compléter à la main.
 export const ENTETE_EMARGEMENT_DEFAUT = {
   organisme: "ECF BOUSCAREN",
   intitule: "Titre professionnel Enseignant de la conduite et de la sécurité routière (ECSR)",
 };
+const ENTETE_FACULTATIF = { adresse1: 120, adresse2: 120, signataire: 80, qualite: 80, lieu: 60 };
 
 export async function getEnteteEmargement() {
   let lu = null;
   try { lu = JSON.parse(await getSetting("emargement_entete") || "null"); } catch (e) { lu = null; }
-  return {
-    organisme: (lu && typeof lu.organisme === "string" && lu.organisme.trim()) || ENTETE_EMARGEMENT_DEFAUT.organisme,
-    intitule: (lu && typeof lu.intitule === "string" && lu.intitule.trim()) || ENTETE_EMARGEMENT_DEFAUT.intitule,
+  const texte = (k) => (lu && typeof lu[k] === "string" ? lu[k].trim() : "");
+  const entete = {
+    organisme: texte("organisme") || ENTETE_EMARGEMENT_DEFAUT.organisme,
+    intitule: texte("intitule") || ENTETE_EMARGEMENT_DEFAUT.intitule,
   };
+  for (const k of Object.keys(ENTETE_FACULTATIF)) entete[k] = texte(k);
+  return entete;
 }
 
-export async function setEnteteEmargement({ organisme, intitule }) {
-  await setSetting("emargement_entete", JSON.stringify({
-    organisme: String(organisme || "").trim(), intitule: String(intitule || "").trim(),
-  }));
+export async function setEnteteEmargement(entete) {
+  const net = (k, max) => String(entete?.[k] || "").trim().slice(0, max);
+  const valeur = { organisme: net("organisme", 120), intitule: net("intitule", 200) };
+  for (const [k, max] of Object.entries(ENTETE_FACULTATIF)) valeur[k] = net(k, max);
+  await setSetting("emargement_entete", JSON.stringify(valeur));
 }
