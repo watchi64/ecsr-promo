@@ -1,0 +1,1565 @@
+<title>Nouvelle navigation ECSR</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap">
+<style>
+/*@@CANELA@@*/
+
+/* Maquette cliquable de la refonte de navigation (TP ECSR App).
+   Deux mondes : la coque de démonstration (barre du haut, hors app) et l'écran de l'app.
+   L'app porte deux habillages, choisis par la personne : ECSR Promo (vert d'origine) et ECF
+   (bleu, bleu nuit, rouge, relevés sur la feuille de style du site ecf.asso.fr). Une seule
+   apparence claire, assumée : l'app réelle n'a pas de mode sombre. */
+:root {
+  color-scheme: light;
+  --shell-bg: #E4E8E3;
+  --shell-ink: #1B211D;
+  --shell-muted: #56605A;
+  --shell-line: #C9D0C6;
+  --shell-card: #F6F7F4;
+  --shell-active: #1B211D;
+  --sans: "Outfit", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, sans-serif;
+  --mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --serif: "Canela", "Cormorant Garamond", Georgia, "Times New Roman", serif;
+}
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--shell-bg);
+  color: var(--shell-ink);
+  font-family: var(--sans);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+button { font: inherit; color: inherit; cursor: pointer; }
+button, input, select, textarea { font-family: inherit; }
+a { color: inherit; }
+* { box-sizing: border-box; }
+.sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+/* ============ Coque de démonstration ============ */
+.proto { height: 100%; display: flex; flex-direction: column; }
+.demo {
+  flex: none;
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding-block: 10px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  border-bottom: 1px solid var(--shell-line);
+  background: var(--shell-card);
+}
+.demo-title { display: flex; align-items: baseline; gap: 10px; margin-right: 6px; }
+.demo-title b { font-family: var(--serif); font-weight: 400; font-size: 20px; letter-spacing: -0.01em; }
+.demo-title span { font: 500 11px/1 var(--mono); letter-spacing: 0.12em; text-transform: uppercase; color: var(--shell-muted); }
+.demo-group { display: flex; align-items: center; gap: 6px; }
+.demo-label { font: 500 10.5px/1 var(--mono); letter-spacing: 0.12em; text-transform: uppercase; color: var(--shell-muted); }
+.seg { display: inline-flex; padding: 3px; border-radius: 10px; background: #DCE1DA; gap: 2px; }
+.seg button {
+  border: 0; background: transparent; height: 32px; padding: 0 12px; border-radius: 8px;
+  font-size: 13.5px; font-weight: 500; color: var(--shell-muted); white-space: nowrap;
+}
+.seg button[aria-pressed="true"] { background: #fff; color: var(--shell-ink); box-shadow: 0 1px 2px rgba(0,0,0,.12); font-weight: 600; }
+.seg button:focus-visible { outline: 2px solid var(--shell-active); outline-offset: 1px; }
+.demo-spacer { flex: 1; }
+.demo-fict { font: 500 11px/1 var(--mono); letter-spacing: 0.06em; color: var(--shell-muted); }
+.demo select { height: 34px; border-radius: 8px; border: 1px solid var(--shell-line); background: #fff; padding: 0 8px; font-size: 14px; }
+.only-narrow { display: none; }
+@media (max-width: 759px) {
+  .demo { gap: 8px; padding-block: 8px; }
+  .demo-title, .demo-fict, .demo-dev, .demo-role-seg { display: none; }
+  .only-narrow { display: inline-flex; }
+}
+
+.stage {
+  flex: 1; min-height: 0;
+  display: flex; justify-content: center; align-items: stretch;
+  padding-block: 16px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.frame {
+  position: relative; width: 100%; max-width: 1360px; height: 100%;
+  display: flex; flex-direction: column;
+  border-radius: 14px; overflow: hidden;
+  border: 1px solid var(--shell-line);
+  box-shadow: 0 30px 60px -30px rgba(20, 30, 20, .35), 0 6px 18px rgba(20, 30, 20, .08);
+  background: #fff;
+}
+.statusbar { display: none; }
+.stage[data-device="phone"] .frame {
+  width: 390px; max-width: 100%; height: min(844px, 100%);
+  border-radius: 46px; border: 11px solid #121513;
+  box-shadow: 0 30px 70px -30px rgba(0,0,0,.55);
+}
+.stage[data-device="phone"] .statusbar {
+  display: flex; flex: none; height: 40px; align-items: center; justify-content: space-between;
+  padding: 0 26px; font: 600 14px/1 var(--sans); color: #111; background: var(--status-bg, #fff);
+}
+.statusbar i { display: inline-block; width: 64px; height: 6px; }
+@media (max-width: 759px) {
+  .stage { padding: 0; }
+  .frame, .stage[data-device="phone"] .frame { width: 100%; max-width: none; height: 100%; border: 0; border-radius: 0; box-shadow: none; }
+  .stage[data-device="phone"] .statusbar { display: none; }
+}
+
+/* ============ Écran de l'app : habillages ============ */
+.screen {
+  position: relative; flex: 1; min-height: 0; overflow: hidden;
+  /* Habillage ECSR Promo : les jetons de css/style.css, gris un peu foncés pour tenir le
+     contraste AA du texte secondaire (4,5:1). */
+  --bg: #F1F4F0; --surface: #FBFCFA; --surface-2: #E7ECE3; --sunken: #E9EEE5;
+  --line: #D8DED2; --line-soft: #E3E8DD; --line-strong: #B7C0AA;
+  --ink: #1F2924; --ink-soft: #3F4D43; --ink-muted: #5A665C;
+  --accent: #6B7F4E; --accent-ink: #4C5C39; --accent-soft: #EAEFD9; --accent-soft-2: #D8E1C0;
+  --btn: #556641; --btn-hover: #4A5938; --on-btn: #FFFFFF;
+  --deep: #16231E; --deep-2: #1F2E28; --on-deep: #E4EADF; --on-deep-muted: #A3B09F;
+  --deep-hover: rgba(255,255,255,.06); --deep-active: rgba(216,225,192,.14); --deep-mark: #C9D6A8; --deep-mark-ink: #16231E;
+  --badge: #556641; --on-badge: #FFFFFF;
+  --stripe: transparent;
+  --display: var(--serif); --display-w: 400; --display-track: -0.015em;
+  --focus: #3F4D2E;
+  background: var(--bg); color: var(--ink);
+  font-family: var(--sans);
+}
+.screen[data-skin="ecf"] {
+  --bg: #F3F5F9; --surface: #FFFFFF; --surface-2: #E8EDF5; --sunken: #EBEFF6;
+  --line: #D6DDE8; --line-soft: #E3E8F0; --line-strong: #B2BED0;
+  --ink: #13213A; --ink-soft: #33465F; --ink-muted: #52637B;
+  --accent: #124483; --accent-ink: #124483; --accent-soft: #E3EBF6; --accent-soft-2: #C8D7EC;
+  --btn: #124483; --btn-hover: #0D2546; --on-btn: #FFFFFF;
+  --deep: #0D2546; --deep-2: #14335E; --on-deep: #E3EAF6; --on-deep-muted: #A5B6CF;
+  --deep-hover: rgba(255,255,255,.07); --deep-active: rgba(255,255,255,.11); --deep-mark: #FFFFFF; --deep-mark-ink: #124483;
+  --badge: #DB1418; --on-badge: #FFFFFF;
+  --stripe: linear-gradient(90deg, #124483 0 46%, #FFFFFF 46% 54%, #DB1418 54% 100%);
+  --display: var(--sans); --display-w: 600; --display-track: -0.02em;
+  --focus: #124483;
+}
+/* Notes : la même échelle douce dans les deux habillages, jamais de rouge (choix de Timy). */
+.screen { --n1: #F6E4D7; --n1-ink: #7E4128; --n2: #FBEACB; --n2-ink: #7A4106; --n3: #E6F2CF; --n3-ink: #355610; --n4: #4D7C0F; --n4-ink: #FFFFFF;
+  --ok: #3F6B0C; --ok-soft: #E8F3D2; --warn: #94470A; --warn-soft: #FBEACB; --signal: #8E4E33; --signal-soft: #F6E4D7; }
+.screen :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+.app { height: 100%; }
+.ico { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.ico-sm { width: 16px; height: 16px; }
+.ico-lg { width: 24px; height: 24px; }
+.logo { fill: currentColor; stroke: none; height: 26px; width: auto; flex: none; }
+
+/* ============ Espace stagiaire : barre d'onglets ============ */
+.lt { display: flex; flex-direction: column; height: 100%; }
+.lt-top {
+  flex: none; position: relative; z-index: 2;
+  display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 16px;
+  height: 66px; padding: 0 20px;
+  background: var(--surface); border-bottom: 1px solid var(--line);
+}
+.lt-top::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 3px; background: var(--stripe); }
+.brand { display: flex; align-items: center; gap: 10px; min-height: 40px; color: var(--ink); text-decoration: none; border: 0; background: none; padding: 4px; border-radius: 8px; justify-self: start; }
+.brand-name { font: 500 11px/1.15 var(--mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-muted); text-align: left; }
+.lt-tabs { display: flex; gap: 2px; padding: 4px; border-radius: 999px; background: var(--sunken); border: 1px solid var(--line); }
+.lt-tab {
+  display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 16px; border: 0; border-radius: 999px;
+  background: transparent; color: var(--ink-soft); font-size: 14.5px; font-weight: 500; white-space: nowrap;
+}
+.lt-tab:hover { color: var(--ink); }
+.lt-tab[aria-current="page"] { background: var(--surface); color: var(--accent-ink); font-weight: 600; box-shadow: 0 1px 2px rgba(15,25,20,.10), 0 0 0 1px var(--line); }
+.lt-right { justify-self: end; display: flex; align-items: center; gap: 8px; }
+.lt-main { flex: 1; overflow-y: auto; overscroll-behavior: contain; }
+
+.avatar {
+  width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; flex: none;
+  background: var(--accent-soft-2); color: var(--accent-ink); font: 600 13px/1 var(--sans); letter-spacing: 0.02em;
+}
+.acct-btn { display: flex; align-items: center; gap: 8px; border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 3px 10px 3px 3px; color: var(--ink); }
+.acct-btn:hover { border-color: var(--line-strong); }
+.acct-btn .who { font-size: 14px; font-weight: 500; }
+.dot-badge { position: relative; }
+.dot-badge::after { content: ""; position: absolute; top: 1px; right: 1px; width: 9px; height: 9px; border-radius: 50%; background: var(--badge); box-shadow: 0 0 0 2px var(--surface); }
+
+.bbar { display: none; }
+.bb-item {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  min-height: 54px; border: 0; background: transparent; color: var(--ink-muted);
+  font-size: 11px; font-weight: 500; letter-spacing: 0; position: relative; padding: 4px 0;
+  white-space: nowrap; min-width: 0;
+}
+.bb-item > span:last-child { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.bb-pill { display: grid; place-items: center; width: 56px; height: 30px; border-radius: 999px; position: relative; }
+.bb-item[aria-current="page"] { color: var(--accent-ink); font-weight: 700; }
+.bb-item[aria-current="page"] .bb-pill { background: var(--accent-soft-2); }
+.bb-count { position: absolute; top: -3px; right: 6px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: var(--badge); color: var(--on-badge); font: 600 10.5px/18px var(--mono); text-align: center; }
+
+.screen[data-size="phone"] .lt-top { grid-template-columns: 1fr auto; height: 56px; padding: 0 14px; }
+.screen[data-size="phone"] .lt-tabs, .screen[data-size="phone"] .brand-name, .screen[data-size="phone"] .acct-btn .who { display: none; }
+.screen[data-size="phone"] .acct-btn { gap: 2px; }
+.screen[data-size="phone"] .bbar {
+  display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); flex: none; position: relative; z-index: 2;
+  padding: 4px 4px 6px; background: var(--surface); border-top: 1px solid var(--line);
+}
+.stage[data-device="phone"] .screen[data-size="phone"] .bbar { padding-bottom: 24px; }
+.stage[data-device="phone"] .screen[data-size="phone"] .bbar::after {
+  content: ""; position: absolute; left: 50%; bottom: 8px; width: 120px; height: 5px; margin-left: -60px; border-radius: 3px; background: #111;
+}
+.screen[data-size="tablet"] .lt-tab { padding: 0 12px; }
+.screen[data-size="tablet"] .brand-name { display: none; }
+
+/* ============ Espaces équipe : barre latérale ============ */
+.ls { display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); height: 100%; }
+.side {
+  width: 264px; height: 100%; display: flex; flex-direction: column; gap: 4px; padding: 12px 10px 10px;
+  background: var(--deep); color: var(--on-deep); position: relative; z-index: 3;
+  transition: width .18s ease;
+}
+.side::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 3px; background: var(--stripe); }
+.ctx {
+  display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px; border-radius: 12px;
+  background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.10); color: inherit; text-align: left;
+}
+.ctx:hover { background: var(--deep-hover); }
+.ctx-mark { width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center; flex: none; background: var(--deep-mark); color: var(--deep-mark-ink); font: 600 13px/1 var(--mono); letter-spacing: 0.04em; }
+.ctx-text { min-width: 0; flex: 1; }
+.ctx-kind { display: block; font: 500 10px/1.2 var(--mono); letter-spacing: 0.12em; text-transform: uppercase; color: var(--on-deep-muted); }
+.ctx-name { display: block; font-size: 14.5px; font-weight: 600; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ctx .ico { color: var(--on-deep-muted); }
+.side-nav { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; margin-top: 6px; scrollbar-width: thin; }
+.side-label { font: 500 11px/1 var(--mono); letter-spacing: 0.12em; text-transform: uppercase; color: var(--on-deep); opacity: .72; padding: 16px 10px 8px; }
+.side-item {
+  display: flex; align-items: center; gap: 12px; width: 100%; min-height: 42px; padding: 0 10px; border: 0; border-radius: 10px;
+  background: transparent; color: var(--on-deep); text-align: left; font-size: 14.5px; font-weight: 500; position: relative;
+}
+.side-item .ico { opacity: .82; }
+.side-item:hover { background: var(--deep-hover); }
+.side-item[aria-current="page"] { background: var(--deep-active); font-weight: 600; }
+.side-item[aria-current="page"] .ico { opacity: 1; }
+.side-item[aria-current="page"]::before { content: ""; position: absolute; left: -10px; top: 10px; bottom: 10px; width: 3px; border-radius: 0 3px 3px 0; background: var(--deep-mark); }
+.screen[data-skin="ecf"] .side-item[aria-current="page"]::before { background: #DB1418; }
+.side-txt { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.side-count { min-width: 22px; height: 20px; padding: 0 6px; border-radius: 999px; background: var(--badge); color: var(--on-badge); font: 600 11px/20px var(--mono); text-align: center; }
+.screen[data-skin="ecsr"] .side-count { background: var(--deep-mark); color: var(--deep-mark-ink); }
+.side-soon { font: 500 10px/1 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--on-deep-muted); border: 1px solid rgba(255,255,255,.18); border-radius: 999px; padding: 4px 7px; }
+.side-live { width: 8px; height: 8px; border-radius: 50%; background: #9BD36A; box-shadow: 0 0 0 3px rgba(155,211,106,.18); }
+.side-open { font: 500 10.5px/1 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: #B9E08F; background: rgba(155,211,106,.14); border-radius: 999px; padding: 4px 7px; }
+.side-foot { display: flex; flex-direction: column; gap: 2px; border-top: 1px solid rgba(255,255,255,.09); padding-top: 8px; }
+.side-acct { display: flex; align-items: center; gap: 10px; width: 100%; padding: 6px 8px; border: 0; border-radius: 12px; background: transparent; color: inherit; text-align: left; }
+.side-acct:hover { background: var(--deep-hover); }
+.side-acct .avatar { background: rgba(255,255,255,.14); color: var(--on-deep); }
+.side-acct small { display: block; color: var(--on-deep-muted); font-size: 12.5px; line-height: 1.2; }
+.side-acct b { display: block; font-weight: 600; font-size: 14px; line-height: 1.25; }
+.side-collapse { display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border: 0; border-radius: 8px; background: transparent; color: var(--on-deep-muted); margin-left: auto; }
+.side-collapse:hover { background: var(--deep-hover); color: var(--on-deep); }
+.side-head { display: flex; align-items: center; gap: 6px; }
+.side :focus-visible { outline-color: #FFFFFF; }
+
+/* Barre repliée : une colonne d'icônes, jamais un menu caché. */
+.ls.is-rail .side { width: 74px; }
+.ls.is-rail .side-txt, .ls.is-rail .ctx-text, .ls.is-rail .ctx > .ico, .ls.is-rail .side-label, .ls.is-rail .side-soon, .ls.is-rail .side-acct .acct-text { display: none; }
+.ls.is-rail .side-label { display: block; height: 14px; padding: 0; overflow: hidden; font-size: 0; }
+.ls.is-rail .ctx { justify-content: center; padding: 6px; }
+.ls.is-rail .side-item { justify-content: center; padding: 0; }
+.ls.is-rail .side-count { position: absolute; top: 4px; right: 6px; min-width: 16px; height: 16px; padding: 0 4px; font-size: 9.5px; line-height: 16px; }
+.ls.is-rail .side-live { position: absolute; top: 9px; right: 13px; }
+.ls.is-rail .side-head { flex-direction: column; }
+.ls.is-rail .side-collapse { margin: 4px auto 0; }
+.ls.is-rail .side-acct { justify-content: center; }
+
+.ls-main { display: flex; flex-direction: column; min-width: 0; height: 100%; }
+.ls-scroll { flex: 1; overflow-y: auto; overscroll-behavior: contain; }
+.mtop { display: none; }
+.screen[data-size="phone"] .ls { grid-template-columns: minmax(0, 1fr); }
+.side { min-height: 0; }
+.ls-main { min-height: 0; }
+.screen[data-size="phone"] .side { display: none; }
+.screen[data-size="phone"] .mtop {
+  display: flex; flex: none; align-items: center; gap: 10px; height: 56px; padding: 0 12px;
+  background: var(--deep); color: var(--on-deep); position: relative;
+}
+.screen[data-size="phone"] .mtop::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: var(--stripe); }
+.mtop .ctx { flex: 1; min-width: 0; padding: 5px 8px; }
+.mtop .ctx-mark { width: 32px; height: 32px; font-size: 12px; }
+.mtop .avatar { background: rgba(255,255,255,.14); color: var(--on-deep); }
+.mtop-acct { border: 0; background: transparent; padding: 2px; border-radius: 50%; }
+.screen[data-size="phone"] .ls .bbar {
+  display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); flex: none; position: relative; z-index: 2;
+  padding: 4px 4px 6px; background: var(--surface); border-top: 1px solid var(--line);
+}
+
+/* ============ Pages ============ */
+.page { max-width: 1140px; margin: 0 auto; padding: 30px 36px 56px; display: flex; flex-direction: column; gap: 22px; }
+.screen[data-size="tablet"] .page { padding: 24px 24px 48px; }
+.screen[data-size="phone"] .page { padding: 18px 16px 28px; gap: 16px; }
+.ph { display: flex; align-items: flex-end; gap: 16px; flex-wrap: wrap; }
+.ph-text { min-width: 0; flex: 1 1 320px; }
+.eyebrow { font: 500 11.5px/1.2 var(--mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent-ink); margin: 0; }
+.ph h1 { font-family: var(--display); font-weight: var(--display-w); letter-spacing: var(--display-track); font-size: 36px; line-height: 1.08; margin: 6px 0 0; text-wrap: balance; }
+.screen[data-size="phone"] .ph h1 { font-size: 30px; }
+.ph-meta { color: var(--ink-muted); margin: 8px 0 0; font-size: 14.5px; }
+.ph-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.back { display: inline-flex; align-items: center; gap: 4px; border: 0; background: none; color: var(--accent-ink); font-weight: 600; padding: 6px 2px; margin-bottom: 2px; }
+
+.subnav { display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; padding: 3px; border-radius: 12px; background: var(--sunken); width: max-content; max-width: 100%; }
+.subnav::-webkit-scrollbar { display: none; }
+.subnav button { flex: none; border: 0; background: transparent; height: 34px; padding: 0 14px; border-radius: 9px; color: var(--ink-soft); font-size: 14px; font-weight: 500; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; }
+.subnav button[aria-selected="true"] { background: var(--surface); color: var(--ink); font-weight: 600; box-shadow: 0 1px 2px rgba(15,25,20,.10), 0 0 0 1px var(--line); }
+.subnav .n { font: 600 11px/1 var(--mono); padding: 3px 6px; border-radius: 999px; background: var(--badge); color: var(--on-badge); }
+
+.grid { display: grid; gap: 16px; }
+.g2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.g3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.g4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.span2 { grid-column: span 2; }
+.screen[data-size="tablet"] .g3, .screen[data-size="tablet"] .g4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.screen[data-size="phone"] .g2, .screen[data-size="phone"] .g3 { grid-template-columns: minmax(0, 1fr); }
+.screen[data-size="phone"] .g4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.screen[data-size="phone"] .span2 { grid-column: auto; }
+
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 18px 20px; min-width: 0; }
+.screen[data-size="phone"] .card { padding: 16px; border-radius: 14px; }
+.card-h { display: flex; align-items: center; gap: 10px; margin: 0 0 12px; }
+.card-h h2 { font-size: 16px; font-weight: 600; margin: 0; letter-spacing: 0; }
+.card-h .more { margin-left: auto; }
+.card-h .ico { color: var(--accent-ink); }
+.card.hero { background: var(--surface); border-color: var(--line-strong); }
+.lead { font-size: 15.5px; color: var(--ink-soft); margin: 0; }
+.muted { color: var(--ink-muted); }
+.small { font-size: 13.5px; }
+.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 42px; padding: 0 16px; border-radius: 11px; border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink); font-weight: 600; font-size: 14.5px; white-space: nowrap; }
+.btn:hover { border-color: var(--ink-muted); }
+.btn-primary { background: var(--btn); border-color: transparent; color: var(--on-btn); }
+.btn-primary:hover { background: var(--btn-hover); border-color: transparent; }
+.btn-quiet { border-color: transparent; background: transparent; color: var(--accent-ink); padding: 0 8px; }
+.btn-quiet:hover { background: var(--accent-soft); border-color: transparent; }
+.btn-sm { height: 34px; padding: 0 12px; font-size: 13.5px; border-radius: 9px; }
+.btn[disabled] { opacity: .55; cursor: not-allowed; }
+.link { border: 0; background: none; padding: 0; min-height: 40px; color: var(--accent-ink); font-weight: 600; font-size: 14px; display: inline-flex; align-items: center; gap: 4px; }
+/* Sur téléphone, toute zone à toucher fait au moins 44 px (Apple HIG). */
+.screen[data-size="phone"] .btn { height: 46px; }
+.screen[data-size="phone"] .btn-sm { height: 44px; }
+.screen[data-size="phone"] .link { min-height: 44px; }
+.screen[data-size="phone"] .brand { min-height: 44px; }
+.screen[data-size="phone"] .acct-btn { padding: 3px 8px 3px 3px; }
+.screen[data-size="phone"] .mtop-acct { padding: 4px; }
+.screen[data-size="phone"] .subnav button { height: 44px; }
+.screen[data-size="phone"] .fchip { height: 44px; }
+/* Interrupteur : même dessin, zone de toucher agrandie par une bordure transparente. */
+.screen[data-size="phone"] .toggle { border: 9px solid transparent; background-clip: padding-box; box-sizing: content-box; margin: -9px; }
+
+.chip { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; border-radius: 999px; font-size: 12.5px; font-weight: 500; background: var(--sunken); color: var(--ink-soft); white-space: nowrap; }
+.chip-accent { background: var(--accent-soft); color: var(--accent-ink); }
+.chip-ok { background: var(--ok-soft); color: var(--ok); }
+.chip-warn { background: var(--warn-soft); color: var(--warn); }
+.chip-signal { background: var(--signal-soft); color: var(--signal); }
+.chip-new { background: var(--badge); color: var(--on-badge); }
+.chip-soon { background: transparent; color: var(--ink-muted); border: 1px dashed var(--line-strong); }
+.chip .ico { width: 14px; height: 14px; }
+.updated { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--accent-ink); background: var(--accent-soft); border-radius: 6px; padding: 2px 8px; font-weight: 500; }
+.updated::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--badge); }
+
+.rows { display: flex; flex-direction: column; }
+.row { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-top: 1px solid var(--line-soft); min-width: 0; }
+.rows > .row:first-child { border-top: 0; padding-top: 2px; }
+button.row, .row-btn { width: 100%; border-left: 0; border-right: 0; border-bottom: 0; background: transparent; text-align: left; color: inherit; font: inherit; }
+button.row:hover .row-title { color: var(--accent-ink); }
+.row-icon { width: 38px; height: 38px; border-radius: 11px; display: grid; place-items: center; background: var(--sunken); color: var(--accent-ink); flex: none; }
+.row-main { flex: 1; min-width: 0; }
+.row-title { display: block; font-weight: 600; font-size: 15px; line-height: 1.3; }
+.row-sub { display: block; color: var(--ink-muted); font-size: 13.5px; line-height: 1.35; margin-top: 2px; }
+.row-end { display: flex; align-items: center; gap: 8px; flex: none; color: var(--ink-muted); }
+.screen[data-size="phone"] .row-end .chip { display: none; }
+.screen[data-size="phone"] .row-end .chip.keep { display: inline-flex; }
+
+.today { display: flex; flex-direction: column; gap: 0; }
+.slot { display: grid; grid-template-columns: 136px minmax(0, 1fr); gap: 16px; padding: 14px 0; border-top: 1px solid var(--line-soft); }
+.slot:first-child { border-top: 0; padding-top: 0; }
+.slot-when { font: 500 12.5px/1.4 var(--mono); color: var(--ink-muted); }
+.slot-when b { display: block; font: 600 13.5px/1.3 var(--sans); color: var(--ink); text-transform: none; }
+.slot-what b { display: block; font-size: 16px; font-weight: 600; line-height: 1.3; }
+.slot-what p { margin: 4px 0 0; color: var(--ink-soft); }
+.slot-what .chip { margin-top: 8px; }
+.slot-when span { display: block; }
+.screen[data-size="phone"] .slot { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+.screen[data-size="phone"] .slot-when b { display: inline; margin-right: 8px; }
+.screen[data-size="phone"] .slot-when span:first-of-type { display: inline; }
+.actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
+
+.kpi { display: flex; flex-direction: column; gap: 6px; }
+/* Chiffres clés en police droite dans les deux habillages : le « % » de Canela sort penché. */
+.kpi-v { font: 600 32px/1 var(--sans); letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.kpi-l { font-size: 13.5px; color: var(--ink-muted); }
+.screen[data-size="phone"] .kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.screen[data-size="phone"] .kpis .card { padding: 12px; }
+.screen[data-size="phone"] .kpis .kpi-v { font-size: 22px; }
+.screen[data-size="phone"] .kpis .kpi-l, .screen[data-size="phone"] .kpis .kpi-d { font-size: 12px; line-height: 1.3; }
+.kpi-d { font-size: 12.5px; font-weight: 500; }
+
+.meter { height: 8px; border-radius: 999px; background: var(--sunken); overflow: hidden; }
+.meter > i { display: block; height: 100%; border-radius: 999px; background: var(--accent); }
+.bars { display: flex; align-items: flex-end; gap: 8px; height: 120px; padding-top: 6px; }
+.bars div { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; height: 100%; justify-content: flex-end; min-width: 0; }
+.bars i { display: block; width: 100%; max-width: 38px; border-radius: 6px 6px 3px 3px; background: var(--accent-soft-2); }
+.bars i.on { background: var(--accent); }
+.bars span { font: 500 11px/1 var(--mono); color: var(--ink-muted); }
+.bars b { font: 600 12px/1 var(--mono); color: var(--ink-soft); min-height: 12px; }
+.bars { height: 140px; }
+
+.tbl-wrap { overflow-x: auto; margin: 0 -4px; }
+.tbl { width: 100%; border-collapse: collapse; font-size: 14px; }
+.tbl th { text-align: left; font: 500 11px/1.2 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-muted); padding: 8px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.tbl td { padding: 11px 10px; border-bottom: 1px solid var(--line-soft); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.tbl tr:last-child td { border-bottom: 0; }
+.tbl tbody tr.clickable { cursor: pointer; }
+.tbl tbody tr.clickable:hover td { background: var(--sunken); }
+.tbl td.num, .tbl th.num { text-align: right; }
+.name-cell { display: flex; align-items: center; gap: 10px; font-weight: 600; }
+.name-cell .avatar { width: 30px; height: 30px; font-size: 11.5px; }
+
+.matrix { border-collapse: separate; border-spacing: 3px; font-size: 13px; }
+.matrix th { font: 500 11px/1.2 var(--mono); color: var(--ink-muted); padding: 4px 6px; text-align: center; white-space: nowrap; }
+.matrix th:first-child { text-align: left; }
+.matrix td { padding: 0; }
+.matrix td:first-child { padding-right: 8px; font-weight: 600; white-space: nowrap; }
+.cellnote { display: grid; place-items: center; width: 52px; height: 32px; border-radius: 7px; font: 600 13px/1 var(--mono); }
+.n1 { background: var(--n1); color: var(--n1-ink); } .n2 { background: var(--n2); color: var(--n2-ink); }
+.n3 { background: var(--n3); color: var(--n3-ink); } .n4 { background: var(--n4); color: var(--n4-ink); }
+.n0 { background: var(--sunken); color: var(--ink-muted); }
+
+.steps { display: flex; flex-direction: column; }
+.step { display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; gap: 14px; align-items: start; padding: 12px 0; position: relative; }
+.step + .step::before { content: ""; position: absolute; left: 17px; top: -12px; height: 24px; width: 2px; background: var(--line); }
+.step-n { width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; border: 1.5px solid var(--line-strong); font: 600 13px/1 var(--mono); color: var(--ink-muted); background: var(--surface); }
+.step.done .step-n { background: var(--accent-soft-2); border-color: transparent; color: var(--accent-ink); }
+.step.now .step-n { background: var(--btn); border-color: transparent; color: var(--on-btn); }
+.step b { display: block; font-weight: 600; }
+.step span { color: var(--ink-muted); font-size: 13.5px; }
+
+.toggle { position: relative; width: 44px; height: 26px; border-radius: 999px; background: var(--line-strong); border: 0; flex: none; transition: background .15s; }
+.toggle::after { content: ""; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.2); transition: transform .15s; }
+.toggle[aria-checked="true"] { background: var(--btn); }
+.toggle[aria-checked="true"]::after { transform: translateX(18px); }
+
+.search { display: flex; align-items: center; gap: 8px; height: 42px; padding: 0 12px; border-radius: 11px; border: 1px solid var(--line); background: var(--surface); color: var(--ink-muted); min-width: 0; }
+.search input { border: 0; outline: 0; background: transparent; flex: 1; min-width: 0; font-size: 15px; color: var(--ink); }
+.search:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.toolbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.toolbar .search { flex: 1 1 260px; }
+.filters { display: flex; gap: 6px; flex-wrap: wrap; }
+.fchip { height: 34px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); font-size: 13.5px; font-weight: 500; color: var(--ink-soft); }
+.fchip[aria-pressed="true"] { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+
+.screen[data-size="phone"] .desk-only { display: none; }
+.bb-dot { position: absolute; top: 2px; right: 14px; width: 9px; height: 9px; border-radius: 50%; background: var(--badge); box-shadow: 0 0 0 2px var(--surface); }
+.foot-links { display: flex; flex-wrap: wrap; gap: 4px 20px; padding-top: 4px; border-top: 1px solid var(--line); }
+.soon-box { border: 1.5px dashed var(--line-strong); border-radius: 16px; padding: 18px 20px; background: transparent; }
+.soon-box h2 { margin: 0 0 6px; font-size: 16px; }
+.note { font-size: 13px; color: var(--ink-muted); margin: 0; }
+/* Assistant : dans la barre du haut, jamais en bouton flottant (il masquait du contenu sur iPhone). */
+.ask-btn { display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--ink-soft); font-size: 14px; font-weight: 500; }
+.ask-btn:hover { border-color: var(--line-strong); color: var(--ink); }
+.screen[data-size="phone"] .ask-btn { height: 44px; padding: 0 14px 0 12px; }
+.screen[data-size="tablet"] .ask-txt { display: none; }
+.ask-sugg { display: flex; flex-wrap: wrap; gap: 6px; padding: 4px 8px 6px; }
+.ask-sugg button { min-height: 36px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--ink-soft); font-size: 13.5px; }
+.screen[data-size="phone"] .ask-sugg button { min-height: 44px; }
+.screen[data-size="tablet"] .ask-btn { width: 40px; padding: 0; justify-content: center; }
+.mtop-ask { color: var(--on-deep); width: 44px; height: 44px; display: grid; place-items: center; }
+.ctx-mark .ico { width: 20px; height: 20px; }
+.pop:focus { outline: none; }
+.screen[data-size="phone"] .ctx-dup { display: none; }
+
+/* ============ Calques : menus, tiroirs, messages ============ */
+.ovl { position: absolute; inset: 0; z-index: 20; pointer-events: none; }
+.ovl.on { pointer-events: auto; }
+.scrim { position: absolute; inset: 0; background: rgba(12, 18, 15, .30); }
+.pop {
+  position: absolute; width: 340px; max-height: calc(100% - 24px); overflow-y: auto;
+  background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 18px;
+  box-shadow: 0 24px 60px -18px rgba(10, 20, 15, .35), 0 4px 12px rgba(10, 20, 15, .08);
+  padding: 10px; display: flex; flex-direction: column; gap: 2px;
+}
+.pop.at-top-right { top: 62px; right: 14px; }
+.pop.at-bottom-left { left: 12px; bottom: 12px; }
+.pop.at-top-left { left: 12px; top: 12px; }
+.screen[data-size="phone"] .pop { left: 8px; right: 8px; bottom: 8px; top: auto; width: auto; max-height: 86%; border-radius: 22px; padding: 8px 10px 12px; }
+.screen[data-size="phone"] .pop::before { content: ""; display: block; width: 40px; height: 5px; border-radius: 3px; background: var(--line-strong); margin: 4px auto 6px; flex: none; }
+.pop-h { display: flex; align-items: center; gap: 12px; padding: 8px 8px 12px; border-bottom: 1px solid var(--line-soft); margin-bottom: 6px; }
+.pop-h .avatar { width: 44px; height: 44px; font-size: 15px; }
+.pop-h b { display: block; font-size: 16px; }
+.pop-h small { display: block; color: var(--ink-muted); font-size: 13px; }
+.pop-sec { font: 500 10.5px/1 var(--mono); letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-muted); padding: 12px 8px 8px; }
+.mi { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 44px; padding: 0 10px; border: 0; border-radius: 10px; background: transparent; color: var(--ink); text-align: left; font-size: 14.5px; font-weight: 500; }
+.mi:hover { background: var(--sunken); }
+.mi .ico { color: var(--ink-muted); }
+.mi .end { margin-left: auto; color: var(--ink-muted); font-size: 13px; }
+.mi[aria-current="true"] { background: var(--accent-soft); }
+.mi[aria-current="true"] .ico { color: var(--accent-ink); }
+.mi .ctx-mark { width: 32px; height: 32px; font-size: 11.5px; background: var(--accent-soft-2); color: var(--accent-ink); }
+.mi-text { flex: 1; min-width: 0; }
+.mi-text small { display: block; color: var(--ink-muted); font-size: 12.5px; line-height: 1.2; }
+.skins { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 0 6px 6px; }
+.skin { display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 8px 10px; border-radius: 12px; border: 1.5px solid var(--line); background: var(--surface); text-align: left; font-size: 14px; font-weight: 600; color: var(--ink); }
+.skin[aria-pressed="true"] { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.swatch { width: 26px; height: 26px; border-radius: 50%; flex: none; box-shadow: inset 0 0 0 1px rgba(0,0,0,.12); }
+.sw-ecsr { background: conic-gradient(#6B7F4E 0 50%, #16231E 50% 75%, #F1F4F0 75% 100%); }
+.sw-ecf { background: conic-gradient(#124483 0 50%, #DB1418 50% 75%, #FFFFFF 75% 100%); }
+.sheet-nav .side-label { color: var(--ink-muted); padding: 14px 8px 6px; }
+.sheet-nav .mi .chip { margin-left: auto; }
+.field { display: flex; flex-direction: column; gap: 6px; padding: 6px 8px; }
+.field label { font-weight: 600; font-size: 14px; }
+.field textarea { min-height: 96px; resize: vertical; border-radius: 11px; border: 1px solid var(--line); padding: 10px 12px; font-size: 15px; color: var(--ink); background: var(--surface); }
+.field textarea:focus { outline: 2px solid var(--focus); outline-offset: 1px; }
+.auto-ctx { margin: 4px 8px; padding: 10px 12px; border-radius: 11px; background: var(--sunken); font-size: 13px; color: var(--ink-soft); }
+.auto-ctx b { font-weight: 600; color: var(--ink); }
+.pop-actions { display: flex; justify-content: flex-end; gap: 8px; padding: 10px 8px 4px; }
+.toast {
+  position: absolute; left: 50%; bottom: 22px; transform: translateX(-50%); z-index: 30;
+  background: var(--ink); color: var(--surface); padding: 12px 16px; border-radius: 12px; font-size: 14px; font-weight: 500;
+  box-shadow: 0 12px 30px -10px rgba(0,0,0,.45); max-width: calc(100% - 32px); width: max-content;
+}
+.screen[data-size="phone"] .toast { bottom: 84px; }
+.stage[data-device="phone"] .screen[data-size="phone"] .toast { bottom: 100px; }
+
+/* ============ Volet « Proposition » ============ */
+.doc-wrap { flex: 1; min-height: 0; overflow-y: auto; }
+.doc {
+  max-width: 820px; margin: 0 auto; padding-block: 32px 80px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  color: var(--shell-ink);
+}
+.doc h1 { font-family: var(--serif); font-weight: 400; font-size: 44px; line-height: 1.05; letter-spacing: -0.02em; margin: 6px 0 14px; text-wrap: balance; }
+.doc h2 { font-family: var(--serif); font-weight: 400; font-size: 28px; line-height: 1.15; letter-spacing: -0.01em; margin: 44px 0 12px; text-wrap: balance; }
+.doc h3 { font-size: 16.5px; margin: 22px 0 6px; }
+.doc p, .doc li { font-size: 16px; line-height: 1.6; max-width: 68ch; }
+.doc p { margin: 0 0 12px; }
+.doc ul, .doc ol { margin: 0 0 12px; padding-left: 22px; }
+.doc li + li { margin-top: 4px; }
+.doc .kicker { font: 500 11.5px/1.2 var(--mono); letter-spacing: 0.12em; text-transform: uppercase; color: var(--shell-muted); }
+.doc .intro { font-size: 18.5px; line-height: 1.55; color: #2E3631; }
+.doc .tbl-wrap { margin: 10px 0 16px; border: 1px solid var(--shell-line); border-radius: 12px; background: #FBFCFA; }
+.doc table { width: 100%; border-collapse: collapse; font-size: 14.5px; }
+.doc th { text-align: left; font: 500 11px/1.25 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--shell-muted); padding: 10px 12px; border-bottom: 1px solid var(--shell-line); background: #F1F3EF; }
+.doc td { padding: 10px 12px; border-bottom: 1px solid #E1E5DE; vertical-align: top; line-height: 1.45; }
+.doc tr:last-child td { border-bottom: 0; }
+.doc td.c { text-align: center; white-space: nowrap; }
+.doc .y { color: #3D5C17; font-weight: 600; }
+.doc .v { color: #2E5A86; font-weight: 600; }
+.doc .no { color: #8A938C; }
+.doc .callout { border-left: 3px solid #6B7F4E; background: #EDF1E8; padding: 12px 16px; border-radius: 0 10px 10px 0; margin: 14px 0; }
+.doc .callout p { margin: 0; }
+.doc .cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 12px 0 8px; }
+.doc .dcard { border: 1px solid var(--shell-line); background: #FBFCFA; border-radius: 14px; padding: 14px 16px; }
+.doc .dcard b { display: block; font-size: 16px; margin-bottom: 4px; }
+.doc .dcard p { font-size: 14.5px; margin: 0; }
+.doc .dcard .k { font: 500 10.5px/1 var(--mono); letter-spacing: 0.12em; text-transform: uppercase; color: var(--shell-muted); display: block; margin-bottom: 8px; }
+.doc .src { font-size: 13.5px; color: var(--shell-muted); }
+.doc .src a { color: inherit; }
+.doc .pill { display: inline-block; font: 500 11px/1 var(--mono); letter-spacing: 0.06em; padding: 5px 8px; border-radius: 999px; background: #DCE1DA; color: #2F3832; margin-right: 6px; }
+.doc .go-proto { display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 14px; border-radius: 10px; border: 0; background: #1B211D; color: #fff; font-weight: 600; margin-top: 6px; }
+@media (max-width: 640px) {
+  .doc h1 { font-size: 34px; }
+  .doc h2 { font-size: 24px; }
+  .doc .cards { grid-template-columns: minmax(0, 1fr); }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <symbol id="i-home" viewBox="0 0 24 24"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .7-1.5l7-6a2 2 0 0 1 2.6 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M6.3 17.7l-1.4 1.4M19.1 4.9l-1.4 1.4"/></symbol>
+  <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 9h18M8 3v4M16 3v4"/></symbol>
+  <symbol id="i-book" viewBox="0 0 24 24"><path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></symbol>
+  <symbol id="i-user" viewBox="0 0 24 24"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></symbol>
+  <symbol id="i-ccp2" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="5"/><path d="M9.25 9.75a2.75 2.75 0 0 1 5.5 0c0 1.6-1.4 2.6-2.75 3.8L9.25 16.5h5.5"/></symbol>
+  <symbol id="i-edu" viewBox="0 0 24 24"><path d="M21.42 10.92a1 1 0 0 0-.02-1.84L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.83l8.57 3.91a2 2 0 0 0 1.66 0z"/><path d="M22 10v6"/><path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5"/></symbol>
+  <symbol id="i-clipboard" viewBox="0 0 24 24"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m9 13 2 2 4-4"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M7 16v-3M11 16V9M15 16v-5M19 16V6"/></symbol>
+  <symbol id="i-trend" viewBox="0 0 24 24"><path d="M16 7h6v6"/><path d="m22 7-8.5 8.5-5-5L2 17"/></symbol>
+  <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M21 4h-7M10 4H3M21 12h-9M8 12H3M21 20h-5M12 20H3M14 2v4M8 10v4M16 18v4"/></symbol>
+  <symbol id="i-building" viewBox="0 0 24 24"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4M10 10h4M10 14h4M10 18h4"/></symbol>
+  <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></symbol>
+  <symbol id="i-layers" viewBox="0 0 24 24"><path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/></symbol>
+  <symbol id="i-scale" viewBox="0 0 24 24"><path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="M7 21h10M12 3v18M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/></symbol>
+  <symbol id="i-key" viewBox="0 0 24 24"><circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6M15.5 7.5l3 3L22 7l-3-3"/></symbol>
+  <symbol id="i-flag" viewBox="0 0 24 24"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><path d="M4 22v-7"/></symbol>
+  <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/><path d="m4.93 4.93 4.24 4.24M14.83 9.17l4.24-4.24M14.83 14.83l4.24 4.24M9.17 14.83l-4.24 4.24"/></symbol>
+  <symbol id="i-logout" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5M21 12H9"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></symbol>
+  <symbol id="i-down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+  <symbol id="i-updown" viewBox="0 0 24 24"><path d="m7 15 5 5 5-5M7 9l5-5 5 5"/></symbol>
+  <symbol id="i-right" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+  <symbol id="i-left" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></symbol>
+  <symbol id="i-panel" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/><path d="m16 15-3-3 3-3"/></symbol>
+  <symbol id="i-panel-open" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/><path d="m14 9 3 3-3 3"/></symbol>
+  <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></symbol>
+  <symbol id="i-sparkle" viewBox="0 0 24 24"><path d="M9.94 15.5A2 2 0 0 0 8.5 14.06l-6.14-1.58a.5.5 0 0 1 0-.96L8.5 9.94A2 2 0 0 0 9.94 8.5l1.58-6.14a.5.5 0 0 1 .96 0l1.58 6.14a2 2 0 0 0 1.44 1.44l6.14 1.58a.5.5 0 0 1 0 .96l-6.14 1.58a2 2 0 0 0-1.44 1.44l-1.58 6.14a.5.5 0 0 1-.96 0z"/></symbol>
+  <symbol id="i-file" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8M16 13H8M16 17H8"/></symbol>
+  <symbol id="i-pen" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.38 3.62a1 1 0 0 1 3 3L7.37 18.64a2 2 0 0 1-.86.5l-2.87.84a.5.5 0 0 1-.62-.62l.84-2.87a2 2 0 0 1 .5-.86z"/></symbol>
+  <symbol id="i-quiz" viewBox="0 0 24 24"><path d="M10 6h11M10 12h11M10 18h11M3 6l1.5 1.5L7 5M3 13l1.5 1.5L7 12M3 19l1.5 1.5L7 18"/></symbol>
+  <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></symbol>
+  <symbol id="i-car" viewBox="0 0 24 24"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><path d="M9 17h6"/><circle cx="17" cy="17" r="2"/></symbol>
+  <symbol id="i-board" viewBox="0 0 24 24"><path d="M2 3h20"/><path d="M21 3v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V3"/><path d="m7 21 5-5 5 5"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+  <symbol id="i-checkc" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4M12 17h.01"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5M12 15V3"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-userplus" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></symbol>
+  <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2.06 12.35a1 1 0 0 1 0-.7 10.75 10.75 0 0 1 19.88 0 1 1 0 0 1 0 .7 10.75 10.75 0 0 1-19.88 0"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="i-palette" viewBox="0 0 24 24"><circle cx="13.5" cy="6.5" r=".6" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".6" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".6" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".6" fill="currentColor"/><path d="M12 2A10 10 0 0 0 2 12c0 5.5 4.5 10 10 10a3 3 0 0 0 3-3 1.5 1.5 0 0 0-.4-1 1.5 1.5 0 0 1-.4-1 1.5 1.5 0 0 1 1.5-1.5H17a5 5 0 0 0 5-5 10 10 0 0 0-10-10Z"/></symbol>
+  <symbol id="i-chat" viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5Z"/></symbol>
+  <symbol id="i-briefcase" viewBox="0 0 24 24"><path d="M16 20V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/><rect width="20" height="14" x="2" y="6" rx="2"/></symbol>
+  <symbol id="i-report" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M12 7v3"/><path d="M12 13.5h.01"/></symbol>
+  <symbol id="i-eyeoff" viewBox="0 0 24 24"><path d="M10.73 5.08a10.74 10.74 0 0 1 11.2 6.57 1 1 0 0 1 0 .7 10.75 10.75 0 0 1-1.44 2.49"/><path d="M14.08 14.16a3 3 0 0 1-4.24-4.24"/><path d="M17.48 17.5a10.75 10.75 0 0 1-15.42-5.15 1 1 0 0 1 0-.7 10.75 10.75 0 0 1 4.45-5.14"/><path d="m2 2 20 20"/></symbol>
+  <symbol id="i-mail" viewBox="0 0 24 24"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></symbol>
+  <symbol id="i-swap" viewBox="0 0 24 24"><path d="m16 3 4 4-4 4M20 7H4M8 21l-4-4 4-4M4 17h16"/></symbol>
+  <symbol id="i-history" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.74 9.74 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></symbol>
+  <symbol id="logo" viewBox="40 30 950 410"><path d="M246.37,361.16l45.16-.15,103.86-159.95h77.13s-146.38,226.16-146.38,226.16l-91.15.12c-48.71.07-94.42-17.08-130.52-49.2-67.06-58.78-85.2-155.15-43.31-234.31,32.78-61.94,97.2-101.88,167.75-104.89l347.9.08-41.67,64.26H252.2c-61.38-1.97-114.89,38.15-130.3,97.68l127.71.05-84.12,130.67c21.98,19.01,50.51,29.58,80.88,29.48Z"/><path d="M864.08,327.72c38.98-36.12,51.87-89.37,33.96-139.82-16.02-45.13-58.63-79.86-109.33-83.88-14.89-1.18-29.18-.52-44.05-.14l-62.48,96.94,101.69.8c16.88.13,27.05,17.7,26.44,32.37-.67,16.23-13.13,30.1-30.83,30.11l-138.13.08-105.63,163.12-69.76-.19L717.67,38.98l81.73.47c48.06.27,92.96,22.72,127.16,55.8,68.87,66.61,78.58,174.17,21.96,251.49-35.4,48.34-91.2,80.11-151.89,80.23l-155.64.32,42.84-65.95,95.82-.2c31.53-.07,60.84-11.54,84.43-33.4Z"/><polygon points="421.75 427.17 372.73 426.74 623.3 39.38 672.85 39.49 421.75 427.17"/></symbol>
+</svg>
+
+<div class="proto">
+  <header class="demo" aria-label="Commandes de la maquette">
+    <div class="demo-title"><b>Nouvelle navigation</b><span>Maquette</span></div>
+    <div class="seg" role="group" aria-label="Affichage">
+      <button type="button" data-view="maquette" aria-pressed="true">Maquette</button>
+      <button type="button" data-view="proposition" aria-pressed="false">Proposition</button>
+    </div>
+    <div class="demo-group demo-role-seg">
+      <span class="demo-label">Rôle</span>
+      <div class="seg" role="group" aria-label="Rôle affiché">
+        <button type="button" data-role="stagiaire" aria-pressed="true">Stagiaire</button>
+        <button type="button" data-role="formateur" aria-pressed="false">Formateur</button>
+        <button type="button" data-role="direction" aria-pressed="false">Direction</button>
+        <button type="button" data-role="siege" aria-pressed="false">Siège</button>
+      </div>
+    </div>
+    <label class="only-narrow"><span class="sr">Rôle affiché</span>
+      <select id="role-select" aria-label="Rôle affiché">
+        <option value="stagiaire">Stagiaire</option>
+        <option value="formateur">Formateur</option>
+        <option value="direction">Direction</option>
+        <option value="siege">Siège</option>
+      </select>
+    </label>
+    <div class="demo-group demo-dev">
+      <span class="demo-label">Écran</span>
+      <div class="seg" role="group" aria-label="Taille d'écran">
+        <button type="button" data-device="desktop" aria-pressed="true">Ordinateur</button>
+        <button type="button" data-device="phone" aria-pressed="false">iPhone</button>
+      </div>
+    </div>
+    <div class="demo-spacer"></div>
+    <span class="demo-fict">Données fictives</span>
+  </header>
+
+  <div class="stage" id="stage" data-device="desktop">
+    <div class="frame" id="frame">
+      <div class="statusbar" aria-hidden="true"><span>9:41</span><i></i><span>5G</span></div>
+      <div class="screen" id="screen" data-skin="ecsr" data-size="desktop">
+        <div class="app" id="app"></div>
+        <div class="ovl" id="ovl"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="doc-wrap" id="doc" hidden>
+    <article class="doc">
+      <p class="kicker">TP ECSR App · proposition du 27 octobre 2026</p>
+      <h1>Une app, quatre espaces</h1>
+      <p class="intro">Chacun ouvre l'app sur ce qui le concerne aujourd'hui. Le stagiaire garde une barre d'onglets simple ; l'équipe (formateurs, direction, siège) passe sur une barre latérale qui se replie. Les droits suivent le rôle et la portée : une promo, un centre, un réseau. Et l'app se met aux couleurs d'ECF en un geste.</p>
+      <button type="button" class="go-proto" data-view="maquette">Ouvrir la maquette <svg class="ico" style="stroke:currentColor;fill:none;stroke-width:1.8;width:18px;height:18px"><use href="#i-right"/></svg></button>
+
+      <h2>Ce qui change</h2>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Aujourd'hui</th><th>Avec la refonte</th></tr></thead>
+        <tbody>
+          <tr><td>Une seule barre de 8 onglets, la même pour tout le monde.</td><td>Une navigation par espace : 4 onglets pour le stagiaire, une barre latérale pour l'équipe.</td></tr>
+          <tr><td>Sur iPhone, 8 icônes sans libellé en haut, plus une deuxième rangée.</td><td>Sur iPhone, 5 cases au plus, avec leur nom, en bas de l'écran, sous le pouce.</td></tr>
+          <tr><td>Stagiaires, Tableau de bord, Émargement : seulement en tuiles sur l'Accueil ; les élèves bénévoles dans un panneau du Planning.</td><td>Chacun a sa place dans la barre de l'équipe, à un clic, ou en onglet visible de sa page (les élèves bénévoles sous Stagiaires).</td></tr>
+          <tr><td>Deux pages d'accueil (Accueil et Mon espace).</td><td>Une seule maison par espace, qui répond à « qu'est-ce que j'ai à faire maintenant ? ».</td></tr>
+          <tr><td>Assistant en bulle flottante, qui masque du contenu sur iPhone.</td><td>Bouton « Assistant » nommé dans la barre du haut (stagiaire) ou dans la barre latérale (équipe).</td></tr>
+          <tr><td>Trois rôles techniques (stagiaire, formateur administrateur, fondateur).</td><td>Quatre rôles métier cumulables, chacun avec sa portée : stagiaire, formateur, direction, siège.</td></tr>
+          <tr><td>Un seul habillage vert.</td><td>Deux habillages au choix : ECSR Promo et ECF.</td></tr>
+        </tbody>
+      </table></div>
+
+      <h2>Les quatre espaces</h2>
+      <div class="cards">
+        <div class="dcard"><span class="k">Stagiaire · barre d'onglets</span><b>Accueil, Planning, Cours et QCM, Mon suivi</b><p>CCP2 apparaît quand un formateur l'ouvre. En haut sur ordinateur, en bas sur iPhone. Assistant nommé dans la barre du haut ; apparence, nouveautés, contacts et signalement dans le menu du compte.</p></div>
+        <div class="dcard"><span class="k">Formateur · barre latérale</span><b>Aujourd'hui, Planning, Émargement, Stagiaires, Notes et examens, Cours et QCM, CCP2</b><p>Puis Indicateurs (ses promos) et Réglages de la promo. Les élèves bénévoles sont un onglet de Stagiaires. La promo se choisit en haut de la barre.</p></div>
+        <div class="dcard"><span class="k">Direction · barre latérale</span><b>Accueil, Promos, Stagiaires, Émargement, Notes et examens, Équipe</b><p>L'accueil est la vue d'ensemble du centre. Toutes les promos, l'équipe et ses affectations, les feuilles signées, le dossier Qualiopi, les réglages du centre (dont son habillage par défaut).</p></div>
+        <div class="dcard"><span class="k">Siège · barre latérale</span><b>Accueil, Qualiopi, Cours et QCM, Veille réglementaire</b><p>L'accueil compare les centres (chaque ligne ouvre la fiche du centre et son dossier Qualiopi). Puis les contenus communs, la veille, les directions de centre et leurs accès.</p></div>
+      </div>
+      <p>Une même page sert plusieurs rôles, avec une portée différente : les indicateurs montrent une promo au formateur, la vue d'ensemble un centre à la direction et le réseau au siège. Moins de pages à apprendre, moins de code à maintenir.</p>
+
+      <h2>Qui peut faire quoi</h2>
+      <p>Les rôles se cumulent : une directrice qui forme aussi a les deux espaces et passe de l'un à l'autre depuis son menu. La base de données applique ces règles elle-même ; l'interface ne fait que les refléter.</p>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Domaine</th><th>Stagiaire</th><th>Formateur</th><th>Direction</th><th>Siège</th></tr></thead>
+        <tbody>
+          <tr><td>Planning</td><td class="c v">voit</td><td class="c y">modifie</td><td class="c v">voit</td><td class="c no">non</td></tr>
+          <tr><td>Émargement</td><td class="c">signe</td><td class="c y">ouvre, clôt</td><td class="c y">exporte</td><td class="c v">via Qualiopi</td></tr>
+          <tr><td>Notes, EPCF</td><td class="c">les siennes + classe anonyme</td><td class="c y">saisit</td><td class="c v">voit</td><td class="c">chiffres agrégés</td></tr>
+          <tr><td>Livret, dossier pro</td><td class="c y">rédige le sien</td><td class="c y">évalue</td><td class="c v">voit</td><td class="c no">non</td></tr>
+          <tr><td>Cours et QCM</td><td class="c">lit, s'entraîne</td><td class="c y">modifie, publie</td><td class="c v">voit</td><td class="c y">contenus communs</td></tr>
+          <tr><td>Stagiaires (inviter, abandon)</td><td class="c no">non</td><td class="c y">ses promos</td><td class="c y">tout le centre</td><td class="c no">non</td></tr>
+          <tr><td>Formateurs (inviter, affecter)</td><td class="c no">non</td><td class="c no">non</td><td class="c y">oui</td><td class="c y">les directions</td></tr>
+          <tr><td>Promos (créer, dates, modules)</td><td class="c no">non</td><td class="c y">modules de ses promos</td><td class="c y">oui</td><td class="c no">non</td></tr>
+          <tr><td>Indicateurs, vue d'ensemble</td><td class="c no">non</td><td class="c v">ses promos</td><td class="c v">le centre</td><td class="c v">le réseau</td></tr>
+          <tr><td>Dossier Qualiopi</td><td class="c no">non</td><td class="c no">non</td><td class="c y">prépare</td><td class="c y">télécharge</td></tr>
+          <tr><td>Habillage par défaut</td><td class="c">le sien</td><td class="c">le sien</td><td class="c y">le centre</td><td class="c y">le réseau</td></tr>
+        </tbody>
+      </table></div>
+
+      <h2>Pourquoi ces choix</h2>
+      <h3>Cinq destinations au plus sur téléphone, avec leur nom</h3>
+      <p>Apple et Google convergent : sur téléphone, trois à cinq destinations dans une barre en bas, toujours visibles et nommées. Au-delà, on trie. Le stagiaire passe de 8 onglets à 4, plus CCP2 quand il s'ouvre.</p>
+      <h3>Une barre latérale qui se replie, sans disparaître</h3>
+      <p>Repliée, la barre de l'équipe devient une colonne d'icônes, jamais un menu caché derrière un bouton. Une étude de Nielsen Norman Group (179 personnes) montre qu'un menu caché est près de deux fois moins découvert et rend les tâches 39 % plus longues sur ordinateur.</p>
+      <h3>Le contexte d'abord</h3>
+      <p>La promo, le centre ou le réseau affiché est le premier élément de la barre de l'équipe, comme l'espace de travail dans Slack ou Linear. On sait toujours sur quelles données on agit.</p>
+      <h3>Une maison qui répond à « maintenant ? »</h3>
+      <p>Chaque espace s'ouvre sur ce qui compte aujourd'hui : la séance et l'émargement pour le stagiaire, les signatures et les stagiaires à suivre pour le formateur, les promos à surveiller pour la direction.</p>
+      <h3>Rangé par intention, pas par module</h3>
+      <p>Calendrier et Priorités rejoignent le Planning, les Ressources rejoignent les Cours, les notes du stagiaire rejoignent Mon suivi. Les adresses actuelles restent valides et mènent au bon endroit.</p>
+      <p class="src">Sources : Apple Human Interface Guidelines et session WWDC 2024 « Elevate your tab and sidebar experience in iPadOS » ; Material Design 3, barres de navigation et rails ; Nielsen Norman Group, « Hamburger Menus and Hidden Navigation Hurt UX Metrics ».</p>
+
+      <h2>L'habillage ECF</h2>
+      <p>Dans le menu du compte, deux pastilles : ECSR Promo et ECF. Un toucher suffit, le choix est gardé sur l'appareil puis sur le compte. La direction peut fixer l'habillage par défaut de son centre ; chacun garde la main sur le sien.</p>
+      <p>Les couleurs viennent de la feuille de style du site d'ECF : bleu <span class="mono">#124483</span>, bleu nuit <span class="mono">#0D2546</span>, rouge <span class="mono">#DB1418</span>. Les titres passent en caractères droits (la police à empattements de l'app jure avec l'identité d'ECF). Le rouge sert aux repères (entrée active, pastilles), jamais aux notes, qui gardent leur échelle douce. Le logo d'ECF n'est pas repris : c'est à ECF d'autoriser son usage.</p>
+
+      <h2 id="tests">Tests et itérations</h2>
+      <p>La maquette a été éprouvée de deux façons, puis corrigée en quatre itérations.</p>
+      <h3>Contrôles automatiques, rejoués à chaque version</h3>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Contrôle</th><th>Résultat final</th></tr></thead>
+        <tbody>
+          <tr><td>Vues parcourues : 4 rôles, chaque page et sous-page, sur ordinateur, tablette et iPhone</td><td>162 vues, 0 échec</td></tr>
+          <tr><td>Moteurs de navigateur</td><td>Chromium et WebKit (celui de Safari, donc de l'iPhone)</td></tr>
+          <tr><td>Nombre de clics pour atteindre une destination</td><td>1 partout ; 2 sur iPhone pour les entrées rangées sous « Plus »</td></tr>
+          <tr><td>Zones à toucher sur iPhone</td><td>44 px au moins (recommandation d'Apple)</td></tr>
+          <tr><td>Contraste du texte, dans les deux habillages</td><td>4,99:1 au plus bas, pour un seuil de 4,5:1</td></tr>
+          <tr><td>Menus et tiroirs</td><td>toujours dans l'écran, fermés par la touche Échap</td></tr>
+        </tbody>
+      </table></div>
+      <h3>Tests du premier clic</h3>
+      <p>Des testeurs indépendants (des agents d'IA qui ne voyaient que les captures d'écran, sans connaître les intentions de la proposition) ont dit où ils toucheraient en premier pour 27 tâches courantes, avec leur assurance de 1 à 5. Deux tours, avec de nouveaux testeurs au second.</p>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Testeurs</th><th>1er tour</th><th>2e tour</th></tr></thead>
+        <tbody>
+          <tr><td>Stagiaire sur iPhone, 9 tâches</td><td class="c">9 sur 9 · assurance 2,4</td><td class="c">9 sur 9 · assurance 3,2</td></tr>
+          <tr><td>Formatrice, directrice et siège, 18 tâches</td><td class="c">17 sur 18 · assurance 3,9</td><td class="c">18 sur 18 · assurance 3,8</td></tr>
+        </tbody>
+      </table></div>
+      <p>Au second tour, l'équipe hésitait surtout sur les écrans marqués « Bientôt » (Qualiopi, veille) : cette étiquette a été retirée de l'app, la maquette montre l'état visé.</p>
+      <h3>Ce que les tests ont changé</h3>
+      <ul>
+        <li>« Cours » devient « Cours et QCM » : le mot QCM manquait (assurance de 2 à 5).</li>
+        <li>L'assistant n'est plus une bulle flottante qui masquait du contenu, mais un bouton nommé (assurance de 3 à 5).</li>
+        <li>Sur iPhone, « À faire » remonte sous la journée, et le bouton devient « Signer pour ce matin », sous le bon créneau.</li>
+        <li>Les élèves bénévoles passent sous Stagiaires, là où les testeurs les cherchaient (tâche ratée au 1er tour, réussie au 2e).</li>
+        <li>Libellés clarifiés : une seule « Vue d'ensemble » au siège, « Directions de centre », « Notes et examens », « Émargement » partout, « À suivre de près » partout, « Indicateurs » chez le formateur.</li>
+        <li>Défauts corrigés : compte sorti de l'écran en bas de la barre latérale, tableaux qui défilaient de côté sur iPhone (devenus des listes), zones à toucher de 34 px, chiffres d'un même centre différents entre direction et siège.</li>
+      </ul>
+      <h3>Points encore faibles</h3>
+      <ul>
+        <li>Le rond aux initiales n'annonce pas les réglages. Remèdes prévus : une Nouveauté au lancement pour présenter l'habillage ECF, et le pied de page « Apparence et réglages » de l'Accueil.</li>
+        <li>« Mon suivi » se devine pour retrouver ses notes, sans être évident (assurance 3 sur 5).</li>
+        <li>« M. Kevin » se lit « Monsieur Kevin » : le format « initiale du nom, prénom » mérite d'être revu.</li>
+        <li>Des agents d'IA ne remplacent pas de vraies personnes : à confirmer avec deux ou trois stagiaires et un formateur de Nîmes, sur cette maquette.</li>
+      </ul>
+
+      <h2>Les chantiers suivants</h2>
+      <p>Une fois la refonte en place, dans cet ordre. Dans la maquette, leurs écrans montrent l'intention : les boutons n'y font qu'afficher un exemple.</p>
+      <ol>
+        <li><b>Signaler un problème.</b> Petit chantier, utile tout de suite : il recueille les retours sur la nouvelle navigation. Le bouton est déjà dans le menu de chaque compte ; la page, l'appareil et l'heure sont joints d'office.</li>
+        <li><b>Dossier Qualiopi.</b> La direction le prépare, le siège le télécharge par centre. Il rassemble les preuves que l'app produit déjà (émargements horodatés, évaluations, suivi, avis). L'app aide le centre ; c'est le centre qui est certifié.</li>
+        <li><b>Veille réglementaire.</b> L'app repère les changements de textes et prépare la mise à jour des cours concernés, avec une annotation visible pendant un an. La publication reste validée par une personne, conformément à la règle d'or des cours : aucun article cité sans vérification.</li>
+      </ol>
+
+      <h2>Décisions à prendre</h2>
+      <ol>
+        <li>Sur iPhone, la barre du stagiaire en bas (recommandé) ou en haut comme aujourd'hui ?</li>
+        <li>Les formateurs gardent-ils les indicateurs du tableau de bord, limités à leurs promos ? (proposé : oui)</li>
+        <li>Le siège voit-il des données nominatives ? (proposé : non, des chiffres agrégés et les dossiers Qualiopi)</li>
+        <li>Qui publie les cours : le formateur comme aujourd'hui, ou le siège pour les contenus communs ?</li>
+      </ol>
+    </article>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  // ===================== Données fictives =====================
+  const STAG = [
+    { id: 1, nom: "Martin", prenom: "Camille", moy: 13.4, pt: 6, pv: 9, ass: 100, st: "ok" },
+    { id: 2, nom: "Bernard", prenom: "Lucas", moy: 12.1, pt: 5, pv: 8, ass: 96, st: "ok" },
+    { id: 3, nom: "Dubois", prenom: "Inès", moy: 15.2, pt: 6, pv: 10, ass: 100, st: "ok" },
+    { id: 4, nom: "Petit", prenom: "Thomas", moy: 11.0, pt: 4, pv: 7, ass: 92, st: "ok" },
+    { id: 5, nom: "Leroy", prenom: "Sarah", moy: 14.6, pt: 6, pv: 9, ass: 100, st: "ok" },
+    { id: 6, nom: "Mercier", prenom: "Kevin", moy: 7.8, pt: 3, pv: 5, ass: 84, st: "suivre" },
+    { id: 7, nom: "Moreau", prenom: "Julien", moy: 12.8, pt: 5, pv: 9, ass: 96, st: "ok" },
+    { id: 8, nom: "Fournier", prenom: "Emma", moy: 13.9, pt: 6, pv: 8, ass: 100, st: "ok" },
+    { id: 9, nom: "Lambert", prenom: "Hugo", moy: 10.4, pt: 4, pv: 8, ass: 92, st: "ok" },
+    { id: 10, nom: "Bonnet", prenom: "Léa", moy: 16.1, pt: 7, pv: 10, ass: 100, st: "ok" },
+    { id: 11, nom: "Roux", prenom: "Yanis", moy: 9.6, pt: 4, pv: 6, ass: 88, st: "ok" },
+    { id: 12, nom: "Fontaine", prenom: "Chloé", moy: 14.0, pt: 6, pv: 9, ass: 100, st: "ok" },
+    { id: 13, nom: "Garnier", prenom: "Maxime", moy: 12.3, pt: 5, pv: 8, ass: 96, st: "ok" },
+    { id: 14, nom: "Chevalier", prenom: "Alice", moy: 13.1, pt: 5, pv: 9, ass: 100, st: "ok" },
+    { id: 15, nom: "Girard", prenom: "Nadia", moy: null, pt: 2, pv: 3, ass: 0, st: "abandon" },
+  ];
+  const disp = (s) => s.nom[0] + ". " + s.prenom;
+  const ini = (s) => (s.prenom[0] + s.nom[0]).toUpperCase();
+  const fr = (n, d = 1) => n == null ? "aucune" : n.toFixed(d).replace(".", ",");
+  const enFormation = STAG.filter((s) => s.st !== "abandon");
+
+  const CENTRES = [
+    { id: "nimes", nom: "Nîmes", stag: 26, ass: 95, ab: 2, epcf: 12.7, q: 6 },
+    { id: "marseille", nom: "Marseille", stag: 31, ass: 93, ab: 3, epcf: 12.4, q: 5 },
+    { id: "toulon", nom: "Toulon", stag: 18, ass: 96, ab: 1, epcf: 13.2, q: 6 },
+    { id: "avignon", nom: "Avignon", stag: 22, ass: 91, ab: 4, epcf: 11.8, q: 4 },
+    { id: "aix", nom: "Aix-en-Provence", stag: 15, ass: 97, ab: 0, epcf: 13.6, q: 6 },
+    { id: "perpignan", nom: "Perpignan", stag: 20, ass: 94, ab: 2, epcf: 12.2, q: 5 },
+  ];
+
+  // ===================== Petits gabarits =====================
+  const ic = (id, cls = "") => `<svg class="ico ${cls}" aria-hidden="true"><use href="#i-${id}"/></svg>`;
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const chip = (t, tone = "", extra = "") => `<span class="chip ${tone ? "chip-" + tone : ""} ${extra}">${t}</span>`;
+  const head = (o) => `
+    <div class="ph">
+      <div class="ph-text">
+        ${o.back ? `<button type="button" class="back" data-act="${o.back.act}">${ic("left", "ico-sm")}${esc(o.back.label)}</button>` : ""}
+        ${o.eyebrow ? `<p class="eyebrow ${R().ctx && o.eyebrow === R().ctx.list[R().ctx.current].name ? "ctx-dup" : ""}">${o.eyebrow}</p>` : ""}
+        <h1>${o.title}</h1>
+        ${o.meta ? `<p class="ph-meta">${o.meta}</p>` : ""}
+      </div>
+      ${o.actions ? `<div class="ph-actions">${o.actions}</div>` : ""}
+    </div>`;
+  const card = (title, iconId, body, more = "", cls = "") => `
+    <section class="card ${cls}">
+      ${title ? `<div class="card-h">${iconId ? ic(iconId) : ""}<h2>${title}</h2>${more ? `<span class="more">${more}</span>` : ""}</div>` : ""}
+      ${body}
+    </section>`;
+  const row = (o) => {
+    const tag = o.go || o.act ? "button" : "div";
+    const attrs = o.go ? ` type="button" data-go="${o.go}"${o.sub ? ` data-gosub="${o.sub}"` : ""}` : o.act ? ` type="button" data-act="${o.act}"` : "";
+    return `<${tag} class="row"${attrs}>
+      ${o.icon ? `<span class="row-icon">${ic(o.icon)}</span>` : o.avatar ? `<span class="avatar">${o.avatar}</span>` : ""}
+      <span class="row-main"><span class="row-title">${o.title}</span>${o.sub2 ? `<span class="row-sub">${o.sub2}</span>` : ""}</span>
+      <span class="row-end">${o.end || ""}${tag === "button" ? ic("right", "ico-sm") : ""}</span>
+    </${tag}>`;
+  };
+  const kpi = (v, l, d = "", tone = "") => `<div class="card kpi"><span class="kpi-l">${l}</span><span class="kpi-v">${v}</span>${d ? `<span class="kpi-d ${tone ? "chip-" + tone : ""}" style="background:none">${d}</span>` : ""}</div>`;
+  const noteClass = (n) => n == null ? "n0" : n < 8 ? "n1" : n < 12 ? "n2" : n < 16 ? "n3" : "n4";
+  const subnav = (page, subs, current) => `
+    <div class="subnav" role="tablist" aria-label="Sections">
+      ${subs.map(([k, l, n]) => `<button type="button" role="tab" data-sub="${k}" data-page="${page}" aria-selected="${k === current}">${l}${n ? `<span class="n">${n}</span>` : ""}</button>`).join("")}
+    </div>`;
+  // Sur téléphone, un tableau devient une liste (jamais de défilement de côté pour lire une ligne).
+  const phone = () => S.size === "phone";
+
+  // ===================== Pages : stagiaire =====================
+  function stAccueil() {
+    const journee = card("Aujourd'hui", "sun", `
+          <div class="today">
+            <div class="slot"><div class="slot-when"><b>Matin</b><span>9 h à 12 h 30</span><span>Salle 2</span></div>
+              <div class="slot-what"><b>Thème 12 : intersections et priorités</b><p>Avec Claire Vidal.</p>${chip(ic("board") + " Tu passes au tableau vers 10 h 15", "accent", "keep")}
+                <div class="actions" style="margin-top:12px"><button type="button" class="btn btn-primary" data-act="toast:Exemple : signature du matin enregistrée à 8 h 52">${ic("pen")}Signer pour ce matin</button></div></div></div>
+            <div class="slot"><div class="slot-when"><b>Après-midi</b><span>13 h 30 à 17 h</span><span>Parking du centre</span></div>
+              <div class="slot-what"><b>Voiture avec Marc Lefèvre</b><p>Élève bénévole : Rayan, niveau 2.</p></div></div>
+          </div>`, `<button type="button" class="link" data-go="planning">Ouvrir le planning ${ic("right", "ico-sm")}</button>`, "hero span2");
+    const afaire = card("À faire", "checkc", `<div class="rows">
+        ${row({ icon: "quiz", title: "QCM du thème 12", sub2: "Pas encore fait · 20 questions", go: "cours", sub: "qcm" })}
+        ${row({ icon: "file", title: "Dossier professionnel, partie 3", sub2: "À rendre vendredi 30 octobre", go: "suivi", sub: "dossier", end: chip("Dans 3 jours", "warn") })}
+        ${row({ icon: "clipboard", title: "Livret : 2 compétences à auto-évaluer", sub2: "C2.3 et C2.4", go: "suivi", sub: "livret" })}
+      </div>`);
+    const rdv = card("Prochain rendez-vous", "calendar", `<p class="lead"><b style="color:var(--ink)">EPCF 2</b>, jeudi 5 novembre</p><p class="ph-meta" style="margin-top:4px">Dans 9 jours</p>`);
+    const nouveau = card("Nouveauté", "bell", `<p class="lead" style="font-size:14.5px">Le cours du thème 02 a été mis à jour : la ligne de la bande d'arrêt d'urgence s'appelle T4.</p><div class="actions" style="margin-top:10px"><button type="button" class="link" data-go="cours">Voir le cours ${ic("right", "ico-sm")}</button></div>`, chip("1", "new"));
+    // Pied de page : ce qu'on cherche rarement mais qu'on doit trouver sans deviner (test du 27/10).
+    const contacts = `<nav class="foot-links" aria-label="Liens utiles">
+      <button type="button" class="link" data-act="toast:Exemple : accueil du centre, formateurs, référent handicap">${ic("users", "ico-sm")}Contacts du centre</button>
+      <button type="button" class="link" data-open="account">${ic("palette", "ico-sm")}Apparence et réglages</button>
+      <button type="button" class="link" data-open="signal">${ic("report", "ico-sm")}Signaler un problème</button>
+    </nav>`;
+    // Sur téléphone, « À faire » remonte juste sous la journée : c'est la suite logique, et sans
+    // cela il tombait sous la ligne de flottaison (constat du test du 27/10).
+    return `<div class="page">
+      ${head({ eyebrow: "Mardi 27 octobre", title: "Bonjour Camille", meta: "Promo de Nîmes, mars 2026 · semaine 31" })}
+      ${phone() ? `${journee}${afaire}${rdv}${nouveau}` : `<div class="grid g3">${journee}<div class="grid" style="align-content:start">${rdv}${nouveau}</div></div>${afaire}`}
+      <div>${contacts}</div>
+    </div>`;
+  }
+  const WEEK = [
+    ["Lun 26", [["Matin", "Salle", "Thème 11 : la vitesse", ""], ["Après-midi", "Voiture", "Avec Nora Haddad", "Toi"]]],
+    ["Mar 27", [["Matin", "Salle 2", "Thème 12 : intersections et priorités", "Toi au tableau"], ["Après-midi", "Voiture", "Avec Marc Lefèvre · élève Rayan", "Toi"]]],
+    ["Mer 28", [["Matin", "Salle", "Pédagogie : construire une séance", ""], ["Après-midi", "Autonomie", "Dossier professionnel", ""]]],
+    ["Jeu 29", [["Matin", "Salle", "Examen blanc oral", "Toi à 9 h 40"], ["Après-midi", "Voiture", "Avec Claire Vidal", ""]]],
+    ["Ven 30", [["Matin", "Salle", "Thème 13 : croisements et dépassements", ""], ["Après-midi", "Salle", "Bilan de la semaine", ""]]],
+  ];
+  function weekView(staff) {
+    return `<div class="grid">${WEEK.map(([d, slots]) => `
+      <section class="card" ${d === "Mar 27" ? 'style="border-color:var(--accent)"' : ""}>
+        <div class="card-h"><h2>${d} octobre</h2>${d === "Mar 27" ? chip("Aujourd'hui", "accent") : ""}</div>
+        <div class="rows">${slots.map(([w, lieu, quoi, moi]) => `
+          <div class="row"><span class="row-icon">${ic(lieu === "Voiture" ? "car" : lieu === "Autonomie" ? "pen" : "board")}</span>
+            <span class="row-main"><span class="row-title">${quoi}</span><span class="row-sub">${w} · ${lieu}${staff && lieu === "Voiture" ? " · 4 stagiaires" : ""}</span></span>
+            <span class="row-end">${!staff && moi ? chip(moi, "accent", "keep") : ""}${staff && moi ? chip("3 au tableau", "") : ""}</span></div>`).join("")}
+        </div>
+      </section>`).join("")}</div>`;
+  }
+  function datesView() {
+    const ev = [["Jeu 5 nov.", "EPCF 2 : examen blanc", "Examen"], ["16 au 27 nov.", "Stage en entreprise (CCP2)", "Stage"], ["Mer 2 déc.", "Rendu du dossier professionnel", "Échéance"], ["Ven 11 déc.", "Épreuves du titre professionnel", "Examen"]];
+    return card("Dates clés", "calendar", `<div class="rows">${ev.map(([d, t, k]) => row({ icon: "calendar", title: t, sub2: d, end: chip(k, k === "Examen" ? "accent" : "") })).join("")}</div>`);
+  }
+  function prioritesView(staff) {
+    const list = enFormation.slice().sort((a, b) => a.pt - b.pt).slice(0, 6);
+    return card(staff ? "Priorités de passage au tableau" : "Ton ordre de passage", "target", `
+      ${staff ? "" : `<p class="lead" style="margin-bottom:10px">Tu es <b style="color:var(--ink)">5e sur 14</b> pour passer au tableau cette semaine.</p>`}
+      <div class="rows">${list.map((s, i) => row({ avatar: ini(s), title: disp(s), sub2: s.pt + " passages au tableau", end: i < 2 ? chip("À faire passer", "accent", "keep") : "" })).join("")}</div>`);
+  }
+  function stPlanning(sub) {
+    return `<div class="page">
+      ${head({ eyebrow: "Semaine du 26 octobre", title: "Planning", actions: `<button type="button" class="btn">${ic("calendar")}Aujourd'hui</button>` })}
+      ${subnav("planning", [["semaine", "Semaine"], ["dates", "Dates clés"], ["priorites", "Priorités"]], sub)}
+      ${sub === "dates" ? datesView() : sub === "priorites" ? prioritesView(false) : weekView(false)}
+    </div>`;
+  }
+  const THEMES = [
+    ["02", "Signalisation horizontale (marquages)", 16, "maj"],
+    ["11", "La vitesse", 14, ""],
+    ["12", "Intersections et régimes de priorité", null, "cours"],
+    ["13", "Croisements et dépassements", null, "bientot"],
+    ["22", "Feux et éclairage du véhicule", 18, ""],
+    ["38", "Changements de direction", 15, ""],
+  ];
+  function themesList(staff) {
+    return card("Thèmes officiels", "book", `<div class="rows">${THEMES.map(([n, t, q, f]) => row({
+      icon: "book", title: `${n} · ${t}`,
+      sub2: f === "maj" ? `<span class="updated">Mis à jour le 23 octobre</span>` : f === "cours" ? "Cette semaine en salle" : f === "bientot" ? "La semaine prochaine" : staff ? "Publié · 57 QCM liés" : "Lu",
+      go: "cours", end: q != null ? chip(staff ? "Moyenne " + q + "/20" : "QCM " + q + "/20", q >= 16 ? "ok" : "") : "",
+    })).join("")}</div>`, `<span class="small muted">57 thèmes</span>`);
+  }
+  function competences() {
+    const c = [["C1", "Maîtriser le maniement du véhicule", 9], ["C2", "Appréhender la route", 7], ["C3", "Circuler dans des conditions difficiles", 9], ["C4", "Pratiquer une conduite autonome et sûre", 7]];
+    return `<div class="grid g2">${c.map(([k, t, n]) => card("", "", `<p class="eyebrow">${k} · ${n} cours</p><h2 style="font-size:17px;margin:8px 0 10px">${t}</h2><div class="meter"><i style="width:${30 + n * 5}%"></i></div>`)).join("")}</div>`;
+  }
+  function qcmList(staff) {
+    const q = [["Thème 12 · Intersections", staff ? "Examen fermé" : "Pas encore fait", staff ? "Ouvrir l'examen" : "Commencer"], ["Thème 11 · La vitesse", staff ? "Moyenne de la promo 13,2" : "Meilleur score 14/20", staff ? "Résultats" : "Refaire"], ["Sanctions", staff ? "62 questions" : "Meilleur score 11/20", staff ? "Modifier" : "Refaire"], ["Psychologie du conducteur", staff ? "Entraînement libre" : "Pas encore fait", staff ? "Modifier" : "Commencer"]];
+    return card(staff ? "QCM et examens" : "Tes QCM", "quiz", `<div class="rows">${q.map(([t, s, a]) => `<div class="row"><span class="row-icon">${ic("quiz")}</span><span class="row-main"><span class="row-title">${t}</span><span class="row-sub">${s}</span></span><span class="row-end"><button type="button" class="btn btn-sm ${a === "Commencer" || a === "Ouvrir l'examen" ? "btn-primary" : ""}" data-act="toast:Exemple : ${esc(a)}">${a}</button></span></div>`).join("")}</div>`);
+  }
+  function documents() {
+    const d = [["Référentiel REMC", "Arrêté du 13 mai 2013"], ["Référentiel du titre ECSR", "REAC et référentiel d'évaluation"], ["Boîte à outils numérique CCP2", "Drive, Forms, Canva, dictée"], ["Contacts du centre", "Accueil, formateurs, référent handicap"]];
+    return card("Documents", "file", `<div class="rows">${d.map(([t, s]) => row({ icon: "file", title: t, sub2: s, act: "toast:Exemple : le document s'ouvre" })).join("")}</div>`);
+  }
+  function stCours(sub) {
+    return `<div class="page">
+      ${head({ title: "Cours et QCM", meta: "Thèmes, compétences, QCM et documents pour réviser" })}
+      <div class="toolbar"><label class="search">${ic("search")}<span class="sr">Rechercher un cours</span><input type="search" placeholder="Rechercher un thème, une règle, un panneau"></label></div>
+      ${subnav("cours", [["themes", "Thèmes"], ["competences", "Compétences"], ["qcm", "QCM"], ["documents", "Documents"]], sub)}
+      ${sub === "competences" ? competences() : sub === "qcm" ? qcmList(false) : sub === "documents" ? documents() : themesList(false)}
+    </div>`;
+  }
+  function resultats() {
+    const th = [["T7", 12], ["T8", 15], ["T9", 13], ["T10", 11], ["T11", 14], ["T12", null]];
+    const classe = S.classe;
+    return `<div class="grid g3 kpis">
+      ${kpi("13,4", "Ta moyenne des thèmes", "+0,8 depuis septembre", "ok")}
+      ${kpi("12/20", "EPCF 1, le 1er octobre")}
+      ${kpi("6 · 9", "Passages tableau · voiture")}
+    </div>
+    ${card(classe ? "La classe (anonyme)" : "Tes notes par thème", "chart", `
+      <div class="subnav" role="tablist" aria-label="Qui afficher" style="margin-bottom:14px">
+        <button type="button" role="tab" data-act="classe:0" aria-selected="${!classe}">Moi</button>
+        <button type="button" role="tab" data-act="classe:1" aria-selected="${classe}">La classe</button>
+      </div>
+      <div class="bars">${th.map(([t, n], i) => { const v = classe ? [11.8, 13.1, 12.4, 10.9, 12.7, null][i] : n; return `<div><b>${v == null ? "" : fr(v, v % 1 ? 1 : 0)}</b><i class="${v != null && !classe ? "on" : ""}" style="height:${v == null ? 4 : v * 4.5}px"></i><span>${t}</span></div>`; }).join("")}</div>
+      <p class="note" style="margin-top:10px">${classe ? "Moyennes de la promo, sans aucun nom." : "Le thème 12 sera noté vendredi."}</p>`)}`;
+  }
+  function stSuivi(sub) {
+    const body = sub === "passages" ? card("Passages", "history", `<div class="rows">${row({ icon: "board", title: "Au tableau · 6 passages", sub2: "Dernier : thème 11, le 20 octobre" })}${row({ icon: "car", title: "En voiture · 9 passages", sub2: "Dernier : lundi 26 octobre, avec Nora Haddad" })}</div>`)
+      : sub === "epcf" ? card("Examens blancs (EPCF)", "clipboard", `<div class="rows">${row({ icon: "clipboard", title: "EPCF 1 · 12/20", sub2: "1er octobre · grille et commentaires du jury", act: "toast:Exemple : la grille s'ouvre" })}${row({ icon: "calendar", title: "EPCF 2", sub2: "Jeudi 5 novembre", end: chip("Dans 9 jours", "accent", "keep") })}</div>`)
+      : sub === "livret" ? card("Livret d'évaluation", "clipboard", `<p class="lead">14 compétences validées sur 22.</p><div class="meter" style="margin:12px 0 4px"><i style="width:64%"></i></div><p class="note">2 compétences attendent ton auto-évaluation.</p>`)
+      : sub === "dossier" ? card("Dossier professionnel", "file", `<div class="rows">${[["Partie 1 · Présentation", "Relue par Claire Vidal", "ok"], ["Partie 2 · Activité type 1", "Relue", "ok"], ["Partie 3 · Activité type 2", "À rendre vendredi 30 octobre", "warn"], ["Partie 4 · Titres et diplômes", "À commencer", ""], ["Partie 5 · Déclaration sur l'honneur", "À commencer", ""]].map(([t, s, k]) => row({ icon: "file", title: t, sub2: s, act: "toast:Exemple : l'éditeur du dossier s'ouvre", end: k ? chip(k === "ok" ? "Relue" : "En cours", k) : "" })).join("")}</div>`)
+      : resultats();
+    return `<div class="page">
+      ${head({ title: "Mon suivi", meta: "Tes notes, tes passages, tes examens blancs, ton livret et ton dossier pro" })}
+      ${subnav("suivi", [["resultats", "Notes"], ["passages", "Passages"], ["epcf", "EPCF"], ["livret", "Livret"], ["dossier", "Dossier pro"]], sub)}
+      ${body}
+    </div>`;
+  }
+  const CCP2 = ["Trouver un commanditaire", "Analyser la demande", "Construire l'action", "Animer la séance", "Analyser ta pratique", "Rédiger le dossier", "Préparer l'oral", "Le jour de l'épreuve"];
+  function stCcp2() {
+    return `<div class="page">
+      ${head({ eyebrow: "Épreuve du 11 décembre", title: "Ton parcours CCP2", meta: "8 étapes, avec ce qu'exige le référentiel et les outils pour chacune" })}
+      ${card("", "", `<div class="steps">${CCP2.map((t, i) => `<div class="step ${i < 3 ? "done" : i === 3 ? "now" : ""}"><span class="step-n">${i < 3 ? ic("check", "ico-sm") : i + 1}</span><div><b>${t}</b><span>${i < 3 ? "Fait" : i === 3 ? "En cours : séance prévue le 18 novembre" : "À venir"}</span></div>${i === 3 ? `<button type="button" class="btn btn-sm" data-act="toast:Exemple : l'étape s'ouvre">Ouvrir</button>` : ""}</div>`).join("")}</div>`)}
+    </div>`;
+  }
+
+  // ===================== Pages : formateur =====================
+  function fAujourdhui() {
+    const emarg = card("Émargement du matin", "clipboard", `<p class="kpi-v" style="margin:0 0 8px">12<span class="muted" style="font-size:20px"> / 14</span></p><div class="meter"><i style="width:86%"></i></div><p class="ph-meta">En attente : M. Kevin, L. Hugo</p><div class="actions"><button type="button" class="btn btn-sm" data-go="emargement">Voir la feuille</button></div>`, chip("Ouverte", "ok", "keep"));
+    const tableauMatin = card("Au tableau ce matin", "board", `<div class="rows">${[STAG[0], STAG[6], STAG[11]].map((s, i) => row({ avatar: ini(s), title: disp(s), sub2: ["10 h 15", "10 h 45", "11 h 30"][i] })).join("")}</div>`);
+    const voiture = card("En voiture cet après-midi", "car", `<div class="rows">${row({ icon: "car", title: "4 stagiaires", sub2: "M. Camille, B. Lucas, D. Inès, P. Thomas", go: "planning" })}${row({ icon: "users", title: "2 élèves bénévoles", sub2: "Rayan (niveau 2) et Jade (niveau 1)", go: "stagiaires", sub: "benevoles" })}</div>`);
+    const traiter = card("À traiter", "checkc", `<div class="rows">
+          ${row({ icon: "flag", title: "3 signalements sur des QCM", sub2: "Le plus ancien date du 22 octobre", go: "cours", sub: "signalements", end: chip("3", "new", "keep") })}
+          ${row({ icon: "sparkle", title: "2 questions proposées par l'IA", sub2: "Thème 12 · à accepter ou écarter", go: "cours", sub: "ia", end: chip("2", "new", "keep") })}
+          ${row({ icon: "file", title: "Dossier pro de M. Camille à relire", sub2: "Partie 2 · envoyée le 25 octobre", act: "fiche:1" })}
+        </div>`);
+    const suivre = card("À suivre de près", "alert", `<div class="rows">${row({ avatar: "KM", title: "M. Kevin", sub2: "3 notes sous 8 depuis le 15 octobre · 2 absences", act: "fiche:6", end: chip("À suivre", "signal", "keep") })}</div>`);
+    // Sur téléphone, ce qui demande une action passe avant ce qui informe.
+    return `<div class="page">
+      ${head({ eyebrow: "Mardi 27 octobre", title: "Aujourd'hui", meta: `<span class="ctx-dup">Nîmes, mars 2026 · </span>14 stagiaires en formation` })}
+      ${phone() ? `${emarg}${traiter}${tableauMatin}${voiture}${suivre}` : `<div class="grid g3">${emarg}${tableauMatin}${voiture}</div><div class="grid g2">${traiter}${suivre}</div>`}
+    </div>`;
+  }
+  function benevoles() {
+    return card("Élèves bénévoles", "users", `<div class="rows">${[["Rayan", "Niveau 2 · 6 venues · vient cet après-midi"], ["Jade", "Niveau 1 · 2 venues · vient cet après-midi"], ["Mehdi", "Niveau 3 · 9 venues"]].map(([n, s]) => row({ avatar: n.slice(0, 2).toUpperCase(), title: n, sub2: s, act: "toast:Exemple : la fiche de l'élève s'ouvre" })).join("")}</div><div class="actions"><button type="button" class="btn btn-sm">${ic("plus")}Ajouter un élève</button><button type="button" class="btn btn-sm">Auto-écoles partenaires</button></div>`);
+  }
+  function fPlanning(sub) {
+    return `<div class="page">
+      ${head({ eyebrow: "Semaine du 26 octobre", title: "Planning", meta: "Lecture seule par défaut, comme aujourd'hui", actions: `<button type="button" class="btn">${ic("calendar")}Aujourd'hui</button><button type="button" class="btn btn-primary" data-act="toast:Exemple : le planning passe en modification">${ic("pen")}Modifier</button>` })}
+      ${subnav("planning", [["semaine", "Semaine"], ["dates", "Dates clés"], ["priorites", "Priorités"]], sub)}
+      ${sub === "dates" ? datesView() : sub === "priorites" ? prioritesView(true) : weekView(true)}
+    </div>`;
+  }
+  function fEmargement() {
+    const signed = enFormation.filter((s) => s.id !== 6 && s.id !== 9);
+    return `<div class="page">
+      ${head({ eyebrow: "Mardi 27 octobre · matin", title: "Émargement", meta: "Feuille ouverte à 8 h 45 · se clôt à 12 h 30", actions: `<button type="button" class="btn">Relancer les absents</button><button type="button" class="btn btn-primary" data-act="toast:Exemple : la feuille est close et archivée">Clore la feuille</button>` })}
+      ${subnav("emargement", [["jour", "Aujourd'hui"], ["passees", "Feuilles passées"]], "jour")}
+      <div class="grid g2">
+        ${card("Signé · 12", "checkc", `<div class="rows">${signed.slice(0, 6).map((s, i) => row({ avatar: ini(s), title: disp(s), sub2: "Signé à 8 h " + (47 + i) })).join("")}${row({ icon: "users", title: "Et 6 autres", sub2: "Tout est horodaté" })}</div>`)}
+        ${card("En attente · 2", "alert", `<div class="rows">${row({ avatar: "KM", title: "M. Kevin", sub2: "Absent au début de la séance", end: `<button type="button" class="btn btn-sm">Noter absent</button>` })}${row({ avatar: "LH", title: "L. Hugo", sub2: "Prévenu : rendez-vous médical", end: `<button type="button" class="btn btn-sm">Justifier</button>` })}</div>`)}
+      </div>
+      <p class="note">Les feuilles signées servent de preuve d'assiduité (dossier Qualiopi).</p>
+    </div>`;
+  }
+  function stagiairesList(scope, sub) {
+    const filtre = S.filtre || "tous";
+    let list = STAG.filter((s) => filtre === "tous" ? s.st !== "abandon" : filtre === "suivre" ? s.st === "suivre" : s.st === "abandon");
+    const promoCol = scope === "centre";
+    const tete = head({ eyebrow: scope === "centre" ? "Centre de Nîmes · 2 promos" : "Nîmes, mars 2026", title: "Stagiaires", actions: sub === "benevoles" ? `<button type="button" class="btn btn-primary">${ic("plus")}Ajouter un élève</button>` : `<button type="button" class="btn btn-primary" data-act="toast:Exemple : invitation par e-mail">${ic("userplus")}Inviter</button>` });
+    // Les élèves bénévoles rejoignent les stagiaires : c'est là que le test les a cherchés.
+    const onglets = scope === "promo" ? subnav("stagiaires", [["liste", "Stagiaires"], ["benevoles", "Élèves bénévoles"]], sub) : "";
+    if (sub === "benevoles") return `<div class="page">${tete}${onglets}${benevoles()}</div>`;
+    return `<div class="page">
+      ${tete}
+      ${onglets}
+      <div class="toolbar">
+        <label class="search">${ic("search")}<span class="sr">Rechercher un stagiaire</span><input type="search" placeholder="Rechercher un stagiaire"></label>
+        <div class="filters" role="group" aria-label="Filtrer">
+          ${[["tous", "En formation · 14"], ["suivre", "À suivre · 1"], ["abandon", "Abandons · 1"]].map(([k, l]) => `<button type="button" class="fchip" data-act="filtre:${k}" aria-pressed="${filtre === k}">${l}</button>`).join("")}
+        </div>
+      </div>
+      ${phone() ? card("", "", `<div class="rows">${list.map((s) => row({ avatar: ini(s), title: disp(s), sub2: (promoCol ? "Nîmes, mars · " : "") + "Moyenne " + fr(s.moy) + " · assiduité " + (s.ass ? s.ass + " %" : "aucune"), act: "fiche:" + s.id, end: s.st === "suivre" ? chip("À suivre", "signal", "keep") : s.st === "abandon" ? chip("Abandon", "", "keep") : "" })).join("")}</div>`) : `
+      <section class="card" style="padding:8px 12px"><div class="tbl-wrap"><table class="tbl">
+        <thead><tr><th>Stagiaire</th>${promoCol ? "<th>Promo</th>" : ""}<th class="num">Moyenne</th><th class="num">Tableau</th><th class="num">Voiture</th><th class="num">Assiduité</th><th>Statut</th><th><span class="sr">Ouvrir</span></th></tr></thead>
+        <tbody>${list.map((s) => `<tr class="clickable" data-act="fiche:${s.id}" tabindex="0"><td><span class="name-cell"><span class="avatar">${ini(s)}</span>${disp(s)}</span></td>${promoCol ? "<td>Nîmes, mars</td>" : ""}<td class="num"><span class="cellnote ${noteClass(s.moy)}" style="width:46px;height:26px;display:inline-grid">${fr(s.moy)}</span></td><td class="num">${s.pt}</td><td class="num">${s.pv}</td><td class="num">${s.ass ? s.ass + " %" : "aucune"}</td><td>${s.st === "suivre" ? chip("À suivre", "signal") : s.st === "abandon" ? chip("Abandon le 12/10") : chip("En formation", "ok")}</td><td class="num muted">${ic("right", "ico-sm")}</td></tr>`).join("")}</tbody>
+      </table></div></section>`}
+    </div>`;
+  }
+  function fiche(id) {
+    const s = STAG.find((x) => x.id === id) || STAG[0];
+    const sub = S.ficheSub || "passages";
+    const body = sub === "notes" ? card("Notes par thème", "chart", `<table class="matrix"><thead><tr><th>Thème</th>${["T8", "T9", "T10", "T11", "EPCF 1"].map((t) => `<th>${t}</th>`).join("")}</tr></thead><tbody><tr><td>${disp(s)}</td>${[0.6, -0.8, 1.2, -0.3, -1.4].map((o) => { const v = s.moy == null ? null : Math.max(0, Math.min(20, Math.round((s.moy + o) * 2) / 2)); return `<td><span class="cellnote ${noteClass(v)}">${v == null ? "aucune" : fr(v)}</span></td>`; }).join("")}</tr></tbody></table><div class="actions"><button type="button" class="btn btn-sm btn-primary" data-act="toast:Exemple : saisie d'une note">${ic("plus")}Saisir une note</button></div>`)
+      : sub === "epcf" ? card("EPCF", "clipboard", `<div class="rows">${row({ icon: "clipboard", title: "EPCF 1 · " + (s.moy ? "12/20" : "aucune note"), sub2: "Grille saisie par Claire Vidal" })}${row({ icon: "pen", title: "EPCF 2 · à saisir", sub2: "Jeudi 5 novembre", act: "toast:Exemple : la grille de saisie s'ouvre" })}</div>`)
+      : sub === "livret" ? card("Livret", "clipboard", `<p class="lead">14 compétences validées sur 22 · 2 auto-évaluations en attente.</p><div class="actions"><button type="button" class="btn btn-sm">Évaluer</button></div>`)
+      : sub === "dossier" ? card("Dossier professionnel", "file", `<div class="rows">${row({ icon: "file", title: "Partie 2 · Activité type 1", sub2: "Envoyée le 25 octobre", end: chip("À relire", "warn", "keep"), act: "toast:Exemple : relecture avec commentaires" })}${row({ icon: "file", title: "Partie 1 · Présentation", sub2: "Relue le 12 octobre", end: chip("Relue", "ok") })}</div>`)
+      : card("Passages", "history", `<div class="rows">${row({ icon: "board", title: s.pt + " passages au tableau", sub2: "Dernier : 20 octobre" })}${row({ icon: "car", title: s.pv + " passages en voiture", sub2: "Dernier : 26 octobre" })}</div>`);
+    return `<div class="page">
+      ${head({ back: { act: "fiche:0", label: "Stagiaires" }, eyebrow: "Nîmes, mars 2026", title: s.prenom + " " + s.nom, meta: (s.st === "suivre" ? "À suivre de près · " : "") + "Moyenne " + fr(s.moy) + " · assiduité " + (s.ass ? s.ass + " %" : "aucune") })}
+      ${subnav("fiche", [["passages", "Passages"], ["notes", "Notes"], ["epcf", "EPCF"], ["livret", "Livret"], ["dossier", "Dossier pro"]], sub)}
+      ${body}
+    </div>`;
+  }
+  function fNotes(sub) {
+    const cols = ["T8", "T9", "T10", "T11", "EPCF 1"];
+    const off = [0.6, -0.8, 1.2, -0.3, -1.4];
+    const body = sub === "synthese" ? `<div class="grid g3">${kpi("12,9", "Moyenne de la promo")}${kpi("2", "Moyennes sous 10", "", "")}${kpi("T10", "Thème le mieux réussi")}</div>`
+      : `<section class="card"><div class="tbl-wrap"><table class="matrix"><thead><tr><th>Stagiaire</th>${cols.map((c) => `<th>${c}</th>`).join("")}</tr></thead><tbody>${enFormation.map((s) => `<tr><td>${disp(s)}</td>${off.map((o, j) => { const v = Math.max(0, Math.min(20, Math.round((s.moy + o + ((s.id * (j + 3)) % 5 - 2) * 0.4) * 2) / 2)); return `<td><span class="cellnote ${noteClass(v)}">${fr(v)}</span></td>`; }).join("")}</tr>`).join("")}</tbody></table></div><p class="note" style="margin-top:10px">Un clic sur une case pour saisir ; l'échelle de couleurs reste douce, sans rouge.</p></section>`;
+    return `<div class="page">
+      ${head({ eyebrow: "Nîmes, mars 2026", title: "Notes et examens", actions: `<button type="button" class="btn btn-primary" data-act="toast:Exemple : saisie d'une série de notes">${ic("plus")}Saisir des notes</button>` })}
+      ${subnav("notes", [["matrice", "Matrice"], ["epcf", "EPCF"], ["synthese", "Synthèse"]], sub)}
+      ${sub === "epcf" ? card("EPCF 2 · jeudi 5 novembre", "clipboard", `<p class="lead">Grilles prêtes pour 14 stagiaires. La saisie se fait dans la fiche de chacun ou ici, en série.</p><div class="actions"><button type="button" class="btn btn-sm btn-primary">Saisir en série</button></div>`) : body}
+    </div>`;
+  }
+  function fCours(sub) {
+    const body = sub === "competences" ? competences()
+      : sub === "qcm" ? qcmList(true)
+      : sub === "signalements" ? card("Signalements des stagiaires", "flag", `<div class="rows">${[["Thème 12 · question 7", "« La réponse B me semble aussi juste »", "22 oct."], ["Sanctions · question 31", "Montant de l'amende à vérifier", "24 oct."], ["Thème 02 · question 4", "Image floue sur téléphone", "26 oct."]].map(([t, s, d]) => row({ icon: "flag", title: t, sub2: s + " · " + d, act: "toast:Exemple : instruction du signalement" })).join("")}</div>`)
+      : sub === "ia" ? card("Questions proposées par l'IA", "sparkle", `<div class="rows">${[["Thème 12 · priorité à droite", "Article absent du cours : écartée d'office", "warn"], ["Thème 12 · panneau AB6", "Prête à relire", "accent"]].map(([t, s, k]) => row({ icon: "sparkle", title: t, sub2: s, end: chip(k === "warn" ? "Écartée" : "À relire", k, "keep"), act: "toast:Exemple : accepter ou écarter" })).join("")}</div>`)
+      : sub === "documents" ? documents()
+      : themesList(true);
+    return `<div class="page">
+      ${head({ title: "Cours et QCM", meta: "57 thèmes, 36 compétences, les QCM et leurs examens", actions: `<button type="button" class="btn">${ic("eye")}Voir comme un stagiaire</button>` })}
+      ${subnav("cours", [["themes", "Thèmes"], ["competences", "Compétences"], ["qcm", "QCM et examens"], ["signalements", "Signalements", "3"], ["ia", "Propositions IA", "2"], ["documents", "Documents"]], sub)}
+      ${body}
+    </div>`;
+  }
+  function fCcp2() {
+    return `<div class="page">
+      ${head({ eyebrow: "Nîmes, mars 2026 · épreuve du 11 décembre", title: "CCP2", meta: "Où en est chaque stagiaire dans son parcours" })}
+      ${card("", "", `<div class="steps">${CCP2.map((t, i) => `<div class="step ${i < 3 ? "done" : i === 3 ? "now" : ""}"><span class="step-n">${i < 3 ? ic("check", "ico-sm") : i + 1}</span><div><b>${t}</b><span>${[14, 14, 13, 9, 0, 0, 0, 0][i]} stagiaires ont franchi cette étape</span></div></div>`).join("")}</div>`)}
+    </div>`;
+  }
+  function tableau(scope) {
+    const promo = scope === "promo";
+    const kpis = `<div class="grid g4">
+        ${kpi(promo ? "14" : "26", "Stagiaires en formation")}
+        ${kpi(promo ? "96 %" : "95 %", "Assiduité sur 4 semaines")}
+        ${kpi(promo ? "1" : "2", "Abandons (promos en cours)")}
+        ${kpi(promo ? "12,9" : "12,7", "Moyenne aux EPCF")}
+      </div>`;
+    const suivre = card("À suivre de près", "alert", `<div class="rows">${row({ avatar: "KM", title: "M. Kevin", sub2: (promo ? "" : "Nîmes, mars · ") + "3 notes sous 8 · 2 absences", act: "fiche:6", end: chip("À suivre", "signal", "keep") })}${promo ? "" : row({ avatar: "RY", title: "R. Yanis", sub2: "Nîmes, septembre · 3 absences en octobre", act: "fiche:11", end: chip("À suivre", "signal", "keep") })}</div>`, `<button type="button" class="link" data-go="stagiaires">Tout voir ${ic("right", "ico-sm")}</button>`);
+    const qualiopiCarte = promo ? "" : card("Qualiopi", "shield", `<p class="lead">Preuves réunies par l'app pour 6 critères sur 7.</p><div class="meter" style="margin:12px 0 6px"><i style="width:86%"></i></div><div class="actions"><button type="button" class="btn btn-sm" data-go="qualiopi">Voir les preuves</button></div>`);
+    return `<div class="page">
+      ${head({ eyebrow: promo ? "Vos promos" : "Centre de Nîmes", title: promo ? "Indicateurs" : "Vue d'ensemble", meta: promo ? "Nîmes, mars 2026 · les chiffres de la vue d'ensemble du centre, limités à vos promos" : "2 promos en cours · 26 stagiaires en formation", actions: promo ? "" : `<button type="button" class="btn desk-only">${ic("download")}Exporter le tableau (CSV)</button><button type="button" class="btn btn-primary" data-go="promos">${ic("plus")}Créer une promo</button>` })}
+      ${kpis}
+      ${phone() && !promo ? suivre : ""}
+      <div class="grid g2">
+        ${promo ? card("Assiduité par semaine", "chart", `<div class="bars">${[97, 95, 98, 94, 96].map((v, i) => `<div><b>${v} %</b><i class="${i === 4 ? "on" : ""}" style="height:${(v - 80) * 5}px"></i><span>S${27 + i}</span></div>`).join("")}</div><p class="note" style="margin-top:8px">Barres à partir de 80 %, semaines 27 à 31.</p>`)
+          : card("Promos", "layers", phone()
+            ? `<div class="rows">${row({ icon: "layers", title: "Nîmes, mars 2026", sub2: "14 stagiaires · assiduité 96 % · EPCF 12,9 · fin en décembre 2026", go: "promos" })}${row({ icon: "layers", title: "Nîmes, septembre 2026", sub2: "12 stagiaires · assiduité 94 % · EPCF 12,4 · fin en juin 2027", go: "promos" })}</div>`
+            : `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Promo</th><th class="num">Stagiaires</th><th class="num">Assiduité</th><th class="num">EPCF</th><th>Fin</th><th><span class="sr">Ouvrir</span></th></tr></thead><tbody><tr class="clickable" data-go="promos" tabindex="0"><td><b>Nîmes, mars 2026</b></td><td class="num">14</td><td class="num">96 %</td><td class="num">12,9</td><td>déc. 2026</td><td class="num muted">${ic("right", "ico-sm")}</td></tr><tr class="clickable" data-go="promos" tabindex="0"><td><b>Nîmes, septembre 2026</b></td><td class="num">12</td><td class="num">94 %</td><td class="num">12,4</td><td>juin 2027</td><td class="num muted">${ic("right", "ico-sm")}</td></tr></tbody></table></div>`)}
+        ${phone() && !promo ? "" : suivre}
+      </div>
+      ${qualiopiCarte}
+    </div>`;
+  }
+  function fReglages(sub) {
+    const mods = [["Démarrage", ["Planning", "Calendrier", "Ressources"]], ["Suivi de la formation", ["Priorités", "Notes"]], ["CCP1", ["EPCF", "Livret"]], ["Dossier professionnel", ["Dossier pro"]], ["CCP2", ["Parcours CCP2"]], ["Outils", ["Assistant"]]];
+    const off = [];
+    return `<div class="page">
+      ${head({ eyebrow: "Nîmes, mars 2026", title: "Réglages de la promo" })}
+      ${subnav("reglages", [["modules", "Ce que voient les stagiaires"], ["acces", "Accès"]], sub)}
+      ${sub === "acces" ? card("Comptes des stagiaires", "key", `<div class="rows">${row({ icon: "userplus", title: "14 comptes actifs", sub2: "Dernière invitation le 30 septembre" })}${row({ icon: "mail", title: "Inviter par e-mail", sub2: "Le stagiaire crée son mot de passe", act: "toast:Exemple : invitation" })}</div>`)
+        : `<div class="grid g2">${mods.map(([g, items]) => card(g, "", `<div class="rows">${items.map((m) => `<div class="row"><span class="row-main"><span class="row-title">${m}</span><span class="row-sub">${off.includes(m) ? "Fermé : les stagiaires ne le voient pas" : "Ouvert"}</span></span><button type="button" class="toggle" role="switch" aria-checked="${!off.includes(m)}" aria-label="${m}" data-act="toast:Exemple : ${esc(m)} change d'état pour la promo"></button></div>`).join("")}</div>`)).join("")}</div>`}
+    </div>`;
+  }
+
+  // ===================== Pages : direction =====================
+  function dPromos() {
+    return `<div class="page">
+      ${head({ eyebrow: "Centre de Nîmes", title: "Promos", actions: `<button type="button" class="btn btn-primary" data-act="toast:Exemple : création d'une promo (nom, dates, formateurs, modules de départ)">${ic("plus")}Créer une promo</button>` })}
+      <div class="grid g2">
+        ${[["Nîmes, mars 2026", "14 stagiaires · CCP2 · fin le 11 décembre", "Claire Vidal, Marc Lefèvre", 82], ["Nîmes, septembre 2026", "12 stagiaires · CCP1 · fin en juin 2027", "Nora Haddad, Claire Vidal", 18]].map(([n, m, f, p]) => card(n, "users", `<p class="ph-meta" style="margin-top:0">${m}</p><p class="small" style="margin:8px 0 12px">Formateurs : ${f}</p><div class="meter"><i style="width:${p}%"></i></div><p class="note" style="margin-top:6px">${p} % de la formation écoulée</p><div class="actions"><button type="button" class="btn btn-sm">Ouvrir</button><button type="button" class="btn btn-sm btn-quiet">Modules</button></div>`)).join("")}
+      </div>
+    </div>`;
+  }
+  function dAssiduite() {
+    return `<div class="page">
+      ${head({ eyebrow: "Centre de Nîmes", title: "Émargement", meta: "Feuilles signées, présence et absences, par promo", actions: `<button type="button" class="btn">${ic("download")}Feuilles signées (PDF)</button>` })}
+      <div class="grid g3">${kpi("95 %", "Présence sur 4 semaines")}${kpi("3", "Absences non justifiées")}${kpi("118", "Feuilles signées depuis septembre")}</div>
+      ${phone() ? card("Par promo", "clipboard", `<div class="rows">${row({ icon: "clipboard", title: "Nîmes, mars 2026", sub2: "Présence 96 % · 9 absences dont 2 non justifiées · feuille ouverte" })}${row({ icon: "clipboard", title: "Nîmes, septembre 2026", sub2: "Présence 94 % · 11 absences dont 1 non justifiée" })}</div>`) : card("Par promo", "clipboard", `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Promo</th><th class="num">Présence</th><th class="num">Absences</th><th class="num">Non justifiées</th><th>Dernière feuille</th></tr></thead><tbody><tr><td><b>Nîmes, mars 2026</b></td><td class="num">96 %</td><td class="num">9</td><td class="num">2</td><td>aujourd'hui, ouverte</td></tr><tr><td><b>Nîmes, septembre 2026</b></td><td class="num">94 %</td><td class="num">11</td><td class="num">1</td><td>hier, close</td></tr></tbody></table></div>`)}
+    </div>`;
+  }
+  function dResultats() {
+    return `<div class="page">
+      ${head({ eyebrow: "Centre de Nîmes", title: "Résultats", meta: "Moyennes des stagiaires en formation, abandons exclus" })}
+      <div class="grid g2">
+        ${card("EPCF par promo", "chart", `<div class="bars">${[["Mars", 12.9], ["Sept.", 12.4]].map(([p, v], i) => `<div><i class="${i === 0 ? "on" : ""}" style="height:${v * 5}px"></i><span>${p} · ${fr(v)}</span></div>`).join("")}</div>`)}
+        ${card("Thèmes les moins réussis", "book", `<div class="rows">${row({ icon: "book", title: "Thème 09 · Alcool et stupéfiants", sub2: "Moyenne 10,8" })}${row({ icon: "book", title: "Thème 21 · Visibilité", sub2: "Moyenne 11,2" })}</div>`)}
+      </div>
+    </div>`;
+  }
+  function dEquipe() {
+    const eq = [["Claire Vidal", "Formatrice", "Nîmes, mars · Nîmes, sept."], ["Marc Lefèvre", "Formateur", "Nîmes, mars"], ["Nora Haddad", "Formatrice", "Nîmes, sept."], ["Sophie Laurent", "Direction et formatrice", "Tout le centre"]];
+    return `<div class="page">
+      ${head({ eyebrow: "Centre de Nîmes", title: "Équipe", meta: "Qui fait quoi, et sur quelles promos", actions: `<button type="button" class="btn btn-primary" data-act="toast:Exemple : invitation d'un formateur">${ic("userplus")}Inviter</button>` })}
+      ${phone() ? card("", "", `<div class="rows">${eq.map(([n, r, p]) => row({ avatar: n.split(" ").map((x) => x[0]).join(""), title: n, sub2: r + " · " + p, act: "toast:Exemple : rôle et promos de " + n })).join("")}</div>`) : card("", "", `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Personne</th><th>Rôle</th><th>Promos</th><th></th></tr></thead><tbody>${eq.map(([n, r, p]) => `<tr><td><span class="name-cell"><span class="avatar">${n.split(" ").map((x) => x[0]).join("")}</span>${n}</span></td><td>${r}</td><td>${p}</td><td class="num"><button type="button" class="btn btn-sm btn-quiet">Modifier</button></td></tr>`).join("")}</tbody></table></div>`)}
+    </div>`;
+  }
+  function qualiopi(siege) {
+    const crit = [["1", "Information du public", 2, 3], ["2", "Objectifs et adaptation des prestations", 3, 3], ["3", "Accueil, suivi et évaluation", 5, 5], ["4", "Moyens pédagogiques et techniques", 3, 3], ["5", "Qualification des formateurs", 1, 2], ["6", "Environnement professionnel", 2, 3], ["7", "Appréciations et réclamations", 1, 3]];
+    return `<div class="page">
+      ${head({ eyebrow: siege ? "Réseau · 6 centres" : "Centre de Nîmes", title: "Qualiopi", meta: "Les preuves que l'app produit déjà, rangées par critère du référentiel", actions: `<button type="button" class="btn btn-primary" data-act="toast:Exemple : le dossier se télécharge, preuves rangées par critère">${ic("download")}${siege ? "Télécharger les dossiers" : "Télécharger le dossier"}</button>` })}
+      ${siege && phone() ? card("Par centre", "building", `<div class="rows">${CENTRES.map((c) => row({ icon: "building", title: c.nom, sub2: c.q + " critères sur 7 couverts", act: "toast:Exemple : dossier Qualiopi de " + c.nom, end: ic("download", "ico-sm") })).join("")}</div>`)
+        : siege ? card("Par centre", "building", `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Centre</th><th class="num">Critères couverts</th><th></th></tr></thead><tbody>${CENTRES.map((c) => `<tr><td><b>${c.nom}</b></td><td class="num">${c.q} sur 7</td><td class="num"><button type="button" class="btn btn-sm" data-act="toast:Exemple : dossier Qualiopi de ${esc(c.nom)}">${ic("download")}Dossier</button></td></tr>`).join("")}</tbody></table></div>`)
+        : card("Par critère", "shield", `<div class="rows">${crit.map(([n, t, a, b]) => row({ icon: "shield", title: `Critère ${n} · ${t}`, sub2: `${a} preuve${a > 1 ? "s" : ""} réunie${a > 1 ? "s" : ""} sur ${b}`, end: chip(a === b ? "Complet" : "À compléter", a === b ? "ok" : "warn", "keep") })).join("")}</div>`)}
+    </div>`;
+  }
+  function dReglages(sub) {
+    return `<div class="page">
+      ${head({ eyebrow: "Centre de Nîmes", title: "Réglages du centre" })}
+      ${subnav("reglages", [["apparence", "Apparence"], ["modules", "Modules de départ"], ["partenaires", "Partenaires"], ["emargement", "Émargement"]], sub)}
+      ${sub === "partenaires" ? card("Auto-écoles et élèves bénévoles", "users", `<div class="rows">${row({ icon: "building", title: "4 auto-écoles partenaires", sub2: "Banque partagée par les promos du centre" })}${row({ icon: "users", title: "23 élèves bénévoles", sub2: "Dont 6 venus ce mois-ci" })}</div>`)
+        : sub === "modules" ? card("Ensemble de départ", "sliders", `<p class="lead">Ce que verront les stagiaires d'une nouvelle promo, avant tout réglage du formateur.</p><div class="actions"><button type="button" class="btn btn-sm">Modifier l'ensemble</button></div>`)
+        : sub === "emargement" ? card("Émargement signé", "clipboard", `<div class="row"><span class="row-main"><span class="row-title">Activé pour le centre</span><span class="row-sub">Les formateurs ouvrent les feuilles, les stagiaires signent sur leur téléphone</span></span><button type="button" class="toggle" role="switch" aria-checked="true" aria-label="Émargement activé"></button></div>`)
+        : card("Habillage par défaut du centre", "palette", `<p class="lead" style="margin-bottom:12px">S'applique à toute personne qui n'a pas fait son propre choix.</p><div class="skins" style="padding:0">${skinBtns()}</div><div class="row" style="margin-top:12px"><span class="row-main"><span class="row-title">Laisser chacun choisir le sien</span><span class="row-sub">Le choix personnel passe avant celui du centre</span></span><button type="button" class="toggle" role="switch" aria-checked="true" aria-label="Laisser chacun choisir"></button></div>`)}
+    </div>`;
+  }
+
+  // ===================== Pages : siège =====================
+  // Une seule vue d'ensemble : le tableau des centres y mène à la fiche de chacun (le test a
+  // montré que « Vue réseau » et « Centres » se lisaient comme un doublon).
+  function sEnsemble() {
+    if (S.centre) {
+      const c = CENTRES.find((x) => x.id === S.centre) || CENTRES[0];
+      return `<div class="page">
+        ${head({ back: { act: "centre:", label: "Vue d'ensemble" }, eyebrow: "Centre", title: c.nom, meta: "La vue d'ensemble du centre, en lecture seule" })}
+        <div class="grid g4">${kpi(String(c.stag), "Stagiaires en formation")}${kpi(c.ass + " %", "Assiduité sur 4 semaines")}${kpi(String(c.ab), "Abandons (promos en cours)")}${kpi(fr(c.epcf), "Moyenne aux EPCF")}</div>
+        ${card("Qualiopi", "shield", `<p class="lead">${c.q} critères sur 7 couverts par les preuves de l'app.</p><div class="actions"><button type="button" class="btn btn-sm" data-act="toast:Exemple : dossier Qualiopi de ${esc(c.nom)}">${ic("download")}Dossier Qualiopi</button></div>`)}
+      </div>`;
+    }
+    const t = CENTRES.reduce((a, c) => a + c.stag, 0);
+    return `<div class="page">
+      ${head({ eyebrow: "Réseau · 6 centres", title: "Vue d'ensemble", meta: "Chiffres agrégés par centre, sans données nominatives", actions: `<button type="button" class="btn desk-only">${ic("download")}Exporter le tableau (CSV)</button><button type="button" class="btn btn-primary" data-act="toast:Exemple : ajout d'un centre et invitation de sa direction">${ic("plus")}Ajouter un centre</button>` })}
+      <div class="grid g4">${kpi(String(t), "Stagiaires en formation")}${kpi("94 %", "Assiduité sur 4 semaines")}${kpi("12", "Abandons (promos en cours)")}${kpi("12,6", "Moyenne aux EPCF")}</div>
+      ${phone() ? card("Centres", "building", `<div class="rows">${CENTRES.map((c) => row({ icon: "building", title: c.nom, sub2: `${c.stag} stagiaires · assiduité ${c.ass} % · EPCF ${fr(c.epcf)} · Qualiopi ${c.q}/7`, act: "centre:" + c.id })).join("")}</div>`) : card("Centres", "building", `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Centre</th><th class="num">Stagiaires</th><th class="num">Assiduité (4 sem.)</th><th class="num">Abandons</th><th class="num">EPCF</th><th class="num">Qualiopi</th><th><span class="sr">Ouvrir</span></th></tr></thead><tbody>${CENTRES.map((c) => `<tr class="clickable" data-act="centre:${c.id}" tabindex="0"><td><b>${c.nom}</b></td><td class="num">${c.stag}</td><td class="num">${c.ass} %</td><td class="num">${c.ab}</td><td class="num">${fr(c.epcf)}</td><td class="num">${c.q} / 7 <button type="button" class="btn btn-sm btn-quiet" data-act="toast:Exemple : dossier Qualiopi de ${esc(c.nom)}" aria-label="Télécharger le dossier Qualiopi de ${esc(c.nom)}" title="Dossier Qualiopi">${ic("download", "ico-sm")}</button></td><td class="num muted">${ic("right", "ico-sm")}</td></tr>`).join("")}</tbody></table></div>`)}
+    </div>`;
+  }
+  function sContenus(sub) {
+    return `<div class="page">
+      ${head({ eyebrow: "Réseau", title: "Cours et QCM", meta: "Les contenus communs à tous les centres" })}
+      ${subnav("contenus", [["cours", "Cours"], ["qcm", "QCM"], ["maj", "Mises à jour"]], sub)}
+      ${sub === "maj" ? card("Dernières mises à jour", "history", `<div class="rows">${row({ icon: "book", title: "Thème 02 · marquage de la bande d'arrêt d'urgence", sub2: "Publié le 23 octobre · annoté pendant un an", end: chip("Publié", "ok") })}${row({ icon: "scale", title: "Délits d'alcool et de stupéfiants", sub2: "Réforme du 20 août · 10 articles · cours et QCM à jour", end: chip("Publié", "ok") })}</div>`)
+        : sub === "qcm" ? qcmList(true) : themesList(true)}
+    </div>`;
+  }
+  function sVeille() {
+    return `<div class="page">
+      ${head({ eyebrow: "Réseau", title: "Veille réglementaire", meta: "Les changements de textes repérés, et les cours qu'ils touchent" })}
+      ${card("Changements repérés", "scale", `<div class="rows">${row({ icon: "alert", title: "Stationnement à moins de 5 m en amont d'un passage piéton", sub2: "Échéance au 31 décembre 2026 · thèmes 30 et 31", end: chip("À valider", "warn", "keep") })}${row({ icon: "checkc", title: "Délits d'alcool et de stupéfiants", sub2: "Réforme du 20 août 2026 · appliquée le 29 septembre", end: chip("Appliquée", "ok") })}</div>`)}
+    </div>`;
+  }
+  function sComptes() {
+    return `<div class="page">
+      ${head({ eyebrow: "Réseau", title: "Directions de centre", meta: "Les directions des centres et leurs accès", actions: `<button type="button" class="btn btn-primary" data-act="toast:Exemple : invitation d'une direction">${ic("userplus")}Inviter</button>` })}
+      ${card("", "", `<div class="rows">${CENTRES.map((c, i) => row({ icon: "building", title: ["Sophie Laurent", "Karim Benali", "Élodie Marchand", "Paul Ferrand", "Inès Carpentier", "Jordi Puig"][i], sub2: "Direction · " + c.nom })).join("")}</div>`)}
+    </div>`;
+  }
+  function sReglages() {
+    return `<div class="page">
+      ${head({ eyebrow: "Réseau", title: "Réglages du réseau" })}
+      ${card("Habillage par défaut du réseau", "palette", `<p class="lead" style="margin-bottom:12px">Un centre peut le remplacer par le sien ; chacun garde son choix personnel.</p><div class="skins" style="padding:0">${skinBtns()}</div>`)}
+    </div>`;
+  }
+
+  // ===================== Rôles et navigation =====================
+  const ROLES = {
+    stagiaire: {
+      label: "Stagiaire", layout: "tabs", home: "accueil",
+      user: { name: "Camille Martin", initials: "CM", meta: "Stagiaire · Nîmes, mars 2026" },
+      nav: [
+        { id: "accueil", label: "Accueil", icon: "home", render: stAccueil },
+        { id: "planning", label: "Planning", icon: "calendar", subs: "semaine", render: stPlanning },
+        { id: "cours", label: "Cours et QCM", icon: "book", subs: "themes", render: stCours },
+        { id: "suivi", label: "Mon suivi", icon: "trend", subs: "resultats", render: stSuivi },
+        { id: "ccp2", label: "CCP2", icon: "target", render: stCcp2 },
+      ],
+    },
+    formateur: {
+      label: "Formateur", layout: "side", home: "aujourdhui",
+      user: { name: "Claire Vidal", initials: "CV", meta: "Formatrice · Centre de Nîmes", roleLabel: "Formatrice" },
+      ctx: { kind: "Promo", current: 0, list: [{ mark: "NM", name: "Nîmes, mars 2026", meta: "14 stagiaires · CCP2" }, { mark: "NS", name: "Nîmes, septembre 2026", meta: "12 stagiaires · CCP1" }] },
+      nav: [
+        { id: "aujourdhui", label: "Aujourd'hui", icon: "sun", render: fAujourdhui },
+        { id: "planning", label: "Planning", icon: "calendar", subs: "semaine", render: fPlanning },
+        { id: "emargement", label: "Émargement", icon: "clipboard", live: true, render: fEmargement },
+        { id: "stagiaires", label: "Stagiaires", icon: "users", subs: "liste", render: (sub) => S.fiche ? fiche(S.fiche) : stagiairesList("promo", sub) },
+        { id: "notes", label: "Notes et examens", short: "Notes", icon: "edu", subs: "matrice", render: fNotes },
+        { id: "cours", label: "Cours et QCM", icon: "book", subs: "themes", count: 5, countLabel: "5 à traiter : 3 signalements, 2 propositions de l'IA", render: fCours },
+        { id: "ccp2", label: "CCP2", icon: "target", render: fCcp2 },
+        { id: "tableau", label: "Indicateurs", icon: "chart", group: "Promo", render: () => tableau("promo") },
+        { id: "reglages", label: "Réglages de la promo", icon: "sliders", group: "Promo", subs: "modules", render: fReglages },
+      ],
+      mobile: ["aujourdhui", "planning", "stagiaires", "notes"],
+    },
+    direction: {
+      label: "Direction", layout: "side", home: "ensemble",
+      user: { name: "Sophie Laurent", initials: "SL", meta: "Direction · Centre de Nîmes", roleLabel: "Direction", also: "formateur" },
+      ctx: { kind: "Centre", current: 0, list: [{ icon: "building", name: "Centre de Nîmes", meta: "2 promos · 26 stagiaires" }] },
+      nav: [
+        { id: "ensemble", label: "Accueil", icon: "home", render: () => tableau("centre") },
+        { id: "promos", label: "Promos", icon: "layers", render: dPromos },
+        { id: "stagiaires", label: "Stagiaires", icon: "users", render: () => S.fiche ? fiche(S.fiche) : stagiairesList("centre") },
+        { id: "assiduite", label: "Émargement", icon: "clipboard", render: dAssiduite },
+        { id: "resultats", label: "Notes et examens", short: "Notes", icon: "edu", render: dResultats },
+        { id: "equipe", label: "Équipe", icon: "briefcase", render: dEquipe },
+        { id: "qualiopi", label: "Qualiopi", icon: "shield", group: "Qualité", render: () => qualiopi(false) },
+        { id: "reglages", label: "Réglages du centre", icon: "sliders", group: "Centre", subs: "apparence", render: dReglages },
+      ],
+      mobile: ["ensemble", "promos", "stagiaires", "equipe"],
+    },
+    siege: {
+      label: "Siège", layout: "side", home: "ensemble",
+      user: { name: "Pierre Garnier", initials: "PG", meta: "Siège · qualité et pédagogie", roleLabel: "Siège" },
+      ctx: { kind: "Réseau", current: 0, list: [{ icon: "globe", name: "6 centres", meta: "132 stagiaires en formation" }] },
+      nav: [
+        { id: "ensemble", label: "Accueil", icon: "home", render: sEnsemble },
+        { id: "qualiopi", label: "Qualiopi", icon: "shield", render: () => qualiopi(true) },
+        { id: "contenus", label: "Cours et QCM", icon: "book", subs: "cours", render: sContenus },
+        { id: "veille", label: "Veille réglementaire", short: "Veille", icon: "scale", render: sVeille },
+        { id: "comptes", label: "Directions de centre", short: "Directions", icon: "briefcase", group: "Gestion", render: sComptes },
+        { id: "reglages", label: "Réglages du réseau", icon: "sliders", group: "Gestion", render: sReglages },
+      ],
+      mobile: ["ensemble", "qualiopi", "contenus", "veille"],
+    },
+  };
+
+  // ===================== État =====================
+  const KEY = "maquette-navigation-v1";
+  const S = { view: "maquette", role: "stagiaire", device: "desktop", skin: "ecsr", collapsed: false, page: {}, sub: {}, fiche: 0, ficheSub: "passages", centre: "", filtre: "tous", classe: false, size: "desktop" };
+  try { const saved = JSON.parse(localStorage.getItem(KEY) || "{}"); ["role", "device", "skin", "collapsed", "view"].forEach((k) => { if (saved[k] != null) S[k] = saved[k]; }); } catch (e) { /* stockage indisponible */ }
+  function save() { try { localStorage.setItem(KEY, JSON.stringify({ role: S.role, device: S.device, skin: S.skin, collapsed: S.collapsed, view: S.view })); } catch (e) { /* ignore */ } }
+  const tokens = ["stagiaire", "formateur", "direction", "siege", "proposition"];
+  const h0 = (location.hash || "").replace("#", "");
+  if (tokens.includes(h0)) { if (h0 === "proposition") S.view = "proposition"; else { S.role = h0; S.view = "maquette"; } }
+
+  const $ = (sel, root = document) => root.querySelector(sel);
+  const app = $("#app"), ovl = $("#ovl"), screen = $("#screen"), stage = $("#stage"), doc = $("#doc");
+
+  const R = () => ROLES[S.role];
+  const pageId = () => S.page[S.role] || R().home;
+  const navItem = (id) => R().nav.find((n) => n.id === id);
+  const subOf = (id) => S.sub[S.role + ":" + id] || (navItem(id) && navItem(id).subs) || "";
+  const isRail = () => S.size === "tablet" || (S.size === "desktop" && S.collapsed);
+
+  // ===================== Rendu =====================
+  function renderPage() {
+    const it = navItem(pageId()) || R().nav[0];
+    return it.render(subOf(it.id));
+  }
+  function skinBtns() {
+    return `<button type="button" class="skin" data-skin="ecsr" aria-pressed="${S.skin === "ecsr"}"><span class="swatch sw-ecsr"></span>ECSR Promo</button>
+            <button type="button" class="skin" data-skin="ecf" aria-pressed="${S.skin === "ecf"}"><span class="swatch sw-ecf"></span>Couleurs ECF</button>`;
+  }
+  function layoutTabs() {
+    const r = R(), cur = pageId();
+    const tabs = r.nav.map((n) => `<button type="button" class="lt-tab" data-go="${n.id}" ${n.id === cur ? 'aria-current="page"' : ""}>${ic(n.icon)}<span>${n.label}</span></button>`).join("");
+    const bb = r.nav.map((n) => `<button type="button" class="bb-item" data-go="${n.id}" ${n.id === cur ? 'aria-current="page"' : ""}><span class="bb-pill">${ic(n.icon, "ico-lg")}</span><span>${n.label}</span></button>`).join("");
+    return `<div class="lt">
+      <header class="lt-top">
+        <button type="button" class="brand" data-go="${r.home}" aria-label="Accueil"><svg class="logo" viewBox="40 30 950 410" aria-hidden="true"><use href="#logo"/></svg><span class="brand-name">TP ECSR<br>Nîmes, mars 2026</span></button>
+        <nav class="lt-tabs" aria-label="Navigation principale">${tabs}</nav>
+        <div class="lt-right">
+          <button type="button" class="ask-btn" data-open="assistant" aria-haspopup="dialog">${ic("chat")}<span class="ask-txt">Assistant</span></button>
+          <button type="button" class="acct-btn" data-open="account" aria-haspopup="dialog" aria-label="Mon compte et réglages"><span class="avatar">${r.user.initials}</span><span class="who">Camille</span>${ic("down", "ico-sm")}</button>
+        </div>
+      </header>
+      <main class="lt-main" id="scroller">${renderPage()}</main>
+      <nav class="bbar" aria-label="Navigation principale">${bb}</nav>
+    </div>`;
+  }
+  function sideItem(n, cur) {
+    const rail = isRail();
+    return `<button type="button" class="side-item" data-go="${n.id}" ${n.id === cur ? 'aria-current="page"' : ""} ${rail ? `title="${esc(n.label)}" aria-label="${esc(n.label)}"` : ""}>
+      ${ic(n.icon)}<span class="side-txt">${n.label}</span>
+      ${n.count ? `<span class="side-count" aria-label="${n.count} à traiter">${n.count}</span>` : ""}
+      ${n.live ? (rail ? `<span class="side-live" title="Feuille ouverte" aria-label="Feuille ouverte"></span>` : `<span class="side-open">Ouverte</span>`) : ""}
+      
+    </button>`;
+  }
+  function navGroups() {
+    const groups = [];
+    R().nav.forEach((n) => {
+      const g = n.group || "";
+      let last = groups[groups.length - 1];
+      if (!last || last.label !== g) { last = { label: g, items: [] }; groups.push(last); }
+      last.items.push(n);
+    });
+    return groups;
+  }
+  const ctxMark = (c, cls = "ctx-mark") => `<span class="${cls}">${c.icon ? ic(c.icon) : c.mark}</span>`;
+  function layoutSide() {
+    const r = R(), cur = pageId(), c = r.ctx.list[r.ctx.current];
+    const rail = isRail();
+    const groups = navGroups().map((g) => `${g.label ? `<div class="side-label">${g.label}</div>` : ""}${g.items.map((n) => sideItem(n, cur)).join("")}`).join("");
+    const mob = r.mobile.map((id) => navItem(id)).map((n) => `<button type="button" class="bb-item" data-go="${n.id}" ${n.id === cur ? 'aria-current="page"' : ""}><span class="bb-pill">${ic(n.icon, "ico-lg")}${n.count ? `<span class="bb-count">${n.count}</span>` : ""}</span><span>${n.short || n.label}</span></button>`).join("")
+      + `<button type="button" class="bb-item" data-open="menu" ${r.mobile.includes(cur) ? "" : 'aria-current="page"'} aria-haspopup="dialog"><span class="bb-pill">${ic("grid", "ico-lg")}${r.nav.some((n) => n.count && !r.mobile.includes(n.id)) ? `<span class="bb-dot" aria-label="des éléments à traiter"></span>` : ""}</span><span>Plus</span></button>`;
+    return `<div class="ls ${rail ? "is-rail" : ""}">
+      <aside class="side" aria-label="Barre de l'espace ${r.label.toLowerCase()}">
+        <div class="side-head">
+          <button type="button" class="ctx" data-open="ctx" aria-haspopup="dialog" ${rail ? `title="${esc(c.name)}" aria-label="${esc(r.ctx.kind + " : " + c.name)}"` : ""}>
+            ${ctxMark(c)}
+            <span class="ctx-text"><span class="ctx-kind">${r.ctx.kind}</span><span class="ctx-name">${c.name}</span></span>
+            ${ic("updown", "ico-sm")}
+          </button>
+          ${S.size === "desktop" ? `<button type="button" class="side-collapse" data-act="collapse" aria-label="${S.collapsed ? "Déplier la barre" : "Replier la barre"}" title="${S.collapsed ? "Déplier la barre" : "Replier la barre"}">${ic(S.collapsed ? "panel-open" : "panel")}</button>` : ""}
+        </div>
+        <nav class="side-nav" aria-label="Navigation de l'espace">${groups}</nav>
+        <div class="side-foot">
+          <button type="button" class="side-item" data-open="assistant" aria-haspopup="dialog" ${rail ? 'title="Assistant" aria-label="Assistant"' : ""}>${ic("chat")}<span class="side-txt">Assistant</span></button>
+          <button type="button" class="side-item" data-open="signal" ${rail ? 'title="Signaler un problème" aria-label="Signaler un problème"' : ""}>${ic("report")}<span class="side-txt">Signaler un problème</span></button>
+          <button type="button" class="side-acct" data-open="account" aria-haspopup="dialog" ${rail ? `title="${esc(r.user.name)}" aria-label="Mon compte"` : ""}><span class="avatar">${r.user.initials}</span><span class="acct-text"><b>${r.user.name}</b><small>${r.user.roleLabel || r.label}</small></span></button>
+        </div>
+      </aside>
+      <div class="ls-main">
+        <header class="mtop">
+          <button type="button" class="ctx" data-open="ctx" aria-haspopup="dialog">${ctxMark(c)}<span class="ctx-text"><span class="ctx-kind">${r.ctx.kind}</span><span class="ctx-name">${c.name}</span></span>${ic("updown", "ico-sm")}</button>
+          <button type="button" class="mtop-acct" data-open="account" aria-label="Mon compte et réglages"><span class="avatar">${r.user.initials}</span></button>
+        </header>
+        <main class="ls-scroll" id="scroller">${renderPage()}</main>
+        <nav class="bbar" aria-label="Navigation principale">${mob}</nav>
+      </div>
+    </div>`;
+  }
+  function render() {
+    // Coque
+    document.querySelectorAll("[data-view]").forEach((b) => { if (b.closest(".demo")) b.setAttribute("aria-pressed", String(b.dataset.view === S.view)); });
+    document.querySelectorAll(".demo [data-role]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.role === S.role)));
+    document.querySelectorAll(".demo [data-device]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.device === S.device)));
+    $("#role-select").value = S.role;
+    stage.hidden = S.view !== "maquette";
+    doc.hidden = S.view !== "proposition";
+    stage.dataset.device = S.device;
+    screen.dataset.skin = S.skin;
+    screen.dataset.role = S.role;
+    if (S.view !== "maquette") return;
+    app.innerHTML = R().layout === "tabs" ? layoutTabs() : layoutSide();
+    renderOverlay();
+  }
+
+  // ===================== Calques =====================
+  let overlay = null, opener = null, toastTimer = null;
+  function accountMenu() {
+    const r = R(), stag = S.role === "stagiaire";
+    const pos = r.layout === "tabs" ? "at-top-right" : "at-bottom-left";
+    return `<div class="pop ${pos}" role="dialog" aria-modal="true" aria-label="Mon compte">
+      <div class="pop-h"><span class="avatar">${r.user.initials}</span><span><b>${r.user.name}</b><small>${r.user.meta}</small></span></div>
+      <div class="pop-sec">Apparence</div>
+      <div class="skins">${skinBtns()}</div>
+      ${r.user.also ? `<div class="pop-sec">Espace</div><button type="button" class="mi" aria-current="true">${ic("building")}<span class="mi-text">Direction<small>Centre de Nîmes</small></span>${ic("check", "ico-sm")}</button><button type="button" class="mi" data-act="espace:formateur">${ic("users")}<span class="mi-text">Formatrice<small>Nîmes, mars 2026</small></span></button>` : ""}
+      <div class="pop-sec">Raccourcis</div>
+      ${stag ? `<button type="button" class="mi" data-act="toast:Exemple : la page Nouveautés s'ouvre">${ic("bell")}Nouveautés<span class="end">${chip("1", "new")}</span></button>` : `<button type="button" class="mi" data-act="toast:Exemple : la page Nouveautés s'ouvre">${ic("bell")}Nouveautés</button>`}
+      ${stag ? `<button type="button" class="mi" data-act="toast:Exemple : les contacts du centre s'affichent">${ic("users")}Contacts du centre</button>` : `<button type="button" class="mi" data-act="toast:Aperçu : l'app telle que la voit un stagiaire">${ic("eye")}Voir comme un stagiaire</button>`}
+      <button type="button" class="mi" data-open="signal">${ic("report")}Signaler un problème</button>
+      <button type="button" class="mi" data-act="toast:Exemple : préférences, données personnelles, informations légales">${ic("sliders")}Préférences et données</button>
+      <button type="button" class="mi" data-act="toast:Exemple : déconnexion">${ic("logout")}Se déconnecter</button>
+    </div>`;
+  }
+  function ctxMenu() {
+    const r = R();
+    return `<div class="pop at-top-left" role="dialog" aria-modal="true" aria-label="Choisir ${r.ctx.kind.toLowerCase()}">
+      <div class="pop-sec">${r.ctx.kind === "Promo" ? "Mes promos" : r.ctx.kind === "Centre" ? "Mon centre" : "Mon réseau"}</div>
+      ${r.ctx.list.map((c, i) => `<button type="button" class="mi" data-act="ctx:${i}" aria-current="${i === r.ctx.current}">${ctxMark(c)}<span class="mi-text">${c.name}<small>${c.meta}</small></span>${i === r.ctx.current ? ic("check", "ico-sm") : ""}</button>`).join("")}
+      ${S.role === "formateur" ? `<button type="button" class="mi" data-act="toast:Aperçu : la promo telle que la voient ses stagiaires">${ic("eye")}Voir cette promo comme un stagiaire</button>` : ""}
+      ${S.role === "direction" ? `<button type="button" class="mi" data-go="promos">${ic("layers")}Toutes les promos du centre</button>` : ""}
+      ${S.role === "siege" ? `<button type="button" class="mi" data-go="ensemble">${ic("building")}Choisir un centre dans la vue d'ensemble</button>` : ""}
+      <p class="note" style="padding:8px 10px 2px">Le choix fixe les données de toutes les pages.</p>
+    </div>`;
+  }
+  function moreSheet() {
+    const r = R(), cur = pageId();
+    const rest = r.nav.filter((n) => !r.mobile.includes(n.id));
+    return `<div class="pop sheet-nav" role="dialog" aria-modal="true" aria-label="Plus">
+      <div class="pop-sec">Tout l'espace ${r.label.toLowerCase()}</div>
+      ${rest.map((n) => `<button type="button" class="mi" data-go="${n.id}" aria-current="${n.id === cur}">${ic(n.icon)}<span class="mi-text">${n.label}${n.countLabel ? `<small>${n.countLabel}</small>` : ""}</span>${n.count ? `<span class="end">${chip(n.count + " à traiter", "new")}</span>` : ""}</button>`).join("")}
+      <div class="pop-sec">Outils</div>
+      <button type="button" class="mi" data-open="assistant">${ic("chat")}Assistant</button>
+      <button type="button" class="mi" data-open="signal">${ic("report")}Signaler un problème</button>
+    </div>`;
+  }
+  function signalSheet() {
+    const it = navItem(pageId());
+    return `<div class="pop at-bottom-left" style="${R().layout === "tabs" ? "left:auto;right:14px;top:62px;bottom:auto" : ""}" role="dialog" aria-modal="true" aria-label="Signaler un problème">
+      <div class="pop-sec">Signaler un problème</div>
+      <div class="field"><label for="sig-txt">Que se passe-t-il ?</label><textarea id="sig-txt" placeholder="Par exemple : le bouton Signer ne réagit pas"></textarea></div>
+      <div class="auto-ctx">Joint d'office : la page <b>${esc(it ? it.label : "")}</b>, l'appareil (${S.size === "phone" ? "iPhone" : "ordinateur"}) et l'heure. Rien d'autre.</div>
+      <div class="pop-actions"><button type="button" class="btn btn-sm" data-close>Annuler</button><button type="button" class="btn btn-sm btn-primary" data-act="sent">Envoyer</button></div>
+    </div>`;
+  }
+  function assistantSheet() {
+    const tabs = R().layout === "tabs";
+    const sugg = tabs ? ["Priorité à droite : les exceptions ?", "Que vaut un excès de 20 km/h ?", "Comment signer ma présence ?"] : ["Résumer le thème 12 pour la séance", "Proposer 3 questions sur l'AB6", "Qui n'a pas signé ce matin ?"];
+    return `<div class="pop ${tabs ? "at-top-right" : "at-bottom-left"}" role="dialog" aria-modal="true" aria-label="Assistant">
+      <div class="pop-sec">Assistant</div>
+      <div class="field"><label for="ask-txt">${tabs ? "Ta question" : "Votre question"}</label><textarea id="ask-txt" placeholder="${tabs ? "Une règle, un cours, l'app" : "Un cours, une règle, la promo"}"></textarea></div>
+      <div class="ask-sugg">${sugg.map((s) => `<button type="button" data-act="toast:Exemple : réponse tirée des cours vérifiés">${s}</button>`).join("")}</div>
+      <p class="note" style="padding:4px 10px 6px">Réponses tirées des cours vérifiés, avec leurs sources.</p>
+      <div class="pop-sec">Autre chose ?</div>
+      <button type="button" class="mi" data-open="signal">${ic("report")}Signaler un problème</button>
+      ${tabs ? `<button type="button" class="mi" data-act="toast:Exemple : accueil du centre, formateurs, référent handicap">${ic("users")}Contacts du centre</button>` : ""}
+    </div>`;
+  }
+  function renderOverlay() {
+    if (!overlay) { ovl.className = "ovl"; ovl.innerHTML = ""; return; }
+    const body = overlay === "account" ? accountMenu() : overlay === "ctx" ? ctxMenu() : overlay === "menu" ? moreSheet() : overlay === "signal" ? signalSheet() : overlay === "assistant" ? assistantSheet() : "";
+    ovl.className = "ovl on";
+    ovl.innerHTML = `<div class="scrim" data-close></div>${body}`;
+    // Le focus va au calque lui-même (et non à sa première ligne, qui paraîtrait choisie) ;
+    // Tab parcourt ensuite ses entrées. Le signalement, lui, ouvre directement la saisie.
+    const pop = ovl.querySelector(".pop");
+    const cible = pop && (pop.querySelector("textarea") || pop);
+    if (pop) pop.setAttribute("tabindex", "-1");
+    if (cible) cible.focus({ preventScroll: true });
+  }
+  function open(name, el) { opener = el || document.activeElement; overlay = name; renderOverlay(); }
+  function close() { overlay = null; renderOverlay(); if (opener && document.contains(opener)) opener.focus({ preventScroll: true }); opener = null; }
+  function toast(msg) {
+    let t = screen.querySelector(".toast");
+    if (!t) { t = document.createElement("div"); t.className = "toast"; t.setAttribute("role", "status"); screen.appendChild(t); }
+    t.textContent = msg;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.remove(), 2600);
+  }
+
+  // ===================== Actions =====================
+  function go(id, sub) {
+    if (!navItem(id)) return;
+    S.page[S.role] = id;
+    if (sub) S.sub[S.role + ":" + id] = sub;
+    S.fiche = 0; S.centre = ""; S.ficheSub = "passages";
+    overlay = null;
+    render();
+    const sc = $("#scroller"); if (sc) sc.scrollTop = 0;
+  }
+  document.addEventListener("click", (e) => {
+    const t = e.target.closest("button, [data-act], [data-go], tr.clickable");
+    if (!t) return;
+    if (t.hasAttribute("data-close")) { close(); return; }
+    if (t.dataset.view) { S.view = t.dataset.view; save(); render(); return; }
+    if (t.dataset.role && t.closest(".demo")) { S.role = t.dataset.role; overlay = null; save(); render(); return; }
+    if (t.dataset.device) { S.device = t.dataset.device; save(); render(); return; }
+    if (t.dataset.skin) { S.skin = t.dataset.skin; save(); render(); if (overlay) toast(S.skin === "ecf" ? "Couleurs ECF appliquées" : "Habillage ECSR Promo appliqué"); return; }
+    if (t.dataset.open) { open(t.dataset.open, t); return; }
+    if (t.dataset.go) { go(t.dataset.go, t.dataset.gosub); return; }
+    if (t.dataset.sub) {
+      if (t.dataset.page === "fiche") S.ficheSub = t.dataset.sub; else S.sub[S.role + ":" + t.dataset.page] = t.dataset.sub;
+      render(); return;
+    }
+    const a = t.dataset.act;
+    if (!a) return;
+    if (a === "collapse") { S.collapsed = !S.collapsed; save(); render(); return; }
+    if (a === "sent") { close(); toast("Merci, c'est transmis à l'équipe de l'app"); return; }
+    if (a.startsWith("toast:")) { if (overlay) close(); toast(a.slice(6)); return; }
+    if (a.startsWith("classe:")) { S.classe = a.endsWith("1"); render(); return; }
+    if (a.startsWith("filtre:")) { S.filtre = a.slice(7); render(); return; }
+    if (a.startsWith("fiche:")) {
+      const id = Number(a.slice(6));
+      if (S.role === "formateur" || S.role === "direction") { S.page[S.role] = "stagiaires"; S.fiche = id; S.ficheSub = "passages"; overlay = null; render(); const sc = $("#scroller"); if (sc) sc.scrollTop = 0; }
+      return;
+    }
+    if (a.startsWith("centre:")) { S.page.siege = "ensemble"; S.centre = a.slice(7); overlay = null; render(); return; }
+    if (a.startsWith("ctx:")) { R().ctx.current = Number(a.slice(4)); close(); render(); toast("Données affichées : " + R().ctx.list[R().ctx.current].name); return; }
+    if (a.startsWith("espace:")) { S.role = a.slice(7); overlay = null; save(); render(); toast("Espace formatrice"); return; }
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && overlay) { e.preventDefault(); close(); return; }
+    if ((e.key === "Enter" || e.key === " ") && e.target.matches("tr.clickable")) { e.preventDefault(); e.target.click(); }
+  });
+  $("#role-select").addEventListener("change", (e) => { S.role = e.target.value; overlay = null; save(); render(); });
+
+  // Taille de l'écran de l'app : téléphone, tablette, ordinateur (et non la fenêtre).
+  function measure() {
+    const w = screen.getBoundingClientRect().width;
+    const size = w < 700 ? "phone" : w < 1080 ? "tablet" : "desktop";
+    if (size !== S.size) { S.size = size; screen.dataset.size = size; if (S.view === "maquette") { app.innerHTML = R().layout === "tabs" ? layoutTabs() : layoutSide(); renderOverlay(); } }
+  }
+  if ("ResizeObserver" in window) new ResizeObserver(measure).observe(screen);
+  window.addEventListener("resize", measure);
+
+  render();
+  measure();
+  window.__maquette = { S, ROLES, go, render, open, close };
+})();
+</script>
