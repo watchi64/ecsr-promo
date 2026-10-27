@@ -55,8 +55,13 @@ il n'existe ni rôle « direction » ni rôle « siège ».
   visuel ; les nouveaux rôles doivent être vrais en base).
 - Une note affichée en rouge (règle de Timy) : le rouge d'ECF ne sert qu'aux repères.
 - Un contenu qui défile de côté, à quelque taille d'écran que ce soit (règle de Timy du 27/10) :
-  sous-onglets qui passent à la ligne, tableaux en listes hors ordinateur, matrices en pastilles sur
-  téléphone.
+  sous-onglets qui passent à la ligne, tableaux en listes hors ordinateur. Seule exception admise par
+  Timy : la matrice des notes (saisie case par case), qui défile avec la colonne des noms fixe et un
+  fondu au bord.
+- Une refonte qui effacerait la DA de Timy : mêmes verts et gris sauge, Canela pour les titres, Outfit,
+  Geist Mono, barre sombre espresso, et ses signatures (pastille de date au grand chiffre vert,
+  salutation avec le nom en vert, échelle douce des notes, dés du planning, comptes à rebours J-N).
+  L'habillage ECF est une option, jamais le défaut imposé.
 - Le logo d'ECF dans l'app sans accord écrit d'ECF.
 
 ## 4. La proposition

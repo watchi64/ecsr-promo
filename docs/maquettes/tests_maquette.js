@@ -28,15 +28,18 @@
     if (sc && sc.scrollWidth > sc.clientWidth + 1) echec("défilement horizontal", ou + " " + sc.scrollWidth + ">" + sc.clientWidth);
     const b = sc.getBoundingClientRect();
     const larges = new Set();
-    // Aucune exception : pas même un tableau ou une barre de sous-onglets qui défilerait de
-    // côté (retour de Timy du 27/10 : « à éviter absolument » sur téléphone).
+    // Pas de défilement de côté (retour de Timy du 27/10 : « à éviter absolument » sur téléphone),
+    // avec une seule exception admise par lui : la matrice des notes, marquée `.defile-autorise`.
     sc.querySelectorAll("*").forEach((el) => {
+      if (el.closest(".defile-autorise")) return;
       const r = el.getBoundingClientRect();
       if (r.width && (r.right > b.right + 1 || r.left < b.left - 1) && !el.closest(".sr")) larges.add(String(el.getAttribute("class") || el.tagName).slice(0, 30));
       const ox = getComputedStyle(el).overflowX;
       if ((ox === "auto" || ox === "scroll") && el.scrollWidth > el.clientWidth + 1) larges.add("défile de côté : " + String(el.getAttribute("class") || el.tagName).slice(0, 30));
     });
     if (larges.size) echec("élément trop large", ou + " " + [...larges].slice(0, 3).join(", "));
+    // l'exception reste une exception : seule la matrice de la page Notes peut défiler
+    if (sc.querySelector(".defile-autorise") && page !== "notes") echec("défilement autorisé hors de la matrice", ou);
     // le cadre de navigation reste entièrement dans l'écran
     const ecran = screenEl.getBoundingClientRect();
     document.querySelectorAll(".side-foot, .side-head, .bbar, .lt-top, .mtop").forEach((el) => {

@@ -297,6 +297,17 @@ a { color: inherit; }
 .screen[data-size="phone"] .ph h1 { font-size: 30px; }
 .ph-meta { color: var(--ink-muted); margin: 8px 0 0; font-size: 14.5px; }
 .ph-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.date-pill { display: inline-flex; align-items: baseline; gap: 0.55rem; padding: 0.45rem 0.95rem; border-radius: 999px; background: var(--deep); color: var(--on-deep); font: 500 12.5px/1 var(--mono); }
+.date-pill b { font: 800 22px/1 var(--mono); color: var(--deep-mark); letter-spacing: -0.02em; }
+.ph h1.salut { margin-top: 14px; font-weight: 300; }
+.screen[data-skin="ecf"] .ph h1.salut { font-weight: 400; }
+.salut b { font-family: var(--sans); font-weight: 600; color: var(--accent-ink); letter-spacing: -0.01em; }
+/* Exception assumée (Timy, 27/10) : la matrice des notes peut défiler de côté. La colonne des
+   noms reste fixe et un fondu au bord signale la suite. */
+.defile-wrap { position: relative; }
+.defile-autorise { overflow-x: auto; }
+.defile-autorise .matrix td:first-child, .defile-autorise .matrix th:first-child { position: sticky; left: 0; z-index: 1; background: var(--surface); }
+.screen:not([data-size="desktop"]) .defile-wrap::after { content: ""; position: absolute; top: 0; right: 0; bottom: 0; width: 28px; pointer-events: none; background: linear-gradient(90deg, transparent, var(--surface)); }
 .back { display: inline-flex; align-items: center; gap: 4px; border: 0; background: none; color: var(--accent-ink); font-weight: 600; padding: 6px 2px; margin-bottom: 2px; min-height: 36px; }
 .screen[data-size="phone"] .back { min-height: 44px; }
 
@@ -767,6 +778,8 @@ button.row:hover .row-title { color: var(--accent-ink); }
       <p>La promo, le centre ou le réseau affiché est le premier élément de la barre de l'équipe, comme l'espace de travail dans Slack ou Linear. On sait toujours sur quelles données on agit.</p>
       <h3>Une maison qui répond à « maintenant ? »</h3>
       <p>Chaque espace s'ouvre sur ce qui compte aujourd'hui : la séance et l'émargement pour le stagiaire, les signatures et les stagiaires à suivre pour le formateur, les promos à surveiller pour la direction.</p>
+      <h3>Votre DA, gardée</h3>
+      <p>La refonte change la navigation, pas l'identité : mêmes verts, mêmes gris sauge, Canela pour les titres, Outfit pour le texte, barre sombre espresso, et vos signatures (pastille de date au grand chiffre vert, salutation avec le nom en vert, échelle douce des notes). Le correctif de contraste du 27 octobre a gardé les mêmes teintes, juste un peu plus soutenues.</p>
       <h3>Rangé par intention, pas par module</h3>
       <p>Calendrier et Priorités rejoignent le Planning, les Ressources rejoignent les Cours, les notes du stagiaire rejoignent Mon suivi. Les adresses actuelles restent valides et mènent au bon endroit.</p>
       <p class="src">Sources : Apple Human Interface Guidelines et session WWDC 2024 « Elevate your tab and sidebar experience in iPadOS » ; Material Design 3, barres de navigation et rails ; Nielsen Norman Group, « Hamburger Menus and Hidden Navigation Hurt UX Metrics ».</p>
@@ -782,7 +795,7 @@ button.row:hover .row-title { color: var(--accent-ink); }
         <thead><tr><th>Contrôle</th><th>Résultat final</th></tr></thead>
         <tbody>
           <tr><td>Vues parcourues : 4 rôles, chaque page, sous-page, fiche et variante d'affichage, sur grand et petit ordinateur, tablette et iPhone</td><td>341 vues, 0 échec</td></tr>
-          <tr><td>Défilement de côté (tableaux, sous-onglets, matrices)</td><td>aucun, sur aucune vue</td></tr>
+          <tr><td>Défilement de côté (tableaux, sous-onglets)</td><td>aucun, sauf la matrice des notes (exception que vous avez admise), colonne des noms fixe</td></tr>
           <tr><td>Moteurs de navigateur</td><td>Chromium et WebKit (celui de Safari, donc de l'iPhone)</td></tr>
           <tr><td>Nombre de clics pour atteindre une destination</td><td>1 partout ; 2 sur iPhone pour les entrées rangées sous « Plus »</td></tr>
           <tr><td>Zones à toucher sur iPhone</td><td>44 px au moins (recommandation d'Apple)</td></tr>
@@ -807,7 +820,7 @@ button.row:hover .row-title { color: var(--accent-ink); }
         <li>Sur iPhone, « À faire » remonte sous la journée, et le bouton devient « Signer pour ce matin », sous le bon créneau.</li>
         <li>Les élèves bénévoles passent sous Stagiaires, là où les testeurs les cherchaient (tâche ratée au 1er tour, réussie au 2e).</li>
         <li>Libellés clarifiés : une seule « Vue d'ensemble » au siège, « Directions de centre », « Notes et examens », « Émargement » partout, « À suivre de près » partout, « Indicateurs » chez le formateur.</li>
-        <li>Vos retours du 27/10 : le planning gagne une vue en grille classique (jours en colonnes, matin et après-midi en lignes), en plus de la liste ; sur iPhone, une bande de cinq jours puis le jour choisi. Et plus aucun défilement de côté : les sous-onglets passent à la ligne, les tableaux deviennent des listes sur tablette et téléphone, la matrice des notes devient une liste de pastilles.</li>
+        <li>Vos retours du 27/10 : le planning gagne une vue en grille classique (jours en colonnes, matin et après-midi en lignes), en plus de la liste ; sur iPhone, une bande de cinq jours puis le jour choisi. Et plus aucun défilement de côté : les sous-onglets passent à la ligne, les tableaux deviennent des listes sur tablette et téléphone. Seule exception, admise par vous : la matrice des notes, qui défile avec la colonne des noms fixe.</li>
         <li>Défauts corrigés : compte sorti de l'écran en bas de la barre latérale, tableaux qui défilaient de côté sur iPhone (devenus des listes), zones à toucher de 34 px, chiffres d'un même centre différents entre direction et siège.</li>
       </ul>
       <h3>Points encore faibles</h3>
@@ -937,8 +950,14 @@ button.row:hover .row-title { color: var(--accent-ink); }
     </nav>`;
     // Sur téléphone, « À faire » remonte juste sous la journée : c'est la suite logique, et sans
     // cela il tombait sous la ligne de flottaison (constat du test du 27/10).
+    // En-tête aux signatures de l'Accueil actuel (DA de Timy) : pastille de date sombre au grand
+    // chiffre vert, salutation en Canela fine avec le nom en vert.
     return `<div class="page">
-      ${head({ eyebrow: "Mardi 27 octobre", title: "Bonjour Camille", meta: "Promo de Nîmes, mars 2026 · semaine 31" })}
+      <div class="ph"><div class="ph-text">
+        <span class="date-pill"><span>mardi</span><b>27</b><span>octobre</span></span>
+        <h1 class="salut">Bonjour, <b>M. Camille</b></h1>
+        <p class="ph-meta">Promo de Nîmes, mars 2026 · semaine 31</p>
+      </div></div>
       ${phone() ? `${journee}${afaire}${rdv}${nouveau}` : `<div class="grid g3">${journee}<div class="grid" style="align-content:start">${rdv}${nouveau}</div></div>${afaire}`}
       <div>${contacts}</div>
     </div>`;
@@ -1156,13 +1175,12 @@ button.row:hover .row-title { color: var(--accent-ink); }
     </div>`;
   }
   function fNotes(sub) {
-    const cols = ["T8", "T9", "T10", "T11", "EPCF 1"];
-    const off = [0.6, -0.8, 1.2, -0.3, -1.4];
-    const notesDe = (s) => off.map((o, j) => Math.max(0, Math.min(20, Math.round((s.moy + o + ((s.id * (j + 3)) % 5 - 2) * 0.4) * 2) / 2)));
-    // Sur téléphone, la matrice devient une liste : une ligne par stagiaire, ses notes en pastilles.
+    const cols = ["T5", "T6", "T7", "T8", "T9", "T10", "T11", "EPCF 1"];
+    const off = [0.4, -0.6, 0.9, 0.6, -0.8, 1.2, -0.3, -1.4];
+    // La matrice reste une matrice, même sur téléphone : saisie case par case, comparaison d'un coup
+    // d'oeil. Seule exception admise à la règle « pas de défilement de côté » (Timy, 27/10).
     const body = sub === "synthese" ? `<div class="grid g3">${kpi("12,9", "Moyenne de la promo")}${kpi("2", "Moyennes sous 10", "", "")}${kpi("T10", "Thème le mieux réussi")}</div>`
-      : phone() ? card("", "", `<div class="rows">${enFormation.map((s) => `<button type="button" class="row" data-act="fiche:${s.id}"><span class="avatar">${ini(s)}</span><span class="row-main"><span class="row-title">${disp(s)}</span><span class="note-chips">${notesDe(s).map((v, j) => `<span class="cellnote ${noteClass(v)}"><small>${cols[j]}</small>${fr(v)}</span>`).join("")}</span></span><span class="row-end">${ic("right", "ico-sm")}</span></button>`).join("")}</div>`)
-      : `<section class="card"><div class="tbl-wrap"><table class="matrix"><thead><tr><th>Stagiaire</th>${cols.map((c) => `<th>${c}</th>`).join("")}</tr></thead><tbody>${enFormation.map((s) => `<tr><td>${disp(s)}</td>${off.map((o, j) => { const v = Math.max(0, Math.min(20, Math.round((s.moy + o + ((s.id * (j + 3)) % 5 - 2) * 0.4) * 2) / 2)); return `<td><span class="cellnote ${noteClass(v)}">${fr(v)}</span></td>`; }).join("")}</tr>`).join("")}</tbody></table></div><p class="note" style="margin-top:10px">Un clic sur une case pour saisir ; l'échelle de couleurs reste douce, sans rouge.</p></section>`;
+      : `<section class="card">${compact() ? `<p class="note" style="margin-bottom:10px">Faites glisser la matrice pour voir les autres thèmes ; la colonne des noms reste en place.</p>` : ""}<div class="defile-wrap"><div class="tbl-wrap defile-autorise" role="region" tabindex="0" aria-label="Matrice des notes, défile de côté"><table class="matrix"><thead><tr><th>Stagiaire</th>${cols.map((c) => `<th>${c}</th>`).join("")}</tr></thead><tbody>${enFormation.map((s) => `<tr><td>${disp(s)}</td>${off.map((o, j) => { const v = Math.max(0, Math.min(20, Math.round((s.moy + o + ((s.id * (j + 3)) % 5 - 2) * 0.4) * 2) / 2)); return `<td><span class="cellnote ${noteClass(v)}">${fr(v)}</span></td>`; }).join("")}</tr>`).join("")}</tbody></table></div></div><p class="note" style="margin-top:10px">Un clic sur une case pour saisir ; l'échelle de couleurs reste douce, sans rouge.</p></section>`;
     return `<div class="page">
       ${head({ eyebrow: "Nîmes, mars 2026", title: "Notes et examens", actions: `<button type="button" class="btn btn-primary" data-act="toast:Exemple : saisie d'une série de notes">${ic("plus")}Saisir des notes</button>` })}
       ${subnav("notes", [["matrice", "Matrice"], ["epcf", "EPCF"], ["synthese", "Synthèse"]], sub)}
