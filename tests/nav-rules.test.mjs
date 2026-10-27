@@ -169,7 +169,7 @@ eq(libelleRole(null), "", "profil absent : rien");
 // 12. Chaque entrée nomme une icône qui existe (une faute de frappe dessinerait une icône de repli)
 for (const espace of ["stagiaire", "equipe"]) {
   for (const e of entreesNavigation(espace, { routeVisible: tout, emargementActif: true })) {
-    eq(typeof icon[e.icone], "function", `icône « ${e.icone} » de l'entrée ${e.id} (${espace}) présente dans js/icons.js`);
+    eq(Object.hasOwn(icon, e.icone), true, `icône « ${e.icone} » de l'entrée ${e.id} (${espace}) propre à js/icons.js`);
   }
 }
 

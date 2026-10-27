@@ -9,7 +9,7 @@
 // fenêtre de js/nav-fenetre.js.
 
 import { el } from "./utils.js?v=20261027a";
-import { icon } from "./icons.js?v=20261027a";
+import { icon, deco } from "./icons.js?v=20261027a";
 import {
   getProfile, getProfileWho, isAdmin, isProf, monStagiaireId, buildViewAsBlock, seDeconnecter,
 } from "./auth-admin.js?v=20261027a";
@@ -19,12 +19,6 @@ import { nouveautesAffichables } from "./modules-etat.js?v=20261027a";
 import { libellePastille } from "./nouveautes.js?v=20261027a";
 import { initialesDe, libelleRole } from "./nav-rules.js?v=20261027a";
 import { ouvrirFenetre, fermerFenetre } from "./nav-fenetre.js?v=20261027a";
-
-function deco(noeud) {
-  noeud.setAttribute("aria-hidden", "true");
-  noeud.setAttribute("focusable", "false");
-  return noeud;
-}
 
 // Une ligne du menu : un lien (page) ou un bouton (geste), icône et libellé, `fin` à droite.
 const ligne = (tag, attrs, icone, texte, fin = null) => el(tag, { class: "nav-fenetre-lien", ...attrs },

@@ -24,6 +24,13 @@ function svg(d, viewBox = "0 0 24 24") {
   return node;
 }
 
+// Icône décorative (le libellé voisin la nomme déjà) : cachée aux lecteurs d'écran, hors du focus.
+export function deco(noeud) {
+  noeud.setAttribute("aria-hidden", "true");
+  noeud.setAttribute("focusable", "false");
+  return noeud;
+}
+
 export const icon = {
   dashboard:  () => svg('<path d="M3 13h8V3H3v10Zm0 8h8v-6H3v6Zm10 0h8V11h-8v10Zm0-18v6h8V3h-8Z"/>'),
   progress:   () => svg('<path d="M16 7h6v6"/><path d="m22 7-8.5 8.5-5-5L2 17"/>'),

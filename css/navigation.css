@@ -23,8 +23,10 @@ body[data-nav="v2"] {
   --nav-creme-bord: rgba(245, 232, 208, 0.25);
 }
 
-/* Texte réservé aux lecteurs d'écran. */
-body[data-nav="v2"] .nav-invisible {
+/* Texte réservé aux lecteurs d'écran : les mots « non lues » de la pastille des Nouveautés, et le titre
+   d'un groupe d'entrées dans la colonne d'icônes (il nomme encore le groupe, voir aria-labelledby). */
+body[data-nav="v2"] .nav-invisible,
+body[data-nav="v2"][data-nav-colonne] .nav-groupe-titre {
   position: absolute;
   width: 1px;
   height: 1px;
@@ -55,11 +57,17 @@ body[data-nav="v2"] .nav-haut {
   border-bottom: 1px solid var(--line);
 }
 
-body[data-nav="v2"] .nav-marque {
+/* Colonne de gauche : le logo (lien vers l'accueil) et, à côté, le nom de la promo. */
+body[data-nav="v2"] .nav-gauche {
   justify-self: start;
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 10px;
+  min-width: 0;
+}
+body[data-nav="v2"] .nav-marque {
+  display: inline-flex;
+  align-items: center;
   min-height: 44px;
   padding: 0 0.25rem;
   border-radius: var(--r-sm);
@@ -220,25 +228,16 @@ body[data-nav="v2"] [data-nav-coquille] :focus-visible {
   body[data-nav="v2"] .nav-compte-prenom { max-width: 8rem; }
 }
 
-/* Tablette : capsule plus serrée, l'Assistant en icône (son nom reste lu et en infobulle). Sous
-   860 px, les onglets n'affichent plus que leur libellé : la barre tient alors dès 700 px. */
+/* Tablette : capsule plus serrée, l'Assistant en icône (son nom, aria-label, reste lu et en
+   infobulle). Sous 860 px, les onglets n'affichent plus que leur libellé : la barre tient alors dès
+   700 px. */
 @media (min-width: 700px) and (max-width: 859.98px) {
   body[data-nav="v2"] .nav-onglet .icon { display: none; }
 }
 @media (min-width: 700px) and (max-width: 1079.98px) {
   body[data-nav="v2"] .nav-onglet { padding: 0 0.75rem; }
   body[data-nav="v2"] .nav-assistant { width: 40px; padding: 0; }
-  body[data-nav="v2"] .nav-assistant-texte {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    margin: -1px;
-    padding: 0;
-    overflow: hidden;
-    clip: rect(0 0 0 0);
-    white-space: nowrap;
-    border: 0;
-  }
+  body[data-nav="v2"] .nav-assistant-texte { display: none; }
 }
 
 /* ----- Équipe : barre latérale sombre (ordinateur, tablette), en-tête sombre (téléphone) ----- */
@@ -300,6 +299,8 @@ body[data-nav="v2"] .nav-contexte {
 }
 body[data-nav="v2"] button.nav-contexte { cursor: pointer; }
 body[data-nav="v2"] button.nav-contexte:hover { background: var(--nav-creme-allume); }
+/* Au survol, le fond s'éclaircit : « Promo » passe en crème plein pour garder 4,5:1 (4,22:1 sinon). */
+body[data-nav="v2"] button.nav-contexte:hover .nav-contexte-type { color: var(--nav-creme); }
 body[data-nav="v2"] .nav-contexte-marque {
   grid-row: 1 / span 2;
   display: grid;
@@ -505,17 +506,6 @@ body[data-nav="v2"][data-nav-colonne] .nav-groupe {
   padding-top: 8px;
   border-top: 1px solid var(--nav-creme-filet);
 }
-body[data-nav="v2"][data-nav-colonne] .nav-groupe-titre {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  margin: -1px;
-  padding: 0;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  white-space: nowrap;
-  border: 0;
-}
 body[data-nav="v2"][data-nav-colonne] .nav-entree > .marque-masque {
   position: absolute;
   top: 4px;
@@ -621,22 +611,12 @@ body[data-nav="v2"] .nav-bas { display: none; }
   body[data-nav="v2"] .nav-case[aria-current="page"] { color: var(--accent-strong); font-weight: 700; }
   body[data-nav="v2"] .nav-case[aria-current="page"] .nav-case-icone { background: var(--accent-soft-2); }
   body[data-nav="v2"] .nav-bas :focus-visible { outline-offset: -2px; }
-  /* Repère d'un module fermé et point de « Plus » : sur le coin de l'icône, hors du flux. */
+  /* Repère d'un module fermé : sur le coin de l'icône, hors du flux. */
   body[data-nav="v2"] .nav-case > .marque-masque {
     position: absolute;
     top: 3px;
     left: calc(50% + 8px);
     margin: 0;
-  }
-  body[data-nav="v2"] .nav-point {
-    position: absolute;
-    top: 6px;
-    left: calc(50% + 9px);
-    width: 9px;
-    height: 9px;
-    border-radius: 50%;
-    background: var(--accent);
-    box-shadow: 0 0 0 2px var(--bg-elev);
   }
 
   /* Ce qui se pose en bas de l'écran passe au-dessus de la barre du bas. */

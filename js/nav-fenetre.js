@@ -6,17 +6,16 @@
 // planning (Échap) comme l'émargement (relecture) savent qu'une fenêtre est ouverte. Dans le calque,
 // la fenêtre role="dialog" prend le focus à l'ouverture (elle-même, pas sa première ligne, qui
 // paraîtrait choisie) et Tab y reste. Échap, un clic sur le voile ou fermerFenetre() la ferment et
-// rendent le focus au bouton qui l'a ouverte ; si une coquille remontée l'a remplacé entre-temps
-// (rôle changé depuis le menu, modules relus), à son équivalent visible (même data-nav-action).
-// Choisir un lien de la fenêtre la ferme sans rendre le focus : la page change. Le calque survit
-// au remontage des barres de la coquille ; demonterCoquille() le ferme.
+// rendent le focus (voir rendreFocus, jamais au corps de la page). Choisir un lien de la fenêtre la
+// ferme sans rendre le focus : la page change. Un remontage de la coquille ferme la fenêtre ouverte,
+// dont les lignes et le bouton sont ceux de la coquille remplacée, et rend son focus dans la nouvelle.
 
 import { el } from "./utils.js?v=20261027a";
 
 const FOCALISABLES = 'a[href], button:not(:disabled), input:not(:disabled), select:not(:disabled), '
   + 'textarea:not(:disabled), [tabindex]:not([tabindex="-1"])';
 
-// La fenêtre ouverte : son calque, la fenêtre elle-même, le bouton qui l'a ouverte et son action.
+// La fenêtre ouverte : son nom, son calque, la fenêtre elle-même, le bouton qui l'a ouverte et son action.
 let ouverte = null;
 
 const affiche = (e) => !!e && e.isConnected && e.getClientRects().length > 0;
@@ -35,21 +34,40 @@ export function ouvrirFenetre({ nom, ancre, etiquette, classe, contenu }) {
   document.body.appendChild(calque);
   document.addEventListener("keydown", auClavier, true);
   if (ancre) ancre.setAttribute("aria-expanded", "true");
-  ouverte = { calque, fenetre, ancre, action: ancre ? ancre.dataset.navAction : null };
+  ouverte = { nom, calque, fenetre, ancre, action: ancre ? ancre.dataset.navAction : null };
   fenetre.focus({ preventScroll: true });
   return fenetre;
 }
 
+// Nom de la fenêtre ouverte (« compte », « plus »), null s'il n'y en a pas.
+export function fenetreOuverte() {
+  return ouverte ? ouverte.nom : null;
+}
+
+// Ferme la fenêtre ouverte. `focus` : rendre le focus tout de suite. Sans lui, et si le focus était dans
+// la fenêtre, renvoie la fonction qui le rendra plus tard (après le remontage de la coquille) ; null sinon.
 export function fermerFenetre({ focus = true } = {}) {
-  if (!ouverte) return;
+  if (!ouverte) return null;
   const { calque, ancre, action } = ouverte;
+  const focusDedans = calque.contains(document.activeElement);
   ouverte = null;
   document.removeEventListener("keydown", auClavier, true);
   calque.remove();
   if (ancre) ancre.setAttribute("aria-expanded", "false");
-  if (!focus) return;
-  const cible = affiche(ancre) ? ancre : action
-    ? [...document.querySelectorAll(`[data-nav-coquille] [data-nav-action="${action}"]`)].find(affiche) : null;
+  const rendre = () => rendreFocus(ancre, action);
+  if (focus) {
+    rendre();
+    return null;
+  }
+  return focusDedans ? rendre : null;
+}
+
+// Le focus revient au bouton qui a ouvert la fenêtre. S'il a disparu ou ne s'affiche plus (coquille
+// remontée, autre espace, écran élargi), il va à un bouton affiché de la même action, sinon au bouton
+// du compte, que chaque espace affiche à toute taille : jamais au corps de la page.
+function rendreFocus(ancre, action) {
+  const visible = (a) => (a ? [...document.querySelectorAll(`[data-nav-coquille] [data-nav-action="${a}"]`)].find(affiche) : null);
+  const cible = (affiche(ancre) && ancre) || visible(action) || visible("compte");
   if (cible) cible.focus({ preventScroll: true });
 }
 
