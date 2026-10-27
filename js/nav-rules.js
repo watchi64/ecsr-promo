@@ -1,7 +1,7 @@
 // Navigation par espace (refonte, lot 1) : les règles seulement. Quelles entrées montre
 // chaque espace, comment la barre du téléphone les répartit, quelle entrée s'allume pour
-// une page et où mènent les anciennes adresses. Module pur, sans DOM ni stockage : testé
-// en node.
+// une page, où mènent les anciennes adresses et les initiales du bouton du compte. Module pur,
+// sans DOM ni stockage : testé en node.
 
 // Clé de mémoire du sous-onglet ouvert, par page à sous-onglets (le `storageKey` de
 // renderSubTabs). Une redirection l'écrit pour ouvrir le bon sous-onglet.
@@ -114,6 +114,21 @@ export function entreeActive(route, entrees) {
   if (ids.includes(route)) return route;
   const cible = ALIAS_ENTREE_ACTIVE.get(route);
   return ids.includes(cible) ? cible : null;
+}
+
+// Initiales du bouton du compte, tirées du nom que l'app affiche (getProfileWho) : « V. Timy »
+// (initiale du nom puis prénom, voir displayStagiaire) donne « TV », prénom d'abord ; sinon la
+// première lettre du premier et du dernier mot ; d'une adresse électronique, sa partie locale.
+// Un nom vide n'en donne aucune (chaîne vide).
+export function initialesDe(nom) {
+  const texte = String(nom ?? "").trim();
+  const local = texte.includes("@") ? texte.slice(0, texte.indexOf("@")).replace(/[._+-]+/g, " ") : texte;
+  const mots = local.split(/[\s-]+/).filter(Boolean);
+  if (mots.length > 1 && /^\p{L}\.$/u.test(mots[0])) mots.push(mots.shift());
+  const lettres = mots.map((m) => (m.match(/\p{L}/u) || [""])[0]).filter(Boolean);
+  if (!lettres.length) return "";
+  const choisies = lettres.length > 1 ? lettres[0] + lettres[lettres.length - 1] : lettres[0];
+  return choisies.toLocaleUpperCase("fr");
 }
 
 // Où mène une ancienne adresse sous la nouvelle navigation : null (rien à rediriger) ou la

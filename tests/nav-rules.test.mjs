@@ -1,7 +1,8 @@
 // Navigation par espace (refonte, lot 1) : entrées de chaque espace, barre du téléphone,
-// entrée allumée, redirection des anciennes adresses et listes rendues en copies.
+// entrée allumée, redirection des anciennes adresses, listes rendues en copies et initiales
+// du bouton du compte.
 import assert from "node:assert/strict";
-import { espaceDe, entreesNavigation, barreTelephone, entreeActive, redirectionV2, routeVisibleV2 } from "../js/nav-rules.js";
+import { espaceDe, entreesNavigation, barreTelephone, entreeActive, redirectionV2, routeVisibleV2, initialesDe } from "../js/nav-rules.js";
 import { MODULE_DE_ROUTE } from "../js/modules-data.js";
 
 let n = 0;
@@ -116,5 +117,17 @@ const entrees = entreesNavigation("stagiaire", options);
 const ordre = ids(entrees);
 barreTelephone("stagiaire", entrees).barre.pop();
 eq(ids(entrees), ordre, "barre du stagiaire : copie de la liste");
+
+// 8. Initiales du bouton du compte, tirées du nom affiché par l'app
+eq(initialesDe("V. Timy"), "TV", "stagiaire « V. Timy » (initiale du nom, prénom) : prénom d'abord");
+eq(initialesDe("Camille Martin"), "CM", "prénom et nom");
+eq(initialesDe("Jean-Marc Dupont"), "JD", "prénom composé : premier et dernier mot");
+eq(initialesDe("  V.   Timy "), "TV", "espaces en trop");
+eq(initialesDe("Timy"), "T", "un seul mot : une lettre");
+eq(initialesDe("élodie"), "É", "accent gardé, en capitale");
+eq(initialesDe("jean.dupont@example.fr"), "JD", "adresse électronique : sa partie locale");
+eq(initialesDe("banc@example.test"), "B", "adresse électronique d'un seul mot");
+eq(initialesDe(""), "", "nom vide : aucune initiale");
+eq(initialesDe(null), "", "nom absent : aucune initiale");
 
 console.log(`nav-rules : ${n} assertions OK`);

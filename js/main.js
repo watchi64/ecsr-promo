@@ -5,7 +5,7 @@
 import { getCurrentUser, invalidateCache, verifyRecoveryToken } from "./db.js?v=20261027a";
 import { toast } from "./utils.js?v=20261027a";
 import { icon } from "./icons.js?v=20261027a";
-import { initAuth, onAdminChange, isAuth, isAdmin, isProf, monStagiaireId, getAdminEmail, getProfile } from "./auth-admin.js?v=20261027a";
+import { initAuth, onAdminChange, isAuth, isAdmin, isProf, monStagiaireId, getAdminEmail, getProfile, getProfileWho } from "./auth-admin.js?v=20261027a";
 import { showGate, hideGate } from "./gate.js?v=20261027a";
 import { exigerAcceptation } from "./legal.js?v=20261027a";
 import { lireJetonRecuperation } from "./gate-rules.js?v=20261027a";
@@ -32,7 +32,8 @@ import { renderEmargement } from "./views/emargement.js?v=20261027a";
 import { initBandeauEmargement, rafraichirBandeauEmargement } from "./emargement-bandeau.js?v=20261027a";
 import { chargerEmargementActif, emargementActif } from "./emargement-etat.js?v=20261027a";
 import { chargerNavigationV2, navigationV2Active } from "./nav-etat.js?v=20261027a";
-import { routeVisibleV2 } from "./nav-rules.js?v=20261027a";
+import { routeVisibleV2, espaceDe, entreesNavigation, initialesDe } from "./nav-rules.js?v=20261027a";
+import { monterCoquille, majEntreeActive, demonterCoquille, coquilleMontee } from "./nav-shell.js?v=20261027a";
 import { lireAdresse, pagePersonnelle } from "./route-rules.js?v=20261027a";
 import {
   peutQuitter, leverGardeSortie, majSurPlacePour, oublierMajSurPlace,
@@ -64,7 +65,30 @@ const TABS = [
   { route: "config",     label: "Paramètres",      icon: "settings"  },
 ];
 
+// Barre de navigation. Nouvelle navigation : la coquille du stagiaire (js/nav-shell.js) ; l'espace
+// de l'équipe garde la barre actuelle tant qu'il n'a pas la sienne (la coquille éventuellement
+// montée, après un « Voir en tant que », est retirée). Interrupteur éteint : la barre actuelle.
 function renderTabs() {
+  if (navigationV2Active()) {
+    const espace = espaceDe({ formateur: isAdmin() || isProf() });
+    if (espace === "stagiaire") {
+      const nom = getProfileWho();
+      monterCoquille({
+        espace,
+        entrees: entreesNavigation(espace, { routeVisible, emargementActif: emargementActif() }),
+        nom,
+        initiales: initialesDe(nom),
+      });
+      marquerOngletActif();
+      return;
+    }
+    demonterCoquille();
+  }
+  renderBarreActuelle();
+}
+
+// Barre actuelle (interrupteur éteint, et équipe sous la nouvelle navigation pour l'instant).
+function renderBarreActuelle() {
   const nav = document.getElementById("tabs");
   nav.innerHTML = "";
   TABS.filter((t) => (!t.visible || t.visible()) && routeVisible(t.route)).forEach((t) => {
@@ -85,8 +109,18 @@ function renderTabs() {
   marquerOngletActif();
 }
 
-// Allume l'onglet de la route affichée (ou celui qui l'héberge, voir ONGLET_POUR_ROUTE).
+// Allume l'entrée de la page affichée : dans la coquille quand elle est montée, sinon dans la
+// barre actuelle.
 function marquerOngletActif() {
+  if (coquilleMontee()) {
+    majEntreeActive(lastRoute);
+    return;
+  }
+  marquerOngletActuel();
+}
+
+// Allume l'onglet de la route affichée (ou celui qui l'héberge, voir ONGLET_POUR_ROUTE).
+function marquerOngletActuel() {
   const ongletActif = ONGLET_POUR_ROUTE[lastRoute] || lastRoute;
   document.querySelectorAll(".tab").forEach((t) => {
     const active = t.dataset.route === ongletActif;
