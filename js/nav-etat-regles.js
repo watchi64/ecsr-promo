@@ -23,3 +23,17 @@ export function decideNavigationV2({ reglagePromo = null, apercu = null, fondate
   if (fondateur === true && (apercu === "1" || apercu === "0")) return apercu === "1";
   return reglagePromo === true;
 }
+
+// Mémoire de l'appareil (ruling R17) : le dernier réglage lu de la promo, "1" quand il était allumé (une
+// promo éteinte ne laisse rien). Une clé par promo ; sans promo connue, pas de mémoire (null).
+const PREFIXE_MEMOIRE = "ecsr_nav_v2_promo:";
+export function cleMemoire(promoId) {
+  return promoId === null || promoId === undefined ? null : PREFIXE_MEMOIRE + promoId;
+}
+
+// La navigation attendue à l'ouverture, avant la lecture du réglage : la même règle que decideNavigationV2,
+// la mémoire de l'appareil tenant lieu du réglage pas encore lu. Elle décide seulement si l'ancienne barre
+// attend la décision sans se peindre ; la navigation de la session reste celle de la lecture.
+export function navigationAttendue({ memoire = null, apercu = null, fondateur = false } = {}) {
+  return decideNavigationV2({ reglagePromo: memoire === "1" ? true : null, apercu, fondateur });
+}

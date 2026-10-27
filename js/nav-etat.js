@@ -9,7 +9,9 @@ import { getSetting, setSetting, getPromoCourante } from "./db.js?v=20261027a";
 import { el, toast } from "./utils.js?v=20261027a";
 import { icon } from "./icons.js?v=20261027a";
 import { isFounder } from "./auth-admin.js?v=20261027a";
-import { CLE_REGLAGE, CLE_APERCU, decideNavigationV2, reglageAllume } from "./nav-etat-regles.js?v=20261027a";
+import {
+  CLE_REGLAGE, CLE_APERCU, decideNavigationV2, reglageAllume, cleMemoire, navigationAttendue,
+} from "./nav-etat-regles.js?v=20261027a";
 
 export { decideNavigationV2 };
 
@@ -31,7 +33,8 @@ let decision = false;
 export async function chargerNavigationV2() {
   let lu = null;
   let minuteur;
-  const lecture = getSetting(CLE_REGLAGE).then((v) => { lu = reglageAllume(v); }, () => {});
+  // Une réponse arrivée après le délai ne change pas la session, mais l'appareil la garde pour la suivante.
+  const lecture = getSetting(CLE_REGLAGE).then((v) => { lu = reglageAllume(v); memoriserReglage(lu); }, () => {});
   const delai = new Promise((r) => { minuteur = setTimeout(r, DELAI_LECTURE_MS); });
   await Promise.race([lecture, delai]);
   clearTimeout(minuteur);
@@ -44,6 +47,28 @@ export async function chargerNavigationV2() {
 // privée, données bloquées) vaut « pas d'aperçu ».
 function lireApercu() {
   try { return localStorage.getItem(CLE_APERCU); } catch (e) { return null; }
+}
+
+// Dernier réglage lu de la promo affichée, gardé sur l'appareil (ruling R17) : à l'ouverture suivante,
+// l'ancienne barre attend la décision sans se peindre quand la coquille doit la remplacer. Seul « allumé »
+// laisse une trace ; une lecture ratée ne fait rien oublier.
+function memoriserReglage(allume) {
+  const cle = cleMemoire(getPromoCourante()?.id);
+  if (!cle) return;
+  try {
+    if (allume) localStorage.setItem(cle, "1");
+    else localStorage.removeItem(cle);
+  } catch (e) { /* stockage bloqué : l'ancienne barre se peindra avant la coquille, comme avant */ }
+}
+
+// À l'ouverture, avant toute lecture : la nouvelle navigation est-elle attendue ? Le dernier réglage lu
+// de la promo sur cet appareil, ou l'aperçu du fondateur (navigationAttendue). Ne décide rien pour la
+// session : seul chargerNavigationV2() le fait.
+export function navigationV2Attendue() {
+  const cle = cleMemoire(getPromoCourante()?.id);
+  let memoire = null;
+  try { memoire = cle ? localStorage.getItem(cle) : null; } catch (e) { memoire = null; }
+  return navigationAttendue({ memoire, apercu: lireApercu(), fondateur: isFounder() });
 }
 
 // Pose l'aperçu, ou le retire avec null (l'appareil suit de nouveau le réglage de la promo).
@@ -102,6 +127,7 @@ export function renderNavigationReglage() {
     try {
       await setSetting(CLE_REGLAGE, voulu ? "true" : "false");
       reglage = voulu;
+      memoriserReglage(voulu);
       toast(voulu ? `Nouvelle navigation activée pour ${nomPromo}.` : `Nouvelle navigation désactivée pour ${nomPromo}.`, "success");
       annoncerChangement();
     } catch (e) {

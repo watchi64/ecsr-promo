@@ -19,7 +19,7 @@
 // de l'équipe, « bas » barre du téléphone ; « compte » ou « plus » pour la fenêtre ouverte, voir
 // js/nav-fenetre.js) ; une entrée porte data-entree (son id) ; un bouton porte data-nav-action :
 // « compte » ouvre le menu du compte (js/menu-compte.js), « plus » le tiroir, « replier » plie ou
-// déplie la barre latérale, « assistant » attend l'assistant (il ne fait rien encore).
+// déplie la barre latérale, « assistant » ouvre ou ferme le panneau de l'assistant (js/chatbot.js).
 // majEntreeActive allume par aria-current="page" l'entrée de la page affichée, ou « Plus »
 // (data-nav-action="plus") quand le téléphone range cette entrée dans son tiroir : les ids de
 // barreTelephone(espace, entrees).plus.
@@ -29,12 +29,13 @@ import { icon, deco } from "./icons.js?v=20261027a";
 import { getProfile } from "./auth-admin.js?v=20261027a";
 import { getPromoCourante } from "./db.js?v=20261027a";
 import { construirePastille } from "./promo-pastille.js?v=20261027a";
-import { routeMasquee, repereMasque } from "./modules-etat.js?v=20261027a";
+import { routeMasquee, repereMasque, moduleVisible, moduleMasque } from "./modules-etat.js?v=20261027a";
 import {
   barreTelephone, entreeActive, entreeMasquee, initialesDe, prenomDe, libelleRole,
 } from "./nav-rules.js?v=20261027a";
 import { ouvrirFenetre, fermerFenetre, fenetreOuverte } from "./nav-fenetre.js?v=20261027a";
 import { ouvrirMenuCompte } from "./menu-compte.js?v=20261027a";
+import { basculerAssistant, assistantOuvert } from "./chatbot.js?v=20261027a";
 
 // Barre latérale repliée en colonne d'icônes : choix mémorisé sur l'appareil.
 const CLE_REPLIEE = "ecsr_nav_repliee";
@@ -82,11 +83,28 @@ function boutonCompte(classe, nom, ...contenu) {
   return bouton;
 }
 
-// L'assistant s'y branchera (Task 6) : d'ici là, le bouton ne fait rien. Son nom ne dépend pas de son
-// libellé, que la tablette et la colonne d'icônes masquent.
-const boutonAssistant = (classe, ...contenu) => el("button", {
-  type: "button", class: classe, "data-nav-action": "assistant", "aria-label": "Assistant", title: "Assistant",
-}, ...contenu);
+// Bouton « Assistant » : `geste` ouvre ou ferme le panneau de l'assistant (js/chatbot.js), qui tient
+// aria-expanded à jour. Il suit le module « assistant » comme la bulle de l'ancienne navigation : absent
+// chez un stagiaire quand le module est fermé pour la promo, repéré chez un formateur. Son nom ne dépend
+// pas de son libellé, que la tablette et la colonne d'icônes masquent.
+function boutonAssistant(classe, geste, ...contenu) {
+  if (!moduleVisible("assistant")) return null;
+  const bouton = el("button", {
+    type: "button", class: classe, "data-nav-action": "assistant", title: "Assistant",
+    "aria-controls": "chatbot-panel", "aria-expanded": assistantOuvert() ? "true" : "false",
+  }, ...contenu);
+  repereMasque(bouton, moduleMasque("assistant"));
+  bouton.setAttribute("aria-label", bouton.getAttribute("title"));
+  bouton.addEventListener("click", geste);
+  return bouton;
+}
+
+// Depuis le tiroir « Plus » : le tiroir se ferme (le focus revient à « Plus », où le panneau le rendra) et
+// l'assistant s'ouvre ; déjà ouvert derrière le tiroir, il le reste.
+function assistantDepuisLeTiroir() {
+  fermerFenetre();
+  if (!assistantOuvert()) basculerAssistant();
+}
 
 // Les entrées dans l'ordre, celles d'un même groupe sous son titre (« Promo »). `ou` distingue les
 // identifiants des titres (barre latérale, tiroir).
@@ -119,7 +137,8 @@ function enTeteStagiaire(entrees, nom, initiales) {
   const onglets = el("nav", { class: "nav-onglets", "aria-label": "Navigation principale" },
     entrees.map((e) => el("a", { href: "#/" + e.route, class: "nav-onglet", "data-entree": e.id },
       iconeDe(e.icone), libelle(e.libelle, "nav-onglet-texte"))));
-  const assistant = boutonAssistant("nav-assistant", deco(icon.chat()), el("span", { class: "nav-assistant-texte" }, "Assistant"));
+  const assistant = boutonAssistant("nav-assistant", basculerAssistant,
+    deco(icon.chat()), el("span", { class: "nav-assistant-texte" }, "Assistant"));
   const prenom = prenomDe(nom);
   const compte = boutonCompte("nav-compte", nom, avatar(initiales),
     prenom ? el("span", { class: "nav-compte-prenom" }, prenom) : null, deco(icon.chevronDown()));
@@ -174,7 +193,8 @@ function barreLaterale(entrees, nom, initiales) {
     el("div", { class: "nav-cote-tete" }, contexteDePromo(), boutonReplier()),
     el("nav", { class: "nav-cote-entrees", "aria-label": "Navigation principale" }, groupes(entrees, "cote", entreeLaterale)),
     el("div", { class: "nav-cote-pied" },
-      boutonAssistant("nav-entree nav-cote-assistant", deco(icon.chat()), el("span", { class: "nav-entree-texte" }, "Assistant")),
+      boutonAssistant("nav-entree nav-cote-assistant", basculerAssistant,
+        deco(icon.chat()), el("span", { class: "nav-entree-texte" }, "Assistant")),
       boutonCompte("nav-cote-compte", nom, avatar(initiales),
         el("span", { class: "nav-cote-compte-texte" }, el("b", {}, nom || "Mon compte"), role ? el("small", {}, role) : null))));
 }
@@ -253,7 +273,8 @@ function ouvrirPlus(bouton) {
       el("p", { class: "nav-fenetre-section" }, "Tout l'espace formateur"),
       groupes(entrees.filter((e) => montee.plus.includes(e.id)), "plus", lien),
       el("p", { class: "nav-fenetre-section" }, "Outils"),
-      boutonAssistant("nav-fenetre-lien", deco(icon.chat()), el("span", { class: "nav-fenetre-texte" }, "Assistant")),
+      boutonAssistant("nav-fenetre-lien", assistantDepuisLeTiroir,
+        deco(icon.chat()), el("span", { class: "nav-fenetre-texte" }, "Assistant")),
       compte,
     ],
   });

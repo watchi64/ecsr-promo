@@ -1,7 +1,8 @@
 /* ============================================================
    Nouvelle navigation (refonte, lot 1) : la coquille
    Posée par js/nav-shell.js quand l'interrupteur de la promo est allumé. Toutes les règles vivent
-   sous body[data-nav="v2"] : interrupteur éteint, aucune ne s'applique et l'app reste celle
+   sous body[data-nav="v2"] (et une sous body[data-nav-attente], posé à l'ouverture seulement quand
+   la coquille est attendue) : interrupteur éteint, aucune ne s'applique et l'app reste celle
    d'avant. Couleurs, rayons et ombres : les jetons de css/style.css.
    Tailles : téléphone sous 700 px, tablette de 700 à 1079 px, ordinateur au-delà.
    Stagiaire : en-tête clair (onglets en capsule). Équipe : barre latérale sombre, en colonne
@@ -10,6 +11,21 @@
 
 /* L'ancienne barre du haut cède la place à la coquille. */
 body[data-nav="v2"] header.topbar { display: none; }
+
+/* Ouverture de l'app quand la coquille est attendue (ruling R17, js/main.js) : l'ancienne barre ne se
+   peint pas avant la décision. visibility et non display : si la décision est de la garder, elle revient
+   à sa place sans décaler la page. */
+body[data-nav-attente] header.topbar { visibility: hidden; }
+
+/* Hauteur de l'en-tête collant de la coquille, à la place de celle de l'ancienne barre (style.css,
+   :root) : la barre de jours du Planning se colle dessous (top) et un saut vers un jour pose la carte
+   sous les deux (scroll-margin-top : l'en-tête, puis 52 px pour la barre de jours et un peu d'air). En
+   px, lue par js/views/planning.js. Stagiaire : 66 px ; équipe : pas d'en-tête (barre latérale), 0 ;
+   téléphone : 56 px dans les deux espaces (plus bas). */
+body[data-nav="v2"][data-espace="stagiaire"] { --haut-entete: 66px; }
+body[data-nav="v2"][data-espace="equipe"] { --haut-entete: 0px; }
+/* La valeur de l'ancienne barre sur téléphone (148 px, style.css) ne vaut pas sous la coquille. */
+body[data-nav="v2"] .p-day-card { scroll-margin-top: calc(var(--haut-entete) + 52px); }
 
 /* La barre sombre de l'équipe reprend le crème de l'ancienne barre du haut sur --bg-deep, avec ses
    transparences (style.css : .topbar, .tab, .promo-pastille) : texte, texte secondaire, survol,
@@ -261,6 +277,10 @@ body[data-nav="v2"] .nav-cote :focus-visible { outline-color: var(--nav-creme); 
 
 @media (min-width: 700px) {
   body[data-nav="v2"][data-espace="equipe"] #app { margin-left: var(--larg-cote); }
+  /* Ce qui se centre en bas de l'écran (message, pastille du mode Modifier du planning) se centre sur le
+     contenu, à droite de la barre. */
+  body[data-nav="v2"][data-espace="equipe"] .toast,
+  body[data-nav="v2"][data-espace="equipe"] .p-edit-pill { left: calc(50% + var(--larg-cote) / 2); }
   body[data-nav="v2"] .nav-cote {
     position: fixed;
     top: 0;
@@ -522,6 +542,8 @@ body[data-nav="v2"] .nav-bas { display: none; }
     --haut-barre-bas: calc(65px + env(safe-area-inset-bottom, 0px));
     margin-bottom: var(--haut-barre-bas);
   }
+  /* L'en-tête des deux espaces (le stagiaire, et la barre de l'équipe devenue en-tête) : 56 px. */
+  body[data-nav="v2"][data-espace] { --haut-entete: 56px; }
 
   body[data-nav="v2"] .nav-haut {
     grid-template-columns: 1fr auto;
@@ -619,13 +641,12 @@ body[data-nav="v2"] .nav-bas { display: none; }
     margin: 0;
   }
 
-  /* Ce qui se pose en bas de l'écran passe au-dessus de la barre du bas. */
+  /* Ce qui se pose en bas de l'écran passe au-dessus de la barre du bas (le panneau de l'assistant :
+     voir sa section). */
   body[data-nav="v2"] .impersonation-banner { bottom: calc(var(--haut-barre-bas) + 10px); }
   body[data-nav="v2"] .promos-banner { bottom: calc(var(--haut-barre-bas) + 10px); }
   body[data-nav="v2"] .promos-banner.au-dessus-apercu { bottom: calc(var(--haut-barre-bas) + 58px); }
   body[data-nav="v2"] .toast { bottom: calc(var(--haut-barre-bas) + 0.75rem); }
-  body[data-nav="v2"] .chatbot-fab { bottom: calc(var(--haut-barre-bas) + 16px); }
-  body[data-nav="v2"] .chatbot-panel { bottom: calc(var(--haut-barre-bas) + 78px); }
   body[data-nav="v2"] .p-edit-pill { bottom: calc(var(--haut-barre-bas) + 0.75rem); }
 
   /* Zones à toucher de 44 px sur téléphone : sous-onglets des pages, cases des Paramètres, boutons
@@ -633,6 +654,40 @@ body[data-nav="v2"] .nav-bas { display: none; }
   body[data-nav="v2"] .subtabs-bar .subtab { min-height: 44px; min-width: 44px; }
   body[data-nav="v2"] .invite-admin-toggle { min-height: 44px; }
   body[data-nav="v2"] .promo-choix-modal .btn { min-height: 44px; }
+}
+
+/* ----- Assistant (js/chatbot.js) : ouvert par les boutons « Assistant » de la coquille ----- */
+/* Plus de bulle flottante : elle masquait du contenu sur téléphone. */
+body[data-nav="v2"] #chatbot-fab { display: none; }
+/* Le panneau s'ouvre près de son bouton : sous l'en-tête, à droite, chez le stagiaire ; en bas, à droite
+   de la barre latérale, dans l'équipe (comme le menu du compte). */
+body[data-nav="v2"][data-espace="stagiaire"] .chatbot-panel {
+  top: 74px;
+  right: max(14px, env(safe-area-inset-right, 0px));
+  bottom: auto;
+}
+body[data-nav="v2"][data-espace="equipe"] .chatbot-panel {
+  right: auto;
+  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  left: calc(var(--larg-cote) + 8px);
+}
+/* Le « × » gardait la couleur des boutons de la barre sombre (blanc), illisible sur le panneau clair. */
+body[data-nav="v2"] .chatbot-close { color: var(--text-soft); }
+body[data-nav="v2"] .chatbot-close:hover { background: var(--bg-subtle); color: var(--text); }
+
+@media (max-width: 699.98px) {
+  /* Téléphone : au-dessus de la barre du bas, sur toute la largeur, jamais sous l'en-tête de 56 px. */
+  body[data-nav="v2"][data-espace] .chatbot-panel {
+    top: auto;
+    right: 8px;
+    bottom: calc(var(--haut-barre-bas) + 8px);
+    left: 8px;
+    width: auto;
+    height: min(70dvh, 560px);
+    max-height: calc(100dvh - var(--haut-barre-bas) - 72px);
+  }
+  body[data-nav="v2"] .chatbot-close,
+  body[data-nav="v2"] .chatbot-form .btn { min-width: 44px; min-height: 44px; }
 }
 
 /* ----- Fenêtres de la coquille : menu du compte, tiroir « Plus » (js/nav-fenetre.js) ----- */
@@ -771,4 +826,13 @@ body[data-nav="v2"] .nav-fenetre .view-as-block { margin: 6px 8px 8px; }
     background: var(--line-strong);
   }
   body[data-nav="v2"] .nav-fenetre .view-as-btn { min-height: 44px; }
+}
+
+/* ----- Impression : ni la coquille, ni ce qu'elle impose à la page ----- */
+/* La marge de la barre latérale battrait le « margin: 0 » de l'impression des Indicateurs (style.css,
+   body.centre-printable #app) ; la marge basse est celle de la barre du bas du téléphone. */
+@media print {
+  body[data-nav="v2"] [data-nav-coquille] { display: none !important; }
+  body[data-nav="v2"][data-espace="equipe"] #app { margin-left: 0; }
+  body[data-nav="v2"] { margin-bottom: 0; }
 }

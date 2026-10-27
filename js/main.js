@@ -31,7 +31,7 @@ import { renderCentre, teardownCentrePrint } from "./views/centre.js?v=20261027a
 import { renderEmargement } from "./views/emargement.js?v=20261027a";
 import { initBandeauEmargement, rafraichirBandeauEmargement } from "./emargement-bandeau.js?v=20261027a";
 import { chargerEmargementActif, emargementActif } from "./emargement-etat.js?v=20261027a";
-import { chargerNavigationV2, navigationV2Active } from "./nav-etat.js?v=20261027a";
+import { chargerNavigationV2, navigationV2Active, navigationV2Attendue } from "./nav-etat.js?v=20261027a";
 import { routeVisibleV2, espaceDe, entreesNavigation, initialesDe } from "./nav-rules.js?v=20261027a";
 import { monterCoquille, majEntreeActive, coquilleMontee } from "./nav-shell.js?v=20261027a";
 import { lireAdresse, pagePersonnelle } from "./route-rules.js?v=20261027a";
@@ -378,6 +378,10 @@ function isColdStart() {
 }
 
 async function bootApp() {
+  // Ruling R17 : quand la coquille est attendue (la promo l'avait la dernière fois sur cet appareil, ou
+  // l'aperçu du fondateur), l'ancienne barre attend la décision sans se peindre (css/navigation.css) ;
+  // posé avant que l'app ne s'affiche, levé dès la première barre dessinée, quelle qu'elle soit.
+  if (navigationV2Attendue()) document.body.dataset.navAttente = "";
   hideGate();
   // L'état des modules décide des onglets visibles : il est lu avant de dessiner la barre.
   // La lecture est bornée (chargerModulesAuDemarrage : copie de l'appareil au-delà de
@@ -393,7 +397,13 @@ async function bootApp() {
   // temps que les modules. La navigation est décidée ici, une fois pour la session, avant le
   // premier rendu (aperçu du fondateur compris).
   await Promise.all([chargerModulesAuDemarrage(), chargerEmargementActif(), chargerNavigationV2()]);
-  renderTabs();
+  try {
+    renderTabs();
+  } finally {
+    // La barre de la session est posée (coquille, ou ancienne barre si la décision est « éteint ») : plus
+    // rien n'attend. Même si le rendu échoue, l'ancienne barre revient : jamais une page sans barre.
+    delete document.body.dataset.navAttente;
+  }
   majBadgeNouveautes();
   setupRefreshBtn();
   setupTodayBtn();
