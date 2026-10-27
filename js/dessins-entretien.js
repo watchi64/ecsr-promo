@@ -13,11 +13,11 @@
  * trois tons par objet, aucun détail décoratif ; la voiture, de profil comme vue du dessus, est celle du kit, en silhouette.
  * Titres et cadres viennent du catalogue des blocs (js/catalogue-blocs.js), la seule source de ces métadonnées.
  */
-import { n } from "./dessin-svg.js?v=20261024d";
+import { n } from "./dessin-svg.js?v=20261027a";
 import { CHARTE, MATIERES, METRIQUES_POLICE, MISE_EN_PAGE, SYMBOLE_FREIN, SYMBOLE_TEMPERATURE, vagueSymbole, cadre, texte, etiquette,
   vignette, arrondir, arc, couper, trace, point, VOITURE,
-  VOITURE_PROFIL, voitureDessus, voitureProfil, reperesProfil } from "./dessins-kit.js?v=20261024d";
-import { CATALOGUE } from "./catalogue-blocs.js?v=20261024d";
+  VOITURE_PROFIL, voitureDessus, voitureProfil, reperesProfil } from "./dessins-kit.js?v=20261027a";
+import { CATALOGUE } from "./catalogue-blocs.js?v=20261027a";
 
 // ===== Mise en page commune (unités du cadre) =====
 // Textes posés comme ceux du kit : espace du bout d'un filet à son texte, pas des lignes, repères d'Outfit (METRIQUES_POLICE).
@@ -689,4 +689,4 @@ function pression() {
 
 export const DESSINS = { capot, niveaux, pneu, pression };
 export const GESTES = {};
-export { versDom } from "./dessin-svg.js?v=20261024d";
+export { versDom } from "./dessin-svg.js?v=20261027a";

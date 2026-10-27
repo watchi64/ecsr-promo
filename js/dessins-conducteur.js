@@ -22,11 +22,11 @@
  * au plus près de la tête (« quelques centimètres au plus », thème 44, D). Tout le reste est choix de dessin (proportions
  * d'un adulte de taille moyenne, voiture courante), avec sa raison dans sources/dessins-conducteur.js.
  */
-import { n } from "./dessin-svg.js?v=20261024d";
+import { n } from "./dessin-svg.js?v=20261027a";
 import { CHARTE, METRIQUES_POLICE, MISE_EN_PAGE, cadre, texte, etiquette, vignette, fleche, arrondir, couper, miroirInterieur, coord,
   point as ecrirePoint, trace, entre, gelule, membrePictogramme, tetePictogramme, formePictogramme, disqueMain }
-  from "./dessins-kit.js?v=20261024d";
-import { adoucir, sortieDouce, avancement, interpoler, cles } from "./animation-courbes.js?v=20261024d";
+  from "./dessins-kit.js?v=20261027a";
+import { adoucir, sortieDouce, avancement, interpoler, cles } from "./animation-courbes.js?v=20261027a";
 
 // ===================================================================================================================
 // Échelle, valeurs du cours, choix de dessin
@@ -1211,4 +1211,4 @@ export const GESTES = {
   installation: { construire: construireInstallation },
 };
 
-export { versDom } from "./dessin-svg.js?v=20261024d";
+export { versDom } from "./dessin-svg.js?v=20261027a";
