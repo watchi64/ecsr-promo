@@ -32,6 +32,7 @@ import { renderEmargement } from "./views/emargement.js?v=20261027a";
 import { initBandeauEmargement, rafraichirBandeauEmargement } from "./emargement-bandeau.js?v=20261027a";
 import { chargerEmargementActif, emargementActif } from "./emargement-etat.js?v=20261027a";
 import { chargerNavigationV2, navigationV2Active } from "./nav-etat.js?v=20261027a";
+import { routeVisibleV2 } from "./nav-rules.js?v=20261027a";
 import { lireAdresse, pagePersonnelle } from "./route-rules.js?v=20261027a";
 import {
   peutQuitter, leverGardeSortie, majSurPlacePour, oublierMajSurPlace,
@@ -146,6 +147,13 @@ const ONGLET_POUR_ROUTE = { nouveautes: "home", dashboard: "planning", centre: "
 
 let lastRoute = null;
 
+// Une page est-elle une destination pour la personne connectée ? Sous la nouvelle navigation,
+// une page à sous-onglets l'est dès que l'un d'eux l'est (Cours avec ses seuls Documents tant
+// que les cours sont fermés, voir routeVisibleV2) ; avec l'ancienne, la règle de toujours.
+function routeOuverte(route) {
+  return navigationV2Active() ? routeVisibleV2(route, routeVisible) : routeVisible(route);
+}
+
 // Derniere page visitee, pour y revenir au prochain demarrage. Le sous-onglet,
 // lui, se souvient deja tout seul (voir storageKey dans js/subtabs.js) : rendre
 // la route suffit a retomber exactement la ou on etait.
@@ -162,7 +170,7 @@ function derniereRoute() {
     const r = localStorage.getItem(CLE_DERNIERE_ROUTE);
     // Une page dont le module est fermé pour la promo n'est pas une destination :
     // repli silencieux, la dernière page n'est qu'une commodité.
-    return r && routes[r] && routeVisible(r) ? r : null;
+    return r && routes[r] && routeOuverte(r) ? r : null;
   } catch (e) {
     return null;
   }
@@ -180,7 +188,7 @@ async function navigate({ force = false } = {}) {
   if (!routes[route]) route = "mon-suivi";
   // Module fermé pour la promo (lien, adresse saisie, nouveauté ancienne) : un
   // stagiaire est ramené sur Mon suivi, avec un mot d'explication.
-  if (!routeVisible(route)) {
+  if (!routeOuverte(route)) {
     toast("Cette partie n'est pas encore ouverte pour ta promo.", "info", 3500);
     try { history.replaceState(null, "", "#/mon-suivi"); } catch (e) { /* ignore */ }
     route = "mon-suivi";
@@ -361,7 +369,7 @@ async function bootApp() {
     renderTabs();
     majBadgeNouveautes();
     majPresenceModules();
-    if (lastRoute && !routeVisible(lastRoute)) navigate({ force: true });
+    if (lastRoute && !routeOuverte(lastRoute)) navigate({ force: true });
   });
   surveillerPremierPlan();
   // Émis par la page et par la section d'Accueil après marquage.

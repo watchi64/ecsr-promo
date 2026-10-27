@@ -41,8 +41,8 @@ export const MODULE_DE_ROUTE = {
 export const MODULE_DE_SOUS_ONGLET = {
   notes: { matrice: "notes", epcf: "epcf" },
   "mon-suivi": { evolution: "notes", epcf: "epcf", livret: "livret", dp: "dp", classe: "notes" },
-  planning: { dates: "calendrier", priorites: "priorites" },
-  themes: { documents: "ressources" },
+  planning: { semaine: "planning", dates: "calendrier", priorites: "priorites" },
+  themes: { themes: "themes", competences: "themes", documents: "ressources" },
 };
 
 // Ouvert aux formateurs depuis le multi-promo (étape 3 de A) : chacun règle les modules de

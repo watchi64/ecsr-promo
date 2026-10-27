@@ -1861,26 +1861,38 @@ export async function renderThemes(container) {
   // n'écrive dans un écran disparu, ou refuse d'écrire dans celui qui vient de naître.
   lastContainer = null;
   themesActif = () => true;
+  // Nouvelle navigation : Cours s'ouvre aussi quand seuls les Documents sont ouverts pour la
+  // promo (routeVisibleV2, js/nav-rules.js). Thèmes et Compétences suivent alors le module des
+  // cours : fermé, un stagiaire n'a ni ces sous-onglets, ni l'en-tête qui les présente, et leurs
+  // données ne sont pas lues. Avec l'ancienne navigation, la page reste celle des cours.
+  const v2 = navigationV2Active();
+  const coursOuverts = !v2 || moduleVisible("themes");
   container.appendChild(el("div", { class: "loading" }, "Chargement"));
-  themes = await listThemes();
-  await loadQcmIndex();
+  if (coursOuverts) {
+    themes = await listThemes();
+    await loadQcmIndex();
+  }
   clear(container);
 
   // En-tête de Cours, au-dessus des sous-onglets. La ligne de progression est tenue à
   // jour par refreshStatsInPlace (statut basculé, date corrigée).
-  ligneProgression = el("p", { class: "eyebrow" }, texteProgression());
-  container.appendChild(el("div", { class: "view-header" },
-    el("div", { class: "view-header-text" },
-      ligneProgression,
-      el("h2", {}, "Cours"),
-      el("p", { class: "subtitle" }, "Les thèmes et les compétences de la formation, avec leurs cours et leurs QCM."),
-    ),
-    isAdmin() ? el("button", { class: "btn primary", onClick: () => openAddNotionModal(() => reload(lastContainer)) },
-      icon.plus(), "Ajouter une notion") : null,
-  ));
+  if (coursOuverts) {
+    ligneProgression = el("p", { class: "eyebrow" }, texteProgression());
+    container.appendChild(el("div", { class: "view-header" },
+      el("div", { class: "view-header-text" },
+        ligneProgression,
+        el("h2", {}, "Cours"),
+        el("p", { class: "subtitle" }, "Les thèmes et les compétences de la formation, avec leurs cours et leurs QCM."),
+      ),
+      isAdmin() ? el("button", { class: "btn primary", onClick: () => openAddNotionModal(() => reload(lastContainer)) },
+        icon.plus(), "Ajouter une notion") : null,
+    ));
+  }
 
-  // Thèmes et Compétences pour tous ; la console des signalements pour les formateurs
-  // seulement (la RLS ne suffit pas : elle rend à un élève SES propres signalements).
+  // Thèmes et Compétences pour tous (sous la nouvelle navigation, selon le module des cours :
+  // fermé, retirés chez un stagiaire et repérés chez un formateur) ; la console des
+  // signalements pour les formateurs seulement (la RLS ne suffit pas : elle rend à un élève
+  // SES propres signalements).
   // lastContainer devient le PANNEAU : c'est lui que reload() doit repeindre.
   const liste = (cle) => (p, ctx) => {
     lastContainer = p;
@@ -1888,9 +1900,10 @@ export async function renderThemes(container) {
     themesActif = ctx?.isActive || (() => true);
     rerender(p);
   };
+  const moduleCours = v2 ? "themes" : undefined;
   const onglets = [
-    { key: "themes", label: "Thèmes", render: liste("themes") },
-    { key: "competences", label: "Compétences", render: liste("competences") },
+    { key: "themes", label: "Thèmes", module: moduleCours, render: liste("themes") },
+    { key: "competences", label: "Compétences", module: moduleCours, render: liste("competences") },
   ];
   if (canManageExam()) {
     onglets.push({ key: "signalements", label: "⚑ Signalements",
@@ -1899,7 +1912,7 @@ export async function renderThemes(container) {
   // Nouvelle navigation : les Ressources rejoignent les Cours, en dernier sous-onglet. La page
   // se rend dans son propre conteneur : un rendu tardif (sous-onglet quitté pendant le
   // chargement) écrit dans un nœud détaché, pas dans le panneau partagé.
-  if (navigationV2Active()) {
+  if (v2) {
     onglets.push({ key: "documents", label: "Documents", module: "ressources",
       render: (p, ctx) => {
         const zone = el("div");

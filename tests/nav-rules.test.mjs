@@ -1,7 +1,8 @@
 // Navigation par espace (refonte, lot 1) : entrées de chaque espace, barre du téléphone,
 // entrée allumée, redirection des anciennes adresses et listes rendues en copies.
 import assert from "node:assert/strict";
-import { espaceDe, entreesNavigation, barreTelephone, entreeActive, redirectionV2 } from "../js/nav-rules.js";
+import { espaceDe, entreesNavigation, barreTelephone, entreeActive, redirectionV2, routeVisibleV2 } from "../js/nav-rules.js";
+import { MODULE_DE_ROUTE } from "../js/modules-data.js";
 
 let n = 0;
 const eq = (a, b, msg) => { assert.deepEqual(a, b, msg); n++; };
@@ -54,8 +55,11 @@ eq(entreeActive("nouveautes", eqp), "home", "alias nouveautes");
 eq(entreeActive("notes", stag), "mon-suivi", "stagiaire : la classe vit sous Mon suivi");
 eq(entreeActive("notes", eqp), "notes", "équipe : Notes a son entrée");
 eq(entreeActive("mon-suivi", eqp), null, "équipe : Mon espace sans entrée");
-const sansPlanning = entreesNavigation("stagiaire", { routeVisible: (r) => r !== "planning", emargementActif: false });
-eq(entreeActive("calendrier", sansPlanning), null, "alias vers un module fermé");
+const sansPlanning = entreesNavigation("stagiaire",
+  { routeVisible: (r) => !["planning", "calendrier", "dashboard"].includes(r), emargementActif: false });
+eq(entreeActive("calendrier", sansPlanning), null, "alias vers une page fermée (ses trois sous-onglets fermés)");
+const semaineFermee = entreesNavigation("stagiaire", { routeVisible: (r) => r !== "planning", emargementActif: false });
+eq(entreeActive("calendrier", semaineFermee), "planning", "Semaine fermée, Dates clés ouvert : Planning s'allume");
 
 // 5. Redirection des anciennes adresses
 eq(redirectionV2(adresse("calendrier"), "stagiaire"),
@@ -69,7 +73,37 @@ eq(redirectionV2(adresse("notes"), "stagiaire"),
 eq(redirectionV2(adresse("notes"), "equipe"), null, "notes de l'équipe inchangées");
 eq(redirectionV2(adresse("planning"), "stagiaire"), null, "pas de boucle");
 
-// 6. Copies : modifier ce que le module rend ne change pas le résultat suivant
+// 6. Pages regroupées : ouvertes dès qu'un de leurs sous-onglets l'est
+const seules = (...routes) => (r) => routes.includes(r);
+eq(routeVisibleV2("themes", seules("themes")), true, "Cours : les cours ouverts");
+eq(routeVisibleV2("themes", seules("ressources")), true, "Cours : les seuls Documents ouverts");
+eq(routeVisibleV2("themes", seules()), false, "Cours : cours et documents fermés");
+eq(routeVisibleV2("themes", seules("calendrier", "dashboard", "planning")), false, "Cours : les modules du Planning ne l'ouvrent pas");
+eq(routeVisibleV2("planning", seules("planning")), true, "Planning : la semaine ouverte");
+eq(routeVisibleV2("planning", seules("calendrier")), true, "Planning : les seules Dates clés ouvertes");
+eq(routeVisibleV2("planning", seules("dashboard")), true, "Planning : les seules Priorités ouvertes (route dashboard)");
+eq(routeVisibleV2("planning", seules("ressources", "themes")), false, "Planning : les modules de Cours ne l'ouvrent pas");
+eq(routeVisibleV2("planning", seules()), false, "Planning : tout fermé");
+eq(routeVisibleV2("ccp2", seules("planning", "themes", "ressources")), false, "page sans sous-onglets : sa route seule");
+eq(routeVisibleV2("ccp2", seules("ccp2")), true, "page sans sous-onglets ouverte");
+eq(routeVisibleV2("calendrier", seules("planning")), false, "ancienne page : sa route seule");
+eq(routeVisibleV2("ressources", seules("ressources")), true, "ancienne page ouverte");
+eq(routeVisibleV2("constructor", seules()), false, "route inconnue de la table : fermée si routeVisible le dit");
+// Ensemble de départ d'une promo (banc ?modules=depart) : Planning, Calendrier et Ressources
+// ouverts, Cours fermé. Même calcul que routeVisible côté app, pour un stagiaire.
+const OUVERTS_DEPART = ["planning", "calendrier", "ressources"];
+const depart = (r) => !MODULE_DE_ROUTE[r] || OUVERTS_DEPART.includes(MODULE_DE_ROUTE[r]);
+eq(depart("themes"), false, "départ : les cours fermés");
+eq(depart("ressources"), true, "départ : les ressources ouvertes");
+eq(routeVisibleV2("themes", depart), true, "départ : Cours ouvert sur ses Documents");
+eq(routeVisibleV2("planning", depart), true, "départ : Planning ouvert");
+eq(routeVisibleV2("ccp2", depart), false, "départ : CCP2 fermé");
+eq(ids(entreesNavigation("stagiaire", { routeVisible: depart, emargementActif: false })),
+  ["home", "planning", "themes", "mon-suivi"], "départ : Cours et QCM dans la barre du stagiaire");
+eq(ids(entreesNavigation("stagiaire", { routeVisible: seules("dashboard"), emargementActif: false })),
+  ["home", "planning", "mon-suivi"], "les seules Priorités ouvertes : Planning dans la barre");
+
+// 7. Copies : modifier ce que le module rend ne change pas le résultat suivant
 const options = { routeVisible: tout, emargementActif: true };
 for (const espace of ["stagiaire", "equipe"]) {
   const liste = entreesNavigation(espace, options);

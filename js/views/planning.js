@@ -2803,6 +2803,11 @@ function detachDayNavHighlight() {
 }
 
 function renderInto(container) {
+  // Conteneur sorti de la page (nouvelle navigation : sous-onglet Semaine quitté avant la fin
+  // d'un rendu ou d'une action) : rien à dessiner, et surtout pas currentContainer, la barre
+  // des jours ni la cible d'impression, qui appartiennent à ce qui est affiché. Sans
+  // sous-onglets, le conteneur est #view, toujours dans la page.
+  if (!container.isConnected) return;
   currentContainer = container;
   clear(container);
 
@@ -3386,16 +3391,28 @@ export async function renderPlanning(container) {
   clear(container);
   container.appendChild(el("div", { class: "loading" }, "Chargement"));
 
-  [stagiaires, profs, themes, benevoles] = await Promise.all([
+  // Nouvelle navigation : la semaine est un sous-onglet de Planning. Quittée pendant son
+  // chargement, son conteneur n'est plus dans la page : le rendu s'arrête avant d'écrire l'état
+  // du module (données, semaine affichée, saut « Aujourd'hui »), qui appartient au rendu
+  // affiché. Sans sous-onglets, le conteneur est #view, toujours dans la page : chaque arrêt
+  // ci-dessous est sans effet et l'ordre des écritures est celui d'avant.
+  const references = await Promise.all([
     listStagiaires(), listProfs(), listThemes(), loadBenevoles(),
   ]);
+  if (!container.isConnected) return;
+  [stagiaires, profs, themes, benevoles] = references;
+  let stats;
   try {
-    [voitureStats, fichesSuivi, salleStats] = await Promise.all([getVoitureAggregats(), listFiches(), getSalleAggregats()]);
+    stats = await Promise.all([getVoitureAggregats(), listFiches(), getSalleAggregats()]);
   } catch (e) {
     console.warn("stats voiture / fiches indisponibles (migration manquante ?)", e?.message || e);
-    voitureStats = {}; fichesSuivi = []; salleStats = {};
+    stats = [{}, [], {}];
   }
-  autresProfsMem = parseAutresProfs(await getSetting("profs_autres"));
+  if (!container.isConnected) return;
+  [voitureStats, fichesSuivi, salleStats] = stats;
+  const autres = await getSetting("profs_autres");
+  if (!container.isConnected) return;
+  autresProfsMem = parseAutresProfs(autres);
   // Raccourci « Aujourd'hui » : on force la semaine en cours en LOCAL, sans écrire le
   // réglage global « current_week_lundi » : c'est une navigation personnelle, elle n'a
   // pas à déplacer la semaine affichée pour toute la promo (même logique que pour un
@@ -3403,10 +3420,12 @@ export async function renderPlanning(container) {
   const jump = pendingTodayJump ? todayJumpTarget() : null;
   pendingTodayJump = false;
   const weekSetting = await getSetting("current_week_lundi");
+  if (!container.isConnected) return;
   semaineLundi = jump
     ? isoDate(getMonday(jump.date))
     : (weekSetting || isoDate(getMonday(new Date())));
   await loadPlanning();
+  if (!container.isConnected) return;
   renderInto(container);
   if (jump) {
     scrollToDay(jump.dayIndex);

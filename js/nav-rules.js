@@ -70,16 +70,30 @@ export function espaceDe({ formateur }) {
   return formateur ? "equipe" : "stagiaire";
 }
 
+// Une page est-elle ouverte sous la nouvelle navigation ? Une page qui regroupe d'anciennes
+// pages en sous-onglets (Planning : Dates clés et Priorités ; Cours : Documents) l'est dès que
+// l'un d'eux l'est, chaque sous-onglet suivant le module de son ancienne page (celles de
+// REDIRECTIONS). Cours s'ouvre donc avec ses seuls Documents tant que les cours sont fermés
+// pour la promo. Toute autre page suit `routeVisible(route)`.
+export function routeVisibleV2(route, routeVisible) {
+  if (routeVisible(route)) return true;
+  for (const [ancienne, v] of REDIRECTIONS) {
+    if (v.page === route && routeVisible(ancienne)) return true;
+  }
+  return false;
+}
+
 // Entrées de l'espace, dans l'ordre d'affichage, en copies que l'appelant peut modifier.
-// Stagiaire : `routeVisible(route)` décide pour chaque page à module, Accueil et Mon suivi
-// restent toujours. Équipe : aucun module fermé n'en retire une (la coquille la repère), et
-// seul Émargement attend `emargementActif`.
+// Stagiaire : une page à module s'affiche dès qu'elle est ouverte au sens de `routeVisibleV2`
+// (l'un de ses sous-onglets suffit), Accueil et Mon suivi restent toujours. Équipe : aucun
+// module fermé n'en retire une (la coquille la repère), et seul Émargement attend
+// `emargementActif`.
 export function entreesNavigation(espace, { routeVisible, emargementActif }) {
   if (espace === "equipe") {
     return ENTREES_EQUIPE.filter((e) => e.id !== "emargement" || emargementActif).map(copie);
   }
   return ENTREES_STAGIAIRE
-    .filter((e) => TOUJOURS_VISIBLES.includes(e.id) || routeVisible(e.route))
+    .filter((e) => TOUJOURS_VISIBLES.includes(e.id) || routeVisibleV2(e.route, routeVisible))
     .map(copie);
 }
 
