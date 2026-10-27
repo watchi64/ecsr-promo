@@ -36,7 +36,8 @@ manque) :
     avec `?modules=depart` (modules fermés : pas de case vide, repères), et le « Voir en tant que » du
     fondateur (la coquille change d'espace sans recharger la page).
   * Passe « éteint » : aucun aperçu, rien ne doit changer par rapport à main (aucune coquille,
-    l'ancienne barre d'onglets, pas de sous-onglets regroupés).
+    l'ancienne barre d'onglets, pas de sous-onglets regroupés, aucun défilement ni débordement de côté
+    de plus que ceux des rulings R10 et R11).
 Dans chaque contexte : l'arrivée à froid, chaque entrée de la coquille (cliquée dans la coquille, ou
 via « Plus » sur téléphone quand elle y est rangée ; la liste vient des règles de js/nav-rules.js,
 lues dans la page), chaque sous-onglet des pages qui en ont (Planning, Cours, Mon espace, Notes...), les
@@ -45,11 +46,17 @@ pages du menu du compte sans entrée à elles (Mon espace, Réglages, Nouveauté
 
 Contrôles par vue
 -----------------
-  * rien ne défile de côté ni ne déborde de la fenêtre, hors `.matrice-wrap` (exception admise) ;
-    tout défilement de côté dans la coquille ou dans une barre de sous-onglets est un échec ; ceux des
-    conteneurs de page qui défilaient déjà sur main (DETTE_LOT_2, ruling R10) donnent un avertissement
-    « dette du lot 2 », sans échec ;
-  * une seule entrée allumée dans la coquille visible (celle que donne `entreeActive`) ;
+  * rien ne défile de côté ni ne déborde de la fenêtre, dans les deux passes, hors `.matrice-wrap`
+    (exception admise, sans avertissement). Tout le reste échoue, interrupteur éteint compris (une règle
+    du lot qui déborde de `body[data-nav="v2"]` y fait échouer la page), sauf deux listes qui ne donnent
+    qu'un avertissement « dette du lot 2 » rangé par conteneur : les conteneurs de page qui défilaient
+    déjà sur main (DETTE_LOT_2, ruling R10) et le lien Légifrance de Cours > Signalements (DETTE_R11,
+    ruling R11) ;
+  * nouvelle navigation allumée : Planning, Cours et Mon espace (de qui a un profil stagiaire) montrent au
+    moins 3, 3 et 6 sous-onglets (lignes du sommaire sur téléphone), 2, 0 et 0 pour un stagiaire au départ
+    (`?modules=depart`) : une barre de sous-onglets perdue échoue ;
+  * une seule entrée allumée dans la coquille visible, celle que donne `entreeActive` : le lien vers elle,
+    ou « Plus » quand elle est rangée dans le tiroir du téléphone ;
   * zones à toucher : 44 px au moins sous 700 px (24 px au-delà) pour la coquille, les menus, les barres
     de sous-onglets et les cases des Paramètres ;
   * contraste du texte de la coquille et des menus (couleur et fond réels) : 4,5:1, 3:1 pour le grand texte ;
@@ -74,15 +81,35 @@ contexte) et les contrôles de la page sont joués quand même.
   * Téléphone (moins de 700 px) : la barre du bas est un élément fixe collé au bas de la fenêtre, sur toute
     la largeur, dont les liens et boutons visibles sont les entrées (« Plus » compris), chacune avec un
     libellé visible.
-  * Ouvreurs de menus : tout bouton de la coquille qui porte `aria-haspopup` ou `data-nav-action`
-    (« compte », « plus », « assistant » ; « replier » est ignoré). Leur fenêtre est un `role="dialog"` ou
+  * Ouvreurs de menus, liste blanche : un bouton de la coquille est un ouvreur s'il porte `aria-haspopup`
+    ou si son `data-nav-action` vaut `compte`, `plus` ou `assistant` (sans `data-nav-action`, un bouton
+    nommé « Plus », « Compte », « Mon compte » ou « Menu » l'est aussi). Toute autre valeur (`replier`,
+    `deconnexion`...) n'en est pas un et n'est pas cliquée. Leur fenêtre est un `role="dialog"` ou
     `role="menu"` (le panneau de l'assistant : `#chatbot-panel`).
-  * Une entrée sans libellé visible (colonne d'icônes) porte `aria-label` et `title`.
+  * Une entrée sans libellé visible (colonne d'icônes) porte `aria-label` et `title`. « Visible » se mesure
+    sur la boîte affichée du texte : un libellé réservé aux lecteurs d'écran (1 px, `clip`) ne compte pas.
 
 Options utiles pendant le développement : `--roles`, `--moteurs`, `--largeurs`, `--passes`,
 `--sans-menus` (boutons du compte et de « Plus » pas encore câblés, avant la Task 5), `--sans-assistant`
 (bouton « Assistant » pas encore câblé, avant la Task 6), `--tout` (liste chaque échec), `--captures
 DOSSIER` (une capture par vue en échec), `--jobs N` (processus en parallèle, deux par moteur par défaut).
+
+Défauts que les contrôles ont été éprouvés à attraper
+-----------------------------------------------------
+Chacun a été introduit seul dans une coquille factice qui respecte le contrat (hors dépôt), ou injecté
+par `--script-init`, et le script a échoué avec le message attendu ; la coquille sans défaut ne fait
+échouer aucun contrôle de la coquille.
+  * coquille : contraste faible, zone à toucher trop petite, barre du bas de 6 entrées, marge basse
+    manquante, défilement de côté, contenu sous la barre latérale, libellé de la barre du bas coupé,
+    deux entrées allumées, « Plus » allumé quand l'entrée est dans la barre (et l'inverse), un libellé
+    allumé à la place du lien, entrée sans `title`, libellé réservé aux lecteurs d'écran sans `title`
+    (colonne d'icônes et barre du bas), lien d'évitement trop petit une fois affiché au focus ;
+  * page : une page qui perd ses sous-onglets ;
+  * menus : Échap qui ne ferme pas, menu hors de l'écran, tiroir resté ouvert (avertissement) ;
+  * interrupteur éteint : un `h1` trop large (« élément de page qui déborde »), une coquille présente ;
+  * mise en place : erreur de console et de page, interrupteur qui n'allume pas, banc périmé.
+Sans défaut, n'échouent pas : un bouton `data-nav-action="deconnexion"` (pas un ouvreur), un lien d'évitement
+masqué (ni mesuré comme cible, ni sans nom), un nom pris par `aria-labelledby`, `<label for>` ou `<title>` SVG.
 """
 import argparse
 import concurrent.futures
@@ -116,15 +143,14 @@ CLE_APERCU = "ecsr_nav_v2"     # aperçu du fondateur, propre à l'appareil (js/
 CLE_REGLAGE = "navigation_v2"  # réglage de la promo, ligne de `settings` (js/nav-etat-regles.js)
 
 # Ruling R10 : conteneurs de page qui défilaient déjà de côté sur main. Un défilement qui s'y
-# produit n'est qu'un avertissement (dette du lot 2) ; partout ailleurs hors coquille il échoue.
+# produit n'est qu'un avertissement (dette du lot 2), dans les deux passes ; partout ailleurs il échoue.
 DETTE_LOT_2 = (".passages-table-wrap", ".epcf-table-wrap", ".dashboard-meta", ".cours-table-wrap",
                ".centre-defile", ".cours-sommaire", ".ms-chart-wrap", ".notes-chart-svg-wrap")
 EXCEPTION_ADMISE = ".matrice-wrap"  # la matrice des notes : seule exception admise, sans avertissement
-# Constaté au banc, interrupteur éteint (donc déjà sur main), et absent de la liste R10 : dans Cours,
-# Signalements (formateur), un lien Légifrance sans coupure dépasse de 66 px à 375 px
-# (`p.qcm-signal-instr-ligne > a`, rogné par le body). Même traitement que la liste R10 (avertissement),
-# affiché à part pour que le contrôleur tranche ; l'ôter de ce tuple en fait un échec.
-DETTE_CONSTATEE_HORS_R10 = (".qcm-signal-instr-ligne",)
+# Ruling R11 (contrôleur) : le lien Légifrance de Cours > Signalements (formateur), qui dépasse de 66 px à
+# 375 px (`p.qcm-signal-instr-ligne > a`, rogné par le body), est une dette du lot 2, déjà sur main :
+# avertissement à part, sans échec.
+DETTE_R11 = (".qcm-signal-instr-ligne",)
 
 # Entrées de repli si les règles de navigation de l'app ne se lisent pas dans la page.
 ENTREES_REPLI = {
@@ -168,12 +194,51 @@ const nom = (e) => {
   else if (role && !c.length) s += "[role=" + role + "]";
   return s;
 };
-const texte = (e) => (e.innerText || "").replace(/\s+/g, " ").trim();
+const net = (s) => (s || "").replace(/\s+/g, " ").trim();
+const texte = (e) => net(e.innerText);
+const texteDe = (e) => net(e ? (e.innerText || e.textContent) : "");   // un <title> SVG n'a pas d'innerText
+// Nom accessible, dans l'ordre du calcul : aria-labelledby, aria-label, <label> du champ, contenu (le texte
+// réservé aux lecteurs d'écran en fait partie), alt d'une image, <title> d'un SVG, title.
 const nomAcc = (e) => {
+  const lie = net((e.getAttribute("aria-labelledby") || "").split(/\s+/).filter(Boolean).map((id) => texteDe(document.getElementById(id))).join(" "));
+  if (lie) return lie;
+  if (net(e.getAttribute("aria-label"))) return net(e.getAttribute("aria-label"));
+  const etiquette = e.labels && e.labels.length ? net([...e.labels].map(texteDe).join(" ")) : "";
+  if (etiquette) return etiquette;
+  if (texte(e)) return texte(e);
   const img = e.querySelector ? e.querySelector("img[alt]") : null;
-  return (e.getAttribute("aria-label") || texte(e) || (img && img.getAttribute("alt")) || e.getAttribute("title") || "")
-    .replace(/\s+/g, " ").trim();
+  if (img && net(img.getAttribute("alt"))) return net(img.getAttribute("alt"));
+  const svg = e.querySelector ? e.querySelector("svg title") : null;
+  if (svg && texteDe(svg)) return texteDe(svg);
+  return net(e.getAttribute("title"));
 };
+// Texte réellement affiché par un élément : les nœuds de texte dont la boîte, rognée par les ancêtres qui
+// coupent (overflow, clip, clip-path) de leur parent jusqu'à l'élément inclus, garde au moins 3 px dans les
+// deux sens et n'est pas rejetée hors de la fenêtre (à gauche, à droite, au-dessus du haut de la page). Un
+// libellé réservé aux lecteurs d'écran (1 px, clip, hors écran) n'en fait pas partie, alors que innerText le compte.
+const rognageNul = (s) => /^rect\(\s*0(px)?[\s,]+0(px)?[\s,]+0(px)?[\s,]+0(px)?\s*\)$/.test(s.clip) || /^inset\((50|100)%/.test(s.clipPath);
+function texteAffiche(e) {
+  const W = document.documentElement.clientWidth, morceaux = [];
+  const marche = document.createTreeWalker(e, NodeFilter.SHOW_TEXT);
+  for (let n = marche.nextNode(); n; n = marche.nextNode()) {
+    const t = net(n.textContent);
+    if (!t || !n.parentElement) continue;
+    const zone = document.createRange();
+    zone.selectNodeContents(n);
+    const r = zone.getBoundingClientRect();
+    let g = r.left, d = r.right, h = r.top, b = r.bottom, cache = false;
+    for (let a = n.parentElement; a && !cache; a = a === e ? null : a.parentElement) {
+      const s = getComputedStyle(a);
+      if (s.display === "none" || s.visibility === "hidden" || rognageNul(s)) cache = true;
+      else if (s.overflowX !== "visible" || s.overflowY !== "visible") {
+        const ra = a.getBoundingClientRect();
+        g = Math.max(g, ra.left); d = Math.min(d, ra.right); h = Math.max(h, ra.top); b = Math.min(b, ra.bottom);
+      }
+    }
+    if (!cache && d - g >= 3 && b - h >= 3 && d > 0 && g < W && b + window.scrollY > 0) morceaux.push(t);
+  }
+  return morceaux.join(" ");
+}
 // Plage des diacritiques combinants (U+0300 à U+036F), construite par code pour ne pas dépendre d'une séquence d'échappement.
 const DIACRITIQUES = new RegExp("[" + String.fromCharCode(768) + "-" + String.fromCharCode(879) + "]", "g");
 const sansAccent = (s) => (s || "").normalize("NFD").replace(DIACRITIQUES, "").toLowerCase();
@@ -295,11 +360,28 @@ function mesurerContrastes(portees, echecs, avert) {
 }
 
 // ---- Zones à toucher ----
+// Un élément visuellement caché mais focalisable (lien d'évitement : 1 px, clip, hors écran) n'est pas une
+// zone à toucher, sauf s'il s'affiche quand il reçoit le focus : on le mesure alors tel qu'il s'affiche.
+function cacheVisuellement(e) {
+  // Hors de la fenêtre à gauche, à droite ou au-dessus du haut de la page : caché ; sous le bas de la fenêtre, non
+  // (la page défile, ce que montre le bas d'une page n'est pas caché).
+  const r = rect(e), s = style(e), W = largeur();
+  return r.width <= 2 || r.height <= 2 || r.right <= 0 || r.bottom + window.scrollY <= 0 || r.left >= W || rognageNul(s);
+}
+function rectangleDeLaCible(e) {
+  if (!cacheVisuellement(e)) return rect(e);
+  const avant = document.activeElement;
+  try { e.focus({ preventScroll: true }); } catch (x) { /* non focalisable */ }
+  const reste = cacheVisuellement(e), r = rect(e);
+  if (avant && avant !== e && avant.focus) avant.focus({ preventScroll: true });
+  else if (document.activeElement === e) e.blur();
+  return reste ? null : r;
+}
 function mesurerCibles(elements, min, echecs, type) {
   const champ = 'textarea, select, input:not([type="checkbox"]):not([type="radio"]):not([type="button"]):not([type="submit"])';
   elements.filter((e) => !e.matches(champ)).filter(visible).forEach((e) => {
-    const r = rect(e);
-    if (r.width < min - 0.5 || r.height < min - 0.5) {
+    const r = rectangleDeLaCible(e);
+    if (r && (r.width < min - 0.5 || r.height < min - 0.5)) {
       echecs.push([type, `${Math.round(r.width)}x${Math.round(r.height)} px (minimum ${min}) : ${nom(e)} « ${nomAcc(e).slice(0, 30)} »`]);
     }
   });
@@ -391,10 +473,12 @@ function chercherLien(route, libelle, court) {
   if (choix) choix.setAttribute("data-vn-cible", "1");
   return { total: liens.length, visibles: vis.length };
 }
+// Le bouton « Plus » de la barre du téléphone : data-nav-action="plus", ou un bouton nommé « Plus ».
+const estPlus = (e) => (e.tagName !== "A" || !(e.getAttribute("href") || "").startsWith("#/"))
+  && (e.getAttribute("data-nav-action") === "plus" || /^plus$/i.test(nomAcc(e)));
 function chercherPlus() {
   document.querySelectorAll("[data-vn-cible]").forEach((e) => e.removeAttribute("data-vn-cible"));
-  const c = interactifsCoquille().filter(visible).filter((e) => e.tagName !== "A" || !e.getAttribute("href").startsWith("#/"))
-    .find((e) => e.getAttribute("data-nav-action") === "plus" || /^plus$/i.test(nomAcc(e)));
+  const c = interactifsCoquille().filter(visible).find(estPlus);
   if (c) c.setAttribute("data-vn-cible", "1");
   return !!c;
 }
@@ -414,11 +498,13 @@ async function mesurer(o) {
   if (boite) echecs.push(["page en erreur", texte(boite).slice(0, 120)]);
   else if (!vue || !vue.children.length) echecs.push(["page vide", "#view n'a aucun contenu"]);
 
-  // Défilements et débordements de côté.
+  // Défilements et débordements de côté : la même classification interrupteur allumé ou éteint, car la
+  // passe éteinte est le garde de « l'app reste identique à main » (une règle du lot qui déborde de
+  // body[data-nav="v2"] se voit là). Seuls les conteneurs des rulings R10 et R11 ne donnent qu'un avertissement,
+  // rangé sous le sélecteur de leur conteneur.
   const trouves = debordements(o);
   trouves.forEach((t) => {
     if (t.cat === "ignore") return;
-    if (!allume) { dettes.push([(t.genre === "zone" ? "zone qui défile de côté : " : "élément qui déborde de la fenêtre : ") + t.nom, t.detail]); return; }
     if (t.cat === "coquille") echecs.push(["défilement de côté dans la coquille", t.detail]);
     else if (t.cat === "sous-onglets") echecs.push(["défilement de côté d'une barre de sous-onglets", t.detail]);
     else if (t.cat.startsWith("dette:")) dettes.push([t.cat.slice(6), t.detail]);
@@ -474,9 +560,15 @@ function mesurerCoquille(o, route, W, H, tel, echecs, avert, R) {
   const attendu = attendue === undefined ? null : (attendue ? 1 : 0);
   if (attendu !== null ? allumees.length !== attendu : allumees.length > 1) {
     echecs.push(["entrée allumée", `${allumees.length} entrée(s) allumée(s) pour #/${route} (attendu ${attendu === null ? "1 au plus" : attendu + (attendue ? " : " + attendue : "")}) : ${allumees.map((a) => nom(a) + " « " + nomAcc(a).slice(0, 18) + " »").join(", ")}`]);
-  } else if (attendue && allumees.length === 1 && allumees[0].tagName === "A") {
-    const lien = (allumees[0].getAttribute("href") || "").replace(/^#\//, "");
-    if (lien !== attendue) echecs.push(["entrée allumée", `#/${route} doit allumer « ${attendue} », c'est le lien « ${lien} » qui l'est`]);
+  } else if (attendue && allumees.length === 1) {
+    // Le bon élément est allumé : le lien vers l'entrée attendue ; sur téléphone, « Plus » quand cette entrée
+    // est rangée dans le tiroir. Un autre lien, « Plus » à tort, un li ou le bouton du compte : échec.
+    const a = allumees[0];
+    const lien = a.tagName === "A" ? (a.getAttribute("href") || "").replace(/^#\//, "") : null;
+    const rangee = tel && !R.erreur && R.plus.includes(attendue);
+    const qui = `${nom(a)} « ${nomAcc(a).slice(0, 18)} »`;
+    if (rangee && !estPlus(a)) echecs.push(["entrée allumée", `#/${route} est rangée dans « Plus » : c'est « Plus » qui doit être allumé, pas ${qui}`]);
+    else if (!rangee && lien !== attendue) echecs.push(["entrée allumée", `#/${route} doit allumer le lien vers « ${attendue} », c'est ${qui} qui l'est`]);
   }
 
   // Éléments fixes : dans la fenêtre, sans recouvrir le contenu.
@@ -510,13 +602,13 @@ function mesurerCoquille(o, route, W, H, tel, echecs, avert, R) {
     const items = barre.n;
     if (items.length > 5) echecs.push(["barre du bas", `${items.length} entrées (5 au plus)`]);
     if (!R.erreur) {
-      const attenduN = R.espace === "equipe" ? R.barre.length + (R.plus.length ? 1 : 0) : R.entrees.length;
+      const attenduN = R.barre.length + (R.plus.length ? 1 : 0);   // les entrées de la barre, et « Plus » s'il y a un tiroir
       if (items.length !== attenduN) echecs.push(["barre du bas", `${items.length} entrée(s) affichée(s), les règles en donnent ${attenduN}`]);
     }
     items.forEach((it) => {
-      if (!texte(it)) echecs.push(["barre du bas", `entrée sans libellé visible : ${nom(it)} « ${nomAcc(it).slice(0, 20)} »`]);
+      if (!texteAffiche(it)) echecs.push(["barre du bas", `entrée sans libellé visible : ${nom(it)} « ${nomAcc(it).slice(0, 20)} »`]);
       const rI = rect(it);
-      [...it.querySelectorAll("*")].filter((x) => [...x.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim())).forEach((lib) => {
+      [it, ...it.querySelectorAll("*")].filter((x) => [...x.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim())).filter((x) => texteAffiche(x)).forEach((lib) => {
         const rl = rect(lib), lh = parseFloat(style(lib).lineHeight) || 16;
         if (lib.scrollWidth > lib.clientWidth + 1 || rl.height > lh * 1.5 || rl.left < rI.left - 1 || rl.right > rI.right + 1) {
           echecs.push(["libellé de la barre du bas coupé", `« ${texte(lib).slice(0, 20)} » : ${Math.round(rl.width)}x${Math.round(rl.height)} px dans une entrée de ${Math.round(rI.width)} px`]);
@@ -529,8 +621,8 @@ function mesurerCoquille(o, route, W, H, tel, echecs, avert, R) {
   const dedans = interactifsCoquille();
   mesurerCibles(dedans, tel ? 44 : 24, echecs, "zone à toucher (coquille)");
   dedans.filter(visible).forEach((e) => {
-    if (!nomAcc(e)) echecs.push(["sans nom accessible", `${nom(e)} n'a ni libellé, ni aria-label, ni title`]);
-    else if (e.tagName === "A" && (e.getAttribute("href") || "").startsWith("#/") && !texte(e) && !e.getAttribute("title")) {
+    if (!nomAcc(e)) echecs.push(["sans nom accessible", `${nom(e)} n'a pas de nom accessible (ni aria-labelledby, aria-label, étiquette, contenu, alt, <title> SVG, ni title)`]);
+    else if (e.tagName === "A" && (e.getAttribute("href") || "").startsWith("#/") && !texteAffiche(e) && !e.getAttribute("title")) {
       echecs.push(["entrée sans infobulle", `${nom(e)} (${e.getAttribute("href")}) n'a pas de title : sans libellé visible, elle en a besoin`]);
     }
   });
@@ -555,16 +647,21 @@ function mesurerCoquille(o, route, W, H, tel, echecs, avert, R) {
 }
 
 // ---- Menus et tiroirs ----
+// Liste blanche : un bouton est un ouvreur s'il porte aria-haspopup, ou si son data-nav-action vaut compte,
+// plus ou assistant ; ou, sans data-nav-action, s'il est nommé « Plus », « Compte », « Mon compte » ou « Menu ».
+// Toute autre action (replier, deconnexion...) n'en est pas un : le script ne la clique pas.
+const OUVREURS_CONNUS = ["compte", "plus", "assistant"];
 function ouvreurs() {
   document.querySelectorAll("[data-vn-i]").forEach((e) => e.removeAttribute("data-vn-i"));
   const liste = [];
   interactifsCoquille().filter(visible).forEach((e) => {
     const action = e.getAttribute("data-nav-action") || "";
     const popup = e.getAttribute("aria-haspopup");
-    if (e.tagName === "A" && (e.getAttribute("href") || "").startsWith("#/") && !action && !popup) return;
     const n = nomAcc(e);
-    const estOuvreur = (popup && popup !== "false") || action || /^(plus|compte|mon compte|menu)$/i.test(n);
-    if (!estOuvreur || /repli|deplie|déplie|reduire|réduire|agrandir/i.test(n + " " + action)) return;
+    const avecFenetre = !!popup && popup !== "false";
+    if (e.tagName === "A" && (e.getAttribute("href") || "").startsWith("#/") && !action && !avecFenetre) return;
+    const estOuvreur = avecFenetre || OUVREURS_CONNUS.includes(action) || (!action && /^(plus|compte|mon compte|menu)$/i.test(n));
+    if (!estOuvreur || (!OUVREURS_CONNUS.includes(action) && /repli|deplie|déplie|reduire|réduire|agrandir/i.test(n))) return;
     e.setAttribute("data-vn-i", String(liste.length));
     liste.push({ i: liste.length, action, nom: n });
   });
@@ -661,6 +758,7 @@ class Resultat:
         self.avert = []         # (catégorie, clé, vue, détail)
         self.clics = {1: 0, 2: 0}
         self.coquille = False   # la coquille est montée : ses contrôles sont joués
+        self.profil_stagiaire = False   # la personne connectée a un profil stagiaire (donc un Mon espace)
         self.console = []       # erreurs de console et de page, vidées à chaque vue
         self.deja_vues = set()  # erreurs de console déjà signalées dans ce scénario
         self.duree = 0.0
@@ -719,8 +817,13 @@ def moteur_installe(moteur):
         racines.append(pathlib.Path(os.environ["PLAYWRIGHT_BROWSERS_PATH"]))
     home = pathlib.Path.home()
     racines += [home / "AppData/Local/ms-playwright", home / ".cache/ms-playwright", home / "Library/Caches/ms-playwright"]
+    # Chromium sans fenêtre est le « headless shell » de Playwright (chromium_headless_shell-*), puis le Chromium complet.
     motifs = {"webkit": ["webkit-*/Playwright.exe", "webkit-*/pw_run.sh"],
-              "chromium": ["chromium-*/chrome-win*/chrome.exe", "chromium-*/chrome-linux*/chrome"]}[moteur]
+              "chromium": ["chromium_headless_shell-*/chrome-headless-shell-win*/chrome-headless-shell.exe",
+                           "chromium_headless_shell-*/chrome-headless-shell-linux*/chrome-headless-shell",
+                           "chromium_headless_shell-*/chrome-headless-shell-mac*/chrome-headless-shell",
+                           "chromium-*/chrome-win*/chrome.exe", "chromium-*/chrome-linux*/chrome",
+                           "chromium-*/chrome-mac*/Chromium.app/Contents/MacOS/Chromium"]}[moteur]
     for racine in racines:
         for motif in motifs:
             trouves = sorted(racine.glob(motif))
@@ -729,15 +832,25 @@ def moteur_installe(moteur):
     return None
 
 
+def raison_courte(erreur):
+    lignes = str(erreur).strip().splitlines()
+    return (lignes[0] if lignes else "échec du lancement")[:160]
+
+
 def lancer_navigateur(p, moteur):
+    """(navigateur, None), ou (None, raison) quand ni le moteur attendu ni un moteur déjà installé ne démarre."""
     genre = getattr(p, moteur)
     try:
-        return genre.launch()
-    except ErreurPlaywright:
-        chemin = moteur_installe(moteur)
-        if not chemin:
-            return None
-        return genre.launch(executable_path=chemin)
+        return genre.launch(), None
+    except ErreurPlaywright as e:
+        premiere = raison_courte(e)
+    chemin = moteur_installe(moteur)
+    if not chemin:
+        return None, "%s ; aucun autre %s dans ms-playwright" % (premiere, moteur)
+    try:
+        return genre.launch(executable_path=chemin), None
+    except ErreurPlaywright as e:
+        return None, "%s ; repli sur %s : %s" % (premiere, chemin, raison_courte(e))
 
 
 STATIQUES = ("/js/", "/css/", "/assets/", "/vendor/", "/scripts/", "/_harness_supabase.js")
@@ -805,12 +918,29 @@ def nouvelle_page(contexte, res):
 COMPTEUR = itertools.count(1)
 
 
-def charger(page, url, sc):
-    cb = "%d-%d-%d" % (int(time.time() * 1000), os.getpid(), next(COMPTEUR))
-    adresse = "%s?cb=%s&role=%s&date=%s&emargement=1" % (url, cb, sc.role, DATE_DU_BANC)
+def adresse_de_page(url, sc):
+    """L'adresse du banc pour ce scénario : les paramètres que l'adresse donnée porte déjà sont gardés (un
+    `?lenteur=...`), ceux du scénario les remplacent ; le fragment est retiré (l'app s'ouvre à froid)."""
+    p = urllib.parse.urlparse(url)
+    q = dict(urllib.parse.parse_qsl(p.query, keep_blank_values=True))
+    q.update(cb="%d-%d-%d" % (int(time.time() * 1000), os.getpid(), next(COMPTEUR)), role=sc.role, date=DATE_DU_BANC, emargement="1")
+    q.pop("modules", None)
     if sc.modules:
-        adresse += "&modules=" + sc.modules
-    page.goto(adresse, wait_until="load", timeout=20000)
+        q["modules"] = sc.modules
+    return urllib.parse.urlunparse(p._replace(query=urllib.parse.urlencode(q), fragment=""))
+
+
+def charger(page, url, sc):
+    adresse = adresse_de_page(url, sc)
+    for essai in (1, 2):
+        # Le document du banc n'est pas servi du cache : une lecture ratée sous charge se rejoue une fois.
+        try:
+            page.goto(adresse, wait_until="load", timeout=20000)
+            break
+        except (DelaiDepasse, ErreurPlaywright):
+            if essai == 2:
+                raise
+            page.wait_for_timeout(500)
     page.evaluate(JS_OUTILS)
     attendre(page, calme=250, maximum=8000)
 
@@ -856,7 +986,7 @@ def verifier_vue(page, res, sc, titre, options):
     attendre(page)
     res.vues += 1
     o = {"passe": sc.passe, "espace": sc.espace, "coquille": res.coquille, "seuilTelephone": SEUIL_TELEPHONE,
-         "dette": list(DETTE_LOT_2 + DETTE_CONSTATEE_HORS_R10), "exception": EXCEPTION_ADMISE}
+         "dette": list(DETTE_LOT_2 + DETTE_R11), "exception": EXCEPTION_ADMISE}
     avant = len(res.echecs)
     try:
         m = page.evaluate("(o) => window.__verifNav.mesurer(o)", o)
@@ -867,11 +997,7 @@ def verifier_vue(page, res, sc, titre, options):
     for type_, detail in m["echecs"]:
         res.echec(type_, vue, detail)
     for cle, detail in m["dettes"]:
-        if sc.passe == "eteint":
-            categorie = "ancienne navigation"
-        else:
-            categorie = "dette du lot 2, hors liste R10" if cle in DETTE_CONSTATEE_HORS_R10 else "dette du lot 2"
-        res.avertir(categorie, cle, vue, detail)
+        res.avertir("dette du lot 2, ruling R11" if cle in DETTE_R11 else "dette du lot 2", cle, vue, detail)
     for type_, detail in m["avert"]:
         res.avertir(type_, detail, vue, detail)
     vider_console(res, vue)
@@ -897,14 +1023,35 @@ def route_courante(page):
     return page.evaluate("() => (location.hash || '').replace(/^#\\//, '').split('/')[0]")
 
 
+def plancher_sous_onglets(route, sc, res):
+    """Nombre de sous-onglets (ou de lignes du sommaire sur téléphone) que la page montre au moins, nouvelle
+    navigation allumée (Task 3). 0 : rien n'est attendu. Au départ (`?modules=depart`), un stagiaire ne voit
+    que les modules ouverts : Planning perd Priorités, Cours se réduit à Documents et Mon espace à Passages,
+    deux pages sans barre ; un formateur voit tout, les modules fermés repérés."""
+    depart = sc.modules == "depart" and sc.espace == "stagiaire"
+    if route == "planning":
+        return 2 if depart else 3      # Semaine, Dates clés, Priorités
+    if route == "themes":
+        return 0 if depart else 3      # Thèmes, Compétences, Documents (et Signalements chez un formateur)
+    if route == "mon-suivi" and res.profil_stagiaire:
+        return 0 if depart else 6      # Passages, EPCF, Évolution, Livret, Dossier pro, La classe
+    return 0
+
+
 def sous_vues(page, res, sc, route, options):
     """Chaque sous-onglet de la première barre de la page, ou chaque ligne du sommaire de Mon
-    espace sur téléphone (la partie s'ouvre alors par son adresse)."""
+    espace sur téléphone (la partie s'ouvre alors par son adresse). Nouvelle navigation allumée, une page
+    qui devrait en montrer et n'en montre pas assez (barre perdue) échoue."""
     libelles = page.evaluate("""() => {
         const b = document.querySelector('#view .subtabs-bar');
         if (!b) return [];
         return [...b.querySelectorAll(':scope > .subtab')].map((x) => (x.childNodes[0] ? x.childNodes[0].textContent : x.textContent).trim());
     }""")
+    if sc.passe == "allume":
+        attendu = plancher_sous_onglets(route, sc, res)
+        nb = len(libelles) or page.evaluate("() => document.querySelectorAll('#view nav.fiche-sommaire a.fiche-ligne').length")
+        if nb < attendu:
+            res.echec("sous-onglets manquants", "%s/%s" % (sc.nom, route), "#/%s montre %d sous-onglet(s) ou ligne(s) de sommaire, au moins %d attendu(s)" % (route, nb, attendu))
     for i, libelle in enumerate(libelles):
         titre = "%s/%s" % (route, libelle)
         try:
@@ -1045,6 +1192,7 @@ def parcourir_entrees(page, res, sc, entrees, options, avec_sous_vues=True):
 
 def jouer_allume(page, res, sc, options):
     regles = regles_de_la_page(page, res, sc)
+    res.profil_stagiaire = bool(regles.get("profilStagiaire"))
     preparer_coquille(page, res, sc, regles)
     if sc.voir_en_tant_que:
         jouer_voir_en_tant_que(page, res, sc, options)
@@ -1132,14 +1280,14 @@ def executer_lot(lot):
     moteur, url, options = lot["moteur"], lot["url"], lot["options"]
     scenarios = [Scenario(**s) for s in lot["scenarios"]]
     with sync_playwright() as p:
-        navigateur = lancer_navigateur(p, moteur)
+        navigateur, raison = lancer_navigateur(p, moteur)
         if navigateur is None:
-            return {"moteur": moteur, "indisponible": True, "resultats": []}
+            return {"moteur": moteur, "indisponible": True, "raison": raison, "resultats": []}
         try:
             resultats = [jouer_scenario(navigateur, url, sc, options).en_dict() for sc in scenarios]
         finally:
             navigateur.close()
-    return {"moteur": moteur, "indisponible": False, "resultats": resultats}
+    return {"moteur": moteur, "indisponible": False, "raison": None, "resultats": resultats}
 
 
 # --------------------------------------------------------------------------------------
@@ -1169,8 +1317,7 @@ def lister(groupes, limite):
 
 ENTETES_AVERTISSEMENTS = {
     "dette du lot 2": "dette du lot 2 : défilement de côté dans des conteneurs de page qui défilaient déjà sur main (ruling R10 : le lot 1 ne touche pas aux pages)",
-    "dette du lot 2, hors liste R10": "dette du lot 2, hors liste R10 : débordement constaté sur main (passe éteinte), à confirmer par le contrôleur",
-    "ancienne navigation": "ancienne navigation (interrupteur éteint) : défilements et débordements hérités de main, rien à faire dans le lot 1",
+    "dette du lot 2, ruling R11": "dette du lot 2, ruling R11 : le lien Légifrance de Cours > Signalements dépasse à 375 px, déjà sur main (avertissement à part, sans échec)",
 }
 
 
@@ -1314,7 +1461,7 @@ def main(argv=None):
         globaux.append(("banc périmé", "banc", "_harness.html ne charge pas %s, qu'index.html charge : relancer `node _harness_build.mjs`" % ", ".join(absents)))
     for sortie in sorties:
         if sortie["indisponible"]:
-            globaux.append(("moteur indisponible", sortie["moteur"], "aucun moteur %s installé : ses vues n'ont pas été jouées (l'écarter avec --moteurs)" % sortie["moteur"]))
+            globaux.append(("moteur indisponible", sortie["moteur"], "%s : ses vues n'ont pas été jouées (l'écarter avec --moteurs)" % sortie["raison"]))
         else:
             resultats.extend(sortie["resultats"])
     ordre = {sc.nom: i for i, sc in enumerate(scenarios)}
