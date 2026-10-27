@@ -39,8 +39,9 @@ manque) :
     l'ancienne barre d'onglets, pas de sous-onglets regroupés).
 Dans chaque contexte : l'arrivée à froid, chaque entrée de la coquille (cliquée dans la coquille, ou
 via « Plus » sur téléphone quand elle y est rangée ; la liste vient des règles de js/nav-rules.js,
-lues dans la page), chaque sous-onglet des pages qui en ont (Planning, Cours, Mon espace, Notes...), puis
-les menus (compte, « Plus », contexte, assistant).
+lues dans la page), chaque sous-onglet des pages qui en ont (Planning, Cours, Mon espace, Notes...), les
+pages du menu du compte sans entrée à elles (Mon espace, Réglages, Nouveautés), puis les menus (compte,
+« Plus », contexte, assistant).
 
 Contrôles par vue
 -----------------
@@ -1051,11 +1052,14 @@ def jouer_allume(page, res, sc, options):
     verifier_vue(page, res, sc, "ouverture/" + route_courante(page), options)
     entrees = regles["entrees"]
     parcourir_entrees(page, res, sc, entrees, options)
-    # Mon espace pour qui a un profil stagiaire sans entrée à ce nom (le fondateur : menu du compte).
-    if regles.get("profilStagiaire") and "mon-suivi" not in [e["route"] for e in entrees]:
-        aller_a(page, "#/mon-suivi")
-        verifier_vue(page, res, sc, "mon-suivi", options)
-        sous_vues(page, res, sc, "mon-suivi", options)
+    # Les pages que le menu du compte ouvre sans avoir d'entrée à elles : Mon espace (qui a un profil
+    # stagiaire), Réglages (stagiaire), Nouveautés. Ouvertes par leur adresse : le menu est joué plus bas.
+    routes = [e["route"] for e in entrees]
+    for route in (["mon-suivi"] if regles.get("profilStagiaire") else []) + ["config", "nouveautes"]:
+        if route not in routes:
+            aller_a(page, "#/" + route)
+            verifier_vue(page, res, sc, route, options)
+            sous_vues(page, res, sc, route, options)
     if res.coquille:
         aller_a(page, "#/home")
         verifier_menus(page, res, sc, options)
