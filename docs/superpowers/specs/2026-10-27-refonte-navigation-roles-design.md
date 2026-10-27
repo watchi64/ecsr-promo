@@ -54,6 +54,9 @@ il n'existe ni rôle « direction » ni rôle « siège ».
 - Des droits qui n'existent que dans l'interface (l'aperçu « Voir en tant que » actuel est purement
   visuel ; les nouveaux rôles doivent être vrais en base).
 - Une note affichée en rouge (règle de Timy) : le rouge d'ECF ne sert qu'aux repères.
+- Un contenu qui défile de côté, à quelque taille d'écran que ce soit (règle de Timy du 27/10) :
+  sous-onglets qui passent à la ligne, tableaux en listes hors ordinateur, matrices en pastilles sur
+  téléphone.
 - Le logo d'ECF dans l'app sans accord écrit d'ECF.
 
 ## 4. La proposition
