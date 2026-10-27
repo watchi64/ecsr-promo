@@ -35,7 +35,9 @@ manque) :
     de la promo, `is_founder` retiré : le cas de la plupart des vrais comptes), le stagiaire et le prof
     avec `?modules=depart` (modules fermés : pas de case vide, repères), et le « Voir en tant que » du
     fondateur (Stagiaire, Formateur, Stagiaire, puis son rôle réel : la coquille change d'espace sans
-    recharger la page, et l'entrée allumée suit la page affichée).
+    recharger la page, et l'entrée allumée suit la page affichée ; sur téléphone, il passe aussi par
+    « Plus », « Mon compte », « Stagiaire », puis ouvre le tiroir et élargit l'écran à 900 px : le tiroir
+    se ferme et le focus ne tombe jamais sur body).
   * Passe « éteint » : aucun aperçu, rien ne doit changer par rapport à main (aucune coquille,
     l'ancienne barre d'onglets, pas de sous-onglets regroupés, aucun défilement ni débordement de côté
     de plus que ceux des rulings R10 et R11).
@@ -106,7 +108,10 @@ par `--script-init`, et le script a échoué avec le message attendu ; la coquil
     allumé à la place du lien, entrée sans `title`, libellé réservé aux lecteurs d'écran sans `title`
     (colonne d'icônes et barre du bas), lien d'évitement trop petit une fois affiché au focus ;
   * page : une page qui perd ses sous-onglets ;
-  * menus : Échap qui ne ferme pas, menu hors de l'écran, tiroir resté ouvert (avertissement) ;
+  * menus : Échap qui ne ferme pas, menu hors de l'écran, tiroir resté ouvert (avertissement) ; focus rendu
+    à body quand le bouton d'une fenêtre a disparu (« Plus » > « Mon compte » > « Stagiaire ») ou ne
+    s'affiche plus (écran élargi tiroir ouvert), tiroir resté ouvert quand l'écran passe à 900 px (sur la
+    coquille de la Task 5 avant sa correction) ;
   * interrupteur éteint : un `h1` trop large (« élément de page qui déborde »), une coquille présente ;
   * mise en place : erreur de console et de page, interrupteur qui n'allume pas, banc périmé.
 Sans défaut, n'échouent pas : un bouton `data-nav-action="deconnexion"` (pas un ouvreur), un lien d'évitement
@@ -694,9 +699,14 @@ function mesurerPopups(o) {
 }
 const popupsEncoreOuverts = () => popupsVisibles().filter((e) => !e.hasAttribute("data-vn-avant")).map(nom);
 const focusSurOuvreur = () => !!(document.activeElement && document.activeElement.closest("[data-vn-ouvreur]"));
+// Où est le focus clavier : null s'il est sur un élément affiché de la coquille, sinon ce qui l'a (body...).
+const focusPerdu = () => {
+  const a = document.activeElement;
+  return a && a !== document.body && a.closest("[data-nav-coquille]") && visible(a) ? null : (a ? nom(a) : "aucun élément");
+};
 
 window.__verifNav = { mesurer, regles: reglesSimples, voirEnTantQue, chercherLien, chercherPlus, ouvreurs, marquerPopups, mesurerPopups,
-  popupsEncoreOuverts, focusSurOuvreur, popupsVisibles: () => popupsVisibles().length };
+  popupsEncoreOuverts, focusSurOuvreur, focusPerdu, popupsVisibles: () => popupsVisibles().length };
 })();
 """
 
@@ -1214,6 +1224,39 @@ def jouer_allume(page, res, sc, options):
         verifier_menus(page, res, sc, options)
 
 
+def focus_garde(page, res, vue, geste):
+    perdu = page.evaluate("() => window.__verifNav.focusPerdu()")
+    if perdu:
+        res.echec("focus perdu", vue, "%s : le focus n'est plus dans la coquille (%s)" % (geste, perdu))
+
+
+def jouer_focus_des_fenetres(page, res, sc):
+    """Téléphone, fondateur dans l'espace de l'équipe : quand une fenêtre de la coquille se ferme et que son
+    bouton a disparu ou ne s'affiche plus, le focus reste dans la coquille, jamais sur body. Deux chemins :
+    « Plus », « Mon compte », Voir en tant que « Stagiaire » (la coquille du stagiaire n'a pas de « Plus ») ;
+    tiroir ouvert puis écran élargi au-delà de 700 px (un iPhone couché), où le tiroir doit se fermer."""
+    vue = "%s/focus-des-fenetres" % sc.nom
+    aller_a(page, "#/planning")
+    attendre(page)
+    if (cliquer(page, res, vue, '[data-nav-coquille] [data-nav-action="plus"]', "bouton « Plus »")
+            and cliquer(page, res, vue, '[role="dialog"] [data-nav-action="compte"]', "« Mon compte » du tiroir")
+            and cliquer(page, res, vue, '[role="dialog"] button:text-is("Stagiaire")', "« Stagiaire » de Voir en tant que")):
+        attendre(page, calme=250)
+        focus_garde(page, res, vue, "« Plus », « Mon compte », Voir en tant que « Stagiaire »")
+    page.evaluate("(r) => window.__verifNav.voirEnTantQue(r)", None)
+    attendre(page, calme=250)
+    if cliquer(page, res, vue, '[data-nav-coquille] [data-nav-action="plus"]', "bouton « Plus »"):
+        page.set_viewport_size({"width": 900, "height": HAUTEUR[900]})
+        attendre(page, calme=250)
+        if page.evaluate("() => window.__verifNav.popupsVisibles()"):
+            res.echec("tiroir resté ouvert", vue, "le tiroir « Plus » reste ouvert quand l'écran passe de %d à 900 px" % sc.largeur)
+            page.keyboard.press("Escape")
+        focus_garde(page, res, vue, "tiroir ouvert, écran élargi à 900 px")
+        page.set_viewport_size({"width": sc.largeur, "height": HAUTEUR[sc.largeur]})
+        attendre(page, calme=250)
+    vider_console(res, vue)
+
+
 def jouer_voir_en_tant_que(page, res, sc, options):
     """Le fondateur bascule « Voir en tant que » : Stagiaire, Formateur, Stagiaire de nouveau, puis son
     rôle réel. À chaque bascule, la coquille change d'espace sans recharger la page, et l'entrée allumée
@@ -1222,6 +1265,8 @@ def jouer_voir_en_tant_que(page, res, sc, options):
     if not res.coquille:
         return
     page.evaluate("() => { window.__vnMarqueur = 'avant'; }")
+    if sc.largeur < SEUIL_TELEPHONE:
+        jouer_focus_des_fenetres(page, res, sc)
     etapes = (("stagiaire", "stagiaire"), ("prof", "equipe"), ("stagiaire", "stagiaire"), (None, "equipe"))
     for i, (vu, espace) in enumerate(etapes, 1):
         nom_vu = "voir-en-tant-que-%d-%s" % (i, vu or "role-reel")
