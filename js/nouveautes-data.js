@@ -16,6 +16,14 @@
 
 export const NOUVEAUTES = [
   {
+    id: "2026-10-27-textes-plus-lisibles",
+    date: "2026-10-27",
+    pour: "tous",
+    titre: "Textes plus lisibles",
+    resume: "Les textes gris et verts de l'app ont été légèrement foncés pour mieux se lire, "
+          + "notamment au soleil sur le téléphone. Les couleurs restent les mêmes, juste un peu plus soutenues.",
+  },
+  {
     id: "2026-10-24-app-installable",
     date: "2026-10-24",
     pour: "tous",
