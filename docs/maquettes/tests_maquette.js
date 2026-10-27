@@ -11,8 +11,9 @@
   const dans = (r, b) => r.left >= b.left - 1 && r.right <= b.right + 1 && r.top >= b.top - 1 && r.bottom <= b.bottom + 1;
 
   function taille(nom) {
-    // ordinateur : cadre libre ; tablette : cadre forcé à 900 px ; téléphone : cadre iPhone
-    frameEl.style.width = nom === "tablette" ? "900px" : "";
+    // ordinateur : cadre libre ; ordinateur étroit : 1100 px (barre latérale dépliée, contenu
+    // le plus serré) ; tablette : 900 px ; téléphone : cadre iPhone
+    frameEl.style.width = nom === "tablette" ? "900px" : nom === "ordinateur-etroit" ? "1100px" : "";
     S.device = nom === "telephone" ? "phone" : "desktop";
     M.render(); window.dispatchEvent(new Event("resize"));
     rapport.tailles[nom] = S.size + ", " + Math.round(screenEl.getBoundingClientRect().width) + " px";
@@ -27,10 +28,13 @@
     if (sc && sc.scrollWidth > sc.clientWidth + 1) echec("défilement horizontal", ou + " " + sc.scrollWidth + ">" + sc.clientWidth);
     const b = sc.getBoundingClientRect();
     const larges = new Set();
+    // Aucune exception : pas même un tableau ou une barre de sous-onglets qui défilerait de
+    // côté (retour de Timy du 27/10 : « à éviter absolument » sur téléphone).
     sc.querySelectorAll("*").forEach((el) => {
-      if (el.closest(".tbl-wrap, .subnav")) return;
       const r = el.getBoundingClientRect();
-      if (r.width && (r.right > b.right + 1 || r.left < b.left - 1)) larges.add(String(el.getAttribute("class") || el.tagName).slice(0, 30));
+      if (r.width && (r.right > b.right + 1 || r.left < b.left - 1) && !el.closest(".sr")) larges.add(String(el.getAttribute("class") || el.tagName).slice(0, 30));
+      const ox = getComputedStyle(el).overflowX;
+      if ((ox === "auto" || ox === "scroll") && el.scrollWidth > el.clientWidth + 1) larges.add("défile de côté : " + String(el.getAttribute("class") || el.tagName).slice(0, 30));
     });
     if (larges.size) echec("élément trop large", ou + " " + [...larges].slice(0, 3).join(", "));
     // le cadre de navigation reste entièrement dans l'écran
@@ -60,7 +64,7 @@
     });
   }
 
-  for (const nom of ["ordinateur", "tablette", "telephone"]) {
+  for (const nom of ["ordinateur", "ordinateur-etroit", "tablette", "telephone"]) {
     taille(nom);
     for (const role of Object.keys(M.ROLES)) {
       S.role = role; S.page = {}; S.sub = {}; M.render(); window.dispatchEvent(new Event("resize"));
@@ -75,6 +79,23 @@
         for (const k of (sous.length ? sous : [null])) {
           if (k) document.querySelector(`#scroller .subnav [data-sub="${k}"]`).click();
           controlerVue(nom, role, n.id, k);
+          // fiches ouvertes depuis la page (stagiaire, centre) : chacune de leurs parties
+          const ouvrir = document.querySelector("#scroller [data-act^='fiche:'], #scroller [data-act^='centre:']");
+          if (ouvrir && (!k || k === sous[0])) {
+            const act = ouvrir.dataset.act;
+            ouvrir.click();
+            const parts = [...document.querySelectorAll("#scroller .subnav [data-sub]")].map((x) => x.dataset.sub);
+            for (const pf of (parts.length ? parts : [null])) {
+              if (pf) document.querySelector(`#scroller .subnav [data-sub="${pf}"]`).click();
+              controlerVue(nom, role, n.id, act + (pf ? "/" + pf : ""));
+            }
+            M.go(n.id);
+          }
+          // variantes d'affichage d'une même page (planning en grille ou en liste)
+          for (const v of [...document.querySelectorAll("#scroller [data-act^='vue:']")].map((x) => x.dataset.act)) {
+            document.querySelector(`#scroller [data-act="${v}"]`).click();
+            controlerVue(nom, role, n.id, (k || "") + "/" + v);
+          }
         }
       }
       // calques : dans l'écran, et la touche Échap les ferme
@@ -94,7 +115,7 @@
   // contrastes des couleurs de texte, dans les deux habillages
   const lum = (hex) => { const c = hex.replace("#", ""); const v = [0, 2, 4].map((i) => parseInt(c.substr(i, 2), 16) / 255).map((x) => x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4)); return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2]; };
   const ratio = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
-  const paires = [["--ink", "--bg"], ["--ink-soft", "--surface"], ["--ink-muted", "--bg"], ["--ink-muted", "--surface"], ["--ink-muted", "--sunken"], ["--accent-ink", "--surface"], ["--accent-ink", "--accent-soft"], ["--accent-ink", "--accent-soft-2"], ["--on-btn", "--btn"], ["--on-deep", "--deep"], ["--on-deep-muted", "--deep"], ["--on-badge", "--badge"], ["--ok", "--ok-soft"], ["--warn", "--warn-soft"], ["--signal", "--signal-soft"], ["--n1-ink", "--n1"], ["--n2-ink", "--n2"], ["--n3-ink", "--n3"], ["--n4-ink", "--n4"]];
+  const paires = [["--ink", "--bg"], ["--ink-soft", "--surface"], ["--ink-muted", "--bg"], ["--ink-muted", "--surface"], ["--ink-muted", "--sunken"], ["--accent-ink", "--surface"], ["--accent-ink", "--accent-soft"], ["--accent-ink", "--accent-soft-2"], ["--on-btn", "--btn"], ["--on-deep", "--deep"], ["--on-deep-muted", "--deep"], ["--on-badge", "--badge"], ["--ok", "--ok-soft"], ["--warn", "--warn-soft"], ["--signal", "--signal-soft"], ["--n1-ink", "--n1"], ["--n2-ink", "--n2"], ["--n3-ink", "--n3"], ["--n4-ink", "--n4"], ["--act-salle-ink", "--act-salle"], ["--act-voiture-ink", "--act-voiture"], ["--act-autonomie-ink", "--act-autonomie"], ["--act-examen-ink", "--act-examen"]];
   const avant = screenEl.dataset.skin;
   for (const habillage of ["ecsr", "ecf"]) {
     screenEl.dataset.skin = habillage;

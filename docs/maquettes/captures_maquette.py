@@ -33,14 +33,22 @@ ETATS = [
     ("15-siege-ensemble-ordi-ecf", "ordi", "siege", "ensemble", None, "ecf", None, False),
     ("16-siege-qualiopi-ordi", "ordi", "siege", "qualiopi", None, "ecsr", None, False),
     ("17-signalement-ordi", "ordi", "formateur", "notes", "matrice", "ecsr", "signal", False),
+    ("20-stagiaire-planning-grille-ordi", "ordi", "stagiaire", "planning", "semaine", "ecsr", None, False),
+    ("21-formateur-planning-grille-ordi", "ordi", "formateur", "planning", "semaine", "ecsr", None, False),
+    ("22-stagiaire-planning-jour-iphone", "iphone", "stagiaire", "planning", "semaine", "ecsr", None, False),
+    ("23-formateur-fiche-iphone", "iphone", "formateur", "stagiaires", "liste", "ecsr", "fiche", False),
+    ("24-formateur-notes-iphone", "iphone", "formateur", "notes", "matrice", "ecsr", None, False),
+    ("25-stagiaire-cours-iphone", "iphone", "stagiaire", "cours", "themes", "ecsr", None, False),
 ]
 
 POSER = """([role, page, sous, habillage, calque, replie]) => {
   const M = window.__maquette, S = M.S;
   S.view = 'maquette'; S.role = role; S.skin = habillage; S.collapsed = replie; S.page = {}; S.sub = {};
   M.render(); window.dispatchEvent(new Event('resize'));
+  S.vuePlanning = 'grille'; S.jour = 1;
   M.go(page, sous || undefined);
-  if (calque) M.open(calque);
+  if (calque === 'fiche') { S.fiche = 1; S.ficheSub = 'notes'; M.render(); }
+  else if (calque) M.open(calque);
   return S.size;
 }"""
 

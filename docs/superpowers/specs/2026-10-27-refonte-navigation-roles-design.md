@@ -79,7 +79,9 @@ barre en haut, ce qui reste vrai sur ordinateur et tablette).
 **Stagiaire** (4 onglets, plus CCP2 quand un formateur l'ouvre)
 - Accueil : la journée (séance, passage au tableau, bouton « Signer pour ce matin », voiture), À faire
   (QCM, dossier, livret), prochain rendez-vous, nouveautés, contacts du centre.
-- Planning : Semaine, Dates clés (ex-Calendrier), Priorités.
+- Planning : Semaine (en grille, jours en colonnes et demi-journées en lignes, ou en liste ; sur iPhone,
+  bande de cinq jours puis le jour choisi), Dates clés (ex-Calendrier), Priorités. Vue en grille demandée
+  par Timy le 27/10, la même pour le formateur (avec qui est au tableau, combien en voiture).
 - Cours et QCM : Thèmes, Compétences, QCM, Documents (ex-Ressources), avec recherche.
 - Mon suivi : Résultats (moi / la classe, ex-Notes), Passages, EPCF, Livret, Dossier pro.
 - CCP2 : le parcours en 8 étapes.
@@ -175,7 +177,10 @@ les anciennes adresses mènent au bon endroit.
 ## 5. Tests et itérations de la maquette
 
 - Contrôles automatiques (`tests_maquette.js`, joués par `captures_maquette.py` dans Chromium et WebKit) :
-  162 vues (4 rôles, chaque page et sous-page, ordinateur, tablette, iPhone), 0 échec. Toute destination à
+  341 vues (4 rôles, chaque page, sous-page, fiche et variante d'affichage ; ordinateur, ordinateur
+  étroit de 1 100 px, tablette, iPhone), 0 échec. Règle ajoutée après le retour de Timy : aucun élément ne
+  défile de côté (sous-onglets qui passent à la ligne, tableaux en listes hors ordinateur, matrice des
+  notes en pastilles sur téléphone). Toute destination à
   1 clic (2 sur iPhone via « Plus ») ; cibles de 44 px sur iPhone ; contraste du texte 4,99:1 au plus bas
   dans les deux habillages ; menus dans l'écran et fermés par Échap ; libellés de la barre du bas sur une
   ligne.
