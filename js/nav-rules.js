@@ -1,0 +1,120 @@
+// Navigation par espace (refonte, lot 1) : les règles seulement. Quelles entrées montre
+// chaque espace, comment la barre du téléphone les répartit, quelle entrée s'allume pour
+// une page et où mènent les anciennes adresses. Module pur, sans DOM ni stockage : testé
+// en node.
+
+// Clé de mémoire du sous-onglet ouvert, par page à sous-onglets (le `storageKey` de
+// renderSubTabs). Une redirection l'écrit pour ouvrir le bon sous-onglet.
+export const CLES_SOUS_ONGLETS = { planning: "planning.subtab", themes: "themes.subtab" };
+
+// `id` vaut la route de la page ouverte ; `court` est le libellé de la barre du téléphone
+// (le libellé entier sauf mention) ; `groupe` range l'entrée sous un titre de la barre
+// latérale de l'équipe.
+function entree(route, libelle, icone, { court = libelle, groupe = null } = {}) {
+  return { id: route, route, libelle, court, icone, groupe };
+}
+
+// Stagiaire, dans l'ordre de la barre. Planning, Cours et QCM et CCP2 suivent les modules
+// ouverts pour la promo ; Accueil et Mon suivi sont toujours là.
+const ENTREES_STAGIAIRE = [
+  entree("home", "Accueil", "home"),
+  entree("planning", "Planning", "calendar"),
+  entree("themes", "Cours et QCM", "book"),
+  entree("mon-suivi", "Mon suivi", "trend"),
+  entree("ccp2", "CCP2", "target"),
+];
+const TOUJOURS_VISIBLES = ["home", "mon-suivi"];
+
+// Équipe (formateur, admin), dans l'ordre de la barre latérale. Un module fermé n'en retire
+// aucune : la coquille la repère au lieu de la masquer. Seul Émargement dépend d'un
+// interrupteur de la promo. Accueil devient Aujourd'hui avec la page du même nom (lot 2).
+const ENTREES_EQUIPE = [
+  entree("home", "Accueil", "home"),
+  entree("planning", "Planning", "calendar"),
+  entree("emargement", "Émargement", "clipboard"),
+  entree("stagiaires", "Stagiaires", "users"),
+  entree("notes", "Notes et examens", "edu", { court: "Notes" }),
+  entree("themes", "Cours et QCM", "book"),
+  entree("ccp2", "CCP2", "target"),
+  entree("centre", "Indicateurs", "chart", { groupe: "Promo" }),
+  entree("config", "Réglages", "settings", { groupe: "Promo" }),
+];
+
+// Ce que la barre du bas du téléphone garde chez l'équipe ; le reste passe dans « Plus ».
+const BARRE_TELEPHONE_EQUIPE = ["home", "planning", "stagiaires", "notes"];
+
+// Pages sans entrée à elles : l'entrée allumée est celle de la page qui les remplace ou les
+// contient. Chez le stagiaire, `notes` (la classe) vit sous Mon suivi ; chez l'équipe, Notes
+// a son entrée, que `entreeActive` trouve avant de consulter cette table.
+const ALIAS_ENTREE_ACTIVE = new Map([
+  ["calendrier", "planning"],
+  ["dashboard", "planning"],
+  ["ressources", "themes"],
+  ["nouveautes", "home"],
+  ["notes", "mon-suivi"],
+]);
+
+// Anciennes adresses déplacées : la page visée et le sous-onglet à y ouvrir (les mêmes dans
+// les deux espaces). Une Map, comme pour les alias : la route vient de l'adresse tapée, et un
+// objet simple répondrait aussi à `constructor` ou `toString`.
+const REDIRECTIONS = new Map([
+  ["calendrier", { page: "planning", sousOnglet: "dates" }],
+  ["dashboard", { page: "planning", sousOnglet: "priorites" }],
+  ["ressources", { page: "themes", sousOnglet: "documents" }],
+]);
+
+const copie = (e) => ({ ...e });
+
+// "equipe" pour un formateur ou un admin (même avec un profil stagiaire), "stagiaire" sinon.
+export function espaceDe({ formateur }) {
+  return formateur ? "equipe" : "stagiaire";
+}
+
+// Entrées de l'espace, dans l'ordre d'affichage, en copies que l'appelant peut modifier.
+// Stagiaire : `routeVisible(route)` décide pour chaque page à module, Accueil et Mon suivi
+// restent toujours. Équipe : aucun module fermé n'en retire une (la coquille la repère), et
+// seul Émargement attend `emargementActif`.
+export function entreesNavigation(espace, { routeVisible, emargementActif }) {
+  if (espace === "equipe") {
+    return ENTREES_EQUIPE.filter((e) => e.id !== "emargement" || emargementActif).map(copie);
+  }
+  return ENTREES_STAGIAIRE
+    .filter((e) => TOUJOURS_VISIBLES.includes(e.id) || routeVisible(e.route))
+    .map(copie);
+}
+
+// Barre du bas du téléphone et tiroir « Plus ». Le stagiaire, 5 entrées au plus, les garde
+// toutes dans la barre ; l'équipe en garde 4 et range le reste dans `plus`.
+export function barreTelephone(espace, entrees) {
+  if (espace !== "equipe") return { barre: [...entrees], plus: [] };
+  return {
+    barre: entrees.filter((e) => BARRE_TELEPHONE_EQUIPE.includes(e.id)),
+    plus: entrees.filter((e) => !BARRE_TELEPHONE_EQUIPE.includes(e.id)),
+  };
+}
+
+// `id` de l'entrée à allumer pour une route : celle qui porte ce nom, sinon celle de la page
+// qui la remplace ; null quand aucune entrée de la liste ne la couvre.
+export function entreeActive(route, entrees) {
+  const ids = entrees.map((e) => e.id);
+  if (ids.includes(route)) return route;
+  const cible = ALIAS_ENTREE_ACTIVE.get(route);
+  return ids.includes(cible) ? cible : null;
+}
+
+// Où mène une ancienne adresse sous la nouvelle navigation : null (rien à rediriger) ou la
+// nouvelle adresse avec le sous-onglet à ouvrir (`cle` : sa clé de mémoire, `valeur` : son
+// identifiant). Seule la route décide : `id` et `partie` n'existent que pour Stagiaires et
+// Mon espace, jamais redirigés. `notes` ne bouge que chez le stagiaire (la classe, sous Mon
+// suivi) ; l'équipe garde sa page Notes. Aucune cible n'est elle-même redirigée : pas de boucle.
+export function redirectionV2({ route }, espace) {
+  const v = REDIRECTIONS.get(route);
+  if (v) {
+    const sousOnglet = { cle: CLES_SOUS_ONGLETS[v.page], valeur: v.sousOnglet };
+    return { hash: "#/" + v.page, sousOnglet };
+  }
+  if (route === "notes" && espace !== "equipe") {
+    return { hash: "#/mon-suivi/classe", sousOnglet: null };
+  }
+  return null;
+}
