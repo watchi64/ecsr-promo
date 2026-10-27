@@ -34,7 +34,7 @@ body.sig-ouverte { overflow: hidden; }
 }
 .sig-invite {
   position: absolute; left: 7%; bottom: 26%;
-  color: var(--text-faint); font-size: 0.85rem;
+  color: var(--text-muted); font-size: 0.85rem;
   pointer-events: none;
 }
 .sig-message { min-height: 1.2em; margin: 0.5rem 0 0; color: var(--c-stop); font-size: 0.85rem; }
