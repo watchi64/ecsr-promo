@@ -3,7 +3,9 @@
 // Stagiaires une fiche puis une partie. Module pur, sans DOM : testé en node.
 
 // Parties d'une fiche, dans l'ordre d'affichage (Mon espace et page Stagiaires).
-export const PARTIES = ["passages", "epcf", "evolution", "livret", "dp"];
+// `classe` (la vue Notes de la classe) n'existe que dans Mon espace et sous la nouvelle
+// navigation : js/views/mon-suivi.js la retire partout ailleurs.
+export const PARTIES = ["passages", "epcf", "evolution", "livret", "dp", "classe"];
 
 function partieValide(p) { return PARTIES.includes(p) ? p : null; }
 function idValide(s) { return /^[1-9]\d*$/.test(String(s ?? "")) ? Number(s) : null; }

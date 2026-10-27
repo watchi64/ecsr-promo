@@ -15,6 +15,7 @@ import { renderHome } from "./views/home.js?v=20261027a";
 import { renderDashboard } from "./views/dashboard.js?v=20261027a";
 import { renderMonSuivi } from "./views/mon-suivi.js?v=20261027a";
 import { renderPlanning, teardownPrintTarget, resetPlanningEditMode, requestPlanningToday } from "./views/planning.js?v=20261027a";
+import { renderPlanningEspace } from "./views/planning-espace.js?v=20261027a";
 import { teardownDocPrint } from "./doc-officiel.js?v=20261027a";
 import { renderNotes } from "./views/notes.js?v=20261027a";
 import { renderRessources } from "./views/ressources.js?v=20261027a";
@@ -30,6 +31,7 @@ import { renderCentre, teardownCentrePrint } from "./views/centre.js?v=20261027a
 import { renderEmargement } from "./views/emargement.js?v=20261027a";
 import { initBandeauEmargement, rafraichirBandeauEmargement } from "./emargement-bandeau.js?v=20261027a";
 import { chargerEmargementActif, emargementActif } from "./emargement-etat.js?v=20261027a";
+import { chargerNavigationV2, navigationV2Active } from "./nav-etat.js?v=20261027a";
 import { lireAdresse, pagePersonnelle } from "./route-rules.js?v=20261027a";
 import {
   peutQuitter, leverGardeSortie, majSurPlacePour, oublierMajSurPlace,
@@ -121,7 +123,9 @@ const routes = {
   home:       renderHome,
   dashboard:  renderDashboard,
   "mon-suivi": renderMonSuivi,
-  planning:   renderPlanning,
+  // Nouvelle navigation : Planning regroupe Semaine, Dates clés et Priorités en sous-onglets.
+  // Décidé au rendu (la décision est connue au démarrage, après la construction de la table).
+  planning:   (view) => (navigationV2Active() ? renderPlanningEspace(view) : renderPlanning(view)),
   calendrier: renderCalendrier,
   themes:     renderThemes,
   notes:      renderNotes,
@@ -338,8 +342,10 @@ async function bootApp() {
   // salarié du centre n'a pas à accepter en son nom les conditions de l'éditeur ; ce sera
   // couvert par le contrat avec le centre. Vrai rôle, pas l'aperçu « Voir en tant que ».
   if (getProfile()?.role !== "prof") await exigerAcceptation(getAdminEmail());
-  // Interrupteur de l'émargement (propre à la promo) lu en même temps que les modules.
-  await Promise.all([chargerModulesAuDemarrage(), chargerEmargementActif()]);
+  // Interrupteurs de l'émargement et de la nouvelle navigation (propres à la promo) lus en même
+  // temps que les modules. La navigation est décidée ici, une fois pour la session, avant le
+  // premier rendu (aperçu du fondateur compris).
+  await Promise.all([chargerModulesAuDemarrage(), chargerEmargementActif(), chargerNavigationV2()]);
   renderTabs();
   majBadgeNouveautes();
   setupRefreshBtn();

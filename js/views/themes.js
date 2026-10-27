@@ -11,6 +11,9 @@ import { renderSubTabs } from "../subtabs.js?v=20261027a";
 import { hasCours, openCoursSheet, chargerCoursIndex, coursDejaOuvert } from "./cours-reader.js?v=20261027a";
 import { cleCours } from "../cours-rules.js?v=20261027a";
 import { moduleVisible, moduleMasque, repereMasque } from "../modules-etat.js?v=20261027a";
+import { navigationV2Active } from "../nav-etat.js?v=20261027a";
+import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261027a";
+import { renderRessources } from "./ressources.js?v=20261027a";
 import { articlesCites, articlesHorsCours, titresDuCours, libelleTraceIa, brouillonVersQuestion, resumeProposition } from "../qcm-ia-rules.js?v=20261027a";
 
 let themes = [];
@@ -1893,7 +1896,24 @@ export async function renderThemes(container) {
     onglets.push({ key: "signalements", label: "⚑ Signalements",
       render: (p, ctx) => { renderConsoleSignalements(p, { themes, onOuvrirEditeur: ouvrirDepuisConsole, isActive: ctx?.isActive }); } });
   }
-  container.appendChild(renderSubTabs(onglets, { storageKey: "themes.subtab" }));
+  // Nouvelle navigation : les Ressources rejoignent les Cours, en dernier sous-onglet. La page
+  // se rend dans son propre conteneur : un rendu tardif (sous-onglet quitté pendant le
+  // chargement) écrit dans un nœud détaché, pas dans le panneau partagé.
+  if (navigationV2Active()) {
+    onglets.push({ key: "documents", label: "Documents", module: "ressources",
+      render: (p, ctx) => {
+        const zone = el("div");
+        p.appendChild(zone);
+        renderRessources(zone).catch((e) => {
+          console.error(e);
+          if (!ctx || ctx.isActive()) {
+            clear(zone);
+            zone.appendChild(el("p", { class: "muted" }, "Erreur de chargement des documents. Reviens sur l'onglet pour réessayer."));
+          }
+        });
+      } });
+  }
+  container.appendChild(renderSubTabs(onglets, { storageKey: CLES_SOUS_ONGLETS.themes }));
 }
 
 // La console ne connaît pas l'éditeur : elle rend la main ici avec le signalement,

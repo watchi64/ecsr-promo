@@ -19,6 +19,8 @@ import { openBenevolesPanel, telLink } from "./benevoles.js?v=20261027a";
 import { meilleurResultat } from "../passage-rules.js?v=20261027a";
 import { routeVisible, routeMasquee, repereMasque } from "../modules-etat.js?v=20261027a";
 import { emargementActif } from "../emargement-etat.js?v=20261027a";
+import { navigationV2Active } from "../nav-etat.js?v=20261027a";
+import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261027a";
 
 let stagiaires = [];
 let profs = [];
@@ -2709,7 +2711,15 @@ function scrollToDay(d) {
 // endroit où l'on sait quelle semaine est chargée et où les cartes existent déjà pour
 // pouvoir défiler jusqu'à la bonne.
 let pendingTodayJump = false;
-export function requestPlanningToday() { pendingTodayJump = true; }
+export function requestPlanningToday() {
+  pendingTodayJump = true;
+  // Nouvelle navigation : la semaine est le sous-onglet « Semaine » de Planning
+  // (js/views/planning-espace.js). C'est lui qui doit s'ouvrir, sinon le saut attendrait
+  // derrière Dates clés ou Priorités.
+  if (navigationV2Active()) {
+    try { localStorage.setItem(CLES_SOUS_ONGLETS.planning, "semaine"); } catch (e) { /* mode privé */ }
+  }
+}
 
 // Jour visé : aujourd'hui du lundi au vendredi ; le week-end, « aujourd'hui » n'existe
 // pas au planning (5 jours), on emmène donc au prochain jour utile : le lundi suivant.
@@ -2740,6 +2750,16 @@ function buildDayNav(monday) {
   return nav;
 }
 
+// Ce qui couvre le haut de l'écran au-dessus des cartes : la barre du haut puis la barre de
+// jours (52 px). 104 avec la barre actuelle. Sous la nouvelle navigation, la hauteur de son
+// en-tête, publiée dans la variable CSS --haut-entete (lue sur body, qui hérite de :root et
+// reçoit aussi ce qui est posé sous body[data-nav]) ; 52 px tant qu'elle n'est pas posée.
+function hautDesBarres() {
+  if (!navigationV2Active()) return 104;
+  const entete = parseFloat(getComputedStyle(document.body).getPropertyValue("--haut-entete"));
+  return (Number.isFinite(entete) ? entete : 52) + 52;
+}
+
 // Surligne le jour visible pendant le scroll. Appelé après l'insertion des cartes.
 function armDayNavHighlight(container) {
   detachDayNavHighlight();
@@ -2749,7 +2769,7 @@ function armDayNavHighlight(container) {
 
   // Jour courant = celui qui occupe la plus grande hauteur sous la barre de jours.
   const update = () => {
-    const haut = 104;                       // topbar + barre de jours
+    const haut = hautDesBarres();
     const bas = window.innerHeight;
     let best = 0, bestVisible = -1;
     cards.forEach((c, i) => {
@@ -2818,8 +2838,9 @@ function renderInto(container) {
     // Priorités de passage : rangées dans le Planning, plus d'onglet (chantier D).
     // Visibles des formateurs, et des stagiaires si le module est ouvert pour leur
     // promo ; repère « Masqué aux stagiaires » chez un formateur quand il est fermé.
+    // Nouvelle navigation : Priorités est un sous-onglet de Planning, pas de bouton en double.
     el("div", { class: "p-entete-actions" },
-      routeVisible("dashboard")
+      routeVisible("dashboard") && !navigationV2Active()
         ? repereMasque(el("button", { class: "btn small", type: "button",
             title: "Qui doit passer en priorité, au tableau et en voiture",
             onClick: () => { location.hash = "#/dashboard"; } },

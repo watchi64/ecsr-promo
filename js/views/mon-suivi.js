@@ -17,6 +17,8 @@ import { icon } from "../icons.js?v=20261027a";
 import { PARTIES, lireAdresse, adresseFiche } from "../route-rules.js?v=20261027a";
 import { etatsSommaire, passagesAVenir, EVT_DOCUMENT } from "../fiche-rules.js?v=20261027a";
 import { surChangementAdresse, remplacerAdresse, peutQuitter } from "../navigation.js?v=20261027a";
+import { navigationV2Active } from "../nav-etat.js?v=20261027a";
+import { renderNotes } from "./notes.js?v=20261027a";
 
 const HALF_ORDER = { matin: 0, aprem: 1 };
 
@@ -468,10 +470,12 @@ function renderEffectuesSection(rows, soi = true) {
 // stagiaire, vue par un formateur). Deux dispositions, choisies à l'affichage :
 // onglets sur ordinateur ; sur iPhone, un sommaire puis la partie en plein écran.
 
-const LIBELLE_PARTIE = { passages: "Passages", epcf: "EPCF", evolution: "Évolution", livret: "Livret", dp: "Dossier pro" };
+const LIBELLE_PARTIE = { passages: "Passages", epcf: "EPCF", evolution: "Évolution", livret: "Livret", dp: "Dossier pro",
+  classe: "La classe" };
 // Module de chaque partie (js/modules-data.js) : fermé pour la promo, la partie
-// disparaît chez un stagiaire et porte le repère chez un formateur.
-const MODULE_DE_PARTIE = { passages: null, epcf: "epcf", evolution: "notes", livret: "livret", dp: "dp" };
+// disparaît chez un stagiaire et porte le repère chez un formateur. La classe est
+// l'ancienne page Notes : elle suit le module des notes, comme le faisait l'onglet.
+const MODULE_DE_PARTIE = { passages: null, epcf: "epcf", evolution: "notes", livret: "livret", dp: "dp", classe: "notes" };
 
 export function dispositionFiche() {
   return window.matchMedia("(max-width: 760px)").matches ? "sommaire" : "onglets";
@@ -544,8 +548,12 @@ export function afficherErreur(zone, e, reessayer) {
   toast(isTimeout ? "Connexion trop lente, réessaie" : (e?.message || String(e)), "error");
 }
 
-function partiesVisibles() {
-  return PARTIES.filter((p) => !MODULE_DE_PARTIE[p] || moduleVisible(MODULE_DE_PARTIE[p]));
+// La classe (la vue Notes, nouvelle navigation) n'appartient qu'à Mon espace, la fiche de la
+// personne connectée, qui a donc un profil stagiaire : la page Stagiaires et l'ancienne
+// navigation gardent la fiche d'avant.
+function partiesVisibles(opts) {
+  return PARTIES.filter((p) => (p !== "classe" || (!!opts.soi && navigationV2Active()))
+    && (!MODULE_DE_PARTIE[p] || moduleVisible(MODULE_DE_PARTIE[p])));
 }
 
 function lienRetour(label, href) {
@@ -556,7 +564,7 @@ function lienRetour(label, href) {
 // retour) ou "unique" (iPhone, une seule partie ouverte, montrée directement).
 export function renderFiche(container, d, opts) {
   clear(container);
-  const parties = partiesVisibles();
+  const parties = partiesVisibles(opts);
   const partie = parties.includes(opts.partie) ? opts.partie : null;
   if (opts.disposition !== "onglets" && parties.length === 1) {
     // Une seule partie ouverte (début de formation) : pas de sommaire d'une ligne,
@@ -679,6 +687,14 @@ function rendrePartie(panel, partie, d, opts, ctx) {
     // peut aussi y écrire pour l'accompagner (droits révisés le 16/09).
     renderDp(panel, { stagiaireId: d.id, embedded: true, isActive })
       .catch(erreurPartie(panel, isActive, "Erreur de chargement du dossier professionnel. Rouvre la partie pour réessayer."));
+  } else if (partie === "classe") {
+    // La vue Notes de la classe, telle quelle, dans son propre conteneur : elle repeint son
+    // conteneur à l'arrivée des données, et une partie quittée entre-temps laisse ce repeint
+    // dans un nœud détaché au lieu d'effacer la partie affichée.
+    const zone = el("div");
+    panel.appendChild(zone);
+    renderNotes(zone)
+      .catch(erreurPartie(zone, isActive, "Erreur de chargement des notes de la classe. Rouvre la partie pour réessayer."));
   }
 }
 

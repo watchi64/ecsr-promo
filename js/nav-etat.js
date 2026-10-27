@@ -20,10 +20,14 @@ const DELAI_LECTURE_MS = 3500;
 // quand il est illisible. Éteint dans les deux cas (voir decideNavigationV2).
 let reglage = null;
 
-// Lu au démarrage (la promo courante est connue). Une lecture qui échoue ou qui dépasse le délai
-// laisse éteint, et une réponse arrivée après le délai est ignorée : la navigation ne bascule pas
-// en cours de session, sous une coquille déjà posée. Résout à la décision d'affichage, celle que
-// navigationV2Active() rend juste après (aperçu du fondateur compris).
+// Navigation de la session : une seule décision, prise par chargerNavigationV2() au démarrage
+// et rendue telle quelle par navigationV2Active(). Éteinte avant tout chargement.
+let decision = false;
+
+// Lu au démarrage (la promo courante est connue), avant le premier rendu. Une lecture qui échoue
+// ou qui dépasse le délai laisse éteint, et une réponse arrivée après le délai est ignorée : la
+// navigation ne bascule pas en cours de session, sous une coquille déjà posée. Fixe la décision
+// de la session (aperçu du fondateur compris) et la rend.
 export async function chargerNavigationV2() {
   let lu = null;
   let minuteur;
@@ -32,7 +36,8 @@ export async function chargerNavigationV2() {
   await Promise.race([lecture, delai]);
   clearTimeout(minuteur);
   reglage = lu;
-  return navigationV2Active();
+  decision = decisionDuMoment();
+  return decision;
 }
 
 // Aperçu du fondateur sur cet appareil : "1", "0" ou null. Un stockage inaccessible (navigation
@@ -51,16 +56,23 @@ function ecrireApercu(valeur) {
   } catch (e) { return false; }
 }
 
-// La navigation à afficher. Décidée à chaque appel, depuis l'état courant : avant toute lecture
-// elle est éteinte, sauf pour l'aperçu du fondateur, que la base ne concerne pas.
-export function navigationV2Active() {
+// Ce que montrerait une ouverture de l'app maintenant : le réglage lu et l'aperçu de l'appareil.
+function decisionDuMoment() {
   return decideNavigationV2({ reglagePromo: reglage, apercu: lireApercu(), fondateur: isFounder() });
 }
 
-// Prévient ceux qui dessinent la navigation (comme « emargement-actif » pour le bandeau) : la
-// réponse de navigationV2Active() vient de changer, par une case cochée dans Paramètres.
+// La navigation de la session, fixée par le dernier chargerNavigationV2() : les pages la lisent
+// à chaque rendu et doivent toutes donner la même réponse que la coquille. Une case cochée dans
+// Paramètres compte donc à la prochaine ouverture, comme ses textes l'annoncent.
+export function navigationV2Active() {
+  return decision;
+}
+
+// Prévient (comme « emargement-actif » pour le bandeau) qu'une case cochée dans Paramètres vient
+// de changer ce que montrera la prochaine ouverture (detail.actif) ; la session en cours garde sa
+// navigation.
 function annoncerChangement() {
-  window.dispatchEvent(new CustomEvent("navigation-v2-change", { detail: { actif: navigationV2Active() } }));
+  window.dispatchEvent(new CustomEvent("navigation-v2-change", { detail: { actif: decisionDuMoment() } }));
 }
 
 // Section de Paramètres, visible du seul fondateur : l'interrupteur de la promo affichée, puis
