@@ -12,14 +12,14 @@ import {
   addProf, updateProf, deleteProf,
   listUserProfiles, deleteUserProfile, inviteUser,
   setMyAnonymousNotes,
-} from "../db.js?v=20261024d";
-import { el, clear, toast, displayStagiaire } from "../utils.js?v=20261024d";
-import { icon } from "../icons.js?v=20261024d";
-import { isAdmin, getAdminEmail, getProfile } from "../auth-admin.js?v=20261024d";
-import { moduleVisible } from "../modules-etat.js?v=20261024d";
-import { renderModulesSection } from "./modules-reglage.js?v=20261024d";
-import { renderEmargementReglage } from "../emargement-etat.js?v=20261024d";
-import { confirmationValide, dateCourte, etatFinDePromo, resumeEffacement } from "../effacement-rules.js?v=20261024d";
+} from "../db.js?v=20261027a";
+import { el, clear, toast, displayStagiaire } from "../utils.js?v=20261027a";
+import { icon } from "../icons.js?v=20261027a";
+import { isAdmin, getAdminEmail, getProfile } from "../auth-admin.js?v=20261027a";
+import { moduleVisible } from "../modules-etat.js?v=20261027a";
+import { renderModulesSection } from "./modules-reglage.js?v=20261027a";
+import { renderEmargementReglage } from "../emargement-etat.js?v=20261027a";
+import { confirmationValide, dateCourte, etatFinDePromo, resumeEffacement } from "../effacement-rules.js?v=20261027a";
 
 // ====== SECTION Accès & invitations ======
 
