@@ -34,7 +34,8 @@ manque) :
     fichier du banc n'est jamais modifié). S'y ajoutent un stagiaire qui n'est pas fondateur (réglage
     de la promo, `is_founder` retiré : le cas de la plupart des vrais comptes), le stagiaire et le prof
     avec `?modules=depart` (modules fermés : pas de case vide, repères), et le « Voir en tant que » du
-    fondateur (la coquille change d'espace sans recharger la page).
+    fondateur (Stagiaire, Formateur, Stagiaire, puis son rôle réel : la coquille change d'espace sans
+    recharger la page, et l'entrée allumée suit la page affichée).
   * Passe « éteint » : aucun aperçu, rien ne doit changer par rapport à main (aucune coquille,
     l'ancienne barre d'onglets, pas de sous-onglets regroupés, aucun défilement ni débordement de côté
     de plus que ceux des rulings R10 et R11).
@@ -1214,13 +1215,18 @@ def jouer_allume(page, res, sc, options):
 
 
 def jouer_voir_en_tant_que(page, res, sc, options):
-    """Le fondateur bascule « Voir en tant que » : la coquille change d'espace sans recharger la
-    page, et l'entrée allumée suit la page affichée. Chaque espace voit toutes ses entrées."""
+    """Le fondateur bascule « Voir en tant que » : Stagiaire, Formateur, Stagiaire de nouveau, puis son
+    rôle réel. À chaque bascule, la coquille change d'espace sans recharger la page, et l'entrée allumée
+    suit la page affichée : la bascule se fait depuis le Planning (entrée des deux espaces), qui doit
+    rester allumé dans le nouvel espace. Chaque espace voit ensuite toutes ses entrées."""
     if not res.coquille:
         return
     page.evaluate("() => { window.__vnMarqueur = 'avant'; }")
-    for vu, espace in (("stagiaire", "stagiaire"), ("prof", "equipe"), (None, "equipe")):
-        nom_vu = "voir-en-tant-que-%s" % (vu or "role-reel")
+    etapes = (("stagiaire", "stagiaire"), ("prof", "equipe"), ("stagiaire", "stagiaire"), (None, "equipe"))
+    for i, (vu, espace) in enumerate(etapes, 1):
+        nom_vu = "voir-en-tant-que-%d-%s" % (i, vu or "role-reel")
+        aller_a(page, "#/planning")
+        attendre(page)
         erreur = page.evaluate("(r) => window.__verifNav.voirEnTantQue(r)", vu)
         if erreur:
             res.echec("règles illisibles", "%s/%s" % (sc.nom, nom_vu), erreur)
