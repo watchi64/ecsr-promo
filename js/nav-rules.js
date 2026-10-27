@@ -1,7 +1,8 @@
 // Navigation par espace (refonte, lot 1) : les règles seulement. Quelles entrées montre
 // chaque espace, comment la barre du téléphone les répartit, quelle entrée s'allume pour
-// une page, où mènent les anciennes adresses et les initiales du bouton du compte. Module pur,
-// sans DOM ni stockage : testé en node.
+// une page, quelle entrée de l'équipe porte le repère « masqué aux stagiaires », où mènent les
+// anciennes adresses, les initiales et le prénom du bouton du compte. Module pur, sans DOM ni
+// stockage : testé en node.
 
 // Clé de mémoire du sous-onglet ouvert, par page à sous-onglets (le `storageKey` de
 // renderSubTabs). Une redirection l'écrit pour ouvrir le bon sous-onglet.
@@ -83,6 +84,14 @@ export function routeVisibleV2(route, routeVisible) {
   return false;
 }
 
+// Une entrée de l'équipe est-elle masquée aux stagiaires ? Oui quand le stagiaire ne la voit pas,
+// selon la même règle que sa barre (routeVisibleV2) : sa page et tous les sous-onglets qu'elle
+// regroupe sont fermés pour la promo. Cours et QCM n'est donc pas repéré tant que ses Documents
+// restent ouverts. `routeMasquee(route)` : le module de cette route est fermé (modules-etat.js).
+export function entreeMasquee(route, routeMasquee) {
+  return !routeVisibleV2(route, (r) => !routeMasquee(r));
+}
+
 // Entrées de l'espace, dans l'ordre d'affichage, en copies que l'appelant peut modifier.
 // Stagiaire : une page à module s'affiche dès qu'elle est ouverte au sens de `routeVisibleV2`
 // (l'un de ses sous-onglets suffit), Accueil et Mon suivi restent toujours. Équipe : aucun
@@ -129,6 +138,27 @@ export function initialesDe(nom) {
   if (!lettres.length) return "";
   const choisies = lettres.length > 1 ? lettres[0] + lettres[lettres.length - 1] : lettres[0];
   return choisies.toLocaleUpperCase("fr");
+}
+
+// Rôle affiché sous le nom de la personne (barre de l'équipe, menu du compte) : son vrai rôle, et
+// non l'aperçu « Voir en tant que ». Tout compte qui n'est ni stagiaire ni fondateur est formateur
+// (le rôle technique « prof » ne s'affiche jamais).
+export function libelleRole(profil) {
+  if (!profil) return "";
+  if (profil.is_founder) return "Fondateur";
+  return profil.role === "stagiaire" ? "Stagiaire" : "Formateur";
+}
+
+// Prénom affiché à côté des initiales, tiré du même nom : « V. Timy » (initiale du nom puis
+// prénom, voir displayStagiaire) donne « Timy », tout ce qui suit l'initiale ; sinon le premier
+// mot (« Camille Martin » donne « Camille »). Une adresse électronique n'a pas de prénom : chaîne
+// vide, comme un nom vide (les initiales suffisent alors).
+export function prenomDe(nom) {
+  const texte = String(nom ?? "").trim();
+  if (!texte || texte.includes("@")) return "";
+  const mots = texte.split(/\s+/);
+  if (mots.length > 1 && /^\p{L}\.$/u.test(mots[0])) return mots.slice(1).join(" ");
+  return mots[0];
 }
 
 // Où mène une ancienne adresse sous la nouvelle navigation : null (rien à rediriger) ou la

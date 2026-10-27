@@ -33,7 +33,7 @@ import { initBandeauEmargement, rafraichirBandeauEmargement } from "./emargement
 import { chargerEmargementActif, emargementActif } from "./emargement-etat.js?v=20261027a";
 import { chargerNavigationV2, navigationV2Active } from "./nav-etat.js?v=20261027a";
 import { routeVisibleV2, espaceDe, entreesNavigation, initialesDe } from "./nav-rules.js?v=20261027a";
-import { monterCoquille, majEntreeActive, demonterCoquille, coquilleMontee } from "./nav-shell.js?v=20261027a";
+import { monterCoquille, majEntreeActive, coquilleMontee } from "./nav-shell.js?v=20261027a";
 import { lireAdresse, pagePersonnelle } from "./route-rules.js?v=20261027a";
 import {
   peutQuitter, leverGardeSortie, majSurPlacePour, oublierMajSurPlace,
@@ -65,29 +65,29 @@ const TABS = [
   { route: "config",     label: "Paramètres",      icon: "settings"  },
 ];
 
-// Barre de navigation. Nouvelle navigation : la coquille du stagiaire (js/nav-shell.js) ; l'espace
-// de l'équipe garde la barre actuelle tant qu'il n'a pas la sienne (la coquille éventuellement
-// montée, après un « Voir en tant que », est retirée). Interrupteur éteint : la barre actuelle.
+// Barre de navigation. Nouvelle navigation : la coquille de l'espace (js/nav-shell.js), remontée à
+// chaque appel (rôle changé par « Voir en tant que », modules ouverts ou fermés) ; l'ancienne barre,
+// masquée, est vidée pour ne garder aucun onglet d'un rôle précédent. Interrupteur éteint : la barre
+// actuelle.
 function renderTabs() {
   if (navigationV2Active()) {
+    document.getElementById("tabs").replaceChildren();
     const espace = espaceDe({ formateur: isAdmin() || isProf() });
-    if (espace === "stagiaire") {
-      const nom = getProfileWho();
-      monterCoquille({
-        espace,
-        entrees: entreesNavigation(espace, { routeVisible, emargementActif: emargementActif() }),
-        nom,
-        initiales: initialesDe(nom),
-      });
-      marquerOngletActif();
-      return;
-    }
-    demonterCoquille();
+    const nom = getProfileWho();
+    monterCoquille({
+      espace,
+      entrees: entreesNavigation(espace, { routeVisible, emargementActif: emargementActif() }),
+      nom,
+      initiales: initialesDe(nom),
+      actualiser,
+    });
+    marquerOngletActif();
+    return;
   }
   renderBarreActuelle();
 }
 
-// Barre actuelle (interrupteur éteint, et équipe sous la nouvelle navigation pour l'instant).
+// Barre actuelle (interrupteur éteint).
 function renderBarreActuelle() {
   const nav = document.getElementById("tabs");
   nav.innerHTML = "";
@@ -314,20 +314,25 @@ function afficherChargement() {
   document.getElementById("view").replaceChildren(chargement);
 }
 
+// « Actualiser » : relit les données et rejoue la page. Bouton de l'ancienne barre, et ligne du menu
+// du compte sous la nouvelle navigation (le seul moyen de relire les données dans l'app installée
+// sur iPhone, qui n'a pas de bouton de rechargement).
+async function actualiser() {
+  // Saisie en cours : pas de rechargement sans accord.
+  if (!peutQuitter()) return;
+  // Force le rechargement réel : vide le cache des données de référence
+  invalidateCache();
+  afficherChargement();
+  // Un formateur a pu ouvrir un module depuis le dernier chargement.
+  await chargerModules();
+  navigate({ force: true });
+}
+
 function setupRefreshBtn() {
   const btn = document.getElementById("refresh-btn");
   btn.innerHTML = "";
   btn.appendChild(icon.refresh());
-  btn.addEventListener("click", async () => {
-    // Saisie en cours : pas de rechargement sans accord.
-    if (!peutQuitter()) return;
-    // Force le rechargement réel : vide le cache des données de référence
-    invalidateCache();
-    afficherChargement();
-    // Un formateur a pu ouvrir un module depuis le dernier chargement.
-    await chargerModules();
-    navigate({ force: true });
-  });
+  btn.addEventListener("click", actualiser);
 }
 
 // Raccourci « Aujourd'hui » : ouvre le planning sur la journée du jour, depuis n'importe

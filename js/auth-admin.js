@@ -327,8 +327,9 @@ function updateImpersonationBanner() {
     onClick: () => setViewAs("admin") }, "Revenir fondateur"));
 }
 
-// Sélecteur « Voir en tant que » (fondateur uniquement) ; null sinon.
-function buildViewAsBlock(onPick) {
+// Sélecteur « Voir en tant que » (fondateur uniquement) ; null sinon. Aussi dans le menu du compte
+// de la nouvelle navigation (js/menu-compte.js).
+export function buildViewAsBlock(onPick) {
   if (!isFounder()) return null;
   const current = getViewAs() || "admin";
   const seg = el("div", { class: "view-as-seg" });
@@ -345,15 +346,20 @@ function buildViewAsBlock(onPick) {
   );
 }
 
+// Déconnexion, pour le menu « Mon compte » (ancien et nouveau) : la session se ferme, puis la page
+// se recharge. `apresDeconnexion` : ce qui se retire de l'écran entre les deux (la fenêtre du menu).
+export async function seDeconnecter(apresDeconnexion) {
+  await signOut();
+  if (apresDeconnexion) apresDeconnexion();
+  toast("Déconnecté", "success");
+  // Le hashchange + onAuthChange rechargeront le gate
+  location.reload();
+}
+
 function openProfileMenu() {
   const backdrop = el("div", { class: "modal-backdrop" });
-  const logoutBtn = el("button", { class: "btn danger full", onClick: async () => {
-    await signOut();
-    backdrop.remove();
-    toast("Déconnecté", "success");
-    // Le hashchange + onAuthChange rechargeront le gate
-    location.reload();
-  }}, "Se déconnecter");
+  const logoutBtn = el("button", { class: "btn danger full", onClick: () => seDeconnecter(() => backdrop.remove()) },
+    "Se déconnecter");
 
   // Accès direct à sa page depuis le badge : « cliquer sur mon nom » mène chez soi.
   // Un formateur sans profil stagiaire n'a pas de Mon espace : sa page est la page

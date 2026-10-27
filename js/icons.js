@@ -90,6 +90,12 @@ export const icon = {
   grid:       () => svg('<rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/>'),
   // Lucide panel-left-close : replier la barre latérale
   panel:      () => svg('<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/><path d="m16 15-3-3 3-3"/>'),
+  // Lucide panel-left-open : déplier la barre latérale repliée
+  panelOpen:  () => svg('<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/><path d="m14 9 3 3-3 3"/>'),
+  // Lucide bell : Nouveautés (menu du compte)
+  bell:       () => svg('<path d="M10.268 21a2 2 0 0 0 3.464 0"/><path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326"/>'),
+  // Lucide log-out : Se déconnecter (menu du compte)
+  logout:     () => svg('<path d="m16 17 5-5-5-5"/><path d="M21 12H9"/><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>'),
   // Lucide chevron-down : flèche du bouton du compte
   chevronDown:() => svg('<path d="m6 9 6 6 6-6"/>'),
 };

@@ -1,9 +1,13 @@
 // Navigation par espace (refonte, lot 1) : entrées de chaque espace, barre du téléphone,
-// entrée allumée, redirection des anciennes adresses, listes rendues en copies et initiales
-// du bouton du compte.
+// entrée allumée, redirection des anciennes adresses, listes rendues en copies, initiales et
+// prénom du bouton du compte, repère de l'équipe et icônes des entrées.
 import assert from "node:assert/strict";
-import { espaceDe, entreesNavigation, barreTelephone, entreeActive, redirectionV2, routeVisibleV2, initialesDe } from "../js/nav-rules.js";
+import {
+  espaceDe, entreesNavigation, barreTelephone, entreeActive, redirectionV2, routeVisibleV2, initialesDe,
+  prenomDe, entreeMasquee, libelleRole,
+} from "../js/nav-rules.js";
 import { MODULE_DE_ROUTE } from "../js/modules-data.js";
+import { icon } from "../js/icons.js";
 
 let n = 0;
 const eq = (a, b, msg) => { assert.deepEqual(a, b, msg); n++; };
@@ -129,5 +133,44 @@ eq(initialesDe("jean.dupont@example.fr"), "JD", "adresse électronique : sa part
 eq(initialesDe("banc@example.test"), "B", "adresse électronique d'un seul mot");
 eq(initialesDe(""), "", "nom vide : aucune initiale");
 eq(initialesDe(null), "", "nom absent : aucune initiale");
+
+// 9. Prénom affiché à côté des initiales (bouton du compte du stagiaire)
+eq(prenomDe("V. Timy"), "Timy", "stagiaire « V. Timy » : le prénom, après l'initiale du nom");
+eq(prenomDe("Camille Martin"), "Camille", "prénom et nom : le premier mot");
+eq(prenomDe("Romain"), "Romain", "un seul mot : lui-même");
+eq(prenomDe("V. Jean-Marc"), "Jean-Marc", "prénom composé gardé entier");
+eq(prenomDe("K. Anne Marie"), "Anne Marie", "prénom en deux mots après l'initiale du nom");
+eq(prenomDe("  V.   Timy "), "Timy", "espaces en trop");
+eq(prenomDe("jean.dupont@example.fr"), "", "adresse électronique : pas de prénom");
+eq(prenomDe(""), "", "nom vide : pas de prénom");
+eq(prenomDe(null), "", "nom absent : pas de prénom");
+
+// 10. Repère de l'équipe : une entrée est « masquée aux stagiaires » quand le stagiaire ne la voit pas,
+// c'est-à-dire quand sa page et tous ses sous-onglets regroupés sont fermés (même règle que routeVisibleV2).
+const fermees = (...routes) => (r) => routes.includes(r);   // routeMasquee de l'app
+eq(entreeMasquee("ccp2", fermees("ccp2")), true, "CCP2 fermé : repéré");
+eq(entreeMasquee("ccp2", fermees()), false, "CCP2 ouvert : pas de repère");
+eq(entreeMasquee("notes", fermees("notes")), true, "Notes fermées : repérées");
+eq(entreeMasquee("themes", fermees("themes")), false, "Cours fermé, Documents ouverts : le stagiaire voit Cours et QCM");
+eq(entreeMasquee("themes", fermees("themes", "ressources")), true, "Cours et Documents fermés : repéré");
+eq(entreeMasquee("planning", fermees("planning")), false, "Semaine fermée, Dates clés et Priorités ouvertes : pas de repère");
+eq(entreeMasquee("planning", fermees("planning", "calendrier", "dashboard")), true, "Planning tout fermé : repéré");
+const masqueeAuDepart = (r) => !depart(r);
+eq(eqp.filter((e) => entreeMasquee(e.route, masqueeAuDepart)).map((e) => e.id), ["notes", "ccp2"],
+  "départ : seules Notes et CCP2 sont repérées chez l'équipe");
+
+// 11. Rôle affiché sous le nom (barre de l'équipe, menu du compte) : le vrai rôle, « Formateur » et jamais « Prof »
+eq(libelleRole({ role: "prof", is_founder: false }), "Formateur", "formateur (rôle technique prof)");
+eq(libelleRole({ role: "admin", is_founder: false }), "Formateur", "admin : formateur");
+eq(libelleRole({ role: "stagiaire", is_founder: false }), "Stagiaire", "stagiaire");
+eq(libelleRole({ role: "stagiaire", is_founder: true }), "Fondateur", "fondateur, quel que soit son rôle technique");
+eq(libelleRole(null), "", "profil absent : rien");
+
+// 12. Chaque entrée nomme une icône qui existe (une faute de frappe dessinerait une icône de repli)
+for (const espace of ["stagiaire", "equipe"]) {
+  for (const e of entreesNavigation(espace, { routeVisible: tout, emargementActif: true })) {
+    eq(typeof icon[e.icone], "function", `icône « ${e.icone} » de l'entrée ${e.id} (${espace}) présente dans js/icons.js`);
+  }
+}
 
 console.log(`nav-rules : ${n} assertions OK`);
