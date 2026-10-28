@@ -8,7 +8,6 @@ Usage
 
     python outils/verifier_navigation.py                              # tout, deux moteurs (environ 2 minutes)
     python outils/verifier_navigation.py --roles stagiaire --sans-menus   # coquille du stagiaire seule (Task 4)
-    python outils/verifier_navigation.py --sans-assistant             # avant le câblage de l'assistant (Task 6)
 
 Prérequis : le serveur du banc (configuration « maquette-nav », qui sert la racine du worktree) et un
 `_harness.html` à jour (`node _harness_build.mjs` après toute modification d'index.html ; un banc
@@ -37,7 +36,12 @@ manque) :
     fondateur (Stagiaire, Formateur, Stagiaire, puis son rôle réel : la coquille change d'espace sans
     recharger la page, et l'entrée allumée suit la page affichée ; sur téléphone, il passe aussi par
     « Plus », « Mon compte », « Stagiaire », puis ouvre le tiroir et élargit l'écran à 900 px : le tiroir
-    se ferme et le focus ne tombe jamais sur body).
+    se ferme et le focus ne tombe jamais sur body ; à chaque rôle vu, le bandeau d'aperçu est en bas de
+    l'écran et l'assistant, ouvert depuis la coquille, garde son champ et « Envoyer » à portée : rien ne
+    couvre leur centre). S'y ajoute, une fois par moteur, l'ouverture d'un formateur dont l'appareil a vu
+    la promo allumée (mémoire `ecsr_nav_v2_promo:1`, ruling R17), lectures des réglages ralenties : l'ancienne
+    barre ne se peint à aucune image avant la coquille (échantillon à chaque image) et l'attente
+    (`body[data-nav-attente]`) est levée.
   * Passe « éteint » : aucun aperçu, rien ne doit changer par rapport à main (aucune coquille,
     l'ancienne barre d'onglets, pas de sous-onglets regroupés, aucun défilement ni débordement de côté
     de plus que ceux des rulings R10 et R11).
@@ -68,6 +72,7 @@ Contrôles par vue
     barre d'onglets est masquée ;
   * menus et tiroirs : entièrement dans l'écran, fermés par Échap (le retour du focus sur le bouton qui les
     a ouverts n'est qu'un avertissement) ;
+  * l'attente de la coquille (`body[data-nav-attente]`, ruling R17) n'est plus posée, dans les deux passes ;
   * aucune erreur de console ni de page.
 
 Contrat de balisage de la coquille (Tasks 4 et 5)
@@ -93,9 +98,9 @@ contexte) et les contrôles de la page sont joués quand même.
     sur la boîte affichée du texte : un libellé réservé aux lecteurs d'écran (1 px, `clip`) ne compte pas.
 
 Options utiles pendant le développement : `--roles`, `--moteurs`, `--largeurs`, `--passes`,
-`--sans-menus` (boutons du compte et de « Plus » pas encore câblés, avant la Task 5), `--sans-assistant`
-(bouton « Assistant » pas encore câblé, avant la Task 6), `--tout` (liste chaque échec), `--captures
-DOSSIER` (une capture par vue en échec), `--jobs N` (processus en parallèle, deux par moteur par défaut).
+`--sans-menus` (boutons du compte et de « Plus » pas encore câblés, avant la Task 5), `--tout` (liste chaque
+échec), `--captures DOSSIER` (une capture par vue en échec), `--jobs N` (processus en parallèle, deux par
+moteur par défaut).
 
 Défauts que les contrôles ont été éprouvés à attraper
 -----------------------------------------------------
@@ -113,6 +118,9 @@ par `--script-init`, et le script a échoué avec le message attendu ; la coquil
     s'affiche plus (écran élargi tiroir ouvert), tiroir resté ouvert quand l'écran passe à 900 px (sur la
     coquille de la Task 5 avant sa correction) ;
   * interrupteur éteint : un `h1` trop large (« élément de page qui déborde »), une coquille présente ;
+  * ouverture (ruling R17) : ancienne barre laissée visible pendant l'attente (37 images avant la coquille), attente
+    jamais levée ; « Voir en tant que » : panneau de l'assistant laissé sous le bandeau d'aperçu (champ et
+    « Envoyer » couverts à 375 px dans les deux espaces, « Envoyer » à 1280 px dans l'équipe) ;
   * mise en place : erreur de console et de page, interrupteur qui n'allume pas, banc périmé.
 Sans défaut, n'échouent pas : un bouton `data-nav-action="deconnexion"` (pas un ouvreur), un lien d'évitement
 masqué (ni mesuré comme cible, ni sans nom), un nom pris par `aria-labelledby`, `<label for>` ou `<title>` SVG.
@@ -147,6 +155,8 @@ SEUIL_TELEPHONE = 700          # largeur de fenêtre sous laquelle la coquille p
 DATE_DU_BANC = "2026-10-27"    # « aujourd'hui » figé (même date que les autres vérifications du lot)
 CLE_APERCU = "ecsr_nav_v2"     # aperçu du fondateur, propre à l'appareil (js/nav-etat-regles.js)
 CLE_REGLAGE = "navigation_v2"  # réglage de la promo, ligne de `settings` (js/nav-etat-regles.js)
+CLE_MEMOIRE_PROMO_1 = "ecsr_nav_v2_promo:1"   # mémoire de l'appareil pour la promo 1 du banc (cleMemoire, ruling R17)
+LENTEUR_DEMARRAGE_MS = 600     # lectures des réglages ralenties dans le scénario de l'ouverture (ruling R17)
 
 # Ruling R10 : conteneurs de page qui défilaient déjà de côté sur main. Un défilement qui s'y
 # produit n'est qu'un avertissement (dette du lot 2), dans les deux passes ; partout ailleurs il échoue.
@@ -503,6 +513,9 @@ async function mesurer(o) {
   const boite = vue && vue.querySelector(".view-error-box");
   if (boite) echecs.push(["page en erreur", texte(boite).slice(0, 120)]);
   else if (!vue || !vue.children.length) echecs.push(["page vide", "#view n'a aucun contenu"]);
+  // Ruling R17 : l'attente de la coquille est levée une fois l'app ouverte (sinon l'ancienne barre, si elle
+  // reste, ne se peint plus).
+  if (document.body.hasAttribute("data-nav-attente")) echecs.push(["attente de la coquille non levée", "body[data-nav-attente] est encore posé, l'app ouverte"]);
 
   // Défilements et débordements de côté : la même classification interrupteur allumé ou éteint, car la
   // passe éteinte est le garde de « l'app reste identique à main » (une règle du lot qui déborde de
@@ -705,8 +718,46 @@ const focusPerdu = () => {
   return a && a !== document.body && a.closest("[data-nav-coquille]") && visible(a) ? null : (a ? nom(a) : "aucun élément");
 };
 
+// Le champ et « Envoyer » du panneau de l'assistant, s'il est ouvert : ce qu'un toucher en leur centre atteint
+// (null quand rien ne les couvre).
+function controlesAssistant() {
+  const p = document.getElementById("chatbot-panel");
+  if (!p || !visible(p)) return null;
+  return ["textarea", ".chatbot-form button"].map((s) => {
+    const e = p.querySelector(s);
+    if (!e || !visible(e)) return { nom: s, dessus: "absent" };
+    const r = rect(e), x = (r.left + r.right) / 2, y = (r.top + r.bottom) / 2;
+    if (x < 0 || y < 0 || x > largeur() || y > hauteur()) return { nom: nom(e), dessus: "hors de l'écran" };
+    const t = document.elementFromPoint(x, y);
+    return { nom: nom(e), dessus: t && e.contains(t) ? null : (t ? nom(t.closest("[id]") || t) : "rien") };
+  });
+}
+
 window.__verifNav = { mesurer, regles: reglesSimples, voirEnTantQue, chercherLien, chercherPlus, ouvreurs, marquerPopups, mesurerPopups,
-  popupsEncoreOuverts, focusSurOuvreur, focusPerdu, popupsVisibles: () => popupsVisibles().length };
+  popupsEncoreOuverts, focusSurOuvreur, focusPerdu, popupsVisibles: () => popupsVisibles().length, controlesAssistant };
+})();
+"""
+
+# Ouverture de l'app (scénario « demarrage », ruling R17), injecté avant le chargement : à chaque image jusqu'à la
+# coquille, l'ancienne barre est-elle peinte (l'app affichée, la barre ni masquée ni invisible) ?
+JS_IMAGES_OUVERTURE = r"""
+(() => {
+  const images = window.__vnImages = { eclair: 0, premiere: null, coquille: false };
+  const t0 = performance.now();
+  const tic = () => {
+    const app = document.getElementById("app"), barre = document.querySelector("header.topbar");
+    images.coquille = !!document.body && document.body.dataset.nav === "v2" && !!document.querySelector("[data-nav-coquille]");
+    if (images.coquille) return;
+    if (app && barre && !app.classList.contains("hidden")) {
+      const s = getComputedStyle(barre);
+      if (s.display !== "none" && s.visibility !== "hidden" && barre.getBoundingClientRect().height > 0) {
+        images.eclair++;
+        if (images.premiere === null) images.premiere = Math.round(performance.now() - t0);
+      }
+    }
+    if (performance.now() - t0 < 15000) requestAnimationFrame(tic);
+  };
+  requestAnimationFrame(tic);
 })();
 """
 
@@ -750,12 +801,14 @@ class Scenario:
     sans_droits: bool = False   # le profil du banc perd is_founder (vrai compte de stagiaire)
     modules: str = ""           # ?modules= (scénario de modules fermés)
     voir_en_tant_que: bool = False
+    demarrage: bool = False     # ouverture seule, mémoire de l'appareil allumée (ruling R17)
 
     @property
     def nom(self):
         variante = "-sans-droits" if self.sans_droits else ""
         variante += ("-" + self.modules) if self.modules else ""
         variante += "-voir-en-tant-que" if self.voir_en_tant_que else ""
+        variante += "-demarrage" if self.demarrage else ""
         return "%s/%s/%s%s@%d" % (self.moteur, self.passe, self.role, variante, self.largeur)
 
 
@@ -808,6 +861,9 @@ def construire_scenarios(moteurs, roles, largeurs, passes):
             if "fondateur" in roles:
                 for l in etroit:
                     scenarios.append(Scenario(moteur, "allume", "fondateur", l, "apercu", "equipe", voir_en_tant_que=True))
+            if "prof" in roles:
+                # Un formateur sans aperçu, dont l'appareil a vu la promo allumée : son ouverture seule (ruling R17).
+                scenarios.append(Scenario(moteur, "allume", "prof", largeurs[0], "reglage", "equipe", demarrage=True))
         if "eteint" in passes:
             for role in roles:
                 for l in largeurs:
@@ -907,6 +963,9 @@ def nouveau_contexte(navigateur, sc, options):
     contexte.set_default_timeout(8000)
     if sc.allumage == "apercu":
         contexte.add_init_script("try { localStorage.setItem('%s', '1'); } catch (e) { /* stockage bloqué */ }" % CLE_APERCU)
+    if sc.demarrage:
+        contexte.add_init_script("try { localStorage.setItem('%s', '1'); } catch (e) { /* stockage bloqué */ }" % CLE_MEMOIRE_PROMO_1)
+        contexte.add_init_script(JS_IMAGES_OUVERTURE)
     lignes = []
     if sc.allumage == "reglage":
         lignes.append("FIXTURES.settings.push({ key: '%s', value: 'true', promo_id: 1 });" % CLE_REGLAGE)
@@ -938,6 +997,8 @@ def adresse_de_page(url, sc):
     q.pop("modules", None)
     if sc.modules:
         q["modules"] = sc.modules
+    if sc.demarrage:
+        q.update(lenteur=str(LENTEUR_DEMARRAGE_MS), lenteur_tables="settings")
     return urllib.parse.urlunparse(p._replace(query=urllib.parse.urlencode(q), fragment=""))
 
 
@@ -1137,9 +1198,7 @@ def verifier_menus(page, res, sc, options):
         res.echec("aucun menu", vue, "aucun bouton de la coquille ne porte aria-haspopup ou data-nav-action : ni compte, ni « Plus »")
         return
     for ouvreur in ouvreurs:
-        if ouvreur["action"] == "assistant" and options.get("sans_assistant"):
-            continue
-        quoi = "« %s »%s" % (ouvreur["nom"], (" (" + ouvreur["action"] + ")") if ouvreur["action"] else "")
+        quoi ="« %s »%s" % (ouvreur["nom"], (" (" + ouvreur["action"] + ")") if ouvreur["action"] else "")
         page.evaluate("(i) => window.__verifNav.marquerPopups(i)", ouvreur["i"])
         if not cliquer(page, res, vue, '[data-vn-i="%d"]' % ouvreur["i"], "ouvreur " + quoi):
             continue
@@ -1285,7 +1344,56 @@ def jouer_voir_en_tant_que(page, res, sc, options):
         if regles.get("espace") != espace:
             res.echec("espace du banc", "%s/%s" % (sc.nom, nom_vu), "les règles donnent l'espace « %s », attendu « %s »" % (regles.get("espace"), espace))
         verifier_vue(page, res, sc_vu, "%s/ouverture/%s" % (nom_vu, route_courante(page)), options)
+        if vu:
+            verifier_assistant_sous_bandeau(page, res, sc_vu, "%s/%s/assistant" % (sc.nom, nom_vu))
         parcourir_entrees(page, res, sc_vu, regles["entrees"], options, avec_sous_vues=False)
+
+
+def verifier_assistant_sous_bandeau(page, res, sc, vue):
+    """« Voir en tant que » pose le bandeau d'aperçu en bas de l'écran : l'assistant, ouvert depuis la coquille (par
+    « Plus » sur le téléphone de l'équipe), garde son champ et « Envoyer » à portée, rien ne couvre leur centre."""
+    if not page.evaluate("() => !!document.getElementById('impersonation-banner')"):
+        res.echec("bandeau d'aperçu absent", vue, "« Voir en tant que » ne montre pas le bandeau d'aperçu en bas de l'écran")
+        return
+    selecteur = '[data-nav-coquille] [data-nav-action="assistant"]:visible'
+    if not page.locator(selecteur).count() and sc.largeur < SEUIL_TELEPHONE:
+        if not cliquer(page, res, vue, '[data-nav-coquille] [data-nav-action="plus"]', "bouton « Plus »"):
+            return
+        page.wait_for_timeout(250)
+        selecteur = '[data-nav-coquille="plus"] [data-nav-action="assistant"]'
+    if not cliquer(page, res, vue, selecteur, "bouton « Assistant »"):
+        return
+    page.wait_for_timeout(300)
+    controles = page.evaluate("() => window.__verifNav.controlesAssistant()")
+    if controles is None:
+        res.echec("le menu ne s'ouvre pas", vue, "« Assistant » n'ouvre pas le panneau de l'assistant")
+    else:
+        for c in controles:
+            if c["dessus"]:
+                res.echec("assistant recouvert", vue, "%s du panneau de l'assistant : %s en son centre, bandeau d'aperçu affiché" % (c["nom"], c["dessus"]))
+    page.keyboard.press("Escape")
+    page.wait_for_timeout(250)
+    vider_console(res, vue)
+
+
+def jouer_demarrage(page, res, sc):
+    """Ruling R17 : l'appareil a vu la promo allumée à l'ouverture précédente et les lectures des réglages sont
+    ralenties ; l'ancienne barre ne se peint à aucune image avant la coquille, et l'attente est levée l'app ouverte.
+    Les pages et les menus sont joués par les autres scénarios."""
+    vue = "%s/ouverture" % sc.nom
+    res.vues += 1
+    m = page.evaluate("() => ({ images: window.__vnImages || null, attente: document.body.hasAttribute('data-nav-attente'),"
+                      " coquille: document.body.dataset.nav === 'v2' && !!document.querySelector('[data-nav-coquille]') })")
+    if not m["coquille"]:
+        res.echec("coquille absente", vue, "la nouvelle navigation ne s'est pas montée à l'ouverture (réglage de la promo semé)")
+    if not m["images"]:
+        res.echec("mesure impossible", vue, "l'échantillon des images de l'ouverture n'a pas tourné")
+    elif m["images"]["eclair"]:
+        res.echec("ancienne barre avant la coquille", vue, "l'ancienne barre est peinte pendant %d image(s) avant la coquille, dès %d ms, la mémoire de l'appareil disant « allumée »"
+                  % (m["images"]["eclair"], m["images"]["premiere"]))
+    if m["attente"]:
+        res.echec("attente de la coquille non levée", vue, "body[data-nav-attente] est encore posé, l'app ouverte")
+    vider_console(res, vue)
 
 
 def jouer_eteint(page, res, sc, options):
@@ -1306,7 +1414,9 @@ def jouer_scenario(navigateur, url, sc, options):
         contexte = nouveau_contexte(navigateur, sc, options)
         page = nouvelle_page(contexte, res)
         charger(page, url, sc)
-        if sc.passe == "allume":
+        if sc.demarrage:
+            jouer_demarrage(page, res, sc)
+        elif sc.passe == "allume":
             jouer_allume(page, res, sc, options)
         else:
             jouer_eteint(page, res, sc, options)
@@ -1464,7 +1574,6 @@ def main(argv=None):
     ap.add_argument("--largeurs", default=",".join(str(l) for l in LARGEURS))
     ap.add_argument("--passes", default="allume,eteint")
     ap.add_argument("--sans-menus", action="store_true", help="ne joue pas les menus (boutons du compte et de « Plus » pas encore câblés)")
-    ap.add_argument("--sans-assistant", action="store_true", help="ne joue pas le bouton « Assistant » (pas encore câblé)")
     ap.add_argument("--tout", action="store_true", help="liste chaque échec et chaque avertissement")
     ap.add_argument("--captures", metavar="DOSSIER", help="une capture d'écran par vue en échec")
     ap.add_argument("--jobs", type=int, default=0, help="processus en parallèle (défaut : deux par moteur)")
@@ -1485,7 +1594,7 @@ def main(argv=None):
         print("Le banc ne répond pas à %s (lancer le serveur « maquette-nav » du worktree)." % url)
         return 2
     absents = banc_perime(url)
-    options = {"sans_menus": args.sans_menus, "sans_assistant": args.sans_assistant or args.sans_menus,
+    options = {"sans_menus": args.sans_menus,
                "captures": args.captures, "script_init": os.path.abspath(args.script_init) if args.script_init else None}
 
     # Les scénarios d'un moteur sont répartis en autant de lots que de processus demandés.
