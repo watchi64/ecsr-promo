@@ -3,7 +3,7 @@
 // et la section de Paramètres touchent au DOM).
 import assert from "node:assert/strict";
 import {
-  CLE_REGLAGE, CLE_APERCU, decideNavigationV2, reglageAllume, cleMemoire, navigationAttendue,
+  CLE_REGLAGE, CLE_APERCU, decideNavigationV2, reglageAllume, reglageRetenu, cleMemoire, navigationAttendue,
 } from "../js/nav-etat-regles.js";
 
 let n = 0;
@@ -69,5 +69,31 @@ eq(lues, [cleMemoire(2)], "une seule lecture, la clé de la promo affichée");
 const aucune = [];
 navigationAttendue({ promoId: null, lireMemoire: (cle) => { aucune.push(cle); return "1"; } });
 eq(aucune, [], "sans promo, aucune lecture");
+
+// 6. Réglage retenu pour la session (relecture finale, mineur 2) : la lecture l'emporte quand elle aboutit ;
+//    ratée ou trop lente (lu = null), la mémoire de l'appareil prend sa place, et sans mémoire c'est éteint,
+//    comme avant.
+eq(reglageRetenu({ lu: true, memoire: null }), true, "lecture aboutie : allumé");
+eq(reglageRetenu({ lu: false, memoire: "1" }), false, "lecture aboutie : éteint, même si la mémoire disait allumé");
+eq(reglageRetenu({ lu: true, memoire: "1" }), true, "lecture et mémoire d'accord");
+eq(reglageRetenu({ lu: null, memoire: "1" }), true, "lecture ratée ou trop lente, promo allumée la dernière fois : allumé");
+eq(reglageRetenu({ lu: null, memoire: null }), null, "lecture ratée sans mémoire : rien (éteint)");
+eq(reglageRetenu({ lu: null, memoire: "0" }), null, "seul « 1 » vaut allumé en mémoire");
+eq(reglageRetenu({ lu: null, memoire: "true" }), null, "autre valeur en mémoire : rien");
+eq(reglageRetenu({}), null, "sans rien : rien");
+eq(reglageRetenu(), null, "sans argument : rien");
+eq(reglageRetenu({ lu: "true", memoire: null }), null, "lu doit être un booléen (reglageAllume) : un texte n'allume pas");
+// La décision de la session, telle que js/nav-etat.js la prend après la lecture.
+const session = (lu, memoire, apercu = null, fondateur = false) =>
+  decideNavigationV2({ reglagePromo: reglageRetenu({ lu, memoire }), apercu, fondateur });
+eq(session(null, "1"), true, "lecture ratée, mémoire allumée : la nouvelle navigation, stable d'une ouverture à l'autre");
+eq(session(null, null), false, "lecture ratée, sans mémoire : l'ancienne, comme avant");
+eq(session(false, "1"), false, "promo éteinte depuis : la lecture aboutie l'emporte sur la mémoire");
+eq(session(null, "1", "0", true), false, "aperçu éteint du fondateur : prime sur la mémoire");
+eq(session(null, null, "1", true), true, "aperçu allumé du fondateur, lecture ratée (ruling R7)");
+eq(session(null, "1", "0", false), true, "aperçu d'un non-fondateur ignoré : la mémoire compte");
+// Avant la lecture, l'attente de l'ouverture suit la même mémoire : rien ne change pour l'ancienne barre (R17).
+eq(attendue(1), session(null, "1"), "l'attente de l'ouverture et la décision sur lecture ratée disent la même chose");
+eq(attendue(2), session(null, null), "idem sans mémoire pour la promo affichée");
 
 console.log(`nav-etat : ${n} assertions OK`);

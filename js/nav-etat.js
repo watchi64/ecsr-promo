@@ -10,16 +10,16 @@ import { el, toast } from "./utils.js?v=20261027a";
 import { icon } from "./icons.js?v=20261027a";
 import { isFounder } from "./auth-admin.js?v=20261027a";
 import {
-  CLE_REGLAGE, CLE_APERCU, decideNavigationV2, reglageAllume, cleMemoire, navigationAttendue,
+  CLE_REGLAGE, CLE_APERCU, decideNavigationV2, reglageAllume, reglageRetenu, cleMemoire, navigationAttendue,
 } from "./nav-etat-regles.js?v=20261027a";
 
 export { decideNavigationV2 };
 
-// Même borne que les modules et l'émargement : au-delà, l'app démarre sans la nouvelle navigation.
+// Même borne que les modules et l'émargement : au-delà, l'app démarre sur la mémoire de l'appareil.
 const DELAI_LECTURE_MS = 3500;
 
 // Réglage de la promo affichée : true ou false une fois lu, null tant qu'il ne l'est pas ou
-// quand il est illisible. Éteint dans les deux cas (voir decideNavigationV2).
+// quand il est illisible. La décision prend alors la mémoire de l'appareil (reglageRetenu).
 let reglage = null;
 
 // Navigation de la session : une seule décision, prise par chargerNavigationV2() au démarrage
@@ -27,9 +27,10 @@ let reglage = null;
 let decision = false;
 
 // Lu au démarrage (la promo courante est connue), avant le premier rendu. Une lecture qui échoue
-// ou qui dépasse le délai laisse éteint, et une réponse arrivée après le délai est ignorée : la
-// navigation ne bascule pas en cours de session, sous une coquille déjà posée. Fixe la décision
-// de la session (aperçu du fondateur compris) et la rend.
+// ou qui dépasse le délai laisse la décision à la mémoire de l'appareil (le dernier réglage lu de
+// la promo, ruling R17) : allumée si la promo l'était, éteinte sans mémoire. Une réponse arrivée
+// après le délai est ignorée : la navigation ne bascule pas en cours de session, sous une coquille
+// déjà posée. Fixe la décision de la session (aperçu du fondateur compris) et la rend.
 export async function chargerNavigationV2() {
   let lu = null;
   let minuteur;
@@ -49,9 +50,16 @@ function lireApercu() {
   try { return localStorage.getItem(CLE_APERCU); } catch (e) { return null; }
 }
 
+// Mémoire de l'appareil sous la clé d'une promo (cleMemoire) : "1" ou null, null aussi quand le
+// stockage est inaccessible ; ne lève jamais d'erreur.
+function lireMemoire(cle) {
+  try { return localStorage.getItem(cle); } catch (e) { return null; }
+}
+
 // Dernier réglage lu de la promo affichée, gardé sur l'appareil (ruling R17) : à l'ouverture suivante,
-// l'ancienne barre attend la décision sans se peindre quand la coquille doit la remplacer. Seul « allumé »
-// laisse une trace ; une lecture ratée ne fait rien oublier.
+// l'ancienne barre attend la décision sans se peindre quand la coquille doit la remplacer, et une lecture
+// ratée ou trop lente décide d'après lui. Seul « allumé » laisse une trace ; une lecture ratée ne fait
+// rien oublier.
 function memoriserReglage(allume) {
   const cle = cleMemoire(getPromoCourante()?.id);
   if (!cle) return;
@@ -65,7 +73,6 @@ function memoriserReglage(allume) {
 // de la promo sur cet appareil, ou l'aperçu du fondateur (navigationAttendue). Ne décide rien pour la
 // session : seul chargerNavigationV2() le fait.
 export function navigationV2Attendue() {
-  const lireMemoire = (cle) => { try { return localStorage.getItem(cle); } catch (e) { return null; } };
   return navigationAttendue({ promoId: getPromoCourante()?.id ?? null, lireMemoire, apercu: lireApercu(), fondateur: isFounder() });
 }
 
@@ -79,9 +86,12 @@ function ecrireApercu(valeur) {
   } catch (e) { return false; }
 }
 
-// Ce que montrerait une ouverture de l'app maintenant : le réglage lu et l'aperçu de l'appareil.
+// Ce que montrerait une ouverture de l'app maintenant : le réglage lu (la mémoire de l'appareil s'il ne
+// l'est pas) et l'aperçu de l'appareil.
 function decisionDuMoment() {
-  return decideNavigationV2({ reglagePromo: reglage, apercu: lireApercu(), fondateur: isFounder() });
+  const cle = cleMemoire(getPromoCourante()?.id);
+  const memoire = cle ? lireMemoire(cle) : null;
+  return decideNavigationV2({ reglagePromo: reglageRetenu({ lu: reglage, memoire }), apercu: lireApercu(), fondateur: isFounder() });
 }
 
 // La navigation de la session, fixée par le dernier chargerNavigationV2() : les pages la lisent
@@ -89,6 +99,13 @@ function decisionDuMoment() {
 // Paramètres compte donc à la prochaine ouverture, comme ses textes l'annoncent.
 export function navigationV2Active() {
   return decision;
+}
+
+// Repli (relecture finale, mineur 8) : la coquille n'a pas pu se monter (js/main.js). La session repasse à
+// l'ancienne navigation, barre et pages, jusqu'à la prochaine ouverture ; la mémoire de l'appareil, propre
+// au réglage de la promo, n'est pas touchée.
+export function renoncerNavigationV2() {
+  decision = false;
 }
 
 // Prévient (comme « emargement-actif » pour le bandeau) qu'une case cochée dans Paramètres vient

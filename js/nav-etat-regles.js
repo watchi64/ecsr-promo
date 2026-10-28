@@ -31,12 +31,21 @@ export function cleMemoire(promoId) {
   return promoId === null || promoId === undefined ? null : PREFIXE_MEMOIRE + promoId;
 }
 
+// Réglage de la promo que retient la décision : celui que la lecture a rendu (`lu` : true ou false) ; une
+// lecture qui a échoué ou dépassé le délai (`lu` null) cède la place à la mémoire de l'appareil (`memoire` :
+// "1" quand la promo était allumée à la dernière lecture réussie), sinon rien (null, éteint). Une navigation
+// stable d'une ouverture à l'autre sur un réseau lent, sans rien allumer qu'une lecture n'ait vu allumé.
+export function reglageRetenu({ lu = null, memoire = null } = {}) {
+  if (lu === true || lu === false) return lu;
+  return memoire === "1" ? true : null;
+}
+
 // La navigation attendue à l'ouverture, avant la lecture du réglage : la même règle que decideNavigationV2,
 // la mémoire de l'appareil pour la promo affichée (lireMemoire reçoit sa clé, et seulement la sienne)
-// tenant lieu du réglage pas encore lu. Elle décide seulement si l'ancienne barre attend la décision sans
-// se peindre ; la navigation de la session reste celle de la lecture.
+// tenant lieu du réglage pas encore lu (reglageRetenu). Elle décide seulement si l'ancienne barre attend
+// la décision sans se peindre ; la navigation de la session est décidée après la lecture.
 export function navigationAttendue({ promoId = null, lireMemoire = () => null, apercu = null, fondateur = false } = {}) {
   const cle = cleMemoire(promoId);
   const memoire = cle ? lireMemoire(cle) : null;
-  return decideNavigationV2({ reglagePromo: memoire === "1" ? true : null, apercu, fondateur });
+  return decideNavigationV2({ reglagePromo: reglageRetenu({ lu: null, memoire }), apercu, fondateur });
 }
