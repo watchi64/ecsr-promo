@@ -2,6 +2,8 @@
  * Promo ECSR : application propriétaire.
  * © 2026 watchi64. Tous droits réservés. Voir LICENSE.
  */
+// En premier : le journal des erreurs (signalement de problème) capte celles des modules qui suivent.
+import "./journal-erreurs.js?v=20261028a";
 import { getCurrentUser, invalidateCache, verifyRecoveryToken } from "./db.js?v=20261028a";
 import { toast } from "./utils.js?v=20261028a";
 import { icon } from "./icons.js?v=20261028a";
