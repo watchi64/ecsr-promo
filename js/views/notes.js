@@ -11,7 +11,7 @@ import { icon } from "../icons.js?v=20261028a";
 import { getAdminEmail, isAdmin, getProfile } from "../auth-admin.js?v=20261028a";
 import { recordUndo } from "../undo.js?v=20261028a";
 import { renderSubTabs } from "../subtabs.js?v=20261028a";
-import { formateurConnecte } from "../modules-etat.js?v=20261028a";
+import { formateurConnecte, moduleVisible } from "../modules-etat.js?v=20261028a";
 import { navigationV2Active } from "../nav-etat.js?v=20261028a";
 import { renderEpcf } from "./epcf.js?v=20261028a";
 
@@ -40,6 +40,9 @@ function statsGroupe() {
 let filterStagiaire = "";
 let filterType = "";
 let currentEvalDate = null;  // Date appliquée aux nouvelles notes saisies dans la matrice
+// Conteneurs où la vue est imbriquée dans Mon suivi (La classe : renderNotes(zone, { imbrique: true })) : le contexte
+// décide de sa présentation, pas le rôle de la personne (un formateur qui a une fiche y ouvre aussi La classe).
+const imbriques = new WeakSet();
 
 const NOTES_SORT_OPTIONS = [
   { key: "default",   label: "Ordre par défaut" },
@@ -1081,11 +1084,12 @@ function rerender(container) {
   // Nouvelle navigation : la page de l'équipe porte le nom de son entrée, « Notes et examens », avec la promo en
   // surtitre, et le nombre de notes termine alors son sous-titre. Sur un écran tactile, on touche une case : le
   // sous-titre le dit, et la phrase de la barre d'outils sur Entrée et Échap, qui suppose un clavier, disparaît.
-  // Le stagiaire n'ouvre cette vue que dans La classe de Mon suivi, déjà sous un titre : il n'y a ni second titre,
-  // ni phrase sur la saisie ou sur l'administration (il ne saisit rien), seulement le nombre de notes.
+  // Imbriquée dans Mon suivi (La classe, pour toute personne qui y ouvre la classe, stagiaire ou formateur), la vue vit
+  // déjà sous le titre de Mon suivi : ni titre à elle ni « Lecture seule... » ; la phrase sur la saisie n'y est lue que
+  // par qui saisit des notes ; le nombre de notes reste, seul sinon.
   const v2 = navigationV2Active();
-  const equipe = v2 && formateurConnecte();
-  const laClasse = v2 && !formateurConnecte();
+  const laClasse = v2 && imbriques.has(container);
+  const equipe = v2 && !laClasse && formateurConnecte();
   const surtitre = getPromoCourante()?.nom;
   const tactile = v2 && window.matchMedia("(pointer: coarse)").matches;
   const compte = nbLignes + " note" + (nbLignes > 1 ? "s" : "") + " enregistrée" + (nbLignes > 1 ? "s" : "");
@@ -1099,7 +1103,7 @@ function rerender(container) {
         ? (surtitre ? el("p", { class: "eyebrow" }, surtitre) : null)
         : el("p", { class: "eyebrow" }, compte),
       laClasse ? null : el("h2", {}, equipe ? "Notes et examens" : "Notes & évaluations"),
-      el("p", { class: "subtitle" }, laClasse ? compte + "." : equipe ? phrase + " " + compte + "." : phrase),
+      el("p", { class: "subtitle" }, laClasse ? (admin ? phrase + " " : "") + compte + "." : equipe ? phrase + " " + compte + "." : phrase),
     ),
     admin || laClasse ? null : el("span", { class: "muted", style: "font-size:0.85rem" }, "Lecture seule. Connexion admin requise pour modifier."),
   ));
@@ -1158,11 +1162,13 @@ function rerender(container) {
     panel.appendChild(renderChartsSection());
   };
 
-  // Notes, c'est la classe (chantier D) : Matrice et moyennes EPCF, pour tout le
-  // monde. Ce qui est propre à une personne (sa saisie EPCF, son livret, son
-  // dossier) vit dans sa fiche : Mon espace, ou la page Stagiaires des formateurs.
-  // La matrice reste en lecture seule pour les stagiaires. Chaque sous-onglet suit
-  // son module (js/modules-data.js) ; la Matrice suit l'onglet lui-même.
+  // Notes, c'est la classe (chantier D) : la Matrice et les moyennes EPCF de la classe,
+  // ouvertes à tout le monde : en deux sous-onglets sur la page de l'équipe, en une section
+  // sous la Matrice dans La classe de Mon suivi (nouvelle navigation, plus bas). Ce qui est
+  // propre à une personne (sa saisie EPCF, son livret, son dossier) vit dans sa fiche :
+  // Mon espace, ou la page Stagiaires des formateurs. La matrice reste en lecture seule
+  // pour les stagiaires. Chaque sous-onglet suit son module (js/modules-data.js) ; la
+  // Matrice suit l'onglet lui-même.
   const onglets = [
     { key: "matrice", label: "Matrice", render: buildMatricePanel },
     { key: "epcf", label: "EPCF", module: "epcf", render: (p, ctx) => {
@@ -1176,12 +1182,31 @@ function rerender(container) {
           });
       } },
   ];
-  // La classe d'un stagiaire (nouvelle navigation) : la vue de la classe seule, la Matrice, sans seconde rangée
-  // Matrice / EPCF : deux « EPCF » se liraient à l'écran, celui de sa fiche (première rangée de Mon suivi), où les
-  // moyennes de la classe figurent déjà, et celui-ci. Sans choix, aucune mémoire de sous-onglet n'est écrite (celle de l'équipe).
-  container.appendChild(laClasse
-    ? renderSubTabs(onglets.slice(0, 1))
-    : renderSubTabs(onglets, { storageKey: "ecsr_notes_subtab" }));
+  // La classe imbriquée dans Mon suivi (nouvelle navigation) : la Matrice, sans seconde rangée Matrice / EPCF (deux
+  // « EPCF » se liraient à l'écran, celui de la fiche, première rangée de Mon suivi, et celui-ci), puis les moyennes
+  // EPCF de la classe en section titrée sous la vue de la classe, tant que le module EPCF est ouvert pour la promo
+  // (le sous-onglet EPCF de la page de l'équipe suit le même module). Sans choix d'onglet, aucune mémoire de
+  // sous-onglet n'est écrite (celle de la page de l'équipe).
+  if (laClasse) {
+    container.appendChild(renderSubTabs(onglets.slice(0, 1)));
+    if (moduleVisible("epcf")) container.appendChild(sectionMoyennesEpcf());
+  } else {
+    container.appendChild(renderSubTabs(onglets, { storageKey: "ecsr_notes_subtab" }));
+  }
+}
+
+// Les moyennes EPCF de la classe, en section de La classe : le rendu de l'onglet EPCF de la page de l'équipe
+// (renderEpcf, donc le même k-anonymat : une moyenne n'est montrée qu'à partir de 2 stagiaires évalués), sous
+// un titre qui nomme l'épreuve et la classe.
+function sectionMoyennesEpcf() {
+  const section = el("section", { class: "notes-epcf-classe" });
+  renderEpcf(section, { embedded: true, titre: "Moyennes EPCF de la classe" })
+    .catch((e) => {
+      console.error(e);
+      clear(section);
+      section.appendChild(el("p", { class: "muted" }, "Erreur de chargement des moyennes EPCF de la classe. Recharge la page pour réessayer."));
+    });
+  return section;
 }
 
 // === Helpers stats ===
@@ -1513,7 +1538,9 @@ function horizontalBarChart(data, barHeight = 22, labelWidth = 100) {
   return svg;
 }
 
-export async function renderNotes(container) {
+// `imbrique` : la vue est le contenu de La classe, dans Mon suivi (js/views/mon-suivi.js), sous le titre de cette page.
+export async function renderNotes(container, { imbrique = false } = {}) {
+  if (imbrique) imbriques.add(container); else imbriques.delete(container);
   clear(container);
   container.appendChild(el("div", { class: "loading" }, "Chargement"));
   let allThemes;

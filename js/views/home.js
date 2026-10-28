@@ -229,7 +229,9 @@ export async function renderHome(container) {
         clear(listEl);
         if (next3.length === 0) {
           listEl.appendChild(el("p", { class: "muted home-empty-line" },
-            "Aucun événement à venir. " + (admin ? "Ajoute-en depuis l'onglet Calendrier." : "Reste à l'affût."),
+            "Aucun événement à venir. " + (admin
+              ? (v2 ? "Ajoute-en depuis Planning, Dates clés." : "Ajoute-en depuis l'onglet Calendrier.")
+              : "Reste à l'affût."),
           ));
         } else {
           next3.forEach((e) => {

@@ -127,8 +127,14 @@ Contrôles par vue
     « fin aujourd'hui ») et sa pastille compte les jours jusqu'à sa fin ; un événement à venir garde sa pastille d'avant, sans ligne « en cours » ;
   * Planning > Semaine : chez le stagiaire, ni « Lecture seule... » ni « Cette semaine » (« Aujourd'hui », en tête de la page, le remplace) ; chez
     l'équipe, « Cette semaine » reste ;
-  * Mon suivi > La classe, chez le stagiaire : ni second titre, ni seconde rangée Matrice / EPCF, ni « Lecture seule... », ni « Clique une cellule... » ;
-    seul reste le nombre de notes ;
+  * Mon suivi > La classe, pour toute personne qui a une fiche (le contexte décide, pas le rôle : le stagiaire, et le fondateur dans l'espace de l'équipe) : ni
+    second titre, ni seconde rangée Matrice / EPCF (aucun libellé « EPCF » isolé), ni « Lecture seule... » ; le stagiaire, qui ne saisit rien, ne lit pas non plus
+    la phrase sur la saisie et n'a que le nombre de notes. Sous la vue de la classe, la section « Moyennes EPCF de la classe » (ruling R51) : le rendu de l'onglet
+    EPCF de la page de l'équipe, avec son k-anonymat (le banc sert des moyennes sur 3 et 2 stagiaires, et un critère sur un seul, jamais montré). Notes et examens,
+    page de l'équipe : ses deux sous-onglets Matrice et EPCF, et le titre « Moyennes de la classe » du second ;
+  * accueil, agenda vide (lot 2A, tour de correction 1) : un scénario à part par moteur et par passe, la date du banc reculée après le dernier événement
+    (DATE_AGENDA_VIDE), formateur : la liste dit où ajouter des événements, « Planning, Dates clés » avec la nouvelle navigation, « l'onglet Calendrier » avec celle de
+    main, et la carte du prochain événement majeur n'y est pas ;
   * bandeau d'émargement (stagiaire et équipe) : sur téléphone, une seule ligne (« Émargement du matin ouvert » et son bouton), ses horaires (stagiaire) ou
     ses signatures (équipe) cachés, son bouton de 44 px, sa hauteur au plus celle des deux lignes de main (61 px) ; au-delà de 700 px, et interrupteur
     éteint, ses détails sont montrés ;
@@ -207,6 +213,10 @@ par `--script-init`, et le script a échoué avec le message attendu ; la coquil
     du bandeau montrés sur téléphone ou cachés partout, bouton du bandeau de 29 px, bandeau d'une ligne de 64 px, détail du bandeau de l'équipe sans balise, titre ou surtitre d'Émargement
     non alignés, comptes de Notes, de Dates clés ou de Documents retirés du sous-titre, tuiles retirées, Planning ou La classe du stagiaire sans leurs textes
     interrupteur éteint ;
+  * La classe et agenda vide (lot 2A, tour de correction 1, injectés dans les sources puis retirés) : section « Moyennes EPCF de la classe » absente, placée avant la
+    matrice ou mal titrée, k-anonymat levé (un critère sur un seul stagiaire montré), titre du sous-onglet EPCF de l'équipe changé, La classe décidée par le rôle
+    (le fondateur y retrouve son titre et ses deux onglets) ou sans l'option de Mon suivi, phrase de l'agenda vide de la nouvelle navigation reprise avec l'ancienne,
+    ou de l'ancienne changée interrupteur éteint ;
   * mise en place : erreur de console et de page, interrupteur qui n'allume pas, banc périmé.
 Sans défaut, n'échouent pas : un bouton `data-nav-action="deconnexion"` (pas un ouvreur), un lien d'évitement
 masqué (ni mesuré comme cible, ni sans nom), un nom pris par `aria-labelledby`, `<label for>` ou `<title>` SVG.
@@ -215,6 +225,7 @@ import argparse
 import concurrent.futures
 import datetime
 import itertools
+import json
 import os
 import pathlib
 import re
@@ -941,14 +952,26 @@ function planningSemaine() {
   const boutons = (n) => [...vue.querySelectorAll("button")].filter((b) => visible(b) && net(b.textContent) === n).length;
   return { lecture: /Lecture seule/.test(texte(vue)), cetteSemaine: boutons("Cette semaine"), aujourdhui: boutons("Aujourd'hui") };
 }
-// Notes de la classe, imbriquées dans la fiche de Mon suivi : leurs titres (h2), leurs en-têtes, leurs barres de sous-onglets (Matrice / EPCF)
-// et leur texte. null quand la matrice n'est pas à l'écran.
+// Notes de la classe, imbriquées dans la fiche de Mon suivi : leurs titres (h2), leurs en-têtes, leurs sous-onglets (Matrice / EPCF), le nombre
+// de libellés « EPCF » isolés (titre, bouton ou sous-onglet qui ne dit que « EPCF »), leur texte, et la section des moyennes EPCF de la classe
+// (titre, place sous la matrice, et pour chaque épreuve son titre, les lignes de son tableau et son message). null quand la matrice n'est pas à l'écran.
 function laClasse() {
   const barre = document.querySelector("#view .matrice-toolbar"), sous = barre && barre.closest(".subtabs"), zone = sous && sous.parentElement;
   if (!zone) return null;
+  const section = zone.querySelector(":scope > .notes-epcf-classe");
+  const dit = (e, s) => { const x = e.querySelector(s); return x ? net(x.textContent) : ""; };
   return { titres: [...zone.querySelectorAll("h2")].map((h) => net(h.textContent)),
     entetes: [...zone.querySelectorAll(":scope > .view-header")].map((h) => net(h.textContent)),
-    barres: sous.querySelectorAll(".subtabs-bar").length, texte: texte(zone) };
+    barres: sous.querySelectorAll(".subtabs-bar").length, sousOnglets: zone.querySelectorAll(".subtab").length,
+    epcfIsoles: [...zone.querySelectorAll("h2, h3, h4, button, .subtab")].filter((e) => net(e.textContent) === "EPCF").length, texte: texte(zone),
+    epcf: section ? { titre: dit(section, "h3"), sousLaMatrice: !!(sous.compareDocumentPosition(section) & Node.DOCUMENT_POSITION_FOLLOWING),
+      epreuves: [...section.querySelectorAll(".epcf-classe-trame")].map((t) => ({ titre: dit(t, "h4"), message: dit(t, "p.muted"),
+        lignes: [...t.querySelectorAll("tbody tr")].map((tr) => [...tr.children].map((td) => net(td.textContent))) })) } : null };
+}
+// Notes de l'équipe, sous-onglet EPCF : le titre de son rendu des moyennes de la classe et le nombre d'épreuves qu'il montre.
+function epcfDeLEquipe() {
+  const titre = document.querySelector("#view .epcf-body > h3");
+  return { titre: titre ? net(titre.textContent) : null, epreuves: document.querySelectorAll("#view .epcf-classe-trame").length };
 }
 // Bandeau d'émargement (js/emargement-bandeau.js) : son texte, les lignes de ce texte (sans le remplissage du paragraphe), la hauteur du bandeau,
 // ses détails (horaires du stagiaire, signatures du formateur) montrés ou non, et son bouton. null quand il n'est pas affiché.
@@ -966,7 +989,7 @@ function bandeauEmargement() {
 window.__verifNav = { mesurer, regles: reglesSimples, voirEnTantQue, chercherLien, chercherPlus, ouvreurs, marquerPopups, mesurerPopups,
   popupsEncoreOuverts, focusSurOuvreur, focusPerdu, popupsVisibles: () => popupsVisibles().length, controlesAssistant,
   pageDeReglages, boutonDuCompte, menuDuCompte, enTeteDePage, panneauBenevoles, enTeteDeLEquipe,
-  accueil, comptesDesPages, planningSemaine, laClasse, bandeauEmargement };
+  accueil, comptesDesPages, planningSemaine, laClasse, epcfDeLEquipe, bandeauEmargement };
 })();
 """
 
@@ -1035,6 +1058,7 @@ class Scenario:
     voir_en_tant_que: bool = False
     demarrage: bool = False     # ouverture seule, mémoire de l'appareil allumée (ruling R17)
     promos_en_panne: bool = False   # ?mes_promos=erreur : le bandeau des promos non chargées s'ajoute à l'aperçu
+    agenda_vide: bool = False   # la date du banc recule après le dernier événement : l'accueil n'a rien à venir (lot 2A, tour de correction 1)
 
     @property
     def nom(self):
@@ -1043,6 +1067,7 @@ class Scenario:
         variante += "-voir-en-tant-que" if self.voir_en_tant_que else ""
         variante += "-demarrage" if self.demarrage else ""
         variante += "-promos-en-panne" if self.promos_en_panne else ""
+        variante += "-agenda-vide" if self.agenda_vide else ""
         return "%s/%s/%s%s@%d" % (self.moteur, self.passe, self.role, variante, self.largeur)
 
 
@@ -1101,10 +1126,14 @@ def construire_scenarios(moteurs, roles, largeurs, passes):
             if "prof" in roles:
                 # Un formateur sans aperçu, dont l'appareil a vu la promo allumée : son ouverture seule (ruling R17).
                 scenarios.append(Scenario(moteur, "allume", "prof", largeurs[0], "reglage", "equipe", demarrage=True))
+                # Son accueil quand plus aucun événement n'est à venir : où ajouter des événements, selon la navigation.
+                scenarios.append(Scenario(moteur, "allume", "prof", largeurs[0], "reglage", "equipe", agenda_vide=True))
         if "eteint" in passes:
             for role in roles:
                 for l in largeurs:
                     scenarios.append(Scenario(moteur, "eteint", role, l))
+            if "prof" in roles:
+                scenarios.append(Scenario(moteur, "eteint", "prof", largeurs[0], agenda_vide=True))
             if "fondateur" in roles:
                 # Ancienne barre, les deux bandeaux du bas affichés : la bulle et le panneau de l'assistant
                 # restent à portée (à 375 et 900 px, ils les couvraient sur main).
@@ -1213,6 +1242,8 @@ def nouveau_contexte(navigateur, sc, options):
         lignes.append("FIXTURES.settings.push({ key: '%s', value: 'true', promo_id: 1 });" % CLE_REGLAGE)
     if sc.sans_droits:
         lignes.append("FIXTURES.user_profiles[0].is_founder = false;")
+    lignes.append("RPC.epcf_moyennes = %s;" % json.dumps([{"critere": c, "moyenne": m, "effectif": n}
+                                                          for rangees in MOYENNES_EPCF_DU_BANC.values() for (c, m, n) in rangees]))
     contexte.route("**/*", lambda route: servir_depuis_le_cache(route, lignes))
     if options.get("script_init"):
         contexte.add_init_script(path=options["script_init"])
@@ -1235,7 +1266,8 @@ def adresse_de_page(url, sc):
     `?lenteur=...`), ceux du scénario les remplacent ; le fragment est retiré (l'app s'ouvre à froid)."""
     p = urllib.parse.urlparse(url)
     q = dict(urllib.parse.parse_qsl(p.query, keep_blank_values=True))
-    q.update(cb="%d-%d-%d" % (int(time.time() * 1000), os.getpid(), next(COMPTEUR)), role=sc.role, date=DATE_DU_BANC, emargement="1")
+    q.update(cb="%d-%d-%d" % (int(time.time() * 1000), os.getpid(), next(COMPTEUR)), role=sc.role,
+             date=DATE_AGENDA_VIDE if sc.agenda_vide else DATE_DU_BANC, emargement="1")
     q.pop("modules", None)
     if sc.modules:
         q["modules"] = sc.modules
@@ -1373,6 +1405,8 @@ def sous_vues(page, res, sc, route, options):
             res.echec("sous-onglets manquants", "%s/%s" % (sc.nom, route), "#/%s montre %d sous-onglet(s) ou ligne(s) de sommaire, au moins %d attendu(s)" % (route, nb, attendu))
         if route == "stagiaires" and libelles[:2] != SOUS_ONGLETS_STAGIAIRES:
             res.echec("sous-onglets de Stagiaires", "%s/%s" % (sc.nom, route), "la page Stagiaires montre « %s », attendu « %s »" % (" », « ".join(libelles), " », « ".join(SOUS_ONGLETS_STAGIAIRES)))
+        if route == "notes" and sc.espace == "equipe" and libelles != ["Matrice", "EPCF"]:
+            res.echec("sous-onglets de Notes", "%s/%s" % (sc.nom, route), "la page Notes de l'équipe montre « %s », attendu « Matrice », « EPCF »" % " », « ".join(libelles))
     for i, libelle in enumerate(libelles):
         titre = "%s/%s" % (route, libelle)
         try:
@@ -1879,6 +1913,8 @@ def verifier_sous_page(page, res, sc, route, libelle, options):
         vider_console(res, vue)
     elif route == "stagiaires" and libelle == "Élèves bénévoles":
         verifier_panneau_benevoles(page, res, sc, options)
+    elif route == "notes" and libelle == "EPCF":
+        verifier_epcf_de_l_equipe(page, res, sc)
 
 
 def verifier_panneau_benevoles(page, res, sc, options):
@@ -2117,6 +2153,13 @@ def verifier_benevoles_eteint(page, res, sc):
 # Planning et accueil du stagiaire, décompte des événements, bandeau d'émargement (lot 2A, tâche 4)
 # --------------------------------------------------------------------------------------
 
+# Moyennes EPCF de la classe que le faux Supabase rend (RPC epcf_moyennes ; le banc n'en sert aucune de lui-même, et rend la même liste aux deux
+# épreuves) : (critère, moyenne, effectif). Deux critères de la grille salle sur 3 et 2 stagiaires, un troisième sur un seul (sous le k-anonymat de 2 :
+# jamais montré), un de la grille véhicule sur 3. Posées dans tous les scénarios (nouveau_contexte).
+MOYENNES_EPCF_DU_BANC = {"salle": [("PREP1", 1.5, 3), ("PREP2", 1, 2), ("ANIM1", 0.5, 1)], "vehicule": [("COND1", 1.8, 3)]}
+K_ANONYMAT = 2    # une moyenne de la classe n'est montrée qu'à partir de 2 stagiaires évalués (js/epcf-restitution.js)
+DATE_AGENDA_VIDE = "2027-01-15"   # après le dernier événement de l'agenda du banc (11/12/2026) : l'accueil n'a plus d'événement à venir
+
 # Hauteur du bandeau d'émargement de main sur téléphone, horaires affichés, sur deux lignes : 61 px. Sur une ligne, avec son bouton de 44 px, il ne doit pas la dépasser.
 HAUTEUR_BANDEAU_DEUX_LIGNES = 61
 
@@ -2284,26 +2327,79 @@ def verifier_planning_eteint(page, res, sc):
     vider_console(res, vue)
 
 
+def verifier_epcf_de_l_equipe(page, res, sc):
+    """Notes et examens > EPCF, page de l'équipe : le sous-onglet garde son rendu des moyennes de la classe sous son titre « Moyennes de la classe » (celui
+    de La classe de Mon suivi est « Moyennes EPCF de la classe »), pour les deux épreuves."""
+    vue = "%s/notes/epcf" % sc.nom
+    res.vues += 1
+    attendre(page)
+    m = page.evaluate("() => window.__verifNav.epcfDeLEquipe()")
+    if m["titre"] != "Moyennes de la classe":
+        res.echec("notes de l'équipe, EPCF", vue, "le titre du sous-onglet EPCF est « %s », attendu « Moyennes de la classe »" % m["titre"])
+    if m["epreuves"] != 2:
+        res.echec("notes de l'équipe, EPCF", vue, "le sous-onglet EPCF montre %d épreuve(s), 2 attendues (salle et véhicule)" % m["epreuves"])
+    vider_console(res, vue)
+
+
+def verifier_moyennes_epcf(res, vue, e):
+    """La section « Moyennes EPCF de la classe » de La classe (m["epcf"] de laClasse()) : titrée, sous la matrice, deux épreuves, le rendu des moyennes
+    de la classe avec son k-anonymat (une moyenne n'est montrée qu'à partir de 2 stagiaires évalués). Le banc sert des moyennes sur 3 et 2 stagiaires,
+    et un critère sur un seul stagiaire, qui ne doit jamais être montré."""
+    if e is None:
+        res.echec("la classe, moyennes EPCF", vue, "la section « Moyennes EPCF de la classe » manque sous la vue de la classe (le banc sert des évaluations EPCF)")
+        return
+    if e["titre"] != "Moyennes EPCF de la classe":
+        res.echec("la classe, moyennes EPCF", vue, "le titre de la section est « %s », attendu « Moyennes EPCF de la classe »" % e["titre"])
+    if not e["sousLaMatrice"]:
+        res.echec("la classe, moyennes EPCF", vue, "la section n'est pas placée sous la vue de la classe (matrice, synthèse, graphiques)")
+    evalues = max(n for rangees in MOYENNES_EPCF_DU_BANC.values() for (_, _, n) in rangees)
+    if len(e["epreuves"]) != 2:
+        res.echec("la classe, moyennes EPCF", vue, "la section montre %d épreuve(s), 2 attendues (salle et véhicule)" % len(e["epreuves"]))
+    for epreuve, rangees in zip(e["epreuves"], (MOYENNES_EPCF_DU_BANC["salle"], MOYENNES_EPCF_DU_BANC["vehicule"])):
+        if not re.fullmatch(r".+ : %d stagiaire\(s\) évalué\(s\)" % evalues, epreuve["titre"]):
+            res.echec("la classe, moyennes EPCF", vue, "le titre d'une épreuve est « %s », attendu « <épreuve> : %d stagiaire(s) évalué(s) »" % (epreuve["titre"], evalues))
+        montrees = [(ligne[1], ligne[2]) for ligne in epreuve["lignes"] if len(ligne) == 3 and ligne[2]]
+        attendues = [("%.2f" % moyenne, str(n)) for (_, moyenne, n) in rangees if n >= K_ANONYMAT]
+        if montrees != attendues:
+            res.echec("la classe, moyennes EPCF", vue, "« %s » montre les critères évalués %s, attendu %s (k-anonymat de %d : un critère sur moins de %d stagiaires n'est jamais montré)"
+                      % (epreuve["titre"], montrees, attendues, K_ANONYMAT, K_ANONYMAT))
+        if any(int(effectif) < K_ANONYMAT for _, effectif in montrees):
+            res.echec("k-anonymat", vue, "« %s » montre une moyenne sur moins de %d stagiaires : %s" % (epreuve["titre"], K_ANONYMAT, montrees))
+
+
 def verifier_la_classe(page, res, sc):
-    """Mon suivi > La classe, chez le stagiaire (nouvelle navigation) : la vue de la classe sans second titre « Notes & évaluations », sans la seconde rangée
-    Matrice / EPCF (deux « EPCF » se liraient à l'écran), sans phrase sur la saisie ni « Lecture seule... » ; il reste le nombre de notes."""
+    """Mon suivi > La classe (nouvelle navigation), pour toute personne qui y ouvre la classe, stagiaire ou formateur : la présentation suit le contexte
+    (imbriquée dans Mon suivi), pas le rôle. Sans second titre « Notes & évaluations » ni « Notes et examens », sans seconde rangée Matrice / EPCF (deux
+    « EPCF » se liraient à l'écran : aucun libellé « EPCF » isolé), sans « Lecture seule... » ; le stagiaire, qui ne saisit rien, ne lit pas non plus la
+    phrase sur la saisie, et il ne reste que le nombre de notes, que l'équipe lit après sa phrase. Sous la vue de la classe, la section « Moyennes EPCF de la
+    classe » (verifier_moyennes_epcf)."""
     vue = "%s/mon-suivi/classe" % sc.nom
     aller_a(page, "#/mon-suivi/classe")
     attendre(page)
     res.vues += 1
     m = page.evaluate("() => window.__verifNav.laClasse()")
     if m is None:
-        res.echec("la classe du stagiaire", vue, "la matrice des notes n'est pas à l'écran sur #/mon-suivi/classe")
+        memorise = page.evaluate("() => { try { return localStorage.getItem('ecsr_notes_subtab'); } catch (e) { return null; } }")
+        res.echec("la classe du stagiaire", vue, "la matrice des notes n'est pas à l'écran sur #/mon-suivi/classe (sous-onglet de Notes mémorisé sur l'appareil : %s)" % memorise)
         return
     if m["titres"]:
         res.echec("la classe du stagiaire", vue, "un second titre : « %s »" % " », « ".join(m["titres"]))
-    if m["barres"]:
+    if m["barres"] or m["sousOnglets"]:
         res.echec("la classe du stagiaire", vue, "une seconde rangée de sous-onglets (Matrice / EPCF) : deux « EPCF » se lisent à l'écran")
-    if len(m["entetes"]) != 1 or not COMPTE_NOTES.fullmatch(m["entetes"][0]):
-        res.echec("la classe du stagiaire", vue, "l'en-tête de la classe est « %s », attendu le seul nombre de notes (« N notes enregistrées. »)" % " | ".join(m["entetes"]))
-    for dit in ("Lecture seule", "Clique une cellule", "Notes & évaluations", "Notes et examens"):
+    if m["epcfIsoles"]:
+        res.echec("la classe du stagiaire", vue, "%d libellé(s) « EPCF » isolé(s) (titre, bouton ou sous-onglet) : seul le titre de la section des moyennes le porte" % m["epcfIsoles"])
+    stagiaire = sc.espace == "stagiaire"
+    if len(m["entetes"]) != 1:
+        res.echec("la classe du stagiaire", vue, "%d en-tête(s) dans la classe, 1 attendu : « %s »" % (len(m["entetes"]), " | ".join(m["entetes"])))
+    elif stagiaire and not COMPTE_NOTES.fullmatch(m["entetes"][0]):
+        res.echec("la classe du stagiaire", vue, "l'en-tête de la classe est « %s », attendu le seul nombre de notes (« N notes enregistrées. »)" % m["entetes"][0])
+    elif not stagiaire and not (COMPTE_NOTES.search(m["entetes"][0]) and len(m["entetes"][0]) > len("0 note enregistrée.")):
+        res.echec("la classe du formateur", vue, "l'en-tête de la classe est « %s », attendu sa phrase sur la saisie puis le nombre de notes" % m["entetes"][0])
+    interdits = ["Lecture seule", "Notes & évaluations", "Notes et examens"] + (["Clique une cellule", "Touche une case"] if stagiaire else [])
+    for dit in interdits:
         if dit in m["texte"]:
-            res.echec("la classe du stagiaire", vue, "la page dit « %s »" % dit)
+            res.echec("la classe du stagiaire" if stagiaire else "la classe du formateur", vue, "la page dit « %s »" % dit)
+    verifier_moyennes_epcf(res, vue, m["epcf"])
     vider_console(res, vue)
 
 
@@ -2400,7 +2496,7 @@ def jouer_allume(page, res, sc, options):
     if res.coquille:
         verifier_accueil(page, res, sc)
         verifier_bandeau_emargement(page, res, sc)
-        if sc.espace == "stagiaire" and res.profil_stagiaire and sc.modules != "depart":
+        if res.profil_stagiaire and sc.modules != "depart":
             verifier_la_classe(page, res, sc)
     if res.coquille and sc.espace == "equipe" and sc.largeur < SEUIL_TELEPHONE:
         aller_a(page, "#/stagiaires")
@@ -2503,6 +2599,22 @@ def verifier_assistant_sous_bandeau(page, res, sc, vue):
                 res.echec("assistant recouvert", vue, "%s du panneau de l'assistant : %s en son centre, bandeau d'aperçu affiché" % (c["nom"], c["dessus"]))
     page.keyboard.press("Escape")
     page.wait_for_timeout(250)
+    vider_console(res, vue)
+
+
+def jouer_agenda_vide(page, res, sc):
+    """Accueil d'un formateur quand plus aucun événement n'est à venir (la date du banc recule après le dernier) : la liste le dit et dit où en ajouter,
+    « Planning, Dates clés » avec la nouvelle navigation, « l'onglet Calendrier » avec celle de main ; la carte « Prochain événement majeur » n'y est pas."""
+    vue = "%s/accueil" % sc.nom
+    m = ouvrir_accueil(page, res, vue)
+    if m is None:
+        return
+    attendu = "Aucun événement à venir. " + ("Ajoute-en depuis Planning, Dates clés." if sc.passe == "allume" else "Ajoute-en depuis l'onglet Calendrier.")
+    dit = page.evaluate("() => { const e = document.querySelector('#view .home-empty-line'); return e ? e.textContent.trim() : null; }")
+    if dit != attendu:
+        res.echec("accueil, agenda vide", vue, "la ligne de l'agenda vide est « %s », attendu « %s »" % (dit, attendu))
+    if m["carte"]:
+        res.echec("accueil, agenda vide", vue, "la carte « Prochain événement majeur » (« %s ») est affichée alors qu'aucun événement n'est à venir" % m["carte"]["titre"])
     vider_console(res, vue)
 
 
@@ -2637,6 +2749,8 @@ def jouer_scenario(navigateur, url, sc, options):
         charger(page, url, sc)
         if sc.demarrage:
             jouer_demarrage(page, res, sc)
+        elif sc.agenda_vide:
+            jouer_agenda_vide(page, res, sc)
         elif sc.passe == "allume":
             jouer_allume(page, res, sc, options)
         else:

@@ -692,12 +692,13 @@ function rendrePartie(panel, partie, d, opts, ctx) {
     renderDp(panel, { stagiaireId: d.id, embedded: true, isActive })
       .catch(erreurPartie(panel, isActive, "Erreur de chargement du dossier professionnel. Rouvre la partie pour réessayer."));
   } else if (partie === "classe") {
-    // La vue Notes de la classe, telle quelle, dans son propre conteneur : elle repeint son
-    // conteneur à l'arrivée des données, et une partie quittée entre-temps laisse ce repeint
-    // dans un nœud détaché au lieu d'effacer la partie affichée.
+    // La vue Notes de la classe, dans son propre conteneur : elle repeint son conteneur à
+    // l'arrivée des données, et une partie quittée entre-temps laisse ce repeint dans un
+    // nœud détaché au lieu d'effacer la partie affichée. Imbriquée sous le titre de Mon
+    // suivi, elle n'a ni titre à elle ni seconde rangée d'onglets (js/views/notes.js).
     const zone = el("div");
     panel.appendChild(zone);
-    renderNotes(zone)
+    renderNotes(zone, { imbrique: true })
       .catch(erreurPartie(zone, isActive, "Erreur de chargement des notes de la classe. Rouvre la partie pour réessayer."));
   }
 }

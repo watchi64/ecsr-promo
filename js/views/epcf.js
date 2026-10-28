@@ -1,6 +1,7 @@
 // Vue EPCF (chantier D, lot 2).
 //  - Notes, sous-onglet EPCF : les moyennes de la classe, pour tout le monde
-//    (agrégats k-anonymisés, RPC autorisée à tout connecté).
+//    (agrégats k-anonymisés, RPC autorisée à tout connecté). Sous la nouvelle navigation,
+//    La classe de Mon suivi les montre en section sous la Matrice, sans sous-onglet.
 //  - Fiche d'une personne (Mon espace, page Stagiaires) : ses résultats salle et
 //    véhicule ; chez un formateur, la saisie (Évaluer, Modifier, Nouvelle évaluation).
 // L'écriture reste réservée par la base aux formateurs et aux admins.
@@ -15,7 +16,8 @@ import { poserGardeSortie, leverGardeSortie } from "../navigation.js?v=20261028a
 
 const TRAME_KEYS = ["salle", "vehicule"];
 
-// opts.embedded : rendu dans le sous-onglet EPCF de Notes (le parent a son en-tête).
+// opts.embedded : rendu dans le sous-onglet EPCF de Notes, ou en section de La classe (le parent a son
+// en-tête). opts.titre : le titre de la section, « Moyennes de la classe » par défaut.
 export async function renderEpcf(container, opts = {}) {
   clear(container);
   container.appendChild(el("div", { class: "loading" }, "Chargement"));
@@ -28,7 +30,7 @@ export async function renderEpcf(container, opts = {}) {
   }
   const body = el("div", { class: "epcf-body" });
   container.appendChild(body);
-  body.appendChild(el("h3", { class: "epcf-resti-title" }, "Moyennes de la classe"));
+  body.appendChild(el("h3", { class: "epcf-resti-title" }, opts.titre || "Moyennes de la classe"));
   renderEpcfClasse(body, { salle: mSalle, vehicule: mVehicule });
 }
 

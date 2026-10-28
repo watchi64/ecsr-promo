@@ -937,6 +937,10 @@ body[data-nav="v2"] .stg-page.stg-fiche-seule > .subtabs > .subtabs-bar { displa
   body[data-nav="v2"] .bnv-page .bnv-retires summary { display: inline-flex; align-items: center; min-height: 44px; }
 }
 
+/* ----- Mon suivi > La classe : les moyennes EPCF de la classe (lot 2A, js/views/notes.js) ----- */
+/* Une section sous la vue de la classe (matrice, synthèse, graphiques), à distance de sa dernière carte. */
+body[data-nav="v2"] .notes-epcf-classe { margin-top: 1.5rem; }
+
 /* ----- Bandeau d'émargement sur téléphone (lot 2A, js/emargement-bandeau.js) ----- */
 /* Une seule ligne : « Émargement du matin ouvert » et son bouton. Les horaires (côté stagiaire) et le nombre de
    signatures (côté formateur) sont dans la feuille que le bouton ouvre ; le bouton (Signer, Voir) fait 44 px. Le
