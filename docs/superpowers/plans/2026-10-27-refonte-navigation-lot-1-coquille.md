@@ -131,7 +131,7 @@ console.log(`nav-rules : ${n} assertions OK`);
   - `renderPlanningEspace(view): Promise<void>` : sous-onglets `semaine` « Semaine » (`renderPlanning`), `dates` « Dates clés » (module `calendrier`, `renderCalendrier`), `priorites` « Priorités » (module `priorites`, `renderDashboard`), `storageKey: "planning.subtab"`.
   - Cours (`themes.js`) : onglet `documents` « Documents » (module `ressources`, `renderRessources`) ajouté seulement si `navigationV2Active()`.
   - Mon espace : partie `classe` « La classe », seulement pour la personne connectée qui a un profil stagiaire et si `navigationV2Active()` ; elle rend la vue Notes actuelle dans le panneau (`renderNotes(panneau)`).
-  - CSS : variable `--haut-entete` (Task 7 en fixe les valeurs) lue par `planning.js` à la place de la constante `104` : décalage = `--haut-entete` + 52 px.
+  - CSS : variable `--haut-entete` (Task 6 en fixe les valeurs, R2) lue par `planning.js` à la place de la constante `104` : décalage = `--haut-entete` + 52 px.
 
 - [ ] **Step 1:** Tests ajoutés à `tests/route-rules.test.mjs` : `lireAdresse("#/mon-suivi/classe")` donne `{ route: "mon-suivi", id: null, partie: "classe" }` ; `PARTIES` se termine par `"classe"`.
 - [ ] **Step 2:** `node tests/route-rules.test.mjs`. Expected : échec sur `classe`.
@@ -151,7 +151,7 @@ console.log(`nav-rules : ${n} assertions OK`);
 - Produces :
   - `monterCoquille({ espace, entrees, nom, initiales }): void` : pose `document.body.dataset.nav = "v2"` et `dataset.espace`, monte dans `#app` la barre de l'espace, masque `header.topbar` (CSS) ; idempotent (remonter remplace).
   - `majEntreeActive(route): void` : `aria-current="page"` sur l'entrée renvoyée par `entreeActive` (ou sur « Plus » quand l'entrée est dans `plus`).
-  - ~~`demonterCoquille(): void`~~ (R22) : retirée. Rien ne démonte la coquille : la décision est figée pour la session (R8).
+  - ~~`demonterCoquille(): void`~~ (R22) : retirée. Rien ne démonte la coquille : la décision est figée pour la session (R8), sauf le repli de la relecture finale (mineur 8) : un montage qui lève une exception est retiré (`retirerCoquille`) et la session repasse à l'ancienne navigation.
 - Stagiaire, ordinateur et tablette : en-tête collant de 66 px, logo à gauche, capsule d'onglets centrée (icône + libellé), à droite le bouton « Assistant » nommé (Task 6) et le bouton du compte (initiales + flèche, Task 5). Téléphone : en-tête de 56 px (logo, Assistant, compte) et barre du bas fixe (icône + libellé court, pastille de l'onglet actif, `env(safe-area-inset-bottom)` en marge), `body` gagne une marge basse égale à sa hauteur.
 - `main.js` : quand `navigationV2Active()`, `renderTabs()` appelle `monterCoquille` au lieu de remplir `#tabs`, et `marquerOngletActif()` appelle `majEntreeActive(lastRoute)`. Les clics passent par les liens `#/route` (donc par `navigate()` et sa garde).
 

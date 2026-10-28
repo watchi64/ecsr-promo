@@ -1,6 +1,6 @@
 # Refonte de la navigation et séparation des droits (conception)
 
-Date : 27/10/2026. Statut : **proposition, en attente de validation de Timy**. Maquette cliquable :
+Date : 27/10/2026. Statut : **validée par Timy le 27/10/2026**. Maquette cliquable :
 `docs/maquettes/refonte-navigation.src.html` (assemblée par `assembler_maquette.py`, testée par
 `tests_maquette.js` et `captures_maquette.py`), publiée en artefact « Nouvelle navigation ECSR ».
 
