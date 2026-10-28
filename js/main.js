@@ -5,7 +5,7 @@
 import { getCurrentUser, invalidateCache, verifyRecoveryToken } from "./db.js?v=20261027a";
 import { toast } from "./utils.js?v=20261027a";
 import { icon } from "./icons.js?v=20261027a";
-import { initAuth, onAdminChange, isAuth, isAdmin, isProf, monStagiaireId, getAdminEmail, getProfile, getProfileWho } from "./auth-admin.js?v=20261027a";
+import { initAuth, onAdminChange, isAuth, monStagiaireId, getAdminEmail, getProfile, getProfileWho } from "./auth-admin.js?v=20261027a";
 import { showGate, hideGate } from "./gate.js?v=20261027a";
 import { exigerAcceptation } from "./legal.js?v=20261027a";
 import { lireJetonRecuperation } from "./gate-rules.js?v=20261027a";
@@ -31,9 +31,9 @@ import { renderCentre, teardownCentrePrint } from "./views/centre.js?v=20261027a
 import { renderEmargement } from "./views/emargement.js?v=20261027a";
 import { initBandeauEmargement, rafraichirBandeauEmargement } from "./emargement-bandeau.js?v=20261027a";
 import { chargerEmargementActif, emargementActif } from "./emargement-etat.js?v=20261027a";
-import { chargerNavigationV2, navigationV2Active, navigationV2Attendue } from "./nav-etat.js?v=20261027a";
+import { chargerNavigationV2, navigationV2Active, navigationV2Attendue, renoncerNavigationV2 } from "./nav-etat.js?v=20261027a";
 import { routeVisibleV2, espaceDe, entreesNavigation, initialesDe, redirectionV2 } from "./nav-rules.js?v=20261027a";
-import { monterCoquille, majEntreeActive, coquilleMontee } from "./nav-shell.js?v=20261027a";
+import { monterCoquille, majEntreeActive, coquilleMontee, retirerCoquille, majNouveautesCompte } from "./nav-shell.js?v=20261027a";
 import { lireAdresse, pagePersonnelle } from "./route-rules.js?v=20261027a";
 import {
   peutQuitter, leverGardeSortie, majSurPlacePour, oublierMajSurPlace,
@@ -42,7 +42,7 @@ import {
 import { initChatbot, appliquerModuleAssistant } from "./chatbot.js?v=20261027a";
 import {
   chargerModules, chargerModulesAuDemarrage, onModulesChange, surveillerPremierPlan,
-  routeVisible, routeMasquee, repereMasque, nouveautesAffichables,
+  routeVisible, routeMasquee, repereMasque, nouveautesAffichables, formateurConnecte,
 } from "./modules-etat.js?v=20261027a";
 
 // ===== Tabs =====
@@ -65,31 +65,42 @@ const TABS = [
   { route: "config",     label: "Paramètres",      icon: "settings"  },
 ];
 
-// Espace de la personne connectée : « equipe » (formateur, admin) ou « stagiaire ». Défini ici une
-// seule fois : la coquille, la redirection des anciennes adresses et les pages réservées à l'équipe
-// lisent le même espace, aucune ne peut s'écarter des autres.
+// Espace de la personne connectée : « equipe » (formateur, admin) ou « stagiaire ». La coquille et la
+// redirection des anciennes adresses le lisent ici ; il vient du prédicat formateurConnecte()
+// (js/modules-etat.js), que lisent aussi les pages réservées de navigate() et le menu du compte :
+// aucun ne peut s'écarter des autres.
 function espaceCourant() {
-  return espaceDe({ formateur: isAdmin() || isProf() });
+  return espaceDe({ formateur: formateurConnecte() });
 }
 
 // Barre de navigation. Nouvelle navigation : la coquille de l'espace (js/nav-shell.js), remontée à
 // chaque appel (rôle changé par « Voir en tant que », modules ouverts ou fermés) ; l'ancienne barre,
 // masquée, est vidée pour ne garder aucun onglet d'un rôle précédent. Interrupteur éteint : la barre
 // actuelle.
+// Repli (relecture finale, mineur 8) : si la coquille lève une exception, elle est retirée, la session
+// repasse à l'ancienne navigation (barre et pages) et l'erreur part en console ; rien ne remonte à
+// l'appelant, donc le démarrage continue (assistant, écouteurs, premier navigate(), qui rend l'ancienne
+// page). En cours de session, la page affichée garde sa forme jusqu'au rendu suivant.
 function renderTabs() {
   if (navigationV2Active()) {
-    document.getElementById("tabs").replaceChildren();
-    const espace = espaceCourant();
-    const nom = getProfileWho();
-    monterCoquille({
-      espace,
-      entrees: entreesNavigation(espace, { routeVisible, emargementActif: emargementActif() }),
-      nom,
-      initiales: initialesDe(nom),
-      actualiser,
-    });
-    marquerOngletActif();
-    return;
+    try {
+      document.getElementById("tabs").replaceChildren();
+      const espace = espaceCourant();
+      const nom = getProfileWho();
+      monterCoquille({
+        espace,
+        entrees: entreesNavigation(espace, { routeVisible, emargementActif: emargementActif() }),
+        nom,
+        initiales: initialesDe(nom),
+        actualiser,
+      });
+      marquerOngletActif();
+      return;
+    } catch (e) {
+      console.error("Navigation : la nouvelle barre n'a pas pu se monter, retour à la barre actuelle pour la session.", e);
+      retirerCoquille();
+      renoncerNavigationV2();
+    }
   }
   renderBarreActuelle();
 }
@@ -140,7 +151,12 @@ function marquerOngletActuel() {
 // Pastille de nouveautés sur l'onglet Accueil. Elle se modifie sur place, sur
 // l'onglet existant : renderTabs() reconstruit la barre sans elle, donc cette
 // fonction se rappelle après chaque renderTabs().
+// Nouvelle navigation : la même pastille, sur les boutons du compte de la coquille (js/nav-shell.js).
 function majBadgeNouveautes() {
+  if (coquilleMontee()) {
+    majNouveautesCompte(libellePastille(nouveautesAffichables().neuves.size));
+    return;
+  }
   const tab = document.querySelector('.tab[data-route="home"]');
   if (!tab) return;
   // Nouveautés écrites et annonces d'ouverture de module, pas encore lues.
@@ -165,9 +181,12 @@ const routes = {
   home:       renderHome,
   dashboard:  renderDashboard,
   "mon-suivi": renderMonSuivi,
-  // Nouvelle navigation : Planning regroupe Semaine, Dates clés et Priorités en sous-onglets.
+  // Nouvelle navigation : Planning regroupe Semaine, Dates clés et Priorités en sous-onglets, et
+  // la Semaine porte le bouton « Aujourd'hui » de l'ancienne barre (ruling R29), au même geste.
   // Décidé au rendu (la décision est connue au démarrage, après la construction de la table).
-  planning:   (view) => (navigationV2Active() ? renderPlanningEspace(view) : renderPlanning(view)),
+  planning:   (view) => (navigationV2Active()
+    ? renderPlanningEspace(view, { aujourdhui: allerAujourdhui })
+    : renderPlanning(view)),
   calendrier: renderCalendrier,
   themes:     renderThemes,
   notes:      renderNotes,
@@ -218,12 +237,15 @@ function derniereRoute() {
 }
 
 // Nouvelle navigation : une ancienne adresse cède la place à sa nouvelle adresse avant que
-// navigate() n'en lise la route. Seules y arrivent la navigation dans l'app (liens, lien d'une
-// nouveauté) et la dernière page mémorisée : à l'ouverture à froid, l'app ignore l'adresse demandée
-// (favori, raccourci d'écran d'accueil) et rouvre `derniere-route` (voir bootApp). Appelée APRÈS la
-// garde de saisie : un refus n'écrit rien. Le sous-onglet visé s'écrit d'abord dans la mémoire de
-// renderSubTabs, que la page lit à son rendu ; un sous-onglet fermé pour la promo n'y change rien,
-// renderSubTabs ouvre alors le premier sous-onglet visible de la page.
+// navigate() n'en lise la route. Y arrive toute adresse que navigate() lit : la navigation dans
+// l'app (liens, lien d'une nouveauté) ; une adresse saisie, ou un favori ouvert, dans l'onglet où
+// l'app est déjà ouverte (`hashchange`) ; un rechargement et « Précédent » ou « Suivant », qui
+// gardent l'adresse (voir isColdStart) ; à l'ouverture à froid, la dernière page mémorisée
+// (`derniere-route`), car l'app ignore alors l'adresse demandée (favori, raccourci d'écran
+// d'accueil : voir bootApp). Appelée APRÈS la garde de saisie : un refus n'écrit rien. Le
+// sous-onglet visé s'écrit d'abord dans la mémoire de renderSubTabs, que la page lit à son rendu ;
+// un sous-onglet fermé pour la promo n'y change rien, renderSubTabs ouvre alors le premier
+// sous-onglet visible de la page.
 // replaceState ne déclenche aucun `hashchange` et n'ajoute aucune étape d'historique : un seul
 // rendu, et « Précédent » quitte la page redirigée. Une seule redirection par appel : aucune cible
 // n'est elle-même une ancienne adresse (tests/nav-rules.test.mjs).
@@ -259,7 +281,7 @@ async function navigate({ force = false } = {}) {
   }
   // Page « à soi » (chantier D, lot 2) : un formateur sans profil stagiaire n'a pas
   // de Mon espace, il a la page Stagiaires ; un stagiaire n'a pas la page Stagiaires.
-  const formateur = espaceCourant() === "equipe";
+  const formateur = formateurConnecte();
   if (route === "mon-suivi" && pagePersonnelle({ formateur, stagiaireId: monStagiaireId() }) === "stagiaires") {
     try { history.replaceState(null, "", "#/stagiaires"); } catch (e) { /* ignore */ }
     route = "stagiaires";
@@ -368,16 +390,20 @@ function setupRefreshBtn() {
 // Raccourci « Aujourd'hui » : ouvre le planning sur la journée du jour, depuis n'importe
 // quelle vue. Déjà sur le planning, le hash ne change pas → aucun `hashchange` : on
 // re-rend à la main, sinon le bouton serait inerte pile là où on s'en sert le plus.
+// Bouton de l'ancienne barre ; sous la nouvelle navigation, bouton du haut de Planning > Semaine
+// (ruling R29, js/views/planning.js), toujours ce geste-ci.
+async function allerAujourdhui() {
+  if (!peutQuitter()) return;
+  requestPlanningToday();
+  if (location.hash === "#/planning") await navigate({ force: true });
+  else location.hash = "#/planning";
+}
+
 function setupTodayBtn() {
   const btn = document.getElementById("today-btn");
   btn.innerHTML = "";
   btn.appendChild(icon.today());
-  btn.addEventListener("click", async () => {
-    if (!peutQuitter()) return;
-    requestPlanningToday();
-    if (location.hash === "#/planning") await navigate({ force: true });
-    else location.hash = "#/planning";
-  });
+  btn.addEventListener("click", allerAujourdhui);
 }
 
 // Le raccourci « Aujourd'hui » mène au planning : il suit donc le module Planning.

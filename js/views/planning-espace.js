@@ -42,10 +42,12 @@ function dansUnConteneur(rendre) {
 
 // Chaque sous-onglet suit le module de son ancienne page : la page s'ouvre dès que l'un d'eux
 // est ouvert (routeVisibleV2, js/nav-rules.js) et ne montre que ceux-là chez un stagiaire.
-export async function renderPlanningEspace(view) {
+// `aujourdhui` : le geste du bouton « Aujourd'hui » de l'ancienne barre (js/main.js), que la semaine
+// porte en haut de sa vue (ruling R29).
+export async function renderPlanningEspace(view, { aujourdhui = null } = {}) {
   clear(view);
   view.appendChild(renderSubTabs([
-    { key: "semaine", label: "Semaine", module: "planning", render: dansUnConteneur((c) => renderPlanning(c)) },
+    { key: "semaine", label: "Semaine", module: "planning", render: dansUnConteneur((c) => renderPlanning(c, { aujourdhui })) },
     { key: "dates", label: "Dates clés", module: "calendrier",
       render: dansUnConteneur((c) => { quitterSemaine(); return renderCalendrier(c); }) },
     { key: "priorites", label: "Priorités", module: "priorites",

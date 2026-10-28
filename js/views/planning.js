@@ -10,7 +10,7 @@ import {
   avantChangementPromo,
 } from "../db.js?v=20261027a";
 import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20261027a";
-import { icon } from "../icons.js?v=20261027a";
+import { icon, deco } from "../icons.js?v=20261027a";
 import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20261027a";
 import { isAdmin, isProf, getAdminEmail } from "../auth-admin.js?v=20261027a";
 import { recordUndo } from "../undo.js?v=20261027a";
@@ -2711,6 +2711,11 @@ function scrollToDay(d) {
 // endroit où l'on sait quelle semaine est chargée et où les cartes existent déjà pour
 // pouvoir défiler jusqu'à la bonne.
 let pendingTodayJump = false;
+// Nouvelle navigation (ruling R29) : le bouton de la barre du haut, masquée, revient en haut de la
+// semaine, avec le même geste (js/main.js, allerAujourdhui), que la page Planning de la nouvelle
+// navigation transmet à renderPlanning (js/views/planning-espace.js). null avec l'ancienne
+// navigation : le bouton est dans la barre du haut.
+let gesteAujourdhui = null;
 export function requestPlanningToday() {
   pendingTodayJump = true;
   // Nouvelle navigation : la semaine est le sous-onglet « Semaine » de Planning
@@ -2843,8 +2848,14 @@ function renderInto(container) {
     // Priorités de passage : rangées dans le Planning, plus d'onglet (chantier D).
     // Visibles des formateurs, et des stagiaires si le module est ouvert pour leur
     // promo ; repère « Masqué aux stagiaires » chez un formateur quand il est fermé.
-    // Nouvelle navigation : Priorités est un sous-onglet de Planning, pas de bouton en double.
+    // Nouvelle navigation : Priorités est un sous-onglet de Planning, pas de bouton en double ; le
+    // bouton « Aujourd'hui » de l'ancienne barre du haut vient en tête (ruling R29).
     el("div", { class: "p-entete-actions" },
+      navigationV2Active() && gesteAujourdhui
+        ? el("button", { class: "btn small p-aujourdhui", type: "button",
+            title: "Aller à la journée d'aujourd'hui", onClick: () => gesteAujourdhui() },
+            deco(icon.today()), "Aujourd'hui")
+        : null,
       routeVisible("dashboard") && !navigationV2Active()
         ? repereMasque(el("button", { class: "btn small", type: "button",
             title: "Qui doit passer en priorité, au tableau et en voiture",
@@ -3387,7 +3398,9 @@ async function printPlanning() {
   window.print();
 }
 
-export async function renderPlanning(container) {
+// `aujourdhui` : le geste du bouton « Aujourd'hui » à poser en haut de la semaine (nouvelle navigation,
+// js/views/planning-espace.js) ; absent avec l'ancienne, dont la barre du haut porte le bouton.
+export async function renderPlanning(container, { aujourdhui = null } = {}) {
   clear(container);
   container.appendChild(el("div", { class: "loading" }, "Chargement"));
 
@@ -3426,6 +3439,7 @@ export async function renderPlanning(container) {
     : (weekSetting || isoDate(getMonday(new Date())));
   await loadPlanning();
   if (!container.isConnected) return;
+  gesteAujourdhui = aujourdhui;
   renderInto(container);
   if (jump) {
     scrollToDay(jump.dayIndex);

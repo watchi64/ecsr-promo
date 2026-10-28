@@ -1,8 +1,8 @@
 // Navigation par espace (refonte, lot 1) : les règles seulement. Quelles entrées montre
 // chaque espace, comment la barre du téléphone les répartit, quelle entrée s'allume pour
 // une page, quelle entrée de l'équipe porte le repère « masqué aux stagiaires », où mènent les
-// anciennes adresses, les initiales et le prénom du bouton du compte. Module pur, sans DOM ni
-// stockage : testé en node.
+// anciennes adresses, les initiales, le prénom et le nom du bouton du compte, la ligne « page à soi »
+// du menu du compte. Module pur, sans DOM ni stockage : testé en node.
 
 // Clé de mémoire du sous-onglet ouvert, par page à sous-onglets (le `storageKey` de
 // renderSubTabs). Une redirection l'écrit pour ouvrir le bon sous-onglet.
@@ -159,6 +159,24 @@ export function prenomDe(nom) {
   const mots = texte.split(/\s+/);
   if (mots.length > 1 && /^\p{L}\.$/u.test(mots[0])) return mots.slice(1).join(" ");
   return mots[0];
+}
+
+// Nom du bouton du compte (aria-label et infobulle) : « Mon compte », puis le nom et le rôle que le
+// bouton montre (le rôle n'est affiché que dans la barre de l'équipe : le nom accessible contient le
+// texte visible, WCAG 2.5.3), puis les nouveautés non lues que compte sa pastille (`nonLues` : le
+// texte de la pastille, libellePastille de js/nouveautes.js, vide à zéro).
+export function nomDuBoutonCompte({ nom = "", role = "", nonLues = "" } = {}) {
+  const qui = [nom, role].filter(Boolean).join(", ");
+  const base = qui ? `Mon compte (${qui})` : "Mon compte";
+  if (!nonLues) return base;
+  return `${base}, ${nonLues} ${nonLues === "1" ? "nouveauté non lue" : "nouveautés non lues"}`;
+}
+
+// Ligne « page à soi » du menu du compte (ruling R30, une chose à un endroit) : la page à soi de la
+// personne (pagePersonnelle de js/route-rules.js : « mon-suivi » ou « stagiaires »), sauf quand la
+// barre affichée a déjà une entrée qui y mène ; null alors, et le menu n'a pas cette ligne.
+export function pageASoiDuMenu(page, entrees) {
+  return entrees.some((e) => e.route === page) ? null : page;
 }
 
 // Où mène une ancienne adresse sous la nouvelle navigation : null (rien à rediriger) ou la

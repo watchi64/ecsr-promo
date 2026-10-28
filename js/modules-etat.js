@@ -100,6 +100,10 @@ export async function chargerModulesAuDemarrage(delaiMs = 3500) {
 
 export function etatModules() { return etat; }
 
+// La personne connectée est-elle de l'équipe (formateur ou admin, « Voir en tant que » compris) ? Un seul
+// prédicat, lu par les modules (ci-dessous), par js/main.js (espace de la coquille, redirection des
+// anciennes adresses, pages réservées à l'équipe) et par le menu du compte (js/menu-compte.js) : aucun
+// ne peut s'écarter des autres.
 export function formateurConnecte() { return isAdmin() || isProf(); }
 
 // Faut-il montrer ce module à la personne connectée ? Toujours pour un formateur.

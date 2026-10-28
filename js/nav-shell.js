@@ -22,7 +22,8 @@
 // déplie la barre latérale, « assistant » ouvre ou ferme le panneau de l'assistant (js/chatbot.js).
 // majEntreeActive allume par aria-current="page" l'entrée de la page affichée, ou « Plus »
 // (data-nav-action="plus") quand le téléphone range cette entrée dans son tiroir : les ids de
-// barreTelephone(espace, entrees).plus.
+// barreTelephone(espace, entrees).plus. majNouveautesCompte pose sur les boutons du compte la
+// pastille des nouveautés non lues (celle de l'ancien onglet Accueil) et la dit dans leur nom.
 
 import { el } from "./utils.js?v=20261027a";
 import { icon, deco } from "./icons.js?v=20261027a";
@@ -31,7 +32,7 @@ import { getPromoCourante } from "./db.js?v=20261027a";
 import { construirePastille } from "./promo-pastille.js?v=20261027a";
 import { routeMasquee, repereMasque, moduleVisible, moduleMasque } from "./modules-etat.js?v=20261027a";
 import {
-  barreTelephone, entreeActive, entreeMasquee, initialesDe, prenomDe, libelleRole,
+  barreTelephone, entreeActive, entreeMasquee, initialesDe, prenomDe, libelleRole, nomDuBoutonCompte,
 } from "./nav-rules.js?v=20261027a";
 import { ouvrirFenetre, fermerFenetre, fenetreOuverte, rendreFocus } from "./nav-fenetre.js?v=20261027a";
 import { ouvrirMenuCompte } from "./menu-compte.js?v=20261027a";
@@ -49,6 +50,12 @@ const ORDINATEUR = window.matchMedia("(min-width: 1080px)");
 let montee = null;
 // Choix « barre repliée », lu une fois ; gardé ici quand le stockage de l'appareil est indisponible.
 let repliee = null;
+// Nouveautés non lues, en texte de pastille (libellePastille : "" à zéro), posées par js/main.js : gardées
+// ici pour les boutons d'une coquille remontée ensuite.
+let nonLues = "";
+// Ce que nomme chaque bouton du compte (le nom affiché, et le rôle là où la barre le montre) : la pastille
+// des nouveautés le renomme sur place.
+const identites = new WeakMap();
 
 // Icône d'une entrée (nom tiré de nav-rules.js). Un nom absent de js/icons.js se signale une fois
 // en console (le test des règles l'attrape aussi) et l'entrée garde une icône de repli.
@@ -68,19 +75,48 @@ const libelle = (texte, classe) => el("span", { class: classe, "data-texte": tex
 
 const avatar = (initiales) => el("span", { class: "nav-avatar", "aria-hidden": "true" }, initiales || deco(icon.user()));
 
-// Nom des boutons qui ouvrent le menu du compte, et leur infobulle.
-const nomDuCompte = (nom) => (nom ? `Mon compte (${nom})` : "Mon compte");
-
 // Repère « masqué aux stagiaires » (œil barré et infobulle) d'une entrée de l'équipe.
 const reperer = (noeud, e) => repereMasque(noeud, entreeMasquee(e.route, routeMasquee));
 
-function boutonCompte(classe, nom, ...contenu) {
+// Bouton qui ouvre le menu du compte (en-tête du stagiaire, barre de l'équipe et son en-tête de téléphone).
+// `qui` : ce qu'il montre, { nom, role } (le rôle dans la barre de l'équipe seulement), que son nom
+// reprend ; son contenu commence par l'avatar, où se pose la pastille des nouveautés non lues.
+function boutonCompte(classe, qui, ...contenu) {
   const bouton = el("button", {
     type: "button", class: classe, "data-nav-action": "compte", "aria-haspopup": "dialog", "aria-expanded": "false",
-    "aria-label": nomDuCompte(nom), title: nomDuCompte(nom),
   }, ...contenu);
-  bouton.addEventListener("click", () => ouvrirMenuCompte(bouton, { actualiser: montee && montee.actualiser }));
+  identites.set(bouton, qui);
+  nommerCompte(bouton);
+  bouton.addEventListener("click", () => ouvrirMenuCompte(bouton,
+    { actualiser: montee && montee.actualiser, entrees: montee ? montee.entrees : [] }));
   return bouton;
+}
+
+// Nom (aria-label et infobulle) d'un bouton du compte, nouveautés non lues comprises, et sa pastille, la
+// même que celle de l'ancien onglet Accueil, sur le coin de l'avatar. L'avatar est caché aux lecteurs
+// d'écran : le nombre passe par le nom du bouton.
+function nommerCompte(bouton) {
+  const nom = nomDuBoutonCompte({ ...identites.get(bouton), nonLues });
+  bouton.setAttribute("aria-label", nom);
+  bouton.setAttribute("title", nom);
+  const avatarDuBouton = bouton.querySelector(".nav-avatar");
+  let pastille = avatarDuBouton && avatarDuBouton.querySelector(".nav-compte-pastille");
+  if (!nonLues || !avatarDuBouton) {
+    if (pastille) pastille.remove();
+    return;
+  }
+  if (!pastille) pastille = avatarDuBouton.appendChild(el("span", { class: "nav-compte-pastille" }));
+  pastille.textContent = nonLues;
+}
+
+// Nouveautés non lues (texte de la pastille, vide à zéro) : js/main.js l'appelle par le même chemin que la
+// pastille de l'ancien onglet Accueil (après chaque montage, au changement de rôle ou de modules, et quand
+// des nouveautés viennent d'être lues).
+export function majNouveautesCompte(texte) {
+  nonLues = texte || "";
+  document.querySelectorAll('[data-nav-coquille] button[data-nav-action="compte"]').forEach((b) => {
+    if (identites.has(b)) nommerCompte(b);
+  });
 }
 
 // Bouton « Assistant » : `geste(bouton)` ouvre ou ferme le panneau de l'assistant (js/chatbot.js). Il suit
@@ -151,7 +187,7 @@ function enTeteStagiaire(entrees, nom, initiales) {
   const assistant = boutonAssistant("nav-assistant", basculerDepuis,
     deco(icon.chat()), el("span", { class: "nav-assistant-texte" }, "Assistant"));
   const prenom = prenomDe(nom);
-  const compte = boutonCompte("nav-compte", nom, avatar(initiales),
+  const compte = boutonCompte("nav-compte", { nom }, avatar(initiales),
     prenom ? el("span", { class: "nav-compte-prenom" }, prenom) : null, deco(icon.chevronDown()));
   return el("header", { class: "nav-haut", "data-nav-coquille": "haut" },
     gauche, onglets, el("div", { class: "nav-droite" }, assistant, compte));
@@ -206,7 +242,7 @@ function barreLaterale(entrees, nom, initiales) {
     el("div", { class: "nav-cote-pied" },
       boutonAssistant("nav-entree nav-cote-assistant", basculerDepuis,
         deco(icon.chat()), el("span", { class: "nav-entree-texte" }, "Assistant")),
-      boutonCompte("nav-cote-compte", nom, avatar(initiales),
+      boutonCompte("nav-cote-compte", { nom, role }, avatar(initiales),
         el("span", { class: "nav-cote-compte-texte" }, el("b", {}, nom || "Mon compte"), role ? el("small", {}, role) : null))));
 }
 
@@ -271,12 +307,13 @@ function ouvrirPlus(bouton) {
     href: "#/" + e.route, class: "nav-fenetre-lien", "data-entree": e.id, "aria-current": e.id === allumee ? "page" : null,
   }, iconeDe(e.icone), el("span", { class: "nav-fenetre-texte" }, e.libelle)), e);
   const compte = el("button", {
-    type: "button", class: "nav-fenetre-lien", "data-nav-action": "compte", "aria-haspopup": "dialog", title: nomDuCompte(nom),
+    type: "button", class: "nav-fenetre-lien", "data-nav-action": "compte", "aria-haspopup": "dialog",
+    title: nomDuBoutonCompte({ nom }),
   }, avatar(initiales), el("span", { class: "nav-fenetre-texte" }, "Mon compte"));
   // Le menu du compte prend la place du tiroir ; Échap rend alors le focus à « Plus ».
   compte.addEventListener("click", () => {
     fermerFenetre({ focus: false });
-    ouvrirMenuCompte(bouton, { actualiser });
+    ouvrirMenuCompte(bouton, { actualiser, entrees });
   });
   ouvrirFenetre({
     nom: "plus", ancre: bouton, etiquette: "Plus", classe: "nav-tiroir",
@@ -331,6 +368,18 @@ export function monterCoquille({ espace, entrees, nom, initiales, actualiser }) 
   appliquerColonne();
   if (rendreFocusDeLaFenetre) rendreFocusDeLaFenetre();
   else if (focus) document.querySelector(focus)?.focus();
+}
+
+// Retire tout ce que la coquille pose : ses barres et sa fenêtre ouverte, ses attributs de body, son état.
+// Seul appelant : le repli de js/main.js, quand le montage lève une exception (la coquille peut alors être
+// à moitié posée) ; la session repasse à l'ancienne navigation. Sinon rien ne démonte la coquille (R8, R22).
+export function retirerCoquille() {
+  fermerFenetre({ focus: false });
+  document.querySelectorAll("[data-nav-coquille]").forEach((r) => r.remove());
+  delete document.body.dataset.nav;
+  delete document.body.dataset.espace;
+  delete document.body.dataset.navColonne;
+  montee = null;
 }
 
 // Allume l'entrée de la page affichée (entreeActive : alias compris), et « Plus » quand le

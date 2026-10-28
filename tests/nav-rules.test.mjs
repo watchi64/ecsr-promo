@@ -1,11 +1,13 @@
 // Navigation par espace (refonte, lot 1) : entrées de chaque espace, barre du téléphone,
-// entrée allumée, redirection des anciennes adresses, listes rendues en copies, initiales et
-// prénom du bouton du compte, repère de l'équipe et icônes des entrées.
+// entrée allumée, redirection des anciennes adresses, listes rendues en copies, initiales,
+// prénom et nom du bouton du compte, repère de l'équipe, icônes des entrées et ligne « page à
+// soi » du menu du compte.
 import assert from "node:assert/strict";
 import {
   espaceDe, entreesNavigation, barreTelephone, entreeActive, redirectionV2, routeVisibleV2, initialesDe,
-  prenomDe, entreeMasquee, libelleRole,
+  prenomDe, entreeMasquee, libelleRole, nomDuBoutonCompte, pageASoiDuMenu,
 } from "../js/nav-rules.js";
+import { pagePersonnelle } from "../js/route-rules.js";
 import { MODULE_DE_ROUTE, ROUTES_SOCLE } from "../js/modules-data.js";
 import { lireAdresse } from "../js/route-rules.js";
 import { icon } from "../js/icons.js";
@@ -91,12 +93,16 @@ for (const route of [...Object.keys(MODULE_DE_ROUTE), ...ROUTES_SOCLE]) {
     if (cible.sousOnglet) eq(typeof cible.sousOnglet.cle, "string", `clé de sous-onglet de ${route} (${espace})`);
   }
 }
-// Témoin positif, pour que la boucle ne passe pas à vide : sans lui, `continue` pourrait sauter toutes les
-// routes, et le contrôle de la cible passerait aussi si lireAdresse ne rendait plus la route d'une adresse
-// écrite en hash. Une ancienne adresse connue (#/calendrier, stagiaire) doit donc être contrôlée par la boucle,
-// et reconnue quand on la lit depuis son hash : c'est ce que le contrôle de la cible refuserait d'une cible.
-eq(controlees.includes("calendrier (stagiaire)"), true, "témoin : la boucle contrôle une ancienne adresse connue");
-eq(redirectionV2(lireAdresse("#/calendrier"), "stagiaire") !== null, true, "témoin : lue depuis son hash, une ancienne adresse est reconnue");
+// Témoins positifs, pour que la boucle ne passe pas à vide : sans eux, `continue` pourrait sauter des routes,
+// et le contrôle de la cible passerait aussi si lireAdresse ne rendait plus la route d'une adresse écrite en
+// hash. Une ancienne adresse par cible distincte (#/planning, #/themes, #/mon-suivi/classe) doit donc être
+// contrôlée par la boucle, et reconnue quand on la lit depuis son hash : c'est ce que le contrôle de la cible
+// refuserait d'une cible.
+for (const ancienne of ["calendrier", "ressources", "notes"]) {
+  eq(controlees.includes(`${ancienne} (stagiaire)`), true, `témoin : la boucle contrôle #/${ancienne} (stagiaire)`);
+  eq(redirectionV2(lireAdresse("#/" + ancienne), "stagiaire") !== null, true,
+    `témoin : lue depuis son hash, #/${ancienne} est reconnue comme ancienne adresse`);
+}
 
 // 6. Pages regroupées : ouvertes dès qu'un de leurs sous-onglets l'est
 const seules = (...routes) => (r) => routes.includes(r);
@@ -192,5 +198,35 @@ for (const espace of ["stagiaire", "equipe"]) {
     eq(Object.hasOwn(icon, e.icone), true, `icône « ${e.icone} » de l'entrée ${e.id} (${espace}) propre à js/icons.js`);
   }
 }
+
+// 13. Nom du bouton du compte : le texte qu'il montre (nom, et rôle dans la barre de l'équipe : WCAG 2.5.3),
+// puis les nouveautés non lues de sa pastille (le texte de libellePastille : "", "1" à "9", "9+")
+eq(nomDuBoutonCompte({ nom: "V. Timy" }), "Mon compte (V. Timy)", "en-tête du stagiaire : le nom, sans rôle affiché");
+eq(nomDuBoutonCompte({ nom: "V. Timy", role: "Fondateur" }), "Mon compte (V. Timy, Fondateur)",
+  "barre de l'équipe : le nom et le rôle qu'elle affiche");
+eq(nomDuBoutonCompte({ nom: "Romain", role: "Formateur", nonLues: "2" }),
+  "Mon compte (Romain, Formateur), 2 nouveautés non lues", "nouveautés non lues : le nombre de la pastille");
+eq(nomDuBoutonCompte({ nom: "V. Timy", nonLues: "1" }), "Mon compte (V. Timy), 1 nouveauté non lue", "une seule : au singulier");
+eq(nomDuBoutonCompte({ nom: "V. Timy", nonLues: "9+" }), "Mon compte (V. Timy), 9+ nouveautés non lues", "au-delà de 9 : « 9+ »");
+eq(nomDuBoutonCompte({ nom: "V. Timy", role: "Fondateur", nonLues: "" }), "Mon compte (V. Timy, Fondateur)",
+  "aucune non lue : rien n'est ajouté");
+eq(nomDuBoutonCompte({ role: "Formateur" }), "Mon compte (Formateur)", "sans nom : le rôle affiché sous « Mon compte »");
+eq(nomDuBoutonCompte({}), "Mon compte", "ni nom ni rôle");
+eq(nomDuBoutonCompte(), "Mon compte", "sans argument");
+// Le nom contient chaque texte visible du bouton de l'équipe (le nom en gras, le rôle dessous, la pastille).
+const nomEquipe = nomDuBoutonCompte({ nom: "V. Timy", role: libelleRole({ role: "stagiaire", is_founder: true }), nonLues: "3" });
+eq(["V. Timy", "Fondateur", "3"].every((t) => nomEquipe.includes(t)), true, "le nom contient le texte visible");
+
+// 14. Ligne « page à soi » du menu du compte (ruling R30) : seulement quand la barre affichée n'y mène pas déjà
+const formateurSansProfil = pagePersonnelle({ formateur: true, stagiaireId: null });
+const formateurStagiaire = pagePersonnelle({ formateur: true, stagiaireId: 1 });
+const stagiaire = pagePersonnelle({ formateur: false, stagiaireId: 1 });
+eq([formateurSansProfil, formateurStagiaire, stagiaire], ["stagiaires", "mon-suivi", "mon-suivi"], "pages à soi des trois cas");
+eq(pageASoiDuMenu(stagiaire, stag), null, "stagiaire : Mon suivi est une entrée de sa barre, pas de ligne");
+eq(pageASoiDuMenu(stagiaire, entreesNavigation("stagiaire", { routeVisible: () => false, emargementActif: false })), null,
+  "stagiaire, tous les modules fermés : Mon suivi reste une entrée");
+eq(pageASoiDuMenu(formateurSansProfil, eqp), null, "formateur sans profil stagiaire : Stagiaires est une entrée, pas de ligne");
+eq(pageASoiDuMenu(formateurStagiaire, eqp), "mon-suivi", "formateur qui a un profil stagiaire : sa page n'a pas d'entrée, la ligne reste");
+eq(pageASoiDuMenu("stagiaires", []), "stagiaires", "aucune entrée : la ligne reste");
 
 console.log(`nav-rules : ${n} assertions OK`);

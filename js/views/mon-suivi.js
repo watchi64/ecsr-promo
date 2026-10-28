@@ -560,6 +560,10 @@ function lienRetour(label, href) {
   return el("a", { class: "fiche-retour", href }, icon.chevronLeft(), el("span", {}, label));
 }
 
+// Nom de la page de la personne connectée : « Mon suivi » sous la nouvelle navigation, le nom de son
+// entrée (ruling R30 : une page, un nom), « Mon espace » avec l'ancienne.
+const nomDeMonSuivi = () => (navigationV2Active() ? "Mon suivi" : "Mon espace");
+
 // Renvoie ce qui est affiché : "onglets", "sommaire", "partie" (iPhone, avec un
 // retour) ou "unique" (iPhone, une seule partie ouverte, montrée directement).
 export function renderFiche(container, d, opts) {
@@ -592,7 +596,7 @@ export function renderFiche(container, d, opts) {
   }
   if (partie) {
     // iPhone, une partie en plein écran : le retour mène au sommaire.
-    container.appendChild(lienRetour(opts.titre || "Mon espace", opts.adresse(null)));
+    container.appendChild(lienRetour(opts.titre || nomDeMonSuivi(), opts.adresse(null)));
     container.appendChild(el("h2", { class: "fiche-titre" }, LIBELLE_PARTIE[partie]));
     const panel = el("div", { class: "fiche-partie" });
     container.appendChild(panel);
@@ -709,7 +713,7 @@ export async function renderMonSuivi(container) {
   const header = el("div", { class: "view-header" },
     el("div", { class: "view-header-text" },
       el("p", { class: "eyebrow" }, "Espace personnel"),
-      el("h2", {}, "Mon espace"),
+      el("h2", {}, nomDeMonSuivi()),
       el("p", { class: "subtitle" }, moduleVisible("notes")
         ? "Mon planning à venir et l'évolution de mes résultats."
         : "Mon planning à venir."),
@@ -733,7 +737,8 @@ export async function renderMonSuivi(container) {
       adresse: (p) => adresseFiche("mon-suivi", null, p),
       storageKey: "ecsr_monsuivi_subtab",
     });
-    // iPhone, dans une partie : le retour « ‹ Mon espace » remplace l'en-tête.
+    // iPhone, dans une partie : le retour « ‹ Mon espace » (« ‹ Mon suivi » sous la nouvelle
+    // navigation) remplace l'en-tête.
     header.hidden = affiche === "partie";
     if (bandeau) bandeau.hidden = affiche === "partie";
     if (disposition === "sommaire") window.scrollTo(0, 0);

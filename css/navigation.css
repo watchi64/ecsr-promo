@@ -231,6 +231,31 @@ body[data-nav="v2"] .nav-avatar {
 }
 body[data-nav="v2"] .nav-avatar .icon { width: 18px; height: 18px; }
 
+/* Nouveautés non lues (js/nav-shell.js) : la pastille de l'ancien onglet Accueil (style.css, .tab-badge),
+   au coin de l'avatar des boutons du compte, dans les deux espaces et à toute taille. Un liseré de la
+   couleur de la barre la détache de l'avatar. Le nombre est aussi dans le nom du bouton. */
+body[data-nav="v2"] [data-nav-action="compte"] .nav-avatar { position: relative; }
+body[data-nav="v2"] .nav-compte-pastille {
+  position: absolute;
+  top: -5px;
+  right: -8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #FFF;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  line-height: 1;
+  box-shadow: 0 0 0 2px var(--bg-elev);
+}
+body[data-nav="v2"] .nav-cote .nav-compte-pastille { box-shadow: 0 0 0 2px var(--bg-deep); }
+
 body[data-nav="v2"] [data-nav-coquille] :focus-visible {
   outline: 2px solid var(--accent-strong);
   outline-offset: 2px;
@@ -825,6 +850,9 @@ body[data-nav="v2"] .nav-pastille {
   line-height: 1;
 }
 body[data-nav="v2"] .nav-fenetre .view-as-block { margin: 6px 8px 8px; }
+/* En tête de chaque fenêtre (js/nav-fenetre.js) : la poignée du tiroir et « Fermer », sur téléphone
+   seulement (plus bas) ; sur ordinateur et tablette, le popover se ferme d'un clic dehors ou par Échap. */
+body[data-nav="v2"] .nav-fenetre-haut { display: none; }
 
 @media (max-width: 699.98px) {
   body[data-nav="v2"][data-espace] .nav-fenetre {
@@ -837,18 +865,48 @@ body[data-nav="v2"] .nav-fenetre .view-as-block { margin: 6px 8px 8px; }
     max-height: 86dvh;
     padding: 8px 10px 12px;
   }
-  /* Poignée du tiroir. */
-  body[data-nav="v2"] .nav-fenetre::before {
-    content: "";
+  /* Rangée du haut : « Fermer » à droite, sur 44 px, le seul moyen visible de sortir sans choisir une
+     ligne (hors du voile) ; la poignée du tiroir au milieu, au-dessus. */
+  body[data-nav="v2"] .nav-fenetre-haut {
+    position: relative;
     flex: none;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    min-height: 44px;
+  }
+  body[data-nav="v2"] .nav-fenetre-haut::before {
+    content: "";
+    position: absolute;
+    top: 4px;
+    left: 50%;
     width: 40px;
     height: 5px;
-    margin: 4px auto 6px;
+    margin-left: -20px;
     border-radius: 3px;
     background: var(--line-strong);
   }
+  body[data-nav="v2"] .nav-fenetre-fermer {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: var(--r);
+    background: transparent;
+    color: var(--accent-strong);
+    font: inherit;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  body[data-nav="v2"] .nav-fenetre-fermer:hover { background: var(--bg-subtle); }
   body[data-nav="v2"] .nav-fenetre .view-as-btn { min-height: 44px; }
 }
+
+/* ----- Planning > Semaine : le bouton « Aujourd'hui » (ruling R29, js/views/planning.js) ----- */
+/* Le bouton de l'ancienne barre du haut, en tête de la vue de la semaine : 44 px à toute taille, ses
+   voisins de la rangée (Émargement) s'étirant à sa hauteur. */
+body[data-nav="v2"] .p-aujourdhui { min-height: 44px; }
 
 /* ----- Impression : ni la coquille, ni ce qu'elle impose à la page ----- */
 /* La marge de la barre latérale battrait le « margin: 0 » de l'impression des Indicateurs (style.css,
