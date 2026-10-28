@@ -16,6 +16,16 @@
 
 export const NOUVEAUTES = [
   {
+    id: "2026-10-28-assistant-plus-facile",
+    date: "2026-10-28",
+    pour: "tous",
+    module: "assistant",
+    titre: "L'assistant, plus facile à manier sur le téléphone",
+    resume: "La croix pour fermer l'assistant se voit enfin, et sur le téléphone ses boutons sont plus "
+          + "grands, donc plus faciles à toucher. Quand un bandeau s'affiche en bas de l'écran, la bulle "
+          + "et la zone où tu écris passent au-dessus de lui au lieu d'être cachées.",
+  },
+  {
     id: "2026-10-27-textes-plus-lisibles",
     date: "2026-10-27",
     pour: "tous",

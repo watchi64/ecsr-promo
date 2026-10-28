@@ -290,8 +290,8 @@ function updateBadge() {
 
 // Bandeaux du bas de l'écran (aperçu, promos non chargées) : tant qu'il y en a un d'affiché, le corps de la
 // page porte data-bandeaux-bas et --haut-bandeaux-bas, la hauteur de leur pile, mesurée puis suivie (un
-// texte qui passe à la ligne, l'app qui s'affiche). Ce qui s'ouvre au même endroit s'en écarte : le panneau
-// de l'assistant de la nouvelle navigation (css/navigation.css). L'ancienne navigation ne les lit pas.
+// texte qui passe à la ligne, l'app qui s'affiche). Ce qui s'ouvre au même endroit s'en écarte : la bulle
+// et le panneau de l'assistant (css/style.css avec l'ancienne barre, css/navigation.css avec la nouvelle).
 const SEL_BANDEAUX_BAS = "#impersonation-banner, #promos-banner";
 let suiviBandeaux = null;
 

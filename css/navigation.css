@@ -714,9 +714,7 @@ body[data-nav="v2"][data-bandeaux-bas][data-espace="equipe"] .chatbot-panel {
   bottom: var(--bas-panneau);
   max-height: calc(100dvh - var(--bas-panneau) - 12px);
 }
-/* Le « × » gardait la couleur des boutons de la barre sombre (blanc), illisible sur le panneau clair. */
-body[data-nav="v2"] .chatbot-close { color: var(--text-soft); }
-body[data-nav="v2"] .chatbot-close:hover { background: var(--bg-subtle); color: var(--text); }
+/* La croix et les cibles de 44 px du panneau valent pour les deux navigations : css/style.css. */
 
 @media (max-width: 699.98px) {
   /* Téléphone : au-dessus de la barre du bas, sur toute la largeur, jamais sous l'en-tête de 56 px. */
@@ -733,8 +731,6 @@ body[data-nav="v2"] .chatbot-close:hover { background: var(--bg-subtle); color: 
     bottom: var(--bas-panneau);
     max-height: calc(100dvh - var(--bas-panneau) - var(--haut-entete) - 8px);
   }
-  body[data-nav="v2"] .chatbot-close,
-  body[data-nav="v2"] .chatbot-form .btn { min-width: 44px; min-height: 44px; }
 }
 
 /* ----- Fenêtres de la coquille : menu du compte, tiroir « Plus » (js/nav-fenetre.js) ----- */

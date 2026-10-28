@@ -89,8 +89,10 @@
 
   /* --- Barre collante du haut --- */
   /* Sa hauteur : la barre de jours du Planning se colle juste dessous. 52 px pour la barre actuelle
-     (95,5 px sous 760 px, voir « Barre du haut sur deux lignes ») ; la nouvelle navigation pose celle de
-     son en-tête (css/navigation.css). En px seulement : js/views/planning.js la lit par parseFloat. */
+     (95,5 px sous 760 px, voir « Barre du haut sur deux lignes »), valeurs de départ que js/main.js
+     remplace par la hauteur mesurée de la barre (57 px avec la pastille de promo) ; la nouvelle
+     navigation pose celle de son en-tête (css/navigation.css). En px seulement : js/views/planning.js
+     la lit par parseFloat. */
   --haut-entete: 52px;
 }
 
@@ -7638,6 +7640,27 @@ body.cours-open { overflow: hidden; }
 @media (max-width: 600px) {
   .chatbot-panel { right: 8px; left: 8px; width: auto; height: min(70dvh, 560px); }
 }
+/* Bandeaux du bas affichés (aperçu « Voir en tant que », promos non chargées) : js/auth-admin.js pose
+   data-bandeaux-bas et --haut-bandeaux-bas, la hauteur de leur pile. La bulle et le panneau montent
+   d'autant, sinon le bandeau couvre la bulle sur iPhone, et le champ du panneau quand les deux bandeaux
+   sont là ; le panneau raccourcit pour s'arrêter sous la barre du haut. La nouvelle navigation a ses
+   propres règles (css/navigation.css). */
+body:not([data-nav="v2"])[data-bandeaux-bas] { --levee-bandeaux: calc(var(--haut-bandeaux-bas, 0px) + 8px); }
+body:not([data-nav="v2"])[data-bandeaux-bas] .chatbot-fab {
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px) + var(--levee-bandeaux));
+}
+body:not([data-nav="v2"])[data-bandeaux-bas] .chatbot-panel {
+  bottom: calc(78px + env(safe-area-inset-bottom, 0px) + var(--levee-bandeaux));
+  max-height: calc(100dvh - var(--haut-entete) - 8px - 78px - env(safe-area-inset-bottom, 0px) - var(--levee-bandeaux));
+}
+/* La croix reprenait le blanc des boutons de la barre sombre (.ghost-btn), illisible sur le panneau clair.
+   Sur téléphone, la croix et « Envoyer » font 44 px au moins, comme toute zone à toucher. */
+.chatbot-panel .chatbot-close { color: var(--text-soft); }
+.chatbot-panel .chatbot-close:hover { background: var(--bg-subtle); color: var(--text); }
+@media (max-width: 699.98px) {
+  .chatbot-panel .chatbot-close,
+  .chatbot-panel .chatbot-form .btn { min-width: 44px; min-height: 44px; }
+}
 @media print {
   .chatbot-fab, .chatbot-panel { display: none !important; }
 }
@@ -8177,8 +8200,9 @@ body.cours-open { overflow: hidden; }
   :root { --haut-entete: 95.5px; }
   /* Les sauts vers un jour (boutons de la barre de jours, bouton « Aujourd'hui ») posent la carte du
      jour à scroll-margin-top du haut de l'écran. Les 104 px du bureau laisseraient 39 px du haut de la
-     carte sous les deux barres : ici 95,5 (barre du haut) + 47,7 (barre de jours) + 4,8 d'air = 148 px. */
-  .p-day-card { scroll-margin-top: 148px; }
+     carte sous les deux barres : ici 95,5 (barre du haut) + 47,7 (barre de jours) + 4,8 d'air = 148 px,
+     écrits à partir de la hauteur de la barre du haut pour la suivre si elle change. */
+  .p-day-card { scroll-margin-top: calc(var(--haut-entete) + 52.5px); }
 }
 
 /* ===== Planning : le numéro d'un élève bénévole, au toucher (formateurs, 2026-10) =====

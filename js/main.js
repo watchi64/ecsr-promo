@@ -419,6 +419,23 @@ function majPresenceModules() {
   appliquerModuleAssistant();
 }
 
+// Hauteur réelle de l'ancienne barre (52 px d'ordinaire, 57 avec la pastille de promo, 95,5 sur
+// téléphone), publiée dans --haut-entete sur <html> : la barre des jours du planning se colle juste
+// dessous au lieu de passer en partie sous elle, et le saut vers un jour s'arrête sous les deux barres.
+// Suivie : pastille qui apparaît, texte qui passe à la ligne, largeur qui change. Sous la nouvelle
+// navigation, la coquille pose sa propre valeur sur body (css/navigation.css) : rien n'est publié ici.
+function suivreHauteurBarre() {
+  const barre = document.querySelector("header.topbar");
+  if (!barre || typeof ResizeObserver !== "function") return;
+  const publier = () => {
+    const haut = barre.getBoundingClientRect().height;
+    if (!navigationV2Active() && haut > 0) document.documentElement.style.setProperty("--haut-entete", haut + "px");
+    else document.documentElement.style.removeProperty("--haut-entete");
+  };
+  new ResizeObserver(publier).observe(barre);
+  publier();
+}
+
 // « Ouvrir l'app » = démarrage à froid. Un raccourci d'écran d'accueil, un favori ou un
 // onglet restauré garde une vue figée dans l'URL (#/dashboard…), celle du jour où le
 // raccourci a été créé : sans ce test, ce hash gagnerait toujours et on ne reviendrait
@@ -464,6 +481,7 @@ async function bootApp() {
   majBadgeNouveautes();
   setupRefreshBtn();
   setupTodayBtn();
+  suivreHauteurBarre();
   initChatbot();
   majPresenceModules();
   // Le changement de rôle change l'audience, donc le compte, et ce qu'on voit des modules.

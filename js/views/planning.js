@@ -2756,11 +2756,10 @@ function buildDayNav(monday) {
 }
 
 // Ce qui couvre le haut de l'écran au-dessus des cartes : la barre du haut puis la barre de
-// jours (52 px). 104 avec la barre actuelle. Sous la nouvelle navigation, la hauteur de son
-// en-tête, publiée dans la variable CSS --haut-entete (lue sur body, qui hérite de :root et
-// reçoit aussi ce qui est posé sous body[data-nav]) ; 52 px tant qu'elle n'est pas posée.
+// jours (52 px). La hauteur de la barre du haut est la variable CSS --haut-entete, lue sur body :
+// mesurée sur l'ancienne barre (js/main.js, posée sur <html>, dont body hérite), posée par la
+// coquille sous la nouvelle navigation (css/navigation.css) ; 52 px tant qu'elle n'est pas lue.
 function hautDesBarres() {
-  if (!navigationV2Active()) return 104;
   const entete = parseFloat(getComputedStyle(document.body).getPropertyValue("--haut-entete"));
   return (Number.isFinite(entete) ? entete : 52) + 52;
 }

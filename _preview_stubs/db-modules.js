@@ -31,3 +31,8 @@ export async function setSetting(key, value) {
   reglages.set(key, value);
   window.__ecritures.push({ key, value });
 }
+
+// Promo affichée du banc, fictive : l'état et le réglage des modules la nomment et en lisent la date.
+export function getPromoCourante() {
+  return { id: 1, nom: "Promo du banc", date_debut: "2026-03-02" };
+}
