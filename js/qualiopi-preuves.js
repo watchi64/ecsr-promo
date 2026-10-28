@@ -27,8 +27,11 @@
 //                 leurs lignes de planning gardent leurs cartes en base mais ne comptent nulle part ici
 //   agenda        [{ type, date_start, date_end }]
 //   livrets, dossiers   [{ stagiaire_id, updated_at }]
-//   cours         [{ id, published }]
-//   versions      [{ cours_id, saved_at }] : les versions enregistrées des cours (leur `updated_at` n'est pas lu)
+//   cours         [{ id, published, updated_at }] : `updated_at` est la sauvegarde en vigueur, qu'aucune version ne porte
+//   versions      [{ cours_id, saved_at }] : les états archivés des cours ; `saved_at` est la date de l'état archivé, pas
+//                 celle de la modification qui l'a remplacé. Les dates de sauvegarde d'un cours publié sont les
+//                 horodatages distincts de ses `saved_at` et de son `updated_at` ; le plus ancien est sa création ou son
+//                 import, les autres sont ses modifications.
 //   signalements  [{ traite_at }]
 //   autoEcoles    [{ actif, lieu_id }]
 // Ne sont pas lus : `profs` et `entete` (les noms) et l'émargement, pas encore branché (voir la pièce `assiduite`).
@@ -84,7 +87,7 @@ export const PIECES = [
   { cle: "evaluations", libelle: "Évaluations", indicateurs: [11, 16] },                  // notes, QCM, EPCF, livrets, jury
   { cle: "dossierPro", libelle: "Dossier professionnel", indicateurs: [16] },             // un dossier par stagiaire
   { cle: "ressources", libelle: "Ressources", indicateurs: [19] },                        // cours publiés, QCM, activité
-  { cle: "misesAJour", libelle: "Mises à jour", indicateurs: [19, 23, 31] },              // versions des cours, signalements traités
+  { cle: "misesAJour", libelle: "Mises à jour", indicateurs: [19, 23, 31] },              // modifications des cours, signalements traités
   { cle: "innovations", libelle: "Innovations", indicateurs: [25] },                      // Nouveautés datées
   { cle: "intervenants", libelle: "Intervenants et partenaires", indicateurs: [17, 18, 28] },
   { cle: "resultats", libelle: "Résultats et méthodes", indicateurs: [2, 3, 32] },        // tableau de bord du centre
@@ -151,6 +154,21 @@ function demiJournees(lignes) {
     if (jour) jours.set(`${e.semaine_lundi}|${e.day_index}|${e.half_day}`, jour);
   });
   return [...jours.values()];
+}
+
+// --- Cours : leurs modifications ---
+
+// Les dates de sauvegarde d'un cours sont les horodatages distincts de ses versions et de son `updated_at`. Une version
+// archive l'état que la sauvegarde suivante remplace : son `saved_at` est la date de cet état, pas celle de la
+// modification qui l'a remplacé, et la sauvegarde en vigueur (`updated_at`) n'est dans aucune version. Le plus ancien
+// de ces horodatages est la création ou l'import du cours, les autres sont ses modifications. Rend, pour chaque cours
+// publié, ses horodatages de modification (de même forme, donc rangés par ordre de chaîne comme par ordre d'instant).
+function modificationsDesCours(cours, versions) {
+  const sauvegardes = new Map(cours.filter((c) => c.published).map((c) => [c.id, new Set()]));
+  const noter = (id, horodatage) => { if (jourDe(horodatage)) sauvegardes.get(id)?.add(horodatage); };
+  cours.forEach((c) => noter(c.id, c.updated_at));
+  versions.forEach((v) => noter(v.cours_id, v.saved_at));
+  return [...sauvegardes.values()].map((horodatages) => [...horodatages].sort().slice(1));
 }
 
 // --- Les pièces : chacune rend { presente, detail, raison } ---
@@ -235,20 +253,22 @@ const CONSTRUCTEURS = {
     return presente(`${nb(cours, "cours publié", "cours publiés")}, ${nb(tableau(referentiel.qcm).length, "QCM", "QCM")} ; ${appropriation}`);
   },
 
-  // Les cours mis à jour sont les cours publiés qui ont au moins une version enregistrée dans la période (le
-  // `updated_at` d'un cours n'est pas lu) : chaque cours est compté une fois, ses versions à part. Une version d'un
-  // brouillon ou d'un cours inconnu ne compte pas.
+  // Les cours modifiés sont les cours publiés qui ont au moins une modification dans la période (voir
+  // `modificationsDesCours`) : chaque cours est compté une fois, ses modifications à part. Les brouillons et les versions
+  // d'un cours inconnu ne comptent pas.
   misesAJour: ({ liste, dansPeriode }) => {
-    const publies = new Set(liste("cours").filter((c) => c.published).map((c) => c.id));
-    const versions = liste("versions").filter((v) => publies.has(v.cours_id) && dansPeriode(jourDe(v.saved_at)));
+    const modifies = modificationsDesCours(liste("cours"), liste("versions"))
+      .map((horodatages) => horodatages.filter((h) => dansPeriode(jourDe(h))))
+      .filter((horodatages) => horodatages.length > 0);
+    const joursModifications = modifies.flat().map(jourDe);
     const joursSignalements = liste("signalements").map((s) => jourDe(s.traite_at)).filter(dansPeriode);
-    if (!versions.length && !joursSignalements.length) {
-      return absente("aucun cours publié mis à jour ni signalement de QCM traité pendant la formation");
+    if (!modifies.length && !joursSignalements.length) {
+      return absente("aucun cours publié modifié ni signalement de QCM traité pendant la formation");
     }
     const parties = [];
-    if (versions.length) {
-      const nbCours = nb(new Set(versions.map((v) => v.cours_id)).size, "cours publié mis à jour", "cours publiés mis à jour");
-      parties.push(`${avecPlage(nbCours, versions.map((v) => jourDe(v.saved_at)))} (${nb(versions.length, "version")})`);
+    if (modifies.length) {
+      const nbCours = nb(modifies.length, "cours publié modifié", "cours publiés modifiés");
+      parties.push(`${avecPlage(nbCours, joursModifications)} (${nb(joursModifications.length, "modification")})`);
     }
     if (joursSignalements.length) {
       parties.push(avecPlage(nb(joursSignalements.length, "signalement de QCM traité", "signalements de QCM traités"), joursSignalements));

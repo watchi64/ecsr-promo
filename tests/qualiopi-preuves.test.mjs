@@ -219,20 +219,26 @@ const SIGNALEMENTS = [
   { id: 1, stagiaire_id: 1, statut: "tranché", created_at: "2026-10-01T10:00:00+00:00", traite_at: "2026-10-12T09:00:00+00:00" },
   { id: 2, stagiaire_id: 2, statut: "ouvert", created_at: "2026-10-15T10:00:00+00:00", traite_at: null },
 ];
-// Cours : 2 publiés et 1 brouillon. Leur `updated_at` n'est pas lu (le cours 1 en porte un dans la période, le 2 hors
-// période) : ce sont les versions enregistrées qui font foi.
+// Cours : 2 publiés et 1 brouillon. Les dates de sauvegarde d'un cours sont les horodatages distincts de ses versions
+// (`saved_at` : la date de l'état archivé, pas celle de la modification qui le remplace) et de son `updated_at` (la
+// sauvegarde en vigueur, qu'aucune version ne porte). La plus ancienne est sa création ou son import ; les autres
+// sont des modifications.
+//   cours 1 : créé le 26/08, modifié le 05/10 puis le 12/10 : 2 modifications dans la période (une version datée de la
+//             période, plus son updated_at)
+//   cours 2 : créé le 26/08, modifié une seule fois, le 20/10 : 1 modification dans la période, sans aucune version
+//             datée de la période (seul son updated_at la porte)
+//   cours 3 : un brouillon, modifié le 06/10 : ne compte pas
 const COURS = [
-  { id: 1, published: true, updated_at: "2026-10-05T10:00:00+00:00" },
-  { id: 2, published: true, updated_at: "2026-08-26T10:00:00+00:00" },
+  { id: 1, published: true, updated_at: "2026-10-12T15:00:00+00:00" },
+  { id: 2, published: true, updated_at: "2026-10-20T09:00:00+00:00" },
   { id: 3, published: false, updated_at: "2026-10-06T10:00:00+00:00" },
 ];
-// Versions enregistrées des cours. Comptées : cours 1 deux fois (05/10 et 12/10), cours 2 une fois (20/10) = 2 cours
-// publiés mis à jour, 3 versions, du 05/10 au 20/10. Écartées : la version du cours 2 d'avant la promo (26/08), celle
-// du brouillon (cours 3) et celle d'un cours inconnu (99).
+// Versions archivées : jamais la sauvegarde en vigueur. Une version d'un cours inconnu (99) ne compte pas non plus.
+// Au total : 2 cours publiés modifiés, 3 modifications, du 05/10 au 20/10.
 const VERSIONS = [
-  { cours_id: 1, saved_at: "2026-10-05T10:00:00+00:00" }, { cours_id: 1, saved_at: "2026-10-12T15:00:00+00:00" },
-  { cours_id: 2, saved_at: "2026-08-26T10:00:00+00:00" }, { cours_id: 2, saved_at: "2026-10-20T09:00:00+00:00" },
-  { cours_id: 3, saved_at: "2026-10-06T10:00:00+00:00" }, { cours_id: 99, saved_at: "2026-10-07T10:00:00+00:00" },
+  { cours_id: 1, saved_at: "2026-08-26T10:00:00+00:00" }, { cours_id: 1, saved_at: "2026-10-05T10:00:00+00:00" },
+  { cours_id: 2, saved_at: "2026-08-26T10:00:00+00:00" },
+  { cours_id: 3, saved_at: "2026-08-26T10:00:00+00:00" }, { cours_id: 99, saved_at: "2026-10-07T10:00:00+00:00" },
 ];
 // Nouveautés datées pendant la promo (28/09 au 23/10) : 02/10 et 20/10 ; celles du 15/09 (avant le début), du 05/11
 // (après la fin) et sans date sont écartées.
@@ -332,7 +338,7 @@ eq(piece(inv, "dossierPro"),
 eq(piece(inv, "ressources"), attendue("ressources",
   "2 cours publiés, 3 QCM ; QCM d'entraînement faits par 2 stagiaires sur 2 en formation (3 tentatives)"), "ressources");
 eq(piece(inv, "misesAJour"), attendue("misesAJour",
-  "2 cours publiés mis à jour du 05/10 au 20/10 (3 versions) ; 1 signalement de QCM traité le 12/10"), "mises à jour");
+  "2 cours publiés modifiés du 05/10 au 20/10 (3 modifications) ; 1 signalement de QCM traité le 12/10"), "mises à jour");
 eq(piece(inv, "innovations"), attendue("innovations", "2 nouveautés datées du 02/10 au 20/10"), "innovations");
 eq(piece(inv, "intervenants"),
   attendue("intervenants", "3 formateurs, 1 intervenant extérieur, 2 bénévoles, 2 auto-écoles partenaires"), "intervenants");
@@ -360,7 +366,7 @@ eq(piece(fiches, "dossierPro"),
   manquante("dossierPro", "aucun dossier professionnel enregistré par les stagiaires en formation"), "fiches : dossier professionnel");
 eq(piece(fiches, "ressources"), manquante("ressources", "aucun cours publié"), "fiches : ressources");
 eq(piece(fiches, "misesAJour"), manquante("misesAJour",
-  "aucun cours publié mis à jour ni signalement de QCM traité pendant la formation"), "fiches : mises à jour");
+  "aucun cours publié modifié ni signalement de QCM traité pendant la formation"), "fiches : mises à jour");
 eq(piece(fiches, "innovations"), manquante("innovations", "aucune nouveauté datée pendant la formation"), "fiches : innovations");
 eq(piece(fiches, "intervenants"), manquante("intervenants",
   "aucun formateur, intervenant extérieur ni bénévole au planning, aucune auto-école partenaire active"), "fiches : intervenants");
@@ -439,19 +445,59 @@ eq(piece(avec({ agenda: [
 ] }), "datesCles").detail, "3 événements au calendrier (1 formation, 2 stages) du 02/11 au 20/11", "calendrier : formation et stages");
 eq(piece(avec({ agenda: [{ id: 1, type: "examen", title: "E", date_start: "2026-12-15", date_end: null }, AGENDA[3]] }), "datesCles").detail,
   "1 événement au calendrier (1 examen) le 15/12", "calendrier : un examen, le férié ne compte pas");
-// Mises à jour (R22) : le `updated_at` des cours n'est pas lu, seules les versions enregistrées comptent ; les cours
-// sont comptés une fois chacun, leurs versions à part ; chaque partie a ses dates.
+// Mises à jour (R22 corrigée). Les dates de sauvegarde d'un cours publié sont les horodatages distincts de ses versions
+// (la date de l'état archivé) et de son `updated_at` (la sauvegarde en vigueur) ; la plus ancienne est sa création ou
+// son import, les autres sont ses modifications ; la pièce compte celles qui tombent dans la période, les cours une
+// fois chacun et les modifications à part.
+const horodatage = (jour, heure = "10:00:00") => `${jour}T${heure}+00:00`;
+// Un seul cours : ses états archivés (versions) et sa sauvegarde en vigueur (updated_at).
+const unCours = (id, archives, courante, published = true) => ({
+  cours: [{ id, published, updated_at: horodatage(courante) }],
+  versions: archives.map((jour) => ({ cours_id: id, saved_at: horodatage(jour) })),
+});
+const misesAJourDe = (extra) => piece(avec({ signalements: [], ...extra }), "misesAJour");
+const AUCUNE_MODIFICATION = manquante("misesAJour", "aucun cours publié modifié ni signalement de QCM traité pendant la formation");
+eq(misesAJourDe({}).detail, "2 cours publiés modifiés du 05/10 au 20/10 (3 modifications)",
+  "le jeu principal sans signalement : 2 cours, 3 modifications");
 eq(piece(avec({ versions: [] }), "misesAJour").detail, "1 signalement de QCM traité le 12/10",
-  "sans version, les cours dont l'updated_at tombe dans la période ne comptent pas : il reste le signalement traité");
-eq(piece(avec({ signalements: [] }), "misesAJour").detail, "2 cours publiés mis à jour du 05/10 au 20/10 (3 versions)",
-  "les versions seules : 2 cours, 3 versions");
-eq(piece(avec({ signalements: [], versions: [{ cours_id: 1, saved_at: "2026-10-05T10:00:00+00:00" }] }), "misesAJour").detail,
-  "1 cours publié mis à jour le 05/10 (1 version)", "un cours, une version, un seul jour");
-eq(piece(avec({ signalements: [], versions: [{ cours_id: 1, saved_at: "2026-10-05T10:00:00+00:00" },
-  { cours_id: 1, saved_at: "2026-10-12T10:00:00+00:00" }] }), "misesAJour").detail,
-  "1 cours publié mis à jour du 05/10 au 12/10 (2 versions)", "un cours, deux versions : le cours n'est compté qu'une fois");
-eq(piece(avec({ versions: [{ cours_id: 3, saved_at: "2026-10-06T10:00:00+00:00" }, { cours_id: 99, saved_at: "2026-10-07T10:00:00+00:00" }] }),
-  "misesAJour").detail, "1 signalement de QCM traité le 12/10", "un brouillon et un cours inconnu ne comptent pas");
+  "sans version, un cours n'a que sa sauvegarde en vigueur, c'est-à-dire sa création : aucune modification, il reste le signalement");
+// (a) Créé avant la période, sauvegardé une seule fois pendant : aucune version n'est datée de la période, seul `updated_at` la
+// porte. C'était le cas perdu en lisant les seules versions.
+eq(misesAJourDe(unCours(7, ["2026-08-26"], "2026-10-05")).detail, "1 cours publié modifié le 05/10 (1 modification)",
+  "(a) créé avant, sauvegardé une seule fois pendant : compté, 1 modification");
+// (b) Créé (importé) pendant la période et jamais modifié : sa seule date est sa création.
+eq(misesAJourDe(unCours(4, [], "2026-10-08")), AUCUNE_MODIFICATION, "(b) créé pendant et jamais modifié : non compté");
+eq(misesAJourDe({ cours: [...COURS, { id: 4, published: true, updated_at: horodatage("2026-10-08") }] }).detail,
+  "2 cours publiés modifiés du 05/10 au 20/10 (3 modifications)", "(b) un cours créé pendant la période ne s'ajoute pas aux autres");
+// (c) Une version en double (même saved_at deux fois, ce que laisse une sauvegarde concurrente) ou égale à l'updated_at est
+// comptée une fois.
+eq(misesAJourDe(unCours(5, ["2026-09-01", "2026-10-06", "2026-10-06"], "2026-10-14")).detail,
+  "1 cours publié modifié du 06/10 au 14/10 (2 modifications)", "(c) une version en double compte une fois");
+eq(misesAJourDe(unCours(8, ["2026-09-01", "2026-10-14"], "2026-10-14")).detail,
+  "1 cours publié modifié le 14/10 (1 modification)", "(c) une version qui porte la même date que l'updated_at compte une fois");
+// (d) Créé avant, sauvegardé deux fois pendant : une version datée de la période et l'updated_at.
+eq(misesAJourDe(unCours(6, ["2026-08-26", "2026-10-05"], "2026-10-12")).detail,
+  "1 cours publié modifié du 05/10 au 12/10 (2 modifications)", "(d) créé avant, sauvegardé deux fois pendant : 2 modifications");
+// Les horodatages sont distincts, pas les jours : deux sauvegardes le même jour sont deux modifications.
+eq(misesAJourDe({ cours: [{ id: 12, published: true, updated_at: horodatage("2026-10-12", "15:00:00") }],
+  versions: [{ cours_id: 12, saved_at: horodatage("2026-08-26") }, { cours_id: 12, saved_at: horodatage("2026-10-12", "09:00:00") }] }).detail,
+  "1 cours publié modifié le 12/10 (2 modifications)", "deux sauvegardes le même jour : 2 modifications");
+// Seules les modifications dans la période comptent, et la création n'en est jamais une, même dans la période.
+eq(misesAJourDe(unCours(9, ["2026-10-08"], "2026-11-10")), AUCUNE_MODIFICATION,
+  "créé pendant la période, modifié après : la création ne compte pas et la modification est hors période");
+eq(misesAJourDe(unCours(10, ["2026-08-26"], "2026-09-10")), AUCUNE_MODIFICATION, "modifié avant la période seulement : non compté");
+eq(misesAJourDe(unCours(13, ["2026-08-26", "2026-09-10"], "2026-10-12")).detail, "1 cours publié modifié le 12/10 (1 modification)",
+  "une modification avant la période et une pendant : seule celle de la période compte");
+// Un brouillon et un cours inconnu ne comptent pas.
+eq(misesAJourDe(unCours(11, ["2026-08-26"], "2026-10-12", false)), AUCUNE_MODIFICATION, "un brouillon modifié pendant la période : non compté");
+eq(misesAJourDe({ cours: [], versions: [{ cours_id: 99, saved_at: horodatage("2026-08-26") }, { cours_id: 99, saved_at: horodatage("2026-10-07") }] }),
+  AUCUNE_MODIFICATION, "les versions d'un cours inconnu : non comptées");
+// Plusieurs cours : chacun une fois, toutes les modifications (1 + 2 + 3).
+eq(misesAJourDe({ cours: [1, 2, 3].map((id) => ({ id, published: true, updated_at: horodatage("2026-10-20") })),
+  versions: [{ cours_id: 1, saved_at: horodatage("2026-08-26") },
+    { cours_id: 2, saved_at: horodatage("2026-08-26") }, { cours_id: 2, saved_at: horodatage("2026-10-02") },
+    { cours_id: 3, saved_at: horodatage("2026-08-26") }, { cours_id: 3, saved_at: horodatage("2026-10-02") }, { cours_id: 3, saved_at: horodatage("2026-10-09") }] }).detail,
+  "3 cours publiés modifiés du 02/10 au 20/10 (6 modifications)", "trois cours, 1 + 2 + 3 modifications");
 // Les nouveautés d'un seul jour.
 eq(piece(inventairePromo(D, REF, { ...OPTIONS, nouveautes: [NOUVEAUTE("a", "2026-10-02")] }), "innovations").detail,
   "1 nouveauté datée le 02/10", "une nouveauté");
@@ -535,22 +581,27 @@ eq(piece(toutOff, "intervenants").detail, "2 auto-écoles partenaires", "tous le
 // =====================================================================================================
 // La période : de la date de début à la date de fin (ou à aujourd'hui)
 // =====================================================================================================
-const version = (cours_id, saved_at) => ({ cours_id, saved_at });
-// Bornes comprises : une version du jour du début ou du jour de la fin compte, celle de la veille ou du lendemain non.
-const bornes = inventairePromo({ ...D, signalements: [], versions: [
-  version(1, "2026-09-27T20:00:00+00:00"), version(1, "2026-09-28T08:00:00+00:00"),
-  version(2, "2026-10-23T20:00:00+00:00"), version(2, "2026-10-24T08:00:00+00:00"),
-] }, REF, OPTIONS);
-eq(piece(bornes, "misesAJour").detail, "2 cours publiés mis à jour du 28/09 au 23/10 (2 versions)", "bornes de la période comprises");
+// Bornes comprises : une modification du jour du début ou du jour de la fin compte, celle de la veille ou du lendemain
+// non. Cours 1 : créé le 26/08, modifié la veille du début puis le jour du début (son updated_at). Cours 2 : créé le
+// 26/08, modifié le jour de la fin puis le lendemain de la fin (son updated_at).
+const bornes = inventairePromo({ ...D, signalements: [],
+  cours: [{ id: 1, published: true, updated_at: horodatage("2026-09-28", "08:00:00") },
+    { id: 2, published: true, updated_at: horodatage("2026-10-24", "08:00:00") }],
+  versions: [{ cours_id: 1, saved_at: horodatage("2026-08-26") }, { cours_id: 1, saved_at: horodatage("2026-09-27", "20:00:00") },
+    { cours_id: 2, saved_at: horodatage("2026-08-26") }, { cours_id: 2, saved_at: horodatage("2026-10-23", "20:00:00") }],
+}, REF, OPTIONS);
+eq(piece(bornes, "misesAJour").detail, "2 cours publiés modifiés du 28/09 au 23/10 (2 modifications)", "bornes de la période comprises");
 const bornesNouveautes = inventairePromo(D, REF, { ...OPTIONS, nouveautes: [
   { id: "x", date: "2026-09-27" }, { id: "y", date: "2026-09-28" }, { id: "z", date: "2026-10-23" }, { id: "w", date: "2026-10-24" },
 ] });
 eq(piece(bornesNouveautes, "innovations").detail, "2 nouveautés datées du 28/09 au 23/10", "bornes comprises, nouveautés");
 
-// Sans date de fin, la période court jusqu'à aujourd'hui (28/10).
-const enCours = inventairePromo({ ...D, signalements: [], versions: [version(1, "2026-10-27T10:00:00+00:00"), version(2, "2026-10-29T10:00:00+00:00")] },
-  REF, { ...OPTIONS, promo: { ...PROMO, date_fin: null } });
-eq(piece(enCours, "misesAJour").detail, "1 cours publié mis à jour le 27/10 (1 version)", "promo en cours : jusqu'à aujourd'hui");
+// Sans date de fin, la période court jusqu'à aujourd'hui (28/10) : le cours modifié le 27/10 compte, celui du 29/10 non.
+const enCours = inventairePromo({ ...D, signalements: [],
+  cours: [{ id: 1, published: true, updated_at: horodatage("2026-10-27") }, { id: 2, published: true, updated_at: horodatage("2026-10-29") }],
+  versions: [{ cours_id: 1, saved_at: horodatage("2026-08-26") }, { cours_id: 2, saved_at: horodatage("2026-08-26") }],
+}, REF, { ...OPTIONS, promo: { ...PROMO, date_fin: null } });
+eq(piece(enCours, "misesAJour").detail, "1 cours publié modifié le 27/10 (1 modification)", "promo en cours : jusqu'à aujourd'hui");
 eq(piece(enCours, "innovations").detail, "2 nouveautés datées du 02/10 au 20/10",
   "promo en cours : la nouveauté du 05/11, d'après aujourd'hui, est écartée");
 const enCours2 = inventairePromo(D, REF, { ...OPTIONS, promo: { ...PROMO, date_fin: null }, aujourdhui: "2026-11-30" });
@@ -559,7 +610,7 @@ eq(piece(enCours2, "innovations").detail, "3 nouveautés datées du 02/10 au 05/
 // Une promo qui n'a pas commencé : rien dans la période, et la même raison que pour toute autre promo (R24).
 const future = { id: 9, lieu_id: 2, nom: "Promo future", date_debut: "2026-11-02", date_fin: null };
 const avant = inventairePromo(D, REF, { ...OPTIONS, promo: future });
-eq(piece(avant, "misesAJour").raison, "aucun cours publié mis à jour ni signalement de QCM traité pendant la formation", "promo future : mises à jour");
+eq(piece(avant, "misesAJour").raison, "aucun cours publié modifié ni signalement de QCM traité pendant la formation", "promo future : mises à jour");
 eq(piece(avant, "innovations").raison, "aucune nouveauté datée pendant la formation", "promo future : innovations");
 
 // =====================================================================================================
