@@ -1,0 +1,309 @@
+// Inventaire des preuves d'une promo, indicateur par indicateur (spec docs/superpowers/specs/
+// 2026-10-28-dossier-qualiopi-design.md, § 6.2 et annexe A). PUR : ni DOM ni réseau, testé en node
+// (tests/qualiopi-preuves.test.mjs).
+//
+// Pour chaque indicateur applicable à un centre de formation continue : son niveau (prouvé, en partie, hors de
+// l'app), ce que l'app en apporte, les pièces de l'app qui le servent (chacune présente, avec ses chiffres et
+// ses dates, ou absente avec sa raison) et les pièces que le centre fournit lui-même.
+//
+// Les phrases ne portent que des nombres et des dates : ni nom, ni sujet de séance, ni titre d'événement n'y est
+// recopié. L'inventaire entre donc tel quel dans la version « sans aucun nom » des dossiers (spec § 6.8).
+//
+// Population : les chiffres qui portent sur des stagiaires sont ceux du tableau de bord du centre, repris tels quels
+// (indicateursPromo, js/centre-stats.js) : seuls l'effectif et les abandons comptent tous les inscrits, le reste ne
+// compte que les stagiaires en formation. Les lignes du planning portent leur promo et sont filtrées ici ; les
+// autres tables arrivent déjà limitées à la promo (lireDonneesQualiopi).
+
+import { INDICATEURS, indicateursApplicables } from "./qualiopi-referentiel.js?v=20261028a";
+import { indicateursPromo } from "./centre-stats.js?v=20261028a";
+import { estNotee } from "./notes-stats.js?v=20261028a";
+import { parseDate, addDays, isoDate } from "./utils.js?v=20261028a";
+
+// Annexe A de la spec, cellule par cellule, pour les 28 indicateurs d'un centre de formation continue (les 27 plus
+// le 13 de l'alternance). niveau : « prouve » (l'app fournit l'essentiel), « partiel » (en partie) ou « hors »
+// (hors de l'app). apporte : ce que l'app apporte. ajout : le lot qui l'enrichira (§ 6.7), nul s'il n'y en a pas.
+// aFournir : les pièces que le centre fournit lui-même (cellule découpée sur « , »), vide s'il n'y en a pas.
+export const NIVEAUX = {
+  1: { niveau: "hors", apporte: "rien", ajout: null, aFournir: ["site", "catalogue", "fiche formation"] },
+  2: { niveau: "partiel", apporte: "indicateurs du tableau de bord, chacun avec sa méthode", ajout: "fiche résultats (Q2)", aFournir: ["publication sur le site"] },
+  3: { niveau: "partiel", apporte: "résultats de jury (saisie en cours)", ajout: "fiche résultats (Q2)", aFournir: ["passerelles", "débouchés"] },
+  4: { niveau: "hors", apporte: "rien", ajout: null, aFournir: ["entretien", "dossier d'entrée"] },
+  5: { niveau: "partiel", apporte: "thèmes, compétences C1 à C4, CCP, tous évalués", ajout: null, aFournir: ["programme de formation"] },
+  6: { niveau: "partiel", apporte: "cours, déroulé réalisé du planning", ajout: null, aFournir: ["programme", "progression"] },
+  7: { niveau: "partiel", apporte: "grilles EPCF et livret au modèle officiel", ajout: null, aFournir: ["agrément du centre"] },
+  8: { niveau: "hors", apporte: "rien", ajout: "positionnement (plus tard)", aFournir: ["tests ou entretiens d'entrée"] },
+  9: { niveau: "partiel", apporte: "planning, dates clés, contacts", ajout: "livret d'accueil lu (plus tard)", aFournir: ["livret d'accueil", "règlement intérieur"] },
+  10: { niveau: "prouve", apporte: "priorités, « à suivre de près », passages, Mon suivi", ajout: null, aFournir: [] },
+  11: { niveau: "prouve", apporte: "notes, examens QCM, EPCF, livret", ajout: null, aFournir: [] },
+  12: { niveau: "partiel", apporte: "assiduité, signaux, abandons (sans date)", ajout: "date et motif d'abandon (plus tard)", aFournir: ["procédure et référent violences"] },
+  13: { niveau: "hors", apporte: "rien", ajout: null, aFournir: ["coordination avec l'entreprise"] },
+  16: { niveau: "prouve", apporte: "dossier professionnel et livret EPCF au modèle officiel, heures", ajout: null, aFournir: ["inscription à la session"] },
+  17: { niveau: "partiel", apporte: "formateurs par séance, ressources en ligne", ajout: null, aFournir: ["locaux", "véhicules", "matériel"] },
+  18: { niveau: "partiel", apporte: "planning multi-formateurs, bénévoles, auto-écoles", ajout: null, aFournir: ["organigramme", "réunions"] },
+  19: { niveau: "prouve", apporte: "cours publiés, QCM, activité par stagiaire", ajout: null, aFournir: ["référent pédagogique si le seuil l'exige"] },
+  21: { niveau: "hors", apporte: "rien", ajout: null, aFournir: ["CV", "titres", "autorisations d'enseigner"] },
+  22: { niveau: "hors", apporte: "rien", ajout: null, aFournir: ["plan de développement des compétences"] },
+  23: { niveau: "partiel", apporte: "cours mis à jour et datés après les réformes", ajout: "journal de veille (conversation 04)", aFournir: ["sources de veille"] },
+  24: { niveau: "hors", apporte: "rien", ajout: null, aFournir: ["sources de veille"] },
+  25: { niveau: "partiel", apporte: "Nouveautés datées", ajout: null, aFournir: ["sources de veille"] },
+  26: { niveau: "hors", apporte: "rien", ajout: null, aFournir: ["référent handicap", "réseau"] },
+  27: { niveau: "hors", apporte: "rien", ajout: null, aFournir: ["contrats"] },
+  28: { niveau: "partiel", apporte: "auto-écoles partenaires, dates de stage", ajout: "lieu de stage (plus tard)", aFournir: ["conventions de stage"] },
+  30: { niveau: "partiel", apporte: "enquête hors de l'app", ajout: "questionnaires (Q3)", aFournir: ["avis des financeurs et entreprises"] },
+  31: { niveau: "partiel", apporte: "signalements de QCM instruits puis tranchés", ajout: "registre (Q4)", aFournir: ["procédure de réclamation"] },
+  32: { niveau: "partiel", apporte: "comparaison des promos, thèmes à retravailler", ajout: "registre (Q4)", aFournir: ["plan d'amélioration"] },
+};
+
+// Les 13 pièces de l'app et les indicateurs qu'elles servent (tableau du § 6.2). L'ordre de la liste est celui
+// où un indicateur rend ses pièces.
+export const PIECES = [
+  { cle: "effectif", libelle: "Effectif, abandons", indicateurs: [10, 12] },              // fiches des stagiaires
+  { cle: "deroule", libelle: "Déroulé réalisé", indicateurs: [6, 9, 17, 18] },            // planning
+  { cle: "datesCles", libelle: "Dates clés", indicateurs: [9, 28] },                      // calendrier
+  { cle: "assiduite", libelle: "Assiduité", indicateurs: [10, 12, 16] },                  // feuilles d'émargement, heures
+  { cle: "passages", libelle: "Passages", indicateurs: [10, 12] },                        // passages en salle et en voiture
+  { cle: "evaluations", libelle: "Évaluations", indicateurs: [11, 16] },                  // notes, QCM, EPCF, livrets, jury
+  { cle: "dossierPro", libelle: "Dossier professionnel", indicateurs: [16] },             // un dossier par stagiaire
+  { cle: "ressources", libelle: "Ressources", indicateurs: [19] },                        // cours publiés, QCM, activité
+  { cle: "misesAJour", libelle: "Mises à jour", indicateurs: [19, 23, 31] },              // cours modifiés, signalements traités
+  { cle: "innovations", libelle: "Innovations", indicateurs: [25] },                      // Nouveautés datées
+  { cle: "intervenants", libelle: "Intervenants et partenaires", indicateurs: [17, 18, 28] },
+  { cle: "resultats", libelle: "Résultats et méthodes", indicateurs: [2, 3, 32] },        // tableau de bord du centre
+  { cle: "suivi", libelle: "Suivi", indicateurs: [10, 12, 32] },                          // à suivre de près, thèmes
+];
+
+const HEURES_NON_BRANCHEES = "calcul des heures pas encore branché";
+const SANS_JURY = "aucun résultat de jury saisi";
+const TYPES_CLES = ["formation", "stage", "examen"];   // types d'événement du calendrier qui sont des dates clés
+
+// --- Petits outils : dates et phrases ---
+
+const ISO_JOUR = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])/;
+// « AAAA-MM-JJ » d'une date ou d'un horodatage (« 2026-10-12T09:00:00+00:00 »), nul si la valeur n'en est pas une.
+const jourDe = (valeur) => (typeof valeur === "string" && ISO_JOUR.test(valeur) ? valeur.slice(0, 10) : null);
+const jourMois = (jour) => `${jour.slice(8)}/${jour.slice(5, 7)}`;
+const rempli = (texte) => typeof texte === "string" && texte.trim() !== "";
+const tableau = (valeur) => (Array.isArray(valeur) ? valeur : []);
+
+// Nombre et mot accordé : « 1 note », « 4 notes ». Le pluriel s'écrit en toutes lettres quand il n'est pas régulier.
+const nb = (n, singulier, pluriel = singulier + "s") => `${n} ${n > 1 ? pluriel : singulier}`;
+
+// « du 05/10 au 15/10 », ou « le 05/10 » quand tout tient en un jour ; chaîne vide s'il n'y a aucune date.
+function plage(jours) {
+  const l = jours.filter(Boolean).sort();
+  if (!l.length) return "";
+  const [debut, fin] = [l[0], l[l.length - 1]];
+  return debut === fin ? `le ${jourMois(debut)}` : `du ${jourMois(debut)} au ${jourMois(fin)}`;
+}
+const avecPlage = (texte, jours) => [texte, plage(jours)].filter(Boolean).join(" ");
+
+// --- Planning : les demi-journées de formation ---
+
+const porteQuelqueChose = (e) => rempli(e.activite) || rempli(e.sujet) || rempli(e.sujet_2)
+  || tableau(e.prof_ids).length > 0 || rempli(e.prof_autre) || Boolean(e.autonomie);
+
+// Le jour d'une ligne : le lundi de sa semaine plus l'indice du jour ; nul si l'un des deux manque ou est faux.
+function jourDeLigne(e) {
+  const lundi = jourDe(e.semaine_lundi);
+  if (!lundi || !Number.isInteger(e.day_index)) return null;
+  const jour = addDays(parseDate(lundi), e.day_index);
+  return Number.isNaN(jour.getTime()) ? null : isoDate(jour);
+}
+
+// Une demi-journée de formation est un triplet distinct (semaine, jour, demi-journée) dont une ligne au moins porte
+// quelque chose : une demi-journée a plusieurs lignes (créneaux) et la base garde des lignes vides, qui ne comptent
+// pas. Rend le jour de chaque demi-journée.
+function demiJournees(lignes) {
+  const jours = new Map();
+  lignes.filter(porteQuelqueChose).forEach((e) => {
+    const jour = jourDeLigne(e);
+    if (jour) jours.set(`${e.semaine_lundi}|${e.day_index}|${e.half_day}`, jour);
+  });
+  return [...jours.values()];
+}
+
+// --- Les pièces : chacune rend { presente, detail, raison } ---
+
+const presente = (detail) => ({ presente: true, detail, raison: null });
+const absente = (raison) => ({ presente: false, detail: null, raison });
+
+// Ce que chaque pièce calcule à partir du contexte (voir `contexte`). Une phrase chiffrée si elle est présente,
+// sinon la raison de son absence.
+const CONSTRUCTEURS = {
+  effectif: ({ ind }) => {
+    const e = ind.effectif.detail;
+    if (!e.inscrits) return absente("aucun stagiaire inscrit dans cette promo");
+    return presente(`${nb(e.inscrits, "inscrit")}, dont ${e.enFormation} en formation et ${nb(e.abandons, "abandon")}`);
+  },
+
+  deroule: ({ planning }) => {
+    const jours = demiJournees(planning);
+    if (!jours.length) return absente("aucune demi-journée renseignée au planning de cette promo");
+    return presente(avecPlage(`${nb(jours.length, "demi-journée")} de formation`, jours));
+  },
+
+  datesCles: ({ liste }) => {
+    const evenements = liste("agenda").filter((e) => TYPES_CLES.includes(e.type) && jourDe(e.date_start));
+    if (!evenements.length) return absente("aucune date de formation, de stage ou d'examen au calendrier");
+    const parType = TYPES_CLES.map((type) => [type, evenements.filter((e) => e.type === type).length])
+      .filter(([, nombre]) => nombre > 0).map(([type, nombre]) => nb(nombre, type));
+    const jours = evenements.flatMap((e) => [jourDe(e.date_start), jourDe(e.date_end)]);
+    return presente(avecPlage(`${nb(evenements.length, "événement")} au calendrier (${parType.join(", ")})`, jours));
+  },
+
+  // `donnees` ne porte pas encore d'émargement : le calcul des heures (feuilles closes) n'est pas branché, donc
+  // l'assiduité est absente pour toute promo. Aucun nom de champ d'une feuille close n'est deviné ici ; la
+  // tâche qui branchera l'émargement remplacera cette ligne.
+  assiduite: () => absente(HEURES_NON_BRANCHEES),
+
+  passages: ({ ind }) => {
+    const { salle, voiture } = ind.passages.detail;   // nuls quand personne n'est en formation
+    const enSalle = salle ? salle.total : 0;
+    const enVoiture = voiture ? voiture.total : 0;
+    const absences = ind.absences.detail.absences;
+    if (enSalle + enVoiture + absences === 0) return absente("aucun passage en salle ou en voiture enregistré");
+    const parties = [`${nb(enSalle, "passage")} en salle et ${enVoiture} en voiture (remplacements compris)`];
+    if (absences) parties.push(nb(absences, "absence de dernière minute", "absences de dernière minute"));
+    return presente(parties.join(", "));
+  },
+
+  evaluations: ({ ind, liste, dedans }) => {
+    // Les nombres sont ceux du tableau de bord ; seules les dates des notes sont relues ici, avec la même règle.
+    const nbNotes = ind.notes.detail.n;
+    const joursNotes = liste("evaluations").filter((e) => dedans(e) && estNotee(e)).map((e) => jourDe(e.date_eval));
+    const examens = ind.examensQcm.detail.passes;
+    const epcf = ind.epcf.detail.salle.evalues + ind.epcf.detail.vehicule.evalues;   // la dernière de chaque stagiaire, par grille
+    const livrets = new Set(liste("livrets").filter(dedans).map((l) => l.stagiaire_id)).size;
+    const parties = [];
+    if (nbNotes) parties.push(avecPlage(nb(nbNotes, "note"), joursNotes));
+    if (examens) parties.push(nb(examens, "examen QCM", "examens QCM"));
+    if (epcf) parties.push(nb(epcf, "évaluation EPCF", "évaluations EPCF"));
+    if (livrets) parties.push(nb(livrets, "livret EPCF", "livrets EPCF"));
+    if (!parties.length) return absente(`aucune évaluation enregistrée ; ${SANS_JURY}`);
+    return presente(`${parties.join(", ")} ; ${SANS_JURY}`);
+  },
+
+  dossierPro: ({ ind, liste, dedans }) => {
+    const dossiers = liste("dossiers").filter(dedans);
+    const stagiaires = new Set(dossiers.map((d) => d.stagiaire_id)).size;
+    if (!stagiaires) return absente("aucun dossier professionnel enregistré par les stagiaires en formation");
+    const derniers = dossiers.map((d) => jourDe(d.updated_at)).filter(Boolean).sort();
+    const miseAJour = derniers.length ? `, dernière mise à jour le ${jourMois(derniers[derniers.length - 1])}` : "";
+    return presente(`enregistré pour ${nb(stagiaires, "stagiaire")} sur ${ind.effectif.detail.enFormation} en formation${miseAJour}`);
+  },
+
+  ressources: ({ ind, liste, referentiel }) => {
+    const cours = liste("cours").filter((c) => c.published).length;
+    if (!cours) return absente("aucun cours publié");
+    const { actifs, enFormation, tentatives } = ind.activiteQcm.detail;
+    const appropriation = tentatives
+      ? `QCM d'entraînement faits par ${nb(actifs, "stagiaire")} sur ${enFormation} en formation (${nb(tentatives, "tentative")})`
+      : "aucun QCM d'entraînement fait";
+    return presente(`${nb(cours, "cours publié", "cours publiés")}, ${nb(tableau(referentiel.qcm).length, "QCM", "QCM")} ; ${appropriation}`);
+  },
+
+  misesAJour: ({ liste, dansPeriode, periode }) => {
+    const joursCours = liste("cours").filter((c) => c.published).map((c) => jourDe(c.updated_at)).filter(dansPeriode);
+    const joursSignalements = liste("signalements").map((s) => jourDe(s.traite_at)).filter(dansPeriode);
+    if (!joursCours.length && !joursSignalements.length) {
+      return absente(`aucun cours publié modifié ni signalement de QCM traité ${periode}`);
+    }
+    const parties = [];
+    if (joursCours.length) parties.push(nb(joursCours.length, "cours publié modifié", "cours publiés modifiés"));
+    if (joursSignalements.length) parties.push(nb(joursSignalements.length, "signalement de QCM traité", "signalements de QCM traités"));
+    return presente(avecPlage(parties.join(" et "), [...joursCours, ...joursSignalements]));
+  },
+
+  innovations: ({ nouveautes, dansPeriode, periode }) => {
+    const jours = nouveautes.map((nouveaute) => jourDe(nouveaute.date)).filter(dansPeriode);
+    if (!jours.length) return absente(`aucune nouveauté datée ${periode}`);
+    return presente(avecPlage(nb(jours.length, "nouveauté datée", "nouveautés datées"), jours));
+  },
+
+  // Des nombres seulement : les formateurs distincts, les intervenants « Autre » distincts (leur nom est compté,
+  // jamais recopié), les bénévoles distincts et les auto-écoles actives du lieu.
+  intervenants: ({ promo, liste, planning }) => {
+    const formateurs = new Set(planning.flatMap((e) => tableau(e.prof_ids)).filter((id) => id != null)).size;
+    const exterieurs = new Set(planning.map((e) => e.prof_autre).filter(rempli).map((nom) => nom.trim().toLowerCase())).size;
+    const benevoles = new Set(planning.flatMap((e) => tableau(e.benevoles_ids)).filter((id) => id != null)).size;
+    const autoEcoles = promo.lieu_id == null ? 0
+      : liste("autoEcoles").filter((a) => a.actif && a.lieu_id === promo.lieu_id).length;
+    const parties = [];
+    if (formateurs) parties.push(nb(formateurs, "formateur"));
+    if (exterieurs) parties.push(nb(exterieurs, "intervenant extérieur", "intervenants extérieurs"));
+    if (benevoles) parties.push(nb(benevoles, "bénévole"));
+    if (autoEcoles) parties.push(nb(autoEcoles, "auto-école partenaire", "auto-écoles partenaires"));
+    if (!parties.length) {
+      return absente("aucun formateur, intervenant extérieur ni bénévole au planning, aucune auto-école partenaire active");
+    }
+    return presente(parties.join(", "));
+  },
+
+  resultats: ({ ind }) => {
+    if (!ind.effectif.detail.inscrits) return absente("aucun stagiaire inscrit : aucun indicateur à calculer");
+    const mesures = Object.values(ind).filter((i) => i.nature === "mesuré" && i.valeur != null).length;
+    return presente(`${nb(mesures, "indicateur mesuré", "indicateurs mesurés")}, chacun avec sa méthode de calcul ; réussite au titre non mesurée`);
+  },
+
+  // Des nombres seulement : la liste des stagiaires à suivre de près porte des noms, elle n'est que comptée.
+  suivi: ({ ind }) => {
+    const aSuivre = ind.aSuivre.length;
+    const parQcm = ind.themes.qcm.length;
+    const parNotes = ind.themes.notes.length;
+    if (!aSuivre && !parQcm && !parNotes) {
+      return absente("personne ne cumule deux signaux et aucun thème n'a encore assez de réponses ou de notes");
+    }
+    return presente(`stagiaires à suivre de près : ${aSuivre} ; thèmes à retravailler : ${parQcm} d'après les QCM, ${parNotes} d'après les notes`);
+  },
+};
+
+// Tout ce que les pièces lisent, calculé une fois. La période de la promo court de sa date de début à sa date de fin,
+// ou à aujourd'hui quand elle n'en a pas ; une borne inconnue est ouverte.
+function contexte(donnees, referentiel, { promo, aujourdhui, nouveautes }) {
+  const liste = (cle) => tableau(donnees[cle]);
+  const enFormation = new Set(liste("stagiaires").filter((s) => s.actif).map((s) => s.id));
+  const debut = jourDe(promo.date_debut);
+  const fin = jourDe(promo.date_fin) ?? jourDe(aujourdhui);
+  const periodeValide = debut !== null && fin !== null && debut <= fin;
+  return {
+    promo, referentiel, liste,
+    nouveautes: tableau(nouveautes),
+    ind: indicateursPromo(donnees, referentiel, { aujourdhui }),
+    dedans: (ligne) => enFormation.has(ligne.stagiaire_id),
+    planning: liste("planning").filter((e) => e.promo_id === promo.id),
+    dansPeriode: (jour) => jour !== null && (debut === null || jour >= debut) && (fin === null || jour <= fin),
+    periode: periodeValide ? `entre le ${jourMois(debut)} et le ${jourMois(fin)}` : "pendant la promo",
+  };
+}
+
+// donnees : sortie de lireDonneesQualiopi (les clés `profs` et `entete`, qui servent aux noms, ne sont pas lues ici) ;
+// referentiel : lireReferentielCentre() ; promo : { id, lieu_id, nom, date_debut, date_fin } (date_fin peut être
+// nulle) ; aujourdhui : « AAAA-MM-JJ » ; nouveautes : entrées de NOUVEAUTES (js/nouveautes-data.js).
+// Rend { promo, indicateurs, nonApplicables } : pour chaque indicateur applicable (27, ou 28 avec l'alternance),
+// { numero, critere, court, niveau, apporte, pieces: [{ cle, libelle, presente, detail, raison }], aFournir } ;
+// pour les autres, { numero, court, raison }. `detail` est la phrase chiffrée d'une pièce présente, `raison` celle
+// d'une pièce absente ; l'autre champ est nul.
+export function inventairePromo(donnees, referentiel, { promo, aujourdhui, alternance = false, nouveautes = [] }) {
+  const c = contexte(donnees, referentiel, { promo, aujourdhui, nouveautes });
+  const etat = new Map(PIECES.map((p) => [p.cle, CONSTRUCTEURS[p.cle](c)]));
+  const applicables = indicateursApplicables({ alternance });
+  const retenus = new Set(applicables.map((i) => i.numero));
+  return {
+    promo,
+    indicateurs: applicables.map((i) => ({
+      numero: i.numero,
+      critere: i.critere,
+      court: i.court,
+      niveau: NIVEAUX[i.numero].niveau,
+      apporte: NIVEAUX[i.numero].apporte,
+      pieces: PIECES.filter((p) => p.indicateurs.includes(i.numero)).map((p) => ({ cle: p.cle, libelle: p.libelle, ...etat.get(p.cle) })),
+      aFournir: [...NIVEAUX[i.numero].aFournir],
+    })),
+    // Les autres : apprentissage seulement, ou l'alternance quand le centre n'en déclare pas.
+    nonApplicables: INDICATEURS.filter((i) => !retenus.has(i.numero)).map((i) => ({
+      numero: i.numero,
+      court: i.court,
+      raison: i.categories.formation ? "pas d'alternance déclarée" : "apprentissage seulement",
+    })),
+  };
+}
