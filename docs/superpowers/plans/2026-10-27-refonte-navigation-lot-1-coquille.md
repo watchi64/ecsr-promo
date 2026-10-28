@@ -227,3 +227,79 @@ console.log(`nav-rules : ${n} assertions OK`);
 - [ ] **Step 2:** `grep` du tiret cadratin (`$'\xe2\x80\x94'`) et de « Prof » affiché dans les fichiers modifiés : aucun.
 - [ ] **Step 3:** Captures avant et après (stagiaire et formateur, 1280 et 375 px) pour Timy ; texte de la Nouveauté prêt (pour « tous », à ajouter le jour où il allume l'interrupteur pour une vraie promo, règle des Nouveautés).
 - [ ] **Step 4:** Ne pas fusionner : montrer à Timy ce qui part, attendre son accord, puis fusion dans `main` par `merge --no-ff --no-commit` suivi d'un commit (le hook pose le jeton) ; il pousse lui-même.
+
+---
+
+## Annexe : Nouveautés à publier le jour de l'allumage
+
+La fusion du lot 1 ne change rien pour les promos : l'interrupteur est éteint par défaut et son réglage n'est visible
+que du fondateur. Les deux entrées ci-dessous s'ajoutent à `js/nouveautes-data.js` dans le commit qui allume la
+nouvelle navigation pour une vraie promo (règle des Nouveautés), date du jour à la place de `AAAA-MM-JJ`. Avant
+l'allumage, aligner les textes « Où le trouver » qui disent encore « Mon espace » (`js/modules-data.js`,
+`js/nouveautes-data.js`) sur le nom « Mon suivi » de la nouvelle barre.
+
+```js
+  {
+    id: "AAAA-MM-JJ-nouvelle-navigation",
+    date: "AAAA-MM-JJ",
+    pour: "tous",
+    titre: "Une navigation plus simple",
+    resume: "La barre de l'app change pour aller plus vite à l'essentiel. Sur le téléphone, les pages "
+          + "principales sont en bas de l'écran, à portée de pouce, chacune avec son nom. Le Planning regroupe "
+          + "la semaine, les dates clés et les priorités ; Cours et QCM regroupe les thèmes, les compétences "
+          + "et les documents.",
+    guide: [
+      "En haut du Planning, le bouton « Aujourd'hui » t'amène à la journée du jour.",
+      "Tes initiales, en haut à droite, ouvrent ton compte : Nouveautés, Réglages, « Actualiser » et déconnexion.",
+      "L'assistant s'ouvre avec le bouton « Assistant », en haut de l'écran.",
+    ],
+  },
+  {
+    id: "AAAA-MM-JJ-nouvelle-navigation-formateurs",
+    date: "AAAA-MM-JJ",
+    pour: "formateurs",
+    titre: "Côté formateurs, la barre passe à gauche",
+    resume: "Sur ordinateur, la barre de l'équipe est maintenant à gauche, avec la promo en tête ; elle se "
+          + "replie en colonne d'icônes et l'app s'en souvient. Sur téléphone, Accueil, Planning, Stagiaires "
+          + "et Notes sont en bas de l'écran, et « Plus » ouvre le reste : Cours et QCM, CCP2, Indicateurs, "
+          + "Réglages et l'assistant.",
+  },
+```
+
+## Annexe : décisions prises pendant l'exécution (27 et 28/10/2026)
+
+Chaque tâche a été écrite par un agent puis relue par un autre ; ces décisions tranchent ce que le plan ne disait
+pas, ou corrigent ce qu'il disait mal. Entre parenthèses : ce que coûte la décision si elle est fausse.
+
+- R1 : le script de vérification (Task 8) passe avant les coquilles (Tasks 4 et 5), qui s'en servent (script à ajuster).
+- R2 : au planning, décalage gardé à 104 px interrupteur éteint, `--haut-entete` + 52 px sous la v2 seulement (léger écart de défilement).
+- R3 : boutons Compte et Assistant posés en Task 4, câblés en Tasks 5 et 6 (rien de visible en production).
+- R4 et R5 : la fusion de main est confiée à la Task 1, relue après coup (rien).
+- R6 : quatorze assertions ajoutées aux tests de la Task 1 (tests en trop).
+- R7 : l'aperçu du fondateur prime même si la lecture du réglage échoue (le fondateur seul verrait la v2 pendant une panne).
+- R8 : une décision par session, lue au démarrage (rouvrir l'app pour voir un changement d'interrupteur).
+- R9 : une page regroupée est visible si l'un de ses sous-onglets l'est (une page avec un seul sous-onglet).
+- R10 et R11 : les défilements de côté déjà présents dans les pages sont signalés, pas bloquants ; lot 2 (dette reportée d'un lot).
+- R12 : la Task 4 ne fait que le stagiaire, l'équipe garde l'ancienne barre jusqu'à la Task 5 (rien en production).
+- R13 : deux petits trous du script corrigés par la Task 4 (trous jusqu'à la revue finale).
+- R14 : en-tête du stagiaire clair, comme la maquette validée ; barre sombre pour l'équipe (un fond à changer).
+- R15 : « Actualiser » entre dans le menu du compte ; la partie « Aujourd'hui » a été corrigée par R29.
+- R16 : nom de la promo près du logo, prénom près des initiales, là où la largeur le permet (deux textes à retirer).
+- R17 : jamais d'éclair de l'ancienne barre au démarrage d'une promo allumée, grâce à la mémoire de l'appareil (un éclair par ouverture).
+- R18 : le repère « masqué aux stagiaires » d'une entrée suit R9 (une ligne).
+- R19 : le crème de l'ancienne barre est en variables dans `navigation.css` jusqu'au lot de l'habillage (six variables à déplacer).
+- R20 : pas de point sur « Plus » au lot 1 ; il signalera seulement ce qui est à traiter (une dizaine de lignes à remettre).
+- R21 : petits écarts voulus à la maquette : voile des fenêtres de l'app, menu à droite de la barre, prénom dès 1240 px (retouches CSS).
+- R22 : `demonterCoquille` retirée, rien ne démonte la coquille (six lignes).
+- R23 : fichiers hors liste et `assistantOuvert()` admis pour la Task 6 (du code à replacer).
+- R24 : limites admises de R17 : un éclair au tout premier lancement sur un appareil, jusqu'à 3,5 s de « Chargement » sans barre sur réseau lent.
+- R25 : l'attribut des bandeaux du bas est publié même interrupteur éteint, où il est inerte (une condition à ajouter).
+- R26 : le script vérifie aussi les quatre anciennes adresses (quarante lignes de script en trop).
+- R27 et R28 : la Task 9 est coupée en deux (ménage avant la relecture finale, captures après) et les deux dernières relectures tournent ensemble (un aller-retour).
+- R29 : bouton « Aujourd'hui » en haut du Planning sous la v2 (un bouton de plus).
+- R30 : une chose, un endroit : la ligne « Mon espace » du menu disparaît quand la barre y mène, la page s'appelle « Mon suivi » sous la v2 (une ligne et un titre).
+- R31 : une lecture de réglage de plus au démarrage, même éteint, parallèle et bornée à 3,5 s (démarrage un peu plus long sur réseau très lent).
+- R32 : « réservé au fondateur » n'est tenu que par l'interface ; la base laisse tout formateur de la promo écrire l'interrupteur, jamais un stagiaire ; lot des droits en base (un formateur pourrait allumer la v2 de sa promo).
+- R33 : les points écartés par la relecture finale (contenu des lots suivants, vieux Safari, lecteurs d'écran réels) sont acceptés ; deux sont remontés à Timy.
+- R34 et R35 : réserves et résidus de la dernière vague parqués : textes « Mon espace personnel » à aligner avant l'allumage, banc des modules déjà cassé sur main, case du fondateur après une lecture ratée, deux cas latents de fenêtres (petites retouches au lot 2).
+- R36 : le registre d'exécution est gardé jusqu'à la fusion, puis supprimé avec le worktree ; cette annexe en garde la trace.
