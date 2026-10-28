@@ -8,6 +8,9 @@
 -- Les lignes sont triées en collation C, les valeurs nulles s'écrivent NULL (format %L) et les listes de
 -- droits (aclitem) sont éclatées puis triées : l'empreinte ne dépend ni de l'ordre de création des règles,
 -- ni de l'ordre dans lequel les droits ont été accordés.
+-- Les valeurs de référence ont été relevées avec le chemin de recherche de la session MCP ("$user", public,
+-- extensions) : la base qualifie par leur schéma les noms que le chemin ne rend pas visibles, donc un autre
+-- chemin peut donner un autre md5 sans que rien n'ait changé.
 select
   (select md5(coalesce(string_agg(l, E'\n' order by l collate "C"), ''))
      from (select format('%L|%L|%L|%L|%L|%L|%L|%L',

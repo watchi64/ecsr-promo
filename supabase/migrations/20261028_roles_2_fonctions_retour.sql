@@ -19,7 +19,9 @@
 --
 -- Ordre : les anciennes définitions d'abord, puis la suppression des nouvelles fonctions, puis mes_promos.
 -- À passer après 20261028_roles_3_regles_retour.sql et avant 20261028_roles_1_fondations_retour.sql.
--- Contrôle : tests/sql/roles-empreinte.sql (colonne fonctions) redonne la valeur relevée avant le lot.
+-- Contrôle : après les retours 3, 2 et 1, tests/sql/roles-empreinte.sql redonne les trois valeurs relevées
+-- avant le lot (après ce seul retour, le vocabulaire de l'étape 1 fait encore différer la colonne fonctions).
+-- Recette de génération, à rejouer si la production a bougé : tests/sql/roles-retours-recette.sql.
 set local lock_timeout = '3s';
 
 -- 1. Les 20 fonctions modifiées par l'étape 2, dans leur définition d'avant le lot 4.
@@ -555,10 +557,18 @@ begin
   if not found then raise exception 'Ce brouillon a déjà été traité'; end if;
 end $function$;
 
--- 2. Les trois fonctions créées par l'étape 2 : elles n'existaient pas avant le lot 4.
-drop function if exists public.inviter_compte(text, text, integer, integer, integer);
-drop function if exists public.creer_promo(integer, text, date, date);
-drop function if exists public.modifier_dates_promo(integer, date, date);
+-- 2. Les trois fonctions créées par l'étape 2 : elles n'existaient pas avant le lot 4. Supprimées par leur
+-- nom, quelle que soit leur signature, pour qu'un écart de type ou d'argument ne laisse aucune orpheline.
+do $retour$
+declare f regprocedure;
+begin
+  for f in select p.oid::regprocedure from pg_proc p
+            where p.pronamespace = 'public'::regnamespace
+              and p.proname in ('inviter_compte', 'creer_promo', 'modifier_dates_promo') loop
+    execute format('drop function %s', f);
+  end loop;
+end
+$retour$;
 
 -- 3. mes_promos() : l'étape 2 lui ajoute la colonne roles, donc un autre type de retour, que create or replace
 -- n'accepte pas. On la supprime puis on la recrée à l'ancienne, avec ses droits d'avant : ni PUBLIC ni anon,
