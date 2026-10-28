@@ -33,23 +33,25 @@ manque) :
     fichier du banc n'est jamais modifié). S'y ajoutent un stagiaire qui n'est pas fondateur (réglage
     de la promo, `is_founder` retiré : le cas de la plupart des vrais comptes), le stagiaire et le prof
     avec `?modules=depart` (modules fermés : pas de case vide, repères), et le « Voir en tant que » du
-    fondateur, à 1280, 900 et 375 px (Stagiaire, Formateur, Stagiaire, puis son rôle réel : la coquille change d'espace sans
-    recharger la page, et l'entrée allumée suit la page affichée ; sur téléphone, il passe aussi par
-    « Plus », « Mon compte », « Stagiaire », puis ouvre le tiroir et élargit l'écran à 900 px : le tiroir
-    se ferme et le focus ne tombe jamais sur body ; à chaque rôle vu, le bandeau d'aperçu est en bas de
-    l'écran et l'assistant, ouvert depuis la coquille, garde son champ et « Envoyer » à portée : rien ne
-    couvre leur centre). S'y ajoute, une fois par moteur, l'ouverture d'un formateur dont l'appareil a vu
-    la promo allumée (mémoire `ecsr_nav_v2_promo:1`, ruling R17), lectures des réglages ralenties : l'ancienne
-    barre ne se peint à aucune image avant la coquille (échantillon à chaque image) et l'attente
-    (`body[data-nav-attente]`) est levée.
+    fondateur, à 1280, 900 et 375 px (Stagiaire, Formateur, Stagiaire, puis son rôle réel : la
+    coquille change d'espace sans recharger la page, et l'entrée allumée suit la page affichée ; sur
+    téléphone, il passe aussi par « Plus », « Mon compte », « Stagiaire », puis ouvre le tiroir et
+    élargit l'écran à 900 px : le tiroir se ferme et le focus ne tombe jamais sur body ; à chaque rôle
+    vu, le bandeau d'aperçu est en bas de l'écran et l'assistant, ouvert depuis la coquille, garde son
+    champ et « Envoyer » à portée : rien ne couvre leur centre). S'y ajoute, une fois par moteur,
+    l'ouverture d'un formateur dont l'appareil a vu la promo allumée (mémoire `ecsr_nav_v2_promo:1`,
+    ruling R17), lectures des réglages ralenties : l'ancienne barre ne se peint à aucune image avant
+    la coquille (échantillon à chaque image) et l'attente (`body[data-nav-attente]`) est levée.
   * Passe « éteint » : aucun aperçu, rien ne doit changer par rapport à main (aucune coquille,
     l'ancienne barre d'onglets, pas de sous-onglets regroupés, aucun défilement ni débordement de côté
     de plus que ceux des rulings R10 et R11).
 Dans chaque contexte : l'arrivée à froid, chaque entrée de la coquille (cliquée dans la coquille, ou
 via « Plus » sur téléphone quand elle y est rangée ; la liste vient des règles de js/nav-rules.js,
 lues dans la page), chaque sous-onglet des pages qui en ont (Planning, Cours, Mon espace, Notes...), les
-pages du menu du compte sans entrée à elles (Mon espace, Réglages, Nouveautés), les quatre anciennes adresses
-(ruling R26, ci-dessous), puis les menus (compte, « Plus », contexte, assistant).
+pages du menu du compte sans entrée à elles (Mon espace, Réglages, Nouveautés), le bouton
+« Aujourd'hui » de Planning > Semaine (ruling R29), les quatre anciennes adresses (ruling R26,
+ci-dessous), puis les menus (compte, « Plus », contexte, assistant) et « Précédent » sous une fenêtre
+ouverte.
 
 Contrôles par vue
 -----------------
@@ -72,6 +74,11 @@ Contrôles par vue
     barre d'onglets est masquée ;
   * menus et tiroirs : entièrement dans l'écran, fermés par Échap (le retour du focus sur le bouton qui les
     a ouverts n'est qu'un avertissement) ;
+  * fenêtre ouverte (menu du compte, tiroir « Plus ») : fermée quand « Précédent » change l'adresse, le
+    focus restant dans la coquille ; sur téléphone, fermée aussi par son « Fermer » ;
+  * Planning > Semaine (ruling R29) : allumé, un bouton nommé « Aujourd'hui », de 44 px, qui, cliqué sur
+    une autre semaine que celle du jour, affiche la semaine du jour et amène sa carte en haut de l'écran ;
+    éteint, la page n'en a pas (celui de la barre du haut reste) ;
   * l'attente de la coquille (`body[data-nav-attente]`, ruling R17) n'est plus posée, dans les deux passes ;
   * les quatre anciennes adresses (`#/calendrier`, `#/dashboard`, `#/ressources`, `#/notes`, ruling R26) : allumé, la nouvelle
     page et son sous-onglet allumé (Planning : Dates clés, Priorités ; Cours : Documents ; Mon espace : La classe chez
@@ -123,17 +130,22 @@ par `--script-init`, et le script a échoué avec le message attendu ; la coquil
   * menus : Échap qui ne ferme pas, menu hors de l'écran, tiroir resté ouvert (avertissement) ; focus rendu
     à body quand le bouton d'une fenêtre a disparu (« Plus » > « Mon compte » > « Stagiaire ») ou ne
     s'affiche plus (écran élargi tiroir ouvert), tiroir resté ouvert quand l'écran passe à 900 px (sur la
-    coquille de la Task 5 avant sa correction) ;
+    coquille de la Task 5 avant sa correction) ; fenêtre restée ouverte quand « Précédent » change
+    l'adresse, « Fermer » sans effet (relecture finale, injectés par `--script-init`) ;
+  * « Aujourd'hui » de Planning > Semaine (ruling R29, injectés par `--script-init`) : bouton absent,
+    bouton sans effet, bouton montré interrupteur éteint ;
   * interrupteur éteint : un `h1` trop large (« élément de page qui déborde »), une coquille présente ;
-  * ouverture (ruling R17) : ancienne barre laissée visible pendant l'attente (37 images avant la coquille), attente
-    jamais levée ; « Voir en tant que » : panneau de l'assistant laissé sous le bandeau d'aperçu (champ et
-    « Envoyer » couverts à 375 px dans les deux espaces, « Envoyer » à 1280 px et à 900 px dans l'équipe) ;
+  * ouverture (ruling R17) : ancienne barre laissée visible pendant l'attente (37 images avant la
+    coquille), attente jamais levée ; « Voir en tant que » : panneau de l'assistant laissé sous le
+    bandeau d'aperçu (champ et « Envoyer » couverts à 375 px dans les deux espaces, « Envoyer » à
+    1280 px et à 900 px dans l'équipe) ;
   * mise en place : erreur de console et de page, interrupteur qui n'allume pas, banc périmé.
 Sans défaut, n'échouent pas : un bouton `data-nav-action="deconnexion"` (pas un ouvreur), un lien d'évitement
 masqué (ni mesuré comme cible, ni sans nom), un nom pris par `aria-labelledby`, `<label for>` ou `<title>` SVG.
 """
 import argparse
 import concurrent.futures
+import datetime
 import itertools
 import os
 import pathlib
@@ -567,6 +579,8 @@ function mesurerAncienne(route, echecs, barres) {
   if (route === "planning" && barres.length) echecs.push(["page regroupée, interrupteur éteint", "le Planning montre des sous-onglets"]);
   if (route === "themes" && libelles.some((l) => l.startsWith("documents"))) echecs.push(["page regroupée, interrupteur éteint", "Cours montre un sous-onglet Documents"]);
   if (route === "mon-suivi" && libelles.some((l) => l.startsWith("la classe"))) echecs.push(["page regroupée, interrupteur éteint", "Mon espace montre la partie La classe"]);
+  // Le bouton « Aujourd'hui » de la page (ruling R29) n'appartient qu'à la nouvelle navigation : éteint, il est dans la barre du haut.
+  if (route === "planning" && document.querySelector("#view .p-aujourdhui")) echecs.push(["page regroupée, interrupteur éteint", "le Planning montre le bouton « Aujourd'hui » de la nouvelle navigation"]);
 }
 
 function mesurerCoquille(o, route, W, H, tel, echecs, avert, R) {
@@ -1316,6 +1330,110 @@ def jouer_anciennes_adresses(page, res, sc):
         vider_console(res, vue)
 
 
+def lundi_et_jour(date_iso):
+    """Ce que vise « Aujourd'hui » (todayJumpTarget de js/views/planning.js) : le lundi de la semaine affichée
+    et l'index de la carte du jour ; du lundi au vendredi, le jour même, le week-end, le lundi qui suit."""
+    d = datetime.date.fromisoformat(date_iso)
+    if d.weekday() <= 4:
+        return (d - datetime.timedelta(days=d.weekday())).isoformat(), d.weekday()
+    return (d + datetime.timedelta(days=7 - d.weekday())).isoformat(), 0
+
+
+# La semaine affichée (le lundi du champ de date), le sous-onglet allumé et le haut de chaque carte de jour.
+JS_SEMAINE_AFFICHEE = """() => {
+    const d = document.querySelector('#view .week-bar-nav input[type=date]');
+    const s = document.querySelector('#view .subtabs-bar > .subtab.active');
+    return { lundi: d ? d.value : null, sousOnglet: s ? (s.childNodes[0] ? s.childNodes[0].textContent : s.textContent).trim() : null,
+             cartes: [...document.querySelectorAll('#view .p-day-card')].map((c) => Math.round(c.getBoundingClientRect().top)),
+             hauteur: innerHeight };
+}"""
+
+
+def verifier_aujourdhui(page, res, sc):
+    """Ruling R29 : sous la nouvelle navigation, Planning > Semaine porte en haut le bouton « Aujourd'hui » de
+    l'ancienne barre du haut, nommé, de 44 px. Cliqué sur la page déjà affichée, une autre semaine que celle du
+    jour à l'écran, il affiche la semaine du jour et amène la carte du jour en haut de l'écran."""
+    vue = "%s/planning/aujourdhui" % sc.nom
+    aller_a(page, "#/planning")
+    attendre(page)
+    semaine = page.locator("#view .subtabs-bar > .subtab", has_text="Semaine")
+    if semaine.count():
+        semaine.first.click()
+        attendre(page)
+    res.vues += 1
+    bouton = page.get_by_role("button", name="Aujourd'hui", exact=True)
+    if bouton.count() != 1:
+        res.echec("bouton « Aujourd'hui »", vue, "Planning > Semaine montre %d bouton(s) nommé(s) « Aujourd'hui », 1 attendu" % bouton.count())
+        return
+    boite = bouton.bounding_box()
+    if not boite or boite["width"] < 43.5 or boite["height"] < 43.5:
+        res.echec("bouton « Aujourd'hui »", vue, "zone à toucher de %s px (44 px au moins)" % ("%dx%d" % (boite["width"], boite["height"]) if boite else "0x0"))
+    lundi, jour = lundi_et_jour(DATE_DU_BANC)
+    if page.evaluate(JS_SEMAINE_AFFICHEE)["lundi"] == lundi:
+        # Déjà la semaine du jour : une autre d'abord, le bouton doit aussi changer de semaine.
+        page.get_by_role("button", name="Semaine précédente").click()
+        attendre(page)
+    bouton.click()
+    page.wait_for_timeout(100)
+    attendre(page)
+    page.wait_for_timeout(400)   # le saut vers le jour : défilement fluide, puis direct après 250 ms (scrollToDay)
+    m = page.evaluate(JS_SEMAINE_AFFICHEE)
+    haut = m["cartes"][jour] if len(m["cartes"]) > jour else None
+    if route_courante(page) != "planning" or m["lundi"] != lundi or m["sousOnglet"] not in (None, "Semaine"):
+        res.echec("bouton « Aujourd'hui »", vue, "après le clic : #/%s, semaine du %s, sous-onglet %s ; attendu Planning > Semaine, semaine du %s"
+                  % (route_courante(page), m["lundi"], m["sousOnglet"], lundi))
+    elif haut is None or not 0 <= haut <= m["hauteur"] / 2:
+        res.echec("bouton « Aujourd'hui »", vue, "la carte du jour n'est pas amenée en haut de l'écran (son haut à y %s, écran de %d px)" % (haut, m["hauteur"]))
+    vider_console(res, vue)
+
+
+def verifier_retour_arriere(page, res, sc):
+    """Relecture finale, mineur 3 : une fenêtre de la coquille ouverte (menu du compte ; tiroir « Plus » sur téléphone)
+    se ferme quand « Précédent », le geste retour du téléphone, change l'adresse sous elle, le focus restant dans la
+    coquille ; sur téléphone, son « Fermer » la ferme aussi."""
+    vue = "%s/menus/retour-arriere" % sc.nom
+    res.vues += 1
+    for action in ("compte", "plus"):
+        ouvreur = '[data-nav-coquille] [data-nav-action="%s"]:visible' % action
+        if not page.locator(ouvreur).count():
+            continue
+        aller_a(page, "#/planning")
+        aller_a(page, "#/home")
+        attendre(page)
+        if not cliquer(page, res, vue, ouvreur, "bouton « %s »" % action):
+            continue
+        page.wait_for_timeout(250)
+        if not page.evaluate("() => window.__verifNav.popupsVisibles()"):
+            res.echec("le menu ne s'ouvre pas", vue, "le bouton « %s » n'ouvre aucune fenêtre" % action)
+            continue
+        page.evaluate("() => history.back()")
+        try:
+            page.wait_for_function("() => location.hash === '#/planning'", timeout=2000)
+        except DelaiDepasse:
+            res.echec("historique", vue, "« Précédent » depuis #/home, fenêtre de « %s » ouverte, ne ramène pas à #/planning" % action)
+        page.wait_for_timeout(250)
+        if page.evaluate("() => window.__verifNav.popupsVisibles()"):
+            res.echec("fenêtre ouverte après un retour arrière", vue, "la fenêtre de « %s » reste ouverte quand « Précédent » change l'adresse" % action)
+            page.keyboard.press("Escape")
+            page.wait_for_timeout(250)
+        else:
+            focus_garde(page, res, vue, "fenêtre de « %s » fermée par « Précédent »" % action)
+        if sc.largeur < SEUIL_TELEPHONE and cliquer(page, res, vue, ouvreur, "bouton « %s »" % action):
+            page.wait_for_timeout(250)
+            if cliquer(page, res, vue, '[data-nav-coquille] [role="dialog"] button:text-is("Fermer")', "« Fermer » de la fenêtre de « %s »" % action):
+                page.wait_for_timeout(250)
+                if page.evaluate("() => window.__verifNav.popupsVisibles()"):
+                    res.echec("« Fermer » ne ferme pas", vue, "la fenêtre de « %s » reste ouverte après « Fermer »" % action)
+                    page.keyboard.press("Escape")
+                    page.wait_for_timeout(250)
+                else:
+                    focus_garde(page, res, vue, "fenêtre de « %s » fermée par « Fermer »" % action)
+            else:
+                page.keyboard.press("Escape")
+                page.wait_for_timeout(250)
+    vider_console(res, vue)
+
+
 def jouer_allume(page, res, sc, options):
     regles = regles_de_la_page(page, res, sc)
     res.profil_stagiaire = bool(regles.get("profilStagiaire"))
@@ -1334,10 +1452,14 @@ def jouer_allume(page, res, sc, options):
             aller_a(page, "#/" + route)
             verifier_vue(page, res, sc, route, options)
             sous_vues(page, res, sc, route, options)
+    if res.coquille and "planning" in routes:
+        verifier_aujourdhui(page, res, sc)
     jouer_anciennes_adresses(page, res, sc)
     if res.coquille:
         aller_a(page, "#/home")
         verifier_menus(page, res, sc, options)
+        if not options.get("sans_menus"):
+            verifier_retour_arriere(page, res, sc)
 
 
 def focus_garde(page, res, vue, geste):
