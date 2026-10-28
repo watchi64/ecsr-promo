@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import {
   espaceDe, entreesNavigation, barreTelephone, entreeActive, redirectionV2, routeVisibleV2, initialesDe,
-  prenomDe, entreeMasquee, libelleRole, nomDuBoutonCompte, pageASoiDuMenu, redirectionAncienne,
+  prenomDe, entreeMasquee, libelleRole, nomDuBoutonCompte, pageASoiDuMenu, redirectionAncienne, CLES_SOUS_ONGLETS,
 } from "../js/nav-rules.js";
 import { pagePersonnelle } from "../js/route-rules.js";
 import { MODULE_DE_ROUTE, ROUTES_SOCLE } from "../js/modules-data.js";
@@ -248,5 +248,11 @@ eq(pageASoiDuMenu(stagiaire, entreesNavigation("stagiaire", { routeVisible: () =
 eq(pageASoiDuMenu(formateurSansProfil, eqp), null, "formateur sans profil stagiaire : Stagiaires est une entrée, pas de ligne");
 eq(pageASoiDuMenu(formateurStagiaire, eqp), "mon-suivi", "formateur qui a un profil stagiaire : sa page n'a pas d'entrée, la ligne reste");
 eq(pageASoiDuMenu("stagiaires", []), "stagiaires", "aucune entrée : la ligne reste");
+
+// 15. Clé de mémoire du sous-onglet ouvert, une par page à sous-onglets (lot 2A) : Stagiaires reçoit la sienne, pour
+// ses deux sous-onglets (Stagiaires et Élèves bénévoles). Le bouton « Élèves bénévoles » du Planning l'écrit pour ouvrir
+// le bon. Deux pages ne partagent jamais une clé : chacune s'ouvrirait sur le sous-onglet de l'autre.
+eq(CLES_SOUS_ONGLETS.stagiaires, "stagiaires.subtab", "clé des sous-onglets de la page Stagiaires");
+eq(new Set(Object.values(CLES_SOUS_ONGLETS)).size, Object.keys(CLES_SOUS_ONGLETS).length, "une clé par page à sous-onglets");
 
 console.log(`nav-rules : ${n} assertions OK`);

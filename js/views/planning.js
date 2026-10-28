@@ -2906,12 +2906,21 @@ function renderInto(container) {
   // Banque d'élèves bénévoles : accessible aussi en lecture seule (consulter une fiche
   // ou un téléphone ne doit pas obliger à passer en édition), mais pas sur semaine
   // verrouillée (barre réduite au badge + Déverrouiller, design validé).
+  // Nouvelle navigation : la banque est le sous-onglet « Élèves bénévoles » de la page Stagiaires ; le bouton écrit la
+  // mémoire de ce sous-onglet (comme une redirection du lot 1) puis ouvre la page. Ancienne : la fenêtre d'avant.
   const bnvBtn = () => el("button", { class: "btn small",
     title: "Banque d'élèves bénévoles (voiture) : fiches, dispos, téléphones",
-    onClick: () => openBenevolesPanel({ onClose: async () => {
-      benevoles = await loadBenevoles();
-      renderInto(currentContainer);
-    }}) },
+    onClick: () => {
+      if (navigationV2Active()) {
+        try { localStorage.setItem(CLES_SOUS_ONGLETS.stagiaires, "benevoles"); } catch (e) { /* mode privé */ }
+        location.hash = "#/stagiaires";
+        return;
+      }
+      openBenevolesPanel({ onClose: async () => {
+        benevoles = await loadBenevoles();
+        renderInto(currentContainer);
+      }});
+    } },
     el("span", { class: "btn-long" }, "Élèves bénévoles"),
     el("span", { class: "btn-short" }, "Bénévoles"));
 

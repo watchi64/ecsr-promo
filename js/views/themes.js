@@ -1,4 +1,4 @@
-import { listThemes, updateTheme, addTheme, deleteTheme, listQcmIndex, getQcmFull, publishQcm, unpublishQcm, updateExamConfig, listExamAttempts, resetExamAttempt, listMyQcmAttempts, getMyProfile, listEvaluations, getOrCreateQcm, saveQcmQuestion, deleteQcmQuestion, reorderQcmQuestions, uploadQcmImage, listQcmSignalements, setQcmSignalementStatut, countQcmSignalementsOuverts, getCours, proposerQuestionsIa, listBrouillonsIa, accepterBrouillonIa, rejeterBrouillonIa } from "../db.js?v=20261028a";
+import { listThemes, getPromoCourante, updateTheme, addTheme, deleteTheme, listQcmIndex, getQcmFull, publishQcm, unpublishQcm, updateExamConfig, listExamAttempts, resetExamAttempt, listMyQcmAttempts, getMyProfile, listEvaluations, getOrCreateQcm, saveQcmQuestion, deleteQcmQuestion, reorderQcmQuestions, uploadQcmImage, listQcmSignalements, setQcmSignalementStatut, countQcmSignalementsOuverts, getCours, proposerQuestionsIa, listBrouillonsIa, accepterBrouillonIa, rejeterBrouillonIa } from "../db.js?v=20261028a";
 import { el, clear, isoDate, formatDate, toast, debounce } from "../utils.js?v=20261028a";
 import { icon } from "../icons.js?v=20261028a";
 import { examenDemarrable, tempsRestantMs, formatTempsRestant,
@@ -1876,13 +1876,17 @@ export async function renderThemes(container) {
 
   // En-tête de Cours, au-dessus des sous-onglets. La ligne de progression est tenue à
   // jour par refreshStatsInPlace (statut basculé, date corrigée).
+  // Nouvelle navigation : la page porte le nom de son entrée, « Cours et QCM », avec la promo en surtitre ; la ligne de
+  // progression, qui avait le surtitre, termine alors le sous-titre.
   if (coursOuverts) {
-    ligneProgression = el("p", { class: "eyebrow" }, texteProgression());
+    const surtitre = v2 ? getPromoCourante()?.nom : null;
+    const sousTitre = "Les thèmes et les compétences de la formation, avec leurs cours et leurs QCM.";
+    ligneProgression = el(v2 ? "span" : "p", v2 ? {} : { class: "eyebrow" }, texteProgression());
     container.appendChild(el("div", { class: "view-header" },
       el("div", { class: "view-header-text" },
-        ligneProgression,
-        el("h2", {}, "Cours"),
-        el("p", { class: "subtitle" }, "Les thèmes et les compétences de la formation, avec leurs cours et leurs QCM."),
+        v2 ? (surtitre ? el("p", { class: "eyebrow" }, surtitre) : null) : ligneProgression,
+        el("h2", {}, v2 ? "Cours et QCM" : "Cours"),
+        el("p", { class: "subtitle" }, v2 ? [sousTitre + " ", ligneProgression, "."] : sousTitre),
       ),
       isAdmin() ? el("button", { class: "btn primary", onClick: () => openAddNotionModal(() => reload(lastContainer)) },
         icon.plus(), "Ajouter une notion") : null,

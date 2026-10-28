@@ -48,6 +48,7 @@ manque) :
     jours du planning se colle juste sous l'ancienne barre, quelle que soit sa hauteur, et, bandeaux du
     bas affichés (« Voir en tant que », promos non chargées), la bulle de l'assistant et le champ de son
     panneau restent à portée, sa croix se lit et ses boutons font 44 px sur téléphone.
+Sur téléphone, le contexte de l'équipe joue en plus l'en-tête à 320 px (LARGEUR_ETROITE) : la fenêtre se resserre le temps de la vérification de l'Assistant.
 Dans chaque contexte : l'arrivée à froid, chaque entrée de la coquille (cliquée dans la coquille, ou
 via « Plus » sur téléphone quand elle y est rangée ; la liste vient des règles de js/nav-rules.js,
 lues dans la page), chaque sous-onglet des pages qui en ont (Planning, Cours, Mon espace, Notes...), les
@@ -92,6 +93,23 @@ Contrôles par vue
   * bouton du compte (lot 2A) : aucun chiffre ; un point sans texte tant que des Nouveautés ne sont pas lues (joué à l'ouverture,
     où le banc en a, puis la rubrique ouverte : tout est lu, plus de point), dont le nom du bouton dit le nombre ; menu du compte :
     une ligne « Mes préférences » (`#/preferences`), plus de ligne « Réglages », le nombre sur la ligne « Nouveautés » ;
+  * titres des pages (lot 2A, allumé) : le titre (h2) de chaque page du menu est le libellé de son entrée (équipe : Stagiaires, Notes et examens,
+    Cours et QCM, Indicateurs, Réglages, CCP2 ; stagiaire : Cours et QCM, Mon suivi, CCP2) et, sauf pour CCP2, son surtitre est le nom de la promo
+    affichée. Accueil, Planning et Émargement n'en font pas partie (TITRES_DES_PAGES) : l'accueil sera remplacé par Aujourd'hui au lot 2, les deux
+    autres gardent le titre de leur contenu. Les sous-pages reprennent le nom de leur sous-onglet : Planning > Dates clés (ex-Calendrier), Cours et
+    QCM > Documents (ex-Ressources & contacts, dont la section des contacts s'appelle « Contacts du centre »), chacune avec la promo en surtitre ;
+    Cours et QCM d'un stagiaire au départ, réduit à ses Documents, porte ce titre. Éteint, les titres de main restent : Notes & évaluations, Cours,
+    Calendrier, Ressources & contacts, Mon espace, les surtitres « Formateurs », « Tableau de bord du centre » et « Espace personnel » ;
+  * Stagiaires et ses bénévoles (lot 2A, équipe) : la page a deux sous-onglets, « Stagiaires » puis « Élèves bénévoles ». Le second montre le panneau
+    de la banque dans la page (aucune fenêtre, aucun « Fermer », titre de page « Stagiaires », adresse `#/stagiaires`) ; « + Ajouter » y ouvre la
+    fiche d'un nouveau bénévole, dans la page elle aussi, sans débordement de côté ; sur téléphone, les zones à toucher du panneau font 44 px. Le bouton
+    « Élèves bénévoles » (« Bénévoles » sur téléphone) de Planning > Semaine mène à ce sous-onglet. Éteint, il ouvre la fenêtre de main, avec son
+    « Fermer », sans quitter le Planning, et la page Stagiaires n'a pas de sous-onglets de page ;
+  * en-tête de l'équipe sur téléphone (lot 2A) : un seul bouton « Assistant » (data-nav-action=assistant, de 44 px) dans l'en-tête, entre la promo et
+    le compte, rien ne débordant de la fenêtre, à 375 px puis à 320 px (la page Stagiaires y est mesurée comme toute vue, sans autre scénario) ; le
+    tiroir « Plus » s'appelle « Autres pages », sans « Tout l'espace formateur », et garde sa ligne « Assistant » ;
+  * Notes et examens (équipe, lot 2A) : sur un écran tactile (le téléphone du banc), le sous-titre est « Touche une case pour saisir la note. » et la
+    phrase sur Entrée et Échap n'est pas montrée ; avec une souris, le sous-titre d'avant et la phrase de la barre d'outils ;
   * les quatre anciennes adresses (`#/calendrier`, `#/dashboard`, `#/ressources`, `#/notes`, ruling R26) : allumé, la nouvelle
     page et son sous-onglet allumé (Planning : Dates clés, Priorités ; Cours : Documents ; Mon espace : La classe chez
     le stagiaire, mais Notes reste la page de l'équipe ; module fermé au départ : le premier sous-onglet visible),
@@ -155,6 +173,12 @@ par `--script-init`, et le script a échoué avec le message attendu ; la coquil
     « whitelist » de retour dans l'invitation, une section de la promo dans Mes préférences, `#/config` du stagiaire sans
     redirection, `#/preferences` sans redirection interrupteur éteint, un chiffre dans le point du compte, un point qui ne
     s'éteint pas quand tout est lu, la ligne « Réglages » gardée dans le menu du compte ;
+  * titres, bénévoles et en-tête de l'équipe (lot 2A, tâche 3, injectés dans les sources puis retirés) : sous-onglet « Élèves bénévoles » retiré,
+    « Fermer » dans le panneau de la page, bouton du Planning qui ouvre encore la fenêtre (allumé) ou qui quitte le Planning (éteint), titre de Notes,
+    de Cours, de Dates clés ou de Documents non aligné, surtitre d'Indicateurs ou de Mon suivi non aligné, section des contacts non renommée, Assistant
+    masqué dans l'en-tête du téléphone, de 40 px, qui déborde (partout, ou seulement à 320 px), titre du tiroir « Plus » inchangé, ligne « Assistant »
+    du tiroir sans effet, phrase tactile des Notes absente, titres de la nouvelle navigation montrés interrupteur éteint, page Stagiaires regroupée interrupteur éteint, zones à toucher du
+    panneau des bénévoles à 26 px sur téléphone ;
   * mise en place : erreur de console et de page, interrupteur qui n'allume pas, banc périmé.
 Sans défaut, n'échouent pas : un bouton `data-nav-action="deconnexion"` (pas un ouvreur), un lien d'évitement
 masqué (ni mesuré comme cible, ni sans nom), un nom pris par `aria-labelledby`, `<label for>` ou `<title>` SVG.
@@ -186,6 +210,8 @@ MOTEURS = ("chromium", "webkit")
 ROLES = ("stagiaire", "prof", "fondateur")
 LARGEURS = (1280, 1100, 900, 375)
 HAUTEUR = {1280: 800, 1100: 800, 900: 800, 375: 812}
+LARGEUR_ETROITE = 320          # le plus petit téléphone : jamais un scénario, seulement l'en-tête de l'équipe (lot 2A)
+HAUTEUR[LARGEUR_ETROITE] = 640
 SEUIL_TELEPHONE = 700          # largeur de fenêtre sous laquelle la coquille passe en mode téléphone
 DATE_DU_BANC = "2026-10-27"    # « aujourd'hui » figé (même date que les autres vérifications du lot)
 CLE_APERCU = "ecsr_nav_v2"     # aperçu du fondateur, propre à l'appareil (js/nav-etat-regles.js)
@@ -810,9 +836,45 @@ async function menuDuCompte() {
   return { pastille: nouv.libellePastille(mods.nouveautesAffichables().neuves.size), lignes };
 }
 
+// ---- Titres des pages, bénévoles sous Stagiaires, en-tête de l'équipe sur téléphone (lot 2A, tâche 3) ----
+// L'en-tête des pages affichées : adresse, nom que l'app donne à la promo affichée, chaque `.view-header` de #view dans l'ordre (titre,
+// surtitre et sous-titre : le texte écrit, le surtitre s'affiche en capitales) et les titres de section (h3). Une page à sous-onglets a
+// plusieurs en-têtes : celui de la page, puis celui du sous-onglet ouvert.
+async function enTeteDePage() {
+  const [db] = await modulesDeLApp(["db"]);
+  const vue = document.getElementById("view");
+  const ecrit = (e, s) => { const x = e.querySelector(s); return x ? net(x.textContent) : null; };
+  return { route: (location.hash || "").replace(/^#\//, "").split("/")[0], promo: (db.getPromoCourante() || {}).nom || null,
+    entetes: [...vue.querySelectorAll(".view-header")].map((h) => ({ titre: ecrit(h, "h2"), surtitre: ecrit(h, ".eyebrow"), sousTitre: ecrit(h, ".subtitle") })),
+    sections: [...vue.querySelectorAll("h3")].map((h) => net(h.textContent)) };
+}
+// Page Stagiaires, sous-onglet « Élèves bénévoles » : le panneau de la banque est dans la page, aucune fenêtre n'est ouverte et rien ne
+// propose de la fermer. `petites` : les zones à toucher du panneau de moins de `min` px (rien si `min` est nul).
+function panneauBenevoles(min) {
+  const vue = document.getElementById("view"), page = vue.querySelector(".bnv-page"), petites = [];
+  if (min) mesurerCibles([...vue.querySelectorAll(".bnv-page button, .bnv-page a[href], .bnv-page summary, .bnv-page .bnv-dispo-cell")], min, petites, "zone à toucher");
+  const titre = page && page.querySelector("h3"), h2 = vue.querySelector(".view-header h2"), actif = vue.querySelector(".subtabs-bar > .subtab.active");
+  return { present: !!page, titre: titre ? net(titre.textContent) : null, fenetre: document.querySelectorAll(".modal-backdrop").length,
+    fermer: !!page && [...page.querySelectorAll("button")].some((b) => net(b.textContent) === "Fermer"),
+    page: h2 ? net(h2.textContent) : null, actif: actif ? net(actif.textContent) : null, adresse: location.hash, petites: petites.map((e) => e[1]) };
+}
+// En-tête de l'équipe sur téléphone (la barre latérale devenue en-tête) : la promo, le bouton « Assistant » (même `data-nav-action` et même
+// geste que celui du stagiaire) et le compte, leurs boîtes ; et ce qui dépasse de la fenêtre dans l'en-tête, ou dans la page.
+function enTeteDeLEquipe() {
+  const cote = document.querySelector('[data-nav-coquille="cote"]');
+  if (!cote || !visible(cote)) return null;
+  const W = largeur(), promo = cote.querySelector(".nav-contexte");
+  const boite = (e) => { const r = rect(e); return { gauche: dixieme(r.left), droite: dixieme(r.right), haut: dixieme(r.top), bas: dixieme(r.bottom), l: dixieme(r.width), h: dixieme(r.height) }; };
+  const montres = (s) => [...cote.querySelectorAll(s)].filter(visible);
+  return { W, defile: document.documentElement.scrollWidth, cote: boite(cote), promo: promo && visible(promo) ? boite(promo) : null,
+    assistants: montres('[data-nav-action="assistant"]').map((e) => ({ boite: boite(e), nom: nomAcc(e), action: e.getAttribute("data-nav-action") })),
+    comptes: montres('[data-nav-action="compte"]').map(boite),
+    dehors: [...cote.querySelectorAll("*")].filter(visible).filter((e) => rect(e).right > W + 0.5 || rect(e).left < -0.5).map(nom).slice(0, 5) };
+}
+
 window.__verifNav = { mesurer, regles: reglesSimples, voirEnTantQue, chercherLien, chercherPlus, ouvreurs, marquerPopups, mesurerPopups,
   popupsEncoreOuverts, focusSurOuvreur, focusPerdu, popupsVisibles: () => popupsVisibles().length, controlesAssistant,
-  pageDeReglages, boutonDuCompte, menuDuCompte };
+  pageDeReglages, boutonDuCompte, menuDuCompte, enTeteDePage, panneauBenevoles, enTeteDeLEquipe };
 })();
 """
 
@@ -1198,6 +1260,8 @@ def plancher_sous_onglets(route, sc, res):
         return 0 if depart else 3      # Thèmes, Compétences, Documents (et Signalements chez un formateur)
     if route == "mon-suivi" and res.profil_stagiaire:
         return 0 if depart else 6      # Passages, EPCF, Évolution, Livret, Dossier pro, La classe
+    if route == "stagiaires":
+        return 2                       # Stagiaires, Élèves bénévoles (équipe seulement, lot 2A)
     return 0
 
 
@@ -1215,6 +1279,8 @@ def sous_vues(page, res, sc, route, options):
         nb = len(libelles) or page.evaluate("() => document.querySelectorAll('#view nav.fiche-sommaire a.fiche-ligne').length")
         if nb < attendu:
             res.echec("sous-onglets manquants", "%s/%s" % (sc.nom, route), "#/%s montre %d sous-onglet(s) ou ligne(s) de sommaire, au moins %d attendu(s)" % (route, nb, attendu))
+        if route == "stagiaires" and libelles[:2] != SOUS_ONGLETS_STAGIAIRES:
+            res.echec("sous-onglets de Stagiaires", "%s/%s" % (sc.nom, route), "la page Stagiaires montre « %s », attendu « %s »" % (" », « ".join(libelles), " », « ".join(SOUS_ONGLETS_STAGIAIRES)))
     for i, libelle in enumerate(libelles):
         titre = "%s/%s" % (route, libelle)
         try:
@@ -1223,6 +1289,8 @@ def sous_vues(page, res, sc, route, options):
         except (DelaiDepasse, ErreurPlaywright) as e:
             res.echec("clic impossible", "%s/%s" % (sc.nom, titre), "sous-onglet « %s » : %s" % (libelle, motif_du_clic(e)))
             continue
+        if sc.passe == "allume" and res.coquille:
+            verifier_sous_page(page, res, sc, route, libelle, options)
         verifier_vue(page, res, sc, titre, options)
     adresses = page.evaluate("() => [...document.querySelectorAll('#view nav.fiche-sommaire a.fiche-ligne')].map((a) => a.getAttribute('href'))")
     base = page.evaluate("() => location.hash")
@@ -1349,6 +1417,11 @@ def parcourir_entrees(page, res, sc, entrees, options, avec_sous_vues=True):
     for entree in entrees:
         ouvrir_entree(page, res, sc, entree)
         verifier_vue(page, res, sc, entree["route"], options)
+        if sc.passe == "allume" and res.coquille:
+            if entree["route"] in TITRES_DES_PAGES[sc.espace]:
+                verifier_titre_de_page(page, res, sc, entree["route"], entree["libelle"])
+            if entree["route"] == "notes" and sc.espace == "equipe":
+                verifier_notes_tactile(page, res, sc)
         if avec_sous_vues:
             sous_vues(page, res, sc, entree["route"], options)
 
@@ -1643,6 +1716,291 @@ def verifier_preferences_eteint(page, res, sc):
     vider_console(res, vue)
 
 
+# --------------------------------------------------------------------------------------
+# Titres des pages, bénévoles sous Stagiaires, Assistant de l'équipe sur téléphone (lot 2A, tâche 3)
+# --------------------------------------------------------------------------------------
+
+# Pages dont le titre (h2) est le libellé de leur entrée, par espace (ruling R30, une page, un nom). N'en font pas partie : Accueil, que
+# la page Aujourd'hui remplacera au lot 2, Planning, dont la semaine garde son titre (« Planning de la semaine », le surtitre disant la
+# semaine) et Émargement (« Feuilles d'émargement »). Le titre de Mon suivi se lit aussi chez qui n'a pas cette entrée (fondateur).
+TITRES_DES_PAGES = {
+    "equipe": ("stagiaires", "notes", "themes", "centre", "config", "ccp2"),
+    "stagiaire": ("themes", "mon-suivi", "ccp2"),
+}
+# Parmi elles, celles dont le surtitre est le nom de la promo affichée (CCP2 garde « Titre professionnel ECSR »).
+SURTITRE_PROMO = ("stagiaires", "notes", "themes", "centre", "config", "mon-suivi")
+SOUS_ONGLETS_STAGIAIRES = ["Stagiaires", "Élèves bénévoles"]
+# Sous-pages qui ont repris le nom de leur sous-onglet : Planning > Dates clés (ex-Calendrier), Cours et QCM > Documents (ex-Ressources).
+SOUS_PAGES = (("planning", "Dates clés"), ("themes", "Documents"))
+PHRASE_TACTILE = "Touche une case pour saisir la note."
+
+
+def verifier_titre_de_page(page, res, sc, route, libelle):
+    """Le titre de la page est le libellé de son entrée et, sauf pour CCP2, son surtitre est le nom de la promo affichée (celui que
+    l'app lit, getPromoCourante). Mon suivi est lu aussi chez qui n'a pas d'entrée à ce nom : le fondateur, par le menu du compte."""
+    vue = "%s/titre/%s" % (sc.nom, route)
+    res.vues += 1
+    p = page.evaluate("() => window.__verifNav.enTeteDePage()")
+    if p["route"] != route:
+        return   # la page n'est pas celle qu'on attendait : le défaut est noté à l'ouverture
+    if route == "themes" and sc.modules == "depart" and sc.espace == "stagiaire":
+        libelle = "Documents"   # cours fermés (départ) : la page se réduit à ses Documents, sans barre, et porte leur titre
+    if not p["entetes"]:
+        res.echec("titre de page", vue, "#/%s n'a pas d'en-tête de page (.view-header)" % route)
+        return
+    tete = p["entetes"][0]
+    if tete["titre"] != libelle:
+        res.echec("titre de page", vue, "le titre de #/%s est « %s », le libellé de son entrée « %s »" % (route, tete["titre"], libelle))
+    if route in SURTITRE_PROMO and tete["surtitre"] != p["promo"]:
+        res.echec("surtitre de page", vue, "le surtitre de #/%s est « %s », attendu le nom de la promo affichée (« %s »)" % (route, tete["surtitre"], p["promo"]))
+    vider_console(res, vue)
+
+
+def verifier_sous_page(page, res, sc, route, libelle, options):
+    """Chaque sous-onglet des pages touchées, une fois ouvert : Dates clés et Documents portent le nom de leur sous-onglet, la promo en
+    surtitre, et Documents appelle sa section des contacts « Contacts du centre » ; Élèves bénévoles montre le panneau de la banque."""
+    if (route, libelle) in SOUS_PAGES:
+        vue = "%s/titre/%s/%s" % (sc.nom, route, libelle)
+        res.vues += 1
+        attendre(page)
+        p = page.evaluate("() => window.__verifNav.enTeteDePage()")
+        tete = p["entetes"][-1] if p["entetes"] else None
+        if tete is None:
+            res.echec("titre de sous-page", vue, "« %s » n'a pas d'en-tête de page (.view-header)" % libelle)
+        else:
+            if tete["titre"] != libelle:
+                res.echec("titre de sous-page", vue, "le titre du sous-onglet « %s » est « %s »" % (libelle, tete["titre"]))
+            if tete["surtitre"] != p["promo"]:
+                res.echec("surtitre de sous-page", vue, "le surtitre du sous-onglet « %s » est « %s », attendu le nom de la promo affichée (« %s »)" % (libelle, tete["surtitre"], p["promo"]))
+        if libelle == "Documents" and not any("Contacts du centre" in s for s in p["sections"]):
+            res.echec("titre de sous-page", vue, "Documents n'a pas de section « Contacts du centre » (sections : %s)" % (", ".join(p["sections"]) or "aucune"))
+        vider_console(res, vue)
+    elif route == "stagiaires" and libelle == "Élèves bénévoles":
+        verifier_panneau_benevoles(page, res, sc, options)
+
+
+def verifier_panneau_benevoles(page, res, sc, options):
+    """Stagiaires > Élèves bénévoles : le panneau de la banque est dans la page, sans fenêtre ni « Fermer », sous le titre « Stagiaires »
+    et l'adresse de la page ; sur téléphone, ses zones à toucher font 44 px. Puis « + Ajouter » ouvre la fiche d'un nouveau bénévole,
+    dans la page elle aussi : sans débordement de côté, ses zones à toucher à 44 px ; « Annuler » ramène à la liste."""
+    vue = "%s/stagiaires/benevoles" % sc.nom
+    res.vues += 1
+    attendre(page)
+    tel = sc.largeur < SEUIL_TELEPHONE
+    m = page.evaluate("(min) => window.__verifNav.panneauBenevoles(min)", 44 if tel else 0)
+    if not m["present"]:
+        res.echec("élèves bénévoles", vue, "le sous-onglet « Élèves bénévoles » ne montre pas le panneau de la banque (.bnv-page)")
+        return
+    if m["actif"] != "Élèves bénévoles":
+        res.echec("élèves bénévoles", vue, "le sous-onglet allumé est « %s », attendu « Élèves bénévoles »" % m["actif"])
+    if not (m["titre"] or "").startswith("Élèves bénévoles et partenaires"):
+        res.echec("élèves bénévoles", vue, "le panneau s'appelle « %s », attendu « Élèves bénévoles et partenaires »" % m["titre"])
+    if m["fenetre"]:
+        res.echec("élèves bénévoles", vue, "%d fenêtre(s) ouverte(s) (.modal-backdrop) : la banque doit être dans la page, pas dans une fenêtre" % m["fenetre"])
+    if m["fermer"]:
+        res.echec("élèves bénévoles", vue, "le panneau, dans la page, propose encore « Fermer »")
+    if m["page"] != "Stagiaires":
+        res.echec("élèves bénévoles", vue, "le titre de la page est « %s » sous le sous-onglet, attendu « Stagiaires »" % m["page"])
+    if m["adresse"] != "#/stagiaires":
+        res.echec("élèves bénévoles", vue, "l'adresse est %s, attendu #/stagiaires (celle d'une fiche ne doit pas rester sous les bénévoles)" % m["adresse"])
+    for detail in m["petites"]:
+        res.echec("zone à toucher (élèves bénévoles)", vue, detail)
+    ajouter = page.locator("#view .bnv-page button", has_text="+ Ajouter")
+    if not ajouter.count():
+        res.echec("élèves bénévoles", vue, "le panneau n'a pas de bouton « + Ajouter »")
+        return
+    ajouter.first.click()
+    attendre(page, calme=150)
+    f = page.evaluate("(min) => window.__verifNav.panneauBenevoles(min)", 44 if tel else 0)
+    if not f["present"] or f["fenetre"]:
+        res.echec("élèves bénévoles", vue, "la fiche d'un nouveau bénévole ne s'ouvre pas dans la page (panneau %s, %d fenêtre(s))" % ("présent" if f["present"] else "absent", f["fenetre"]))
+    for detail in f["petites"]:
+        res.echec("zone à toucher (élèves bénévoles)", vue + "/fiche", detail)
+    verifier_vue(page, res, sc, "stagiaires/benevoles/fiche", options)
+    annuler = page.locator("#view .bnv-page button", has_text="Annuler")
+    if annuler.count():
+        annuler.first.click()
+        attendre(page, calme=150)
+    vider_console(res, vue)
+
+
+def verifier_bouton_benevoles(page, res, sc):
+    """Planning, nouvelle navigation : le bouton « Élèves bénévoles » (« Bénévoles » sur téléphone) ne s'ouvre plus en fenêtre : il mène à la
+    page Stagiaires, sous-onglet « Élèves bénévoles »."""
+    vue = "%s/planning/benevoles" % sc.nom
+    aller_a(page, "#/planning")
+    attendre(page)
+    semaine = page.locator("#view .subtabs-bar > .subtab", has_text="Semaine")
+    if semaine.count():
+        semaine.first.click()
+        attendre(page)
+    res.vues += 1
+    bouton = page.locator('#view button[title^="Banque d\'élèves bénévoles"]')
+    if bouton.count() != 1:
+        res.echec("bouton des bénévoles", vue, "Planning > Semaine montre %d bouton(s) de la banque des bénévoles, 1 attendu" % bouton.count())
+        return
+    bouton.click()
+    attendre(page, calme=150)
+    m = page.evaluate("(min) => window.__verifNav.panneauBenevoles(min)", 0)
+    if m["adresse"] != "#/stagiaires" or m["actif"] != "Élèves bénévoles" or not m["present"]:
+        res.echec("bouton des bénévoles", vue, "le bouton mène à %s, sous-onglet « %s », panneau %s ; attendu #/stagiaires, « Élèves bénévoles », panneau dans la page"
+                  % (m["adresse"], m["actif"], "présent" if m["present"] else "absent"))
+    if m["fenetre"]:
+        res.echec("bouton des bénévoles", vue, "le bouton ouvre encore une fenêtre (%d .modal-backdrop)" % m["fenetre"])
+        page.mouse.click(4, 4)   # un clic sur le voile la ferme : elle ne gêne pas les vues qui suivent
+        page.wait_for_timeout(250)
+    page.evaluate("() => { try { localStorage.removeItem('stagiaires.subtab'); } catch (e) { /* stockage bloqué */ } }")
+    vider_console(res, vue)
+
+
+def verifier_notes_tactile(page, res, sc):
+    """Notes et examens, équipe : sur un écran tactile (le téléphone du banc), le sous-titre dit « Touche une case pour saisir la note. » et
+    la phrase sur Entrée et Échap, qui suppose un clavier, n'est pas montrée ; avec un clavier, la phrase de la barre d'outils et le
+    sous-titre d'avant."""
+    vue = "%s/notes/tactile" % sc.nom
+    res.vues += 1
+    m = page.evaluate("""() => { const v = document.getElementById('view'), t = (s) => { const e = v.querySelector(s); return e ? e.textContent.trim() : null; };
+        return { sous: t('.view-header .subtitle'), indice: t('.matrice-toolbar-hint') }; }""")
+    if sc.largeur < SEUIL_TELEPHONE:
+        if m["sous"] != PHRASE_TACTILE:
+            res.echec("notes sur écran tactile", vue, "le sous-titre est « %s », attendu « %s »" % (m["sous"], PHRASE_TACTILE))
+        if m["indice"]:
+            res.echec("notes sur écran tactile", vue, "la phrase sur Entrée et Échap est montrée sur un écran tactile : « %s »" % m["indice"])
+    else:
+        if m["sous"] == PHRASE_TACTILE:
+            res.echec("notes avec un clavier", vue, "le sous-titre est celui de l'écran tactile (« %s ») alors que la page est affichée avec une souris" % m["sous"])
+        if not m["indice"] or "Entrée" not in m["indice"]:
+            res.echec("notes avec un clavier", vue, "la phrase sur Entrée et Échap manque avec un clavier (barre d'outils : %s)" % (m["indice"] or "vide"))
+    vider_console(res, vue)
+
+
+def verifier_assistant_en_tete(page, res, sc, options):
+    """Téléphone de l'équipe : le bouton « Assistant » est dans l'en-tête, entre la promo et le compte, nommé « Assistant », de 44 px, sans
+    rien qui déborde de la fenêtre, à la largeur du scénario puis à 320 px ; le tiroir « Plus » s'appelle « Autres pages » et garde une ligne
+    « Assistant ». Le bouton ouvre le panneau comme les autres (menus joués plus bas, par `verifier_menus`)."""
+    for largeur in (sc.largeur, LARGEUR_ETROITE):
+        if largeur != sc.largeur:
+            page.set_viewport_size({"width": largeur, "height": HAUTEUR[largeur]})
+            attendre(page, calme=250)
+        vue = "%s/assistant-en-tete@%d" % (sc.nom, largeur)
+        res.vues += 1
+        e = page.evaluate("() => window.__verifNav.enTeteDeLEquipe()")
+        if e is None:
+            res.echec("assistant de l'équipe", vue, "l'en-tête de l'équipe est introuvable (data-nav-coquille=\"cote\" affiché)")
+            continue
+        if len(e["assistants"]) != 1:
+            res.echec("assistant de l'équipe", vue, "%d bouton(s) « Assistant » affiché(s) dans l'en-tête de l'équipe, 1 attendu" % len(e["assistants"]))
+        else:
+            a = e["assistants"][0]
+            b, c, cote = a["boite"], (e["comptes"] or [None])[0], e["cote"]
+            # Module fermé pour la promo (départ), le repère « masqué aux stagiaires » s'ajoute au nom, comme à tout bouton de la coquille.
+            if a["action"] != "assistant" or not a["nom"].startswith("Assistant"):
+                res.echec("assistant de l'équipe", vue, "le bouton est nommé « %s » (data-nav-action=%s), attendu « Assistant » et data-nav-action=assistant" % (a["nom"], a["action"]))
+            if b["l"] < 43.5 or b["h"] < 43.5:
+                res.echec("assistant de l'équipe", vue, "zone à toucher de %sx%s px (44 px au moins)" % (b["l"], b["h"]))
+            if b["haut"] < cote["haut"] - 0.5 or b["bas"] > cote["bas"] + 0.5 or b["gauche"] < -0.5 or b["droite"] > e["W"] + 0.5:
+                res.echec("assistant de l'équipe", vue, "le bouton sort de l'en-tête ou de la fenêtre (x %s à %s, y %s à %s ; en-tête y %s à %s, fenêtre %d)"
+                          % (b["gauche"], b["droite"], b["haut"], b["bas"], cote["haut"], cote["bas"], e["W"]))
+            if e["promo"] is None or c is None:
+                res.echec("assistant de l'équipe", vue, "l'en-tête n'affiche pas ensemble la promo et le compte (promo %s, compte %s)" % ("affichée" if e["promo"] else "absente", "affiché" if c else "absent"))
+            elif not (e["promo"]["droite"] <= b["gauche"] + 0.5 and b["droite"] <= c["gauche"] + 0.5):
+                res.echec("assistant de l'équipe", vue, "l'ordre de l'en-tête n'est pas promo, Assistant, compte (promo jusqu'à x %s, Assistant de %s à %s, compte dès x %s)"
+                          % (e["promo"]["droite"], b["gauche"], b["droite"], c["gauche"]))
+        if e["dehors"] or e["defile"] > e["W"]:
+            res.echec("assistant de l'équipe", vue, "l'en-tête déborde de la fenêtre de %d px (page : %d px de contenu) : %s" % (e["W"], e["defile"], ", ".join(e["dehors"]) or "rien dans l'en-tête"))
+        if largeur != sc.largeur:
+            # La page ouverte à cette largeur : la même mesure que partout (débordements de côté, contrastes, zones à toucher).
+            verifier_vue(page, res, sc, "assistant-en-tete@%d" % largeur, options)
+    page.set_viewport_size({"width": sc.largeur, "height": HAUTEUR[sc.largeur]})
+    attendre(page, calme=250)
+    # Le tiroir « Plus » : son premier titre, et la ligne « Assistant » qu'il garde.
+    vue = "%s/tiroir-plus" % sc.nom
+    if cliquer(page, res, vue, '[data-nav-coquille] [data-nav-action="plus"]', "bouton « Plus »"):
+        page.wait_for_timeout(250)
+        t = page.evaluate("""() => ({ titres: [...document.querySelectorAll('[data-nav-coquille="plus"] .nav-fenetre-section')].map((e) => e.textContent.trim()),
+            assistant: !!document.querySelector('[data-nav-coquille="plus"] [data-nav-action="assistant"]') })""")
+        if "Autres pages" not in t["titres"] or "Tout l'espace formateur" in t["titres"]:
+            res.echec("tiroir Plus", vue, "titres du tiroir : %s ; attendu « Autres pages » et plus « Tout l'espace formateur »" % (", ".join(t["titres"]) or "aucun"))
+        if not t["assistant"]:
+            res.echec("tiroir Plus", vue, "le tiroir n'a plus de ligne « Assistant »")
+        elif cliquer(page, res, vue, '[data-nav-coquille="plus"] [data-nav-action="assistant"]', "ligne « Assistant » du tiroir"):
+            page.wait_for_timeout(300)
+            if page.evaluate("() => window.__verifNav.controlesAssistant()") is None:
+                res.echec("tiroir Plus", vue, "la ligne « Assistant » du tiroir n'ouvre pas le panneau de l'assistant")
+        page.keyboard.press("Escape")   # ferme le panneau de l'assistant ouvert par la ligne, ou le tiroir resté ouvert
+        page.wait_for_timeout(250)
+    vider_console(res, vue)
+
+
+# Interrupteur éteint : les pages gardent leurs titres d'avant et la banque des bénévoles reste une fenêtre, comme sur main.
+TITRES_AVANT = (
+    # (route, équipe seulement, titre, surtitre, ce qui doit s'y lire en plus)
+    ("stagiaires", True, "Stagiaires", "Formateurs", None),
+    ("notes", False, "Notes & évaluations", None, None),
+    ("themes", False, "Cours", None, None),
+    ("calendrier", False, "Calendrier", None, None),
+    ("ressources", False, "Ressources & contacts", None, "Contacts administration"),
+    ("centre", True, None, "Tableau de bord du centre", None),
+    ("mon-suivi", False, "Mon espace", "Espace personnel", None),
+)
+
+
+def verifier_titres_eteint(page, res, sc):
+    """Interrupteur éteint : titres et surtitres de main (Calendrier, Ressources & contacts, Notes & évaluations, Cours, Tableau de bord du
+    centre, Espace personnel...), page Stagiaires sans sous-onglets de page."""
+    equipe = sc.role in ("prof", "fondateur")
+    for route, equipe_seule, titre, surtitre, section in TITRES_AVANT:
+        if equipe_seule and not equipe:
+            continue
+        vue = "%s/titre-avant/%s" % (sc.nom, route)
+        res.vues += 1
+        aller_a(page, "#/" + route)
+        attendre(page)
+        p = page.evaluate("() => window.__verifNav.enTeteDePage()")
+        tete = p["entetes"][0] if p["entetes"] else {"titre": None, "surtitre": None}
+        if p["route"] != route:
+            continue   # une page que ce rôle n'ouvre pas (module fermé, rôle) : rien à comparer
+        if titre and tete["titre"] != titre:
+            res.echec("titre, interrupteur éteint", vue, "le titre de #/%s est « %s », celui de main « %s »" % (route, tete["titre"], titre))
+        if route == "centre" and tete["titre"] != p["promo"]:
+            res.echec("titre, interrupteur éteint", vue, "le titre de #/centre est « %s », celui de main est le nom de la promo (« %s »)" % (tete["titre"], p["promo"]))
+        if surtitre and tete["surtitre"] != surtitre:
+            res.echec("surtitre, interrupteur éteint", vue, "le surtitre de #/%s est « %s », celui de main « %s »" % (route, tete["surtitre"], surtitre))
+        if route == "calendrier" and not (tete["surtitre"] or "").endswith("au calendrier"):
+            res.echec("surtitre, interrupteur éteint", vue, "le surtitre de #/calendrier est « %s », celui de main compte les événements « N événement(s) au calendrier »" % tete["surtitre"])
+        if section and not any(section in s for s in p["sections"]):
+            res.echec("titre, interrupteur éteint", vue, "#/%s n'a pas la section « %s » de main (sections : %s)" % (route, section, ", ".join(p["sections"]) or "aucune"))
+        if route == "stagiaires" and page.evaluate("() => !!document.querySelector('#view .stg-page, #view .bnv-page')"):
+            res.echec("page regroupée, interrupteur éteint", vue, "la page Stagiaires montre les sous-onglets de la nouvelle navigation")
+        vider_console(res, vue)
+
+
+def verifier_benevoles_eteint(page, res, sc):
+    """Interrupteur éteint : le bouton « Élèves bénévoles » du Planning ouvre la fenêtre de main (avec son « Fermer »), sans quitter le
+    Planning ; elle se ferme."""
+    vue = "%s/planning/benevoles" % sc.nom
+    aller_a(page, "#/planning")
+    attendre(page)
+    bouton = page.locator('#view button[title^="Banque d\'élèves bénévoles"]')
+    if not bouton.count():
+        return   # pas de banque pour ce rôle (stagiaire)
+    res.vues += 1
+    bouton.first.click()
+    page.wait_for_timeout(300)
+    m = page.evaluate("() => ({ hash: location.hash, fenetre: !!document.querySelector('.modal-backdrop .bnv-modal'), "
+                      "fermer: [...document.querySelectorAll('.bnv-modal button')].some((b) => b.textContent.trim() === 'Fermer') })")
+    if m["hash"] != "#/planning" or not m["fenetre"]:
+        res.echec("bénévoles, interrupteur éteint", vue, "le bouton mène à %s, fenêtre %s ; attendu la fenêtre de main sur #/planning" % (m["hash"], "ouverte" if m["fenetre"] else "absente"))
+    elif not m["fermer"]:
+        res.echec("bénévoles, interrupteur éteint", vue, "la fenêtre n'a plus son bouton « Fermer »")
+    else:
+        page.locator(".bnv-modal button", has_text="Fermer").first.click()
+        page.wait_for_timeout(250)
+        if page.locator(".modal-backdrop .bnv-modal").count():
+            res.echec("bénévoles, interrupteur éteint", vue, "« Fermer » ne ferme pas la fenêtre")
+    vider_console(res, vue)
+
+
 def jouer_allume(page, res, sc, options):
     regles = regles_de_la_page(page, res, sc)
     res.profil_stagiaire = bool(regles.get("profilStagiaire"))
@@ -1663,6 +2021,8 @@ def jouer_allume(page, res, sc, options):
         if route not in routes:
             aller_a(page, "#/" + route)
             verifier_vue(page, res, sc, route, options)
+            if route == "mon-suivi" and res.coquille:
+                verifier_titre_de_page(page, res, sc, "mon-suivi", "Mon suivi")
             sous_vues(page, res, sc, route, options)
     # La rubrique Nouveautés vient d'être ouverte : tout est lu, le point doit être parti.
     if res.coquille:
@@ -1671,6 +2031,11 @@ def jouer_allume(page, res, sc, options):
     verifier_preferences(page, res, sc)
     if res.coquille and "planning" in routes:
         verifier_aujourdhui(page, res, sc)
+        if sc.espace == "equipe":
+            verifier_bouton_benevoles(page, res, sc)
+    if res.coquille and sc.espace == "equipe" and sc.largeur < SEUIL_TELEPHONE:
+        aller_a(page, "#/stagiaires")
+        verifier_assistant_en_tete(page, res, sc, options)
     jouer_anciennes_adresses(page, res, sc)
     if res.coquille:
         aller_a(page, "#/home")
@@ -1746,8 +2111,8 @@ def jouer_voir_en_tant_que(page, res, sc, options):
 
 
 def verifier_assistant_sous_bandeau(page, res, sc, vue):
-    """« Voir en tant que » pose le bandeau d'aperçu en bas de l'écran : l'assistant, ouvert depuis la coquille (par
-    « Plus » sur le téléphone de l'équipe), garde son champ et « Envoyer » à portée, rien ne couvre leur centre."""
+    """« Voir en tant que » pose le bandeau d'aperçu en bas de l'écran : l'assistant, ouvert depuis la coquille (son bouton de l'en-tête
+    ou de la barre, par « Plus » seulement si aucun n'est affiché), garde son champ et « Envoyer » à portée, rien ne couvre leur centre."""
     if not page.evaluate("() => !!document.getElementById('impersonation-banner')"):
         res.echec("bandeau d'aperçu absent", vue, "« Voir en tant que » ne montre pas le bandeau d'aperçu en bas de l'écran")
         return
@@ -1882,6 +2247,9 @@ def jouer_eteint(page, res, sc, options):
         sous_vues(page, res, sc, route, options)
     jouer_anciennes_adresses(page, res, sc)
     verifier_preferences_eteint(page, res, sc)
+    verifier_titres_eteint(page, res, sc)
+    if sc.role in ("prof", "fondateur"):
+        verifier_benevoles_eteint(page, res, sc)
     verifier_barre_des_jours(page, res, sc)
 
 

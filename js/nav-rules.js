@@ -5,8 +5,9 @@
 // du menu du compte. Module pur, sans DOM ni stockage : testé en node.
 
 // Clé de mémoire du sous-onglet ouvert, par page à sous-onglets (le `storageKey` de
-// renderSubTabs). Une redirection l'écrit pour ouvrir le bon sous-onglet.
-export const CLES_SOUS_ONGLETS = { planning: "planning.subtab", themes: "themes.subtab" };
+// renderSubTabs). Une redirection l'écrit pour ouvrir le bon sous-onglet ; le bouton « Élèves bénévoles »
+// du Planning, pour ouvrir celui de Stagiaires (lot 2A).
+export const CLES_SOUS_ONGLETS = { planning: "planning.subtab", themes: "themes.subtab", stagiaires: "stagiaires.subtab" };
 
 // `id` vaut la route de la page ouverte ; `court` est le libellé de la barre du téléphone
 // (le libellé entier sauf mention) ; `groupe` range l'entrée sous un titre de la barre

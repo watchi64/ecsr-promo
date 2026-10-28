@@ -577,8 +577,8 @@ body[data-nav="v2"] .nav-bas { display: none; }
   body[data-nav="v2"] .nav-logo { height: 32px; }
   body[data-nav="v2"] .nav-assistant { height: 44px; }
 
-  /* Équipe : la barre latérale devient l'en-tête (la promo, le compte) ; ses entrées passent dans
-     la barre du bas et le tiroir « Plus », l'Assistant dans le tiroir. */
+  /* Équipe : la barre latérale devient l'en-tête (la promo, l'Assistant, le compte) ; ses entrées
+     passent dans la barre du bas et le tiroir « Plus » (qui garde aussi une ligne Assistant). */
   body[data-nav="v2"] .nav-cote {
     position: sticky;
     top: 0;
@@ -593,9 +593,21 @@ body[data-nav="v2"] .nav-bas { display: none; }
   body[data-nav="v2"] .nav-contexte { padding: 3px 8px 3px 5px; }
   body[data-nav="v2"] .nav-contexte-marque { width: 32px; height: 32px; font-size: 0.75rem; }
   body[data-nav="v2"] .nav-cote-entrees,
-  body[data-nav="v2"] .nav-cote-assistant,
   body[data-nav="v2"] .nav-cote-compte-texte { display: none; }
-  body[data-nav="v2"] .nav-cote-pied { flex-direction: row; padding: 0; border: 0; }
+  body[data-nav="v2"] .nav-cote-pied { flex-direction: row; gap: 0.5rem; padding: 0; border: 0; }
+  /* L'Assistant (le bouton du pied de la barre, au même geste) reste dans l'en-tête, entre la promo et le
+     compte : une icône de 44 px, comme le compte. Son libellé se masque ; son nom, aria-label, reste lu. */
+  body[data-nav="v2"] .nav-cote-assistant {
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    min-height: 44px;
+    padding: 0;
+    border-radius: 50%;
+  }
+  body[data-nav="v2"] .nav-cote-assistant .nav-entree-texte { display: none; }
+  /* Module fermé pour la promo : le repère (œil barré) se pose au coin de l'icône, hors du flux, comme en colonne d'icônes. */
+  body[data-nav="v2"] .nav-cote-assistant > .marque-masque { position: absolute; top: 3px; right: 3px; }
   body[data-nav="v2"] .nav-cote-compte {
     justify-content: center;
     width: 44px;
@@ -895,6 +907,35 @@ body[data-nav="v2"] .nav-fenetre-haut { display: none; }
 /* Le bouton de l'ancienne barre du haut, en tête de la vue de la semaine : 44 px à toute taille, ses
    voisins de la rangée (Émargement) s'étirant à sa hauteur. */
 body[data-nav="v2"] .p-aujourdhui { min-height: 44px; }
+
+/* ----- Stagiaires > Élèves bénévoles (lot 2A, js/views/stagiaires.js et js/views/benevoles.js) ----- */
+/* Le panneau de la banque, posé dans la page au lieu d'une fenêtre : la largeur de la fenêtre d'avant, son titre
+   (.modal h3) et ses règles contre le débordement des champs (.bnv-modal .field) : le select du niveau, aux options
+   très longues, ferait sinon déborder la colonne de la grille du formulaire. */
+body[data-nav="v2"] .bnv-page { max-width: 680px; }
+body[data-nav="v2"] .bnv-page h3 { margin: 0 0 1.25rem; font-size: 1.15rem; font-weight: 600; letter-spacing: -0.01em; }
+body[data-nav="v2"] .bnv-page .field { min-width: 0; }
+body[data-nav="v2"] .bnv-page .field input,
+body[data-nav="v2"] .bnv-page .field select { width: 100%; min-width: 0; }
+/* iPhone : la fiche d'un stagiaire prend tout l'écran, un seul écran à la fois comme avant les sous-onglets : ni
+   l'en-tête de la page ni sa barre de sous-onglets au-dessus de son lien de retour. */
+body[data-nav="v2"] .stg-page.stg-fiche-seule > .view-header,
+body[data-nav="v2"] .stg-page.stg-fiche-seule > .subtabs > .subtabs-bar { display: none; }
+@media (max-width: 699.98px) {
+  /* Téléphone : dans la banque, les onglets, boutons, filtres, champs, liens d'appel, cases de disponibilité et
+     autres liens font 44 px, comme le reste de la page (la fenêtre d'avant les laissait de 19 à 39 px). */
+  body[data-nav="v2"] .bnv-page .btn,
+  body[data-nav="v2"] .bnv-page .bnv-tab,
+  body[data-nav="v2"] .bnv-page select,
+  body[data-nav="v2"] .bnv-page .field input:not([type="checkbox"]),
+  body[data-nav="v2"] .bnv-page .bnv-venue-com,
+  body[data-nav="v2"] .bnv-page .bnv-dispo-cell,
+  body[data-nav="v2"] .bnv-page .bnv-affilie-x { min-height: 44px; }
+  body[data-nav="v2"] .bnv-page .bnv-affilie-x { min-width: 44px; }
+  body[data-nav="v2"] .bnv-page .bnv-tel,
+  body[data-nav="v2"] .bnv-page .bnv-linklike,
+  body[data-nav="v2"] .bnv-page .bnv-retires summary { display: inline-flex; align-items: center; min-height: 44px; }
+}
 
 /* ----- Impression : ni la coquille, ni ce qu'elle impose à la page ----- */
 /* La marge de la barre latérale battrait le « margin: 0 » de l'impression des Indicateurs (style.css,

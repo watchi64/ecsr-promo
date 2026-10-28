@@ -9,6 +9,7 @@ import { el, clear, isoDate, formatDate, displayStagiaire, toast } from "../util
 import { icon } from "../icons.js?v=20261028a";
 import { indicateursPromo, ligneComparaison, METHODES } from "../centre-stats.js?v=20261028a";
 import { matriceNotesCsv, nomFichierCsv } from "../centre-csv.js?v=20261028a";
+import { navigationV2Active } from "../nav-etat.js?v=20261028a";
 
 let rendu = 0;   // un rendu plus récent rend caduc celui qui attend encore ses données
 
@@ -285,10 +286,14 @@ export async function renderCentre(container) {
        promo.date_fin ? "au " + formatDate(promo.date_fin) : (promo.date_debut ? "(fin non fixée)" : null)]
         .filter(Boolean).join(" ")
     : "";
+  // Nouvelle navigation : la page porte le nom de son entrée, « Indicateurs », avec la promo en surtitre (avant : le
+  // surtitre « Tableau de bord du centre », et la promo pour titre).
+  const v2 = navigationV2Active();
   racine.appendChild(el("div", { class: "view-header centre-entete" },
     el("div", { class: "view-header-text" },
-      el("p", { class: "eyebrow" }, "Tableau de bord du centre"),
-      el("h2", {}, promo?.nom || "Promo courante"),
+      v2 ? (promo?.nom ? el("p", { class: "eyebrow" }, promo.nom) : null)
+        : el("p", { class: "eyebrow" }, "Tableau de bord du centre"),
+      el("h2", {}, v2 ? "Indicateurs" : (promo?.nom || "Promo courante")),
       el("p", { class: "subtitle" }, [periode, promo?.lieu_nom ? "Lieu : " + promo.lieu_nom : null,
         "Édité le " + formatDate(aujourdhui)].filter(Boolean).join(" · "))),
     el("div", { class: "centre-actions" },

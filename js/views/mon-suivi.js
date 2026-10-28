@@ -1,7 +1,7 @@
 import { listStagiaires, listEvaluations, getPlanning, getHalfMetaForWeek, getJoursOff, getSetting,
          listProfs, listEpcf, getEpcfMoyennes, listThemes,
          getStagiaire, setDateNaissance, listPassages,
-         listLivretsIndex, listDossiersIndex } from "../db.js?v=20261028a";
+         listLivretsIndex, listDossiersIndex, getPromoCourante } from "../db.js?v=20261028a";
 import { el, clear, isoDate, getMonday, addDays, formatDate, displayStagiaire, toast } from "../utils.js?v=20261028a";
 import { HALF_DAYS, RESULTATS } from "../config.js?v=20261028a";
 import { isAdmin, isProf, monStagiaireId } from "../auth-admin.js?v=20261028a";
@@ -710,9 +710,11 @@ export async function renderMonSuivi(container) {
   await chargerContexteFiche();
   clear(container);
 
+  // Nouvelle navigation : la promo en surtitre, comme sur les pages de l'équipe (avant : « Espace personnel »).
+  const surtitre = navigationV2Active() ? getPromoCourante()?.nom : "Espace personnel";
   const header = el("div", { class: "view-header" },
     el("div", { class: "view-header-text" },
-      el("p", { class: "eyebrow" }, "Espace personnel"),
+      surtitre ? el("p", { class: "eyebrow" }, surtitre) : null,
       el("h2", {}, nomDeMonSuivi()),
       el("p", { class: "subtitle" }, moduleVisible("notes")
         ? "Mon planning à venir et l'évolution de mes résultats."

@@ -2,13 +2,20 @@
 // formateurs et les admins. Ordinateur : la liste à gauche, la fiche à droite
 // (onglets). iPhone : la liste, puis la fiche en sommaire, puis une partie en
 // plein écran. Adresses : #/stagiaires, #/stagiaires/<id>, #/stagiaires/<id>/<partie>.
+// Nouvelle navigation (lot 2A) : sous l'en-tête, deux sous-onglets, « Stagiaires » (la page d'avant) et
+// « Élèves bénévoles » (la banque des volontaires, ouverte dans la page et non plus dans une fenêtre).
 
-import { listEpcfEtats, listLivretsIndex, listDossiersIndex } from "../db.js?v=20261028a";
+import { listEpcfEtats, listLivretsIndex, listDossiersIndex, getPromoCourante } from "../db.js?v=20261028a";
 import { el, clear, displayStagiaire, compareByNom } from "../utils.js?v=20261028a";
 import { icon } from "../icons.js?v=20261028a";
 import { adresseFiche, lireAdresse } from "../route-rules.js?v=20261028a";
 import { ligneListe } from "../fiche-rules.js?v=20261028a";
-import { surChangementAdresse, remplacerAdresse } from "../navigation.js?v=20261028a";
+import { surChangementAdresse, oublierMajSurPlace, remplacerAdresse, peutQuitter } from "../navigation.js?v=20261028a";
+import { isAdmin } from "../auth-admin.js?v=20261028a";
+import { navigationV2Active } from "../nav-etat.js?v=20261028a";
+import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261028a";
+import { renderSubTabs } from "../subtabs.js?v=20261028a";
+import { renderBenevoles } from "./benevoles.js?v=20261028a";
 import {
   chargerContexteFiche, chargerFiche, renderFiche, dispositionFiche,
   noterDocument, ecouterDocuments, afficherErreur,
@@ -27,12 +34,30 @@ function noterDerniere(id) {
   try { localStorage.setItem(CLE_DERNIERE, String(id)); } catch (e) { /* navigation privée */ }
 }
 
-export async function renderStagiaires(container) {
+// En-tête de la page : surtitre, titre, sous-titre. Le surtitre est « Formateurs » avec l'ancienne navigation, le
+// nom de la promo affichée avec la nouvelle (absent si les promos ne sont pas chargées).
+function enTete(surtitre) {
+  return el("div", { class: "view-header" },
+    el("div", { class: "view-header-text" },
+      surtitre ? el("p", { class: "eyebrow" }, surtitre) : null,
+      el("h2", {}, "Stagiaires"),
+      el("p", { class: "subtitle" }, "La promo, une fiche par personne."),
+    ),
+  );
+}
+
+// La liste des stagiaires et leur fiche. `sousOnglet` : null avec l'ancienne navigation, où la page est cette liste
+// avec son en-tête ; sinon ce que lui donne le sous-onglet « Stagiaires » de la nouvelle : { actif() : ce sous-onglet
+// est encore celui qui est affiché, ficheSeule(oui) : sur iPhone, la fiche prend tout l'écran }. L'en-tête est alors
+// celui de la page, au-dessus des sous-onglets.
+async function listeDesStagiaires(container, sousOnglet = null) {
   clear(container);
   container.appendChild(el("div", { class: "loading" }, "Chargement"));
   const [stagiairesData, epcf, livrets, dossiers] = await Promise.all([
     chargerContexteFiche(), listEpcfEtats(), listLivretsIndex(), listDossiersIndex(),
   ]);
+  // Sous-onglet quitté pendant la lecture : plus rien à écrire (ni adresse, ni écoute de l'adresse).
+  if (sousOnglet && !sousOnglet.actif()) return;
   const stagiaires = stagiairesData.slice().sort(compareByNom);
   const etats = { epcf: epcf || [], livrets: livrets || [], dossiers: dossiers || [] };
   const fiches = new Map();   // id → données : une lecture par personne et par visite
@@ -40,13 +65,7 @@ export async function renderStagiaires(container) {
   let choisi = null;          // fiche affichée (ligne surlignée)
   let defilementListe = 0;    // position de la liste sur iPhone, rendue au retour
 
-  const entete = el("div", { class: "view-header" },
-    el("div", { class: "view-header-text" },
-      el("p", { class: "eyebrow" }, "Formateurs"),
-      el("h2", {}, "Stagiaires"),
-      el("p", { class: "subtitle" }, "La promo, une fiche par personne."),
-    ),
-  );
+  const entete = sousOnglet ? null : enTete("Formateurs");
   const liste = el("nav", { class: "stg-liste", "aria-label": "Stagiaires de la promo" });
   const zoneFiche = el("div", { class: "stg-fiche" });
 
@@ -114,6 +133,9 @@ export async function renderStagiaires(container) {
   async function afficher(adr) {
     const disposition = dispositionFiche();
     const connu = adr.id != null && stagiaires.some((s) => s.id === adr.id);
+    // iPhone, nouvelle navigation : la fiche prend tout l'écran, l'en-tête et les sous-onglets de la page s'effacent.
+    const ficheSeule = !!sousOnglet && disposition !== "onglets" && connu;
+    if (sousOnglet) sousOnglet.ficheSeule(ficheSeule);
     if (disposition === "onglets") {
       // Ordinateur : toujours une fiche à côté de la liste, la dernière consultée.
       const derniere = lireDerniere();
@@ -121,7 +143,7 @@ export async function renderStagiaires(container) {
         : (stagiaires.some((s) => s.id === derniere) ? derniere : (stagiaires[0]?.id ?? null));
       choisi = id;
       clear(container);
-      container.appendChild(entete);
+      if (entete) container.appendChild(entete);
       container.appendChild(el("div", { class: "stg-colonnes" }, liste, zoneFiche));
       dessinerListe();
       if (id == null) { clear(zoneFiche); return; }
@@ -135,7 +157,7 @@ export async function renderStagiaires(container) {
     if (!connu) {
       choisi = null;
       clear(container);
-      container.appendChild(entete);
+      if (entete) container.appendChild(entete);
       container.appendChild(liste);
       dessinerListe();
       window.scrollTo(0, defilementListe);
@@ -160,4 +182,64 @@ export async function renderStagiaires(container) {
   });
   surChangementAdresse("stagiaires", afficher);
   await afficher(lireAdresse(location.hash));
+}
+
+// Page Stagiaires. Ancienne navigation : la liste et la fiche, sous leur en-tête. Nouvelle : l'en-tête de la page (le
+// nom de la promo au-dessus de « Stagiaires »), puis deux sous-onglets dont la mémoire est propre à la page
+// (CLES_SOUS_ONGLETS.stagiaires) : « Stagiaires », la page d'avant, et « Élèves bénévoles », que le bouton du même nom
+// du Planning ouvre. La banque est lue par les administrateurs seuls (règles de la base) : un formateur qui ne l'est pas
+// n'a pas le sous-onglet, comme il n'avait pas le bouton du Planning, et la page se montre alors sans barre.
+export async function renderStagiaires(container) {
+  if (!navigationV2Active()) {
+    await listeDesStagiaires(container);
+    return;
+  }
+  clear(container);
+  const page = el("div", { class: "stg-page" });
+  page.appendChild(enTete(getPromoCourante()?.nom));
+
+  // Chaque sous-onglet se rend dans une zone neuve du panneau que renderSubTabs partage : un rendu qui finit après un
+  // changement de sous-onglet écrit dans une zone détachée, jamais dans celui qui est affiché (comme le Planning,
+  // js/views/planning-espace.js). Une erreur de lecture se dit dans le sous-onglet, avec « Réessayer ».
+  const dansUneZone = (rendre) => (panneau, ctx) => {
+    const zone = el("div");
+    panneau.appendChild(zone);
+    const lancer = async () => {
+      try { await rendre(zone, ctx); }
+      catch (e) {
+        if (zone.isConnected) afficherErreur(zone, e, lancer);
+        else console.error(e);
+      }
+    };
+    lancer();
+  };
+
+  const onglets = [{
+    key: "stagiaires", label: "Stagiaires",
+    render: dansUneZone((zone, ctx) => listeDesStagiaires(zone, {
+      actif: ctx.isActive,
+      ficheSeule: (oui) => page.classList.toggle("stg-fiche-seule", oui),
+    })),
+  }];
+  if (isAdmin()) {
+    onglets.push({
+      key: "benevoles", label: "Élèves bénévoles",
+      render: dansUneZone((zone) => {
+        // La liste n'est plus à l'écran : l'adresse d'une fiche ne la met plus à jour sur place, la page se rend de nouveau.
+        oublierMajSurPlace();
+        page.classList.remove("stg-fiche-seule");
+        return renderBenevoles(zone);
+      }),
+    });
+  }
+  page.appendChild(renderSubTabs(onglets, {
+    storageKey: CLES_SOUS_ONGLETS.stagiaires,
+    // L'adresse d'une fiche (#/stagiaires/12) ouvre la liste, quel que soit le sous-onglet gardé en mémoire.
+    activeKey: lireAdresse(location.hash).id != null ? "stagiaires" : undefined,
+    // Les bénévoles n'ont pas d'adresse de fiche : celle qu'on quitte ne doit pas rester dans la barre d'adresse.
+    onChange: (cle) => { if (cle === "benevoles") remplacerAdresse("#/stagiaires"); },
+    // Une grille EPCF commencée n'est pas abandonnée sans accord, comme en changeant de partie de la fiche.
+    avantChangement: () => peutQuitter(),
+  }));
+  container.appendChild(page);
 }

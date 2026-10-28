@@ -11,9 +11,9 @@
 // Équipe : une barre latérale sombre (la promo affichée et le bouton qui replie la barre, les
 // entrées groupées, l'Assistant et le compte en pied), en colonne d'icônes quand elle est repliée
 // (choix mémorisé sur l'appareil) et toujours sur tablette. Sur téléphone, la même barre devient
-// l'en-tête (promo, compte) et les entrées passent dans la barre du bas : quatre, plus « Plus »,
-// qui ouvre un tiroir avec les autres, l'Assistant et le compte. Une entrée dont la page est
-// fermée aux stagiaires porte le repère « masqué aux stagiaires » (œil barré).
+// l'en-tête (promo, Assistant en icône, compte) et les entrées passent dans la barre du bas : quatre,
+// plus « Plus », qui ouvre un tiroir avec les autres pages (« Autres pages »), l'Assistant et le compte.
+// Une entrée dont la page est fermée aux stagiaires porte le repère « masqué aux stagiaires » (œil barré).
 //
 // Crochets : chaque racine porte data-nav-coquille (« haut » en-tête du stagiaire, « cote » barre
 // de l'équipe, « bas » barre du téléphone ; « compte » ou « plus » pour la fenêtre ouverte, voir
@@ -123,7 +123,7 @@ export function majNouveautesCompte(texte) {
 // Bouton « Assistant » : `geste(bouton)` ouvre ou ferme le panneau de l'assistant (js/chatbot.js). Il suit
 // le module « assistant » comme la bulle de l'ancienne navigation : absent chez un stagiaire quand le
 // module est fermé pour la promo, repéré chez un formateur. Son nom ne dépend pas de son libellé, que la
-// tablette et la colonne d'icônes masquent.
+// tablette, la colonne d'icônes et l'en-tête du téléphone de l'équipe masquent.
 function boutonAssistant(classe, geste, ...contenu) {
   if (!moduleVisible("assistant")) return null;
   const bouton = el("button", {
@@ -319,7 +319,7 @@ function ouvrirPlus(bouton) {
   ouvrirFenetre({
     nom: "plus", ancre: bouton, etiquette: "Plus", classe: "nav-tiroir",
     contenu: [
-      el("p", { class: "nav-fenetre-section" }, "Tout l'espace formateur"),
+      el("p", { class: "nav-fenetre-section" }, "Autres pages"),
       groupes(entrees.filter((e) => montee.plus.includes(e.id)), "plus", lien),
       el("p", { class: "nav-fenetre-section" }, "Outils"),
       boutonAssistant("nav-fenetre-lien", () => assistantDepuisLeTiroir(bouton),

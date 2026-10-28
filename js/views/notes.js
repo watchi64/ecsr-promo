@@ -1,7 +1,7 @@
 import {
   listStagiaires, listCompetences, listEvaluations, listThemes,
   addEvaluation, updateEvaluation, deleteEvaluation, listAuditForEvaluation,
-  listUserProfiles, getNotesStatsGroupe,
+  listUserProfiles, getNotesStatsGroupe, getPromoCourante,
 } from "../db.js?v=20261028a";
 import {
   statsLocales, statsServeur, moyenneGenerale, moyenneCompetence, moyenneThemes, statsParTheme,
@@ -11,6 +11,8 @@ import { icon } from "../icons.js?v=20261028a";
 import { getAdminEmail, isAdmin, getProfile } from "../auth-admin.js?v=20261028a";
 import { recordUndo } from "../undo.js?v=20261028a";
 import { renderSubTabs } from "../subtabs.js?v=20261028a";
+import { formateurConnecte } from "../modules-etat.js?v=20261028a";
+import { navigationV2Active } from "../nav-etat.js?v=20261028a";
 import { renderEpcf } from "./epcf.js?v=20261028a";
 
 let userProfiles = [];  // pour résoudre l'anonymat par stagiaire_id
@@ -1076,11 +1078,23 @@ function rerender(container) {
   // Initialise la date courante si pas encore définie
   if (!currentEvalDate) currentEvalDate = isoDate(new Date());
 
+  // Nouvelle navigation : la page de l'équipe porte le nom de son entrée, « Notes et examens », avec la promo en
+  // surtitre (le stagiaire, dans La classe de Mon suivi, garde l'en-tête d'avant). Sur un écran tactile, on touche une
+  // case : le sous-titre le dit, et la phrase de la barre d'outils sur Entrée et Échap, qui suppose un clavier, disparaît.
+  const v2 = navigationV2Active();
+  const equipe = v2 && formateurConnecte();
+  const surtitre = getPromoCourante()?.nom;
+  const tactile = v2 && window.matchMedia("(pointer: coarse)").matches;
+
   container.appendChild(el("div", { class: "view-header" },
     el("div", { class: "view-header-text" },
-      el("p", { class: "eyebrow" }, nbLignes + " note" + (nbLignes > 1 ? "s" : "") + " enregistrée" + (nbLignes > 1 ? "s" : "")),
-      el("h2", {}, "Notes & évaluations"),
-      el("p", { class: "subtitle" }, "Tableau matrice : stagiaires × thèmes/compétences. Clique une cellule pour saisir la note."),
+      equipe
+        ? (surtitre ? el("p", { class: "eyebrow" }, surtitre) : null)
+        : el("p", { class: "eyebrow" }, nbLignes + " note" + (nbLignes > 1 ? "s" : "") + " enregistrée" + (nbLignes > 1 ? "s" : "")),
+      el("h2", {}, equipe ? "Notes et examens" : "Notes & évaluations"),
+      el("p", { class: "subtitle" }, admin && tactile
+        ? "Touche une case pour saisir la note."
+        : "Tableau matrice : stagiaires × thèmes/compétences. Clique une cellule pour saisir la note."),
     ),
     admin ? null : el("span", { class: "muted", style: "font-size:0.85rem" }, "Lecture seule. Connexion admin requise pour modifier."),
   ));
@@ -1116,7 +1130,7 @@ function rerender(container) {
       el("span", { class: "matrice-toolbar-label", style: "margin-left:1rem" }, "Date des notes :"),
       dateInput,
       todayBtn,
-      el("span", { class: "matrice-toolbar-hint muted" },
+      tactile ? null : el("span", { class: "matrice-toolbar-hint muted" },
         "→ clique une cellule, tape une note (0-20), Entrée valide, Esc annule."
       ),
     );
