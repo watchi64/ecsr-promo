@@ -35,6 +35,10 @@
 //   signalements  [{ traite_at }]
 //   autoEcoles    [{ actif, lieu_id }]
 // Ne sont pas lus : `profs` et `entete` (les noms) et l'émargement, pas encore branché (voir la pièce `assiduite`).
+//
+// Exports : les aides du planning (`lignesDuPlanning`, `demiJournees`, `intervenantsDistincts`) et les petits outils de
+// phrases (`jourDe`, `rempli`, `tableau`, `nb`) sont réutilisés par js/qualiopi-documents.js, pour que la synthèse par
+// semaine des dossiers suive toujours la règle de l'inventaire au lieu d'en recopier une version.
 
 import { INDICATEURS, indicateursApplicables } from "./qualiopi-referentiel.js?v=20261028a";
 import { indicateursPromo } from "./centre-stats.js?v=20261028a";
@@ -107,13 +111,13 @@ const MIN_NOTES_THEME = 3;
 
 const ISO_JOUR = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])/;
 // « AAAA-MM-JJ » d'une date ou d'un horodatage (« 2026-10-12T09:00:00+00:00 »), nul si la valeur n'en est pas une.
-const jourDe = (valeur) => (typeof valeur === "string" && ISO_JOUR.test(valeur) ? valeur.slice(0, 10) : null);
+export const jourDe = (valeur) => (typeof valeur === "string" && ISO_JOUR.test(valeur) ? valeur.slice(0, 10) : null);
 const jourMois = (jour) => `${jour.slice(8)}/${jour.slice(5, 7)}`;
-const rempli = (texte) => typeof texte === "string" && texte.trim() !== "";
-const tableau = (valeur) => (Array.isArray(valeur) ? valeur : []);
+export const rempli = (texte) => typeof texte === "string" && texte.trim() !== "";
+export const tableau = (valeur) => (Array.isArray(valeur) ? valeur : []);
 
 // Nombre et mot accordé : « 1 note », « 4 notes ». Le pluriel s'écrit en toutes lettres quand il n'est pas régulier.
-const nb = (n, singulier, pluriel = singulier + "s") => `${n} ${n > 1 ? pluriel : singulier}`;
+export const nb = (n, singulier, pluriel = singulier + "s") => `${n} ${n > 1 ? pluriel : singulier}`;
 
 // « du 05/10 au 15/10 », ou « le 05/10 » quand tout tient en un jour ; chaîne vide s'il n'y a aucune date.
 function plage(jours) {
@@ -124,7 +128,7 @@ function plage(jours) {
 }
 const avecPlage = (texte, jours) => [texte, plage(jours)].filter(Boolean).join(" ");
 
-// --- Planning : les demi-journées de formation ---
+// --- Planning : les lignes de la promo, les demi-journées de formation, les intervenants ---
 
 const porteQuelqueChose = (e) => rempli(e.activite) || rempli(e.sujet) || rempli(e.sujet_2)
   || tableau(e.prof_ids).length > 0 || rempli(e.prof_autre) || Boolean(e.autonomie);
@@ -144,16 +148,37 @@ function jourDeLigne(e) {
   return Number.isNaN(jour.getTime()) ? null : isoDate(jour);
 }
 
+// Les lignes du planning d'une promo : celles de la promo, moins celles d'un jour désactivé (vacances, pont, formation
+// externe : leurs cartes restent en base mais ne comptent nulle part). Tout ce qui vient du planning passe par là.
+export function lignesDuPlanning(donnees, promo) {
+  const joursOff = new Set(tableau(donnees.joursOff).map((j) => cleJour(j.semaine_lundi, j.day_index)).filter(Boolean));
+  return tableau(donnees.planning).filter((e) => e.promo_id === promo?.id && !joursOff.has(cleJour(e.semaine_lundi, e.day_index)));
+}
+
 // Une demi-journée de formation est un triplet distinct (semaine, jour, demi-journée) dont une ligne au moins porte
 // quelque chose : une demi-journée a plusieurs lignes (créneaux) et la base garde des lignes vides, qui ne comptent
-// pas. Rend le jour de chaque demi-journée.
-function demiJournees(lignes) {
-  const jours = new Map();
+// pas. Rend, pour chaque demi-journée (clé « semaine|jour|demi-journée »), ses lignes qui portent quelque chose ; une
+// ligne dont le jour est illisible n'en fait pas partie.
+export function demiJournees(lignes) {
+  const parCle = new Map();
   lignes.filter(porteQuelqueChose).forEach((e) => {
-    const jour = jourDeLigne(e);
-    if (jour) jours.set(`${e.semaine_lundi}|${e.day_index}|${e.half_day}`, jour);
+    if (!jourDeLigne(e)) return;
+    const cle = `${e.semaine_lundi}|${e.day_index}|${e.half_day}`;
+    if (!parCle.has(cle)) parCle.set(cle, []);
+    parCle.get(cle).push(e);
   });
-  return [...jours.values()];
+  return parCle;
+}
+
+// Les intervenants distincts d'un ensemble de lignes du planning : les identifiants des formateurs et des bénévoles (les
+// nuls écartés) et le nombre d'intervenants « Autre », dont le nom est compté (en minuscules, sans espaces autour) et
+// jamais recopié.
+export function intervenantsDistincts(lignes) {
+  return {
+    formateurs: new Set(lignes.flatMap((e) => tableau(e.prof_ids)).filter((id) => id != null)),
+    benevoles: new Set(lignes.flatMap((e) => tableau(e.benevoles_ids)).filter((id) => id != null)),
+    exterieurs: new Set(lignes.map((e) => e.prof_autre).filter(rempli).map((nom) => nom.trim().toLowerCase())).size,
+  };
 }
 
 // --- Cours : leurs modifications ---
@@ -186,9 +211,10 @@ const CONSTRUCTEURS = {
   },
 
   deroule: ({ planning }) => {
-    const jours = demiJournees(planning);
-    if (!jours.length) return absente("aucune demi-journée renseignée au planning de cette promo");
-    return presente(avecPlage(`${nb(jours.length, "demi-journée")} de formation`, jours));
+    const demis = demiJournees(planning);
+    if (!demis.size) return absente("aucune demi-journée renseignée au planning de cette promo");
+    const jours = [...demis.values()].map((lignes) => jourDeLigne(lignes[0]));
+    return presente(avecPlage(`${nb(demis.size, "demi-journée")} de formation`, jours));
   },
 
   datesCles: ({ liste }) => {
@@ -285,15 +311,13 @@ const CONSTRUCTEURS = {
   // Des nombres seulement : les formateurs distincts, les intervenants « Autre » distincts (leur nom est compté,
   // jamais recopié), les bénévoles distincts et les auto-écoles actives du lieu.
   intervenants: ({ promo, liste, planning }) => {
-    const formateurs = new Set(planning.flatMap((e) => tableau(e.prof_ids)).filter((id) => id != null)).size;
-    const exterieurs = new Set(planning.map((e) => e.prof_autre).filter(rempli).map((nom) => nom.trim().toLowerCase())).size;
-    const benevoles = new Set(planning.flatMap((e) => tableau(e.benevoles_ids)).filter((id) => id != null)).size;
+    const { formateurs, benevoles, exterieurs } = intervenantsDistincts(planning);
     const autoEcoles = promo.lieu_id == null ? 0
       : liste("autoEcoles").filter((a) => a.actif && a.lieu_id === promo.lieu_id).length;
     const parties = [];
-    if (formateurs) parties.push(nb(formateurs, "formateur"));
+    if (formateurs.size) parties.push(nb(formateurs.size, "formateur"));
     if (exterieurs) parties.push(nb(exterieurs, "intervenant extérieur", "intervenants extérieurs"));
-    if (benevoles) parties.push(nb(benevoles, "bénévole"));
+    if (benevoles.size) parties.push(nb(benevoles.size, "bénévole"));
     if (autoEcoles) parties.push(nb(autoEcoles, "auto-école partenaire", "auto-écoles partenaires"));
     if (!parties.length) {
       return absente("aucun formateur, intervenant extérieur ni bénévole au planning, aucune auto-école partenaire active");
@@ -332,11 +356,10 @@ const CONSTRUCTEURS = {
 // Tout ce que les pièces lisent, calculé une fois. La période de la promo court de sa date de début à sa date de fin,
 // ou à aujourd'hui quand elle n'en a pas ; une borne inconnue est ouverte. Le planning est formé des lignes de la promo,
 // moins celles d'un jour désactivé : tout ce qui en vient (demi-journées, dates, formateurs, intervenants « Autre »,
-// bénévoles) passe par là.
+// bénévoles) passe par là (`lignesDuPlanning`).
 function contexte(donnees, referentiel, { promo, aujourdhui, nouveautes }) {
   const liste = (cle) => tableau(donnees[cle]);
   const enFormation = new Set(liste("stagiaires").filter((s) => s.actif).map((s) => s.id));
-  const joursOff = new Set(liste("joursOff").map((j) => cleJour(j.semaine_lundi, j.day_index)).filter(Boolean));
   const debut = jourDe(promo.date_debut);
   const fin = jourDe(promo.date_fin) ?? jourDe(aujourdhui);
   return {
@@ -344,7 +367,7 @@ function contexte(donnees, referentiel, { promo, aujourdhui, nouveautes }) {
     nouveautes: tableau(nouveautes),
     ind: indicateursPromo(donnees, referentiel, { aujourdhui }),
     dedans: (ligne) => enFormation.has(ligne.stagiaire_id),
-    planning: liste("planning").filter((e) => e.promo_id === promo.id && !joursOff.has(cleJour(e.semaine_lundi, e.day_index))),
+    planning: lignesDuPlanning(donnees, promo),
     dansPeriode: (jour) => jour !== null && (debut === null || jour >= debut) && (fin === null || jour <= fin),
   };
 }

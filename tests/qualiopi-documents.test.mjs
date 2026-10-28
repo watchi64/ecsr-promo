@@ -10,10 +10,11 @@ import {
   PHRASE_DE_GARDE, LIBELLES_NIVEAU, promoTerminee, modeleDossierFormation, modeleDossierCentre, inventaireCsv,
   nomFichierQualiopi,
 } from "../js/qualiopi-documents.js";
-import { inventairePromo } from "../js/qualiopi-preuves.js";
+import { inventairePromo, lignesDuPlanning, demiJournees, intervenantsDistincts } from "../js/qualiopi-preuves.js";
 import { INDICATEURS } from "../js/qualiopi-referentiel.js";
 import { indicateursPromo, ligneComparaison, METHODES } from "../js/centre-stats.js";
 import { slug } from "../js/centre-csv.js";
+import { NOUVEAUTES as NOUVEAUTES_REELLES } from "../js/nouveautes-data.js";
 
 let n = 0;
 const eq = (a, b, msg) => { assert.deepEqual(a, b, msg); n++; };
@@ -254,10 +255,13 @@ const VERSIONS = [
   { cours_id: 2, saved_at: "2026-08-26T10:00:00+00:00" },
   { cours_id: 3, saved_at: "2026-08-26T10:00:00+00:00" }, { cours_id: 99, saved_at: "2026-10-07T10:00:00+00:00" },
 ];
-// Nouveautés datées : seuls le titre et la date entrent dans le dossier du centre, jamais le résumé.
-const NOUVEAUTE = (id, date) => ({ id, ...(date ? { date } : {}), pour: "formateurs", titre: "Nouveauté publique " + id, resume: "Résumé secret " + id });
+// Annonces datées de la rubrique Nouveautés : seuls le titre et la date entrent dans le dossier du centre (le titre cité entre
+// guillemets), jamais le résumé. Le titre de la deuxième est à la deuxième personne, comme beaucoup de ceux de la rubrique réelle.
+const TITRE_A_TOI = "Tes notes et ta fiche mieux protégées";
+const NOUVEAUTE = (id, date, titre = "Nouveauté publique " + id) =>
+  ({ id, ...(date ? { date } : {}), pour: "formateurs", titre, resume: "Résumé secret " + id });
 const NOUVEAUTES = geler([
-  NOUVEAUTE("a", "2026-09-15"), NOUVEAUTE("b", "2026-10-02"), NOUVEAUTE("c", "2026-10-20"),
+  NOUVEAUTE("a", "2026-09-15"), NOUVEAUTE("b", "2026-10-02", TITRE_A_TOI), NOUVEAUTE("c", "2026-10-20"),
   NOUVEAUTE("d", "2026-11-05"), NOUVEAUTE("e", null),
 ]);
 
@@ -300,6 +304,27 @@ const ind8 = indDe(D8);
 // Les chiffres que le dossier reprend sont ceux du tableau de bord.
 eq([ind.notes.detail.n, ind.passages.detail.salle.total, ind.passages.detail.voiture.total, ind.absences.detail.absences],
   [5, 3, 3, 2], "le tableau de bord compte 5 notes, 3 passages en salle, 3 en voiture et 2 absences");
+
+// Les aides du planning que l'inventaire exporte (js/qualiopi-preuves.js) et que les dossiers consomment : les dossiers n'en
+// gardent aucune copie, la règle des demi-journées et des intervenants est donc la même des deux côtés.
+const lignesPromo = lignesDuPlanning(D, PROMO);
+eq(lignesPromo.map((l) => l.id), [1, 2, 3, 4, 5, 6, 7, 8], "lignes de la promo 7 : ni l'autre promo (ligne 9) ni le jour désactivé (ligne 10)");
+eq(lignesDuPlanning({ planning: PLANNING }, PROMO).map((l) => l.id), [1, 2, 3, 4, 5, 6, 7, 8, 10], "sans jour désactivé lu, la ligne du 21/10 compte");
+eq(lignesDuPlanning({}, PROMO), [], "sans planning : aucune ligne");
+const demis = demiJournees(lignesPromo);
+eq([...demis.keys()], ["2026-10-05|0|matin", "2026-10-05|0|aprem", "2026-10-05|2|matin", "2026-10-12|1|aprem", "2026-10-12|3|matin"],
+  "demi-journées : une clé par (semaine, jour, demi-journée), les lignes vides écartées");
+eq([...demis.values()].map((lignes) => lignes.map((e) => e.id)), [[1, 2], [3], [4], [6], [7]], "demi-journées : les lignes de chacune");
+eq(demiJournees([L(1, "pas une date", 0, "matin", { activite: "Cours" }), L(2, "2026-10-05", null, "matin", { activite: "Cours" })]).size, 0,
+  "demi-journées : une ligne au jour illisible n'en fait pas partie");
+const distincts = intervenantsDistincts(lignesPromo);
+eq([[...distincts.formateurs].sort(), [...distincts.benevoles].sort(), distincts.exterieurs], [[1, 2, 3], [10, 11], 1],
+  "intervenants distincts de la promo 7 : formateurs 1, 2 et 3, bénévoles 10 et 11, un seul « Autre »");
+eq(intervenantsDistincts([
+  L(1, "2026-10-05", 0, "matin", { prof_autre: "Mme Durand", prof_ids: [1, null], benevoles_ids: [10, null] }),
+  L(2, "2026-10-05", 1, "matin", { prof_autre: " mme durand ", prof_ids: null, benevoles_ids: null }),
+]), { formateurs: new Set([1]), benevoles: new Set([10]), exterieurs: 1 },
+"intervenants distincts : un « Autre » écrit autrement compte une fois, les identifiants nuls et les listes nulles sont écartés");
 
 const formation = (extra = {}) => modeleDossierFormation({
   inv, donnees: D, ind, promo: PROMO, lieu: LIEU, intitule: D.entete.intitule, aujourdhui: AUJOURDHUI, ...extra,
@@ -628,18 +653,29 @@ eq(lignesDe(c, "ressources")[0], [
 ], "ressources : les pièces de l'inventaire de la promo");
 eq(lignesDe(c, "ressources").length, 2, "ressources : une ligne par promo");
 
-// --- Innovations (indicateur 25) : titres et dates des Nouveautés de la période, dans les deux versions
-eq(section(c, "innovations").paragraphes, ["3 nouveautés de l'application datées dans la période."], "innovations : le compte");
-eq(entetesDe(c, "innovations"), ["Date", "Nouveauté"], "innovations : en-têtes");
-eq(lignesDe(c, "innovations"), [
-  ["15/09/2026", "Nouveauté publique a"], ["02/10/2026", "Nouveauté publique b"], ["20/10/2026", "Nouveauté publique c"],
-], "innovations : les trois nouveautés de la période, par date ; ni celle du 05/11 (hors période) ni celle sans date");
+// --- Innovations (indicateur 25) : les annonces de la période, citées telles qu'elles ont été publiées, dans les deux versions
+const INTRO_ANNONCES = "Annonces de l'application, citées telles qu'elles ont été publiées :";
+const ENTREE_B = "02/10/2026 : « " + TITRE_A_TOI + " »";
+const ENTREE_C = "20/10/2026 : « Nouveauté publique c »";
+eq(section(c, "innovations").paragraphes, [
+  "3 annonces de l'application du 15/09/2026 au 20/10/2026.", INTRO_ANNONCES,
+  "15/09/2026 : « Nouveauté publique a »", ENTREE_B, ENTREE_C,
+], "innovations : le nombre et l'étendue, la phrase d'introduction, puis chaque annonce par date sous la forme « date : « titre » » ; "
+  + "ni celle du 05/11 (hors période) ni celle sans date");
+eq(section(c, "innovations").tableaux, [], "innovations : des citations, plus de tableau");
 eq(section(cSans, "innovations"), section(c, "innovations"), "innovations : les mêmes dans la version sans noms");
-ok(!JSON.stringify(c).includes("Résumé secret"), "jamais le résumé d'une nouveauté");
-eq(section(centre({ nouveautes: [] }), "innovations").paragraphes, ["Aucune nouveauté de l'application datée dans la période."], "aucune nouveauté");
-eq(section(centre({ nouveautes: [] }), "innovations").tableaux, [], "aucune nouveauté : pas de tableau");
-eq(lignesDe(centre({ periode: { du: "2026-10-01", au: "2026-10-20" } }), "innovations"),
-  [["02/10/2026", "Nouveauté publique b"], ["20/10/2026", "Nouveauté publique c"]], "bornes de la période comprises");
+ok(!JSON.stringify(c).includes("Résumé secret"), "jamais le résumé d'une annonce");
+ok(section(c, "innovations").paragraphes.slice(2).every((p) => /^\d{2}\/\d{2}\/\d{4} : « .+ »$/.test(p)), "chaque annonce est une citation datée");
+eq(section(centre({ nouveautes: [] }), "innovations"),
+  { id: "innovations", titre: "Innovations", indicateurs: [25], paragraphes: ["Aucune annonce de l'application dans la période."], tableaux: [] },
+  "aucune annonce");
+eq(section(centre({ periode: { du: "2026-10-01", au: "2026-10-20" } }), "innovations").paragraphes,
+  ["2 annonces de l'application du 02/10/2026 au 20/10/2026.", INTRO_ANNONCES, ENTREE_B, ENTREE_C], "bornes de la période comprises");
+eq(section(centre({ periode: { du: "2026-10-20", au: "2026-10-28" } }), "innovations").paragraphes,
+  ["1 annonce de l'application le 20/10/2026.", INTRO_ANNONCES, ENTREE_C], "une seule annonce : au singulier, avec son jour");
+eq(section(centre({ nouveautes: [NOUVEAUTE("g", "2026-10-20", "  "), NOUVEAUTE("f", "2026-10-20", "Zéro")] }), "innovations").paragraphes,
+  ["2 annonces de l'application le 20/10/2026.", INTRO_ANNONCES, "20/10/2026 : « sans titre »", "20/10/2026 : « Zéro »"],
+  "deux annonces le même jour : un seul jour dans la phrase, un titre vide dit « sans titre »");
 
 // --- Intervenants et partenaires (indicateurs 17, 18 et 28)
 eq(entetesDe(c, "intervenants", 0), ["Promo", "Intervenants et partenaires"], "intervenants : par promo, en nombres");
@@ -815,7 +851,7 @@ eq(section(aucunePromo, "resultats").paragraphes[0], "Aucune promo dans la péri
 eq(aucunePromo.sections.map((s) => s.id), ["resultats", "ressources", "innovations", "intervenants", "amelioration", "inventaire"], "aucune promo : les mêmes sections");
 eq(aucunePromo.sommaire, [], "aucune promo : pas d'inventaire, donc pas de sommaire");
 eq(aucunePromo.aFournir, [], "aucune promo : pas de pièces à fournir");
-eq(section(aucunePromo, "innovations").tableaux.length, 1, "aucune promo : les nouveautés restent");
+eq(section(aucunePromo, "innovations").paragraphes.length, 2 + 3, "aucune promo : les annonces restent, elles ne dépendent d'aucune promo");
 formeBien(modeleDossierCentre({ promos: [LES_PROMOS[0]], lieu: null, periode: {}, aujourdhui: AUJOURDHUI, sansNoms: false }), "centre sans lieu ni période");
 eq(modeleDossierCentre({ promos: [LES_PROMOS[0]], lieu: null, periode: {}, aujourdhui: AUJOURDHUI, sansNoms: false }).garde.slice(0, 2),
   ["Centre : centre non renseigné", "Période : dates non renseignées"], "lieu et période absents : des mots");
@@ -905,18 +941,67 @@ eq(centre(), c, "même entrée, même dossier du centre");
 const textesFormation = chaines(f).join("\n");
 const textesCentre = chaines(c).join("\n");
 const textesSans = chaines(cSans).join("\n");
+// R9 : les documents sont impersonnels (ni « tu » ni « vous »). Une seule exception, la citation entre guillemets français : les
+// titres des annonces de l'application s'adressent à leurs lecteurs à la deuxième personne et sont cités tels qu'ils ont été publiés.
+const PRONOMS = /\b(tu|toi|ton|ta|tes|vous|votre|vos)\b/i;
+const sansCitations = (texte) => texte.replace(/«[^»]*»/g, "");
 [["formation", textesFormation], ["centre", textesCentre], ["centre sans noms", textesSans], ["csv", csv]].forEach(([nom, texte]) => {
   ok(!texte.includes(TIRET_CADRATIN), `${nom} : aucun tiret cadratin`);
   ok(!/\bprofs?\b/i.test(texte), `${nom} : « formateur », jamais « prof »`);
-  ok(!/\b(tu|toi|ton|ta|tes|vous|votre|vos)\b/i.test(texte), `${nom} : document impersonnel, ni « tu » ni « vous »`);
+  ok(!PRONOMS.test(sansCitations(texte)), `${nom} : document impersonnel, ni « tu » ni « vous » hors citation`);
+});
+ok(PRONOMS.test(textesCentre) && PRONOMS.test(textesSans),
+  "le titre à la deuxième personne est bien dans les deux versions du centre : sans le retrait des citations, le test échouerait");
+ok(!PRONOMS.test(textesFormation) && !PRONOMS.test(csv), "le dossier de la formation et le CSV ne citent rien : aucun pronom, même sans retrait");
+eq(chaines(c).filter((s) => PRONOMS.test(s)), [ENTREE_B], "version nominative : la seule chaîne à la deuxième personne est la citation du titre");
+eq(chaines(cSans).filter((s) => PRONOMS.test(s)), [ENTREE_B], "version sans noms : la seule chaîne à la deuxième personne est la citation du titre");
+eq(textesCentre.split(TITRE_A_TOI).length - 1, 1, "le titre à la deuxième personne n'apparaît qu'une fois");
+eq(textesCentre.split("« " + TITRE_A_TOI + " »").length - 1, 1, "et c'est entre guillemets français");
+
+// Un dossier du centre construit avec les vraies annonces de la rubrique Nouveautés (js/nouveautes-data.js), dont beaucoup de
+// titres sont à la deuxième personne.
+ok(NOUVEAUTES_REELLES.length > 0 && NOUVEAUTES_REELLES.every((x) => !/[«»]/.test(x.titre)),
+  "les vrais titres ne portent pas de guillemets français : le retrait des citations les traite à plat");
+const periodeLarge = { du: "2000-01-01", au: "2099-12-31" };
+const reelNominatif = centre({ periode: periodeLarge, nouveautes: NOUVEAUTES_REELLES });
+const reelSans = centre({ periode: periodeLarge, nouveautes: NOUVEAUTES_REELLES, sansNoms: true });
+formeBien(reelNominatif, "centre (vraies annonces)");
+formeBien(reelSans, "centre sans noms (vraies annonces)");
+const datees = NOUVEAUTES_REELLES.filter((x) => x.date);
+const jourFr = (jour) => `${jour.slice(8)}/${jour.slice(5, 7)}/${jour.slice(0, 4)}`;
+const joursReels = datees.map((x) => x.date).sort();
+const annoncesReelles = section(reelSans, "innovations").paragraphes;
+eq(annoncesReelles.slice(0, 2), [
+  `${datees.length} annonces de l'application du ${jourFr(joursReels[0])} au ${jourFr(joursReels[joursReels.length - 1])}.`, INTRO_ANNONCES,
+], "vraies annonces : le nombre et l'étendue");
+eq([...annoncesReelles.slice(2)].sort(), datees.map((x) => `${jourFr(x.date)} : « ${x.titre.trim()} »`).sort(),
+  "vraies annonces : toutes les annonces datées, ni plus ni moins");
+const ordre = annoncesReelles.slice(2).map((p) => p.slice(6, 10) + p.slice(3, 5) + p.slice(0, 2));
+ok(ordre.every((jour, k) => k === 0 || jour >= ordre[k - 1]), "vraies annonces : par date");
+eq(section(reelNominatif, "innovations"), section(reelSans, "innovations"), "vraies annonces : les mêmes dans les deux versions");
+[["nominatif", reelNominatif], ["sans noms", reelSans]].forEach(([nom, modele]) => {
+  const textes = chaines(modele);
+  const horsCitations = sansCitations(textes.join("\n"));
+  ok(!PRONOMS.test(horsCitations), `vraies annonces (${nom}) : document impersonnel hors citations, ni « tu » ni « vous »`);
+  ok(!/\bprofs?\b/i.test(horsCitations), `vraies annonces (${nom}) : « formateur », jamais « prof » hors citations`);
+  ok(!textes.join("\n").includes(TIRET_CADRATIN), `vraies annonces (${nom}) : aucun tiret cadratin`);
+  ok(textes.filter((s) => PRONOMS.test(s)).every((s) => /^\d{2}\/\d{2}\/\d{4} : « [^»]+ »$/.test(s)),
+    `vraies annonces (${nom}) : une chaîne à la deuxième personne est toujours une annonce citée`);
 });
 const source = readFileSync(new URL("../js/qualiopi-documents.js", import.meta.url), "utf8");
 ok(!source.includes(TIRET_CADRATIN), "aucun tiret cadratin dans le module");
 const code = source.replace(/\/\/.*$/gm, "");
 ok(!/\bdocument\.|\bwindow\.|\bfetch\(|\bsupabase\b|\blocalStorage\b/.test(code), "le module est pur : ni DOM, ni réseau, ni base");
 eq(code.match(/^import .* from "(.*)";$/gm).map((l) => l.match(/from "(.*)"/)[1].replace(/\?v=\w+$/, "")),
-  ["./qualiopi-referentiel.js", "./centre-stats.js", "./notes-stats.js", "./centre-csv.js", "./utils.js"],
+  ["./qualiopi-referentiel.js", "./qualiopi-preuves.js", "./centre-stats.js", "./notes-stats.js", "./centre-csv.js", "./utils.js"],
   "il n'importe que des modules purs de l'app, avec le jeton de version des autres imports");
+// Les aides de l'inventaire sont importées, jamais recopiées : la synthèse par semaine suit la règle de l'inventaire.
+const AIDES = ["jourDe", "rempli", "tableau", "nb", "lignesDuPlanning", "demiJournees", "intervenantsDistincts"];
+const importPreuves = code.match(/import \{([^}]*)\} from "\.\/qualiopi-preuves\.js\?v=\w+";/);
+eq(importPreuves && importPreuves[1].split(",").map((s) => s.trim()), AIDES, "il importe de l'inventaire les petits outils et les aides du planning");
+["ISO_JOUR", "porteQuelqueChose", "cleJour", "jourDeLigne", ...AIDES].forEach((nom) =>
+  ok(!new RegExp(`\\b(const|let|var|function)\\s+${nom}\\b`).test(code), `le module ne redéfinit pas ${nom}`));
+ok(!/prof_ids|prof_autre|benevoles_ids/.test(code), "le module ne lit pas lui-même les champs des intervenants : la règle est celle de l'inventaire");
 const ceTest = readFileSync(new URL(import.meta.url), "utf8");
 ok(!ceTest.includes(TIRET_CADRATIN), "aucun tiret cadratin dans ce test");
 

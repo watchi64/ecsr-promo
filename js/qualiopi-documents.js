@@ -12,17 +12,20 @@
 // Dossier de la formation : nominatif, il n'existe pas sans les noms. Dossier du centre : promo par promo, jamais en total,
 // avec ou sans noms. Sans noms : des agrégats seulement, aucune ligne par personne, aucun texte saisi par une personne
 // (sujet de séance, intervenant « Autre », titre du calendrier), aucun nom de formateur. Bénévoles et auto-écoles ne sont
-// jamais nommés, en nombres seulement dans toutes les versions. Les documents sont impersonnels (ni « tu » ni « vous »).
+// jamais nommés, en nombres seulement dans toutes les versions. Les documents sont impersonnels (ni « tu » ni « vous »),
+// sauf dans les titres des annonces de l'application, cités entre guillemets français tels qu'ils ont été publiés.
 //
-// Réutilisation : les phrases viennent de l'inventaire (js/qualiopi-preuves.js), les chiffres et les méthodes du tableau
-// de bord du centre (js/centre-stats.js). Les tableaux par stagiaire comptent les mêmes stagiaires que lui : ceux en
-// formation, et le document le dit ; seule la liste nominative de l'effectif montre aussi les abandons.
+// Réutilisation : les phrases et les règles du planning (demi-journées, jours désactivés, intervenants distincts) viennent
+// de l'inventaire (js/qualiopi-preuves.js), les chiffres et les méthodes du tableau de bord du centre (js/centre-stats.js).
+// Les tableaux par stagiaire comptent les mêmes stagiaires que lui : ceux en formation, et le document le dit ; seule la
+// liste nominative de l'effectif montre aussi les abandons.
 
 import { SOURCE } from "./qualiopi-referentiel.js?v=20261028a";
+import { jourDe, rempli, tableau, nb, lignesDuPlanning, demiJournees, intervenantsDistincts } from "./qualiopi-preuves.js?v=20261028a";
 import { ligneComparaison, METHODES } from "./centre-stats.js?v=20261028a";
 import { estNotee, score20 } from "./notes-stats.js?v=20261028a";
 import { cellule, nombre, slug } from "./centre-csv.js?v=20261028a";
-import { compareByNom, parseDate, addDays, isoDate } from "./utils.js?v=20261028a";
+import { compareByNom } from "./utils.js?v=20261028a";
 
 export const PHRASE_DE_GARDE = "Pièces issues de l'application ECSR Promo, à joindre au dossier qualité du centre. Le centre reste seul audité et certifié.";
 
@@ -39,21 +42,15 @@ const BOM = String.fromCharCode(0xfeff);
 
 // --- Petits outils : dates, mots, nombres ---
 
-const ISO_JOUR = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])/;
-// « AAAA-MM-JJ » d'une date ou d'un horodatage, nul si la valeur n'en est pas une (même règle que l'inventaire).
-const jourDe = (valeur) => (typeof valeur === "string" && ISO_JOUR.test(valeur) ? valeur.slice(0, 10) : null);
+// Les petits outils de l'inventaire (jourDe, rempli, tableau, nb) et ses aides du planning sont importés de
+// js/qualiopi-preuves.js, jamais recopiés : les dossiers suivent ainsi toujours la règle de l'inventaire.
 const dateFr = (jour) => (jour ? `${jour.slice(8)}/${jour.slice(5, 7)}/${jour.slice(0, 4)}` : null);
-const rempli = (valeur) => typeof valeur === "string" && valeur.trim() !== "";
 const texte = (valeur, defaut) => (rempli(valeur) ? valeur.trim() : defaut);
-const tableau = (valeur) => (Array.isArray(valeur) ? valeur : []);
 const somme = (liste) => liste.reduce((a, b) => a + b, 0);
 const enFrancais = (a, b) => a.localeCompare(b, "fr");
 const majuscule = (mot) => mot.charAt(0).toUpperCase() + mot.slice(1);
 const pourcent = (x) => `${Math.round(x * 100)}${String.fromCharCode(0xa0)}%`;   // espace insécable avant « % », comme centre-stats.js
 const fr1 = (x) => x.toFixed(1).replace(".", ",");   // comme le tableau de comparaison : « 11,8/20 »
-
-// Nombre et mot accordé : « 1 note », « 4 notes ».
-const nb = (n, singulier, pluriel = singulier + "s") => `${n} ${n > 1 ? pluriel : singulier}`;
 
 // Un tableau, ou rien s'il n'a pas de ligne : à étaler dans la liste des tableaux d'une section.
 const table = (entetes, lignes) => (lignes.length ? [{ entetes, lignes }] : []);
@@ -95,45 +92,7 @@ const contenuPiece = (piece) => (piece ? texte(piece.presente ? piece.detail : p
 const phrase = (piece) => (piece ? `${piece.libelle} : ${contenuPiece(piece)}.` : null);
 const phrases = (inv, ...cles) => cles.map((cle) => phrase(pieceDe(inv, cle))).filter(Boolean);
 
-// --- Planning : la règle de l'inventaire (js/qualiopi-preuves.js : demi-journée de formation, jours désactivés) ---
-// Reprise ici parce que l'inventaire ne l'exporte pas ; un test relie les deux (la somme des semaines est le total de
-// l'inventaire).
-
-const porteQuelqueChose = (e) => rempli(e.activite) || rempli(e.sujet) || rempli(e.sujet_2)
-  || tableau(e.prof_ids).length > 0 || rempli(e.prof_autre) || Boolean(e.autonomie);
-
-// Clé d'un jour, « lundi|indice » ; nulle si l'un des deux manque ou est faux (un jour désactivé incomplet n'écarte rien).
-function cleJour(semaineLundi, indice) {
-  const lundi = jourDe(semaineLundi);
-  return lundi && Number.isInteger(indice) ? `${lundi}|${indice}` : null;
-}
-
-// Le jour d'une ligne : le lundi de sa semaine plus l'indice du jour ; nul si l'un des deux manque ou est faux.
-function jourDeLigne(e) {
-  const lundi = jourDe(e.semaine_lundi);
-  if (!lundi || !Number.isInteger(e.day_index)) return null;
-  const jour = addDays(parseDate(lundi), e.day_index);
-  return Number.isNaN(jour.getTime()) ? null : isoDate(jour);
-}
-
-// Les lignes du planning de la promo, moins celles d'un jour désactivé.
-function lignesDuPlanning(donnees, promo) {
-  const off = new Set(tableau(donnees.joursOff).map((j) => cleJour(j.semaine_lundi, j.day_index)).filter(Boolean));
-  return tableau(donnees.planning).filter((e) => e.promo_id === promo?.id && !off.has(cleJour(e.semaine_lundi, e.day_index)));
-}
-
-// Les demi-journées de formation : (semaine, jour, demi-journée) distincts dont une ligne au moins porte quelque chose.
-// Rend les lignes de chacune, par clé.
-function demiJournees(lignes) {
-  const parCle = new Map();
-  lignes.filter(porteQuelqueChose).forEach((e) => {
-    if (!jourDeLigne(e)) return;
-    const cle = `${e.semaine_lundi}|${e.day_index}|${e.half_day}`;
-    if (!parCle.has(cle)) parCle.set(cle, []);
-    parCle.get(cle).push(e);
-  });
-  return parCle;
-}
+// --- Planning : l'ordre des lignes et les semaines (les demi-journées et les intervenants suivent la règle de l'inventaire) ---
 
 const rang = (e) => (Number.isInteger(e.day_index) ? e.day_index : 9) * 2 + (e.half_day === "aprem" ? 1 : 0);
 
@@ -165,14 +124,13 @@ function lignesSemaines(planning, nomDe) {
       noms.forEach((a) => activites.set(a, (activites.get(a) || 0) + 1));
     });
     const chrono = [...lignes].sort((a, b) => rang(a) - rang(b));
-    const formateurs = [...new Set(chrono.flatMap((e) => tableau(e.prof_ids)).filter((id) => id != null).map(nomDe))].sort(enFrancais);
-    const exterieurs = new Set(lignes.map((e) => e.prof_autre).filter(rempli).map((nom) => nom.trim().toLowerCase())).size;
-    const benevoles = new Set(lignes.flatMap((e) => tableau(e.benevoles_ids)).filter((id) => id != null)).size;
+    const { formateurs, benevoles, exterieurs } = intervenantsDistincts(lignes);
     const sujets = [...new Set(chrono.flatMap((e) => [e.sujet, e.sujet_2]).filter(rempli).map((s) => s.trim()))];
     return [
       dateFr(lundi), String(demis.size),
       [...activites].sort(([a], [b]) => enFrancais(a, b)).map(([a, k]) => `${a} : ${k}`).join(" ; ") || "aucune",
-      formateurs.join(", ") || "aucun", String(exterieurs), String(benevoles), sujets.join(" ; ") || "aucun",
+      [...new Set([...formateurs].map(nomDe))].sort(enFrancais).join(", ") || "aucun", String(exterieurs), String(benevoles.size),
+      sujets.join(" ; ") || "aucun",
     ];
   });
 }
@@ -509,17 +467,25 @@ function sectionRessourcesCentre({ promos }) {
   };
 }
 
-// Titres et dates des Nouveautés de la période : des textes de l'app, sans donnée personnelle (jamais le résumé).
+// Les annonces de l'application (rubrique Nouveautés) de la période : leur nombre et leur étendue, puis chacune citée telle
+// qu'elle a été publiée, avec sa date et son titre entre guillemets français. Ce sont des textes de l'app, sans donnée
+// personnelle, dans les deux versions ; jamais le résumé. Les titres s'adressent aux utilisateurs, souvent à la deuxième
+// personne : la citation entre guillemets échappe à la règle des documents impersonnels (R9), qui vaut pour tout le reste.
 function sectionInnovationsCentre({ nouveautes, periode }) {
   const [du, au] = [jourDe(periode?.du), jourDe(periode?.au)];
   const retenues = tableau(nouveautes).map((x) => ({ jour: jourDe(x?.date), titre: texte(x?.titre, "sans titre") }))
     .filter((x) => x.jour !== null && (du === null || x.jour >= du) && (au === null || x.jour <= au))
     .sort((a, b) => (a.jour < b.jour ? -1 : a.jour > b.jour ? 1 : enFrancais(a.titre, b.titre)));
+  if (!retenues.length) return { paragraphes: ["Aucune annonce de l'application dans la période."], tableaux: [] };
+  const [premiere, derniere] = [retenues[0].jour, retenues[retenues.length - 1].jour];
+  const etendue = premiere === derniere ? `le ${dateFr(premiere)}` : `du ${dateFr(premiere)} au ${dateFr(derniere)}`;
   return {
-    paragraphes: [retenues.length
-      ? `${nb(retenues.length, "nouveauté", "nouveautés")} de l'application datées dans la période.`
-      : "Aucune nouveauté de l'application datée dans la période."],
-    tableaux: table(["Date", "Nouveauté"], retenues.map((x) => [dateFr(x.jour), x.titre])),
+    paragraphes: [
+      `${nb(retenues.length, "annonce")} de l'application ${etendue}.`,
+      "Annonces de l'application, citées telles qu'elles ont été publiées :",
+      ...retenues.map((x) => `${dateFr(x.jour)} : « ${x.titre} »`),
+    ],
+    tableaux: [],
   };
 }
 
@@ -529,7 +495,7 @@ function lignesFormateurs(promos) {
   const demis = new Map();
   promos.forEach(({ promo, donnees }) => {
     demiJournees(lignesDuPlanning(donnees || {}, promo)).forEach((lignes, cle) => {
-      lignes.flatMap((e) => tableau(e.prof_ids)).filter((id) => id != null).forEach((id) => {
+      intervenantsDistincts(lignes).formateurs.forEach((id) => {
         if (!demis.has(id)) demis.set(id, new Set());
         demis.get(id).add(`${promo?.id}|${cle}`);
       });
