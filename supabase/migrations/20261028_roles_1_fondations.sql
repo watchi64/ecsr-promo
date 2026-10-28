@@ -207,10 +207,13 @@ grant execute on function public.est_fondateur(), public.est_formateur(integer),
 
 -- 3. Droits et règles de la table ----------------------------------------------------------------------------------
 -- Lecture, ajout et retrait pour authenticated ; rien pour anon ; aucune modification (on retire puis on ajoute).
+-- L'ajout n'ouvre que quatre colonnes (email, role, promo_id, lieu_id) : cree_par et cree_le gardent toujours leur
+-- valeur par défaut : un client ne peut ni signer une ligne au nom d'un autre, ni l'antidater.
 -- L'identifiant vient de sa séquence sans droit sur elle (colonne d'identité) : la séquence reste fermée.
 alter table public.affectations enable row level security;
 revoke all on public.affectations from public, anon, authenticated;
-grant select, insert, delete on public.affectations to authenticated;
+grant select, delete on public.affectations to authenticated;
+grant insert (email, role, promo_id, lieu_id) on public.affectations to authenticated;
 revoke all on sequence public.affectations_id_seq from public, anon, authenticated;
 
 -- Lecture : ses propres lignes ; tout pour le fondateur ; les formateurs d'une promo dont on est formateur ou

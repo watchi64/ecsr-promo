@@ -44,7 +44,7 @@ declare
   v_cible constant text := 'preuve.cible@exemple.invalid';
   -- Promos et lieux : la promo 1 sert de repère, les lieux sont lus en base.
   v_promo1 constant integer := 1;
-  v_promos integer[]; v_lieux integer[]; v_lieu1 integer; v_lieu2 integer; v_promo_l2 integer;
+  v_promos integer[]; v_lieux integer[]; v_lieu1 integer; v_lieu2 integer; v_promo_l2 integer; v_promo_inconnue integer;
   v_migration boolean := false; v_fictifs boolean := false;
   i integer; v_txt text; v_obt text; v_r record;
   c_vocabulaire constant text[] := array['apercu_role', 'direction_courante', 'equipe_courante', 'est_direction',
@@ -76,6 +76,7 @@ begin
    where up.role = 'stagiaire' and not up.is_admin and not up.is_founder and s.actif
    order by s.promo_id, s.id limit 1;
   v_promos := array(select pr.id from promos pr order by pr.id);
+  v_promo_inconnue := (select max(pr.id) + 1000 from promos pr); -- un identifiant qui n'est pas une promo
   v_lieux := array(select l.id from lieux l order by l.id);
   select pr.lieu_id into v_lieu1 from promos pr where pr.id = v_promo1;
   select pr.lieu_id, pr.id into v_lieu2, v_promo_l2 from promos pr where pr.lieu_id <> v_lieu1 order by pr.id limit 1;
@@ -153,8 +154,9 @@ begin
             from pg_attribute t cross join lateral aclexplode(t.attacl) x
            where t.attrelid = to_regclass('public.affectations') and t.attacl is not null
              and (x.grantee = 0 or x.grantee::regrole::text in ('anon', 'authenticated'))) d;
-  perform pg_temp.attendre('structure', 'droits de la table : select, insert, delete pour authenticated, rien d''autre',
-    v_obt, 'authenticated:DELETE, authenticated:INSERT, authenticated:SELECT');
+  perform pg_temp.attendre('structure', 'droits de la table : select et delete pour authenticated, insert limité à email, role, promo_id, lieu_id, rien d''autre',
+    v_obt, 'authenticated:DELETE, authenticated:SELECT, colonne email:INSERT, colonne lieu_id:INSERT, '
+           || 'colonne promo_id:INSERT, colonne role:INSERT');
   select case when to_regclass('public.affectations_id_seq') is null then 'séquence absente'
               else coalesce(string_agg(case when a.grantee = 0 then 'PUBLIC' else a.grantee::regrole::text end
                                        || ':' || a.privilege_type, ', '), 'aucun') end
@@ -325,6 +327,27 @@ begin
   perform pg_temp.attendre('vocabulaire', 'lieu_de_promo : le lieu de chaque promo, pour le visiteur aussi',
     pg_temp.sur_chaque(null, null, null, 'select public.lieu_de_promo(%s)::text', v_promos),
     (select string_agg(pr.id || '=' || pr.lieu_id, ' ' order by pr.id) from promos pr));
+  -- Arguments nuls : les fonctions rendent faux, jamais nul (un nul ne se lit ni vrai ni faux dans une règle), pour des
+  -- personnages hors fondateur : formateur réel 1, stagiaire réel, direction et siège fictifs, visiteur (le dernier
+  -- élément nul du tableau). La promo inconnue est choisie par requête (le plus grand identifiant plus 1 000).
+  perform pg_temp.attendre('vocabulaire', 'est_formateur(null) rend faux, jamais nul : formateur réel 1, stagiaire réel, direction et siège fictifs, visiteur',
+    (select string_agg(pg_temp.valeur(p.email, null, null, $q$select coalesce(public.est_formateur(null)::text, 'nul')$q$),
+                       ' ' order by p.o)
+       from unnest(array[v_form[1], v_stag, v_dir1, v_siege, null]) with ordinality p(email, o)),
+    'false false false false false');
+  perform pg_temp.attendre('vocabulaire', 'est_direction(null) rend faux, jamais nul : formateur réel 1, stagiaire réel, direction et siège fictifs, visiteur',
+    (select string_agg(pg_temp.valeur(p.email, null, null, $q$select coalesce(public.est_direction(null)::text, 'nul')$q$),
+                       ' ' order by p.o)
+       from unnest(array[v_form[1], v_stag, v_dir1, v_siege, null]) with ordinality p(email, o)),
+    'false false false false false');
+  perform pg_temp.attendre('vocabulaire', 'est_direction(lieu_de_promo(promo inconnue)) rend faux, jamais nul (lieu_de_promo rend nul pour une promo inconnue) : mêmes personnages',
+    concat_ws(' ',
+      pg_temp.valeur(null, null, null, format($q$select coalesce(public.lieu_de_promo(%s)::text, 'nul')$q$, v_promo_inconnue)),
+      (select string_agg(pg_temp.valeur(p.email, null, null,
+                           format($q$select coalesce(public.est_direction(public.lieu_de_promo(%s))::text, 'nul')$q$, v_promo_inconnue)),
+                         ' ' order by p.o)
+         from unnest(array[v_form[1], v_stag, v_dir1, v_siege, null]) with ordinality p(email, o))),
+    'nul false false false false false');
   perform pg_temp.attendre('vocabulaire', 'formateur_courant, equipe_courante, redacteur_contenus : formateur réel 1 sur chaque promo affichée',
     concat_ws(' ', pg_temp.sur_chaque_promo(v_form[1], null, 'select public.formateur_courant()::text', v_promos),
                    pg_temp.sur_chaque_promo(v_form[1], null, 'select public.equipe_courante()::text', v_promos),
@@ -450,8 +473,9 @@ begin
     pg_temp.valeur(v_stag, v_stag_promo::text, 'formateur', 'select public.formateur_courant()::text'), 'false');
 
   -- 9. Règles de la table affectations. Lecture : la liste exacte des lignes vues, comparée à la matrice écrite ici
-  --    en SQL direct. Écritures toujours annulées (sous-transaction) ; un ajout se tente sans RETURNING et un retrait
-  --    sans WHERE, pour que seule la règle d'écriture joue (celle de lecture s'y ajoute dès qu'une colonne est lue).
+  --    en SQL direct. Écritures toujours annulées (sous-transaction) ; un ajout se tente sans RETURNING (sauf le
+  --    contrôle de la voie return=representation de PostgREST) et un retrait sans WHERE, pour que seule la règle
+  --    d'écriture joue (celle de lecture s'y ajoute dès qu'une colonne est lue).
   perform pg_temp.attendre('affectations', 'lecture, formateur réel 1 : ses lignes et les formateurs de ses promos',
     pg_temp.valeur(v_form[1], null, null, c_ids),
     pg_temp.calcul(format($q$select coalesce(string_agg(a.id::text, ',' order by a.id), '') from public.affectations a
@@ -509,6 +533,30 @@ begin
     concat_ws(' ; ', pg_temp.ecrire(v_form[1], null, null, v_txt), pg_temp.ecrire(v_stag, null, null, v_txt),
                      pg_temp.ecrire(null, null, null, v_txt)),
     'REFUS 42501 ; REFUS 42501 ; REFUS 42501');
+  -- Le droit d'insertion ne couvre que email, role, promo_id et lieu_id : un ajout qui nomme cree_par ou cree_le est
+  -- refusé (42501, droit manquant sur la colonne) pour la direction fictive, dont le même ajout sans cette colonne est
+  -- permis (contrôle plus haut), comme pour le fondateur, que les règles autorisent partout.
+  perform pg_temp.attendre('affectations', 'ajout refusé (42501) : un ajout qui nomme cree_par, par la direction du lieu de la promo 1 et par le fondateur',
+    concat_ws(' ; ',
+      pg_temp.ecrire(v_dir1, null, null,
+        format('insert into public.affectations (email, role, promo_id, cree_par) values (%L, ''formateur'', %s, %L)',
+               v_cible, v_promo1, v_siege)),
+      pg_temp.ecrire(v_fond, null, null,
+        format('insert into public.affectations (email, role, cree_par) values (%L, ''siege'', %L)', v_cible, v_siege))),
+    'REFUS 42501 ; REFUS 42501');
+  perform pg_temp.attendre('affectations', 'ajout refusé (42501) : un ajout qui nomme cree_le, par la direction du lieu de la promo 1 et par le fondateur',
+    concat_ws(' ; ',
+      pg_temp.ecrire(v_dir1, null, null,
+        format('insert into public.affectations (email, role, promo_id, cree_le) values (%L, ''formateur'', %s, now() - interval ''1 day'')',
+               v_cible, v_promo1)),
+      pg_temp.ecrire(v_fond, null, null,
+        format('insert into public.affectations (email, role, cree_le) values (%L, ''siege'', now() - interval ''1 day'')', v_cible))),
+    'REFUS 42501 ; REFUS 42501');
+  -- La voie de PostgREST avec return=representation : INSERT ... RETURNING, qui relit la ligne par la règle de lecture.
+  perform pg_temp.attendre('affectations', 'ajout avec returning id (voie return=representation de PostgREST) : direction du lieu de la promo 1, un formateur de la promo 1',
+    pg_temp.ecrire(v_dir1, null, null,
+      format('insert into public.affectations (email, role, promo_id) values (%L, ''formateur'', %s) returning id', v_cible, v_promo1)),
+    'OK 1');
   perform pg_temp.attendre('affectations', 'retrait, direction du lieu de la promo 1 : les formateurs des promos de son lieu, rien d''autre',
     pg_temp.ecrire(v_dir1, null, null, 'delete from public.affectations', c_ids),
     pg_temp.calcul(format(c_retrait, format('role = ''formateur'' and promo_id in (select pr.id from public.promos pr where pr.lieu_id = %s)', v_lieu1))));
