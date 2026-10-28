@@ -43,8 +43,8 @@ modules ES sans framework, `node --test`, preuves SQL rejouables (`tests/sql/`).
 2. Un ancien client resté en cache sur un iPhone : il lit `is_admin` et `role`, appelle `invite-user` ; ces
    colonnes restent identiques pour tous les comptes réels (Task 3) et l'app retombe sur elles quand la base ne
    donne pas encore `roles` (Task 7).
-3. L'en-tête d'aperçu envoyé par un autre compte que le fondateur, ou resté posé après « Revenir fondateur » ou
-   une déconnexion : la base l'ignore (Task 3), l'app le retire (Task 7).
+3. L'en-tête d'aperçu `formateur`, `direction` ou `siege` envoyé par un autre compte que le fondateur, ou un
+   aperçu resté posé après « Revenir » ou une déconnexion : la base l'ignore (Task 3), l'app le retire (Task 7).
 4. Les écritures « insérer ou mettre à jour » de l'app (`settings`, `qcm_examens`) sous les nouvelles règles :
    la preuve les joue sous la forme exacte de l'app (Task 3).
 5. Une table ajoutée à `main` par une conversation parallèle (signalement, Qualiopi, veille) avant la fusion :
@@ -77,12 +77,13 @@ modification (on retire puis on ajoute).
 `invite-user`, elles ne décident plus d'aucun droit. Une invitation de formateur pose encore `role = 'prof'` et
 `is_admin = true` pour que les anciens clients affichent le bon écran.
 
-**Aperçu fidèle** : l'app du fondateur en aperçu envoie l'en-tête `x-apercu-role` (`stagiaire`, `formateur`,
-`direction`, `siege`) sur chaque requête de données, comme `x-promo-id`. La base l'honore pour le seul fondateur
-(colonne `is_founder` lue par l'email du jeton) et seulement pour retirer des droits : elle répond alors comme
-pour une personne de ce rôle sur la promo affichée (formateur de cette promo, direction de son centre, siège,
-stagiaire avec la fiche du fondateur s'il en a une dans cette promo). La navigation entre promos reste celle du
-fondateur. Vérifié le 28/10 : la passerelle de Supabase accepte cet en-tête depuis le navigateur. Limites
+**Aperçu fidèle** : l'app en aperçu envoie l'en-tête `x-apercu-role` (`stagiaire`, `formateur`, `direction`,
+`siege`) sur chaque requête de données, comme `x-promo-id`. Un aperçu ne fait que retirer des droits : la base
+honore `stagiaire` pour tout compte (« Voir comme un stagiaire » des formateurs, spec § 4.2, demandé après les
+tests du premier clic du 28/10) et les trois autres pour le seul fondateur (colonne `is_founder` lue par l'email
+du jeton). Elle répond alors comme pour une personne de ce rôle sur la promo affichée (formateur de cette promo,
+direction de son centre, siège, stagiaire avec la fiche de l'appelant s'il en a une dans cette promo, sinon sans
+fiche). La navigation entre promos reste celle de l'appelant. Vérifié le 28/10 : la passerelle de Supabase accepte cet en-tête depuis le navigateur. Limites
 assumées : le stockage des images et les fonctions Edge ne reçoivent pas l'en-tête (l'aperçu y garde les droits
 du fondateur).
 
@@ -102,7 +103,7 @@ pg_temp`, email comparé en minuscules à `auth.jwt() ->> 'email'`.
 | Fonction | Rend | En aperçu (fondateur seulement) |
 |---|---|---|
 | `fondateur_reel()` | le fondateur, aperçu ou non (interne, pas de droit d'exécution public) | vrai |
-| `apercu_role()` | le rôle simulé, ou null (en-tête invalide, absent, ou appelant non fondateur) | le rôle |
+| `apercu_role()` | le rôle simulé, ou null (en-tête invalide ou absent ; `formateur`, `direction`, `siege` venant d'un autre compte que le fondateur) | le rôle |
 | `est_fondateur()` | fondateur hors aperçu | faux |
 | `est_formateur(p integer)` | affectation formateur sur `p`, ou fondateur | `formateur` : `p` est la promo affichée ; sinon faux |
 | `est_direction(l integer)` | affectation direction sur le lieu `l`, ou fondateur | `direction` : `l` est le lieu affiché ; sinon faux |
@@ -243,7 +244,8 @@ les deux fichiers de retour, que la Task 6 éprouve par un aller-retour.
 - [ ] **Step 1 : écrire la preuve** (bloc `do`, levée finale, personnages fictifs créés dans le bloc) avec ces
   contrôles : `est_formateur(1)`, `(2)`, `(7)` vrais pour chaque formateur réel après l'amorce ; faux pour un
   stagiaire réel ; `est_fondateur()` vrai pour le fondateur, faux avec `x-apercu-role: stagiaire` ;
-  `apercu_role()` null pour un stagiaire qui envoie `formateur` ; `est_direction(1)` vrai pour une direction
+  `apercu_role()` null pour un stagiaire qui envoie `formateur` ; `apercu_role() = 'stagiaire'` pour un
+  formateur réel qui envoie `stagiaire`, et `est_formateur(1)` faux alors ; `est_direction(1)` vrai pour une direction
   fictive du lieu 1, faux pour le lieu 2 ; `est_siege()` vrai en aperçu `siege` ; contrainte de portée qui refuse
   un formateur sans promo ; empreinte `regles` hors table `affectations` inchangée ; retour joué ensuite :
   empreintes identiques à celles de la Task 1.
@@ -277,8 +279,9 @@ la promo 1), `stag_m` (fiche de la promo 2), `form_n` (formateur de 1), `form_m`
     acceptés ou refusés selon elle (refus tentés sans `returning`, constat en propriétaire) ;
   - siège : 0 ligne de toute table d'une promo ou d'un lieu, 0 profil de stagiaire, dans chaque contexte ;
   - aperçu : le fondateur en aperçu `formateur`, `direction`, `siege` sur la promo 1 voit exactement ce que voient
-    `form_n`, `dir_n`, `siege` ; en `stagiaire`, ce qu'attend le modèle pour sa fiche ; `stag_n` qui envoie
-    `x-apercu-role: formateur` ne voit rien de plus ;
+    `form_n`, `dir_n`, `siege` ; en `stagiaire`, ce qu'attend le modèle pour sa fiche ; `form_n` en aperçu
+    `stagiaire` sur la promo 1 voit ce qu'attend le modèle pour un stagiaire sans fiche et n'écrit plus rien de
+    formateur (planning, notes : refus) ; `stag_n` qui envoie `x-apercu-role: formateur` ne voit rien de plus ;
   - R32 : `navigation_v2` et `emargement_actif` écrits (forme de l'app : insérer ou mettre à jour) par le
     fondateur : OK ; par `form_n`, `dir_n`, `stag_n`, le fondateur en aperçu `formateur` : refus ; `modules` par
     `form_n` et `dir_n` en promo 1 : OK, par `dir_n` en promo 2 et par `stag_n` : refus ;
@@ -343,13 +346,15 @@ signatures exactes ; `mes_promos()` avec `roles text[]` en dernière colonne.
 ### Task 7 : app, droits affichés, aperçu à quatre rôles, invitations
 
 **Files :** Create `js/roles-rules.js`, `tests/roles-rules.test.mjs` ; Modify `js/auth-admin.js`, `js/db.js`,
-`js/views/config.js`, `css/style.css` (`.view-as-seg`), `js/nouveautes-data.js`.
+`js/menu-compte.js`, `js/promo-pastille.js`, `js/views/config.js`, `css/style.css` (`.view-as-seg`),
+`js/nouveautes-data.js`. Le lot 2 ne touche ni `js/auth-admin.js` ni `js/menu-compte.js` (accord du 28/10).
 
 **Interfaces :** Produces dans `js/roles-rules.js` : `APERCUS = ["formateur", "direction", "siege", "stagiaire"]` ;
 `LIBELLES_APERCU` (Formateur, Direction, Siège, Stagiaire) ; `ENTETE_APERCU = "x-apercu-role"` ;
-`normaliserApercu(v) -> string|null` ; `droitsAffiches({ profil, promo, apercu }) -> { admin, prof, stagiaire,
-espace }` ; `peutInviterFormateur({ profil, promo, apercu }) -> boolean` ; `peutRetirerCompte({ cible, fondateur })
--> boolean`. Dans `js/db.js` : `poserApercu(role|null)`.
+`normaliserApercu(v) -> string|null` ; `apercusPermis({ profil, promo }) -> string[]` (fondateur : les quatre ;
+membre de l'équipe de la promo affichée : `["stagiaire"]` ; sinon `[]`) ; `droitsAffiches({ profil, promo, apercu })
+-> { admin, prof, stagiaire, espace }` ; `peutInviterFormateur({ profil, promo, apercu }) -> boolean` ;
+`peutRetirerCompte({ cible, fondateur }) -> boolean`. Dans `js/db.js` : `poserApercu(role|null)`.
 
 - [ ] **Step 1 : tests** `tests/roles-rules.test.mjs` :
   - formateur réel (`role 'prof'`, `is_admin`, `promo.roles ['formateur']`) : `{ admin: true, prof: true,
@@ -362,16 +367,22 @@ espace }` ; `peutInviterFormateur({ profil, promo, apercu }) -> boolean` ; `peut
   - aperçus : `formateur` `{ true, true, false, "equipe" }` ; `direction` et `siege` `{ false, true, false,
     "equipe" }` ; `stagiaire` `{ false, false, true, "stagiaire" }` ;
   - `normaliserApercu("prof") === "formateur"`, `("admin") === null`, `("siege") === "siege"` ;
+  - `apercusPermis` : fondateur `["formateur", "direction", "siege", "stagiaire"]` ; formateur réel `["stagiaire"]` ;
+    direction réelle `["stagiaire"]` ; stagiaire `[]` ; un aperçu hors de cette liste est ignoré par
+    `droitsAffiches` (un formateur qui aurait `formateur` en mémoire garde ses droits réels) ;
   - `peutInviterFormateur` : fondateur hors aperçu vrai ; formateur faux ; direction vrai ; fondateur en aperçu
     `formateur` faux ; `peutRetirerCompte` : jamais le fondateur ; un compte du personnel seulement par le
     fondateur ; un stagiaire, oui.
 - [ ] **Step 2 : les voir échouer** : `node --test tests/roles-rules.test.mjs` (module absent).
 - [ ] **Step 3 : écrire `js/roles-rules.js`.**
 - [ ] **Step 4 : brancher** : `isAdmin`, `isProf`, `isStagiaire` lisent `droitsAffiches` (profil, promo courante,
-  aperçu) ; l'aperçu accepte les quatre rôles (ancienne valeur « prof » lue comme `formateur`) ; bandeau
-  « Aperçu : <libellé> » ; sélecteur à cinq boutons (Fondateur, Formateur, Direction, Siège, Stagiaire) qui
-  passent à la ligne, 44 px sur téléphone ; `monStagiaireId()` nul en aperçu autre que stagiaire ; à chaque
-  changement d'aperçu, `poserApercu` et `invalidateCache()` ; en-tête retiré à « Revenir fondateur », à la
+  aperçu) ; l'aperçu accepte les rôles de `apercusPermis` (ancienne valeur « prof » lue comme `formateur`) ;
+  bandeau « Aperçu : <libellé> » avec « Revenir fondateur » pour le fondateur, « Quitter l'aperçu » sinon ;
+  fondateur : sélecteur à cinq boutons (Fondateur, Formateur, Direction, Siège, Stagiaire) qui passent à la
+  ligne, 44 px sur téléphone ; formateur et direction : une ligne « Voir comme un stagiaire » dans le menu du
+  compte (ancien et nouveau, via `buildViewAsBlock`) et un bouton « Voir cette promo comme un stagiaire » dans
+  la fenêtre du sélecteur de promo (`js/promo-pastille.js`) ; `monStagiaireId()` nul en aperçu autre que
+  stagiaire ; à chaque changement d'aperçu, `poserApercu` et `invalidateCache()` ; en-tête retiré à « Revenir », à la
   déconnexion et au refus de session ; `fetchWithTimeout` pose `x-apercu-role` à côté de `x-promo-id` ;
   `inviteUser` appelle la fonction `inviter_compte` (« prof » envoyé comme `formateur`) ; `deleteUserProfile` relit
   la ligne supprimée et lève « Ce compte ne peut pas être retiré d'ici » si rien n'est parti.
@@ -380,7 +391,8 @@ espace }` ; `peutInviterFormateur({ profil, promo, apercu }) -> boolean` ; `peut
 - [ ] **Step 6 : Nouveautés** (pour « formateurs », date du jour de mise en ligne, posée à la fusion) : chacun ne
   voit que les promos où il intervient, la base le vérifie elle-même ; rien ne change pour toi ; un nouveau
   formateur s'ajoute désormais par la direction du centre (en attendant, par Timy) ; tu invites toujours les
-  stagiaires de tes promos.
+  stagiaires de tes promos ; nouveau : « Voir comme un stagiaire », dans le menu de ton compte et le choix de la
+  promo, montre l'app telle que la voit un stagiaire (sans pouvoir rien y modifier), « Quitter l'aperçu » ramène.
 - [ ] **Step 7 : `node --test "tests/*.test.mjs"`** : tout vert (1 067 + les nouveaux).
 - [ ] **Step 8 : commit** « Lot 4 : droits affichés selon la base, aperçu à quatre rôles, invitation par la base ».
 
@@ -391,8 +403,9 @@ espace }` ; `peutInviterFormateur({ profil, promo, apercu }) -> boolean` ; `peut
 - [ ] **Step 1 :** le faux client rend `roles` dans `mes_promos` (`?role=prof` : `formateur` ; stagiaire et
   fondateur : `stagiaire`) et accepte `inviter_compte` (écriture notée, pas faite).
 - [ ] **Step 2 :** au banc (`?cb=<unique>`, jeton vérifié), pour chaque aperçu : bandeau, espace (équipe ou
-  stagiaire), sélecteur sur téléphone (cinq boutons visibles, 44 px, rien qui défile de côté) ; Réglages d'un
-  formateur sans l'option « Formateur ». Captures.
+  stagiaire), sélecteur sur téléphone (cinq boutons visibles, 44 px, rien qui défile de côté) ; formateur
+  (`?role=prof`) : « Voir comme un stagiaire » dans le menu du compte et le sélecteur de promo, coquille du
+  stagiaire puis « Quitter l'aperçu » ; Réglages d'un formateur sans l'option « Formateur ». Captures.
 - [ ] **Step 3 :** `python outils/verifier_navigation.py` (Chromium et WebKit) : 0 échec, parité « interrupteur
   éteint = main » intacte.
 
@@ -416,6 +429,4 @@ espace }` ; `peutInviterFormateur({ profil, promo, apercu }) -> boolean` ; `peut
 
 - Lot 5 : pages de la direction (Promos, Équipe) et du siège (vue d'ensemble agrégée, directions) ; un compte du
   seul siège n'a aucune promo et la porte de l'app le refuse aujourd'hui (« Aucune promo… ») : à ouvrir au lot 5.
-- « Voir cette promo comme un stagiaire » pour les formateurs (spec, § 4.2) : la base sait déjà le servir si on
-  l'ouvre plus tard à tous (un aperçu ne fait que retirer des droits).
 - Ménage du multi-promo (étape 5) : il libérera `qcm` et `themes` pour le siège.
