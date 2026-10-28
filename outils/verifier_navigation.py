@@ -6,7 +6,7 @@ Usage
 -----
     python outils/verifier_navigation.py [URL_DU_BANC] [options]
 
-    python outils/verifier_navigation.py                              # tout, deux moteurs (environ 2 minutes)
+    python outils/verifier_navigation.py                              # tout, deux moteurs (environ 3 minutes)
     python outils/verifier_navigation.py --roles stagiaire --sans-menus   # coquille du stagiaire seule (Task 4)
 
 Prérequis : le serveur du banc (configuration « maquette-nav », qui sert la racine du worktree) et un
@@ -48,8 +48,8 @@ manque) :
 Dans chaque contexte : l'arrivée à froid, chaque entrée de la coquille (cliquée dans la coquille, ou
 via « Plus » sur téléphone quand elle y est rangée ; la liste vient des règles de js/nav-rules.js,
 lues dans la page), chaque sous-onglet des pages qui en ont (Planning, Cours, Mon espace, Notes...), les
-pages du menu du compte sans entrée à elles (Mon espace, Réglages, Nouveautés), puis les menus (compte,
-« Plus », contexte, assistant).
+pages du menu du compte sans entrée à elles (Mon espace, Réglages, Nouveautés), les quatre anciennes adresses
+(ruling R26, ci-dessous), puis les menus (compte, « Plus », contexte, assistant).
 
 Contrôles par vue
 -----------------
@@ -73,6 +73,10 @@ Contrôles par vue
   * menus et tiroirs : entièrement dans l'écran, fermés par Échap (le retour du focus sur le bouton qui les
     a ouverts n'est qu'un avertissement) ;
   * l'attente de la coquille (`body[data-nav-attente]`, ruling R17) n'est plus posée, dans les deux passes ;
+  * les quatre anciennes adresses (`#/calendrier`, `#/dashboard`, `#/ressources`, `#/notes`, ruling R26) : allumé, la nouvelle
+    page et son sous-onglet allumé (Planning : Dates clés, Priorités ; Cours : Documents ; Mon espace : La classe chez
+    le stagiaire, mais Notes reste la page de l'équipe ; module fermé au départ : le premier sous-onglet visible),
+    et « Précédent » quitte la page redirigée ; éteint, l'adresse et la page restent celles d'aujourd'hui ;
   * aucune erreur de console ni de page.
 
 Contrat de balisage de la coquille (Tasks 4 et 5)
@@ -113,6 +117,9 @@ par `--script-init`, et le script a échoué avec le message attendu ; la coquil
     allumé à la place du lien, entrée sans `title`, libellé réservé aux lecteurs d'écran sans `title`
     (colonne d'icônes et barre du bas), lien d'évitement trop petit une fois affiché au focus ;
   * page : une page qui perd ses sous-onglets ;
+  * anciennes adresses (ruling R26), défauts injectés dans la redirection de js/main.js : aucune redirection, redirection suivie
+    interrupteur éteint, redirection par `location.hash` (étape d'historique en trop), mauvaise clé de sous-onglet,
+    Notes de l'équipe redirigé ;
   * menus : Échap qui ne ferme pas, menu hors de l'écran, tiroir resté ouvert (avertissement) ; focus rendu
     à body quand le bouton d'une fenêtre a disparu (« Plus » > « Mon compte » > « Stagiaire ») ou ne
     s'affiche plus (écran élargi tiroir ouvert), tiroir resté ouvert quand l'écran passe à 900 px (sur la
@@ -1260,6 +1267,49 @@ def parcourir_entrees(page, res, sc, entrees, options, avec_sous_vues=True):
             sous_vues(page, res, sc, entree["route"], options)
 
 
+# Ruling R26 : les quatre anciennes adresses (liens de l'app, favoris, raccourcis d'écran d'accueil) : la page et le
+# sous-onglet que la nouvelle navigation ouvre.
+ANCIENNES_ADRESSES = {"calendrier": ("#/planning", "Dates clés"), "dashboard": ("#/planning", "Priorités"),
+                      "ressources": ("#/themes", "Documents"), "notes": ("#/mon-suivi/classe", "La classe")}
+# Sous-onglet allumé de la page : la partie de Mon espace sur téléphone (son titre), sinon le premier sous-onglet actif.
+JS_SOUS_ONGLET_ALLUME = """() => {
+    const e = document.querySelector('#view h2.fiche-titre') || document.querySelector('#view .subtabs-bar > .subtab.active');
+    return e ? (e.childNodes[0] ? e.childNodes[0].textContent : e.textContent).trim() : null;
+}"""
+
+
+def jouer_anciennes_adresses(page, res, sc):
+    """Ruling R26 : chaque ancienne adresse, ouverte depuis Accueil. Nouvelle navigation : elle mène à sa nouvelle page, le
+    sous-onglet visé allumé (module fermé, stagiaire au départ : le premier visible, ou aucun s'il est seul) ; Notes
+    garde sa page chez l'équipe. « Précédent » quitte la page redirigée sans étape d'historique de plus (même mécanisme
+    pour les quatre adresses : vérifié sur la première seulement). Interrupteur éteint : l'adresse reste celle d'aujourd'hui."""
+    depart = sc.modules == "depart" and sc.espace == "stagiaire"
+    aller_a(page, "#/home")
+    attendre(page)
+    for ancienne, (nouvelle, sous_onglet) in ANCIENNES_ADRESSES.items():
+        vue = "%s/ancienne-adresse/%s" % (sc.nom, ancienne)
+        if sc.passe == "eteint" or (ancienne == "notes" and sc.espace == "equipe"):
+            nouvelle, sous_onglet = "#/" + ancienne, None
+        elif depart and ancienne != "calendrier":
+            sous_onglet = "Semaine" if ancienne == "dashboard" else None
+        aller_a(page, "#/" + ancienne)
+        attendre(page, calme=150)
+        res.vues += 1
+        adresse, allume = page.evaluate("() => location.hash"), page.evaluate(JS_SOUS_ONGLET_ALLUME)
+        if adresse != nouvelle:
+            res.echec("ancienne adresse", vue, "#/%s ouvre %s, attendu %s" % (ancienne, adresse, nouvelle))
+        elif sous_onglet and allume != sous_onglet:
+            res.echec("sous-onglet de l'ancienne adresse", vue, "#/%s allume « %s », attendu « %s »" % (ancienne, allume, sous_onglet))
+        if ancienne == "calendrier":
+            page.evaluate("() => history.back()")
+            try:
+                page.wait_for_function("() => location.hash === '#/home'", timeout=2000)
+            except DelaiDepasse:
+                res.echec("historique après redirection", vue, "« Précédent » depuis %s ne ramène pas à #/home : étape d'historique en trop" % adresse)
+            attendre(page, calme=150)
+        vider_console(res, vue)
+
+
 def jouer_allume(page, res, sc, options):
     regles = regles_de_la_page(page, res, sc)
     res.profil_stagiaire = bool(regles.get("profilStagiaire"))
@@ -1278,6 +1328,7 @@ def jouer_allume(page, res, sc, options):
             aller_a(page, "#/" + route)
             verifier_vue(page, res, sc, route, options)
             sous_vues(page, res, sc, route, options)
+    jouer_anciennes_adresses(page, res, sc)
     if res.coquille:
         aller_a(page, "#/home")
         verifier_menus(page, res, sc, options)
@@ -1404,6 +1455,7 @@ def jouer_eteint(page, res, sc, options):
         aller_a(page, "#/" + route)
         verifier_vue(page, res, sc, route, options)
         sous_vues(page, res, sc, route, options)
+    jouer_anciennes_adresses(page, res, sc)
 
 
 def jouer_scenario(navigateur, url, sc, options):
