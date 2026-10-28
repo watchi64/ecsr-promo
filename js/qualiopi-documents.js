@@ -56,7 +56,8 @@ const fr1 = (x) => x.toFixed(1).replace(".", ",");   // comme le tableau de comp
 const table = (entetes, lignes) => (lignes.length ? [{ entetes, lignes }] : []);
 
 // « du 28/09/2026 au 23/10/2026 », « depuis le 28/09/2026 », « jusqu'au 23/10/2026 », ou un mot s'il n'y a aucune date.
-function periodeEnMots(debut, fin) {
+// Exportée : la page Qualiopi écrit ses dates de la même façon (js/views/qualiopi.js).
+export function periodeEnMots(debut, fin) {
   const [d, f] = [dateFr(jourDe(debut)), dateFr(jourDe(fin))];
   if (d && f) return `du ${d} au ${f}`;
   if (d) return `depuis le ${d}`;

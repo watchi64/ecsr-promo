@@ -5,7 +5,7 @@
 import { getCurrentUser, invalidateCache, verifyRecoveryToken } from "./db.js?v=20261028a";
 import { toast } from "./utils.js?v=20261028a";
 import { icon } from "./icons.js?v=20261028a";
-import { initAuth, onAdminChange, isAuth, monStagiaireId, getAdminEmail, getProfile, getProfileWho } from "./auth-admin.js?v=20261028a";
+import { initAuth, onAdminChange, isAuth, isFounder, monStagiaireId, getAdminEmail, getProfile, getProfileWho } from "./auth-admin.js?v=20261028a";
 import { showGate, hideGate } from "./gate.js?v=20261028a";
 import { exigerAcceptation } from "./legal.js?v=20261028a";
 import { lireJetonRecuperation } from "./gate-rules.js?v=20261028a";
@@ -28,6 +28,7 @@ import { libellePastille } from "./nouveautes.js?v=20261028a";
 import { renderCcp2 } from "./views/ccp2.js?v=20261028a";
 import { renderStagiaires } from "./views/stagiaires.js?v=20261028a";
 import { renderCentre, teardownCentrePrint } from "./views/centre.js?v=20261028a";
+import { renderQualiopi, teardownQualiopiPrint } from "./views/qualiopi.js?v=20261028a";
 import { renderEmargement } from "./views/emargement.js?v=20261028a";
 import { initBandeauEmargement, rafraichirBandeauEmargement } from "./emargement-bandeau.js?v=20261028a";
 import { chargerEmargementActif, emargementActif } from "./emargement-etat.js?v=20261028a";
@@ -193,6 +194,7 @@ const routes = {
   ccp2:       renderCcp2,
   stagiaires: renderStagiaires,
   centre:     renderCentre,
+  qualiopi:   renderQualiopi,
   emargement: renderEmargement,
   ressources: renderRessources,
   config:     renderConfig,
@@ -202,8 +204,8 @@ const routes = {
 // Routes sans onglet propre qui doivent quand même allumer un onglet. On arrive
 // sur #/nouveautes depuis Accueil, et sur #/dashboard (Priorités) depuis le
 // Planning : laisser la barre sans onglet actif donnerait l'impression d'être
-// sorti de l'app.
-const ONGLET_POUR_ROUTE = { nouveautes: "home", dashboard: "planning", centre: "home", emargement: "planning" };
+// sorti de l'app. Qualiopi (page du fondateur, sans entrée de barre) s'appuie sur Accueil comme le tableau de bord du centre.
+const ONGLET_POUR_ROUTE = { nouveautes: "home", dashboard: "planning", centre: "home", qualiopi: "home", emargement: "planning" };
 
 let lastRoute = null;
 
@@ -295,6 +297,11 @@ async function navigate({ force = false } = {}) {
     toast("L'émargement n'est pas activé pour cette promo.", "info", 3500);
     try { history.replaceState(null, "", "#/home"); } catch (e) { /* ignore */ }
     route = "home";
+  } else if (route === "qualiopi" && !isFounder()) {
+    // Page Qualiopi (spec 2026-10-28, § 6.3) : le fondateur seul, avant la refonte du lot 5. Aucune entrée de barre ne la
+    // montre aux autres ; une adresse saisie ou un favori les ramène à l'accueil, sans un mot.
+    try { history.replaceState(null, "", "#/home"); } catch (e) { /* ignore */ }
+    route = "home";
   }
   memoriserRoute(route);
   noterAdresse(location.hash);
@@ -326,6 +333,8 @@ async function navigate({ force = false } = {}) {
   teardownDocPrint();
   // Et pour le tableau de bord du centre (format A4 portrait injecté le temps d'imprimer).
   teardownCentrePrint();
+  // Et pour la page Qualiopi (dossier imprimable, format de page et titre du document, le temps d'imprimer).
+  teardownQualiopiPrint();
   try {
     await routes[route](view);
   } catch (e) {

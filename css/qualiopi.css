@@ -1,0 +1,312 @@
+/* ============================================================
+   Page Qualiopi (#/qualiopi, fondateur seul) et documents imprimables
+   (spec 2026-10-28, § 6.3 à 6.5). Rien ne défile de côté : cartes en
+   liste, longs textes à la ligne. Cibles de 44 px, contraste AA, aucun
+   niveau en rouge : le niveau est un mot dans une pastille.
+   ============================================================ */
+
+.qualiopi { max-width: 1100px; overflow-wrap: anywhere; }
+.qualiopi-entete { margin-bottom: 1.25rem; }
+.qualiopi-retour { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.qualiopi .btn { min-height: 44px; white-space: normal; text-align: center; }
+.qualiopi-vide { color: var(--text-muted); }
+
+/* --- Fiche : centre, promo, dates, référentiel, catégorie, alternance --- */
+
+.qualiopi-fiche {
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 0.35rem 1rem 0.2rem;
+  margin: 0 0 1.25rem;
+}
+.qualiopi-fiche-liste { margin: 0; }
+.qualiopi-fiche-ligne {
+  display: grid;
+  grid-template-columns: 9rem minmax(0, 1fr);
+  gap: 0.25rem 1rem;
+  align-items: center;
+  min-height: 44px;
+  padding: 0.3rem 0;
+  border-bottom: 1px solid var(--line-faint);
+}
+.qualiopi-fiche-ligne dt {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.qualiopi-fiche-ligne dd { margin: 0; min-width: 0; font-size: 0.95rem; line-height: 1.45; }
+.qualiopi-fiche-ligne label { cursor: pointer; }
+.qualiopi-select {
+  width: 100%;
+  max-width: 30rem;
+  min-height: 44px;
+  padding: 0.4rem 0.7rem;
+  border: 1px solid var(--text-muted);
+  border-radius: var(--r-sm);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 1rem;
+}
+.qualiopi-select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.qualiopi-case {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-height: 44px;
+  cursor: pointer;
+  font-weight: 500;
+}
+.qualiopi-case input[type="checkbox"] {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+.qualiopi-aide-en-ligne { font-size: 0.88rem; font-weight: 400; color: var(--text-muted); }
+
+/* --- Actions : deux groupes, « Cette formation » et « Le centre » --- */
+
+.qualiopi-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr));
+  gap: 0.75rem;
+  margin: 0 0 1.75rem;
+}
+.qualiopi-groupe {
+  min-width: 0;
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 0.9rem 1rem 1rem;
+}
+.qualiopi-groupe h3 { margin: 0 0 0.7rem; font-size: 1.05rem; }
+.qualiopi-boutons { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 0.9rem; }
+.qualiopi-aide { margin: 0.7rem 0 0; font-size: 0.85rem; line-height: 1.45; color: var(--text-muted); }
+.qualiopi-statut { grid-column: 1 / -1; margin: 0; min-height: 1.4em; font-size: 0.92rem; color: var(--text-soft); }
+.qualiopi-statut.erreur { padding: 0.55rem 0.75rem; border-radius: var(--r-sm); background: var(--c-wait-soft); color: var(--text); }
+
+/* --- Critères et indicateurs --- */
+
+.qualiopi-criteres { display: flex; flex-direction: column; gap: 0.6rem; }
+.qualiopi-titre { margin: 0; font-size: 1.15rem; }
+.qualiopi-intro { margin: 0 0 0.4rem; font-size: 0.9rem; line-height: 1.5; color: var(--text-muted); }
+
+.qualiopi-critere {
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+}
+.qualiopi-critere > summary {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 44px;
+  padding: 0.7rem 1rem;
+  cursor: pointer;
+  list-style: none;
+}
+.qualiopi-critere > summary::-webkit-details-marker { display: none; }
+.qualiopi-critere > summary::after {
+  content: "";
+  flex: none;
+  width: 0.55rem;
+  height: 0.55rem;
+  margin-left: auto;
+  border-right: 2px solid var(--accent-strong);
+  border-bottom: 2px solid var(--accent-strong);
+  transform: rotate(45deg);
+}
+.qualiopi-critere[open] > summary::after { transform: rotate(-135deg); }
+.qualiopi-critere > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: var(--r); }
+.qualiopi-critere-texte { display: flex; flex-direction: column; flex: 1 1 auto; gap: 0.15rem; min-width: 0; }
+.qualiopi-critere-num {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.qualiopi-critere-titre {
+  font-family: var(--font-display);
+  font-size: 1.02rem;
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+.qualiopi-critere-resume { font-size: 0.85rem; color: var(--text-muted); }
+.qualiopi-critere-corps { display: flex; flex-direction: column; gap: 0.6rem; padding: 0.1rem 0.75rem 0.85rem; }
+
+.qualiopi-indicateur {
+  min-width: 0;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  padding: 0.8rem 0.9rem;
+}
+.qualiopi-ind-tete { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 0.4rem 0.65rem; }
+.qualiopi-num {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2rem;
+  height: 1.7rem;
+  padding: 0 0.45rem;
+  border-radius: var(--r-xs);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+.qualiopi-ind-titre {
+  flex: 1 1 14rem;
+  min-width: 0;
+  margin: 0;
+  padding-top: 0.15rem;
+  font-size: 0.98rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+/* Niveaux : des pastilles de texte, jamais rouges (mêmes couleurs que les natures du tableau de bord du centre). */
+.qualiopi-niveau, .qualiopi-piece-etat {
+  flex: none;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 0.14rem 0.55rem;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.qualiopi-niveau.prouve, .qualiopi-piece-etat.presente { background: var(--c-go-soft); color: var(--c-go); }
+.qualiopi-niveau.partiel { background: var(--c-wait-soft); color: var(--c-wait); }
+.qualiopi-niveau.hors, .qualiopi-piece-etat.absente { background: var(--bg-soft); color: var(--text-muted); }
+
+.qualiopi-apporte { margin: 0.5rem 0 0; font-size: 0.88rem; line-height: 1.45; color: var(--text-soft); }
+.qualiopi-pieces { display: flex; flex-direction: column; gap: 0.45rem; margin: 0.6rem 0 0; padding: 0; list-style: none; }
+.qualiopi-piece {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.5rem;
+  align-items: start;
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+.qualiopi-piece-etat { margin-top: 0.1rem; }
+.qualiopi-piece-texte strong { font-weight: 600; }
+.qualiopi-afournir { margin-top: 0.65rem; }
+.qualiopi-afournir-titre {
+  margin: 0 0 0.35rem;
+  font-size: 0.74rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.qualiopi-afournir-titre:last-child { margin-bottom: 0; }
+.qualiopi-puces { display: flex; flex-wrap: wrap; gap: 0.35rem; margin: 0; padding: 0; list-style: none; }
+.qualiopi-puces li {
+  padding: 0.15rem 0.65rem;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: var(--bg-elev);
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+.qualiopi-puces li::first-letter { text-transform: uppercase; }
+
+.qualiopi-na { display: flex; flex-direction: column; gap: 0.5rem; margin: 0; padding: 0.1rem 0.75rem 0.85rem; list-style: none; }
+.qualiopi-na li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.6rem;
+  align-items: start;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--text-soft);
+}
+
+.qualiopi-erreur p { margin: 0 0 0.6rem; }
+
+@media (max-width: 640px) {
+  .qualiopi-fiche { padding: 0.25rem 0.85rem 0.15rem; }
+  .qualiopi-fiche-ligne { grid-template-columns: minmax(0, 1fr); gap: 0.1rem; min-height: 0; padding: 0.55rem 0; }
+  .qualiopi-select { max-width: none; font-size: 16px; }
+  .qualiopi-boutons .btn { flex: 1 1 100%; }
+  .qualiopi-critere > summary { padding: 0.7rem 0.85rem; }
+  .qualiopi-critere-corps { padding: 0.1rem 0.5rem 0.7rem; }
+  .qualiopi-na { padding: 0.1rem 0.85rem 0.85rem; }
+  /* Le bouton « Qualiopi » du tableau de bord du centre (fondateur) : cible de 44 px sur téléphone. */
+  .centre-lien-qualiopi { min-height: 44px; }
+}
+
+/* ============================================================
+   Documents imprimables : #qualiopi-print, enfant direct de <body>, monté le temps
+   d'imprimer (js/views/qualiopi.js). A4 portrait, marges de 12 mm posées par la règle
+   @page injectée. Couleurs fixes : un document papier ne suit pas le thème de l'écran.
+   ============================================================ */
+
+#qualiopi-print { display: none; }
+
+.qdoc { max-width: 100%; background: #fff; color: #1F2924; font-family: var(--font); font-size: 9.5pt; line-height: 1.4; }
+.qdoc p { margin: 0 0 1.6mm; overflow-wrap: anywhere; }
+.qdoc h1, .qdoc h2, .qdoc h3 { margin: 0; font-family: var(--font-display); line-height: 1.15; letter-spacing: -0.01em; color: #1F2924; }
+.qdoc h2 {
+  margin: 7mm 0 2.5mm;
+  padding-bottom: 1.2mm;
+  border-bottom: 0.4mm solid #556641;
+  font-size: 13.5pt;
+  break-after: avoid;
+  page-break-after: avoid;
+}
+.qdoc h3 { margin: 0 0 1.2mm; font-size: 10.5pt; break-after: avoid; page-break-after: avoid; }
+
+.qdoc-garde { padding-top: 28mm; break-after: page; page-break-after: always; }
+.qdoc .qdoc-titre { margin: 0 0 3mm; font-size: 30pt; }
+.qdoc .qdoc-sous-titre { margin: 0 0 12mm; font-size: 15pt; color: #33402a; }
+.qdoc .qdoc-garde-ligne { margin: 0 0 2.6mm; font-size: 11pt; }
+.qdoc .qdoc-phrase { margin: 12mm 0 0; padding: 4mm 5mm; border-left: 1.2mm solid #556641; background: #EEF2E7; }
+
+.qdoc-sommaire { break-after: page; page-break-after: always; }
+.qdoc-sommaire h2 { margin-top: 0; }
+.qdoc .qdoc-servis { font-size: 8.5pt; color: #46554A; }
+
+.qdoc-table { width: 100%; margin: 1.5mm 0 4mm; border-collapse: collapse; font-size: 8.5pt; }
+.qdoc-table th, .qdoc-table td {
+  padding: 1mm 1.6mm;
+  border: 0.2mm solid #B7C0AA;
+  text-align: left;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+.qdoc-table thead { display: table-header-group; }
+.qdoc-table thead th { background: #EAEFD9; color: #33402a; font-weight: 600; overflow-wrap: normal; }   /* un mot d'en-tête ne se coupe pas */
+.qdoc-table tr { break-inside: avoid; page-break-inside: avoid; }
+
+.qdoc-afournir { break-before: page; page-break-before: always; }
+.qdoc-afournir h2 { margin-top: 0; }
+.qdoc-bloc { margin: 0 0 3.5mm; break-inside: avoid; page-break-inside: avoid; }
+.qdoc ul { margin: 0; padding: 0; list-style: none; }
+.qdoc li { display: flex; align-items: flex-start; margin: 0 0 1.2mm; }
+.qdoc-case { flex: none; width: 3.2mm; height: 3.2mm; margin: 0.5mm 2.5mm 0 0; border: 0.3mm solid #1F2924; }
+
+@media print {
+  body.qualiopi-printable > *:not(#qualiopi-print) { display: none !important; }
+  body.qualiopi-printable { margin: 0; padding: 0; background: #fff; }
+  body.qualiopi-printable #qualiopi-print { display: block !important; }
+  #qualiopi-print, #qualiopi-print * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}
