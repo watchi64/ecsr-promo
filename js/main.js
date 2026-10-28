@@ -65,6 +65,13 @@ const TABS = [
   { route: "config",     label: "Paramètres",      icon: "settings"  },
 ];
 
+// Espace de la personne connectée : « equipe » (formateur, admin) ou « stagiaire ». Défini ici une
+// seule fois : la coquille, la redirection des anciennes adresses et les pages réservées à l'équipe
+// lisent le même espace, aucune ne peut s'écarter des autres.
+function espaceCourant() {
+  return espaceDe({ formateur: isAdmin() || isProf() });
+}
+
 // Barre de navigation. Nouvelle navigation : la coquille de l'espace (js/nav-shell.js), remontée à
 // chaque appel (rôle changé par « Voir en tant que », modules ouverts ou fermés) ; l'ancienne barre,
 // masquée, est vidée pour ne garder aucun onglet d'un rôle précédent. Interrupteur éteint : la barre
@@ -72,7 +79,7 @@ const TABS = [
 function renderTabs() {
   if (navigationV2Active()) {
     document.getElementById("tabs").replaceChildren();
-    const espace = espaceDe({ formateur: isAdmin() || isProf() });
+    const espace = espaceCourant();
     const nom = getProfileWho();
     monterCoquille({
       espace,
@@ -210,17 +217,19 @@ function derniereRoute() {
   }
 }
 
-// Nouvelle navigation : une ancienne adresse (favori, raccourci d'écran d'accueil, lien d'une
-// nouveauté) cède la place à sa nouvelle adresse avant que navigate() n'en lise la route. Appelée
-// APRÈS la garde de saisie : un refus n'écrit rien. Le sous-onglet visé s'écrit d'abord dans la
-// mémoire de renderSubTabs, que la page lit à son rendu ; un sous-onglet fermé pour la promo
-// n'y change rien, renderSubTabs ouvre alors le premier sous-onglet visible de la page.
+// Nouvelle navigation : une ancienne adresse cède la place à sa nouvelle adresse avant que
+// navigate() n'en lise la route. Seules y arrivent la navigation dans l'app (liens, lien d'une
+// nouveauté) et la dernière page mémorisée : à l'ouverture à froid, l'app ignore l'adresse demandée
+// (favori, raccourci d'écran d'accueil) et rouvre `derniere-route` (voir bootApp). Appelée APRÈS la
+// garde de saisie : un refus n'écrit rien. Le sous-onglet visé s'écrit d'abord dans la mémoire de
+// renderSubTabs, que la page lit à son rendu ; un sous-onglet fermé pour la promo n'y change rien,
+// renderSubTabs ouvre alors le premier sous-onglet visible de la page.
 // replaceState ne déclenche aucun `hashchange` et n'ajoute aucune étape d'historique : un seul
 // rendu, et « Précédent » quitte la page redirigée. Une seule redirection par appel : aucune cible
 // n'est elle-même une ancienne adresse (tests/nav-rules.test.mjs).
 function suivreRedirectionV2() {
   if (!navigationV2Active()) return;
-  const cible = redirectionV2(lireAdresse(location.hash), espaceDe({ formateur: isAdmin() || isProf() }));
+  const cible = redirectionV2(lireAdresse(location.hash), espaceCourant());
   if (!cible) return;
   if (cible.sousOnglet) {
     try { localStorage.setItem(cible.sousOnglet.cle, cible.sousOnglet.valeur); } catch (e) { /* mode privé */ }
@@ -250,7 +259,7 @@ async function navigate({ force = false } = {}) {
   }
   // Page « à soi » (chantier D, lot 2) : un formateur sans profil stagiaire n'a pas
   // de Mon espace, il a la page Stagiaires ; un stagiaire n'a pas la page Stagiaires.
-  const formateur = isAdmin() || isProf();
+  const formateur = espaceCourant() === "equipe";
   if (route === "mon-suivi" && pagePersonnelle({ formateur, stagiaireId: monStagiaireId() }) === "stagiaires") {
     try { history.replaceState(null, "", "#/stagiaires"); } catch (e) { /* ignore */ }
     route = "stagiaires";

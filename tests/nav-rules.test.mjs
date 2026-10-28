@@ -81,14 +81,22 @@ eq(redirectionV2(adresse("planning"), "stagiaire"), null, "pas de boucle");
 // navigate() (js/main.js) suit une seule redirection par adresse : pour toute route connue, aucune cible n'est
 // elle-même redirigée, et une redirection vers un sous-onglet nomme sa clé de mémoire (sans clé, `undefined`
 // s'écrirait sous la clé « undefined »).
+const controlees = [];
 for (const route of [...Object.keys(MODULE_DE_ROUTE), ...ROUTES_SOCLE]) {
   for (const espace of ["stagiaire", "equipe"]) {
     const cible = redirectionV2(adresse(route), espace);
     if (!cible) continue;
+    controlees.push(`${route} (${espace})`);
     eq(redirectionV2(lireAdresse(cible.hash), espace), null, `la cible de ${route} (${espace}) n'est pas redirigée`);
     if (cible.sousOnglet) eq(typeof cible.sousOnglet.cle, "string", `clé de sous-onglet de ${route} (${espace})`);
   }
 }
+// Témoin positif, pour que la boucle ne passe pas à vide : sans lui, `continue` pourrait sauter toutes les
+// routes, et le contrôle de la cible passerait aussi si lireAdresse ne rendait plus la route d'une adresse
+// écrite en hash. Une ancienne adresse connue (#/calendrier, stagiaire) doit donc être contrôlée par la boucle,
+// et reconnue quand on la lit depuis son hash : c'est ce que le contrôle de la cible refuserait d'une cible.
+eq(controlees.includes("calendrier (stagiaire)"), true, "témoin : la boucle contrôle une ancienne adresse connue");
+eq(redirectionV2(lireAdresse("#/calendrier"), "stagiaire") !== null, true, "témoin : lue depuis son hash, une ancienne adresse est reconnue");
 
 // 6. Pages regroupées : ouvertes dès qu'un de leurs sous-onglets l'est
 const seules = (...routes) => (r) => routes.includes(r);

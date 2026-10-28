@@ -1,6 +1,7 @@
 // Règles de la rubrique Nouveautés : tri, audience, non-lu.
 //
-// Aucune dépendance, aucun accès au DOM. Les fonctions de décision reçoivent
+// Aucune dépendance autre que nav-rules.js (module pur, source de la clé du
+// sous-onglet de Cours), aucun accès au DOM. Les fonctions de décision reçoivent
 // leurs entrées en argument : elles sont donc testables par node, et le test
 // ne dépend pas du contenu réel (qui bouge à chaque nouveauté).
 //
@@ -8,6 +9,8 @@
 // enveloppées dans des try/catch (navigation privée, quota) sur le modèle de
 // subtabs.js : en cas d'échec tout paraît neuf à chaque visite, ce qui est une
 // dégradation acceptable, mais rien n'explose.
+
+import { CLES_SOUS_ONGLETS } from "./nav-rules.js?v=20261027a";
 
 export const CLE_VUES = "ecsr_nouveautes_vues";
 
@@ -20,11 +23,12 @@ export const MISE_EN_LIGNE = "2026-08-01";
 // Correspondance route -> clé localStorage du sous-onglet, telle que
 // renderSubTabs la mémorise. Permet à un lien « Où le trouver » d'ouvrir la vue
 // directement sur le bon sous-onglet. Une route absente d'ici ignore simplement
-// le champ sousOnglet : le lien navigue, sans atterrissage précis.
+// le champ sousOnglet : le lien navigue, sans atterrissage précis. La clé de
+// Cours vient de nav-rules.js (CLES_SOUS_ONGLETS), pour qu'elle n'ait qu'une source.
 export const STORAGE_SOUS_ONGLET = {
   "mon-suivi": "ecsr_monsuivi_subtab",
   notes: "ecsr_notes_subtab",
-  themes: "themes.subtab",
+  themes: CLES_SOUS_ONGLETS.themes,
 };
 
 // Antéchronologique, de la plus récente à la plus ancienne.
