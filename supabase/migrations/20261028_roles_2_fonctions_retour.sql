@@ -19,8 +19,9 @@
 --
 -- Ordre : les anciennes définitions d'abord, puis la suppression des nouvelles fonctions, puis mes_promos.
 -- À passer après 20261028_roles_3_regles_retour.sql et avant 20261028_roles_1_fondations_retour.sql.
--- Contrôle : après les retours 3, 2 et 1, tests/sql/roles-empreinte.sql redonne les trois valeurs relevées
--- avant le lot (après ce seul retour, le vocabulaire de l'étape 1 fait encore différer la colonne fonctions).
+-- Contrôle : après les retours 3, 2 et 1, tests/sql/roles-empreinte.sql redonne l'empreinte relevée juste avant
+-- d'appliquer le lot (ou au début du bloc de répétition) ; après ce seul retour, le vocabulaire de l'étape 1 fait
+-- encore différer la colonne fonctions.
 -- Recette de génération, à rejouer si la production a bougé : tests/sql/roles-retours-recette.sql.
 set local lock_timeout = '3s';
 

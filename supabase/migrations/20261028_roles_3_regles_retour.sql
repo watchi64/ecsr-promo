@@ -17,8 +17,9 @@
 -- cours_chunks est sous RLS sans aucune règle : elle n'a que le bloc de suppression.
 --
 -- À passer avant 20261028_roles_2_fonctions_retour.sql, puis 20261028_roles_1_fondations_retour.sql.
--- Contrôle : après les retours 3, 2 et 1, tests/sql/roles-empreinte.sql redonne les trois valeurs relevées
--- avant le lot (après ce seul retour, la table affectations et le vocabulaire de l'étape 1 les font encore différer).
+-- Contrôle : après les retours 3, 2 et 1, tests/sql/roles-empreinte.sql redonne l'empreinte relevée juste avant
+-- d'appliquer le lot (ou au début du bloc de répétition) ; après ce seul retour, la table affectations et le
+-- vocabulaire de l'étape 1 la font encore différer.
 -- Recette de génération, à rejouer si la production a bougé : tests/sql/roles-retours-recette.sql.
 set local lock_timeout = '3s';
 

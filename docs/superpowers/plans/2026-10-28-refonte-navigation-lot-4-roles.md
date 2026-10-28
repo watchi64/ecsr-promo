@@ -69,9 +69,10 @@ references user_profiles(email) on update cascade on delete cascade` ; `role tex
 `direction`, `siege`) ; `promo_id integer references promos(id) on delete cascade` ; `lieu_id integer references
 lieux(id) on delete cascade` ; `cree_le timestamptz not null default now()` ; `cree_par text default
 lower(auth.jwt() ->> 'email')`. Contrainte `affectations_portee` : formateur = promo seule, direction = lieu seul,
-siège = ni l'un ni l'autre. Unicité `nulls not distinct (email, role, promo_id, lieu_id)`. Index sur `email`,
-`promo_id`, `lieu_id`. RLS active ; `select, insert, delete` à `authenticated`, rien à `anon`, aucune
-modification (on retire puis on ajoute).
+siège = ni l'un ni l'autre. Unicité `nulls not distinct (email, role, promo_id, lieu_id)` (elle sert aussi
+d'index sur `email`). Index sur `promo_id`, `lieu_id`. RLS active ; `select, delete` à `authenticated`, ajout
+limité aux colonnes `email, role, promo_id, lieu_id` (`cree_par` et `cree_le` restent ceux de la base), rien à
+`anon`, aucune modification (on retire puis on ajoute).
 
 **Anciennes colonnes** `role`, `is_admin`, `prof_id` : gardées pour les anciens clients et la fonction
 `invite-user`, elles ne décident plus d'aucun droit. Une invitation de formateur pose encore `role = 'prof'` et
