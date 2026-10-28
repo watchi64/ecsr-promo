@@ -405,7 +405,8 @@ def verifier_tirets(res):
                           text=True, encoding="utf-8").stdout.split()
     for nom in noms:
         chemin = RACINE / nom
-        if chemin.is_file() and "—" in chemin.read_text(encoding="utf-8", errors="ignore"):
+        # Le tiret cadratin par son code : ce fichier ne doit pas le contenir non plus.
+        if chemin.is_file() and chr(0x2014) in chemin.read_text(encoding="utf-8", errors="ignore"):
             res.echec("fichiers", "tiret cadratin dans %s" % nom)
     res.vue()
 
