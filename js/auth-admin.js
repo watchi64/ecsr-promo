@@ -17,11 +17,14 @@ import {
   getMyProfile, listStagiaires, listProfs,
   chargerMesPromos, oublierPromo, getPromoCourante, rechargerApresEnregistrements,
   bloquerRequetesJusquAuRechargement,
-} from "./db.js?v=20261028a";
-import { el, toast, displayStagiaire } from "./utils.js?v=20261028a";
-import { icon } from "./icons.js?v=20261028a";
-import { construirePastille } from "./promo-pastille.js?v=20261028a";
-import { pagePersonnelle } from "./route-rules.js?v=20261028a";
+} from "./db.js?v=20261028b";
+import { el, toast, displayStagiaire } from "./utils.js?v=20261028b";
+import { icon } from "./icons.js?v=20261028b";
+import { construirePastille } from "./promo-pastille.js?v=20261028b";
+import { pagePersonnelle } from "./route-rules.js?v=20261028b";
+import { etatSignalements } from "./signalement-etat.js?v=20261028b";
+import { pastilleSignalement } from "./signalement-rules.js?v=20261028b";
+import { libellePastille } from "./nouveautes.js?v=20261028b";
 
 let currentUser = null;     // Supabase auth user
 let currentProfile = null;  // row user_profiles
@@ -40,6 +43,9 @@ let viewAs = null;  // null = rôle réel ; "prof" | "stagiaire" = aperçu
 export function isAuth()        { return !!currentUser && !!currentProfile; }
 export function isFounder()     { return !!currentProfile?.is_founder; }
 export function getViewAs()     { return isFounder() ? viewAs : null; }
+// Le fondateur tel qu'il est, hors aperçu « Voir en tant que » : ce que l'éditeur seul voit (signalements de
+// problème reçus) disparaît dans l'aperçu, qui montre ce que voit le rôle simulé.
+export function fondateurHorsApercu() { return isFounder() && !getViewAs(); }
 export function getAdminEmail() { return currentUser?.email || null; }
 export function getProfile()    { return currentProfile; }
 
@@ -387,6 +393,27 @@ export async function seDeconnecter(apresDeconnexion) {
   location.reload();
 }
 
+// « Signaler un problème » dans la fenêtre « Mon compte » de l'ancienne barre (spec 2026-10-28, § 5.1) :
+// la fenêtre de signalement la remplace, et le focus reviendra au badge du nom. Sa pastille : les
+// signalements de la personne qui ont avancé. Chez le fondateur hors aperçu, en plus, la page des
+// problèmes reçus, avec le nombre de nouveaux. Import différé de js/signalement.js (qui importe ce module).
+function boutonsSignalement(fermer) {
+  const etat = etatSignalements();
+  const { texte, nom } = pastilleSignalement({ fondateur: false, ...etat });
+  const signaler = el("button", { class: "btn full sg-entree-compte", type: "button", "data-sg-entree": "compte", "aria-label": nom,
+    onClick: () => {
+      fermer();
+      import("./signalement.js?v=20261028b").then((m) => m.ouvrirSignalement({ ancre: document.querySelector(".admin-badge") }));
+    } }, icon.signaler(), "Signaler un problème", texte ? el("span", { class: "sg-pastille", "aria-hidden": "true" }, texte) : null);
+  if (!fondateurHorsApercu()) return [signaler];
+  const nouveaux = libellePastille(etat.nouveaux);
+  const problemes = el("button", { class: "btn full sg-entree-compte", type: "button", "data-sg-entree": "problemes",
+    "aria-label": nouveaux ? `Problèmes signalés, ${etat.nouveaux} nouveaux` : "Problèmes signalés",
+    onClick: () => { fermer(); location.hash = "#/problemes"; } },
+  icon.list(), "Problèmes signalés", nouveaux ? el("span", { class: "sg-pastille", "aria-hidden": "true" }, nouveaux) : null);
+  return [signaler, problemes];
+}
+
 function openProfileMenu() {
   const backdrop = el("div", { class: "modal-backdrop" });
   const logoutBtn = el("button", { class: "btn danger full", onClick: () => seDeconnecter(() => backdrop.remove()) },
@@ -412,11 +439,12 @@ function openProfileMenu() {
         : null,
     ),
     persoBtn,
+    ...boutonsSignalement(() => backdrop.remove()),
     buildViewAsBlock(() => backdrop.remove()),
     logoutBtn,
     el("button", { class: "gate-link compte-legal", type: "button", onClick: () => {
       backdrop.remove();
-      import("./legal.js?v=20261028a").then((m) => m.ouvrirInformationsLegales());
+      import("./legal.js?v=20261028b").then((m) => m.ouvrirInformationsLegales());
     } }, "Informations légales et données personnelles"),
     el("div", { class: "modal-actions" },
       el("button", { class: "btn ghost", onClick: () => backdrop.remove() }, "Fermer"),

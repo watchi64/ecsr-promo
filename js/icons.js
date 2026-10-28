@@ -105,4 +105,9 @@ export const icon = {
   logout:     () => svg('<path d="m16 17 5-5-5-5"/><path d="M21 12H9"/><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>'),
   // Lucide chevron-down : flèche du bouton du compte
   chevronDown:() => svg('<path d="m6 9 6 6 6-6"/>'),
+  // Lucide message-square-warning : « Signaler un problème » (distinct de la bulle ronde de l'assistant et
+  // du drapeau des signalements de QCM)
+  signaler:   () => svg('<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M12 7v2"/><path d="M12 13h.01"/>'),
+  // Lucide paperclip : joindre une capture
+  trombone:   () => svg('<path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/>'),
 };
