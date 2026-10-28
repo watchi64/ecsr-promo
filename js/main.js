@@ -382,26 +382,27 @@ async function bootApp() {
   // l'aperçu du fondateur), l'ancienne barre attend la décision sans se peindre (css/navigation.css) ;
   // posé avant que l'app ne s'affiche, levé dès la première barre dessinée, quelle qu'elle soit.
   if (navigationV2Attendue()) document.body.dataset.navAttente = "";
-  hideGate();
-  // L'état des modules décide des onglets visibles : il est lu avant de dessiner la barre.
-  // La lecture est bornée (chargerModulesAuDemarrage : copie de l'appareil au-delà de
-  // 3,5 s, la vraie réponse redessine la barre à son arrivée) et la vue dit « Chargement ».
-  afficherChargement();
-  // Conditions d'utilisation : rien ne s'ouvre tant que la version en vigueur n'est pas
-  // acceptée (fenêtre bloquante ; laisse passer si la lecture échoue). Pas pour les
-  // formateurs (décision du 13/10) : le texte s'adresse aux stagiaires, et un formateur
-  // salarié du centre n'a pas à accepter en son nom les conditions de l'éditeur ; ce sera
-  // couvert par le contrat avec le centre. Vrai rôle, pas l'aperçu « Voir en tant que ».
-  if (getProfile()?.role !== "prof") await exigerAcceptation(getAdminEmail());
-  // Interrupteurs de l'émargement et de la nouvelle navigation (propres à la promo) lus en même
-  // temps que les modules. La navigation est décidée ici, une fois pour la session, avant le
-  // premier rendu (aperçu du fondateur compris).
-  await Promise.all([chargerModulesAuDemarrage(), chargerEmargementActif(), chargerNavigationV2()]);
   try {
+    hideGate();
+    // L'état des modules décide des onglets visibles : il est lu avant de dessiner la barre.
+    // La lecture est bornée (chargerModulesAuDemarrage : copie de l'appareil au-delà de
+    // 3,5 s, la vraie réponse redessine la barre à son arrivée) et la vue dit « Chargement ».
+    afficherChargement();
+    // Conditions d'utilisation : rien ne s'ouvre tant que la version en vigueur n'est pas
+    // acceptée (fenêtre bloquante ; laisse passer si la lecture échoue). Pas pour les
+    // formateurs (décision du 13/10) : le texte s'adresse aux stagiaires, et un formateur
+    // salarié du centre n'a pas à accepter en son nom les conditions de l'éditeur ; ce sera
+    // couvert par le contrat avec le centre. Vrai rôle, pas l'aperçu « Voir en tant que ».
+    if (getProfile()?.role !== "prof") await exigerAcceptation(getAdminEmail());
+    // Interrupteurs de l'émargement et de la nouvelle navigation (propres à la promo) lus en même
+    // temps que les modules. La navigation est décidée ici, une fois pour la session, avant le
+    // premier rendu (aperçu du fondateur compris).
+    await Promise.all([chargerModulesAuDemarrage(), chargerEmargementActif(), chargerNavigationV2()]);
     renderTabs();
   } finally {
     // La barre de la session est posée (coquille, ou ancienne barre si la décision est « éteint ») : plus
-    // rien n'attend. Même si le rendu échoue, l'ancienne barre revient : jamais une page sans barre.
+    // rien n'attend. Si quoi que ce soit échoue en chemin, l'ancienne barre revient aussi : jamais une
+    // page sans barre.
     delete document.body.dataset.navAttente;
   }
   majBadgeNouveautes();

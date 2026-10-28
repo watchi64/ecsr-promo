@@ -44,16 +44,30 @@ eq(cleMemoire(7), "ecsr_nav_v2_promo:7", "une autre promo, une autre clé");
 eq(cleMemoire(null), null, "sans promo, pas de mémoire");
 eq(cleMemoire(undefined), null, "promo inconnue, pas de mémoire");
 
-// 5. Navigation attendue à l'ouverture, avant la lecture du réglage (R17) : la mémoire de l'appareil tient
-//    lieu de réglage, l'aperçu du fondateur prime toujours.
-eq(navigationAttendue({ memoire: "1", apercu: null, fondateur: false }), true, "promo allumée la dernière fois");
-eq(navigationAttendue({ memoire: null, apercu: null, fondateur: false }), false, "rien en mémoire : l'ancienne barre, comme avant");
-eq(navigationAttendue({ memoire: "0", apercu: null, fondateur: false }), false, "autre valeur en mémoire : éteint");
-eq(navigationAttendue({ memoire: "true", apercu: null, fondateur: false }), false, "seul « 1 » vaut allumé");
-eq(navigationAttendue({ memoire: null, apercu: "1", fondateur: true }), true, "aperçu du fondateur, première ouverture");
-eq(navigationAttendue({ memoire: "1", apercu: "0", fondateur: true }), false, "aperçu éteint du fondateur : prime sur la mémoire");
-eq(navigationAttendue({ memoire: null, apercu: "1", fondateur: false }), false, "aperçu d'un non-fondateur ignoré");
-eq(navigationAttendue({ memoire: "1", apercu: "0", fondateur: false }), true, "aperçu d'un non-fondateur ignoré, la mémoire compte");
+// 5. Navigation attendue à l'ouverture, avant la lecture du réglage (R17) : la mémoire de l'appareil pour la
+//    promo affichée tient lieu de réglage, l'aperçu du fondateur prime toujours. La mémoire est lue par une
+//    fonction (localStorage dans l'app) : ici, un appareil où seule la promo 1 a été vue allumée.
+const appareil = (valeurs) => (cle) => (cle in valeurs ? valeurs[cle] : null);
+const promo1Allumee = appareil({ [cleMemoire(1)]: "1" });
+const attendue = (promoId, apercu = null, fondateur = false, lireMemoire = promo1Allumee) =>
+  navigationAttendue({ promoId, lireMemoire, apercu, fondateur });
+eq(attendue(1), true, "promo allumée la dernière fois sur l'appareil");
+eq(attendue(2), false, "la mémoire de la promo 1 ne vaut pas pour la promo 2");
+eq(attendue(null), false, "sans promo connue, pas de mémoire");
+eq(attendue(1, null, false, appareil({})), false, "rien en mémoire : l'ancienne barre, comme avant");
+eq(attendue(1, null, false, appareil({ [cleMemoire(1)]: "0" })), false, "autre valeur en mémoire : éteint");
+eq(attendue(1, null, false, appareil({ [cleMemoire(1)]: "true" })), false, "seul « 1 » vaut allumé");
+eq(attendue(2, "1", true), true, "aperçu du fondateur, sans mémoire pour cette promo");
+eq(attendue(1, "0", true), false, "aperçu éteint du fondateur : prime sur la mémoire");
+eq(attendue(2, "1", false), false, "aperçu d'un non-fondateur ignoré");
+eq(attendue(1, "0", false), true, "aperçu d'un non-fondateur ignoré, la mémoire compte");
 eq(navigationAttendue({}), false, "sans rien : éteint");
+// Seule la clé de la promo affichée est lue : celle d'une autre promo ne l'est jamais.
+const lues = [];
+navigationAttendue({ promoId: 2, lireMemoire: (cle) => { lues.push(cle); return "1"; } });
+eq(lues, [cleMemoire(2)], "une seule lecture, la clé de la promo affichée");
+const aucune = [];
+navigationAttendue({ promoId: null, lireMemoire: (cle) => { aucune.push(cle); return "1"; } });
+eq(aucune, [], "sans promo, aucune lecture");
 
 console.log(`nav-etat : ${n} assertions OK`);

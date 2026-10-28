@@ -263,7 +263,7 @@ function updateBadge() {
   const slot = document.getElementById("admin-slot");
   if (!slot) return;
   slot.innerHTML = "";
-  if (!currentUser) { updateImpersonationBanner(); updatePromosBanner(); return; }
+  if (!currentUser) { updateImpersonationBanner(); updatePromosBanner(); suivreBandeauxBas(); return; }
 
   // Pastille de promo devant le badge (formateurs et fondateur, au moins deux promos). Pas dans
   // l'aperçu « Stagiaire » : un stagiaire n'en a pas, l'aperçu doit rester fidèle.
@@ -285,6 +285,37 @@ function updateBadge() {
   slot.appendChild(badge);
   updateImpersonationBanner();
   updatePromosBanner();
+  suivreBandeauxBas();
+}
+
+// Bandeaux du bas de l'écran (aperçu, promos non chargées) : tant qu'il y en a un d'affiché, le corps de la
+// page porte data-bandeaux-bas et --haut-bandeaux-bas, la hauteur de leur pile, mesurée puis suivie (un
+// texte qui passe à la ligne, l'app qui s'affiche). Ce qui s'ouvre au même endroit s'en écarte : le panneau
+// de l'assistant de la nouvelle navigation (css/navigation.css). L'ancienne navigation ne les lit pas.
+const SEL_BANDEAUX_BAS = "#impersonation-banner, #promos-banner";
+let suiviBandeaux = null;
+
+function mesurerBandeauxBas() {
+  const corps = document.body;
+  const boites = [...document.querySelectorAll(SEL_BANDEAUX_BAS)]
+    .filter((b) => b.getClientRects().length).map((b) => b.getBoundingClientRect());
+  if (!boites.length) {
+    delete corps.dataset.bandeauxBas;
+    corps.style.removeProperty("--haut-bandeaux-bas");
+    return;
+  }
+  const pile = Math.max(...boites.map((r) => r.bottom)) - Math.min(...boites.map((r) => r.top));
+  corps.dataset.bandeauxBas = "";
+  corps.style.setProperty("--haut-bandeaux-bas", Math.ceil(pile) + "px");
+}
+
+function suivreBandeauxBas() {
+  if (!suiviBandeaux && typeof ResizeObserver === "function") suiviBandeaux = new ResizeObserver(() => mesurerBandeauxBas());
+  if (suiviBandeaux) {
+    suiviBandeaux.disconnect();
+    document.querySelectorAll(SEL_BANDEAUX_BAS).forEach((b) => suiviBandeaux.observe(b));
+  }
+  mesurerBandeauxBas();
 }
 
 // Bandeau d'état dégradé : les promos n'ont pas pu être chargées (deux essais), l'app affiche la

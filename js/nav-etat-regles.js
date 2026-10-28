@@ -32,8 +32,11 @@ export function cleMemoire(promoId) {
 }
 
 // La navigation attendue à l'ouverture, avant la lecture du réglage : la même règle que decideNavigationV2,
-// la mémoire de l'appareil tenant lieu du réglage pas encore lu. Elle décide seulement si l'ancienne barre
-// attend la décision sans se peindre ; la navigation de la session reste celle de la lecture.
-export function navigationAttendue({ memoire = null, apercu = null, fondateur = false } = {}) {
+// la mémoire de l'appareil pour la promo affichée (lireMemoire reçoit sa clé, et seulement la sienne)
+// tenant lieu du réglage pas encore lu. Elle décide seulement si l'ancienne barre attend la décision sans
+// se peindre ; la navigation de la session reste celle de la lecture.
+export function navigationAttendue({ promoId = null, lireMemoire = () => null, apercu = null, fondateur = false } = {}) {
+  const cle = cleMemoire(promoId);
+  const memoire = cle ? lireMemoire(cle) : null;
   return decideNavigationV2({ reglagePromo: memoire === "1" ? true : null, apercu, fondateur });
 }

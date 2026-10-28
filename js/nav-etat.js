@@ -65,10 +65,8 @@ function memoriserReglage(allume) {
 // de la promo sur cet appareil, ou l'aperçu du fondateur (navigationAttendue). Ne décide rien pour la
 // session : seul chargerNavigationV2() le fait.
 export function navigationV2Attendue() {
-  const cle = cleMemoire(getPromoCourante()?.id);
-  let memoire = null;
-  try { memoire = cle ? localStorage.getItem(cle) : null; } catch (e) { memoire = null; }
-  return navigationAttendue({ memoire, apercu: lireApercu(), fondateur: isFounder() });
+  const lireMemoire = (cle) => { try { return localStorage.getItem(cle); } catch (e) { return null; } };
+  return navigationAttendue({ promoId: getPromoCourante()?.id ?? null, lireMemoire, apercu: lireApercu(), fondateur: isFounder() });
 }
 
 // Pose l'aperçu, ou le retire avec null (l'appareil suit de nouveau le réglage de la promo).

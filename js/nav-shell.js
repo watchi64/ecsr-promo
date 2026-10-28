@@ -33,9 +33,9 @@ import { routeMasquee, repereMasque, moduleVisible, moduleMasque } from "./modul
 import {
   barreTelephone, entreeActive, entreeMasquee, initialesDe, prenomDe, libelleRole,
 } from "./nav-rules.js?v=20261027a";
-import { ouvrirFenetre, fermerFenetre, fenetreOuverte } from "./nav-fenetre.js?v=20261027a";
+import { ouvrirFenetre, fermerFenetre, fenetreOuverte, rendreFocus } from "./nav-fenetre.js?v=20261027a";
 import { ouvrirMenuCompte } from "./menu-compte.js?v=20261027a";
-import { basculerAssistant, assistantOuvert } from "./chatbot.js?v=20261027a";
+import { basculerAssistant, assistantOuvert, onAssistantChange } from "./chatbot.js?v=20261027a";
 
 // Barre latérale repliée en colonne d'icônes : choix mémorisé sur l'appareil.
 const CLE_REPLIEE = "ecsr_nav_repliee";
@@ -83,10 +83,10 @@ function boutonCompte(classe, nom, ...contenu) {
   return bouton;
 }
 
-// Bouton « Assistant » : `geste` ouvre ou ferme le panneau de l'assistant (js/chatbot.js), qui tient
-// aria-expanded à jour. Il suit le module « assistant » comme la bulle de l'ancienne navigation : absent
-// chez un stagiaire quand le module est fermé pour la promo, repéré chez un formateur. Son nom ne dépend
-// pas de son libellé, que la tablette et la colonne d'icônes masquent.
+// Bouton « Assistant » : `geste(bouton)` ouvre ou ferme le panneau de l'assistant (js/chatbot.js). Il suit
+// le module « assistant » comme la bulle de l'ancienne navigation : absent chez un stagiaire quand le
+// module est fermé pour la promo, repéré chez un formateur. Son nom ne dépend pas de son libellé, que la
+// tablette et la colonne d'icônes masquent.
 function boutonAssistant(classe, geste, ...contenu) {
   if (!moduleVisible("assistant")) return null;
   const bouton = el("button", {
@@ -95,15 +95,26 @@ function boutonAssistant(classe, geste, ...contenu) {
   }, ...contenu);
   repereMasque(bouton, moduleMasque("assistant"));
   bouton.setAttribute("aria-label", bouton.getAttribute("title"));
-  bouton.addEventListener("click", geste);
+  bouton.addEventListener("click", () => geste(bouton));
   return bouton;
 }
 
-// Depuis le tiroir « Plus » : le tiroir se ferme (le focus revient à « Plus », où le panneau le rendra) et
-// l'assistant s'ouvre ; déjà ouvert derrière le tiroir, il le reste.
-function assistantDepuisLeTiroir() {
+// Les boutons « Assistant » disent si le panneau est ouvert, quel que soit le geste qui l'ouvre ou le ferme
+// (bouton, croix, Échap, module fermé).
+onAssistantChange((ouvert) => {
+  document.querySelectorAll('[data-nav-coquille] [data-nav-action="assistant"]')
+    .forEach((b) => b.setAttribute("aria-expanded", ouvert ? "true" : "false"));
+});
+
+// En-tête du stagiaire, barre latérale : le panneau s'ouvre ou se ferme ; fermé, il rend le focus à ce
+// bouton, ou à son équivalent affiché si la coquille a changé entre-temps (js/nav-fenetre.js).
+const basculerDepuis = (bouton) => basculerAssistant(() => rendreFocus(bouton, "assistant"));
+
+// Depuis le tiroir « Plus » : le tiroir se ferme (le focus revient à « Plus ») et l'assistant s'ouvre, puis
+// rend le focus à « Plus » en se fermant ; déjà ouvert derrière le tiroir, il le reste.
+function assistantDepuisLeTiroir(plus) {
   fermerFenetre();
-  if (!assistantOuvert()) basculerAssistant();
+  if (!assistantOuvert()) basculerAssistant(() => rendreFocus(plus, "plus"));
 }
 
 // Les entrées dans l'ordre, celles d'un même groupe sous son titre (« Promo »). `ou` distingue les
@@ -137,7 +148,7 @@ function enTeteStagiaire(entrees, nom, initiales) {
   const onglets = el("nav", { class: "nav-onglets", "aria-label": "Navigation principale" },
     entrees.map((e) => el("a", { href: "#/" + e.route, class: "nav-onglet", "data-entree": e.id },
       iconeDe(e.icone), libelle(e.libelle, "nav-onglet-texte"))));
-  const assistant = boutonAssistant("nav-assistant", basculerAssistant,
+  const assistant = boutonAssistant("nav-assistant", basculerDepuis,
     deco(icon.chat()), el("span", { class: "nav-assistant-texte" }, "Assistant"));
   const prenom = prenomDe(nom);
   const compte = boutonCompte("nav-compte", nom, avatar(initiales),
@@ -193,7 +204,7 @@ function barreLaterale(entrees, nom, initiales) {
     el("div", { class: "nav-cote-tete" }, contexteDePromo(), boutonReplier()),
     el("nav", { class: "nav-cote-entrees", "aria-label": "Navigation principale" }, groupes(entrees, "cote", entreeLaterale)),
     el("div", { class: "nav-cote-pied" },
-      boutonAssistant("nav-entree nav-cote-assistant", basculerAssistant,
+      boutonAssistant("nav-entree nav-cote-assistant", basculerDepuis,
         deco(icon.chat()), el("span", { class: "nav-entree-texte" }, "Assistant")),
       boutonCompte("nav-cote-compte", nom, avatar(initiales),
         el("span", { class: "nav-cote-compte-texte" }, el("b", {}, nom || "Mon compte"), role ? el("small", {}, role) : null))));
@@ -273,7 +284,7 @@ function ouvrirPlus(bouton) {
       el("p", { class: "nav-fenetre-section" }, "Tout l'espace formateur"),
       groupes(entrees.filter((e) => montee.plus.includes(e.id)), "plus", lien),
       el("p", { class: "nav-fenetre-section" }, "Outils"),
-      boutonAssistant("nav-fenetre-lien", assistantDepuisLeTiroir,
+      boutonAssistant("nav-fenetre-lien", () => assistantDepuisLeTiroir(bouton),
         deco(icon.chat()), el("span", { class: "nav-fenetre-texte" }, "Assistant")),
       compte,
     ],

@@ -62,10 +62,11 @@ export function fermerFenetre({ focus = true } = {}) {
   return focusDedans ? rendre : null;
 }
 
-// Le focus revient au bouton qui a ouvert la fenêtre. S'il a disparu ou ne s'affiche plus (coquille
-// remontée, autre espace, écran élargi), il va à un bouton affiché de la même action, sinon au bouton
-// du compte, que chaque espace affiche à toute taille : jamais au corps de la page.
-function rendreFocus(ancre, action) {
+// Le focus revient au bouton qui a ouvert la fenêtre (ou le panneau de l'assistant, js/nav-shell.js).
+// S'il a disparu ou ne s'affiche plus (coquille remontée, autre espace, écran élargi), il va à un bouton
+// affiché de la même action, sinon au bouton du compte, que chaque espace affiche à toute taille : jamais au
+// corps de la page.
+export function rendreFocus(ancre, action) {
   const visible = (a) => (a ? [...document.querySelectorAll(`[data-nav-coquille] [data-nav-action="${a}"]`)].find(affiche) : null);
   const cible = (affiche(ancre) && ancre) || visible(action) || visible("compte");
   if (cible) cible.focus({ preventScroll: true });

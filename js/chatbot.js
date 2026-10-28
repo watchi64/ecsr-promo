@@ -14,18 +14,18 @@ import { moduleVisible, moduleMasque, repereMasque } from "./modules-etat.js?v=2
 const CLE_HISTO = "chatbot_histo";
 let histo = [];
 let enCours = false;
-// Panneau ouvert depuis la coquille : { ouvreur } (l'élément qui avait le focus), pour lui rendre le focus
-// à la fermeture. null avec la bulle de l'ancienne navigation, qui ne déplace pas le focus.
-let ouvertParLaCoquille = null;
+// Panneau ouvert depuis la coquille : la fonction qu'elle a donnée pour rendre le focus à la fermeture.
+// null avec la bulle de l'ancienne navigation, qui ne déplace pas le focus.
+let retourDuFocus = null;
+// Abonnés à l'ouverture et à la fermeture du panneau (la coquille, pour l'aria-expanded de ses boutons).
+const abonnes = new Set();
 
 const panneauAssistant = () => document.getElementById("chatbot-panel");
-const affiche = (e) => !!e && e.isConnected && e.getClientRects().length > 0;
 
-// Les boutons « Assistant » de la coquille disent si le panneau est ouvert. Aucun avec l'ancienne
-// navigation : rien ne change pour elle.
-function majBoutonsAssistant(ouvert) {
-  document.querySelectorAll('[data-nav-coquille] [data-nav-action="assistant"]')
-    .forEach((b) => b.setAttribute("aria-expanded", ouvert ? "true" : "false"));
+// cb(ouvert) à l'ouverture par basculerAssistant et à chaque fermeture ; renvoie de quoi se désabonner.
+export function onAssistantChange(cb) {
+  abonnes.add(cb);
+  return () => abonnes.delete(cb);
 }
 
 // Le panneau est-il ouvert ? Lu par la coquille pour dessiner ses boutons (remontage panneau ouvert).
@@ -34,18 +34,8 @@ export function assistantOuvert() {
   return !!panneau && !panneau.classList.contains("hidden");
 }
 
-// Le focus revient à ce qui a ouvert le panneau depuis la coquille ; s'il a disparu ou ne s'affiche plus
-// (coquille remontée, tiroir refermé, écran redimensionné), au bouton « Assistant » affiché, sinon à
-// « Plus » (le téléphone de l'équipe range l'Assistant dans son tiroir). Jamais au corps de la page.
-function rendreFocus(ouvreur) {
-  const visible = (action) => [...document.querySelectorAll(`[data-nav-coquille] [data-nav-action="${action}"]`)].find(affiche);
-  const dansLaCoquille = ouvreur && ouvreur.closest && ouvreur.closest("[data-nav-coquille]");
-  const cible = (dansLaCoquille && affiche(ouvreur) && ouvreur) || visible("assistant") || visible("plus");
-  if (cible) cible.focus({ preventScroll: true });
-}
-
 // Ferme le panneau (croix, Échap, bouton de la coquille, module fermé). Ouvert depuis la coquille, le
-// focus revient à son bouton s'il était dans le panneau ou nulle part (un toucher ne le pose pas) ; posé
+// focus lui est rendu s'il était dans le panneau ou nulle part (un toucher ne le pose pas) ; posé
 // ailleurs dans la page, il y reste.
 function fermerPanneau() {
   const panneau = panneauAssistant();
@@ -53,24 +43,25 @@ function fermerPanneau() {
   const actif = document.activeElement;
   const focusARendre = !actif || actif === document.body || panneau.contains(actif);
   panneau.classList.add("hidden");
-  majBoutonsAssistant(false);
-  const retour = ouvertParLaCoquille;
-  ouvertParLaCoquille = null;
-  if (retour && focusARendre) rendreFocus(retour.ouvreur);
+  const rendre = retourDuFocus;
+  retourDuFocus = null;
+  abonnes.forEach((cb) => cb(false));
+  if (rendre && focusARendre) rendre();
 }
 
-// Boutons « Assistant » de la coquille : ouvre le panneau, ou le ferme s'il est ouvert. Comme la bulle,
-// le champ prend le focus au pointeur précis seulement (voir initChatbot).
-export function basculerAssistant() {
+// Boutons « Assistant » de la coquille : ouvre le panneau, ou le ferme s'il est ouvert. `rendreFocus` :
+// ce que la coquille fera du focus à la fermeture. Comme la bulle, le champ prend le focus au pointeur
+// précis seulement (voir initChatbot).
+export function basculerAssistant(rendreFocus = null) {
   const panneau = panneauAssistant();
   if (!panneau) return;
   if (!panneau.classList.contains("hidden")) {
     fermerPanneau();
     return;
   }
-  ouvertParLaCoquille = { ouvreur: document.activeElement };
+  retourDuFocus = rendreFocus;
   panneau.classList.remove("hidden");
-  majBoutonsAssistant(true);
+  abonnes.forEach((cb) => cb(true));
   if (window.matchMedia("(pointer: fine)").matches) panneau.querySelector("textarea")?.focus();
 }
 

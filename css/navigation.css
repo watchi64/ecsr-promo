@@ -27,6 +27,11 @@ body[data-nav="v2"][data-espace="equipe"] { --haut-entete: 0px; }
 /* La valeur de l'ancienne barre sur téléphone (148 px, style.css) ne vaut pas sous la coquille. */
 body[data-nav="v2"] .p-day-card { scroll-margin-top: calc(var(--haut-entete) + 52px); }
 
+/* Bord bas des bandeaux du bas de l'écran (js/auth-admin.js : aperçu, promos non chargées) : celui de
+   style.css (16 px, marge de sécurité comprise pour celui des promos), relevé au-dessus de la barre du bas
+   sur téléphone (plus bas). Le panneau de l'assistant s'ouvre au-dessus de leur pile. */
+body[data-nav="v2"] { --bas-bandeaux: calc(16px + env(safe-area-inset-bottom, 0px)); }
+
 /* La barre sombre de l'équipe reprend le crème de l'ancienne barre du haut sur --bg-deep, avec ses
    transparences (style.css : .topbar, .tab, .promo-pastille) : texte, texte secondaire, survol,
    entrée allumée, filet et bordure. */
@@ -642,10 +647,11 @@ body[data-nav="v2"] .nav-bas { display: none; }
   }
 
   /* Ce qui se pose en bas de l'écran passe au-dessus de la barre du bas (le panneau de l'assistant :
-     voir sa section). */
-  body[data-nav="v2"] .impersonation-banner { bottom: calc(var(--haut-barre-bas) + 10px); }
-  body[data-nav="v2"] .promos-banner { bottom: calc(var(--haut-barre-bas) + 10px); }
-  body[data-nav="v2"] .promos-banner.au-dessus-apercu { bottom: calc(var(--haut-barre-bas) + 58px); }
+     voir sa section). Les promos au-dessus de l'aperçu : 48 px plus haut, comme dans style.css. */
+  body[data-nav="v2"] { --bas-bandeaux: calc(var(--haut-barre-bas) + 10px); }
+  body[data-nav="v2"] .impersonation-banner,
+  body[data-nav="v2"] .promos-banner { bottom: var(--bas-bandeaux); }
+  body[data-nav="v2"] .promos-banner.au-dessus-apercu { bottom: calc(var(--bas-bandeaux) + 48px); }
   body[data-nav="v2"] .toast { bottom: calc(var(--haut-barre-bas) + 0.75rem); }
   body[data-nav="v2"] .p-edit-pill { bottom: calc(var(--haut-barre-bas) + 0.75rem); }
 
@@ -662,7 +668,7 @@ body[data-nav="v2"] #chatbot-fab { display: none; }
 /* Le panneau s'ouvre près de son bouton : sous l'en-tête, à droite, chez le stagiaire ; en bas, à droite
    de la barre latérale, dans l'équipe (comme le menu du compte). */
 body[data-nav="v2"][data-espace="stagiaire"] .chatbot-panel {
-  top: 74px;
+  top: calc(var(--haut-entete) + 8px);
   right: max(14px, env(safe-area-inset-right, 0px));
   bottom: auto;
 }
@@ -670,6 +676,18 @@ body[data-nav="v2"][data-espace="equipe"] .chatbot-panel {
   right: auto;
   bottom: calc(12px + env(safe-area-inset-bottom, 0px));
   left: calc(var(--larg-cote) + 8px);
+}
+/* Bandeaux du bas affichés (data-bandeaux-bas, et la hauteur de leur pile, --haut-bandeaux-bas, posés par
+   js/auth-admin.js) : le panneau s'arrête au-dessus d'eux, son champ et « Envoyer » restent à portée. */
+body[data-nav="v2"][data-bandeaux-bas] {
+  --bas-panneau: calc(var(--bas-bandeaux) + var(--haut-bandeaux-bas, 0px) + 8px);
+}
+body[data-nav="v2"][data-bandeaux-bas][data-espace="stagiaire"] .chatbot-panel {
+  max-height: calc(100dvh - var(--haut-entete) - 8px - var(--bas-panneau));
+}
+body[data-nav="v2"][data-bandeaux-bas][data-espace="equipe"] .chatbot-panel {
+  bottom: var(--bas-panneau);
+  max-height: calc(100dvh - var(--bas-panneau) - 12px);
 }
 /* Le « × » gardait la couleur des boutons de la barre sombre (blanc), illisible sur le panneau clair. */
 body[data-nav="v2"] .chatbot-close { color: var(--text-soft); }
@@ -684,7 +702,11 @@ body[data-nav="v2"] .chatbot-close:hover { background: var(--bg-subtle); color: 
     left: 8px;
     width: auto;
     height: min(70dvh, 560px);
-    max-height: calc(100dvh - var(--haut-barre-bas) - 72px);
+    max-height: calc(100dvh - var(--haut-barre-bas) - var(--haut-entete) - 16px);
+  }
+  body[data-nav="v2"][data-bandeaux-bas][data-espace] .chatbot-panel {
+    bottom: var(--bas-panneau);
+    max-height: calc(100dvh - var(--bas-panneau) - var(--haut-entete) - 8px);
   }
   body[data-nav="v2"] .chatbot-close,
   body[data-nav="v2"] .chatbot-form .btn { min-width: 44px; min-height: 44px; }
@@ -717,10 +739,10 @@ body[data-nav="v2"] .nav-fenetre:focus { outline: none; }
 /* Menu du compte : sous son bouton, en haut à droite, chez le stagiaire ; à droite de la barre
    latérale, en bas, dans l'équipe. Sur téléphone, les deux fenêtres montent du bas (plus bas). */
 body[data-nav="v2"][data-espace="stagiaire"] .nav-menu-compte {
-  top: 74px;
+  top: calc(var(--haut-entete) + 8px);
   right: max(14px, env(safe-area-inset-right, 0px));
-  max-height: calc(100vh - 86px);
-  max-height: calc(100dvh - 86px);
+  max-height: calc(100vh - var(--haut-entete) - 20px);
+  max-height: calc(100dvh - var(--haut-entete) - 20px);
 }
 body[data-nav="v2"][data-espace="equipe"] .nav-menu-compte {
   bottom: 12px;
