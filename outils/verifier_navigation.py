@@ -44,7 +44,10 @@ manque) :
     la coquille (échantillon à chaque image) et l'attente (`body[data-nav-attente]`) est levée.
   * Passe « éteint » : aucun aperçu, rien ne doit changer par rapport à main (aucune coquille,
     l'ancienne barre d'onglets, pas de sous-onglets regroupés, aucun défilement ni débordement de côté
-    de plus que ceux des rulings R10 et R11).
+    de plus que ceux des rulings R10 et R11), sauf deux défauts de main corrigés depuis : la barre des
+    jours du planning se colle juste sous l'ancienne barre, quelle que soit sa hauteur, et, bandeaux du
+    bas affichés (« Voir en tant que », promos non chargées), la bulle de l'assistant et le champ de son
+    panneau restent à portée, sa croix se lit et ses boutons font 44 px sur téléphone.
 Dans chaque contexte : l'arrivée à froid, chaque entrée de la coquille (cliquée dans la coquille, ou
 via « Plus » sur téléphone quand elle y est rangée ; la liste vient des règles de js/nav-rules.js,
 lues dans la page), chaque sous-onglet des pages qui en ont (Planning, Cours, Mon espace, Notes...), les
@@ -824,6 +827,7 @@ class Scenario:
     modules: str = ""           # ?modules= (scénario de modules fermés)
     voir_en_tant_que: bool = False
     demarrage: bool = False     # ouverture seule, mémoire de l'appareil allumée (ruling R17)
+    promos_en_panne: bool = False   # ?mes_promos=erreur : le bandeau des promos non chargées s'ajoute à l'aperçu
 
     @property
     def nom(self):
@@ -831,6 +835,7 @@ class Scenario:
         variante += ("-" + self.modules) if self.modules else ""
         variante += "-voir-en-tant-que" if self.voir_en_tant_que else ""
         variante += "-demarrage" if self.demarrage else ""
+        variante += "-promos-en-panne" if self.promos_en_panne else ""
         return "%s/%s/%s%s@%d" % (self.moteur, self.passe, self.role, variante, self.largeur)
 
 
@@ -893,6 +898,11 @@ def construire_scenarios(moteurs, roles, largeurs, passes):
             for role in roles:
                 for l in largeurs:
                     scenarios.append(Scenario(moteur, "eteint", role, l))
+            if "fondateur" in roles:
+                # Ancienne barre, les deux bandeaux du bas affichés : la bulle et le panneau de l'assistant
+                # restent à portée (à 375 et 900 px, ils les couvraient sur main).
+                for l in voir:
+                    scenarios.append(Scenario(moteur, "eteint", "fondateur", l, voir_en_tant_que=True, promos_en_panne=True))
     return scenarios
 
 
@@ -1022,6 +1032,9 @@ def adresse_de_page(url, sc):
     q.pop("modules", None)
     if sc.modules:
         q["modules"] = sc.modules
+    q.pop("mes_promos", None)
+    if sc.promos_en_panne:
+        q["mes_promos"] = "erreur"
     if sc.demarrage:
         q.update(lenteur=str(LENTEUR_DEMARRAGE_MS), lenteur_tables="settings")
     return urllib.parse.urlunparse(p._replace(query=urllib.parse.urlencode(q), fragment=""))
@@ -1575,7 +1588,87 @@ def jouer_demarrage(page, res, sc):
     vider_console(res, vue)
 
 
+def verifier_barre_des_jours(page, res, sc):
+    """Ancienne barre : la barre des jours du planning se colle juste sous la barre du haut, quelle que soit sa
+    hauteur (52 px, 57 avec la pastille de promo, 95,5 sur téléphone) ; aucune bande d'elle ne passe dessous."""
+    aller_a(page, "#/planning")
+    attendre(page, calme=250)
+    m = page.evaluate("""() => { const b = document.querySelector('header.topbar'), j = document.querySelector('.p-daynav');
+      return b && j && j.getClientRects().length
+        ? { barre: b.getBoundingClientRect().height, top: parseFloat(getComputedStyle(j).top) } : null; }""")
+    if m is None:
+        return   # pas de planning ouvert à cette promo : rien à mesurer
+    res.vues += 1
+    if abs(m["barre"] - m["top"]) > 0.5:
+        res.echec("barre des jours mal collée", "%s/planning/barre-des-jours" % sc.nom,
+                  "la barre des jours se colle à %.1f px du haut, la barre du haut mesure %.1f px" % (m["top"], m["barre"]))
+
+
+def verifier_bulle_sous_bandeaux(page, res, sc, options):
+    """Ancienne barre, « Voir en tant que » et promos non chargées : les deux bandeaux du bas sont affichés. La bulle
+    de l'assistant, puis le champ et « Envoyer » de son panneau, restent à portée : rien ne couvre leur centre. Le
+    panneau s'arrête sous la barre du haut, sa croix se lit et, sur téléphone, croix et « Envoyer » font 44 px."""
+    vue = "%s/assistant" % sc.nom
+    res.vues += 1
+    # Les promos sont en panne à dessein : les erreurs de leur chargement, à l'ouverture, sont attendues.
+    res.console.clear()
+    erreur = page.evaluate("(r) => window.__verifNav.voirEnTantQue(r)", "prof")
+    if erreur:
+        res.echec("règles illisibles", vue, erreur)
+        return
+    attendre(page, calme=250)
+    bandeaux = page.evaluate("""() => ['impersonation-banner', 'promos-banner'].filter((i) => {
+      const e = document.getElementById(i); return e && e.getClientRects().length; })""")
+    if len(bandeaux) < 2:
+        res.echec("bandeaux absents", vue, "attendus : le bandeau d'aperçu et celui des promos ; affichés : %s" % (", ".join(bandeaux) or "aucun"))
+        return
+    bulle = page.evaluate("""() => { const e = document.getElementById('chatbot-fab');
+      if (!e || !e.getClientRects().length) return 'bulle absente';
+      const r = e.getBoundingClientRect(), t = document.elementFromPoint((r.left + r.right) / 2, (r.top + r.bottom) / 2);
+      return t && e.contains(t) ? null : (t ? ((t.closest('[id]') || t).id || t.tagName) : 'rien'); }""")
+    if bulle:
+        res.echec("assistant recouvert", vue, "bulle de l'assistant : %s en son centre, bandeaux du bas affichés" % bulle)
+    page.evaluate("() => document.getElementById('chatbot-fab')?.click()")
+    page.wait_for_timeout(300)
+    controles = page.evaluate("() => window.__verifNav.controlesAssistant()")
+    if controles is None:
+        res.echec("le panneau ne s'ouvre pas", vue, "la bulle n'ouvre pas le panneau de l'assistant")
+    else:
+        for c in controles:
+            if c["dessus"]:
+                res.echec("assistant recouvert", vue, "%s du panneau de l'assistant : %s en son centre, bandeaux du bas affichés" % (c["nom"], c["dessus"]))
+        geo = page.evaluate("""() => { const p = document.getElementById('chatbot-panel'), b = document.querySelector('header.topbar');
+          const taille = (s) => { const e = p.querySelector(s); if (!e) return null; const r = e.getBoundingClientRect();
+            return [Math.round(r.width), Math.round(r.height)]; };
+          // Contraste de la croix sur le fond du panneau (couleurs rgb ; une autre écriture n'est pas mesurée).
+          const lum = (c) => { const m = /^rgba?\\(([^)]+)\\)$/.exec(c); if (!m) return null;
+            const v = m[1].split(/[,\\s/]+/).filter(Boolean).slice(0, 3).map((x) => { x = Number(x) / 255;
+              return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4); });
+            return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2]; };
+          const x = p.querySelector('.chatbot-close');
+          const a = x ? lum(getComputedStyle(x).color) : null, f = lum(getComputedStyle(p).backgroundColor);
+          const contraste = a === null || f === null ? null : (Math.max(a, f) + 0.05) / (Math.min(a, f) + 0.05);
+          return { haut: p.getBoundingClientRect().top, barre: b ? b.getBoundingClientRect().bottom : 0,
+                   croix: taille('.chatbot-close'), envoyer: taille('.chatbot-form .btn'), contraste }; }""")
+        if geo["contraste"] is not None and geo["contraste"] < 3:
+            res.echec("contraste (assistant)", vue, "la croix « Fermer » du panneau : %.2f:1 sur son fond (3:1 au moins)" % geo["contraste"])
+        if geo["haut"] < geo["barre"] - 0.5:
+            res.echec("assistant sous la barre du haut", vue, "le panneau commence à %.1f px, la barre du haut finit à %.1f px" % (geo["haut"], geo["barre"]))
+        if sc.largeur < SEUIL_TELEPHONE:
+            for quoi, t in (("la croix « Fermer »", geo["croix"]), ("« Envoyer »", geo["envoyer"])):
+                if t and min(t) < 44:
+                    res.echec("zone à toucher (assistant)", vue, "%s du panneau : %dx%d px (44 px au moins)" % (quoi, t[0], t[1]))
+        # La vue entière, panneau ouvert : contrastes (la croix comprise), débordements.
+        verifier_vue(page, res, sc, "assistant/ouvert", options)
+    page.keyboard.press("Escape")
+    page.wait_for_timeout(250)
+    vider_console(res, vue)
+
+
 def jouer_eteint(page, res, sc, options):
+    if sc.voir_en_tant_que:
+        verifier_bulle_sous_bandeaux(page, res, sc, options)
+        return
     verifier_vue(page, res, sc, "ouverture/" + route_courante(page), options)
     routes = page.evaluate("""() => [...document.querySelectorAll('#tabs .tab')].filter((t) => t.getBoundingClientRect().width > 0)
         .map((t) => t.dataset.route)""")
@@ -1584,6 +1677,7 @@ def jouer_eteint(page, res, sc, options):
         verifier_vue(page, res, sc, route, options)
         sous_vues(page, res, sc, route, options)
     jouer_anciennes_adresses(page, res, sc)
+    verifier_barre_des_jours(page, res, sc)
 
 
 def jouer_scenario(navigateur, url, sc, options):
