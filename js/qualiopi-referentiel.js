@@ -12,8 +12,9 @@
 //   categories         les actions qu'il vise (article L. 6313-1) : formation, bilan de compétences, VAE,
 //                      apprentissage. Un centre qui prépare un titre en formation continue relève de
 //                      `formation`.
-//   conditionnel       la proposition « Lorsque... » ou « Pour les formations en alternance » que porte le
-//                      texte, telle quelle ; null quand il n'en porte pas.
+//   conditionnel       la condition d'application de l'indicateur entier, qui ouvre son texte (« Lorsque... »
+//                      ou « Pour les formations en alternance »), telle quelle ; null sinon. Une condition
+//                      qui ne vise qu'une phrase de l'indicateur (19, 20) n'est pas retenue.
 //   majeureSeulement   ne peut donner lieu qu'à une non-conformité majeure.
 //   surveillance       revu à chaque audit de surveillance (le 3, pour les organismes concernés).
 //   nouvelEntrant      pour un nouvel entrant (première année d'activité, ou nouvelle catégorie d'actions),
@@ -217,7 +218,7 @@ export const INDICATEURS = [
     court: "Ressources pédagogiques et leur appropriation",
     texte: "Le prestataire met à disposition du bénéficiaire des ressources pédagogiques et permet à celui-ci de se les approprier. Lorsque des modules pédagogiques sont réalisés à distance, le prestataire vérifie l'effectivité de leur suivi par les apprenants. Au-delà d'un nombre d'intervenants par formation, fixé par arrêté du ministre chargé de la formation professionnelle, le prestataire dispose d'un référent pédagogique par formation chargé d'assurer la coordination pédagogique entre les intervenants.",
     categories: { formation: true, bilan: true, vae: true, apprentissage: true },
-    conditionnel: "Lorsque des modules pédagogiques sont réalisés à distance",
+    conditionnel: null,
     majeureSeulement: false, surveillance: true, nouvelEntrant: true,
     changement2026: "Le prestataire vérifie le suivi effectif des modules à distance et dispose d'un référent pédagogique au-delà d'un nombre d'intervenants fixé par arrêté.",
   },
@@ -226,7 +227,7 @@ export const INDICATEURS = [
     court: "Mobilité, référent handicap, conseil de perfectionnement, gouvernance",
     texte: "Le prestataire dispose d'un personnel dédié à l'appui à la mobilité nationale et internationale, d'un référent handicap et d'un conseil de perfectionnement. Il s'assure de la qualité du pilotage de la formation, de la participation des apprentis, formateurs et entreprises à sa gouvernance. Lorsque la proportion d'heures d'enseignement réalisées par des intervenants permanents est inférieure à un seuil fixé par arrêté du ministre chargé de la formation professionnelle, le prestataire s'assure de la mise en œuvre de modalités renforcées de supervision pédagogique et de contrôle de la qualité des interventions.",
     categories: { formation: false, bilan: false, vae: false, apprentissage: true },
-    conditionnel: "Lorsque la proportion d'heures d'enseignement réalisées par des intervenants permanents est inférieure à un seuil fixé par arrêté du ministre chargé de la formation professionnelle",
+    conditionnel: null,
     majeureSeulement: true, surveillance: false, nouvelEntrant: false,
     changement2026: "Apprentissage seulement : s'ajoutent la qualité du pilotage, la participation des apprentis, formateurs et entreprises à la gouvernance, et une supervision renforcée sous un seuil d'heures d'enseignement assurées par des intervenants permanents.",
   },

@@ -118,9 +118,9 @@ eq(parmi((i) => i.surveillance), [1, 3, 17, 19], "revus à chaque audit de surve
 eq(parmi((i) => i.nouvelEntrant), [2, 3, 11, 13, 14, 19, 22, 24, 25, 26, 32], "formalisation vérifiée pour un nouvel entrant");
 
 // --- Condition portée par le texte ---
-eq(parmi((i) => i.conditionnel !== null), [3, 7, 13, 16, 19, 20, 27, 28], "indicateurs dont le texte porte une condition");
+eq(parmi((i) => i.conditionnel !== null), [3, 7, 13, 16, 27, 28], "indicateurs dont le texte s'ouvre par une condition d'application");
 INDICATEURS.filter((i) => i.conditionnel !== null).forEach((i) => {
-  ok(i.texte.includes(i.conditionnel), `${i.numero} : la condition figure dans le texte, telle quelle`);
+  ok(i.texte.startsWith(i.conditionnel), `${i.numero} : la condition ouvre le texte, telle quelle`);
   ok(/^(Lorsque |Pour les formations en alternance$)/.test(i.conditionnel), `${i.numero} : « Lorsque » ou « Pour les formations en alternance »`);
 });
 eq(indicateur(13).conditionnel, "Pour les formations en alternance", "condition du 13");
