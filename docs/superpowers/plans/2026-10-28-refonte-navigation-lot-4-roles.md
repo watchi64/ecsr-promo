@@ -169,6 +169,7 @@ appels sans argument s'écrivent `(select f())` pour n'être calculés qu'une fo
 | epcf_evaluations, epcf_livrets | P et (E ou M) | P et F |
 | dp_dossiers, fiches_suivi | P et (E ou M) | ajout et modification : P et (F ou M) ; suppression : P et F |
 | passages | P (inchangé) | P et F ; ajout et modification de la sienne (inchangé) |
+| passages_audit | P (inchangé) | déclencheur seulement |
 | qcm_attempts | P et (E ou M) | P et F ; ajout de la sienne (inchangé) |
 | qcm_examens, themes_progression | P (inchangé) | P et F |
 | emargement_seances | P (inchangé) | fonctions serveur |
