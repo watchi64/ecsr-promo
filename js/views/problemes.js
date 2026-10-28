@@ -12,7 +12,9 @@ import {
 } from "../db.js?v=20261028a";
 import { chargerEtatSignalements } from "../signalement-etat.js?v=20261028a";
 import { renderSubTabs } from "../subtabs.js?v=20261028a";
-import { libelleStatut, resumeContexte, detailContexte, adresseSure } from "../signalement-rules.js?v=20261028a";
+import {
+  libelleStatut, resumeContexte, detailContexte, adresseSure, normaliserContexte,
+} from "../signalement-rules.js?v=20261028a";
 
 const STATUTS = ["nouveau", "en_cours", "regle", "non_retenu"];
 const A_TRAITER = new Set(["nouveau", "en_cours"]);
@@ -63,8 +65,35 @@ function zoneCapture(s, qui) {
   return zone;
 }
 
+// Une carte qui ne peut pas se dessiner (donnée inattendue) ne fait jamais tomber la liste : à sa place, le
+// message et « Supprimer ».
+function carteSure(s) {
+  try {
+    return carte(s);
+  } catch (e) {
+    console.error("Problèmes signalés : carte simplifiée pour le signalement " + s?.id, e);
+    const erreur = el("p", { class: "sg-erreur", role: "alert" });
+    const supprimer = el("button", { type: "button", class: "btn ghost", "data-sg": "supprimer" }, "Supprimer");
+    const noeud = el("article", { class: "sg-carte", "data-sg-id": String(s?.id ?? "") },
+      el("p", { class: "sg-carte-contexte" }, "Ce signalement ne peut pas s'afficher en entier."),
+      el("p", { class: "sg-carte-message" }, String(s?.message ?? "")),
+      el("div", { class: "sg-carte-actions" }, supprimer), erreur);
+    supprimer.addEventListener("click", async () => {
+      if (!confirm("Supprimer ce signalement ? Il disparaît aussi chez la personne.")) return;
+      try {
+        await supprimerSignalementApp(s.id);
+        noeud.remove();
+        chargerEtatSignalements();
+      } catch (err) {
+        erreur.textContent = err.message || "La suppression n'a pas abouti.";
+      }
+    });
+    return noeud;
+  }
+}
+
 function carte(s) {
-  const c = s.contexte && typeof s.contexte === "object" ? s.contexte : {};
+  const c = normaliserContexte(s.contexte);
   const qui = s.nom || s.email || "Quelqu'un";
   const erreur = el("p", { class: "sg-erreur", role: "alert" });
   let noeud = null;
@@ -77,7 +106,7 @@ function carte(s) {
     try {
       await action();
       Object.assign(s, maj);
-      const neuf = carte(s);
+      const neuf = carteSure(s);
       noeud.replaceWith(neuf);
       chargerEtatSignalements();
       toast(message, "success");
@@ -92,10 +121,12 @@ function carte(s) {
       const b = el("button", {
         type: "button", class: "sg-statut-btn", "data-sg-statut": st, "aria-pressed": st === s.statut ? "true" : "false",
       }, libelleStatut(st, "fondateur"));
+      // La réponse part avec le statut telle qu'elle est dans le champ : ce qui a été tapé sans
+      // « Enregistrer la réponse » n'est pas perdu.
       b.addEventListener("click", () => {
         if (st === s.statut) return;
-        agir(() => traiterSignalementApp(s.id, { statut: st, reponse: s.reponse }), { statut: st },
-          `Statut : ${libelleStatut(st, "fondateur")}.`);
+        agir(() => traiterSignalementApp(s.id, { statut: st, reponse: champ.value }),
+          { statut: st, reponse: champ.value.trim() || null }, `Statut : ${libelleStatut(st, "fondateur")}.`);
       });
       return b;
     }));
@@ -158,7 +189,7 @@ export async function renderProblemes(container) {
   const aTraiter = liste.filter((s) => A_TRAITER.has(s.statut));
   const regles = liste.filter((s) => !A_TRAITER.has(s.statut));
   const panneau = (items, vide) => (p) => {
-    p.replaceChildren(items.length ? el("div", { class: "sg-cartes" }, items.map(carte)) : el("p", { class: "sg-vide" }, vide));
+    p.replaceChildren(items.length ? el("div", { class: "sg-cartes" }, items.map(carteSure)) : el("p", { class: "sg-vide" }, vide));
   };
   container.appendChild(el("section", { class: "sg-page" },
     el("div", { class: "view-header" },

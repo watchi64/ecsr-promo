@@ -91,6 +91,28 @@ export function assemblerContexte(releve) {
   };
 }
 
+const enTexte = (v) => (v === null || v === undefined ? "" : typeof v === "string" ? v : String(v));
+
+// Le contexte tel qu'il est lu en base, ramené à sa forme : la base ne vérifie que « un objet de 16 Ko au
+// plus », et un envoi fait hors de l'app peut y mettre n'importe quoi. Chaque champ connu devient une chaîne
+// (ou un nombre, un booléen), les erreurs ne gardent que des objets : l'affichage ne peut plus lever.
+export function normaliserContexte(c) {
+  const o = c && typeof c === "object" && !Array.isArray(c) ? c : {};
+  const erreurs = (Array.isArray(o.erreurs) ? o.erreurs : [])
+    .filter((e) => e && typeof e === "object" && !Array.isArray(e))
+    .slice(-MAX_ERREURS)
+    .map((e) => ({ a: enTexte(e.a), type: enTexte(e.type), message: enTexte(e.message).slice(0, LIMITE_ERREUR), source: enTexte(e.source) }));
+  return {
+    adresse: enTexte(o.adresse), page: enTexte(o.page), titre: enTexte(o.titre), version: enTexte(o.version),
+    navigation: o.navigation === "nouvelle" ? "nouvelle" : "ancienne",
+    espace: o.espace ? enTexte(o.espace) : null, apercu: o.apercu ? enTexte(o.apercu) : null,
+    appareil: enTexte(o.appareil), tactile: o.tactile === true, ecran: enTexte(o.ecran), densite: Number(o.densite) || 1,
+    orientation: enTexte(o.orientation), navigateur: enTexte(o.navigateur), systeme: enTexte(o.systeme),
+    agent: enTexte(o.agent), installee: o.installee === true, langue: enTexte(o.langue), en_ligne: o.en_ligne !== false,
+    heure_appareil: enTexte(o.heure_appareil), fuseau: enTexte(o.fuseau), erreurs,
+  };
+}
+
 // L'appareil tel qu'on le nomme : « iPhone », « iPad », « Mac », sinon la classe d'appareil suivie du
 // premier mot du système (« ordinateur Windows », « téléphone Android »).
 function appareilLisible(c) {
@@ -106,23 +128,25 @@ const deuxChiffres = (n) => String(n).padStart(2, "0");
 
 // La ligne « Joint d'office : ... » de la fenêtre : page, appareil, navigateur (sans sa version mineure),
 // heure (celle de `maintenant`, l'envoi étant immédiat).
-export function resumeContexte(c, maintenant) {
+export function resumeContexte(contexte, maintenant) {
+  const c = normaliserContexte(contexte);
   const morceaux = [`page ${c.titre || c.adresse || "inconnue"}`, appareilLisible(c)];
   if (c.navigateur && c.navigateur !== "inconnu") morceaux.push(c.navigateur.replace(/(\d+)\.\d+$/, "$1"));
   morceaux.push(`à ${maintenant.getHours()} h ${deuxChiffres(maintenant.getMinutes())}`);
-  return morceaux.join(", ");
+  return morceaux.filter(Boolean).join(", ");
 }
 
 // Le détail du contexte, ligne à ligne et en mots simples (« Voir le détail » de la fenêtre et carte du
 // fondateur). L'aperçu n'a de ligne que lorsqu'il est actif ; les erreurs, comptées ici, sont listées à part.
-export function detailContexte(c) {
+export function detailContexte(contexte) {
+  const c = normaliserContexte(contexte);
   const lignes = [
     ["Page", c.titre ? `${c.titre} (${c.adresse})` : (c.adresse || "inconnue")],
     ["Version de l'app", c.version || "inconnue"],
     ["Navigation", c.navigation === "nouvelle" ? `nouvelle, espace ${c.espace === "equipe" ? "équipe" : "stagiaire"}` : "ancienne"],
   ];
   if (c.apercu) lignes.push(["Aperçu", c.apercu === "prof" ? "Formateur" : c.apercu === "stagiaire" ? "Stagiaire" : String(c.apercu)]);
-  const nbErreurs = Array.isArray(c.erreurs) ? c.erreurs.length : 0;
+  const nbErreurs = c.erreurs.length;
   lignes.push(
     ["Appareil", c.tactile ? `${c.appareil}, tactile` : c.appareil],
     ["Écran", `${c.ecran}, densité ${String(c.densite).replace(".", ",")}, ${c.orientation}`],

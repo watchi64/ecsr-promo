@@ -238,7 +238,7 @@ body .modal-backdrop[data-nav-coquille="signaler"] > .nav-fenetre.signalement-fe
 .sg-carte-actions .btn { min-height: 40px; }
 @media (max-width: 699.98px) {
   .sg-carte { padding: 14px; }
-  .sg-statut-btn, .sg-carte-actions .btn, .sg-carte-lien { min-height: 44px; }
+  .sg-statut-btn, .sg-carte-actions .btn, .sg-carte-lien, .sg-carte-capture-zone .btn { min-height: 44px; }
 }
 
 /* ----- Le message du bas de l'écran (#toast) ----- */
@@ -297,7 +297,7 @@ body[data-nav="v2"][data-nav-colonne] .nav-cote-signaler .nav-pastille {
    est masqué (en-tête et barre du bas) : l'entrée est dans le tiroir « Plus ». */
 @media (max-width: 699.98px) {
   body[data-nav="v2"] .nav-cote-signaler { display: none; }
-  .chatbot-signaler-btn { min-height: 44px; }
+  .chatbot-signaler-btn, .sg-entree-compte { min-height: 44px; }
 }
 @media (max-width: 699.98px) {
   .modal-backdrop[data-nav-coquille="signaler"] {

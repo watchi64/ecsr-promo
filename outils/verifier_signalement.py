@@ -177,7 +177,7 @@ def gestes_de_l_entree(nav2, role, largeur):
     """L'entrée principale de la personne (spec § 5.1) : gestes, focus attendu au retour, cible de 44 px."""
     equipe = role in ("prof", "fondateur")
     if not nav2:
-        return [".admin-badge", "[data-sg-entree='compte']"], ".admin-badge", None
+        return [".admin-badge", "[data-sg-entree='compte']"], ".admin-badge", "[data-sg-entree='compte']"
     if not equipe:
         compte = "[data-nav-coquille] button[data-nav-action='compte']"
         return [compte, "[data-nav-coquille='compte'] [data-nav-action='signaler']"], compte, \
@@ -238,9 +238,14 @@ def ouvrir_fenetre(page, nav2, role, largeur):
 def verifier_envoi(page, res, vue, nav2, role, largeur, captures, nom_capture):
     ouvrir_fenetre(page, nav2, role, largeur)
     if captures:
+        # Le message du démarrage (6 s) masquerait une partie de la vue : retiré pour la capture seulement.
+        page.evaluate("document.getElementById('toast')?.classList.add('hidden')")
         page.screenshot(path=str(captures / ("%s.png" % nom_capture)))
     for ko in page.evaluate(CONTRASTE_JS, TEXTES_AJOUTES):
         res.echec(vue, "contraste sous AA : %s" % ko)
+    resume_long = ".sg-mes .sg-mien-message summary"
+    if largeur < 700 and visible(page, resume_long) and hauteur(page, resume_long) < 44:
+        res.echec(vue, "résumé dépliable de « Mes signalements » sous 44 px (%.0f px)" % hauteur(page, resume_long))
     page.fill("#sg-message", "Le bouton Enregistrer ne réagit pas.")
     page.locator("[data-sg='envoyer']").dblclick()
     page.wait_for_timeout(600)
@@ -298,13 +303,26 @@ def verifier_fondateur(page, res, vue, largeur, captures, nom_capture):
     if onglets != ["À traiter (2)", "Réglés (1)", "Tous (3)"]:
         res.echec(vue, "sous-onglets : %s" % onglets)
     if captures:
+        page.evaluate("document.getElementById('toast')?.classList.add('hidden')")
         page.screenshot(path=str(captures / ("%s.png" % nom_capture)), full_page=False)
     for ko in page.evaluate(CONTRASTE_JS, TEXTES_AJOUTES):
         res.echec(vue, "contraste sous AA (page) : %s" % ko)
+    # Une réponse tapée sans être enregistrée part avec le statut et reste dans la carte redessinée.
+    page.fill("[data-sg-id='101'] .sg-carte-reponse", "Réponse en cours")
     cliquer(page, "[data-sg-id='101'] [data-sg-statut='en_cours']")
     page.wait_for_timeout(400)
     if page.evaluate("document.querySelector(\"[data-sg-id='101'] [aria-pressed='true']\")?.dataset.sgStatut") != "en_cours":
         res.echec(vue, "statut non mis à jour sur la carte")
+    statut = [a for a in page.evaluate("(window.__HARNESS_SIGNALEMENTS_APPELS || [])"
+                                       ".filter((a) => a.name === 'traiter_signalement_app')")
+              if (a.get("params") or {}).get("p_statut") == "en_cours"]
+    if not statut or statut[-1]["params"].get("p_reponse") != "Réponse en cours":
+        res.echec(vue, "la réponse tapée n'est pas partie avec le statut")
+    if page.input_value("[data-sg-id='101'] .sg-carte-reponse") != "Réponse en cours":
+        res.echec(vue, "la réponse tapée a disparu au clic sur un statut")
+    capture = "[data-sg-id='101'] [data-sg='voir-capture']"
+    if largeur < 700 and hauteur(page, capture) < 44:
+        res.echec(vue, "« Voir la capture » sous 44 px (%.0f px)" % hauteur(page, capture))
     cliquer(page, "[data-sg-id='101'] [data-sg='voir-capture']")
     try:
         page.wait_for_selector("[data-sg-id='101'] img.sg-carte-capture", timeout=5000)
@@ -325,6 +343,21 @@ def verifier_fondateur(page, res, vue, largeur, captures, nom_capture):
         res.echec(vue, "carte supprimée toujours affichée")
 
 
+def verifier_contexte_forge(page, res, vue):
+    """Un contexte trafiqué (envoyé à la main, hors de l'app) ne fait pas tomber la page du fondateur."""
+    page.evaluate("""async () => {
+      const v = (document.querySelector('script[type=importmap]')?.textContent.match(/banc\\d+/) || [])[0];
+      const db = await import('./js/db.js?v=' + v);
+      await db.signalerProbleme({ message: 'Contexte forgé', contexte: { appareil: 'x', navigateur: 5, erreurs: [null, 'x'] } });
+    }""")
+    page.evaluate("location.hash = '#/problemes'")
+    page.wait_for_timeout(1200)
+    if visible(page, ".view-error-box") or not visible(page, ".sg-page"):
+        res.echec(vue, "la page tombe sur un contexte forgé")
+    elif "Contexte forgé" not in page.evaluate("document.querySelector('.sg-page')?.textContent || ''"):
+        res.echec(vue, "le signalement au contexte forgé n'est pas affiché")
+
+
 def verifier_global(page, res, vue, erreurs):
     if page.evaluate("document.documentElement.scrollWidth > window.innerWidth"):
         res.echec(vue, "défilement de côté (%d > %d)" % (page.evaluate("document.documentElement.scrollWidth"),
@@ -332,6 +365,21 @@ def verifier_global(page, res, vue, erreurs):
     propres = [e for e in erreurs if "favicon" not in e]
     if propres:
         res.echec(vue, "erreur de console : %s" % propres[0][:160])
+
+
+def jouer_vue(navigateur, base, res, vue, role, nav2, largeur, controles, apercu=None):
+    """Ouvre la page, joue `controles(page, erreurs)` ; une exception (ouverture lente comprise) est un échec
+    noté pour cette vue, jamais un arrêt du script."""
+    res.vue()
+    contexte = None
+    try:
+        contexte, page, erreurs = ouvrir_page(navigateur, base, role, nav2, largeur, apercu)
+        controles(page, erreurs)
+    except Exception as e:  # une vue qui casse ne doit pas arrêter les autres
+        res.echec(vue, "exception : %s" % str(e).splitlines()[0][:200])
+    finally:
+        if contexte:
+            contexte.close()
 
 
 def jouer_moteur(p, moteur, base, res, captures):
@@ -344,9 +392,8 @@ def jouer_moteur(p, moteur, base, res, captures):
             for role in ("stagiaire", "prof", "fondateur"):
                 for largeur in LARGEURS:
                     vue = "%s %s %s %d" % (moteur, "nouvelle" if nav2 else "ancienne", role, largeur)
-                    contexte, page, erreurs = ouvrir_page(navigateur, base, role, nav2, largeur)
-                    try:
-                        res.vue()
+
+                    def controles(page, erreurs, vue=vue, nav2=nav2, role=role, largeur=largeur):
                         verifier_entrees(page, res, vue, nav2, role, largeur)
                         if largeur != 900:
                             dossier = captures if (captures and moteur == "chromium" and role != "fondateur") else None
@@ -359,27 +406,25 @@ def jouer_moteur(p, moteur, base, res, captures):
                             if page.evaluate("location.hash") == "#/problemes":
                                 res.echec(vue, "page #/problemes ouverte hors fondateur")
                         verifier_global(page, res, vue, erreurs)
-                    except Exception as e:  # une vue qui casse ne doit pas arrêter les autres
-                        res.echec(vue, "exception : %s" % str(e).splitlines()[0][:200])
-                    finally:
-                        contexte.close()
+
+                    jouer_vue(navigateur, base, res, vue, role, nav2, largeur, controles)
         for largeur in (1280, 375):
             vue = "%s ancienne fondateur page %d" % (moteur, largeur)
-            contexte, page, erreurs = ouvrir_page(navigateur, base, "fondateur", False, largeur)
-            try:
-                res.vue()
+
+            def controles(page, erreurs, vue=vue, largeur=largeur):
                 dossier = captures if (captures and moteur == "chromium") else None
                 verifier_fondateur(page, res, vue, largeur, dossier, "fondateur-page-%d" % largeur)
                 verifier_global(page, res, vue, erreurs)
-            except Exception as e:
-                res.echec(vue, "exception : %s" % str(e).splitlines()[0][:200])
-            finally:
-                contexte.close()
+
+            jouer_vue(navigateur, base, res, vue, "fondateur", False, largeur, controles)
+        vue = "%s contexte forgé" % moteur
+        jouer_vue(navigateur, base, res, vue, "fondateur", False, 1280,
+                  lambda page, erreurs, vue=vue: verifier_contexte_forge(page, res, vue))
+
         # Fondateur en aperçu Stagiaire : ni bloc ni page.
         vue = "%s aperçu Stagiaire" % moteur
-        contexte, page, erreurs = ouvrir_page(navigateur, base, "fondateur", False, 1280, apercu="stagiaire")
-        try:
-            res.vue()
+
+        def apercu(page, erreurs, vue=vue):
             cliquer(page, ".admin-badge")
             if visible(page, "[data-sg-entree='problemes']"):
                 res.echec(vue, "« Problèmes signalés » visible en aperçu")
@@ -392,10 +437,8 @@ def jouer_moteur(p, moteur, base, res, captures):
             page.wait_for_timeout(500)
             if page.evaluate("location.hash") == "#/problemes":
                 res.echec(vue, "page #/problemes ouverte en aperçu")
-        except Exception as e:
-            res.echec(vue, "exception : %s" % str(e).splitlines()[0][:200])
-        finally:
-            contexte.close()
+
+        jouer_vue(navigateur, base, res, vue, "fondateur", False, 1280, apercu, apercu="stagiaire")
     finally:
         navigateur.close()
 

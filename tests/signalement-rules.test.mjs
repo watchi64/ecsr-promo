@@ -4,7 +4,7 @@ import {
   MIN_MESSAGE, LIMITE_MESSAGE, LIMITE_CAPTURE, COTE_MAX_CAPTURE, MAX_ERREURS, LIMITE_ERREUR, MAX_MES_SIGNALEMENTS,
   lireNavigateur, classeAppareil, assemblerContexte, resumeContexte, detailContexte, verifierMessage,
   libelleStatut, pastilleSignalement, messageDemarrage, entreeErreur, ajouterErreur, dimensionsReduites,
-  phraseErreur, adresseSure,
+  phraseErreur, adresseSure, normaliserContexte,
 } from "../js/signalement-rules.js";
 
 const UA_IPHONE = "Mozilla/5.0 (iPhone; CPU iPhone OS 18_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.1 Mobile/15E148 Safari/604.1";
@@ -178,4 +178,19 @@ test("refus du serveur et adresse sûre", () => {
   assert.equal(adresseSure("javascript:alert(1)"), null);
   assert.equal(adresseSure("#/x\"onclick"), null);
   assert.equal(adresseSure(""), null);
+});
+
+test("contexte forgé : jamais d'exception, que des chaînes", () => {
+  const forge = { appareil: "x", navigateur: 5, systeme: null, titre: 7, ecran: ["a"], densite: "3",
+    erreurs: [null, "x", { a: 1, message: { b: 2 } }] };
+  const c = normaliserContexte(forge);
+  assert.equal(c.navigateur, "5");
+  assert.equal(c.titre, "7");
+  assert.equal(c.erreurs.length, 1);
+  assert.equal(typeof c.erreurs[0].message, "string");
+  assert.equal(typeof resumeContexte(forge, new Date(2026, 9, 28, 9, 5)), "string");
+  assert.ok(detailContexte(forge).every(([k, v]) => typeof k === "string" && typeof v === "string"));
+  assert.doesNotThrow(() => detailContexte(null));
+  assert.doesNotThrow(() => resumeContexte("texte", new Date()));
+  assert.equal(resumeContexte({}, new Date(2026, 9, 28, 9, 5)), "page inconnue, à 9 h 05");
 });
