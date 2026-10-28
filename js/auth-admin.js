@@ -22,6 +22,9 @@ import { el, toast, displayStagiaire } from "./utils.js?v=20261028a";
 import { icon } from "./icons.js?v=20261028a";
 import { construirePastille } from "./promo-pastille.js?v=20261028a";
 import { pagePersonnelle } from "./route-rules.js?v=20261028a";
+import { etatSignalements } from "./signalement-etat.js?v=20261028a";
+import { pastilleSignalement } from "./signalement-rules.js?v=20261028a";
+import { libellePastille } from "./nouveautes.js?v=20261028a";
 
 let currentUser = null;     // Supabase auth user
 let currentProfile = null;  // row user_profiles
@@ -390,6 +393,27 @@ export async function seDeconnecter(apresDeconnexion) {
   location.reload();
 }
 
+// « Signaler un problème » dans la fenêtre « Mon compte » de l'ancienne barre (spec 2026-10-28, § 5.1) :
+// la fenêtre de signalement la remplace, et le focus reviendra au badge du nom. Sa pastille : les
+// signalements de la personne qui ont avancé. Chez le fondateur hors aperçu, en plus, la page des
+// problèmes reçus, avec le nombre de nouveaux. Import différé de js/signalement.js (qui importe ce module).
+function boutonsSignalement(fermer) {
+  const etat = etatSignalements();
+  const { texte, nom } = pastilleSignalement({ fondateur: false, ...etat });
+  const signaler = el("button", { class: "btn full sg-entree-compte", type: "button", "data-sg-entree": "compte", "aria-label": nom,
+    onClick: () => {
+      fermer();
+      import("./signalement.js?v=20261028a").then((m) => m.ouvrirSignalement({ ancre: document.querySelector(".admin-badge") }));
+    } }, icon.signaler(), "Signaler un problème", texte ? el("span", { class: "sg-pastille", "aria-hidden": "true" }, texte) : null);
+  if (!fondateurHorsApercu()) return [signaler];
+  const nouveaux = libellePastille(etat.nouveaux);
+  const problemes = el("button", { class: "btn full sg-entree-compte", type: "button", "data-sg-entree": "problemes",
+    "aria-label": nouveaux ? `Problèmes signalés, ${etat.nouveaux} nouveaux` : "Problèmes signalés",
+    onClick: () => { fermer(); location.hash = "#/problemes"; } },
+  icon.list(), "Problèmes signalés", nouveaux ? el("span", { class: "sg-pastille", "aria-hidden": "true" }, nouveaux) : null);
+  return [signaler, problemes];
+}
+
 function openProfileMenu() {
   const backdrop = el("div", { class: "modal-backdrop" });
   const logoutBtn = el("button", { class: "btn danger full", onClick: () => seDeconnecter(() => backdrop.remove()) },
@@ -415,6 +439,7 @@ function openProfileMenu() {
         : null,
     ),
     persoBtn,
+    ...boutonsSignalement(() => backdrop.remove()),
     buildViewAsBlock(() => backdrop.remove()),
     logoutBtn,
     el("button", { class: "gate-link compte-legal", type: "button", onClick: () => {

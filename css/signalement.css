@@ -188,7 +188,112 @@ body .modal-backdrop[data-nav-coquille="signaler"] > .nav-fenetre.signalement-fe
   font-weight: 600;
 }
 
-/* Téléphone : la fenêtre monte du bas, à pleine largeur ; cibles de 44 px. */
+/* ----- La page « Problèmes signalés » (fondateur) ----- */
+.sg-cartes { display: flex; flex-direction: column; gap: 14px; }
+.sg-vide { margin: 0; color: var(--text-muted); }
+.sg-carte {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  padding: 16px 18px;
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-1);
+}
+.sg-carte-tete { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
+.sg-carte-qui { overflow-wrap: anywhere; }
+.sg-carte-date { color: var(--text-muted); font-size: 0.85rem; }
+.sg-carte-message { margin: 0; font-size: 1rem; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
+.sg-carte-contexte { margin: 0; color: var(--text-soft); font-size: 0.86rem; overflow-wrap: anywhere; }
+.sg-agent { margin: 8px 0 0; font-family: var(--font-mono); font-size: 0.74rem; color: var(--text-muted); overflow-wrap: anywhere; }
+.sg-carte-capture { display: block; max-width: min(100%, 360px); max-height: 50vh; border: 1px solid var(--line); border-radius: var(--r-sm); cursor: zoom-in; }
+.sg-carte-capture.grand { max-width: 100%; max-height: none; cursor: zoom-out; }
+.sg-carte-lien {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  color: var(--accent-strong);
+  font-weight: 600;
+}
+.sg-statut-btns { display: flex; flex-wrap: wrap; gap: 6px; }
+.sg-statut-btn {
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: var(--bg-elev);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+.sg-statut-btn:hover { background: var(--bg-subtle); }
+.sg-statut-btn[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg-elev); font-weight: 600; }
+.sg-carte-repondre { display: flex; flex-direction: column; gap: 8px; }
+.sg-carte-reponse { min-height: 72px; }
+.sg-carte-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.sg-carte-actions .btn { min-height: 40px; }
+@media (max-width: 699.98px) {
+  .sg-carte { padding: 14px; }
+  .sg-statut-btn, .sg-carte-actions .btn, .sg-carte-lien { min-height: 44px; }
+}
+
+/* ----- Les entrées : coquille (js/nav-shell.js, js/menu-compte.js), Assistant, ancienne barre ----- */
+/* Pastille hors coquille (fenêtre « Mon compte » de l'ancienne barre) : le dessin de .nav-pastille. */
+.sg-pastille {
+  display: inline-grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  margin-left: 8px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--bg-elev);
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1;
+}
+.sg-entree-compte { margin-top: 0.5rem; }
+body[data-nav="v2"] .nav-cote-signaler .nav-pastille { margin-left: auto; }
+/* Colonne d'icônes : la pastille sur le coin de l'icône. */
+body[data-nav="v2"][data-nav-colonne] .nav-cote-signaler .nav-pastille {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  font-size: 0.66rem;
+}
+.chatbot-signaler {
+  margin: 0;
+  padding: 0 14px 6px;
+  color: var(--text-soft);
+  font-size: 0.85rem;
+}
+.chatbot-signaler-btn {
+  min-height: 32px;
+  padding: 0 2px;
+  border: 0;
+  background: transparent;
+  color: var(--accent-strong);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+/* Téléphone : la fenêtre monte du bas, à pleine largeur ; cibles de 44 px. Le pied de barre de l'équipe
+   est masqué (en-tête et barre du bas) : l'entrée est dans le tiroir « Plus ». */
+@media (max-width: 699.98px) {
+  body[data-nav="v2"] .nav-cote-signaler { display: none; }
+  .chatbot-signaler-btn { min-height: 44px; }
+}
 @media (max-width: 699.98px) {
   .modal-backdrop[data-nav-coquille="signaler"] {
     align-items: flex-end;

@@ -19,6 +19,10 @@ import { nouveautesAffichables, formateurConnecte } from "./modules-etat.js?v=20
 import { libellePastille } from "./nouveautes.js?v=20261028a";
 import { initialesDe, libelleRole, pageASoiDuMenu } from "./nav-rules.js?v=20261028a";
 import { ouvrirFenetre, fermerFenetre } from "./nav-fenetre.js?v=20261028a";
+import { fondateurHorsApercu } from "./auth-admin.js?v=20261028a";
+import { ouvrirSignalement } from "./signalement.js?v=20261028a";
+import { etatSignalements } from "./signalement-etat.js?v=20261028a";
+import { pastilleSignalement } from "./signalement-rules.js?v=20261028a";
 
 // Une ligne du menu : un lien (page) ou un bouton (geste), icône et libellé, `fin` à droite.
 const ligne = (tag, attrs, icone, texte, fin = null) => el(tag, { class: "nav-fenetre-lien", ...attrs },
@@ -33,9 +37,21 @@ function lignePageASoi(page) {
   return null;
 }
 
+// « Signaler un problème », dans l'espace stagiaire (l'équipe l'a en pied de barre) : la fenêtre de
+// signalement remplace le menu, et le focus reviendra au bouton du compte. Pastille et nom comme dans la
+// coquille (pastilleSignalement).
+function ligneSignaler(ancre) {
+  const { texte, nom } = pastilleSignalement({ fondateur: fondateurHorsApercu(), ...etatSignalements() });
+  return ligne("button", {
+    type: "button", "data-nav-action": "signaler", "aria-haspopup": "dialog", "aria-label": nom,
+    onClick: () => ouvrirSignalement({ ancre }),
+  }, icon.signaler(), "Signaler un problème", texte ? el("span", { class: "nav-pastille", "aria-hidden": "true" }, texte) : null);
+}
+
 // `actualiser` : le geste « Actualiser » de l'app (main.js) ; sans lui, pas de ligne. `entrees` : les
-// entrées de la barre affichée, qui décident de la ligne de la page à soi.
-export function ouvrirMenuCompte(ancre, { actualiser, entrees = [] } = {}) {
+// entrées de la barre affichée, qui décident de la ligne de la page à soi. `espace` : celui de la coquille
+// (« stagiaire » ou « equipe »), qui décide de la ligne « Signaler un problème ».
+export function ouvrirMenuCompte(ancre, { actualiser, entrees = [], espace = null } = {}) {
   const nom = getProfileWho() || "";
   const quiEtOu = [libelleRole(getProfile()), getPromoCourante()?.nom].filter(Boolean).join(" · ");
   const pageASoi = pageASoiDuMenu(pagePersonnelle({ formateur: formateurConnecte(), stagiaireId: monStagiaireId() }), entrees);
@@ -57,6 +73,7 @@ export function ouvrirMenuCompte(ancre, { actualiser, entrees = [] } = {}) {
       actualiser
         ? ligne("button", { type: "button", onClick: () => { fermerFenetre(); actualiser(); } }, icon.refresh(), "Actualiser")
         : null,
+      espace === "stagiaire" ? ligneSignaler(ancre) : null,
       // Fondateur seulement (null sinon) : choisir un rôle ferme le menu, la coquille change d'espace.
       buildViewAsBlock(() => fermerFenetre()),
       filet(),

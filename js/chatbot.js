@@ -204,6 +204,7 @@ export function initChatbot() {
       <button type="button" class="ghost-btn chatbot-close" aria-label="Fermer l'assistant">&times;</button>
     </div>
     <p class="chatbot-disclaimer">Version bêta : l'assistant peut se tromper, vérifie les points importants dans les cours. La qualité des réponses va s'améliorer.</p>
+    <p class="chatbot-signaler">Un souci avec l'app ? <button type="button" class="chatbot-signaler-btn" data-sg-entree="assistant">Signaler un problème</button></p>
     <div class="chatbot-msgs"></div>
     <form class="chatbot-form">
       <textarea rows="1" placeholder="Pose ta question…" maxlength="2000"
@@ -237,6 +238,11 @@ export function initChatbot() {
     }
   });
   panneau.querySelector(".chatbot-close").addEventListener("click", fermerPanneau);
+  // Signaler un problème (spec 2026-10-28) : la fenêtre s'ouvre par-dessus le panneau, qui reste ouvert.
+  const signaler = panneau.querySelector(".chatbot-signaler-btn");
+  signaler.addEventListener("click", () => {
+    import("./signalement.js?v=20261028a").then((m) => m.ouvrirSignalement({ ancre: signaler }));
+  });
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape") fermerPanneau();
   });
