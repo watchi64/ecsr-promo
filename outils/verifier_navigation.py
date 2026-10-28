@@ -1,0 +1,1911 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""Vérification de la nouvelle navigation au banc d'essai (refonte, lot 1 : la coquille).
+
+Usage
+-----
+    python outils/verifier_navigation.py [URL_DU_BANC] [options]
+
+    python outils/verifier_navigation.py                              # tout, deux moteurs (environ 3 minutes)
+    python outils/verifier_navigation.py --roles stagiaire --sans-menus   # coquille du stagiaire seule (Task 4)
+
+Prérequis : le serveur du banc (configuration « maquette-nav », qui sert la racine du worktree) et un
+`_harness.html` à jour (`node _harness_build.mjs` après toute modification d'index.html ; un banc
+périmé est signalé par un échec « banc périmé »).
+
+URL_DU_BANC : adresse de _harness.html (défaut http://127.0.0.1:8040/_harness.html). Une adresse en
+`localhost` est réécrite en `127.0.0.1` quand elle répond : sur ce poste, `localhost` coûte ~0,2 s par
+requête (essai de ::1 avant IPv4) et fait passer le démarrage de l'app de 0,3 s à 6 s ; `--garder-hote`
+l'évite.
+
+Sortie : les échecs groupés par type, les avertissements (dette connue, sans échec), puis, en dernière
+ligne, « N vues, M échec(s) ». Code de sortie 1 s'il y a un échec, 2 si le banc ne répond pas.
+
+Ce que le script joue
+---------------------
+Pour chaque moteur (Chromium, puis WebKit, par `executable_path` quand celui que Playwright attend
+manque) :
+  * Passe « allumé », rôles stagiaire, prof et fondateur, largeurs 1280, 1100, 900 et 375 px. Le
+    fondateur et le stagiaire du banc (fondateur lui aussi) passent par l'aperçu de l'appareil
+    (localStorage `ecsr_nav_v2` = "1", posé avant le chargement). Le formateur prof, qui n'est pas
+    fondateur et n'a donc aucun aperçu, passe par le réglage de la promo (ligne `navigation_v2` de
+    `settings`, semée dans le faux Supabase par une interception de `_harness_supabase.js` : le
+    fichier du banc n'est jamais modifié). S'y ajoutent un stagiaire qui n'est pas fondateur (réglage
+    de la promo, `is_founder` retiré : le cas de la plupart des vrais comptes), le stagiaire et le prof
+    avec `?modules=depart` (modules fermés : pas de case vide, repères), et le « Voir en tant que » du
+    fondateur, à 1280, 900 et 375 px (Stagiaire, Formateur, Stagiaire, puis son rôle réel : la
+    coquille change d'espace sans recharger la page, et l'entrée allumée suit la page affichée ; sur
+    téléphone, il passe aussi par « Plus », « Mon compte », « Stagiaire », puis ouvre le tiroir et
+    élargit l'écran à 900 px : le tiroir se ferme et le focus ne tombe jamais sur body ; à chaque rôle
+    vu, le bandeau d'aperçu est en bas de l'écran et l'assistant, ouvert depuis la coquille, garde son
+    champ et « Envoyer » à portée : rien ne couvre leur centre). S'y ajoute, une fois par moteur,
+    l'ouverture d'un formateur dont l'appareil a vu la promo allumée (mémoire `ecsr_nav_v2_promo:1`,
+    ruling R17), lectures des réglages ralenties : l'ancienne barre ne se peint à aucune image avant
+    la coquille (échantillon à chaque image) et l'attente (`body[data-nav-attente]`) est levée.
+  * Passe « éteint » : aucun aperçu, rien ne doit changer par rapport à main (aucune coquille,
+    l'ancienne barre d'onglets, pas de sous-onglets regroupés, aucun défilement ni débordement de côté
+    de plus que ceux des rulings R10 et R11), sauf deux défauts de main corrigés depuis : la barre des
+    jours du planning se colle juste sous l'ancienne barre, quelle que soit sa hauteur, et, bandeaux du
+    bas affichés (« Voir en tant que », promos non chargées), la bulle de l'assistant et le champ de son
+    panneau restent à portée, sa croix se lit et ses boutons font 44 px sur téléphone.
+Dans chaque contexte : l'arrivée à froid, chaque entrée de la coquille (cliquée dans la coquille, ou
+via « Plus » sur téléphone quand elle y est rangée ; la liste vient des règles de js/nav-rules.js,
+lues dans la page), chaque sous-onglet des pages qui en ont (Planning, Cours, Mon espace, Notes...), les
+pages du menu du compte sans entrée à elles (Mon espace, Réglages, Nouveautés), le bouton
+« Aujourd'hui » de Planning > Semaine (ruling R29), les quatre anciennes adresses (ruling R26,
+ci-dessous), puis les menus (compte, « Plus », contexte, assistant) et « Précédent » sous une fenêtre
+ouverte.
+
+Contrôles par vue
+-----------------
+  * rien ne défile de côté ni ne déborde de la fenêtre, dans les deux passes, hors `.matrice-wrap`
+    (exception admise, sans avertissement). Tout le reste échoue, interrupteur éteint compris (une règle
+    du lot qui déborde de `body[data-nav="v2"]` y fait échouer la page), sauf deux listes qui ne donnent
+    qu'un avertissement « dette du lot 2 » rangé par conteneur : les conteneurs de page qui défilaient
+    déjà sur main (DETTE_LOT_2, ruling R10) et le lien Légifrance de Cours > Signalements (DETTE_R11,
+    ruling R11) ;
+  * nouvelle navigation allumée : Planning, Cours et Mon espace (de qui a un profil stagiaire) montrent au
+    moins 3, 3 et 6 sous-onglets (lignes du sommaire sur téléphone), 2, 0 et 0 pour un stagiaire au départ
+    (`?modules=depart`) : une barre de sous-onglets perdue échoue ;
+  * une seule entrée allumée dans la coquille visible, celle que donne `entreeActive` : le lien vers elle,
+    ou « Plus » quand elle est rangée dans le tiroir du téléphone ;
+  * zones à toucher : 44 px au moins sous 700 px (24 px au-delà) pour la coquille, les menus, les barres
+    de sous-onglets et les cases des Paramètres ;
+  * contraste du texte de la coquille et des menus (couleur et fond réels) : 4,5:1, 3:1 pour le grand texte ;
+  * barre du bas (téléphone) : 5 entrées au plus, toutes nommées, libellés sur une ligne ;
+  * la coquille et le contenu ne se recouvrent pas, tout ce qui est fixe reste dans la fenêtre, l'ancienne
+    barre d'onglets est masquée ;
+  * menus et tiroirs : entièrement dans l'écran, fermés par Échap (le retour du focus sur le bouton qui les
+    a ouverts n'est qu'un avertissement) ;
+  * fenêtre ouverte (menu du compte, tiroir « Plus ») : fermée quand « Précédent » change l'adresse, le
+    focus restant dans la coquille ; sur téléphone, fermée aussi par son « Fermer » ;
+  * Planning > Semaine (ruling R29) : allumé, un bouton nommé « Aujourd'hui », de 44 px, qui, cliqué sur
+    une autre semaine que celle du jour, affiche la semaine du jour et amène sa carte en haut de l'écran ;
+    éteint, la page n'en a pas (celui de la barre du haut reste) ;
+  * l'attente de la coquille (`body[data-nav-attente]`, ruling R17) n'est plus posée, dans les deux passes ;
+  * les quatre anciennes adresses (`#/calendrier`, `#/dashboard`, `#/ressources`, `#/notes`, ruling R26) : allumé, la nouvelle
+    page et son sous-onglet allumé (Planning : Dates clés, Priorités ; Cours : Documents ; Mon espace : La classe chez
+    le stagiaire, mais Notes reste la page de l'équipe ; module fermé au départ : le premier sous-onglet visible),
+    et « Précédent » quitte la page redirigée ; éteint, l'adresse et la page restent celles d'aujourd'hui ;
+  * aucune erreur de console ni de page.
+
+Contrat de balisage de la coquille (Tasks 4 et 5)
+-------------------------------------------------
+Le script ne connaît la coquille que par ces crochets ; une coquille qui les respecte passe sans autre
+réglage. Tant qu'elle n'existe pas, chaque contexte échoue avec « coquille absente » (une fois par
+contexte) et les contrôles de la page sont joués quand même.
+  * `body[data-nav="v2"]` et `body[data-espace="stagiaire" | "equipe"]`.
+  * Tout élément racine de la coquille (barre du haut, barre latérale, barre du bas, tiroir, fenêtre du
+    compte...) porte l'attribut `data-nav-coquille` ; « dans la coquille » veut dire « sous un élément
+    `[data-nav-coquille]` ».
+  * Une entrée est un lien `a[href="#/route"]` de la coquille ; `aria-current="page"` sur l'entrée de la
+    page affichée (sur « Plus » quand cette entrée est rangée dans le tiroir).
+  * Téléphone (moins de 700 px) : la barre du bas est un élément fixe collé au bas de la fenêtre, sur toute
+    la largeur, dont les liens et boutons visibles sont les entrées (« Plus » compris), chacune avec un
+    libellé visible.
+  * Ouvreurs de menus, liste blanche : un bouton de la coquille est un ouvreur s'il porte `aria-haspopup`
+    ou si son `data-nav-action` vaut `compte`, `plus` ou `assistant` (sans `data-nav-action`, un bouton
+    nommé « Plus », « Compte », « Mon compte » ou « Menu » l'est aussi). Toute autre valeur (`replier`,
+    `deconnexion`...) n'en est pas un et n'est pas cliquée. Leur fenêtre est un `role="dialog"` ou
+    `role="menu"` (le panneau de l'assistant : `#chatbot-panel`).
+  * Une entrée sans libellé visible (colonne d'icônes) porte `aria-label` et `title`. « Visible » se mesure
+    sur la boîte affichée du texte : un libellé réservé aux lecteurs d'écran (1 px, `clip`) ne compte pas.
+
+Options utiles pendant le développement : `--roles`, `--moteurs`, `--largeurs`, `--passes`,
+`--sans-menus` (boutons du compte et de « Plus » pas encore câblés, avant la Task 5), `--tout` (liste chaque
+échec), `--captures DOSSIER` (une capture par vue en échec), `--jobs N` (processus en parallèle, deux par
+moteur par défaut).
+
+Défauts que les contrôles ont été éprouvés à attraper
+-----------------------------------------------------
+Chacun a été introduit seul dans une coquille factice qui respecte le contrat (hors dépôt), ou injecté
+par `--script-init`, et le script a échoué avec le message attendu ; la coquille sans défaut ne fait
+échouer aucun contrôle de la coquille.
+  * coquille : contraste faible, zone à toucher trop petite, barre du bas de 6 entrées, marge basse
+    manquante, défilement de côté, contenu sous la barre latérale, libellé de la barre du bas coupé,
+    deux entrées allumées, « Plus » allumé quand l'entrée est dans la barre (et l'inverse), un libellé
+    allumé à la place du lien, entrée sans `title`, libellé réservé aux lecteurs d'écran sans `title`
+    (colonne d'icônes et barre du bas), lien d'évitement trop petit une fois affiché au focus ;
+  * page : une page qui perd ses sous-onglets ;
+  * anciennes adresses (ruling R26), défauts injectés dans la redirection de js/main.js : aucune redirection, redirection suivie
+    interrupteur éteint, redirection par `location.hash` (étape d'historique en trop), mauvaise clé de sous-onglet,
+    Notes de l'équipe redirigé ;
+  * menus : Échap qui ne ferme pas, menu hors de l'écran, tiroir resté ouvert (avertissement) ; focus rendu
+    à body quand le bouton d'une fenêtre a disparu (« Plus » > « Mon compte » > « Stagiaire ») ou ne
+    s'affiche plus (écran élargi tiroir ouvert), tiroir resté ouvert quand l'écran passe à 900 px (sur la
+    coquille de la Task 5 avant sa correction) ; fenêtre restée ouverte quand « Précédent » change
+    l'adresse, « Fermer » sans effet (relecture finale, injectés par `--script-init`) ;
+  * « Aujourd'hui » de Planning > Semaine (ruling R29, injectés par `--script-init`) : bouton absent,
+    bouton sans effet, bouton montré interrupteur éteint ;
+  * interrupteur éteint : un `h1` trop large (« élément de page qui déborde »), une coquille présente ;
+  * ouverture (ruling R17) : ancienne barre laissée visible pendant l'attente (37 images avant la
+    coquille), attente jamais levée ; « Voir en tant que » : panneau de l'assistant laissé sous le
+    bandeau d'aperçu (champ et « Envoyer » couverts à 375 px dans les deux espaces, « Envoyer » à
+    1280 px et à 900 px dans l'équipe) ;
+  * mise en place : erreur de console et de page, interrupteur qui n'allume pas, banc périmé.
+Sans défaut, n'échouent pas : un bouton `data-nav-action="deconnexion"` (pas un ouvreur), un lien d'évitement
+masqué (ni mesuré comme cible, ni sans nom), un nom pris par `aria-labelledby`, `<label for>` ou `<title>` SVG.
+"""
+import argparse
+import concurrent.futures
+import datetime
+import itertools
+import os
+import pathlib
+import re
+import sys
+import time
+import urllib.error
+import urllib.parse
+import urllib.request
+from dataclasses import asdict, dataclass, replace
+
+from playwright.sync_api import Error as ErreurPlaywright
+from playwright.sync_api import TimeoutError as DelaiDepasse
+from playwright.sync_api import sync_playwright
+
+# --------------------------------------------------------------------------------------
+# Configuration
+# --------------------------------------------------------------------------------------
+
+BANC_PAR_DEFAUT = "http://127.0.0.1:8040/_harness.html"
+MOTEURS = ("chromium", "webkit")
+ROLES = ("stagiaire", "prof", "fondateur")
+LARGEURS = (1280, 1100, 900, 375)
+HAUTEUR = {1280: 800, 1100: 800, 900: 800, 375: 812}
+SEUIL_TELEPHONE = 700          # largeur de fenêtre sous laquelle la coquille passe en mode téléphone
+DATE_DU_BANC = "2026-10-27"    # « aujourd'hui » figé (même date que les autres vérifications du lot)
+CLE_APERCU = "ecsr_nav_v2"     # aperçu du fondateur, propre à l'appareil (js/nav-etat-regles.js)
+CLE_REGLAGE = "navigation_v2"  # réglage de la promo, ligne de `settings` (js/nav-etat-regles.js)
+CLE_MEMOIRE_PROMO_1 = "ecsr_nav_v2_promo:1"   # mémoire de l'appareil pour la promo 1 du banc (cleMemoire, ruling R17)
+LENTEUR_DEMARRAGE_MS = 600     # lectures des réglages ralenties dans le scénario de l'ouverture (ruling R17)
+
+# Ruling R10 : conteneurs de page qui défilaient déjà de côté sur main. Un défilement qui s'y
+# produit n'est qu'un avertissement (dette du lot 2), dans les deux passes ; partout ailleurs il échoue.
+DETTE_LOT_2 = (".passages-table-wrap", ".epcf-table-wrap", ".dashboard-meta", ".cours-table-wrap",
+               ".centre-defile", ".cours-sommaire", ".ms-chart-wrap", ".notes-chart-svg-wrap")
+EXCEPTION_ADMISE = ".matrice-wrap"  # la matrice des notes : seule exception admise, sans avertissement
+# Ruling R11 (contrôleur) : le lien Légifrance de Cours > Signalements (formateur), qui dépasse de 66 px à
+# 375 px (`p.qcm-signal-instr-ligne > a`, rogné par le body), est une dette du lot 2, déjà sur main :
+# avertissement à part, sans échec.
+DETTE_R11 = (".qcm-signal-instr-ligne",)
+
+# Entrées de repli si les règles de navigation de l'app ne se lisent pas dans la page.
+ENTREES_REPLI = {
+    "stagiaire": ("home", "planning", "themes", "mon-suivi", "ccp2"),
+    "equipe": ("home", "planning", "emargement", "stagiaires", "notes", "themes", "ccp2", "centre", "config"),
+}
+
+# --------------------------------------------------------------------------------------
+# Code injecté dans la page (une fois par page, sous window.__verifNav)
+# --------------------------------------------------------------------------------------
+
+JS_OUTILS = r"""
+(() => {
+if (window.__verifNav) return;
+
+const SEL_INTERACTIF = 'a[href], button, [role="button"], [role="tab"], [role="menuitem"], [role="link"], input:not([type="hidden"]), select, textarea, summary';
+const SEL_POPUP = '[role="dialog"], [role="menu"], [aria-modal="true"], #chatbot-panel';
+const SEL_CACHE = '[aria-hidden="true"], [hidden], [inert]';
+
+const style = (e) => getComputedStyle(e);
+const rect = (e) => e.getBoundingClientRect();
+const largeur = () => document.documentElement.clientWidth;
+const hauteur = () => window.innerHeight;
+const dixieme = (x) => Math.round(x * 10) / 10;
+
+const visible = (e) => {
+  const r = rect(e);
+  if (r.width <= 0 || r.height <= 0) return false;
+  const s = style(e);
+  return s.visibility !== "hidden" && s.display !== "none" && parseFloat(s.opacity) > 0.01;
+};
+const nom = (e) => {
+  if (!e || !e.tagName) return "?";
+  let s = e.tagName.toLowerCase();
+  if (e.id) s += "#" + e.id;
+  const c = (e.getAttribute("class") || "").trim().split(/\s+/).filter(Boolean).slice(0, 2);
+  if (c.length) s += "." + c.join(".");
+  const href = e.getAttribute("href"), action = e.getAttribute("data-nav-action"), role = e.getAttribute("role");
+  if (href && href.startsWith("#/")) s += '[href="' + href + '"]';
+  else if (action) s += "[data-nav-action=" + action + "]";
+  else if (role && !c.length) s += "[role=" + role + "]";
+  return s;
+};
+const net = (s) => (s || "").replace(/\s+/g, " ").trim();
+const texte = (e) => net(e.innerText);
+const texteDe = (e) => net(e ? (e.innerText || e.textContent) : "");   // un <title> SVG n'a pas d'innerText
+// Nom accessible, dans l'ordre du calcul : aria-labelledby, aria-label, <label> du champ, contenu (le texte
+// réservé aux lecteurs d'écran en fait partie), alt d'une image, <title> d'un SVG, title.
+const nomAcc = (e) => {
+  const lie = net((e.getAttribute("aria-labelledby") || "").split(/\s+/).filter(Boolean).map((id) => texteDe(document.getElementById(id))).join(" "));
+  if (lie) return lie;
+  if (net(e.getAttribute("aria-label"))) return net(e.getAttribute("aria-label"));
+  const etiquette = e.labels && e.labels.length ? net([...e.labels].map(texteDe).join(" ")) : "";
+  if (etiquette) return etiquette;
+  if (texte(e)) return texte(e);
+  const img = e.querySelector ? e.querySelector("img[alt]") : null;
+  if (img && net(img.getAttribute("alt"))) return net(img.getAttribute("alt"));
+  const svg = e.querySelector ? e.querySelector("svg title") : null;
+  if (svg && texteDe(svg)) return texteDe(svg);
+  return net(e.getAttribute("title"));
+};
+// Texte réellement affiché par un élément : les nœuds de texte dont la boîte, rognée par les ancêtres qui
+// coupent (overflow, clip, clip-path) de leur parent jusqu'à l'élément inclus, garde au moins 3 px dans les
+// deux sens et n'est pas rejetée hors de la fenêtre (à gauche, à droite, au-dessus du haut de la page). Un
+// libellé réservé aux lecteurs d'écran (1 px, clip, hors écran) n'en fait pas partie, alors que innerText le compte.
+const rognageNul = (s) => /^rect\(\s*0(px)?[\s,]+0(px)?[\s,]+0(px)?[\s,]+0(px)?\s*\)$/.test(s.clip) || /^inset\((50|100)%/.test(s.clipPath);
+function texteAffiche(e) {
+  const W = document.documentElement.clientWidth, morceaux = [];
+  const marche = document.createTreeWalker(e, NodeFilter.SHOW_TEXT);
+  for (let n = marche.nextNode(); n; n = marche.nextNode()) {
+    const t = net(n.textContent);
+    if (!t || !n.parentElement) continue;
+    const zone = document.createRange();
+    zone.selectNodeContents(n);
+    const r = zone.getBoundingClientRect();
+    let g = r.left, d = r.right, h = r.top, b = r.bottom, cache = false;
+    for (let a = n.parentElement; a && !cache; a = a === e ? null : a.parentElement) {
+      const s = getComputedStyle(a);
+      if (s.display === "none" || s.visibility === "hidden" || rognageNul(s)) cache = true;
+      else if (s.overflowX !== "visible" || s.overflowY !== "visible") {
+        const ra = a.getBoundingClientRect();
+        g = Math.max(g, ra.left); d = Math.min(d, ra.right); h = Math.max(h, ra.top); b = Math.min(b, ra.bottom);
+      }
+    }
+    if (!cache && d - g >= 3 && b - h >= 3 && d > 0 && g < W && b + window.scrollY > 0) morceaux.push(t);
+  }
+  return morceaux.join(" ");
+}
+// Plage des diacritiques combinants (U+0300 à U+036F), construite par code pour ne pas dépendre d'une séquence d'échappement.
+const DIACRITIQUES = new RegExp("[" + String.fromCharCode(768) + "-" + String.fromCharCode(879) + "]", "g");
+const sansAccent = (s) => (s || "").normalize("NFD").replace(DIACRITIQUES, "").toLowerCase();
+
+const racines = () => [...document.querySelectorAll("[data-nav-coquille]")];
+const actifs = (liste) => liste.filter((e) => !e.disabled && e.getAttribute("aria-disabled") !== "true");
+function interactifsDe(racine) {
+  const s = new Set();
+  if (racine.matches(SEL_INTERACTIF)) s.add(racine);
+  racine.querySelectorAll(SEL_INTERACTIF).forEach((e) => s.add(e));
+  return actifs([...s]);
+}
+function interactifsCoquille() {
+  const s = new Set();
+  racines().forEach((r) => interactifsDe(r).forEach((e) => s.add(e)));
+  return [...s];
+}
+
+// ---- Règles de navigation de l'app, lues dans la page (le script n'en recopie rien) ----
+async function regles() {
+  try {
+    const cartes = JSON.parse(document.querySelector('script[type="importmap"]').textContent).imports;
+    const charger = (n) => {
+      const cle = Object.keys(cartes).find((k) => k.startsWith("./js/" + n + ".js?v="));
+      if (!cle) throw new Error("module introuvable : " + n);
+      return import(new URL(cle, document.baseURI).href);
+    };
+    const [rules, mods, em, auth, etat] = await Promise.all(
+      ["nav-rules", "modules-etat", "emargement-etat", "auth-admin", "nav-etat"].map(charger));
+    const espace = rules.espaceDe({ formateur: auth.isAdmin() || auth.isProf() });
+    const entrees = rules.entreesNavigation(espace, { routeVisible: mods.routeVisible, emargementActif: em.emargementActif() });
+    const tel = rules.barreTelephone(espace, entrees);
+    return {
+      espace, entrees, barre: tel.barre.map((e) => e.id), plus: tel.plus.map((e) => e.id),
+      lit: (route) => rules.entreeActive(route, entrees),
+      actif: etat.navigationV2Active(), fondateur: auth.isFounder(), profilStagiaire: auth.monStagiaireId() != null,
+      setViewAs: auth.setViewAs,
+    };
+  } catch (e) { return { erreur: String((e && e.message) || e) }; }
+}
+async function reglesSimples() {
+  const r = await regles();
+  if (r.erreur) return { erreur: r.erreur };
+  return { espace: r.espace, entrees: r.entrees.map((e) => ({ id: e.id, route: e.route, libelle: e.libelle, court: e.court })),
+    barre: r.barre, plus: r.plus, actif: r.actif, fondateur: r.fondateur, profilStagiaire: r.profilStagiaire };
+}
+async function voirEnTantQue(role) {
+  const r = await regles();
+  if (r.erreur) return r.erreur;
+  r.setViewAs(role);
+  return null;
+}
+
+// ---- Couleurs et contraste ----
+function analyser(c) {
+  let m = /^rgba?\(([^)]+)\)$/.exec(c);
+  if (m) {
+    const p = m[1].split(/[,\s/]+/).filter(Boolean).map((x) => (x.endsWith("%") ? parseFloat(x) / 100 : Number(x)));
+    return { r: p[0], g: p[1], b: p[2], a: p.length > 3 ? p[3] : 1 };
+  }
+  m = /^color\(srgb ([^)]+)\)$/.exec(c);
+  if (m) {
+    const p = m[1].split(/[\s/]+/).filter(Boolean).map((x) => (x.endsWith("%") ? parseFloat(x) / 100 : Number(x)));
+    return { r: p[0] * 255, g: p[1] * 255, b: p[2] * 255, a: p.length > 3 ? p[3] : 1 };
+  }
+  const cv = document.createElement("canvas"); cv.width = cv.height = 1;
+  const cx = cv.getContext("2d", { willReadFrequently: true });
+  cx.fillStyle = "#000"; cx.fillStyle = c; cx.fillRect(0, 0, 1, 1);
+  const d = cx.getImageData(0, 0, 1, 1).data;
+  return { r: d[0], g: d[1], b: d[2], a: d[3] / 255 };
+}
+const sur = (haut, bas, a) => ({ r: haut.r * a + bas.r * (1 - a), g: haut.g * a + bas.g * (1 - a), b: haut.b * a + bas.b * (1 - a) });
+const luminance = (c) => {
+  const v = [c.r, c.g, c.b].map((x) => { const y = x / 255; return y <= 0.03928 ? y / 12.92 : Math.pow((y + 0.055) / 1.055, 2.4); });
+  return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2];
+};
+const rapport = (a, b) => { const [x, y] = [luminance(a), luminance(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
+const hex = (c) => "#" + [c.r, c.g, c.b].map((x) => Math.round(x).toString(16).padStart(2, "0")).join("");
+// Fond réel d'un élément : les fonds unis des ancêtres, superposés jusqu'au premier opaque.
+function fondDe(e) {
+  const couches = [];
+  for (let n = e; n; n = n.parentElement) {
+    const s = style(n);
+    if (s.backgroundImage && s.backgroundImage !== "none") return null;   // dégradé ou image : indéterminé
+    const c = analyser(s.backgroundColor);
+    if (c.a > 0) { couches.push(c); if (c.a >= 1) break; }
+  }
+  let base = { r: 255, g: 255, b: 255 };
+  for (let i = couches.length - 1; i >= 0; i--) base = sur(couches[i], base, couches[i].a);
+  return base;
+}
+function mesurerContrastes(portees, echecs, avert) {
+  const W = largeur(), H = hauteur(), deja = new Set();
+  let indetermines = 0;
+  portees.forEach((racine) => {
+    [racine, ...racine.querySelectorAll("*")].forEach((e) => {
+      if (![...e.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim())) return;
+      if (!visible(e) || e.closest(SEL_CACHE) || e.closest("button:disabled, [aria-disabled='true']")) return;
+      const r = rect(e);
+      if (r.right <= 0 || r.left >= W || r.bottom <= 0 || r.top >= H) return;
+      const s = style(e);
+      let opacite = 1;
+      for (let n = e; n && n !== document.body; n = n.parentElement) opacite *= parseFloat(style(n).opacity);
+      const fond = fondDe(e);
+      if (!fond) { indetermines++; return; }
+      const c = analyser(s.color);
+      const texteCouleur = sur(c, fond, c.a * opacite);
+      const taille = parseFloat(s.fontSize), gras = parseInt(s.fontWeight, 10) >= 700;
+      const seuil = (taille >= 24 || (taille >= 18.66 && gras)) ? 3 : 4.5;
+      const ratio = rapport(texteCouleur, fond);
+      if (ratio >= seuil) return;
+      const cle = nom(e) + "|" + hex(texteCouleur) + "|" + hex(fond);
+      if (deja.has(cle)) return;
+      deja.add(cle);
+      echecs.push(["contraste", `${ratio.toFixed(2)}:1 (minimum ${seuil}) ${hex(texteCouleur)} sur ${hex(fond)} : ${nom(e)} « ${texte(e).slice(0, 24)} »`]);
+    });
+  });
+  if (indetermines) avert.push(["contraste indéterminé", `${indetermines} texte(s) de la coquille sur un fond en image ou en dégradé, non mesurés`]);
+}
+
+// ---- Zones à toucher ----
+// Un élément visuellement caché mais focalisable (lien d'évitement : 1 px, clip, hors écran) n'est pas une
+// zone à toucher, sauf s'il s'affiche quand il reçoit le focus : on le mesure alors tel qu'il s'affiche.
+function cacheVisuellement(e) {
+  // Hors de la fenêtre à gauche, à droite ou au-dessus du haut de la page : caché ; sous le bas de la fenêtre, non
+  // (la page défile, ce que montre le bas d'une page n'est pas caché).
+  const r = rect(e), s = style(e), W = largeur();
+  return r.width <= 2 || r.height <= 2 || r.right <= 0 || r.bottom + window.scrollY <= 0 || r.left >= W || rognageNul(s);
+}
+function rectangleDeLaCible(e) {
+  if (!cacheVisuellement(e)) return rect(e);
+  const avant = document.activeElement;
+  try { e.focus({ preventScroll: true }); } catch (x) { /* non focalisable */ }
+  const reste = cacheVisuellement(e), r = rect(e);
+  if (avant && avant !== e && avant.focus) avant.focus({ preventScroll: true });
+  else if (document.activeElement === e) e.blur();
+  return reste ? null : r;
+}
+function mesurerCibles(elements, min, echecs, type) {
+  const champ = 'textarea, select, input:not([type="checkbox"]):not([type="radio"]):not([type="button"]):not([type="submit"])';
+  elements.filter((e) => !e.matches(champ)).filter(visible).forEach((e) => {
+    const r = rectangleDeLaCible(e);
+    if (r && (r.width < min - 0.5 || r.height < min - 0.5)) {
+      echecs.push([type, `${Math.round(r.width)}x${Math.round(r.height)} px (minimum ${min}) : ${nom(e)} « ${nomAcc(e).slice(0, 30)} »`]);
+    }
+  });
+}
+
+// ---- Défilements et débordements de côté ----
+// Une zone qui défile de côté, ou un élément qui dépasse de la fenêtre sans être rogné par un
+// ancêtre. body et html rognent (overflow-x: clip) : ce rognage est justement le débordement.
+function debordements(o) {
+  const W = largeur();
+  const trouves = [];
+  const caches = new Map();
+  const infos = (e) => {
+    let v = caches.get(e);
+    if (!v) { const s = style(e); v = { ox: s.overflowX, pos: s.position, vis: s.visibility, r: null }; caches.set(e, v); }
+    return v;
+  };
+  const rc = (e) => { const v = infos(e); if (!v.r) v.r = rect(e); return v.r; };
+  const categorie = (e) => {
+    if (e.closest(o.exception)) return "ignore";
+    if (e.closest("[data-nav-coquille]")) return "coquille";
+    if (e.closest(".subtabs-bar")) return "sous-onglets";
+    const d = e.closest(o.dette.join(", "));
+    if (d) return "dette:" + o.dette.find((s) => d.matches(s));
+    return "page";
+  };
+  const vus = new Set();
+  [document.getElementById("view"), ...racines()].filter(Boolean).forEach((racine) => {
+    [racine, ...racine.querySelectorAll("*")].forEach((e) => {
+      if (vus.has(e)) return;
+      vus.add(e);
+      const v = infos(e);
+      if ((v.ox === "auto" || v.ox === "scroll") && e.clientWidth > 0 && e.scrollWidth > e.clientWidth + 1) {
+        trouves.push({ genre: "zone", cat: categorie(e), nom: nom(e),
+          detail: `défile de côté (${e.scrollWidth} px de contenu pour ${e.clientWidth} px) : ${nom(e)}` });
+      }
+      const r = rc(e);
+      if (r.width <= 1 || r.height <= 1 || v.vis === "hidden" || e.closest(SEL_CACHE)) return;
+      let g = r.left, d = r.right;
+      if (v.pos !== "fixed") {
+        for (let a = e.parentElement; a && a !== document.body && a !== document.documentElement; a = a.parentElement) {
+          const va = infos(a);
+          if (va.ox !== "visible") { const ra = rc(a); g = Math.max(g, ra.left); d = Math.min(d, ra.right); }
+          if (va.pos === "fixed") break;
+        }
+      }
+      if (d > W + 1 || g < -1) {
+        const de = d > W + 1 ? `dépasse de ${Math.round(d - W)} px à droite` : `dépasse de ${Math.round(-g)} px à gauche`;
+        trouves.push({ genre: "hors", cat: categorie(e), nom: nom(e), detail: `${de} de la fenêtre : ${nom(e)}` });
+      }
+    });
+  });
+  return trouves;
+}
+
+// ---- Éléments fixes de la coquille : barres, colonne, tiroirs ----
+function fixesCoquille() {
+  const fixes = [];
+  racines().forEach((r) => [r, ...r.querySelectorAll("*")].forEach((e) => {
+    const p = style(e).position;
+    if ((p === "fixed" || p === "sticky") && visible(e)) fixes.push(e);
+  }));
+  return fixes.filter((e) => !fixes.some((f) => f !== e && f.contains(e)));
+}
+function genreDeBarre(e) {
+  const r = rect(e), W = largeur(), H = hauteur();
+  if (r.left <= 1 && r.width < W * 0.5 && r.height >= H * 0.8) return "gauche";
+  if (r.width >= W * 0.9 && r.height <= 160 && r.height >= 36) {
+    if (r.bottom >= H - 1) return "bas";
+    if (r.top <= 1) return "haut";
+  }
+  return null;
+}
+// Étendue de ce que la page affiche (les enfants visibles de #view, hors éléments sortis du flux) :
+// les marges et remplissages de #view, qui servent justement à faire de la place, n'en font pas partie.
+function etenduDuContenu() {
+  const vue = document.getElementById("view");
+  const rs = [...vue.children].filter((c) => visible(c) && !["fixed", "absolute"].includes(style(c).position)).map(rect);
+  if (!rs.length) return null;
+  return { left: Math.min(...rs.map((r) => r.left)), top: Math.min(...rs.map((r) => r.top)), bottom: Math.max(...rs.map((r) => r.bottom)) };
+}
+// Lien visible d'une entrée, balisé pour que Playwright le clique (vrai clic, avec test de recouvrement).
+function chercherLien(route, libelle, court) {
+  document.querySelectorAll("[data-vn-cible]").forEach((e) => e.removeAttribute("data-vn-cible"));
+  const liens = [...document.querySelectorAll('[data-nav-coquille] a[href="#/' + route + '"]')];
+  const vis = liens.filter(visible);
+  const bon = (a) => { const n = sansAccent(nomAcc(a)); return n.includes(sansAccent(libelle)) || n.includes(sansAccent(court)); };
+  const choix = vis.find(bon) || vis[0] || null;
+  if (choix) choix.setAttribute("data-vn-cible", "1");
+  return { total: liens.length, visibles: vis.length };
+}
+// Le bouton « Plus » de la barre du téléphone : data-nav-action="plus", ou un bouton nommé « Plus ».
+const estPlus = (e) => (e.tagName !== "A" || !(e.getAttribute("href") || "").startsWith("#/"))
+  && (e.getAttribute("data-nav-action") === "plus" || /^plus$/i.test(nomAcc(e)));
+function chercherPlus() {
+  document.querySelectorAll("[data-vn-cible]").forEach((e) => e.removeAttribute("data-vn-cible"));
+  const c = interactifsCoquille().filter(visible).find(estPlus);
+  if (c) c.setAttribute("data-vn-cible", "1");
+  return !!c;
+}
+
+// ---- Mesure d'une vue ----
+async function mesurer(o) {
+  const echecs = [], dettes = [], avert = [];
+  const W = largeur(), H = hauteur();
+  const tel = W < o.seuilTelephone;
+  const allume = o.passe === "allume";
+  const route = (location.hash || "").replace(/^#\//, "").split("/")[0];
+  window.scrollTo(0, 0);
+  const vue = document.getElementById("view");
+
+  // Page : ni vide, ni en erreur.
+  const boite = vue && vue.querySelector(".view-error-box");
+  if (boite) echecs.push(["page en erreur", texte(boite).slice(0, 120)]);
+  else if (!vue || !vue.children.length) echecs.push(["page vide", "#view n'a aucun contenu"]);
+  // Ruling R17 : l'attente de la coquille est levée une fois l'app ouverte (sinon l'ancienne barre, si elle
+  // reste, ne se peint plus).
+  if (document.body.hasAttribute("data-nav-attente")) echecs.push(["attente de la coquille non levée", "body[data-nav-attente] est encore posé, l'app ouverte"]);
+
+  // Défilements et débordements de côté : la même classification interrupteur allumé ou éteint, car la
+  // passe éteinte est le garde de « l'app reste identique à main » (une règle du lot qui déborde de
+  // body[data-nav="v2"] se voit là). Seuls les conteneurs des rulings R10 et R11 ne donnent qu'un avertissement,
+  // rangé sous le sélecteur de leur conteneur.
+  const trouves = debordements(o);
+  trouves.forEach((t) => {
+    if (t.cat === "ignore") return;
+    if (t.cat === "coquille") echecs.push(["défilement de côté dans la coquille", t.detail]);
+    else if (t.cat === "sous-onglets") echecs.push(["défilement de côté d'une barre de sous-onglets", t.detail]);
+    else if (t.cat.startsWith("dette:")) dettes.push([t.cat.slice(6), t.detail]);
+    else echecs.push([t.genre === "zone" ? "zone de page qui défile de côté" : "élément de page qui déborde de la fenêtre", t.detail]);
+  });
+
+  // Barres de sous-onglets : une seule allumée ; zones à toucher sous la nouvelle navigation.
+  const barres = [...document.querySelectorAll(".subtabs-bar")].filter(visible);
+  barres.forEach((b) => {
+    const n = b.querySelectorAll(".subtab.active").length;
+    if (n !== 1) echecs.push(["sous-onglet allumé", `${n} sous-onglet(s) allumé(s) dans ${nom(b)}`]);
+  });
+  if (allume) {
+    const min = tel ? 44 : 24;
+    mesurerCibles([...document.querySelectorAll(".subtabs-bar .subtab")], min, echecs, "zone à toucher (sous-onglet)");
+    mesurerCibles([...document.querySelectorAll(".invite-admin-toggle")], min, echecs, "zone à toucher (case de réglage)");
+  }
+
+  if (allume && o.coquille) mesurerCoquille(o, route, W, H, tel, echecs, avert, await regles());
+  if (!allume) mesurerAncienne(route, echecs, barres);
+  window.scrollTo(0, 0);
+  return { route, echecs, dettes, avert };
+}
+
+function mesurerAncienne(route, echecs, barres) {
+  if (document.body.dataset.nav || document.body.dataset.espace) echecs.push(["coquille présente, interrupteur éteint", `body[data-nav] = ${document.body.dataset.nav}, body[data-espace] = ${document.body.dataset.espace}`]);
+  if (racines().length) echecs.push(["coquille présente, interrupteur éteint", `${racines().length} élément(s) [data-nav-coquille]`]);
+  const onglets = [...document.querySelectorAll("#tabs .tab")].filter(visible);
+  if (!onglets.length) echecs.push(["ancienne barre absente", "aucun onglet visible dans #tabs"]);
+  const allumes = onglets.filter((t) => t.getAttribute("aria-current") === "page");
+  if (allumes.length > 1) echecs.push(["entrée allumée", `${allumes.length} onglets allumés dans l'ancienne barre`]);
+  // L'interrupteur éteint garde les pages de main : pas de regroupement en sous-onglets.
+  const libelles = [...document.querySelectorAll("#view .subtab, #view .fiche-ligne")].map((e) => sansAccent(texte(e)));
+  if (route === "planning" && barres.length) echecs.push(["page regroupée, interrupteur éteint", "le Planning montre des sous-onglets"]);
+  if (route === "themes" && libelles.some((l) => l.startsWith("documents"))) echecs.push(["page regroupée, interrupteur éteint", "Cours montre un sous-onglet Documents"]);
+  if (route === "mon-suivi" && libelles.some((l) => l.startsWith("la classe"))) echecs.push(["page regroupée, interrupteur éteint", "Mon espace montre la partie La classe"]);
+  // Le bouton « Aujourd'hui » de la page (ruling R29) n'appartient qu'à la nouvelle navigation : éteint, il est dans la barre du haut.
+  if (route === "planning" && document.querySelector("#view .p-aujourdhui")) echecs.push(["page regroupée, interrupteur éteint", "le Planning montre le bouton « Aujourd'hui » de la nouvelle navigation"]);
+}
+
+function mesurerCoquille(o, route, W, H, tel, echecs, avert, R) {
+  const vue = document.getElementById("view");
+  if (document.body.dataset.nav !== "v2") echecs.push(["coquille disparue", `body[data-nav] = ${document.body.dataset.nav || "absent"}`]);
+  if (document.body.dataset.espace !== o.espace) echecs.push(["espace de la coquille", `attendu ${o.espace}, body[data-espace] = ${document.body.dataset.espace || "absent"}`]);
+  const visibles = racines().filter(visible);
+  if (!visibles.length) echecs.push(["coquille invisible", `${racines().length} racine(s) [data-nav-coquille], aucune visible`]);
+
+  // L'ancienne barre d'onglets ne reste pas affichée.
+  const anciens = [...document.querySelectorAll("#tabs .tab")].filter(visible);
+  if (anciens.length) echecs.push(["ancienne barre visible", `${anciens.length} onglet(s) de #tabs encore visible(s)`]);
+
+  // Une seule entrée allumée, celle que donne entreeActive.
+  const allumees = [...document.querySelectorAll('[data-nav-coquille] [aria-current="page"], [data-nav-coquille][aria-current="page"]')].filter(visible);
+  const attendue = R.erreur ? undefined : R.lit(route);
+  const attendu = attendue === undefined ? null : (attendue ? 1 : 0);
+  if (attendu !== null ? allumees.length !== attendu : allumees.length > 1) {
+    echecs.push(["entrée allumée", `${allumees.length} entrée(s) allumée(s) pour #/${route} (attendu ${attendu === null ? "1 au plus" : attendu + (attendue ? " : " + attendue : "")}) : ${allumees.map((a) => nom(a) + " « " + nomAcc(a).slice(0, 18) + " »").join(", ")}`]);
+  } else if (attendue && allumees.length === 1) {
+    // Le bon élément est allumé : le lien vers l'entrée attendue ; sur téléphone, « Plus » quand cette entrée
+    // est rangée dans le tiroir. Un autre lien, « Plus » à tort, un li ou le bouton du compte : échec.
+    const a = allumees[0];
+    const lien = a.tagName === "A" ? (a.getAttribute("href") || "").replace(/^#\//, "") : null;
+    const rangee = tel && !R.erreur && R.plus.includes(attendue);
+    const qui = `${nom(a)} « ${nomAcc(a).slice(0, 18)} »`;
+    if (rangee && !estPlus(a)) echecs.push(["entrée allumée", `#/${route} est rangée dans « Plus » : c'est « Plus » qui doit être allumé, pas ${qui}`]);
+    else if (!rangee && lien !== attendue) echecs.push(["entrée allumée", `#/${route} doit allumer le lien vers « ${attendue} », c'est ${qui} qui l'est`]);
+  }
+
+  // Éléments fixes : dans la fenêtre, sans recouvrir le contenu.
+  const fixes = fixesCoquille();
+  const contenu = etenduDuContenu();
+  fixes.forEach((f) => {
+    const r = rect(f);
+    if (r.left < -1 || r.right > W + 1 || r.top < -1 || r.bottom > H + 1) {
+      echecs.push(["barre hors de l'écran", `${nom(f)} : x ${Math.round(r.left)} à ${Math.round(r.right)} (fenêtre ${W}), y ${Math.round(r.top)} à ${Math.round(r.bottom)} (fenêtre ${H})`]);
+    }
+    const genre = genreDeBarre(f);
+    if (contenu && genre === "gauche" && contenu.left < r.right - 1) echecs.push(["contenu sous la coquille", `le contenu commence à x ${Math.round(contenu.left)}, la barre latérale va jusqu'à x ${Math.round(r.right)}`]);
+    if (contenu && genre === "haut" && contenu.top < r.bottom - 1) echecs.push(["contenu sous la coquille", `le contenu commence à y ${Math.round(contenu.top)}, la barre du haut va jusqu'à y ${Math.round(r.bottom)}`]);
+  });
+  const basses = fixes.filter((f) => genreDeBarre(f) === "bas");
+  if (basses.length) {
+    window.scrollTo(0, document.documentElement.scrollHeight);
+    const fin = etenduDuContenu();
+    basses.forEach((f) => {
+      const top = rect(f).top;
+      if (fin && fin.bottom > top + 1) echecs.push(["contenu sous la coquille", `le bas de la page (y ${Math.round(fin.bottom)}) passe sous la barre du bas (y ${Math.round(top)}) : marge basse manquante`]);
+    });
+    window.scrollTo(0, 0);
+  }
+
+  // Téléphone : une barre du bas de 5 entrées au plus, toutes nommées. Au-delà : pas de barre du bas.
+  const barre = basses.map((f) => ({ f, n: interactifsDe(f).filter(visible) })).sort((a, b) => b.n.length - a.n.length)[0];
+  if (tel && !barre) echecs.push(["barre du bas absente", `aucun élément fixe de la coquille collé au bas de la fenêtre (${W} px de large)`]);
+  if (!tel && barre) echecs.push(["barre du bas sur grand écran", `${nom(barre.f)} est affiché à ${W} px de large`]);
+  if (tel && barre) {
+    const items = barre.n;
+    if (items.length > 5) echecs.push(["barre du bas", `${items.length} entrées (5 au plus)`]);
+    if (!R.erreur) {
+      const attenduN = R.barre.length + (R.plus.length ? 1 : 0);   // les entrées de la barre, et « Plus » s'il y a un tiroir
+      if (items.length !== attenduN) echecs.push(["barre du bas", `${items.length} entrée(s) affichée(s), les règles en donnent ${attenduN}`]);
+    }
+    items.forEach((it) => {
+      if (!texteAffiche(it)) echecs.push(["barre du bas", `entrée sans libellé visible : ${nom(it)} « ${nomAcc(it).slice(0, 20)} »`]);
+      const rI = rect(it);
+      [it, ...it.querySelectorAll("*")].filter((x) => [...x.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim())).filter((x) => texteAffiche(x)).forEach((lib) => {
+        const rl = rect(lib), lh = parseFloat(style(lib).lineHeight) || 16;
+        if (lib.scrollWidth > lib.clientWidth + 1 || rl.height > lh * 1.5 || rl.left < rI.left - 1 || rl.right > rI.right + 1) {
+          echecs.push(["libellé de la barre du bas coupé", `« ${texte(lib).slice(0, 20)} » : ${Math.round(rl.width)}x${Math.round(rl.height)} px dans une entrée de ${Math.round(rI.width)} px`]);
+        }
+      });
+    });
+  }
+
+  // Zones à toucher, noms accessibles, infobulles des entrées sans libellé.
+  const dedans = interactifsCoquille();
+  mesurerCibles(dedans, tel ? 44 : 24, echecs, "zone à toucher (coquille)");
+  dedans.filter(visible).forEach((e) => {
+    if (!nomAcc(e)) echecs.push(["sans nom accessible", `${nom(e)} n'a pas de nom accessible (ni aria-labelledby, aria-label, étiquette, contenu, alt, <title> SVG, ni title)`]);
+    else if (e.tagName === "A" && (e.getAttribute("href") || "").startsWith("#/") && !texteAffiche(e) && !e.getAttribute("title")) {
+      echecs.push(["entrée sans infobulle", `${nom(e)} (${e.getAttribute("href")}) n'a pas de title : sans libellé visible, elle en a besoin`]);
+    }
+  });
+
+  // Contraste du texte de la coquille.
+  mesurerContrastes(racines().filter(visible), echecs, avert);
+
+  // Éléments fixes extérieurs qui recouvrent la coquille : avertissement seulement (l'assistant sous le bandeau
+  // d'aperçu a son propre garde, verifier_assistant_sous_bandeau).
+  const barresFixes = fixes.filter((f) => genreDeBarre(f));
+  if (barresFixes.length) {
+    const exterieurs = [...document.querySelectorAll("body *")].filter((e) => !e.closest("[data-nav-coquille]") && style(e).position === "fixed" && visible(e));
+    exterieurs.filter((e) => !exterieurs.some((x) => x !== e && x.contains(e))).forEach((e) => {
+      const r = rect(e);
+      barresFixes.forEach((f) => {
+        const b = rect(f);
+        if (Math.min(r.right, b.right) - Math.max(r.left, b.left) > 4 && Math.min(r.bottom, b.bottom) - Math.max(r.top, b.top) > 4 && r.width < W * 0.95) {
+          avert.push(["recouvrement de la coquille", `${nom(e)} recouvre ${nom(f)} (${genreDeBarre(f)})`]);
+        }
+      });
+    });
+  }
+}
+
+// ---- Menus et tiroirs ----
+// Liste blanche : un bouton est un ouvreur s'il porte aria-haspopup, ou si son data-nav-action vaut compte,
+// plus ou assistant ; ou, sans data-nav-action, s'il est nommé « Plus », « Compte », « Mon compte » ou « Menu ».
+// Toute autre action (replier, deconnexion...) n'en est pas un : le script ne la clique pas.
+const OUVREURS_CONNUS = ["compte", "plus", "assistant"];
+function ouvreurs() {
+  document.querySelectorAll("[data-vn-i]").forEach((e) => e.removeAttribute("data-vn-i"));
+  const liste = [];
+  interactifsCoquille().filter(visible).forEach((e) => {
+    const action = e.getAttribute("data-nav-action") || "";
+    const popup = e.getAttribute("aria-haspopup");
+    const n = nomAcc(e);
+    const avecFenetre = !!popup && popup !== "false";
+    if (e.tagName === "A" && (e.getAttribute("href") || "").startsWith("#/") && !action && !avecFenetre) return;
+    const estOuvreur = avecFenetre || OUVREURS_CONNUS.includes(action) || (!action && /^(plus|compte|mon compte|menu)$/i.test(n));
+    if (!estOuvreur || (!OUVREURS_CONNUS.includes(action) && /repli|deplie|déplie|reduire|réduire|agrandir/i.test(n))) return;
+    e.setAttribute("data-vn-i", String(liste.length));
+    liste.push({ i: liste.length, action, nom: n });
+  });
+  return liste;
+}
+const popupsVisibles = () => [...document.querySelectorAll(SEL_POPUP)].filter(visible);
+function marquerPopups(ouvreur) {
+  document.querySelectorAll("[data-vn-avant]").forEach((e) => e.removeAttribute("data-vn-avant"));
+  popupsVisibles().forEach((e) => e.setAttribute("data-vn-avant", "1"));
+  document.querySelectorAll("[data-vn-ouvreur]").forEach((e) => e.removeAttribute("data-vn-ouvreur"));
+  const o = document.querySelector('[data-vn-i="' + ouvreur + '"]');
+  if (o) o.setAttribute("data-vn-ouvreur", "1");
+}
+function mesurerPopups(o) {
+  const W = largeur(), H = hauteur(), tel = W < o.seuilTelephone;
+  const nouveaux = popupsVisibles().filter((e) => !e.hasAttribute("data-vn-avant"));
+  const echecs = [], avert = [];
+  nouveaux.forEach((p) => {
+    const r = rect(p);
+    if (r.left < -1 || r.right > W + 1 || r.top < -1 || r.bottom > H + 1) {
+      echecs.push(["menu hors de l'écran", `${nom(p)} : x ${Math.round(r.left)} à ${Math.round(r.right)} (fenêtre ${W}), y ${Math.round(r.top)} à ${Math.round(r.bottom)} (fenêtre ${H})`]);
+    }
+    mesurerCibles(interactifsDe(p), tel ? 44 : 24, echecs, "zone à toucher (menu)");
+    mesurerContrastes([p], echecs, avert);
+    const liens = [...p.querySelectorAll("a[href]")].filter(visible);
+    liens.forEach((a) => { if (!nomAcc(a)) echecs.push(["sans nom accessible", `${nom(a)} dans ${nom(p)}`]); });
+  });
+  return { nouveaux: nouveaux.length, noms: nouveaux.map(nom), echecs, avert };
+}
+const popupsEncoreOuverts = () => popupsVisibles().filter((e) => !e.hasAttribute("data-vn-avant")).map(nom);
+const focusSurOuvreur = () => !!(document.activeElement && document.activeElement.closest("[data-vn-ouvreur]"));
+// Où est le focus clavier : null s'il est sur un élément affiché de la coquille, sinon ce qui l'a (body...).
+const focusPerdu = () => {
+  const a = document.activeElement;
+  return a && a !== document.body && a.closest("[data-nav-coquille]") && visible(a) ? null : (a ? nom(a) : "aucun élément");
+};
+
+// Le champ et « Envoyer » du panneau de l'assistant, s'il est ouvert : ce qu'un toucher en leur centre atteint
+// (null quand rien ne les couvre).
+function controlesAssistant() {
+  const p = document.getElementById("chatbot-panel");
+  if (!p || !visible(p)) return null;
+  return ["textarea", ".chatbot-form button"].map((s) => {
+    const e = p.querySelector(s);
+    if (!e || !visible(e)) return { nom: s, dessus: "absent" };
+    const r = rect(e), x = (r.left + r.right) / 2, y = (r.top + r.bottom) / 2;
+    if (x < 0 || y < 0 || x > largeur() || y > hauteur()) return { nom: nom(e), dessus: "hors de l'écran" };
+    const t = document.elementFromPoint(x, y);
+    return { nom: nom(e), dessus: t && e.contains(t) ? null : (t ? nom(t.closest("[id]") || t) : "rien") };
+  });
+}
+
+window.__verifNav = { mesurer, regles: reglesSimples, voirEnTantQue, chercherLien, chercherPlus, ouvreurs, marquerPopups, mesurerPopups,
+  popupsEncoreOuverts, focusSurOuvreur, focusPerdu, popupsVisibles: () => popupsVisibles().length, controlesAssistant };
+})();
+"""
+
+# Ouverture de l'app (scénario « demarrage », ruling R17), injecté avant le chargement : à chaque image jusqu'à la
+# coquille, l'ancienne barre est-elle peinte (l'app affichée, la barre ni masquée ni invisible) ?
+JS_IMAGES_OUVERTURE = r"""
+(() => {
+  const images = window.__vnImages = { eclair: 0, premiere: null, coquille: false };
+  const t0 = performance.now();
+  const tic = () => {
+    const app = document.getElementById("app"), barre = document.querySelector("header.topbar");
+    images.coquille = !!document.body && document.body.dataset.nav === "v2" && !!document.querySelector("[data-nav-coquille]");
+    if (images.coquille) return;
+    if (app && barre && !app.classList.contains("hidden")) {
+      const s = getComputedStyle(barre);
+      if (s.display !== "none" && s.visibility !== "hidden" && barre.getBoundingClientRect().height > 0) {
+        images.eclair++;
+        if (images.premiere === null) images.premiere = Math.round(performance.now() - t0);
+      }
+    }
+    if (performance.now() - t0 < 15000) requestAnimationFrame(tic);
+  };
+  requestAnimationFrame(tic);
+})();
+"""
+
+# Attente d'une page posée : vue présente et sans « Chargement », puis un moment de calme (aucune
+# mutation du DOM), les animations en cours terminées et les polices chargées. Les mesures de
+# largeur et de position en dépendent.
+JS_ATTENTE = r"""async (o) => {
+  const t0 = performance.now();
+  const pret = () => { const v = document.getElementById("view"); return !!v && v.children.length > 0 && !v.querySelector(".loading"); };
+  await new Promise((resolve) => {
+    let dernier = performance.now();
+    const obs = new MutationObserver(() => { dernier = performance.now(); });
+    obs.observe(document.body, { childList: true, subtree: true, characterData: true });
+    const tic = () => {
+      const t = performance.now();
+      if ((pret() && t - dernier >= o.calme) || t - t0 > o.max) { obs.disconnect(); resolve(); return; }
+      setTimeout(tic, 20);
+    };
+    tic();
+  });
+  // Animations finies seulement : une animation sans fin (la pastille qui pulse) ne se termine jamais.
+  const finies = document.getAnimations().filter((a) => { const t = a.effect && a.effect.getComputedTiming(); return t && Number.isFinite(t.endTime); });
+  await Promise.race([Promise.all(finies.map((a) => a.finished.catch(() => {}))), new Promise((r) => setTimeout(r, 400))]);
+  try { await document.fonts.ready; } catch (e) { /* polices indisponibles */ }
+  return pret();
+}"""
+
+# --------------------------------------------------------------------------------------
+# Scénarios et résultats
+# --------------------------------------------------------------------------------------
+
+
+@dataclass
+class Scenario:
+    moteur: str
+    passe: str                  # "allume" ou "eteint"
+    role: str                   # valeur de ?role= dans le banc
+    largeur: int
+    allumage: str = "aucun"     # "apercu" (localStorage), "reglage" (réglage de la promo) ou "aucun"
+    espace: str = ""            # espace attendu de la coquille : "stagiaire" ou "equipe"
+    sans_droits: bool = False   # le profil du banc perd is_founder (vrai compte de stagiaire)
+    modules: str = ""           # ?modules= (scénario de modules fermés)
+    voir_en_tant_que: bool = False
+    demarrage: bool = False     # ouverture seule, mémoire de l'appareil allumée (ruling R17)
+    promos_en_panne: bool = False   # ?mes_promos=erreur : le bandeau des promos non chargées s'ajoute à l'aperçu
+
+    @property
+    def nom(self):
+        variante = "-sans-droits" if self.sans_droits else ""
+        variante += ("-" + self.modules) if self.modules else ""
+        variante += "-voir-en-tant-que" if self.voir_en_tant_que else ""
+        variante += "-demarrage" if self.demarrage else ""
+        variante += "-promos-en-panne" if self.promos_en_panne else ""
+        return "%s/%s/%s%s@%d" % (self.moteur, self.passe, self.role, variante, self.largeur)
+
+
+class Resultat:
+    """Ce qu'un scénario a constaté : vues jouées, échecs, avertissements."""
+
+    def __init__(self, scenario):
+        self.scenario = scenario
+        self.vues = 0
+        self.echecs = []        # (type, vue, détail)
+        self.avert = []         # (catégorie, clé, vue, détail)
+        self.clics = {1: 0, 2: 0}
+        self.coquille = False   # la coquille est montée : ses contrôles sont joués
+        self.profil_stagiaire = False   # la personne connectée a un profil stagiaire (donc un Mon espace)
+        self.console = []       # erreurs de console et de page, vidées à chaque vue
+        self.deja_vues = set()  # erreurs de console déjà signalées dans ce scénario
+        self.duree = 0.0
+
+    def echec(self, type_, vue, detail):
+        self.echecs.append((type_, vue, detail))
+
+    def avertir(self, categorie, cle, vue, detail):
+        self.avert.append((categorie, cle, vue, detail))
+
+    def en_dict(self):
+        return {"nom": self.scenario.nom, "vues": self.vues, "echecs": self.echecs, "avert": self.avert,
+                "clics": self.clics, "duree": self.duree}
+
+
+def construire_scenarios(moteurs, roles, largeurs, passes):
+    """Les contextes à jouer, dans l'ordre : par moteur, la passe allumée puis la passe éteinte."""
+    espace_de = {"stagiaire": "stagiaire", "prof": "equipe", "fondateur": "equipe"}
+    # Le fondateur et le stagiaire du banc (fondateur lui aussi) ont l'aperçu de l'appareil ; le
+    # formateur prof, qui n'est pas fondateur, n'en a pas : le réglage de la promo l'allume.
+    allumage_de = {"stagiaire": "apercu", "prof": "reglage", "fondateur": "apercu"}
+    etroit = [l for l in (1280, 375) if l in largeurs]
+    # « Voir en tant que » joue aussi 900 px : la colonne d'icônes de l'équipe, où le panneau de l'assistant se pose
+    # contre le bandeau d'aperçu, comme à 1280 px (barre dépliée) et à 375 px (barre du bas).
+    voir = [l for l in (1280, 900, 375) if l in largeurs]
+    scenarios = []
+    for moteur in moteurs:
+        if "allume" in passes:
+            for role in roles:
+                for l in largeurs:
+                    scenarios.append(Scenario(moteur, "allume", role, l, allumage_de[role], espace_de[role]))
+            if "stagiaire" in roles:
+                for l in etroit:
+                    scenarios.append(Scenario(moteur, "allume", "stagiaire", l, "reglage", "stagiaire", sans_droits=True))
+                    scenarios.append(Scenario(moteur, "allume", "stagiaire", l, "apercu", "stagiaire", modules="depart"))
+            if "prof" in roles:
+                for l in etroit:
+                    scenarios.append(Scenario(moteur, "allume", "prof", l, "reglage", "equipe", modules="depart"))
+            if "fondateur" in roles:
+                for l in voir:
+                    scenarios.append(Scenario(moteur, "allume", "fondateur", l, "apercu", "equipe", voir_en_tant_que=True))
+            if "prof" in roles:
+                # Un formateur sans aperçu, dont l'appareil a vu la promo allumée : son ouverture seule (ruling R17).
+                scenarios.append(Scenario(moteur, "allume", "prof", largeurs[0], "reglage", "equipe", demarrage=True))
+        if "eteint" in passes:
+            for role in roles:
+                for l in largeurs:
+                    scenarios.append(Scenario(moteur, "eteint", role, l))
+            if "fondateur" in roles:
+                # Ancienne barre, les deux bandeaux du bas affichés : la bulle et le panneau de l'assistant
+                # restent à portée (à 375 et 900 px, ils les couvraient sur main).
+                for l in voir:
+                    scenarios.append(Scenario(moteur, "eteint", "fondateur", l, voir_en_tant_que=True, promos_en_panne=True))
+    return scenarios
+
+
+# --------------------------------------------------------------------------------------
+# Navigateur, contexte, page
+# --------------------------------------------------------------------------------------
+
+
+def moteur_installe(moteur):
+    """Le moteur déjà installé sur la machine quand celui qu'attend cette version de Playwright
+    manque (cas de WebKit ici) : on le prend plutôt que d'en télécharger un."""
+    racines = []
+    if os.environ.get("PLAYWRIGHT_BROWSERS_PATH") not in (None, "", "0"):
+        racines.append(pathlib.Path(os.environ["PLAYWRIGHT_BROWSERS_PATH"]))
+    home = pathlib.Path.home()
+    racines += [home / "AppData/Local/ms-playwright", home / ".cache/ms-playwright", home / "Library/Caches/ms-playwright"]
+    # Chromium sans fenêtre est le « headless shell » de Playwright (chromium_headless_shell-*), puis le Chromium complet.
+    motifs = {"webkit": ["webkit-*/Playwright.exe", "webkit-*/pw_run.sh"],
+              "chromium": ["chromium_headless_shell-*/chrome-headless-shell-win*/chrome-headless-shell.exe",
+                           "chromium_headless_shell-*/chrome-headless-shell-linux*/chrome-headless-shell",
+                           "chromium_headless_shell-*/chrome-headless-shell-mac*/chrome-headless-shell",
+                           "chromium-*/chrome-win*/chrome.exe", "chromium-*/chrome-linux*/chrome",
+                           "chromium-*/chrome-mac*/Chromium.app/Contents/MacOS/Chromium"]}[moteur]
+    for racine in racines:
+        for motif in motifs:
+            trouves = sorted(racine.glob(motif))
+            if trouves:
+                return str(trouves[-1])
+    return None
+
+
+def raison_courte(erreur):
+    lignes = str(erreur).strip().splitlines()
+    return (lignes[0] if lignes else "échec du lancement")[:160]
+
+
+def lancer_navigateur(p, moteur):
+    """(navigateur, None), ou (None, raison) quand ni le moteur attendu ni un moteur déjà installé ne démarre."""
+    genre = getattr(p, moteur)
+    try:
+        return genre.launch(), None
+    except ErreurPlaywright as e:
+        premiere = raison_courte(e)
+    chemin = moteur_installe(moteur)
+    if not chemin:
+        return None, "%s ; aucun autre %s dans ms-playwright" % (premiere, moteur)
+    try:
+        return genre.launch(executable_path=chemin), None
+    except ErreurPlaywright as e:
+        return None, "%s ; repli sur %s : %s" % (premiere, chemin, raison_courte(e))
+
+
+STATIQUES = ("/js/", "/css/", "/assets/", "/vendor/", "/scripts/", "/_harness_supabase.js")
+CACHE = {}   # url -> (statut, en-têtes, corps) : propre au processus, vide au démarrage
+
+
+def servir_depuis_le_cache(route, lignes):
+    """Les fichiers de l'app sont demandés une fois par processus, un à la fois, puis servis de la
+    mémoire : le serveur du banc (ThreadingTCPServer, file d'attente de 5 connexions) refuse des
+    connexions quand plusieurs navigateurs le chargent ensemble. Le document du banc passe tel quel.
+    Pour ce contexte seulement, `lignes` s'ajoute à la fin du faux Supabase (le semis du réglage ou
+    du profil) : le fichier du banc n'est jamais modifié sur le disque."""
+    requete = route.request
+    chemin = urllib.parse.urlparse(requete.url).path
+    if requete.method != "GET" or not chemin.startswith(STATIQUES):
+        route.continue_()
+        return
+    if requete.url not in CACHE:
+        for essai in range(4):
+            try:
+                reponse = route.fetch()
+                entetes = {k: v for k, v in reponse.headers.items() if k.lower() not in ("content-length", "content-encoding")}
+                CACHE[requete.url] = (reponse.status, entetes, reponse.body())
+                break
+            except ErreurPlaywright:
+                time.sleep(0.3 * (essai + 1))
+        else:
+            route.abort()
+            return
+    statut, entetes, corps = CACHE[requete.url]
+    if lignes and chemin == "/_harness_supabase.js":
+        corps += ("\ntry { " + " ".join(lignes) + " } catch (e) { console.error('[verifier_navigation] semis du banc impossible : ' + e); }\n").encode("utf-8")
+    route.fulfill(status=statut, headers=entetes, body=corps)
+
+
+def nouveau_contexte(navigateur, sc, options):
+    mobile = sc.largeur < SEUIL_TELEPHONE
+    reglages = {"viewport": {"width": sc.largeur, "height": HAUTEUR[sc.largeur]}, "locale": "fr-FR",
+                "timezone_id": "Europe/Paris", "device_scale_factor": 2 if mobile else 1}
+    if mobile:
+        reglages.update(is_mobile=True, has_touch=True)
+    contexte = navigateur.new_context(**reglages)
+    contexte.set_default_timeout(8000)
+    if sc.allumage == "apercu":
+        contexte.add_init_script("try { localStorage.setItem('%s', '1'); } catch (e) { /* stockage bloqué */ }" % CLE_APERCU)
+    if sc.demarrage:
+        contexte.add_init_script("try { localStorage.setItem('%s', '1'); } catch (e) { /* stockage bloqué */ }" % CLE_MEMOIRE_PROMO_1)
+        contexte.add_init_script(JS_IMAGES_OUVERTURE)
+    lignes = []
+    if sc.allumage == "reglage":
+        lignes.append("FIXTURES.settings.push({ key: '%s', value: 'true', promo_id: 1 });" % CLE_REGLAGE)
+    if sc.sans_droits:
+        lignes.append("FIXTURES.user_profiles[0].is_founder = false;")
+    contexte.route("**/*", lambda route: servir_depuis_le_cache(route, lignes))
+    if options.get("script_init"):
+        contexte.add_init_script(path=options["script_init"])
+    return contexte
+
+
+def nouvelle_page(contexte, res):
+    page = contexte.new_page()
+    page.on("pageerror", lambda e: res.console.append("erreur de page : %s" % e))
+    page.on("console", lambda m: res.console.append("console.error : %s" % m.text) if m.type == "error" else None)
+    page.on("dialog", lambda d: (res.console.append("boîte de dialogue inattendue : %s" % d.message), d.accept()))
+    return page
+
+
+COMPTEUR = itertools.count(1)
+
+
+def adresse_de_page(url, sc):
+    """L'adresse du banc pour ce scénario : les paramètres que l'adresse donnée porte déjà sont gardés (un
+    `?lenteur=...`), ceux du scénario les remplacent ; le fragment est retiré (l'app s'ouvre à froid)."""
+    p = urllib.parse.urlparse(url)
+    q = dict(urllib.parse.parse_qsl(p.query, keep_blank_values=True))
+    q.update(cb="%d-%d-%d" % (int(time.time() * 1000), os.getpid(), next(COMPTEUR)), role=sc.role, date=DATE_DU_BANC, emargement="1")
+    q.pop("modules", None)
+    if sc.modules:
+        q["modules"] = sc.modules
+    q.pop("mes_promos", None)
+    if sc.promos_en_panne:
+        q["mes_promos"] = "erreur"
+    if sc.demarrage:
+        q.update(lenteur=str(LENTEUR_DEMARRAGE_MS), lenteur_tables="settings")
+    return urllib.parse.urlunparse(p._replace(query=urllib.parse.urlencode(q), fragment=""))
+
+
+def charger(page, url, sc):
+    adresse = adresse_de_page(url, sc)
+    for essai in (1, 2):
+        # Le document du banc n'est pas servi du cache : une lecture ratée sous charge se rejoue une fois.
+        try:
+            page.goto(adresse, wait_until="load", timeout=20000)
+            break
+        except (DelaiDepasse, ErreurPlaywright):
+            if essai == 2:
+                raise
+            page.wait_for_timeout(500)
+    page.evaluate(JS_OUTILS)
+    attendre(page, calme=250, maximum=8000)
+
+
+def attendre(page, calme=100, maximum=4000):
+    """Attend la page posée ; une page pas prête (vide ou en « Chargement ») est attendue une fois de plus."""
+    if not page.evaluate(JS_ATTENTE, {"calme": calme, "max": maximum}):
+        page.evaluate(JS_ATTENTE, {"calme": 300, "max": 8000})
+
+
+def aller_a(page, adresse):
+    page.evaluate("(a) => { location.hash = a; }", adresse)
+    page.wait_for_timeout(60)
+
+
+def motif_du_clic(erreur):
+    """Pourquoi un clic n'aboutit pas : l'élément qui recouvre la cible quand Playwright le nomme."""
+    lignes = str(erreur).strip().splitlines()
+    for ligne in lignes:
+        if "intercepts pointer events" in ligne:
+            return re.sub(r"\s+", " ", ligne).strip(" -")[:170]
+    return lignes[0][:140] if lignes else "échec du clic"
+
+
+def cliquer(page, res, vue, selecteur, quoi):
+    """Vrai clic de souris (avec contrôle de recouvrement). Faux, et un échec, s'il n'aboutit pas."""
+    try:
+        page.locator(selecteur).first.click(timeout=4000)
+        page.wait_for_timeout(60)
+        return True
+    except (DelaiDepasse, ErreurPlaywright) as e:
+        res.echec("clic impossible", vue, "%s : %s" % (quoi, motif_du_clic(e)))
+        return False
+
+
+# --------------------------------------------------------------------------------------
+# Une vue
+# --------------------------------------------------------------------------------------
+
+
+def verifier_vue(page, res, sc, titre, options):
+    """Attend la page, la mesure, range échecs et avertissements."""
+    attendre(page)
+    res.vues += 1
+    o = {"passe": sc.passe, "espace": sc.espace, "coquille": res.coquille, "seuilTelephone": SEUIL_TELEPHONE,
+         "dette": list(DETTE_LOT_2 + DETTE_R11), "exception": EXCEPTION_ADMISE}
+    avant = len(res.echecs)
+    try:
+        m = page.evaluate("(o) => window.__verifNav.mesurer(o)", o)
+    except ErreurPlaywright as e:
+        res.echec("mesure impossible", "%s/%s" % (sc.nom, titre), str(e).strip().splitlines()[0][:160])
+        return
+    vue = "%s/%s" % (sc.nom, titre)
+    for type_, detail in m["echecs"]:
+        res.echec(type_, vue, detail)
+    for cle, detail in m["dettes"]:
+        res.avertir("dette du lot 2, ruling R11" if cle in DETTE_R11 else "dette du lot 2", cle, vue, detail)
+    for type_, detail in m["avert"]:
+        res.avertir(type_, detail, vue, detail)
+    vider_console(res, vue)
+    if options.get("captures") and len(res.echecs) > avant:
+        dossier = pathlib.Path(options["captures"])
+        dossier.mkdir(parents=True, exist_ok=True)
+        try:
+            page.screenshot(path=str(dossier / (re.sub(r"[^A-Za-z0-9@._-]+", "_", vue) + ".png")))
+        except ErreurPlaywright:
+            pass
+
+
+def vider_console(res, vue):
+    for message in res.console:
+        cle = message[:200]
+        if cle not in res.deja_vues:
+            res.deja_vues.add(cle)
+            res.echec("erreur de console", vue, cle)
+    res.console.clear()
+
+
+def route_courante(page):
+    return page.evaluate("() => (location.hash || '').replace(/^#\\//, '').split('/')[0]")
+
+
+def plancher_sous_onglets(route, sc, res):
+    """Nombre de sous-onglets (ou de lignes du sommaire sur téléphone) que la page montre au moins, nouvelle
+    navigation allumée (Task 3). 0 : rien n'est attendu. Au départ (`?modules=depart`), un stagiaire ne voit
+    que les modules ouverts : Planning perd Priorités, Cours se réduit à Documents et Mon espace à Passages,
+    deux pages sans barre ; un formateur voit tout, les modules fermés repérés."""
+    depart = sc.modules == "depart" and sc.espace == "stagiaire"
+    if route == "planning":
+        return 2 if depart else 3      # Semaine, Dates clés, Priorités
+    if route == "themes":
+        return 0 if depart else 3      # Thèmes, Compétences, Documents (et Signalements chez un formateur)
+    if route == "mon-suivi" and res.profil_stagiaire:
+        return 0 if depart else 6      # Passages, EPCF, Évolution, Livret, Dossier pro, La classe
+    return 0
+
+
+def sous_vues(page, res, sc, route, options):
+    """Chaque sous-onglet de la première barre de la page, ou chaque ligne du sommaire de Mon
+    espace sur téléphone (la partie s'ouvre alors par son adresse). Nouvelle navigation allumée, une page
+    qui devrait en montrer et n'en montre pas assez (barre perdue) échoue."""
+    libelles = page.evaluate("""() => {
+        const b = document.querySelector('#view .subtabs-bar');
+        if (!b) return [];
+        return [...b.querySelectorAll(':scope > .subtab')].map((x) => (x.childNodes[0] ? x.childNodes[0].textContent : x.textContent).trim());
+    }""")
+    if sc.passe == "allume":
+        attendu = plancher_sous_onglets(route, sc, res)
+        nb = len(libelles) or page.evaluate("() => document.querySelectorAll('#view nav.fiche-sommaire a.fiche-ligne').length")
+        if nb < attendu:
+            res.echec("sous-onglets manquants", "%s/%s" % (sc.nom, route), "#/%s montre %d sous-onglet(s) ou ligne(s) de sommaire, au moins %d attendu(s)" % (route, nb, attendu))
+    for i, libelle in enumerate(libelles):
+        titre = "%s/%s" % (route, libelle)
+        try:
+            page.locator("#view .subtabs-bar").first.locator(":scope > .subtab").nth(i).click(timeout=4000)
+            page.wait_for_timeout(60)
+        except (DelaiDepasse, ErreurPlaywright) as e:
+            res.echec("clic impossible", "%s/%s" % (sc.nom, titre), "sous-onglet « %s » : %s" % (libelle, motif_du_clic(e)))
+            continue
+        verifier_vue(page, res, sc, titre, options)
+    adresses = page.evaluate("() => [...document.querySelectorAll('#view nav.fiche-sommaire a.fiche-ligne')].map((a) => a.getAttribute('href'))")
+    base = page.evaluate("() => location.hash")
+    for adresse in adresses:
+        aller_a(page, adresse)
+        verifier_vue(page, res, sc, "%s/%s" % (route, adresse.rsplit("/", 1)[-1]), options)
+    if adresses:
+        aller_a(page, base)
+
+
+# --------------------------------------------------------------------------------------
+# Entrées de la coquille et menus
+# --------------------------------------------------------------------------------------
+
+
+def chercher_lien(page, entree):
+    libelle = entree.get("libelle") or entree["route"]
+    return page.evaluate("(a) => window.__verifNav.chercherLien(a[0], a[1], a[2])", [entree["route"], libelle, entree.get("court") or libelle])
+
+
+def ouvrir_entree(page, res, sc, entree):
+    """Ouvre une entrée comme la personne le ferait : un clic dans la coquille, deux par « Plus »
+    sur téléphone quand l'entrée y est rangée. Sans coquille, par l'adresse."""
+    route = entree["route"]
+    vue = "%s/%s" % (sc.nom, route)
+    if not res.coquille:
+        aller_a(page, "#/" + route)
+        return
+    libelle = entree.get("libelle") or route
+    infos = chercher_lien(page, entree)
+    clics = 1
+    if not infos["visibles"] and sc.largeur < SEUIL_TELEPHONE and page.evaluate("() => window.__verifNav.chercherPlus()"):
+        if not cliquer(page, res, vue, '[data-vn-cible="1"]', "bouton « Plus »"):
+            aller_a(page, "#/" + route)   # l'échec du clic sur « Plus » est déjà noté : pas de second échec pour la même cause
+            return
+        page.wait_for_timeout(250)
+        infos = chercher_lien(page, entree)
+        clics = 2
+    if not infos["visibles"]:
+        res.echec("entrée introuvable", vue, "« %s » (#/%s) n'est cliquable ni dans la coquille ni derrière « Plus » (%d lien(s) dans la coquille, aucun visible)"
+                  % (libelle, route, infos["total"]))
+        aller_a(page, "#/" + route)
+        return
+    if not cliquer(page, res, vue, '[data-vn-cible="1"]', "entrée « %s »" % libelle):
+        aller_a(page, "#/" + route)
+        return
+    res.clics[clics] += 1
+    if clics == 2:
+        attendre(page, calme=150)
+        if page.evaluate("() => window.__verifNav.popupsVisibles()"):
+            # Le tiroir « Plus » doit se refermer quand on choisit une entrée.
+            res.avertir("tiroir resté ouvert", "le tiroir reste ouvert après le choix d'une entrée", vue, "le tiroir reste ouvert après le choix de « %s »" % libelle)
+            page.keyboard.press("Escape")
+            page.wait_for_timeout(250)
+
+
+def verifier_menus(page, res, sc, options):
+    """Chaque ouvreur de la coquille : sa fenêtre s'ouvre, tient dans l'écran, se ferme par Échap."""
+    if options.get("sans_menus"):
+        return
+    ouvreurs = page.evaluate("() => window.__verifNav.ouvreurs()")
+    vue = "%s/menus" % sc.nom
+    if not ouvreurs:
+        res.echec("aucun menu", vue, "aucun bouton de la coquille ne porte aria-haspopup ou data-nav-action : ni compte, ni « Plus »")
+        return
+    for ouvreur in ouvreurs:
+        quoi = "« %s »%s" % (ouvreur["nom"], (" (" + ouvreur["action"] + ")") if ouvreur["action"] else "")
+        page.evaluate("(i) => window.__verifNav.marquerPopups(i)", ouvreur["i"])
+        if not cliquer(page, res, vue, '[data-vn-i="%d"]' % ouvreur["i"], "ouvreur " + quoi):
+            continue
+        page.wait_for_timeout(300)
+        m = page.evaluate("(o) => window.__verifNav.mesurerPopups(o)", {"seuilTelephone": SEUIL_TELEPHONE})
+        if not m["nouveaux"]:
+            res.echec("le menu ne s'ouvre pas", vue, "%s n'ouvre aucune fenêtre (role=dialog ou role=menu)" % quoi)
+            continue
+        for type_, detail in m["echecs"]:
+            res.echec(type_, vue, "%s : %s" % (quoi, detail))
+        for type_, detail in m["avert"]:
+            res.avertir(type_, detail, vue, detail)
+        page.keyboard.press("Escape")
+        page.wait_for_timeout(300)
+        restes = page.evaluate("() => window.__verifNav.popupsEncoreOuverts()")
+        if restes:
+            res.echec("Échap ne ferme pas", vue, "%s : %s reste ouvert" % (quoi, ", ".join(restes)))
+            cliquer(page, res, vue, '[data-vn-i="%d"]' % ouvreur["i"], "ouvreur " + quoi)   # on le referme
+            page.wait_for_timeout(250)
+        elif not page.evaluate("() => window.__verifNav.focusSurOuvreur()"):
+            res.avertir("focus non rendu", "%s : le focus ne revient pas sur le bouton qui a ouvert la fenêtre" % quoi, vue, "")
+        vider_console(res, vue)
+
+
+# --------------------------------------------------------------------------------------
+# Jeu d'un contexte
+# --------------------------------------------------------------------------------------
+
+
+def regles_de_la_page(page, res, sc):
+    r = page.evaluate("() => window.__verifNav.regles()")
+    if "erreur" in r:
+        res.echec("règles illisibles", sc.nom, "impossible de lire les règles de navigation de l'app dans la page (%s) : entrées de repli utilisées" % r["erreur"])
+        entrees = [{"id": x, "route": x, "libelle": x, "court": x} for x in ENTREES_REPLI[sc.espace]]
+        return {"entrees": entrees, "profilStagiaire": False, "espace": sc.espace, "actif": True, "plus": [], "barre": []}
+    return r
+
+
+def preparer_coquille(page, res, sc, regles):
+    """Vérifie l'interrupteur et la présence de la coquille, une fois par contexte."""
+    if not regles.get("actif"):
+        res.echec("interrupteur", sc.nom, "la nouvelle navigation n'est pas allumée dans ce contexte (navigationV2Active() est faux) : l'allumage du banc a échoué")
+    if regles.get("espace") != sc.espace:
+        res.echec("espace du banc", sc.nom, "les règles donnent l'espace « %s », le scénario attendait « %s »" % (regles.get("espace"), sc.espace))
+    if sc.sans_droits and regles.get("fondateur"):
+        res.echec("profil du banc", sc.nom, "le profil « sans droits » est resté fondateur : le semis de is_founder dans le faux Supabase n'a pas pris")
+    etat = page.evaluate("() => ({ nav: document.body.dataset.nav || null, espace: document.body.dataset.espace || null, coquilles: document.querySelectorAll('[data-nav-coquille]').length })")
+    res.coquille = etat["nav"] == "v2" and etat["coquilles"] > 0
+    if not res.coquille:
+        res.echec("coquille absente", sc.nom, "body[data-nav] = %s, body[data-espace] = %s, %d élément(s) [data-nav-coquille] : les contrôles de la coquille sont ignorés"
+                  % (etat["nav"], etat["espace"], etat["coquilles"]))
+
+
+def parcourir_entrees(page, res, sc, entrees, options, avec_sous_vues=True):
+    for entree in entrees:
+        ouvrir_entree(page, res, sc, entree)
+        verifier_vue(page, res, sc, entree["route"], options)
+        if avec_sous_vues:
+            sous_vues(page, res, sc, entree["route"], options)
+
+
+# Ruling R26 : les quatre anciennes adresses (liens de l'app, favoris, raccourcis d'écran d'accueil) : la page et le
+# sous-onglet que la nouvelle navigation ouvre.
+ANCIENNES_ADRESSES = {"calendrier": ("#/planning", "Dates clés"), "dashboard": ("#/planning", "Priorités"),
+                      "ressources": ("#/themes", "Documents"), "notes": ("#/mon-suivi/classe", "La classe")}
+# Sous-onglet allumé de la page : la partie de Mon espace sur téléphone (son titre), sinon le premier sous-onglet actif.
+JS_SOUS_ONGLET_ALLUME = """() => {
+    const e = document.querySelector('#view h2.fiche-titre') || document.querySelector('#view .subtabs-bar > .subtab.active');
+    return e ? (e.childNodes[0] ? e.childNodes[0].textContent : e.textContent).trim() : null;
+}"""
+
+
+def jouer_anciennes_adresses(page, res, sc):
+    """Ruling R26 : chaque ancienne adresse est ouverte par son adresse : les deux premières depuis Accueil (« Précédent »
+    y ramène après la première), les deux suivantes depuis la page où la précédente a atterri. Nouvelle navigation : elle
+    mène à sa nouvelle page, le sous-onglet visé allumé (module fermé, stagiaire au départ : le premier visible, ou aucun
+    s'il est seul) ; Notes garde sa page chez l'équipe. « Précédent » quitte la page redirigée sans étape d'historique de
+    plus (même mécanisme pour les quatre adresses : vérifié sur la première seulement). Interrupteur éteint : l'adresse
+    reste celle d'aujourd'hui."""
+    depart = sc.modules == "depart" and sc.espace == "stagiaire"
+    aller_a(page, "#/home")
+    attendre(page)
+    for ancienne, (nouvelle, sous_onglet) in ANCIENNES_ADRESSES.items():
+        vue = "%s/ancienne-adresse/%s" % (sc.nom, ancienne)
+        if sc.passe == "eteint" or (ancienne == "notes" and sc.espace == "equipe"):
+            nouvelle, sous_onglet = "#/" + ancienne, None
+        elif depart and ancienne != "calendrier":
+            sous_onglet = "Semaine" if ancienne == "dashboard" else None
+        aller_a(page, "#/" + ancienne)
+        attendre(page, calme=150)
+        res.vues += 1
+        adresse, allume = page.evaluate("() => location.hash"), page.evaluate(JS_SOUS_ONGLET_ALLUME)
+        if adresse != nouvelle:
+            res.echec("ancienne adresse", vue, "#/%s ouvre %s, attendu %s" % (ancienne, adresse, nouvelle))
+        elif sous_onglet and allume != sous_onglet:
+            res.echec("sous-onglet de l'ancienne adresse", vue, "#/%s allume « %s », attendu « %s »" % (ancienne, allume, sous_onglet))
+        if ancienne == "calendrier":
+            page.evaluate("() => history.back()")
+            try:
+                page.wait_for_function("() => location.hash === '#/home'", timeout=2000)
+            except DelaiDepasse:
+                res.echec("historique après redirection", vue, "« Précédent » depuis %s ne ramène pas à #/home : étape d'historique en trop" % adresse)
+            attendre(page, calme=150)
+        vider_console(res, vue)
+
+
+def lundi_et_jour(date_iso):
+    """Ce que vise « Aujourd'hui » (todayJumpTarget de js/views/planning.js) : le lundi de la semaine affichée
+    et l'index de la carte du jour ; du lundi au vendredi, le jour même, le week-end, le lundi qui suit."""
+    d = datetime.date.fromisoformat(date_iso)
+    if d.weekday() <= 4:
+        return (d - datetime.timedelta(days=d.weekday())).isoformat(), d.weekday()
+    return (d + datetime.timedelta(days=7 - d.weekday())).isoformat(), 0
+
+
+# La semaine affichée (le lundi du champ de date), le sous-onglet allumé et le haut de chaque carte de jour.
+JS_SEMAINE_AFFICHEE = """() => {
+    const d = document.querySelector('#view .week-bar-nav input[type=date]');
+    const s = document.querySelector('#view .subtabs-bar > .subtab.active');
+    return { lundi: d ? d.value : null, sousOnglet: s ? (s.childNodes[0] ? s.childNodes[0].textContent : s.textContent).trim() : null,
+             cartes: [...document.querySelectorAll('#view .p-day-card')].map((c) => Math.round(c.getBoundingClientRect().top)),
+             hauteur: innerHeight };
+}"""
+
+
+def verifier_aujourdhui(page, res, sc):
+    """Ruling R29 : sous la nouvelle navigation, Planning > Semaine porte en haut le bouton « Aujourd'hui » de
+    l'ancienne barre du haut, nommé, de 44 px. Cliqué sur la page déjà affichée, une autre semaine que celle du
+    jour à l'écran, il affiche la semaine du jour et amène la carte du jour en haut de l'écran."""
+    vue = "%s/planning/aujourdhui" % sc.nom
+    aller_a(page, "#/planning")
+    attendre(page)
+    semaine = page.locator("#view .subtabs-bar > .subtab", has_text="Semaine")
+    if semaine.count():
+        semaine.first.click()
+        attendre(page)
+    res.vues += 1
+    bouton = page.get_by_role("button", name="Aujourd'hui", exact=True)
+    if bouton.count() != 1:
+        res.echec("bouton « Aujourd'hui »", vue, "Planning > Semaine montre %d bouton(s) nommé(s) « Aujourd'hui », 1 attendu" % bouton.count())
+        return
+    boite = bouton.bounding_box()
+    if not boite or boite["width"] < 43.5 or boite["height"] < 43.5:
+        res.echec("bouton « Aujourd'hui »", vue, "zone à toucher de %s px (44 px au moins)" % ("%dx%d" % (boite["width"], boite["height"]) if boite else "0x0"))
+    lundi, jour = lundi_et_jour(DATE_DU_BANC)
+    if page.evaluate(JS_SEMAINE_AFFICHEE)["lundi"] == lundi:
+        # Déjà la semaine du jour : une autre d'abord, le bouton doit aussi changer de semaine.
+        page.get_by_role("button", name="Semaine précédente").click()
+        attendre(page)
+    bouton.click()
+    page.wait_for_timeout(100)
+    attendre(page)
+    page.wait_for_timeout(400)   # le saut vers le jour : défilement fluide, puis direct après 250 ms (scrollToDay)
+    m = page.evaluate(JS_SEMAINE_AFFICHEE)
+    haut = m["cartes"][jour] if len(m["cartes"]) > jour else None
+    if route_courante(page) != "planning" or m["lundi"] != lundi or m["sousOnglet"] not in (None, "Semaine"):
+        res.echec("bouton « Aujourd'hui »", vue, "après le clic : #/%s, semaine du %s, sous-onglet %s ; attendu Planning > Semaine, semaine du %s"
+                  % (route_courante(page), m["lundi"], m["sousOnglet"], lundi))
+    elif haut is None or not 0 <= haut <= m["hauteur"] / 2:
+        res.echec("bouton « Aujourd'hui »", vue, "la carte du jour n'est pas amenée en haut de l'écran (son haut à y %s, écran de %d px)" % (haut, m["hauteur"]))
+    vider_console(res, vue)
+
+
+def verifier_retour_arriere(page, res, sc):
+    """Relecture finale, mineur 3 : une fenêtre de la coquille ouverte (menu du compte ; tiroir « Plus » sur téléphone)
+    se ferme quand « Précédent », le geste retour du téléphone, change l'adresse sous elle, le focus restant dans la
+    coquille ; sur téléphone, son « Fermer » la ferme aussi."""
+    vue = "%s/menus/retour-arriere" % sc.nom
+    res.vues += 1
+    for action in ("compte", "plus"):
+        ouvreur = '[data-nav-coquille] [data-nav-action="%s"]:visible' % action
+        if not page.locator(ouvreur).count():
+            continue
+        aller_a(page, "#/planning")
+        aller_a(page, "#/home")
+        attendre(page)
+        if not cliquer(page, res, vue, ouvreur, "bouton « %s »" % action):
+            continue
+        page.wait_for_timeout(250)
+        if not page.evaluate("() => window.__verifNav.popupsVisibles()"):
+            res.echec("le menu ne s'ouvre pas", vue, "le bouton « %s » n'ouvre aucune fenêtre" % action)
+            continue
+        page.evaluate("() => history.back()")
+        try:
+            page.wait_for_function("() => location.hash === '#/planning'", timeout=2000)
+        except DelaiDepasse:
+            res.echec("historique", vue, "« Précédent » depuis #/home, fenêtre de « %s » ouverte, ne ramène pas à #/planning" % action)
+        page.wait_for_timeout(250)
+        if page.evaluate("() => window.__verifNav.popupsVisibles()"):
+            res.echec("fenêtre ouverte après un retour arrière", vue, "la fenêtre de « %s » reste ouverte quand « Précédent » change l'adresse" % action)
+            page.keyboard.press("Escape")
+            page.wait_for_timeout(250)
+        else:
+            focus_garde(page, res, vue, "fenêtre de « %s » fermée par « Précédent »" % action)
+        if sc.largeur < SEUIL_TELEPHONE and cliquer(page, res, vue, ouvreur, "bouton « %s »" % action):
+            page.wait_for_timeout(250)
+            if cliquer(page, res, vue, '[data-nav-coquille] [role="dialog"] button:text-is("Fermer")', "« Fermer » de la fenêtre de « %s »" % action):
+                page.wait_for_timeout(250)
+                if page.evaluate("() => window.__verifNav.popupsVisibles()"):
+                    res.echec("« Fermer » ne ferme pas", vue, "la fenêtre de « %s » reste ouverte après « Fermer »" % action)
+                    page.keyboard.press("Escape")
+                    page.wait_for_timeout(250)
+                else:
+                    focus_garde(page, res, vue, "fenêtre de « %s » fermée par « Fermer »" % action)
+            else:
+                page.keyboard.press("Escape")
+                page.wait_for_timeout(250)
+    vider_console(res, vue)
+
+
+def jouer_allume(page, res, sc, options):
+    regles = regles_de_la_page(page, res, sc)
+    res.profil_stagiaire = bool(regles.get("profilStagiaire"))
+    preparer_coquille(page, res, sc, regles)
+    if sc.voir_en_tant_que:
+        jouer_voir_en_tant_que(page, res, sc, options)
+        return
+    verifier_vue(page, res, sc, "ouverture/" + route_courante(page), options)
+    entrees = regles["entrees"]
+    parcourir_entrees(page, res, sc, entrees, options)
+    # Les pages que le menu du compte ouvre sans avoir d'entrée à elles : Mon espace (qui a un profil
+    # stagiaire), Réglages (stagiaire), Nouveautés. Ouvertes par leur adresse : le menu est joué plus bas.
+    routes = [e["route"] for e in entrees]
+    for route in (["mon-suivi"] if regles.get("profilStagiaire") else []) + ["config", "nouveautes"]:
+        if route not in routes:
+            aller_a(page, "#/" + route)
+            verifier_vue(page, res, sc, route, options)
+            sous_vues(page, res, sc, route, options)
+    if res.coquille and "planning" in routes:
+        verifier_aujourdhui(page, res, sc)
+    jouer_anciennes_adresses(page, res, sc)
+    if res.coquille:
+        aller_a(page, "#/home")
+        verifier_menus(page, res, sc, options)
+        if not options.get("sans_menus"):
+            verifier_retour_arriere(page, res, sc)
+
+
+def focus_garde(page, res, vue, geste):
+    perdu = page.evaluate("() => window.__verifNav.focusPerdu()")
+    if perdu:
+        res.echec("focus perdu", vue, "%s : le focus n'est plus dans la coquille (%s)" % (geste, perdu))
+
+
+def jouer_focus_des_fenetres(page, res, sc):
+    """Téléphone, fondateur dans l'espace de l'équipe : quand une fenêtre de la coquille se ferme et que son
+    bouton a disparu ou ne s'affiche plus, le focus reste dans la coquille, jamais sur body. Deux chemins :
+    « Plus », « Mon compte », Voir en tant que « Stagiaire » (la coquille du stagiaire n'a pas de « Plus ») ;
+    tiroir ouvert puis écran élargi au-delà de 700 px (un iPhone couché), où le tiroir doit se fermer."""
+    vue = "%s/focus-des-fenetres" % sc.nom
+    aller_a(page, "#/planning")
+    attendre(page)
+    if (cliquer(page, res, vue, '[data-nav-coquille] [data-nav-action="plus"]', "bouton « Plus »")
+            and cliquer(page, res, vue, '[role="dialog"] [data-nav-action="compte"]', "« Mon compte » du tiroir")
+            and cliquer(page, res, vue, '[role="dialog"] button:text-is("Stagiaire")', "« Stagiaire » de Voir en tant que")):
+        attendre(page, calme=250)
+        focus_garde(page, res, vue, "« Plus », « Mon compte », Voir en tant que « Stagiaire »")
+    page.evaluate("(r) => window.__verifNav.voirEnTantQue(r)", None)
+    attendre(page, calme=250)
+    if cliquer(page, res, vue, '[data-nav-coquille] [data-nav-action="plus"]', "bouton « Plus »"):
+        page.set_viewport_size({"width": 900, "height": HAUTEUR[900]})
+        attendre(page, calme=250)
+        if page.evaluate("() => window.__verifNav.popupsVisibles()"):
+            res.echec("tiroir resté ouvert", vue, "le tiroir « Plus » reste ouvert quand l'écran passe de %d à 900 px" % sc.largeur)
+            page.keyboard.press("Escape")
+        focus_garde(page, res, vue, "tiroir ouvert, écran élargi à 900 px")
+        page.set_viewport_size({"width": sc.largeur, "height": HAUTEUR[sc.largeur]})
+        attendre(page, calme=250)
+    vider_console(res, vue)
+
+
+def jouer_voir_en_tant_que(page, res, sc, options):
+    """Le fondateur bascule « Voir en tant que » : Stagiaire, Formateur, Stagiaire de nouveau, puis son
+    rôle réel. À chaque bascule, la coquille change d'espace sans recharger la page, et l'entrée allumée
+    suit la page affichée : la bascule se fait depuis le Planning (entrée des deux espaces), qui doit
+    rester allumé dans le nouvel espace. Chaque espace voit ensuite toutes ses entrées."""
+    if not res.coquille:
+        return
+    page.evaluate("() => { window.__vnMarqueur = 'avant'; }")
+    if sc.largeur < SEUIL_TELEPHONE:
+        jouer_focus_des_fenetres(page, res, sc)
+    etapes = (("stagiaire", "stagiaire"), ("prof", "equipe"), ("stagiaire", "stagiaire"), (None, "equipe"))
+    for i, (vu, espace) in enumerate(etapes, 1):
+        nom_vu = "voir-en-tant-que-%d-%s" % (i, vu or "role-reel")
+        aller_a(page, "#/planning")
+        attendre(page)
+        erreur = page.evaluate("(r) => window.__verifNav.voirEnTantQue(r)", vu)
+        if erreur:
+            res.echec("règles illisibles", "%s/%s" % (sc.nom, nom_vu), erreur)
+            return
+        attendre(page, calme=250)
+        sc_vu = replace(sc, espace=espace)
+        if page.evaluate("() => window.__vnMarqueur") != "avant":
+            res.echec("rechargement", "%s/%s" % (sc.nom, nom_vu), "la page a été rechargée par « Voir en tant que » (la coquille doit changer d'espace sur place)")
+            return
+        regles = regles_de_la_page(page, res, sc_vu)
+        if regles.get("espace") != espace:
+            res.echec("espace du banc", "%s/%s" % (sc.nom, nom_vu), "les règles donnent l'espace « %s », attendu « %s »" % (regles.get("espace"), espace))
+        verifier_vue(page, res, sc_vu, "%s/ouverture/%s" % (nom_vu, route_courante(page)), options)
+        if vu:
+            verifier_assistant_sous_bandeau(page, res, sc_vu, "%s/%s/assistant" % (sc.nom, nom_vu))
+        parcourir_entrees(page, res, sc_vu, regles["entrees"], options, avec_sous_vues=False)
+
+
+def verifier_assistant_sous_bandeau(page, res, sc, vue):
+    """« Voir en tant que » pose le bandeau d'aperçu en bas de l'écran : l'assistant, ouvert depuis la coquille (par
+    « Plus » sur le téléphone de l'équipe), garde son champ et « Envoyer » à portée, rien ne couvre leur centre."""
+    if not page.evaluate("() => !!document.getElementById('impersonation-banner')"):
+        res.echec("bandeau d'aperçu absent", vue, "« Voir en tant que » ne montre pas le bandeau d'aperçu en bas de l'écran")
+        return
+    selecteur = '[data-nav-coquille] [data-nav-action="assistant"]:visible'
+    if not page.locator(selecteur).count() and sc.largeur < SEUIL_TELEPHONE:
+        if not cliquer(page, res, vue, '[data-nav-coquille] [data-nav-action="plus"]', "bouton « Plus »"):
+            return
+        page.wait_for_timeout(250)
+        selecteur = '[data-nav-coquille="plus"] [data-nav-action="assistant"]'
+    if not cliquer(page, res, vue, selecteur, "bouton « Assistant »"):
+        return
+    page.wait_for_timeout(300)
+    controles = page.evaluate("() => window.__verifNav.controlesAssistant()")
+    if controles is None:
+        res.echec("le menu ne s'ouvre pas", vue, "« Assistant » n'ouvre pas le panneau de l'assistant")
+    else:
+        for c in controles:
+            if c["dessus"]:
+                res.echec("assistant recouvert", vue, "%s du panneau de l'assistant : %s en son centre, bandeau d'aperçu affiché" % (c["nom"], c["dessus"]))
+    page.keyboard.press("Escape")
+    page.wait_for_timeout(250)
+    vider_console(res, vue)
+
+
+def jouer_demarrage(page, res, sc):
+    """Ruling R17 : l'appareil a vu la promo allumée à l'ouverture précédente et les lectures des réglages sont
+    ralenties ; l'ancienne barre ne se peint à aucune image avant la coquille, et l'attente est levée l'app ouverte.
+    Les pages et les menus sont joués par les autres scénarios."""
+    vue = "%s/ouverture" % sc.nom
+    res.vues += 1
+    m = page.evaluate("() => ({ images: window.__vnImages || null, attente: document.body.hasAttribute('data-nav-attente'),"
+                      " coquille: document.body.dataset.nav === 'v2' && !!document.querySelector('[data-nav-coquille]') })")
+    if not m["coquille"]:
+        res.echec("coquille absente", vue, "la nouvelle navigation ne s'est pas montée à l'ouverture (réglage de la promo semé)")
+    if not m["images"]:
+        res.echec("mesure impossible", vue, "l'échantillon des images de l'ouverture n'a pas tourné")
+    elif m["images"]["eclair"]:
+        res.echec("ancienne barre avant la coquille", vue, "l'ancienne barre est peinte pendant %d image(s) avant la coquille, dès %d ms, la mémoire de l'appareil disant « allumée »"
+                  % (m["images"]["eclair"], m["images"]["premiere"]))
+    if m["attente"]:
+        res.echec("attente de la coquille non levée", vue, "body[data-nav-attente] est encore posé, l'app ouverte")
+    vider_console(res, vue)
+
+
+def verifier_barre_des_jours(page, res, sc):
+    """Ancienne barre : la barre des jours du planning se colle juste sous la barre du haut, quelle que soit sa
+    hauteur (52 px, 57 avec la pastille de promo, 95,5 sur téléphone) ; aucune bande d'elle ne passe dessous."""
+    aller_a(page, "#/planning")
+    attendre(page, calme=250)
+    m = page.evaluate("""() => { const b = document.querySelector('header.topbar'), j = document.querySelector('.p-daynav');
+      return b && j && j.getClientRects().length
+        ? { barre: b.getBoundingClientRect().height, top: parseFloat(getComputedStyle(j).top) } : null; }""")
+    if m is None:
+        return   # pas de planning ouvert à cette promo : rien à mesurer
+    res.vues += 1
+    if abs(m["barre"] - m["top"]) > 0.5:
+        res.echec("barre des jours mal collée", "%s/planning/barre-des-jours" % sc.nom,
+                  "la barre des jours se colle à %.1f px du haut, la barre du haut mesure %.1f px" % (m["top"], m["barre"]))
+
+
+def verifier_bulle_sous_bandeaux(page, res, sc, options):
+    """Ancienne barre, « Voir en tant que » et promos non chargées : les deux bandeaux du bas sont affichés. La bulle
+    de l'assistant, puis le champ et « Envoyer » de son panneau, restent à portée : rien ne couvre leur centre. Le
+    panneau s'arrête sous la barre du haut, sa croix se lit et, sur téléphone, croix et « Envoyer » font 44 px."""
+    vue = "%s/assistant" % sc.nom
+    res.vues += 1
+    # Les promos sont en panne à dessein : les erreurs de leur chargement, à l'ouverture, sont attendues.
+    res.console.clear()
+    erreur = page.evaluate("(r) => window.__verifNav.voirEnTantQue(r)", "prof")
+    if erreur:
+        res.echec("règles illisibles", vue, erreur)
+        return
+    attendre(page, calme=250)
+    bandeaux = page.evaluate("""() => ['impersonation-banner', 'promos-banner'].filter((i) => {
+      const e = document.getElementById(i); return e && e.getClientRects().length; })""")
+    if len(bandeaux) < 2:
+        res.echec("bandeaux absents", vue, "attendus : le bandeau d'aperçu et celui des promos ; affichés : %s" % (", ".join(bandeaux) or "aucun"))
+        return
+    bulle = page.evaluate("""() => { const e = document.getElementById('chatbot-fab');
+      if (!e || !e.getClientRects().length) return 'bulle absente';
+      const r = e.getBoundingClientRect(), t = document.elementFromPoint((r.left + r.right) / 2, (r.top + r.bottom) / 2);
+      return t && e.contains(t) ? null : (t ? ((t.closest('[id]') || t).id || t.tagName) : 'rien'); }""")
+    if bulle:
+        res.echec("assistant recouvert", vue, "bulle de l'assistant : %s en son centre, bandeaux du bas affichés" % bulle)
+    page.evaluate("() => document.getElementById('chatbot-fab')?.click()")
+    page.wait_for_timeout(300)
+    controles = page.evaluate("() => window.__verifNav.controlesAssistant()")
+    if controles is None:
+        res.echec("le panneau ne s'ouvre pas", vue, "la bulle n'ouvre pas le panneau de l'assistant")
+    else:
+        for c in controles:
+            if c["dessus"]:
+                res.echec("assistant recouvert", vue, "%s du panneau de l'assistant : %s en son centre, bandeaux du bas affichés" % (c["nom"], c["dessus"]))
+        geo = page.evaluate("""() => { const p = document.getElementById('chatbot-panel'), b = document.querySelector('header.topbar');
+          const taille = (s) => { const e = p.querySelector(s); if (!e) return null; const r = e.getBoundingClientRect();
+            return [Math.round(r.width), Math.round(r.height)]; };
+          // Contraste de la croix sur le fond du panneau (couleurs rgb ; une autre écriture n'est pas mesurée).
+          const lum = (c) => { const m = /^rgba?\\(([^)]+)\\)$/.exec(c); if (!m) return null;
+            const v = m[1].split(/[,\\s/]+/).filter(Boolean).slice(0, 3).map((x) => { x = Number(x) / 255;
+              return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4); });
+            return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2]; };
+          const x = p.querySelector('.chatbot-close');
+          const a = x ? lum(getComputedStyle(x).color) : null, f = lum(getComputedStyle(p).backgroundColor);
+          const contraste = a === null || f === null ? null : (Math.max(a, f) + 0.05) / (Math.min(a, f) + 0.05);
+          return { haut: p.getBoundingClientRect().top, barre: b ? b.getBoundingClientRect().bottom : 0,
+                   croix: taille('.chatbot-close'), envoyer: taille('.chatbot-form .btn'), contraste }; }""")
+        if geo["contraste"] is not None and geo["contraste"] < 3:
+            res.echec("contraste (assistant)", vue, "la croix « Fermer » du panneau : %.2f:1 sur son fond (3:1 au moins)" % geo["contraste"])
+        if geo["haut"] < geo["barre"] - 0.5:
+            res.echec("assistant sous la barre du haut", vue, "le panneau commence à %.1f px, la barre du haut finit à %.1f px" % (geo["haut"], geo["barre"]))
+        if sc.largeur < SEUIL_TELEPHONE:
+            for quoi, t in (("la croix « Fermer »", geo["croix"]), ("« Envoyer »", geo["envoyer"])):
+                if t and min(t) < 44:
+                    res.echec("zone à toucher (assistant)", vue, "%s du panneau : %dx%d px (44 px au moins)" % (quoi, t[0], t[1]))
+        # La vue entière, panneau ouvert : contrastes (la croix comprise), débordements.
+        verifier_vue(page, res, sc, "assistant/ouvert", options)
+    page.keyboard.press("Escape")
+    page.wait_for_timeout(250)
+    vider_console(res, vue)
+
+
+def jouer_eteint(page, res, sc, options):
+    if sc.voir_en_tant_que:
+        verifier_bulle_sous_bandeaux(page, res, sc, options)
+        return
+    verifier_vue(page, res, sc, "ouverture/" + route_courante(page), options)
+    routes = page.evaluate("""() => [...document.querySelectorAll('#tabs .tab')].filter((t) => t.getBoundingClientRect().width > 0)
+        .map((t) => t.dataset.route)""")
+    for route in dict.fromkeys(routes + ["mon-suivi"]):
+        aller_a(page, "#/" + route)
+        verifier_vue(page, res, sc, route, options)
+        sous_vues(page, res, sc, route, options)
+    jouer_anciennes_adresses(page, res, sc)
+    verifier_barre_des_jours(page, res, sc)
+
+
+def jouer_scenario(navigateur, url, sc, options):
+    res = Resultat(sc)
+    debut = time.time()
+    contexte = None
+    try:
+        contexte = nouveau_contexte(navigateur, sc, options)
+        page = nouvelle_page(contexte, res)
+        charger(page, url, sc)
+        if sc.demarrage:
+            jouer_demarrage(page, res, sc)
+        elif sc.passe == "allume":
+            jouer_allume(page, res, sc, options)
+        else:
+            jouer_eteint(page, res, sc, options)
+    except (DelaiDepasse, ErreurPlaywright) as e:
+        res.echec("le script n'a pas pu continuer", sc.nom, str(e).strip().splitlines()[0][:200])
+    except Exception as e:   # une erreur du script lui-même : visible, et les autres scénarios continuent
+        res.echec("erreur du script", sc.nom, "%s : %s" % (type(e).__name__, e))
+    finally:
+        if contexte:
+            try:
+                # Les fichiers encore en cours de lecture pour le cache se terminent avant la fermeture (sinon, du bruit).
+                contexte.unroute_all(behavior="wait")
+                contexte.close()
+            except ErreurPlaywright:
+                pass
+    res.duree = time.time() - debut
+    return res
+
+
+def executer_lot(lot):
+    """Un moteur, une liste de scénarios (exécuté dans un processus à part quand il y a plusieurs lots)."""
+    moteur, url, options = lot["moteur"], lot["url"], lot["options"]
+    scenarios = [Scenario(**s) for s in lot["scenarios"]]
+    with sync_playwright() as p:
+        navigateur, raison = lancer_navigateur(p, moteur)
+        if navigateur is None:
+            return {"moteur": moteur, "indisponible": True, "raison": raison, "resultats": []}
+        try:
+            resultats = [jouer_scenario(navigateur, url, sc, options).en_dict() for sc in scenarios]
+        finally:
+            navigateur.close()
+    return {"moteur": moteur, "indisponible": False, "raison": None, "resultats": resultats}
+
+
+# --------------------------------------------------------------------------------------
+# Rapport
+# --------------------------------------------------------------------------------------
+
+
+def regrouper(elements, cle, vue):
+    """[(clé, nombre d'occurrences, première vue)] du plus fréquent au plus rare."""
+    comptes = {}
+    for e in elements:
+        k = cle(e)
+        if k in comptes:
+            comptes[k][0] += 1
+        else:
+            comptes[k] = [1, vue(e)]
+    return sorted(((k, n, v) for k, (n, v) in comptes.items()), key=lambda x: -x[1])
+
+
+def lister(groupes, limite):
+    montres = groupes if limite is None else groupes[:limite]
+    for cle, n, premiere in montres:
+        print("    - %s%s" % (cle, "" if n == 1 else "  [%d fois, ex. %s]" % (n, premiere)))
+    if len(montres) < len(groupes):
+        print("    - ... et %d autre(s) cas (--tout pour les lister)" % (len(groupes) - len(montres)))
+
+
+ENTETES_AVERTISSEMENTS = {
+    "dette du lot 2": "dette du lot 2 : défilement de côté dans des conteneurs de page qui défilaient déjà sur main (ruling R10 : le lot 1 ne touche pas aux pages)",
+    "dette du lot 2, ruling R11": "dette du lot 2, ruling R11 : le lien Légifrance de Cours > Signalements dépasse à 375 px, déjà sur main (avertissement à part, sans échec)",
+}
+
+
+def imprimer_rapport(resultats, globaux, tout, debut):
+    echecs = [e for r in resultats for e in r["echecs"]] + list(globaux)
+    avert = [a for r in resultats for a in r["avert"]]
+    vues = sum(r["vues"] for r in resultats)
+    limite = None if tout else 3
+    print()
+    if echecs:
+        print("ÉCHECS : %d, dont %d cas distinct(s)" % (len(echecs), len({(t, d) for t, _, d in echecs})))
+        par_type = {}
+        for e in echecs:
+            par_type.setdefault(e[0], []).append(e)
+        for type_, liste in sorted(par_type.items(), key=lambda kv: -len(kv[1])):
+            print("  %s (%d)" % (type_, len(liste)))
+            lister(regrouper(liste, lambda e: e[2], lambda e: e[1]), limite)
+    else:
+        print("ÉCHECS : aucun")
+    if avert:
+        print()
+        print("AVERTISSEMENTS (sans échec)")
+        par_categorie = {}
+        for a in avert:
+            par_categorie.setdefault(a[0], []).append(a)
+        for categorie, liste in par_categorie.items():
+            print("  %s" % ENTETES_AVERTISSEMENTS.get(categorie, categorie))
+            lister([(k, n, v) for k, n, v in regrouper(liste, lambda a: a[1], lambda a: a[2])], limite)
+    c1 = sum(r["clics"][1] for r in resultats)
+    c2 = sum(r["clics"][2] for r in resultats)
+    if c1 or c2:
+        print()
+        print("entrées de la coquille ouvertes en cliquant : %d à 1 clic, %d à 2 clics (par « Plus »)" % (c1, c2))
+    print("durée : %.0f s" % (time.time() - debut))
+    print("%d vues, %d échec(s)" % (vues, len(echecs)))
+    return len(echecs)
+
+
+# --------------------------------------------------------------------------------------
+# Programme
+# --------------------------------------------------------------------------------------
+
+
+def repond(url):
+    try:
+        with urllib.request.urlopen(url, timeout=5) as r:
+            return r.status == 200
+    except (urllib.error.URLError, OSError, ValueError):
+        return False
+
+
+def banc_perime(url):
+    """Les fichiers CSS et JS d'index.html que le banc ne charge pas. _harness.html se régénère par
+    `node _harness_build.mjs` après toute modification d'index.html : un banc périmé fait jouer l'ancienne
+    page (coquille sans sa feuille de style...) et rend le résultat trompeur."""
+    index = pathlib.Path(__file__).resolve().parent.parent / "index.html"
+    if not index.exists():
+        return []
+    try:
+        with urllib.request.urlopen(url, timeout=5) as r:
+            banc = r.read().decode("utf-8", "replace")
+    except (urllib.error.URLError, OSError):
+        return []
+    fichiers = lambda texte: set(re.findall(r'(?:href|src)="((?:css|js)/[^"?]+)', texte))
+    return sorted(fichiers(index.read_text(encoding="utf-8", errors="replace")) - fichiers(banc))
+
+
+def adresse_du_banc(demandee, garder_hote):
+    url = urllib.parse.urlparse(demandee or BANC_PAR_DEFAUT)
+    if url.path in ("", "/"):
+        url = url._replace(path="/_harness.html")
+    if url.hostname == "localhost" and not garder_hote:
+        voisine = url._replace(netloc="127.0.0.1" + (":%d" % url.port if url.port else ""))
+        if repond(urllib.parse.urlunparse(voisine)):
+            print("(localhost réécrit en 127.0.0.1 : le banc y répond sans le délai d'IPv6 ; --garder-hote pour l'éviter)")
+            url = voisine
+    return urllib.parse.urlunparse(url)
+
+
+def liste_de(texte, permis, nom, convertir=str):
+    valeurs = [convertir(x) for x in texte.split(",") if x.strip()]
+    for v in valeurs:
+        if v not in permis:
+            raise SystemExit("--%s : « %s » inconnu (choix : %s)" % (nom, v, ", ".join(str(p) for p in permis)))
+    return valeurs
+
+
+def main(argv=None):
+    ap = argparse.ArgumentParser(description="Vérifie la nouvelle navigation au banc d'essai (Chromium et WebKit).")
+    ap.add_argument("url", nargs="?", help="adresse de _harness.html (défaut %s)" % BANC_PAR_DEFAUT)
+    ap.add_argument("--moteurs", default=",".join(MOTEURS))
+    ap.add_argument("--roles", default=",".join(ROLES))
+    ap.add_argument("--largeurs", default=",".join(str(l) for l in LARGEURS))
+    ap.add_argument("--passes", default="allume,eteint")
+    ap.add_argument("--sans-menus", action="store_true", help="ne joue pas les menus (boutons du compte et de « Plus » pas encore câblés)")
+    ap.add_argument("--tout", action="store_true", help="liste chaque échec et chaque avertissement")
+    ap.add_argument("--captures", metavar="DOSSIER", help="une capture d'écran par vue en échec")
+    ap.add_argument("--jobs", type=int, default=0, help="processus en parallèle (défaut : deux par moteur)")
+    ap.add_argument("--garder-hote", action="store_true", help="n'écrit pas localhost en 127.0.0.1")
+    ap.add_argument("--script-init", metavar="FICHIER.js", help="code JavaScript injecté au démarrage de chaque page (mise au point d'une coquille de prototype)")
+    args = ap.parse_args(argv)
+
+    moteurs = liste_de(args.moteurs, MOTEURS, "moteurs")
+    roles = liste_de(args.roles, ROLES, "roles")
+    largeurs = liste_de(args.largeurs, LARGEURS, "largeurs", int)
+    passes = liste_de(args.passes, ("allume", "eteint"), "passes")
+    scenarios = construire_scenarios(moteurs, roles, largeurs, passes)
+    if not scenarios:
+        raise SystemExit("rien à jouer avec ces options")
+
+    url = adresse_du_banc(args.url, args.garder_hote)
+    if not repond(url):
+        print("Le banc ne répond pas à %s (lancer le serveur « maquette-nav » du worktree)." % url)
+        return 2
+    absents = banc_perime(url)
+    options = {"sans_menus": args.sans_menus,
+               "captures": args.captures, "script_init": os.path.abspath(args.script_init) if args.script_init else None}
+
+    # Les scénarios d'un moteur sont répartis en autant de lots que de processus demandés.
+    par_moteur = max(1, (args.jobs or 2 * len(moteurs)) // len(moteurs))
+    lots = []
+    for moteur in moteurs:
+        propres = [asdict(sc) for sc in scenarios if sc.moteur == moteur]
+        for i in range(par_moteur):
+            if propres[i::par_moteur]:
+                lots.append({"moteur": moteur, "scenarios": propres[i::par_moteur], "url": url, "options": options})
+    print("%d scénario(s) sur %s, %d processus, banc %s" % (len(scenarios), " et ".join(moteurs), len(lots), url), flush=True)
+    debut = time.time()
+    sorties = []
+    if len(lots) == 1:
+        sorties.append(executer_lot(lots[0]))
+    else:
+        with concurrent.futures.ProcessPoolExecutor(max_workers=len(lots)) as pool:
+            for futur in concurrent.futures.as_completed([pool.submit(executer_lot, lot) for lot in lots]):
+                sorties.append(futur.result())
+                print("  %s : %d scénario(s) joué(s) (%.0f s)" % (sorties[-1]["moteur"], len(sorties[-1]["resultats"]), time.time() - debut), flush=True)
+    resultats, globaux = [], []   # globaux : échecs qui ne tiennent à aucune vue
+    if absents:
+        # Un banc périmé rend tout le reste trompeur : un échec à lui seul.
+        globaux.append(("banc périmé", "banc", "_harness.html ne charge pas %s, qu'index.html charge : relancer `node _harness_build.mjs`" % ", ".join(absents)))
+    for sortie in sorties:
+        if sortie["indisponible"]:
+            globaux.append(("moteur indisponible", sortie["moteur"], "%s : ses vues n'ont pas été jouées (l'écarter avec --moteurs)" % sortie["raison"]))
+        else:
+            resultats.extend(sortie["resultats"])
+    ordre = {sc.nom: i for i, sc in enumerate(scenarios)}
+    resultats.sort(key=lambda r: ordre[r["nom"]])
+    for r in resultats:
+        print("  %-60s %4d vues, %3d échec(s), %5.1f s" % (r["nom"], r["vues"], len(r["echecs"]), r["duree"]))
+    return 1 if imprimer_rapport(resultats, globaux, args.tout, debut) else 0
+
+
+if __name__ == "__main__":
+    for flux in (sys.stdout, sys.stderr):
+        flux.reconfigure(encoding="utf-8", errors="replace")
+    sys.exit(main())

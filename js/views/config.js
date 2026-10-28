@@ -1,8 +1,8 @@
 /*
  * Vue Paramètres.
  * Sections : Accès & invitations · Mes préférences · Modules de la promo
- * (js/views/modules-reglage.js) · Émargement (fondateur, js/emargement-etat.js) · Promo ·
- * Données personnelles (admins) · Infos.
+ * (js/views/modules-reglage.js) · Émargement (fondateur, js/emargement-etat.js) ·
+ * Nouvelle navigation (fondateur, js/nav-etat.js) · Promo · Données personnelles (admins) · Infos.
  */
 import {
   listStagiaires, listProfs,
@@ -12,14 +12,15 @@ import {
   addProf, updateProf, deleteProf,
   listUserProfiles, deleteUserProfile, inviteUser,
   setMyAnonymousNotes,
-} from "../db.js?v=20261027a";
-import { el, clear, toast, displayStagiaire } from "../utils.js?v=20261027a";
-import { icon } from "../icons.js?v=20261027a";
-import { isAdmin, getAdminEmail, getProfile } from "../auth-admin.js?v=20261027a";
-import { moduleVisible } from "../modules-etat.js?v=20261027a";
-import { renderModulesSection } from "./modules-reglage.js?v=20261027a";
-import { renderEmargementReglage } from "../emargement-etat.js?v=20261027a";
-import { confirmationValide, dateCourte, etatFinDePromo, resumeEffacement } from "../effacement-rules.js?v=20261027a";
+} from "../db.js?v=20261028a";
+import { el, clear, toast, displayStagiaire } from "../utils.js?v=20261028a";
+import { icon } from "../icons.js?v=20261028a";
+import { isAdmin, getAdminEmail, getProfile } from "../auth-admin.js?v=20261028a";
+import { moduleVisible } from "../modules-etat.js?v=20261028a";
+import { renderModulesSection } from "./modules-reglage.js?v=20261028a";
+import { renderEmargementReglage } from "../emargement-etat.js?v=20261028a";
+import { renderNavigationReglage } from "../nav-etat.js?v=20261028a";
+import { confirmationValide, dateCourte, etatFinDePromo, resumeEffacement } from "../effacement-rules.js?v=20261028a";
 
 // ====== SECTION Accès & invitations ======
 
@@ -717,6 +718,8 @@ async function rerender(container) {
     const modules = renderModulesSection();
     // Interrupteur de l'émargement, propre à la promo (fondateur seulement, sinon null).
     const emargement = renderEmargementReglage();
+    // Interrupteur de la nouvelle navigation et aperçu de l'appareil (fondateur seulement, sinon null).
+    const navigation = renderNavigationReglage();
 
     clear(container);
     container.appendChild(el("div", { class: "view-header" },
@@ -728,7 +731,7 @@ async function rerender(container) {
     ));
 
     const grid = el("div", { class: "param-grid" });
-    [acces, preferences, modules, emargement, promo, donnees, infos].filter(Boolean).forEach((s) => grid.appendChild(s));
+    [acces, preferences, modules, emargement, navigation, promo, donnees, infos].filter(Boolean).forEach((s) => grid.appendChild(s));
     container.appendChild(grid);
   } catch (e) {
     console.error("Paramètres : erreur de chargement", e);

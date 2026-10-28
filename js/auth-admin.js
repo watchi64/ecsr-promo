@@ -17,11 +17,11 @@ import {
   getMyProfile, listStagiaires, listProfs,
   chargerMesPromos, oublierPromo, getPromoCourante, rechargerApresEnregistrements,
   bloquerRequetesJusquAuRechargement,
-} from "./db.js?v=20261027a";
-import { el, toast, displayStagiaire } from "./utils.js?v=20261027a";
-import { icon } from "./icons.js?v=20261027a";
-import { construirePastille } from "./promo-pastille.js?v=20261027a";
-import { pagePersonnelle } from "./route-rules.js?v=20261027a";
+} from "./db.js?v=20261028a";
+import { el, toast, displayStagiaire } from "./utils.js?v=20261028a";
+import { icon } from "./icons.js?v=20261028a";
+import { construirePastille } from "./promo-pastille.js?v=20261028a";
+import { pagePersonnelle } from "./route-rules.js?v=20261028a";
 
 let currentUser = null;     // Supabase auth user
 let currentProfile = null;  // row user_profiles
@@ -263,7 +263,7 @@ function updateBadge() {
   const slot = document.getElementById("admin-slot");
   if (!slot) return;
   slot.innerHTML = "";
-  if (!currentUser) { updateImpersonationBanner(); updatePromosBanner(); return; }
+  if (!currentUser) { updateImpersonationBanner(); updatePromosBanner(); suivreBandeauxBas(); return; }
 
   // Pastille de promo devant le badge (formateurs et fondateur, au moins deux promos). Pas dans
   // l'aperçu « Stagiaire » : un stagiaire n'en a pas, l'aperçu doit rester fidèle.
@@ -285,6 +285,37 @@ function updateBadge() {
   slot.appendChild(badge);
   updateImpersonationBanner();
   updatePromosBanner();
+  suivreBandeauxBas();
+}
+
+// Bandeaux du bas de l'écran (aperçu, promos non chargées) : tant qu'il y en a un d'affiché, le corps de la
+// page porte data-bandeaux-bas et --haut-bandeaux-bas, la hauteur de leur pile, mesurée puis suivie (un
+// texte qui passe à la ligne, l'app qui s'affiche). Ce qui s'ouvre au même endroit s'en écarte : la bulle
+// et le panneau de l'assistant (css/style.css avec l'ancienne barre, css/navigation.css avec la nouvelle).
+const SEL_BANDEAUX_BAS = "#impersonation-banner, #promos-banner";
+let suiviBandeaux = null;
+
+function mesurerBandeauxBas() {
+  const corps = document.body;
+  const boites = [...document.querySelectorAll(SEL_BANDEAUX_BAS)]
+    .filter((b) => b.getClientRects().length).map((b) => b.getBoundingClientRect());
+  if (!boites.length) {
+    delete corps.dataset.bandeauxBas;
+    corps.style.removeProperty("--haut-bandeaux-bas");
+    return;
+  }
+  const pile = Math.max(...boites.map((r) => r.bottom)) - Math.min(...boites.map((r) => r.top));
+  corps.dataset.bandeauxBas = "";
+  corps.style.setProperty("--haut-bandeaux-bas", Math.ceil(pile) + "px");
+}
+
+function suivreBandeauxBas() {
+  if (!suiviBandeaux && typeof ResizeObserver === "function") suiviBandeaux = new ResizeObserver(() => mesurerBandeauxBas());
+  if (suiviBandeaux) {
+    suiviBandeaux.disconnect();
+    document.querySelectorAll(SEL_BANDEAUX_BAS).forEach((b) => suiviBandeaux.observe(b));
+  }
+  mesurerBandeauxBas();
 }
 
 // Bandeau d'état dégradé : les promos n'ont pas pu être chargées (deux essais), l'app affiche la
@@ -327,8 +358,9 @@ function updateImpersonationBanner() {
     onClick: () => setViewAs("admin") }, "Revenir fondateur"));
 }
 
-// Sélecteur « Voir en tant que » (fondateur uniquement) ; null sinon.
-function buildViewAsBlock(onPick) {
+// Sélecteur « Voir en tant que » (fondateur uniquement) ; null sinon. Aussi dans le menu du compte
+// de la nouvelle navigation (js/menu-compte.js).
+export function buildViewAsBlock(onPick) {
   if (!isFounder()) return null;
   const current = getViewAs() || "admin";
   const seg = el("div", { class: "view-as-seg" });
@@ -345,15 +377,20 @@ function buildViewAsBlock(onPick) {
   );
 }
 
+// Déconnexion, pour le menu « Mon compte » (ancien et nouveau) : la session se ferme, puis la page
+// se recharge. `apresDeconnexion` : ce qui se retire de l'écran entre les deux (la fenêtre du menu).
+export async function seDeconnecter(apresDeconnexion) {
+  await signOut();
+  if (apresDeconnexion) apresDeconnexion();
+  toast("Déconnecté", "success");
+  // Le hashchange + onAuthChange rechargeront le gate
+  location.reload();
+}
+
 function openProfileMenu() {
   const backdrop = el("div", { class: "modal-backdrop" });
-  const logoutBtn = el("button", { class: "btn danger full", onClick: async () => {
-    await signOut();
-    backdrop.remove();
-    toast("Déconnecté", "success");
-    // Le hashchange + onAuthChange rechargeront le gate
-    location.reload();
-  }}, "Se déconnecter");
+  const logoutBtn = el("button", { class: "btn danger full", onClick: () => seDeconnecter(() => backdrop.remove()) },
+    "Se déconnecter");
 
   // Accès direct à sa page depuis le badge : « cliquer sur mon nom » mène chez soi.
   // Un formateur sans profil stagiaire n'a pas de Mon espace : sa page est la page
@@ -379,7 +416,7 @@ function openProfileMenu() {
     logoutBtn,
     el("button", { class: "gate-link compte-legal", type: "button", onClick: () => {
       backdrop.remove();
-      import("./legal.js?v=20261027a").then((m) => m.ouvrirInformationsLegales());
+      import("./legal.js?v=20261028a").then((m) => m.ouvrirInformationsLegales());
     } }, "Informations légales et données personnelles"),
     el("div", { class: "modal-actions" },
       el("button", { class: "btn ghost", onClick: () => backdrop.remove() }, "Fermer"),

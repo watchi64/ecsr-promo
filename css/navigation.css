@@ -1,0 +1,914 @@
+/* ============================================================
+   Nouvelle navigation (refonte, lot 1) : la coquille
+   Posée par js/nav-shell.js quand l'interrupteur de la promo est allumé. Toutes les règles vivent
+   sous body[data-nav="v2"] (et une sous body[data-nav-attente], posé à l'ouverture seulement quand
+   la coquille est attendue) : interrupteur éteint, aucune ne s'applique et l'app reste celle
+   d'avant. Couleurs, rayons et ombres : les jetons de css/style.css.
+   Tailles : téléphone sous 700 px, tablette de 700 à 1079 px, ordinateur au-delà.
+   Stagiaire : en-tête clair (onglets en capsule). Équipe : barre latérale sombre, en colonne
+   d'icônes quand body porte data-nav-colonne (tablette, ou barre repliée sur ordinateur).
+   ============================================================ */
+
+/* L'ancienne barre du haut cède la place à la coquille. */
+body[data-nav="v2"] header.topbar { display: none; }
+
+/* Ouverture de l'app quand la coquille est attendue (ruling R17, js/main.js) : l'ancienne barre ne se
+   peint pas avant la décision. visibility et non display : si la décision est de la garder, elle revient
+   à sa place sans décaler la page. */
+body[data-nav-attente] header.topbar { visibility: hidden; }
+
+/* Hauteur de l'en-tête collant de la coquille, à la place de celle de l'ancienne barre (style.css,
+   :root) : la barre de jours du Planning se colle dessous (top) et un saut vers un jour pose la carte
+   sous les deux (scroll-margin-top : l'en-tête, puis 52 px pour la barre de jours et un peu d'air). En
+   px, lue par js/views/planning.js. Stagiaire : 66 px ; équipe : pas d'en-tête (barre latérale), 0 ;
+   téléphone : 56 px dans les deux espaces (plus bas). */
+body[data-nav="v2"][data-espace="stagiaire"] { --haut-entete: 66px; }
+body[data-nav="v2"][data-espace="equipe"] { --haut-entete: 0px; }
+/* La valeur de l'ancienne barre sur téléphone (148 px, style.css) ne vaut pas sous la coquille. */
+body[data-nav="v2"] .p-day-card { scroll-margin-top: calc(var(--haut-entete) + 52px); }
+
+/* Bord bas des bandeaux du bas de l'écran (js/auth-admin.js : aperçu, promos non chargées) : celui de
+   style.css (16 px, marge de sécurité comprise pour celui des promos), relevé au-dessus de la barre du bas
+   sur téléphone (plus bas). Le panneau de l'assistant s'ouvre au-dessus de leur pile. */
+body[data-nav="v2"] { --bas-bandeaux: calc(16px + env(safe-area-inset-bottom, 0px)); }
+
+/* La barre sombre de l'équipe reprend le crème de l'ancienne barre du haut sur --bg-deep, avec ses
+   transparences (style.css : .topbar, .tab, .promo-pastille) : texte, texte secondaire, survol,
+   entrée allumée, filet et bordure. */
+body[data-nav="v2"] {
+  --nav-creme: #F5E8D0;
+  --nav-creme-doux: rgba(245, 232, 208, 0.55);
+  --nav-creme-survol: rgba(245, 232, 208, 0.07);
+  --nav-creme-allume: rgba(245, 232, 208, 0.12);
+  --nav-creme-filet: rgba(245, 232, 208, 0.08);
+  --nav-creme-bord: rgba(245, 232, 208, 0.25);
+}
+
+/* Texte réservé aux lecteurs d'écran : les mots « non lues » de la pastille des Nouveautés, et le titre
+   d'un groupe d'entrées dans la colonne d'icônes (il nomme encore le groupe, voir aria-labelledby). */
+body[data-nav="v2"] .nav-invisible,
+body[data-nav="v2"][data-nav-colonne] .nav-groupe-titre {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Un module fermé pour la promo : dans la coquille, le repère (œil barré, infobulle) suffit, le
+   texte garde son contraste (l'atténuation de style.css le ferait passer sous 4,5:1). */
+body[data-nav="v2"] [data-nav-coquille] .module-masque { opacity: 1; }
+
+/* ----- Stagiaire, en-tête : logo et promo, onglets en capsule, Assistant et compte ----- */
+body[data-nav="v2"] .nav-haut {
+  position: sticky;
+  top: 0;
+  z-index: 10;                 /* comme l'ancienne barre : au-dessus de la barre des jours du planning (9) */
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 1rem;
+  height: 66px;
+  padding: 0 max(1.25rem, env(safe-area-inset-right, 0px)) 0 max(1.25rem, env(safe-area-inset-left, 0px));
+  background: var(--bg-elev);
+  border-bottom: 1px solid var(--line);
+}
+
+/* Colonne de gauche : le logo (lien vers l'accueil) et, à côté, le nom de la promo. */
+body[data-nav="v2"] .nav-gauche {
+  justify-self: start;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+body[data-nav="v2"] .nav-marque {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 0.25rem;
+  border-radius: var(--r-sm);
+}
+/* Le logo en noir sur la barre claire, comme sur la page de connexion (.gate-logo). */
+body[data-nav="v2"] .nav-logo {
+  display: block;
+  height: 38px;
+  width: auto;
+  filter: brightness(0) saturate(100%);
+}
+/* Le nom de la promo à côté du logo, sur ordinateur, là où la largeur le permet. */
+body[data-nav="v2"] .nav-marque-promo {
+  max-width: 13rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  line-height: 1.15;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--text-muted);
+}
+
+body[data-nav="v2"] .nav-onglets {
+  display: flex;
+  gap: 2px;
+  padding: 4px;
+  border-radius: 999px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--line);
+}
+body[data-nav="v2"] .nav-onglet {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  height: 40px;
+  padding: 0 1rem;
+  border-radius: 999px;
+  color: var(--text-soft);
+  font-size: 0.95rem;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: color 0.15s, background 0.15s;
+}
+body[data-nav="v2"] .nav-onglet .icon { width: 18px; height: 18px; flex: none; }
+body[data-nav="v2"] .nav-onglet:hover { color: var(--text); }
+body[data-nav="v2"] .nav-onglet[aria-current="page"] {
+  background: var(--bg-elev);
+  color: var(--accent-strong);
+  font-weight: 600;
+  box-shadow: var(--shadow-1), 0 0 0 1px var(--line);
+}
+
+/* Un libellé garde la largeur de sa version en gras (copie invisible de data-texte, sans hauteur) :
+   allumer une entrée ne décale pas ses voisines. */
+body[data-nav="v2"] .nav-onglet-texte,
+body[data-nav="v2"] .nav-case-texte {
+  display: inline-flex;
+  flex-direction: column;
+}
+body[data-nav="v2"] .nav-onglet-texte::after,
+body[data-nav="v2"] .nav-case-texte::after {
+  content: attr(data-texte);
+  height: 0;
+  overflow: hidden;
+  visibility: hidden;
+  pointer-events: none;
+  user-select: none;
+}
+body[data-nav="v2"] .nav-onglet-texte::after { font-weight: 600; }
+body[data-nav="v2"] .nav-case-texte::after { font-weight: 700; }
+
+body[data-nav="v2"] .nav-droite {
+  justify-self: end;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+body[data-nav="v2"] .nav-assistant {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  height: 40px;
+  padding: 0 0.95rem 0 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--bg-elev);
+  color: var(--text-soft);
+  font: inherit;
+  font-size: 0.93rem;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+}
+body[data-nav="v2"] .nav-assistant .icon { width: 18px; height: 18px; flex: none; }
+body[data-nav="v2"] .nav-assistant:hover { border-color: var(--line-strong); color: var(--text); }
+
+body[data-nav="v2"] .nav-compte {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  height: 44px;
+  padding: 3px 0.5rem 3px 3px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--bg-elev);
+  color: var(--text-soft);
+  font: inherit;
+  cursor: pointer;
+}
+body[data-nav="v2"] .nav-compte:hover { border-color: var(--line-strong); color: var(--text); }
+body[data-nav="v2"] .nav-compte > .icon { width: 16px; height: 16px; flex: none; }
+/* Le prénom à côté des initiales, là où la largeur le permet. */
+body[data-nav="v2"] .nav-compte-prenom {
+  max-width: 5.5rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0 0.1rem 0 0.3rem;
+  font-size: 0.93rem;
+  font-weight: 500;
+  color: var(--text);
+  white-space: nowrap;
+}
+body[data-nav="v2"] .nav-avatar {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--accent-soft-2);
+  color: var(--accent-strong);
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+body[data-nav="v2"] .nav-avatar .icon { width: 18px; height: 18px; }
+
+/* Nouveautés non lues (js/nav-shell.js) : la pastille de l'ancien onglet Accueil (style.css, .tab-badge),
+   au coin de l'avatar des boutons du compte, dans les deux espaces et à toute taille. Un liseré de la
+   couleur de la barre la détache de l'avatar. Le nombre est aussi dans le nom du bouton. */
+body[data-nav="v2"] [data-nav-action="compte"] .nav-avatar { position: relative; }
+body[data-nav="v2"] .nav-compte-pastille {
+  position: absolute;
+  top: -5px;
+  right: -8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #FFF;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  line-height: 1;
+  box-shadow: 0 0 0 2px var(--bg-elev);
+}
+body[data-nav="v2"] .nav-cote .nav-compte-pastille { box-shadow: 0 0 0 2px var(--bg-deep); }
+
+body[data-nav="v2"] [data-nav-coquille] :focus-visible {
+  outline: 2px solid var(--accent-strong);
+  outline-offset: 2px;
+}
+
+/* Le nom de la promo et le prénom ne s'affichent que là où l'en-tête les tient sur une ligne sans
+   décentrer la capsule. Mesuré : la capsule fait 583 px, chaque côté dispose de (largeur - 655) / 2 ;
+   plafonnés (13 rem et 5,5 rem, points de suspension au-delà), les deux tiennent ensemble avec
+   24 px d'air dès 1 225 px. */
+@media (max-width: 1239.98px) {
+  body[data-nav="v2"] .nav-marque-promo,
+  body[data-nav="v2"] .nav-compte-prenom { display: none; }
+}
+@media (min-width: 1400px) {
+  body[data-nav="v2"] .nav-marque-promo { max-width: 18rem; }
+  body[data-nav="v2"] .nav-compte-prenom { max-width: 8rem; }
+}
+
+/* Tablette : capsule plus serrée, l'Assistant en icône (son nom, aria-label, reste lu et en
+   infobulle). Sous 860 px, les onglets n'affichent plus que leur libellé : la barre tient alors dès
+   700 px. */
+@media (min-width: 700px) and (max-width: 859.98px) {
+  body[data-nav="v2"] .nav-onglet .icon { display: none; }
+}
+@media (min-width: 700px) and (max-width: 1079.98px) {
+  body[data-nav="v2"] .nav-onglet { padding: 0 0.75rem; }
+  body[data-nav="v2"] .nav-assistant { width: 40px; padding: 0; }
+  body[data-nav="v2"] .nav-assistant-texte { display: none; }
+}
+
+/* ----- Équipe : barre latérale sombre (ordinateur, tablette), en-tête sombre (téléphone) ----- */
+body[data-nav="v2"][data-espace="equipe"] {
+  /* Largeur de la barre latérale, marge de sécurité de l'écran comprise (iPhone couché) : le
+     contenu, qui garde le défilement de la fenêtre, en est décalé d'autant. */
+  --larg-cote: calc(264px + env(safe-area-inset-left, 0px));
+}
+body[data-nav="v2"][data-espace="equipe"][data-nav-colonne] {
+  --larg-cote: calc(74px + env(safe-area-inset-left, 0px));
+}
+
+body[data-nav="v2"] .nav-cote {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: var(--bg-deep);
+  color: var(--nav-creme);
+}
+body[data-nav="v2"] .nav-cote :focus-visible { outline-color: var(--nav-creme); }
+
+@media (min-width: 700px) {
+  body[data-nav="v2"][data-espace="equipe"] #app { margin-left: var(--larg-cote); }
+  /* Ce qui se centre en bas de l'écran (message, pastille du mode Modifier du planning) se centre sur le
+     contenu, à droite de la barre. */
+  body[data-nav="v2"][data-espace="equipe"] .toast,
+  body[data-nav="v2"][data-espace="equipe"] .p-edit-pill { left: calc(50% + var(--larg-cote) / 2); }
+  body[data-nav="v2"] .nav-cote {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 45;               /* au-dessus de la page, sous les fenêtres (200) et les bandeaux */
+    width: var(--larg-cote);
+    padding: 12px 10px 10px calc(10px + env(safe-area-inset-left, 0px));
+  }
+}
+
+body[data-nav="v2"] .nav-cote-tete {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* La promo affichée : marque (ses initiales), « Promo » et son nom ; un bouton (la pastille de
+   style.css, redessinée ici) quand on peut en changer. */
+body[data-nav="v2"] .nav-contexte {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 10px;
+  min-height: 44px;
+  padding: 7px 8px;
+  border: 1px solid var(--nav-creme-bord);
+  border-radius: var(--r-lg);
+  background: var(--nav-creme-survol);
+  color: var(--nav-creme);
+  font: inherit;
+  text-align: left;
+  white-space: nowrap;
+}
+body[data-nav="v2"] button.nav-contexte { cursor: pointer; }
+body[data-nav="v2"] button.nav-contexte:hover { background: var(--nav-creme-allume); }
+/* Au survol, le fond s'éclaircit : « Promo » passe en crème plein pour garder 4,5:1 (4,22:1 sinon). */
+body[data-nav="v2"] button.nav-contexte:hover .nav-contexte-type { color: var(--nav-creme); }
+body[data-nav="v2"] .nav-contexte-marque {
+  grid-row: 1 / span 2;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: var(--r);
+  background: var(--accent-on-dark);
+  color: var(--bg-deep);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+body[data-nav="v2"] .nav-contexte-marque .icon { width: 20px; height: 20px; }
+body[data-nav="v2"] .nav-contexte-type {
+  grid-column: 2;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  line-height: 1.25;
+  text-transform: uppercase;
+  color: var(--nav-creme-doux);
+}
+body[data-nav="v2"] .nav-contexte-nom,
+body[data-nav="v2"] .nav-contexte .promo-pastille-texte {
+  grid-column: 2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1.25;
+}
+body[data-nav="v2"] .nav-contexte .promo-pastille-fleche {
+  display: block;
+  grid-column: 3;
+  grid-row: 1 / span 2;
+  padding: 0 2px;
+  font-size: 0.75rem;
+}
+
+body[data-nav="v2"] .nav-replier {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--nav-creme-doux);
+  cursor: pointer;
+}
+body[data-nav="v2"] .nav-replier:hover { background: var(--nav-creme-survol); color: var(--nav-creme); }
+body[data-nav="v2"] .nav-replier .icon { width: 20px; height: 20px; }
+
+/* Entrées : la barre défile en hauteur si l'écran est bas, jamais de côté. La marge négative
+   laisse la place du trait de l'entrée allumée, au bord de la barre. */
+body[data-nav="v2"] .nav-cote-entrees {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 6px -10px 0;
+  padding: 0 10px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+body[data-nav="v2"] .nav-groupe {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+body[data-nav="v2"] .nav-groupe-titre {
+  margin: 0;
+  padding: 16px 10px 8px;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  line-height: 1;
+  text-transform: uppercase;
+  color: var(--nav-creme-doux);
+}
+body[data-nav="v2"] .nav-entree {
+  position: relative;
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 42px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--r);
+  background: transparent;
+  color: var(--nav-creme);
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+body[data-nav="v2"] .nav-entree > .icon { width: 20px; height: 20px; flex: none; opacity: 0.82; }
+body[data-nav="v2"] .nav-entree:hover { background: var(--nav-creme-survol); }
+body[data-nav="v2"] .nav-entree[aria-current="page"] { background: var(--nav-creme-allume); font-weight: 600; }
+body[data-nav="v2"] .nav-entree[aria-current="page"] > .icon { opacity: 1; color: var(--accent-on-dark); }
+body[data-nav="v2"] .nav-entree[aria-current="page"]::before {
+  content: "";
+  position: absolute;
+  top: 10px;
+  bottom: 10px;
+  left: -10px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--accent-on-dark);
+}
+body[data-nav="v2"] .nav-entree-texte {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Entrée d'un module fermé : texte atténué, sauf allumée, survolée ou au clavier (son fond plus clair
+   ferait passer le texte atténué sous 4,5:1), comme les onglets repérés de l'ancienne barre. */
+body[data-nav="v2"] .nav-entree.module-masque { color: var(--nav-creme-doux); }
+body[data-nav="v2"] .nav-entree.module-masque:hover,
+body[data-nav="v2"] .nav-entree.module-masque:focus-visible,
+body[data-nav="v2"] .nav-entree.module-masque[aria-current="page"] { color: var(--nav-creme); }
+body[data-nav="v2"] .nav-cote .marque-masque { margin: 0; color: var(--nav-creme-doux); }
+
+body[data-nav="v2"] .nav-cote-pied {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-top: 8px;
+  border-top: 1px solid var(--nav-creme-filet);
+}
+body[data-nav="v2"] .nav-cote-compte {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 44px;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: var(--r-lg);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+body[data-nav="v2"] .nav-cote-compte:hover { background: var(--nav-creme-survol); }
+body[data-nav="v2"] .nav-cote .nav-avatar { background: var(--nav-creme-allume); color: var(--nav-creme); }
+body[data-nav="v2"] .nav-cote-compte-texte {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+body[data-nav="v2"] .nav-cote-compte-texte b {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.93rem;
+  font-weight: 600;
+  line-height: 1.25;
+}
+body[data-nav="v2"] .nav-cote-compte-texte small {
+  color: var(--nav-creme-doux);
+  font-size: 0.8rem;
+  line-height: 1.25;
+}
+
+/* Le bouton qui replie la barre n'existe que sur ordinateur : la tablette a toujours la colonne. */
+@media (max-width: 1079.98px) {
+  body[data-nav="v2"] .nav-replier { display: none; }
+}
+
+/* Colonne d'icônes (tablette, ou barre repliée) : chaque entrée garde son nom en aria-label et en
+   infobulle, la promo sa marque, les groupes un filet. */
+body[data-nav="v2"][data-nav-colonne] .nav-cote-tete { flex-direction: column; }
+body[data-nav="v2"][data-nav-colonne] .nav-contexte {
+  flex: none;
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  padding: 5px;
+}
+body[data-nav="v2"][data-nav-colonne] .nav-contexte > :not(.nav-contexte-marque),
+body[data-nav="v2"][data-nav-colonne] .nav-entree-texte,
+body[data-nav="v2"][data-nav-colonne] .nav-cote-compte-texte { display: none; }
+body[data-nav="v2"][data-nav-colonne] .nav-replier { margin-top: 4px; }
+body[data-nav="v2"][data-nav-colonne] .nav-entree,
+body[data-nav="v2"][data-nav-colonne] .nav-cote-compte { justify-content: center; padding: 0; }
+body[data-nav="v2"][data-nav-colonne] .nav-groupe {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--nav-creme-filet);
+}
+body[data-nav="v2"][data-nav-colonne] .nav-entree > .marque-masque {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+}
+
+/* ----- Téléphone : barre du bas, en-tête de l'équipe ----- */
+body[data-nav="v2"] .nav-bas { display: none; }
+
+@media (max-width: 699.98px) {
+  body[data-nav="v2"] {
+    /* Hauteur de la barre du bas, marge de sécurité de l'écran comprise. Le corps de la page en
+       garde autant en marge basse : la fin de la page n'est jamais cachée sous la barre. */
+    --haut-barre-bas: calc(65px + env(safe-area-inset-bottom, 0px));
+    margin-bottom: var(--haut-barre-bas);
+  }
+  /* L'en-tête des deux espaces (le stagiaire, et la barre de l'équipe devenue en-tête) : 56 px. */
+  body[data-nav="v2"][data-espace] { --haut-entete: 56px; }
+
+  body[data-nav="v2"] .nav-haut {
+    grid-template-columns: 1fr auto;
+    gap: 0.5rem;
+    height: 56px;
+    padding: 0 max(0.85rem, env(safe-area-inset-right, 0px)) 0 max(0.85rem, env(safe-area-inset-left, 0px));
+  }
+  body[data-nav="v2"] .nav-onglets { display: none; }
+  body[data-nav="v2"] .nav-logo { height: 32px; }
+  body[data-nav="v2"] .nav-assistant { height: 44px; }
+
+  /* Équipe : la barre latérale devient l'en-tête (la promo, le compte) ; ses entrées passent dans
+     la barre du bas et le tiroir « Plus », l'Assistant dans le tiroir. */
+  body[data-nav="v2"] .nav-cote {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.5rem;
+    height: 56px;
+    padding: 0 max(0.75rem, env(safe-area-inset-right, 0px)) 0 max(0.75rem, env(safe-area-inset-left, 0px));
+  }
+  body[data-nav="v2"] .nav-cote-tete { flex: 1; min-width: 0; }
+  body[data-nav="v2"] .nav-contexte { padding: 3px 8px 3px 5px; }
+  body[data-nav="v2"] .nav-contexte-marque { width: 32px; height: 32px; font-size: 0.75rem; }
+  body[data-nav="v2"] .nav-cote-entrees,
+  body[data-nav="v2"] .nav-cote-assistant,
+  body[data-nav="v2"] .nav-cote-compte-texte { display: none; }
+  body[data-nav="v2"] .nav-cote-pied { flex-direction: row; padding: 0; border: 0; }
+  body[data-nav="v2"] .nav-cote-compte {
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border-radius: 50%;
+  }
+
+  body[data-nav="v2"] .nav-bas {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 45;               /* au-dessus de la page, sous les fenêtres (200) et les bandeaux */
+    display: flex;
+    height: var(--haut-barre-bas);
+    padding: 4px max(4px, env(safe-area-inset-right, 0px)) calc(6px + env(safe-area-inset-bottom, 0px)) max(4px, env(safe-area-inset-left, 0px));
+    background: var(--bg-elev);
+    border-top: 1px solid var(--line);
+  }
+  /* Cases de même largeur ; une case ne descend jamais sous son libellé (sur une ligne) ni sous 44 px. */
+  body[data-nav="v2"] .nav-case {
+    position: relative;
+    flex: 1 1 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    border-radius: var(--r);
+    color: var(--text-muted);
+    font-size: 0.73rem;
+    font-weight: 500;
+    line-height: 1.2;
+    white-space: nowrap;
+  }
+  /* « Plus » est un bouton : il prend l'allure des cases. */
+  body[data-nav="v2"] .nav-plus {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    font-family: inherit;
+    cursor: pointer;
+  }
+  body[data-nav="v2"] .nav-case-icone {
+    display: grid;
+    place-items: center;
+    width: 100%;
+    max-width: 56px;
+    min-width: 44px;
+    height: 30px;
+    border-radius: 999px;
+    transition: background 0.15s;
+  }
+  body[data-nav="v2"] .nav-case-icone .icon { width: 24px; height: 24px; }
+  body[data-nav="v2"] .nav-case[aria-current="page"] { color: var(--accent-strong); font-weight: 700; }
+  body[data-nav="v2"] .nav-case[aria-current="page"] .nav-case-icone { background: var(--accent-soft-2); }
+  body[data-nav="v2"] .nav-bas :focus-visible { outline-offset: -2px; }
+  /* Repère d'un module fermé : sur le coin de l'icône, hors du flux. */
+  body[data-nav="v2"] .nav-case > .marque-masque {
+    position: absolute;
+    top: 3px;
+    left: calc(50% + 8px);
+    margin: 0;
+  }
+
+  /* Ce qui se pose en bas de l'écran passe au-dessus de la barre du bas (le panneau de l'assistant :
+     voir sa section). Les promos au-dessus de l'aperçu : 48 px plus haut, comme dans style.css. */
+  body[data-nav="v2"] { --bas-bandeaux: calc(var(--haut-barre-bas) + 10px); }
+  body[data-nav="v2"] .impersonation-banner,
+  body[data-nav="v2"] .promos-banner { bottom: var(--bas-bandeaux); }
+  body[data-nav="v2"] .promos-banner.au-dessus-apercu { bottom: calc(var(--bas-bandeaux) + 48px); }
+  body[data-nav="v2"] .toast { bottom: calc(var(--haut-barre-bas) + 0.75rem); }
+  body[data-nav="v2"] .p-edit-pill { bottom: calc(var(--haut-barre-bas) + 0.75rem); }
+
+  /* Zones à toucher de 44 px sur téléphone : sous-onglets des pages, cases des Paramètres, boutons
+     du choix de la promo (ouvert par la pastille de l'en-tête de l'équipe). */
+  body[data-nav="v2"] .subtabs-bar .subtab { min-height: 44px; min-width: 44px; }
+  body[data-nav="v2"] .invite-admin-toggle { min-height: 44px; }
+  body[data-nav="v2"] .promo-choix-modal .btn { min-height: 44px; }
+}
+
+/* ----- Assistant (js/chatbot.js) : ouvert par les boutons « Assistant » de la coquille ----- */
+/* Plus de bulle flottante : elle masquait du contenu sur téléphone. */
+body[data-nav="v2"] #chatbot-fab { display: none; }
+/* Le panneau s'ouvre près de son bouton : sous l'en-tête, à droite, chez le stagiaire ; en bas, à droite
+   de la barre latérale, dans l'équipe (comme le menu du compte). */
+body[data-nav="v2"][data-espace="stagiaire"] .chatbot-panel {
+  top: calc(var(--haut-entete) + 8px);
+  right: max(14px, env(safe-area-inset-right, 0px));
+  bottom: auto;
+}
+body[data-nav="v2"][data-espace="equipe"] .chatbot-panel {
+  right: auto;
+  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  left: calc(var(--larg-cote) + 8px);
+}
+/* Bandeaux du bas affichés (data-bandeaux-bas, et la hauteur de leur pile, --haut-bandeaux-bas, posés par
+   js/auth-admin.js) : le panneau s'arrête au-dessus d'eux, son champ et « Envoyer » restent à portée. */
+body[data-nav="v2"][data-bandeaux-bas] {
+  --bas-panneau: calc(var(--bas-bandeaux) + var(--haut-bandeaux-bas, 0px) + 8px);
+}
+body[data-nav="v2"][data-bandeaux-bas][data-espace="stagiaire"] .chatbot-panel {
+  max-height: calc(100dvh - var(--haut-entete) - 8px - var(--bas-panneau));
+}
+body[data-nav="v2"][data-bandeaux-bas][data-espace="equipe"] .chatbot-panel {
+  bottom: var(--bas-panneau);
+  max-height: calc(100dvh - var(--bas-panneau) - 12px);
+}
+/* La croix et les cibles de 44 px du panneau valent pour les deux navigations : css/style.css. */
+
+@media (max-width: 699.98px) {
+  /* Téléphone : au-dessus de la barre du bas, sur toute la largeur, jamais sous l'en-tête de 56 px. */
+  body[data-nav="v2"][data-espace] .chatbot-panel {
+    top: auto;
+    right: 8px;
+    bottom: calc(var(--haut-barre-bas) + 8px);
+    left: 8px;
+    width: auto;
+    height: min(70dvh, 560px);
+    max-height: calc(100dvh - var(--haut-barre-bas) - var(--haut-entete) - 16px);
+  }
+  body[data-nav="v2"][data-bandeaux-bas][data-espace] .chatbot-panel {
+    bottom: var(--bas-panneau);
+    max-height: calc(100dvh - var(--bas-panneau) - var(--haut-entete) - 8px);
+  }
+}
+
+/* ----- Fenêtres de la coquille : menu du compte, tiroir « Plus » (js/nav-fenetre.js) ----- */
+/* Le voile des fenêtres de l'app (.modal-backdrop), au-dessus des bandeaux (1400, 1500) et sous
+   les messages (2000). */
+body[data-nav="v2"] .nav-calque { z-index: 1600; }
+body[data-nav="v2"] .nav-fenetre {
+  position: fixed;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: min(340px, calc(100vw - 24px));
+  max-height: calc(100vh - 24px);
+  max-height: calc(100dvh - 24px);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 10px;
+  background: var(--bg-elev);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: var(--r-xl);
+  box-shadow: var(--shadow-3);
+}
+/* Le focus va à la fenêtre elle-même à l'ouverture : pas de contour, Tab mène aux lignes. */
+body[data-nav="v2"] .nav-fenetre:focus { outline: none; }
+/* Menu du compte : sous son bouton, en haut à droite, chez le stagiaire ; à droite de la barre
+   latérale, en bas, dans l'équipe. Sur téléphone, les deux fenêtres montent du bas (plus bas). */
+body[data-nav="v2"][data-espace="stagiaire"] .nav-menu-compte {
+  top: calc(var(--haut-entete) + 8px);
+  right: max(14px, env(safe-area-inset-right, 0px));
+  max-height: calc(100vh - var(--haut-entete) - 20px);
+  max-height: calc(100dvh - var(--haut-entete) - 20px);
+}
+body[data-nav="v2"][data-espace="equipe"] .nav-menu-compte {
+  bottom: 12px;
+  left: calc(var(--larg-cote) + 8px);
+}
+
+body[data-nav="v2"] .nav-fenetre-tete {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 6px;
+  padding: 8px 8px 12px;
+  border-bottom: 1px solid var(--line-faint);
+}
+body[data-nav="v2"] .nav-fenetre-tete .nav-avatar { width: 44px; height: 44px; font-size: 0.95rem; }
+body[data-nav="v2"] .nav-fenetre-qui {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+body[data-nav="v2"] .nav-fenetre-qui b { font-size: 1rem; font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; }
+body[data-nav="v2"] .nav-fenetre-qui small { color: var(--text-muted); font-size: 0.82rem; line-height: 1.35; }
+body[data-nav="v2"] .nav-fenetre-section,
+body[data-nav="v2"] .nav-fenetre .nav-groupe-titre {
+  margin: 0;
+  padding: 12px 8px 8px;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  line-height: 1;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+body[data-nav="v2"] .nav-fenetre-lien {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 44px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--r);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+}
+body[data-nav="v2"] .nav-fenetre-lien:hover { background: var(--bg-subtle); }
+body[data-nav="v2"] .nav-fenetre-lien > .icon { width: 20px; height: 20px; flex: none; color: var(--text-muted); }
+body[data-nav="v2"] .nav-fenetre-lien > .nav-avatar { width: 28px; height: 28px; font-size: 0.7rem; }
+body[data-nav="v2"] .nav-fenetre-lien[aria-current="page"] { background: var(--accent-soft); font-weight: 600; }
+body[data-nav="v2"] .nav-fenetre-lien[aria-current="page"] > .icon { color: var(--accent-strong); }
+body[data-nav="v2"] .nav-fenetre-lien.module-masque { color: var(--text-muted); }
+body[data-nav="v2"] .nav-fenetre-lien.module-masque[aria-current="page"] { color: var(--text); }
+body[data-nav="v2"] .nav-fenetre-lien > .marque-masque { margin: 0; }
+body[data-nav="v2"] .nav-fenetre-texte { flex: 1; min-width: 0; }
+body[data-nav="v2"] .nav-fenetre-filet {
+  flex: none;
+  height: 1px;
+  margin: 6px 8px;
+  background: var(--line-faint);
+}
+/* Nouveautés non lues : la pastille de l'ancien onglet Accueil. */
+body[data-nav="v2"] .nav-pastille {
+  display: inline-grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--bg-elev);
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1;
+}
+body[data-nav="v2"] .nav-fenetre .view-as-block { margin: 6px 8px 8px; }
+/* En tête de chaque fenêtre (js/nav-fenetre.js) : la poignée du tiroir et « Fermer », sur téléphone
+   seulement (plus bas) ; sur ordinateur et tablette, le popover se ferme d'un clic dehors ou par Échap. */
+body[data-nav="v2"] .nav-fenetre-haut { display: none; }
+
+@media (max-width: 699.98px) {
+  body[data-nav="v2"][data-espace] .nav-fenetre {
+    top: auto;
+    right: 8px;
+    bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+    left: 8px;
+    width: auto;
+    max-height: 86vh;
+    max-height: 86dvh;
+    padding: 8px 10px 12px;
+  }
+  /* Rangée du haut : « Fermer » à droite, sur 44 px, le seul moyen visible de sortir sans choisir une
+     ligne (hors du voile) ; la poignée du tiroir au milieu, au-dessus. */
+  body[data-nav="v2"] .nav-fenetre-haut {
+    position: relative;
+    flex: none;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    min-height: 44px;
+  }
+  body[data-nav="v2"] .nav-fenetre-haut::before {
+    content: "";
+    position: absolute;
+    top: 4px;
+    left: 50%;
+    width: 40px;
+    height: 5px;
+    margin-left: -20px;
+    border-radius: 3px;
+    background: var(--line-strong);
+  }
+  body[data-nav="v2"] .nav-fenetre-fermer {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: var(--r);
+    background: transparent;
+    color: var(--accent-strong);
+    font: inherit;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  body[data-nav="v2"] .nav-fenetre-fermer:hover { background: var(--bg-subtle); }
+  body[data-nav="v2"] .nav-fenetre .view-as-btn { min-height: 44px; }
+}
+
+/* ----- Planning > Semaine : le bouton « Aujourd'hui » (ruling R29, js/views/planning.js) ----- */
+/* Le bouton de l'ancienne barre du haut, en tête de la vue de la semaine : 44 px à toute taille, ses
+   voisins de la rangée (Émargement) s'étirant à sa hauteur. */
+body[data-nav="v2"] .p-aujourdhui { min-height: 44px; }
+
+/* ----- Impression : ni la coquille, ni ce qu'elle impose à la page ----- */
+/* La marge de la barre latérale battrait le « margin: 0 » de l'impression des Indicateurs (style.css,
+   body.centre-printable #app) ; la marge basse est celle de la barre du bas du téléphone. */
+@media print {
+  body[data-nav="v2"] [data-nav-coquille] { display: none !important; }
+  body[data-nav="v2"][data-espace="equipe"] #app { margin-left: 0; }
+  body[data-nav="v2"] { margin-bottom: 0; }
+}

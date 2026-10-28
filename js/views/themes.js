@@ -1,17 +1,20 @@
-import { listThemes, updateTheme, addTheme, deleteTheme, listQcmIndex, getQcmFull, publishQcm, unpublishQcm, updateExamConfig, listExamAttempts, resetExamAttempt, listMyQcmAttempts, getMyProfile, listEvaluations, getOrCreateQcm, saveQcmQuestion, deleteQcmQuestion, reorderQcmQuestions, uploadQcmImage, listQcmSignalements, setQcmSignalementStatut, countQcmSignalementsOuverts, getCours, proposerQuestionsIa, listBrouillonsIa, accepterBrouillonIa, rejeterBrouillonIa } from "../db.js?v=20261027a";
-import { el, clear, isoDate, formatDate, toast, debounce } from "../utils.js?v=20261027a";
-import { icon } from "../icons.js?v=20261027a";
+import { listThemes, updateTheme, addTheme, deleteTheme, listQcmIndex, getQcmFull, publishQcm, unpublishQcm, updateExamConfig, listExamAttempts, resetExamAttempt, listMyQcmAttempts, getMyProfile, listEvaluations, getOrCreateQcm, saveQcmQuestion, deleteQcmQuestion, reorderQcmQuestions, uploadQcmImage, listQcmSignalements, setQcmSignalementStatut, countQcmSignalementsOuverts, getCours, proposerQuestionsIa, listBrouillonsIa, accepterBrouillonIa, rejeterBrouillonIa } from "../db.js?v=20261028a";
+import { el, clear, isoDate, formatDate, toast, debounce } from "../utils.js?v=20261028a";
+import { icon } from "../icons.js?v=20261028a";
 import { examenDemarrable, tempsRestantMs, formatTempsRestant,
-         echeanceDepuisChoix, DUREES_OUVERTURE } from "../qcm-exam-rules.js?v=20261027a";
-import { isAdmin, getAdminEmail, isProf, isStagiaire } from "../auth-admin.js?v=20261027a";
-import { recordUndo } from "../undo.js?v=20261027a";
-import { openQcmEntrainement, openQcmExamen } from "./qcm.js?v=20261027a";
-import { carteSignalement, renderConsoleSignalements, chargerAuteurs } from "./signalements.js?v=20261027a";
-import { renderSubTabs } from "../subtabs.js?v=20261027a";
-import { hasCours, openCoursSheet, chargerCoursIndex, coursDejaOuvert } from "./cours-reader.js?v=20261027a";
-import { cleCours } from "../cours-rules.js?v=20261027a";
-import { moduleVisible, moduleMasque, repereMasque } from "../modules-etat.js?v=20261027a";
-import { articlesCites, articlesHorsCours, titresDuCours, libelleTraceIa, brouillonVersQuestion, resumeProposition } from "../qcm-ia-rules.js?v=20261027a";
+         echeanceDepuisChoix, DUREES_OUVERTURE } from "../qcm-exam-rules.js?v=20261028a";
+import { isAdmin, getAdminEmail, isProf, isStagiaire } from "../auth-admin.js?v=20261028a";
+import { recordUndo } from "../undo.js?v=20261028a";
+import { openQcmEntrainement, openQcmExamen } from "./qcm.js?v=20261028a";
+import { carteSignalement, renderConsoleSignalements, chargerAuteurs } from "./signalements.js?v=20261028a";
+import { renderSubTabs } from "../subtabs.js?v=20261028a";
+import { hasCours, openCoursSheet, chargerCoursIndex, coursDejaOuvert } from "./cours-reader.js?v=20261028a";
+import { cleCours } from "../cours-rules.js?v=20261028a";
+import { moduleVisible, moduleMasque, repereMasque } from "../modules-etat.js?v=20261028a";
+import { navigationV2Active } from "../nav-etat.js?v=20261028a";
+import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261028a";
+import { renderRessources } from "./ressources.js?v=20261028a";
+import { articlesCites, articlesHorsCours, titresDuCours, libelleTraceIa, brouillonVersQuestion, resumeProposition } from "../qcm-ia-rules.js?v=20261028a";
 
 let themes = [];
 let qcmByTheme = new Map();  // theme_id -> { id, nb_questions, published, ... }
@@ -1858,26 +1861,38 @@ export async function renderThemes(container) {
   // n'écrive dans un écran disparu, ou refuse d'écrire dans celui qui vient de naître.
   lastContainer = null;
   themesActif = () => true;
+  // Nouvelle navigation : Cours s'ouvre aussi quand seuls les Documents sont ouverts pour la
+  // promo (routeVisibleV2, js/nav-rules.js). Thèmes et Compétences suivent alors le module des
+  // cours : fermé, un stagiaire n'a ni ces sous-onglets, ni l'en-tête qui les présente, et leurs
+  // données ne sont pas lues. Avec l'ancienne navigation, la page reste celle des cours.
+  const v2 = navigationV2Active();
+  const coursOuverts = !v2 || moduleVisible("themes");
   container.appendChild(el("div", { class: "loading" }, "Chargement"));
-  themes = await listThemes();
-  await loadQcmIndex();
+  if (coursOuverts) {
+    themes = await listThemes();
+    await loadQcmIndex();
+  }
   clear(container);
 
   // En-tête de Cours, au-dessus des sous-onglets. La ligne de progression est tenue à
   // jour par refreshStatsInPlace (statut basculé, date corrigée).
-  ligneProgression = el("p", { class: "eyebrow" }, texteProgression());
-  container.appendChild(el("div", { class: "view-header" },
-    el("div", { class: "view-header-text" },
-      ligneProgression,
-      el("h2", {}, "Cours"),
-      el("p", { class: "subtitle" }, "Les thèmes et les compétences de la formation, avec leurs cours et leurs QCM."),
-    ),
-    isAdmin() ? el("button", { class: "btn primary", onClick: () => openAddNotionModal(() => reload(lastContainer)) },
-      icon.plus(), "Ajouter une notion") : null,
-  ));
+  if (coursOuverts) {
+    ligneProgression = el("p", { class: "eyebrow" }, texteProgression());
+    container.appendChild(el("div", { class: "view-header" },
+      el("div", { class: "view-header-text" },
+        ligneProgression,
+        el("h2", {}, "Cours"),
+        el("p", { class: "subtitle" }, "Les thèmes et les compétences de la formation, avec leurs cours et leurs QCM."),
+      ),
+      isAdmin() ? el("button", { class: "btn primary", onClick: () => openAddNotionModal(() => reload(lastContainer)) },
+        icon.plus(), "Ajouter une notion") : null,
+    ));
+  }
 
-  // Thèmes et Compétences pour tous ; la console des signalements pour les formateurs
-  // seulement (la RLS ne suffit pas : elle rend à un élève SES propres signalements).
+  // Thèmes et Compétences pour tous (sous la nouvelle navigation, selon le module des cours :
+  // fermé, retirés chez un stagiaire et repérés chez un formateur) ; la console des
+  // signalements pour les formateurs seulement (la RLS ne suffit pas : elle rend à un élève
+  // SES propres signalements).
   // lastContainer devient le PANNEAU : c'est lui que reload() doit repeindre.
   const liste = (cle) => (p, ctx) => {
     lastContainer = p;
@@ -1885,15 +1900,33 @@ export async function renderThemes(container) {
     themesActif = ctx?.isActive || (() => true);
     rerender(p);
   };
+  const moduleCours = v2 ? "themes" : undefined;
   const onglets = [
-    { key: "themes", label: "Thèmes", render: liste("themes") },
-    { key: "competences", label: "Compétences", render: liste("competences") },
+    { key: "themes", label: "Thèmes", module: moduleCours, render: liste("themes") },
+    { key: "competences", label: "Compétences", module: moduleCours, render: liste("competences") },
   ];
   if (canManageExam()) {
     onglets.push({ key: "signalements", label: "⚑ Signalements",
       render: (p, ctx) => { renderConsoleSignalements(p, { themes, onOuvrirEditeur: ouvrirDepuisConsole, isActive: ctx?.isActive }); } });
   }
-  container.appendChild(renderSubTabs(onglets, { storageKey: "themes.subtab" }));
+  // Nouvelle navigation : les Ressources rejoignent les Cours, en dernier sous-onglet. La page
+  // se rend dans son propre conteneur : un rendu tardif (sous-onglet quitté pendant le
+  // chargement) écrit dans un nœud détaché, pas dans le panneau partagé.
+  if (v2) {
+    onglets.push({ key: "documents", label: "Documents", module: "ressources",
+      render: (p, ctx) => {
+        const zone = el("div");
+        p.appendChild(zone);
+        renderRessources(zone).catch((e) => {
+          console.error(e);
+          if (!ctx || ctx.isActive()) {
+            clear(zone);
+            zone.appendChild(el("p", { class: "muted" }, "Erreur de chargement des documents. Reviens sur l'onglet pour réessayer."));
+          }
+        });
+      } });
+  }
+  container.appendChild(renderSubTabs(onglets, { storageKey: CLES_SOUS_ONGLETS.themes }));
 }
 
 // La console ne connaît pas l'éditeur : elle rend la main ici avec le signalement,

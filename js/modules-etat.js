@@ -5,18 +5,18 @@
 // et écrivent la valeur de la promo courante. Si ce rangement change, c'est ce
 // fichier seul qu'on rebranche. Les règles vivent dans js/modules.js, le
 // catalogue dans js/modules-data.js.
-import { getSetting, setSetting, getPromoCourante } from "./db.js?v=20261027a";
-import { isAdmin, isProf, isFounder, getAdminEmail } from "./auth-admin.js?v=20261027a";
-import { icon } from "./icons.js?v=20261027a";
+import { getSetting, setSetting, getPromoCourante } from "./db.js?v=20261028a";
+import { isAdmin, isProf, isFounder, getAdminEmail } from "./auth-admin.js?v=20261028a";
+import { icon } from "./icons.js?v=20261028a";
 import {
   MODULES, MODULE_DE_ROUTE, MODULE_DE_SOUS_ONGLET, REGLAGE_OUVERT_AUX_FORMATEURS,
-} from "./modules-data.js?v=20261027a";
+} from "./modules-data.js?v=20261028a";
 import {
   ETAT_LIBRE, lireEtat, ecrireEtat, estReglee, estOuvert, basculer, ensembleDeDepart,
   avecAnnonces, nouveautesPour,
-} from "./modules.js?v=20261027a";
-import { NOUVEAUTES } from "./nouveautes-data.js?v=20261027a";
-import { triees, visibles, nonLues, vuesEffectives, marquerVues, amorcePour } from "./nouveautes.js?v=20261027a";
+} from "./modules.js?v=20261028a";
+import { NOUVEAUTES } from "./nouveautes-data.js?v=20261028a";
+import { triees, visibles, nonLues, vuesEffectives, marquerVues, amorcePour } from "./nouveautes.js?v=20261028a";
 
 const CLE_REGLAGE = "modules";
 const REF = { modules: MODULES, moduleDeRoute: MODULE_DE_ROUTE, moduleDeSousOnglet: MODULE_DE_SOUS_ONGLET };
@@ -100,6 +100,10 @@ export async function chargerModulesAuDemarrage(delaiMs = 3500) {
 
 export function etatModules() { return etat; }
 
+// La personne connectée est-elle de l'équipe (formateur ou admin, « Voir en tant que » compris) ? Un seul
+// prédicat, lu par les modules (ci-dessous), par js/main.js (espace de la coquille, redirection des
+// anciennes adresses, pages réservées à l'équipe) et par le menu du compte (js/menu-compte.js) : aucun
+// ne peut s'écarter des autres.
 export function formateurConnecte() { return isAdmin() || isProf(); }
 
 // Faut-il montrer ce module à la personne connectée ? Toujours pour un formateur.

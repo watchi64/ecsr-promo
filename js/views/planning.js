@@ -8,17 +8,19 @@ import {
   listBenevoles, listBenevolesNoms,
   getVoitureAggregats, listFiches, getSalleAggregats,
   avantChangementPromo,
-} from "../db.js?v=20261027a";
-import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20261027a";
-import { icon } from "../icons.js?v=20261027a";
-import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20261027a";
-import { isAdmin, isProf, getAdminEmail } from "../auth-admin.js?v=20261027a";
-import { recordUndo } from "../undo.js?v=20261027a";
-import { getCurrentWho } from "../identity.js?v=20261027a";
-import { openBenevolesPanel, telLink } from "./benevoles.js?v=20261027a";
-import { meilleurResultat } from "../passage-rules.js?v=20261027a";
-import { routeVisible, routeMasquee, repereMasque } from "../modules-etat.js?v=20261027a";
-import { emargementActif } from "../emargement-etat.js?v=20261027a";
+} from "../db.js?v=20261028a";
+import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20261028a";
+import { icon, deco } from "../icons.js?v=20261028a";
+import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20261028a";
+import { isAdmin, isProf, getAdminEmail } from "../auth-admin.js?v=20261028a";
+import { recordUndo } from "../undo.js?v=20261028a";
+import { getCurrentWho } from "../identity.js?v=20261028a";
+import { openBenevolesPanel, telLink } from "./benevoles.js?v=20261028a";
+import { meilleurResultat } from "../passage-rules.js?v=20261028a";
+import { routeVisible, routeMasquee, repereMasque } from "../modules-etat.js?v=20261028a";
+import { emargementActif } from "../emargement-etat.js?v=20261028a";
+import { navigationV2Active } from "../nav-etat.js?v=20261028a";
+import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261028a";
 
 let stagiaires = [];
 let profs = [];
@@ -2709,7 +2711,20 @@ function scrollToDay(d) {
 // endroit où l'on sait quelle semaine est chargée et où les cartes existent déjà pour
 // pouvoir défiler jusqu'à la bonne.
 let pendingTodayJump = false;
-export function requestPlanningToday() { pendingTodayJump = true; }
+// Nouvelle navigation (ruling R29) : le bouton de la barre du haut, masquée, revient en haut de la
+// semaine, avec le même geste (js/main.js, allerAujourdhui), que la page Planning de la nouvelle
+// navigation transmet à renderPlanning (js/views/planning-espace.js). null avec l'ancienne
+// navigation : le bouton est dans la barre du haut.
+let gesteAujourdhui = null;
+export function requestPlanningToday() {
+  pendingTodayJump = true;
+  // Nouvelle navigation : la semaine est le sous-onglet « Semaine » de Planning
+  // (js/views/planning-espace.js). C'est lui qui doit s'ouvrir, sinon le saut attendrait
+  // derrière Dates clés ou Priorités.
+  if (navigationV2Active()) {
+    try { localStorage.setItem(CLES_SOUS_ONGLETS.planning, "semaine"); } catch (e) { /* mode privé */ }
+  }
+}
 
 // Jour visé : aujourd'hui du lundi au vendredi ; le week-end, « aujourd'hui » n'existe
 // pas au planning (5 jours), on emmène donc au prochain jour utile : le lundi suivant.
@@ -2740,6 +2755,15 @@ function buildDayNav(monday) {
   return nav;
 }
 
+// Ce qui couvre le haut de l'écran au-dessus des cartes : la barre du haut puis la barre de
+// jours (52 px). La hauteur de la barre du haut est la variable CSS --haut-entete, lue sur body :
+// mesurée sur l'ancienne barre (js/main.js, posée sur <html>, dont body hérite), posée par la
+// coquille sous la nouvelle navigation (css/navigation.css) ; 52 px tant qu'elle n'est pas lue.
+function hautDesBarres() {
+  const entete = parseFloat(getComputedStyle(document.body).getPropertyValue("--haut-entete"));
+  return (Number.isFinite(entete) ? entete : 52) + 52;
+}
+
 // Surligne le jour visible pendant le scroll. Appelé après l'insertion des cartes.
 function armDayNavHighlight(container) {
   detachDayNavHighlight();
@@ -2749,7 +2773,7 @@ function armDayNavHighlight(container) {
 
   // Jour courant = celui qui occupe la plus grande hauteur sous la barre de jours.
   const update = () => {
-    const haut = 104;                       // topbar + barre de jours
+    const haut = hautDesBarres();
     const bas = window.innerHeight;
     let best = 0, bestVisible = -1;
     cards.forEach((c, i) => {
@@ -2783,6 +2807,11 @@ function detachDayNavHighlight() {
 }
 
 function renderInto(container) {
+  // Conteneur sorti de la page (nouvelle navigation : sous-onglet Semaine quitté avant la fin
+  // d'un rendu ou d'une action) : rien à dessiner, et surtout pas currentContainer, la barre
+  // des jours ni la cible d'impression, qui appartiennent à ce qui est affiché. Sans
+  // sous-onglets, le conteneur est #view, toujours dans la page.
+  if (!container.isConnected) return;
   currentContainer = container;
   clear(container);
 
@@ -2818,8 +2847,15 @@ function renderInto(container) {
     // Priorités de passage : rangées dans le Planning, plus d'onglet (chantier D).
     // Visibles des formateurs, et des stagiaires si le module est ouvert pour leur
     // promo ; repère « Masqué aux stagiaires » chez un formateur quand il est fermé.
+    // Nouvelle navigation : Priorités est un sous-onglet de Planning, pas de bouton en double ; le
+    // bouton « Aujourd'hui » de l'ancienne barre du haut vient en tête (ruling R29).
     el("div", { class: "p-entete-actions" },
-      routeVisible("dashboard")
+      navigationV2Active() && gesteAujourdhui
+        ? el("button", { class: "btn small p-aujourdhui", type: "button",
+            title: "Aller à la journée d'aujourd'hui", onClick: () => gesteAujourdhui() },
+            deco(icon.today()), "Aujourd'hui")
+        : null,
+      routeVisible("dashboard") && !navigationV2Active()
         ? repereMasque(el("button", { class: "btn small", type: "button",
             title: "Qui doit passer en priorité, au tableau et en voiture",
             onClick: () => { location.hash = "#/dashboard"; } },
@@ -3361,20 +3397,34 @@ async function printPlanning() {
   window.print();
 }
 
-export async function renderPlanning(container) {
+// `aujourdhui` : le geste du bouton « Aujourd'hui » à poser en haut de la semaine (nouvelle navigation,
+// js/views/planning-espace.js) ; absent avec l'ancienne, dont la barre du haut porte le bouton.
+export async function renderPlanning(container, { aujourdhui = null } = {}) {
   clear(container);
   container.appendChild(el("div", { class: "loading" }, "Chargement"));
 
-  [stagiaires, profs, themes, benevoles] = await Promise.all([
+  // Nouvelle navigation : la semaine est un sous-onglet de Planning. Quittée pendant son
+  // chargement, son conteneur n'est plus dans la page : le rendu s'arrête avant d'écrire l'état
+  // du module (données, semaine affichée, saut « Aujourd'hui »), qui appartient au rendu
+  // affiché. Sans sous-onglets, le conteneur est #view, toujours dans la page : chaque arrêt
+  // ci-dessous est sans effet et l'ordre des écritures est celui d'avant.
+  const references = await Promise.all([
     listStagiaires(), listProfs(), listThemes(), loadBenevoles(),
   ]);
+  if (!container.isConnected) return;
+  [stagiaires, profs, themes, benevoles] = references;
+  let stats;
   try {
-    [voitureStats, fichesSuivi, salleStats] = await Promise.all([getVoitureAggregats(), listFiches(), getSalleAggregats()]);
+    stats = await Promise.all([getVoitureAggregats(), listFiches(), getSalleAggregats()]);
   } catch (e) {
     console.warn("stats voiture / fiches indisponibles (migration manquante ?)", e?.message || e);
-    voitureStats = {}; fichesSuivi = []; salleStats = {};
+    stats = [{}, [], {}];
   }
-  autresProfsMem = parseAutresProfs(await getSetting("profs_autres"));
+  if (!container.isConnected) return;
+  [voitureStats, fichesSuivi, salleStats] = stats;
+  const autres = await getSetting("profs_autres");
+  if (!container.isConnected) return;
+  autresProfsMem = parseAutresProfs(autres);
   // Raccourci « Aujourd'hui » : on force la semaine en cours en LOCAL, sans écrire le
   // réglage global « current_week_lundi » : c'est une navigation personnelle, elle n'a
   // pas à déplacer la semaine affichée pour toute la promo (même logique que pour un
@@ -3382,10 +3432,13 @@ export async function renderPlanning(container) {
   const jump = pendingTodayJump ? todayJumpTarget() : null;
   pendingTodayJump = false;
   const weekSetting = await getSetting("current_week_lundi");
+  if (!container.isConnected) return;
   semaineLundi = jump
     ? isoDate(getMonday(jump.date))
     : (weekSetting || isoDate(getMonday(new Date())));
   await loadPlanning();
+  if (!container.isConnected) return;
+  gesteAujourdhui = aujourdhui;
   renderInto(container);
   if (jump) {
     scrollToDay(jump.dayIndex);

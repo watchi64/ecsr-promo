@@ -1,22 +1,24 @@
 import { listStagiaires, listEvaluations, getPlanning, getHalfMetaForWeek, getJoursOff, getSetting,
          listProfs, listEpcf, getEpcfMoyennes, listThemes,
          getStagiaire, setDateNaissance, listPassages,
-         listLivretsIndex, listDossiersIndex } from "../db.js?v=20261027a";
-import { el, clear, isoDate, getMonday, addDays, formatDate, displayStagiaire, toast } from "../utils.js?v=20261027a";
-import { HALF_DAYS, RESULTATS } from "../config.js?v=20261027a";
-import { isAdmin, isProf, monStagiaireId } from "../auth-admin.js?v=20261027a";
-import { renderEpcfPersonne } from "./epcf.js?v=20261027a";
-import { renderSubTabs } from "../subtabs.js?v=20261027a";
-import { renderDp } from "./dp.js?v=20261027a";
-import { renderEpcfLivret } from "./epcf-livret.js?v=20261027a";
-import { rolesPourEntry, ROLE_ORDER } from "../creneaux-rules.js?v=20261027a";
-import { bandeauAvis } from "../avis.js?v=20261027a";
-import { statsPassages } from "../passages-stats.js?v=20261027a";
-import { moduleVisible, moduleMasque, repereMasque } from "../modules-etat.js?v=20261027a";
-import { icon } from "../icons.js?v=20261027a";
-import { PARTIES, lireAdresse, adresseFiche } from "../route-rules.js?v=20261027a";
-import { etatsSommaire, passagesAVenir, EVT_DOCUMENT } from "../fiche-rules.js?v=20261027a";
-import { surChangementAdresse, remplacerAdresse, peutQuitter } from "../navigation.js?v=20261027a";
+         listLivretsIndex, listDossiersIndex } from "../db.js?v=20261028a";
+import { el, clear, isoDate, getMonday, addDays, formatDate, displayStagiaire, toast } from "../utils.js?v=20261028a";
+import { HALF_DAYS, RESULTATS } from "../config.js?v=20261028a";
+import { isAdmin, isProf, monStagiaireId } from "../auth-admin.js?v=20261028a";
+import { renderEpcfPersonne } from "./epcf.js?v=20261028a";
+import { renderSubTabs } from "../subtabs.js?v=20261028a";
+import { renderDp } from "./dp.js?v=20261028a";
+import { renderEpcfLivret } from "./epcf-livret.js?v=20261028a";
+import { rolesPourEntry, ROLE_ORDER } from "../creneaux-rules.js?v=20261028a";
+import { bandeauAvis } from "../avis.js?v=20261028a";
+import { statsPassages } from "../passages-stats.js?v=20261028a";
+import { moduleVisible, moduleMasque, repereMasque } from "../modules-etat.js?v=20261028a";
+import { icon } from "../icons.js?v=20261028a";
+import { PARTIES, lireAdresse, adresseFiche } from "../route-rules.js?v=20261028a";
+import { etatsSommaire, passagesAVenir, EVT_DOCUMENT } from "../fiche-rules.js?v=20261028a";
+import { surChangementAdresse, remplacerAdresse, peutQuitter } from "../navigation.js?v=20261028a";
+import { navigationV2Active } from "../nav-etat.js?v=20261028a";
+import { renderNotes } from "./notes.js?v=20261028a";
 
 const HALF_ORDER = { matin: 0, aprem: 1 };
 
@@ -468,10 +470,12 @@ function renderEffectuesSection(rows, soi = true) {
 // stagiaire, vue par un formateur). Deux dispositions, choisies à l'affichage :
 // onglets sur ordinateur ; sur iPhone, un sommaire puis la partie en plein écran.
 
-const LIBELLE_PARTIE = { passages: "Passages", epcf: "EPCF", evolution: "Évolution", livret: "Livret", dp: "Dossier pro" };
+const LIBELLE_PARTIE = { passages: "Passages", epcf: "EPCF", evolution: "Évolution", livret: "Livret", dp: "Dossier pro",
+  classe: "La classe" };
 // Module de chaque partie (js/modules-data.js) : fermé pour la promo, la partie
-// disparaît chez un stagiaire et porte le repère chez un formateur.
-const MODULE_DE_PARTIE = { passages: null, epcf: "epcf", evolution: "notes", livret: "livret", dp: "dp" };
+// disparaît chez un stagiaire et porte le repère chez un formateur. La classe est
+// l'ancienne page Notes : elle suit le module des notes, comme le faisait l'onglet.
+const MODULE_DE_PARTIE = { passages: null, epcf: "epcf", evolution: "notes", livret: "livret", dp: "dp", classe: "notes" };
 
 export function dispositionFiche() {
   return window.matchMedia("(max-width: 760px)").matches ? "sommaire" : "onglets";
@@ -544,19 +548,27 @@ export function afficherErreur(zone, e, reessayer) {
   toast(isTimeout ? "Connexion trop lente, réessaie" : (e?.message || String(e)), "error");
 }
 
-function partiesVisibles() {
-  return PARTIES.filter((p) => !MODULE_DE_PARTIE[p] || moduleVisible(MODULE_DE_PARTIE[p]));
+// La classe (la vue Notes, nouvelle navigation) n'appartient qu'à Mon espace, la fiche de la
+// personne connectée, qui a donc un profil stagiaire : la page Stagiaires et l'ancienne
+// navigation gardent la fiche d'avant.
+function partiesVisibles(opts) {
+  return PARTIES.filter((p) => (p !== "classe" || (!!opts.soi && navigationV2Active()))
+    && (!MODULE_DE_PARTIE[p] || moduleVisible(MODULE_DE_PARTIE[p])));
 }
 
 function lienRetour(label, href) {
   return el("a", { class: "fiche-retour", href }, icon.chevronLeft(), el("span", {}, label));
 }
 
+// Nom de la page de la personne connectée : « Mon suivi » sous la nouvelle navigation, le nom de son
+// entrée (ruling R30 : une page, un nom), « Mon espace » avec l'ancienne.
+const nomDeMonSuivi = () => (navigationV2Active() ? "Mon suivi" : "Mon espace");
+
 // Renvoie ce qui est affiché : "onglets", "sommaire", "partie" (iPhone, avec un
 // retour) ou "unique" (iPhone, une seule partie ouverte, montrée directement).
 export function renderFiche(container, d, opts) {
   clear(container);
-  const parties = partiesVisibles();
+  const parties = partiesVisibles(opts);
   const partie = parties.includes(opts.partie) ? opts.partie : null;
   if (opts.disposition !== "onglets" && parties.length === 1) {
     // Une seule partie ouverte (début de formation) : pas de sommaire d'une ligne,
@@ -584,7 +596,7 @@ export function renderFiche(container, d, opts) {
   }
   if (partie) {
     // iPhone, une partie en plein écran : le retour mène au sommaire.
-    container.appendChild(lienRetour(opts.titre || "Mon espace", opts.adresse(null)));
+    container.appendChild(lienRetour(opts.titre || nomDeMonSuivi(), opts.adresse(null)));
     container.appendChild(el("h2", { class: "fiche-titre" }, LIBELLE_PARTIE[partie]));
     const panel = el("div", { class: "fiche-partie" });
     container.appendChild(panel);
@@ -679,6 +691,14 @@ function rendrePartie(panel, partie, d, opts, ctx) {
     // peut aussi y écrire pour l'accompagner (droits révisés le 16/09).
     renderDp(panel, { stagiaireId: d.id, embedded: true, isActive })
       .catch(erreurPartie(panel, isActive, "Erreur de chargement du dossier professionnel. Rouvre la partie pour réessayer."));
+  } else if (partie === "classe") {
+    // La vue Notes de la classe, telle quelle, dans son propre conteneur : elle repeint son
+    // conteneur à l'arrivée des données, et une partie quittée entre-temps laisse ce repeint
+    // dans un nœud détaché au lieu d'effacer la partie affichée.
+    const zone = el("div");
+    panel.appendChild(zone);
+    renderNotes(zone)
+      .catch(erreurPartie(zone, isActive, "Erreur de chargement des notes de la classe. Rouvre la partie pour réessayer."));
   }
 }
 
@@ -693,7 +713,7 @@ export async function renderMonSuivi(container) {
   const header = el("div", { class: "view-header" },
     el("div", { class: "view-header-text" },
       el("p", { class: "eyebrow" }, "Espace personnel"),
-      el("h2", {}, "Mon espace"),
+      el("h2", {}, nomDeMonSuivi()),
       el("p", { class: "subtitle" }, moduleVisible("notes")
         ? "Mon planning à venir et l'évolution de mes résultats."
         : "Mon planning à venir."),
@@ -717,7 +737,8 @@ export async function renderMonSuivi(container) {
       adresse: (p) => adresseFiche("mon-suivi", null, p),
       storageKey: "ecsr_monsuivi_subtab",
     });
-    // iPhone, dans une partie : le retour « ‹ Mon espace » remplace l'en-tête.
+    // iPhone, dans une partie : le retour « ‹ Mon espace » (« ‹ Mon suivi » sous la nouvelle
+    // navigation) remplace l'en-tête.
     header.hidden = affiche === "partie";
     if (bandeau) bandeau.hidden = affiche === "partie";
     if (disposition === "sommaire") window.scrollTo(0, 0);

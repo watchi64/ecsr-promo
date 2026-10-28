@@ -35,11 +35,14 @@ export const MODULE_DE_ROUTE = {
 
 // Sous-onglets rattachés à un module, par route. Sert aux liens « Où le
 // trouver » des nouveautés ; les vues, elles, déclarent `module` sur leurs
-// sous-onglets (js/views/notes.js, js/views/mon-suivi.js). Garder les deux
+// sous-onglets (js/views/notes.js, js/views/mon-suivi.js, et sous la nouvelle
+// navigation js/views/planning-espace.js et js/views/themes.js). Garder les deux
 // d'accord.
 export const MODULE_DE_SOUS_ONGLET = {
   notes: { matrice: "notes", epcf: "epcf" },
-  "mon-suivi": { evolution: "notes", epcf: "epcf", livret: "livret", dp: "dp" },
+  "mon-suivi": { evolution: "notes", epcf: "epcf", livret: "livret", dp: "dp", classe: "notes" },
+  planning: { semaine: "planning", dates: "calendrier", priorites: "priorites" },
+  themes: { themes: "themes", competences: "themes", documents: "ressources" },
 };
 
 // Ouvert aux formateurs depuis le multi-promo (étape 3 de A) : chacun règle les modules de

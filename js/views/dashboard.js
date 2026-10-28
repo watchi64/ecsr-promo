@@ -1,7 +1,7 @@
-import { listStagiaires, getStats, getSetting } from "../db.js?v=20261027a";
-import { el, clear, isoDate, getMonday, displayStagiaire, compareByNom } from "../utils.js?v=20261027a";
-import { icon } from "../icons.js?v=20261027a";
-import { renderPassages } from "./passages.js?v=20261027a";
+import { listStagiaires, getStats, getSetting } from "../db.js?v=20261028a";
+import { el, clear, isoDate, getMonday, displayStagiaire, compareByNom } from "../utils.js?v=20261028a";
+import { icon } from "../icons.js?v=20261028a";
+import { renderPassages } from "./passages.js?v=20261028a";
 
 const SORT_OPTIONS = [
   { key: "priorite",   label: "Priorité de passage" },
@@ -110,7 +110,9 @@ function explainPanel(objSalle, objVoiture) {
   );
 }
 
-export async function renderDashboard(container) {
+// opts.embedded : rendu dans le sous-onglet Priorités de Planning (nouvelle navigation,
+// js/views/planning-espace.js) ; la barre des sous-onglets remplace le retour au Planning.
+export async function renderDashboard(container, { embedded = false } = {}) {
   clear(container);
   container.appendChild(el("div", { class: "loading" }, "Chargement"));
 
@@ -151,8 +153,10 @@ export async function renderDashboard(container) {
   clear(container);
 
   // Priorités se consulte depuis le Planning (chantier D) : retour en un geste.
-  container.appendChild(el("button", { class: "btn small ghost dash-retour", type: "button",
-    onClick: () => { location.hash = "#/planning"; } }, icon.chevronLeft(), "Planning"));
+  if (!embedded) {
+    container.appendChild(el("button", { class: "btn small ghost dash-retour", type: "button",
+      onClick: () => { location.hash = "#/planning"; } }, icon.chevronLeft(), "Planning"));
+  }
 
   container.appendChild(el("div", { class: "view-header" },
     el("div", { class: "view-header-text" },
