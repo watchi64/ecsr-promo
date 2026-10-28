@@ -11,8 +11,27 @@
 //
 // Population : les chiffres qui portent sur des stagiaires sont ceux du tableau de bord du centre, repris tels quels
 // (indicateursPromo, js/centre-stats.js) : seuls l'effectif et les abandons comptent tous les inscrits, le reste ne
-// compte que les stagiaires en formation. Les lignes du planning portent leur promo et sont filtrées ici ; les
-// autres tables arrivent déjà limitées à la promo (lireDonneesQualiopi).
+// compte que les stagiaires en formation (la phrase des évaluations le dit). Les lignes du planning portent leur promo
+// et sont filtrées ici ; les autres tables arrivent déjà limitées à la promo (lireDonneesQualiopi).
+//
+// Raisons d'absence : des textes fixes, sans période ni nombre, pour que les dossiers les regroupent par texte d'une
+// promo à l'autre.
+//
+// Forme de `donnees` (sortie de lireDonneesQualiopi). Une clé absente vaut [] ; seuls les champs cités sont lus.
+//   stagiaires    [{ id, actif }]
+//   passages, tentatives, evaluations, epcf   lus par indicateursPromo ; ici, en plus, les dates de evaluations
+//                 [{ stagiaire_id, note, note_max, date_eval }] et le compte de epcf [{ stagiaire_id, contexte, auto_eval }]
+//   planning      [{ semaine_lundi, day_index, half_day, activite, sujet, sujet_2, prof_ids, prof_autre, autonomie,
+//                 benevoles_ids, promo_id }]
+//   joursOff      [{ semaine_lundi, day_index }] : les jours désactivés du planning (vacances, pont, formation externe) ;
+//                 leurs lignes de planning gardent leurs cartes en base mais ne comptent nulle part ici
+//   agenda        [{ type, date_start, date_end }]
+//   livrets, dossiers   [{ stagiaire_id, updated_at }]
+//   cours         [{ id, published }]
+//   versions      [{ cours_id, saved_at }] : les versions enregistrées des cours (leur `updated_at` n'est pas lu)
+//   signalements  [{ traite_at }]
+//   autoEcoles    [{ actif, lieu_id }]
+// Ne sont pas lus : `profs` et `entete` (les noms) et l'émargement, pas encore branché (voir la pièce `assiduite`).
 
 import { INDICATEURS, indicateursApplicables } from "./qualiopi-referentiel.js?v=20261028a";
 import { indicateursPromo } from "./centre-stats.js?v=20261028a";
@@ -65,7 +84,7 @@ export const PIECES = [
   { cle: "evaluations", libelle: "Évaluations", indicateurs: [11, 16] },                  // notes, QCM, EPCF, livrets, jury
   { cle: "dossierPro", libelle: "Dossier professionnel", indicateurs: [16] },             // un dossier par stagiaire
   { cle: "ressources", libelle: "Ressources", indicateurs: [19] },                        // cours publiés, QCM, activité
-  { cle: "misesAJour", libelle: "Mises à jour", indicateurs: [19, 23, 31] },              // cours modifiés, signalements traités
+  { cle: "misesAJour", libelle: "Mises à jour", indicateurs: [19, 23, 31] },              // versions des cours, signalements traités
   { cle: "innovations", libelle: "Innovations", indicateurs: [25] },                      // Nouveautés datées
   { cle: "intervenants", libelle: "Intervenants et partenaires", indicateurs: [17, 18, 28] },
   { cle: "resultats", libelle: "Résultats et méthodes", indicateurs: [2, 3, 32] },        // tableau de bord du centre
@@ -74,7 +93,12 @@ export const PIECES = [
 
 const HEURES_NON_BRANCHEES = "calcul des heures pas encore branché";
 const SANS_JURY = "aucun résultat de jury saisi";
+const POPULATION = "(stagiaires en formation uniquement)";   // dit une fois dans la phrase des évaluations
 const TYPES_CLES = ["formation", "stage", "examen"];   // types d'événement du calendrier qui sont des dates clés
+// Seuils de données du classement des thèmes, ceux de js/centre-stats.js (MIN_REPONSES_THEME et MIN_NOTES_THEME, qui n'y
+// sont pas exportés) : le test vérifie qu'ils restent d'accord avec le tableau de bord.
+const MIN_REPONSES_THEME = 20;
+const MIN_NOTES_THEME = 3;
 
 // --- Petits outils : dates et phrases ---
 
@@ -101,6 +125,13 @@ const avecPlage = (texte, jours) => [texte, plage(jours)].filter(Boolean).join("
 
 const porteQuelqueChose = (e) => rempli(e.activite) || rempli(e.sujet) || rempli(e.sujet_2)
   || tableau(e.prof_ids).length > 0 || rempli(e.prof_autre) || Boolean(e.autonomie);
+
+// Clé d'un jour du planning, « lundi|indice » : celle d'une ligne de planning ou d'un jour désactivé ; nulle si l'un des
+// deux manque ou est faux (un jour désactivé incomplet n'écarte donc rien).
+function cleJour(semaineLundi, indice) {
+  const lundi = jourDe(semaineLundi);
+  return lundi && Number.isInteger(indice) ? `${lundi}|${indice}` : null;
+}
 
 // Le jour d'une ligne : le lundi de sa semaine plus l'indice du jour ; nul si l'un des deux manque ou est faux.
 function jourDeLigne(e) {
@@ -168,11 +199,13 @@ const CONSTRUCTEURS = {
   },
 
   evaluations: ({ ind, liste, dedans }) => {
-    // Les nombres sont ceux du tableau de bord ; seules les dates des notes sont relues ici, avec la même règle.
+    // Les notes et les examens sont comptés comme au tableau de bord ; seules les dates des notes sont relues ici, avec
+    // la même règle. Les évaluations EPCF sont toutes comptées, hors auto-évaluation : le tableau de bord n'en garde
+    // que la dernière de chaque stagiaire par grille, pour en tirer un score.
     const nbNotes = ind.notes.detail.n;
     const joursNotes = liste("evaluations").filter((e) => dedans(e) && estNotee(e)).map((e) => jourDe(e.date_eval));
     const examens = ind.examensQcm.detail.passes;
-    const epcf = ind.epcf.detail.salle.evalues + ind.epcf.detail.vehicule.evalues;   // la dernière de chaque stagiaire, par grille
+    const epcf = liste("epcf").filter((e) => dedans(e) && e.contexte === "EPCF" && !e.auto_eval).length;
     const livrets = new Set(liste("livrets").filter(dedans).map((l) => l.stagiaire_id)).size;
     const parties = [];
     if (nbNotes) parties.push(avecPlage(nb(nbNotes, "note"), joursNotes));
@@ -180,7 +213,7 @@ const CONSTRUCTEURS = {
     if (epcf) parties.push(nb(epcf, "évaluation EPCF", "évaluations EPCF"));
     if (livrets) parties.push(nb(livrets, "livret EPCF", "livrets EPCF"));
     if (!parties.length) return absente(`aucune évaluation enregistrée ; ${SANS_JURY}`);
-    return presente(`${parties.join(", ")} ; ${SANS_JURY}`);
+    return presente(`${parties.join(", ")} ${POPULATION} ; ${SANS_JURY}`);
   },
 
   dossierPro: ({ ind, liste, dedans }) => {
@@ -202,21 +235,30 @@ const CONSTRUCTEURS = {
     return presente(`${nb(cours, "cours publié", "cours publiés")}, ${nb(tableau(referentiel.qcm).length, "QCM", "QCM")} ; ${appropriation}`);
   },
 
-  misesAJour: ({ liste, dansPeriode, periode }) => {
-    const joursCours = liste("cours").filter((c) => c.published).map((c) => jourDe(c.updated_at)).filter(dansPeriode);
+  // Les cours mis à jour sont les cours publiés qui ont au moins une version enregistrée dans la période (le
+  // `updated_at` d'un cours n'est pas lu) : chaque cours est compté une fois, ses versions à part. Une version d'un
+  // brouillon ou d'un cours inconnu ne compte pas.
+  misesAJour: ({ liste, dansPeriode }) => {
+    const publies = new Set(liste("cours").filter((c) => c.published).map((c) => c.id));
+    const versions = liste("versions").filter((v) => publies.has(v.cours_id) && dansPeriode(jourDe(v.saved_at)));
     const joursSignalements = liste("signalements").map((s) => jourDe(s.traite_at)).filter(dansPeriode);
-    if (!joursCours.length && !joursSignalements.length) {
-      return absente(`aucun cours publié modifié ni signalement de QCM traité ${periode}`);
+    if (!versions.length && !joursSignalements.length) {
+      return absente("aucun cours publié mis à jour ni signalement de QCM traité pendant la formation");
     }
     const parties = [];
-    if (joursCours.length) parties.push(nb(joursCours.length, "cours publié modifié", "cours publiés modifiés"));
-    if (joursSignalements.length) parties.push(nb(joursSignalements.length, "signalement de QCM traité", "signalements de QCM traités"));
-    return presente(avecPlage(parties.join(" et "), [...joursCours, ...joursSignalements]));
+    if (versions.length) {
+      const nbCours = nb(new Set(versions.map((v) => v.cours_id)).size, "cours publié mis à jour", "cours publiés mis à jour");
+      parties.push(`${avecPlage(nbCours, versions.map((v) => jourDe(v.saved_at)))} (${nb(versions.length, "version")})`);
+    }
+    if (joursSignalements.length) {
+      parties.push(avecPlage(nb(joursSignalements.length, "signalement de QCM traité", "signalements de QCM traités"), joursSignalements));
+    }
+    return presente(parties.join(" ; "));
   },
 
-  innovations: ({ nouveautes, dansPeriode, periode }) => {
+  innovations: ({ nouveautes, dansPeriode }) => {
     const jours = nouveautes.map((nouveaute) => jourDe(nouveaute.date)).filter(dansPeriode);
-    if (!jours.length) return absente(`aucune nouveauté datée ${periode}`);
+    if (!jours.length) return absente("aucune nouveauté datée pendant la formation");
     return presente(avecPlage(nb(jours.length, "nouveauté datée", "nouveautés datées"), jours));
   },
 
@@ -245,7 +287,10 @@ const CONSTRUCTEURS = {
     return presente(`${nb(mesures, "indicateur mesuré", "indicateurs mesurés")}, chacun avec sa méthode de calcul ; réussite au titre non mesurée`);
   },
 
-  // Des nombres seulement : la liste des stagiaires à suivre de près porte des noms, elle n'est que comptée.
+  // Des nombres seulement : la liste des stagiaires à suivre de près porte des noms, elle n'est que comptée. Les listes
+  // de thèmes du tableau de bord sont des classements : les thèmes qui ont assez de données, du plus faible au plus
+  // fort, coupés à 5. Leur longueur n'est donc pas un nombre de thèmes faibles : la phrase dit « les N thèmes les plus
+  // faibles » et le seuil de données.
   suivi: ({ ind }) => {
     const aSuivre = ind.aSuivre.length;
     const parQcm = ind.themes.qcm.length;
@@ -253,32 +298,40 @@ const CONSTRUCTEURS = {
     if (!aSuivre && !parQcm && !parNotes) {
       return absente("personne ne cumule deux signaux et aucun thème n'a encore assez de réponses ou de notes");
     }
-    return presente(`stagiaires à suivre de près : ${aSuivre} ; thèmes à retravailler : ${parQcm} d'après les QCM, ${parNotes} d'après les notes`);
+    const plusFaibles = (nombre) => (nombre > 1 ? `les ${nombre} thèmes les plus faibles` : "le thème le plus faible");
+    const qcm = parQcm
+      ? `${plusFaibles(parQcm)} d'après les QCM (au moins ${MIN_REPONSES_THEME} réponses par thème)`
+      : `aucun thème n'a au moins ${MIN_REPONSES_THEME} réponses aux QCM`;
+    const notes = parNotes
+      ? `${plusFaibles(parNotes)} d'après les notes (au moins ${MIN_NOTES_THEME} notes par thème)`
+      : `aucun thème n'a au moins ${MIN_NOTES_THEME} notes`;
+    return presente(`stagiaires à suivre de près : ${aSuivre} ; ${qcm} ; ${notes}`);
   },
 };
 
 // Tout ce que les pièces lisent, calculé une fois. La période de la promo court de sa date de début à sa date de fin,
-// ou à aujourd'hui quand elle n'en a pas ; une borne inconnue est ouverte.
+// ou à aujourd'hui quand elle n'en a pas ; une borne inconnue est ouverte. Le planning est formé des lignes de la promo,
+// moins celles d'un jour désactivé : tout ce qui en vient (demi-journées, dates, formateurs, intervenants « Autre »,
+// bénévoles) passe par là.
 function contexte(donnees, referentiel, { promo, aujourdhui, nouveautes }) {
   const liste = (cle) => tableau(donnees[cle]);
   const enFormation = new Set(liste("stagiaires").filter((s) => s.actif).map((s) => s.id));
+  const joursOff = new Set(liste("joursOff").map((j) => cleJour(j.semaine_lundi, j.day_index)).filter(Boolean));
   const debut = jourDe(promo.date_debut);
   const fin = jourDe(promo.date_fin) ?? jourDe(aujourdhui);
-  const periodeValide = debut !== null && fin !== null && debut <= fin;
   return {
     promo, referentiel, liste,
     nouveautes: tableau(nouveautes),
     ind: indicateursPromo(donnees, referentiel, { aujourdhui }),
     dedans: (ligne) => enFormation.has(ligne.stagiaire_id),
-    planning: liste("planning").filter((e) => e.promo_id === promo.id),
+    planning: liste("planning").filter((e) => e.promo_id === promo.id && !joursOff.has(cleJour(e.semaine_lundi, e.day_index))),
     dansPeriode: (jour) => jour !== null && (debut === null || jour >= debut) && (fin === null || jour <= fin),
-    periode: periodeValide ? `entre le ${jourMois(debut)} et le ${jourMois(fin)}` : "pendant la promo",
   };
 }
 
-// donnees : sortie de lireDonneesQualiopi (les clés `profs` et `entete`, qui servent aux noms, ne sont pas lues ici) ;
-// referentiel : lireReferentielCentre() ; promo : { id, lieu_id, nom, date_debut, date_fin } (date_fin peut être
-// nulle) ; aujourdhui : « AAAA-MM-JJ » ; nouveautes : entrées de NOUVEAUTES (js/nouveautes-data.js).
+// donnees : sortie de lireDonneesQualiopi (forme en tête de fichier) ; referentiel : lireReferentielCentre() ;
+// promo : { id, lieu_id, nom, date_debut, date_fin } (date_fin peut être nulle) ; aujourdhui : « AAAA-MM-JJ » ;
+// nouveautes : entrées de NOUVEAUTES (js/nouveautes-data.js).
 // Rend { promo, indicateurs, nonApplicables } : pour chaque indicateur applicable (27, ou 28 avec l'alternance),
 // { numero, critere, court, niveau, apporte, pieces: [{ cle, libelle, presente, detail, raison }], aFournir } ;
 // pour les autres, { numero, court, raison }. `detail` est la phrase chiffrée d'une pièce présente, `raison` celle

@@ -151,7 +151,7 @@ const EVALS = [
 ];
 
 // QCM. Entraînements en formation : Anaïs 2 (20 + 10 questions), Bastien 1 (10) ; examens : Anaïs 1 (16 sur 20).
-// Thèmes à retravailler d'après les QCM (au moins 20 réponses) : Feux 20, Vitesse 10 + 10 = 20, soit 2.
+// Thèmes classés d'après les QCM (au moins 20 réponses) : Feux 20, Vitesse 10 + 10 = 20, soit 2.
 const T = (stagiaire_id, qcm_id, mode, score, total, note_20, jour) =>
   ({ id: stagiaire_id * 100 + qcm_id, qcm_id, stagiaire_id, mode, score, total, note_20, finished_at: jour + "T10:00:00+00:00" });
 const TENTATIVES = [
@@ -160,13 +160,18 @@ const TENTATIVES = [
   T(1, 10, "examen", 16, 20, 16, "2026-10-14"), T(3, 10, "examen", 20, 20, 20, "2026-10-14"),             // abandon : ignoré
 ];
 
-// EPCF : une évaluation en salle (Anaïs). Écartées : l'auto-évaluation de Bastien et celle de l'abandon.
+// EPCF : trois évaluations en salle de la même personne (Anaïs), qui comptent chacune pour l'inventaire (3) ; le
+// tableau de bord n'en garde que la dernière (1 stagiaire évalué en salle). Écartées : une auto-évaluation de Bastien,
+// une évaluation de Bastien hors contexte EPCF, une évaluation de l'abandon.
 const X = (id, stagiaire_id, trame, date_eval, scores, extra = {}) =>
   ({ id, stagiaire_id, trame, contexte: "EPCF", auto_eval: false, date_eval, scores, ...extra });
 const EPCF = [
-  X(1, 1, "salle", "2026-10-14", { a: "A", b: "R" }),
-  X(2, 2, "vehicule", "2026-10-14", { x: "A" }, { auto_eval: true }),
-  X(3, 3, "salle", "2026-10-05", { a: "A" }),
+  X(1, 1, "salle", "2026-10-06", { a: "NA", b: "R" }),
+  X(2, 1, "salle", "2026-10-09", { a: "R", b: "R" }),
+  X(3, 1, "salle", "2026-10-14", { a: "A", b: "R" }),
+  X(4, 2, "vehicule", "2026-10-14", { x: "A" }, { auto_eval: true }),
+  X(5, 2, "vehicule", "2026-10-08", { x: "A" }, { contexte: "Entraînement" }),
+  X(6, 3, "salle", "2026-10-05", { a: "A" }),
 ];
 
 // Planning de deux semaines (lundis 05/10 et 12/10). Une demi-journée a plusieurs lignes, la base garde des
@@ -214,11 +219,20 @@ const SIGNALEMENTS = [
   { id: 1, stagiaire_id: 1, statut: "tranché", created_at: "2026-10-01T10:00:00+00:00", traite_at: "2026-10-12T09:00:00+00:00" },
   { id: 2, stagiaire_id: 2, statut: "ouvert", created_at: "2026-10-15T10:00:00+00:00", traite_at: null },
 ];
-// Cours : 2 publiés dont 1 modifié pendant la promo (05/10) ; le brouillon modifié pendant la promo ne compte pas.
+// Cours : 2 publiés et 1 brouillon. Leur `updated_at` n'est pas lu (le cours 1 en porte un dans la période, le 2 hors
+// période) : ce sont les versions enregistrées qui font foi.
 const COURS = [
   { id: 1, published: true, updated_at: "2026-10-05T10:00:00+00:00" },
   { id: 2, published: true, updated_at: "2026-08-26T10:00:00+00:00" },
   { id: 3, published: false, updated_at: "2026-10-06T10:00:00+00:00" },
+];
+// Versions enregistrées des cours. Comptées : cours 1 deux fois (05/10 et 12/10), cours 2 une fois (20/10) = 2 cours
+// publiés mis à jour, 3 versions, du 05/10 au 20/10. Écartées : la version du cours 2 d'avant la promo (26/08), celle
+// du brouillon (cours 3) et celle d'un cours inconnu (99).
+const VERSIONS = [
+  { cours_id: 1, saved_at: "2026-10-05T10:00:00+00:00" }, { cours_id: 1, saved_at: "2026-10-12T15:00:00+00:00" },
+  { cours_id: 2, saved_at: "2026-08-26T10:00:00+00:00" }, { cours_id: 2, saved_at: "2026-10-20T09:00:00+00:00" },
+  { cours_id: 3, saved_at: "2026-10-06T10:00:00+00:00" }, { cours_id: 99, saved_at: "2026-10-07T10:00:00+00:00" },
 ];
 // Nouveautés datées pendant la promo (28/09 au 23/10) : 02/10 et 20/10 ; celles du 15/09 (avant le début), du 05/11
 // (après la fin) et sans date sont écartées.
@@ -231,7 +245,7 @@ const NOUVEAUTES = geler([
 const D = geler({
   stagiaires: STAG, passages: PASSAGES, evaluations: EVALS, tentatives: TENTATIVES, epcf: EPCF,
   planning: PLANNING, agenda: AGENDA, livrets: LIVRETS, dossiers: DOSSIERS, signalements: SIGNALEMENTS,
-  cours: COURS, autoEcoles: AUTO_ECOLES,
+  cours: COURS, versions: VERSIONS, autoEcoles: AUTO_ECOLES,
   profs: [{ id: 1, nom: "Nadia Roche" }, { id: 2, nom: "Karim Lopez" }, { id: 3, nom: "Hugo Perrin" }],
   entete: { organisme: "Centre de test", intitule: "Titre de test" },
 });
@@ -244,12 +258,15 @@ const piece = (i, cle) => toutes(i).find((p) => p.cle === cle);
 const attendue = (cle, detail) => ({ cle, libelle: LIBELLE[cle], presente: true, detail, raison: null });
 const manquante = (cle, raison) => ({ cle, libelle: LIBELLE[cle], presente: false, detail: null, raison });
 
-// Les chiffres de l'inventaire sont ceux du tableau de bord : même définition des notes, des examens et de l'EPCF.
+// Les notes, les examens, les passages, la liste « à suivre » et les thèmes de l'inventaire sont ceux du tableau de bord.
+// L'EPCF fait exception : le tableau de bord compte 1 stagiaire évalué en salle (sa dernière évaluation), l'inventaire
+// compte les 3 évaluations.
 const tdb = indicateursPromo(D, REF, { aujourdhui: AUJOURDHUI });
 eq([tdb.notes.detail.n, tdb.examensQcm.detail.passes, tdb.epcf.detail.salle.evalues, tdb.epcf.detail.vehicule.evalues],
-  [4, 1, 1, 0], "le tableau de bord compte 4 notes, 1 examen, 1 évaluation EPCF");
+  [4, 1, 1, 0], "le tableau de bord compte 4 notes, 1 examen, 1 stagiaire évalué en EPCF en salle et aucun en véhicule");
 eq(tdb.aSuivre.map((x) => x.stagiaire.id), [2], "Bastien cumule deux signaux (absences, aucun entraînement depuis 14 jours)");
-eq([tdb.themes.qcm.length, tdb.themes.notes.length], [2, 1], "thèmes à retravailler : 2 d'après les QCM, 1 d'après les notes");
+eq([tdb.themes.qcm.length, tdb.themes.notes.length], [2, 1],
+  "les thèmes les plus faibles : 2 d'après les QCM, 1 d'après les notes");
 
 // =====================================================================================================
 // L'inventaire : indicateurs, niveaux, pièces
@@ -308,20 +325,22 @@ eq(piece(inv, "assiduite"), manquante("assiduite", "calcul des heures pas encore
 eq(piece(inv, "passages"),
   attendue("passages", "3 passages en salle et 1 en voiture (remplacements compris), 2 absences de dernière minute"), "passages");
 eq(piece(inv, "evaluations"), attendue("evaluations",
-  "4 notes du 06/10 au 13/10, 1 examen QCM, 1 évaluation EPCF, 1 livret EPCF ; aucun résultat de jury saisi"), "évaluations");
+  "4 notes du 06/10 au 13/10, 1 examen QCM, 3 évaluations EPCF, 1 livret EPCF (stagiaires en formation uniquement) ; aucun résultat de jury saisi"),
+  "évaluations : les 3 évaluations EPCF d'une même personne comptent, la population est dite une fois");
 eq(piece(inv, "dossierPro"),
   attendue("dossierPro", "enregistré pour 1 stagiaire sur 2 en formation, dernière mise à jour le 10/10"), "dossier professionnel");
 eq(piece(inv, "ressources"), attendue("ressources",
   "2 cours publiés, 3 QCM ; QCM d'entraînement faits par 2 stagiaires sur 2 en formation (3 tentatives)"), "ressources");
-eq(piece(inv, "misesAJour"),
-  attendue("misesAJour", "1 cours publié modifié et 1 signalement de QCM traité du 05/10 au 12/10"), "mises à jour");
+eq(piece(inv, "misesAJour"), attendue("misesAJour",
+  "2 cours publiés mis à jour du 05/10 au 20/10 (3 versions) ; 1 signalement de QCM traité le 12/10"), "mises à jour");
 eq(piece(inv, "innovations"), attendue("innovations", "2 nouveautés datées du 02/10 au 20/10"), "innovations");
 eq(piece(inv, "intervenants"),
   attendue("intervenants", "3 formateurs, 1 intervenant extérieur, 2 bénévoles, 2 auto-écoles partenaires"), "intervenants");
 eq(piece(inv, "resultats"), attendue("resultats",
   "9 indicateurs mesurés, chacun avec sa méthode de calcul ; réussite au titre non mesurée"), "résultats et méthodes");
 eq(piece(inv, "suivi"), attendue("suivi",
-  "stagiaires à suivre de près : 1 ; thèmes à retravailler : 2 d'après les QCM, 1 d'après les notes"), "suivi");
+  "stagiaires à suivre de près : 1 ; les 2 thèmes les plus faibles d'après les QCM (au moins 20 réponses par thème) ; "
+  + "le thème le plus faible d'après les notes (au moins 3 notes par thème)"), "suivi");
 
 // =====================================================================================================
 // Pièces absentes, avec leur raison : une promo qui n'a que ses fiches de stagiaires
@@ -341,8 +360,8 @@ eq(piece(fiches, "dossierPro"),
   manquante("dossierPro", "aucun dossier professionnel enregistré par les stagiaires en formation"), "fiches : dossier professionnel");
 eq(piece(fiches, "ressources"), manquante("ressources", "aucun cours publié"), "fiches : ressources");
 eq(piece(fiches, "misesAJour"), manquante("misesAJour",
-  "aucun cours publié modifié ni signalement de QCM traité entre le 28/09 et le 23/10"), "fiches : mises à jour");
-eq(piece(fiches, "innovations"), manquante("innovations", "aucune nouveauté datée entre le 28/09 et le 23/10"), "fiches : innovations");
+  "aucun cours publié mis à jour ni signalement de QCM traité pendant la formation"), "fiches : mises à jour");
+eq(piece(fiches, "innovations"), manquante("innovations", "aucune nouveauté datée pendant la formation"), "fiches : innovations");
 eq(piece(fiches, "intervenants"), manquante("intervenants",
   "aucun formateur, intervenant extérieur ni bénévole au planning, aucune auto-école partenaire active"), "fiches : intervenants");
 eq(piece(fiches, "suivi"), manquante("suivi",
@@ -353,17 +372,59 @@ const sansActivite = inventairePromo({ ...D, tentatives: [] }, REF, OPTIONS);
 eq(piece(sansActivite, "ressources").detail, "2 cours publiés, 3 QCM ; aucun QCM d'entraînement fait", "ressources sans activité QCM");
 
 // =====================================================================================================
+// Suivi : les thèmes les plus faibles sont un classement coupé à 5, pas un nombre de thèmes
+// =====================================================================================================
+// Huit thèmes à 95 % avec 20 réponses chacun, six thèmes avec 3 notes chacun : le tableau de bord n'en garde que 5 par
+// liste, et la phrase dit « les 5 thèmes les plus faibles », jamais un nombre de thèmes à retravailler.
+const REF_8 = geler({
+  qcm: plage(0, 7).map((k) => ({ id: 20 + k, theme_id: 200 + k, titre: "QCM " + k, exam_pass_20: 15 })),
+  themes: plage(0, 7).map((k) => ({ id: 200 + k, numero: 10 + k, titre: "Thème " + k, type: "theme" })),
+});
+const huit = inventairePromo({
+  stagiaires: STAG,
+  tentatives: plage(0, 7).map((k) => T(1, 20 + k, "entrainement", 19, 20, 19, "2026-10-20")),
+  evaluations: plage(0, 5).flatMap((k) => [0, 1, 2].map(() => E(1, "Thème", 10 + k, 12, 20, "2026-10-06"))),
+}, REF_8, OPTIONS);
+eq(piece(huit, "suivi"), attendue("suivi",
+  "stagiaires à suivre de près : 0 ; les 5 thèmes les plus faibles d'après les QCM (au moins 20 réponses par thème) ; "
+  + "les 5 thèmes les plus faibles d'après les notes (au moins 3 notes par thème)"), "huit thèmes bien réussis : les 5 plus faibles, pas « 5 à retravailler »");
+ok(!piece(huit, "suivi").detail.includes("retravailler"), "le mot « retravailler » n'y est plus");
+// Les seuils de la phrase sont ceux du tableau de bord : un thème est classé à 20 réponses (pas à 19), à 3 notes (pas à 2).
+const seuils = (reponses, notes) => piece(inventairePromo({
+  stagiaires: STAG,
+  tentatives: [T(1, 10, "entrainement", 10, reponses, 10, "2026-10-20")],
+  evaluations: plage(1, notes).map(() => E(1, "Thème", 1, 12, 20, "2026-10-06")),
+}, REF, OPTIONS), "suivi");
+eq(seuils(19, 2), manquante("suivi", "personne ne cumule deux signaux et aucun thème n'a encore assez de réponses ou de notes"),
+  "19 réponses et 2 notes : aucun thème classé, personne à suivre : la pièce est absente");
+eq(seuils(20, 2).detail, "stagiaires à suivre de près : 0 ; le thème le plus faible d'après les QCM (au moins 20 réponses par thème) ; "
+  + "aucun thème n'a au moins 3 notes", "20 réponses : un thème classé d'après les QCM, au singulier");
+eq(seuils(19, 3).detail, "stagiaires à suivre de près : 0 ; aucun thème n'a au moins 20 réponses aux QCM ; "
+  + "le thème le plus faible d'après les notes (au moins 3 notes par thème)", "3 notes : un thème classé d'après les notes, au singulier");
+
+// =====================================================================================================
 // Variantes de phrases : accords, éléments absents d'une liste, une seule source par pièce
 // =====================================================================================================
 const avec = (extra) => inventairePromo({ ...D, ...extra }, REF, OPTIONS);
-// Évaluations : chaque source seule, la mention du jury toujours là.
+// Évaluations : chaque source seule ; la population (stagiaires en formation) et la mention du jury sont toujours là, une fois.
+const POP = "(stagiaires en formation uniquement)";
 const seule = (cle) => inventairePromo({ stagiaires: STAG, [cle]: D[cle] }, REF, OPTIONS);
-eq(piece(seule("evaluations"), "evaluations").detail, "4 notes du 06/10 au 13/10 ; aucun résultat de jury saisi", "notes seules");
-eq(piece(seule("tentatives"), "evaluations").detail, "1 examen QCM ; aucun résultat de jury saisi", "examens seuls (les entraînements ne comptent pas)");
-eq(piece(seule("epcf"), "evaluations").detail, "1 évaluation EPCF ; aucun résultat de jury saisi", "EPCF seule (ni auto-évaluation, ni abandon)");
-eq(piece(seule("livrets"), "evaluations").detail, "1 livret EPCF ; aucun résultat de jury saisi", "livret seul (pas celui de l'abandon)");
+eq(piece(seule("evaluations"), "evaluations").detail, `4 notes du 06/10 au 13/10 ${POP} ; aucun résultat de jury saisi`, "notes seules");
+eq(piece(seule("tentatives"), "evaluations").detail, `1 examen QCM ${POP} ; aucun résultat de jury saisi`,
+  "examens seuls (les entraînements ne comptent pas)");
+eq(piece(seule("epcf"), "evaluations").detail, `3 évaluations EPCF ${POP} ; aucun résultat de jury saisi`,
+  "EPCF seule (ni auto-évaluation, ni autre contexte, ni abandon)");
+eq(piece(seule("livrets"), "evaluations").detail, `1 livret EPCF ${POP} ; aucun résultat de jury saisi`, "livret seul (pas celui de l'abandon)");
 eq(piece(avec({ evaluations: [E(1, "Thème", 1, 12, 20, "2026-10-06")] }), "evaluations").detail,
-  "1 note le 06/10, 1 examen QCM, 1 évaluation EPCF, 1 livret EPCF ; aucun résultat de jury saisi", "une note : singulier et un seul jour");
+  `1 note le 06/10, 1 examen QCM, 3 évaluations EPCF, 1 livret EPCF ${POP} ; aucun résultat de jury saisi`, "une note : singulier et un seul jour");
+// Chaque évaluation EPCF compte, quelle que soit la grille ; une seule se dit au singulier.
+const avecEpcf = (lignes) => piece(avec({ epcf: lignes }), "evaluations").detail;
+eq(avecEpcf([X(1, 1, "salle", "2026-10-06", { a: "A" })]),
+  `4 notes du 06/10 au 13/10, 1 examen QCM, 1 évaluation EPCF, 1 livret EPCF ${POP} ; aucun résultat de jury saisi`, "une évaluation EPCF");
+eq(avecEpcf([X(1, 1, "salle", "2026-10-06", { a: "A" }), X(2, 1, "vehicule", "2026-10-07", { a: "A" }),
+  X(3, 2, "salle", "2026-10-08", { a: "A" }), X(4, 2, "salle", "2026-10-09", { a: "R" })]),
+  `4 notes du 06/10 au 13/10, 1 examen QCM, 4 évaluations EPCF, 1 livret EPCF ${POP} ; aucun résultat de jury saisi`,
+  "deux grilles, deux stagiaires, une évaluation répétée : 4");
 // Passages : sans absence, la phrase s'arrête aux passages ; une seule source suffit.
 eq(piece(avec({ passages: [P(1, "Salle", "Effectué", "2026-10-06"), P(1, "Voiture", "Effectué", "2026-10-07")] }), "passages").detail,
   "1 passage en salle et 1 en voiture (remplacements compris)", "passages sans absence");
@@ -378,8 +439,20 @@ eq(piece(avec({ agenda: [
 ] }), "datesCles").detail, "3 événements au calendrier (1 formation, 2 stages) du 02/11 au 20/11", "calendrier : formation et stages");
 eq(piece(avec({ agenda: [{ id: 1, type: "examen", title: "E", date_start: "2026-12-15", date_end: null }, AGENDA[3]] }), "datesCles").detail,
   "1 événement au calendrier (1 examen) le 15/12", "calendrier : un examen, le férié ne compte pas");
-// Mises à jour : les signalements traités seuls ; les nouveautés d'un seul jour.
-eq(piece(avec({ cours: [] }), "misesAJour").detail, "1 signalement de QCM traité le 12/10", "signalement traité seul");
+// Mises à jour (R22) : le `updated_at` des cours n'est pas lu, seules les versions enregistrées comptent ; les cours
+// sont comptés une fois chacun, leurs versions à part ; chaque partie a ses dates.
+eq(piece(avec({ versions: [] }), "misesAJour").detail, "1 signalement de QCM traité le 12/10",
+  "sans version, les cours dont l'updated_at tombe dans la période ne comptent pas : il reste le signalement traité");
+eq(piece(avec({ signalements: [] }), "misesAJour").detail, "2 cours publiés mis à jour du 05/10 au 20/10 (3 versions)",
+  "les versions seules : 2 cours, 3 versions");
+eq(piece(avec({ signalements: [], versions: [{ cours_id: 1, saved_at: "2026-10-05T10:00:00+00:00" }] }), "misesAJour").detail,
+  "1 cours publié mis à jour le 05/10 (1 version)", "un cours, une version, un seul jour");
+eq(piece(avec({ signalements: [], versions: [{ cours_id: 1, saved_at: "2026-10-05T10:00:00+00:00" },
+  { cours_id: 1, saved_at: "2026-10-12T10:00:00+00:00" }] }), "misesAJour").detail,
+  "1 cours publié mis à jour du 05/10 au 12/10 (2 versions)", "un cours, deux versions : le cours n'est compté qu'une fois");
+eq(piece(avec({ versions: [{ cours_id: 3, saved_at: "2026-10-06T10:00:00+00:00" }, { cours_id: 99, saved_at: "2026-10-07T10:00:00+00:00" }] }),
+  "misesAJour").detail, "1 signalement de QCM traité le 12/10", "un brouillon et un cours inconnu ne comptent pas");
+// Les nouveautés d'un seul jour.
 eq(piece(inventairePromo(D, REF, { ...OPTIONS, nouveautes: [NOUVEAUTE("a", "2026-10-02")] }), "innovations").detail,
   "1 nouveauté datée le 02/10", "une nouveauté");
 // Intervenants : seules les auto-écoles du lieu, ou seulement le planning.
@@ -415,34 +488,79 @@ eq(piece(videsSeules, "deroule").presente, false, "des lignes vides (ou d'espace
     "1 demi-journée de formation le 05/10", `une ligne avec ${Object.keys(extra)[0]} compte`));
 
 // =====================================================================================================
+// Jours désactivés du planning (R21) : vacances, pont, formation externe ; leurs cartes restent en base
+// =====================================================================================================
+// Une ligne pleine le vendredi 16/10 (semaine du 12/10) : formateur 5, intervenant « Autre » Mme Leroy, bénévole 13,
+// groupe en autonomie. Sur un jour actif elle ajoute une 6e demi-journée (dates jusqu'au 16/10), un formateur, un
+// intervenant « Autre » et un bénévole.
+const LIGNE_PLEINE = L(10, "2026-10-12", 4, "aprem", {
+  activite: "Cours", sujet: "Sortie", prof_ids: [5], prof_autre: "Mme Leroy", autonomie: true, benevoles_ids: [13],
+});
+const compte = (i) => [piece(i, "deroule").detail, piece(i, "intervenants").detail];
+const planningDe = (joursOff) => compte(inventairePromo(
+  { ...D, planning: [...PLANNING, LIGNE_PLEINE], ...(joursOff ? { joursOff } : {}) }, REF, OPTIONS));
+const AVEC_LIGNE = ["6 demi-journées de formation du 05/10 au 16/10",
+  "4 formateurs, 2 intervenants extérieurs, 3 bénévoles, 2 auto-écoles partenaires"];
+const SANS_LIGNE = compte(inv);
+eq(SANS_LIGNE, ["5 demi-journées de formation du 05/10 au 15/10", "3 formateurs, 1 intervenant extérieur, 2 bénévoles, 2 auto-écoles partenaires"],
+  "le jeu principal, sans la ligne du 16/10");
+eq(planningDe(undefined), AVEC_LIGNE, "joursOff absent : la ligne du 16/10 compte partout");
+eq(planningDe([]), AVEC_LIGNE, "joursOff vide : la ligne du 16/10 compte partout");
+eq(planningDe([{ semaine_lundi: "2026-10-12", day_index: 4 }]), SANS_LIGNE,
+  "le 16/10 désactivé : la ligne pleine n'est comptée nulle part (demi-journées, dates, formateurs, « Autre », bénévoles)");
+eq(planningDe([{ semaine_lundi: "2026-10-12", day_index: 4, label: "Pont", created_by_who: "admin", promo_id: 7 }]), SANS_LIGNE,
+  "les autres champs d'une ligne de planning_jours_off n'y changent rien");
+eq(planningDe([{ semaine_lundi: "2026-10-05", day_index: 4 }, { semaine_lundi: "2026-10-19", day_index: 4 }, { semaine_lundi: "2026-10-12", day_index: 0 }]),
+  AVEC_LIGNE, "un autre jour (autre semaine, ou autre indice dans la même semaine) n'écarte pas la ligne du 16/10 : il faut les deux");
+// Un jour désactivé écarte toute la journée, matin et après-midi : le lundi 05/10 porte trois lignes du jeu principal.
+const lundiOff = inventairePromo({ ...D, joursOff: [{ semaine_lundi: "2026-10-05", day_index: 0 }] }, REF, OPTIONS);
+eq(compte(lundiOff), ["3 demi-journées de formation du 07/10 au 15/10", "2 formateurs, 1 intervenant extérieur, 2 auto-écoles partenaires"],
+  "lundi 05/10 désactivé : les 3 lignes du matin et de l'après-midi disparaissent, avec leurs formateurs 1 et 2 et leurs bénévoles");
+// Un jeudi désactivé : la ligne du formateur 3 (seul son planning le cite) disparaît.
+const jeudiOff = inventairePromo({ ...D, joursOff: [{ semaine_lundi: "2026-10-12", day_index: 3 }] }, REF, OPTIONS);
+eq(compte(jeudiOff), ["4 demi-journées de formation du 05/10 au 13/10", "2 formateurs, 1 intervenant extérieur, 2 bénévoles, 2 auto-écoles partenaires"],
+  "jeudi 15/10 désactivé : une demi-journée de moins, le formateur 3 aussi, et la date de fin recule au 13/10");
+// Un jour désactivé incomplet (semaine ou indice illisible) n'écarte aucune ligne, pas même une ligne mal formée de même forme.
+eq(piece(inventairePromo({ ...D, planning: [L(1, "pas une date", 1, "matin", { activite: "Cours", prof_ids: [7] })],
+  joursOff: [{ semaine_lundi: "pas une date", day_index: 1 }, { semaine_lundi: null, day_index: 1 }] }, REF, OPTIONS), "intervenants").detail,
+  "1 formateur, 2 auto-écoles partenaires", "un jour désactivé incomplet n'écarte aucune ligne");
+// Tout le planning sur des jours désactivés : la pièce est absente avec sa raison.
+const toutOff = inventairePromo({ ...D, joursOff: [
+  { semaine_lundi: "2026-10-05", day_index: 0 }, { semaine_lundi: "2026-10-05", day_index: 2 },
+  { semaine_lundi: "2026-10-12", day_index: 1 }, { semaine_lundi: "2026-10-12", day_index: 3 },
+] }, REF, OPTIONS);
+eq(piece(toutOff, "deroule"), manquante("deroule", "aucune demi-journée renseignée au planning de cette promo"), "tous les jours désactivés : plus de déroulé");
+eq(piece(toutOff, "intervenants").detail, "2 auto-écoles partenaires", "tous les jours désactivés : il ne reste que les auto-écoles");
+
+// =====================================================================================================
 // La période : de la date de début à la date de fin (ou à aujourd'hui)
 // =====================================================================================================
-const publie = (id, updated_at) => ({ id, published: true, updated_at });
-// Bornes comprises : le jour du début et le jour de la fin comptent, la veille et le lendemain non.
-const bornes = inventairePromo({ ...D, signalements: [], cours: [
-  publie(1, "2026-09-27T20:00:00+00:00"), publie(2, "2026-09-28T08:00:00+00:00"),
-  publie(3, "2026-10-23T20:00:00+00:00"), publie(4, "2026-10-24T08:00:00+00:00"),
+const version = (cours_id, saved_at) => ({ cours_id, saved_at });
+// Bornes comprises : une version du jour du début ou du jour de la fin compte, celle de la veille ou du lendemain non.
+const bornes = inventairePromo({ ...D, signalements: [], versions: [
+  version(1, "2026-09-27T20:00:00+00:00"), version(1, "2026-09-28T08:00:00+00:00"),
+  version(2, "2026-10-23T20:00:00+00:00"), version(2, "2026-10-24T08:00:00+00:00"),
 ] }, REF, OPTIONS);
-eq(piece(bornes, "misesAJour").detail, "2 cours publiés modifiés du 28/09 au 23/10", "bornes de la période comprises");
+eq(piece(bornes, "misesAJour").detail, "2 cours publiés mis à jour du 28/09 au 23/10 (2 versions)", "bornes de la période comprises");
 const bornesNouveautes = inventairePromo(D, REF, { ...OPTIONS, nouveautes: [
   { id: "x", date: "2026-09-27" }, { id: "y", date: "2026-09-28" }, { id: "z", date: "2026-10-23" }, { id: "w", date: "2026-10-24" },
 ] });
 eq(piece(bornesNouveautes, "innovations").detail, "2 nouveautés datées du 28/09 au 23/10", "bornes comprises, nouveautés");
 
 // Sans date de fin, la période court jusqu'à aujourd'hui (28/10).
-const enCours = inventairePromo({ ...D, signalements: [], cours: [publie(1, "2026-10-27T10:00:00+00:00"), publie(2, "2026-10-29T10:00:00+00:00")] },
+const enCours = inventairePromo({ ...D, signalements: [], versions: [version(1, "2026-10-27T10:00:00+00:00"), version(2, "2026-10-29T10:00:00+00:00")] },
   REF, { ...OPTIONS, promo: { ...PROMO, date_fin: null } });
-eq(piece(enCours, "misesAJour").detail, "1 cours publié modifié le 27/10", "promo en cours : jusqu'à aujourd'hui");
+eq(piece(enCours, "misesAJour").detail, "1 cours publié mis à jour le 27/10 (1 version)", "promo en cours : jusqu'à aujourd'hui");
 eq(piece(enCours, "innovations").detail, "2 nouveautés datées du 02/10 au 20/10",
   "promo en cours : la nouveauté du 05/11, d'après aujourd'hui, est écartée");
 const enCours2 = inventairePromo(D, REF, { ...OPTIONS, promo: { ...PROMO, date_fin: null }, aujourdhui: "2026-11-30" });
 eq(piece(enCours2, "innovations").detail, "3 nouveautés datées du 02/10 au 05/11", "plus tard, la nouveauté du 05/11 compte aussi");
 
-// Une promo qui n'a pas commencé : rien dans la période, et une phrase sans dates absurdes.
+// Une promo qui n'a pas commencé : rien dans la période, et la même raison que pour toute autre promo (R24).
 const future = { id: 9, lieu_id: 2, nom: "Promo future", date_debut: "2026-11-02", date_fin: null };
 const avant = inventairePromo(D, REF, { ...OPTIONS, promo: future });
-eq(piece(avant, "misesAJour").raison, "aucun cours publié modifié ni signalement de QCM traité pendant la promo", "promo future : mises à jour");
-eq(piece(avant, "innovations").raison, "aucune nouveauté datée pendant la promo", "promo future : innovations");
+eq(piece(avant, "misesAJour").raison, "aucun cours publié mis à jour ni signalement de QCM traité pendant la formation", "promo future : mises à jour");
+eq(piece(avant, "innovations").raison, "aucune nouveauté datée pendant la formation", "promo future : innovations");
 
 // =====================================================================================================
 // Alternance et indicateurs non applicables
@@ -469,7 +587,7 @@ eq(inventairePromo(D, REF, { ...OPTIONS, alternance: false }), inv, "alternance 
 const VIDE = { id: 9, lieu_id: 3, nom: "Promo vide", date_debut: "2026-09-01", date_fin: null };
 const REF_VIDE = { qcm: [], themes: [] };
 const TOUT_VIDE = { stagiaires: [], passages: [], evaluations: [], tentatives: [], epcf: [], planning: [], agenda: [], livrets: [],
-  dossiers: [], signalements: [], cours: [], autoEcoles: [], profs: [], entete: {} };
+  dossiers: [], signalements: [], cours: [], versions: [], joursOff: [], autoEcoles: [], profs: [], entete: {} };
 [["aucune donnée", {}, REF_VIDE], ["tableaux vides", TOUT_VIDE, REF_VIDE], ["tableaux vides, QCM au référentiel", TOUT_VIDE, REF]]
   .forEach(([nom, donnees, referentiel]) => {
     const vide = inventairePromo(donnees, referentiel, { promo: VIDE, aujourdhui: AUJOURDHUI });
@@ -501,20 +619,38 @@ const CASSEES = {
     { id: 2, type: "stage", title: "Sans fin", date_start: "2026-11-02" },
   ],
   cours: [{ id: 1, published: true, updated_at: null }, { id: 2, published: true }],
+  versions: [{ cours_id: 1, saved_at: null }, { cours_id: 2 }, { saved_at: "2026-10-10T10:00:00+00:00" }, { cours_id: 1, saved_at: "hier" }],
+  joursOff: [{ semaine_lundi: null, day_index: 1 }, { semaine_lundi: "2026-10-05" }, { day_index: 1 }, {}],
   signalements: [{ id: 1, traite_at: "hier" }, { id: 2, traite_at: null }],
   dossiers: [{ stagiaire_id: 1, updated_at: null }],
   livrets: [{ stagiaire_id: 1 }],
 };
 const cassee = inventairePromo(CASSEES, REF, OPTIONS);
-eq(piece(cassee, "deroule").detail, "1 demi-journée de formation le 06/10", "mal formé : la seule ligne datée du planning");
+eq(piece(cassee, "deroule").detail, "1 demi-journée de formation le 06/10",
+  "mal formé : la seule ligne datée du planning (des jours désactivés incomplets n'écartent rien)");
 eq(piece(cassee, "datesCles").detail, "1 événement au calendrier (1 stage) le 02/11", "mal formé : l'événement daté");
 eq(piece(cassee, "dossierPro").detail, "enregistré pour 1 stagiaire sur 2 en formation", "mal formé : dossier sans date");
-eq(piece(cassee, "evaluations").detail, "1 livret EPCF ; aucun résultat de jury saisi", "mal formé : livret sans date");
+eq(piece(cassee, "evaluations").detail, `1 livret EPCF ${POP} ; aucun résultat de jury saisi`, "mal formé : livret sans date");
 eq(piece(cassee, "ressources").detail, "2 cours publiés, 3 QCM ; aucun QCM d'entraînement fait", "mal formé : cours sans date, comptés publiés");
-eq(piece(cassee, "misesAJour").presente, false, "mal formé : ni cours ni signalement datés");
+eq(piece(cassee, "misesAJour").presente, false, "mal formé : ni version ni signalement datés");
 eq(piece(cassee, "intervenants").presente, false, "mal formé : formateurs et bénévoles nuls");
 eq(problemes({ indicateurs: cassee.indicateurs, nonApplicables: cassee.nonApplicables }, "inventaire", []), [],
   "mal formé : ni NaN, ni undefined, ni Invalid");
+
+// =====================================================================================================
+// Raisons d'absence (R24) : des textes fixes, sans période ni nombre, les mêmes d'une promo à l'autre
+// =====================================================================================================
+// Les dossiers regroupent les raisons par texte entre plusieurs promos : une date ou un chiffre dans une raison les séparerait.
+const raisonsDe = (i) => PIECES.map((p) => piece(i, p.cle)).filter((p) => !p.presente).map((p) => [p.cle, p.raison]);
+const memesFiches = (promo) => raisonsDe(inventairePromo({ stagiaires: STAG }, REF, { promo, aujourdhui: AUJOURDHUI }));
+const raisonsFixes = raisonsDe(fiches);
+eq(raisonsFixes.map(([cle]) => cle), ["deroule", "datesCles", "assiduite", "passages", "evaluations", "dossierPro", "ressources",
+  "misesAJour", "innovations", "intervenants", "suivi"], "onze pièces absentes sur une promo qui n'a que ses fiches");
+[{ ...PROMO, date_debut: "2025-01-06", date_fin: "2025-06-27" }, { ...PROMO, date_fin: null }, { ...PROMO, date_debut: null },
+  future, { ...PROMO, id: 12, lieu_id: 5 }].forEach((promo, k) =>
+  eq(memesFiches(promo), raisonsFixes, `autre promo ou autre période (${k}) : les mêmes raisons, mot pour mot`));
+[fiches, avant, horsPromo, videsSeules, cassee, sansDebut, sansDates].forEach((i, k) =>
+  ok(raisonsDe(i).every(([, raison]) => !/\d/.test(raison)), `inventaire ${k} : aucune raison d'absence ne porte de chiffre`));
 
 // =====================================================================================================
 // Confidentialité, pureté, typographie
