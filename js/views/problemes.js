@@ -55,8 +55,16 @@ function zoneCapture(s, qui) {
         return;
       }
       const img = el("img", { src: image, alt: `Capture jointe par ${qui}`, class: "sg-carte-capture" });
-      img.addEventListener("click", () => img.classList.toggle("grand"));
-      zone.replaceChildren(img);
+      // Un vrai bouton : la capture s'agrandit et se réduit aussi au clavier.
+      const agrandir = el("button", {
+        type: "button", class: "sg-capture-bouton", "data-sg": "agrandir", "aria-pressed": "false", "aria-label": "Agrandir la capture",
+      }, img);
+      agrandir.addEventListener("click", () => {
+        const grand = img.classList.toggle("grand");
+        agrandir.setAttribute("aria-pressed", grand ? "true" : "false");
+        agrandir.setAttribute("aria-label", grand ? "Réduire la capture" : "Agrandir la capture");
+      });
+      zone.replaceChildren(agrandir);
     } catch (e) {
       voir.disabled = false;
       zone.appendChild(el("p", { class: "sg-erreur", role: "alert" }, "La capture n'a pas pu être chargée."));
@@ -132,7 +140,7 @@ function carte(s) {
     }));
 
   const champ = el("textarea", {
-    class: "sg-champ sg-carte-reponse", rows: "3", maxlength: "4000", "aria-label": `Réponse à ${qui}`,
+    class: "sg-champ sg-carte-reponse", rows: "3", "aria-label": `Réponse à ${qui}`,
     placeholder: "Ta réponse, que la personne lira dans « Signaler un problème » (facultatif)",
   });
   champ.value = s.reponse || "";

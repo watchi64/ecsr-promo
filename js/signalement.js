@@ -10,7 +10,7 @@ import { icon, deco } from "./icons.js?v=20261028b";
 import { getViewAs, fondateurHorsApercu } from "./auth-admin.js?v=20261028b";
 import { navigationV2Active } from "./nav-etat.js?v=20261028b";
 import { signalerProbleme, mesSignalementsApp, marquerSuivisVus } from "./db.js?v=20261028b";
-import { ouvrirFenetre, fermerFenetre } from "./nav-fenetre.js?v=20261028b";
+import { ouvrirFenetre, fermerFenetre, fenetreOuverte } from "./nav-fenetre.js?v=20261028b";
 import { dernieresErreurs } from "./journal-erreurs.js?v=20261028b";
 import { etatSignalements, poserEtatSignalements, chargerEtatSignalements } from "./signalement-etat.js?v=20261028b";
 import {
@@ -25,6 +25,8 @@ const IMAGE_ILLISIBLE = "Cette image ne passe pas : choisis une capture d'écran
 // Brouillon gardé jusqu'à l'envoi réussi : fermer la fenêtre sans envoyer ne perd ni le texte ni l'image.
 let brouillon = { texte: "", capture: null };
 let envoiEnCours = false;
+// Raison du dernier envoi raté quand la fenêtre a été fermée pendant l'envoi : montrée à la réouverture.
+let erreurEnAttente = "";
 
 // Ce qui part avec le message (spec § 6), relevé à l'ouverture : la page est celle derrière la fenêtre.
 function releverContexte() {
@@ -152,9 +154,13 @@ function blocFondateur() {
 export function ouvrirSignalement({ ancre = null } = {}) {
   const contexte = releverContexte();
   const erreur = el("p", { class: "sg-erreur", role: "alert" });
+  if (erreurEnAttente) {
+    erreur.textContent = erreurEnAttente;
+    erreurEnAttente = "";
+  }
 
   const champ = el("textarea", {
-    id: "sg-message", class: "sg-champ", rows: "4", maxlength: "4000",
+    id: "sg-message", class: "sg-champ", rows: "4",
     placeholder: "Par exemple : sur la page Notes, le bouton Enregistrer ne réagit pas.",
   });
   champ.value = brouillon.texte;
@@ -230,11 +236,15 @@ export function ouvrirSignalement({ ancre = null } = {}) {
     try {
       await signalerProbleme({ message: verif.message, contexte, capture: brouillon.capture });
       brouillon = { texte: "", capture: null };
-      fermerFenetre();
+      erreurEnAttente = "";
+      // Fermée pendant l'envoi, la fenêtre n'est plus là : ne pas fermer celle qui a pu s'ouvrir depuis.
+      if (fenetreOuverte() === "signaler") fermerFenetre();
       toast("Merci, c'est transmis. La réponse s'affichera dans « Signaler un problème ».", "success", 4500);
       chargerEtatSignalements();
     } catch (e) {
-      erreur.textContent = `${e.message} Ton texte est gardé.`;
+      const phrase = `${e.message} Ton texte est gardé.`;
+      if (erreur.isConnected) erreur.textContent = phrase;
+      else erreurEnAttente = phrase;
     } finally {
       envoiEnCours = false;
       envoyer.textContent = "Envoyer";

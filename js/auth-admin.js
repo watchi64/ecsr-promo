@@ -283,7 +283,7 @@ function updateBadge() {
     currentProfile?.role === "prof"      ? "formateur" :
     currentProfile?.role === "stagiaire" ? "stagiaire" : "";
 
-  const badge = el("button", { class: "admin-badge", onClick: openProfileMenu },
+  const badge = el("button", { class: "admin-badge", "aria-haspopup": "dialog", onClick: openProfileMenu },
     el("span", { class: "admin-dot " + (currentProfile?.role || "") }),
     el("span", { class: "admin-email" }, who),
     roleLabel ? el("span", { class: "admin-role" }, roleLabel) : null,

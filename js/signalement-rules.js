@@ -242,6 +242,21 @@ export function phraseErreur(message) {
   return texte.slice(i + "signalement:".length).trim() || null;
 }
 
+// Phrase d'une erreur d'envoi ou d'action : le refus de la base (« signalement: ... »), une session expirée
+// (le jeton n'est plus valable et l'appel part sans droits : « JWT expired », fonction refusée), sinon le réseau.
+export const PHRASE_SESSION = "Reconnecte-toi pour signaler un problème.";
+export const PHRASE_RESEAU = "L'envoi n'a pas abouti. Vérifie ta connexion et réessaie.";
+export function messageErreurEnvoi(erreur) {
+  const texte = String(erreur?.message ?? erreur ?? "");
+  const phrase = phraseErreur(texte);
+  if (phrase) return phrase;
+  const code = String(erreur?.code ?? "");
+  if (/jwt|permission denied for function|not authenticated/i.test(texte) || /^(PGRST30[0-3]|42501)$/.test(code)) {
+    return PHRASE_SESSION;
+  }
+  return PHRASE_RESEAU;
+}
+
 // Adresse de l'app utilisable dans un lien (« Ouvrir la page ») : « #/ » suivi de segments simples ; tout
 // le reste (autre protocole, guillemet, espace) est refusé.
 export function adresseSure(adresse) {
