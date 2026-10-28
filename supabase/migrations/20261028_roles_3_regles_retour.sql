@@ -1,9 +1,10 @@
 -- Marche arrière de 20261028_roles_3_regles.sql (étape 3 du lot 4 : règles par rôle et par portée).
--- Remet dans l'état relevé sur la production avant le lot 4 les règles de sécurité (RLS) des 45 tables de
+-- Remet dans l'état relevé sur la production avant le lot 4 les règles de sécurité (RLS) des 47 tables de
 -- public sous RLS et de storage.objects, ainsi que les droits d'insertion et de modification de user_profiles.
 --
--- Fichier généré depuis la base de production le 2026-10-28, en lecture seule (110 règles : 104 dans public,
--- 6 dans storage), la dernière migration appliquée étant alors 20261027135732 (illustration_c34_v2).
+-- Fichier généré depuis la base de production le 2026-10-28, en lecture seule (113 règles : 107 dans public,
+-- 6 dans storage), la dernière migration appliquée étant alors 20261028170407 (signalements_app) ; les
+-- 46 autres sections, relevées le matin (après 20261027135732), étaient identiques le soir.
 -- Pour chaque table : toutes les règles présentes sont supprimées, quel que soit leur nom
 -- (la marche arrière doit marcher quel que soit l'état trouvé), puis les règles relevées sont recréées à
 -- l'identique. Requête de relevé (texte de pg_policies, tel que la base le rend) :
@@ -834,6 +835,41 @@ create policy settings_admin_writes on public.settings
 create policy settings_select_all on public.settings
   as permissive for select to authenticated
   using ((promo_id = ( SELECT promo_courante() AS promo_courante)));
+
+-- public.signalements_app : 2 règles
+do $retour$
+declare r record;
+begin
+  for r in select schemaname, tablename, policyname from pg_policies
+            where schemaname = 'public' and tablename = 'signalements_app' loop
+    execute format('drop policy %I on %I.%I', r.policyname, r.schemaname, r.tablename);
+  end loop;
+end
+$retour$;
+
+create policy signalements_app_delete on public.signalements_app
+  as permissive for delete to authenticated
+  using (( SELECT is_founder() AS is_founder));
+create policy signalements_app_select on public.signalements_app
+  as permissive for select to authenticated
+  using (((user_id = ( SELECT auth.uid() AS uid)) OR ( SELECT is_founder() AS is_founder)));
+
+-- public.signalements_app_captures : 1 règle
+do $retour$
+declare r record;
+begin
+  for r in select schemaname, tablename, policyname from pg_policies
+            where schemaname = 'public' and tablename = 'signalements_app_captures' loop
+    execute format('drop policy %I on %I.%I', r.policyname, r.schemaname, r.tablename);
+  end loop;
+end
+$retour$;
+
+create policy signalements_app_captures_select on public.signalements_app_captures
+  as permissive for select to authenticated
+  using ((EXISTS ( SELECT 1
+   FROM signalements_app s
+  WHERE ((s.id = signalements_app_captures.signalement_id) AND ((s.user_id = ( SELECT auth.uid() AS uid)) OR ( SELECT is_founder() AS is_founder))))));
 
 -- public.stagiaires : 2 règles
 do $retour$

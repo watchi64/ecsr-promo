@@ -190,6 +190,8 @@ appels sans argument s'écrivent `(select f())` pour n'être calculés qu'une fo
 | conditions_acceptations | M ou E | fonction serveur |
 | effacements_journal | E | fonctions serveur |
 | chatbot_usage, qcm_ia_usage, cours_chunks | inchangé | inchangé |
+| signalements_app (arrivée de main le 28/10) | M (`user_id = auth.uid()`) ou Fo | suppression : Fo ; le reste par fonctions serveur (inchangé) |
+| signalements_app_captures | celles d'un signalement lisible | fonctions serveur (inchangé) |
 | stockage `cours-images`, `qcm-images` | inchangé (public) | R |
 
 Le siège n'écrit ni dans `qcm` ni dans `themes` : ces tables portent encore les anciennes colonnes de Nîmes,
