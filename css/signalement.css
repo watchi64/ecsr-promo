@@ -241,6 +241,11 @@ body .modal-backdrop[data-nav-coquille="signaler"] > .nav-fenetre.signalement-fe
   .sg-statut-btn, .sg-carte-actions .btn, .sg-carte-lien { min-height: 44px; }
 }
 
+/* ----- Le message du bas de l'écran (#toast) ----- */
+/* Il n'a rien de cliquable : il laisse passer les touchers. Sinon, sur téléphone, le message du démarrage
+   (« Ton signalement a avancé ») recouvrait pendant 6 s la ligne « Signaler un problème » qu'il désigne. */
+#toast { pointer-events: none; }
+
 /* ----- Les entrées : coquille (js/nav-shell.js, js/menu-compte.js), Assistant, ancienne barre ----- */
 /* Pastille hors coquille (fenêtre « Mon compte » de l'ancienne barre) : le dessin de .nav-pastille. */
 .sg-pastille {
