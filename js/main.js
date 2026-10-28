@@ -32,7 +32,7 @@ import { renderEmargement } from "./views/emargement.js?v=20261027a";
 import { initBandeauEmargement, rafraichirBandeauEmargement } from "./emargement-bandeau.js?v=20261027a";
 import { chargerEmargementActif, emargementActif } from "./emargement-etat.js?v=20261027a";
 import { chargerNavigationV2, navigationV2Active, navigationV2Attendue } from "./nav-etat.js?v=20261027a";
-import { routeVisibleV2, espaceDe, entreesNavigation, initialesDe } from "./nav-rules.js?v=20261027a";
+import { routeVisibleV2, espaceDe, entreesNavigation, initialesDe, redirectionV2 } from "./nav-rules.js?v=20261027a";
 import { monterCoquille, majEntreeActive, coquilleMontee } from "./nav-shell.js?v=20261027a";
 import { lireAdresse, pagePersonnelle } from "./route-rules.js?v=20261027a";
 import {
@@ -210,11 +210,32 @@ function derniereRoute() {
   }
 }
 
+// Nouvelle navigation : une ancienne adresse (favori, raccourci d'écran d'accueil, lien d'une
+// nouveauté) cède la place à sa nouvelle adresse avant que navigate() n'en lise la route. Appelée
+// APRÈS la garde de saisie : un refus n'écrit rien. Le sous-onglet visé s'écrit d'abord dans la
+// mémoire de renderSubTabs, que la page lit à son rendu ; un sous-onglet fermé pour la promo
+// n'y change rien, renderSubTabs ouvre alors le premier sous-onglet visible de la page.
+// replaceState ne déclenche aucun `hashchange` et n'ajoute aucune étape d'historique : un seul
+// rendu, et « Précédent » quitte la page redirigée. Une seule redirection par appel : aucune cible
+// n'est elle-même une ancienne adresse (tests/nav-rules.test.mjs).
+function suivreRedirectionV2() {
+  if (!navigationV2Active()) return;
+  const cible = redirectionV2(lireAdresse(location.hash), espaceDe({ formateur: isAdmin() || isProf() }));
+  if (!cible) return;
+  if (cible.sousOnglet) {
+    try { localStorage.setItem(cible.sousOnglet.cle, cible.sousOnglet.valeur); } catch (e) { /* mode privé */ }
+  }
+  try { history.replaceState(null, "", cible.hash); } catch (e) { /* ignore */ }
+}
+
 async function navigate({ force = false } = {}) {
   // Garde de saisie (chantier D, lot 2) : une grille EPCF commencée n'est pas
   // abandonnée sans accord. Refus : l'adresse affichée est remise, sans rendu.
   if (!peutQuitter()) { remplacerAdresse(adresseCourante()); return; }
   leverGardeSortie();
+  // Nouvelle navigation : les quatre anciennes adresses mènent à leur nouvel emplacement. Après
+  // la garde, donc suivre une redirection demande la même confirmation que n'importe quel départ.
+  suivreRedirectionV2();
   // Adresses à segments (#/stagiaires/12/epcf) : le premier choisit la page, la
   // page lit le reste. Page de repli : « Mon suivi », où chacun retrouve ce qui
   // l'attend, son planning à venir et ses résultats.

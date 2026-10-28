@@ -6,7 +6,8 @@ import {
   espaceDe, entreesNavigation, barreTelephone, entreeActive, redirectionV2, routeVisibleV2, initialesDe,
   prenomDe, entreeMasquee, libelleRole,
 } from "../js/nav-rules.js";
-import { MODULE_DE_ROUTE } from "../js/modules-data.js";
+import { MODULE_DE_ROUTE, ROUTES_SOCLE } from "../js/modules-data.js";
+import { lireAdresse } from "../js/route-rules.js";
 import { icon } from "../js/icons.js";
 
 let n = 0;
@@ -77,6 +78,17 @@ eq(redirectionV2(adresse("notes"), "stagiaire"),
   { hash: "#/mon-suivi/classe", sousOnglet: null }, "notes du stagiaire");
 eq(redirectionV2(adresse("notes"), "equipe"), null, "notes de l'équipe inchangées");
 eq(redirectionV2(adresse("planning"), "stagiaire"), null, "pas de boucle");
+// navigate() (js/main.js) suit une seule redirection par adresse : pour toute route connue, aucune cible n'est
+// elle-même redirigée, et une redirection vers un sous-onglet nomme sa clé de mémoire (sans clé, `undefined`
+// s'écrirait sous la clé « undefined »).
+for (const route of [...Object.keys(MODULE_DE_ROUTE), ...ROUTES_SOCLE]) {
+  for (const espace of ["stagiaire", "equipe"]) {
+    const cible = redirectionV2(adresse(route), espace);
+    if (!cible) continue;
+    eq(redirectionV2(lireAdresse(cible.hash), espace), null, `la cible de ${route} (${espace}) n'est pas redirigée`);
+    if (cible.sousOnglet) eq(typeof cible.sousOnglet.cle, "string", `clé de sous-onglet de ${route} (${espace})`);
+  }
+}
 
 // 6. Pages regroupées : ouvertes dès qu'un de leurs sous-onglets l'est
 const seules = (...routes) => (r) => routes.includes(r);
