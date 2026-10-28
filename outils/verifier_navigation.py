@@ -33,7 +33,7 @@ manque) :
     fichier du banc n'est jamais modifié). S'y ajoutent un stagiaire qui n'est pas fondateur (réglage
     de la promo, `is_founder` retiré : le cas de la plupart des vrais comptes), le stagiaire et le prof
     avec `?modules=depart` (modules fermés : pas de case vide, repères), et le « Voir en tant que » du
-    fondateur (Stagiaire, Formateur, Stagiaire, puis son rôle réel : la coquille change d'espace sans
+    fondateur, à 1280, 900 et 375 px (Stagiaire, Formateur, Stagiaire, puis son rôle réel : la coquille change d'espace sans
     recharger la page, et l'entrée allumée suit la page affichée ; sur téléphone, il passe aussi par
     « Plus », « Mon compte », « Stagiaire », puis ouvre le tiroir et élargit l'écran à 900 px : le tiroir
     se ferme et le focus ne tombe jamais sur body ; à chaque rôle vu, le bandeau d'aperçu est en bas de
@@ -127,7 +127,7 @@ par `--script-init`, et le script a échoué avec le message attendu ; la coquil
   * interrupteur éteint : un `h1` trop large (« élément de page qui déborde »), une coquille présente ;
   * ouverture (ruling R17) : ancienne barre laissée visible pendant l'attente (37 images avant la coquille), attente
     jamais levée ; « Voir en tant que » : panneau de l'assistant laissé sous le bandeau d'aperçu (champ et
-    « Envoyer » couverts à 375 px dans les deux espaces, « Envoyer » à 1280 px dans l'équipe) ;
+    « Envoyer » couverts à 375 px dans les deux espaces, « Envoyer » à 1280 px et à 900 px dans l'équipe) ;
   * mise en place : erreur de console et de page, interrupteur qui n'allume pas, banc périmé.
 Sans défaut, n'échouent pas : un bouton `data-nav-action="deconnexion"` (pas un ouvreur), un lien d'évitement
 masqué (ni mesuré comme cible, ni sans nom), un nom pris par `aria-labelledby`, `<label for>` ou `<title>` SVG.
@@ -656,7 +656,8 @@ function mesurerCoquille(o, route, W, H, tel, echecs, avert, R) {
   // Contraste du texte de la coquille.
   mesurerContrastes(racines().filter(visible), echecs, avert);
 
-  // Éléments fixes extérieurs qui recouvrent la coquille (traités par la Task 6) : avertissement.
+  // Éléments fixes extérieurs qui recouvrent la coquille : avertissement seulement (l'assistant sous le bandeau
+  // d'aperçu a son propre garde, verifier_assistant_sous_bandeau).
   const barresFixes = fixes.filter((f) => genreDeBarre(f));
   if (barresFixes.length) {
     const exterieurs = [...document.querySelectorAll("body *")].filter((e) => !e.closest("[data-nav-coquille]") && style(e).position === "fixed" && visible(e));
@@ -852,6 +853,9 @@ def construire_scenarios(moteurs, roles, largeurs, passes):
     # formateur prof, qui n'est pas fondateur, n'en a pas : le réglage de la promo l'allume.
     allumage_de = {"stagiaire": "apercu", "prof": "reglage", "fondateur": "apercu"}
     etroit = [l for l in (1280, 375) if l in largeurs]
+    # « Voir en tant que » joue aussi 900 px : la colonne d'icônes de l'équipe, où le panneau de l'assistant se pose
+    # contre le bandeau d'aperçu, comme à 1280 px (barre dépliée) et à 375 px (barre du bas).
+    voir = [l for l in (1280, 900, 375) if l in largeurs]
     scenarios = []
     for moteur in moteurs:
         if "allume" in passes:
@@ -866,7 +870,7 @@ def construire_scenarios(moteurs, roles, largeurs, passes):
                 for l in etroit:
                     scenarios.append(Scenario(moteur, "allume", "prof", l, "reglage", "equipe", modules="depart"))
             if "fondateur" in roles:
-                for l in etroit:
+                for l in voir:
                     scenarios.append(Scenario(moteur, "allume", "fondateur", l, "apercu", "equipe", voir_en_tant_que=True))
             if "prof" in roles:
                 # Un formateur sans aperçu, dont l'appareil a vu la promo allumée : son ouverture seule (ruling R17).
@@ -1205,7 +1209,7 @@ def verifier_menus(page, res, sc, options):
         res.echec("aucun menu", vue, "aucun bouton de la coquille ne porte aria-haspopup ou data-nav-action : ni compte, ni « Plus »")
         return
     for ouvreur in ouvreurs:
-        quoi ="« %s »%s" % (ouvreur["nom"], (" (" + ouvreur["action"] + ")") if ouvreur["action"] else "")
+        quoi = "« %s »%s" % (ouvreur["nom"], (" (" + ouvreur["action"] + ")") if ouvreur["action"] else "")
         page.evaluate("(i) => window.__verifNav.marquerPopups(i)", ouvreur["i"])
         if not cliquer(page, res, vue, '[data-vn-i="%d"]' % ouvreur["i"], "ouvreur " + quoi):
             continue
@@ -1279,10 +1283,12 @@ JS_SOUS_ONGLET_ALLUME = """() => {
 
 
 def jouer_anciennes_adresses(page, res, sc):
-    """Ruling R26 : chaque ancienne adresse, ouverte depuis Accueil. Nouvelle navigation : elle mène à sa nouvelle page, le
-    sous-onglet visé allumé (module fermé, stagiaire au départ : le premier visible, ou aucun s'il est seul) ; Notes
-    garde sa page chez l'équipe. « Précédent » quitte la page redirigée sans étape d'historique de plus (même mécanisme
-    pour les quatre adresses : vérifié sur la première seulement). Interrupteur éteint : l'adresse reste celle d'aujourd'hui."""
+    """Ruling R26 : chaque ancienne adresse est ouverte par son adresse : les deux premières depuis Accueil (« Précédent »
+    y ramène après la première), les deux suivantes depuis la page où la précédente a atterri. Nouvelle navigation : elle
+    mène à sa nouvelle page, le sous-onglet visé allumé (module fermé, stagiaire au départ : le premier visible, ou aucun
+    s'il est seul) ; Notes garde sa page chez l'équipe. « Précédent » quitte la page redirigée sans étape d'historique de
+    plus (même mécanisme pour les quatre adresses : vérifié sur la première seulement). Interrupteur éteint : l'adresse
+    reste celle d'aujourd'hui."""
     depart = sc.modules == "depart" and sc.espace == "stagiaire"
     aller_a(page, "#/home")
     attendre(page)

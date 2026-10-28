@@ -151,7 +151,7 @@ console.log(`nav-rules : ${n} assertions OK`);
 - Produces :
   - `monterCoquille({ espace, entrees, nom, initiales }): void` : pose `document.body.dataset.nav = "v2"` et `dataset.espace`, monte dans `#app` la barre de l'espace, masque `header.topbar` (CSS) ; idempotent (remonter remplace).
   - `majEntreeActive(route): void` : `aria-current="page"` sur l'entrée renvoyée par `entreeActive` (ou sur « Plus » quand l'entrée est dans `plus`).
-  - `demonterCoquille(): void` : retire tout et `delete document.body.dataset.nav`.
+  - ~~`demonterCoquille(): void`~~ (R22) : retirée. Rien ne démonte la coquille : la décision est figée pour la session (R8).
 - Stagiaire, ordinateur et tablette : en-tête collant de 66 px, logo à gauche, capsule d'onglets centrée (icône + libellé), à droite le bouton « Assistant » nommé (Task 6) et le bouton du compte (initiales + flèche, Task 5). Téléphone : en-tête de 56 px (logo, Assistant, compte) et barre du bas fixe (icône + libellé court, pastille de l'onglet actif, `env(safe-area-inset-bottom)` en marge), `body` gagne une marge basse égale à sa hauteur.
 - `main.js` : quand `navigationV2Active()`, `renderTabs()` appelle `monterCoquille` au lieu de remplir `#tabs`, et `marquerOngletActif()` appelle `majEntreeActive(lastRoute)`. Les clics passent par les liens `#/route` (donc par `navigate()` et sa garde).
 
@@ -170,7 +170,7 @@ console.log(`nav-rules : ${n} assertions OK`);
 - Consumes : Task 1, Task 4, `construirePastille()` (`js/promo-pastille.js`, renvoie `null` sous deux promos), `pagePersonnelle`, `getProfileWho`, `getProfile`, `isFounder`.
 - Produces :
   - Équipe, ordinateur (1080 px et plus) : barre latérale fixe de 264 px, fond `--bg-deep`, contexte en tête (le bouton de `construirePastille()`, ou le nom de la promo quand il n'y en a qu'une) avec le bouton « Replier la barre » à côté ; entrées groupées (titre de groupe « Promo ») ; pied : Assistant, compte. Repliée (choix mémorisé, clé `localStorage` `ecsr_nav_repliee`) et tablette (700 à 1079 px) : colonne d'icônes de 74 px avec infobulles (`title`, `aria-label`). Le contenu garde le défilement de la fenêtre, décalé par `margin-left`.
-  - Équipe, téléphone : en-tête de 56 px (contexte, compte), barre du bas (4 entrées + « Plus » marqué d'un point s'il y a une entrée repérée ou à traiter dedans) ; « Plus » ouvre un tiroir avec les entrées restantes, l'Assistant et le compte.
+  - Équipe, téléphone : en-tête de 56 px (contexte, compte), barre du bas (4 entrées + « Plus ») ; « Plus » ouvre un tiroir avec les entrées restantes, l'Assistant et le compte. Le point sur « Plus » n'est pas construit au lot 1 (R20) : il ne signalera que les entrées « à traiter » (signalements, propositions de l'IA), jamais une page masquée aux stagiaires, et viendra avec le lot qui apporte ces compteurs.
   - Module fermé : l'entrée de l'équipe porte le repère `repereMasque(noeud, routeMasquee(route))`.
   - `ouvrirMenuCompte(ancre: HTMLElement): void` : fenêtre `role="dialog"` (popover sur ordinateur, tiroir sur téléphone), focus sur la fenêtre, Échap et clic dehors la ferment et rendent le focus à l'ancre ; contenu : nom et rôle, « Mon espace » ou « Stagiaires » selon `pagePersonnelle`, « Nouveautés » (`#/nouveautes`, avec la pastille de non-lus de `nouveautesAffichables`), « Réglages » (`#/config`), le bloc « Voir en tant que » (fondateur), « Informations légales », « Se déconnecter ».
   - `onAdminChange` : la coquille est remontée (changement d'espace sans rechargement).
