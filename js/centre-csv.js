@@ -25,13 +25,13 @@ function colonnesThemes() {
   return cols;
 }
 
-function nombre(x) {
+export function nombre(x) {
   const r = Math.round(x * 10) / 10;
   return (Number.isInteger(r) ? String(r) : r.toFixed(1)).replace(".", ",");
 }
 
 // Neutralise une formule (= + - @ en tête) et cite ce qui casserait la ligne.
-function cellule(v) {
+export function cellule(v) {
   let s = v == null ? "" : String(v);
   if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
   if (/[;"\r\n]/.test(s)) s = '"' + s.replace(/"/g, '""') + '"';
@@ -62,8 +62,15 @@ export function matriceNotesCsv({ stagiaires, evaluations, anonymiser }) {
   return "﻿" + lignes.join("\r\n") + "\r\n";
 }
 
-export function nomFichierCsv(nomPromo, dateIso) {
-  const slug = String(nomPromo || "promo").normalize("NFD").replace(/[̀-ͯ]/g, "")
+// Texte réduit à des minuscules sans accent, les autres caractères remplacés par des tirets : sûr dans un nom de fichier.
+// Les marques d'accent sont celles que la décomposition NFD sépare des lettres (U+0300 à U+036F).
+const MARQUES_D_ACCENT = new RegExp("[" + String.fromCharCode(0x300) + "-" + String.fromCharCode(0x36f) + "]", "g");
+
+export function slug(texte) {
+  return String(texte || "").normalize("NFD").replace(MARQUES_D_ACCENT, "")
     .toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
-  return `matrice-notes_${slug || "promo"}_${dateIso}.csv`;
+}
+
+export function nomFichierCsv(nomPromo, dateIso) {
+  return `matrice-notes_${slug(nomPromo) || "promo"}_${dateIso}.csv`;
 }
