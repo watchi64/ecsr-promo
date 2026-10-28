@@ -16,6 +16,20 @@
 
 export const NOUVEAUTES = [
   {
+    id: "2026-10-28-signaler-un-probleme",
+    date: "2026-10-28",
+    pour: "tous",
+    titre: "Signaler un problème en deux gestes",
+    resume: "Un bug, un bouton qui ne réagit pas, quelque chose de pas clair ? Écris-le dans « Signaler un "
+          + "problème » : la page, l'appareil et l'heure partent avec ton message, et tu peux ajouter une "
+          + "capture d'écran. La réponse s'affiche au même endroit.",
+    guide: [
+      "Touche ton nom en haut de l'écran, ou ouvre l'Assistant.",
+      "Choisis « Signaler un problème ».",
+      "Écris ce qui se passe, ajoute une capture si tu veux, puis « Envoyer ».",
+    ],
+  },
+  {
     id: "2026-10-28-assistant-plus-facile",
     date: "2026-10-28",
     pour: "tous",
