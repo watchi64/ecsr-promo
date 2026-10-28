@@ -19,24 +19,28 @@
 // de l'équipe, « bas » barre du téléphone ; « compte » ou « plus » pour la fenêtre ouverte, voir
 // js/nav-fenetre.js) ; une entrée porte data-entree (son id) ; un bouton porte data-nav-action :
 // « compte » ouvre le menu du compte (js/menu-compte.js), « plus » le tiroir, « replier » plie ou
-// déplie la barre latérale, « assistant » ouvre ou ferme le panneau de l'assistant (js/chatbot.js).
+// déplie la barre latérale, « assistant » ouvre ou ferme le panneau de l'assistant (js/chatbot.js),
+// « signaler » ouvre la fenêtre « Signaler un problème » (js/signalement.js).
 // majEntreeActive allume par aria-current="page" l'entrée de la page affichée, ou « Plus »
 // (data-nav-action="plus") quand le téléphone range cette entrée dans son tiroir : les ids de
 // barreTelephone(espace, entrees).plus. majNouveautesCompte pose sur les boutons du compte la
 // pastille des nouveautés non lues (celle de l'ancien onglet Accueil) et la dit dans leur nom.
 
-import { el } from "./utils.js?v=20261028a";
-import { icon, deco } from "./icons.js?v=20261028a";
-import { getProfile } from "./auth-admin.js?v=20261028a";
-import { getPromoCourante } from "./db.js?v=20261028a";
-import { construirePastille } from "./promo-pastille.js?v=20261028a";
-import { routeMasquee, repereMasque, moduleVisible, moduleMasque } from "./modules-etat.js?v=20261028a";
+import { el } from "./utils.js?v=20261028b";
+import { icon, deco } from "./icons.js?v=20261028b";
+import { getProfile, fondateurHorsApercu } from "./auth-admin.js?v=20261028b";
+import { getPromoCourante } from "./db.js?v=20261028b";
+import { construirePastille } from "./promo-pastille.js?v=20261028b";
+import { routeMasquee, repereMasque, moduleVisible, moduleMasque } from "./modules-etat.js?v=20261028b";
 import {
   barreTelephone, entreeActive, entreeMasquee, initialesDe, prenomDe, libelleRole, nomDuBoutonCompte,
-} from "./nav-rules.js?v=20261028a";
-import { ouvrirFenetre, fermerFenetre, fenetreOuverte, rendreFocus } from "./nav-fenetre.js?v=20261028a";
-import { ouvrirMenuCompte } from "./menu-compte.js?v=20261028a";
-import { basculerAssistant, assistantOuvert, onAssistantChange } from "./chatbot.js?v=20261028a";
+} from "./nav-rules.js?v=20261028b";
+import { ouvrirFenetre, fermerFenetre, fenetreOuverte, rendreFocus } from "./nav-fenetre.js?v=20261028b";
+import { ouvrirMenuCompte } from "./menu-compte.js?v=20261028b";
+import { basculerAssistant, assistantOuvert, onAssistantChange } from "./chatbot.js?v=20261028b";
+import { ouvrirSignalement } from "./signalement.js?v=20261028b";
+import { etatSignalements, onSignalementsChange } from "./signalement-etat.js?v=20261028b";
+import { pastilleSignalement } from "./signalement-rules.js?v=20261028b";
 
 // Barre latérale repliée en colonne d'icônes : choix mémorisé sur l'appareil.
 const CLE_REPLIEE = "ecsr_nav_repliee";
@@ -88,7 +92,7 @@ function boutonCompte(classe, qui, ...contenu) {
   identites.set(bouton, qui);
   nommerCompte(bouton);
   bouton.addEventListener("click", () => ouvrirMenuCompte(bouton,
-    { actualiser: montee && montee.actualiser, entrees: montee ? montee.entrees : [] }));
+    { actualiser: montee && montee.actualiser, entrees: montee ? montee.entrees : [], espace: montee ? montee.espace : null }));
   return bouton;
 }
 
@@ -152,6 +156,35 @@ function assistantDepuisLeTiroir(plus) {
   fermerFenetre();
   if (!assistantOuvert()) basculerAssistant(() => rendreFocus(plus, "plus"));
 }
+
+// Bouton « Signaler un problème » (pied de barre de l'équipe, tiroir « Plus ») : `geste(bouton)` ouvre la
+// fenêtre (js/signalement.js). Sa pastille et son nom suivent l'état des signalements : les nouveaux chez
+// le fondateur hors aperçu, ceux de la personne qui ont avancé chez les autres.
+function boutonSignaler(classe, geste, ...contenu) {
+  const bouton = el("button", {
+    type: "button", class: classe, "data-nav-action": "signaler", "aria-haspopup": "dialog",
+  }, ...contenu);
+  nommerSignaler(bouton);
+  bouton.addEventListener("click", () => geste(bouton));
+  return bouton;
+}
+
+function nommerSignaler(bouton) {
+  const { texte, nom } = pastilleSignalement({ fondateur: fondateurHorsApercu(), ...etatSignalements() });
+  bouton.setAttribute("aria-label", nom);
+  bouton.setAttribute("title", nom);
+  let pastille = bouton.querySelector(".nav-pastille");
+  if (!texte) {
+    if (pastille) pastille.remove();
+    return;
+  }
+  if (!pastille) pastille = bouton.appendChild(el("span", { class: "nav-pastille", "aria-hidden": "true" }));
+  pastille.textContent = texte;
+}
+
+onSignalementsChange(() => {
+  document.querySelectorAll('[data-nav-coquille] [data-nav-action="signaler"]').forEach(nommerSignaler);
+});
 
 // Les entrées dans l'ordre, celles d'un même groupe sous son titre (« Promo »). `ou` distingue les
 // identifiants des titres (barre latérale, tiroir).
@@ -242,6 +275,8 @@ function barreLaterale(entrees, nom, initiales) {
     el("div", { class: "nav-cote-pied" },
       boutonAssistant("nav-entree nav-cote-assistant", basculerDepuis,
         deco(icon.chat()), el("span", { class: "nav-entree-texte" }, "Assistant")),
+      boutonSignaler("nav-entree nav-cote-signaler", (b) => ouvrirSignalement({ ancre: b }),
+        deco(icon.signaler()), el("span", { class: "nav-entree-texte" }, "Signaler un problème")),
       boutonCompte("nav-cote-compte", { nom, role }, avatar(initiales),
         el("span", { class: "nav-cote-compte-texte" }, el("b", {}, nom || "Mon compte"), role ? el("small", {}, role) : null))));
 }
@@ -301,7 +336,7 @@ function boutonPlus() {
 
 function ouvrirPlus(bouton) {
   if (!montee) return;
-  const { entrees, nom, initiales, actualiser } = montee;
+  const { entrees, nom, initiales, actualiser, espace } = montee;
   const allumee = entreeActive(montee.route, entrees);
   const lien = (e) => reperer(el("a", {
     href: "#/" + e.route, class: "nav-fenetre-lien", "data-entree": e.id, "aria-current": e.id === allumee ? "page" : null,
@@ -313,7 +348,7 @@ function ouvrirPlus(bouton) {
   // Le menu du compte prend la place du tiroir ; Échap rend alors le focus à « Plus ».
   compte.addEventListener("click", () => {
     fermerFenetre({ focus: false });
-    ouvrirMenuCompte(bouton, { actualiser, entrees });
+    ouvrirMenuCompte(bouton, { actualiser, entrees, espace });
   });
   ouvrirFenetre({
     nom: "plus", ancre: bouton, etiquette: "Plus", classe: "nav-tiroir",
@@ -323,6 +358,9 @@ function ouvrirPlus(bouton) {
       el("p", { class: "nav-fenetre-section" }, "Outils"),
       boutonAssistant("nav-fenetre-lien", () => assistantDepuisLeTiroir(bouton),
         deco(icon.chat()), el("span", { class: "nav-fenetre-texte" }, "Assistant")),
+      // La fenêtre de signalement remplace le tiroir ; le focus reviendra à « Plus ».
+      boutonSignaler("nav-fenetre-lien", () => ouvrirSignalement({ ancre: bouton }),
+        deco(icon.signaler()), el("span", { class: "nav-fenetre-texte" }, "Signaler un problème")),
       compte,
     ],
   });

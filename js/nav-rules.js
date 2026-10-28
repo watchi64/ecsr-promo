@@ -53,6 +53,8 @@ const ALIAS_ENTREE_ACTIVE = new Map([
   ["ressources", "themes"],
   ["nouveautes", "home"],
   ["notes", "mon-suivi"],
+  // Problèmes signalés (fondateur, spec 2026-10-28) : ouverte depuis « Signaler un problème ».
+  ["problemes", "config"],
 ]);
 
 // Anciennes adresses déplacées : la page visée et le sous-onglet à y ouvrir (les mêmes dans

@@ -229,4 +229,8 @@ eq(pageASoiDuMenu(formateurSansProfil, eqp), null, "formateur sans profil stagia
 eq(pageASoiDuMenu(formateurStagiaire, eqp), "mon-suivi", "formateur qui a un profil stagiaire : sa page n'a pas d'entrée, la ligne reste");
 eq(pageASoiDuMenu("stagiaires", []), "stagiaires", "aucune entrée : la ligne reste");
 
+// Page « Problèmes signalés » (fondateur, spec 2026-10-28) : sans entrée à elle, elle allume Réglages.
+eq(entreeActive("problemes", entreesNavigation("equipe", { routeVisible: tout, emargementActif: false })), "config",
+  "problemes allume Réglages chez l'équipe");
+
 console.log(`nav-rules : ${n} assertions OK`);

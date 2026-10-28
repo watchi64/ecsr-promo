@@ -1,0 +1,315 @@
+/* Signaler un problème (spec 2026-10-28) : la fenêtre (js/signalement.js), ses entrées et la page
+   « Problèmes signalés » (js/views/problemes.js). Valable avec l'ancienne barre comme avec la nouvelle :
+   rien n'est rangé sous body[data-nav="v2"], et le sélecteur de la fenêtre bat ceux des fenêtres de la
+   coquille (css/navigation.css), dont elle reprend la mécanique. */
+
+/* ----- La fenêtre ----- */
+/* Calque : au-dessus des bandeaux du bas (1400, 1500) et du panneau de l'assistant, sous les messages (2000). */
+.modal-backdrop[data-nav-coquille="signaler"] { z-index: 1600; }
+
+body .modal-backdrop[data-nav-coquille="signaler"] > .nav-fenetre.signalement-fenetre {
+  position: relative;
+  inset: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: min(520px, calc(100vw - 24px));
+  max-height: calc(100vh - 32px);
+  max-height: calc(100dvh - 32px);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 18px 20px 20px;
+  background: var(--bg-elev);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: var(--r-xl);
+  box-shadow: var(--shadow-3);
+}
+.signalement-fenetre:focus { outline: none; }
+/* La fenêtre porte son propre en-tête (titre et « Fermer »), à toute taille. */
+.signalement-fenetre .nav-fenetre-haut { display: none !important; }
+
+.sg-tete { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.sg-titre {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  font-weight: 500;
+  line-height: 1.2;
+}
+.sg-fermer {
+  flex: none;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: var(--r);
+  background: transparent;
+  color: var(--accent-strong);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.sg-fermer:hover { background: var(--bg-subtle); }
+
+.sg-fondateur {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  padding: 8px 8px 8px 14px;
+  border-radius: var(--r);
+  background: var(--accent-soft);
+  color: var(--text);
+}
+.sg-fondateur-lien {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 14px;
+  border-radius: var(--r);
+  color: var(--accent-strong);
+  font-weight: 600;
+  text-decoration: none;
+}
+.sg-fondateur-lien:hover { background: var(--accent-soft-2); }
+
+.sg-etiquette { font-weight: 600; }
+.sg-champ {
+  width: 100%;
+  min-height: 112px;
+  resize: vertical;
+  padding: 10px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r);
+  background: #FFFFFF;
+  color: var(--text);
+  font: inherit;
+  font-size: 1rem;              /* 16 px : Safari ne zoome pas sur le champ */
+  line-height: 1.45;
+}
+.sg-champ::placeholder { color: var(--text-muted); }
+.sg-champ:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+.sg-fichier { display: none; }
+.sg-capture-zone { display: flex; }
+.sg-joindre { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; }
+.sg-joindre .icon { width: 18px; height: 18px; }
+.sg-miniature { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.sg-miniature img {
+  max-width: 120px;
+  max-height: 120px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  object-fit: contain;
+  background: var(--bg-soft);
+}
+.sg-retirer { min-height: 44px; }
+
+.sg-joint { color: var(--text-soft); font-size: 0.88rem; line-height: 1.45; }
+.sg-joint-ligne { margin: 0; overflow-wrap: anywhere; }
+.sg-joint-titre { font-weight: 600; color: var(--text); }
+.sg-detail summary {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  color: var(--accent-strong);
+  font-weight: 600;
+  cursor: pointer;
+}
+.sg-detail-liste {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 4px 12px;
+  margin: 6px 0 0;
+}
+.sg-detail-liste dt { color: var(--text-muted); }
+.sg-detail-liste dd { margin: 0; color: var(--text); overflow-wrap: anywhere; }
+.sg-erreurs-tech {
+  margin: 8px 0 0;
+  padding-left: 1.1rem;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.sg-erreur { margin: 0; color: var(--c-wait); font-weight: 600; font-size: 0.92rem; }
+.sg-erreur:empty { display: none; }
+.sg-envoyer { min-height: 44px; align-self: flex-start; padding-inline: 24px; }
+
+.sg-mes:empty { display: none; }
+.sg-mes { border-top: 1px solid var(--line-faint); padding-top: 12px; }
+.sg-mes-titre {
+  margin: 0 0 6px;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.sg-mes-vide { margin: 0; color: var(--text-muted); font-size: 0.9rem; }
+.sg-mes-liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.sg-mien { padding: 10px 12px; border: 1px solid var(--line-faint); border-radius: var(--r); }
+.sg-mien-nouveau { border-color: var(--accent); background: var(--accent-soft); }
+.sg-mien-tete { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-bottom: 4px; }
+.sg-mien-date { color: var(--text-muted); font-size: 0.82rem; }
+.sg-mien-message { margin: 0; overflow-wrap: anywhere; white-space: pre-wrap; }
+.sg-mien-message summary { cursor: pointer; white-space: normal; }
+.sg-reponse { margin: 6px 0 0; color: var(--text); overflow-wrap: anywhere; white-space: pre-wrap; }
+
+/* Statuts : jamais de rouge (règle de Timy). */
+.sg-statut {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 0 9px;
+  border-radius: 999px;
+  font-size: 0.76rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.sg-statut-nouveau { background: var(--accent-soft); color: var(--accent-strong); }
+.sg-statut-en_cours { background: var(--c-wait-soft); color: var(--c-wait); }
+.sg-statut-regle { background: var(--c-go-soft); color: var(--c-go); }
+.sg-statut-non_retenu { background: var(--bg-soft); color: var(--text-soft); }
+.sg-nouveau {
+  display: inline-flex;
+  align-items: center;
+  min-height: 20px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--bg-elev);
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+/* ----- La page « Problèmes signalés » (fondateur) ----- */
+.sg-cartes { display: flex; flex-direction: column; gap: 14px; }
+.sg-vide { margin: 0; color: var(--text-muted); }
+.sg-carte {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  padding: 16px 18px;
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-1);
+}
+.sg-carte-tete { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
+.sg-carte-qui { overflow-wrap: anywhere; }
+.sg-carte-date { color: var(--text-muted); font-size: 0.85rem; }
+.sg-carte-message { margin: 0; font-size: 1rem; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
+.sg-carte-contexte { margin: 0; color: var(--text-soft); font-size: 0.86rem; overflow-wrap: anywhere; }
+.sg-agent { margin: 8px 0 0; font-family: var(--font-mono); font-size: 0.74rem; color: var(--text-muted); overflow-wrap: anywhere; }
+.sg-carte-capture { display: block; max-width: min(100%, 360px); max-height: 50vh; border: 1px solid var(--line); border-radius: var(--r-sm); cursor: zoom-in; }
+.sg-carte-capture.grand { max-width: 100%; max-height: none; cursor: zoom-out; }
+.sg-carte-lien {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  color: var(--accent-strong);
+  font-weight: 600;
+}
+.sg-statut-btns { display: flex; flex-wrap: wrap; gap: 6px; }
+.sg-statut-btn {
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: var(--bg-elev);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+.sg-statut-btn:hover { background: var(--bg-subtle); }
+.sg-statut-btn[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg-elev); font-weight: 600; }
+.sg-carte-repondre { display: flex; flex-direction: column; gap: 8px; }
+.sg-carte-reponse { min-height: 72px; }
+.sg-carte-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.sg-carte-actions .btn { min-height: 40px; }
+@media (max-width: 699.98px) {
+  .sg-carte { padding: 14px; }
+  .sg-statut-btn, .sg-carte-actions .btn, .sg-carte-lien, .sg-carte-capture-zone .btn { min-height: 44px; }
+}
+
+/* ----- Le message du bas de l'écran (#toast) ----- */
+/* Il n'a rien de cliquable : il laisse passer les touchers. Sinon, sur téléphone, le message du démarrage
+   (« Ton signalement a avancé ») recouvrait pendant 6 s la ligne « Signaler un problème » qu'il désigne. */
+#toast { pointer-events: none; }
+
+/* ----- Les entrées : coquille (js/nav-shell.js, js/menu-compte.js), Assistant, ancienne barre ----- */
+/* Pastille hors coquille (fenêtre « Mon compte » de l'ancienne barre) : le dessin de .nav-pastille. */
+.sg-pastille {
+  display: inline-grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  margin-left: 8px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--bg-elev);
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1;
+}
+.sg-entree-compte { margin-top: 0.5rem; }
+body[data-nav="v2"] .nav-cote-signaler .nav-pastille { margin-left: auto; }
+/* Colonne d'icônes : la pastille sur le coin de l'icône. */
+body[data-nav="v2"][data-nav-colonne] .nav-cote-signaler .nav-pastille {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  font-size: 0.66rem;
+}
+.chatbot-signaler {
+  margin: 0;
+  padding: 0 14px 6px;
+  color: var(--text-soft);
+  font-size: 0.85rem;
+}
+.chatbot-signaler-btn {
+  min-height: 32px;
+  padding: 0 2px;
+  border: 0;
+  background: transparent;
+  color: var(--accent-strong);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+/* Téléphone : la fenêtre monte du bas, à pleine largeur ; cibles de 44 px. Le pied de barre de l'équipe
+   est masqué (en-tête et barre du bas) : l'entrée est dans le tiroir « Plus ». */
+@media (max-width: 699.98px) {
+  body[data-nav="v2"] .nav-cote-signaler { display: none; }
+  .chatbot-signaler-btn, .sg-entree-compte { min-height: 44px; }
+}
+@media (max-width: 699.98px) {
+  .modal-backdrop[data-nav-coquille="signaler"] {
+    align-items: flex-end;
+    padding: 8px 8px calc(8px + env(safe-area-inset-bottom, 0px));
+  }
+  body .modal-backdrop[data-nav-coquille="signaler"] > .nav-fenetre.signalement-fenetre {
+    width: 100%;
+    max-height: 92vh;
+    max-height: 92dvh;
+    padding: 14px 14px 16px;
+  }
+  .sg-detail summary { min-height: 44px; }
+  .sg-envoyer { align-self: stretch; }
+}
