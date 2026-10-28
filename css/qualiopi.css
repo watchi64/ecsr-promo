@@ -238,6 +238,8 @@
 }
 
 .qualiopi-erreur p { margin: 0 0 0.6rem; }
+/* La boîte d'erreur de chargement de la page (js/main.js) est hors de .qualiopi : son bouton a sa propre cible de 44 px. */
+.qualiopi-erreur .btn { min-height: 44px; }
 
 @media (max-width: 640px) {
   .qualiopi-fiche { padding: 0.25rem 0.85rem 0.15rem; }

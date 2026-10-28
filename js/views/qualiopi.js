@@ -5,6 +5,9 @@
 // des dossiers, CSV) et js/qualiopi-page-rules.js (dates, choix des promos) : ici, seulement l'affichage, la lecture des
 // données et l'impression.
 //
+// Chargée à la demande (js/main.js, route qualiopi) : seul js/qualiopi-impression.js, qui monte et nettoie le document imprimable,
+// part avec l'app. Cette page, ses modules de calcul et leurs erreurs éventuelles ne touchent donc pas les autres comptes.
+//
 // Lecture seule. La promo choisie se lit par son identifiant (lireDonneesQualiopi, en-tête interne de lecture) : jamais de
 // repli sur la promo courante. Les lectures de la page se gardent en mémoire, par promo, le temps de la page : le dossier
 // du centre relit les autres promos du lieu, mais jamais celle qui est déjà affichée.
@@ -23,6 +26,7 @@ import {
 } from "../qualiopi-page-rules.js?v=20261028a";
 import { NOUVEAUTES } from "../nouveautes-data.js?v=20261028a";
 import { telecharger } from "./centre.js?v=20261028a";
+import { imprimerQualiopi } from "../qualiopi-impression.js?v=20261028a";
 
 let rendu = 0;   // un rendu plus récent rend caduc celui qui attend encore ses données
 
@@ -30,38 +34,9 @@ const texteOu = (valeur, defaut) => (typeof valeur === "string" && valeur.trim()
 const liste = (valeur) => (Array.isArray(valeur) ? valeur : []);
 
 // =====================================================================================================
-// Impression : le document est monté dans #qualiopi-print (caché à l'écran), A4 portrait, le temps d'imprimer
+// Documents imprimables : la mise en page des modèles de js/qualiopi-documents.js. Le montage dans #qualiopi-print, le format de
+// page et le nettoyage sont dans js/qualiopi-impression.js.
 // =====================================================================================================
-
-const ID_IMPRESSION = "qualiopi-print";
-const ID_PAGE = "qualiopi-page-style";
-const CLASSE_IMPRESSION = "qualiopi-printable";
-let titreAvant = null;      // titre de la page avant qu'il ne nomme le PDF, à rendre
-let ecouteurFin = null;     // écouteur d'afterprint de l'impression en cours
-
-// Ne laisse ni conteneur, ni format de page, ni classe sur <body>, ni titre emprunté : appelée à afterprint, avant chaque
-// impression (la deuxième remplace la première) et par js/main.js à chaque changement de page.
-export function teardownQualiopiPrint() {
-  document.querySelectorAll("#" + ID_IMPRESSION + ", #" + ID_PAGE).forEach((noeud) => noeud.remove());
-  document.body.classList.remove(CLASSE_IMPRESSION);
-  if (titreAvant !== null) { document.title = titreAvant; titreAvant = null; }
-  if (ecouteurFin) { window.removeEventListener("afterprint", ecouteurFin); ecouteurFin = null; }
-}
-
-function imprimer(modele, titre) {
-  const contenu = documentImprimable(modele);   // construit d'abord : une erreur de mise en page ne laisse rien dans la page
-  teardownQualiopiPrint();
-  const format = el("style", { id: ID_PAGE });
-  format.textContent = "@page { size: A4 portrait; margin: 12mm; }";
-  document.head.appendChild(format);
-  document.body.appendChild(el("div", { id: ID_IMPRESSION }, contenu));
-  document.body.classList.add(CLASSE_IMPRESSION);
-  titreAvant = document.title;
-  document.title = titre;   // le navigateur en fait le nom du PDF
-  ecouteurFin = () => teardownQualiopiPrint();
-  window.addEventListener("afterprint", ecouteurFin);
-  window.print();
-}
 
 function tableauImprimable({ entetes, lignes }) {
   return el("table", { class: "qdoc-table" },
@@ -292,7 +267,7 @@ export async function renderQualiopi(container) {
       const { promo, donnees, ind, inv } = etat;
       const modele = modeleDossierFormation({ inv, donnees, ind, promo, lieu: promo.lieu_nom, intitule: donnees.entete?.intitule, aujourdhui });
       ecrireStatut("");
-      imprimer(modele, titreImpression("dossier-formation", promo.nom, aujourdhui));
+      imprimerQualiopi(documentImprimable(modele), titreImpression("dossier-formation", promo.nom, aujourdhui));
     } catch (e) {
       console.error(e);
       ecrireStatut("Le dossier de la formation n'a pas pu être préparé. Recharge la page, puis réessaie.", true);
@@ -341,7 +316,7 @@ export async function renderQualiopi(container) {
       }
       const modele = modeleDossierCentre({ promos: promosLues, lieu: promo.lieu_nom, periode, aujourdhui, sansNoms, nouveautes: NOUVEAUTES });
       ecrireStatut("");
-      imprimer(modele, titreImpression(sansNoms ? "dossier-centre-sans-noms" : "dossier-centre", promo.lieu_nom, aujourdhui));
+      imprimerQualiopi(documentImprimable(modele), titreImpression(sansNoms ? "dossier-centre-sans-noms" : "dossier-centre", promo.lieu_nom, aujourdhui));
     } catch (e) {
       console.error(e);
       if (actionVivante(moi)) ecrireStatut("Le dossier du centre n'a pas pu être préparé. Recharge la page, puis réessaie.", true);

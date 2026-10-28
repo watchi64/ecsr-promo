@@ -2,8 +2,8 @@
  * Promo ECSR : application propriétaire.
  * © 2026 watchi64. Tous droits réservés. Voir LICENSE.
  */
-import { getCurrentUser, invalidateCache, verifyRecoveryToken } from "./db.js?v=20261028a";
-import { toast } from "./utils.js?v=20261028a";
+import { getCurrentUser, invalidateCache, verifyRecoveryToken, rechargerApresEnregistrements } from "./db.js?v=20261028a";
+import { toast, el } from "./utils.js?v=20261028a";
 import { icon } from "./icons.js?v=20261028a";
 import { initAuth, onAdminChange, isAuth, isFounder, monStagiaireId, getAdminEmail, getProfile, getProfileWho } from "./auth-admin.js?v=20261028a";
 import { showGate, hideGate } from "./gate.js?v=20261028a";
@@ -28,7 +28,7 @@ import { libellePastille } from "./nouveautes.js?v=20261028a";
 import { renderCcp2 } from "./views/ccp2.js?v=20261028a";
 import { renderStagiaires } from "./views/stagiaires.js?v=20261028a";
 import { renderCentre, teardownCentrePrint } from "./views/centre.js?v=20261028a";
-import { renderQualiopi, teardownQualiopiPrint } from "./views/qualiopi.js?v=20261028a";
+import { teardownQualiopiPrint } from "./qualiopi-impression.js?v=20261028a";
 import { renderEmargement } from "./views/emargement.js?v=20261028a";
 import { initBandeauEmargement, rafraichirBandeauEmargement } from "./emargement-bandeau.js?v=20261028a";
 import { chargerEmargementActif, emargementActif } from "./emargement-etat.js?v=20261028a";
@@ -178,6 +178,32 @@ function majBadgeNouveautes() {
 
 // ===== Router =====
 
+// Page Qualiopi, chargée à la demande. Le fondateur seul l'ouvre (garde de navigate) : ni la page ni ses modules de calcul (plus
+// de 100 Ko) ne partent avec l'app, et une erreur dans l'un d'eux ne peut pas casser le démarrage de tous les comptes. Seul
+// js/qualiopi-impression.js, tout petit, est chargé d'avance : navigate() en appelle le nettoyage à chaque page.
+// Un import() qui échoue reste en échec pour la même adresse tant que la page n'est pas rechargée (js/cours-blocs.js), et c'est
+// vrai de chacun des modules de la page, qu'une reprise sous une autre adresse ne redemande pas : « Réessayer » n'y changerait
+// rien. La boîte d'erreur propose donc de recharger, ce qui suffit pour une page du fondateur.
+function boiteErreurQualiopi() {
+  return el("div", { class: "centre-erreur qualiopi-erreur", role: "alert" },
+    el("p", {}, "La page Qualiopi n'a pas pu se charger. Vérifie ta connexion, puis recharge la page."),
+    el("button", { class: "btn small", type: "button", onClick: () => rechargerApresEnregistrements() }, "Recharger la page"));
+}
+
+async function rendreQualiopi(view) {
+  afficherChargement();
+  let page;
+  try {
+    page = await import("./views/qualiopi.js?v=20261028a");
+  } catch (e) {
+    console.error(e);
+    if (lastRoute === "qualiopi") view.replaceChildren(boiteErreurQualiopi());
+    return;
+  }
+  // La page a pu être quittée pendant le chargement du module : elle n'écrit pas par-dessus celle qui est affichée.
+  if (lastRoute === "qualiopi") await page.renderQualiopi(view);
+}
+
 const routes = {
   home:       renderHome,
   dashboard:  renderDashboard,
@@ -194,7 +220,7 @@ const routes = {
   ccp2:       renderCcp2,
   stagiaires: renderStagiaires,
   centre:     renderCentre,
-  qualiopi:   renderQualiopi,
+  qualiopi:   rendreQualiopi,   // chargée à la demande, voir plus haut
   emargement: renderEmargement,
   ressources: renderRessources,
   config:     renderConfig,
