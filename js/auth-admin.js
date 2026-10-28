@@ -40,6 +40,9 @@ let viewAs = null;  // null = rôle réel ; "prof" | "stagiaire" = aperçu
 export function isAuth()        { return !!currentUser && !!currentProfile; }
 export function isFounder()     { return !!currentProfile?.is_founder; }
 export function getViewAs()     { return isFounder() ? viewAs : null; }
+// Le fondateur tel qu'il est, hors aperçu « Voir en tant que » : ce que l'éditeur seul voit (signalements de
+// problème reçus) disparaît dans l'aperçu, qui montre ce que voit le rôle simulé.
+export function fondateurHorsApercu() { return isFounder() && !getViewAs(); }
 export function getAdminEmail() { return currentUser?.email || null; }
 export function getProfile()    { return currentProfile; }
 

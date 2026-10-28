@@ -1,6 +1,7 @@
 import { createClient } from "../vendor/supabase-js-2.117.2.js?v=20261028a";
 import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261028a";
 import { compteDansEquite } from "./passage-rules.js?v=20261028a";
+import { phraseErreur } from "./signalement-rules.js?v=20261028a";
 import {
   ENTETE_PROMO, ENTETE_LECTURE_PROMO, promoDeLaRequete, doitPorterEntetePromo, choisirPromoInitiale, profilEffectif,
   separerChamps, CHAMPS_PROGRESSION, CHAMPS_EXAMEN, fusionnerProgression, fusionnerExamen,
@@ -1736,6 +1737,70 @@ export async function setQcmSignalementStatut(id, statut, email) {
     .from("qcm_signalements")
     .update({ statut, traite_at: new Date().toISOString(), traite_par_email: email || null })
     .eq("id", id);
+  if (error) throw error;
+}
+
+// === Signalements de problème (spec 2026-10-28) ===
+// Écritures par les fonctions serveur seulement : signaler_probleme pose l'auteur, son nom, son rôle et la
+// promo affichée ; traiter_signalement_app est réservée au fondateur. Leurs refus commencent par
+// « signalement: », la phrase qui suit est montrée telle quelle (phraseErreur).
+
+function erreurSignalement(error) {
+  return new Error(phraseErreur(error?.message || String(error || ""))
+    || "L'envoi n'a pas abouti. Vérifie ta connexion et réessaie.");
+}
+
+async function rpcSignalement(nom, params) {
+  const { data, error } = await supabase.rpc(nom, params);
+  if (error) throw erreurSignalement(error);
+  return data;
+}
+
+// Envoie un signalement ; rend son identifiant.
+export async function signalerProbleme({ message, contexte, capture = null }) {
+  return rpcSignalement("signaler_probleme", { p_message: message, p_contexte: contexte || {}, p_capture: capture || null });
+}
+
+// Les dix plus récents de la personne connectée (fondateur compris : les siens seulement).
+export async function mesSignalementsApp() {
+  return (await rpcSignalement("mes_signalements_app")) || [];
+}
+
+// Compteurs des pastilles : { nouveaux } (0 hors fondateur), { suivis } (les siens, avancés, non vus).
+export async function compterSignalementsApp() {
+  const d = (await rpcSignalement("compter_signalements_app")) || {};
+  return { nouveaux: Number(d.nouveaux) || 0, suivis: Number(d.suivis) || 0 };
+}
+
+export async function marquerSuivisVus() {
+  return Number(await rpcSignalement("marquer_suivis_vus")) || 0;
+}
+
+// Colonnes nommées, jamais l'image : elle vit dans signalements_app_captures et se lit à la demande.
+const COLONNES_SIGNALEMENT = "id, created_at, email, nom, role, promo_id, message, contexte, avec_capture, statut, "
+  + "reponse, repondu_le, suivi_le, suivi_lu_le, traite_le, traite_par_email, promo:promos(nom)";
+
+// Tous les signalements, le plus récent d'abord (fondateur : la règle de lecture le permet).
+export async function listSignalementsApp() {
+  const { data, error } = await supabase.from("signalements_app").select(COLONNES_SIGNALEMENT)
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return data || [];
+}
+
+export async function captureSignalementApp(id) {
+  const { data, error } = await supabase.from("signalements_app_captures").select("image")
+    .eq("signalement_id", id).maybeSingle();
+  if (error) throw error;
+  return data?.image || null;
+}
+
+export async function traiterSignalementApp(id, { statut, reponse }) {
+  await rpcSignalement("traiter_signalement_app", { p_id: id, p_statut: statut, p_reponse: reponse ?? null });
+}
+
+export async function supprimerSignalementApp(id) {
+  const { error } = await supabase.from("signalements_app").delete().eq("id", id);
   if (error) throw error;
 }
 
