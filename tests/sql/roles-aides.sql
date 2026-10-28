@@ -5,7 +5,14 @@
 -- contrainte, des identifiants, des booléens ou des tableaux de rôles.
 
 drop table if exists pg_temp.preuve;
-create temp table preuve (num serial, groupe text, libelle text, etat text, detail text);
+create temp table preuve (num serial, groupe text, libelle text, etat text, detail text,
+  qui text, ctx text, tbl text, op text);
+
+-- Identifiants (sub) des vrais jetons, par email en minuscules : une preuve qui incarne des comptes réels les relève
+-- dans auth.users et les range ici ; contexte() les ajoute aux claims, et auth.uid() rend alors ce qu'il rend dans
+-- l'app. Vide par défaut : sans ligne, pas de sub (personnages fictifs, preuve de l'étape 1).
+drop table if exists pg_temp.jetons;
+create temp table jetons (email text primary key, sub text);
 
 -- Contrôle compté : réussi si p_ok est vrai (nul vaut échec). Groupe « plan » : contrôle demandé par le plan de
 -- l'étape ; le verdict le nomme même quand tout est vert.
@@ -13,6 +20,15 @@ create or replace function pg_temp.verifier(p_groupe text, p_libelle text, p_ok 
 returns void language sql as $f$
   insert into preuve (groupe, libelle, etat, detail)
   values (p_groupe, p_libelle, case when coalesce(p_ok, false) then 'ok' else 'échec' end, coalesce(p_detail, ''));
+$f$;
+
+-- Contrôle d'une case de matrice : personnage, contexte, table, opération ; le libellé les réunit.
+create or replace function pg_temp.verifier_m(p_groupe text, p_qui text, p_ctx text, p_tbl text, p_op text, p_ok boolean,
+  p_detail text default '')
+returns void language sql as $f$
+  insert into preuve (groupe, libelle, etat, detail, qui, ctx, tbl, op)
+  values (p_groupe, concat_ws(', ', p_qui, p_ctx, p_tbl) || ' : ' || p_op,
+          case when coalesce(p_ok, false) then 'ok' else 'échec' end, coalesce(p_detail, ''), p_qui, p_ctx, p_tbl, p_op);
 $f$;
 
 -- Contrôle d'une valeur : réussi si l'obtenu égale l'attendu (nul égale nul) ; le détail montre les deux, l'obtenu
@@ -29,14 +45,18 @@ returns void language sql as $f$
   insert into preuve (groupe, libelle, etat, detail) values ('information', p_libelle, 'info', coalesce(p_detail, ''));
 $f$;
 
--- Contexte de requête d'un personnage, sans changer de rôle : le jeton (email) et les en-têtes x-promo-id et
--- x-apercu-role, chacun seulement s'il n'est pas nul, comme PostgREST les pose.
+-- Contexte de requête d'un personnage, sans changer de rôle : le jeton (email, et sub s'il est connu dans jetons) et
+-- les en-têtes x-promo-id et x-apercu-role, chacun seulement s'il n'est pas nul, comme PostgREST les pose.
 create or replace function pg_temp.contexte(p_email text, p_promo text, p_apercu text)
 returns void language plpgsql as $f$
+declare v_sub text;
 begin
+  if p_email is not null then
+    select j.sub into v_sub from pg_temp.jetons j where j.email = lower(p_email);
+  end if;
   perform set_config('request.jwt.claims',
     case when p_email is null then ''
-         else json_build_object('email', p_email, 'role', 'authenticated')::text end, true);
+         else jsonb_strip_nulls(jsonb_build_object('email', p_email, 'role', 'authenticated', 'sub', v_sub))::text end, true);
   perform set_config('request.headers',
     case when p_promo is null and p_apercu is null then ''
          else jsonb_strip_nulls(jsonb_build_object('x-promo-id', p_promo, 'x-apercu-role', p_apercu))::text end, true);
@@ -188,6 +208,84 @@ create or replace function pg_temp.ecrire_proprio(p_sql text, p_constat text def
 returns text language sql as $f$
   select pg_temp.ecrire(null, null, null, p_sql, p_constat, true);
 $f$;
+
+-- Écriture tentée par un personnage dans une sous-transaction TOUJOURS annulée, encadrée en propriétaire : p_prep
+-- (avant, facultatif : faire de la place, lever un obstacle sans rapport avec la règle testée), p_attendu (avant
+-- l'écriture, facultatif : la valeur attendue, calculée en SQL direct sur les données), p_constat (après, facultatif).
+-- Rend {attendu, obtenu} : l'obtenu vaut « OK <lignes> <constat> », « REFUS <sqlstate> [contrainte] » (erreur de
+-- l'écriture), ou « ERREUR <sqlstate> (<étape>) » si la préparation, l'attendu ou le constat a échoué ; un attendu
+-- qui n'a pas pu être calculé vaut nul (et ne laisse jamais passer un contrôle).
+create or replace function pg_temp.tenter(p_email text, p_promo text, p_apercu text, p_prep text, p_attendu text,
+  p_sql text, p_constat text)
+returns text[] language plpgsql as $f$
+declare v_att text; n bigint; v text; c text; v_etape text := 'préparation';
+begin
+  begin
+    perform pg_temp.proprio();
+    if p_prep is not null then execute p_prep; end if;
+    v_etape := 'attendu';
+    if p_attendu is not null then
+      execute p_attendu into v_att;
+      v_att := coalesce(v_att, 'nul');
+    end if;
+    v_etape := 'écriture';
+    perform pg_temp.incarner(p_email, p_promo, p_apercu);
+    execute p_sql;
+    get diagnostics n = row_count;
+    v_etape := 'constat';
+    perform pg_temp.proprio();
+    if p_constat is not null then execute p_constat into v; end if;
+    raise exception using errcode = 'P0001', message = 'OK ' || n || coalesce(' ' || v, '');
+  exception when others then
+    get stacked diagnostics c = constraint_name;
+    if sqlstate = 'P0001' and sqlerrm like 'OK %' then return array[v_att, sqlerrm]; end if;
+    if v_etape <> 'écriture' then
+      return array[v_att, format('ERREUR %s (%s)', sqlstate, v_etape)];
+    end if;
+    return array[v_att, 'REFUS ' || sqlstate || coalesce(' ' || nullif(c, ''), '')];
+  end;
+end $f$;
+
+-- Essai en propriétaire, le contexte du personnage posé (les valeurs par défaut qui lisent le jeton ou les en-têtes
+-- prennent alors la valeur qu'elles auraient pour lui), annulé aussitôt : p_prep, puis p_sql, puis la valeur que rend
+-- p_mesure (sur la ligne écrite). Rend cette valeur, ou « ERREUR <sqlstate> ».
+create or replace function pg_temp.essai_proprio(p_email text, p_promo text, p_apercu text, p_prep text, p_sql text,
+  p_mesure text)
+returns text language plpgsql as $f$
+declare v text;
+begin
+  begin
+    perform pg_temp.proprio();
+    if p_prep is not null then execute p_prep; end if;
+    perform pg_temp.contexte(p_email, p_promo, p_apercu);
+    execute p_sql;
+    execute p_mesure into v;
+    raise exception using errcode = 'P0001', message = 'MESURE ' || coalesce(v, 'nul');
+  exception when others then
+    if sqlstate = 'P0001' and sqlerrm like 'MESURE %' then
+      perform pg_temp.proprio();
+      return substr(sqlerrm, 8);
+    end if;
+    perform pg_temp.proprio();
+    return 'ERREUR ' || sqlstate;
+  end;
+end $f$;
+
+-- Un modèle de requête rempli : chaque {clé} de p_jetons (objet JSON de textes SQL déjà écrits en littéraux) est
+-- remplacé par sa valeur. Une clé restée sans valeur arrête la preuve (un attendu mal rempli ne doit rien laisser passer).
+create or replace function pg_temp.remplir(p_modele text, p_jetons jsonb)
+returns text language plpgsql as $f$
+declare k text; v text; r text := p_modele;
+begin
+  if r is null then return null; end if;
+  for k, v in select j.key, j.value from jsonb_each_text(p_jetons) j loop
+    r := replace(r, '{' || k || '}', v);
+  end loop;
+  if r ~ '\{[A-Za-z][A-Za-z_0-9]*\}' then
+    raise exception 'remplir : clé sans valeur « % » dans « % »', substring(r from '\{[A-Za-z][A-Za-z_0-9]*\}'), left(r, 120);
+  end if;
+  return r;
+end $f$;
 
 -- Verdict : lève TOUJOURS une exception, qui annule tout ce que la preuve a fait. « VERT n/0 » : les contrôles du
 -- plan nommés un par un, les autres comptés par groupe. « ROUGE réussis/échecs » : les comptes par groupe, puis les
