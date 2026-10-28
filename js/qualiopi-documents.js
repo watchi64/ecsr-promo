@@ -254,10 +254,11 @@ const RESULTATS = [
   ["effectif", "Effectif"], ["abandon", "Abandons"], ["absences", "Absences de dernière minute"], ["passages", "Passages"],
   ["reussiteQcm", "Réussite aux QCM d'entraînement"], ["examensQcm", "Examens QCM"], ["notes", "Notes"], ["epcf", "EPCF"],
 ];
-const LIGNES_METHODES = [...RESULTATS.map(([cle, libelle]) => [libelle, METHODES[cle]]), ["Réussite au titre", METHODES.titre]];
+const LIBELLE_TITRE = "Réussite au titre";   // les résultats de jury ne sont pas saisis : jamais de chiffre, mais sa méthode
+const LIGNES_METHODES = [...RESULTATS.map(([cle, libelle]) => [libelle, METHODES[cle]]), [LIBELLE_TITRE, METHODES.titre]];
 const lignesResultats = (ind) => {
   const comparaison = ligneComparaison(ind);
-  return [...RESULTATS.map(([cle, libelle]) => [libelle, comparaison[cle], METHODES[cle]]), ["Réussite au titre", "non saisi", METHODES.titre]];
+  return [...RESULTATS.map(([cle, libelle]) => [libelle, comparaison[cle], METHODES[cle]]), [LIBELLE_TITRE, "non saisi", METHODES.titre]];
 };
 
 // --- Mise en forme commune aux deux dossiers ---
@@ -323,6 +324,9 @@ function sectionEffectif({ inv, ind, stagiaires, terminee }) {
   };
 }
 
+// Ce dossier est nominatif : les formateurs y sont nommés et les sujets des séances repris. Les autres textes saisis n'y
+// entrent pas : le nom d'un intervenant « Autre » et le titre d'un événement du calendrier peuvent nommer une auto-école ou
+// un bénévole, qui ne sont donnés qu'en nombres dans toutes les versions ; les dates clés se disent par leur type et leurs dates.
 function sectionDeroule({ inv, donnees, promo }) {
   const planning = lignesDuPlanning(donnees, promo);
   const nomDe = nomFormateur(nomsDesFormateurs(donnees.profs));
@@ -474,7 +478,7 @@ const SERVICE_CENTRE = {
 
 function sectionResultatsCentre({ promos, aujourdhui }) {
   if (!promos.length) return { paragraphes: [AUCUNE_PROMO], tableaux: [] };
-  const lignes = promos.map(({ promo, ind }) => ({ nom: libellePromo(promo), terminee: promoTerminee(promo, aujourdhui), promo, l: ligneComparaison(ind) }));
+  const lignes = promos.map(({ promo, ind }) => ({ nom: libellePromo(promo), terminee: promoTerminee(promo, aujourdhui), promo, chiffres: ligneComparaison(ind) }));
   const terminees = lignes.filter((x) => x.terminee).length;
   return {
     paragraphes: [
@@ -482,11 +486,11 @@ function sectionResultatsCentre({ promos, aujourdhui }) {
       "Une promo est terminée quand sa date de fin est renseignée et passée ; les chiffres d'une promo en cours sont provisoires.",
     ],
     tableaux: [
-      ...table(["Promo", "Période", "État", "Inscrits", "Abandons", "Absences", "Passages"], lignes.map(({ nom, terminee, promo, l }) => [
+      ...table(["Promo", "Période", "État", "Inscrits", "Abandons", "Absences", "Passages"], lignes.map(({ nom, terminee, promo, chiffres: c }) => [
         nom, periodeEnMots(promo?.date_debut, promo?.date_fin), terminee ? "Terminée" : "En cours : chiffres provisoires",
-        l.effectif, l.abandon, l.absences, l.passages,
+        c.effectif, c.abandon, c.absences, c.passages,
       ])),
-      ...table(["Promo", "QCM d'entraînement", "Examens QCM", "Notes", "EPCF"], lignes.map(({ nom, l }) => [nom, l.reussiteQcm, l.examensQcm, l.notes, l.epcf])),
+      ...table(["Promo", "QCM d'entraînement", "Examens QCM", "Notes", "EPCF"], lignes.map(({ nom, chiffres: c }) => [nom, c.reussiteQcm, c.examensQcm, c.notes, c.epcf])),
       ...table(["Indicateur", "Méthode de calcul"], LIGNES_METHODES),
     ],
   };
@@ -604,7 +608,7 @@ function presenceEnMots({ vues, presentes, raisons }) {
 }
 
 function sectionInventaireCentre({ fusion }) {
-  if (!fusion.length) return { paragraphes: [`${AUCUNE_PROMO.slice(0, -1)} : inventaire non établi.`], tableaux: [] };
+  if (!fusion.length) return { paragraphes: ["Aucune promo dans la période : inventaire non établi."], tableaux: [] };
   return {
     paragraphes: ["Pour chaque indicateur applicable : son niveau et les pièces à fournir par le centre, puis les pièces de l'application avec le nombre de promos pour lesquelles chacune est présente."],
     tableaux: [
