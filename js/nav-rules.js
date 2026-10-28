@@ -183,7 +183,9 @@ export function pageASoiDuMenu(page, entrees) {
 // nouvelle adresse avec le sous-onglet à ouvrir (`cle` : sa clé de mémoire, `valeur` : son
 // identifiant). Seule la route décide : `id` et `partie` n'existent que pour Stagiaires et
 // Mon espace, jamais redirigés. `notes` ne bouge que chez le stagiaire (la classe, sous Mon
-// suivi) ; l'équipe garde sa page Notes. Aucune cible n'est elle-même redirigée : pas de boucle.
+// suivi) ; l'équipe garde sa page Notes. De même `config` : Réglages (la promo) est la page de
+// l'équipe, le stagiaire arrive sur Mes préférences (lot 2A). Aucune cible n'est elle-même
+// redirigée : pas de boucle.
 export function redirectionV2({ route }, espace) {
   const v = REDIRECTIONS.get(route);
   if (v) {
@@ -193,5 +195,16 @@ export function redirectionV2({ route }, espace) {
   if (route === "notes" && espace !== "equipe") {
     return { hash: "#/mon-suivi/classe", sousOnglet: null };
   }
+  if (route === "config" && espace !== "equipe") {
+    return { hash: "#/preferences", sousOnglet: null };
+  }
   return null;
+}
+
+// Le même geste avec l'ancienne navigation (interrupteur éteint) : Mes préférences n'existe qu'avec la
+// nouvelle, et #/preferences (un favori pris sous la nouvelle, la promo éteinte depuis) mène à Paramètres,
+// où vivent ces réglages. Toute autre adresse reste celle de main. Même forme que redirectionV2 ; la cible
+// n'est pas elle-même redirigée.
+export function redirectionAncienne({ route }) {
+  return route === "preferences" ? { hash: "#/config", sousOnglet: null } : null;
 }

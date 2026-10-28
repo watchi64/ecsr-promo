@@ -231,30 +231,22 @@ body[data-nav="v2"] .nav-avatar {
 }
 body[data-nav="v2"] .nav-avatar .icon { width: 18px; height: 18px; }
 
-/* Nouveautés non lues (js/nav-shell.js) : la pastille de l'ancien onglet Accueil (style.css, .tab-badge),
-   au coin de l'avatar des boutons du compte, dans les deux espaces et à toute taille. Un liseré de la
-   couleur de la barre la détache de l'avatar. Le nombre est aussi dans le nom du bouton. */
+/* Nouveautés non lues (js/nav-shell.js) : un point au coin de l'avatar des boutons du compte, dans les deux
+   espaces et à toute taille. Sans chiffre : un nombre sur le compte se lit comme des choses à traiter, alors
+   que ce sont des Nouveautés ; le nombre est sur la ligne « Nouveautés » du menu, et dans le nom du bouton.
+   Un liseré de la couleur de la barre le détache de l'avatar. */
 body[data-nav="v2"] [data-nav-action="compte"] .nav-avatar { position: relative; }
-body[data-nav="v2"] .nav-compte-pastille {
+body[data-nav="v2"] .nav-compte-point {
   position: absolute;
-  top: -5px;
-  right: -8px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 5px;
-  border-radius: 999px;
+  top: -1px;
+  right: -1px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
   background: var(--accent);
-  color: #FFF;
-  font-size: 0.7rem;
-  font-weight: 600;
-  letter-spacing: 0;
-  line-height: 1;
   box-shadow: 0 0 0 2px var(--bg-elev);
 }
-body[data-nav="v2"] .nav-cote .nav-compte-pastille { box-shadow: 0 0 0 2px var(--bg-deep); }
+body[data-nav="v2"] .nav-cote .nav-compte-point { box-shadow: 0 0 0 2px var(--bg-deep); }
 
 body[data-nav="v2"] [data-nav-coquille] :focus-visible {
   outline: 2px solid var(--accent-strong);

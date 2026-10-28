@@ -51,7 +51,7 @@ manque) :
 Dans chaque contexte : l'arrivée à froid, chaque entrée de la coquille (cliquée dans la coquille, ou
 via « Plus » sur téléphone quand elle y est rangée ; la liste vient des règles de js/nav-rules.js,
 lues dans la page), chaque sous-onglet des pages qui en ont (Planning, Cours, Mon espace, Notes...), les
-pages du menu du compte sans entrée à elles (Mon espace, Réglages, Nouveautés), le bouton
+pages du menu du compte sans entrée à elles (Mon espace, Mes préférences, Nouveautés), le bouton
 « Aujourd'hui » de Planning > Semaine (ruling R29), les quatre anciennes adresses (ruling R26,
 ci-dessous), puis les menus (compte, « Plus », contexte, assistant) et « Précédent » sous une fenêtre
 ouverte.
@@ -83,6 +83,15 @@ Contrôles par vue
     une autre semaine que celle du jour, affiche la semaine du jour et amène sa carte en haut de l'écran ;
     éteint, la page n'en a pas (celui de la barre du haut reste) ;
   * l'attente de la coquille (`body[data-nav-attente]`, ruling R17) n'est plus posée, dans les deux passes ;
+  * Réglages et Mes préférences (lot 2A, allumé) : chez l'équipe, `#/config` s'appelle « Réglages », son surtitre est la promo
+    affichée, il commence par « Ce que voient les stagiaires » et ne garde que la promo dans l'ordre : Ce que voient les stagiaires,
+    Promo, Accès et invitations, Émargement et Nouvelle navigation (fondateur seulement), Données personnelles ; chez le stagiaire,
+    `#/config` mène à `#/preferences`. `#/preferences`, pour tous, s'appelle « Mes préférences » et ne montre aucune section de la
+    promo (seulement « Mes préférences » et « Informations »). Aucune de ces pages ne dit « whitelist », « mdp » ni « admin ».
+    Éteint, `#/preferences` mène à Paramètres (`#/config`) ;
+  * bouton du compte (lot 2A) : aucun chiffre ; un point sans texte tant que des Nouveautés ne sont pas lues (joué à l'ouverture,
+    où le banc en a, puis la rubrique ouverte : tout est lu, plus de point), dont le nom du bouton dit le nombre ; menu du compte :
+    une ligne « Mes préférences » (`#/preferences`), plus de ligne « Réglages », le nombre sur la ligne « Nouveautés » ;
   * les quatre anciennes adresses (`#/calendrier`, `#/dashboard`, `#/ressources`, `#/notes`, ruling R26) : allumé, la nouvelle
     page et son sous-onglet allumé (Planning : Dates clés, Priorités ; Cours : Documents ; Mon espace : La classe chez
     le stagiaire, mais Notes reste la page de l'équipe ; module fermé au départ : le premier sous-onglet visible),
@@ -142,6 +151,10 @@ par `--script-init`, et le script a échoué avec le message attendu ; la coquil
     coquille), attente jamais levée ; « Voir en tant que » : panneau de l'assistant laissé sous le
     bandeau d'aperçu (champ et « Envoyer » couverts à 375 px dans les deux espaces, « Envoyer » à
     1280 px et à 900 px dans l'équipe) ;
+  * Réglages, Mes préférences et compte (lot 2A, injectés dans les sources puis retirés) : ordre des sections de Réglages changé,
+    « whitelist » de retour dans l'invitation, une section de la promo dans Mes préférences, `#/config` du stagiaire sans
+    redirection, `#/preferences` sans redirection interrupteur éteint, un chiffre dans le point du compte, un point qui ne
+    s'éteint pas quand tout est lu, la ligne « Réglages » gardée dans le menu du compte ;
   * mise en place : erreur de console et de page, interrupteur qui n'allume pas, banc périmé.
 Sans défaut, n'échouent pas : un bouton `data-nav-action="deconnexion"` (pas un ouvreur), un lien d'évitement
 masqué (ni mesuré comme cible, ni sans nom), un nom pris par `aria-labelledby`, `<label for>` ou `<title>` SVG.
@@ -296,16 +309,19 @@ function interactifsCoquille() {
 }
 
 // ---- Règles de navigation de l'app, lues dans la page (le script n'en recopie rien) ----
+// Les modules de l'app par leur nom (« nav-rules »), tels que le banc les charge (son import map).
+function modulesDeLApp(noms) {
+  const cartes = JSON.parse(document.querySelector('script[type="importmap"]').textContent).imports;
+  return Promise.all(noms.map((n) => {
+    const cle = Object.keys(cartes).find((k) => k.startsWith("./js/" + n + ".js?v="));
+    if (!cle) throw new Error("module introuvable : " + n);
+    return import(new URL(cle, document.baseURI).href);
+  }));
+}
 async function regles() {
   try {
-    const cartes = JSON.parse(document.querySelector('script[type="importmap"]').textContent).imports;
-    const charger = (n) => {
-      const cle = Object.keys(cartes).find((k) => k.startsWith("./js/" + n + ".js?v="));
-      if (!cle) throw new Error("module introuvable : " + n);
-      return import(new URL(cle, document.baseURI).href);
-    };
-    const [rules, mods, em, auth, etat] = await Promise.all(
-      ["nav-rules", "modules-etat", "emargement-etat", "auth-admin", "nav-etat"].map(charger));
+    const [rules, mods, em, auth, etat] = await modulesDeLApp(
+      ["nav-rules", "modules-etat", "emargement-etat", "auth-admin", "nav-etat"]);
     const espace = rules.espaceDe({ formateur: auth.isAdmin() || auth.isProf() });
     const entrees = rules.entreesNavigation(espace, { routeVisible: mods.routeVisible, emargementActif: em.emargementActif() });
     const tel = rules.barreTelephone(espace, entrees);
@@ -758,8 +774,45 @@ function controlesAssistant() {
   });
 }
 
+// ---- Réglages, Mes préférences, bouton et menu du compte (lot 2A) ----
+// La page de réglages affichée : adresse, surtitre, titre et sous-titre de son en-tête, titres de ses sections
+// dans l'ordre (le h3 de chaque `.param-section`) et tout son texte. `promo` : le nom que l'app donne à la promo
+// affichée (getPromoCourante), celui que le surtitre de Réglages doit reprendre.
+async function pageDeReglages() {
+  const [db] = await modulesDeLApp(["db"]);
+  const vue = document.getElementById("view");
+  const de = (s) => { const e = vue.querySelector(s); return e ? net(e.textContent) : null; };   // le texte écrit : le surtitre s'affiche en capitales
+  return { route: (location.hash || "").replace(/^#\//, "").split("/")[0], promo: (db.getPromoCourante() || {}).nom || null,
+    surtitre: de(".view-header .eyebrow"), titre: de(".view-header h2"), sousTitre: de(".view-header .subtitle"),
+    sections: [...vue.querySelectorAll(".param-section > .param-section-head h3")].map(texte), texte: texte(vue) };
+}
+// Le bouton du compte affiché, et ce que l'app compte de nouveautés non lues (`pastille` : le texte de libellePastille,
+// "" à zéro, "1" à "9", "9+") : le texte que le bouton montre réellement, son point (visible, sa taille, son texte) et son nom.
+async function boutonDuCompte() {
+  const [mods, nouv] = await modulesDeLApp(["modules-etat", "nouveautes"]);
+  const b = [...document.querySelectorAll('[data-nav-coquille] button[data-nav-action="compte"]')].find(visible);
+  if (!b) return null;
+  const p = b.querySelector(".nav-compte-point");
+  const r = p ? rect(p) : null;
+  return { pastille: nouv.libellePastille(mods.nouveautesAffichables().neuves.size), texte: texteAffiche(b), nom: nomAcc(b),
+    point: !!p && visible(p), pointTexte: p ? net(p.textContent) : "", pointTaille: r ? [Math.round(r.width), Math.round(r.height)] : null };
+}
+// Le menu du compte ouvert : chaque ligne (libellé, adresse, nombre posé sur elle) et ce que l'app compte de non lues.
+async function menuDuCompte() {
+  const [mods, nouv] = await modulesDeLApp(["modules-etat", "nouveautes"]);
+  const f = document.querySelector('[data-nav-coquille="compte"] [role="dialog"]');
+  if (!f) return null;
+  const lignes = [...f.querySelectorAll(".nav-fenetre-lien")].filter(visible).map((e) => {
+    const p = e.querySelector(".nav-pastille");
+    return { libelle: net((e.querySelector(".nav-fenetre-texte") || e).textContent), href: e.getAttribute("href"),
+      nombre: p && p.firstChild ? net(p.firstChild.textContent) : null };
+  });
+  return { pastille: nouv.libellePastille(mods.nouveautesAffichables().neuves.size), lignes };
+}
+
 window.__verifNav = { mesurer, regles: reglesSimples, voirEnTantQue, chercherLien, chercherPlus, ouvreurs, marquerPopups, mesurerPopups,
-  popupsEncoreOuverts, focusSurOuvreur, focusPerdu, popupsVisibles: () => popupsVisibles().length, controlesAssistant };
+  popupsEncoreOuverts, focusSurOuvreur, focusPerdu, popupsVisibles: () => popupsVisibles().length, controlesAssistant,
+  pageDeReglages, boutonDuCompte, menuDuCompte };
 })();
 """
 
@@ -1249,6 +1302,8 @@ def verifier_menus(page, res, sc, options):
             res.echec(type_, vue, "%s : %s" % (quoi, detail))
         for type_, detail in m["avert"]:
             res.avertir(type_, detail, vue, detail)
+        if ouvreur["action"] == "compte":
+            verifier_menu_du_compte(page, res, sc)
         page.keyboard.press("Escape")
         page.wait_for_timeout(300)
         restes = page.evaluate("() => window.__verifNav.popupsEncoreOuverts()")
@@ -1447,6 +1502,147 @@ def verifier_retour_arriere(page, res, sc):
     vider_console(res, vue)
 
 
+# --------------------------------------------------------------------------------------
+# Réglages, Mes préférences, bouton et menu du compte (lot 2A)
+# --------------------------------------------------------------------------------------
+
+# Sections de Réglages (#/config) sous la nouvelle navigation, dans l'ordre : la promo seule. Émargement et Nouvelle
+# navigation sont les interrupteurs du fondateur (js/emargement-etat.js, js/nav-etat.js). Mes préférences (#/preferences)
+# n'en montre aucune : seulement « Mes préférences » (si un réglage est à montrer) et « Informations ».
+SECTIONS_REGLAGES = ("Ce que voient les stagiaires", "Promo", "Accès et invitations", "Émargement", "Nouvelle navigation",
+                     "Données personnelles")
+SECTIONS_DU_FONDATEUR = ("Émargement", "Nouvelle navigation")
+SECTIONS_PREFERENCES = ("Mes préférences", "Informations")
+# Ce que ces pages ne disent plus : « whitelist », « mdp » et l'abréviation « admin » (le mot « administrateur » reste permis).
+MOTS_BANNIS = re.compile(r"whitelist|mdp|\badmins?\b", re.IGNORECASE)
+
+
+def verifier_bouton_du_compte(page, res, sc, moment):
+    """Le bouton du compte ne montre aucun chiffre : tant que des Nouveautés ne sont pas lues, un point sans texte au coin
+    de l'avatar (le nombre est sur la ligne « Nouveautés » du menu), et son nom dit toujours combien ; à zéro, ni point ni
+    mention dans le nom. Joué deux fois : à l'ouverture (des non lues au banc), puis la rubrique Nouveautés ouverte (tout lu)."""
+    vue = "%s/bouton-du-compte/%s" % (sc.nom, moment)
+    res.vues += 1
+    b = page.evaluate("() => window.__verifNav.boutonDuCompte()")
+    if b is None:
+        res.echec("bouton du compte", vue, "aucun bouton du compte affiché dans la coquille")
+        return
+    if re.search(r"\d", b["texte"]):
+        res.echec("bouton du compte", vue, "le bouton montre un chiffre : « %s »" % b["texte"])
+    if b["pointTexte"]:
+        res.echec("bouton du compte", vue, "le point porte du texte (« %s ») : il reste sans chiffre" % b["pointTexte"])
+    if b["pastille"]:
+        if not b["point"]:
+            res.echec("bouton du compte", vue, "des nouveautés ne sont pas lues (%s), le bouton n'a pas de point" % b["pastille"])
+        elif min(b["pointTaille"]) < 8:
+            res.echec("bouton du compte", vue, "le point mesure %dx%d px : trop petit pour se voir" % tuple(b["pointTaille"]))
+        if "%s nouveauté" % b["pastille"] not in b["nom"]:
+            res.echec("bouton du compte", vue, "le nom du bouton ne dit pas combien de nouveautés ne sont pas lues (%s) : « %s »" % (b["pastille"], b["nom"]))
+    else:
+        if b["point"]:
+            res.echec("bouton du compte", vue, "le bouton a un point alors que toutes les nouveautés sont lues")
+        if "non lue" in b["nom"]:
+            res.echec("bouton du compte", vue, "le nom du bouton parle de nouveautés non lues alors que toutes sont lues : « %s »" % b["nom"])
+    vider_console(res, vue)
+
+
+def verifier_menu_du_compte(page, res, sc):
+    """Menu du compte ouvert : « Mes préférences » (#/preferences) pour tous les rôles, plus de ligne « Réglages » (celle de la
+    promo est une entrée de la barre de l'équipe) ; le nombre des Nouveautés non lues, que le bouton ne montre plus, est sur la
+    ligne « Nouveautés » ; sans non lue, la ligne n'en porte aucun."""
+    vue = "%s/menus/menu-du-compte" % sc.nom
+    res.vues += 1
+    m = page.evaluate("() => window.__verifNav.menuDuCompte()")
+    if m is None:
+        res.echec("menu du compte", vue, "la fenêtre du menu du compte est introuvable")
+        return
+    lignes = {l["libelle"]: l for l in m["lignes"]}
+    if "Mes préférences" not in lignes:
+        res.echec("menu du compte", vue, "la ligne « Mes préférences » manque (lignes : %s)" % ", ".join(lignes))
+    elif lignes["Mes préférences"]["href"] != "#/preferences":
+        res.echec("menu du compte", vue, "« Mes préférences » mène à %s, attendu #/preferences" % lignes["Mes préférences"]["href"])
+    if "Réglages" in lignes:
+        res.echec("menu du compte", vue, "le menu garde une ligne « Réglages » : elle n'est plus qu'une entrée de la barre de l'équipe")
+    attendu = m["pastille"] or None
+    if "Nouveautés" not in lignes:
+        res.echec("menu du compte", vue, "la ligne « Nouveautés » manque (lignes : %s)" % ", ".join(lignes))
+    elif lignes["Nouveautés"]["nombre"] != attendu:
+        res.echec("menu du compte", vue, "la ligne « Nouveautés » porte %s, l'app compte %s non lue(s)" % (lignes["Nouveautés"]["nombre"], attendu))
+    vider_console(res, vue)
+
+
+def verifier_reglages(page, res, sc, regles):
+    """Réglages (#/config) sous la nouvelle navigation. Équipe : titre « Réglages », surtitre la promo affichée, la page commence par
+    « Ce que voient les stagiaires » et ne garde que la promo, dans l'ordre (SECTIONS_REGLAGES : Émargement et Nouvelle navigation
+    pour le fondateur seulement), sans « whitelist », « admin » ni « mdp ». Stagiaire : #/config le mène à Mes préférences."""
+    vue = "%s/reglages" % sc.nom
+    res.vues += 1
+    aller_a(page, "#/config")
+    attendre(page)
+    p = page.evaluate("() => window.__verifNav.pageDeReglages()")
+    if sc.espace != "equipe":
+        if p["route"] != "preferences" or p["titre"] != "Mes préférences":
+            res.echec("page Réglages", vue, "un stagiaire qui ouvre #/config arrive sur #/%s (« %s »), attendu #/preferences (« Mes préférences »)"
+                      % (p["route"], p["titre"]))
+        vider_console(res, vue)
+        return
+    if p["route"] != "config":
+        res.echec("page Réglages", vue, "#/config ouvre #/%s chez l'équipe" % p["route"])
+    if p["titre"] != "Réglages":
+        res.echec("page Réglages", vue, "le titre de la page est « %s », attendu « Réglages »" % p["titre"])
+    if p["surtitre"] != p["promo"]:
+        res.echec("page Réglages", vue, "le surtitre est « %s », attendu le nom de la promo affichée (« %s »)" % (p["surtitre"], p["promo"]))
+    if p["sousTitre"] != "Ce que voient les stagiaires, la promo et les accès.":
+        res.echec("page Réglages", vue, "le sous-titre est « %s »" % p["sousTitre"])
+    attendues = [s for s in SECTIONS_REGLAGES if s not in SECTIONS_DU_FONDATEUR or regles.get("fondateur")]
+    if p["sections"][:1] != [SECTIONS_REGLAGES[0]]:
+        res.echec("page Réglages", vue, "la page commence par « %s », attendu « %s »" % ((p["sections"] or ["rien"])[0], SECTIONS_REGLAGES[0]))
+    elif p["sections"] != attendues:
+        res.echec("page Réglages", vue, "sections : %s ; attendu, dans cet ordre : %s" % (", ".join(p["sections"]), ", ".join(attendues)))
+    interdit = MOTS_BANNIS.search(p["texte"])
+    if interdit:
+        res.echec("page Réglages", vue, "la page dit encore « %s »" % interdit.group(0))
+    vider_console(res, vue)
+
+
+def verifier_preferences(page, res, sc):
+    """Mes préférences (#/preferences) sous la nouvelle navigation, pour tous les rôles : titre « Mes préférences », aucune section de
+    la promo (SECTIONS_REGLAGES), seulement « Mes préférences » et « Informations », sans « whitelist », « admin » ni « mdp »."""
+    vue = "%s/preferences" % sc.nom
+    res.vues += 1
+    aller_a(page, "#/preferences")
+    attendre(page)
+    p = page.evaluate("() => window.__verifNav.pageDeReglages()")
+    if p["route"] != "preferences":
+        res.echec("page Mes préférences", vue, "#/preferences ouvre #/%s" % p["route"])
+    if p["titre"] != "Mes préférences":
+        res.echec("page Mes préférences", vue, "le titre de la page est « %s », attendu « Mes préférences »" % p["titre"])
+    de_la_promo = [s for s in p["sections"] if s in SECTIONS_REGLAGES]
+    if de_la_promo:
+        res.echec("page Mes préférences", vue, "la page montre des sections de la promo : %s" % ", ".join(de_la_promo))
+    en_trop = [s for s in p["sections"] if s not in SECTIONS_PREFERENCES and s not in de_la_promo]
+    if en_trop:
+        res.echec("page Mes préférences", vue, "sections inattendues : %s" % ", ".join(en_trop))
+    if "Informations" not in p["sections"]:
+        res.echec("page Mes préférences", vue, "la section « Informations » manque (sections : %s)" % (", ".join(p["sections"]) or "aucune"))
+    interdit = MOTS_BANNIS.search(p["texte"])
+    if interdit:
+        res.echec("page Mes préférences", vue, "la page dit « %s »" % interdit.group(0))
+    vider_console(res, vue)
+
+
+def verifier_preferences_eteint(page, res, sc):
+    """Interrupteur éteint : Mes préférences n'existe pas, #/preferences mène à Paramètres (#/config), la page de main."""
+    vue = "%s/preferences" % sc.nom
+    res.vues += 1
+    aller_a(page, "#/preferences")
+    attendre(page, calme=150)
+    p = page.evaluate("() => window.__verifNav.pageDeReglages()")
+    if p["route"] != "config" or p["titre"] != "Paramètres":
+        res.echec("préférences, interrupteur éteint", vue, "#/preferences ouvre #/%s (« %s »), attendu #/config (« Paramètres »)" % (p["route"], p["titre"]))
+    vider_console(res, vue)
+
+
 def jouer_allume(page, res, sc, options):
     regles = regles_de_la_page(page, res, sc)
     res.profil_stagiaire = bool(regles.get("profilStagiaire"))
@@ -1455,16 +1651,24 @@ def jouer_allume(page, res, sc, options):
         jouer_voir_en_tant_que(page, res, sc, options)
         return
     verifier_vue(page, res, sc, "ouverture/" + route_courante(page), options)
+    # Avant la rubrique Nouveautés, dont l'ouverture marque tout comme lu (le point s'éteint alors).
+    if res.coquille:
+        verifier_bouton_du_compte(page, res, sc, "a-l-ouverture")
     entrees = regles["entrees"]
     parcourir_entrees(page, res, sc, entrees, options)
     # Les pages que le menu du compte ouvre sans avoir d'entrée à elles : Mon espace (qui a un profil
-    # stagiaire), Réglages (stagiaire), Nouveautés. Ouvertes par leur adresse : le menu est joué plus bas.
+    # stagiaire), Mes préférences (tous les rôles), Nouveautés. Ouvertes par leur adresse : le menu est joué plus bas.
     routes = [e["route"] for e in entrees]
-    for route in (["mon-suivi"] if regles.get("profilStagiaire") else []) + ["config", "nouveautes"]:
+    for route in (["mon-suivi"] if regles.get("profilStagiaire") else []) + ["preferences", "nouveautes"]:
         if route not in routes:
             aller_a(page, "#/" + route)
             verifier_vue(page, res, sc, route, options)
             sous_vues(page, res, sc, route, options)
+    # La rubrique Nouveautés vient d'être ouverte : tout est lu, le point doit être parti.
+    if res.coquille:
+        verifier_bouton_du_compte(page, res, sc, "tout-lu")
+    verifier_reglages(page, res, sc, regles)
+    verifier_preferences(page, res, sc)
     if res.coquille and "planning" in routes:
         verifier_aujourdhui(page, res, sc)
     jouer_anciennes_adresses(page, res, sc)
@@ -1677,6 +1881,7 @@ def jouer_eteint(page, res, sc, options):
         verifier_vue(page, res, sc, route, options)
         sous_vues(page, res, sc, route, options)
     jouer_anciennes_adresses(page, res, sc)
+    verifier_preferences_eteint(page, res, sc)
     verifier_barre_des_jours(page, res, sc)
 
 

@@ -1,5 +1,6 @@
 // Paramètres › « Modules de la promo » (chantier B) : ouvrir ou fermer, pour la
-// promo courante, les parties de l'app que voient les stagiaires.
+// promo courante, les parties de l'app que voient les stagiaires. Sous la nouvelle navigation, la
+// section s'appelle « Ce que voient les stagiaires » et ouvre la page Réglages (js/views/config.js).
 //
 // Réservé aux formateurs, chacun pour la promo affichée (REGLAGE_OUVERT_AUX_FORMATEURS,
 // js/modules-data.js, ouvert avec le multi-promo). La section se
@@ -13,6 +14,7 @@ import {
   etatModules, peutRegler, basculerModule, appliquerEnsembleDeDepart,
 } from "../modules-etat.js?v=20261028a";
 import { getPromoCourante } from "../db.js?v=20261028a";
+import { navigationV2Active } from "../nav-etat.js?v=20261028a";
 
 // La section règle la promo AFFICHÉE (pastille) : on la nomme partout, pour qu'un formateur
 // arrivé par défaut sur une promo ne règle jamais l'autre par mégarde.
@@ -104,7 +106,9 @@ export function renderModulesSection() {
   section.appendChild(el("div", { class: "param-section-head" },
     el("div", { class: "param-icon" }, icon.eyeOff()),
     el("div", {},
-      el("h3", {}, "Modules de la promo"),
+      // Nouvelle navigation : la section ouvre la page Réglages sous le nom de ce qu'elle règle. Le titre se
+      // décide ici et non dans la page : redessiner() reconstruit la section seule après chaque écriture.
+      el("h3", {}, navigationV2Active() ? "Ce que voient les stagiaires" : "Modules de la promo"),
       el("p", {}, "Promo réglée : ", el("strong", {}, nomPromo())),
       el("p", { class: "muted" },
         "Ouvre les parties de l'app au fil de la formation. Une partie fermée est invisible "

@@ -1,8 +1,12 @@
 /*
- * Vue Paramètres.
- * Sections : Accès & invitations · Mes préférences · Modules de la promo
- * (js/views/modules-reglage.js) · Émargement (fondateur, js/emargement-etat.js) ·
+ * Vue Paramètres (ancienne navigation) et vue Réglages (nouvelle navigation).
+ * Ancienne navigation, une seule page, sections : Accès & invitations · Mes préférences · Modules de la
+ * promo (js/views/modules-reglage.js) · Émargement (fondateur, js/emargement-etat.js) ·
  * Nouvelle navigation (fondateur, js/nav-etat.js) · Promo · Données personnelles (admins) · Infos.
+ * Nouvelle navigation (lot 2A), deux pages : Réglages (#/config, l'équipe) ne garde que la promo, dans
+ * l'ordre : Ce que voient les stagiaires (les modules) · Promo · Accès et invitations · Émargement et
+ * Nouvelle navigation (fondateur) · Données personnelles ; Mes préférences (#/preferences, tous les
+ * rôles, renderPreferences) garde ce qui est à la personne : Mes préférences · Informations.
  */
 import {
   listStagiaires, listProfs,
@@ -19,7 +23,7 @@ import { isAdmin, getAdminEmail, getProfile } from "../auth-admin.js?v=20261028a
 import { moduleVisible } from "../modules-etat.js?v=20261028a";
 import { renderModulesSection } from "./modules-reglage.js?v=20261028a";
 import { renderEmargementReglage } from "../emargement-etat.js?v=20261028a";
-import { renderNavigationReglage } from "../nav-etat.js?v=20261028a";
+import { renderNavigationReglage, navigationV2Active } from "../nav-etat.js?v=20261028a";
 import { confirmationValide, dateCourte, etatFinDePromo, resumeEffacement } from "../effacement-rules.js?v=20261028a";
 
 // ====== SECTION Accès & invitations ======
@@ -31,13 +35,19 @@ let majPersonnesInvitables = null;
 async function renderAccessSection(rerender) {
   const admin = isAdmin();
   const currentEmail = getAdminEmail();
+  // Nouvelle navigation : les mots de la page sont ceux de l'équipe, sans « whitelist », « admin » ni « mdp »
+  // (constats du 28/10) ; l'ancienne garde ses textes.
+  const v2 = navigationV2Active();
+  const libelleAjout = v2 ? "Ajouter à la liste des invitations" : "Ajouter à la whitelist";
   majPersonnesInvitables = null;  // le formulaire d'un rendu précédent ne doit pas survivre à celui-ci
   const section = el("section", { class: "param-section" });
   section.appendChild(el("div", { class: "param-section-head" },
     el("div", { class: "param-icon" }, icon.shield()),
     el("div", {},
-      el("h3", {}, "Accès & invitations"),
-      el("p", { class: "muted" }, "Personnes invitées à utiliser l'app (stagiaires, formateurs, admins)."),
+      el("h3", {}, v2 ? "Accès et invitations" : "Accès & invitations"),
+      el("p", { class: "muted" }, v2
+        ? "Personnes invitées à utiliser l'app : stagiaires et formateurs."
+        : "Personnes invitées à utiliser l'app (stagiaires, formateurs, admins)."),
     ),
   ));
 
@@ -49,8 +59,9 @@ async function renderAccessSection(rerender) {
   if (admin) {
     const inviteBlock = el("div", { class: "param-block" });
     inviteBlock.appendChild(el("h4", {}, "Autoriser une personne"));
-    inviteBlock.appendChild(el("p", { class: "muted" },
-      "Choisis le rôle et la personne, entre son email. Aucun mail n'est envoyé : tu lui partages l'URL toi-même, puis elle crée son compte avec son email + un mdp."));
+    inviteBlock.appendChild(el("p", { class: "muted" }, v2
+      ? "Choisis le rôle et la personne, entre son adresse e-mail. Aucun e-mail n'est envoyé : tu lui partages l'URL toi-même, puis elle crée son compte avec cette adresse et un mot de passe."
+      : "Choisis le rôle et la personne, entre son email. Aucun mail n'est envoyé : tu lui partages l'URL toi-même, puis elle crée son compte avec son email + un mdp."));
 
     const roleSel = el("select", { class: "invite-role" });
     [
@@ -92,9 +103,9 @@ async function renderAccessSection(rerender) {
     const adminCheck = el("input", { type: "checkbox", id: "invite-also-admin" });
     const adminLabel = el("label", {
       for: "invite-also-admin", class: "invite-admin-toggle",
-    }, adminCheck, " Aussi administrateur");
+    }, adminCheck, v2 ? " Avec les droits de gestion (inviter et modifier)" : " Aussi administrateur");
 
-    const sendBtn = el("button", { class: "btn accent" }, icon.plus(), "Ajouter à la whitelist");
+    const sendBtn = el("button", { class: "btn accent" }, icon.plus(), libelleAjout);
     sendBtn.addEventListener("click", async () => {
       const email = emailInput.value.trim().toLowerCase();
       const role = roleSel.value;
@@ -106,7 +117,7 @@ async function renderAccessSection(rerender) {
         sendBtn.disabled = false;
         sendBtn.textContent = "";
         sendBtn.appendChild(icon.plus());
-        sendBtn.appendChild(document.createTextNode("Ajouter à la whitelist"));
+        sendBtn.appendChild(document.createTextNode(libelleAjout));
       };
 
       sendBtn.disabled = true;
@@ -123,7 +134,7 @@ async function renderAccessSection(rerender) {
           invitePromise,
           new Promise((_, reject) => setTimeout(() => reject(new Error("Délai dépassé (15s). Réseau lent ou rate-limit Supabase atteint (4 mails/h sur le SMTP par défaut).")), 15000)),
         ]);
-        toast("Ajouté à la whitelist : " + email + ". Partage-lui l'URL.", "success", 4500);
+        toast((v2 ? "Ajouté à la liste des invitations : " : "Ajouté à la whitelist : ") + email + ". Partage-lui l'URL.", "success", 4500);
         emailInput.value = "";
         adminCheck.checked = false;
         rerender();
@@ -138,7 +149,7 @@ async function renderAccessSection(rerender) {
       sendBtn.disabled = false;
       sendBtn.textContent = "";
       sendBtn.appendChild(icon.plus());
-      sendBtn.appendChild(document.createTextNode("Ajouter à la whitelist"));
+      sendBtn.appendChild(document.createTextNode(libelleAjout));
     }
     // Sécurise l'état initial du label
     setTimeout(restoreBtnInitial, 0);
@@ -177,9 +188,13 @@ async function renderAccessSection(rerender) {
           const pr = profs.find((x) => x.id === p.prof_id);
           if (pr) who = pr.nom;
         }
+        // Nouvelle navigation : un compte « admin » est un formateur, et le droit d'inviter et de modifier se dit
+        // « gestion » (court : la colonne de la pastille fait 80 px), avec le détail en infobulle.
         const pills = el("div", { class: "role-pills" },
-          el("span", { class: "role-pill role-" + p.role }, p.role === "prof" ? "formateur" : p.role),
-          (p.is_admin && p.role !== "admin") ? el("span", { class: "role-pill role-admin" }, "admin") : null,
+          el("span", { class: "role-pill role-" + p.role }, p.role === "prof" || (v2 && p.role === "admin") ? "formateur" : p.role),
+          (p.is_admin && p.role !== "admin")
+            ? el("span", { class: "role-pill role-admin", title: v2 ? "Peut inviter et modifier" : null }, v2 ? "gestion" : "admin")
+            : null,
         );
         const item = el("li", { class: "admin-item" },
           pills,
@@ -237,7 +252,7 @@ function renderMyPreferencesSection(rerender) {
   const noLock = !!(profile.is_admin || profile.is_founder);
   block.appendChild(el("p", { class: "muted" },
     noLock
-      ? "Ton profil admin change librement, sans verrou."
+      ? (navigationV2Active() ? "Tu peux changer ce réglage librement, sans verrou." : "Ton profil admin change librement, sans verrou.")
       : "Après un changement, tu as 2 minutes pour annuler ; ensuite le réglage est verrouillé pendant 24 h."));
 
   const checkbox = el("input", { type: "checkbox", id: "pref-anon" });
@@ -323,7 +338,11 @@ async function renderPromoSection(rerender) {
     el("div", { class: "param-icon" }, icon.users()),
     el("div", {},
       el("h3", {}, "Promo"),
-      el("p", { class: "muted" }, admin ? "Gérer la liste des stagiaires et formateurs." : "Liste des stagiaires et formateurs. Édition admin only."),
+      el("p", { class: "muted" }, admin
+        ? "Gérer la liste des stagiaires et formateurs."
+        : (navigationV2Active()
+          ? "Liste des stagiaires et formateurs. Tu ne peux pas la modifier."
+          : "Liste des stagiaires et formateurs. Édition admin only.")),
     ),
   ));
 
@@ -701,15 +720,19 @@ function withTimeout(promise, ms, label) {
 async function rerender(container) {
   clear(container);
   container.appendChild(el("div", { class: "loading" }, "Chargement"));
+  // Nouvelle navigation : la page se nomme Réglages et ne garde que la promo ; ce qui est à la personne a
+  // sa page (renderPreferences). Avec l'ancienne, la page Paramètres d'avant, d'un seul tenant.
+  const v2 = navigationV2Active();
+  const titre = v2 ? "Réglages" : "Paramètres";
 
   try {
     const [acces, preferences, promo, donnees, infos] = await withTimeout(Promise.all([
       renderAccessSection(() => rerender(container)),
-      Promise.resolve(renderMyPreferencesSection(() => rerender(container))),
+      v2 ? null : renderMyPreferencesSection(() => rerender(container)),
       renderPromoSection(() => rerender(container)),
       renderDonneesSection(() => rerender(container)),
-      Promise.resolve(renderInfoSection()),
-    ]), 12000, "Paramètres");
+      v2 ? null : renderInfoSection(),
+    ]), 12000, titre);
     // La section « Modules de la promo » est construite ICI, après l'attente, et non dans le
     // tableau ci-dessus : elle montre l'état des modules tel qu'il est au moment de son
     // insertion. Construite avant l'attente, elle serait périmée si une écriture se terminait
@@ -722,23 +745,33 @@ async function rerender(container) {
     const navigation = renderNavigationReglage();
 
     clear(container);
+    // Surtitre de la nouvelle navigation : la promo affichée, celle que règle la page (absente si les
+    // promos ne sont pas chargées).
+    const surtitre = v2 ? getPromoCourante()?.nom : "Système";
     container.appendChild(el("div", { class: "view-header" },
       el("div", { class: "view-header-text" },
-        el("p", { class: "eyebrow" }, "Système"),
-        el("h2", {}, "Paramètres"),
-        el("p", { class: "subtitle" }, "Accès, gestion de la promo, infos. Connecte-toi en admin pour inviter ou modifier."),
+        surtitre ? el("p", { class: "eyebrow" }, surtitre) : null,
+        el("h2", {}, titre),
+        el("p", { class: "subtitle" }, v2
+          ? "Ce que voient les stagiaires, la promo et les accès."
+          : "Accès, gestion de la promo, infos. Connecte-toi en admin pour inviter ou modifier."),
       ),
     ));
 
     const grid = el("div", { class: "param-grid" });
-    [acces, preferences, modules, emargement, navigation, promo, donnees, infos].filter(Boolean).forEach((s) => grid.appendChild(s));
+    // Nouvelle navigation : ce que voient les stagiaires d'abord (le réglage qui sert le plus), puis la promo
+    // et les accès, les interrupteurs du fondateur, les données personnelles. Ancienne : l'ordre d'avant.
+    const sections = v2
+      ? [modules, promo, acces, emargement, navigation, donnees]
+      : [acces, preferences, modules, emargement, navigation, promo, donnees, infos];
+    sections.filter(Boolean).forEach((s) => grid.appendChild(s));
     container.appendChild(grid);
   } catch (e) {
-    console.error("Paramètres : erreur de chargement", e);
+    console.error(titre + " : erreur de chargement", e);
     clear(container);
     container.appendChild(el("div", { class: "view-header" },
       el("div", { class: "view-header-text" },
-        el("h2", {}, "Paramètres"),
+        el("h2", {}, titre),
       ),
     ));
     container.appendChild(el("div", { class: "param-error" },
@@ -753,4 +786,27 @@ async function rerender(container) {
 
 export async function renderConfig(container) {
   await rerender(container);
+}
+
+// Nouvelle navigation : « Mes préférences » (#/preferences), que le menu du compte ouvre pour tous les rôles :
+// ce qui ne concerne que la personne (l'anonymat dans les notes) et les informations sur l'app. Rien de la
+// promo, qui vit dans Réglages (#/config), la page de l'équipe. Les sections ne demandent aucune lecture :
+// la page se pose d'un coup.
+export function renderPreferences(container) {
+  clear(container);
+  const preferences = renderMyPreferencesSection(() => renderPreferences(container));
+  container.appendChild(el("div", { class: "view-header" },
+    el("div", { class: "view-header-text" },
+      el("p", { class: "eyebrow" }, "Mon compte"),
+      el("h2", {}, "Mes préférences"),
+      // Le sous-titre dit ce que la page contient : sans réglage à montrer (Notes fermées pour la promo), il
+      // ne promet que les informations.
+      el("p", { class: "subtitle" }, preferences
+        ? "Tes réglages personnels et les informations sur l'application."
+        : "Les informations sur l'application."),
+    ),
+  ));
+  const grid = el("div", { class: "param-grid" });
+  [preferences, renderInfoSection()].filter(Boolean).forEach((s) => grid.appendChild(s));
+  container.appendChild(grid);
 }

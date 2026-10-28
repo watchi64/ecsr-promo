@@ -22,8 +22,9 @@
 // déplie la barre latérale, « assistant » ouvre ou ferme le panneau de l'assistant (js/chatbot.js).
 // majEntreeActive allume par aria-current="page" l'entrée de la page affichée, ou « Plus »
 // (data-nav-action="plus") quand le téléphone range cette entrée dans son tiroir : les ids de
-// barreTelephone(espace, entrees).plus. majNouveautesCompte pose sur les boutons du compte la
-// pastille des nouveautés non lues (celle de l'ancien onglet Accueil) et la dit dans leur nom.
+// barreTelephone(espace, entrees).plus. majNouveautesCompte pose sur les boutons du compte un point
+// quand des nouveautés ne sont pas lues (sans chiffre : le nombre est sur la ligne « Nouveautés » du
+// menu du compte) et dit leur nombre dans le nom du bouton.
 
 import { el } from "./utils.js?v=20261028a";
 import { icon, deco } from "./icons.js?v=20261028a";
@@ -53,8 +54,8 @@ let repliee = null;
 // Nouveautés non lues, en texte de pastille (libellePastille : "" à zéro), posées par js/main.js : gardées
 // ici pour les boutons d'une coquille remontée ensuite.
 let nonLues = "";
-// Ce que nomme chaque bouton du compte (le nom affiché, et le rôle là où la barre le montre) : la pastille
-// des nouveautés le renomme sur place.
+// Ce que nomme chaque bouton du compte (le nom affiché, et le rôle là où la barre le montre) : les
+// nouveautés non lues le renomment sur place.
 const identites = new WeakMap();
 
 // Icône d'une entrée (nom tiré de nav-rules.js). Un nom absent de js/icons.js se signale une fois
@@ -80,7 +81,7 @@ const reperer = (noeud, e) => repereMasque(noeud, entreeMasquee(e.route, routeMa
 
 // Bouton qui ouvre le menu du compte (en-tête du stagiaire, barre de l'équipe et son en-tête de téléphone).
 // `qui` : ce qu'il montre, { nom, role } (le rôle dans la barre de l'équipe seulement), que son nom
-// reprend ; son contenu commence par l'avatar, où se pose la pastille des nouveautés non lues.
+// reprend ; son contenu commence par l'avatar, où se pose le point des nouveautés non lues.
 function boutonCompte(classe, qui, ...contenu) {
   const bouton = el("button", {
     type: "button", class: classe, "data-nav-action": "compte", "aria-haspopup": "dialog", "aria-expanded": "false",
@@ -92,26 +93,26 @@ function boutonCompte(classe, qui, ...contenu) {
   return bouton;
 }
 
-// Nom (aria-label et infobulle) d'un bouton du compte, nouveautés non lues comprises, et sa pastille, la
-// même que celle de l'ancien onglet Accueil, sur le coin de l'avatar. L'avatar est caché aux lecteurs
-// d'écran : le nombre passe par le nom du bouton.
+// Nom (aria-label et infobulle) d'un bouton du compte, nouveautés non lues comprises, et un point sur le coin
+// de l'avatar tant qu'il y en a. Le point n'a pas de chiffre : un nombre sur le compte se lit comme des
+// choses à traiter, alors que ce sont des Nouveautés. Le nombre est sur la ligne « Nouveautés » du menu
+// du compte, et dans le nom du bouton. L'avatar est caché aux lecteurs d'écran : le nom seul le dit.
 function nommerCompte(bouton) {
   const nom = nomDuBoutonCompte({ ...identites.get(bouton), nonLues });
   bouton.setAttribute("aria-label", nom);
   bouton.setAttribute("title", nom);
   const avatarDuBouton = bouton.querySelector(".nav-avatar");
-  let pastille = avatarDuBouton && avatarDuBouton.querySelector(".nav-compte-pastille");
+  const point = avatarDuBouton && avatarDuBouton.querySelector(".nav-compte-point");
   if (!nonLues || !avatarDuBouton) {
-    if (pastille) pastille.remove();
+    if (point) point.remove();
     return;
   }
-  if (!pastille) pastille = avatarDuBouton.appendChild(el("span", { class: "nav-compte-pastille" }));
-  pastille.textContent = nonLues;
+  if (!point) avatarDuBouton.appendChild(el("span", { class: "nav-compte-point" }));
 }
 
-// Nouveautés non lues (texte de la pastille, vide à zéro) : js/main.js l'appelle par le même chemin que la
-// pastille de l'ancien onglet Accueil (après chaque montage, au changement de rôle ou de modules, et quand
-// des nouveautés viennent d'être lues).
+// Nouveautés non lues (texte de la pastille du menu, vide à zéro) : js/main.js l'appelle par le même chemin
+// que la pastille de l'ancien onglet Accueil (après chaque montage, au changement de rôle ou de modules, et
+// quand des nouveautés viennent d'être lues).
 export function majNouveautesCompte(texte) {
   nonLues = texte || "";
   document.querySelectorAll('[data-nav-coquille] button[data-nav-action="compte"]').forEach((b) => {

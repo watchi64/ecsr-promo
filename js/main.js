@@ -20,7 +20,7 @@ import { teardownDocPrint } from "./doc-officiel.js?v=20261028a";
 import { renderNotes } from "./views/notes.js?v=20261028a";
 import { renderRessources } from "./views/ressources.js?v=20261028a";
 import { renderThemes } from "./views/themes.js?v=20261028a";
-import { renderConfig } from "./views/config.js?v=20261028a";
+import { renderConfig, renderPreferences } from "./views/config.js?v=20261028a";
 import { renderCalendrier } from "./views/calendrier.js?v=20261028a";
 import { initUndoKeyboard } from "./undo.js?v=20261028a";
 import { renderNouveautes } from "./views/nouveautes.js?v=20261028a";
@@ -32,7 +32,7 @@ import { renderEmargement } from "./views/emargement.js?v=20261028a";
 import { initBandeauEmargement, rafraichirBandeauEmargement } from "./emargement-bandeau.js?v=20261028a";
 import { chargerEmargementActif, emargementActif } from "./emargement-etat.js?v=20261028a";
 import { chargerNavigationV2, navigationV2Active, navigationV2Attendue, renoncerNavigationV2 } from "./nav-etat.js?v=20261028a";
-import { routeVisibleV2, espaceDe, entreesNavigation, initialesDe, redirectionV2 } from "./nav-rules.js?v=20261028a";
+import { routeVisibleV2, espaceDe, entreesNavigation, initialesDe, redirectionV2, redirectionAncienne } from "./nav-rules.js?v=20261028a";
 import { monterCoquille, majEntreeActive, coquilleMontee, retirerCoquille, majNouveautesCompte } from "./nav-shell.js?v=20261028a";
 import { lireAdresse, pagePersonnelle } from "./route-rules.js?v=20261028a";
 import {
@@ -151,7 +151,8 @@ function marquerOngletActuel() {
 // Pastille de nouveautés sur l'onglet Accueil. Elle se modifie sur place, sur
 // l'onglet existant : renderTabs() reconstruit la barre sans elle, donc cette
 // fonction se rappelle après chaque renderTabs().
-// Nouvelle navigation : la même pastille, sur les boutons du compte de la coquille (js/nav-shell.js).
+// Nouvelle navigation : un point sans chiffre, sur les boutons du compte de la coquille (js/nav-shell.js) ;
+// le nombre est sur la ligne « Nouveautés » du menu du compte (js/menu-compte.js).
 function majBadgeNouveautes() {
   if (coquilleMontee()) {
     majNouveautesCompte(libellePastille(nouveautesAffichables().neuves.size));
@@ -196,6 +197,9 @@ const routes = {
   emargement: renderEmargement,
   ressources: renderRessources,
   config:     renderConfig,
+  // Nouvelle navigation seulement : « Mes préférences », ouverte par le menu du compte. Avec l'ancienne,
+  // l'adresse mène à Paramètres avant d'arriver ici (suivreRedirection).
+  preferences: renderPreferences,
   nouveautes: renderNouveautes,
 };
 
@@ -249,9 +253,13 @@ function derniereRoute() {
 // replaceState ne déclenche aucun `hashchange` et n'ajoute aucune étape d'historique : un seul
 // rendu, et « Précédent » quitte la page redirigée. Une seule redirection par appel : aucune cible
 // n'est elle-même une ancienne adresse (tests/nav-rules.test.mjs).
-function suivreRedirectionV2() {
-  if (!navigationV2Active()) return;
-  const cible = redirectionV2(lireAdresse(location.hash), espaceCourant());
+// Deux adresses ont leur redirection dans chaque navigation (lot 2A) : sous la nouvelle, un stagiaire
+// qui ouvre Réglages (#/config) arrive sur Mes préférences (#/preferences) ; sous l'ancienne, qui n'a
+// pas Mes préférences, #/preferences mène à Paramètres (#/config). Rien d'autre ne bouge sous
+// l'ancienne : l'interrupteur éteint garde les adresses de main.
+function suivreRedirection() {
+  const adresse = lireAdresse(location.hash);
+  const cible = navigationV2Active() ? redirectionV2(adresse, espaceCourant()) : redirectionAncienne(adresse);
   if (!cible) return;
   if (cible.sousOnglet) {
     try { localStorage.setItem(cible.sousOnglet.cle, cible.sousOnglet.valeur); } catch (e) { /* mode privé */ }
@@ -264,9 +272,10 @@ async function navigate({ force = false } = {}) {
   // abandonnée sans accord. Refus : l'adresse affichée est remise, sans rendu.
   if (!peutQuitter()) { remplacerAdresse(adresseCourante()); return; }
   leverGardeSortie();
-  // Nouvelle navigation : les quatre anciennes adresses mènent à leur nouvel emplacement. Après
-  // la garde, donc suivre une redirection demande la même confirmation que n'importe quel départ.
-  suivreRedirectionV2();
+  // Nouvelle navigation : les quatre anciennes adresses mènent à leur nouvel emplacement, et Réglages
+  // du stagiaire à Mes préférences. Après la garde, donc suivre une redirection demande la même
+  // confirmation que n'importe quel départ.
+  suivreRedirection();
   // Adresses à segments (#/stagiaires/12/epcf) : le premier choisit la page, la
   // page lit le reste. Page de repli : « Mon suivi », où chacun retrouve ce qui
   // l'attend, son planning à venir et ses résultats.
