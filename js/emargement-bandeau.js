@@ -84,8 +84,9 @@ function dessiner(b, seances, actifs) {
       return !l || (!l.signe_le && !l.absent);
     });
     if (aSigner) {
+      // Les horaires, à part : la nouvelle navigation les masque sur téléphone, pour une seule ligne (css/navigation.css).
       b.appendChild(el("p", {}, el("strong", {}, `Émargement ${deLaDemi(aSigner.demi_journee)} ouvert`),
-        ` (${libelleCreneau(aSigner)})`));
+        el("span", { class: "em-bandeau-detail" }, ` (${libelleCreneau(aSigner)})`)));
       b.appendChild(el("button", { class: "btn small primary", type: "button",
         onClick: () => signer(aSigner, moi) }, "Signer"));
       b.hidden = false;
@@ -112,7 +113,7 @@ function dessiner(b, seances, actifs) {
     const r = resumeSeance(lignes, [...ids], false);
     b.classList.add("em-bandeau-info");
     b.appendChild(el("p", {}, el("strong", {}, `Émargement ${deLaDemi(s.demi_journee)} ouvert`),
-      ` : ${r.signes} sur ${r.total} ont signé`));
+      el("span", { class: "em-bandeau-detail" }, ` : ${r.signes} sur ${r.total} ont signé`)));
     b.appendChild(el("a", { class: "btn small", href: adresse }, "Voir"));
     b.hidden = false;
     return;

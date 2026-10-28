@@ -17,7 +17,7 @@ import { recordUndo } from "../undo.js?v=20261028a";
 import { getCurrentWho } from "../identity.js?v=20261028a";
 import { openBenevolesPanel, telLink } from "./benevoles.js?v=20261028a";
 import { meilleurResultat } from "../passage-rules.js?v=20261028a";
-import { routeVisible, routeMasquee, repereMasque } from "../modules-etat.js?v=20261028a";
+import { routeVisible, routeMasquee, repereMasque, formateurConnecte } from "../modules-etat.js?v=20261028a";
 import { emargementActif } from "../emargement-etat.js?v=20261028a";
 import { navigationV2Active } from "../nav-etat.js?v=20261028a";
 import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261028a";
@@ -2817,6 +2817,9 @@ function renderInto(container) {
 
   const admin = isAdmin();
   const editing = canEditWeek();
+  // Nouvelle navigation, côté stagiaire : le planning se lit seulement, sans phrase qui parle d'administration, et
+  // « Aujourd'hui » (en tête de la page) tient lieu de « Cette semaine » (barre de la semaine).
+  const eleve = navigationV2Active() && !formateurConnecte();
   // Lecture seule dès qu'on n'est pas en édition explicite (stagiaire, admin hors
   // mode Modifier, ou semaine verrouillée) : la CSS .read-only fait le gros du travail.
   container.classList.toggle("read-only", !editing);
@@ -2834,7 +2837,7 @@ function renderInto(container) {
     el("div", { class: "view-header-text" },
       el("p", { class: "eyebrow" }, (editing ? "Édition" : "Consultation") + " · Semaine du " + longLabel),
       el("h2", {}, "Planning de la semaine"),
-      el("p", { class: "subtitle" },
+      eleve ? null : el("p", { class: "subtitle" },
         editing
           ? "Sélectionne les activités, formateurs et stagiaires. Tout s'enregistre automatiquement."
           : admin
@@ -2900,7 +2903,7 @@ function renderInto(container) {
   // Barre en DEUX groupes : « se déplacer » puis « agir », séparés par un filet.
   // Le libellé « Semaine du » a été retiré : l'en-tête juste au-dessus dit déjà
   // « Consultation · Semaine du 6 juillet 2026 ».
-  const navGroup = el("div", { class: "week-bar-nav" }, dateInput, prevBtn, nextBtn, todayBtn);
+  const navGroup = el("div", { class: "week-bar-nav" }, dateInput, prevBtn, nextBtn, eleve ? null : todayBtn);
   const actionsGroup = el("div", { class: "week-bar-actions" });
   const weekBar = el("div", { class: "week-bar" }, navGroup, actionsGroup);
   // Banque d'élèves bénévoles : accessible aussi en lecture seule (consulter une fiche

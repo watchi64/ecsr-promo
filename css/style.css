@@ -1487,6 +1487,12 @@ h3 {
   font-size: 0.78rem;
   font-family: var(--font-mono);
 }
+/* Un événement déjà commencé : « En cours, fin dans 9 jours » sous ses dates. */
+.home-countdown-statut {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--accent-strong);
+}
 .home-countdown-pill {
   display: flex;
   flex-direction: column;

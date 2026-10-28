@@ -5,6 +5,7 @@ import { recordUndo } from "../undo.js?v=20261028a";
 import { TYPES, RESULTATS } from "../config.js?v=20261028a";
 import { isAdmin, getProfile } from "../auth-admin.js?v=20261028a";
 import { getCurrentWho } from "../identity.js?v=20261028a";
+import { navigationV2Active } from "../nav-etat.js?v=20261028a";
 
 let stagiaires = [];
 let passages = [];
@@ -293,7 +294,9 @@ function rerender(container) {
     el("div", { class: "view-header-text" },
       el("p", { class: "eyebrow" }, passages.length + " entrées au total"),
       el("h2", {}, "Historique des passages"),
-      el("p", { class: "subtitle" }, "Tous les passages. Ajout ouvert à tous, suppression réservée aux admins. Chaque action est tracée."),
+      // Nouvelle navigation : « formateurs », le mot de l'app (un stagiaire lit cette page dans Planning > Priorités).
+      el("p", { class: "subtitle" }, "Tous les passages. Ajout ouvert à tous, suppression réservée aux "
+        + (navigationV2Active() ? "formateurs" : "admins") + ". Chaque action est tracée."),
     ),
     el("div", { style: "display:flex;gap:0.5rem;flex-wrap:wrap" }, histBtn, addBtn),
   ));

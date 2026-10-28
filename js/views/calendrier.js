@@ -266,15 +266,18 @@ function rerender(container) {
   const admin = isAdmin();
 
   // Nouvelle navigation : la page est Planning, Dates clés ; elle porte ce nom, avec la promo en surtitre (avant :
-  // « Calendrier », et le nombre d'événements pour surtitre).
+  // « Calendrier », et le nombre d'événements pour surtitre) ; le nombre de dates clés, passées comprises, termine
+  // alors le sous-titre.
   const v2 = navigationV2Active();
   const surtitre = getPromoCourante()?.nom;
+  const pluriel = events.length > 1 ? "s" : "";
   container.appendChild(el("div", { class: "view-header" },
     el("div", { class: "view-header-text" },
       v2 ? (surtitre ? el("p", { class: "eyebrow" }, surtitre) : null)
         : el("p", { class: "eyebrow" }, events.length + " événement" + (events.length > 1 ? "s" : "") + " au calendrier"),
       el("h2", {}, v2 ? "Dates clés" : "Calendrier"),
-      el("p", { class: "subtitle" }, "Dates importantes : examens, stages, formations, fériés."),
+      el("p", { class: "subtitle" }, "Dates importantes : examens, stages, formations, fériés."
+        + (v2 ? ` ${events.length} date${pluriel} clé${pluriel}.` : "")),
     ),
     admin ? el("button", {
       class: "btn primary",

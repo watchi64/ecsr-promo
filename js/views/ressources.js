@@ -247,16 +247,18 @@ function rerender(container) {
 
   // Nouvelle navigation : la page est Cours et QCM, Documents ; elle porte ce nom, avec la promo en surtitre (avant :
   // « Ressources & contacts », et le nombre de liens et de contacts pour surtitre). La section des contacts s'appelle
-  // alors « Contacts du centre », comme la ligne du menu du compte qui y mène.
+  // alors « Contacts du centre », comme la ligne du menu du compte qui y mène. Le nombre de liens et de contacts
+  // termine le sous-titre.
   const v2 = navigationV2Active();
   const surtitre = getPromoCourante()?.nom;
+  const compte = `${ressources.length} lien${ressources.length > 1 ? "s" : ""} · ${contacts.length} contact${contacts.length > 1 ? "s" : ""}`;
   container.appendChild(el("div", { class: "view-header" },
     el("div", { class: "view-header-text" },
       v2 ? (surtitre ? el("p", { class: "eyebrow" }, surtitre) : null)
         : el("p", { class: "eyebrow" }, ressources.length + " liens curés · " + contacts.length + " contacts"),
       el("h2", {}, v2 ? "Documents" : "Ressources & contacts"),
       el("p", { class: "subtitle" }, (v2 ? "Contacts du centre" : "Contacts administration")
-        + " (absences, justificatifs) + textes officiels & sites pédagogiques."),
+        + " (absences, justificatifs) + textes officiels & sites pédagogiques." + (v2 ? ` ${compte}.` : "")),
     ),
   ));
 

@@ -937,6 +937,18 @@ body[data-nav="v2"] .stg-page.stg-fiche-seule > .subtabs > .subtabs-bar { displa
   body[data-nav="v2"] .bnv-page .bnv-retires summary { display: inline-flex; align-items: center; min-height: 44px; }
 }
 
+/* ----- Bandeau d'émargement sur téléphone (lot 2A, js/emargement-bandeau.js) ----- */
+/* Une seule ligne : « Émargement du matin ouvert » et son bouton. Les horaires (côté stagiaire) et le nombre de
+   signatures (côté formateur) sont dans la feuille que le bouton ouvre ; le bouton (Signer, Voir) fait 44 px. Le
+   bouton donne alors sa hauteur au bandeau : le remplissage vertical passe du bandeau à son texte, qui garde le
+   sien (un bandeau sans bouton garde sa hauteur), et le bandeau reste moins haut que sur deux lignes. */
+@media (max-width: 699.98px) {
+  body[data-nav="v2"] .em-bandeau-detail { display: none; }
+  body[data-nav="v2"] .em-bandeau { padding-top: 0.25rem; padding-bottom: 0.25rem; }
+  body[data-nav="v2"] .em-bandeau p { padding-top: 0.35rem; padding-bottom: 0.35rem; }
+  body[data-nav="v2"] .em-bandeau .btn { min-height: 44px; }
+}
+
 /* ----- Impression : ni la coquille, ni ce qu'elle impose à la page ----- */
 /* La marge de la barre latérale battrait le « margin: 0 » de l'impression des Indicateurs (style.css,
    body.centre-printable #app) ; la marge basse est celle de la barre du bas du téléphone. */

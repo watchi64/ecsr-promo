@@ -2,7 +2,7 @@
  * Page d'accueil : version actualisée après les refontes (auth, calendrier, contacts).
  * Affichage personnalisé : salutation + prochains événements + raccourcis.
  */
-import { listAgendaEvents } from "../db.js?v=20261028a";
+import { listAgendaEvents, getPromoCourante } from "../db.js?v=20261028a";
 import { el, clear, parseDate, formatDate, isoDate } from "../utils.js?v=20261028a";
 import { icon } from "../icons.js?v=20261028a";
 import { isAdmin, isProf, getProfile, getProfileWho } from "../auth-admin.js?v=20261028a";
@@ -11,6 +11,8 @@ import {
 } from "../modules-etat.js?v=20261028a";
 import { carteNouveaute } from "./nouveautes.js?v=20261028a";
 import { emargementActif } from "../emargement-etat.js?v=20261028a";
+import { navigationV2Active } from "../nav-etat.js?v=20261028a";
+import { etatEvenement, libelleDecompte, lignePromo } from "../accueil-rules.js?v=20261028a";
 
 function greetingByHour() {
   const h = new Date().getHours();
@@ -20,10 +22,10 @@ function greetingByHour() {
   return "Bonsoir";
 }
 
-function isPast(e) {
-  const end = parseDate(e.date_end || e.date_start);
-  end.setHours(23, 59, 59, 999);
-  return end < new Date();
+// Où en est un événement un jour donné (« AAAA-MM-JJ ») : à venir, en cours ou passé, et les jours jusqu'à son
+// début ou sa fin (js/accueil-rules.js). Le prochain événement est le premier qui n'est pas passé.
+function etatDe(e, aujourdhui) {
+  return etatEvenement({ debut: e.date_start, fin: e.date_end }, aujourdhui);
 }
 
 const TYPE_EMOJI = {
@@ -38,18 +40,10 @@ function eventDateShort(e) {
   return `${formatDate(e.date_start)} → ${formatDate(e.date_end)}`;
 }
 
-function daysUntil(dateStr) {
-  const d = parseDate(dateStr);
-  d.setHours(0, 0, 0, 0);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  return Math.round((d - today) / 86400000);
-}
-
+// Pastille d'un événement à venir dans la liste des prochains événements (`days` : jours jusqu'à son début).
 function countdownLabel(days) {
   if (days === 0) return "Aujourd'hui";
   if (days === 1) return "Demain";
-  if (days < 0) return null;
   return `J − ${days}`;
 }
 
@@ -99,6 +93,14 @@ export async function renderHome(container) {
   const todayMonth = today.toLocaleDateString("fr-FR", { month: "long" });
   const todayWeekday = today.toLocaleDateString("fr-FR", { weekday: "long" });
   const todayYear = today.getFullYear();
+  // Jour de référence des décomptes (« AAAA-MM-JJ », jour local).
+  const aujourdhui = isoDate(today);
+
+  // Nouvelle navigation : la coquille porte déjà le logo (pas de second logo à côté de la date), et la phrase
+  // qui énumérait les pages de l'ancienne barre cède la place à la promo et à sa semaine ; les tuiles qui
+  // doublaient la barre ne sont plus montrées (plus bas).
+  const v2 = navigationV2Active();
+  const lignePromoV2 = v2 ? lignePromo(getPromoCourante(), aujourdhui) : "";
 
   // === Hero / salutation + date du jour ===
   container.appendChild(el("section", { class: "home-hero-v2" },
@@ -108,16 +110,18 @@ export async function renderHome(container) {
         el("span", { class: "home-today-num" }, String(todayDayNum)),
         el("span", { class: "home-today-month" }, todayMonth + " " + todayYear),
       ),
-      el("img", { class: "home-hero-logo", src: "assets/logo/tpecsr-logo.svg", alt: "TP ECSR" }),
+      v2 ? null : el("img", { class: "home-hero-logo", src: "assets/logo/tpecsr-logo.svg", alt: "TP ECSR" }),
     ),
     el("h1", { class: "home-title-v2" },
       greetingByHour() + ", ",
       el("em", {}, who || "stagiaire"),
     ),
-    el("p", { class: "home-lead-v2" },
-      "Tout le suivi de la promo TP ECSR : planning, passages, notes, calendrier, contacts. ",
-      "Tout au même endroit, à jour en temps réel."
-    ),
+    v2
+      ? (lignePromoV2 ? el("p", { class: "home-lead-v2" }, lignePromoV2) : null)
+      : el("p", { class: "home-lead-v2" },
+          "Tout le suivi de la promo TP ECSR : planning, passages, notes, calendrier, contacts. ",
+          "Tout au même endroit, à jour en temps réel."
+        ),
   ));
 
   // Placée avant les tuiles : quelqu'un qui arrive en cliquant sur la pastille
@@ -145,7 +149,10 @@ export async function renderHome(container) {
     { route: "ressources", icon: "signpost",     title: "Ressources",       desc: "Contacts & liens utiles" },
   ];
 
-  container.appendChild(el("div", { class: "home-tiles" },
+  // Nouvelle navigation : aucune tuile, dans les deux espaces. La barre porte chaque destination (Stagiaires, Indicateurs,
+  // Émargement, Planning, Cours et QCM, CCP2 ; le Calendrier est Planning > Dates clés, les Notes de la classe Mon suivi >
+  // La classe, les Ressources Cours et QCM > Documents) : les tuiles la doubleraient, aux noms d'avant.
+  if (!v2) container.appendChild(el("div", { class: "home-tiles" },
     ...tiles.filter((t) => routeVisible(t.route)).map((t) => {
       const titre = el("span", { class: "home-tile-title" }, t.title);
       const tuile = el("a", { class: "home-tile", href: "#/" + t.route },
@@ -179,18 +186,23 @@ export async function renderHome(container) {
     // Charge l'agenda en arrière-plan
     try {
       const events = await listAgendaEvents();
-      const upcoming = events.filter((e) => !isPast(e));
+      const upcoming = events.filter((e) => etatDe(e, aujourdhui).etat !== "passe");
 
-      // Compteur principal : prochain événement majeur (examen ou stage)
+      // Compteur principal : prochain événement majeur (examen ou stage), le premier qui n'est pas passé. Un stage
+      // commencé est « en cours » : ses jours se comptent jusqu'à sa fin, jamais en nombre négatif (accueil-rules.js).
       const nextMajor = upcoming.find((e) => MAJOR_TYPES.has(e.type));
       if (nextMajor) {
-        const days = daysUntil(nextMajor.date_start);
+        const decompte = etatDe(nextMajor, aujourdhui);
+        const days = decompte.jours;
         const countdownEl = el("section", { class: "home-countdown" },
           el("div", { class: "home-countdown-icon" }, TYPE_EMOJI[nextMajor.type] || "📌"),
           el("div", { class: "home-countdown-body" },
             el("span", { class: "home-countdown-label muted" }, "Prochain événement majeur"),
             el("span", { class: "home-countdown-title" }, nextMajor.title),
             el("span", { class: "home-countdown-date muted" }, eventDateShort(nextMajor)),
+            decompte.etat === "en-cours"
+              ? el("span", { class: "home-countdown-statut" }, libelleDecompte(decompte))
+              : null,
           ),
           el("div", { class: "home-countdown-pill " + (days === 0 ? "today" : days <= 7 ? "soon" : "later") },
             el("span", { class: "home-countdown-num" },
@@ -202,11 +214,12 @@ export async function renderHome(container) {
           ),
         );
         // Insère le compteur au-dessus des Nouveautés si elles sont là, sinon
-        // juste avant les tuiles. L'ordre voulu est : hero, compteur, nouveautés,
-        // raccourcis.
+        // juste avant les tuiles (nouvelle navigation : sans tuiles, avant l'agenda).
+        // L'ordre voulu est : hero, compteur, nouveautés, raccourcis.
         const ancre = container.querySelector(".home-nouveautes")
-                   || container.querySelector(".home-tiles");
-        if (ancre) container.insertBefore(countdownEl, ancre);
+                   || container.querySelector(".home-tiles")
+                   || agendaSection;
+        container.insertBefore(countdownEl, ancre);
       }
 
       // Liste des 3 prochains événements (peu importe le type)
@@ -221,9 +234,10 @@ export async function renderHome(container) {
         } else {
           next3.forEach((e) => {
             const start = parseDate(e.date_start);
-            const days = daysUntil(e.date_start);
+            const { etat, jours: days } = etatDe(e, aujourdhui);
             const isTodayE = e.date_start <= isoDate(today) && (e.date_end || e.date_start) >= isoDate(today);
-            const label = countdownLabel(days);
+            // Pastille des seuls événements à venir : un événement en cours n'en a pas, comme avant.
+            const label = etat === "a-venir" ? countdownLabel(days) : null;
             listEl.appendChild(el("a", {
               class: "home-event" + (isTodayE ? " today" : ""),
               href: "#/calendrier",

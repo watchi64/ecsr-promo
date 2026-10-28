@@ -22,6 +22,7 @@ import {
 } from "../emargement-feuilles.js?v=20261028a";
 import { rafraichirBandeauEmargement } from "../emargement-bandeau.js?v=20261028a";
 import { emargementActif } from "../emargement-etat.js?v=20261028a";
+import { navigationV2Active } from "../nav-etat.js?v=20261028a";
 
 // Horaires par défaut, comme DEFAULT_HALF_META du planning.
 const HORAIRES_DEFAUT = { matin: { debut: "09:00", fin: "12:30" }, aprem: { debut: "13:30", fin: "17:00" } };
@@ -116,10 +117,15 @@ function dessinerSemaine(ctx) {
   const titre = `Semaine du ${jourLong(lundi, { annee: false }).toLowerCase()} au ${jourLong(vendredi).toLowerCase()}`;
   const aller = (j) => { location.hash = adresseSeance(j, null); };
 
+  // Nouvelle navigation : la page porte le nom de son entrée, « Émargement », avec la promo en surtitre, comme les autres
+  // pages de l'équipe (le surtitre ne répète pas alors le titre).
+  const v2 = navigationV2Active();
   page.appendChild(el("div", { class: "view-header" },
     el("div", { class: "view-header-text" },
-      el("p", { class: "eyebrow" }, "Émargement" + (ctx.promo ? " · " + ctx.promo.nom : "")),
-      el("h2", {}, "Feuilles d'émargement"),
+      v2
+        ? (ctx.promo ? el("p", { class: "eyebrow" }, ctx.promo.nom) : null)
+        : el("p", { class: "eyebrow" }, "Émargement" + (ctx.promo ? " · " + ctx.promo.nom : "")),
+      el("h2", {}, v2 ? "Émargement" : "Feuilles d'émargement"),
       el("p", { class: "subtitle" },
         "Ouvre la feuille de la demi-journée en cours : chaque stagiaire signe sur son téléphone, "
         + "puis tu signes et tu clos. Les absences notées au planning sont reprises."),

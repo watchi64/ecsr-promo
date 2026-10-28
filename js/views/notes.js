@@ -1079,24 +1079,29 @@ function rerender(container) {
   if (!currentEvalDate) currentEvalDate = isoDate(new Date());
 
   // Nouvelle navigation : la page de l'équipe porte le nom de son entrée, « Notes et examens », avec la promo en
-  // surtitre (le stagiaire, dans La classe de Mon suivi, garde l'en-tête d'avant). Sur un écran tactile, on touche une
-  // case : le sous-titre le dit, et la phrase de la barre d'outils sur Entrée et Échap, qui suppose un clavier, disparaît.
+  // surtitre, et le nombre de notes termine alors son sous-titre. Sur un écran tactile, on touche une case : le
+  // sous-titre le dit, et la phrase de la barre d'outils sur Entrée et Échap, qui suppose un clavier, disparaît.
+  // Le stagiaire n'ouvre cette vue que dans La classe de Mon suivi, déjà sous un titre : il n'y a ni second titre,
+  // ni phrase sur la saisie ou sur l'administration (il ne saisit rien), seulement le nombre de notes.
   const v2 = navigationV2Active();
   const equipe = v2 && formateurConnecte();
+  const laClasse = v2 && !formateurConnecte();
   const surtitre = getPromoCourante()?.nom;
   const tactile = v2 && window.matchMedia("(pointer: coarse)").matches;
+  const compte = nbLignes + " note" + (nbLignes > 1 ? "s" : "") + " enregistrée" + (nbLignes > 1 ? "s" : "");
+  const phrase = admin && tactile
+    ? "Touche une case pour saisir la note."
+    : "Tableau matrice : stagiaires × thèmes/compétences. Clique une cellule pour saisir la note.";
 
   container.appendChild(el("div", { class: "view-header" },
     el("div", { class: "view-header-text" },
-      equipe
+      laClasse ? null : equipe
         ? (surtitre ? el("p", { class: "eyebrow" }, surtitre) : null)
-        : el("p", { class: "eyebrow" }, nbLignes + " note" + (nbLignes > 1 ? "s" : "") + " enregistrée" + (nbLignes > 1 ? "s" : "")),
-      el("h2", {}, equipe ? "Notes et examens" : "Notes & évaluations"),
-      el("p", { class: "subtitle" }, admin && tactile
-        ? "Touche une case pour saisir la note."
-        : "Tableau matrice : stagiaires × thèmes/compétences. Clique une cellule pour saisir la note."),
+        : el("p", { class: "eyebrow" }, compte),
+      laClasse ? null : el("h2", {}, equipe ? "Notes et examens" : "Notes & évaluations"),
+      el("p", { class: "subtitle" }, laClasse ? compte + "." : equipe ? phrase + " " + compte + "." : phrase),
     ),
-    admin ? null : el("span", { class: "muted", style: "font-size:0.85rem" }, "Lecture seule. Connexion admin requise pour modifier."),
+    admin || laClasse ? null : el("span", { class: "muted", style: "font-size:0.85rem" }, "Lecture seule. Connexion admin requise pour modifier."),
   ));
 
   // Tri (toujours visible)
@@ -1158,7 +1163,7 @@ function rerender(container) {
   // dossier) vit dans sa fiche : Mon espace, ou la page Stagiaires des formateurs.
   // La matrice reste en lecture seule pour les stagiaires. Chaque sous-onglet suit
   // son module (js/modules-data.js) ; la Matrice suit l'onglet lui-même.
-  container.appendChild(renderSubTabs([
+  const onglets = [
     { key: "matrice", label: "Matrice", render: buildMatricePanel },
     { key: "epcf", label: "EPCF", module: "epcf", render: (p, ctx) => {
         renderEpcf(p, { embedded: true, isActive: ctx && ctx.isActive })
@@ -1170,7 +1175,13 @@ function rerender(container) {
             }
           });
       } },
-  ], { storageKey: "ecsr_notes_subtab" }));
+  ];
+  // La classe d'un stagiaire (nouvelle navigation) : la vue de la classe seule, la Matrice, sans seconde rangée
+  // Matrice / EPCF : deux « EPCF » se liraient à l'écran, celui de sa fiche (première rangée de Mon suivi), où les
+  // moyennes de la classe figurent déjà, et celui-ci. Sans choix, aucune mémoire de sous-onglet n'est écrite (celle de l'équipe).
+  container.appendChild(laClasse
+    ? renderSubTabs(onglets.slice(0, 1))
+    : renderSubTabs(onglets, { storageKey: "ecsr_notes_subtab" }));
 }
 
 // === Helpers stats ===

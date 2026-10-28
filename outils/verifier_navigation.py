@@ -44,10 +44,14 @@ manque) :
     la coquille (échantillon à chaque image) et l'attente (`body[data-nav-attente]`) est levée.
   * Passe « éteint » : aucun aperçu, rien ne doit changer par rapport à main (aucune coquille,
     l'ancienne barre d'onglets, pas de sous-onglets regroupés, aucun défilement ni débordement de côté
-    de plus que ceux des rulings R10 et R11), sauf deux défauts de main corrigés depuis : la barre des
+    de plus que ceux des rulings R10 et R11), sauf trois défauts de main corrigés depuis : la barre des
     jours du planning se colle juste sous l'ancienne barre, quelle que soit sa hauteur, et, bandeaux du
     bas affichés (« Voir en tant que », promos non chargées), la bulle de l'assistant et le champ de son
-    panneau restent à portée, sa croix se lit et ses boutons font 44 px sur téléphone.
+    panneau restent à portée, sa croix se lit et ses boutons font 44 px sur téléphone ; et la carte
+    « Prochain événement majeur » de l'accueil, où un stage commencé n'est plus un nombre de jours négatif
+    (lot 2A, tâche 4). Y sont gardés, avec leurs textes d'avant : l'accueil (logo à côté de la date,
+    phrase sur le suivi de la promo, tuiles), le Planning (« Cette semaine », « Lecture seule... »), la
+    page Notes du stagiaire, les comptes en surtitre, les horaires du bandeau d'émargement sur téléphone.
 Sur téléphone, le contexte de l'équipe joue en plus l'en-tête à 320 px (LARGEUR_ETROITE) : la fenêtre se resserre le temps de la vérification de l'Assistant.
 Dans chaque contexte : l'arrivée à froid, chaque entrée de la coquille (cliquée dans la coquille, ou
 via « Plus » sur téléphone quand elle y est rangée ; la liste vient des règles de js/nav-rules.js,
@@ -93,10 +97,10 @@ Contrôles par vue
   * bouton du compte (lot 2A) : aucun chiffre ; un point sans texte tant que des Nouveautés ne sont pas lues (joué à l'ouverture,
     où le banc en a, puis la rubrique ouverte : tout est lu, plus de point), dont le nom du bouton dit le nombre ; menu du compte :
     une ligne « Mes préférences » (`#/preferences`), plus de ligne « Réglages », le nombre sur la ligne « Nouveautés » ;
-  * titres des pages (lot 2A, allumé) : le titre (h2) de chaque page du menu est le libellé de son entrée (équipe : Stagiaires, Notes et examens,
-    Cours et QCM, Indicateurs, Réglages, CCP2 ; stagiaire : Cours et QCM, Mon suivi, CCP2) et, sauf pour CCP2, son surtitre est le nom de la promo
-    affichée. Accueil, Planning et Émargement n'en font pas partie (TITRES_DES_PAGES) : l'accueil sera remplacé par Aujourd'hui au lot 2, les deux
-    autres gardent le titre de leur contenu. Les sous-pages reprennent le nom de leur sous-onglet : Planning > Dates clés (ex-Calendrier), Cours et
+  * titres des pages (lot 2A, allumé) : le titre (h2) de chaque page du menu est le libellé de son entrée (équipe : Émargement, Stagiaires, Notes et
+    examens, Cours et QCM, Indicateurs, Réglages, CCP2 ; stagiaire : Cours et QCM, Mon suivi, CCP2) et, sauf pour CCP2, son surtitre est le nom de la
+    promo affichée. Accueil et Planning n'en font pas partie (TITRES_DES_PAGES) : l'accueil sera remplacé par Aujourd'hui au lot 2, le Planning garde
+    le titre de sa semaine ; Émargement, lui, s'appelle « Émargement » (ruling R50). Les sous-pages reprennent le nom de leur sous-onglet : Planning > Dates clés (ex-Calendrier), Cours et
     QCM > Documents (ex-Ressources & contacts, dont la section des contacts s'appelle « Contacts du centre »), chacune avec la promo en surtitre ;
     Cours et QCM d'un stagiaire au départ, réduit à ses Documents, porte ce titre. Éteint, les titres de main restent : Notes & évaluations, Cours,
     Calendrier, Ressources & contacts, Mon espace, les surtitres « Formateurs », « Tableau de bord du centre » et « Espace personnel » ;
@@ -110,6 +114,24 @@ Contrôles par vue
     tiroir « Plus » s'appelle « Autres pages », sans « Tout l'espace formateur », et garde sa ligne « Assistant » ;
   * Notes et examens (équipe, lot 2A) : sur un écran tactile (le téléphone du banc), le sous-titre est « Touche une case pour saisir la note. » et la
     phrase sur Entrée et Échap n'est pas montrée ; avec une souris, le sous-titre d'avant et la phrase de la barre d'outils ;
+  * comptes en fin de sous-titre (lot 2A, tâche 4, ruling R49) : Notes et examens finit par « N notes enregistrées. », Planning > Dates clés par
+    « N dates clés. » (le nombre d'événements que l'app lit, passés compris), Cours et QCM > Documents par « N liens · M contacts. » ; éteint, ils
+    restent en surtitre (« N événements au calendrier », « N liens curés · M contacts », « N notes enregistrées ») ;
+  * texte d'administration (lot 2A, tâche 4) : aucune page d'un stagiaire, quelle que soit la vue mesurée (entrées, sous-onglets, parties de Mon suivi),
+    ni son bandeau d'émargement, ne dit « admin ». L'abréviation seule, comme dans Réglages et Mes préférences : « administrateur » et « administration »
+    restent permis ;
+  * Accueil (lot 2A, tâche 4, deux espaces) : le logo n'y est qu'une fois (celui de la coquille), la phrase sur le suivi de la promo est remplacée par
+    « Promo <nom> · semaine <n> » (la semaine, recalculée par le script depuis la date de début de la promo), aucune tuile ne double la barre ;
+  * carte « Prochain événement majeur » (les deux navigations, correction pour tous) : recalculée par le script depuis l'agenda tel que l'app le lit
+    (le premier examen ou stage qui n'est pas passé) : jamais de nombre négatif ; un stage commencé dit « En cours, fin dans N jours » (« fin demain »,
+    « fin aujourd'hui ») et sa pastille compte les jours jusqu'à sa fin ; un événement à venir garde sa pastille d'avant, sans ligne « en cours » ;
+  * Planning > Semaine : chez le stagiaire, ni « Lecture seule... » ni « Cette semaine » (« Aujourd'hui », en tête de la page, le remplace) ; chez
+    l'équipe, « Cette semaine » reste ;
+  * Mon suivi > La classe, chez le stagiaire : ni second titre, ni seconde rangée Matrice / EPCF, ni « Lecture seule... », ni « Clique une cellule... » ;
+    seul reste le nombre de notes ;
+  * bandeau d'émargement (stagiaire et équipe) : sur téléphone, une seule ligne (« Émargement du matin ouvert » et son bouton), ses horaires (stagiaire) ou
+    ses signatures (équipe) cachés, son bouton de 44 px, sa hauteur au plus celle des deux lignes de main (61 px) ; au-delà de 700 px, et interrupteur
+    éteint, ses détails sont montrés ;
   * les quatre anciennes adresses (`#/calendrier`, `#/dashboard`, `#/ressources`, `#/notes`, ruling R26) : allumé, la nouvelle
     page et son sous-onglet allumé (Planning : Dates clés, Priorités ; Cours : Documents ; Mon espace : La classe chez
     le stagiaire, mais Notes reste la page de l'équipe ; module fermé au départ : le premier sous-onglet visible),
@@ -179,6 +201,12 @@ par `--script-init`, et le script a échoué avec le message attendu ; la coquil
     masqué dans l'en-tête du téléphone, de 40 px, qui déborde (partout, ou seulement à 320 px), titre du tiroir « Plus » inchangé, ligne « Assistant »
     du tiroir sans effet, phrase tactile des Notes absente, titres de la nouvelle navigation montrés interrupteur éteint, page Stagiaires regroupée interrupteur éteint, zones à toucher du
     panneau des bénévoles à 26 px sur téléphone ;
+  * planning, accueil, décompte et bandeau (lot 2A, tâche 4, injectés dans les sources puis retirés) : phrase « Lecture seule... » et bouton « Cette semaine »
+    rendus au stagiaire, La classe avec son second titre ou sa seconde rangée Matrice / EPCF, second logo, phrase d'accueil d'avant, tuiles rendues, ligne
+    « en cours » de la carte absente, nombre de jours négatif sur la carte (allumé et éteint), « admins » de retour dans l'historique des passages, horaires
+    du bandeau montrés sur téléphone ou cachés partout, bouton du bandeau de 29 px, bandeau d'une ligne de 64 px, détail du bandeau de l'équipe sans balise, titre ou surtitre d'Émargement
+    non alignés, comptes de Notes, de Dates clés ou de Documents retirés du sous-titre, tuiles retirées, Planning ou La classe du stagiaire sans leurs textes
+    interrupteur éteint ;
   * mise en place : erreur de console et de page, interrupteur qui n'allume pas, banc périmé.
 Sans défaut, n'échouent pas : un bouton `data-nav-action="deconnexion"` (pas un ouvreur), un lien d'évitement
 masqué (ni mesuré comme cible, ni sans nom), un nom pris par `aria-labelledby`, `<label for>` ou `<title>` SVG.
@@ -580,6 +608,13 @@ async function mesurer(o) {
   // Ruling R17 : l'attente de la coquille est levée une fois l'app ouverte (sinon l'ancienne barre, si elle
   // reste, ne se peint plus).
   if (document.body.hasAttribute("data-nav-attente")) echecs.push(["attente de la coquille non levée", "body[data-nav-attente] est encore posé, l'app ouverte"]);
+  // Lot 2A, tâche 4 : aucune page d'un stagiaire (nouvelle navigation) ne parle d'administration (« Connexion admin requise... »). Seule
+  // l'abréviation « admin » est refusée, comme dans Réglages et Mes préférences : les mots « administrateur » et « administration » restent permis.
+  if (allume && o.espace === "stagiaire" && vue) {
+    const lu = net([vue, document.getElementById("emargement-bandeau")].filter(Boolean).map((e) => e.innerText).join(" "));
+    const dit = /\badmins?\b/i.exec(lu);
+    if (dit) echecs.push(["texte d'administration chez le stagiaire", `la page dit « ${dit[0]} » : …${lu.slice(Math.max(0, dit.index - 30), dit.index + 30)}…`]);
+  }
 
   // Défilements et débordements de côté : la même classification interrupteur allumé ou éteint, car la
   // passe éteinte est le garde de « l'app reste identique à main » (une règle du lot qui déborde de
@@ -872,9 +907,66 @@ function enTeteDeLEquipe() {
     dehors: [...cote.querySelectorAll("*")].filter(visible).filter((e) => rect(e).right > W + 0.5 || rect(e).left < -0.5).map(nom).slice(0, 5) };
 }
 
+// ---- Planning et accueil du stagiaire, décompte des événements, bandeau d'émargement (lot 2A, tâche 4) ----
+// Accueil : ce que la page montre (logos à côté de la date, tuiles, ligne sous la salutation, carte du prochain événement majeur : titre,
+// pastille, ligne « en cours »), avec de quoi recalculer la carte et la ligne sans reprendre le code de l'app : la promo affichée et l'agenda
+// tel que l'app le lit. `agenda` : la section des prochains événements est construite (module fermé pour la promo : elle ne l'est pas).
+async function accueil() {
+  const [db] = await modulesDeLApp(["db"]);
+  const vue = document.getElementById("view");
+  const promo = db.getPromoCourante() || {};
+  const carte = vue.querySelector(".home-countdown"), lead = vue.querySelector(".home-lead-v2");
+  const de = (racine, s) => { const e = racine.querySelector(s); return e ? texte(e) : null; };
+  return {
+    route: (location.hash || "").replace(/^#\//, "").split("/")[0],
+    promo: { nom: promo.nom || null, debut: promo.date_debut || null, fin: promo.date_fin || null },
+    agenda: !!vue.querySelector(".home-agenda"),
+    logos: vue.querySelectorAll(".home-hero-logo").length,
+    tuiles: [...vue.querySelectorAll(".home-tile .home-tile-title")].map(texte),
+    lead: lead ? net(lead.textContent) : null,
+    carte: carte ? { titre: de(carte, ".home-countdown-title"), pastille: de(carte, ".home-countdown-pill"),
+      statut: de(carte, ".home-countdown-statut"), texte: texte(carte) } : null,
+    evenements: (await db.listAgendaEvents()).map((e) => ({ type: e.type, titre: e.title, debut: e.date_start, fin: e.date_end })),
+  };
+}
+// Ce que l'app lit : le nombre d'événements, de liens et de contacts, que les sous-titres de Dates clés et de Documents comptent.
+async function comptesDesPages() {
+  const [db] = await modulesDeLApp(["db"]);
+  const [evenements, liens, contacts] = await Promise.all([db.listAgendaEvents(), db.listRessources(), db.listContacts()]);
+  return { evenements: evenements.length, liens: liens.length, contacts: contacts.length };
+}
+// Planning > Semaine : la phrase de lecture seule, et les boutons « Cette semaine » et « Aujourd'hui » de la page.
+function planningSemaine() {
+  const vue = document.getElementById("view");
+  const boutons = (n) => [...vue.querySelectorAll("button")].filter((b) => visible(b) && net(b.textContent) === n).length;
+  return { lecture: /Lecture seule/.test(texte(vue)), cetteSemaine: boutons("Cette semaine"), aujourdhui: boutons("Aujourd'hui") };
+}
+// Notes de la classe, imbriquées dans la fiche de Mon suivi : leurs titres (h2), leurs en-têtes, leurs barres de sous-onglets (Matrice / EPCF)
+// et leur texte. null quand la matrice n'est pas à l'écran.
+function laClasse() {
+  const barre = document.querySelector("#view .matrice-toolbar"), sous = barre && barre.closest(".subtabs"), zone = sous && sous.parentElement;
+  if (!zone) return null;
+  return { titres: [...zone.querySelectorAll("h2")].map((h) => net(h.textContent)),
+    entetes: [...zone.querySelectorAll(":scope > .view-header")].map((h) => net(h.textContent)),
+    barres: sous.querySelectorAll(".subtabs-bar").length, texte: texte(zone) };
+}
+// Bandeau d'émargement (js/emargement-bandeau.js) : son texte, les lignes de ce texte (sans le remplissage du paragraphe), la hauteur du bandeau,
+// ses détails (horaires du stagiaire, signatures du formateur) montrés ou non, et son bouton. null quand il n'est pas affiché.
+function bandeauEmargement() {
+  const b = document.getElementById("emargement-bandeau");
+  if (!b || b.hidden || !visible(b)) return null;
+  const p = b.querySelector("p"), bouton = b.querySelector(".btn"), sp = style(p);
+  const hauteurLigne = parseFloat(sp.lineHeight) || parseFloat(sp.fontSize) * 1.5;
+  const hauteurTexte = p.clientHeight - parseFloat(sp.paddingTop) - parseFloat(sp.paddingBottom);
+  return { texte: texte(b), hauteur: dixieme(rect(b).height), lignes: Math.round(hauteurTexte / hauteurLigne),
+    details: [...b.querySelectorAll(".em-bandeau-detail")].map((d) => ({ texte: net(d.textContent), visible: visible(d) })),
+    bouton: bouton ? { nom: nomAcc(bouton), l: dixieme(rect(bouton).width), h: dixieme(rect(bouton).height) } : null };
+}
+
 window.__verifNav = { mesurer, regles: reglesSimples, voirEnTantQue, chercherLien, chercherPlus, ouvreurs, marquerPopups, mesurerPopups,
   popupsEncoreOuverts, focusSurOuvreur, focusPerdu, popupsVisibles: () => popupsVisibles().length, controlesAssistant,
-  pageDeReglages, boutonDuCompte, menuDuCompte, enTeteDePage, panneauBenevoles, enTeteDeLEquipe };
+  pageDeReglages, boutonDuCompte, menuDuCompte, enTeteDePage, panneauBenevoles, enTeteDeLEquipe,
+  accueil, comptesDesPages, planningSemaine, laClasse, bandeauEmargement };
 })();
 """
 
@@ -1721,14 +1813,15 @@ def verifier_preferences_eteint(page, res, sc):
 # --------------------------------------------------------------------------------------
 
 # Pages dont le titre (h2) est le libellé de leur entrée, par espace (ruling R30, une page, un nom). N'en font pas partie : Accueil, que
-# la page Aujourd'hui remplacera au lot 2, Planning, dont la semaine garde son titre (« Planning de la semaine », le surtitre disant la
-# semaine) et Émargement (« Feuilles d'émargement »). Le titre de Mon suivi se lit aussi chez qui n'a pas cette entrée (fondateur).
+# la page Aujourd'hui remplacera au lot 2, et Planning, dont la semaine garde son titre (« Planning de la semaine », le surtitre disant la
+# semaine). Émargement en fait partie depuis la tâche 4 (ruling R50 : « Émargement », et non « Feuilles d'émargement »). Le titre de Mon
+# suivi se lit aussi chez qui n'a pas cette entrée (fondateur).
 TITRES_DES_PAGES = {
-    "equipe": ("stagiaires", "notes", "themes", "centre", "config", "ccp2"),
+    "equipe": ("emargement", "stagiaires", "notes", "themes", "centre", "config", "ccp2"),
     "stagiaire": ("themes", "mon-suivi", "ccp2"),
 }
 # Parmi elles, celles dont le surtitre est le nom de la promo affichée (CCP2 garde « Titre professionnel ECSR »).
-SURTITRE_PROMO = ("stagiaires", "notes", "themes", "centre", "config", "mon-suivi")
+SURTITRE_PROMO = ("emargement", "stagiaires", "notes", "themes", "centre", "config", "mon-suivi")
 SOUS_ONGLETS_STAGIAIRES = ["Stagiaires", "Élèves bénévoles"]
 # Sous-pages qui ont repris le nom de leur sous-onglet : Planning > Dates clés (ex-Calendrier), Cours et QCM > Documents (ex-Ressources).
 SOUS_PAGES = (("planning", "Dates clés"), ("themes", "Documents"))
@@ -1774,6 +1867,15 @@ def verifier_sous_page(page, res, sc, route, libelle, options):
                 res.echec("surtitre de sous-page", vue, "le surtitre du sous-onglet « %s » est « %s », attendu le nom de la promo affichée (« %s »)" % (libelle, tete["surtitre"], p["promo"]))
         if libelle == "Documents" and not any("Contacts du centre" in s for s in p["sections"]):
             res.echec("titre de sous-page", vue, "Documents n'a pas de section « Contacts du centre » (sections : %s)" % (", ".join(p["sections"]) or "aucune"))
+        if tete is not None:
+            # Ruling R49 : les comptes des anciens surtitres terminent le sous-titre (« 7 dates clés. », « 12 liens · 4 contacts. »).
+            c = page.evaluate("() => window.__verifNav.comptesDesPages()")
+            if libelle == "Dates clés":
+                attendu = "%d date%s clé%s." % (c["evenements"], pluriel(c["evenements"]), pluriel(c["evenements"]))
+            else:
+                attendu = "%d lien%s · %d contact%s." % (c["liens"], pluriel(c["liens"]), c["contacts"], pluriel(c["contacts"]))
+            if not (tete["sousTitre"] or "").endswith(" " + attendu):
+                res.echec("comptes en fin de sous-titre", vue, "le sous-titre de « %s » est « %s », il doit se terminer par « %s »" % (libelle, tete["sousTitre"], attendu))
         vider_console(res, vue)
     elif route == "stagiaires" and libelle == "Élèves bénévoles":
         verifier_panneau_benevoles(page, res, sc, options)
@@ -1861,16 +1963,22 @@ def verifier_notes_tactile(page, res, sc):
     res.vues += 1
     m = page.evaluate("""() => { const v = document.getElementById('view'), t = (s) => { const e = v.querySelector(s); return e ? e.textContent.trim() : null; };
         return { sous: t('.view-header .subtitle'), indice: t('.matrice-toolbar-hint') }; }""")
+    sous = m["sous"] or ""
     if sc.largeur < SEUIL_TELEPHONE:
-        if m["sous"] != PHRASE_TACTILE:
-            res.echec("notes sur écran tactile", vue, "le sous-titre est « %s », attendu « %s »" % (m["sous"], PHRASE_TACTILE))
+        if not sous.startswith(PHRASE_TACTILE):
+            res.echec("notes sur écran tactile", vue, "le sous-titre est « %s », attendu « %s » puis le nombre de notes" % (sous, PHRASE_TACTILE))
         if m["indice"]:
             res.echec("notes sur écran tactile", vue, "la phrase sur Entrée et Échap est montrée sur un écran tactile : « %s »" % m["indice"])
     else:
-        if m["sous"] == PHRASE_TACTILE:
-            res.echec("notes avec un clavier", vue, "le sous-titre est celui de l'écran tactile (« %s ») alors que la page est affichée avec une souris" % m["sous"])
+        if sous.startswith(PHRASE_TACTILE):
+            res.echec("notes avec un clavier", vue, "le sous-titre est celui de l'écran tactile (« %s ») alors que la page est affichée avec une souris" % sous)
+        elif not sous.startswith("Tableau matrice"):
+            res.echec("notes avec un clavier", vue, "le sous-titre est « %s », attendu celui d'avant (« Tableau matrice... ») puis le nombre de notes" % sous)
         if not m["indice"] or "Entrée" not in m["indice"]:
             res.echec("notes avec un clavier", vue, "la phrase sur Entrée et Échap manque avec un clavier (barre d'outils : %s)" % (m["indice"] or "vide"))
+    # Ruling R49 : le nombre de notes, qui était le surtitre, termine le sous-titre.
+    if not COMPTE_NOTES.search(sous):
+        res.echec("comptes en fin de sous-titre", vue, "le sous-titre de Notes et examens ne se termine pas par « N notes enregistrées. » : « %s »" % sous)
     vider_console(res, vue)
 
 
@@ -1968,6 +2076,10 @@ def verifier_titres_eteint(page, res, sc):
             res.echec("surtitre, interrupteur éteint", vue, "le surtitre de #/%s est « %s », celui de main « %s »" % (route, tete["surtitre"], surtitre))
         if route == "calendrier" and not (tete["surtitre"] or "").endswith("au calendrier"):
             res.echec("surtitre, interrupteur éteint", vue, "le surtitre de #/calendrier est « %s », celui de main compte les événements « N événement(s) au calendrier »" % tete["surtitre"])
+        if route == "notes" and not COMPTE_NOTES.search((tete["surtitre"] or "") + "."):
+            res.echec("surtitre, interrupteur éteint", vue, "le surtitre de #/notes est « %s », celui de main compte les notes « N note(s) enregistrée(s) »" % tete["surtitre"])
+        if route == "ressources" and not re.fullmatch(r"\d+ liens curés · \d+ contacts", tete["surtitre"] or ""):
+            res.echec("surtitre, interrupteur éteint", vue, "le surtitre de #/ressources est « %s », celui de main compte « N liens curés · M contacts »" % tete["surtitre"])
         if section and not any(section in s for s in p["sections"]):
             res.echec("titre, interrupteur éteint", vue, "#/%s n'a pas la section « %s » de main (sections : %s)" % (route, section, ", ".join(p["sections"]) or "aucune"))
         if route == "stagiaires" and page.evaluate("() => !!document.querySelector('#view .stg-page, #view .bnv-page')"):
@@ -2001,6 +2113,257 @@ def verifier_benevoles_eteint(page, res, sc):
     vider_console(res, vue)
 
 
+# --------------------------------------------------------------------------------------
+# Planning et accueil du stagiaire, décompte des événements, bandeau d'émargement (lot 2A, tâche 4)
+# --------------------------------------------------------------------------------------
+
+# Hauteur du bandeau d'émargement de main sur téléphone, horaires affichés, sur deux lignes : 61 px. Sur une ligne, avec son bouton de 44 px, il ne doit pas la dépasser.
+HAUTEUR_BANDEAU_DEUX_LIGNES = 61
+
+# La fin d'un sous-titre, quand la nouvelle navigation y remet le compte de l'ancien surtitre (R49) : « 12 notes enregistrées. »
+COMPTE_NOTES = re.compile(r"\d+ notes? enregistrées?\.$")
+
+
+def pluriel(n):
+    return "s" if n > 1 else ""
+
+
+def lundi_de(jour):
+    return jour - datetime.timedelta(days=jour.weekday())
+
+
+def ligne_promo_attendue(promo, aujourdhui):
+    """« Promo <nom> · semaine <n> » : la semaine 1 est celle du premier jour de la promo (du lundi au dimanche) ; pas de numéro avant la promo ni
+    après sa date de fin. Recalculé ici, sans reprendre le code de l'app."""
+    debut = datetime.date.fromisoformat(promo["debut"])
+    fin = datetime.date.fromisoformat(promo["fin"]) if promo["fin"] else None
+    if aujourdhui < debut or (fin and aujourdhui > fin):
+        return "Promo %s" % promo["nom"]
+    return "Promo %s · semaine %d" % (promo["nom"], 1 + (lundi_de(aujourdhui) - lundi_de(debut)).days // 7)
+
+
+def carte_attendue(evenements, aujourdhui):
+    """(événement, état, jours) de la carte « Prochain événement majeur » : le premier examen ou stage qui n'est pas passé, dans l'ordre de l'agenda ;
+    None sans événement majeur à venir. « a-venir » : jours jusqu'au début ; « en-cours » : commencé avant aujourd'hui, jours jusqu'à la fin. Recalculé
+    ici, sans reprendre le code de l'app."""
+    for e in evenements:
+        if e["type"] not in ("examen", "stage"):
+            continue
+        debut = datetime.date.fromisoformat(e["debut"])
+        fin = datetime.date.fromisoformat(e["fin"] or e["debut"])
+        if aujourdhui > fin:
+            continue
+        if aujourdhui > debut:
+            return e, "en-cours", (fin - aujourdhui).days
+        return e, "a-venir", (debut - aujourdhui).days
+    return None
+
+
+def verifier_carte(res, vue, m):
+    """La carte « Prochain événement majeur » (correction pour tous, les deux navigations) : le premier examen ou stage qui n'est pas passé, jamais un
+    nombre négatif. Commencé, il est « En cours, fin dans N jours » (« fin demain », « fin aujourd'hui »), la pastille comptant les jours qui restent
+    jusqu'à sa fin ; à venir, il garde sa pastille d'avant (N jours), sans ligne « en cours »."""
+    attendu = carte_attendue(m["evenements"], datetime.date.fromisoformat(DATE_DU_BANC))
+    carte = m["carte"]
+    if attendu is None:
+        if carte:
+            res.echec("carte du prochain événement", vue, "la carte montre « %s » alors qu'aucun examen ni stage n'est à venir" % carte["titre"])
+        return
+    evenement, etat, jours = attendu
+    if not carte:
+        res.echec("carte du prochain événement", vue, "la carte « Prochain événement majeur » manque (attendu : « %s », %s)" % (evenement["titre"], etat))
+        return
+    if carte["titre"] != evenement["titre"]:
+        res.echec("carte du prochain événement", vue, "la carte montre « %s », le premier examen ou stage qui n'est pas passé est « %s »" % (carte["titre"], evenement["titre"]))
+    dit = "%s %s" % (carte["pastille"] or "", carte["statut"] or "")
+    if re.search(r"[-−]\s*\d", dit):
+        res.echec("carte du prochain événement", vue, "la carte montre un nombre négatif : « %s »" % dit.strip())
+    pastille = "%d %s" % (jours, "Aujourd'hui !" if jours == 0 else "jour" if jours == 1 else "jours")
+    if carte["pastille"] != pastille:
+        res.echec("carte du prochain événement", vue, "la pastille dit « %s », attendu « %s » (%s, %d jour(s) jusqu'à %s)"
+                  % (carte["pastille"], pastille, etat, jours, "sa fin" if etat == "en-cours" else "son début"))
+    if etat == "en-cours":
+        mots = "fin aujourd'hui" if jours == 0 else "fin demain" if jours == 1 else "fin dans %d jours" % jours
+        if carte["statut"] != "En cours, " + mots:
+            res.echec("carte du prochain événement", vue, "la ligne de l'événement commencé est « %s », attendu « En cours, %s »" % (carte["statut"], mots))
+    elif carte["statut"]:
+        res.echec("carte du prochain événement", vue, "un événement à venir porte la ligne « %s » : seul un événement commencé est en cours" % carte["statut"])
+
+
+def attendre_accueil(page):
+    """L'accueil lit l'agenda après s'être posé : la carte et la liste n'y sont qu'une fois le « Chargement… » de la liste remplacé."""
+    page.wait_for_function("() => { const l = document.getElementById('home-agenda-list'); return !l || !/Chargement/.test(l.textContent); }", timeout=6000)
+
+
+def ouvrir_accueil(page, res, vue):
+    """L'accueil, posé et son agenda lu : ce que la page montre (accueil() de la page), ou None quand l'agenda ne se lit pas."""
+    aller_a(page, "#/home")
+    attendre(page)
+    try:
+        attendre_accueil(page)
+    except DelaiDepasse:
+        res.echec("accueil", vue, "la liste des prochains événements reste en « Chargement… »")
+        return None
+    res.vues += 1
+    return page.evaluate("() => window.__verifNav.accueil()")
+
+
+def verifier_accueil(page, res, sc):
+    """Accueil, nouvelle navigation, les deux espaces : le logo n'y est qu'une fois (celui de la coquille, pas un second à côté de la date), la phrase qui
+    énumérait les pages de l'ancienne barre est remplacée par « Promo <nom> · semaine <n> », aucune tuile ne double la barre ; la carte « Prochain
+    événement majeur » compte les jours qui restent, jamais en nombre négatif."""
+    vue = "%s/accueil" % sc.nom
+    m = ouvrir_accueil(page, res, vue)
+    if m is None:
+        return
+    if m["logos"]:
+        res.echec("accueil", vue, "%d logo(s) à côté de la date : la coquille porte déjà le logo" % m["logos"])
+    if m["tuiles"]:
+        res.echec("accueil", vue, "des tuiles doublent la barre : %s" % ", ".join(m["tuiles"]))
+    attendue = ligne_promo_attendue(m["promo"], datetime.date.fromisoformat(DATE_DU_BANC))
+    if m["lead"] != attendue:
+        res.echec("accueil", vue, "la ligne sous la salutation est « %s », attendu « %s »" % (m["lead"], attendue))
+    if m["agenda"]:
+        verifier_carte(res, vue, m)
+    vider_console(res, vue)
+
+
+def verifier_accueil_eteint(page, res, sc):
+    """Interrupteur éteint : l'accueil de main (le logo à côté de la date, la phrase sur le suivi de la promo, les tuiles), à une correction près, celle de
+    la carte du prochain événement majeur, qui ne montre plus de nombre négatif."""
+    vue = "%s/accueil" % sc.nom
+    m = ouvrir_accueil(page, res, vue)
+    if m is None:
+        return
+    if m["logos"] != 1:
+        res.echec("accueil, interrupteur éteint", vue, "%d logo(s) à côté de la date, main en a 1" % m["logos"])
+    if not m["tuiles"]:
+        res.echec("accueil, interrupteur éteint", vue, "aucune tuile : main montre les raccourcis")
+    if not (m["lead"] or "").startswith("Tout le suivi de la promo TP ECSR"):
+        res.echec("accueil, interrupteur éteint", vue, "la phrase sous la salutation est « %s », celle de main commence par « Tout le suivi de la promo TP ECSR »" % m["lead"])
+    if m["agenda"]:
+        verifier_carte(res, vue, m)
+    vider_console(res, vue)
+
+
+def verifier_planning_semaine(page, res, sc):
+    """Planning > Semaine, nouvelle navigation : chez le stagiaire, ni la phrase « Lecture seule... » ni le bouton « Cette semaine » (« Aujourd'hui », en tête
+    de la page, le remplace) ; chez l'équipe, le bouton reste."""
+    vue = "%s/planning/semaine" % sc.nom
+    aller_a(page, "#/planning")
+    attendre(page)
+    semaine = page.locator("#view .subtabs-bar > .subtab", has_text="Semaine")
+    if semaine.count():
+        semaine.first.click()
+        attendre(page)
+    res.vues += 1
+    m = page.evaluate("() => window.__verifNav.planningSemaine()")
+    if sc.espace == "stagiaire":
+        if m["cetteSemaine"]:
+            res.echec("planning du stagiaire", vue, "le bouton « Cette semaine » est encore montré (« Aujourd'hui » le remplace)")
+        if m["aujourdhui"] != 1:
+            res.echec("planning du stagiaire", vue, "%d bouton(s) « Aujourd'hui » dans la page, 1 attendu" % m["aujourdhui"])
+        if m["lecture"]:
+            res.echec("planning du stagiaire", vue, "la page dit encore « Lecture seule » à un stagiaire")
+    elif m["cetteSemaine"] != 1:
+        res.echec("planning de l'équipe", vue, "%d bouton(s) « Cette semaine » chez l'équipe, 1 attendu" % m["cetteSemaine"])
+    vider_console(res, vue)
+
+
+def verifier_planning_eteint(page, res, sc):
+    """Interrupteur éteint : le Planning de main, « Cette semaine » et la phrase « Lecture seule... » pour tous."""
+    vue = "%s/planning/semaine" % sc.nom
+    aller_a(page, "#/planning")
+    attendre(page)
+    res.vues += 1
+    m = page.evaluate("() => window.__verifNav.planningSemaine()")
+    if m["cetteSemaine"] != 1:
+        res.echec("planning, interrupteur éteint", vue, "%d bouton(s) « Cette semaine », main en a 1 pour tous" % m["cetteSemaine"])
+    if not m["lecture"]:
+        res.echec("planning, interrupteur éteint", vue, "la phrase « Lecture seule... » de main manque")
+    vider_console(res, vue)
+
+
+def verifier_la_classe(page, res, sc):
+    """Mon suivi > La classe, chez le stagiaire (nouvelle navigation) : la vue de la classe sans second titre « Notes & évaluations », sans la seconde rangée
+    Matrice / EPCF (deux « EPCF » se liraient à l'écran), sans phrase sur la saisie ni « Lecture seule... » ; il reste le nombre de notes."""
+    vue = "%s/mon-suivi/classe" % sc.nom
+    aller_a(page, "#/mon-suivi/classe")
+    attendre(page)
+    res.vues += 1
+    m = page.evaluate("() => window.__verifNav.laClasse()")
+    if m is None:
+        res.echec("la classe du stagiaire", vue, "la matrice des notes n'est pas à l'écran sur #/mon-suivi/classe")
+        return
+    if m["titres"]:
+        res.echec("la classe du stagiaire", vue, "un second titre : « %s »" % " », « ".join(m["titres"]))
+    if m["barres"]:
+        res.echec("la classe du stagiaire", vue, "une seconde rangée de sous-onglets (Matrice / EPCF) : deux « EPCF » se lisent à l'écran")
+    if len(m["entetes"]) != 1 or not COMPTE_NOTES.fullmatch(m["entetes"][0]):
+        res.echec("la classe du stagiaire", vue, "l'en-tête de la classe est « %s », attendu le seul nombre de notes (« N notes enregistrées. »)" % " | ".join(m["entetes"]))
+    for dit in ("Lecture seule", "Clique une cellule", "Notes & évaluations", "Notes et examens"):
+        if dit in m["texte"]:
+            res.echec("la classe du stagiaire", vue, "la page dit « %s »" % dit)
+    vider_console(res, vue)
+
+
+def verifier_notes_eteint(page, res, sc):
+    """Interrupteur éteint, stagiaire : la page Notes de main (ses deux phrases, « Clique une cellule... » et « Lecture seule... », et ses deux sous-onglets)."""
+    vue = "%s/notes" % sc.nom
+    aller_a(page, "#/notes")
+    attendre(page)
+    res.vues += 1
+    m = page.evaluate("""() => ({ texte: document.getElementById('view').innerText,
+        onglets: [...document.querySelectorAll('#view .subtabs-bar > .subtab')].map((b) => b.textContent.trim()) })""")
+    if "Lecture seule. Connexion admin requise pour modifier." not in m["texte"]:
+        res.echec("notes, interrupteur éteint", vue, "la phrase « Lecture seule. Connexion admin requise pour modifier. » de main manque")
+    if "Clique une cellule pour saisir la note" not in m["texte"]:
+        res.echec("notes, interrupteur éteint", vue, "la phrase « Clique une cellule pour saisir la note » de main manque")
+    if m["onglets"] != ["Matrice", "EPCF"]:
+        res.echec("notes, interrupteur éteint", vue, "les sous-onglets sont « %s », main a « Matrice », « EPCF »" % " », « ".join(m["onglets"]))
+    vider_console(res, vue)
+
+
+def verifier_bandeau_emargement(page, res, sc):
+    """Bandeau d'émargement, au-dessus de la page. Nouvelle navigation, sur téléphone : une seule ligne (« Émargement du matin ouvert » et son bouton), les
+    horaires du stagiaire et les signatures du formateur cachés, le bouton de 44 px. Au-delà de 700 px, et interrupteur éteint : le bandeau de main, ses
+    détails montrés."""
+    vue = "%s/bandeau-emargement" % sc.nom
+    aller_a(page, "#/home")
+    attendre(page)
+    try:
+        page.wait_for_function("() => { const b = document.getElementById('emargement-bandeau'); return !!b && !b.hidden; }", timeout=6000)
+    except DelaiDepasse:
+        res.echec("bandeau d'émargement", vue, "le bandeau n'est pas affiché alors qu'une feuille est ouverte pour aujourd'hui (émargement allumé au banc)")
+        return
+    attendre(page, calme=150)
+    res.vues += 1
+    m = page.evaluate("() => window.__verifNav.bandeauEmargement()")
+    if m is None:
+        res.echec("bandeau d'émargement", vue, "le bandeau n'est pas affiché alors qu'une feuille est ouverte pour aujourd'hui (émargement allumé au banc)")
+        return
+    if not m["details"]:
+        res.echec("bandeau d'émargement", vue, "le texte du bandeau n'a pas de détail à cacher (.em-bandeau-detail) : « %s »" % m["texte"])
+    elif sc.passe == "allume" and sc.largeur < SEUIL_TELEPHONE:
+        montres = [d["texte"] for d in m["details"] if d["visible"]]
+        if montres:
+            res.echec("bandeau d'émargement", vue, "détail montré sur téléphone : « %s » (« %s »)" % (" », « ".join(montres), m["texte"]))
+        if m["lignes"] != 1:
+            res.echec("bandeau d'émargement", vue, "le bandeau fait %d lignes sur téléphone, une seule attendue : « %s »" % (m["lignes"], m["texte"]))
+        elif m["hauteur"] > HAUTEUR_BANDEAU_DEUX_LIGNES:
+            res.echec("bandeau d'émargement", vue, "le bandeau d'une ligne mesure %s px, plus que les deux lignes d'avant (%d px) : « %s »"
+                      % (m["hauteur"], HAUTEUR_BANDEAU_DEUX_LIGNES, m["texte"]))
+        if not m["bouton"] or min(m["bouton"]["l"], m["bouton"]["h"]) < 43.5:
+            res.echec("bandeau d'émargement", vue, "bouton « %s » de %s px (44 px au moins sur téléphone)"
+                      % (m["bouton"]["nom"] if m["bouton"] else "?", "%sx%s" % (m["bouton"]["l"], m["bouton"]["h"]) if m["bouton"] else "0x0"))
+    else:
+        caches = [d["texte"] for d in m["details"] if not d["visible"]]
+        if caches:
+            res.echec("bandeau d'émargement", vue, "détail caché alors que la page est %s : « %s »"
+                      % ("celle de main" if sc.passe == "eteint" else "large de %d px" % sc.largeur, " », « ".join(caches)))
+    vider_console(res, vue)
+
+
 def jouer_allume(page, res, sc, options):
     regles = regles_de_la_page(page, res, sc)
     res.profil_stagiaire = bool(regles.get("profilStagiaire"))
@@ -2031,8 +2394,14 @@ def jouer_allume(page, res, sc, options):
     verifier_preferences(page, res, sc)
     if res.coquille and "planning" in routes:
         verifier_aujourdhui(page, res, sc)
+        verifier_planning_semaine(page, res, sc)
         if sc.espace == "equipe":
             verifier_bouton_benevoles(page, res, sc)
+    if res.coquille:
+        verifier_accueil(page, res, sc)
+        verifier_bandeau_emargement(page, res, sc)
+        if sc.espace == "stagiaire" and res.profil_stagiaire and sc.modules != "depart":
+            verifier_la_classe(page, res, sc)
     if res.coquille and sc.espace == "equipe" and sc.largeur < SEUIL_TELEPHONE:
         aller_a(page, "#/stagiaires")
         verifier_assistant_en_tete(page, res, sc, options)
@@ -2248,6 +2617,11 @@ def jouer_eteint(page, res, sc, options):
     jouer_anciennes_adresses(page, res, sc)
     verifier_preferences_eteint(page, res, sc)
     verifier_titres_eteint(page, res, sc)
+    verifier_accueil_eteint(page, res, sc)
+    verifier_planning_eteint(page, res, sc)
+    if sc.role == "stagiaire":
+        verifier_notes_eteint(page, res, sc)
+    verifier_bandeau_emargement(page, res, sc)
     if sc.role in ("prof", "fondateur"):
         verifier_benevoles_eteint(page, res, sc)
     verifier_barre_des_jours(page, res, sc)
