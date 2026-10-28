@@ -1,6 +1,6 @@
 # Dossier Qualiopi du centre : conception
 
-Date : 28/10/2026. Conversation « 03 - Dossier Qualiopi », lancée par la conversation de la refonte de la
+Date : 28/10/2026. Statut : **validée par Timy le 28/10/2026**. Conversation « 03 - Dossier Qualiopi », lancée par la conversation de la refonte de la
 navigation (spec `2026-10-27-refonte-navigation-roles-design.md`, § 4.2 et 4.3 : la direction prépare le
 dossier de son centre, le siège le télécharge par centre). Les quatre choix de cadrage ont été validés par
 Timy le 28/10 (§ 5) ; les points marqués « choix du rédacteur » sont à relire.
