@@ -2,48 +2,53 @@
  * Promo ECSR : application propriétaire.
  * © 2026 watchi64. Tous droits réservés. Voir LICENSE.
  */
-import { getCurrentUser, invalidateCache, verifyRecoveryToken } from "./db.js?v=20261028a";
-import { toast } from "./utils.js?v=20261028a";
-import { icon } from "./icons.js?v=20261028a";
-import { initAuth, onAdminChange, isAuth, monStagiaireId, getAdminEmail, getProfile, getProfileWho } from "./auth-admin.js?v=20261028a";
-import { showGate, hideGate } from "./gate.js?v=20261028a";
-import { exigerAcceptation } from "./legal.js?v=20261028a";
-import { lireJetonRecuperation } from "./gate-rules.js?v=20261028a";
-import { loadAccent } from "./accent-switcher.js?v=20261028a";
-import { loadTheme } from "./theme-switcher.js?v=20261028a";
-import { renderHome } from "./views/home.js?v=20261028a";
-import { renderDashboard } from "./views/dashboard.js?v=20261028a";
-import { renderMonSuivi } from "./views/mon-suivi.js?v=20261028a";
-import { renderPlanning, teardownPrintTarget, resetPlanningEditMode, requestPlanningToday } from "./views/planning.js?v=20261028a";
-import { renderPlanningEspace } from "./views/planning-espace.js?v=20261028a";
-import { teardownDocPrint } from "./doc-officiel.js?v=20261028a";
-import { renderNotes } from "./views/notes.js?v=20261028a";
-import { renderRessources } from "./views/ressources.js?v=20261028a";
-import { renderThemes } from "./views/themes.js?v=20261028a";
-import { renderConfig, renderPreferences } from "./views/config.js?v=20261028a";
-import { renderCalendrier } from "./views/calendrier.js?v=20261028a";
-import { initUndoKeyboard } from "./undo.js?v=20261028a";
-import { renderNouveautes } from "./views/nouveautes.js?v=20261028a";
-import { libellePastille } from "./nouveautes.js?v=20261028a";
-import { renderCcp2 } from "./views/ccp2.js?v=20261028a";
-import { renderStagiaires } from "./views/stagiaires.js?v=20261028a";
-import { renderCentre, teardownCentrePrint } from "./views/centre.js?v=20261028a";
-import { renderEmargement } from "./views/emargement.js?v=20261028a";
-import { initBandeauEmargement, rafraichirBandeauEmargement } from "./emargement-bandeau.js?v=20261028a";
-import { chargerEmargementActif, emargementActif } from "./emargement-etat.js?v=20261028a";
-import { chargerNavigationV2, navigationV2Active, navigationV2Attendue, renoncerNavigationV2 } from "./nav-etat.js?v=20261028a";
-import { routeVisibleV2, espaceDe, entreesNavigation, initialesDe, redirectionV2, redirectionAncienne } from "./nav-rules.js?v=20261028a";
-import { monterCoquille, majEntreeActive, coquilleMontee, retirerCoquille, majNouveautesCompte } from "./nav-shell.js?v=20261028a";
-import { lireAdresse, pagePersonnelle } from "./route-rules.js?v=20261028a";
+// En premier : le journal des erreurs (signalement de problème) capte celles des modules qui suivent.
+import "./journal-erreurs.js?v=20261029a";
+import { getCurrentUser, invalidateCache, verifyRecoveryToken } from "./db.js?v=20261029a";
+import { toast } from "./utils.js?v=20261029a";
+import { icon } from "./icons.js?v=20261029a";
+import { initAuth, onAdminChange, isAuth, monStagiaireId, getAdminEmail, getProfile, getProfileWho, fondateurHorsApercu } from "./auth-admin.js?v=20261029a";
+import { chargerEtatSignalements } from "./signalement-etat.js?v=20261029a";
+import { messageDemarrage } from "./signalement-rules.js?v=20261029a";
+import { showGate, hideGate } from "./gate.js?v=20261029a";
+import { exigerAcceptation } from "./legal.js?v=20261029a";
+import { lireJetonRecuperation } from "./gate-rules.js?v=20261029a";
+import { loadAccent } from "./accent-switcher.js?v=20261029a";
+import { loadTheme } from "./theme-switcher.js?v=20261029a";
+import { renderHome } from "./views/home.js?v=20261029a";
+import { renderDashboard } from "./views/dashboard.js?v=20261029a";
+import { renderMonSuivi } from "./views/mon-suivi.js?v=20261029a";
+import { renderPlanning, teardownPrintTarget, resetPlanningEditMode, requestPlanningToday } from "./views/planning.js?v=20261029a";
+import { renderPlanningEspace } from "./views/planning-espace.js?v=20261029a";
+import { teardownDocPrint } from "./doc-officiel.js?v=20261029a";
+import { renderNotes } from "./views/notes.js?v=20261029a";
+import { renderRessources } from "./views/ressources.js?v=20261029a";
+import { renderThemes } from "./views/themes.js?v=20261029a";
+import { renderConfig, renderPreferences } from "./views/config.js?v=20261029a";
+import { renderCalendrier } from "./views/calendrier.js?v=20261029a";
+import { initUndoKeyboard } from "./undo.js?v=20261029a";
+import { renderNouveautes } from "./views/nouveautes.js?v=20261029a";
+import { libellePastille } from "./nouveautes.js?v=20261029a";
+import { renderCcp2 } from "./views/ccp2.js?v=20261029a";
+import { renderStagiaires } from "./views/stagiaires.js?v=20261029a";
+import { renderCentre, teardownCentrePrint } from "./views/centre.js?v=20261029a";
+import { renderEmargement } from "./views/emargement.js?v=20261029a";
+import { renderProblemes } from "./views/problemes.js?v=20261029a";
+import { initBandeauEmargement, rafraichirBandeauEmargement } from "./emargement-bandeau.js?v=20261029a";
+import { chargerEmargementActif, emargementActif } from "./emargement-etat.js?v=20261029a";
+import { chargerNavigationV2, navigationV2Active, navigationV2Attendue, renoncerNavigationV2 } from "./nav-etat.js?v=20261029a";
+import { routeVisibleV2, espaceDe, entreesNavigation, initialesDe, redirectionV2, redirectionAncienne } from "./nav-rules.js?v=20261029a";
+import { monterCoquille, majEntreeActive, coquilleMontee, retirerCoquille, majNouveautesCompte } from "./nav-shell.js?v=20261029a";
+import { lireAdresse, pagePersonnelle } from "./route-rules.js?v=20261029a";
 import {
   peutQuitter, leverGardeSortie, majSurPlacePour, oublierMajSurPlace,
   noterAdresse, adresseCourante, remplacerAdresse, installerGardeNavigateur,
-} from "./navigation.js?v=20261028a";
-import { initChatbot, appliquerModuleAssistant } from "./chatbot.js?v=20261028a";
+} from "./navigation.js?v=20261029a";
+import { initChatbot, appliquerModuleAssistant } from "./chatbot.js?v=20261029a";
 import {
   chargerModules, chargerModulesAuDemarrage, onModulesChange, surveillerPremierPlan,
   routeVisible, routeMasquee, repereMasque, nouveautesAffichables, formateurConnecte,
-} from "./modules-etat.js?v=20261028a";
+} from "./modules-etat.js?v=20261029a";
 
 // ===== Tabs =====
 
@@ -201,13 +206,14 @@ const routes = {
   // l'adresse mène à Paramètres avant d'arriver ici (suivreRedirection).
   preferences: renderPreferences,
   nouveautes: renderNouveautes,
+  problemes:  renderProblemes,
 };
 
 // Routes sans onglet propre qui doivent quand même allumer un onglet. On arrive
 // sur #/nouveautes depuis Accueil, et sur #/dashboard (Priorités) depuis le
 // Planning : laisser la barre sans onglet actif donnerait l'impression d'être
 // sorti de l'app.
-const ONGLET_POUR_ROUTE = { nouveautes: "home", dashboard: "planning", centre: "home", emargement: "planning" };
+const ONGLET_POUR_ROUTE = { nouveautes: "home", dashboard: "planning", centre: "home", emargement: "planning", problemes: "config" };
 
 let lastRoute = null;
 
@@ -285,6 +291,12 @@ async function navigate({ force = false } = {}) {
   // stagiaire est ramené sur Mon suivi, avec un mot d'explication.
   if (!routeOuverte(route)) {
     toast("Cette partie n'est pas encore ouverte pour ta promo.", "info", 3500);
+    try { history.replaceState(null, "", "#/mon-suivi"); } catch (e) { /* ignore */ }
+    route = "mon-suivi";
+  }
+  // Problèmes signalés (spec 2026-10-28) : le fondateur seulement, hors aperçu « Voir en tant que ».
+  // Les autres retombent sur leur page habituelle (la garde de la page à soi suit).
+  if (route === "problemes" && !fondateurHorsApercu()) {
     try { history.replaceState(null, "", "#/mon-suivi"); } catch (e) { /* ignore */ }
     route = "mon-suivi";
   }
@@ -386,6 +398,7 @@ async function actualiser() {
   afficherChargement();
   // Un formateur a pu ouvrir un module depuis le dernier chargement.
   await chargerModules();
+  chargerEtatSignalements();
   navigate({ force: true });
 }
 
@@ -493,8 +506,17 @@ async function bootApp() {
   suivreHauteurBarre();
   initChatbot();
   majPresenceModules();
+  // Signaler un problème : compteurs des pastilles, et un mot à l'ouverture quand un signalement a avancé
+  // (ou, chez le fondateur, quand il y en a de nouveaux).
+  chargerEtatSignalements().then((etat) => {
+    const phrase = messageDemarrage({ fondateur: fondateurHorsApercu(), ...etat });
+    if (phrase) setTimeout(() => toast(phrase, "info", 6000), 1500);
+  });
   // Le changement de rôle change l'audience, donc le compte, et ce qu'on voit des modules.
-  onAdminChange(() => { renderTabs(); majBadgeNouveautes(); majPresenceModules(); navigate({ force: true }); rafraichirBandeauEmargement(); });
+  onAdminChange(() => {
+    renderTabs(); majBadgeNouveautes(); majPresenceModules(); navigate({ force: true }); rafraichirBandeauEmargement();
+    chargerEtatSignalements();
+  });
   // Un module ouvert ou fermé (réglage d'un formateur, relecture au premier plan) :
   // barre, pastille et raccourcis suivent. La vue n'est rejouée que si elle vient
   // d'être fermée, pour ne pas détruire une saisie en cours.

@@ -254,5 +254,8 @@ eq(pageASoiDuMenu("stagiaires", []), "stagiaires", "aucune entrée : la ligne re
 // le bon. Deux pages ne partagent jamais une clé : chacune s'ouvrirait sur le sous-onglet de l'autre.
 eq(CLES_SOUS_ONGLETS.stagiaires, "stagiaires.subtab", "clé des sous-onglets de la page Stagiaires");
 eq(new Set(Object.values(CLES_SOUS_ONGLETS)).size, Object.keys(CLES_SOUS_ONGLETS).length, "une clé par page à sous-onglets");
+// Page « Problèmes signalés » (fondateur, spec 2026-10-28) : sans entrée à elle, elle allume Réglages.
+eq(entreeActive("problemes", entreesNavigation("equipe", { routeVisible: tout, emargementActif: false })), "config",
+  "problemes allume Réglages chez l'équipe");
 
 console.log(`nav-rules : ${n} assertions OK`);
