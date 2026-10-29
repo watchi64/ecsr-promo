@@ -88,6 +88,36 @@ export function clear(node) {
   while (node.firstChild) node.removeChild(node.firstChild);
 }
 
+// === Rien ne défile de côté (règle de Timy du 27/10) : graphes et tableaux tiennent dans la largeur de l'écran ===
+
+/** Largeur, en unités du viewBox, d'un graphe SVG qui se dessine à la largeur de son conteneur (width: 100 %, height: auto).
+ *  Celle de la fenêtre moins les marges de la page et de la carte, bornée : le viewBox est ainsi à peu près aussi large que
+ *  ce que le graphe occupe à l'écran, ses textes gardent leur taille, et width: 100 % le ramène exactement à son conteneur. */
+export function largeurDeGraphe(max = 720, min = 260) {
+  const fenetre = document.documentElement.clientWidth || max + 80;   // fenêtre sans largeur mesurable : le plafond
+  return Math.max(min, Math.min(max, fenetre - 80));
+}
+
+/** Tableau qui devient une liste hors ordinateur (spec § 4.1, sous 1 080 px) : la feuille de style empile les cellules
+ *  d'une ligne en une carte et écrit devant chaque valeur le titre de sa colonne (data-label, lu ici dans l'en-tête).
+ *  La cellule qui porte la classe liste-titre est le titre de la carte : elle n'a pas de libellé devant elle.
+ *  Les rôles ARIA gardent au tableau sa sémantique quand la feuille change l'affichage de ses éléments. */
+export function tableauEnListe(table) {
+  const titres = [...table.querySelectorAll("thead th")].map((th) => th.textContent.trim());
+  table.classList.add("tableau-liste");
+  table.setAttribute("role", "table");
+  table.querySelectorAll("thead, tbody").forEach((groupe) => groupe.setAttribute("role", "rowgroup"));
+  table.querySelectorAll("tr").forEach((ligne) => {
+    ligne.setAttribute("role", "row");
+    [...ligne.children].forEach((cellule, i) => {
+      const entete = cellule.tagName === "TH";
+      cellule.setAttribute("role", entete ? (cellule.closest("thead") ? "columnheader" : "rowheader") : "cell");
+      if (!entete && titres[i] && !cellule.classList.contains("liste-titre")) cellule.setAttribute("data-label", titres[i]);
+    });
+  });
+  return table;
+}
+
 // === Affichage stagiaire / prof ===
 
 /** Renvoie l'affichage court : "V. Timy" (initiale du nom + prénom). */

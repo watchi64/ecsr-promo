@@ -18,7 +18,7 @@ URL_DU_BANC : adresse de _harness.html (défaut http://127.0.0.1:8040/_harness.h
 requête (essai de ::1 avant IPv4) et fait passer le démarrage de l'app de 0,3 s à 6 s ; `--garder-hote`
 l'évite.
 
-Sortie : les échecs groupés par type, les avertissements (dette connue, sans échec), puis, en dernière
+Sortie : les échecs groupés par type, les avertissements (sans échec), puis, en dernière
 ligne, « N vues, M échec(s) ». Code de sortie 1 s'il y a un échec, 2 si le banc ne répond pas.
 
 Ce que le script joue
@@ -43,8 +43,8 @@ manque) :
     ruling R17), lectures des réglages ralenties : l'ancienne barre ne se peint à aucune image avant
     la coquille (échantillon à chaque image) et l'attente (`body[data-nav-attente]`) est levée.
   * Passe « éteint » : aucun aperçu, rien ne doit changer par rapport à main (aucune coquille,
-    l'ancienne barre d'onglets, pas de sous-onglets regroupés, aucun défilement ni débordement de côté
-    de plus que ceux des rulings R10 et R11), sauf trois défauts de main corrigés depuis : la barre des
+    l'ancienne barre d'onglets, pas de sous-onglets regroupés, aucun défilement ni débordement de côté),
+    sauf trois défauts de main corrigés depuis : la barre des
     jours du planning se colle juste sous l'ancienne barre, quelle que soit sa hauteur, et, bandeaux du
     bas affichés (« Voir en tant que », promos non chargées), la bulle de l'assistant et le champ de son
     panneau restent à portée, sa croix se lit et ses boutons font 44 px sur téléphone ; et la carte
@@ -65,10 +65,18 @@ Contrôles par vue
 -----------------
   * rien ne défile de côté ni ne déborde de la fenêtre, dans les deux passes, hors `.matrice-wrap`
     (exception admise, sans avertissement). Tout le reste échoue, interrupteur éteint compris (une règle
-    du lot qui déborde de `body[data-nav="v2"]` y fait échouer la page), sauf deux listes qui ne donnent
-    qu'un avertissement « dette du lot 2 » rangé par conteneur : les conteneurs de page qui défilaient
-    déjà sur main (DETTE_LOT_2, ruling R10) et le lien Légifrance de Cours > Signalements (DETTE_R11,
-    ruling R11) ;
+    du lot qui déborde de `body[data-nav="v2"]` y fait échouer la page) : les conteneurs de page qui
+    défilaient déjà sur main (rulings R10 et R11) ont été corrigés au lot 2A, tâche 5, et ne bénéficient
+    d'aucune exception ;
+  * notes en rouge (lot 2A, tâche 5) : le remplissage d'une forme d'un graphe de notes (barres des graphes de Notes, points de
+    Mon évolution) n'est jamais rouge (teinte de 345° à 15°, saturation au-dessus de 50 %), mesuré sur la couleur affichée. Les
+    trois graphes de Notes sont les onglets d'une même section (Par stagiaire, Par thème, Distribution) : la page n'en montre
+    qu'un, les autres sont ouverts un à un et mesurés comme toute vue (défilement de côté compris), puis le premier est rouvert.
+    Le banc sert pour cela des notes (NOTES_DU_BANC) qui dessinent chaque teinte de l'échelle des notes ;
+  * tableaux en listes (lot 2A, tâche 5, spec § 4.1) : un tableau marqué `tableau-liste` (les tableaux du centre et des passages) reste un
+    tableau à partir de 1 080 px et devient une liste en dessous, chaque valeur portant le titre de sa colonne devant elle (le titre de la
+    carte et la cellule des boutons n'en ont pas). Les sections repliées du tableau de bord du centre (« Tous les thèmes », les méthodes)
+    sont ouvertes le temps d'une mesure ;
   * nouvelle navigation allumée : Planning, Cours et Mon espace (de qui a un profil stagiaire) montrent au
     moins 3, 3 et 6 sous-onglets (lignes du sommaire sur téléphone), 2, 0 et 0 pour un stagiaire au départ
     (`?modules=depart`) : une barre de sous-onglets perdue échoue ;
@@ -217,6 +225,13 @@ par `--script-init`, et le script a échoué avec le message attendu ; la coquil
     matrice ou mal titrée, k-anonymat levé (un critère sur un seul stagiaire montré), titre du sous-onglet EPCF de l'équipe changé, La classe décidée par le rôle
     (le fondateur y retrouve son titre et ses deux onglets) ou sans l'option de Mon suivi, phrase de l'agenda vide de la nouvelle navigation reprise avec l'ancienne,
     ou de l'ancienne changée interrupteur éteint ;
+  * défilements de côté et notes en rouge (lot 2A, tâche 5, injectés par `--script-init`) : tableaux du centre et des passages redevenus
+    des tableaux de 700 px dans leur zone qui défile (sous 1 080 px), lien Légifrance de Cours > Signalements qui ne passe plus à la
+    ligne, graphe de Notes de 540 px au moins dans une zone qui défile (onglet Distribution seul : l'onglet d'arrivée reste propre, seul
+    le jeu des trois onglets le voit), barres « sous 8 » de Notes en rouge, points de Mon évolution en rouge, barres rouges dans le seul
+    onglet Distribution, cellules des listes sans le titre de leur colonne, tableaux devenus des listes sur ordinateur. Avant la tâche 5,
+    une fois leurs listes d'exception retirées, les conteneurs des rulings R10 et R11 (graphe de Notes, tableaux du centre et des passages,
+    lien Légifrance) donnaient 74 échecs et aucun autre ;
   * mise en place : erreur de console et de page, interrupteur qui n'allume pas, banc périmé.
 Sans défaut, n'échouent pas : un bouton `data-nav-action="deconnexion"` (pas un ouvreur), un lien d'évitement
 masqué (ni mesuré comme cible, ni sans nom), un nom pris par `aria-labelledby`, `<label for>` ou `<title>` SVG.
@@ -258,15 +273,10 @@ CLE_REGLAGE = "navigation_v2"  # réglage de la promo, ligne de `settings` (js/n
 CLE_MEMOIRE_PROMO_1 = "ecsr_nav_v2_promo:1"   # mémoire de l'appareil pour la promo 1 du banc (cleMemoire, ruling R17)
 LENTEUR_DEMARRAGE_MS = 600     # lectures des réglages ralenties dans le scénario de l'ouverture (ruling R17)
 
-# Ruling R10 : conteneurs de page qui défilaient déjà de côté sur main. Un défilement qui s'y
-# produit n'est qu'un avertissement (dette du lot 2), dans les deux passes ; partout ailleurs il échoue.
-DETTE_LOT_2 = (".passages-table-wrap", ".epcf-table-wrap", ".dashboard-meta", ".cours-table-wrap",
-               ".centre-defile", ".cours-sommaire", ".ms-chart-wrap", ".notes-chart-svg-wrap")
-EXCEPTION_ADMISE = ".matrice-wrap"  # la matrice des notes : seule exception admise, sans avertissement
-# Ruling R11 (contrôleur) : le lien Légifrance de Cours > Signalements (formateur), qui dépasse de 66 px à
-# 375 px (`p.qcm-signal-instr-ligne > a`, rogné par le body), est une dette du lot 2, déjà sur main :
-# avertissement à part, sans échec.
-DETTE_R11 = (".qcm-signal-instr-ligne",)
+# Aucun défilement de côté, à aucune largeur (règle de Timy du 27/10) : seule la matrice des notes (saisie case
+# par case) est admise, sans avertissement. Les dettes des rulings R10 et R11 (conteneurs qui défilaient déjà sur
+# main, lien Légifrance de Cours > Signalements) ont été payées au lot 2A, tâche 5 : plus aucune liste d'exception.
+EXCEPTION_ADMISE = ".matrice-wrap"
 
 # Entrées de repli si les règles de navigation de l'app ne se lisent pas dans la page.
 ENTREES_REPLI = {
@@ -523,8 +533,6 @@ function debordements(o) {
     if (e.closest(o.exception)) return "ignore";
     if (e.closest("[data-nav-coquille]")) return "coquille";
     if (e.closest(".subtabs-bar")) return "sous-onglets";
-    const d = e.closest(o.dette.join(", "));
-    if (d) return "dette:" + o.dette.find((s) => d.matches(s));
     return "page";
   };
   const vus = new Set();
@@ -552,6 +560,53 @@ function debordements(o) {
         trouves.push({ genre: "hors", cat: categorie(e), nom: nom(e), detail: `${de} de la fenêtre : ${nom(e)}` });
       }
     });
+  });
+  return trouves;
+}
+
+// ---- Notes en rouge (règle de Timy du 27/10 : jamais une note en rouge) ----
+// Le remplissage d'une forme d'un graphe de notes (barres des graphes de Notes, points de Mon évolution) n'est jamais
+// rouge : teinte de 345° à 15° et saturation au-dessus de 50 % (HSL). Mesuré sur la couleur réellement affichée (la feuille
+// de style comprise), formes sans hauteur comprises : une barre vide aurait la même couleur dès qu'elle se remplit.
+function teinteEtSaturation(couleur) {
+  const m = /^rgba?\(\s*([\d.]+)[ ,]+([\d.]+)[ ,]+([\d.]+)(?:[ ,/]+([\d.]+%?))?\s*\)$/.exec(couleur || "");
+  if (!m) return null;
+  const alpha = m[4] === undefined ? 1 : (m[4].endsWith("%") ? parseFloat(m[4]) / 100 : parseFloat(m[4]));
+  if (alpha === 0) return null;
+  const [r, g, b] = [m[1], m[2], m[3]].map((x) => parseFloat(x) / 255);
+  const haut = Math.max(r, g, b), bas = Math.min(r, g, b), ecart = haut - bas, clair = (haut + bas) / 2;
+  if (ecart === 0) return { teinte: 0, saturation: 0 };
+  const saturation = ecart / (1 - Math.abs(2 * clair - 1));
+  const sixieme = haut === r ? ((g - b) / ecart + 6) % 6 : haut === g ? (b - r) / ecart + 2 : (r - g) / ecart + 4;
+  return { teinte: Math.round(sixieme * 60 * 10) / 10, saturation };
+}
+function notesEnRouge() {
+  const rouges = [];
+  document.querySelectorAll("#view svg.notes-chart-svg, #view svg.ms-chart").forEach((svg) => {
+    svg.querySelectorAll("rect, circle, path, polygon, polyline, ellipse, text").forEach((forme) => {
+      const couleur = style(forme).fill, ts = teinteEtSaturation(couleur);
+      if (ts && ts.saturation > 0.5 && (ts.teinte >= 345 || ts.teinte <= 15)) {
+        rouges.push(`remplissage rouge ${couleur} (teinte ${ts.teinte}°, saturation ${Math.round(ts.saturation * 100)} %) : ${nom(forme)}`);
+      }
+    });
+  });
+  return rouges;
+}
+
+// ---- Tableaux en listes hors ordinateur (lot 2A, tâche 5 ; spec § 4.1) ----
+// Un tableau marqué par tableauEnListe (classe tableau-liste) est un tableau à partir de 1 080 px et une liste en dessous : chaque
+// valeur d'une carte y porte le titre de sa colonne devant elle (le titre de la carte et la cellule des boutons n'en ont pas).
+function tableauxEnListes() {
+  const W = largeur(), liste = W < 1080, trouves = [];
+  document.querySelectorAll("#view table.tableau-liste").forEach((t) => {
+    if (!visible(t)) return;
+    const d = style(t).display;
+    if (liste && d === "table") trouves.push(`un tableau reste un tableau à ${W} px, sous 1 080 px : ${nom(t)}`);
+    if (!liste && d !== "table") trouves.push(`un tableau est une liste à ${W} px, à partir de 1 080 px : ${nom(t)}`);
+    if (!liste) return;
+    const sans = [...t.querySelectorAll("tbody td")].filter((td) => visible(td) && !td.matches(".liste-titre, .liste-actions")
+      && ["none", "normal", '""', ""].includes(getComputedStyle(td, "::before").content));
+    if (sans.length) trouves.push(`${sans.length} valeur(s) sans titre de colonne dans la liste ${nom(t)} (ex. « ${texte(sans[0]).slice(0, 30)} »)`);
   });
   return trouves;
 }
@@ -604,7 +659,7 @@ function chercherPlus() {
 
 // ---- Mesure d'une vue ----
 async function mesurer(o) {
-  const echecs = [], dettes = [], avert = [];
+  const echecs = [], avert = [];
   const W = largeur(), H = hauteur();
   const tel = W < o.seuilTelephone;
   const allume = o.passe === "allume";
@@ -629,16 +684,18 @@ async function mesurer(o) {
 
   // Défilements et débordements de côté : la même classification interrupteur allumé ou éteint, car la
   // passe éteinte est le garde de « l'app reste identique à main » (une règle du lot qui déborde de
-  // body[data-nav="v2"] se voit là). Seuls les conteneurs des rulings R10 et R11 ne donnent qu'un avertissement,
-  // rangé sous le sélecteur de leur conteneur.
+  // body[data-nav="v2"] se voit là). Aucun conteneur n'a d'exception, hors la matrice des notes.
   const trouves = debordements(o);
   trouves.forEach((t) => {
     if (t.cat === "ignore") return;
     if (t.cat === "coquille") echecs.push(["défilement de côté dans la coquille", t.detail]);
     else if (t.cat === "sous-onglets") echecs.push(["défilement de côté d'une barre de sous-onglets", t.detail]);
-    else if (t.cat.startsWith("dette:")) dettes.push([t.cat.slice(6), t.detail]);
     else echecs.push([t.genre === "zone" ? "zone de page qui défile de côté" : "élément de page qui déborde de la fenêtre", t.detail]);
   });
+  // Graphes de notes : jamais un remplissage rouge (lot 2A, tâche 5), dans les deux passes.
+  notesEnRouge().forEach((detail) => echecs.push(["note en rouge dans un graphe", detail]));
+  // Tableaux : une liste sous 1 080 px, un tableau au-delà (lot 2A, tâche 5), dans les deux passes.
+  tableauxEnListes().forEach((detail) => echecs.push(["tableau en liste", detail]));
 
   // Barres de sous-onglets : une seule allumée ; zones à toucher sous la nouvelle navigation.
   const barres = [...document.querySelectorAll(".subtabs-bar")].filter(visible);
@@ -655,7 +712,7 @@ async function mesurer(o) {
   if (allume && o.coquille) mesurerCoquille(o, route, W, H, tel, echecs, avert, await regles());
   if (!allume) mesurerAncienne(route, echecs, barres);
   window.scrollTo(0, 0);
-  return { route, echecs, dettes, avert };
+  return { route, echecs, avert };
 }
 
 function mesurerAncienne(route, echecs, barres) {
@@ -1244,6 +1301,12 @@ def nouveau_contexte(navigateur, sc, options):
         lignes.append("FIXTURES.user_profiles[0].is_founder = false;")
     lignes.append("RPC.epcf_moyennes = %s;" % json.dumps([{"critere": c, "moyenne": m, "effectif": n}
                                                           for rangees in MOYENNES_EPCF_DU_BANC.values() for (c, m, n) in rangees]))
+    # Des notes pour les graphes (lot 2A, tâche 5) : sans elles, aucune barre ne se dessine et la garde « aucune note en rouge » ne voit rien.
+    lignes.append("FIXTURES.evaluations.push(...%s);" % json.dumps([
+        {"id": 9100 + i, "stagiaire_id": sid, "type": "Thème", "theme_numero": theme, "theme_titre": None, "competence_code": None,
+         "note": note, "note_max": 20, "observation": None, "date_eval": jour, "stagiaire": None, "competence": None}
+        for i, (sid, theme, note, jour) in enumerate(NOTES_DU_BANC)]))
+    lignes.append("RPC.notes_stats_groupe = %s;" % json.dumps(STATS_NOTES_DU_BANC))
     contexte.route("**/*", lambda route: servir_depuis_le_cache(route, lignes))
     if options.get("script_init"):
         contexte.add_init_script(path=options["script_init"])
@@ -1335,7 +1398,7 @@ def verifier_vue(page, res, sc, titre, options):
     attendre(page)
     res.vues += 1
     o = {"passe": sc.passe, "espace": sc.espace, "coquille": res.coquille, "seuilTelephone": SEUIL_TELEPHONE,
-         "dette": list(DETTE_LOT_2 + DETTE_R11), "exception": EXCEPTION_ADMISE}
+         "exception": EXCEPTION_ADMISE}
     avant = len(res.echecs)
     try:
         m = page.evaluate("(o) => window.__verifNav.mesurer(o)", o)
@@ -1345,11 +1408,11 @@ def verifier_vue(page, res, sc, titre, options):
     vue = "%s/%s" % (sc.nom, titre)
     for type_, detail in m["echecs"]:
         res.echec(type_, vue, detail)
-    for cle, detail in m["dettes"]:
-        res.avertir("dette du lot 2, ruling R11" if cle in DETTE_R11 else "dette du lot 2", cle, vue, detail)
     for type_, detail in m["avert"]:
         res.avertir(type_, detail, vue, detail)
     vider_console(res, vue)
+    jouer_graphiques_de_notes(page, res, vue, o)
+    jouer_sections_repliees(page, res, vue, o)
     if options.get("captures") and len(res.echecs) > avant:
         dossier = pathlib.Path(options["captures"])
         dossier.mkdir(parents=True, exist_ok=True)
@@ -1357,6 +1420,55 @@ def verifier_vue(page, res, sc, titre, options):
             page.screenshot(path=str(dossier / (re.sub(r"[^A-Za-z0-9@._-]+", "_", vue) + ".png")))
         except ErreurPlaywright:
             pass
+
+
+def jouer_graphiques_de_notes(page, res, vue, o):
+    """Les graphes de Notes sont les trois onglets d'une même section (Par stagiaire, Par thème, Distribution) : la vue mesurée n'en montre
+    qu'un. Les autres sont ouverts un à un et mesurés comme toute vue (défilement de côté, note en rouge), puis l'onglet d'avant est rouvert :
+    la page reste comme on l'a trouvée."""
+    onglets = page.evaluate("() => [...document.querySelectorAll('#view .chart-tab')].map((b) => [b.textContent.trim(), b.classList.contains('active')])")
+    if len(onglets) < 2:
+        return
+    actif = next((nom for nom, allume in onglets if allume), onglets[0][0])
+    for nom, allume in onglets:
+        if allume:
+            continue
+        titre = "%s/graphique %s" % (vue, nom)
+        try:
+            page.locator("#view .chart-tab", has_text=nom).first.click(timeout=4000)
+            page.wait_for_timeout(60)
+            res.vues += 1
+            m = page.evaluate("(o) => window.__verifNav.mesurer(o)", o)
+        except (DelaiDepasse, ErreurPlaywright) as e:
+            res.echec("clic impossible", titre, "onglet de graphique « %s » : %s" % (nom, motif_du_clic(e)))
+            continue
+        for type_, detail in m["echecs"]:
+            res.echec(type_, titre, detail)
+        vider_console(res, titre)
+    try:
+        page.locator("#view .chart-tab", has_text=actif).first.click(timeout=4000)
+        page.wait_for_timeout(60)
+    except (DelaiDepasse, ErreurPlaywright) as e:
+        res.echec("clic impossible", vue, "onglet de graphique « %s » : %s" % (actif, motif_du_clic(e)))
+
+
+def jouer_sections_repliees(page, res, vue, o):
+    """Le tableau de bord du centre cache un tableau (« Tous les thèmes ») et des textes dans des sections repliées : elles sont ouvertes le
+    temps d'une mesure (défilement de côté, tableaux en listes), puis refermées."""
+    ouvertes = page.evaluate("""() => { const ds = [...document.querySelectorAll('#view .centre details:not([open])')];
+        ds.forEach((d) => { d.open = true; d.setAttribute('data-vn-ouvert', '1'); }); return ds.length; }""")
+    if not ouvertes:
+        return
+    titre = "%s/sections dépliées" % vue
+    try:
+        page.wait_for_timeout(120)
+        res.vues += 1
+        m = page.evaluate("(o) => window.__verifNav.mesurer(o)", o)
+    finally:
+        page.evaluate("() => document.querySelectorAll('#view .centre details[data-vn-ouvert]').forEach((d) => { d.open = false; d.removeAttribute('data-vn-ouvert'); })")
+    for type_, detail in m["echecs"]:
+        res.echec(type_, titre, detail)
+    vider_console(res, titre)
 
 
 def vider_console(res, vue):
@@ -2157,6 +2269,18 @@ def verifier_benevoles_eteint(page, res, sc):
 # épreuves) : (critère, moyenne, effectif). Deux critères de la grille salle sur 3 et 2 stagiaires, un troisième sur un seul (sous le k-anonymat de 2 :
 # jamais montré), un de la grille véhicule sur 3. Posées dans tous les scénarios (nouveau_contexte).
 MOYENNES_EPCF_DU_BANC = {"salle": [("PREP1", 1.5, 3), ("PREP2", 1, 2), ("ANIM1", 0.5, 1)], "vehicule": [("COND1", 1.8, 3)]}
+# Les notes que le banc sert (lot 2A, tâche 5), pour que chaque teinte de l'échelle des notes soit dessinée : (stagiaire, thème, note, date).
+# Moyennes par stagiaire : Cassandre 4 (sous 8), Anissa 8 et Timy 10,25 (sous 12), Valentin 13 (sous 16), Lorie 19 (au-dessus), Céline sans note ;
+# par thème : le 22 à 7,2 (sous 8), le 23 à 14,2 ; les cinq tranches de la répartition ont au moins une note ; les quatre teintes des points de
+# Mon évolution se lisent chez Timy (4, 9, 12 et 16).
+NOTES_DU_BANC = [(1, 22, 4, "2026-09-10"), (1, 23, 16, "2026-09-24"), (1, 23, 9, "2026-10-08"), (1, 22, 12, "2026-10-15"),
+                 (2, 22, 8, "2026-09-12"), (3, 23, 18, "2026-09-14"), (3, 23, 20, "2026-10-02"),
+                 (4, 22, 9, "2026-09-16"), (4, 23, 17, "2026-10-05"), (5, 22, 3, "2026-09-18"), (5, 23, 5, "2026-10-06")]
+# Ce que le faux serveur rend aux stagiaires (RPC notes_stats_groupe, js/notes-stats.js) : les mêmes chiffres que ceux du personnel, qui les calcule
+# sur les notes ci-dessus. 11 notes, somme 121, médiane 9, 6 sous 10 ; thème 22 : 5 notes, somme 36 ; thème 23 : 6 notes, somme 85.
+STATS_NOTES_DU_BANC = {"n_lignes": 11, "n": 11, "somme": 121, "mediane": 9, "sous_10": 6, "repartition": [1, 2, 3, 1, 4],
+                       "themes": [{"num": 22, "n": 5, "somme": 36, "mediane": 8}, {"num": 23, "n": 6, "somme": 85, "mediane": 16.5}],
+                       "competences": [], "moy_stagiaire_max": 19, "moy_stagiaire_min": 4}
 K_ANONYMAT = 2    # une moyenne de la classe n'est montrée qu'à partir de 2 stagiaires évalués (js/epcf-restitution.js)
 DATE_AGENDA_VIDE = "2027-01-15"   # après le dernier événement de l'agenda du banc (11/12/2026) : l'accueil n'a plus d'événement à venir
 
@@ -2811,12 +2935,6 @@ def lister(groupes, limite):
         print("    - ... et %d autre(s) cas (--tout pour les lister)" % (len(groupes) - len(montres)))
 
 
-ENTETES_AVERTISSEMENTS = {
-    "dette du lot 2": "dette du lot 2 : défilement de côté dans des conteneurs de page qui défilaient déjà sur main (ruling R10 : le lot 1 ne touche pas aux pages)",
-    "dette du lot 2, ruling R11": "dette du lot 2, ruling R11 : le lien Légifrance de Cours > Signalements dépasse à 375 px, déjà sur main (avertissement à part, sans échec)",
-}
-
-
 def imprimer_rapport(resultats, globaux, tout, debut):
     echecs = [e for r in resultats for e in r["echecs"]] + list(globaux)
     avert = [a for r in resultats for a in r["avert"]]
@@ -2840,7 +2958,7 @@ def imprimer_rapport(resultats, globaux, tout, debut):
         for a in avert:
             par_categorie.setdefault(a[0], []).append(a)
         for categorie, liste in par_categorie.items():
-            print("  %s" % ENTETES_AVERTISSEMENTS.get(categorie, categorie))
+            print("  %s" % categorie)
             lister([(k, n, v) for k, n, v in regrouper(liste, lambda a: a[1], lambda a: a[2])], limite)
     c1 = sum(r["clics"][1] for r in resultats)
     c2 = sum(r["clics"][2] for r in resultats)

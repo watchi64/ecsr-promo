@@ -5,7 +5,7 @@
 // js/centre-stats.js et js/centre-csv.js (purs, testés) : ici, seulement l'affichage.
 
 import { lireDonneesCentre, lireReferentielCentre, getMesPromos, getPromoCourante } from "../db.js?v=20261029a";
-import { el, clear, isoDate, formatDate, displayStagiaire, toast } from "../utils.js?v=20261029a";
+import { el, clear, isoDate, formatDate, displayStagiaire, toast, tableauEnListe } from "../utils.js?v=20261029a";
 import { icon } from "../icons.js?v=20261029a";
 import { indicateursPromo, ligneComparaison, METHODES } from "../centre-stats.js?v=20261029a";
 import { matriceNotesCsv, nomFichierCsv } from "../centre-csv.js?v=20261029a";
@@ -131,15 +131,17 @@ function sectionThemes(themes) {
           el("span", { class: "centre-theme-val" }, valeur(t)))))
       : el("p", { class: "muted" }, vide));
   const cellule = (v) => el("td", { class: "num" }, v);
+  // Sous 1 080 px, le tableau devient une liste : le thème en titre, ses chiffres dessous (aucun défilement de côté).
+  const tableauThemes = tableauEnListe(el("table", { class: "centre-table" },
+    el("thead", {}, el("tr", {}, el("th", {}, "Thème"), el("th", {}, "QCM"), el("th", {}, "Réponses"),
+      el("th", {}, "Notes"), el("th", {}, "Nb de notes"))),
+    el("tbody", {}, ...themes.complet.map((t) => el("tr", {},
+      el("td", { class: "liste-titre" }, nomTheme(t)),
+      cellule(t.qcmTaux == null ? "" : pct(t.qcmTaux)), cellule(t.qcmN ? entier(t.qcmN) : ""),
+      cellule(t.notesMoy == null ? "" : fr1(t.notesMoy)), cellule(t.notesN || ""))))));
   const tableau = el("details", { class: "centre-themes-tout" },
     el("summary", {}, `Tous les thèmes (${themes.complet.length})`),
-    el("div", { class: "centre-defile" }, el("table", { class: "centre-table" },
-      el("thead", {}, el("tr", {}, el("th", {}, "Thème"), el("th", {}, "QCM"), el("th", {}, "Réponses"),
-        el("th", {}, "Notes"), el("th", {}, "Nb de notes"))),
-      el("tbody", {}, ...themes.complet.map((t) => el("tr", {},
-        el("td", {}, nomTheme(t)),
-        cellule(t.qcmTaux == null ? "" : pct(t.qcmTaux)), cellule(t.qcmN ? entier(t.qcmN) : ""),
-        cellule(t.notesMoy == null ? "" : fr1(t.notesMoy)), cellule(t.notesN || "")))))));
+    el("div", { class: "centre-defile" }, tableauThemes));
   return el("section", { class: "centre-section" },
     el("div", { class: "centre-section-tete" }, el("h3", {}, "Thèmes à retravailler"), etiquette("mesuré")),
     el("div", { class: "centre-themes" },
@@ -167,7 +169,8 @@ function sectionASuivre(aSuivre) {
 function sectionComparaison(promos, courante, indCourant) {
   const ordre = [courante, ...promos.filter((p) => p.id !== courante.id)];
   const cases = new Map();   // `${promoId}:${cle}` → td
-  const table = el("table", { class: "centre-table centre-comparaison" },
+  // Sous 1 080 px, le tableau devient une liste : l'indicateur en titre, une ligne par promo dessous.
+  const table = tableauEnListe(el("table", { class: "centre-table centre-comparaison" },
     el("thead", {}, el("tr", {}, el("th", {}, "Indicateur"), ...ordre.map((p) => el("th", { scope: "col" }, p.nom)))),
     el("tbody", {}, ...LIBELLES_COMPARAISON.map(([cle, libelle]) => el("tr", {},
       el("th", { scope: "row" }, libelle),
@@ -175,7 +178,7 @@ function sectionComparaison(promos, courante, indCourant) {
         const td = el("td", { class: "num" + (p.id === courante.id ? " courante" : "") }, "chargement…");
         cases.set(p.id + ":" + cle, td);
         return td;
-      })))));
+      }))))));
   const remplir = (promoId, ligne) => LIBELLES_COMPARAISON.forEach(([cle]) => {
     const td = cases.get(promoId + ":" + cle);
     if (td) td.textContent = ligne ? ligne[cle] : "non chargée";

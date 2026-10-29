@@ -2,7 +2,7 @@ import { listStagiaires, listEvaluations, getPlanning, getHalfMetaForWeek, getJo
          listProfs, listEpcf, getEpcfMoyennes, listThemes,
          getStagiaire, setDateNaissance, listPassages,
          listLivretsIndex, listDossiersIndex, getPromoCourante } from "../db.js?v=20261029a";
-import { el, clear, isoDate, getMonday, addDays, formatDate, displayStagiaire, toast } from "../utils.js?v=20261029a";
+import { el, clear, isoDate, getMonday, addDays, formatDate, displayStagiaire, toast, largeurDeGraphe } from "../utils.js?v=20261029a";
 import { HALF_DAYS, RESULTATS } from "../config.js?v=20261029a";
 import { isAdmin, isProf, monStagiaireId } from "../auth-admin.js?v=20261029a";
 import { renderEpcfPersonne } from "./epcf.js?v=20261029a";
@@ -258,22 +258,20 @@ function groupByMonth(evals) {
   return groups;
 }
 
-// Graphe SVG maison. Largeur dynamique (espace mini par point → scroll horizontal
-// si beaucoup d'évals). Bandes de fond alternées par mois + un libellé de mois
-// centré sous chaque bande (fini les dates qui se chevauchent). Chaque point porte
-// des data-* lus par le tooltip stylé branché dans renderChartSection.
+// Graphe SVG maison. Il se dessine à la largeur de son conteneur (viewBox, width: 100 %) : jamais de
+// défilement de côté, même avec beaucoup d'évals (les points se resserrent). Bandes de fond alternées par
+// mois + un libellé de mois centré sous chaque bande (fini les dates qui se chevauchent : une bande trop
+// étroite n'écrit pas le sien). Chaque point porte des data-* lus par le tooltip stylé branché dans
+// renderChartSection.
 function buildChart(evals) {
   const H = 280, padL = 40, padR = 16, padT = 16, padB = 40;
   const n = evals.length;
   const months = groupByMonth(evals);
-  // Largeur mini : 26 px/point ET 46 px/mois (sinon, avec ~1 éval/mois, les bandes
-  // deviennent plus étroites que le libellé de mois → chevauchement).
-  const innerW = Math.max(540, months.length * 46, (n - 1) * 26);
-  const W = padL + padR + innerW, innerH = H - padT - padB;
+  const W = largeurDeGraphe(760), innerW = W - padL - padR, innerH = H - padT - padB;
   const x = (i) => padL + (n <= 1 ? innerW / 2 : (innerW * i) / (n - 1));
   const y = (v) => padT + innerH * (1 - Math.max(0, Math.min(20, v)) / 20);
 
-  const svg = svgEl("svg", { viewBox: `0 0 ${W} ${H}`, width: String(W), height: String(H),
+  const svg = svgEl("svg", { viewBox: `0 0 ${W} ${H}`,
     class: "ms-chart", role: "img", "aria-label": "Graphe d'évolution des notes" });
 
   // Bandes mensuelles (colonnes alternées) + libellé de mois
@@ -338,8 +336,7 @@ function renderChartSection(evaluations, soi = true) {
     section.appendChild(el("p", { class: "muted ms-empty" }, "Pas encore d'évaluation notée."));
     return section;
   }
-  // Conteneur positionné : le graphe scrolle horizontalement à l'intérieur (wrap),
-  // le tooltip est posé au niveau de l'outer pour ne pas être coupé par l'overflow.
+  // Conteneur positionné : le tooltip est posé au niveau de l'outer, à côté du graphe (wrap).
   const outer = el("div", { class: "ms-chart-outer" });
   const wrap = el("div", { class: "ms-chart-wrap" });
   const svg = buildChart(noted);

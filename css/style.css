@@ -4361,8 +4361,8 @@ button.theme-date.editable.muted { color: var(--text-muted); }
   font-family: var(--font);
 }
 .notes-chart-sub { margin: 0 0 1rem; font-size: 0.82rem; }
-.notes-chart-svg-wrap { overflow-x: auto; padding-top: 0.5rem; }
-.notes-chart-svg { width: 100%; min-width: 540px; height: auto; display: block; }
+.notes-chart-svg-wrap { padding-top: 0.5rem; }
+.notes-chart-svg { width: 100%; height: auto; display: block; }   /* à la largeur de son conteneur (viewBox) : jamais de défilement de côté */
 
 /* Tabs de graphiques */
 .chart-tabs {
@@ -4463,6 +4463,10 @@ button.theme-date.editable.muted { color: var(--text-muted); }
 .theme-stat-card.warn  { background: #FBE5C1; }
 .theme-stat-card.ok    { background: #DBE9C4; }
 .theme-stat-card.great { background: #BFE0A6; }
+.theme-stat-card.bad   strong { color: #7A4F30; }
+.theme-stat-card.warn  strong { color: #92400E; }
+.theme-stat-card.ok    strong { color: #3F6212; }
+.theme-stat-card.great strong { color: #2C5212; }
 
 .theme-stat-num {
   font-family: var(--font-mono);
@@ -5652,16 +5656,15 @@ button.theme-date.editable.muted { color: var(--text-muted); }
 
   .passages-table { font-size: 0.82rem; }
   .passages-table th, .passages-table td { padding: 0.5rem 0.6rem; }
-  .passages-table-wrap { overflow-x: auto; }
 
   .view-header { flex-direction: column; align-items: flex-start; }
   h2 { font-size: 1.4rem; }
 
   .dashboard-meta {
-    overflow-x: auto;
+    flex-wrap: wrap;
+    gap: 0.9rem 1.5rem;
     padding-bottom: 1rem;
   }
-  .dashboard-meta .stat-block { flex-shrink: 0; }
 }
 
 /* ============================================================
@@ -6081,8 +6084,8 @@ body.qcm-open { overflow: hidden; }
 .ms-passage-badge.today, .ms-passage-badge.next { color: var(--accent-strong); font-weight: 600; }
 
 .ms-chart-outer { position: relative; }
-.ms-chart-wrap { width: 100%; overflow-x: auto; }
-.ms-chart { display: block; height: auto; max-width: none; }   /* largeur en px via attribut → scroll si large */
+.ms-chart-wrap { width: 100%; }
+.ms-chart { display: block; width: 100%; max-width: 760px; height: auto; }   /* à la largeur de son conteneur (viewBox) : jamais de défilement de côté */
 .ms-month-band { fill: var(--bg-subtle); opacity: 0.55; }
 .ms-grid { stroke: var(--line); stroke-width: 1; }
 .ms-axis-label { fill: var(--text-muted); font-size: 12px; }
@@ -6092,10 +6095,12 @@ body.qcm-open { overflow: hidden; }
    reçoit survol et tap, indispensable pour viser au doigt sur mobile. */
 .ms-pt { stroke: var(--bg-elev); stroke-width: 1.5; pointer-events: none; }
 .ms-pt-hit { fill: transparent; stroke: none; cursor: pointer; }
-.ms-pt.bad   { fill: var(--c-stop); }
-.ms-pt.warn  { fill: #C98A2B; }
-.ms-pt.ok    { fill: #7BA23C; }
-.ms-pt.great { fill: var(--c-go); }
+/* L'échelle douce des notes (pêche, abricot, verts), partagée par les points de Mon évolution et les barres des
+   graphes de Notes : jamais un rouge. */
+.ms-pt.bad,   .notes-bar.bad   { fill: var(--c-stop); }
+.ms-pt.warn,  .notes-bar.warn  { fill: #C98A2B; }
+.ms-pt.ok,    .notes-bar.ok    { fill: #7BA23C; }
+.ms-pt.great, .notes-bar.great { fill: var(--c-go); }
 .ms-pt.hover { stroke: var(--text); stroke-width: 2.5; }
 .ms-chart-legend { margin: 0.5rem 0 0; font-size: 0.85rem; }
 
@@ -6218,7 +6223,7 @@ body.qcm-open { overflow: hidden; }
 .epcf-eval-select { padding: 0.4rem 0.6rem; border: 1px solid var(--line); border-radius: var(--r-sm); font: inherit; background: var(--bg-elev); color: var(--text); }
 .epcf-eval-meta { font-size: 0.82rem; }
 .epcf-classe-trame { margin-bottom: 2rem; }
-.epcf-classe-lib { font-size: 0.85rem; }
+.epcf-classe-lib { font-size: 0.85rem; overflow-wrap: anywhere; }
 .epcf-classe-phase td { background: var(--bg-subtle); }
 .epcf-name-cell { display: flex; align-items: center; gap: 0.6rem; justify-content: space-between; }
 .epcf-name { font-weight: 500; }
@@ -6228,7 +6233,6 @@ body.qcm-open { overflow: hidden; }
    Toute règle mobile EPCF doit venir ICI, jamais dans le @media principal (sinon la
    règle d'ici l'écraserait silencieusement). Même seuil maison : 760px. ===== */
 @media (max-width: 760px) {
-  .epcf-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
   .epcf-cell { white-space: normal; }
   .epcf-cell .btn { margin: 0.2rem 0.3rem 0 0; }
   .epcf-form-row { flex-direction: column; align-items: flex-start; gap: 0.35rem; }
@@ -6874,6 +6878,7 @@ body.qcm-open { overflow: hidden; }
 }
 .qcm-signal-instr-ligne {
   margin: 0 0 0.25rem; font-size: 0.82rem; line-height: 1.45; color: var(--text-muted);
+  overflow-wrap: anywhere;   /* l'adresse d'un lien Légifrance est longue et sans espace */
 }
 .qcm-signal-instr-ligne a { color: var(--text-muted); text-decoration: underline; }
 .qcm-signal-instr-vide {
@@ -8551,4 +8556,44 @@ span.bnv-nom-num { font-size: 0.8rem; font-style: italic; color: var(--text-mute
   body.centre-printable .centre-themes-tout summary,
   body.centre-printable .centre-methodes summary { color: var(--text); }
   body.centre-printable .centre-themes { grid-template-columns: 1fr 1fr; }
+}
+
+/* ===== Tableaux en listes hors ordinateur (lot 2A, tâche 5 ; spec § 4.1 : aucun défilement de côté) =====
+   Sous 1 080 px, un tableau marqué par tableauEnListe (js/utils.js) devient une liste : chaque ligne est une carte, son
+   titre (.liste-titre, ou l'en-tête de ligne) en tête, puis ses valeurs, chacune précédée du titre de sa colonne
+   (data-label). L'en-tête du tableau reste à la disposition des lecteurs d'écran. À l'écran seulement : l'export PDF
+   du tableau de bord du centre (impression A4) garde ses tableaux. */
+@media screen and (max-width: 1079.98px) {
+  .centre-defile { overflow: visible; }
+  .tableau-liste, .tableau-liste tbody, .tableau-liste tr, .tableau-liste th, .tableau-liste td { display: block; }
+  .tableau-liste thead {
+    position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden;
+    clip-path: inset(50%); white-space: nowrap;
+  }
+  .tableau-liste tr {
+    display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.2rem 0.9rem;
+    padding: 0.7rem 0.95rem; border-bottom: 1px solid var(--line);
+  }
+  .tableau-liste tbody tr:last-child { border-bottom: 0; }
+  .tableau-liste th, .tableau-liste td { min-width: 0; padding: 0; border: 0; text-align: left; overflow-wrap: anywhere; }
+  .tableau-liste td:empty { display: none; }   /* une valeur absente n'écrit pas son titre pour rien */
+  .tableau-liste td[data-label]::before {
+    content: attr(data-label); margin-right: 0.4rem;
+    font-family: var(--font); font-size: 0.68rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted);
+  }
+  .tableau-liste .liste-titre, .tableau-liste tbody th { order: -2; flex: 1 1 12rem; font-weight: 600; color: var(--text); }
+  .tableau-liste .liste-actions { order: -1; margin-left: auto; }
+  .centre-table td.liste-titre { flex-basis: 100%; }   /* le thème seul sur sa ligne, ses chiffres dessous */
+  .passages-table tbody tr:hover td { background: transparent; }   /* le survol colore la carte, pas chaque valeur */
+  .passages-table tbody tr:hover { background: var(--bg-subtle); }
+
+  /* Comparer les promos : l'indicateur en titre, puis une ligne par promo (nom à gauche, valeur à droite). */
+  .centre-comparaison tbody tr { flex-direction: column; align-items: stretch; gap: 0.2rem; }
+  .centre-comparaison tbody th { flex: 0 0 auto; }   /* en colonne, la base de 12 rem du titre serait une hauteur */
+  .centre-comparaison td { display: flex; justify-content: space-between; gap: 0.75rem; padding: 0.2rem 0.4rem; border-radius: var(--r-sm); }
+  .centre-comparaison td[data-label]::before { margin-right: 0; font-size: 0.8rem; font-weight: 500; letter-spacing: 0; text-transform: none; }
+}
+
+@media screen and (max-width: 699.98px) {
+  .passages-table .btn { min-width: 44px; min-height: 44px; }   /* zones à toucher du téléphone */
 }
