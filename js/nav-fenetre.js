@@ -12,7 +12,7 @@
 // page change. Un remontage de la coquille ferme la fenêtre ouverte, dont les lignes et le bouton sont
 // ceux de la coquille remplacée, et rend son focus dans la nouvelle.
 
-import { el } from "./utils.js?v=20261028b";
+import { el } from "./utils.js?v=20261029a";
 
 const FOCALISABLES = 'a[href], button:not(:disabled), input:not(:disabled), select:not(:disabled), '
   + 'textarea:not(:disabled), [tabindex]:not([tabindex="-1"])';

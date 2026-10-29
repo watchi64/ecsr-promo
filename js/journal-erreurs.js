@@ -4,7 +4,7 @@
 // écrit ses échecs de chargement). Il vit en mémoire, ne part qu'avec un signalement et repart à zéro à
 // chaque ouverture de l'app. Importé en premier par js/main.js, il s'installe à l'import.
 
-import { entreeErreur, ajouterErreur } from "./signalement-rules.js?v=20261028b";
+import { entreeErreur, ajouterErreur } from "./signalement-rules.js?v=20261029a";
 
 let journal = [];
 

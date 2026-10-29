@@ -26,21 +26,21 @@
 // barreTelephone(espace, entrees).plus. majNouveautesCompte pose sur les boutons du compte la
 // pastille des nouveautés non lues (celle de l'ancien onglet Accueil) et la dit dans leur nom.
 
-import { el } from "./utils.js?v=20261028b";
-import { icon, deco } from "./icons.js?v=20261028b";
-import { getProfile, fondateurHorsApercu } from "./auth-admin.js?v=20261028b";
-import { getPromoCourante } from "./db.js?v=20261028b";
-import { construirePastille } from "./promo-pastille.js?v=20261028b";
-import { routeMasquee, repereMasque, moduleVisible, moduleMasque } from "./modules-etat.js?v=20261028b";
+import { el } from "./utils.js?v=20261029a";
+import { icon, deco } from "./icons.js?v=20261029a";
+import { getProfile, fondateurHorsApercu } from "./auth-admin.js?v=20261029a";
+import { getPromoCourante } from "./db.js?v=20261029a";
+import { construirePastille } from "./promo-pastille.js?v=20261029a";
+import { routeMasquee, repereMasque, moduleVisible, moduleMasque } from "./modules-etat.js?v=20261029a";
 import {
   barreTelephone, entreeActive, entreeMasquee, initialesDe, prenomDe, libelleRole, nomDuBoutonCompte,
-} from "./nav-rules.js?v=20261028b";
-import { ouvrirFenetre, fermerFenetre, fenetreOuverte, rendreFocus } from "./nav-fenetre.js?v=20261028b";
-import { ouvrirMenuCompte } from "./menu-compte.js?v=20261028b";
-import { basculerAssistant, assistantOuvert, onAssistantChange } from "./chatbot.js?v=20261028b";
-import { ouvrirSignalement } from "./signalement.js?v=20261028b";
-import { etatSignalements, onSignalementsChange } from "./signalement-etat.js?v=20261028b";
-import { pastilleSignalement } from "./signalement-rules.js?v=20261028b";
+} from "./nav-rules.js?v=20261029a";
+import { ouvrirFenetre, fermerFenetre, fenetreOuverte, rendreFocus } from "./nav-fenetre.js?v=20261029a";
+import { ouvrirMenuCompte } from "./menu-compte.js?v=20261029a";
+import { basculerAssistant, assistantOuvert, onAssistantChange } from "./chatbot.js?v=20261029a";
+import { ouvrirSignalement } from "./signalement.js?v=20261029a";
+import { etatSignalements, onSignalementsChange } from "./signalement-etat.js?v=20261029a";
+import { pastilleSignalement } from "./signalement-rules.js?v=20261029a";
 
 // Barre latérale repliée en colonne d'icônes : choix mémorisé sur l'appareil.
 const CLE_REPLIEE = "ecsr_nav_repliee";

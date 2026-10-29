@@ -5245,6 +5245,9 @@ button.theme-date.editable.muted { color: var(--text-muted); }
    ============================================================ */
 
 .toast {
+  /* Rien de cliquable dans le message : il laisse passer les touchers. Sinon, sur téléphone, le message du
+     démarrage recouvrait pendant 6 s la ligne « Signaler un problème » qu'il désigne. */
+  pointer-events: none;
   position: fixed;
   bottom: 1.5rem;
   left: 50%;

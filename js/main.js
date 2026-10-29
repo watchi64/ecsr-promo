@@ -3,52 +3,52 @@
  * © 2026 watchi64. Tous droits réservés. Voir LICENSE.
  */
 // En premier : le journal des erreurs (signalement de problème) capte celles des modules qui suivent.
-import "./journal-erreurs.js?v=20261028b";
-import { getCurrentUser, invalidateCache, verifyRecoveryToken } from "./db.js?v=20261028b";
-import { toast } from "./utils.js?v=20261028b";
-import { icon } from "./icons.js?v=20261028b";
-import { initAuth, onAdminChange, isAuth, monStagiaireId, getAdminEmail, getProfile, getProfileWho, fondateurHorsApercu } from "./auth-admin.js?v=20261028b";
-import { chargerEtatSignalements } from "./signalement-etat.js?v=20261028b";
-import { messageDemarrage } from "./signalement-rules.js?v=20261028b";
-import { showGate, hideGate } from "./gate.js?v=20261028b";
-import { exigerAcceptation } from "./legal.js?v=20261028b";
-import { lireJetonRecuperation } from "./gate-rules.js?v=20261028b";
-import { loadAccent } from "./accent-switcher.js?v=20261028b";
-import { loadTheme } from "./theme-switcher.js?v=20261028b";
-import { renderHome } from "./views/home.js?v=20261028b";
-import { renderDashboard } from "./views/dashboard.js?v=20261028b";
-import { renderMonSuivi } from "./views/mon-suivi.js?v=20261028b";
-import { renderPlanning, teardownPrintTarget, resetPlanningEditMode, requestPlanningToday } from "./views/planning.js?v=20261028b";
-import { renderPlanningEspace } from "./views/planning-espace.js?v=20261028b";
-import { teardownDocPrint } from "./doc-officiel.js?v=20261028b";
-import { renderNotes } from "./views/notes.js?v=20261028b";
-import { renderRessources } from "./views/ressources.js?v=20261028b";
-import { renderThemes } from "./views/themes.js?v=20261028b";
-import { renderConfig } from "./views/config.js?v=20261028b";
-import { renderCalendrier } from "./views/calendrier.js?v=20261028b";
-import { initUndoKeyboard } from "./undo.js?v=20261028b";
-import { renderNouveautes } from "./views/nouveautes.js?v=20261028b";
-import { libellePastille } from "./nouveautes.js?v=20261028b";
-import { renderCcp2 } from "./views/ccp2.js?v=20261028b";
-import { renderStagiaires } from "./views/stagiaires.js?v=20261028b";
-import { renderCentre, teardownCentrePrint } from "./views/centre.js?v=20261028b";
-import { renderEmargement } from "./views/emargement.js?v=20261028b";
-import { renderProblemes } from "./views/problemes.js?v=20261028b";
-import { initBandeauEmargement, rafraichirBandeauEmargement } from "./emargement-bandeau.js?v=20261028b";
-import { chargerEmargementActif, emargementActif } from "./emargement-etat.js?v=20261028b";
-import { chargerNavigationV2, navigationV2Active, navigationV2Attendue, renoncerNavigationV2 } from "./nav-etat.js?v=20261028b";
-import { routeVisibleV2, espaceDe, entreesNavigation, initialesDe, redirectionV2 } from "./nav-rules.js?v=20261028b";
-import { monterCoquille, majEntreeActive, coquilleMontee, retirerCoquille, majNouveautesCompte } from "./nav-shell.js?v=20261028b";
-import { lireAdresse, pagePersonnelle } from "./route-rules.js?v=20261028b";
+import "./journal-erreurs.js?v=20261029a";
+import { getCurrentUser, invalidateCache, verifyRecoveryToken } from "./db.js?v=20261029a";
+import { toast } from "./utils.js?v=20261029a";
+import { icon } from "./icons.js?v=20261029a";
+import { initAuth, onAdminChange, isAuth, monStagiaireId, getAdminEmail, getProfile, getProfileWho, fondateurHorsApercu } from "./auth-admin.js?v=20261029a";
+import { chargerEtatSignalements } from "./signalement-etat.js?v=20261029a";
+import { messageDemarrage } from "./signalement-rules.js?v=20261029a";
+import { showGate, hideGate } from "./gate.js?v=20261029a";
+import { exigerAcceptation } from "./legal.js?v=20261029a";
+import { lireJetonRecuperation } from "./gate-rules.js?v=20261029a";
+import { loadAccent } from "./accent-switcher.js?v=20261029a";
+import { loadTheme } from "./theme-switcher.js?v=20261029a";
+import { renderHome } from "./views/home.js?v=20261029a";
+import { renderDashboard } from "./views/dashboard.js?v=20261029a";
+import { renderMonSuivi } from "./views/mon-suivi.js?v=20261029a";
+import { renderPlanning, teardownPrintTarget, resetPlanningEditMode, requestPlanningToday } from "./views/planning.js?v=20261029a";
+import { renderPlanningEspace } from "./views/planning-espace.js?v=20261029a";
+import { teardownDocPrint } from "./doc-officiel.js?v=20261029a";
+import { renderNotes } from "./views/notes.js?v=20261029a";
+import { renderRessources } from "./views/ressources.js?v=20261029a";
+import { renderThemes } from "./views/themes.js?v=20261029a";
+import { renderConfig } from "./views/config.js?v=20261029a";
+import { renderCalendrier } from "./views/calendrier.js?v=20261029a";
+import { initUndoKeyboard } from "./undo.js?v=20261029a";
+import { renderNouveautes } from "./views/nouveautes.js?v=20261029a";
+import { libellePastille } from "./nouveautes.js?v=20261029a";
+import { renderCcp2 } from "./views/ccp2.js?v=20261029a";
+import { renderStagiaires } from "./views/stagiaires.js?v=20261029a";
+import { renderCentre, teardownCentrePrint } from "./views/centre.js?v=20261029a";
+import { renderEmargement } from "./views/emargement.js?v=20261029a";
+import { renderProblemes } from "./views/problemes.js?v=20261029a";
+import { initBandeauEmargement, rafraichirBandeauEmargement } from "./emargement-bandeau.js?v=20261029a";
+import { chargerEmargementActif, emargementActif } from "./emargement-etat.js?v=20261029a";
+import { chargerNavigationV2, navigationV2Active, navigationV2Attendue, renoncerNavigationV2 } from "./nav-etat.js?v=20261029a";
+import { routeVisibleV2, espaceDe, entreesNavigation, initialesDe, redirectionV2 } from "./nav-rules.js?v=20261029a";
+import { monterCoquille, majEntreeActive, coquilleMontee, retirerCoquille, majNouveautesCompte } from "./nav-shell.js?v=20261029a";
+import { lireAdresse, pagePersonnelle } from "./route-rules.js?v=20261029a";
 import {
   peutQuitter, leverGardeSortie, majSurPlacePour, oublierMajSurPlace,
   noterAdresse, adresseCourante, remplacerAdresse, installerGardeNavigateur,
-} from "./navigation.js?v=20261028b";
-import { initChatbot, appliquerModuleAssistant } from "./chatbot.js?v=20261028b";
+} from "./navigation.js?v=20261029a";
+import { initChatbot, appliquerModuleAssistant } from "./chatbot.js?v=20261029a";
 import {
   chargerModules, chargerModulesAuDemarrage, onModulesChange, surveillerPremierPlan,
   routeVisible, routeMasquee, repereMasque, nouveautesAffichables, formateurConnecte,
-} from "./modules-etat.js?v=20261028b";
+} from "./modules-etat.js?v=20261029a";
 
 // ===== Tabs =====
 

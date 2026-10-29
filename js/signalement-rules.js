@@ -4,7 +4,7 @@
 // journal des erreurs, réduction de la capture, phrase d'un refus du serveur, adresse sûre pour un lien.
 // Module pur, sans DOM ni stockage : testé en node.
 
-import { libellePastille } from "./nouveautes.js?v=20261028b";
+import { libellePastille } from "./nouveautes.js?v=20261029a";
 
 // Bornes de la spec (§ 7) : la base les vérifie aussi, dans signaler_probleme.
 export const MIN_MESSAGE = 3;
@@ -240,6 +240,21 @@ export function phraseErreur(message) {
   const i = texte.indexOf("signalement:");
   if (i < 0) return null;
   return texte.slice(i + "signalement:".length).trim() || null;
+}
+
+// Phrase d'une erreur d'envoi ou d'action : le refus de la base (« signalement: ... »), une session expirée
+// (le jeton n'est plus valable et l'appel part sans droits : « JWT expired », fonction refusée), sinon le réseau.
+export const PHRASE_SESSION = "Reconnecte-toi pour signaler un problème.";
+export const PHRASE_RESEAU = "L'envoi n'a pas abouti. Vérifie ta connexion et réessaie.";
+export function messageErreurEnvoi(erreur) {
+  const texte = String(erreur?.message ?? erreur ?? "");
+  const phrase = phraseErreur(texte);
+  if (phrase) return phrase;
+  const code = String(erreur?.code ?? "");
+  if (/jwt|permission denied for function|not authenticated/i.test(texte) || /^(PGRST30[0-3]|42501)$/.test(code)) {
+    return PHRASE_SESSION;
+  }
+  return PHRASE_RESEAU;
 }
 
 // Adresse de l'app utilisable dans un lien (« Ouvrir la page ») : « #/ » suivi de segments simples ; tout

@@ -1,11 +1,11 @@
-import { createClient } from "../vendor/supabase-js-2.117.2.js?v=20261028b";
-import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261028b";
-import { compteDansEquite } from "./passage-rules.js?v=20261028b";
-import { phraseErreur } from "./signalement-rules.js?v=20261028b";
+import { createClient } from "../vendor/supabase-js-2.117.2.js?v=20261029a";
+import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261029a";
+import { compteDansEquite } from "./passage-rules.js?v=20261029a";
+import { messageErreurEnvoi } from "./signalement-rules.js?v=20261029a";
 import {
   ENTETE_PROMO, ENTETE_LECTURE_PROMO, promoDeLaRequete, doitPorterEntetePromo, choisirPromoInitiale, profilEffectif,
   separerChamps, CHAMPS_PROGRESSION, CHAMPS_EXAMEN, fusionnerProgression, fusionnerExamen,
-} from "./promo-rules.js?v=20261028b";
+} from "./promo-rules.js?v=20261029a";
 
 // Contexte de promo (spec multi-promo, C.1). La promo courante voyage dans l'en-tête
 // x-promo-id de chaque requête de données ; la base vérifie le droit et filtre.
@@ -1746,8 +1746,7 @@ export async function setQcmSignalementStatut(id, statut, email) {
 // « signalement: », la phrase qui suit est montrée telle quelle (phraseErreur).
 
 function erreurSignalement(error) {
-  return new Error(phraseErreur(error?.message || String(error || ""))
-    || "L'envoi n'a pas abouti. Vérifie ta connexion et réessaie.");
+  return new Error(messageErreurEnvoi(error));
 }
 
 async function rpcSignalement(nom, params) {
@@ -1799,9 +1798,12 @@ export async function traiterSignalementApp(id, { statut, reponse }) {
   await rpcSignalement("traiter_signalement_app", { p_id: id, p_statut: statut, p_reponse: reponse ?? null });
 }
 
+// La base ne dit rien quand sa règle empêche la suppression (aucune ligne partie, sans erreur) : on demande
+// les lignes parties et on vérifie qu'il y en a une.
 export async function supprimerSignalementApp(id) {
-  const { error } = await supabase.from("signalements_app").delete().eq("id", id);
-  if (error) throw error;
+  const { data, error } = await supabase.from("signalements_app").delete().eq("id", id).select("id");
+  if (error) throw erreurSignalement(error);
+  if (!data || !data.length) throw new Error("Ce signalement n'a pas pu être supprimé. Actualise la page et réessaie.");
 }
 
 // === Émargement (spec 2026-10-23) ===
