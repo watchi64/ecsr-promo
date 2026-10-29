@@ -1,17 +1,19 @@
 import {
   listStagiaires, listCompetences, listEvaluations, listThemes,
   addEvaluation, updateEvaluation, deleteEvaluation, listAuditForEvaluation,
-  listUserProfiles, getNotesStatsGroupe,
-} from "../db.js?v=20261029a";
+  listUserProfiles, getNotesStatsGroupe, getPromoCourante,
+} from "../db.js?v=20261029b";
 import {
   statsLocales, statsServeur, moyenneGenerale, moyenneCompetence, moyenneThemes, statsParTheme,
-} from "../notes-stats.js?v=20261029a";
-import { el, clear, isoDate, formatDate, toast, displayStagiaire, compareByNom } from "../utils.js?v=20261029a";
-import { icon } from "../icons.js?v=20261029a";
-import { getAdminEmail, isAdmin, getProfile } from "../auth-admin.js?v=20261029a";
-import { recordUndo } from "../undo.js?v=20261029a";
-import { renderSubTabs } from "../subtabs.js?v=20261029a";
-import { renderEpcf } from "./epcf.js?v=20261029a";
+} from "../notes-stats.js?v=20261029b";
+import { el, clear, isoDate, formatDate, toast, displayStagiaire, compareByNom, largeurDeGraphe } from "../utils.js?v=20261029b";
+import { icon } from "../icons.js?v=20261029b";
+import { getAdminEmail, isAdmin, getProfile } from "../auth-admin.js?v=20261029b";
+import { recordUndo } from "../undo.js?v=20261029b";
+import { renderSubTabs } from "../subtabs.js?v=20261029b";
+import { formateurConnecte, moduleVisible } from "../modules-etat.js?v=20261029b";
+import { navigationV2Active } from "../nav-etat.js?v=20261029b";
+import { renderEpcf } from "./epcf.js?v=20261029b";
 
 let userProfiles = [];  // pour résoudre l'anonymat par stagiaire_id
 
@@ -38,6 +40,9 @@ function statsGroupe() {
 let filterStagiaire = "";
 let filterType = "";
 let currentEvalDate = null;  // Date appliquée aux nouvelles notes saisies dans la matrice
+// Conteneurs où la vue est imbriquée dans Mon suivi (La classe : renderNotes(zone, { imbrique: true })) : le contexte
+// décide de sa présentation, pas le rôle de la personne (un formateur qui a une fiche y ouvre aussi La classe).
+const imbriques = new WeakSet();
 
 const NOTES_SORT_OPTIONS = [
   { key: "default",   label: "Ordre par défaut" },
@@ -1076,13 +1081,31 @@ function rerender(container) {
   // Initialise la date courante si pas encore définie
   if (!currentEvalDate) currentEvalDate = isoDate(new Date());
 
+  // Nouvelle navigation : la page de l'équipe porte le nom de son entrée, « Notes et examens », avec la promo en
+  // surtitre, et le nombre de notes termine alors son sous-titre. Sur un écran tactile, on touche une case : le
+  // sous-titre le dit, et la phrase de la barre d'outils sur Entrée et Échap, qui suppose un clavier, disparaît.
+  // Imbriquée dans Mon suivi (La classe, pour toute personne qui y ouvre la classe, stagiaire ou formateur), la vue vit
+  // déjà sous le titre de Mon suivi : ni titre à elle ni « Lecture seule... » ; la phrase sur la saisie n'y est lue que
+  // par qui saisit des notes ; le nombre de notes reste, seul sinon.
+  const v2 = navigationV2Active();
+  const laClasse = v2 && imbriques.has(container);
+  const equipe = v2 && !laClasse && formateurConnecte();
+  const surtitre = getPromoCourante()?.nom;
+  const tactile = v2 && window.matchMedia("(pointer: coarse)").matches;
+  const compte = nbLignes + " note" + (nbLignes > 1 ? "s" : "") + " enregistrée" + (nbLignes > 1 ? "s" : "");
+  const phrase = admin && tactile
+    ? "Touche une case pour saisir la note."
+    : "Tableau matrice : stagiaires × thèmes/compétences. Clique une cellule pour saisir la note.";
+
   container.appendChild(el("div", { class: "view-header" },
     el("div", { class: "view-header-text" },
-      el("p", { class: "eyebrow" }, nbLignes + " note" + (nbLignes > 1 ? "s" : "") + " enregistrée" + (nbLignes > 1 ? "s" : "")),
-      el("h2", {}, "Notes & évaluations"),
-      el("p", { class: "subtitle" }, "Tableau matrice : stagiaires × thèmes/compétences. Clique une cellule pour saisir la note."),
+      laClasse ? null : equipe
+        ? (surtitre ? el("p", { class: "eyebrow" }, surtitre) : null)
+        : el("p", { class: "eyebrow" }, compte),
+      laClasse ? null : el("h2", {}, equipe ? "Notes et examens" : "Notes & évaluations"),
+      el("p", { class: "subtitle" }, laClasse ? (admin ? phrase + " " : "") + compte + "." : equipe ? phrase + " " + compte + "." : phrase),
     ),
-    admin ? null : el("span", { class: "muted", style: "font-size:0.85rem" }, "Lecture seule. Connexion admin requise pour modifier."),
+    admin || laClasse ? null : el("span", { class: "muted", style: "font-size:0.85rem" }, "Lecture seule. Connexion admin requise pour modifier."),
   ));
 
   // Tri (toujours visible)
@@ -1116,7 +1139,7 @@ function rerender(container) {
       el("span", { class: "matrice-toolbar-label", style: "margin-left:1rem" }, "Date des notes :"),
       dateInput,
       todayBtn,
-      el("span", { class: "matrice-toolbar-hint muted" },
+      tactile ? null : el("span", { class: "matrice-toolbar-hint muted" },
         "→ clique une cellule, tape une note (0-20), Entrée valide, Esc annule."
       ),
     );
@@ -1139,12 +1162,14 @@ function rerender(container) {
     panel.appendChild(renderChartsSection());
   };
 
-  // Notes, c'est la classe (chantier D) : Matrice et moyennes EPCF, pour tout le
-  // monde. Ce qui est propre à une personne (sa saisie EPCF, son livret, son
-  // dossier) vit dans sa fiche : Mon espace, ou la page Stagiaires des formateurs.
-  // La matrice reste en lecture seule pour les stagiaires. Chaque sous-onglet suit
-  // son module (js/modules-data.js) ; la Matrice suit l'onglet lui-même.
-  container.appendChild(renderSubTabs([
+  // Notes, c'est la classe (chantier D) : la Matrice et les moyennes EPCF de la classe,
+  // ouvertes à tout le monde : en deux sous-onglets sur la page de l'équipe, en une section
+  // sous la Matrice dans La classe de Mon suivi (nouvelle navigation, plus bas). Ce qui est
+  // propre à une personne (sa saisie EPCF, son livret, son dossier) vit dans sa fiche :
+  // Mon espace, ou la page Stagiaires des formateurs. La matrice reste en lecture seule
+  // pour les stagiaires. Chaque sous-onglet suit son module (js/modules-data.js) ; la
+  // Matrice suit l'onglet lui-même.
+  const onglets = [
     { key: "matrice", label: "Matrice", render: buildMatricePanel },
     { key: "epcf", label: "EPCF", module: "epcf", render: (p, ctx) => {
         renderEpcf(p, { embedded: true, isActive: ctx && ctx.isActive })
@@ -1156,22 +1181,38 @@ function rerender(container) {
             }
           });
       } },
-  ], { storageKey: "ecsr_notes_subtab" }));
+  ];
+  // La classe imbriquée dans Mon suivi (nouvelle navigation) : la Matrice, sans seconde rangée Matrice / EPCF (deux
+  // « EPCF » se liraient à l'écran, celui de la fiche, première rangée de Mon suivi, et celui-ci), puis les moyennes
+  // EPCF de la classe en section titrée sous la vue de la classe, tant que le module EPCF est ouvert pour la promo
+  // (le sous-onglet EPCF de la page de l'équipe suit le même module). Sans choix d'onglet, aucune mémoire de
+  // sous-onglet n'est écrite (celle de la page de l'équipe).
+  if (laClasse) {
+    container.appendChild(renderSubTabs(onglets.slice(0, 1)));
+    if (moduleVisible("epcf")) container.appendChild(sectionMoyennesEpcf());
+  } else {
+    container.appendChild(renderSubTabs(onglets, { storageKey: "ecsr_notes_subtab" }));
+  }
+}
+
+// Les moyennes EPCF de la classe, en section de La classe : le rendu de l'onglet EPCF de la page de l'équipe
+// (renderEpcf, donc le même k-anonymat : une moyenne n'est montrée qu'à partir de 2 stagiaires évalués), sous
+// un titre qui nomme l'épreuve et la classe.
+function sectionMoyennesEpcf() {
+  const section = el("section", { class: "notes-epcf-classe" });
+  renderEpcf(section, { embedded: true, titre: "Moyennes EPCF de la classe" })
+    .catch((e) => {
+      console.error(e);
+      clear(section);
+      section.appendChild(el("p", { class: "muted" }, "Erreur de chargement des moyennes EPCF de la classe. Recharge la page pour réessayer."));
+    });
+  return section;
 }
 
 // === Helpers stats ===
 
 function evalScore20(e) {
   return (Number(e.note) / Number(e.note_max)) * 20;
-}
-
-function avgColorHex(avg) {
-  if (avg == null) return "#D5D5D5";
-  const ratio = avg / 20;
-  if (ratio < 0.4) return "#DC2626";
-  if (ratio < 0.6) return "#D97706";
-  if (ratio < 0.8) return "#65A30D";
-  return "#3F7012";
 }
 
 function cellColorClassFromAvg(avg) {
@@ -1230,7 +1271,7 @@ function renderSynthese() {
       el("div", { class: "theme-stat-body" },
         el("span", { class: "theme-stat-title" }, t.titre || `Thème ${t.num}`),
         el("span", { class: "theme-stat-meta" },
-          el("strong", { style: "color:" + avgColorHex(t.avg) }, avgR + "/20"),
+          el("strong", {}, avgR + "/20"),
           " · médiane ", String(Math.round(t.med * 10) / 10),
           " · ", t.count, " note" + (t.count > 1 ? "s" : ""),
         ),
@@ -1334,12 +1375,14 @@ function buildThemesChartSvg() {
 }
 
 function buildDistributionChartSvg() {
+  // Chaque tranche prend la teinte de l'échelle douce des notes (classes de cellColorClass : sous 8, sous 12, sous 16,
+  // au-dessus) : jamais un rouge, les barres se lisent comme les cases de la matrice.
   const buckets = [
-    { min: 0,  max: 4,  label: "0–4",   count: 0, color: "#991B1B" },
-    { min: 4,  max: 8,  label: "4–8",   count: 0, color: "#DC2626" },
-    { min: 8,  max: 12, label: "8–12",  count: 0, color: "#D97706" },
-    { min: 12, max: 16, label: "12–16", count: 0, color: "#65A30D" },
-    { min: 16, max: 20.01, label: "16–20", count: 0, color: "#3F7012" },
+    { min: 0,  max: 4,  label: "0–4",   count: 0, tier: "bad" },
+    { min: 4,  max: 8,  label: "4–8",   count: 0, tier: "bad" },
+    { min: 8,  max: 12, label: "8–12",  count: 0, tier: "warn" },
+    { min: 12, max: 16, label: "12–16", count: 0, tier: "ok" },
+    { min: 16, max: 20.01, label: "16–20", count: 0, tier: "great" },
   ];
   // Effectifs par tranche (bornes : TRANCHES de notes-stats.js, mêmes valeurs qu'ici).
   const repartition = statsGroupe().repartition;
@@ -1347,7 +1390,7 @@ function buildDistributionChartSvg() {
   const max = Math.max(1, ...buckets.map((b) => b.count));
 
   const svgNS = "http://www.w3.org/2000/svg";
-  const W = 720, H = 280, padL = 30, padR = 30, padT = 30, padB = 50;
+  const W = largeurDeGraphe(), H = 280, padL = 30, padR = 30, padT = 30, padB = 50;   // à la largeur de son conteneur : jamais de défilement de côté
   const chartW = W - padL - padR;
   const chartH = H - padT - padB;
   const barW = chartW / buckets.length - 16;
@@ -1385,7 +1428,7 @@ function buildDistributionChartSvg() {
     const rect = document.createElementNS(svgNS, "rect");
     rect.setAttribute("x", x); rect.setAttribute("y", y);
     rect.setAttribute("width", barW); rect.setAttribute("height", h);
-    rect.setAttribute("rx", 4); rect.setAttribute("fill", b.color);
+    rect.setAttribute("rx", 4); rect.setAttribute("class", "notes-bar " + b.tier);
     svg.appendChild(rect);
 
     const txVal = document.createElementNS(svgNS, "text");
@@ -1415,11 +1458,16 @@ function buildDistributionChartSvg() {
 }
 
 function horizontalBarChart(data, barHeight = 22, labelWidth = 100) {
-  const width = 720;
-  const barGap = 8;
+  // Le graphe se dessine à la largeur de son conteneur (viewBox, width: 100 %), jamais en défilant de côté. Sur un écran
+  // étroit, le nom passe au-dessus de sa barre au lieu de la précéder : la barre garde presque toute la largeur.
+  const width = largeurDeGraphe();
+  const empile = width < 520;
+  const barGap = 8, ligneDuNom = 14;
   const padTop = 30, padBottom = 30;
-  const chartHeight = padTop + data.length * (barHeight + barGap) + padBottom;
-  const chartWidth = width - labelWidth - 70;
+  const pas = barHeight + barGap + (empile ? ligneDuNom : 0);
+  const chartHeight = padTop + data.length * pas + padBottom;
+  const gauche = empile ? 8 : labelWidth;
+  const chartWidth = width - gauche - (empile ? 64 : 70);
 
   const svgNS = "http://www.w3.org/2000/svg";
   const svg = document.createElementNS(svgNS, "svg");
@@ -1427,7 +1475,7 @@ function horizontalBarChart(data, barHeight = 22, labelWidth = 100) {
   svg.setAttribute("class", "notes-chart-svg");
 
   [0, 5, 10, 15, 20].forEach((val) => {
-    const x = labelWidth + (val / 20) * chartWidth;
+    const x = gauche + (val / 20) * chartWidth;
     const line = document.createElementNS(svgNS, "line");
     line.setAttribute("x1", x); line.setAttribute("x2", x);
     line.setAttribute("y1", padTop - 8); line.setAttribute("y2", chartHeight - padBottom + 4);
@@ -1444,20 +1492,28 @@ function horizontalBarChart(data, barHeight = 22, labelWidth = 100) {
   });
 
   data.forEach((d, i) => {
-    const y = padTop + i * (barHeight + barGap);
+    const yLigne = padTop + i * pas;
+    const y = yLigne + (empile ? ligneDuNom : 0);   // le haut de la barre
 
     const label = document.createElementNS(svgNS, "text");
-    label.setAttribute("x", labelWidth - 8); label.setAttribute("y", y + barHeight / 2 + 4);
-    label.setAttribute("text-anchor", "end"); label.setAttribute("font-size", "10");
+    if (empile) {
+      label.setAttribute("x", gauche); label.setAttribute("y", yLigne + 10);
+      label.setAttribute("text-anchor", "start");
+    } else {
+      label.setAttribute("x", labelWidth - 8); label.setAttribute("y", y + barHeight / 2 + 4);
+      label.setAttribute("text-anchor", "end");
+    }
+    label.setAttribute("font-size", "10");
     label.setAttribute("font-weight", d.anon ? "400" : "600");
     label.setAttribute("fill", d.anon ? "#8A7458" : "#1F2924");
-    // Trunc label si trop long
-    const lbl = (d.name || "").length > 24 ? (d.name.substring(0, 22) + "…") : d.name;
+    // Trunc label si trop long (plus de place quand il est au-dessus de la barre)
+    const longueurMax = empile ? 40 : 24;
+    const lbl = (d.name || "").length > longueurMax ? (d.name.substring(0, longueurMax - 2) + "…") : d.name;
     label.textContent = lbl;
     svg.appendChild(label);
 
     const track = document.createElementNS(svgNS, "rect");
-    track.setAttribute("x", labelWidth); track.setAttribute("y", y);
+    track.setAttribute("x", gauche); track.setAttribute("y", y);
     track.setAttribute("width", chartWidth); track.setAttribute("height", barHeight);
     track.setAttribute("rx", 4); track.setAttribute("fill", "#F0F0EC");
     svg.appendChild(track);
@@ -1465,20 +1521,20 @@ function horizontalBarChart(data, barHeight = 22, labelWidth = 100) {
     if (d.avg != null) {
       const w = Math.max(2, (d.avg / 20) * chartWidth);
       const bar = document.createElementNS(svgNS, "rect");
-      bar.setAttribute("x", labelWidth); bar.setAttribute("y", y);
+      bar.setAttribute("x", gauche); bar.setAttribute("y", y);
       bar.setAttribute("width", w); bar.setAttribute("height", barHeight);
-      bar.setAttribute("rx", 4); bar.setAttribute("fill", avgColorHex(d.avg));
+      bar.setAttribute("rx", 4); bar.setAttribute("class", "notes-bar " + cellColorClassFromAvg(d.avg));
       svg.appendChild(bar);
 
       const val = document.createElementNS(svgNS, "text");
-      val.setAttribute("x", labelWidth + w + 6); val.setAttribute("y", y + barHeight / 2 + 4);
+      val.setAttribute("x", gauche + w + 6); val.setAttribute("y", y + barHeight / 2 + 4);
       val.setAttribute("font-size", "10"); val.setAttribute("font-weight", "700");
       val.setAttribute("fill", "#1F2924");
       val.textContent = (Math.round(d.avg * 10) / 10).toString() + (d.count != null ? ` · ${d.count}n` : "");
       svg.appendChild(val);
     } else {
       const val = document.createElementNS(svgNS, "text");
-      val.setAttribute("x", labelWidth + 10); val.setAttribute("y", y + barHeight / 2 + 4);
+      val.setAttribute("x", gauche + 10); val.setAttribute("y", y + barHeight / 2 + 4);
       val.setAttribute("font-size", "10"); val.setAttribute("fill", "#9DA89A");
       val.textContent = "Aucune note";
       svg.appendChild(val);
@@ -1488,7 +1544,9 @@ function horizontalBarChart(data, barHeight = 22, labelWidth = 100) {
   return svg;
 }
 
-export async function renderNotes(container) {
+// `imbrique` : la vue est le contenu de La classe, dans Mon suivi (js/views/mon-suivi.js), sous le titre de cette page.
+export async function renderNotes(container, { imbrique = false } = {}) {
+  if (imbrique) imbriques.add(container); else imbriques.delete(container);
   clear(container);
   container.appendChild(el("div", { class: "loading" }, "Chargement"));
   let allThemes;
@@ -1525,15 +1583,6 @@ function renderAveragesChart() {
   svg.setAttribute("class", "notes-chart-svg");
   svg.setAttribute("role", "img");
   svg.setAttribute("aria-label", "Moyennes par stagiaire");
-
-  function avgColor(avg) {
-    if (avg == null) return "#D5D5D5";
-    const ratio = avg / 20;
-    if (ratio < 0.4) return "#DC2626";
-    if (ratio < 0.6) return "#D97706";
-    if (ratio < 0.8) return "#65A30D";
-    return "#3F7012";
-  }
 
   // Axe vertical : graduations 0, 5, 10, 15, 20
   [0, 5, 10, 15, 20].forEach((val) => {
@@ -1580,7 +1629,7 @@ function renderAveragesChart() {
       const bar = document.createElementNS(svgNS, "rect");
       bar.setAttribute("x", labelWidth); bar.setAttribute("y", y);
       bar.setAttribute("width", w); bar.setAttribute("height", barHeight);
-      bar.setAttribute("rx", 4); bar.setAttribute("fill", avgColor(d.avg));
+      bar.setAttribute("rx", 4); bar.setAttribute("class", "notes-bar " + cellColorClassFromAvg(d.avg));
       svg.appendChild(bar);
 
       // Value

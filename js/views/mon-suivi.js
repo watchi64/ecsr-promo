@@ -1,24 +1,25 @@
 import { listStagiaires, listEvaluations, getPlanning, getHalfMetaForWeek, getJoursOff, getSetting,
          listProfs, listEpcf, getEpcfMoyennes, listThemes,
          getStagiaire, setDateNaissance, listPassages,
-         listLivretsIndex, listDossiersIndex } from "../db.js?v=20261029a";
-import { el, clear, isoDate, getMonday, addDays, formatDate, displayStagiaire, toast } from "../utils.js?v=20261029a";
-import { HALF_DAYS, RESULTATS } from "../config.js?v=20261029a";
-import { isAdmin, isProf, monStagiaireId } from "../auth-admin.js?v=20261029a";
-import { renderEpcfPersonne } from "./epcf.js?v=20261029a";
-import { renderSubTabs } from "../subtabs.js?v=20261029a";
-import { renderDp } from "./dp.js?v=20261029a";
-import { renderEpcfLivret } from "./epcf-livret.js?v=20261029a";
-import { rolesPourEntry, ROLE_ORDER } from "../creneaux-rules.js?v=20261029a";
-import { bandeauAvis } from "../avis.js?v=20261029a";
-import { statsPassages } from "../passages-stats.js?v=20261029a";
-import { moduleVisible, moduleMasque, repereMasque } from "../modules-etat.js?v=20261029a";
-import { icon } from "../icons.js?v=20261029a";
-import { PARTIES, lireAdresse, adresseFiche } from "../route-rules.js?v=20261029a";
-import { etatsSommaire, passagesAVenir, EVT_DOCUMENT } from "../fiche-rules.js?v=20261029a";
-import { surChangementAdresse, remplacerAdresse, peutQuitter } from "../navigation.js?v=20261029a";
-import { navigationV2Active } from "../nav-etat.js?v=20261029a";
-import { renderNotes } from "./notes.js?v=20261029a";
+         listLivretsIndex, listDossiersIndex, getPromoCourante } from "../db.js?v=20261029b";
+import { el, clear, isoDate, getMonday, addDays, formatDate, displayStagiaire, toast, largeurDeGraphe } from "../utils.js?v=20261029b";
+import { HALF_DAYS, RESULTATS } from "../config.js?v=20261029b";
+import { isAdmin, isProf, monStagiaireId } from "../auth-admin.js?v=20261029b";
+import { renderEpcfPersonne } from "./epcf.js?v=20261029b";
+import { renderSubTabs } from "../subtabs.js?v=20261029b";
+import { renderDp } from "./dp.js?v=20261029b";
+import { renderEpcfLivret } from "./epcf-livret.js?v=20261029b";
+import { rolesPourEntry, ROLE_ORDER } from "../creneaux-rules.js?v=20261029b";
+import { bandeauAvis } from "../avis.js?v=20261029b";
+import { statsPassages } from "../passages-stats.js?v=20261029b";
+import { moduleVisible, moduleMasque, repereMasque } from "../modules-etat.js?v=20261029b";
+import { icon } from "../icons.js?v=20261029b";
+import { PARTIES, lireAdresse, adresseFiche } from "../route-rules.js?v=20261029b";
+import { etatsSommaire, passagesAVenir, EVT_DOCUMENT } from "../fiche-rules.js?v=20261029b";
+import { libellesDeMois, rayonDeCible, largeurDuDessin, LARGEUR_MAX_DU_GRAPHE } from "../evolution-rules.js?v=20261029b";
+import { surChangementAdresse, remplacerAdresse, peutQuitter } from "../navigation.js?v=20261029b";
+import { navigationV2Active } from "../nav-etat.js?v=20261029b";
+import { renderNotes } from "./notes.js?v=20261029b";
 
 const HALF_ORDER = { matin: 0, aprem: 1 };
 
@@ -258,37 +259,39 @@ function groupByMonth(evals) {
   return groups;
 }
 
-// Graphe SVG maison. Largeur dynamique (espace mini par point → scroll horizontal
-// si beaucoup d'évals). Bandes de fond alternées par mois + un libellé de mois
-// centré sous chaque bande (fini les dates qui se chevauchent). Chaque point porte
-// des data-* lus par le tooltip stylé branché dans renderChartSection.
-function buildChart(evals) {
+// Graphe SVG maison, dessiné à la largeur `largeur` (js/evolution-rules.js, largeurDuDessin : celle, mesurée, de son
+// conteneur) : une unité du viewBox vaut un pixel à l'écran, les textes gardent leur taille, et width: 100 % ne le réduit
+// pas. Jamais de défilement de côté, même avec beaucoup d'évals (les points se resserrent). Bandes de fond alternées par
+// mois + un libellé de mois centré sous sa bande, sauf ceux qui en toucheraient un autre (js/evolution-rules.js :
+// sur téléphone, sept mois de notes serrent le graphe). Chaque point porte des data-* lus par le tooltip stylé
+// branché dans renderChartSection.
+function buildChart(evals, largeur) {
   const H = 280, padL = 40, padR = 16, padT = 16, padB = 40;
   const n = evals.length;
   const months = groupByMonth(evals);
-  // Largeur mini : 26 px/point ET 46 px/mois (sinon, avec ~1 éval/mois, les bandes
-  // deviennent plus étroites que le libellé de mois → chevauchement).
-  const innerW = Math.max(540, months.length * 46, (n - 1) * 26);
-  const W = padL + padR + innerW, innerH = H - padT - padB;
+  const W = largeur, innerW = W - padL - padR, innerH = H - padT - padB;
   const x = (i) => padL + (n <= 1 ? innerW / 2 : (innerW * i) / (n - 1));
   const y = (v) => padT + innerH * (1 - Math.max(0, Math.min(20, v)) / 20);
 
-  const svg = svgEl("svg", { viewBox: `0 0 ${W} ${H}`, width: String(W), height: String(H),
+  const svg = svgEl("svg", { viewBox: `0 0 ${W} ${H}`,
     class: "ms-chart", role: "img", "aria-label": "Graphe d'évolution des notes" });
 
-  // Bandes mensuelles (colonnes alternées) + libellé de mois
-  months.forEach((m, mi) => {
-    const left = m.start === 0 ? padL : (x(m.start) + x(m.start - 1)) / 2;
-    const right = m.end === n - 1 ? (W - padR) : (x(m.end) + x(m.end + 1)) / 2;
+  // Bandes mensuelles (colonnes alternées) + libellés de mois
+  const bandes = months.map((m) => ({
+    gauche: m.start === 0 ? padL : (x(m.start) + x(m.start - 1)) / 2,
+    droite: m.end === n - 1 ? (W - padR) : (x(m.end) + x(m.end + 1)) / 2,
+    libelle: m.label,
+  }));
+  bandes.forEach((b, mi) => {
     if (mi % 2 === 1) svg.appendChild(svgEl("rect",
-      { x: left, y: padT, width: Math.max(0, right - left), height: innerH, class: "ms-month-band" }));
-    // Libellé toujours affiché pour le 1er et le dernier mois (bandes de bord =
-    // demi-largeur) ; pour les mois du milieu, seulement si la bande est assez large.
-    if (mi === 0 || mi === months.length - 1 || right - left >= 30) {
-      const lbl = svgEl("text", { x: (left + right) / 2, y: H - padB + 20, "text-anchor": "middle", class: "ms-axis-label small" });
-      lbl.textContent = m.label;
-      svg.appendChild(lbl);
-    }
+      { x: b.gauche, y: padT, width: Math.max(0, b.droite - b.gauche), height: innerH, class: "ms-month-band" }));
+  });
+  // Le libellé du 1er et du dernier mois s'écrit toujours (bandes de bord = demi-largeur) ; ceux du milieu, quand ils ne
+  // touchent pas le précédent : une bande de 30 unités ne suffit pas à « Sept. 26 » (37 unités à 10 px).
+  libellesDeMois(bandes, W).forEach(({ indice, x: centre }) => {
+    const lbl = svgEl("text", { x: centre, y: H - padB + 20, "text-anchor": "middle", class: "ms-axis-label small" });
+    lbl.textContent = bandes[indice].libelle;
+    svg.appendChild(lbl);
   });
 
   // Grille + axe Y
@@ -312,11 +315,13 @@ function buildChart(evals) {
       cx: x(i), cy: y(e.norm), r: 5, class: "ms-pt " + avgTier(e.norm), "data-i": String(i),
     }));
   });
-  // Cibles de survol/tap, transparentes et plus larges (r=12) : un point de 5px
-  // est intappable au doigt. Elles portent les données lues par le tooltip.
+  // Cibles de survol/tap, transparentes et plus larges (r=12 au plus) : un point de 5px est intappable au
+  // doigt. Jamais plus larges que la moitié de l'écart entre deux points : sur téléphone, vingt notes serrent
+  // le graphe et deux cibles voisines ne doivent pas se chevaucher. Elles portent les données lues par le tooltip.
+  const rCible = rayonDeCible(n > 1 ? innerW / (n - 1) : innerW);
   evals.forEach((e, i) => {
     svg.appendChild(svgEl("circle", {
-      cx: x(i), cy: y(e.norm), r: 12, class: "ms-pt-hit", "data-i": String(i),
+      cx: x(i), cy: y(e.norm), r: rCible, class: "ms-pt-hit", "data-i": String(i),
       "data-lib": describeEval(e),
       "data-note": `${e.note}/${e.note_max}`,
       "data-norm": e.norm.toFixed(1),
@@ -338,19 +343,25 @@ function renderChartSection(evaluations, soi = true) {
     section.appendChild(el("p", { class: "muted ms-empty" }, "Pas encore d'évaluation notée."));
     return section;
   }
-  // Conteneur positionné : le graphe scrolle horizontalement à l'intérieur (wrap),
-  // le tooltip est posé au niveau de l'outer pour ne pas être coupé par l'overflow.
+  // Conteneur positionné : le tooltip est posé au niveau de l'outer, à côté du graphe (wrap). La sonde est un bloc sans hauteur, de la
+  // largeur du wrap : c'est elle qu'observe le ResizeObserver (voir plus bas), parce que dessiner le graphe change la hauteur du wrap
+  // et que redessiner dans la notification d'un élément dont la taille vient de changer fait lever au navigateur « ResizeObserver loop ».
   const outer = el("div", { class: "ms-chart-outer" });
+  const sonde = el("div", { class: "ms-chart-sonde", "aria-hidden": "true" });
   const wrap = el("div", { class: "ms-chart-wrap" });
-  const svg = buildChart(noted);
   const tip = el("div", { class: "ms-tip" });
   tip.style.display = "none";
-  wrap.appendChild(svg);
+  outer.appendChild(sonde);
   outer.appendChild(wrap);
   outer.appendChild(tip);
 
+  // Le dessin courant et la largeur à laquelle il est dessiné : le graphe est redessiné quand son conteneur change de largeur
+  // (fenêtre redimensionnée, barre latérale repliée, écran tourné).
+  let svg = null;
+  let largeurDessinee = null;
+
   // Le point visible correspondant à une cible de tap (même data-i).
-  const dotFor = (hit) => svg.querySelector('.ms-pt[data-i="' + hit.getAttribute("data-i") + '"]');
+  const dotFor = (hit) => svg && svg.querySelector('.ms-pt[data-i="' + hit.getAttribute("data-i") + '"]');
   const showTip = (hit) => {
     const c = dotFor(hit) || hit;
     tip.replaceChildren(
@@ -377,17 +388,18 @@ function renderChartSection(evaluations, soi = true) {
   const isHit = (n) => n && n.classList && n.classList.contains("ms-pt-hit");
 
   // Sur mobile il n'y a pas de survol : un tap « épingle » le tooltip, qui reste
-  // affiché jusqu'au tap suivant (autre point, ou fond du graphe).
+  // affiché jusqu'au tap suivant (autre point, ou fond du graphe). Les écouteurs sont au conteneur du dessin, qui est
+  // remplacé à chaque changement de largeur : ils lui survivent.
   let pinned = null;
-  svg.addEventListener("mouseover", (ev) => {
+  wrap.addEventListener("mouseover", (ev) => {
     if (!isHit(ev.target) || pinned) return;
     showTip(ev.target);
   });
-  svg.addEventListener("mouseout", (ev) => {
+  wrap.addEventListener("mouseout", (ev) => {
     if (!isHit(ev.target) || pinned) return;
     hideTip(ev.target);
   });
-  svg.addEventListener("click", (ev) => {
+  wrap.addEventListener("click", (ev) => {
     if (isHit(ev.target)) {
       if (pinned === ev.target) { hideTip(pinned); pinned = null; return; }   // re-tap : ferme
       if (pinned) clearHover(pinned);
@@ -398,6 +410,32 @@ function renderChartSection(evaluations, soi = true) {
       pinned = null;
     }
   });
+
+  // (Re)dessine le graphe à la largeur donnée. Une infobulle épinglée sur l'ancien dessin n'a plus de point à montrer : elle se ferme.
+  function dessiner(largeur) {
+    pinned = null;
+    tip.style.display = "none";
+    const neuf = buildChart(noted, largeur);
+    if (svg) svg.replaceWith(neuf);
+    else wrap.appendChild(neuf);
+    svg = neuf;
+    largeurDessinee = largeur;
+  }
+  // Le graphe se dessine à la largeur mesurée de son conteneur : dans la fiche d'un stagiaire (liste de 270 px, barre latérale), il est
+  // bien plus étroit que la fenêtre, et un dessin fait pour la fenêtre était réduit de moitié, son texte de 10 unités rendu à 5 px.
+  // Il se dessine une fois le conteneur posé et visible (une mesure nulle ne dessine rien), puis à chaque changement de sa largeur ;
+  // un changement de hauteur ou une largeur de dessin identique ne fait rien. Un navigateur sans ResizeObserver garde la largeur de
+  // la fenêtre, comme avant.
+  if (typeof ResizeObserver === "function") {
+    const observateur = new ResizeObserver(() => {
+      if (!outer.isConnected) { observateur.disconnect(); return; }   // la page a changé : plus rien à surveiller
+      const largeur = largeurDuDessin(sonde.getBoundingClientRect().width);
+      if (largeur !== null && largeur !== largeurDessinee) dessiner(largeur);
+    });
+    observateur.observe(sonde);
+  } else {
+    dessiner(largeurDeGraphe(LARGEUR_MAX_DU_GRAPHE));
+  }
 
   section.appendChild(outer);
   const avg = Math.round((noted.reduce((s, e) => s + e.norm, 0) / noted.length) * 10) / 10;
@@ -692,12 +730,13 @@ function rendrePartie(panel, partie, d, opts, ctx) {
     renderDp(panel, { stagiaireId: d.id, embedded: true, isActive })
       .catch(erreurPartie(panel, isActive, "Erreur de chargement du dossier professionnel. Rouvre la partie pour réessayer."));
   } else if (partie === "classe") {
-    // La vue Notes de la classe, telle quelle, dans son propre conteneur : elle repeint son
-    // conteneur à l'arrivée des données, et une partie quittée entre-temps laisse ce repeint
-    // dans un nœud détaché au lieu d'effacer la partie affichée.
+    // La vue Notes de la classe, dans son propre conteneur : elle repeint son conteneur à
+    // l'arrivée des données, et une partie quittée entre-temps laisse ce repeint dans un
+    // nœud détaché au lieu d'effacer la partie affichée. Imbriquée sous le titre de Mon
+    // suivi, elle n'a ni titre à elle ni seconde rangée d'onglets (js/views/notes.js).
     const zone = el("div");
     panel.appendChild(zone);
-    renderNotes(zone)
+    renderNotes(zone, { imbrique: true })
       .catch(erreurPartie(zone, isActive, "Erreur de chargement des notes de la classe. Rouvre la partie pour réessayer."));
   }
 }
@@ -710,9 +749,11 @@ export async function renderMonSuivi(container) {
   await chargerContexteFiche();
   clear(container);
 
+  // Nouvelle navigation : la promo en surtitre, comme sur les pages de l'équipe (avant : « Espace personnel »).
+  const surtitre = navigationV2Active() ? getPromoCourante()?.nom : "Espace personnel";
   const header = el("div", { class: "view-header" },
     el("div", { class: "view-header-text" },
-      el("p", { class: "eyebrow" }, "Espace personnel"),
+      surtitre ? el("p", { class: "eyebrow" }, surtitre) : null,
       el("h2", {}, nomDeMonSuivi()),
       el("p", { class: "subtitle" }, moduleVisible("notes")
         ? "Mon planning à venir et l'évolution de mes résultats."

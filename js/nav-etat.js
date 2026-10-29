@@ -5,13 +5,13 @@
 // Les règles pures (clés, décision) vivent dans js/nav-etat-regles.js, que node sait lire :
 // ce module-ci touche au DOM et à la base, node ne peut pas l'importer.
 
-import { getSetting, setSetting, getPromoCourante } from "./db.js?v=20261029a";
-import { el, toast } from "./utils.js?v=20261029a";
-import { icon } from "./icons.js?v=20261029a";
-import { isFounder } from "./auth-admin.js?v=20261029a";
+import { getSetting, setSetting, getPromoCourante } from "./db.js?v=20261029b";
+import { el, toast } from "./utils.js?v=20261029b";
+import { icon } from "./icons.js?v=20261029b";
+import { isFounder } from "./auth-admin.js?v=20261029b";
 import {
-  CLE_REGLAGE, CLE_APERCU, decideNavigationV2, reglageAllume, reglageRetenu, cleMemoire, navigationAttendue,
-} from "./nav-etat-regles.js?v=20261029a";
+  CLE_REGLAGE, CLE_APERCU, decideNavigationV2, reglageAllume, reglageRetenu, cleMemoire, navigationAttendue, etatDeLaCase,
+} from "./nav-etat-regles.js?v=20261029b";
 
 export { decideNavigationV2 };
 
@@ -86,12 +86,19 @@ function ecrireApercu(valeur) {
   } catch (e) { return false; }
 }
 
+// Mémoire de l'appareil pour la promo affichée : "1" quand elle y a été vue allumée, null sinon (sans promo connue,
+// sans trace, stockage inaccessible).
+function memoireDeLaPromo() {
+  const cle = cleMemoire(getPromoCourante()?.id);
+  return cle ? lireMemoire(cle) : null;
+}
+
 // Ce que montrerait une ouverture de l'app maintenant : le réglage lu (la mémoire de l'appareil s'il ne
 // l'est pas) et l'aperçu de l'appareil.
 function decisionDuMoment() {
-  const cle = cleMemoire(getPromoCourante()?.id);
-  const memoire = cle ? lireMemoire(cle) : null;
-  return decideNavigationV2({ reglagePromo: reglageRetenu({ lu: reglage, memoire }), apercu: lireApercu(), fondateur: isFounder() });
+  return decideNavigationV2({
+    reglagePromo: reglageRetenu({ lu: reglage, memoire: memoireDeLaPromo() }), apercu: lireApercu(), fondateur: isFounder(),
+  });
 }
 
 // La navigation de la session, fixée par le dernier chargerNavigationV2() : les pages la lisent
@@ -135,7 +142,9 @@ export function renderNavigationReglage() {
     "Allumée, les stagiaires et les formateurs de la promo passent à la nouvelle barre de navigation "
     + "à leur prochaine ouverture de l'app. Éteinte (réglage par défaut), la promo garde la barre actuelle."));
   const casePromo = el("input", { type: "checkbox", id: "navigation-v2-promo" });
-  casePromo.checked = reglage === true;
+  // Le réglage de la promo, rien d'autre (ruling R54) : celui qui a été lu ; après une lecture ratée ou trop lente (réglage
+  // null), la mémoire de l'appareil pour cette promo, jamais l'aperçu de l'appareil que la navigation appliquée peut suivre.
+  casePromo.checked = etatDeLaCase({ reglage, memoire: memoireDeLaPromo() });
   casePromo.addEventListener("change", async () => {
     const voulu = casePromo.checked;
     casePromo.disabled = true;

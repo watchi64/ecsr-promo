@@ -1,10 +1,11 @@
-import { listStagiaires, listPassages, addPassage, updatePassage, deletePassage, listRecentPassagesAudit } from "../db.js?v=20261029a";
-import { el, clear, isoDate, formatDate, toast, displayStagiaire } from "../utils.js?v=20261029a";
-import { icon } from "../icons.js?v=20261029a";
-import { recordUndo } from "../undo.js?v=20261029a";
-import { TYPES, RESULTATS } from "../config.js?v=20261029a";
-import { isAdmin, getProfile } from "../auth-admin.js?v=20261029a";
-import { getCurrentWho } from "../identity.js?v=20261029a";
+import { listStagiaires, listPassages, addPassage, updatePassage, deletePassage, listRecentPassagesAudit } from "../db.js?v=20261029b";
+import { el, clear, isoDate, formatDate, toast, displayStagiaire, tableauEnListe } from "../utils.js?v=20261029b";
+import { icon } from "../icons.js?v=20261029b";
+import { recordUndo } from "../undo.js?v=20261029b";
+import { TYPES, RESULTATS } from "../config.js?v=20261029b";
+import { isAdmin, getProfile } from "../auth-admin.js?v=20261029b";
+import { getCurrentWho } from "../identity.js?v=20261029b";
+import { navigationV2Active } from "../nav-etat.js?v=20261029b";
 
 let stagiaires = [];
 let passages = [];
@@ -178,17 +179,18 @@ function renderTable(container) {
 
     const tr = el("tr", {},
       el("td", { class: "date" }, formatDate(p.date)),
-      el("td", {}, p.stagiaire ? displayStagiaire(p.stagiaire) : "?"),
+      el("td", { class: "liste-titre" }, p.stagiaire ? displayStagiaire(p.stagiaire) : "?"),
       el("td", {}, el("span", { class: "tag " + (p.type === "Salle" ? "salle" : "voiture") }, p.type)),
       el("td", {}, resultTag(p.resultat)),
       el("td", { class: "muted" }, p.remplacant ? displayStagiaire(p.remplacant) : "-"),
       el("td", {}, el("span", { class: "tag who" + (isAdmin_ ? " admin" : "") }, whoLabel)),
-      showActions ? el("td", {}, el("span", { style: "display:inline-flex; gap:0.3rem" }, editBtn, delBtn)) : null
+      showActions ? el("td", { class: "liste-actions" }, el("span", { style: "display:inline-flex; gap:0.3rem" }, editBtn, delBtn)) : null
     );
     tbody.appendChild(tr);
   });
   table.appendChild(tbody);
-  wrap.appendChild(table);
+  // Sous 1 080 px, une ligne devient une carte : aucun défilement de côté (spec § 4.1).
+  wrap.appendChild(tableauEnListe(table));
   return wrap;
 }
 
@@ -293,7 +295,9 @@ function rerender(container) {
     el("div", { class: "view-header-text" },
       el("p", { class: "eyebrow" }, passages.length + " entrées au total"),
       el("h2", {}, "Historique des passages"),
-      el("p", { class: "subtitle" }, "Tous les passages. Ajout ouvert à tous, suppression réservée aux admins. Chaque action est tracée."),
+      // Nouvelle navigation : « formateurs », le mot de l'app (un stagiaire lit cette page dans Planning > Priorités).
+      el("p", { class: "subtitle" }, "Tous les passages. Ajout ouvert à tous, suppression réservée aux "
+        + (navigationV2Active() ? "formateurs" : "admins") + ". Chaque action est tracée."),
     ),
     el("div", { style: "display:flex;gap:0.5rem;flex-wrap:wrap" }, histBtn, addBtn),
   ));

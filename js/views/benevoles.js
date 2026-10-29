@@ -4,14 +4,16 @@
 // Réservé formateur/admin : le bouton d'ouverture n'est rendu que pour eux et les
 // tables sont RLS admin-only (téléphones jamais transmis aux stagiaires). Les venues
 // ne sont pas stockées : déduites du planning (cartes portant le bénévole), seuls
-// les commentaires vivent dans benevole_suivi. Ouvert depuis la barre semaine du Planning.
+// les commentaires vivent dans benevole_suivi. Ouvert depuis la barre semaine du Planning, dans une
+// fenêtre (ancienne navigation) ; avec la nouvelle, c'est le sous-onglet « Élèves bénévoles » de la page
+// Stagiaires, où le même panneau se pose dans la page (renderBenevoles).
 import {
   listBenevoles, addBenevole, updateBenevole, setBenevoleActif,
   listAutoEcoles, addAutoEcole, updateAutoEcole, setAutoEcoleActif, deleteAutoEcole,
   listVenuesBenevoles, listSuiviBenevole, upsertSuiviBenevole, listStagiaires, getPromoCourante,
-} from "../db.js?v=20261029a";
-import { el, clear, toast, displayStagiaire, compareByNom, isoDate, addDays, formatDayShort } from "../utils.js?v=20261029a";
-import { JOURS } from "../config.js?v=20261029a";
+} from "../db.js?v=20261029b";
+import { el, clear, toast, displayStagiaire, compareByNom, isoDate, addDays, formatDayShort } from "../utils.js?v=20261029b";
+import { JOURS } from "../config.js?v=20261029b";
 
 const JOURS_COURTS = ["Lun", "Mar", "Mer", "Jeu", "Ven"];
 const DEMI = [
@@ -110,11 +112,12 @@ function mailLink(email) {
   return el("a", { class: "bnv-tel bnv-mail", href: "mailto:" + String(email).trim() }, email);
 }
 
-export function openBenevolesPanel({ onClose } = {}) {
-  const backdrop = el("div", { class: "modal-backdrop" });
-  const modal = el("div", { class: "modal bnv-modal" });
-  backdrop.appendChild(modal);
-
+// Le panneau, séparé de son contenant : tout son contenu se dessine dans `zone`, et rien ici ne suppose une
+// fenêtre. Deux contenants le posent : la fenêtre de l'ancienne navigation (openBenevolesPanel, qui passe `fermer`
+// pour que le panneau montre ses boutons « Fermer ») et, avec la nouvelle, le sous-onglet « Élèves bénévoles » de la
+// page Stagiaires (renderBenevoles), où il n'y a rien à fermer. Rend `charger` (lit la banque, dessine l'onglet) et
+// `modifie` (au moins une écriture : le contenant dit au Planning de relire sa banque).
+function panneau(zone, { fermer = null } = {}) {
   let list = [];
   let ecoles = [];
   let venues = [];        // cartes planning portant des bénévoles (venues déduites)
@@ -122,9 +125,6 @@ export function openBenevolesPanel({ onClose } = {}) {
   let tab = "benevoles";  // "benevoles" | "ecoles"
   let filtre = { jour: "", demi: "" };
   let dirty = false;  // au moins une écriture => le planning recharge sa banque à la fermeture
-
-  const close = () => { backdrop.remove(); if (dirty && onClose) onClose(); };
-  backdrop.addEventListener("click", (e) => { if (e.target === backdrop) close(); });
 
   async function reload() {
     [list, ecoles, venues, stagiaires] = await Promise.all([
@@ -221,10 +221,10 @@ export function openBenevolesPanel({ onClose } = {}) {
   // === Onglet Bénévoles ===
 
   function renderList() {
-    clear(modal);
-    modal.appendChild(el("h3", {}, titrePanneau()));
-    modal.appendChild(renderTabs());
-    modal.appendChild(el("p", { class: "muted bnv-intro" },
+    clear(zone);
+    zone.appendChild(el("h3", {}, titrePanneau()));
+    zone.appendChild(renderTabs());
+    zone.appendChild(el("p", { class: "muted bnv-intro" },
       "Volontaires qui viennent conduire avec les élèves moniteurs. Visible uniquement par les formateurs/admins."));
 
     // Filtre dispo + ajout
@@ -241,7 +241,7 @@ export function openBenevolesPanel({ onClose } = {}) {
     demiSel.addEventListener("change", () => { filtre.demi = demiSel.value; renderList(); });
 
     const addBtn = el("button", { class: "btn small primary", onClick: () => renderForm(null) }, "+ Ajouter");
-    modal.appendChild(el("div", { class: "bnv-toolbar" },
+    zone.appendChild(el("div", { class: "bnv-toolbar" },
       el("span", { class: "bnv-filter-label" }, "Dispo :"), jourSel, demiSel,
       el("span", { style: "flex:1" }), addBtn));
 
@@ -249,7 +249,7 @@ export function openBenevolesPanel({ onClose } = {}) {
     const retires = list.filter((b) => b.actif === false).sort(compareByNom);
 
     if (!actifs.length) {
-      modal.appendChild(el("p", { class: "muted bnv-empty" },
+      zone.appendChild(el("p", { class: "muted bnv-empty" },
         list.length ? "Personne ne correspond à ce filtre." : "Banque vide. Ajoute un premier bénévole."));
     }
     actifs.forEach((b) => {
@@ -267,7 +267,7 @@ export function openBenevolesPanel({ onClose } = {}) {
       if (tel) side.appendChild(tel);
       side.appendChild(el("button", { class: "btn small ghost", onClick: () => renderForm(b) }, "Modifier"));
       row.appendChild(side);
-      modal.appendChild(row);
+      zone.appendChild(row);
     });
 
     if (retires.length) {
@@ -283,31 +283,33 @@ export function openBenevolesPanel({ onClose } = {}) {
               } catch (e) { console.error(e); toast("Erreur d'enregistrement", "error"); }
             }}, "Réactiver"))));
       });
-      modal.appendChild(det);
+      zone.appendChild(det);
     }
 
-    modal.appendChild(el("div", { class: "modal-actions" },
-      el("button", { class: "btn ghost", onClick: close }, "Fermer")));
+    if (fermer) {
+      zone.appendChild(el("div", { class: "modal-actions" },
+        el("button", { class: "btn ghost", onClick: fermer }, "Fermer")));
+    }
   }
 
   // === Onglet Auto-écoles ===
 
   function renderEcoles() {
-    clear(modal);
-    modal.appendChild(el("h3", {}, titrePanneau()));
-    modal.appendChild(renderTabs());
-    modal.appendChild(el("p", { class: "muted bnv-intro" },
+    clear(zone);
+    zone.appendChild(el("h3", {}, titrePanneau()));
+    zone.appendChild(renderTabs());
+    zone.appendChild(el("p", { class: "muted bnv-intro" },
       "Auto-écoles partenaires : les contacts à appeler pour trouver des élèves bénévoles."));
 
     const addBtn = el("button", { class: "btn small primary", onClick: () => renderEcoleForm(null) }, "+ Ajouter");
-    modal.appendChild(el("div", { class: "bnv-toolbar" }, el("span", { style: "flex:1" }), addBtn));
+    zone.appendChild(el("div", { class: "bnv-toolbar" }, el("span", { style: "flex:1" }), addBtn));
 
     const tri = (a, b) => (a.nom || "").localeCompare(b.nom || "", "fr");
     const actives = ecoles.filter((a) => a.actif !== false).sort(tri);
     const retirees = ecoles.filter((a) => a.actif === false).sort(tri);
 
     if (!actives.length) {
-      modal.appendChild(el("p", { class: "muted bnv-empty" }, "Aucune auto-école partenaire pour l'instant."));
+      zone.appendChild(el("p", { class: "muted bnv-empty" }, "Aucune auto-école partenaire pour l'instant."));
     }
     actives.forEach((a) => {
       const affilies = list.filter((b) => b.auto_ecole_id === a.id && b.actif !== false);
@@ -324,7 +326,7 @@ export function openBenevolesPanel({ onClose } = {}) {
       const mail = mailLink(a.email); if (mail) side.appendChild(mail);
       side.appendChild(el("button", { class: "btn small ghost", onClick: () => renderEcoleForm(a) }, "Modifier"));
       row.appendChild(side);
-      modal.appendChild(row);
+      zone.appendChild(row);
     });
 
     if (retirees.length) {
@@ -339,19 +341,29 @@ export function openBenevolesPanel({ onClose } = {}) {
               catch (e) { console.error(e); toast("Erreur d'enregistrement", "error"); }
             }}, "Réactiver"))));
       });
-      modal.appendChild(det);
+      zone.appendChild(det);
     }
 
-    modal.appendChild(el("div", { class: "modal-actions" },
-      el("button", { class: "btn ghost", onClick: close }, "Fermer")));
+    if (fermer) {
+      zone.appendChild(el("div", { class: "modal-actions" },
+        el("button", { class: "btn ghost", onClick: fermer }, "Fermer")));
+    }
+  }
+
+  // Posé dans la page (`fermer` nul : pas de fenêtre), le panneau garde la position de défilement de la page quand un formulaire prend la
+  // place de la liste, souvent longue : après « Modifier », le formulaire pouvait se trouver hors de l'écran. On le ramène en haut du bloc
+  // (la marge de défilement de .bnv-page, css/navigation.css, tient compte de l'en-tête collant du téléphone). Dans la fenêtre, c'est
+  // la fenêtre qui défile : rien à faire.
+  function ramenerALEcran() {
+    if (!fermer) zone.scrollIntoView({ block: "start" });
   }
 
   // Fiche auto-école. onSaved (optionnel) sert au flux « + Nouvelle auto-école »
   // depuis la fiche bénévole : appelé avec la fiche créée (ou null si annulation)
   // au lieu de revenir à la liste.
   function renderEcoleForm(a, onSaved) {
-    clear(modal);
-    modal.appendChild(el("h3", {}, a ? "Modifier " + a.nom : "Nouvelle auto-école"));
+    clear(zone);
+    zone.appendChild(el("h3", {}, a ? "Modifier " + a.nom : "Nouvelle auto-école"));
 
     const nomIn = el("input", { type: "text", value: a?.nom || "", autocomplete: "off" });
     const referentIn = el("input", { type: "text", value: a?.referent || "", autocomplete: "off", placeholder: "Sophie…" });
@@ -381,7 +393,7 @@ export function openBenevolesPanel({ onClose } = {}) {
       } catch (e) { console.error(e); toast("Erreur d'enregistrement", "error"); }
     }
 
-    modal.appendChild(el("div", { class: "modal-form" },
+    zone.appendChild(el("div", { class: "modal-form" },
       el("div", { class: "bnv-form-2col" },
         el("div", { class: "field" }, el("label", {}, "Nom *"), nomIn),
         el("div", { class: "field" }, el("label", {}, "Référent (qui appeler)"), referentIn)),
@@ -440,7 +452,7 @@ export function openBenevolesPanel({ onClose } = {}) {
         catch (e) { console.error(e); toast("Erreur d'enregistrement", "error"); }
       });
       bloc.appendChild(affSel);
-      modal.appendChild(bloc);
+      zone.appendChild(bloc);
     }
 
     const actions = el("div", { class: "modal-actions" });
@@ -465,18 +477,19 @@ export function openBenevolesPanel({ onClose } = {}) {
     actions.appendChild(el("span", { style: "flex:1" }));
     actions.appendChild(el("button", { class: "btn ghost", onClick: () => (onSaved ? onSaved(null) : render()) }, "Annuler"));
     actions.appendChild(el("button", { class: "btn primary", onClick: save }, "Enregistrer"));
-    modal.appendChild(actions);
+    zone.appendChild(actions);
+    ramenerALEcran();
   }
 
   // === Fiche bénévole ===
   // draft (optionnel) : valeurs en cours de saisie, pour restaurer le formulaire au
   // retour du flux « + Nouvelle auto-école » sans perdre ce qui était déjà rempli.
   function renderForm(b, draft, returnTo) {
-    clear(modal);
+    clear(zone);
     // returnTo (optionnel) : où revenir après enregistrer/annuler/retirer
     // (ex. fiche auto-école qui a ouvert cette fiche). Par défaut : l'onglet courant.
     const done = () => (returnTo ? returnTo() : render());
-    modal.appendChild(el("h3", {}, b ? "Modifier " + displayStagiaire(b) : "Nouveau bénévole"));
+    zone.appendChild(el("h3", {}, b ? "Modifier " + displayStagiaire(b) : "Nouveau bénévole"));
 
     const v = (champ, defaut) => (draft && champ in draft ? draft[champ] : defaut);
 
@@ -600,7 +613,7 @@ export function openBenevolesPanel({ onClose } = {}) {
       el("div", { class: "field" }, el("label", {}, "Précision dispos"), dispoNoteIn),
       el("div", { class: "field" }, el("label", {}, "Notes"), notesIn),
     );
-    modal.appendChild(form);
+    zone.appendChild(form);
 
     // === Suivi des venues (bénévole existant) : déduit du planning, commentaire
     // par venue passée (upsert benevole_suivi au blur). ===
@@ -608,7 +621,7 @@ export function openBenevolesPanel({ onClose } = {}) {
       const suiviBloc = el("div", { class: "bnv-suivi" });
       suiviBloc.appendChild(el("div", { class: "bnv-affilies-titre" }, "Suivi des venues"));
       suiviBloc.appendChild(el("p", { class: "muted bnv-empty" }, "Chargement du suivi…"));
-      modal.appendChild(suiviBloc);
+      zone.appendChild(suiviBloc);
 
       listSuiviBenevole(b.id).then((rows) => {
         clear(suiviBloc);
@@ -688,16 +701,53 @@ export function openBenevolesPanel({ onClose } = {}) {
     actions.appendChild(el("span", { style: "flex:1" }));
     actions.appendChild(el("button", { class: "btn ghost", onClick: done }, "Annuler"));
     actions.appendChild(el("button", { class: "btn primary", onClick: save }, "Enregistrer"));
-    modal.appendChild(actions);
+    zone.appendChild(actions);
+    ramenerALEcran();
   }
+
+  // Lit la banque puis dessine l'onglet courant. Une erreur de lecture se dit dans la zone : « Fermer » dans une
+  // fenêtre, « Réessayer » dans la page (où rien ne se ferme).
+  function charger() {
+    return reload().then(render).catch((e) => {
+      console.error(e);
+      clear(zone);
+      zone.appendChild(el("p", { class: "muted" }, "Erreur de chargement de la banque."));
+      zone.appendChild(el("div", { class: "modal-actions" }, fermer
+        ? el("button", { class: "btn ghost", onClick: fermer }, "Fermer")
+        : el("button", { class: "btn ghost", onClick: () => {
+          clear(zone);
+          zone.appendChild(el("div", { class: "loading" }, "Chargement"));
+          charger();
+        } }, "Réessayer")));
+    });
+  }
+
+  return { charger, modifie: () => dirty };
+}
+
+// La fenêtre de l'ancienne navigation, ouverte par le bouton « Élèves bénévoles » du Planning. Une écriture faite
+// dans le panneau fait relire sa banque au Planning à la fermeture (`onClose`).
+export function openBenevolesPanel({ onClose } = {}) {
+  const backdrop = el("div", { class: "modal-backdrop" });
+  const modal = el("div", { class: "modal bnv-modal" });
+  backdrop.appendChild(modal);
+
+  let contenu = null;
+  const close = () => { backdrop.remove(); if (contenu.modifie() && onClose) onClose(); };
+  backdrop.addEventListener("click", (e) => { if (e.target === backdrop) close(); });
+  contenu = panneau(modal, { fermer: close });
 
   modal.appendChild(el("div", { class: "loading" }, "Chargement"));
   document.body.appendChild(backdrop);
-  reload().then(render).catch((e) => {
-    console.error(e);
-    clear(modal);
-    modal.appendChild(el("p", { class: "muted" }, "Erreur de chargement de la banque."));
-    modal.appendChild(el("div", { class: "modal-actions" },
-      el("button", { class: "btn ghost", onClick: close }, "Fermer")));
-  });
+  contenu.charger();
+}
+
+// Nouvelle navigation : le même panneau, dans la page, au lieu d'une fenêtre. C'est le sous-onglet « Élèves
+// bénévoles » de la page Stagiaires (js/views/stagiaires.js) ; le Planning relit sa banque à chaque rendu, il n'a
+// donc rien à apprendre des écritures faites ici.
+export function renderBenevoles(container) {
+  clear(container);
+  const zone = el("div", { class: "bnv-page" }, el("div", { class: "loading" }, "Chargement"));
+  container.appendChild(zone);
+  return panneau(zone).charger();
 }

@@ -4,7 +4,7 @@
 // les entrées qui portent une pastille s'y abonnent. Quel nombre montrer (nouveaux ou suivis) se décide à
 // l'affichage, selon que la personne est le fondateur hors aperçu (pastilleSignalement).
 
-import { compterSignalementsApp } from "./db.js?v=20261029a";
+import { compterSignalementsApp } from "./db.js?v=20261029b";
 
 let etat = { nouveaux: 0, suivis: 0 };
 const abonnes = new Set();

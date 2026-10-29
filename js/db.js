@@ -1,11 +1,11 @@
-import { createClient } from "../vendor/supabase-js-2.117.2.js?v=20261029a";
-import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261029a";
-import { compteDansEquite } from "./passage-rules.js?v=20261029a";
-import { messageErreurEnvoi } from "./signalement-rules.js?v=20261029a";
+import { createClient } from "../vendor/supabase-js-2.117.2.js?v=20261029b";
+import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261029b";
+import { compteDansEquite } from "./passage-rules.js?v=20261029b";
+import { messageErreurEnvoi } from "./signalement-rules.js?v=20261029b";
 import {
   ENTETE_PROMO, ENTETE_LECTURE_PROMO, promoDeLaRequete, doitPorterEntetePromo, choisirPromoInitiale, profilEffectif,
   separerChamps, CHAMPS_PROGRESSION, CHAMPS_EXAMEN, fusionnerProgression, fusionnerExamen,
-} from "./promo-rules.js?v=20261029a";
+} from "./promo-rules.js?v=20261029b";
 
 // Contexte de promo (spec multi-promo, C.1). La promo courante voyage dans l'en-tête
 // x-promo-id de chaque requête de données ; la base vérifie le droit et filtre.
@@ -819,6 +819,18 @@ export async function listBrouillonsIa(qcmId) {
     .order("created_at", { ascending: true });
   if (error) throw error;
   return data || [];
+}
+
+// Nombre de brouillons à relire, tous QCM confondus : la pastille « à traiter » de la barre de l'équipe
+// (js/a-traiter.js). Les brouillons sont communs à toutes les promos (leur table n'a pas de colonne de promo). Les
+// identifiants seulement, comptés ici : l'IA en propose peu à la fois (son quota est de 10 par jour et par formateur).
+export async function countBrouillonsIaARelire() {
+  const { data, error } = await supabase
+    .from("qcm_ia_brouillons")
+    .select("id")
+    .eq("statut", "a_relire");
+  if (error) throw error;
+  return (data || []).length;
 }
 
 // Accepte un brouillon tel que le formateur l'a relu : la base crée la question, ses

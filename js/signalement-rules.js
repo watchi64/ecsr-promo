@@ -4,7 +4,7 @@
 // journal des erreurs, réduction de la capture, phrase d'un refus du serveur, adresse sûre pour un lien.
 // Module pur, sans DOM ni stockage : testé en node.
 
-import { libellePastille } from "./nouveautes.js?v=20261029a";
+import { libellePastille } from "./nouveautes.js?v=20261029b";
 
 // Bornes de la spec (§ 7) : la base les vérifie aussi, dans signaler_probleme.
 export const MIN_MESSAGE = 3;

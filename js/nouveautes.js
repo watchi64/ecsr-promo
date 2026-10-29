@@ -1,4 +1,4 @@
-// Règles de la rubrique Nouveautés : tri, audience, non-lu.
+// Règles de la rubrique Nouveautés : tri, audience, navigation, non-lu.
 //
 // Aucune dépendance autre que nav-rules.js (module pur, source de la clé du
 // sous-onglet de Cours), aucun accès au DOM. Les fonctions de décision reçoivent
@@ -10,7 +10,7 @@
 // subtabs.js : en cas d'échec tout paraît neuf à chaque visite, ce qui est une
 // dégradation acceptable, mais rien n'explose.
 
-import { CLES_SOUS_ONGLETS } from "./nav-rules.js?v=20261029a";
+import { CLES_SOUS_ONGLETS } from "./nav-rules.js?v=20261029b";
 
 export const CLE_VUES = "ecsr_nouveautes_vues";
 
@@ -23,12 +23,14 @@ export const MISE_EN_LIGNE = "2026-08-01";
 // Correspondance route -> clé localStorage du sous-onglet, telle que
 // renderSubTabs la mémorise. Permet à un lien « Où le trouver » d'ouvrir la vue
 // directement sur le bon sous-onglet. Une route absente d'ici ignore simplement
-// le champ sousOnglet : le lien navigue, sans atterrissage précis. La clé de
-// Cours vient de nav-rules.js (CLES_SOUS_ONGLETS), pour qu'elle n'ait qu'une source.
+// le champ sousOnglet : le lien navigue, sans atterrissage précis. Les clés de
+// Cours et de Stagiaires (Élèves bénévoles) viennent de nav-rules.js
+// (CLES_SOUS_ONGLETS), pour qu'elles n'aient qu'une source.
 export const STORAGE_SOUS_ONGLET = {
   "mon-suivi": "ecsr_monsuivi_subtab",
   notes: "ecsr_notes_subtab",
   themes: CLES_SOUS_ONGLETS.themes,
+  stagiaires: CLES_SOUS_ONGLETS.stagiaires,
 };
 
 // Antéchronologique, de la plus récente à la plus ancienne.
@@ -36,9 +38,21 @@ export function triees(entrees) {
   return [...entrees].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
 }
 
-// Une entrée « formateurs » n'est visible que d'un formateur ou d'un admin.
-export function visibles(entrees, formateur) {
-  return entrees.filter((e) => e.pour !== "formateurs" || !!formateur);
+// Une entrée « formateurs » n'est visible que d'un formateur ou d'un admin. Une entrée qui porte
+// `navigation: "nouvelle"` n'est visible que nouvelle navigation allumée (`navigationV2`, js/nav-etat.js), une entrée
+// `navigation: "ancienne"` que si elle est éteinte (elle ne décrit que l'ancienne barre) ; sans ce champ, l'entrée se lit
+// dans les deux. Le défaut est l'ancienne navigation : un appelant d'avant la refonte ne voit rien changer.
+export function visibles(entrees, formateur, navigationV2 = false) {
+  return entrees.filter((e) => (e.pour !== "formateurs" || !!formateur)
+    && (e.navigation !== "nouvelle" || !!navigationV2)
+    && (e.navigation !== "ancienne" || !navigationV2));
+}
+
+// Étapes « Comment faire » d'une entrée selon la navigation : `guideNouvelle` (facultatif) remplace `guide` quand la nouvelle
+// navigation est allumée, jamais autrement. Une liste vide ou illisible vaut son absence : le guide d'avant se lit.
+export function guideSelonNavigation(entree, navigationV2 = false) {
+  const nouvelle = entree.guideNouvelle;
+  return navigationV2 && Array.isArray(nouvelle) && nouvelle.length > 0 ? nouvelle : entree.guide;
 }
 
 // Entrées dont l'id n'a pas encore été vu.

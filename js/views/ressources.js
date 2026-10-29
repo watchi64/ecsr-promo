@@ -1,11 +1,12 @@
 import {
   listRessources, addRessource, updateRessource, deleteRessource,
-  listContacts, addContact, updateContact, deleteContact,
-} from "../db.js?v=20261029a";
-import { el, clear, toast } from "../utils.js?v=20261029a";
-import { icon } from "../icons.js?v=20261029a";
-import { isAdmin } from "../auth-admin.js?v=20261029a";
-import { recordUndo } from "../undo.js?v=20261029a";
+  listContacts, addContact, updateContact, deleteContact, getPromoCourante,
+} from "../db.js?v=20261029b";
+import { el, clear, toast } from "../utils.js?v=20261029b";
+import { icon } from "../icons.js?v=20261029b";
+import { isAdmin } from "../auth-admin.js?v=20261029b";
+import { recordUndo } from "../undo.js?v=20261029b";
+import { navigationV2Active } from "../nav-etat.js?v=20261029b";
 
 let ressources = [];
 let contacts = [];
@@ -244,18 +245,27 @@ function rerender(container) {
 
   const admin = isAdmin();
 
+  // Nouvelle navigation : la page est Cours et QCM, Documents ; elle porte ce nom, avec la promo en surtitre (avant :
+  // « Ressources & contacts », et le nombre de liens et de contacts pour surtitre). La section des contacts s'appelle
+  // alors « Contacts du centre », comme la ligne du menu du compte qui y mène. Le nombre de liens et de contacts
+  // termine le sous-titre.
+  const v2 = navigationV2Active();
+  const surtitre = getPromoCourante()?.nom;
+  const compte = `${ressources.length} lien${ressources.length > 1 ? "s" : ""} · ${contacts.length} contact${contacts.length > 1 ? "s" : ""}`;
   container.appendChild(el("div", { class: "view-header" },
     el("div", { class: "view-header-text" },
-      el("p", { class: "eyebrow" }, ressources.length + " liens curés · " + contacts.length + " contacts"),
-      el("h2", {}, "Ressources & contacts"),
-      el("p", { class: "subtitle" }, "Contacts administration (absences, justificatifs) + textes officiels & sites pédagogiques."),
+      v2 ? (surtitre ? el("p", { class: "eyebrow" }, surtitre) : null)
+        : el("p", { class: "eyebrow" }, ressources.length + " liens curés · " + contacts.length + " contacts"),
+      el("h2", {}, v2 ? "Documents" : "Ressources & contacts"),
+      el("p", { class: "subtitle" }, (v2 ? "Contacts du centre" : "Contacts administration")
+        + " (absences, justificatifs) + textes officiels & sites pédagogiques." + (v2 ? ` ${compte}.` : "")),
     ),
   ));
 
   // === Section Contacts ===
   const contactsSection = el("section", { class: "contacts-section" });
   contactsSection.appendChild(el("div", { class: "contacts-section-head" },
-    el("h3", { class: "ressource-section-title" }, "📞 Contacts administration"),
+    el("h3", { class: "ressource-section-title" }, v2 ? "📞 Contacts du centre" : "📞 Contacts administration"),
     admin ? el("button", {
       class: "btn small accent",
       onClick: () => openContactModal(null, () => reload(container)),

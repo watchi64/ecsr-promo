@@ -3,26 +3,29 @@
 // « Mon compte » de l'ancienne barre (auth-admin.js) : la page à soi (Mon suivi, ou Stagiaires
 // pour un formateur sans profil stagiaire) quand la barre n'y mène pas déjà (ruling R30), le « Voir
 // en tant que » du fondateur, les informations légales et la déconnexion ; il y ajoute ce que
-// l'ancienne barre portait à côté : les Nouveautés (avec la pastille des non-lues), les Réglages et
-// « Actualiser », le même geste que le bouton de l'ancienne barre (seul moyen de relire les données
-// dans l'app installée sur iPhone). Popover sur ordinateur et tablette, tiroir en bas de l'écran sur
-// téléphone (css/navigation.css), mécanique de fenêtre de js/nav-fenetre.js.
+// l'ancienne barre portait à côté : les Nouveautés (avec le nombre des non-lues, que le bouton du
+// compte ne montre plus que par un point), les Contacts du centre (l'ancien onglet Ressources, qui est
+// maintenant Cours et QCM, Documents), Mes préférences (celles de la personne, pour tous les rôles :
+// les Réglages de la promo sont une entrée de la barre de l'équipe) et « Actualiser », le même geste que
+// le bouton de l'ancienne barre (seul moyen de relire les données dans l'app installée sur iPhone).
+// Popover sur ordinateur et tablette, tiroir en bas de l'écran sur téléphone (css/navigation.css),
+// mécanique de fenêtre de js/nav-fenetre.js.
 
-import { el } from "./utils.js?v=20261029a";
-import { icon, deco } from "./icons.js?v=20261029a";
+import { el } from "./utils.js?v=20261029b";
+import { icon, deco } from "./icons.js?v=20261029b";
 import {
   getProfile, getProfileWho, monStagiaireId, buildViewAsBlock, seDeconnecter,
-} from "./auth-admin.js?v=20261029a";
-import { getPromoCourante } from "./db.js?v=20261029a";
-import { pagePersonnelle } from "./route-rules.js?v=20261029a";
-import { nouveautesAffichables, formateurConnecte } from "./modules-etat.js?v=20261029a";
-import { libellePastille } from "./nouveautes.js?v=20261029a";
-import { initialesDe, libelleRole, pageASoiDuMenu } from "./nav-rules.js?v=20261029a";
-import { ouvrirFenetre, fermerFenetre } from "./nav-fenetre.js?v=20261029a";
-import { fondateurHorsApercu } from "./auth-admin.js?v=20261029a";
-import { ouvrirSignalement } from "./signalement.js?v=20261029a";
-import { etatSignalements } from "./signalement-etat.js?v=20261029a";
-import { pastilleSignalement } from "./signalement-rules.js?v=20261029a";
+} from "./auth-admin.js?v=20261029b";
+import { getPromoCourante } from "./db.js?v=20261029b";
+import { pagePersonnelle } from "./route-rules.js?v=20261029b";
+import { nouveautesAffichables, formateurConnecte, routeVisible } from "./modules-etat.js?v=20261029b";
+import { libellePastille } from "./nouveautes.js?v=20261029b";
+import { initialesDe, libelleRole, pageASoiDuMenu } from "./nav-rules.js?v=20261029b";
+import { ouvrirFenetre, fermerFenetre } from "./nav-fenetre.js?v=20261029b";
+import { fondateurHorsApercu } from "./auth-admin.js?v=20261029b";
+import { ouvrirSignalement } from "./signalement.js?v=20261029b";
+import { etatSignalements } from "./signalement-etat.js?v=20261029b";
+import { pastilleSignalement } from "./signalement-rules.js?v=20261029b";
 
 // Une ligne du menu : un lien (page) ou un bouton (geste), icône et libellé, `fin` à droite.
 const ligne = (tag, attrs, icone, texte, fin = null) => el(tag, { class: "nav-fenetre-lien", ...attrs },
@@ -69,7 +72,13 @@ export function ouvrirMenuCompte(ancre, { actualiser, entrees = [], espace = nul
       ligne("a", { href: "#/nouveautes" }, icon.bell(), "Nouveautés", nonLues
         ? el("span", { class: "nav-pastille" }, nonLues, el("span", { class: "nav-invisible" }, " non lues"))
         : null),
-      ligne("a", { href: "#/config" }, icon.settings(), "Réglages"),
+      // Les contacts du centre (les numéros pour prévenir d'une absence) ne sont plus un onglet : ils sont dans Cours et QCM,
+      // sous-onglet Documents, où #/ressources mène (redirection du lot 1). Pas de ligne quand le module Ressources est fermé
+      // pour la promo : un stagiaire n'y trouverait rien (un formateur voit toujours tout).
+      routeVisible("ressources") ? ligne("a", { href: "#/ressources" }, icon.phone(), "Contacts du centre") : null,
+      // Pour tous les rôles : les réglages de la promo ont leur entrée chez l'équipe (Réglages, #/config), ce
+      // menu ouvre ceux de la personne.
+      ligne("a", { href: "#/preferences" }, icon.settings(), "Mes préférences"),
       actualiser
         ? ligne("button", { type: "button", onClick: () => { fermerFenetre(); actualiser(); } }, icon.refresh(), "Actualiser")
         : null,
@@ -79,7 +88,7 @@ export function ouvrirMenuCompte(ancre, { actualiser, entrees = [], espace = nul
       filet(),
       ligne("button", { type: "button", onClick: () => {
         fermerFenetre({ focus: false });
-        import("./legal.js?v=20261029a").then((m) => m.ouvrirInformationsLegales());
+        import("./legal.js?v=20261029b").then((m) => m.ouvrirInformationsLegales());
       } }, icon.shield(), "Informations légales"),
       ligne("button", { type: "button", onClick: () => seDeconnecter(() => fermerFenetre({ focus: false })) },
         icon.logout(), "Se déconnecter"),

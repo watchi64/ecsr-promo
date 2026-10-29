@@ -4,13 +4,13 @@
 // Relu au démarrage, à chaque changement de page, au retour au premier plan et toutes
 // les 60 secondes quand l'app est visible. Aucune erreur affichée : ce n'est qu'un rappel.
 
-import { getEmargementsOuverts, signerEmargement, listStagiaires } from "./db.js?v=20261029a";
-import { el, clear, isoDate, toast } from "./utils.js?v=20261029a";
-import { isAuth, isAdmin, isProf, monStagiaireId } from "./auth-admin.js?v=20261029a";
-import { ouvrirSignature } from "./signature-pad.js?v=20261029a";
-import { libelleCreneau, heureLocale, adresseSeance, resumeSeance, deLaDemi } from "./emargement-rules.js?v=20261029a";
-import { jourLong, DEMI_LONG, nomComplet } from "./emargement-feuilles.js?v=20261029a";
-import { emargementActif } from "./emargement-etat.js?v=20261029a";
+import { getEmargementsOuverts, signerEmargement, listStagiaires } from "./db.js?v=20261029b";
+import { el, clear, isoDate, toast } from "./utils.js?v=20261029b";
+import { isAuth, isAdmin, isProf, monStagiaireId } from "./auth-admin.js?v=20261029b";
+import { ouvrirSignature } from "./signature-pad.js?v=20261029b";
+import { libelleCreneau, heureLocale, adresseSeance, resumeSeance, deLaDemi } from "./emargement-rules.js?v=20261029b";
+import { jourLong, DEMI_LONG, nomComplet } from "./emargement-feuilles.js?v=20261029b";
+import { emargementActif } from "./emargement-etat.js?v=20261029b";
 
 const INTERVALLE_MS = 60000;
 let initialise = false;
@@ -84,8 +84,9 @@ function dessiner(b, seances, actifs) {
       return !l || (!l.signe_le && !l.absent);
     });
     if (aSigner) {
+      // Les horaires, à part : la nouvelle navigation les masque sur téléphone, pour une seule ligne (css/navigation.css).
       b.appendChild(el("p", {}, el("strong", {}, `Émargement ${deLaDemi(aSigner.demi_journee)} ouvert`),
-        ` (${libelleCreneau(aSigner)})`));
+        el("span", { class: "em-bandeau-detail" }, ` (${libelleCreneau(aSigner)})`)));
       b.appendChild(el("button", { class: "btn small primary", type: "button",
         onClick: () => signer(aSigner, moi) }, "Signer"));
       b.hidden = false;
@@ -112,7 +113,7 @@ function dessiner(b, seances, actifs) {
     const r = resumeSeance(lignes, [...ids], false);
     b.classList.add("em-bandeau-info");
     b.appendChild(el("p", {}, el("strong", {}, `Émargement ${deLaDemi(s.demi_journee)} ouvert`),
-      ` : ${r.signes} sur ${r.total} ont signé`));
+      el("span", { class: "em-bandeau-detail" }, ` : ${r.signes} sur ${r.total} ont signé`)));
     b.appendChild(el("a", { class: "btn small", href: adresse }, "Voir"));
     b.hidden = false;
     return;

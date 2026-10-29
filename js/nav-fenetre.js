@@ -12,7 +12,7 @@
 // page change. Un remontage de la coquille ferme la fenêtre ouverte, dont les lignes et le bouton sont
 // ceux de la coquille remplacée, et rend son focus dans la nouvelle.
 
-import { el } from "./utils.js?v=20261029a";
+import { el } from "./utils.js?v=20261029b";
 
 const FOCALISABLES = 'a[href], button:not(:disabled), input:not(:disabled), select:not(:disabled), '
   + 'textarea:not(:disabled), [tabindex]:not([tabindex="-1"])';
@@ -52,8 +52,15 @@ export function fenetreOuverte() {
 }
 
 // L'adresse change sous la fenêtre ouverte (geste retour, adresse saisie dans l'app ouverte) : elle se
-// ferme comme par Échap. Un lien choisi dans la fenêtre l'a déjà fermée avant que l'adresse ne change.
+// ferme comme par Échap. Un lien choisi dans la fenêtre l'a déjà fermée avant que l'adresse ne change. Une
+// fenêtre déjà sortie de la page n'a plus rien à fermer : elle est seulement oubliée, comme par le clavier
+// (auClavier), sans ramener le focus à un bouton que la personne a pu quitter.
 function surChangementAdresse() {
+  if (!ouverte) return;
+  if (!ouverte.calque.isConnected) {
+    oublierFenetre();
+    return;
+  }
   fermerFenetre();
 }
 

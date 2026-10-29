@@ -3,12 +3,13 @@
  * Lecture publique, écriture admin only.
  */
 import {
-  listAgendaEvents, addAgendaEvent, updateAgendaEvent, deleteAgendaEvent,
-} from "../db.js?v=20261029a";
-import { el, clear, isoDate, formatDate, formatLongDate, parseDate, toast } from "../utils.js?v=20261029a";
-import { icon } from "../icons.js?v=20261029a";
-import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20261029a";
-import { recordUndo } from "../undo.js?v=20261029a";
+  listAgendaEvents, addAgendaEvent, updateAgendaEvent, deleteAgendaEvent, getPromoCourante,
+} from "../db.js?v=20261029b";
+import { el, clear, isoDate, formatDate, formatLongDate, parseDate, toast } from "../utils.js?v=20261029b";
+import { icon } from "../icons.js?v=20261029b";
+import { isAdmin, getAdminEmail } from "../auth-admin.js?v=20261029b";
+import { recordUndo } from "../undo.js?v=20261029b";
+import { navigationV2Active } from "../nav-etat.js?v=20261029b";
 
 let events = [];
 
@@ -264,11 +265,19 @@ function rerender(container) {
   clear(container);
   const admin = isAdmin();
 
+  // Nouvelle navigation : la page est Planning, Dates clés ; elle porte ce nom, avec la promo en surtitre (avant :
+  // « Calendrier », et le nombre d'événements pour surtitre) ; le nombre de dates clés, passées comprises, termine
+  // alors le sous-titre.
+  const v2 = navigationV2Active();
+  const surtitre = getPromoCourante()?.nom;
+  const pluriel = events.length > 1 ? "s" : "";
   container.appendChild(el("div", { class: "view-header" },
     el("div", { class: "view-header-text" },
-      el("p", { class: "eyebrow" }, events.length + " événement" + (events.length > 1 ? "s" : "") + " au calendrier"),
-      el("h2", {}, "Calendrier"),
-      el("p", { class: "subtitle" }, "Dates importantes : examens, stages, formations, fériés."),
+      v2 ? (surtitre ? el("p", { class: "eyebrow" }, surtitre) : null)
+        : el("p", { class: "eyebrow" }, events.length + " événement" + (events.length > 1 ? "s" : "") + " au calendrier"),
+      el("h2", {}, v2 ? "Dates clés" : "Calendrier"),
+      el("p", { class: "subtitle" }, "Dates importantes : examens, stages, formations, fériés."
+        + (v2 ? ` ${events.length} date${pluriel} clé${pluriel}.` : "")),
     ),
     admin ? el("button", {
       class: "btn primary",

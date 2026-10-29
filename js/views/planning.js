@@ -8,19 +8,19 @@ import {
   listBenevoles, listBenevolesNoms,
   getVoitureAggregats, listFiches, getSalleAggregats,
   avantChangementPromo,
-} from "../db.js?v=20261029a";
-import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20261029a";
-import { icon, deco } from "../icons.js?v=20261029a";
-import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20261029a";
-import { isAdmin, isProf, getAdminEmail } from "../auth-admin.js?v=20261029a";
-import { recordUndo } from "../undo.js?v=20261029a";
-import { getCurrentWho } from "../identity.js?v=20261029a";
-import { openBenevolesPanel, telLink } from "./benevoles.js?v=20261029a";
-import { meilleurResultat } from "../passage-rules.js?v=20261029a";
-import { routeVisible, routeMasquee, repereMasque } from "../modules-etat.js?v=20261029a";
-import { emargementActif } from "../emargement-etat.js?v=20261029a";
-import { navigationV2Active } from "../nav-etat.js?v=20261029a";
-import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261029a";
+} from "../db.js?v=20261029b";
+import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20261029b";
+import { icon, deco } from "../icons.js?v=20261029b";
+import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20261029b";
+import { isAdmin, isProf, getAdminEmail } from "../auth-admin.js?v=20261029b";
+import { recordUndo } from "../undo.js?v=20261029b";
+import { getCurrentWho } from "../identity.js?v=20261029b";
+import { openBenevolesPanel, telLink } from "./benevoles.js?v=20261029b";
+import { meilleurResultat } from "../passage-rules.js?v=20261029b";
+import { routeVisible, routeMasquee, repereMasque, formateurConnecte } from "../modules-etat.js?v=20261029b";
+import { emargementActif } from "../emargement-etat.js?v=20261029b";
+import { navigationV2Active } from "../nav-etat.js?v=20261029b";
+import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261029b";
 
 let stagiaires = [];
 let profs = [];
@@ -2817,6 +2817,9 @@ function renderInto(container) {
 
   const admin = isAdmin();
   const editing = canEditWeek();
+  // Nouvelle navigation, côté stagiaire : le planning se lit seulement, sans phrase qui parle d'administration, et
+  // « Aujourd'hui » (en tête de la page) tient lieu de « Cette semaine » (barre de la semaine).
+  const eleve = navigationV2Active() && !formateurConnecte();
   // Lecture seule dès qu'on n'est pas en édition explicite (stagiaire, admin hors
   // mode Modifier, ou semaine verrouillée) : la CSS .read-only fait le gros du travail.
   container.classList.toggle("read-only", !editing);
@@ -2834,7 +2837,7 @@ function renderInto(container) {
     el("div", { class: "view-header-text" },
       el("p", { class: "eyebrow" }, (editing ? "Édition" : "Consultation") + " · Semaine du " + longLabel),
       el("h2", {}, "Planning de la semaine"),
-      el("p", { class: "subtitle" },
+      eleve ? null : el("p", { class: "subtitle" },
         editing
           ? "Sélectionne les activités, formateurs et stagiaires. Tout s'enregistre automatiquement."
           : admin
@@ -2900,18 +2903,27 @@ function renderInto(container) {
   // Barre en DEUX groupes : « se déplacer » puis « agir », séparés par un filet.
   // Le libellé « Semaine du » a été retiré : l'en-tête juste au-dessus dit déjà
   // « Consultation · Semaine du 6 juillet 2026 ».
-  const navGroup = el("div", { class: "week-bar-nav" }, dateInput, prevBtn, nextBtn, todayBtn);
+  const navGroup = el("div", { class: "week-bar-nav" }, dateInput, prevBtn, nextBtn, eleve ? null : todayBtn);
   const actionsGroup = el("div", { class: "week-bar-actions" });
   const weekBar = el("div", { class: "week-bar" }, navGroup, actionsGroup);
   // Banque d'élèves bénévoles : accessible aussi en lecture seule (consulter une fiche
   // ou un téléphone ne doit pas obliger à passer en édition), mais pas sur semaine
   // verrouillée (barre réduite au badge + Déverrouiller, design validé).
+  // Nouvelle navigation : la banque est le sous-onglet « Élèves bénévoles » de la page Stagiaires ; le bouton écrit la
+  // mémoire de ce sous-onglet (comme une redirection du lot 1) puis ouvre la page. Ancienne : la fenêtre d'avant.
   const bnvBtn = () => el("button", { class: "btn small",
     title: "Banque d'élèves bénévoles (voiture) : fiches, dispos, téléphones",
-    onClick: () => openBenevolesPanel({ onClose: async () => {
-      benevoles = await loadBenevoles();
-      renderInto(currentContainer);
-    }}) },
+    onClick: () => {
+      if (navigationV2Active()) {
+        try { localStorage.setItem(CLES_SOUS_ONGLETS.stagiaires, "benevoles"); } catch (e) { /* mode privé */ }
+        location.hash = "#/stagiaires";
+        return;
+      }
+      openBenevolesPanel({ onClose: async () => {
+        benevoles = await loadBenevoles();
+        renderInto(currentContainer);
+      }});
+    } },
     el("span", { class: "btn-long" }, "Élèves bénévoles"),
     el("span", { class: "btn-short" }, "Bénévoles"));
 

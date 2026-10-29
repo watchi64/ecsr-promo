@@ -49,3 +49,13 @@ export function navigationAttendue({ promoId = null, lireMemoire = () => null, a
   const memoire = cle ? lireMemoire(cle) : null;
   return decideNavigationV2({ reglagePromo: reglageRetenu({ lu: null, memoire }), apercu, fondateur });
 }
+
+// État de la case « Promo affichée » de Paramètres (lot 2A, ruling R54) : elle ne dit que le réglage de la promo, jamais l'aperçu de
+// l'appareil. Le réglage quand sa lecture a abouti (`reglage`, true ou false) ; une lecture ratée ou trop lente le laisse null pour
+// toute la session, et la case reprend alors la mémoire de l'appareil pour cette promo (`memoire` : "1" quand elle y a été vue allumée,
+// ruling R17), comme la décision de la session (reglageRetenu) : cochée seulement quand elle dit « 1 », au lieu de paraître décochée
+// sous une barre que la promo a allumée. La navigation que la session applique (navigationV2Active()) ne convient pas : chez le
+// fondateur, l'aperçu de l'appareil la décide, et la case dirait alors l'aperçu au lieu du réglage de la promo.
+export function etatDeLaCase({ reglage = null, memoire = null } = {}) {
+  return reglageRetenu({ lu: reglage, memoire }) === true;
+}

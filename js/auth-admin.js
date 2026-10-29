@@ -17,14 +17,14 @@ import {
   getMyProfile, listStagiaires, listProfs,
   chargerMesPromos, oublierPromo, getPromoCourante, rechargerApresEnregistrements,
   bloquerRequetesJusquAuRechargement,
-} from "./db.js?v=20261029a";
-import { el, toast, displayStagiaire } from "./utils.js?v=20261029a";
-import { icon } from "./icons.js?v=20261029a";
-import { construirePastille } from "./promo-pastille.js?v=20261029a";
-import { pagePersonnelle } from "./route-rules.js?v=20261029a";
-import { etatSignalements } from "./signalement-etat.js?v=20261029a";
-import { pastilleSignalement } from "./signalement-rules.js?v=20261029a";
-import { libellePastille } from "./nouveautes.js?v=20261029a";
+} from "./db.js?v=20261029b";
+import { el, toast, displayStagiaire } from "./utils.js?v=20261029b";
+import { icon } from "./icons.js?v=20261029b";
+import { construirePastille } from "./promo-pastille.js?v=20261029b";
+import { pagePersonnelle } from "./route-rules.js?v=20261029b";
+import { etatSignalements } from "./signalement-etat.js?v=20261029b";
+import { pastilleSignalement } from "./signalement-rules.js?v=20261029b";
+import { libellePastille } from "./nouveautes.js?v=20261029b";
 
 let currentUser = null;     // Supabase auth user
 let currentProfile = null;  // row user_profiles
@@ -403,7 +403,7 @@ function boutonsSignalement(fermer) {
   const signaler = el("button", { class: "btn full sg-entree-compte", type: "button", "data-sg-entree": "compte", "aria-label": nom,
     onClick: () => {
       fermer();
-      import("./signalement.js?v=20261029a").then((m) => m.ouvrirSignalement({ ancre: document.querySelector(".admin-badge") }));
+      import("./signalement.js?v=20261029b").then((m) => m.ouvrirSignalement({ ancre: document.querySelector(".admin-badge") }));
     } }, icon.signaler(), "Signaler un problème", texte ? el("span", { class: "sg-pastille", "aria-hidden": "true" }, texte) : null);
   if (!fondateurHorsApercu()) return [signaler];
   const nouveaux = libellePastille(etat.nouveaux);
@@ -444,7 +444,7 @@ function openProfileMenu() {
     logoutBtn,
     el("button", { class: "gate-link compte-legal", type: "button", onClick: () => {
       backdrop.remove();
-      import("./legal.js?v=20261029a").then((m) => m.ouvrirInformationsLegales());
+      import("./legal.js?v=20261029b").then((m) => m.ouvrirInformationsLegales());
     } }, "Informations légales et données personnelles"),
     el("div", { class: "modal-actions" },
       el("button", { class: "btn ghost", onClick: () => backdrop.remove() }, "Fermer"),
