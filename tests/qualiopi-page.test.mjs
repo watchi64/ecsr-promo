@@ -26,7 +26,7 @@ const css = lire("css/qualiopi.css");
 const jeton = index.match(/js\/main\.js\?v=(\w+)/)[1];
 eq(index.match(/css\/qualiopi\.css\?v=(\w+)/)?.[1], jeton, "la feuille de style est liée dans index.html avec le jeton des autres");
 eq(index.match(/css\/emargement\.css\?v=(\w+)/)[1], jeton, "(témoin) la feuille voisine porte ce jeton");
-for (const [nom, source] of [["js/views/qualiopi.js", vue], ["js/qualiopi-page-rules.js", lire("js/qualiopi-page-rules.js")], ["js/views/centre.js", centre], ["js/main.js", main]]) {
+for (const [nom, source] of [["js/views/qualiopi.js", vue], ["js/qualiopi-page-rules.js", lire("js/qualiopi-page-rules.js")], ["js/qualiopi-resultats.js", lire("js/qualiopi-resultats.js")], ["js/views/centre.js", centre], ["js/main.js", main]]) {
   const imports = [...source.matchAll(/from "(\.\.?\/[^"]+)"/g)].map((m) => m[1]);
   ok(imports.length > 0, `${nom} : des imports relatifs`);
   ok(imports.every((a) => a.endsWith(`.js?v=${jeton}`)), `${nom} : chaque import porte le jeton ${jeton} (un module chargé sous deux adresses le serait deux fois)`);
@@ -169,13 +169,56 @@ ok(prete > 0 && prete < nettoie && nettoie < imprime, "le conteneur est prêt av
 ok(/import \{ imprimerQualiopi \} from "\.\.\/qualiopi-impression\.js\?v=\w+";/.test(vue), "la page imprime par ce module");
 ok(!/window\.print|afterprint|@page|titreAvant|teardownQualiopiPrint/.test(vue.replace(/\/\/.*$/gm, "")), "et ne porte plus la mécanique d'impression (seulement la mise en page des modèles)");
 const appelsImpression = vue.match(/imprimerQualiopi\(/g) || [];
-const appelsBienFormes = vue.match(/imprimerQualiopi\(documentImprimable\(modele\), titreImpression\(/g) || [];
-ok(appelsImpression.length === 2 && appelsBienFormes.length === 2, "les deux dossiers (formation, centre) s'impriment en construisant le document avant de le monter : un défaut de mise en page ne laisse rien dans la page");
+const appelsDossiers = vue.match(/imprimerQualiopi\(documentImprimable\(modele\), titreImpression\(/g) || [];
+const appelsFiche = vue.match(/imprimerQualiopi\(fichesImprimables\(fiches\), titreImpression\(/g) || [];
+ok(appelsImpression.length === 3 && appelsDossiers.length === 2 && appelsFiche.length === 1,
+  "les deux dossiers (formation, centre) et la fiche des résultats s'impriment en construisant le document avant de le monter : un défaut de mise en page ne laisse rien dans la page, et le montage est le même pour tous");
 ok(/const aujourdhui = isoDate\(new Date\(\)\);/.test(vue), "la date du jour est calculée une fois par rendu");
 ok(/chargementVivant|actionVivante/.test(vue) && /racine\.isConnected/.test(vue), "une réponse tardive n'écrit pas dans une page quittée (jeton de rendu et page toujours affichée)");
 ok(/"Dossier de la formation"/.test(vue) && /"Tableau \(CSV\)"/.test(vue) && /"Dossier du centre"/.test(vue) && /"Sans aucun nom"/.test(vue) && /"Cette formation"/.test(vue) && /"Le centre"/.test(vue),
   "les deux groupes d'actions (R7) et leurs libellés");
-ok(!/Fiche résultats|Copier le texte/.test(vue.replace(/\/\/.*$/gm, "")), "pas de bouton factice : les actions de la tâche 6 n'y sont pas encore (seul un commentaire les annonce)");
+
+// --- Fiche « résultats » à publier (spec § 6.6, R7) : « Fiche résultats » et « Copier le texte » dans chacun des deux groupes ---
+const codeVue = vue.replace(/\/\/.*$/gm, "");
+const actions = codeVue.slice(codeVue.indexOf("function construireActions()"), codeVue.indexOf("async function charger("));
+const debutFormation = actions.indexOf('"data-groupe": "formation"');
+const debutCentre = actions.indexOf('"data-groupe": "centre"');
+ok(debutFormation > 0 && debutCentre > debutFormation, "les deux groupes sont lisibles dans construireActions");
+ok((actions.match(/"Fiche résultats"/g) || []).length === 2 && (actions.match(/"Copier le texte"/g) || []).length === 2, "deux boutons « Fiche résultats » et deux « Copier le texte » : un de chaque dans chaque groupe");
+for (const [nom, groupe, portee, suffixe] of [["Cette formation", actions.slice(debutFormation, debutCentre), "formation", "Formation"], ["Le centre", actions.slice(debutCentre), "centre", "Centre"]]) {
+  ok(actions.includes(`const boutonFiche${suffixe} = bouton("Fiche résultats", () => sortirFiches("${portee}", "imprimer"));`)
+    && actions.includes(`const boutonCopie${suffixe} = bouton("Copier le texte", () => sortirFiches("${portee}", "copier"));`),
+  `${nom} : « Fiche résultats » imprime et « Copier le texte » copie la fiche ${portee === "formation" ? "de la promo choisie" : "des promos du centre"}`);
+  ok(new RegExp(`boutonFiche${suffixe}, boutonCopie${suffixe}\\)`).test(groupe), `${nom} : les deux boutons sont dans ce groupe, sous le titre « Résultats à publier »`);
+  ok(groupe.includes('"Résultats à publier"') && /role: "group"/.test(groupe) && /"aria-labelledby"/.test(groupe), `${nom} : le groupe est annoncé par son titre (deux boutons de même nom dans deux groupes)`);
+}
+ok(/boutons = \[boutonFormation, boutonTableau, boutonCentre, boutonFicheFormation, boutonCopieFormation, boutonFicheCentre, boutonCopieCentre\];/.test(actions),
+  "les quatre nouveaux boutons attendent comme les autres pendant une lecture ou une action");
+ok(/import \{[^}]*\bficheResultats\b[^}]*\}/.test(vue) && /import \{[^}]*\bfichesResultatsTexte\b[^}]*\}/.test(vue) && /import \{[^}]*\bcopierTexte\b[^}]*\}/.test(vue)
+  && /import \{[^}]*\btableauFiche\b[^}]*\}/.test(vue) && /from "\.\.\/qualiopi-resultats\.js\?v=\w+";/.test(vue), "la page prend la fiche, son texte, son tableau et la copie du module pur");
+ok(!/Résultats provisoires : la formation|"non mesuré"|"non saisi"|"non mesurée"/.test(codeVue), "la page n'écrit pas les textes publics (avertissement, valeurs absentes) : ils viennent du module");
+ok(!/navigator\.clipboard/.test(codeVue) && /await copierTexte\(fichesResultatsTexte\(fiches\)\)/.test(codeVue), "la copie passe par copierTexte, qui parle au presse-papiers");
+const sortir = codeVue.slice(codeVue.indexOf("async function sortirFiches("), codeVue.indexOf("function construireActions()"));
+ok(sortir.length > 200, "sortirFiches est lisible");
+ok(/ficheResultats\(\{ promo, ind: etat\.ind, aujourdhui \}\)/.test(sortir), "Cette formation : la fiche de la promo choisie, avec ses indicateurs déjà calculés");
+ok(/if \(!fiches\.length\) \{[^}]*ecrireStatut\(AUCUNE_FORMATION\);\s*return;/.test(sortir), "Le centre sans promo dans la période : un message, ni page blanche à imprimer ni phrase vide à copier");
+ok(/promosEtPeriodeDuCentre\(\)/.test(sortir) && /lirePromosDuCentre\(/.test(sortir), "Le centre : les promos retenues pour le dossier du centre (même lieu, même période), lues une à une");
+ok(!/reduce\(|\+=|Math\.(sum|max|min)/.test(sortir), "aucun total, aucune somme : une fiche par promo");
+ok(/if \(occupe \|\| !etat\.donnees\) return;/.test(sortir) && /bloquerBoutons\(true\)/.test(sortir) && /finally \{\s*if \(actionVivante\(moi\)\) bloquerBoutons\(false\);/.test(sortir),
+  "une action à la fois, boutons libérés à la fin si la page est encore celle de l'action");
+ok(/await copierTexte\([^;]*;[\s\S]*?if \(!actionVivante\(moi\)\) return;/.test(sortir), "une copie qui répond après un changement de promo n'écrit rien dans la page");
+ok(/noteProvisoire\(fiches\)/.test(sortir) && /scrollIntoView/.test(sortir), "la copie dit les formations provisoires, et un message d'échec est ramené à l'écran");
+ok(/lirePromosDuCentre\(moi, retenues, "le dossier du centre n'est pas préparé"/.test(codeVue) && /lirePromosDuCentre\(moi, retenues, "les résultats du centre ne sont pas préparés"/.test(codeVue),
+  "le dossier du centre et la fiche lisent les promos par la même fonction");
+ok((codeVue.match(/lire\(p\.id\)/g) || []).length === 1, "une seule boucle de lecture des promos du centre (celle de lirePromosDuCentre), par identifiant");
+ok(/function ficheImprimable\(fiche\)/.test(codeVue) && /tableauImprimable\(tableauFiche\(fiche\)\)/.test(codeVue), "la fiche se met en page avec le tableau des dossiers");
+const miseEnPage = codeVue.slice(codeVue.indexOf("function ficheImprimable(fiche)"), codeVue.indexOf("function fichesImprimables("));
+ok(miseEnPage.indexOf("qres-avertissement") > 0 && miseEnPage.indexOf("qres-avertissement") < miseEnPage.indexOf('el("h1"'), "l'avertissement d'une promo en cours est lu avant le titre de la fiche");
+ok(/\["resultats-formation", promo\.nom\] : \["resultats-centre", promo\.lieu_nom\]/.test(sortir), "le PDF de la formation porte le nom de la promo, celui du centre le nom du lieu");
+ok(/if \(!promosLues\) return;/.test(codeVue) && /if \(!fiches\) return;/.test(sortir),
+  "une promo du centre qui ne se lit pas arrête le dossier comme la fiche : aucun document auquel manquerait une promo sans le dire");
+ok(/ecrireStatut\(""\);\s*imprimerQualiopi\(fichesImprimables\(fiches\)/.test(sortir), "le message d'état est effacé avant d'imprimer la fiche, comme pour les dossiers");
+ok(/toast\("Texte copié", "success"\)/.test(sortir), "la copie réussie le dit aussi par un message bref (toast), comme le tableau CSV");
 ok(/"Formation en alternance /.test(vue) && /"Qualité"/.test(vue) && /h2", \{\}, "Qualiopi"/.test(vue), "en-tête et case « Formation en alternance »");
 ok(!/localStorage|sessionStorage/.test(vue), "la case « alternance » n'est pas mémorisée");
 
@@ -190,14 +233,18 @@ ok(/#qualiopi-print \{ display: none; \}/.test(hors_commentaires), "le document 
 ok(/@media print \{\s*body\.qualiopi-printable > \*:not\(#qualiopi-print\) \{ display: none !important; \}/.test(hors_commentaires)
   && /body\.qualiopi-printable #qualiopi-print \{ display: block !important; \}/.test(hors_commentaires), "à l'impression, seul le document est montré");
 ok(!/\.qdoc[^{]*\{[^}]*var\(--(bg|text|line|accent)/.test(hors_commentaires.slice(hors_commentaires.indexOf(".qdoc {"))), "les documents papier ont des couleurs fixes, pas celles du thème de l'écran");
+ok(/\.qres-fiche \{[^}]*break-after: page/.test(hors_commentaires) && /\.qres-fiche:last-child \{[^}]*break-after: auto/.test(hors_commentaires),
+  "chaque fiche de résultats commence sa page, et la dernière ne laisse pas de page vide");
+ok(/\.qres-avertissement \{[^}]*font-weight: 600/.test(hors_commentaires) && !/\.qres-[^{]*\{[^}]*(red|#[dD][0-9a-fA-F]{5}|#[cC][0-9a-fA-F]{5})/.test(hors_commentaires), "l'avertissement est en gras, sans rouge");
+ok(/\.qualiopi-rangee-titre \{/.test(hors_commentaires), "le titre de la rangée « Résultats à publier » est stylé");
 
 // --- Hygiène des fichiers de la tâche ---
-for (const fichier of ["js/views/qualiopi.js", "js/qualiopi-page-rules.js", "js/qualiopi-impression.js", "css/qualiopi.css"]) {
+for (const fichier of ["js/views/qualiopi.js", "js/qualiopi-page-rules.js", "js/qualiopi-impression.js", "js/qualiopi-resultats.js", "css/qualiopi.css"]) {
   const texte = lire(fichier);
   ok(!texte.includes(TIRET_CADRATIN), `${fichier} : aucun tiret cadratin`);
   ok(!/\bprof\b/i.test(texte.replace(/\bprofil\w*/gi, "")), `${fichier} : « formateur », jamais « prof »`);
 }
-for (const fichier of ["tests/qualiopi-page.test.mjs", "tests/qualiopi-page-rules.test.mjs", "tests/qualiopi-impression.test.mjs"]) {
+for (const fichier of ["tests/qualiopi-page.test.mjs", "tests/qualiopi-page-rules.test.mjs", "tests/qualiopi-impression.test.mjs", "tests/qualiopi-resultats.test.mjs"]) {
   ok(!lire(fichier).includes(TIRET_CADRATIN), `${fichier} : aucun tiret cadratin`);
 }
 const diff = ["js/main.js", "js/views/centre.js", "index.html"].map((f) => [f, lire(f)]);

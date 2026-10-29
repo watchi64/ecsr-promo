@@ -1,9 +1,10 @@
 // Page Qualiopi (spec docs/superpowers/specs/2026-10-28-dossier-qualiopi-design.md, § 6.3). Réservée au fondateur (porte
 // dans main.js), sans entrée de barre : on y arrive par le bouton « Qualiopi » du tableau de bord du centre. Elle montre
 // l'inventaire d'une promo indicateur par indicateur, et lance les sorties : dossier de la formation, dossier du centre (avec
-// ou sans noms), tableau CSV. Les calculs vivent dans js/qualiopi-preuves.js (inventaire), js/qualiopi-documents.js (modèles
-// des dossiers, CSV) et js/qualiopi-page-rules.js (dates, choix des promos) : ici, seulement l'affichage, la lecture des
-// données et l'impression.
+// ou sans noms), tableau CSV, fiche des résultats à publier (imprimée ou copiée en texte). Les calculs vivent dans
+// js/qualiopi-preuves.js (inventaire), js/qualiopi-documents.js (modèles des dossiers, CSV), js/qualiopi-resultats.js (fiche des
+// résultats) et js/qualiopi-page-rules.js (dates, choix des promos) : ici, seulement l'affichage, la lecture des données et
+// l'impression.
 //
 // Chargée à la demande (js/main.js, route qualiopi) : seul js/qualiopi-impression.js, qui monte et nettoie le document imprimable,
 // part avec l'app. Cette page, ses modules de calcul et leurs erreurs éventuelles ne touchent donc pas les autres comptes.
@@ -24,6 +25,9 @@ import {
   REFERENTIEL_APPLIQUE, REFERENTIEL_DU, periodeDouzeMois, promosDuCentre, nomPromo, libelleOptionPromo, groupesParCritere,
   titreImpression,
 } from "../qualiopi-page-rules.js?v=20261028a";
+import {
+  ficheResultats, fichesResultatsTexte, tableauFiche, copierTexte, noteProvisoire, promoTerminee, AUCUNE_FORMATION,
+} from "../qualiopi-resultats.js?v=20261028a";
 import { NOUVEAUTES } from "../nouveautes-data.js?v=20261028a";
 import { telecharger } from "./centre.js?v=20261028a";
 import { imprimerQualiopi } from "../qualiopi-impression.js?v=20261028a";
@@ -83,6 +87,20 @@ function documentImprimable(modele) {
           el("h3", {}, `${a.numero}. ${texteOu(a.court, "Indicateur " + a.numero)}`),
           el("ul", {}, ...liste(a.items).map((item) => el("li", {}, el("span", { class: "qdoc-case", "aria-hidden": "true" }), item))))))
       : null);
+}
+
+// Met en page les fiches des résultats (js/qualiopi-resultats.js) : une page A4 par formation, l'avertissement avant le titre quand
+// la promo est en cours, le tableau des dossiers (mêmes mots que le texte à copier). Jamais de total entre les promos.
+function ficheImprimable(fiche) {
+  return el("section", { class: "qres-fiche" },
+    fiche.avertissement ? el("p", { class: "qres-avertissement" }, fiche.avertissement) : null,
+    el("h1", { class: "qres-titre" }, fiche.titre),
+    ...liste(fiche.entete).map((ligne) => el("p", { class: "qres-entete" }, ligne)),
+    tableauImprimable(tableauFiche(fiche)));
+}
+
+function fichesImprimables(fiches) {
+  return el("article", { class: "qdoc" }, ...liste(fiches).map(ficheImprimable));
 }
 
 // =====================================================================================================
@@ -286,34 +304,42 @@ export async function renderQualiopi(container) {
     }
   }
 
-  // Les promos du centre se lisent l'une après l'autre (celle qui est affichée est déjà en mémoire) ; si l'une échoue, aucun
-  // dossier ne sort : un dossier du centre auquel manquerait une promo, sans le dire, tromperait l'auditeur.
+  // Les promos du centre se lisent l'une après l'autre (celle qui est affichée est déjà en mémoire) ; `construire(promo, donnees)`
+  // fait l'entrée de chacune. Si l'une échoue, rien ne sort et la fonction ne rend rien : un document du centre auquel manquerait
+  // une promo, sans le dire, tromperait l'auditeur (`quoi` complète le message : ce qui n'est pas préparé). Elle ne rend rien non
+  // plus quand l'action est devenue caduque (autre promo choisie, page quittée).
+  async function lirePromosDuCentre(moi, retenues, quoi, construire) {
+    const lues = [];
+    for (const [rang, p] of retenues.entries()) {
+      ecrireStatut(`Lecture des promos du centre : ${rang + 1} sur ${retenues.length}...`);
+      let donnees;
+      try {
+        donnees = await lire(p.id);
+      } catch (e) {
+        console.error(e);
+        if (actionVivante(moi)) ecrireStatut(`La promo « ${nomPromo(p)} » n'a pas pu être lue : ${quoi}. Réessaie dans un instant.`, true);
+        return null;
+      }
+      if (!actionVivante(moi)) return null;
+      lues.push(construire(p, donnees));
+    }
+    return lues;
+  }
+
   async function dossierCentre(sansNoms) {
     if (occupe || !etat.donnees) return;
     const moi = ++action;
     const { promo, referentiel, alternance } = etat;
     const { periode, retenues } = promosEtPeriodeDuCentre();
     bloquerBoutons(true);
-    const promosLues = [];
     try {
-      for (const [rang, p] of retenues.entries()) {
-        ecrireStatut(`Lecture des promos du centre : ${rang + 1} sur ${retenues.length}...`);
-        let donnees;
-        try {
-          donnees = await lire(p.id);
-        } catch (e) {
-          console.error(e);
-          if (actionVivante(moi)) ecrireStatut(`La promo « ${nomPromo(p)} » n'a pas pu être lue : le dossier du centre n'est pas préparé. Réessaie dans un instant.`, true);
-          return;
-        }
-        if (!actionVivante(moi)) return;
-        promosLues.push({
-          promo: p,
-          donnees,
-          inv: inventairePromo(donnees, referentiel, { promo: p, aujourdhui, alternance, nouveautes: NOUVEAUTES }),
-          ind: indicateursPromo(donnees, referentiel, { aujourdhui }),
-        });
-      }
+      const promosLues = await lirePromosDuCentre(moi, retenues, "le dossier du centre n'est pas préparé", (p, donnees) => ({
+        promo: p,
+        donnees,
+        inv: inventairePromo(donnees, referentiel, { promo: p, aujourdhui, alternance, nouveautes: NOUVEAUTES }),
+        ind: indicateursPromo(donnees, referentiel, { aujourdhui }),
+      }));
+      if (!promosLues) return;
       const modele = modeleDossierCentre({ promos: promosLues, lieu: promo.lieu_nom, periode, aujourdhui, sansNoms, nouveautes: NOUVEAUTES });
       ecrireStatut("");
       imprimerQualiopi(documentImprimable(modele), titreImpression(sansNoms ? "dossier-centre-sans-noms" : "dossier-centre", promo.lieu_nom, aujourdhui));
@@ -325,29 +351,94 @@ export async function renderQualiopi(container) {
     }
   }
 
-  // Deux groupes d'actions (R7). La tâche 6 y ajoutera « Fiche résultats » et « Copier le texte » : un bouton de plus dans
-  // la rangée `.qualiopi-boutons` de chaque groupe.
+  // La fiche des résultats à publier (js/qualiopi-resultats.js, spec § 6.6) : celle de la promo choisie (`portee` « formation ») ou
+  // celles des promos du centre, les mêmes que pour le dossier du centre, l'une après l'autre (« centre ») ; imprimée (`sortie`
+  // « imprimer ») ou copiée en texte pour le site du centre (« copier »). Les promos en cours portent leur avertissement dans la
+  // fiche comme dans le texte ; rien n'est additionné entre les promos.
+  async function sortirFiches(portee, sortie) {
+    if (occupe || !etat.donnees) return;
+    const moi = ++action;
+    const { promo, referentiel } = etat;
+    bloquerBoutons(true);
+    try {
+      let fiches;
+      if (portee === "formation") {
+        fiches = [ficheResultats({ promo, ind: etat.ind, aujourdhui })];
+      } else {
+        const { retenues } = promosEtPeriodeDuCentre();
+        fiches = await lirePromosDuCentre(moi, retenues, "les résultats du centre ne sont pas préparés",
+          (p, donnees) => ficheResultats({ promo: p, ind: indicateursPromo(donnees, referentiel, { aujourdhui }), aujourdhui }));
+        if (!fiches) return;
+      }
+      if (!fiches.length) {   // aucune promo du centre dans la période : ni page blanche à imprimer, ni phrase vide à copier
+        ecrireStatut(AUCUNE_FORMATION);
+        return;
+      }
+      if (sortie === "imprimer") {
+        const [nature, nom] = portee === "formation" ? ["resultats-formation", promo.nom] : ["resultats-centre", promo.lieu_nom];
+        ecrireStatut("");
+        imprimerQualiopi(fichesImprimables(fiches), titreImpression(nature, nom, aujourdhui));
+        return;
+      }
+      const copie = await copierTexte(fichesResultatsTexte(fiches));
+      if (!actionVivante(moi)) return;
+      if (copie.copie) {
+        ecrireStatut([copie.message, noteProvisoire(fiches)].filter(Boolean).join(" "));
+        toast("Texte copié", "success");
+      } else {
+        ecrireStatut(copie.message, true);
+        statut?.scrollIntoView?.({ block: "nearest" });
+      }
+    } catch (e) {
+      console.error(e);
+      if (actionVivante(moi)) ecrireStatut("La fiche des résultats n'a pas pu être préparée. Recharge la page, puis réessaie.", true);
+    } finally {
+      if (actionVivante(moi)) bloquerBoutons(false);
+    }
+  }
+
+  // Deux groupes d'actions (R7), chacun annoncé par son titre : les dossiers, puis la fiche des résultats à publier (« Fiche
+  // résultats » et « Copier le texte »). La case « Sans aucun nom » ne concerne que le dossier du centre : la fiche n'a aucun nom.
   function construireActions() {
     const caseSansNom = el("input", { type: "checkbox", id: "qualiopi-sans-nom" });
-    const boutonFormation = el("button", { class: "btn primary", type: "button", onClick: dossierFormation }, "Dossier de la formation");
-    const boutonTableau = el("button", { class: "btn", type: "button", onClick: tableauCsv }, "Tableau (CSV)");
-    const boutonCentre = el("button", { class: "btn primary", type: "button", onClick: () => dossierCentre(caseSansNom.checked) }, "Dossier du centre");
-    boutons = [boutonFormation, boutonTableau, boutonCentre];
+    const bouton = (texte, onClick, classe = "btn") => el("button", { class: classe, type: "button", onClick }, texte);
+    const boutonFormation = bouton("Dossier de la formation", dossierFormation, "btn primary");
+    const boutonTableau = bouton("Tableau (CSV)", tableauCsv);
+    const boutonCentre = bouton("Dossier du centre", () => dossierCentre(caseSansNom.checked), "btn primary");
+    const boutonFicheFormation = bouton("Fiche résultats", () => sortirFiches("formation", "imprimer"));
+    const boutonCopieFormation = bouton("Copier le texte", () => sortirFiches("formation", "copier"));
+    const boutonFicheCentre = bouton("Fiche résultats", () => sortirFiches("centre", "imprimer"));
+    const boutonCopieCentre = bouton("Copier le texte", () => sortirFiches("centre", "copier"));
+    boutons = [boutonFormation, boutonTableau, boutonCentre, boutonFicheFormation, boutonCopieFormation, boutonFicheCentre, boutonCopieCentre];
     statut = el("p", { class: "qualiopi-statut", role: "status" });
     const { periode, retenues } = promosEtPeriodeDuCentre();
     const aideCentre = `Période : ${periodeEnMots(periode.du, periode.au)} (les 12 derniers mois). `
       + (retenues.length ? `${nb(retenues.length, "promo")} de ce centre : ${retenues.map(nomPromo).join(", ")}.` : "Aucune promo de ce centre.");
+    const terminees = retenues.filter((p) => promoTerminee(p, aujourdhui)).length;
+    const aideResultatsFormation = promoTerminee(etat.promo, aujourdhui)
+      ? "Formation terminée : la fiche s'imprime, et son texte se copie pour le site du centre."
+      : "Formation en cours : les résultats sont provisoires et ne se publient pas.";
+    const aideResultatsCentre = retenues.length
+      ? `Une fiche par formation, jamais de total. ${nb(terminees, "formation")} ${terminees > 1 ? "terminées" : "terminée"} sur ${retenues.length}`
+        + (terminees < retenues.length ? " : les formations en cours portent la mention « Ne pas publier »." : ".")
+      : "Aucune formation de ce centre à présenter.";
     return el("section", { class: "qualiopi-actions", "aria-label": "Documents à produire" },
-      el("div", { class: "qualiopi-groupe", "data-groupe": "formation" },
-        el("h3", {}, "Cette formation"),
+      el("div", { class: "qualiopi-groupe", "data-groupe": "formation", role: "group", "aria-labelledby": "qualiopi-titre-formation" },
+        el("h3", { id: "qualiopi-titre-formation" }, "Cette formation"),
         el("div", { class: "qualiopi-boutons" }, boutonFormation, boutonTableau),
-        el("p", { class: "qualiopi-aide" }, "Dossier nominatif (stagiaires et formateurs nommés), et inventaire en tableau pour Excel.")),
-      el("div", { class: "qualiopi-groupe", "data-groupe": "centre" },
-        el("h3", {}, "Le centre"),
+        el("p", { class: "qualiopi-aide" }, "Dossier nominatif (stagiaires et formateurs nommés), et inventaire en tableau pour Excel."),
+        el("p", { class: "qualiopi-rangee-titre" }, "Résultats à publier"),
+        el("div", { class: "qualiopi-boutons" }, boutonFicheFormation, boutonCopieFormation),
+        el("p", { class: "qualiopi-aide" }, aideResultatsFormation)),
+      el("div", { class: "qualiopi-groupe", "data-groupe": "centre", role: "group", "aria-labelledby": "qualiopi-titre-centre" },
+        el("h3", { id: "qualiopi-titre-centre" }, "Le centre"),
         el("div", { class: "qualiopi-boutons" },
           boutonCentre,
           el("label", { class: "qualiopi-case", for: "qualiopi-sans-nom" }, caseSansNom, el("span", {}, "Sans aucun nom"))),
-        el("p", { class: "qualiopi-aide" }, aideCentre)),
+        el("p", { class: "qualiopi-aide" }, aideCentre),
+        el("p", { class: "qualiopi-rangee-titre" }, "Résultats à publier"),
+        el("div", { class: "qualiopi-boutons" }, boutonFicheCentre, boutonCopieCentre),
+        el("p", { class: "qualiopi-aide" }, aideResultatsCentre)),
       statut);
   }
 

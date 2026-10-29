@@ -76,7 +76,8 @@ export function promoTerminee(promo, aujourdhui) {
 const libellePromo = (promo) => texte(promo?.nom, "promo sans nom");
 const nomComplet = (s) => [s?.nom, s?.prenom].filter(rempli).map((x) => x.trim()).join(" ") || "Stagiaire sans nom";
 const enFormationDe = (donnees) => tableau(donnees.stagiaires).filter((s) => s.actif).sort(compareByNom);
-const edition = (aujourdhui) => `Édité le ${dateFr(jourDe(aujourdhui)) ?? "date non renseignée"}`;
+// « Édité le 28/10/2026 » : exportée, la fiche des résultats (js/qualiopi-resultats.js) date son édition de la même façon.
+export const edition = (aujourdhui) => `Édité le ${dateFr(jourDe(aujourdhui)) ?? "date non renseignée"}`;
 const REFERENTIEL = `Référentiel appliqué : ${DECRET} (référentiel national qualité), en vigueur le ${dateFr(SOURCE.enVigueur)}, catégorie « action de formation »`;
 
 // --- Pièces de l'inventaire : leurs phrases chiffrées, sans nom ni texte saisi ---

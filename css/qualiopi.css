@@ -90,6 +90,15 @@
 .qualiopi-groupe h3 { margin: 0 0 0.7rem; font-size: 1.05rem; }
 .qualiopi-boutons { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 0.9rem; }
 .qualiopi-aide { margin: 0.7rem 0 0; font-size: 0.85rem; line-height: 1.45; color: var(--text-muted); }
+/* Titre de la seconde rangée d'un groupe, « Résultats à publier » : un mot pour la séparer des dossiers. */
+.qualiopi-rangee-titre {
+  margin: 1.1rem 0 0.5rem;
+  font-size: 0.74rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
 .qualiopi-statut { grid-column: 1 / -1; margin: 0; min-height: 1.4em; font-size: 0.92rem; color: var(--text-soft); }
 .qualiopi-statut.erreur { padding: 0.55rem 0.75rem; border-radius: var(--r-sm); background: var(--c-wait-soft); color: var(--text); }
 
@@ -302,6 +311,19 @@
 .qdoc ul { margin: 0; padding: 0; list-style: none; }
 .qdoc li { display: flex; align-items: flex-start; margin: 0 0 1.2mm; }
 .qdoc-case { flex: none; width: 3.2mm; height: 3.2mm; margin: 0.5mm 2.5mm 0 0; border: 0.3mm solid #1F2924; }
+
+/* Fiche des résultats à publier (js/qualiopi-resultats.js) : une page A4 par formation, sans page de garde ni sommaire. */
+.qres-fiche { break-after: page; page-break-after: always; }
+.qres-fiche:last-child { break-after: auto; page-break-after: auto; }
+.qdoc .qres-titre { margin: 0 0 3mm; font-size: 20pt; }
+.qdoc .qres-avertissement { margin: 0 0 5mm; padding: 3mm 4mm; border-left: 1.2mm solid #8A6A1F; background: #FBF2D9; font-size: 10.5pt; font-weight: 600; }
+.qdoc .qres-entete { margin: 0 0 1mm; font-size: 10pt; }
+.qres-fiche .qdoc-table { margin-top: 6mm; table-layout: fixed; }
+.qres-fiche .qdoc-table th:nth-child(1) { width: 17%; }
+.qres-fiche .qdoc-table th:nth-child(2) { width: 14%; }
+.qres-fiche .qdoc-table th:nth-child(3) { width: 12%; }
+.qres-fiche .qdoc-table th:nth-child(4) { width: 17%; }
+.qres-fiche .qdoc-table td:nth-child(2) { font-weight: 600; }
 
 @media print {
   body.qualiopi-printable > *:not(#qualiopi-print) { display: none !important; }
