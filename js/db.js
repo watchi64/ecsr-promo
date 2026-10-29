@@ -821,6 +821,18 @@ export async function listBrouillonsIa(qcmId) {
   return data || [];
 }
 
+// Nombre de brouillons à relire, tous QCM confondus : la pastille « à traiter » de la barre de l'équipe
+// (js/a-traiter.js). Les identifiants seulement, comptés ici : l'IA en propose peu à la fois (son quota est de 10
+// par jour et par formateur).
+export async function countBrouillonsIaARelire() {
+  const { data, error } = await supabase
+    .from("qcm_ia_brouillons")
+    .select("id")
+    .eq("statut", "a_relire");
+  if (error) throw error;
+  return (data || []).length;
+}
+
 // Accepte un brouillon tel que le formateur l'a relu : la base crée la question, ses
 // options et la trace (nom du formateur, date). Renvoie l'id de la question.
 export async function accepterBrouillonIa(brouillonId, q) {

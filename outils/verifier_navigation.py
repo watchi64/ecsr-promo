@@ -111,8 +111,20 @@ Contrôles par vue
     promo (seulement « Mes préférences » et « Informations »). Aucune de ces pages ne dit « whitelist », « mdp » ni « admin ».
     Éteint, `#/preferences` mène à Paramètres (`#/config`) ;
   * bouton du compte (lot 2A) : aucun chiffre ; un point sans texte tant que des Nouveautés ne sont pas lues (joué à l'ouverture,
-    où le banc en a, puis la rubrique ouverte : tout est lu, plus de point), dont le nom du bouton dit le nombre ; menu du compte :
-    une ligne « Mes préférences » (`#/preferences`), plus de ligne « Réglages », le nombre sur la ligne « Nouveautés » ;
+    où le banc en a, puis la rubrique ouverte : tout est lu, plus de point), dont le nom du bouton dit le nombre, et qui tient 3:1 contre
+    son liseré et contre le fond derrière lui (tâche 6 : sur la barre sombre de l'équipe, son vert d'origine n'en tenait que 2,9) ; menu
+    du compte : une ligne « Mes préférences » (`#/preferences`), plus de ligne « Réglages », le nombre sur la ligne « Nouveautés », joué
+    une fois à l'ouverture, avant la rubrique Nouveautés, seul moment où le banc a des non lues (tâche 6 ; il n'était joué qu'après, donc
+    sans nombre à contrôler), puis avec `verifier_menus` ;
+  * à traiter (lot 2A, tâche 6) : l'équipe voit sur « Cours et QCM » la pastille chiffrée de ce qui l'attend (le banc sert 5 signalements ouverts ; les scénarios
+    « à traiter » y ajoutent des brouillons de l'IA : « 7 », « 9+ ») dans la barre latérale dès 700 px (une seule, dans son entrée, sans recouvrir l'œil d'un module
+    fermé, en ligne comme en colonne d'icônes), dans le tiroir « Plus » sur téléphone, avec le point de « Plus » (nom « Plus, N à traiter ») et la phrase « N à
+    traiter : 5 signalements, 2 propositions de l'IA » en tête du tiroir ouvert ; chaque repère tient 3:1 contre ce qui l'entoure et son chiffre 4,5:1 contre son
+    fond. Les brouillons et les signalements déjà traités ne comptent pas. Lectures en échec (« panne » : le levier `__HARNESS_FAIL` du banc posé le temps des lectures des deux
+    tables seulement) ou qui n'aboutissent pas (« lent », 20 s) : la barre se pose quand même, sans pastille, sans point, sans phrase, sans message ni boîte d'erreur ni
+    erreur de console, et le menu du compte s'ouvre. Chez le stagiaire (« Voir en tant que » compris) et interrupteur éteint, aucun de ces repères ;
+  * case du fondateur (lot 2A, tâche 6) : la lecture du réglage de la promo échoue et l'appareil a vu la promo allumée : la barre est la nouvelle (mémoire de l'appareil,
+    ruling R17) et la case « Nouvelle navigation activée » de Réglages est cochée, au lieu de paraître décochée ;
   * titres des pages (lot 2A, allumé) : le titre (h2) de chaque page du menu est le libellé de son entrée (équipe : Émargement, Stagiaires, Notes et
     examens, Cours et QCM, Indicateurs, Réglages, CCP2 ; stagiaire : Cours et QCM, Mon suivi, CCP2) et, sauf pour CCP2, son surtitre est le nom de la
     promo affichée. Accueil et Planning n'en font pas partie (TITRES_DES_PAGES) : l'accueil sera remplacé par Aujourd'hui au lot 2, le Planning garde
@@ -242,6 +254,12 @@ par `--script-init`, et le script a échoué avec le message attendu ; la coquil
     sans échec), cibles de tap de Mon évolution à 12 unités de rayon avec vingt notes sur téléphone. Avant la tâche 5,
     une fois leurs listes d'exception retirées, les conteneurs des rulings R10 et R11 (graphe de Notes, tableaux du centre et des passages,
     lien Légifrance) donnaient 74 échecs et aucun autre ;
+  * à traiter, point du compte, menu du compte et case du fondateur (lot 2A, tâche 6, injectés par `--script-init` ou dans les sources puis retirés) : point du compte de la barre
+    sombre dans son vert d'origine (2,93:1 contre son liseré, 2,12:1 contre l'avatar : l'ancien script n'en voyait rien), ligne « Nouveautés » du menu du compte sans son nombre
+    (l'ancien script n'en voyait rien non plus : il n'ouvrait le menu qu'après la rubrique Nouveautés), pastille « à traiter » claire sur la barre sombre (2,93:1), chiffre pâle
+    (1,25:1), pastille qui sort de son entrée en colonne d'icônes, point de « Plus » retiré ou de 5 px, phrase du tiroir retirée, pastille dans la coquille du stagiaire ou dans
+    l'ancienne barre (un échec par vue), brouillons déjà traités comptés (« 9 » au lieu de « 7 »), barre qui attend les comptes (coquille absente après 8 s), lecture en échec qui
+    écrit une erreur en console, case de Réglages qui ne suit que le réglage lu ;
   * mise en place : erreur de console et de page, interrupteur qui n'allume pas, banc périmé.
 Sans défaut, n'échouent pas : un bouton `data-nav-action="deconnexion"` (pas un ouvreur), un lien d'évitement
 masqué (ni mesuré comme cible, ni sans nom), un nom pris par `aria-labelledby`, `<label for>` ou `<title>` SVG.
@@ -283,6 +301,36 @@ CLE_APERCU = "ecsr_nav_v2"     # aperçu du fondateur, propre à l'appareil (js/
 CLE_REGLAGE = "navigation_v2"  # réglage de la promo, ligne de `settings` (js/nav-etat-regles.js)
 CLE_MEMOIRE_PROMO_1 = "ecsr_nav_v2_promo:1"   # mémoire de l'appareil pour la promo 1 du banc (cleMemoire, ruling R17)
 LENTEUR_DEMARRAGE_MS = 600     # lectures des réglages ralenties dans le scénario de l'ouverture (ruling R17)
+
+# « À traiter » (lot 2A, tâche 6) : ce que la barre de l'équipe montre sur « Cours et QCM » (js/a-traiter.js). Le banc sert cinq signalements
+# ouverts (un par groupe de la console) et aucun brouillon de l'IA ; les scénarios « à traiter » ajoutent des brouillons à relire (BROUILLONS_IA_DU_BANC),
+# des signalements et des brouillons déjà traités (ils ne comptent pas), ou font échouer ou traîner les lectures. Par scénario : la pastille attendue sur
+# l'entrée et la phrase en tête du tiroir « Plus » (spec : « 5 à traiter : 3 signalements, 2 propositions de l'IA »), None quand rien ne doit s'afficher.
+A_TRAITER_DU_BANC = {
+    "": ("5", "5 à traiter : 5 signalements"),
+    "ia": ("7", "7 à traiter : 5 signalements, 2 propositions de l'IA"),
+    "beaucoup": ("9+", "11 à traiter : 5 signalements, 6 propositions de l'IA"),
+    "panne": (None, None),    # lectures en échec : ni pastille, ni point, ni phrase, ni erreur
+    "lent": (None, None),     # lectures qui n'aboutissent pas (20 s) : la barre est là, sans rien
+}
+BROUILLONS_IA_DU_BANC = {"ia": 2, "beaucoup": 6}
+LECTURES_A_TRAITER = ("qcm_signalements", "qcm_ia_brouillons")
+LENTEUR_A_TRAITER_MS = 20000   # plus que n'en dure un scénario : la lecture n'aboutit pas
+def levier_de_panne(condition):
+    """Le levier de panne du banc (`window.__HARNESS_FAIL` : toute lecture suivante est rejetée) posé le temps des seules lectures que dit `condition` (une expression JS sur
+    `this`, la requête du faux Supabase), puis remis à zéro : le reste de la page se lit. Posé partout, il casserait aussi les lectures de la page, et le contrôle « aucune
+    erreur visible » verrait la boîte d'erreur de la page. Code ajouté à la fin du faux Supabase (le fichier du banc n'est jamais modifié sur le disque)."""
+    return ("{ const executer = Query.prototype._executer; Query.prototype._executer = function () {"
+            " if (this.mode === 'write' || !(%s)) return executer.call(this);"
+            " window.__HARNESS_FAIL = 'panne du banc';"
+            " try { return executer.call(this); } finally { window.__HARNESS_FAIL = null; } }; }" % condition)
+
+
+# Les deux lectures « à traiter » en échec (scénario « panne »).
+JS_PANNE_A_TRAITER = levier_de_panne("%s.includes(this.table)" % json.dumps(list(LECTURES_A_TRAITER)))
+# La lecture du réglage de la promo (ligne `navigation_v2` de `settings`) en échec, les autres lectures de `settings` se lisant : la décision de la session revient à la mémoire
+# de l'appareil (ruling R17) et le réglage reste null (lot 2A, tâche 6 : la case du fondateur dans Réglages).
+JS_REGLAGE_ILLISIBLE = levier_de_panne("this.table === 'settings' && this.filters.some((f) => f.col === 'key' && f.val === 'navigation_v2')")
 
 # Aucun défilement de côté, à aucune largeur (règle de Timy du 27/10) : seule la matrice des notes (saisie case
 # par case) est admise, sans avertissement. Les conteneurs des rulings R10 et R11 qui défilaient déjà sur main ont été
@@ -779,6 +827,9 @@ async function mesurer(o) {
 function mesurerAncienne(route, echecs, barres) {
   if (document.body.dataset.nav || document.body.dataset.espace) echecs.push(["coquille présente, interrupteur éteint", `body[data-nav] = ${document.body.dataset.nav}, body[data-espace] = ${document.body.dataset.espace}`]);
   if (racines().length) echecs.push(["coquille présente, interrupteur éteint", `${racines().length} élément(s) [data-nav-coquille]`]);
+  // Les pastilles « à traiter » (lot 2A, tâche 6) sont celles de la coquille : l'ancienne barre n'en a aucune, ni point sur « Plus », ni phrase de tiroir.
+  const aTraiterPose = document.querySelectorAll(".nav-a-traiter, .nav-plus-point, .nav-fenetre-atraiter, [data-nom-base]").length;
+  if (aTraiterPose) echecs.push(["à traiter, interrupteur éteint", `${aTraiterPose} repère(s) « à traiter » dans la page de l'ancienne navigation`]);
   const onglets = [...document.querySelectorAll("#tabs .tab")].filter(visible);
   if (!onglets.length) echecs.push(["ancienne barre absente", "aucun onglet visible dans #tabs"]);
   const allumes = onglets.filter((t) => t.getAttribute("aria-current") === "page");
@@ -985,7 +1036,42 @@ async function boutonDuCompte() {
   const p = b.querySelector(".nav-compte-point");
   const r = p ? rect(p) : null;
   return { pastille: nouv.libellePastille(mods.nouveautesAffichables().neuves.size), texte: texteAffiche(b), nom: nomAcc(b),
-    point: !!p && visible(p), pointTexte: p ? net(p.textContent) : "", pointTaille: r ? [Math.round(r.width), Math.round(r.height)] : null };
+    point: !!p && visible(p), pointTexte: p ? net(p.textContent) : "", pointTaille: r ? [Math.round(r.width), Math.round(r.height)] : null,
+    pointContraste: p ? contrasteDuPoint(p) : null };
+}
+// Un point sans texte (celui du compte, celui de « Plus ») : son fond contre son liseré (l'ombre pleine, de la couleur de la barre, qui le détache) et contre le
+// fond réel derrière lui, 3:1 au moins (WCAG 1.4.11). Le liseré et le fond valent null quand ils ne se mesurent pas.
+const arrondi = (x) => Math.round(x * 100) / 100;
+const rapportOuNul = (a, b) => (a && b ? arrondi(rapport(a, b)) : null);
+function contrasteDuPoint(e) {
+  const s = style(e), couleur = analyser(s.backgroundColor), m = /rgba?\([^)]*\)/.exec(s.boxShadow || "");
+  return { couleur: hex(couleur), lisere: rapportOuNul(couleur, m ? analyser(m[0]) : null), fond: rapportOuNul(couleur, fondDe(e.parentElement)) };
+}
+// « À traiter » (lot 2A, tâche 6) : ce que la coquille montre des comptes de Cours et QCM. Chaque pastille chiffrée (celle de la barre latérale, ou celle du
+// tiroir ouvert) : où elle est (`dans` : la racine de la coquille), si elle est affichée, son texte, son entrée (adresse et nom accessible), sa taille, ses
+// contrastes (son chiffre contre son fond, 4,5:1 ; son fond contre ce qui l'entoure, 3:1), si sa boîte reste dans celle de son entrée et si elle recouvre l'œil des
+// modules fermés. Chaque point de « Plus » (affiché, taille, nom du bouton, contrastes) et la phrase du tiroir. `parlants` : les noms de la coquille qui disent
+// « à traiter » ; `total` : tous les repères posés dans la page, affichés ou non (hors de l'équipe, il est nul).
+function aTraiter() {
+  const racine = (e) => { const r = e.closest("[data-nav-coquille]"); return r ? r.getAttribute("data-nav-coquille") : null; };
+  const pastilles = [...document.querySelectorAll("[data-nav-coquille] .nav-a-traiter")].map((e) => {
+    const lien = e.closest("a"), r = rect(e), rl = lien ? rect(lien) : null, s = style(e);
+    const fond = analyser(s.backgroundColor), chiffre = analyser(s.color);
+    const oeil = lien ? lien.querySelector(":scope > .marque-masque") : null, ro = oeil && visible(oeil) ? rect(oeil) : null;
+    return { dans: racine(e), visible: visible(e), texte: net(e.textContent), href: lien ? lien.getAttribute("href") : null, nom: lien ? nomAcc(lien) : "",
+      taille: [Math.round(r.width), Math.round(r.height)], chiffre: rapportOuNul(chiffre, fond), fond: rapportOuNul(fond, fondDe(e.parentElement)),
+      couleurs: hex(chiffre) + " sur " + hex(fond),
+      dehors: !!rl && (r.left < rl.left - 1 || r.right > rl.right + 1 || r.top < rl.top - 1 || r.bottom > rl.bottom + 1),
+      recouvreLOeil: !!ro && r.left < ro.right && ro.left < r.right && r.top < ro.bottom && ro.top < r.bottom };
+  });
+  const points = [...document.querySelectorAll("[data-nav-coquille] .nav-plus-point")].map((e) => {
+    const r = rect(e), bouton = e.closest("button");
+    return { visible: visible(e), taille: [Math.round(r.width), Math.round(r.height)], nom: bouton ? nomAcc(bouton) : "", ...contrasteDuPoint(e) };
+  });
+  const phrase = document.querySelector('[data-nav-coquille="plus"] .nav-fenetre-atraiter');
+  const parlants = [...document.querySelectorAll("[data-nav-coquille] a, [data-nav-coquille] button")].map(nomAcc).filter((n) => /à traiter/.test(n));
+  return { pastilles, points, phrase: phrase ? net(phrase.textContent) : null, phraseAffichee: !!phrase && visible(phrase), parlants,
+    total: document.querySelectorAll(".nav-a-traiter, .nav-plus-point, .nav-fenetre-atraiter").length };
 }
 // Le menu du compte ouvert : chaque ligne (libellé, adresse, nombre posé sur elle) et ce que l'app compte de non lues.
 async function menuDuCompte() {
@@ -1107,7 +1193,7 @@ function bandeauEmargement() {
 window.__verifNav = { mesurer, regles: reglesSimples, voirEnTantQue, chercherLien, chercherPlus, ouvreurs, marquerPopups, mesurerPopups,
   popupsEncoreOuverts, focusSurOuvreur, focusPerdu, popupsVisibles: () => popupsVisibles().length, controlesAssistant,
   pageDeReglages, boutonDuCompte, menuDuCompte, enTeteDePage, panneauBenevoles, enTeteDeLEquipe,
-  accueil, comptesDesPages, planningSemaine, laClasse, epcfDeLEquipe, bandeauEmargement };
+  accueil, comptesDesPages, planningSemaine, laClasse, epcfDeLEquipe, bandeauEmargement, aTraiter };
 })();
 """
 
@@ -1177,6 +1263,8 @@ class Scenario:
     demarrage: bool = False     # ouverture seule, mémoire de l'appareil allumée (ruling R17)
     promos_en_panne: bool = False   # ?mes_promos=erreur : le bandeau des promos non chargées s'ajoute à l'aperçu
     agenda_vide: bool = False   # la date du banc recule après le dernier événement : l'accueil n'a rien à venir (lot 2A, tour de correction 1)
+    a_traiter: str = ""         # scénario « à traiter » (A_TRAITER_DU_BANC) : "ia", "beaucoup", "panne" ou "lent" ; vide pour tous les autres (lot 2A, tâche 6)
+    reglage_illisible: bool = False   # la lecture du réglage de la promo échoue, la mémoire de l'appareil dit « allumée » : la case du fondateur (lot 2A, tâche 6)
 
     @property
     def nom(self):
@@ -1186,6 +1274,8 @@ class Scenario:
         variante += "-demarrage" if self.demarrage else ""
         variante += "-promos-en-panne" if self.promos_en_panne else ""
         variante += "-agenda-vide" if self.agenda_vide else ""
+        variante += ("-a-traiter-" + self.a_traiter) if self.a_traiter else ""
+        variante += "-reglage-illisible" if self.reglage_illisible else ""
         return "%s/%s/%s%s@%d" % (self.moteur, self.passe, self.role, variante, self.largeur)
 
 
@@ -1241,11 +1331,20 @@ def construire_scenarios(moteurs, roles, largeurs, passes):
             if "fondateur" in roles:
                 for l in voir:
                     scenarios.append(Scenario(moteur, "allume", "fondateur", l, "apercu", "equipe", voir_en_tant_que=True))
+                # Le fondateur, un appareil qui a vu la promo allumée et un réglage de la promo qu'il ne lit pas : la case de Réglages dit ce que la barre applique.
+                scenarios.append(Scenario(moteur, "allume", "fondateur", largeurs[0], "aucun", "equipe", reglage_illisible=True))
             if "prof" in roles:
                 # Un formateur sans aperçu, dont l'appareil a vu la promo allumée : son ouverture seule (ruling R17).
                 scenarios.append(Scenario(moteur, "allume", "prof", largeurs[0], "reglage", "equipe", demarrage=True))
                 # Son accueil quand plus aucun événement n'est à venir : où ajouter des événements, selon la navigation.
                 scenarios.append(Scenario(moteur, "allume", "prof", largeurs[0], "reglage", "equipe", agenda_vide=True))
+                # Ce qui attend l'équipe dans Cours et QCM (lot 2A, tâche 6) : brouillons de l'IA en plus (le tiroir dit les deux parties sur téléphone, la
+                # pastille dit « 9+ » sur ordinateur, et avec l'œil « masqué aux stagiaires » d'un module fermé, en ligne puis en colonne d'icônes), lectures en
+                # échec, lectures qui n'aboutissent pas.
+                for a_traiter, largeur, modules in (("ia", 375, ""), ("ia", 1280, "ferme"), ("beaucoup", 1280, ""), ("beaucoup", 900, "ferme"),
+                                                    ("panne", 1280, ""), ("panne", 375, ""), ("lent", 375, "")):
+                    if largeur in largeurs:
+                        scenarios.append(Scenario(moteur, "allume", "prof", largeur, "reglage", "equipe", modules=modules, a_traiter=a_traiter))
         if "eteint" in passes:
             for role in roles:
                 for l in largeurs:
@@ -1352,8 +1451,9 @@ def nouveau_contexte(navigateur, sc, options):
     contexte.set_default_timeout(8000)
     if sc.allumage == "apercu":
         contexte.add_init_script("try { localStorage.setItem('%s', '1'); } catch (e) { /* stockage bloqué */ }" % CLE_APERCU)
-    if sc.demarrage:
+    if sc.demarrage or sc.reglage_illisible:
         contexte.add_init_script("try { localStorage.setItem('%s', '1'); } catch (e) { /* stockage bloqué */ }" % CLE_MEMOIRE_PROMO_1)
+    if sc.demarrage:
         contexte.add_init_script(JS_IMAGES_OUVERTURE)
     lignes = []
     if sc.allumage == "reglage":
@@ -1368,6 +1468,28 @@ def nouveau_contexte(navigateur, sc, options):
          "note": note, "note_max": 20, "observation": None, "date_eval": jour, "stagiaire": None, "competence": None}
         for i, (sid, theme, note, jour) in enumerate(NOTES_DU_BANC)]))
     lignes.append("RPC.notes_stats_groupe = %s;" % json.dumps(STATS_NOTES_DU_BANC))
+    if sc.a_traiter in BROUILLONS_IA_DU_BANC:
+        # Des brouillons de l'IA à relire, et des lignes déjà traitées (un brouillon accepté ou rejeté, un signalement traité ou rejeté) qui ne doivent pas compter.
+        modele = {"qcm_id": 50, "section": None, "options": [], "explication": None, "demande_par_email": "prof@example.test"}
+        brouillons = [dict(modele, id=9000 + i, enonce="Brouillon du banc %d" % (i + 1), statut="a_relire", created_at="2026-10-26T09:%02d:00Z" % i)
+                      for i in range(BROUILLONS_IA_DU_BANC[sc.a_traiter])]
+        brouillons += [dict(modele, id=9100, enonce="Brouillon accepté", statut="acceptee", created_at="2026-10-25T09:00:00Z"),
+                       dict(modele, id=9101, enonce="Brouillon rejeté", statut="rejetee", created_at="2026-10-25T09:05:00Z")]
+        lignes.append("FIXTURES.qcm_ia_brouillons.push(...%s);" % json.dumps(brouillons))
+        question = {"id": 102, "qcm_id": 50, "ordre": 2, "enonce": "Q-ECHOUEE, Les feux de route éclairent à environ ?",
+                    "qcm": {"id": 50, "titre": "Feux du véhicule (banc)", "theme_id": 1}}
+        signalements = [{"id": 790 + i, "question_id": 102, "email": "eleve@example.test", "stagiaire_id": 2, "motif": "autre", "commentaire": None,
+                         "option_id": None, "option_texte": None, "statut": statut, "created_at": "2026-07-29T09:00:00Z", "traite_at": "2026-07-29T10:00:00Z",
+                         "traite_par_email": "prof@example.test", "question": question, "instruction": None} for i, statut in enumerate(("traite", "rejete"))]
+        lignes.append("FIXTURES.qcm_signalements.push(...%s);" % json.dumps(signalements))
+    if sc.a_traiter == "panne":
+        lignes.append(JS_PANNE_A_TRAITER)
+    if sc.reglage_illisible:
+        lignes.append(JS_REGLAGE_ILLISIBLE)
+    if sc.modules == "ferme":
+        # Aucun module ouvert pour la promo : chaque entrée de l'équipe porte l'œil « masqué aux stagiaires » (le banc n'a pas de scénario qui ferme aussi les Documents,
+        # et Cours et QCM n'est repéré que quand ses Documents le sont aussi).
+        lignes.append("FIXTURES.settings.push({ key: 'modules', value: JSON.stringify({ v: 1, depuis: '2026-10-05T08:00:00.000Z', ouverts: {} }) });")
     contexte.route("**/*", lambda route: servir_depuis_le_cache(route, lignes))
     if options.get("script_init"):
         contexte.add_init_script(path=options["script_init"])
@@ -1400,6 +1522,8 @@ def adresse_de_page(url, sc):
         q["mes_promos"] = "erreur"
     if sc.demarrage:
         q.update(lenteur=str(LENTEUR_DEMARRAGE_MS), lenteur_tables="settings")
+    if sc.a_traiter == "lent":
+        q.update(lenteur=str(LENTEUR_A_TRAITER_MS), lenteur_tables=",".join(LECTURES_A_TRAITER))
     return urllib.parse.urlunparse(p._replace(query=urllib.parse.urlencode(q), fragment=""))
 
 
@@ -1673,6 +1797,8 @@ def verifier_menus(page, res, sc, options):
             res.avertir(type_, detail, vue, detail)
         if ouvreur["action"] == "compte":
             verifier_menu_du_compte(page, res, sc)
+        elif ouvreur["action"] == "plus":
+            verifier_a_traiter(page, res, sc, tiroir=True)
         page.keyboard.press("Escape")
         page.wait_for_timeout(300)
         restes = page.evaluate("() => window.__verifNav.popupsEncoreOuverts()")
@@ -1910,6 +2036,12 @@ def verifier_bouton_du_compte(page, res, sc, moment):
             res.echec("bouton du compte", vue, "des nouveautés ne sont pas lues (%s), le bouton n'a pas de point" % b["pastille"])
         elif min(b["pointTaille"]) < 8:
             res.echec("bouton du compte", vue, "le point mesure %dx%d px : trop petit pour se voir" % tuple(b["pointTaille"]))
+        # Un repère sans texte tient 3:1 contre son liseré et contre le fond derrière lui (WCAG 1.4.11) : sur la barre sombre de l'équipe, son vert d'origine
+        # (--accent) n'en tenait que 2,9 contre le liseré de la couleur de la barre.
+        c = b["pointContraste"]
+        for contre, valeur in (("son liseré", c and c["lisere"]), ("le fond derrière lui", c and c["fond"])):
+            if valeur is not None and valeur < 3:
+                res.echec("contraste du point du compte", vue, "le point (%s) ne tient que %.2f:1 contre %s, 3:1 au moins pour un repère" % (c["couleur"], valeur, contre))
         if "%s nouveauté" % b["pastille"] not in b["nom"]:
             res.echec("bouton du compte", vue, "le nom du bouton ne dit pas combien de nouveautés ne sont pas lues (%s) : « %s »" % (b["pastille"], b["nom"]))
     else:
@@ -1920,16 +2052,19 @@ def verifier_bouton_du_compte(page, res, sc, moment):
     vider_console(res, vue)
 
 
-def verifier_menu_du_compte(page, res, sc):
+def verifier_menu_du_compte(page, res, sc, moment=None):
     """Menu du compte ouvert : « Mes préférences » (#/preferences) pour tous les rôles, plus de ligne « Réglages » (celle de la
     promo est une entrée de la barre de l'équipe) ; le nombre des Nouveautés non lues, que le bouton ne montre plus, est sur la
-    ligne « Nouveautés » ; sans non lue, la ligne n'en porte aucun."""
-    vue = "%s/menus/menu-du-compte" % sc.nom
+    ligne « Nouveautés » ; sans non lue, la ligne n'en porte aucun. `moment` : « a-l-ouverture » quand le menu est ouvert avant la
+    rubrique Nouveautés (verifier_menu_du_compte_a_l_ouverture) : le banc a alors des non lues, et le nombre est éprouvé pour de bon."""
+    vue = "%s/menus/menu-du-compte%s" % (sc.nom, ("/" + moment) if moment else "")
     res.vues += 1
     m = page.evaluate("() => window.__verifNav.menuDuCompte()")
     if m is None:
         res.echec("menu du compte", vue, "la fenêtre du menu du compte est introuvable")
         return
+    if moment == "a-l-ouverture" and not m["pastille"]:
+        res.echec("menu du compte", vue, "le banc n'a aucune nouveauté non lue à l'ouverture : le nombre de la ligne « Nouveautés » ne serait pas éprouvé")
     lignes = {l["libelle"]: l for l in m["lignes"]}
     if "Mes préférences" not in lignes:
         res.echec("menu du compte", vue, "la ligne « Mes préférences » manque (lignes : %s)" % ", ".join(lignes))
@@ -1942,6 +2077,130 @@ def verifier_menu_du_compte(page, res, sc):
         res.echec("menu du compte", vue, "la ligne « Nouveautés » manque (lignes : %s)" % ", ".join(lignes))
     elif lignes["Nouveautés"]["nombre"] != attendu:
         res.echec("menu du compte", vue, "la ligne « Nouveautés » porte %s, l'app compte %s non lue(s)" % (lignes["Nouveautés"]["nombre"], attendu))
+    vider_console(res, vue)
+
+
+def verifier_menu_du_compte_a_l_ouverture(page, res, sc):
+    """Le menu du compte ouvert une fois à l'ouverture de l'app, avant la rubrique Nouveautés (lot 2A, tâche 6) : l'ouverture de cette rubrique marque tout
+    comme lu, et `verifier_menus` ne joue le menu qu'après elle, donc sans aucune nouveauté non lue : le nombre de la ligne « Nouveautés » n'y était jamais
+    éprouvé. Ici le banc a des non lues, et la ligne doit en porter le nombre ; le menu se referme par Échap."""
+    vue = "%s/menus/menu-du-compte/a-l-ouverture" % sc.nom
+    if not cliquer(page, res, vue, '[data-nav-coquille] button[data-nav-action="compte"]:visible', "bouton du compte"):
+        return
+    page.wait_for_timeout(300)
+    verifier_menu_du_compte(page, res, sc, "a-l-ouverture")
+    page.keyboard.press("Escape")
+    page.wait_for_timeout(300)
+    vider_console(res, vue)
+
+
+def nombre_de_la_phrase(phrase):
+    """Le total que dit la phrase du tiroir (« 7 à traiter : ... » donne 7)."""
+    return int(phrase.split(" ")[0])
+
+
+def verifier_a_traiter(page, res, sc, tiroir=False):
+    """Les comptes « à traiter » de la coquille de l'équipe (lot 2A, tâche 6). Ce que le banc sert (A_TRAITER_DU_BANC) se lit sur la pastille de « Cours et
+    QCM » (barre latérale dès 700 px, ligne du tiroir sur téléphone), sur le point de « Plus » (téléphone) et, le tiroir ouvert (`tiroir`), sur la phrase en tête
+    (la même qu'écrit la spec) ; une seule pastille affichée, dans son entrée, qui ne recouvre pas l'œil d'un module fermé. Chaque repère affiché tient ses
+    contrastes (3:1 pour le repère contre ce qui l'entoure, 4,5:1 pour son chiffre contre son fond). Lectures en échec ou qui n'aboutissent pas : rien du tout,
+    dans la page ni dans les noms. Chez le stagiaire, jamais rien."""
+    vue = "%s/a-traiter%s" % (sc.nom, "/tiroir" if tiroir else "")
+    res.vues += 1
+    m = page.evaluate("() => window.__verifNav.aTraiter()")
+    if sc.espace != "equipe":
+        if m["total"]:
+            res.echec("à traiter chez le stagiaire", vue, "%d repère(s) « à traiter » (pastille, point ou phrase) dans la coquille du stagiaire" % m["total"])
+        return
+    attendu, phrase = A_TRAITER_DU_BANC[sc.a_traiter]
+    if attendu is None:
+        if m["total"] or m["parlants"]:
+            res.echec("à traiter sans compte", vue, "des repères « à traiter » (%d dans la page, noms : %s) alors que les lectures échouent ou n'aboutissent pas"
+                      % (m["total"], " ; ".join(m["parlants"]) or "aucun"))
+        return
+    telephone = sc.largeur < SEUIL_TELEPHONE
+    total = nombre_de_la_phrase(phrase)
+    # La pastille de l'entrée : une seule affichée. Barre latérale dès 700 px, tiroir ouvert sur téléphone (la barre latérale n'y est que l'en-tête).
+    visibles = [p for p in m["pastilles"] if p["visible"]]
+    ou = "plus" if tiroir else "cote"
+    if telephone != tiroir:
+        if visibles:
+            res.echec("pastille « à traiter »", vue, "%d pastille(s) affichée(s) %s" % (len(visibles), "dans la barre du téléphone : « Cours et QCM » est rangée dans « Plus »" if telephone else "à côté de l'entrée"))
+    elif len(visibles) != 1:
+        res.echec("pastille « à traiter »", vue, "%d pastille(s) affichée(s) (une attendue, sur « Cours et QCM » %s)" % (len(visibles), "du tiroir" if tiroir else "de la barre latérale"))
+    for p in visibles:
+        if p["dans"] != ou:
+            res.echec("pastille « à traiter »", vue, "la pastille est dans « %s », attendue dans « %s »" % (p["dans"], ou))
+        if p["texte"] != attendu:
+            res.echec("pastille « à traiter »", vue, "la pastille dit « %s », attendu « %s » (le banc : %s)" % (p["texte"], attendu, phrase))
+        if p["href"] != "#/themes":
+            res.echec("pastille « à traiter »", vue, "la pastille est sur l'entrée %s, attendu #/themes (Cours et QCM)" % p["href"])
+        if "%d à traiter" % total not in p["nom"]:
+            res.echec("pastille « à traiter »", vue, "le nom de l'entrée ne dit pas ce qui est à traiter (« %d à traiter ») : « %s »" % (total, p["nom"]))
+        if p["dehors"]:
+            res.echec("pastille « à traiter »", vue, "la pastille (%dx%d px) sort de la boîte de son entrée" % tuple(p["taille"]))
+        if p["recouvreLOeil"]:
+            res.echec("pastille « à traiter »", vue, "la pastille recouvre l'œil « masqué aux stagiaires » de son entrée")
+        if p["chiffre"] is not None and p["chiffre"] < 4.5:
+            res.echec("contraste d'une pastille « à traiter »", vue, "le chiffre ne tient que %.2f:1 (%s), 4,5:1 au moins" % (p["chiffre"], p["couleurs"]))
+        if p["fond"] is not None and p["fond"] < 3:
+            res.echec("contraste d'une pastille « à traiter »", vue, "la pastille ne tient que %.2f:1 contre ce qui l'entoure (%s), 3:1 au moins pour un repère" % (p["fond"], p["couleurs"]))
+    # Le point de « Plus » : sur téléphone seulement, puisque « Cours et QCM » y est rangée dans le tiroir.
+    points = [p for p in m["points"] if p["visible"]]
+    if not telephone:
+        if points:
+            res.echec("point de « Plus »", vue, "un point de « Plus » est affiché à %d px, où la barre du bas n'existe pas" % sc.largeur)
+    elif len(points) != 1:
+        res.echec("point de « Plus »", vue, "%d point(s) affiché(s) sur « Plus » (un attendu : une entrée du tiroir a quelque chose à traiter)" % len(points))
+    for p in points:
+        if min(p["taille"]) < 8:
+            res.echec("point de « Plus »", vue, "le point mesure %dx%d px : trop petit pour se voir" % tuple(p["taille"]))
+        if "%d à traiter" % total not in p["nom"] or not p["nom"].startswith("Plus"):
+            res.echec("point de « Plus »", vue, "le nom du bouton (« %s ») ne dit pas « Plus, %d à traiter »" % (p["nom"], total))
+        for contre, valeur in (("son liseré", p["lisere"]), ("le fond derrière lui", p["fond"])):
+            if valeur is not None and valeur < 3:
+                res.echec("contraste du point de « Plus »", vue, "le point (%s) ne tient que %.2f:1 contre %s, 3:1 au moins pour un repère" % (p["couleur"], valeur, contre))
+    # La phrase en tête du tiroir ouvert, et nulle part ailleurs.
+    if tiroir:
+        if m["phrase"] != phrase:
+            res.echec("phrase du tiroir", vue, "la phrase en tête du tiroir est « %s », attendu « %s »" % (m["phrase"], phrase))
+        elif not m["phraseAffichee"]:
+            res.echec("phrase du tiroir", vue, "la phrase du tiroir n'est pas affichée")
+    elif m["phrase"] is not None:
+        res.echec("phrase du tiroir", vue, "la phrase du tiroir (« %s ») est posée alors que le tiroir est fermé" % m["phrase"])
+
+
+def verifier_aucune_erreur_visible(page, res, vue):
+    """Une lecture « à traiter » qui échoue ou qui traîne ne montre aucune erreur : ni message d'erreur à l'écran, ni boîte d'erreur dans la page."""
+    visible = page.evaluate("""() => { const t = document.getElementById('toast');
+        return { message: t && !t.classList.contains('hidden') && t.classList.contains('error') ? t.textContent.trim() : null,
+                 boite: !!document.querySelector('#view .view-error-box') }; }""")
+    if visible["message"]:
+        res.echec("erreur visible", vue, "un message d'erreur s'affiche : « %s »" % visible["message"])
+    if visible["boite"]:
+        res.echec("erreur visible", vue, "la page montre une boîte d'erreur")
+
+
+def jouer_a_traiter(page, res, sc, options):
+    """Les scénarios « à traiter » (lot 2A, tâche 6) : la barre de l'équipe avec des brouillons de l'IA en plus des signalements du banc (« ia » ; « beaucoup » :
+    « 9+ », sur ordinateur puis en colonne d'icônes avec l'œil d'un module fermé), des lectures en échec (« panne ») ou qui n'aboutissent pas (« lent », 20 s).
+    Dans tous les cas la barre se pose sans attendre ces lectures (sinon « coquille absente » : l'ouverture dure au plus 8 s) ; la pastille, le point et la phrase du
+    tiroir disent ce qu'attend A_TRAITER_DU_BANC, et sans compte lisible rien ne s'affiche, erreur comprise ; le menu du compte s'ouvre malgré la lecture qui traîne."""
+    regles = regles_de_la_page(page, res, sc)
+    preparer_coquille(page, res, sc, regles)
+    vue = "%s/a-traiter" % sc.nom
+    verifier_vue(page, res, sc, "ouverture/" + route_courante(page), options)
+    if not res.coquille:
+        return
+    verifier_a_traiter(page, res, sc)
+    if sc.largeur < SEUIL_TELEPHONE and cliquer(page, res, vue, '[data-nav-coquille] [data-nav-action="plus"]', "bouton « Plus »"):
+        page.wait_for_timeout(300)
+        verifier_a_traiter(page, res, sc, tiroir=True)
+        page.keyboard.press("Escape")
+        page.wait_for_timeout(250)
+    if sc.a_traiter in ("panne", "lent"):
+        verifier_aucune_erreur_visible(page, res, vue)
+        verifier_menu_du_compte_a_l_ouverture(page, res, sc)
     vider_console(res, vue)
 
 
@@ -2679,9 +2938,12 @@ def jouer_allume(page, res, sc, options):
         jouer_voir_en_tant_que(page, res, sc, options)
         return
     verifier_vue(page, res, sc, "ouverture/" + route_courante(page), options)
-    # Avant la rubrique Nouveautés, dont l'ouverture marque tout comme lu (le point s'éteint alors).
+    # Avant la rubrique Nouveautés, dont l'ouverture marque tout comme lu (le point s'éteint alors) : le bouton du compte, et le menu du
+    # compte, dont la ligne « Nouveautés » doit porter le nombre des non lues (que `verifier_menus`, joué après la rubrique, ne voit jamais).
     if res.coquille:
         verifier_bouton_du_compte(page, res, sc, "a-l-ouverture")
+        verifier_menu_du_compte_a_l_ouverture(page, res, sc)
+        verifier_a_traiter(page, res, sc)
     entrees = regles["entrees"]
     parcourir_entrees(page, res, sc, entrees, options)
     # Les pages que le menu du compte ouvre sans avoir d'entrée à elles : Mon espace (qui a un profil
@@ -2781,6 +3043,8 @@ def jouer_voir_en_tant_que(page, res, sc, options):
         if regles.get("espace") != espace:
             res.echec("espace du banc", "%s/%s" % (sc.nom, nom_vu), "les règles donnent l'espace « %s », attendu « %s »" % (regles.get("espace"), espace))
         verifier_vue(page, res, sc_vu, "%s/ouverture/%s" % (nom_vu, route_courante(page)), options)
+        # Les comptes « à traiter » suivent l'espace : la pastille dans celui de l'équipe, rien du tout dans celui du stagiaire (lot 2A, tâche 6).
+        verifier_a_traiter(page, res, sc_vu)
         if vu:
             verifier_assistant_sous_bandeau(page, res, sc_vu, "%s/%s/assistant" % (sc.nom, nom_vu))
         parcourir_entrees(page, res, sc_vu, regles["entrees"], options, avec_sous_vues=False)
@@ -2846,6 +3110,26 @@ def jouer_demarrage(page, res, sc):
                   % (m["images"]["eclair"], m["images"]["premiere"]))
     if m["attente"]:
         res.echec("attente de la coquille non levée", vue, "body[data-nav-attente] est encore posé, l'app ouverte")
+    vider_console(res, vue)
+
+
+def jouer_case_du_fondateur(page, res, sc):
+    """Le fondateur ouvre l'app sur un appareil qui a vu la promo allumée, et la lecture du réglage de la promo échoue (lot 2A, tâche 6) : la décision de la session
+    est celle de la mémoire de l'appareil (ruling R17), la nouvelle barre est montée, et la case « Nouvelle navigation activée » de Réglages, qui ne sait rien du
+    réglage, dit ce que la barre applique : cochée, au lieu de paraître décochée sous une barre qui est la nouvelle."""
+    regles = regles_de_la_page(page, res, sc)
+    preparer_coquille(page, res, sc, regles)
+    if not res.coquille:
+        return
+    vue = "%s/reglages/case-de-la-promo" % sc.nom
+    res.vues += 1
+    aller_a(page, "#/config")
+    attendre(page, calme=250)
+    coche = page.evaluate("() => { const c = document.getElementById('navigation-v2-promo'); return c ? c.checked : null; }")
+    if coche is None:
+        res.echec("case de la promo", vue, "la case « Nouvelle navigation activée pour la promo » est absente de Réglages (le fondateur la voit)")
+    elif coche is not True:
+        res.echec("case de la promo", vue, "la case est décochée alors que la barre est la nouvelle (la lecture du réglage a échoué, la mémoire de l'appareil l'applique)")
     vider_console(res, vue)
 
 
@@ -2962,6 +3246,10 @@ def jouer_scenario(navigateur, url, sc, options):
             jouer_demarrage(page, res, sc)
         elif sc.agenda_vide:
             jouer_agenda_vide(page, res, sc)
+        elif sc.a_traiter:
+            jouer_a_traiter(page, res, sc, options)
+        elif sc.reglage_illisible:
+            jouer_case_du_fondateur(page, res, sc)
         elif sc.passe == "allume":
             jouer_allume(page, res, sc, options)
         else:

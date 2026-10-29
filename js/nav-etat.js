@@ -10,7 +10,7 @@ import { el, toast } from "./utils.js?v=20261029a";
 import { icon } from "./icons.js?v=20261029a";
 import { isFounder } from "./auth-admin.js?v=20261029a";
 import {
-  CLE_REGLAGE, CLE_APERCU, decideNavigationV2, reglageAllume, reglageRetenu, cleMemoire, navigationAttendue,
+  CLE_REGLAGE, CLE_APERCU, decideNavigationV2, reglageAllume, reglageRetenu, cleMemoire, navigationAttendue, etatDeLaCase,
 } from "./nav-etat-regles.js?v=20261029a";
 
 export { decideNavigationV2 };
@@ -135,7 +135,9 @@ export function renderNavigationReglage() {
     "Allumée, les stagiaires et les formateurs de la promo passent à la nouvelle barre de navigation "
     + "à leur prochaine ouverture de l'app. Éteinte (réglage par défaut), la promo garde la barre actuelle."));
   const casePromo = el("input", { type: "checkbox", id: "navigation-v2-promo" });
-  casePromo.checked = reglage === true;
+  // Le réglage lu ; après une lecture ratée ou trop lente (réglage null), l'état que la session applique réellement :
+  // la case ne paraît pas décochée sous une barre qui est la nouvelle.
+  casePromo.checked = etatDeLaCase({ reglage, appliquee: navigationV2Active() });
   casePromo.addEventListener("change", async () => {
     const voulu = casePromo.checked;
     casePromo.disabled = true;

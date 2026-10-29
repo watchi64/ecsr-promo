@@ -49,3 +49,12 @@ export function navigationAttendue({ promoId = null, lireMemoire = () => null, a
   const memoire = cle ? lireMemoire(cle) : null;
   return decideNavigationV2({ reglagePromo: reglageRetenu({ lu: null, memoire }), apercu, fondateur });
 }
+
+// État de la case « Promo affichée » de Paramètres (lot 2A). Le réglage quand sa lecture a abouti (`reglage`, true ou
+// false). Une lecture ratée ou trop lente le laisse null pour toute la session : la case montre alors ce que la session
+// applique réellement (`appliquee`, navigationV2Active() : la mémoire de l'appareil, ruling R17), au lieu de paraître
+// décochée alors que la barre est la nouvelle.
+export function etatDeLaCase({ reglage = null, appliquee = false } = {}) {
+  if (reglage === true || reglage === false) return reglage;
+  return appliquee === true;
+}

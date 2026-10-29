@@ -246,7 +246,12 @@ body[data-nav="v2"] .nav-compte-point {
   background: var(--accent);
   box-shadow: 0 0 0 2px var(--bg-elev);
 }
-body[data-nav="v2"] .nav-cote .nav-compte-point { box-shadow: 0 0 0 2px var(--bg-deep); }
+/* Sur la barre sombre de l'équipe (barre latérale, en-tête du téléphone), le point prend le vert clair des repères
+   posés sur fond sombre : son vert d'origine (--accent) n'y tient pas 3:1 contre son liseré (2,9:1), celui-ci 8,2:1. */
+body[data-nav="v2"] .nav-cote .nav-compte-point {
+  background: var(--accent-on-dark);
+  box-shadow: 0 0 0 2px var(--bg-deep);
+}
 
 body[data-nav="v2"] [data-nav-coquille] :focus-visible {
   outline: 2px solid var(--accent-strong);
@@ -666,6 +671,19 @@ body[data-nav="v2"] .nav-bas { display: none; }
   body[data-nav="v2"] .nav-case-icone .icon { width: 24px; height: 24px; }
   body[data-nav="v2"] .nav-case[aria-current="page"] { color: var(--accent-strong); font-weight: 700; }
   body[data-nav="v2"] .nav-case[aria-current="page"] .nav-case-icone { background: var(--accent-soft-2); }
+  /* Point de « Plus » quand une entrée du tiroir a quelque chose à traiter (lot 2A, js/nav-shell.js) : au coin de
+     l'icône, hors du flux, comme le point des Nouveautés sur le compte ; son liseré de la couleur de la barre le détache
+     de l'icône et de la pastille de l'entrée allumée (5,5:1 contre la barre). */
+  body[data-nav="v2"] .nav-plus-point {
+    position: absolute;
+    top: 3px;
+    left: calc(50% + 7px);
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 0 2px var(--bg-elev);
+  }
   body[data-nav="v2"] .nav-bas :focus-visible { outline-offset: -2px; }
   /* Repère d'un module fermé : sur le coin de l'icône, hors du flux. */
   body[data-nav="v2"] .nav-case > .marque-masque {
@@ -848,6 +866,38 @@ body[data-nav="v2"] .nav-pastille {
   font-size: 0.72rem;
   font-weight: 600;
   line-height: 1;
+}
+/* « À traiter » (lot 2A, js/nav-shell.js) : ce qui attend l'équipe dans Cours et QCM. La pastille chiffrée de l'entrée, à
+   la suite de son libellé : la pastille des Nouveautés, à la fin de la ligne qu'elle ne fait pas rétrécir. */
+body[data-nav="v2"] .nav-entree > .nav-a-traiter,
+body[data-nav="v2"] .nav-fenetre-lien > .nav-a-traiter { flex: none; }
+/* Sur la barre sombre, le vert clair des repères et le texte de la barre : 8,2:1 pour le chiffre comme contre le fond de
+   la barre (le vert de la pastille claire, 2,9:1 contre ce fond, s'y confondrait). */
+body[data-nav="v2"] .nav-cote .nav-a-traiter {
+  background: var(--accent-on-dark);
+  color: var(--bg-deep);
+}
+/* Colonne d'icônes : le libellé est masqué, la pastille se pose au coin haut droit de l'icône, hors du flux ; l'œil des
+   modules fermés, qui occupait ce coin, passe en bas. */
+body[data-nav="v2"][data-nav-colonne] .nav-entree > .nav-a-traiter {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  font-size: 0.68rem;
+}
+body[data-nav="v2"][data-nav-colonne] .nav-entree[data-a-traiter] > .marque-masque { top: auto; bottom: 4px; }
+/* La phrase « 5 à traiter : 3 signalements, 2 propositions de l'IA » en tête du tiroir « Plus » (ruling R20). */
+body[data-nav="v2"] .nav-fenetre-atraiter {
+  margin: 2px 0 6px;
+  padding: 10px 12px;
+  border-radius: var(--r);
+  background: var(--accent-soft);
+  color: var(--text);
+  font-size: 0.9rem;
+  line-height: 1.4;
 }
 body[data-nav="v2"] .nav-fenetre .view-as-block { margin: 6px 8px 8px; }
 /* En tête de chaque fenêtre (js/nav-fenetre.js) : la poignée du tiroir et « Fermer », sur téléphone

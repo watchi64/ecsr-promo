@@ -3,7 +3,7 @@
 // et la section de Paramètres touchent au DOM).
 import assert from "node:assert/strict";
 import {
-  CLE_REGLAGE, CLE_APERCU, decideNavigationV2, reglageAllume, reglageRetenu, cleMemoire, navigationAttendue,
+  CLE_REGLAGE, CLE_APERCU, decideNavigationV2, reglageAllume, reglageRetenu, cleMemoire, navigationAttendue, etatDeLaCase,
 } from "../js/nav-etat-regles.js";
 
 let n = 0;
@@ -95,5 +95,24 @@ eq(session(null, "1", "0", false), true, "aperçu d'un non-fondateur ignoré : l
 // Avant la lecture, l'attente de l'ouverture suit la même mémoire : rien ne change pour l'ancienne barre (R17).
 eq(attendue(1), session(null, "1"), "l'attente de l'ouverture et la décision sur lecture ratée disent la même chose");
 eq(attendue(2), session(null, null), "idem sans mémoire pour la promo affichée");
+
+// 7. Case « Promo affichée » de Paramètres (lot 2A, tâche 6) : le réglage quand sa lecture a abouti ; après une lecture
+//    ratée ou trop lente (réglage null pour toute la session), l'état réellement appliqué (navigationV2Active()), au lieu
+//    de paraître décochée alors que la barre est la nouvelle.
+eq(etatDeLaCase({ reglage: true, appliquee: false }), true, "lecture aboutie, allumée : cochée, quoi que la session applique");
+eq(etatDeLaCase({ reglage: false, appliquee: true }), false, "lecture aboutie, éteinte : décochée, même si la session applique la nouvelle navigation (aperçu)");
+eq(etatDeLaCase({ reglage: true, appliquee: true }), true, "lecture aboutie et session d'accord : cochée");
+eq(etatDeLaCase({ reglage: false, appliquee: false }), false, "lecture aboutie et session d'accord : décochée");
+eq(etatDeLaCase({ reglage: null, appliquee: true }), true, "lecture ratée, nouvelle navigation appliquée : cochée, comme la barre");
+eq(etatDeLaCase({ reglage: null, appliquee: false }), false, "lecture ratée, ancienne navigation appliquée : décochée");
+eq(etatDeLaCase({ reglage: null }), false, "lecture ratée, rien d'appliqué dit : décochée");
+eq(etatDeLaCase({}), false, "sans rien : décochée");
+eq(etatDeLaCase(), false, "sans argument : décochée");
+eq(etatDeLaCase({ reglage: "true", appliquee: false }), false, "un réglage qui n'est pas un booléen compte pour illisible : l'état appliqué décide");
+eq(etatDeLaCase({ reglage: undefined, appliquee: "oui" }), false, "l'état appliqué doit être vrai, pas seulement vrai-ish");
+// Après une lecture ratée, la case dit ce que la session a décidé (R17 : la mémoire de l'appareil), jamais « décochée » par défaut.
+eq(etatDeLaCase({ reglage: null, appliquee: session(null, "1") }), true, "promo vue allumée sur l'appareil, lecture ratée : cochée");
+eq(etatDeLaCase({ reglage: null, appliquee: session(null, null) }), false, "aucune mémoire, lecture ratée : décochée");
+eq(etatDeLaCase({ reglage: null, appliquee: session(null, "1", "0", true) }), false, "aperçu éteint du fondateur, lecture ratée : la session applique l'ancienne, décochée");
 
 console.log(`nav-etat : ${n} assertions OK`);

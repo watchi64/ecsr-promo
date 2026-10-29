@@ -26,6 +26,12 @@
 // barreTelephone(espace, entrees).plus. majNouveautesCompte pose sur les boutons du compte un point
 // quand des nouveautés ne sont pas lues (sans chiffre : le nombre est sur la ligne « Nouveautés » du
 // menu du compte) et dit leur nombre dans le nom du bouton.
+// « À traiter » (équipe, majATraiter) : ce qui attend un formateur dans Cours et QCM, signalements de QCM non
+// traités et propositions de l'IA à relire (js/a-traiter.js), se montre en pastille chiffrée sur l'entrée « Cours et
+// QCM » (barre latérale, tiroir « Plus » ; data-nom-base garde son nom d'origine, data-a-traiter dit le texte posé),
+// en point sur « Plus » quand le téléphone range cette entrée dans le tiroir, et en phrase en tête du tiroir. La barre
+// ne les attend jamais : ils sont lus après le montage, relus à chaque page affichée (au plus toutes les 30 secondes),
+// et un compte illisible ne montre ni pastille ni erreur.
 
 import { el } from "./utils.js?v=20261029a";
 import { icon, deco } from "./icons.js?v=20261029a";
@@ -33,9 +39,14 @@ import { getProfile, fondateurHorsApercu } from "./auth-admin.js?v=20261029a";
 import { getPromoCourante } from "./db.js?v=20261029a";
 import { construirePastille } from "./promo-pastille.js?v=20261029a";
 import { routeMasquee, repereMasque, moduleVisible, moduleMasque } from "./modules-etat.js?v=20261029a";
+import { libellePastille } from "./nouveautes.js?v=20261029a";
 import {
   barreTelephone, entreeActive, entreeMasquee, initialesDe, prenomDe, libelleRole, nomDuBoutonCompte,
 } from "./nav-rules.js?v=20261029a";
+import { chargerATraiter } from "./a-traiter.js?v=20261029a";
+import {
+  ENTREE_A_TRAITER, resumeATraiter, nomAvecATraiter, phraseATraiter, pointSurPlus,
+} from "./a-traiter-rules.js?v=20261029a";
 import { ouvrirFenetre, fermerFenetre, fenetreOuverte, rendreFocus } from "./nav-fenetre.js?v=20261029a";
 import { ouvrirMenuCompte } from "./menu-compte.js?v=20261029a";
 import { basculerAssistant, assistantOuvert, onAssistantChange } from "./chatbot.js?v=20261029a";
@@ -187,6 +198,116 @@ onSignalementsChange(() => {
   document.querySelectorAll('[data-nav-coquille] [data-nav-action="signaler"]').forEach(nommerSignaler);
 });
 
+// ----- « À traiter » : ce qui attend l'équipe dans Cours et QCM -----
+
+// Les derniers comptes lus (null : jamais lu, ou lecture ratée : rien ne s'affiche), la lecture en cours et l'instant de
+// la dernière. La barre ne les attend jamais : elle se pose sans eux, les pastilles s'y ajoutent à leur arrivée
+// (majATraiter).
+let aTraiter = { signalements: null, propositionsIA: null };
+let lectureATraiter = false;
+let derniereLectureATraiter = -Infinity;
+// Relus à chaque page affichée, au plus toutes les 30 secondes (sur l'horloge de la page) : traiter un signalement
+// puis changer de page éteint la pastille sans recharger l'app.
+const DELAI_RELECTURE_A_TRAITER_MS = 30 * 1000;
+
+// Lit les comptes (équipe seulement) puis pose les pastilles. Une lecture déjà en cours suffit ; `force` passe outre le
+// délai (chaque montage de la coquille relit). chargerATraiter ne rejette jamais : un compte dont la lecture échoue
+// vaut null, et la barre n'en montre ni pastille ni erreur.
+function relireATraiter({ force = false } = {}) {
+  if (!montee || montee.espace !== "equipe" || lectureATraiter) return;
+  if (!force && performance.now() - derniereLectureATraiter < DELAI_RELECTURE_A_TRAITER_MS) return;
+  lectureATraiter = true;
+  chargerATraiter()
+    .then((lus) => {
+      aTraiter = lus;
+      majATraiter();
+    })
+    .finally(() => {
+      lectureATraiter = false;
+      derniereLectureATraiter = performance.now();
+    });
+}
+
+// Une entrée qui peut porter la pastille (Cours et QCM chez l'équipe) garde son nom d'origine (data-nom-base) : la
+// pastille et le nom complet se posent et se retirent sans le perdre. Sa ligne du tiroir n'a pas d'aria-label : son nom
+// vient de son contenu, repère « masqué aux stagiaires » compris.
+function prevoirATraiter(lien, e) {
+  if (e.id !== ENTREE_A_TRAITER) return lien;
+  lien.dataset.nomBase = lien.getAttribute("aria-label")
+    || e.libelle + (lien.classList.contains("module-masque") ? " (masqué aux stagiaires)" : "");
+  return lien;
+}
+
+// La pastille chiffrée d'une entrée qui peut en porter une, à la suite de son libellé, et son nom complet (« Cours et
+// QCM, 5 à traiter ») : dans la barre latérale, le nom et l'infobulle (la colonne d'icônes n'a plus le libellé) ; dans le
+// tiroir, le nom seul. Rien à zéro : la pastille part et le nom d'origine revient. Ne touche au DOM que ce qui change.
+function poserCompteSurEntree(lien, texte, resume) {
+  const base = lien.dataset.nomBase;
+  const lateral = lien.classList.contains("nav-entree");
+  let pastille = lien.querySelector(":scope > .nav-a-traiter");
+  if (!texte) {
+    if (pastille) pastille.remove();
+    lien.removeAttribute("data-a-traiter");
+    if (lateral) {
+      lien.setAttribute("aria-label", base);
+      lien.setAttribute("title", base);
+    } else {
+      lien.removeAttribute("aria-label");
+    }
+    return;
+  }
+  if (!pastille) {
+    pastille = el("span", { class: "nav-pastille nav-a-traiter", "aria-hidden": "true" });
+    lien.querySelector(":scope > .nav-entree-texte, :scope > .nav-fenetre-texte").after(pastille);
+  }
+  if (pastille.textContent !== texte) pastille.textContent = texte;
+  const nom = nomAvecATraiter(base, resume);
+  lien.setAttribute("data-a-traiter", texte);
+  lien.setAttribute("aria-label", nom);
+  if (lateral) lien.setAttribute("title", nom);
+}
+
+// Le point de « Plus » (téléphone), au coin de son icône, et son nom (« Plus, 5 à traiter » : il contient le libellé
+// visible, WCAG 2.5.3).
+function poserPointSurPlus(bouton, avecPoint, resume) {
+  const point = bouton.querySelector(":scope > .nav-plus-point");
+  if (!avecPoint) {
+    if (point) point.remove();
+    bouton.removeAttribute("aria-label");
+    return;
+  }
+  if (!point) bouton.appendChild(el("span", { class: "nav-plus-point", "aria-hidden": "true" }));
+  bouton.setAttribute("aria-label", nomAvecATraiter("Plus", resume));
+}
+
+// La phrase en tête du tiroir ouvert (« 5 à traiter : 3 signalements, 2 propositions de l'IA »), sous sa ligne
+// « Fermer » ; retirée quand il n'y a rien à traiter.
+function poserPhraseDuTiroir(tiroir, phrase) {
+  let p = tiroir.querySelector(":scope > .nav-fenetre-atraiter");
+  if (!phrase) {
+    if (p) p.remove();
+    return;
+  }
+  if (!p) {
+    p = el("p", { class: "nav-fenetre-atraiter" });
+    tiroir.querySelector(":scope > .nav-fenetre-haut").after(p);
+  }
+  if (p.textContent !== phrase) p.textContent = phrase;
+}
+
+// Pose sur la coquille en place ce que disent les derniers comptes : la pastille de « Cours et QCM » (barre latérale et
+// tiroir ouvert), le point de « Plus » et la phrase du tiroir. Rien quand les comptes sont nuls ou inconnus, et rien hors
+// de l'équipe. Rejouée à chaque arrivée de comptes, à chaque montage et à chaque ouverture du tiroir.
+function majATraiter() {
+  const resume = montee && montee.espace === "equipe" ? resumeATraiter(aTraiter) : resumeATraiter();
+  const texte = libellePastille(resume.total);
+  document.querySelectorAll("[data-nav-coquille] a[data-nom-base]").forEach((lien) => poserCompteSurEntree(lien, texte, resume));
+  const point = !!montee && pointSurPlus(montee.plus, resume);
+  document.querySelectorAll('[data-nav-coquille] button[data-nav-action="plus"]').forEach((b) => poserPointSurPlus(b, point, resume));
+  const tiroir = document.querySelector('[data-nav-coquille="plus"] .nav-fenetre');
+  if (tiroir) poserPhraseDuTiroir(tiroir, phraseATraiter(resume));
+}
+
 // Les entrées dans l'ordre, celles d'un même groupe sous son titre (« Promo »). `ou` distingue les
 // identifiants des titres (barre latérale, tiroir).
 function groupes(entrees, ou, faire) {
@@ -265,7 +386,7 @@ function entreeLaterale(e) {
   reperer(lien, e);
   // En colonne d'icônes, le libellé ne se voit plus : le nom (repère compris) passe par aria-label.
   lien.setAttribute("aria-label", lien.getAttribute("title"));
-  return lien;
+  return prevoirATraiter(lien, e);
 }
 
 function barreLaterale(entrees, nom, initiales) {
@@ -339,9 +460,9 @@ function ouvrirPlus(bouton) {
   if (!montee) return;
   const { entrees, nom, initiales, actualiser, espace } = montee;
   const allumee = entreeActive(montee.route, entrees);
-  const lien = (e) => reperer(el("a", {
+  const lien = (e) => prevoirATraiter(reperer(el("a", {
     href: "#/" + e.route, class: "nav-fenetre-lien", "data-entree": e.id, "aria-current": e.id === allumee ? "page" : null,
-  }, iconeDe(e.icone), el("span", { class: "nav-fenetre-texte" }, e.libelle)), e);
+  }, iconeDe(e.icone), el("span", { class: "nav-fenetre-texte" }, e.libelle)), e), e);
   const compte = el("button", {
     type: "button", class: "nav-fenetre-lien", "data-nav-action": "compte", "aria-haspopup": "dialog",
     title: nomDuBoutonCompte({ nom }),
@@ -365,6 +486,8 @@ function ouvrirPlus(bouton) {
       compte,
     ],
   });
+  // La pastille de « Cours et QCM » et la phrase « à traiter » de ce tiroir : ce que les comptes disent à cet instant.
+  majATraiter();
 }
 
 // ----- Montage -----
@@ -405,8 +528,12 @@ export function monterCoquille({ espace, entrees, nom, initiales, actualiser }) 
   document.body.dataset.espace = espace;
   montee = { espace, entrees: entrees.map((e) => ({ ...e })), plus: plus.map((e) => e.id), route: null, nom, initiales, actualiser };
   appliquerColonne();
+  // Les derniers comptes « à traiter » connus se posent tout de suite (une coquille remontée ne les perd pas), puis une
+  // lecture les rafraîchit : la barre ne l'attend pas.
+  majATraiter();
   if (rendreFocusDeLaFenetre) rendreFocusDeLaFenetre();
   else if (focus) document.querySelector(focus)?.focus();
+  relireATraiter({ force: true });
 }
 
 // Retire tout ce que la coquille pose : ses barres et sa fenêtre ouverte, ses attributs de body, son état.
@@ -433,6 +560,8 @@ export function majEntreeActive(route) {
     if (allume) n.setAttribute("aria-current", "page");
     else n.removeAttribute("aria-current");
   });
+  // Une page affichée relit les comptes « à traiter » (au plus toutes les 30 secondes).
+  relireATraiter();
 }
 
 export function coquilleMontee() {

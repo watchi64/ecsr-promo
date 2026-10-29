@@ -52,8 +52,15 @@ export function fenetreOuverte() {
 }
 
 // L'adresse change sous la fenêtre ouverte (geste retour, adresse saisie dans l'app ouverte) : elle se
-// ferme comme par Échap. Un lien choisi dans la fenêtre l'a déjà fermée avant que l'adresse ne change.
+// ferme comme par Échap. Un lien choisi dans la fenêtre l'a déjà fermée avant que l'adresse ne change. Une
+// fenêtre déjà sortie de la page n'a plus rien à fermer : elle est seulement oubliée, comme par le clavier
+// (auClavier), sans ramener le focus à un bouton que la personne a pu quitter.
 function surChangementAdresse() {
+  if (!ouverte) return;
+  if (!ouverte.calque.isConnected) {
+    oublierFenetre();
+    return;
+  }
   fermerFenetre();
 }
 
