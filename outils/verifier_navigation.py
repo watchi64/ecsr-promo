@@ -421,6 +421,17 @@ CASES_DU_FONDATEUR = {
 # « Signaler un problème » : le banc ne sert aucun compteur ; les scénarios « à traiter » avec brouillons en sèment (`compter_signalements_app`) pour que la pastille de ce
 # bouton, sur la barre sombre, soit mesurée à côté de celle de « Cours et QCM ». Le formateur du banc n'est pas le fondateur : il voit ses signalements qui ont avancé.
 COMPTEURS_SIGNALER_DU_BANC = {"nouveaux": 3, "suivis": 2}
+
+def js_compteurs_signaler():
+    """Sème les compteurs de « Signaler un problème ». Le banc de main (chantier du signalement, 28/10) répond
+    lui-même à `compter_signalements_app` depuis ses propres signalements, avant de consulter `RPC` : la fonction
+    du banc est alors doublée pour ce seul nom, sinon la pastille attendue n'aurait rien à montrer. Sans cette
+    fonction (banc plus ancien), seul `RPC` compte."""
+    return ("RPC.compter_signalements_app = %s;"
+            " if (typeof rpcSignalementBanc === 'function') { const rpcSignalementDuBanc = rpcSignalementBanc;"
+            " rpcSignalementBanc = (nom, params) => nom === 'compter_signalements_app'"
+            " ? { data: RPC.compter_signalements_app, error: null } : rpcSignalementDuBanc(nom, params); }"
+            % json.dumps(COMPTEURS_SIGNALER_DU_BANC))
 SIGNALER_DU_BANC = "2"
 
 # Aucun défilement de côté, à aucune largeur (règle de Timy du 27/10) : seule la matrice des notes (saisie case
@@ -1697,11 +1708,11 @@ def nouveau_contexte(navigateur, sc, options):
                           "option_id": None, "option_texte": None, "statut": "ouvert", "created_at": "2026-07-30T09:%02d:00Z" % i, "traite_at": None,
                           "traite_par_email": None, "question": question, "instruction": None} for i in range(SIGNALEMENTS_EN_PLUS_DU_BANC.get(sc.a_traiter, 0))]
         lignes.append("FIXTURES.qcm_signalements.push(...%s);" % json.dumps(signalements))
-        lignes.append("RPC.compter_signalements_app = %s;" % json.dumps(COMPTEURS_SIGNALER_DU_BANC))
+        lignes.append(js_compteurs_signaler())
     if sc.a_traiter == "signaler":
         # Les lectures « à traiter » échouent (aucun compte), mais « Signaler un problème » a une pastille : la personne du banc a des signalements qui ont avancé.
         lignes.append(JS_PANNE_A_TRAITER)
-        lignes.append("RPC.compter_signalements_app = %s;" % json.dumps(COMPTEURS_SIGNALER_DU_BANC))
+        lignes.append(js_compteurs_signaler())
     if sc.a_traiter == "panne":
         lignes.append(JS_PANNE_A_TRAITER)
     if sc.reglage_illisible:
