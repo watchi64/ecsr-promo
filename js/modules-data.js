@@ -20,7 +20,9 @@ export const GROUPES = ["Démarrage", "Suivi de la formation", "CCP1", "Dossier 
 // stagiaires : page des formateurs, hors modules (chantier D, lot 2).
 // emargement : page des formateurs (spec 2026-10-23) ; un stagiaire ne voit rien tant
 // qu'aucune feuille n'est ouverte, il n'y a donc rien à masquer par un module.
-export const ROUTES_SOCLE = ["home", "mon-suivi", "config", "nouveautes", "stagiaires", "emargement"];
+// preferences : Mes préférences, la page de la personne sous la nouvelle navigation (menu du compte) ;
+// avec l'ancienne, son adresse mène à config (js/nav-rules.js).
+export const ROUTES_SOCLE = ["home", "mon-suivi", "config", "nouveautes", "stagiaires", "emargement", "preferences"];
 
 // Route d'un onglet vers le module qui la gouverne.
 export const MODULE_DE_ROUTE = {
@@ -57,7 +59,7 @@ export const MODULES = [
     annonce: {
       titre: "Le planning est ouvert",
       resume: "Retrouve chaque semaine qui passe au tableau et en voiture, et avec quel "
-            + "formateur. Le bouton en haut de l'écran t'amène directement à la journée du jour.",
+            + "formateur. Le bouton Aujourd'hui t'amène directement à la journée du jour.",
       ou: { label: "Planning", route: "planning" },
     },
   },
@@ -82,22 +84,22 @@ export const MODULES = [
   },
   {
     cle: "priorites", nom: "Priorités", accord: "fp", groupe: "Suivi de la formation",
-    explication: "Qui doit passer en priorité, en salle et en voiture : bouton en haut du Planning.",
+    explication: "Qui doit passer en priorité, en salle et en voiture, dans le Planning.",
     annonce: {
       titre: "Les priorités de passage sont ouvertes",
-      resume: "Un bouton en haut du Planning montre qui doit passer en priorité, au tableau "
+      resume: "Dans le Planning, Priorités montre qui doit passer en priorité, au tableau "
             + "comme en voiture, pour que chacun ait autant de passages que les autres.",
       ou: { label: "Planning, bouton Priorités", route: "dashboard" },
     },
   },
   {
     cle: "notes", nom: "Notes", accord: "fp", groupe: "Suivi de la formation",
-    explication: "Matrice des notes, Évolution dans Mon espace, anonymat.",
+    explication: "Matrice des notes, courbe d'évolution de chaque stagiaire, anonymat.",
     annonce: {
       titre: "Les notes sont ouvertes",
-      resume: "Tes notes de thèmes s'affichent dans l'onglet Notes, avec la synthèse de la "
-            + "classe. Dans ton espace personnel, l'onglet Évolution trace ta progression. "
-            + "Si tu préfères, tu peux masquer ton prénom et tes notes aux autres dans Paramètres.",
+      resume: "Tes notes de thèmes s'affichent avec la synthèse de la classe, et une courbe "
+            + "trace ta progression. Si tu préfères, tu peux masquer ton prénom et tes notes "
+            + "aux autres dans Mes préférences.",
       ou: { label: "Notes", route: "notes" },
     },
   },
@@ -136,21 +138,21 @@ export const MODULES = [
   },
   {
     cle: "epcf", nom: "EPCF", accord: "ms", groupe: "CCP1",
-    explication: "Évaluations EPCF : les siennes dans Mon espace, les moyennes de la classe dans Notes, la saisie des formateurs dans la page Stagiaires.",
+    explication: "Évaluations EPCF : les siennes dans son suivi, les moyennes de la classe avec les notes, la saisie des formateurs dans la page Stagiaires.",
     annonce: {
       titre: "L'EPCF est ouvert",
-      resume: "Tes évaluations EPCF du CCP1, en salle et en véhicule, s'affichent dans ton "
-            + "espace personnel. La vue de la classe est dans Notes.",
+      resume: "Tes évaluations EPCF du CCP1, en salle et en véhicule, s'affichent dans l'app, "
+            + "avec les moyennes de la classe.",
       ou: { label: "Mon espace personnel, partie EPCF", route: "mon-suivi", sousOnglet: "epcf" },
     },
   },
   {
     // Plus de parent : le livret vit dans la fiche (Mon espace, page Stagiaires).
     cle: "livret", nom: "Livret EPCF", accord: "ms", groupe: "CCP1",
-    explication: "Livret officiel EPCF : celui du stagiaire dans Mon espace, la saisie des formateurs dans la page Stagiaires.",
+    explication: "Livret officiel EPCF : celui du stagiaire dans son suivi, la saisie des formateurs dans la page Stagiaires.",
     annonce: {
       titre: "Le livret EPCF est ouvert",
-      resume: "Ton livret d'évaluation officiel se consulte dans ton espace personnel. Pense "
+      resume: "Ton livret d'évaluation officiel se consulte dans l'app. Pense "
             + "à y indiquer ta date de naissance : elle est reportée automatiquement sur le "
             + "livret.",
       ou: { label: "Mon espace personnel, partie Livret", route: "mon-suivi", sousOnglet: "livret" },
@@ -158,7 +160,7 @@ export const MODULES = [
   },
   {
     cle: "dp", nom: "Dossier pro", accord: "ms", groupe: "Dossier professionnel",
-    explication: "Dossier professionnel : celui du stagiaire dans Mon espace, la relecture des formateurs dans la page Stagiaires.",
+    explication: "Dossier professionnel : celui du stagiaire dans son suivi, la relecture des formateurs dans la page Stagiaires.",
     annonce: {
       titre: "Le dossier professionnel est ouvert",
       resume: "Remplis ton dossier professionnel directement dans l'app, puis imprime-le ou "
@@ -179,11 +181,11 @@ export const MODULES = [
   },
   {
     cle: "assistant", nom: "Assistant", accord: "ms", groupe: "Outils",
-    explication: "Bulle d'aide sur les cours et le Code de la route.",
+    explication: "Assistant qui répond sur les cours et le Code de la route.",
     annonce: {
       titre: "L'assistant est ouvert",
-      resume: "Une bulle en bas de l'écran répond à tes questions sur les cours et le Code de "
-            + "la route. C'est une version d'essai : vérifie les points importants dans les cours.",
+      resume: "L'assistant répond à tes questions sur les cours et le Code de la route. "
+            + "C'est une version d'essai : vérifie les points importants dans les cours.",
     },
   },
 ];

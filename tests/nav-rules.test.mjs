@@ -118,7 +118,10 @@ for (const ancienne of ["calendrier", "ressources", "notes", "config"]) {
 // éteint ne change rien, la table ne redirige que cette route.
 eq(redirectionAncienne(adresse("preferences")), { hash: "#/config", sousOnglet: null }, "ancienne navigation : préférences vers Paramètres");
 eq(redirectionAncienne(lireAdresse("#/config")), null, "la cible des préférences n'est pas redirigée : pas de boucle");
-for (const route of [...Object.keys(MODULE_DE_ROUTE), ...ROUTES_SOCLE]) {
+// `preferences` est une route du socle (des liens « Où le trouver » y mènent) : c'est justement la seule que l'ancienne navigation redirige,
+// elle n'entre donc pas dans la boucle des routes qui ne bougent pas.
+eq(ROUTES_SOCLE.includes("preferences"), true, "Mes préférences : route du socle");
+for (const route of [...Object.keys(MODULE_DE_ROUTE), ...ROUTES_SOCLE].filter((r) => r !== "preferences")) {
   eq(redirectionAncienne(adresse(route)), null, `ancienne navigation : #/${route} reste celle de main`);
 }
 

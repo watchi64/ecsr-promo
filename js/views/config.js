@@ -243,7 +243,7 @@ function renderMyPreferencesSection(rerender) {
   const block = el("div", { class: "param-block" });
   block.appendChild(el("h4", {}, "Anonymat dans le tableau de notes"));
   block.appendChild(el("p", { class: "muted" },
-    "Si activé, les autres stagiaires ne voient plus ni ton prénom ni tes notes sur la page Notes "
+    "Si activé, les autres stagiaires ne voient plus ni ton prénom ni tes notes dans les notes de la classe "
     + "(elles restent comptées dans les moyennes du groupe). En échange, tu ne vois plus leurs notes : "
     + "seulement ta ligne, la moyenne du groupe, la moyenne haute et la moyenne basse. "
     + "Les formateurs continuent de tout voir (besoin d'évaluation)."));

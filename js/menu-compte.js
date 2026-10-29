@@ -4,7 +4,8 @@
 // pour un formateur sans profil stagiaire) quand la barre n'y mène pas déjà (ruling R30), le « Voir
 // en tant que » du fondateur, les informations légales et la déconnexion ; il y ajoute ce que
 // l'ancienne barre portait à côté : les Nouveautés (avec le nombre des non-lues, que le bouton du
-// compte ne montre plus que par un point), Mes préférences (celles de la personne, pour tous les rôles :
+// compte ne montre plus que par un point), les Contacts du centre (l'ancien onglet Ressources, qui est
+// maintenant Cours et QCM, Documents), Mes préférences (celles de la personne, pour tous les rôles :
 // les Réglages de la promo sont une entrée de la barre de l'équipe) et « Actualiser », le même geste que
 // le bouton de l'ancienne barre (seul moyen de relire les données dans l'app installée sur iPhone).
 // Popover sur ordinateur et tablette, tiroir en bas de l'écran sur téléphone (css/navigation.css),
@@ -17,7 +18,7 @@ import {
 } from "./auth-admin.js?v=20261029a";
 import { getPromoCourante } from "./db.js?v=20261029a";
 import { pagePersonnelle } from "./route-rules.js?v=20261029a";
-import { nouveautesAffichables, formateurConnecte } from "./modules-etat.js?v=20261029a";
+import { nouveautesAffichables, formateurConnecte, routeVisible } from "./modules-etat.js?v=20261029a";
 import { libellePastille } from "./nouveautes.js?v=20261029a";
 import { initialesDe, libelleRole, pageASoiDuMenu } from "./nav-rules.js?v=20261029a";
 import { ouvrirFenetre, fermerFenetre } from "./nav-fenetre.js?v=20261029a";
@@ -71,6 +72,10 @@ export function ouvrirMenuCompte(ancre, { actualiser, entrees = [], espace = nul
       ligne("a", { href: "#/nouveautes" }, icon.bell(), "Nouveautés", nonLues
         ? el("span", { class: "nav-pastille" }, nonLues, el("span", { class: "nav-invisible" }, " non lues"))
         : null),
+      // Les contacts du centre (les numéros pour prévenir d'une absence) ne sont plus un onglet : ils sont dans Cours et QCM,
+      // sous-onglet Documents, où #/ressources mène (redirection du lot 1). Pas de ligne quand le module Ressources est fermé
+      // pour la promo : un stagiaire n'y trouverait rien (un formateur voit toujours tout).
+      routeVisible("ressources") ? ligne("a", { href: "#/ressources" }, icon.phone(), "Contacts du centre") : null,
       // Pour tous les rôles : les réglages de la promo ont leur entrée chez l'équipe (Réglages, #/config), ce
       // menu ouvre ceux de la personne.
       ligne("a", { href: "#/preferences" }, icon.settings(), "Mes préférences"),

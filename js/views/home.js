@@ -289,12 +289,20 @@ export async function renderHome(container) {
       ),
       el("li", {},
         el("strong", {}, "Ctrl + Z annule la dernière action."),
-        " Sur Notes, Passages, Thèmes et Calendrier.",
+        // Nouvelle navigation : les pages portent d'autres noms (Notes n'est plus un onglet du stagiaire, Calendrier s'appelle
+        // Dates clés) ; l'ancienne garde la phrase de main.
+        v2 ? " Sur les notes, les passages, les thèmes et les dates clés." : " Sur Notes, Passages, Thèmes et Calendrier.",
       ),
     ),
   ));
 
   // === Footer ===
+  // Lien de réglage du pied. Ancienne navigation : « paramètres » (la page Paramètres). Nouvelle : un stagiaire va à ses
+  // préférences (#/preferences, la page de la personne), l'équipe aux réglages de la promo (#/config) ; « Réglages » est
+  // réservé à l'équipe, jamais proposé à un stagiaire.
+  const lienReglages = !v2 ? el("a", { href: "#/config" }, "paramètres")
+    : (isAdmin() || isProf()) ? el("a", { href: "#/config" }, "réglages")
+    : el("a", { href: "#/preferences" }, "mes préférences");
   container.appendChild(el("footer", { class: "home-footer-v2" },
     el("p", {},
       "TP ECSR App · Promo 2026 · ",
@@ -303,7 +311,7 @@ export async function renderHome(container) {
     el("p", { class: "muted", style: "margin-top:0.3rem;font-size:0.78rem" },
       el("a", { href: "https://github.com/watchi64/ecsr-promo", target: "_blank" }, "code source"),
       " · ",
-      el("a", { href: "#/config" }, "paramètres"),
+      lienReglages,
     ),
   ));
 }

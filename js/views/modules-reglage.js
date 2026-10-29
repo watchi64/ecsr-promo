@@ -26,7 +26,12 @@ function laPromo() {
   return nom ? `la promo « ${nom} »` : "la promo affichée";
 }
 
-const SOCLE = "Toujours ouverts : Accueil, Mon espace personnel (Passages), Paramètres, Nouveautés.";
+// Ce qu'un stagiaire a toujours, quel que soit le réglage, sous le nom que lui donne sa barre. Lu au rendu et non à
+// l'import : la navigation de la session n'est connue qu'après le démarrage. Nouvelle navigation : sa page est Mon suivi,
+// et ses préférences (Mes préférences, jamais Réglages, la page de la promo) s'ouvrent par le menu du compte.
+const socle = () => (navigationV2Active()
+  ? "Toujours ouverts : Accueil, Mon suivi (Passages), Mes préférences, Nouveautés."
+  : "Toujours ouverts : Accueil, Mon espace personnel (Passages), Paramètres, Nouveautés.");
 
 // Demandée avant la première bascule d'une case sur une promo libre ou illisible : cette
 // bascule fige un réglage pour tous les stagiaires de la promo, et l'état « aucun réglage »
@@ -117,7 +122,7 @@ export function renderModulesSection() {
   ));
 
   if (!estReglee(etat)) section.appendChild(bandeauDepart(etat));
-  section.appendChild(el("p", { class: "modules-socle muted" }, SOCLE));
+  section.appendChild(el("p", { class: "modules-socle muted" }, socle()));
 
   for (const groupe of GROUPES) {
     const membres = MODULES.filter((m) => m.groupe === groupe);

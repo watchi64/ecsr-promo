@@ -11,10 +11,63 @@
 // module est fermé). Sans `module`, il est déduit du lien `ou` ; le préciser
 // dès que le lien ne suffit pas (une nouveauté sur les QCM qui mène à Thèmes).
 //
+// Deux navigations coexistent (js/nav-etat.js : l'interrupteur de la promo). Le champ
+// `navigation` ("nouvelle" | "ancienne") réserve une entrée à l'une : « nouvelle » ne se lit que
+// nouvelle barre allumée, « ancienne » que si elle est éteinte (l'entrée ne décrit que l'ancienne
+// barre) ; sans lui, l'entrée se lit dans les deux. `guideNouvelle` (facultatif) remplace `guide`
+// quand la nouvelle navigation est allumée. Une entrée d'avant la refonte garde le nom de
+// l'ancienne barre dans `ou.label` et dans `guide` : le libellé du lien est réécrit au
+// rendu (js/ou-trouver.js), les étapes ont leur `guideNouvelle`, le récit daté (titre, resume)
+// n'est pas réécrit.
+//
 // Public : la promo, des adultes en reconversion. Pas de vocabulaire technique,
 // pas de numéro de version, pas de nom de fichier.
 
 export const NOUVEAUTES = [
+  {
+    id: "2026-10-28-nouvelle-navigation",
+    date: "2026-10-28",
+    pour: "tous",
+    navigation: "nouvelle",
+    titre: "Une navigation plus simple",
+    resume: "La barre de l'app change pour aller plus vite à l'essentiel. Sur le téléphone, les pages "
+          + "principales sont en bas de l'écran, à portée de pouce, chacune avec son nom. Le Planning regroupe "
+          + "la semaine, les dates clés et les priorités ; Cours et QCM regroupe les thèmes, les compétences "
+          + "et les documents. Les notes de la classe sont maintenant dans Mon suivi, La classe (chez les "
+          + "formateurs, dans Notes et examens), et les contacts du centre dans le menu de ton compte.",
+    guide: [
+      "En haut du Planning, le bouton « Aujourd'hui » t'amène à la journée du jour.",
+      "Ton compte s'ouvre avec tes initiales, en haut à droite (sur ordinateur, les formateurs le trouvent "
+        + "en bas de la barre de gauche). Un point y signale des Nouveautés pas encore lues ; leur nombre est dans le menu.",
+      "Dans le menu du compte : les Nouveautés, les contacts du centre (pour prévenir d'une absence), "
+        + "Mes préférences, « Actualiser », les informations légales et la déconnexion.",
+      "L'assistant s'ouvre avec le bouton « Assistant », en haut de l'écran (en bas de la barre de gauche "
+        + "pour les formateurs sur ordinateur).",
+    ],
+  },
+  {
+    id: "2026-10-28-nouvelle-navigation-formateurs",
+    date: "2026-10-28",
+    pour: "formateurs",
+    navigation: "nouvelle",
+    titre: "Côté formateurs, la barre passe à gauche",
+    resume: "Sur ordinateur, la barre de l'équipe est maintenant à gauche, avec la promo en tête ; elle se "
+          + "replie en colonne d'icônes et l'app s'en souvient. Le compte et l'assistant sont en bas de cette "
+          + "barre. Sur téléphone, Accueil, Planning, Stagiaires et Notes sont en bas de l'écran, « Plus » "
+          + "ouvre le reste (Émargement, Cours et QCM, CCP2, Indicateurs, Réglages), et le bouton Assistant "
+          + "est en haut, à côté de ton compte. Les élèves bénévoles se trouvent maintenant dans Stagiaires.",
+    ou: { label: "Stagiaires, Élèves bénévoles", route: "stagiaires", sousOnglet: "benevoles" },
+    guide: [
+      "Replie la barre de gauche avec le bouton en haut de la barre : l'app retient ton choix.",
+      "En bas de la barre : l'assistant, « Signaler un problème » et ton compte (Nouveautés, contacts du "
+        + "centre, Mes préférences).",
+      "Sur téléphone, « Plus » ouvre les autres pages, et le bouton « Assistant » est dans l'en-tête, à "
+        + "côté de ton compte.",
+      "Les élèves bénévoles sont dans Stagiaires, sous-onglet « Élèves bénévoles » ; le bouton du Planning y mène aussi.",
+      "Réglages ne garde que la promo (ce que voient les stagiaires, les accès, les données personnelles) : "
+        + "tes préférences à toi sont dans le menu de ton compte.",
+    ],
+  },
   {
     id: "2026-10-28-signaler-un-probleme",
     date: "2026-10-28",
@@ -36,8 +89,8 @@ export const NOUVEAUTES = [
     module: "assistant",
     titre: "L'assistant, plus facile à manier sur le téléphone",
     resume: "La croix pour fermer l'assistant se voit enfin, et sur le téléphone ses boutons sont plus "
-          + "grands, donc plus faciles à toucher. Quand un bandeau s'affiche en bas de l'écran, la bulle "
-          + "et la zone où tu écris passent au-dessus de lui au lieu d'être cachées.",
+          + "grands, donc plus faciles à toucher. Quand un bandeau s'affiche en bas de l'écran, le bouton "
+          + "de l'assistant et la zone où tu écris passent au-dessus de lui au lieu d'être cachés.",
   },
   {
     id: "2026-10-27-textes-plus-lisibles",
@@ -119,6 +172,11 @@ export const NOUVEAUTES = [
       "Touche « Méthode » sous un chiffre pour voir son calcul.",
       "« Exporter en PDF » pour l'imprimer ; « Matrice des notes (CSV) » pour l'ouvrir dans Excel.",
     ],
+    guideNouvelle: [
+      "Ouvre Indicateurs, dans la barre de gauche (groupe Promo) ; sur téléphone, dans « Plus ».",
+      "Touche « Méthode » sous un chiffre pour voir son calcul.",
+      "« Exporter en PDF » pour l'imprimer ; « Matrice des notes (CSV) » pour l'ouvrir dans Excel.",
+    ],
   },
   {
     id: "2026-10-23-marquage-t4",
@@ -163,6 +221,11 @@ export const NOUVEAUTES = [
     ou: { label: "Paramètres", route: "config" },
     guide: [
       "Paramètres, partie Promo : « Abandon » sur le stagiaire concerné.",
+      "Dans « Abandons », bouton « Effacer les données », puis tape son prénom pour confirmer.",
+      "Partie « Données personnelles » : l'anonymisation de la promo et les élèves bénévoles inactifs.",
+    ],
+    guideNouvelle: [
+      "Réglages, partie Promo : « Abandon » sur le stagiaire concerné.",
       "Dans « Abandons », bouton « Effacer les données », puis tape son prénom pour confirmer.",
       "Partie « Données personnelles » : l'anonymisation de la promo et les élèves bénévoles inactifs.",
     ],
@@ -261,11 +324,17 @@ export const NOUVEAUTES = [
       "Choisis un stagiaire : sa fiche s'ouvre à côté de la liste, ou en plein écran sur téléphone.",
       "Partie EPCF : Évaluer ou Modifier chaque épreuve. Parties Livret et Dossier pro : remplis-les ou relis-les.",
     ],
+    guideNouvelle: [
+      "Ouvre Stagiaires, dans la barre de gauche (sur téléphone, en bas de l'écran).",
+      "Choisis un stagiaire : sa fiche s'ouvre à côté de la liste, ou en plein écran sur téléphone.",
+      "Partie EPCF : Évaluer ou Modifier chaque épreuve. Parties Livret et Dossier pro : remplis-les ou relis-les.",
+    ],
   },
   {
     id: "2026-10-03-sommaire-iphone",
     date: "2026-10-03",
     pour: "tous",
+    navigation: "ancienne",
     titre: "Ton espace personnel sur téléphone : un sommaire",
     resume: "Sur téléphone, ton espace s'ouvre sur un sommaire : Passages, EPCF, Évolution, Livret "
           + "et Dossier pro, chacun avec son état. Touche une ligne pour l'ouvrir ; la flèche en "
@@ -295,11 +364,20 @@ export const NOUVEAUTES = [
       "Avant d'inviter les stagiaires de septembre : Paramètres, « Modules de la promo », "
         + "« Partir de l'ensemble de départ ».",
     ],
+    guideNouvelle: [
+      "Touche la promo en tête de la barre de gauche (sur téléphone, en haut de l'écran).",
+      "Choisis « Montpellier, septembre 2026 » : la page se recharge sur cette promo.",
+      "Dans Réglages, ajoute les stagiaires de la promo (prénom et nom de famille), puis "
+        + "prépare les dates clés et le planning.",
+      "Avant d'inviter les stagiaires de septembre : Réglages, « Ce que voient les stagiaires », "
+        + "« Partir de l'ensemble de départ ».",
+    ],
   },
   {
     id: "2026-10-03-barre-simple",
     date: "2026-10-03",
     pour: "tous",
+    navigation: "ancienne",
     module: "themes",
     titre: "Une barre d'onglets plus simple",
     resume: "L'onglet Thèmes s'appelle maintenant Cours, avec deux sous-onglets : Thèmes et "
@@ -583,11 +661,17 @@ export const NOUVEAUTES = [
       "Va sur le sous-onglet « Dossier pro ».",
       "Remplis tes exemples, puis imprime ou enregistre en PDF quand tu es prêt.",
     ],
+    guideNouvelle: [
+      "Ouvre Mon suivi, dans la barre.",
+      "Va sur le sous-onglet « Dossier pro ».",
+      "Remplis tes exemples, puis imprime ou enregistre en PDF quand tu es prêt.",
+    ],
   },
   {
     id: "2026-07-23-espace-personnel",
     date: "2026-07-23",
     pour: "tous",
+    navigation: "ancienne",
     titre: "L'app s'ouvre sur ton espace personnel",
     resume: "En arrivant, tu vois d'abord ce qui te concerne : tes prochains créneaux, tes "
           + "passages déjà effectués et tes résultats. L'ancien tableau de bord s'appelle "
@@ -626,6 +710,11 @@ export const NOUVEAUTES = [
     guide: [
       "Renseigne ta date de naissance dans ton espace personnel si ce n'est pas déjà fait.",
       "Ouvre l'onglet Notes, sous-onglet « Livret EPCF ».",
+      "Remplis le livret, puis imprime ou enregistre en PDF.",
+    ],
+    guideNouvelle: [
+      "Ouvre Mon suivi, partie Livret.",
+      "Renseigne ta date de naissance si ce n'est pas déjà fait.",
       "Remplis le livret, puis imprime ou enregistre en PDF.",
     ],
   },

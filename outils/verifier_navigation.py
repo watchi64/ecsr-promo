@@ -41,7 +41,8 @@ manque) :
     champ et « Envoyer » à portée : rien ne couvre leur centre). S'y ajoute, une fois par moteur,
     l'ouverture d'un formateur dont l'appareil a vu la promo allumée (mémoire `ecsr_nav_v2_promo:1`,
     ruling R17), lectures des réglages ralenties : l'ancienne barre ne se peint à aucune image avant
-    la coquille (échantillon à chaque image) et l'attente (`body[data-nav-attente]`) est levée.
+    la coquille (échantillon à chaque image) et l'attente (`body[data-nav-attente]`) est levée. Et, le module Ressources
+    fermé pour la promo (lot 2A, tâche 1), un stagiaire sans drapeau de fondateur puis un formateur : la ligne « Contacts du centre » du menu du compte.
   * Passe « éteint » : aucun aperçu, rien ne doit changer par rapport à main (aucune coquille,
     l'ancienne barre d'onglets, pas de sous-onglets regroupés, aucun défilement ni débordement de côté),
     sauf trois défauts de main corrigés depuis : la barre des
@@ -51,7 +52,8 @@ manque) :
     « Prochain événement majeur » de l'accueil, où un stage commencé n'est plus un nombre de jours négatif
     (lot 2A, tâche 4). Y sont gardés, avec leurs textes d'avant : l'accueil (logo à côté de la date,
     phrase sur le suivi de la promo, tuiles), le Planning (« Cette semaine », « Lecture seule... »), la
-    page Notes du stagiaire, les comptes en surtitre, les horaires du bandeau d'émargement sur téléphone.
+    page Notes du stagiaire, les comptes en surtitre, les horaires du bandeau d'émargement sur téléphone, les Nouveautés d'avant (leurs « Où le trouver » et leurs « Comment faire »,
+    sans les deux de lancement). S'y ajoute un stagiaire sans drapeau de fondateur dont l'appareil porte l'aperçu d'un fondateur (lot 2A, tâche 1) : l'aperçu n'est pas pour lui.
 Sur téléphone, le contexte de l'équipe joue en plus l'en-tête à 320 px (LARGEUR_ETROITE) : la fenêtre se resserre le temps de la vérification de l'Assistant.
 Dans chaque contexte : l'arrivée à froid, chaque entrée de la coquille (cliquée dans la coquille, ou
 via « Plus » sur téléphone quand elle y est rangée ; la liste vient des règles de js/nav-rules.js,
@@ -172,6 +174,24 @@ Contrôles par vue
     page et son sous-onglet allumé (Planning : Dates clés, Priorités ; Cours : Documents ; Mon espace : La classe chez
     le stagiaire, mais Notes reste la page de l'équipe ; module fermé au départ : le premier sous-onglet visible),
     et « Précédent » quitte la page redirigée ; éteint, l'adresse et la page restent celles d'aujourd'hui ;
+  * Nouveautés et « Où le trouver » (lot 2A, tâche 1) : allumé, la rubrique (#/nouveautes) montre « Une navigation plus simple » à tous et « Côté formateurs, la barre passe à
+    gauche » à l'équipe seule (le fondateur en aperçu, sur une promo éteinte, voit les deux ; un stagiaire sans drapeau de fondateur d'une promo allumée, la première seulement),
+    et aucune des trois Nouveautés qui ne décrivent que l'ancienne barre. Le lien « Où le trouver » de dix Nouveautés d'avant (cinq de plus pour l'équipe) porte le nom de la
+    nouvelle barre (Mon suivi, La classe ; Planning, Priorités ; Cours et QCM, Documents ; Mes préférences chez le stagiaire, Réglages chez l'équipe, jamais l'inverse), son
+    adresse restant celle de main ; leur « Comment faire » est celui de la nouvelle barre ; le lien de la Nouveauté de l'équipe ouvre Stagiaires, sous-onglet « Élèves bénévoles ».
+    L'accueil ouvre sa section de Nouveautés par celles du lancement. Éteint, aucune des deux (même chez l'équipe, même chez un stagiaire sans drapeau de fondateur dont l'appareil
+    porte l'aperçu d'un fondateur : l'aperçu n'est pas pour lui), les trois de l'ancienne barre sont là, et chaque lien et chaque première étape est celui de main ;
+  * ligne « Contacts du centre » du menu du compte (lot 2A, tâche 1) : entre « Nouveautés » et « Mes préférences », vers #/ressources ; cliquée, elle ouvre Cours et QCM, Documents, avec sa
+    section « Contacts du centre ». Quand le module Ressources est fermé pour la promo (scénario « ressources fermées »), la ligne disparaît chez un stagiaire (elle ne mènerait nulle
+    part) et reste chez l'équipe, qui voit tout ;
+  * mots de l'ancienne barre (lot 2A, tâche 1) : allumé, aucune vue (page, coquille, menus et tiroirs ouverts) ne dit « Mon espace » ni « Paramètres » ; éteint, aucune page ni l'ancienne barre
+    ne dit « Mon suivi ». Seuls le titre et le récit des cartes de Nouveautés n'en font pas partie : un récit daté d'un changement passé n'est jamais réécrit (le « Où le trouver » et
+    le « Comment faire » de ces mêmes cartes comptent). Éteint, la règle du Planning sur la « fiche « Mon suivi » » du stagiaire est un texte de main, admis ;
+  * accueil, Réglages, Mes préférences et CCP2, dans les deux navigations (lot 2A, tâche 1) : la dernière ligne de « À retenir » (Ctrl + Z : « Sur les notes, les passages, les thèmes et
+    les dates clés » allumé, « Sur Notes, Passages, Thèmes et Calendrier » éteint) ; le lien de réglage du pied (« mes préférences » chez le stagiaire, « réglages » chez l'équipe,
+    « paramètres » éteint) ; la phrase des modules toujours ouverts de Réglages (« Mon suivi (Passages), Mes préférences » allumé, « Mon espace personnel (Passages), Paramètres »
+    éteint) ; le texte de l'anonymat des notes (« dans les notes de la classe », jamais « sur la page Notes ») ; le lien du parcours CCP2 vers le dossier professionnel (« Ton dossier
+    professionnel, à remplir dans l'app ») ;
   * aucune erreur de console ni de page.
 
 Contrat de balisage de la coquille (Tasks 4 et 5)
@@ -266,6 +286,13 @@ par `--script-init`, et le script a échoué avec le message attendu ; la coquil
     la promo (2 des 6 combinaisons échouent : aperçu allumé sans mémoire, cochée à tort ; aperçu éteint avec mémoire, décochée à tort), pastille de « Signaler un problème » à son vert
     d'origine sur la barre sombre (2,93:1), levée dans la pose des comptes sans le try/catch (coquille absente, erreur de console « la nouvelle barre n'a pas pu se monter »)
     et avec lui (barre posée, sans erreur, seulement les repères manquants) ;
+  * Nouveautés, Contacts du centre et textes des deux navigations (lot 2A, tâche 1, injectés dans les sources puis retirés) : Nouveautés de lancement absentes allumé ou montrées éteint
+    (le filtre par navigation de `visibles` ignoré, ou toujours allumé), « Où le trouver » non réécrit allumé ou réécrit éteint, l'équipe lue comme un stagiaire (Mes préférences, Mon suivi,
+    La classe) et le stagiaire comme l'équipe (Réglages), `guideNouvelle` ignoré, ligne « Contacts du centre » retirée, qui mène ailleurs, placée après « Mes préférences » ou montrée à un
+    stagiaire quand le module Ressources est fermé, pied de l'Accueil en « paramètres » allumé ou en « réglages » chez le stagiaire, ligne Ctrl + Z de main allumé ou neuve éteint, phrase des
+    modules toujours ouverts de main allumé, texte de l'anonymat sur « la page Notes », lien du parcours CCP2 dans sa forme d'avant, une Nouveauté de l'ancienne barre visible allumé, un mot de
+    l'ancienne barre dans une page (« Paramètres ») ou de la nouvelle dans l'ancienne (« Mon suivi »), l'aperçu d'un fondateur appliqué à qui ne l'est pas, lien des bénévoles qui n'écrit pas la
+    mémoire du sous-onglet de Stagiaires (le contrôle part du premier sous-onglet : l'exploration des sous-onglets laissait le dernier ouvert, et le défaut passait) ;
   * mise en place : erreur de console et de page, interrupteur qui n'allume pas, banc périmé.
 Sans défaut, n'échouent pas : un bouton `data-nav-action="deconnexion"` (pas un ouvreur), un lien d'évitement
 masqué (ni mesuré comme cible, ni sans nom), un nom pris par `aria-labelledby`, `<label for>` ou `<title>` SVG.
@@ -306,6 +333,8 @@ DATE_DU_BANC = "2026-10-27"    # « aujourd'hui » figé (même date que les aut
 CLE_APERCU = "ecsr_nav_v2"     # aperçu du fondateur, propre à l'appareil (js/nav-etat-regles.js)
 CLE_REGLAGE = "navigation_v2"  # réglage de la promo, ligne de `settings` (js/nav-etat-regles.js)
 CLE_MEMOIRE_PROMO_1 = "ecsr_nav_v2_promo:1"   # mémoire de l'appareil pour la promo 1 du banc (cleMemoire, ruling R17)
+CLE_SOUS_ONGLET_STAGIAIRES = "stagiaires.subtab"   # mémoire du sous-onglet de la page Stagiaires (CLES_SOUS_ONGLETS, js/nav-rules.js)
+CLE_SOUS_ONGLET_COURS = "themes.subtab"          # celle de Cours et QCM
 LENTEUR_DEMARRAGE_MS = 600     # lectures des réglages ralenties dans le scénario de l'ouverture (ruling R17)
 
 # « À traiter » (lot 2A, tâche 6) : ce que la barre de l'équipe montre sur « Cours et QCM » (js/a-traiter.js). Le banc sert cinq signalements
@@ -782,6 +811,35 @@ function chercherPlus() {
   return !!c;
 }
 
+// ---- Les mots de l'ancienne barre (lot 2A, tâche 1) ----
+// Sous la nouvelle navigation, ni la page, ni la coquille (barres, menus et tiroirs ouverts compris) ne disent « Mon espace » (Mon suivi) ni
+// « Paramètres » (Réglages, ou Mes préférences chez le stagiaire) : leur texte entier, étapes repliées des Nouveautés et liens « Où le trouver »
+// compris. N'en font pas partie le titre et le récit des cartes de Nouveautés (`.nv-titre`, `.nv-resume`) : un récit daté d'un changement passé
+// n'est jamais réécrit (« voient en haut de « Mon espace » une invitation », 15/10). Rend la phrase de l'échec, ou null.
+function motsDAvant() {
+  const clone = document.getElementById("view").cloneNode(true);
+  clone.querySelectorAll(".nv-titre, .nv-resume").forEach((e) => e.remove());
+  const coquille = [...document.querySelectorAll("[data-nav-coquille]")].map((e) => e.textContent).join(" ");
+  const lu = net(clone.textContent + " " + coquille);
+  const m = /\bMon espace\b|\bParamètres\b/i.exec(lu);
+  return m ? `la page dit « ${m[0]} » : …${lu.slice(Math.max(0, m.index - 30), m.index + 30)}…` : null;
+}
+// La rubrique Nouveautés affichée : chaque carte dans l'ordre, avec son titre, la puce « Formateurs », son lien « Où le trouver » (le libellé et
+// l'adresse) et ses étapes « Comment faire ». Sur l'Accueil, les cartes sont les trois plus récentes ; les étapes y sont repliées mais présentes.
+function nouveautes() {
+  return [...document.querySelectorAll("#view .nv-carte")].map((c) => {
+    const ou = c.querySelector(".nv-ou");
+    return { titre: net(c.querySelector(".nv-titre").textContent), formateurs: !!c.querySelector(".nv-puce-role"),
+      ou: ou ? { texte: net(ou.querySelector("strong").textContent), href: ou.getAttribute("href") } : null,
+      guide: [...c.querySelectorAll(".nv-guide li")].map((li) => net(li.textContent)) };
+  });
+}
+// La page CCP2 : le lien vers le dossier professionnel du parcours (étape 8, dont les liens sont dans un panneau replié : le texte écrit, pas le texte affiché).
+function lienDossierPro() {
+  const a = document.querySelector('#view .ccp2-liens a[href="#/mon-suivi/dp"]');
+  return a ? { texte: net(a.textContent), href: a.getAttribute("href") } : null;
+}
+
 // ---- Mesure d'une vue ----
 async function mesurer(o) {
   const echecs = [], dettes = [], avert = [];
@@ -805,6 +863,11 @@ async function mesurer(o) {
     const lu = net([vue, document.getElementById("emargement-bandeau")].filter(Boolean).map((e) => e.innerText).join(" "));
     const dit = /\badmins?\b/i.exec(lu);
     if (dit) echecs.push(["texte d'administration chez le stagiaire", `la page dit « ${dit[0]} » : …${lu.slice(Math.max(0, dit.index - 30), dit.index + 30)}…`]);
+  }
+  // Lot 2A, tâche 1 : sous la nouvelle navigation, rien de ce que la personne lit ne nomme une destination de l'ancienne barre.
+  if (allume && o.coquille) {
+    const mots = motsDAvant();
+    if (mots) echecs.push(["mots de l'ancienne barre", mots]);
   }
 
   // Défilements et débordements de côté : la même classification interrupteur allumé ou éteint, car la
@@ -863,6 +926,13 @@ function mesurerAncienne(route, echecs, barres) {
   if (route === "mon-suivi" && libelles.some((l) => l.startsWith("la classe"))) echecs.push(["page regroupée, interrupteur éteint", "Mon espace montre la partie La classe"]);
   // Le bouton « Aujourd'hui » de la page (ruling R29) n'appartient qu'à la nouvelle navigation : éteint, il est dans la barre du haut.
   if (route === "planning" && document.querySelector("#view .p-aujourdhui")) echecs.push(["page regroupée, interrupteur éteint", "le Planning montre le bouton « Aujourd'hui » de la nouvelle navigation"]);
+  // Lot 2A, tâche 1 : « Mon suivi » est le nom que la nouvelle navigation donne à Mon espace ; l'ancienne ne le dit nulle part (page et barre), hors deux textes de main : le
+  // récit daté d'une ancienne Nouveauté (« ouvrir l'app te ramenait toujours sur Mon suivi », 16/09) et la règle du Planning sur la « fiche « Mon suivi » » du stagiaire (planning.js).
+  const lu = document.getElementById("view").cloneNode(true);
+  lu.querySelectorAll(".nv-titre, .nv-resume").forEach((e) => e.remove());
+  const barre = document.getElementById("tabs");
+  const nouveau = /\bMon suivi\b/.exec(net(lu.textContent + " " + (barre ? barre.textContent : "")).replace(/fiche « Mon suivi »/g, ""));
+  if (nouveau) echecs.push(["texte de la nouvelle navigation, interrupteur éteint", `la page dit « ${nouveau[0]} », le nom que ne connaît que la nouvelle navigation`]);
 }
 
 function mesurerCoquille(o, route, W, H, tel, echecs, avert, R) {
@@ -1047,7 +1117,9 @@ async function pageDeReglages() {
   const de = (s) => { const e = vue.querySelector(s); return e ? net(e.textContent) : null; };   // le texte écrit : le surtitre s'affiche en capitales
   return { route: (location.hash || "").replace(/^#\//, "").split("/")[0], promo: (db.getPromoCourante() || {}).nom || null,
     surtitre: de(".view-header .eyebrow"), titre: de(".view-header h2"), sousTitre: de(".view-header .subtitle"),
-    sections: [...vue.querySelectorAll(".param-section > .param-section-head h3")].map(texte), texte: texte(vue) };
+    sections: [...vue.querySelectorAll(".param-section > .param-section-head h3")].map(texte), texte: texte(vue),
+    // Lot 2A, tâche 1 : la phrase « Toujours ouverts : ... » du réglage des modules, et le texte de l'anonymat des notes (Mes préférences, ou Paramètres).
+    socle: de(".modules-socle"), anonymat: [...vue.querySelectorAll(".param-block")].map((b) => net(b.textContent)).find((t) => /^Anonymat/.test(t)) || null };
 }
 // Le bouton du compte affiché, et ce que l'app compte de nouveautés non lues (`pastille` : le texte de libellePastille,
 // "" à zéro, "1" à "9", "9+") : le texte que le bouton montre réellement, son point (visible, sa taille, son texte) et son nom.
@@ -1168,6 +1240,9 @@ async function accueil() {
     logos: vue.querySelectorAll(".home-hero-logo").length,
     tuiles: [...vue.querySelectorAll(".home-tile .home-tile-title")].map(texte),
     lead: lead ? net(lead.textContent) : null,
+    // Lot 2A, tâche 1 : la dernière ligne de « À retenir » (Ctrl + Z) et le lien de réglage du pied de page (texte écrit et adresse).
+    retenir: (() => { const li = vue.querySelector(".home-info-list li:last-child"); return li ? net(li.textContent) : null; })(),
+    pied: (() => { const a = vue.querySelector(".home-footer-v2 a[href^='#/']"); return a ? { texte: net(a.textContent), href: a.getAttribute("href") } : null; })(),
     carte: carte ? { titre: de(carte, ".home-countdown-title"), pastille: de(carte, ".home-countdown-pill"),
       statut: de(carte, ".home-countdown-statut"), texte: texte(carte) } : null,
     evenements: (await db.listAgendaEvents()).map((e) => ({ type: e.type, titre: e.title, debut: e.date_start, fin: e.date_end })),
@@ -1222,7 +1297,7 @@ function bandeauEmargement() {
 window.__verifNav = { mesurer, regles: reglesSimples, voirEnTantQue, chercherLien, chercherPlus, ouvreurs, marquerPopups, mesurerPopups,
   popupsEncoreOuverts, focusSurOuvreur, focusPerdu, popupsVisibles: () => popupsVisibles().length, controlesAssistant,
   pageDeReglages, boutonDuCompte, menuDuCompte, enTeteDePage, panneauBenevoles, enTeteDeLEquipe,
-  accueil, comptesDesPages, planningSemaine, laClasse, epcfDeLEquipe, bandeauEmargement, aTraiter };
+  accueil, comptesDesPages, planningSemaine, laClasse, epcfDeLEquipe, bandeauEmargement, aTraiter, nouveautes, lienDossierPro };
 })();
 """
 
@@ -1294,10 +1369,14 @@ class Scenario:
     agenda_vide: bool = False   # la date du banc recule après le dernier événement : l'accueil n'a rien à venir (lot 2A, tour de correction 1)
     a_traiter: str = ""         # scénario « à traiter » (A_TRAITER_DU_BANC) : "ia", "beaucoup", "panne" ou "lent" ; vide pour tous les autres (lot 2A, tâche 6)
     reglage_illisible: str = ""       # la lecture du réglage de la promo échoue : la case du fondateur, une clé de CASES_DU_FONDATEUR (lot 2A, tâche 6, ruling R54)
+    ressources_fermees: bool = False  # le module Ressources est fermé pour la promo : la ligne « Contacts du centre » du menu du compte (lot 2A, tâche 1)
 
     @property
     def nom(self):
         variante = "-sans-droits" if self.sans_droits else ""
+        # Passe éteinte avec un aperçu sur l'appareil : celui d'un fondateur, posé chez qui ne l'est pas (il n'est pas pour lui).
+        variante += "-apercu-ignore" if self.passe == "eteint" and self.allumage == "apercu" else ""
+        variante += "-ressources-fermees" if self.ressources_fermees else ""
         variante += ("-" + self.modules) if self.modules else ""
         variante += "-voir-en-tant-que" if self.voir_en_tant_que else ""
         variante += "-demarrage" if self.demarrage else ""
@@ -1364,6 +1443,12 @@ def construire_scenarios(moteurs, roles, largeurs, passes):
                 # l'aperçu, dans les six combinaisons d'aperçu et de mémoire.
                 for cle in CASES_DU_FONDATEUR:
                     scenarios.append(Scenario(moteur, "allume", "fondateur", largeurs[0], "aucun", "equipe", reglage_illisible=cle))
+            # Le module Ressources fermé (lot 2A, tâche 1) : la ligne « Contacts du centre » du menu du compte, absente chez un stagiaire (elle ne mènerait nulle
+            # part), gardée par l'équipe qui voit tout.
+            if "stagiaire" in roles:
+                scenarios.append(Scenario(moteur, "allume", "stagiaire", largeurs[0], "reglage", "stagiaire", sans_droits=True, ressources_fermees=True))
+            if "prof" in roles:
+                scenarios.append(Scenario(moteur, "allume", "prof", largeurs[0], "reglage", "equipe", ressources_fermees=True))
             if "prof" in roles:
                 # Un formateur sans aperçu, dont l'appareil a vu la promo allumée : son ouverture seule (ruling R17).
                 scenarios.append(Scenario(moteur, "allume", "prof", largeurs[0], "reglage", "equipe", demarrage=True))
@@ -1382,6 +1467,10 @@ def construire_scenarios(moteurs, roles, largeurs, passes):
                     scenarios.append(Scenario(moteur, "eteint", role, l))
             if "prof" in roles:
                 scenarios.append(Scenario(moteur, "eteint", "prof", largeurs[0], agenda_vide=True))
+            if "stagiaire" in roles:
+                # Un stagiaire sans drapeau de fondateur, sur une promo éteinte, dont l'appareil porte l'aperçu d'un fondateur (lot 2A, tâche 1) : l'aperçu
+                # n'est pas pour lui, la navigation reste l'ancienne et aucune Nouveauté de la nouvelle ne s'affiche.
+                scenarios.append(Scenario(moteur, "eteint", "stagiaire", largeurs[0], "apercu", sans_droits=True))
             if "fondateur" in roles:
                 # Ancienne barre, les deux bandeaux du bas affichés : la bulle et le panneau de l'assistant
                 # restent à portée (à 375 et 900 px, ils les couvraient sur main).
@@ -1526,6 +1615,10 @@ def nouveau_contexte(navigateur, sc, options):
         # Aucun module ouvert pour la promo : chaque entrée de l'équipe porte l'œil « masqué aux stagiaires » (le banc n'a pas de scénario qui ferme aussi les Documents,
         # et Cours et QCM n'est repéré que quand ses Documents le sont aussi).
         lignes.append("FIXTURES.settings.push({ key: 'modules', value: JSON.stringify({ v: 1, depuis: '2026-10-05T08:00:00.000Z', ouverts: {} }) });")
+    if sc.ressources_fermees:
+        # L'ensemble de départ (Planning, Calendrier, Ressources) sans Ressources : les contacts du centre ne sont plus pour les stagiaires (lot 2A, tâche 1).
+        lignes.append("FIXTURES.settings.push({ key: 'modules', value: JSON.stringify({ v: 1, depuis: '2026-10-05T08:00:00.000Z', "
+                      "ouverts: { planning: '2026-10-05T08:00:00.000Z', calendrier: '2026-10-05T08:00:00.000Z' } }) });")
     contexte.route("**/*", lambda route: servir_depuis_le_cache(route, lignes))
     if options.get("script_init"):
         contexte.add_init_script(path=options["script_init"])
@@ -2108,6 +2201,18 @@ def verifier_menu_du_compte(page, res, sc, moment=None):
         res.echec("menu du compte", vue, "« Mes préférences » mène à %s, attendu #/preferences" % lignes["Mes préférences"]["href"])
     if "Réglages" in lignes:
         res.echec("menu du compte", vue, "le menu garde une ligne « Réglages » : elle n'est plus qu'une entrée de la barre de l'équipe")
+    # Les contacts du centre (lot 2A, tâche 1) : une ligne qui mène à #/ressources (la redirection du lot 1 l'envoie à Cours et QCM > Documents), entre
+    # « Nouveautés » et « Mes préférences ». Le banc ouvre le module Ressources dans tous les scénarios de ce menu (jouer_ressources_fermees joue l'autre cas).
+    ordre = list(lignes)
+    if "Contacts du centre" not in lignes:
+        res.echec("menu du compte", vue, "la ligne « Contacts du centre » manque (lignes : %s)" % ", ".join(ordre))
+    else:
+        if lignes["Contacts du centre"]["href"] != "#/ressources":
+            res.echec("menu du compte", vue, "« Contacts du centre » mène à %s, attendu #/ressources" % lignes["Contacts du centre"]["href"])
+        voisines = [x for x in ordre if x in ("Nouveautés", "Contacts du centre", "Mes préférences")]
+        if voisines != ["Nouveautés", "Contacts du centre", "Mes préférences"] or ordre.index("Contacts du centre") != ordre.index("Nouveautés") + 1 \
+                or ordre.index("Mes préférences") != ordre.index("Contacts du centre") + 1:
+            res.echec("menu du compte", vue, "« Contacts du centre » n'est pas entre « Nouveautés » et « Mes préférences » (lignes : %s)" % ", ".join(ordre))
     attendu = m["pastille"] or None
     if "Nouveautés" not in lignes:
         res.echec("menu du compte", vue, "la ligne « Nouveautés » manque (lignes : %s)" % ", ".join(lignes))
@@ -2285,6 +2390,10 @@ def verifier_reglages(page, res, sc, regles):
     interdit = MOTS_BANNIS.search(p["texte"])
     if interdit:
         res.echec("page Réglages", vue, "la page dit encore « %s »" % interdit.group(0))
+    # Lot 2A, tâche 1 : la phrase des modules toujours ouverts porte les noms de la nouvelle barre : Mon suivi, et Mes préférences (la page de la personne,
+    # jamais Réglages, qui est celle de la promo).
+    if p["socle"] != SOCLE["nouvelle"]:
+        res.echec("page Réglages", vue, "la phrase des modules toujours ouverts est « %s », attendu « %s »" % (p["socle"], SOCLE["nouvelle"]))
     vider_console(res, vue)
 
 
@@ -2311,6 +2420,7 @@ def verifier_preferences(page, res, sc):
     interdit = MOTS_BANNIS.search(p["texte"])
     if interdit:
         res.echec("page Mes préférences", vue, "la page dit « %s »" % interdit.group(0))
+    verifier_texte_de_l_anonymat(res, vue, p, "page Mes préférences")
     vider_console(res, vue)
 
 
@@ -2323,7 +2433,21 @@ def verifier_preferences_eteint(page, res, sc):
     p = page.evaluate("() => window.__verifNav.pageDeReglages()")
     if p["route"] != "config" or p["titre"] != "Paramètres":
         res.echec("préférences, interrupteur éteint", vue, "#/preferences ouvre #/%s (« %s »), attendu #/config (« Paramètres »)" % (p["route"], p["titre"]))
+    # Lot 2A, tâche 1 : le texte de l'anonymat est le même dans les deux navigations ; la phrase des modules toujours ouverts est celle de main.
+    verifier_texte_de_l_anonymat(res, vue, p, "préférences, interrupteur éteint")
+    if p["socle"] is not None and p["socle"] != SOCLE["ancienne"]:
+        res.echec("préférences, interrupteur éteint", vue, "la phrase des modules toujours ouverts est « %s », celle de main « %s »" % (p["socle"], SOCLE["ancienne"]))
     vider_console(res, vue)
+
+
+def verifier_texte_de_l_anonymat(res, vue, p, type_):
+    """Le texte de l'anonymat des notes (Mes préférences, ou Paramètres), juste dans les deux navigations (lot 2A, tâche 1) : « ni ton prénom ni tes notes dans
+    les notes de la classe », non plus « sur la page Notes », qui n'existe plus comme page du stagiaire. Absent quand le module Notes est fermé."""
+    texte = p.get("anonymat")
+    if texte is None:
+        return
+    if "dans les notes de la classe" not in texte or "page Notes" in texte:
+        res.echec(type_, vue, "le texte de l'anonymat dit « %s » : attendu « ni ton prénom ni tes notes dans les notes de la classe », jamais « sur la page Notes »" % texte[:200])
 
 
 # --------------------------------------------------------------------------------------
@@ -2634,6 +2758,264 @@ def verifier_benevoles_eteint(page, res, sc):
 
 
 # --------------------------------------------------------------------------------------
+# Nouveautés et textes propres à chaque navigation (lot 2A, tâche 1)
+# --------------------------------------------------------------------------------------
+
+# Les deux Nouveautés de lancement, propres à la nouvelle navigation : la première pour tous, la seconde pour les formateurs seulement.
+TITRE_LANCEMENT = "Une navigation plus simple"
+TITRE_LANCEMENT_EQUIPE = "Côté formateurs, la barre passe à gauche"
+# Celles qui ne décrivent que l'ancienne barre : cachées sous la nouvelle, lues avec l'ancienne.
+TITRES_DE_L_ANCIENNE_BARRE = ("Une barre d'onglets plus simple", "L'app s'ouvre sur ton espace personnel", "Ton espace personnel sur téléphone : un sommaire")
+# Le lien « Où le trouver » de Nouveautés d'avant, par titre : (libellé du stagiaire, libellé de l'équipe, libellé de main, adresse). L'adresse est la
+# même partout : seul le libellé suit la navigation (js/ou-trouver.js), les redirections du lot 1 mènent l'ancienne adresse à sa nouvelle page.
+# Un stagiaire est envoyé à Mes préférences, jamais à Réglages (la page de la promo, réservée à l'équipe) ; l'équipe, l'inverse.
+OU_TROUVER = {
+    "Les moyennes de la classe ne comptent que les stagiaires en formation":
+        ("Mon suivi, La classe", "Notes et examens, Synthèse classe", "Notes, Synthèse classe", "#/notes"),
+    "Tes notes et ta fiche mieux protégées": ("Mon suivi, La classe", "Notes et examens", "Notes", "#/notes"),
+    "Ton Dossier Professionnel se remplit dans l'app":
+        ("Mon suivi, partie Dossier pro", "Mon suivi, partie Dossier pro", "Mon espace personnel, partie Dossier pro", "#/mon-suivi/dp"),
+    "Ton livret officiel TP-01303 se remplit dans l'app":
+        ("Mon suivi, partie Livret", "Mon suivi, partie Livret", "Mon espace personnel, partie Livret", "#/mon-suivi/livret"),
+    "Des vidéos conseillées dans la boîte à outils CCP2":
+        ("Cours et QCM, Documents", "Cours et QCM, Documents", "Ressources, Examens", "#/ressources"),
+    "Une boîte à outils numérique pour ton CCP2": ("Cours et QCM, Documents", "Cours et QCM, Documents", "Ressources", "#/ressources"),
+    "Un passage oublié ? Ajoute-le toi-même, même ancien": ("Planning, Priorités", "Planning, Priorités", "Planning, bouton Priorités", "#/dashboard"),
+    "Anonyme pour de vrai dans le tableau de notes": ("Mes préférences", "Réglages", "Paramètres, Mes préférences", "#/config"),
+    "Les cours des 57 thèmes sont ouverts à toute la promo": ("Cours et QCM", "Cours et QCM", "Cours", "#/themes"),
+    "Ta progression d'entraînement se voit d'un coup d'œil": ("Cours et QCM, colonne QCM", "Cours et QCM, colonne QCM", "Cours, colonne QCM", "#/themes"),
+}
+# Celles que seule l'équipe lit (puce « Formateurs ») : (libellé sous la nouvelle navigation, libellé de main, adresse).
+OU_TROUVER_EQUIPE = {
+    "Un tableau de bord du centre, promo par promo": ("Indicateurs", "Accueil, tuile Tableau de bord", "#/centre"),
+    "Effacer les données d'un stagiaire, à sa demande": ("Réglages", "Paramètres", "#/config"),
+    "Une page Stagiaires : toute la promo, une fiche par personne": ("Stagiaires", "Accueil, tuile Stagiaires", "#/stagiaires"),
+    "Deux promos dans l'app, et des modules réglés promo par promo":
+        ("La promo, en tête de la barre de gauche", "Pastille en haut, à côté de ton nom", "#/home"),
+    "Les 57 cours sont dans l'app, à relire et à publier": ("Cours et QCM, colonne Cours", "Cours, colonne Cours", "#/themes"),
+}
+# La première étape de « Comment faire », sous la nouvelle navigation puis avec celle de main. (Les étapes d'une Nouveauté qui nomme un geste de l'ancienne
+# barre ont leur variante, `guideNouvelle` ; les deux Nouveautés qui ne décrivent que l'ancienne barre sont cachées.)
+GUIDES = {
+    "Ton Dossier Professionnel se remplit dans l'app":
+        ("Ouvre Mon suivi, dans la barre.", "Ouvre ton espace personnel avec le logo en haut à gauche."),
+    "Ton livret officiel TP-01303 se remplit dans l'app":
+        ("Ouvre Mon suivi, partie Livret.", "Renseigne ta date de naissance dans ton espace personnel si ce n'est pas déjà fait."),
+}
+GUIDES_EQUIPE = {
+    "Un tableau de bord du centre, promo par promo":
+        ("Ouvre Indicateurs, dans la barre de gauche (groupe Promo) ; sur téléphone, dans « Plus ».", "Ouvre l'Accueil, puis la tuile « Tableau de bord »."),
+    "Effacer les données d'un stagiaire, à sa demande":
+        ("Réglages, partie Promo : « Abandon » sur le stagiaire concerné.", "Paramètres, partie Promo : « Abandon » sur le stagiaire concerné."),
+    "Une page Stagiaires : toute la promo, une fiche par personne":
+        ("Ouvre Stagiaires, dans la barre de gauche (sur téléphone, en bas de l'écran).", "Ouvre la tuile Stagiaires de l'Accueil."),
+    "Deux promos dans l'app, et des modules réglés promo par promo":
+        ("Touche la promo en tête de la barre de gauche (sur téléphone, en haut de l'écran).",
+         "Touche la pastille de la promo en haut de l'écran (« Nîmes · mars 2026 »)."),
+}
+LIEN_DES_BENEVOLES = ("Stagiaires, Élèves bénévoles", "#/stagiaires")   # le lien de la Nouveauté de lancement de l'équipe
+PIED_DE_L_ACCUEIL = {"ancienne": ("paramètres", "#/config"), "stagiaire": ("mes préférences", "#/preferences"), "equipe": ("réglages", "#/config")}
+CTRL_Z = {"ancienne": "Ctrl + Z annule la dernière action. Sur Notes, Passages, Thèmes et Calendrier.",
+          "nouvelle": "Ctrl + Z annule la dernière action. Sur les notes, les passages, les thèmes et les dates clés."}
+SOCLE = {"ancienne": "Toujours ouverts : Accueil, Mon espace personnel (Passages), Paramètres, Nouveautés.",
+         "nouvelle": "Toujours ouverts : Accueil, Mon suivi (Passages), Mes préférences, Nouveautés."}
+LIEN_DOSSIER_PRO = "Ton dossier professionnel, à remplir dans l'app"
+
+
+def verifier_liens_et_guides(res, vue, cartes, equipe, nouvelle, depart=False):
+    """Le lien « Où le trouver » et la première étape de « Comment faire » de Nouveautés connues, selon la navigation : `nouvelle` (le libellé que la
+    personne lit dans sa barre, celui de l'équipe ou du stagiaire) ou l'ancienne (celui de main, tel quel). L'adresse ne change jamais. Une carte absente
+    (un module fermé pour ce stagiaire) n'est pas contrôlée, mais assez de cartes doivent l'avoir été pour que le contrôle ne passe pas à vide."""
+    controlees = 0
+    attendus = {titre: (v[1] if equipe else v[0], v[2], v[3]) for titre, v in OU_TROUVER.items()}
+    if equipe:
+        attendus.update({titre: (v[0], v[1], v[2]) for titre, v in OU_TROUVER_EQUIPE.items()})
+    for titre, (libelle, libelle_de_main, adresse) in attendus.items():
+        carte = cartes.get(titre)
+        if carte is None:
+            continue
+        controlees += 1
+        voulu = libelle if nouvelle else libelle_de_main
+        if carte["ou"] is None:
+            res.echec("Où le trouver", vue, "« %s » n'a pas de lien « Où le trouver »" % titre)
+        else:
+            if carte["ou"]["texte"] != voulu:
+                res.echec("Où le trouver", vue, "« %s » : le lien dit « %s », attendu « %s » (%s)" % (
+                    titre, carte["ou"]["texte"], voulu, "nouvelle navigation, " + ("équipe" if equipe else "stagiaire") if nouvelle else "ancienne navigation, texte de main"))
+            if carte["ou"]["href"] != adresse:
+                res.echec("Où le trouver", vue, "« %s » : le lien mène à %s, l'adresse reste %s" % (titre, carte["ou"]["href"], adresse))
+    guides = dict(GUIDES)
+    if equipe:
+        guides.update(GUIDES_EQUIPE)
+    for titre, (etape_nouvelle, etape_de_main) in guides.items():
+        carte = cartes.get(titre)
+        if carte is None:
+            continue
+        controlees += 1
+        voulue = etape_nouvelle if nouvelle else etape_de_main
+        if not carte["guide"] or carte["guide"][0] != voulue:
+            res.echec("Comment faire", vue, "« %s » : la première étape est « %s », attendu « %s »" % (titre, (carte["guide"] or ["aucune"])[0], voulue))
+    attendu_minimum = 2 if depart else 8
+    if controlees < attendu_minimum:
+        res.echec("Nouveautés", vue, "seulement %d Nouveauté(s) connue(s) contrôlée(s), au moins %d attendue(s) : le contrôle des liens ne serait pas éprouvé" % (controlees, attendu_minimum))
+
+
+def verifier_nouveautes(page, res, sc):
+    """La rubrique Nouveautés, nouvelle navigation allumée (lot 2A, tâche 1), jouée avant l'ouverture de la rubrique ailleurs : « Une navigation plus simple »
+    pour tous, « Côté formateurs, la barre passe à gauche » pour l'équipe seulement (le fondateur en aperçu, sur une promo éteinte, voit les deux ; un
+    stagiaire sans drapeau de fondateur d'une promo allumée ne voit que la première) ; aucune des Nouveautés qui ne décrivent que l'ancienne barre.
+    Le « Où le trouver » de Nouveautés d'avant porte le nom que la personne lit dans sa barre, l'adresse restant celle de main, et leur « Comment faire » est
+    celui de la nouvelle barre. Le lien de la Nouveauté de l'équipe ouvre le sous-onglet « Élèves bénévoles » de Stagiaires. Les mots de l'ancienne barre
+    (« Mon espace », « Paramètres ») ne se lisent nulle part, hors du récit daté des anciennes Nouveautés : c'est le contrôle de chaque vue (motsDAvant)."""
+    vue = "%s/nouveautes" % sc.nom
+    res.vues += 1
+    aller_a(page, "#/nouveautes")
+    attendre(page)
+    liste = page.evaluate("() => window.__verifNav.nouveautes()")
+    cartes = {c["titre"]: c for c in liste}
+    equipe = sc.espace == "equipe"
+    if TITRE_LANCEMENT not in cartes:
+        res.echec("Nouveauté de lancement", vue, "« %s » manque (nouvelle navigation allumée)" % TITRE_LANCEMENT)
+    elif cartes[TITRE_LANCEMENT]["formateurs"]:
+        res.echec("Nouveauté de lancement", vue, "« %s » porte la puce « Formateurs » : elle est pour tous" % TITRE_LANCEMENT)
+    if equipe and TITRE_LANCEMENT_EQUIPE not in cartes:
+        res.echec("Nouveauté de lancement", vue, "« %s » manque chez l'équipe" % TITRE_LANCEMENT_EQUIPE)
+    if TITRE_LANCEMENT_EQUIPE in cartes and not equipe:
+        res.echec("Nouveauté de lancement", vue, "« %s » est montrée à un stagiaire : elle est pour les formateurs" % TITRE_LANCEMENT_EQUIPE)
+    for titre in TITRES_DE_L_ANCIENNE_BARRE:
+        if titre in cartes:
+            res.echec("Nouveauté de l'ancienne barre", vue, "« %s » ne décrit que l'ancienne barre : elle n'est pas montrée sous la nouvelle" % titre)
+    verifier_liens_et_guides(res, vue, cartes, equipe, True, depart=sc.modules == "depart" and not equipe)
+    if equipe and TITRE_LANCEMENT_EQUIPE in cartes:
+        # Le lien de la Nouveauté de l'équipe : le libellé, l'adresse, puis le geste (la mémoire du sous-onglet de Stagiaires, que la barre relit à son rendu).
+        lien = cartes[TITRE_LANCEMENT_EQUIPE]["ou"]
+        if lien is None or (lien["texte"], lien["href"]) != LIEN_DES_BENEVOLES:
+            res.echec("Nouveauté de lancement", vue, "le lien de « %s » est %s, attendu %s" % (TITRE_LANCEMENT_EQUIPE, lien and (lien["texte"], lien["href"]), LIEN_DES_BENEVOLES))
+        else:
+            # La mémoire du sous-onglet de Stagiaires part du premier (l'exploration des sous-onglets, plus haut, a laissé le dernier ouvert : sans cela, le lien
+            # passerait même sans écrire la mémoire) : c'est au lien de l'écrire.
+            page.evaluate("(cle) => { try { localStorage.setItem(cle, 'stagiaires'); } catch (e) { /* stockage bloqué */ } }", CLE_SOUS_ONGLET_STAGIAIRES)
+            if cliquer(page, res, vue, "#view .nv-carte:has-text(\"%s\") a.nv-ou" % TITRE_LANCEMENT_EQUIPE, "lien « Où le trouver » de la Nouveauté de l'équipe"):
+                attendre(page, calme=150)
+                actif = page.evaluate("() => { const b = document.querySelector('#view .subtabs-bar > .subtab.active'); return b ? b.textContent.trim() : null; }")
+                if route_courante(page) != "stagiaires" or actif != "Élèves bénévoles":
+                    res.echec("Nouveauté de lancement", vue, "le lien des bénévoles ouvre #/%s, sous-onglet « %s » ; attendu Stagiaires, « Élèves bénévoles »" % (route_courante(page), actif))
+            # La mémoire de la barre de sous-onglets est rendue comme on l'a trouvée : les contrôles suivants partent du premier sous-onglet.
+            page.evaluate("(cle) => { try { localStorage.removeItem(cle); } catch (e) { /* stockage bloqué */ } }", CLE_SOUS_ONGLET_STAGIAIRES)
+    vider_console(res, vue)
+
+
+def verifier_nouveautes_eteint(page, res, sc):
+    """Interrupteur éteint : ni l'une ni l'autre des Nouveautés de lancement, même pour l'équipe ; les Nouveautés qui ne décrivent que l'ancienne barre sont
+    là ; les « Où le trouver » et les « Comment faire » sont ceux de main, au caractère près. Joué aussi pour un stagiaire sans drapeau de fondateur
+    dont l'appareil porte l'aperçu d'un fondateur (le réglage de la promo est éteint) : l'aperçu n'est pas pour lui, il reste sur l'ancienne navigation."""
+    vue = "%s/nouveautes" % sc.nom
+    res.vues += 1
+    aller_a(page, "#/nouveautes")
+    attendre(page)
+    cartes = {c["titre"]: c for c in page.evaluate("() => window.__verifNav.nouveautes()")}
+    for titre in (TITRE_LANCEMENT, TITRE_LANCEMENT_EQUIPE):
+        if titre in cartes:
+            res.echec("Nouveauté de lancement, interrupteur éteint", vue, "« %s » est montrée : elle est propre à la nouvelle navigation" % titre)
+    for titre in TITRES_DE_L_ANCIENNE_BARRE:
+        if titre not in cartes:
+            res.echec("Nouveauté de l'ancienne barre", vue, "« %s » manque : avec l'ancienne navigation, elle se lit comme avant" % titre)
+    verifier_liens_et_guides(res, vue, cartes, sc.role in ("prof", "fondateur"), False)
+    vider_console(res, vue)
+
+
+def verifier_nouveautes_de_l_accueil(page, res, vue, equipe):
+    """Accueil, nouvelle navigation : les trois plus récentes Nouveautés de la section commencent par celles du lancement (la première pour tous, la
+    seconde pour l'équipe). Appelé depuis l'accueil déjà ouvert."""
+    titres = [c["titre"] for c in page.evaluate("() => window.__verifNav.nouveautes()")]
+    attendus = [TITRE_LANCEMENT] + ([TITRE_LANCEMENT_EQUIPE] if equipe else [])
+    if titres[:len(attendus)] != attendus:
+        res.echec("Nouveautés de l'accueil", vue, "les Nouveautés de l'accueil commencent par « %s », attendu « %s »" % (" », « ".join(titres[:len(attendus)]), " », « ".join(attendus)))
+
+
+def verifier_pied_et_retenir(res, vue, m, navigation):
+    """Les deux textes de l'accueil que les deux navigations ne disent pas pareil : la dernière ligne de « À retenir » (Ctrl + Z : « Sur Notes, Passages,
+    Thèmes et Calendrier » avec l'ancienne, les noms de la nouvelle barre avec elle) et le lien de réglage du pied de page (« paramètres » avec l'ancienne ;
+    avec la nouvelle, « mes préférences » chez un stagiaire, « réglages » chez l'équipe). `navigation` : « ancienne », « stagiaire » ou « equipe »."""
+    attendu_retenir = CTRL_Z["ancienne" if navigation == "ancienne" else "nouvelle"]
+    if m["retenir"] != attendu_retenir:
+        res.echec("accueil, À retenir", vue, "la dernière ligne de « À retenir » est « %s », attendu « %s »" % (m["retenir"], attendu_retenir))
+    texte, adresse = PIED_DE_L_ACCUEIL[navigation]
+    if m["pied"] is None or (m["pied"]["texte"], m["pied"]["href"]) != (texte, adresse):
+        res.echec("accueil, pied de page", vue, "le lien de réglage du pied est %s, attendu « %s » (%s)" % (m["pied"] and (m["pied"]["texte"], m["pied"]["href"]), texte, adresse))
+
+
+def verifier_contacts_du_centre(page, res, sc):
+    """Menu du compte, nouvelle navigation (lot 2A, tâche 1) : la ligne « Contacts du centre » mène à #/ressources, que la redirection du lot 1 envoie à
+    Cours et QCM, sous-onglet Documents, où sont les contacts : la page s'ouvre sur « Documents », avec sa section « Contacts du centre »."""
+    vue = "%s/menus/contacts-du-centre" % sc.nom
+    if not cliquer(page, res, vue, '[data-nav-coquille] button[data-nav-action="compte"]:visible', "bouton du compte"):
+        return
+    page.wait_for_timeout(300)
+    if not cliquer(page, res, vue, '[data-nav-coquille="compte"] [role="dialog"] a.nav-fenetre-lien:has-text("Contacts du centre")', "ligne « Contacts du centre »"):
+        page.keyboard.press("Escape")
+        return
+    attendre(page, calme=150)
+    res.vues += 1
+    p = page.evaluate("() => window.__verifNav.enTeteDePage()")
+    tete = p["entetes"][-1] if p["entetes"] else None
+    actif = page.evaluate("() => { const b = document.querySelector('#view .subtabs-bar > .subtab.active'); return b ? b.textContent.trim() : null; }")
+    if p["route"] != "themes":
+        res.echec("Contacts du centre", vue, "la ligne mène à #/%s, attendu Cours et QCM (#/themes)" % p["route"])
+    elif tete is None or tete["titre"] != "Documents":
+        res.echec("Contacts du centre", vue, "la page ouverte par la ligne a pour titre « %s », attendu « Documents »" % (tete and tete["titre"]))
+    elif actif not in (None, "Documents"):
+        res.echec("Contacts du centre", vue, "le sous-onglet allumé est « %s », attendu « Documents »" % actif)
+    if p["route"] == "themes" and not any("Contacts du centre" in s for s in p["sections"]):
+        res.echec("Contacts du centre", vue, "la page ouverte par la ligne n'a pas de section « Contacts du centre » (sections : %s)" % (", ".join(p["sections"]) or "aucune"))
+    # La mémoire du sous-onglet de Cours (écrite par la redirection) est rendue comme on l'a trouvée.
+    page.evaluate("(cle) => { try { localStorage.removeItem(cle); } catch (e) { /* stockage bloqué */ } }", CLE_SOUS_ONGLET_COURS)
+    vider_console(res, vue)
+
+
+def verifier_ccp2(page, res, sc):
+    """Parcours CCP2, les deux navigations : le lien vers le dossier professionnel (étape 8) ne nomme plus ni Mon espace ni un sous-onglet, il dit « Ton
+    dossier professionnel, à remplir dans l'app » et mène à la partie Dossier pro (#/mon-suivi/dp). Rien si CCP2 est fermé pour ce stagiaire."""
+    vue = "%s/ccp2/lien-dossier-pro" % sc.nom
+    aller_a(page, "#/ccp2")
+    attendre(page)
+    if not page.evaluate("() => !!document.querySelector('#view .ccp2-etapes')"):
+        return
+    res.vues += 1
+    lien = page.evaluate("() => window.__verifNav.lienDossierPro()")
+    if lien is None:
+        res.echec("parcours CCP2", vue, "le parcours n'a pas de lien vers le dossier professionnel (#/mon-suivi/dp)")
+    elif lien["texte"] != LIEN_DOSSIER_PRO:
+        res.echec("parcours CCP2", vue, "le lien vers le dossier professionnel dit « %s », attendu « %s »" % (lien["texte"], LIEN_DOSSIER_PRO))
+    vider_console(res, vue)
+
+
+def jouer_ressources_fermees(page, res, sc, options):
+    """Le module Ressources est fermé pour la promo (lot 2A, tâche 1) : les contacts du centre, qui sont dans Cours et QCM > Documents, ne sont plus pour les
+    stagiaires, et la ligne « Contacts du centre » de leur menu du compte disparaît avec eux (elle ne mènerait nulle part). L'équipe, qui voit tout, la garde."""
+    regles = regles_de_la_page(page, res, sc)
+    preparer_coquille(page, res, sc, regles)
+    if not res.coquille:
+        return
+    vue = "%s/menus/contacts-du-centre" % sc.nom
+    res.vues += 1
+    if not cliquer(page, res, vue, '[data-nav-coquille] button[data-nav-action="compte"]:visible', "bouton du compte"):
+        return
+    page.wait_for_timeout(300)
+    m = page.evaluate("() => window.__verifNav.menuDuCompte()")
+    libelles = [l["libelle"] for l in (m or {"lignes": []})["lignes"]]
+    if "Mes préférences" not in libelles:
+        res.echec("menu du compte", vue, "le menu du compte ne s'ouvre pas (lignes : %s)" % ", ".join(libelles))
+    elif sc.espace == "equipe" and "Contacts du centre" not in libelles:
+        res.echec("Contacts du centre", vue, "l'équipe voit tous les modules : la ligne « Contacts du centre » manque (lignes : %s)" % ", ".join(libelles))
+    elif sc.espace != "equipe" and "Contacts du centre" in libelles:
+        res.echec("Contacts du centre", vue, "Ressources est fermé pour la promo : la ligne « Contacts du centre » ne mène nulle part chez un stagiaire")
+    page.keyboard.press("Escape")
+    page.wait_for_timeout(250)
+    vider_console(res, vue)
+
+
+# --------------------------------------------------------------------------------------
 # Planning et accueil du stagiaire, décompte des événements, bandeau d'émargement (lot 2A, tâche 4)
 # --------------------------------------------------------------------------------------
 
@@ -2786,6 +3168,9 @@ def verifier_accueil(page, res, sc):
     attendue = ligne_promo_attendue(m["promo"], datetime.date.fromisoformat(DATE_DU_BANC))
     if m["lead"] != attendue:
         res.echec("accueil", vue, "la ligne sous la salutation est « %s », attendu « %s »" % (m["lead"], attendue))
+    # Lot 2A, tâche 1 : les Nouveautés du lancement ouvrent la section, la ligne Ctrl + Z et le lien du pied portent les noms de la nouvelle barre.
+    verifier_nouveautes_de_l_accueil(page, res, vue, sc.espace == "equipe")
+    verifier_pied_et_retenir(res, vue, m, sc.espace)
     if m["agenda"]:
         verifier_carte(res, vue, m)
     vider_console(res, vue)
@@ -2804,6 +3189,11 @@ def verifier_accueil_eteint(page, res, sc):
         res.echec("accueil, interrupteur éteint", vue, "aucune tuile : main montre les raccourcis")
     if not (m["lead"] or "").startswith("Tout le suivi de la promo TP ECSR"):
         res.echec("accueil, interrupteur éteint", vue, "la phrase sous la salutation est « %s », celle de main commence par « Tout le suivi de la promo TP ECSR »" % m["lead"])
+    # Lot 2A, tâche 1 : la ligne Ctrl + Z et le lien du pied sont ceux de main, et aucune Nouveauté du lancement n'ouvre la section.
+    verifier_pied_et_retenir(res, vue, m, "ancienne")
+    lancement = [c["titre"] for c in page.evaluate("() => window.__verifNav.nouveautes()") if c["titre"] in (TITRE_LANCEMENT, TITRE_LANCEMENT_EQUIPE)]
+    if lancement:
+        res.echec("Nouveautés de l'accueil, interrupteur éteint", vue, "l'accueil montre « %s » : propre à la nouvelle navigation" % " », « ".join(lancement))
     if m["agenda"]:
         verifier_carte(res, vue, m)
     vider_console(res, vue)
@@ -2994,6 +3384,7 @@ def jouer_allume(page, res, sc, options):
         verifier_bouton_du_compte(page, res, sc, "a-l-ouverture")
         verifier_menu_du_compte_a_l_ouverture(page, res, sc)
         verifier_a_traiter(page, res, sc)
+        verifier_contacts_du_centre(page, res, sc)
     entrees = regles["entrees"]
     parcourir_entrees(page, res, sc, entrees, options)
     # Les pages que le menu du compte ouvre sans avoir d'entrée à elles : Mon espace (qui a un profil
@@ -3009,6 +3400,8 @@ def jouer_allume(page, res, sc, options):
     # La rubrique Nouveautés vient d'être ouverte : tout est lu, le point doit être parti.
     if res.coquille:
         verifier_bouton_du_compte(page, res, sc, "tout-lu")
+        verifier_nouveautes(page, res, sc)
+        verifier_ccp2(page, res, sc)
     verifier_reglages(page, res, sc, regles)
     verifier_preferences(page, res, sc)
     if res.coquille and "planning" in routes:
@@ -3278,6 +3671,8 @@ def jouer_eteint(page, res, sc, options):
     jouer_anciennes_adresses(page, res, sc)
     verifier_preferences_eteint(page, res, sc)
     verifier_titres_eteint(page, res, sc)
+    verifier_nouveautes_eteint(page, res, sc)
+    verifier_ccp2(page, res, sc)
     verifier_accueil_eteint(page, res, sc)
     verifier_planning_eteint(page, res, sc)
     if sc.role == "stagiaire":
@@ -3304,6 +3699,8 @@ def jouer_scenario(navigateur, url, sc, options):
             jouer_a_traiter(page, res, sc, options)
         elif sc.reglage_illisible:
             jouer_case_du_fondateur(page, res, sc)
+        elif sc.ressources_fermees:
+            jouer_ressources_fermees(page, res, sc, options)
         elif sc.passe == "allume":
             jouer_allume(page, res, sc, options)
         else:

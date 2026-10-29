@@ -5,27 +5,34 @@
 // « Tout voir » d'Accueil, comme #/mon-suivi n'a pas d'onglet non plus.
 
 import { el, clear, formatDate } from "../utils.js?v=20261029a";
-import { nouveautesAffichables, marquerLues } from "../modules-etat.js?v=20261029a";
-import { STORAGE_SOUS_ONGLET } from "../nouveautes.js?v=20261029a";
+import { nouveautesAffichables, marquerLues, formateurConnecte } from "../modules-etat.js?v=20261029a";
+import { STORAGE_SOUS_ONGLET, guideSelonNavigation } from "../nouveautes.js?v=20261029a";
 import { hrefLien } from "../route-rules.js?v=20261029a";
+import { navigationV2Active } from "../nav-etat.js?v=20261029a";
+import { espaceDe } from "../nav-rules.js?v=20261029a";
+import { ouSelonNavigation } from "../ou-trouver.js?v=20261029a";
 
 // Lien « Où le trouver ». Une partie de Mon espace se vise par l'adresse
-// (#/mon-suivi/dp) ; un sous-onglet de Notes ou de Cours, par la clé que
+// (#/mon-suivi/dp) ; un sous-onglet de Notes, de Cours ou de Stagiaires, par la clé que
 // renderSubTabs relit à l'ouverture de la vue : sans ça, un lien « Notes,
 // sous-onglet EPCF » atterrirait sur la Matrice, et le lecteur devrait
 // chercher lui-même ce qu'on venait de lui indiquer.
+// Le libellé suit la navigation de la personne (js/ou-trouver.js) : « Mon suivi, partie Livret »
+// à la place de « Mon espace personnel, partie Livret » sous la nouvelle barre ; la route, le
+// sous-onglet et l'adresse restent ceux de l'entrée.
 function lienOu(ou) {
   if (!ou) return null;
-  const href = hrefLien(ou);
+  const cible = ouSelonNavigation(ou, { navigationV2: navigationV2Active(), espace: espaceDe({ formateur: formateurConnecte() }) });
+  const href = hrefLien(cible);
   return el("a", {
     class: "nv-ou",
     href,
     onClick: () => {
-      const cle = STORAGE_SOUS_ONGLET[ou.route];
-      if (!cle || !ou.sousOnglet || href !== "#/" + ou.route) return;
-      try { localStorage.setItem(cle, ou.sousOnglet); } catch (e) { /* ignore */ }
+      const cle = STORAGE_SOUS_ONGLET[cible.route];
+      if (!cle || !cible.sousOnglet || href !== "#/" + cible.route) return;
+      try { localStorage.setItem(cle, cible.sousOnglet); } catch (e) { /* ignore */ }
     },
-  }, "Où le trouver : ", el("strong", {}, ou.label));
+  }, "Où le trouver : ", el("strong", {}, cible.label));
 }
 
 // Guide facultatif, replié par défaut dans Accueil et déplié sur la page.
@@ -49,7 +56,8 @@ export function carteNouveaute(entree, opts = {}) {
     el("h3", { class: "nv-titre" }, entree.titre),
     el("p", { class: "nv-resume" }, entree.resume),
     lienOu(entree.ou),
-    blocGuide(entree.guide, guideDeplie),
+    // Les étapes de la nouvelle navigation (`guideNouvelle`) remplacent celles d'avant quand elle est allumée.
+    blocGuide(guideSelonNavigation(entree, navigationV2Active()), guideDeplie),
   );
 }
 
