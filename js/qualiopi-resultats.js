@@ -136,16 +136,58 @@ const MESSAGE_COPIE_FAITE = "Texte copié.";
 const MESSAGE_COPIE_ABSENTE = "La copie n'est pas disponible dans ce navigateur. Imprime la fiche en PDF, ou ouvre la page dans un autre navigateur.";
 const MESSAGE_COPIE_REFUSEE = "Le navigateur a refusé la copie. Clique à nouveau sur « Copier le texte », ou imprime la fiche en PDF.";
 
-// Copie `texte` dans le presse-papiers et rend { copie, message } : le message est celui que la page affiche (réussite brève, ou
-// ce qui s'est passé et quoi faire). `navigator` est celui du navigateur, remplaçable dans un test. writeText part tout de suite,
-// dans la pile du clic : c'est ce qui garde le geste de l'utilisateur valable. Rien ne lève : un refus ou une absence sont des
-// réponses.
-export async function copierTexte(texte, navigator = globalThis.navigator) {
-  try {
-    if (typeof navigator?.clipboard?.writeText !== "function") return { copie: false, message: MESSAGE_COPIE_ABSENTE };
-    await navigator.clipboard.writeText(texte);
-    return { copie: true, message: MESSAGE_COPIE_FAITE };
-  } catch {
-    return { copie: false, message: MESSAGE_COPIE_REFUSEE };
+// Un texte vide, ou qui n'en est pas un, n'est jamais copié : il viderait le presse-papiers.
+const enBlob = (texte) => {
+  if (typeof texte !== "string" || texte === "") throw new Error("aucun texte à copier");
+  return new Blob([texte], { type: "text/plain" });
+};
+
+// Copie le texte dans le presse-papiers et rend { copie, message } : le message est celui que la page affiche (réussite brève, ou ce
+// qui s'est passé et quoi faire). `texte` est le texte ou la promesse du texte : celui d'un centre n'existe qu'après la lecture de ses
+// promos, et la copie doit être demandée dans le geste du clic, avant toute attente (Safari, iOS compris, n'accepte rien après ;
+// Firefox exige une activation de moins de 5 secondes). Trois temps :
+//   1. tout de suite, avant le moindre `await` : navigator.clipboard.write avec un ClipboardItem « text/plain » qui reçoit la promesse
+//      du texte, sous forme de Blob ; c'est le presse-papiers qui attend que le texte arrive ;
+//   2. si ClipboardItem ou write manque, ou si write échoue : writeText, une fois le texte arrivé (hors du geste : Chrome l'accepte,
+//      d'autres peuvent le refuser) ; un texte déjà là part dans la pile du clic, sans attente ;
+//   3. si tout échoue : le message de refus ; si le navigateur n'offre ni l'un ni l'autre : le message d'absence.
+// `navigator` et `ClipboardItem` sont ceux du navigateur, remplaçables dans un test. Rien ne lève : un refus, une absence ou un texte
+// qui ne vient pas (promesse rejetée, texte vide) sont des réponses, et rien n'est copié ; dans ce dernier cas, la page, qui sait
+// pourquoi son texte manque, n'affiche pas le message de refus.
+export async function copierTexte(texte, navigator = globalThis.navigator, ClipboardItem = globalThis.ClipboardItem) {
+  const promesse = Promise.resolve(texte);
+  promesse.catch(() => {});   // un texte qui ne vient pas se dit par le résultat : son rejet ne doit pas rester sans gestionnaire
+  const direct = typeof ClipboardItem === "function" && typeof navigator?.clipboard?.write === "function";
+  const repli = typeof navigator?.clipboard?.writeText === "function";
+  if (!direct && !repli) return { copie: false, message: MESSAGE_COPIE_ABSENTE };
+  let ecriture = null;
+  if (direct) {
+    try {
+      const blob = promesse.then(enBlob);
+      blob.catch(() => {});
+      ecriture = navigator.clipboard.write([new ClipboardItem({ "text/plain": blob })]);
+    } catch {
+      ecriture = null;
+    }
   }
+  try {
+    if (ecriture !== null) {
+      try {
+        await ecriture;
+        return { copie: true, message: MESSAGE_COPIE_FAITE };
+      } catch {
+        // l'écriture avec la promesse a échoué : repli ci-dessous
+      }
+    }
+    if (repli) {
+      const aCopier = typeof texte === "string" ? texte : await promesse;
+      if (typeof aCopier === "string" && aCopier !== "") {
+        await navigator.clipboard.writeText(aCopier);
+        return { copie: true, message: MESSAGE_COPIE_FAITE };
+      }
+    }
+  } catch {
+    // le repli a échoué lui aussi, ou le texte ne vient pas
+  }
+  return { copie: false, message: MESSAGE_COPIE_REFUSEE };
 }

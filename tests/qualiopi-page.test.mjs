@@ -197,7 +197,7 @@ ok(/boutons = \[boutonFormation, boutonTableau, boutonCentre, boutonFicheFormati
 ok(/import \{[^}]*\bficheResultats\b[^}]*\}/.test(vue) && /import \{[^}]*\bfichesResultatsTexte\b[^}]*\}/.test(vue) && /import \{[^}]*\bcopierTexte\b[^}]*\}/.test(vue)
   && /import \{[^}]*\btableauFiche\b[^}]*\}/.test(vue) && /from "\.\.\/qualiopi-resultats\.js\?v=\w+";/.test(vue), "la page prend la fiche, son texte, son tableau et la copie du module pur");
 ok(!/Résultats provisoires : la formation|"non mesuré"|"non saisi"|"non mesurée"/.test(codeVue), "la page n'écrit pas les textes publics (avertissement, valeurs absentes) : ils viennent du module");
-ok(!/navigator\.clipboard/.test(codeVue) && /await copierTexte\(fichesResultatsTexte\(fiches\)\)/.test(codeVue), "la copie passe par copierTexte, qui parle au presse-papiers");
+ok(!/navigator\.clipboard|ClipboardItem/.test(codeVue), "la page ne parle jamais au presse-papiers : copierTexte le fait");
 const sortir = codeVue.slice(codeVue.indexOf("async function sortirFiches("), codeVue.indexOf("function construireActions()"));
 ok(sortir.length > 200, "sortirFiches est lisible");
 ok(/ficheResultats\(\{ promo, ind: etat\.ind, aujourdhui \}\)/.test(sortir), "Cette formation : la fiche de la promo choisie, avec ses indicateurs déjà calculés");
@@ -206,9 +206,17 @@ ok(/promosEtPeriodeDuCentre\(\)/.test(sortir) && /lirePromosDuCentre\(/.test(sor
 ok(!/reduce\(|\+=|Math\.(sum|max|min)/.test(sortir), "aucun total, aucune somme : une fiche par promo");
 ok(/if \(occupe \|\| !etat\.donnees\) return;/.test(sortir) && /bloquerBoutons\(true\)/.test(sortir) && /finally \{\s*if \(actionVivante\(moi\)\) bloquerBoutons\(false\);/.test(sortir),
   "une action à la fois, boutons libérés à la fin si la page est encore celle de l'action");
-ok(/await copierTexte\([^;]*;[\s\S]*?if \(!actionVivante\(moi\)\) return;/.test(sortir), "une copie qui répond après un changement de promo n'écrit rien dans la page");
+// La copie du centre est demandée dans le geste du clic : avant le moindre await, avec la promesse du texte qui se résout après les lectures.
+ok(/copierTexte\(lesFiches\.then\(texteDesFiches\)\)/.test(sortir), "la copie reçoit la promesse du texte des fiches, qui se résout après les lectures");
+const avantLaCopie = sortir.slice(0, sortir.indexOf("copierTexte("));
+ok(avantLaCopie.length > 300 && !/\bawait\b/.test(avantLaCopie), "la copie est demandée avant le moindre await de sortirFiches : dans le geste du clic, pour « Cette formation » comme pour « Le centre »");
+ok((codeVue.match(/copierTexte\(/g) || []).length === 1, "un seul appel de copierTexte : le même chemin pour les deux groupes");
+ok(/const texteDesFiches = \(fiches\) => \(fiches\?\.length \? fichesResultatsTexte\(fiches\) : ""\);/.test(codeVue), "le texte copié est celui des fiches, ou rien : jamais la phrase du centre vide, ni un texte vide");
+ok(/const resultat = await copie;\s*if \(!actionVivante\(moi\)\) return;/.test(sortir), "une copie qui répond après un changement de promo n'écrit rien dans la page");
+ok(/const fiches = await lesFiches;\s*if \(!fiches\) return;/.test(sortir), "une lecture en échec ou caduque arrête la sortie sans écraser son message (ni refus de copie, ni document)");
 ok(/noteProvisoire\(fiches\)/.test(sortir) && /scrollIntoView/.test(sortir), "la copie dit les formations provisoires, et un message d'échec est ramené à l'écran");
-ok(/lirePromosDuCentre\(moi, retenues, "le dossier du centre n'est pas préparé"/.test(codeVue) && /lirePromosDuCentre\(moi, retenues, "les résultats du centre ne sont pas préparés"/.test(codeVue),
+ok(/ecrireStatut\(resultat\.message, true\);\s*statut\?\.scrollIntoView/.test(sortir), "un refus ou une absence de presse-papiers est écrit comme une erreur (ligne d'état d'alerte), puis ramené à l'écran");
+ok(/lirePromosDuCentre\(moi, retenues, "le dossier du centre n'est pas préparé"/.test(codeVue) && /lirePromosDuCentre\(moi, promosEtPeriodeDuCentre\(\)\.retenues, "les résultats du centre ne sont pas préparés"/.test(codeVue),
   "le dossier du centre et la fiche lisent les promos par la même fonction");
 ok((codeVue.match(/lire\(p\.id\)/g) || []).length === 1, "une seule boucle de lecture des promos du centre (celle de lirePromosDuCentre), par identifiant");
 ok(/function ficheImprimable\(fiche\)/.test(codeVue) && /tableauImprimable\(tableauFiche\(fiche\)\)/.test(codeVue), "la fiche se met en page avec le tableau des dossiers");

@@ -318,37 +318,187 @@ eq(fichesResultatsTexte(undefined), AUCUNE_FORMATION, "liste absente : la même 
 eq(fichesResultatsTexte([null, undefined, {}]), AUCUNE_FORMATION, "fiches vides écartées");
 
 // =====================================================================================================
-// Copier le texte : navigator.clipboard.writeText, avec un message clair s'il est refusé ou absent
+// Copier le texte : demandé dans le geste du clic (navigator.clipboard.write avec un ClipboardItem qui reçoit la promesse du texte),
+// writeText en repli, un message clair s'il est refusé ou absent
 // =====================================================================================================
-{
+const rejetsOublies = [];
+process.on("unhandledRejection", (raison) => rejetsOublies.push(raison));
+const refus = () => Object.assign(new Error("denied"), { name: "NotAllowedError" });
+const differe = () => { const d = {}; d.promesse = new Promise((resoudre, rejeter) => { d.resoudre = resoudre; d.rejeter = rejeter; }); return d; };
+const tic = (ms = 5) => new Promise((resoudre) => setTimeout(resoudre, ms));
+const MESSAGE_REFUS = "Le navigateur a refusé la copie. Clique à nouveau sur « Copier le texte », ou imprime la fiche en PDF.";
+const MESSAGE_ABSENT = "La copie n'est pas disponible dans ce navigateur. Imprime la fiche en PDF, ou ouvre la page dans un autre navigateur.";
+const REUSSI = { copie: true, message: "Texte copié." };
+// Un navigateur factice. Son ClipboardItem garde ses représentations comme le vrai ; write les attend (le vrai attend les Blob) puis
+// range ce qu'il reçoit ; writeText range son texte. `journal` note les appels dans l'ordre, `copies` ce qui est arrivé dans le
+// presse-papiers, `items` les représentations données à ClipboardItem.
+function factice({ write = true, writeText = true, ecrire = null, ecrireTexte = null } = {}) {
+  const journal = [];
   const copies = [];
-  const navigatorOk = { clipboard: { writeText: async (t) => { copies.push(t); } } };
-  eq(await copierTexte("Résultats", navigatorOk), { copie: true, message: "Texte copié." }, "copie réussie : message bref");
-  eq(copies, ["Résultats"], "le texte exact est passé à writeText");
-
-  const refus = await copierTexte("x", { clipboard: { writeText: () => Promise.reject(Object.assign(new Error("denied"), { name: "NotAllowedError" })) } });
-  eq(refus.copie, false, "presse-papiers refusé : pas de copie");
-  ok(/refusé/.test(refus.message) && /Copier le texte/.test(refus.message) && /PDF/.test(refus.message), "message clair : refusé, comment réessayer, et l'impression en PDF");
-  const leve = await copierTexte("x", { clipboard: { writeText: () => { throw new Error("sécurité"); } } });
-  eq(leve.copie, false, "writeText qui lève sans rendre de promesse : pas de copie, pas d'exception");
-  eq(leve.message, refus.message, "même message que pour un refus");
-  const absents = [undefined, null, {}, { clipboard: undefined }, { clipboard: {} }, { clipboard: { writeText: "non" } }];
-  for (const nav of absents) {
-    const absent = await copierTexte("x", nav);
-    eq(absent.copie, false, `presse-papiers absent (${JSON.stringify(nav) ?? "undefined"}) : pas de copie`);
-    ok(/pas disponible/.test(absent.message) && /PDF/.test(absent.message), "message clair : la copie n'est pas disponible, l'impression en PDF reste possible");
-    ok(!absent.message.includes(TIRET_CADRATIN) && problemes(absent.message, "message").length === 0, "message propre");
+  const items = [];
+  class FauxItem {
+    constructor(representations) { journal.push("ClipboardItem"); items.push(representations); this.representations = representations; }
   }
-  eq((await copierTexte("x")).copie, false, "sans navigateur fourni (node) : absent, sans exception");
-  const lecteurLent = { clipboard: { writeText: () => new Promise((resolve) => setTimeout(resolve, 5)) } };
-  eq((await copierTexte("x", lecteurLent)).copie, true, "copie asynchrone : on attend la fin");
-  // writeText est appelé tout de suite (avant le premier await) : le geste de l'utilisateur est encore valide.
-  const ordre = [];
-  const promesse = copierTexte("x", { clipboard: { writeText: async () => { ordre.push("writeText"); } } });
-  ordre.push("après l'appel");
-  await promesse;
-  eq(ordre, ["writeText", "après l'appel"], "writeText part dans la pile du clic, pas après un détour");
+  const nav = { clipboard: {} };
+  if (write) {
+    nav.clipboard.write = (liste) => {
+      journal.push("write");
+      if (ecrire) return ecrire(liste);
+      return Promise.all(Object.values(liste[0].representations)).then(async ([blob]) => { copies.push({ via: "write", type: blob.type, texte: await blob.text() }); });
+    };
+  }
+  if (writeText) {
+    nav.clipboard.writeText = (texte) => {
+      journal.push("writeText");
+      if (ecrireTexte) return ecrireTexte(texte);
+      copies.push({ via: "writeText", texte });
+      return Promise.resolve();
+    };
+  }
+  return { nav, FauxItem, journal, copies, items };
 }
+
+{
+  // 1. Dans le geste : write et ClipboardItem partent AVANT que la promesse des lectures ne soit résolue (« Le centre »).
+  const { nav, FauxItem, journal, copies, items } = factice();
+  const lectures = differe();
+  const resultat = copierTexte(lectures.promesse, nav, FauxItem);
+  eq(journal, ["ClipboardItem", "write"], "write et ClipboardItem sont appelés tout de suite, avant que la promesse des lectures ne soit résolue");
+  eq([items.length, Object.keys(items[0])], [1, ["text/plain"]], "un seul ClipboardItem, d'un seul type : text/plain");
+  eq(copies, [], "rien n'est copié tant que le texte n'est pas arrivé : c'est le presse-papiers qui l'attend");
+  lectures.resoudre("Résultats du centre");
+  eq(await resultat, REUSSI, "le texte arrive : copie réussie, message bref");
+  eq(copies, [{ via: "write", type: "text/plain", texte: "Résultats du centre" }], "le Blob « text/plain » porte le texte arrivé après coup");
+  eq(journal, ["ClipboardItem", "write"], "write réussit : writeText n'est pas appelé");
+}
+for (const [cas, texte] of [["une chaîne", "Résultats"], ["une promesse déjà résolue", Promise.resolve("Résultats")]]) {
+  // 2. « Cette formation » : le texte est déjà là, même chemin.
+  const { nav, FauxItem, journal, copies } = factice();
+  eq(await copierTexte(texte, nav, FauxItem), REUSSI, `« Cette formation » (${cas}) : copie réussie`);
+  eq([journal, copies], [["ClipboardItem", "write"], [{ via: "write", type: "text/plain", texte: "Résultats" }]], `${cas} : même chemin que le centre, texte exact`);
+}
+{
+  // 3. write part dans la pile du clic, avant le premier await, quel que soit le texte.
+  const ordre = [];
+  const { nav, FauxItem } = factice({ ecrire: () => { ordre.push("write"); return Promise.resolve(); } });
+  const attente = copierTexte(differe().promesse, nav, FauxItem);
+  ordre.push("après l'appel");
+  await attente;
+  eq(ordre, ["write", "après l'appel"], "write part dans la pile du clic, avant le premier await");
+}
+{
+  // 4. Le navigateur n'a que write et ClipboardItem : la copie réussit.
+  const { nav, FauxItem, copies } = factice({ writeText: false });
+  eq(await copierTexte("Texte", nav, FauxItem), REUSSI, "write et ClipboardItem sans writeText : la copie réussit");
+  eq(copies.length, 1, "une seule copie");
+}
+
+// Repli : writeText, une fois le texte arrivé, quand ClipboardItem ou write manque
+for (const [cas, options, avecItem] of [["ClipboardItem absent", {}, false], ["navigator.clipboard.write absent", { write: false }, true]]) {
+  const { nav, FauxItem, journal, copies } = factice(options);
+  const lectures = differe();
+  const resultat = copierTexte(lectures.promesse, nav, avecItem ? FauxItem : null);
+  await tic();
+  eq(journal, [], `${cas} : rien ne part avant que le texte soit là (writeText attend le texte)`);
+  lectures.resoudre("Texte du centre");
+  eq(await resultat, REUSSI, `${cas} : repli sur writeText, copie réussie`);
+  eq([journal, copies], [["writeText"], [{ via: "writeText", texte: "Texte du centre" }]], `${cas} : writeText reçoit le texte arrivé, pas la promesse`);
+}
+// Repli : write échoue (refus, exception, ClipboardItem qui ne se construit pas)
+for (const [cas, ecrire] of [["write rejette", () => Promise.reject(refus())], ["write lève sans rendre de promesse", () => { throw refus(); }]]) {
+  const { nav, FauxItem, journal, copies } = factice({ ecrire });
+  const lectures = differe();
+  const resultat = copierTexte(lectures.promesse, nav, FauxItem);
+  await tic();
+  eq(journal, ["ClipboardItem", "write"], `${cas} : writeText attend le texte`);
+  lectures.resoudre("Texte du centre");
+  eq(await resultat, REUSSI, `${cas} : repli sur writeText, copie réussie`);
+  eq([journal, copies], [["ClipboardItem", "write", "writeText"], [{ via: "writeText", texte: "Texte du centre" }]], `${cas} : writeText reçoit le texte`);
+}
+{
+  class ItemRefuse { constructor() { throw new TypeError("type non géré"); } }
+  const { nav, copies } = factice();
+  eq(await copierTexte("Texte", nav, ItemRefuse), REUSSI, "ClipboardItem qui refuse de se construire : repli sur writeText");
+  eq(copies, [{ via: "writeText", texte: "Texte" }], "texte exact");
+}
+{
+  // writeText, texte déjà là : part aussi dans la pile du clic, sans le moindre await.
+  const ordre = [];
+  const { nav } = factice({ ecrireTexte: () => { ordre.push("writeText"); return Promise.resolve(); } });
+  const attente = copierTexte("x", nav, null);
+  ordre.push("après l'appel");
+  await attente;
+  eq(ordre, ["writeText", "après l'appel"], "repli avec un texte déjà là : writeText part dans la pile du clic");
+}
+// Lenteurs : la copie n'est rendue qu'une fois écrite
+for (const [cas, nom, avecItem] of [["write lent", "ecrire", true], ["writeText lent", "ecrireTexte", false]]) {
+  const ordre = [];
+  const { nav, FauxItem } = factice({ [nom]: async () => { await tic(10); ordre.push("écrit"); } });
+  eq((await copierTexte("x", nav, avecItem ? FauxItem : null)).copie, true, `${cas} : copie réussie`);
+  ordre.push("rendu");
+  eq(ordre, ["écrit", "rendu"], `${cas} : la copie n'est rendue qu'une fois l'écriture terminée`);
+}
+
+// Tout échoue : le message de refus, rien dans le presse-papiers
+for (const [cas, options, avecItem] of [
+  ["write et writeText rejettent", { ecrire: () => Promise.reject(refus()), ecrireTexte: () => Promise.reject(refus()) }, true],
+  ["write rejette, writeText lève", { ecrire: () => Promise.reject(refus()), ecrireTexte: () => { throw refus(); } }, true],
+  ["write rejette, pas de writeText", { ecrire: () => Promise.reject(refus()), writeText: false }, true],
+  ["pas de ClipboardItem, writeText rejette", { ecrireTexte: () => Promise.reject(refus()) }, false],
+  ["pas de ClipboardItem, writeText lève", { ecrireTexte: () => { throw refus(); } }, false],
+]) {
+  const { nav, FauxItem, copies } = factice(options);
+  eq(await copierTexte("Texte", nav, avecItem ? FauxItem : null), { copie: false, message: MESSAGE_REFUS }, `${cas} : pas de copie, message de refus`);
+  eq(copies, [], `${cas} : rien dans le presse-papiers`);
+}
+ok(/refusé/.test(MESSAGE_REFUS) && /Copier le texte/.test(MESSAGE_REFUS) && /PDF/.test(MESSAGE_REFUS) && !MESSAGE_REFUS.includes(TIRET_CADRATIN),
+  "message de refus clair : refusé, comment réessayer, et l'impression en PDF");
+
+// Absent : ni write avec ClipboardItem, ni writeText
+const absents = [[undefined], [null], [{}], [{ clipboard: undefined }], [{ clipboard: {} }], [{ clipboard: { writeText: "non" } }], [{ clipboard: { write: () => Promise.resolve() } }], [{ clipboard: { write: "non" } }, class {}]];
+for (const [rang, [nav, item]] of absents.entries()) {
+  const absent = await copierTexte("x", nav, item ?? null);
+  eq(absent, { copie: false, message: MESSAGE_ABSENT }, `presse-papiers absent (cas ${rang + 1}) : pas de copie, message d'absence`);
+}
+ok(/pas disponible/.test(MESSAGE_ABSENT) && /PDF/.test(MESSAGE_ABSENT) && !MESSAGE_ABSENT.includes(TIRET_CADRATIN) && problemes(MESSAGE_ABSENT, "message").length === 0,
+  "message d'absence clair : la copie n'est pas disponible, l'impression en PDF reste possible");
+eq((await copierTexte("x")).copie, false, "sans navigateur fourni (node) : absent, sans exception");
+
+// Un texte qui ne vient pas n'est jamais copié, quel que soit le chemin
+for (const [cas, options, avecItem] of [["write et writeText", {}, true], ["write seul", { writeText: false }, true], ["writeText seul", {}, false]]) {
+  const { nav, FauxItem, journal, copies } = factice(options);
+  const lectures = differe();
+  const resultat = copierTexte(lectures.promesse, nav, avecItem ? FauxItem : null);
+  lectures.rejeter(new Error("lecture impossible"));
+  eq(await resultat, { copie: false, message: MESSAGE_REFUS }, `${cas} : la lecture échoue, le texte ne vient pas : rien n'est copié`);
+  eq(copies, [], `${cas} : le presse-papiers n'a rien reçu`);
+  ok(!journal.includes("writeText"), `${cas} : writeText n'est jamais appelé sans texte`);
+}
+for (const [cas, texte] of [["chaîne vide", ""], ["nombre", 42], ["null", null], ["undefined", undefined], ["promesse de chaîne vide", Promise.resolve("")], ["promesse de rien", Promise.resolve(undefined)]]) {
+  for (const [forme, avecItem] of [["write", true], ["writeText", false]]) {
+    const { nav, FauxItem, copies } = factice();
+    eq((await copierTexte(texte, nav, avecItem ? FauxItem : null)).copie, false, `${cas} (${forme}) : pas de copie`);
+    eq(copies, [], `${cas} (${forme}) : un texte vide ou qui n'en est pas un ne vide jamais le presse-papiers`);
+  }
+}
+{
+  // Le rejet d'un texte qui ne vient pas n'est jamais laissé sans gestionnaire, même quand la copie n'a pas pu être demandée.
+  class ItemRefuse { constructor() { throw new TypeError("type non géré"); } }
+  const a = differe();
+  const ra = copierTexte(a.promesse, factice().nav, ItemRefuse);
+  a.rejeter(new Error("lecture impossible"));
+  eq((await ra).copie, false, "ClipboardItem qui refuse et texte qui ne vient pas : pas de copie");
+  const b = differe();
+  const rb = copierTexte(b.promesse, {}, null);
+  b.rejeter(new Error("lecture impossible"));
+  eq(await rb, { copie: false, message: MESSAGE_ABSENT }, "navigateur sans presse-papiers et texte qui ne vient pas : message d'absence");
+  const c = differe();
+  const rc = copierTexte(c.promesse, factice({ ecrire: () => Promise.reject(refus()), writeText: false }).nav, class {});
+  c.rejeter(new Error("lecture impossible"));
+  eq((await rc).copie, false, "write qui rejette, pas de writeText, texte qui ne vient pas : pas de copie");
+}
+await tic(50);
+eq(rejetsOublies, [], "aucune promesse rejetée n'est restée sans gestionnaire (pas de rejet non géré)");
 
 // =====================================================================================================
 // Le module est pur et ses fichiers sont propres
@@ -359,7 +509,12 @@ eq(fichesResultatsTexte([null, undefined, {}]), AUCUNE_FORMATION, "fiches vides 
   ok(!/\bdocument\b|\bwindow\b|\bfetch\s*\(|localStorage|sessionStorage|\bimport\s*\(/.test(code), "module pur : ni DOM, ni réseau, ni stockage");
   eq([...source.matchAll(/from "(\.\/[^"]+)"/g)].map((m) => m[1].split("?")[0]).sort(), ["./centre-stats.js", "./qualiopi-documents.js", "./qualiopi-preuves.js"],
     "n'importe que le tableau de bord, les dossiers et l'inventaire");
-  ok(/navigator\.clipboard\.writeText\(texte\)/.test(code), "la copie passe par navigator.clipboard.writeText");
+  ok(/navigator\.clipboard\.write\(\[new ClipboardItem\(\{ "text\/plain": blob \}\)\]\)/.test(code) && /new Blob\(\[texte\], \{ type: "text\/plain" \}\)/.test(code),
+    "la copie passe par navigator.clipboard.write avec un ClipboardItem « text/plain » qui reçoit la promesse d'un Blob");
+  ok(/navigator\.clipboard\.writeText\(aCopier\)/.test(code), "et, en repli, par navigator.clipboard.writeText avec le texte arrivé");
+  const corps = code.slice(code.indexOf("export async function copierTexte("));
+  const appel = corps.indexOf("navigator.clipboard.write(");
+  ok(appel > 0 && !/\bawait\b/.test(corps.slice(0, appel)), "write est appelé avant le premier await de copierTexte : dans le geste du clic");
   ok(!/function promoTerminee|promoTerminee =/.test(code), "promoTerminee n'est pas réécrite ici");
   for (const [fichier, texte] of [["js/qualiopi-resultats.js", source], ["js/centre-stats.js", lire("js/centre-stats.js")]]) {
     ok(!texte.includes(TIRET_CADRATIN), `${fichier} : aucun tiret cadratin`);

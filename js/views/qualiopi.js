@@ -103,6 +103,10 @@ function fichesImprimables(fiches) {
   return el("article", { class: "qdoc" }, ...liste(fiches).map(ficheImprimable));
 }
 
+// Le texte à copier : celui des fiches, ou rien (une chaîne vide, que copierTexte ne copie jamais) quand il n'y en a pas : promo du
+// centre qui ne se lit pas, action devenue caduque, centre sans promo dans la période.
+const texteDesFiches = (fiches) => (fiches?.length ? fichesResultatsTexte(fiches) : "");
+
 // =====================================================================================================
 // Page : indicateurs par critère
 // =====================================================================================================
@@ -355,21 +359,24 @@ export async function renderQualiopi(container) {
   // celles des promos du centre, les mêmes que pour le dossier du centre, l'une après l'autre (« centre ») ; imprimée (`sortie`
   // « imprimer ») ou copiée en texte pour le site du centre (« copier »). Les promos en cours portent leur avertissement dans la
   // fiche comme dans le texte ; rien n'est additionné entre les promos.
+  // Copier : la copie est DEMANDÉE tout de suite, dans le geste du clic, avant le moindre `await`, avec la promesse du texte (celui du
+  // centre n'existe qu'après la lecture de ses promos) : Safari, iOS compris, n'accepte pas une demande faite après une attente, ni
+  // Firefox après 5 secondes. C'est le même chemin pour « Cette formation » et pour « Le centre ».
   async function sortirFiches(portee, sortie) {
     if (occupe || !etat.donnees) return;
     const moi = ++action;
     const { promo, referentiel } = etat;
     bloquerBoutons(true);
     try {
-      let fiches;
-      if (portee === "formation") {
-        fiches = [ficheResultats({ promo, ind: etat.ind, aujourdhui })];
-      } else {
-        const { retenues } = promosEtPeriodeDuCentre();
-        fiches = await lirePromosDuCentre(moi, retenues, "les résultats du centre ne sont pas préparés",
+      // Les fiches : celle de la promo choisie sur-le-champ, celles du centre après la lecture de ses promos (rien si une promo ne se
+      // lit pas ou si l'action devient caduque : le message est alors déjà écrit).
+      const lesFiches = portee === "formation"
+        ? Promise.resolve([ficheResultats({ promo, ind: etat.ind, aujourdhui })])
+        : lirePromosDuCentre(moi, promosEtPeriodeDuCentre().retenues, "les résultats du centre ne sont pas préparés",
           (p, donnees) => ficheResultats({ promo: p, ind: indicateursPromo(donnees, referentiel, { aujourdhui }), aujourdhui }));
-        if (!fiches) return;
-      }
+      const copie = sortie === "copier" ? copierTexte(lesFiches.then(texteDesFiches)) : null;   // sans await : dans le geste du clic
+      const fiches = await lesFiches;
+      if (!fiches) return;
       if (!fiches.length) {   // aucune promo du centre dans la période : ni page blanche à imprimer, ni phrase vide à copier
         ecrireStatut(AUCUNE_FORMATION);
         return;
@@ -380,13 +387,13 @@ export async function renderQualiopi(container) {
         imprimerQualiopi(fichesImprimables(fiches), titreImpression(nature, nom, aujourdhui));
         return;
       }
-      const copie = await copierTexte(fichesResultatsTexte(fiches));
+      const resultat = await copie;
       if (!actionVivante(moi)) return;
-      if (copie.copie) {
-        ecrireStatut([copie.message, noteProvisoire(fiches)].filter(Boolean).join(" "));
+      if (resultat.copie) {
+        ecrireStatut([resultat.message, noteProvisoire(fiches)].filter(Boolean).join(" "));
         toast("Texte copié", "success");
       } else {
-        ecrireStatut(copie.message, true);
+        ecrireStatut(resultat.message, true);
         statut?.scrollIntoView?.({ block: "nearest" });
       }
     } catch (e) {
