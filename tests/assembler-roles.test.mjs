@@ -5,7 +5,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
-  ETAPES, NEUTRE, RACINE, assembler, assemblerMode, decrireMode, lireEtapes, md5, principal,
+  ETAPES, NEUTRE, RACINE, assembler, assemblerMode, decrireMode, lireEtapes, md5, principal, sansVidesNiCommentaires,
 } from "../outils/assembler_repetition_roles.mjs";
 
 // outils/assembler_repetition_roles.mjs fabrique le fichier SQL d'une répétition du lot 4 : le gabarit de la preuve,
@@ -303,7 +303,167 @@ test("ligne de commande : écrit la sortie hors du dépôt ; --etapes ; mode inc
 
     const usage = spawnSync(process.execPath, [SCRIPT, "etape-1"], { encoding: "utf8" });
     assert.equal(usage.status, 1);
-    assert.match(usage.stderr, /Usage : node outils\/assembler_repetition_roles\.mjs <mode> \[--etapes 1,2\] <sortie\.sql>/);
+    assert.match(usage.stderr, /Usage : node outils\/assembler_repetition_roles\.mjs <mode> \[--etapes 1,2\] \[--compact\] <sortie\.sql>/);
+  } finally {
+    rmSync(dossier, { recursive: true, force: true });
+  }
+});
+
+// ---- Compactage (--compact, R27) : la copie à transmettre à la base -------------------------------------------------
+
+/** Ce que le compactage doit donner, calculé à part (autre code que l'assembleur) : la sortie complète sans ses lignes
+ *  vides ni de commentaire, sauf l'en-tête et l'intérieur des littéraux injectés (le délimiteur y entre et en sort : on
+ *  compte ses occurrences ligne par ligne). */
+function compacteAttendu(complet) {
+  const entete = 1 + (complet.mode != null ? 1 : 0) + complet.inclusions.length + complet.injections.length + complet.neutralises.length;
+  const delimiteur = complet.injections[0]?.delimiteur;
+  let dedans = false;
+  return complet.texte.split("\n").filter((ligne, i) => {
+    const etaitDedans = dedans;
+    if (delimiteur && (ligne.split(delimiteur).length - 1) % 2 === 1) dedans = !dedans;
+    if (i < entete || etaitDedans || dedans) return true;
+    return ligne.trim() !== "" && !ligne.trimStart().startsWith("--");
+  });
+}
+
+const LIGNE_COMPACT = "-- compact : lignes vides et de commentaire du gabarit et des aides retirées, textes injectés intacts";
+const MODES_COMPACTS = [["etape-1", duDisque], ["contre-epreuve", duDisque], ["en-ligne", depotComplet], ["repetition", depotComplet]];
+
+test("compactage : les littéraux injectés restent identiques aux fichiers du dépôt, octet pour octet", () => {
+  for (const [mode, lire] of MODES_COMPACTS) {
+    const r = assemblerMode(mode, RACINE, { lire, compact: true });
+    verifierInjections(r, lire);
+    assert.equal(r.compact, true);
+    assert.ok(!r.texte.includes("\r"));
+    assert.ok(!/^\s*--\s*@@/m.test(r.texte), `plus aucun marqueur dans la sortie (${mode})`);
+  }
+});
+
+test("compactage : la sortie compacte égale la sortie complète moins ses lignes vides et de commentaire (hors en-tête et littéraux)", () => {
+  for (const [mode, lire] of MODES_COMPACTS) {
+    const complet = assemblerMode(mode, RACINE, { lire });
+    const compact = assemblerMode(mode, RACINE, { lire, compact: true });
+    const lignes = compact.texte.split("\n");
+    assert.equal(lignes.filter((l) => l === LIGNE_COMPACT).length, 1, `${mode} : une ligne d'en-tête dit le compactage`);
+    assert.deepEqual(lignes.filter((l) => l !== LIGNE_COMPACT), compacteAttendu(complet), mode);
+    assert.ok(compact.longueur < complet.longueur, `${mode} : plus court`);
+    // Les md5 de l'en-tête sont ceux des fichiers (le compactage n'y touche pas), les mêmes qu'en sortie complète.
+    assert.deepEqual(compact.inclusions, complet.inclusions);
+    assert.deepEqual(compact.injections, complet.injections);
+    assert.deepEqual(compact.neutralises, complet.neutralises);
+  }
+});
+
+test("compactage : sur un petit gabarit, le gabarit et les fichiers inclus perdent leurs lignes vides et de commentaire, pas les littéraux injectés", () => {
+  const gabarit = [
+    "-- note-gabarit", "", "do $preuve$", "begin", "  -- note-bloc", "  execute",
+    "-- @@INJECTER m.sql@@", "  ;", "", "-- @@INCLURE aides.sql@@", "   ", "end $preuve$;", "",
+  ].join("\n");
+  const fichiers = {
+    "m.sql": "-- migration\n\nselect 1;\n   -- fin\n",
+    "aides.sql": "-- aides\n\ncreate function f() returns int language sql as 'select 1';\n\n  -- fin des aides\n",
+  };
+  const r = assembler(gabarit, enMemoire(fichiers), { nom: "g.sql", compact: true });
+  const d = r.injections[0].delimiteur;
+  assert.deepEqual(litteraux(r.texte, d), [fichiers["m.sql"]], "littéral intact (lignes vides et commentaire comprises)");
+  const entete = 1 + r.inclusions.length + r.injections.length + 1; // la première ligne, les md5, la ligne « compact »
+  assert.deepEqual(r.texte.split("\n").slice(entete), [
+    "do $preuve$", "begin", "  execute", `${d}-- migration`, "", "select 1;", "   -- fin", d,
+    "  ;", "create function f() returns int language sql as 'select 1';", "end $preuve$;",
+  ]);
+  for (const note of ["note-gabarit", "note-bloc", "-- aides", "fin des aides"]) assert.ok(!r.texte.includes(note), `absent : ${note}`);
+  assert.ok(r.texte.includes(`-- inclus : aides.sql (md5 ${md5(fichiers["aides.sql"])})`), "le md5 de l'en-tête est celui du fichier, pas de sa copie compactée");
+  // Sans --compact : tout y est, comme avant.
+  const complet = assembler(gabarit, enMemoire(fichiers), { nom: "g.sql" });
+  assert.ok(complet.texte.includes("note-gabarit") && complet.texte.includes("note-bloc") && complet.texte.includes("fin des aides"));
+  assert.equal(complet.compact, false);
+  assert.deepEqual(sansVidesNiCommentaires("a\n\n  -- b\n--c\nd -- e\n  \nf"), ["a", "d -- e", "f"]);
+});
+
+test("compactage : taille et md5 du texte produit annoncés (caractères, octets UTF-8, md5), égaux à ceux du texte", () => {
+  for (const compact of [false, true]) {
+    const r = assemblerMode("contre-epreuve", RACINE, { compact });
+    assert.equal(r.longueur, Array.from(r.texte).length);
+    assert.equal(r.octets, Buffer.byteLength(r.texte, "utf8"));
+    assert.equal(r.md5, md5(r.texte));
+  }
+  const accents = assembler("-- é\nselect 'é€';\n", enMemoire({}), { compact: true });
+  assert.equal(accents.longueur, Array.from(accents.texte).length);
+  assert.ok(accents.octets > accents.longueur, "les accents pèsent plus d'un octet");
+});
+
+test("gabarit : aucune ligne vide ni de commentaire dans un littéral de données (le retrait du compactage reste neutre)", () => {
+  // Littéraux de données : leur contenu part à la base (conditions de la matrice, gabarits d'ajout, requêtes modèles).
+  // Corps de code : fonctions et bloc do, où une ligne vide ou un commentaire ne change rien. Une balise inconnue fait
+  // échouer le test : il faut la classer.
+  const DONNEES = ["mx", "aj", "pv"];
+  const CODE = ["fx", "f", "empreinte", "preuve"];
+  for (const chemin of [GABARIT_ROLES, AIDES]) {
+    const texte = texteDuDepot(chemin);
+    const balises = new Set([...texte.matchAll(/\$([A-Za-z_][A-Za-z0-9_]*)\$/g)].map((m) => m[1]));
+    assert.ok(!/\$\$/.test(texte), `${chemin} : pas de $$`);
+    for (const balise of balises) {
+      assert.ok(DONNEES.includes(balise) || CODE.includes(balise), `${chemin} : balise $${balise}$ à classer (données ou code)`);
+    }
+    let vus = 0;
+    for (const balise of DONNEES) {
+      for (const m of texte.matchAll(new RegExp(`\\$${balise}\\$([\\s\\S]*?)\\$${balise}\\$`, "g"))) {
+        vus++;
+        // la première ligne part de la ligne d'ouverture, la dernière précède la fermeture : seules les lignes entières comptent
+        m[1].split("\n").slice(1, -1).forEach((ligne, i) => {
+          assert.ok(ligne.trim() !== "" && !ligne.trimStart().startsWith("--"),
+            `${chemin} : ligne ${i + 2} d'un littéral $${balise}$ vide ou de commentaire : « ${ligne.trim().slice(0, 50)} »`);
+        });
+      }
+    }
+    if (chemin === GABARIT_ROLES) assert.ok(vus > 300, "les littéraux de données du gabarit sont bien trouvés");
+  }
+});
+
+test("gabarit : la requête reçue est hachée sans le suffixe de la passerelle, que ni le gabarit ni les sorties ne contiennent", () => {
+  const gabarit = texteDuDepot(GABARIT_ROLES);
+  assert.ok(gabarit.includes("regexp_replace(current_query(), E'\\n\\n-- source:"), "le gabarit retire le suffixe « -- source: » avant de hacher");
+  for (const [mode, lire] of [["etape-1", duDisque], ["contre-epreuve", duDisque], ["repetition", depotComplet]]) {
+    for (const compact of [false, true]) {
+      const r = assemblerMode(mode, RACINE, { lire, compact });
+      assert.ok(!r.texte.includes("\n\n-- source:"), `${mode}${compact ? " --compact" : ""} : le retrait du suffixe ne coupera rien dans le fichier`);
+    }
+  }
+});
+
+test("mode en-ligne : le libellé du mode et la détection du gabarit vont ensemble", () => {
+  const gabarit = texteDuDepot(GABARIT_ROLES);
+  const m = /v_mode like '([^'%]*)%'/.exec(gabarit);
+  assert.ok(m, "le gabarit reconnaît le mode en-ligne à un préfixe du libellé (v_mode like '...%')");
+  const prefixe = m[1];
+  assert.ok(decrireMode("en-ligne").mode.startsWith(prefixe), `le libellé du mode en-ligne commence par « ${prefixe} »`);
+  for (const [mode, options] of [["contre-epreuve", {}], ["repetition", {}], ["repetition", { etapes: [1] }], ["repetition", { etapes: [1, 2] }]]) {
+    assert.ok(!decrireMode(mode, options).mode.startsWith(prefixe), `le libellé de ${mode} ne passe pas pour en-ligne`);
+  }
+});
+
+test("ligne de commande : --compact écrit la copie compacte, affiche sa longueur et son md5 (n'importe où dans les arguments)", () => {
+  const dossier = mkdtempSync(join(tmpdir(), "assembler-roles-"));
+  try {
+    const sortie = join(dossier, "contre-c.sql");
+    const attendu = assemblerMode("contre-epreuve", RACINE, { compact: true });
+    const complet = assemblerMode("contre-epreuve");
+    for (const args of [["contre-epreuve", "--compact", sortie], ["--compact", "contre-epreuve", sortie], ["contre-epreuve", sortie, "--compact"]]) {
+      const r = spawnSync(process.execPath, [SCRIPT, ...args], { encoding: "utf8" });
+      assert.equal(r.status, 0, r.stderr);
+      assert.equal(readFileSync(sortie, "utf8"), attendu.texte);
+      assert.ok(r.stdout.includes(`texte       ${attendu.longueur} caractères, ${attendu.octets} octets, md5 ${attendu.md5}`), r.stdout);
+      assert.ok(r.stdout.includes(`compact     ${attendu.longueur} caractères au lieu de ${complet.longueur}`), r.stdout);
+    }
+    // Sans --compact : la même annonce pour le texte complet, et pas de ligne « compact ».
+    const fichier = join(dossier, "contre.sql");
+    const c = spawnSync(process.execPath, [SCRIPT, "contre-epreuve", fichier], { encoding: "utf8" });
+    assert.equal(c.status, 0, c.stderr);
+    assert.ok(c.stdout.includes(`texte       ${complet.longueur} caractères, ${complet.octets} octets, md5 ${complet.md5}`), c.stdout);
+    assert.ok(!/^ {2}compact /m.test(c.stdout));
+    assert.equal(md5(readFileSync(fichier, "utf8")), complet.md5, "le md5 annoncé est celui du fichier écrit");
+    // La preuve compare ce md5 et cette longueur à ceux de la requête reçue : les caractères sont des points de code.
+    assert.equal(Array.from(readFileSync(fichier, "utf8")).length, complet.longueur);
   } finally {
     rmSync(dossier, { recursive: true, force: true });
   }

@@ -22,7 +22,14 @@
 //                              quelque chose, VERT sur la non-régression ;
 //   en-ligne                   la même preuve sans aucune migration, après leur application réelle.
 //
-// Usage : node outils/assembler_repetition_roles.mjs <mode> [--etapes 1,2] <sortie.sql>
+// Option --compact (tous les modes) : retire du gabarit et des aides les lignes vides et les lignes de commentaire, pour
+// une requête plus courte à transmettre (R27). Les textes injectés (migrations, retours, requête d'empreinte) restent
+// intacts, octet pour octet, comme l'en-tête qui porte les md5 des fichiers. Le gabarit ne doit donc contenir ni ligne
+// vide ni ligne de commentaire dans un littéral de données (le retrait changerait ce littéral) : un test le garde.
+// L'assembleur affiche la longueur et le md5 du texte produit ; la preuve rend ceux de la requête qu'elle a reçue
+// (suffixe de la passerelle MCP retiré), ce qui montre que la base a reçu exactement ce fichier.
+//
+// Usage : node outils/assembler_repetition_roles.mjs <mode> [--etapes 1,2] [--compact] <sortie.sql>
 // La sortie, jetable, s'écrit hors du dépôt ; elle se joue ensuite en une requête (MCP execute_sql).
 // Tests : tests/assembler-roles.test.mjs.
 import { createHash } from "node:crypto";
@@ -56,7 +63,7 @@ export const MODES = {
   "en-ligne": { gabarit: GABARIT_ROLES, etapes: [], libelle: "en-ligne (aucune migration injectée)" },
 };
 
-export const USAGE = `node outils/assembler_repetition_roles.mjs <mode> [--etapes 1,2] <sortie.sql>   (modes : ${Object.keys(MODES).join(", ")})`;
+export const USAGE = `node outils/assembler_repetition_roles.mjs <mode> [--etapes 1,2] [--compact] <sortie.sql>   (modes : ${Object.keys(MODES).join(", ")})`;
 
 /** Ce qui remplace une injection neutralisée : un littéral inoffensif, que execute joue sans effet. */
 export const NEUTRE = "'select 1'";
@@ -68,11 +75,15 @@ const MOTS = ["INJECTER", "INCLURE", "MODE"];
 const MOT_CLE = /@@(?:INJECTER|INCLURE|MODE)\b/; // un mot-clé de marqueur ailleurs dans une ligne : marqueur mal placé
 const DELIMITEUR = /\$(?:[A-Za-z_][A-Za-z0-9_]*)?\$/g; // délimiteurs dollar ($$, $tag$)
 const LIBELLE = /^[\p{L}\p{N} ,()'.:_-]+$/u; // un libellé de mode : une ligne de texte simple, sans dollar
+const VIDE_OU_COMMENTAIRE = /^\s*(?:--.*)?$/; // une ligne vide, ou qui ne porte qu'un commentaire (--)
 
 const sansRetourChariot = (texte) => texte.replace(/\r/g, "");
 
 /** md5 hexadécimal d'un texte (UTF-8), celui que rend md5() en SQL. */
 export const md5 = (texte) => createHash("md5").update(texte, "utf8").digest("hex");
+
+/** Les lignes d'un texte, sans les lignes vides ni les lignes de commentaire : le compactage d'un gabarit ou d'aides. */
+export const sansVidesNiCommentaires = (texte) => texte.split("\n").filter((ligne) => !VIDE_OU_COMMENTAIRE.test(ligne));
 
 /** Un chemin depuis la racine du dépôt : relatif, en barres obliques, sans segment vide, « . » ni « .. ». */
 function cheminValide(chemin) {
@@ -126,11 +137,14 @@ export function decrireMode(mode, { etapes } = {}) {
  * Assemble un gabarit. Pure : aucune lecture de disque, `lire(chemin)` rend le texte d'un fichier (chemin depuis la
  * racine du dépôt) ou null s'il n'existe pas. `nom` désigne le gabarit dans les messages ; `neutres` liste les chemins
  * dont les injections deviennent le littéral 'select 1' (le fichier n'est pas lu) ; `mode` est le libellé écrit à la
- * place du marqueur de mode (obligatoire si le gabarit en porte un, interdit sinon).
- * Rend { texte, injections: [{ chemin, delimiteur, md5 }], inclusions: [{ chemin, md5 }], neutralises: [chemin], mode },
- * dans l'ordre du gabarit ; lève une Error au message clair sur tout écart.
+ * place du marqueur de mode (obligatoire si le gabarit en porte un, interdit sinon) ; `compact` retire du gabarit et des
+ * fichiers inclus les lignes vides et les lignes de commentaire (les marqueurs, eux, sont traités d'abord ; les textes
+ * injectés restent intacts, l'en-tête aussi, avec une ligne de plus qui dit le compactage).
+ * Rend { texte, injections: [{ chemin, delimiteur, md5 }], inclusions: [{ chemin, md5 }], neutralises: [chemin], mode,
+ * compact, longueur (caractères), octets (UTF-8), md5 (du texte produit) }, dans l'ordre du gabarit ; lève une Error au
+ * message clair sur tout écart.
  */
-export function assembler(gabarit, lire, { nom = "gabarit", neutres = [], mode = null } = {}) {
+export function assembler(gabarit, lire, { nom = "gabarit", neutres = [], mode = null, compact = false } = {}) {
   const modele = sansRetourChariot(gabarit);
   const lignes = modele.split("\n");
 
@@ -219,38 +233,55 @@ export function assembler(gabarit, lire, { nom = "gabarit", neutres = [], mode =
   const injections = [];
   const inclusions = [];
   const neutralises = [];
-  const corps = lignes.map((ligne, i) => {
+  const corps = [];
+  lignes.forEach((ligne, i) => {
     const m = marqueurs.get(i);
-    if (!m) return ligne;
-    if (m.sorte === "MODE") return `${m.retrait}'${mode.replace(/'/g, "''")}'`;
-    if (m.sorte === "INCLURE") {
+    if (!m) {
+      if (!compact || !VIDE_OU_COMMENTAIRE.test(ligne)) corps.push(ligne);
+      return;
+    }
+    if (m.sorte === "MODE") {
+      corps.push(`${m.retrait}'${mode.replace(/'/g, "''")}'`);
+    } else if (m.sorte === "INCLURE") {
       inclusions.push({ chemin: m.chemin, md5: md5(textes.get(m.chemin)) });
-      return textes.get(m.chemin);
-    }
-    if (neutres.includes(m.chemin)) {
+      if (!compact) {
+        corps.push(textes.get(m.chemin));
+      } else {
+        const gardees = sansVidesNiCommentaires(textes.get(m.chemin));
+        if (gardees.length > 0) corps.push(gardees.join("\n"));
+      }
+    } else if (neutres.includes(m.chemin)) {
       neutralises.push(m.chemin);
-      return m.retrait + NEUTRE;
+      corps.push(m.retrait + NEUTRE);
+    } else {
+      const texte = textes.get(m.chemin);
+      injections.push({ chemin: m.chemin, delimiteur, md5: md5(texte) });
+      corps.push(m.retrait + delimiteur + texte + delimiteur);
     }
-    const texte = textes.get(m.chemin);
-    injections.push({ chemin: m.chemin, delimiteur, md5: md5(texte) });
-    return m.retrait + delimiteur + texte + delimiteur;
   });
   const entete = [
     `-- Fichier assemblé par outils/assembler_repetition_roles.mjs depuis ${nom} : ne pas le modifier, le réassembler.`,
     ...(mode != null ? [`-- mode : ${mode}`] : []),
+    ...(compact ? ["-- compact : lignes vides et de commentaire du gabarit et des aides retirées, textes injectés intacts"] : []),
     ...inclusions.map((x) => `-- inclus : ${x.chemin} (md5 ${x.md5})`),
     ...injections.map((x) => `-- injecté : ${x.chemin} (md5 ${x.md5})`),
     ...neutralises.map((chemin) => `-- neutralisé : ${chemin} (remplacé par un select 1 sans effet)`),
   ];
-  return { texte: [...entete, ...corps].join("\n"), injections, inclusions, neutralises, mode };
+  const texte = [...entete, ...corps].join("\n");
+  return {
+    texte, injections, inclusions, neutralises, mode, compact,
+    longueur: Array.from(texte).length, // en caractères (points de code), comme length() en SQL
+    octets: Buffer.byteLength(texte, "utf8"), md5: md5(texte),
+  };
 }
 
 /**
  * Assemble le gabarit d'un mode, en lisant les fichiers sous `racine` (la racine du dépôt par défaut), ou par
  * `lire(chemin)` s'il est donné (tests). `etapes` : les étapes du mode repetition (1, 2, 3 par défaut). Une étape
- * demandée dont la migration ou le retour manque arrête l'assemblage, en disant quoi jouer en attendant.
+ * demandée dont la migration ou le retour manque arrête l'assemblage, en disant quoi jouer en attendant. `compact` :
+ * voir assembler().
  */
-export function assemblerMode(mode, racine = RACINE, { etapes, lire } = {}) {
+export function assemblerMode(mode, racine = RACINE, { etapes, lire, compact = false } = {}) {
   const decrit = decrireMode(mode, { etapes });
   const lireFichier = lire ?? ((chemin) => {
     const fichier = resolve(racine, chemin);
@@ -266,7 +297,7 @@ export function assemblerMode(mode, racine = RACINE, { etapes, lire } = {}) {
   }
   const gabarit = lireFichier(decrit.gabarit);
   if (gabarit == null) throw new Error(`Gabarit introuvable : ${decrit.gabarit}.`);
-  return assembler(gabarit, lireFichier, { nom: decrit.gabarit, neutres: decrit.neutres, mode: decrit.mode });
+  return assembler(gabarit, lireFichier, { nom: decrit.gabarit, neutres: decrit.neutres, mode: decrit.mode, compact });
 }
 
 /** Une liste d'étapes écrite en ligne de commande (« 1,2 ») ; la validité se juge dans decrireMode. */
@@ -281,6 +312,7 @@ function lireListeEtapes(texte) {
 export function principal(argv, { racine = RACINE, journal = console.log, erreur = console.error } = {}) {
   const positionnels = [];
   let etapesTexte;
+  let compact = false;
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--etapes") {
@@ -291,6 +323,8 @@ export function principal(argv, { racine = RACINE, journal = console.log, erreur
       etapesTexte = argv[++i];
     } else if (a.startsWith("--etapes=")) {
       etapesTexte = a.slice("--etapes=".length);
+    } else if (a === "--compact") {
+      compact = true;
     } else {
       positionnels.push(a);
     }
@@ -308,13 +342,20 @@ export function principal(argv, { racine = RACINE, journal = console.log, erreur
       throw new Error(`sortie dans le dépôt refusée (${sortie}) : le fichier assemblé est jetable, l'écrire hors du dépôt.`);
     }
     if (!existsSync(dirname(cible))) throw new Error(`dossier de sortie introuvable : ${dirname(cible)}.`);
-    const r = assemblerMode(mode, racine, { etapes });
+    const r = assemblerMode(mode, racine, { etapes, compact });
     writeFileSync(cible, r.texte);
     journal(`${mode} : ${cible}`);
     if (r.mode != null) journal(`  mode        ${r.mode}`);
     for (const x of r.inclusions) journal(`  inclus      ${x.chemin}  md5 ${x.md5}`);
     for (const x of r.injections) journal(`  injecté     ${x.chemin}  md5 ${x.md5}`);
     for (const chemin of r.neutralises) journal(`  neutralisé  ${chemin}`);
+    // La taille et l'empreinte du texte produit : celles que la preuve doit rendre pour la requête qu'elle a reçue (la
+    // passerelle MCP y ajoute un suffixe, que la preuve retire avant de hacher).
+    if (compact) {
+      const complet = assemblerMode(mode, racine, { etapes });
+      journal(`  compact     ${r.longueur} caractères au lieu de ${complet.longueur} (lignes vides et de commentaire du gabarit et des aides retirées)`);
+    }
+    journal(`  texte       ${r.longueur} caractères, ${r.octets} octets, md5 ${r.md5}`);
     return 0;
   } catch (e) {
     erreur(`Assemblage refusé : ${e.message}`);

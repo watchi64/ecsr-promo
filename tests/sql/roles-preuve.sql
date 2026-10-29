@@ -10,14 +10,18 @@
 --   node outils/assembler_repetition_roles.mjs contre-epreuve <sortie.sql>            la seule étape 1 : ROUGE là où les
 --                                                                                     étapes 2 et 3 changent un droit
 --   node outils/assembler_repetition_roles.mjs en-ligne <sortie.sql>                  rien d'injecté, après application
+--   ... --compact <sortie.sql>   (avec n'importe quel mode) retire du gabarit et des aides les lignes vides et de
+--                                commentaire ; les textes injectés restent intacts. C'est la copie à transmettre à la base
+--                                (R27) ; l'assembleur en affiche la longueur et le md5, que la preuve rend à son tour.
 -- Le fichier assemblé se joue en une requête (MCP execute_sql). Tout se passe dans le bloc do final, qui finit TOUJOURS
 -- par une levée : migrations, personnages fictifs, données d'essai, écritures et retours sont annulés, rien ne reste.
 -- Le verdict est le message de la levée : « VERT n/0 » ou « ROUGE réussis/échecs », le mode, la durée, les contrôles
--- par groupe, puis les échecs (hors matrice en détail ; matrice en carte : pour chaque personnage, les tables qui
--- échouent sur les mêmes opérations dans les mêmes contextes, sur une ligne).
+-- par groupe, chaque contrôle hors matrice nommé, puis les échecs (hors matrice en détail ; matrice en carte : pour
+-- chaque personnage, les tables qui échouent sur les mêmes opérations dans les mêmes contextes, sur une ligne).
 --
 -- Déroulé : empreinte avant ; photo avant des comptes réels ; migrations 1, 2, 3 ; photo après et non-régression ;
--- personnages fictifs et données d'essai ; matrice ; siège ; couverture ; retours 3, 2, 1 ; empreinte après.
+-- personnages fictifs et données d'essai ; matrice ; contrôles ciblés ; siège ; couverture ; retours 3, 2, 1 ; empreinte
+-- après.
 --
 -- Groupes de contrôles (chacun nommé au verdict) :
 --   non-régression  chaque compte réel (profils hors @exemple.invalid, choisis par requête, jamais nommés : « compte
@@ -26,14 +30,23 @@
 --                   empreinte des ctid) ; mêmes role, is_admin, is_founder, stagiaire_id ; mêmes mes_promos() (colonnes
 --                   d'avant l'étape 2 : la nouvelle colonne roles est mise à part). En mode en-ligne, rien n'est
 --                   injecté : non jugeable, une ligne d'information le dit.
---   matrice         chaque personnage fictif, chaque contexte, chaque table de la section 1 du plan (table matrice
---                   ci-dessous) : lignes visibles = lignes attendues (nombre et empreinte des ctid), et ajout, modification,
---                   suppression acceptés ou refusés comme elle le dit.
+--   matrice         chaque personnage fictif (stagiaires, formateurs, direction, siège, fondateur, stagiaire qui masque
+--                   ses notes) et l'acteur anonyme (sans jeton), chaque contexte, chaque table de la section 1 du plan
+--                   (table matrice ci-dessous) : lignes visibles = lignes attendues (nombre et empreinte des ctid), et
+--                   ajout, modification, suppression acceptés ou refusés comme elle le dit ; sur trois tables de promo, le
+--                   déplacement de promo_id vers une autre promo (condition d'écriture sur la ligne nouvelle) est refusé.
+--   signalements    le signalement de problème d'essai appartient au jeton de stag_n (identifiant d'un compte réel non
+--                   fondateur, choisi par requête) : seuls lui et le fondateur le voient, avec sa capture ; seul le
+--                   fondateur le supprime. Attendus écrits en dur, indépendants du modèle.
+--   comptes         ni le compte « cumul » (fiche de la promo 1, formateur de la promo 2) ni l'orphelin affecté (siège) ne
+--                   sont supprimables, par aucun personnage ni par l'acteur anonyme. Attendus écrits en dur.
+--   anonymat        un stagiaire qui masque ses notes ne voit que les siennes (une seule évaluation), les autres stagiaires
+--                   ne voient pas les siennes, l'équipe les voit. Attendus écrits en dur.
 --   siège           le siège fictif ne voit aucune ligne d'une table de promo ou de lieu, aucun profil de stagiaire.
---   couverture      toute table de public sous RLS figure dans la matrice ; aucune règle ne cite plus is_admin(,
---                   is_prof( ou is_founder( (étape 3 appliquée).
+--   couverture      toute table de public sous RLS figure dans la matrice ; aucune table de public n'est sans RLS ; aucune
+--                   règle ne cite plus is_admin(, is_prof( ou is_founder( (étape 3 appliquée).
 --   retour          après les retours 3, 2, 1, les trois empreintes égalent celles d'avant (R15 : les valeurs
---                   relevées le 28/10 ne sont qu'une information).
+--                   relevées le 29/10 ne sont qu'une information).
 --   structure       migrations et retours joués sans erreur, personnages et données d'essai posés.
 --
 -- Le modèle d'attendus (R23) ne rappelle jamais le vocabulaire testé : il part de la définition de chaque personnage
@@ -75,9 +88,11 @@ end $empreinte$;
 -- Une migration ou un retour, joué tel quel dans une sous-transaction : « jouée », « neutralisée » (le littéral
 -- 'select 1' que l'assembleur met à la place d'une étape non demandée), ou l'erreur, notée sans être propagée. Le md5
 -- du texte joué va au verdict (information) : égal à celui de l'en-tête du fichier assemblé, il montre que le texte
--- reçu par la base est celui du dépôt.
+-- reçu par la base est celui du dépôt. L'erreur ne rend jamais son message (il pourrait citer une valeur, donc un
+-- email réel) : l'état SQL et les noms de contrainte, de table et de colonne en cause, seulement.
 create or replace function pg_temp.jouer(p_nom text, p_sql text)
 returns text language plpgsql as $fx$
+declare v_contrainte text; v_table text; v_colonne text;
 begin
   if p_sql = 'select 1' then return 'neutralisée'; end if;
   perform pg_temp.informer(format('md5 du texte joué : %s', p_nom), md5(p_sql));
@@ -85,7 +100,9 @@ begin
     execute p_sql;
     return 'jouée';
   exception when others then
-    return format('ERREUR %s : %s', sqlstate, left(sqlerrm, 200));
+    get stacked diagnostics v_contrainte = constraint_name, v_table = table_name, v_colonne = column_name;
+    return 'ERREUR ' || sqlstate || coalesce(' contrainte ' || nullif(v_contrainte, ''), '')
+           || coalesce(' table ' || nullif(v_table, ''), '') || coalesce(' colonne ' || nullif(v_colonne, ''), '');
   end;
 end $fx$;
 
@@ -137,11 +154,17 @@ begin
 end $fx$;
 
 -- Personnages fictifs (R22) : leur définition, d'où le modèle tire leurs drapeaux. La fiche est posée dans le bloc
--- (colonne fiche) ; le lieu de la direction est celui de la promo 1, lu en base.
+-- (colonne fiche) ; le lieu de la direction est celui de la promo 1, lu en base. Le fondateur est fait comme le vrai
+-- (role stagiaire, is_admin, fiche dans la promo 1) : rien n'interdit deux fondateurs (aucune contrainte ni index sur
+-- is_founder, aucun déclencheur sur user_profiles, relevé en lecture seule le 29/10). stag_masque masque ses notes
+-- (réciprocité de l'anonymat) : sa matrice ne porte que sur les tables où l'anonymat joue (colonne tables : null
+-- veut dire toutes), pour le reste il est semblable à stag_n et ne ferait que rallonger la preuve. stag_n porte
+-- l'identifiant de jeton d'un compte réel non fondateur (voir plus bas) : les sept autres n'en ont pas.
 drop table if exists pg_temp.personnages;
 create temp table personnages (ordre integer primary key, nom text not null, email text not null, role text not null,
   is_admin boolean not null, promo_fiche integer, formateur_de integer[] not null, direction_de integer[] not null,
-  siege boolean not null, fondateur boolean not null default false, fiche integer);
+  siege boolean not null, fondateur boolean not null default false, anonyme boolean not null default false,
+  tables text[], fiche integer);
 insert into personnages (ordre, nom, email, role, is_admin, promo_fiche, formateur_de, direction_de, siege) values
   (1, 'stag_n', 'preuve.stag.n@exemple.invalid', 'stagiaire', false, 1, '{}', '{}', false),
   (2, 'stag_m', 'preuve.stag.m@exemple.invalid', 'stagiaire', false, 2, '{}', '{}', false),
@@ -150,6 +173,10 @@ insert into personnages (ordre, nom, email, role, is_admin, promo_fiche, formate
   (5, 'dir_n', 'preuve.dir.n@exemple.invalid', 'prof', false, null, '{}',
      coalesce(array[(select pr.lieu_id from public.promos pr where pr.id = 1)], '{}'), false),
   (6, 'siege', 'preuve.siege@exemple.invalid', 'prof', false, null, '{}', '{}', true);
+insert into personnages (ordre, nom, email, role, is_admin, promo_fiche, formateur_de, direction_de, siege, fondateur, anonyme, tables) values
+  (7, 'fond', 'preuve.fond@exemple.invalid', 'stagiaire', true, 1, '{}', '{}', false, true, false, null),
+  (8, 'stag_masque', 'preuve.masque@exemple.invalid', 'stagiaire', false, 1, '{}', '{}', false, false, true,
+     array['public.evaluations', 'public.evaluations_audit']);
 
 -- La matrice des droits (section 1 du plan), écrite en données : pour chaque table, la condition de lecture et celles
 -- d'ajout, de modification et de suppression, sur une ligne r de la table, avec les jetons du contexte : {P}, {L},
@@ -331,8 +358,9 @@ insert into matrice (tbl, lecture, ajout, modif, suppr, maj, prep_suppr) values
 -- stagiaire (sa fiche, autre fiche de la promo affichée, fiche d'une autre promo), benevole (du lieu affiché, d'un
 -- autre lieu), reglage (quatre clés, promo affichée et autre promo), unique (une fois). Jetons en plus de ceux du
 -- contexte : {c_promo}, {c_lieu}, {c_stag}, {c_benevole}, {c_cle} (la cible), {qcm_a}, {qcm_b}, {theme_b}, {theme_c},
--- {question_a}, {cours_theme}, {cours_comp}, {personnel}, {lieu_promo1}, {lieu_promo2} (données d'essai). marque :
--- retrouve la ligne ajoutée. prep : fait de la place avant l'ajout (une ligne unique par fiche ou par promo).
+-- {question_a}, {cours_theme} (un cours de thème réel), {cours_comp} et {cours_pub} (deux cours de compétence fictifs,
+-- non publié et publié), {personnel}, {lieu_promo1}, {lieu_promo2} (données d'essai). marque : retrouve la ligne
+-- ajoutée. prep : fait de la place avant l'ajout (une ligne unique par fiche ou par promo).
 drop table if exists pg_temp.ajouts;
 create temp table ajouts (ordre serial primary key, tbl text not null, sorte text not null, libelle text,
   modele text not null, marque text not null, prep text);
@@ -439,6 +467,9 @@ insert into ajouts (tbl, sorte, libelle, modele, marque, prep) values
   $aj$r.saved_by = 'PreuveAjout'$aj$, null),
 ('public.cours_versions', 'unique', 'cours de compétence non publié',
   $aj$insert into public.cours_versions (cours_id, titre, corps_md, saved_by) values ({cours_comp}, 'PreuveAjout', 'x', 'PreuveAjout')$aj$,
+  $aj$r.saved_by = 'PreuveAjout'$aj$, null),
+('public.cours_versions', 'unique', 'cours de compétence publié',
+  $aj$insert into public.cours_versions (cours_id, titre, corps_md, saved_by) values ({cours_pub}, 'PreuveAjout', 'x', 'PreuveAjout')$aj$,
   $aj$r.saved_by = 'PreuveAjout'$aj$, null),
 ('public.cours_chunks', 'unique', null,
   $aj$insert into public.cours_chunks (cours_id, titre, contenu, ordre) values ({cours_theme}, 'PreuveAjout', 'x', 0)$aj$,
@@ -550,10 +581,12 @@ begin
 end $fx$;
 
 -- Verdict de cette preuve : lève TOUJOURS une exception, qui annule tout. Première ligne : VERT ou ROUGE, réussis et
--- échecs, mode, durée ; puis les contrôles par groupe et la matrice par personnage. S'il y a des échecs : ceux hors
+-- échecs, mode, durée ; puis les contrôles par groupe, la matrice par personnage et par table, chaque contrôle hors
+-- matrice nommé (une ligne chacun, avec ses réussis/joués ; les contrôles de non-régression, un par compte réel, sont
+-- regroupés sur une ligne), et les lignes d'information (jamais comptées). S'il y a des échecs, ils suivent : ceux hors
 -- matrice en détail (60 au plus), la carte des échecs de la matrice (pour chaque personnage, une ligne par signature :
--- L lecture, A ajout, M modification, S suppression, suivis des contextes en échec, puis les tables qui la partagent),
--- puis les 12 premiers en détail. Les lignes d'information suivent, jamais comptées. Sans aucun contrôle joué, le
+-- L lecture, A ajout, M modification, S suppression, D déplacement de promo, suivis des contextes en échec, puis les
+-- tables qui la partagent : toute case rouge y figure), puis les 12 premiers en détail. Sans aucun contrôle joué, le
 -- verdict est ROUGE.
 create or replace function pg_temp.verdict_roles(p_mode text, p_debut timestamptz)
 returns void language plpgsql as $fx$
@@ -571,10 +604,29 @@ begin
     from (select qui, count(*) as n, count(*) filter (where etat = 'ok') as ok, min(num) as premier
             from preuve where groupe = 'matrice' and qui is not null group by qui) q;
   v_msg := v_msg || E'\nmatrice par personnage (réussis/joués) : ' || coalesce(v_txt, 'aucune case jouée');
+  select string_agg(format('%s %s/%s', regexp_replace(tbl, '^public\.', ''), ok, n), ' ; ' order by tbl) into v_txt
+    from (select tbl, count(*) as n, count(*) filter (where etat = 'ok') as ok
+            from preuve where groupe = 'matrice' and qui is not null group by tbl) t;
+  v_msg := v_msg || E'\nmatrice par table (réussis/joués) : ' || coalesce(v_txt, 'aucune case jouée');
+  select string_agg(format('- [%s] %s : %s/%s%s', c.groupe, c.l, c.ok, c.n, case when c.ok < c.n then ' ÉCHEC' else '' end),
+                    E'\n' order by c.premier)
+    into v_txt
+    from (select groupe,
+                 case when groupe = 'non-régression'
+                      then regexp_replace(libelle, '^compte réel [0-9]+ \([^)]*\)', 'chaque compte réel')
+                      else libelle end as l,
+                 count(*) as n, count(*) filter (where etat = 'ok') as ok, min(num) as premier
+            from preuve where etat <> 'info' and qui is null group by 1, 2) c;
+  v_msg := v_msg || E'\ncontrôles hors matrice, un par ligne (réussis/joués) :\n' || coalesce(v_txt, '- aucun');
+  select string_agg('- ' || libelle || coalesce(' : ' || nullif(detail, ''), ''), E'\n' order by num) into v_txt
+    from preuve where etat = 'info';
+  if v_txt is not null then
+    v_msg := v_msg || E'\nà titre d''information (jamais compté) :\n' || v_txt;
+  end if;
   if v_ko > 0 or v_ok = 0 then
     select count(*) into v_n from preuve where etat = 'échec' and qui is null;
     if v_n > 0 then
-      select string_agg(format('- %s. [%s] %s', e.num, e.groupe, e.libelle) || coalesce(' : ' || nullif(left(e.detail, 200), ''), ''),
+      select string_agg(format('- %s. [%s] %s', e.num, e.groupe, e.libelle) || coalesce(' : ' || nullif(left(e.detail, 420), ''), ''),
                         E'\n' order by e.num)
         into v_txt from (select * from preuve where etat = 'échec' and qui is null order by num limit 60) e;
       v_msg := v_msg || format(E'\néchecs hors matrice (%s premiers sur %s) :\n%s', least(v_n, 60), v_n, v_txt);
@@ -584,9 +636,9 @@ begin
       with e as (
         select p.qui, p.tbl, p.ctx, p.num,
                case when p.op = 'lecture' then 'L' when p.op like 'ajout%' then 'A' when p.op = 'modification' then 'M'
-                    else 'S' end as lettre,
+                    when p.op = 'déplacement' then 'D' else 'S' end as lettre,
                case when p.op = 'lecture' then 1 when p.op like 'ajout%' then 2 when p.op = 'modification' then 3
-                    else 4 end as rang
+                    when p.op = 'déplacement' then 5 else 4 end as rang
           from preuve p where p.etat = 'échec' and p.qui is not null),
       l as (select e.qui, e.tbl, e.lettre, e.rang, string_agg(distinct e.ctx, ',' order by e.ctx) as ctxs
               from e group by e.qui, e.tbl, e.lettre, e.rang),
@@ -597,17 +649,12 @@ begin
       q as (select e.qui, min(e.num) as premier from e group by e.qui)
       select string_agg(format('- %s, %s : %s', s.qui, s.ops, s.tables), E'\n' order by q.premier, s.ops)
         into v_txt from s join q on q.qui = s.qui;
-      v_msg := v_msg || format(E'\nmatrice, carte des %s cases en échec, par personnage et signature (L lecture, A ajout, M modification, S suppression ; contextes 1, 2, 7, sans en-tête) :\n%s',
+      v_msg := v_msg || format(E'\nmatrice, carte des %s cases en échec, par personnage et signature (L lecture, A ajout, M modification, S suppression, D déplacement de promo ; contextes 1, 2, 7, sans en-tête) :\n%s',
         v_n, v_txt);
       select string_agg(format('- %s', e.libelle) || coalesce(' : ' || nullif(left(e.detail, 200), ''), ''), E'\n' order by e.num)
         into v_txt from (select * from preuve where etat = 'échec' and qui is not null order by num limit 12) e;
       v_msg := v_msg || format(E'\nmatrice, %s premiers échecs en détail :\n%s', least(v_n, 12), v_txt);
     end if;
-  end if;
-  select string_agg('- ' || libelle || coalesce(' : ' || nullif(detail, ''), ''), E'\n' order by num) into v_txt
-    from preuve where etat = 'info';
-  if v_txt is not null then
-    v_msg := v_msg || E'\nà titre d''information (jamais compté) :\n' || v_txt;
   end if;
   raise exception using message = v_msg;
 end $fx$;
@@ -629,8 +676,12 @@ declare
   v_ap_regles text; v_ap_fonctions text; v_ap_droits text;
   v_globaux jsonb; v_sequences text; v_jalons text := '';
   v_qcm_a bigint; v_qcm_b bigint; v_theme_a integer; v_theme_b integer; v_theme_c integer; v_question_a bigint;
-  v_cours_theme uuid; v_cours_comp uuid; v_seance bigint;
+  v_cours_theme uuid; v_cours_comp uuid; v_cours_pub uuid; v_seance bigint;
+  v_fiche_cumul integer; v_sub_porteur text; v_sig bigint; v_vers integer; v_requete text; v_codes text[];
   c_personnel constant text := 'preuve.personnel@exemple.invalid';
+  c_cumul constant text := 'preuve.cumul@exemple.invalid';
+  c_orphelin_affecte constant text := 'preuve.orphelin.affecte@exemple.invalid';
+  c_deplacables constant text[] := array['public.agenda_events', 'public.planning_entries', 'public.themes_progression'];
   v_r record; v_p record; v_c record; v_m0 record; v_m record; v_a record; v_k record;
   v_acces integer[]; v_defaut integer; v_pr integer; v_lieu integer; v_f boolean; v_d boolean; v_ctx text;
   v_txt text; v_obt text; v_att text; v_sql text; v_prep text; v_marque text; v_mes text; v_res text[];
@@ -649,14 +700,18 @@ begin
   v_lieux := array(select l.id from public.lieux l order by l.id);
 
   -- 1. Avant les migrations : empreinte, comptes réels et leurs jetons, tables à photographier, photo. La requête
-  --    reçue par la base est résumée d'abord (md5 et longueur, à rapprocher du fichier transmis en une requête).
-  perform pg_temp.informer('requête reçue par la base (md5, caractères, début), à rapprocher du fichier transmis',
-    format('%s, %s, « %s »', md5(current_query()), length(current_query()), left(current_query(), 60)));
+  --    reçue par la base est résumée d'abord (md5 et longueur, à rapprocher du fichier transmis en une requête) : la
+  --    passerelle MCP ajoute à la fin de la requête un suffixe « \n\n-- source: ... -- user: ... -- date: ... » (108
+  --    caractères le 29/10, un identifiant d'utilisateur y figure : il n'est pas relu ici), retiré avant de hacher.
+  v_requete := regexp_replace(current_query(), E'\n\n-- source:[^\n]*(\n-- [^\n]*)*[[:space:]]*$', '');
+  perform pg_temp.informer('requête reçue par la base, suffixe de la passerelle retiré (md5, caractères, début), à rapprocher du fichier transmis',
+    format('%s, %s, « %s »%s', md5(v_requete), length(v_requete), left(v_requete, 60),
+           case when v_requete = current_query() then ' (aucun suffixe de passerelle)' else '' end));
   select e.regles, e.fonctions, e.droits into v_av_regles, v_av_fonctions, v_av_droits from pg_temp.empreinte() e;
-  perform pg_temp.informer('empreinte d''avant égale aux valeurs relevées sur la production le 28/10 (R15 : information)',
-    case when v_av_regles = '1fd532cdaad930909b9cc49ad442dcb6' and v_av_fonctions = '195bf7407724278774a05f984ec042ef'
-              and v_av_droits = '3637ceeba6b4746c8583e864dc78e267' then 'oui'
-         else format('non (dérive de la production depuis le 28/10 au matin) : regles %s, fonctions %s, droits %s',
+  perform pg_temp.informer('empreinte d''avant égale aux valeurs relevées sur la production le 29/10 (R15 : information)',
+    case when v_av_regles = '7bebc7c741946940910bcec3d0a54201' and v_av_fonctions = '8daa39271f710e51c5eb1f93f0d9de65'
+              and v_av_droits = '43eb26d5856fe86d741e334b229e8617' then 'oui'
+         else format('non (dérive de la production depuis le 29/10) : regles %s, fonctions %s, droits %s',
                      v_av_regles, v_av_fonctions, v_av_droits) end);
   insert into comptes (num, email, etiquette)
     select row_number() over (order by up.email), up.email,
@@ -680,6 +735,19 @@ begin
            (select string_agg(format('%s %s', e.nb, e.etiquette), ', ' order by e.etiquette)
               from (select c.etiquette, count(*) as nb from comptes c group by c.etiquette) e),
            (select count(*) from jetons)));
+  -- stag_n porte l'identifiant de jeton d'un compte réel non fondateur (signalements_app renvoie à auth.users, aucun
+  -- identifiant fictif n'y tient) : celui qui a le plus de lignes dans chatbot_usage puis dans qcm_ia_usage, pour que
+  -- les branches « la sienne » de ces deux tables aient des lignes à voir ; à défaut le plus petit identifiant. L'identifiant
+  -- n'est ni affiché ni gardé ailleurs que dans la table temporaire jetons.
+  select j.sub into v_sub_porteur
+    from jetons j join comptes c on lower(c.email) = j.email
+   where c.etiquette <> 'fondateur'
+   order by (select count(*) from public.chatbot_usage u where u.user_id::text = j.sub) desc,
+            (select count(*) from public.qcm_ia_usage u where u.user_id::text = j.sub) desc, j.sub
+   limit 1;
+  if v_sub_porteur is not null then
+    insert into jetons (email, sub) select lower(p.email), v_sub_porteur from personnages p where p.nom = 'stag_n';
+  end if;
   v_tables := array(select format('%I.%I', ns.nspname, c.relname) from pg_class c join pg_namespace ns on ns.oid = c.relnamespace
                      where ns.nspname = 'public' and c.relkind in ('r', 'p') and c.relrowsecurity order by c.relname)
               || array['storage.objects'];
@@ -757,8 +825,9 @@ begin
                 from pg_trigger t join pg_class c on c.oid = t.tgrelid
                where c.oid in ('public.stagiaires'::regclass, 'public.user_profiles'::regclass) and not t.tgisinternal),
              'aucun'));
-  -- Fiches des stagiaires fictifs, cibles des ajouts (une par promo, sans compte ni dossier), témoins (une par promo,
-  -- avec une ligne dans chaque table d'une fiche), et une fiche dont le profil masque ses notes.
+  -- Fiches des stagiaires fictifs (les personnages qui en ont une, dont le fondateur et celui qui masque ses notes),
+  -- cibles des ajouts (une par promo, sans compte ni dossier), témoins (une par promo, avec une ligne dans chaque table
+  -- d'une fiche), et la fiche du compte « cumul » (promo 1).
   for v_p in select * from personnages where promo_fiche is not null order by ordre loop
     insert into public.stagiaires (prenom, nom, ordre, promo_id) values ('Preuve ' || v_p.nom, 'PREUVE', 990, v_p.promo_fiche)
       returning id into n;
@@ -769,18 +838,24 @@ begin
     insert into cibles (promo, fiche) values (v_pr, n);
     insert into public.stagiaires (prenom, nom, ordre, promo_id) values ('Preuve témoin', 'PREUVE', 992, v_pr);
   end loop;
-  insert into public.stagiaires (prenom, nom, ordre, promo_id) values ('Preuve masquée', 'PREUVE', 993, 1) returning id into n;
-  -- Comptes : les personnages, un compte masqué, un compte orphelin (role stagiaire, sans fiche) et un compte du
-  -- personnel sans affectation (cible des ajouts d'affectation et des signalements « au nom d'un autre »).
-  insert into public.user_profiles (email, role, is_admin, stagiaire_id)
-    select p.email, p.role, p.is_admin, p.fiche from personnages p order by p.ordre;
-  insert into public.user_profiles (email, role, stagiaire_id, anonymous_notes)
-    values ('preuve.masquee@exemple.invalid', 'stagiaire', n, true);
-  insert into public.user_profiles (email, role) values ('preuve.orpheline@exemple.invalid', 'stagiaire'), (c_personnel, 'prof');
+  insert into public.stagiaires (prenom, nom, ordre, promo_id) values ('Preuve cumul', 'PREUVE', 994, 1) returning id into v_fiche_cumul;
+  -- Comptes : les personnages (le fondateur avec is_founder, celui qui masque ses notes avec anonymous_notes), un compte
+  -- « cumul » (stagiaire de la promo 1 qui est aussi formateur de la promo 2), un compte orphelin (role stagiaire, sans
+  -- fiche), un orphelin affecté (au siège) et un compte du personnel sans affectation (cible des ajouts d'affectation et
+  -- des signalements « au nom d'un autre »). Les deux comptes affectés vérifient la règle « jamais la suppression d'un
+  -- compte qui a une affectation » : leurs affectations (promo 2, siège) échappent à la vue des formateurs de la promo 1
+  -- et de la direction du lieu 1, qu'une sous-requête sous RLS ne verrait donc pas.
+  insert into public.user_profiles (email, role, is_admin, is_founder, anonymous_notes, stagiaire_id)
+    select p.email, p.role, p.is_admin, p.fondateur, p.anonyme, p.fiche from personnages p order by p.ordre;
+  insert into public.user_profiles (email, role, stagiaire_id) values (c_cumul, 'stagiaire', v_fiche_cumul);
+  insert into public.user_profiles (email, role) values ('preuve.orpheline@exemple.invalid', 'stagiaire'),
+    (c_orphelin_affecte, 'stagiaire'), (c_personnel, 'prof');
   insert into public.affectations (email, role, promo_id, lieu_id)
     select p.email, 'formateur', x, null from personnages p cross join unnest(p.formateur_de) x
     union all select p.email, 'direction', null, x from personnages p cross join unnest(p.direction_de) x
-    union all select p.email, 'siege', null, null from personnages p where p.siege;
+    union all select p.email, 'siege', null, null from personnages p where p.siege
+    union all select c_cumul, 'formateur', 2, null
+    union all select c_orphelin_affecte, 'siege', null, null;
   -- Thèmes et QCM d'essai : A porte les tentatives, les examens et la progression ; B sert aux ajouts d'examens et de
   -- progression (ses lignes recopiées par déclencheur sont retirées) ; C, sans QCM, aux ajouts de QCM.
   insert into public.themes (titre, type, ordre) values ('Preuve thème A', 'notion', 9999) returning id into v_theme_a;
@@ -815,7 +890,7 @@ begin
     insert into public.emargement_formateurs (seance_id, promo_id, nom, trace, signe_par)
       values (v_seance, v_pr, 'Preuve formateur', 'M1 1L2 2', 'preuve@exemple.invalid');
     for v_r in select s.id from public.stagiaires s
-                where s.promo_id = v_pr and s.prenom in ('Preuve témoin', 'Preuve stag_n', 'Preuve stag_m') loop
+                where s.promo_id = v_pr and (s.prenom = 'Preuve témoin' or s.id in (select p.fiche from personnages p)) loop
       insert into public.stagiaires_prive (stagiaire_id, date_naissance) values (v_r.id, '2000-01-01');
       insert into public.evaluations (stagiaire_id, type, theme_numero, note, observation) values (v_r.id, 'Thème', 1, 12, 'Preuve');
       insert into public.epcf_evaluations (stagiaire_id, trame, commentaire) values (v_r.id, 'salle', 'Preuve');
@@ -827,8 +902,6 @@ begin
       insert into public.emargement_lignes (seance_id, promo_id, stagiaire_id) values (v_seance, v_pr, v_r.id);
     end loop;
   end loop;
-  insert into public.evaluations (stagiaire_id, type, theme_numero, note, observation)
-    select s.id, 'Thème', 1, 12, 'Preuve' from public.stagiaires s where s.prenom = 'Preuve masquée';
   foreach v_lieu in array v_lieux loop
     insert into public.auto_ecoles (nom, lieu_id) values ('Preuve auto-école', v_lieu);
     insert into public.benevoles (prenom, lieu_id) values ('Preuve bénévole', v_lieu) returning id into n;
@@ -837,38 +910,75 @@ begin
       values (n, '2030-01-07', 0, 'matin', 'Preuve', v_lieu);
   end loop;
   -- Lignes M des personnages (signalements et acceptations à leur nom), journal des effacements, un signalement de
-  -- problème (au nom d'un compte réel choisi par requête : seul son identifiant de jeton sert, rien n'est affiché).
+  -- problème au nom du porteur du jeton de stag_n (le compte réel choisi plus haut : seul son identifiant sert, rien
+  -- n'est affiché), avec sa capture.
   insert into public.qcm_signalements (question_id, email, stagiaire_id, motif, commentaire)
     select v_question_a, p.email, p.fiche, 'autre', 'Preuve' from personnages p;
   insert into public.conditions_acceptations (email, version) select p.email, 'preuve' from personnages p;
   insert into public.effacements_journal (type, cible, fait_par_email) values ('stagiaire', 'preuve', 'preuve@exemple.invalid');
-  if exists (select 1 from jetons) then
+  if v_sub_porteur is not null then
     insert into public.signalements_app (user_id, email, role, message)
-      values ((select j.sub::uuid from jetons j order by j.email limit 1), 'preuve@exemple.invalid', 'stagiaire', 'Preuve signalement')
-      returning id into n;
-    insert into public.signalements_app_captures (signalement_id, image) values (n, 'data:image/jpeg;base64,UHJldXZl');
+      values (v_sub_porteur::uuid, 'preuve@exemple.invalid', 'stagiaire', 'Preuve signalement')
+      returning id into v_sig;
+    insert into public.signalements_app_captures (signalement_id, image) values (v_sig, 'data:image/jpeg;base64,UHJldXZl');
   end if;
-  -- Cours cibles des ajouts de versions : un cours de thème, un cours de compétence non publié (lus en base).
+  -- Cours : un cours de thème réel (les 57 numéros sont pris, aucun cours de thème fictif n'est possible) comme cible
+  -- des ajouts de versions et de morceaux ; deux cours de compétence fictifs (un non publié, un publié) sous des codes
+  -- libres (la cible des versions ne dépend d'aucun cours de compétence réel, publié ou non : les 36 cours réels sont
+  -- publiés un à un par Timy, l'ensemble des cours non publiés change donc). Le déclencheur cours_rechunk fait les morceaux.
   select c.id into v_cours_theme from public.cours c where c.code is null order by c.numero nulls last, c.id limit 1;
-  select c.id into v_cours_comp from public.cours c where c.code is not null and not c.published order by c.code limit 1;
+  v_codes := array(select 'C' || a || '.' || b from generate_series(1, 4) a cross join generate_series(1, 9) b
+                    where not exists (select 1 from public.cours x where x.code = 'C' || a || '.' || b)
+                    order by b desc, a desc limit 2);
+  if cardinality(v_codes) = 2 then
+    insert into public.cours (titre, corps_md, code, published) values ('Preuve compétence non publiée', 'x', v_codes[1], false)
+      returning id into v_cours_comp;
+    insert into public.cours (titre, corps_md, code, published) values ('Preuve compétence publiée', 'x', v_codes[2], true)
+      returning id into v_cours_pub;
+  end if;
   v_globaux := jsonb_build_object(
     'qcm_a', v_qcm_a::text, 'qcm_b', v_qcm_b::text, 'theme_b', v_theme_b::text, 'theme_c', v_theme_c::text,
     'question_a', v_question_a::text, 'personnel', quote_literal(c_personnel),
     'cours_theme', coalesce(quote_literal(v_cours_theme::text), 'null'), 'cours_comp', coalesce(quote_literal(v_cours_comp::text), 'null'),
+    'cours_pub', coalesce(quote_literal(v_cours_pub::text), 'null'),
     'lieu_promo1', coalesce((select pr.lieu_id from public.promos pr where pr.id = 1)::text, 'null'),
     'lieu_promo2', coalesce((select pr.lieu_id from public.promos pr where pr.id = 2)::text, 'null'));
   perform pg_temp.verifier('structure', 'personnages fictifs et données d''essai posés',
-    (select count(*) from personnages where promo_fiche is null or fiche is not null) = 6
-    and (select count(*) from cibles) = cardinality(c_promos) and v_cours_theme is not null and v_cours_comp is not null,
-    format('%s personnage(s) ; cibles par promo : %s ; cours de thème %s, de compétence non publié %s',
+    (select count(*) from personnages) = 8 and (select count(*) from personnages where promo_fiche is not null and fiche is null) = 0
+    and (select count(*) from cibles) = cardinality(c_promos) and v_cours_theme is not null and v_cours_comp is not null
+    and v_cours_pub is not null and v_fiche_cumul is not null,
+    format('%s personnage(s) ; cibles par promo : %s ; cours de thème %s, cours de compétence fictifs : %s',
            (select count(*) from personnages), (select count(*) from cibles),
            case when v_cours_theme is null then 'absent' else 'trouvé' end,
-           case when v_cours_comp is null then 'absent' else 'trouvé' end));
+           case when v_cours_comp is null or v_cours_pub is null then 'absents (moins de deux codes libres)' else 'posés (un non publié, un publié)' end));
+  perform pg_temp.verifier('structure',
+    'comptes affectés posés (cumul : fiche de la promo 1 et formateur de la promo 2 ; orphelin affecté : siège), et leurs affectations invisibles à form_n et dir_n',
+    (select count(*) from public.affectations where email in (c_cumul, c_orphelin_affecte)) = 2
+    and (select count(*) from public.user_profiles where email in (c_cumul, c_orphelin_affecte)) = 2
+    and (select p.lieu_id from public.promos p where p.id = 2) is distinct from (select p.lieu_id from public.promos p where p.id = 1),
+    format('%s affectation(s) sur %s profil(s) ; lieu de la promo 2 %s de celui de la promo 1',
+           (select count(*) from public.affectations where email in (c_cumul, c_orphelin_affecte)),
+           (select count(*) from public.user_profiles where email in (c_cumul, c_orphelin_affecte)),
+           case when (select p.lieu_id from public.promos p where p.id = 2) is distinct from (select p.lieu_id from public.promos p where p.id = 1)
+                then 'différent' else 'identique' end));
+  if v_sub_porteur is null then
+    perform pg_temp.informer('signalement de problème d''essai', 'non posé : aucun identifiant de jeton réel non fondateur (auth.users illisible ou sans compte), les contrôles « signalements » sont non jugeables');
+  else
+    perform pg_temp.verifier('structure',
+      'signalement de problème d''essai posé au nom du jeton de stag_n (compte réel non fondateur), avec sa capture',
+      (select count(*) from public.signalements_app s where s.id = v_sig and s.user_id::text = v_sub_porteur) = 1
+      and (select count(*) from public.signalements_app_captures c where c.signalement_id = v_sig) = 1
+      and exists (select 1 from jetons j join personnages p on lower(p.email) = j.email where p.nom = 'stag_n' and j.sub = v_sub_porteur),
+      format('lignes de ce compte : %s dans chatbot_usage, %s dans qcm_ia_usage',
+             (select count(*) from public.chatbot_usage u where u.user_id::text = v_sub_porteur),
+             (select count(*) from public.qcm_ia_usage u where u.user_id::text = v_sub_porteur)));
+  end if;
 
   v_jalons := v_jalons || format(' ; personnages et données %s s', to_char(extract(epoch from clock_timestamp() - v_debut), 'FM990.0'));
   -- 5. Le modèle : pour chaque personnage et chaque contexte, ses drapeaux tirés de sa définition (R23).
   drop table if exists pg_temp.contextes;
-  create temp table contextes (ordre integer, rang integer, qui text, email text, ctx text, hdr text, jetons jsonb);
+  create temp table contextes (ordre integer, rang integer, qui text, email text, ctx text, hdr text, jetons jsonb,
+    tables text[]);
   for v_p in select * from personnages order by ordre loop
     v_acces := array(select pr.id from public.promos pr
                       where v_p.fondateur or pr.id = v_p.promo_fiche or pr.id = any(v_p.formateur_de)
@@ -884,21 +994,32 @@ begin
       v_lieu := (select pr.lieu_id from public.promos pr where pr.id = v_pr);
       v_f := v_pr is not null and (v_p.fondateur or v_pr = any(v_p.formateur_de));
       v_d := v_pr is not null and (v_p.fondateur or v_lieu = any(v_p.direction_de));
-      insert into contextes (ordre, rang, qui, email, ctx, hdr, jetons) values (v_p.ordre, n, v_p.nom, v_p.email,
-        coalesce(v_ctx, 'sans'), v_ctx,
+      insert into contextes (ordre, rang, qui, email, ctx, hdr, tables, jetons) values (v_p.ordre, n, v_p.nom, v_p.email,
+        coalesce(v_ctx, 'sans'), v_ctx, v_p.tables,
         jsonb_build_object(
           'P', coalesce(v_pr::text, 'null'), 'L', coalesce(v_lieu::text, 'null'),
           'F', v_f::text, 'D', v_d::text, 'E', (v_f or v_d)::text, 'S', (v_p.siege or v_p.fondateur)::text,
           'R', (v_f or v_p.siege or v_p.fondateur)::text, 'Fo', v_p.fondateur::text,
-          'moi', quote_literal(lower(v_p.email)), 'sub', 'null',
+          'moi', quote_literal(lower(v_p.email)),
+          'sub', coalesce((select quote_literal(j.sub) || '::uuid' from jetons j where j.email = lower(v_p.email)), 'null'),
           'fiche', coalesce(v_p.fiche::text, 'null'),
           'fiche_p', coalesce(case when v_p.promo_fiche = v_pr then v_p.fiche end::text, 'null'),
-          'anonyme', 'false',
+          'anonyme', v_p.anonyme::text,
           'acces', quote_literal(v_acces::text) || '::integer[]',
           'form_de', quote_literal((case when v_p.fondateur then array(select pr.id from public.promos pr order by pr.id)
                                          else v_p.formateur_de end)::text) || '::integer[]',
           'dir_de', quote_literal((case when v_p.fondateur then v_lieux else v_p.direction_de end)::text) || '::integer[]'));
     end loop;
+  end loop;
+  -- L'acteur anonyme (R22 : requête sans jeton, rôle anon) : aucun drapeau, aucune promo, aucune fiche, aucun email ni
+  -- identifiant. Il ne voit aucune ligne, sauf ce que la section 1 ouvre à tous (les deux seaux publics du stockage),
+  -- et n'écrit nulle part. Deux contextes (en-tête x-promo-id 1, et sans en-tête) suffisent : l'en-tête ne lui donne rien.
+  for n in 1 .. 2 loop
+    insert into contextes (ordre, rang, qui, email, ctx, hdr, jetons) values (9, n, 'anon', null,
+      case n when 1 then '1' else 'sans' end, case n when 1 then '1' end,
+      jsonb_build_object('P', 'null', 'L', 'null', 'F', 'false', 'D', 'false', 'E', 'false', 'S', 'false', 'R', 'false',
+        'Fo', 'false', 'moi', 'null', 'sub', 'null', 'fiche', 'null', 'fiche_p', 'null', 'anonyme', 'false',
+        'acces', '''{}''::integer[]', 'form_de', '''{}''::integer[]', 'dir_de', '''{}''::integer[]'));
   end loop;
 
   -- 6. La matrice : pour chaque table, chaque personnage et chaque contexte, la lecture (nombre et empreinte des ctid),
@@ -916,7 +1037,12 @@ begin
      exit;
    end if;
    for v_c in select * from contextes order by ordre, rang loop
-    for v_m in select v_m0.tbl, pg_temp.remplir(v_m0.lecture, v_c.jetons) as lecture,
+    continue when v_c.tables is not null and v_m0.tbl <> all(v_c.tables);
+    -- L'acteur anonyme ne lit rien, sauf les seaux publics du stockage (la condition de lecture de la matrice) : pour
+    -- lui, « tous les connectés » ne vaut pas « tous ».
+    for v_m in select v_m0.tbl,
+                      case when v_c.qui = 'anon' and v_m0.tbl <> 'storage.objects' then 'false'
+                           else pg_temp.remplir(v_m0.lecture, v_c.jetons) end as lecture,
                       pg_temp.remplir(v_m0.ajout, v_c.jetons) as ajout, pg_temp.remplir(v_m0.modif, v_c.jetons) as modif,
                       pg_temp.remplir(v_m0.suppr, v_c.jetons) as suppr, v_m0.maj, v_m0.prep_suppr loop
       -- Les attendus de la case, en une lecture de la table en propriétaire : {lecture, à modifier, à supprimer, total}
@@ -926,7 +1052,10 @@ begin
       -- Lecture : mêmes lignes (nombre et empreinte des ctid).
       v_obt := pg_temp.valeur(v_c.email, v_c.hdr, null, format(c_vue, v_m.tbl));
       v_att := v_attendus[1];
-      perform pg_temp.verifier_m('matrice', v_c.qui, v_c.ctx, v_m.tbl, 'lecture', v_obt = v_att,
+      -- (L'acteur anonyme n'a le droit de lire qu'un petit nombre de tables : sur les autres, le refus de droit, 42501,
+      -- vaut « aucune ligne ».)
+      perform pg_temp.verifier_m('matrice', v_c.qui, v_c.ctx, v_m.tbl, 'lecture',
+        v_obt = v_att or (v_c.qui = 'anon' and v_obt = 'ERREUR 42501' and split_part(v_att, ':', 1) = '0'),
         format('vu %s, attendu %s', coalesce(split_part(v_obt, ':', 1), 'nul'), coalesce(split_part(v_att, ':', 1), v_txt))
         || case when split_part(v_obt, ':', 1) = split_part(v_att, ':', 1) and v_obt <> v_att then ' (autres lignes)' else '' end);
       -- Modification de toute la table, valeur constante : « OK n n 0 » (n lignes attendues, toutes marquées, aucune
@@ -948,15 +1077,32 @@ begin
       perform pg_temp.verifier_m('matrice', v_c.qui, v_c.ctx, v_m.tbl, 'suppression',
         v_res[2] = v_att or (v_attendus[3] = '0' and v_res[2] = 'REFUS 42501'),
         format('obtenu %s, attendu %s', v_res[2], coalesce(v_att, 'incalculable')));
+      -- Déplacement : sur trois tables de promo, faire passer promo_id vers une autre promo n'est permis à personne. La
+      -- condition d'écriture porte aussi sur la ligne nouvelle (WITH CHECK) : une règle qui ne la contrôlerait plus
+      -- laisserait un formateur vider sa promo dans une autre. Attendu : refus (42501) ou aucune ligne touchée, et le
+      -- nombre de lignes de la promo cible n'a pas bougé.
+      if v_m.tbl = any(c_deplacables) then
+        v_vers := (select x from unnest(c_promos) x where x is distinct from nullif(v_c.jetons ->> 'P', 'null')::integer
+                    order by x limit 1);
+        v_res := pg_temp.tenter(v_c.email, v_c.hdr, null, null,
+          format('select count(*)::text from %s where promo_id = %s', v_m.tbl, v_vers),
+          format('update %s set promo_id = %s', v_m.tbl, v_vers),
+          format('select count(*)::text from %s where promo_id = %s', v_m.tbl, v_vers));
+        perform pg_temp.verifier_m('matrice', v_c.qui, v_c.ctx, v_m.tbl, 'déplacement',
+          v_res[2] = 'REFUS 42501' or (v_res[1] is not null and v_res[2] = 'OK 0 ' || v_res[1]),
+          format('obtenu %s, attendu REFUS 42501 ou OK 0 %s (lignes de la promo %s avant : %s)', v_res[2], coalesce(v_res[1], 'incalculable'),
+                 v_vers, coalesce(v_res[1], 'incalculable')));
+      end if;
     end loop;
     -- Ajouts : l'attendu est la règle appliquée à la ligne même, écrite en propriétaire puis annulée (une règle
-    -- « false » se passe de cet essai) ; « OK 1 1 » si permis, « REFUS 42501 » sinon.
+    -- « false » se passe de cet essai, comme l'acteur anonyme, à qui rien n'est permis) ; « OK 1 1 » si permis,
+    -- « REFUS 42501 » sinon.
     for v_a in select a.*, v_m0.ajout as ajout from ajouts a where a.tbl = v_m0.tbl order by a.ordre loop
       for v_k in select * from pg_temp.cibles_ajout(v_a.sorte, v_c.jetons, c_promos, v_lieux) loop
         v_sql := pg_temp.remplir(v_a.modele, v_c.jetons || v_globaux || v_k.jetons);
         v_marque := pg_temp.remplir(v_a.marque, v_c.jetons || v_globaux || v_k.jetons);
         v_prep := pg_temp.remplir(v_a.prep, v_c.jetons || v_globaux || v_k.jetons);
-        if v_a.ajout = 'false' then
+        if v_a.ajout = 'false' or v_c.qui = 'anon' then
           v_permis := false; v_mes := 'aucune règle';
         else
           v_mes := pg_temp.essai_proprio(v_c.email, v_c.hdr, null, v_prep, v_sql,
@@ -977,7 +1123,65 @@ begin
   end loop;
 
   v_jalons := v_jalons || format(' ; matrice %s s', to_char(extract(epoch from clock_timestamp() - v_debut), 'FM990.0'));
-  -- 7. Siège : aucune ligne d'une table de promo ou de lieu (colonne promo_id ou lieu_id, sauf affectations, dont les
+  -- 7. Contrôles ciblés, aux attendus écrits en dur : aucun ne lit le modèle de la matrice, un modèle faux ne peut donc pas
+  --    les faire passer. Les acteurs sont les huit personnages et l'acteur anonyme.
+  --    a) Le signalement de problème d'essai appartient au jeton de stag_n : lui et le fondateur le voient (avec sa
+  --       capture), les autres non ; le fondateur seul le supprime.
+  if v_sig is null then
+    perform pg_temp.informer('signalements de problème (contrôles ciblés)', 'non jugeables : aucun signalement d''essai posé (voir la structure)');
+  else
+    v_obt := ''; v_att := '';
+    for v_p in select * from (select p.nom, p.email, p.fondateur, p.ordre, exists (select 1 from jetons j where j.email = lower(p.email)) as porteur
+                                from personnages p union all select 'anon', null, false, 99, false) u order by u.ordre loop
+      v_res := pg_temp.tenter(v_p.email, '1', null, null, null, format('delete from public.signalements_app where id = %s', v_sig), null);
+      -- (un refus de droit, 42501, vaut « aucune ligne » : l'acteur anonyme n'a le droit de lire aucune de ces deux tables)
+      v_obt := v_obt || format('%s %s/%s/%s ; ', v_p.nom,
+        replace(coalesce(pg_temp.valeur(v_p.email, '1', null, format('select count(*)::text from public.signalements_app where id = %s', v_sig)), 'nul'), 'ERREUR 42501', '0'),
+        replace(coalesce(pg_temp.valeur(v_p.email, '1', null, format('select count(*)::text from public.signalements_app_captures where signalement_id = %s', v_sig)), 'nul'), 'ERREUR 42501', '0'),
+        case when v_res[2] like 'OK %' then split_part(v_res[2], ' ', 2) when v_res[2] = 'REFUS 42501' then '0' else v_res[2] end);
+      v_att := v_att || format('%s %s/%s/%s ; ', v_p.nom, case when v_p.porteur or v_p.fondateur then 1 else 0 end,
+        case when v_p.porteur or v_p.fondateur then 1 else 0 end, case when v_p.fondateur then 1 else 0 end);
+    end loop;
+    perform pg_temp.attendre('signalements',
+      'signalement de problème d''essai, par acteur « lu/capture lue/supprimé » : le porteur du jeton (stag_n) et le fondateur le lisent, le fondateur seul le supprime',
+      v_obt, v_att);
+  end if;
+  --    b) Ni le compte « cumul » (fiche de la promo 1, formateur de la promo 2) ni l'orphelin affecté (siège) ne se
+  --       suppriment, quel que soit l'acteur : « jamais un compte qui a une affectation ». Leurs affectations échappent
+  --       aux formateurs de la promo 1 et à la direction du lieu 1 : une sous-requête sous RLS les supprimerait.
+  v_txt := '';
+  for v_p in select * from (select p.nom, p.email, p.ordre from personnages p union all select 'anon', null, 99) u order by u.ordre loop
+    foreach v_ctx in array array['1', '2', null] loop
+      v_res := pg_temp.tenter(v_p.email, v_ctx, null, null, null,
+        format('delete from public.user_profiles where email in (%L, %L)', c_cumul, c_orphelin_affecte),
+        format('select count(*)::text from public.user_profiles where email in (%L, %L)', c_cumul, c_orphelin_affecte));
+      if v_res[2] is distinct from 'OK 0 2' and v_res[2] is distinct from 'REFUS 42501' then
+        v_txt := v_txt || format('%s (contexte %s) : %s ; ', v_p.nom, coalesce(v_ctx, 'sans'), coalesce(v_res[2], 'nul'));
+      end if;
+    end loop;
+  end loop;
+  perform pg_temp.verifier('comptes',
+    'ni le compte cumul ni l''orphelin affecté ne se suppriment, par aucun acteur (contextes 1, 2, sans en-tête)',
+    v_txt = '', 'supprimés ou en erreur : ' || v_txt);
+  --    c) Anonymat des notes (réciprocité) : stag_masque, dont le profil masque les notes, ne voit que les siennes (une
+  --       seule évaluation) ; stag_n ne voit pas les siennes mais celles d'un autre ; l'équipe (form_n) les voit.
+  select p.fiche into n from personnages p where p.nom = 'stag_masque';
+  select p.fiche into n2 from personnages p where p.nom = 'stag_n';
+  perform pg_temp.attendre('anonymat',
+    'notes masquées : stag_masque ne voit que ses notes, stag_n ne voit pas les siennes mais celles d''un autre, form_n les voit',
+    format('masqué voit %s ; stag_n voit celles du masqué %s ; stag_n voit celles d''un autre %s ; form_n voit celles du masqué %s',
+      coalesce(pg_temp.valeur('preuve.masque@exemple.invalid', '1', null,
+        format('select count(*)::text || ''/'' || count(*) filter (where stagiaire_id = %s)::text from public.evaluations', n)), 'nul'),
+      coalesce(pg_temp.valeur('preuve.stag.n@exemple.invalid', '1', null,
+        format('select count(*)::text from public.evaluations where stagiaire_id = %s', n)), 'nul'),
+      coalesce(pg_temp.valeur('preuve.stag.n@exemple.invalid', '1', null,
+        format('select (count(*) filter (where stagiaire_id not in (%s, %s)) > 0)::text from public.evaluations', n, n2)), 'nul'),
+      coalesce(pg_temp.valeur('preuve.form.n@exemple.invalid', '1', null,
+        format('select count(*)::text from public.evaluations where stagiaire_id = %s', n)), 'nul')),
+    'masqué voit 1/1 ; stag_n voit celles du masqué 0 ; stag_n voit celles d''un autre true ; form_n voit celles du masqué 1');
+
+  v_jalons := v_jalons || format(' ; contrôles ciblés %s s', to_char(extract(epoch from clock_timestamp() - v_debut), 'FM990.0'));
+  -- 8. Siège : aucune ligne d'une table de promo ou de lieu (colonne promo_id ou lieu_id, sauf affectations, dont les
   --    lignes de direction et de siège lui sont lisibles, R17), ni des données privées, ni aucun profil de stagiaire.
   for n in 1 .. cardinality(c_contextes) loop
     select string_agg(format('%s %s', regexp_replace(t, '^public\.', ''), v), ', ' order by t) into v_txt
@@ -997,17 +1201,19 @@ begin
       concat_ws(' ; ', 'tables : ' || v_txt, case when v_obt is distinct from '0' then 'profils de stagiaire : ' || coalesce(v_obt, 'nul') end));
   end loop;
 
-  -- 8. Couverture : toute table de public sous RLS est dans la matrice ; plus aucune règle ne cite les anciennes
-  --    fonctions (vrai une fois l'étape 3 appliquée).
+  -- 9. Couverture : toute table de public sous RLS est dans la matrice ; aucune table de public n'est sans RLS (une
+  --    table sans RLS serait lisible et modifiable par tous, la matrice ne la verrait pas) ; plus aucune règle ne cite
+  --    les anciennes fonctions (vrai une fois l'étape 3 appliquée).
   select string_agg(x.t, ', ' order by x.t) into v_txt
     from (select format('%I.%I', ns.nspname, c.relname) as t from pg_class c join pg_namespace ns on ns.oid = c.relnamespace
            where ns.nspname = 'public' and c.relkind in ('r', 'p') and c.relrowsecurity) x
    where x.t not in (select m.tbl from matrice m);
   perform pg_temp.verifier('couverture', 'toute table de public sous RLS figure dans la matrice (une table ajoutée la fait rougir)',
     v_txt is null, coalesce('hors matrice : ' || v_txt, ''));
-  perform pg_temp.informer('tables de public sans RLS',
-    coalesce((select string_agg(c.relname, ', ' order by c.relname) from pg_class c
-               where c.relnamespace = 'public'::regnamespace and c.relkind in ('r', 'p') and not c.relrowsecurity), 'aucune'));
+  select string_agg(c.relname, ', ' order by c.relname) into v_txt from pg_class c
+   where c.relnamespace = 'public'::regnamespace and c.relkind in ('r', 'p') and not c.relrowsecurity;
+  perform pg_temp.verifier('couverture', 'aucune table de public sans RLS (une table créée sans RLS la fait rougir)',
+    v_txt is null, coalesce('sans RLS : ' || v_txt, ''));
   select count(*), string_agg(format('%s.%s', p.tablename, p.policyname), ', ' order by p.tablename, p.policyname)
     into n, v_txt
     from pg_policies p
@@ -1017,7 +1223,7 @@ begin
     n = 0, format('%s règle(s) : %s', n, left(coalesce(v_txt, ''), 600)));
 
   v_jalons := v_jalons || format(' ; siège et couverture %s s', to_char(extract(epoch from clock_timestamp() - v_debut), 'FM990.0'));
-  -- 9. Les retours, dans l'ordre inverse, puis l'empreinte : elle doit égaler celle d'avant.
+  -- 10. Les retours, dans l'ordre inverse, puis l'empreinte : elle doit égaler celle d'avant.
   v_retour[3] := pg_temp.jouer('retour 3',
 -- @@INJECTER supabase/migrations/20261028_roles_3_regles_retour.sql@@
   );
