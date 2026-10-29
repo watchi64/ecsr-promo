@@ -12,7 +12,7 @@ import {
 import { carteNouveaute } from "./nouveautes.js?v=20261029a";
 import { emargementActif } from "../emargement-etat.js?v=20261029a";
 import { navigationV2Active } from "../nav-etat.js?v=20261029a";
-import { etatEvenement, libelleDecompte, lignePromo } from "../accueil-rules.js?v=20261029a";
+import { etatEvenement, libelleDecompte, lignePromo, pastilleDeLaCarte } from "../accueil-rules.js?v=20261029a";
 
 function greetingByHour() {
   const h = new Date().getHours();
@@ -84,7 +84,9 @@ export async function renderHome(container) {
   const profile = getProfile();
   const who = getProfileWho();
   const admin = isAdmin();
-  const roleLabel = admin ? "Admin"
+  // Le pied de page dit le rôle : sous la nouvelle navigation, un administrateur est un « formateur » (le mot de la barre et des
+  // Nouveautés) ; l'ancienne garde « admin ».
+  const roleLabel = admin ? (navigationV2Active() ? "Formateur" : "Admin")
     : profile?.role === "prof" ? "Formateur"
     : profile?.role === "stagiaire" ? "Stagiaire" : null;
 
@@ -193,7 +195,9 @@ export async function renderHome(container) {
       const nextMajor = upcoming.find((e) => MAJOR_TYPES.has(e.type));
       if (nextMajor) {
         const decompte = etatDe(nextMajor, aujourdhui);
-        const days = decompte.jours;
+        // La pastille : les jours avant le début d'un événement à venir ; « En cours » (sans nombre) pour un événement commencé
+        // (la ligne « En cours, fin dans N jours » dit ce qui reste). Le prochain événement n'étant pas passé, elle existe toujours.
+        const pastille = pastilleDeLaCarte(decompte);
         const countdownEl = el("section", { class: "home-countdown" },
           el("div", { class: "home-countdown-icon" }, TYPE_EMOJI[nextMajor.type] || "📌"),
           el("div", { class: "home-countdown-body" },
@@ -204,14 +208,10 @@ export async function renderHome(container) {
               ? el("span", { class: "home-countdown-statut" }, libelleDecompte(decompte))
               : null,
           ),
-          el("div", { class: "home-countdown-pill " + (days === 0 ? "today" : days <= 7 ? "soon" : "later") },
-            el("span", { class: "home-countdown-num" },
-              days === 0 ? "0" : days === 1 ? "1" : String(days),
-            ),
-            el("span", { class: "home-countdown-unit" },
-              days === 0 ? "Aujourd'hui !" : days === 1 ? "jour" : "jours",
-            ),
-          ),
+          pastille ? el("div", { class: "home-countdown-pill " + pastille.ton },
+            pastille.nombre ? el("span", { class: "home-countdown-num" }, pastille.nombre) : null,
+            el("span", { class: "home-countdown-unit" }, pastille.unite),
+          ) : null,
         );
         // Insère le compteur au-dessus des Nouveautés si elles sont là, sinon
         // juste avant les tuiles (nouvelle navigation : sans tuiles, avant l'agenda).
@@ -303,9 +303,13 @@ export async function renderHome(container) {
   const lienReglages = !v2 ? el("a", { href: "#/config" }, "paramètres")
     : (isAdmin() || isProf()) ? el("a", { href: "#/config" }, "réglages")
     : el("a", { href: "#/preferences" }, "mes préférences");
+  // Nom de la promo affichée dans le pied : « Promo 2026 » écrit en dur avec l'ancienne navigation, le nom de la promo
+  // (getPromoCourante) avec la nouvelle, rien tant que les promos ne sont pas chargées.
+  const nomPromo = v2 ? (getPromoCourante()?.nom || "") : "";
+  const debutDuPied = v2 ? "TP ECSR App · " + (nomPromo ? "Promo " + nomPromo + " · " : "") : "TP ECSR App · Promo 2026 · ";
   container.appendChild(el("footer", { class: "home-footer-v2" },
     el("p", {},
-      "TP ECSR App · Promo 2026 · ",
+      debutDuPied,
       roleLabel ? el("span", { class: "footer-role" }, "connecté comme " + roleLabel.toLowerCase()) : "",
     ),
     el("p", { class: "muted", style: "margin-top:0.3rem;font-size:0.78rem" },

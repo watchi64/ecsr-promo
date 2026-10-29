@@ -16,7 +16,7 @@ import { moduleVisible, moduleMasque, repereMasque } from "../modules-etat.js?v=
 import { icon } from "../icons.js?v=20261029a";
 import { PARTIES, lireAdresse, adresseFiche } from "../route-rules.js?v=20261029a";
 import { etatsSommaire, passagesAVenir, EVT_DOCUMENT } from "../fiche-rules.js?v=20261029a";
-import { libellesDeMois, rayonDeCible } from "../evolution-rules.js?v=20261029a";
+import { libellesDeMois, rayonDeCible, largeurDuDessin, LARGEUR_MAX_DU_GRAPHE } from "../evolution-rules.js?v=20261029a";
 import { surChangementAdresse, remplacerAdresse, peutQuitter } from "../navigation.js?v=20261029a";
 import { navigationV2Active } from "../nav-etat.js?v=20261029a";
 import { renderNotes } from "./notes.js?v=20261029a";
@@ -259,16 +259,17 @@ function groupByMonth(evals) {
   return groups;
 }
 
-// Graphe SVG maison. Il se dessine à la largeur de son conteneur (viewBox, width: 100 %) : jamais de
-// défilement de côté, même avec beaucoup d'évals (les points se resserrent). Bandes de fond alternées par
+// Graphe SVG maison, dessiné à la largeur `largeur` (js/evolution-rules.js, largeurDuDessin : celle, mesurée, de son
+// conteneur) : une unité du viewBox vaut un pixel à l'écran, les textes gardent leur taille, et width: 100 % ne le réduit
+// pas. Jamais de défilement de côté, même avec beaucoup d'évals (les points se resserrent). Bandes de fond alternées par
 // mois + un libellé de mois centré sous sa bande, sauf ceux qui en toucheraient un autre (js/evolution-rules.js :
 // sur téléphone, sept mois de notes serrent le graphe). Chaque point porte des data-* lus par le tooltip stylé
 // branché dans renderChartSection.
-function buildChart(evals) {
+function buildChart(evals, largeur) {
   const H = 280, padL = 40, padR = 16, padT = 16, padB = 40;
   const n = evals.length;
   const months = groupByMonth(evals);
-  const W = largeurDeGraphe(760), innerW = W - padL - padR, innerH = H - padT - padB;
+  const W = largeur, innerW = W - padL - padR, innerH = H - padT - padB;
   const x = (i) => padL + (n <= 1 ? innerW / 2 : (innerW * i) / (n - 1));
   const y = (v) => padT + innerH * (1 - Math.max(0, Math.min(20, v)) / 20);
 
@@ -342,18 +343,25 @@ function renderChartSection(evaluations, soi = true) {
     section.appendChild(el("p", { class: "muted ms-empty" }, "Pas encore d'évaluation notée."));
     return section;
   }
-  // Conteneur positionné : le tooltip est posé au niveau de l'outer, à côté du graphe (wrap).
+  // Conteneur positionné : le tooltip est posé au niveau de l'outer, à côté du graphe (wrap). La sonde est un bloc sans hauteur, de la
+  // largeur du wrap : c'est elle qu'observe le ResizeObserver (voir plus bas), parce que dessiner le graphe change la hauteur du wrap
+  // et que redessiner dans la notification d'un élément dont la taille vient de changer fait lever au navigateur « ResizeObserver loop ».
   const outer = el("div", { class: "ms-chart-outer" });
+  const sonde = el("div", { class: "ms-chart-sonde", "aria-hidden": "true" });
   const wrap = el("div", { class: "ms-chart-wrap" });
-  const svg = buildChart(noted);
   const tip = el("div", { class: "ms-tip" });
   tip.style.display = "none";
-  wrap.appendChild(svg);
+  outer.appendChild(sonde);
   outer.appendChild(wrap);
   outer.appendChild(tip);
 
+  // Le dessin courant et la largeur à laquelle il est dessiné : le graphe est redessiné quand son conteneur change de largeur
+  // (fenêtre redimensionnée, barre latérale repliée, écran tourné).
+  let svg = null;
+  let largeurDessinee = null;
+
   // Le point visible correspondant à une cible de tap (même data-i).
-  const dotFor = (hit) => svg.querySelector('.ms-pt[data-i="' + hit.getAttribute("data-i") + '"]');
+  const dotFor = (hit) => svg && svg.querySelector('.ms-pt[data-i="' + hit.getAttribute("data-i") + '"]');
   const showTip = (hit) => {
     const c = dotFor(hit) || hit;
     tip.replaceChildren(
@@ -380,17 +388,18 @@ function renderChartSection(evaluations, soi = true) {
   const isHit = (n) => n && n.classList && n.classList.contains("ms-pt-hit");
 
   // Sur mobile il n'y a pas de survol : un tap « épingle » le tooltip, qui reste
-  // affiché jusqu'au tap suivant (autre point, ou fond du graphe).
+  // affiché jusqu'au tap suivant (autre point, ou fond du graphe). Les écouteurs sont au conteneur du dessin, qui est
+  // remplacé à chaque changement de largeur : ils lui survivent.
   let pinned = null;
-  svg.addEventListener("mouseover", (ev) => {
+  wrap.addEventListener("mouseover", (ev) => {
     if (!isHit(ev.target) || pinned) return;
     showTip(ev.target);
   });
-  svg.addEventListener("mouseout", (ev) => {
+  wrap.addEventListener("mouseout", (ev) => {
     if (!isHit(ev.target) || pinned) return;
     hideTip(ev.target);
   });
-  svg.addEventListener("click", (ev) => {
+  wrap.addEventListener("click", (ev) => {
     if (isHit(ev.target)) {
       if (pinned === ev.target) { hideTip(pinned); pinned = null; return; }   // re-tap : ferme
       if (pinned) clearHover(pinned);
@@ -401,6 +410,32 @@ function renderChartSection(evaluations, soi = true) {
       pinned = null;
     }
   });
+
+  // (Re)dessine le graphe à la largeur donnée. Une infobulle épinglée sur l'ancien dessin n'a plus de point à montrer : elle se ferme.
+  function dessiner(largeur) {
+    pinned = null;
+    tip.style.display = "none";
+    const neuf = buildChart(noted, largeur);
+    if (svg) svg.replaceWith(neuf);
+    else wrap.appendChild(neuf);
+    svg = neuf;
+    largeurDessinee = largeur;
+  }
+  // Le graphe se dessine à la largeur mesurée de son conteneur : dans la fiche d'un stagiaire (liste de 270 px, barre latérale), il est
+  // bien plus étroit que la fenêtre, et un dessin fait pour la fenêtre était réduit de moitié, son texte de 10 unités rendu à 5 px.
+  // Il se dessine une fois le conteneur posé et visible (une mesure nulle ne dessine rien), puis à chaque changement de sa largeur ;
+  // un changement de hauteur ou une largeur de dessin identique ne fait rien. Un navigateur sans ResizeObserver garde la largeur de
+  // la fenêtre, comme avant.
+  if (typeof ResizeObserver === "function") {
+    const observateur = new ResizeObserver(() => {
+      if (!outer.isConnected) { observateur.disconnect(); return; }   // la page a changé : plus rien à surveiller
+      const largeur = largeurDuDessin(sonde.getBoundingClientRect().width);
+      if (largeur !== null && largeur !== largeurDessinee) dessiner(largeur);
+    });
+    observateur.observe(sonde);
+  } else {
+    dessiner(largeurDeGraphe(LARGEUR_MAX_DU_GRAPHE));
+  }
 
   section.appendChild(outer);
   const avg = Math.round((noted.reduce((s, e) => s + e.norm, 0) / noted.length) * 10) / 10;

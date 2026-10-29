@@ -26,10 +26,11 @@
 // barreTelephone(espace, entrees).plus. majNouveautesCompte pose sur les boutons du compte un point
 // quand des nouveautés ne sont pas lues (sans chiffre : le nombre est sur la ligne « Nouveautés » du
 // menu du compte) et dit leur nombre dans le nom du bouton.
-// « À traiter » (équipe, majATraiter) : ce qui attend un formateur dans Cours et QCM, signalements de QCM non
-// traités et propositions de l'IA à relire (js/a-traiter.js), se montre en pastille chiffrée sur l'entrée « Cours et
-// QCM » (barre latérale, tiroir « Plus » ; data-nom-base garde son nom d'origine, data-a-traiter dit le texte posé),
-// en point sur « Plus » quand le téléphone range cette entrée dans le tiroir, et en phrase en tête du tiroir. La barre
+// « À traiter » (équipe, majATraiter) : ce qui attend un formateur dans Cours et QCM, les signalements de QCM non
+// traités (js/a-traiter.js ; les propositions de l'IA s'y ajouteront au lot 2B), se montre en pastille chiffrée sur
+// l'entrée « Cours et QCM » (barre latérale, tiroir « Plus » ; data-nom-base garde son nom d'origine, data-a-traiter dit
+// le texte posé), en point sur « Plus » quand le téléphone range cette entrée dans le tiroir (ce point s'allume aussi quand
+// la pastille de « Signaler un problème », que le tiroir contient, est affichée), et en phrase en tête du tiroir. La barre
 // ne les attend jamais : ils sont lus après le montage, relus à chaque page affichée (au plus toutes les 30 secondes),
 // et un compte illisible ne montre ni pastille ni erreur.
 
@@ -45,7 +46,7 @@ import {
 } from "./nav-rules.js?v=20261029a";
 import { chargerATraiter } from "./a-traiter.js?v=20261029a";
 import {
-  ENTREE_A_TRAITER, resumeATraiter, nomAvecATraiter, phraseATraiter, pointSurPlus,
+  ENTREE_A_TRAITER, resumeATraiter, nomAvecATraiter, phraseATraiter, pointSurPlus, nomDePlus,
 } from "./a-traiter-rules.js?v=20261029a";
 import { ouvrirFenetre, fermerFenetre, fenetreOuverte, rendreFocus } from "./nav-fenetre.js?v=20261029a";
 import { ouvrirMenuCompte } from "./menu-compte.js?v=20261029a";
@@ -196,6 +197,7 @@ function nommerSignaler(bouton) {
 
 onSignalementsChange(() => {
   document.querySelectorAll('[data-nav-coquille] [data-nav-action="signaler"]').forEach(nommerSignaler);
+  majATraiter();   // le point de « Plus » suit la pastille de « Signaler un problème », rangée dans son tiroir
 });
 
 // ----- « À traiter » : ce qui attend l'équipe dans Cours et QCM -----
@@ -267,9 +269,9 @@ function poserCompteSurEntree(lien, texte, resume) {
   if (lateral) lien.setAttribute("title", nom);
 }
 
-// Le point de « Plus » (téléphone), au coin de son icône, et son nom (« Plus, 5 à traiter » : il contient le libellé
-// visible, WCAG 2.5.3).
-function poserPointSurPlus(bouton, avecPoint, resume) {
+// Le point de « Plus » (téléphone), au coin de son icône, et son nom (`nom` : « Plus, 5 à traiter », « Plus, 2 nouveaux
+// signalements » ; il contient le libellé visible, WCAG 2.5.3, voir nomDePlus).
+function poserPointSurPlus(bouton, avecPoint, nom) {
   const point = bouton.querySelector(":scope > .nav-plus-point");
   if (!avecPoint) {
     if (point) point.remove();
@@ -277,11 +279,11 @@ function poserPointSurPlus(bouton, avecPoint, resume) {
     return;
   }
   if (!point) bouton.appendChild(el("span", { class: "nav-plus-point", "aria-hidden": "true" }));
-  bouton.setAttribute("aria-label", nomAvecATraiter("Plus", resume));
+  bouton.setAttribute("aria-label", nom);
 }
 
-// La phrase en tête du tiroir ouvert (« 5 à traiter : 3 signalements, 2 propositions de l'IA »), sous sa ligne
-// « Fermer » ; retirée quand il n'y a rien à traiter.
+// La phrase en tête du tiroir ouvert (« 5 à traiter : 5 signalements » ; « 8 à traiter : 5 signalements, 3 propositions de l'IA »
+// quand le lot 2B les compte), sous sa ligne « Fermer » ; retirée quand il n'y a rien à traiter.
 function poserPhraseDuTiroir(tiroir, phrase) {
   let p = tiroir.querySelector(":scope > .nav-fenetre-atraiter");
   if (!phrase) {
@@ -302,8 +304,12 @@ function poserATraiter() {
   const resume = montee && montee.espace === "equipe" ? resumeATraiter(aTraiter) : resumeATraiter();
   const texte = libellePastille(resume.total);
   document.querySelectorAll("[data-nav-coquille] a[data-nom-base]").forEach((lien) => poserCompteSurEntree(lien, texte, resume));
-  const point = !!montee && pointSurPlus(montee.plus, resume);
-  document.querySelectorAll('[data-nav-coquille] button[data-nav-action="plus"]').forEach((b) => poserPointSurPlus(b, point, resume));
+  // « Signaler un problème » est dans le tiroir : sa pastille (les nouveaux signalements chez le fondateur hors aperçu, ceux qui ont
+  // avancé chez les autres) allume aussi le point de « Plus », et son détail passe dans le nom du bouton.
+  const signaler = pastilleSignalement({ fondateur: fondateurHorsApercu(), ...etatSignalements() });
+  const point = !!montee && pointSurPlus(montee.plus, resume, signaler.texte);
+  const nomDuBouton = nomDePlus(resume, signaler.nom);
+  document.querySelectorAll('[data-nav-coquille] button[data-nav-action="plus"]').forEach((b) => poserPointSurPlus(b, point, nomDuBouton));
   const tiroir = document.querySelector('[data-nav-coquille="plus"] .nav-fenetre');
   if (tiroir) poserPhraseDuTiroir(tiroir, phraseATraiter(resume));
 }

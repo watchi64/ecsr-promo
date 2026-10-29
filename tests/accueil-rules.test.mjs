@@ -2,7 +2,7 @@
 // « Promo <nom> · semaine <n> ». Règles pures seulement (js/accueil-rules.js) : la carte « Prochain événement
 // majeur » de l'accueil, puis le prochain rendez-vous du lot 2B, les lisent.
 import assert from "node:assert/strict";
-import { etatEvenement, libelleDecompte, lignePromo } from "../js/accueil-rules.js";
+import { etatEvenement, libelleDecompte, lignePromo, pastilleDeLaCarte } from "../js/accueil-rules.js";
 
 let n = 0;
 const eq = (a, b, msg) => { assert.deepEqual(a, b, msg); n++; };
@@ -123,3 +123,41 @@ eq(lignePromo({ date_debut: "2026-03-30" }, "2026-10-28"), "", "promo sans nom :
 eq(lignePromo({ nom: "   " }, "2026-10-28"), "", "nom vide : aucune ligne");
 
 console.log(`accueil-rules : ${n} assertions OK`);
+
+// 10. La pastille de la carte « Prochain événement majeur » (relecture finale, F9) : à venir, les jours qui restent avant le début,
+// habillés selon l'urgence ; commencé, « En cours », sans nombre ni habillage de compte à rebours (la ligne « En cours, fin dans N
+// jours » dit déjà ce qui reste), jamais « Aujourd'hui ! » pour un stage qui finit aujourd'hui.
+const pastille = (evenement, aujourdhui) => pastilleDeLaCarte(etatEvenement(evenement, aujourdhui));
+eq(pastille({ debut: "2026-11-06" }, AUJOURDHUI), { ton: "later", nombre: "9", unite: "jours" }, "à venir dans 9 jours : habillage tranquille");
+eq(pastille({ debut: "2026-11-05" }, AUJOURDHUI), { ton: "later", nombre: "8", unite: "jours" }, "dans 8 jours : encore tranquille");
+eq(pastille({ debut: "2026-11-04" }, AUJOURDHUI), { ton: "soon", nombre: "7", unite: "jours" }, "dans 7 jours : « bientôt »");
+eq(pastille({ debut: "2026-10-30" }, AUJOURDHUI), { ton: "soon", nombre: "2", unite: "jours" }, "après-demain");
+eq(pastille({ debut: "2026-10-29" }, AUJOURDHUI), { ton: "soon", nombre: "1", unite: "jour" }, "demain : « 1 jour », au singulier");
+eq(pastille({ debut: "2026-10-28" }, AUJOURDHUI), { ton: "today", nombre: "0", unite: "Aujourd'hui !" }, "un événement qui commence aujourd'hui");
+eq(pastille({ debut: "2026-10-28", fin: "2026-11-01" }, AUJOURDHUI), { ton: "today", nombre: "0", unite: "Aujourd'hui !" }, "premier jour d'un stage : il commence aujourd'hui");
+eq(pastille({ debut: "2026-10-26", fin: "2026-11-06" }, AUJOURDHUI), { ton: "en-cours", nombre: "", unite: "En cours" }, "un stage commencé : « En cours », sans nombre de jours");
+eq(pastille({ debut: "2026-10-26", fin: "2026-10-29" }, AUJOURDHUI), { ton: "en-cours", nombre: "", unite: "En cours" }, "fin demain : pas « 1 jour »");
+eq(pastille({ debut: "2026-10-26", fin: "2026-10-28" }, AUJOURDHUI), { ton: "en-cours", nombre: "", unite: "En cours" },
+  "un stage qui finit aujourd'hui : « En cours », pas « Aujourd'hui ! » (le jour où il finit n'est pas le jour où il commence)");
+eq(pastille({ debut: "2026-10-20", fin: "2026-10-27" }, AUJOURDHUI), null, "terminé hier : la carte ne le montre pas, donc aucune pastille");
+// Aucun habillage de compte à rebours (today, soon, later) ni aucun nombre pour un événement commencé, quel que soit le jour où l'on regarde
+for (let decalage = -20; decalage <= 30; decalage++) {
+  const jour = new Date(Date.UTC(2026, 9, 28 + decalage)).toISOString().slice(0, 10);
+  const evenement = { debut: "2026-10-26", fin: "2026-11-06" };
+  const decompte = etatEvenement(evenement, jour);
+  const p = pastilleDeLaCarte(decompte);
+  if (decompte.etat === "en-cours") {
+    assert.deepEqual(p, { ton: "en-cours", nombre: "", unite: "En cours" }, `${jour} : en cours`);
+  } else if (decompte.etat === "passe") {
+    assert.equal(p, null, `${jour} : passé`);
+  } else {
+    assert.ok(["today", "soon", "later"].includes(p.ton) && /^\d+$/.test(p.nombre), `${jour} : à venir`);
+  }
+  assert.ok(!/[-−]\s*\d/.test(`${p ? p.nombre : ""} ${p ? p.unite : ""}`), `${jour} : jamais un nombre négatif`);
+  n += 2;
+}
+eq(pastilleDeLaCarte(null), null, "rien à dire sans état");
+eq(pastilleDeLaCarte({ etat: "inconnu", jours: 3 }), null, "un état inconnu n'a pas de pastille");
+eq(pastilleDeLaCarte({ etat: "a-venir", jours: -2 }), null, "jamais un nombre négatif à venir");
+eq(pastilleDeLaCarte({ etat: "a-venir", jours: 1.5 }), null, "ni un nombre de jours qui n'est pas entier");
+eq(pastilleDeLaCarte({ etat: "en-cours", jours: -1 }), null, "ni un événement en cours à la fin déjà passée");

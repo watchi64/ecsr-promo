@@ -350,6 +350,14 @@ function panneau(zone, { fermer = null } = {}) {
     }
   }
 
+  // Posé dans la page (`fermer` nul : pas de fenêtre), le panneau garde la position de défilement de la page quand un formulaire prend la
+  // place de la liste, souvent longue : après « Modifier », le formulaire pouvait se trouver hors de l'écran. On le ramène en haut du bloc
+  // (la marge de défilement de .bnv-page, css/navigation.css, tient compte de l'en-tête collant du téléphone). Dans la fenêtre, c'est
+  // la fenêtre qui défile : rien à faire.
+  function ramenerALEcran() {
+    if (!fermer) zone.scrollIntoView({ block: "start" });
+  }
+
   // Fiche auto-école. onSaved (optionnel) sert au flux « + Nouvelle auto-école »
   // depuis la fiche bénévole : appelé avec la fiche créée (ou null si annulation)
   // au lieu de revenir à la liste.
@@ -470,6 +478,7 @@ function panneau(zone, { fermer = null } = {}) {
     actions.appendChild(el("button", { class: "btn ghost", onClick: () => (onSaved ? onSaved(null) : render()) }, "Annuler"));
     actions.appendChild(el("button", { class: "btn primary", onClick: save }, "Enregistrer"));
     zone.appendChild(actions);
+    ramenerALEcran();
   }
 
   // === Fiche bénévole ===
@@ -693,6 +702,7 @@ function panneau(zone, { fermer = null } = {}) {
     actions.appendChild(el("button", { class: "btn ghost", onClick: done }, "Annuler"));
     actions.appendChild(el("button", { class: "btn primary", onClick: save }, "Enregistrer"));
     zone.appendChild(actions);
+    ramenerALEcran();
   }
 
   // Lit la banque puis dessine l'onglet courant. Une erreur de lecture se dit dans la zone : « Fermer » dans une

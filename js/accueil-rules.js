@@ -58,6 +58,23 @@ export function libelleDecompte(decompte) {
   return "";
 }
 
+// La pastille de la carte « Prochain événement majeur » (le résultat d'etatEvenement) : { ton, nombre, unite }, ou null quand il n'y
+// a rien à montrer (événement passé, état ou nombre illisibles). À venir : le nombre de jours jusqu'au début, habillé selon
+// l'urgence (`ton` : « today » le jour même, « soon » jusqu'à 7 jours, « later » au-delà). Commencé : « En cours », sans nombre et
+// sans habillage de compte à rebours (`ton` : « en-cours ») : les jours qui restent sont dans la ligne « En cours, fin dans N jours »,
+// et « Aujourd'hui ! » ne se dit jamais d'un stage qui finit aujourd'hui, seulement d'un événement qui commence aujourd'hui.
+export function pastilleDeLaCarte(decompte) {
+  const { etat, jours } = decompte || {};
+  if (!Number.isInteger(jours) || jours < 0) return null;
+  if (etat === "en-cours") return { ton: "en-cours", nombre: "", unite: "En cours" };
+  if (etat !== "a-venir") return null;
+  return {
+    ton: jours === 0 ? "today" : jours <= 7 ? "soon" : "later",
+    nombre: String(jours),
+    unite: jours === 0 ? "Aujourd'hui !" : jours === 1 ? "jour" : "jours",
+  };
+}
+
 // Lundi de la semaine d'un jour (son numéro, voir numeroDeJour) : le 01/01/1970, jour 0, était un jeudi.
 const lundiDe = (numero) => numero - (((numero + 3) % 7) + 7) % 7;
 

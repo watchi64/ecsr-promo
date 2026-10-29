@@ -6,7 +6,8 @@
  * Nouvelle navigation (lot 2A), deux pages : Réglages (#/config, l'équipe) ne garde que la promo, dans
  * l'ordre : Ce que voient les stagiaires (les modules) · Promo · Accès et invitations · Émargement et
  * Nouvelle navigation (fondateur) · Données personnelles ; Mes préférences (#/preferences, tous les
- * rôles, renderPreferences) garde ce qui est à la personne : Mes préférences · Informations.
+ * rôles, renderPreferences) garde ce qui est à la personne : Dans les notes de la classe (l'anonymat, pour qui a une fiche de
+ * stagiaire) · Informations.
  */
 import {
   listStagiaires, listProfs,
@@ -19,7 +20,7 @@ import {
 } from "../db.js?v=20261029a";
 import { el, clear, toast, displayStagiaire } from "../utils.js?v=20261029a";
 import { icon } from "../icons.js?v=20261029a";
-import { isAdmin, getAdminEmail, getProfile } from "../auth-admin.js?v=20261029a";
+import { isAdmin, getAdminEmail, getProfile, monStagiaireId } from "../auth-admin.js?v=20261029a";
 import { moduleVisible } from "../modules-etat.js?v=20261029a";
 import { renderModulesSection } from "./modules-reglage.js?v=20261029a";
 import { renderEmargementReglage } from "../emargement-etat.js?v=20261029a";
@@ -227,16 +228,23 @@ async function renderAccessSection(rerender) {
 function renderMyPreferencesSection(rerender) {
   const profile = getProfile();
   if (!profile) return null;  // pas affichée si pas de profil
-  // Seul réglage de la section : l'anonymat dans la page Notes. Module Notes
+  // Seul réglage de la section : l'anonymat dans les notes de la classe. Module Notes
   // fermé pour la promo : la section n'a plus d'objet pour un stagiaire.
   if (!moduleVisible("notes")) return null;
+  // Nouvelle navigation : l'anonymat ne concerne que qui a une fiche de stagiaire (un formateur n'a pas de notes dans la classe, et voit
+  // tout) ; sans fiche (monStagiaireId() nul, « Voir en tant que » Formateur compris), le réglage est masqué. L'ancienne navigation
+  // le garde pour tous, comme avant.
+  const v2 = navigationV2Active();
+  if (v2 && monStagiaireId() == null) return null;
 
   const section = el("section", { class: "param-section" });
+  // Nouvelle navigation : la page s'appelle déjà « Mes préférences » et « Réglages » est la page de l'équipe : la section dit ce qu'elle
+  // règle, une seule fois le titre de la page. L'ancienne garde ses mots.
   section.appendChild(el("div", { class: "param-section-head" },
     el("div", { class: "param-icon" }, icon.user ? icon.user() : icon.users()),
     el("div", {},
-      el("h3", {}, "Mes préférences"),
-      el("p", { class: "muted" }, "Réglages personnels visibles uniquement par toi."),
+      el("h3", {}, v2 ? "Dans les notes de la classe" : "Mes préférences"),
+      el("p", { class: "muted" }, v2 ? "Ce que les autres stagiaires voient de toi." : "Réglages personnels visibles uniquement par toi."),
     ),
   ));
 
@@ -799,10 +807,10 @@ export function renderPreferences(container) {
     el("div", { class: "view-header-text" },
       el("p", { class: "eyebrow" }, "Mon compte"),
       el("h2", {}, "Mes préférences"),
-      // Le sous-titre dit ce que la page contient : sans réglage à montrer (Notes fermées pour la promo), il
-      // ne promet que les informations.
+      // Le sous-titre dit ce que la page contient : sans réglage à montrer (Notes fermées pour la promo, ou aucune fiche de
+      // stagiaire), il ne promet que les informations. « Réglages » est le nom de la page de l'équipe : il n'est pas repris ici.
       el("p", { class: "subtitle" }, preferences
-        ? "Tes réglages personnels et les informations sur l'application."
+        ? "Ce qui ne concerne que toi, et les informations sur l'application."
         : "Les informations sur l'application."),
     ),
   ));

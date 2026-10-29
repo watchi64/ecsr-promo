@@ -891,7 +891,7 @@ body[data-nav="v2"][data-nav-colonne] .nav-entree > .nav-a-traiter {
   font-size: 0.68rem;
 }
 body[data-nav="v2"][data-nav-colonne] .nav-entree[data-a-traiter] > .marque-masque { top: auto; bottom: 4px; }
-/* La phrase « 5 à traiter : 3 signalements, 2 propositions de l'IA » en tête du tiroir « Plus » (ruling R20). */
+/* La phrase « 5 à traiter : 5 signalements » en tête du tiroir « Plus » (ruling R20 ; « 8 à traiter : 5 signalements, 3 propositions de l'IA » quand le lot 2B les compte, ruling R56). */
 body[data-nav="v2"] .nav-fenetre-atraiter {
   margin: 2px 0 6px;
   padding: 10px 12px;
@@ -965,6 +965,8 @@ body[data-nav="v2"] .p-aujourdhui { min-height: 44px; }
    (.modal h3) et ses règles contre le débordement des champs (.bnv-modal .field) : le select du niveau, aux options
    très longues, ferait sinon déborder la colonne de la grille du formulaire. */
 body[data-nav="v2"] .bnv-page { max-width: 680px; }
+/* Après « Modifier », le formulaire est ramené en haut du bloc (scrollIntoView, js/views/benevoles.js) : sous l'en-tête collant du téléphone, pas derrière lui. */
+body[data-nav="v2"] .bnv-page { scroll-margin-top: calc(var(--haut-entete) + 8px); }
 body[data-nav="v2"] .bnv-page h3 { margin: 0 0 1.25rem; font-size: 1.15rem; font-weight: 600; letter-spacing: -0.01em; }
 body[data-nav="v2"] .bnv-page .field { min-width: 0; }
 body[data-nav="v2"] .bnv-page .field input,

@@ -1524,6 +1524,9 @@ h3 {
 .home-countdown-pill.soon   .home-countdown-num { color: var(--c-wait); }
 .home-countdown-pill.later  { background: var(--c-go-soft); }
 .home-countdown-pill.later  .home-countdown-num { color: var(--c-go); }
+/* Un événement déjà commencé : « En cours », sans nombre ni habillage de compte à rebours. */
+.home-countdown-pill.en-cours { background: var(--accent-soft); }
+.home-countdown-pill.en-cours .home-countdown-unit { margin-top: 0; font-size: 0.85rem; font-weight: 700; letter-spacing: 0; color: var(--accent-strong); }
 
 /* Compteur J-N à côté de chaque event */
 .home-event-countdown {
@@ -6084,6 +6087,8 @@ body.qcm-open { overflow: hidden; }
 .ms-passage-badge.today, .ms-passage-badge.next { color: var(--accent-strong); font-weight: 600; }
 
 .ms-chart-outer { position: relative; }
+/* La sonde : un bloc sans hauteur de la largeur du graphe, que le ResizeObserver de js/views/mon-suivi.js observe pour dessiner le graphe à la largeur de son conteneur. */
+.ms-chart-sonde { height: 0; }
 .ms-chart-wrap { width: 100%; }
 .ms-chart { display: block; width: 100%; max-width: 760px; height: auto; }   /* à la largeur de son conteneur (viewBox) : jamais de défilement de côté */
 .ms-month-band { fill: var(--bg-subtle); opacity: 0.55; }

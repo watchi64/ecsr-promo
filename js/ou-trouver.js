@@ -5,8 +5,10 @@
 // noms de l'ancienne barre : « Calendrier », « Ressources », « Mon espace personnel, partie Livret », « Paramètres »... Avec la
 // nouvelle, le libellé suit la barre. Le lien, lui, ne change pas : la route, le sous-onglet et l'adresse restent ceux de l'entrée
 // (les redirections du lot 1, js/nav-rules.js, mènent chaque ancienne adresse à sa nouvelle page, le bon sous-onglet ouvert) ; seul
-// le nom écrit à l'écran est celui que la personne lit dans sa barre. Avec l'ancienne navigation, `ou` est rendu tel quel : l'app
-// d'une promo éteinte reste celle de main.
+// le nom écrit à l'écran est celui que la personne lit dans sa barre, à deux destinations près, qui ont vraiment changé de place et que
+// le lien suit (destinationChangee) : les réglages de la personne (Mes préférences, route `preferences`, ruling R55) et la banque des
+// élèves bénévoles (Stagiaires, sous-onglet `benevoles`). Avec l'ancienne navigation, `ou` est rendu tel quel : l'app d'une promo
+// éteinte reste celle de main.
 
 // Un libellé qui commence par `ancien` (le nom seul, ou suivi d'une virgule et d'un détail) : le reste du libellé, détail compris
 // (« , partie Livret »), ou null quand il commence autrement.
@@ -44,15 +46,36 @@ function libelleNouvelle(ou, espace) {
     // Un stagiaire n'est jamais envoyé vers « Réglages ».
     case "config": return espace === "equipe" ? "Réglages" : "Mes préférences";
     case "stagiaires": return label.startsWith("Accueil, tuile") ? "Stagiaires" : label;   // la tuile de l'Accueil n'existe plus
-    case "home": return label === "Pastille en haut, à côté de ton nom" ? "La promo, en tête de la barre de gauche" : label;
+    // La promo est en tête de la barre de gauche sur ordinateur, en haut de l'écran sur téléphone : « en tête de la barre » dit vrai des deux.
+    case "home": return label === "Pastille en haut, à côté de ton nom" ? "La promo, en tête de la barre" : label;
     default: return label;
   }
 }
 
+// Les deux destinations qui ont changé de place, libellé compris, sous la nouvelle navigation (null pour tout autre lien) :
+//   - un lien vers Paramètres dont le détail désigne Mes préférences (« Paramètres, Mes préférences ») : la page de la personne, pour les
+//     deux espaces (ruling R55). Réglages, chez l'équipe, ne garde que la promo : l'y envoyer serait faux, et le stagiaire n'y va jamais ;
+//   - un lien vers le bouton « Bénévoles » du Planning : la banque des élèves bénévoles est le sous-onglet « Élèves bénévoles » de
+//     Stagiaires, que le bouton du Planning ouvre aussi, mais que la barre nomme. Les deux Nouveautés qui en parlent sont pour
+//     les formateurs, seuls à avoir cette banque : le libellé ne dépend pas de l'espace.
+function destinationChangee(ou) {
+  const label = String(ou.label ?? "");
+  if (ou.route === "config" && (reste(label, "Paramètres") ?? "").startsWith(", Mes préférences")) {
+    return { label: "Mes préférences", route: "preferences" };
+  }
+  if (ou.route === "planning" && reste(label, "Planning, bouton Bénévoles") !== null) {
+    return { label: "Stagiaires, Élèves bénévoles", route: "stagiaires", sousOnglet: "benevoles" };
+  }
+  return null;
+}
+
 // `ou` : { label, route, sousOnglet? }, tel que l'écrivent les Nouveautés et le catalogue des modules. Rend `ou` lui-même quand rien
-// ne change (ancienne navigation, ou libellé déjà à jour), sinon une copie dont seul le libellé diffère. `ou` n'est jamais modifié.
+// ne change (ancienne navigation, ou libellé déjà à jour), sinon une copie dont seul le libellé diffère, hors les deux destinations
+// qui ont changé de place (destinationChangee : libellé, route et sous-onglet). `ou` n'est jamais modifié.
 export function ouSelonNavigation(ou, { navigationV2 = false, espace = "stagiaire" } = {}) {
   if (!ou || !navigationV2) return ou;
+  const deplace = destinationChangee(ou);
+  if (deplace) return { ...ou, ...deplace };
   const label = libelleNouvelle(ou, espace);
   return label === ou.label ? ou : { ...ou, label };
 }

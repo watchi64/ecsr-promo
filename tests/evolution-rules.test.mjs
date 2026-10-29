@@ -1,6 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { libellesDeMois, rayonDeCible, UNITES_PAR_CARACTERE, ECART_ENTRE_LIBELLES } from "../js/evolution-rules.js";
+import {
+  libellesDeMois, rayonDeCible, largeurDuDessin, UNITES_PAR_CARACTERE, ECART_ENTRE_LIBELLES, LARGEUR_MIN_DU_GRAPHE, LARGEUR_MAX_DU_GRAPHE,
+} from "../js/evolution-rules.js";
 
 // Lot 2A, tâche 5, tour de correction 1 : le graphe de Mon évolution se dessine à la largeur de son conteneur ; à 375 px,
 // sept mois de notes ont des bandes de 30 à 38 unités et un libellé de 10 px (« Sept. 26 ») en mesure jusqu'à 37.
@@ -96,4 +98,45 @@ test("rayonDeCible : 12 au plus, et jamais plus que la moitié de l'écart entre
   assert.equal(rayonDeCible(0), 0);
   // Deux cibles voisines ne se chevauchent pas : la somme de leurs rayons ne dépasse pas l'écart.
   for (const pas of [2, 5, 10, 11, 12.58, 24, 25, 40]) assert.ok(2 * rayonDeCible(pas) <= pas + 1e-9, `pas ${pas}`);
+});
+
+// Relecture finale, F1 : dans la fiche d'un stagiaire (liste de 270 px et barre latérale à côté), le conteneur du graphe est bien plus étroit
+// que la fenêtre ; dessiné à la largeur de la fenêtre moins 80 px, le graphe était réduit (échelle de 0,51 à 0,65) et son texte de 10 unités
+// ne mesurait plus que 5 à 6 px. Il se dessine désormais à la largeur mesurée de son conteneur.
+
+test("largeurDuDessin : la largeur mesurée du conteneur, entière, entre 260 et 760", () => {
+  assert.equal(LARGEUR_MIN_DU_GRAPHE, 260);
+  assert.equal(LARGEUR_MAX_DU_GRAPHE, 760);
+  assert.equal(largeurDuDessin(352.8), 352, "la fiche d'un stagiaire à 768 px, nouvelle navigation : 352,8 px mesurés");
+  assert.equal(largeurDuDessin(494.8), 494, "la fiche d'un stagiaire à 1 100 px, nouvelle navigation");
+  assert.equal(largeurDuDessin(426.8), 426, "à 768 px, ancienne navigation");
+  assert.equal(largeurDuDessin(343), 343, "Mon suivi sur un iPhone de 375 px");
+  assert.equal(largeurDuDessin(260), 260);
+  assert.equal(largeurDuDessin(760), 760);
+  assert.equal(largeurDuDessin(758.8), 758, "la partie entière : le dessin n'est jamais plus large que son conteneur, donc jamais réduit");
+});
+
+test("largeurDuDessin : bornée, et rien à dessiner tant que le conteneur n'a pas de largeur", () => {
+  assert.equal(largeurDuDessin(1200), 760, "un conteneur plus large que le graphe : le plafond");
+  assert.equal(largeurDuDessin(240), 260, "un conteneur de moins de 260 px : le plancher (le graphe est alors réduit, de peu)");
+  assert.equal(largeurDuDessin(0), null, "conteneur caché ou pas encore posé : pas de dessin");
+  assert.equal(largeurDuDessin(-5), null);
+  assert.equal(largeurDuDessin(NaN), null);
+  assert.equal(largeurDuDessin(undefined), null);
+  assert.equal(largeurDuDessin("352"), null, "une mesure qui n'est pas un nombre n'est pas devinée");
+  assert.equal(largeurDuDessin(Infinity), null);
+  assert.equal(largeurDuDessin(500, { max: 400 }), 400, "le plafond se choisit");
+  assert.equal(largeurDuDessin(100, { min: 120 }), 120, "le plancher se choisit");
+});
+
+test("largeurDuDessin : le texte garde sa taille, 10 unités font au moins 8 px dès un conteneur de 208 px, et 10 px dès 260 px", () => {
+  // Le graphe s'affiche à la largeur de son conteneur (width: 100 %, max-width: 760 px) : l'échelle est affichée / dessinée.
+  const echelle = (conteneur) => Math.min(conteneur, LARGEUR_MAX_DU_GRAPHE) / largeurDuDessin(conteneur);
+  for (let conteneur = 260; conteneur <= 1400; conteneur += 7.3) {
+    assert.ok(echelle(conteneur) >= 1 - 1e-9, `conteneur ${conteneur} : échelle ${echelle(conteneur)}, le dessin est réduit`);
+    assert.ok(10 * echelle(conteneur) >= 10 - 1e-9, `conteneur ${conteneur} : un libellé de 10 unités rend ${10 * echelle(conteneur)} px`);
+  }
+  for (let conteneur = 208; conteneur < 260; conteneur += 3.1) {
+    assert.ok(10 * echelle(conteneur) >= 8, `conteneur ${conteneur} : un libellé de 10 unités rend ${10 * echelle(conteneur)} px, moins de 8`);
+  }
 });

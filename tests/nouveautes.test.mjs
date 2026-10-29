@@ -113,20 +113,20 @@ ok(NOUVEAUTES.every((e) => e.navigation === undefined || e.navigation === "nouve
   "le champ navigation vaut « nouvelle » ou « ancienne »");
 
 // Les deux Nouveautés de lancement : propres à la nouvelle navigation.
-const lancement = par("2026-10-28-nouvelle-navigation");
-const lancementEquipe = par("2026-10-28-nouvelle-navigation-formateurs");
-ok(!!lancement && lancement.pour === "tous" && lancement.date === "2026-10-28" && lancement.titre === "Une navigation plus simple",
+const lancement = par("2026-10-29-nouvelle-navigation");
+const lancementEquipe = par("2026-10-29-nouvelle-navigation-formateurs");
+ok(!!lancement && lancement.pour === "tous" && lancement.date === "2026-10-29" && lancement.titre === "Une navigation plus simple",
   "lancement pour tous : « Une navigation plus simple »");
-ok(!!lancementEquipe && lancementEquipe.pour === "formateurs" && lancementEquipe.date === "2026-10-28"
+ok(!!lancementEquipe && lancementEquipe.pour === "formateurs" && lancementEquipe.date === "2026-10-29"
   && lancementEquipe.titre === "Côté formateurs, la barre passe à gauche", "lancement des formateurs : « Côté formateurs, la barre passe à gauche »");
 eq(NOUVEAUTES.filter((e) => e.navigation === "nouvelle").map((e) => e.id).sort(),
-  ["2026-10-28-nouvelle-navigation", "2026-10-28-nouvelle-navigation-formateurs"], "seules les deux entrées de lancement sont propres à la nouvelle navigation");
-eq(ids(visibles(NOUVEAUTES, false, true)).filter((id) => id.startsWith("2026-10-28-nouvelle")), ["2026-10-28-nouvelle-navigation"],
+  ["2026-10-29-nouvelle-navigation", "2026-10-29-nouvelle-navigation-formateurs"], "seules les deux entrées de lancement sont propres à la nouvelle navigation");
+eq(ids(visibles(NOUVEAUTES, false, true)).filter((id) => id.startsWith("2026-10-29-nouvelle")), ["2026-10-29-nouvelle-navigation"],
   "allumée, un stagiaire voit la première, pas la seconde");
-eq(ids(visibles(NOUVEAUTES, true, true)).filter((id) => id.startsWith("2026-10-28-nouvelle")),
-  ["2026-10-28-nouvelle-navigation", "2026-10-28-nouvelle-navigation-formateurs"], "allumée, un formateur voit les deux");
-eq(ids(visibles(NOUVEAUTES, true, false)).filter((id) => id.startsWith("2026-10-28-nouvelle")), [], "éteinte, personne ne voit aucune des deux");
-eq(ids(visibles(NOUVEAUTES, false, false)).filter((id) => id.startsWith("2026-10-28-nouvelle")), [], "éteinte, un stagiaire non plus");
+eq(ids(visibles(NOUVEAUTES, true, true)).filter((id) => id.startsWith("2026-10-29-nouvelle")),
+  ["2026-10-29-nouvelle-navigation", "2026-10-29-nouvelle-navigation-formateurs"], "allumée, un formateur voit les deux");
+eq(ids(visibles(NOUVEAUTES, true, false)).filter((id) => id.startsWith("2026-10-29-nouvelle")), [], "éteinte, personne ne voit aucune des deux");
+eq(ids(visibles(NOUVEAUTES, false, false)).filter((id) => id.startsWith("2026-10-29-nouvelle")), [], "éteinte, un stagiaire non plus");
 // Ce qu'elles disent, après ce lot : le compte sans chiffre, Mes préférences, où sont les notes de la classe et les contacts du centre ; pour
 // l'équipe, le compte et l'assistant en pied de barre sur ordinateur, le bouton Assistant dans l'en-tête sur téléphone.
 const dit = (e, motif) => motif.test(tout(e));
@@ -136,6 +136,11 @@ ok(dit(lancement, /menu de ton compte|menu du compte/), "pour tous : les contact
 ok(dit(lancement, /Mes préférences/), "pour tous : Mes préférences");
 ok(!dit(lancement, /Réglages/), "pour tous : « Réglages » est la page de la promo, réservée à l'équipe : jamais dans l'entrée de tous");
 ok(dit(lancement, /[Uu]n point/) && !dit(lancement, /pastille|chiffre/), "pour tous : le compte montre un point, sans chiffre");
+// F5 : une promo de départ n'a pas encore Priorités, Thèmes, Compétences, La classe, l'Assistant : le lancement le dit.
+ok(lancement.resume.includes("Certaines parties s'ouvrent au fil de la formation."), "pour tous : certaines parties s'ouvrent au fil de la formation");
+// F4 : le bouton « Aujourd'hui » est en tête de Planning, Semaine (pas « en haut du Planning », qui est aussi la barre de jours collée).
+ok(/Planning, Semaine/.test(lancement.guide[0]) && /Aujourd'hui/.test(lancement.guide[0]) && !/En haut du Planning/.test(tout(lancement)),
+  "pour tous : le bouton « Aujourd'hui » est en tête de Planning, Semaine");
 ok(dit(lancement, /en bas de la barre de gauche/), "pour tous : les formateurs sur ordinateur trouvent le compte et l'assistant en bas de la barre de gauche");
 ok(dit(lancementEquipe, /en bas de (cette|la) barre/), "formateurs : le compte et l'assistant en pied de barre");
 ok(dit(lancementEquipe, /Assistant/) && dit(lancementEquipe, /téléphone/), "formateurs : le bouton Assistant sur téléphone");
@@ -148,6 +153,31 @@ for (const e of [lancement, lancementEquipe]) {
   ok(!/\bprofs?\b/i.test(tout(e)), e.id + " : « formateur », jamais « prof »");
   ok(Array.isArray(e.guide) && e.guide.length >= 3, e.id + " : un guide");
 }
+
+// La Nouveauté pour tous des corrections communes aux deux navigations (relecture finale, F3) : ni « Indicateurs » ni « tableau de bord »,
+// que les stagiaires ne voient pas ; sans champ `navigation`, elle se lit avec les deux barres.
+const affichage = par("2026-10-29-affichage-telephone");
+ok(!!affichage && affichage.pour === "tous" && affichage.date === "2026-10-29" && affichage.titre === "Des pages mieux tenues sur le téléphone",
+  "affichage : « Des pages mieux tenues sur le téléphone », du 29/10, pour tous");
+ok(affichage.navigation === undefined, "affichage : sans champ navigation (elle vaut pour les deux barres)");
+ok(affichage.module === undefined && affichage.ou === undefined, "affichage : ni module ni lien (aucun module fermé ne la cache)");
+ok(/graphes des notes/.test(affichage.resume) && /historique des passages/.test(affichage.resume) && /largeur de l'écran/.test(affichage.resume),
+  "affichage : les graphes des notes et l'historique des passages tiennent dans la largeur de l'écran");
+ok(/En cours/.test(affichage.resume) && /négatif/.test(affichage.resume), "affichage : un stage commencé affiche « En cours », plus un nombre de jours négatif");
+ok(/moyennes basses/.test(affichage.resume) && /rouge/.test(affichage.resume), "affichage : les moyennes basses des graphes ne sont plus en rouge");
+ok(!/Indicateurs|tableau de bord/i.test(tout(affichage)), "affichage : ni « Indicateurs » ni « tableau de bord » dans une entrée pour tous");
+ok(!/\bprofs?\b/i.test(tout(affichage)), "affichage : « formateur », jamais « prof »");
+for (const [formateur, v2] of [[false, false], [false, true], [true, false], [true, true]]) {
+  ok(ids(visibles(NOUVEAUTES, formateur, v2)).includes("2026-10-29-affichage-telephone"),
+    `affichage : lue ${formateur ? "par un formateur" : "par un stagiaire"}, navigation ${v2 ? "nouvelle" : "ancienne"}`);
+}
+// À date égale, l'ordre du fichier est gardé : les entrées de lancement ouvrent la section de l'Accueil (3 cartes), la Nouveauté commune vient ensuite.
+eq(ids(triees(visibles(NOUVEAUTES, false, true))).slice(0, 2), ["2026-10-29-nouvelle-navigation", "2026-10-29-affichage-telephone"],
+  "un stagiaire, nouvelle navigation : le lancement d'abord, puis les corrections communes");
+eq(ids(triees(visibles(NOUVEAUTES, true, true))).slice(0, 3),
+  ["2026-10-29-nouvelle-navigation", "2026-10-29-nouvelle-navigation-formateurs", "2026-10-29-affichage-telephone"],
+  "un formateur, nouvelle navigation : les deux lancements, puis les corrections communes");
+eq(ids(triees(visibles(NOUVEAUTES, false, false)))[0], "2026-10-29-affichage-telephone", "ancienne navigation : les corrections communes sont la plus récente");
 
 // Les Nouveautés qui ne décrivent que l'ancienne barre : cachées sous la nouvelle.
 const ANCIENNES = ["2026-10-03-barre-simple", "2026-07-23-espace-personnel", "2026-10-03-sommaire-iphone"];
@@ -164,7 +194,7 @@ const GESTE_D_AVANT = /Mon espace|espace personnel|Paramètres|tuile|logo|Ressou
 // (Les deux autres entrées dont le guide décrit l'ancienne barre, « Une barre d'onglets plus simple » et « L'app s'ouvre sur ton espace personnel »,
 // sont cachées sous la nouvelle navigation : elles n'ont pas besoin d'un second guide.)
 const AVEC_GUIDE_NOUVEAU = ["2026-10-23-tableau-de-bord-centre", "2026-10-05-effacement-donnees", "2026-10-03-page-stagiaires", "2026-10-03-deux-promos",
-  "2026-07-31-dossier-professionnel", "2026-07-19-livret-epcf"];
+  "2026-07-31-dossier-professionnel", "2026-07-19-livret-epcf", "2026-10-28-signaler-un-probleme"];
 eq(NOUVEAUTES.filter((e) => e.guideNouvelle).map((e) => e.id).sort(), [...AVEC_GUIDE_NOUVEAU].sort(), "les consignes réécrites pour la nouvelle navigation");
 for (const e of NOUVEAUTES.filter((x) => x.guideNouvelle)) {
   ok(Array.isArray(e.guide) && e.guide.length > 0, e.id + " : le guide d'avant reste pour l'ancienne navigation");
@@ -183,6 +213,17 @@ eq(par("2026-10-03-page-stagiaires").guideNouvelle[0], "Ouvre Stagiaires, dans l
 eq(par("2026-07-31-dossier-professionnel").guideNouvelle[0], "Ouvre Mon suivi, dans la barre.", "dossier professionnel : Mon suivi");
 eq(par("2026-07-19-livret-epcf").guideNouvelle[0], "Ouvre Mon suivi, partie Livret.", "livret : Mon suivi, partie Livret");
 ok(par("2026-07-19-livret-epcf").guideNouvelle.some((s) => /date de naissance/.test(s)), "livret : la date de naissance se renseigne toujours");
+// « Signaler un problème » : la consigne d'avant (« Touche ton nom en haut de l'écran ») est fausse sous la nouvelle barre, pour les deux espaces. Le
+// stagiaire a la ligne dans le menu de son compte (ses initiales, en haut à droite), l'équipe un bouton en bas de la barre de gauche sur ordinateur,
+// dans « Plus » sur téléphone ; l'ancienne navigation garde sa consigne.
+const signaler = par("2026-10-28-signaler-un-probleme");
+ok(/Touche ton nom en haut de l'écran/.test(signaler.guide[0]), "signaler : la consigne d'avant reste pour l'ancienne navigation");
+const premiereEtape = signaler.guideNouvelle[0];
+ok(/tes initiales/.test(premiereEtape) && /en haut à droite/.test(premiereEtape), "signaler : le stagiaire ouvre son compte par ses initiales, en haut à droite");
+ok(/formateurs/.test(premiereEtape) && /en bas de la barre de gauche/.test(premiereEtape) && /ordinateur/.test(premiereEtape), "signaler : l'équipe, en bas de la barre de gauche sur ordinateur");
+ok(/« Plus »/.test(premiereEtape) && /téléphone/.test(premiereEtape), "signaler : l'équipe, dans « Plus » sur téléphone");
+ok(!/nom en haut/.test(signaler.guideNouvelle.join(" ")), "signaler : plus « ton nom en haut de l'écran » sous la nouvelle navigation");
+ok(/Écris ce qui se passe/.test(signaler.guideNouvelle[signaler.guideNouvelle.length - 1]), "signaler : la dernière étape est celle d'écrire le message");
 ok(par("2026-10-03-deux-promos").guideNouvelle.some((s) => /Touche la promo en tête de la barre de gauche/.test(s)), "deux promos : la promo en tête de la barre de gauche");
 ok(par("2026-10-03-deux-promos").guideNouvelle.some((s) => /Réglages, « Ce que voient les stagiaires »/.test(s)), "deux promos : le réglage des modules s'appelle Ce que voient les stagiaires");
 

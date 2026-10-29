@@ -25,8 +25,8 @@
 
 export const NOUVEAUTES = [
   {
-    id: "2026-10-28-nouvelle-navigation",
-    date: "2026-10-28",
+    id: "2026-10-29-nouvelle-navigation",
+    date: "2026-10-29",
     pour: "tous",
     navigation: "nouvelle",
     titre: "Une navigation plus simple",
@@ -34,9 +34,10 @@ export const NOUVEAUTES = [
           + "principales sont en bas de l'écran, à portée de pouce, chacune avec son nom. Le Planning regroupe "
           + "la semaine, les dates clés et les priorités ; Cours et QCM regroupe les thèmes, les compétences "
           + "et les documents. Les notes de la classe sont maintenant dans Mon suivi, La classe (chez les "
-          + "formateurs, dans Notes et examens), et les contacts du centre dans le menu de ton compte.",
+          + "formateurs, dans Notes et examens), et les contacts du centre dans le menu de ton compte. "
+          + "Certaines parties s'ouvrent au fil de la formation.",
     guide: [
-      "En haut du Planning, le bouton « Aujourd'hui » t'amène à la journée du jour.",
+      "Dans Planning, Semaine, le bouton « Aujourd'hui », en tête de la page, t'amène à la journée du jour.",
       "Ton compte s'ouvre avec tes initiales, en haut à droite (sur ordinateur, les formateurs le trouvent "
         + "en bas de la barre de gauche). Un point y signale des Nouveautés pas encore lues ; leur nombre est dans le menu.",
       "Dans le menu du compte : les Nouveautés, les contacts du centre (pour prévenir d'une absence), "
@@ -46,8 +47,8 @@ export const NOUVEAUTES = [
     ],
   },
   {
-    id: "2026-10-28-nouvelle-navigation-formateurs",
-    date: "2026-10-28",
+    id: "2026-10-29-nouvelle-navigation-formateurs",
+    date: "2026-10-29",
     pour: "formateurs",
     navigation: "nouvelle",
     titre: "Côté formateurs, la barre passe à gauche",
@@ -69,6 +70,15 @@ export const NOUVEAUTES = [
     ],
   },
   {
+    id: "2026-10-29-affichage-telephone",
+    date: "2026-10-29",
+    pour: "tous",
+    titre: "Des pages mieux tenues sur le téléphone",
+    resume: "Les graphes des notes et l'historique des passages tiennent maintenant dans la largeur de l'écran : "
+          + "plus besoin de faire défiler la page de côté. Un stage déjà commencé affiche « En cours » au lieu "
+          + "d'un nombre de jours négatif. Et les moyennes basses des graphes ne sont plus en rouge.",
+  },
+  {
     id: "2026-10-28-signaler-un-probleme",
     date: "2026-10-28",
     pour: "tous",
@@ -79,6 +89,12 @@ export const NOUVEAUTES = [
     guide: [
       "Touche ton nom en haut de l'écran, ou ouvre l'Assistant.",
       "Choisis « Signaler un problème ».",
+      "Écris ce qui se passe, ajoute une capture si tu veux, puis « Envoyer ».",
+    ],
+    guideNouvelle: [
+      "Ouvre ton compte avec tes initiales, en haut à droite, puis choisis « Signaler un problème ». Chez les formateurs, "
+        + "le bouton est en bas de la barre de gauche sur ordinateur, et dans « Plus » sur téléphone.",
+      "Dans l'Assistant, la ligne « Un souci avec l'app ? » mène au même endroit.",
       "Écris ce qui se passe, ajoute une capture si tu veux, puis « Envoyer ».",
     ],
   },
