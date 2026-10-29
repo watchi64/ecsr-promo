@@ -16,6 +16,7 @@ import { moduleVisible, moduleMasque, repereMasque } from "../modules-etat.js?v=
 import { icon } from "../icons.js?v=20261029a";
 import { PARTIES, lireAdresse, adresseFiche } from "../route-rules.js?v=20261029a";
 import { etatsSommaire, passagesAVenir, EVT_DOCUMENT } from "../fiche-rules.js?v=20261029a";
+import { libellesDeMois, rayonDeCible } from "../evolution-rules.js?v=20261029a";
 import { surChangementAdresse, remplacerAdresse, peutQuitter } from "../navigation.js?v=20261029a";
 import { navigationV2Active } from "../nav-etat.js?v=20261029a";
 import { renderNotes } from "./notes.js?v=20261029a";
@@ -260,9 +261,9 @@ function groupByMonth(evals) {
 
 // Graphe SVG maison. Il se dessine à la largeur de son conteneur (viewBox, width: 100 %) : jamais de
 // défilement de côté, même avec beaucoup d'évals (les points se resserrent). Bandes de fond alternées par
-// mois + un libellé de mois centré sous chaque bande (fini les dates qui se chevauchent : une bande trop
-// étroite n'écrit pas le sien). Chaque point porte des data-* lus par le tooltip stylé branché dans
-// renderChartSection.
+// mois + un libellé de mois centré sous sa bande, sauf ceux qui en toucheraient un autre (js/evolution-rules.js :
+// sur téléphone, sept mois de notes serrent le graphe). Chaque point porte des data-* lus par le tooltip stylé
+// branché dans renderChartSection.
 function buildChart(evals) {
   const H = 280, padL = 40, padR = 16, padT = 16, padB = 40;
   const n = evals.length;
@@ -274,19 +275,22 @@ function buildChart(evals) {
   const svg = svgEl("svg", { viewBox: `0 0 ${W} ${H}`,
     class: "ms-chart", role: "img", "aria-label": "Graphe d'évolution des notes" });
 
-  // Bandes mensuelles (colonnes alternées) + libellé de mois
-  months.forEach((m, mi) => {
-    const left = m.start === 0 ? padL : (x(m.start) + x(m.start - 1)) / 2;
-    const right = m.end === n - 1 ? (W - padR) : (x(m.end) + x(m.end + 1)) / 2;
+  // Bandes mensuelles (colonnes alternées) + libellés de mois
+  const bandes = months.map((m) => ({
+    gauche: m.start === 0 ? padL : (x(m.start) + x(m.start - 1)) / 2,
+    droite: m.end === n - 1 ? (W - padR) : (x(m.end) + x(m.end + 1)) / 2,
+    libelle: m.label,
+  }));
+  bandes.forEach((b, mi) => {
     if (mi % 2 === 1) svg.appendChild(svgEl("rect",
-      { x: left, y: padT, width: Math.max(0, right - left), height: innerH, class: "ms-month-band" }));
-    // Libellé toujours affiché pour le 1er et le dernier mois (bandes de bord =
-    // demi-largeur) ; pour les mois du milieu, seulement si la bande est assez large.
-    if (mi === 0 || mi === months.length - 1 || right - left >= 30) {
-      const lbl = svgEl("text", { x: (left + right) / 2, y: H - padB + 20, "text-anchor": "middle", class: "ms-axis-label small" });
-      lbl.textContent = m.label;
-      svg.appendChild(lbl);
-    }
+      { x: b.gauche, y: padT, width: Math.max(0, b.droite - b.gauche), height: innerH, class: "ms-month-band" }));
+  });
+  // Le libellé du 1er et du dernier mois s'écrit toujours (bandes de bord = demi-largeur) ; ceux du milieu, quand ils ne
+  // touchent pas le précédent : une bande de 30 unités ne suffit pas à « Sept. 26 » (37 unités à 10 px).
+  libellesDeMois(bandes, W).forEach(({ indice, x: centre }) => {
+    const lbl = svgEl("text", { x: centre, y: H - padB + 20, "text-anchor": "middle", class: "ms-axis-label small" });
+    lbl.textContent = bandes[indice].libelle;
+    svg.appendChild(lbl);
   });
 
   // Grille + axe Y
@@ -310,11 +314,13 @@ function buildChart(evals) {
       cx: x(i), cy: y(e.norm), r: 5, class: "ms-pt " + avgTier(e.norm), "data-i": String(i),
     }));
   });
-  // Cibles de survol/tap, transparentes et plus larges (r=12) : un point de 5px
-  // est intappable au doigt. Elles portent les données lues par le tooltip.
+  // Cibles de survol/tap, transparentes et plus larges (r=12 au plus) : un point de 5px est intappable au
+  // doigt. Jamais plus larges que la moitié de l'écart entre deux points : sur téléphone, vingt notes serrent
+  // le graphe et deux cibles voisines ne doivent pas se chevaucher. Elles portent les données lues par le tooltip.
+  const rCible = rayonDeCible(n > 1 ? innerW / (n - 1) : innerW);
   evals.forEach((e, i) => {
     svg.appendChild(svgEl("circle", {
-      cx: x(i), cy: y(e.norm), r: 12, class: "ms-pt-hit", "data-i": String(i),
+      cx: x(i), cy: y(e.norm), r: rCible, class: "ms-pt-hit", "data-i": String(i),
       "data-lib": describeEval(e),
       "data-note": `${e.note}/${e.note_max}`,
       "data-norm": e.norm.toFixed(1),

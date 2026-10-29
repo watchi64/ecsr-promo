@@ -65,14 +65,22 @@ Contrôles par vue
 -----------------
   * rien ne défile de côté ni ne déborde de la fenêtre, dans les deux passes, hors `.matrice-wrap`
     (exception admise, sans avertissement). Tout le reste échoue, interrupteur éteint compris (une règle
-    du lot qui déborde de `body[data-nav="v2"]` y fait échouer la page) : les conteneurs de page qui
-    défilaient déjà sur main (rulings R10 et R11) ont été corrigés au lot 2A, tâche 5, et ne bénéficient
-    d'aucune exception ;
+    du lot qui déborde de `body[data-nav="v2"]` y fait échouer la page), sauf une liste qui ne donne qu'un
+    avertissement, jamais un échec : la dette ouverte du lecteur de cours (DETTE_LECTEUR_DE_COURS, ruling R52),
+    dont le sommaire (`.cours-sommaire`) et les tableaux (`.cours-table-wrap`) défilent encore de côté, hors du
+    banc, à corriger au lot 2B. Les autres conteneurs des rulings R10 et R11 qui défilaient déjà sur main (graphe de
+    Notes, tableaux du centre et des passages, lien Légifrance de Cours > Signalements, graphe de Mon évolution,
+    moyennes EPCF de la classe) ont été corrigés au lot 2A, tâche 5, et n'ont aucune exception ;
   * notes en rouge (lot 2A, tâche 5) : le remplissage d'une forme d'un graphe de notes (barres des graphes de Notes, points de
     Mon évolution) n'est jamais rouge (teinte de 345° à 15°, saturation au-dessus de 50 %), mesuré sur la couleur affichée. Les
     trois graphes de Notes sont les onglets d'une même section (Par stagiaire, Par thème, Distribution) : la page n'en montre
     qu'un, les autres sont ouverts un à un et mesurés comme toute vue (défilement de côté compris), puis le premier est rouvert.
     Le banc sert pour cela des notes (NOTES_DU_BANC) qui dessinent chaque teinte de l'échelle des notes ;
+  * libellés de Mon évolution (lot 2A, tâche 5, tour de correction 1) : deux libellés d'axe (`.ms-axis-label`, les mois comme
+    les graduations) d'un même graphe ne se recouvrent pas ni ne se touchent (2 px d'écart au moins), boîtes mesurées. À 375 px,
+    le stagiaire du banc a vingt notes réparties sur sept mois : des bandes de 30 à 38 unités pour des libellés de 10 px qui en
+    mesurent jusqu'à 37. De même, les cibles de tap (`.ms-pt-hit`) de deux points voisins ne se chevauchent pas : le rayon de 12
+    unités se réduit à la moitié de l'écart entre deux points quand le graphe est serré ;
   * tableaux en listes (lot 2A, tâche 5, spec § 4.1) : un tableau marqué `tableau-liste` (les tableaux du centre et des passages) reste un
     tableau à partir de 1 080 px et devient une liste en dessous, chaque valeur portant le titre de sa colonne devant elle (le titre de la
     carte et la cellule des boutons n'en ont pas). Les sections repliées du tableau de bord du centre (« Tous les thèmes », les méthodes)
@@ -229,7 +237,9 @@ par `--script-init`, et le script a échoué avec le message attendu ; la coquil
     des tableaux de 700 px dans leur zone qui défile (sous 1 080 px), lien Légifrance de Cours > Signalements qui ne passe plus à la
     ligne, graphe de Notes de 540 px au moins dans une zone qui défile (onglet Distribution seul : l'onglet d'arrivée reste propre, seul
     le jeu des trois onglets le voit), barres « sous 8 » de Notes en rouge, points de Mon évolution en rouge, barres rouges dans le seul
-    onglet Distribution, cellules des listes sans le titre de leur colonne, tableaux devenus des listes sur ordinateur. Avant la tâche 5,
+    onglet Distribution, cellules des listes sans le titre de leur colonne, tableaux devenus des listes sur ordinateur, libellés de mois de
+    Mon évolution qui se touchent à 375 px (l'ancien seuil de 30 unités), sommaire d'un cours qui défile (avertissement du lecteur de cours,
+    sans échec), cibles de tap de Mon évolution à 12 unités de rayon avec vingt notes sur téléphone. Avant la tâche 5,
     une fois leurs listes d'exception retirées, les conteneurs des rulings R10 et R11 (graphe de Notes, tableaux du centre et des passages,
     lien Légifrance) donnaient 74 échecs et aucun autre ;
   * mise en place : erreur de console et de page, interrupteur qui n'allume pas, banc périmé.
@@ -244,6 +254,7 @@ import json
 import os
 import pathlib
 import re
+import statistics
 import sys
 import time
 import urllib.error
@@ -274,9 +285,14 @@ CLE_MEMOIRE_PROMO_1 = "ecsr_nav_v2_promo:1"   # mémoire de l'appareil pour la p
 LENTEUR_DEMARRAGE_MS = 600     # lectures des réglages ralenties dans le scénario de l'ouverture (ruling R17)
 
 # Aucun défilement de côté, à aucune largeur (règle de Timy du 27/10) : seule la matrice des notes (saisie case
-# par case) est admise, sans avertissement. Les dettes des rulings R10 et R11 (conteneurs qui défilaient déjà sur
-# main, lien Légifrance de Cours > Signalements) ont été payées au lot 2A, tâche 5 : plus aucune liste d'exception.
+# par case) est admise, sans avertissement. Les conteneurs des rulings R10 et R11 qui défilaient déjà sur main ont été
+# corrigés au lot 2A, tâche 5 (graphe de Notes, tableaux du centre et des passages, lien Légifrance de Cours >
+# Signalements, graphe de Mon évolution, moyennes EPCF de la classe), à l'exception du lecteur de cours.
 EXCEPTION_ADMISE = ".matrice-wrap"
+# Dette ouverte (ruling R52) : le sommaire et les tableaux du lecteur de cours défilent encore de côté (css/style.css,
+# `.cours-sommaire` et `.cours-table-wrap`). Lecteur de cours, hors du banc, à corriger au lot 2B : un avertissement s'ils
+# sont vus, jamais un échec, pour que la trace ne se perde pas.
+DETTE_LECTEUR_DE_COURS = (".cours-sommaire", ".cours-table-wrap")
 
 # Entrées de repli si les règles de navigation de l'app ne se lisent pas dans la page.
 ENTREES_REPLI = {
@@ -533,6 +549,8 @@ function debordements(o) {
     if (e.closest(o.exception)) return "ignore";
     if (e.closest("[data-nav-coquille]")) return "coquille";
     if (e.closest(".subtabs-bar")) return "sous-onglets";
+    const d = e.closest(o.dette.join(", "));
+    if (d) return "dette:" + o.dette.find((s) => d.matches(s));
     return "page";
   };
   const vus = new Set();
@@ -591,6 +609,43 @@ function notesEnRouge() {
     });
   });
   return rouges;
+}
+
+// ---- Libellés de Mon évolution (lot 2A, tâche 5, tour de correction 1) ----
+// Deux libellés d'axe d'un même graphe (les mois comme les graduations) ne se recouvrent pas ni ne se touchent : 2 px d'écart au moins
+// entre leurs boîtes mesurées. Sans le plancher de largeur d'avant, sept mois de notes serrent le graphe à 375 px, et un libellé de 10 px
+// y mesure jusqu'à 37 px.
+function libellesQuiSeTouchent() {
+  const trouves = [];
+  document.querySelectorAll("#view svg.ms-chart").forEach((svg) => {
+    const libelles = [...svg.querySelectorAll(".ms-axis-label")].map((e) => ({ nom: net(e.textContent), r: rect(e) })).filter((l) => l.r.width > 0);
+    for (let i = 0; i < libelles.length; i++) {
+      for (let j = i + 1; j < libelles.length; j++) {
+        const a = libelles[i].r, b = libelles[j].r;
+        if (a.left < b.right + 2 && b.left < a.right + 2 && a.top < b.bottom && b.top < a.bottom) {
+          trouves.push(`« ${libelles[i].nom} » et « ${libelles[j].nom} » se touchent à ${largeur()} px (${Math.round(Math.min(a.right, b.right) - Math.max(a.left, b.left))} px de recouvrement)`);
+        }
+      }
+    }
+  });
+  return trouves;
+}
+
+// Les cibles de tap des points de Mon évolution (`.ms-pt-hit`, des cercles transparents) ne se chevauchent pas : sur téléphone, vingt notes
+// serrent le graphe, et un rayon fixe de 12 unités en ferait se recouvrir dès onze. Cercles mesurés (distance des centres contre somme des rayons).
+function ciblesQuiSeChevauchent() {
+  const trouves = [];
+  document.querySelectorAll("#view svg.ms-chart").forEach((svg) => {
+    const cibles = [...svg.querySelectorAll(".ms-pt-hit")].map((c) => rect(c)).filter((r) => r.width > 0)
+      .map((r) => ({ x: (r.left + r.right) / 2, y: (r.top + r.bottom) / 2, rayon: r.width / 2 })).sort((a, b) => a.x - b.x);
+    for (let i = 0; i < cibles.length; i++) {
+      for (let j = i + 1; j < cibles.length && cibles[j].x - cibles[i].x < cibles[i].rayon + cibles[j].rayon; j++) {
+        const ecart = Math.hypot(cibles[j].x - cibles[i].x, cibles[j].y - cibles[i].y), somme = cibles[i].rayon + cibles[j].rayon;
+        if (ecart < somme - 0.5) trouves.push(`deux cibles de tap voisines se chevauchent à ${largeur()} px (${dixieme(ecart)} px entre les centres, ${dixieme(somme)} px de rayons cumulés)`);
+      }
+    }
+  });
+  return trouves;
 }
 
 // ---- Tableaux en listes hors ordinateur (lot 2A, tâche 5 ; spec § 4.1) ----
@@ -659,7 +714,7 @@ function chercherPlus() {
 
 // ---- Mesure d'une vue ----
 async function mesurer(o) {
-  const echecs = [], avert = [];
+  const echecs = [], dettes = [], avert = [];
   const W = largeur(), H = hauteur();
   const tel = W < o.seuilTelephone;
   const allume = o.passe === "allume";
@@ -684,16 +739,22 @@ async function mesurer(o) {
 
   // Défilements et débordements de côté : la même classification interrupteur allumé ou éteint, car la
   // passe éteinte est le garde de « l'app reste identique à main » (une règle du lot qui déborde de
-  // body[data-nav="v2"] se voit là). Aucun conteneur n'a d'exception, hors la matrice des notes.
+  // body[data-nav="v2"] se voit là). Aucun conteneur n'a d'exception, hors la matrice des notes ; seul le lecteur de cours,
+  // dette ouverte (ruling R52), ne donne qu'un avertissement, rangé sous le sélecteur de son conteneur.
   const trouves = debordements(o);
   trouves.forEach((t) => {
     if (t.cat === "ignore") return;
     if (t.cat === "coquille") echecs.push(["défilement de côté dans la coquille", t.detail]);
     else if (t.cat === "sous-onglets") echecs.push(["défilement de côté d'une barre de sous-onglets", t.detail]);
+    else if (t.cat.startsWith("dette:")) dettes.push([t.cat.slice(6), t.detail]);
     else echecs.push([t.genre === "zone" ? "zone de page qui défile de côté" : "élément de page qui déborde de la fenêtre", t.detail]);
   });
   // Graphes de notes : jamais un remplissage rouge (lot 2A, tâche 5), dans les deux passes.
   notesEnRouge().forEach((detail) => echecs.push(["note en rouge dans un graphe", detail]));
+  // Mon évolution : aucun libellé d'axe ne touche un autre (lot 2A, tâche 5, tour de correction 1).
+  libellesQuiSeTouchent().forEach((detail) => echecs.push(["libellés de Mon évolution qui se touchent", detail]));
+  // Mon évolution : les cibles de tap de deux points voisins ne se chevauchent pas (tour de correction 1).
+  ciblesQuiSeChevauchent().forEach((detail) => echecs.push(["cibles de tap de Mon évolution qui se chevauchent", detail]));
   // Tableaux : une liste sous 1 080 px, un tableau au-delà (lot 2A, tâche 5), dans les deux passes.
   tableauxEnListes().forEach((detail) => echecs.push(["tableau en liste", detail]));
 
@@ -712,7 +773,7 @@ async function mesurer(o) {
   if (allume && o.coquille) mesurerCoquille(o, route, W, H, tel, echecs, avert, await regles());
   if (!allume) mesurerAncienne(route, echecs, barres);
   window.scrollTo(0, 0);
-  return { route, echecs, avert };
+  return { route, echecs, dettes, avert };
 }
 
 function mesurerAncienne(route, echecs, barres) {
@@ -1398,7 +1459,7 @@ def verifier_vue(page, res, sc, titre, options):
     attendre(page)
     res.vues += 1
     o = {"passe": sc.passe, "espace": sc.espace, "coquille": res.coquille, "seuilTelephone": SEUIL_TELEPHONE,
-         "exception": EXCEPTION_ADMISE}
+         "dette": list(DETTE_LECTEUR_DE_COURS), "exception": EXCEPTION_ADMISE}
     avant = len(res.echecs)
     try:
         m = page.evaluate("(o) => window.__verifNav.mesurer(o)", o)
@@ -1408,6 +1469,8 @@ def verifier_vue(page, res, sc, titre, options):
     vue = "%s/%s" % (sc.nom, titre)
     for type_, detail in m["echecs"]:
         res.echec(type_, vue, detail)
+    for cle, detail in m["dettes"]:
+        res.avertir("dette ouverte, lecteur de cours", cle, vue, detail)
     for type_, detail in m["avert"]:
         res.avertir(type_, detail, vue, detail)
     vider_console(res, vue)
@@ -2270,17 +2333,41 @@ def verifier_benevoles_eteint(page, res, sc):
 # jamais montré), un de la grille véhicule sur 3. Posées dans tous les scénarios (nouveau_contexte).
 MOYENNES_EPCF_DU_BANC = {"salle": [("PREP1", 1.5, 3), ("PREP2", 1, 2), ("ANIM1", 0.5, 1)], "vehicule": [("COND1", 1.8, 3)]}
 # Les notes que le banc sert (lot 2A, tâche 5), pour que chaque teinte de l'échelle des notes soit dessinée : (stagiaire, thème, note, date).
-# Moyennes par stagiaire : Cassandre 4 (sous 8), Anissa 8 et Timy 10,25 (sous 12), Valentin 13 (sous 16), Lorie 19 (au-dessus), Céline sans note ;
-# par thème : le 22 à 7,2 (sous 8), le 23 à 14,2 ; les cinq tranches de la répartition ont au moins une note ; les quatre teintes des points de
-# Mon évolution se lisent chez Timy (4, 9, 12 et 16).
-NOTES_DU_BANC = [(1, 22, 4, "2026-09-10"), (1, 23, 16, "2026-09-24"), (1, 23, 9, "2026-10-08"), (1, 22, 12, "2026-10-15"),
+# Moyennes par stagiaire : Cassandre 4 (sous 8), Anissa 8 et Timy 10,2 (sous 12), Valentin 13 (sous 16), Lorie 19 (au-dessus), Céline sans note ;
+# par thème : le 22 à 7,3 (sous 8), le 23 à 12,8 ; les cinq tranches de la répartition ont au moins une note.
+# Timy, le stagiaire du banc, a vingt notes réparties sur sept mois (d'avril à octobre, trois par mois, deux en octobre) : à 375 px, le graphe de
+# Mon évolution y a des bandes de mois de 30 à 38 unités pour des libellés de 10 px qui en mesurent jusqu'à 37 (tour de correction 1) ; ses
+# points dessinent les quatre teintes (4, 7 et 6 sous 8 ; 8 à 11 ; 12 à 14 ; 16).
+NOTES_DU_BANC = [(1, 22, 4, "2026-04-08"), (1, 22, 7, "2026-04-15"), (1, 23, 10, "2026-04-29"),
+                 (1, 23, 12, "2026-05-06"), (1, 22, 9, "2026-05-20"), (1, 23, 13, "2026-05-27"),
+                 (1, 22, 8, "2026-06-03"), (1, 23, 11, "2026-06-17"), (1, 22, 6, "2026-06-24"),
+                 (1, 23, 14, "2026-07-01"), (1, 23, 10, "2026-07-08"), (1, 23, 12, "2026-07-15"),
+                 (1, 22, 9, "2026-08-19"), (1, 23, 16, "2026-08-26"), (1, 22, 8, "2026-08-28"),
+                 (1, 23, 11, "2026-09-02"), (1, 23, 10, "2026-09-16"), (1, 23, 12, "2026-09-30"),
+                 (1, 22, 9, "2026-10-07"), (1, 23, 13, "2026-10-21"),
                  (2, 22, 8, "2026-09-12"), (3, 23, 18, "2026-09-14"), (3, 23, 20, "2026-10-02"),
                  (4, 22, 9, "2026-09-16"), (4, 23, 17, "2026-10-05"), (5, 22, 3, "2026-09-18"), (5, 23, 5, "2026-10-06")]
-# Ce que le faux serveur rend aux stagiaires (RPC notes_stats_groupe, js/notes-stats.js) : les mêmes chiffres que ceux du personnel, qui les calcule
-# sur les notes ci-dessus. 11 notes, somme 121, médiane 9, 6 sous 10 ; thème 22 : 5 notes, somme 36 ; thème 23 : 6 notes, somme 85.
-STATS_NOTES_DU_BANC = {"n_lignes": 11, "n": 11, "somme": 121, "mediane": 9, "sous_10": 6, "repartition": [1, 2, 3, 1, 4],
-                       "themes": [{"num": 22, "n": 5, "somme": 36, "mediane": 8}, {"num": 23, "n": 6, "somme": 85, "mediane": 16.5}],
-                       "competences": [], "moy_stagiaire_max": 19, "moy_stagiaire_min": 4}
+
+
+def stats_notes_du_banc(notes):
+    """Ce que le faux serveur rend aux stagiaires (RPC notes_stats_groupe) : la forme et les définitions de js/notes-stats.js (statsLocales)
+    appliquées aux notes du banc, toutes sur 20 et toutes de stagiaires en formation. Calculé ici plutôt qu'écrit : changer les notes change
+    les chiffres avec elles (statsLocales de js/notes-stats.js, joué sous node sur la même liste, a servi à les vérifier)."""
+    notes_sur_20 = [note for (_, _, note, _) in notes]
+    par_theme, par_stagiaire = {}, {}
+    for sid, theme, note, _ in notes:
+        par_theme.setdefault(theme, []).append(note)
+        par_stagiaire.setdefault(sid, []).append(note)
+    moyennes = [sum(l) / len(l) for l in par_stagiaire.values()]
+    tranches = [(0, 4), (4, 8), (8, 12), (12, 16), (16, 20.01)]
+    return {"n_lignes": len(notes_sur_20), "n": len(notes_sur_20), "somme": sum(notes_sur_20), "mediane": statistics.median(notes_sur_20),
+            "sous_10": sum(1 for s in notes_sur_20 if s < 10),
+            "repartition": [sum(1 for s in notes_sur_20 if bas <= s < haut) for bas, haut in tranches],
+            "themes": [{"num": num, "n": len(l), "somme": sum(l), "mediane": statistics.median(l)} for num, l in sorted(par_theme.items())],
+            "competences": [], "moy_stagiaire_max": max(moyennes), "moy_stagiaire_min": min(moyennes)}
+
+
+STATS_NOTES_DU_BANC = stats_notes_du_banc(NOTES_DU_BANC)
 K_ANONYMAT = 2    # une moyenne de la classe n'est montrée qu'à partir de 2 stagiaires évalués (js/epcf-restitution.js)
 DATE_AGENDA_VIDE = "2027-01-15"   # après le dernier événement de l'agenda du banc (11/12/2026) : l'accueil n'a plus d'événement à venir
 
@@ -2935,6 +3022,11 @@ def lister(groupes, limite):
         print("    - ... et %d autre(s) cas (--tout pour les lister)" % (len(groupes) - len(montres)))
 
 
+ENTETES_AVERTISSEMENTS = {
+    "dette ouverte, lecteur de cours": "dette ouverte, lecteur de cours (ruling R52) : défilement de côté du sommaire ou d'un tableau d'un cours, hors du banc, à corriger au lot 2B (avertissement sans échec)",
+}
+
+
 def imprimer_rapport(resultats, globaux, tout, debut):
     echecs = [e for r in resultats for e in r["echecs"]] + list(globaux)
     avert = [a for r in resultats for a in r["avert"]]
@@ -2958,7 +3050,7 @@ def imprimer_rapport(resultats, globaux, tout, debut):
         for a in avert:
             par_categorie.setdefault(a[0], []).append(a)
         for categorie, liste in par_categorie.items():
-            print("  %s" % categorie)
+            print("  %s" % ENTETES_AVERTISSEMENTS.get(categorie, categorie))
             lister([(k, n, v) for k, n, v in regrouper(liste, lambda a: a[1], lambda a: a[2])], limite)
     c1 = sum(r["clics"][1] for r in resultats)
     c2 = sum(r["clics"][2] for r in resultats)
