@@ -298,7 +298,7 @@ function poserPhraseDuTiroir(tiroir, phrase) {
 // Pose sur la coquille en place ce que disent les derniers comptes : la pastille de « Cours et QCM » (barre latérale et
 // tiroir ouvert), le point de « Plus » et la phrase du tiroir. Rien quand les comptes sont nuls ou inconnus, et rien hors
 // de l'équipe. Rejouée à chaque arrivée de comptes, à chaque montage et à chaque ouverture du tiroir.
-function majATraiter() {
+function poserATraiter() {
   const resume = montee && montee.espace === "equipe" ? resumeATraiter(aTraiter) : resumeATraiter();
   const texte = libellePastille(resume.total);
   document.querySelectorAll("[data-nav-coquille] a[data-nom-base]").forEach((lien) => poserCompteSurEntree(lien, texte, resume));
@@ -306,6 +306,15 @@ function majATraiter() {
   document.querySelectorAll('[data-nav-coquille] button[data-nav-action="plus"]').forEach((b) => poserPointSurPlus(b, point, resume));
   const tiroir = document.querySelector('[data-nav-coquille="plus"] .nav-fenetre');
   if (tiroir) poserPhraseDuTiroir(tiroir, phraseATraiter(resume));
+}
+
+// poserATraiter sans jamais laisser une levée en sortir : un repère qui manque n'est pas une erreur à montrer. Appelée à la fin de
+// monterCoquille (une exception y ferait replier toute la session sur l'ancienne barre, js/main.js), à l'arrivée des comptes (elle
+// laisserait un rejet non géré) et à l'ouverture du tiroir.
+function majATraiter() {
+  try {
+    poserATraiter();
+  } catch (e) { /* silencieux : la barre se passe de ses pastilles */ }
 }
 
 // Les entrées dans l'ordre, celles d'un même groupe sous son titre (« Promo »). `ou` distingue les

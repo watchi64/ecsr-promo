@@ -120,11 +120,13 @@ Contrôles par vue
     « à traiter » y ajoutent des brouillons de l'IA : « 7 », « 9+ ») dans la barre latérale dès 700 px (une seule, dans son entrée, sans recouvrir l'œil d'un module
     fermé, en ligne comme en colonne d'icônes), dans le tiroir « Plus » sur téléphone, avec le point de « Plus » (nom « Plus, N à traiter ») et la phrase « N à
     traiter : 5 signalements, 2 propositions de l'IA » en tête du tiroir ouvert ; chaque repère tient 3:1 contre ce qui l'entoure et son chiffre 4,5:1 contre son
-    fond. Les brouillons et les signalements déjà traités ne comptent pas. Lectures en échec (« panne » : le levier `__HARNESS_FAIL` du banc posé le temps des lectures des deux
+    fond ; sur la barre sombre, toute pastille (celle de « Signaler un problème », dont les scénarios avec brouillons sèment les compteurs, comme celle de « Cours et QCM »)
+    tient 3:1 contre la barre et son chiffre 4,5:1. Les brouillons et les signalements déjà traités ne comptent pas. Lectures en échec (« panne » : le levier `__HARNESS_FAIL` du banc posé le temps des lectures des deux
     tables seulement) ou qui n'aboutissent pas (« lent », 20 s) : la barre se pose quand même, sans pastille, sans point, sans phrase, sans message ni boîte d'erreur ni
     erreur de console, et le menu du compte s'ouvre. Chez le stagiaire (« Voir en tant que » compris) et interrupteur éteint, aucun de ces repères ;
-  * case du fondateur (lot 2A, tâche 6) : la lecture du réglage de la promo échoue et l'appareil a vu la promo allumée : la barre est la nouvelle (mémoire de l'appareil,
-    ruling R17) et la case « Nouvelle navigation activée » de Réglages est cochée, au lieu de paraître décochée ;
+  * case du fondateur (lot 2A, tâche 6, ruling R54) : la lecture du réglage de la promo échoue ; la case « Nouvelle navigation activée » de Réglages ne dit que le réglage de la
+    promo (la mémoire de l'appareil pour cette promo, ruling R17), jamais l'aperçu de l'appareil : cochée seulement quand la mémoire dit « allumée ». Les six combinaisons du
+    fondateur (aperçu aucun, allumé ou éteint, croisé avec la mémoire de la promo présente ou absente), la barre appliquée comprise : elle suit l'aperçu, la case non ;
   * titres des pages (lot 2A, allumé) : le titre (h2) de chaque page du menu est le libellé de son entrée (équipe : Émargement, Stagiaires, Notes et
     examens, Cours et QCM, Indicateurs, Réglages, CCP2 ; stagiaire : Cours et QCM, Mon suivi, CCP2) et, sauf pour CCP2, son surtitre est le nom de la
     promo affichée. Accueil et Planning n'en font pas partie (TITRES_DES_PAGES) : l'accueil sera remplacé par Aujourd'hui au lot 2, le Planning garde
@@ -260,6 +262,10 @@ par `--script-init`, et le script a échoué avec le message attendu ; la coquil
     (1,25:1), pastille qui sort de son entrée en colonne d'icônes, point de « Plus » retiré ou de 5 px, phrase du tiroir retirée, pastille dans la coquille du stagiaire ou dans
     l'ancienne barre (un échec par vue), brouillons déjà traités comptés (« 9 » au lieu de « 7 »), barre qui attend les comptes (coquille absente après 8 s), lecture en échec qui
     écrit une erreur en console, case de Réglages qui ne suit que le réglage lu ;
+  * relecture de la tâche 6, tour de correction 1 (injectés par `--script-init` ou dans les sources puis retirés) : case de Réglages qui suit la navigation appliquée au lieu du réglage de
+    la promo (2 des 6 combinaisons échouent : aperçu allumé sans mémoire, cochée à tort ; aperçu éteint avec mémoire, décochée à tort), pastille de « Signaler un problème » à son vert
+    d'origine sur la barre sombre (2,93:1), levée dans la pose des comptes sans le try/catch (coquille absente, erreur de console « la nouvelle barre n'a pas pu se monter »)
+    et avec lui (barre posée, sans erreur, seulement les repères manquants) ;
   * mise en place : erreur de console et de page, interrupteur qui n'allume pas, banc périmé.
 Sans défaut, n'échouent pas : un bouton `data-nav-action="deconnexion"` (pas un ouvreur), un lien d'évitement
 masqué (ni mesuré comme cible, ni sans nom), un nom pris par `aria-labelledby`, `<label for>` ou `<title>` SVG.
@@ -331,6 +337,22 @@ JS_PANNE_A_TRAITER = levier_de_panne("%s.includes(this.table)" % json.dumps(list
 # La lecture du réglage de la promo (ligne `navigation_v2` de `settings`) en échec, les autres lectures de `settings` se lisant : la décision de la session revient à la mémoire
 # de l'appareil (ruling R17) et le réglage reste null (lot 2A, tâche 6 : la case du fondateur dans Réglages).
 JS_REGLAGE_ILLISIBLE = levier_de_panne("this.table === 'settings' && this.filters.some((f) => f.col === 'key' && f.val === 'navigation_v2')")
+# La case « Nouvelle navigation activée » de Réglages après une lecture ratée du réglage de la promo (lot 2A, tâche 6, ruling R54) : elle ne dit que le réglage de la
+# promo (la mémoire de l'appareil pour cette promo, ruling R17), jamais l'aperçu de l'appareil. Les six combinaisons du fondateur, l'aperçu (aucun, allumé, éteint)
+# croisé avec la mémoire de la promo (vue allumée sur l'appareil ou non) : clé -> (aperçu posé sur l'appareil, mémoire posée, la barre appliquée est la nouvelle,
+# la case est cochée). La barre suit l'aperçu dès qu'il y en a un, la case jamais.
+CASES_DU_FONDATEUR = {
+    "aucun-memoire": (None, True, True, True),
+    "aucun-sans": (None, False, False, False),
+    "allume-memoire": ("1", True, True, True),
+    "allume-sans": ("1", False, True, False),    # aperçu allumé, promo éteinte : la barre est la nouvelle, la case reste décochée
+    "eteint-memoire": ("0", True, False, True),   # aperçu éteint, promo allumée : la barre est l'ancienne, la case reste cochée
+    "eteint-sans": ("0", False, False, False),
+}
+# « Signaler un problème » : le banc ne sert aucun compteur ; les scénarios « à traiter » avec brouillons en sèment (`compter_signalements_app`) pour que la pastille de ce
+# bouton, sur la barre sombre, soit mesurée à côté de celle de « Cours et QCM ». Le formateur du banc n'est pas le fondateur : il voit ses signalements qui ont avancé.
+COMPTEURS_SIGNALER_DU_BANC = {"nouveaux": 3, "suivis": 2}
+SIGNALER_DU_BANC = "2"
 
 # Aucun défilement de côté, à aucune largeur (règle de Timy du 27/10) : seule la matrice des notes (saisie case
 # par case) est admise, sans avertissement. Les conteneurs des rulings R10 et R11 qui défilaient déjà sur main ont été
@@ -1068,9 +1090,16 @@ function aTraiter() {
     const r = rect(e), bouton = e.closest("button");
     return { visible: visible(e), taille: [Math.round(r.width), Math.round(r.height)], nom: bouton ? nomAcc(bouton) : "", ...contrasteDuPoint(e) };
   });
+  // Toute pastille affichée de la barre sombre (la barre latérale de l'équipe), celle de « Signaler un problème » comme celle de « Cours et QCM » : `de` dit son bouton
+  // (data-nav-action, ou l'adresse de l'entrée), avec le texte, le chiffre contre le fond (4,5:1) et le fond contre la barre (3:1).
+  const barreSombre = [...document.querySelectorAll('[data-nav-coquille="cote"] .nav-pastille')].filter(visible).map((e) => {
+    const s = style(e), fond = analyser(s.backgroundColor), chiffre = analyser(s.color), de = e.closest("a, button");
+    return { texte: net(e.textContent), de: de ? (de.getAttribute("data-nav-action") || de.getAttribute("href") || "") : "", chiffre: rapportOuNul(chiffre, fond),
+      fond: rapportOuNul(fond, fondDe(e.parentElement)), couleurs: hex(chiffre) + " sur " + hex(fond) };
+  });
   const phrase = document.querySelector('[data-nav-coquille="plus"] .nav-fenetre-atraiter');
   const parlants = [...document.querySelectorAll("[data-nav-coquille] a, [data-nav-coquille] button")].map(nomAcc).filter((n) => /à traiter/.test(n));
-  return { pastilles, points, phrase: phrase ? net(phrase.textContent) : null, phraseAffichee: !!phrase && visible(phrase), parlants,
+  return { pastilles, points, barreSombre, phrase: phrase ? net(phrase.textContent) : null, phraseAffichee: !!phrase && visible(phrase), parlants,
     total: document.querySelectorAll(".nav-a-traiter, .nav-plus-point, .nav-fenetre-atraiter").length };
 }
 // Le menu du compte ouvert : chaque ligne (libellé, adresse, nombre posé sur elle) et ce que l'app compte de non lues.
@@ -1264,7 +1293,7 @@ class Scenario:
     promos_en_panne: bool = False   # ?mes_promos=erreur : le bandeau des promos non chargées s'ajoute à l'aperçu
     agenda_vide: bool = False   # la date du banc recule après le dernier événement : l'accueil n'a rien à venir (lot 2A, tour de correction 1)
     a_traiter: str = ""         # scénario « à traiter » (A_TRAITER_DU_BANC) : "ia", "beaucoup", "panne" ou "lent" ; vide pour tous les autres (lot 2A, tâche 6)
-    reglage_illisible: bool = False   # la lecture du réglage de la promo échoue, la mémoire de l'appareil dit « allumée » : la case du fondateur (lot 2A, tâche 6)
+    reglage_illisible: str = ""       # la lecture du réglage de la promo échoue : la case du fondateur, une clé de CASES_DU_FONDATEUR (lot 2A, tâche 6, ruling R54)
 
     @property
     def nom(self):
@@ -1275,7 +1304,7 @@ class Scenario:
         variante += "-promos-en-panne" if self.promos_en_panne else ""
         variante += "-agenda-vide" if self.agenda_vide else ""
         variante += ("-a-traiter-" + self.a_traiter) if self.a_traiter else ""
-        variante += "-reglage-illisible" if self.reglage_illisible else ""
+        variante += ("-reglage-illisible-" + self.reglage_illisible) if self.reglage_illisible else ""
         return "%s/%s/%s%s@%d" % (self.moteur, self.passe, self.role, variante, self.largeur)
 
 
@@ -1331,8 +1360,10 @@ def construire_scenarios(moteurs, roles, largeurs, passes):
             if "fondateur" in roles:
                 for l in voir:
                     scenarios.append(Scenario(moteur, "allume", "fondateur", l, "apercu", "equipe", voir_en_tant_que=True))
-                # Le fondateur, un appareil qui a vu la promo allumée et un réglage de la promo qu'il ne lit pas : la case de Réglages dit ce que la barre applique.
-                scenarios.append(Scenario(moteur, "allume", "fondateur", largeurs[0], "aucun", "equipe", reglage_illisible=True))
+                # Le fondateur et un réglage de la promo qu'il ne lit pas : la case de Réglages ne dit que le réglage de la promo (la mémoire de l'appareil), jamais
+                # l'aperçu, dans les six combinaisons d'aperçu et de mémoire.
+                for cle in CASES_DU_FONDATEUR:
+                    scenarios.append(Scenario(moteur, "allume", "fondateur", largeurs[0], "aucun", "equipe", reglage_illisible=cle))
             if "prof" in roles:
                 # Un formateur sans aperçu, dont l'appareil a vu la promo allumée : son ouverture seule (ruling R17).
                 scenarios.append(Scenario(moteur, "allume", "prof", largeurs[0], "reglage", "equipe", demarrage=True))
@@ -1451,9 +1482,8 @@ def nouveau_contexte(navigateur, sc, options):
     contexte.set_default_timeout(8000)
     if sc.allumage == "apercu":
         contexte.add_init_script("try { localStorage.setItem('%s', '1'); } catch (e) { /* stockage bloqué */ }" % CLE_APERCU)
-    if sc.demarrage or sc.reglage_illisible:
-        contexte.add_init_script("try { localStorage.setItem('%s', '1'); } catch (e) { /* stockage bloqué */ }" % CLE_MEMOIRE_PROMO_1)
     if sc.demarrage:
+        contexte.add_init_script("try { localStorage.setItem('%s', '1'); } catch (e) { /* stockage bloqué */ }" % CLE_MEMOIRE_PROMO_1)
         contexte.add_init_script(JS_IMAGES_OUVERTURE)
     lignes = []
     if sc.allumage == "reglage":
@@ -1482,9 +1512,15 @@ def nouveau_contexte(navigateur, sc, options):
                          "option_id": None, "option_texte": None, "statut": statut, "created_at": "2026-07-29T09:00:00Z", "traite_at": "2026-07-29T10:00:00Z",
                          "traite_par_email": "prof@example.test", "question": question, "instruction": None} for i, statut in enumerate(("traite", "rejete"))]
         lignes.append("FIXTURES.qcm_signalements.push(...%s);" % json.dumps(signalements))
+        lignes.append("RPC.compter_signalements_app = %s;" % json.dumps(COMPTEURS_SIGNALER_DU_BANC))
     if sc.a_traiter == "panne":
         lignes.append(JS_PANNE_A_TRAITER)
     if sc.reglage_illisible:
+        apercu, memoire, _, _ = CASES_DU_FONDATEUR[sc.reglage_illisible]
+        if apercu is not None:
+            contexte.add_init_script("try { localStorage.setItem('%s', '%s'); } catch (e) { /* stockage bloqué */ }" % (CLE_APERCU, apercu))
+        if memoire:
+            contexte.add_init_script("try { localStorage.setItem('%s', '1'); } catch (e) { /* stockage bloqué */ }" % CLE_MEMOIRE_PROMO_1)
         lignes.append(JS_REGLAGE_ILLISIBLE)
     if sc.modules == "ferme":
         # Aucun module ouvert pour la promo : chaque entrée de l'équipe porte l'œil « masqué aux stagiaires » (le banc n'a pas de scénario qui ferme aussi les Documents,
@@ -2145,6 +2181,20 @@ def verifier_a_traiter(page, res, sc, tiroir=False):
             res.echec("contraste d'une pastille « à traiter »", vue, "le chiffre ne tient que %.2f:1 (%s), 4,5:1 au moins" % (p["chiffre"], p["couleurs"]))
         if p["fond"] is not None and p["fond"] < 3:
             res.echec("contraste d'une pastille « à traiter »", vue, "la pastille ne tient que %.2f:1 contre ce qui l'entoure (%s), 3:1 au moins pour un repère" % (p["fond"], p["couleurs"]))
+    # Toute pastille de la barre sombre, celle de « Signaler un problème » comme celle de « Cours et QCM » (relecture de la tâche 6, point 4) : le chiffre tient 4,5:1 contre
+    # son fond, la pastille 3:1 contre la barre (le vert d'origine, --accent, n'en tenait que 2,9 contre elle). Les scénarios avec brouillons sèment les compteurs de « Signaler
+    # un problème » : sa pastille y est, sinon le contrôle ne verrait que la première.
+    for p in m["barreSombre"]:
+        de = "de « Signaler un problème »" if p["de"] == "signaler" else "de l'entrée %s" % (p["de"] or "?")
+        if p["chiffre"] is not None and p["chiffre"] < 4.5:
+            res.echec("contraste d'une pastille de la barre sombre", vue, "le chiffre de la pastille %s ne tient que %.2f:1 (%s), 4,5:1 au moins" % (de, p["chiffre"], p["couleurs"]))
+        if p["fond"] is not None and p["fond"] < 3:
+            res.echec("contraste d'une pastille de la barre sombre", vue, "la pastille %s ne tient que %.2f:1 contre la barre (%s), 3:1 au moins pour un repère" % (de, p["fond"], p["couleurs"]))
+    if sc.a_traiter in BROUILLONS_IA_DU_BANC and not telephone and not tiroir:
+        signaler = [p["texte"] for p in m["barreSombre"] if p["de"] == "signaler"]
+        if signaler != [SIGNALER_DU_BANC]:
+            res.echec("pastille de « Signaler un problème »", vue, "la barre sombre montre %s sur « Signaler un problème », attendu une pastille « %s » (compteurs semés : %s)"
+                      % (signaler or "aucune pastille", SIGNALER_DU_BANC, COMPTEURS_SIGNALER_DU_BANC))
     # Le point de « Plus » : sur téléphone seulement, puisque « Cours et QCM » y est rangée dans le tiroir.
     points = [p for p in m["points"] if p["visible"]]
     if not telephone:
@@ -3114,22 +3164,26 @@ def jouer_demarrage(page, res, sc):
 
 
 def jouer_case_du_fondateur(page, res, sc):
-    """Le fondateur ouvre l'app sur un appareil qui a vu la promo allumée, et la lecture du réglage de la promo échoue (lot 2A, tâche 6) : la décision de la session
-    est celle de la mémoire de l'appareil (ruling R17), la nouvelle barre est montée, et la case « Nouvelle navigation activée » de Réglages, qui ne sait rien du
-    réglage, dit ce que la barre applique : cochée, au lieu de paraître décochée sous une barre qui est la nouvelle."""
-    regles = regles_de_la_page(page, res, sc)
-    preparer_coquille(page, res, sc, regles)
-    if not res.coquille:
-        return
+    """Le fondateur ouvre l'app, la lecture du réglage de la promo échoue (lot 2A, tâche 6, ruling R54) : la décision de la session est celle de l'aperçu de l'appareil s'il y
+    en a un, sinon celle de la mémoire de l'appareil pour la promo (ruling R17). La case « Nouvelle navigation activée » de Réglages, elle, ne dit que le réglage de la promo,
+    c'est-à-dire cette mémoire : cochée quand la promo a été vue allumée sur l'appareil, décochée sinon, quel que soit l'aperçu. Les six combinaisons (CASES_DU_FONDATEUR),
+    la barre appliquée comprise (nouvelle ou ancienne) : c'est elle qui montre que la case ne la suit pas."""
+    apercu, memoire, barre_nouvelle, cochee = CASES_DU_FONDATEUR[sc.reglage_illisible]
     vue = "%s/reglages/case-de-la-promo" % sc.nom
     res.vues += 1
+    etat = page.evaluate("() => ({ nav: document.body.dataset.nav || null, coquilles: document.querySelectorAll('[data-nav-coquille]').length })")
+    nouvelle = etat["nav"] == "v2" and etat["coquilles"] > 0
+    contexte = "aperçu %s, mémoire de la promo %s, lecture du réglage ratée" % ({None: "aucun", "1": "allumé", "0": "éteint"}[apercu], "allumée" if memoire else "absente")
+    if nouvelle != barre_nouvelle:
+        res.echec("barre du banc", vue, "la barre est %s, attendue %s (%s)" % ("la nouvelle" if nouvelle else "l'ancienne", "la nouvelle" if barre_nouvelle else "l'ancienne", contexte))
     aller_a(page, "#/config")
     attendre(page, calme=250)
     coche = page.evaluate("() => { const c = document.getElementById('navigation-v2-promo'); return c ? c.checked : null; }")
     if coche is None:
         res.echec("case de la promo", vue, "la case « Nouvelle navigation activée pour la promo » est absente de Réglages (le fondateur la voit)")
-    elif coche is not True:
-        res.echec("case de la promo", vue, "la case est décochée alors que la barre est la nouvelle (la lecture du réglage a échoué, la mémoire de l'appareil l'applique)")
+    elif coche is not cochee:
+        res.echec("case de la promo", vue, "la case est %s, attendue %s : elle ne dit que le réglage de la promo (la mémoire de l'appareil quand sa lecture a échoué), jamais l'aperçu (%s)"
+                  % ("cochée" if coche else "décochée", "cochée" if cochee else "décochée", contexte))
     vider_console(res, vue)
 
 

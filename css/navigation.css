@@ -871,9 +871,11 @@ body[data-nav="v2"] .nav-pastille {
    la suite de son libellé : la pastille des Nouveautés, à la fin de la ligne qu'elle ne fait pas rétrécir. */
 body[data-nav="v2"] .nav-entree > .nav-a-traiter,
 body[data-nav="v2"] .nav-fenetre-lien > .nav-a-traiter { flex: none; }
-/* Sur la barre sombre, le vert clair des repères et le texte de la barre : 8,2:1 pour le chiffre comme contre le fond de
-   la barre (le vert de la pastille claire, 2,9:1 contre ce fond, s'y confondrait). */
-body[data-nav="v2"] .nav-cote .nav-a-traiter {
+/* Sur la barre sombre, toute pastille prend le vert clair des repères et le texte de la barre : 8,2:1 pour le chiffre comme
+   contre le fond de la barre (le vert de la pastille claire, 2,9:1 contre ce fond, s'y confondrait). Celle de « Cours et QCM »
+   comme celle de « Signaler un problème » (css/signalement.css, qui n'en règle que la place) ; le tiroir « Plus » et l'en-tête
+   clair du stagiaire, hors de .nav-cote, gardent la leur. */
+body[data-nav="v2"] .nav-cote .nav-pastille {
   background: var(--accent-on-dark);
   color: var(--bg-deep);
 }

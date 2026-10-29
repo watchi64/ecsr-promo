@@ -35,7 +35,8 @@ export function phraseATraiter(resume) {
 }
 
 // « Plus » porte un point quand il y a quelque chose à traiter et que l'entrée qui le porte est rangée dans le tiroir
-// (`idsDuTiroir` : les entrées que le téléphone y range). Dans la barre du bas, c'est l'entrée elle-même qui le dit.
+// (`idsDuTiroir` : les entrées que le téléphone y range). Chez l'équipe, « Cours et QCM » y est rangée (le test des règles
+// le garde) ; la barre du bas n'a pas de pastille.
 export function pointSurPlus(idsDuTiroir, resume) {
   return !!resume && resume.total > 0 && Array.isArray(idsDuTiroir) && idsDuTiroir.includes(ENTREE_A_TRAITER);
 }

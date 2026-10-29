@@ -86,12 +86,19 @@ function ecrireApercu(valeur) {
   } catch (e) { return false; }
 }
 
+// Mémoire de l'appareil pour la promo affichée : "1" quand elle y a été vue allumée, null sinon (sans promo connue,
+// sans trace, stockage inaccessible).
+function memoireDeLaPromo() {
+  const cle = cleMemoire(getPromoCourante()?.id);
+  return cle ? lireMemoire(cle) : null;
+}
+
 // Ce que montrerait une ouverture de l'app maintenant : le réglage lu (la mémoire de l'appareil s'il ne
 // l'est pas) et l'aperçu de l'appareil.
 function decisionDuMoment() {
-  const cle = cleMemoire(getPromoCourante()?.id);
-  const memoire = cle ? lireMemoire(cle) : null;
-  return decideNavigationV2({ reglagePromo: reglageRetenu({ lu: reglage, memoire }), apercu: lireApercu(), fondateur: isFounder() });
+  return decideNavigationV2({
+    reglagePromo: reglageRetenu({ lu: reglage, memoire: memoireDeLaPromo() }), apercu: lireApercu(), fondateur: isFounder(),
+  });
 }
 
 // La navigation de la session, fixée par le dernier chargerNavigationV2() : les pages la lisent
@@ -135,9 +142,9 @@ export function renderNavigationReglage() {
     "Allumée, les stagiaires et les formateurs de la promo passent à la nouvelle barre de navigation "
     + "à leur prochaine ouverture de l'app. Éteinte (réglage par défaut), la promo garde la barre actuelle."));
   const casePromo = el("input", { type: "checkbox", id: "navigation-v2-promo" });
-  // Le réglage lu ; après une lecture ratée ou trop lente (réglage null), l'état que la session applique réellement :
-  // la case ne paraît pas décochée sous une barre qui est la nouvelle.
-  casePromo.checked = etatDeLaCase({ reglage, appliquee: navigationV2Active() });
+  // Le réglage de la promo, rien d'autre (ruling R54) : celui qui a été lu ; après une lecture ratée ou trop lente (réglage
+  // null), la mémoire de l'appareil pour cette promo, jamais l'aperçu de l'appareil que la navigation appliquée peut suivre.
+  casePromo.checked = etatDeLaCase({ reglage, memoire: memoireDeLaPromo() });
   casePromo.addEventListener("change", async () => {
     const voulu = casePromo.checked;
     casePromo.disabled = true;

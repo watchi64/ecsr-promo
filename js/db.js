@@ -822,8 +822,8 @@ export async function listBrouillonsIa(qcmId) {
 }
 
 // Nombre de brouillons à relire, tous QCM confondus : la pastille « à traiter » de la barre de l'équipe
-// (js/a-traiter.js). Les identifiants seulement, comptés ici : l'IA en propose peu à la fois (son quota est de 10
-// par jour et par formateur).
+// (js/a-traiter.js). Les brouillons sont communs à toutes les promos (leur table n'a pas de colonne de promo). Les
+// identifiants seulement, comptés ici : l'IA en propose peu à la fois (son quota est de 10 par jour et par formateur).
 export async function countBrouillonsIaARelire() {
   const { data, error } = await supabase
     .from("qcm_ia_brouillons")
