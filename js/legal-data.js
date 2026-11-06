@@ -44,7 +44,7 @@ L'usage de l'application suppose d'accepter les présentes conditions. L'accepta
 | Résultats | Notes et évaluations, tentatives et scores aux QCM, examens blancs (EPCF) |
 | Suivi | Passages en voiture, absences, placements au planning, souhaits de séances |
 | Documents | Livret d'évaluation, dossier professionnel |
-| Contributions | Signalements d'erreur sur les QCM |
+| Contributions | Signalements d'erreur sur les QCM ; signalements de problème sur l'application (message, capture facultative, page, appareil et navigateur utilisés) |
 | Historique | Qui a créé ou modifié une note ou un passage, et quand |
 | Assistant | Nombre de messages envoyés par jour (le contenu des échanges n'est pas conservé, voir section 9) |
 
@@ -59,8 +59,9 @@ L'application ne collecte ni géolocalisation, ni contacts du téléphone, ni do
 | Planning, passages, absences | Oui | Oui | Oui | Non |
 | Date de naissance, souhaits de séances | Oui | Non | Oui | Non |
 | Livret, dossier professionnel, EPCF | Oui | Non | Oui | Oui |
+| Signalements de problème | Oui | Non | Non | Non |
 
-« Autres stagiaires » : ceux de votre promo seulement. Le planning leur est visible parce qu'il organise la formation de tous.
+« Autres stagiaires » : ceux de votre promo seulement. Le planning leur est visible parce qu'il organise la formation de tous. Les signalements de problème ne sont lus que par l'éditeur, pour corriger l'application et vous répondre.
 
 **Masquer ses notes.** Depuis vos préférences, vous pouvez masquer vos notes : les autres stagiaires ne voient plus ni votre prénom ni vos notes, qui restent comptées dans les moyennes du groupe. En contrepartie, vous ne voyez plus que votre ligne et les moyennes du groupe. Ce masquage est garanti par la base de données elle-même, pas seulement par l'affichage. Pour éviter les allers-retours, après un changement (annulable dans les deux minutes), le réglage reste fixe pendant 24 heures.
 
@@ -122,6 +123,7 @@ L'assistant est une **intelligence artificielle** : ses réponses sont généré
 |---------|-------|
 | Données de formation (profil, notes, suivi, documents) | Toute la formation, puis douze mois pour permettre de retrouver son livret, son dossier ou ses résultats |
 | Historique des modifications | Même durée que la donnée concernée |
+| Signalements de problème | Douze mois au plus, et jamais au-delà de la fermeture du compte |
 | Élèves bénévoles, référents d'auto-école | Douze mois au plus après la dernière venue ou le dernier contact |
 | Statistiques anonymes | Sans limite (elles n'identifient personne) |
 

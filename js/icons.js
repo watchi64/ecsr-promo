@@ -105,4 +105,11 @@ export const icon = {
   logout:     () => svg('<path d="m16 17 5-5-5-5"/><path d="M21 12H9"/><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>'),
   // Lucide chevron-down : flèche du bouton du compte
   chevronDown:() => svg('<path d="m6 9 6 6 6-6"/>'),
+  // Lucide message-square-warning : « Signaler un problème » (distinct de la bulle ronde de l'assistant et
+  // du drapeau des signalements de QCM)
+  signaler:   () => svg('<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M12 7v2"/><path d="M12 13h.01"/>'),
+  // Lucide paperclip : joindre une capture
+  trombone:   () => svg('<path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/>'),
+  // Lucide phone : ligne « Contacts du centre » du menu du compte (les numéros pour prévenir d'une absence)
+  phone:      () => svg('<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>'),
 };

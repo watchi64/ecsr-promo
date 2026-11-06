@@ -60,12 +60,12 @@ ok(!/^\s*(import|export)\b[^;]*["']\.\/views\/qualiopi\.js/m.test(main), "ni par
 ok(/import \{ teardownQualiopiPrint \} from "\.\/qualiopi-impression\.js\?v=\w+";/.test(main), "main.js importe le nettoyage de l'impression, dans le petit module chargé avec l'app");
 ok(/\n  qualiopi:\s+rendreQualiopi,/.test(main), "la route qualiopi mène au chargeur de la page");
 ok(/const ONGLET_POUR_ROUTE = \{[^}]*\bqualiopi: "home"[^}]*\};/.test(main), "l'ancienne barre allume Accueil sur #/qualiopi");
-const debutGarde = main.indexOf('else if (route === "qualiopi" && !isFounder()) {');
-ok(debutGarde > 0, "une garde propre à la route qualiopi, sur isFounder()");
+const debutGarde = main.indexOf('else if (route === "qualiopi" && !fondateurHorsApercu()) {');
+ok(debutGarde > 0, "une garde propre à la route qualiopi, hors aperçu comme « problemes »");
 const garde = main.slice(debutGarde, main.indexOf("memoriserRoute(route);", debutGarde));   // la branche, jusqu'à la suite de navigate()
 ok(/replaceState\(null, "", "#\/home"\)/.test(garde) && /route = "home";/.test(garde), "qui renvoie à #/home");
 ok(!/toast\(/.test(garde), "sans un mot : aucun message");
-ok(/isFounder, monStagiaireId/.test(main), "isFounder vient de auth-admin.js");
+ok(/fondateurHorsApercu \} from "\.\/auth-admin\.js/.test(main), "fondateurHorsApercu vient de auth-admin.js");
 const navigate = main.slice(main.indexOf("async function navigate("), main.indexOf('window.addEventListener("hashchange"'));
 ok(navigate.indexOf("teardownCentrePrint();") > 0 && navigate.indexOf("teardownQualiopiPrint();") > navigate.indexOf("teardownCentrePrint();"),
   "navigate nettoie l'impression Qualiopi à côté de celle du tableau de bord, avant de rendre la page");
@@ -146,7 +146,7 @@ for (const fichier of ["js/nav-rules.js", "js/nav-shell.js", "js/menu-compte.js"
 }
 
 // --- Bouton du tableau de bord du centre : le fondateur seul ---
-ok(/isFounder\(\) \? el\("a", \{ class: "btn small centre-lien-qualiopi", href: "#\/qualiopi" \}, "Qualiopi"\) : null/.test(centre), "le bouton Qualiopi n'est monté que pour le fondateur");
+ok(/fondateurHorsApercu\(\) \? el\("a", \{ class: "btn small centre-lien-qualiopi", href: "#\/qualiopi" \}, "Qualiopi"\) : null/.test(centre), "le bouton Qualiopi n'est monté que pour le fondateur");
 ok(/export function telecharger\(/.test(centre), "le téléchargement du tableau de bord est partagé avec la page, pas recopié");
 ok(!/function telecharger\(/.test(vue) && /import \{ telecharger \} from "\.\/centre\.js\?v=\w+";/.test(vue), "la page l'importe");
 

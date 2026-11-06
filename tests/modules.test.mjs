@@ -229,6 +229,7 @@ for (const m of MODULES) {
   eq(hrefLien(ou), "#/mon-suivi/" + ou.sousOnglet, m.cle + " : le lien vise la partie par l'adresse");
 }
 ok(ROUTES_SOCLE.includes("stagiaires"), "page Stagiaires : route du socle");
+ok(ROUTES_SOCLE.includes("preferences"), "Mes préférences (nouvelle navigation) : route du socle, jamais fermée par un module");
 eq(Object.keys(MODULE_DE_SOUS_ONGLET.notes).sort(), ["epcf", "matrice"], "Notes : Matrice et EPCF seulement");
 ok(!NOUVEAUTES.some((e) => e.id === "2026-10-03-livret-espace-stagiaire"), "entrée caduque du 03/10 retirée");
 const libelles = [...NOUVEAUTES.map((e) => e.ou), ...MODULES.map((m) => m.annonce && m.annonce.ou)]

@@ -4,12 +4,13 @@
 // (impression du navigateur) et CSV de la matrice des notes. Les calculs vivent dans
 // js/centre-stats.js et js/centre-csv.js (purs, testés) : ici, seulement l'affichage.
 
-import { lireDonneesCentre, lireReferentielCentre, getMesPromos, getPromoCourante } from "../db.js?v=20261028a";
-import { el, clear, isoDate, formatDate, displayStagiaire, toast } from "../utils.js?v=20261028a";
-import { icon } from "../icons.js?v=20261028a";
-import { isFounder } from "../auth-admin.js?v=20261028a";
-import { indicateursPromo, ligneComparaison, METHODES } from "../centre-stats.js?v=20261028a";
-import { matriceNotesCsv, nomFichierCsv } from "../centre-csv.js?v=20261028a";
+import { lireDonneesCentre, lireReferentielCentre, getMesPromos, getPromoCourante } from "../db.js?v=20261029b";
+import { el, clear, isoDate, formatDate, displayStagiaire, toast, tableauEnListe } from "../utils.js?v=20261029b";
+import { icon } from "../icons.js?v=20261029b";
+import { fondateurHorsApercu } from "../auth-admin.js?v=20261029b";
+import { indicateursPromo, ligneComparaison, METHODES } from "../centre-stats.js?v=20261029b";
+import { matriceNotesCsv, nomFichierCsv } from "../centre-csv.js?v=20261029b";
+import { navigationV2Active } from "../nav-etat.js?v=20261029b";
 
 let rendu = 0;   // un rendu plus récent rend caduc celui qui attend encore ses données
 
@@ -131,15 +132,17 @@ function sectionThemes(themes) {
           el("span", { class: "centre-theme-val" }, valeur(t)))))
       : el("p", { class: "muted" }, vide));
   const cellule = (v) => el("td", { class: "num" }, v);
+  // Sous 1 080 px, le tableau devient une liste : le thème en titre, ses chiffres dessous (aucun défilement de côté).
+  const tableauThemes = tableauEnListe(el("table", { class: "centre-table" },
+    el("thead", {}, el("tr", {}, el("th", {}, "Thème"), el("th", {}, "QCM"), el("th", {}, "Réponses"),
+      el("th", {}, "Notes"), el("th", {}, "Nb de notes"))),
+    el("tbody", {}, ...themes.complet.map((t) => el("tr", {},
+      el("td", { class: "liste-titre" }, nomTheme(t)),
+      cellule(t.qcmTaux == null ? "" : pct(t.qcmTaux)), cellule(t.qcmN ? entier(t.qcmN) : ""),
+      cellule(t.notesMoy == null ? "" : fr1(t.notesMoy)), cellule(t.notesN || ""))))));
   const tableau = el("details", { class: "centre-themes-tout" },
     el("summary", {}, `Tous les thèmes (${themes.complet.length})`),
-    el("div", { class: "centre-defile" }, el("table", { class: "centre-table" },
-      el("thead", {}, el("tr", {}, el("th", {}, "Thème"), el("th", {}, "QCM"), el("th", {}, "Réponses"),
-        el("th", {}, "Notes"), el("th", {}, "Nb de notes"))),
-      el("tbody", {}, ...themes.complet.map((t) => el("tr", {},
-        el("td", {}, nomTheme(t)),
-        cellule(t.qcmTaux == null ? "" : pct(t.qcmTaux)), cellule(t.qcmN ? entier(t.qcmN) : ""),
-        cellule(t.notesMoy == null ? "" : fr1(t.notesMoy)), cellule(t.notesN || "")))))));
+    el("div", { class: "centre-defile" }, tableauThemes));
   return el("section", { class: "centre-section" },
     el("div", { class: "centre-section-tete" }, el("h3", {}, "Thèmes à retravailler"), etiquette("mesuré")),
     el("div", { class: "centre-themes" },
@@ -167,7 +170,8 @@ function sectionASuivre(aSuivre) {
 function sectionComparaison(promos, courante, indCourant) {
   const ordre = [courante, ...promos.filter((p) => p.id !== courante.id)];
   const cases = new Map();   // `${promoId}:${cle}` → td
-  const table = el("table", { class: "centre-table centre-comparaison" },
+  // Sous 1 080 px, le tableau devient une liste : l'indicateur en titre, une ligne par promo dessous.
+  const table = tableauEnListe(el("table", { class: "centre-table centre-comparaison" },
     el("thead", {}, el("tr", {}, el("th", {}, "Indicateur"), ...ordre.map((p) => el("th", { scope: "col" }, p.nom)))),
     el("tbody", {}, ...LIBELLES_COMPARAISON.map(([cle, libelle]) => el("tr", {},
       el("th", { scope: "row" }, libelle),
@@ -175,7 +179,7 @@ function sectionComparaison(promos, courante, indCourant) {
         const td = el("td", { class: "num" + (p.id === courante.id ? " courante" : "") }, "chargement…");
         cases.set(p.id + ":" + cle, td);
         return td;
-      })))));
+      }))))));
   const remplir = (promoId, ligne) => LIBELLES_COMPARAISON.forEach(([cle]) => {
     const td = cases.get(promoId + ":" + cle);
     if (td) td.textContent = ligne ? ligne[cle] : "non chargée";
@@ -287,10 +291,14 @@ export async function renderCentre(container) {
        promo.date_fin ? "au " + formatDate(promo.date_fin) : (promo.date_debut ? "(fin non fixée)" : null)]
         .filter(Boolean).join(" ")
     : "";
+  // Nouvelle navigation : la page porte le nom de son entrée, « Indicateurs », avec la promo en surtitre (avant : le
+  // surtitre « Tableau de bord du centre », et la promo pour titre).
+  const v2 = navigationV2Active();
   racine.appendChild(el("div", { class: "view-header centre-entete" },
     el("div", { class: "view-header-text" },
-      el("p", { class: "eyebrow" }, "Tableau de bord du centre"),
-      el("h2", {}, promo?.nom || "Promo courante"),
+      v2 ? (promo?.nom ? el("p", { class: "eyebrow" }, promo.nom) : null)
+        : el("p", { class: "eyebrow" }, "Tableau de bord du centre"),
+      el("h2", {}, v2 ? "Indicateurs" : (promo?.nom || "Promo courante")),
       el("p", { class: "subtitle" }, [periode, promo?.lieu_nom ? "Lieu : " + promo.lieu_nom : null,
         "Édité le " + formatDate(aujourdhui)].filter(Boolean).join(" · "))),
     el("div", { class: "centre-actions" },
@@ -298,7 +306,7 @@ export async function renderCentre(container) {
       el("button", { class: "btn small", type: "button", onClick: () => ouvrirExportCsv(promo, donnees) },
         "Matrice des notes (CSV)"),
       // Page du seul fondateur (porte dans main.js) : le bouton n'est pas montré aux autres.
-      isFounder() ? el("a", { class: "btn small centre-lien-qualiopi", href: "#/qualiopi" }, "Qualiopi") : null)));
+      fondateurHorsApercu() ? el("a", { class: "btn small centre-lien-qualiopi", href: "#/qualiopi" }, "Qualiopi") : null)));
 
   racine.appendChild(el("p", { class: "centre-legende" },
     etiquette("mesuré"), " compté dans l'app · ", etiquette("estimé"), " hypothèse ou signal · Chaque chiffre a sa méthode."));

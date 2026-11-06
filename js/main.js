@@ -2,49 +2,54 @@
  * Promo ECSR : application propriétaire.
  * © 2026 watchi64. Tous droits réservés. Voir LICENSE.
  */
-import { getCurrentUser, invalidateCache, verifyRecoveryToken, rechargerApresEnregistrements } from "./db.js?v=20261028a";
-import { toast, el } from "./utils.js?v=20261028a";
-import { icon } from "./icons.js?v=20261028a";
-import { initAuth, onAdminChange, isAuth, isFounder, monStagiaireId, getAdminEmail, getProfile, getProfileWho } from "./auth-admin.js?v=20261028a";
-import { showGate, hideGate } from "./gate.js?v=20261028a";
-import { exigerAcceptation } from "./legal.js?v=20261028a";
-import { lireJetonRecuperation } from "./gate-rules.js?v=20261028a";
-import { loadAccent } from "./accent-switcher.js?v=20261028a";
-import { loadTheme } from "./theme-switcher.js?v=20261028a";
-import { renderHome } from "./views/home.js?v=20261028a";
-import { renderDashboard } from "./views/dashboard.js?v=20261028a";
-import { renderMonSuivi } from "./views/mon-suivi.js?v=20261028a";
-import { renderPlanning, teardownPrintTarget, resetPlanningEditMode, requestPlanningToday } from "./views/planning.js?v=20261028a";
-import { renderPlanningEspace } from "./views/planning-espace.js?v=20261028a";
-import { teardownDocPrint } from "./doc-officiel.js?v=20261028a";
-import { renderNotes } from "./views/notes.js?v=20261028a";
-import { renderRessources } from "./views/ressources.js?v=20261028a";
-import { renderThemes } from "./views/themes.js?v=20261028a";
-import { renderConfig } from "./views/config.js?v=20261028a";
-import { renderCalendrier } from "./views/calendrier.js?v=20261028a";
-import { initUndoKeyboard } from "./undo.js?v=20261028a";
-import { renderNouveautes } from "./views/nouveautes.js?v=20261028a";
-import { libellePastille } from "./nouveautes.js?v=20261028a";
-import { renderCcp2 } from "./views/ccp2.js?v=20261028a";
-import { renderStagiaires } from "./views/stagiaires.js?v=20261028a";
-import { renderCentre, teardownCentrePrint } from "./views/centre.js?v=20261028a";
-import { teardownQualiopiPrint } from "./qualiopi-impression.js?v=20261028a";
-import { renderEmargement } from "./views/emargement.js?v=20261028a";
-import { initBandeauEmargement, rafraichirBandeauEmargement } from "./emargement-bandeau.js?v=20261028a";
-import { chargerEmargementActif, emargementActif } from "./emargement-etat.js?v=20261028a";
-import { chargerNavigationV2, navigationV2Active, navigationV2Attendue, renoncerNavigationV2 } from "./nav-etat.js?v=20261028a";
-import { routeVisibleV2, espaceDe, entreesNavigation, initialesDe, redirectionV2 } from "./nav-rules.js?v=20261028a";
-import { monterCoquille, majEntreeActive, coquilleMontee, retirerCoquille, majNouveautesCompte } from "./nav-shell.js?v=20261028a";
-import { lireAdresse, pagePersonnelle } from "./route-rules.js?v=20261028a";
+// En premier : le journal des erreurs (signalement de problème) capte celles des modules qui suivent.
+import "./journal-erreurs.js?v=20261029b";
+import { getCurrentUser, invalidateCache, verifyRecoveryToken, rechargerApresEnregistrements } from "./db.js?v=20261029b";
+import { toast, el } from "./utils.js?v=20261029b";
+import { icon } from "./icons.js?v=20261029b";
+import { initAuth, onAdminChange, isAuth, monStagiaireId, getAdminEmail, getProfile, getProfileWho, fondateurHorsApercu } from "./auth-admin.js?v=20261029b";
+import { chargerEtatSignalements } from "./signalement-etat.js?v=20261029b";
+import { messageDemarrage } from "./signalement-rules.js?v=20261029b";
+import { showGate, hideGate } from "./gate.js?v=20261029b";
+import { exigerAcceptation } from "./legal.js?v=20261029b";
+import { lireJetonRecuperation } from "./gate-rules.js?v=20261029b";
+import { loadAccent } from "./accent-switcher.js?v=20261029b";
+import { loadTheme } from "./theme-switcher.js?v=20261029b";
+import { renderHome } from "./views/home.js?v=20261029b";
+import { renderDashboard } from "./views/dashboard.js?v=20261029b";
+import { renderMonSuivi } from "./views/mon-suivi.js?v=20261029b";
+import { renderPlanning, teardownPrintTarget, resetPlanningEditMode, requestPlanningToday } from "./views/planning.js?v=20261029b";
+import { renderPlanningEspace } from "./views/planning-espace.js?v=20261029b";
+import { teardownDocPrint } from "./doc-officiel.js?v=20261029b";
+import { renderNotes } from "./views/notes.js?v=20261029b";
+import { renderRessources } from "./views/ressources.js?v=20261029b";
+import { renderThemes } from "./views/themes.js?v=20261029b";
+import { renderConfig, renderPreferences } from "./views/config.js?v=20261029b";
+import { renderCalendrier } from "./views/calendrier.js?v=20261029b";
+import { initUndoKeyboard } from "./undo.js?v=20261029b";
+import { renderNouveautes } from "./views/nouveautes.js?v=20261029b";
+import { libellePastille } from "./nouveautes.js?v=20261029b";
+import { renderCcp2 } from "./views/ccp2.js?v=20261029b";
+import { renderStagiaires } from "./views/stagiaires.js?v=20261029b";
+import { renderCentre, teardownCentrePrint } from "./views/centre.js?v=20261029b";
+import { teardownQualiopiPrint } from "./qualiopi-impression.js?v=20261029b";
+import { renderEmargement } from "./views/emargement.js?v=20261029b";
+import { renderProblemes } from "./views/problemes.js?v=20261029b";
+import { initBandeauEmargement, rafraichirBandeauEmargement } from "./emargement-bandeau.js?v=20261029b";
+import { chargerEmargementActif, emargementActif } from "./emargement-etat.js?v=20261029b";
+import { chargerNavigationV2, navigationV2Active, navigationV2Attendue, renoncerNavigationV2 } from "./nav-etat.js?v=20261029b";
+import { routeVisibleV2, espaceDe, entreesNavigation, initialesDe, redirectionV2, redirectionAncienne } from "./nav-rules.js?v=20261029b";
+import { monterCoquille, majEntreeActive, coquilleMontee, retirerCoquille, majNouveautesCompte } from "./nav-shell.js?v=20261029b";
+import { lireAdresse, pagePersonnelle } from "./route-rules.js?v=20261029b";
 import {
   peutQuitter, leverGardeSortie, majSurPlacePour, oublierMajSurPlace,
   noterAdresse, adresseCourante, remplacerAdresse, installerGardeNavigateur,
-} from "./navigation.js?v=20261028a";
-import { initChatbot, appliquerModuleAssistant } from "./chatbot.js?v=20261028a";
+} from "./navigation.js?v=20261029b";
+import { initChatbot, appliquerModuleAssistant } from "./chatbot.js?v=20261029b";
 import {
   chargerModules, chargerModulesAuDemarrage, onModulesChange, surveillerPremierPlan,
   routeVisible, routeMasquee, repereMasque, nouveautesAffichables, formateurConnecte,
-} from "./modules-etat.js?v=20261028a";
+} from "./modules-etat.js?v=20261029b";
 
 // ===== Tabs =====
 
@@ -152,7 +157,8 @@ function marquerOngletActuel() {
 // Pastille de nouveautés sur l'onglet Accueil. Elle se modifie sur place, sur
 // l'onglet existant : renderTabs() reconstruit la barre sans elle, donc cette
 // fonction se rappelle après chaque renderTabs().
-// Nouvelle navigation : la même pastille, sur les boutons du compte de la coquille (js/nav-shell.js).
+// Nouvelle navigation : un point sans chiffre, sur les boutons du compte de la coquille (js/nav-shell.js) ;
+// le nombre est sur la ligne « Nouveautés » du menu du compte (js/menu-compte.js).
 function majBadgeNouveautes() {
   if (coquilleMontee()) {
     majNouveautesCompte(libellePastille(nouveautesAffichables().neuves.size));
@@ -194,7 +200,7 @@ async function rendreQualiopi(view) {
   afficherChargement();
   let page;
   try {
-    page = await import("./views/qualiopi.js?v=20261028a");
+    page = await import("./views/qualiopi.js?v=20261029b");
   } catch (e) {
     console.error(e);
     if (lastRoute === "qualiopi") view.replaceChildren(boiteErreurQualiopi());
@@ -224,14 +230,18 @@ const routes = {
   emargement: renderEmargement,
   ressources: renderRessources,
   config:     renderConfig,
+  // Nouvelle navigation seulement : « Mes préférences », ouverte par le menu du compte. Avec l'ancienne,
+  // l'adresse mène à Paramètres avant d'arriver ici (suivreRedirection).
+  preferences: renderPreferences,
   nouveautes: renderNouveautes,
+  problemes:  renderProblemes,
 };
 
 // Routes sans onglet propre qui doivent quand même allumer un onglet. On arrive
 // sur #/nouveautes depuis Accueil, et sur #/dashboard (Priorités) depuis le
 // Planning : laisser la barre sans onglet actif donnerait l'impression d'être
 // sorti de l'app. Qualiopi (page du fondateur, sans entrée de barre) s'appuie sur Accueil comme le tableau de bord du centre.
-const ONGLET_POUR_ROUTE = { nouveautes: "home", dashboard: "planning", centre: "home", qualiopi: "home", emargement: "planning" };
+const ONGLET_POUR_ROUTE = { nouveautes: "home", dashboard: "planning", centre: "home", qualiopi: "home", emargement: "planning", problemes: "config" };
 
 let lastRoute = null;
 
@@ -277,9 +287,13 @@ function derniereRoute() {
 // replaceState ne déclenche aucun `hashchange` et n'ajoute aucune étape d'historique : un seul
 // rendu, et « Précédent » quitte la page redirigée. Une seule redirection par appel : aucune cible
 // n'est elle-même une ancienne adresse (tests/nav-rules.test.mjs).
-function suivreRedirectionV2() {
-  if (!navigationV2Active()) return;
-  const cible = redirectionV2(lireAdresse(location.hash), espaceCourant());
+// Deux adresses ont leur redirection dans chaque navigation (lot 2A) : sous la nouvelle, un stagiaire
+// qui ouvre Réglages (#/config) arrive sur Mes préférences (#/preferences) ; sous l'ancienne, qui n'a
+// pas Mes préférences, #/preferences mène à Paramètres (#/config). Rien d'autre ne bouge sous
+// l'ancienne : l'interrupteur éteint garde les adresses de main.
+function suivreRedirection() {
+  const adresse = lireAdresse(location.hash);
+  const cible = navigationV2Active() ? redirectionV2(adresse, espaceCourant()) : redirectionAncienne(adresse);
   if (!cible) return;
   if (cible.sousOnglet) {
     try { localStorage.setItem(cible.sousOnglet.cle, cible.sousOnglet.valeur); } catch (e) { /* mode privé */ }
@@ -292,9 +306,10 @@ async function navigate({ force = false } = {}) {
   // abandonnée sans accord. Refus : l'adresse affichée est remise, sans rendu.
   if (!peutQuitter()) { remplacerAdresse(adresseCourante()); return; }
   leverGardeSortie();
-  // Nouvelle navigation : les quatre anciennes adresses mènent à leur nouvel emplacement. Après
-  // la garde, donc suivre une redirection demande la même confirmation que n'importe quel départ.
-  suivreRedirectionV2();
+  // Nouvelle navigation : les quatre anciennes adresses mènent à leur nouvel emplacement, et Réglages
+  // du stagiaire à Mes préférences. Après la garde, donc suivre une redirection demande la même
+  // confirmation que n'importe quel départ.
+  suivreRedirection();
   // Adresses à segments (#/stagiaires/12/epcf) : le premier choisit la page, la
   // page lit le reste. Page de repli : « Mon suivi », où chacun retrouve ce qui
   // l'attend, son planning à venir et ses résultats.
@@ -304,6 +319,12 @@ async function navigate({ force = false } = {}) {
   // stagiaire est ramené sur Mon suivi, avec un mot d'explication.
   if (!routeOuverte(route)) {
     toast("Cette partie n'est pas encore ouverte pour ta promo.", "info", 3500);
+    try { history.replaceState(null, "", "#/mon-suivi"); } catch (e) { /* ignore */ }
+    route = "mon-suivi";
+  }
+  // Problèmes signalés (spec 2026-10-28) : le fondateur seulement, hors aperçu « Voir en tant que ».
+  // Les autres retombent sur leur page habituelle (la garde de la page à soi suit).
+  if (route === "problemes" && !fondateurHorsApercu()) {
     try { history.replaceState(null, "", "#/mon-suivi"); } catch (e) { /* ignore */ }
     route = "mon-suivi";
   }
@@ -323,7 +344,7 @@ async function navigate({ force = false } = {}) {
     toast("L'émargement n'est pas activé pour cette promo.", "info", 3500);
     try { history.replaceState(null, "", "#/home"); } catch (e) { /* ignore */ }
     route = "home";
-  } else if (route === "qualiopi" && !isFounder()) {
+  } else if (route === "qualiopi" && !fondateurHorsApercu()) {
     // Page Qualiopi (spec 2026-10-28, § 6.3) : le fondateur seul, avant la refonte du lot 5. Aucune entrée de barre ne la
     // montre aux autres ; une adresse saisie ou un favori les ramène à l'accueil, sans un mot.
     try { history.replaceState(null, "", "#/home"); } catch (e) { /* ignore */ }
@@ -412,6 +433,7 @@ async function actualiser() {
   afficherChargement();
   // Un formateur a pu ouvrir un module depuis le dernier chargement.
   await chargerModules();
+  chargerEtatSignalements();
   navigate({ force: true });
 }
 
@@ -519,8 +541,17 @@ async function bootApp() {
   suivreHauteurBarre();
   initChatbot();
   majPresenceModules();
+  // Signaler un problème : compteurs des pastilles, et un mot à l'ouverture quand un signalement a avancé
+  // (ou, chez le fondateur, quand il y en a de nouveaux).
+  chargerEtatSignalements().then((etat) => {
+    const phrase = messageDemarrage({ fondateur: fondateurHorsApercu(), ...etat });
+    if (phrase) setTimeout(() => toast(phrase, "info", 6000), 1500);
+  });
   // Le changement de rôle change l'audience, donc le compte, et ce qu'on voit des modules.
-  onAdminChange(() => { renderTabs(); majBadgeNouveautes(); majPresenceModules(); navigate({ force: true }); rafraichirBandeauEmargement(); });
+  onAdminChange(() => {
+    renderTabs(); majBadgeNouveautes(); majPresenceModules(); navigate({ force: true }); rafraichirBandeauEmargement();
+    chargerEtatSignalements();
+  });
   // Un module ouvert ou fermé (réglage d'un formateur, relecture au premier plan) :
   // barre, pastille et raccourcis suivent. La vue n'est rejouée que si elle vient
   // d'être fermée, pour ne pas détruire une saisie en cours.
