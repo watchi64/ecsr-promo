@@ -11,8 +11,8 @@
 --    user_profiles suit ses règles.
 --
 -- 2. supabase/migrations/20261028_roles_2_fonctions_retour.sql
---    Partie 1 : string_agg(section, E'\n\n' order by ord) des lignes 1 à 20 (les fonctions modifiées par
---    l'étape 2). Partie 3 : la ligne 21 (mes_promos), sans sa première ligne de commentaire, après
+--    Partie 1 : string_agg(section, E'\n\n' order by ord) des lignes 1 à 21 (les fonctions modifiées par
+--    l'étape 2). Partie 3 : la ligne 22 (mes_promos), sans sa première ligne de commentaire, après
 --    « drop function public.mes_promos(); » et avant ses revoke et grant. La partie 2 (suppression des
 --    fonctions créées par l'étape 2) n'est pas générée. nb_surcharges doit valoir 1 partout : sinon un nom
 --    désigne plusieurs fonctions et la liste est à revoir.
@@ -68,7 +68,7 @@ with liste as (
                       'notes_stagiaires_visibles', 'is_admin', 'is_prof', 'is_founder', 'emargement_feuille',
                       'emargement_ouvrir', 'emargement_signer', 'anonymiser_promo', 'anonymiser_stagiaire',
                       'etat_anonymisation_promo', 'set_date_naissance', 'venues_benevoles', 'benevoles_a_purger',
-                      'purger_benevoles', 'accepter_brouillon_ia', 'rejeter_brouillon_ia', 'mes_promos'])
+                      'purger_benevoles', 'accepter_brouillon_ia', 'rejeter_brouillon_ia', '_anonymiser_stagiaire', 'mes_promos'])
          with ordinality as u(n, o)
 ), f as (
   select l.ord, l.nom,

@@ -9,7 +9,7 @@
 --      (appel rpc is_admin) continuent de marcher. À ne plus utiliser dans du code neuf.
 --   4. Fonctions serveur (émargement, anonymisation, bénévoles, brouillons IA) : formateur_courant() ou equipe_courante().
 --   5. Trois fonctions nouvelles : inviter_compte (remplace l'appel à invite-user), creer_promo, modifier_dates_promo.
--- Les 20 fonctions existantes sont modifiées par create or replace, mêmes paramètres, même type de retour : leurs droits
+-- Les 21 fonctions existantes (dont _anonymiser_stagiaire, interne) sont modifiées par create or replace, mêmes paramètres, même type de retour : leurs droits
 -- d'exécution d'origine (emargement_feuille fermée au public, notes_stagiaires_visibles sans anon) sont conservés.
 -- Seule mes_promos est supprimée puis recréée, avec ses droits, car elle gagne une colonne. L'aperçu (en-tête
 -- x-apercu-role) ne fait que retirer des droits ; la direction et le siège n'ont pas encore d'espace dans l'app (lot 5).
@@ -323,6 +323,114 @@ begin
 end;
 $function$;
 
+-- _anonymiser_stagiaire (interne, vrai garde-fou) : un compte d'équipe n'est jamais anonymisé. Est d'équipe un compte qui a une
+-- affectation (formateur, direction, siège), en plus des colonnes is_admin et is_founder des anciens clients. Un exists direct
+-- sur affectations : a_une_affectation n'existe qu'à l'étape 3. create or replace, droits d'exécution inchangés.
+CREATE OR REPLACE FUNCTION public._anonymiser_stagiaire(p_id integer)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public', 'auth', 'pg_temp'
+AS $function$
+declare
+  s record;
+  v_emails text[];
+  v_noms text[];          -- formes sous lesquelles la personne apparaît dans les champs « qui »
+  v_remplace constant text := 'Stagiaire anonyme';
+  v_n jsonb := '{}'::jsonb;
+  n integer;
+  x text;
+begin
+  select * into s from stagiaires where id = p_id for update;
+  if not found then raise exception 'Stagiaire introuvable'; end if;
+  if s.anonymise_le is not null then return jsonb_build_object('deja', true); end if;
+
+  if exists (select 1 from user_profiles u where u.stagiaire_id = p_id
+                and (u.is_admin or u.is_founder or exists (select 1 from affectations a where lower(a.email) = lower(u.email)))) then
+    raise exception 'Compte administrateur : anonymisation refusée (retirer d''abord le droit admin)';
+  end if;
+
+  select coalesce(array_agg(distinct lower(email)), '{}') into v_emails
+    from user_profiles where stagiaire_id = p_id;
+  -- Nom affiché dans l'app (« V. Timy », cf. displayStagiaire) et e-mails (repli de getProfileWho).
+  v_noms := array[case when coalesce(trim(s.nom), '') <> ''
+                       then upper(left(trim(s.nom), 1)) || '. ' || s.prenom else s.prenom end]
+            || v_emails;
+
+  -- Documents et données privées : supprimés.
+  delete from stagiaires_prive where stagiaire_id = p_id; get diagnostics n = row_count; v_n := v_n || jsonb_build_object('date_naissance', n);
+  delete from dp_dossiers where stagiaire_id = p_id;      get diagnostics n = row_count; v_n := v_n || jsonb_build_object('dossier_pro', n);
+  delete from epcf_livrets where stagiaire_id = p_id;     get diagnostics n = row_count; v_n := v_n || jsonb_build_object('livret', n);
+  delete from fiches_suivi where stagiaire_id = p_id;     get diagnostics n = row_count; v_n := v_n || jsonb_build_object('fiche_suivi', n);
+
+  -- Résultats conservés, textes libres vidés (ils peuvent contenir un prénom, une santé…).
+  -- (epcf_evaluations.contexte n'est pas un texte libre : c'est un code, « EPCF ».)
+  update epcf_evaluations set commentaire = null where stagiaire_id = p_id and commentaire is not null;
+  get diagnostics n = row_count; v_n := v_n || jsonb_build_object('epcf_textes', n);
+  update evaluations set observation = null where stagiaire_id = p_id and observation is not null;
+  get diagnostics n = row_count; v_n := v_n || jsonb_build_object('observations', n);
+  update passages set commentaire = null where stagiaire_id = p_id and commentaire is not null;
+  get diagnostics n = row_count; v_n := v_n || jsonb_build_object('commentaires_passages', n);
+
+  -- E-mails de la personne, partout où ils servent de signature.
+  if cardinality(v_emails) > 0 then
+    update evaluations set created_by_email = 'anonyme' where lower(created_by_email) = any(v_emails);
+    update evaluations set updated_by_email = 'anonyme' where lower(updated_by_email) = any(v_emails);
+    update evaluations_audit set changed_by_email = 'anonyme' where lower(changed_by_email) = any(v_emails);
+    update agenda_events set created_by_email = 'anonyme' where lower(created_by_email) = any(v_emails);
+    update qcm_signalements set email = 'anonyme' where lower(email) = any(v_emails);
+    update themes set updated_by_email = 'anonyme' where lower(updated_by_email) = any(v_emails);
+    update themes_progression set updated_by_email = 'anonyme' where lower(updated_by_email) = any(v_emails);
+    update user_profiles set invited_by_email = 'anonyme' where lower(invited_by_email) = any(v_emails);
+    delete from conditions_acceptations where lower(email) = any(v_emails);
+  end if;
+
+  -- Champs « qui a fait la modification » (nom affiché ou e-mail).
+  update passages set created_by_who = v_remplace where created_by_who = any(v_noms);
+  update passages set updated_by_who = v_remplace where updated_by_who = any(v_noms);
+  update passages_audit set changed_by_who = v_remplace where changed_by_who = any(v_noms);
+  update epcf_evaluations set updated_by_who = v_remplace where updated_by_who = any(v_noms);
+  update planning_jours_off set created_by_who = v_remplace where created_by_who = any(v_noms);
+
+  -- Historiques : les mêmes valeurs dans les instantanés JSON (valeurs exactes entre guillemets).
+  foreach x in array v_noms loop
+    update passages_audit
+       set before_data = replace(before_data::text, to_jsonb(x)::text, to_jsonb(v_remplace)::text)::jsonb,
+           after_data  = replace(after_data::text,  to_jsonb(x)::text, to_jsonb(v_remplace)::text)::jsonb
+     where before_data::text like '%' || to_jsonb(x)::text || '%'
+        or after_data::text  like '%' || to_jsonb(x)::text || '%';
+    update evaluations_audit
+       set before_data = replace(before_data::text, to_jsonb(x)::text, to_jsonb('anonyme'::text)::text)::jsonb,
+           after_data  = replace(after_data::text,  to_jsonb(x)::text, to_jsonb('anonyme'::text)::text)::jsonb
+     where before_data::text like '%' || to_jsonb(x)::text || '%'
+        or after_data::text  like '%' || to_jsonb(x)::text || '%';
+  end loop;
+
+  -- Les historiques gardent une copie des lignes : on y vide aussi les textes libres.
+  update evaluations_audit
+     set before_data = case when before_data ? 'observation' then jsonb_set(before_data, '{observation}', 'null') else before_data end,
+         after_data  = case when after_data  ? 'observation' then jsonb_set(after_data,  '{observation}', 'null') else after_data end
+   where (before_data ->> 'stagiaire_id')::int = p_id or (after_data ->> 'stagiaire_id')::int = p_id;
+  update passages_audit
+     set before_data = case when before_data ? 'commentaire' then jsonb_set(before_data, '{commentaire}', 'null') else before_data end,
+         after_data  = case when after_data  ? 'commentaire' then jsonb_set(after_data,  '{commentaire}', 'null') else after_data end
+   where (before_data ->> 'stagiaire_id')::int = p_id or (after_data ->> 'stagiaire_id')::int = p_id;
+
+  -- Compte : profil puis compte de connexion (sessions, compteur de l'assistant en cascade).
+  delete from user_profiles where stagiaire_id = p_id; get diagnostics n = row_count; v_n := v_n || jsonb_build_object('profils', n);
+  if cardinality(v_emails) > 0 then
+    delete from auth.users where lower(email) = any(v_emails); get diagnostics n = row_count;
+    v_n := v_n || jsonb_build_object('comptes', n);
+  end if;
+
+  update stagiaires
+     set prenom = 'Anonyme ' || p_id, nom = null, actif = false, date_naissance = null, anonymise_le = now()
+   where id = p_id;
+
+  return v_n;
+end;
+$function$;
+
 -- anonymiser_promo : equipe_courante().
 CREATE OR REPLACE FUNCTION public.anonymiser_promo()
  RETURNS jsonb
@@ -344,7 +452,8 @@ begin
     raise exception 'Anonymisation possible à partir du %', to_char((p.date_fin + interval '12 months')::date, 'DD/MM/YYYY');
   end if;
   for s in select id from stagiaires where promo_id = p.id and anonymise_le is null order by id loop
-    if exists (select 1 from user_profiles u where u.stagiaire_id = s.id and (u.is_admin or u.is_founder)) then
+    if exists (select 1 from user_profiles u where u.stagiaire_id = s.id
+                  and (u.is_admin or u.is_founder or exists (select 1 from affectations a where lower(a.email) = lower(u.email)))) then
       v_ignores := v_ignores + 1;
       continue;
     end if;
@@ -405,7 +514,8 @@ begin
     'anonymisable', p.date_fin is not null and current_date >= (p.date_fin + interval '12 months')::date,
     'restants', (select count(*) from stagiaires where promo_id = p.id and anonymise_le is null),
     'comptes_admin', (select count(*) from stagiaires s where s.promo_id = p.id and s.anonymise_le is null
-                        and exists (select 1 from user_profiles u where u.stagiaire_id = s.id and (u.is_admin or u.is_founder))),
+                        and exists (select 1 from user_profiles u where u.stagiaire_id = s.id
+                                       and (u.is_admin or u.is_founder or exists (select 1 from affectations a where lower(a.email) = lower(u.email))))),
     'anonymises', (select count(*) from stagiaires where promo_id = p.id and anonymise_le is not null)
   );
 end;
@@ -582,7 +692,8 @@ end $function$;
 -- Exécutables par authenticated seulement ; un droit manquant lève l'état 42501, avec une phrase que l'app affiche telle quelle.
 
 -- inviter_compte : crée le profil (s'il manque) puis l'affectation, selon qui invite quel rôle. Un profil existant n'est jamais
--- rétrogradé ni relié à une seconde fiche. Les colonnes role, is_admin et prof_id sont posées comme avant pour les anciens clients.
+-- rétrogradé ni relié à une seconde fiche. Les colonnes role, is_admin et prof_id sont posées comme avant pour les anciens clients ;
+-- prof_id n'est posé que si la fiche existe et n'est reliée à aucun compte. Le retour dit si le profil vient d'être créé.
 CREATE FUNCTION public.inviter_compte(p_email text, p_role text, p_stagiaire_id integer DEFAULT NULL::integer, p_prof_id integer DEFAULT NULL::integer, p_lieu_id integer DEFAULT NULL::integer)
  RETURNS jsonb
  LANGUAGE plpgsql
@@ -595,6 +706,10 @@ declare
   v_role text := case when p_role = 'prof' then 'formateur' else p_role end;
   v_promo integer;
   v_promo_fiche integer;
+  v_anonymise timestamptz;
+  v_prof integer;
+  v_n bigint;
+  v_cree boolean;
 begin
   if v_moi is null then
     raise exception 'invitation: Connexion requise.' using errcode = '42501';
@@ -602,19 +717,23 @@ begin
   if v_role is null or v_role not in ('stagiaire', 'formateur', 'direction', 'siege') then
     raise exception 'invitation: Rôle inconnu.';
   end if;
-  if position('@' in v_email) < 2 then
+  if v_email !~ '^\S+@\S+\.\S+$' then
     raise exception 'invitation: Adresse e-mail invalide.';
   end if;
 
   if v_role = 'stagiaire' then
     -- Formateur ou direction de la promo de la fiche.
-    select s.promo_id into v_promo_fiche from stagiaires s where s.id = p_stagiaire_id;
+    select s.promo_id, s.anonymise_le into v_promo_fiche, v_anonymise from stagiaires s where s.id = p_stagiaire_id;
     if v_promo_fiche is null or not (est_formateur(v_promo_fiche) or est_direction(lieu_de_promo(v_promo_fiche))) then
       raise exception 'invitation: Pas de droit sur la promo de ce stagiaire.' using errcode = '42501';
+    end if;
+    if v_anonymise is not null then
+      raise exception 'invitation: Cette fiche est anonymisée.';
     end if;
     insert into user_profiles (email, role, is_admin, stagiaire_id, invited_by_email)
     values (v_email, 'stagiaire', false, p_stagiaire_id, v_moi)
     on conflict (email) do nothing;
+    get diagnostics v_n = row_count;
 
   elsif v_role = 'formateur' then
     -- Direction du centre de la promo affichée, ou fondateur : l'affectation porte sur la promo affichée.
@@ -622,9 +741,13 @@ begin
     if v_promo is null or not est_direction(lieu_de_promo(v_promo)) then
       raise exception 'invitation: Réservé à la direction du centre.' using errcode = '42501';
     end if;
+    -- La fiche formateur n'est posée que si elle existe et n'est reliée à aucun compte.
+    select pf.id into v_prof from profs pf
+     where pf.id = p_prof_id and not exists (select 1 from user_profiles u where u.prof_id = pf.id);
     insert into user_profiles (email, role, is_admin, prof_id, invited_by_email)
-    values (v_email, 'prof', true, p_prof_id, v_moi)
+    values (v_email, 'prof', true, v_prof, v_moi)
     on conflict (email) do nothing;
+    get diagnostics v_n = row_count;
     insert into affectations (email, role, promo_id)
     values (v_email, 'formateur', v_promo)
     on conflict do nothing;
@@ -640,6 +763,7 @@ begin
     insert into user_profiles (email, role, is_admin, invited_by_email)
     values (v_email, 'prof', false, v_moi)
     on conflict (email) do nothing;
+    get diagnostics v_n = row_count;
     insert into affectations (email, role, lieu_id)
     values (v_email, 'direction', p_lieu_id)
     on conflict do nothing;
@@ -652,12 +776,14 @@ begin
     insert into user_profiles (email, role, is_admin, invited_by_email)
     values (v_email, 'prof', false, v_moi)
     on conflict (email) do nothing;
+    get diagnostics v_n = row_count;
     insert into affectations (email, role)
     values (v_email, 'siege')
     on conflict do nothing;
   end if;
 
-  return jsonb_build_object('email', v_email, 'role', v_role);
+  v_cree := v_n > 0;
+  return jsonb_build_object('email', v_email, 'role', v_role, 'cree', v_cree);
 end;
 $function$;
 
@@ -718,6 +844,6 @@ end;
 $function$;
 
 revoke all on function public.inviter_compte(text, text, integer, integer, integer),
-  public.creer_promo(integer, text, date, date), public.modifier_dates_promo(integer, date, date) from public, anon;
+  public.creer_promo(integer, text, date, date), public.modifier_dates_promo(integer, date, date) from public, anon, service_role;
 grant execute on function public.inviter_compte(text, text, integer, integer, integer),
   public.creer_promo(integer, text, date, date), public.modifier_dates_promo(integer, date, date) to authenticated;

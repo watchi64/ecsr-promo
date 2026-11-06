@@ -642,6 +642,27 @@ begin
   return v_obt;
 end $fx$;
 
+create or replace function pg_temp.suite(p_email text, p_ctx text, p_prep text, p_sqls text[])
+returns text language plpgsql as $fx$
+declare v text; r text := ''; q text;
+begin
+  begin
+    perform pg_temp.proprio();
+    if p_prep is not null then execute p_prep; end if;
+    perform pg_temp.incarner(p_email, p_ctx, null);
+    foreach q in array p_sqls loop
+      execute q into v;
+      r := r || coalesce(v, 'nul') || ' ';
+    end loop;
+    perform pg_temp.proprio();
+    raise exception using errcode = 'P0001', message = 'SUITE ' || r;
+  exception when others then
+    perform pg_temp.proprio();
+    if sqlstate = 'P0001' and sqlerrm like 'SUITE %' then return rtrim(substr(sqlerrm, 7)); end if;
+    return 'ERREUR ' || sqlstate || ' ' || r;
+  end;
+end $fx$;
+
 create or replace function pg_temp.etat_compte(p_email text)
 returns text language plpgsql as $fx$
 declare v_profil text; v_aff text;
@@ -1393,7 +1414,7 @@ begin
   v_f2 := (select c.fiche from cibles c where c.promo = 2);
   v_l1 := (select pr.lieu_id from public.promos pr where pr.id = 1);
   v_l2 := (select pr.lieu_id from public.promos pr where pr.id = 2);
-  v_prof := (select min(p.id) from public.profs p);
+  insert into public.profs (nom) values ('PreuveFicheLibre') returning id into v_prof;
   v_fin1 := (select coalesce(pr.date_fin, pr.date_debut + 300) + 1 from public.promos pr where pr.id = 1);
   v_fin2 := (select coalesce(pr.date_fin, pr.date_debut + 300) + 1 from public.promos pr where pr.id = 2);
   --    d) Aperçu. Le fondateur en aperçu formateur, direction ou siège sur la promo 1 voit ce que voient form_n, dir_n et
@@ -1528,6 +1549,57 @@ begin
   ) a(lib, email, ctx, sql, cible, att) loop
     perform pg_temp.cas('inviter_compte', v_x.lib, v_x.email, v_x.ctx, case when v_x.lib like '%en aperçu%' then 'formateur' end, null, v_x.sql, format('select pg_temp.etat_compte(%L)', v_x.cible), v_x.att);
   end loop;
+  --    g bis) Relecture de la Task 4 : un compte d'équipe (affectation) n'est jamais anonymisé, même avec is_admin faux ;
+  --       inviter_compte ne pose prof_id que d'une fiche libre, dit si le profil est créé, refuse une fiche anonymisée et
+  --       une adresse mal formée ; les nouvelles fonctions ne sont exécutables que par authenticated. Chaque refus a son jumeau
+  --       permis (même montage sans l'affectation) et l'effet est relu par le propriétaire.
+  v_txt := format($aj$insert into public.stagiaires (id, promo_id, prenom, actif) values (987001, 1, 'PreuveFiche', false);
+    insert into public.user_profiles (email, role, is_admin, stagiaire_id) values (%L, 'prof', false, 987001);
+    update public.promos set date_fin = date '2020-01-01' where id = 1;$aj$, 'preuve.equipe.fiche@exemple.invalid');
+  for v_x in select * from (values
+    ('anonymiser_stagiaire : fiche d''un compte à affectation direction (is_admin faux) : jamais anonymisée', true,
+       'do $d$ begin perform public.anonymiser_stagiaire(987001); exception when others then null; end $d$', 'false 1'),
+    ('anonymiser_stagiaire : jumeau sans affectation : anonymisée', false,
+       'do $d$ begin perform public.anonymiser_stagiaire(987001); exception when others then null; end $d$', 'true 0'),
+    ('anonymiser_promo : fiche d''un compte à affectation direction (is_admin faux) : ignorée', true,
+       'select public.anonymiser_promo()', 'false 1'),
+    ('anonymiser_promo : jumeau sans affectation : anonymisée', false,
+       'select public.anonymiser_promo()', 'true 0')
+  ) a(lib, equipe, sql, att) loop
+    perform pg_temp.verifier('anonymat', v_x.lib, pg_temp.essai_proprio(c_dir_n, '1', null,
+      v_txt || case when v_x.equipe then format(' insert into public.affectations (email, role, lieu_id) values (%L, ''direction'', %s);', 'preuve.equipe.fiche@exemple.invalid', v_l1) else '' end,
+      v_x.sql,
+      format('select (select (anonymise_le is not null)::text from public.stagiaires where id = 987001) || '' '' || (select count(*) from public.user_profiles where email = %L)', 'preuve.equipe.fiche@exemple.invalid')) = v_x.att,
+      v_x.lib);
+  end loop;
+  perform pg_temp.verifier('anonymat', 'etat_anonymisation_promo : un compte à affectation compte comme équipe (un de plus que son jumeau)',
+    pg_temp.essai_proprio(c_dir_n, '1', null, v_txt || format(' insert into public.affectations (email, role, lieu_id) values (%L, ''direction'', %s);', 'preuve.equipe.fiche@exemple.invalid', v_l1),
+        'select 1', 'select public.etat_anonymisation_promo() ->> ''comptes_admin''') ~ '^[0-9]+$'
+    and pg_temp.essai_proprio(c_dir_n, '1', null, v_txt || format(' insert into public.affectations (email, role, lieu_id) values (%L, ''direction'', %s);', 'preuve.equipe.fiche@exemple.invalid', v_l1),
+        'select 1', 'select public.etat_anonymisation_promo() ->> ''comptes_admin''')::int
+        = pg_temp.essai_proprio(c_dir_n, '1', null, v_txt, 'select 1', 'select public.etat_anonymisation_promo() ->> ''comptes_admin''')::int + 1,
+    'etat_anonymisation_promo : comptes_admin');
+  perform pg_temp.cas('inviter_compte', 'prof_id inconnu : le profil est créé sans fiche formateur', c_dir_n, '1', null, null,
+    format('select public.inviter_compte(%L, ''formateur'', null, 987654)', c_invite), format('select pg_temp.etat_compte(%L)', c_invite), array['OK 1 prof/true/-/- formateur:1']);
+  perform pg_temp.cas('inviter_compte', 'prof_id déjà relié à un autre compte : le profil est créé sans fiche formateur', c_dir_n, '1', null,
+    format('insert into public.user_profiles (email, role, is_admin, prof_id) values (''preuve.deja.relie@exemple.invalid'', ''prof'', true, %s)', v_prof),
+    format('select public.inviter_compte(%L, ''formateur'', null, %s)', c_invite, v_prof), format('select pg_temp.etat_compte(%L)', c_invite), array['OK 1 prof/true/-/- formateur:1']);
+  perform pg_temp.verifier('inviter_compte', 'cree : vrai à la création, faux à la répétition, faux pour un profil qui existait',
+    pg_temp.suite(c_dir_n, '1', null, array[
+      format('select (public.inviter_compte(%L, ''formateur'', null, %s) ->> ''cree'')', 'preuve.cree@exemple.invalid', v_prof),
+      format('select (public.inviter_compte(%L, ''formateur'', null, %s) ->> ''cree'')', 'preuve.cree@exemple.invalid', v_prof),
+      format('select (public.inviter_compte(%L, ''formateur'') ->> ''cree'')', c_form_m)]) = 'true false false', 'cree');
+  perform pg_temp.cas('inviter_compte', 'fiche anonymisée refusée', c_form_n, '1', null, format('update public.stagiaires set anonymise_le = now() where id = %s', v_f1),
+    format('select public.inviter_compte(%L, ''stagiaire'', %s)', c_invite, v_f1), format('select pg_temp.etat_compte(%L)', c_invite), array['~REFUS']);
+  foreach v_txt in array array['a@b', 'sans-arobase', 'a b@c.d', '@c.d', 'a@.d'] loop
+    perform pg_temp.cas('inviter_compte', format('adresse invalide %L refusée', v_txt), c_dir_n, '1', null, null,
+      format('select public.inviter_compte(%L, ''formateur'', null, %s)', v_txt, v_prof), null, array['~REFUS']);
+  end loop;
+  perform pg_temp.verifier('structure', 'inviter_compte, creer_promo, modifier_dates_promo : authenticated seul (ni public, ni anon, ni service_role)',
+    (select bool_and(has_function_privilege('authenticated', f, 'execute') and not has_function_privilege('service_role', f, 'execute')
+                     and not has_function_privilege('anon', f, 'execute'))
+       from unnest(array['public.inviter_compte(text, text, integer, integer, integer)', 'public.creer_promo(integer, text, date, date)',
+                         'public.modifier_dates_promo(integer, date, date)']) f), 'droits');
   --    h) Affectations, par écriture directe : la direction du lieu affecte ses formateurs, le siège ses directions, le
   --       fondateur le siège ; nul ne modifie une ligne.
   for v_x in select * from (values
