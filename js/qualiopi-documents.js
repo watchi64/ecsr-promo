@@ -78,6 +78,10 @@ export function promoTerminee(promo, aujourdhui) {
 }
 
 const libellePromo = (promo) => texte(promo?.nom, "promo sans nom");
+// Sans accents ni majuscules, pour comparer deux noms.
+const nu = (mot) => mot.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+// « Nîmes, mars 2026 » : le centre, puis la promo, sauf quand le nom de la promo contient déjà le centre (« Nîmes, Nîmes, mars 2026 »).
+const centreEtPromo = (centre, promo) => (nu(libellePromo(promo)).includes(nu(centre)) ? libellePromo(promo) : `${centre}, ${libellePromo(promo)}`);
 const nomComplet = (s) => [s?.nom, s?.prenom].filter(rempli).map((x) => x.trim()).join(" ") || "Stagiaire sans nom";
 const enFormationDe = (donnees) => tableau(donnees.stagiaires).filter((s) => s.actif).sort(compareByNom);
 // « Édité le 28/10/2026 » : exportée, la fiche des résultats (js/qualiopi-resultats.js) date son édition de la même façon.
@@ -398,7 +402,7 @@ export function modeleDossierFormation({ inv, donnees, ind, promo, lieu, intitul
   const centre = texte(lieu, "centre non renseigné");
   return assembler({
     titre: "Dossier de la formation",
-    sousTitre: `${centre}, ${libellePromo(promo)}`,
+    sousTitre: centreEtPromo(centre, promo),
     garde: [
       `Centre : ${centre}`,
       `Promo : ${libellePromo(promo)}`,

@@ -372,6 +372,12 @@ eq(PHRASE_DE_GARDE, "Pièces issues de l'application ECSR Promo, à joindre au d
   "la phrase de garde du § 6.4, mot pour mot");
 eq(f.titre, "Dossier de la formation", "titre");
 eq(f.sousTitre, "Montpellier, Promo de test", "sous-titre : le centre et la promo");
+{
+  const sousTitreDe = (lieu, nom) => formation({ lieu, promo: { ...PROMO, nom } }).sousTitre;
+  eq(sousTitreDe("Nîmes", "Nîmes, mars 2026"), "Nîmes, mars 2026", "sous-titre : le nom de la promo contient déjà le centre, qui n'est pas répété");
+  eq(sousTitreDe("Nimes", "NÎMES, mars 2026"), "NÎMES, mars 2026", "sous-titre : sans égard à la casse ni aux accents");
+  eq(sousTitreDe("Nîmes", "Montpellier, mars 2026"), "Nîmes, Montpellier, mars 2026", "sous-titre : un autre nom de ville ne cache pas le centre");
+}
 eq(f.garde, [
   "Centre : Montpellier",
   "Promo : Promo de test",
