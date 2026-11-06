@@ -1,6 +1,14 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { fenetreMessages, pageDepuisHash, extraireEvenements } from "../js/chatbot-rules.js";
+import { fenetreMessages, pageDepuisHash, extraireEvenements, corpsRequete } from "../js/chatbot-rules.js";
+
+test("corpsRequete : la fenêtre, la page et la barre que voit la personne", () => {
+  const histo = [{ role: "user", content: "Où est le calendrier ?", extra: true }];
+  assert.deepEqual(corpsRequete(histo, "#/stagiaires/12", true), {
+    messages: [{ role: "user", content: "Où est le calendrier ?" }], page: "stagiaires", navigation: "nouvelle",
+  });
+  assert.equal(corpsRequete(histo, "#/planning", false).navigation, "ancienne");
+});
 
 test("fenetreMessages garde les derniers messages et epure les champs", () => {
   const histo = Array.from({ length: 12 }, (_, i) => ({

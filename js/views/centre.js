@@ -4,12 +4,12 @@
 // (impression du navigateur) et CSV de la matrice des notes. Les calculs vivent dans
 // js/centre-stats.js et js/centre-csv.js (purs, testés) : ici, seulement l'affichage.
 
-import { lireDonneesCentre, lireReferentielCentre, getMesPromos, getPromoCourante } from "../db.js?v=20261029b";
-import { el, clear, isoDate, formatDate, displayStagiaire, toast, tableauEnListe } from "../utils.js?v=20261029b";
-import { icon } from "../icons.js?v=20261029b";
-import { indicateursPromo, ligneComparaison, METHODES } from "../centre-stats.js?v=20261029b";
-import { matriceNotesCsv, nomFichierCsv } from "../centre-csv.js?v=20261029b";
-import { navigationV2Active } from "../nav-etat.js?v=20261029b";
+import { lireDonneesCentre, lireReferentielCentre, getMesPromos, getPromoCourante } from "../db.js?v=20261106a";
+import { el, clear, isoDate, formatDate, displayStagiaire, toast, tableauEnListe } from "../utils.js?v=20261106a";
+import { icon } from "../icons.js?v=20261106a";
+import { indicateursPromo, ligneComparaison, METHODES } from "../centre-stats.js?v=20261106a";
+import { matriceNotesCsv, nomFichierCsv } from "../centre-csv.js?v=20261106a";
+import { navigationV2Active } from "../nav-etat.js?v=20261106a";
 
 let rendu = 0;   // un rendu plus récent rend caduc celui qui attend encore ses données
 

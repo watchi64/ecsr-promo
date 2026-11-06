@@ -12,6 +12,16 @@ export function pageDepuisHash(hash) {
   return route || "mon-suivi";
 }
 
+// Corps de la requete envoyee a l'Edge Function. `navigation` lui dit quelle barre voit
+// la personne : elle choisit le guide de l'app qui la decrit.
+export function corpsRequete(histo, hash, navigationV2) {
+  return {
+    messages: fenetreMessages(histo),
+    page: pageDepuisHash(hash),
+    navigation: navigationV2 ? "nouvelle" : "ancienne",
+  };
+}
+
 export function extraireEvenements(tampon, morceau) {
   const lignes = (String(tampon) + String(morceau)).split("\n");
   const restant = lignes.pop() ?? "";

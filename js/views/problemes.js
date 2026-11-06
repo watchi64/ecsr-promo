@@ -5,16 +5,16 @@
 // statut en quatre boutons, réponse, suppression. Une action met la carte à jour sur place : elle ne change
 // pas de sous-onglet avant le prochain affichage de la page.
 
-import { el, clear, toast } from "../utils.js?v=20261029b";
-import { fondateurHorsApercu } from "../auth-admin.js?v=20261029b";
+import { el, clear, toast } from "../utils.js?v=20261106a";
+import { fondateurHorsApercu } from "../auth-admin.js?v=20261106a";
 import {
   listSignalementsApp, captureSignalementApp, traiterSignalementApp, supprimerSignalementApp,
-} from "../db.js?v=20261029b";
-import { chargerEtatSignalements } from "../signalement-etat.js?v=20261029b";
-import { renderSubTabs } from "../subtabs.js?v=20261029b";
+} from "../db.js?v=20261106a";
+import { chargerEtatSignalements } from "../signalement-etat.js?v=20261106a";
+import { renderSubTabs } from "../subtabs.js?v=20261106a";
 import {
   libelleStatut, resumeContexte, detailContexte, adresseSure, normaliserContexte,
-} from "../signalement-rules.js?v=20261029b";
+} from "../signalement-rules.js?v=20261106a";
 
 const STATUTS = ["nouveau", "en_cours", "regle", "non_retenu"];
 const A_TRAITER = new Set(["nouveau", "en_cours"]);
