@@ -327,6 +327,7 @@
 
 @media print {
   body.qualiopi-printable > *:not(#qualiopi-print) { display: none !important; }
+  html:has(body.qualiopi-printable) { background: #fff !important; }   /* le fond de l'app ne colore pas le bas d'une page courte */
   body.qualiopi-printable { margin: 0; padding: 0; background: #fff; }
   body.qualiopi-printable #qualiopi-print { display: block !important; }
   #qualiopi-print, #qualiopi-print * {

@@ -236,6 +236,7 @@ ok(!/overflow(-x)?\s*:\s*(auto|scroll)/.test(hors_commentaires), "aucun défilem
 ok(!/--c-stop/.test(hors_commentaires), "jamais de rouge : la variable des statuts négatifs n'y est pas");
 ok(/\.qualiopi \.btn \{[^}]*min-height: 44px/.test(hors_commentaires) && /\.qualiopi-critere > summary \{[^}]*min-height: 44px/.test(hors_commentaires)
   && /\.qualiopi-select \{[^}]*min-height: 44px/.test(hors_commentaires) && /\.qualiopi-case \{[^}]*min-height: 44px/.test(hors_commentaires), "cibles de 44 px : boutons, critères, sélecteur, cases");
+ok(/html:has\(body\.qualiopi-printable\) \{[^}]*background: #fff/.test(hors_commentaires), "impression : le fond de la page de l'app est blanc (le bas d'une fiche courte ne se teinte pas quand les arrière-plans sont imprimés)");
 ok(/\.qdoc-table th, \.qdoc-table td \{[^}]*overflow-wrap: break-word/.test(hors_commentaires) && !/\.qdoc-table th, \.qdoc-table td \{[^}]*overflow-wrap: anywhere/.test(hors_commentaires), "tableaux imprimés : un mot ne se coupe qu'en dernier recours (une date de semaine reste entière)");
 ok(/\.qualiopi-erreur \.btn \{[^}]*min-height: 44px/.test(hors_commentaires), "cible de 44 px aussi pour le bouton de la boîte d'erreur de chargement, qui est hors de .qualiopi");
 ok(/#qualiopi-print \{ display: none; \}/.test(hors_commentaires), "le document imprimable est caché à l'écran");
