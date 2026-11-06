@@ -148,6 +148,7 @@ for (const fichier of ["js/nav-rules.js", "js/nav-shell.js", "js/menu-compte.js"
 // --- Bouton du tableau de bord du centre : le fondateur seul ---
 ok(/fondateurHorsApercu\(\) \? el\("a", \{ class: "btn small centre-lien-qualiopi", href: "#\/qualiopi" \}, "Qualiopi"\) : null/.test(centre), "le bouton Qualiopi n'est monté que pour le fondateur");
 ok(/export function telecharger\(/.test(centre), "le téléchargement du tableau de bord est partagé avec la page, pas recopié");
+ok(/el\("p", \{ class: "qualiopi-intro qualiopi-legende-niveau" \}, PHRASE_NIVEAU\)/.test(vue), "la page affiche la légende du niveau (PHRASE_NIVEAU, écrite une fois dans les documents)");
 ok(!/function telecharger\(/.test(vue) && /import \{ telecharger \} from "\.\/centre\.js\?v=\w+";/.test(vue), "la page l'importe");
 
 // --- Page : lecture par identifiant, impression nettoyée, textes ---

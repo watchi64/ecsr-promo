@@ -19,7 +19,7 @@ import { el, clear, isoDate, toast } from "../utils.js?v=20261106a";
 import { indicateursPromo } from "../centre-stats.js?v=20261106a";
 import { inventairePromo, nb } from "../qualiopi-preuves.js?v=20261106a";
 import {
-  modeleDossierFormation, modeleDossierCentre, inventaireCsv, nomFichierQualiopi, periodeEnMots, LIBELLES_NIVEAU, PHRASE_DE_GARDE,
+  modeleDossierFormation, modeleDossierCentre, inventaireCsv, nomFichierQualiopi, periodeEnMots, LIBELLES_NIVEAU, PHRASE_NIVEAU, PHRASE_DE_GARDE,
 } from "../qualiopi-documents.js?v=20261106a";
 import {
   REFERENTIEL_APPLIQUE, REFERENTIEL_DU, periodeDouzeMois, promosDuCentre, nomPromo, libelleOptionPromo, groupesParCritere,
@@ -261,6 +261,7 @@ export async function renderQualiopi(container) {
       el("p", { class: "qualiopi-intro" },
         "Ouvre un critère pour voir ses indicateurs : le niveau de preuve que l'app apporte, les pièces qu'elle a (présentes ou "
         + "absentes pour cette promo) et celles que le centre fournit lui-même."),
+      el("p", { class: "qualiopi-intro qualiopi-legende-niveau" }, PHRASE_NIVEAU),
       ...groupesParCritere(etat.inv).map((groupe) => blocCritere(groupe, ouverts)),
       blocNonApplicables(liste(etat.inv.nonApplicables), ouverts),
     ].filter(Boolean));

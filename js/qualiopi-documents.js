@@ -31,6 +31,10 @@ export const PHRASE_DE_GARDE = "Pièces issues de l'application ECSR Promo, à j
 
 // Niveaux de l'inventaire, en mots (ceux de la page).
 export const LIBELLES_NIVEAU = { prouve: "Prouvé", partiel: "En partie", hors: "Hors de l'app" };
+// La colonne du niveau et ce qu'elle veut dire : écrites ici une fois, pour la page, les deux dossiers et le CSV. Le niveau
+// n'est pas un constat de conformité : seules les pièces disent ce qui existe pour chaque promo.
+export const COLONNE_NIVEAU = "Apport de l'application";
+export const PHRASE_NIVEAU = "Le niveau dit ce que l'application peut apporter pour cet indicateur, pas un constat de conformité ; seules les pièces disent ce qui existe pour chaque promo.";
 
 const DECRET = SOURCE.decret.replace(/ relatif .*$/, "");   // « Décret n° 2026-728 du 1er août 2026 »
 const AUCUNE_PROMO = "Aucune promo dans la période.";
@@ -402,6 +406,7 @@ export function modeleDossierFormation({ inv, donnees, ind, promo, lieu, intitul
       `Formation : ${texte(intitule, "non renseigné")}`,
       `État de la promo : ${contexte.terminee ? "terminée" : "en cours, chiffres provisoires"}`,
       REFERENTIEL,
+      PHRASE_NIVEAU,
       edition(aujourdhui),
       PHRASE_DE_GARDE,
     ],
@@ -578,9 +583,9 @@ function presenceEnMots({ vues, presentes, raisons }) {
 function sectionInventaireCentre({ fusion }) {
   if (!fusion.length) return { paragraphes: ["Aucune promo dans la période : inventaire non établi."], tableaux: [] };
   return {
-    paragraphes: ["Pour chaque indicateur applicable : son niveau et les pièces à fournir par le centre, puis les pièces de l'application avec le nombre de promos pour lesquelles chacune est présente."],
+    paragraphes: [PHRASE_NIVEAU, "Pour chaque indicateur applicable : son apport de l'application et les pièces à fournir par le centre, puis les pièces de l'application avec le nombre de promos pour lesquelles chacune est présente."],
     tableaux: [
-      ...table(["Indicateur", "Niveau", "Pièces à fournir par le centre"], fusion.map(({ indicateur: i }) => [
+      ...table(["Indicateur", COLONNE_NIVEAU, "Pièces à fournir par le centre"], fusion.map(({ indicateur: i }) => [
         `${i.numero}. ${i.court}`, LIBELLES_NIVEAU[i.niveau] ?? texte(i.niveau, "non renseigné"), tableau(i.aFournir).map(majuscule).join(", ") || "aucune",
       ])),
       ...table(["Indicateur", "Pièce de l'application", "Présence dans les promos"],
@@ -624,7 +629,7 @@ export function modeleDossierCentre({ promos, lieu, periode, aujourdhui, sansNom
 // Export CSV de l'inventaire d'une promo
 // =====================================================================================================
 
-const ENTETE_CSV = ["Numéro", "Critère", "Libellé court", "Niveau", "Pièces présentes", "Pièces absentes (raison)", "Pièces à fournir"];
+const ENTETE_CSV = ["Numéro", "Critère", "Libellé court", COLONNE_NIVEAU, "Pièces présentes", "Pièces absentes (raison)", "Pièces à fournir"];
 
 // Une ligne par indicateur applicable. Format pour Excel en français, comme la matrice des notes : point-virgule, UTF-8
 // avec BOM, fins de ligne CRLF. Plusieurs pièces dans une cellule sont séparées par « | » (leurs phrases portent des

@@ -7,7 +7,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
-  PHRASE_DE_GARDE, LIBELLES_NIVEAU, promoTerminee, modeleDossierFormation, modeleDossierCentre, inventaireCsv,
+  PHRASE_DE_GARDE, LIBELLES_NIVEAU, promoTerminee, modeleDossierFormation, modeleDossierCentre, inventaireCsv, PHRASE_NIVEAU, COLONNE_NIVEAU,
   nomFichierQualiopi,
 } from "../js/qualiopi-documents.js";
 import { inventairePromo, lignesDuPlanning, demiJournees, intervenantsDistincts } from "../js/qualiopi-preuves.js";
@@ -379,9 +379,13 @@ eq(f.garde, [
   "Formation : Titre de test",
   "État de la promo : terminée",
   "Référentiel appliqué : Décret n° 2026-728 du 1er août 2026 (référentiel national qualité), en vigueur le 01/11/2026, catégorie « action de formation »",
+  PHRASE_NIVEAU,
   "Édité le 28/10/2026",
   PHRASE_DE_GARDE,
-], "page de garde : centre, promo, dates, intitulé, état, référentiel, édition, phrase (en dernier)");
+], "page de garde : centre, promo, dates, intitulé, état, référentiel, légende du niveau, édition, phrase (en dernier)");
+eq(PHRASE_NIVEAU, "Le niveau dit ce que l'application peut apporter pour cet indicateur, pas un constat de conformité ; seules les pièces disent ce qui existe pour chaque promo.",
+  "la légende du niveau, mot pour mot");
+eq(COLONNE_NIVEAU, "Apport de l'application", "la colonne du niveau s'intitule « Apport de l'application »");
 eq(formation({ promo: EN_COURS }).garde.slice(2, 5), [
   "Dates : depuis le 12/10/2026", "Formation : Titre de test", "État de la promo : en cours, chiffres provisoires",
 ], "promo en cours : sans date de fin, chiffres provisoires");
@@ -724,7 +728,9 @@ ok(section(c, "amelioration").paragraphes.length > 0, "amélioration : des parag
 
 // --- Inventaire fusionné (R8)
 const inventaire = section(c, "inventaire");
-eq(entetesDe(c, "inventaire", 0), ["Indicateur", "Niveau", "Pièces à fournir par le centre"], "inventaire : indicateurs");
+eq(entetesDe(c, "inventaire", 0), ["Indicateur", "Apport de l'application", "Pièces à fournir par le centre"], "inventaire : indicateurs");
+eq(section(c, "inventaire").paragraphes[0], PHRASE_NIVEAU, "inventaire : la légende du niveau avant le tableau");
+eq(section(cSans, "inventaire").paragraphes[0], PHRASE_NIVEAU, "inventaire sans noms : la même légende");
 eq(lignesDe(c, "inventaire", 0).length, 27, "inventaire : une ligne par indicateur applicable");
 eq(lignesDe(c, "inventaire", 0).slice(0, 2), [
   ["1. " + court(1), "Hors de l'app", "Site, Catalogue, Fiche formation"],
@@ -903,7 +909,7 @@ ok(brut.endsWith("\r\n"), "fin de fichier par CRLF");
 ok(!brut.replace(/\r\n/g, "").includes("\n") && !brut.replace(/\r\n/g, "").includes("\r"), "aucune fin de ligne ailleurs qu'en CRLF");
 const brutes = brut.split("\r\n");
 eq(brutes.length, 1 + 27 + 1, "1 ligne d'en-tête, 27 indicateurs, et la ligne vide qui suit le dernier CRLF");
-eq(brutes[0].split(";"), ["Numéro", "Critère", "Libellé court", "Niveau", "Pièces présentes", "Pièces absentes (raison)", "Pièces à fournir"],
+eq(brutes[0].split(";"), ["Numéro", "Critère", "Libellé court", "Apport de l'application", "Pièces présentes", "Pièces absentes (raison)", "Pièces à fournir"],
   "en-têtes, séparés par des points-virgules");
 const tableCsv = lireCsv(brut);
 eq(tableCsv.length, 28, "28 lignes une fois lues");
