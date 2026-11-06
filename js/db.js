@@ -1680,8 +1680,8 @@ export async function lireDonneesQualiopi(promoId) {
   };
   const [centre, planning, agenda, livrets, dossiers, signalementsLus, cours, autoEcoles, profs, entete, joursOff, versions] = await Promise.all([
     lireDonneesCentre(promoId),
-    parPromo("planning_entries", "id, semaine_lundi, day_index, half_day, activite, sujet, sujet_2, prof_ids, prof_autre, autonomie, benevoles_ids, promo_id", "id"),
-    parPromo("agenda_events", "id, type, title, date_start, date_end", "id"),
+    parPromo("planning_entries", "id, semaine_lundi, day_index, half_day, activite, sujet, sujet_2, salle_double, prof_ids, prof_autre, autonomie, benevoles_ids, promo_id", "id"),
+    parPromo("agenda_events", "id, type, date_start, date_end", "id"),
     parPromo("epcf_livrets", "stagiaire_id, updated_at", "id"),
     parPromo("dp_dossiers", "stagiaire_id, updated_at", "id"),
     communes("qcm_signalements", "id, stagiaire_id, statut, created_at, traite_at", "id"),

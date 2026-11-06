@@ -489,6 +489,22 @@ const HORS_PERIODE = [L(950, "2026-09-21", 0, "matin", { activite: "Cours", prof
 const avecHors = formation({ donnees: { ...D, planning: [...D.planning, ...HORS_PERIODE] } });
 eq(lignesDe(avecHors, "deroule", 1), lignesDe(f, "deroule", 1), "déroulé : les lignes hors promo, fériées ou futures ne changent pas la synthèse");
 
+// La règle effective du planning (relecture finale, M3) : sujet seulement si la forme de l'activité en porte un, second sujet
+// seulement en salle double, bénévoles seulement si la forme en porte.
+{
+  const semaineEff = (lignes) => lignesDe(formation({ donnees: { ...D, planning: lignes } }), "deroule", 1)[0];
+  const E = (id, activite, extra) => L(id, "2026-10-05", 0, id % 2 ? "matin" : "aprem", { activite, prof_ids: [1], ...extra });
+  const ligneEff = semaineEff([
+    E(1, "Cours", { sujet: "Feux", sujet_2: "Vitesse", benevoles_ids: [10] }),
+    E(2, "Autre", { sujet: "Sortie" }),
+    E(3, "Pédagogie salle", { sujet: "Alcool", sujet_2: "Distance", salle_double: true }),
+    E(4, "Pédagogie salle", { sujet: "Fatigue", sujet_2: "Écart", salle_double: false }),
+    E(5, "Voiture (conduite)", { sujet: "Rond-point", benevoles_ids: [11, 12] }),
+  ]);
+  eq(ligneEff[6], "Feux ; Alcool ; Distance ; Rond-point ; Fatigue", "sujets : ceux de la forme de l'activité, le second sujet de la seule salle double");
+  eq(ligneEff[5], "2", "bénévoles : ceux d'une conduite seulement");
+}
+
 // --- Assiduité
 eq(section(f, "assiduite").paragraphes,
   ["Le calcul des heures d'après les feuilles d'émargement n'est pas encore repris dans ce dossier : joindre les feuilles d'émargement signées."],

@@ -506,8 +506,8 @@ eq(piece(avec({ planning: [] }), "intervenants").detail, "2 auto-écoles partena
 eq(piece(avec({ autoEcoles: [] }), "intervenants").detail, "3 formateurs, 1 intervenant extérieur, 2 bénévoles", "planning seul");
 // Un formateur nommé deux fois (ou un « Autre » écrit autrement) ne compte qu'une fois.
 eq(piece(avec({ autoEcoles: [], planning: [
-  L(1, "2026-10-05", 0, "matin", { activite: "Cours", prof_ids: [1, 1], prof_autre: "Mme Durand", benevoles_ids: [10, 10] }),
-  L(2, "2026-10-05", 1, "matin", { activite: "Cours", prof_ids: [1], prof_autre: " mme durand ", benevoles_ids: [10] }),
+  L(1, "2026-10-05", 0, "matin", { activite: "Voiture (conduite)", prof_ids: [1, 1], prof_autre: "Mme Durand", benevoles_ids: [10, 10] }),
+  L(2, "2026-10-05", 1, "matin", { activite: "Voiture (conduite)", prof_ids: [1], prof_autre: " mme durand ", benevoles_ids: [10] }),
 ] }), "intervenants").detail, "1 formateur, 1 intervenant extérieur, 1 bénévole", "intervenants distincts");
 // Une promo sans lieu n'a aucune auto-école, même parmi celles qui n'en ont pas non plus.
 eq(piece(inventairePromo({ ...D, planning: [], autoEcoles: [...AUTO_ECOLES, { id: 5, actif: true, lieu_id: null }] }, REF,
@@ -529,9 +529,19 @@ const videsSeules = inventairePromo({ ...D, planning: [L(1, "2026-10-05", 0, "ma
   REF, OPTIONS);
 eq(piece(videsSeules, "deroule").presente, false, "des lignes vides (ou d'espaces) ne font pas une demi-journée");
 // Chaque champ qui « porte quelque chose » suffit.
-[{ activite: "Cours" }, { sujet: "Feux" }, { sujet_2: "Vitesse" }, { prof_ids: [1] }, { prof_autre: "Mme Durand" }, { autonomie: true }]
+[{ activite: "Cours" }, { sujet: "Feux" }, { prof_ids: [1] }, { prof_autre: "Mme Durand" }, { autonomie: true }]
   .forEach((extra) => eq(piece(inventairePromo({ ...D, planning: [L(1, "2026-10-05", 0, "matin", extra)] }, REF, OPTIONS), "deroule").detail,
     "1 demi-journée de formation le 05/10", `une ligne avec ${Object.keys(extra)[0]} compte`));
+
+// La règle « effective » du planning (relecture finale, M3) : la base garde le sujet et les bénévoles d'une carte dont l'activité a
+// changé, le planning les ignore ; le dossier fait de même.
+const unSeul = (extra) => inventairePromo({ ...D, planning: [L(1, "2026-10-05", 0, "matin", extra)] }, REF, OPTIONS);
+eq(piece(unSeul({ activite: "Autre", sujet: "Feux" }), "deroule").detail, "1 demi-journée de formation le 05/10", "un sujet sur « Autre » : la carte compte par son activité");
+eq(piece(unSeul({ activite: "", sujet: "", sujet_2: "Vitesse" }), "deroule").presente, false, "un second sujet hors salle double ne fait pas une demi-journée");
+eq(piece(unSeul({ activite: "Cours", sujet_2: "Vitesse", salle_double: true }), "deroule").detail, "1 demi-journée de formation le 05/10", "la carte compte par son activité");
+eq(piece(unSeul({ activite: "Cours", benevoles_ids: [10] }), "intervenants").detail, "2 auto-écoles partenaires", "des bénévoles sur un Cours : le planning les ignore, l'inventaire aussi");
+eq(piece(unSeul({ activite: "Voiture (conduite)", benevoles_ids: [10] }), "intervenants").detail, "1 bénévole, 2 auto-écoles partenaires", "des bénévoles sur une conduite comptent");
+eq(piece(unSeul({ activite: "Cours", benevoles_ids: [10], prof_ids: [1] }), "intervenants").detail, "1 formateur, 2 auto-écoles partenaires", "le formateur d'une carte compte, ses bénévoles non");
 
 // =====================================================================================================
 // Jours désactivés du planning (R21) : vacances, pont, formation externe ; leurs cartes restent en base
@@ -540,7 +550,7 @@ eq(piece(videsSeules, "deroule").presente, false, "des lignes vides (ou d'espace
 // groupe en autonomie. Sur un jour actif elle ajoute une 6e demi-journée (dates jusqu'au 16/10), un formateur, un
 // intervenant « Autre » et un bénévole.
 const LIGNE_PLEINE = L(10, "2026-10-12", 4, "aprem", {
-  activite: "Cours", sujet: "Sortie", prof_ids: [5], prof_autre: "Mme Leroy", autonomie: true, benevoles_ids: [13],
+  activite: "Voiture (conduite)", sujet: "Sortie", prof_ids: [5], prof_autre: "Mme Leroy", autonomie: true, benevoles_ids: [13],
 });
 const compte = (i) => [piece(i, "deroule").detail, piece(i, "intervenants").detail];
 const planningDe = (joursOff) => compte(inventairePromo(
@@ -730,7 +740,7 @@ eq(inventairePromo(D, REF, OPTIONS), inv, "ni l'appel suivant");
 // =====================================================================================================
 // Chaque ligne ajoutée porte un formateur (77), un « Autre » et un bénévole (99) que le jeu principal ne cite pas :
 // si elle compte quelque part, les demi-journées, les dates ou les intervenants changent.
-const LIGNE_HORS = (id, semaine, jour) => L(id, semaine, jour, "matin", { activite: "Cours", prof_ids: [77], prof_autre: "Hors Promo", benevoles_ids: [99] });
+const LIGNE_HORS = (id, semaine, jour) => L(id, semaine, jour, "matin", { activite: "Voiture (conduite)", prof_ids: [77], prof_autre: "Hors Promo", benevoles_ids: [99] });
 const comptePlanning = (extra, promo, aujourdhui) => compte(inventairePromo({ ...D, planning: [...PLANNING, ...extra] }, REF,
   { promo, aujourdhui, nouveautes: NOUVEAUTES }));
 const BASE_PLANNING = comptePlanning([], PROMO, "2026-10-28");

@@ -21,7 +21,7 @@
 //   stagiaires    [{ id, actif }]
 //   passages, tentatives, evaluations, epcf   lus par indicateursPromo ; ici, en plus, les dates de evaluations
 //                 [{ stagiaire_id, note, note_max, date_eval }] et le compte de epcf [{ stagiaire_id, contexte, auto_eval }]
-//   planning      [{ semaine_lundi, day_index, half_day, activite, sujet, sujet_2, prof_ids, prof_autre, autonomie,
+//   planning      [{ semaine_lundi, day_index, half_day, activite, sujet, sujet_2, salle_double, prof_ids, prof_autre, autonomie,
 //                 benevoles_ids, promo_id }]
 //   joursOff      [{ semaine_lundi, day_index }] : les jours désactivés du planning (vacances, pont, formation externe) ;
 //                 leurs lignes de planning gardent leurs cartes en base mais ne comptent nulle part ici
@@ -43,6 +43,7 @@
 import { INDICATEURS, indicateursApplicables } from "./qualiopi-referentiel.js?v=20261106a";
 import { indicateursPromo } from "./centre-stats.js?v=20261106a";
 import { estNotee } from "./notes-stats.js?v=20261106a";
+import { ACTIVITY_SHAPES } from "./config.js?v=20261106a";
 import { jourFerie } from "./emargement-rules.js?v=20261106a";
 import { parseDate, addDays, isoDate } from "./utils.js?v=20261106a";
 
@@ -157,6 +158,21 @@ function jourDeLigne(e) {
   return Number.isNaN(jour.getTime()) ? null : isoDate(jour);
 }
 
+// La ligne telle que le planning l'affiche (js/views/planning.js, effSujets et effBenevolesIds) : la base garde le sujet, le
+// second sujet et les bénévoles d'une carte dont l'activité a changé, mais le planning les ignore dès que la forme de l'activité
+// ne les porte plus (le sujet d'une activité « Autre », les bénévoles hors d'une conduite) ; le second sujet n'existe que dans
+// une salle double. Une copie : la ligne reçue n'est pas modifiée.
+function ligneEffective(e) {
+  const forme = ACTIVITY_SHAPES[e.activite || ""] || ACTIVITY_SHAPES[""];
+  const sujet = forme.includes("sujet");
+  return {
+    ...e,
+    sujet: sujet ? e.sujet : "",
+    sujet_2: sujet && e.activite === "Pédagogie salle" && e.salle_double ? e.sujet_2 : "",
+    benevoles_ids: forme.includes("benevoles") ? e.benevoles_ids : [],
+  };
+}
+
 // Les lignes du planning d'une promo : celles de la promo, comprises entre son début et la plus proche de sa fin et
 // d'aujourd'hui (bornes comprises : le réalisé n'est pas l'avenir), moins celles d'un jour férié ou d'un jour désactivé
 // (vacances, pont, formation externe : leurs cartes restent en base mais ne comptent nulle part). Une borne absente ne
@@ -167,7 +183,7 @@ export function lignesDuPlanning(donnees, promo, aujourdhui) {
   const debut = jourDe(promo?.date_debut);
   const bornes = [jourDe(promo?.date_fin), jourDe(aujourdhui)].filter(Boolean).sort();
   const fin = bornes.length ? bornes[0] : null;
-  return tableau(donnees.planning).filter((e) => {
+  return tableau(donnees.planning).map(ligneEffective).filter((e) => {
     if (e.promo_id !== promo?.id || joursOff.has(cleJour(e.semaine_lundi, e.day_index))) return false;
     const jour = jourDeLigne(e);
     if (jour === null) return true;   // jour illisible : aucune borne ne peut le situer, `demiJournees` l'écarte déjà des demi-journées
