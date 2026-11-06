@@ -21,7 +21,7 @@
 // liste nominative de l'effectif montre aussi les abandons.
 
 import { SOURCE } from "./qualiopi-referentiel.js?v=20261106a";
-import { jourDe, rempli, tableau, nb, lignesDuPlanning, demiJournees, intervenantsDistincts } from "./qualiopi-preuves.js?v=20261106a";
+import { jourDe, rempli, tableau, nb, promoTerminee, lignesDuPlanning, demiJournees, intervenantsDistincts } from "./qualiopi-preuves.js?v=20261106a";
 import { ligneComparaison, METHODES } from "./centre-stats.js?v=20261106a";
 import { estNotee, score20 } from "./notes-stats.js?v=20261106a";
 import { cellule, nombre, slug } from "./centre-csv.js?v=20261106a";
@@ -69,13 +69,8 @@ export function periodeEnMots(debut, fin) {
   return "dates non renseignées";
 }
 
-// Une promo est terminée quand sa date de fin est renseignée et strictement antérieure à aujourd'hui (« AAAA-MM-JJ ») ;
-// sinon elle est en cours et ses chiffres sont provisoires (spec § 6.8). Écrite ici une seule fois.
-export function promoTerminee(promo, aujourdhui) {
-  const fin = jourDe(promo?.date_fin);
-  const jour = jourDe(aujourdhui);
-  return fin !== null && jour !== null && fin < jour;
-}
+// La règle « terminée » est écrite une seule fois, dans js/qualiopi-preuves.js (l'inventaire s'en sert aussi) ; réexportée ici.
+export { promoTerminee };
 
 const libellePromo = (promo) => texte(promo?.nom, "promo sans nom");
 // Sans accents ni majuscules, pour comparer deux noms.
@@ -286,7 +281,7 @@ function sectionEffectif({ inv, ind, stagiaires, terminee }) {
   return {
     paragraphes: [...phrases(inv, "effectif"), ...(terminee ? [] : ["Promo en cours : les chiffres sont provisoires."]), intro],
     tableaux: [
-      ...table(["Stagiaire", "Statut"], [...stagiaires].sort(compareByNom).map((s) => [nomComplet(s), s.actif ? "En formation" : "Abandon"])),
+      ...table(["Stagiaire", "Statut"], [...stagiaires].sort(compareByNom).map((s) => [nomComplet(s), s.actif ? (terminee ? "Formation suivie" : "En formation") : "Abandon"])),
       ...table(["Indicateur", "Résultat", "Méthode de calcul"], lignesResultats(ind)),
     ],
   };

@@ -431,12 +431,12 @@ eq(f.aFournir.find((a) => a.numero === 19).items, ["Référent pédagogique si l
 const effectif = section(f, "effectif");
 eq(effectif.titre, "Effectif, parcours et résultats", "effectif : titre");
 eq(effectif.paragraphes, [
-  "Effectif, abandons : 4 inscrits, dont 3 en formation et 1 abandon.",
+  "Effectif, abandons : 4 inscrits, dont 3 ont suivi la formation jusqu'au bout et 1 abandon.",
   "Liste nominative des stagiaires, puis résultats de la promo avec leur méthode de calcul.",
 ], "effectif : paragraphes (promo terminée : pas de mention provisoire)");
 eq(entetesDe(f, "effectif", 0), ["Stagiaire", "Statut"], "effectif : liste des stagiaires");
 eq(lignesDe(f, "effectif", 0), [
-  ["Delmas Bastien", "En formation"], ["Lambert Kevin", "En formation"], ["Marchand Anaïs", "En formation"], ["Vidal Cédric", "Abandon"],
+  ["Delmas Bastien", "Formation suivie"], ["Lambert Kevin", "Formation suivie"], ["Marchand Anaïs", "Formation suivie"], ["Vidal Cédric", "Abandon"],
 ], "effectif : tous les stagiaires par ordre alphabétique, avec leur statut, l'abandon compris");
 eq(entetesDe(f, "effectif", 1), ["Indicateur", "Résultat", "Méthode de calcul"], "effectif : résultats de la promo");
 // Calculs à la main : 4 inscrits dont 1 abandon (25 %) ; 2 absences sur 6 passages prévus (33 %) ; 6 passages pour 3
@@ -932,7 +932,7 @@ eq(tableCsv.find((l) => l[0] === "11"), [
 ], "11 : une pièce présente (sa phrase contient un point-virgule, donc citée), rien d'absent, rien à fournir");
 eq(tableCsv.find((l) => l[0] === "10"), [
   "10", "3", "Adapter l'accompagnement et le suivi", "Prouvé",
-  "Effectif, abandons : 4 inscrits, dont 3 en formation et 1 abandon | Passages : 3 passages en salle et 3 en voiture (remplacements compris), 2 absences de dernière minute | "
+  "Effectif, abandons : 4 inscrits, dont 3 ont suivi la formation jusqu'au bout et 1 abandon | Passages : 3 passages en salle et 3 en voiture (remplacements compris), 2 absences de dernière minute | "
     + "Suivi : " + inv.indicateurs.find((i) => i.numero === 10).pieces.find((p) => p.cle === "suivi").detail,
   "Assiduité : calcul des heures pas encore branché",
   "aucune",
@@ -1018,7 +1018,7 @@ eq(code.match(/^import .* from "(.*)";$/gm).map((l) => l.match(/from "(.*)"/)[1]
   ["./qualiopi-referentiel.js", "./qualiopi-preuves.js", "./centre-stats.js", "./notes-stats.js", "./centre-csv.js", "./utils.js"],
   "il n'importe que des modules purs de l'app, avec le jeton de version des autres imports");
 // Les aides de l'inventaire sont importées, jamais recopiées : la synthèse par semaine suit la règle de l'inventaire.
-const AIDES = ["jourDe", "rempli", "tableau", "nb", "lignesDuPlanning", "demiJournees", "intervenantsDistincts"];
+const AIDES = ["jourDe", "rempli", "tableau", "nb", "promoTerminee", "lignesDuPlanning", "demiJournees", "intervenantsDistincts"];
 const importPreuves = code.match(/import \{([^}]*)\} from "\.\/qualiopi-preuves\.js\?v=\w+";/);
 eq(importPreuves && importPreuves[1].split(",").map((s) => s.trim()), AIDES, "il importe de l'inventaire les petits outils et les aides du planning");
 ["ISO_JOUR", "porteQuelqueChose", "cleJour", "jourDeLigne", ...AIDES].forEach((nom) =>

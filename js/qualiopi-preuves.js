@@ -129,6 +129,14 @@ function plage(jours) {
 }
 const avecPlage = (texte, jours) => [texte, plage(jours)].filter(Boolean).join(" ");
 
+// Une promo est terminée quand sa date de fin est renseignée et strictement antérieure à aujourd'hui (« AAAA-MM-JJ ») ;
+// sinon elle est en cours et ses chiffres sont provisoires (spec § 6.8). Écrite ici une seule fois.
+export function promoTerminee(promo, aujourdhui) {
+  const fin = jourDe(promo?.date_fin);
+  const jour = jourDe(aujourdhui);
+  return fin !== null && jour !== null && fin < jour;
+}
+
 // --- Planning : les lignes de la promo, les demi-journées de formation, les intervenants ---
 
 const porteQuelqueChose = (e) => rempli(e.activite) || rempli(e.sujet) || rempli(e.sujet_2)
@@ -216,10 +224,12 @@ const absente = (raison) => ({ presente: false, detail: null, raison });
 // Ce que chaque pièce calcule à partir du contexte (voir `contexte`). Une phrase chiffrée si elle est présente,
 // sinon la raison de son absence.
 const CONSTRUCTEURS = {
-  effectif: ({ ind }) => {
+  effectif: ({ ind, terminee }) => {
     const e = ind.effectif.detail;
     if (!e.inscrits) return absente("aucun stagiaire inscrit dans cette promo");
-    return presente(`${nb(e.inscrits, "inscrit")}, dont ${e.enFormation} en formation et ${nb(e.abandons, "abandon")}`);
+    // Sur une promo terminée, personne n'est « en formation » : les stagiaires actifs l'ont suivie jusqu'au bout.
+    const actifs = terminee ? `${e.enFormation} ${e.enFormation > 1 ? "ont" : "a"} suivi la formation jusqu'au bout` : `${e.enFormation} en formation`;
+    return presente(`${nb(e.inscrits, "inscrit")}, dont ${actifs} et ${nb(e.abandons, "abandon")}`);
   },
 
   deroule: ({ planning }) => {
@@ -376,6 +386,7 @@ function contexte(donnees, referentiel, { promo, aujourdhui, nouveautes }) {
   const fin = jourDe(promo.date_fin) ?? jourDe(aujourdhui);
   return {
     promo, referentiel, liste,
+    terminee: promoTerminee(promo, aujourdhui),
     nouveautes: tableau(nouveautes),
     ind: indicateursPromo(donnees, referentiel, { aujourdhui }),
     dedans: (ligne) => enFormation.has(ligne.stagiaire_id),

@@ -323,7 +323,7 @@ eq(indic(inv, 1).pieces, [], "1 : aucune pièce de l'app");
 // =====================================================================================================
 // Les pièces : phrases chiffrées
 // =====================================================================================================
-eq(piece(inv, "effectif"), attendue("effectif", "3 inscrits, dont 2 en formation et 1 abandon"), "effectif");
+eq(piece(inv, "effectif"), attendue("effectif", "3 inscrits, dont 2 ont suivi la formation jusqu'au bout et 1 abandon"), "effectif");
 eq(piece(inv, "deroule"), attendue("deroule", "5 demi-journées de formation du 05/10 au 15/10"), "déroulé : 5 demi-journées");
 eq(piece(inv, "datesCles"),
   attendue("datesCles", "3 événements au calendrier (1 formation, 1 stage, 1 examen) du 28/09 au 18/12"), "dates clés");
@@ -352,7 +352,7 @@ eq(piece(inv, "suivi"), attendue("suivi",
 // Pièces absentes, avec leur raison : une promo qui n'a que ses fiches de stagiaires
 // =====================================================================================================
 const fiches = inventairePromo({ stagiaires: STAG }, REF, { promo: PROMO, aujourdhui: AUJOURDHUI });
-eq(piece(fiches, "effectif"), attendue("effectif", "3 inscrits, dont 2 en formation et 1 abandon"), "fiches : effectif");
+eq(piece(fiches, "effectif"), attendue("effectif", "3 inscrits, dont 2 ont suivi la formation jusqu'au bout et 1 abandon"), "fiches : effectif");
 eq(piece(fiches, "resultats"), attendue("resultats",
   "2 indicateurs mesurés, chacun avec sa méthode de calcul ; réussite au titre non mesurée"), "fiches : effectif et abandons seulement");
 eq(piece(fiches, "deroule"), manquante("deroule", "aucune demi-journée renseignée au planning de cette promo"), "fiches : déroulé");
