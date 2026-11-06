@@ -217,6 +217,13 @@ export function intervenantsDistincts(lignes) {
   };
 }
 
+// --- Annonces : celles qu'on peut citer ---
+
+// Les annonces de la rubrique Nouveautés qu'un dossier peut compter et citer. Celles qui décrivent la nouvelle barre
+// (`navigation: "nouvelle"`) ne se lisent que barre allumée : tant qu'elle est éteinte, personne n'a pu les lire dans l'app
+// et un auditeur ne les y trouverait pas. Le filtre est écrit ici une seule fois, pour l'inventaire et le dossier du centre.
+export const nouveautesCitables = (nouveautes) => tableau(nouveautes).filter((x) => x?.navigation !== "nouvelle");
+
 // --- Cours : leurs modifications ---
 
 // Les dates de sauvegarde d'un cours sont les horodatages distincts de ses versions et de son `updated_at`. Une version
@@ -403,7 +410,7 @@ function contexte(donnees, referentiel, { promo, aujourdhui, nouveautes }) {
   return {
     promo, referentiel, liste,
     terminee: promoTerminee(promo, aujourdhui),
-    nouveautes: tableau(nouveautes),
+    nouveautes: nouveautesCitables(nouveautes),
     ind: indicateursPromo(donnees, referentiel, { aujourdhui }),
     dedans: (ligne) => enFormation.has(ligne.stagiaire_id),
     planning: lignesDuPlanning(donnees, promo, aujourdhui),

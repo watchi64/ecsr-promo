@@ -4,7 +4,7 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
-import { NIVEAUX, PIECES, inventairePromo, lignesDuPlanning } from "../js/qualiopi-preuves.js";
+import { NIVEAUX, PIECES, inventairePromo, lignesDuPlanning, nouveautesCitables } from "../js/qualiopi-preuves.js";
 import { INDICATEURS, indicateursApplicables } from "../js/qualiopi-referentiel.js";
 import { indicateursPromo } from "../js/centre-stats.js";
 
@@ -499,6 +499,11 @@ eq(misesAJourDe({ cours: [1, 2, 3].map((id) => ({ id, published: true, updated_a
     { cours_id: 3, saved_at: horodatage("2026-08-26") }, { cours_id: 3, saved_at: horodatage("2026-10-02") }, { cours_id: 3, saved_at: horodatage("2026-10-09") }] }).detail,
   "3 cours publiés modifiés du 02/10 au 20/10 (6 modifications)", "trois cours, 1 + 2 + 3 modifications");
 // Les nouveautés d'un seul jour.
+// Les annonces de la nouvelle barre ne sont ni comptées ni citées tant qu'elle est éteinte (relecture finale, M4).
+const avecNouvelleBarre = [...NOUVEAUTES, { ...NOUVEAUTE("n", "2026-10-10"), navigation: "nouvelle" }, { ...NOUVEAUTE("o", "2026-10-11"), navigation: "ancienne" }];
+eq(piece(inventairePromo(D, REF, { ...OPTIONS, nouveautes: avecNouvelleBarre }), "innovations").detail, "3 nouveautés datées du 02/10 au 20/10", "une annonce « nouvelle » n'est pas comptée, une « ancienne » l'est");
+eq(nouveautesCitables(avecNouvelleBarre).map((x) => x.id), ["a", "b", "c", "d", "e", "o"], "le filtre partagé écarte les seules annonces de la nouvelle barre");
+eq(nouveautesCitables(null), [], "pas de liste, pas d'annonce");
 eq(piece(inventairePromo(D, REF, { ...OPTIONS, nouveautes: [NOUVEAUTE("a", "2026-10-02")] }), "innovations").detail,
   "1 nouveauté datée le 02/10", "une nouveauté");
 // Intervenants : seules les auto-écoles du lieu, ou seulement le planning.

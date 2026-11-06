@@ -702,6 +702,8 @@ ok(section(c, "innovations").paragraphes.slice(2).every((p) => /^\d{2}\/\d{2}\/\
 eq(section(centre({ nouveautes: [] }), "innovations"),
   { id: "innovations", titre: "Innovations", indicateurs: [25], paragraphes: ["Aucune annonce de l'application dans la période."], tableaux: [] },
   "aucune annonce");
+eq(section(centre({ nouveautes: [...NOUVEAUTES, { ...NOUVEAUTE("n", "2026-10-10", "Une navigation plus simple"), navigation: "nouvelle" }] }), "innovations").paragraphes,
+  section(c, "innovations").paragraphes, "une annonce de la nouvelle barre n'est ni comptée ni citée tant qu'elle est éteinte");
 eq(section(centre({ periode: { du: "2026-10-01", au: "2026-10-20" } }), "innovations").paragraphes,
   ["2 annonces de l'application du 02/10/2026 au 20/10/2026.", INTRO_ANNONCES, ENTREE_B, ENTREE_C], "bornes de la période comprises");
 eq(section(centre({ periode: { du: "2026-10-20", au: "2026-10-28" } }), "innovations").paragraphes,
@@ -1005,7 +1007,7 @@ const reelNominatif = centre({ periode: periodeLarge, nouveautes: NOUVEAUTES_REE
 const reelSans = centre({ periode: periodeLarge, nouveautes: NOUVEAUTES_REELLES, sansNoms: true });
 formeBien(reelNominatif, "centre (vraies annonces)");
 formeBien(reelSans, "centre sans noms (vraies annonces)");
-const datees = NOUVEAUTES_REELLES.filter((x) => x.date);
+const datees = NOUVEAUTES_REELLES.filter((x) => x.date && x.navigation !== "nouvelle");   // celles de la nouvelle barre ne sont pas citées tant qu'elle est éteinte
 const jourFr = (jour) => `${jour.slice(8)}/${jour.slice(5, 7)}/${jour.slice(0, 4)}`;
 const joursReels = datees.map((x) => x.date).sort();
 const annoncesReelles = section(reelSans, "innovations").paragraphes;
@@ -1034,7 +1036,7 @@ eq(code.match(/^import .* from "(.*)";$/gm).map((l) => l.match(/from "(.*)"/)[1]
   ["./qualiopi-referentiel.js", "./qualiopi-preuves.js", "./centre-stats.js", "./notes-stats.js", "./centre-csv.js", "./utils.js"],
   "il n'importe que des modules purs de l'app, avec le jeton de version des autres imports");
 // Les aides de l'inventaire sont importées, jamais recopiées : la synthèse par semaine suit la règle de l'inventaire.
-const AIDES = ["jourDe", "rempli", "tableau", "nb", "promoTerminee", "lignesDuPlanning", "demiJournees", "intervenantsDistincts"];
+const AIDES = ["jourDe", "rempli", "tableau", "nb", "promoTerminee", "nouveautesCitables", "lignesDuPlanning", "demiJournees", "intervenantsDistincts"];
 const importPreuves = code.match(/import \{([^}]*)\} from "\.\/qualiopi-preuves\.js\?v=\w+";/);
 eq(importPreuves && importPreuves[1].split(",").map((s) => s.trim()), AIDES, "il importe de l'inventaire les petits outils et les aides du planning");
 ["ISO_JOUR", "porteQuelqueChose", "cleJour", "jourDeLigne", ...AIDES].forEach((nom) =>

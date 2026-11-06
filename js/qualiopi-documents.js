@@ -21,7 +21,7 @@
 // liste nominative de l'effectif montre aussi les abandons.
 
 import { SOURCE } from "./qualiopi-referentiel.js?v=20261106a";
-import { jourDe, rempli, tableau, nb, promoTerminee, lignesDuPlanning, demiJournees, intervenantsDistincts } from "./qualiopi-preuves.js?v=20261106a";
+import { jourDe, rempli, tableau, nb, promoTerminee, nouveautesCitables, lignesDuPlanning, demiJournees, intervenantsDistincts } from "./qualiopi-preuves.js?v=20261106a";
 import { ligneComparaison, METHODES } from "./centre-stats.js?v=20261106a";
 import { estNotee, score20 } from "./notes-stats.js?v=20261106a";
 import { cellule, nombre, slug } from "./centre-csv.js?v=20261106a";
@@ -479,7 +479,7 @@ function sectionRessourcesCentre({ promos }) {
 // personne : la citation entre guillemets échappe à la règle des documents impersonnels (R9), qui vaut pour tout le reste.
 function sectionInnovationsCentre({ nouveautes, periode }) {
   const [du, au] = [jourDe(periode?.du), jourDe(periode?.au)];
-  const retenues = tableau(nouveautes).map((x) => ({ jour: jourDe(x?.date), titre: texte(x?.titre, "sans titre") }))
+  const retenues = nouveautesCitables(nouveautes).map((x) => ({ jour: jourDe(x?.date), titre: texte(x?.titre, "sans titre") }))
     .filter((x) => x.jour !== null && (du === null || x.jour >= du) && (au === null || x.jour <= au))
     .sort((a, b) => (a.jour < b.jour ? -1 : a.jour > b.jour ? 1 : enFrancais(a.titre, b.titre)));
   if (!retenues.length) return { paragraphes: ["Aucune annonce de l'application dans la période."], tableaux: [] };
