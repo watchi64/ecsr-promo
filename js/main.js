@@ -534,11 +534,11 @@ async function bootApp() {
   // Bandeau d'émargement (signer, ou rappel d'une feuille ouverte) : relu seul ensuite.
   initBandeauEmargement();
   // À l'ouverture, on revient sur la page quittée la dernière fois, et à défaut
-  // sur « Mon suivi ». replaceState plutôt que location.hash : pas de
+  // sur « Mon suivi » (nouvelle navigation : l'Accueil, ruling R60). replaceState plutôt que location.hash : pas de
   // `hashchange` (donc pas de double rendu avec le navigate() ci-dessous) et pas
   // d'entrée d'historique parasite.
   if (!location.hash || isColdStart()) {
-    const cible = "#/" + (derniereRoute() || "mon-suivi");
+    const cible = "#/" + (derniereRoute() || (navigationV2Active() ? "home" : "mon-suivi"));
     try { history.replaceState(null, "", cible); }
     catch (e) { location.hash = cible; }
   }

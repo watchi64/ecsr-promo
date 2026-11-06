@@ -1338,6 +1338,37 @@ async function accueil() {
     evenements: (await db.listAgendaEvents()).map((e) => ({ type: e.type, titre: e.title, debut: e.date_start, fin: e.date_end })),
   };
 }
+// Accueil du stagiaire (lot 2B, tâche 3) : la pastille de date, les cartes (zone, titre, texte, position), les lignes de « À faire », les rangées de la
+// journée (bouton « Signer », « Signé à »), les liens du pied, et de quoi mesurer les zones à toucher. Rien n'est recalculé ici : les attendus sont dans le script.
+function accueilStagiaire() {
+  const vue = document.getElementById("view");
+  const haut = (e) => e.getBoundingClientRect().top + window.scrollY, bas = (e) => e.getBoundingClientRect().bottom + window.scrollY;
+  const mesure = (sel) => [...vue.querySelectorAll(sel)].map((e) => ({ texte: net(e.textContent), l: dixieme(rect(e).width), h: dixieme(rect(e).height) }));
+  const pastille = vue.querySelector(".home-today-pill");
+  return {
+    pastille: pastille ? { texte: net(pastille.textContent), parties: [...pastille.children].map((e) => net(e.textContent)) } : null,
+    titre: (vue.querySelector(".home-title-v2") || {}).textContent || null,
+    cartes: [...vue.querySelectorAll(".acc-carte")].map((c) => { const r = c.getBoundingClientRect();
+      return { zone: c.dataset.zone, titre: net(c.querySelector("h2").textContent), texte: net(c.querySelector(".acc-corps").textContent), haut: haut(c), bas: bas(c), gauche: r.left, droite: r.right }; }),
+    tuiles: vue.querySelectorAll(".home-tile").length,
+    agenda: !!vue.querySelector(".home-agenda, #home-agenda-list"),
+    decompte: !!vue.querySelector(".home-countdown"),
+    retenir: !!vue.querySelector(".home-info"),
+    lignes: [...vue.querySelectorAll(".acc-ligne")].map((a) => ({ titre: net(a.querySelector("b").textContent), detail: net(a.querySelector(".acc-ligne-texte span").textContent),
+      href: a.getAttribute("href"), h: dixieme(rect(a).height) })),
+    creneaux: [...vue.querySelectorAll(".acc-creneau")].map((c) => ({ demi: c.dataset.demi, texte: net(c.textContent),
+      boutons: [...c.querySelectorAll("button.btn")].map((b) => net(b.textContent)), signe: (c.querySelector(".acc-signe") || {}).textContent || null })),
+    vide: (vue.querySelector(".acc-vide") || {}).textContent || null,
+    erreurs: [...vue.querySelectorAll(".acc-erreur")].map((e) => net(e.textContent)),
+    chargements: [...vue.querySelectorAll(".acc-corps")].filter((c) => /Chargement/.test(c.textContent)).length,
+    liens: [...vue.querySelectorAll(".acc-liens > *")].map((e) => ({ texte: net(e.textContent), href: e.getAttribute("href"), balise: e.tagName, h: dixieme(rect(e).height) })),
+    liensDuPied: [...vue.querySelectorAll(".home-footer-v2 a")].map((a) => ({ texte: net(a.textContent), href: a.getAttribute("href") })),
+    boutons: mesure(".acc-actions .btn"),
+    plus: mesure(".acc-plus"),
+    debordement: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
+    pied: (() => { const e = vue.querySelector(".home-footer-v2 p"); return e ? net(e.textContent) : null; })(),
+  };
+}
 // Ce que l'app lit : le nombre d'événements, de liens et de contacts, que les sous-titres de Dates clés et de Documents comptent.
 async function comptesDesPages() {
   const [db] = await modulesDeLApp(["db"]);
@@ -1387,7 +1418,7 @@ function bandeauEmargement() {
 window.__verifNav = { mesurer, regles: reglesSimples, voirEnTantQue, chercherLien, chercherPlus, ouvreurs, marquerPopups, mesurerPopups,
   popupsEncoreOuverts, focusSurOuvreur, focusPerdu, popupsVisibles: () => popupsVisibles().length, controlesAssistant,
   pageDeReglages, boutonDuCompte, menuDuCompte, enTeteDePage, panneauBenevoles, enTeteDeLEquipe,
-  accueil, comptesDesPages, planningSemaine, laClasse, epcfDeLEquipe, bandeauEmargement, aTraiter, nouveautes, lienDossierPro, graphe, invaliderCache };
+  accueil, accueilStagiaire, comptesDesPages, planningSemaine, laClasse, epcfDeLEquipe, bandeauEmargement, aTraiter, nouveautes, lienDossierPro, graphe, invaliderCache };
 })();
 """
 
@@ -2574,6 +2605,11 @@ def verifier_preferences(page, res, sc):
     if not res.profil_stagiaire and p["anonymat"] is not None:
         res.echec("page Mes préférences", vue, "la personne n'a pas de fiche de stagiaire : le réglage de l'anonymat dans les notes est montré (« %s »)" % p["anonymat"][:60])
     verifier_texte_de_l_anonymat(res, vue, p, "page Mes préférences")
+    # Lot 2B, tâche 3 : « À retenir » a quitté l'Accueil du stagiaire ; il vit dans la section Informations, pour tous les rôles, avec les noms de la nouvelle barre.
+    retenir = page.evaluate("() => { const b = document.querySelector('#view [data-a-retenir]'); return b ? { titre: b.querySelector('h4').textContent.trim(), "
+                            "lignes: [...b.querySelectorAll('li')].map((li) => li.textContent.replace(/\\s+/g, ' ').trim()) } : null; }")
+    if not retenir or retenir["titre"] != "À retenir" or len(retenir["lignes"]) != 4 or retenir["lignes"][-1] != CTRL_Z["nouvelle"]:
+        res.echec("page Mes préférences", vue, "« À retenir » manque d'Informations ou n'a pas ses 4 lignes (dernière : « %s »)" % (retenir and retenir["lignes"][-1:]))
     vider_console(res, vue)
 
 
@@ -3574,7 +3610,8 @@ def verifier_carte(res, vue, m):
 
 def attendre_accueil(page):
     """L'accueil lit l'agenda après s'être posé : la carte et la liste n'y sont qu'une fois le « Chargement… » de la liste remplacé."""
-    page.wait_for_function("() => { const l = document.getElementById('home-agenda-list'); return !l || !/Chargement/.test(l.textContent); }", timeout=6000)
+    page.wait_for_function("() => { const l = document.getElementById('home-agenda-list'); return (!l || !/Chargement/.test(l.textContent))"
+                           " && ![...document.querySelectorAll('#view .acc-corps')].some((c) => /Chargement/.test(c.textContent)); }", timeout=6000)
 
 
 def ouvrir_accueil(page, res, vue):
@@ -3607,10 +3644,230 @@ def verifier_accueil(page, res, sc):
         res.echec("accueil", vue, "la ligne sous la salutation est « %s », attendu « %s »" % (m["lead"], attendue))
     # Lot 2A, tâche 1 : les Nouveautés du lancement ouvrent la section, la ligne Ctrl + Z et le lien du pied portent les noms de la nouvelle barre.
     verifier_nouveautes_de_l_accueil(page, res, vue, sc.espace == "equipe")
-    verifier_pied_et_retenir(res, vue, m, sc.espace)
     verifier_pied_de_l_accueil(res, vue, m, True)
-    if m["agenda"]:
-        verifier_carte(res, vue, m)
+    if sc.espace == "stagiaire":
+        # Lot 2B, tâche 3 : le stagiaire a sa page (la journée, à faire, prochain rendez-vous) ; ni « À retenir » (passé dans Mes préférences), ni
+        # compte à rebours, ni liste d'événements : la carte « Prochain événement majeur » n'existe plus de son côté.
+        verifier_accueil_stagiaire(page, res, sc, vue)
+    else:
+        verifier_pied_et_retenir(res, vue, m, sc.espace)
+        if m["agenda"]:
+            verifier_carte(res, vue, m)
+    vider_console(res, vue)
+
+
+JOURS_DE_LA_SEMAINE = ("lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche")
+MOIS_DE_L_ANNEE = ("janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre")
+ZONES_DE_L_ACCUEIL = (("aujourdhui", "Aujourd'hui"), ("afaire", "À faire"), ("rendez-vous", "Prochain rendez-vous"), ("nouveaute", "Nouveauté"))
+LIGNES_A_FAIRE = ("Examen ouvert", "QCM du thème", "Dossier professionnel", "Livret")   # l'ordre de la page : examen, QCM, dossier, livret
+
+
+def verifier_accueil_stagiaire(page, res, sc, vue, jour=None):
+    """Accueil du stagiaire, nouvelle navigation (lot 2B, tâche 3) : la pastille de date (jour, numéro, mois, sans l'année), les quatre cartes dans l'ordre (sur
+    téléphone, « À faire » juste sous la journée), aucune tuile, ni « Prochains événements », ni compte à rebours, ni « À retenir » ; les lignes de « À faire »
+    dans l'ordre examen, QCM, dossier, livret, vers leur page ; au départ (`?modules=depart`), QCM, dossier et livret fermés : plus aucune de ces lignes ; la
+    journée porte le bouton « Signer pour ce matin » dans la rangée Matin, et le bandeau d'émargement ne dit pas « Signer » ici ; le pied de liens ;
+    zones à toucher de 44 px sur téléphone ; rien ne déborde, rien ne se recouvre."""
+    m = page.evaluate("() => window.__verifNav.accueilStagiaire()")
+    jour = jour or datetime.date.fromisoformat(DATE_DU_BANC)
+    telephone = sc.largeur < SEUIL_TELEPHONE
+    attendu = [JOURS_DE_LA_SEMAINE[jour.weekday()], str(jour.day), MOIS_DE_L_ANNEE[jour.month - 1]]
+    if not m["pastille"] or [x.lower() for x in m["pastille"]["parties"]] != attendu:
+        res.echec("accueil du stagiaire", vue, "la pastille de date dit %s, attendu %s (jour, numéro, mois, sans l'année)" % (m["pastille"] and m["pastille"]["parties"], attendu))
+    if m["tuiles"] or m["agenda"] or m["decompte"] or m["retenir"]:
+        res.echec("accueil du stagiaire", vue, "l'Accueil montre encore des éléments d'avant : %d tuile(s), liste d'événements %s, compte à rebours %s, « À retenir » %s"
+                  % (m["tuiles"], m["agenda"], m["decompte"], m["retenir"]))
+    zones = [c["zone"] for c in m["cartes"]]
+    if zones != [z for z, _ in ZONES_DE_L_ACCUEIL]:
+        res.echec("accueil du stagiaire", vue, "les cartes sont %s, attendu %s" % (zones, [z for z, _ in ZONES_DE_L_ACCUEIL]))
+        return
+    for carte, (_, titre) in zip(m["cartes"], ZONES_DE_L_ACCUEIL):
+        if carte["titre"] != titre:
+            res.echec("accueil du stagiaire", vue, "la carte « %s » s'appelle « %s »" % (titre, carte["titre"]))
+    par = {c["zone"]: c for c in m["cartes"]}
+    if m["chargements"]:
+        res.echec("accueil du stagiaire", vue, "%d carte(s) restent en « Chargement… »" % m["chargements"])
+    if m["debordement"]:
+        res.echec("accueil du stagiaire", vue, "la page défile de côté à %d px" % sc.largeur)
+    # Aucune carte n'en recouvre une autre.
+    for i, a in enumerate(m["cartes"]):
+        for b in m["cartes"][i + 1:]:
+            if a["haut"] < b["bas"] - 1 and b["haut"] < a["bas"] - 1 and a["gauche"] < b["droite"] - 1 and b["gauche"] < a["droite"] - 1:
+                res.echec("accueil du stagiaire", vue, "les cartes « %s » et « %s » se recouvrent" % (a["titre"], b["titre"]))
+    # Téléphone : une colonne, la journée puis « À faire » juste dessous, puis le reste. Ordinateur : « À faire » sous la journée.
+    if telephone:
+        ordre = [c["haut"] for c in m["cartes"]]
+        if ordre != sorted(ordre):
+            res.echec("accueil du stagiaire", vue, "sur téléphone, les cartes ne sont pas dans l'ordre journée, à faire, rendez-vous, nouveauté")
+        if par["afaire"]["haut"] - par["aujourdhui"]["bas"] > 24:
+            res.echec("accueil du stagiaire", vue, "sur téléphone, « À faire » est à %d px sous la journée : il doit la suivre" % (par["afaire"]["haut"] - par["aujourdhui"]["bas"]))
+    elif par["afaire"]["haut"] < par["aujourdhui"]["bas"] - 1:
+        res.echec("accueil du stagiaire", vue, "« À faire » remonte à côté de la journée au lieu de la suivre")
+    # « À faire »
+    titres = [l["titre"] for l in m["lignes"]]
+    rang = [next((i for i, t in enumerate(LIGNES_A_FAIRE) if x.startswith(t)), None) for x in titres]
+    if None in rang or rang != sorted(rang) or len(titres) > 4:
+        res.echec("accueil du stagiaire", vue, "les lignes de « À faire » sont %s : au plus 4, dans l'ordre %s" % (titres, " ; ".join(LIGNES_A_FAIRE)))
+    adresses = {"Examen ouvert": "#/themes", "QCM du thème": "#/themes", "Dossier professionnel": "#/mon-suivi/dp", "Livret": "#/mon-suivi/livret"}
+    for l in m["lignes"]:
+        for debut, href in adresses.items():
+            if l["titre"].startswith(debut) and l["href"] != href:
+                res.echec("accueil du stagiaire", vue, "la ligne « %s » mène à %s, attendu %s" % (l["titre"], l["href"], href))
+    if sc.modules == "depart":
+        if titres or "Rien à faire pour le moment." not in par["afaire"]["texte"]:
+            res.echec("accueil du stagiaire", vue, "QCM, Dossier et Livret sont fermés : « À faire » ne propose plus de ligne (%s)" % (titres or par["afaire"]["texte"]))
+    elif not any(t.startswith("Livret") or t.startswith("Dossier") for t in titres):
+        res.echec("accueil du stagiaire", vue, "« À faire » ne propose ni le dossier ni le livret alors que ces modules sont ouverts (%s)" % (titres or par["afaire"]["texte"]))
+    # La journée : une rangée Matin avec le bouton, aucun bouton ailleurs ; le bandeau ne dit pas « Signer » sur cette page.
+    if jour.weekday() < 5:
+        matin = next((c for c in m["creneaux"] if c["demi"] == "matin"), None)
+        boutons = [(c["demi"], b) for c in m["creneaux"] for b in c["boutons"]]
+        if not matin or matin["boutons"] != ["Signer pour ce matin"] or len(boutons) != 1:
+            res.echec("accueil du stagiaire", vue, "le bouton « Signer pour ce matin » doit être seul, dans la rangée Matin (boutons : %s)" % boutons)
+        bandeau = page.evaluate("() => window.__verifNav.bandeauEmargement()")
+        if bandeau and re.search(r"Signer", bandeau["texte"]):
+            res.echec("accueil du stagiaire", vue, "le bandeau d'émargement dit encore « Signer » sur l'Accueil : « %s »" % bandeau["texte"])
+    # Le pied de liens
+    liens = {l["texte"]: l for l in m["liens"]}
+    contacts = "Contacts du centre" in liens
+    if contacts == sc.ressources_fermees or (contacts and liens["Contacts du centre"]["href"] != "#/ressources"):
+        res.echec("accueil du stagiaire", vue, "« Contacts du centre » %s (module Ressources %s)"
+                  % ("est là" if contacts else "manque", "fermé" if sc.ressources_fermees else "ouvert"))
+    if liens.get("Mes préférences", {}).get("href") != "#/preferences":
+        res.echec("accueil du stagiaire", vue, "le lien « Mes préférences » mène à %s, attendu #/preferences" % liens.get("Mes préférences", {}).get("href"))
+    if "Signaler un problème" not in liens or liens["Signaler un problème"]["balise"] != "BUTTON":
+        res.echec("accueil du stagiaire", vue, "le bouton « Signaler un problème » manque du pied de liens (%s)" % list(liens))
+    if [l["texte"] for l in m["liensDuPied"]] != ["code source"]:
+        res.echec("accueil du stagiaire", vue, "le pied de page garde %s, attendu « code source » seul (« Mes préférences » est dans le pied de liens)" % [l["texte"] for l in m["liensDuPied"]])
+    # Zones à toucher
+    if telephone:
+        petits = ["%s (%s px)" % (x["texte"], x["h"]) for x in m["boutons"] + m["plus"] + m["liens"] if min(x.get("h", 44), 44) < 43.5] \
+            + ["%s (%s px)" % (l["titre"], l["h"]) for l in m["lignes"] if l["h"] < 43.5]
+        if petits:
+            res.echec("accueil du stagiaire", vue, "zones à toucher sous 44 px sur téléphone : %s" % ", ".join(petits))
+
+
+def recharger_au_banc(page, adresse, derniere_page=None, **parametres):
+    """Recharge le banc avec d'autres paramètres (une autre date, une lenteur), puis ouvre `adresse`. `derniere_page` : la page que l'ouverture à froid retrouve
+    (mémoire `derniere-route`) ; l'Accueil n'est alors pas encore lu quand on y arrive, aucune lecture n'est en mémoire."""
+    u = urllib.parse.urlparse(page.url)
+    q = dict(urllib.parse.parse_qsl(u.query, keep_blank_values=True))
+    # Les paramètres du scénario, sans ceux d'un rechargement d'avant (date, lenteur) : chaque cas repart du banc ordinaire.
+    for cle in ("lenteur", "lenteur_tables"):
+        q.pop(cle, None)
+    q.update(date=DATE_DU_BANC, emargement="1")
+    q.update(parametres, cb="%d-%d-%d" % (int(time.time() * 1000), os.getpid(), next(COMPTEUR)))
+    if derniere_page:
+        page.evaluate("(r) => { try { localStorage.setItem('derniere-route', r); } catch (e) {} }", derniere_page)
+    page.goto(urllib.parse.urlunparse(u._replace(query=urllib.parse.urlencode(q), fragment="")), wait_until="load", timeout=20000)
+    page.evaluate(JS_OUTILS)
+    attendre(page, calme=250, maximum=8000)
+    aller_a(page, adresse)
+    attendre(page, calme=150)
+
+
+def dessiner_une_signature(page):
+    """Trace un trait dans la fenêtre de signature, puis la valide."""
+    page.wait_for_selector("canvas", timeout=5000)
+    c = page.locator("canvas").first.bounding_box()
+    page.mouse.move(c["x"] + c["width"] * 0.15, c["y"] + c["height"] * 0.3)
+    page.mouse.down()
+    for i in range(1, 13):
+        page.mouse.move(c["x"] + c["width"] * (0.15 + 0.06 * i), c["y"] + c["height"] * (0.3 + 0.15 * (i % 3)))
+    page.mouse.up()
+    page.locator("button:has-text('Valider ma signature')").first.click(timeout=4000)
+
+
+def jouer_accueil_du_stagiaire(page, res, sc):
+    """Accueil du stagiaire, les cas limites (lot 2B, tâche 3), nouvelle navigation, un stagiaire : un samedi (« Pas de formation aujourd'hui. », aucune
+    lecture du planning pour la journée), un samedi avec une feuille ouverte (la rangée de la séance et son bouton existent sans planning), des lectures en
+    échec (chaque carte garde son erreur, la page reste, « Réessayer » relit le planning), un départ vers une autre page pendant le chargement (rien ne se repeint
+    ni ne casse), le plus petit téléphone (320 px). Chaque rechargement ouvre l'app à froid : la page d'avant est mémorisée, l'Accueil n'est pas lu d'avance."""
+    vue = "%s/accueil-cas-limites" % sc.nom
+    samedi = datetime.date(2026, 10, 31)
+    # 1. Un samedi, émargement éteint : la journée est un repos.
+    recharger_au_banc(page, "#/home", date=samedi.isoformat(), emargement="0")
+    attendre_accueil(page)
+    res.vues += 1
+    m = page.evaluate("() => window.__verifNav.accueilStagiaire()")
+    if m["vide"] != "Pas de formation aujourd'hui." or m["creneaux"]:
+        res.echec("accueil du stagiaire, samedi", vue, "un samedi, la journée dit « %s » avec %d rangée(s) : attendu « Pas de formation aujourd'hui. » seul" % (m["vide"], len(m["creneaux"])))
+    verifier_accueil_stagiaire(page, res, sc, vue + "/samedi", jour=samedi)
+    # 2. Un samedi avec une feuille ouverte : la rangée de la séance existe sans planning, avec son bouton.
+    recharger_au_banc(page, "#/home", date=samedi.isoformat(), emargement="1")
+    attendre_accueil(page)
+    m = page.evaluate("() => window.__verifNav.accueilStagiaire()")
+    matin = next((c for c in m["creneaux"] if c["demi"] == "matin"), None)
+    if not matin or matin["boutons"] != ["Signer pour ce matin"] or m["vide"]:
+        res.echec("accueil du stagiaire, samedi", vue, "une feuille ouverte un samedi : la rangée Matin et son bouton « Signer pour ce matin » manquent (rangées : %s, texte vide : %s)"
+                  % ([c["demi"] for c in m["creneaux"]], m["vide"]))
+    vider_console(res, vue)
+    # 3. Des lectures en échec, après le démarrage, sur un Accueil jamais lu : chaque carte garde son erreur.
+    recharger_au_banc(page, "#/preferences", derniere_page="preferences")
+    page.evaluate("() => { window.__HARNESS_FAIL = 'panne du banc'; }")
+    aller_a(page, "#/home")
+    try:
+        attendre_accueil(page)
+    except DelaiDepasse:
+        res.echec("accueil du stagiaire, lectures en échec", vue, "une carte reste en « Chargement… » quand les lectures échouent")
+    m = page.evaluate("() => window.__verifNav.accueilStagiaire()")
+    if len(m["erreurs"]) < 3 or [c["zone"] for c in m["cartes"]] != [z for z, _ in ZONES_DE_L_ACCUEIL] or not m["pastille"]:
+        res.echec("accueil du stagiaire, lectures en échec", vue, "chaque carte doit garder sa propre erreur, la page rester : erreurs %s, cartes %s"
+                  % (m["erreurs"], [c["zone"] for c in m["cartes"]]))
+    if page.evaluate("() => document.querySelectorAll('#view .view-error-box').length"):
+        res.echec("accueil du stagiaire, lectures en échec", vue, "la page entière est en erreur : seules les cartes doivent l'être")
+    res.console.clear()   # les trois « console.error » de l'Accueil sont le but de l'essai : la page dit pourquoi une carte est vide
+    page.evaluate("() => { window.__HARNESS_FAIL = null; }")
+    if cliquer(page, res, vue, "#view .acc-reessayer", "« Réessayer » du planning"):
+        attendre(page, calme=150)
+        if not page.evaluate("() => window.__verifNav.accueilStagiaire().creneaux.length"):
+            res.echec("accueil du stagiaire, lectures en échec", vue, "« Réessayer » n'a pas relu le planning : la journée reste sans rangée")
+    vider_console(res, vue)
+    # 4. Départ vers une autre page pendant le chargement : les lectures lentes reviennent dans un nœud détaché.
+    recharger_au_banc(page, "#/home", derniere_page="preferences", lenteur="1500", lenteur_tables="planning_entries,agenda_events,qcm_attempts,dp_dossiers,epcf_livrets")
+    aller_a(page, "#/home")
+    page.wait_for_timeout(300)
+    aller_a(page, "#/planning")
+    page.wait_for_timeout(2800)
+    if page.evaluate("() => document.querySelectorAll('#view .acc-grille').length") or route_courante(page) != "planning":
+        res.echec("accueil du stagiaire, départ pendant le chargement", vue, "l'Accueil s'est repeint par-dessus la page ouverte entre-temps (page : #/%s)" % route_courante(page))
+    vider_console(res, vue)
+    # 5. Le plus petit téléphone.
+    page.set_viewport_size({"width": LARGEUR_ETROITE, "height": 800})
+    recharger_au_banc(page, "#/home")
+    attendre_accueil(page)
+    verifier_accueil_stagiaire(page, res, replace(sc, largeur=LARGEUR_ETROITE), vue + "/320")
+    page.set_viewport_size({"width": sc.largeur, "height": 800})
+    vider_console(res, vue)
+
+
+def jouer_signature_de_l_accueil(page, res, sc):
+    """Signature depuis l'Accueil du stagiaire (lot 2B, tâche 3), sur une feuille ouverte au banc : le bouton « Signer pour ce matin » ouvre la fenêtre de signature ;
+    une fois validée, la rangée dit « Signé à H h MM », le bouton a disparu, le bandeau ne dit rien sur l'Accueil et ne propose plus de signature sur le Planning."""
+    vue = "%s/signature-accueil" % sc.nom
+    recharger_au_banc(page, "#/home")
+    attendre_accueil(page)
+    if not cliquer(page, res, vue, '#view [data-demi="matin"] button.btn', "« Signer pour ce matin »"):
+        return
+    dessiner_une_signature(page)
+    try:
+        page.wait_for_function("() => !!document.querySelector('#view [data-demi=\"matin\"] .acc-signe')", timeout=6000)
+    except DelaiDepasse:
+        res.echec("signature depuis l'Accueil", vue, "la rangée Matin ne dit pas « Signé à ... » après la signature")
+        return
+    res.vues += 1
+    m = page.evaluate("() => window.__verifNav.accueilStagiaire()")
+    matin = next(c for c in m["creneaux"] if c["demi"] == "matin")
+    if not re.fullmatch(r"Signé à \d{1,2} h \d{2}", (matin["signe"] or "").strip()) or matin["boutons"]:
+        res.echec("signature depuis l'Accueil", vue, "après la signature, la rangée Matin dit « %s » avec les boutons %s : attendu « Signé à H h MM », sans bouton" % (matin["signe"], matin["boutons"]))
+    bandeau = page.evaluate("() => window.__verifNav.bandeauEmargement()")
+    if bandeau:
+        res.echec("signature depuis l'Accueil", vue, "le bandeau reste affiché sur l'Accueil après la signature : « %s » (la page porte déjà la confirmation)" % bandeau["texte"])
+    aller_a(page, "#/planning")
+    attendre(page, calme=200)
+    bandeau = page.evaluate("() => window.__verifNav.bandeauEmargement()")
+    if bandeau and re.search(r"Signer", bandeau["texte"]):
+        res.echec("signature depuis l'Accueil", vue, "le Planning propose encore « Signer » après la signature : « %s »" % bandeau["texte"])
     vider_console(res, vue)
 
 
@@ -3774,7 +4031,9 @@ def verifier_bandeau_emargement(page, res, sc):
     horaires du stagiaire et les signatures du formateur cachés, le bouton de 44 px. Au-delà de 700 px, et interrupteur éteint : le bandeau de main, ses
     détails montrés."""
     vue = "%s/bandeau-emargement" % sc.nom
-    aller_a(page, "#/home")
+    # Lot 2B, tâche 3 : l'Accueil du stagiaire porte lui-même le bouton « Signer » (et le bandeau n'y double rien) : le bandeau d'un stagiaire se lit sur le Planning.
+    # L'équipe garde le sien sur l'Accueil jusqu'à Aujourd'hui (tâche 4).
+    aller_a(page, "#/planning" if sc.espace == "stagiaire" and res.coquille else "#/home")
     attendre(page)
     try:
         page.wait_for_function("() => { const b = document.getElementById('emargement-bandeau'); return !!b && !b.hidden; }", timeout=6000)
@@ -3865,6 +4124,12 @@ def jouer_allume(page, res, sc, options):
         if not options.get("sans_menus"):
             verifier_retour_arriere(page, res, sc)
     verifier_lecteur(page, res, sc, options)
+    # Lot 2B, tâche 3 : les cas limites de l'Accueil du stagiaire rechargent le banc (une autre date, des pannes) et la signature le modifie : en dernier.
+    if res.coquille and sc.espace == "stagiaire" and not (sc.modules or sc.ressources_fermees or sc.voir_en_tant_que):
+        if sc.largeur == 375:
+            jouer_accueil_du_stagiaire(page, res, sc)
+        if sc.largeur in (375, 1280):
+            jouer_signature_de_l_accueil(page, res, sc)
 
 
 def focus_garde(page, res, vue, geste):

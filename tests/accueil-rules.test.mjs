@@ -2,7 +2,7 @@
 // « Promo <nom> · semaine <n> ». Règles pures seulement (js/accueil-rules.js) : la carte « Prochain événement
 // majeur » de l'accueil, puis le prochain rendez-vous du lot 2B, les lisent.
 import assert from "node:assert/strict";
-import { etatEvenement, libelleDecompte, lignePromo, pastilleDeLaCarte } from "../js/accueil-rules.js";
+import { etatEvenement, libelleDecompte, lignePromo, pastilleDeLaCarte, prochainRendezVous, aFaireStagiaire } from "../js/accueil-rules.js";
 
 let n = 0;
 const eq = (a, b, msg) => { assert.deepEqual(a, b, msg); n++; };
@@ -161,3 +161,114 @@ eq(pastilleDeLaCarte({ etat: "inconnu", jours: 3 }), null, "un état inconnu n'a
 eq(pastilleDeLaCarte({ etat: "a-venir", jours: -2 }), null, "jamais un nombre négatif à venir");
 eq(pastilleDeLaCarte({ etat: "a-venir", jours: 1.5 }), null, "ni un nombre de jours qui n'est pas entier");
 eq(pastilleDeLaCarte({ etat: "en-cours", jours: -1 }), null, "ni un événement en cours à la fin déjà passée");
+
+// === Lot 2B, tâche 3 : le prochain rendez-vous de l'accueil du stagiaire ===
+const ev = (title, type, date_start, date_end = null) => ({ title, type, date_start, date_end });
+const AUJ = "2026-10-28";
+
+eq(prochainRendezVous([ev("Stage 1", "stage", "2026-10-26", "2026-11-06"), ev("EPCF 2", "examen", "2026-11-05")], AUJ),
+  { titre: "Stage 1", date: "lundi 26 octobre", libelle: "En cours, fin dans 9 jours" },
+  "un stage en cours passe avant un examen futur (le premier examen ou stage qui n'est pas passé)");
+eq(prochainRendezVous([ev("EPCF 2", "examen", "2026-11-05")], AUJ),
+  { titre: "EPCF 2", date: "jeudi 5 novembre", libelle: "Dans 8 jours" }, "un examen à venir : titre, jour en toutes lettres, décompte");
+eq(prochainRendezVous([ev("Réunion", "autre", "2026-10-30"), ev("EPCF 2", "examen", "2026-11-05")], AUJ).titre, "EPCF 2",
+  "un examen futur passe avant un événement « autre » plus proche");
+eq(prochainRendezVous([ev("Ancien stage", "stage", "2026-09-01", "2026-09-30"), ev("Vieil examen", "examen", "2026-10-27")], AUJ), null,
+  "tout est passé : rien");
+eq(prochainRendezVous([], AUJ), null, "aucun événement : rien");
+eq(prochainRendezVous(null, AUJ), null, "liste absente : rien");
+eq(prochainRendezVous([ev("Toussaint", "ferie", "2026-11-01"), ev("Examen blanc", "examen", "2026-11-12")], AUJ).titre, "Examen blanc",
+  "un jour férié est ignoré");
+eq(prochainRendezVous([ev("Toussaint", "ferie", "2026-11-01")], AUJ), null, "seul un férié à venir : rien");
+eq(prochainRendezVous([ev("Pot de promo", "autre", "2026-11-03"), ev("Sortie", "formation", "2026-11-02")], AUJ),
+  { titre: "Sortie", date: "lundi 2 novembre", libelle: "Dans 5 jours" },
+  "sans examen ni stage à venir : le premier événement qui n'est pas passé, quel que soit l'ordre de la liste");
+eq(prochainRendezVous([ev("Pot", "autre", "2026-10-28")], AUJ),
+  { titre: "Pot", date: "mercredi 28 octobre", libelle: "Aujourd'hui" }, "un événement du jour est à venir (« Aujourd'hui »)");
+eq(prochainRendezVous([ev("Cassé", "examen", "pas-une-date"), ev("Bon", "examen", "2026-11-05")], AUJ).titre, "Bon",
+  "une date illisible n'empêche pas de montrer un autre rendez-vous");
+eq(prochainRendezVous([ev("Pot", "autre", "2026-10-29")], new Date(2026, 9, 28)).libelle, "Demain", "aujourd'hui peut être une date");
+
+// === L'à-faire du stagiaire ===
+const THEMES = [
+  { id: 1, titre: "Intersections et priorités" },
+  { id: 2, titre: "Stationnement, arrêt, immobilisation" },
+  { id: 3, titre: "Vitesse" },
+];
+const QCM = [
+  { id: 11, theme_id: 1, titre: "QCM intersections", nb_questions: 20, published: false, exam_ferme_a: null },
+  { id: 12, theme_id: 2, titre: "QCM stationnement", nb_questions: 1, published: false, exam_ferme_a: null },
+  { id: 13, theme_id: 3, titre: "QCM vitesse", nb_questions: 15, published: false, exam_ferme_a: null },
+];
+const NOW = Date.parse("2026-10-28T10:00:00Z");
+const OUVERT = (id, extra = {}) => QCM.map((q) => (q.id === id ? { ...q, published: true, ...extra } : q));
+const base = (extra = {}) => ({
+  qcm: QCM, themes: THEMES, tentatives: [], sujetsDeLaSemaine: [], exemplesDossier: 6, livretCommence: true,
+  modules: { qcm: true, dp: true, livret: true }, now: NOW, ...extra,
+});
+const cles = (liste) => liste.map((l) => l.cle);
+
+eq(aFaireStagiaire(base()), [], "rien à faire : liste vide");
+eq(aFaireStagiaire({}), [], "aucune donnée : liste vide, sans erreur");
+
+// L'ordre, les textes et les destinations
+const tout = aFaireStagiaire(base({
+  qcm: OUVERT(13), sujetsDeLaSemaine: ["Intersections et priorités"], exemplesDossier: 2, livretCommence: false,
+}));
+eq(tout, [
+  { cle: "examen-13", titre: "Examen ouvert : Vitesse", detail: "Sans limite de temps", route: "themes", sousOnglet: "themes" },
+  { cle: "qcm-11", titre: "QCM du thème : Intersections et priorités", detail: "Pas encore fait · 20 questions", route: "themes", sousOnglet: "themes" },
+  { cle: "dossier", titre: "Dossier professionnel", detail: "2 exemples sur 6", route: "mon-suivi", sousOnglet: "dp" },
+  { cle: "livret", titre: "Livret", detail: "Pas encore commencé", route: "mon-suivi", sousOnglet: "livret" },
+], "examen, QCM du thème, dossier, livret, dans cet ordre");
+
+// Examen
+eq(aFaireStagiaire(base({ qcm: OUVERT(13, { exam_ferme_a: new Date(NOW + 90 * 60000).toISOString() }) }))[0].detail, "Ferme dans 1 h 30",
+  "un examen à échéance dit le temps qui reste");
+eq(cles(aFaireStagiaire(base({ qcm: OUVERT(13, { exam_ferme_a: new Date(NOW - 60000).toISOString() }) }))), [],
+  "un examen dont l'échéance est passée n'est plus à faire");
+eq(cles(aFaireStagiaire(base({ qcm: OUVERT(13), tentatives: [{ qcm_id: 13, mode: "examen" }] }))), [],
+  "un examen déjà passé (tentative en mode examen) n'est plus à faire");
+eq(cles(aFaireStagiaire(base({ qcm: OUVERT(13), tentatives: [{ qcm_id: 13, mode: "entrainement" }] }))), ["examen-13"],
+  "un entraînement ne vaut pas passage de l'examen");
+eq(cles(aFaireStagiaire(base({ qcm: OUVERT(13), tentatives: [{ qcm_id: 11, mode: "examen" }] }))), ["examen-13"],
+  "l'examen d'un autre QCM ne compte pas");
+eq(cles(aFaireStagiaire(base({ qcm: QCM.map((q) => ({ ...q, published: true, nb_questions: q.id === 13 ? 0 : q.nb_questions })), tentatives: [
+  { qcm_id: 11, mode: "examen" }, { qcm_id: 12, mode: "examen" }] }))), [],
+  "un QCM sans question ne se propose pas");
+
+// QCM du thème vu cette semaine
+eq(aFaireStagiaire(base({ sujetsDeLaSemaine: ["Stationnement, arrêt, immobilisation"] })),
+  [{ cle: "qcm-12", titre: "QCM du thème : Stationnement, arrêt, immobilisation", detail: "Pas encore fait · 1 question", route: "themes", sousOnglet: "themes" }],
+  "un titre à virgule se rapproche par son titre exact ; une seule question s'écrit au singulier");
+eq(cles(aFaireStagiaire(base({ sujetsDeLaSemaine: ["Intersections et priorités"], tentatives: [{ qcm_id: 11, mode: "entrainement" }] }))), [],
+  "un QCM déjà tenté n'est plus à faire");
+eq(cles(aFaireStagiaire(base({ sujetsDeLaSemaine: ["Sujet libre écrit à la main"] }))), [],
+  "un sujet sans thème correspondant est ignoré");
+eq(cles(aFaireStagiaire(base({ sujetsDeLaSemaine: ["intersections et priorités"] }))), [],
+  "la correspondance est exacte : la casse compte");
+eq(cles(aFaireStagiaire(base({ sujetsDeLaSemaine: ["Intersections et priorités", "Intersections et priorités", "Vitesse"] }))), ["qcm-11", "qcm-13"],
+  "un thème vu deux fois ne donne qu'une ligne, dans l'ordre du planning");
+eq(cles(aFaireStagiaire(base({ qcm: OUVERT(11), sujetsDeLaSemaine: ["Intersections et priorités"] }))), ["examen-11"],
+  "un examen ouvert sur le même QCM remplace la ligne du QCM du thème (pas deux lignes pour le même QCM)");
+eq(cles(aFaireStagiaire(base({ themes: [{ id: 9, titre: "Intersections et priorités" }], sujetsDeLaSemaine: ["Intersections et priorités"] }))), [],
+  "un thème sans QCM : rien");
+
+// Dossier et livret
+eq(aFaireStagiaire(base({ exemplesDossier: 0 }))[0].detail, "0 exemple sur 6", "aucun exemple : 0 exemple sur 6");
+eq(aFaireStagiaire(base({ exemplesDossier: 1 }))[0].detail, "1 exemple sur 6", "un exemple, au singulier");
+eq(cles(aFaireStagiaire(base({ exemplesDossier: 6 }))), [], "6 sur 6 : absent");
+eq(cles(aFaireStagiaire(base({ exemplesDossier: null }))), [], "dossier illisible : pas de ligne inventée");
+eq(cles(aFaireStagiaire(base({ livretCommence: null }))), [], "livret illisible : pas de ligne inventée");
+eq(cles(aFaireStagiaire(base({ livretCommence: false }))), ["livret"], "livret pas commencé");
+
+// Modules fermés
+const fermer = (m) => ({ qcm: true, dp: true, livret: true, [m]: false });
+const complet = { qcm: OUVERT(13), sujetsDeLaSemaine: ["Intersections et priorités"], exemplesDossier: 2, livretCommence: false };
+eq(cles(aFaireStagiaire(base({ ...complet, modules: fermer("qcm") }))), ["dossier", "livret"], "QCM fermé : ni examen ni QCM du thème");
+eq(cles(aFaireStagiaire(base({ ...complet, modules: fermer("dp") }))), ["examen-13", "qcm-11", "livret"], "Dossier fermé : sa ligne part");
+eq(cles(aFaireStagiaire(base({ ...complet, modules: fermer("livret") }))), ["examen-13", "qcm-11", "dossier"], "Livret fermé : sa ligne part");
+
+// Plafond de 4
+eq(cles(aFaireStagiaire(base({ qcm: QCM.map((q) => ({ ...q, published: true })), exemplesDossier: 0, livretCommence: false }))),
+  ["examen-11", "examen-12", "examen-13", "dossier"], "au plus 4 lignes : les premières de l'ordre");

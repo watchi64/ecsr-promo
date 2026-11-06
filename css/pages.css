@@ -1,0 +1,212 @@
+/* ============================================================
+   Pages de la nouvelle navigation (refonte, lot 2B)
+   Accueil du stagiaire : cartes, journée, à-faire, pied de liens. Les classes reprennent la maquette
+   (.today, .slot, .card, .foot-links) sous le préfixe acc- ; couleurs, rayons et polices : les jetons de
+   css/style.css, rien d'écrit en dur. L'en-tête (pastille de date, salutation) garde les classes
+   home-* de l'Accueil d'avant : c'est la signature de l'app.
+   Tailles : téléphone sous 700 px, tablette de 700 à 1079 px, ordinateur au-delà. Rien ne défile de côté.
+   ============================================================ */
+
+/* La grille : l'ordre du DOM est celui du téléphone (journée, à faire, rendez-vous, nouveauté). */
+.acc-grille {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+  margin-bottom: 1.5rem;
+  align-items: start;
+}
+@media (min-width: 700px) {
+  .acc-grille { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .acc-heros, .acc-carte[data-zone="afaire"] { grid-column: 1 / -1; }
+}
+@media (min-width: 1080px) {
+  /* La journée à gauche sur deux colonnes, le rendez-vous et la nouveauté empilés à droite, l'à-faire dessous. */
+  .acc-grille { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .acc-heros { grid-column: 1 / span 2; grid-row: 1 / span 2; }
+  .acc-carte[data-zone="afaire"] { grid-column: 1 / -1; grid-row: 3; }
+}
+
+.acc-carte {
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  padding: 18px 20px;
+  min-width: 0;
+}
+.acc-heros { border-color: var(--line-strong); }
+@media (max-width: 699.98px) {
+  .acc-carte { padding: 16px; }
+}
+
+/* Le lien passe à la ligne sous le titre quand la carte est trop étroite (320 px) : ni titre coupé, ni lien rogné. */
+.acc-carte-tete { display: flex; flex-wrap: wrap; align-items: center; gap: 0 10px; margin: 0 0 12px; min-height: 28px; }
+.acc-carte-tete h2 {
+  margin: 0;
+  font-family: var(--font);
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+.acc-carte-ico { display: inline-flex; color: var(--accent); }
+.acc-carte-ico svg { width: 20px; height: 20px; }
+
+/* Lien « Ouvrir le planning », « Tout voir », « Dates clés » : à droite de l'en-tête de la carte. */
+.acc-plus {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 40px;
+  color: var(--accent);
+  font-size: 0.88rem;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.acc-plus svg { width: 16px; height: 16px; }
+.acc-plus:hover { text-decoration: underline; }
+@media (max-width: 699.98px) {
+  .acc-plus { min-height: 44px; }
+}
+
+.acc-corps > p { margin: 0; }
+.acc-corps > p + p { margin-top: 4px; }
+
+/* La journée : une rangée par demi-journée, l'horaire à gauche, ce qui est prévu à droite. */
+.acc-journee { display: flex; flex-direction: column; }
+.acc-creneau {
+  display: grid;
+  grid-template-columns: 136px minmax(0, 1fr);
+  gap: 16px;
+  padding: 14px 0;
+  border-top: 1px solid var(--line-faint);
+}
+.acc-creneau:first-child { border-top: 0; padding-top: 0; }
+.acc-quand { font-family: var(--font-mono); font-size: 0.78rem; line-height: 1.4; color: var(--text-muted); }
+.acc-quand b {
+  display: block;
+  font-family: var(--font);
+  font-size: 0.85rem;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--text);
+}
+.acc-quand span { display: block; }
+@media (max-width: 699.98px) {
+  .acc-creneau { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+  .acc-quand b, .acc-quand span { display: inline; }
+  .acc-quand b { margin-right: 8px; }
+}
+
+.acc-carte-jour + .acc-carte-jour { margin-top: 14px; }
+.acc-carte-jour b { display: block; font-size: 1rem; font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; }
+.acc-carte-jour p { margin: 4px 0 0; color: var(--text-soft); overflow-wrap: anywhere; }
+.acc-carte-jour .acc-note { color: var(--text-muted); font-size: 0.9rem; }
+.acc-quoi > p.muted { margin: 0; }
+
+/* « Tu passes au tableau », « Tu conduis », « En salle » : l'étiquette de la personne sur la carte. */
+.acc-puce {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  margin-top: 8px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.acc-actions { margin-top: 12px; }
+.acc-actions .btn { min-height: 44px; }
+.acc-actions .btn svg, .acc-signe svg { width: 16px; height: 16px; flex: none; }
+.acc-signe {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 12px 0 0;
+  color: var(--c-go);
+  font-weight: 600;
+}
+.acc-carte-jour + .acc-signe, .acc-carte-jour + .acc-actions { margin-top: 12px; }
+
+.acc-vide { color: var(--text-soft); }
+.acc-erreur { color: var(--c-stop); }
+.acc-reessayer {
+  min-height: 44px;
+  padding: 0 4px;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* À faire : une ligne par tâche, la ligne entière est le lien. */
+.acc-lignes { display: flex; flex-direction: column; }
+.acc-ligne {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  padding: 12px 0;
+  border-top: 1px solid var(--line-faint);
+  color: inherit;
+  text-decoration: none;
+}
+.acc-ligne:first-child { border-top: 0; padding-top: 2px; }
+.acc-ligne-ico {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  background: var(--bg-subtle);
+  color: var(--accent);
+}
+.acc-ligne-ico svg { width: 20px; height: 20px; }
+.acc-ligne-texte { flex: 1; min-width: 0; }
+.acc-ligne-texte b { display: block; font-size: 0.95rem; font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; }
+.acc-ligne-texte span { display: block; margin-top: 2px; color: var(--text-muted); font-size: 0.85rem; line-height: 1.35; }
+.acc-ligne-fin { display: inline-flex; flex: none; color: var(--text-muted); }
+.acc-ligne-fin svg { width: 16px; height: 16px; }
+.acc-ligne:hover b { color: var(--accent); }
+
+/* Prochain rendez-vous. */
+.acc-rdv { font-size: 0.98rem; color: var(--text-soft); overflow-wrap: anywhere; }
+.acc-rdv b { color: var(--text); }
+.acc-rdv-decompte { color: var(--text-muted); font-size: 0.9rem; }
+
+/* Nouveauté : la carte de la Nouveauté s'aplatit dans la carte de l'Accueil (pas de boîte dans la boîte). */
+.acc-nouveaute .nv-carte { background: transparent; border: 0; border-radius: 0; padding: 0; }
+.acc-nouveaute .nv-guide { border-top: 0; padding-top: 0; margin-top: 0.6rem; }
+
+/* Pied de liens : ce qu'on cherche rarement mais qu'on doit trouver sans deviner. */
+.acc-liens {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 20px;
+  padding-top: 4px;
+  border-top: 1px solid var(--line);
+}
+.acc-lien-pied {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font-family: inherit;
+  font-size: 0.88rem;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+.acc-lien-pied svg { width: 16px; height: 16px; }
+.acc-lien-pied:hover { text-decoration: underline; }

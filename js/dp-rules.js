@@ -68,3 +68,11 @@ export function sommaire(data) {
     .filter((r) => r.type === "exemple")
     .map((r) => ({ at: r.at, n: r.n, titre: txt(data, cleExemple(r.at, r.n, "titre")) }));
 }
+
+// Nombre d'exemples remplis, de 0 à 6 (2 activités-types x 3 exemples) : l'accueil du stagiaire
+// dit « 2 exemples sur 6 ». Même critère que l'impression et le sommaire (exempleRempli).
+export function exemplesRemplis(data) {
+  let n = 0;
+  for (const at of [1, 2]) for (const ex of [1, 2, 3]) if (exempleRempli(data, at, ex)) n++;
+  return n;
+}

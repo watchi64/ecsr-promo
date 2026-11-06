@@ -7,7 +7,7 @@
  * l'ordre : Ce que voient les stagiaires (les modules) · Promo · Accès et invitations · Émargement et
  * Nouvelle navigation (fondateur) · Données personnelles ; Mes préférences (#/preferences, tous les
  * rôles, renderPreferences) garde ce qui est à la personne : Dans les notes de la classe (l'anonymat, pour qui a une fiche de
- * stagiaire) · Informations.
+ * stagiaire) · Informations (dont « À retenir », les règles courtes que l'Accueil ne porte plus).
  */
 import {
   listStagiaires, listProfs,
@@ -25,6 +25,7 @@ import { moduleVisible } from "../modules-etat.js?v=20261029b";
 import { renderModulesSection } from "./modules-reglage.js?v=20261029b";
 import { renderEmargementReglage } from "../emargement-etat.js?v=20261029b";
 import { renderNavigationReglage, navigationV2Active } from "../nav-etat.js?v=20261029b";
+import { pointsARetenir } from "../accueil-rules.js?v=20261029b";
 import { confirmationValide, dateCourte, etatFinDePromo, resumeEffacement } from "../effacement-rules.js?v=20261029b";
 
 // ====== SECTION Accès & invitations ======
@@ -713,6 +714,16 @@ function renderInfoSection() {
       el("dd", {}, el("a", { href: "https://github.com/watchi64/ecsr-promo", target: "_blank" }, "github.com/watchi64/ecsr-promo")),
     )
   ));
+  // Nouvelle navigation : l'Accueil ne porte plus « À retenir » (ce n'est pas ce qu'on vient y chercher chaque jour) ;
+  // les règles vivent ici, pour tous les rôles. Avec l'ancienne, elles restent sur l'Accueil.
+  if (navigationV2Active()) {
+    section.appendChild(el("div", { class: "param-block", "data-a-retenir": "" },
+      el("h4", {}, "À retenir"),
+      el("ul", { class: "home-info-list" },
+        ...pointsARetenir(true).map((p) => el("li", {}, el("strong", {}, p.gras), p.suite)),
+      ),
+    ));
+  }
   return section;
 }
 
