@@ -143,8 +143,8 @@ Contrôles par vue
     fondateur (aperçu aucun, allumé ou éteint, croisé avec la mémoire de la promo présente ou absente), la barre appliquée comprise : elle suit l'aperçu, la case non ;
   * titres des pages (lot 2A, allumé) : le titre (h2) de chaque page du menu est le libellé de son entrée (équipe : Émargement, Stagiaires, Notes et
     examens, Cours et QCM, Indicateurs, Réglages, CCP2 ; stagiaire : Cours et QCM, Mon suivi, CCP2) et, sauf pour CCP2, son surtitre est le nom de la
-    promo affichée. Accueil et Planning n'en font pas partie (TITRES_DES_PAGES) : l'accueil sera remplacé par Aujourd'hui au lot 2, le Planning garde
-    le titre de sa semaine ; Émargement, lui, s'appelle « Émargement » (ruling R50). Les sous-pages reprennent le nom de leur sous-onglet : Planning > Dates clés (ex-Calendrier), Cours et
+    promo affichée. L'Accueil du stagiaire et Planning n'en font pas partie (TITRES_DES_PAGES) : l'accueil du stagiaire salue par son prénom, le Planning garde
+    le titre de sa semaine ; la page de l'équipe s'appelle Aujourd'hui (lot 2B, tâche 4, titre de la page, h1) ; Émargement, lui, s'appelle « Émargement » (ruling R50). Les sous-pages reprennent le nom de leur sous-onglet : Planning > Dates clés (ex-Calendrier), Cours et
     QCM > Documents (ex-Ressources & contacts, dont la section des contacts s'appelle « Contacts du centre »), chacune avec la promo en surtitre ;
     Cours et QCM d'un stagiaire au départ, réduit à ses Documents, porte ce titre. Éteint, les titres de main restent : Notes & évaluations, Cours,
     Calendrier, Ressources & contacts, Mon espace, les surtitres « Formateurs », « Tableau de bord du centre » et « Espace personnel » ;
@@ -183,8 +183,13 @@ Contrôles par vue
     EPCF de la page de l'équipe, avec son k-anonymat (le banc sert des moyennes sur 3 et 2 stagiaires, et un critère sur un seul, jamais montré). Notes et examens,
     page de l'équipe : ses deux sous-onglets Matrice et EPCF, et le titre « Moyennes de la classe » du second ;
   * accueil, agenda vide (lot 2A, tour de correction 1) : un scénario à part par moteur et par passe, la date du banc reculée après le dernier événement
-    (DATE_AGENDA_VIDE), formateur : la liste dit où ajouter des événements, « Planning, Dates clés » avec la nouvelle navigation, « l'onglet Calendrier » avec celle de
-    main, et la carte du prochain événement majeur n'y est pas ;
+    (DATE_AGENDA_VIDE), formateur : avec l'ancienne navigation, la liste dit où ajouter des événements (« l'onglet Calendrier ») et la carte du prochain événement
+    majeur n'y est pas ; avec la nouvelle, Aujourd'hui n'en montre aucun ;
+  * Aujourd'hui du formateur (lot 2B, tâche 4) : le titre « Aujourd'hui » (h1, sous la pastille de date) et la ligne « Promo ... · N stagiaires en formation » ; les cinq cartes
+    dans l'ordre du téléphone, puis trois sur une ligne et deux sur la suivante dès 1080 px ; l'émargement (« N sur M », jauge, « Voir la feuille », « Pas encore ouverte »,
+    bouton « Signer » du seul fondateur qui a une fiche de stagiaire, carte absente promo éteinte) ; au tableau et en voiture selon le planning ; à traiter selon les comptes
+    du banc ; à suivre de près ; ni Nouveauté ni bandeau d'émargement sur la page ; cas limites (samedi, sans feuille, lectures en échec, départ pendant le chargement, 320 px) ;
+    le fondateur qui voit l'app en stagiaire arrive sur l'Accueil du stagiaire ;
   * bandeau d'émargement (stagiaire et équipe) : sur téléphone, une seule ligne (« Émargement du matin ouvert » et son bouton), ses horaires (stagiaire) ou
     ses signatures (équipe) cachés, son bouton de 44 px, sa hauteur au plus celle des deux lignes de main (61 px) ; au-delà de 700 px, et interrupteur
     éteint, ses détails sont montrés ;
@@ -1354,7 +1359,7 @@ function accueilStagiaire() {
     agenda: !!vue.querySelector(".home-agenda, #home-agenda-list"),
     decompte: !!vue.querySelector(".home-countdown"),
     retenir: !!vue.querySelector(".home-info"),
-    lignes: [...vue.querySelectorAll(".acc-ligne")].map((a) => ({ titre: net(a.querySelector("b").textContent), detail: net(a.querySelector(".acc-ligne-texte span").textContent),
+    lignes: [...vue.querySelectorAll(".acc-ligne")].map((a) => ({ titre: net(a.querySelector("b").textContent), detail: net((a.querySelector(".acc-ligne-texte span") || { textContent: "" }).textContent),
       href: a.getAttribute("href"), h: dixieme(rect(a).height) })),
     creneaux: [...vue.querySelectorAll(".acc-creneau")].map((c) => ({ demi: c.dataset.demi, texte: net(c.textContent),
       boutons: [...c.querySelectorAll("button.btn")].map((b) => net(b.textContent)), signe: (c.querySelector(".acc-signe") || {}).textContent || null })),
@@ -1368,6 +1373,25 @@ function accueilStagiaire() {
     debordement: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
     pied: (() => { const e = vue.querySelector(".home-footer-v2 p"); return e ? net(e.textContent) : null; })(),
   };
+}
+// Aujourd'hui du formateur (lot 2B, tâche 4) : ce que montre la page de l'accueil de l'équipe, en plus de ce que lit l'Accueil du stagiaire (mêmes classes) : la ligne
+// sous le titre, la promo et le nombre de stagiaires en formation tels que l'app les lit, et pour chaque carte ses liens, ses boutons et ses repères.
+async function aujourdhuiEquipe() {
+  const [db] = await modulesDeLApp(["db"]);
+  const vue = document.getElementById("view");
+  const promo = db.getPromoCourante() || {};
+  const lead = vue.querySelector(".home-lead-v2");
+  const dit = (c, s) => { const e = c.querySelector(s); return e ? net(e.textContent) : null; };
+  return { ...accueilStagiaire(),
+    lead: lead ? net(lead.textContent) : null,
+    promo: { nom: promo.nom || null, debut: promo.date_debut || null, fin: promo.date_fin || null },
+    enFormation: (await db.listStagiaires()).length,
+    details: [...vue.querySelectorAll(".acc-carte")].map((c) => ({ zone: c.dataset.zone,
+      liens: [...c.querySelectorAll(".acc-corps a[href]")].map((a) => ({ texte: net(a.textContent), href: a.getAttribute("href"), h: dixieme(rect(a).height) })),
+      boutons: [...c.querySelectorAll(".acc-corps button")].map((b) => ({ texte: net(b.textContent), h: dixieme(rect(b).height) })),
+      kpi: dit(c, ".acc-kpi"), repere: dit(c, ".acc-repere"), attente: dit(c, ".acc-attente"), signe: dit(c, ".acc-signe"),
+      jauge: (() => { const j = c.querySelector(".acc-jauge"); return j ? { now: Number(j.getAttribute("aria-valuenow")), max: Number(j.getAttribute("aria-valuemax")) } : null; })() })),
+    bandeau: (() => { const b = document.getElementById("emargement-bandeau"); return b && !b.hidden && visible(b) ? net(b.textContent) : null; })() };
 }
 // Ce que l'app lit : le nombre d'événements, de liens et de contacts, que les sous-titres de Dates clés et de Documents comptent.
 async function comptesDesPages() {
@@ -1418,7 +1442,7 @@ function bandeauEmargement() {
 window.__verifNav = { mesurer, regles: reglesSimples, voirEnTantQue, chercherLien, chercherPlus, ouvreurs, marquerPopups, mesurerPopups,
   popupsEncoreOuverts, focusSurOuvreur, focusPerdu, popupsVisibles: () => popupsVisibles().length, controlesAssistant,
   pageDeReglages, boutonDuCompte, menuDuCompte, enTeteDePage, panneauBenevoles, enTeteDeLEquipe,
-  accueil, accueilStagiaire, comptesDesPages, planningSemaine, laClasse, epcfDeLEquipe, bandeauEmargement, aTraiter, nouveautes, lienDossierPro, graphe, invaliderCache };
+  accueil, accueilStagiaire, aujourdhuiEquipe, comptesDesPages, planningSemaine, laClasse, epcfDeLEquipe, bandeauEmargement, aTraiter, nouveautes, lienDossierPro, graphe, invaliderCache };
 })();
 """
 
@@ -2643,12 +2667,13 @@ def verifier_texte_de_l_anonymat(res, vue, p, type_):
 # Titres des pages, bénévoles sous Stagiaires, Assistant de l'équipe sur téléphone (lot 2A, tâche 3)
 # --------------------------------------------------------------------------------------
 
-# Pages dont le titre (h2) est le libellé de leur entrée, par espace (ruling R30, une page, un nom). N'en font pas partie : Accueil, que
-# la page Aujourd'hui remplacera au lot 2, et Planning, dont la semaine garde son titre (« Planning de la semaine », le surtitre disant la
+# Pages dont le titre (h2) est le libellé de leur entrée, par espace (ruling R30, une page, un nom). Aujourd'hui en fait partie (lot 2B, tâche 4) : son titre
+# est un h1, celui de la signature de l'app (pastille de date, titre), et son surtitre est la pastille. N'en font pas partie : l'Accueil du stagiaire, qui
+# salue par son prénom, et Planning, dont la semaine garde son titre (« Planning de la semaine », le surtitre disant la
 # semaine). Émargement en fait partie depuis la tâche 4 (ruling R50 : « Émargement », et non « Feuilles d'émargement »). Le titre de Mon
 # suivi se lit aussi chez qui n'a pas cette entrée (fondateur).
 TITRES_DES_PAGES = {
-    "equipe": ("emargement", "stagiaires", "notes", "themes", "centre", "config", "ccp2"),
+    "equipe": ("home", "emargement", "stagiaires", "notes", "themes", "centre", "config", "ccp2"),
     "stagiaire": ("themes", "mon-suivi", "ccp2"),
 }
 # Parmi elles, celles dont le surtitre est le nom de la promo affichée (CCP2 garde « Titre professionnel ECSR »).
@@ -2667,6 +2692,13 @@ def verifier_titre_de_page(page, res, sc, route, libelle):
     p = page.evaluate("() => window.__verifNav.enTeteDePage()")
     if p["route"] != route:
         return   # la page n'est pas celle qu'on attendait : le défaut est noté à l'ouverture
+    if route == "home":
+        # Aujourd'hui : un titre de la signature de l'app (h1, sous la pastille de date), pas un en-tête de page.
+        titre = page.evaluate("() => (document.querySelector('#view .home-title-v2') || {}).textContent || null")
+        if (titre or "").strip() != libelle:
+            res.echec("titre de page", vue, "le titre de #/home est « %s », le libellé de son entrée « %s »" % (titre, libelle))
+        vider_console(res, vue)
+        return
     if route == "themes" and sc.modules == "depart" and sc.espace == "stagiaire":
         libelle = "Documents"   # cours fermés (départ) : la page se réduit à ses Documents, sans barre, et porte leur titre
     if not p["entetes"]:
@@ -3608,10 +3640,12 @@ def verifier_carte(res, vue, m):
         res.echec("carte du prochain événement", vue, "un événement à venir porte la ligne « %s » : seul un événement commencé est en cours" % carte["statut"])
 
 
-def attendre_accueil(page):
-    """L'accueil lit l'agenda après s'être posé : la carte et la liste n'y sont qu'une fois le « Chargement… » de la liste remplacé."""
-    page.wait_for_function("() => { const l = document.getElementById('home-agenda-list'); return (!l || !/Chargement/.test(l.textContent))"
-                           " && ![...document.querySelectorAll('#view .acc-corps')].some((c) => /Chargement/.test(c.textContent)); }", timeout=6000)
+def attendre_accueil(page, sauf=""):
+    """L'accueil lit l'agenda après s'être posé : la carte et la liste n'y sont qu'une fois le « Chargement… » de la liste remplacé. `sauf` : la zone d'une carte
+    qu'on n'attend pas (la carte « à traiter » d'Aujourd'hui quand ses lectures n'aboutissent pas)."""
+    page.wait_for_function("(sauf) => { const l = document.getElementById('home-agenda-list'); return (!l || !/Chargement/.test(l.textContent))"
+                           " && ![...document.querySelectorAll('#view .acc-carte')].some((c) => c.dataset.zone !== sauf && /Chargement/.test(c.querySelector('.acc-corps').textContent)); }",
+                           arg=sauf, timeout=6000)
 
 
 def ouvrir_accueil(page, res, vue):
@@ -3629,30 +3663,40 @@ def ouvrir_accueil(page, res, vue):
 
 def verifier_accueil(page, res, sc):
     """Accueil, nouvelle navigation, les deux espaces : le logo n'y est qu'une fois (celui de la coquille, pas un second à côté de la date), la phrase qui
-    énumérait les pages de l'ancienne barre est remplacée par « Promo <nom> · semaine <n> », aucune tuile ne double la barre ; la carte « Prochain
-    événement majeur » compte les jours qui restent, jamais en nombre négatif."""
+    énumérait les pages de l'ancienne barre est remplacée par « Promo <nom> · semaine <n> », aucune tuile ne double la barre. Le stagiaire a sa page
+    (lot 2B, tâche 3), l'équipe la sienne, Aujourd'hui (tâche 4)."""
     vue = "%s/accueil" % sc.nom
-    m = ouvrir_accueil(page, res, vue)
+    equipe = sc.espace == "equipe"
+    if equipe and sc.a_traiter == "lent":
+        # Les lectures « à traiter » n'aboutissent pas : la carte « À traiter » reste en « Chargement… » sans retenir le reste de la page.
+        aller_a(page, "#/home")
+        attendre(page)
+        attendre_accueil(page, sauf="a-traiter")
+        res.vues += 1
+        m = page.evaluate("() => window.__verifNav.accueil()")
+    else:
+        m = ouvrir_accueil(page, res, vue)
     if m is None:
         return
     if m["logos"]:
         res.echec("accueil", vue, "%d logo(s) à côté de la date : la coquille porte déjà le logo" % m["logos"])
     if m["tuiles"]:
         res.echec("accueil", vue, "des tuiles doublent la barre : %s" % ", ".join(m["tuiles"]))
-    attendue = ligne_promo_attendue(m["promo"], datetime.date.fromisoformat(DATE_DU_BANC))
-    if m["lead"] != attendue:
-        res.echec("accueil", vue, "la ligne sous la salutation est « %s », attendu « %s »" % (m["lead"], attendue))
-    # Lot 2A, tâche 1 : les Nouveautés du lancement ouvrent la section, la ligne Ctrl + Z et le lien du pied portent les noms de la nouvelle barre.
-    verifier_nouveautes_de_l_accueil(page, res, vue, sc.espace == "equipe")
+    if not equipe:
+        attendue = ligne_promo_attendue(m["promo"], datetime.date.fromisoformat(DATE_DU_BANC))
+        if m["lead"] != attendue:
+            res.echec("accueil", vue, "la ligne sous la salutation est « %s », attendu « %s »" % (m["lead"], attendue))
+        # Lot 2A, tâche 1 : les Nouveautés du lancement ouvrent la section ; la ligne Ctrl + Z et le lien du pied portent les noms de la nouvelle barre.
+        verifier_nouveautes_de_l_accueil(page, res, vue, False)
     verifier_pied_de_l_accueil(res, vue, m, True)
-    if sc.espace == "stagiaire":
+    if equipe:
+        # Lot 2B, tâche 4 : Aujourd'hui (l'émargement, ce qui est à traiter, au tableau, en voiture, à suivre de près) ; ni Nouveautés (le compte les porte), ni
+        # « À retenir » (passé dans Mes préférences), ni compte à rebours, ni liste d'événements.
+        verifier_aujourdhui_equipe(page, res, sc, vue)
+    else:
         # Lot 2B, tâche 3 : le stagiaire a sa page (la journée, à faire, prochain rendez-vous) ; ni « À retenir » (passé dans Mes préférences), ni
         # compte à rebours, ni liste d'événements : la carte « Prochain événement majeur » n'existe plus de son côté.
         verifier_accueil_stagiaire(page, res, sc, vue)
-    else:
-        verifier_pied_et_retenir(res, vue, m, sc.espace)
-        if m["agenda"]:
-            verifier_carte(res, vue, m)
     vider_console(res, vue)
 
 
@@ -3747,6 +3791,139 @@ def verifier_accueil_stagiaire(page, res, sc, vue, jour=None):
             res.echec("accueil du stagiaire", vue, "zones à toucher sous 44 px sur téléphone : %s" % ", ".join(petits))
 
 
+ZONES_AUJOURDHUI = ("emargement", "a-traiter", "tableau", "voiture", "a-suivre")   # l'ordre du téléphone, celui du DOM
+TITRES_AUJOURDHUI = {"a-traiter": "À traiter", "a-suivre": "À suivre de près"}
+
+
+def verifier_aujourdhui_equipe(page, res, sc, vue, jour=None, feuille="ouverte", planning=True, avec_feuille=True, benevoles=False):
+    """Aujourd'hui du formateur, nouvelle navigation (lot 2B, tâche 4) : la pastille de date, le titre « Aujourd'hui », la ligne « Promo <nom> · semaine <n> · N stagiaires
+    en formation » ; les cartes dans l'ordre du téléphone (émargement, à traiter, au tableau, en voiture, à suivre) et, dès 1080 px, émargement, au tableau, en voiture sur une
+    ligne puis à traiter et à suivre ; aucune Nouveauté, tuile, compte à rebours ni « À retenir » ; l'émargement (« N sur M », jauge, « Voir la feuille », « Pas encore ouverte »
+    sans feuille, carte absente promo éteinte) et, pour qui a une fiche de stagiaire, son bouton « Signer » ; au tableau et en voiture selon le planning du jour, les liens vers
+    le Planning et Stagiaires > Élèves bénévoles ; à traiter selon les comptes du banc ; le bandeau d'émargement ne dit rien ici ; le pied ; zones à toucher de 44 px sur
+    téléphone ; rien ne déborde ni ne se recouvre. `feuille` : « ouverte » ou « aucune » (la feuille que le banc sert ce jour-là) ; `planning` : le jour a un planning ;
+    `avec_feuille` : l'émargement est allumé pour la promo ; `benevoles` : le banc sert des élèves bénévoles (`?benevoles=1`) : la ligne qui mène à leur sous-onglet est là
+    (sinon elle n'y est pas, rien n'est inventé)."""
+    m = page.evaluate("() => window.__verifNav.aujourdhuiEquipe()")
+    jour = jour or datetime.date.fromisoformat(DATE_DU_BANC)
+    telephone = sc.largeur < SEUIL_TELEPHONE
+    echec = lambda detail: res.echec("aujourd'hui du formateur", vue, detail)
+    attendu = [JOURS_DE_LA_SEMAINE[jour.weekday()], str(jour.day), MOIS_DE_L_ANNEE[jour.month - 1]]
+    if not m["pastille"] or [x.lower() for x in m["pastille"]["parties"]] != attendu:
+        echec("la pastille de date dit %s, attendu %s (jour, numéro, mois, sans l'année)" % (m["pastille"] and m["pastille"]["parties"], attendu))
+    if (m["titre"] or "").strip() != "Aujourd'hui":
+        echec("le titre de la page est « %s », attendu « Aujourd'hui »" % m["titre"])
+    ligne = "%s · %d stagiaires en formation" % (ligne_promo_attendue(m["promo"], jour), m["enFormation"])
+    if m["lead"] != ligne:
+        echec("la ligne sous le titre est « %s », attendu « %s »" % (m["lead"], ligne))
+    if m["tuiles"] or m["agenda"] or m["decompte"] or m["retenir"]:
+        echec("la page montre encore des éléments d'avant : %d tuile(s), liste d'événements %s, compte à rebours %s, « À retenir » %s" % (m["tuiles"], m["agenda"], m["decompte"], m["retenir"]))
+    zones = [c["zone"] for c in m["cartes"]]
+    attendues = [z for z in ZONES_AUJOURDHUI if avec_feuille or z != "emargement"]
+    if zones != attendues:
+        echec("les cartes sont %s, attendu %s (aucune Nouveauté : le compte les porte)" % (zones, attendues))
+        return
+    par = {c["zone"]: c for c in m["cartes"]}
+    det = {d["zone"]: d for d in m["details"]}
+    if planning and (par["tableau"]["titre"] != "Au tableau ce matin" or par["voiture"]["titre"] != "En voiture cet après-midi"):
+        echec("les titres des cartes sont « %s » et « %s », attendu « Au tableau ce matin » et « En voiture cet après-midi » (le banc : un cours au tableau le matin, la voiture l'après-midi)"
+              % (par["tableau"]["titre"], par["voiture"]["titre"]))
+    for zone, titre in TITRES_AUJOURDHUI.items():
+        if par[zone]["titre"] != titre:
+            echec("la carte « %s » s'appelle « %s »" % (titre, par[zone]["titre"]))
+    if m["chargements"] and sc.a_traiter != "lent":
+        echec("%d carte(s) restent en « Chargement… »" % m["chargements"])
+    if m["debordement"]:
+        echec("la page défile de côté à %d px" % sc.largeur)
+    for i, a in enumerate(m["cartes"]):
+        for b in m["cartes"][i + 1:]:
+            if a["haut"] < b["bas"] - 1 and b["haut"] < a["bas"] - 1 and a["gauche"] < b["droite"] - 1 and b["gauche"] < a["droite"] - 1:
+                echec("les cartes « %s » et « %s » se recouvrent" % (a["titre"], b["titre"]))
+    # Disposition : une colonne sur téléphone, dans l'ordre du DOM ; dès 1080 px, trois cartes sur la première ligne, deux sur la seconde.
+    hauts = [c["haut"] for c in m["cartes"]]
+    if telephone:
+        if hauts != sorted(hauts):
+            echec("sur téléphone, les cartes ne sont pas dans l'ordre %s" % " > ".join(attendues))
+    elif sc.largeur >= 1080:
+        premiere = [par[z] for z in ("emargement", "tableau", "voiture") if z in par]
+        seconde = [par["a-traiter"], par["a-suivre"]]
+        if max(c["haut"] for c in premiere) - min(c["haut"] for c in premiere) > 1:
+            echec("sur ordinateur, %s ne sont pas sur une même ligne" % ", ".join(c["titre"] for c in premiere))
+        if abs(seconde[0]["haut"] - seconde[1]["haut"]) > 1 or seconde[0]["haut"] < max(c["bas"] for c in premiere) - 1:
+            echec("sur ordinateur, « À traiter » et « À suivre de près » ne sont pas sur une même ligne sous les trois premières cartes")
+    # Émargement
+    if avec_feuille:
+        e = det["emargement"]
+        if feuille == "aucune":
+            if "Pas encore ouverte" not in par["emargement"]["texte"] or [(l["texte"], l["href"]) for l in e["liens"]] != [("Aller à l'émargement", "#/emargement")]:
+                echec("sans feuille ouverte, la carte dit « %s » avec les liens %s : attendu « Pas encore ouverte » et le lien vers Émargement" % (par["emargement"]["texte"], e["liens"]))
+        else:
+            adresse = "#/emargement/%s/matin" % jour.isoformat()
+            mots = (e["kpi"] or "").split(" ")
+            if not re.fullmatch(r"\d+ sur \d+ ont signé", e["kpi"] or "") or e["repere"] != "Ouverte" or par["emargement"]["titre"] != "Émargement du matin":
+                echec("la carte d'émargement dit « %s » (titre « %s », repère « %s »), attendu « Émargement du matin », « N sur M ont signé » et « Ouverte »"
+                      % (e["kpi"], par["emargement"]["titre"], e["repere"]))
+            elif not e["jauge"] or e["jauge"]["now"] != int(mots[0]) or e["jauge"]["max"] != int(mots[2]):
+                echec("la jauge de l'émargement (%s) ne dit pas « %s »" % (e["jauge"], e["kpi"]))
+            if ("Voir la feuille", adresse) not in [(l["texte"], l["href"]) for l in e["liens"]]:
+                echec("« Voir la feuille » manque ou ne mène pas à %s (liens : %s)" % (adresse, e["liens"]))
+            if not (e["attente"] or "").startswith("En attente : "):
+                echec("la carte d'émargement ne dit pas qui attend (« %s »)" % e["attente"])
+            # Le fondateur qui a une fiche de stagiaire signe depuis la carte ; un formateur sans fiche n'a pas ce bouton.
+            signer = [b["texte"] for b in e["boutons"] if b["texte"].startswith("Signer")]
+            if bool(res.profil_stagiaire) != bool(signer):
+                echec("le bouton « Signer pour ce matin » est %s alors que la personne %s une fiche de stagiaire (boutons : %s)"
+                      % ("là" if signer else "absent", "a" if res.profil_stagiaire else "n'a pas", [b["texte"] for b in e["boutons"]]))
+    # Au tableau, en voiture
+    if planning:
+        if not [l for l in det["tableau"]["liens"] if l["href"].startswith("#/stagiaires/")]:
+            echec("« Au tableau » ne montre personne alors que le banc en met au tableau le matin : %s" % par["tableau"]["texte"])
+        voiture = {l["href"]: l["texte"] for l in det["voiture"]["liens"]}
+        if "#/planning" not in voiture or ("#/stagiaires" in voiture) != benevoles \
+                or (benevoles and not voiture["#/stagiaires"].startswith(("2 élèves bénévoles", "1 élève bénévole"))):
+            echec("« En voiture » doit mener au Planning, et à Stagiaires (sous-onglet Élèves bénévoles) quand le banc sert des bénévoles (%s) : liens %s" % (benevoles, det["voiture"]["liens"]))
+    else:
+        for zone in ("tableau", "voiture"):
+            if "Pas de formation aujourd'hui." not in par[zone]["texte"]:
+                echec("un jour de repos, la carte « %s » dit « %s » : attendu « Pas de formation aujourd'hui. »" % (par[zone]["titre"], par[zone]["texte"]))
+    # À traiter : les comptes du banc (A_TRAITER_DU_BANC)
+    attendu_pastille, phrase = A_TRAITER_DU_BANC[sc.a_traiter]
+    traiter = [(l["titre"], l["href"]) for l in m["lignes"] if l["href"] == "#/themes"]
+    if sc.a_traiter == "lent":
+        if "Chargement" not in par["a-traiter"]["texte"]:
+            echec("les lectures n'aboutissent pas : « À traiter » doit rester en « Chargement… » sans retenir la page (%s)" % par["a-traiter"]["texte"])
+    elif attendu_pastille is None:
+        if traiter or "Le décompte n'a pas pu être lu." not in par["a-traiter"]["texte"]:
+            echec("les lectures échouent : « À traiter » doit dire « Le décompte n'a pas pu être lu. » sans ligne (%s)" % par["a-traiter"]["texte"])
+    else:
+        total = nombre_de_la_phrase(phrase)
+        if traiter != [("%d signalements sur des QCM" % total, "#/themes")]:
+            echec("« À traiter » dit %s, attendu « %d signalements sur des QCM » (propositions de l'IA : pas avant leur liste, ruling R56)" % (traiter, total))
+    # À suivre de près
+    if "Tout voir" not in {x["texte"]: x for x in m["plus"]}:
+        echec("« À suivre de près » n'a pas son lien « Tout voir »")
+    suivre = par["a-suivre"]["texte"]
+    if "Personne ne cumule deux signaux." not in suivre and "À suivre" not in suivre:
+        echec("« À suivre de près » ne dit ni qui suivre ni « Personne ne cumule deux signaux. » : « %s »" % suivre)
+    # Les erreurs ne s'affichent que dans les pannes que le scénario sème (« À traiter » sans compte).
+    attendues_en_panne = 1 if (attendu_pastille is None and sc.a_traiter != "lent") else 0
+    if len(m["erreurs"]) != attendues_en_panne:
+        echec("%d message(s) d'erreur à l'écran, attendu %d : %s" % (len(m["erreurs"]), attendues_en_panne, m["erreurs"]))
+    # Le bandeau d'émargement ne double pas la carte (il reste sur les autres pages).
+    if avec_feuille and m["bandeau"]:
+        echec("le bandeau d'émargement est affiché sur la page qui porte la carte : « %s »" % m["bandeau"])
+    # Pied : celui de l'Accueil d'avant (« code source · réglages »), sans pied de liens.
+    if [(l["texte"], l["href"]) for l in m["liensDuPied"]] != [("code source", "https://github.com/watchi64/ecsr-promo"), ("réglages", "#/config")]:
+        echec("le pied de page garde %s, attendu « code source » et « réglages »" % [(l["texte"], l["href"]) for l in m["liensDuPied"]])
+    if m["liens"]:
+        echec("le pied de liens du stagiaire (%s) n'a pas sa place chez l'équipe : ses liens sont dans la barre et le menu du compte" % [l["texte"] for l in m["liens"]])
+    if telephone:
+        petits = ["%s (%s px)" % (x["texte"], x["h"]) for d in m["details"] for x in d["liens"] + d["boutons"] if x["h"] < 43.5] \
+            + ["%s (%s px)" % (x["texte"], x["h"]) for x in m["plus"] if x["h"] < 43.5]
+        if petits:
+            echec("zones à toucher sous 44 px sur téléphone : %s" % ", ".join(petits))
+
+
 def recharger_au_banc(page, adresse, derniere_page=None, **parametres):
     """Recharge le banc avec d'autres paramètres (une autre date, une lenteur), puis ouvre `adresse`. `derniere_page` : la page que l'ouverture à froid retrouve
     (mémoire `derniere-route`) ; l'Accueil n'est alors pas encore lu quand on y arrive, aucune lecture n'est en mémoire."""
@@ -3838,6 +4015,121 @@ def jouer_accueil_du_stagiaire(page, res, sc):
     attendre_accueil(page)
     verifier_accueil_stagiaire(page, res, replace(sc, largeur=LARGEUR_ETROITE), vue + "/320")
     page.set_viewport_size({"width": sc.largeur, "height": 800})
+    vider_console(res, vue)
+
+
+def jouer_aujourdhui_cas_limites(page, res, sc):
+    """Aujourd'hui du formateur, les cas limites (lot 2B, tâche 4), nouvelle navigation, l'équipe : un samedi, émargement éteint (pas de carte d'émargement, « Pas de formation
+    aujourd'hui. » au tableau et en voiture), un samedi avec une feuille ouverte (la carte d'émargement existe sans planning), un jour sans feuille (« Pas encore ouverte »),
+    des lectures en échec (chaque carte garde son erreur, la page reste, « Réessayer » relit le planning), un départ vers une autre page pendant le chargement (rien ne se
+    repeint ni ne casse), le plus petit téléphone (320 px). Chaque rechargement ouvre l'app à froid : la page d'avant est mémorisée, l'accueil n'est pas lu d'avance. Une
+    bascule de promo recharge la page entière (choisirPromo) : il n'y a rien à repeindre."""
+    vue = "%s/aujourdhui-cas-limites" % sc.nom
+    samedi = datetime.date(2026, 10, 31)
+    # 1. Un samedi, émargement éteint : pas de carte d'émargement, la journée est un repos.
+    recharger_au_banc(page, "#/home", date=samedi.isoformat(), emargement="0")
+    attendre_accueil(page)
+    res.vues += 1
+    verifier_aujourdhui_equipe(page, res, sc, vue + "/samedi", jour=samedi, planning=False, avec_feuille=False)
+    # 2. Un samedi avec une feuille ouverte : la carte d'émargement existe sans planning.
+    recharger_au_banc(page, "#/home", date=samedi.isoformat(), emargement="1")
+    attendre_accueil(page)
+    res.vues += 1
+    verifier_aujourdhui_equipe(page, res, sc, vue + "/samedi-feuille", jour=samedi, planning=False)
+    # 3. Un jour sans feuille : « Pas encore ouverte » et le lien vers Émargement (le banc retire ses feuilles, la page les relit au retour sur l'accueil).
+    page.evaluate("() => { window.__FIXTURES_DU_BANC.emargement_seances.splice(0); }")
+    aller_a(page, "#/planning")
+    aller_a(page, "#/home")
+    attendre_accueil(page)
+    res.vues += 1
+    verifier_aujourdhui_equipe(page, res, sc, vue + "/sans-feuille", jour=samedi, planning=False, feuille="aucune")
+    vider_console(res, vue)
+    # 4. Des lectures en échec, après le démarrage, sur une page jamais lue : chaque carte garde son erreur.
+    recharger_au_banc(page, "#/preferences", derniere_page="preferences")
+    page.evaluate("() => { window.__HARNESS_FAIL = 'panne du banc'; }")
+    aller_a(page, "#/home")
+    try:
+        attendre_accueil(page)
+    except DelaiDepasse:
+        res.echec("aujourd'hui du formateur, lectures en échec", vue, "une carte reste en « Chargement… » quand les lectures échouent")
+    m = page.evaluate("() => window.__verifNav.accueilStagiaire()")
+    if len(m["erreurs"]) < 5 or [c["zone"] for c in m["cartes"]] != list(ZONES_AUJOURDHUI) or not m["pastille"]:
+        res.echec("aujourd'hui du formateur, lectures en échec", vue, "chaque carte doit garder sa propre erreur, la page rester : erreurs %s, cartes %s"
+                  % (m["erreurs"], [c["zone"] for c in m["cartes"]]))
+    if page.evaluate("() => document.querySelectorAll('#view .view-error-box').length"):
+        res.echec("aujourd'hui du formateur, lectures en échec", vue, "la page entière est en erreur : seules les cartes doivent l'être")
+    res.console.clear()   # les « console.error » de la page sont le but de l'essai : elle dit pourquoi une carte est vide
+    page.evaluate("() => { window.__HARNESS_FAIL = null; }")
+    if cliquer(page, res, vue, '#view [data-zone="tableau"] .acc-reessayer', "« Réessayer » du planning"):
+        try:
+            page.wait_for_function("() => [...document.querySelectorAll('#view .acc-carte h2')].some((h) => /ce matin/.test(h.textContent))", timeout=4000)
+        except DelaiDepasse:
+            res.echec("aujourd'hui du formateur, lectures en échec", vue, "« Réessayer » n'a pas relu le planning : les cartes « Au tableau » et « En voiture » restent sans titre du jour")
+    vider_console(res, vue)
+    # 5. Départ vers une autre page pendant le chargement : les lectures lentes reviennent dans un nœud détaché.
+    recharger_au_banc(page, "#/home", derniere_page="preferences", lenteur="1500", lenteur_tables="planning_entries,stagiaires,emargement_seances,qcm_signalements")
+    aller_a(page, "#/home")
+    page.wait_for_timeout(300)
+    aller_a(page, "#/planning")
+    page.wait_for_timeout(2800)
+    if page.evaluate("() => document.querySelectorAll('#view .acc-grille').length") or route_courante(page) != "planning":
+        res.echec("aujourd'hui du formateur, départ pendant le chargement", vue, "Aujourd'hui s'est repeint par-dessus la page ouverte entre-temps (page : #/%s)" % route_courante(page))
+    vider_console(res, vue)
+    # 6. Le plus petit téléphone.
+    page.set_viewport_size({"width": LARGEUR_ETROITE, "height": 800})
+    recharger_au_banc(page, "#/home")
+    attendre_accueil(page)
+    res.vues += 1
+    verifier_aujourdhui_equipe(page, res, replace(sc, largeur=LARGEUR_ETROITE), vue + "/320")
+    page.set_viewport_size({"width": sc.largeur, "height": 800})
+    # 7. Des élèves bénévoles en voiture (le banc en sert avec `?benevoles=1`, que les rechargements suivants garderaient : en dernier) : la ligne qui mène à
+    # Stagiaires, sous-onglet Élèves bénévoles.
+    recharger_au_banc(page, "#/home", benevoles="1")
+    attendre_accueil(page)
+    res.vues += 1
+    verifier_aujourdhui_equipe(page, res, sc, vue + "/benevoles", benevoles=True)
+    vider_console(res, vue)
+
+
+def jouer_signature_d_aujourdhui(page, res, sc):
+    """Signature depuis Aujourd'hui (lot 2B, tâche 4), pour qui a une fiche de stagiaire (le fondateur) : le bouton « Signer pour ce matin » de la carte d'émargement ouvre
+    la fenêtre de signature ; une fois validée, la carte dit « Signé à H h MM », le bouton a disparu, et le bandeau ne dit rien sur cette page."""
+    vue = "%s/signature-aujourdhui" % sc.nom
+    recharger_au_banc(page, "#/home")
+    attendre_accueil(page)
+    if not cliquer(page, res, vue, '#view [data-zone="emargement"] button.btn', "« Signer pour ce matin »"):
+        return
+    dessiner_une_signature(page)
+    try:
+        page.wait_for_function("() => !!document.querySelector('#view [data-zone=\"emargement\"] .acc-signe')", timeout=6000)
+    except DelaiDepasse:
+        res.echec("signature depuis Aujourd'hui", vue, "la carte d'émargement ne dit pas « Signé à ... » après la signature")
+        return
+    res.vues += 1
+    m = page.evaluate("() => window.__verifNav.aujourdhuiEquipe()")
+    e = next(d for d in m["details"] if d["zone"] == "emargement")
+    if not re.fullmatch(r"Signé à \d{1,2} h \d{2}", (e["signe"] or "").strip()) or [b for b in e["boutons"] if b["texte"].startswith("Signer")]:
+        res.echec("signature depuis Aujourd'hui", vue, "après la signature, la carte dit « %s » avec les boutons %s : attendu « Signé à H h MM », sans bouton « Signer »" % (e["signe"], [b["texte"] for b in e["boutons"]]))
+    if m["bandeau"]:
+        res.echec("signature depuis Aujourd'hui", vue, "le bandeau reste affiché sur la page après la signature : « %s » (la carte porte déjà la confirmation)" % m["bandeau"])
+    vider_console(res, vue)
+
+
+def verifier_accueil_voir_en_tant_que_stagiaire(page, res, sc, vue):
+    """Le fondateur voit l'app en stagiaire : l'accueil est celui du stagiaire (salutation par le prénom, ses cartes), jamais Aujourd'hui. Sans fiche de stagiaire, aucune
+    étiquette « Tu passes au tableau » ni signature."""
+    aller_a(page, "#/home")
+    attendre(page)
+    attendre_accueil(page)
+    res.vues += 1
+    m = page.evaluate("() => window.__verifNav.accueilStagiaire()")
+    if not re.match(r"^(Bonjour|Bon après-midi|Bonsoir), ", (m["titre"] or "").strip()) or [c["zone"] for c in m["cartes"]] != [z for z, _ in ZONES_DE_L_ACCUEIL]:
+        res.echec("accueil en aperçu stagiaire", vue, "l'accueil n'est pas celui du stagiaire : titre « %s », cartes %s" % (m["titre"], [c["zone"] for c in m["cartes"]]))
+    if not res.profil_stagiaire:
+        dedans = page.evaluate("() => ({ puces: document.querySelectorAll('#view .acc-puce').length, signes: document.querySelectorAll('#view .acc-signe').length,"
+                               " boutons: document.querySelectorAll('#view .acc-creneau button.btn').length })")
+        if any(dedans.values()):
+            res.echec("accueil en aperçu stagiaire", vue, "sans fiche de stagiaire, l'accueil montre des étiquettes ou des signatures : %s" % dedans)
     vider_console(res, vue)
 
 
@@ -4031,9 +4323,9 @@ def verifier_bandeau_emargement(page, res, sc):
     horaires du stagiaire et les signatures du formateur cachés, le bouton de 44 px. Au-delà de 700 px, et interrupteur éteint : le bandeau de main, ses
     détails montrés."""
     vue = "%s/bandeau-emargement" % sc.nom
-    # Lot 2B, tâche 3 : l'Accueil du stagiaire porte lui-même le bouton « Signer » (et le bandeau n'y double rien) : le bandeau d'un stagiaire se lit sur le Planning.
-    # L'équipe garde le sien sur l'Accueil jusqu'à Aujourd'hui (tâche 4).
-    aller_a(page, "#/planning" if sc.espace == "stagiaire" and res.coquille else "#/home")
+    # Lots 2B, tâches 3 et 4 : l'accueil de chaque espace (Accueil du stagiaire, Aujourd'hui du formateur) porte lui-même la feuille d'émargement, et le bandeau n'y
+    # double rien : il se lit sur le Planning. Interrupteur éteint, il se lit sur l'accueil de main.
+    aller_a(page, "#/planning" if res.coquille else "#/home")
     attendre(page)
     try:
         page.wait_for_function("() => { const b = document.getElementById('emargement-bandeau'); return !!b && !b.hidden; }", timeout=6000)
@@ -4130,6 +4422,12 @@ def jouer_allume(page, res, sc, options):
             jouer_accueil_du_stagiaire(page, res, sc)
         if sc.largeur in (375, 1280):
             jouer_signature_de_l_accueil(page, res, sc)
+    # Lot 2B, tâche 4 : de même pour Aujourd'hui du formateur (la signature n'existe que pour qui a une fiche de stagiaire).
+    if res.coquille and sc.espace == "equipe" and not (sc.modules or sc.ressources_fermees or sc.voir_en_tant_que or sc.a_traiter):
+        if sc.largeur == 375:
+            jouer_aujourdhui_cas_limites(page, res, sc)
+        if sc.largeur in (375, 1280) and res.profil_stagiaire:
+            jouer_signature_d_aujourdhui(page, res, sc)
 
 
 def focus_garde(page, res, vue, geste):
@@ -4198,6 +4496,8 @@ def jouer_voir_en_tant_que(page, res, sc, options):
         if vu:
             verifier_assistant_sous_bandeau(page, res, sc_vu, "%s/%s/assistant" % (sc.nom, nom_vu))
         parcourir_entrees(page, res, sc_vu, regles["entrees"], options, avec_sous_vues=False)
+        if vu == "stagiaire":
+            verifier_accueil_voir_en_tant_que_stagiaire(page, res, sc_vu, "%s/%s/accueil" % (sc.nom, nom_vu))
 
 
 def verifier_assistant_sous_bandeau(page, res, sc, vue):
@@ -4228,11 +4528,17 @@ def verifier_assistant_sous_bandeau(page, res, sc, vue):
 
 
 def jouer_agenda_vide(page, res, sc):
-    """Accueil d'un formateur quand plus aucun événement n'est à venir (la date du banc recule après le dernier) : la liste le dit et dit où en ajouter,
-    « Planning, Dates clés » avec la nouvelle navigation, « l'onglet Calendrier » avec celle de main ; la carte « Prochain événement majeur » n'y est pas."""
+    """Accueil d'un formateur quand plus aucun événement n'est à venir (la date du banc recule après le dernier) : avec l'ancienne navigation, la liste le dit et dit où
+    en ajouter (« l'onglet Calendrier ») et la carte « Prochain événement majeur » n'y est pas ; avec la nouvelle, Aujourd'hui ne lit pas l'agenda et n'en montre rien."""
     vue = "%s/accueil" % sc.nom
     m = ouvrir_accueil(page, res, vue)
     if m is None:
+        return
+    if sc.passe == "allume":
+        # Aujourd'hui (lot 2B, tâche 4) ne lit pas l'agenda : ni liste, ni carte, ni phrase sur l'agenda vide ; la page se pose comme un autre jour.
+        if m["agenda"] or m["carte"] or page.evaluate("() => !!document.querySelector('#view .home-empty-line')"):
+            res.echec("accueil, agenda vide", vue, "Aujourd'hui montre l'agenda (liste %s, carte %s) : la page n'en lit aucun" % (m["agenda"], bool(m["carte"])))
+        vider_console(res, vue)
         return
     attendu = "Aucun événement à venir. " + ("Ajoute-en depuis Planning, Dates clés." if sc.passe == "allume" else "Ajoute-en depuis l'onglet Calendrier.")
     dit = page.evaluate("() => { const e = document.querySelector('#view .home-empty-line'); return e ? e.textContent.trim() : null; }")

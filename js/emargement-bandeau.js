@@ -63,11 +63,12 @@ export function rafraichirBandeauEmargement() {
   return lecture;
 }
 
-// L'Accueil du stagiaire (nouvelle navigation) porte lui-même le bouton « Signer » dans la rangée de la
-// séance ouverte, et la confirmation « Signé à ... » : le bandeau n'y double ni l'un ni l'autre. Les
-// autres pages, et l'équipe partout, gardent le bandeau d'avant.
-function accueilDuStagiaire() {
-  return navigationV2Active() && !(isAdmin() || isProf()) && lireAdresse(location.hash).route === "home";
+// Sous la nouvelle navigation, la page d'accueil porte elle-même la feuille d'émargement : le stagiaire y signe dans la
+// rangée de la séance ouverte et y lit « Signé à ... », le formateur y lit la carte « Émargement » (et le fondateur qui a
+// une fiche de stagiaire, son bouton « Signer »). Le bandeau n'y double rien. Les autres pages, et l'ancienne
+// navigation partout, gardent le bandeau d'avant.
+function accueilPorteLaFeuille() {
+  return navigationV2Active() && lireAdresse(location.hash).route === "home";
 }
 
 // Les séances ouvertes aujourd'hui, lignes de présence comprises : ce que lit le bandeau, rendu à la page
@@ -83,7 +84,7 @@ const ordreDemi = (s) => (s.demi_journee === "matin" ? 0 : 1);
 function dessiner(b, seances, actifs) {
   clear(b);
   b.className = "em-bandeau";
-  if (confirmation && Date.now() < confirmation.jusqua && !accueilDuStagiaire()) {
+  if (confirmation && Date.now() < confirmation.jusqua && !accueilPorteLaFeuille()) {
     b.classList.add("em-bandeau-ok");
     b.appendChild(el("p", {}, `Émargement signé à ${confirmation.heure}. Merci !`));
     b.hidden = false;
@@ -100,7 +101,7 @@ function dessiner(b, seances, actifs) {
       const l = s.lignes.find((x) => x.stagiaire_id === moi);
       return !l || (!l.signe_le && !l.absent);
     });
-    if (aSigner && !accueilDuStagiaire()) {
+    if (aSigner && !accueilPorteLaFeuille()) {
       // Les horaires, à part : la nouvelle navigation les masque sur téléphone, pour une seule ligne (css/navigation.css).
       b.appendChild(el("p", {}, el("strong", {}, `Émargement ${deLaDemi(aSigner.demi_journee)} ouvert`),
         el("span", { class: "em-bandeau-detail" }, ` (${libelleCreneau(aSigner)})`)));
@@ -119,8 +120,8 @@ function dessiner(b, seances, actifs) {
     }
   }
 
-  // Formateur : rappel, sauf sur la page Émargement elle-même.
-  if ((isAdmin() || isProf()) && tries.length) {
+  // Formateur : rappel, sauf sur la page Émargement elle-même et sur l'accueil qui porte la carte.
+  if ((isAdmin() || isProf()) && tries.length && !accueilPorteLaFeuille()) {
     const s = tries[0];
     const adresse = adresseSeance(s.jour, s.demi_journee);
     if (location.hash.startsWith("#/emargement")) { b.hidden = true; return; }

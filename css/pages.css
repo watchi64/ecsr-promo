@@ -210,3 +210,59 @@
 }
 .acc-lien-pied svg { width: 16px; height: 16px; }
 .acc-lien-pied:hover { text-decoration: underline; }
+
+/* ============================================================
+   Aujourd'hui du formateur (lot 2B) : mêmes cartes que l'Accueil du stagiaire, une grille à elle.
+   ============================================================ */
+
+/* Téléphone : l'ordre du DOM (émargement, à traiter, au tableau, en voiture, à suivre). Tablette : deux colonnes, la
+   dernière carte sur toute la largeur. Ordinateur : émargement, au tableau, en voiture sur trois colonnes, puis à
+   traiter et à suivre sur deux ; sans feuille d'émargement (promo où il est éteint), au tableau et en voiture se
+   partagent la première ligne. */
+@media (min-width: 700px) {
+  .auj-grille > [data-zone="a-suivre"] { grid-column: 1 / -1; }
+}
+@media (min-width: 1080px) {
+  .auj-grille { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .auj-grille > .acc-carte { grid-column: span 2; }
+  .auj-grille > [data-zone="emargement"] { order: 1; }
+  .auj-grille > [data-zone="tableau"] { order: 2; }
+  .auj-grille > [data-zone="voiture"] { order: 3; }
+  .auj-grille > [data-zone="a-traiter"] { order: 4; grid-column: span 3; }
+  .auj-grille > [data-zone="a-suivre"] { order: 5; grid-column: span 3; }
+  .auj-sans-feuille > [data-zone="tableau"], .auj-sans-feuille > [data-zone="voiture"] { grid-column: span 3; }
+}
+
+/* Émargement : « 2 sur 6 », son repère, la jauge, ceux qui attendent, les boutons. */
+.acc-em-tete { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; }
+.acc-kpi { margin: 0; font-size: 1.6rem; font-weight: 600; line-height: 1.2; }
+.acc-kpi .muted { font-size: 0.9rem; font-weight: 400; }
+.acc-kpi-vide { font-size: 1.1rem; color: var(--text-soft); }
+.acc-jauge {
+  height: 8px;
+  margin: 10px 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--bg-subtle);
+  overflow: hidden;
+}
+.acc-jauge i { display: block; height: 100%; background: var(--accent); }
+.acc-attente { margin: 0; color: var(--text-soft); overflow-wrap: anywhere; }
+.auj-grille .acc-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.auj-grille .acc-attente + .acc-actions { margin-top: 12px; }
+
+/* Repères : « Ouverte » en vert, « À suivre » par le jeton d'avertissement (jamais en rouge). */
+.acc-repere {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  min-height: 26px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: var(--bg-subtle);
+  color: var(--text-soft);
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+.acc-repere-ok { background: var(--c-go-soft); color: var(--c-go); }
+.acc-repere-suivre { background: var(--c-wait-soft); color: var(--c-wait); }

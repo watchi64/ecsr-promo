@@ -54,11 +54,13 @@ export const NOUVEAUTES = [
     titre: "Côté formateurs, la barre passe à gauche",
     resume: "Sur ordinateur, la barre de l'équipe est maintenant à gauche, avec la promo en tête ; elle se "
           + "replie en colonne d'icônes et l'app s'en souvient. Le compte et l'assistant sont en bas de cette "
-          + "barre. Sur téléphone, Accueil, Planning, Stagiaires et Notes sont en bas de l'écran, « Plus » "
+          + "barre. Sur téléphone, Aujourd'hui, Planning, Stagiaires et Notes sont en bas de l'écran, « Plus » "
           + "ouvre le reste (Émargement, Cours et QCM, CCP2, Indicateurs, Réglages), et le bouton Assistant "
           + "est en haut, à côté de ton compte. Les élèves bénévoles se trouvent maintenant dans Stagiaires.",
     ou: { label: "Stagiaires, Élèves bénévoles", route: "stagiaires", sousOnglet: "benevoles" },
     guide: [
+      "Aujourd'hui remplace l'Accueil : la feuille d'émargement du jour, ce qui est à traiter dans Cours et QCM, "
+        + "qui passe au tableau et qui est en voiture, et les stagiaires à suivre de près.",
       "Replie la barre de gauche avec le bouton en haut de la barre : l'app retient ton choix.",
       "En bas de la barre : l'assistant, « Signaler un problème » et ton compte (Nouveautés, contacts du "
         + "centre, Mes préférences).",

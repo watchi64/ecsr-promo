@@ -14,6 +14,7 @@ import { emargementActif } from "../emargement-etat.js?v=20261029b";
 import { navigationV2Active } from "../nav-etat.js?v=20261029b";
 import { etatEvenement, libelleDecompte, lignePromo, pastilleDeLaCarte, pointsARetenir, salutationDe } from "../accueil-rules.js?v=20261029b";
 import { renderAccueilStagiaire } from "./accueil-stagiaire.js?v=20261029b";
+import { renderAujourdhui } from "./aujourdhui.js?v=20261029b";
 
 function greetingByHour() {
   return salutationDe(new Date().getHours());
@@ -76,9 +77,9 @@ function sectionNouveautes() {
 }
 
 export async function renderHome(container) {
-  // Nouvelle navigation, espace stagiaire : la page du stagiaire (js/views/accueil-stagiaire.js). L'équipe garde la page
-  // d'avant jusqu'à Aujourd'hui (tâche 4), qui prendra sa place ici ; interrupteur éteint, rien ne change.
-  if (navigationV2Active() && !formateurConnecte()) return renderAccueilStagiaire(container);
+  // Nouvelle navigation : chaque espace a sa page, le stagiaire son Accueil (js/views/accueil-stagiaire.js), l'équipe
+  // Aujourd'hui (js/views/aujourdhui.js) ; interrupteur éteint, rien ne change.
+  if (navigationV2Active()) return formateurConnecte() ? renderAujourdhui(container) : renderAccueilStagiaire(container);
   clear(container);
 
   const profile = getProfile();

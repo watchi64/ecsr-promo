@@ -8,22 +8,20 @@
 import {
   listAgendaEvents, getPromoCourante, listQcmIndex, listMyQcmAttempts, listThemes, getDpDossier, getEpcfLivret,
 } from "../db.js?v=20261029b";
-import { el, clear, isoDate } from "../utils.js?v=20261029b";
+import { el, clear } from "../utils.js?v=20261029b";
 import { icon } from "../icons.js?v=20261029b";
 import { getProfileWho, monStagiaireId } from "../auth-admin.js?v=20261029b";
 import { nouveautesAffichables, marquerLues, routeVisible, moduleVisible } from "../modules-etat.js?v=20261029b";
-import { STORAGE_SOUS_ONGLET } from "../nouveautes.js?v=20261029b";
 import { carteNouveaute } from "./nouveautes.js?v=20261029b";
 import { prenomDe } from "../nav-rules.js?v=20261029b";
-import { hrefLien } from "../route-rules.js?v=20261029b";
 import { lignePromo, prochainRendezVous, aFaireStagiaire, salutationDe } from "../accueil-rules.js?v=20261029b";
 import { journeeDuJour } from "../journee-rules.js?v=20261029b";
-import { chargerSemaine } from "../planning-lecture.js?v=20261029b";
 import { effSujets, sujetsDe } from "../planning-roles.js?v=20261029b";
 import { exemplesRemplis } from "../dp-rules.js?v=20261029b";
 import { heureLocale } from "../emargement-rules.js?v=20261029b";
 import { seancesDuJour, signerSeance } from "../emargement-bandeau.js?v=20261029b";
 import { ouvrirSignalement } from "../signalement.js?v=20261029b";
+import { carte, lienVers, plusLien, ligneLien, pastilleDuJour, reperesDuJour, semaineDeLaVisite, surveiller } from "./pages-cartes.js?v=20261029b";
 
 const RELECTURE_SEANCES_MS = 60000;
 
@@ -42,36 +40,6 @@ function horaireDeSeance({ debut, fin }) {
   };
   return `${lisible(debut)} à ${lisible(fin)}`;
 }
-
-// Une carte : { carte, corps }. `corps` est le nœud que la lecture remplit plus tard.
-function carte({ titre, ico, plus = null, classe = "", zone }) {
-  const corps = el("div", { class: "acc-corps" }, el("p", { class: "muted" }, "Chargement…"));
-  const noeud = el("section", { class: "acc-carte " + classe, "data-zone": zone },
-    el("div", { class: "acc-carte-tete" },
-      el("span", { class: "acc-carte-ico", "aria-hidden": "true" }, icon[ico]()),
-      el("h2", {}, titre),
-      plus,
-    ),
-    corps,
-  );
-  return { noeud, corps };
-}
-
-// Lien vers une page. Une partie de Mon suivi se vise par l'adresse ; un sous-onglet de Cours et QCM passe par la
-// mémoire de renderSubTabs (comme le lien « Où le trouver » d'une Nouveauté).
-function lienVers(route, sousOnglet, classe, ...contenu) {
-  const href = hrefLien({ route, sousOnglet });
-  return el("a", {
-    class: classe, href,
-    onClick: () => {
-      const cle = STORAGE_SOUS_ONGLET[route];
-      if (!cle || !sousOnglet || href !== "#/" + route) return;
-      try { localStorage.setItem(cle, sousOnglet); } catch (e) { /* mémoire indisponible : la page s'ouvre sur son premier onglet */ }
-    },
-  }, ...contenu);
-}
-
-const plusLien = (route, texte) => lienVers(route, null, "acc-plus", texte, icon.chevronRight());
 
 // === La journée ===
 
@@ -187,43 +155,16 @@ async function chargerJournee(corps, jour, indexJour, semaine, moi) {
   }
 
   await Promise.all([relirePlanning(), relireSeances()]);
-  if (moi != null) surveiller(corps, relireSeances);
-}
-
-// Relit les séances tant que la carte est à l'écran : une feuille ouverte par un formateur pendant la visite
-// fait apparaître le bouton (le bandeau ne le porte plus sur cette page), une signature faite se redessine.
-function surveiller(corps, relire) {
-  const relance = () => { if (corps.isConnected) relire(); else arreter(); };
-  const surVisible = () => { if (!document.hidden) relance(); };
-  const minuteur = setInterval(surVisible, RELECTURE_SEANCES_MS);
-  function arreter() {
-    clearInterval(minuteur);
-    window.removeEventListener("emargement-signe", relance);
-    document.removeEventListener("visibilitychange", surVisible);
-  }
-  window.addEventListener("emargement-signe", relance);
-  document.addEventListener("visibilitychange", surVisible);
-}
-
-// La semaine du planning, lue une fois par visite pour les deux cartes qui s'en servent (la journée, l'à-faire).
-// `neuve` : relire (« Réessayer » après un échec).
-function semaineDeLaVisite(lundi) {
-  let lecture = null;
-  return (neuve = false) => {
-    if (!lecture || neuve) lecture = chargerSemaine(lundi);
-    return lecture;
-  };
+  // Une feuille ouverte par un formateur pendant la visite fait apparaître le bouton (le bandeau ne le porte plus sur
+  // cette page), une signature faite se redessine.
+  if (moi != null) surveiller(corps, relireSeances, RELECTURE_SEANCES_MS);
 }
 
 // === À faire ===
 
 function ligneAFaire(l) {
   const ico = l.cle === "dossier" ? "clipboard" : l.cle === "livret" ? "book" : "quiz";
-  return lienVers(l.route, l.sousOnglet, "acc-ligne",
-    el("span", { class: "acc-ligne-ico", "aria-hidden": "true" }, icon[ico]()),
-    el("span", { class: "acc-ligne-texte" }, el("b", {}, l.titre), el("span", {}, l.detail)),
-    el("span", { class: "acc-ligne-fin", "aria-hidden": "true" }, icon.chevronRight()),
-  );
+  return ligneLien({ route: l.route, sousOnglet: l.sousOnglet, ico, titre: l.titre, detail: l.detail });
 }
 
 async function chargerAFaire(corps, indexJour, semaine, moi) {
@@ -313,11 +254,7 @@ function carteDeLaNouveaute() {
 export function renderAccueilStagiaire(container) {
   clear(container);
   const maintenant = new Date();
-  const jour = isoDate(maintenant);
-  const indexJour = (maintenant.getDay() + 6) % 7;   // 0 = lundi ... 6 = dimanche
-  // Le lundi de la semaine de la date du jour. lundiEnCours (journee-rules) donne celui de la semaine SUIVANTE le
-  // week-end, qui n'est pas celle dont on veut la journée ni les thèmes déjà vus.
-  const lundi = isoDate(new Date(maintenant.getFullYear(), maintenant.getMonth(), maintenant.getDate() - indexJour));
+  const { jour, indexJour, lundi } = reperesDuJour(maintenant);
   const moi = monStagiaireId();
   const semaine = semaineDeLaVisite(lundi);
   const who = getProfileWho();
@@ -325,13 +262,7 @@ export function renderAccueilStagiaire(container) {
   const ligne = lignePromo(getPromoCourante(), jour);
 
   container.appendChild(el("section", { class: "home-hero-v2" },
-    el("div", { class: "home-today-strip" },
-      el("div", { class: "home-today-pill" },
-        el("span", { class: "home-today-weekday" }, maintenant.toLocaleDateString("fr-FR", { weekday: "long" })),
-        el("span", { class: "home-today-num" }, String(maintenant.getDate())),
-        el("span", { class: "home-today-month" }, maintenant.toLocaleDateString("fr-FR", { month: "long" })),
-      ),
-    ),
+    pastilleDuJour(maintenant),
     el("h1", { class: "home-title-v2" }, salutationDe(maintenant.getHours()) + ", ", el("em", {}, prenom)),
     ligne ? el("p", { class: "home-lead-v2" }, ligne) : null,
   ));

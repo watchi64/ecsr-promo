@@ -36,7 +36,7 @@ eq(stag.map((e) => [e.libelle, e.icone]),
 eq(ids(eqp), ["home", "planning", "emargement", "stagiaires", "notes", "themes", "ccp2", "centre", "config"],
   "équipe : rien retiré par les modules");
 eq(eqp.map((e) => [e.libelle, e.icone]),
-  [["Accueil", "home"], ["Planning", "calendar"], ["Émargement", "clipboard"], ["Stagiaires", "users"],
+  [["Aujourd'hui", "home"], ["Planning", "calendar"], ["Émargement", "clipboard"], ["Stagiaires", "users"],
     ["Notes et examens", "edu"], ["Cours et QCM", "book"], ["CCP2", "target"], ["Indicateurs", "chart"],
     ["Réglages", "settings"]],
   "libellés et icônes de l'équipe");
@@ -45,6 +45,8 @@ eq(eqp.filter((e) => e.groupe).map((e) => e.id), ["centre", "config"], "groupe P
 eq(ids(entreesNavigation("equipe", { routeVisible: tout, emargementActif: false })).includes("emargement"), false,
   "émargement éteint");
 eq(eqp.find((e) => e.id === "notes").court, "Notes", "libellé court de Notes");
+eq(barreTelephone("equipe", eqp).barre.map((e) => e.court), ["Aujourd'hui", "Planning", "Stagiaires", "Notes"],
+  "barre de l'équipe : la première case s'appelle Aujourd'hui");
 
 // 3. Barre du téléphone
 eq(ids(barreTelephone("equipe", eqp).barre), ["home", "planning", "stagiaires", "notes"], "barre équipe");

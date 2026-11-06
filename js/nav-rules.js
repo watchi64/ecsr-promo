@@ -29,9 +29,10 @@ const TOUJOURS_VISIBLES = ["home", "mon-suivi"];
 
 // Équipe (formateur, admin), dans l'ordre de la barre latérale. Un module fermé n'en retire
 // aucune : la coquille la repère au lieu de la masquer. Seul Émargement dépend d'un
-// interrupteur de la promo. Accueil devient Aujourd'hui avec la page du même nom (lot 2).
+// interrupteur de la promo. La première entrée s'appelle Aujourd'hui (la page du même nom, lot 2B) ; sa route et sa
+// mémoire restent celles de l'Accueil.
 const ENTREES_EQUIPE = [
-  entree("home", "Accueil", "home"),
+  entree("home", "Aujourd'hui", "home"),
   entree("planning", "Planning", "calendar"),
   entree("emargement", "Émargement", "clipboard"),
   entree("stagiaires", "Stagiaires", "users"),
