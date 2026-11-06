@@ -1,25 +1,25 @@
 import { listStagiaires, listEvaluations, getPlanning, getHalfMetaForWeek, getJoursOff, getSetting,
          listProfs, listEpcf, getEpcfMoyennes, listThemes,
          getStagiaire, setDateNaissance, listPassages,
-         listLivretsIndex, listDossiersIndex, getPromoCourante } from "../db.js?v=20261029b";
-import { el, clear, isoDate, getMonday, addDays, formatDate, displayStagiaire, toast, largeurDeGraphe } from "../utils.js?v=20261029b";
-import { HALF_DAYS, RESULTATS } from "../config.js?v=20261029b";
-import { isAdmin, isProf, monStagiaireId } from "../auth-admin.js?v=20261029b";
-import { renderEpcfPersonne } from "./epcf.js?v=20261029b";
-import { renderSubTabs } from "../subtabs.js?v=20261029b";
-import { renderDp } from "./dp.js?v=20261029b";
-import { renderEpcfLivret } from "./epcf-livret.js?v=20261029b";
-import { rolesPourEntry, ROLE_ORDER } from "../creneaux-rules.js?v=20261029b";
-import { bandeauAvis } from "../avis.js?v=20261029b";
-import { statsPassages } from "../passages-stats.js?v=20261029b";
-import { moduleVisible, moduleMasque, repereMasque } from "../modules-etat.js?v=20261029b";
-import { icon } from "../icons.js?v=20261029b";
-import { PARTIES, lireAdresse, adresseFiche } from "../route-rules.js?v=20261029b";
-import { etatsSommaire, passagesAVenir, EVT_DOCUMENT } from "../fiche-rules.js?v=20261029b";
-import { libellesDeMois, rayonDeCible, largeurDuDessin, LARGEUR_MAX_DU_GRAPHE } from "../evolution-rules.js?v=20261029b";
-import { surChangementAdresse, remplacerAdresse, peutQuitter } from "../navigation.js?v=20261029b";
-import { navigationV2Active } from "../nav-etat.js?v=20261029b";
-import { renderNotes } from "./notes.js?v=20261029b";
+         listLivretsIndex, listDossiersIndex, getPromoCourante } from "../db.js?v=20261106a";
+import { el, clear, isoDate, getMonday, addDays, formatDate, displayStagiaire, toast, largeurDeGraphe } from "../utils.js?v=20261106a";
+import { HALF_DAYS, RESULTATS } from "../config.js?v=20261106a";
+import { isAdmin, isProf, monStagiaireId } from "../auth-admin.js?v=20261106a";
+import { renderEpcfPersonne } from "./epcf.js?v=20261106a";
+import { renderSubTabs } from "../subtabs.js?v=20261106a";
+import { renderDp } from "./dp.js?v=20261106a";
+import { renderEpcfLivret } from "./epcf-livret.js?v=20261106a";
+import { rolesPourEntry, ROLE_ORDER } from "../creneaux-rules.js?v=20261106a";
+import { bandeauAvis } from "../avis.js?v=20261106a";
+import { statsPassages } from "../passages-stats.js?v=20261106a";
+import { moduleVisible, moduleMasque, repereMasque } from "../modules-etat.js?v=20261106a";
+import { icon } from "../icons.js?v=20261106a";
+import { PARTIES, lireAdresse, adresseFiche } from "../route-rules.js?v=20261106a";
+import { etatsSommaire, passagesAVenir, EVT_DOCUMENT } from "../fiche-rules.js?v=20261106a";
+import { libellesDeMois, rayonDeCible, largeurDuDessin, LARGEUR_MAX_DU_GRAPHE } from "../evolution-rules.js?v=20261106a";
+import { surChangementAdresse, remplacerAdresse, peutQuitter } from "../navigation.js?v=20261106a";
+import { navigationV2Active } from "../nav-etat.js?v=20261106a";
+import { renderNotes } from "./notes.js?v=20261106a";
 
 const HALF_ORDER = { matin: 0, aprem: 1 };
 
