@@ -56,6 +56,8 @@ const ALIAS_ENTREE_ACTIVE = new Map([
   ["notes", "mon-suivi"],
   // Problèmes signalés (fondateur, spec 2026-10-28) : ouverte depuis « Signaler un problème ».
   ["problemes", "config"],
+  // Qualiopi (fondateur, spec 2026-10-28) : ouverte depuis le tableau de bord du centre, qui reste allumé.
+  ["qualiopi", "centre"],
 ]);
 
 // Anciennes adresses déplacées : la page visée et le sous-onglet à y ouvrir (les mêmes dans
