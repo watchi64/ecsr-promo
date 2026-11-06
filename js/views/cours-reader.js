@@ -23,7 +23,7 @@ import { ouvertureBloc, lireBloc } from "../cours-blocs-rules.js?v=20261029b";
 import { listCoursIndex, getCours } from "../db.js?v=20261029b";
 import { isAdmin, isProf, getViewAs } from "../auth-admin.js?v=20261029b";
 import { titreDepuisMarkdown, tempsLecture, cleCours, estCodeCompetence, libelleCle, coursSuivant, cibleLienCours,
-  coursVisibleEnApercu }
+  coursVisibleEnApercu, classeTableau, etiquetteDeColonne }
   from "../cours-rules.js?v=20261029b";
 
 // Index des cours visibles, chargé une fois par rendu de la page Thèmes.
@@ -147,14 +147,6 @@ function cellules(ligne) {
   return ligne.trim().replace(/^\|/, "").replace(/\|$/, "").split("|").map((c) => c.trim());
 }
 
-// Un tableau de sanctions se reconnaît à sa colonne « Amende » : ses nombres
-// méritent la police tabulaire et la colonne des points un accent.
-function classeTableau(entetes) {
-  const joint = entetes.join(" ").toLowerCase();
-  if (joint.includes("amende")) return "cours-table cours-table-sanctions";
-  return "cours-table";
-}
-
 // Un tableau de sanctions ne tient pas en colonnes sur un téléphone : l'infraction
 // est une phrase, les trois autres cellules de courtes valeurs. On le rend donc en
 // fiches, l'infraction en tête et les valeurs en pastilles. Rien n'est perdu : ce
@@ -242,11 +234,16 @@ function rendreTableau(lignes) {
   const thead = el("thead", {}, el("tr", {}, entetes.map((c) => el("th", {}, inline(c)))));
   const corps = el("tbody");
   for (const ligne of lignes.slice(2)) {
-    corps.appendChild(el("tr", {}, cellules(ligne).map((c) => el("td", {}, celluleTableau(c)))));
+    // `data-label` : sur téléphone, la ligne devient une carte et chaque valeur écrit le titre de sa colonne.
+    corps.appendChild(el("tr", {}, cellules(ligne).map((c, i) => {
+      const etiquette = etiquetteDeColonne(entetes[i]);
+      return el("td", etiquette ? { dataset: { label: etiquette } } : {}, celluleTableau(c));
+    })));
   }
   table.appendChild(thead);
   table.appendChild(corps);
-  // Enveloppe défilante : un tableau large ne doit jamais pousser la page.
+  // Enveloppe sans défilement de côté : au-dessus de 700 px le tableau tient en largeur (mots coupés si besoin), en dessous
+  // chaque ligne devient une carte (css/style.css).
   return el("div", { class: "cours-table-wrap" }, table);
 }
 

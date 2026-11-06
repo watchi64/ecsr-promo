@@ -69,10 +69,9 @@ Contrôles par vue
 -----------------
   * rien ne défile de côté ni ne déborde de la fenêtre, dans les deux passes, hors `.matrice-wrap`
     (exception admise, sans avertissement). Tout le reste échoue, interrupteur éteint compris (une règle
-    du lot qui déborde de `body[data-nav="v2"]` y fait échouer la page), sauf une liste qui ne donne qu'un
-    avertissement, jamais un échec : la dette ouverte du lecteur de cours (DETTE_LECTEUR_DE_COURS, ruling R52),
-    dont le sommaire (`.cours-sommaire`) et les tableaux (`.cours-table-wrap`) défilent encore de côté, hors du
-    banc, à corriger au lot 2B. Les autres conteneurs des rulings R10 et R11 qui défilaient déjà sur main (graphe de
+    du lot qui déborde de `body[data-nav="v2"]` y fait échouer la page), lecteur de cours compris (lot 2B,
+    tâche 1 : le sommaire passe à la ligne et les tableaux deviennent des listes sur téléphone, plus aucune dette
+    du ruling R52). Les conteneurs des rulings R10 et R11 qui défilaient déjà sur main (graphe de
     Notes, tableaux du centre et des passages, lien Légifrance de Cours > Signalements, graphe de Mon évolution,
     moyennes EPCF de la classe) ont été corrigés au lot 2A, tâche 5, et n'ont aucune exception ;
   * notes en rouge (lot 2A, tâche 5) : le remplissage d'une forme d'un graphe de notes (barres des graphes de Notes, points de
@@ -437,12 +436,8 @@ SIGNALER_DU_BANC = "2"
 # Aucun défilement de côté, à aucune largeur (règle de Timy du 27/10) : seule la matrice des notes (saisie case
 # par case) est admise, sans avertissement. Les conteneurs des rulings R10 et R11 qui défilaient déjà sur main ont été
 # corrigés au lot 2A, tâche 5 (graphe de Notes, tableaux du centre et des passages, lien Légifrance de Cours >
-# Signalements, graphe de Mon évolution, moyennes EPCF de la classe), à l'exception du lecteur de cours.
+# Signalements, graphe de Mon évolution, moyennes EPCF de la classe), et ceux du lecteur de cours au lot 2B, tâche 1.
 EXCEPTION_ADMISE = ".matrice-wrap"
-# Dette ouverte (ruling R52) : le sommaire et les tableaux du lecteur de cours défilent encore de côté (css/style.css,
-# `.cours-sommaire` et `.cours-table-wrap`). Lecteur de cours, hors du banc, à corriger au lot 2B : un avertissement s'ils
-# sont vus, jamais un échec, pour que la trace ne se perde pas.
-DETTE_LECTEUR_DE_COURS = (".cours-sommaire", ".cours-table-wrap")
 
 # Entrées de repli si les règles de navigation de l'app ne se lisent pas dans la page.
 ENTREES_REPLI = {
@@ -699,12 +694,11 @@ function debordements(o) {
     if (e.closest(o.exception)) return "ignore";
     if (e.closest("[data-nav-coquille]")) return "coquille";
     if (e.closest(".subtabs-bar")) return "sous-onglets";
-    const d = e.closest(o.dette.join(", "));
-    if (d) return "dette:" + o.dette.find((s) => d.matches(s));
     return "page";
   };
   const vus = new Set();
-  [document.getElementById("view"), ...racines()].filter(Boolean).forEach((racine) => {
+  // Le lecteur de cours et les Informations légales sont posés sur `body`, hors de `#view` : on les mesure à part (lot 2B, tâche 1).
+  [document.getElementById("view"), ...racines(), ...document.querySelectorAll(".cours-overlay")].filter(Boolean).forEach((racine) => {
     [racine, ...racine.querySelectorAll("*")].forEach((e) => {
       if (vus.has(e)) return;
       vus.add(e);
@@ -932,7 +926,7 @@ async function invaliderCache(cles) {
 
 // ---- Mesure d'une vue ----
 async function mesurer(o) {
-  const echecs = [], dettes = [], avert = [];
+  const echecs = [], avert = [];
   const W = largeur(), H = hauteur();
   const tel = W < o.seuilTelephone;
   const allume = o.passe === "allume";
@@ -962,14 +956,12 @@ async function mesurer(o) {
 
   // Défilements et débordements de côté : la même classification interrupteur allumé ou éteint, car la
   // passe éteinte est le garde de « l'app reste identique à main » (une règle du lot qui déborde de
-  // body[data-nav="v2"] se voit là). Aucun conteneur n'a d'exception, hors la matrice des notes ; seul le lecteur de cours,
-  // dette ouverte (ruling R52), ne donne qu'un avertissement, rangé sous le sélecteur de son conteneur.
+  // body[data-nav="v2"] se voit là). Aucun conteneur n'a d'exception, hors la matrice des notes.
   const trouves = debordements(o);
   trouves.forEach((t) => {
     if (t.cat === "ignore") return;
     if (t.cat === "coquille") echecs.push(["défilement de côté dans la coquille", t.detail]);
     else if (t.cat === "sous-onglets") echecs.push(["défilement de côté d'une barre de sous-onglets", t.detail]);
-    else if (t.cat.startsWith("dette:")) dettes.push([t.cat.slice(6), t.detail]);
     else echecs.push([t.genre === "zone" ? "zone de page qui défile de côté" : "élément de page qui déborde de la fenêtre", t.detail]);
   });
   // Graphes de notes : jamais un remplissage rouge (lot 2A, tâche 5), dans les deux passes.
@@ -998,7 +990,7 @@ async function mesurer(o) {
   if (allume && o.coquille) mesurerCoquille(o, route, W, H, tel, echecs, avert, await regles());
   if (!allume) mesurerAncienne(route, echecs, barres);
   window.scrollTo(0, 0);
-  return { route, echecs, dettes, avert };
+  return { route, echecs, avert };
 }
 
 function mesurerAncienne(route, echecs, barres) {
@@ -1823,7 +1815,7 @@ def verifier_vue(page, res, sc, titre, options):
     attendre(page)
     res.vues += 1
     o = {"passe": sc.passe, "espace": sc.espace, "coquille": res.coquille, "seuilTelephone": SEUIL_TELEPHONE,
-         "dette": list(DETTE_LECTEUR_DE_COURS), "exception": EXCEPTION_ADMISE}
+         "exception": EXCEPTION_ADMISE}
     avant = len(res.echecs)
     try:
         m = page.evaluate("(o) => window.__verifNav.mesurer(o)", o)
@@ -1834,8 +1826,6 @@ def verifier_vue(page, res, sc, titre, options):
     res.derniere_vue = vue
     for type_, detail in m["echecs"]:
         res.echec(type_, vue, detail)
-    for cle, detail in m["dettes"]:
-        res.avertir("dette ouverte, lecteur de cours", cle, vue, detail)
     for type_, detail in m["avert"]:
         res.avertir(type_, detail, vue, detail)
     vider_console(res, vue)
@@ -3323,6 +3313,110 @@ def verifier_ccp2(page, res, sc):
     vider_console(res, vue)
 
 
+# --------------------------------------------------------------------------------------
+# Lecteur de cours et Informations légales (lot 2B, tâche 1 ; ruling R52)
+# --------------------------------------------------------------------------------------
+
+# Ouverture des deux lecteurs : ils sont posés sur `body`, hors de `#view`, et rien dans la navigation ne les ouvre toujours au même
+# endroit. On importe donc les modules par les mêmes adresses que l'app (même jeton `?v=`, donc la même instance), puis on les appelle.
+OUVRIR_LECTEURS = {
+    "cours": """async (jeton) => {
+        const m = await import("./js/views/cours-reader.js?v=" + jeton);
+        m.openCoursSheet({ numero: 22, titre: "Feux du véhicule" });
+    }""",
+    "legal": """async (jeton) => {
+        const m = await import("./js/legal.js?v=" + jeton);
+        m.ouvrirInformationsLegales();
+    }""",
+}
+
+# Ce que le lecteur ouvert doit respecter, mesuré dans la page : rien ne se coupe sans se voir (le `overflow-x: clip` de
+# `.cours-scroll` masque un débordement au lieu de le signaler), le sommaire passe à la ligne et ne défile pas, et les tableaux
+# larges deviennent des listes sur téléphone (carte par ligne, titre de colonne devant chaque valeur), restent des tableaux au-delà.
+JS_LECTEUR = r"""
+(seuil) => {
+  const pbs = [];
+  const ov = document.querySelector(".cours-overlay");
+  if (!ov) return ["aucun lecteur ouvert"];
+  const zone = ov.querySelector(".cours-scroll");
+  const W = document.documentElement.clientWidth;
+  const tel = W < seuil;
+  const nom = (e) => e.tagName.toLowerCase() + (e.className && typeof e.className === "string" ? "." + e.className.trim().split(/\s+/).join(".") : "");
+  const zr = zone.getBoundingClientRect();
+  if (zone.scrollWidth > zone.clientWidth + 1) pbs.push(`la zone de lecture défile de côté (${zone.scrollWidth} px pour ${zone.clientWidth} px)`);
+  let coupes = 0;
+  for (const e of zone.querySelectorAll("*")) {
+    if (e.closest("thead") || e instanceof SVGElement) continue;
+    const r = e.getBoundingClientRect();
+    if (r.width <= 1 || r.height <= 1 || getComputedStyle(e).visibility === "hidden") continue;
+    const surplus = e.scrollWidth - e.clientWidth;
+    if (e.clientWidth > 0 && surplus > 1 && coupes++ < 4) pbs.push(`${nom(e)} : ${e.scrollWidth} px de contenu pour ${e.clientWidth} px (coupé ou à défiler)`);
+    if ((r.right > zr.right + 1 || r.left < zr.left - 1) && coupes++ < 4) pbs.push(`${nom(e)} sort de la zone de lecture (${Math.round(r.left)} à ${Math.round(r.right)} px pour ${Math.round(zr.left)} à ${Math.round(zr.right)})`);
+  }
+  const somm = ov.querySelector(".cours-sommaire");
+  if (somm) {
+    const s = getComputedStyle(somm);
+    if (s.overflowX !== "visible") pbs.push(`le sommaire a overflow-x: ${s.overflowX}`);
+    if (s.flexWrap !== "wrap") pbs.push(`le sommaire ne passe pas à la ligne (flex-wrap: ${s.flexWrap})`);
+    if (tel && s.position !== "static") pbs.push(`le sommaire reste ${s.position} sur téléphone (il couvrirait le texte)`);
+    if (tel) for (const b of somm.children) { const h = b.getBoundingClientRect().height; if (h < 43.5) pbs.push(`pastille du sommaire trop basse : ${Math.round(h)} px`); }
+  }
+  for (const t of ov.querySelectorAll(".cours-table")) {
+    const largeur = t.querySelectorAll("thead th").length;
+    const carte = tel && largeur > 2;
+    const tr = t.querySelector("tbody tr");
+    const td = t.querySelector("tbody td");
+    if (!tr || !td) continue;
+    const ent = [...t.querySelectorAll("thead th")].map((h) => h.textContent.trim());
+    if (getComputedStyle(t).display !== (carte ? "block" : "table")) pbs.push(`tableau de ${largeur} colonnes en display ${getComputedStyle(t).display} (attendu ${carte ? "block" : "table"})`);
+    t.querySelectorAll("tbody td").forEach((c, i) => {
+      const attendu = ent[i % ent.length] || "";
+      if ((c.dataset.label || "") !== attendu) pbs.push(`cellule ${i + 1} : data-label « ${c.dataset.label || ""} », attendu « ${attendu} »`);
+    });
+    if (carte) {
+      const th = t.querySelector("thead").getBoundingClientRect();
+      if (th.height > 1 && th.width > 1) pbs.push("l'en-tête du tableau reste visible sur téléphone");
+      const av = getComputedStyle(td, "::before").content;
+      if (!av || av === "none" || av === "normal") pbs.push("la cellule n'écrit pas le titre de sa colonne (::before vide)");
+      if (getComputedStyle(td).display !== "block") pbs.push(`cellule en display ${getComputedStyle(td).display}`);
+    } else if (largeur > 2 || !tel) {
+      if (t.scrollWidth > t.parentElement.clientWidth + 1) pbs.push(`tableau plus large que la page (${t.scrollWidth} px pour ${t.parentElement.clientWidth} px)`);
+    }
+  }
+  return pbs;
+}
+"""
+
+
+def verifier_lecteur(page, res, sc, options):
+    """Le lecteur de cours (un cours à sommaire de six sections, un tableau de cinq colonnes, un de deux) et les Informations légales : à 375 puis
+    320 px (téléphone), à 1 280 px (ordinateur), sans rien qui défile de côté ni se coupe sans se voir. Joué dans les deux navigations."""
+    largeurs = {375: (375, LARGEUR_ETROITE), 1280: (1280,)}.get(sc.largeur)
+    if not largeurs:
+        return
+    # Le jeton des imports, tel que l'import map du banc les écrit (`./js/legal.js?v=<jeton>`) : l'adresse de l'app, donc sa propre instance du module.
+    jeton = page.evaluate(r"""() => (document.querySelector('script[type="importmap"]')?.textContent.match(/legal\.js\?v=([^"]+)"/) || [])[1] || ''""")
+    if not jeton:
+        res.echec("lecteur de cours", sc.nom, "le jeton des imports (?v=) ne se lit pas dans l'import map du banc : lancer `node _harness_build.mjs`")
+        return
+    try:
+        for lecteur, ouvrir in OUVRIR_LECTEURS.items():
+            for largeur in largeurs:
+                vue = "%s/lecteur/%s@%d" % (sc.nom, lecteur, largeur)
+                page.set_viewport_size({"width": largeur, "height": HAUTEUR[largeur]})
+                page.evaluate(ouvrir, jeton)
+                page.wait_for_selector(".cours-overlay .cours-body .cours-table, .cours-overlay .cours-body .legal-titre", timeout=4000)
+                page.wait_for_timeout(150)
+                verifier_vue(page, res, sc, vue, options)
+                for detail in page.evaluate(JS_LECTEUR, SEUIL_TELEPHONE):
+                    res.echec("lecteur de cours", vue, detail)
+                page.evaluate("() => { document.querySelectorAll('.cours-overlay').forEach((o) => o.remove()); document.body.classList.remove('cours-open'); }")
+    finally:
+        page.set_viewport_size({"width": sc.largeur, "height": HAUTEUR[sc.largeur]})
+        page.evaluate("() => { document.querySelectorAll('.cours-overlay').forEach((o) => o.remove()); document.body.classList.remove('cours-open'); }")
+        attendre(page, calme=150)
+
+
 def jouer_ressources_fermees(page, res, sc, options):
     """Le module Ressources est fermé pour la promo (lot 2A, tâche 1) : les contacts du centre, qui sont dans Cours et QCM > Documents, ne sont plus pour les
     stagiaires, et la ligne « Contacts du centre » de leur menu du compte disparaît avec eux (elle ne mènerait nulle part). L'équipe, qui voit tout, la garde."""
@@ -3770,6 +3864,7 @@ def jouer_allume(page, res, sc, options):
         verifier_menus(page, res, sc, options)
         if not options.get("sans_menus"):
             verifier_retour_arriere(page, res, sc)
+    verifier_lecteur(page, res, sc, options)
 
 
 def focus_garde(page, res, vue, geste):
@@ -4030,6 +4125,7 @@ def jouer_eteint(page, res, sc, options):
     if sc.role in ("prof", "fondateur"):
         verifier_benevoles_eteint(page, res, sc)
     verifier_barre_des_jours(page, res, sc)
+    verifier_lecteur(page, res, sc, options)
 
 
 def jouer_scenario(navigateur, url, sc, options):
@@ -4110,9 +4206,7 @@ def lister(groupes, limite):
         print("    - ... et %d autre(s) cas (--tout pour les lister)" % (len(groupes) - len(montres)))
 
 
-ENTETES_AVERTISSEMENTS = {
-    "dette ouverte, lecteur de cours": "dette ouverte, lecteur de cours (ruling R52) : défilement de côté du sommaire ou d'un tableau d'un cours, hors du banc, à corriger au lot 2B (avertissement sans échec)",
-}
+ENTETES_AVERTISSEMENTS = {}
 
 
 def imprimer_rapport(resultats, globaux, tout, debut):
