@@ -11,6 +11,8 @@
 -- levée finale annule tout.
 -- Résultat du 28/10 (Postgres 18.4 local) : VERT 38/0 ; migration sabotée (lecture ouverte à tous, traiter sans
 -- contrôle du fondateur) : ROUGE 33/5 sur exactement ces cas. Retour joué : plus aucun objet signal%.
+-- 28/10 au soir : cas « le formateur ne voit que le sien » ajouté : VERT 39/0 ; lecture ouverte aux
+-- administrateurs (is_admin) : ROUGE sur ce cas.
 
 set local lock_timeout = '3s';
 
@@ -87,6 +89,10 @@ begin
   perform set_config('request.jwt.claims', json_build_object('email', eA, 'sub', uA)::text, true);
   select count(*) into n from signalements_app;
   if n = 1 then ok := ok + 1; else ko := ko || format('A voit %s signalements au lieu de 1', n); end if;
+  -- Un formateur (is_admin) ne lit que le sien : la décision n° 1 de la spec (Timy seul reçoit).
+  perform set_config('request.jwt.claims', json_build_object('email', eF, 'sub', uF)::text, true);
+  select count(*) into n from signalements_app;
+  if n = 1 then ok := ok + 1; else ko := ko || format('le formateur voit %s signalements au lieu du sien', n); end if;
 
   -- 4. Le fondateur lit tout ; « mes signalements » ne rend que les siens ---------------------------
   perform set_config('request.jwt.claims', json_build_object('email', eT, 'sub', uT)::text, true);

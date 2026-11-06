@@ -206,6 +206,8 @@ def verifier_entrees(page, res, vue, nav2, role, largeur):
         page.wait_for_timeout(200)
     # Fenêtre « Mon compte » de l'ancienne barre : « Problèmes signalés » chez le fondateur seulement.
     if not nav2:
+        if page.get_attribute(".admin-badge", "aria-haspopup") != "dialog":
+            res.echec(vue, "badge du nom sans aria-haspopup=dialog")
         cliquer(page, ".admin-badge")
         a_problemes = visible(page, "[data-sg-entree='problemes']")
         if a_problemes != (role == "fondateur"):
@@ -221,6 +223,8 @@ def verifier_entrees(page, res, vue, nav2, role, largeur):
         return
     cliquer(page, bouton)
     lien = ".chatbot-signaler-btn"
+    if page.get_attribute(lien, "aria-haspopup") != "dialog":
+        res.echec(vue, "lien de l'Assistant sans aria-haspopup=dialog")
     ouvrir_par(page, res, vue + " (Assistant)", [lien], lien, lien if largeur < 700 else None)
     if not visible(page, "#chatbot-panel"):
         res.echec(vue, "le panneau de l'Assistant s'est fermé avec la fenêtre")
@@ -243,6 +247,8 @@ def verifier_envoi(page, res, vue, nav2, role, largeur, captures, nom_capture):
         page.screenshot(path=str(captures / ("%s.png" % nom_capture)))
     for ko in page.evaluate(CONTRASTE_JS, TEXTES_AJOUTES):
         res.echec(vue, "contraste sous AA : %s" % ko)
+    if page.evaluate("document.getElementById('sg-message').hasAttribute('maxlength')"):
+        res.echec(vue, "le champ porte une limite technique (maxlength) qui coupe un collage sans le dire")
     resume_long = ".sg-mes .sg-mien-message summary"
     if largeur < 700 and visible(page, resume_long) and hauteur(page, resume_long) < 44:
         res.echec(vue, "résumé dépliable de « Mes signalements » sous 44 px (%.0f px)" % hauteur(page, resume_long))
@@ -287,6 +293,22 @@ def verifier_envoi(page, res, vue, nav2, role, largeur, captures, nom_capture):
     capture = dernier.get("p_capture") or ""
     if not capture.startswith("data:image/jpeg;base64,") or len(capture) > 700000:
         res.echec(vue, "capture envoyée hors format (%d caractères)" % len(capture))
+    # Fenêtre fermée (Échap) pendant un envoi qui échoue : la raison et le texte reviennent à la réouverture.
+    page.evaluate("window.__HARNESS_SIGNALER_DELAI = 1200; window.__HARNESS_SIGNALER_FAIL = 'Réessaie dans un instant.'")
+    ouvrir_fenetre(page, nav2, role, largeur)
+    page.fill("#sg-message", "Envoi interrompu par Échap.")
+    page.locator("[data-sg='envoyer']").click()
+    page.keyboard.press("Escape")
+    page.wait_for_timeout(1700)
+    page.evaluate("window.__HARNESS_SIGNALER_FAIL = null")
+    ouvrir_fenetre(page, nav2, role, largeur)
+    erreur = page.evaluate("document.querySelector('.sg-erreur')?.textContent || ''")
+    if "Réessaie dans un instant." not in erreur:
+        res.echec(vue, "raison d'un échec perdue après Échap pendant l'envoi (« %s »)" % erreur)
+    if page.input_value("#sg-message") != "Envoi interrompu par Échap.":
+        res.echec(vue, "texte perdu après Échap pendant l'envoi")
+    page.keyboard.press("Escape")
+    page.wait_for_timeout(200)
 
 
 def verifier_fondateur(page, res, vue, largeur, captures, nom_capture):
@@ -328,15 +350,33 @@ def verifier_fondateur(page, res, vue, largeur, captures, nom_capture):
         page.wait_for_selector("[data-sg-id='101'] img.sg-carte-capture", timeout=5000)
     except Exception:
         res.echec(vue, "capture non affichée")
+    agrandir = "[data-sg-id='101'] [data-sg='agrandir']"
+    if not visible(page, agrandir):
+        res.echec(vue, "pas de bouton pour agrandir la capture")
+    else:
+        page.focus(agrandir)
+        page.keyboard.press("Enter")
+        page.wait_for_timeout(200)
+        if page.get_attribute(agrandir, "aria-pressed") != "true":
+            res.echec(vue, "la capture ne s'agrandit pas au clavier")
     page.fill("[data-sg-id='102'] .sg-carte-reponse", "Corrigé, merci !")
     cliquer(page, "[data-sg-id='102'] [data-sg='repondre']")
     page.wait_for_timeout(400)
     appels = page.evaluate("(window.__HARNESS_SIGNALEMENTS_APPELS || []).filter((a) => a.name === 'traiter_signalement_app')")
     if not any((a.get("params") or {}).get("p_reponse") == "Corrigé, merci !" for a in appels):
         res.echec(vue, "réponse non transmise")
-    page.once("dialog", lambda d: d.accept())
     page.evaluate("document.querySelector('.sg-page .subtabs-bar button:last-child')?.click()")
     page.wait_for_timeout(300)
+    page.evaluate("window.__HARNESS_SUPPRESSION_VIDE = true")
+    page.once("dialog", lambda d: d.accept())
+    cliquer(page, "[data-sg-id='103'] [data-sg='supprimer']")
+    page.wait_for_timeout(400)
+    if not visible(page, "[data-sg-id='103']"):
+        res.echec(vue, "carte retirée alors que rien n'a été supprimé")
+    elif not page.evaluate("document.querySelector(\"[data-sg-id='103'] .sg-erreur\")?.textContent"):
+        res.echec(vue, "suppression sans effet non signalée")
+    page.evaluate("window.__HARNESS_SUPPRESSION_VIDE = false")
+    page.once("dialog", lambda d: d.accept())
     cliquer(page, "[data-sg-id='103'] [data-sg='supprimer']")
     page.wait_for_timeout(400)
     if visible(page, "[data-sg-id='103']"):
@@ -439,6 +479,25 @@ def jouer_moteur(p, moteur, base, res, captures):
                 res.echec(vue, "page #/problemes ouverte en aperçu")
 
         jouer_vue(navigateur, base, res, vue, "fondateur", False, 1280, apercu, apercu="stagiaire")
+        vue2 = "%s aperçu Stagiaire nouvelle" % moteur
+
+        def apercu_nouvelle(page, erreurs, vue=vue2):
+            cliquer(page, "[data-nav-coquille] button[data-nav-action='compte']")
+            ligne = "[data-nav-coquille='compte'] [data-nav-action='signaler']"
+            if not visible(page, ligne):
+                res.echec(vue, "ligne « Signaler un problème » absente du menu en aperçu Stagiaire")
+                return
+            cliquer(page, ligne)
+            page.wait_for_selector("[data-nav-coquille='signaler'] #sg-message", timeout=5000)
+            if visible(page, ".sg-fondateur"):
+                res.echec(vue, "bloc du fondateur visible en aperçu")
+            page.keyboard.press("Escape")
+            page.evaluate("location.hash = '#/problemes'")
+            page.wait_for_timeout(500)
+            if page.evaluate("location.hash") == "#/problemes":
+                res.echec(vue, "page #/problemes ouverte en aperçu")
+
+        jouer_vue(navigateur, base, res, vue2, "fondateur", True, 1280, apercu_nouvelle, apercu="stagiaire")
     finally:
         navigateur.close()
 

@@ -210,6 +210,8 @@ body .modal-backdrop[data-nav-coquille="signaler"] > .nav-fenetre.signalement-fe
 .sg-agent { margin: 8px 0 0; font-family: var(--font-mono); font-size: 0.74rem; color: var(--text-muted); overflow-wrap: anywhere; }
 .sg-carte-capture { display: block; max-width: min(100%, 360px); max-height: 50vh; border: 1px solid var(--line); border-radius: var(--r-sm); cursor: zoom-in; }
 .sg-carte-capture.grand { max-width: 100%; max-height: none; cursor: zoom-out; }
+.sg-capture-bouton { display: block; max-width: 100%; padding: 0; border: 0; border-radius: var(--r-sm); background: transparent; cursor: zoom-in; }
+.sg-capture-bouton:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .sg-carte-lien {
   align-self: flex-start;
   display: inline-flex;
@@ -240,11 +242,6 @@ body .modal-backdrop[data-nav-coquille="signaler"] > .nav-fenetre.signalement-fe
   .sg-carte { padding: 14px; }
   .sg-statut-btn, .sg-carte-actions .btn, .sg-carte-lien, .sg-carte-capture-zone .btn { min-height: 44px; }
 }
-
-/* ----- Le message du bas de l'écran (#toast) ----- */
-/* Il n'a rien de cliquable : il laisse passer les touchers. Sinon, sur téléphone, le message du démarrage
-   (« Ton signalement a avancé ») recouvrait pendant 6 s la ligne « Signaler un problème » qu'il désigne. */
-#toast { pointer-events: none; }
 
 /* ----- Les entrées : coquille (js/nav-shell.js, js/menu-compte.js), Assistant, ancienne barre ----- */
 /* Pastille hors coquille (fenêtre « Mon compte » de l'ancienne barre) : le dessin de .nav-pastille. */

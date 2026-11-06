@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import {
   espaceDe, entreesNavigation, barreTelephone, entreeActive, redirectionV2, routeVisibleV2, initialesDe,
-  prenomDe, entreeMasquee, libelleRole, nomDuBoutonCompte, pageASoiDuMenu,
+  prenomDe, entreeMasquee, libelleRole, nomDuBoutonCompte, pageASoiDuMenu, redirectionAncienne, CLES_SOUS_ONGLETS,
 } from "../js/nav-rules.js";
 import { pagePersonnelle } from "../js/route-rules.js";
 import { MODULE_DE_ROUTE, ROUTES_SOCLE } from "../js/modules-data.js";
@@ -63,6 +63,10 @@ eq(entreeActive("nouveautes", eqp), "home", "alias nouveautes");
 eq(entreeActive("notes", stag), "mon-suivi", "stagiaire : la classe vit sous Mon suivi");
 eq(entreeActive("notes", eqp), "notes", "équipe : Notes a son entrée");
 eq(entreeActive("mon-suivi", eqp), null, "équipe : Mon espace sans entrée");
+// Mes préférences (nouvelle navigation, lot 2A) s'ouvre par le menu du compte, pour tous : aucune entrée de la
+// barre ne s'allume, pas même Réglages chez l'équipe (la promo) ni Mon suivi chez le stagiaire (la personne).
+eq(entreeActive("preferences", eqp), null, "équipe : Mes préférences n'allume aucune entrée");
+eq(entreeActive("preferences", stag), null, "stagiaire : Mes préférences n'allume aucune entrée");
 const sansPlanning = entreesNavigation("stagiaire",
   { routeVisible: (r) => !["planning", "calendrier", "dashboard"].includes(r), emargementActif: false });
 eq(entreeActive("calendrier", sansPlanning), null, "alias vers une page fermée (ses trois sous-onglets fermés)");
@@ -79,6 +83,12 @@ eq(redirectionV2(adresse("ressources"), "stagiaire"),
 eq(redirectionV2(adresse("notes"), "stagiaire"),
   { hash: "#/mon-suivi/classe", sousOnglet: null }, "notes du stagiaire");
 eq(redirectionV2(adresse("notes"), "equipe"), null, "notes de l'équipe inchangées");
+// Réglages (la promo) est la page de l'équipe : le stagiaire qui ouvre #/config (lien d'une Nouveauté, favori,
+// pied de l'accueil) arrive sur ses préférences, la seule partie qui le concerne.
+eq(redirectionV2(adresse("config"), "stagiaire"), { hash: "#/preferences", sousOnglet: null }, "réglages du stagiaire");
+eq(redirectionV2(adresse("config"), "equipe"), null, "réglages de l'équipe inchangés");
+eq(redirectionV2(adresse("preferences"), "stagiaire"), null, "préférences : pas de boucle, stagiaire");
+eq(redirectionV2(adresse("preferences"), "equipe"), null, "préférences : pas de boucle, équipe");
 eq(redirectionV2(adresse("planning"), "stagiaire"), null, "pas de boucle");
 // navigate() (js/main.js) suit une seule redirection par adresse : pour toute route connue, aucune cible n'est
 // elle-même redirigée, et une redirection vers un sous-onglet nomme sa clé de mémoire (sans clé, `undefined`
@@ -95,13 +105,24 @@ for (const route of [...Object.keys(MODULE_DE_ROUTE), ...ROUTES_SOCLE]) {
 }
 // Témoins positifs, pour que la boucle ne passe pas à vide : sans eux, `continue` pourrait sauter des routes,
 // et le contrôle de la cible passerait aussi si lireAdresse ne rendait plus la route d'une adresse écrite en
-// hash. Une ancienne adresse par cible distincte (#/planning, #/themes, #/mon-suivi/classe) doit donc être
+// hash. Une ancienne adresse par cible distincte (#/planning, #/themes, #/mon-suivi/classe, #/preferences) doit donc être
 // contrôlée par la boucle, et reconnue quand on la lit depuis son hash : c'est ce que le contrôle de la cible
 // refuserait d'une cible.
-for (const ancienne of ["calendrier", "ressources", "notes"]) {
+for (const ancienne of ["calendrier", "ressources", "notes", "config"]) {
   eq(controlees.includes(`${ancienne} (stagiaire)`), true, `témoin : la boucle contrôle #/${ancienne} (stagiaire)`);
   eq(redirectionV2(lireAdresse("#/" + ancienne), "stagiaire") !== null, true,
     `témoin : lue depuis son hash, #/${ancienne} est reconnue comme ancienne adresse`);
+}
+// Ancienne navigation : Mes préférences n'existe qu'avec la nouvelle, et #/preferences (un favori pris sous la
+// nouvelle, la promo éteinte depuis) mène aux Paramètres. Toute autre adresse reste celle de main : l'interrupteur
+// éteint ne change rien, la table ne redirige que cette route.
+eq(redirectionAncienne(adresse("preferences")), { hash: "#/config", sousOnglet: null }, "ancienne navigation : préférences vers Paramètres");
+eq(redirectionAncienne(lireAdresse("#/config")), null, "la cible des préférences n'est pas redirigée : pas de boucle");
+// `preferences` est une route du socle (des liens « Où le trouver » y mènent) : c'est justement la seule que l'ancienne navigation redirige,
+// elle n'entre donc pas dans la boucle des routes qui ne bougent pas.
+eq(ROUTES_SOCLE.includes("preferences"), true, "Mes préférences : route du socle");
+for (const route of [...Object.keys(MODULE_DE_ROUTE), ...ROUTES_SOCLE].filter((r) => r !== "preferences")) {
+  eq(redirectionAncienne(adresse(route)), null, `ancienne navigation : #/${route} reste celle de main`);
 }
 
 // 6. Pages regroupées : ouvertes dès qu'un de leurs sous-onglets l'est
@@ -200,7 +221,9 @@ for (const espace of ["stagiaire", "equipe"]) {
 }
 
 // 13. Nom du bouton du compte : le texte qu'il montre (nom, et rôle dans la barre de l'équipe : WCAG 2.5.3),
-// puis les nouveautés non lues de sa pastille (le texte de libellePastille : "", "1" à "9", "9+")
+// puis les nouveautés non lues (le texte de libellePastille : "", "1" à "9", "9+"). Le bouton ne montre plus
+// qu'un point sans chiffre (lot 2A) : c'est son nom, et lui seul, qui dit combien il y en a.
+eq(nomDuBoutonCompte({ nonLues: "9" }), "Mon compte, 9 nouveautés non lues", "le nombre est dans le nom, pas sur le bouton");
 eq(nomDuBoutonCompte({ nom: "V. Timy" }), "Mon compte (V. Timy)", "en-tête du stagiaire : le nom, sans rôle affiché");
 eq(nomDuBoutonCompte({ nom: "V. Timy", role: "Fondateur" }), "Mon compte (V. Timy, Fondateur)",
   "barre de l'équipe : le nom et le rôle qu'elle affiche");
@@ -229,6 +252,11 @@ eq(pageASoiDuMenu(formateurSansProfil, eqp), null, "formateur sans profil stagia
 eq(pageASoiDuMenu(formateurStagiaire, eqp), "mon-suivi", "formateur qui a un profil stagiaire : sa page n'a pas d'entrée, la ligne reste");
 eq(pageASoiDuMenu("stagiaires", []), "stagiaires", "aucune entrée : la ligne reste");
 
+// 15. Clé de mémoire du sous-onglet ouvert, une par page à sous-onglets (lot 2A) : Stagiaires reçoit la sienne, pour
+// ses deux sous-onglets (Stagiaires et Élèves bénévoles). Le bouton « Élèves bénévoles » du Planning l'écrit pour ouvrir
+// le bon. Deux pages ne partagent jamais une clé : chacune s'ouvrirait sur le sous-onglet de l'autre.
+eq(CLES_SOUS_ONGLETS.stagiaires, "stagiaires.subtab", "clé des sous-onglets de la page Stagiaires");
+eq(new Set(Object.values(CLES_SOUS_ONGLETS)).size, Object.keys(CLES_SOUS_ONGLETS).length, "une clé par page à sous-onglets");
 // Page « Problèmes signalés » (fondateur, spec 2026-10-28) : sans entrée à elle, elle allume Réglages.
 eq(entreeActive("problemes", entreesNavigation("equipe", { routeVisible: tout, emargementActif: false })), "config",
   "problemes allume Réglages chez l'équipe");

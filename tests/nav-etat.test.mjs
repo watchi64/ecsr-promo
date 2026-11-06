@@ -3,7 +3,7 @@
 // et la section de Paramètres touchent au DOM).
 import assert from "node:assert/strict";
 import {
-  CLE_REGLAGE, CLE_APERCU, decideNavigationV2, reglageAllume, reglageRetenu, cleMemoire, navigationAttendue,
+  CLE_REGLAGE, CLE_APERCU, decideNavigationV2, reglageAllume, reglageRetenu, cleMemoire, navigationAttendue, etatDeLaCase,
 } from "../js/nav-etat-regles.js";
 
 let n = 0;
@@ -95,5 +95,38 @@ eq(session(null, "1", "0", false), true, "aperçu d'un non-fondateur ignoré : l
 // Avant la lecture, l'attente de l'ouverture suit la même mémoire : rien ne change pour l'ancienne barre (R17).
 eq(attendue(1), session(null, "1"), "l'attente de l'ouverture et la décision sur lecture ratée disent la même chose");
 eq(attendue(2), session(null, null), "idem sans mémoire pour la promo affichée");
+
+// 7. Case « Promo affichée » de Paramètres (lot 2A, tâche 6, ruling R54) : elle ne dit que le réglage de la promo, jamais l'aperçu de
+//    l'appareil. Le réglage quand sa lecture a abouti ; après une lecture ratée ou trop lente (le réglage reste null toute la session), la
+//    mémoire de l'appareil pour cette promo (R17), comme la décision de la session : cochée seulement quand elle dit « 1 ».
+eq(etatDeLaCase({ reglage: true, memoire: null }), true, "lecture aboutie, allumée : cochée, sans mémoire");
+eq(etatDeLaCase({ reglage: true, memoire: "1" }), true, "lecture aboutie, allumée, mémoire d'accord : cochée");
+eq(etatDeLaCase({ reglage: false, memoire: "1" }), false, "lecture aboutie, éteinte : décochée, même si la mémoire disait allumée");
+eq(etatDeLaCase({ reglage: false, memoire: null }), false, "lecture aboutie, éteinte : décochée");
+eq(etatDeLaCase({ reglage: null, memoire: "1" }), true, "lecture ratée, promo vue allumée sur l'appareil : cochée");
+eq(etatDeLaCase({ reglage: null, memoire: null }), false, "lecture ratée, aucune mémoire : décochée");
+eq(etatDeLaCase({ reglage: null, memoire: "0" }), false, "seul « 1 » vaut allumé en mémoire");
+eq(etatDeLaCase({ reglage: null, memoire: "true" }), false, "autre valeur en mémoire : décochée");
+eq(etatDeLaCase({ reglage: "true", memoire: null }), false, "un réglage qui n'est pas un booléen compte pour illisible : la mémoire décide");
+eq(etatDeLaCase({ reglage: "true", memoire: "1" }), true, "idem, la mémoire dit allumée");
+eq(etatDeLaCase({}), false, "sans rien : décochée");
+eq(etatDeLaCase(), false, "sans argument : décochée");
+// Les six combinaisons du fondateur après une lecture ratée : l'aperçu de l'appareil (aucun, allumé, éteint) croisé avec la mémoire de la promo
+// (« 1 » ou absente). La case ne dit que la mémoire (l'aperçu, passé en plus, n'y change rien) ; la navigation que la session applique, elle, suit
+// l'aperçu dès qu'il y en a un : c'est pourquoi la case ne peut pas la lire.
+const combinaisons = [
+  // [aperçu, mémoire, case cochée, navigation appliquée]
+  [null, "1", true, true],
+  [null, null, false, false],
+  ["1", "1", true, true],
+  ["1", null, false, true],     // aperçu allumé, promo éteinte : la barre est la nouvelle, la case reste décochée
+  ["0", "1", true, false],      // aperçu éteint, promo allumée : la barre est l'ancienne, la case reste cochée
+  ["0", null, false, false],
+];
+for (const [apercu, memoire, cochee, appliquee] of combinaisons) {
+  const quoi = `aperçu ${apercu ?? "aucun"}, mémoire de la promo ${memoire ?? "absente"}`;
+  eq(etatDeLaCase({ reglage: null, memoire, apercu }), cochee, "case : " + quoi);
+  eq(session(null, memoire, apercu, true), appliquee, "navigation appliquée : " + quoi);
+}
 
 console.log(`nav-etat : ${n} assertions OK`);

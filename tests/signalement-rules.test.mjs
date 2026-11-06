@@ -4,7 +4,7 @@ import {
   MIN_MESSAGE, LIMITE_MESSAGE, LIMITE_CAPTURE, COTE_MAX_CAPTURE, MAX_ERREURS, LIMITE_ERREUR, MAX_MES_SIGNALEMENTS,
   lireNavigateur, classeAppareil, assemblerContexte, resumeContexte, detailContexte, verifierMessage,
   libelleStatut, pastilleSignalement, messageDemarrage, entreeErreur, ajouterErreur, dimensionsReduites,
-  phraseErreur, adresseSure, normaliserContexte,
+  phraseErreur, adresseSure, normaliserContexte, messageErreurEnvoi,
 } from "../js/signalement-rules.js";
 
 const UA_IPHONE = "Mozilla/5.0 (iPhone; CPU iPhone OS 18_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.1 Mobile/15E148 Safari/604.1";
@@ -193,4 +193,14 @@ test("contexte forgé : jamais d'exception, que des chaînes", () => {
   assert.doesNotThrow(() => detailContexte(null));
   assert.doesNotThrow(() => resumeContexte("texte", new Date()));
   assert.equal(resumeContexte({}, new Date(2026, 9, 28, 9, 5)), "page inconnue, à 9 h 05");
+});
+
+test("erreur d'envoi : refus de la base, session expirée, réseau", () => {
+  assert.equal(messageErreurEnvoi({ message: "signalement: Tu as déjà envoyé 10 signalements aujourd'hui." }),
+    "Tu as déjà envoyé 10 signalements aujourd'hui.");
+  assert.equal(messageErreurEnvoi({ message: "JWT expired", code: "PGRST301" }), "Reconnecte-toi pour signaler un problème.");
+  assert.equal(messageErreurEnvoi({ message: "permission denied for function signaler_probleme", code: "42501" }),
+    "Reconnecte-toi pour signaler un problème.");
+  assert.equal(messageErreurEnvoi({ message: "TypeError: Failed to fetch" }), "L'envoi n'a pas abouti. Vérifie ta connexion et réessaie.");
+  assert.equal(messageErreurEnvoi(null), "L'envoi n'a pas abouti. Vérifie ta connexion et réessaie.");
 });

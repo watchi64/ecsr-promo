@@ -231,30 +231,27 @@ body[data-nav="v2"] .nav-avatar {
 }
 body[data-nav="v2"] .nav-avatar .icon { width: 18px; height: 18px; }
 
-/* Nouveautés non lues (js/nav-shell.js) : la pastille de l'ancien onglet Accueil (style.css, .tab-badge),
-   au coin de l'avatar des boutons du compte, dans les deux espaces et à toute taille. Un liseré de la
-   couleur de la barre la détache de l'avatar. Le nombre est aussi dans le nom du bouton. */
+/* Nouveautés non lues (js/nav-shell.js) : un point au coin de l'avatar des boutons du compte, dans les deux
+   espaces et à toute taille. Sans chiffre : un nombre sur le compte se lit comme des choses à traiter, alors
+   que ce sont des Nouveautés ; le nombre est sur la ligne « Nouveautés » du menu, et dans le nom du bouton.
+   Un liseré de la couleur de la barre le détache de l'avatar. */
 body[data-nav="v2"] [data-nav-action="compte"] .nav-avatar { position: relative; }
-body[data-nav="v2"] .nav-compte-pastille {
+body[data-nav="v2"] .nav-compte-point {
   position: absolute;
-  top: -5px;
-  right: -8px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 5px;
-  border-radius: 999px;
+  top: -1px;
+  right: -1px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
   background: var(--accent);
-  color: #FFF;
-  font-size: 0.7rem;
-  font-weight: 600;
-  letter-spacing: 0;
-  line-height: 1;
   box-shadow: 0 0 0 2px var(--bg-elev);
 }
-body[data-nav="v2"] .nav-cote .nav-compte-pastille { box-shadow: 0 0 0 2px var(--bg-deep); }
+/* Sur la barre sombre de l'équipe (barre latérale, en-tête du téléphone), le point prend le vert clair des repères
+   posés sur fond sombre : son vert d'origine (--accent) n'y tient pas 3:1 contre son liseré (2,9:1), celui-ci 8,2:1. */
+body[data-nav="v2"] .nav-cote .nav-compte-point {
+  background: var(--accent-on-dark);
+  box-shadow: 0 0 0 2px var(--bg-deep);
+}
 
 body[data-nav="v2"] [data-nav-coquille] :focus-visible {
   outline: 2px solid var(--accent-strong);
@@ -585,8 +582,8 @@ body[data-nav="v2"] .nav-bas { display: none; }
   body[data-nav="v2"] .nav-logo { height: 32px; }
   body[data-nav="v2"] .nav-assistant { height: 44px; }
 
-  /* Équipe : la barre latérale devient l'en-tête (la promo, le compte) ; ses entrées passent dans
-     la barre du bas et le tiroir « Plus », l'Assistant dans le tiroir. */
+  /* Équipe : la barre latérale devient l'en-tête (la promo, l'Assistant, le compte) ; ses entrées
+     passent dans la barre du bas et le tiroir « Plus » (qui garde aussi une ligne Assistant). */
   body[data-nav="v2"] .nav-cote {
     position: sticky;
     top: 0;
@@ -601,9 +598,21 @@ body[data-nav="v2"] .nav-bas { display: none; }
   body[data-nav="v2"] .nav-contexte { padding: 3px 8px 3px 5px; }
   body[data-nav="v2"] .nav-contexte-marque { width: 32px; height: 32px; font-size: 0.75rem; }
   body[data-nav="v2"] .nav-cote-entrees,
-  body[data-nav="v2"] .nav-cote-assistant,
   body[data-nav="v2"] .nav-cote-compte-texte { display: none; }
-  body[data-nav="v2"] .nav-cote-pied { flex-direction: row; padding: 0; border: 0; }
+  body[data-nav="v2"] .nav-cote-pied { flex-direction: row; gap: 0.5rem; padding: 0; border: 0; }
+  /* L'Assistant (le bouton du pied de la barre, au même geste) reste dans l'en-tête, entre la promo et le
+     compte : une icône de 44 px, comme le compte. Son libellé se masque ; son nom, aria-label, reste lu. */
+  body[data-nav="v2"] .nav-cote-assistant {
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    min-height: 44px;
+    padding: 0;
+    border-radius: 50%;
+  }
+  body[data-nav="v2"] .nav-cote-assistant .nav-entree-texte { display: none; }
+  /* Module fermé pour la promo : le repère (œil barré) se pose au coin de l'icône, hors du flux, comme en colonne d'icônes. */
+  body[data-nav="v2"] .nav-cote-assistant > .marque-masque { position: absolute; top: 3px; right: 3px; }
   body[data-nav="v2"] .nav-cote-compte {
     justify-content: center;
     width: 44px;
@@ -662,6 +671,19 @@ body[data-nav="v2"] .nav-bas { display: none; }
   body[data-nav="v2"] .nav-case-icone .icon { width: 24px; height: 24px; }
   body[data-nav="v2"] .nav-case[aria-current="page"] { color: var(--accent-strong); font-weight: 700; }
   body[data-nav="v2"] .nav-case[aria-current="page"] .nav-case-icone { background: var(--accent-soft-2); }
+  /* Point de « Plus » quand une entrée du tiroir a quelque chose à traiter (lot 2A, js/nav-shell.js) : au coin de
+     l'icône, hors du flux, comme le point des Nouveautés sur le compte ; son liseré de la couleur de la barre le détache
+     de l'icône et de la pastille de l'entrée allumée (5,5:1 contre la barre). */
+  body[data-nav="v2"] .nav-plus-point {
+    position: absolute;
+    top: 3px;
+    left: calc(50% + 7px);
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 0 2px var(--bg-elev);
+  }
   body[data-nav="v2"] .nav-bas :focus-visible { outline-offset: -2px; }
   /* Repère d'un module fermé : sur le coin de l'icône, hors du flux. */
   body[data-nav="v2"] .nav-case > .marque-masque {
@@ -845,6 +867,40 @@ body[data-nav="v2"] .nav-pastille {
   font-weight: 600;
   line-height: 1;
 }
+/* « À traiter » (lot 2A, js/nav-shell.js) : ce qui attend l'équipe dans Cours et QCM. La pastille chiffrée de l'entrée, à
+   la suite de son libellé : la pastille des Nouveautés, à la fin de la ligne qu'elle ne fait pas rétrécir. */
+body[data-nav="v2"] .nav-entree > .nav-a-traiter,
+body[data-nav="v2"] .nav-fenetre-lien > .nav-a-traiter { flex: none; }
+/* Sur la barre sombre, toute pastille prend le vert clair des repères et le texte de la barre : 8,2:1 pour le chiffre comme
+   contre le fond de la barre (le vert de la pastille claire, 2,9:1 contre ce fond, s'y confondrait). Celle de « Cours et QCM »
+   comme celle de « Signaler un problème » (css/signalement.css, qui n'en règle que la place) ; le tiroir « Plus » et l'en-tête
+   clair du stagiaire, hors de .nav-cote, gardent la leur. */
+body[data-nav="v2"] .nav-cote .nav-pastille {
+  background: var(--accent-on-dark);
+  color: var(--bg-deep);
+}
+/* Colonne d'icônes : le libellé est masqué, la pastille se pose au coin haut droit de l'icône, hors du flux ; l'œil des
+   modules fermés, qui occupait ce coin, passe en bas. */
+body[data-nav="v2"][data-nav-colonne] .nav-entree > .nav-a-traiter {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  font-size: 0.68rem;
+}
+body[data-nav="v2"][data-nav-colonne] .nav-entree[data-a-traiter] > .marque-masque { top: auto; bottom: 4px; }
+/* La phrase « 5 à traiter : 5 signalements » en tête du tiroir « Plus » (ruling R20 ; « 8 à traiter : 5 signalements, 3 propositions de l'IA » quand le lot 2B les compte, ruling R56). */
+body[data-nav="v2"] .nav-fenetre-atraiter {
+  margin: 2px 0 6px;
+  padding: 10px 12px;
+  border-radius: var(--r);
+  background: var(--accent-soft);
+  color: var(--text);
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
 body[data-nav="v2"] .nav-fenetre .view-as-block { margin: 6px 8px 8px; }
 /* En tête de chaque fenêtre (js/nav-fenetre.js) : la poignée du tiroir et « Fermer », sur téléphone
    seulement (plus bas) ; sur ordinateur et tablette, le popover se ferme d'un clic dehors ou par Échap. */
@@ -903,6 +959,53 @@ body[data-nav="v2"] .nav-fenetre-haut { display: none; }
 /* Le bouton de l'ancienne barre du haut, en tête de la vue de la semaine : 44 px à toute taille, ses
    voisins de la rangée (Émargement) s'étirant à sa hauteur. */
 body[data-nav="v2"] .p-aujourdhui { min-height: 44px; }
+
+/* ----- Stagiaires > Élèves bénévoles (lot 2A, js/views/stagiaires.js et js/views/benevoles.js) ----- */
+/* Le panneau de la banque, posé dans la page au lieu d'une fenêtre : la largeur de la fenêtre d'avant, son titre
+   (.modal h3) et ses règles contre le débordement des champs (.bnv-modal .field) : le select du niveau, aux options
+   très longues, ferait sinon déborder la colonne de la grille du formulaire. */
+body[data-nav="v2"] .bnv-page { max-width: 680px; }
+/* Après « Modifier », le formulaire est ramené en haut du bloc (scrollIntoView, js/views/benevoles.js) : sous l'en-tête collant du téléphone, pas derrière lui. */
+body[data-nav="v2"] .bnv-page { scroll-margin-top: calc(var(--haut-entete) + 8px); }
+body[data-nav="v2"] .bnv-page h3 { margin: 0 0 1.25rem; font-size: 1.15rem; font-weight: 600; letter-spacing: -0.01em; }
+body[data-nav="v2"] .bnv-page .field { min-width: 0; }
+body[data-nav="v2"] .bnv-page .field input,
+body[data-nav="v2"] .bnv-page .field select { width: 100%; min-width: 0; }
+/* iPhone : la fiche d'un stagiaire prend tout l'écran, un seul écran à la fois comme avant les sous-onglets : ni
+   l'en-tête de la page ni sa barre de sous-onglets au-dessus de son lien de retour. */
+body[data-nav="v2"] .stg-page.stg-fiche-seule > .view-header,
+body[data-nav="v2"] .stg-page.stg-fiche-seule > .subtabs > .subtabs-bar { display: none; }
+@media (max-width: 699.98px) {
+  /* Téléphone : dans la banque, les onglets, boutons, filtres, champs, liens d'appel, cases de disponibilité et
+     autres liens font 44 px, comme le reste de la page (la fenêtre d'avant les laissait de 19 à 39 px). */
+  body[data-nav="v2"] .bnv-page .btn,
+  body[data-nav="v2"] .bnv-page .bnv-tab,
+  body[data-nav="v2"] .bnv-page select,
+  body[data-nav="v2"] .bnv-page .field input:not([type="checkbox"]),
+  body[data-nav="v2"] .bnv-page .bnv-venue-com,
+  body[data-nav="v2"] .bnv-page .bnv-dispo-cell,
+  body[data-nav="v2"] .bnv-page .bnv-affilie-x { min-height: 44px; }
+  body[data-nav="v2"] .bnv-page .bnv-affilie-x { min-width: 44px; }
+  body[data-nav="v2"] .bnv-page .bnv-tel,
+  body[data-nav="v2"] .bnv-page .bnv-linklike,
+  body[data-nav="v2"] .bnv-page .bnv-retires summary { display: inline-flex; align-items: center; min-height: 44px; }
+}
+
+/* ----- Mon suivi > La classe : les moyennes EPCF de la classe (lot 2A, js/views/notes.js) ----- */
+/* Une section sous la vue de la classe (matrice, synthèse, graphiques), à distance de sa dernière carte. */
+body[data-nav="v2"] .notes-epcf-classe { margin-top: 1.5rem; }
+
+/* ----- Bandeau d'émargement sur téléphone (lot 2A, js/emargement-bandeau.js) ----- */
+/* Une seule ligne : « Émargement du matin ouvert » et son bouton. Les horaires (côté stagiaire) et le nombre de
+   signatures (côté formateur) sont dans la feuille que le bouton ouvre ; le bouton (Signer, Voir) fait 44 px. Le
+   bouton donne alors sa hauteur au bandeau : le remplissage vertical passe du bandeau à son texte, qui garde le
+   sien (un bandeau sans bouton garde sa hauteur), et le bandeau reste moins haut que sur deux lignes. */
+@media (max-width: 699.98px) {
+  body[data-nav="v2"] .em-bandeau-detail { display: none; }
+  body[data-nav="v2"] .em-bandeau { padding-top: 0.25rem; padding-bottom: 0.25rem; }
+  body[data-nav="v2"] .em-bandeau p { padding-top: 0.35rem; padding-bottom: 0.35rem; }
+  body[data-nav="v2"] .em-bandeau .btn { min-height: 44px; }
+}
 
 /* ----- Impression : ni la coquille, ni ce qu'elle impose à la page ----- */
 /* La marge de la barre latérale battrait le « margin: 0 » de l'impression des Indicateurs (style.css,
