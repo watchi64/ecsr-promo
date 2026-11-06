@@ -47,6 +47,7 @@ declare
   v_promos integer[]; v_lieux integer[]; v_lieu1 integer; v_lieu2 integer; v_promo_l2 integer; v_promo_inconnue integer;
   v_migration boolean := false; v_fictifs boolean := false;
   i integer; v_txt text; v_obt text; v_r record;
+  v_ctr text; v_tab text; v_col text; -- l'erreur d'une migration ou d'un retour : état SQL et noms, jamais son message
   c_vocabulaire constant text[] := array['apercu_role', 'direction_courante', 'equipe_courante', 'est_direction',
     'est_fondateur', 'est_formateur', 'est_siege', 'fondateur_reel', 'formateur_courant', 'lieu_de_promo',
     'redacteur_contenus', 'roles_reels'];
@@ -93,7 +94,9 @@ begin
     ;
     v_migration := true;
   exception when others then
-    v_txt := format('ERREUR %s : %s', sqlstate, left(sqlerrm, 200));
+    get stacked diagnostics v_ctr = constraint_name, v_tab = table_name, v_col = column_name;
+    v_txt := 'ERREUR ' || sqlstate || coalesce(' contrainte ' || nullif(v_ctr, ''), '') || coalesce(' table ' || nullif(v_tab, ''), '')
+             || coalesce(' colonne ' || nullif(v_col, ''), '');
   end;
   perform pg_temp.verifier('structure', 'migration jouée sans erreur', v_migration, v_txt);
 
@@ -620,7 +623,9 @@ begin
 -- @@INJECTER supabase/migrations/20261028_roles_1_fondations_retour.sql@@
     ;
   exception when others then
-    v_txt := format('ERREUR %s : %s', sqlstate, left(sqlerrm, 200));
+    get stacked diagnostics v_ctr = constraint_name, v_tab = table_name, v_col = column_name;
+    v_txt := 'ERREUR ' || sqlstate || coalesce(' contrainte ' || nullif(v_ctr, ''), '') || coalesce(' table ' || nullif(v_tab, ''), '')
+             || coalesce(' colonne ' || nullif(v_col, ''), '');
   end;
   perform pg_temp.verifier('structure', 'retour joué sans erreur', v_txt is null, v_txt);
   select e.regles, e.fonctions, e.droits into v_ap_regles, v_ap_fonctions, v_ap_droits from pg_temp.empreinte() e;

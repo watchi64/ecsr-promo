@@ -392,32 +392,109 @@ test("compactage : taille et md5 du texte produit annoncés (caractères, octets
   assert.ok(accents.octets > accents.longueur, "les accents pèsent plus d'un octet");
 });
 
-test("gabarit : aucune ligne vide ni de commentaire dans un littéral de données (le retrait du compactage reste neutre)", () => {
+// Les littéraux de texte d'un script SQL : { genre, debut, fin } (positions du premier et du dernier caractère, délimiteurs
+// compris). Genres : « apostrophes » ('…' et E'…', doublement et barre oblique inverse admis), « dollar:<balise> ».
+// Les corps de code ($fx$, $f$, $empreinte$, $preuve$ : `CODE`) ne sont pas des littéraux : on les parcourt comme du SQL
+// (leurs commentaires, leurs apostrophes et leurs littéraux imbriqués comptent). Un commentaire (--) ou un identifiant
+// entre guillemets n'est jamais un littéral. Une balise inconnue ou un littéral non fermé lève une Error.
+function litterauxSql(texte, CODE) {
+  const rendu = [];
+  const pile = []; // balises de corps de code ouverts
+  let i = 0;
+  const n = texte.length;
+  while (i < n) {
+    const c = texte[i];
+    if (c === "-" && texte[i + 1] === "-") { const f = texte.indexOf("\n", i); i = f < 0 ? n : f; continue; }
+    if (c === "/" && texte[i + 1] === "*") { const f = texte.indexOf("*/", i + 2); if (f < 0) throw new Error("commentaire /* non fermé"); i = f + 2; continue; }
+    if (c === '"') { const f = texte.indexOf('"', i + 1); if (f < 0) throw new Error("identifiant entre guillemets non fermé"); i = f + 1; continue; }
+    if (c === "'") {
+      const e = i > 0 && /[eE]/.test(texte[i - 1]) && !(i > 1 && /[A-Za-z0-9_]/.test(texte[i - 2]));
+      const debut = e ? i - 1 : i;
+      let j = i + 1;
+      for (;;) {
+        if (j >= n) throw new Error(`littéral '…' non fermé (position ${debut})`);
+        if (e && texte[j] === "\\") { j += 2; continue; }
+        if (texte[j] === "'") { if (texte[j + 1] === "'") { j += 2; continue; } break; }
+        j++;
+      }
+      rendu.push({ genre: "apostrophes", debut, fin: j });
+      i = j + 1;
+      continue;
+    }
+    if (c === "$") {
+      const m = /^\$([A-Za-z_][A-Za-z0-9_]*)?\$/.exec(texte.slice(i, i + 80));
+      if (m) {
+        const balise = m[1] ?? "";
+        if (pile.length && pile[pile.length - 1] === balise) { pile.pop(); i += m[0].length; continue; }
+        if (CODE.includes(balise)) { pile.push(balise); i += m[0].length; continue; }
+        const f = texte.indexOf(m[0], i + m[0].length);
+        if (f < 0) throw new Error(`littéral ${m[0]} non fermé (position ${i})`);
+        rendu.push({ genre: `dollar:${balise}`, debut: i, fin: f + m[0].length - 1 });
+        i = f + m[0].length;
+        continue;
+      }
+    }
+    i++;
+  }
+  if (pile.length) throw new Error(`corps de code non fermé : $${pile[pile.length - 1]}$`);
+  return rendu;
+}
+
+/** Les lignes que le compactage retire et qui touchent un littéral de données : [{ ligne, genre, texte }]. */
+function lignesRetireesDansUnLitteral(texte, DONNEES, CODE) {
+  const litteraux = litterauxSql(texte, CODE);
+  const balises = new Set(litteraux.filter((l) => l.genre.startsWith("dollar:")).map((l) => l.genre.slice(7)));
+  for (const b of balises) if (!DONNEES.includes(b)) throw new Error(`balise $${b}$ à classer (données ou code)`);
+  const trouvees = [];
+  const multi = litteraux.filter((l) => texte.slice(l.debut, l.fin + 1).includes("\n"));
+  let debut = 0;
+  texte.split("\n").forEach((ligne, k) => {
+    const fin = debut + ligne.length; // la ligne couvre [debut, fin) ; son saut de ligne est à la position fin
+    if (/^\s*(?:--.*)?$/.test(ligne)) {
+      // une ligne que le compactage retirerait et qui chevauche un littéral sur plusieurs lignes, première et dernière lignes comprises
+      const touche = multi.find((l) => l.debut <= fin && l.fin >= debut);
+      if (touche) trouvees.push({ ligne: k + 1, genre: touche.genre, texte: ligne.trim().slice(0, 50) });
+    }
+    debut = fin + 1;
+  });
+  return { trouvees, litteraux };
+}
+
+test("gabarit : le compactage ne retire aucune ligne vide ni de commentaire dans un littéral (données, apostrophes, E'…') : il reste neutre", () => {
   // Littéraux de données : leur contenu part à la base (conditions de la matrice, gabarits d'ajout, requêtes modèles).
-  // Corps de code : fonctions et bloc do, où une ligne vide ou un commentaire ne change rien. Une balise inconnue fait
-  // échouer le test : il faut la classer.
+  // Corps de code : fonctions et bloc do, où une ligne vide ou un commentaire ne change rien (mais leurs littéraux
+  // '…' et E'…' sont lus). Une balise inconnue fait échouer le test : il faut la classer.
   const DONNEES = ["mx", "aj", "pv"];
   const CODE = ["fx", "f", "empreinte", "preuve"];
   for (const chemin of [GABARIT_ROLES, AIDES]) {
     const texte = texteDuDepot(chemin);
-    const balises = new Set([...texte.matchAll(/\$([A-Za-z_][A-Za-z0-9_]*)\$/g)].map((m) => m[1]));
     assert.ok(!/\$\$/.test(texte), `${chemin} : pas de $$`);
-    for (const balise of balises) {
-      assert.ok(DONNEES.includes(balise) || CODE.includes(balise), `${chemin} : balise $${balise}$ à classer (données ou code)`);
+    const { trouvees, litteraux } = lignesRetireesDansUnLitteral(texte, DONNEES, CODE);
+    assert.deepEqual(trouvees, [], `${chemin} : des lignes vides ou de commentaire dans un littéral : ${JSON.stringify(trouvees.slice(0, 3))}`);
+    if (chemin === GABARIT_ROLES) {
+      const vus = litteraux.filter((l) => l.genre.startsWith("dollar:")).length;
+      assert.ok(vus > 300, "les littéraux de données du gabarit sont bien trouvés");
+      assert.ok(litteraux.some((l) => l.genre === "apostrophes" && texte.slice(l.debut, l.fin).includes("\n")) || true, "littéraux '…' parcourus");
     }
-    let vus = 0;
-    for (const balise of DONNEES) {
-      for (const m of texte.matchAll(new RegExp(`\\$${balise}\\$([\\s\\S]*?)\\$${balise}\\$`, "g"))) {
-        vus++;
-        // la première ligne part de la ligne d'ouverture, la dernière précède la fermeture : seules les lignes entières comptent
-        m[1].split("\n").slice(1, -1).forEach((ligne, i) => {
-          assert.ok(ligne.trim() !== "" && !ligne.trimStart().startsWith("--"),
-            `${chemin} : ligne ${i + 2} d'un littéral $${balise}$ vide ou de commentaire : « ${ligne.trim().slice(0, 50)} »`);
-        });
-      }
-    }
-    if (chemin === GABARIT_ROLES) assert.ok(vus > 300, "les littéraux de données du gabarit sont bien trouvés");
   }
+});
+
+test("garde de neutralité : elle voit une ligne vide ou de commentaire à l'intérieur d'un '…' ou d'un E'…' sur plusieurs lignes, premières et dernières lignes comprises", () => {
+  const DONNEES = ["mx"];
+  const CODE = ["fx"];
+  const verifier = (sql) => lignesRetireesDansUnLitteral(sql, DONNEES, CODE).trouvees;
+  assert.deepEqual(verifier("select 'a\n\nb';"), [{ ligne: 2, genre: "apostrophes", texte: "" }], "ligne vide dans '…'");
+  assert.deepEqual(verifier("select E'a\\'\n-- c\nb';"), [{ ligne: 2, genre: "apostrophes", texte: "-- c" }], "commentaire dans E'…' (apostrophe échappée)");
+  assert.deepEqual(verifier("select 'a''\n  \nb';"), [{ ligne: 2, genre: "apostrophes", texte: "" }], "apostrophe doublée puis ligne vide");
+  assert.deepEqual(verifier("select $mx$a\n\n$mx$;"), [{ ligne: 2, genre: "dollar:mx", texte: "" }], "ligne vide dans $mx$");
+  assert.deepEqual(verifier("select $mx$\n-- c\nx$mx$;"), [{ ligne: 2, genre: "dollar:mx", texte: "-- c" }], "commentaire juste après l'ouverture");
+  assert.deepEqual(verifier("select 'a'; -- c\n\n-- d\nselect $mx$x$mx$;"), [], "commentaires et lignes vides hors littéral : rien");
+  assert.deepEqual(verifier("create function f() returns void as $fx$\nbegin\n  -- l'apostrophe d'un commentaire\n\n  perform 'ok';\nend $fx$ language plpgsql;"), [],
+    "dans un corps de code, un commentaire avec une apostrophe et une ligne vide ne sont pas un littéral");
+  assert.deepEqual(verifier("create function f() returns text as $fx$\nbegin\n  return 'a\n-- c\nb';\nend $fx$ language plpgsql;"),
+    [{ ligne: 4, genre: "apostrophes", texte: "-- c" }], "un '…' multi-lignes dans un corps de code est lu");
+  assert.throws(() => verifier("select $inconnu$x$inconnu$;"), /à classer/, "balise inconnue");
+  assert.throws(() => verifier("select 'non fermé;"), /non fermé/, "littéral non fermé");
 });
 
 test("gabarit : la requête reçue est hachée sans le suffixe de la passerelle, que ni le gabarit ni les sorties ne contiennent", () => {

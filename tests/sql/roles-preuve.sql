@@ -1,7 +1,7 @@
 -- Preuve rôle par rôle du lot 4 : ce que les étapes 2 (fonctions) et 3 (règles) doivent donner, écrite avant elles
--- (plan du lot 4, Task 3, première partie : machinerie, non-régression des comptes réels, matrice des droits, siège,
--- couverture, aller-retour ; la seconde partie y ajoutera aperçu, R32, comptes, invitations, promos, fonctions serveur,
--- contenus et compatibilité).
+-- (plan du lot 4, Task 3 : machinerie, non-régression des comptes réels, matrice des droits, siège, couverture,
+-- aller-retour ; puis, seconde partie, les contrôles ciblés : aperçu, R32, comptes, invitations, affectations, promos,
+-- fonctions serveur, contenus et compatibilité).
 -- GABARIT, à ne pas jouer tel quel : outils/assembler_repetition_roles.mjs y colle les aides communes
 -- (tests/sql/roles-aides.sql), y écrit le libellé du mode et y injecte en littéraux la requête d'empreinte, les
 -- migrations des étapes 1, 2, 3 et leurs retours 3, 2, 1 :
@@ -42,6 +42,27 @@
 --                   sont supprimables, par aucun personnage ni par l'acteur anonyme. Attendus écrits en dur.
 --   anonymat        un stagiaire qui masque ses notes ne voit que les siennes (une seule évaluation), les autres stagiaires
 --                   ne voient pas les siennes, l'équipe les voit. Attendus écrits en dur.
+--   aperçu          l'en-tête x-apercu-role sur la promo 1. Lecture de toutes les tables, par le modèle (contextes
+--                   « fond/formateur », « fond/direction », « fond/siege », « fond/stagiaire », « form_n/stagiaire » et les
+--                   comptes qui envoient un en-tête qu'ils n'ont pas) ; le fondateur en aperçu formateur, direction, siège
+--                   voit les mêmes lignes que form_n, dir_n, siege (comparaison exacte, hors navigation et lignes de la
+--                   personne) ; un compte qui envoie un en-tête qui n'est pas pour lui ne voit rien de plus ni de moins ;
+--                   en aperçu stagiaire, direction ou siège, plus d'ajout au planning ni de note.
+--   R32             navigation_v2 et emargement_actif (forme « insérer ou mettre à jour » de l'app) : le fondateur seul,
+--                   hors aperçu ; modules : l'équipe de la promo.
+--   comptes         (suite) nul ne se donne is_founder ou is_admin ; ni le fondateur ni un compte du personnel affecté ne
+--                   se supprime ; un compte de stagiaire de sa promo, oui.
+--   inviter_compte  le tableau de la section 0 : qui invite quel rôle, cas permis et refusés (état 42501), un profil
+--                   existant jamais rétrogradé ni relié à une seconde fiche.
+--   affectations    la direction affecte ses formateurs, le siège ses directions, le fondateur le siège ; aucune
+--                   modification.
+--   promos          creer_promo, modifier_dates_promo, renommage ; date_debut, date_fin, lieu_id non modifiables en direct.
+--   fonctions serveur  emargement_ouvrir, anonymiser_stagiaire, etat_anonymisation_promo, purger_benevoles,
+--                   venues_benevoles selon l'équipe, le formateur ou le siège.
+--   contenus        le siège modifie et publie un cours de thème, modifie une question, n'écrit ni qcm_examens ni qcm ; la
+--                   direction ne modifie aucun cours.
+--   compatibilité   is_admin() et is_prof() = formateur_courant() pour chaque personnage et chaque contexte ; is_founder()
+--                   faux en aperçu ; mes_promos() dit les rôles réels.
 --   siège           le siège fictif ne voit aucune ligne d'une table de promo ou de lieu, aucun profil de stagiaire.
 --   couverture      toute table de public sous RLS figure dans la matrice ; aucune table de public n'est sans RLS ; aucune
 --                   règle ne cite plus is_admin(, is_prof( ou is_founder( (étape 3 appliquée).
@@ -248,10 +269,12 @@ insert into matrice (tbl, lecture, ajout, modif, suppr, maj, prep_suppr) values
   $mx$r.promo_id = {P} and ({F} or r.stagiaire_id = {fiche})$mx$, $mx$r.promo_id = {P} and ({F} or r.stagiaire_id = {fiche})$mx$,
   $mx$r.promo_id = {P} and {F}$mx$, $mx$commentaire = 'PreuveMaj'$mx$, null),
 ('public.passages_audit', $mx$r.promo_id = {P}$mx$, 'false', 'false', 'false', $mx$changed_by_who = 'PreuveMaj'$mx$, null),
--- Tentatives de QCM : P et (E ou M) ; P et F, plus l'ajout des siennes en entraînement (inchangé ; l'examen, borné
--- par qcm_exam_remise_toleree, n'est pas joué ici).
+-- Tentatives de QCM : P et (E ou M) ; P et F, plus l'ajout des siennes en entraînement ou, en examen, quand l'examen de
+-- la promo est ouvert sans heure de clôture (inchangé ; c'est ce que dit qcm_exam_remise_toleree, que le modèle redit ici
+-- sans l'appeler : publié et sans heure de clôture).
 ('public.qcm_attempts', $mx$r.promo_id = {P} and ({E} or r.stagiaire_id = {fiche})$mx$,
-  $mx$r.promo_id = {P} and ({F} or (r.stagiaire_id = {fiche} and r.mode = 'entrainement'))$mx$,
+  $mx$r.promo_id = {P} and ({F} or (r.stagiaire_id = {fiche} and (r.mode = 'entrainement' or (r.mode = 'examen' and exists
+     (select 1 from public.qcm_examens e where e.qcm_id = r.qcm_id and e.promo_id = r.promo_id and e.published and e.exam_ferme_a is null)))))$mx$,
   $mx$r.promo_id = {P} and {F}$mx$, $mx$r.promo_id = {P} and {F}$mx$, $mx$answers = '{"preuve": "maj"}'::jsonb$mx$, null),
 -- Examens et progression des thèmes : P (inchangé) ; écriture P et F.
 ('public.qcm_examens', $mx$r.promo_id = {P}$mx$, $mx$r.promo_id = {P} and {F}$mx$, $mx$r.promo_id = {P} and {F}$mx$,
@@ -413,6 +436,12 @@ insert into ajouts (tbl, sorte, libelle, modele, marque, prep) values
 ('public.qcm_attempts', 'stagiaire', null,
   $aj$insert into public.qcm_attempts (qcm_id, stagiaire_id, mode, score, total, note_20) values ({qcm_a}, {c_stag}, 'entrainement', 1, 4242, 10)$aj$,
   $aj$r.total = 4242$aj$, null),
+('public.qcm_attempts', 'stagiaire', 'en examen ouvert',
+  $aj$insert into public.qcm_attempts (qcm_id, stagiaire_id, mode, score, total, note_20) values ({qcm_a}, {c_stag}, 'examen', 1, 4243, 10)$aj$,
+  $aj$r.total = 4243$aj$, null),
+('public.qcm_attempts', 'stagiaire', 'en examen non ouvert',
+  $aj$insert into public.qcm_attempts (qcm_id, stagiaire_id, mode, score, total, note_20) values ({qcm_d}, {c_stag}, 'examen', 1, 4244, 10)$aj$,
+  $aj$r.total = 4244$aj$, null),
 ('public.qcm_examens', 'promo', null,
   $aj$insert into public.qcm_examens (promo_id, qcm_id, published_by_email) values ({c_promo}, {qcm_b}, 'preuve.ajout@exemple.invalid')$aj$,
   $aj$r.published_by_email = 'preuve.ajout@exemple.invalid'$aj$, $aj$delete from public.qcm_examens where promo_id = {c_promo} and qcm_id = {qcm_b}$aj$),
@@ -580,81 +609,181 @@ begin
   end if;
 end $fx$;
 
--- Verdict de cette preuve : lève TOUJOURS une exception, qui annule tout. Première ligne : VERT ou ROUGE, réussis et
--- échecs, mode, durée ; puis les contrôles par groupe, la matrice par personnage et par table, chaque contrôle hors
--- matrice nommé (une ligne chacun, avec ses réussis/joués ; les contrôles de non-régression, un par compte réel, sont
--- regroupés sur une ligne), et les lignes d'information (jamais comptées). S'il y a des échecs, ils suivent : ceux hors
--- matrice en détail (60 au plus), la carte des échecs de la matrice (pour chaque personnage, une ligne par signature :
--- L lecture, A ajout, M modification, S suppression, D déplacement de promo, suivis des contextes en échec, puis les
--- tables qui la partagent : toute case rouge y figure), puis les 12 premiers en détail. Sans aucun contrôle joué, le
--- verdict est ROUGE.
+-- Aides propres à cette preuve (hors aides communes) : « cas » joue une écriture ou une fonction d'un personnage dans une
+-- sous-transaction annulée et compare ce qu'elle rend à une liste d'attendus ; « val » fait de même pour une lecture ;
+-- « etat_compte » dit l'état d'un compte (profil et affectations) ; « vue_tables » photographie ce qu'un personnage voit.
+-- Attendu « ~REFUS » (cas) ou « ~ERREUR » (val) : un refus quelconque, SAUF une fonction, une colonne ou une table
+-- introuvable ou une erreur de syntaxe (une fonction que l'étape 2 n'a pas encore créée fait donc échouer son contrôle).
+create or replace function pg_temp.est_refus(p_obtenu text, p_mot text)
+returns boolean language sql immutable as $fx$
+  select p_obtenu ~ ('^' || p_mot || ' [0-9A-Z]{5}') and p_obtenu !~ ('^' || p_mot || ' (42883|42703|42P01|42601|42725|42P02|42804)');
+$fx$;
+
+create or replace function pg_temp.cas(p_groupe text, p_libelle text, p_email text, p_ctx text, p_apercu text, p_prep text,
+  p_sql text, p_constat text, p_attendus text[])
+returns text language plpgsql as $fx$
+declare v_obt text; v_ok boolean;
+begin
+  v_obt := (pg_temp.tenter(p_email, p_ctx, p_apercu, p_prep, null, p_sql, p_constat))[2];
+  v_ok := v_obt = any(p_attendus) or ('~REFUS' = any(p_attendus) and pg_temp.est_refus(v_obt, 'REFUS'));
+  perform pg_temp.verifier(p_groupe, p_libelle, v_ok, format('obtenu %s ; attendu %s', coalesce(v_obt, 'nul'), array_to_string(p_attendus, ' ou ')));
+  return v_obt;
+end $fx$;
+
+create or replace function pg_temp.val(p_groupe text, p_libelle text, p_email text, p_ctx text, p_apercu text, p_sql text,
+  p_attendus text[])
+returns text language plpgsql as $fx$
+declare v_obt text; v_ok boolean;
+begin
+  v_obt := pg_temp.valeur(p_email, p_ctx, p_apercu, p_sql);
+  v_ok := v_obt = any(p_attendus) or ('~ERREUR' = any(p_attendus) and pg_temp.est_refus(v_obt, 'ERREUR'));
+  perform pg_temp.verifier(p_groupe, p_libelle, v_ok, format('obtenu %s ; attendu %s', coalesce(v_obt, 'nul'), array_to_string(p_attendus, ' ou ')));
+  return v_obt;
+end $fx$;
+
+create or replace function pg_temp.etat_compte(p_email text)
+returns text language plpgsql as $fx$
+declare v_profil text; v_aff text;
+begin
+  select up.role || '/' || up.is_admin || '/' || coalesce(up.stagiaire_id::text, '-') || '/' || coalesce(up.prof_id::text, '-')
+    into v_profil from public.user_profiles up where up.email = lower(p_email);
+  select string_agg(a.role || ':' || coalesce(a.promo_id::text, a.lieu_id::text, '-'), ',' order by a.role, a.promo_id, a.lieu_id)
+    into v_aff from public.affectations a where a.email = lower(p_email);
+  return coalesce(v_profil, 'aucun') || ' ' || coalesce(v_aff, '-');
+end $fx$;
+
+create or replace function pg_temp.vue_tables(p_email text, p_ctx text, p_apercu text, p_tables text[])
+returns text[] language plpgsql as $fx$
+declare
+  v_vals text[]; v_toutes text;
+  c_vue constant text := $pv$(select count(*)::text || ':' || coalesce(sum(hashtext(ctid::text)::bigint), 0)::text from %s)$pv$;
+begin
+  v_toutes := 'select array[' || (select string_agg(format(c_vue, t), ', ' order by o) from unnest(p_tables) with ordinality u(t, o)) || ']';
+  begin
+    perform pg_temp.incarner(p_email, p_ctx, p_apercu);
+    execute v_toutes into v_vals;
+  exception when others then
+    v_vals := null;
+  end;
+  perform pg_temp.proprio();
+  if v_vals is null then
+    v_vals := array(select coalesce(pg_temp.valeur(p_email, p_ctx, p_apercu, 'select ' || format(c_vue, t)), 'nul')
+                      from unnest(p_tables) with ordinality u(t, o) order by o);
+  end if;
+  return v_vals;
+end $fx$;
+
+-- Verdict de cette preuve : lève TOUJOURS une exception, qui annule tout. Il est écrit pour tenir sous la taille que le
+-- tool MCP ne coupe pas (R28, environ 12 500 caractères) : d'abord la première ligne (VERT ou ROUGE, réussis et échecs,
+-- mode, durée) et les groupes, puis TOUS les échecs hors matrice (en détail tant que la place suffit, puis plus courts,
+-- jamais omis), la carte des échecs de la matrice (pour chaque personnage, les tables qui échouent sur les mêmes opérations
+-- dans les mêmes contextes : L lecture, A ajout, M modification, S suppression, D déplacement de promo), quelques échecs de
+-- la matrice en détail ; ensuite seulement les contrôles réussis (chacun nommé, en VERT), le résumé par personnage et par
+-- table, enfin les lignes d'information (jamais comptées). Si le tout dépasse la taille, le bas se raccourcit d'abord.
+-- Sans aucun contrôle joué, le verdict est ROUGE.
 create or replace function pg_temp.verdict_roles(p_mode text, p_debut timestamptz)
 returns void language plpgsql as $fx$
-declare v_ok integer; v_ko integer; v_txt text; v_msg text; v_n integer;
+declare
+  c_max constant integer := 12000;
+  v_ok integer; v_ko integer; v_n integer; v_txt text; v_txt2 text; v_tete text; v_echecs text := ''; v_carte text := ''; v_detail text := '';
+  v_carte_courte text := '';
+  v_reussis text := ''; v_pers text := ''; v_tbl text := ''; v_info text := ''; v_niv integer; v_msg text;
 begin
   select count(*) filter (where etat = 'ok'), count(*) filter (where etat = 'échec') into v_ok, v_ko from preuve;
-  v_msg := format(E'%s %s/%s (tout est annulé) ; mode %s ; durée %s s',
-    case when v_ko = 0 and v_ok > 0 then 'VERT' else 'ROUGE' end, v_ok, v_ko, p_mode,
-    to_char(extract(epoch from clock_timestamp() - p_debut), 'FM990.0'));
+  v_tete := format(E'%s %s/%s (tout est annulé) ; mode %s ; durée %s s', case when v_ko = 0 and v_ok > 0 then 'VERT' else 'ROUGE' end,
+    v_ok, v_ko, p_mode, to_char(extract(epoch from clock_timestamp() - p_debut), 'FM990.0'));
   select string_agg(format('%s %s/%s', groupe, ok, n), ' ; ' order by premier) into v_txt
     from (select groupe, count(*) as n, count(*) filter (where etat = 'ok') as ok, min(num) as premier
             from preuve where etat <> 'info' group by groupe) g;
-  v_msg := v_msg || E'\npar groupe (réussis/joués) : ' || coalesce(v_txt, 'aucun contrôle joué');
+  v_tete := v_tete || E'\npar groupe (réussis/joués) : ' || coalesce(v_txt, 'aucun contrôle joué');
+  select count(*) into v_n from preuve where etat = 'échec' and qui is null;
+  if v_n > 0 then
+    for v_niv in 0 .. 3 loop
+      select string_agg(format('- %s. [%s] %s', e.num, e.groupe,
+               left(e.libelle, case v_niv when 0 then 110 when 1 then 90 when 2 then 70 else 44 end))
+               || case when v_niv <= 1 and nullif(e.detail, '') is not null
+                       then ' : ' || left(e.detail, case v_niv when 0 then 130 else 55 end) else '' end, E'\n' order by e.num)
+        into v_txt from preuve e where e.etat = 'échec' and e.qui is null;
+      v_echecs := v_txt;
+      exit when length(v_txt) <= 4800;
+    end loop;
+    v_echecs := format(E'\néchecs hors matrice (%s, tous) :\n%s', v_n, v_echecs);
+  end if;
+  select count(*) into v_n from preuve where etat = 'échec' and qui is not null;
+  if v_n > 0 then
+    with e as (
+      select p.qui, p.tbl, p.ctx, p.num,
+             case when p.op = 'lecture' then 'L' when p.op like 'ajout%' then 'A' when p.op = 'modification' then 'M'
+                  when p.op = 'déplacement' then 'D' else 'S' end as lettre,
+             case when p.op = 'lecture' then 1 when p.op like 'ajout%' then 2 when p.op = 'modification' then 3
+                  when p.op = 'déplacement' then 5 else 4 end as rang
+        from preuve p where p.etat = 'échec' and p.qui is not null),
+    l as (select e.qui, e.tbl, e.lettre, e.rang, string_agg(distinct e.ctx, ',' order by e.ctx) as ctxs from e group by e.qui, e.tbl, e.lettre, e.rang),
+    t as (select l.qui, l.tbl, string_agg(l.lettre || ' ' || l.ctxs, ' ; ' order by l.rang) as ops from l group by l.qui, l.tbl),
+    s as (select t.qui, t.ops, string_agg(regexp_replace(t.tbl, '^public\.', ''), ', ' order by t.tbl) as tables,
+                 (array_agg(regexp_replace(t.tbl, '^public\.', '') order by t.tbl))[1:4] as premieres, count(*) as nb
+            from t group by t.qui, t.ops),
+    q as (select e.qui, min(e.num) as premier from e group by e.qui)
+    select string_agg(format('- %s, %s : %s', s.qui, s.ops, s.tables), E'\n' order by q.premier, s.ops),
+           string_agg(format('- %s, %s : %s', s.qui, s.ops, array_to_string(s.premieres, ', ')
+                                                            || case when s.nb > 4 then format(' ... (%s tables)', s.nb) else '' end), E'\n' order by q.premier, s.ops)
+      into v_txt, v_txt2 from s join q on q.qui = s.qui;
+    v_carte := format(E'\nmatrice, carte des %s cases en échec (L lecture, A ajout, M modification, S suppression, D déplacement de promo ; contextes 1, 2, 7, sans en-tête) :\n%s',
+      v_n, v_txt);
+    v_carte_courte := format(E'\nmatrice, carte des %s cases en échec, tables abrégées (L lecture, A ajout, M modification, S suppression, D déplacement de promo ; contextes 1, 2, 7, sans en-tête) :\n%s',
+      v_n, v_txt2);
+    select string_agg(format('- %s', left(e.libelle, 90)) || coalesce(' : ' || nullif(left(e.detail, 110), ''), ''), E'\n' order by e.num)
+      into v_txt from (select * from preuve where etat = 'échec' and qui is not null order by num limit 6) e;
+    v_detail := format(E'\nmatrice, %s premiers échecs en détail :\n%s', least(v_n, 6), v_txt);
+  end if;
+  with c as (select groupe,
+                     left(case when groupe = 'non-régression'
+                               then regexp_replace(libelle, '^compte réel [0-9]+ \([^)]*\)', 'chaque compte réel') else libelle end, 70) as l,
+                     count(*) as n, count(*) filter (where etat = 'ok') as ok, min(num) as premier
+                from preuve where etat <> 'info' and qui is null group by 1, 2),
+       p as (select c.*, sum(length(c.l) + 3) over (partition by c.groupe order by c.premier) as cum from c where c.ok = c.n),
+       g as (select p.groupe, min(p.premier) as premier, sum(p.n) as total,
+                    string_agg(p.l, ' ; ' order by p.premier) filter (where p.cum <= 700) as noms,
+                    count(*) filter (where p.cum > 700) as reste
+               from p group by p.groupe)
+  select string_agg(format('- [%s] %s réussi(s) : %s%s', g.groupe, g.total, g.noms,
+                           case when g.reste > 0 then format(' ; ... et %s autre(s) du groupe', g.reste) else '' end), E'\n' order by g.premier)
+    into v_txt from g;
+  if v_txt is not null then v_reussis := E'\ncontrôles réussis hors matrice, par groupe (libellés abrégés à 70 caractères) :\n' || v_txt; end if;
   select string_agg(format('%s %s/%s', qui, ok, n), ' ; ' order by premier) into v_txt
     from (select qui, count(*) as n, count(*) filter (where etat = 'ok') as ok, min(num) as premier
-            from preuve where groupe = 'matrice' and qui is not null group by qui) q;
-  v_msg := v_msg || E'\nmatrice par personnage (réussis/joués) : ' || coalesce(v_txt, 'aucune case jouée');
+            from preuve where groupe in ('matrice', 'aperçu') and qui is not null group by qui) q;
+  v_pers := E'\ncases de matrice et d''aperçu par personnage (réussis/joués) : ' || coalesce(v_txt, 'aucune case jouée');
   select string_agg(format('%s %s/%s', regexp_replace(tbl, '^public\.', ''), ok, n), ' ; ' order by tbl) into v_txt
     from (select tbl, count(*) as n, count(*) filter (where etat = 'ok') as ok
             from preuve where groupe = 'matrice' and qui is not null group by tbl) t;
-  v_msg := v_msg || E'\nmatrice par table (réussis/joués) : ' || coalesce(v_txt, 'aucune case jouée');
-  select string_agg(format('- [%s] %s : %s/%s%s', c.groupe, c.l, c.ok, c.n, case when c.ok < c.n then ' ÉCHEC' else '' end),
-                    E'\n' order by c.premier)
-    into v_txt
-    from (select groupe,
-                 case when groupe = 'non-régression'
-                      then regexp_replace(libelle, '^compte réel [0-9]+ \([^)]*\)', 'chaque compte réel')
-                      else libelle end as l,
-                 count(*) as n, count(*) filter (where etat = 'ok') as ok, min(num) as premier
-            from preuve where etat <> 'info' and qui is null group by 1, 2) c;
-  v_msg := v_msg || E'\ncontrôles hors matrice, un par ligne (réussis/joués) :\n' || coalesce(v_txt, '- aucun');
-  select string_agg('- ' || libelle || coalesce(' : ' || nullif(detail, ''), ''), E'\n' order by num) into v_txt
-    from preuve where etat = 'info';
-  if v_txt is not null then
-    v_msg := v_msg || E'\nà titre d''information (jamais compté) :\n' || v_txt;
+  v_tbl := E'\nmatrice par table (réussis/joués) : ' || coalesce(v_txt, 'aucune case jouée');
+  select string_agg('- ' || left(i.libelle, 150) || coalesce(' : ' || nullif(left(i.detail, 230), ''), ''), E'\n' order by i.num) into v_txt
+    from preuve i where i.etat = 'info';
+  if v_txt is not null then v_info := E'\nà titre d''information (jamais compté) :\n' || v_txt; end if;
+  v_msg := v_tete || v_echecs || v_carte || v_detail || v_pers || v_tbl || v_reussis || v_info;
+  if length(v_msg) > c_max then
+    v_tbl := '';
+    v_msg := v_tete || v_echecs || v_carte || v_detail || v_pers || v_reussis || v_info;
   end if;
-  if v_ko > 0 or v_ok = 0 then
-    select count(*) into v_n from preuve where etat = 'échec' and qui is null;
-    if v_n > 0 then
-      select string_agg(format('- %s. [%s] %s', e.num, e.groupe, e.libelle) || coalesce(' : ' || nullif(left(e.detail, 420), ''), ''),
-                        E'\n' order by e.num)
-        into v_txt from (select * from preuve where etat = 'échec' and qui is null order by num limit 60) e;
-      v_msg := v_msg || format(E'\néchecs hors matrice (%s premiers sur %s) :\n%s', least(v_n, 60), v_n, v_txt);
-    end if;
-    select count(*) into v_n from preuve where etat = 'échec' and qui is not null;
-    if v_n > 0 then
-      with e as (
-        select p.qui, p.tbl, p.ctx, p.num,
-               case when p.op = 'lecture' then 'L' when p.op like 'ajout%' then 'A' when p.op = 'modification' then 'M'
-                    when p.op = 'déplacement' then 'D' else 'S' end as lettre,
-               case when p.op = 'lecture' then 1 when p.op like 'ajout%' then 2 when p.op = 'modification' then 3
-                    when p.op = 'déplacement' then 5 else 4 end as rang
-          from preuve p where p.etat = 'échec' and p.qui is not null),
-      l as (select e.qui, e.tbl, e.lettre, e.rang, string_agg(distinct e.ctx, ',' order by e.ctx) as ctxs
-              from e group by e.qui, e.tbl, e.lettre, e.rang),
-      t as (select l.qui, l.tbl, string_agg(l.lettre || ' ' || l.ctxs, ' ; ' order by l.rang) as ops
-              from l group by l.qui, l.tbl),
-      s as (select t.qui, t.ops, string_agg(regexp_replace(t.tbl, '^public\.', ''), ', ' order by t.tbl) as tables
-              from t group by t.qui, t.ops),
-      q as (select e.qui, min(e.num) as premier from e group by e.qui)
-      select string_agg(format('- %s, %s : %s', s.qui, s.ops, s.tables), E'\n' order by q.premier, s.ops)
-        into v_txt from s join q on q.qui = s.qui;
-      v_msg := v_msg || format(E'\nmatrice, carte des %s cases en échec, par personnage et signature (L lecture, A ajout, M modification, S suppression, D déplacement de promo ; contextes 1, 2, 7, sans en-tête) :\n%s',
-        v_n, v_txt);
-      select string_agg(format('- %s', e.libelle) || coalesce(' : ' || nullif(left(e.detail, 200), ''), ''), E'\n' order by e.num)
-        into v_txt from (select * from preuve where etat = 'échec' and qui is not null order by num limit 12) e;
-      v_msg := v_msg || format(E'\nmatrice, %s premiers échecs en détail :\n%s', least(v_n, 12), v_txt);
-    end if;
+  if length(v_msg) > c_max and v_carte_courte <> '' then
+    v_carte := v_carte_courte;
+    v_msg := v_tete || v_echecs || v_carte || v_detail || v_pers || v_reussis || v_info;
+  end if;
+  if length(v_msg) > c_max and v_detail <> '' then
+    v_detail := '';
+    v_msg := v_tete || v_echecs || v_carte || v_pers || v_reussis || v_info;
+  end if;
+  if length(v_msg) > c_max and v_reussis <> '' then
+    select count(*), count(distinct groupe) into v_n, v_niv from preuve where etat = 'ok' and qui is null;
+    v_reussis := format(E'\ncontrôles réussis hors matrice : %s, dans %s groupe(s) (liste omise : taille ; les totaux sont dans « par groupe »)', v_n, v_niv);
+    v_msg := v_tete || v_echecs || v_carte || v_detail || v_pers || v_reussis || v_info;
+  end if;
+  if length(v_msg) > c_max then
+    select string_agg('- ' || left(i.libelle, 70) || coalesce(' : ' || nullif(left(i.detail, 110), ''), ''), E'\n' order by i.num) into v_txt
+      from preuve i where i.etat = 'info';
+    v_info := case when v_txt is null then '' else E'\nà titre d''information (abrégé, jamais compté) :\n' || v_txt end;
+    v_msg := v_tete || v_echecs || v_carte || v_detail || v_pers || v_reussis || v_info;
   end if;
   raise exception using message = v_msg;
 end $fx$;
@@ -686,6 +815,20 @@ declare
   v_acces integer[]; v_defaut integer; v_pr integer; v_lieu integer; v_f boolean; v_d boolean; v_ctx text;
   v_txt text; v_obt text; v_att text; v_sql text; v_prep text; v_marque text; v_mes text; v_res text[];
   v_permis boolean; v_ok boolean; n integer; n2 integer; v_attendus text[];
+  -- Contrôles ciblés de la seconde partie : adresses des personnages, cibles et valeurs relevées par requête.
+  c_stag_n constant text := 'preuve.stag.n@exemple.invalid';
+  c_stag_m constant text := 'preuve.stag.m@exemple.invalid';
+  c_form_n constant text := 'preuve.form.n@exemple.invalid';
+  c_form_m constant text := 'preuve.form.m@exemple.invalid';
+  c_dir_n constant text := 'preuve.dir.n@exemple.invalid';
+  c_siege constant text := 'preuve.siege@exemple.invalid';
+  c_fond constant text := 'preuve.fond@exemple.invalid';
+  c_invite constant text := 'preuve.invite@exemple.invalid';
+  c_exempts constant text[] := array['public.promos', 'public.lieux', 'public.user_profiles', 'public.conditions_acceptations', 'public.qcm_signalements'];
+  v_qcm_d bigint; v_f1 integer; v_f2 integer; v_l1 integer; v_l2 integer; v_prof integer; v_sl bigint; v_sc boolean;
+  -- Le réglage écrit sous la forme de l'app (db.js : upsert sur promo_id,key ; la promo vient de l'en-tête).
+  c_reglage constant text := $pv$insert into public.settings (key, value, updated_at) values (%L, %L, now()) on conflict (promo_id, key) do update set value = excluded.value, updated_at = excluded.updated_at$pv$;
+  v_x record; v_t text; v_vues text[]; v_vues2 text[]; v_fin1 date; v_fin2 date; v_bn1 integer; v_bn2 integer;
   -- Ce que voit un personnage : « lignes:somme des empreintes des ctid » ; l'attendu, calculé en propriétaire dans
   -- la même lecture de la table : la même chose pour les lignes que la règle de lecture laisse voir, puis le nombre
   -- de lignes que modification et suppression doivent toucher, et le total.
@@ -909,6 +1052,21 @@ begin
     insert into public.benevole_suivi (benevole_id, semaine_lundi, day_index, half_day, commentaire, lieu_id)
       values (n, '2030-01-07', 0, 'matin', 'Preuve', v_lieu);
   end loop;
+  -- Pour les contrôles ciblés : une venue de bénévole dans chaque promo (venues_benevoles ne rend que celles du lieu
+  -- affiché) ; le QCM A ouvert à l'examen sans heure de clôture dans chaque promo (qcm_exam_remise_toleree vrai) et un
+  -- QCM D dont l'examen n'est pas ouvert (faux), pour l'ajout d'une tentative en mode examen.
+  foreach v_pr in array c_promos loop
+    insert into public.planning_entries (semaine_lundi, day_index, half_day, slot, lane, activite, promo_id, benevoles_ids)
+      select '2030-01-14', 1, 'matin', 8, 8, 'Cours', v_pr, array[b.benevole]
+        from benevoles_essai b where b.lieu = (select pr.lieu_id from public.promos pr where pr.id = v_pr);
+  end loop;
+  insert into public.themes (titre, type, ordre) values ('Preuve thème D', 'notion', 9999) returning id into n;
+  insert into public.qcm (theme_id, titre) values (n, 'Preuve QCM D') returning id into v_qcm_d;
+  foreach v_pr in array c_promos loop
+    insert into public.qcm_examens (promo_id, qcm_id) values (v_pr, v_qcm_d) on conflict (promo_id, qcm_id) do nothing;
+  end loop;
+  update public.qcm_examens set published = true, exam_ferme_a = null where qcm_id = v_qcm_a;
+  update public.qcm_examens set published = false, exam_ferme_a = null where qcm_id = v_qcm_d;
   -- Lignes M des personnages (signalements et acceptations à leur nom), journal des effacements, un signalement de
   -- problème au nom du porteur du jeton de stag_n (le compte réel choisi plus haut : seul son identifiant sert, rien
   -- n'est affiché), avec sa capture.
@@ -937,7 +1095,7 @@ begin
       returning id into v_cours_pub;
   end if;
   v_globaux := jsonb_build_object(
-    'qcm_a', v_qcm_a::text, 'qcm_b', v_qcm_b::text, 'theme_b', v_theme_b::text, 'theme_c', v_theme_c::text,
+    'qcm_a', v_qcm_a::text, 'qcm_b', v_qcm_b::text, 'qcm_d', v_qcm_d::text, 'theme_b', v_theme_b::text, 'theme_c', v_theme_c::text,
     'question_a', v_question_a::text, 'personnel', quote_literal(c_personnel),
     'cours_theme', coalesce(quote_literal(v_cours_theme::text), 'null'), 'cours_comp', coalesce(quote_literal(v_cours_comp::text), 'null'),
     'cours_pub', coalesce(quote_literal(v_cours_pub::text), 'null'),
@@ -952,7 +1110,7 @@ begin
            case when v_cours_theme is null then 'absent' else 'trouvé' end,
            case when v_cours_comp is null or v_cours_pub is null then 'absents (moins de deux codes libres)' else 'posés (un non publié, un publié)' end));
   perform pg_temp.verifier('structure',
-    'comptes affectés posés (cumul : fiche de la promo 1 et formateur de la promo 2 ; orphelin affecté : siège), et leurs affectations invisibles à form_n et dir_n',
+    'comptes affectés posés (cumul : fiche de la promo 1 et formateur de la promo 2 ; orphelin affecté : siège) : 2 profils, 2 affectations, et une promo 2 d''un autre lieu que la promo 1',
     (select count(*) from public.affectations where email in (c_cumul, c_orphelin_affecte)) = 2
     and (select count(*) from public.user_profiles where email in (c_cumul, c_orphelin_affecte)) = 2
     and (select p.lieu_id from public.promos p where p.id = 2) is distinct from (select p.lieu_id from public.promos p where p.id = 1),
@@ -962,7 +1120,13 @@ begin
            case when (select p.lieu_id from public.promos p where p.id = 2) is distinct from (select p.lieu_id from public.promos p where p.id = 1)
                 then 'différent' else 'identique' end));
   if v_sub_porteur is null then
-    perform pg_temp.informer('signalement de problème d''essai', 'non posé : aucun identifiant de jeton réel non fondateur (auth.users illisible ou sans compte), les contrôles « signalements » sont non jugeables');
+    -- Dans un mode qui injecte, un contrôle qu'on ne peut pas jouer est un échec : on ne passe pas au vert faute de pouvoir juger.
+    if v_en_ligne then
+      perform pg_temp.informer('signalement de problème d''essai', 'non posé : aucun identifiant de jeton réel non fondateur (auth.users illisible ou sans compte), les contrôles « signalements » sont non jugeables');
+    else
+      perform pg_temp.verifier('structure', 'signalement de problème d''essai posé au nom du jeton de stag_n (compte réel non fondateur), avec sa capture', false,
+        'non posé : aucun identifiant de jeton réel non fondateur lisible (auth.users illisible ou sans compte)');
+    end if;
   else
     perform pg_temp.verifier('structure',
       'signalement de problème d''essai posé au nom du jeton de stag_n (compte réel non fondateur), avec sa capture',
@@ -978,7 +1142,7 @@ begin
   -- 5. Le modèle : pour chaque personnage et chaque contexte, ses drapeaux tirés de sa définition (R23).
   drop table if exists pg_temp.contextes;
   create temp table contextes (ordre integer, rang integer, qui text, email text, ctx text, hdr text, jetons jsonb,
-    tables text[]);
+    tables text[], apercu text, groupe text not null default 'matrice', ecriture boolean not null default true);
   for v_p in select * from personnages order by ordre loop
     v_acces := array(select pr.id from public.promos pr
                       where v_p.fondateur or pr.id = v_p.promo_fiche or pr.id = any(v_p.formateur_de)
@@ -1021,6 +1185,38 @@ begin
         'Fo', 'false', 'moi', 'null', 'sub', 'null', 'fiche', 'null', 'fiche_p', 'null', 'anonyme', 'false',
         'acces', '''{}''::integer[]', 'form_de', '''{}''::integer[]', 'dir_de', '''{}''::integer[]'));
   end loop;
+  -- Les contextes d'aperçu (lecture seulement, groupe « aperçu ») : un en-tête x-apercu-role sur la promo 1, avec les
+  -- drapeaux que la section 0 du plan donne à la personne simulée. Un aperçu ne fait que retirer des droits : la
+  -- navigation (promos accessibles) reste celle de l'appelant, la fiche n'est gardée qu'en aperçu stagiaire. Le
+  -- fondateur ne passe en aperçu formateur, direction ou siège que parce qu'il est fondateur ; les autres comptes qui
+  -- envoient ces en-têtes (stag_n, form_n) gardent exactement leurs droits.
+  select pr.lieu_id into v_l1 from public.promos pr where pr.id = 1;
+  insert into contextes (ordre, rang, qui, email, ctx, hdr, apercu, groupe, ecriture, jetons)
+    select 20 + a.k, 1, a.qui, a.email, '1', '1', a.apercu, 'aperçu', false, c.jetons || a.surcharge
+      from (values
+        (1, 'fond/formateur', c_fond, 'formateur', jsonb_build_object('D', 'false', 'S', 'false', 'Fo', 'false', 'fiche', 'null', 'fiche_p', 'null',
+           'form_de', '''{1}''::integer[]', 'dir_de', '''{}''::integer[]')),
+        (2, 'fond/direction', c_fond, 'direction', jsonb_build_object('F', 'false', 'S', 'false', 'R', 'false', 'Fo', 'false', 'fiche', 'null', 'fiche_p', 'null',
+           'form_de', '''{}''::integer[]', 'dir_de', quote_literal(array[v_l1]::text) || '::integer[]')),
+        (4, 'fond/stagiaire', c_fond, 'stagiaire', jsonb_build_object('F', 'false', 'D', 'false', 'E', 'false', 'S', 'false', 'R', 'false', 'Fo', 'false',
+           'form_de', '''{}''::integer[]', 'dir_de', '''{}''::integer[]'))
+      ) a(k, qui, email, apercu, surcharge)
+      join contextes c on c.qui = 'fond' and c.ctx = '1';
+  insert into contextes (ordre, rang, qui, email, ctx, hdr, apercu, groupe, ecriture, jetons)
+    select 24, 1, 'fond/siege', c_fond, '1', '1', 'siege', 'aperçu', false,
+           c.jetons || jsonb_build_object('P', 'null', 'L', 'null', 'F', 'false', 'D', 'false', 'E', 'false', 'Fo', 'false', 'fiche', 'null', 'fiche_p', 'null',
+             'form_de', '''{}''::integer[]', 'dir_de', '''{}''::integer[]')
+      from contextes c where c.qui = 'fond' and c.ctx = '1';
+  insert into contextes (ordre, rang, qui, email, ctx, hdr, apercu, groupe, ecriture, jetons)
+    select 25, 1, 'form_n/stagiaire', c_form_n, '1', '1', 'stagiaire', 'aperçu', false,
+           c.jetons || jsonb_build_object('F', 'false', 'D', 'false', 'E', 'false', 'S', 'false', 'R', 'false', 'Fo', 'false',
+             'form_de', '''{}''::integer[]', 'dir_de', '''{}''::integer[]')
+      from contextes c where c.qui = 'form_n' and c.ctx = '1';
+  insert into contextes (ordre, rang, qui, email, ctx, hdr, apercu, groupe, ecriture, jetons)
+    select 26 + a.k, 1, a.qui, a.email, '1', '1', a.apercu, 'aperçu', false, c.jetons
+      from (values (0, 'stag_n/envoie formateur', c_stag_n, 'formateur', 'stag_n'), (1, 'form_n/envoie siege', c_form_n, 'siege', 'form_n'),
+                   (2, 'dir_n/envoie formateur', c_dir_n, 'formateur', 'dir_n')) a(k, qui, email, apercu, base)
+      join contextes c on c.qui = a.base and c.ctx = '1';
 
   -- 6. La matrice : pour chaque table, chaque personnage et chaque contexte, la lecture (nombre et empreinte des ctid),
   --    la modification et la suppression sur toute la table, puis les ajouts. Table par table, les tables mères d'une
@@ -1050,14 +1246,16 @@ begin
       v_txt := pg_temp.calcul(format(c_attendus, v_m.lecture, v_m.modif, v_m.suppr, v_m.tbl));
       v_attendus := case when v_txt like '{%' then v_txt::text[] end;
       -- Lecture : mêmes lignes (nombre et empreinte des ctid).
-      v_obt := pg_temp.valeur(v_c.email, v_c.hdr, null, format(c_vue, v_m.tbl));
+      v_obt := pg_temp.valeur(v_c.email, v_c.hdr, v_c.apercu, format(c_vue, v_m.tbl));
       v_att := v_attendus[1];
       -- (L'acteur anonyme n'a le droit de lire qu'un petit nombre de tables : sur les autres, le refus de droit, 42501,
       -- vaut « aucune ligne ».)
-      perform pg_temp.verifier_m('matrice', v_c.qui, v_c.ctx, v_m.tbl, 'lecture',
+      perform pg_temp.verifier_m(v_c.groupe, v_c.qui, v_c.ctx, v_m.tbl, 'lecture',
         v_obt = v_att or (v_c.qui = 'anon' and v_obt = 'ERREUR 42501' and split_part(v_att, ':', 1) = '0'),
         format('vu %s, attendu %s', coalesce(split_part(v_obt, ':', 1), 'nul'), coalesce(split_part(v_att, ':', 1), v_txt))
         || case when split_part(v_obt, ':', 1) = split_part(v_att, ':', 1) and v_obt <> v_att then ' (autres lignes)' else '' end);
+      -- Les contextes d'aperçu ne jouent que la lecture (leurs écritures sont des contrôles ciblés).
+      continue when not v_c.ecriture;
       -- Modification de toute la table, valeur constante : « OK n n 0 » (n lignes attendues, toutes marquées, aucune
       -- hors de la règle) ; un refus de droit vaut 0.
       v_res := pg_temp.tenter(v_c.email, v_c.hdr, null, null, null,
@@ -1094,6 +1292,7 @@ begin
                  v_vers, coalesce(v_res[1], 'incalculable')));
       end if;
     end loop;
+    continue when not v_c.ecriture;
     -- Ajouts : l'attendu est la règle appliquée à la ligne même, écrite en propriétaire puis annulée (une règle
     -- « false » se passe de cet essai, comme l'acteur anonyme, à qui rien n'est permis) ; « OK 1 1 » si permis,
     -- « REFUS 42501 » sinon.
@@ -1128,7 +1327,12 @@ begin
   --    a) Le signalement de problème d'essai appartient au jeton de stag_n : lui et le fondateur le voient (avec sa
   --       capture), les autres non ; le fondateur seul le supprime.
   if v_sig is null then
-    perform pg_temp.informer('signalements de problème (contrôles ciblés)', 'non jugeables : aucun signalement d''essai posé (voir la structure)');
+    if v_en_ligne then
+      perform pg_temp.informer('signalements de problème (contrôles ciblés)', 'non jugeables : aucun signalement d''essai posé (voir la structure)');
+    else
+      perform pg_temp.verifier('signalements', 'signalement de problème d''essai, par acteur « lu/capture lue/supprimé »', false,
+        'non jugeable : aucun signalement d''essai posé (aucun identifiant de jeton réel non fondateur lisible) ; en mode injecté, c''est un échec');
+    end if;
   else
     v_obt := ''; v_att := '';
     for v_p in select * from (select p.nom, p.email, p.fondateur, p.ordre, exists (select 1 from jetons j where j.email = lower(p.email)) as porteur
@@ -1179,6 +1383,307 @@ begin
       coalesce(pg_temp.valeur('preuve.form.n@exemple.invalid', '1', null,
         format('select count(*)::text from public.evaluations where stagiaire_id = %s', n)), 'nul')),
     'masqué voit 1/1 ; stag_n voit celles du masqué 0 ; stag_n voit celles d''un autre true ; form_n voit celles du masqué 1');
+
+  -- Seconde partie des contrôles ciblés (R22, 3b). Mêmes principes : attendus écrits en dur, d'après la section 0 et la
+  -- section 1 du plan, jamais lus dans le modèle ni dans le vocabulaire testé ; chaque écriture dans une sous-transaction
+  -- annulée ; une fonction que l'étape 2 n'a pas encore créée fait échouer son contrôle sans arrêter le bloc.
+  v_f1 := (select c.fiche from cibles c where c.promo = 1);
+  v_f2 := (select c.fiche from cibles c where c.promo = 2);
+  v_l1 := (select pr.lieu_id from public.promos pr where pr.id = 1);
+  v_l2 := (select pr.lieu_id from public.promos pr where pr.id = 2);
+  v_prof := (select min(p.id) from public.profs p);
+  v_fin1 := (select coalesce(pr.date_fin, pr.date_debut + 300) + 1 from public.promos pr where pr.id = 1);
+  v_fin2 := (select coalesce(pr.date_fin, pr.date_debut + 300) + 1 from public.promos pr where pr.id = 2);
+  --    d) Aperçu. Le fondateur en aperçu formateur, direction ou siège sur la promo 1 voit ce que voient form_n, dir_n et
+  --       siege : comparaison exacte table par table, sauf les tables de navigation (promos, lieux : le fondateur garde
+  --       toutes les promos) et celles qui portent la ligne de la personne (comptes, acceptations, signalements de
+  --       questions), jugées par le modèle (contextes d'aperçu de la matrice, lecture de toutes les tables). Les comptes
+  --       autres que le fondateur qui envoient ces en-têtes ne voient rien de plus ni de moins ; en aperçu stagiaire, direction
+  --       ou siège, plus d'écriture de formateur.
+  for v_x in select * from (values ('formateur', c_form_n, 'form_n'), ('direction', c_dir_n, 'dir_n'), ('siege', c_siege, 'siege')) a(apercu, email, nom) loop
+    v_vues := pg_temp.vue_tables(c_fond, '1', v_x.apercu, v_tables);
+    v_vues2 := pg_temp.vue_tables(v_x.email, '1', null, v_tables);
+    select string_agg(format('%s %s contre %s', regexp_replace(u.t, '^public\.', ''), split_part(v_vues[u.o], ':', 1), split_part(v_vues2[u.o], ':', 1)), ', ' order by u.o)
+      into v_txt from unnest(v_tables) with ordinality u(t, o)
+     where v_vues[u.o] is distinct from v_vues2[u.o] and u.t <> all(c_exempts);
+    perform pg_temp.verifier('aperçu', format('fondateur en aperçu %s, promo 1 : mêmes lignes que %s sur chaque table (hors navigation et lignes de la personne)', v_x.apercu, v_x.nom),
+      v_txt is null, 'tables différentes : ' || coalesce(v_txt, ''));
+  end loop;
+  for v_x in select * from (values (c_stag_n, 'stag_n', array['formateur', 'direction', 'siege']), (c_form_n, 'form_n', array['direction', 'siege', 'bidule']),
+                                   (c_dir_n, 'dir_n', array['formateur', 'siege'])) a(email, nom, apercus) loop
+    v_vues := pg_temp.vue_tables(v_x.email, '1', null, v_tables);
+    foreach v_t in array v_x.apercus loop
+      v_vues2 := pg_temp.vue_tables(v_x.email, '1', v_t, v_tables);
+      select string_agg(format('%s %s contre %s', regexp_replace(u.t, '^public\.', ''), split_part(v_vues2[u.o], ':', 1), split_part(v_vues[u.o], ':', 1)), ', ' order by u.o)
+        into v_txt from unnest(v_tables) with ordinality u(t, o) where v_vues2[u.o] is distinct from v_vues[u.o];
+      perform pg_temp.verifier('aperçu', format('%s envoie x-apercu-role %s, promo 1 : ne voit rien de plus ni de moins, sur toutes les tables', v_x.nom, v_t),
+        v_txt is null, 'tables différentes : ' || coalesce(v_txt, ''));
+    end loop;
+  end loop;
+  perform pg_temp.cas('aperçu', 'form_n sans aperçu, promo 1 : ajout au planning accepté (témoin)', c_form_n, '1', null, null,
+    'insert into public.planning_jours_off (semaine_lundi, day_index, label, promo_id) values (''2031-02-03'', 2, ''PreuveApercu'', 1)',
+    'select count(*)::text from public.planning_jours_off where label = ''PreuveApercu''', array['OK 1 1']);
+  perform pg_temp.cas('aperçu', 'form_n sans aperçu, promo 1 : ajout d''une note accepté (témoin)', c_form_n, '1', null, null,
+    format('insert into public.evaluations (stagiaire_id, type, theme_numero, note, observation) values (%s, ''Thème'', 1, 10, ''PreuveApercu'')', v_f1),
+    'select count(*)::text from public.evaluations where observation = ''PreuveApercu''', array['OK 1 1']);
+  perform pg_temp.cas('aperçu', 'fondateur en aperçu formateur, promo 1 : ajout au planning accepté (témoin)', c_fond, '1', 'formateur', null,
+    'insert into public.planning_jours_off (semaine_lundi, day_index, label, promo_id) values (''2031-02-03'', 2, ''PreuveApercu'', 1)',
+    'select count(*)::text from public.planning_jours_off where label = ''PreuveApercu''', array['OK 1 1']);
+  for v_x in select * from (values ('form_n', c_form_n, 'stagiaire'), ('fondateur', c_fond, 'stagiaire'), ('fondateur', c_fond, 'direction'),
+                                   ('fondateur', c_fond, 'siege')) a(nom, email, apercu) loop
+    perform pg_temp.cas('aperçu', format('%s en aperçu %s, promo 1 : ajout au planning refusé', v_x.nom, v_x.apercu), v_x.email, '1', v_x.apercu, null,
+      'insert into public.planning_jours_off (semaine_lundi, day_index, label, promo_id) values (''2031-02-03'', 2, ''PreuveApercu'', 1)', null, array['REFUS 42501']);
+    perform pg_temp.cas('aperçu', format('%s en aperçu %s, promo 1 : ajout d''une note refusé', v_x.nom, v_x.apercu), v_x.email, '1', v_x.apercu, null,
+      format('insert into public.evaluations (stagiaire_id, type, theme_numero, note, observation) values (%s, ''Thème'', 1, 10, ''PreuveApercu'')', v_f1), null, array['REFUS 42501']);
+  end loop;
+  --    La fiche du fondateur n'est gardée qu'en aperçu stagiaire : il y ajoute un passage à son nom (écriture « de la sienne »),
+  --    pas en aperçu direction, où il n'est plus que direction du centre.
+  select p.fiche into n from personnages p where p.nom = 'fond';
+  perform pg_temp.cas('aperçu', 'fondateur en aperçu stagiaire, promo 1 : ajout d''un passage à sa fiche accepté', c_fond, '1', 'stagiaire', null,
+    format('insert into public.passages (date, stagiaire_id, type, resultat, commentaire) values (''2031-02-03'', %s, ''Salle'', ''Effectué'', ''PreuveApercu'')', n),
+    'select count(*)::text from public.passages where commentaire = ''PreuveApercu''', array['OK 1 1']);
+  perform pg_temp.cas('aperçu', 'fondateur en aperçu direction, promo 1 : ajout d''un passage à sa fiche refusé', c_fond, '1', 'direction', null,
+    format('insert into public.passages (date, stagiaire_id, type, resultat, commentaire) values (''2031-02-03'', %s, ''Salle'', ''Effectué'', ''PreuveApercu'')', n), null, array['REFUS 42501']);
+  --    e) R32 : navigation_v2 et emargement_actif réservés au fondateur (réel, hors aperçu), modules à l'équipe de la promo.
+  --       La forme est celle de l'app (db.js, upsert sur promo_id,key : insérer ou mettre à jour, promo par défaut).
+  for v_x in select * from (values ('fondateur', c_fond, null::text, true), ('form_n', c_form_n, null, false), ('dir_n', c_dir_n, null, false),
+                                   ('stag_n', c_stag_n, null, false), ('fondateur en aperçu formateur', c_fond, 'formateur', false)) a(nom, email, apercu, permis) loop
+    foreach v_t in array array['navigation_v2', 'emargement_actif'] loop
+      perform pg_temp.cas('R32', format('%s écrit par %s : %s', v_t, v_x.nom, case when v_x.permis then 'permis' else 'refusé' end), v_x.email, '1', v_x.apercu, null,
+        format(c_reglage, v_t, 'PreuveR32'), format('select value from public.settings where promo_id = 1 and key = %L', v_t),
+        case when v_x.permis then array['OK 1 PreuveR32'] else array['REFUS 42501'] end);
+    end loop;
+  end loop;
+  perform pg_temp.cas('R32', 'navigation_v2 absent, inséré par le fondateur : permis', c_fond, '1', null,
+    'delete from public.settings where promo_id = 1 and key = ''navigation_v2''', format(c_reglage, 'navigation_v2', 'PreuveR32'),
+    'select value from public.settings where promo_id = 1 and key = ''navigation_v2''', array['OK 1 PreuveR32']);
+  perform pg_temp.cas('R32', 'navigation_v2 absent, inséré par form_n : refusé', c_form_n, '1', null,
+    'delete from public.settings where promo_id = 1 and key = ''navigation_v2''', format(c_reglage, 'navigation_v2', 'PreuveR32'), null, array['REFUS 42501']);
+  perform pg_temp.cas('R32', 'modules écrit par form_n en promo 1 : permis', c_form_n, '1', null, null, format(c_reglage, 'modules', 'PreuveR32'),
+    'select value from public.settings where promo_id = 1 and key = ''modules''', array['OK 1 PreuveR32']);
+  perform pg_temp.cas('R32', 'modules écrit par dir_n en promo 1 : permis', c_dir_n, '1', null, null, format(c_reglage, 'modules', 'PreuveR32'),
+    'select value from public.settings where promo_id = 1 and key = ''modules''', array['OK 1 PreuveR32']);
+  perform pg_temp.cas('R32', 'modules écrit par dir_n en promo 2 (autre lieu), forme de l''app : refusé', c_dir_n, '2', null, null, format(c_reglage, 'modules', 'PreuveR32'),
+    null, array['REFUS 42501', 'REFUS 23514']);
+  perform pg_temp.cas('R32', 'modules écrit par dir_n en promo 2, promo_id donné : refusé', c_dir_n, '2', null, null,
+    'insert into public.settings (key, value, promo_id, updated_at) values (''modules'', ''PreuveR32'', 2, now()) on conflict (promo_id, key) do update set value = excluded.value, updated_at = excluded.updated_at',
+    null, array['REFUS 42501']);
+  perform pg_temp.cas('R32', 'modules écrit par stag_n : refusé', c_stag_n, '1', null, null, format(c_reglage, 'modules', 'PreuveR32'), null, array['REFUS 42501']);
+  --    f) Comptes : nul ne se donne is_founder ou is_admin ; le fondateur et le personnel affecté ne se suppriment pas ;
+  --       un stagiaire de sa promo, oui.
+  perform pg_temp.cas('comptes', 'form_n ne se donne pas is_founder', c_form_n, '1', null, null,
+    format('update public.user_profiles set is_founder = true where email = %L', c_form_n), null, array['REFUS 42501']);
+  perform pg_temp.cas('comptes', 'form_n ne se donne pas is_admin', c_form_n, '1', null, null,
+    format('update public.user_profiles set is_admin = true where email = %L', c_form_n), null, array['REFUS 42501']);
+  perform pg_temp.cas('comptes', 'stag_n ne se donne pas is_founder', c_stag_n, '1', null, null,
+    format('update public.user_profiles set is_founder = true where email = %L', c_stag_n), null, array['REFUS 42501']);
+  perform pg_temp.cas('comptes', 'form_n ne supprime pas le compte du fondateur', c_form_n, '1', null, null,
+    format('delete from public.user_profiles where email = %L', c_fond), format('select count(*)::text from public.user_profiles where email = %L', c_fond), array['OK 0 1', 'REFUS 42501']);
+  perform pg_temp.cas('comptes', 'form_n ne supprime pas le compte de form_m', c_form_n, '1', null, null,
+    format('delete from public.user_profiles where email = %L', c_form_m), format('select count(*)::text from public.user_profiles where email = %L', c_form_m), array['OK 0 1', 'REFUS 42501']);
+  perform pg_temp.cas('comptes', 'form_n supprime le compte d''un stagiaire de sa promo', c_form_n, '1', null, null,
+    format('delete from public.user_profiles where email = %L', c_stag_n), format('select count(*)::text from public.user_profiles where email = %L', c_stag_n), array['OK 1 0']);
+  perform pg_temp.cas('comptes', 'form_n ne supprime pas le compte d''un stagiaire d''une autre promo', c_form_n, '1', null, null,
+    format('delete from public.user_profiles where email = %L', c_stag_m), format('select count(*)::text from public.user_profiles where email = %L', c_stag_m), array['OK 0 1', 'REFUS 42501']);
+  --    g) inviter_compte, d'après le tableau de la section 0. Un refus pour droit manquant est un état 42501 ; un profil
+  --       existant n'est jamais rétrogradé ni relié à une seconde fiche (son état est relu après l'appel).
+  for v_x in select * from (values
+    ('stagiaire : form_n invite la fiche de sa promo', c_form_n, '1', format('select public.inviter_compte(%L, ''stagiaire'', %s)', c_invite, v_f1), c_invite, array[format('OK 1 stagiaire/false/%s/- -', v_f1)]),
+    ('stagiaire : dir_n invite la fiche de sa promo', c_dir_n, '1', format('select public.inviter_compte(%L, ''stagiaire'', %s)', c_invite, v_f1), c_invite, array[format('OK 1 stagiaire/false/%s/- -', v_f1)]),
+    ('stagiaire : form_m invite la fiche de la promo 2', c_form_m, '2', format('select public.inviter_compte(%L, ''stagiaire'', %s)', c_invite, v_f2), c_invite, array[format('OK 1 stagiaire/false/%s/- -', v_f2)]),
+    ('stagiaire : form_n, fiche de la promo 2 refusée', c_form_n, '1', format('select public.inviter_compte(%L, ''stagiaire'', %s)', c_invite, v_f2), c_invite, array['REFUS 42501']),
+    ('stagiaire : dir_n, fiche de la promo 2 refusée', c_dir_n, '1', format('select public.inviter_compte(%L, ''stagiaire'', %s)', c_invite, v_f2), c_invite, array['REFUS 42501']),
+    ('stagiaire : form_m, fiche de la promo 1 refusée', c_form_m, '2', format('select public.inviter_compte(%L, ''stagiaire'', %s)', c_invite, v_f1), c_invite, array['REFUS 42501']),
+    ('stagiaire : stag_n refusé', c_stag_n, '1', format('select public.inviter_compte(%L, ''stagiaire'', %s)', c_invite, v_f1), c_invite, array['REFUS 42501']),
+    ('stagiaire : siege refusé', c_siege, null, format('select public.inviter_compte(%L, ''stagiaire'', %s)', c_invite, v_f1), c_invite, array['REFUS 42501']),
+    ('stagiaire : sans jeton refusé', null, '1', format('select public.inviter_compte(%L, ''stagiaire'', %s)', c_invite, v_f1), c_invite, array['REFUS 42501']),
+    ('stagiaire : un compte du personnel invité reste du personnel', c_form_n, '1', format('select public.inviter_compte(%L, ''stagiaire'', %s)', c_personnel, v_f1), c_personnel, array['OK 1 prof/false/-/- -', '~REFUS']),
+    ('stagiaire : un stagiaire déjà relié garde sa fiche', c_form_n, '1', format('select public.inviter_compte(%L, ''stagiaire'', %s)', c_stag_n, v_f1), c_stag_n,
+       array[format('OK 1 stagiaire/false/%s/- -', (select p.fiche from personnages p where p.nom = 'stag_n')), '~REFUS']),
+    ('stagiaire : un formateur invité comme stagiaire reste formateur', c_dir_n, '1', format('select public.inviter_compte(%L, ''stagiaire'', %s)', c_form_m, v_f1), c_form_m,
+       array['OK 1 prof/true/-/- formateur:2', '~REFUS']),
+    ('formateur : dir_n invite sur la promo 1', c_dir_n, '1', format('select public.inviter_compte(%L, ''formateur'', null, %s)', c_invite, v_prof), c_invite, array[format('OK 1 prof/true/-/%s formateur:1', v_prof)]),
+    ('formateur : dir_n invite avec le rôle prof', c_dir_n, '1', format('select public.inviter_compte(%L, ''prof'', null, %s)', c_invite, v_prof), c_invite, array[format('OK 1 prof/true/-/%s formateur:1', v_prof)]),
+    ('formateur : le fondateur invite sur la promo 1', c_fond, '1', format('select public.inviter_compte(%L, ''formateur'', null, %s)', c_invite, v_prof), c_invite, array[format('OK 1 prof/true/-/%s formateur:1', v_prof)]),
+    ('formateur : un formateur existant gagne la promo 1 sans changer de profil', c_dir_n, '1', format('select public.inviter_compte(%L, ''formateur'')', c_form_m), c_form_m, array['OK 1 prof/true/-/- formateur:1,formateur:2']),
+    ('formateur : form_n refusé', c_form_n, '1', format('select public.inviter_compte(%L, ''formateur'', null, %s)', c_invite, v_prof), c_invite, array['REFUS 42501']),
+    ('formateur : dir_n sur une promo d''un autre lieu refusé', c_dir_n, '2', format('select public.inviter_compte(%L, ''formateur'', null, %s)', c_invite, v_prof), c_invite, array['REFUS 42501']),
+    ('formateur : siege refusé', c_siege, null, format('select public.inviter_compte(%L, ''formateur'', null, %s)', c_invite, v_prof), c_invite, array['REFUS 42501']),
+    ('formateur : stag_n refusé', c_stag_n, '1', format('select public.inviter_compte(%L, ''formateur'', null, %s)', c_invite, v_prof), c_invite, array['REFUS 42501']),
+    ('formateur : le fondateur en aperçu formateur refusé', c_fond, '1', format('select public.inviter_compte(%L, ''formateur'', null, %s)', c_invite, v_prof), c_invite, array['REFUS 42501']),
+    ('direction : siege invite sur le lieu de la promo 1', c_siege, null, format('select public.inviter_compte(%L, ''direction'', null, null, %s)', c_invite, v_l1), c_invite, array[format('OK 1 prof/false/-/- direction:%s', v_l1)]),
+    ('direction : le fondateur invite sur le lieu de la promo 1', c_fond, '1', format('select public.inviter_compte(%L, ''direction'', null, null, %s)', c_invite, v_l1), c_invite, array[format('OK 1 prof/false/-/- direction:%s', v_l1)]),
+    ('direction : un formateur existant gagne la direction sans changer de profil', c_siege, null, format('select public.inviter_compte(%L, ''direction'', null, null, %s)', c_form_m, v_l1), c_form_m,
+       array[format('OK 1 prof/true/-/- direction:%s,formateur:2', v_l1)]),
+    ('direction : dir_n refusé', c_dir_n, '1', format('select public.inviter_compte(%L, ''direction'', null, null, %s)', c_invite, v_l1), c_invite, array['REFUS 42501']),
+    ('direction : form_n refusé', c_form_n, '1', format('select public.inviter_compte(%L, ''direction'', null, null, %s)', c_invite, v_l1), c_invite, array['REFUS 42501']),
+    ('direction : le lieu est requis', c_siege, null, format('select public.inviter_compte(%L, ''direction'')', c_invite), c_invite, array['~REFUS']),
+    ('siège : le fondateur invite', c_fond, '1', format('select public.inviter_compte(%L, ''siege'')', c_invite), c_invite, array['OK 1 prof/false/-/- siege:-']),
+    ('siège : siege refusé', c_siege, null, format('select public.inviter_compte(%L, ''siege'')', c_invite), c_invite, array['REFUS 42501']),
+    ('siège : dir_n refusé', c_dir_n, '1', format('select public.inviter_compte(%L, ''siege'')', c_invite), c_invite, array['REFUS 42501']),
+    ('siège : form_n refusé', c_form_n, '1', format('select public.inviter_compte(%L, ''siege'')', c_invite), c_invite, array['REFUS 42501']),
+    ('rôle inconnu refusé', c_fond, '1', format('select public.inviter_compte(%L, ''fondateur'')', c_invite), c_invite, array['~REFUS'])
+  ) a(lib, email, ctx, sql, cible, att) loop
+    perform pg_temp.cas('inviter_compte', v_x.lib, v_x.email, v_x.ctx, case when v_x.lib like '%en aperçu%' then 'formateur' end, null, v_x.sql, format('select pg_temp.etat_compte(%L)', v_x.cible), v_x.att);
+  end loop;
+  --    h) Affectations, par écriture directe : la direction du lieu affecte ses formateurs, le siège ses directions, le
+  --       fondateur le siège ; nul ne modifie une ligne.
+  for v_x in select * from (values
+    ('dir_n affecte form_m à la promo 1 : permis', c_dir_n, 'insert into public.affectations (email, role, promo_id) values (%L, ''formateur'', 1)', c_form_m, array['OK 1 1']),
+    ('dir_n affecte form_m à la promo 2 : refusé', c_dir_n, 'insert into public.affectations (email, role, promo_id) values (%L, ''formateur'', 2)', c_form_m, array['REFUS 42501']),
+    ('form_n n''affecte personne comme formateur : refusé', c_form_n, 'insert into public.affectations (email, role, promo_id) values (%L, ''formateur'', 1)', c_personnel, array['REFUS 42501']),
+    ('form_n n''affecte personne à la direction : refusé', c_form_n, 'insert into public.affectations (email, role, lieu_id) values (%L, ''direction'', ' || v_l1 || ')', c_personnel, array['REFUS 42501']),
+    ('form_n n''affecte personne au siège : refusé', c_form_n, 'insert into public.affectations (email, role) values (%L, ''siege'')', c_personnel, array['REFUS 42501']),
+    ('dir_n n''affecte personne à la direction : refusé', c_dir_n, 'insert into public.affectations (email, role, lieu_id) values (%L, ''direction'', ' || v_l1 || ')', c_personnel, array['REFUS 42501']),
+    ('stag_n n''affecte personne : refusé', c_stag_n, 'insert into public.affectations (email, role, promo_id) values (%L, ''formateur'', 1)', c_personnel, array['REFUS 42501']),
+    ('le siège ajoute une direction : permis', c_siege, 'insert into public.affectations (email, role, lieu_id) values (%L, ''direction'', ' || v_l1 || ')', c_personnel, array['OK 1 1']),
+    ('le siège n''ajoute pas un siège : refusé', c_siege, 'insert into public.affectations (email, role) values (%L, ''siege'')', c_personnel, array['REFUS 42501']),
+    ('le fondateur ajoute un siège : permis', c_fond, 'insert into public.affectations (email, role) values (%L, ''siege'')', c_personnel, array['OK 1 1'])
+  ) a(lib, email, sql, cible, att) loop
+    perform pg_temp.cas('affectations', v_x.lib, v_x.email, '1', null, null, format(v_x.sql, v_x.cible),
+      format('select count(*)::text from public.affectations where email = %L and promo_id is not distinct from %s', v_x.cible,
+             case when v_x.sql like '%promo_id%' then (case when v_x.lib like '%promo 2%' then '2' else '1' end) else 'null' end), v_x.att);
+  end loop;
+  perform pg_temp.cas('affectations', 'dir_n retire un formateur de sa promo : permis', c_dir_n, '1', null, null,
+    format('delete from public.affectations where email = %L and role = ''formateur''', c_form_n), format('select count(*)::text from public.affectations where email = %L', c_form_n), array['OK 1 0']);
+  perform pg_temp.cas('affectations', 'form_n ne retire pas sa propre affectation : refusé', c_form_n, '1', null, null,
+    format('delete from public.affectations where email = %L and role = ''formateur''', c_form_n), format('select count(*)::text from public.affectations where email = %L', c_form_n), array['OK 0 1', 'REFUS 42501']);
+  perform pg_temp.cas('affectations', 'dir_n ne modifie aucune affectation : refusé', c_dir_n, '1', null, null,
+    format('update public.affectations set promo_id = 2 where email = %L and role = ''formateur''', c_form_n), null, array['REFUS 42501']);
+  --    i) Promos : créer et changer les dates par les fonctions (direction du lieu ou fondateur), renommer par le formateur de
+  --       la promo ou la direction du lieu, et rien d'autre en écriture directe (m8 : date_debut, date_fin et lieu_id ne se
+  --       modifient pas directement, même par qui a le droit de renommer). creer_promo consomme une identité de promo, que
+  --       rien ne rend : la table est verrouillée (aucune autre insertion) et la séquence remise à sa valeur.
+  lock table public.promos in share row exclusive mode;
+  select s.last_value, s.is_called into v_sl, v_sc from public.promos_id_seq s;
+  for v_x in select * from (values
+    ('creer_promo : dir_n sur le lieu de la promo 1 : permis', c_dir_n, v_l1, array['OK 1 1']),
+    ('creer_promo : dir_n sur le lieu de la promo 2 : refusé', c_dir_n, v_l2, array['REFUS 42501']),
+    ('creer_promo : form_n : refusé', c_form_n, v_l1, array['REFUS 42501']),
+    ('creer_promo : siege : refusé', c_siege, v_l1, array['REFUS 42501']),
+    ('creer_promo : stag_n : refusé', c_stag_n, v_l1, array['REFUS 42501']),
+    ('creer_promo : le fondateur sur le lieu de la promo 2 : permis', c_fond, v_l2, array['OK 1 1'])
+  ) a(lib, email, lieu, att) loop
+    perform pg_temp.cas('promos', v_x.lib, v_x.email, '1', null, null, format('select public.creer_promo(%s, ''PreuveCreee'', ''2031-02-03'', ''2031-06-03'')', v_x.lieu),
+      format('select count(*)::text from public.promos where nom = ''PreuveCreee'' and lieu_id = %s', v_x.lieu), v_x.att);
+  end loop;
+  perform setval('public.promos_id_seq', v_sl, v_sc);
+  for v_x in select * from (values
+    ('modifier_dates_promo : dir_n sur la promo 1 : permis', c_dir_n, 1, v_fin1, array[format('OK 1 %s', v_fin1)]),
+    ('modifier_dates_promo : dir_n sur la promo 2 : refusé', c_dir_n, 2, v_fin2, array['REFUS 42501']),
+    ('modifier_dates_promo : form_n sur la promo 1 : refusé', c_form_n, 1, v_fin1, array['REFUS 42501']),
+    ('modifier_dates_promo : siege : refusé', c_siege, 1, v_fin1, array['REFUS 42501']),
+    ('modifier_dates_promo : stag_n : refusé', c_stag_n, 1, v_fin1, array['REFUS 42501']),
+    ('modifier_dates_promo : le fondateur sur la promo 2 : permis', c_fond, 2, v_fin2, array[format('OK 1 %s', v_fin2)])
+  ) a(lib, email, promo, fin, att) loop
+    perform pg_temp.cas('promos', v_x.lib, v_x.email, '1', null, null,
+      format('select public.modifier_dates_promo(%s, (select date_debut from public.promos where id = %s), %L)', v_x.promo, v_x.promo, v_x.fin),
+      format('select date_fin::text from public.promos where id = %s', v_x.promo), v_x.att);
+  end loop;
+  for v_x in select * from (values
+    ('renommer la promo 1 : form_n : permis', c_form_n, 1, array['OK 1 1']),
+    ('renommer la promo 2 : form_n : refusé', c_form_n, 2, array['OK 0 0', 'REFUS 42501']),
+    ('renommer la promo 1 : dir_n : permis', c_dir_n, 1, array['OK 1 1']),
+    ('renommer la promo 2 : dir_n : refusé', c_dir_n, 2, array['OK 0 0', 'REFUS 42501']),
+    ('renommer la promo 1 : stag_n : refusé', c_stag_n, 1, array['OK 0 0', 'REFUS 42501'])
+  ) a(lib, email, promo, att) loop
+    perform pg_temp.cas('promos', v_x.lib, v_x.email, '1', null, null, format('update public.promos set nom = ''PreuveRenom'' where id = %s', v_x.promo),
+      'select count(*)::text from public.promos where nom = ''PreuveRenom''', v_x.att);
+  end loop;
+  for v_x in select * from (values ('dir_n', c_dir_n), ('form_n', c_form_n), ('le fondateur', c_fond)) a(nom, email) loop
+    foreach v_t in array array['date_debut = date_debut + 1', 'date_fin = coalesce(date_fin, date_debut) + 1', 'lieu_id = lieu_id'] loop
+      perform pg_temp.cas('promos', format('m8 : %s ne modifie pas directement %s : refusé', v_x.nom, split_part(v_t, ' ', 1)), v_x.email, '1', null, null,
+        format('update public.promos set %s where id = 1', v_t), null, array['REFUS 42501']);
+    end loop;
+  end loop;
+  --    j) Fonctions serveur : réservées à l'équipe, au formateur ou au siège selon la section 0. L'émargement est allumé
+  --       dans la sous-transaction (réglage emargement_actif de la promo), pour que le refus vienne du droit seul.
+  for v_x in select * from (values
+    ('emargement_ouvrir : form_n : permis', c_form_n, '1', 1, array['OK 1 1']),
+    ('emargement_ouvrir : le fondateur : permis', c_fond, '1', 1, array['OK 1 1']),
+    ('emargement_ouvrir : dir_n : refusé', c_dir_n, '1', 1, array['~REFUS']),
+    ('emargement_ouvrir : stag_n : refusé', c_stag_n, '1', 1, array['~REFUS']),
+    ('emargement_ouvrir : form_n sur la promo 2 : refusé', c_form_n, '2', 2, array['~REFUS'])
+  ) a(lib, email, ctx, promo, att) loop
+    perform pg_temp.cas('fonctions serveur', v_x.lib, v_x.email, v_x.ctx, null,
+      format('delete from public.emargement_lignes where seance_id in (select id from public.emargement_seances where promo_id = %1$s and jour = public.emargement_jour_paris()); delete from public.emargement_formateurs where seance_id in (select id from public.emargement_seances where promo_id = %1$s and jour = public.emargement_jour_paris()); delete from public.emargement_seances where promo_id = %1$s and jour = public.emargement_jour_paris(); insert into public.settings (promo_id, key, value) values (%1$s, ''emargement_actif'', ''true'') on conflict (promo_id, key) do update set value = ''true''', v_x.promo),
+      'select public.emargement_ouvrir(''matin'', ''08:00'', ''12:00'')',
+      format('select count(*)::text from public.emargement_seances where promo_id = %s and jour = public.emargement_jour_paris() and demi_journee = ''matin'' and ouverte_par = %L', v_x.promo, lower(v_x.email)), v_x.att);
+  end loop;
+  perform pg_temp.cas('fonctions serveur', 'anonymiser_stagiaire : dir_n : permis', c_dir_n, '1', null, format('update public.stagiaires set actif = false where id = %s', v_f1),
+    format('select public.anonymiser_stagiaire(%s)', v_f1), format('select (anonymise_le is not null)::text from public.stagiaires where id = %s', v_f1), array['OK 1 true']);
+  perform pg_temp.cas('fonctions serveur', 'anonymiser_stagiaire : stag_n : refusé', c_stag_n, '1', null, format('update public.stagiaires set actif = false where id = %s', v_f1),
+    format('select public.anonymiser_stagiaire(%s)', v_f1), null, array['~REFUS']);
+  perform pg_temp.val('fonctions serveur', 'etat_anonymisation_promo : dir_n : permis', c_dir_n, '1', null, 'select public.etat_anonymisation_promo() ->> ''promo_id''', array['1']);
+  perform pg_temp.val('fonctions serveur', 'etat_anonymisation_promo : stag_n : refusé', c_stag_n, '1', null, 'select public.etat_anonymisation_promo() ->> ''promo_id''', array['~ERREUR']);
+  perform pg_temp.val('fonctions serveur', 'purger_benevoles : form_n : permis', c_form_n, '1', null, 'select public.purger_benevoles(''{}''::integer[])::text', array['0']);
+  perform pg_temp.val('fonctions serveur', 'purger_benevoles : dir_n : refusé', c_dir_n, '1', null, 'select public.purger_benevoles(''{}''::integer[])::text', array['~ERREUR']);
+  perform pg_temp.val('fonctions serveur', 'purger_benevoles : stag_n : refusé', c_stag_n, '1', null, 'select public.purger_benevoles(''{}''::integer[])::text', array['~ERREUR']);
+  select string_agg(distinct pe.promo_id::text, ',' order by pe.promo_id::text) into v_txt
+    from public.planning_entries pe join public.promos pr on pr.id = pe.promo_id
+   where pr.lieu_id = v_l1 and pe.benevoles_ids <> '{}';
+  perform pg_temp.verifier('fonctions serveur', 'données d''essai : des venues de bénévoles existent dans le lieu de la promo 1 et ailleurs',
+    v_txt is not null and exists (select 1 from public.planning_entries pe join public.promos pr on pr.id = pe.promo_id
+                                   where pr.lieu_id is distinct from v_l1 and pe.benevoles_ids <> '{}'),
+    format('promos du lieu de la promo 1 avec venue : %s', coalesce(v_txt, 'aucune')));
+  perform pg_temp.val('fonctions serveur', 'venues_benevoles : dir_n ne voit que les promos du lieu de la promo 1 (lu par requête)', c_dir_n, '1', null,
+    'select coalesce(string_agg(distinct promo_id::text, '','' order by promo_id::text), '''') from public.venues_benevoles()', array[coalesce(v_txt, '')]);
+  perform pg_temp.val('fonctions serveur', 'venues_benevoles : le fondateur, promo 1, ne voit que le lieu affiché (lu par requête)', c_fond, '1', null,
+    'select coalesce(string_agg(distinct promo_id::text, '','' order by promo_id::text), '''') from public.venues_benevoles()', array[coalesce(v_txt, '')]);
+  perform pg_temp.val('fonctions serveur', 'venues_benevoles : stag_n ne voit rien', c_stag_n, '1', null,
+    'select coalesce(string_agg(distinct promo_id::text, '','' order by promo_id::text), '''') from public.venues_benevoles()', array['']);
+  --    k) Contenus : le siège modifie et publie un cours de thème et modifie une question, n'écrit ni qcm_examens ni qcm ;
+  --       la direction ne modifie aucun cours.
+  perform pg_temp.cas('contenus', 'le siège modifie un cours de thème : permis', c_siege, null, null, null,
+    format('update public.cours set titre = ''PreuveContenu'' where id = %L', v_cours_theme), format('select titre from public.cours where id = %L', v_cours_theme), array['OK 1 PreuveContenu']);
+  perform pg_temp.cas('contenus', 'le siège publie un cours de thème : permis', c_siege, null, null, format('update public.cours set published = false where id = %L', v_cours_theme),
+    format('update public.cours set published = true where id = %L', v_cours_theme), format('select published::text from public.cours where id = %L', v_cours_theme), array['OK 1 true']);
+  perform pg_temp.cas('contenus', 'le siège modifie une question : permis', c_siege, null, null, null,
+    format('update public.qcm_questions set section = ''PreuveContenu'' where id = %s', v_question_a), format('select section from public.qcm_questions where id = %s', v_question_a), array['OK 1 PreuveContenu']);
+  perform pg_temp.cas('contenus', 'le siège n''écrit pas qcm_examens : refusé', c_siege, null, null, null,
+    format('insert into public.qcm_examens (promo_id, qcm_id, published_by_email) values (1, %s, ''preuve.contenu@exemple.invalid'')', v_qcm_b), null, array['REFUS 42501']);
+  perform pg_temp.cas('contenus', 'le siège n''écrit pas qcm (ajout) : refusé', c_siege, null, null, null,
+    format('insert into public.qcm (theme_id, titre) values (%s, ''PreuveContenu'')', v_theme_c), null, array['REFUS 42501']);
+  perform pg_temp.cas('contenus', 'le siège n''écrit pas qcm (modification) : refusé', c_siege, null, null, null,
+    'update public.qcm set description = ''PreuveContenu''', 'select count(*)::text from public.qcm where description = ''PreuveContenu''', array['OK 0 0', 'REFUS 42501']);
+  perform pg_temp.cas('contenus', 'dir_n ne modifie pas un cours : refusé', c_dir_n, '1', null, null,
+    format('update public.cours set titre = ''PreuveContenu'' where id = %L', v_cours_theme), 'select count(*)::text from public.cours where titre = ''PreuveContenu''', array['OK 0 0', 'REFUS 42501']);
+  perform pg_temp.cas('contenus', 'dir_n ne publie pas un cours : refusé', c_dir_n, '1', null, format('update public.cours set published = false where id = %L', v_cours_theme),
+    format('update public.cours set published = true where id = %L', v_cours_theme), format('select published::text from public.cours where id = %L', v_cours_theme), array['OK 0 false', 'REFUS 42501']);
+  --    l) Compatibilité des anciens appels : is_admin() et is_prof() rendent formateur_courant() pour chaque personnage et
+  --       chaque contexte (aperçus compris) ; is_founder() est faux en aperçu ; mes_promos() dit les rôles réels.
+  v_txt := ''; v_t := '';
+  for v_c in select * from contextes where qui <> 'anon' order by ordre, rang loop
+    v_obt := pg_temp.valeur(v_c.email, v_c.hdr, v_c.apercu, 'select concat_ws(''/'', public.is_admin()::text, public.is_prof()::text, public.formateur_courant()::text)');
+    if split_part(v_obt, '/', 1) is distinct from split_part(v_obt, '/', 3) or v_obt not like '%/%/%' then
+      v_txt := v_txt || format('%s contexte %s : is_admin() %s, formateur_courant() %s ; ', v_c.qui, v_c.ctx, split_part(v_obt, '/', 1), split_part(v_obt, '/', 3));
+    end if;
+    if split_part(v_obt, '/', 2) is distinct from split_part(v_obt, '/', 3) or v_obt not like '%/%/%' then
+      v_t := v_t || format('%s contexte %s : is_prof() %s, formateur_courant() %s ; ', v_c.qui, v_c.ctx, split_part(v_obt, '/', 2), split_part(v_obt, '/', 3));
+    end if;
+  end loop;
+  perform pg_temp.verifier('compatibilité', 'is_admin() = formateur_courant(), pour chaque personnage et chaque contexte (aperçus compris)', v_txt = '', 'écarts : ' || v_txt);
+  perform pg_temp.verifier('compatibilité', 'is_prof() = formateur_courant(), pour chaque personnage et chaque contexte (aperçus compris)', v_t = '', 'écarts : ' || v_t);
+  foreach v_t in array array['formateur', 'direction', 'siege', 'stagiaire'] loop
+    perform pg_temp.val('compatibilité', format('is_founder() et est_fondateur() faux pour le fondateur en aperçu %s', v_t), c_fond, '1', v_t,
+      'select concat_ws(''/'', public.is_founder()::text, public.est_fondateur()::text)', array['false/false']);
+  end loop;
+  perform pg_temp.val('compatibilité', 'is_founder() et est_fondateur() vrais pour le fondateur hors aperçu', c_fond, '1', null,
+    'select concat_ws(''/'', public.is_founder()::text, public.est_fondateur()::text)', array['true/true']);
+  n := 0;
+  for v_x in select c.num, c.email from comptes c where c.etiquette = 'formateur' order by c.num loop
+    n := n + 1;
+    perform pg_temp.val('compatibilité', format('mes_promos() d''un formateur réel (%s) : {formateur} sur les promos 1, 2 et 7', n), v_x.email, null, null,
+      'select coalesce(string_agg(id::text || ''='' || array_to_string(roles, '',''), '' '' order by id), '''') from public.mes_promos()', array['1=formateur 2=formateur 7=formateur']);
+  end loop;
+  perform pg_temp.verifier('compatibilité', 'au moins un compte réel formateur pour juger mes_promos()', n > 0, format('%s compte(s) réel(s) formateur', n));
+  n := 0;
+  for v_x in select c.num, c.email from comptes c where c.etiquette = 'fondateur' order by c.num limit 1 loop
+    n := n + 1;
+    perform pg_temp.val('compatibilité', 'mes_promos() du fondateur réel : {stagiaire} sur la promo 1', v_x.email, null, null,
+      'select array_to_string(roles, '','') from public.mes_promos() where id = 1', array['stagiaire']);
+  end loop;
+  perform pg_temp.verifier('compatibilité', 'un compte réel fondateur pour juger mes_promos()', n > 0, format('%s compte(s) réel(s) fondateur', n));
 
   v_jalons := v_jalons || format(' ; contrôles ciblés %s s', to_char(extract(epoch from clock_timestamp() - v_debut), 'FM990.0'));
   -- 8. Siège : aucune ligne d'une table de promo ou de lieu (colonne promo_id ou lieu_id, sauf affectations, dont les

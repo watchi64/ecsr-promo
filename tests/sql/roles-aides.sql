@@ -282,7 +282,7 @@ begin
     r := replace(r, '{' || k || '}', v);
   end loop;
   if r ~ '\{[A-Za-z][A-Za-z_0-9]*\}' then
-    raise exception 'remplir : clé sans valeur « % » dans « % »', substring(r from '\{[A-Za-z][A-Za-z_0-9]*\}'), left(r, 120);
+    raise exception 'remplir : clé sans valeur « % » dans le modèle « % »', substring(r from '\{[A-Za-z][A-Za-z_0-9]*\}'), left(p_modele, 120);
   end if;
   return r;
 end $f$;
