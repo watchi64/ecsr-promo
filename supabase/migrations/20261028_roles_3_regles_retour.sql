@@ -21,6 +21,7 @@
 -- d'appliquer le lot (ou au début du bloc de répétition) ; après ce seul retour, la table affectations et le
 -- vocabulaire de l'étape 1 la font encore différer.
 -- Recette de génération, à rejouer si la production a bougé : tests/sql/roles-retours-recette.sql.
+-- Fin de fichier : retrait de la fonction a_une_affectation, créée par l'étape 3 (ajoutée à la main, hors recette).
 set local lock_timeout = '3s';
 
 -- public.agenda_events : 2 règles
@@ -1021,3 +1022,7 @@ create policy qcm_images_admin_update on storage.objects
 create policy qcm_images_read on storage.objects
   as permissive for select to anon, authenticated
   using ((bucket_id = 'qcm-images'::text));
+
+-- public.a_une_affectation : aide de la règle de suppression de user_profiles (étape 3). Les règles ci-dessus ne la
+-- citent plus : on peut la retirer. Ajout hors recette de génération.
+drop function public.a_une_affectation(text);
