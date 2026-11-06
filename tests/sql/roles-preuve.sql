@@ -612,11 +612,12 @@ end $fx$;
 -- Aides propres à cette preuve (hors aides communes) : « cas » joue une écriture ou une fonction d'un personnage dans une
 -- sous-transaction annulée et compare ce qu'elle rend à une liste d'attendus ; « val » fait de même pour une lecture ;
 -- « etat_compte » dit l'état d'un compte (profil et affectations) ; « vue_tables » photographie ce qu'un personnage voit.
--- Attendu « ~REFUS » (cas) ou « ~ERREUR » (val) : un refus quelconque, SAUF une fonction, une colonne ou une table
--- introuvable ou une erreur de syntaxe (une fonction que l'étape 2 n'a pas encore créée fait donc échouer son contrôle).
+-- Attendu « ~REFUS » (cas) ou « ~ERREUR » (val) : un refus par liste blanche d'états, 42501 (droit ou règle), P0001 (levée
+-- d'une fonction) et 23514 (contrainte de contrôle). Tout autre état (fonction, colonne ou table introuvable, syntaxe,
+-- 22P02 ou 22007 d'une valeur de fixture, autre 23xxx) fait échouer le contrôle au lieu de passer pour un refus.
 create or replace function pg_temp.est_refus(p_obtenu text, p_mot text)
 returns boolean language sql immutable as $fx$
-  select p_obtenu ~ ('^' || p_mot || ' [0-9A-Z]{5}') and p_obtenu !~ ('^' || p_mot || ' (42883|42703|42P01|42601|42725|42P02|42804)');
+  select p_obtenu ~ ('^' || p_mot || ' (42501|P0001|23514)$');
 $fx$;
 
 create or replace function pg_temp.cas(p_groupe text, p_libelle text, p_email text, p_ctx text, p_apercu text, p_prep text,
@@ -827,6 +828,7 @@ declare
   c_exempts constant text[] := array['public.promos', 'public.lieux', 'public.user_profiles', 'public.conditions_acceptations', 'public.qcm_signalements'];
   v_qcm_d bigint; v_f1 integer; v_f2 integer; v_l1 integer; v_l2 integer; v_prof integer; v_sl bigint; v_sc boolean;
   -- Le réglage écrit sous la forme de l'app (db.js : upsert sur promo_id,key ; la promo vient de l'en-tête).
+  c_examen constant text := $pv$insert into public.qcm_examens (qcm_id, published, published_by_email) values (%s, true, 'preuve.examen@exemple.invalid') on conflict (promo_id, qcm_id) do update set qcm_id = excluded.qcm_id, published = excluded.published, published_by_email = excluded.published_by_email$pv$;
   c_reglage constant text := $pv$insert into public.settings (key, value, updated_at) values (%L, %L, now()) on conflict (promo_id, key) do update set value = excluded.value, updated_at = excluded.updated_at$pv$;
   v_x record; v_t text; v_vues text[]; v_vues2 text[]; v_fin1 date; v_fin2 date; v_bn1 integer; v_bn2 integer;
   -- Ce que voit un personnage : « lignes:somme des empreintes des ctid » ; l'attendu, calculé en propriétaire dans
@@ -1471,11 +1473,11 @@ begin
   perform pg_temp.cas('R32', 'modules écrit par stag_n : refusé', c_stag_n, '1', null, null, format(c_reglage, 'modules', 'PreuveR32'), null, array['REFUS 42501']);
   --    f) Comptes : nul ne se donne is_founder ou is_admin ; le fondateur et le personnel affecté ne se suppriment pas ;
   --       un stagiaire de sa promo, oui.
-  perform pg_temp.cas('comptes', 'form_n ne se donne pas is_founder', c_form_n, '1', null, null,
+  perform pg_temp.cas('comptes', 'form_n ne se donne pas is_founder : refusé par le droit d''écriture retiré sur user_profiles', c_form_n, '1', null, null,
     format('update public.user_profiles set is_founder = true where email = %L', c_form_n), null, array['REFUS 42501']);
-  perform pg_temp.cas('comptes', 'form_n ne se donne pas is_admin', c_form_n, '1', null, null,
+  perform pg_temp.cas('comptes', 'form_n ne se donne pas is_admin : refusé par le droit d''écriture retiré sur user_profiles', c_form_n, '1', null, null,
     format('update public.user_profiles set is_admin = true where email = %L', c_form_n), null, array['REFUS 42501']);
-  perform pg_temp.cas('comptes', 'stag_n ne se donne pas is_founder', c_stag_n, '1', null, null,
+  perform pg_temp.cas('comptes', 'stag_n ne se donne pas is_founder : refusé par le droit d''écriture retiré sur user_profiles', c_stag_n, '1', null, null,
     format('update public.user_profiles set is_founder = true where email = %L', c_stag_n), null, array['REFUS 42501']);
   perform pg_temp.cas('comptes', 'form_n ne supprime pas le compte du fondateur', c_form_n, '1', null, null,
     format('delete from public.user_profiles where email = %L', c_fond), format('select count(*)::text from public.user_profiles where email = %L', c_fond), array['OK 0 1', 'REFUS 42501']);
@@ -1642,6 +1644,16 @@ begin
     format('update public.qcm_questions set section = ''PreuveContenu'' where id = %s', v_question_a), format('select section from public.qcm_questions where id = %s', v_question_a), array['OK 1 PreuveContenu']);
   perform pg_temp.cas('contenus', 'le siège n''écrit pas qcm_examens : refusé', c_siege, null, null, null,
     format('insert into public.qcm_examens (promo_id, qcm_id, published_by_email) values (1, %s, ''preuve.contenu@exemple.invalid'')', v_qcm_b), null, array['REFUS 42501']);
+  --    Forme exacte de l'app (db.js, ecrireExamen) : upsert sur promo_id,qcm_id, promo_id par défaut (en-tête), colonnes de
+  --    l'examen. Le formateur de la promo 1 écrit (ligne existante ou absente) ; stag_n, dir_n et le siège sont refusés.
+  perform pg_temp.cas('contenus', 'qcm_examens, forme de l''app, ligne existante : form_n permis', c_form_n, '1', null, null,
+    format(c_examen, v_qcm_a), format('select published_by_email from public.qcm_examens where promo_id = 1 and qcm_id = %s', v_qcm_a), array['OK 1 preuve.examen@exemple.invalid']);
+  perform pg_temp.cas('contenus', 'qcm_examens, forme de l''app, ligne absente : form_n permis', c_form_n, '1', null,
+    format('delete from public.qcm_examens where promo_id = 1 and qcm_id = %s', v_qcm_a),
+    format(c_examen, v_qcm_a), format('select published_by_email from public.qcm_examens where promo_id = 1 and qcm_id = %s', v_qcm_a), array['OK 1 preuve.examen@exemple.invalid']);
+  for v_x in select * from (values ('stag_n', c_stag_n), ('dir_n', c_dir_n), ('siège', c_siege)) a(nom, email) loop
+    perform pg_temp.cas('contenus', format('qcm_examens, forme de l''app : %s refusé', v_x.nom), v_x.email, '1', null, null, format(c_examen, v_qcm_a), null, array['REFUS 42501']);
+  end loop;
   perform pg_temp.cas('contenus', 'le siège n''écrit pas qcm (ajout) : refusé', c_siege, null, null, null,
     format('insert into public.qcm (theme_id, titre) values (%s, ''PreuveContenu'')', v_theme_c), null, array['REFUS 42501']);
   perform pg_temp.cas('contenus', 'le siège n''écrit pas qcm (modification) : refusé', c_siege, null, null, null,
@@ -1674,7 +1686,8 @@ begin
   for v_x in select c.num, c.email from comptes c where c.etiquette = 'formateur' order by c.num loop
     n := n + 1;
     perform pg_temp.val('compatibilité', format('mes_promos() d''un formateur réel (%s) : {formateur} sur les promos 1, 2 et 7', n), v_x.email, null, null,
-      'select coalesce(string_agg(id::text || ''='' || array_to_string(roles, '',''), '' '' order by id), '''') from public.mes_promos()', array['1=formateur 2=formateur 7=formateur']);
+      'select coalesce(string_agg(id::text || ''='' || array_to_string(roles, '',''), '' '' order by id), '''') from public.mes_promos()',
+      array[coalesce((select string_agg(p.id::text || '=formateur', ' ' order by p.id) from public.promos p), '')]);
   end loop;
   perform pg_temp.verifier('compatibilité', 'au moins un compte réel formateur pour juger mes_promos()', n > 0, format('%s compte(s) réel(s) formateur', n));
   n := 0;

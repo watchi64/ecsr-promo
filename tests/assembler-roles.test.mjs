@@ -474,7 +474,7 @@ test("gabarit : le compactage ne retire aucune ligne vide ni de commentaire dans
     if (chemin === GABARIT_ROLES) {
       const vus = litteraux.filter((l) => l.genre.startsWith("dollar:")).length;
       assert.ok(vus > 300, "les littéraux de données du gabarit sont bien trouvés");
-      assert.ok(litteraux.some((l) => l.genre === "apostrophes" && texte.slice(l.debut, l.fin).includes("\n")) || true, "littéraux '…' parcourus");
+      assert.ok(litteraux.some((l) => l.genre === "apostrophes"), "des littéraux '…' sont parcourus (le gabarit n'en a aucun sur plusieurs lignes)");
     }
   }
 });
