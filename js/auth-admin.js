@@ -86,7 +86,10 @@ function appliquerApercu(role) {
 function loadViewAs() {
   let role = null;
   try { role = normaliserApercu(localStorage.getItem(VIEW_AS_KEY)); } catch (e) { role = null; }
-  appliquerApercu(role && apercusOuverts().includes(role) ? role : null);
+  const permis = !!role && apercusOuverts().includes(role);
+  appliquerApercu(permis ? role : null);
+  // Un aperçu mémorisé mais non permis sur la promo affichée est effacé : il ne reviendrait pas en changeant de promo.
+  if (!permis) { try { localStorage.removeItem(VIEW_AS_KEY); } catch (e) { /* ignore */ } }
 }
 
 // Déconnexion ou refus de session : l'aperçu est retiré (mémoire, appareil et en-tête).

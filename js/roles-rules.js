@@ -35,7 +35,9 @@ function droitsReels(profil, promo) {
     const direction = roles.includes("direction");
     const siege = roles.includes("siege");
     return {
-      admin: !!profil.is_founder || formateur,
+      // Le fondateur est administrateur (is_admin) ; un drapeau de fondateur sans is_admin n'ouvre pas l'espace de l'équipe,
+      // comme avant le lot 4 (le banc a un tel compte, l'aperçu du fondateur lui reste ouvert).
+      admin: (!!profil.is_founder && !!profil.is_admin) || formateur,
       prof: formateur || direction || siege,
       stagiaire: roles.includes("stagiaire"),
       equipe: formateur || direction,
@@ -101,8 +103,13 @@ export function peutRetirerCompte({ cible, fondateur } = {}) {
   return personnel ? !!fondateur : true;
 }
 
-// Phrase d'un refus d'invitation : la base préfixe ses messages par « invitation: », que l'on retire.
-export function messageInvitation(message) {
-  const texte = String(message ?? "").replace(/^\s*invitation:\s*/i, "").trim();
+// Phrase d'un refus d'invitation : la base préfixe ses messages par « invitation: », que l'on retire. Tant que la
+// fonction inviter_compte n'existe pas dans la base (code PGRST202, ou message « Could not find the function »),
+// l'invitation est dite indisponible plutôt que de montrer l'erreur technique.
+export const MESSAGE_INVITATION_INDISPONIBLE = "L'invitation n'est pas disponible pour le moment.";
+export function messageInvitation(message, code) {
+  const brut = String(message ?? "");
+  if (code === "PGRST202" || /could not find the function/i.test(brut)) return MESSAGE_INVITATION_INDISPONIBLE;
+  const texte = brut.replace(/^\s*invitation:\s*/i, "").trim();
   return texte || "Erreur d'invitation";
 }

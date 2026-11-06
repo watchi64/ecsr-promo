@@ -1477,7 +1477,7 @@ export async function inviteUser({ email, role, stagiaire_id = null, prof_id = n
     p_prof_id: prof_id,
     p_lieu_id: lieu_id,
   });
-  if (error) throw new Error(messageInvitation(error.message));
+  if (error) throw new Error(messageInvitation(error.message, error.code));
   return data;
 }
 

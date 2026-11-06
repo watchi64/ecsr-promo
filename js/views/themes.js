@@ -3,7 +3,7 @@ import { el, clear, isoDate, formatDate, toast, debounce } from "../utils.js?v=2
 import { icon } from "../icons.js?v=20261029b";
 import { examenDemarrable, tempsRestantMs, formatTempsRestant,
          echeanceDepuisChoix, DUREES_OUVERTURE } from "../qcm-exam-rules.js?v=20261029b";
-import { isAdmin, getAdminEmail, isProf, isStagiaire } from "../auth-admin.js?v=20261029b";
+import { isAdmin, getAdminEmail, isProf, isStagiaire, monStagiaireId } from "../auth-admin.js?v=20261029b";
 import { recordUndo } from "../undo.js?v=20261029b";
 import { openQcmEntrainement, openQcmExamen } from "./qcm.js?v=20261029b";
 import { carteSignalement, renderConsoleSignalements, chargerAuteurs } from "./signalements.js?v=20261029b";
@@ -219,9 +219,12 @@ function openQcmSheet(theme, qcm) {
     clear(body);
     const note = myThemeNote(theme, qcm);
     const train = myTrainNote(qcm);
+    // Stagiaire avec une fiche seulement : l'aperçu « Stagiaire » d'un formateur ou d'une direction n'en a pas, et la base
+    // refuserait l'examen. Il garde l'entraînement libre, qui n'enregistre rien sans fiche.
+    const stagiaireAvecFiche = isStagiaire() && monStagiaireId() != null;
 
     // Zone notes (stagiaire) : deux grandes cartes colorées, lacunes visibles d'un coup d'œil.
-    if (isStagiaire()) {
+    if (stagiaireAvecFiche) {
       body.appendChild(el("div", { class: "qcm-note-cards" },
         el("div", { class: "qcm-note-card n-" + noteClass(note) },
           el("span", { class: "qcm-note-card-val" }, note != null ? `${note}/20` : "-"),
@@ -241,14 +244,14 @@ function openQcmSheet(theme, qcm) {
       "Libre, illimité, ne compte pas dans les notes. Tes anciennes erreurs passent en premier."));
 
     // Revoir mes erreurs : rejoue uniquement les questions échouées (les 2 modes comptent).
-    if (isStagiaire()) {
+    if (stagiaireAvecFiche) {
       body.appendChild(el("button", { class: "btn ghost full", type: "button", style: "margin-top:0.45rem",
         onClick: () => { backdrop.remove(); openQcmEntrainement(theme, qcm, { errorsOnly: true }); } },
         icon.history(), "Revoir mes erreurs"));
     }
 
     // Passer l'examen (stagiaire).
-    if (isStagiaire()) {
+    if (stagiaireAvecFiche) {
       if (examenDemarrable(qcm)) {
         const restant = tempsRestantMs(qcm);
         body.appendChild(el("button", { class: "btn accent full", type: "button", style: "margin-top:0.9rem",

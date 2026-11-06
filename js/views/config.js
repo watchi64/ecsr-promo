@@ -36,6 +36,8 @@ let majPersonnesInvitables = null;
 
 async function renderAccessSection(rerender) {
   const admin = isAdmin();
+  // La direction du centre n'est pas « admin » mais peut inviter (un formateur compris) : le formulaire lui est ouvert.
+  const peutInviter = admin || peutInviterFormateur({ profil: getProfile(), promo: getPromoCourante(), apercu: getViewAs() });
   const currentEmail = getAdminEmail();
   // Nouvelle navigation : les mots de la page sont ceux de l'équipe, sans « whitelist », « admin » ni « mdp »
   // (constats du 28/10) ; l'ancienne garde ses textes.
@@ -57,8 +59,8 @@ async function renderAccessSection(rerender) {
     listUserProfiles(), listStagiaires(), listProfs(),
   ]);
 
-  // === Form d'invitation (admin only) ===
-  if (admin) {
+  // === Form d'invitation (admin ou direction) ===
+  if (peutInviter) {
     const inviteBlock = el("div", { class: "param-block" });
     inviteBlock.appendChild(el("h4", {}, "Autoriser une personne"));
     inviteBlock.appendChild(el("p", { class: "muted" }, v2

@@ -29,8 +29,8 @@ export const NOUVEAUTES = [
     date: "2026-11-06",
     pour: "formateurs",
     titre: "Chacun ne voit que les promos où il intervient",
-    resume: "Chacun ne voit désormais que les promos où il intervient, et c'est la base de données elle-même qui "
-          + "le vérifie. Rien ne change pour toi. Un nouveau formateur s'ajoute désormais par la direction du "
+    resume: "Chacun ne voit désormais que les promos où il intervient, et c'est vérifié à chaque "
+          + "action, pas seulement à l'affichage. Rien ne change pour toi. Un nouveau formateur s'ajoute désormais par la direction du "
           + "centre (en attendant, par Timy) ; tu invites toujours les stagiaires de tes promos. Nouveau : "
           + "« Voir comme un stagiaire », dans le menu de ton compte et dans le choix de la promo, montre l'app "
           + "telle que la voit un stagiaire, sans que tu puisses rien y modifier.",

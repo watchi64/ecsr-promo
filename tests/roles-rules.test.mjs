@@ -90,8 +90,22 @@ test("peutRetirerCompte", () => {
   assert.equal(peutRetirerCompte({ cible: null, fondateur: true }), false);
 });
 
+test("un drapeau de fondateur sans is_admin n'ouvre pas l'espace de l'équipe, mais garde les aperçus", () => {
+  const sansAdmin = { profil: { role: "stagiaire", is_admin: false, is_founder: true }, promo: { roles: ["stagiaire"] } };
+  assert.deepEqual(droitsAffiches(sansAdmin), { admin: false, prof: false, stagiaire: true, espace: "stagiaire" });
+  assert.deepEqual(apercusPermis(sansAdmin), ["formateur", "direction", "siege", "stagiaire"]);
+});
+
 test("messageInvitation retire le préfixe de la base", () => {
   assert.equal(messageInvitation("invitation: ce compte est déjà lié à une autre fiche."), "ce compte est déjà lié à une autre fiche.");
   assert.equal(messageInvitation("Délai dépassé"), "Délai dépassé");
   assert.equal(messageInvitation(""), "Erreur d'invitation");
+});
+
+test("messageInvitation : fonction absente de la base, phrase sans terme technique", () => {
+  const phrase = "L'invitation n'est pas disponible pour le moment.";
+  assert.equal(messageInvitation("Could not find the function public.inviter_compte(p_email) in the schema cache", "PGRST202"), phrase);
+  assert.equal(messageInvitation("Could not find the function public.inviter_compte"), phrase);
+  assert.equal(messageInvitation("anything", "PGRST202"), phrase);
+  assert.equal(messageInvitation("invitation: refus", "P0001"), "refus");
 });
