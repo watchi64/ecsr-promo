@@ -21,6 +21,10 @@ import { routeVisible, routeMasquee, repereMasque, formateurConnecte } from "../
 import { emargementActif } from "../emargement-etat.js?v=20261029b";
 import { navigationV2Active } from "../nav-etat.js?v=20261029b";
 import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261029b";
+import {
+  entryShape, effPedagogueId, effElevesIds, effBenevolesIds, effSujets, entryHasContent, sujetsDe,
+} from "../planning-roles.js?v=20261029b";
+import { DEFAULT_HALF_META } from "../journee-rules.js?v=20261029b";
 
 let stagiaires = [];
 let profs = [];
@@ -70,12 +74,6 @@ document.addEventListener("keydown", (e) => {
   editMode = false;
   renderInto(currentContainer);
 });
-
-// Défauts horaires si pas de meta en DB
-const DEFAULT_HALF_META = {
-  matin: { start_time: "09:00", end_time: "12:30", pause_start: "10:45", pause_minutes: 20 },
-  aprem: { start_time: "13:30", end_time: "17:00", pause_start: "15:15", pause_minutes: 20 },
-};
 
 function metaFor(d, half) {
   return halfMetas.find((m) => m.day_index === d && m.half_day === half)
@@ -555,38 +553,6 @@ function roleCounts(activite, role, exceptLid) {
     }
   });
   return counts;
-}
-
-// Rôles EFFECTIFS d'un créneau selon la FORME de son activité (ACTIVITY_SHAPES).
-// Quand on change l'activité d'un créneau, la donnée des rôles (tableau/élèves) reste
-// stockée (pratique si on rebascule l'activité), mais un rôle absent de la forme courante
-// (ex. élèves restés sur un Cours, ou « au tableau » resté sur une Voiture) ne doit JAMAIS
-// être affiché ni utilisé. Source unique de vérité, utilisée par l'impression et le blocage
-// de créneau (la validation et les compteurs filtrent déjà par activité).
-function entryShape(e) { return ACTIVITY_SHAPES[e.activite || ""] || ACTIVITY_SHAPES[""]; }
-function effPedagogueId(e, group = 1) {
-  if (!entryShape(e).includes("pedagogue")) return null;
-  if (group === 2) return e.salle_double ? (e.pedagogue_id_2 ?? null) : null;
-  return e.pedagogue_id ?? null;
-}
-function effElevesIds(e, group = 1) {
-  if (!entryShape(e).includes("eleves")) return [];
-  if (group === 2) return e.salle_double ? (e.eleves_ids_2 || []) : [];
-  return e.eleves_ids || [];
-}
-function effBenevolesIds(e) {
-  if (!entryShape(e).includes("benevoles")) return [];
-  return e.benevoles_ids || [];
-}
-// Sujets EFFECTIFS d'un créneau : `sujet` (groupe 1 / unique) + `sujet_2` (groupe 2,
-// cartes salle 2 groupes seulement). Comme les rôles, `sujet_2` est conservé en base
-// mais ignoré dès que la carte n'est plus une salle double.
-function effSujets(e) {
-  if (!entryShape(e).includes("sujet")) return [];
-  const out = [];
-  if (e.sujet && String(e.sujet).trim()) out.push(e.sujet);
-  if (e.activite === "Pédagogie salle" && e.salle_double && e.sujet_2 && String(e.sujet_2).trim()) out.push(e.sujet_2);
-  return out;
 }
 
 // === Absences de dernière minute (spec 2026-07-19) ===
@@ -1568,20 +1534,7 @@ function renderAbsenceRows(entry, lid, group = null) {
 // les fragments consécutifs qui reforment le titre d'un thème CONNU (greedy, le plus long
 // d'abord). Le texte libre à virgules reste découpé (impossible à désambiguïser).
 function parseSujet(val) {
-  if (!val) return [];
-  const parts = String(val).split(",").map((s) => s.trim()).filter(Boolean);
-  const known = new Set((themes || []).map((t) => t.titre));
-  const out = [];
-  let i = 0;
-  while (i < parts.length) {
-    let merged = false;
-    for (let j = parts.length; j > i + 1; j--) {
-      const candidate = parts.slice(i, j).join(", ");
-      if (known.has(candidate)) { out.push(candidate); i = j; merged = true; break; }
-    }
-    if (!merged) { out.push(parts[i]); i++; }
-  }
-  return out;
+  return sujetsDe(val, (themes || []).map((t) => t.titre));
 }
 function joinSujet(arr) { return arr.join(", "); }
 
@@ -3061,14 +3014,6 @@ function printName(id, ambig) {
   if (!s) return "";
   const p = (s.prenom || "").trim().toLowerCase();
   return (p && ambig.has(p)) ? displayStagiaire(s) : (s.prenom || displayStagiaire(s));
-}
-
-function entryHasContent(e) {
-  const hasPed = effPedagogueId(e, 1) != null || effPedagogueId(e, 2) != null;
-  const hasEl = effElevesIds(e, 1).length > 0 || effElevesIds(e, 2).length > 0;
-  return nonEmpty(e.activite) || effSujets(e).length > 0 || nonEmpty(e.notes)
-      || (e.prof_ids && e.prof_ids.length) || e.prof_id
-      || hasPed || hasEl || effBenevolesIds(e).length > 0;
 }
 
 function printEntryCell(e, ambig) {
