@@ -142,7 +142,9 @@ const textes = (noeud) => (typeof noeud === "string" ? [noeud] : (noeud.enfants 
 const tabs = main.slice(main.indexOf("const TABS = ["), main.indexOf("];", main.indexOf("const TABS = [")));
 ok(!/qualiopi/i.test(tabs), "l'ancienne barre (TABS) n'a pas d'entrée Qualiopi");
 for (const fichier of ["js/nav-rules.js", "js/nav-shell.js", "js/menu-compte.js", "js/modules-data.js", "js/modules-etat.js"]) {
-  ok(!/qualiopi/i.test(lire(fichier)), `${fichier} ne parle pas de Qualiopi : aucune entrée de barre, aucun module`);
+  // Seul l'alias de nav-rules (route « qualiopi » -> entrée « centre ») est permis : il n'ajoute aucune entrée à la barre.
+  const texteFichier = lire(fichier).split(String.fromCharCode(10)).filter((l) => !/Qualiopi \(fondateur|\["qualiopi", "centre"\],/.test(l)).join(String.fromCharCode(10));
+  ok(!/qualiopi/i.test(texteFichier), `${fichier} ne parle pas de Qualiopi : aucune entrée de barre, aucun module`);
 }
 
 // --- Bouton du tableau de bord du centre : le fondateur seul ---
