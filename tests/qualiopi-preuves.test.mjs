@@ -4,7 +4,7 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
-import { NIVEAUX, PIECES, inventairePromo } from "../js/qualiopi-preuves.js";
+import { NIVEAUX, PIECES, inventairePromo, lignesDuPlanning } from "../js/qualiopi-preuves.js";
 import { INDICATEURS, indicateursApplicables } from "../js/qualiopi-referentiel.js";
 import { indicateursPromo } from "../js/centre-stats.js";
 
@@ -724,6 +724,52 @@ neuf.indicateurs[0].aFournir.push("intrus");
 neuf.indicateurs[0].pieces.push("intrus");
 eq(NIVEAUX[1].aFournir, ["site", "catalogue", "fiche formation"], "NIVEAUX n'est pas touché par un consommateur");
 eq(inventairePromo(D, REF, OPTIONS), inv, "ni l'appel suivant");
+
+// =====================================================================================================
+// Le réalisé : ni l'avenir, ni les jours fériés, ni les lignes hors de la promo (relecture finale, I1)
+// =====================================================================================================
+// Chaque ligne ajoutée porte un formateur (77), un « Autre » et un bénévole (99) que le jeu principal ne cite pas :
+// si elle compte quelque part, les demi-journées, les dates ou les intervenants changent.
+const LIGNE_HORS = (id, semaine, jour) => L(id, semaine, jour, "matin", { activite: "Cours", prof_ids: [77], prof_autre: "Hors Promo", benevoles_ids: [99] });
+const comptePlanning = (extra, promo, aujourdhui) => compte(inventairePromo({ ...D, planning: [...PLANNING, ...extra] }, REF,
+  { promo, aujourdhui, nouveautes: NOUVEAUTES }));
+const BASE_PLANNING = comptePlanning([], PROMO, "2026-10-28");
+eq(BASE_PLANNING, SANS_LIGNE, "point de départ : le jeu principal");
+const lignesHorsPromo = [
+  [LIGNE_HORS(901, "2026-09-21", 0), "une ligne avant le début de la promo (lundi 21/09)"],
+  [LIGNE_HORS(902, "2026-10-26", 0), "une ligne après la fin de la promo (lundi 26/10)"],
+  [LIGNE_HORS(903, "2025-09-22", 1), "une ligne de l'année d'avant"],
+];
+lignesHorsPromo.forEach(([ligne, nom]) => eq(comptePlanning([ligne], PROMO, "2026-10-28"), BASE_PLANNING, `${nom} ne compte nulle part`));
+// Bornes comprises : le premier et le dernier jour de la promo comptent.
+const deuxBornes = comptePlanning([LIGNE_HORS(904, "2026-09-28", 0), LIGNE_HORS(905, "2026-10-19", 4)], PROMO, "2026-10-28");
+eq(deuxBornes[0], "7 demi-journées de formation du 28/09 au 23/10", "les jours de début (28/09) et de fin (23/10) comptent");
+eq(deuxBornes[1], "4 formateurs, 2 intervenants extérieurs, 3 bénévoles, 2 auto-écoles partenaires", "leurs intervenants aussi");
+// Séance future : promo sans fin, aujourd'hui le 14/10 ; la séance du jeudi 15/10 est de demain.
+const promoOuverte = { ...PROMO, date_fin: null };
+const le14 = comptePlanning([], promoOuverte, "2026-10-14");
+eq(le14[0], "4 demi-journées de formation du 05/10 au 13/10", "promo sans fin : rien après aujourd'hui (la séance du 15/10 est écartée)");
+eq(comptePlanning([LIGNE_HORS(906, "2026-10-12", 2)], promoOuverte, "2026-10-14")[0], "5 demi-journées de formation du 05/10 au 14/10", "aujourd'hui compte");
+eq(comptePlanning([LIGNE_HORS(907, "2026-10-12", 3)], promoOuverte, "2026-10-14"), le14, "demain ne compte pas, ni ses intervenants");
+// Promo qui finit avant aujourd'hui : c'est la fin qui borne ; qui finit après : c'est aujourd'hui.
+eq(comptePlanning([], { ...PROMO, date_fin: "2026-10-09" }, "2026-10-28")[0], "3 demi-journées de formation du 05/10 au 07/10", "fin avant aujourd'hui : la fin borne");
+eq(comptePlanning([], { ...PROMO, date_fin: "2026-12-18" }, "2026-10-09")[0], "3 demi-journées de formation du 05/10 au 07/10", "fin après aujourd'hui : aujourd'hui borne");
+// Promo sans début : pas de borne basse, jamais de NaN.
+const sansDebutLigne = comptePlanning([LIGNE_HORS(908, "2026-09-21", 0)], { ...PROMO, date_debut: null }, "2026-10-28");
+eq(sansDebutLigne[0], "6 demi-journées de formation du 21/09 au 15/10", "sans date de début, la ligne d'avant compte");
+ok(![...sansDebutLigne, ...BASE_PLANNING, ...le14].some((t) => /NaN|undefined|null/.test(t)), "aucun NaN ni undefined");
+// Aucune borne du tout (ni début, ni fin, ni date du jour) : rien n'est filtré par les dates.
+const sansBorne = lignesDuPlanning({ planning: [...PLANNING, ...lignesHorsPromo.map(([l]) => l)] }, { ...PROMO, date_debut: null, date_fin: null }, null);
+eq(sansBorne.length, PLANNING.length - 1 + lignesHorsPromo.length, "sans aucune borne : toutes les lignes de la promo (celle d'une autre promo reste écartée)");
+// Jour férié : le mercredi 11/11 (Armistice) n'est jamais un jour de formation, même dans la période.
+const ferie = comptePlanning([LIGNE_HORS(909, "2026-11-09", 2)], { ...PROMO, date_fin: "2026-12-18" }, "2026-12-15");
+eq(ferie[0], "5 demi-journées de formation du 05/10 au 15/10", "le 11/11 (jour férié) ne compte pas");
+eq(ferie[1], SANS_LIGNE[1], "ni ses intervenants");
+eq(comptePlanning([LIGNE_HORS(910, "2026-10-26", 0)], { ...PROMO, date_fin: "2026-12-18" }, "2026-12-15")[0],
+  "6 demi-journées de formation du 05/10 au 26/10", "un jour ordinaire de la même période compte");
+// Le test des sommes reste vrai : les formateurs distincts sont ceux de la plage retenue.
+eq(piece(inventairePromo({ ...D, planning: [...PLANNING, ...lignesHorsPromo.map(([l]) => l)] }, REF, OPTIONS), "intervenants").detail,
+  SANS_LIGNE[1], "les intervenants des lignes écartées ne s'ajoutent pas");
 
 const source = readFileSync(new URL("../js/qualiopi-preuves.js", import.meta.url), "utf8");
 ok(!source.includes(TIRET_CADRATIN), "aucun tiret cadratin dans le module");

@@ -287,8 +287,8 @@ function sectionEffectif({ inv, ind, stagiaires, terminee }) {
 // Ce dossier est nominatif : les formateurs y sont nommés et les sujets des séances repris. Les autres textes saisis n'y
 // entrent pas : le nom d'un intervenant « Autre » et le titre d'un événement du calendrier peuvent nommer une auto-école ou
 // un bénévole, qui ne sont donnés qu'en nombres dans toutes les versions ; les dates clés se disent par leur type et leurs dates.
-function sectionDeroule({ inv, donnees, promo }) {
-  const planning = lignesDuPlanning(donnees, promo);
+function sectionDeroule({ inv, donnees, promo, aujourdhui }) {
+  const planning = lignesDuPlanning(donnees, promo, aujourdhui);
   const nomDe = nomFormateur(nomsDesFormateurs(donnees.profs));
   const evenements = tableau(donnees.agenda).filter((e) => TYPES_CLES.has(e.type) && jourDe(e.date_start))
     .sort((a, b) => (jourDe(a.date_start) < jourDe(b.date_start) ? -1 : jourDe(a.date_start) > jourDe(b.date_start) ? 1 : 0));
@@ -297,7 +297,7 @@ function sectionDeroule({ inv, donnees, promo }) {
     paragraphes: [...phrases(inv, "deroule", "datesCles", "intervenants"), ...(semaines.length ? [REGLE_DEMI_JOURNEES] : [])],
     tableaux: [
       ...table(["Type", "Du", "Au"], evenements.map((e) => [TYPES_CLES.get(e.type), dateFr(jourDe(e.date_start)), dateFr(jourDe(e.date_end)) ?? "non renseignée"])),
-      ...table(["Semaine du", "Demi-journées", "Activités", "Formateurs", "Intervenants extérieurs", "Bénévoles", "Sujets"], semaines),
+      ...table(["Semaine du", "Demi-journées", "Activités (demi-journées)", "Formateurs", "Intervenants extérieurs", "Bénévoles", "Sujets"], semaines),
     ],
   };
 }
@@ -390,7 +390,7 @@ function sectionExamen({ inv, donnees, enFormation, stagiaires }) {
 export function modeleDossierFormation({ inv, donnees, ind, promo, lieu, intitule, aujourdhui }) {
   const d = donnees || {};
   const stagiaires = tableau(d.stagiaires);
-  const contexte = { inv, ind, donnees: d, promo, stagiaires, enFormation: enFormationDe(d), terminee: promoTerminee(promo, aujourdhui) };
+  const contexte = { inv, ind, donnees: d, promo, stagiaires, enFormation: enFormationDe(d), terminee: promoTerminee(promo, aujourdhui), aujourdhui };
   const centre = texte(lieu, "centre non renseigné");
   return assembler({
     titre: "Dossier de la formation",
@@ -492,11 +492,11 @@ function sectionInnovationsCentre({ nouveautes, periode }) {
 }
 
 // Les formateurs nommés (version nominative) avec leur nombre de demi-journées de formation, toutes promos comprises.
-function lignesFormateurs(promos) {
+function lignesFormateurs(promos, aujourdhui) {
   const nomDe = nomFormateur(nomsDesFormateurs(...promos.map(({ donnees }) => donnees?.profs)));
   const demis = new Map();
   promos.forEach(({ promo, donnees }) => {
-    demiJournees(lignesDuPlanning(donnees || {}, promo)).forEach((lignes, cle) => {
+    demiJournees(lignesDuPlanning(donnees || {}, promo, aujourdhui)).forEach((lignes, cle) => {
       intervenantsDistincts(lignes).formateurs.forEach((id) => {
         if (!demis.has(id)) demis.set(id, new Set());
         demis.get(id).add(`${promo?.id}|${cle}`);
@@ -506,11 +506,11 @@ function lignesFormateurs(promos) {
   return [...demis].map(([id, ensemble]) => [nomDe(id), String(ensemble.size)]).sort(([a], [b]) => enFrancais(a, b));
 }
 
-function sectionIntervenantsCentre({ promos, sansNoms }) {
+function sectionIntervenantsCentre({ promos, sansNoms, aujourdhui }) {
   if (!promos.length) return { paragraphes: [AUCUNE_PROMO], tableaux: [] };
-  const formateurs = sansNoms ? [] : lignesFormateurs(promos);
+  const formateurs = sansNoms ? [] : lignesFormateurs(promos, aujourdhui);
   const nommes = sansNoms ? "Cette version ne nomme personne."
-    : formateurs.length ? "Les formateurs sont nommés, avec leur nombre de demi-journées de formation dans la période."
+    : formateurs.length ? "Les formateurs sont nommés, avec leur nombre de demi-journées de formation sur toute la durée des promos retenues."
       : "Aucun formateur n'est inscrit au planning de ces promos.";
   return {
     paragraphes: [

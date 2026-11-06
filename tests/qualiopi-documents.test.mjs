@@ -463,7 +463,7 @@ eq(entetesDe(f, "deroule", 0), ["Type", "Du", "Au"], "déroulé : dates clés");
 eq(lignesDe(f, "deroule", 0), [
   ["Formation", "28/09/2026", "18/12/2026"], ["Stage", "02/11/2026", "27/11/2026"], ["Examen", "15/12/2026", "non renseignée"],
 ], "déroulé : les dates clés par date de début, le férié écarté, une fin absente dite en mots");
-eq(entetesDe(f, "deroule", 1), ["Semaine du", "Demi-journées", "Activités", "Formateurs", "Intervenants extérieurs", "Bénévoles", "Sujets"],
+eq(entetesDe(f, "deroule", 1), ["Semaine du", "Demi-journées", "Activités (demi-journées)", "Formateurs", "Intervenants extérieurs", "Bénévoles", "Sujets"],
   "déroulé : synthèse par semaine");
 eq(lignesDe(f, "deroule", 1), [
   ["05/10/2026", "3", "Cours : 2 ; Pédagogie salle : 1 ; Voiture (conduite) : 1", "Karim Lopez, Nadia Roche", "1", "2", "Révision avec Kevin"],
@@ -471,6 +471,13 @@ eq(lignesDe(f, "deroule", 1), [
 ], "déroulé : deux semaines, formateurs nommés, « Autre » et bénévoles en nombres, sujet de la séance ; ni la semaine du jour désactivé ni l'autre promo");
 eq(lignesDe(f, "deroule", 1).reduce((somme, l) => somme + Number(l[1]), 0), 5,
   "déroulé : la somme des semaines est le nombre de demi-journées de l'inventaire (5)");
+
+// Le réalisé seulement (relecture finale, I1) : une ligne avant le début, une après la fin, un jour férié et une séance
+// d'après aujourd'hui (28/10) n'entrent ni dans la synthèse par semaine ni dans la liste des formateurs du centre.
+const HORS_PERIODE = [L(950, "2026-09-21", 0, "matin", { activite: "Cours", prof_ids: [4] }),
+  L(951, "2026-10-26", 0, "matin", { activite: "Cours", prof_ids: [4] }), L(952, "2026-11-09", 2, "matin", { activite: "Cours", prof_ids: [4] })];
+const avecHors = formation({ donnees: { ...D, planning: [...D.planning, ...HORS_PERIODE] } });
+eq(lignesDe(avecHors, "deroule", 1), lignesDe(f, "deroule", 1), "déroulé : les lignes hors promo, fériées ou futures ne changent pas la synthèse");
 
 // --- Assiduité
 eq(section(f, "assiduite").paragraphes,
@@ -687,8 +694,11 @@ eq(entetesDe(c, "intervenants", 1), ["Formateur", "Demi-journées de formation"]
 // Hugo : jeudi 15/10 (promo 7) et mardi 13/10 (promo 8) = 2 ; Karim : lundi 05/10 (promo 7), lundi 12/10 et mardi 13/10
 // (promo 8) = 3 ; Nadia : lundi 05/10 matin et après-midi, jeudi 15/10 (promo 7) = 3 ; Zoé n'intervient qu'un jour désactivé.
 eq(lignesDe(c, "intervenants", 1), [["Hugo Perrin", "2"], ["Karim Lopez", "3"], ["Nadia Roche", "3"]], "intervenants : par formateur, par ordre alphabétique");
-eq(section(c, "intervenants").paragraphes[1], "Les formateurs sont nommés, avec leur nombre de demi-journées de formation dans la période.",
+eq(section(c, "intervenants").paragraphes[1], "Les formateurs sont nommés, avec leur nombre de demi-journées de formation sur toute la durée des promos retenues.",
   "intervenants : la phrase des noms");
+// (promo 7 seulement : la promo 8 est en cours, la séance du 26/10 y est déjà passée)
+const centreHors = centre({ promos: LES_PROMOS.map((p) => (p.promo.id === 7 ? { ...p, donnees: { ...p.donnees, planning: [...p.donnees.planning, ...HORS_PERIODE] } } : p)) });
+eq(lignesDe(centreHors, "intervenants", 1), lignesDe(c, "intervenants", 1), "intervenants du centre : mêmes formateurs, mêmes comptes");
 eq(section(cSans, "intervenants").paragraphes[1], "Cette version ne nomme personne.", "intervenants : la phrase de la version sans noms");
 const sansPlanning = centre({ promos: [{ ...LES_PROMOS[1], donnees: { ...D8, planning: [] } }] });
 eq(section(sansPlanning, "intervenants").paragraphes[1], "Aucun formateur n'est inscrit au planning de ces promos.",

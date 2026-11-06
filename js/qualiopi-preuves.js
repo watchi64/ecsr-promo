@@ -43,6 +43,7 @@
 import { INDICATEURS, indicateursApplicables } from "./qualiopi-referentiel.js?v=20261106a";
 import { indicateursPromo } from "./centre-stats.js?v=20261106a";
 import { estNotee } from "./notes-stats.js?v=20261106a";
+import { jourFerie } from "./emargement-rules.js?v=20261106a";
 import { parseDate, addDays, isoDate } from "./utils.js?v=20261106a";
 
 // Annexe A de la spec, cellule par cellule, pour les 28 indicateurs d'un centre de formation continue (les 27 plus
@@ -148,11 +149,22 @@ function jourDeLigne(e) {
   return Number.isNaN(jour.getTime()) ? null : isoDate(jour);
 }
 
-// Les lignes du planning d'une promo : celles de la promo, moins celles d'un jour désactivé (vacances, pont, formation
-// externe : leurs cartes restent en base mais ne comptent nulle part). Tout ce qui vient du planning passe par là.
-export function lignesDuPlanning(donnees, promo) {
+// Les lignes du planning d'une promo : celles de la promo, comprises entre son début et la plus proche de sa fin et
+// d'aujourd'hui (bornes comprises : le réalisé n'est pas l'avenir), moins celles d'un jour férié ou d'un jour désactivé
+// (vacances, pont, formation externe : leurs cartes restent en base mais ne comptent nulle part). Une borne absente ne
+// filtre pas de son côté ; une ligne dont le jour est illisible n'est pas située et reste. Tout ce qui vient
+// du planning passe par là. aujourdhui : « AAAA-MM-JJ ».
+export function lignesDuPlanning(donnees, promo, aujourdhui) {
   const joursOff = new Set(tableau(donnees.joursOff).map((j) => cleJour(j.semaine_lundi, j.day_index)).filter(Boolean));
-  return tableau(donnees.planning).filter((e) => e.promo_id === promo?.id && !joursOff.has(cleJour(e.semaine_lundi, e.day_index)));
+  const debut = jourDe(promo?.date_debut);
+  const bornes = [jourDe(promo?.date_fin), jourDe(aujourdhui)].filter(Boolean).sort();
+  const fin = bornes.length ? bornes[0] : null;
+  return tableau(donnees.planning).filter((e) => {
+    if (e.promo_id !== promo?.id || joursOff.has(cleJour(e.semaine_lundi, e.day_index))) return false;
+    const jour = jourDeLigne(e);
+    if (jour === null) return true;   // jour illisible : aucune borne ne peut le situer, `demiJournees` l'écarte déjà des demi-journées
+    return !jourFerie(jour) && (debut === null || jour >= debut) && (fin === null || jour <= fin);
+  });
 }
 
 // Une demi-journée de formation est un triplet distinct (semaine, jour, demi-journée) dont une ligne au moins porte
@@ -367,7 +379,7 @@ function contexte(donnees, referentiel, { promo, aujourdhui, nouveautes }) {
     nouveautes: tableau(nouveautes),
     ind: indicateursPromo(donnees, referentiel, { aujourdhui }),
     dedans: (ligne) => enFormation.has(ligne.stagiaire_id),
-    planning: lignesDuPlanning(donnees, promo),
+    planning: lignesDuPlanning(donnees, promo, aujourdhui),
     dansPeriode: (jour) => jour !== null && (debut === null || jour >= debut) && (fin === null || jour <= fin),
   };
 }
