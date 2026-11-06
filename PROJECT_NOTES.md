@@ -449,6 +449,39 @@ Spec : `docs/superpowers/specs/2026-10-23-tableau-de-bord-centre-design.md` · p
 - **Limites dites sur la page** : pas de date d'abandon en base ; absences = seulement les passages
   prévus (l'émargement couvrira la présence) ; réussite au titre non saisie.
 
+## Dossier Qualiopi (octobre-novembre 2026, branche `qualiopi`, pas encore en ligne)
+
+Spec : `docs/superpowers/specs/2026-10-28-dossier-qualiopi-design.md` · plan :
+`docs/superpowers/plans/2026-10-28-dossier-qualiopi-q1-q2.md`. Aucune migration, aucune écriture en base.
+
+- **Page** `#/qualiopi` (`js/views/qualiopi.js`, `css/qualiopi.css`), chargée à la demande (`import()` dans `main.js`,
+  boîte d'erreur lisible si le module ne vient pas). **Garde : `fondateurHorsApercu()`**, comme la page Problèmes :
+  un autre profil, ou le fondateur en aperçu « Voir en tant que », est ramené à `#/home` sans un mot. Aucune entrée
+  de barre ; seul le bouton « Qualiopi » du tableau de bord (`js/views/centre.js`) y mène.
+- **Modules purs** (un test node chacun) : `js/qualiopi-referentiel.js` (27 indicateurs du décret n° 2026-728, textes
+  recopiés tels quels, indicateur 13 en alternance), `js/qualiopi-preuves.js` (inventaire : ce que l'app prouve, par
+  indicateur et par promo), `js/qualiopi-documents.js` (dossier de la formation, dossier du centre avec ou sans noms,
+  CSV), `js/qualiopi-resultats.js` (fiche des résultats à publier, texte à copier), `js/qualiopi-page-rules.js` (règles
+  de la page), `js/qualiopi-impression.js` (montage et nettoyage de l'impression, seul module Qualiopi chargé au démarrage).
+- **Lecture** : `lireDonneesQualiopi(promoId)` (`js/db.js`) lit les tables par `toutesLesLignes` (PostgREST rend 1 000 lignes
+  au plus), avec l'en-tête interne `x-promo-lecture` ; promo nulle : erreur, jamais de repli sur la promo courante. Tables
+  communes (signalements, cours, versions, formateurs) lues sans en-tête ; jamais `email`, `corps_md`, `saved_by`.
+- **Version sans noms** : agrégats seulement ; bénévoles et auto-écoles en nombres dans toutes les versions ; ni nom
+  d'« Autre », ni sujet de séance, ni titre d'événement.
+- **Impression** : `@page` A4 portrait injectée au clic, retirée à `afterprint` et dans `navigate()`
+  (`teardownQualiopiPrint`) ; `html:has(body.qualiopi-printable)` blanc pour que le bas d'une fiche courte ne prenne pas
+  le fond de l'app. **Copie du texte** : `navigator.clipboard.write` avec un `ClipboardItem` d'une promesse, appelé dans le
+  geste du clic avant toute lecture (Safari, Firefox) ; repli `writeText` après les lectures.
+- **Banc** : `_harness.html?centre=1&qualiopi=1[&demo=1][&date=AAAA-MM-JJ][&qualiopi_noms=1]` (fondateur, sans `role`).
+  `_banc_qualiopi_demo.js` (non versionné, relevé en lecture seule le 06/11/2026) porte le planning, le calendrier, le
+  livret, le dossier pro, les auto-écoles, les formateurs, les cours et leurs versions de la promo 7 ; `qualiopi_noms=1`
+  inscrit des formateurs au planning et met un prénom dans un sujet pour éprouver la version sans noms. La promo 7 finit le
+  10/12/2026 : pour une fiche « publiable », geler la date après (`?date=2026-12-15`). Vérifié au 06/11 : chiffres de la
+  promo 7 égaux aux requêtes de lecture, trois documents et deux fiches en PDF A4 (Chromium), 375 px sans défilement de côté.
+- **Limites connues** : émargement pas encore branché (l'assiduité reste « pas encore branché ») ; résultats de jury non
+  saisis (« non saisi ») ; population « stagiaires en formation » (fiches actives) pour passages, notes, QCM, EPCF, livrets ;
+  WebKit non contrôlé (Chromium seulement) ; page réservée au fondateur jusqu'à la refonte du lot 5.
+
 ## Émargement signé (octobre 2026)
 
 Spec : `docs/superpowers/specs/2026-10-23-emargement-design.md` · plan :
