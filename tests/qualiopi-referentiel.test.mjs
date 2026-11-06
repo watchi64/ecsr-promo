@@ -3,6 +3,7 @@
 // l'arrêté du 6 juin 2019 (indicateurs d'audit) : un écart vient du module, pas du test.
 // Lancer depuis la racine du dépôt : node tests/qualiopi-referentiel.test.mjs
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { SOURCE, CRITERES, INDICATEURS, indicateursApplicables } from "../js/qualiopi-referentiel.js";
 
@@ -135,6 +136,45 @@ ok(indicateur(33).texte.startsWith("Le prestataire met en place un dispositif d'
 ok(indicateur(32).texte.endsWith("analyse des risques sur la qualité des formations délivrées."), "fin du texte du 32");
 eq(indicateur(5).texte, "Le prestataire définit les objectifs opérationnels et évaluables de la prestation.", "texte du 5");
 ok(indicateur(17).texte.endsWith("plateaux techniques …)."), "points de suspension du texte officiel conservés");
+
+// --- Fidélité des textes : épinglés par empreinte (les 33 textes joints par un saut de ligne) et par la liste des libellés courts ---
+eq(createHash("sha256").update(INDICATEURS.map((i) => i.texte).join(String.fromCharCode(10)), "utf8").digest("hex"),
+  "0afd5e970d168734aa581c48b808e4cdfc75c72acb7706af1664d884e962cdef", "les 33 textes des indicateurs n'ont pas bougé d'un caractère");
+eq(INDICATEURS.map((i) => i.court), [
+  "Information publique détaillée, sans mention trompeuse",
+  "Résultats publiés avec leur mode de calcul",
+  "Taux d'obtention, blocs, passerelles, poursuites, débouchés",
+  "Analyse du besoin avec l'entreprise ou le financeur",
+  "Objectifs opérationnels et évaluables",
+  "Contenus et modalités adaptés",
+  "Contenus conformes au titre, capacité à le délivrer",
+  "Positionnement à l'entrée",
+  "Informer sur le déroulement",
+  "Adapter l'accompagnement et le suivi",
+  "Évaluer l'atteinte des objectifs",
+  "Engagement, ruptures, violences et discriminations",
+  "Alternance (si le centre en fait)",
+  "Accompagnement socio-professionnel et traitement des ruptures",
+  "Droits des apprentis, sécurité, prévention et signalement",
+  "Présentation à l'examen conforme",
+  "Moyens humains et techniques",
+  "Coordonner les intervenants",
+  "Ressources pédagogiques et leur appropriation",
+  "Mobilité, référent handicap, conseil de perfectionnement, gouvernance",
+  "Compétences des intervenants",
+  "Développement des compétences des salariés",
+  "Veille légale et réglementaire, exploitée",
+  "Veille métiers, compétences, emplois",
+  "Veille innovations pédagogiques et technologiques",
+  "Handicap",
+  "Sous-traitance (s'il y en a)",
+  "Stages : réseau de partenaires",
+  "Insertion professionnelle et poursuite d'études",
+  "Recueillir les appréciations",
+  "Traiter difficultés, réclamations, aléas",
+  "Amélioration continue et analyse des risques",
+  "Évaluation des contenus et des enseignements par les apprenants",
+], "les 33 libellés courts, dans l'ordre");
 
 // --- Typographie : aucun tiret cadratin dans le module ---
 const source = readFileSync(new URL("../js/qualiopi-referentiel.js", import.meta.url), "utf8");
