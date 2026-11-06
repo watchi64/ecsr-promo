@@ -8,8 +8,9 @@
 import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261029b";
 import { supabase } from "./db.js?v=20261029b";
 import { icon } from "./icons.js?v=20261029b";
-import { fenetreMessages, pageDepuisHash, extraireEvenements } from "./chatbot-rules.js?v=20261029b";
+import { corpsRequete, extraireEvenements } from "./chatbot-rules.js?v=20261029b";
 import { moduleVisible, moduleMasque, repereMasque } from "./modules-etat.js?v=20261029b";
+import { navigationV2Active } from "./nav-etat.js?v=20261029b";
 
 const CLE_HISTO = "chatbot_histo";
 let histo = [];
@@ -123,10 +124,7 @@ async function envoyerQuestion(question, msgs) {
         apikey: SUPABASE_KEY,
         Authorization: `Bearer ${session.access_token}`,
       },
-      body: JSON.stringify({
-        messages: fenetreMessages(histo),
-        page: pageDepuisHash(location.hash),
-      }),
+      body: JSON.stringify(corpsRequete(histo, location.hash, navigationV2Active())),
     });
 
     if (resp.status === 429) {
