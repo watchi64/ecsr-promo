@@ -5853,11 +5853,12 @@ body.qcm-open { overflow: hidden; }
 /* Sélecteur dans le menu profil */
 .view-as-block { margin: 0.2rem 0 1rem; }
 .view-as-seg {
-  display: flex; gap: 0.3rem;
+  /* Cinq boutons pour le fondateur : ils passent à la ligne plutôt que de déborder (jamais de défilement de côté). */
+  display: flex; flex-wrap: wrap; gap: 0.3rem;
   background: var(--bg-subtle); padding: 3px; border-radius: 10px;
 }
 .view-as-btn {
-  flex: 1; padding: 0.5rem 0.4rem;
+  flex: 1 1 5.5rem; padding: 0.5rem 0.4rem;
   border: none; background: transparent; border-radius: 8px;
   font: inherit; font-size: 0.85rem; font-weight: 500;
   color: var(--text-soft); cursor: pointer;
@@ -5867,6 +5868,18 @@ body.qcm-open { overflow: hidden; }
 .view-as-btn.active {
   background: var(--bg-elev); color: var(--accent-strong);
   font-weight: 600; box-shadow: var(--shadow-1);
+}
+
+/* Formateur et direction : une seule ligne, « Voir comme un stagiaire » / « Quitter l'aperçu ». */
+.view-as-ligne {
+  width: 100%; min-height: 44px; padding: 0.5rem 0.8rem;
+  border: 1px solid var(--line); border-radius: 10px; background: var(--bg-subtle);
+  font: inherit; font-size: 0.9rem; font-weight: 500; color: var(--text); cursor: pointer;
+}
+.view-as-ligne:hover { background: var(--bg-elev); }
+.promo-choix-apercu { margin-top: 0.6rem; min-height: 44px; }
+@media (max-width: 699.98px) {
+  .view-as-btn { min-height: 44px; }
 }
 
 /* Bandeau permanent d'aperçu */

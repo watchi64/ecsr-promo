@@ -20,7 +20,8 @@ import {
 } from "../db.js?v=20261029b";
 import { el, clear, toast, displayStagiaire } from "../utils.js?v=20261029b";
 import { icon } from "../icons.js?v=20261029b";
-import { isAdmin, getAdminEmail, getProfile, monStagiaireId } from "../auth-admin.js?v=20261029b";
+import { isAdmin, getAdminEmail, getProfile, monStagiaireId, getViewAs, fondateurHorsApercu } from "../auth-admin.js?v=20261029b";
+import { peutInviterFormateur, peutRetirerCompte } from "../roles-rules.js?v=20261029b";
 import { moduleVisible } from "../modules-etat.js?v=20261029b";
 import { renderModulesSection } from "./modules-reglage.js?v=20261029b";
 import { renderEmargementReglage } from "../emargement-etat.js?v=20261029b";
@@ -65,9 +66,11 @@ async function renderAccessSection(rerender) {
       : "Choisis le rôle et la personne, entre son email. Aucun mail n'est envoyé : tu lui partages l'URL toi-même, puis elle crée son compte avec son email + un mdp."));
 
     const roleSel = el("select", { class: "invite-role" });
+    // Inviter un formateur : la direction du centre ou le fondateur (la base le vérifie aussi, inviter_compte).
+    const peutFormateur = peutInviterFormateur({ profil: getProfile(), promo: getPromoCourante(), apercu: getViewAs() });
     [
       { v: "stagiaire", l: "Stagiaire" },
-      { v: "prof",      l: "Formateur" },
+      ...(peutFormateur ? [{ v: "prof", l: "Formateur" }] : []),
     ].forEach((o) => roleSel.appendChild(el("option", { value: o.v }, o.l)));
 
     const personSel = el("select", { class: "invite-person" });
@@ -101,11 +104,6 @@ async function renderAccessSection(rerender) {
 
     const emailInput = el("input", { type: "email", placeholder: "email@exemple.fr", class: "invite-email" });
 
-    const adminCheck = el("input", { type: "checkbox", id: "invite-also-admin" });
-    const adminLabel = el("label", {
-      for: "invite-also-admin", class: "invite-admin-toggle",
-    }, adminCheck, v2 ? " Avec les droits de gestion (inviter et modifier)" : " Aussi administrateur");
-
     const sendBtn = el("button", { class: "btn accent" }, icon.plus(), libelleAjout);
     sendBtn.addEventListener("click", async () => {
       const email = emailInput.value.trim().toLowerCase();
@@ -128,16 +126,19 @@ async function renderAccessSection(rerender) {
           email, role,
           stagiaire_id: role === "stagiaire" ? personId : null,
           prof_id:      role === "prof"      ? personId : null,
-          is_admin:     adminCheck.checked,
         });
         // Timeout de 15s pour éviter le hang infini
-        await Promise.race([
+        const resultat = await Promise.race([
           invitePromise,
-          new Promise((_, reject) => setTimeout(() => reject(new Error("Délai dépassé (15s). Réseau lent ou rate-limit Supabase atteint (4 mails/h sur le SMTP par défaut).")), 15000)),
+          new Promise((_, reject) => setTimeout(() => reject(new Error("Délai dépassé (15 s). Réseau lent : réessaie dans un instant.")), 15000)),
         ]);
-        toast((v2 ? "Ajouté à la liste des invitations : " : "Ajouté à la whitelist : ") + email + ". Partage-lui l'URL.", "success", 4500);
+        if (resultat && resultat.cree === false) {
+          // Le compte existait déjà : la base n'a rien modifié.
+          toast("Ce compte existe déjà : rien n'a changé.", "info", 4500);
+        } else {
+          toast((v2 ? "Ajouté à la liste des invitations : " : "Ajouté à la whitelist : ") + email + ". Partage-lui l'URL.", "success", 4500);
+        }
         emailInput.value = "";
-        adminCheck.checked = false;
         rerender();
       } catch (e) {
         toast("Erreur : " + e.message, "error", 6000);
@@ -165,7 +166,6 @@ async function renderAccessSection(rerender) {
         el("label", {}, "Email"), emailInput,
         sendBtn,
       ),
-      adminLabel,
     ));
     section.appendChild(inviteBlock);
   }
@@ -202,7 +202,7 @@ async function renderAccessSection(rerender) {
           el("span", { class: "admin-email-text" }, p.email),
           who ? el("span", { class: "admin-you" }, who) : null,
           p.email === currentEmail ? el("span", { class: "admin-you" }, "vous") : null,
-          (admin && p.email !== currentEmail) ? el("button", {
+          (admin && p.email !== currentEmail && peutRetirerCompte({ cible: p, fondateur: fondateurHorsApercu() })) ? el("button", {
             class: "btn small danger icon-only", "aria-label": "Retirer l'accès",
             onClick: async () => {
               if (!confirm(`Retirer l'accès de ${p.email} ?`)) return;

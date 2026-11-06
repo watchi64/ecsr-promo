@@ -16,8 +16,11 @@ import {
   getCurrentUser, signOut, onAuthChange,
   getMyProfile, listStagiaires, listProfs,
   chargerMesPromos, oublierPromo, getPromoCourante, rechargerApresEnregistrements,
-  bloquerRequetesJusquAuRechargement,
+  bloquerRequetesJusquAuRechargement, poserApercu, invalidateCache,
 } from "./db.js?v=20261029b";
+import {
+  LIBELLES_APERCU, normaliserApercu, apercusPermis, droitsAffiches,
+} from "./roles-rules.js?v=20261029b";
 import { el, toast, displayStagiaire } from "./utils.js?v=20261029b";
 import { icon } from "./icons.js?v=20261029b";
 import { construirePastille } from "./promo-pastille.js?v=20261029b";
@@ -32,64 +35,71 @@ let stagiaires = null;
 let profs = null;
 const listeners = new Set();
 
-// Aperçu fondateur « Voir en tant que » : un fondateur (is_founder) peut simuler
-// le rendu d'un autre rôle (prof / stagiaire) SANS perdre ses droits réels.
-// C'est purement UI : la session reste celle du fondateur (RLS inchangée).
+// Aperçu « Voir en tant que » : le fondateur simule formateur, direction, siège ou stagiaire ; l'équipe d'une
+// promo (formateur, direction) simule le stagiaire. Un aperçu ne fait que RETIRER des droits (js/roles-rules.js) :
+// la session reste celle de la personne, et l'en-tête x-apercu-role (js/db.js, poserApercu) fait répondre la
+// base comme pour le rôle simulé.
 const VIEW_AS_KEY = "ecsr_view_as";
-let viewAs = null;  // null = rôle réel ; "prof" | "stagiaire" = aperçu
+let viewAs = null;  // null = rôle réel ; sinon l'un de APERCUS
 
 // === Getters publics ===
 
 export function isAuth()        { return !!currentUser && !!currentProfile; }
 export function isFounder()     { return !!currentProfile?.is_founder; }
-export function getViewAs()     { return isFounder() ? viewAs : null; }
+export function getViewAs()     { return viewAs; }
 // Le fondateur tel qu'il est, hors aperçu « Voir en tant que » : ce que l'éditeur seul voit (signalements de
 // problème reçus) disparaît dans l'aperçu, qui montre ce que voit le rôle simulé.
 export function fondateurHorsApercu() { return isFounder() && !getViewAs(); }
 export function getAdminEmail() { return currentUser?.email || null; }
 export function getProfile()    { return currentProfile; }
 
-// En aperçu (fondateur uniquement), les checks de rôle renvoient le rôle SIMULÉ.
-export function isAdmin() {
-  const v = getViewAs();
-  // Dans ce modèle, un formateur EST admin (invité avec la coche admin) : l'aperçu
-  // « Formateur » doit donc montrer l'UI d'édition (boutons Bénévoles / Placer /
-  // Valider, planning éditable), comme pour un vrai formateur. Seul l'aperçu
-  // « Stagiaire » est non-admin. (Bug remonté le 2026-07-06 : l'aperçu Formateur
-  // affichait le planning en lecture seule sans les boutons.)
-  if (v) return v === "prof";
-  return !!currentProfile?.is_admin;
+// Droits affichés : selon les rôles de la promo affichée (mes_promos), ou à défaut selon l'ancien profil, et
+// retraités par l'aperçu en cours.
+function droits() {
+  return droitsAffiches({ profil: currentProfile, promo: getPromoCourante(), apercu: viewAs });
 }
-export function isProf() {
-  const v = getViewAs();
-  if (v) return v === "prof";
-  return currentProfile?.role === "prof";
-}
-export function isStagiaire() {
-  const v = getViewAs();
-  if (v) return v === "stagiaire";
-  return currentProfile?.role === "stagiaire";
+export function isAdmin()     { return droits().admin; }
+export function isProf()      { return droits().prof; }
+export function isStagiaire() { return droits().stagiaire; }
+
+// Aperçus ouverts à la personne connectée sur la promo affichée.
+export function apercusOuverts() {
+  return apercusPermis({ profil: currentProfile, promo: getPromoCourante() });
 }
 
-// Profil stagiaire de la personne connectée, tel que l'app le traite : en aperçu
-// « Formateur », le fondateur n'en a pas, comme un vrai formateur (chantier D).
+// Profil stagiaire de la personne connectée, tel que l'app le traite : en aperçu autre que « Stagiaire », elle n'en a
+// pas, comme un vrai formateur (chantier D).
 export function monStagiaireId() {
-  if (getViewAs() === "prof") return null;
+  if (viewAs && viewAs !== "stagiaire") return null;
   return currentProfile?.stagiaire_id ?? null;
 }
 
-// Charge l'aperçu mémorisé (ignoré si l'utilisateur n'est pas fondateur).
-function loadViewAs() {
-  try {
-    const v = localStorage.getItem(VIEW_AS_KEY);
-    viewAs = (isFounder() && (v === "prof" || v === "stagiaire")) ? v : null;
-  } catch (e) { viewAs = null; }
+// Retient l'aperçu et l'envoie à la base. Les données lues sous l'ancien aperçu sont oubliées.
+function appliquerApercu(role) {
+  const change = role !== viewAs;
+  viewAs = role;
+  poserApercu(role);
+  if (change) invalidateCache();
 }
 
-// Pose l'aperçu et re-render l'app. role : "admin" (réel/fondateur) | "prof" | "stagiaire".
+// Charge l'aperçu mémorisé (ignoré s'il n'est pas ouvert à cette personne sur cette promo).
+function loadViewAs() {
+  let role = null;
+  try { role = normaliserApercu(localStorage.getItem(VIEW_AS_KEY)); } catch (e) { role = null; }
+  appliquerApercu(role && apercusOuverts().includes(role) ? role : null);
+}
+
+// Déconnexion ou refus de session : l'aperçu est retiré (mémoire, appareil et en-tête).
+function oublierApercu() {
+  appliquerApercu(null);
+  try { localStorage.removeItem(VIEW_AS_KEY); } catch (e) { /* ignore */ }
+}
+
+// Pose l'aperçu et re-render l'app. role : un aperçu ouvert à la personne ; « admin », null ou une valeur
+// inconnue = rôle réel.
 export function setViewAs(role) {
-  if (!isFounder()) return;
-  viewAs = (role === "prof" || role === "stagiaire") ? role : null;
+  const voulu = normaliserApercu(role);
+  appliquerApercu(voulu && apercusOuverts().includes(voulu) ? voulu : null);
   try {
     if (viewAs) localStorage.setItem(VIEW_AS_KEY, viewAs);
     else localStorage.removeItem(VIEW_AS_KEY);
@@ -178,6 +188,7 @@ async function refuserSession(message) {
   oublierPromo();
   document.dispatchEvent(new CustomEvent("ecsr:refus-porte", { detail: message }));
   await signOut();
+  oublierApercu();
   currentUser = null;
   currentProfile = null;
   toast(message, "error", 5000);
@@ -247,6 +258,7 @@ export async function initAuth() {
       }
     } else {
       currentProfile = null;
+      oublierApercu();
       oublierPromo();
     }
     listeners.forEach((cb) => cb(currentUser, currentProfile));
@@ -352,7 +364,7 @@ function updateImpersonationBanner() {
   const v = getViewAs();
   let banner = document.getElementById("impersonation-banner");
   if (!v) { if (banner) banner.remove(); return; }
-  const label = v === "prof" ? "Formateur" : "Stagiaire";
+  const label = LIBELLES_APERCU[v] || v;
   if (!banner) {
     banner = el("div", { id: "impersonation-banner", class: "impersonation-banner" });
     document.body.appendChild(banner);
@@ -361,25 +373,37 @@ function updateImpersonationBanner() {
   banner.appendChild(el("span", { class: "imp-eye", "aria-hidden": "true" }, "👁"));
   banner.appendChild(el("span", { class: "imp-text" }, "Aperçu : ", el("strong", {}, label)));
   banner.appendChild(el("button", { class: "imp-back", type: "button",
-    onClick: () => setViewAs("admin") }, "Revenir fondateur"));
+    onClick: () => setViewAs(null) }, isFounder() ? "Revenir fondateur" : "Quitter l'aperçu"));
 }
 
-// Sélecteur « Voir en tant que » (fondateur uniquement) ; null sinon. Aussi dans le menu du compte
-// de la nouvelle navigation (js/menu-compte.js).
+// Sélecteur « Voir en tant que », aussi dans le menu du compte de la nouvelle navigation (js/menu-compte.js).
+// Fondateur : cinq boutons (Fondateur, Formateur, Direction, Siège, Stagiaire) qui passent à la ligne. Équipe d'une
+// promo (formateur, direction) : une ligne « Voir comme un stagiaire », ou « Quitter l'aperçu » une fois dedans.
+// Autres : rien.
 export function buildViewAsBlock(onPick) {
-  if (!isFounder()) return null;
-  const current = getViewAs() || "admin";
-  const seg = el("div", { class: "view-as-seg" });
-  [["admin", "Fondateur"], ["prof", "Formateur"], ["stagiaire", "Stagiaire"]].forEach(([val, lab]) => {
-    seg.appendChild(el("button", {
-      class: "view-as-btn" + (current === val ? " active" : ""),
-      type: "button",
-      onClick: () => { setViewAs(val); if (onPick) onPick(); },
-    }, lab));
-  });
+  const choisir = (val) => { setViewAs(val); if (onPick) onPick(); };
+  if (isFounder()) {
+    const current = getViewAs() || "admin";
+    const seg = el("div", { class: "view-as-seg" });
+    [["admin", "Fondateur"], ...Object.entries(LIBELLES_APERCU)].forEach(([val, lab]) => {
+      seg.appendChild(el("button", {
+        class: "view-as-btn" + (current === val ? " active" : ""),
+        type: "button",
+        "aria-pressed": current === val ? "true" : "false",
+        onClick: () => choisir(val),
+      }, lab));
+    });
+    return el("div", { class: "view-as-block" },
+      el("p", { class: "muted", style: "margin:0 0 0.4rem;font-size:0.82rem" }, "Voir en tant que (aperçu)"),
+      seg,
+    );
+  }
+  if (!apercusOuverts().includes("stagiaire")) return null;
+  const dedans = getViewAs() === "stagiaire";
   return el("div", { class: "view-as-block" },
-    el("p", { class: "muted", style: "margin:0 0 0.4rem;font-size:0.82rem" }, "Voir en tant que (aperçu)"),
-    seg,
+    el("button", { class: "view-as-ligne", type: "button", "data-view-as": dedans ? "quitter" : "stagiaire",
+      onClick: () => choisir(dedans ? null : "stagiaire") },
+    dedans ? "Quitter l'aperçu" : "Voir comme un stagiaire"),
   );
 }
 

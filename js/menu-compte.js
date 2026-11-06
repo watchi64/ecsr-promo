@@ -83,7 +83,8 @@ export function ouvrirMenuCompte(ancre, { actualiser, entrees = [], espace = nul
         ? ligne("button", { type: "button", onClick: () => { fermerFenetre(); actualiser(); } }, icon.refresh(), "Actualiser")
         : null,
       espace === "stagiaire" ? ligneSignaler(ancre) : null,
-      // Fondateur seulement (null sinon) : choisir un rôle ferme le menu, la coquille change d'espace.
+      // Fondateur : cinq rôles ; formateur et direction : « Voir comme un stagiaire » ; null sinon. Choisir ferme le menu,
+      // la coquille change d'espace.
       buildViewAsBlock(() => fermerFenetre()),
       filet(),
       ligne("button", { type: "button", onClick: () => {

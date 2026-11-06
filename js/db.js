@@ -6,6 +6,7 @@ import {
   ENTETE_PROMO, ENTETE_LECTURE_PROMO, promoDeLaRequete, doitPorterEntetePromo, choisirPromoInitiale, profilEffectif,
   separerChamps, CHAMPS_PROGRESSION, CHAMPS_EXAMEN, fusionnerProgression, fusionnerExamen,
 } from "./promo-rules.js?v=20261029b";
+import { ENTETE_APERCU, normaliserApercu, messageInvitation } from "./roles-rules.js?v=20261029b";
 
 // Contexte de promo (spec multi-promo, C.1). La promo courante voyage dans l'en-tête
 // x-promo-id de chaque requête de données ; la base vérifie le droit et filtre.
@@ -16,6 +17,7 @@ let compteContexte = null;   // compte (email en minuscules) auquel appartient l
 let epoque = 0;              // incrémentée à la déconnexion : un chargement en vol devient caduc
 let basculeEnCours = false;  // une seule bascule à la fois (double appui, deux choix rapides)
 let requetesBloquees = false; // rechargement décidé : plus aucune requête de données ne part
+let apercuEnvoye = null;     // aperçu de rôle en cours (x-apercu-role) ; nul hors aperçu
 const avantBascule = new Set();
 
 // fetch avec timeout : sans ça, une requête peut rester pendue indéfiniment
@@ -45,7 +47,10 @@ function fetchWithTimeout(input, init = {}) {
     });
     if (erreur) return Promise.reject(new Error(erreur));
     if (promo != null) entetes.set(ENTETE_PROMO, String(promo));
-    if (promo != null || demandee != null) options = { ...init, headers: entetes };
+    // Aperçu de rôle : à côté de x-promo-id, vers l'API de données seulement (jamais le stockage ni les
+    // fonctions Edge, qui gardent les droits réels). La base ne fait que retirer des droits.
+    if (apercuEnvoye) entetes.set(ENTETE_APERCU, apercuEnvoye); else entetes.delete(ENTETE_APERCU);
+    if (promo != null || demandee != null || apercuEnvoye) options = { ...init, headers: entetes };
   }
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 15000);
@@ -131,6 +136,15 @@ export async function chargerMesPromos(email) {
 }
 
 export function getMesPromos() { return mesPromos; }
+
+// Pose (ou retire, avec null) l'aperçu de rôle envoyé dans l'en-tête x-apercu-role. Une valeur inconnue
+// retire l'aperçu. Les données déjà en mémoire ont été lues sous l'ancien aperçu : on les oublie.
+export function poserApercu(role) {
+  const nouveau = normaliserApercu(role);
+  if (nouveau === apercuEnvoye) return;
+  apercuEnvoye = nouveau;
+  invalidateCache();
+}
 
 export function getPromoCourante() {
   return mesPromos.find((p) => p.id === promoCouranteId) || null;
@@ -1442,24 +1456,28 @@ export async function getMyProfile() {
 }
 
 export async function deleteUserProfile(email) {
-  const { error } = await supabase
+  // Sans .select(), un refus par les règles d'accès répond « 0 ligne, sans erreur » : on relit la ligne partie.
+  const { data, error } = await supabase
     .from("user_profiles")
     .delete()
-    .eq("email", email.toLowerCase().trim());
+    .eq("email", email.toLowerCase().trim())
+    .select("email");
   if (error) throw error;
+  if (!data || data.length === 0) throw new Error("Ce compte ne peut pas être retiré d'ici");
 }
 
-// Appelle l'Edge Function pour envoyer une invitation (magic link Supabase).
-export async function inviteUser({ email, role, stagiaire_id = null, prof_id = null, is_admin = false }) {
-  const { data, error } = await supabase.functions.invoke("invite-user", {
-    body: { email, role, stagiaire_id, prof_id, is_admin },
+// Invite un compte par la fonction de la base inviter_compte (la base vérifie qui peut inviter qui). Renvoie
+// { email, role, cree } : `cree` est faux quand le profil existait déjà (rien n'a changé). « prof » part
+// comme « formateur ». Les refus de la base commencent par « invitation: » : la phrase est montrée sans.
+export async function inviteUser({ email, role, stagiaire_id = null, prof_id = null, lieu_id = null }) {
+  const { data, error } = await supabase.rpc("inviter_compte", {
+    p_email: email,
+    p_role: role === "prof" ? "formateur" : role,
+    p_stagiaire_id: stagiaire_id,
+    p_prof_id: prof_id,
+    p_lieu_id: lieu_id,
   });
-  if (error) {
-    // L'Edge Function renvoie { error: "..." } en cas d'échec ; le SDK le wrap.
-    const msg = data?.error || error.message || "Erreur invitation";
-    throw new Error(msg);
-  }
-  if (data?.error) throw new Error(data.error);
+  if (error) throw new Error(messageInvitation(error.message));
   return data;
 }
 

@@ -25,6 +25,22 @@
 
 export const NOUVEAUTES = [
   {
+    id: "2026-11-06-roles-par-promo",
+    date: "2026-11-06",
+    pour: "formateurs",
+    titre: "Chacun ne voit que les promos où il intervient",
+    resume: "Chacun ne voit désormais que les promos où il intervient, et c'est la base de données elle-même qui "
+          + "le vérifie. Rien ne change pour toi. Un nouveau formateur s'ajoute désormais par la direction du "
+          + "centre (en attendant, par Timy) ; tu invites toujours les stagiaires de tes promos. Nouveau : "
+          + "« Voir comme un stagiaire », dans le menu de ton compte et dans le choix de la promo, montre l'app "
+          + "telle que la voit un stagiaire, sans que tu puisses rien y modifier.",
+    guide: [
+      "Ouvre le menu de ton compte, ou le choix de la promo, puis touche « Voir comme un stagiaire ».",
+      "Un bandeau « Aperçu : Stagiaire » reste affiché en bas de l'écran.",
+      "Touche « Quitter l'aperçu » pour retrouver ton espace.",
+    ],
+  },
+  {
     id: "2026-10-29-nouvelle-navigation",
     date: "2026-10-29",
     pour: "tous",

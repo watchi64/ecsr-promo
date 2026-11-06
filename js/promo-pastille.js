@@ -4,6 +4,7 @@
 import { el } from "./utils.js?v=20261029b";
 import { getMesPromos, getPromoCourante, choisirPromo } from "./db.js?v=20261029b";
 import { libelleCourtPromo, resumePromo } from "./promo-rules.js?v=20261029b";
+import { isFounder, apercusOuverts, setViewAs } from "./auth-admin.js?v=20261029b";
 
 // « Montpellier · sept. 2026 » : le lieu dans son propre span, que le CSS masque sur les
 // écrans les plus étroits (la date suffit à distinguer les promos dans la barre).
@@ -106,6 +107,16 @@ function ouvrirChoix() {
     ));
   });
 
+  // Formateur et direction : voir la promo affichée comme un stagiaire (le fondateur a son sélecteur dans le menu du
+  // compte). L'aperçu se pose sur la promo affichée ; la fenêtre se ferme, l'app change d'espace.
+  const voirStagiaire = !isFounder() && apercusOuverts().includes("stagiaire")
+    ? el("button", { class: "btn full promo-choix-apercu", type: "button", onClick: () => {
+      if (bascule) return;
+      fermer();
+      setViewAs("stagiaire");
+    } }, "Voir cette promo comme un stagiaire")
+    : null;
+
   const modal = el("div", {
     class: "modal promo-choix-modal", role: "dialog", "aria-modal": "true",
     "aria-labelledby": "promo-choix-titre", tabindex: "-1",
@@ -113,6 +124,7 @@ function ouvrirChoix() {
     el("h3", { id: "promo-choix-titre" }, "Promo affichée"),
     aide,
     liste,
+    voirStagiaire,
     el("div", { class: "modal-actions" },
       el("button", { class: "btn ghost", type: "button", onClick: fermer }, "Fermer"),
     ),
