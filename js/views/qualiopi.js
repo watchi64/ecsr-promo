@@ -202,7 +202,7 @@ export async function renderQualiopi(container) {
   }
 
   // --- État de la page ---
-  const etat = { promo: courante, referentiel: null, donnees: null, ind: null, inv: null, alternance: false };
+  const etat = { promo: courante, referentiel: null, donnees: null, ind: null, inv: null, alternance: false, sansNoms: false };   // alternance et sansNoms survivent au changement de promo
   const ouverts = new Set();         // critères dépliés, gardés d'un redessin à l'autre
   const lectures = new Map();        // promo → lecture en cours ou faite ; une lecture qui échoue est oubliée, pour être refaite
   let chargement = 0;                // numéro du dernier chargement de la promo affichée
@@ -408,11 +408,15 @@ export async function renderQualiopi(container) {
   // Deux groupes d'actions (R7), chacun annoncé par son titre : les dossiers, puis la fiche des résultats à publier (« Fiche
   // résultats » et « Copier le texte »). La case « Sans aucun nom » ne concerne que le dossier du centre : la fiche n'a aucun nom.
   function construireActions() {
+    // La case est refaite à chaque chargement de promo : sa valeur vit dans `etat`, pas dans la case, pour qu'un changement de promo
+    // ne la décoche pas en silence (le dossier du centre sortirait alors avec les noms des formateurs).
     const caseSansNom = el("input", { type: "checkbox", id: "qualiopi-sans-nom" });
+    caseSansNom.checked = etat.sansNoms;
+    caseSansNom.addEventListener("change", () => { etat.sansNoms = caseSansNom.checked; });
     const bouton = (texte, onClick, classe = "btn") => el("button", { class: classe, type: "button", onClick }, texte);
     const boutonFormation = bouton("Dossier de la formation", dossierFormation, "btn primary");
     const boutonTableau = bouton("Tableau (CSV)", tableauCsv);
-    const boutonCentre = bouton("Dossier du centre", () => dossierCentre(caseSansNom.checked), "btn primary");
+    const boutonCentre = bouton("Dossier du centre", () => dossierCentre(etat.sansNoms), "btn primary");
     const boutonFicheFormation = bouton("Fiche résultats", () => sortirFiches("formation", "imprimer"));
     const boutonCopieFormation = bouton("Copier le texte", () => sortirFiches("formation", "copier"));
     const boutonFicheCentre = bouton("Fiche résultats", () => sortirFiches("centre", "imprimer"));

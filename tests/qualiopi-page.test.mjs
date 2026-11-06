@@ -149,6 +149,12 @@ for (const fichier of ["js/nav-rules.js", "js/nav-shell.js", "js/menu-compte.js"
 ok(/fondateurHorsApercu\(\) \? el\("a", \{ class: "btn small centre-lien-qualiopi", href: "#\/qualiopi" \}, "Qualiopi"\) : null/.test(centre), "le bouton Qualiopi n'est monté que pour le fondateur");
 ok(/export function telecharger\(/.test(centre), "le téléchargement du tableau de bord est partagé avec la page, pas recopié");
 ok(/el\("p", \{ class: "qualiopi-intro qualiopi-legende-niveau" \}, PHRASE_NIVEAU\)/.test(vue), "la page affiche la légende du niveau (PHRASE_NIVEAU, écrite une fois dans les documents)");
+// La case « Sans aucun nom » (relecture finale, I4) : sa valeur vit dans `etat`, comme l'alternance, et survit au changement de promo.
+ok(/const etat = \{[^}]*sansNoms: false/.test(vue), "etat porte la valeur de la case, décochée au départ");
+ok(/caseSansNom\.checked = etat\.sansNoms;/.test(vue), "la case refaite à chaque chargement reprend la valeur de etat");
+ok(/caseSansNom\.addEventListener\("change", \(\) => \{ etat\.sansNoms = caseSansNom\.checked; \}\);/.test(vue), "et la range dans etat quand elle change");
+ok(/dossierCentre\(etat\.sansNoms\)/.test(vue) && !/dossierCentre\(caseSansNom\.checked\)/.test(vue), "le dossier du centre lit etat, jamais la case");
+ok(!/Object\.assign\(etat, \{[^}]*sansNoms/.test(vue), "charger() ne réinitialise pas la valeur");
 ok(!/function telecharger\(/.test(vue) && /import \{ telecharger \} from "\.\/centre\.js\?v=\w+";/.test(vue), "la page l'importe");
 
 // --- Page : lecture par identifiant, impression nettoyée, textes ---
