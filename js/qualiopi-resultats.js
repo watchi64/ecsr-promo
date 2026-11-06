@@ -30,6 +30,8 @@ export const AUCUNE_FORMATION = "Aucune formation de ce centre dans la période.
 
 // Ce que dit la fiche d'une mesure que l'application ne produit pas encore.
 const VALEURS_ABSENTES = { presence: "non mesuré", titre: "non saisi", satisfaction: "non mesurée" };
+const SANS_OBJET = "sans objet";
+export const MESURE_NON_DISPONIBLE = "Mesure non disponible pour cette formation.";
 const TITRE = "Résultats de la formation";
 const LIBELLES = {
   effectif: "Effectif",
@@ -44,7 +46,7 @@ const ENTETES_TABLEAU = ["Indicateur", "Résultat", "Effectif", "Période", "Mé
 
 const entier = (x) => (Number.isInteger(x) && x >= 0 ? x : null);
 const taux = (x) => (typeof x === "number" && Number.isFinite(x) && x >= 0 && x <= 1 ? x : null);
-const stagiaires = (n) => (!Number.isInteger(n) || n < 0 ? "non renseigné" : n === 0 ? "aucun stagiaire" : nb(n, "stagiaire"));
+const stagiaires = (n) => (n === SANS_OBJET ? SANS_OBJET : !Number.isInteger(n) || n < 0 ? "non renseigné" : n === 0 ? "aucun stagiaire" : nb(n, "stagiaire"));
 
 // =====================================================================================================
 // La fiche d'une promo
@@ -60,11 +62,12 @@ export function ficheResultats({ promo, ind, aujourdhui, presence = null, obtent
   // Les inscrits : l'effectif du tableau de bord, ou à défaut ce que l'abandon en dit ; sans rien d'exploitable, personne.
   const inscrits = [ind?.effectif?.valeur, ind?.effectif?.detail?.inscrits, ind?.abandon?.n, ind?.abandon?.detail?.inscrits]
     .map(entier).find((x) => x !== null) ?? 0;
-  const ligne = (cle, valeur, effectif) => ({ cle, libelle: LIBELLES[cle], valeur, effectif, periode, methode: METHODES_PUBLIQUES[cle] });
-  // Une mesure fournie par l'appelant, ou le mot qui dit qu'elle manque. Un effectif illisible est celui des inscrits.
+  const ligne = (cle, valeur, effectif, methode = METHODES_PUBLIQUES[cle]) => ({ cle, libelle: LIBELLES[cle], valeur, effectif, periode, methode });
+  // Une mesure fournie par l'appelant, ou le mot qui dit qu'elle manque. Un effectif illisible est celui des inscrits. Une mesure
+  // absente n'a ni effectif ni méthode de calcul : elle ne décrit pas un calcul qui n'a pas eu lieu.
   const mesure = (cle, donnee) => {
     const t = taux(donnee?.taux);
-    return t === null ? ligne(cle, VALEURS_ABSENTES[cle], inscrits) : ligne(cle, pct(t), entier(donnee.effectif) ?? inscrits);
+    return t === null ? ligne(cle, VALEURS_ABSENTES[cle], SANS_OBJET, MESURE_NON_DISPONIBLE) : ligne(cle, pct(t), entier(donnee.effectif) ?? inscrits);
   };
   const abandon = taux(ind?.abandon?.valeur);
   return {
@@ -92,10 +95,11 @@ export function ficheResultats({ promo, ind, aujourdhui, presence = null, obtent
 // Sorties : texte à coller sur le site du centre, tableau de l'impression
 // =====================================================================================================
 
-// Un chiffre : sa valeur, puis son effectif et sa période, puis sa méthode. La ligne de l'effectif ne répète pas l'effectif.
+// Un chiffre : sa valeur, puis son effectif et sa période, puis sa méthode. La ligne de l'effectif ne répète pas l'effectif ; une
+// mesure absente n'en a pas (« sans objet ») et n'écrit aucune phrase d'effectif.
 const bloc = (l) => [
   `${l.libelle} : ${l.valeur}`,
-  l.cle === "effectif" ? `Période : ${l.periode}.` : `Effectif : ${stagiaires(l.effectif)}. Période : ${l.periode}.`,
+  l.cle === "effectif" || l.effectif === SANS_OBJET ? `Période : ${l.periode}.` : `Effectif : ${stagiaires(l.effectif)}. Période : ${l.periode}.`,
   `Méthode : ${l.methode}`,
 ].join("\n");
 

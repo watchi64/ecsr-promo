@@ -135,9 +135,11 @@ eq(ligneDe(finie, "titre").valeur, "non saisi", "obtention du titre : « non sai
 eq(ligneDe(finie, "satisfaction").valeur, "non mesurée", "satisfaction : « non mesurée »");
 eq(finie.lignes.map((l) => l.libelle), ["Effectif", "Taux d'abandon", "Taux de présence", "Taux d'obtention du titre", "Satisfaction des stagiaires"], "libellés lisibles par le public");
 for (const l of finie.lignes) {
-  eq(l.methode, METHODES_PUBLIQUES[l.cle], `${l.cle} : sa méthode est celle de METHODES_PUBLIQUES`);
+  const mesuree = !["presence", "titre", "satisfaction"].includes(l.cle);   // ces trois mesures ne sont pas produites (valeur absente)
+  eq(l.methode, mesuree ? METHODES_PUBLIQUES[l.cle] : "Mesure non disponible pour cette formation.",
+    `${l.cle} : sa méthode est celle de METHODES_PUBLIQUES, ou « Mesure non disponible » quand la mesure n'existe pas`);
   eq(l.periode, "du 30/03/2026 au 11/12/2026", `${l.cle} : sa période`);
-  ok(Number.isInteger(l.effectif) && l.effectif >= 0, `${l.cle} : son effectif est un nombre`);
+  ok(mesuree ? Number.isInteger(l.effectif) && l.effectif >= 0 : l.effectif === "sans objet", `${l.cle} : son effectif est un nombre, ou « sans objet » pour une mesure absente`);
 }
 eq(problemes(finie), [], "la fiche d'une promo terminée : ni NaN, ni undefined, ni null, ni Invalid");
 eq(finie.titre, "Résultats de la formation", "titre de la fiche");
@@ -220,8 +222,10 @@ for (const [cas, entree] of ENTREES_BANCALES) {
   const f = ficheResultats(entree);
   eq(problemes(f), [], `${cas} : fiche sans NaN, undefined, null ni Invalid`);
   eq(f.lignes.map((l) => l.cle), CLES, `${cas} : toujours les cinq lignes`);
-  ok(f.lignes.every((l) => typeof l.periode === "string" && l.periode !== "" && Number.isInteger(l.effectif) && l.methode === METHODES_PUBLIQUES[l.cle] && l.valeur !== ""),
-    `${cas} : chaque ligne a sa période, son effectif, sa méthode et une valeur`);
+  ok(f.lignes.every((l) => typeof l.periode === "string" && l.periode !== "" && l.valeur !== ""
+    && (Number.isInteger(l.effectif) ? l.methode === METHODES_PUBLIQUES[l.cle]
+      : l.effectif === "sans objet" && l.methode === "Mesure non disponible pour cette formation.")),
+    `${cas} : chaque ligne a sa période, une valeur, et son effectif avec sa méthode (ou « sans objet » avec « Mesure non disponible »)`);
   const texte = ficheResultatsTexte(f);
   eq(problemes(texte, "texte"), [], `${cas} : texte propre`);
   ok(!texte.includes(TIRET_CADRATIN), `${cas} : texte sans tiret cadratin`);
@@ -249,13 +253,14 @@ for (const [cas, entree] of ENTREES_BANCALES) {
 // =====================================================================================================
 const BLOC_ENTETE = "Résultats de la formation\nCentre : Nîmes\nPromotion : Nîmes, mars 2026\nPériode : du 30/03/2026 au 11/12/2026\nÉdité le 12/12/2026";
 const SOUS = "Effectif : 10 stagiaires. Période : du 30/03/2026 au 11/12/2026.";
+const SANS_MESURE = "Période : du 30/03/2026 au 11/12/2026.\nMéthode : Mesure non disponible pour cette formation.";
 const TEXTE_FINIE = [
   BLOC_ENTETE,
   `Effectif : 10 inscrits\nPériode : du 30/03/2026 au 11/12/2026.\nMéthode : ${METHODES_PUBLIQUES.effectif}`,
   `Taux d'abandon : ${pc(10)}\n${SOUS}\nMéthode : ${METHODES_PUBLIQUES.abandon}`,
-  `Taux de présence : non mesuré\n${SOUS}\nMéthode : ${METHODES_PUBLIQUES.presence}`,
-  `Taux d'obtention du titre : non saisi\n${SOUS}\nMéthode : ${METHODES_PUBLIQUES.titre}`,
-  `Satisfaction des stagiaires : non mesurée\n${SOUS}\nMéthode : ${METHODES_PUBLIQUES.satisfaction}`,
+  `Taux de présence : non mesuré\n${SANS_MESURE}`,
+  `Taux d'obtention du titre : non saisi\n${SANS_MESURE}`,
+  `Satisfaction des stagiaires : non mesurée\n${SANS_MESURE}`,
 ].join("\n\n");
 eq(ficheResultatsTexte(finie), TEXTE_FINIE, "texte d'une promo terminée : en-tête, puis chaque chiffre avec son effectif, sa période et sa méthode");
 {
@@ -284,6 +289,8 @@ for (const [cas, entree] of [["terminée", { promo: promo(), ind: indDe(10, 1), 
 // Le tableau de l'impression : les mêmes mots que le texte.
 eq(tableauFiche(finie).entetes, ["Indicateur", "Résultat", "Effectif", "Période", "Méthode de calcul"], "tableau : en-têtes");
 eq(tableauFiche(finie).lignes[1], ["Taux d'abandon", pc(10), "10 stagiaires", "du 30/03/2026 au 11/12/2026", METHODES_PUBLIQUES.abandon], "tableau : la ligne de l'abandon");
+eq(tableauFiche(finie).lignes[2], ["Taux de présence", "non mesuré", "sans objet", "du 30/03/2026 au 11/12/2026", "Mesure non disponible pour cette formation."],
+  "tableau : une mesure absente porte « sans objet » et « Mesure non disponible »");
 eq(tableauFiche(finie).lignes.map((l) => l[1]), ["10 inscrits", pc(10), "non mesuré", "non saisi", "non mesurée"], "tableau : les cinq résultats");
 eq(tableauFiche(ficheResultats(ENTREES_BANCALES[0][1])).lignes[0].slice(1, 3), ["aucun inscrit", "aucun stagiaire"], "tableau : promo sans inscrit");
 eq(tableauFiche(null), { entetes: ["Indicateur", "Résultat", "Effectif", "Période", "Méthode de calcul"], lignes: [] }, "tableau d'une fiche absente : vide, sans erreur");
