@@ -2,6 +2,7 @@
 import assert from "node:assert/strict";
 import {
   EPREUVES_EPCF, EVT_DOCUMENT, epreuvesEvaluees, jourMois, passagesAVenir, ligneListe, etatsSommaire,
+  etatsClairs, noterDocument,
 } from "../js/fiche-rules.js";
 
 let n = 0;
@@ -61,5 +62,43 @@ eq(fait.livret, { texte: "commencé", afaire: false }, "livret commencé");
 eq(fait.dp, { texte: "01/10", afaire: false }, "dossier daté");
 
 eq(EVT_DOCUMENT, "document-enregistre", "nom de l'événement");
+
+// 6. États clairs de Mon suivi (nouvelle navigation, lot 2B, tâche 7) : chaque ligne du sommaire se lit seule,
+// « Dossier pro : 2 exemples sur 6 » et non « Dossier pro 02/10 » (qui se lisait comme une date, ruling R65).
+const c = etatsClairs({ aVenir: 2, evals: [], livret: null, exemplesDossier: null });
+eq(Object.keys(c), ["resultats", "passages", "epcf", "livret", "dp"], "cinq parties, dans l'ordre de Mon suivi");
+eq(c.resultats, { texte: "Résultats : moi et la classe", afaire: false }, "résultats");
+eq(c.passages, { texte: "Passages : 2 à venir", afaire: false }, "passages au pluriel");
+eq(c.epcf, { texte: "EPCF : 0 sur 2", afaire: false }, "EPCF : aucune épreuve, en gris (elle ne dépend pas du stagiaire)");
+eq(c.livret, { texte: "Livret : pas encore commencé", afaire: false }, "livret pas commencé, en gris");
+eq(c.dp, { texte: "Dossier pro : pas encore commencé", afaire: true }, "pas de dossier : pas encore commencé, en orange");
+const un = etatsClairs({ aVenir: 1, evals: [{ trame: "salle" }], livret: { updated_at: "x" }, exemplesDossier: 1 });
+eq(un.passages.texte, "Passages : 1 à venir", "passages au singulier");
+eq(un.epcf.texte, "EPCF : 1 sur 2", "une épreuve évaluée");
+eq(un.livret, { texte: "Livret : commencé", afaire: false }, "livret commencé");
+eq(un.dp, { texte: "Dossier pro : 1 exemple sur 6", afaire: true }, "un exemple, au singulier");
+const zero = etatsClairs({ aVenir: 0, evals: [{ trame: "salle" }, { trame: "vehicule" }], livret: null, exemplesDossier: 0 });
+eq(zero.passages.texte, "Passages : aucun à venir", "aucun passage à venir");
+eq(zero.epcf.texte, "EPCF : 2 sur 2", "les deux épreuves");
+eq(zero.dp, { texte: "Dossier pro : 0 exemple sur 6", afaire: true }, "dossier ouvert sans exemple rempli : le compte, comme sur l'Accueil");
+eq(etatsClairs({ aVenir: 0, evals: [], livret: null, exemplesDossier: 2 }).dp.texte, "Dossier pro : 2 exemples sur 6", "deux exemples");
+eq(etatsClairs({ aVenir: 0, evals: [], livret: null, exemplesDossier: 6 }).dp, { texte: "Dossier pro : 6 exemples sur 6", afaire: false }, "dossier complet : plus rien à faire");
+eq(etatsClairs({}).passages.texte, "Passages : aucun à venir", "rien de lu : aucun à venir");
+for (const [p, e] of Object.entries(c)) eq(/\d{2}\/\d{2}/.test(e.texte), false, `${p} : aucune date « 02/10 » dans le texte`);
+
+// 7. Un enregistrement met l'état de la fiche à jour (EVT_DOCUMENT) ; le dossier porte son compte d'exemples.
+const fiche = { id: 1, livret: null, dossier: null, exemplesDossier: null };
+eq(noterDocument(fiche, { genre: "dossier", stagiaireId: 1, updatedAt: "2026-11-08T10:00:00Z", exemples: 3 }), true, "dossier enregistré");
+eq(fiche.dossier, { stagiaire_id: 1, updated_at: "2026-11-08T10:00:00Z" }, "ligne du dossier");
+eq(fiche.exemplesDossier, 3, "le compte d'exemples suit l'enregistrement");
+eq(etatsClairs({ aVenir: 0, evals: [], livret: null, exemplesDossier: fiche.exemplesDossier }).dp.texte, "Dossier pro : 3 exemples sur 6", "le sommaire lit le nouveau compte");
+noterDocument(fiche, { genre: "dossier", stagiaireId: 1, updatedAt: "2026-11-08T10:01:00Z" });
+eq(fiche.exemplesDossier, 3, "un événement sans compte garde le dernier compte connu");
+eq(noterDocument(fiche, { genre: "livret", stagiaireId: 1, updatedAt: "2026-11-08T10:02:00Z" }), true, "livret enregistré");
+eq(fiche.livret, { stagiaire_id: 1, updated_at: "2026-11-08T10:02:00Z" }, "ligne du livret");
+eq(noterDocument(fiche, { genre: "dossier", stagiaireId: 2, exemples: 5 }), false, "la fiche d'un autre n'est pas touchée");
+eq(fiche.exemplesDossier, 3, "compte inchangé pour un autre");
+eq(noterDocument(fiche, { genre: "autre", stagiaireId: 1 }), false, "genre inconnu");
+eq(noterDocument(null, { genre: "dossier", stagiaireId: 1 }), false, "pas de fiche chargée");
 
 console.log(`fiche-rules : ${n} assertions OK`);

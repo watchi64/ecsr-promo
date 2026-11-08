@@ -16,7 +16,7 @@ import { EVT_DOCUMENT } from "../fiche-rules.js?v=20261106a";
 import { collectData, fillData, applyEditable, wireDocEditing,
          bindDocPrint, refreshDocPrint, teardownDocPrint } from "../doc-officiel.js?v=20261106a";
 import { buildDpFlux, blocSommaire, feuille } from "./dp-gabarit.js?v=20261106a";
-import { exempleImprime } from "../dp-rules.js?v=20261106a";
+import { exempleImprime, exemplesRemplis } from "../dp-rules.js?v=20261106a";
 import { composer, marquerCoupures } from "../dp-pagination.js?v=20261106a";
 
 let stagiaires = [];
@@ -392,14 +392,17 @@ function showDoc(container, stagiaire, row, { readOnly, stagiaireId, back } = {}
     status.textContent = "Enregistrement…";
     status.className = "lv-status saving";
     try {
+      const data = collectData(fluxEdition);
       const row = await upsertDpDossier({
         stagiaire_id: stagiaireId,
-        data: collectData(fluxEdition),
+        data,
         updated_by_who: getCurrentWho(),
       });
-      // La fiche et la page Stagiaires mettent leur état « Dossier » à jour.
+      // La fiche et la page Stagiaires mettent leur état « Dossier » à jour ; le sommaire de Mon suivi
+      // (nouvelle navigation) dit aussi le nombre d'exemples remplis, recompté sur ce qui vient d'être enregistré.
       document.dispatchEvent(new CustomEvent(EVT_DOCUMENT, { detail: {
-        genre: "dossier", stagiaireId, updatedAt: row?.updated_at || new Date().toISOString() } }));
+        genre: "dossier", stagiaireId, updatedAt: row?.updated_at || new Date().toISOString(),
+        exemples: exemplesRemplis(data) } }));
       status.textContent = "Enregistré ✓";
       status.className = "lv-status";
     } catch (e) {

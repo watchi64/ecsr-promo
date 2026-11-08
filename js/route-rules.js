@@ -2,10 +2,39 @@
 // Le premier segment choisit la page ; Mon espace lit une partie, la page
 // Stagiaires une fiche puis une partie. Module pur, sans DOM : testé en node.
 
-// Parties d'une fiche, dans l'ordre d'affichage (Mon espace et page Stagiaires).
-// `classe` (la vue Notes de la classe) n'existe que dans Mon espace et sous la nouvelle
-// navigation : js/views/mon-suivi.js la retire partout ailleurs.
-export const PARTIES = ["passages", "epcf", "evolution", "livret", "dp", "classe"];
+// Toutes les parties qu'une adresse peut nommer (Mon espace et page Stagiaires). L'ordre
+// d'affichage d'une fiche est celui de partiesDeLaFiche. `evolution` et `classe` restent
+// lisibles sous la nouvelle navigation, où elles ouvrent Résultats (ouvertureDeMonSuivi) :
+// favoris et liens d'avant gardent leur destination.
+export const PARTIES = ["resultats", "passages", "epcf", "evolution", "livret", "dp", "classe"];
+
+// Parties d'une fiche, dans l'ordre d'affichage. Mon suivi sous la nouvelle navigation (lot 2B,
+// tâche 7) : Résultats d'abord, qui réunit Évolution (« Moi ») et les notes de la classe (« La
+// classe ») ; deux mots vagues de moins sur le sommaire. La fiche d'un stagiaire vue par
+// l'équipe et l'ancienne navigation gardent la fiche de main.
+export function partiesDeLaFiche({ soi = false, navigationV2 = false } = {}) {
+  return soi && navigationV2
+    ? ["resultats", "passages", "epcf", "livret", "dp"]
+    : ["passages", "epcf", "evolution", "livret", "dp"];
+}
+
+// Les deux vues de Résultats, et la clé de mémoire de la dernière ouverte (une redirection
+// l'écrit pour ouvrir « La classe », comme pour un sous-onglet : js/nav-rules.js).
+export const VUES_RESULTATS = ["moi", "classe"];
+export const CLE_VUE_RESULTATS = "ecsr_resultats_vue";
+const VUE_DE_PARTIE = new Map([["evolution", "moi"], ["classe", "classe"]]);
+
+// Ce que Mon suivi ouvre pour une partie lue dans l'adresse, sous la nouvelle navigation :
+// Évolution et La classe deviennent Résultats sur leur vue ; `vue` nulle, la mémoire décide.
+export function ouvertureDeMonSuivi(partie) {
+  const vue = VUE_DE_PARTIE.get(partie) || null;
+  return { partie: vue ? "resultats" : (partie ?? null), vue };
+}
+
+// Vue de Résultats à montrer d'après la mémoire : « Moi » par défaut.
+export function vueDeResultats(memorisee) {
+  return VUES_RESULTATS.includes(memorisee) ? memorisee : "moi";
+}
 
 function partieValide(p) { return PARTIES.includes(p) ? p : null; }
 function idValide(s) { return /^[1-9]\d*$/.test(String(s ?? "")) ? Number(s) : null; }

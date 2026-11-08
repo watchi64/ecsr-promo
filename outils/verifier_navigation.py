@@ -177,6 +177,14 @@ Contrôles par vue
     « formateur » (jamais « admin ») ; avec l'ancienne, le texte de main (« Promo 2026 » écrit en dur, « admin ») ;
   * Planning > Semaine : chez le stagiaire, ni « Lecture seule... » ni « Cette semaine » (« Aujourd'hui », en tête de la page, le remplace) ; chez
     l'équipe, « Cette semaine » reste ;
+  * Mon suivi aux libellés clairs (lot 2B, tâche 7), pour toute personne qui a une fiche, à 1 280 et 375 px : les parties dans l'ordre (Résultats, Passages, EPCF,
+    Livret, Dossier pro), en sous-onglets sur ordinateur, en sommaire sur téléphone dont chaque ligne dit son état en entier (« EPCF : 0 sur 2 », « Dossier pro :
+    0 exemple sur 6 »), sans date « 02/10 », jamais coupée, la dernière au-dessus de la barre du bas (à l'ouverture, et page défilée au bout) ; Résultats et son
+    groupe « Moi / La classe » (boutons de 44 px, « Moi » par défaut, le choix gardé sur l'appareil, même après un rechargement) ; #/mon-suivi/classe,
+    #/mon-suivi/evolution et #/notes (stagiaire) ouvrent Résultats sur la bonne vue, l'adresse devenue #/mon-suivi/resultats, sans étape d'historique ; sur
+    téléphone, le retour « ‹ Mon suivi » remplace l'en-tête de la page ; un exemple du dossier enregistré fait passer la ligne à « 1 exemple sur 6 » sans
+    recharger. La fiche d'un stagiaire chez l'équipe garde ses parties de main (Passages, EPCF, Évolution, Livret, Dossier pro), allumé et éteint ; Mon espace
+    éteint aussi ; module des notes fermé (`?modules=depart`), ni Résultats ni « Moi / La classe » ;
   * Mon suivi > La classe, pour toute personne qui a une fiche (le contexte décide, pas le rôle : le stagiaire, et le fondateur dans l'espace de l'équipe) : ni
     second titre, ni seconde rangée Matrice / EPCF (aucun libellé « EPCF » isolé), ni « Lecture seule... » ; le stagiaire, qui ne saisit rien, ne lit pas non plus
     la phrase sur la saisie et n'a que le nombre de notes. Sous la vue de la classe, la section « Moyennes EPCF de la classe » (ruling R51) : le rendu de l'onglet
@@ -194,7 +202,7 @@ Contrôles par vue
     ses signatures (équipe) cachés, son bouton de 44 px, sa hauteur au plus celle des deux lignes de main (61 px) ; au-delà de 700 px, et interrupteur
     éteint, ses détails sont montrés ;
   * les quatre anciennes adresses (`#/calendrier`, `#/dashboard`, `#/ressources`, `#/notes`, ruling R26) : allumé, la nouvelle
-    page et son sous-onglet allumé (Planning : Dates clés, Priorités ; Cours : Documents ; Mon espace : La classe chez
+    page et son sous-onglet allumé (Planning : Dates clés, Priorités ; Cours : Documents ; Mon suivi : Résultats, vue La classe, chez
     le stagiaire, mais Notes reste la page de l'équipe ; module fermé au départ : le premier sous-onglet visible),
     et « Précédent » quitte la page redirigée ; éteint, l'adresse et la page restent celles d'aujourd'hui ;
   * Nouveautés et « Où le trouver » (lot 2A, tâche 1) : allumé, la rubrique (#/nouveautes) montre « Une navigation plus simple » à tous et « Côté formateurs, la barre passe à
@@ -1012,6 +1020,8 @@ function mesurerAncienne(route, echecs, barres) {
   if (route === "planning" && barres.length) echecs.push(["page regroupée, interrupteur éteint", "le Planning montre des sous-onglets"]);
   if (route === "themes" && libelles.some((l) => l.startsWith("documents"))) echecs.push(["page regroupée, interrupteur éteint", "Cours montre un sous-onglet Documents"]);
   if (route === "mon-suivi" && libelles.some((l) => l.startsWith("la classe"))) echecs.push(["page regroupée, interrupteur éteint", "Mon espace montre la partie La classe"]);
+  if (route === "mon-suivi" && libelles.some((l) => l.startsWith("resultats"))) echecs.push(["page regroupée, interrupteur éteint", "Mon espace montre la partie Résultats"]);
+  if (route === "mon-suivi" && document.querySelector("#view .res-bar, #view .fiche-sommaire-clair")) echecs.push(["page regroupée, interrupteur éteint", "Mon espace montre « Moi / La classe » ou le sommaire aux libellés clairs"]);
   // Le bouton « Aujourd'hui » de la page (ruling R29) n'appartient qu'à la nouvelle navigation : éteint, il est dans la barre du haut.
   if (route === "planning" && document.querySelector("#view .p-aujourdhui")) echecs.push(["page regroupée, interrupteur éteint", "le Planning montre le bouton « Aujourd'hui » de la nouvelle navigation"]);
   // Lot 2A, tâche 1 : « Mon suivi » est le nom que la nouvelle navigation donne à Mon espace ; l'ancienne ne le dit nulle part (page et barre), hors deux textes de main : le
@@ -1968,7 +1978,7 @@ def plancher_sous_onglets(route, sc, res):
         # Stagiaire : Thèmes, Compétences, QCM, Documents ; équipe : Thèmes, Compétences, Signalements, Propositions IA, Documents (lot 2B, tâche 6).
         return 0 if depart else (4 if sc.espace == "stagiaire" else 5)
     if route == "mon-suivi" and res.profil_stagiaire:
-        return 0 if depart else 6      # Passages, EPCF, Évolution, Livret, Dossier pro, La classe
+        return 0 if depart else 5      # Résultats, Passages, EPCF, Livret, Dossier pro (lot 2B, tâche 7)
     if route == "stagiaires":
         return 2                       # Stagiaires, Élèves bénévoles (équipe seulement, lot 2A)
     return 0
@@ -2142,7 +2152,7 @@ def parcourir_entrees(page, res, sc, entrees, options, avec_sous_vues=True):
 # Ruling R26 : les quatre anciennes adresses (liens de l'app, favoris, raccourcis d'écran d'accueil) : la page et le
 # sous-onglet que la nouvelle navigation ouvre.
 ANCIENNES_ADRESSES = {"calendrier": ("#/planning", "Dates clés"), "dashboard": ("#/planning", "Priorités"),
-                      "ressources": ("#/themes", "Documents"), "notes": ("#/mon-suivi/classe", "La classe")}
+                      "ressources": ("#/themes", "Documents"), "notes": ("#/mon-suivi/resultats", "Résultats")}
 # Sous-onglet allumé de la page : la partie de Mon espace sur téléphone (son titre), sinon le premier sous-onglet actif.
 JS_SOUS_ONGLET_ALLUME = """() => {
     const e = document.querySelector('#view h2.fiche-titre') || document.querySelector('#view .subtabs-bar > .subtab.active');
@@ -3122,8 +3132,8 @@ TITRES_DE_L_ANCIENNE_BARRE = ("Une barre d'onglets plus simple", "L'app s'ouvre 
 # Un stagiaire est envoyé à Mes préférences, jamais à Réglages (la page de la promo, réservée à l'équipe) ; l'équipe, l'inverse.
 OU_TROUVER = {
     "Les moyennes de la classe ne comptent que les stagiaires en formation":
-        ("Mon suivi, La classe", "Notes et examens, Synthèse classe", "Notes, Synthèse classe", "#/notes"),
-    "Tes notes et ta fiche mieux protégées": ("Mon suivi, La classe", "Notes et examens", "Notes", "#/notes"),
+        ("Mon suivi, partie Résultats", "Notes et examens, Synthèse classe", "Notes, Synthèse classe", "#/notes"),
+    "Tes notes et ta fiche mieux protégées": ("Mon suivi, partie Résultats", "Notes et examens", "Notes", "#/notes"),
     "Ton Dossier Professionnel se remplit dans l'app":
         ("Mon suivi, partie Dossier pro", "Mon suivi, partie Dossier pro", "Mon espace personnel, partie Dossier pro", "#/mon-suivi/dp"),
     "Ton livret officiel TP-01303 se remplit dans l'app":
@@ -4551,6 +4561,348 @@ def verifier_la_classe(page, res, sc):
     vider_console(res, vue)
 
 
+# --------------------------------------------------------------------------------------
+# Mon suivi aux libellés clairs (lot 2B, tâche 7)
+# --------------------------------------------------------------------------------------
+
+# Mon suivi, nouvelle navigation : les parties dans l'ordre (sous-onglets sur ordinateur, lignes du sommaire sur téléphone).
+PARTIES_MON_SUIVI = ["Résultats", "Passages", "EPCF", "Livret", "Dossier pro"]
+# La fiche de main : Mon espace éteint, et la fiche d'un stagiaire chez l'équipe dans les deux navigations.
+PARTIES_FICHE_DE_MAIN = ["Passages", "EPCF", "Évolution", "Livret", "Dossier pro"]
+# Les lignes du sommaire du stagiaire du banc (Timy, id 1, le 27/10/2026) : aucun passage à venir, aucune épreuve EPCF, pas de livret, un dossier ouvert le 02/10
+# sans exemple rempli (que main écrivait « Dossier pro 02/10 »).
+LIGNES_MON_SUIVI_DU_BANC = ["Résultats : moi et la classe", "Passages : aucun à venir", "EPCF : 0 sur 2", "Livret : pas encore commencé",
+                            "Dossier pro : 0 exemple sur 6"]
+CLE_VUE_RESULTATS = "ecsr_resultats_vue"
+# La fiche d'un stagiaire chez l'équipe : Valentin (id 4), EPCF 1 sur 2, livret et dossier.
+ID_DE_LA_FICHE_DE_L_EQUIPE = 4
+
+# Ce que Mon suivi montre : ses sous-onglets (le premier groupe de la page), les lignes de son sommaire (texte, place, hauteur, texte coupé ou non), le haut de
+# la barre du bas, l'en-tête de la page, le titre de la partie (téléphone), le groupe « Moi / La classe » et la vue qu'il montre.
+JS_MON_SUIVI = r"""() => {
+  const vue = document.getElementById('view');
+  const net = (s) => (s || '').replace(/\s+/g, ' ').trim();
+  const lib = (x) => net(x.childNodes[0] ? x.childNodes[0].textContent : x.textContent);
+  const visible = (e) => !!e && e.getClientRects().length > 0 && getComputedStyle(e).visibility !== 'hidden';
+  const bar = vue.querySelector('.subtabs-bar');
+  const onglets = bar ? [...bar.querySelectorAll(':scope > .subtab')].filter(visible).map(lib) : [];
+  const actif = bar && bar.querySelector(':scope > .subtab.active');
+  const bas = document.querySelector('.nav-bas');
+  const barreBas = bas && visible(bas) ? bas.getBoundingClientRect().top : innerHeight;
+  const coupe = (e) => { const s = getComputedStyle(e);
+    return s.textOverflow === 'ellipsis' || ((s.overflowX === 'hidden' || s.overflowX === 'clip') && e.scrollWidth > e.clientWidth + 1); };
+  const lignes = [...vue.querySelectorAll('nav.fiche-sommaire a.fiche-ligne')].map((a) => {
+    const r = a.getBoundingClientRect();
+    return { texte: net(a.innerText), noms: [...a.querySelectorAll('.fiche-ligne-nom')].map((n) => net(n.textContent)), haut: r.top, bas: r.bottom, h: r.height,
+      coupee: [a, ...a.querySelectorAll('span')].some(coupe), clair: !!a.closest('.fiche-sommaire-clair') };
+  });
+  const groupe = vue.querySelector('.res-bar [role=group]');
+  const vues = [...vue.querySelectorAll('.res-bar button')].map((b) => { const r = b.getBoundingClientRect();
+    return { texte: net(b.textContent), presse: b.getAttribute('aria-pressed'), w: r.width, h: r.height }; });
+  const titre = vue.querySelector('h2.fiche-titre');
+  return { hash: location.hash, onglets, actif: actif ? lib(actif) : null, lignes, barreBas,
+    entete: visible(vue.querySelector('.view-header')), titre: titre && visible(titre) ? net(titre.textContent) : null,
+    groupe: groupe ? groupe.getAttribute('aria-label') : null, vues,
+    moi: [...vue.querySelectorAll('.res-vue h3.ms-section-title')].some((h) => net(h.textContent) === 'Mon évolution'),
+    classe: !!vue.querySelector('.res-vue .matrice-toolbar'), resultats: !!vue.querySelector('.res-bar'),
+    texte: net(vue.innerText), defile: document.documentElement.scrollWidth > innerWidth + 1 };
+}"""
+
+
+def lire_mon_suivi(page):
+    return page.evaluate(JS_MON_SUIVI)
+
+
+def attendre_vue_de_resultats(page, cible):
+    """La vue montrée par Résultats : « Mon évolution » pour Moi, la matrice des notes pour La classe (lue par la vue Notes, après ses données)."""
+    js = ("() => !!document.querySelector('#view .res-vue .matrice-toolbar')" if cible == "classe"
+          else "() => [...document.querySelectorAll('#view .res-vue h3.ms-section-title')].some((h) => h.textContent.trim() === 'Mon évolution')")
+    try:
+        page.wait_for_function(js, timeout=6000)
+        return True
+    except DelaiDepasse:
+        return False
+
+
+def verifier_resultats(res, vue, sc, m, cible, adresse_attendue="#/mon-suivi/resultats"):
+    """Résultats affiché sur la vue `cible` (« moi » ou « classe ») : l'adresse, la partie allumée (sous-onglet) ou son titre (téléphone, en-tête de la page
+    caché), le groupe « Moi / La classe » (nommé, deux boutons de 44 px, un seul pressé) et la vue qu'il montre, sans défilement de côté."""
+    echec = lambda detail: res.echec("Mon suivi, Résultats", vue, detail)
+    tel = sc.largeur < SEUIL_TELEPHONE
+    if m["hash"] != adresse_attendue:
+        echec("l'adresse est %s, attendu %s" % (m["hash"], adresse_attendue))
+    if tel:
+        if m["titre"] != "Résultats":
+            echec("le titre de la partie est « %s », attendu « Résultats »" % m["titre"])
+        if m["entete"]:
+            echec("l'en-tête « Mon suivi » reste affiché au-dessus du retour « ‹ Mon suivi » : la page se nomme deux fois")
+    elif m["actif"] != "Résultats":
+        echec("le sous-onglet allumé est « %s », attendu « Résultats »" % m["actif"])
+    if m["groupe"] != "Résultats à afficher":
+        echec("le groupe « Moi / La classe » est nommé « %s », attendu « Résultats à afficher »" % m["groupe"])
+    if [x["texte"] for x in m["vues"]] != ["Moi", "La classe"]:
+        echec("les boutons de Résultats sont %s, attendu « Moi », « La classe »" % [x["texte"] for x in m["vues"]])
+        return
+    presses = [x["presse"] for x in m["vues"]]
+    attendus = ["true", "false"] if cible == "moi" else ["false", "true"]
+    if presses != attendus:
+        echec("« Moi » et « La classe » sont pressés %s, attendu %s (vue « %s »)" % (presses, attendus, cible))
+    petits = ["%s (%dx%d px)" % (x["texte"], x["w"], x["h"]) for x in m["vues"] if x["w"] < 43.5 or x["h"] < 43.5]
+    if petits:
+        echec("boutons sous 44 px : %s" % ", ".join(petits))
+    if cible == "moi" and (not m["moi"] or m["classe"]):
+        echec("la vue « Moi » montre %s, attendu le graphe « Mon évolution » seul" % ("la matrice de la classe" if m["classe"] else "autre chose"))
+    if cible == "classe" and (not m["classe"] or m["moi"]):
+        echec("la vue « La classe » montre %s, attendu la matrice des notes de la classe seule" % ("« Mon évolution »" if m["moi"] else "autre chose"))
+    if m["defile"]:
+        echec("la page défile de côté")
+
+
+def verifier_parties_de_mon_suivi(page, res, sc, vue):
+    """Mon suivi, ouvert sans partie : les cinq parties dans l'ordre. Téléphone : le sommaire, chaque ligne dit son état en entier, sans date « 02/10 », jamais
+    coupée, de 44 px au moins, la dernière au-dessus de la barre du bas à l'ouverture et page défilée au bout. Ordinateur : les sous-onglets, Résultats allumé."""
+    echec = lambda detail: res.echec("Mon suivi, parties", vue, detail)
+    m = lire_mon_suivi(page)
+    if sc.largeur >= SEUIL_TELEPHONE:
+        if m["onglets"] != PARTIES_MON_SUIVI:
+            echec("les sous-onglets sont %s, attendu %s" % (m["onglets"], PARTIES_MON_SUIVI))
+        if m["actif"] != "Résultats":
+            echec("le sous-onglet allumé à la première ouverture est « %s », attendu « Résultats »" % m["actif"])
+        return
+    textes = [l["texte"] for l in m["lignes"]]
+    if textes != LIGNES_MON_SUIVI_DU_BANC:
+        echec("les lignes du sommaire disent %s, attendu %s" % (textes, LIGNES_MON_SUIVI_DU_BANC))
+    if [l["noms"][:1] for l in m["lignes"]] != [[p] for p in PARTIES_MON_SUIVI]:
+        echec("les lignes ne commencent pas par le nom de leur partie, dans l'ordre %s : %s" % (PARTIES_MON_SUIVI, [l["noms"] for l in m["lignes"]]))
+    for l in m["lignes"]:
+        if re.search(r"\d{2}/\d{2}", l["texte"]):
+            echec("la ligne « %s » porte une date jj/mm (« 02/10 » se lisait « 2 sur 10 »)" % l["texte"])
+        if l["coupee"]:
+            echec("la ligne « %s » est coupée (points de suspension ou débordement caché)" % l["texte"])
+        if l["h"] < 43.5:
+            echec("la ligne « %s » mesure %d px de haut (44 px au moins)" % (l["texte"], l["h"]))
+        if not l["clair"]:
+            echec("la ligne « %s » n'est pas dans le sommaire aux libellés clairs" % l["texte"])
+    if not m["lignes"]:
+        return
+    der = m["lignes"][-1]
+    if der["bas"] > m["barreBas"] + 0.5:
+        echec("à l'ouverture, la dernière ligne (« %s ») descend à %d px, sous le haut de la barre du bas (%d px)" % (der["texte"], der["bas"], m["barreBas"]))
+    page.evaluate("() => window.scrollTo(0, document.documentElement.scrollHeight)")
+    page.wait_for_timeout(150)
+    m2 = lire_mon_suivi(page)
+    der = m2["lignes"][-1]
+    if der["bas"] > m2["barreBas"] + 0.5:
+        echec("page défilée au bout, la dernière ligne (« %s ») descend à %d px, sous le haut de la barre du bas (%d px)" % (der["texte"], der["bas"], m2["barreBas"]))
+    page.evaluate("() => window.scrollTo(0, 0)")
+
+
+def jouer_mon_suivi(page, res, sc):
+    """Mon suivi aux libellés clairs (lot 2B, tâche 7), nouvelle navigation, toute personne qui a une fiche, à 1 280 et 375 px. Les parties dans l'ordre ; Résultats
+    ouvre « Moi » sans mémoire, « La classe » se choisit, se garde en quittant la page et après un rechargement, « Moi » se rechoisit ; sur téléphone, le retour
+    ramène au sommaire ; #/mon-suivi/classe, #/mon-suivi/evolution et #/notes (stagiaire) ouvrent Résultats sur la bonne vue, quelle que soit la mémoire, l'adresse
+    devenue celle de Résultats sans étape d'historique ; sur téléphone, un exemple du dossier enregistré fait passer la ligne « Dossier pro » à « 1 exemple sur 6 »."""
+    tel = sc.largeur < SEUIL_TELEPHONE
+    base = "%s/mon-suivi" % sc.nom
+    memoriser = lambda v: page.evaluate("(a) => { try { if (a[1]) localStorage.setItem(a[0], a[1]); else localStorage.removeItem(a[0]); } catch (e) {} }",
+                                        [CLE_VUE_RESULTATS, v])
+    # 1. Les parties, sans mémoire (ni vue de Résultats ni sous-onglet de Mon suivi).
+    page.evaluate("() => { try { localStorage.removeItem('ecsr_monsuivi_subtab'); } catch (e) {} }")
+    memoriser(None)
+    aller_a(page, "#/home")
+    attendre(page)
+    aller_a(page, "#/mon-suivi")
+    attendre(page)
+    vue = base + "/parties"
+    res.vues += 1
+    verifier_parties_de_mon_suivi(page, res, sc, vue)
+    # 2. Résultats, « Moi » par défaut.
+    vue = base + "/resultats-moi"
+    res.vues += 1
+    if tel and not cliquer(page, res, vue, '#view nav.fiche-sommaire a.fiche-ligne[href="#/mon-suivi/resultats"]', "ligne « Résultats » du sommaire"):
+        return
+    attendre(page)
+    if not attendre_vue_de_resultats(page, "moi"):
+        res.echec("Mon suivi, Résultats", vue, "Résultats, ouvert sans mémoire, ne montre pas « Mon évolution »")
+    # Sur ordinateur, Mon suivi ouvert sans partie garde son adresse jusqu'au premier choix d'onglet ; « Moi / La classe » ne la change pas.
+    ouvert = "#/mon-suivi/resultats" if tel else "#/mon-suivi"
+    verifier_resultats(res, vue, sc, lire_mon_suivi(page), "moi", ouvert)
+    # 3. « La classe » se choisit.
+    vue = base + "/resultats-la-classe"
+    res.vues += 1
+    if not cliquer(page, res, vue, '#view .res-bar button[data-vue="classe"]', "bouton « La classe »"):
+        return
+    if not attendre_vue_de_resultats(page, "classe"):
+        res.echec("Mon suivi, Résultats", vue, "« La classe » ne montre pas la matrice des notes de la classe")
+    verifier_resultats(res, vue, sc, lire_mon_suivi(page), "classe", ouvert)
+    # 4. La mémoire : quitter la page puis revenir, puis rouvrir l'app (rechargement), « La classe » reste choisie.
+    vue = base + "/resultats-memoire"
+    res.vues += 1
+    aller_a(page, "#/planning")
+    attendre(page)
+    aller_a(page, "#/mon-suivi/resultats")
+    attendre(page)
+    attendre_vue_de_resultats(page, "classe")
+    verifier_resultats(res, vue, sc, lire_mon_suivi(page), "classe")
+    vue = base + "/resultats-memoire-rechargee"
+    res.vues += 1
+    recharger_au_banc(page, "#/mon-suivi/resultats")
+    attendre_vue_de_resultats(page, "classe")
+    verifier_resultats(res, vue, sc, lire_mon_suivi(page), "classe")
+    # 5. « Moi » se rechoisit ; sur téléphone, le retour ramène au sommaire.
+    vue = base + "/resultats-retour-a-moi"
+    res.vues += 1
+    if cliquer(page, res, vue, '#view .res-bar button[data-vue="moi"]', "bouton « Moi »"):
+        attendre_vue_de_resultats(page, "moi")
+        verifier_resultats(res, vue, sc, lire_mon_suivi(page), "moi")
+    if tel:
+        vue = base + "/retour-au-sommaire"
+        res.vues += 1
+        if cliquer(page, res, vue, "#view a.fiche-retour", "retour « ‹ Mon suivi »"):
+            attendre(page)
+            m = lire_mon_suivi(page)
+            if m["hash"] != "#/mon-suivi" or [l["texte"] for l in m["lignes"]] != LIGNES_MON_SUIVI_DU_BANC or not m["entete"]:
+                res.echec("Mon suivi, Résultats", vue, "le retour mène à %s (lignes %s, en-tête %s), attendu le sommaire de #/mon-suivi et son en-tête"
+                          % (m["hash"], [l["texte"] for l in m["lignes"]], "visible" if m["entete"] else "caché"))
+    # 6. Les adresses d'avant ouvrent Résultats sur leur vue, quelle que soit la mémoire (la vue opposée y est écrite avant).
+    adresses = [("#/mon-suivi/classe", "classe"), ("#/mon-suivi/evolution", "moi")] + ([("#/notes", "classe")] if sc.espace == "stagiaire" else [])
+    for adresse, cible in adresses:
+        vue = "%s/adresse/%s" % (base, adresse.rsplit("/", 1)[-1])
+        res.vues += 1
+        memoriser("moi" if cible == "classe" else "classe")
+        aller_a(page, "#/home")
+        attendre(page)
+        aller_a(page, adresse)
+        attendre(page)
+        if not attendre_vue_de_resultats(page, cible):
+            res.echec("Mon suivi, adresse d'avant", vue, "%s ne montre pas la vue « %s » de Résultats" % (adresse, "La classe" if cible == "classe" else "Moi"))
+        verifier_resultats(res, vue, sc, lire_mon_suivi(page), cible)
+        if adresse == "#/mon-suivi/classe":
+            page.go_back()
+            try:
+                page.wait_for_function("() => location.hash === '#/home'", timeout=2000)
+            except DelaiDepasse:
+                res.echec("Mon suivi, adresse d'avant", vue, "« Précédent » depuis %s mène à %s, attendu #/home (l'adresse de Résultats remplace l'ancienne, sans étape de plus)"
+                          % (adresse, page.evaluate("() => location.hash")))
+            attendre(page)
+    vider_console(res, base)
+    # 7. Téléphone : le compte du dossier suit un enregistrement, sans recharger (le banc garde l'écriture, ?ecritures=1).
+    if tel:
+        jouer_compte_du_dossier(page, res, sc)
+
+
+def jouer_compte_du_dossier(page, res, sc):
+    vue = "%s/mon-suivi/dossier-enregistre" % sc.nom
+    res.vues += 1
+    recharger_au_banc(page, "#/mon-suivi/dp", ecritures="1")
+    try:
+        page.wait_for_selector('#view .lv-f[data-k="at1_ex1_titre"]', timeout=6000)
+    except DelaiDepasse:
+        res.echec("Mon suivi, dossier", vue, "la partie Dossier pro n'affiche pas le titre du premier exemple à remplir")
+        return
+    if not cliquer(page, res, vue, '#view .lv-f[data-k="at1_ex1_titre"]', "titre du premier exemple du dossier"):
+        return
+    page.keyboard.type("Leçon de conduite en ville")
+    try:
+        page.wait_for_function("() => /Enregistré/.test((document.querySelector('#view .lv-status') || {}).textContent || '')", timeout=6000)
+    except DelaiDepasse:
+        res.echec("Mon suivi, dossier", vue, "le dossier ne s'enregistre pas (statut « %s »)" % page.evaluate("() => (document.querySelector('#view .lv-status') || {}).textContent"))
+        return
+    if not cliquer(page, res, vue, "#view a.fiche-retour", "retour « ‹ Mon suivi »"):
+        return
+    attendre(page)
+    lignes = [l["texte"] for l in lire_mon_suivi(page)["lignes"]]
+    if "Dossier pro : 1 exemple sur 6" not in lignes:
+        res.echec("Mon suivi, dossier", vue, "après l'enregistrement d'un exemple, le sommaire dit %s, attendu la ligne « Dossier pro : 1 exemple sur 6 »" % lignes)
+    vider_console(res, vue)
+    recharger_au_banc(page, "#/home", ecritures="")
+
+
+def lire_fiche_de_main(page):
+    """La fiche telle que main la montre : les noms des parties (lignes du sommaire sur téléphone, sous-onglets de la fiche sur ordinateur, sans ceux de la
+    page Stagiaires), et ce que la nouvelle navigation de Mon suivi y ajouterait."""
+    return page.evaluate(r"""() => {
+      const vue = document.getElementById('view');
+      const net = (s) => (s || '').replace(/\s+/g, ' ').trim();
+      const lignes = [...vue.querySelectorAll('nav.fiche-sommaire a.fiche-ligne .fiche-ligne-nom')].map((n) => net(n.textContent));
+      const barres = [...vue.querySelectorAll('.subtabs-bar')].map((b) => [...b.querySelectorAll(':scope > .subtab')].filter((x) => x.getClientRects().length)
+        .map((x) => net(x.childNodes[0] ? x.childNodes[0].textContent : x.textContent)));
+      return { lignes, barres, ajouts: vue.querySelectorAll('.res-bar, .fiche-sommaire-clair, .fiche-ligne-texte').length };
+    }""")
+
+
+def parties_de_main_montrees(f, sc):
+    if sc.largeur < SEUIL_TELEPHONE:
+        return f["lignes"]
+    return next((b for b in f["barres"] if b and b[0] == "Passages"), [])
+
+
+def verifier_fiche_de_l_equipe(page, res, sc):
+    """La fiche d'un stagiaire vue par l'équipe (page Stagiaires), dans les deux navigations : les parties de main (Passages, EPCF, Évolution, Livret, Dossier pro),
+    sans Résultats ni « Moi / La classe » ni sommaire aux libellés clairs ; la partie Évolution s'ouvre sur son graphe."""
+    vue = "%s/stagiaires/%d/fiche-de-main" % (sc.nom, ID_DE_LA_FICHE_DE_L_EQUIPE)
+    echec = lambda detail: res.echec("fiche d'un stagiaire chez l'équipe", vue, detail)
+    aller_a(page, "#/stagiaires/%d" % ID_DE_LA_FICHE_DE_L_EQUIPE)
+    attendre(page)
+    try:
+        page.wait_for_function("() => !!document.querySelector('#view nav.fiche-sommaire, #view .stg-fiche .subtabs-bar, #view .subtab')", timeout=6000)
+    except DelaiDepasse:
+        pass
+    res.vues += 1
+    f = lire_fiche_de_main(page)
+    montrees = parties_de_main_montrees(f, sc)
+    if montrees != PARTIES_FICHE_DE_MAIN:
+        echec("les parties sont %s, attendu celles de main %s (lignes %s, barres %s)" % (montrees, PARTIES_FICHE_DE_MAIN, f["lignes"], f["barres"]))
+    if f["ajouts"] or "Résultats" in montrees:
+        echec("la fiche montre Résultats, « Moi / La classe » ou le sommaire aux libellés clairs de Mon suivi")
+    aller_a(page, "#/stagiaires/%d/evolution" % ID_DE_LA_FICHE_DE_L_EQUIPE)
+    attendre(page)
+    titre = page.evaluate(r"""() => [...document.querySelectorAll('#view h3.ms-section-title')].map((h) => h.textContent.trim())""")
+    if "Évolution" not in titre:
+        echec("la partie Évolution de la fiche ne montre pas sa section « Évolution » (titres : %s)" % titre)
+    if page.evaluate("() => location.hash") != "#/stagiaires/%d/evolution" % ID_DE_LA_FICHE_DE_L_EQUIPE:
+        echec("#/stagiaires/%d/evolution devient %s" % (ID_DE_LA_FICHE_DE_L_EQUIPE, page.evaluate("() => location.hash")))
+    vider_console(res, vue)
+
+
+def verifier_mon_espace_eteint(page, res, sc):
+    """Interrupteur éteint : Mon espace garde les parties de main et leurs états (« EPCF 0/2 », « Dossier pro 02/10 » sont ceux de main), sans Résultats ni
+    « Moi / La classe » ; #/mon-suivi/evolution ouvre la partie Évolution."""
+    vue = "%s/mon-espace-de-main" % sc.nom
+    echec = lambda detail: res.echec("Mon espace, interrupteur éteint", vue, detail)
+    aller_a(page, "#/mon-suivi")
+    attendre(page)
+    res.vues += 1
+    f = lire_fiche_de_main(page)
+    montrees = parties_de_main_montrees(f, sc)
+    if montrees != PARTIES_FICHE_DE_MAIN:
+        echec("les parties sont %s, attendu celles de main %s" % (montrees, PARTIES_FICHE_DE_MAIN))
+    if f["ajouts"] or "Résultats" in montrees:
+        echec("Mon espace montre Résultats, « Moi / La classe » ou le sommaire aux libellés clairs de la nouvelle navigation")
+    aller_a(page, "#/mon-suivi/evolution")
+    attendre(page)
+    m = lire_mon_suivi(page)
+    if m["hash"] != "#/mon-suivi/evolution" or m["resultats"]:
+        echec("#/mon-suivi/evolution devient %s%s, attendu la partie Évolution de main" % (m["hash"], " avec « Moi / La classe »" if m["resultats"] else ""))
+    vider_console(res, vue)
+
+
+def verifier_resultats_fermes(page, res, sc):
+    """Module des notes fermé (`?modules=depart`), stagiaire : ni partie Résultats ni « Moi / La classe », ni par Mon suivi ni par #/mon-suivi/classe."""
+    vue = "%s/mon-suivi/resultats-fermes" % sc.nom
+    res.vues += 1
+    for adresse in ("#/mon-suivi", "#/mon-suivi/classe", "#/mon-suivi/resultats"):
+        aller_a(page, "#/home")
+        attendre(page)
+        aller_a(page, adresse)
+        attendre(page)
+        m = lire_mon_suivi(page)
+        noms = m["onglets"] + [l["texte"] for l in m["lignes"]] + ([m["titre"]] if m["titre"] else [])
+        if m["resultats"] or any(n.startswith("Résultats") for n in noms):
+            res.echec("Mon suivi, notes fermées", vue, "%s montre Résultats (%s) alors que le module des notes est fermé" % (adresse, noms))
+    vider_console(res, vue)
+
+
 def verifier_notes_eteint(page, res, sc):
     """Interrupteur éteint, stagiaire : la page Notes de main (ses deux phrases, « Clique une cellule... » et « Lecture seule... », et ses deux sous-onglets)."""
     vue = "%s/notes" % sc.nom
@@ -5043,6 +5395,15 @@ def jouer_allume(page, res, sc, options):
             jouer_qcm_du_stagiaire(page, res, sc)
         elif sc.espace == "equipe" and not sc.modules and sc.largeur in (375, 1280):
             jouer_propositions_ia(page, res, sc)
+    # Lot 2B, tâche 7 : Mon suivi aux libellés clairs (le compte du dossier recharge le banc et l'écrit : en dernier) ; la fiche d'un stagiaire chez l'équipe, inchangée.
+    if res.coquille and not (sc.ressources_fermees or sc.voir_en_tant_que or sc.a_traiter or sc.sans_droits):
+        if sc.espace == "stagiaire" and sc.modules == "depart":
+            verifier_resultats_fermes(page, res, sc)
+        elif not sc.modules and sc.largeur in (375, 1280):
+            if sc.espace == "equipe":
+                verifier_fiche_de_l_equipe(page, res, sc)
+            if res.profil_stagiaire:
+                jouer_mon_suivi(page, res, sc)
 
 
 def focus_garde(page, res, vue, geste):
@@ -5308,6 +5669,12 @@ def jouer_eteint(page, res, sc, options):
     verifier_planning_grille_eteint(page, res, sc)
     if sc.role == "stagiaire":
         verifier_notes_eteint(page, res, sc)
+    # Lot 2B, tâche 7 : éteint, Mon espace et la fiche d'un stagiaire chez l'équipe gardent les parties de main.
+    if sc.largeur in (375, 1280) and not sc.voir_en_tant_que and not sc.agenda_vide:
+        if sc.role in ("stagiaire", "fondateur"):
+            verifier_mon_espace_eteint(page, res, sc)
+        if sc.role in ("prof", "fondateur"):
+            verifier_fiche_de_l_equipe(page, res, sc)
     verifier_bandeau_emargement(page, res, sc)
     if sc.role in ("prof", "fondateur"):
         verifier_benevoles_eteint(page, res, sc)

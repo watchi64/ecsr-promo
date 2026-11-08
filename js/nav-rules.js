@@ -4,6 +4,8 @@
 // anciennes adresses, les initiales, le prénom et le nom du bouton du compte, la ligne « page à soi »
 // du menu du compte. Module pur, sans DOM ni stockage : testé en node.
 
+import { CLE_VUE_RESULTATS } from "./route-rules.js?v=20261106a";
+
 // Clé de mémoire du sous-onglet ouvert, par page à sous-onglets (le `storageKey` de
 // renderSubTabs). Une redirection l'écrit pour ouvrir le bon sous-onglet ; le bouton « Élèves bénévoles »
 // du Planning, pour ouvrir celui de Stagiaires (lot 2A).
@@ -186,8 +188,8 @@ export function pageASoiDuMenu(page, entrees) {
 // Où mène une ancienne adresse sous la nouvelle navigation : null (rien à rediriger) ou la
 // nouvelle adresse avec le sous-onglet à ouvrir (`cle` : sa clé de mémoire, `valeur` : son
 // identifiant). Seule la route décide : `id` et `partie` n'existent que pour Stagiaires et
-// Mon espace, jamais redirigés. `notes` ne bouge que chez le stagiaire (la classe, sous Mon
-// suivi) ; l'équipe garde sa page Notes. De même `config` : Réglages (la promo) est la page de
+// Mon espace, jamais redirigés. `notes` ne bouge que chez le stagiaire (Mon suivi, Résultats,
+// vue La classe) ; l'équipe garde sa page Notes. De même `config` : Réglages (la promo) est la page de
 // l'équipe, le stagiaire arrive sur Mes préférences (lot 2A). Aucune cible n'est elle-même
 // redirigée : pas de boucle.
 export function redirectionV2({ route }, espace) {
@@ -197,7 +199,8 @@ export function redirectionV2({ route }, espace) {
     return { hash: "#/" + v.page, sousOnglet };
   }
   if (route === "notes" && espace !== "equipe") {
-    return { hash: "#/mon-suivi/classe", sousOnglet: null };
+    // La classe est une vue de Résultats (lot 2B, tâche 7) : sa mémoire reçoit « classe ».
+    return { hash: "#/mon-suivi/resultats", sousOnglet: { cle: CLE_VUE_RESULTATS, valeur: "classe" } };
   }
   if (route === "config" && espace !== "equipe") {
     return { hash: "#/preferences", sousOnglet: null };

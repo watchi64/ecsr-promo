@@ -448,3 +448,18 @@
   .acc-ligne-actions { flex-basis: 100%; justify-content: flex-start; padding-left: 50px; margin-top: -2px; }
 }
 .acc-ligne-action:hover b { color: inherit; }
+
+/* Mon suivi aux libellés clairs (lot 2B, tâche 7). Sommaire du téléphone : chaque ligne se lit comme une phrase, le nom de
+   la partie en tête, son état à sa suite (« Dossier pro : 2 exemples sur 6 ») ; le texte passe à la ligne, jamais coupé. */
+.fiche-ligne-texte { flex: 1; min-width: 0; font-size: 1rem; line-height: 1.35; overflow-wrap: break-word; }
+.fiche-ligne-texte .fiche-ligne-nom { font-weight: 600; }
+.fiche-ligne-texte .fiche-ligne-etat { font-size: inherit; }
+.fiche-sommaire-clair .fiche-ligne { min-height: 52px; }
+/* Résultats : le groupe « Moi / La classe » (même dessin que « Grille / Liste » du Planning) au-dessus de la vue choisie. */
+.res-bar { display: flex; margin: 0 0 1rem; }
+/* Téléphone, dans une partie : Mon suivi cache son en-tête (le retour « ‹ Mon suivi » le remplace, js/views/mon-suivi.js), mais
+   `.view-header { display: flex }` l'emportait sur l'attribut hidden : « Mon suivi » se lisait deux fois au-dessus de la partie. */
+body[data-nav="v2"] .view-header[hidden] { display: none; }
+/* Même cas : le retour, le titre de la partie et la partie se tiennent, au lieu des 2rem qui séparent ailleurs les blocs de la page. */
+body[data-nav="v2"] .ms-body.ms-body-partie { gap: 0.5rem; margin-top: 0.25rem; }
+body[data-nav="v2"] .ms-body.ms-body-partie > .fiche-titre { margin-top: 0.25rem; }

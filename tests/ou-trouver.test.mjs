@@ -59,8 +59,18 @@ eq(dit({ label: "Mon espace, partie Livret", route: "mon-suivi", sousOnglet: "li
 eq(dit({ label: "Mon espace personnel", route: "mon-suivi" }, NOUVELLE), "Mon suivi", "mon-suivi sans partie : Mon suivi");
 eq(dit({ label: "Le logo en haut à gauche", route: "mon-suivi" }, NOUVELLE), "Mon suivi", "mon-suivi : un geste de l'ancienne barre devient le nom de la page");
 eq(dit({ label: "Mon suivi, partie Livret", route: "mon-suivi", sousOnglet: "livret" }, NOUVELLE), "Mon suivi, partie Livret", "mon-suivi : libellé déjà à jour");
-eq(dit({ label: "Notes", route: "notes" }, NOUVELLE), "Mon suivi, La classe", "notes chez un stagiaire : Mon suivi, La classe");
-eq(dit({ label: "Notes, Synthèse classe", route: "notes" }, NOUVELLE), "Mon suivi, La classe", "notes chez un stagiaire, avec un détail");
+// Lot 2B, tâche 7 : Évolution et La classe sont réunies dans la partie Résultats de Mon suivi.
+eq(dit({ label: "Notes", route: "notes" }, NOUVELLE), "Mon suivi, partie Résultats", "notes chez un stagiaire : Mon suivi, partie Résultats");
+eq(dit({ label: "Notes, Synthèse classe", route: "notes" }, NOUVELLE), "Mon suivi, partie Résultats", "notes chez un stagiaire, avec un détail");
+eq(dit({ label: "Mon espace personnel, partie Évolution", route: "mon-suivi", sousOnglet: "evolution" }, NOUVELLE), "Mon suivi, partie Résultats",
+  "mon-suivi, partie Évolution : Mon suivi, partie Résultats");
+eq(dit({ label: "Mon espace personnel, partie Évolution", route: "mon-suivi", sousOnglet: "evolution" }, NOUVELLE_EQUIPE), "Mon suivi, partie Résultats",
+  "mon-suivi, partie Évolution, chez l'équipe (un formateur qui a une fiche) : même partie");
+eq(dit({ label: "Mon suivi, La classe", route: "mon-suivi", sousOnglet: "classe" }, NOUVELLE), "Mon suivi, partie Résultats", "mon-suivi, La classe : partie Résultats");
+eq(ouSelonNavigation({ label: "Mon espace personnel, partie Évolution", route: "mon-suivi", sousOnglet: "evolution" }, NOUVELLE).sousOnglet, "evolution",
+  "le lien garde son adresse (#/mon-suivi/evolution ouvre Résultats, Moi)");
+eq(dit({ label: "Mon espace personnel, partie Évolution", route: "mon-suivi", sousOnglet: "evolution" }, ANCIENNE), "Mon espace personnel, partie Évolution",
+  "ancienne navigation : partie Évolution, telle quelle");
 eq(dit({ label: "Notes", route: "notes" }, NOUVELLE_EQUIPE), "Notes et examens", "notes chez l'équipe : Notes et examens");
 eq(dit({ label: "Notes, Synthèse classe", route: "notes" }, NOUVELLE_EQUIPE), "Notes et examens, Synthèse classe", "notes chez l'équipe : le détail suit");
 eq(dit({ label: "Paramètres, Mes préférences", route: "config" }, NOUVELLE), "Mes préférences", "config chez un stagiaire : Mes préférences");

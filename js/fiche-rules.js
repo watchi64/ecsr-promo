@@ -4,9 +4,23 @@
 export const EPREUVES_EPCF = ["salle", "vehicule"];
 
 // Émis par le livret et le dossier pro après un enregistrement, avec
-// { genre: "livret" | "dossier", stagiaireId, updatedAt } : les états suivent
-// sans relire la base.
+// { genre: "livret" | "dossier", stagiaireId, updatedAt } et, pour le dossier,
+// `exemples` (exemples remplis, de 0 à 6) : les états suivent sans relire la base.
 export const EVT_DOCUMENT = "document-enregistre";
+
+// Note un enregistrement (EVT_DOCUMENT) dans les données `d` d'une fiche chargée
+// (chargerFiche de js/views/mon-suivi.js). Faux si l'événement ne la concerne pas.
+// Un dossier sans compte (ancien émetteur) garde le dernier compte connu.
+export function noterDocument(d, detail) {
+  if (!d || !detail || detail.stagiaireId !== d.id) return false;
+  const ligne = { stagiaire_id: d.id, updated_at: detail.updatedAt };
+  if (detail.genre === "livret") d.livret = ligne;
+  else if (detail.genre === "dossier") {
+    d.dossier = ligne;
+    if (Number.isInteger(detail.exemples)) d.exemplesDossier = detail.exemples;
+  } else return false;
+  return true;
+}
 
 // Épreuves ayant au moins une évaluation (plusieurs évaluations d'une même
 // épreuve comptent une fois).
@@ -62,5 +76,28 @@ export function etatsSommaire({ aVenir, evals, livret, dossier, soi }) {
       : soi ? { texte: "pas encore créé", afaire: false }
       : { texte: "vierge", afaire: true },
     dp: { texte: texteDossier(dossier, null), afaire: !dossier },
+  };
+}
+
+const pluriel = (n, mot) => `${n} ${mot}${n > 1 ? "s" : ""}`;
+
+// États de Mon suivi, nouvelle navigation (lot 2B, tâche 7) : la ligne entière, nom de la
+// partie compris, pour qu'elle se lise seule (« EPCF : 0 sur 2 », jamais « 0/2 » ; « Dossier
+// pro : 2 exemples sur 6 », jamais « 02/10 », qui se lisait comme une date, ruling R65).
+// `exemplesDossier` : exemples remplis (exemplesRemplis de js/dp-rules.js), null sans dossier.
+// Le texte de Résultats ne dépend d'aucune donnée : il dit ce que la partie contient. Comme
+// pour etatsSommaire de soi, seul le dossier, qui dépend du stagiaire, passe en orange ; il le
+// reste tant que les 6 exemples ne sont pas remplis, comme la ligne de l'Accueil.
+export function etatsClairs({ aVenir = 0, evals, livret, exemplesDossier = null } = {}) {
+  const n = epreuvesEvaluees(evals);
+  const exemples = Number.isInteger(exemplesDossier) ? exemplesDossier : null;
+  return {
+    resultats: { texte: "Résultats : moi et la classe", afaire: false },
+    passages: { texte: "Passages : " + (aVenir > 0 ? `${aVenir} à venir` : "aucun à venir"), afaire: false },
+    epcf: { texte: `EPCF : ${n} sur 2`, afaire: false },
+    livret: { texte: "Livret : " + (livret ? "commencé" : "pas encore commencé"), afaire: false },
+    dp: exemples === null
+      ? { texte: "Dossier pro : pas encore commencé", afaire: true }
+      : { texte: `Dossier pro : ${pluriel(exemples, "exemple")} sur 6`, afaire: exemples < 6 },
   };
 }
