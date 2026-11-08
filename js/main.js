@@ -7,7 +7,7 @@ import "./journal-erreurs.js?v=20261108b";
 import { getCurrentUser, invalidateCache, verifyRecoveryToken, rechargerApresEnregistrements } from "./db.js?v=20261108b";
 import { toast, el } from "./utils.js?v=20261108b";
 import { icon } from "./icons.js?v=20261108b";
-import { initAuth, onAdminChange, isAuth, monStagiaireId, getAdminEmail, getProfile, getProfileWho, fondateurHorsApercu } from "./auth-admin.js?v=20261108b";
+import { initAuth, onAdminChange, isAuth, isAdmin, monStagiaireId, getAdminEmail, getProfile, getProfileWho, fondateurHorsApercu } from "./auth-admin.js?v=20261108b";
 import { chargerEtatSignalements } from "./signalement-etat.js?v=20261108b";
 import { messageDemarrage } from "./signalement-rules.js?v=20261108b";
 import { showGate, hideGate } from "./gate.js?v=20261108b";
@@ -95,7 +95,7 @@ function renderTabs() {
       const nom = getProfileWho();
       monterCoquille({
         espace,
-        entrees: entreesNavigation(espace, { routeVisible, emargementActif: emargementActif() }),
+        entrees: entreesNavigation(espace, { routeVisible, emargementActif: emargementActif(), formateur: isAdmin() }),
         nom,
         initiales: initialesDe(nom),
         actualiser,

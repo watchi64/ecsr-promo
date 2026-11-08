@@ -811,9 +811,13 @@ export async function proposerQuestionsIa(qcmId, nombre, partie) {
   const { data } = await supabase.auth.getSession();
   const jeton = data?.session?.access_token;
   if (!data?.session) throw new Error("Reconnecte-toi pour utiliser l'IA.");
+  const entetes = { "Content-Type": "application/json", apikey: SUPABASE_KEY, Authorization: `Bearer ${jeton}` };
+  // La promo affichée : la fonction juge le droit de formateur sur elle, comme la base pour l'app (un compte formateur
+  // d'une autre promo que celle de sa fiche, relecture finale, I4). L'aperçu, lui, ne part pas vers les fonctions Edge.
+  if (promoCouranteId != null) entetes[ENTETE_PROMO] = String(promoCouranteId);
   const resp = await fetch(`${SUPABASE_URL}/functions/v1/qcm-ia`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", apikey: SUPABASE_KEY, Authorization: `Bearer ${jeton}` },
+    headers: entetes,
     body: JSON.stringify({ qcm_id: qcmId, nombre, partie: partie || "" }),
     signal: AbortSignal.timeout(150000),
   });
@@ -1477,7 +1481,8 @@ export async function deleteUserProfile(email) {
 }
 
 // Invite un compte par la fonction de la base inviter_compte (la base vérifie qui peut inviter qui). Renvoie
-// { email, role, cree } : `cree` est faux quand le profil existait déjà (rien n'a changé). « prof » part
+// { email, role, cree, affecte } : `cree` est faux quand le profil existait déjà, `affecte` compte les affectations
+// ajoutées (un compte existant qui gagne une promo) ; rien n'a changé quand ni l'un ni l'autre. « prof » part
 // comme « formateur ». Les refus de la base commencent par « invitation: » : la phrase est montrée sans.
 export async function inviteUser({ email, role, stagiaire_id = null, prof_id = null, lieu_id = null }) {
   const { data, error } = await supabase.rpc("inviter_compte", {
@@ -1688,9 +1693,10 @@ export async function lireReferentielCentre() {
 // formateurs et l'en-tête des feuilles d'émargement. Lecture seule.
 // Les tables par promo (planning, jours désactivés, calendrier, livrets, dossiers, auto-écoles, réglages) se lisent AVEC
 // l'en-tête de lecture de la promo demandée : sans lui, la base rendrait celles de la promo courante, et pour les
-// auto-écoles celles du lieu de la promo courante, donc d'un autre centre. Les tables communes à toutes les promos
-// (signalements, cours, versions de cours, formateurs) se lisent SANS. Les signalements n'ont pas de promo : ils sont
-// gardés quand leur auteur est un stagiaire de la promo lue. Les cours et leurs versions sont lus en entier, sans filtre :
+// auto-écoles celles du lieu de la promo courante, donc d'un autre centre. Les signalements de QCM aussi : ils n'ont pas
+// de colonne de promo, mais la base (lot 4) ne rend à un formateur que ceux des fiches de la promo affichée et ceux sans
+// fiche ; ils sont gardés ici quand leur auteur est un stagiaire de la promo lue. Les tables communes à toutes les promos
+// (cours, versions de cours, formateurs) se lisent SANS. Les cours et leurs versions sont lus en entier, sans filtre :
 // l'inventaire retire la plus ancienne date de chaque cours (sa création), qu'une lecture bornée ferait confondre avec
 // une modification. Ni `email`, ni `corps_md`, ni `saved_by` ne sont lus.
 // promoId nul : erreur, jamais de repli sur la promo courante (ses chiffres s'afficheraient sous le nom d'une autre).
@@ -1712,7 +1718,7 @@ export async function lireDonneesQualiopi(promoId) {
     parPromo("agenda_events", "id, type, date_start, date_end", "id"),
     parPromo("epcf_livrets", "stagiaire_id, updated_at", "id"),
     parPromo("dp_dossiers", "stagiaire_id, updated_at", "id"),
-    communes("qcm_signalements", "id, stagiaire_id, statut, created_at, traite_at", "id"),
+    parPromo("qcm_signalements", "id, stagiaire_id, statut, created_at, traite_at", "id"),
     communes("cours", "id, published, updated_at", "id"),
     parPromo("auto_ecoles", "id, actif, lieu_id", "id"),
     communes("profs", "id, nom", "id"),
@@ -1756,6 +1762,8 @@ export async function createQcmSignalement({ questionId, motif, commentaire, opt
 
 // stagiaire_id de l'utilisateur courant, ou null (un formateur n'en a pas forcément).
 async function myStagiaireId() {
+  // En aperçu formateur, direction ou siège, aucune fiche, comme monStagiaireId() (relecture finale, M8).
+  if (apercuEnvoye && apercuEnvoye !== "stagiaire") return null;
   // Contexte de promo chargé : la fiche de CETTE promo (le fondateur n'en a pas en septembre).
   const promo = getPromoCourante();
   if (promo) return promo.stagiaire_id ?? null;

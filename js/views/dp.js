@@ -10,7 +10,7 @@
 
 import { listStagiaires, listDpDossiers, getDpDossier, upsertDpDossier } from "../db.js?v=20261108b";
 import { el, clear, displayStagiaire, compareByNom, formatDate, toast } from "../utils.js?v=20261108b";
-import { isAdmin, isProf, getProfile } from "../auth-admin.js?v=20261108b";
+import { isAdmin, isProf, monStagiaireId as maFiche } from "../auth-admin.js?v=20261108b";
 import { getCurrentWho } from "../identity.js?v=20261108b";
 import { EVT_DOCUMENT } from "../fiche-rules.js?v=20261108b";
 import { collectData, fillData, applyEditable, wireDocEditing,
@@ -57,7 +57,8 @@ export async function renderDp(container, opts = {}) {
   const formateur = isAdmin() || isProf();
   // Écrire dans le dossier d'un stagiaire : le formateur de la promo (la direction le lit, la base refuserait l'écriture).
   const ecrit = isAdmin();
-  const monId = getProfile()?.stagiaire_id ?? null;
+  // Sa fiche, telle que l'app la traite : aucune en aperçu formateur, direction ou siège (relecture finale, M8).
+  const monId = maFiche();
 
   if (opts.stagiaireId != null) {
     const id = Number(opts.stagiaireId);
@@ -172,7 +173,7 @@ function showDoc(container, stagiaire, row, { readOnly, stagiaireId, back } = {}
     toolbar.appendChild(el("button", { class: "btn small ghost",
       onClick: () => { teardownDocPrint(); back(); } }, "← Retour"));
   }
-  const cestLeMien = stagiaire == null || (getProfile()?.stagiaire_id ?? null) === stagiaireId;
+  const cestLeMien = stagiaire == null || maFiche() === stagiaireId;
   toolbar.appendChild(el("h3", {},
     "Dossier professionnel" + (!cestLeMien && stagiaire ? " : " + displayStagiaire(stagiaire) : "")));
   toolbar.appendChild(status);

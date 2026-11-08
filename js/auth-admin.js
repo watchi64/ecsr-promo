@@ -19,7 +19,7 @@ import {
   bloquerRequetesJusquAuRechargement, poserApercu, invalidateCache,
 } from "./db.js?v=20261108b";
 import {
-  LIBELLES_APERCU, normaliserApercu, apercusPermis, droitsAffiches, messageSansPromo,
+  LIBELLES_APERCU, normaliserApercu, apercusPermis, droitsAffiches, messageSansPromo, etiquetteBadge,
 } from "./roles-rules.js?v=20261108b";
 import { el, toast, displayStagiaire } from "./utils.js?v=20261108b";
 import { icon } from "./icons.js?v=20261108b";
@@ -303,13 +303,12 @@ function updateBadge() {
   slot.classList.toggle("avec-pastille", !!pastille);
 
   const who = getProfileWho() || currentUser.email;
-  const roleLabel =
-    currentProfile?.role === "admin"     ? "admin" :
-    currentProfile?.role === "prof"      ? "formateur" :
-    currentProfile?.role === "stagiaire" ? "stagiaire" : "";
+  // Le rôle réel sur la promo affichée (mes_promos), pas l'ancien `role` du profil : une direction n'est pas « formateur »,
+  // un compte cumulé est formateur sur sa promo de formateur (roles-rules.js, etiquetteBadge).
+  const { libelle: roleLabel, classe: roleClasse } = etiquetteBadge({ profil: currentProfile, promo: getPromoCourante() });
 
   const badge = el("button", { class: "admin-badge", "aria-haspopup": "dialog", onClick: openProfileMenu },
-    el("span", { class: "admin-dot " + (currentProfile?.role || "") }),
+    el("span", { class: "admin-dot " + roleClasse }),
     el("span", { class: "admin-email" }, who),
     roleLabel ? el("span", { class: "admin-role" }, roleLabel) : null,
   );

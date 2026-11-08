@@ -8,7 +8,7 @@ import {
 } from "../notes-stats.js?v=20261108b";
 import { el, clear, isoDate, formatDate, toast, displayStagiaire, compareByNom, largeurDeGraphe } from "../utils.js?v=20261108b";
 import { icon } from "../icons.js?v=20261108b";
-import { getAdminEmail, isAdmin, getProfile } from "../auth-admin.js?v=20261108b";
+import { getAdminEmail, isAdmin, getProfile, monStagiaireId } from "../auth-admin.js?v=20261108b";
 import { recordUndo } from "../undo.js?v=20261108b";
 import { renderSubTabs } from "../subtabs.js?v=20261108b";
 import { formateurConnecte, moduleVisible } from "../modules-etat.js?v=20261108b";
@@ -103,7 +103,8 @@ function displayName(s) {
 // groupe. Les admins voient tout. Ses notes restent comptées dans tous les
 // agrégats (Synthèse, moyennes par thème, distribution).
 function myStagiaireId() {
-  return getProfile()?.stagiaire_id ?? null;
+  // Aucune fiche en aperçu formateur, direction ou siège (relecture finale, M8).
+  return monStagiaireId();
 }
 
 function iAmAnonymous() {

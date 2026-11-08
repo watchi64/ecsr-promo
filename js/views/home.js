@@ -139,8 +139,9 @@ export async function renderHome(container) {
       ? [{ route: "stagiaires", icon: "users", title: "Stagiaires", desc: "La promo, une fiche par personne" },
          { route: "centre", icon: "progress", title: "Tableau de bord", desc: "Assiduité, abandons, résultats par promo" }]
       : []),
-    // Émargement : seulement si le fondateur l'a activé pour la promo (js/emargement-etat.js).
-    ...((isAdmin() || isProf()) && emargementActif()
+    // Émargement : seulement si le fondateur l'a activé pour la promo (js/emargement-etat.js), et pour qui le tient (le
+    // formateur ; la direction n'y a pas encore d'accès, lot 5 : la tuile mènerait à un refus).
+    ...(isAdmin() && emargementActif()
       ? [{ route: "emargement", icon: "clipboard", title: "Émargement", desc: "Signatures et feuilles de présence" }]
       : []),
     { route: "planning",   icon: "calendar",     title: "Planning",         desc: "Cette semaine, créneaux & tirages" },

@@ -11,7 +11,7 @@
 
 import { listStagiaires, listProfs, listEpcfLivrets, getEpcfLivret, upsertEpcfLivret, getDateNaissance } from "../db.js?v=20261108b";
 import { el, clear, displayStagiaire, compareByNom, formatDate, toast } from "../utils.js?v=20261108b";
-import { isAdmin, isProf, getProfile } from "../auth-admin.js?v=20261108b";
+import { isAdmin, isProf, monStagiaireId } from "../auth-admin.js?v=20261108b";
 import { getCurrentWho } from "../identity.js?v=20261108b";
 import { EVT_DOCUMENT } from "../fiche-rules.js?v=20261108b";
 import { collectData, fillData, applyEditable, wireDocEditing,
@@ -298,9 +298,9 @@ export async function renderEpcfLivret(container, opts = {}) {
     if (opts.isActive && !opts.isActive()) return;
     clear(container);
     // La RLS ne renvoie que le sien à un vrai stagiaire ; le filtre par
-    // stagiaire_id du profil couvre le fondateur en « Voir en tant que »
-    // (session réelle admin → la RLS renvoie tout).
-    const myId = getProfile()?.stagiaire_id ?? null;
+    // sa fiche couvre le fondateur en aperçu « Stagiaire » (aucune fiche dans
+    // les autres aperçus, relecture finale, M8).
+    const myId = monStagiaireId();
     const mine = (myId != null && rows.find((r) => r.stagiaire_id === myId)) || rows[0];
     if (!mine) {
       container.appendChild(el("p", { class: "muted" },

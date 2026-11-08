@@ -132,6 +132,45 @@ export function messageInvitation(message, code) {
   return texte || "Erreur d'invitation";
 }
 
+// Phrase d'une invitation acceptée par la base, d'après ce que rend inviter_compte : `cree` (le profil vient d'être créé) et
+// `affecte` (nombre d'affectations ajoutées). « Rien n'a changé » seulement quand ni l'un ni l'autre : un compte qui existait
+// et vient de gagner une promo a bien changé (relecture finale, I1). `ton` : le type du toast.
+export function messageInvitationReussie({ resultat, email, v2 = true } = {}) {
+  const r = resultat || {};
+  if (r.cree !== false) {
+    return { texte: (v2 ? "Ajouté à la liste des invitations : " : "Ajouté à la whitelist : ") + email + ". Partage-lui l'URL.", ton: "success" };
+  }
+  if (Number(r.affecte) > 0) {
+    const quoi = r.role === "direction" ? "ajouté à la direction du centre"
+      : r.role === "siege" ? "rattaché au siège du réseau"
+      : "ajouté comme formateur de cette promo";
+    return { texte: `Déjà inscrit : ${quoi}.`, ton: "success" };
+  }
+  // Une base qui ne dit pas `affecte` ne permet pas d'affirmer que rien n'a changé.
+  if (r.affecte == null) return { texte: "Ce compte existe déjà.", ton: "info" };
+  return { texte: "Ce compte existe déjà : rien n'a changé.", ton: "info" };
+}
+
+// Étiquette du badge de l'ancienne barre : le rôle réel sur la promo affichée (colonne `roles` de mes_promos), et sa
+// couleur (classe du point : admin, prof ou stagiaire). Tant que la base ne donne pas les rôles, l'ancien `role` du
+// profil (profil effectif de la promo). Le fondateur sans rôle sur la promo garde « admin » (relecture finale, M4).
+export function etiquetteBadge({ profil, promo } = {}) {
+  if (!profil) return { libelle: "", classe: "" };
+  const roles = rolesDe(promo);
+  if (roles) {
+    if (roles.includes("formateur")) return { libelle: "formateur", classe: "prof" };
+    if (roles.includes("direction")) return { libelle: "direction", classe: "prof" };
+    if (roles.includes("siege")) return { libelle: "siège", classe: "prof" };
+    if (roles.includes("stagiaire")) return { libelle: "stagiaire", classe: "stagiaire" };
+    if (profil.is_founder) return { libelle: "admin", classe: "admin" };
+    return { libelle: "", classe: "" };
+  }
+  if (profil.role === "admin") return { libelle: "admin", classe: "admin" };
+  if (profil.role === "prof") return { libelle: "formateur", classe: "prof" };
+  if (profil.role === "stagiaire") return { libelle: "stagiaire", classe: "stagiaire" };
+  return { libelle: "", classe: "" };
+}
+
 // Phrase du refus à la porte, quand le compte n'a aucune promo : selon ses affectations (liste de rôles lue en base, vide
 // ou absente si la lecture a échoué), le siège et la direction ne sont pas renvoyés vers « un formateur ».
 export const MESSAGE_SANS_PROMO = "Aucune promo n'est associée à ton compte. Demande à ta direction ou à un formateur de t'ajouter.";

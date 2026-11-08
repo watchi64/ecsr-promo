@@ -8,7 +8,7 @@
 import { getSetting, setSetting, getPromoCourante } from "./db.js?v=20261108b";
 import { el, toast } from "./utils.js?v=20261108b";
 import { icon } from "./icons.js?v=20261108b";
-import { isFounder } from "./auth-admin.js?v=20261108b";
+import { isFounder, fondateurHorsApercu } from "./auth-admin.js?v=20261108b";
 import {
   CLE_REGLAGE, CLE_APERCU, decideNavigationV2, reglageAllume, reglageRetenu, cleMemoire, navigationAttendue, etatDeLaCase,
 } from "./nav-etat-regles.js?v=20261108b";
@@ -125,7 +125,8 @@ function annoncerChangement() {
 // Section de Paramètres, visible du seul fondateur : l'interrupteur de la promo affichée, puis
 // l'aperçu de cet appareil.
 export function renderNavigationReglage() {
-  if (!isFounder()) return null;
+  // Hors aperçu seulement : en aperçu, la base refuse l'écriture (est_fondateur faux), et le rôle simulé n'a pas ce réglage.
+  if (!fondateurHorsApercu()) return null;
   const nomPromo = getPromoCourante()?.nom || "cette promo";
   const section = el("section", { class: "param-section" });
   section.appendChild(el("div", { class: "param-section-head" },

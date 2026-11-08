@@ -6,7 +6,7 @@
 import { getSetting, setSetting, getPromoCourante } from "./db.js?v=20261108b";
 import { el, toast } from "./utils.js?v=20261108b";
 import { icon } from "./icons.js?v=20261108b";
-import { isFounder } from "./auth-admin.js?v=20261108b";
+import { fondateurHorsApercu } from "./auth-admin.js?v=20261108b";
 import { CLE_ACTIVATION, estActif } from "./emargement-rules.js?v=20261108b";
 
 let actif = false;
@@ -24,7 +24,8 @@ export function emargementActif() { return actif; }
 // Section de Paramètres, visible du seul fondateur. Le bandeau suit par l'évènement
 // « emargement-actif » (pas d'import du bandeau ici : il importe ce module).
 export function renderEmargementReglage() {
-  if (!isFounder()) return null;
+  // Hors aperçu seulement : en aperçu, la base refuse l'écriture (est_fondateur faux), et le rôle simulé n'a pas ce réglage.
+  if (!fondateurHorsApercu()) return null;
   const nomPromo = getPromoCourante()?.nom || "cette promo";
   const section = el("section", { class: "param-section" });
   section.appendChild(el("div", { class: "param-section-head" },

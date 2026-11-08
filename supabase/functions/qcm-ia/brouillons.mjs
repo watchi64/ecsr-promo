@@ -180,3 +180,14 @@ export function analyserReponse(brut, { articlesCours, titres, existants = [], n
   }
   return { brouillons, ecartes };
 }
+
+/** En-tetes du client « comme l'appelant » : son jeton, et la promo qu'il affiche (x-promo-id, relayee depuis l'app)
+ *  quand elle a la forme d'un identifiant. is_admin() se juge alors sur cette promo, comme dans l'app : un compte
+ *  formateur d'une autre promo que celle de sa fiche n'est pas refuse (relecture finale du lot 4, I4). La base verifie
+ *  que l'appelant a acces a cette promo (promo_courante) ; une valeur mal formee est ignoree (promo par defaut). */
+export function entetesAppelant(jwt, promo) {
+  const entetes = { Authorization: `Bearer ${jwt}` };
+  const p = String(promo ?? "").trim();
+  if (/^[0-9]{1,9}$/.test(p)) entetes["x-promo-id"] = p;
+  return entetes;
+}

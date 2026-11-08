@@ -1,4 +1,4 @@
-import { listThemes, getPromoCourante, updateTheme, addTheme, deleteTheme, listQcmIndex, getQcmFull, publishQcm, unpublishQcm, updateExamConfig, listExamAttempts, resetExamAttempt, listMyQcmAttempts, getMyProfile, listEvaluations, getOrCreateQcm, saveQcmQuestion, deleteQcmQuestion, reorderQcmQuestions, uploadQcmImage, listQcmSignalements, setQcmSignalementStatut, countQcmSignalementsOuverts, getCours, proposerQuestionsIa, listBrouillonsIa, accepterBrouillonIa, rejeterBrouillonIa } from "../db.js?v=20261108b";
+import { listThemes, getPromoCourante, updateTheme, addTheme, deleteTheme, listQcmIndex, getQcmFull, publishQcm, unpublishQcm, updateExamConfig, listExamAttempts, resetExamAttempt, listMyQcmAttempts, listEvaluations, getOrCreateQcm, saveQcmQuestion, deleteQcmQuestion, reorderQcmQuestions, uploadQcmImage, listQcmSignalements, setQcmSignalementStatut, countQcmSignalementsOuverts, getCours, proposerQuestionsIa, listBrouillonsIa, accepterBrouillonIa, rejeterBrouillonIa } from "../db.js?v=20261108b";
 import { el, clear, isoDate, formatDate, toast, debounce } from "../utils.js?v=20261108b";
 import { icon } from "../icons.js?v=20261108b";
 import { examenDemarrable, tempsRestantMs, formatTempsRestant,
@@ -75,7 +75,8 @@ async function loadQcmIndex() {
     return;
   }
   try {
-    const profile = await getMyProfile();
+    // Sa fiche, telle que l'app la traite : aucune en aperçu formateur, direction ou siège (relecture finale, M8).
+    const maFiche = monStagiaireId();
     // Les signalements ouverts sont comptés dès la liste : sinon le formateur devrait
     // ouvrir chaque QCM un par un pour découvrir lesquels ont été signalés.
     // Le comptage est réservé au formateur, et la RLS ne suffit PAS à l'assurer : sa
@@ -86,7 +87,7 @@ async function loadQcmIndex() {
     const [list, attempts, evals, signals] = await Promise.all([
       listQcmIndex(),
       listMyQcmAttempts(),
-      profile?.stagiaire_id ? listEvaluations({ stagiaire_id: profile.stagiaire_id }) : Promise.resolve([]),
+      maFiche ? listEvaluations({ stagiaire_id: maFiche }) : Promise.resolve([]),
       canManageExam() ? countQcmSignalementsOuverts().catch(() => ({})) : Promise.resolve({}),
       chargerCoursIndex().catch(() => null),
     ]);

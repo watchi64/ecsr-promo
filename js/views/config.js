@@ -21,7 +21,7 @@ import {
 import { el, clear, toast, displayStagiaire } from "../utils.js?v=20261108b";
 import { icon } from "../icons.js?v=20261108b";
 import { isAdmin, isEquipe, getAdminEmail, getProfile, monStagiaireId, getViewAs, fondateurHorsApercu } from "../auth-admin.js?v=20261108b";
-import { peutInviterFormateur, peutRetirerCompte } from "../roles-rules.js?v=20261108b";
+import { peutInviterFormateur, peutRetirerCompte, messageInvitationReussie } from "../roles-rules.js?v=20261108b";
 import { moduleVisible } from "../modules-etat.js?v=20261108b";
 import { renderModulesSection } from "./modules-reglage.js?v=20261108b";
 import { renderEmargementReglage } from "../emargement-etat.js?v=20261108b";
@@ -134,12 +134,9 @@ async function renderAccessSection(rerender) {
           invitePromise,
           new Promise((_, reject) => setTimeout(() => reject(new Error("Délai dépassé (15 s). Réseau lent : réessaie dans un instant.")), 15000)),
         ]);
-        if (resultat && resultat.cree === false) {
-          // Le compte existait déjà : la base n'a rien modifié.
-          toast("Ce compte existe déjà : rien n'a changé.", "info", 4500);
-        } else {
-          toast((v2 ? "Ajouté à la liste des invitations : " : "Ajouté à la whitelist : ") + email + ". Partage-lui l'URL.", "success", 4500);
-        }
+        // Profil créé, compte existant qui gagne la promo, ou rien de changé (roles-rules.js, messageInvitationReussie).
+        const { texte, ton } = messageInvitationReussie({ resultat, email, v2 });
+        toast(texte, ton, 4500);
         emailInput.value = "";
         rerender();
       } catch (e) {
