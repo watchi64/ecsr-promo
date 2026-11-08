@@ -125,7 +125,7 @@ Après :
 
 > Les promos ne se voient pas entre elles : un stagiaire n'accède qu'à sa propre promo.
 > 
-> **Questionnaires de satisfaction.** Ils sont anonymes : la réponse est enregistrée sans nom, sans date et sans numéro d'ordre, séparément de la note de participation (« a répondu » ou « n'a pas répondu »), qui sert seulement à ne pas redemander et à refuser une deuxième réponse. Personne ne peut relier une réponse à une personne, pas même l'éditeur. Les résultats ne sont montrés que lorsqu'au moins cinq stagiaires ont répondu (trois formateurs pour le questionnaire des formateurs) ; les commentaires libres ne sont lus que par l'éditeur et les personnes chargées de la qualité du centre, dans un ordre aléatoire, sous la même condition.
+> **Questionnaires de satisfaction.** Ils sont anonymes : la réponse est enregistrée sans nom, sans date et sans numéro d'ordre, séparément de la note de participation (« a répondu » ou « n'a pas répondu »), qui sert seulement à ne pas redemander et à refuser une deuxième réponse. Personne ne peut relier une réponse à une personne, pas même l'éditeur. Les résultats ne sont montrés que lorsqu'au moins cinq stagiaires ont répondu (trois formateurs pour le questionnaire des formateurs) ; les commentaires libres ne sont lus que par l'éditeur et les personnes chargées de la qualité du centre (dans ces conditions, « le centre » désigne ECF, l'organisme de formation), dans un ordre aléatoire, sous la même condition.
 > 
 
 ### Passage 5
@@ -159,7 +159,7 @@ Avant :
 
 Après :
 
-> - Transmettre des données nominatives à d'autres que ECF, y compris lorsqu'ECF présente des documents à son certificateur Qualiopi et à ses financeurs, comme le dit la section 5.
+> - Transmettre des données nominatives à d'autres que ECF. La présentation de documents par ECF à son certificateur et à ses financeurs (section 5) n'est pas une transmission par l'éditeur.
 
 ### Passage 8
 
@@ -232,3 +232,16 @@ Après :
 
 > - Rendre publics des résultats nominatifs (les publier hors de l'application).
 
+## 4. Corrections du tour 2
+
+Les passages ci-dessus sont à jour (définition de « le centre » dans la section 4, §6 reformulé). Passage ajouté :
+
+### Passage 14
+
+Avant :
+
+> (aucune ligne pour la présentation des documents au certificateur dans le tableau de la section 5)
+
+Après (nouvelle ligne du tableau, usage puis base légale) :
+
+> | Permettre à ECF de présenter les documents de la formation à son certificateur Qualiopi et à ses financeurs | Obligation légale : la certification Qualiopi conditionne l'accès aux fonds publics et mutualisés de la formation professionnelle (code du travail, article L6316-1) |

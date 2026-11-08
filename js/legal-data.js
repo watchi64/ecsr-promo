@@ -70,7 +70,7 @@ La colonne ECF comprend la présentation, par ECF à son certificateur Qualiopi 
 
 Les promos ne se voient pas entre elles : un stagiaire n'accède qu'à sa propre promo.
 
-**Questionnaires de satisfaction.** Ils sont anonymes : la réponse est enregistrée sans nom, sans date et sans numéro d'ordre, séparément de la note de participation (« a répondu » ou « n'a pas répondu »), qui sert seulement à ne pas redemander et à refuser une deuxième réponse. Personne ne peut relier une réponse à une personne, pas même l'éditeur. Les résultats ne sont montrés que lorsqu'au moins cinq stagiaires ont répondu (trois formateurs pour le questionnaire des formateurs) ; les commentaires libres ne sont lus que par l'éditeur et les personnes chargées de la qualité du centre, dans un ordre aléatoire, sous la même condition.
+**Questionnaires de satisfaction.** Ils sont anonymes : la réponse est enregistrée sans nom, sans date et sans numéro d'ordre, séparément de la note de participation (« a répondu » ou « n'a pas répondu »), qui sert seulement à ne pas redemander et à refuser une deuxième réponse. Personne ne peut relier une réponse à une personne, pas même l'éditeur. Les résultats ne sont montrés que lorsqu'au moins cinq stagiaires ont répondu (trois formateurs pour le questionnaire des formateurs) ; les commentaires libres ne sont lus que par l'éditeur et les personnes chargées de la qualité du centre (dans ces conditions, « le centre » désigne ECF, l'organisme de formation), dans un ordre aléatoire, sous la même condition.
 
 ## 5. À quoi servent les données, et sur quelle base
 
@@ -81,6 +81,7 @@ Les promos ne se voient pas entre elles : un stagiaire n'accède qu'à sa propre
 | Permettre à ECF de consulter des résultats nominatifs | Intérêt légitime de l'organisme de formation à suivre ses stagiaires |
 | Produire des statistiques anonymes pour améliorer l'application et les contenus | Intérêt légitime de l'éditeur |
 | Envoyer les e-mails du compte (invitation, mot de passe oublié) | Nécessaire au fonctionnement du compte |
+| Permettre à ECF de présenter les documents de la formation à son certificateur Qualiopi et à ses financeurs | Obligation légale : la certification Qualiopi conditionne l'accès aux fonds publics et mutualisés de la formation professionnelle (code du travail, article L6316-1) |
 | Recueillir votre avis sur la formation par des questionnaires anonymes, et en produire un taux de satisfaction | Intérêt légitime de l'éditeur et du centre à mesurer et améliorer la formation, preuve que le centre doit pouvoir apporter à son certificateur |
 | Répondre à vos questions par l'assistant | Intérêt légitime ; l'assistant n'est utilisé que si vous lui écrivez |
 
@@ -93,7 +94,7 @@ Les promos ne se voient pas entre elles : un stagiaire n'accède qu'à sa propre
 - Vendre ou louer des données, à quiconque.
 - Utiliser les données à des fins publicitaires.
 - Rendre publics des résultats nominatifs (les publier hors de l'application).
-- Transmettre des données nominatives à d'autres que ECF, y compris lorsqu'ECF présente des documents à son certificateur Qualiopi et à ses financeurs, comme le dit la section 5.
+- Transmettre des données nominatives à d'autres que ECF. La présentation de documents par ECF à son certificateur et à ses financeurs (section 5) n'est pas une transmission par l'éditeur.
 - Croiser les données avec des services extérieurs à la formation.
 
 ## 7. Les personnes sans compte : élèves bénévoles et auto-écoles partenaires
