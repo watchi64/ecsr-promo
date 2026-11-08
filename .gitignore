@@ -7,3 +7,7 @@ node_modules/
 
 # Planche de controle des visuels : outil local, jamais deploye
 _verif/
+
+# Rapports du robot des parcours (captures du banc) : locaux, jamais versionnes
+outils/robot_rapports/
+__pycache__/
