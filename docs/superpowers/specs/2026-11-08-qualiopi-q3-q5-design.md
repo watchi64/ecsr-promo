@@ -1,6 +1,6 @@
 # Dossier Qualiopi, lots Q3 à Q5 : questionnaires, registre qualité, conservation à 3 ans
 
-Statut : choix par défaut acceptés par Timy le 08/11/2026 ; spec à relire par lui avant le plan.
+Statut : **validée par Timy le 08/11/2026** (choix par défaut, y compris les deux questions du § 11).
 Suite de `docs/superpowers/specs/2026-10-28-dossier-qualiopi-design.md` (§ 6.7, lots Q3, Q4, Q5). Q1 et Q2 sont en ligne
 depuis le 08/11 (deed6c5).
 
@@ -175,7 +175,7 @@ Un relecteur a lu la spec comme s'il devait la construire. Ses questions, tranch
 - **Registre et données personnelles** : une entrée close garde sa description et sa réponse 3 ans après sa clôture, puis
   elles sont vidées (le type, les dates et l'état restent) ; dit dans les conditions.
 
-## 11. Questions posées à Timy (08/11)
+## 11. Questions posées à Timy (08/11), réponses par défaut acceptées
 
 1. **Questionnaire des formateurs** : une promo compte 3 formateurs (Nîmes et Montpellier, planning du 08/11). Avec le seuil de
    5, leurs résultats ne s'afficheraient jamais. Proposition par défaut : questionnaire formateurs par centre et par année
