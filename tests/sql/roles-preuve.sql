@@ -26,10 +26,14 @@
 -- Groupes de contrôles (chacun nommé au verdict) :
 --   non-régression  chaque compte réel (profils hors @exemple.invalid, choisis par requête, jamais nommés : « compte
 --                   réel 4 ») dans chaque contexte (en-tête x-promo-id 1, 2, 7, et sans en-tête), sur chaque table de
---                   public sous RLS et storage.objects : mêmes lignes visibles avant et après les migrations (nombre et
---                   empreinte des ctid) ; mêmes role, is_admin, is_founder, stagiaire_id ; mêmes mes_promos() (colonnes
---                   d'avant l'étape 2 : la nouvelle colonne roles est mise à part). En mode en-ligne, rien n'est
---                   injecté : non jugeable, une ligne d'information le dit.
+--                   public sous RLS et storage.objects, sauf les quatre au changement voulu : mêmes lignes visibles avant
+--                   et après les migrations (nombre et empreinte des ctid) ; mêmes role, is_admin, is_founder,
+--                   stagiaire_id ; mêmes mes_promos() (colonnes d'avant l'étape 2 : la nouvelle colonne roles est mise à
+--                   part). En mode en-ligne, rien n'est injecté : non jugeable, une ligne d'information le dit.
+--   changement voulu  (R43, M6) les mêmes comptes et contextes, sur conditions_acceptations, effacements_journal,
+--                   qcm_signalements et user_profiles, dont la portée se resserre : exactement les lignes de la règle
+--                   nouvelle (modèle de la matrice, appliqué à la définition du compte : profil et affectations), jamais
+--                   plus qu'avant ; les lignes en moins sont dites en information. ROUGE en contre-épreuve.
 --   matrice         chaque personnage fictif (stagiaires, formateurs, direction, siège, fondateur, stagiaire qui masque
 --                   ses notes) et l'acteur anonyme (sans jeton), chaque contexte, chaque table de la section 1 du plan
 --                   (table matrice ci-dessous) : lignes visibles = lignes attendues (nombre et empreinte des ctid), et
@@ -37,7 +41,8 @@
 --                   déplacement de promo_id vers une autre promo (condition d'écriture sur la ligne nouvelle) est refusé.
 --   signalements    le signalement de problème d'essai appartient au jeton de stag_n (identifiant d'un compte réel non
 --                   fondateur, choisi par requête) : seuls lui et le fondateur le voient, avec sa capture ; seul le
---                   fondateur le supprime. Attendus écrits en dur, indépendants du modèle.
+--                   fondateur le supprime. Signalements de QCM (R43) : form_n ne fait pas passer celui de stag_n sur
+--                   une fiche d'une autre promo (with check), il le traite. Attendus écrits en dur, indépendants du modèle.
 --   comptes         ni le compte « cumul » (fiche de la promo 1, formateur de la promo 2) ni l'orphelin affecté (siège) ne
 --                   sont supprimables, par aucun personnage ni par l'acteur anonyme. Attendus écrits en dur.
 --   anonymat        un stagiaire qui masque ses notes ne voit que les siennes (une seule évaluation), les autres stagiaires
@@ -51,9 +56,11 @@
 --   R32             navigation_v2 et emargement_actif (forme « insérer ou mettre à jour » de l'app) : le fondateur seul,
 --                   hors aperçu ; modules : l'équipe de la promo.
 --   comptes         (suite) nul ne se donne is_founder ou is_admin ; ni le fondateur ni un compte du personnel affecté ne
---                   se supprime ; un compte de stagiaire de sa promo, oui.
+--                   se supprime ; un compte de stagiaire de sa promo, oui ; une fiche de stagiaire se supprime par le
+--                   formateur, pas par la direction (M3).
 --   inviter_compte  le tableau de la section 0 : qui invite quel rôle, cas permis et refusés (état 42501), un profil
---                   existant jamais rétrogradé ni relié à une seconde fiche.
+--                   existant jamais rétrogradé ni relié à une seconde fiche, une fiche déjà reliée jamais reliée à une
+--                   seconde adresse (M7) ; ce que rend la fonction (cree, affecte : I1).
 --   affectations    la direction affecte ses formateurs, le siège ses directions, le fondateur le siège ; aucune
 --                   modification.
 --   promos          creer_promo, modifier_dates_promo, renommage ; date_debut, date_fin, lieu_id non modifiables en direct.
@@ -199,7 +206,7 @@ insert into personnages (ordre, nom, email, role, is_admin, promo_fiche, formate
   (8, 'stag_masque', 'preuve.masque@exemple.invalid', 'stagiaire', false, 1, '{}', '{}', false, false, true,
      array['public.evaluations', 'public.evaluations_audit']);
 -- Cas limites (R36), qui passent toute la matrice : sans_role (profil sans fiche, sans affectation : la forme de
--- l'orphelin d'aujourd'hui), ancien_form (role prof, is_admin vrai, sans affectation : ce que créerait l'ancienne
+-- l'orphelin d'aujourd'hui, invité par form_n, R43), ancien_form (role prof, is_admin vrai, sans affectation : ce que créerait l'ancienne
 -- fonction invite-user), cumul (fiche de la promo 1 et formateur de la promo 2), dir_form (direction du lieu de la
 -- promo 1 et formateur de la promo 2).
 insert into personnages (ordre, nom, email, role, is_admin, promo_fiche, formateur_de, direction_de, siege) values
@@ -229,11 +236,12 @@ insert into matrice (tbl, lecture, ajout, modif, suppr, maj, prep_suppr) values
   $mx$r.promo_id = {P} and {F}$mx$, $mx$pause_start = 'PreuveMaj'$mx$, null),
 ('public.planning_jours_off', $mx$r.promo_id = {P}$mx$, $mx$r.promo_id = {P} and {F}$mx$, $mx$r.promo_id = {P} and {F}$mx$,
   $mx$r.promo_id = {P} and {F}$mx$, $mx$label = 'PreuveMaj'$mx$, null),
--- Stagiaires : P (inchangé) ; écriture P et E. Avant la suppression : les émargements (clé sans cascade) sont retirés,
--- et les remplaçants des passages détachés (leur remise à nul relance l'imposition de la promo sur un passage dont la
--- fiche part dans la même instruction : 23502, sans rapport avec la règle).
+-- Stagiaires : P (inchangé) ; ajout et modification P et E ; suppression P et F (relecture finale, M3 : la direction ne
+-- supprime pas une fiche). Avant la suppression : les émargements (clé sans cascade) sont retirés, et les remplaçants
+-- des passages détachés (leur remise à nul relance l'imposition de la promo sur un passage dont la fiche part dans la
+-- même instruction : 23502, sans rapport avec la règle).
 ('public.stagiaires', $mx$r.promo_id = {P}$mx$, $mx$r.promo_id = {P} and {E}$mx$, $mx$r.promo_id = {P} and {E}$mx$,
-  $mx$r.promo_id = {P} and {E}$mx$, $mx$ordre = 424242$mx$,
+  $mx$r.promo_id = {P} and {F}$mx$, $mx$ordre = 424242$mx$,
   $mx$delete from public.emargement_lignes; update public.passages set remplacant_id = null where remplacant_id is not null$mx$),
 -- Données privées : fiche de P, et (E ou M) ; écriture par set_date_naissance seulement.
 ('public.stagiaires_prive',
@@ -326,16 +334,19 @@ insert into matrice (tbl, lecture, ajout, modif, suppr, maj, prep_suppr) values
   $mx$(r.role = 'formateur' and (select pr.lieu_id from public.promos pr where pr.id = r.promo_id) = any({dir_de}))
      or (r.role = 'direction' and {S}) or (r.role = 'siege' and {Fo})$mx$,
   $mx$cree_par = 'PreuveMaj'$mx$, null),
--- Comptes : le sien ; le personnel (sans fiche, role <> 'stagiaire') ; les orphelins si E ; les stagiaires de P.
--- Ajout et modification retirés (fonctions serveur) ; suppression jamais du fondateur ni d'un compte affecté :
--- stagiaire de P ou orphelin si E, personnel si Fo.
+-- Comptes : le sien ; le personnel (sans fiche, role <> 'stagiaire') pour un compte qui a au moins une promo
+-- accessible, le siège ou Fo (M6) ; les orphelins (sans fiche, role 'stagiaire') pour Fo ou pour qui les a invités
+-- (R43) ; les stagiaires de P. Ajout et modification retirés (fonctions serveur) ; suppression jamais du fondateur ni
+-- d'un compte affecté : stagiaire de P si E, orphelin si Fo ou si E l'a invité, personnel si Fo.
 ('public.user_profiles',
-  $mx$lower(r.email) = {moi} or (r.stagiaire_id is null and (r.role <> 'stagiaire' or {E}))
+  $mx$lower(r.email) = {moi}
+     or (r.stagiaire_id is null and r.role <> 'stagiaire' and (cardinality({acces}) > 0 or {S} or {Fo}))
+     or (r.stagiaire_id is null and r.role = 'stagiaire' and ({Fo} or lower(r.invited_by_email) = {moi}))
      or r.stagiaire_id in (select s.id from public.stagiaires s where s.promo_id = {P})$mx$,
   'false', 'false',
   $mx$not r.is_founder and not exists (select 1 from public.affectations a where a.email = r.email)
-     and (((r.stagiaire_id in (select s.id from public.stagiaires s where s.promo_id = {P})
-            or (r.stagiaire_id is null and r.role = 'stagiaire')) and {E})
+     and ((r.stagiaire_id in (select s.id from public.stagiaires s where s.promo_id = {P}) and {E})
+          or (r.stagiaire_id is null and r.role = 'stagiaire' and ({Fo} or ({E} and lower(r.invited_by_email) = {moi})))
           or (r.stagiaire_id is null and r.role <> 'stagiaire' and {Fo}))$mx$,
   $mx$invited_by_email = 'preuve.maj@exemple.invalid'$mx$, null),
 -- Cours : publié, ou Fo, ou cours de thème (code nul) pour F, D, S ; modification Fo, ou (F ou S) sur un cours de
@@ -361,15 +372,29 @@ insert into matrice (tbl, lecture, ajout, modif, suppr, maj, prep_suppr) values
 ('public.profs', 'true', $mx${E}$mx$, $mx${E}$mx$, $mx${E}$mx$, $mx$ordre = 424242$mx$,
   $mx$update public.passages set prof_id = null where prof_id is not null;
      update public.epcf_evaluations set evaluateur_prof_id = null where evaluateur_prof_id is not null$mx$),
--- Signalements de questions : F ou M ; ajout du sien (inchangé) ; traitement et suppression F.
-('public.qcm_signalements', $mx${F} or lower(r.email) = {moi}$mx$, $mx$lower(r.email) = {moi}$mx$, $mx${F}$mx$, $mx${F}$mx$,
+-- Signalements de questions (R43) : M, Fo, ou F sur ceux d'une fiche de P et ceux sans fiche ; ajout du sien (inchangé) ;
+-- traitement et suppression : Fo, ou F avec la même portée.
+('public.qcm_signalements',
+  $mx$lower(r.email) = {moi} or {Fo}
+     or ({F} and (r.stagiaire_id is null or r.stagiaire_id in (select s.id from public.stagiaires s where s.promo_id = {P})))$mx$,
+  $mx$lower(r.email) = {moi}$mx$,
+  $mx${Fo} or ({F} and (r.stagiaire_id is null or r.stagiaire_id in (select s.id from public.stagiaires s where s.promo_id = {P})))$mx$,
+  $mx${Fo} or ({F} and (r.stagiaire_id is null or r.stagiaire_id in (select s.id from public.stagiaires s where s.promo_id = {P})))$mx$,
   $mx$commentaire = 'PreuveMaj'$mx$, null),
 ('public.qcm_signalement_instruction', $mx${F}$mx$, 'false', 'false', 'false', $mx$analyse_auto = 'PreuveMaj'$mx$, null),
 ('public.qcm_ia_brouillons', $mx${F}$mx$, 'false', 'false', 'false', $mx$motif = 'PreuveMaj'$mx$, null),
--- Acceptations des conditions : M ou E ; journal des effacements : E ; fonctions serveur.
-('public.conditions_acceptations', $mx$lower(r.email) = {moi} or {E}$mx$, 'false', 'false', 'false',
-  $mx$version = 'PreuveMaj'$mx$, null),
-('public.effacements_journal', $mx${E}$mx$, 'false', 'false', 'false', $mx$cible = 'PreuveMaj'$mx$, null),
+-- Acceptations des conditions (R43) : M, Fo, ou E sur les adresses des comptes dont la fiche est dans P ; journal des
+-- effacements (R43) : Fo, ou E sur les lignes de P et de L selon la cible (« promo <id> », « stagiaire <id> » d'une fiche
+-- de P, « lieu <id> ») ; fonctions serveur.
+('public.conditions_acceptations',
+  $mx$lower(r.email) = {moi} or {Fo}
+     or ({E} and lower(r.email) in (select lower(u.email) from public.user_profiles u
+                                     where u.stagiaire_id in (select s.id from public.stagiaires s where s.promo_id = {P})))$mx$,
+  'false', 'false', 'false', $mx$version = 'PreuveMaj'$mx$, null),
+('public.effacements_journal',
+  $mx${Fo} or ({E} and (r.cible = 'promo ' || {P} or r.cible = 'lieu ' || {L}
+                         or r.cible in (select 'stagiaire ' || s.id from public.stagiaires s where s.promo_id = {P})))$mx$,
+  'false', 'false', 'false', $mx$cible = 'PreuveMaj'$mx$, null),
 -- Compteurs de l'assistant et de l'IA, morceaux de cours : inchangés (les siens, par l'identifiant du jeton ; rien).
 ('public.chatbot_usage', $mx$r.user_id = {sub}$mx$, 'false', 'false', 'false', $mx$nb = 424242$mx$, null),
 ('public.qcm_ia_usage', $mx$r.user_id = {sub}$mx$, 'false', 'false', 'false', $mx$nb = 424242$mx$, null),
@@ -653,12 +678,13 @@ begin
 end $fx$;
 
 -- Sondes d'un compte dans un contexte (R36, cas limites) : ce que ce compte peut lire, écrire et appeler quand on lui
--- donne EXACTEMENT les droits décrits par p_f (formateur de la promo affichée), p_d (direction de son lieu) et p_fiche
--- (sa fiche, si elle est dans la promo affichée p_p). Les attendus sont des comptes en propriétaire sur les données,
--- d'après ces seuls paramètres écrits en dur par l'appelant : rien n'est tiré du vocabulaire testé. Une classe de
--- sondes = un contrôle compté dans le groupe p_groupe.
+-- donne EXACTEMENT les droits décrits par p_f (formateur de la promo affichée), p_d (direction de son lieu), p_fiche
+-- (sa fiche, si elle est dans la promo affichée p_p) et p_a_promo (il a au moins une promo accessible, ce qui lui ouvre
+-- les profils du personnel, M6). Les attendus sont des comptes en propriétaire sur les données, d'après ces seuls
+-- paramètres écrits en dur par l'appelant : rien n'est tiré du vocabulaire testé. Une classe de sondes = un contrôle
+-- compté dans le groupe p_groupe.
 create or replace function pg_temp.sondes(p_groupe text, p_nom text, p_email text, p_hdr text, p_p integer,
-  p_f boolean, p_d boolean, p_fiche integer)
+  p_f boolean, p_d boolean, p_fiche integer, p_a_promo boolean)
 returns void language plpgsql as $fx$
 declare
   v_lib text := p_nom || ', contexte ' || coalesce(p_hdr, 'sans');
@@ -695,7 +721,7 @@ begin
     ('public.benevoles', format('r.lieu_id = %s and %s', v_lieu, v_e::text)),
     ('public.qcm_questions', 'true'), ('public.themes', 'true'), ('public.contacts', 'true'),
     ('public.cours', format('r.published or (r.code is null and %s)', v_e::text)),
-    ('public.user_profiles', format('lower(r.email) = %L or (r.stagiaire_id is null and (r.role <> ''stagiaire'' or %s)) or r.stagiaire_id in (select s.id from public.stagiaires s where s.promo_id = %s)', lower(p_email), v_e::text, v_pp))
+    ('public.user_profiles', format('lower(r.email) = %L or (r.stagiaire_id is null and r.role <> ''stagiaire'' and %s) or (r.stagiaire_id is null and r.role = ''stagiaire'' and lower(r.invited_by_email) = %L) or r.stagiaire_id in (select s.id from public.stagiaires s where s.promo_id = %s)', lower(p_email), p_a_promo::text, lower(p_email), v_pp))
   ) t(tbl, pred) loop
     v_x := pg_temp.calcul(format('select count(*)::text from %s r where coalesce(%s, false)', v_t.tbl, v_t.pred));
     v_o := v_o || v_t.tbl || '=' || coalesce(pg_temp.valeur(p_email, p_hdr, null, format('select count(*)::text from %s', v_t.tbl)), 'nul') || ' ';
@@ -707,7 +733,7 @@ begin
   v_bad := '';
   for v_t in select * from (values
     ('public.planning_entries', v_pf, v_pf),
-    ('public.stagiaires', v_pe, v_pe),
+    ('public.stagiaires', v_pe, v_pf),
     ('public.dp_dossiers', 'r.promo_id = ' || v_pp || ' and (' || p_f::text || ' or r.stagiaire_id = ' || v_fi || ')', v_pf),
     ('public.evaluations', v_pf, v_pf),
     ('public.epcf_livrets', v_pf, v_pf),
@@ -763,6 +789,42 @@ begin
     v_res := pg_temp.tenter(p_email, p_hdr, null, null, null, 'select public.inviter_compte(''preuve.cas@exemple.invalid'', ''formateur'')', null);
     perform pg_temp.verifier(p_groupe, v_lib || ' : inviter un formateur refusé', v_res[2] = 'REFUS 42501', coalesce(v_res[2], 'nul'));
   end if;
+end $fx$;
+
+-- Le modèle d'attendus (R23) pour un compte et un contexte : ses jetons ({P}, {L}, {F}, {D}, {E}, {S}, {R}, {Fo}, {moi},
+-- {sub}, {fiche}, {fiche_p}, {anonyme}, {acces}, {form_de}, {dir_de}), tirés de sa seule définition (fiche et sa promo,
+-- promos où il est formateur, lieux où il est direction, siège, fondateur) et de promos.lieu_id lu par requête. Sert aux
+-- personnages fictifs (section 5) et aux comptes réels (changement voulu, section 3).
+create or replace function pg_temp.jetons_de(p_email text, p_fondateur boolean, p_siege boolean, p_promo_fiche integer,
+  p_fiche integer, p_formateur_de integer[], p_direction_de integer[], p_anonyme boolean, p_ctx text, p_lieux integer[])
+returns jsonb language plpgsql as $fx$
+declare v_acces integer[]; v_defaut integer; v_pr integer; v_lieu integer; v_f boolean; v_d boolean;
+begin
+  v_acces := array(select pr.id from public.promos pr
+                    where p_fondateur or pr.id = p_promo_fiche or pr.id = any(p_formateur_de)
+                       or pr.lieu_id = any(p_direction_de)
+                    order by pr.id);
+  v_defaut := coalesce(p_promo_fiche,
+    (select pr.id from public.promos pr where pr.id = any(v_acces) and (pr.date_fin is null or pr.date_fin >= current_date)
+      order by pr.date_debut, pr.id limit 1),
+    (select pr.id from public.promos pr where pr.id = any(v_acces) order by pr.date_debut desc, pr.id desc limit 1));
+  v_pr := case when p_ctx is null then v_defaut when p_ctx::integer = any(v_acces) then p_ctx::integer end;
+  v_lieu := (select pr.lieu_id from public.promos pr where pr.id = v_pr);
+  v_f := v_pr is not null and (p_fondateur or v_pr = any(p_formateur_de));
+  v_d := v_pr is not null and (p_fondateur or v_lieu = any(p_direction_de));
+  return jsonb_build_object(
+    'P', coalesce(v_pr::text, 'null'), 'L', coalesce(v_lieu::text, 'null'),
+    'F', v_f::text, 'D', v_d::text, 'E', (v_f or v_d)::text, 'S', (p_siege or p_fondateur)::text,
+    'R', (v_f or p_siege or p_fondateur)::text, 'Fo', p_fondateur::text,
+    'moi', quote_literal(lower(p_email)),
+    'sub', coalesce((select quote_literal(j.sub) || '::uuid' from pg_temp.jetons j where j.email = lower(p_email)), 'null'),
+    'fiche', coalesce(p_fiche::text, 'null'),
+    'fiche_p', coalesce(case when p_promo_fiche = v_pr then p_fiche end::text, 'null'),
+    'anonyme', p_anonyme::text,
+    'acces', quote_literal(v_acces::text) || '::integer[]',
+    'form_de', quote_literal((case when p_fondateur then array(select pr.id from public.promos pr order by pr.id)
+                                   else p_formateur_de end)::text) || '::integer[]',
+    'dir_de', quote_literal((case when p_fondateur then p_lieux else p_direction_de end)::text) || '::integer[]');
 end $fx$;
 
 -- Nombre total de lignes d'une promo dans toutes les tables de public qui portent une colonne promo_id, vu par un compte
@@ -971,7 +1033,10 @@ declare
   c_orphelin_affecte constant text := 'preuve.orphelin.affecte@exemple.invalid';
   c_deplacables constant text[] := array['public.agenda_events', 'public.planning_entries', 'public.themes_progression'];
   v_r record; v_p record; v_c record; v_m0 record; v_m record; v_a record; v_k record;
-  v_acces integer[]; v_defaut integer; v_pr integer; v_lieu integer; v_f boolean; v_d boolean; v_ctx text;
+  v_pr integer; v_lieu integer; v_ctx text; v_jet jsonb; v_ecarts text; v_moins text;
+  -- Tables dont la portée se resserre pour des comptes réels (R43, M6) : changement voulu, jugé à part de la non-régression.
+  c_voulus constant text[] := array['public.conditions_acceptations', 'public.effacements_journal', 'public.qcm_signalements',
+                                    'public.user_profiles'];
   v_txt text; v_obt text; v_att text; v_sql text; v_prep text; v_marque text; v_mes text; v_res text[];
   v_permis boolean; v_ok boolean; n integer; n2 integer; v_attendus text[];
   -- Contrôles ciblés de la seconde partie : adresses des personnages, cibles et valeurs relevées par requête.
@@ -1084,18 +1149,21 @@ begin
   end loop;
 
   v_jalons := v_jalons || format(' ; migrations %s s', to_char(extract(epoch from clock_timestamp() - v_debut), 'FM990.0'));
-  -- 3. Non-régression : la photo d'après, avant toute donnée d'essai, comparée à celle d'avant.
+  -- 3. Non-régression : la photo d'après, avant toute donnée d'essai, comparée à celle d'avant, sur toutes les tables sauf
+  --    les quatre dont la portée se resserre (c_voulus), jugées ensuite.
   if not v_en_ligne then
     perform pg_temp.photo('après', v_tables, c_contextes);
     for v_r in
       select c.num, c.etiquette,
-             count(*) filter (where a.tbl not in ('mes_promos()', 'profil')) as n_cases,
-             count(*) filter (where a.tbl not in ('mes_promos()', 'profil') and b.valeur is distinct from a.valeur) as n_diff,
+             count(*) filter (where a.tbl not in ('mes_promos()', 'profil') and a.tbl <> all(c_voulus)) as n_cases,
+             count(*) filter (where a.tbl not in ('mes_promos()', 'profil') and a.tbl <> all(c_voulus)
+                                and b.valeur is distinct from a.valeur) as n_diff,
              string_agg(format('%s %s : %s > %s', a.ctx, regexp_replace(a.tbl, '^public\.', ''), split_part(a.valeur, ':', 1),
                                coalesce(split_part(b.valeur, ':', 1), 'absent')
                                || case when split_part(a.valeur, ':', 1) = split_part(b.valeur, ':', 1)
                                        then ' (autres lignes)' else '' end), ' ; ' order by a.ctx, a.tbl)
-               filter (where a.tbl not in ('mes_promos()', 'profil') and b.valeur is distinct from a.valeur) as diff,
+               filter (where a.tbl not in ('mes_promos()', 'profil') and a.tbl <> all(c_voulus)
+                         and b.valeur is distinct from a.valeur) as diff,
              max(a.valeur) filter (where a.tbl = 'profil') as profil_avant, max(b.valeur) filter (where a.tbl = 'profil') as profil_apres,
              max(a.valeur) filter (where a.tbl = 'mes_promos()') as mes_avant, max(b.valeur) filter (where a.tbl = 'mes_promos()') as mes_apres
         from comptes c
@@ -1104,9 +1172,10 @@ begin
        group by c.num, c.etiquette order by c.num
     loop
       perform pg_temp.verifier('non-régression',
-        format('compte réel %s (%s) : mêmes lignes visibles sur chacune des %s tables, contextes 1, 2, 7 et sans en-tête',
-               v_r.num, v_r.etiquette, cardinality(v_tables)),
-        v_r.n_cases = cardinality(v_tables) * cardinality(c_contextes) and v_r.n_diff = 0,
+        format('compte réel %s (%s) : mêmes lignes visibles sur chacune des %s tables hors changement voulu, contextes 1, 2, 7 et sans en-tête',
+               v_r.num, v_r.etiquette, cardinality(v_tables) - cardinality(c_voulus)),
+        v_r.n_cases = (cardinality(v_tables) - cardinality(c_voulus)) * cardinality(c_contextes) and v_r.n_diff = 0
+        and c_voulus <@ v_tables,
         format('%s case(s) comparée(s), %s différente(s)%s', v_r.n_cases, v_r.n_diff, coalesce(' : ' || v_r.diff, '')));
       perform pg_temp.verifier('non-régression',
         format('compte réel %s (%s) : mêmes role, is_admin, is_founder, stagiaire_id', v_r.num, v_r.etiquette),
@@ -1118,6 +1187,57 @@ begin
         format('avant %s promo(s), après %s', split_part(v_r.mes_avant, ':', 1), coalesce(split_part(v_r.mes_apres, ':', 1), 'absent'))
           || case when v_r.mes_avant = v_r.mes_apres then '' else ' (contenu différent)' end);
     end loop;
+    -- Changement voulu (R43, M6) : sur les tables de c_voulus, chaque compte réel voit exactement ce que la règle nouvelle
+    -- lui ouvre, calculé comme pour les personnages (pg_temp.jetons_de, condition de lecture de la matrice) depuis sa seule
+    -- définition : son profil (fiche, is_founder) et ses affectations, posées par l'étape 1 (l'amorce rend les formateurs
+    -- d'aujourd'hui formateurs de chaque promo). Il n'y gagne aucune ligne (jamais plus qu'avant). Les formateurs réels y
+    -- voient désormais les signalements et les acceptations de la promo affichée, plus ceux de toutes les promos : c'est
+    -- voulu, dit en information ci-dessous. En contre-épreuve (étape 1 seule), ce groupe est ROUGE pour eux.
+    v_moins := '';
+    for v_r in
+      select c.num, c.etiquette, c.email, up.is_founder, up.anonymous_notes, up.stagiaire_id as fiche, st.promo_id as promo_fiche,
+             array(select a.promo_id from public.affectations a where lower(a.email) = lower(c.email) and a.role = 'formateur'
+                    order by a.promo_id) as form_de,
+             array(select a.lieu_id from public.affectations a where lower(a.email) = lower(c.email) and a.role = 'direction'
+                    order by a.lieu_id) as dir_de,
+             exists (select 1 from public.affectations a where lower(a.email) = lower(c.email) and a.role = 'siege') as siege
+        from comptes c join public.user_profiles up on up.email = c.email
+        left join public.stagiaires st on st.id = up.stagiaire_id
+       order by c.num
+    loop
+      v_ecarts := '';
+      for n in 1 .. cardinality(c_contextes) loop
+        v_jet := pg_temp.jetons_de(v_r.email, v_r.is_founder, v_r.siege, v_r.promo_fiche, v_r.fiche, v_r.form_de, v_r.dir_de,
+                                   v_r.anonymous_notes, c_contextes[n], v_lieux);
+        foreach v_t in array c_voulus loop
+          v_att := pg_temp.calcul(format(
+            'select count(*)::text || '':'' || coalesce(sum(hashtext(r.ctid::text)::bigint), 0)::text from %s r where coalesce((%s), false)',
+            v_t, pg_temp.remplir((select m.lecture from matrice m where m.tbl = v_t), v_jet)));
+          select a.valeur, b.valeur into v_txt, v_obt from photos a join photos b on b.moment = 'après' and b.compte = a.compte
+                                                       and b.ctx = a.ctx and b.tbl = a.tbl
+           where a.moment = 'avant' and a.compte = v_r.num and a.ctx = coalesce(c_contextes[n], 'sans') and a.tbl = v_t;
+          if v_obt is distinct from v_att or split_part(v_obt, ':', 1) !~ '^[0-9]+$' or split_part(v_txt, ':', 1) !~ '^[0-9]+$'
+             or split_part(v_obt, ':', 1)::bigint > split_part(v_txt, ':', 1)::bigint then
+            v_ecarts := v_ecarts || format('%s %s : vu %s, attendu %s, avant %s ; ', coalesce(c_contextes[n], 'sans'),
+              regexp_replace(v_t, '^public\.', ''), coalesce(split_part(v_obt, ':', 1), 'nul'), coalesce(split_part(v_att, ':', 1), v_att, 'nul'),
+              coalesce(split_part(v_txt, ':', 1), 'nul'));
+          elsif v_obt is distinct from v_txt then
+            v_moins := v_moins || format('%s|%s|%s|%s;', v_r.num, v_r.etiquette, regexp_replace(v_t, '^public\.', ''),
+              split_part(v_txt, ':', 1)::bigint - split_part(v_obt, ':', 1)::bigint);
+          end if;
+        end loop;
+      end loop;
+      perform pg_temp.verifier('changement voulu',
+        format('compte réel %s (%s) : sur les %s tables au changement voulu (acceptations, journal des effacements, signalements, comptes), les lignes de la règle nouvelle, jamais plus qu''avant, contextes 1, 2, 7 et sans en-tête',
+               v_r.num, v_r.etiquette, cardinality(c_voulus)),
+        v_ecarts = '', v_ecarts);
+    end loop;
+    perform pg_temp.informer('changement voulu (R43, M6) : comptes réels qui voient moins de lignes, par table (lignes en moins, tous contextes)',
+      coalesce((select string_agg(format('%s : %s compte(s) %s, %s ligne(s)', x.tbl, x.nb, x.etiquettes, x.lignes), ' ; ' order by x.tbl)
+                  from (select split_part(e, '|', 3) as tbl, count(distinct split_part(e, '|', 1)) as nb,
+                               string_agg(distinct split_part(e, '|', 2), ', ') as etiquettes, sum(split_part(e, '|', 4)::bigint) as lignes
+                          from unnest(string_to_array(rtrim(v_moins, ';'), ';')) e where e <> '' group by 1) x),
+               'aucun (aucune ligne hors de la portée nouvelle dans les données du jour)'));
   end if;
 
   v_jalons := v_jalons || format(' ; photo après et comparaison %s s', to_char(extract(epoch from clock_timestamp() - v_debut), 'FM990.0'));
@@ -1151,6 +1271,8 @@ begin
   insert into public.user_profiles (email, role, is_admin, is_founder, anonymous_notes, stagiaire_id)
     select p.email, p.role, p.is_admin, p.fondateur, p.anonyme, p.fiche from personnages p order by p.ordre;
   insert into public.user_profiles (email, role) values (c_orphelin_affecte, 'stagiaire'), (c_personnel, 'prof');
+  -- L'orphelin sans_role a été invité par form_n (R43) : form_n le voit, et le retire depuis sa promo ; les autres non.
+  update public.user_profiles set invited_by_email = c_form_n where email = 'preuve.orpheline@exemple.invalid';
   insert into public.affectations (email, role, promo_id, lieu_id)
     select p.email, 'formateur', x, null from personnages p cross join unnest(p.formateur_de) x
     union all select p.email, 'direction', null, x from personnages p cross join unnest(p.direction_de) x
@@ -1229,8 +1351,15 @@ begin
   -- n'est affiché), avec sa capture.
   insert into public.qcm_signalements (question_id, email, stagiaire_id, motif, commentaire)
     select v_question_a, p.email, p.fiche, 'autre', 'Preuve' from personnages p;
+  insert into public.qcm_signalements (question_id, email, stagiaire_id, motif, commentaire)
+    select v_question_a, 'preuve.temoin@exemple.invalid', s.id, 'autre', 'Preuve' from public.stagiaires s where s.prenom = 'Preuve témoin';
   insert into public.conditions_acceptations (email, version) select p.email, 'preuve' from personnages p;
+  -- Journal des effacements (R43) : une ligne par promo, par lieu et par fiche cible, plus une ligne d'aucune portée.
   insert into public.effacements_journal (type, cible, fait_par_email) values ('stagiaire', 'preuve', 'preuve@exemple.invalid');
+  insert into public.effacements_journal (type, cible, fait_par_email)
+    select 'promo', 'promo ' || x, 'preuve@exemple.invalid' from unnest(c_promos) x
+    union all select 'benevoles', 'lieu ' || x, 'preuve@exemple.invalid' from unnest(v_lieux) x
+    union all select 'stagiaire', 'stagiaire ' || c.fiche, 'preuve@exemple.invalid' from cibles c;
   if v_sub_porteur is not null then
     insert into public.signalements_app (user_id, email, role, message)
       values (v_sub_porteur::uuid, 'preuve@exemple.invalid', 'stagiaire', 'Preuve signalement')
@@ -1301,35 +1430,12 @@ begin
   create temp table contextes (ordre integer, rang integer, qui text, email text, ctx text, hdr text, jetons jsonb,
     tables text[], apercu text, groupe text not null default 'matrice', ecriture boolean not null default true);
   for v_p in select * from personnages order by ordre loop
-    v_acces := array(select pr.id from public.promos pr
-                      where v_p.fondateur or pr.id = v_p.promo_fiche or pr.id = any(v_p.formateur_de)
-                         or pr.lieu_id = any(v_p.direction_de)
-                      order by pr.id);
-    v_defaut := coalesce(v_p.promo_fiche,
-      (select pr.id from public.promos pr where pr.id = any(v_acces) and (pr.date_fin is null or pr.date_fin >= current_date)
-        order by pr.date_debut, pr.id limit 1),
-      (select pr.id from public.promos pr where pr.id = any(v_acces) order by pr.date_debut desc, pr.id desc limit 1));
     for n in 1 .. cardinality(c_contextes) loop
       v_ctx := c_contextes[n];
-      v_pr := case when v_ctx is null then v_defaut when v_ctx::integer = any(v_acces) then v_ctx::integer end;
-      v_lieu := (select pr.lieu_id from public.promos pr where pr.id = v_pr);
-      v_f := v_pr is not null and (v_p.fondateur or v_pr = any(v_p.formateur_de));
-      v_d := v_pr is not null and (v_p.fondateur or v_lieu = any(v_p.direction_de));
       insert into contextes (ordre, rang, qui, email, ctx, hdr, tables, jetons) values (v_p.ordre, n, v_p.nom, v_p.email,
         coalesce(v_ctx, 'sans'), v_ctx, v_p.tables,
-        jsonb_build_object(
-          'P', coalesce(v_pr::text, 'null'), 'L', coalesce(v_lieu::text, 'null'),
-          'F', v_f::text, 'D', v_d::text, 'E', (v_f or v_d)::text, 'S', (v_p.siege or v_p.fondateur)::text,
-          'R', (v_f or v_p.siege or v_p.fondateur)::text, 'Fo', v_p.fondateur::text,
-          'moi', quote_literal(lower(v_p.email)),
-          'sub', coalesce((select quote_literal(j.sub) || '::uuid' from jetons j where j.email = lower(v_p.email)), 'null'),
-          'fiche', coalesce(v_p.fiche::text, 'null'),
-          'fiche_p', coalesce(case when v_p.promo_fiche = v_pr then v_p.fiche end::text, 'null'),
-          'anonyme', v_p.anonyme::text,
-          'acces', quote_literal(v_acces::text) || '::integer[]',
-          'form_de', quote_literal((case when v_p.fondateur then array(select pr.id from public.promos pr order by pr.id)
-                                         else v_p.formateur_de end)::text) || '::integer[]',
-          'dir_de', quote_literal((case when v_p.fondateur then v_lieux else v_p.direction_de end)::text) || '::integer[]'));
+        pg_temp.jetons_de(v_p.email, v_p.fondateur, v_p.siege, v_p.promo_fiche, v_p.fiche, v_p.formateur_de, v_p.direction_de,
+                          v_p.anonyme, v_ctx, v_lieux));
     end loop;
   end loop;
   -- L'acteur anonyme (R22 : requête sans jeton, rôle anon) : aucun drapeau, aucune promo, aucune fiche, aucun email ni
@@ -1642,6 +1748,25 @@ begin
     format('delete from public.user_profiles where email = %L', c_stag_n), format('select count(*)::text from public.user_profiles where email = %L', c_stag_n), array['OK 1 0']);
   perform pg_temp.cas('comptes', 'form_n ne supprime pas le compte d''un stagiaire d''une autre promo', c_form_n, '1', null, null,
     format('delete from public.user_profiles where email = %L', c_stag_m), format('select count(*)::text from public.user_profiles where email = %L', c_stag_m), array['OK 0 1', 'REFUS 42501']);
+  --    M3 : une fiche de stagiaire se supprime par le formateur de la promo (ou le fondateur), pas par la direction, qui la
+  --    modifie toujours (abandon).
+  perform pg_temp.cas('comptes', 'M3 : dir_n ne supprime pas une fiche de sa promo', c_dir_n, '1', null, null,
+    format('delete from public.stagiaires where id = %s', v_f1), format('select count(*)::text from public.stagiaires where id = %s', v_f1), array['OK 0 1', 'REFUS 42501']);
+  perform pg_temp.cas('comptes', 'M3, jumeau : form_n supprime cette fiche', c_form_n, '1', null, null,
+    format('delete from public.stagiaires where id = %s', v_f1), format('select count(*)::text from public.stagiaires where id = %s', v_f1), array['OK 1 0']);
+  perform pg_temp.cas('comptes', 'M3 : dir_n marque toujours un abandon sur une fiche de sa promo', c_dir_n, '1', null, null,
+    format('update public.stagiaires set actif = false where id = %s', v_f1), format('select actif::text from public.stagiaires where id = %s', v_f1), array['OK 1 false']);
+  --    Signalements de QCM (R43) : la portée tient aussi sur la ligne modifiée (with check). form_n ne fait pas passer ses
+  --    signalements (promo 1 et sans fiche) sur la fiche de stag_m (promo 2) ; il traite celui de stag_n (jumeau). La
+  --    modification vise toute la table, sans WHERE : avec un WHERE, la règle de lecture s'appliquerait aussi à la ligne
+  --    nouvelle et masquerait une règle de modification qui aurait perdu sa portée.
+  select p.fiche into n from personnages p where p.nom = 'stag_m';
+  perform pg_temp.cas('signalements', 'signalements de QCM : form_n ne fait pas passer les siens vers la fiche de stag_m (autre promo)', c_form_n, '1', null, null,
+    format('update public.qcm_signalements set stagiaire_id = %s', n),
+    format('select count(*)::text from public.qcm_signalements where stagiaire_id = %s', n), array['REFUS 42501']);
+  perform pg_temp.cas('signalements', 'signalement de QCM de stag_n : jumeau, form_n le traite', c_form_n, '1', null, null,
+    format('update public.qcm_signalements set statut = ''traite'' where email = %L', c_stag_n),
+    format('select statut from public.qcm_signalements where email = %L', c_stag_n), array['OK 1 traite']);
   --    g) inviter_compte, d'après le tableau de la section 0. Un refus pour droit manquant est un état 42501 ; un profil
   --       existant n'est jamais rétrogradé ni relié à une seconde fiche (son état est relu après l'appel).
   for v_x in select * from (values
@@ -1718,11 +1843,27 @@ begin
   perform pg_temp.cas('inviter_compte', 'prof_id déjà relié à un autre compte : le profil est créé sans fiche formateur', c_dir_n, '1', null,
     format('insert into public.user_profiles (email, role, is_admin, prof_id) values (''preuve.deja.relie@exemple.invalid'', ''prof'', true, %s)', v_prof),
     format('select public.inviter_compte(%L, ''formateur'', null, %s)', c_invite, v_prof), format('select pg_temp.etat_compte(%L)', c_invite), array['OK 1 prof/true/-/- formateur:1']);
-  perform pg_temp.verifier('inviter_compte', 'cree : vrai à la création, faux à la répétition, faux pour un profil qui existait',
+  perform pg_temp.attendre('inviter_compte',
+    'cree/affecte (I1) : formateur créé puis répété ; formateur existant qui gagne la promo ; stagiaire créé puis répété',
     pg_temp.suite(c_dir_n, '1', null, array[
-      format('select (public.inviter_compte(%L, ''formateur'', null, %s) ->> ''cree'')', 'preuve.cree@exemple.invalid', v_prof),
-      format('select (public.inviter_compte(%L, ''formateur'', null, %s) ->> ''cree'')', 'preuve.cree@exemple.invalid', v_prof),
-      format('select (public.inviter_compte(%L, ''formateur'') ->> ''cree'')', c_form_m)]) = 'true false false', 'cree');
+      format('select (x ->> ''cree'') || ''/'' || (x ->> ''affecte'') from (select public.inviter_compte(%L, ''formateur'', null, %s) as x) q', 'preuve.cree@exemple.invalid', v_prof),
+      format('select (x ->> ''cree'') || ''/'' || (x ->> ''affecte'') from (select public.inviter_compte(%L, ''formateur'', null, %s) as x) q', 'preuve.cree@exemple.invalid', v_prof),
+      format('select (x ->> ''cree'') || ''/'' || (x ->> ''affecte'') from (select public.inviter_compte(%L, ''formateur'') as x) q', c_form_m),
+      format('select (x ->> ''cree'') || ''/'' || (x ->> ''affecte'') from (select public.inviter_compte(%L, ''stagiaire'', %s) as x) q', 'preuve.cree.stag@exemple.invalid', v_f1),
+      format('select (x ->> ''cree'') || ''/'' || (x ->> ''affecte'') from (select public.inviter_compte(%L, ''stagiaire'', %s) as x) q', 'preuve.cree.stag@exemple.invalid', v_f1)]),
+    'true/1 false/0 false/1 true/0 false/0');
+  --    M7 : une fiche déjà reliée à un compte n'en reçoit pas un second ; jumeaux : la même adresse sur une fiche libre, et
+  --    l'adresse déjà reliée réinvitée sur sa propre fiche (rien ne change, pas de refus).
+  select p.fiche into n from personnages p where p.nom = 'stag_n';
+  perform pg_temp.cas('inviter_compte', 'M7 : fiche de stag_n déjà reliée, une seconde adresse refusée', c_form_n, '1', null, null,
+    format('select public.inviter_compte(%L, ''stagiaire'', %s)', 'preuve.second@exemple.invalid', n),
+    format('select pg_temp.etat_compte(%L)', 'preuve.second@exemple.invalid'), array['~REFUS']);
+  perform pg_temp.cas('inviter_compte', 'M7, jumeau : la même seconde adresse sur une fiche libre de la promo 1 : permis', c_form_n, '1', null, null,
+    format('select public.inviter_compte(%L, ''stagiaire'', %s)', 'preuve.second@exemple.invalid', v_f1),
+    format('select pg_temp.etat_compte(%L)', 'preuve.second@exemple.invalid'), array[format('OK 1 stagiaire/false/%s/- -', v_f1)]);
+  perform pg_temp.cas('inviter_compte', 'M7, jumeau : stag_n réinvité sur sa propre fiche : permis, rien ne change', c_form_n, '1', null, null,
+    format('select public.inviter_compte(%L, ''stagiaire'', %s)', c_stag_n, n),
+    format('select pg_temp.etat_compte(%L)', c_stag_n), array[format('OK 1 stagiaire/false/%s/- -', n)]);
   perform pg_temp.cas('inviter_compte', 'fiche anonymisée refusée', c_form_n, '1', null, format('update public.stagiaires set anonymise_le = now() where id = %s', v_f1),
     format('select public.inviter_compte(%L, ''stagiaire'', %s)', c_invite, v_f1), format('select pg_temp.etat_compte(%L)', c_invite), array['~REFUS']);
   foreach v_txt in array array['a@b', 'sans-arobase', 'a b@c.d', '@c.d', 'a@.d'] loop
@@ -1940,7 +2081,7 @@ begin
       (select concat_ws('/', up.role, up.stagiaire_id is null, up.is_founder, (select count(*) from public.affectations a where a.email = up.email))
          from public.user_profiles up where up.email = c_sans), 'stagiaire/t/f/0');
     foreach v_ctx in array c_contextes loop
-      perform pg_temp.sondes('sans rôle', 'sans_role', c_sans, v_ctx, null, false, false, null);
+      perform pg_temp.sondes('sans rôle', 'sans_role', c_sans, v_ctx, null, false, false, null, false);
       perform pg_temp.val('sans rôle', 'sans_role, contexte ' || coalesce(v_ctx, 'sans') || ' : mes_promos() est vide', c_sans, v_ctx, null,
         'select count(*)::text from public.mes_promos()', array['0']);
     end loop;
@@ -1949,7 +2090,7 @@ begin
     perform pg_temp.cas('sans rôle', 'jumeau form_n : modifie toutes les lignes du planning de la promo 1 (la sonde n''est pas vide)', c_form_n, '1', null, null,
       'update public.planning_entries set notes = ''PreuveJumeau''', 'select count(*)::text from public.planning_entries where notes = ''PreuveJumeau''',
       array[format('OK %s %s', v_n1, v_n1)]);
-    perform pg_temp.sondes('sans rôle', 'jumeau form_n', c_form_n, '1', 1, true, false, null);
+    perform pg_temp.sondes('sans rôle', 'jumeau form_n', c_form_n, '1', 1, true, false, null, true);
 
     -- 2. Ancien formateur : role prof, is_admin vrai, aucune affectation (ce que créerait l'ancienne fonction invite-user).
     perform pg_temp.attendre('ancien formateur', 'ancien formateur : role prof, is_admin vrai, sans fiche, sans affectation',
@@ -1959,7 +2100,7 @@ begin
       (select concat_ws('/', up.role, up.is_admin, (select count(*) from public.affectations a where a.email = up.email)) from public.user_profiles up where up.email = c_form_n),
       'prof/t/1');
     foreach v_ctx in array c_contextes loop
-      perform pg_temp.sondes('ancien formateur', 'ancien_form', c_ancien, v_ctx, null, false, false, null);
+      perform pg_temp.sondes('ancien formateur', 'ancien_form', c_ancien, v_ctx, null, false, false, null, false);
       perform pg_temp.val('ancien formateur', 'ancien_form, contexte ' || coalesce(v_ctx, 'sans') || ' : mes_promos() est vide', c_ancien, v_ctx, null,
         'select count(*)::text from public.mes_promos()', array['0']);
       perform pg_temp.val('ancien formateur', 'ancien_form, contexte ' || coalesce(v_ctx, 'sans') || ' : is_admin() faux', c_ancien, v_ctx, null,
@@ -1975,7 +2116,7 @@ begin
     v_def := coalesce((select s.promo_id from public.stagiaires s where s.id = v_fi), v_def);
     foreach v_ctx in array c_contextes loop
       v_pc := case when v_ctx is null then v_def when v_ctx::integer = any(v_acc) then v_ctx::integer end;
-      perform pg_temp.sondes('cumul', 'cumul', c_cumul, v_ctx, v_pc, coalesce(v_pc = 2, false), false, case when v_pc = 1 then v_fi end);
+      perform pg_temp.sondes('cumul', 'cumul', c_cumul, v_ctx, v_pc, coalesce(v_pc = 2, false), false, case when v_pc = 1 then v_fi end, true);
     end loop;
     perform pg_temp.attendre('cumul', 'cumul : mes_promos() dit stagiaire en promo 1 et formateur en promo 2',
       pg_temp.valeur(c_cumul, null, null, 'select string_agg(id || ''='' || array_to_string(roles, ''+''), '' '' order by id) from public.mes_promos()'),
@@ -1986,7 +2127,7 @@ begin
     foreach v_ctx in array c_contextes loop
       v_pc := case when v_ctx is null then v_def when v_ctx::integer = any(v_acc) then v_ctx::integer end;
       v_lx := (select pr.lieu_id from public.promos pr where pr.id = v_pc);
-      perform pg_temp.sondes('cumul', 'dir_form', c_dirf, v_ctx, v_pc, coalesce(v_pc = 2, false), coalesce(v_lx = v_l1, false), null);
+      perform pg_temp.sondes('cumul', 'dir_form', c_dirf, v_ctx, v_pc, coalesce(v_pc = 2, false), coalesce(v_lx = v_l1, false), null, true);
     end loop;
     perform pg_temp.attendre('cumul', 'dir_form : mes_promos() liste les promos du lieu 1 (direction) et la promo 2 (formateur, et direction si le lieu est le même)',
       pg_temp.valeur(c_dirf, null, null, 'select string_agg(id || ''='' || array_to_string(roles, ''+''), '' '' order by id) from public.mes_promos()'),
@@ -2002,7 +2143,7 @@ begin
     perform pg_temp.verifier('rôle retiré', 'l''affectation formateur de form_n sur la promo 1 existait et est retirée', v_f_ligne.id is not null,
       'aucune ligne retirée');
     foreach v_ctx in array c_contextes loop
-      perform pg_temp.sondes('rôle retiré', 'form_n sans affectation', c_form_n, v_ctx, null, false, false, null);
+      perform pg_temp.sondes('rôle retiré', 'form_n sans affectation', c_form_n, v_ctx, null, false, false, null, false);
     end loop;
     perform pg_temp.val('rôle retiré', 'form_n sans affectation : mes_promos() ne liste plus la promo 1 avec formateur', c_form_n, '1', null,
       'select count(*)::text from public.mes_promos() where id = 1 or ''formateur'' = any(roles)', array['0']);
@@ -2031,7 +2172,7 @@ begin
       + (select count(*) from public.fiches_suivi where stagiaire_id = v_fi) > 0, 'aucun dossier, livret ni fiche de suivi pour cette fiche');
     foreach v_ctx in array c_contextes loop
       v_pc := case v_ctx when '2' then 2 when '1' then null when '7' then null else 2 end;
-      perform pg_temp.sondes('fiche déplacée', 'stag_n fiche en promo 2', c_stag_n, v_ctx, v_pc, false, false, case when v_pc = 2 then v_fi end);
+      perform pg_temp.sondes('fiche déplacée', 'stag_n fiche en promo 2', c_stag_n, v_ctx, v_pc, false, false, case when v_pc = 2 then v_fi end, true);
       v_somme := pg_temp.lignes_de_promo(c_stag_n, v_ctx, 1);
       perform pg_temp.verifier('fiche déplacée', 'stag_n, contexte ' || coalesce(v_ctx, 'sans') || ' : aucune ligne de la promo 1 dans aucune table de promo', v_somme = '0',
         'lignes de la promo 1 vues : ' || coalesce(v_somme, 'nul'));

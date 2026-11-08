@@ -58,12 +58,20 @@ create policy planning_jours_off_ecriture on public.planning_jours_off
   using (promo_id = (select public.promo_courante()) and (select public.formateur_courant()))
   with check (promo_id = (select public.promo_courante()) and (select public.formateur_courant()));
 
--- public.stagiaires : écriture P et E, la direction gère les fiches de son centre (lecture P inchangée)
+-- public.stagiaires : ajout et modification P et E, la direction gère les fiches de son centre (inviter, abandon) ;
+-- suppression P et F, le formateur de la promo ou le fondateur (la fiche emporte ses données en cascade) ; lecture P
+-- inchangée
 drop policy stagiaires_admin_writes on public.stagiaires;
-create policy stagiaires_ecriture on public.stagiaires
-  as permissive for all to public
+create policy stagiaires_ajout on public.stagiaires
+  as permissive for insert to public
+  with check (promo_id = (select public.promo_courante()) and (select public.equipe_courante()));
+create policy stagiaires_modification on public.stagiaires
+  as permissive for update to public
   using (promo_id = (select public.promo_courante()) and (select public.equipe_courante()))
   with check (promo_id = (select public.promo_courante()) and (select public.equipe_courante()));
+create policy stagiaires_suppression on public.stagiaires
+  as permissive for delete to public
+  using (promo_id = (select public.promo_courante()) and (select public.formateur_courant()));
 
 -- public.stagiaires_prive : lecture fiche de P et (E ou M) ; aucune écriture directe (set_date_naissance)
 drop policy stagiaires_prive_select on public.stagiaires_prive;
@@ -410,9 +418,11 @@ $function$;
 revoke all on function public.a_une_affectation(text) from public;
 grant execute on function public.a_une_affectation(text) to anon, authenticated;
 
--- public.user_profiles : lecture M, personnel, orphelins pour E, stagiaires de P ; plus d'ajout ni de modification
--- directs (fonctions serveur) ; suppression jamais du fondateur ni d'un compte affecté, d'un stagiaire de P ou d'un
--- orphelin par E, du personnel par Fo
+-- public.user_profiles : lecture M ; personnel (sans fiche, role <> 'stagiaire') pour un compte qui a une promo
+-- (promo_par_defaut non nulle), le siège ou Fo ; orphelins (sans fiche, role 'stagiaire') pour Fo ou pour celui qui
+-- les a invités ; stagiaires de P. Plus d'ajout ni de modification directs (fonctions serveur). Suppression jamais du
+-- fondateur ni d'un compte affecté : un stagiaire de P par E, un orphelin par Fo ou par E qui l'a invité, le personnel
+-- par Fo
 drop policy "user_profiles delete admin" on public.user_profiles;
 drop policy "user_profiles insert admin" on public.user_profiles;
 drop policy "user_profiles update admin" on public.user_profiles;
@@ -422,7 +432,10 @@ create policy user_profiles_lecture on public.user_profiles
   as permissive for select to authenticated
   using (
     lower(email) = lower((select auth.jwt() ->> 'email'))
-    or (stagiaire_id is null and (role <> 'stagiaire' or (select public.equipe_courante())))
+    or (stagiaire_id is null and role <> 'stagiaire'
+        and ((select public.promo_par_defaut()) is not null or (select public.est_siege()) or (select public.est_fondateur())))
+    or (stagiaire_id is null and role = 'stagiaire'
+        and ((select public.est_fondateur()) or lower(invited_by_email) = lower((select auth.jwt() ->> 'email'))))
     or stagiaire_id in (select s.id from public.stagiaires s where s.promo_id = (select public.promo_courante()))
   );
 create policy user_profiles_suppression on public.user_profiles
@@ -431,9 +444,11 @@ create policy user_profiles_suppression on public.user_profiles
     not is_founder
     and not public.a_une_affectation(email)
     and (
-      ((stagiaire_id in (select s.id from public.stagiaires s where s.promo_id = (select public.promo_courante()))
-        or (stagiaire_id is null and role = 'stagiaire'))
+      (stagiaire_id in (select s.id from public.stagiaires s where s.promo_id = (select public.promo_courante()))
        and (select public.equipe_courante()))
+      or (stagiaire_id is null and role = 'stagiaire'
+          and ((select public.est_fondateur())
+               or ((select public.equipe_courante()) and lower(invited_by_email) = lower((select auth.jwt() ->> 'email')))))
       or (stagiaire_id is null and role <> 'stagiaire' and (select public.est_fondateur()))
     )
   );
@@ -538,20 +553,42 @@ create policy profs_ecriture on public.profs
   using ((select public.equipe_courante()))
   with check ((select public.equipe_courante()));
 
--- public.qcm_signalements : lecture F ou M ; traitement et suppression F (ajout du sien inchangé)
+-- public.qcm_signalements : lecture M, Fo, ou F sur les signalements d'une fiche de P et ceux sans fiche (faits par
+-- l'équipe) ; traitement et suppression : Fo, ou F avec la même portée (ajout du sien inchangé)
 drop policy qcm_signalements_delete on public.qcm_signalements;
 drop policy qcm_signalements_select on public.qcm_signalements;
 drop policy qcm_signalements_update on public.qcm_signalements;
 create policy qcm_signalements_lecture on public.qcm_signalements
   as permissive for select to authenticated
-  using ((select public.formateur_courant()) or lower(email) = lower((select auth.jwt() ->> 'email')));
+  using (
+    lower(email) = lower((select auth.jwt() ->> 'email'))
+    or (select public.est_fondateur())
+    or ((select public.formateur_courant())
+        and (stagiaire_id is null
+             or stagiaire_id in (select s.id from public.stagiaires s where s.promo_id = (select public.promo_courante()))))
+  );
 create policy qcm_signalements_modification on public.qcm_signalements
   as permissive for update to authenticated
-  using ((select public.formateur_courant()))
-  with check ((select public.formateur_courant()));
+  using (
+    (select public.est_fondateur())
+    or ((select public.formateur_courant())
+        and (stagiaire_id is null
+             or stagiaire_id in (select s.id from public.stagiaires s where s.promo_id = (select public.promo_courante()))))
+  )
+  with check (
+    (select public.est_fondateur())
+    or ((select public.formateur_courant())
+        and (stagiaire_id is null
+             or stagiaire_id in (select s.id from public.stagiaires s where s.promo_id = (select public.promo_courante()))))
+  );
 create policy qcm_signalements_suppression on public.qcm_signalements
   as permissive for delete to authenticated
-  using ((select public.formateur_courant()));
+  using (
+    (select public.est_fondateur())
+    or ((select public.formateur_courant())
+        and (stagiaire_id is null
+             or stagiaire_id in (select s.id from public.stagiaires s where s.promo_id = (select public.promo_courante()))))
+  );
 
 -- public.qcm_signalement_instruction : lecture F ; écriture par fonctions serveur
 drop policy qcm_signalement_instruction_select on public.qcm_signalement_instruction;
@@ -565,17 +602,33 @@ create policy qcm_ia_brouillons_lecture on public.qcm_ia_brouillons
   as permissive for select to authenticated
   using ((select public.formateur_courant()));
 
--- public.conditions_acceptations : lecture M ou E ; écriture par fonction serveur
+-- public.conditions_acceptations : lecture M, Fo, ou E sur les adresses des comptes dont la fiche est dans P ; écriture
+-- par fonction serveur
 drop policy conditions_acceptations_select on public.conditions_acceptations;
 create policy conditions_acceptations_lecture on public.conditions_acceptations
   as permissive for select to authenticated
-  using (lower(email) = lower((select auth.jwt() ->> 'email')) or (select public.equipe_courante()));
+  using (
+    lower(email) = lower((select auth.jwt() ->> 'email'))
+    or (select public.est_fondateur())
+    or ((select public.equipe_courante())
+        and lower(email) in (select lower(u.email) from public.user_profiles u
+                              where u.stagiaire_id in (select s.id from public.stagiaires s
+                                                        where s.promo_id = (select public.promo_courante()))))
+  );
 
--- public.effacements_journal : lecture E ; écriture par fonctions serveur
+-- public.effacements_journal : lecture Fo, ou E sur les lignes de P et de L selon la cible (« promo <id> », « stagiaire
+-- <id> » d'une fiche de P, « lieu <id> ») ; écriture par fonctions serveur
 drop policy effacements_journal_select on public.effacements_journal;
 create policy effacements_journal_lecture on public.effacements_journal
   as permissive for select to authenticated
-  using ((select public.equipe_courante()));
+  using (
+    (select public.est_fondateur())
+    or ((select public.equipe_courante())
+        and (cible = 'promo ' || (select public.promo_courante())
+             or cible = 'lieu ' || (select public.lieu_courant())
+             or cible in (select 'stagiaire ' || s.id from public.stagiaires s
+                           where s.promo_id = (select public.promo_courante()))))
+  );
 
 -- public.signalements_app : lecture M ou Fo, suppression Fo (R20 : mêmes droits, écrits avec le vocabulaire)
 drop policy signalements_app_select on public.signalements_app;

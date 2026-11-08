@@ -147,10 +147,14 @@ Droits d'exécution : `anon, authenticated` pour celles qu'une règle appelle di
 
 | Rôle invité | Qui peut | Effet |
 |---|---|---|
-| `stagiaire` (fiche donnée) | formateur ou direction de la promo de la fiche | crée le profil (`role 'stagiaire'`, `is_admin false`) ; un profil existant n'est jamais rétrogradé ni relié à une seconde fiche |
+| `stagiaire` (fiche donnée) | formateur ou direction de la promo de la fiche | crée le profil (`role 'stagiaire'`, `is_admin false`) ; un profil existant n'est jamais rétrogradé ni relié à une seconde fiche ; une fiche déjà reliée à un autre compte est refusée (relecture finale, M7) |
 | `formateur` (ou `prof`) | direction du centre de la promo affichée, ou fondateur | crée le profil s'il manque (`role 'prof'`, `is_admin true`, `prof_id`) puis l'affectation sur la promo affichée |
 | `direction` | siège ou fondateur, `p_lieu_id` requis | profil s'il manque (`role 'prof'`, `is_admin false`) puis l'affectation |
 | `siege` | fondateur | profil s'il manque puis l'affectation |
+
+Elle rend `{ email, role, cree, affecte }` : `cree` vaut vrai si le profil vient d'être créé, `affecte` le nombre
+d'affectations ajoutées (0 ou 1). L'app dit « rien n'a changé » seulement quand ni l'un ni l'autre (relecture
+finale, I1).
 
 ## 1. Matrice des droits (étape 3)
 
@@ -162,7 +166,7 @@ appels sans argument s'écrivent `(select f())` pour n'être calculés qu'une fo
 | Table | Lecture | Écriture |
 |---|---|---|
 | agenda_events, planning_entries, planning_half_meta, planning_jours_off | P (inchangé) | P et F |
-| stagiaires | P (inchangé) | P et E (inviter, abandon : « tout le centre ») |
+| stagiaires | P (inchangé) | ajout et modification : P et E (inviter, abandon : « tout le centre ») ; suppression : P et F (relecture finale, M3) |
 | stagiaires_prive | fiche de P, et (E ou M) | par `set_date_naissance` |
 | settings | P (inchangé) | P et, selon la clé : `navigation_v2`, `emargement_actif` : Fo ; `modules` : E ; autres : F |
 | evaluations | P et (E ou fiche dans `notes_stagiaires_visibles()`) | P et F |
@@ -180,16 +184,16 @@ appels sans argument s'écrivent `(select f())` pour n'être calculés qu'une fo
 | promos | `peut_acceder_promo(id)` (inchangé) | nom : `est_formateur(id)` ou `est_direction(lieu_id)` ; création et dates : `creer_promo`, `modifier_dates_promo` (direction du lieu ou fondateur) |
 | lieux | lieu d'une promo accessible, ou `est_direction(id)`, ou `est_siege()` | aucune |
 | affectations | M ; Fo ; formateurs d'une promo où je suis E ; directions de mon lieu ; S : directions et siège | formateur : direction du lieu de la promo ; direction : siège ; siège : Fo |
-| user_profiles | M ; personnel (sans fiche, `role <> 'stagiaire'`) ; orphelins si E ; stagiaires de P | ajout et modification retirés à `anon` et `authenticated` (fonctions serveur seulement) ; suppression : jamais le fondateur ni un compte qui a une affectation ; stagiaire de P ou orphelin : E ; personnel : Fo |
+| user_profiles | M ; personnel (sans fiche, `role <> 'stagiaire'`) pour un compte qui a une promo (`promo_par_defaut()` non nulle), S ou Fo (relecture finale, M6) ; orphelins (sans fiche, `role 'stagiaire'`) pour Fo ou celui qui les a invités (`invited_by_email`, R43) ; stagiaires de P | ajout et modification retirés à `anon` et `authenticated` (fonctions serveur seulement) ; suppression : jamais le fondateur ni un compte qui a une affectation ; stagiaire de P : E ; orphelin : Fo, ou E qui l'a invité ; personnel : Fo |
 | cours | publié, ou Fo, ou (thème : `code is null`) et (F ou D ou S) | modification : Fo, ou (F ou S) et (thème ou publié) |
 | cours_versions | Fo, ou (F ou D ou S) et cours de thème ou publié | ajout : Fo, ou (F ou S) et cours de thème ou publié |
 | qcm_questions, qcm_options | tous les connectés (inchangé) | R |
 | qcm, themes, competences, ressources | tous les connectés (inchangé) | F |
 | contacts, profs | tous les connectés (inchangé) | E |
-| qcm_signalements | F ou M | ajout du sien (inchangé) ; traitement et suppression : F |
+| qcm_signalements | M ; Fo ; F sur les signalements d'une fiche de P et ceux sans fiche (R43) | ajout du sien (inchangé) ; traitement et suppression : Fo, ou F avec la même portée |
 | qcm_signalement_instruction, qcm_ia_brouillons | F | fonctions serveur |
-| conditions_acceptations | M ou E | fonction serveur |
-| effacements_journal | E | fonctions serveur |
+| conditions_acceptations | M ; Fo ; E sur les adresses des comptes dont la fiche est dans P (R43) | fonction serveur |
+| effacements_journal | Fo ; E sur les lignes de P et de L, selon `cible` (« promo P », « stagiaire » d'une fiche de P, « lieu L », R43) | fonctions serveur |
 | chatbot_usage, qcm_ia_usage, cours_chunks | inchangé | inchangé |
 | signalements_app (arrivée de main le 28/10) | M (`user_id = auth.uid()`) ou Fo | suppression : Fo ; le reste par fonctions serveur (inchangé) |
 | signalements_app_captures | celles d'un signalement lisible | fonctions serveur (inchangé) |

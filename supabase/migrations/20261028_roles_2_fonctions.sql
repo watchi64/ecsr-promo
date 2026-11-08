@@ -692,8 +692,10 @@ end $function$;
 -- Exécutables par authenticated seulement ; un droit manquant lève l'état 42501, avec une phrase que l'app affiche telle quelle.
 
 -- inviter_compte : crée le profil (s'il manque) puis l'affectation, selon qui invite quel rôle. Un profil existant n'est jamais
--- rétrogradé ni relié à une seconde fiche. Les colonnes role, is_admin et prof_id sont posées comme avant pour les anciens clients ;
--- prof_id n'est posé que si la fiche existe et n'est reliée à aucun compte. Le retour dit si le profil vient d'être créé.
+-- rétrogradé ni relié à une seconde fiche, et une fiche déjà reliée à un compte n'en reçoit pas un second (refus).
+-- Les colonnes role, is_admin et prof_id sont posées comme avant pour les anciens clients ; prof_id n'est posé que si la
+-- fiche formateur existe et n'est reliée à aucun compte. Le retour dit si le profil vient d'être créé (cree) et combien
+-- d'affectations viennent d'être ajoutées (affecte : 0 ou 1) ; ni l'un ni l'autre : rien n'a changé.
 CREATE FUNCTION public.inviter_compte(p_email text, p_role text, p_stagiaire_id integer DEFAULT NULL::integer, p_prof_id integer DEFAULT NULL::integer, p_lieu_id integer DEFAULT NULL::integer)
  RETURNS jsonb
  LANGUAGE plpgsql
@@ -709,7 +711,7 @@ declare
   v_anonymise timestamptz;
   v_prof integer;
   v_n bigint;
-  v_cree boolean;
+  v_aff bigint := 0;
 begin
   if v_moi is null then
     raise exception 'invitation: Connexion requise.' using errcode = '42501';
@@ -729,6 +731,10 @@ begin
     end if;
     if v_anonymise is not null then
       raise exception 'invitation: Cette fiche est anonymisée.';
+    end if;
+    -- Une fiche n'a qu'un compte : celui qui tiendrait une seconde adresse signerait et écrirait comme le stagiaire.
+    if exists (select 1 from user_profiles u where u.stagiaire_id = p_stagiaire_id and lower(u.email) <> v_email) then
+      raise exception 'invitation: Cette fiche est déjà reliée à un autre compte.';
     end if;
     insert into user_profiles (email, role, is_admin, stagiaire_id, invited_by_email)
     values (v_email, 'stagiaire', false, p_stagiaire_id, v_moi)
@@ -751,6 +757,7 @@ begin
     insert into affectations (email, role, promo_id)
     values (v_email, 'formateur', v_promo)
     on conflict do nothing;
+    get diagnostics v_aff = row_count;
 
   elsif v_role = 'direction' then
     -- Siège ou fondateur ; le centre est donné.
@@ -767,6 +774,7 @@ begin
     insert into affectations (email, role, lieu_id)
     values (v_email, 'direction', p_lieu_id)
     on conflict do nothing;
+    get diagnostics v_aff = row_count;
 
   else
     -- Siège : le fondateur seul.
@@ -780,10 +788,10 @@ begin
     insert into affectations (email, role)
     values (v_email, 'siege')
     on conflict do nothing;
+    get diagnostics v_aff = row_count;
   end if;
 
-  v_cree := v_n > 0;
-  return jsonb_build_object('email', v_email, 'role', v_role, 'cree', v_cree);
+  return jsonb_build_object('email', v_email, 'role', v_role, 'cree', v_n > 0, 'affecte', v_aff);
 end;
 $function$;
 
