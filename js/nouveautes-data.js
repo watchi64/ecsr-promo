@@ -27,8 +27,8 @@ export const NOUVEAUTES = [
   // Lot 2B de la refonte (date de la fusion). À date égale, l'ordre du fichier est gardé : la journée du stagiaire
   // d'abord, c'est elle que montre la carte « Nouveauté » de son Accueil.
   {
-    id: "2026-11-10-ta-journee-accueil",
-    date: "2026-11-10",
+    id: "2026-11-09-ta-journee-accueil",
+    date: "2026-11-09",
     pour: "stagiaires",
     navigation: "nouvelle",
     titre: "Ta journée sur l'Accueil",
@@ -52,8 +52,8 @@ export const NOUVEAUTES = [
     ],
   },
   {
-    id: "2026-11-10-aujourdhui-formateurs",
-    date: "2026-11-10",
+    id: "2026-11-09-aujourdhui-formateurs",
+    date: "2026-11-09",
     pour: "formateurs",
     navigation: "nouvelle",
     titre: "Aujourd'hui remplace l'Accueil",
@@ -75,8 +75,8 @@ export const NOUVEAUTES = [
     ],
   },
   {
-    id: "2026-11-10-cours-telephone",
-    date: "2026-11-10",
+    id: "2026-11-09-cours-telephone",
+    date: "2026-11-09",
     pour: "tous",
     module: "cours",
     titre: "Les cours se lisent mieux sur téléphone",
