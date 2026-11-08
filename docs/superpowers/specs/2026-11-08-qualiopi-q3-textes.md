@@ -1,0 +1,199 @@
+# Qualiopi Q3 : textes à valider (questionnaires et conditions d'utilisation)
+
+Document de relecture pour Timy. Rien n'est en base ni en ligne tant que ces textes ne sont pas validés. Les questions sont à l'écran avec le tutoiement ; les conditions s'adressent au lecteur avec le vouvoiement, comme le reste du texte existant.
+
+Échelle commune aux questions notées : « Pas du tout » (1), « Plutôt non » (2), « Plutôt oui » (3), « Tout à fait » (4), « Sans avis ». Pas de point neutre. Le taux de satisfaction publié est la part des réponses 3 ou 4 à la question « globalement », parmi les personnes qui ont répondu.
+
+## 1. Les trois questionnaires
+
+### Ton avis sur la formation (clé `fin_stagiaire`)
+
+- Qui répond : les stagiaires de la promo
+- Bandeau affiché : de 7 jours avant la fin de la promo à 30 jours après
+- Rien n'est montré sous 5 réponses
+- Introduction affichée : « Ces questions portent sur ta formation. Ta réponse est enregistrée sans ton nom et sans date : personne ne peut savoir qui a répondu quoi. Compte environ trois minutes. »
+
+1. **Les objectifs de la formation t'ont été clairement présentés.** (obligatoire)
+   - Réponses : Pas du tout / Plutôt non / Plutôt oui / Tout à fait / Sans avis
+2. **Les contenus correspondent à ce que tu attendais de la formation.** (obligatoire)
+   - Réponses : Pas du tout / Plutôt non / Plutôt oui / Tout à fait / Sans avis
+3. **Les formateurs expliquent clairement et répondent à tes questions.** (obligatoire)
+   - Réponses : Pas du tout / Plutôt non / Plutôt oui / Tout à fait / Sans avis
+4. **L'organisation (plannings, horaires, salles, informations reçues) te convient.** (obligatoire)
+   - Réponses : Pas du tout / Plutôt non / Plutôt oui / Tout à fait / Sans avis
+5. **Tu as été accompagné quand tu avais une difficulté.** (obligatoire)
+   - Réponses : Pas du tout / Plutôt non / Plutôt oui / Tout à fait / Sans avis
+6. **La formation te prépare bien à l'examen et au métier d'enseignant de la conduite.** (obligatoire)
+   - Réponses : Pas du tout / Plutôt non / Plutôt oui / Tout à fait / Sans avis
+7. **Tu recommanderais cette formation à un proche.** (obligatoire)
+   - Réponses : Pas du tout / Plutôt non / Plutôt oui / Tout à fait / Sans avis
+8. **Globalement, tu es satisfait de la formation.** (obligatoire, question « globalement » du taux de satisfaction)
+   - Réponses : Pas du tout / Plutôt non / Plutôt oui / Tout à fait / Sans avis
+9. **L'application t'a aidé dans ta formation.** (facultative)
+   - Réponses : Pas du tout / Plutôt non / Plutôt oui / Tout à fait / Sans avis
+10. **Si tu veux ajouter quelque chose, écris-le ici. Ne cite personne : parle de ce que tu as vécu, pas de qui.** (facultative)
+   - Réponse : texte libre
+
+### Six mois après, ton avis (clé `six_mois_stagiaire`)
+
+- Qui répond : les stagiaires de la promo
+- Bandeau affiché : de 6 mois à 7 mois après la fin de la promo
+- Rien n'est montré sous 5 réponses
+- Introduction affichée : « Quelques mois ont passé depuis la fin de ta formation. Ces questions nous disent ce qu'elle t'a apporté. Ta réponse est enregistrée sans ton nom et sans date. Compte une minute ou deux. »
+
+1. **Où en es-tu aujourd'hui ?** (obligatoire)
+   - J'ai le titre et j'enseigne la conduite
+   - J'ai le titre et je cherche un poste
+   - Je n'ai pas encore le titre (examen à repasser ou à venir)
+   - Je fais autre chose
+2. **Ce que tu as appris en formation te sert dans ta situation actuelle.** (obligatoire)
+   - Réponses : Pas du tout / Plutôt non / Plutôt oui / Tout à fait / Sans avis
+3. **Avec le recul, la formation t'a bien préparé au métier.** (obligatoire)
+   - Réponses : Pas du tout / Plutôt non / Plutôt oui / Tout à fait / Sans avis
+4. **Globalement, avec le recul, tu es satisfait de la formation.** (obligatoire, question « globalement » du taux de satisfaction)
+   - Réponses : Pas du tout / Plutôt non / Plutôt oui / Tout à fait / Sans avis
+5. **Si tu veux ajouter quelque chose, écris-le ici. Ne cite personne : parle de ce que tu as vécu, pas de qui.** (facultative)
+   - Réponse : texte libre
+
+### Ton avis de formateur (clé `fin_formateur`)
+
+- Qui répond : les formateurs du centre
+- Bandeau affiché : de 7 jours avant la fin de la promo à 30 jours après (un questionnaire par centre et par année civile)
+- Rien n'est montré sous 3 réponses
+- Introduction affichée : « Ces questions portent sur la formation telle que tu l'as animée cette année. Ta réponse est enregistrée sans ton nom et sans date, et regroupée avec celles des autres formateurs du centre. Compte trois minutes. »
+
+1. **Les objectifs de la formation sont clairs et réalistes pour les stagiaires.** (obligatoire)
+   - Réponses : Pas du tout / Plutôt non / Plutôt oui / Tout à fait / Sans avis
+2. **Les supports et les outils mis à ta disposition te permettent d'enseigner correctement.** (obligatoire)
+   - Réponses : Pas du tout / Plutôt non / Plutôt oui / Tout à fait / Sans avis
+3. **L'organisation (plannings, salles, véhicules, informations reçues) te convient.** (obligatoire)
+   - Réponses : Pas du tout / Plutôt non / Plutôt oui / Tout à fait / Sans avis
+4. **Le niveau des stagiaires correspond à ce que la formation demande.** (obligatoire)
+   - Réponses : Pas du tout / Plutôt non / Plutôt oui / Tout à fait / Sans avis
+5. **Tu disposes des moyens de suivre chaque stagiaire et de l'aider en cas de difficulté.** (obligatoire)
+   - Réponses : Pas du tout / Plutôt non / Plutôt oui / Tout à fait / Sans avis
+6. **Globalement, tu es satisfait des conditions dans lesquelles la formation se déroule.** (obligatoire, question « globalement » du taux de satisfaction)
+   - Réponses : Pas du tout / Plutôt non / Plutôt oui / Tout à fait / Sans avis
+7. **Si tu veux ajouter quelque chose, écris-le ici. Ne cite personne : parle de ce que tu as vécu, pas de qui.** (facultative)
+   - Réponse : texte libre
+
+## 2. Conditions d'utilisation : passages modifiés
+
+Nouvelle version : **2026-11-08**. Chaque compte doit accepter de nouveau à sa prochaine connexion, une seule fois. Le reste du texte (16 sections) est inchangé. Chaque passage est donné avant et après ; les durées de trois ans seront mises en œuvre par les lots Q4 et Q5, avant la première anonymisation de la promo de Nîmes (fin le 11/12/2026, donc décembre 2027).
+
+### Passage 1
+
+Avant :
+
+> passages, absences, livret, dossier professionnel.
+> 
+
+Après :
+
+> passages, absences, livret, dossier professionnel, et vos réponses aux questionnaires de satisfaction, qui sont anonymes.
+> 
+
+### Passage 2
+
+Avant :
+
+> > Douze mois après la formation, les données nominatives sont supprimées ou anonymisées.
+
+Après :
+
+> > Douze mois après la formation, les comptes et les textes libres disparaissent ; les preuves de la formation (résultats, heures, présences) sont gardées trois ans, puis rendues anonymes.
+
+### Passage 3
+
+Avant :
+
+> | Historique | Qui a créé
+
+Après :
+
+> | Questionnaires | Vos réponses, enregistrées sans votre nom ni la date ; l'application note seulement que vous avez participé |
+> | Historique | Qui a créé
+
+### Passage 4
+
+Avant :
+
+> Les promos ne se voient pas entre elles : un stagiaire n'accède qu'à sa propre promo.
+> 
+
+Après :
+
+> Les promos ne se voient pas entre elles : un stagiaire n'accède qu'à sa propre promo.
+> 
+> **Questionnaires de satisfaction.** Ils sont anonymes : la réponse est enregistrée sans nom, sans date et sans numéro d'ordre, séparément de la note de participation (« a répondu » ou « n'a pas répondu »), qui sert seulement à ne pas redemander et à refuser une deuxième réponse. Personne ne peut relier une réponse à une personne, pas même l'éditeur. Les résultats ne sont montrés que lorsqu'au moins cinq stagiaires ont répondu (trois formateurs pour le questionnaire des formateurs) ; les commentaires libres ne sont lus que par l'éditeur, dans un ordre aléatoire, sous la même condition.
+> 
+
+### Passage 5
+
+Avant :
+
+> | Répondre à vos questions par l'assistant |
+
+Après :
+
+> | Recueillir votre avis sur la formation par des questionnaires anonymes, et en produire un taux de satisfaction | Intérêt légitime de l'éditeur et du centre à mesurer et améliorer la formation, preuve que le centre doit pouvoir apporter à son certificateur |
+> | Répondre à vos questions par l'assistant |
+
+### Passage 6
+
+Avant :
+
+> **Statistiques anonymes.**
+
+Après :
+
+> **Documents du centre.** L'application produit des documents (dossier de la formation, dossier du centre, fiche de résultats) que le centre de formation présente à son certificateur Qualiopi et à ses financeurs pour prouver ce qu'il fait. Ils reprennent des chiffres de l'application : heures, présences, résultats, taux de satisfaction. Le dossier de la formation est nominatif ; le dossier destiné au siège ne contient aucun nom. Aucun de ces documents ne contient une réponse individuelle à un questionnaire ni un commentaire libre. Le centre les remet lui-même : l'éditeur ne les envoie à personne.
+> 
+> **Statistiques anonymes.**
+
+### Passage 7
+
+Avant :
+
+> - Transmettre des données nominatives à d'autres que ECF.
+
+Après :
+
+> - Transmettre des données nominatives à d'autres que ECF et au centre de formation (qui peut en présenter une partie à son certificateur et à ses financeurs, comme le dit la section 5).
+
+### Passage 8
+
+Avant :
+
+> | Données de formation (profil, notes, suivi, documents) | Toute la formation, puis douze mois pour permettre de retrouver son livret, son dossier ou ses résultats |
+> | Historique des modifications | Même durée que la donnée concernée |
+
+Après :
+
+> | Compte, adresse e-mail, date de naissance, fiches de suivi, textes libres (observations, commentaires) | Toute la formation, puis douze mois |
+> | Preuves de la formation : nom, résultats, heures, présences, feuilles d'émargement signées, dossier professionnel, livret | Toute la formation, puis trois ans (jusqu'au 31 décembre de la troisième année après la fin de la formation) : c'est la durée du cycle de certification Qualiopi. Ensuite les noms, les signatures, le dossier professionnel et le livret sont effacés ; les heures, présences et résultats restent sans nom |
+> | Questionnaires de satisfaction | Les réponses, qui n'ont pas de nom, servent aux statistiques sans limite ; les commentaires libres sont effacés douze mois après la fin de la formation ; la note de participation est supprimée avec le compte |
+> | Registre qualité du centre (réclamations, difficultés, aléas, améliorations, risques) | Trois ans après la clôture de l'entrée, puis sa description et sa réponse sont vidées ; le type, les dates et l'état restent |
+> | Historique des modifications | Même durée que la donnée concernée |
+
+### Passage 9
+
+Avant :
+
+> Au terme de ces durées, les comptes sont fermés et les données nominatives sont supprimées ou anonymisées : les résultats restent dans les statistiques, les noms disparaissent.
+
+Après :
+
+> Au terme de ces durées, les comptes sont fermés et les données nominatives sont supprimées ou anonymisées : les résultats restent dans les statistiques, les noms disparaissent. Aucune donnée nominative n'est gardée plus de trois ans après la fin de la formation.
+
+### Passage 10
+
+Avant :
+
+> La suppression des données nominatives n'affecte pas les statistiques anonymes déjà produites.
+
+Après :
+
+> La suppression des données nominatives n'affecte pas les statistiques anonymes déjà produites.
+> 
+> **Effacement sur demande.** Une demande d'effacement est exécutée tout de suite, même avant la fin des durées de la section 10 et même si cela retire des preuves de votre parcours : le dossier de la formation indique alors « fiche effacée à la demande de la personne ». Vos réponses aux questionnaires, enregistrées sans votre nom, ne peuvent pas être retrouvées pour être retirées une à une ; c'est la contrepartie de leur anonymat.
