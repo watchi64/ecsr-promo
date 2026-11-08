@@ -5,21 +5,21 @@
 // Nouvelle navigation (lot 2A) : sous l'en-tête, deux sous-onglets, « Stagiaires » (la page d'avant) et
 // « Élèves bénévoles » (la banque des volontaires, ouverte dans la page et non plus dans une fenêtre).
 
-import { listEpcfEtats, listLivretsIndex, listDossiersIndex, getPromoCourante } from "../db.js?v=20261108a";
-import { el, clear, displayStagiaire, compareByNom } from "../utils.js?v=20261108a";
-import { icon } from "../icons.js?v=20261108a";
-import { adresseFiche, lireAdresse } from "../route-rules.js?v=20261108a";
-import { ligneListe } from "../fiche-rules.js?v=20261108a";
-import { surChangementAdresse, oublierMajSurPlace, remplacerAdresse, peutQuitter } from "../navigation.js?v=20261108a";
-import { isAdmin } from "../auth-admin.js?v=20261108a";
-import { navigationV2Active } from "../nav-etat.js?v=20261108a";
-import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261108a";
-import { renderSubTabs } from "../subtabs.js?v=20261108a";
-import { renderBenevoles } from "./benevoles.js?v=20261108a";
+import { listEpcfEtats, listLivretsIndex, listDossiersIndex, getPromoCourante } from "../db.js?v=20261108b";
+import { el, clear, displayStagiaire, compareByNom } from "../utils.js?v=20261108b";
+import { icon } from "../icons.js?v=20261108b";
+import { adresseFiche, lireAdresse } from "../route-rules.js?v=20261108b";
+import { ligneListe } from "../fiche-rules.js?v=20261108b";
+import { surChangementAdresse, oublierMajSurPlace, remplacerAdresse, peutQuitter } from "../navigation.js?v=20261108b";
+import { isAdmin } from "../auth-admin.js?v=20261108b";
+import { navigationV2Active } from "../nav-etat.js?v=20261108b";
+import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261108b";
+import { renderSubTabs } from "../subtabs.js?v=20261108b";
+import { renderBenevoles } from "./benevoles.js?v=20261108b";
 import {
   chargerContexteFiche, chargerFiche, renderFiche, dispositionFiche,
   noterDocument, ecouterDocuments, afficherErreur,
-} from "./mon-suivi.js?v=20261108a";
+} from "./mon-suivi.js?v=20261108b";
 
 const CLE_DERNIERE = "ecsr_stagiaires_derniere";
 const CLE_ONGLET = "ecsr_stagiaires_subtab";
