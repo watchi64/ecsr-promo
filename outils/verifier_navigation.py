@@ -69,10 +69,9 @@ Contrôles par vue
 -----------------
   * rien ne défile de côté ni ne déborde de la fenêtre, dans les deux passes, hors `.matrice-wrap`
     (exception admise, sans avertissement). Tout le reste échoue, interrupteur éteint compris (une règle
-    du lot qui déborde de `body[data-nav="v2"]` y fait échouer la page), sauf une liste qui ne donne qu'un
-    avertissement, jamais un échec : la dette ouverte du lecteur de cours (DETTE_LECTEUR_DE_COURS, ruling R52),
-    dont le sommaire (`.cours-sommaire`) et les tableaux (`.cours-table-wrap`) défilent encore de côté, hors du
-    banc, à corriger au lot 2B. Les autres conteneurs des rulings R10 et R11 qui défilaient déjà sur main (graphe de
+    du lot qui déborde de `body[data-nav="v2"]` y fait échouer la page), lecteur de cours compris (lot 2B,
+    tâche 1 : le sommaire passe à la ligne et les tableaux deviennent des listes sur téléphone, plus aucune dette
+    du ruling R52). Les conteneurs des rulings R10 et R11 qui défilaient déjà sur main (graphe de
     Notes, tableaux du centre et des passages, lien Légifrance de Cours > Signalements, graphe de Mon évolution,
     moyennes EPCF de la classe) ont été corrigés au lot 2A, tâche 5, et n'ont aucune exception ;
   * notes en rouge (lot 2A, tâche 5) : le remplissage d'une forme d'un graphe de notes (barres des graphes de Notes, points de
@@ -144,8 +143,8 @@ Contrôles par vue
     fondateur (aperçu aucun, allumé ou éteint, croisé avec la mémoire de la promo présente ou absente), la barre appliquée comprise : elle suit l'aperçu, la case non ;
   * titres des pages (lot 2A, allumé) : le titre (h2) de chaque page du menu est le libellé de son entrée (équipe : Émargement, Stagiaires, Notes et
     examens, Cours et QCM, Indicateurs, Réglages, CCP2 ; stagiaire : Cours et QCM, Mon suivi, CCP2) et, sauf pour CCP2, son surtitre est le nom de la
-    promo affichée. Accueil et Planning n'en font pas partie (TITRES_DES_PAGES) : l'accueil sera remplacé par Aujourd'hui au lot 2, le Planning garde
-    le titre de sa semaine ; Émargement, lui, s'appelle « Émargement » (ruling R50). Les sous-pages reprennent le nom de leur sous-onglet : Planning > Dates clés (ex-Calendrier), Cours et
+    promo affichée. L'Accueil du stagiaire et Planning n'en font pas partie (TITRES_DES_PAGES) : l'accueil du stagiaire salue par son prénom, le Planning garde
+    le titre de sa semaine ; la page de l'équipe s'appelle Aujourd'hui (lot 2B, tâche 4, titre de la page, h1) ; Émargement, lui, s'appelle « Émargement » (ruling R50). Les sous-pages reprennent le nom de leur sous-onglet : Planning > Dates clés (ex-Calendrier), Cours et
     QCM > Documents (ex-Ressources & contacts, dont la section des contacts s'appelle « Contacts du centre »), chacune avec la promo en surtitre ;
     Cours et QCM d'un stagiaire au départ, réduit à ses Documents, porte ce titre. Éteint, les titres de main restent : Notes & évaluations, Cours,
     Calendrier, Ressources & contacts, Mon espace, les surtitres « Formateurs », « Tableau de bord du centre » et « Espace personnel » ;
@@ -178,19 +177,32 @@ Contrôles par vue
     « formateur » (jamais « admin ») ; avec l'ancienne, le texte de main (« Promo 2026 » écrit en dur, « admin ») ;
   * Planning > Semaine : chez le stagiaire, ni « Lecture seule... » ni « Cette semaine » (« Aujourd'hui », en tête de la page, le remplace) ; chez
     l'équipe, « Cette semaine » reste ;
+  * Mon suivi aux libellés clairs (lot 2B, tâche 7), pour toute personne qui a une fiche, à 1 280 et 375 px : les parties dans l'ordre (Résultats, Passages, EPCF,
+    Livret EPCF, Dossier pro), en sous-onglets sur ordinateur, en sommaire sur téléphone dont chaque ligne dit son état en entier (« EPCF : 0 épreuve sur 2 », « Dossier pro :
+    0 exemple sur 6 »), sans date « 02/10 », jamais coupée, la dernière au-dessus de la barre du bas (à l'ouverture, et page défilée au bout) ; Résultats et son
+    groupe « Moi / La classe » (boutons de 44 px, « Moi » par défaut, le choix gardé sur l'appareil, même après un rechargement) ; #/mon-suivi/classe,
+    #/mon-suivi/evolution et #/notes (stagiaire) ouvrent Résultats sur la bonne vue, l'adresse devenue #/mon-suivi/resultats, sans étape d'historique ; sur
+    téléphone, le retour « ‹ Mon suivi » remplace l'en-tête de la page ; un exemple du dossier enregistré fait passer la ligne à « 1 exemple sur 6 » sans
+    recharger. La fiche d'un stagiaire chez l'équipe garde ses parties de main (Passages, EPCF, Évolution, Livret, Dossier pro), allumé et éteint ; Mon espace
+    éteint aussi ; module des notes fermé (`?modules=depart`), ni Résultats ni « Moi / La classe » ;
   * Mon suivi > La classe, pour toute personne qui a une fiche (le contexte décide, pas le rôle : le stagiaire, et le fondateur dans l'espace de l'équipe) : ni
     second titre, ni seconde rangée Matrice / EPCF (aucun libellé « EPCF » isolé), ni « Lecture seule... » ; le stagiaire, qui ne saisit rien, ne lit pas non plus
     la phrase sur la saisie et n'a que le nombre de notes. Sous la vue de la classe, la section « Moyennes EPCF de la classe » (ruling R51) : le rendu de l'onglet
     EPCF de la page de l'équipe, avec son k-anonymat (le banc sert des moyennes sur 3 et 2 stagiaires, et un critère sur un seul, jamais montré). Notes et examens,
     page de l'équipe : ses deux sous-onglets Matrice et EPCF, et le titre « Moyennes de la classe » du second ;
   * accueil, agenda vide (lot 2A, tour de correction 1) : un scénario à part par moteur et par passe, la date du banc reculée après le dernier événement
-    (DATE_AGENDA_VIDE), formateur : la liste dit où ajouter des événements, « Planning, Dates clés » avec la nouvelle navigation, « l'onglet Calendrier » avec celle de
-    main, et la carte du prochain événement majeur n'y est pas ;
+    (DATE_AGENDA_VIDE), formateur : avec l'ancienne navigation, la liste dit où ajouter des événements (« l'onglet Calendrier ») et la carte du prochain événement
+    majeur n'y est pas ; avec la nouvelle, Aujourd'hui n'en montre aucun ;
+  * Aujourd'hui du formateur (lot 2B, tâche 4) : le titre « Aujourd'hui » (h1, sous la pastille de date) et la ligne « Promo ... · N stagiaires en formation » ; les cinq cartes
+    dans l'ordre du téléphone, puis trois sur une ligne et deux sur la suivante dès 1080 px ; l'émargement (« N sur M », jauge, « Voir la feuille », « Pas encore ouverte »,
+    bouton « Signer » du seul fondateur qui a une fiche de stagiaire, carte absente promo éteinte) ; au tableau et en voiture selon le planning ; à traiter selon les comptes
+    du banc ; à suivre de près ; ni Nouveauté ni bandeau d'émargement sur la page ; cas limites (samedi, sans feuille, lectures en échec, départ pendant le chargement, 320 px) ;
+    le fondateur qui voit l'app en stagiaire arrive sur l'Accueil du stagiaire ;
   * bandeau d'émargement (stagiaire et équipe) : sur téléphone, une seule ligne (« Émargement du matin ouvert » et son bouton), ses horaires (stagiaire) ou
     ses signatures (équipe) cachés, son bouton de 44 px, sa hauteur au plus celle des deux lignes de main (61 px) ; au-delà de 700 px, et interrupteur
     éteint, ses détails sont montrés ;
   * les quatre anciennes adresses (`#/calendrier`, `#/dashboard`, `#/ressources`, `#/notes`, ruling R26) : allumé, la nouvelle
-    page et son sous-onglet allumé (Planning : Dates clés, Priorités ; Cours : Documents ; Mon espace : La classe chez
+    page et son sous-onglet allumé (Planning : Dates clés, Priorités ; Cours : Documents ; Mon suivi : Résultats, vue La classe, chez
     le stagiaire, mais Notes reste la page de l'équipe ; module fermé au départ : le premier sous-onglet visible),
     et « Précédent » quitte la page redirigée ; éteint, l'adresse et la page restent celles d'aujourd'hui ;
   * Nouveautés et « Où le trouver » (lot 2A, tâche 1) : allumé, la rubrique (#/nouveautes) montre « Une navigation plus simple » à tous et « Côté formateurs, la barre passe à
@@ -370,18 +382,17 @@ CLE_SOUS_ONGLET_STAGIAIRES = "stagiaires.subtab"   # mémoire du sous-onglet de 
 CLE_SOUS_ONGLET_COURS = "themes.subtab"          # celle de Cours et QCM
 LENTEUR_DEMARRAGE_MS = 600     # lectures des réglages ralenties dans le scénario de l'ouverture (ruling R17)
 
-# « À traiter » (lot 2A, tâche 6) : ce que la barre de l'équipe montre sur « Cours et QCM » (js/a-traiter.js). Le banc sert cinq signalements
-# ouverts (un par groupe de la console) et aucun brouillon de l'IA ; les scénarios « à traiter » ajoutent des brouillons à relire (BROUILLONS_IA_DU_BANC,
-# jamais comptés avant le lot 2B, ruling R56), des signalements ouverts (SIGNALEMENTS_EN_PLUS_DU_BANC), des signalements et des brouillons déjà traités (ils
-# ne comptent pas non plus), ou font échouer ou traîner les lectures. Par scénario : la pastille attendue sur l'entrée et la phrase en tête du tiroir
-# « Plus » (« 5 à traiter : 5 signalements »), None quand rien ne doit s'afficher.
+# « À traiter » (lot 2A, tâche 6, puis lot 2B, tâche 6) : ce que la barre de l'équipe montre sur « Cours et QCM » (js/a-traiter.js). Le banc sert cinq signalements
+# ouverts (un par groupe de la console) et aucun brouillon de l'IA ; les scénarios « à traiter » ajoutent des brouillons à relire (BROUILLONS_IA_DU_BANC, comptés depuis
+# le sous-onglet « Propositions IA » du lot 2B), des signalements ouverts (SIGNALEMENTS_EN_PLUS_DU_BANC), des signalements et des brouillons déjà traités (ils
+# ne comptent pas), ou font échouer ou traîner les lectures. Par scénario : la pastille attendue sur l'entrée et la phrase en tête du tiroir
+# « Plus » (« 7 à traiter : 5 signalements, 2 propositions de l'IA »), None quand rien ne doit s'afficher.
 A_TRAITER_DU_BANC = {
     "": ("5", "5 à traiter : 5 signalements"),
-    # Des brouillons de l'IA à relire sont semés, mais ils ne comptent pas avant le sous-onglet « Propositions IA » du lot 2B (ruling R56) : la pastille
-    # et la phrase ne parlent que des signalements de QCM.
-    "ia": ("5", "5 à traiter : 5 signalements"),
-    # Six signalements ouverts de plus (5 + 6 = 11, « 9+ ») et six brouillons de l'IA, qui, eux, ne comptent toujours pas.
-    "beaucoup": ("9+", "11 à traiter : 11 signalements"),
+    # Deux brouillons de l'IA à relire de plus : 5 + 2.
+    "ia": ("7", "7 à traiter : 5 signalements, 2 propositions de l'IA"),
+    # Six signalements ouverts de plus (5 + 6 = 11) et six brouillons de l'IA : 17, « 9+ ».
+    "beaucoup": ("9+", "17 à traiter : 11 signalements, 6 propositions de l'IA"),
     "panne": (None, None),    # lectures en échec : ni pastille, ni point, ni phrase, ni erreur
     "lent": (None, None),     # lectures qui n'aboutissent pas (20 s) : la barre est là, sans rien
     # Lectures en échec, mais une pastille sur « Signaler un problème » (que le tiroir « Plus » contient) : le seul repère est le point de « Plus ».
@@ -437,12 +448,8 @@ SIGNALER_DU_BANC = "2"
 # Aucun défilement de côté, à aucune largeur (règle de Timy du 27/10) : seule la matrice des notes (saisie case
 # par case) est admise, sans avertissement. Les conteneurs des rulings R10 et R11 qui défilaient déjà sur main ont été
 # corrigés au lot 2A, tâche 5 (graphe de Notes, tableaux du centre et des passages, lien Légifrance de Cours >
-# Signalements, graphe de Mon évolution, moyennes EPCF de la classe), à l'exception du lecteur de cours.
+# Signalements, graphe de Mon évolution, moyennes EPCF de la classe), et ceux du lecteur de cours au lot 2B, tâche 1.
 EXCEPTION_ADMISE = ".matrice-wrap"
-# Dette ouverte (ruling R52) : le sommaire et les tableaux du lecteur de cours défilent encore de côté (css/style.css,
-# `.cours-sommaire` et `.cours-table-wrap`). Lecteur de cours, hors du banc, à corriger au lot 2B : un avertissement s'ils
-# sont vus, jamais un échec, pour que la trace ne se perde pas.
-DETTE_LECTEUR_DE_COURS = (".cours-sommaire", ".cours-table-wrap")
 
 # Entrées de repli si les règles de navigation de l'app ne se lisent pas dans la page.
 ENTREES_REPLI = {
@@ -699,12 +706,11 @@ function debordements(o) {
     if (e.closest(o.exception)) return "ignore";
     if (e.closest("[data-nav-coquille]")) return "coquille";
     if (e.closest(".subtabs-bar")) return "sous-onglets";
-    const d = e.closest(o.dette.join(", "));
-    if (d) return "dette:" + o.dette.find((s) => d.matches(s));
     return "page";
   };
   const vus = new Set();
-  [document.getElementById("view"), ...racines()].filter(Boolean).forEach((racine) => {
+  // Le lecteur de cours et les Informations légales sont posés sur `body`, hors de `#view` : on les mesure à part (lot 2B, tâche 1).
+  [document.getElementById("view"), ...racines(), ...document.querySelectorAll(".cours-overlay")].filter(Boolean).forEach((racine) => {
     [racine, ...racine.querySelectorAll("*")].forEach((e) => {
       if (vus.has(e)) return;
       vus.add(e);
@@ -924,6 +930,35 @@ function lienDossierPro() {
   return a ? { texte: net(a.textContent), href: a.getAttribute("href") } : null;
 }
 
+// La page CCP2 (lot 2B, tâche 8) : ses blocs visibles dans l'ordre, ses dates, ses cartes repliables (titre, ouverte, hauteur du résumé, chevron visible, contenu
+// visible, nombre de points et de liens) et l'écart entre l'en-tête et le titre des étapes (une page sans dates ne doit pas garder de trou).
+function ccp2Page() {
+  const vue = document.getElementById("view");
+  const NOMS = [["view-header", "en-tête"], ["ccp2-dates", "dates"], ["ccp2-etapes-titre", "titre des étapes"], ["ccp2-etapes", "étapes"],
+    ["ccp2-epreuve-repliee", "épreuve repliée"], ["ccp2-epreuve", "épreuve"]];
+  const nom = (c) => (NOMS.find(([classe]) => c.classList.contains(classe)) || [null, c.className || c.tagName])[1];
+  const carte = (d) => {
+    const s = d.querySelector(":scope > summary"), ch = s.querySelector(".ccp2-chevron"), corps = d.querySelector(":scope > .ccp2-etape-corps");
+    return { titre: net((s.querySelector(".ccp2-etape-titre") || s).textContent), ouverte: d.open, hauteur: Math.round(rect(s).height),
+      chevron: !!ch && visible(ch), corpsVisible: !!corps && visible(corps) && rect(corps).height > 0,
+      points: d.querySelectorAll(".ccp2-epreuve-points li").length, liens: d.querySelectorAll(".ccp2-liens a").length };
+  };
+  const dates = vue.querySelector(".ccp2-dates"), tete = vue.querySelector(".view-header"), titre = vue.querySelector(".ccp2-etapes-titre");
+  const epreuve = vue.querySelector(".ccp2-epreuve-repliee");
+  return { blocs: [...vue.children].filter((c) => !c.hidden && visible(c)).map(nom),
+    dates: dates && !dates.hidden ? [...dates.querySelectorAll(".ccp2-date-titre")].map((e) => net(e.textContent)) : null,
+    titreDates: dates && !dates.hidden && dates.querySelector("h3") ? net(dates.querySelector("h3").textContent) : null,
+    etapes: [...vue.querySelectorAll(".ccp2-etapes > details")].map(carte), epreuve: epreuve ? carte(epreuve) : null,
+    ecart: tete && titre ? Math.round(rect(titre).top - rect(tete).bottom) : null, margeEnTete: tete ? parseFloat(getComputedStyle(tete).marginBottom) : null,
+    defile: document.documentElement.scrollWidth > document.documentElement.clientWidth };
+}
+
+// Un module ouvert pour la personne connectée (js/modules-etat.js, moduleVisible) : une Nouveauté liée à un module fermé lui est cachée.
+async function moduleOuvert(cle) {
+  const [mods] = await modulesDeLApp(["modules-etat"]);
+  return mods.moduleVisible(cle);
+}
+
 // Le cache de lecture de l'app pour une clé (js/db.js, invalidateCache) : une donnée semée dans le faux Supabase après une première lecture ne se relit pas sans cela.
 async function invaliderCache(cles) {
   const [db] = await modulesDeLApp(["db"]);
@@ -932,7 +967,7 @@ async function invaliderCache(cles) {
 
 // ---- Mesure d'une vue ----
 async function mesurer(o) {
-  const echecs = [], dettes = [], avert = [];
+  const echecs = [], avert = [];
   const W = largeur(), H = hauteur();
   const tel = W < o.seuilTelephone;
   const allume = o.passe === "allume";
@@ -962,14 +997,12 @@ async function mesurer(o) {
 
   // Défilements et débordements de côté : la même classification interrupteur allumé ou éteint, car la
   // passe éteinte est le garde de « l'app reste identique à main » (une règle du lot qui déborde de
-  // body[data-nav="v2"] se voit là). Aucun conteneur n'a d'exception, hors la matrice des notes ; seul le lecteur de cours,
-  // dette ouverte (ruling R52), ne donne qu'un avertissement, rangé sous le sélecteur de son conteneur.
+  // body[data-nav="v2"] se voit là). Aucun conteneur n'a d'exception, hors la matrice des notes.
   const trouves = debordements(o);
   trouves.forEach((t) => {
     if (t.cat === "ignore") return;
     if (t.cat === "coquille") echecs.push(["défilement de côté dans la coquille", t.detail]);
     else if (t.cat === "sous-onglets") echecs.push(["défilement de côté d'une barre de sous-onglets", t.detail]);
-    else if (t.cat.startsWith("dette:")) dettes.push([t.cat.slice(6), t.detail]);
     else echecs.push([t.genre === "zone" ? "zone de page qui défile de côté" : "élément de page qui déborde de la fenêtre", t.detail]);
   });
   // Graphes de notes : jamais un remplissage rouge (lot 2A, tâche 5), dans les deux passes.
@@ -998,7 +1031,7 @@ async function mesurer(o) {
   if (allume && o.coquille) mesurerCoquille(o, route, W, H, tel, echecs, avert, await regles());
   if (!allume) mesurerAncienne(route, echecs, barres);
   window.scrollTo(0, 0);
-  return { route, echecs, dettes, avert };
+  return { route, echecs, avert };
 }
 
 function mesurerAncienne(route, echecs, barres) {
@@ -1016,6 +1049,8 @@ function mesurerAncienne(route, echecs, barres) {
   if (route === "planning" && barres.length) echecs.push(["page regroupée, interrupteur éteint", "le Planning montre des sous-onglets"]);
   if (route === "themes" && libelles.some((l) => l.startsWith("documents"))) echecs.push(["page regroupée, interrupteur éteint", "Cours montre un sous-onglet Documents"]);
   if (route === "mon-suivi" && libelles.some((l) => l.startsWith("la classe"))) echecs.push(["page regroupée, interrupteur éteint", "Mon espace montre la partie La classe"]);
+  if (route === "mon-suivi" && libelles.some((l) => l.startsWith("resultats"))) echecs.push(["page regroupée, interrupteur éteint", "Mon espace montre la partie Résultats"]);
+  if (route === "mon-suivi" && document.querySelector("#view .res-bar, #view .fiche-sommaire-clair")) echecs.push(["page regroupée, interrupteur éteint", "Mon espace montre « Moi / La classe » ou le sommaire aux libellés clairs"]);
   // Le bouton « Aujourd'hui » de la page (ruling R29) n'appartient qu'à la nouvelle navigation : éteint, il est dans la barre du haut.
   if (route === "planning" && document.querySelector("#view .p-aujourdhui")) echecs.push(["page regroupée, interrupteur éteint", "le Planning montre le bouton « Aujourd'hui » de la nouvelle navigation"]);
   // Lot 2A, tâche 1 : « Mon suivi » est le nom que la nouvelle navigation donne à Mon espace ; l'ancienne ne le dit nulle part (page et barre), hors deux textes de main : le
@@ -1346,6 +1381,56 @@ async function accueil() {
     evenements: (await db.listAgendaEvents()).map((e) => ({ type: e.type, titre: e.title, debut: e.date_start, fin: e.date_end })),
   };
 }
+// Accueil du stagiaire (lot 2B, tâche 3) : la pastille de date, les cartes (zone, titre, texte, position), les lignes de « À faire », les rangées de la
+// journée (bouton « Signer », « Signé à »), les liens du pied, et de quoi mesurer les zones à toucher. Rien n'est recalculé ici : les attendus sont dans le script.
+function accueilStagiaire() {
+  const vue = document.getElementById("view");
+  const haut = (e) => e.getBoundingClientRect().top + window.scrollY, bas = (e) => e.getBoundingClientRect().bottom + window.scrollY;
+  const mesure = (sel) => [...vue.querySelectorAll(sel)].map((e) => ({ texte: net(e.textContent), l: dixieme(rect(e).width), h: dixieme(rect(e).height) }));
+  const pastille = vue.querySelector(".home-today-pill");
+  return {
+    pastille: pastille ? { texte: net(pastille.textContent), parties: [...pastille.children].map((e) => net(e.textContent)) } : null,
+    titre: (vue.querySelector(".home-title-v2") || {}).textContent || null,
+    cartes: [...vue.querySelectorAll(".acc-carte")].map((c) => { const r = c.getBoundingClientRect();
+      return { zone: c.dataset.zone, titre: net(c.querySelector("h2").textContent), texte: net(c.querySelector(".acc-corps").textContent), haut: haut(c), bas: bas(c), gauche: r.left, droite: r.right }; }),
+    tuiles: vue.querySelectorAll(".home-tile").length,
+    agenda: !!vue.querySelector(".home-agenda, #home-agenda-list"),
+    decompte: !!vue.querySelector(".home-countdown"),
+    retenir: !!vue.querySelector(".home-info"),
+    lignes: [...vue.querySelectorAll(".acc-ligne")].map((a) => ({ titre: net(a.querySelector("b").textContent), detail: net((a.querySelector(".acc-ligne-texte span") || { textContent: "" }).textContent),
+      href: a.getAttribute("href"), h: dixieme(rect(a).height) })),
+    creneaux: [...vue.querySelectorAll(".acc-creneau")].map((c) => ({ demi: c.dataset.demi, texte: net(c.textContent),
+      boutons: [...c.querySelectorAll("button.btn")].map((b) => net(b.textContent)), signe: (c.querySelector(".acc-signe") || {}).textContent || null })),
+    vide: (vue.querySelector(".acc-vide") || {}).textContent || null,
+    erreurs: [...vue.querySelectorAll(".acc-erreur")].map((e) => net(e.textContent)),
+    chargements: [...vue.querySelectorAll(".acc-corps")].filter((c) => /Chargement/.test(c.textContent)).length,
+    liens: [...vue.querySelectorAll(".acc-liens > *")].map((e) => ({ texte: net(e.textContent), href: e.getAttribute("href"), balise: e.tagName, h: dixieme(rect(e).height) })),
+    liensDuPied: [...vue.querySelectorAll(".home-footer-v2 a")].map((a) => ({ texte: net(a.textContent), href: a.getAttribute("href") })),
+    boutons: mesure(".acc-actions .btn"),
+    plus: mesure(".acc-plus"),
+    debordement: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
+    pied: (() => { const e = vue.querySelector(".home-footer-v2 p"); return e ? net(e.textContent) : null; })(),
+  };
+}
+// Aujourd'hui du formateur (lot 2B, tâche 4) : ce que montre la page de l'accueil de l'équipe, en plus de ce que lit l'Accueil du stagiaire (mêmes classes) : la ligne
+// sous le titre, la promo et le nombre de stagiaires en formation tels que l'app les lit, et pour chaque carte ses liens, ses boutons et ses repères.
+async function aujourdhuiEquipe() {
+  const [db] = await modulesDeLApp(["db"]);
+  const vue = document.getElementById("view");
+  const promo = db.getPromoCourante() || {};
+  const lead = vue.querySelector(".home-lead-v2");
+  const dit = (c, s) => { const e = c.querySelector(s); return e ? net(e.textContent) : null; };
+  return { ...accueilStagiaire(),
+    lead: lead ? net(lead.textContent) : null,
+    promo: { nom: promo.nom || null, debut: promo.date_debut || null, fin: promo.date_fin || null },
+    enFormation: (await db.listStagiaires()).length,
+    details: [...vue.querySelectorAll(".acc-carte")].map((c) => ({ zone: c.dataset.zone,
+      liens: [...c.querySelectorAll(".acc-corps a[href]")].map((a) => ({ texte: net(a.textContent), href: a.getAttribute("href"), h: dixieme(rect(a).height) })),
+      boutons: [...c.querySelectorAll(".acc-corps button")].map((b) => ({ texte: net(b.textContent), h: dixieme(rect(b).height) })),
+      kpi: dit(c, ".acc-kpi"), repere: dit(c, ".acc-repere"), attente: dit(c, ".acc-attente"), signe: dit(c, ".acc-signe"),
+      jauge: (() => { const j = c.querySelector(".acc-jauge"); return j ? { now: Number(j.getAttribute("aria-valuenow")), max: Number(j.getAttribute("aria-valuemax")) } : null; })() })),
+    bandeau: (() => { const b = document.getElementById("emargement-bandeau"); return b && !b.hidden && visible(b) ? net(b.textContent) : null; })() };
+}
 // Ce que l'app lit : le nombre d'événements, de liens et de contacts, que les sous-titres de Dates clés et de Documents comptent.
 async function comptesDesPages() {
   const [db] = await modulesDeLApp(["db"]);
@@ -1395,7 +1480,7 @@ function bandeauEmargement() {
 window.__verifNav = { mesurer, regles: reglesSimples, voirEnTantQue, chercherLien, chercherPlus, ouvreurs, marquerPopups, mesurerPopups,
   popupsEncoreOuverts, focusSurOuvreur, focusPerdu, popupsVisibles: () => popupsVisibles().length, controlesAssistant,
   pageDeReglages, boutonDuCompte, menuDuCompte, enTeteDePage, panneauBenevoles, enTeteDeLEquipe,
-  accueil, comptesDesPages, planningSemaine, laClasse, epcfDeLEquipe, bandeauEmargement, aTraiter, nouveautes, lienDossierPro, graphe, invaliderCache };
+  accueil, accueilStagiaire, aujourdhuiEquipe, comptesDesPages, planningSemaine, laClasse, epcfDeLEquipe, bandeauEmargement, aTraiter, nouveautes, lienDossierPro, ccp2Page, moduleOuvert, graphe, invaliderCache };
 })();
 """
 
@@ -1468,6 +1553,7 @@ class Scenario:
     a_traiter: str = ""         # scénario « à traiter » (A_TRAITER_DU_BANC) : "ia", "beaucoup", "panne" ou "lent" ; vide pour tous les autres (lot 2A, tâche 6)
     reglage_illisible: str = ""       # la lecture du réglage de la promo échoue : la case du fondateur, une clé de CASES_DU_FONDATEUR (lot 2A, tâche 6, ruling R54)
     ressources_fermees: bool = False  # le module Ressources est fermé pour la promo : la ligne « Contacts du centre » du menu du compte (lot 2A, tâche 1)
+    compte: str = ""            # ?compte= du banc : un compte réel du lot 4 ("direction" : lit sans écrire), joué par jouer_direction (relecture finale du lot 2B)
 
     @property
     def nom(self):
@@ -1482,6 +1568,7 @@ class Scenario:
         variante += "-agenda-vide" if self.agenda_vide else ""
         variante += ("-a-traiter-" + self.a_traiter) if self.a_traiter else ""
         variante += ("-reglage-illisible-" + self.reglage_illisible) if self.reglage_illisible else ""
+        variante += ("-compte-" + self.compte) if self.compte else ""
         return "%s/%s/%s%s@%d" % (self.moteur, self.passe, self.role, variante, self.largeur)
 
 
@@ -1561,6 +1648,9 @@ def construire_scenarios(moteurs, roles, largeurs, passes):
                                                     ("panne", 1280, ""), ("panne", 375, ""), ("lent", 375, ""), ("signaler", 375, "")):
                     if largeur in largeurs:
                         scenarios.append(Scenario(moteur, "allume", "prof", largeur, "reglage", "equipe", modules=modules, a_traiter=a_traiter))
+                # La direction du centre (relecture finale du lot 2B) : l'espace de l'équipe, en lecture seule ; ni Émargement, ni À traiter, ni QCM du stagiaire.
+                for l in etroit:
+                    scenarios.append(Scenario(moteur, "allume", "prof", l, "reglage", "equipe", compte="direction"))
         if "eteint" in passes:
             for role in roles:
                 for l in largeurs:
@@ -1757,6 +1847,9 @@ def adresse_de_page(url, sc):
     q.pop("modules", None)
     if sc.modules:
         q["modules"] = sc.modules
+    q.pop("compte", None)
+    if sc.compte:
+        q["compte"] = sc.compte
     q.pop("mes_promos", None)
     if sc.promos_en_panne:
         q["mes_promos"] = "erreur"
@@ -1823,7 +1916,7 @@ def verifier_vue(page, res, sc, titre, options):
     attendre(page)
     res.vues += 1
     o = {"passe": sc.passe, "espace": sc.espace, "coquille": res.coquille, "seuilTelephone": SEUIL_TELEPHONE,
-         "dette": list(DETTE_LECTEUR_DE_COURS), "exception": EXCEPTION_ADMISE}
+         "exception": EXCEPTION_ADMISE}
     avant = len(res.echecs)
     try:
         m = page.evaluate("(o) => window.__verifNav.mesurer(o)", o)
@@ -1834,8 +1927,6 @@ def verifier_vue(page, res, sc, titre, options):
     res.derniere_vue = vue
     for type_, detail in m["echecs"]:
         res.echec(type_, vue, detail)
-    for cle, detail in m["dettes"]:
-        res.avertir("dette ouverte, lecteur de cours", cle, vue, detail)
     for type_, detail in m["avert"]:
         res.avertir(type_, detail, vue, detail)
     vider_console(res, vue)
@@ -1921,9 +2012,10 @@ def plancher_sous_onglets(route, sc, res):
     if route == "planning":
         return 2 if depart else 3      # Semaine, Dates clés, Priorités
     if route == "themes":
-        return 0 if depart else 3      # Thèmes, Compétences, Documents (et Signalements chez un formateur)
+        # Stagiaire : Thèmes, Compétences, QCM, Documents ; équipe : Thèmes, Compétences, Signalements, Propositions IA, Documents (lot 2B, tâche 6).
+        return 0 if depart else (4 if sc.espace == "stagiaire" else 5)
     if route == "mon-suivi" and res.profil_stagiaire:
-        return 0 if depart else 6      # Passages, EPCF, Évolution, Livret, Dossier pro, La classe
+        return 0 if depart else 5      # Résultats, Passages, EPCF, Livret EPCF, Dossier pro (lot 2B, tâche 7)
     if route == "stagiaires":
         return 2                       # Stagiaires, Élèves bénévoles (équipe seulement, lot 2A)
     return 0
@@ -2097,7 +2189,7 @@ def parcourir_entrees(page, res, sc, entrees, options, avec_sous_vues=True):
 # Ruling R26 : les quatre anciennes adresses (liens de l'app, favoris, raccourcis d'écran d'accueil) : la page et le
 # sous-onglet que la nouvelle navigation ouvre.
 ANCIENNES_ADRESSES = {"calendrier": ("#/planning", "Dates clés"), "dashboard": ("#/planning", "Priorités"),
-                      "ressources": ("#/themes", "Documents"), "notes": ("#/mon-suivi/classe", "La classe")}
+                      "ressources": ("#/themes", "Documents"), "notes": ("#/mon-suivi/resultats", "Résultats")}
 # Sous-onglet allumé de la page : la partie de Mon espace sur téléphone (son titre), sinon le premier sous-onglet actif.
 JS_SOUS_ONGLET_ALLUME = """() => {
     const e = document.querySelector('#view h2.fiche-titre') || document.querySelector('#view .subtabs-bar > .subtab.active');
@@ -2121,6 +2213,8 @@ def jouer_anciennes_adresses(page, res, sc):
             nouvelle, sous_onglet = "#/" + ancienne, None
         elif depart and ancienne != "calendrier":
             sous_onglet = "Semaine" if ancienne == "dashboard" else None
+            if ancienne == "notes":
+                nouvelle = "#/mon-suivi/classe"  # Résultats fermé (module des notes) : l'adresse de la redirection reste
         aller_a(page, "#/" + ancienne)
         attendre(page, calme=150)
         res.vues += 1
@@ -2154,6 +2248,10 @@ JS_SEMAINE_AFFICHEE = """() => {
     const s = document.querySelector('#view .subtabs-bar > .subtab.active');
     return { lundi: d ? d.value : null, sousOnglet: s ? (s.childNodes[0] ? s.childNodes[0].textContent : s.textContent).trim() : null,
              cartes: [...document.querySelectorAll('#view .p-day-card')].map((c) => Math.round(c.getBoundingClientRect().top)),
+             grille: document.querySelector('#view .wsem') ? Math.round(document.querySelector('#view .wsem').getBoundingClientRect().top) : null,
+             repere: [...document.querySelectorAll('#view .wg-day')].findIndex((j) => j.classList.contains('auj')),
+             choisi: [...document.querySelectorAll('#view .daystrip button')].findIndex((b) => b.getAttribute('aria-selected') === 'true'),
+             grilleVisible: !!document.querySelector('#view .wgrid') && document.querySelector('#view .wgrid').getClientRects().length > 0,
              hauteur: innerHeight };
 }"""
 
@@ -2187,7 +2285,15 @@ def verifier_aujourdhui(page, res, sc):
     attendre(page)
     page.wait_for_timeout(400)   # le saut vers le jour : défilement fluide, puis direct après 250 ms (scrollToDay)
     m = page.evaluate(JS_SEMAINE_AFFICHEE)
-    haut = m["cartes"][jour] if len(m["cartes"]) > jour else None
+    # En grille (nouvelle navigation, lot 2B, tâche 5), la grille tient la place des cartes : son haut est amené à l'écran et le jour du jour est repéré
+    # (la colonne sur ordinateur, le jour choisi sur téléphone).
+    if m["grille"] is not None:
+        haut = m["grille"]
+        repere = m["repere"] if m["grilleVisible"] else m["choisi"]
+        if repere != jour:
+            res.echec("bouton « Aujourd'hui »", vue, "le jour du jour n'est pas repéré dans la grille (repère %s, attendu %s)" % (repere, jour))
+    else:
+        haut = m["cartes"][jour] if len(m["cartes"]) > jour else None
     if route_courante(page) != "planning" or m["lundi"] != lundi or m["sousOnglet"] not in (None, "Semaine"):
         res.echec("bouton « Aujourd'hui »", vue, "après le clic : #/%s, semaine du %s, sous-onglet %s ; attendu Planning > Semaine, semaine du %s"
                   % (route_courante(page), m["lundi"], m["sousOnglet"], lundi))
@@ -2352,6 +2458,18 @@ def verifier_menu_du_compte_a_l_ouverture(page, res, sc):
 def nombre_de_la_phrase(phrase):
     """Le total que dit la phrase du tiroir (« 7 à traiter : ... » donne 7)."""
     return int(phrase.split(" ")[0])
+
+
+def lignes_a_traiter_attendues(phrase):
+    """Les lignes de la carte « À traiter » d'Aujourd'hui que dit la phrase du tiroir (« 7 à traiter : 5 signalements, 2 propositions de l'IA »)."""
+    lignes = []
+    m = re.search(r": (\d+) signalements?", phrase)
+    if m:
+        lignes.append("%s signalement%s sur %s" % (m.group(1), "" if m.group(1) == "1" else "s", "un QCM" if m.group(1) == "1" else "des QCM"))
+    m = re.search(r"(\d+) propositions? de l'IA", phrase)
+    if m:
+        lignes.append("1 question proposée par l'IA" if m.group(1) == "1" else "%s questions proposées par l'IA" % m.group(1))
+    return lignes
 
 
 def verifier_a_traiter(page, res, sc, tiroir=False):
@@ -2584,6 +2702,11 @@ def verifier_preferences(page, res, sc):
     if not res.profil_stagiaire and p["anonymat"] is not None:
         res.echec("page Mes préférences", vue, "la personne n'a pas de fiche de stagiaire : le réglage de l'anonymat dans les notes est montré (« %s »)" % p["anonymat"][:60])
     verifier_texte_de_l_anonymat(res, vue, p, "page Mes préférences")
+    # Lot 2B, tâche 3 : « À retenir » a quitté l'Accueil du stagiaire ; il vit dans la section Informations, pour tous les rôles, avec les noms de la nouvelle barre.
+    retenir = page.evaluate("() => { const b = document.querySelector('#view [data-a-retenir]'); return b ? { titre: b.querySelector('h4').textContent.trim(), "
+                            "lignes: [...b.querySelectorAll('li')].map((li) => li.textContent.replace(/\\s+/g, ' ').trim()) } : null; }")
+    if not retenir or retenir["titre"] != "À retenir" or len(retenir["lignes"]) != 4 or retenir["lignes"][-1] != CTRL_Z["nouvelle"]:
+        res.echec("page Mes préférences", vue, "« À retenir » manque d'Informations ou n'a pas ses 4 lignes (dernière : « %s »)" % (retenir and retenir["lignes"][-1:]))
     vider_console(res, vue)
 
 
@@ -2617,12 +2740,13 @@ def verifier_texte_de_l_anonymat(res, vue, p, type_):
 # Titres des pages, bénévoles sous Stagiaires, Assistant de l'équipe sur téléphone (lot 2A, tâche 3)
 # --------------------------------------------------------------------------------------
 
-# Pages dont le titre (h2) est le libellé de leur entrée, par espace (ruling R30, une page, un nom). N'en font pas partie : Accueil, que
-# la page Aujourd'hui remplacera au lot 2, et Planning, dont la semaine garde son titre (« Planning de la semaine », le surtitre disant la
+# Pages dont le titre (h2) est le libellé de leur entrée, par espace (ruling R30, une page, un nom). Aujourd'hui en fait partie (lot 2B, tâche 4) : son titre
+# est un h1, celui de la signature de l'app (pastille de date, titre), et son surtitre est la pastille. N'en font pas partie : l'Accueil du stagiaire, qui
+# salue par son prénom, et Planning, dont la semaine garde son titre (« Planning de la semaine », le surtitre disant la
 # semaine). Émargement en fait partie depuis la tâche 4 (ruling R50 : « Émargement », et non « Feuilles d'émargement »). Le titre de Mon
 # suivi se lit aussi chez qui n'a pas cette entrée (fondateur).
 TITRES_DES_PAGES = {
-    "equipe": ("emargement", "stagiaires", "notes", "themes", "centre", "config", "ccp2"),
+    "equipe": ("home", "emargement", "stagiaires", "notes", "themes", "centre", "config", "ccp2"),
     "stagiaire": ("themes", "mon-suivi", "ccp2"),
 }
 # Parmi elles, celles dont le surtitre est le nom de la promo affichée (CCP2 garde « Titre professionnel ECSR »).
@@ -2641,6 +2765,13 @@ def verifier_titre_de_page(page, res, sc, route, libelle):
     p = page.evaluate("() => window.__verifNav.enTeteDePage()")
     if p["route"] != route:
         return   # la page n'est pas celle qu'on attendait : le défaut est noté à l'ouverture
+    if route == "home":
+        # Aujourd'hui : un titre de la signature de l'app (h1, sous la pastille de date), pas un en-tête de page.
+        titre = page.evaluate("() => (document.querySelector('#view .home-title-v2') || {}).textContent || null")
+        if (titre or "").strip() != libelle:
+            res.echec("titre de page", vue, "le titre de #/home est « %s », le libellé de son entrée « %s »" % (titre, libelle))
+        vider_console(res, vue)
+        return
     if route == "themes" and sc.modules == "depart" and sc.espace == "stagiaire":
         libelle = "Documents"   # cours fermés (départ) : la page se réduit à ses Documents, sans barre, et porte leur titre
     if not p["entetes"]:
@@ -3041,12 +3172,12 @@ TITRES_DE_L_ANCIENNE_BARRE = ("Une barre d'onglets plus simple", "L'app s'ouvre 
 # Un stagiaire est envoyé à Mes préférences, jamais à Réglages (la page de la promo, réservée à l'équipe) ; l'équipe, l'inverse.
 OU_TROUVER = {
     "Les moyennes de la classe ne comptent que les stagiaires en formation":
-        ("Mon suivi, La classe", "Notes et examens, Synthèse classe", "Notes, Synthèse classe", "#/notes"),
-    "Tes notes et ta fiche mieux protégées": ("Mon suivi, La classe", "Notes et examens", "Notes", "#/notes"),
+        ("Mon suivi, partie Résultats", "Notes et examens, Synthèse classe", "Notes, Synthèse classe", "#/notes"),
+    "Tes notes et ta fiche mieux protégées": ("Mon suivi, partie Résultats", "Notes et examens", "Notes", "#/notes"),
     "Ton Dossier Professionnel se remplit dans l'app":
         ("Mon suivi, partie Dossier pro", "Mon suivi, partie Dossier pro", "Mon espace personnel, partie Dossier pro", "#/mon-suivi/dp"),
     "Ton livret officiel TP-01303 se remplit dans l'app":
-        ("Mon suivi, partie Livret", "Mon suivi, partie Livret", "Mon espace personnel, partie Livret", "#/mon-suivi/livret"),
+        ("Mon suivi, partie Livret EPCF", "Mon suivi, partie Livret EPCF", "Mon espace personnel, partie Livret", "#/mon-suivi/livret"),
     "Des vidéos conseillées dans la boîte à outils CCP2":
         ("Cours et QCM, Documents", "Cours et QCM, Documents", "Ressources, Examens", "#/ressources"),
     "Une boîte à outils numérique pour ton CCP2": ("Cours et QCM, Documents", "Cours et QCM, Documents", "Ressources", "#/ressources"),
@@ -3054,6 +3185,9 @@ OU_TROUVER = {
     "Anonyme pour de vrai dans le tableau de notes": ("Mes préférences", "Mes préférences", "Paramètres, Mes préférences", "#/config"),
     "Les cours des 57 thèmes sont ouverts à toute la promo": ("Cours et QCM", "Cours et QCM", "Cours", "#/themes"),
     "Ta progression d'entraînement se voit d'un coup d'œil": ("Cours et QCM, colonne QCM", "Cours et QCM, colonne QCM", "Cours, colonne QCM", "#/themes"),
+    # Lot 2B : l'Accueil de l'équipe s'appelle Aujourd'hui dans sa barre (même adresse) ; la journée n'existe pas avec l'ancienne barre (carte cachée).
+    "Ta journée sur l'Accueil": ("Accueil", "Accueil", "(carte cachée avec l'ancienne barre)", "#/home"),
+    "Les cours se lisent mieux sur téléphone": ("Cours et QCM", "Cours et QCM", "Cours", "#/themes"),
 }
 # Celles que seule l'équipe lit (puce « Formateurs ») : (libellé sous la nouvelle navigation, libellé de main, adresse).
 OU_TROUVER_EQUIPE = {
@@ -3065,6 +3199,7 @@ OU_TROUVER_EQUIPE = {
     "Les 57 cours sont dans l'app, à relire et à publier": ("Cours et QCM, colonne Cours", "Cours, colonne Cours", "#/themes"),
     "Banque d'élèves bénévoles avec leurs disponibilités": ("Stagiaires, Élèves bénévoles", "Planning, bouton Bénévoles", "#/planning"),
     "Auto-écoles partenaires et suivi des venues": ("Stagiaires, Élèves bénévoles", "Planning, bouton Bénévoles", "#/planning"),
+    "Aujourd'hui remplace l'Accueil": ("Aujourd'hui", "(carte cachée avec l'ancienne barre)", "#/home"),
 }
 # Les liens dont l'adresse change sous la nouvelle navigation, parce que leur destination a vraiment changé de place : l'anonymat des notes est dans Mes
 # préférences, pour les deux espaces (ruling R55, et non Réglages, qui ne garde que la promo), la banque des bénévoles sous Stagiaires (F8). Titre -> adresse.
@@ -3084,7 +3219,12 @@ GUIDES = {
     "Ton Dossier Professionnel se remplit dans l'app":
         ("Ouvre Mon suivi, dans la barre.", "Ouvre ton espace personnel avec le logo en haut à gauche."),
     "Ton livret officiel TP-01303 se remplit dans l'app":
-        ("Ouvre Mon suivi, partie Livret.", "Renseigne ta date de naissance dans ton espace personnel si ce n'est pas déjà fait."),
+        ("Ouvre Mon suivi, partie Livret EPCF.", "Renseigne ta date de naissance dans ton espace personnel si ce n'est pas déjà fait."),
+    "Ta journée sur l'Accueil":
+        ("Sur l'Accueil, la carte « Aujourd'hui » montre ton matin et ton après-midi. Quand la feuille d'émargement est ouverte, touche « Signer pour ce "
+         "matin » (ou « Signer pour cet après-midi ») : la carte affiche ensuite l'heure de ta signature.", "(carte cachée avec l'ancienne barre)"),
+    "Les cours se lisent mieux sur téléphone":
+        ("Ouvre un cours : touche le titre d'un thème, ou son bouton « Cours ».", "Ouvre un cours : touche le titre d'un thème, ou son bouton « Cours »."),
 }
 GUIDES_EQUIPE = {
     "Un tableau de bord du centre, promo par promo":
@@ -3096,6 +3236,8 @@ GUIDES_EQUIPE = {
     "Deux promos dans l'app, et des modules réglés promo par promo":
         ("Touche la promo en tête de la barre de gauche (sur téléphone, en haut de l'écran).",
          "Touche la pastille de la promo en haut de l'écran (« Nîmes · mars 2026 »)."),
+    "Aujourd'hui remplace l'Accueil":
+        ("Ouvre Aujourd'hui, en haut de la barre de gauche sur ordinateur, en bas de l'écran sur téléphone.", "(carte cachée avec l'ancienne barre)"),
 }
 LIEN_DES_BENEVOLES = ("Stagiaires, Élèves bénévoles", "#/stagiaires")   # le lien de la Nouveauté de lancement de l'équipe
 PIED_DE_L_ACCUEIL = {"ancienne": ("paramètres", "#/config"), "stagiaire": ("mes préférences", "#/preferences"), "equipe": ("réglages", "#/config")}
@@ -3104,6 +3246,16 @@ CTRL_Z = {"ancienne": "Ctrl + Z annule la dernière action. Sur Notes, Passages,
 SOCLE = {"ancienne": "Toujours ouverts : Accueil, Mon espace personnel (Passages), Paramètres, Nouveautés.",
          "nouvelle": "Toujours ouverts : Accueil, Mon suivi (Passages), Mes préférences, Nouveautés."}
 LIEN_DOSSIER_PRO = "Ton dossier professionnel, à remplir dans l'app"
+# Les trois Nouveautés du lot 2B (tâche 8), datées du jour de la fusion, lu dans js/nouveautes-data.js (rien à changer ici si elle se fait un autre jour). La
+# journée et Aujourd'hui sont propres à la nouvelle navigation (la première pour les stagiaires, la seconde pour l'équipe) ; les cours se lisent dans les deux, masqués à un
+# stagiaire dont la promo n'a pas ouvert la lecture des cours.
+TITRE_JOURNEE = "Ta journée sur l'Accueil"
+TITRE_AUJOURDHUI_EQUIPE = "Aujourd'hui remplace l'Accueil"
+TITRE_COURS_TELEPHONE = "Les cours se lisent mieux sur téléphone"
+# La date vient de js/nouveautes-data.js, seule source : l'id de l'entrée de la journée porte AAAA-MM-JJ.
+_ID_JOURNEE = re.search(r'id:\s*"(\d{4})-(\d{2})-(\d{2})-ta-journee-accueil"',
+                        (pathlib.Path(__file__).resolve().parent.parent / "js" / "nouveautes-data.js").read_text(encoding="utf-8"))
+DATE_DE_LA_FUSION = "%s/%s/%s" % (_ID_JOURNEE.group(3), _ID_JOURNEE.group(2), _ID_JOURNEE.group(1)) if _ID_JOURNEE else "?"
 
 
 def verifier_liens_et_guides(res, vue, cartes, equipe, nouvelle, depart=False):
@@ -3178,6 +3330,7 @@ def verifier_nouveautes(page, res, sc):
         if titre in cartes:
             res.echec("Nouveauté de l'ancienne barre", vue, "« %s » ne décrit que l'ancienne barre : elle n'est pas montrée sous la nouvelle" % titre)
     verifier_liens_et_guides(res, vue, cartes, equipe, True, depart=sc.modules == "depart" and not equipe)
+    verifier_nouveautes_du_lot_2b(page, res, sc, vue, cartes, True)
     # Les liens vers la banque des bénévoles (la Nouveauté de lancement de l'équipe et, F8, les deux Nouveautés des bénévoles) : le libellé, l'adresse, puis le
     # geste (la mémoire du sous-onglet de Stagiaires, que la barre relit à son rendu).
     for titre in ((TITRE_LANCEMENT_EQUIPE,) + TITRES_DES_BENEVOLES) if equipe else ():
@@ -3200,6 +3353,45 @@ def verifier_nouveautes(page, res, sc):
         # La mémoire de la barre de sous-onglets est rendue comme on l'a trouvée : les contrôles suivants partent du premier sous-onglet.
         page.evaluate("(cle) => { try { localStorage.removeItem(cle); } catch (e) { /* stockage bloqué */ } }", CLE_SOUS_ONGLET_STAGIAIRES)
     vider_console(res, vue)
+
+
+def verifier_nouveautes_du_lot_2b(page, res, sc, vue, cartes, nouvelle):
+    """Les trois Nouveautés du lot 2B (tâche 8). Nouvelle navigation : « Ta journée sur l'Accueil » pour les stagiaires seuls (sans puce « Formateurs »), « Aujourd'hui remplace
+    l'Accueil » pour l'équipe seulement (avec la puce), « Les cours se lisent mieux sur téléphone » pour tous quand la lecture des cours est ouverte (toujours chez
+    l'équipe) ; ancienne : les cours seuls. Toutes datées du jour de la fusion, avec un « Où le trouver » et un « Comment faire » d'au moins trois étapes (leurs
+    textes sont contrôlés par verifier_liens_et_guides). Puis le geste : chaque lien « Où le trouver » ouvre sa page."""
+    equipe = sc.espace == "equipe"
+    cours_ouvert = equipe or page.evaluate("(cle) => window.__verifNav.moduleOuvert(cle)", "cours")
+    attendues = {TITRE_JOURNEE: nouvelle and not equipe, TITRE_AUJOURDHUI_EQUIPE: nouvelle and equipe, TITRE_COURS_TELEPHONE: cours_ouvert}
+    for titre, la in attendues.items():
+        carte = cartes.get(titre)
+        ou = "%s, %s" % ("équipe" if equipe else "stagiaire", "nouvelle navigation" if nouvelle else "ancienne navigation")
+        if la and carte is None:
+            res.echec("Nouveautés du lot 2B", vue, "« %s » manque (%s)" % (titre, ou))
+            continue
+        if not la:
+            if carte is not None:
+                res.echec("Nouveautés du lot 2B", vue, "« %s » est montrée (%s) : elle ne l'est pas ici" % (titre, ou))
+            continue
+        if carte["date"] != DATE_DE_LA_FUSION:
+            res.echec("Nouveautés du lot 2B", vue, "« %s » est datée du %s, attendu le %s (le jour de la fusion)" % (titre, carte["date"], DATE_DE_LA_FUSION))
+        if carte["formateurs"] != (titre == TITRE_AUJOURDHUI_EQUIPE):
+            res.echec("Nouveautés du lot 2B", vue, "« %s » %s la puce « Formateurs »" % (titre, "porte" if carte["formateurs"] else "n'a pas"))
+        if carte["ou"] is None or len(carte["guide"]) < 3:
+            res.echec("Nouveautés du lot 2B", vue, "« %s » : « Où le trouver » %s, %d étape(s) de « Comment faire »" % (
+                titre, "absent" if carte["ou"] is None else "présent", len(carte["guide"])))
+    # Le geste : le lien « Où le trouver » ouvre la page qu'il nomme.
+    for titre, route in ((TITRE_JOURNEE, "home"), (TITRE_AUJOURDHUI_EQUIPE, "home"), (TITRE_COURS_TELEPHONE, "themes")):
+        if cartes.get(titre) is None or cartes[titre]["ou"] is None:
+            continue
+        aller_a(page, "#/nouveautes")
+        attendre(page)
+        if cliquer(page, res, vue, "#view .nv-carte:has-text(\"%s\") a.nv-ou" % titre, "lien « Où le trouver » de « %s »" % titre):
+            attendre(page, calme=150)
+            if route_courante(page) != route:
+                res.echec("Nouveautés du lot 2B", vue, "le lien de « %s » ouvre #/%s, attendu #/%s" % (titre, route_courante(page), route))
+    aller_a(page, "#/nouveautes")
+    attendre(page)
 
 
 def verifier_nouveaute_commune(res, vue, cartes):
@@ -3240,14 +3432,17 @@ def verifier_nouveautes_eteint(page, res, sc):
     if TITRE_AFFICHAGE in cartes and cartes[TITRE_AFFICHAGE]["date"] != DATE_DU_LANCEMENT:
         res.echec("Nouveauté pour tous", vue, "« %s » est datée du %s, attendu le %s" % (TITRE_AFFICHAGE, cartes[TITRE_AFFICHAGE]["date"], DATE_DU_LANCEMENT))
     verifier_liens_et_guides(res, vue, cartes, sc.role in ("prof", "fondateur"), False)
+    verifier_nouveautes_du_lot_2b(page, res, sc, vue, cartes, False)
     vider_console(res, vue)
 
 
 def verifier_nouveautes_de_l_accueil(page, res, vue, equipe):
-    """Accueil, nouvelle navigation : les plus récentes Nouveautés de la section commencent, chez l'équipe, par celle du lot 4 (rôles par promo), puis par celles du lancement (la première pour tous, la
-    seconde pour l'équipe). Appelé depuis l'accueil déjà ouvert."""
+    """Accueil, nouvelle navigation : les Nouveautés de l'accueil commencent par la plus récente, « Ta journée sur l'Accueil » chez le stagiaire,
+    « Aujourd'hui remplace l'Accueil » chez l'équipe (lot 2B) ; l'équipe voit aussi celle du lot 4 (rôles par promo). Appelé depuis l'accueil déjà ouvert."""
     titres = [c["titre"] for c in page.evaluate("() => window.__verifNav.nouveautes()")]
-    attendus = ([TITRE_ROLES] if equipe else []) + [TITRE_LANCEMENT] + ([TITRE_LANCEMENT_EQUIPE] if equipe else [])
+    attendus = [TITRE_AUJOURDHUI_EQUIPE] if equipe else [TITRE_JOURNEE]
+    if equipe and TITRE_ROLES not in titres:
+        res.echec("Nouveautés de l'accueil", vue, "« %s » manque chez l'équipe" % TITRE_ROLES)
     if titres[:len(attendus)] != attendus:
         res.echec("Nouveautés de l'accueil", vue, "les Nouveautés de l'accueil commencent par « %s », attendu « %s »" % (" », « ".join(titres[:len(attendus)]), " », « ".join(attendus)))
 
@@ -3309,7 +3504,8 @@ def verifier_contacts_du_centre(page, res, sc):
 
 def verifier_ccp2(page, res, sc):
     """Parcours CCP2, les deux navigations : le lien vers le dossier professionnel (étape 8) ne nomme plus ni Mon espace ni un sous-onglet, il dit « Ton
-    dossier professionnel, à remplir dans l'app » et mène à la partie Dossier pro (#/mon-suivi/dp). Rien si CCP2 est fermé pour ce stagiaire."""
+    dossier professionnel, à remplir dans l'app » et mène à la partie Dossier pro (#/mon-suivi/dp). Rien si CCP2 est fermé pour ce stagiaire. Et l'ordre de la
+    page (lot 2B, tâche 8) : allumé, les dates, les étapes, puis l'épreuve repliée en bas ; éteint, l'ordre de main (verifier_page_ccp2)."""
     vue = "%s/ccp2/lien-dossier-pro" % sc.nom
     aller_a(page, "#/ccp2")
     attendre(page)
@@ -3321,7 +3517,241 @@ def verifier_ccp2(page, res, sc):
         res.echec("parcours CCP2", vue, "le parcours n'a pas de lien vers le dossier professionnel (#/mon-suivi/dp)")
     elif lien["texte"] != LIEN_DOSSIER_PRO:
         res.echec("parcours CCP2", vue, "le lien vers le dossier professionnel dit « %s », attendu « %s »" % (lien["texte"], LIEN_DOSSIER_PRO))
+    verifier_page_ccp2(page, res, "%s/ccp2/ordre" % sc.nom, sc.passe == "allume")
     vider_console(res, vue)
+
+
+# L'ordre de la page CCP2 (lot 2B, tâche 8 ; ruling R66 : aucun avancement calculé). Allumé : l'en-tête, « Tes dates », « Les 8 étapes », puis « L'épreuve en bref »
+# repliée en bas. Éteint : l'ordre de main, l'épreuve d'abord. « Tes dates » n'est là que si la promo a des dates CCP2 lisibles (Calendrier ouvert, lecture réussie).
+ORDRE_CCP2 = {True: ["en-tête", "dates", "titre des étapes", "étapes", "épreuve repliée"], False: ["en-tête", "épreuve", "dates", "titre des étapes", "étapes"]}
+TITRE_EPREUVE_CCP2 = "L'épreuve en bref"
+CLE_ETAPE_CCP2 = "ecsr_ccp2_etape"
+
+
+def verifier_page_ccp2(page, res, vue, allume, dates=None):
+    """Mesure la page CCP2 ouverte : l'ordre de ses blocs, et, allumé, l'épreuve repliée à l'arrivée (résumé de 44 px au moins, chevron visible, titre) et un
+    chevron sur chaque étape ; éteint, ni épreuve repliée ni chevron (main). `dates` : True (attendues), False (absentes : la page commence alors par les étapes,
+    sans trou sous l'en-tête), None (selon la page). Rend la mesure."""
+    res.vues += 1
+    m = page.evaluate("() => window.__verifNav.ccp2Page()")
+    avec_dates = m["dates"] is not None if dates is None else dates
+    attendu = [b for b in ORDRE_CCP2[allume] if avec_dates or b != "dates"]
+    if m["blocs"] != attendu:
+        res.echec("page CCP2", vue, "les blocs sont %s, attendu %s (%s navigation)" % (m["blocs"], attendu, "nouvelle" if allume else "ancienne"))
+    if dates and (m["titreDates"] != "Tes dates" or not m["dates"]):
+        res.echec("page CCP2", vue, "« Tes dates » manque ou est vide (titre %s, %s date(s))" % (m["titreDates"], len(m["dates"] or [])))
+    if dates is False and m["ecart"] is not None and abs(m["ecart"] - m["margeEnTete"]) > 2:
+        res.echec("page CCP2", vue, "sans dates, %d px séparent l'en-tête du titre des étapes, attendu %d (la marge de l'en-tête, sans trou)" % (m["ecart"], m["margeEnTete"]))
+    if m["defile"]:
+        res.echec("page CCP2", vue, "la page défile de côté")
+    if len(m["etapes"]) != 8:
+        res.echec("page CCP2", vue, "%d étape(s), attendu 8" % len(m["etapes"]))
+    petites = [e["titre"] for e in m["etapes"] if e["hauteur"] < 44]
+    if petites:
+        res.echec("page CCP2", vue, "résumé d'étape sous 44 px : %s" % ", ".join(petites))
+    if allume:
+        e = m["epreuve"]
+        if e is None:
+            res.echec("page CCP2", vue, "« %s » n'est pas repliée en bas de page" % TITRE_EPREUVE_CCP2)
+        else:
+            if e["titre"] != TITRE_EPREUVE_CCP2:
+                res.echec("page CCP2", vue, "la carte du bas s'appelle « %s », attendu « %s »" % (e["titre"], TITRE_EPREUVE_CCP2))
+            if e["ouverte"]:
+                res.echec("page CCP2", vue, "« %s » est ouverte à l'arrivée : elle doit être repliée" % TITRE_EPREUVE_CCP2)
+            if e["hauteur"] < 44:
+                res.echec("page CCP2", vue, "le résumé de « %s » fait %d px, 44 au moins" % (TITRE_EPREUVE_CCP2, e["hauteur"]))
+            if not e["chevron"]:
+                res.echec("page CCP2", vue, "« %s » n'a pas de repère d'ouverture (chevron) visible" % TITRE_EPREUVE_CCP2)
+        sans = [x["titre"] for x in m["etapes"] if not x["chevron"]]
+        if sans:
+            res.echec("page CCP2", vue, "étape(s) sans repère d'ouverture (chevron) : %s" % ", ".join(sans))
+    else:
+        if m["epreuve"] is not None or any(x["chevron"] for x in m["etapes"]):
+            res.echec("page CCP2, interrupteur éteint", vue, "l'épreuve repliée ou un chevron s'affiche avec l'ancienne navigation : main n'en a pas")
+    return m
+
+
+def jouer_ccp2(page, res, sc):
+    """Page CCP2, nouvelle navigation (lot 2B, tâche 8), joué à 375 et 1 280 px pour chaque rôle : l'ordre avec « Tes dates » ; « L'épreuve en bref » repliée
+    s'ouvre au clic et montre ses quatre points et ses trois liens, puis se referme ; une étape ouverte se rouvre au retour sur la page (et seule elle), l'épreuve
+    restant repliée ; refermée, plus rien ne se rouvre. Puis la page sans dates, par une lecture du Calendrier en échec et, chez le stagiaire, par un Calendrier
+    fermé : elle commence par les étapes, sans trou (l'équipe, qui voit les modules fermés, garde ses dates). Ces deux cas rechargent le banc : en dernier."""
+    vue = "%s/ccp2/parcours" % sc.nom
+    page.evaluate("(cle) => { try { localStorage.removeItem(cle); } catch (e) { /* stockage bloqué */ } }", CLE_ETAPE_CCP2)
+    aller_a(page, "#/home")
+    attendre(page)
+    aller_a(page, "#/ccp2")
+    attendre(page)
+    if not page.evaluate("() => !!document.querySelector('#view .ccp2-etapes')"):
+        res.echec("page CCP2", vue, "la page CCP2 ne s'ouvre pas")
+        return
+    try:
+        page.wait_for_selector("#view .ccp2-dates:not([hidden])", timeout=4000)
+    except ErreurPlaywright:
+        pass   # l'échec est dit par la mesure
+    m = verifier_page_ccp2(page, res, vue, True, dates=True)
+    if any(e["ouverte"] for e in m["etapes"]):
+        res.echec("page CCP2", vue, "une étape est ouverte à l'arrivée sans mémoire")
+    # L'épreuve s'ouvre au clic, montre son contenu, et se referme.
+    resume = "#view .ccp2-epreuve-repliee > summary"
+    if cliquer(page, res, vue, resume, "résumé de « %s »" % TITRE_EPREUVE_CCP2):
+        page.wait_for_timeout(250)
+        e = page.evaluate("() => window.__verifNav.ccp2Page().epreuve")
+        if not e or not e["ouverte"] or not e["corpsVisible"]:
+            res.echec("page CCP2", vue, "« %s » ne s'ouvre pas au clic, ou son contenu ne se voit pas" % TITRE_EPREUVE_CCP2)
+        elif (e["points"], e["liens"]) != (4, 3):
+            res.echec("page CCP2", vue, "« %s » ouverte montre %d point(s) et %d lien(s), attendu 4 et 3" % (TITRE_EPREUVE_CCP2, e["points"], e["liens"]))
+        if page.evaluate("() => window.__verifNav.ccp2Page().defile"):
+            res.echec("page CCP2", vue, "l'épreuve ouverte fait défiler la page de côté")
+        if cliquer(page, res, vue, resume, "résumé de « %s », pour la refermer" % TITRE_EPREUVE_CCP2):
+            page.wait_for_timeout(250)
+            if page.evaluate("() => window.__verifNav.ccp2Page().epreuve.ouverte"):
+                res.echec("page CCP2", vue, "« %s » ne se referme pas au second clic" % TITRE_EPREUVE_CCP2)
+    # L'étape ouverte la dernière fois se rouvre au retour, seule ; l'épreuve, elle, n'est jamais mémorisée.
+    etape = "#view .ccp2-etapes > details:nth-child(3) > summary"
+    if cliquer(page, res, vue, etape, "résumé de l'étape 3"):
+        page.wait_for_timeout(250)
+        titre = page.evaluate("() => window.__verifNav.ccp2Page().etapes[2].titre")
+        cliquer(page, res, vue, resume, "résumé de « %s »" % TITRE_EPREUVE_CCP2)
+        page.wait_for_timeout(150)
+        aller_a(page, "#/planning")
+        attendre(page)
+        aller_a(page, "#/ccp2")
+        attendre(page)
+        m = page.evaluate("() => window.__verifNav.ccp2Page()")
+        ouvertes = [x["titre"] for x in m["etapes"] if x["ouverte"]]
+        if ouvertes != [titre]:
+            res.echec("page CCP2", vue, "au retour, étape(s) ouverte(s) : %s ; attendu « %s », celle ouverte la dernière fois" % (ouvertes or "aucune", titre))
+        if m["epreuve"] and m["epreuve"]["ouverte"]:
+            res.echec("page CCP2", vue, "au retour, « %s » est ouverte : elle doit toujours arriver repliée" % TITRE_EPREUVE_CCP2)
+        # Refermée, l'étape ne se rouvre plus.
+        if cliquer(page, res, vue, etape, "résumé de l'étape 3, pour la refermer"):
+            page.wait_for_timeout(250)
+            aller_a(page, "#/home")
+            attendre(page)
+            aller_a(page, "#/ccp2")
+            attendre(page)
+            if any(x["ouverte"] for x in page.evaluate("() => window.__verifNav.ccp2Page()")["etapes"]):
+                res.echec("page CCP2", vue, "une étape refermée se rouvre au retour")
+    vider_console(res, vue)
+    # Sans dates : la lecture du Calendrier échoue, puis le Calendrier est fermé pour la promo. La page commence par les étapes, sans trou.
+    for cas, parametres in (("lecture-en-echec", {"panne": "agenda_events"}), ("calendrier-ferme", {"panne": "", "modules": "ccp2-sans-calendrier"})):
+        vue_cas = "%s/ccp2/sans-dates/%s" % (sc.nom, cas)
+        recharger_au_banc(page, "#/ccp2", **parametres)
+        page.wait_for_timeout(300)
+        if not page.evaluate("() => !!document.querySelector('#view .ccp2-etapes')"):
+            res.echec("page CCP2", vue_cas, "la page CCP2 ne s'ouvre pas")
+            continue
+        # L'équipe voit les modules fermés pour la promo (les formateurs voient tout) : Calendrier fermé, ses dates restent.
+        verifier_page_ccp2(page, res, vue_cas, True, dates=cas == "calendrier-ferme" and sc.espace == "equipe")
+        res.console.clear()   # le « console.error » de la page est le but de l'essai : elle journalise la lecture qui échoue, la page reste entière
+    # Le banc ordinaire, pour ce qui suit.
+    recharger_au_banc(page, "#/ccp2", panne="", modules="")
+    res.console.clear()
+
+
+# --------------------------------------------------------------------------------------
+# Lecteur de cours et Informations légales (lot 2B, tâche 1 ; ruling R52)
+# --------------------------------------------------------------------------------------
+
+# Ouverture des deux lecteurs : ils sont posés sur `body`, hors de `#view`, et rien dans la navigation ne les ouvre toujours au même
+# endroit. On importe donc les modules par les mêmes adresses que l'app (même jeton `?v=`, donc la même instance), puis on les appelle.
+OUVRIR_LECTEURS = {
+    "cours": """async (jeton) => {
+        const m = await import("./js/views/cours-reader.js?v=" + jeton);
+        m.openCoursSheet({ numero: 22, titre: "Feux du véhicule" });
+    }""",
+    "legal": """async (jeton) => {
+        const m = await import("./js/legal.js?v=" + jeton);
+        m.ouvrirInformationsLegales();
+    }""",
+}
+
+# Ce que le lecteur ouvert doit respecter, mesuré dans la page : rien ne se coupe sans se voir (le `overflow-x: clip` de
+# `.cours-scroll` masque un débordement au lieu de le signaler), le sommaire passe à la ligne et ne défile pas, et les tableaux
+# larges deviennent des listes sur téléphone (carte par ligne, titre de colonne devant chaque valeur), restent des tableaux au-delà.
+JS_LECTEUR = r"""
+(seuil) => {
+  const pbs = [];
+  const ov = document.querySelector(".cours-overlay");
+  if (!ov) return ["aucun lecteur ouvert"];
+  const zone = ov.querySelector(".cours-scroll");
+  const W = document.documentElement.clientWidth;
+  const tel = W < seuil;
+  const nom = (e) => e.tagName.toLowerCase() + (e.className && typeof e.className === "string" ? "." + e.className.trim().split(/\s+/).join(".") : "");
+  const zr = zone.getBoundingClientRect();
+  if (zone.scrollWidth > zone.clientWidth + 1) pbs.push(`la zone de lecture défile de côté (${zone.scrollWidth} px pour ${zone.clientWidth} px)`);
+  let coupes = 0;
+  for (const e of zone.querySelectorAll("*")) {
+    if (e.closest("thead") || e instanceof SVGElement) continue;
+    const r = e.getBoundingClientRect();
+    if (r.width <= 1 || r.height <= 1 || getComputedStyle(e).visibility === "hidden") continue;
+    const surplus = e.scrollWidth - e.clientWidth;
+    if (e.clientWidth > 0 && surplus > 1 && coupes++ < 4) pbs.push(`${nom(e)} : ${e.scrollWidth} px de contenu pour ${e.clientWidth} px (coupé ou à défiler)`);
+    if ((r.right > zr.right + 1 || r.left < zr.left - 1) && coupes++ < 4) pbs.push(`${nom(e)} sort de la zone de lecture (${Math.round(r.left)} à ${Math.round(r.right)} px pour ${Math.round(zr.left)} à ${Math.round(zr.right)})`);
+  }
+  const somm = ov.querySelector(".cours-sommaire");
+  if (somm) {
+    const s = getComputedStyle(somm);
+    if (s.overflowX !== "visible") pbs.push(`le sommaire a overflow-x: ${s.overflowX}`);
+    if (s.flexWrap !== "wrap") pbs.push(`le sommaire ne passe pas à la ligne (flex-wrap: ${s.flexWrap})`);
+    if (tel && s.position !== "static") pbs.push(`le sommaire reste ${s.position} sur téléphone (il couvrirait le texte)`);
+    if (tel) for (const b of somm.children) { const h = b.getBoundingClientRect().height; if (h < 43.5) pbs.push(`pastille du sommaire trop basse : ${Math.round(h)} px`); }
+  }
+  for (const t of ov.querySelectorAll(".cours-table")) {
+    const largeur = t.querySelectorAll("thead th").length;
+    const carte = tel && largeur > 2;
+    const tr = t.querySelector("tbody tr");
+    const td = t.querySelector("tbody td");
+    if (!tr || !td) continue;
+    const ent = [...t.querySelectorAll("thead th")].map((h) => h.textContent.trim());
+    if (getComputedStyle(t).display !== (carte ? "block" : "table")) pbs.push(`tableau de ${largeur} colonnes en display ${getComputedStyle(t).display} (attendu ${carte ? "block" : "table"})`);
+    t.querySelectorAll("tbody td").forEach((c, i) => {
+      const attendu = ent[i % ent.length] || "";
+      if ((c.dataset.label || "") !== attendu) pbs.push(`cellule ${i + 1} : data-label « ${c.dataset.label || ""} », attendu « ${attendu} »`);
+    });
+    if (carte) {
+      const th = t.querySelector("thead").getBoundingClientRect();
+      if (th.height > 1 && th.width > 1) pbs.push("l'en-tête du tableau reste visible sur téléphone");
+      const av = getComputedStyle(td, "::before").content;
+      if (!av || av === "none" || av === "normal") pbs.push("la cellule n'écrit pas le titre de sa colonne (::before vide)");
+      if (getComputedStyle(td).display !== "block") pbs.push(`cellule en display ${getComputedStyle(td).display}`);
+    } else if (largeur > 2 || !tel) {
+      if (t.scrollWidth > t.parentElement.clientWidth + 1) pbs.push(`tableau plus large que la page (${t.scrollWidth} px pour ${t.parentElement.clientWidth} px)`);
+    }
+  }
+  return pbs;
+}
+"""
+
+
+def verifier_lecteur(page, res, sc, options):
+    """Le lecteur de cours (un cours à sommaire de six sections, un tableau de cinq colonnes, un de deux) et les Informations légales : à 375 puis
+    320 px (téléphone), à 1 280 px (ordinateur), sans rien qui défile de côté ni se coupe sans se voir. Joué dans les deux navigations."""
+    largeurs = {375: (375, LARGEUR_ETROITE), 1280: (1280,)}.get(sc.largeur)
+    if not largeurs:
+        return
+    # Le jeton des imports, tel que l'import map du banc les écrit (`./js/legal.js?v=<jeton>`) : l'adresse de l'app, donc sa propre instance du module.
+    jeton = page.evaluate(r"""() => (document.querySelector('script[type="importmap"]')?.textContent.match(/legal\.js\?v=([^"]+)"/) || [])[1] || ''""")
+    if not jeton:
+        res.echec("lecteur de cours", sc.nom, "le jeton des imports (?v=) ne se lit pas dans l'import map du banc : lancer `node _harness_build.mjs`")
+        return
+    try:
+        for lecteur, ouvrir in OUVRIR_LECTEURS.items():
+            for largeur in largeurs:
+                vue = "%s/lecteur/%s@%d" % (sc.nom, lecteur, largeur)
+                page.set_viewport_size({"width": largeur, "height": HAUTEUR[largeur]})
+                page.evaluate(ouvrir, jeton)
+                page.wait_for_selector(".cours-overlay .cours-body .cours-table, .cours-overlay .cours-body .legal-titre", timeout=4000)
+                page.wait_for_timeout(150)
+                verifier_vue(page, res, sc, vue, options)
+                for detail in page.evaluate(JS_LECTEUR, SEUIL_TELEPHONE):
+                    res.echec("lecteur de cours", vue, detail)
+                page.evaluate("() => { document.querySelectorAll('.cours-overlay').forEach((o) => o.remove()); document.body.classList.remove('cours-open'); }")
+    finally:
+        page.set_viewport_size({"width": sc.largeur, "height": HAUTEUR[sc.largeur]})
+        page.evaluate("() => { document.querySelectorAll('.cours-overlay').forEach((o) => o.remove()); document.body.classList.remove('cours-open'); }")
+        attendre(page, calme=150)
 
 
 def jouer_ressources_fermees(page, res, sc, options):
@@ -3479,9 +3909,12 @@ def verifier_carte(res, vue, m):
         res.echec("carte du prochain événement", vue, "un événement à venir porte la ligne « %s » : seul un événement commencé est en cours" % carte["statut"])
 
 
-def attendre_accueil(page):
-    """L'accueil lit l'agenda après s'être posé : la carte et la liste n'y sont qu'une fois le « Chargement… » de la liste remplacé."""
-    page.wait_for_function("() => { const l = document.getElementById('home-agenda-list'); return !l || !/Chargement/.test(l.textContent); }", timeout=6000)
+def attendre_accueil(page, sauf=""):
+    """L'accueil lit l'agenda après s'être posé : la carte et la liste n'y sont qu'une fois le « Chargement… » de la liste remplacé. `sauf` : la zone d'une carte
+    qu'on n'attend pas (la carte « à traiter » d'Aujourd'hui quand ses lectures n'aboutissent pas)."""
+    page.wait_for_function("(sauf) => { const l = document.getElementById('home-agenda-list'); return (!l || !/Chargement/.test(l.textContent))"
+                           " && ![...document.querySelectorAll('#view .acc-carte')].some((c) => c.dataset.zone !== sauf && /Chargement/.test(c.querySelector('.acc-corps').textContent)); }",
+                           arg=sauf, timeout=6000)
 
 
 def ouvrir_accueil(page, res, vue):
@@ -3499,25 +3932,586 @@ def ouvrir_accueil(page, res, vue):
 
 def verifier_accueil(page, res, sc):
     """Accueil, nouvelle navigation, les deux espaces : le logo n'y est qu'une fois (celui de la coquille, pas un second à côté de la date), la phrase qui
-    énumérait les pages de l'ancienne barre est remplacée par « Promo <nom> · semaine <n> », aucune tuile ne double la barre ; la carte « Prochain
-    événement majeur » compte les jours qui restent, jamais en nombre négatif."""
+    énumérait les pages de l'ancienne barre est remplacée par « Promo <nom> · semaine <n> », aucune tuile ne double la barre. Le stagiaire a sa page
+    (lot 2B, tâche 3), l'équipe la sienne, Aujourd'hui (tâche 4)."""
     vue = "%s/accueil" % sc.nom
-    m = ouvrir_accueil(page, res, vue)
+    equipe = sc.espace == "equipe"
+    if equipe and sc.a_traiter == "lent":
+        # Les lectures « à traiter » n'aboutissent pas : la carte « À traiter » reste en « Chargement… » sans retenir le reste de la page.
+        aller_a(page, "#/home")
+        attendre(page)
+        attendre_accueil(page, sauf="a-traiter")
+        res.vues += 1
+        m = page.evaluate("() => window.__verifNav.accueil()")
+    else:
+        m = ouvrir_accueil(page, res, vue)
     if m is None:
         return
     if m["logos"]:
         res.echec("accueil", vue, "%d logo(s) à côté de la date : la coquille porte déjà le logo" % m["logos"])
     if m["tuiles"]:
         res.echec("accueil", vue, "des tuiles doublent la barre : %s" % ", ".join(m["tuiles"]))
-    attendue = ligne_promo_attendue(m["promo"], datetime.date.fromisoformat(DATE_DU_BANC))
-    if m["lead"] != attendue:
-        res.echec("accueil", vue, "la ligne sous la salutation est « %s », attendu « %s »" % (m["lead"], attendue))
-    # Lot 2A, tâche 1 : les Nouveautés du lancement ouvrent la section, la ligne Ctrl + Z et le lien du pied portent les noms de la nouvelle barre.
-    verifier_nouveautes_de_l_accueil(page, res, vue, sc.espace == "equipe")
-    verifier_pied_et_retenir(res, vue, m, sc.espace)
+    if not equipe:
+        attendue = ligne_promo_attendue(m["promo"], datetime.date.fromisoformat(DATE_DU_BANC))
+        if m["lead"] != attendue:
+            res.echec("accueil", vue, "la ligne sous la salutation est « %s », attendu « %s »" % (m["lead"], attendue))
+        # Lot 2A, tâche 1 : les Nouveautés du lancement ouvrent la section ; la ligne Ctrl + Z et le lien du pied portent les noms de la nouvelle barre.
+        verifier_nouveautes_de_l_accueil(page, res, vue, False)
     verifier_pied_de_l_accueil(res, vue, m, True)
-    if m["agenda"]:
-        verifier_carte(res, vue, m)
+    if equipe:
+        # Lot 2B, tâche 4 : Aujourd'hui (l'émargement, ce qui est à traiter, au tableau, en voiture, à suivre de près) ; ni Nouveautés (le compte les porte), ni
+        # « À retenir » (passé dans Mes préférences), ni compte à rebours, ni liste d'événements.
+        verifier_aujourdhui_equipe(page, res, sc, vue)
+    else:
+        # Lot 2B, tâche 3 : le stagiaire a sa page (la journée, à faire, prochain rendez-vous) ; ni « À retenir » (passé dans Mes préférences), ni
+        # compte à rebours, ni liste d'événements : la carte « Prochain événement majeur » n'existe plus de son côté.
+        verifier_accueil_stagiaire(page, res, sc, vue)
+    vider_console(res, vue)
+
+
+JOURS_DE_LA_SEMAINE = ("lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche")
+MOIS_DE_L_ANNEE = ("janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre")
+ZONES_DE_L_ACCUEIL = (("aujourdhui", "Aujourd'hui"), ("afaire", "À faire"), ("rendez-vous", "Prochain rendez-vous"), ("nouveaute", "Nouveauté"))
+LIGNES_A_FAIRE = ("Examen ouvert", "QCM du thème", "Dossier professionnel", "Livret EPCF")   # l'ordre de la page : examen, QCM, dossier, livret
+
+
+def verifier_accueil_stagiaire(page, res, sc, vue, jour=None):
+    """Accueil du stagiaire, nouvelle navigation (lot 2B, tâche 3) : la pastille de date (jour, numéro, mois, sans l'année), les quatre cartes dans l'ordre (sur
+    téléphone, « À faire » juste sous la journée), aucune tuile, ni « Prochains événements », ni compte à rebours, ni « À retenir » ; les lignes de « À faire »
+    dans l'ordre examen, QCM, dossier, livret, vers leur page ; au départ (`?modules=depart`), QCM, dossier et livret fermés : plus aucune de ces lignes ; la
+    journée porte le bouton « Signer pour ce matin » dans la rangée Matin, et le bandeau d'émargement ne dit pas « Signer » ici ; le pied de liens ;
+    zones à toucher de 44 px sur téléphone ; rien ne déborde, rien ne se recouvre."""
+    m = page.evaluate("() => window.__verifNav.accueilStagiaire()")
+    jour = jour or datetime.date.fromisoformat(DATE_DU_BANC)
+    telephone = sc.largeur < SEUIL_TELEPHONE
+    attendu = [JOURS_DE_LA_SEMAINE[jour.weekday()], str(jour.day), MOIS_DE_L_ANNEE[jour.month - 1]]
+    if not m["pastille"] or [x.lower() for x in m["pastille"]["parties"]] != attendu:
+        res.echec("accueil du stagiaire", vue, "la pastille de date dit %s, attendu %s (jour, numéro, mois, sans l'année)" % (m["pastille"] and m["pastille"]["parties"], attendu))
+    if m["tuiles"] or m["agenda"] or m["decompte"] or m["retenir"]:
+        res.echec("accueil du stagiaire", vue, "l'Accueil montre encore des éléments d'avant : %d tuile(s), liste d'événements %s, compte à rebours %s, « À retenir » %s"
+                  % (m["tuiles"], m["agenda"], m["decompte"], m["retenir"]))
+    zones = [c["zone"] for c in m["cartes"]]
+    if zones != [z for z, _ in ZONES_DE_L_ACCUEIL]:
+        res.echec("accueil du stagiaire", vue, "les cartes sont %s, attendu %s" % (zones, [z for z, _ in ZONES_DE_L_ACCUEIL]))
+        return
+    for carte, (_, titre) in zip(m["cartes"], ZONES_DE_L_ACCUEIL):
+        if carte["titre"] != titre:
+            res.echec("accueil du stagiaire", vue, "la carte « %s » s'appelle « %s »" % (titre, carte["titre"]))
+    par = {c["zone"]: c for c in m["cartes"]}
+    if m["chargements"]:
+        res.echec("accueil du stagiaire", vue, "%d carte(s) restent en « Chargement… »" % m["chargements"])
+    if m["debordement"]:
+        res.echec("accueil du stagiaire", vue, "la page défile de côté à %d px" % sc.largeur)
+    # Aucune carte n'en recouvre une autre.
+    for i, a in enumerate(m["cartes"]):
+        for b in m["cartes"][i + 1:]:
+            if a["haut"] < b["bas"] - 1 and b["haut"] < a["bas"] - 1 and a["gauche"] < b["droite"] - 1 and b["gauche"] < a["droite"] - 1:
+                res.echec("accueil du stagiaire", vue, "les cartes « %s » et « %s » se recouvrent" % (a["titre"], b["titre"]))
+    # Téléphone : une colonne, la journée puis « À faire » juste dessous, puis le reste. Ordinateur : « À faire » sous la journée.
+    if telephone:
+        ordre = [c["haut"] for c in m["cartes"]]
+        if ordre != sorted(ordre):
+            res.echec("accueil du stagiaire", vue, "sur téléphone, les cartes ne sont pas dans l'ordre journée, à faire, rendez-vous, nouveauté")
+        if par["afaire"]["haut"] - par["aujourdhui"]["bas"] > 24:
+            res.echec("accueil du stagiaire", vue, "sur téléphone, « À faire » est à %d px sous la journée : il doit la suivre" % (par["afaire"]["haut"] - par["aujourdhui"]["bas"]))
+    elif par["afaire"]["haut"] < par["aujourdhui"]["bas"] - 1:
+        res.echec("accueil du stagiaire", vue, "« À faire » remonte à côté de la journée au lieu de la suivre")
+    # « À faire »
+    titres = [l["titre"] for l in m["lignes"]]
+    rang = [next((i for i, t in enumerate(LIGNES_A_FAIRE) if x.startswith(t)), None) for x in titres]
+    if None in rang or rang != sorted(rang) or len(titres) > 4:
+        res.echec("accueil du stagiaire", vue, "les lignes de « À faire » sont %s : au plus 4, dans l'ordre %s" % (titres, " ; ".join(LIGNES_A_FAIRE)))
+    adresses = {"Examen ouvert": "#/themes", "QCM du thème": "#/themes", "Dossier professionnel": "#/mon-suivi/dp", "Livret EPCF": "#/mon-suivi/livret"}
+    for l in m["lignes"]:
+        for debut, href in adresses.items():
+            if l["titre"].startswith(debut) and l["href"] != href:
+                res.echec("accueil du stagiaire", vue, "la ligne « %s » mène à %s, attendu %s" % (l["titre"], l["href"], href))
+    if sc.modules == "depart":
+        if titres or "Rien à faire pour le moment." not in par["afaire"]["texte"]:
+            res.echec("accueil du stagiaire", vue, "QCM, Dossier et Livret sont fermés : « À faire » ne propose plus de ligne (%s)" % (titres or par["afaire"]["texte"]))
+    elif not any(t.startswith("Livret EPCF") or t.startswith("Dossier") for t in titres):
+        res.echec("accueil du stagiaire", vue, "« À faire » ne propose ni le dossier ni le livret alors que ces modules sont ouverts (%s)" % (titres or par["afaire"]["texte"]))
+    # La journée : une rangée Matin avec le bouton, aucun bouton ailleurs ; le bandeau ne dit pas « Signer » sur cette page.
+    if jour.weekday() < 5:
+        matin = next((c for c in m["creneaux"] if c["demi"] == "matin"), None)
+        boutons = [(c["demi"], b) for c in m["creneaux"] for b in c["boutons"]]
+        if not matin or matin["boutons"] != ["Signer pour ce matin"] or len(boutons) != 1:
+            res.echec("accueil du stagiaire", vue, "le bouton « Signer pour ce matin » doit être seul, dans la rangée Matin (boutons : %s)" % boutons)
+        bandeau = page.evaluate("() => window.__verifNav.bandeauEmargement()")
+        if bandeau and re.search(r"Signer", bandeau["texte"]):
+            res.echec("accueil du stagiaire", vue, "le bandeau d'émargement dit encore « Signer » sur l'Accueil : « %s »" % bandeau["texte"])
+    # Le pied de liens
+    liens = {l["texte"]: l for l in m["liens"]}
+    contacts = "Contacts du centre" in liens
+    if contacts == sc.ressources_fermees or (contacts and liens["Contacts du centre"]["href"] != "#/ressources"):
+        res.echec("accueil du stagiaire", vue, "« Contacts du centre » %s (module Ressources %s)"
+                  % ("est là" if contacts else "manque", "fermé" if sc.ressources_fermees else "ouvert"))
+    if liens.get("Mes préférences", {}).get("href") != "#/preferences":
+        res.echec("accueil du stagiaire", vue, "le lien « Mes préférences » mène à %s, attendu #/preferences" % liens.get("Mes préférences", {}).get("href"))
+    if "Signaler un problème" not in liens or liens["Signaler un problème"]["balise"] != "BUTTON":
+        res.echec("accueil du stagiaire", vue, "le bouton « Signaler un problème » manque du pied de liens (%s)" % list(liens))
+    if [l["texte"] for l in m["liensDuPied"]] != ["code source"]:
+        res.echec("accueil du stagiaire", vue, "le pied de page garde %s, attendu « code source » seul (« Mes préférences » est dans le pied de liens)" % [l["texte"] for l in m["liensDuPied"]])
+    # Zones à toucher
+    if telephone:
+        petits = ["%s (%s px)" % (x["texte"], x["h"]) for x in m["boutons"] + m["plus"] + m["liens"] if min(x.get("h", 44), 44) < 43.5] \
+            + ["%s (%s px)" % (l["titre"], l["h"]) for l in m["lignes"] if l["h"] < 43.5]
+        if petits:
+            res.echec("accueil du stagiaire", vue, "zones à toucher sous 44 px sur téléphone : %s" % ", ".join(petits))
+
+
+ZONES_AUJOURDHUI = ("emargement", "a-traiter", "tableau", "voiture", "a-suivre")   # l'ordre du téléphone, celui du DOM
+TITRES_AUJOURDHUI = {"a-traiter": "À traiter", "a-suivre": "À suivre de près"}
+
+
+def verifier_aujourdhui_equipe(page, res, sc, vue, jour=None, feuille="ouverte", planning=True, avec_feuille=True, benevoles=False):
+    """Aujourd'hui du formateur, nouvelle navigation (lot 2B, tâche 4) : la pastille de date, le titre « Aujourd'hui », la ligne « Promo <nom> · semaine <n> · N stagiaires
+    en formation » ; les cartes dans l'ordre du téléphone (émargement, à traiter, au tableau, en voiture, à suivre) et, dès 1080 px, émargement, au tableau, en voiture sur une
+    ligne puis à traiter et à suivre ; aucune Nouveauté, tuile, compte à rebours ni « À retenir » ; l'émargement (« N sur M », jauge, « Voir la feuille », « Pas encore ouverte »
+    sans feuille, carte absente promo éteinte) et, pour qui a une fiche de stagiaire, son bouton « Signer » ; au tableau et en voiture selon le planning du jour, les liens vers
+    le Planning et Stagiaires > Élèves bénévoles ; à traiter selon les comptes du banc ; le bandeau d'émargement ne dit rien ici ; le pied ; zones à toucher de 44 px sur
+    téléphone ; rien ne déborde ni ne se recouvre. `feuille` : « ouverte » ou « aucune » (la feuille que le banc sert ce jour-là) ; `planning` : le jour a un planning ;
+    `avec_feuille` : l'émargement est allumé pour la promo ; `benevoles` : le banc sert des élèves bénévoles (`?benevoles=1`) : la ligne qui mène à leur sous-onglet est là
+    (sinon elle n'y est pas, rien n'est inventé)."""
+    m = page.evaluate("() => window.__verifNav.aujourdhuiEquipe()")
+    jour = jour or datetime.date.fromisoformat(DATE_DU_BANC)
+    telephone = sc.largeur < SEUIL_TELEPHONE
+    echec = lambda detail: res.echec("aujourd'hui du formateur", vue, detail)
+    attendu = [JOURS_DE_LA_SEMAINE[jour.weekday()], str(jour.day), MOIS_DE_L_ANNEE[jour.month - 1]]
+    if not m["pastille"] or [x.lower() for x in m["pastille"]["parties"]] != attendu:
+        echec("la pastille de date dit %s, attendu %s (jour, numéro, mois, sans l'année)" % (m["pastille"] and m["pastille"]["parties"], attendu))
+    if (m["titre"] or "").strip() != "Aujourd'hui":
+        echec("le titre de la page est « %s », attendu « Aujourd'hui »" % m["titre"])
+    ligne = "%s · %d stagiaires en formation" % (ligne_promo_attendue(m["promo"], jour), m["enFormation"])
+    if m["lead"] != ligne:
+        echec("la ligne sous le titre est « %s », attendu « %s »" % (m["lead"], ligne))
+    if m["tuiles"] or m["agenda"] or m["decompte"] or m["retenir"]:
+        echec("la page montre encore des éléments d'avant : %d tuile(s), liste d'événements %s, compte à rebours %s, « À retenir » %s" % (m["tuiles"], m["agenda"], m["decompte"], m["retenir"]))
+    zones = [c["zone"] for c in m["cartes"]]
+    attendues = [z for z in ZONES_AUJOURDHUI if avec_feuille or z != "emargement"]
+    if zones != attendues:
+        echec("les cartes sont %s, attendu %s (aucune Nouveauté : le compte les porte)" % (zones, attendues))
+        return
+    par = {c["zone"]: c for c in m["cartes"]}
+    det = {d["zone"]: d for d in m["details"]}
+    if planning and (par["tableau"]["titre"] != "Au tableau ce matin" or par["voiture"]["titre"] != "En voiture cet après-midi"):
+        echec("les titres des cartes sont « %s » et « %s », attendu « Au tableau ce matin » et « En voiture cet après-midi » (le banc : un cours au tableau le matin, la voiture l'après-midi)"
+              % (par["tableau"]["titre"], par["voiture"]["titre"]))
+    for zone, titre in TITRES_AUJOURDHUI.items():
+        if par[zone]["titre"] != titre:
+            echec("la carte « %s » s'appelle « %s »" % (titre, par[zone]["titre"]))
+    if m["chargements"] and sc.a_traiter != "lent":
+        echec("%d carte(s) restent en « Chargement… »" % m["chargements"])
+    if m["debordement"]:
+        echec("la page défile de côté à %d px" % sc.largeur)
+    for i, a in enumerate(m["cartes"]):
+        for b in m["cartes"][i + 1:]:
+            if a["haut"] < b["bas"] - 1 and b["haut"] < a["bas"] - 1 and a["gauche"] < b["droite"] - 1 and b["gauche"] < a["droite"] - 1:
+                echec("les cartes « %s » et « %s » se recouvrent" % (a["titre"], b["titre"]))
+    # Disposition : une colonne sur téléphone, dans l'ordre du DOM ; dès 1080 px, trois cartes sur la première ligne, deux sur la seconde.
+    hauts = [c["haut"] for c in m["cartes"]]
+    if telephone:
+        if hauts != sorted(hauts):
+            echec("sur téléphone, les cartes ne sont pas dans l'ordre %s" % " > ".join(attendues))
+    elif sc.largeur >= 1080:
+        premiere = [par[z] for z in ("emargement", "tableau", "voiture") if z in par]
+        seconde = [par["a-traiter"], par["a-suivre"]]
+        if max(c["haut"] for c in premiere) - min(c["haut"] for c in premiere) > 1:
+            echec("sur ordinateur, %s ne sont pas sur une même ligne" % ", ".join(c["titre"] for c in premiere))
+        if abs(seconde[0]["haut"] - seconde[1]["haut"]) > 1 or seconde[0]["haut"] < max(c["bas"] for c in premiere) - 1:
+            echec("sur ordinateur, « À traiter » et « À suivre de près » ne sont pas sur une même ligne sous les trois premières cartes")
+    # Émargement
+    if avec_feuille:
+        e = det["emargement"]
+        if feuille == "aucune":
+            if "Pas encore ouverte" not in par["emargement"]["texte"] or [(l["texte"], l["href"]) for l in e["liens"]] != [("Aller à l'émargement", "#/emargement")]:
+                echec("sans feuille ouverte, la carte dit « %s » avec les liens %s : attendu « Pas encore ouverte » et le lien vers Émargement" % (par["emargement"]["texte"], e["liens"]))
+        else:
+            adresse = "#/emargement/%s/matin" % jour.isoformat()
+            mots = (e["kpi"] or "").split(" ")
+            if not re.fullmatch(r"\d+ sur \d+ ont signé", e["kpi"] or "") or e["repere"] != "Ouverte" or par["emargement"]["titre"] != "Émargement du matin":
+                echec("la carte d'émargement dit « %s » (titre « %s », repère « %s »), attendu « Émargement du matin », « N sur M ont signé » et « Ouverte »"
+                      % (e["kpi"], par["emargement"]["titre"], e["repere"]))
+            elif not e["jauge"] or e["jauge"]["now"] != int(mots[0]) or e["jauge"]["max"] != int(mots[2]):
+                echec("la jauge de l'émargement (%s) ne dit pas « %s »" % (e["jauge"], e["kpi"]))
+            if ("Voir la feuille", adresse) not in [(l["texte"], l["href"]) for l in e["liens"]]:
+                echec("« Voir la feuille » manque ou ne mène pas à %s (liens : %s)" % (adresse, e["liens"]))
+            if not (e["attente"] or "").startswith("En attente : "):
+                echec("la carte d'émargement ne dit pas qui attend (« %s »)" % e["attente"])
+            # Le fondateur qui a une fiche de stagiaire signe depuis la carte ; un formateur sans fiche n'a pas ce bouton.
+            signer = [b["texte"] for b in e["boutons"] if b["texte"].startswith("Signer")]
+            if bool(res.profil_stagiaire) != bool(signer):
+                echec("le bouton « Signer pour ce matin » est %s alors que la personne %s une fiche de stagiaire (boutons : %s)"
+                      % ("là" if signer else "absent", "a" if res.profil_stagiaire else "n'a pas", [b["texte"] for b in e["boutons"]]))
+    # Au tableau, en voiture
+    if planning:
+        if not [l for l in det["tableau"]["liens"] if l["href"].startswith("#/stagiaires/")]:
+            echec("« Au tableau » ne montre personne alors que le banc en met au tableau le matin : %s" % par["tableau"]["texte"])
+        voiture = {l["href"]: l["texte"] for l in det["voiture"]["liens"]}
+        if "#/planning" not in voiture or ("#/stagiaires" in voiture) != benevoles \
+                or (benevoles and not voiture["#/stagiaires"].startswith(("2 élèves bénévoles", "1 élève bénévole"))):
+            echec("« En voiture » doit mener au Planning, et à Stagiaires (sous-onglet Élèves bénévoles) quand le banc sert des bénévoles (%s) : liens %s" % (benevoles, det["voiture"]["liens"]))
+    else:
+        for zone in ("tableau", "voiture"):
+            if "Pas de formation aujourd'hui." not in par[zone]["texte"]:
+                echec("un jour de repos, la carte « %s » dit « %s » : attendu « Pas de formation aujourd'hui. »" % (par[zone]["titre"], par[zone]["texte"]))
+    # À traiter : les comptes du banc (A_TRAITER_DU_BANC)
+    attendu_pastille, phrase = A_TRAITER_DU_BANC[sc.a_traiter]
+    traiter = [(l["titre"], l["href"]) for l in m["lignes"] if l["href"] == "#/themes"]
+    if sc.a_traiter == "lent":
+        if "Chargement" not in par["a-traiter"]["texte"]:
+            echec("les lectures n'aboutissent pas : « À traiter » doit rester en « Chargement… » sans retenir la page (%s)" % par["a-traiter"]["texte"])
+    elif attendu_pastille is None:
+        if traiter or "Le décompte n'a pas pu être lu." not in par["a-traiter"]["texte"]:
+            echec("les lectures échouent : « À traiter » doit dire « Le décompte n'a pas pu être lu. » sans ligne (%s)" % par["a-traiter"]["texte"])
+    else:
+        attendues = [(titre, "#/themes") for titre in lignes_a_traiter_attendues(phrase)]
+        if traiter != attendues:
+            echec("« À traiter » dit %s, attendu %s (le banc : %s)" % (traiter, attendues, phrase))
+    # À suivre de près
+    if "Tout voir" not in {x["texte"]: x for x in m["plus"]}:
+        echec("« À suivre de près » n'a pas son lien « Tout voir »")
+    suivre = par["a-suivre"]["texte"]
+    if "Personne ne cumule deux signaux." not in suivre and "À suivre" not in suivre:
+        echec("« À suivre de près » ne dit ni qui suivre ni « Personne ne cumule deux signaux. » : « %s »" % suivre)
+    # Les erreurs ne s'affichent que dans les pannes que le scénario sème (« À traiter » sans compte).
+    attendues_en_panne = 1 if (attendu_pastille is None and sc.a_traiter != "lent") else 0
+    if len(m["erreurs"]) != attendues_en_panne:
+        echec("%d message(s) d'erreur à l'écran, attendu %d : %s" % (len(m["erreurs"]), attendues_en_panne, m["erreurs"]))
+    # Le bandeau d'émargement ne double pas la carte (il reste sur les autres pages).
+    if avec_feuille and m["bandeau"]:
+        echec("le bandeau d'émargement est affiché sur la page qui porte la carte : « %s »" % m["bandeau"])
+    # Pied : celui de l'Accueil d'avant (« code source · réglages »), sans pied de liens.
+    if [(l["texte"], l["href"]) for l in m["liensDuPied"]] != [("code source", "https://github.com/watchi64/ecsr-promo"), ("réglages", "#/config")]:
+        echec("le pied de page garde %s, attendu « code source » et « réglages »" % [(l["texte"], l["href"]) for l in m["liensDuPied"]])
+    if m["liens"]:
+        echec("le pied de liens du stagiaire (%s) n'a pas sa place chez l'équipe : ses liens sont dans la barre et le menu du compte" % [l["texte"] for l in m["liens"]])
+    if telephone:
+        petits = ["%s (%s px)" % (x["texte"], x["h"]) for d in m["details"] for x in d["liens"] + d["boutons"] if x["h"] < 43.5] \
+            + ["%s (%s px)" % (x["texte"], x["h"]) for x in m["plus"] if x["h"] < 43.5]
+        if petits:
+            echec("zones à toucher sous 44 px sur téléphone : %s" % ", ".join(petits))
+
+
+def recharger_au_banc(page, adresse, derniere_page=None, **parametres):
+    """Recharge le banc avec d'autres paramètres (une autre date, une lenteur), puis ouvre `adresse`. `derniere_page` : la page que l'ouverture à froid retrouve
+    (mémoire `derniere-route`) ; l'Accueil n'est alors pas encore lu quand on y arrive, aucune lecture n'est en mémoire."""
+    u = urllib.parse.urlparse(page.url)
+    q = dict(urllib.parse.parse_qsl(u.query, keep_blank_values=True))
+    # Les paramètres du scénario, sans ceux d'un rechargement d'avant (date, lenteur) : chaque cas repart du banc ordinaire.
+    for cle in ("lenteur", "lenteur_tables"):
+        q.pop(cle, None)
+    q.update(date=DATE_DU_BANC, emargement="1")
+    q.update(parametres, cb="%d-%d-%d" % (int(time.time() * 1000), os.getpid(), next(COMPTEUR)))
+    if derniere_page:
+        page.evaluate("(r) => { try { localStorage.setItem('derniere-route', r); } catch (e) {} }", derniere_page)
+    page.goto(urllib.parse.urlunparse(u._replace(query=urllib.parse.urlencode(q), fragment="")), wait_until="load", timeout=20000)
+    page.evaluate(JS_OUTILS)
+    attendre(page, calme=250, maximum=8000)
+    aller_a(page, adresse)
+    attendre(page, calme=150)
+
+
+def dessiner_une_signature(page):
+    """Trace un trait dans la fenêtre de signature, puis la valide."""
+    page.wait_for_selector("canvas", timeout=5000)
+    c = page.locator("canvas").first.bounding_box()
+    page.mouse.move(c["x"] + c["width"] * 0.15, c["y"] + c["height"] * 0.3)
+    page.mouse.down()
+    for i in range(1, 13):
+        page.mouse.move(c["x"] + c["width"] * (0.15 + 0.06 * i), c["y"] + c["height"] * (0.3 + 0.15 * (i % 3)))
+    page.mouse.up()
+    page.locator("button:has-text('Valider ma signature')").first.click(timeout=4000)
+
+
+def jouer_accueil_du_stagiaire(page, res, sc):
+    """Accueil du stagiaire, les cas limites (lot 2B, tâche 3), nouvelle navigation, un stagiaire : un samedi (« Pas de formation aujourd'hui. », aucune
+    lecture du planning pour la journée), un samedi avec une feuille ouverte (la rangée de la séance et son bouton existent sans planning), des lectures en
+    échec (chaque carte garde son erreur, la page reste, « Réessayer » relit le planning), un départ vers une autre page pendant le chargement (rien ne se repeint
+    ni ne casse), le plus petit téléphone (320 px). Chaque rechargement ouvre l'app à froid : la page d'avant est mémorisée, l'Accueil n'est pas lu d'avance."""
+    vue = "%s/accueil-cas-limites" % sc.nom
+    samedi = datetime.date(2026, 10, 31)
+    # 1. Un samedi, émargement éteint : la journée est un repos.
+    recharger_au_banc(page, "#/home", date=samedi.isoformat(), emargement="0")
+    attendre_accueil(page)
+    res.vues += 1
+    m = page.evaluate("() => window.__verifNav.accueilStagiaire()")
+    if m["vide"] != "Pas de formation aujourd'hui." or m["creneaux"]:
+        res.echec("accueil du stagiaire, samedi", vue, "un samedi, la journée dit « %s » avec %d rangée(s) : attendu « Pas de formation aujourd'hui. » seul" % (m["vide"], len(m["creneaux"])))
+    verifier_accueil_stagiaire(page, res, sc, vue + "/samedi", jour=samedi)
+    # 2. Un samedi avec une feuille ouverte : la rangée de la séance existe sans planning, avec son bouton.
+    recharger_au_banc(page, "#/home", date=samedi.isoformat(), emargement="1")
+    attendre_accueil(page)
+    m = page.evaluate("() => window.__verifNav.accueilStagiaire()")
+    matin = next((c for c in m["creneaux"] if c["demi"] == "matin"), None)
+    if not matin or matin["boutons"] != ["Signer pour ce matin"] or m["vide"]:
+        res.echec("accueil du stagiaire, samedi", vue, "une feuille ouverte un samedi : la rangée Matin et son bouton « Signer pour ce matin » manquent (rangées : %s, texte vide : %s)"
+                  % ([c["demi"] for c in m["creneaux"]], m["vide"]))
+    vider_console(res, vue)
+    # 3. Des lectures en échec, après le démarrage, sur un Accueil jamais lu : chaque carte garde son erreur.
+    recharger_au_banc(page, "#/preferences", derniere_page="preferences")
+    page.evaluate("() => { window.__HARNESS_FAIL = 'panne du banc'; }")
+    aller_a(page, "#/home")
+    try:
+        attendre_accueil(page)
+    except DelaiDepasse:
+        res.echec("accueil du stagiaire, lectures en échec", vue, "une carte reste en « Chargement… » quand les lectures échouent")
+    m = page.evaluate("() => window.__verifNav.accueilStagiaire()")
+    if len(m["erreurs"]) < 3 or [c["zone"] for c in m["cartes"]] != [z for z, _ in ZONES_DE_L_ACCUEIL] or not m["pastille"]:
+        res.echec("accueil du stagiaire, lectures en échec", vue, "chaque carte doit garder sa propre erreur, la page rester : erreurs %s, cartes %s"
+                  % (m["erreurs"], [c["zone"] for c in m["cartes"]]))
+    if page.evaluate("() => document.querySelectorAll('#view .view-error-box').length"):
+        res.echec("accueil du stagiaire, lectures en échec", vue, "la page entière est en erreur : seules les cartes doivent l'être")
+    res.console.clear()   # les trois « console.error » de l'Accueil sont le but de l'essai : la page dit pourquoi une carte est vide
+    page.evaluate("() => { window.__HARNESS_FAIL = null; }")
+    if cliquer(page, res, vue, "#view .acc-reessayer", "« Réessayer » du planning"):
+        attendre(page, calme=150)
+        if not page.evaluate("() => window.__verifNav.accueilStagiaire().creneaux.length"):
+            res.echec("accueil du stagiaire, lectures en échec", vue, "« Réessayer » n'a pas relu le planning : la journée reste sans rangée")
+    vider_console(res, vue)
+    # 4. Départ vers une autre page pendant le chargement : les lectures lentes reviennent dans un nœud détaché.
+    recharger_au_banc(page, "#/home", derniere_page="preferences", lenteur="1500", lenteur_tables="planning_entries,agenda_events,qcm_attempts,dp_dossiers,epcf_livrets")
+    aller_a(page, "#/home")
+    page.wait_for_timeout(300)
+    aller_a(page, "#/planning")
+    page.wait_for_timeout(2800)
+    if page.evaluate("() => document.querySelectorAll('#view .acc-grille').length") or route_courante(page) != "planning":
+        res.echec("accueil du stagiaire, départ pendant le chargement", vue, "l'Accueil s'est repeint par-dessus la page ouverte entre-temps (page : #/%s)" % route_courante(page))
+    vider_console(res, vue)
+    # 5. Le plus petit téléphone.
+    page.set_viewport_size({"width": LARGEUR_ETROITE, "height": 800})
+    recharger_au_banc(page, "#/home")
+    attendre_accueil(page)
+    verifier_accueil_stagiaire(page, res, replace(sc, largeur=LARGEUR_ETROITE), vue + "/320")
+    page.set_viewport_size({"width": sc.largeur, "height": 800})
+    vider_console(res, vue)
+
+
+# Ce que dit une page à qui n'est pas pour elle (js/views/emargement.js...) : un lien qui y mène est une impasse.
+REFUS_DE_PAGE = ("se gère par les formateurs", "n'est pas pour toi", "réservé aux formateurs", "réservée aux formateurs", "accès refusé")
+
+
+def jouer_direction(page, res, sc):
+    """La direction du centre (`?compte=direction` : rôle prof, ni administrateur ni fondateur), nouvelle navigation (relecture finale du lot 2B, B1, B2, I1). Elle lit
+    sans écrire : Aujourd'hui sans carte Émargement ni À traiter (« À suivre de près » prend alors toute la dernière ligne sur ordinateur), Cours et QCM sans le
+    sous-onglet QCM du stagiaire, ni Signalements, ni Propositions IA, et aucun lien de la barre ou d'Aujourd'hui ne mène à une page qui la refuse. Le siège
+    emprunte les mêmes chemins de code (isProf vrai, isAdmin faux)."""
+    vue = "%s/direction" % sc.nom
+    preparer_coquille(page, res, sc, regles_de_la_page(page, res, sc))
+    # 1. Aujourd'hui.
+    aller_a(page, "#/home")
+    attendre(page)
+    try:
+        attendre_accueil(page)
+    except DelaiDepasse:
+        res.echec("direction, aujourd'hui", vue, "une carte reste en « Chargement… »")
+    verifier_vue(page, res, sc, "direction/aujourdhui", {})
+    m = page.evaluate("""() => {
+      const g = document.querySelector('#view .auj-grille');
+      const cartes = [...document.querySelectorAll('#view .auj-grille > .acc-carte')];
+      const suivre = cartes.find((c) => c.dataset.zone === 'a-suivre');
+      return { grille: !!g, zones: cartes.map((c) => c.dataset.zone),
+               largeurGrille: g ? Math.round(g.getBoundingClientRect().width) : 0,
+               largeurSuivre: suivre ? Math.round(suivre.getBoundingClientRect().width) : 0,
+               defile: document.documentElement.scrollWidth > innerWidth + 1 };
+    }""")
+    if not m["grille"]:
+        res.echec("direction, aujourd'hui", vue, "la page Aujourd'hui ne s'affiche pas")
+    else:
+        if "emargement" in m["zones"]:
+            res.echec("direction, aujourd'hui", vue, "la carte Émargement s'affiche : elle mène à une page réservée aux formateurs de la promo")
+        if "a-traiter" in m["zones"]:
+            res.echec("direction, aujourd'hui", vue, "la carte « À traiter » s'affiche : la direction ne traite ni signalement ni proposition de l'IA")
+        if m["zones"] != ["tableau", "voiture", "a-suivre"]:
+            res.echec("direction, aujourd'hui", vue, "cartes attendues : tableau, voiture, à suivre (lu : %s)" % m["zones"])
+        if sc.largeur >= 1080 and abs(m["largeurSuivre"] - m["largeurGrille"]) > 1:
+            res.echec("direction, aujourd'hui", vue, "« À suivre de près » ne prend pas toute la ligne (%d px pour %d px)" % (m["largeurSuivre"], m["largeurGrille"]))
+        if m["defile"]:
+            res.echec("direction, aujourd'hui", vue, "la page défile de côté")
+    # 2. Aucun lien vers une page qui la refuse : chaque lien d'Aujourd'hui, cliqué (il peut écrire un sous-onglet), puis chaque entrée de la barre et du tiroir.
+    liens = page.evaluate("() => [...document.querySelectorAll('#view a[href^=\"#/\"]')].filter((a) => a.getClientRects().length).map((a) => a.getAttribute('href'))")
+    for i, href in enumerate(liens):
+        aller_a(page, "#/home")
+        attendre(page)
+        try:
+            attendre_accueil(page)
+        except DelaiDepasse:
+            pass
+        try:
+            page.locator('#view a[href^="#/"]:visible').nth(i).click(timeout=4000)
+        except (DelaiDepasse, ErreurPlaywright) as e:
+            res.echec("clic impossible", vue, "lien %s d'Aujourd'hui : %s" % (href, motif_du_clic(e)))
+            continue
+        attendre(page, calme=200)
+        verifier_refus(page, res, vue, "lien %s d'Aujourd'hui" % href)
+    routes = page.evaluate("() => [...new Set([...document.querySelectorAll('[data-nav-coquille] a[href^=\"#/\"]')].map((a) => a.getAttribute('href')))]")
+    for href in routes:
+        aller_a(page, href)
+        attendre(page, calme=200)
+        verifier_refus(page, res, vue, "entrée %s de la barre" % href)
+    # 3. Cours et QCM : Thèmes, Compétences, Documents ; ni le QCM du stagiaire, ni Signalements, ni Propositions IA.
+    aller_a(page, "#/themes")
+    attendre(page, calme=200)
+    onglets = page.evaluate("() => [...document.querySelectorAll('#view [role=tab]')].filter((t) => t.getClientRects().length).map((t) => t.textContent.trim())")
+    for interdit in ("QCM", "Signalements", "Propositions IA"):
+        if interdit in onglets:
+            res.echec("direction, cours et qcm", vue, "le sous-onglet « %s » s'affiche (sous-onglets : %s)" % (interdit, ", ".join(onglets)))
+    if "Thèmes" not in onglets:
+        res.echec("direction, cours et qcm", vue, "le sous-onglet « Thèmes » manque (sous-onglets : %s)" % ", ".join(onglets))
+    res.vues += 1
+    vider_console(res, vue)
+
+
+def verifier_refus(page, res, vue, quoi):
+    texte = page.evaluate("() => (document.getElementById('view') || document.body).innerText")
+    trouve = [r for r in REFUS_DE_PAGE if r in texte.lower()]
+    res.vues += 1
+    if trouve:
+        res.echec("direction, lien vers une page refusée", vue, "%s ouvre #/%s, qui dit « %s »" % (quoi, route_courante(page), trouve[0]))
+
+
+def jouer_aujourdhui_cas_limites(page, res, sc):
+    """Aujourd'hui du formateur, les cas limites (lot 2B, tâche 4), nouvelle navigation, l'équipe : un samedi, émargement éteint (pas de carte d'émargement, « Pas de formation
+    aujourd'hui. » au tableau et en voiture), un samedi avec une feuille ouverte (la carte d'émargement existe sans planning), un jour sans feuille (« Pas encore ouverte »),
+    des lectures en échec (chaque carte garde son erreur, la page reste, « Réessayer » relit le planning), un départ vers une autre page pendant le chargement (rien ne se
+    repeint ni ne casse), le plus petit téléphone (320 px). Chaque rechargement ouvre l'app à froid : la page d'avant est mémorisée, l'accueil n'est pas lu d'avance. Une
+    bascule de promo recharge la page entière (choisirPromo) : il n'y a rien à repeindre."""
+    vue = "%s/aujourdhui-cas-limites" % sc.nom
+    samedi = datetime.date(2026, 10, 31)
+    # 1. Un samedi, émargement éteint : pas de carte d'émargement, la journée est un repos.
+    recharger_au_banc(page, "#/home", date=samedi.isoformat(), emargement="0")
+    attendre_accueil(page)
+    res.vues += 1
+    verifier_aujourdhui_equipe(page, res, sc, vue + "/samedi", jour=samedi, planning=False, avec_feuille=False)
+    # 2. Un samedi avec une feuille ouverte : la carte d'émargement existe sans planning.
+    recharger_au_banc(page, "#/home", date=samedi.isoformat(), emargement="1")
+    attendre_accueil(page)
+    res.vues += 1
+    verifier_aujourdhui_equipe(page, res, sc, vue + "/samedi-feuille", jour=samedi, planning=False)
+    # 3. Un jour sans feuille : « Pas encore ouverte » et le lien vers Émargement (le banc retire ses feuilles, la page les relit au retour sur l'accueil).
+    page.evaluate("() => { window.__FIXTURES_DU_BANC.emargement_seances.splice(0); }")
+    aller_a(page, "#/planning")
+    aller_a(page, "#/home")
+    attendre_accueil(page)
+    res.vues += 1
+    verifier_aujourdhui_equipe(page, res, sc, vue + "/sans-feuille", jour=samedi, planning=False, feuille="aucune")
+    vider_console(res, vue)
+    # 4. Des lectures en échec, après le démarrage, sur une page jamais lue : chaque carte garde son erreur.
+    recharger_au_banc(page, "#/preferences", derniere_page="preferences")
+    page.evaluate("() => { window.__HARNESS_FAIL = 'panne du banc'; }")
+    aller_a(page, "#/home")
+    try:
+        attendre_accueil(page)
+    except DelaiDepasse:
+        res.echec("aujourd'hui du formateur, lectures en échec", vue, "une carte reste en « Chargement… » quand les lectures échouent")
+    m = page.evaluate("() => window.__verifNav.accueilStagiaire()")
+    if len(m["erreurs"]) < 5 or [c["zone"] for c in m["cartes"]] != list(ZONES_AUJOURDHUI) or not m["pastille"]:
+        res.echec("aujourd'hui du formateur, lectures en échec", vue, "chaque carte doit garder sa propre erreur, la page rester : erreurs %s, cartes %s"
+                  % (m["erreurs"], [c["zone"] for c in m["cartes"]]))
+    if page.evaluate("() => document.querySelectorAll('#view .view-error-box').length"):
+        res.echec("aujourd'hui du formateur, lectures en échec", vue, "la page entière est en erreur : seules les cartes doivent l'être")
+    res.console.clear()   # les « console.error » de la page sont le but de l'essai : elle dit pourquoi une carte est vide
+    page.evaluate("() => { window.__HARNESS_FAIL = null; }")
+    if cliquer(page, res, vue, '#view [data-zone="tableau"] .acc-reessayer', "« Réessayer » du planning"):
+        try:
+            page.wait_for_function("() => [...document.querySelectorAll('#view .acc-carte h2')].some((h) => /ce matin/.test(h.textContent))", timeout=4000)
+        except DelaiDepasse:
+            res.echec("aujourd'hui du formateur, lectures en échec", vue, "« Réessayer » n'a pas relu le planning : les cartes « Au tableau » et « En voiture » restent sans titre du jour")
+    vider_console(res, vue)
+    # 5. Départ vers une autre page pendant le chargement : les lectures lentes reviennent dans un nœud détaché.
+    recharger_au_banc(page, "#/home", derniere_page="preferences", lenteur="1500", lenteur_tables="planning_entries,stagiaires,emargement_seances,qcm_signalements")
+    aller_a(page, "#/home")
+    page.wait_for_timeout(300)
+    aller_a(page, "#/planning")
+    page.wait_for_timeout(2800)
+    if page.evaluate("() => document.querySelectorAll('#view .acc-grille').length") or route_courante(page) != "planning":
+        res.echec("aujourd'hui du formateur, départ pendant le chargement", vue, "Aujourd'hui s'est repeint par-dessus la page ouverte entre-temps (page : #/%s)" % route_courante(page))
+    vider_console(res, vue)
+    # 6. Le plus petit téléphone.
+    page.set_viewport_size({"width": LARGEUR_ETROITE, "height": 800})
+    recharger_au_banc(page, "#/home")
+    attendre_accueil(page)
+    res.vues += 1
+    verifier_aujourdhui_equipe(page, res, replace(sc, largeur=LARGEUR_ETROITE), vue + "/320")
+    page.set_viewport_size({"width": sc.largeur, "height": 800})
+    # 7. Des élèves bénévoles en voiture (le banc en sert avec `?benevoles=1`, que les rechargements suivants garderaient : en dernier) : la ligne qui mène à
+    # Stagiaires, sous-onglet Élèves bénévoles.
+    recharger_au_banc(page, "#/home", benevoles="1")
+    attendre_accueil(page)
+    res.vues += 1
+    verifier_aujourdhui_equipe(page, res, sc, vue + "/benevoles", benevoles=True)
+    vider_console(res, vue)
+
+
+def jouer_signature_d_aujourdhui(page, res, sc):
+    """Signature depuis Aujourd'hui (lot 2B, tâche 4), pour qui a une fiche de stagiaire (le fondateur) : le bouton « Signer pour ce matin » de la carte d'émargement ouvre
+    la fenêtre de signature ; une fois validée, la carte dit « Signé à H h MM », le bouton a disparu, et le bandeau ne dit rien sur cette page."""
+    vue = "%s/signature-aujourdhui" % sc.nom
+    recharger_au_banc(page, "#/home")
+    attendre_accueil(page)
+    if not cliquer(page, res, vue, '#view [data-zone="emargement"] button.btn', "« Signer pour ce matin »"):
+        return
+    dessiner_une_signature(page)
+    try:
+        page.wait_for_function("() => !!document.querySelector('#view [data-zone=\"emargement\"] .acc-signe')", timeout=6000)
+    except DelaiDepasse:
+        res.echec("signature depuis Aujourd'hui", vue, "la carte d'émargement ne dit pas « Signé à ... » après la signature")
+        return
+    res.vues += 1
+    m = page.evaluate("() => window.__verifNav.aujourdhuiEquipe()")
+    e = next(d for d in m["details"] if d["zone"] == "emargement")
+    if not re.fullmatch(r"Signé à \d{1,2} h \d{2}", (e["signe"] or "").strip()) or [b for b in e["boutons"] if b["texte"].startswith("Signer")]:
+        res.echec("signature depuis Aujourd'hui", vue, "après la signature, la carte dit « %s » avec les boutons %s : attendu « Signé à H h MM », sans bouton « Signer »" % (e["signe"], [b["texte"] for b in e["boutons"]]))
+    if m["bandeau"]:
+        res.echec("signature depuis Aujourd'hui", vue, "le bandeau reste affiché sur la page après la signature : « %s » (la carte porte déjà la confirmation)" % m["bandeau"])
+    vider_console(res, vue)
+
+
+def verifier_accueil_voir_en_tant_que_stagiaire(page, res, sc, vue):
+    """Le fondateur voit l'app en stagiaire : l'accueil est celui du stagiaire (salutation par le prénom, ses cartes), jamais Aujourd'hui. Sans fiche de stagiaire, aucune
+    étiquette « Tu passes au tableau » ni signature."""
+    aller_a(page, "#/home")
+    attendre(page)
+    attendre_accueil(page)
+    res.vues += 1
+    m = page.evaluate("() => window.__verifNav.accueilStagiaire()")
+    if not re.match(r"^(Bonjour|Bon après-midi|Bonsoir), ", (m["titre"] or "").strip()) or [c["zone"] for c in m["cartes"]] != [z for z, _ in ZONES_DE_L_ACCUEIL]:
+        res.echec("accueil en aperçu stagiaire", vue, "l'accueil n'est pas celui du stagiaire : titre « %s », cartes %s" % (m["titre"], [c["zone"] for c in m["cartes"]]))
+    if not res.profil_stagiaire:
+        dedans = page.evaluate("() => ({ puces: document.querySelectorAll('#view .acc-puce').length, signes: document.querySelectorAll('#view .acc-signe').length,"
+                               " boutons: document.querySelectorAll('#view .acc-creneau button.btn').length })")
+        if any(dedans.values()):
+            res.echec("accueil en aperçu stagiaire", vue, "sans fiche de stagiaire, l'accueil montre des étiquettes ou des signatures : %s" % dedans)
+    vider_console(res, vue)
+
+
+def jouer_signature_de_l_accueil(page, res, sc):
+    """Signature depuis l'Accueil du stagiaire (lot 2B, tâche 3), sur une feuille ouverte au banc : le bouton « Signer pour ce matin » ouvre la fenêtre de signature ;
+    une fois validée, la rangée dit « Signé à H h MM », le bouton a disparu, le bandeau ne dit rien sur l'Accueil et ne propose plus de signature sur le Planning."""
+    vue = "%s/signature-accueil" % sc.nom
+    recharger_au_banc(page, "#/home")
+    attendre_accueil(page)
+    if not cliquer(page, res, vue, '#view [data-demi="matin"] button.btn', "« Signer pour ce matin »"):
+        return
+    dessiner_une_signature(page)
+    try:
+        page.wait_for_function("() => !!document.querySelector('#view [data-demi=\"matin\"] .acc-signe')", timeout=6000)
+    except DelaiDepasse:
+        res.echec("signature depuis l'Accueil", vue, "la rangée Matin ne dit pas « Signé à ... » après la signature")
+        return
+    res.vues += 1
+    m = page.evaluate("() => window.__verifNav.accueilStagiaire()")
+    matin = next(c for c in m["creneaux"] if c["demi"] == "matin")
+    if not re.fullmatch(r"Signé à \d{1,2} h \d{2}", (matin["signe"] or "").strip()) or matin["boutons"]:
+        res.echec("signature depuis l'Accueil", vue, "après la signature, la rangée Matin dit « %s » avec les boutons %s : attendu « Signé à H h MM », sans bouton" % (matin["signe"], matin["boutons"]))
+    bandeau = page.evaluate("() => window.__verifNav.bandeauEmargement()")
+    if bandeau:
+        res.echec("signature depuis l'Accueil", vue, "le bandeau reste affiché sur l'Accueil après la signature : « %s » (la page porte déjà la confirmation)" % bandeau["texte"])
+    aller_a(page, "#/planning")
+    attendre(page, calme=200)
+    bandeau = page.evaluate("() => window.__verifNav.bandeauEmargement()")
+    if bandeau and re.search(r"Signer", bandeau["texte"]):
+        res.echec("signature depuis l'Accueil", vue, "le Planning propose encore « Signer » après la signature : « %s »" % bandeau["texte"])
     vider_console(res, vue)
 
 
@@ -3569,6 +4563,218 @@ def verifier_planning_semaine(page, res, sc):
     vider_console(res, vue)
 
 
+# Planning en grille (lot 2B, tâche 5) : ce que la page montre de la semaine, mesuré d'un coup (la grille, la bande de jours du téléphone, la bascule,
+# les cartes de la liste, les étiquettes « Toi ... »). `visible` : le nœud occupe de la place (display ne le cache pas).
+JS_MESURE_GRILLE = """() => {
+  const vue = document.getElementById("view"), net = (t) => (t || "").replace(/\\s+/g, " ").trim();
+  const visible = (e) => !!e && e.getClientRects().length > 0 && getComputedStyle(e).visibility !== "hidden";
+  const grille = vue.querySelector(".wgrid"), bande = vue.querySelector(".daystrip"), racine = vue.querySelector(".wsem");
+  const bascule = [...document.querySelectorAll(".vue-toggle")];
+  const jours = grille ? [...grille.querySelectorAll(".wg-day")] : [];
+  const rect = (e) => { const r = e.getBoundingClientRect(); return { x: Math.round(r.x), w: Math.round(r.width * 10) / 10, h: Math.round(r.height * 10) / 10 }; };
+  const onglets = bande ? [...bande.querySelectorAll("button")] : [];
+  const choisi = onglets.findIndex((b) => b.getAttribute("aria-selected") === "true");
+  const panneau = vue.querySelector(".wg-jour");
+  return {
+    racine: !!racine, grilleVisible: visible(grille), bandeVisible: visible(bande),
+    colonnes: grille ? getComputedStyle(grille).gridTemplateColumns.split(" ").length : 0,
+    xDesJours: [...new Set(jours.map((j) => Math.round(j.getBoundingClientRect().x)))].length,
+    jourRepere: jours.findIndex((j) => j.classList.contains("auj")),
+    debordeGrille: grille ? grille.scrollWidth > grille.clientWidth + 1 : false,
+    debordePage: document.documentElement.scrollWidth > window.innerWidth + 1,
+    basculeDansOnglets: bascule.some((b) => !!b.closest("[role=tablist]")),
+    bascule: bascule.map((b) => ({ boutons: [...b.querySelectorAll("button")].map((x) => ({ texte: net(x.innerText), actif: x.getAttribute("aria-pressed") })), h: Math.min(...[...b.querySelectorAll("button")].map((x) => rect(x).h)) })),
+    onglets: onglets.map((b) => ({ ...rect(b), selectionne: b.getAttribute("aria-selected"), auj: b.classList.contains("auj") })),
+    choisi, jourAujourdhui: onglets.findIndex((b) => b.classList.contains("auj")),
+    jourMontre: panneau ? net(panneau.querySelector("h3").textContent) : "",
+    cartesListe: vue.querySelectorAll(".p-day-card").length, impression: !!document.getElementById("print-container"),
+    repos: [...vue.querySelectorAll(".wg-repos")].filter(visible).map((e) => net(e.textContent)), reposTel: [...vue.querySelectorAll(".wg-repos-tel")].filter(visible).map((e) => net(e.textContent)),
+    vides: [...vue.querySelectorAll(".wg-vide")].filter(visible).length, cartesGrille: [...vue.querySelectorAll(".wg-carte")].filter(visible).length,
+    toi: [...vue.querySelectorAll(".wg-moi")].map((e) => net(e.textContent)), erreur: !!vue.querySelector(".view-error-box"),
+    modifier: [...vue.querySelectorAll("button")].filter((b) => /Modifier$/.test(net(b.textContent))).length,
+  };
+}"""
+
+
+def ouvrir_semaine(page):
+    """Planning > Semaine, ouverte (le sous-onglet cliqué quand la barre en a)."""
+    aller_a(page, "#/planning")
+    attendre(page)
+    semaine = page.locator("#view .subtabs-bar > .subtab", has_text="Semaine")
+    if semaine.count():
+        semaine.first.click()
+        attendre(page)
+
+
+def choisir_vue_du_planning(page, res, vue, cible):
+    """Touche « Grille » (ou « Jour » sur téléphone) ou « Liste » ; faux, et un échec, si le bouton manque."""
+    return cliquer(page, res, vue, '.vue-toggle button[data-vue="%s"]' % cible, "la bascule « %s »" % cible)
+
+
+def verifier_planning_grille(page, res, sc, complet=False):
+    """Planning > Semaine, nouvelle navigation, hors mode Modifier (lot 2B, tâche 5) : la grille de la semaine. 1280, 1100, 900 px : cinq colonnes sans
+    débordement, aujourd'hui repéré ; 375 et 320 px : la bande de cinq jours aux cibles de 44 px, aujourd'hui choisi, un jour touché change la carte. La bascule
+    (« Jour » sur téléphone) mène à la liste (cinq cartes), qui se garde au rechargement. `complet` : la liste et le rechargement, le mode Modifier de l'équipe, la
+    semaine vide, un jour de repos, la semaine verrouillée, l'impression, un aller-retour vers Dates clés."""
+    vue = "%s/planning/grille" % sc.nom
+    telephone = sc.largeur < SEUIL_TELEPHONE
+    ouvrir_semaine(page)
+    res.vues += 1
+    m = page.evaluate(JS_MESURE_GRILLE)
+    if not m["racine"] and m["cartesListe"]:
+        # La liste est restée choisie sur l'appareil : on revient à la grille avant de mesurer.
+        choisir_vue_du_planning(page, res, vue, "grille")
+        m = page.evaluate(JS_MESURE_GRILLE)
+    if not m["racine"]:
+        res.echec("planning en grille", vue, "aucune grille de la semaine à l'ouverture de Planning > Semaine (%d carte(s) de liste)" % m["cartesListe"])
+        return
+    if m["cartesListe"]:
+        res.echec("planning en grille", vue, "la liste (%d cartes de jour) est montrée en même temps que la grille" % m["cartesListe"])
+    if m["erreur"]:
+        res.echec("planning en grille", vue, "la semaine est en erreur")
+    if m["debordePage"] or m["debordeGrille"]:
+        res.echec("planning en grille", vue, "la page ou la grille défile de côté (page : %s, grille : %s)" % (m["debordePage"], m["debordeGrille"]))
+    if m["basculeDansOnglets"]:
+        res.echec("planning en grille", vue, "la bascule Grille / Liste est dans une tablist (la barre des sous-onglets ne contient que des onglets)")
+    if len(m["bascule"]) != 1:
+        res.echec("planning en grille", vue, "%d bascule(s) Grille / Liste, 1 attendue" % len(m["bascule"]))
+    else:
+        textes = [b["texte"] for b in m["bascule"][0]["boutons"]]
+        attendu = ["Jour" if telephone else "Grille", "Liste"]
+        if textes != attendu:
+            res.echec("planning en grille", vue, "boutons de la bascule %s, attendu %s" % (textes, attendu))
+        if [b["actif"] for b in m["bascule"][0]["boutons"]] != ["true", "false"]:
+            res.echec("planning en grille", vue, "la grille n'est pas le bouton actif de la bascule (%s)" % [b["actif"] for b in m["bascule"][0]["boutons"]])
+        if m["bascule"][0]["h"] < 43.5:
+            res.echec("zones à toucher sous 44 px", vue, "la bascule Grille / Liste mesure %s px" % m["bascule"][0]["h"])
+    if telephone:
+        if m["grilleVisible"] or not m["bandeVisible"]:
+            res.echec("planning en grille", vue, "sur téléphone la bande de jours doit remplacer la grille (grille %s, bande %s)" % (m["grilleVisible"], m["bandeVisible"]))
+        if len(m["onglets"]) != 5 or any(o["h"] < 43.5 or o["w"] < 43.5 for o in m["onglets"]):
+            res.echec("zones à toucher sous 44 px sur téléphone", vue, "bande de jours : %s" % [(o["w"], o["h"]) for o in m["onglets"]])
+        if m["choisi"] != 1 or m["jourAujourdhui"] != 1:
+            res.echec("planning en grille", vue, "le jour d'aujourd'hui (mardi) doit être choisi : choisi %s, repéré %s" % (m["choisi"], m["jourAujourdhui"]))
+        if not m["jourMontre"].startswith("Mardi 27 octobre"):
+            res.echec("planning en grille", vue, "le jour montré est « %s », « Mardi 27 octobre » attendu" % m["jourMontre"])
+        if cliquer(page, res, vue, '.daystrip button:nth-child(4)', "le jeudi de la bande de jours"):
+            n = page.evaluate(JS_MESURE_GRILLE)
+            if n["choisi"] != 3 or not n["jourMontre"].startswith("Jeudi 29 octobre"):
+                res.echec("planning en grille", vue, "toucher le jeudi montre « %s » (choisi %s)" % (n["jourMontre"], n["choisi"]))
+    else:
+        if not m["grilleVisible"] or m["bandeVisible"]:
+            res.echec("planning en grille", vue, "sur ordinateur la grille doit remplacer la bande de jours (grille %s, bande %s)" % (m["grilleVisible"], m["bandeVisible"]))
+        if m["colonnes"] != 6 or m["xDesJours"] != 5:
+            res.echec("planning en grille", vue, "%d colonnes déclarées et %d colonnes de jours, 6 et 5 attendues" % (m["colonnes"], m["xDesJours"]))
+        if m["jourRepere"] != 1:
+            res.echec("planning en grille", vue, "le jour repéré est la colonne %s, la deuxième (mardi) attendue" % m["jourRepere"])
+    if sc.espace == "stagiaire" and res.profil_stagiaire and "Toi au tableau" not in m["toi"]:
+        res.echec("planning en grille", vue, "aucune étiquette « Toi au tableau » dans la semaine du stagiaire (étiquettes : %s)" % m["toi"])
+    if sc.espace == "equipe" and m["toi"]:
+        res.echec("planning en grille", vue, "l'équipe voit des étiquettes « Toi » : %s" % m["toi"])
+    if not m["impression"]:
+        res.echec("impression du planning", vue, "la cible d'impression (#print-container) manque en vue grille")
+    vider_console(res, vue)
+    if not complet:
+        return
+
+    # La liste : cinq cartes, plus de grille ; elle se garde au rechargement.
+    if choisir_vue_du_planning(page, res, vue, "liste"):
+        n = page.evaluate(JS_MESURE_GRILLE)
+        if n["cartesListe"] != 5 or n["racine"]:
+            res.echec("planning en liste", vue, "la liste montre %d cartes de jour (5 attendues) et la grille %s" % (n["cartesListe"], "reste" if n["racine"] else "est partie"))
+        recharger_au_banc(page, "#/planning")
+        attendre(page, calme=250)
+        n = page.evaluate(JS_MESURE_GRILLE)
+        if n["cartesListe"] != 5 or n["racine"]:
+            res.echec("planning en liste", vue, "la liste ne se garde pas au rechargement (%d cartes, grille %s)" % (n["cartesListe"], n["racine"]))
+        if not choisir_vue_du_planning(page, res, vue, "grille"):
+            return
+        n = page.evaluate(JS_MESURE_GRILLE)
+        if not n["racine"] or n["cartesListe"]:
+            res.echec("planning en grille", vue, "« Grille » ne rend pas la grille (grille %s, %d cartes de liste)" % (n["racine"], n["cartesListe"]))
+        if page.evaluate("() => localStorage.getItem('planning.vue')") != "grille":
+            res.echec("planning en grille", vue, "le choix de la grille n'est pas gardé sur l'appareil")
+
+    # L'équipe : « Modifier » montre l'éditeur et ni grille ni bascule ; « Terminer » rend la grille.
+    if sc.espace == "equipe":
+        modifier = page.locator("#view button", has_text="Modifier")
+        if not modifier.count():
+            res.echec("planning en grille", vue, "le bouton « Modifier » manque chez l'équipe")
+        else:
+            modifier.first.click()
+            page.wait_for_timeout(150)
+            n = page.evaluate(JS_MESURE_GRILLE)
+            if n["racine"] or n["cartesListe"] != 5 or n["bascule"]:
+                res.echec("planning en grille", vue, "en mode Modifier : grille %s, %d cartes de jour, %d bascule(s) (aucune grille, 5 cartes et aucune bascule attendues)"
+                          % (n["racine"], n["cartesListe"], len(n["bascule"])))
+            termine = page.locator("#view .week-bar-actions button", has_text="Terminer")
+            if termine.count():
+                termine.first.click()
+                page.wait_for_timeout(150)
+                n = page.evaluate(JS_MESURE_GRILLE)
+                if not n["racine"] or n["cartesListe"] or len(n["bascule"]) != 1:
+                    res.echec("planning en grille", vue, "« Terminer » ne rend pas la grille (grille %s, %d cartes, %d bascule(s))" % (n["racine"], n["cartesListe"], len(n["bascule"])))
+            else:
+                res.echec("planning en grille", vue, "le bouton « Terminer » manque en mode Modifier")
+
+    # Une semaine vide, puis la semaine du 11 novembre (repos) : les flèches de la barre de semaine gardent leur effet.
+    if cliquer(page, res, vue, '#view button[aria-label="Semaine suivante"]', "la flèche « Semaine suivante »"):
+        page.wait_for_timeout(250)
+        n = page.evaluate(JS_MESURE_GRILLE)
+        if not n["racine"] or n["erreur"]:
+            res.echec("planning en grille", vue, "la semaine vide casse la grille (grille %s, erreur %s)" % (n["racine"], n["erreur"]))
+        if n["cartesGrille"] != 0 or (not telephone and n["vides"] != 10):
+            res.echec("planning en grille", vue, "semaine vide : %d carte(s) et %d case(s) « Rien de prévu » visibles (0 et 10 attendues)" % (n["cartesGrille"], n["vides"]))
+        if cliquer(page, res, vue, '#view button[aria-label="Semaine suivante"]', "la flèche « Semaine suivante »"):
+            page.wait_for_timeout(250)
+            if telephone:
+                cliquer(page, res, vue, '.daystrip button:nth-child(3)', "le mercredi de la bande de jours")
+            n = page.evaluate(JS_MESURE_GRILLE)
+            repos = n["reposTel"] if telephone else n["repos"]
+            if repos != ["Armistice"]:
+                res.echec("planning en grille", vue, "le mercredi 11 novembre doit porter le libellé « Armistice » (vu : %s)" % repos)
+            if n["debordePage"] or n["debordeGrille"]:
+                res.echec("planning en grille", vue, "la semaine du 11 novembre défile de côté")
+            cliquer(page, res, vue, '#view button[aria-label="Semaine précédente"]', "la flèche « Semaine précédente »")
+        cliquer(page, res, vue, '#view button[aria-label="Semaine précédente"]', "la flèche « Semaine précédente »")
+        page.wait_for_timeout(250)
+
+    # La semaine verrouillée : la grille reste (lecture seule), sans bouton « Modifier ».
+    page.evaluate("""() => { const r = window.__FIXTURES_DU_BANC.settings.find((x) => x.key === 'semaines_verrouillees'); r.value = JSON.stringify(['2026-10-26']); }""")
+    aller_a(page, "#/home")
+    ouvrir_semaine(page)
+    n = page.evaluate(JS_MESURE_GRILLE)
+    if not n["racine"] or n["cartesListe"] or n["modifier"] or len(n["bascule"]) != 1:
+        res.echec("planning en grille", vue, "semaine verrouillée : grille %s, %d cartes de jour, %d bouton(s) Modifier, %d bascule(s)"
+                  % (n["racine"], n["cartesListe"], n["modifier"], len(n["bascule"])))
+    page.evaluate("""() => { const r = window.__FIXTURES_DU_BANC.settings.find((x) => x.key === 'semaines_verrouillees'); r.value = '[]'; }""")
+
+    # Dates clés puis retour : la bascule suit la semaine (elle n'est pas posée sur les autres sous-onglets).
+    dates = page.locator("#view .subtabs-bar > .subtab", has_text="Dates clés")
+    if dates.count():
+        dates.first.click()
+        page.wait_for_timeout(250)
+        if page.evaluate("() => document.querySelectorAll('.vue-toggle').length"):
+            res.echec("planning en grille", vue, "la bascule Grille / Liste reste sur Dates clés")
+        aller_a(page, "#/home")
+        ouvrir_semaine(page)
+        n = page.evaluate(JS_MESURE_GRILLE)
+        if not n["racine"] or len(n["bascule"]) != 1:
+            res.echec("planning en grille", vue, "après Dates clés puis retour : grille %s, %d bascule(s) (1 attendue)" % (n["racine"], len(n["bascule"])))
+    vider_console(res, vue)
+
+
+def jouer_planning_etroit(page, res, sc):
+    """La grille sur le plus petit téléphone (320 px) : la bande de cinq jours tient sans défiler de côté, aux cibles de 44 px."""
+    vue = "%s/planning/grille-320" % sc.nom
+    page.set_viewport_size({"width": LARGEUR_ETROITE, "height": 800})
+    recharger_au_banc(page, "#/planning")
+    attendre(page, calme=250)
+    verifier_planning_grille(page, res, replace(sc, largeur=LARGEUR_ETROITE), complet=False)
+    page.set_viewport_size({"width": sc.largeur, "height": 800})
+    vider_console(res, vue)
+
+
 def verifier_planning_eteint(page, res, sc):
     """Interrupteur éteint : le Planning de main, « Cette semaine » et la phrase « Lecture seule... » pour tous."""
     vue = "%s/planning/semaine" % sc.nom
@@ -3580,6 +4786,20 @@ def verifier_planning_eteint(page, res, sc):
         res.echec("planning, interrupteur éteint", vue, "%d bouton(s) « Cette semaine », main en a 1 pour tous" % m["cetteSemaine"])
     if not m["lecture"]:
         res.echec("planning, interrupteur éteint", vue, "la phrase « Lecture seule... » de main manque")
+    vider_console(res, vue)
+
+
+def verifier_planning_grille_eteint(page, res, sc):
+    """Interrupteur éteint : le planning de main, sans bascule Grille / Liste ni grille, avec ses cinq cartes de jour."""
+    vue = "%s/planning/grille-eteint" % sc.nom
+    aller_a(page, "#/planning")
+    attendre(page)
+    res.vues += 1
+    m = page.evaluate(JS_MESURE_GRILLE)
+    if m["bascule"] or m["racine"]:
+        res.echec("planning, interrupteur éteint", vue, "%d bascule(s) et grille %s : main n'en a aucune" % (len(m["bascule"]), m["racine"]))
+    if m["cartesListe"] != 5:
+        res.echec("planning, interrupteur éteint", vue, "%d cartes de jour, main en a 5" % m["cartesListe"])
     vider_console(res, vue)
 
 
@@ -3659,6 +4879,348 @@ def verifier_la_classe(page, res, sc):
     vider_console(res, vue)
 
 
+# --------------------------------------------------------------------------------------
+# Mon suivi aux libellés clairs (lot 2B, tâche 7)
+# --------------------------------------------------------------------------------------
+
+# Mon suivi, nouvelle navigation : les parties dans l'ordre (sous-onglets sur ordinateur, lignes du sommaire sur téléphone).
+PARTIES_MON_SUIVI = ["Résultats", "Passages", "EPCF", "Livret EPCF", "Dossier pro"]   # « Livret EPCF » : décision de Timy du 08/11
+# La fiche de main : Mon espace éteint, et la fiche d'un stagiaire chez l'équipe dans les deux navigations.
+PARTIES_FICHE_DE_MAIN = ["Passages", "EPCF", "Évolution", "Livret", "Dossier pro"]
+# Les lignes du sommaire du stagiaire du banc (Timy, id 1, le 27/10/2026) : aucun passage à venir, aucune épreuve EPCF, pas de livret, un dossier ouvert le 02/10
+# sans exemple rempli (que main écrivait « Dossier pro 02/10 »).
+LIGNES_MON_SUIVI_DU_BANC = ["Résultats : moi et la classe", "Passages : aucun à venir", "EPCF : 0 épreuve sur 2", "Livret EPCF : pas encore commencé",
+                            "Dossier pro : 0 exemple sur 6"]
+CLE_VUE_RESULTATS = "ecsr_resultats_vue"
+# La fiche d'un stagiaire chez l'équipe : Valentin (id 4), EPCF 1 sur 2, livret et dossier.
+ID_DE_LA_FICHE_DE_L_EQUIPE = 4
+
+# Ce que Mon suivi montre : ses sous-onglets (le premier groupe de la page), les lignes de son sommaire (texte, place, hauteur, texte coupé ou non), le haut de
+# la barre du bas, l'en-tête de la page, le titre de la partie (téléphone), le groupe « Moi / La classe » et la vue qu'il montre.
+JS_MON_SUIVI = r"""() => {
+  const vue = document.getElementById('view');
+  const net = (s) => (s || '').replace(/\s+/g, ' ').trim();
+  const lib = (x) => net(x.childNodes[0] ? x.childNodes[0].textContent : x.textContent);
+  const visible = (e) => !!e && e.getClientRects().length > 0 && getComputedStyle(e).visibility !== 'hidden';
+  const bar = vue.querySelector('.subtabs-bar');
+  const onglets = bar ? [...bar.querySelectorAll(':scope > .subtab')].filter(visible).map(lib) : [];
+  const actif = bar && bar.querySelector(':scope > .subtab.active');
+  const bas = document.querySelector('.nav-bas');
+  const barreBas = bas && visible(bas) ? bas.getBoundingClientRect().top : innerHeight;
+  const coupe = (e) => { const s = getComputedStyle(e);
+    return s.textOverflow === 'ellipsis' || ((s.overflowX === 'hidden' || s.overflowX === 'clip') && e.scrollWidth > e.clientWidth + 1); };
+  const lignes = [...vue.querySelectorAll('nav.fiche-sommaire a.fiche-ligne')].map((a) => {
+    const r = a.getBoundingClientRect();
+    return { texte: net(a.innerText), noms: [...a.querySelectorAll('.fiche-ligne-nom')].map((n) => net(n.textContent)), haut: r.top, bas: r.bottom, h: r.height,
+      coupee: [a, ...a.querySelectorAll('span')].some(coupe), clair: !!a.closest('.fiche-sommaire-clair') };
+  });
+  const groupe = vue.querySelector('.res-bar [role=group]');
+  const vues = [...vue.querySelectorAll('.res-bar button')].map((b) => { const r = b.getBoundingClientRect();
+    return { texte: net(b.textContent), presse: b.getAttribute('aria-pressed'), w: r.width, h: r.height }; });
+  const titre = vue.querySelector('h2.fiche-titre');
+  return { hash: location.hash, onglets, actif: actif ? lib(actif) : null, lignes, barreBas,
+    entete: visible(vue.querySelector('.view-header')), titre: titre && visible(titre) ? net(titre.textContent) : null,
+    groupe: groupe ? groupe.getAttribute('aria-label') : null, vues,
+    moi: [...vue.querySelectorAll('.res-vue h3.ms-section-title')].some((h) => net(h.textContent) === 'Mon évolution'),
+    classe: !!vue.querySelector('.res-vue .matrice-toolbar'), resultats: !!vue.querySelector('.res-bar'),
+    texte: net(vue.innerText), defile: document.documentElement.scrollWidth > innerWidth + 1 };
+}"""
+
+
+def lire_mon_suivi(page):
+    return page.evaluate(JS_MON_SUIVI)
+
+
+def attendre_vue_de_resultats(page, cible):
+    """La vue montrée par Résultats : « Mon évolution » pour Moi, la matrice des notes pour La classe (lue par la vue Notes, après ses données)."""
+    js = ("() => !!document.querySelector('#view .res-vue .matrice-toolbar')" if cible == "classe"
+          else "() => [...document.querySelectorAll('#view .res-vue h3.ms-section-title')].some((h) => h.textContent.trim() === 'Mon évolution')")
+    try:
+        page.wait_for_function(js, timeout=6000)
+        return True
+    except DelaiDepasse:
+        return False
+
+
+def verifier_resultats(res, vue, sc, m, cible, adresse_attendue="#/mon-suivi/resultats"):
+    """Résultats affiché sur la vue `cible` (« moi » ou « classe ») : l'adresse, la partie allumée (sous-onglet) ou son titre (téléphone, en-tête de la page
+    caché), le groupe « Moi / La classe » (nommé, deux boutons de 44 px, un seul pressé) et la vue qu'il montre, sans défilement de côté."""
+    echec = lambda detail: res.echec("Mon suivi, Résultats", vue, detail)
+    tel = sc.largeur < SEUIL_TELEPHONE
+    if m["hash"] != adresse_attendue:
+        echec("l'adresse est %s, attendu %s" % (m["hash"], adresse_attendue))
+    if tel:
+        if m["titre"] != "Résultats":
+            echec("le titre de la partie est « %s », attendu « Résultats »" % m["titre"])
+        if m["entete"]:
+            echec("l'en-tête « Mon suivi » reste affiché au-dessus du retour « ‹ Mon suivi » : la page se nomme deux fois")
+    elif m["actif"] != "Résultats":
+        echec("le sous-onglet allumé est « %s », attendu « Résultats »" % m["actif"])
+    if m["groupe"] != "Résultats à afficher":
+        echec("le groupe « Moi / La classe » est nommé « %s », attendu « Résultats à afficher »" % m["groupe"])
+    if [x["texte"] for x in m["vues"]] != ["Moi", "La classe"]:
+        echec("les boutons de Résultats sont %s, attendu « Moi », « La classe »" % [x["texte"] for x in m["vues"]])
+        return
+    presses = [x["presse"] for x in m["vues"]]
+    attendus = ["true", "false"] if cible == "moi" else ["false", "true"]
+    if presses != attendus:
+        echec("« Moi » et « La classe » sont pressés %s, attendu %s (vue « %s »)" % (presses, attendus, cible))
+    petits = ["%s (%dx%d px)" % (x["texte"], x["w"], x["h"]) for x in m["vues"] if x["w"] < 43.5 or x["h"] < 43.5]
+    if petits:
+        echec("boutons sous 44 px : %s" % ", ".join(petits))
+    if cible == "moi" and (not m["moi"] or m["classe"]):
+        echec("la vue « Moi » montre %s, attendu le graphe « Mon évolution » seul" % ("la matrice de la classe" if m["classe"] else "autre chose"))
+    if cible == "classe" and (not m["classe"] or m["moi"]):
+        echec("la vue « La classe » montre %s, attendu la matrice des notes de la classe seule" % ("« Mon évolution »" if m["moi"] else "autre chose"))
+    if m["defile"]:
+        echec("la page défile de côté")
+
+
+def verifier_parties_de_mon_suivi(page, res, sc, vue):
+    """Mon suivi, ouvert sans partie : les cinq parties dans l'ordre. Téléphone : le sommaire, chaque ligne dit son état en entier, sans date « 02/10 », jamais
+    coupée, de 44 px au moins, la dernière au-dessus de la barre du bas à l'ouverture et page défilée au bout. Ordinateur : les sous-onglets, Résultats allumé."""
+    echec = lambda detail: res.echec("Mon suivi, parties", vue, detail)
+    m = lire_mon_suivi(page)
+    if sc.largeur >= SEUIL_TELEPHONE:
+        if m["onglets"] != PARTIES_MON_SUIVI:
+            echec("les sous-onglets sont %s, attendu %s" % (m["onglets"], PARTIES_MON_SUIVI))
+        if m["actif"] != "Résultats":
+            echec("le sous-onglet allumé à la première ouverture est « %s », attendu « Résultats »" % m["actif"])
+        return
+    textes = [l["texte"] for l in m["lignes"]]
+    if textes != LIGNES_MON_SUIVI_DU_BANC:
+        echec("les lignes du sommaire disent %s, attendu %s" % (textes, LIGNES_MON_SUIVI_DU_BANC))
+    if [l["noms"][:1] for l in m["lignes"]] != [[p] for p in PARTIES_MON_SUIVI]:
+        echec("les lignes ne commencent pas par le nom de leur partie, dans l'ordre %s : %s" % (PARTIES_MON_SUIVI, [l["noms"] for l in m["lignes"]]))
+    for l in m["lignes"]:
+        if re.search(r"\d{2}/\d{2}", l["texte"]):
+            echec("la ligne « %s » porte une date jj/mm (« 02/10 » se lisait « 2 sur 10 »)" % l["texte"])
+        if l["coupee"]:
+            echec("la ligne « %s » est coupée (points de suspension ou débordement caché)" % l["texte"])
+        if l["h"] < 43.5:
+            echec("la ligne « %s » mesure %d px de haut (44 px au moins)" % (l["texte"], l["h"]))
+        if not l["clair"]:
+            echec("la ligne « %s » n'est pas dans le sommaire aux libellés clairs" % l["texte"])
+    if not m["lignes"]:
+        return
+    der = m["lignes"][-1]
+    if der["bas"] > m["barreBas"] + 0.5:
+        echec("à l'ouverture, la dernière ligne (« %s ») descend à %d px, sous le haut de la barre du bas (%d px)" % (der["texte"], der["bas"], m["barreBas"]))
+    page.evaluate("() => window.scrollTo(0, document.documentElement.scrollHeight)")
+    page.wait_for_timeout(150)
+    m2 = lire_mon_suivi(page)
+    der = m2["lignes"][-1]
+    if der["bas"] > m2["barreBas"] + 0.5:
+        echec("page défilée au bout, la dernière ligne (« %s ») descend à %d px, sous le haut de la barre du bas (%d px)" % (der["texte"], der["bas"], m2["barreBas"]))
+    page.evaluate("() => window.scrollTo(0, 0)")
+
+
+def jouer_mon_suivi(page, res, sc):
+    """Mon suivi aux libellés clairs (lot 2B, tâche 7), nouvelle navigation, toute personne qui a une fiche, à 1 280 et 375 px. Les parties dans l'ordre ; Résultats
+    ouvre « Moi » sans mémoire, « La classe » se choisit, se garde en quittant la page et après un rechargement, « Moi » se rechoisit ; sur téléphone, le retour
+    ramène au sommaire ; #/mon-suivi/classe, #/mon-suivi/evolution et #/notes (stagiaire) ouvrent Résultats sur la bonne vue, quelle que soit la mémoire, l'adresse
+    devenue celle de Résultats sans étape d'historique ; sur téléphone, un exemple du dossier enregistré fait passer la ligne « Dossier pro » à « 1 exemple sur 6 »."""
+    tel = sc.largeur < SEUIL_TELEPHONE
+    base = "%s/mon-suivi" % sc.nom
+    memoriser = lambda v: page.evaluate("(a) => { try { if (a[1]) localStorage.setItem(a[0], a[1]); else localStorage.removeItem(a[0]); } catch (e) {} }",
+                                        [CLE_VUE_RESULTATS, v])
+    # 1. Les parties, sans mémoire (ni vue de Résultats ni sous-onglet de Mon suivi).
+    page.evaluate("() => { try { localStorage.removeItem('ecsr_monsuivi_subtab'); } catch (e) {} }")
+    memoriser(None)
+    aller_a(page, "#/home")
+    attendre(page)
+    aller_a(page, "#/mon-suivi")
+    attendre(page)
+    vue = base + "/parties"
+    res.vues += 1
+    verifier_parties_de_mon_suivi(page, res, sc, vue)
+    # 2. Résultats, « Moi » par défaut.
+    vue = base + "/resultats-moi"
+    res.vues += 1
+    if tel and not cliquer(page, res, vue, '#view nav.fiche-sommaire a.fiche-ligne[href="#/mon-suivi/resultats"]', "ligne « Résultats » du sommaire"):
+        return
+    attendre(page)
+    if not attendre_vue_de_resultats(page, "moi"):
+        res.echec("Mon suivi, Résultats", vue, "Résultats, ouvert sans mémoire, ne montre pas « Mon évolution »")
+    # Sur ordinateur, Mon suivi ouvert sans partie garde son adresse jusqu'au premier choix d'onglet ; « Moi / La classe » ne la change pas.
+    ouvert = "#/mon-suivi/resultats" if tel else "#/mon-suivi"
+    verifier_resultats(res, vue, sc, lire_mon_suivi(page), "moi", ouvert)
+    # 3. « La classe » se choisit.
+    vue = base + "/resultats-la-classe"
+    res.vues += 1
+    if not cliquer(page, res, vue, '#view .res-bar button[data-vue="classe"]', "bouton « La classe »"):
+        return
+    if not attendre_vue_de_resultats(page, "classe"):
+        res.echec("Mon suivi, Résultats", vue, "« La classe » ne montre pas la matrice des notes de la classe")
+    verifier_resultats(res, vue, sc, lire_mon_suivi(page), "classe", ouvert)
+    # 4. La mémoire : quitter la page puis revenir, puis rouvrir l'app (rechargement), « La classe » reste choisie.
+    vue = base + "/resultats-memoire"
+    res.vues += 1
+    aller_a(page, "#/planning")
+    attendre(page)
+    aller_a(page, "#/mon-suivi/resultats")
+    attendre(page)
+    attendre_vue_de_resultats(page, "classe")
+    verifier_resultats(res, vue, sc, lire_mon_suivi(page), "classe")
+    vue = base + "/resultats-memoire-rechargee"
+    res.vues += 1
+    recharger_au_banc(page, "#/mon-suivi/resultats")
+    attendre_vue_de_resultats(page, "classe")
+    verifier_resultats(res, vue, sc, lire_mon_suivi(page), "classe")
+    # 5. « Moi » se rechoisit ; sur téléphone, le retour ramène au sommaire.
+    vue = base + "/resultats-retour-a-moi"
+    res.vues += 1
+    if cliquer(page, res, vue, '#view .res-bar button[data-vue="moi"]', "bouton « Moi »"):
+        attendre_vue_de_resultats(page, "moi")
+        verifier_resultats(res, vue, sc, lire_mon_suivi(page), "moi")
+    if tel:
+        vue = base + "/retour-au-sommaire"
+        res.vues += 1
+        if cliquer(page, res, vue, "#view a.fiche-retour", "retour « ‹ Mon suivi »"):
+            attendre(page)
+            m = lire_mon_suivi(page)
+            if m["hash"] != "#/mon-suivi" or [l["texte"] for l in m["lignes"]] != LIGNES_MON_SUIVI_DU_BANC or not m["entete"]:
+                res.echec("Mon suivi, Résultats", vue, "le retour mène à %s (lignes %s, en-tête %s), attendu le sommaire de #/mon-suivi et son en-tête"
+                          % (m["hash"], [l["texte"] for l in m["lignes"]], "visible" if m["entete"] else "caché"))
+    # 6. Les adresses d'avant ouvrent Résultats sur leur vue, quelle que soit la mémoire (la vue opposée y est écrite avant).
+    adresses = [("#/mon-suivi/classe", "classe"), ("#/mon-suivi/evolution", "moi")] + ([("#/notes", "classe")] if sc.espace == "stagiaire" else [])
+    for adresse, cible in adresses:
+        vue = "%s/adresse/%s" % (base, adresse.rsplit("/", 1)[-1])
+        res.vues += 1
+        memoriser("moi" if cible == "classe" else "classe")
+        aller_a(page, "#/home")
+        attendre(page)
+        aller_a(page, adresse)
+        attendre(page)
+        if not attendre_vue_de_resultats(page, cible):
+            res.echec("Mon suivi, adresse d'avant", vue, "%s ne montre pas la vue « %s » de Résultats" % (adresse, "La classe" if cible == "classe" else "Moi"))
+        verifier_resultats(res, vue, sc, lire_mon_suivi(page), cible)
+        if adresse == "#/mon-suivi/classe":
+            page.go_back()
+            try:
+                page.wait_for_function("() => location.hash === '#/home'", timeout=2000)
+            except DelaiDepasse:
+                res.echec("Mon suivi, adresse d'avant", vue, "« Précédent » depuis %s mène à %s, attendu #/home (l'adresse de Résultats remplace l'ancienne, sans étape de plus)"
+                          % (adresse, page.evaluate("() => location.hash")))
+            attendre(page)
+    vider_console(res, base)
+    # 7. Téléphone : le compte du dossier suit un enregistrement, sans recharger (le banc garde l'écriture, ?ecritures=1).
+    if tel:
+        jouer_compte_du_dossier(page, res, sc)
+
+
+def jouer_compte_du_dossier(page, res, sc):
+    vue = "%s/mon-suivi/dossier-enregistre" % sc.nom
+    res.vues += 1
+    recharger_au_banc(page, "#/mon-suivi/dp", ecritures="1")
+    try:
+        page.wait_for_selector('#view .lv-f[data-k="at1_ex1_titre"]', timeout=6000)
+    except DelaiDepasse:
+        res.echec("Mon suivi, dossier", vue, "la partie Dossier pro n'affiche pas le titre du premier exemple à remplir")
+        return
+    if not cliquer(page, res, vue, '#view .lv-f[data-k="at1_ex1_titre"]', "titre du premier exemple du dossier"):
+        return
+    page.keyboard.type("Leçon de conduite en ville")
+    try:
+        page.wait_for_function("() => /Enregistré/.test((document.querySelector('#view .lv-status') || {}).textContent || '')", timeout=6000)
+    except DelaiDepasse:
+        res.echec("Mon suivi, dossier", vue, "le dossier ne s'enregistre pas (statut « %s »)" % page.evaluate("() => (document.querySelector('#view .lv-status') || {}).textContent"))
+        return
+    if not cliquer(page, res, vue, "#view a.fiche-retour", "retour « ‹ Mon suivi »"):
+        return
+    attendre(page)
+    lignes = [l["texte"] for l in lire_mon_suivi(page)["lignes"]]
+    if "Dossier pro : 1 exemple sur 6" not in lignes:
+        res.echec("Mon suivi, dossier", vue, "après l'enregistrement d'un exemple, le sommaire dit %s, attendu la ligne « Dossier pro : 1 exemple sur 6 »" % lignes)
+    vider_console(res, vue)
+    recharger_au_banc(page, "#/home", ecritures="")
+
+
+def lire_fiche_de_main(page):
+    """La fiche telle que main la montre : les noms des parties (lignes du sommaire sur téléphone, sous-onglets de la fiche sur ordinateur, sans ceux de la
+    page Stagiaires), et ce que la nouvelle navigation de Mon suivi y ajouterait."""
+    return page.evaluate(r"""() => {
+      const vue = document.getElementById('view');
+      const net = (s) => (s || '').replace(/\s+/g, ' ').trim();
+      const lignes = [...vue.querySelectorAll('nav.fiche-sommaire a.fiche-ligne .fiche-ligne-nom')].map((n) => net(n.textContent));
+      const barres = [...vue.querySelectorAll('.subtabs-bar')].map((b) => [...b.querySelectorAll(':scope > .subtab')].filter((x) => x.getClientRects().length)
+        .map((x) => net(x.childNodes[0] ? x.childNodes[0].textContent : x.textContent)));
+      return { lignes, barres, ajouts: vue.querySelectorAll('.res-bar, .fiche-sommaire-clair, .fiche-ligne-texte').length };
+    }""")
+
+
+def parties_de_main_montrees(f, sc):
+    if sc.largeur < SEUIL_TELEPHONE:
+        return f["lignes"]
+    return next((b for b in f["barres"] if b and b[0] == "Passages"), [])
+
+
+def verifier_fiche_de_l_equipe(page, res, sc):
+    """La fiche d'un stagiaire vue par l'équipe (page Stagiaires), dans les deux navigations : les parties de main (Passages, EPCF, Évolution, Livret, Dossier pro),
+    sans Résultats ni « Moi / La classe » ni sommaire aux libellés clairs ; la partie Évolution s'ouvre sur son graphe."""
+    vue = "%s/stagiaires/%d/fiche-de-main" % (sc.nom, ID_DE_LA_FICHE_DE_L_EQUIPE)
+    echec = lambda detail: res.echec("fiche d'un stagiaire chez l'équipe", vue, detail)
+    aller_a(page, "#/stagiaires/%d" % ID_DE_LA_FICHE_DE_L_EQUIPE)
+    attendre(page)
+    try:
+        page.wait_for_function("() => !!document.querySelector('#view nav.fiche-sommaire, #view .stg-fiche .subtabs-bar, #view .subtab')", timeout=6000)
+    except DelaiDepasse:
+        pass
+    res.vues += 1
+    f = lire_fiche_de_main(page)
+    montrees = parties_de_main_montrees(f, sc)
+    if montrees != PARTIES_FICHE_DE_MAIN:
+        echec("les parties sont %s, attendu celles de main %s (lignes %s, barres %s)" % (montrees, PARTIES_FICHE_DE_MAIN, f["lignes"], f["barres"]))
+    if f["ajouts"] or "Résultats" in montrees:
+        echec("la fiche montre Résultats, « Moi / La classe » ou le sommaire aux libellés clairs de Mon suivi")
+    aller_a(page, "#/stagiaires/%d/evolution" % ID_DE_LA_FICHE_DE_L_EQUIPE)
+    attendre(page)
+    titre = page.evaluate(r"""() => [...document.querySelectorAll('#view h3.ms-section-title')].map((h) => h.textContent.trim())""")
+    if "Évolution" not in titre:
+        echec("la partie Évolution de la fiche ne montre pas sa section « Évolution » (titres : %s)" % titre)
+    if page.evaluate("() => location.hash") != "#/stagiaires/%d/evolution" % ID_DE_LA_FICHE_DE_L_EQUIPE:
+        echec("#/stagiaires/%d/evolution devient %s" % (ID_DE_LA_FICHE_DE_L_EQUIPE, page.evaluate("() => location.hash")))
+    vider_console(res, vue)
+
+
+def verifier_mon_espace_eteint(page, res, sc):
+    """Interrupteur éteint : Mon espace garde les parties de main et leurs états (« EPCF 0/2 », « Dossier pro 02/10 » sont ceux de main), sans Résultats ni
+    « Moi / La classe » ; #/mon-suivi/evolution ouvre la partie Évolution."""
+    vue = "%s/mon-espace-de-main" % sc.nom
+    echec = lambda detail: res.echec("Mon espace, interrupteur éteint", vue, detail)
+    aller_a(page, "#/mon-suivi")
+    attendre(page)
+    res.vues += 1
+    f = lire_fiche_de_main(page)
+    montrees = parties_de_main_montrees(f, sc)
+    if montrees != PARTIES_FICHE_DE_MAIN:
+        echec("les parties sont %s, attendu celles de main %s" % (montrees, PARTIES_FICHE_DE_MAIN))
+    if f["ajouts"] or "Résultats" in montrees:
+        echec("Mon espace montre Résultats, « Moi / La classe » ou le sommaire aux libellés clairs de la nouvelle navigation")
+    aller_a(page, "#/mon-suivi/evolution")
+    attendre(page)
+    m = lire_mon_suivi(page)
+    if m["hash"] != "#/mon-suivi/evolution" or m["resultats"]:
+        echec("#/mon-suivi/evolution devient %s%s, attendu la partie Évolution de main" % (m["hash"], " avec « Moi / La classe »" if m["resultats"] else ""))
+    vider_console(res, vue)
+
+
+def verifier_resultats_fermes(page, res, sc):
+    """Module des notes fermé (`?modules=depart`), stagiaire : ni partie Résultats ni « Moi / La classe », ni par Mon suivi ni par #/mon-suivi/classe."""
+    vue = "%s/mon-suivi/resultats-fermes" % sc.nom
+    res.vues += 1
+    for adresse in ("#/mon-suivi", "#/mon-suivi/classe", "#/mon-suivi/resultats"):
+        aller_a(page, "#/home")
+        attendre(page)
+        aller_a(page, adresse)
+        attendre(page)
+        m = lire_mon_suivi(page)
+        noms = m["onglets"] + [l["texte"] for l in m["lignes"]] + ([m["titre"]] if m["titre"] else [])
+        if m["resultats"] or any(n.startswith("Résultats") for n in noms):
+            res.echec("Mon suivi, notes fermées", vue, "%s montre Résultats (%s) alors que le module des notes est fermé" % (adresse, noms))
+    vider_console(res, vue)
+
+
 def verifier_notes_eteint(page, res, sc):
     """Interrupteur éteint, stagiaire : la page Notes de main (ses deux phrases, « Clique une cellule... » et « Lecture seule... », et ses deux sous-onglets)."""
     vue = "%s/notes" % sc.nom
@@ -3681,7 +5243,9 @@ def verifier_bandeau_emargement(page, res, sc):
     horaires du stagiaire et les signatures du formateur cachés, le bouton de 44 px. Au-delà de 700 px, et interrupteur éteint : le bandeau de main, ses
     détails montrés."""
     vue = "%s/bandeau-emargement" % sc.nom
-    aller_a(page, "#/home")
+    # Lots 2B, tâches 3 et 4 : l'accueil de chaque espace (Accueil du stagiaire, Aujourd'hui du formateur) porte lui-même la feuille d'émargement, et le bandeau n'y
+    # double rien : il se lit sur le Planning. Interrupteur éteint, il se lit sur l'accueil de main.
+    aller_a(page, "#/planning" if res.coquille else "#/home")
     attendre(page)
     try:
         page.wait_for_function("() => { const b = document.getElementById('emargement-bandeau'); return !!b && !b.hidden; }", timeout=6000)
@@ -3714,6 +5278,358 @@ def verifier_bandeau_emargement(page, res, sc):
             res.echec("bandeau d'émargement", vue, "détail caché alors que la page est %s : « %s »"
                       % ("celle de main" if sc.passe == "eteint" else "large de %d px" % sc.largeur, " », « ".join(caches)))
     vider_console(res, vue)
+
+
+# --------------------------------------------------------------------------------------
+# Cours et QCM : sous-onglets « QCM » (stagiaire) et « Propositions IA » (équipe), lot 2B, tâche 6
+# --------------------------------------------------------------------------------------
+
+SOUS_ONGLETS_COURS_STAGIAIRE = ["Thèmes", "Compétences", "QCM", "Documents"]
+SOUS_ONGLETS_COURS_EQUIPE = ["Thèmes", "Compétences", "Signalements", "Propositions IA", "Documents"]
+# Ce que le banc sert à la stagiaire du banc : le QCM 50 (thème 22, examen ouvert, deux entraînements à 10/20), le QCM 51 (thème 23, un entraînement à 20/20).
+LIGNES_QCM_DU_BANC = [
+    ("Thème 22 · Feux du véhicule", "Dernière note 10/20", ["Examen ouvert"]),
+    ("Thème 23 · Pneumatiques", "Dernière note 20/20", []),
+]
+# `?propositions=1` : trois brouillons à relire, deux sur le QCM 50 (le thème 22, le plus récent le 21/10) et un sur le QCM 51 (le thème 23, le 12/10). Le plus ancien d'abord.
+LIGNES_PROPOSITIONS_DU_BANC = [
+    ("Thème 23 · Pneumatiques", "1 question à relire, proposée le 12/10/2026"),
+    ("Thème 22 · Feux du véhicule", "2 questions à relire, la plus ancienne proposée le 20/10/2026"),
+]
+A_TRAITER_DU_BANC["propositions"] = ("8", "8 à traiter : 5 signalements, 3 propositions de l'IA")
+A_TRAITER_DU_BANC["propositions-relue"] = ("7", "7 à traiter : 5 signalements, 2 propositions de l'IA")
+
+JS_LISTE_ACTIONS = r"""() => {
+  const vue = document.querySelector('#view');
+  const carte = vue.querySelector('.acc-carte');
+  const rc = carte ? carte.getBoundingClientRect() : null;
+  const lignes = [...vue.querySelectorAll('.acc-ligne-action')].map((l) => {
+    const b = l.querySelector('button');
+    const r = b.getBoundingClientRect();
+    const rl = l.getBoundingClientRect();
+    const d = l.querySelector('.acc-ligne-texte span');
+    const couleur = d ? (getComputedStyle(d).color.match(/\d+/g) || [0, 0, 0]).map(Number) : [0, 0, 0];
+    return { titre: l.querySelector('b').textContent.trim(), detail: d ? d.textContent.trim() : '',
+      puces: [...l.querySelectorAll('.acc-ligne-puce')].map((p) => p.textContent.trim()),
+      bouton: b.textContent.trim(), nom: b.getAttribute('aria-label'), h: Math.round(r.height), w: Math.round(r.width),
+      dehors: !rc || rl.left < rc.left - 0.5 || rl.right > rc.right + 0.5 || r.right > rc.right + 0.5, couleur };
+  });
+  const actif = vue.querySelector('.subtab.active');
+  const compte = vue.querySelector('.acc-compte');
+  const erreur = vue.querySelector('.acc-erreur');
+  const corps = vue.querySelector('.acc-corps');
+  const reessayer = vue.querySelector('.acc-reessayer');
+  return { lignes, compte: compte ? compte.textContent : '', titre: (vue.querySelector('.acc-carte-tete h2') || {}).textContent || '',
+    actif: actif ? actif.textContent.trim() : null, defile: document.documentElement.scrollWidth > innerWidth + 1,
+    erreur: erreur ? erreur.textContent.trim() : null, reessayer: reessayer ? Math.round(reessayer.getBoundingClientRect().height) : null,
+    texte: corps ? corps.innerText : '', intro: !!vue.querySelector('.acc-intro'),
+    libelles: [...vue.querySelectorAll('.subtabs-bar > .subtab')].map((x) => x.textContent.trim()) };
+}"""
+
+
+def choisir_sous_onglet(page, res, vue, libelle):
+    """Un vrai clic sur le sous-onglet, puis la page posée."""
+    if cliquer(page, res, vue, '#view .subtabs-bar > .subtab:text-is("%s")' % libelle, "sous-onglet « %s »" % libelle):
+        attendre(page)
+        return True
+    return False
+
+
+def verifier_liste_d_actions(res, vue, sc, m, attendues, compte, titre_carte, quoi):
+    """La liste d'une carte à lignes-boutons : les lignes attendues dans l'ordre (titre, détail, repères), un bouton nommé par sa ligne et de 44 px au moins, aucune
+    ligne qui sort de la carte, aucun défilement de côté, aucune note en rouge (la couleur du détail n'est jamais un rouge), le compte et le titre de la carte."""
+    echec = lambda detail: res.echec(quoi, vue, detail)
+    lus = [(x["titre"], x["detail"], x["puces"]) if len(attendues[0]) == 3 else (x["titre"], x["detail"]) for x in m["lignes"]] if attendues else []
+    if lus != attendues:
+        echec("les lignes sont %s, attendu %s" % (lus, attendues))
+    if m["compte"] != compte:
+        echec("le compte de la carte dit « %s », attendu « %s »" % (m["compte"], compte))
+    if m["titre"] != titre_carte:
+        echec("le titre de la carte est « %s », attendu « %s »" % (m["titre"], titre_carte))
+    if not m["intro"]:
+        echec("la phrase qui explique la liste manque")
+    if m["defile"]:
+        echec("la page défile de côté à %d px" % sc.largeur)
+    for x in m["lignes"]:
+        if x["h"] < 43.5 or x["w"] < 43.5:
+            echec("le bouton « %s » de « %s » mesure %dx%d px (44 px au moins)" % (x["bouton"], x["titre"], x["w"], x["h"]))
+        if not x["nom"] or x["titre"] not in x["nom"] or not x["nom"].startswith(x["bouton"]):
+            echec("le bouton « %s » est nommé « %s » : il doit dire de quelle ligne il est (« %s : %s »)" % (x["bouton"], x["nom"], x["bouton"], x["titre"]))
+        if x["dehors"]:
+            echec("la ligne « %s » sort de sa carte" % x["titre"])
+        r, g, b = x["couleur"][:3]
+        if r > 150 and g < 100 and b < 100:
+            echec("le détail de « %s » est écrit en rouge (rgb %s %s %s) : jamais une note en rouge" % (x["titre"], r, g, b))
+
+
+def jouer_qcm_du_stagiaire(page, res, sc):
+    """Cours et QCM > QCM, le stagiaire (lot 2B, tâche 6) : les sous-onglets Thèmes, Compétences, QCM, Documents ; la liste de ses QCM (examen ouvert d'abord, sa DERNIÈRE
+    note d'entraînement, « Examen ouvert » en repère) ; « Ouvrir » ouvre la fenêtre du QCM (entraîner, erreurs, examen), « Fermer » ramène à la liste ; la fenêtre
+    d'entraînement s'ouvre puis se ferme sans rien perdre ; un entraînement fini met la note à jour sans recharger ; une lecture en échec dit sa panne et « Réessayer » la relit."""
+    vue = "%s/cours/qcm" % sc.nom
+    echec = lambda detail: res.echec("sous-onglet QCM du stagiaire", vue, detail)
+    aller_a(page, "#/themes")
+    attendre(page)
+    res.vues += 1
+    m = page.evaluate(JS_LISTE_ACTIONS)
+    if m["libelles"] != SOUS_ONGLETS_COURS_STAGIAIRE:
+        echec("les sous-onglets de Cours et QCM sont %s, attendu %s" % (m["libelles"], SOUS_ONGLETS_COURS_STAGIAIRE))
+        return
+    if not choisir_sous_onglet(page, res, vue, "QCM"):
+        return
+    page.wait_for_selector("#view .acc-ligne-action", timeout=6000)
+    m = page.evaluate(JS_LISTE_ACTIONS)
+    if m["actif"] != "QCM":
+        echec("le sous-onglet allumé est « %s », attendu « QCM »" % m["actif"])
+    verifier_liste_d_actions(res, vue, sc, m, LIGNES_QCM_DU_BANC, "2 QCM", "Tes QCM", "sous-onglet QCM du stagiaire")
+    if [x["bouton"] for x in m["lignes"]] != ["Ouvrir"] * 2:
+        echec("les boutons sont %s, attendu « Ouvrir » sur chaque ligne" % [x["bouton"] for x in m["lignes"]])
+    # « Ouvrir » : la fenêtre du QCM, avec l'entraînement, les erreurs et l'examen ouvert ; « Fermer » ramène à la liste.
+    vue_fenetre = vue + "/fenetre"
+    res.vues += 1
+    if not cliquer(page, res, vue_fenetre, '#view .acc-ligne-action button[aria-label="Ouvrir : Thème 22 · Feux du véhicule"]', "bouton « Ouvrir » du thème 22"):
+        return
+    page.wait_for_selector(".modal-backdrop .theme-modal", timeout=4000)
+    page.wait_for_timeout(350)   # l'entrée de la fenêtre
+    f = page.evaluate("""() => { const f = document.querySelector('.modal-backdrop .theme-modal'); const r = f.getBoundingClientRect();
+        return { texte: f.innerText, boutons: [...f.querySelectorAll('button')].map((b) => b.textContent.trim()),
+                 petits: [...f.querySelectorAll('button')].filter((b) => b.getBoundingClientRect().height < 43.5).map((b) => b.textContent.trim() + ' (' + Math.round(b.getBoundingClientRect().height) + ' px)'),
+                 dedans: r.left >= -0.5 && r.right <= innerWidth + 0.5 && r.top >= -0.5 && r.bottom <= innerHeight + 0.5 }; }""")
+    if "QCM · Feux du véhicule" not in f["texte"]:
+        res.echec("fenêtre du QCM", vue_fenetre, "la fenêtre ne porte pas le titre du QCM touché : « %s »" % f["texte"][:80])
+    for attendu in ("S'entraîner", "Revoir mes erreurs", "Passer l'examen", "Fermer"):
+        if attendu not in f["boutons"]:
+            res.echec("fenêtre du QCM", vue_fenetre, "la fenêtre n'a pas son bouton « %s » (boutons : %s)" % (attendu, f["boutons"]))
+    if not f["dedans"]:
+        res.echec("fenêtre du QCM", vue_fenetre, "la fenêtre du QCM sort de l'écran à %d px" % sc.largeur)
+    if sc.largeur < SEUIL_TELEPHONE and f["petits"]:
+        res.echec("fenêtre du QCM", vue_fenetre, "zones à toucher sous 44 px sur téléphone dans la fiche du QCM : %s" % ", ".join(f["petits"]))
+    # La fenêtre d'entraînement s'ouvre depuis la fiche et se ferme sur la liste.
+    if cliquer(page, res, vue_fenetre, ".modal-backdrop .qcm-sheet-body .btn.primary", "« S'entraîner » de la fiche"):
+        page.wait_for_selector(".qcm-overlay", timeout=4000)
+        if page.locator(".modal-backdrop").count():
+            res.echec("fenêtre du QCM", vue_fenetre, "la fiche du QCM reste ouverte sous la fenêtre d'entraînement")
+        if cliquer(page, res, vue_fenetre, ".qcm-overlay .qcm-close", "fermeture de l'entraînement"):
+            page.wait_for_timeout(300)
+    else:
+        page.locator(".modal-backdrop .modal-actions .btn").first.click()
+    if page.locator(".qcm-overlay").count() or page.locator(".modal-backdrop").count():
+        res.echec("fenêtre du QCM", vue_fenetre, "une fenêtre reste ouverte après le retour")
+    m = page.evaluate(JS_LISTE_ACTIONS)
+    if route_courante(page) != "themes" or m["actif"] != "QCM" or [x["titre"] for x in m["lignes"]] != [t for t, _, _ in LIGNES_QCM_DU_BANC]:
+        res.echec("retour à la liste", vue_fenetre, "après la fenêtre : #/%s, sous-onglet %s, lignes %s ; la liste des QCM devait être là" % (route_courante(page), m["actif"], [x["titre"] for x in m["lignes"]]))
+    vider_console(res, vue_fenetre)
+    # La fiche se ferme aussi par son bouton « Fermer ».
+    if cliquer(page, res, vue_fenetre, '#view .acc-ligne-action button[aria-label="Ouvrir : Thème 23 · Pneumatiques"]', "bouton « Ouvrir » du thème 23"):
+        page.wait_for_selector(".modal-backdrop .theme-modal", timeout=4000)
+        page.wait_for_timeout(350)
+        if cliquer(page, res, vue_fenetre, ".modal-backdrop .modal-actions .btn", "« Fermer » de la fiche"):
+            page.wait_for_timeout(200)
+            if page.locator(".modal-backdrop").count():
+                res.echec("fenêtre du QCM", vue_fenetre, "« Fermer » ne ferme pas la fiche")
+    # Un entraînement fini (l'événement du lecteur) met la dernière note à jour, sans recharger la page.
+    vue_note = vue + "/nouvelle-note"
+    res.vues += 1
+    page.evaluate("""() => { window.__FIXTURES_DU_BANC.qcm_attempts.push({ id: 990, qcm_id: 50, stagiaire_id: 1, mode: 'entrainement', score: 3, total: 4,
+        note_20: 16, answers: {}, finished_at: '2026-10-27T09:00:00Z' }); window.dispatchEvent(new CustomEvent('qcm-attempt-saved', { detail: { qcm_id: 50, mode: 'entrainement', note_20: 16 } })); }""")
+    try:
+        page.wait_for_function("() => /Dernière note 16\\/20/.test(document.querySelector('#view .acc-ligne-action').innerText)", timeout=4000)
+    except DelaiDepasse:
+        res.echec("note à jour", vue_note, "après un entraînement fini, la ligne du thème 22 ne dit pas « Dernière note 16/20 » : %s" % page.evaluate(JS_LISTE_ACTIONS)["lignes"][:1])
+    # Une lecture en échec : la panne se dit, « Réessayer » relit.
+    vue_panne = vue + "/panne"
+    res.vues += 1
+    page.evaluate("() => { window.__HARNESS_FAIL = 'panne du banc'; }")
+    if choisir_sous_onglet(page, res, vue_panne, "Thèmes") and choisir_sous_onglet(page, res, vue_panne, "QCM"):
+        try:
+            page.wait_for_selector("#view .acc-reessayer", timeout=4000)
+        except DelaiDepasse:
+            echec("une lecture en échec ne montre pas « Réessayer »")
+        m = page.evaluate(JS_LISTE_ACTIONS)
+        if m["erreur"] is None or "Tes QCM n'ont pas pu être chargés." not in m["erreur"]:
+            res.echec("sous-onglet QCM du stagiaire", vue_panne, "la panne dit « %s », attendu « Tes QCM n'ont pas pu être chargés. »" % m["erreur"])
+        if m["reessayer"] is not None and m["reessayer"] < 43.5:
+            res.echec("sous-onglet QCM du stagiaire", vue_panne, "« Réessayer » mesure %s px de haut (44 px au moins)" % m["reessayer"])
+        page.evaluate("() => { window.__HARNESS_FAIL = null; }")
+        if cliquer(page, res, vue_panne, "#view .acc-reessayer", "« Réessayer »"):
+            try:
+                page.wait_for_selector("#view .acc-ligne-action", timeout=4000)
+            except DelaiDepasse:
+                res.echec("sous-onglet QCM du stagiaire", vue_panne, "« Réessayer » ne remet pas la liste")
+    page.evaluate("() => { window.__HARNESS_FAIL = null; }")
+    res.console.clear()   # le « console.error » de la page est le but de l'essai : elle journalise la lecture qui échoue, l'écran dit la panne
+    vider_console(res, vue_panne)
+    # À froid : l'app s'ouvre sur le sous-onglet mémorisé (QCM), dont la liste se charge d'elle-même (le panneau n'est pas encore dans la page au premier rendu).
+    vue_froid = vue + "/a-froid"
+    recharger_au_banc(page, "#/themes")
+    res.vues += 1
+    try:
+        page.wait_for_selector("#view .acc-ligne-action", timeout=6000)
+    except DelaiDepasse:
+        res.echec("sous-onglet QCM du stagiaire", vue_froid, "ouvert à froid sur le sous-onglet mémorisé, la liste ne se charge pas : %s" % page.evaluate(JS_LISTE_ACTIONS)["texte"][:80])
+    else:
+        m = page.evaluate(JS_LISTE_ACTIONS)
+        if m["actif"] != "QCM" or [x["titre"] for x in m["lignes"]] != [t for t, _, _ in LIGNES_QCM_DU_BANC]:
+            res.echec("sous-onglet QCM du stagiaire", vue_froid, "à froid : sous-onglet %s, lignes %s" % (m["actif"], [x["titre"] for x in m["lignes"]]))
+    vider_console(res, vue_froid)
+
+
+def verifier_qcm_ferme(page, res, sc):
+    """Le module « qcm » fermé pour la promo (le départ : Planning, Calendrier, Ressources) : le stagiaire n'a pas le sous-onglet « QCM » ni sa liste."""
+    vue = "%s/cours/qcm-ferme" % sc.nom
+    aller_a(page, "#/themes")
+    attendre(page)
+    res.vues += 1
+    m = page.evaluate(JS_LISTE_ACTIONS)
+    if "QCM" in m["libelles"] or m["lignes"] or "Tes QCM" in m["titre"]:
+        res.echec("module QCM fermé", vue, "le module « qcm » est fermé et le stagiaire voit encore le sous-onglet QCM (sous-onglets %s, %d ligne(s))" % (m["libelles"], len(m["lignes"])))
+
+
+def lire_a_traiter_de_la_barre(page, res, vue, sc, cle):
+    """La pastille de « Cours et QCM » et la phrase du tiroir, comme les dit A_TRAITER_DU_BANC[cle] (le tiroir s'ouvre sur téléphone). Attend que la relecture de la barre aboutisse."""
+    attendu, phrase = A_TRAITER_DU_BANC[cle]
+    try:
+        page.wait_for_function("(a) => [...document.querySelectorAll('[data-nav-coquille] [data-a-traiter]')].some((n) => n.dataset.aTraiter === a)", arg=attendu, timeout=4000)
+    except DelaiDepasse:
+        res.echec("pastille « à traiter »", vue, "la pastille ne dit pas « %s » (elle dit %s ; le banc : %s)" % (attendu, page.evaluate("() => [...document.querySelectorAll('[data-nav-coquille] [data-a-traiter]')].map((n) => n.dataset.aTraiter)"), phrase))
+    sc2 = replace(sc, a_traiter=cle)
+    verifier_a_traiter(page, res, sc2)
+    if sc.largeur < SEUIL_TELEPHONE and cliquer(page, res, vue, '[data-nav-coquille] [data-nav-action="plus"]', "bouton « Plus »"):
+        page.wait_for_timeout(300)
+        verifier_a_traiter(page, res, sc2, tiroir=True)
+        page.keyboard.press("Escape")
+        page.wait_for_timeout(250)
+
+
+def jouer_propositions_ia(page, res, sc):
+    """Cours et QCM > Propositions IA, l'équipe (lot 2B, tâche 6) : Thèmes, Compétences, Signalements, Propositions IA, Documents (pas de sous-onglet QCM) ; la liste vide dit
+    « Aucune question à relire. » ; une lecture en échec dit sa panne et « Réessayer » la relit ; avec des brouillons, Aujourd'hui a sa ligne « 3 questions proposées par l'IA »
+    qui mène au sous-onglet, la pastille et le tiroir disent le total, « Relire » ouvre l'éditeur du QCM, rejeter une question puis fermer l'éditeur remet la liste, la
+    pastille et le tiroir à jour (7 au lieu de 8)."""
+    vue = "%s/cours/propositions-ia" % sc.nom
+    echec = lambda detail: res.echec("sous-onglet Propositions IA", vue, detail)
+    telephone = sc.largeur < SEUIL_TELEPHONE
+    aller_a(page, "#/themes")
+    attendre(page)
+    res.vues += 1
+    m = page.evaluate(JS_LISTE_ACTIONS)
+    if m["libelles"] != SOUS_ONGLETS_COURS_EQUIPE:
+        echec("les sous-onglets de Cours et QCM sont %s, attendu %s" % (m["libelles"], SOUS_ONGLETS_COURS_EQUIPE))
+        return
+    # 1. Liste vide (le banc ordinaire n'a aucun brouillon).
+    if not choisir_sous_onglet(page, res, vue, "Propositions IA"):
+        return
+    page.wait_for_selector("#view .acc-carte .acc-corps", timeout=4000)
+    page.wait_for_function("() => !/Chargement/.test(document.querySelector('#view .acc-carte .acc-corps').innerText)", timeout=4000)
+    m = page.evaluate(JS_LISTE_ACTIONS)
+    if m["texte"].strip() != "Aucune question à relire." or m["lignes"] or m["compte"] != "":
+        echec("sans brouillon, la liste dit « %s » (%d ligne(s), compte « %s »), attendu « Aucune question à relire. »" % (m["texte"].strip(), len(m["lignes"]), m["compte"]))
+    # 2. Une lecture en échec.
+    vue_panne = vue + "/panne"
+    res.vues += 1
+    page.evaluate("() => { window.__HARNESS_FAIL = 'panne du banc'; }")
+    if choisir_sous_onglet(page, res, vue_panne, "Thèmes") and choisir_sous_onglet(page, res, vue_panne, "Propositions IA"):
+        try:
+            page.wait_for_selector("#view .acc-reessayer", timeout=4000)
+        except DelaiDepasse:
+            res.echec("sous-onglet Propositions IA", vue_panne, "une lecture en échec ne montre pas « Réessayer »")
+        m = page.evaluate(JS_LISTE_ACTIONS)
+        if m["erreur"] is None or "Les propositions de l'IA n'ont pas pu être chargées." not in m["erreur"]:
+            res.echec("sous-onglet Propositions IA", vue_panne, "la panne dit « %s », attendu « Les propositions de l'IA n'ont pas pu être chargées. »" % m["erreur"])
+        if m["reessayer"] is not None and m["reessayer"] < 43.5:
+            res.echec("sous-onglet Propositions IA", vue_panne, "« Réessayer » mesure %s px de haut (44 px au moins)" % m["reessayer"])
+        page.evaluate("() => { window.__HARNESS_FAIL = null; }")
+        if cliquer(page, res, vue_panne, "#view .acc-reessayer", "« Réessayer »"):
+            attendre(page)
+            if page.evaluate(JS_LISTE_ACTIONS)["texte"].strip() != "Aucune question à relire.":
+                res.echec("sous-onglet Propositions IA", vue_panne, "« Réessayer » ne remet pas la liste (« Aucune question à relire. » attendu)")
+    page.evaluate("() => { window.__HARNESS_FAIL = null; }")
+    res.console.clear()   # le « console.error » de la page est le but de l'essai : elle journalise la lecture qui échoue, l'écran dit la panne
+    vider_console(res, vue_panne)
+    # 3. Des brouillons à relire : la ligne d'Aujourd'hui, le sous-onglet, la pastille.
+    recharger_au_banc(page, "#/home", propositions="1")
+    attendre_accueil(page)
+    vue_ligne = vue + "/ligne-d-aujourdhui"
+    res.vues += 1
+    lignes = page.evaluate("() => [...document.querySelectorAll('#view [data-zone=\"a-traiter\"] a.acc-ligne')].map((a) => [a.innerText.replace(/\\s+/g, ' ').trim(), a.getAttribute('href')])")
+    attendues = [["5 signalements sur des QCM", "#/themes"], ["3 questions proposées par l'IA", "#/themes"]]
+    if lignes != attendues:
+        res.echec("ligne d'Aujourd'hui", vue_ligne, "la carte « À traiter » dit %s, attendu %s" % (lignes, attendues))
+        return
+    if not cliquer(page, res, vue_ligne, '#view [data-zone="a-traiter"] a.acc-ligne:has-text("proposées par l\'IA")', "ligne « 3 questions proposées par l'IA »"):
+        return
+    attendre(page)
+    page.wait_for_selector("#view .acc-ligne-action", timeout=6000)
+    m = page.evaluate(JS_LISTE_ACTIONS)
+    if route_courante(page) != "themes" or m["actif"] != "Propositions IA":
+        res.echec("ligne d'Aujourd'hui", vue_ligne, "la ligne mène à #/%s, sous-onglet « %s » ; attendu Cours et QCM > Propositions IA" % (route_courante(page), m["actif"]))
+    verifier_liste_d_actions(res, vue_ligne, sc, m, [(t, d) for t, d in LIGNES_PROPOSITIONS_DU_BANC], "3 questions à relire", "Questions proposées par l'IA", "sous-onglet Propositions IA")
+    if [x["bouton"] for x in m["lignes"]] != ["Relire"] * 2:
+        res.echec("sous-onglet Propositions IA", vue_ligne, "les boutons sont %s, attendu « Relire » sur chaque ligne" % [x["bouton"] for x in m["lignes"]])
+    lire_a_traiter_de_la_barre(page, res, vue_ligne, sc, "propositions")
+    # 4. « Relire » ouvre l'éditeur du QCM ; rejeter une question, fermer : tout se met à jour.
+    vue_editeur = vue + "/editeur"
+    res.vues += 1
+    if not cliquer(page, res, vue_editeur, '#view .acc-ligne-action button[aria-label="Relire : Thème 22 · Feux du véhicule"]', "bouton « Relire » du thème 22"):
+        return
+    try:
+        page.wait_for_selector(".qcm-editor", timeout=4000)
+        page.wait_for_function("() => [...document.querySelectorAll('.qcm-editor button')].some((b) => b.textContent.trim() === 'Rejeter')", timeout=4000)
+    except DelaiDepasse:
+        res.echec("sous-onglet Propositions IA", vue_editeur, "« Relire » n'ouvre pas l'éditeur du QCM du thème 22 avec ses brouillons")
+        return
+    titre = page.evaluate("() => (document.querySelector('.qcm-editor .qcm-head-title') || {}).textContent || ''")
+    if "Feux du véhicule" not in titre:
+        res.echec("sous-onglet Propositions IA", vue_editeur, "l'éditeur ouvert est « %s », attendu celui du thème 22 (Feux du véhicule)" % titre)
+    page.evaluate("() => { window.confirm = () => true; }")
+    if not cliquer(page, res, vue_editeur, ".qcm-editor button:text-is('Rejeter')", "« Rejeter » d'un brouillon"):
+        return
+    page.wait_for_timeout(500)
+    fermer = page.locator(".qcm-editor .qcm-close").first.bounding_box()
+    if not fermer or fermer["width"] < 43.5 or fermer["height"] < 43.5:
+        res.echec("sous-onglet Propositions IA", vue_editeur, "la fermeture de l'éditeur mesure %s (44 px au moins)" % (fermer and "%dx%d px" % (fermer["width"], fermer["height"])))
+    if not cliquer(page, res, vue_editeur, ".qcm-editor .qcm-close", "fermeture de l'éditeur"):
+        return
+    page.wait_for_timeout(300)
+    if page.locator(".qcm-editor").count():
+        res.echec("sous-onglet Propositions IA", vue_editeur, "l'éditeur reste ouvert après sa fermeture")
+    vue_retour = vue + "/retour-de-l-editeur"
+    res.vues += 1
+    try:
+        page.wait_for_function("() => /2 questions à relire/.test((document.querySelector('#view .acc-compte') || {}).textContent || '')", timeout=4000)
+    except DelaiDepasse:
+        res.echec("sous-onglet Propositions IA", vue_retour, "après le rejet et la fermeture de l'éditeur, la liste dit « %s », attendu « 2 questions à relire »" % page.evaluate(JS_LISTE_ACTIONS)["compte"])
+    m = page.evaluate(JS_LISTE_ACTIONS)
+    attendues = [("Thème 23 · Pneumatiques", "1 question à relire, proposée le 12/10/2026"), ("Thème 22 · Feux du véhicule", "1 question à relire, proposée le 21/10/2026")]
+    verifier_liste_d_actions(res, vue_retour, sc, m, attendues, "2 questions à relire", "Questions proposées par l'IA", "sous-onglet Propositions IA")
+    lire_a_traiter_de_la_barre(page, res, vue_retour, sc, "propositions-relue")
+    vider_console(res, vue_retour)
+    # À froid : l'app s'ouvre sur le sous-onglet mémorisé (Propositions IA), dont la liste se charge d'elle-même (la base du banc repart de ses trois brouillons).
+    vue_froid = vue + "/a-froid"
+    recharger_au_banc(page, "#/themes", propositions="1")
+    res.vues += 1
+    try:
+        page.wait_for_selector("#view .acc-ligne-action", timeout=6000)
+    except DelaiDepasse:
+        res.echec("sous-onglet Propositions IA", vue_froid, "ouvert à froid sur le sous-onglet mémorisé, la liste ne se charge pas : %s" % page.evaluate(JS_LISTE_ACTIONS)["texte"][:80])
+    else:
+        m = page.evaluate(JS_LISTE_ACTIONS)
+        if m["actif"] != "Propositions IA" or m["compte"] != "3 questions à relire":
+            res.echec("sous-onglet Propositions IA", vue_froid, "à froid : sous-onglet %s, compte « %s » (attendu « 3 questions à relire »)" % (m["actif"], m["compte"]))
+    vider_console(res, vue_froid)
+    # Le décompte des signalements échoue, celui des propositions se lit : la carte d'Aujourd'hui garde sa ligne et DIT la panne (elle ne la cache pas).
+    vue_panne_compte = vue + "/aujourdhui-un-compte-illisible"
+    recharger_au_banc(page, "#/home", propositions="1", panne="qcm_signalements")
+    attendre_accueil(page)
+    res.vues += 1
+    carte = page.evaluate(r"""() => { const c = document.querySelector('#view [data-zone="a-traiter"]');
+        return { lignes: [...c.querySelectorAll('a.acc-ligne')].map((a) => a.innerText.replace(/\s+/g, ' ').trim()),
+                 alertes: [...c.querySelectorAll('.acc-erreur[role="alert"]')].map((p) => p.textContent.trim()) }; }""")
+    if carte["lignes"] != ["3 questions proposées par l'IA"] or carte["alertes"] != ["Le décompte des signalements n'a pas pu être lu."]:
+        res.echec("ligne d'Aujourd'hui", vue_panne_compte, "signalements illisibles : la carte « À traiter » dit %s et %s, attendu la ligne « 3 questions proposées par l'IA » et l'alerte « Le décompte des signalements n'a pas pu être lu. »" % (carte["lignes"], carte["alertes"]))
+    res.console.clear()   # le « console.error » de la page est le but de l'essai : elle journalise la lecture qui échoue, l'écran dit la panne
+    vider_console(res, vue_panne_compte)
+    recharger_au_banc(page, "#/home", panne="")
 
 
 def jouer_allume(page, res, sc, options):
@@ -3757,6 +5673,8 @@ def jouer_allume(page, res, sc, options):
         verifier_planning_semaine(page, res, sc)
         if sc.espace == "equipe":
             verifier_bouton_benevoles(page, res, sc)
+        # Lot 2B, tâche 5 : la grille de la semaine ; les cas qui modifient le banc (liste mémorisée, semaines voisines, verrou) pour les parcours ordinaires.
+        verifier_planning_grille(page, res, sc, complet=not (sc.modules or sc.ressources_fermees or sc.voir_en_tant_que or sc.a_traiter))
     if res.coquille:
         verifier_accueil(page, res, sc)
         verifier_bandeau_emargement(page, res, sc)
@@ -3771,6 +5689,42 @@ def jouer_allume(page, res, sc, options):
         verifier_menus(page, res, sc, options)
         if not options.get("sans_menus"):
             verifier_retour_arriere(page, res, sc)
+    verifier_lecteur(page, res, sc, options)
+    # Lot 2B, tâche 3 : les cas limites de l'Accueil du stagiaire rechargent le banc (une autre date, des pannes) et la signature le modifie : en dernier.
+    if res.coquille and sc.espace == "stagiaire" and not (sc.modules or sc.ressources_fermees or sc.voir_en_tant_que):
+        if sc.largeur == 375:
+            jouer_accueil_du_stagiaire(page, res, sc)
+        if sc.largeur in (375, 1280):
+            jouer_signature_de_l_accueil(page, res, sc)
+        if sc.largeur == 375:
+            jouer_planning_etroit(page, res, sc)
+    # Lot 2B, tâche 4 : de même pour Aujourd'hui du formateur (la signature n'existe que pour qui a une fiche de stagiaire).
+    if res.coquille and sc.espace == "equipe" and not (sc.modules or sc.ressources_fermees or sc.voir_en_tant_que or sc.a_traiter):
+        if sc.largeur == 375:
+            jouer_aujourdhui_cas_limites(page, res, sc)
+        if sc.largeur in (375, 1280) and res.profil_stagiaire:
+            jouer_signature_d_aujourdhui(page, res, sc)
+    # Lot 2B, tâche 6 : Cours et QCM, sous-onglet QCM du stagiaire (absent quand le module « qcm » est fermé) et Propositions IA de l'équipe. Ils rechargent le banc ou le
+    # modifient (une tentative de plus, un brouillon rejeté) : en dernier.
+    if res.coquille and not (sc.ressources_fermees or sc.voir_en_tant_que or sc.a_traiter):
+        if sc.espace == "stagiaire" and sc.modules == "depart":
+            verifier_qcm_ferme(page, res, sc)
+        elif sc.espace == "stagiaire" and not sc.modules and sc.largeur in (375, 1280):
+            jouer_qcm_du_stagiaire(page, res, sc)
+        elif sc.espace == "equipe" and not sc.modules and sc.largeur in (375, 1280):
+            jouer_propositions_ia(page, res, sc)
+    # Lot 2B, tâche 7 : Mon suivi aux libellés clairs (le compte du dossier recharge le banc et l'écrit : en dernier) ; la fiche d'un stagiaire chez l'équipe, inchangée.
+    if res.coquille and not (sc.ressources_fermees or sc.voir_en_tant_que or sc.a_traiter or sc.sans_droits):
+        if sc.espace == "stagiaire" and sc.modules == "depart":
+            verifier_resultats_fermes(page, res, sc)
+        elif not sc.modules and sc.largeur in (375, 1280):
+            if sc.espace == "equipe":
+                verifier_fiche_de_l_equipe(page, res, sc)
+            if res.profil_stagiaire:
+                jouer_mon_suivi(page, res, sc)
+    # Lot 2B, tâche 8 : la page CCP2 ouverte sur le parcours, pour chaque rôle (les cas sans dates rechargent le banc : en dernier).
+    if res.coquille and not (sc.modules or sc.ressources_fermees or sc.voir_en_tant_que or sc.a_traiter or sc.sans_droits) and sc.largeur in (375, 1280):
+        jouer_ccp2(page, res, sc)
 
 
 def focus_garde(page, res, vue, geste):
@@ -3839,6 +5793,8 @@ def jouer_voir_en_tant_que(page, res, sc, options):
         if vu:
             verifier_assistant_sous_bandeau(page, res, sc_vu, "%s/%s/assistant" % (sc.nom, nom_vu))
         parcourir_entrees(page, res, sc_vu, regles["entrees"], options, avec_sous_vues=False)
+        if vu == "stagiaire":
+            verifier_accueil_voir_en_tant_que_stagiaire(page, res, sc_vu, "%s/%s/accueil" % (sc.nom, nom_vu))
 
 
 def verifier_assistant_sous_bandeau(page, res, sc, vue):
@@ -3869,11 +5825,17 @@ def verifier_assistant_sous_bandeau(page, res, sc, vue):
 
 
 def jouer_agenda_vide(page, res, sc):
-    """Accueil d'un formateur quand plus aucun événement n'est à venir (la date du banc recule après le dernier) : la liste le dit et dit où en ajouter,
-    « Planning, Dates clés » avec la nouvelle navigation, « l'onglet Calendrier » avec celle de main ; la carte « Prochain événement majeur » n'y est pas."""
+    """Accueil d'un formateur quand plus aucun événement n'est à venir (la date du banc recule après le dernier) : avec l'ancienne navigation, la liste le dit et dit où
+    en ajouter (« l'onglet Calendrier ») et la carte « Prochain événement majeur » n'y est pas ; avec la nouvelle, Aujourd'hui ne lit pas l'agenda et n'en montre rien."""
     vue = "%s/accueil" % sc.nom
     m = ouvrir_accueil(page, res, vue)
     if m is None:
+        return
+    if sc.passe == "allume":
+        # Aujourd'hui (lot 2B, tâche 4) ne lit pas l'agenda : ni liste, ni carte, ni phrase sur l'agenda vide ; la page se pose comme un autre jour.
+        if m["agenda"] or m["carte"] or page.evaluate("() => !!document.querySelector('#view .home-empty-line')"):
+            res.echec("accueil, agenda vide", vue, "Aujourd'hui montre l'agenda (liste %s, carte %s) : la page n'en lit aucun" % (m["agenda"], bool(m["carte"])))
+        vider_console(res, vue)
         return
     attendu = "Aucun événement à venir. " + ("Ajoute-en depuis Planning, Dates clés." if sc.passe == "allume" else "Ajoute-en depuis l'onglet Calendrier.")
     dit = page.evaluate("() => { const e = document.querySelector('#view .home-empty-line'); return e ? e.textContent.trim() : null; }")
@@ -4025,12 +5987,20 @@ def jouer_eteint(page, res, sc, options):
     verifier_ccp2(page, res, sc)
     verifier_accueil_eteint(page, res, sc)
     verifier_planning_eteint(page, res, sc)
+    verifier_planning_grille_eteint(page, res, sc)
     if sc.role == "stagiaire":
         verifier_notes_eteint(page, res, sc)
+    # Lot 2B, tâche 7 : éteint, Mon espace et la fiche d'un stagiaire chez l'équipe gardent les parties de main.
+    if sc.largeur in (375, 1280) and not sc.voir_en_tant_que and not sc.agenda_vide:
+        if sc.role in ("stagiaire", "fondateur"):
+            verifier_mon_espace_eteint(page, res, sc)
+        if sc.role in ("prof", "fondateur"):
+            verifier_fiche_de_l_equipe(page, res, sc)
     verifier_bandeau_emargement(page, res, sc)
     if sc.role in ("prof", "fondateur"):
         verifier_benevoles_eteint(page, res, sc)
     verifier_barre_des_jours(page, res, sc)
+    verifier_lecteur(page, res, sc, options)
 
 
 def jouer_scenario(navigateur, url, sc, options):
@@ -4051,6 +6021,8 @@ def jouer_scenario(navigateur, url, sc, options):
             jouer_case_du_fondateur(page, res, sc)
         elif sc.ressources_fermees:
             jouer_ressources_fermees(page, res, sc, options)
+        elif sc.compte == "direction":
+            jouer_direction(page, res, sc)
         elif sc.passe == "allume":
             jouer_allume(page, res, sc, options)
         else:
@@ -4111,9 +6083,7 @@ def lister(groupes, limite):
         print("    - ... et %d autre(s) cas (--tout pour les lister)" % (len(groupes) - len(montres)))
 
 
-ENTETES_AVERTISSEMENTS = {
-    "dette ouverte, lecteur de cours": "dette ouverte, lecteur de cours (ruling R52) : défilement de côté du sommaire ou d'un tableau d'un cours, hors du banc, à corriger au lot 2B (avertissement sans échec)",
-}
+ENTETES_AVERTISSEMENTS = {}
 
 
 def imprimer_rapport(resultats, globaux, tout, debut):

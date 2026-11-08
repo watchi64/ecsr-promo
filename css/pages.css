@@ -1,0 +1,507 @@
+/* ============================================================
+   Pages de la nouvelle navigation (refonte, lot 2B)
+   Accueil du stagiaire : cartes, journée, à-faire, pied de liens. Les classes reprennent la maquette
+   (.today, .slot, .card, .foot-links) sous le préfixe acc- ; couleurs, rayons et polices : les jetons de
+   css/style.css, rien d'écrit en dur. L'en-tête (pastille de date, salutation) garde les classes
+   home-* de l'Accueil d'avant : c'est la signature de l'app.
+   Tailles : téléphone sous 700 px, tablette de 700 à 1079 px, ordinateur au-delà. Rien ne défile de côté.
+   ============================================================ */
+
+/* La grille : l'ordre du DOM est celui du téléphone (journée, à faire, rendez-vous, nouveauté). */
+.acc-grille {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+  margin-bottom: 1.5rem;
+  align-items: start;
+}
+@media (min-width: 700px) {
+  .acc-grille { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .acc-heros, .acc-carte[data-zone="afaire"] { grid-column: 1 / -1; }
+}
+@media (min-width: 1080px) {
+  /* La journée à gauche sur deux colonnes, le rendez-vous et la nouveauté empilés à droite, l'à-faire dessous. */
+  .acc-grille { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .acc-heros { grid-column: 1 / span 2; grid-row: 1 / span 2; }
+  .acc-carte[data-zone="afaire"] { grid-column: 1 / -1; grid-row: 3; }
+}
+
+.acc-carte {
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  padding: 18px 20px;
+  min-width: 0;
+}
+.acc-heros { border-color: var(--line-strong); }
+@media (max-width: 699.98px) {
+  .acc-carte { padding: 16px; }
+}
+
+/* Le lien passe à la ligne sous le titre quand la carte est trop étroite (320 px) : ni titre coupé, ni lien rogné. */
+.acc-carte-tete { display: flex; flex-wrap: wrap; align-items: center; gap: 0 10px; margin: 0 0 12px; min-height: 28px; }
+.acc-carte-tete h2 {
+  margin: 0;
+  font-family: var(--font);
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+.acc-carte-ico { display: inline-flex; color: var(--accent); }
+.acc-carte-ico svg { width: 20px; height: 20px; }
+
+/* Lien « Ouvrir le planning », « Tout voir », « Dates clés » : à droite de l'en-tête de la carte. */
+.acc-plus {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 40px;
+  color: var(--accent);
+  font-size: 0.88rem;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.acc-plus svg { width: 16px; height: 16px; }
+.acc-plus:hover { text-decoration: underline; }
+@media (max-width: 699.98px) {
+  .acc-plus { min-height: 44px; }
+}
+
+.acc-corps > p { margin: 0; }
+.acc-corps > p + p { margin-top: 4px; }
+
+/* La journée : une rangée par demi-journée, l'horaire à gauche, ce qui est prévu à droite. */
+.acc-journee { display: flex; flex-direction: column; }
+.acc-creneau {
+  display: grid;
+  grid-template-columns: 136px minmax(0, 1fr);
+  gap: 16px;
+  padding: 14px 0;
+  border-top: 1px solid var(--line-faint);
+}
+.acc-creneau:first-child { border-top: 0; padding-top: 0; }
+.acc-quand { font-family: var(--font-mono); font-size: 0.78rem; line-height: 1.4; color: var(--text-muted); }
+.acc-quand b {
+  display: block;
+  font-family: var(--font);
+  font-size: 0.85rem;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--text);
+}
+.acc-quand span { display: block; }
+@media (max-width: 699.98px) {
+  .acc-creneau { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+  .acc-quand b, .acc-quand span { display: inline; }
+  .acc-quand b { margin-right: 8px; }
+}
+
+.acc-carte-jour + .acc-carte-jour { margin-top: 14px; }
+.acc-carte-jour b { display: block; font-size: 1rem; font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; }
+.acc-carte-jour p { margin: 4px 0 0; color: var(--text-soft); overflow-wrap: anywhere; }
+.acc-carte-jour .acc-note { color: var(--text-muted); font-size: 0.9rem; }
+.acc-quoi > p.muted { margin: 0; }
+
+/* « Tu passes au tableau », « Tu conduis », « En salle » : l'étiquette de la personne sur la carte. */
+.acc-puce {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  margin-top: 8px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.acc-actions { margin-top: 12px; }
+.acc-actions .btn { min-height: 44px; }
+.acc-actions .btn svg, .acc-signe svg { width: 16px; height: 16px; flex: none; }
+.acc-signe {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 12px 0 0;
+  color: var(--c-go);
+  font-weight: 600;
+}
+.acc-carte-jour + .acc-signe, .acc-carte-jour + .acc-actions { margin-top: 12px; }
+
+.acc-vide { color: var(--text-soft); }
+.acc-erreur { color: var(--c-stop); }
+.acc-reessayer {
+  min-height: 44px;
+  padding: 0 4px;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* À faire : une ligne par tâche, la ligne entière est le lien. */
+.acc-lignes { display: flex; flex-direction: column; }
+.acc-ligne {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  padding: 12px 0;
+  border-top: 1px solid var(--line-faint);
+  color: inherit;
+  text-decoration: none;
+}
+.acc-ligne:first-child { border-top: 0; padding-top: 2px; }
+.acc-ligne-ico {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  background: var(--bg-subtle);
+  color: var(--accent);
+}
+.acc-ligne-ico svg { width: 20px; height: 20px; }
+.acc-ligne-texte { flex: 1; min-width: 0; }
+.acc-ligne-texte b { display: block; font-size: 0.95rem; font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; }
+.acc-ligne-texte span { display: block; margin-top: 2px; color: var(--text-muted); font-size: 0.85rem; line-height: 1.35; }
+.acc-ligne-fin { display: inline-flex; flex: none; color: var(--text-muted); }
+.acc-ligne-fin svg { width: 16px; height: 16px; }
+.acc-ligne:hover b { color: var(--accent); }
+
+/* Prochain rendez-vous. */
+.acc-rdv { font-size: 0.98rem; color: var(--text-soft); overflow-wrap: anywhere; }
+.acc-rdv b { color: var(--text); }
+.acc-rdv-decompte { color: var(--text-muted); font-size: 0.9rem; }
+
+/* Nouveauté : la carte de la Nouveauté s'aplatit dans la carte de l'Accueil (pas de boîte dans la boîte). */
+.acc-nouveaute .nv-carte { background: transparent; border: 0; border-radius: 0; padding: 0; }
+.acc-nouveaute .nv-guide { border-top: 0; padding-top: 0; margin-top: 0.6rem; }
+
+/* Pied de liens : ce qu'on cherche rarement mais qu'on doit trouver sans deviner. */
+.acc-liens {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 20px;
+  padding-top: 4px;
+  border-top: 1px solid var(--line);
+}
+.acc-lien-pied {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font-family: inherit;
+  font-size: 0.88rem;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+.acc-lien-pied svg { width: 16px; height: 16px; }
+.acc-lien-pied:hover { text-decoration: underline; }
+
+/* ============================================================
+   Aujourd'hui du formateur (lot 2B) : mêmes cartes que l'Accueil du stagiaire, une grille à elle.
+   ============================================================ */
+
+/* Téléphone : l'ordre du DOM (émargement, à traiter, au tableau, en voiture, à suivre). Tablette : deux colonnes, la
+   dernière carte sur toute la largeur. Ordinateur : émargement, au tableau, en voiture sur trois colonnes, puis à
+   traiter et à suivre sur deux ; sans feuille d'émargement (promo où il est éteint, ou direction), au tableau et en
+   voiture se partagent la première ligne ; sans À traiter (direction, siège), à suivre prend toute la dernière. */
+@media (min-width: 700px) {
+  .auj-grille > [data-zone="a-suivre"] { grid-column: 1 / -1; }
+}
+@media (min-width: 1080px) {
+  .auj-grille { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .auj-grille > .acc-carte { grid-column: span 2; }
+  .auj-grille > [data-zone="emargement"] { order: 1; }
+  .auj-grille > [data-zone="tableau"] { order: 2; }
+  .auj-grille > [data-zone="voiture"] { order: 3; }
+  .auj-grille > [data-zone="a-traiter"] { order: 4; grid-column: span 3; }
+  .auj-grille > [data-zone="a-suivre"] { order: 5; grid-column: span 3; }
+  .auj-sans-feuille > [data-zone="tableau"], .auj-sans-feuille > [data-zone="voiture"] { grid-column: span 3; }
+  .auj-sans-traiter > [data-zone="a-suivre"] { grid-column: 1 / -1; }
+}
+
+/* Émargement : « 2 sur 6 », son repère, la jauge, ceux qui attendent, les boutons. */
+.acc-em-tete { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; }
+.acc-kpi { margin: 0; font-size: 1.6rem; font-weight: 600; line-height: 1.2; }
+.acc-kpi .muted { font-size: 0.9rem; font-weight: 400; }
+.acc-kpi-vide { font-size: 1.1rem; color: var(--text-soft); }
+.acc-jauge {
+  height: 8px;
+  margin: 10px 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--bg-subtle);
+  overflow: hidden;
+}
+.acc-jauge i { display: block; height: 100%; background: var(--accent); }
+.acc-attente { margin: 0; color: var(--text-soft); overflow-wrap: anywhere; }
+.auj-grille .acc-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.auj-grille .acc-attente + .acc-actions { margin-top: 12px; }
+
+/* Repères : « Ouverte » en vert, « À suivre » par le jeton d'avertissement (jamais en rouge). */
+.acc-repere {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  min-height: 26px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: var(--bg-subtle);
+  color: var(--text-soft);
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+.acc-repere-ok { background: var(--c-go-soft); color: var(--c-go); }
+.acc-repere-suivre { background: var(--c-wait-soft); color: var(--c-wait); }
+
+/* ============================================================
+   Planning en grille (lot 2B) : la semaine en colonnes de jours, Matin et Après-midi en lignes, et la bascule
+   Grille / Liste. Ordinateur et tablette (700 px et plus) : la grille. Téléphone : la bande de cinq jours puis le jour
+   choisi ; les deux formes sont dans le DOM, une seule est affichée, pour suivre une rotation d'écran.
+   ============================================================ */
+.wsem { margin: 0 0 1.5rem; scroll-margin-top: calc(var(--haut-entete) + 12px); }
+.wtel { display: none; }
+
+.wgrid {
+  display: grid;
+  grid-template-columns: auto repeat(5, minmax(0, 1fr));
+  gap: 6px;
+}
+.wg-day {
+  text-align: center;
+  padding: 8px 4px;
+  border-radius: var(--r);
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--text-soft);
+}
+.wg-day small, .daystrip small {
+  display: block;
+  font: 500 0.72rem/1.3 var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+.wg-day.auj { background: var(--accent-soft); color: var(--accent-strong); }
+.wg-day.auj small { color: var(--accent-strong); }
+.wg-half {
+  align-self: center;
+  padding-right: 6px;
+  font: 500 0.72rem/1.3 var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+.wg-cell {
+  min-width: 0;
+  min-height: 112px;
+  padding: 10px;
+  border-radius: var(--r-lg);
+  border: 1px solid var(--line);
+  background: var(--bg-elev);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.wg-cell.auj { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.wg-repos { align-items: center; justify-content: center; text-align: center; background: var(--bg-subtle); color: var(--text-soft); font-weight: 500; overflow-wrap: anywhere; }
+
+/* Une carte du planning dans une case : l'étiquette de son genre, le sujet, les personnes, puis « Toi au tableau ». */
+.wg-carte { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.wg-carte b { font-size: 0.86rem; line-height: 1.3; overflow-wrap: anywhere; }
+.wg-sub { font-size: 0.8rem; color: var(--text-muted); line-height: 1.35; overflow-wrap: anywhere; }
+.wg-vide { font-size: 0.8rem; color: var(--text-muted); }
+.wg-tag {
+  align-self: flex-start;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: var(--bg-subtle);
+  color: var(--text);
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1;
+}
+.wg-genre-salle { background: var(--act-peda); }
+.wg-genre-voiture { background: var(--act-voiture); }
+.wg-genre-cours { background: var(--act-cours); }
+.wg-genre-controle { background: var(--act-controle); }
+.wg-moi {
+  align-self: flex-start;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  font-size: 0.78rem;
+  font-weight: 500;
+  line-height: 1.25;
+}
+
+/* La bascule Grille / Liste : sur sa propre ligne à droite, sous les sous-onglets (hors de leur tablist). */
+.plan-bar { display: flex; justify-content: flex-end; margin-bottom: 0.75rem; }
+.vue-toggle { display: inline-flex; padding: 3px; gap: 2px; border-radius: var(--r); background: var(--bg-subtle); }
+.subtabs-bar + .plan-bar { margin-top: -0.6rem; }
+.vue-toggle button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--text-soft);
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+.vue-toggle button[aria-pressed="true"] { background: var(--bg-elev); color: var(--text); font-weight: 600; box-shadow: 0 0 0 1px var(--line); }
+.vue-toggle svg { width: 16px; height: 16px; flex: none; }
+.vue-court { display: none; }
+
+@media (max-width: 699.98px) {
+  .wgrid { display: none; }
+  .wtel { display: block; }
+  .vue-long { display: none; }
+  .vue-court { display: inline; }
+}
+
+/* Téléphone, nouvelle navigation : la barre de la semaine (barre de main et du lot 2A) prend les cibles de 44 px de la page,
+   comme la bascule et la bande des jours juste en dessous. Les flèches deviennent carrées ; la date cède la place qu'elles
+   prennent (flex, sans largeur minimale) pour que date, flèches et « Cette semaine » tiennent encore sur une ligne à 375 px. */
+@media (max-width: 699.98px) {
+  body[data-nav="v2"] .week-bar-nav { gap: 6px; }
+  body[data-nav="v2"] .week-bar button { min-height: 44px; }
+  body[data-nav="v2"] .week-bar .btn.icon-only { min-width: 44px; justify-content: center; }
+  body[data-nav="v2"] .week-bar input[type="date"] { flex: 1 1 0; min-width: 0; min-height: 44px; }
+  /* Mon suivi, parties Livret EPCF et Dossier pro (et la fiche d'un stagiaire, même barre) : « Imprimer / PDF » et « Retour ». */
+  body[data-nav="v2"] .lv-toolbar .btn { min-height: 44px; }
+}
+
+/* Téléphone : la bande de cinq jours (cibles de 44 px et plus), puis le jour en carte. */
+.daystrip { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; margin-bottom: 12px; }
+.daystrip button {
+  position: relative;
+  min-height: 58px;
+  border-radius: var(--r);
+  border: 1px solid var(--line);
+  background: var(--bg-elev);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  color: var(--text);
+  font: inherit;
+  font-size: 1.05rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.daystrip button[aria-selected="true"] { background: var(--accent); border-color: transparent; color: var(--bg-elev); }
+.daystrip button[aria-selected="true"] small { color: var(--bg-elev); }
+.daystrip button.auj::after {
+  content: "";
+  position: absolute;
+  bottom: 6px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.daystrip button.auj[aria-selected="true"]::after { background: var(--bg-elev); }
+
+.wg-jour { background: var(--bg-elev); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 16px; }
+.wg-jour-tete { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin-bottom: 12px; }
+.wg-jour-tete h3 { margin: 0; font-family: var(--font); font-size: 1.05rem; font-weight: 600; }
+.wg-auj { padding: 2px 10px; border-radius: 999px; background: var(--accent-soft); color: var(--accent-strong); font-size: 0.8rem; font-weight: 500; }
+.wg-demi { display: flex; flex-direction: column; gap: 12px; }
+.wg-demi + .wg-demi { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--line); }
+.wg-demi h4 { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; margin: 0; font-size: 0.95rem; font-weight: 600; }
+.wg-demi h4 span { font: 500 0.78rem/1.3 var(--font-mono); color: var(--text-muted); }
+.wg-repos-tel { margin: 0; color: var(--text-soft); font-weight: 500; }
+
+/* Cours et QCM, sous-onglets QCM et Propositions IA : une liste dont chaque ligne porte son bouton. Même pastille d'icône,
+   même titre et même détail que les lignes-liens de l'Accueil ; le bouton garde 44 px. */
+.acc-compte { margin-left: auto; color: var(--text-muted); font-size: 0.88rem; white-space: nowrap; }
+.acc-corps > p.acc-intro { margin: 0 0 14px; color: var(--text-soft); font-size: 0.9rem; line-height: 1.45; }
+.acc-ligne-action { flex-wrap: wrap; }
+.acc-ligne-actions { display: inline-flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 8px; flex: none; }
+.acc-ligne-action .btn { min-height: 44px; min-width: 44px; padding: 0 16px; }
+.acc-ligne-puce {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  font-size: 0.8rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+/* Téléphone : le titre garde toute la largeur, repères et bouton passent dessous, alignés sur le texte. */
+@media (max-width: 699.98px) {
+  /* Le compte de la carte (« 3 questions à relire ») passe sous le titre, aligné sur lui, plutôt que rejeté à droite sur une ligne à part. */
+  .acc-compte { flex-basis: 100%; margin: 2px 0 0 30px; }
+  .acc-ligne-actions { flex-basis: 100%; justify-content: flex-start; padding-left: 50px; margin-top: -2px; }
+}
+.acc-ligne-action:hover b { color: inherit; }
+
+/* Mon suivi aux libellés clairs (lot 2B, tâche 7). Sommaire du téléphone : chaque ligne se lit comme une phrase, le nom de
+   la partie en tête, son état à sa suite (« Dossier pro : 2 exemples sur 6 ») ; le texte passe à la ligne, jamais coupé. */
+.fiche-ligne-texte { flex: 1; min-width: 0; font-size: 1rem; line-height: 1.35; overflow-wrap: break-word; }
+.fiche-ligne-texte .fiche-ligne-nom { font-weight: 600; }
+.fiche-ligne-texte .fiche-ligne-etat { font-size: inherit; }
+.fiche-sommaire-clair .fiche-ligne { min-height: 52px; }
+/* Résultats : le groupe « Moi / La classe » (même dessin que « Grille / Liste » du Planning) au-dessus de la vue choisie. */
+.res-bar { display: flex; margin: 0 0 1rem; }
+/* Téléphone, dans une partie : Mon suivi cache son en-tête (le retour « ‹ Mon suivi » le remplace, js/views/mon-suivi.js), mais
+   `.view-header { display: flex }` l'emportait sur l'attribut hidden : « Mon suivi » se lisait deux fois au-dessus de la partie. */
+body[data-nav="v2"] .view-header[hidden] { display: none; }
+/* Même cas : le retour, le titre de la partie et la partie se tiennent, au lieu des 2rem qui séparent ailleurs les blocs de la page. */
+body[data-nav="v2"] .ms-body.ms-body-partie { gap: 0.5rem; margin-top: 0.25rem; }
+body[data-nav="v2"] .ms-body.ms-body-partie > .fiche-titre { margin-top: 0.25rem; }
+
+/* Page CCP2 ouverte sur le parcours (lot 2B, tâche 8). Tes dates, les étapes, puis « L'épreuve en bref » repliée en bas : une carte
+   du même dessin que les étapes (pastille, titre, résumé), une icône à la place du numéro. Un chevron dit qu'elles s'ouvrent. */
+body[data-nav="v2"] .ccp2-etape > summary { grid-template-columns: 2.1rem minmax(0, 1fr) auto; }
+body[data-nav="v2"] .ccp2-etape-titre,
+body[data-nav="v2"] .ccp2-etape-bref { grid-column: 2; }
+.ccp2-chevron {
+  grid-column: 3;
+  grid-row: 1 / span 2;
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  color: var(--text-muted);
+  transition: transform 0.18s ease, background-color 0.18s ease, color 0.18s ease;
+}
+.ccp2-chevron svg { width: 20px; height: 20px; }
+.ccp2-etape > summary:hover .ccp2-chevron { background: var(--accent-soft); color: var(--accent-strong); }
+.ccp2-etape[open] > summary .ccp2-chevron { transform: rotate(180deg); color: var(--accent-strong); }
+body[data-nav="v2"] .ccp2-etape > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--r-lg); }
+@media (prefers-reduced-motion: reduce) { .ccp2-chevron { transition: none; } }
+/* L'épreuve : à distance des étapes, comme le titre des étapes l'est des dates. */
+.ccp2-epreuve-repliee { margin-top: 1.4rem; }
+.ccp2-epreuve-ico svg { width: 1.15rem; height: 1.15rem; }
+.ccp2-epreuve-repliee .ccp2-epreuve-points { margin-top: 0.2rem; }
+/* Sans dates (aucun événement CCP2, Calendrier fermé, lecture en échec), la section reste masquée : le titre des étapes suit
+   l'en-tête sans la marge prévue pour le séparer des dates. */
+body[data-nav="v2"] .view-header + .ccp2-dates[hidden] + .ccp2-etapes-titre { margin-top: 0; }

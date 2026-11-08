@@ -9,7 +9,7 @@ import {
 } from "../js/nav-rules.js";
 import { pagePersonnelle } from "../js/route-rules.js";
 import { MODULE_DE_ROUTE, ROUTES_SOCLE } from "../js/modules-data.js";
-import { lireAdresse } from "../js/route-rules.js";
+import { lireAdresse, ouvertureDeMonSuivi } from "../js/route-rules.js";
 import { icon } from "../js/icons.js";
 
 let n = 0;
@@ -36,7 +36,7 @@ eq(stag.map((e) => [e.libelle, e.icone]),
 eq(ids(eqp), ["home", "planning", "emargement", "stagiaires", "notes", "themes", "ccp2", "centre", "config"],
   "équipe : rien retiré par les modules");
 eq(eqp.map((e) => [e.libelle, e.icone]),
-  [["Accueil", "home"], ["Planning", "calendar"], ["Émargement", "clipboard"], ["Stagiaires", "users"],
+  [["Aujourd'hui", "home"], ["Planning", "calendar"], ["Émargement", "clipboard"], ["Stagiaires", "users"],
     ["Notes et examens", "edu"], ["Cours et QCM", "book"], ["CCP2", "target"], ["Indicateurs", "chart"],
     ["Réglages", "settings"]],
   "libellés et icônes de l'équipe");
@@ -50,6 +50,8 @@ eq(ids(entreesNavigation("equipe", { routeVisible: tout, emargementActif: true, 
 eq(ids(entreesNavigation("equipe", { routeVisible: tout, emargementActif: true, formateur: true })).includes("emargement"), true,
   "émargement allumé, formateur : l'entrée");
 eq(eqp.find((e) => e.id === "notes").court, "Notes", "libellé court de Notes");
+eq(barreTelephone("equipe", eqp).barre.map((e) => e.court), ["Aujourd'hui", "Planning", "Stagiaires", "Notes"],
+  "barre de l'équipe : la première case s'appelle Aujourd'hui");
 
 // 3. Barre du téléphone
 eq(ids(barreTelephone("equipe", eqp).barre), ["home", "planning", "stagiaires", "notes"], "barre équipe");
@@ -86,8 +88,11 @@ eq(redirectionV2(adresse("dashboard"), "equipe"),
   { hash: "#/planning", sousOnglet: { cle: "planning.subtab", valeur: "priorites" } }, "dashboard");
 eq(redirectionV2(adresse("ressources"), "stagiaire"),
   { hash: "#/themes", sousOnglet: { cle: "themes.subtab", valeur: "documents" } }, "ressources");
+// Lot 2B, tâche 7 : La classe est une vue de Résultats ; #/notes mène à #/mon-suivi/classe, qui ouvre Résultats sur cette vue.
 eq(redirectionV2(adresse("notes"), "stagiaire"),
-  { hash: "#/mon-suivi/classe", sousOnglet: null }, "notes du stagiaire");
+  { hash: "#/mon-suivi/classe", sousOnglet: null }, "notes du stagiaire : l'adresse porte la vue La classe, rien dans la mémoire");
+eq(ouvertureDeMonSuivi(lireAdresse(redirectionV2(adresse("notes"), "stagiaire").hash).partie), { partie: "resultats", vue: "classe" },
+  "Mon suivi lit la cible comme Résultats sur La classe, sans passer par la mémoire");
 eq(redirectionV2(adresse("notes"), "equipe"), null, "notes de l'équipe inchangées");
 // Réglages (la promo) est la page de l'équipe : le stagiaire qui ouvre #/config (lien d'une Nouveauté, favori,
 // pied de l'accueil) arrive sur ses préférences, la seule partie qui le concerne.

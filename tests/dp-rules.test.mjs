@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { CHAMPS_EXEMPLE, cleExemple, exempleRempli, exempleImprime,
-         rubriquesImprimees, rubriquesEdition, sommaire } from "../js/dp-rules.js";
+         rubriquesImprimees, rubriquesEdition, sommaire, exemplesRemplis } from "../js/dp-rules.js";
 
 // --- Clés de sérialisation ---
 assert.equal(cleExemple(1, 2, "taches"), "at1_ex2_taches");
@@ -73,5 +73,16 @@ assert.equal(rubriquesEdition(null).length, 12, "dossier nul : 12 rubriques en �
 assert.deepEqual(sommaire(null),
   [{ at: 1, n: 1, titre: "" }, { at: 2, n: 1, titre: "" }],
   "dossier nul : sommaire à deux entrées au titre vide");
+
+// --- Exemples remplis (de 0 à 6) : l'accueil du stagiaire les compte ---
+assert.equal(exemplesRemplis({}), 0, "dossier vide : 0");
+assert.equal(exemplesRemplis(null), 0, "dossier nul : 0");
+assert.equal(exemplesRemplis({ at1_ex1_titre: "Conduite" }), 1);
+assert.equal(exemplesRemplis({ at1_ex1_titre: "  ", at2_ex3_complement: "x" }), 1, "des espaces seuls ne comptent pas");
+assert.equal(exemplesRemplis({ at1_ex1_titre: "a", at1_ex1_taches: "b", at1_ex2_du: "c" }), 2, "plusieurs rubriques d'un même exemple = un exemple");
+const six = {};
+for (const at of [1, 2]) for (const n of [1, 2, 3]) six[cleExemple(at, n, "titre")] = "x";
+assert.equal(exemplesRemplis(six), 6, "tous remplis : 6");
+assert.equal(exemplesRemplis({ at3_ex1_titre: "x", at1_ex4_titre: "x" }), 0, "hors des 2 activités-types et des 3 exemples : ignoré");
 
 console.log("dp-rules : OK");

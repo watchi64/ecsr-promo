@@ -27,33 +27,33 @@
 // quand des nouveautés ne sont pas lues (sans chiffre : le nombre est sur la ligne « Nouveautés » du
 // menu du compte) et dit leur nombre dans le nom du bouton.
 // « À traiter » (équipe, majATraiter) : ce qui attend un formateur dans Cours et QCM, les signalements de QCM non
-// traités (js/a-traiter.js ; les propositions de l'IA s'y ajouteront au lot 2B), se montre en pastille chiffrée sur
+// traités (js/a-traiter.js ; les propositions de l'IA s'y ajoutent depuis le lot 2B), se montre en pastille chiffrée sur
 // l'entrée « Cours et QCM » (barre latérale, tiroir « Plus » ; data-nom-base garde son nom d'origine, data-a-traiter dit
 // le texte posé), en point sur « Plus » quand le téléphone range cette entrée dans le tiroir (ce point s'allume aussi quand
 // la pastille de « Signaler un problème », que le tiroir contient, est affichée), et en phrase en tête du tiroir. La barre
 // ne les attend jamais : ils sont lus après le montage, relus à chaque page affichée (au plus toutes les 30 secondes),
 // et un compte illisible ne montre ni pastille ni erreur.
 
-import { el } from "./utils.js?v=20261108c";
-import { icon, deco } from "./icons.js?v=20261108c";
-import { getProfile, fondateurHorsApercu } from "./auth-admin.js?v=20261108c";
-import { getPromoCourante } from "./db.js?v=20261108c";
-import { construirePastille } from "./promo-pastille.js?v=20261108c";
-import { routeMasquee, repereMasque, moduleVisible, moduleMasque } from "./modules-etat.js?v=20261108c";
-import { libellePastille } from "./nouveautes.js?v=20261108c";
+import { el } from "./utils.js?v=20261109a";
+import { icon, deco } from "./icons.js?v=20261109a";
+import { getProfile, fondateurHorsApercu } from "./auth-admin.js?v=20261109a";
+import { getPromoCourante } from "./db.js?v=20261109a";
+import { construirePastille } from "./promo-pastille.js?v=20261109a";
+import { routeMasquee, repereMasque, moduleVisible, moduleMasque } from "./modules-etat.js?v=20261109a";
+import { libellePastille } from "./nouveautes.js?v=20261109a";
 import {
   barreTelephone, entreeActive, entreeMasquee, initialesDe, prenomDe, libelleRole, nomDuBoutonCompte,
-} from "./nav-rules.js?v=20261108c";
-import { chargerATraiter } from "./a-traiter.js?v=20261108c";
+} from "./nav-rules.js?v=20261109a";
+import { chargerATraiter } from "./a-traiter.js?v=20261109a";
 import {
   ENTREE_A_TRAITER, resumeATraiter, nomAvecATraiter, phraseATraiter, pointSurPlus, nomDePlus,
-} from "./a-traiter-rules.js?v=20261108c";
-import { ouvrirFenetre, fermerFenetre, fenetreOuverte, rendreFocus } from "./nav-fenetre.js?v=20261108c";
-import { ouvrirMenuCompte } from "./menu-compte.js?v=20261108c";
-import { basculerAssistant, assistantOuvert, onAssistantChange } from "./chatbot.js?v=20261108c";
-import { ouvrirSignalement } from "./signalement.js?v=20261108c";
-import { etatSignalements, onSignalementsChange } from "./signalement-etat.js?v=20261108c";
-import { pastilleSignalement } from "./signalement-rules.js?v=20261108c";
+} from "./a-traiter-rules.js?v=20261109a";
+import { ouvrirFenetre, fermerFenetre, fenetreOuverte, rendreFocus } from "./nav-fenetre.js?v=20261109a";
+import { ouvrirMenuCompte } from "./menu-compte.js?v=20261109a";
+import { basculerAssistant, assistantOuvert, onAssistantChange } from "./chatbot.js?v=20261109a";
+import { ouvrirSignalement } from "./signalement.js?v=20261109a";
+import { etatSignalements, onSignalementsChange } from "./signalement-etat.js?v=20261109a";
+import { pastilleSignalement } from "./signalement-rules.js?v=20261109a";
 
 // Barre latérale repliée en colonne d'icônes : choix mémorisé sur l'appareil.
 const CLE_REPLIEE = "ecsr_nav_repliee";
@@ -207,6 +207,7 @@ onSignalementsChange(() => {
 // (majATraiter).
 let aTraiter = { signalements: null, propositionsIA: null };
 let lectureATraiter = false;
+let relireApresATraiter = false;   // une relecture demandée pendant une lecture : elle suit la lecture en cours
 let derniereLectureATraiter = -Infinity;
 // Relus à chaque page affichée, au plus toutes les 30 secondes (sur l'horloge de la page) : traiter un signalement
 // puis changer de page éteint la pastille sans recharger l'app.
@@ -216,7 +217,10 @@ const DELAI_RELECTURE_A_TRAITER_MS = 30 * 1000;
 // délai (chaque montage de la coquille relit). chargerATraiter ne rejette jamais : un compte dont la lecture échoue
 // vaut null, et la barre n'en montre ni pastille ni erreur.
 function relireATraiter({ force = false } = {}) {
-  if (!montee || montee.espace !== "equipe" || lectureATraiter) return;
+  if (!montee || montee.espace !== "equipe") return;
+  // Une lecture déjà en cours a commencé AVANT ce qui vient de changer (une question relue, un signalement classé) : elle
+  // peut rendre l'ancien compte. Le demander de force la fait suivre d'une seconde lecture.
+  if (lectureATraiter) { if (force) relireApresATraiter = true; return; }
   if (!force && performance.now() - derniereLectureATraiter < DELAI_RELECTURE_A_TRAITER_MS) return;
   lectureATraiter = true;
   chargerATraiter()
@@ -227,8 +231,12 @@ function relireATraiter({ force = false } = {}) {
     .finally(() => {
       lectureATraiter = false;
       derniereLectureATraiter = performance.now();
+      if (relireApresATraiter) { relireApresATraiter = false; relireATraiter({ force: true }); }
     });
 }
+// Les pages qui changent ce qui attend l'équipe (relecture d'une proposition de l'IA, signalement classé) le disent par cet
+// événement : la pastille se relit tout de suite, sans attendre le délai ni un changement de page.
+window.addEventListener("a-traiter-change", () => relireATraiter({ force: true }));
 
 // Une entrée qui peut porter la pastille (Cours et QCM chez l'équipe) garde son nom d'origine (data-nom-base) : la
 // pastille et le nom complet se posent et se retirent sans le perdre. Sa ligne du tiroir n'a pas d'aria-label : son nom

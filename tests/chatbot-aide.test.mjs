@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { AIDE_APP, consignesApp } from "../supabase/functions/chatbot/aide.mjs";
 import { entreesNavigation } from "../js/nav-rules.js";
 
@@ -58,7 +59,7 @@ test("nouvelle navigation : les anciens noms ne sont pas des destinations, ils r
   assert.match(anciensNoms, /Calendrier[^\n]*Planning, Dates clés/);
   assert.match(anciensNoms, /Ressources[^\n]*Cours et QCM, Documents/);
   assert.match(anciensNoms, /Mon espace[^\n]*Mon suivi/);
-  assert.match(anciensNoms, /Notes[^\n]*Mon suivi, La classe/);
+  assert.match(anciensNoms, /Notes[^\n]*Mon suivi, Résultats/);
   assert.match(anciensNoms, /Tableau de bord[^\n]*Indicateurs/);
 });
 
@@ -96,4 +97,21 @@ test("la fonction choisit les consignes d'après le champ navigation de la requ�
 test("l'app envoie la barre affichée avec chaque question", () => {
   const source = lire("../js/chatbot.js");
   assert.match(source, /corpsRequete\(histo, location\.hash, navigationV2Active\(\)\)/);
+});
+
+test("l'ancien guide ne bouge pas d'un octet (empreinte du 08/11, lot 2B)", () => {
+  assert.equal(createHash("sha256").update(AIDE_APP).digest("hex"),
+    "3b0c64b96dd0496a2c3f6d88713469364743ba0279f4cf66c7906211da292bb1");
+});
+
+test("lot 2B : le nouveau guide décrit Aujourd'hui, l'Accueil, la grille, les sous-onglets et Mon suivi", () => {
+  for (const nom of ["Aujourd'hui", "À traiter", "À suivre de près", "Propositions IA", "Résultats", "Grille", "Liste",
+    "le bouton « Ouvrir »", "Signer pour ce matin", "Signer pour cet après-midi", "À faire", "Prochain rendez-vous",
+    "L'épreuve en bref", "EPCF : 0 épreuve sur 2", "Livret EPCF (son livret officiel", "Dossier pro : 2 exemples sur 6", "Moi"]) {
+    assert.ok(avantAnciensNoms.includes(nom), nom);
+  }
+  assert.match(avantAnciensNoms, /bandeau en haut de l'app propose aussi « Signer » tant que la feuille du jour est ouverte/);
+  assert.match(anciensNoms, /Accueil[^\n]*Aujourd'hui/);
+  assert.match(anciensNoms, /Évolution[^\n]*Résultats/);
+  assert.ok(!avantAnciensNoms.includes("Évolution (graphe"), "Évolution n'est plus une partie");
 });

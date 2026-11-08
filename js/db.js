@@ -1,12 +1,12 @@
-import { createClient } from "../vendor/supabase-js-2.117.2.js?v=20261108c";
-import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261108c";
-import { compteDansEquite } from "./passage-rules.js?v=20261108c";
-import { messageErreurEnvoi } from "./signalement-rules.js?v=20261108c";
+import { createClient } from "../vendor/supabase-js-2.117.2.js?v=20261109a";
+import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261109a";
+import { compteDansEquite } from "./passage-rules.js?v=20261109a";
+import { messageErreurEnvoi } from "./signalement-rules.js?v=20261109a";
 import {
   ENTETE_PROMO, ENTETE_LECTURE_PROMO, promoDeLaRequete, doitPorterEntetePromo, choisirPromoInitiale, profilEffectif,
   separerChamps, CHAMPS_PROGRESSION, CHAMPS_EXAMEN, fusionnerProgression, fusionnerExamen,
-} from "./promo-rules.js?v=20261108c";
-import { ENTETE_APERCU, normaliserApercu, messageInvitation } from "./roles-rules.js?v=20261108c";
+} from "./promo-rules.js?v=20261109a";
+import { ENTETE_APERCU, normaliserApercu, messageInvitation } from "./roles-rules.js?v=20261109a";
 
 // Contexte de promo (spec multi-promo, C.1). La promo courante voyage dans l'en-tête
 // x-promo-id de chaque requête de données ; la base vérifie le droit et filtre.
@@ -833,6 +833,18 @@ export async function listBrouillonsIa(qcmId) {
     .from("qcm_ia_brouillons")
     .select("*")
     .eq("qcm_id", qcmId)
+    .eq("statut", "a_relire")
+    .order("created_at", { ascending: true });
+  if (error) throw error;
+  return data || [];
+}
+
+// Tous les brouillons à relire, du plus ancien au plus récent, avec le QCM qui les porte (id, thème, titre) : la liste
+// « Propositions IA » de Cours et QCM les range par QCM. Lecture réservée aux administrateurs (RLS de la table).
+export async function listBrouillonsIaARelire() {
+  const { data, error } = await supabase
+    .from("qcm_ia_brouillons")
+    .select("id, qcm_id, created_at, qcm:qcm_id(id, theme_id, titre)")
     .eq("statut", "a_relire")
     .order("created_at", { ascending: true });
   if (error) throw error;

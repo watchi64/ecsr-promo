@@ -4,13 +4,15 @@
 // Relu au démarrage, à chaque changement de page, au retour au premier plan et toutes
 // les 60 secondes quand l'app est visible. Aucune erreur affichée : ce n'est qu'un rappel.
 
-import { getEmargementsOuverts, signerEmargement, listStagiaires } from "./db.js?v=20261108c";
-import { el, clear, isoDate, toast } from "./utils.js?v=20261108c";
-import { isAuth, isAdmin, isProf, monStagiaireId } from "./auth-admin.js?v=20261108c";
-import { ouvrirSignature } from "./signature-pad.js?v=20261108c";
-import { libelleCreneau, heureLocale, adresseSeance, resumeSeance, deLaDemi } from "./emargement-rules.js?v=20261108c";
-import { jourLong, DEMI_LONG, nomComplet } from "./emargement-feuilles.js?v=20261108c";
-import { emargementActif } from "./emargement-etat.js?v=20261108c";
+import { getEmargementsOuverts, signerEmargement, listStagiaires } from "./db.js?v=20261109a";
+import { el, clear, isoDate, toast } from "./utils.js?v=20261109a";
+import { isAuth, isAdmin, isProf, monStagiaireId } from "./auth-admin.js?v=20261109a";
+import { ouvrirSignature } from "./signature-pad.js?v=20261109a";
+import { libelleCreneau, heureLocale, adresseSeance, resumeSeance, deLaDemi } from "./emargement-rules.js?v=20261109a";
+import { jourLong, DEMI_LONG, nomComplet } from "./emargement-feuilles.js?v=20261109a";
+import { emargementActif } from "./emargement-etat.js?v=20261109a";
+import { navigationV2Active } from "./nav-etat.js?v=20261109a";
+import { lireAdresse } from "./route-rules.js?v=20261109a";
 
 const INTERVALLE_MS = 60000;
 let initialise = false;
@@ -61,19 +63,35 @@ export function rafraichirBandeauEmargement() {
   return lecture;
 }
 
+// Sous la nouvelle navigation, la page d'accueil porte elle-même la feuille d'émargement : le stagiaire y signe dans la
+// rangée de la séance ouverte et y lit « Signé à ... », le formateur y lit la carte « Émargement » (et le fondateur qui a
+// une fiche de stagiaire, son bouton « Signer »). Le bandeau n'y double rien. Les autres pages, et l'ancienne
+// navigation partout, gardent le bandeau d'avant.
+function accueilPorteLaFeuille() {
+  return navigationV2Active() && lireAdresse(location.hash).route === "home";
+}
+
+// Les séances ouvertes aujourd'hui, lignes de présence comprises : ce que lit le bandeau, rendu à la page
+// d'Accueil pour ses boutons. Vide quand l'émargement est éteint pour la promo ou la personne absente ;
+// une erreur de lecture est laissée à l'appelant (une carte garde son erreur chez elle).
+export async function seancesDuJour() {
+  if (!isAuth() || !emargementActif()) return [];
+  return getEmargementsOuverts(isoDate(new Date()));
+}
+
 const ordreDemi = (s) => (s.demi_journee === "matin" ? 0 : 1);
 
 function dessiner(b, seances, actifs) {
   clear(b);
   b.className = "em-bandeau";
-  if (confirmation && Date.now() < confirmation.jusqua) {
+  if (confirmation && Date.now() < confirmation.jusqua && !accueilPorteLaFeuille()) {
     b.classList.add("em-bandeau-ok");
     b.appendChild(el("p", {}, `Émargement signé à ${confirmation.heure}. Merci !`));
     b.hidden = false;
     setTimeout(() => rafraichirBandeauEmargement(), confirmation.jusqua - Date.now() + 50);
     return;
   }
-  confirmation = null;
+  if (!(confirmation && Date.now() < confirmation.jusqua)) confirmation = null;
   const tries = [...seances].sort((a, z) => ordreDemi(a) - ordreDemi(z));
   const moi = monStagiaireId();
 
@@ -83,12 +101,12 @@ function dessiner(b, seances, actifs) {
       const l = s.lignes.find((x) => x.stagiaire_id === moi);
       return !l || (!l.signe_le && !l.absent);
     });
-    if (aSigner) {
+    if (aSigner && !accueilPorteLaFeuille()) {
       // Les horaires, à part : la nouvelle navigation les masque sur téléphone, pour une seule ligne (css/navigation.css).
       b.appendChild(el("p", {}, el("strong", {}, `Émargement ${deLaDemi(aSigner.demi_journee)} ouvert`),
         el("span", { class: "em-bandeau-detail" }, ` (${libelleCreneau(aSigner)})`)));
       b.appendChild(el("button", { class: "btn small primary", type: "button",
-        onClick: () => signer(aSigner, moi) }, "Signer"));
+        onClick: () => signerSeance(aSigner, moi) }, "Signer"));
       b.hidden = false;
       return;
     }
@@ -102,8 +120,8 @@ function dessiner(b, seances, actifs) {
     }
   }
 
-  // Formateur : rappel, sauf sur la page Émargement elle-même.
-  if (isAdmin() && tries.length) {
+  // Formateur : rappel, sauf sur la page Émargement elle-même et sur l'accueil qui porte la carte.
+  if (isAdmin() && tries.length && !accueilPorteLaFeuille()) {
     const s = tries[0];
     const adresse = adresseSeance(s.jour, s.demi_journee);
     if (location.hash.startsWith("#/emargement")) { b.hidden = true; return; }
@@ -121,9 +139,13 @@ function dessiner(b, seances, actifs) {
   b.hidden = true;
 }
 
-async function signer(seance, moi) {
-  if (signatureOuverte) return;
+// Ouvre la fenêtre de signature de la séance. `true` quand la signature est enregistrée (alors l'événement
+// « emargement-signe » part sur window, pour qu'une page qui montre la séance se redessine), `false` si la
+// personne renonce, ou si une signature est déjà ouverte, ou si l'enregistrement échoue (un message le dit).
+export async function signerSeance(seance, moi) {
+  if (signatureOuverte) return false;
   signatureOuverte = true;
+  let signee = false;
   try {
     const fiche = (await listStagiaires()).find((s) => s.id === moi);
     let heure = null;
@@ -136,6 +158,7 @@ async function signer(seance, moi) {
     if (ok) {
       confirmation = { heure, jusqua: Date.now() + 4000 };
       toast("Signature enregistrée à " + heure + ".", "success");
+      signee = true;
     }
   } catch (e) {
     toast(e?.message || String(e), "error", 4000);
@@ -143,4 +166,6 @@ async function signer(seance, moi) {
     signatureOuverte = false;
     rafraichirBandeauEmargement();
   }
+  if (signee) window.dispatchEvent(new CustomEvent("emargement-signe"));
+  return signee;
 }

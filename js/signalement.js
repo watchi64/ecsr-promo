@@ -5,18 +5,18 @@
 // la fenêtre, Échap, voile, focus rendu, fermeture quand l'adresse change) ; styles à elle
 // (css/signalement.css), valables avec l'ancienne barre comme avec la nouvelle.
 
-import { el, toast } from "./utils.js?v=20261108c";
-import { icon, deco } from "./icons.js?v=20261108c";
-import { getViewAs, fondateurHorsApercu } from "./auth-admin.js?v=20261108c";
-import { navigationV2Active } from "./nav-etat.js?v=20261108c";
-import { signalerProbleme, mesSignalementsApp, marquerSuivisVus } from "./db.js?v=20261108c";
-import { ouvrirFenetre, fermerFenetre, fenetreOuverte } from "./nav-fenetre.js?v=20261108c";
-import { dernieresErreurs } from "./journal-erreurs.js?v=20261108c";
-import { etatSignalements, poserEtatSignalements, chargerEtatSignalements } from "./signalement-etat.js?v=20261108c";
+import { el, toast } from "./utils.js?v=20261109a";
+import { icon, deco } from "./icons.js?v=20261109a";
+import { getViewAs, fondateurHorsApercu } from "./auth-admin.js?v=20261109a";
+import { navigationV2Active } from "./nav-etat.js?v=20261109a";
+import { signalerProbleme, mesSignalementsApp, marquerSuivisVus } from "./db.js?v=20261109a";
+import { ouvrirFenetre, fermerFenetre, fenetreOuverte } from "./nav-fenetre.js?v=20261109a";
+import { dernieresErreurs } from "./journal-erreurs.js?v=20261109a";
+import { etatSignalements, poserEtatSignalements, chargerEtatSignalements } from "./signalement-etat.js?v=20261109a";
 import {
   LIMITE_CAPTURE, COTE_MAX_CAPTURE, MAX_MES_SIGNALEMENTS, assemblerContexte, resumeContexte, detailContexte,
   verifierMessage, libelleStatut, dimensionsReduites,
-} from "./signalement-rules.js?v=20261108c";
+} from "./signalement-rules.js?v=20261109a";
 
 // Jeton de version des fichiers de l'app (« 20261028a ») : il dit quelle version la personne utilisait.
 const VERSION = new URL(import.meta.url).searchParams.get("v") || "";

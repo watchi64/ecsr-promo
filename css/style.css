@@ -7079,22 +7079,23 @@ body.cours-open { overflow: hidden; }
   -webkit-overflow-scrolling: touch;
 }
 
-/* Sommaire : rangée de pastilles, collante sous l'en-tête. */
+/* Sommaire : pastilles qui passent à la ligne (jamais de défilement de côté), collantes sous l'en-tête. Sur téléphone
+   elles ne collent plus : plusieurs lignes de pastilles collées couvriraient le texte (lot 2B, tâche 1). Vaut aussi pour
+   les onglets des Informations légales (.legal-onglets). */
 .cours-sommaire {
   position: sticky;
   top: 0;
   z-index: 2;
   display: flex;
+  flex-wrap: wrap;
   gap: 0.35rem;
   padding: 0.6rem 1rem;
-  overflow-x: auto;
-  scrollbar-width: none;
   background: var(--bg);
   border-bottom: 1px solid var(--line-faint);
 }
-.cours-sommaire::-webkit-scrollbar { display: none; }
 .cours-somm-item {
-  flex: 0 0 auto;
+  flex: 0 1 auto;
+  max-width: 100%;             /* un intitulé long passe à la ligne dans sa pastille au lieu de la pousser hors de l'écran */
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
@@ -7104,8 +7105,13 @@ body.cours-open { overflow: hidden; }
   background: var(--bg-elev);
   color: var(--text-soft);
   font-size: 0.78rem;
+  text-align: left;
   cursor: pointer;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 699.98px) {
+  .cours-sommaire { position: static; }
+  .cours-somm-item { min-height: 44px; padding-inline: 0.8rem; }   /* zone à toucher du téléphone */
 }
 .cours-somm-item:hover { border-color: var(--accent); color: var(--accent-strong); }
 .cours-somm-num {
@@ -7277,11 +7283,9 @@ body.cours-open { overflow: hidden; }
 }
 
 /* --- Tableaux --- */
-.cours-table-wrap {
-  margin: 0.9rem 0;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-}
+/* Jamais de défilement de côté (lot 2B, tâche 1) : au-dessus de 700 px le tableau tient en largeur, ses mots coupés au
+   besoin ; en dessous, un tableau de plus de deux colonnes devient une liste (voir plus bas). */
+.cours-table-wrap { margin: 0.9rem 0; }
 .cours-table {
   width: 100%;
   border-collapse: collapse;
@@ -7361,11 +7365,37 @@ body.cours-open { overflow: hidden; }
   color: var(--text-muted);
 }
 
-/* Aucun tableau ne doit pousser la page : les cellules passent à la ligne entre
-   les mots, jamais au milieu d'un mot (anywhere écrasait « Couleur » en une pile
-   de lettres sur téléphone) ; un contenu vraiment trop large fait défiler
-   l'enveloppe .cours-table-wrap au lieu de casser les mots. */
-.cours-table td, .cours-table th { overflow-wrap: break-word; }
+/* Aucun tableau ne doit pousser la page : les cellules passent à la ligne entre les mots, et un mot plus large que sa
+   colonne est coupé plutôt que de faire défiler ou d'être masqué par la zone de lecture. Les tableaux de plus de deux
+   colonnes ne sont des colonnes qu'au-dessus de 700 px (là, « Couleur » n'est jamais écrasé en pile de lettres). */
+.cours-table td, .cours-table th { overflow-wrap: anywhere; hyphens: auto; }
+
+/* Téléphone : chaque ligne d'un tableau de plus de deux colonnes est une carte, le titre de la colonne (data-label,
+   posé par le lecteur) devant chaque valeur. L'en-tête reste à la disposition des lecteurs d'écran. Un tableau de deux
+   colonnes (terme, définition) garde sa forme. */
+@media (max-width: 699.98px) {
+  .cours-table:not(.cours-table-2col),
+  .cours-table:not(.cours-table-2col) tbody,
+  .cours-table:not(.cours-table-2col) tr,
+  .cours-table:not(.cours-table-2col) td { display: block; }
+  .cours-table:not(.cours-table-2col) thead {
+    position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden;
+    clip-path: inset(50%); white-space: nowrap;
+  }
+  .cours-table:not(.cours-table-2col) tr {
+    margin: 0 0 0.6rem; padding: 0.55rem 0.8rem;
+    border: 1px solid var(--line-faint); border-radius: var(--r); background: var(--bg-elev);
+  }
+  .cours-table:not(.cours-table-2col) tbody tr:last-child { margin-bottom: 0; }
+  .cours-table:not(.cours-table-2col) td,
+  .cours-table:not(.cours-table-2col) tbody tr:last-child td { padding: 0.2rem 0; border: 0; }
+  .cours-table:not(.cours-table-2col) td:empty { display: none; }   /* une valeur absente n'écrit pas son titre pour rien */
+  .cours-table:not(.cours-table-2col) td[data-label]::before {
+    content: attr(data-label); display: block;
+    font-size: 0.68rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-muted);
+  }
+  .cours-table:not(.cours-table-2col) td:first-child { font-weight: 600; color: var(--text); }
+}
 
 .cours-article code {
   padding: 0.05rem 0.3rem;
@@ -8368,11 +8398,7 @@ span.bnv-nom-num { font-size: 0.8rem; font-style: italic; color: var(--text-mute
 .legal-deconnexion { display: block; margin: 0.7rem auto 0; }
 .gate-legal { display: block; margin: 0.9rem auto 0; font-size: 0.8rem; }
 .compte-legal { display: block; margin: 0.8rem auto 0; font-size: 0.82rem; }
-/* Tableaux des pages légales (jusqu'à 5 colonnes) : tenir en entier sur un téléphone. */
-@media (max-width: 480px) {
-  .legal-overlay .cours-table th,
-  .legal-overlay .cours-table td { padding: 0.45rem 0.3rem; font-size: 0.8rem; hyphens: auto; }
-}
+/* Les tableaux des pages légales (jusqu'à 5 colonnes) suivent ceux des cours : des cartes sur téléphone (lot 2B, tâche 1). */
 
 /* === Paramètres : données personnelles (effacement, durées de conservation) === */
 .donnees-texte { margin: 0 0 0.7rem; font-size: 0.88rem; line-height: 1.45; }

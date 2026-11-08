@@ -1,25 +1,26 @@
 import { listStagiaires, listEvaluations, getPlanning, getHalfMetaForWeek, getJoursOff, getSetting,
          listProfs, listEpcf, getEpcfMoyennes, listThemes,
          getStagiaire, setDateNaissance, listPassages,
-         listLivretsIndex, listDossiersIndex, getPromoCourante } from "../db.js?v=20261108c";
-import { el, clear, isoDate, getMonday, addDays, formatDate, displayStagiaire, toast, largeurDeGraphe } from "../utils.js?v=20261108c";
-import { HALF_DAYS, RESULTATS } from "../config.js?v=20261108c";
-import { isAdmin, isProf, monStagiaireId } from "../auth-admin.js?v=20261108c";
-import { renderEpcfPersonne } from "./epcf.js?v=20261108c";
-import { renderSubTabs } from "../subtabs.js?v=20261108c";
-import { renderDp } from "./dp.js?v=20261108c";
-import { renderEpcfLivret } from "./epcf-livret.js?v=20261108c";
-import { rolesPourEntry, ROLE_ORDER } from "../creneaux-rules.js?v=20261108c";
-import { bandeauAvis } from "../avis.js?v=20261108c";
-import { statsPassages } from "../passages-stats.js?v=20261108c";
-import { moduleVisible, moduleMasque, repereMasque } from "../modules-etat.js?v=20261108c";
-import { icon } from "../icons.js?v=20261108c";
-import { PARTIES, lireAdresse, adresseFiche } from "../route-rules.js?v=20261108c";
-import { etatsSommaire, passagesAVenir, EVT_DOCUMENT } from "../fiche-rules.js?v=20261108c";
-import { libellesDeMois, rayonDeCible, largeurDuDessin, LARGEUR_MAX_DU_GRAPHE } from "../evolution-rules.js?v=20261108c";
-import { surChangementAdresse, remplacerAdresse, peutQuitter } from "../navigation.js?v=20261108c";
-import { navigationV2Active } from "../nav-etat.js?v=20261108c";
-import { renderNotes } from "./notes.js?v=20261108c";
+         listLivretsIndex, listDossiersIndex, getDpDossier, getPromoCourante } from "../db.js?v=20261109a";
+import { el, clear, isoDate, getMonday, addDays, formatDate, displayStagiaire, toast, largeurDeGraphe } from "../utils.js?v=20261109a";
+import { HALF_DAYS, RESULTATS } from "../config.js?v=20261109a";
+import { isAdmin, isProf, monStagiaireId } from "../auth-admin.js?v=20261109a";
+import { renderEpcfPersonne } from "./epcf.js?v=20261109a";
+import { renderSubTabs } from "../subtabs.js?v=20261109a";
+import { renderDp } from "./dp.js?v=20261109a";
+import { renderEpcfLivret } from "./epcf-livret.js?v=20261109a";
+import { rolesPourEntry, ROLE_ORDER } from "../creneaux-rules.js?v=20261109a";
+import { bandeauAvis } from "../avis.js?v=20261109a";
+import { statsPassages } from "../passages-stats.js?v=20261109a";
+import { moduleVisible, moduleMasque, repereMasque } from "../modules-etat.js?v=20261109a";
+import { icon } from "../icons.js?v=20261109a";
+import { lireAdresse, adresseFiche, partiesDeLaFiche, ouvertureDeMonSuivi, vueAAfficher, CLE_VUE_RESULTATS } from "../route-rules.js?v=20261109a";
+import { etatsSommaire, etatsClairs, passagesAVenir, noterDocument, EVT_DOCUMENT } from "../fiche-rules.js?v=20261109a";
+import { exemplesRemplis } from "../dp-rules.js?v=20261109a";
+import { libellesDeMois, rayonDeCible, largeurDuDessin, LARGEUR_MAX_DU_GRAPHE } from "../evolution-rules.js?v=20261109a";
+import { surChangementAdresse, remplacerAdresse, peutQuitter } from "../navigation.js?v=20261109a";
+import { navigationV2Active } from "../nav-etat.js?v=20261109a";
+import { renderNotes } from "./notes.js?v=20261109a";
 
 const HALF_ORDER = { matin: 0, aprem: 1 };
 
@@ -508,12 +509,16 @@ function renderEffectuesSection(rows, soi = true) {
 // stagiaire, vue par un formateur). Deux dispositions, choisies à l'affichage :
 // onglets sur ordinateur ; sur iPhone, un sommaire puis la partie en plein écran.
 
-const LIBELLE_PARTIE = { passages: "Passages", epcf: "EPCF", evolution: "Évolution", livret: "Livret", dp: "Dossier pro",
-  classe: "La classe" };
+const LIBELLE_PARTIE = { resultats: "Résultats", passages: "Passages", epcf: "EPCF", evolution: "Évolution", livret: "Livret",
+  dp: "Dossier pro" };
+// Nom affiché d'une partie : dans Mon suivi (sa propre fiche, `soi`) sous la nouvelle navigation, le livret s'appelle « Livret
+// EPCF » (décision de Timy du 08/11, « Livret » seul ne disait pas lequel). La fiche d'un stagiaire chez l'équipe garde les
+// parties de main, et l'ancienne navigation « Livret ».
+const libellePartie = (p, opts) => (p === "livret" && opts?.soi && navigationV2Active() ? "Livret EPCF" : LIBELLE_PARTIE[p]);
 // Module de chaque partie (js/modules-data.js) : fermé pour la promo, la partie
-// disparaît chez un stagiaire et porte le repère chez un formateur. La classe est
-// l'ancienne page Notes : elle suit le module des notes, comme le faisait l'onglet.
-const MODULE_DE_PARTIE = { passages: null, epcf: "epcf", evolution: "notes", livret: "livret", dp: "dp", classe: "notes" };
+// disparaît chez un stagiaire et porte le repère chez un formateur. Résultats réunit
+// Évolution et l'ancienne page Notes (La classe) : elle suit le module des notes, comme elles.
+const MODULE_DE_PARTIE = { resultats: "notes", passages: null, epcf: "epcf", evolution: "notes", livret: "livret", dp: "dp" };
 
 export function dispositionFiche() {
   return window.matchMedia("(max-width: 760px)").matches ? "sommaire" : "onglets";
@@ -535,8 +540,10 @@ export async function chargerContexteFiche() {
   return stagiairesData || [];
 }
 
-// Données d'une personne, pour toutes les parties de sa fiche.
-export async function chargerFiche(id) {
+// Données d'une personne, pour toutes les parties de sa fiche. `opts.compterExemples` (Mon suivi,
+// nouvelle navigation) : le dossier est lu en entier, pour dire « 2 exemples sur 6 » sur le sommaire ;
+// ailleurs, l'index léger (date de la dernière mise à jour) suffit. `exemplesDossier` : null sans dossier.
+export async function chargerFiche(id, { compterExemples = false } = {}) {
   const [items, evaluations, epcfEvals, stagiaireRow, passRows, livrets, dossiers] = await Promise.all([
     loadUpcoming(id),
     listEvaluations({ stagiaire_id: id }),
@@ -544,21 +551,17 @@ export async function chargerFiche(id) {
     getStagiaire(id),
     listPassages({ stagiaire_id: id }),
     listLivretsIndex({ stagiaire_id: id }),
-    listDossiersIndex({ stagiaire_id: id }),
+    compterExemples ? getDpDossier(id).then((r) => (r ? [r] : [])) : listDossiersIndex({ stagiaire_id: id }),
   ]);
+  const dossier = (dossiers || [])[0] || null;
   return { id, items, evaluations, epcfEvals, stagiaireRow, passRows,
-    livret: (livrets || [])[0] || null, dossier: (dossiers || [])[0] || null };
+    livret: (livrets || [])[0] || null,
+    dossier: dossier ? { stagiaire_id: dossier.stagiaire_id, updated_at: dossier.updated_at } : null,
+    exemplesDossier: compterExemples && dossier ? exemplesRemplis(dossier.data) : null };
 }
 
-// Livret ou dossier enregistré (événement EVT_DOCUMENT) : l'état de la fiche suit.
-export function noterDocument(d, detail) {
-  if (!d || !detail || detail.stagiaireId !== d.id) return false;
-  const ligne = { stagiaire_id: d.id, updated_at: detail.updatedAt };
-  if (detail.genre === "livret") d.livret = ligne;
-  else if (detail.genre === "dossier") d.dossier = ligne;
-  else return false;
-  return true;
-}
+// Livret ou dossier enregistré (événement EVT_DOCUMENT) : l'état de la fiche suit (js/fiche-rules.js).
+export { noterDocument };
 
 // Une seule écoute pour toute l'app : la page affichée y branche son traitement.
 let surDocument = null;
@@ -586,16 +589,30 @@ export function afficherErreur(zone, e, reessayer) {
   toast(isTimeout ? "Connexion trop lente, réessaie" : (e?.message || String(e)), "error");
 }
 
-// La classe (la vue Notes, nouvelle navigation) n'appartient qu'à Mon espace, la fiche de la
+// Résultats (Moi et La classe, nouvelle navigation) n'appartient qu'à Mon suivi, la fiche de la
 // personne connectée, qui a donc un profil stagiaire : la page Stagiaires et l'ancienne
-// navigation gardent la fiche d'avant.
+// navigation gardent la fiche d'avant (partiesDeLaFiche).
 function partiesVisibles(opts) {
-  return PARTIES.filter((p) => (p !== "classe" || (!!opts.soi && navigationV2Active()))
-    && (!MODULE_DE_PARTIE[p] || moduleVisible(MODULE_DE_PARTIE[p])));
+  return partiesDeLaFiche({ soi: !!opts.soi, navigationV2: navigationV2Active() })
+    .filter((p) => !MODULE_DE_PARTIE[p] || moduleVisible(MODULE_DE_PARTIE[p]));
 }
 
 function lienRetour(label, href) {
   return el("a", { class: "fiche-retour", href }, icon.chevronLeft(), el("span", {}, label));
+}
+
+// Sous-titre de Mon suivi, nouvelle navigation : ce que la page contient, au tutoiement comme le reste de la page, en ne
+// nommant que les parties ouvertes à la promo (un module fermé retire sa partie, il ne doit pas rester annoncé).
+function sousTitreDeMonSuivi() {
+  const morceaux = [
+    moduleVisible("notes") ? "tes résultats" : null,
+    "tes passages",
+    moduleVisible("epcf") ? "l'EPCF" : null,
+    moduleVisible("livret") ? "ton livret" : null,
+    moduleVisible("dp") ? "ton dossier pro" : null,
+  ].filter(Boolean);
+  const texte = morceaux.length > 1 ? morceaux.slice(0, -1).join(", ") + " et " + morceaux[morceaux.length - 1] : morceaux[0];
+  return texte.charAt(0).toUpperCase() + texte.slice(1) + ".";
 }
 
 // Nom de la page de la personne connectée : « Mon suivi » sous la nouvelle navigation, le nom de son
@@ -621,7 +638,7 @@ export function renderFiche(container, d, opts) {
   if (opts.disposition === "onglets") {
     if (opts.titre) container.appendChild(el("h2", { class: "fiche-titre" }, opts.titre));
     container.appendChild(renderSubTabs(parties.map((p) => ({
-      key: p, label: LIBELLE_PARTIE[p], module: MODULE_DE_PARTIE[p] || undefined,
+      key: p, label: libellePartie(p, opts), module: MODULE_DE_PARTIE[p] || undefined,
       render: (panel, ctx) => rendrePartie(panel, p, d, opts, ctx),
     })), {
       activeKey: partie || undefined,
@@ -635,7 +652,7 @@ export function renderFiche(container, d, opts) {
   if (partie) {
     // iPhone, une partie en plein écran : le retour mène au sommaire.
     container.appendChild(lienRetour(opts.titre || nomDeMonSuivi(), opts.adresse(null)));
-    container.appendChild(el("h2", { class: "fiche-titre" }, LIBELLE_PARTIE[partie]));
+    container.appendChild(el("h2", { class: "fiche-titre" }, libellePartie(partie, opts)));
     const panel = el("div", { class: "fiche-partie" });
     container.appendChild(panel);
     rendrePartie(panel, partie, d, opts, { isActive: () => panel.isConnected });
@@ -649,22 +666,79 @@ export function renderFiche(container, d, opts) {
 }
 
 function rendreSommaire(d, parties, opts) {
-  const etats = etatsSommaire({
-    aVenir: passagesAVenir(d.items, isoDate(new Date())),
-    evals: d.epcfEvals, livret: d.livret, dossier: d.dossier, soi: !!opts.soi,
-  });
-  const liste = el("nav", { class: "fiche-sommaire", "aria-label": "Parties de la fiche" });
+  const aVenir = passagesAVenir(d.items, isoDate(new Date()));
+  // Mon suivi, nouvelle navigation : chaque ligne dit sa partie et son état en une phrase entière
+  // (« EPCF : 0 épreuve sur 2 »), qui passe à la ligne plutôt que d'être coupée. Ailleurs, le sommaire de main.
+  const clairs = !!opts.soi && navigationV2Active();
+  const etats = clairs
+    ? etatsClairs({ aVenir, evals: d.epcfEvals, livret: d.livret, exemplesDossier: d.exemplesDossier })
+    : etatsSommaire({ aVenir, evals: d.epcfEvals, livret: d.livret, dossier: d.dossier, soi: !!opts.soi });
+  const liste = el("nav", { class: "fiche-sommaire" + (clairs ? " fiche-sommaire-clair" : ""), "aria-label": "Parties de la fiche" });
   parties.forEach((p) => {
     const etat = etats[p];
-    const nom = el("span", { class: "fiche-ligne-nom" }, LIBELLE_PARTIE[p]);
-    const ligne = el("a", { class: "fiche-ligne", href: opts.adresse(p) },
-      nom,
-      etat ? el("span", { class: "fiche-ligne-etat" + (etat.afaire ? " afaire" : "") }, etat.texte) : null,
-      icon.chevronRight());
+    const nom = el("span", { class: "fiche-ligne-nom" }, libellePartie(p, opts));
+    let ligne;
+    if (clairs && etat) {
+      // Le nom de la partie en tête, son état à sa suite, dans un seul texte : « Dossier pro : 2 exemples sur 6 ».
+      ligne = el("a", { class: "fiche-ligne", href: opts.adresse(p) },
+        el("span", { class: "fiche-ligne-texte" },
+          nom, el("span", { class: "fiche-ligne-etat" + (etat.afaire ? " afaire" : "") }, etat.texte.slice(libellePartie(p, opts).length))),
+        icon.chevronRight());
+    } else {
+      ligne = el("a", { class: "fiche-ligne", href: opts.adresse(p) },
+        nom,
+        etat ? el("span", { class: "fiche-ligne-etat" + (etat.afaire ? " afaire" : "") }, etat.texte) : null,
+        icon.chevronRight());
+    }
     if (MODULE_DE_PARTIE[p]) repereMasque(ligne, moduleMasque(MODULE_DE_PARTIE[p]), nom);
     liste.appendChild(ligne);
   });
   return liste;
+}
+
+// Résultats (Mon suivi, nouvelle navigation) : « Moi », la partie Évolution d'avant (le graphe de mes
+// notes), et « La classe », l'ancienne page Notes (matrice, synthèse, moyennes EPCF de la classe). Un
+// groupe de deux boutons, comme « Grille / Liste » du Planning, et non une seconde rangée d'onglets ;
+// la vue choisie se garde sur l'appareil (CLE_VUE_RESULTATS).
+// `opts.vue` : la vue que l'adresse demande, qui passe avant la mémoire ; `opts.surVue` apprend à l'appelant
+// le choix fait, pour qu'un nouveau dessin de la page le garde même sans stockage.
+function rendreResultats(panel, d, soi, isActive, opts = {}) {
+  let memorisee = null;
+  try { memorisee = localStorage.getItem(CLE_VUE_RESULTATS); } catch (e) { /* mode privé */ }
+  let vue = vueAAfficher(opts.vue, memorisee);
+  const zone = el("div", { class: "res-vue" });
+  const boutons = {};
+  const montrer = (cible) => {
+    vue = cible;
+    if (opts.surVue) opts.surVue(cible);
+    try { localStorage.setItem(CLE_VUE_RESULTATS, cible); } catch (e) { /* mode privé */ }
+    Object.entries(boutons).forEach(([k, b]) => b.setAttribute("aria-pressed", k === cible ? "true" : "false"));
+    clear(zone);
+    if (cible === "moi") {
+      zone.appendChild(renderChartSection(d.evaluations, soi));
+      return;
+    }
+    // La vue Notes de la classe, dans son propre conteneur : elle repeint son conteneur à l'arrivée des
+    // données, et une vue quittée entre-temps laisse ce repeint dans un nœud détaché au lieu d'effacer la
+    // vue affichée. Imbriquée sous le titre de Mon suivi, elle n'a ni titre à elle ni seconde rangée
+    // d'onglets (js/views/notes.js).
+    const classe = el("div");
+    zone.appendChild(classe);
+    renderNotes(classe, { imbrique: true })
+      .catch(erreurPartie(classe, () => classe.isConnected && (!isActive || isActive()),
+        "Erreur de chargement des notes de la classe. Rouvre la partie pour réessayer."));
+  };
+  const bouton = (cible, libelle) => {
+    const b = el("button", { type: "button", "data-vue": cible, "aria-pressed": "false",
+      onClick: () => { if (vue !== cible) montrer(cible); } }, libelle);
+    boutons[cible] = b;
+    return b;
+  };
+  panel.appendChild(el("div", { class: "res-bar" },
+    el("div", { class: "vue-toggle", role: "group", "aria-label": "Résultats à afficher" },
+      bouton("moi", "Moi"), bouton("classe", "La classe"))));
+  panel.appendChild(zone);
+  montrer(vue);
 }
 
 // Date de naissance du profil, reportée sur le livret : la personne elle-même,
@@ -715,6 +789,8 @@ function rendrePartie(panel, partie, d, opts, ctx) {
       },
       isActive,
     });
+  } else if (partie === "resultats") {
+    rendreResultats(panel, d, soi, isActive, opts);
   } else if (partie === "evolution") {
     panel.appendChild(renderChartSection(d.evaluations, soi));
   } else if (partie === "livret") {
@@ -729,15 +805,6 @@ function rendrePartie(panel, partie, d, opts, ctx) {
     // peut aussi y écrire pour l'accompagner (droits révisés le 16/09).
     renderDp(panel, { stagiaireId: d.id, embedded: true, isActive })
       .catch(erreurPartie(panel, isActive, "Erreur de chargement du dossier professionnel. Rouvre la partie pour réessayer."));
-  } else if (partie === "classe") {
-    // La vue Notes de la classe, dans son propre conteneur : elle repeint son conteneur à
-    // l'arrivée des données, et une partie quittée entre-temps laisse ce repeint dans un
-    // nœud détaché au lieu d'effacer la partie affichée. Imbriquée sous le titre de Mon
-    // suivi, elle n'a ni titre à elle ni seconde rangée d'onglets (js/views/notes.js).
-    const zone = el("div");
-    panel.appendChild(zone);
-    renderNotes(zone, { imbrique: true })
-      .catch(erreurPartie(zone, isActive, "Erreur de chargement des notes de la classe. Rouvre la partie pour réessayer."));
   }
 }
 
@@ -755,8 +822,8 @@ export async function renderMonSuivi(container) {
     el("div", { class: "view-header-text" },
       surtitre ? el("p", { class: "eyebrow" }, surtitre) : null,
       el("h2", {}, nomDeMonSuivi()),
-      el("p", { class: "subtitle" }, moduleVisible("notes")
-        ? "Mon planning à venir et l'évolution de mes résultats."
+      el("p", { class: "subtitle" }, navigationV2Active() ? sousTitreDeMonSuivi()
+        : moduleVisible("notes") ? "Mon planning à venir et l'évolution de mes résultats."
         : "Mon planning à venir."),
     ),
   );
@@ -771,10 +838,27 @@ export async function renderMonSuivi(container) {
   }
 
   let d = null;
+  const v2 = navigationV2Active();
+  // Vue de Résultats demandée par l'adresse ou choisie sur la page : portée par l'appel, jamais relue
+  // dans le stockage.
+  let vueDemandee = null;
   const dessiner = (adr) => {
     const disposition = dispositionFiche();
+    let partie = adr.partie;
+    if (v2) {
+      // Nouvelle navigation : #/mon-suivi/evolution et #/mon-suivi/classe ouvrent Résultats sur « Moi » ou
+      // « La classe » ; l'adresse devient celle de Résultats (sans étape d'historique), pour que la partie
+      // affichée et l'adresse disent la même chose. Résultats fermé (module des notes) : l'adresse reste.
+      const ouverture = ouvertureDeMonSuivi(partie);
+      if (ouverture.vue && moduleVisible(MODULE_DE_PARTIE.resultats)) {
+        vueDemandee = ouverture.vue;
+        remplacerAdresse(adresseFiche("mon-suivi", null, ouverture.partie));
+      }
+      partie = ouverture.partie;
+    }
     const affiche = renderFiche(corps, d, {
-      soi: true, partie: adr.partie, disposition, titre: null, retour: null,
+      soi: true, partie, disposition, titre: null, retour: null,
+      vue: vueDemandee, surVue: (v) => { vueDemandee = v; },
       adresse: (p) => adresseFiche("mon-suivi", null, p),
       storageKey: "ecsr_monsuivi_subtab",
     });
@@ -782,12 +866,14 @@ export async function renderMonSuivi(container) {
     // navigation) remplace l'en-tête.
     header.hidden = affiche === "partie";
     if (bandeau) bandeau.hidden = affiche === "partie";
+    // Nouvelle navigation : le retour, le titre de la partie et son contenu se tiennent (css/pages.css).
+    corps.classList.toggle("ms-body-partie", v2 && affiche === "partie");
     if (disposition === "sommaire") window.scrollTo(0, 0);
   };
   const charger = async () => {
     clear(corps);
     corps.appendChild(el("div", { class: "loading" }, "Chargement"));
-    try { d = await chargerFiche(monId); }
+    try { d = await chargerFiche(monId, { compterExemples: v2 && moduleVisible("dp") }); }
     catch (e) { afficherErreur(corps, e, charger); return; }
     dessiner(lireAdresse(location.hash));
   };
