@@ -2,6 +2,7 @@ import { createClient } from "../vendor/supabase-js-2.117.2.js?v=20261108a";
 import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261108a";
 import { compteDansEquite } from "./passage-rules.js?v=20261108a";
 import { messageErreurEnvoi } from "./signalement-rules.js?v=20261108a";
+import { fonctionAbsente, messageErreurQuestionnaire } from "./questionnaires-erreurs.js?v=20261108a";
 import {
   ENTETE_PROMO, ENTETE_LECTURE_PROMO, promoDeLaRequete, doitPorterEntetePromo, choisirPromoInitiale, profilEffectif,
   separerChamps, CHAMPS_PROGRESSION, CHAMPS_EXAMEN, fusionnerProgression, fusionnerExamen,
@@ -1965,4 +1966,56 @@ export async function setEnteteEmargement({ organisme, intitule }) {
   await setSetting("emargement_entete", JSON.stringify({
     organisme: String(organisme || "").trim(), intitule: String(intitule || "").trim(),
   }));
+}
+
+// --- Questionnaires anonymes (Qualiopi, indicateur 30) ---
+// Tant que la migration n'est pas appliquée, les cinq fonctions n'existent pas dans la base : les lectures rendent alors
+// un résultat vide sans bruit (comme getJoursOff), les écritures lèvent une erreur au message lisible.
+// La portée est { promo_id } pour les stagiaires, { lieu_id, annee } pour les formateurs.
+
+// Questionnaires que la personne connectée peut remplir maintenant : [{ cle, version, portee }]. Jamais d'erreur levée :
+// la page d'accueil ne doit pas casser pour un questionnaire.
+export async function lireQuestionnairesARemplir() {
+  try {
+    const { data, error } = await supabase.rpc("questionnaires_a_remplir");
+    if (error) throw error;
+    return Array.isArray(data) ? data : [];
+  } catch (e) {
+    if (!fonctionAbsente(e)) console.warn("questionnaires_a_remplir indisponible", e?.message || e);
+    return [];
+  }
+}
+
+// Envoie une réponse. Lève une Error au message lisible (déjà répondu, fermé, pas concerné, pas encore disponible...).
+export async function envoyerQuestionnaire({ cle, portee, version, reponses, commentaire }) {
+  const { error } = await supabase.rpc("repondre_questionnaire", {
+    p_cle: cle, p_portee: portee, p_version: version, p_reponses: reponses, p_commentaire: commentaire ?? null,
+  });
+  if (error) throw new Error(messageErreurQuestionnaire(error));
+}
+
+// Comptes par question (gestion). Rien sous le seuil : `reponses` est nul et `questions` vide. Fonction absente : même forme.
+export async function lireResultatsQuestionnaire(cle, portee) {
+  const { data, error } = await supabase.rpc("resultats_questionnaire", { p_cle: cle, p_portee: portee });
+  if (error) {
+    if (fonctionAbsente(error)) return { cle, public: null, seuil: null, reponses: null, questions: {} };
+    throw new Error(messageErreurQuestionnaire(error));
+  }
+  return data;
+}
+
+// Commentaires libres, dans un ordre tiré au hasard (éditeur seul, à partir du seuil). Fonction absente : [].
+export async function lireCommentairesQuestionnaire(cle, portee) {
+  const { data, error } = await supabase.rpc("commentaires_questionnaire", { p_cle: cle, p_portee: portee });
+  if (error) {
+    if (fonctionAbsente(error)) return [];
+    throw new Error(messageErreurQuestionnaire(error));
+  }
+  return Array.isArray(data) ? data : [];
+}
+
+// Ouvre (true), ferme (false) à la main, ou revient aux dates (null).
+export async function ouvrirQuestionnaire(cle, portee, ouvert) {
+  const { error } = await supabase.rpc("ouvrir_questionnaire", { p_cle: cle, p_portee: portee, p_ouvert: ouvert });
+  if (error) throw new Error(messageErreurQuestionnaire(error));
 }
