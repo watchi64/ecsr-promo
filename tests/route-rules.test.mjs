@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import {
   PARTIES, lireAdresse, adresseFiche, hrefLien, pagePersonnelle, partiesDeLaFiche, ouvertureDeMonSuivi, vueDeResultats,
-  VUES_RESULTATS, CLE_VUE_RESULTATS,
+  VUES_RESULTATS, CLE_VUE_RESULTATS, vueAAfficher,
 } from "../js/route-rules.js";
 
 let n = 0;
@@ -78,5 +78,12 @@ eq(vueDeResultats("classe"), "classe", "vue mémorisée : La classe");
 eq(vueDeResultats("moi"), "moi", "vue mémorisée : Moi");
 eq(vueDeResultats(null), "moi", "rien de mémorisé : Moi");
 eq(vueDeResultats("constructor"), "moi", "mémoire illisible : Moi");
+// La vue demandée par l'adresse passe avant la mémoire ; sans mémoire (stockage indisponible), elle tient seule.
+eq(vueAAfficher("classe", "moi"), "classe", "adresse La classe, mémoire Moi : La classe");
+eq(vueAAfficher("moi", "classe"), "moi", "adresse Moi, mémoire La classe : Moi");
+eq(vueAAfficher("classe", null), "classe", "adresse La classe, stockage indisponible : La classe");
+eq(vueAAfficher(null, "classe"), "classe", "pas de vue demandée : la mémoire décide");
+eq(vueAAfficher(null, null), "moi", "ni adresse ni mémoire : Moi");
+eq(vueAAfficher("constructor", "x"), "moi", "vue demandée inconnue et mémoire inconnue : Moi");
 
 console.log(`route-rules : ${n} assertions OK`);

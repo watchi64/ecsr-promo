@@ -2205,6 +2205,8 @@ def jouer_anciennes_adresses(page, res, sc):
             nouvelle, sous_onglet = "#/" + ancienne, None
         elif depart and ancienne != "calendrier":
             sous_onglet = "Semaine" if ancienne == "dashboard" else None
+            if ancienne == "notes":
+                nouvelle = "#/mon-suivi/classe"  # Résultats fermé (module des notes) : l'adresse de la redirection reste
         aller_a(page, "#/" + ancienne)
         attendre(page, calme=150)
         res.vues += 1

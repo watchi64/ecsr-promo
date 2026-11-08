@@ -82,11 +82,11 @@ eq(redirectionV2(adresse("dashboard"), "equipe"),
   { hash: "#/planning", sousOnglet: { cle: "planning.subtab", valeur: "priorites" } }, "dashboard");
 eq(redirectionV2(adresse("ressources"), "stagiaire"),
   { hash: "#/themes", sousOnglet: { cle: "themes.subtab", valeur: "documents" } }, "ressources");
-// Lot 2B, tâche 7 : La classe est une vue de Résultats ; #/notes ouvre Résultats, la vue « La classe » écrite dans sa mémoire.
+// Lot 2B, tâche 7 : La classe est une vue de Résultats ; #/notes mène à #/mon-suivi/classe, qui ouvre Résultats sur cette vue.
 eq(redirectionV2(adresse("notes"), "stagiaire"),
-  { hash: "#/mon-suivi/resultats", sousOnglet: { cle: "ecsr_resultats_vue", valeur: "classe" } }, "notes du stagiaire : Résultats, La classe");
-eq(ouvertureDeMonSuivi(lireAdresse(redirectionV2(adresse("notes"), "stagiaire").hash).partie), { partie: "resultats", vue: null },
-  "Mon suivi lit la cible comme Résultats, la vue venant de la mémoire écrite par la redirection");
+  { hash: "#/mon-suivi/classe", sousOnglet: null }, "notes du stagiaire : l'adresse porte la vue La classe, rien dans la mémoire");
+eq(ouvertureDeMonSuivi(lireAdresse(redirectionV2(adresse("notes"), "stagiaire").hash).partie), { partie: "resultats", vue: "classe" },
+  "Mon suivi lit la cible comme Résultats sur La classe, sans passer par la mémoire");
 eq(redirectionV2(adresse("notes"), "equipe"), null, "notes de l'équipe inchangées");
 // Réglages (la promo) est la page de l'équipe : le stagiaire qui ouvre #/config (lien d'une Nouveauté, favori,
 // pied de l'accueil) arrive sur ses préférences, la seule partie qui le concerne.
@@ -110,7 +110,7 @@ for (const route of [...Object.keys(MODULE_DE_ROUTE), ...ROUTES_SOCLE]) {
 }
 // Témoins positifs, pour que la boucle ne passe pas à vide : sans eux, `continue` pourrait sauter des routes,
 // et le contrôle de la cible passerait aussi si lireAdresse ne rendait plus la route d'une adresse écrite en
-// hash. Une ancienne adresse par cible distincte (#/planning, #/themes, #/mon-suivi/resultats, #/preferences) doit donc être
+// hash. Une ancienne adresse par cible distincte (#/planning, #/themes, #/mon-suivi/classe, #/preferences) doit donc être
 // contrôlée par la boucle, et reconnue quand on la lit depuis son hash : c'est ce que le contrôle de la cible
 // refuserait d'une cible.
 for (const ancienne of ["calendrier", "ressources", "notes", "config"]) {

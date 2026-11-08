@@ -1,5 +1,6 @@
 // États de la fiche et de la page Stagiaires (chantier D, lot 2).
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import {
   EPREUVES_EPCF, EVT_DOCUMENT, epreuvesEvaluees, jourMois, passagesAVenir, ligneListe, etatsSommaire,
   etatsClairs, noterDocument,
@@ -84,6 +85,14 @@ eq(zero.dp, { texte: "Dossier pro : 0 exemple sur 6", afaire: true }, "dossier o
 eq(etatsClairs({ aVenir: 0, evals: [], livret: null, exemplesDossier: 2 }).dp.texte, "Dossier pro : 2 exemples sur 6", "deux exemples");
 eq(etatsClairs({ aVenir: 0, evals: [], livret: null, exemplesDossier: 6 }).dp, { texte: "Dossier pro : 6 exemples sur 6", afaire: false }, "dossier complet : plus rien à faire");
 eq(etatsClairs({}).passages.texte, "Passages : aucun à venir", "rien de lu : aucun à venir");
+// Contrat du sommaire (rendreSommaire retire le libellé de la partie du texte pour en faire le nom en gras) :
+// chaque texte d'états clairs commence par le libellé de sa partie, lu dans la table de la vue.
+const tableVue = readFileSync(new URL("../js/views/mon-suivi.js", import.meta.url), "utf8").match(/const LIBELLE_PARTIE = \{([^}]*)\}/)[1];
+for (const [p, e] of Object.entries(c)) {
+  const libelle = (tableVue.match(new RegExp(p + ': "([^"]+)"')) || [])[1];
+  eq(typeof libelle, "string", `${p} : libellé trouvé dans la vue`);
+  eq(e.texte.startsWith(libelle), true, `${p} : le texte commence par son libellé « ${libelle} »`);
+}
 for (const [p, e] of Object.entries(c)) eq(/\d{2}\/\d{2}/.test(e.texte), false, `${p} : aucune date « 02/10 » dans le texte`);
 
 // 7. Un enregistrement met l'état de la fiche à jour (EVT_DOCUMENT) ; le dossier porte son compte d'exemples.

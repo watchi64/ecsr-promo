@@ -4,7 +4,6 @@
 // anciennes adresses, les initiales, le prénom et le nom du bouton du compte, la ligne « page à soi »
 // du menu du compte. Module pur, sans DOM ni stockage : testé en node.
 
-import { CLE_VUE_RESULTATS } from "./route-rules.js?v=20261106a";
 
 // Clé de mémoire du sous-onglet ouvert, par page à sous-onglets (le `storageKey` de
 // renderSubTabs). Une redirection l'écrit pour ouvrir le bon sous-onglet ; le bouton « Élèves bénévoles »
@@ -199,8 +198,9 @@ export function redirectionV2({ route }, espace) {
     return { hash: "#/" + v.page, sousOnglet };
   }
   if (route === "notes" && espace !== "equipe") {
-    // La classe est une vue de Résultats (lot 2B, tâche 7) : sa mémoire reçoit « classe ».
-    return { hash: "#/mon-suivi/resultats", sousOnglet: { cle: CLE_VUE_RESULTATS, valeur: "classe" } };
+    // La classe est une vue de Résultats (lot 2B, tâche 7) : l'adresse elle-même porte la vue, sans
+    // passer par la mémoire de l'appareil (qui peut être indisponible).
+    return { hash: "#/mon-suivi/classe", sousOnglet: null };
   }
   if (route === "config" && espace !== "equipe") {
     return { hash: "#/preferences", sousOnglet: null };

@@ -14,7 +14,7 @@ import { bandeauAvis } from "../avis.js?v=20261106a";
 import { statsPassages } from "../passages-stats.js?v=20261106a";
 import { moduleVisible, moduleMasque, repereMasque } from "../modules-etat.js?v=20261106a";
 import { icon } from "../icons.js?v=20261106a";
-import { lireAdresse, adresseFiche, partiesDeLaFiche, ouvertureDeMonSuivi, vueDeResultats, CLE_VUE_RESULTATS } from "../route-rules.js?v=20261106a";
+import { lireAdresse, adresseFiche, partiesDeLaFiche, ouvertureDeMonSuivi, vueAAfficher, CLE_VUE_RESULTATS } from "../route-rules.js?v=20261106a";
 import { etatsSommaire, etatsClairs, passagesAVenir, noterDocument, EVT_DOCUMENT } from "../fiche-rules.js?v=20261106a";
 import { exemplesRemplis } from "../dp-rules.js?v=20261106a";
 import { libellesDeMois, rayonDeCible, largeurDuDessin, LARGEUR_MAX_DU_GRAPHE } from "../evolution-rules.js?v=20261106a";
@@ -682,13 +682,17 @@ function rendreSommaire(d, parties, opts) {
 // notes), et « La classe », l'ancienne page Notes (matrice, synthèse, moyennes EPCF de la classe). Un
 // groupe de deux boutons, comme « Grille / Liste » du Planning, et non une seconde rangée d'onglets ;
 // la vue choisie se garde sur l'appareil (CLE_VUE_RESULTATS).
-function rendreResultats(panel, d, soi, isActive) {
-  let vue;
-  try { vue = vueDeResultats(localStorage.getItem(CLE_VUE_RESULTATS)); } catch (e) { vue = vueDeResultats(null); }
+// `opts.vue` : la vue que l'adresse demande, qui passe avant la mémoire ; `opts.surVue` apprend à l'appelant
+// le choix fait, pour qu'un nouveau dessin de la page le garde même sans stockage.
+function rendreResultats(panel, d, soi, isActive, opts = {}) {
+  let memorisee = null;
+  try { memorisee = localStorage.getItem(CLE_VUE_RESULTATS); } catch (e) { /* mode privé */ }
+  let vue = vueAAfficher(opts.vue, memorisee);
   const zone = el("div", { class: "res-vue" });
   const boutons = {};
   const montrer = (cible) => {
     vue = cible;
+    if (opts.surVue) opts.surVue(cible);
     try { localStorage.setItem(CLE_VUE_RESULTATS, cible); } catch (e) { /* mode privé */ }
     Object.entries(boutons).forEach(([k, b]) => b.setAttribute("aria-pressed", k === cible ? "true" : "false"));
     clear(zone);
@@ -768,7 +772,7 @@ function rendrePartie(panel, partie, d, opts, ctx) {
       isActive,
     });
   } else if (partie === "resultats") {
-    rendreResultats(panel, d, soi, isActive);
+    rendreResultats(panel, d, soi, isActive, opts);
   } else if (partie === "evolution") {
     panel.appendChild(renderChartSection(d.evaluations, soi));
   } else if (partie === "livret") {
@@ -817,6 +821,9 @@ export async function renderMonSuivi(container) {
 
   let d = null;
   const v2 = navigationV2Active();
+  // Vue de Résultats demandée par l'adresse ou choisie sur la page : portée par l'appel, jamais relue
+  // dans le stockage.
+  let vueDemandee = null;
   const dessiner = (adr) => {
     const disposition = dispositionFiche();
     let partie = adr.partie;
@@ -826,13 +833,14 @@ export async function renderMonSuivi(container) {
       // affichée et l'adresse disent la même chose. Résultats fermé (module des notes) : l'adresse reste.
       const ouverture = ouvertureDeMonSuivi(partie);
       if (ouverture.vue && moduleVisible(MODULE_DE_PARTIE.resultats)) {
-        try { localStorage.setItem(CLE_VUE_RESULTATS, ouverture.vue); } catch (e) { /* mode privé */ }
+        vueDemandee = ouverture.vue;
         remplacerAdresse(adresseFiche("mon-suivi", null, ouverture.partie));
       }
       partie = ouverture.partie;
     }
     const affiche = renderFiche(corps, d, {
       soi: true, partie, disposition, titre: null, retour: null,
+      vue: vueDemandee, surVue: (v) => { vueDemandee = v; },
       adresse: (p) => adresseFiche("mon-suivi", null, p),
       storageKey: "ecsr_monsuivi_subtab",
     });
@@ -847,7 +855,7 @@ export async function renderMonSuivi(container) {
   const charger = async () => {
     clear(corps);
     corps.appendChild(el("div", { class: "loading" }, "Chargement"));
-    try { d = await chargerFiche(monId, { compterExemples: v2 }); }
+    try { d = await chargerFiche(monId, { compterExemples: v2 && moduleVisible("dp") }); }
     catch (e) { afficherErreur(corps, e, charger); return; }
     dessiner(lireAdresse(location.hash));
   };

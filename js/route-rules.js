@@ -36,6 +36,13 @@ export function vueDeResultats(memorisee) {
   return VUES_RESULTATS.includes(memorisee) ? memorisee : "moi";
 }
 
+// Vue à montrer : celle que l'adresse (ou le dernier choix fait sur la page) demande passe avant la
+// mémoire de l'appareil, qui n'est qu'un confort. Sans cela, un stockage indisponible (navigation privée)
+// ferait ouvrir « Moi » sur #/mon-suivi/classe.
+export function vueAAfficher(demandee, memorisee) {
+  return VUES_RESULTATS.includes(demandee) ? demandee : vueDeResultats(memorisee);
+}
+
 function partieValide(p) { return PARTIES.includes(p) ? p : null; }
 function idValide(s) { return /^[1-9]\d*$/.test(String(s ?? "")) ? Number(s) : null; }
 
