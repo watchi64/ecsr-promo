@@ -665,7 +665,7 @@ QCM issus du lot 2B), `js/auth-admin.js` (`isRedacteur()` = `peutRedigerContenus
 - [ ] **Step 4 : tests et vérification** : 0 échec.
 - [ ] **Step 5 : commit** « Lot 5 : le siège rédige les contenus communs ».
 
-## Partie E : habillage par défaut du centre et du réseau (selon la réponse de Timy)
+## Partie E : habillage par défaut du centre et du réseau (retenue par Timy le 08/11)
 
 ### Task 14 : Réglages du centre et du réseau
 
@@ -800,6 +800,8 @@ page, console, défilement de côté, cibles, entrée allumée, Échap, mots int
 
 ## Annexe A : questions posées à Timy avec ce plan
 
+Réponses de Timy le 08/11 : « Oui, comme recommandé » (plan validé ; Qualiopi hors du lot 5 ; Partie E dans le lot 5).
+
 1. **Qualiopi dans le lot 5 ?** Recommandé : non. La spec Qualiopi demande que le lot Q5 (conditions d'utilisation,
    conservation à 3 ans) passe avant qu'une direction ait la page, et le dossier « sans aucun nom » du siège se calcule
    aujourd'hui dans le navigateur à partir des données nominatives, que le siège ne peut pas lire : il faudra un calcul
@@ -811,7 +813,7 @@ page, console, défilement de côté, cibles, entrée allumée, Échap, mots int
 
 ## Annexe B : laissé aux lots suivants
 
-- Lot 5Q (selon la réponse 1) : Qualiopi de la direction et du siège.
+- Lot 5Q (décidé le 08/11, après le lot Q5) : Qualiopi de la direction et du siège.
 - Veille réglementaire dans l'app (entrée du siège quand elle existera).
 - Modules de départ et partenaires du centre, interrupteurs de l'émargement et de la navigation confiés à la direction :
   demandent une évolution de la matrice du lot 4.
