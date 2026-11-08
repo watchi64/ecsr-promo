@@ -16,7 +16,7 @@ export const CONDITIONS_MD = `# Conditions d'utilisation et données personnelle
 > L'application accompagne la formation au Titre professionnel ECSR. Elle est éditée par Timy Studio, la micro-entreprise de Timy Valdivia.
 > Elle enregistre ce qui sert à la formation : profil, notes, QCM, passages, absences, livret, dossier professionnel, et vos réponses aux questionnaires de satisfaction, qui sont anonymes.
 > Vos notes sont visibles des autres stagiaires de votre promo, sauf si vous choisissez de les masquer.
-> Personne d'extérieur à la formation n'y accède, à une exception près : ECF peut consulter des résultats nominatifs.
+> Personne d'extérieur à la formation n'y accède, à une exception près : ECF peut consulter des résultats nominatifs et présenter des documents de la formation à son certificateur Qualiopi et à ses financeurs.
 > La base de données est hébergée en France ; l'assistant passe par Scaleway, hébergeur français, qui ne conserve pas les messages.
 > Rien n'est vendu, rien ne sert à la publicité, aucun traceur publicitaire ni mesure d'audience.
 > Douze mois après la formation, les comptes et les textes libres disparaissent ; les preuves de la formation (résultats, heures, présences) sont gardées trois ans, puis rendues anonymes.
@@ -62,13 +62,15 @@ L'application ne collecte ni géolocalisation, ni contacts du téléphone, ni do
 | Livret, dossier professionnel, EPCF | Oui | Non | Oui | Oui |
 | Signalements de problème | Oui | Non | Non | Non |
 
+La colonne ECF comprend la présentation, par ECF à son certificateur Qualiopi et à ses financeurs, des documents décrits en section 5.
+
 « Autres stagiaires » : ceux de votre promo seulement. Le planning leur est visible parce qu'il organise la formation de tous. Les signalements de problème ne sont lus que par l'éditeur, pour corriger l'application et vous répondre.
 
 **Masquer ses notes.** Depuis vos préférences, vous pouvez masquer vos notes : les autres stagiaires ne voient plus ni votre prénom ni vos notes, qui restent comptées dans les moyennes du groupe. En contrepartie, vous ne voyez plus que votre ligne et les moyennes du groupe. Ce masquage est garanti par la base de données elle-même, pas seulement par l'affichage. Pour éviter les allers-retours, après un changement (annulable dans les deux minutes), le réglage reste fixe pendant 24 heures.
 
 Les promos ne se voient pas entre elles : un stagiaire n'accède qu'à sa propre promo.
 
-**Questionnaires de satisfaction.** Ils sont anonymes : la réponse est enregistrée sans nom, sans date et sans numéro d'ordre, séparément de la note de participation (« a répondu » ou « n'a pas répondu »), qui sert seulement à ne pas redemander et à refuser une deuxième réponse. Personne ne peut relier une réponse à une personne, pas même l'éditeur. Les résultats ne sont montrés que lorsqu'au moins cinq stagiaires ont répondu (trois formateurs pour le questionnaire des formateurs) ; les commentaires libres ne sont lus que par l'éditeur, dans un ordre aléatoire, sous la même condition.
+**Questionnaires de satisfaction.** Ils sont anonymes : la réponse est enregistrée sans nom, sans date et sans numéro d'ordre, séparément de la note de participation (« a répondu » ou « n'a pas répondu »), qui sert seulement à ne pas redemander et à refuser une deuxième réponse. Personne ne peut relier une réponse à une personne, pas même l'éditeur. Les résultats ne sont montrés que lorsqu'au moins cinq stagiaires ont répondu (trois formateurs pour le questionnaire des formateurs) ; les commentaires libres ne sont lus que par l'éditeur et les personnes chargées de la qualité du centre, dans un ordre aléatoire, sous la même condition.
 
 ## 5. À quoi servent les données, et sur quelle base
 
@@ -82,7 +84,7 @@ Les promos ne se voient pas entre elles : un stagiaire n'accède qu'à sa propre
 | Recueillir votre avis sur la formation par des questionnaires anonymes, et en produire un taux de satisfaction | Intérêt légitime de l'éditeur et du centre à mesurer et améliorer la formation, preuve que le centre doit pouvoir apporter à son certificateur |
 | Répondre à vos questions par l'assistant | Intérêt légitime ; l'assistant n'est utilisé que si vous lui écrivez |
 
-**Documents du centre.** L'application produit des documents (dossier de la formation, dossier du centre, fiche de résultats) que le centre de formation présente à son certificateur Qualiopi et à ses financeurs pour prouver ce qu'il fait. Ils reprennent des chiffres de l'application : heures, présences, résultats, taux de satisfaction. Le dossier de la formation est nominatif ; le dossier destiné au siège ne contient aucun nom. Aucun de ces documents ne contient une réponse individuelle à un questionnaire ni un commentaire libre. Le centre les remet lui-même : l'éditeur ne les envoie à personne.
+**Documents du centre.** L'application produit des documents (dossier de la formation, dossier du centre, fiche de résultats) qu'ECF, qui forme les stagiaires, présente à son certificateur Qualiopi et à ses financeurs pour prouver ce qu'il fait. Ils reprennent des chiffres de l'application : heures, présences, résultats, taux de satisfaction. Le dossier de la formation est nominatif ; le dossier destiné au siège ne contient aucun nom. Aucun de ces documents ne contient une réponse individuelle à un questionnaire ni un commentaire libre. ECF les remet lui-même : l'éditeur ne les envoie à personne.
 
 **Statistiques anonymes.** Elles décrivent la promo, jamais une personne (par exemple « 80 % de réussite sur le thème 12 »). Elles peuvent être conservées sans limite de durée, partagées à l'extérieur, notamment avec ECF, et servir à développer et présenter l'outil. Une fois anonymisée, une donnée ne permet plus de remonter à quelqu'un.
 
@@ -90,8 +92,8 @@ Les promos ne se voient pas entre elles : un stagiaire n'accède qu'à sa propre
 
 - Vendre ou louer des données, à quiconque.
 - Utiliser les données à des fins publicitaires.
-- Publier des résultats nominatifs hors de l'application.
-- Transmettre des données nominatives à d'autres que ECF et au centre de formation (qui peut en présenter une partie à son certificateur et à ses financeurs, comme le dit la section 5).
+- Rendre publics des résultats nominatifs (les publier hors de l'application).
+- Transmettre des données nominatives à d'autres que ECF, y compris lorsqu'ECF présente des documents à son certificateur Qualiopi et à ses financeurs, comme le dit la section 5.
 - Croiser les données avec des services extérieurs à la formation.
 
 ## 7. Les personnes sans compte : élèves bénévoles et auto-écoles partenaires
@@ -156,7 +158,7 @@ Conformément au RGPD, chacun peut :
 
 Pour exercer ces droits : contact@timy-studio.fr, ou directement auprès de l'éditeur. La réponse intervient dans un délai d'un mois au plus. La suppression des données nominatives n'affecte pas les statistiques anonymes déjà produites.
 
-**Effacement sur demande.** Une demande d'effacement est exécutée tout de suite, même avant la fin des durées de la section 10 et même si cela retire des preuves de votre parcours : le dossier de la formation indique alors « fiche effacée à la demande de la personne ». Vos réponses aux questionnaires, enregistrées sans votre nom, ne peuvent pas être retrouvées pour être retirées une à une ; c'est la contrepartie de leur anonymat.
+**Effacement sur demande.** Une demande d'effacement est exécutée sans attendre la fin des durées de la section 10, dans le délai d'un mois indiqué ci-dessus, même si cela retire des preuves de votre parcours : le dossier de la formation indique alors « fiche effacée à la demande de la personne ». Vos réponses aux questionnaires, enregistrées sans votre nom, ne peuvent pas être retrouvées pour être retirées une à une ; c'est la contrepartie de leur anonymat.
 
 Si vous estimez que vos droits ne sont pas respectés, vous pouvez adresser une réclamation à la **CNIL** (www.cnil.fr).
 
