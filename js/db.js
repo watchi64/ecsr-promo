@@ -2014,6 +2014,19 @@ export async function lireCommentairesQuestionnaire(cle, portee) {
   return Array.isArray(data) ? data : [];
 }
 
+// Ouvertures posées à la main (gestion : la politique de lecture de la table est peut_gerer_qualite()) :
+// [{ cle, promo_id, lieu_id, annee, ouvert }]. Table absente (migration pas encore appliquée) : null, sans bruit ;
+// autre erreur : levée avec un message de lecture.
+export async function lireOuverturesQuestionnaires() {
+  const { data, error } = await supabase.from("questionnaire_ouvertures").select("cle, promo_id, lieu_id, annee, ouvert");
+  if (error) {
+    const code = String(error.code ?? "");
+    if (code === "PGRST205" || code === "42P01" || /could not find the table|relation .* does not exist/i.test(String(error.message ?? ""))) return null;
+    throw new Error("Les questionnaires n'ont pas pu être lus : vérifie ta connexion, puis réessaie.");
+  }
+  return Array.isArray(data) ? data : [];
+}
+
 // Ouvre (true), ferme (false) à la main, ou revient aux dates (null).
 export async function ouvrirQuestionnaire(cle, portee, ouvert) {
   const { error } = await supabase.rpc("ouvrir_questionnaire", { p_cle: cle, p_portee: portee, p_ouvert: ouvert });

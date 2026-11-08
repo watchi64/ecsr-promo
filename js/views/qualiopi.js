@@ -13,8 +13,17 @@
 // repli sur la promo courante. Les lectures de la page se gardent en mémoire, par promo, le temps de la page : le dossier
 // du centre relit les autres promos du lieu, mais jamais celle qui est déjà affichée.
 // La date des documents est celle du rendu de la page, comme les données lues.
+//
+// Section « Questionnaires de satisfaction » (Qualiopi Q3, indicateur 30) : pour la promo choisie, l'état de chaque
+// questionnaire (ouvert ou fermé, selon les dates ou à la main), le nombre de réponses ou « moins de N réponses », les
+// résultats question par question au-dessus du seuil, et les commentaires (fondateur seul, jamais avec la case « Sans aucun
+// nom », jamais à l'impression). Les règles sont dans js/questionnaires-gestion-rules.js ; la base garde le seuil (rien ne
+// sort en dessous). Migration pas encore appliquée : la section le dit, sans erreur (R2).
 
-import { lireDonneesQualiopi, lireReferentielCentre, getMesPromos, getPromoCourante } from "../db.js?v=20261108a";
+import {
+  lireDonneesQualiopi, lireReferentielCentre, getMesPromos, getPromoCourante,
+  lireResultatsQuestionnaire, lireCommentairesQuestionnaire, lireOuverturesQuestionnaires, ouvrirQuestionnaire,
+} from "../db.js?v=20261108a";
 import { el, clear, isoDate, toast } from "../utils.js?v=20261108a";
 import { indicateursPromo } from "../centre-stats.js?v=20261108a";
 import { inventairePromo, nb } from "../qualiopi-preuves.js?v=20261108a";
@@ -31,6 +40,11 @@ import {
 import { NOUVEAUTES } from "../nouveautes-data.js?v=20261108a";
 import { telecharger } from "./centre.js?v=20261108a";
 import { imprimerQualiopi } from "../qualiopi-impression.js?v=20261108a";
+import {
+  QUESTIONNAIRES_GESTION, porteeGestion, anneesFormateur, libellePorteeFormateur, ouvertureDe, etatOuverture, actionsOuverture,
+  messageOuverture, questionnairesAbsents, resumeReponses, satisfactionGlobale, lignesResultats, commentairesMontrables,
+  messageLectureGestion, messageEchecOuverture,
+} from "../questionnaires-gestion-rules.js?v=20261108a";
 
 let rendu = 0;   // un rendu plus récent rend caduc celui qui attend encore ses données
 
@@ -173,6 +187,39 @@ function boiteErreur(message, reessayer) {
     el("button", { class: "btn small", type: "button", onClick: reessayer }, "Réessayer"));
 }
 
+// =====================================================================================================
+// Questionnaires : une ligne de résultats (question, accord, barre, répartition en mots)
+// =====================================================================================================
+
+// La barre est une image de la répartition (cachée aux lecteurs d'écran) ; les nombres sont toujours écrits dessous. Couleurs de
+// l'échelle de « Pas du tout » à « Tout à fait », jamais de rouge ; « Sans avis » est gris.
+function barreRepartition(parts) {
+  const barre = el("div", { class: "qq-barre", "aria-hidden": "true" });
+  parts.forEach((part, rang) => {
+    if (!part.nombre) return;
+    const segment = el("span", { class: "qq-segment qq-c" + rang });
+    segment.style.flexGrow = String(part.nombre);
+    barre.appendChild(segment);
+  });
+  return barre;
+}
+
+function ligneResultat(ligne) {
+  const echelle = ligne.type === "echelle";
+  const marques = [ligne.globale ? "question globale" : null, ligne.facultative ? "facultative" : null].filter(Boolean);
+  const question = el("p", { class: "qq-question" }, ligne.texte,
+    ...marques.flatMap((m) => [" ", el("span", { class: "qq-marque" }, m)]));
+  if (ligne.sousSeuil) {
+    return el("li", { class: "qq-ligne qq-sous-seuil" }, question, el("p", { class: "qq-chiffre" }, ligne.texteSousSeuil));
+  }
+  return el("li", { class: "qq-ligne" }, question,
+    el("p", { class: "qq-chiffre" }, ligne.accord ? ligne.accord.texte : nb(ligne.n, "réponse")),
+    echelle ? barreRepartition(ligne.parts) : null,
+    el("ul", { class: "qq-repartition" + (echelle ? " qq-echelle" : "") }, ...ligne.parts.map((part, rang) => el("li", {},
+      echelle ? el("span", { class: "qq-puce qq-c" + rang, "aria-hidden": "true" }) : null,
+      el("span", {}, part.libelle, " : ", el("strong", {}, String(part.nombre)))))));
+}
+
 const ligneFiche = (libelle, contenu) => el("div", { class: "qualiopi-fiche-ligne" }, el("dt", {}, libelle), el("dd", {}, contenu));
 
 // =====================================================================================================
@@ -247,6 +294,160 @@ export async function renderQualiopi(container) {
   const corps = el("div", { class: "qualiopi-corps" });
   const zoneCriteres = el("section", { class: "qualiopi-criteres" });
   racine.appendChild(corps);
+
+  // --- Questionnaires de satisfaction (Q3) : lus à part, sans retenir le reste de la page ---
+  const zoneQuestionnaires = el("section", { class: "qualiopi-questionnaires", "aria-labelledby": "qualiopi-titre-questionnaires" });
+  const anneeDuJour = Number(aujourdhui.slice(0, 4));
+  // lu : null pendant la première lecture, { erreur }, { absent: true } (migration pas encore appliquée), ou { ouvertures, cartes }.
+  const qq = { lu: null, anneeFormateur: anneeDuJour, occupe: false };
+  const statutsQq = new Map();       // clé du questionnaire : { texte, erreur }, le message de la dernière action, gardé au redessin
+  let lectureQq = 0;                 // numéro de la dernière lecture des questionnaires
+  const promosDuLieu = (promo) => promos.filter((p) => p.lieu_id != null && p.lieu_id === promo.lieu_id);
+
+  // Une carte : sa portée, ses résultats, et ses commentaires lus seulement à partir du seuil (la base n'en rend aucun dessous).
+  async function lireCarte(cle, promo) {
+    const portee = porteeGestion(cle, promo, qq.anneeFormateur);
+    if (!portee) return { portee: null, resultats: null, commentaires: [] };
+    const resultats = await lireResultatsQuestionnaire(cle, portee);
+    const commentaires = resumeReponses(cle, resultats).assez ? await lireCommentairesQuestionnaire(cle, portee) : [];
+    return { portee, resultats, commentaires };
+  }
+
+  // Lit les trois questionnaires de la promo. `focus` (après une action ou un changement d'année) : la section reste affichée
+  // pendant la relecture, puis le focus revient à l'élément qui l'avait (clavier).
+  async function chargerQuestionnaires(promo, focus = null) {
+    const moi = ++lectureQq;
+    const annees = anneesFormateur(promosDuLieu(promo), aujourdhui);
+    if (!annees.includes(qq.anneeFormateur)) qq.anneeFormateur = annees[0] ?? anneeDuJour;
+    if (!focus) {
+      qq.lu = null;
+      afficherQuestionnaires();
+    }
+    let lu;
+    try {
+      const [ouvertures, ...cartes] = await Promise.all([
+        lireOuverturesQuestionnaires(), ...QUESTIONNAIRES_GESTION.map((q) => lireCarte(q.cle, promo))]);
+      const resultats = cartes.filter((c) => c.portee).map((c) => c.resultats);
+      lu = questionnairesAbsents({ ouvertures, resultats })
+        ? { absent: true }
+        : { ouvertures, cartes: Object.fromEntries(QUESTIONNAIRES_GESTION.map((q, i) => [q.cle, cartes[i]])) };
+    } catch (e) {
+      console.error(e);
+      lu = { erreur: messageLectureGestion(e) };
+    }
+    if (moi !== lectureQq || !pageVivante() || etat.promo !== promo) return;
+    qq.lu = lu;
+    afficherQuestionnaires();
+    if (focus) zoneQuestionnaires.querySelector(focus)?.focus();
+  }
+
+  async function basculerQuestionnaire(cle, portee, valeur) {
+    if (qq.occupe) return;
+    qq.occupe = true;
+    const promo = etat.promo;
+    zoneQuestionnaires.querySelectorAll("button[data-cle], select").forEach((b) => { b.disabled = true; });
+    statutsQq.clear();
+    try {
+      await ouvrirQuestionnaire(cle, portee, valeur);
+      statutsQq.set(cle, { texte: messageOuverture(valeur), erreur: false });
+    } catch (e) {
+      console.error(e);
+      statutsQq.set(cle, { texte: messageEchecOuverture(e), erreur: true });
+    } finally {
+      qq.occupe = false;
+    }
+    if (!pageVivante() || etat.promo !== promo) return;
+    await chargerQuestionnaires(promo, `button[data-cle="${cle}"]`);
+  }
+
+  function carteQuestionnaire({ cle, titre, qui }) {
+    const promo = etat.promo;
+    const carte = qq.lu.cartes[cle];
+    const idTitre = "qq-titre-" + cle;
+    const tete = el("div", { class: "qq-tete" }, el("h4", { id: idTitre, class: "qq-titre" }, titre));
+    if (!carte.portee) {
+      return el("article", { class: "qq-carte", "aria-labelledby": idTitre }, tete,
+        el("p", { class: "qq-qui" }, "Cette promo n'a pas de centre : le questionnaire des formateurs se lit par centre."));
+    }
+    const etatO = etatOuverture({
+      cle, promo, promosDuLieu: promosDuLieu(promo), annee: qq.anneeFormateur, aujourdhui,
+      ouverture: ouvertureDe(qq.lu.ouvertures, cle, carte.portee),
+    });
+    tete.appendChild(el("span", { class: "qq-etat " + (etatO.ouvert ? "ouvert" : "ferme") }, etatO.etiquette));
+    const resume = resumeReponses(cle, carte.resultats);
+    const seuil = carte.resultats?.seuil;
+
+    // Qui répond ; pour les formateurs, le centre et l'année (au choix quand la fin des promos touche deux années).
+    let quiLigne = el("p", { class: "qq-qui" }, qui);
+    if (cle === "fin_formateur") {
+      const annees = anneesFormateur(promosDuLieu(promo), aujourdhui);
+      quiLigne = el("div", { class: "qq-qui" }, el("p", {}, libellePorteeFormateur(promo.lieu_nom, qq.anneeFormateur)));
+      if (annees.length > 1) {
+        const choixAnnee = el("select", { id: "qq-annee", class: "qualiopi-select qq-annee" },
+          ...annees.map((a) => el("option", { value: String(a) }, String(a))));
+        choixAnnee.value = String(qq.anneeFormateur);
+        choixAnnee.addEventListener("change", () => {
+          qq.anneeFormateur = Number(choixAnnee.value);
+          statutsQq.clear();
+          chargerQuestionnaires(promo, "#qq-annee");
+        });
+        quiLigne.appendChild(el("p", { class: "qq-annee-ligne" }, el("label", { for: "qq-annee" }, "Année"), choixAnnee));
+      }
+    }
+
+    const chiffres = el("dl", { class: "qq-chiffres" },
+      el("div", {}, el("dt", {}, "Ouverture"), el("dd", {}, etatO.detail)),
+      el("div", {}, el("dt", {}, "Réponses"), el("dd", { class: "qq-nombre" }, resume.texte)));
+    if (resume.assez) {
+      const globale = satisfactionGlobale(cle, carte.resultats);
+      chiffres.appendChild(el("div", {}, el("dt", {}, "Satisfaction globale"),
+        globale
+          ? el("dd", { class: "qq-nombre" }, globale.valeur, el("span", { class: "qq-detail" }, globale.detail))
+          : el("dd", {}, `moins de ${seuil} notes à la question globale : pas de taux`)));
+    }
+
+    const statut = statutsQq.get(cle);
+    const actions = el("div", { class: "qq-actions" },
+      el("div", { class: "qualiopi-boutons" }, ...actionsOuverture(etatO).map((a) => el("button", {
+        class: "btn", type: "button", "data-cle": cle, onClick: () => basculerQuestionnaire(cle, carte.portee, a.valeur),
+      }, a.libelle))),
+      el("p", { class: "qq-statut" + (statut?.erreur ? " erreur" : ""), role: "status" }, statut?.texte ?? ""));
+
+    const corpsCarte = [tete, quiLigne, chiffres, actions];
+    if (!resume.assez) {
+      corpsCarte.push(el("p", { class: "qq-aide" }, `Les résultats et les commentaires s'affichent à partir de ${seuil} réponses.`));
+    } else {
+      corpsCarte.push(repliable(el("details", { class: "qq-details" },
+        el("summary", {}, "Résultats question par question"),
+        el("ol", { class: "qq-lignes" }, ...lignesResultats(cle, carte.resultats).map(ligneResultat))), "qq-resultats-" + cle, ouverts));
+      // Commentaires : fondateur seul, jamais avec « Sans aucun nom » ; la feuille de style les cache aussi à l'impression.
+      if (etat.sansNoms) {
+        corpsCarte.push(el("p", { class: "qq-aide" }, "Commentaires masqués : la case « Sans aucun nom » est cochée."));
+      } else {
+        const textes = commentairesMontrables(carte.commentaires, { sansNoms: etat.sansNoms, assez: resume.assez });
+        corpsCarte.push(textes.length
+          ? repliable(el("details", { class: "qq-details qualiopi-commentaires" },
+            el("summary", {}, `Commentaires (${textes.length})`),
+            el("p", { class: "qq-aide" }, "Dans un ordre tiré au hasard. Visibles par toi seul, jamais dans les documents."),
+            el("ul", { class: "qq-commentaires" }, ...textes.map((t) => el("li", {}, t)))), "qq-commentaires-" + cle, ouverts)
+          : el("p", { class: "qq-aide qualiopi-commentaires" }, "Aucun commentaire écrit."));
+      }
+    }
+    return el("article", { class: "qq-carte", "aria-labelledby": idTitre }, ...corpsCarte);
+  }
+
+  function afficherQuestionnaires() {
+    clear(zoneQuestionnaires);
+    zoneQuestionnaires.append(
+      el("h3", { class: "qualiopi-titre", id: "qualiopi-titre-questionnaires" }, "Questionnaires de satisfaction"),
+      el("p", { class: "qualiopi-intro" },
+        "Réponses anonymes. Rien ne s'affiche sous le seuil : 5 réponses de stagiaires, 3 de formateurs."));
+    const lu = qq.lu;
+    if (lu === null) zoneQuestionnaires.appendChild(el("div", { class: "loading" }, "Chargement"));
+    else if (lu.erreur) zoneQuestionnaires.appendChild(boiteErreur(lu.erreur, () => chargerQuestionnaires(etat.promo)));
+    else if (lu.absent) zoneQuestionnaires.appendChild(el("p", { class: "qualiopi-vide" }, "Les questionnaires ne sont pas encore en service."));
+    else zoneQuestionnaires.appendChild(el("div", { class: "qq-cartes" }, ...QUESTIONNAIRES_GESTION.map(carteQuestionnaire)));
+  }
 
   function recalculerInventaire() {
     etat.inv = inventairePromo(etat.donnees, etat.referentiel, {
@@ -413,6 +614,8 @@ export async function renderQualiopi(container) {
     const caseSansNom = el("input", { type: "checkbox", id: "qualiopi-sans-nom" });
     caseSansNom.checked = etat.sansNoms;
     caseSansNom.addEventListener("change", () => { etat.sansNoms = caseSansNom.checked; });
+    // Les commentaires des questionnaires suivent la case : masqués dès qu'elle est cochée.
+    caseSansNom.addEventListener("change", () => { if (qq.lu?.cartes) afficherQuestionnaires(); });
     const bouton = (texte, onClick, classe = "btn") => el("button", { class: classe, type: "button", onClick }, texte);
     const boutonFormation = bouton("Dossier de la formation", dossierFormation, "btn primary");
     const boutonTableau = bouton("Tableau (CSV)", tableauCsv);
@@ -464,6 +667,8 @@ export async function renderQualiopi(container) {
     majEntete(promo);
     clear(corps);
     corps.appendChild(el("div", { class: "loading" }, "Chargement"));
+    statutsQq.clear();
+    chargerQuestionnaires(promo);   // sans attendre : la section se remplit à son rythme
     try {
       const [referentiel, donnees] = await Promise.all([lireReferentielCentre(), lire(promo.id)]);
       if (!chargementVivant(moi)) return;
@@ -477,7 +682,7 @@ export async function renderQualiopi(container) {
       return;
     }
     clear(corps);
-    corps.append(construireActions(), zoneCriteres);
+    corps.append(construireActions(), zoneQuestionnaires, zoneCriteres);
     afficherCriteres();
   }
 
