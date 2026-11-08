@@ -49,11 +49,13 @@ export async function renderAttestations(container, { estCourant = () => true, o
 }
 
 // Les feuilles de toute la formation sont lues une fois (sans tracés) ; une période qui en
-// sort élargit la lecture. Rend faux si une lecture plus récente a été demandée entre-temps :
-// sa réponse fera foi (deux périodes choisies coup sur coup).
+// sort élargit la lecture, et la plage chargée ne rétrécit jamais (une lecture arrivée tard ne
+// peut donc pas retirer les feuilles d'une période déjà affichée). Rend faux si une lecture plus
+// récente a été demandée entre-temps : sa réponse fera foi.
 async function charger(ctx) {
-  const du = ctx.periode.du < ctx.formation.du ? ctx.periode.du : ctx.formation.du;
-  const au = ctx.periode.au > ctx.formation.au ? ctx.periode.au : ctx.formation.au;
+  const bornes = [ctx.periode, ctx.formation, ctx.charge].filter(Boolean);
+  const du = bornes.map((b) => b.du).sort()[0];
+  const au = bornes.map((b) => b.au).sort().at(-1);
   if (ctx.charge && ctx.charge.du <= du && ctx.charge.au >= au) return true;
   const numero = ++ctx.lecture;
   const seances = seancesDeLaPromo(await listEmargementPresences(du, au), ctx.promo?.id);
@@ -207,6 +209,5 @@ const attestation = (ctx, { stagiaire, bilan }) => attestationAssiduite({
 
 function imprimerPieces(ctx, lignes, fabrique) {
   if (lignes.length === 0) return;
-  // Marge de 12 mm en haut et en bas de chaque page : une attestation peut en prendre plusieurs.
-  imprimer(liasse(lignes.map((l) => fabrique(ctx, l))), { ancre: ctx.page, page: "A4 portrait", marge: "12mm 0" });
+  imprimer(liasse(lignes.map((l) => fabrique(ctx, l))), { ancre: ctx.page, page: "A4 portrait" });
 }

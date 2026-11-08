@@ -216,7 +216,7 @@ export function feuilleSemaine({ entete, promo, lundi, seances, stagiairesTous, 
 
 // Imprime une feuille. `ancre` : élément de la page à l'écran ; s'il disparaît (changement
 // de page), l'impression suivante n'emporte plus la feuille.
-export function imprimer(feuille, { ancre, page = "A4 portrait", marge = "0" }) {
-  bindDocPrint(ancre, { printId: "emargement-print", bodyClass: "emargement-printable", source: feuille, page, marge });
+export function imprimer(feuille, { ancre, page = "A4 portrait" }) {
+  bindDocPrint(ancre, { printId: "emargement-print", bodyClass: "emargement-printable", source: feuille, page });
   window.print();
 }

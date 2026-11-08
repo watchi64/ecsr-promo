@@ -1977,10 +1977,11 @@ function enteteEmargementDuReglage(valeur) {
   return entete;
 }
 
+// Une lecture ratée lève (elle n'est plus remplacée par les valeurs par défaut) : imprimer
+// « ECF BOUSCAREN » sur une autre promo, ou réenregistrer ces valeurs par-dessus le vrai en-tête,
+// serait pire qu'une page en erreur. Un réglage absent, lui, donne les valeurs par défaut.
 export async function getEnteteEmargement() {
-  let valeur = null;
-  try { valeur = await getSetting("emargement_entete"); } catch (e) { valeur = null; }
-  return enteteEmargementDuReglage(valeur);
+  return enteteEmargementDuReglage(await getSetting("emargement_entete"));
 }
 
 export async function setEnteteEmargement(entete) {

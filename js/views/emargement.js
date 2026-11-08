@@ -156,9 +156,10 @@ function dessinerSemaine(ctx) {
     "En-tête");
   const attestations = el("a", { class: "btn small", href: "#/emargement/attestations" },
     icon.clipboard(), "Attestations");
+  // La base n'accepte l'écriture des réglages que d'un administrateur : le bouton « En-tête » suit.
   page.appendChild(el("div", { class: "em-barre" },
     el("div", { class: "em-barre-nav" }, el("span", { class: "em-barre-titre" }, titre), prev, choixDate, next, cette),
-    el("div", { class: "em-barre-actions" }, imprimerSemaine, attestations, reglerEntete),
+    el("div", { class: "em-barre-actions" }, imprimerSemaine, attestations, isAdmin() ? reglerEntete : null),
   ));
 
   const actifs = stagiaireIdsActifs(ctx);

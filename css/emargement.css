@@ -306,13 +306,20 @@ body.sig-ouverte { overflow: hidden; }
 /* Pièces sobres, sur l'en-tête de l'organisme : le certificat suit le modèle du ministère. */
 
 .at-doc {
-  box-sizing: border-box; width: 210mm; padding: 4mm 20mm 2mm;
+  box-sizing: border-box; width: 210mm; padding: 16mm 20mm 14mm;
   background: #fff; color: #111; font-family: var(--font); font-size: 10.5pt; line-height: 1.45;
 }
-/* Imprimées avec une marge @page de 12 mm en haut et en bas (imprimer(..., { marge })), répétée
-   sur chaque page : 273 mm utiles. Le certificat tient sur une page, notes de bas de page en
-   pied ; l'attestation peut en prendre plusieurs (bloc ordinaire, découpé par l'impression). */
-.at-certificat { display: flex; flex-direction: column; min-height: 272mm; }
+/* Imprimées sans marge de page (comme les feuilles). Le certificat tient sur une page, notes de
+   bas de page en pied ; l'attestation peut en prendre plusieurs : ses marges du haut et du bas
+   sont l'en-tête et le pied d'un tableau, que l'impression répète sur chaque page. */
+.at-certificat { display: flex; flex-direction: column; min-height: 296mm; }
+.at-attestation { padding-top: 0; padding-bottom: 0; }
+.at-pagination { width: 100%; border-collapse: collapse; }
+.at-pagination > thead { display: table-header-group; }
+.at-pagination > tfoot { display: table-footer-group; }
+.at-pagination > * > tr > td { padding: 0; vertical-align: top; }
+.at-marge-haut { height: 16mm; }
+.at-marge-bas { height: 14mm; }
 .at-doc + .at-doc { break-before: page; page-break-before: always; }
 .at-doc p { margin: 0 0 2mm; }
 .at-entete { margin-bottom: 7mm; padding-bottom: 2.5mm; border-bottom: 0.4mm solid #556641; }
@@ -347,10 +354,10 @@ body.sig-ouverte { overflow: hidden; }
 .at-table { font-size: 9pt; }
 .at-table td { vertical-align: top; }
 .at-nombre { white-space: nowrap; }
-.at-table-evenements th:nth-child(1) { width: 36mm; }
-.at-table-evenements th:nth-child(2) { width: 44mm; }
+.at-table-evenements th:nth-child(1) { width: 41mm; }
+.at-table-evenements th:nth-child(2) { width: 41mm; }
 .at-table-evenements th:nth-child(3) { width: 14mm; }
-.at-table-evenements th:nth-child(4) { width: 34mm; }
+.at-table-evenements th:nth-child(4) { width: 33mm; }
 .at-source { margin-top: 3mm !important; font-size: 8.5pt; color: #333; }
 
 @media print {

@@ -545,9 +545,12 @@ Spec : `docs/superpowers/specs/2026-10-24-attestations-design.md` · plan :
   chaque note avec sa date.
 - **En-tête** : le réglage `emargement_entete` gagne adresse (deux lignes), signataire, qualité, lieu
   « Fait à » (défaut : lieu de la promo). Aucune migration.
-- **Impression** : marge `@page` de 12 mm en haut et en bas (option `marge` de `bindDocPrint`, 0 par
-  défaut), pour que les pages 2 et suivantes d'une attestation ne s'impriment pas au ras du papier. Le
-  certificat le plus chargé (adresse, nom composé, signataire) mesure 260 mm pour 273 utiles.
+- **Impression** : marge de page 0, comme les feuilles (une marge `@page` laisserait Chrome imprimer
+  l'adresse de l'app et la date, case cochée par défaut). L'attestation, qui peut courir sur plusieurs
+  pages, porte ses marges dans l'en-tête et le pied d'un tableau que l'impression répète sur chaque page
+  (`avecMarges`). Preuve du 08/11 : Chrome sans tête, réglages par défaut, sur `_apercu_attestations.html`
+  (non versionné : 30 semaines, 300 demi-journées) : 6 pages d'attestation marges comprises, puis le
+  certificat sur une page, aucune adresse ni date ajoutée.
 - **Robustesse** (relecture du 26/10) : la saisie d'une date au clavier ne redessine jamais les champs
   (seule la partie sous les dates) et ignore les années hors 2000-2099 ; une lecture plus ancienne
   arrivée après une plus récente est ignorée ; rien n'est peint si l'on a quitté la page. Bouton

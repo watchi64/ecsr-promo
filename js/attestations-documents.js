@@ -89,7 +89,7 @@ export function attestationAssiduite({ entete, lieuDefaut, promo, stagiaire, bil
     el("td", {}, e.observation || "")));
   const qualite = entete.qualite ? ", " + entete.qualite : "";
 
-  return el("article", { class: "at-doc at-attestation" },
+  return el("article", { class: "at-doc at-attestation" }, avecMarges(
     enTete(entete),
     el("h1", { class: "at-titre" }, "ATTESTATION D'ASSIDUITÉ"),
     el("p", { class: "at-justifie" }, "Je soussigné(e) ", champ(entete.signataire, "(prénom et nom)"), qualite,
@@ -120,7 +120,17 @@ export function attestationAssiduite({ entete, lieuDefaut, promo, stagiaire, bil
       + "signées dans l'application TP ECSR et horodatées par le serveur. Une demi-journée signée compte pour sa durée entière. "
       + "Les heures sans feuille d'émargement (stage en entreprise) ne sont pas comptées."),
     blocSignature({ entete, lieuDefaut, faitLe, responsable: "du responsable de l'organisme de formation" }),
-  );
+  ));
+}
+
+// Marge répétée sur chaque page imprimée. L'impression se fait sans marge de page (sinon Chrome y
+// imprime l'adresse et la date) et une attestation longue court sur plusieurs pages : un tableau
+// répète son en-tête et son pied sur chaque page, ils portent la marge du haut et celle du bas.
+function avecMarges(...contenu) {
+  return el("table", { class: "at-pagination" },
+    el("thead", {}, el("tr", {}, el("td", {}, el("div", { class: "at-marge-haut" })))),
+    el("tfoot", {}, el("tr", {}, el("td", {}, el("div", { class: "at-marge-bas" })))),
+    el("tbody", {}, el("tr", {}, el("td", {}, ...contenu))));
 }
 
 // Plusieurs pièces à la suite, une par page.

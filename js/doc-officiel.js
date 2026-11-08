@@ -181,17 +181,16 @@ let listenersPrets = false;
 // l'ancre elle-même : comportement inchangé pour le livret EPCF, qui ne
 // passe ni l'une ni l'autre option.
 // page : format de la règle @page (« A4 portrait » par défaut ; la feuille d'émargement
-// de la semaine passe « A4 landscape »). marge : marge de la règle @page (0 par défaut ; les
-// attestations, qui peuvent courir sur plusieurs pages, passent « 12mm 0 »).
-export function bindDocPrint(ancre, { printId, bodyClass, avantClone = null, source = null, page = "A4 portrait", marge = "0" }) {
-  courant = { ancre, printId, bodyClass, avantClone, source, page, marge };
+// de la semaine passe « A4 landscape »).
+export function bindDocPrint(ancre, { printId, bodyClass, avantClone = null, source = null, page = "A4 portrait" }) {
+  courant = { ancre, printId, bodyClass, avantClone, source, page };
   ensurePrintListeners();
   refreshDocPrint();
 }
 
 export function refreshDocPrint() {
   if (!courant) return;
-  const { ancre, printId, bodyClass, avantClone, source, page, marge = "0" } = courant;
+  const { ancre, printId, bodyClass, avantClone, source, page } = courant;
   if (avantClone) avantClone();
   // Format de page injecté seulement tant qu'un document est ouvert : une règle
   // @page en dur écraserait le « A4 landscape » de l'impression du planning.
@@ -201,7 +200,7 @@ export function refreshDocPrint() {
     st.id = "doc-officiel-page-style";
     document.head.appendChild(st);
   }
-  st.textContent = `@page { size: ${page}; margin: ${marge}; }`;
+  st.textContent = `@page { size: ${page}; margin: 0; }`;
   let c = document.getElementById(printId);
   if (!c) {
     c = document.createElement("div");
