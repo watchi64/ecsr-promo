@@ -110,6 +110,7 @@ test("lot 2B : le nouveau guide décrit Aujourd'hui, l'Accueil, la grille, les s
     "L'épreuve en bref", "EPCF : 0 sur 2", "Dossier pro : 2 exemples sur 6", "Moi"]) {
     assert.ok(avantAnciensNoms.includes(nom), nom);
   }
+  assert.match(avantAnciensNoms, /bandeau en haut de l'app propose aussi « Signer » tant que la feuille du jour est ouverte/);
   assert.match(anciensNoms, /Accueil[^\n]*Aujourd'hui/);
   assert.match(anciensNoms, /Évolution[^\n]*Résultats/);
   assert.ok(!avantAnciensNoms.includes("Évolution (graphe"), "Évolution n'est plus une partie");
