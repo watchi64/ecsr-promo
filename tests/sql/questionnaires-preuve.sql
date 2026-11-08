@@ -11,7 +11,9 @@
 -- Jouée sur une base LOCALE jetable (Postgres de scoop, authentification « trust ») :
 --   D=<dossier temporaire> ; initdb -D $D/pg -U postgres --auth=trust -E UTF8 --no-locale
 --   pg_ctl -D $D/pg -o "-p 55441" -l $D/pg.log start ; createdb -p 55441 -U postgres qn
---   psql -p 55441 -U postgres -d qn -f tests/sql/questionnaires-schema-minimal.sql
+--   psql -p 55441 -U postgres -d qn -v ON_ERROR_STOP=1 --        -v lot4_fonctions=<chemin absolu de supabase/migrations/20261028_roles_2_fonctions.sql> --        -f tests/sql/questionnaires-schema-minimal.sql
+--   (le schéma minimal porte le lot 4 : étape 1 rejouée telle quelle, quatre fonctions de l'étape 2 extraites du
+--   fichier ; voir son en-tête)
 --   psql -p 55441 -U postgres -d qn -1 -v migration=<chemin absolu de 20261108_questionnaires.sql> \
 --        -v retour=<chemin absolu de 20261108_questionnaires_retour.sql> -f tests/sql/questionnaires-preuve.sql
 --   pg_ctl -D $D/pg stop ; rm -rf $D
@@ -25,7 +27,23 @@
 -- Attendu : une seule ligne de réponses (4 réponses, xmin de S4, le dernier servi). Sans verrou, la réponse de S4
 -- resterait seule avec le xmin de sa participation.
 --
--- Résultats du 08/11/2026 (Postgres 18.4 local, port 55441, base recréée à chaque passage) :
+-- Résultats du 09/11/2026, migration réalignée sur les rôles du lot 4 (Postgres 18.4 local, port 55461, base recréée à
+-- chaque passage, schéma minimal avec le lot 4) :
+--   - avant le réalignement (migration du 08/11, ancien modèle de droits) : ROUGE 176/10, sur les seuls cas nouveaux
+--     (direction et fondateur sans affectation à qui l'on propose et qui répondent pour le lieu 1, formateur et
+--     fondateur en aperçu à qui l'on propose, formateur en aperçu stagiaire qui répond, et la suite de ce dernier) ;
+--   - après : VERT 186/0 (trois passages) ; base où la migration est déjà appliquée : VERT 184/0, aucune ligne laissée ;
+--   - contre-épreuves 1 à 6 ci-dessous rejouées : ROUGE 183/3, 181/5, 184/2, 180/6, 185/1, 185/1, sur les mêmes cas ;
+--   - contre-épreuve 7 (ayant droit formateur remis à l'ancienne règle : rôle prof ou admin et peut_acceder_promo) :
+--     ROUGE 176/10, sur les cas nouveaux de la direction, du fondateur sans affectation et de l'aperçu ;
+--   - contre-épreuve 8 (peut_gerer_qualite sur fondateur_reel, qui ignore l'aperçu) : ROUGE 174/12, sur la gestion par
+--     le fondateur en aperçu stagiaire, formateur et siège (les commentaires restent refusés : est_fondateur à part) ;
+--   - contre-épreuve 9 (garde d'aperçu retirée de l'ayant droit formateur) : ROUGE 183/3, sur le formateur en aperçu
+--     stagiaire ;
+--   - retour joué hors preuve (psql -f) : empreinte 9a291831… avant, 3957c3bb… migration appliquée, 9a291831… après le
+--     retour ; plus aucune table ni fonction des questionnaires ; affectations et profils intacts.
+--
+-- Résultats du 08/11/2026, première version (ancien modèle de droits, schéma minimal sans le lot 4, port 55441) :
 --   - avant la migration (fichiers de migration et de retour vides) : échec, « relation questionnaire_questions does
 --     not exist » ;
 --   - correction 1 (relecture du 08/11) : VERT 144/0 (trois passages) ; base où la migration est déjà appliquée :
@@ -84,9 +102,10 @@ declare
       select 'stagiaires ' || md5(coalesce(string_agg(t::text, ',' order by t::text), '')) from public.stagiaires t
       union all
       select 'profils ' || md5(coalesce(string_agg(t::text, ',' order by t::text), '')) from public.user_profiles t
+      union all
+      select 'affectations ' || md5(coalesce(string_agg(t::text, ',' order by t::text), '')) from public.affectations t
     ) e(x) $q$;
   md5_avant text; md5_apres text;
-  v_acces_promo text;
   L1 integer; L2 integer; L3 integer; P1 integer; P2 integer; P3 integer; P4 integer; P5 integer;
   pP1 jsonb; pP2 jsonb; pP3 jsonb; pP5 jsonb; pL1 jsonb; pL2 jsonb; pL3 jsonb;
   r text; j jsonb; n bigint; m bigint; t text;
@@ -103,10 +122,17 @@ begin
     create function pg_temp.qui(p_nom text) returns void language plpgsql as $f$
     declare c record;
     begin
+      perform set_config('request.headers', '', true);
       if p_nom is null then perform set_config('request.jwt.claims', '', true); return; end if;
       select * into c from pg_temp.preuve_comptes where nom = p_nom;
       perform set_config('request.jwt.claims', json_build_object('email', c.email, 'sub', c.uid)::text, true);
     end $f$;
+    -- Aperçu du lot 4 (en-têtes x-apercu-role et x-promo-id, comme l'app les envoie), pour le compte connecté ; nul :
+    -- sans aperçu. Un nouvel appel à qui() le retire.
+    create function pg_temp.apercu(p_role text, p_promo integer default null) returns void language sql as $f$
+      select set_config('request.headers', case when p_role is null then '' else
+        jsonb_strip_nulls(jsonb_build_object('x-apercu-role', p_role, 'x-promo-id', p_promo::text))::text end, true);
+    $f$;
     -- Jouer une requête sous le rôle courant : « ok » ou « code message ». Chaque appel est une sous-transaction.
     create function pg_temp.tente(p_sql text) returns text language plpgsql as $f$
     begin
@@ -162,10 +188,15 @@ begin
   pL3 := jsonb_build_object('lieu_id', L3, 'annee', y);
 
   -- Comptes : A1 à A6 stagiaires de P1 ; X stagiaire de P1 anonymisé ; B de P2 ; C de P3 ; D de P5 ; N profil sans
-  -- fiche ; Z sans profil ; F1, F2, F3, F5 formateurs (prof) ; F4 administrateur ; T fondateur (stagiaire de P4).
+  -- fiche ; Z sans profil ; T fondateur (stagiaire de P4). Équipe, au modèle du lot 4 (table affectations ; les
+  -- colonnes role et is_admin sont celles qu'écrit inviter_compte et ne décident plus de rien) : F1, F2, F3 formateurs
+  -- de P1 (lieu 1) ; F4 formateur de P2 (lieu 1), ancien rôle admin ; F5 formateur de P3 (lieu 2) seulement ; F6 ancien
+  -- formateur (prof, is_admin) sans aucune affectation ; DIR direction du lieu 1 seulement ; SIE siège seulement ; TF
+  -- fondateur sans fiche ni affectation (ancien rôle admin).
   insert into pg_temp.preuve_comptes (nom, email, uid)
   select k, 'preuve.qn.' || lower(k) || '@example.invalid', gen_random_uuid()
-    from unnest(array['A1','A2','A3','A4','A5','A6','X','B','C','D','N','Z','F1','F2','F3','F4','F5','T']) k;
+    from unnest(array['A1','A2','A3','A4','A5','A6','X','B','C','D','N','Z','F1','F2','F3','F4','F5','F6','DIR','SIE',
+                      'TF','T']) k;
   insert into auth.users (id, email) select uid, email from pg_temp.preuve_comptes;
   for c in select * from pg_temp.preuve_comptes loop
     if c.nom in ('A1','A2','A3','A4','A5','A6','X','B','C','D','T') then
@@ -179,10 +210,20 @@ begin
     elsif c.nom like 'F%' then
       insert into user_profiles (email, role, is_admin, is_founder)
       values (c.email, case when c.nom = 'F4' then 'admin' else 'prof' end, true, false);
+    elsif c.nom in ('DIR', 'SIE') then
+      insert into user_profiles (email, role, is_admin, is_founder) values (c.email, 'prof', false, false);
+    elsif c.nom = 'TF' then
+      insert into user_profiles (email, role, is_admin, is_founder) values (c.email, 'admin', true, true);
     elsif c.nom = 'N' then
       insert into user_profiles (email, role, is_admin, is_founder) values (c.email, null, false, false);
     end if;
   end loop;
+  insert into affectations (email, role, promo_id, lieu_id)
+  select k.email, v.role, v.promo, v.lieu
+    from (values ('F1', 'formateur', P1, null::integer), ('F2', 'formateur', P1, null), ('F3', 'formateur', P1, null),
+                 ('F4', 'formateur', P2, null), ('F5', 'formateur', P3, null), ('DIR', 'direction', null, L1),
+                 ('SIE', 'siege', null, null)) v(nom, role, promo, lieu)
+    join pg_temp.preuve_comptes k on k.nom = v.nom;
 
   -- 2. Migration jouée entre deux empreintes --------------------------------------------------------------------
   if not v_deja then
@@ -338,6 +379,33 @@ begin
   perform pg_temp.qui('F1');
   select string_agg(q.cle || ' ' || q.portee::text, ' ; ') into t from questionnaires_a_remplir() q;
   perform pg_temp.cas('F1 a le questionnaire formateurs du lieu 1 pour l''année, et lui seul', t = 'fin_formateur ' || pL1::text, t);
+  perform pg_temp.qui('F4');
+  select string_agg(q.cle || ' ' || q.portee::text, ' ; ') into t from questionnaires_a_remplir() q;
+  perform pg_temp.cas('F4 (formateur de P2, autre promo du lieu 1) a le questionnaire formateurs du lieu 1',
+    t = 'fin_formateur ' || pL1::text, t);
+  -- Lot 4 : seul un formateur affecté à une promo du lieu est ayant droit ; ni l'ancien rôle, ni la direction, ni le
+  -- siège, ni le statut de fondateur ne suffisent.
+  foreach t in array array['F5', 'F6', 'DIR', 'SIE', 'TF'] loop
+    perform pg_temp.qui(t);
+    select string_agg(q.cle || ' ' || q.portee::text, ' ; ') into r from questionnaires_a_remplir() q;
+    perform pg_temp.cas(t || ' (formateur d''un autre lieu, sans affectation, direction, siège ou fondateur) n''a rien à remplir',
+      r is null, r);
+  end loop;
+  -- Aperçu (en-tête x-apercu-role) : il ne fait que retirer des droits. Un formateur qui se voit « comme un stagiaire »
+  -- n'a rien à remplir ; le fondateur en aperçu formateur non plus (il ne répond pas à la place d'un autre) ; un
+  -- stagiaire qui envoie l'aperçu stagiaire reste lui-même.
+  perform pg_temp.qui('F1');
+  perform pg_temp.apercu('stagiaire', P1);
+  select string_agg(q.cle || ' ' || q.portee::text, ' ; ') into r from questionnaires_a_remplir() q;
+  perform pg_temp.cas('F1 en aperçu stagiaire n''a rien à remplir', r is null, r);
+  perform pg_temp.qui('TF');
+  perform pg_temp.apercu('formateur', P1);
+  select string_agg(q.cle || ' ' || q.portee::text, ' ; ') into r from questionnaires_a_remplir() q;
+  perform pg_temp.cas('le fondateur en aperçu formateur de P1 n''a rien à remplir', r is null, r);
+  perform pg_temp.qui('A6');
+  perform pg_temp.apercu('stagiaire', P1);
+  select string_agg(q.cle || ' ' || q.portee::text, ' ; ') into r from questionnaires_a_remplir() q;
+  perform pg_temp.cas('A6 en aperçu stagiaire garde sa fin de formation', r = 'fin_stagiaire ' || pP1::text, r);
   foreach t in array array['X', 'N', 'Z'] loop
     perform pg_temp.qui(t);
     select count(*) into n from questionnaires_a_remplir();
@@ -512,6 +580,33 @@ begin
   perform pg_temp.qui('A1');
   select count(*) into n from questionnaire_ouvertures;
   perform pg_temp.cas('un stagiaire ne lit aucune ouverture', n = 0, n::text);
+  -- Gestion de la qualité : le fondateur réel, hors aperçu ; ni l'ancien rôle admin, ni la direction, ni le siège.
+  foreach t in array array['T', 'TF', 'F4', 'DIR', 'SIE', 'A1'] loop
+    perform pg_temp.qui(t);
+    perform pg_temp.cas('peut_gerer_qualite() ' || case when t in ('T', 'TF') then 'vraie' else 'fausse' end || ' pour ' || t,
+      peut_gerer_qualite() = (t in ('T', 'TF')), peut_gerer_qualite()::text);
+  end loop;
+  perform pg_temp.qui('F4');
+  r := pg_temp.tente(format('select public.ouvrir_questionnaire(%L, %L::jsonb, true)', 'fin_stagiaire', pP3));
+  perform pg_temp.cas('ouverture manuelle refusée à un formateur ancien rôle admin', r like '%Réservé à la gestion%', r);
+  perform pg_temp.qui('DIR');
+  r := pg_temp.tente(format('select public.ouvrir_questionnaire(%L, %L::jsonb, true)', 'fin_stagiaire', pP1));
+  perform pg_temp.cas('ouverture manuelle refusée à la direction du lieu', r like '%Réservé à la gestion%', r);
+  -- Le fondateur en aperçu (stagiaire, formateur ou siège) n'a que les droits du rôle simulé : ni gestion, ni
+  -- ouvertures, ni résultats, ni commentaires.
+  foreach t in array array['stagiaire', 'formateur', 'siege'] loop
+    perform pg_temp.qui('T');
+    perform pg_temp.apercu(t, P1);
+    perform pg_temp.cas('peut_gerer_qualite() fausse pour le fondateur en aperçu ' || t, not peut_gerer_qualite(), null);
+    select count(*) into n from questionnaire_ouvertures;
+    perform pg_temp.cas('le fondateur en aperçu ' || t || ' ne lit aucune ouverture', n = 0, n::text);
+    r := pg_temp.tente(format('select public.ouvrir_questionnaire(%L, %L::jsonb, true)', 'fin_stagiaire', pP3));
+    perform pg_temp.cas('ouverture manuelle refusée au fondateur en aperçu ' || t, r like '%Réservé à la gestion%', r);
+    r := pg_temp.tente(format('select public.resultats_questionnaire(%L, %L::jsonb)', 'fin_stagiaire', pP1));
+    perform pg_temp.cas('résultats refusés au fondateur en aperçu ' || t, r like '%Réservé à la gestion%', r);
+    r := pg_temp.tente(format('select public.commentaires_questionnaire(%L, %L::jsonb)', 'fin_stagiaire', pP1));
+    perform pg_temp.cas('commentaires refusés au fondateur en aperçu ' || t, r like '%Réservé à l''éditeur%', r);
+  end loop;
   perform pg_temp.qui('B');
   select string_agg(q.cle || ' ' || q.portee::text, ' ; ') into t from questionnaires_a_remplir() q;
   perform pg_temp.cas('après l''ouverture manuelle, B a P2 à remplir', t = 'fin_stagiaire ' || pP2::text, t);
@@ -538,12 +633,19 @@ begin
   perform pg_temp.cas('F1 répond pour le lieu 1', r = 'ok', r);
   r := pg_temp.essai('fin_formateur', pL1, 1, pg_temp.rep_form('4'));
   perform pg_temp.cas('deuxième réponse de F1 refusée', r like '%déjà répondu%', r);
+  -- (F1 n'est formateur d'aucune promo du lieu 2 : la fenêtre se juge avec F5, qui l'est.)
+  perform pg_temp.qui('F5');
   r := pg_temp.essai('fin_formateur', pL2, 1, pg_temp.rep_form('4'));
-  perform pg_temp.cas('lieu 2 (aucune promo dans sa fenêtre) fermé pour F1', r like '%fermé%', r);
+  perform pg_temp.cas('lieu 2 (aucune promo dans sa fenêtre) fermé pour F5, formateur du lieu 2', r like '%fermé%', r);
+  perform pg_temp.qui('F1');
   r := pg_temp.essai('fin_formateur', jsonb_build_object('lieu_id', L1, 'annee', y + 1), 1, pg_temp.rep_form('4'));
   perform pg_temp.cas('année suivante fermée', r like '%fermé%', r);
   r := pg_temp.essai('fin_formateur', jsonb_build_object('lieu_id', L1), 1, pg_temp.rep_form('4'));
   perform pg_temp.cas('portée de formateur sans année refusée', r like '%Portée%illisible%', r);
+  perform pg_temp.qui('F2');
+  perform pg_temp.apercu('stagiaire', P1);
+  r := pg_temp.essai('fin_formateur', pL1, 1, pg_temp.rep_form('3'));
+  perform pg_temp.cas('F2 en aperçu stagiaire refusé au questionnaire des formateurs', r like '%ne te concerne pas%', r);
   perform pg_temp.qui('F2');
   r := pg_temp.essai('fin_formateur', pL1, 1, pg_temp.rep_form('3'));
   perform pg_temp.cas('F2 répond pour le lieu 1', r = 'ok', r);
@@ -564,7 +666,7 @@ begin
   perform pg_temp.cas('formateurs : à 3 réponses, le commentaire est rendu au fondateur', t = 'Salles trop petites', t);
   perform pg_temp.qui('F4');
   r := pg_temp.essai('fin_formateur', pL1, 1, pg_temp.rep_form('3'));
-  perform pg_temp.cas('un administrateur de l''équipe répond pour le lieu 1', r = 'ok', r);
+  perform pg_temp.cas('F4, formateur d''une autre promo du lieu 1 (ancien rôle admin), répond pour le lieu 1', r = 'ok', r);
   perform pg_temp.qui('A1');
   r := pg_temp.essai('fin_formateur', pL1, 1, pg_temp.rep_form('3'));
   perform pg_temp.cas('stagiaire refusé au questionnaire des formateurs', r like '%ne te concerne pas%', r);
@@ -594,27 +696,45 @@ begin
   perform pg_temp.cas('commentaires refusés à un stagiaire', r like '%Réservé à l''éditeur%', r);
   reset role;
 
-  -- 11. Formateur d'un autre lieu, quand l'accès aux promos sera resserré (lot 4) : on resserre peut_acceder_promo
-  -- pour l'équipe au seul lieu 2, le temps de deux cas, puis on remet la définition d'origine (l'empreinte finale le
-  -- vérifie).
-  v_acces_promo := pg_get_functiondef('public.peut_acceder_promo(integer)'::regprocedure);
-  execute format($f$
-    create or replace function public.peut_acceder_promo(p integer) returns boolean
-    language sql stable security definer set search_path to 'public', 'pg_temp' as $c$
-      select exists (select 1 from promos pr where pr.id = p and pr.lieu_id = %s)
-         and exists (select 1 from user_profiles up
-                      where lower(up.email) = lower((select auth.jwt() ->> 'email')) and up.role in ('prof', 'admin'));
-    $c$ $f$, L2);
+  -- 11. Ayants droit du lot 4 : formateur d'un autre lieu, sans affectation, direction, siège, fondateur, aperçu ------
+  -- (sans retouche de peut_acceder_promo : le lot 4 est dans la base ; le lieu 1 est dans sa fenêtre grâce à P1)
   set local role authenticated;
+  foreach t in array array['F5', 'F6', 'DIR', 'SIE', 'TF'] loop
+    perform pg_temp.qui(t);
+    r := pg_temp.essai('fin_formateur', pL1, 1, pg_temp.rep_form('3'));
+    perform pg_temp.cas(case t when 'F5' then 'formateur d''un autre lieu (P3, lieu 2)'
+                               when 'F6' then 'ancien formateur sans aucune affectation'
+                               when 'DIR' then 'direction du lieu 1 sans affectation de formateur'
+                               when 'SIE' then 'siège seul'
+                               else 'fondateur sans affectation de formateur' end
+                        || ' refusé au questionnaire formateurs du lieu 1', r like '%ne te concerne pas%', r);
+  end loop;
+  perform pg_temp.qui('TF');
+  perform pg_temp.apercu('formateur', P1);
+  r := pg_temp.essai('fin_formateur', pL1, 1, pg_temp.rep_form('3'));
+  perform pg_temp.cas('fondateur en aperçu formateur de P1 refusé (il ne répond pas à la place d''un formateur)',
+    r like '%ne te concerne pas%', r);
+  perform pg_temp.qui('A1');
+  perform pg_temp.apercu('formateur', P1);
+  r := pg_temp.essai('fin_formateur', pL1, 1, pg_temp.rep_form('3'));
+  perform pg_temp.cas('stagiaire qui envoie l''aperçu formateur refusé (en-tête ignoré)', r like '%ne te concerne pas%', r);
   perform pg_temp.qui('T');
   perform ouvrir_questionnaire('fin_formateur', pL2, true);
   perform pg_temp.qui('F5');
-  r := pg_temp.essai('fin_formateur', pL1, 1, pg_temp.rep_form('3'));
-  perform pg_temp.cas('formateur d''un autre lieu refusé (accès resserré au lieu 2)', r like '%ne te concerne pas%', r);
   r := pg_temp.essai('fin_formateur', pL2, 1, pg_temp.rep_form('3'));
-  perform pg_temp.cas('le même formateur répond pour son lieu', r = 'ok', r);
+  perform pg_temp.cas('F5 répond pour son lieu (lieu 2, ouvert à la main)', r = 'ok', r);
+  perform pg_temp.qui('F1');
+  r := pg_temp.essai('fin_formateur', pL2, 1, pg_temp.rep_form('3'));
+  perform pg_temp.cas('F1 (lieu 1) refusé au lieu 2 ouvert à la main', r like '%ne te concerne pas%', r);
   reset role;
-  execute v_acces_promo;
+  select string_agg(k.nom, ',' order by k.nom) into t
+    from questionnaire_participations p join pg_temp.preuve_comptes k on k.uid = p.user_id
+   where p.cle = 'fin_formateur' and p.lieu_id = L1;
+  perform pg_temp.cas('lieu 1 : participations des seuls F1, F2, F3, F4', t = 'F1,F2,F3,F4', t);
+  select string_agg(k.nom, ',' order by k.nom) into t
+    from questionnaire_participations p join pg_temp.preuve_comptes k on k.uid = p.user_id
+   where p.cle = 'fin_formateur' and p.lieu_id = L2;
+  perform pg_temp.cas('lieu 2 : participation du seul F5', t = 'F5', t);
 
   -- 12. Retour : la base revient à l'identique ---------------------------------------------------------------------
   if not v_deja then

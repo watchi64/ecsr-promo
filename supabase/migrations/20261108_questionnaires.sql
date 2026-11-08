@@ -14,7 +14,7 @@
 --  - questionnaire_reponses n'a ni utilisateur, ni date, ni numéro : un identifiant tiré au hasard, le questionnaire,
 --    sa version, la portée, les réponses et le commentaire. Aucune règle de lecture, aucun droit pour les rôles de
 --    l'API (service_role compris) : les résultats sortent par une fonction qui ne rend que des comptes, rien sous le
---    seuil ; les commentaires par une autre, au fondateur seul, dans un ordre tiré au hasard.
+--    seuil ; les commentaires par une autre, au fondateur seul (hors aperçu), dans un ordre tiré au hasard.
 --  - questionnaire_participations garde (questionnaire, portée, utilisateur), sans date : elle éteint le bandeau et
 --    refuse un deuxième envoi. Elle n'a aucune colonne commune avec les réponses hors de la portée.
 --  - Postgres marque chaque ligne du numéro de la transaction qui l'a écrite (colonne système xmin) : la réponse et la
@@ -42,15 +42,27 @@
 --  - Les réponses sont des preuves Qualiopi (3 ans) : supprimer une promo ou un lieu qui en porte est refusé
 --    (on delete restrict) ; l'app ne supprime ni promo ni lieu.
 --
--- Écart à la spec (décision R1 du contrôleur, 08/11) : le § 10 désigne les formateurs du planning (prof_ids), mais la
--- liste profs du planning n'est reliée à aucun compte. Est donc ayant droit au questionnaire fin_formateur d'un lieu
--- tout compte de l'équipe (rôle prof ou admin, sans fiche stagiaire) qui a accès (peut_acceder_promo) à au moins une
--- promo de ce lieu. Conséquence aujourd'hui : l'équipe voit toutes les promos, un formateur peut donc répondre pour
--- chaque lieu dont le questionnaire est ouvert (une fois par lieu et par année). Le lot 4 (rôles et portées) resserrera
--- peut_acceder_promo, et ce droit avec lui.
---
--- Droits de gestion : une seule fonction, peut_gerer_qualite(), qui vaut is_founder() aujourd'hui (le lot 4 l'élargira
--- en un seul endroit). Les commentaires, eux, restent au fondateur (is_founder()) : le lot 5 les ouvrira à la direction.
+-- Droits, au modèle du lot 4 (rôles et portées, migrations 20261028_roles_1 à 3, appliquées en production le 08/11).
+-- Ce texte a d'abord été écrit sur l'ancien modèle (colonnes role et is_admin de user_profiles) ; il a été réaligné le
+-- 09/11 (tâche 3b), avant toute application, sur le vocabulaire du lot 4 :
+--  - Formateur ayant droit (écart à la spec, décision R1 du contrôleur, 08/11 : le § 10 désigne les formateurs du
+--    planning, dont la liste n'est reliée à aucun compte) : le questionnaire fin_formateur d'un lieu revient à qui est
+--    formateur, au sens du lot 4, d'au moins une promo de ce lieu : une affectation formateur sur cette promo, lue par
+--    roles_reels() (rôles réels, sans aperçu ni statut de fondateur), et pas de fiche stagiaire. R1 s'applique donc
+--    pour de bon : un formateur d'un autre lieu, un ancien formateur sans affectation, la direction ou le siège seuls,
+--    le fondateur sans affectation sont refusés. Les colonnes role et is_admin ne décident plus de rien (lot 4).
+--  - Stagiaire ayant droit : inchangé (sa fiche, liée au compte et non anonymisée, est dans la promo).
+--  - Aperçu (en-tête x-apercu-role, « Voir en tant que ») : comme au lot 4, il ne fait que retirer des droits, et une
+--    réponse est une écriture réelle et définitive. En aperçu, personne ne répond comme formateur (le fondateur en
+--    aperçu formateur ne répond pas à la place d'un formateur ; un formateur qui se voit « comme un stagiaire » ne se
+--    voit rien proposer) ; seul l'aperçu stagiaire garde le questionnaire de sa propre fiche, comme my_stagiaire_id().
+--  - Gestion : une seule fonction, peut_gerer_qualite(), qui vaut est_fondateur() : le fondateur réel, hors aperçu
+--    (en aperçu, il n'a que les droits du rôle simulé : ni ouvertures, ni résultats, ni commentaires). Ni l'ancien
+--    rôle admin, ni la direction, ni le siège (la direction et le siège sont hors du lot Q3 : lot 5 de la refonte, qui
+--    élargira cette fonction en un seul endroit).
+--  - Commentaires : est_fondateur() seul ; le lot 5 les ouvrira à la direction.
+-- is_founder() (qui vaut est_fondateur() depuis le lot 4) n'est plus citée : le lot 4 la garde pour la compatibilité,
+-- à ne plus utiliser dans du code neuf.
 -- Refus en « questionnaire: <phrase> », la phrase étant montrée telle quelle par l'app.
 
 -- 1. Questions attendues, par questionnaire et par version ---------------------------------------------------------
@@ -142,10 +154,11 @@ revoke all on public.questionnaire_questions, public.questionnaire_ouvertures,
   public.questionnaire_participations, public.questionnaire_reponses from public, anon, authenticated, service_role;
 
 -- 6. Droit de gestion de la qualité : une seule fonction, élargie plus tard en un seul endroit ---------------------
+-- Le fondateur réel, hors aperçu (est_fondateur() du lot 4).
 create or replace function public.peut_gerer_qualite()
 returns boolean
 language sql stable security definer set search_path to 'public', 'pg_temp' as $function$
-  select is_founder();
+  select est_fondateur();
 $function$;
 revoke all on function public.peut_gerer_qualite() from public, anon;
 grant execute on function public.peut_gerer_qualite() to authenticated, service_role;
@@ -213,19 +226,20 @@ end;
 $function$;
 
 -- La personne connectée a-t-elle le droit de répondre ? Stagiaire : sa fiche (liée au compte, non anonymisée) est dans
--- la promo. Formateur : compte de l'équipe sans fiche stagiaire, qui a accès à au moins une promo du lieu (R1).
+-- la promo, hors aperçu ou en aperçu stagiaire. Formateur (R1, lot 4) : hors aperçu, compte sans fiche stagiaire,
+-- formateur réel (roles_reels) d'au moins une promo du lieu. Voir l'en-tête.
 create function public._questionnaire_ayant_droit(p_cle text, p_promo integer, p_lieu integer)
 returns boolean language sql stable set search_path to 'public', 'pg_temp' as $function$
   select case _questionnaire_public(p_cle)
-    when 'stagiaire' then exists (
+    when 'stagiaire' then coalesce(apercu_role(), 'stagiaire') = 'stagiaire' and exists (
       select 1 from user_profiles up join stagiaires s on s.id = up.stagiaire_id
        where lower(up.email) = lower((select auth.jwt() ->> 'email'))
          and s.promo_id = p_promo and s.anonymise_le is null)
-    when 'formateur' then exists (
+    when 'formateur' then apercu_role() is null and exists (
       select 1 from user_profiles up
        where lower(up.email) = lower((select auth.jwt() ->> 'email'))
-         and up.role in ('prof', 'admin') and up.stagiaire_id is null
-         and exists (select 1 from promos pr where pr.lieu_id = p_lieu and peut_acceder_promo(pr.id)))
+         and up.stagiaire_id is null
+         and exists (select 1 from promos pr where pr.lieu_id = p_lieu and 'formateur' = any (roles_reels(pr.id))))
     else false end;
 $function$;
 
@@ -458,7 +472,7 @@ declare
   v_portee record;
   n integer;
 begin
-  if not is_founder() then
+  if not est_fondateur() then
     raise exception 'questionnaire: Réservé à l''éditeur.';
   end if;
   if _questionnaire_version(p_cle) is null then
