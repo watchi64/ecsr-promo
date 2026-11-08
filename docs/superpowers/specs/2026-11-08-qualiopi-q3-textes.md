@@ -4,6 +4,50 @@ Document de relecture pour Timy. Rien n'est en base ni en ligne tant que ces tex
 
 Échelle commune aux questions notées : « Pas du tout » (1), « Plutôt non » (2), « Plutôt oui » (3), « Tout à fait » (4), « Sans avis ». Pas de point neutre. Le taux de satisfaction publié est la part des réponses 3 ou 4 à la question « globalement », parmi les personnes qui ont répondu.
 
+## Points à trancher
+
+Huit questions restent ouvertes après la construction (relectures du 08 et du 09/11). Les textes des sections 1 à 4 sont
+inchangés : chaque point dit ce qui est en place par défaut et ce qui changerait. Rien n'est appliqué en base avant la
+réponse de Timy.
+
+1. **Formes au masculin.** Plusieurs questions accordent au masculin : « Tu as été accompagné » (question 5 du
+   questionnaire de fin de formation), « tu es satisfait » (question « globalement » des trois questionnaires),
+   « L'application t'a aidé » (question 9), « t'a bien préparé » (question 3 du questionnaire à six mois). Par défaut :
+   masculin générique. Autres choix : une tournure sans accord (par exemple « Tu as reçu de l'aide quand tu avais une
+   difficulté », « Globalement, la formation te satisfait ») ou le point médian (« accompagné·e »). Changer un texte
+   crée une version 2 du questionnaire, sans effet sur les réponses déjà données (aucune avant la mise en ligne).
+2. **Questions doubles.** « La formation te prépare bien à l'examen et au métier d'enseignant de la conduite »
+   (question 6 de fin de formation) mesure deux choses : une réponse « Plutôt non » ne dit pas laquelle. Par défaut :
+   une seule question. Autre choix : deux questions (l'examen, le métier), soit onze questions au lieu de dix. Même
+   remarque, moins forte, pour « expliquent clairement et répondent à tes questions » (question 3) et « clairs et
+   réalistes » (question 1 des formateurs).
+3. **Compte visible de la question facultative.** Sur la page Qualiopi, les résultats donnent le nombre de réponses
+   de chaque question. Pour la question facultative « L'application t'a aidé dans ta formation », ce nombre montre
+   combien de personnes l'ont passée (sans dire qui, et jamais sous 5 réponses). Par défaut : affiché. Autre choix :
+   ne montrer que les pourcentages de cette question.
+4. **Fondateur sans affectation hors du questionnaire des formateurs.** Le questionnaire des formateurs d'un centre est
+   proposé à qui a une affectation de formateur sur une promo de ce centre (rôles et portées du lot 4). Le statut de
+   fondateur ne suffit pas : si Timy forme sans affectation de formateur, le questionnaire ne lui est pas proposé.
+   Par défaut : non proposé. Autre choix : lui donner une affectation de formateur sur une promo du centre (aucune
+   modification du code).
+5. **Affectation sans date de fin.** Une affectation du lot 4 n'a pas de date de fin. Un formateur affecté à une
+   promo du centre, même finie depuis longtemps, reste concerné chaque année tant que la ligne d'affectation existe.
+   Par défaut : accepté. Autre choix : retirer les affectations des promos terminées (direction du centre ou
+   fondateur), ou une règle en base qui ne retient que les promos récentes.
+6. **Année du questionnaire des formateurs, fenêtre sur deux années.** L'année d'un questionnaire des formateurs est
+   celle du jour de la réponse (décision R8 du 08/11). La fenêtre de Nîmes va du 04/12/2026 au 10/01/2027 : un même
+   formateur peut répondre une fois au titre de 2026 et une fois au titre de 2027. Par défaut : accepté, chaque année a
+   son questionnaire. Autre choix : prendre l'année de la date de fin de la promo dont la fenêtre est ouverte.
+7. **Sigle ECF.** Les conditions d'utilisation emploient « ECF » sans le développer, dès l'essentiel (ligne
+   « Personne d'extérieur à la formation n'y accède... »). Par défaut : sigle seul. À donner par Timy : la forme
+   développée à écrire à la première apparition.
+8. **Lecteurs des commentaires dans le tableau « Qui voit quoi ».** Le paragraphe « Questionnaires de satisfaction »
+   (section 4 des conditions) dit que les commentaires libres sont lus par l'éditeur et les personnes chargées de la
+   qualité du centre, mais le tableau de la même section n'a pas de ligne pour les questionnaires. Par défaut : le
+   paragraphe seul. Autre choix : une ligne « Questionnaires » au tableau (réponses regroupées, à partir du seuil ;
+   commentaires : éditeur et qualité du centre). La nouvelle version des conditions n'est pas encore en ligne : la
+   ligne peut y entrer sans demander une acceptation de plus.
+
 ## 1. Les trois questionnaires
 
 ### Ton avis sur la formation (clé `fin_stagiaire`)

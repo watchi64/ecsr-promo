@@ -7,6 +7,8 @@
 // Exactement une question `globale: true` par questionnaire : c'est elle qui donne le taux de
 // satisfaction (part des réponses 3 ou 4 sur les répondants).
 
+// Texte proposé, à valider par Timy (docs/superpowers/specs/2026-11-08-qualiopi-q3-textes.md) : l'échelle, la
+// consigne du commentaire, les trois questionnaires (titres, introductions, questions, options).
 export const ECHELLE = [
   { valeur: 1, libelle: "Pas du tout" },
   { valeur: 2, libelle: "Plutôt non" },

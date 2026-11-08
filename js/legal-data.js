@@ -7,6 +7,13 @@
 // Chaque compte doit alors accepter de nouveau à sa prochaine connexion. Une correction de
 // forme (faute, tournure) ne change pas la version.
 //
+// Texte proposé, à valider par Timy (docs/superpowers/specs/2026-11-08-qualiopi-q3-textes.md) : la version
+// 2026-11-08 et ses passages neufs (questionnaires et Qualiopi, Q3). Ils sont dans le texte ci-dessous, où un
+// commentaire ne peut pas entrer : l'essentiel (lignes 2, 4 et 7), la ligne « Questionnaires » du tableau du § 3, la
+// phrase sous le tableau du § 4 et le paragraphe « Questionnaires de satisfaction », les deux lignes neuves du tableau
+// du § 5 et le paragraphe « Documents du centre », les deux puces retouchées du § 6, les durées du § 10 et sa phrase
+// des trois ans, le paragraphe « Effacement sur demande » du § 12.
+//
 
 export const VERSION_CONDITIONS = "2026-11-08";
 
