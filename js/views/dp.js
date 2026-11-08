@@ -8,16 +8,16 @@
 // candidat n'aurait aucun champ où saisir son 2e ou 3e exemple ; les vides
 // portent .dp-bloc-exclu et ne s'impriment pas (voir dp-gabarit.js).
 
-import { listStagiaires, listDpDossiers, getDpDossier, upsertDpDossier } from "../db.js?v=20261108a";
-import { el, clear, displayStagiaire, compareByNom, formatDate, toast } from "../utils.js?v=20261108a";
-import { isAdmin, isProf, getProfile } from "../auth-admin.js?v=20261108a";
-import { getCurrentWho } from "../identity.js?v=20261108a";
-import { EVT_DOCUMENT } from "../fiche-rules.js?v=20261108a";
+import { listStagiaires, listDpDossiers, getDpDossier, upsertDpDossier } from "../db.js?v=20261108c";
+import { el, clear, displayStagiaire, compareByNom, formatDate, toast } from "../utils.js?v=20261108c";
+import { isAdmin, isProf, monStagiaireId as maFiche } from "../auth-admin.js?v=20261108c";
+import { getCurrentWho } from "../identity.js?v=20261108c";
+import { EVT_DOCUMENT } from "../fiche-rules.js?v=20261108c";
 import { collectData, fillData, applyEditable, wireDocEditing,
-         bindDocPrint, refreshDocPrint, teardownDocPrint } from "../doc-officiel.js?v=20261108a";
-import { buildDpFlux, blocSommaire, feuille } from "./dp-gabarit.js?v=20261108a";
-import { exempleImprime } from "../dp-rules.js?v=20261108a";
-import { composer, marquerCoupures } from "../dp-pagination.js?v=20261108a";
+         bindDocPrint, refreshDocPrint, teardownDocPrint } from "../doc-officiel.js?v=20261108c";
+import { buildDpFlux, blocSommaire, feuille } from "./dp-gabarit.js?v=20261108c";
+import { exempleImprime } from "../dp-rules.js?v=20261108c";
+import { composer, marquerCoupures } from "../dp-pagination.js?v=20261108c";
 
 let stagiaires = [];
 let dossiersIndex = [];
@@ -55,14 +55,17 @@ export async function renderDp(container, opts = {}) {
   clear(container);
   container.appendChild(el("div", { class: "loading" }, "Chargement"));
   const formateur = isAdmin() || isProf();
-  const monId = getProfile()?.stagiaire_id ?? null;
+  // Écrire dans le dossier d'un stagiaire : le formateur de la promo (la direction le lit, la base refuserait l'écriture).
+  const ecrit = isAdmin();
+  // Sa fiche, telle que l'app la traite : aucune en aperçu formateur, direction ou siège (relecture finale, M8).
+  const monId = maFiche();
 
   if (opts.stagiaireId != null) {
     const id = Number(opts.stagiaireId);
     // Son propre dossier, ou celui d'un stagiaire quand on est formateur : dans
     // les deux cas en écriture. Un stagiaire qui regarde le dossier d'un autre
     // ne passe jamais ici, la RLS ne le lui renverrait pas.
-    await ouvrirDossier(container, id, { readOnly: !(formateur || id === monId), isActive: opts.isActive });
+    await ouvrirDossier(container, id, { readOnly: !(ecrit || id === monId), isActive: opts.isActive });
     return;
   }
 
@@ -126,11 +129,11 @@ function showListe(container) {
         try { full = await getDpDossier(s.id); }
         catch (e) { console.error(e); toast(e?.message || String(e), "error"); return; }
         showDoc(container, s, full, {
-          readOnly: false, stagiaireId: s.id, back: () => renderReload(container),
+          readOnly: !(isAdmin() || cestMoi), stagiaireId: s.id, back: () => renderReload(container),
         });
       },
     }, cestMoi ? (row ? "Remplir mon dossier" : "Commencer mon dossier")
-               : (row ? "Ouvrir" : "Commencer")));
+               : (row || !isAdmin() ? "Ouvrir" : "Commencer")));
     const nom = el("div", { class: "lv-name-cell" }, el("span", {}, displayStagiaire(s)));
     if (cestMoi) nom.appendChild(el("span", { class: "lv-statut" }, "moi"));
     tbody.appendChild(el("tr", {}, el("td", {}, nom), cell));
@@ -170,7 +173,7 @@ function showDoc(container, stagiaire, row, { readOnly, stagiaireId, back } = {}
     toolbar.appendChild(el("button", { class: "btn small ghost",
       onClick: () => { teardownDocPrint(); back(); } }, "← Retour"));
   }
-  const cestLeMien = stagiaire == null || (getProfile()?.stagiaire_id ?? null) === stagiaireId;
+  const cestLeMien = stagiaire == null || maFiche() === stagiaireId;
   toolbar.appendChild(el("h3", {},
     "Dossier professionnel" + (!cestLeMien && stagiaire ? " : " + displayStagiaire(stagiaire) : "")));
   toolbar.appendChild(status);

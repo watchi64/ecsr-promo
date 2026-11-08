@@ -28,7 +28,7 @@ Q4 (registre) et Q5 (conservation) ont chacun leur plan, plus tard.
 - Droit unique `peut_gerer_qualite()` (vaut `is_founder()` aujourd'hui) pour tout ce qui est réservé à la gestion.
 - Base de production : lecture seule pendant la construction ; la migration est écrite, répétée et prouvée en local, puis
   appliquée seulement avec l'accord de Timy, après sa validation du texte des questions et des conditions.
-- Jeton `?v=20261108a` (ou celui de `main` au moment de la tâche) sur tout import ; commit local par tâche ; une entrée
+- Jeton `?v=20261108c` (ou celui de `main` au moment de la tâche) sur tout import ; commit local par tâche ; une entrée
   Nouveautés dans le commit qui rend le questionnaire visible (tâche 5).
 - Parcours prouvés au banc pour stagiaire, formateur et fondateur, téléphone et ordinateur, Chromium et WebKit.
 

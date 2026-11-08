@@ -4,11 +4,12 @@
  * Multi-réponses : une question peut avoir plusieurs bonnes réponses.
  * Juste = ensemble coché == ensemble des bonnes réponses (toutes les bonnes, aucune fausse).
  */
-import { el, clear, toast, formatDate } from "../utils.js?v=20261108a";
-import { icon } from "../icons.js?v=20261108a";
-import { getQcmFull, insertQcmAttempt, getMyProfile, getMyExamAttempt, listMyQcmAttemptsFor,
-         createQcmSignalement } from "../db.js?v=20261108a";
-import { examenDemarrable, tempsRestantMs, formatTempsRestant } from "../qcm-exam-rules.js?v=20261108a";
+import { el, clear, toast, formatDate } from "../utils.js?v=20261108c";
+import { icon } from "../icons.js?v=20261108c";
+import { getQcmFull, insertQcmAttempt, getMyExamAttempt, listMyQcmAttemptsFor,
+         createQcmSignalement } from "../db.js?v=20261108c";
+import { monStagiaireId } from "../auth-admin.js?v=20261108c";
+import { examenDemarrable, tempsRestantMs, formatTempsRestant } from "../qcm-exam-rules.js?v=20261108c";
 
 const MOTIFS = [
   ["reponse_fausse", "La réponse indiquée me semble fausse"],
@@ -189,9 +190,10 @@ export async function openQcmEntrainement(theme, qcmMeta, opts = {}) {
   // (compte non lié, hors ligne…), on retombe sur l'ordre aléatoire pur.
   let rev = null;
   try {
-    const profile = await getMyProfile();
-    if (profile?.stagiaire_id) {
-      const attempts = await listMyQcmAttemptsFor(qcmMeta.id, profile.stagiaire_id);
+    // Sa fiche, telle que l'app la traite : aucune en aperçu formateur, direction ou siège (relecture finale, M8).
+    const maFiche = monStagiaireId();
+    if (maFiche) {
+      const attempts = await listMyQcmAttemptsFor(qcmMeta.id, maFiche);
       if (attempts.length) rev = computeRevision(questions, attempts);
     }
   } catch (e) { /* adaptatif indisponible : ordre aléatoire */ }
@@ -360,11 +362,11 @@ function runEntrainement(theme, full, questions, badge = "Entraînement") {
     // Enregistre la tentative d'entraînement si l'utilisateur est un stagiaire lié.
     // Non bloquant : l'entraînement reste utile même si l'écriture échoue.
     try {
-      const profile = await getMyProfile();
-      if (profile?.stagiaire_id) {
+      const maFiche = monStagiaireId();
+      if (maFiche) {
         await insertQcmAttempt({
           qcm_id: full.id,
-          stagiaire_id: profile.stagiaire_id,
+          stagiaire_id: maFiche,
           mode: "entrainement",
           score,
           total,
@@ -446,9 +448,10 @@ export async function openQcmExamen(theme, qcmMeta) {
     return;
   }
 
-  let profile = null;
-  try { profile = await getMyProfile(); } catch (e) { /* ignore */ }
-  if (!profile?.stagiaire_id) {
+  // Sa fiche, telle que l'app la traite : aucune en aperçu formateur, direction ou siège (relecture finale, M8).
+  const maFiche = monStagiaireId();
+  const profile = maFiche ? { stagiaire_id: maFiche } : null;
+  if (!profile) {
     toast("Seul un stagiaire peut passer l'examen (compte non lié).", "error");
     return;
   }
