@@ -44,6 +44,11 @@ eq(eqp.find((e) => e.id === "centre").groupe, "Promo", "groupe Promo");
 eq(eqp.filter((e) => e.groupe).map((e) => e.id), ["centre", "config"], "groupe Promo : Indicateurs et Réglages");
 eq(ids(entreesNavigation("equipe", { routeVisible: tout, emargementActif: false })).includes("emargement"), false,
   "émargement éteint");
+// La direction (équipe sans écriture de formateur) n'a pas d'entrée Émargement avant le lot 5 : elle mènerait à un refus (M2).
+eq(ids(entreesNavigation("equipe", { routeVisible: tout, emargementActif: true, formateur: false })).includes("emargement"), false,
+  "émargement allumé, direction : pas d'entrée");
+eq(ids(entreesNavigation("equipe", { routeVisible: tout, emargementActif: true, formateur: true })).includes("emargement"), true,
+  "émargement allumé, formateur : l'entrée");
 eq(eqp.find((e) => e.id === "notes").court, "Notes", "libellé court de Notes");
 eq(barreTelephone("equipe", eqp).barre.map((e) => e.court), ["Aujourd'hui", "Planning", "Stagiaires", "Notes"],
   "barre de l'équipe : la première case s'appelle Aujourd'hui");

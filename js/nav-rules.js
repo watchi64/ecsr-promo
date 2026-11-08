@@ -103,10 +103,11 @@ export function entreeMasquee(route, routeMasquee) {
 // Stagiaire : une page à module s'affiche dès qu'elle est ouverte au sens de `routeVisibleV2`
 // (l'un de ses sous-onglets suffit), Accueil et Mon suivi restent toujours. Équipe : aucun
 // module fermé n'en retire une (la coquille la repère), et seul Émargement attend
-// `emargementActif`.
-export function entreesNavigation(espace, { routeVisible, emargementActif }) {
+// `emargementActif` et `formateur` (qui tient l'émargement : la direction n'y a pas encore
+// d'accès, lot 5 ; vrai par défaut).
+export function entreesNavigation(espace, { routeVisible, emargementActif, formateur = true }) {
   if (espace === "equipe") {
-    return ENTREES_EQUIPE.filter((e) => e.id !== "emargement" || emargementActif).map(copie);
+    return ENTREES_EQUIPE.filter((e) => e.id !== "emargement" || (emargementActif && formateur)).map(copie);
   }
   return ENTREES_STAGIAIRE
     .filter((e) => TOUJOURS_VISIBLES.includes(e.id) || routeVisibleV2(e.route, routeVisible))

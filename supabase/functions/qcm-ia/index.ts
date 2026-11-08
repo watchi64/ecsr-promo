@@ -9,7 +9,7 @@
 // mi-octobre 2026). Aucun secours hors Europe.
 // Seuls partent chez le fournisseur le texte du cours et les enonces deja presents dans le QCM.
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { analyserReponse, articlesCites, construireMessages, titresDuCours } from "./brouillons.mjs";
+import { analyserReponse, articlesCites, construireMessages, entetesAppelant, titresDuCours } from "./brouillons.mjs";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -97,9 +97,10 @@ Deno.serve(async (req) => {
   const user = userData?.user;
   if (!user) return erreur("Non authentifie", 401);
 
-  // Le droit formateur est celui de la base (is_admin), lu avec le jeton de l'appelant.
+  // Le droit formateur est celui de la base (is_admin), lu avec le jeton de l'appelant et la promo qu'il affiche
+  // (x-promo-id, envoye par l'app) : sans elle, is_admin() se jugerait sur sa promo par defaut.
   const commeAppelant = createClient(url, Deno.env.get("SUPABASE_ANON_KEY")!, {
-    global: { headers: { Authorization: `Bearer ${jwt}` } },
+    global: { headers: entetesAppelant(jwt, req.headers.get("x-promo-id")) },
     auth: { persistSession: false, autoRefreshToken: false },
   });
   const { data: formateur, error: errDroit } = await commeAppelant.rpc("is_admin");

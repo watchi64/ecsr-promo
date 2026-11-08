@@ -3149,6 +3149,7 @@ def verifier_benevoles_eteint(page, res, sc):
 # Les deux Nouveautés de lancement, propres à la nouvelle navigation : la première pour tous, la seconde pour les formateurs seulement.
 TITRE_LANCEMENT = "Une navigation plus simple"
 TITRE_LANCEMENT_EQUIPE = "Côté formateurs, la barre passe à gauche"
+TITRE_ROLES = "Chacun ne voit que les promos où il intervient"   # lot 4 : Nouveauté pour les formateurs, plus récente que celles du lancement
 # La Nouveauté pour tous des corrections communes aux deux navigations (vague finale, F3) : sans champ `navigation`, elle se lit avec les deux barres. Les
 # trois entrées du jour de la mise en ligne portent la même date (29/10/2026) ; la première ajoute que certaines parties s'ouvrent au fil de la formation (F5).
 TITRE_AFFICHAGE = "Des pages mieux tenues sur le téléphone"
@@ -3428,10 +3429,12 @@ def verifier_nouveautes_eteint(page, res, sc):
 
 
 def verifier_nouveautes_de_l_accueil(page, res, vue, equipe):
-    """Accueil, nouvelle navigation : la carte « Nouveauté » de l'Accueil du stagiaire montre la plus récente, « Ta journée sur l'Accueil » (lot 2B ; avant lui,
-    celles du lancement). Appelé depuis l'accueil déjà ouvert."""
+    """Accueil, nouvelle navigation : les Nouveautés de l'accueil commencent par la plus récente, « Ta journée sur l'Accueil » chez le stagiaire,
+    « Aujourd'hui remplace l'Accueil » chez l'équipe (lot 2B) ; l'équipe voit aussi celle du lot 4 (rôles par promo). Appelé depuis l'accueil déjà ouvert."""
     titres = [c["titre"] for c in page.evaluate("() => window.__verifNav.nouveautes()")]
     attendus = [TITRE_AUJOURDHUI_EQUIPE] if equipe else [TITRE_JOURNEE]
+    if equipe and TITRE_ROLES not in titres:
+        res.echec("Nouveautés de l'accueil", vue, "« %s » manque chez l'équipe" % TITRE_ROLES)
     if titres[:len(attendus)] != attendus:
         res.echec("Nouveautés de l'accueil", vue, "les Nouveautés de l'accueil commencent par « %s », attendu « %s »" % (" », « ".join(titres[:len(attendus)]), " », « ".join(attendus)))
 

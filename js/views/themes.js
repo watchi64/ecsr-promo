@@ -1,22 +1,22 @@
-import { listThemes, getPromoCourante, updateTheme, addTheme, deleteTheme, listQcmIndex, getQcmFull, publishQcm, unpublishQcm, updateExamConfig, listExamAttempts, resetExamAttempt, listMyQcmAttempts, getMyProfile, listEvaluations, getOrCreateQcm, saveQcmQuestion, deleteQcmQuestion, reorderQcmQuestions, uploadQcmImage, listQcmSignalements, setQcmSignalementStatut, countQcmSignalementsOuverts, getCours, proposerQuestionsIa, listBrouillonsIa, accepterBrouillonIa, rejeterBrouillonIa } from "../db.js?v=20261108b";
-import { el, clear, isoDate, formatDate, toast, debounce } from "../utils.js?v=20261108b";
-import { icon } from "../icons.js?v=20261108b";
+import { listThemes, getPromoCourante, updateTheme, addTheme, deleteTheme, listQcmIndex, getQcmFull, publishQcm, unpublishQcm, updateExamConfig, listExamAttempts, resetExamAttempt, listMyQcmAttempts, listEvaluations, getOrCreateQcm, saveQcmQuestion, deleteQcmQuestion, reorderQcmQuestions, uploadQcmImage, listQcmSignalements, setQcmSignalementStatut, countQcmSignalementsOuverts, getCours, proposerQuestionsIa, listBrouillonsIa, accepterBrouillonIa, rejeterBrouillonIa } from "../db.js?v=20261108c";
+import { el, clear, isoDate, formatDate, toast, debounce } from "../utils.js?v=20261108c";
+import { icon } from "../icons.js?v=20261108c";
 import { examenDemarrable, tempsRestantMs, formatTempsRestant,
-         echeanceDepuisChoix, DUREES_OUVERTURE } from "../qcm-exam-rules.js?v=20261108b";
-import { isAdmin, getAdminEmail, isProf, isStagiaire } from "../auth-admin.js?v=20261108b";
-import { recordUndo } from "../undo.js?v=20261108b";
-import { openQcmEntrainement, openQcmExamen } from "./qcm.js?v=20261108b";
-import { carteSignalement, renderConsoleSignalements, chargerAuteurs } from "./signalements.js?v=20261108b";
-import { renderSubTabs } from "../subtabs.js?v=20261108b";
-import { hasCours, openCoursSheet, chargerCoursIndex, coursDejaOuvert } from "./cours-reader.js?v=20261108b";
-import { cleCours } from "../cours-rules.js?v=20261108b";
-import { moduleVisible, moduleMasque, repereMasque } from "../modules-etat.js?v=20261108b";
-import { navigationV2Active } from "../nav-etat.js?v=20261108b";
-import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261108b";
-import { renderRessources } from "./ressources.js?v=20261108b";
-import { renderQcmStagiaire } from "./qcm-stagiaire.js?v=20261108b";
-import { renderPropositionsIa } from "./propositions-ia.js?v=20261108b";
-import { articlesCites, articlesHorsCours, titresDuCours, libelleTraceIa, brouillonVersQuestion, resumeProposition } from "../qcm-ia-rules.js?v=20261108b";
+         echeanceDepuisChoix, DUREES_OUVERTURE } from "../qcm-exam-rules.js?v=20261108c";
+import { isAdmin, getAdminEmail, isProf, isStagiaire, monStagiaireId } from "../auth-admin.js?v=20261108c";
+import { recordUndo } from "../undo.js?v=20261108c";
+import { openQcmEntrainement, openQcmExamen } from "./qcm.js?v=20261108c";
+import { carteSignalement, renderConsoleSignalements, chargerAuteurs } from "./signalements.js?v=20261108c";
+import { renderSubTabs } from "../subtabs.js?v=20261108c";
+import { hasCours, openCoursSheet, chargerCoursIndex, coursDejaOuvert } from "./cours-reader.js?v=20261108c";
+import { cleCours } from "../cours-rules.js?v=20261108c";
+import { moduleVisible, moduleMasque, repereMasque } from "../modules-etat.js?v=20261108c";
+import { navigationV2Active } from "../nav-etat.js?v=20261108c";
+import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261108c";
+import { renderRessources } from "./ressources.js?v=20261108c";
+import { renderQcmStagiaire } from "./qcm-stagiaire.js?v=20261108c";
+import { renderPropositionsIa } from "./propositions-ia.js?v=20261108c";
+import { articlesCites, articlesHorsCours, titresDuCours, libelleTraceIa, brouillonVersQuestion, resumeProposition } from "../qcm-ia-rules.js?v=20261108c";
 
 let themes = [];
 let qcmByTheme = new Map();  // theme_id -> { id, nb_questions, published, ... }
@@ -77,7 +77,8 @@ async function loadQcmIndex() {
     return;
   }
   try {
-    const profile = await getMyProfile();
+    // Sa fiche, telle que l'app la traite : aucune en aperçu formateur, direction ou siège (relecture finale, M8).
+    const maFiche = monStagiaireId();
     // Les signalements ouverts sont comptés dès la liste : sinon le formateur devrait
     // ouvrir chaque QCM un par un pour découvrir lesquels ont été signalés.
     // Le comptage est réservé au formateur, et la RLS ne suffit PAS à l'assurer : sa
@@ -88,7 +89,7 @@ async function loadQcmIndex() {
     const [list, attempts, evals, signals] = await Promise.all([
       listQcmIndex(),
       listMyQcmAttempts(),
-      profile?.stagiaire_id ? listEvaluations({ stagiaire_id: profile.stagiaire_id }) : Promise.resolve([]),
+      maFiche ? listEvaluations({ stagiaire_id: maFiche }) : Promise.resolve([]),
       canManageExam() ? countQcmSignalementsOuverts().catch(() => ({})) : Promise.resolve({}),
       chargerCoursIndex().catch(() => null),
     ]);
@@ -207,7 +208,9 @@ function sampleN(arr, n) {
   return (n && n < a.length) ? a.slice(0, n) : a;
 }
 
-function canManageExam() { return isAdmin() || isProf(); }
+// Gérer l'examen, éditer la banque, lire les signalements : le formateur de la promo (la direction ne le fait pas : la base
+// refuserait).
+function canManageExam() { return isAdmin(); }
 
 // Fiche QCM dédiée, ouverte depuis la colonne QCM de la liste.
 // Regroupe : mes notes, l'entraînement, l'examen (stagiaire) et la gestion (formateur).
@@ -221,9 +224,12 @@ function openQcmSheet(theme, qcm) {
     clear(body);
     const note = myThemeNote(theme, qcm);
     const train = myTrainNote(qcm);
+    // Stagiaire avec une fiche seulement : l'aperçu « Stagiaire » d'un formateur ou d'une direction n'en a pas, et la base
+    // refuserait l'examen. Il garde l'entraînement libre, qui n'enregistre rien sans fiche.
+    const stagiaireAvecFiche = isStagiaire() && monStagiaireId() != null;
 
     // Zone notes (stagiaire) : deux grandes cartes colorées, lacunes visibles d'un coup d'œil.
-    if (isStagiaire()) {
+    if (stagiaireAvecFiche) {
       body.appendChild(el("div", { class: "qcm-note-cards" },
         el("div", { class: "qcm-note-card n-" + noteClass(note) },
           el("span", { class: "qcm-note-card-val" }, note != null ? `${note}/20` : "-"),
@@ -243,14 +249,14 @@ function openQcmSheet(theme, qcm) {
       "Libre, illimité, ne compte pas dans les notes. Tes anciennes erreurs passent en premier."));
 
     // Revoir mes erreurs : rejoue uniquement les questions échouées (les 2 modes comptent).
-    if (isStagiaire()) {
+    if (stagiaireAvecFiche) {
       body.appendChild(el("button", { class: "btn ghost full", type: "button", style: "margin-top:0.45rem",
         onClick: () => { backdrop.remove(); openQcmEntrainement(theme, qcm, { errorsOnly: true }); } },
         icon.history(), "Revoir mes erreurs"));
     }
 
     // Passer l'examen (stagiaire).
-    if (isStagiaire()) {
+    if (stagiaireAvecFiche) {
       if (examenDemarrable(qcm)) {
         const restant = tempsRestantMs(qcm);
         body.appendChild(el("button", { class: "btn accent full", type: "button", style: "margin-top:0.9rem",

@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  articlesCites, titresDuCours, extrairePartie, construireMessages, analyserReponse,
+  articlesCites, titresDuCours, extrairePartie, construireMessages, analyserReponse, entetesAppelant,
 } from "../supabase/functions/qcm-ia/brouillons.mjs";
 
 const COURS = [
@@ -216,4 +216,12 @@ test("analyserReponse : au plus `nombre` brouillons gardés", () => {
   const qs = [1, 2, 3, 4].map((i) => brouillon({ enonce: `Question numéro ${i} sur la vitesse ?` }));
   const r = analyserReponse(JSON.stringify({ questions: qs }), { ...contexte(), nombre: 2 });
   assert.equal(r.brouillons.length, 2);
+});
+
+test("entetesAppelant : le jeton, et la promo affichée relayée quand elle a la forme d'un identifiant (I4)", () => {
+  assert.deepEqual(entetesAppelant("jwt", "2"), { Authorization: "Bearer jwt", "x-promo-id": "2" });
+  assert.deepEqual(entetesAppelant("jwt", " 7 "), { Authorization: "Bearer jwt", "x-promo-id": "7" });
+  for (const v of [null, undefined, "", "abc", "1;drop", "-1", "1.5", "1234567890"]) {
+    assert.deepEqual(entetesAppelant("jwt", v), { Authorization: "Bearer jwt" }, String(v));
+  }
 });

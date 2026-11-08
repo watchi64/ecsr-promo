@@ -2,19 +2,19 @@
  * Page d'accueil : version actualisée après les refontes (auth, calendrier, contacts).
  * Affichage personnalisé : salutation + prochains événements + raccourcis.
  */
-import { listAgendaEvents, getPromoCourante } from "../db.js?v=20261108b";
-import { el, clear, parseDate, formatDate, isoDate } from "../utils.js?v=20261108b";
-import { icon } from "../icons.js?v=20261108b";
-import { isAdmin, isProf, getProfile, getProfileWho } from "../auth-admin.js?v=20261108b";
+import { listAgendaEvents, getPromoCourante } from "../db.js?v=20261108c";
+import { el, clear, parseDate, formatDate, isoDate } from "../utils.js?v=20261108c";
+import { icon } from "../icons.js?v=20261108c";
+import { isAdmin, isProf, getProfile, getProfileWho } from "../auth-admin.js?v=20261108c";
 import {
   nouveautesAffichables, marquerLues, routeVisible, routeMasquee, repereMasque, formateurConnecte,
-} from "../modules-etat.js?v=20261108b";
-import { carteNouveaute } from "./nouveautes.js?v=20261108b";
-import { emargementActif } from "../emargement-etat.js?v=20261108b";
-import { navigationV2Active } from "../nav-etat.js?v=20261108b";
-import { etatEvenement, libelleDecompte, lignePromo, pastilleDeLaCarte, pointsARetenir, salutationDe } from "../accueil-rules.js?v=20261108b";
-import { renderAccueilStagiaire } from "./accueil-stagiaire.js?v=20261108b";
-import { renderAujourdhui } from "./aujourdhui.js?v=20261108b";
+} from "../modules-etat.js?v=20261108c";
+import { carteNouveaute } from "./nouveautes.js?v=20261108c";
+import { emargementActif } from "../emargement-etat.js?v=20261108c";
+import { navigationV2Active } from "../nav-etat.js?v=20261108c";
+import { etatEvenement, libelleDecompte, lignePromo, pastilleDeLaCarte, pointsARetenir, salutationDe } from "../accueil-rules.js?v=20261108c";
+import { renderAccueilStagiaire } from "./accueil-stagiaire.js?v=20261108c";
+import { renderAujourdhui } from "./aujourdhui.js?v=20261108c";
 
 function greetingByHour() {
   return salutationDe(new Date().getHours());
@@ -140,8 +140,9 @@ export async function renderHome(container) {
       ? [{ route: "stagiaires", icon: "users", title: "Stagiaires", desc: "La promo, une fiche par personne" },
          { route: "centre", icon: "progress", title: "Tableau de bord", desc: "Assiduité, abandons, résultats par promo" }]
       : []),
-    // Émargement : seulement si le fondateur l'a activé pour la promo (js/emargement-etat.js).
-    ...((isAdmin() || isProf()) && emargementActif()
+    // Émargement : seulement si le fondateur l'a activé pour la promo (js/emargement-etat.js), et pour qui le tient (le
+    // formateur ; la direction n'y a pas encore d'accès, lot 5 : la tuile mènerait à un refus).
+    ...(isAdmin() && emargementActif()
       ? [{ route: "emargement", icon: "clipboard", title: "Émargement", desc: "Signatures et feuilles de présence" }]
       : []),
     { route: "planning",   icon: "calendar",     title: "Planning",         desc: "Cette semaine, créneaux & tirages" },

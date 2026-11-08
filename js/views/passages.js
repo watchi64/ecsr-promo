@@ -1,11 +1,11 @@
-import { listStagiaires, listPassages, addPassage, updatePassage, deletePassage, listRecentPassagesAudit } from "../db.js?v=20261108b";
-import { el, clear, isoDate, formatDate, toast, displayStagiaire, tableauEnListe } from "../utils.js?v=20261108b";
-import { icon } from "../icons.js?v=20261108b";
-import { recordUndo } from "../undo.js?v=20261108b";
-import { TYPES, RESULTATS } from "../config.js?v=20261108b";
-import { isAdmin, getProfile } from "../auth-admin.js?v=20261108b";
-import { getCurrentWho } from "../identity.js?v=20261108b";
-import { navigationV2Active } from "../nav-etat.js?v=20261108b";
+import { listStagiaires, listPassages, addPassage, updatePassage, deletePassage, listRecentPassagesAudit } from "../db.js?v=20261108c";
+import { el, clear, isoDate, formatDate, toast, displayStagiaire, tableauEnListe } from "../utils.js?v=20261108c";
+import { icon } from "../icons.js?v=20261108c";
+import { recordUndo } from "../undo.js?v=20261108c";
+import { TYPES, RESULTATS } from "../config.js?v=20261108c";
+import { isAdmin, monStagiaireId } from "../auth-admin.js?v=20261108c";
+import { getCurrentWho } from "../identity.js?v=20261108c";
+import { navigationV2Active } from "../nav-etat.js?v=20261108c";
 
 let stagiaires = [];
 let passages = [];
@@ -119,7 +119,7 @@ function resultTag(resultat) {
 
 function renderTable(container) {
   const admin = isAdmin();
-  const myStagiaireId = getProfile()?.stagiaire_id ?? null;
+  const myStagiaireId = monStagiaireId();
   const showActions = admin || myStagiaireId != null;
   let filtered = passages;
   if (filterStagiaire) filtered = filtered.filter((p) => p.stagiaire_id === Number(filterStagiaire));
@@ -129,7 +129,8 @@ function renderTable(container) {
   if (filtered.length === 0) {
     return el("div", { style: "padding:3rem 1rem;text-align:center;color:var(--text-muted)" },
       el("p", {}, "Aucun passage à afficher."),
-      el("p", { class: "faint", style: "font-size:0.85rem" }, "Modifie les filtres ou ajoute un passage.")
+      el("p", { class: "faint", style: "font-size:0.85rem" }, isAdmin() || monStagiaireId() != null
+        ? "Modifie les filtres ou ajoute un passage." : "Modifie les filtres.")
     );
   }
 
@@ -287,6 +288,9 @@ function rerender(container) {
     icon.plus(), "Ajouter"
   );
 
+  // Ajout : un formateur de la promo, ou un stagiaire pour lui-même. Un compte sans l'un ni l'autre (la direction, le siège) lit
+  // l'historique sans pouvoir y écrire : la base refuserait.
+  const peutAjouter = isAdmin() || monStagiaireId() != null;
   const histBtn = el("button", { class: "btn ghost", onClick: () => openAuditModal() },
     icon.clock(), "Historique"
   );
@@ -296,10 +300,12 @@ function rerender(container) {
       el("p", { class: "eyebrow" }, passages.length + " entrées au total"),
       el("h2", {}, "Historique des passages"),
       // Nouvelle navigation : « formateurs », le mot de l'app (un stagiaire lit cette page dans Planning > Priorités).
-      el("p", { class: "subtitle" }, "Tous les passages. Ajout ouvert à tous, suppression réservée aux "
-        + (navigationV2Active() ? "formateurs" : "admins") + ". Chaque action est tracée."),
+      el("p", { class: "subtitle" }, peutAjouter
+        ? "Tous les passages. Ajout ouvert à tous, suppression réservée aux "
+          + (navigationV2Active() ? "formateurs" : "admins") + ". Chaque action est tracée."
+        : "Tous les passages de la promo, en lecture. Chaque action est tracée."),
     ),
-    el("div", { style: "display:flex;gap:0.5rem;flex-wrap:wrap" }, histBtn, addBtn),
+    el("div", { style: "display:flex;gap:0.5rem;flex-wrap:wrap" }, histBtn, peutAjouter ? addBtn : null),
   ));
 
   container.appendChild(el("div", { class: "passages-toolbar" },
