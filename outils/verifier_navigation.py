@@ -374,18 +374,17 @@ CLE_SOUS_ONGLET_STAGIAIRES = "stagiaires.subtab"   # mémoire du sous-onglet de 
 CLE_SOUS_ONGLET_COURS = "themes.subtab"          # celle de Cours et QCM
 LENTEUR_DEMARRAGE_MS = 600     # lectures des réglages ralenties dans le scénario de l'ouverture (ruling R17)
 
-# « À traiter » (lot 2A, tâche 6) : ce que la barre de l'équipe montre sur « Cours et QCM » (js/a-traiter.js). Le banc sert cinq signalements
-# ouverts (un par groupe de la console) et aucun brouillon de l'IA ; les scénarios « à traiter » ajoutent des brouillons à relire (BROUILLONS_IA_DU_BANC,
-# jamais comptés avant le lot 2B, ruling R56), des signalements ouverts (SIGNALEMENTS_EN_PLUS_DU_BANC), des signalements et des brouillons déjà traités (ils
-# ne comptent pas non plus), ou font échouer ou traîner les lectures. Par scénario : la pastille attendue sur l'entrée et la phrase en tête du tiroir
-# « Plus » (« 5 à traiter : 5 signalements »), None quand rien ne doit s'afficher.
+# « À traiter » (lot 2A, tâche 6, puis lot 2B, tâche 6) : ce que la barre de l'équipe montre sur « Cours et QCM » (js/a-traiter.js). Le banc sert cinq signalements
+# ouverts (un par groupe de la console) et aucun brouillon de l'IA ; les scénarios « à traiter » ajoutent des brouillons à relire (BROUILLONS_IA_DU_BANC, comptés depuis
+# le sous-onglet « Propositions IA » du lot 2B), des signalements ouverts (SIGNALEMENTS_EN_PLUS_DU_BANC), des signalements et des brouillons déjà traités (ils
+# ne comptent pas), ou font échouer ou traîner les lectures. Par scénario : la pastille attendue sur l'entrée et la phrase en tête du tiroir
+# « Plus » (« 7 à traiter : 5 signalements, 2 propositions de l'IA »), None quand rien ne doit s'afficher.
 A_TRAITER_DU_BANC = {
     "": ("5", "5 à traiter : 5 signalements"),
-    # Des brouillons de l'IA à relire sont semés, mais ils ne comptent pas avant le sous-onglet « Propositions IA » du lot 2B (ruling R56) : la pastille
-    # et la phrase ne parlent que des signalements de QCM.
-    "ia": ("5", "5 à traiter : 5 signalements"),
-    # Six signalements ouverts de plus (5 + 6 = 11, « 9+ ») et six brouillons de l'IA, qui, eux, ne comptent toujours pas.
-    "beaucoup": ("9+", "11 à traiter : 11 signalements"),
+    # Deux brouillons de l'IA à relire de plus : 5 + 2.
+    "ia": ("7", "7 à traiter : 5 signalements, 2 propositions de l'IA"),
+    # Six signalements ouverts de plus (5 + 6 = 11) et six brouillons de l'IA : 17, « 9+ ».
+    "beaucoup": ("9+", "17 à traiter : 11 signalements, 6 propositions de l'IA"),
     "panne": (None, None),    # lectures en échec : ni pastille, ni point, ni phrase, ni erreur
     "lent": (None, None),     # lectures qui n'aboutissent pas (20 s) : la barre est là, sans rien
     # Lectures en échec, mais une pastille sur « Signaler un problème » (que le tiroir « Plus » contient) : le seul repère est le point de « Plus ».
@@ -1966,7 +1965,8 @@ def plancher_sous_onglets(route, sc, res):
     if route == "planning":
         return 2 if depart else 3      # Semaine, Dates clés, Priorités
     if route == "themes":
-        return 0 if depart else 3      # Thèmes, Compétences, Documents (et Signalements chez un formateur)
+        # Stagiaire : Thèmes, Compétences, QCM, Documents ; équipe : Thèmes, Compétences, Signalements, Propositions IA, Documents (lot 2B, tâche 6).
+        return 0 if depart else (4 if sc.espace == "stagiaire" else 5)
     if route == "mon-suivi" and res.profil_stagiaire:
         return 0 if depart else 6      # Passages, EPCF, Évolution, Livret, Dossier pro, La classe
     if route == "stagiaires":
@@ -2409,6 +2409,18 @@ def verifier_menu_du_compte_a_l_ouverture(page, res, sc):
 def nombre_de_la_phrase(phrase):
     """Le total que dit la phrase du tiroir (« 7 à traiter : ... » donne 7)."""
     return int(phrase.split(" ")[0])
+
+
+def lignes_a_traiter_attendues(phrase):
+    """Les lignes de la carte « À traiter » d'Aujourd'hui que dit la phrase du tiroir (« 7 à traiter : 5 signalements, 2 propositions de l'IA »)."""
+    lignes = []
+    m = re.search(r": (\d+) signalements?", phrase)
+    if m:
+        lignes.append("%s signalement%s sur %s" % (m.group(1), "" if m.group(1) == "1" else "s", "un QCM" if m.group(1) == "1" else "des QCM"))
+    m = re.search(r"(\d+) propositions? de l'IA", phrase)
+    if m:
+        lignes.append("1 question proposée par l'IA" if m.group(1) == "1" else "%s questions proposées par l'IA" % m.group(1))
+    return lignes
 
 
 def verifier_a_traiter(page, res, sc, tiroir=False):
@@ -3908,9 +3920,9 @@ def verifier_aujourdhui_equipe(page, res, sc, vue, jour=None, feuille="ouverte",
         if traiter or "Le décompte n'a pas pu être lu." not in par["a-traiter"]["texte"]:
             echec("les lectures échouent : « À traiter » doit dire « Le décompte n'a pas pu être lu. » sans ligne (%s)" % par["a-traiter"]["texte"])
     else:
-        total = nombre_de_la_phrase(phrase)
-        if traiter != [("%d signalements sur des QCM" % total, "#/themes")]:
-            echec("« À traiter » dit %s, attendu « %d signalements sur des QCM » (propositions de l'IA : pas avant leur liste, ruling R56)" % (traiter, total))
+        attendues = [(titre, "#/themes") for titre in lignes_a_traiter_attendues(phrase)]
+        if traiter != attendues:
+            echec("« À traiter » dit %s, attendu %s (le banc : %s)" % (traiter, attendues, phrase))
     # À suivre de près
     if "Tout voir" not in {x["texte"]: x for x in m["plus"]}:
         echec("« À suivre de près » n'a pas son lien « Tout voir »")
@@ -4598,6 +4610,358 @@ def verifier_bandeau_emargement(page, res, sc):
     vider_console(res, vue)
 
 
+# --------------------------------------------------------------------------------------
+# Cours et QCM : sous-onglets « QCM » (stagiaire) et « Propositions IA » (équipe), lot 2B, tâche 6
+# --------------------------------------------------------------------------------------
+
+SOUS_ONGLETS_COURS_STAGIAIRE = ["Thèmes", "Compétences", "QCM", "Documents"]
+SOUS_ONGLETS_COURS_EQUIPE = ["Thèmes", "Compétences", "Signalements", "Propositions IA", "Documents"]
+# Ce que le banc sert à la stagiaire du banc : le QCM 50 (thème 22, examen ouvert, deux entraînements à 10/20), le QCM 51 (thème 23, un entraînement à 20/20).
+LIGNES_QCM_DU_BANC = [
+    ("Thème 22 · Feux du véhicule", "Dernière note 10/20", ["Examen ouvert"]),
+    ("Thème 23 · Pneumatiques", "Dernière note 20/20", []),
+]
+# `?propositions=1` : trois brouillons à relire, deux sur le QCM 50 (le thème 22, le plus récent le 21/10) et un sur le QCM 51 (le thème 23, le 12/10). Le plus ancien d'abord.
+LIGNES_PROPOSITIONS_DU_BANC = [
+    ("Thème 23 · Pneumatiques", "1 question à relire, proposée le 12/10/2026"),
+    ("Thème 22 · Feux du véhicule", "2 questions à relire, la plus ancienne proposée le 20/10/2026"),
+]
+A_TRAITER_DU_BANC["propositions"] = ("8", "8 à traiter : 5 signalements, 3 propositions de l'IA")
+A_TRAITER_DU_BANC["propositions-relue"] = ("7", "7 à traiter : 5 signalements, 2 propositions de l'IA")
+
+JS_LISTE_ACTIONS = r"""() => {
+  const vue = document.querySelector('#view');
+  const carte = vue.querySelector('.acc-carte');
+  const rc = carte ? carte.getBoundingClientRect() : null;
+  const lignes = [...vue.querySelectorAll('.acc-ligne-action')].map((l) => {
+    const b = l.querySelector('button');
+    const r = b.getBoundingClientRect();
+    const rl = l.getBoundingClientRect();
+    const d = l.querySelector('.acc-ligne-texte span');
+    const couleur = d ? (getComputedStyle(d).color.match(/\d+/g) || [0, 0, 0]).map(Number) : [0, 0, 0];
+    return { titre: l.querySelector('b').textContent.trim(), detail: d ? d.textContent.trim() : '',
+      puces: [...l.querySelectorAll('.acc-ligne-puce')].map((p) => p.textContent.trim()),
+      bouton: b.textContent.trim(), nom: b.getAttribute('aria-label'), h: Math.round(r.height), w: Math.round(r.width),
+      dehors: !rc || rl.left < rc.left - 0.5 || rl.right > rc.right + 0.5 || r.right > rc.right + 0.5, couleur };
+  });
+  const actif = vue.querySelector('.subtab.active');
+  const compte = vue.querySelector('.acc-compte');
+  const erreur = vue.querySelector('.acc-erreur');
+  const corps = vue.querySelector('.acc-corps');
+  const reessayer = vue.querySelector('.acc-reessayer');
+  return { lignes, compte: compte ? compte.textContent : '', titre: (vue.querySelector('.acc-carte-tete h2') || {}).textContent || '',
+    actif: actif ? actif.textContent.trim() : null, defile: document.documentElement.scrollWidth > innerWidth + 1,
+    erreur: erreur ? erreur.textContent.trim() : null, reessayer: reessayer ? Math.round(reessayer.getBoundingClientRect().height) : null,
+    texte: corps ? corps.innerText : '', intro: !!vue.querySelector('.acc-intro'),
+    libelles: [...vue.querySelectorAll('.subtabs-bar > .subtab')].map((x) => x.textContent.trim()) };
+}"""
+
+
+def choisir_sous_onglet(page, res, vue, libelle):
+    """Un vrai clic sur le sous-onglet, puis la page posée."""
+    if cliquer(page, res, vue, '#view .subtabs-bar > .subtab:text-is("%s")' % libelle, "sous-onglet « %s »" % libelle):
+        attendre(page)
+        return True
+    return False
+
+
+def verifier_liste_d_actions(res, vue, sc, m, attendues, compte, titre_carte, quoi):
+    """La liste d'une carte à lignes-boutons : les lignes attendues dans l'ordre (titre, détail, repères), un bouton nommé par sa ligne et de 44 px au moins, aucune
+    ligne qui sort de la carte, aucun défilement de côté, aucune note en rouge (la couleur du détail n'est jamais un rouge), le compte et le titre de la carte."""
+    echec = lambda detail: res.echec(quoi, vue, detail)
+    lus = [(x["titre"], x["detail"], x["puces"]) if len(attendues[0]) == 3 else (x["titre"], x["detail"]) for x in m["lignes"]] if attendues else []
+    if lus != attendues:
+        echec("les lignes sont %s, attendu %s" % (lus, attendues))
+    if m["compte"] != compte:
+        echec("le compte de la carte dit « %s », attendu « %s »" % (m["compte"], compte))
+    if m["titre"] != titre_carte:
+        echec("le titre de la carte est « %s », attendu « %s »" % (m["titre"], titre_carte))
+    if not m["intro"]:
+        echec("la phrase qui explique la liste manque")
+    if m["defile"]:
+        echec("la page défile de côté à %d px" % sc.largeur)
+    for x in m["lignes"]:
+        if x["h"] < 43.5 or x["w"] < 43.5:
+            echec("le bouton « %s » de « %s » mesure %dx%d px (44 px au moins)" % (x["bouton"], x["titre"], x["w"], x["h"]))
+        if not x["nom"] or x["titre"] not in x["nom"] or not x["nom"].startswith(x["bouton"]):
+            echec("le bouton « %s » est nommé « %s » : il doit dire de quelle ligne il est (« %s : %s »)" % (x["bouton"], x["nom"], x["bouton"], x["titre"]))
+        if x["dehors"]:
+            echec("la ligne « %s » sort de sa carte" % x["titre"])
+        r, g, b = x["couleur"][:3]
+        if r > 150 and g < 100 and b < 100:
+            echec("le détail de « %s » est écrit en rouge (rgb %s %s %s) : jamais une note en rouge" % (x["titre"], r, g, b))
+
+
+def jouer_qcm_du_stagiaire(page, res, sc):
+    """Cours et QCM > QCM, le stagiaire (lot 2B, tâche 6) : les sous-onglets Thèmes, Compétences, QCM, Documents ; la liste de ses QCM (examen ouvert d'abord, sa DERNIÈRE
+    note d'entraînement, « Examen ouvert » en repère) ; « S'entraîner » ouvre la fenêtre du QCM (entraîner, erreurs, examen), « Fermer » ramène à la liste ; la fenêtre
+    d'entraînement s'ouvre puis se ferme sans rien perdre ; un entraînement fini met la note à jour sans recharger ; une lecture en échec dit sa panne et « Réessayer » la relit."""
+    vue = "%s/cours/qcm" % sc.nom
+    echec = lambda detail: res.echec("sous-onglet QCM du stagiaire", vue, detail)
+    aller_a(page, "#/themes")
+    attendre(page)
+    res.vues += 1
+    m = page.evaluate(JS_LISTE_ACTIONS)
+    if m["libelles"] != SOUS_ONGLETS_COURS_STAGIAIRE:
+        echec("les sous-onglets de Cours et QCM sont %s, attendu %s" % (m["libelles"], SOUS_ONGLETS_COURS_STAGIAIRE))
+        return
+    if not choisir_sous_onglet(page, res, vue, "QCM"):
+        return
+    page.wait_for_selector("#view .acc-ligne-action", timeout=6000)
+    m = page.evaluate(JS_LISTE_ACTIONS)
+    if m["actif"] != "QCM":
+        echec("le sous-onglet allumé est « %s », attendu « QCM »" % m["actif"])
+    verifier_liste_d_actions(res, vue, sc, m, LIGNES_QCM_DU_BANC, "2 QCM", "Tes QCM", "sous-onglet QCM du stagiaire")
+    if [x["bouton"] for x in m["lignes"]] != ["S'entraîner"] * 2:
+        echec("les boutons sont %s, attendu « S'entraîner » sur chaque ligne" % [x["bouton"] for x in m["lignes"]])
+    # « S'entraîner » : la fenêtre du QCM, avec l'entraînement, les erreurs et l'examen ouvert ; « Fermer » ramène à la liste.
+    vue_fenetre = vue + "/fenetre"
+    res.vues += 1
+    if not cliquer(page, res, vue_fenetre, '#view .acc-ligne-action button[aria-label="S\'entraîner : Thème 22 · Feux du véhicule"]', "bouton « S'entraîner » du thème 22"):
+        return
+    page.wait_for_selector(".modal-backdrop .theme-modal", timeout=4000)
+    page.wait_for_timeout(350)   # l'entrée de la fenêtre
+    f = page.evaluate("""() => { const f = document.querySelector('.modal-backdrop .theme-modal'); const r = f.getBoundingClientRect();
+        return { texte: f.innerText, boutons: [...f.querySelectorAll('button')].map((b) => b.textContent.trim()),
+                 petits: [...f.querySelectorAll('button')].filter((b) => b.getBoundingClientRect().height < 43.5).map((b) => b.textContent.trim() + ' (' + Math.round(b.getBoundingClientRect().height) + ' px)'),
+                 dedans: r.left >= -0.5 && r.right <= innerWidth + 0.5 && r.top >= -0.5 && r.bottom <= innerHeight + 0.5 }; }""")
+    if "QCM · Feux du véhicule" not in f["texte"]:
+        res.echec("fenêtre du QCM", vue_fenetre, "la fenêtre ne porte pas le titre du QCM touché : « %s »" % f["texte"][:80])
+    for attendu in ("S'entraîner", "Revoir mes erreurs", "Passer l'examen", "Fermer"):
+        if attendu not in f["boutons"]:
+            res.echec("fenêtre du QCM", vue_fenetre, "la fenêtre n'a pas son bouton « %s » (boutons : %s)" % (attendu, f["boutons"]))
+    if not f["dedans"]:
+        res.echec("fenêtre du QCM", vue_fenetre, "la fenêtre du QCM sort de l'écran à %d px" % sc.largeur)
+    if sc.largeur < SEUIL_TELEPHONE and f["petits"]:
+        res.echec("fenêtre du QCM", vue_fenetre, "zones à toucher sous 44 px sur téléphone dans la fiche du QCM : %s" % ", ".join(f["petits"]))
+    # La fenêtre d'entraînement s'ouvre depuis la fiche et se ferme sur la liste.
+    if cliquer(page, res, vue_fenetre, ".modal-backdrop .qcm-sheet-body .btn.primary", "« S'entraîner » de la fiche"):
+        page.wait_for_selector(".qcm-overlay", timeout=4000)
+        if page.locator(".modal-backdrop").count():
+            res.echec("fenêtre du QCM", vue_fenetre, "la fiche du QCM reste ouverte sous la fenêtre d'entraînement")
+        if cliquer(page, res, vue_fenetre, ".qcm-overlay .qcm-close", "fermeture de l'entraînement"):
+            page.wait_for_timeout(300)
+    else:
+        page.locator(".modal-backdrop .modal-actions .btn").first.click()
+    if page.locator(".qcm-overlay").count() or page.locator(".modal-backdrop").count():
+        res.echec("fenêtre du QCM", vue_fenetre, "une fenêtre reste ouverte après le retour")
+    m = page.evaluate(JS_LISTE_ACTIONS)
+    if route_courante(page) != "themes" or m["actif"] != "QCM" or [x["titre"] for x in m["lignes"]] != [t for t, _, _ in LIGNES_QCM_DU_BANC]:
+        res.echec("retour à la liste", vue_fenetre, "après la fenêtre : #/%s, sous-onglet %s, lignes %s ; la liste des QCM devait être là" % (route_courante(page), m["actif"], [x["titre"] for x in m["lignes"]]))
+    vider_console(res, vue_fenetre)
+    # La fiche se ferme aussi par son bouton « Fermer ».
+    if cliquer(page, res, vue_fenetre, '#view .acc-ligne-action button[aria-label="S\'entraîner : Thème 23 · Pneumatiques"]', "bouton « S'entraîner » du thème 23"):
+        page.wait_for_selector(".modal-backdrop .theme-modal", timeout=4000)
+        page.wait_for_timeout(350)
+        if cliquer(page, res, vue_fenetre, ".modal-backdrop .modal-actions .btn", "« Fermer » de la fiche"):
+            page.wait_for_timeout(200)
+            if page.locator(".modal-backdrop").count():
+                res.echec("fenêtre du QCM", vue_fenetre, "« Fermer » ne ferme pas la fiche")
+    # Un entraînement fini (l'événement du lecteur) met la dernière note à jour, sans recharger la page.
+    vue_note = vue + "/nouvelle-note"
+    res.vues += 1
+    page.evaluate("""() => { window.__FIXTURES_DU_BANC.qcm_attempts.push({ id: 990, qcm_id: 50, stagiaire_id: 1, mode: 'entrainement', score: 3, total: 4,
+        note_20: 16, answers: {}, finished_at: '2026-10-27T09:00:00Z' }); window.dispatchEvent(new CustomEvent('qcm-attempt-saved', { detail: { qcm_id: 50, mode: 'entrainement', note_20: 16 } })); }""")
+    try:
+        page.wait_for_function("() => /Dernière note 16\\/20/.test(document.querySelector('#view .acc-ligne-action').innerText)", timeout=4000)
+    except DelaiDepasse:
+        res.echec("note à jour", vue_note, "après un entraînement fini, la ligne du thème 22 ne dit pas « Dernière note 16/20 » : %s" % page.evaluate(JS_LISTE_ACTIONS)["lignes"][:1])
+    # Une lecture en échec : la panne se dit, « Réessayer » relit.
+    vue_panne = vue + "/panne"
+    res.vues += 1
+    page.evaluate("() => { window.__HARNESS_FAIL = 'panne du banc'; }")
+    if choisir_sous_onglet(page, res, vue_panne, "Thèmes") and choisir_sous_onglet(page, res, vue_panne, "QCM"):
+        try:
+            page.wait_for_selector("#view .acc-reessayer", timeout=4000)
+        except DelaiDepasse:
+            echec("une lecture en échec ne montre pas « Réessayer »")
+        m = page.evaluate(JS_LISTE_ACTIONS)
+        if m["erreur"] is None or "Tes QCM n'ont pas pu être chargés." not in m["erreur"]:
+            res.echec("sous-onglet QCM du stagiaire", vue_panne, "la panne dit « %s », attendu « Tes QCM n'ont pas pu être chargés. »" % m["erreur"])
+        if m["reessayer"] is not None and m["reessayer"] < 43.5:
+            res.echec("sous-onglet QCM du stagiaire", vue_panne, "« Réessayer » mesure %s px de haut (44 px au moins)" % m["reessayer"])
+        page.evaluate("() => { window.__HARNESS_FAIL = null; }")
+        if cliquer(page, res, vue_panne, "#view .acc-reessayer", "« Réessayer »"):
+            try:
+                page.wait_for_selector("#view .acc-ligne-action", timeout=4000)
+            except DelaiDepasse:
+                res.echec("sous-onglet QCM du stagiaire", vue_panne, "« Réessayer » ne remet pas la liste")
+    page.evaluate("() => { window.__HARNESS_FAIL = null; }")
+    res.console.clear()   # le « console.error » de la page est le but de l'essai : elle journalise la lecture qui échoue, l'écran dit la panne
+    vider_console(res, vue_panne)
+    # À froid : l'app s'ouvre sur le sous-onglet mémorisé (QCM), dont la liste se charge d'elle-même (le panneau n'est pas encore dans la page au premier rendu).
+    vue_froid = vue + "/a-froid"
+    recharger_au_banc(page, "#/themes")
+    res.vues += 1
+    try:
+        page.wait_for_selector("#view .acc-ligne-action", timeout=6000)
+    except DelaiDepasse:
+        res.echec("sous-onglet QCM du stagiaire", vue_froid, "ouvert à froid sur le sous-onglet mémorisé, la liste ne se charge pas : %s" % page.evaluate(JS_LISTE_ACTIONS)["texte"][:80])
+    else:
+        m = page.evaluate(JS_LISTE_ACTIONS)
+        if m["actif"] != "QCM" or [x["titre"] for x in m["lignes"]] != [t for t, _, _ in LIGNES_QCM_DU_BANC]:
+            res.echec("sous-onglet QCM du stagiaire", vue_froid, "à froid : sous-onglet %s, lignes %s" % (m["actif"], [x["titre"] for x in m["lignes"]]))
+    vider_console(res, vue_froid)
+
+
+def verifier_qcm_ferme(page, res, sc):
+    """Le module « qcm » fermé pour la promo (le départ : Planning, Calendrier, Ressources) : le stagiaire n'a pas le sous-onglet « QCM » ni sa liste."""
+    vue = "%s/cours/qcm-ferme" % sc.nom
+    aller_a(page, "#/themes")
+    attendre(page)
+    res.vues += 1
+    m = page.evaluate(JS_LISTE_ACTIONS)
+    if "QCM" in m["libelles"] or m["lignes"] or "Tes QCM" in m["titre"]:
+        res.echec("module QCM fermé", vue, "le module « qcm » est fermé et le stagiaire voit encore le sous-onglet QCM (sous-onglets %s, %d ligne(s))" % (m["libelles"], len(m["lignes"])))
+
+
+def lire_a_traiter_de_la_barre(page, res, vue, sc, cle):
+    """La pastille de « Cours et QCM » et la phrase du tiroir, comme les dit A_TRAITER_DU_BANC[cle] (le tiroir s'ouvre sur téléphone). Attend que la relecture de la barre aboutisse."""
+    attendu, phrase = A_TRAITER_DU_BANC[cle]
+    try:
+        page.wait_for_function("(a) => [...document.querySelectorAll('[data-nav-coquille] [data-a-traiter]')].some((n) => n.dataset.aTraiter === a)", arg=attendu, timeout=4000)
+    except DelaiDepasse:
+        res.echec("pastille « à traiter »", vue, "la pastille ne dit pas « %s » (elle dit %s ; le banc : %s)" % (attendu, page.evaluate("() => [...document.querySelectorAll('[data-nav-coquille] [data-a-traiter]')].map((n) => n.dataset.aTraiter)"), phrase))
+    sc2 = replace(sc, a_traiter=cle)
+    verifier_a_traiter(page, res, sc2)
+    if sc.largeur < SEUIL_TELEPHONE and cliquer(page, res, vue, '[data-nav-coquille] [data-nav-action="plus"]', "bouton « Plus »"):
+        page.wait_for_timeout(300)
+        verifier_a_traiter(page, res, sc2, tiroir=True)
+        page.keyboard.press("Escape")
+        page.wait_for_timeout(250)
+
+
+def jouer_propositions_ia(page, res, sc):
+    """Cours et QCM > Propositions IA, l'équipe (lot 2B, tâche 6) : Thèmes, Compétences, Signalements, Propositions IA, Documents (pas de sous-onglet QCM) ; la liste vide dit
+    « Aucune question à relire. » ; une lecture en échec dit sa panne et « Réessayer » la relit ; avec des brouillons, Aujourd'hui a sa ligne « 3 questions proposées par l'IA »
+    qui mène au sous-onglet, la pastille et le tiroir disent le total, « Relire » ouvre l'éditeur du QCM, rejeter une question puis fermer l'éditeur remet la liste, la
+    pastille et le tiroir à jour (7 au lieu de 8)."""
+    vue = "%s/cours/propositions-ia" % sc.nom
+    echec = lambda detail: res.echec("sous-onglet Propositions IA", vue, detail)
+    telephone = sc.largeur < SEUIL_TELEPHONE
+    aller_a(page, "#/themes")
+    attendre(page)
+    res.vues += 1
+    m = page.evaluate(JS_LISTE_ACTIONS)
+    if m["libelles"] != SOUS_ONGLETS_COURS_EQUIPE:
+        echec("les sous-onglets de Cours et QCM sont %s, attendu %s" % (m["libelles"], SOUS_ONGLETS_COURS_EQUIPE))
+        return
+    # 1. Liste vide (le banc ordinaire n'a aucun brouillon).
+    if not choisir_sous_onglet(page, res, vue, "Propositions IA"):
+        return
+    page.wait_for_selector("#view .acc-carte .acc-corps", timeout=4000)
+    page.wait_for_function("() => !/Chargement/.test(document.querySelector('#view .acc-carte .acc-corps').innerText)", timeout=4000)
+    m = page.evaluate(JS_LISTE_ACTIONS)
+    if m["texte"].strip() != "Aucune question à relire." or m["lignes"] or m["compte"] != "":
+        echec("sans brouillon, la liste dit « %s » (%d ligne(s), compte « %s »), attendu « Aucune question à relire. »" % (m["texte"].strip(), len(m["lignes"]), m["compte"]))
+    # 2. Une lecture en échec.
+    vue_panne = vue + "/panne"
+    res.vues += 1
+    page.evaluate("() => { window.__HARNESS_FAIL = 'panne du banc'; }")
+    if choisir_sous_onglet(page, res, vue_panne, "Thèmes") and choisir_sous_onglet(page, res, vue_panne, "Propositions IA"):
+        try:
+            page.wait_for_selector("#view .acc-reessayer", timeout=4000)
+        except DelaiDepasse:
+            res.echec("sous-onglet Propositions IA", vue_panne, "une lecture en échec ne montre pas « Réessayer »")
+        m = page.evaluate(JS_LISTE_ACTIONS)
+        if m["erreur"] is None or "Les propositions de l'IA n'ont pas pu être chargées." not in m["erreur"]:
+            res.echec("sous-onglet Propositions IA", vue_panne, "la panne dit « %s », attendu « Les propositions de l'IA n'ont pas pu être chargées. »" % m["erreur"])
+        if m["reessayer"] is not None and m["reessayer"] < 43.5:
+            res.echec("sous-onglet Propositions IA", vue_panne, "« Réessayer » mesure %s px de haut (44 px au moins)" % m["reessayer"])
+        page.evaluate("() => { window.__HARNESS_FAIL = null; }")
+        if cliquer(page, res, vue_panne, "#view .acc-reessayer", "« Réessayer »"):
+            attendre(page)
+            if page.evaluate(JS_LISTE_ACTIONS)["texte"].strip() != "Aucune question à relire.":
+                res.echec("sous-onglet Propositions IA", vue_panne, "« Réessayer » ne remet pas la liste (« Aucune question à relire. » attendu)")
+    page.evaluate("() => { window.__HARNESS_FAIL = null; }")
+    res.console.clear()   # le « console.error » de la page est le but de l'essai : elle journalise la lecture qui échoue, l'écran dit la panne
+    vider_console(res, vue_panne)
+    # 3. Des brouillons à relire : la ligne d'Aujourd'hui, le sous-onglet, la pastille.
+    recharger_au_banc(page, "#/home", propositions="1")
+    attendre_accueil(page)
+    vue_ligne = vue + "/ligne-d-aujourdhui"
+    res.vues += 1
+    lignes = page.evaluate("() => [...document.querySelectorAll('#view [data-zone=\"a-traiter\"] a.acc-ligne')].map((a) => [a.innerText.replace(/\\s+/g, ' ').trim(), a.getAttribute('href')])")
+    attendues = [["5 signalements sur des QCM", "#/themes"], ["3 questions proposées par l'IA", "#/themes"]]
+    if lignes != attendues:
+        res.echec("ligne d'Aujourd'hui", vue_ligne, "la carte « À traiter » dit %s, attendu %s" % (lignes, attendues))
+        return
+    if not cliquer(page, res, vue_ligne, '#view [data-zone="a-traiter"] a.acc-ligne:has-text("proposées par l\'IA")', "ligne « 3 questions proposées par l'IA »"):
+        return
+    attendre(page)
+    page.wait_for_selector("#view .acc-ligne-action", timeout=6000)
+    m = page.evaluate(JS_LISTE_ACTIONS)
+    if route_courante(page) != "themes" or m["actif"] != "Propositions IA":
+        res.echec("ligne d'Aujourd'hui", vue_ligne, "la ligne mène à #/%s, sous-onglet « %s » ; attendu Cours et QCM > Propositions IA" % (route_courante(page), m["actif"]))
+    verifier_liste_d_actions(res, vue_ligne, sc, m, [(t, d) for t, d in LIGNES_PROPOSITIONS_DU_BANC], "3 questions à relire", "Questions proposées par l'IA", "sous-onglet Propositions IA")
+    if [x["bouton"] for x in m["lignes"]] != ["Relire"] * 2:
+        res.echec("sous-onglet Propositions IA", vue_ligne, "les boutons sont %s, attendu « Relire » sur chaque ligne" % [x["bouton"] for x in m["lignes"]])
+    lire_a_traiter_de_la_barre(page, res, vue_ligne, sc, "propositions")
+    # 4. « Relire » ouvre l'éditeur du QCM ; rejeter une question, fermer : tout se met à jour.
+    vue_editeur = vue + "/editeur"
+    res.vues += 1
+    if not cliquer(page, res, vue_editeur, '#view .acc-ligne-action button[aria-label="Relire : Thème 22 · Feux du véhicule"]', "bouton « Relire » du thème 22"):
+        return
+    try:
+        page.wait_for_selector(".qcm-editor", timeout=4000)
+        page.wait_for_function("() => [...document.querySelectorAll('.qcm-editor button')].some((b) => b.textContent.trim() === 'Rejeter')", timeout=4000)
+    except DelaiDepasse:
+        res.echec("sous-onglet Propositions IA", vue_editeur, "« Relire » n'ouvre pas l'éditeur du QCM du thème 22 avec ses brouillons")
+        return
+    titre = page.evaluate("() => (document.querySelector('.qcm-editor .qcm-head-title') || {}).textContent || ''")
+    if "Feux du véhicule" not in titre:
+        res.echec("sous-onglet Propositions IA", vue_editeur, "l'éditeur ouvert est « %s », attendu celui du thème 22 (Feux du véhicule)" % titre)
+    page.evaluate("() => { window.confirm = () => true; }")
+    if not cliquer(page, res, vue_editeur, ".qcm-editor button:text-is('Rejeter')", "« Rejeter » d'un brouillon"):
+        return
+    page.wait_for_timeout(500)
+    fermer = page.locator(".qcm-editor .qcm-close").first.bounding_box()
+    if not fermer or fermer["width"] < 43.5 or fermer["height"] < 43.5:
+        res.echec("sous-onglet Propositions IA", vue_editeur, "la fermeture de l'éditeur mesure %s (44 px au moins)" % (fermer and "%dx%d px" % (fermer["width"], fermer["height"])))
+    if not cliquer(page, res, vue_editeur, ".qcm-editor .qcm-close", "fermeture de l'éditeur"):
+        return
+    page.wait_for_timeout(300)
+    if page.locator(".qcm-editor").count():
+        res.echec("sous-onglet Propositions IA", vue_editeur, "l'éditeur reste ouvert après sa fermeture")
+    vue_retour = vue + "/retour-de-l-editeur"
+    res.vues += 1
+    try:
+        page.wait_for_function("() => /2 questions à relire/.test((document.querySelector('#view .acc-compte') || {}).textContent || '')", timeout=4000)
+    except DelaiDepasse:
+        res.echec("sous-onglet Propositions IA", vue_retour, "après le rejet et la fermeture de l'éditeur, la liste dit « %s », attendu « 2 questions à relire »" % page.evaluate(JS_LISTE_ACTIONS)["compte"])
+    m = page.evaluate(JS_LISTE_ACTIONS)
+    attendues = [("Thème 23 · Pneumatiques", "1 question à relire, proposée le 12/10/2026"), ("Thème 22 · Feux du véhicule", "1 question à relire, proposée le 21/10/2026")]
+    verifier_liste_d_actions(res, vue_retour, sc, m, attendues, "2 questions à relire", "Questions proposées par l'IA", "sous-onglet Propositions IA")
+    lire_a_traiter_de_la_barre(page, res, vue_retour, sc, "propositions-relue")
+    vider_console(res, vue_retour)
+    # À froid : l'app s'ouvre sur le sous-onglet mémorisé (Propositions IA), dont la liste se charge d'elle-même (la base du banc repart de ses trois brouillons).
+    vue_froid = vue + "/a-froid"
+    recharger_au_banc(page, "#/themes", propositions="1")
+    res.vues += 1
+    try:
+        page.wait_for_selector("#view .acc-ligne-action", timeout=6000)
+    except DelaiDepasse:
+        res.echec("sous-onglet Propositions IA", vue_froid, "ouvert à froid sur le sous-onglet mémorisé, la liste ne se charge pas : %s" % page.evaluate(JS_LISTE_ACTIONS)["texte"][:80])
+    else:
+        m = page.evaluate(JS_LISTE_ACTIONS)
+        if m["actif"] != "Propositions IA" or m["compte"] != "3 questions à relire":
+            res.echec("sous-onglet Propositions IA", vue_froid, "à froid : sous-onglet %s, compte « %s » (attendu « 3 questions à relire »)" % (m["actif"], m["compte"]))
+    vider_console(res, vue_froid)
+    # Le décompte des signalements échoue, celui des propositions se lit : la carte d'Aujourd'hui garde sa ligne et DIT la panne (elle ne la cache pas).
+    vue_panne_compte = vue + "/aujourdhui-un-compte-illisible"
+    recharger_au_banc(page, "#/home", propositions="1", panne="qcm_signalements")
+    attendre_accueil(page)
+    res.vues += 1
+    carte = page.evaluate(r"""() => { const c = document.querySelector('#view [data-zone="a-traiter"]');
+        return { lignes: [...c.querySelectorAll('a.acc-ligne')].map((a) => a.innerText.replace(/\s+/g, ' ').trim()),
+                 alertes: [...c.querySelectorAll('.acc-erreur[role="alert"]')].map((p) => p.textContent.trim()) }; }""")
+    if carte["lignes"] != ["3 questions proposées par l'IA"] or carte["alertes"] != ["Le décompte des signalements n'a pas pu être lu."]:
+        res.echec("ligne d'Aujourd'hui", vue_panne_compte, "signalements illisibles : la carte « À traiter » dit %s et %s, attendu la ligne « 3 questions proposées par l'IA » et l'alerte « Le décompte des signalements n'a pas pu être lu. »" % (carte["lignes"], carte["alertes"]))
+    res.console.clear()   # le « console.error » de la page est le but de l'essai : elle journalise la lecture qui échoue, l'écran dit la panne
+    vider_console(res, vue_panne_compte)
+    recharger_au_banc(page, "#/home", panne="")
+
+
 def jouer_allume(page, res, sc, options):
     regles = regles_de_la_page(page, res, sc)
     res.profil_stagiaire = bool(regles.get("profilStagiaire"))
@@ -4670,6 +5034,15 @@ def jouer_allume(page, res, sc, options):
             jouer_aujourdhui_cas_limites(page, res, sc)
         if sc.largeur in (375, 1280) and res.profil_stagiaire:
             jouer_signature_d_aujourdhui(page, res, sc)
+    # Lot 2B, tâche 6 : Cours et QCM, sous-onglet QCM du stagiaire (absent quand le module « qcm » est fermé) et Propositions IA de l'équipe. Ils rechargent le banc ou le
+    # modifient (une tentative de plus, un brouillon rejeté) : en dernier.
+    if res.coquille and not (sc.ressources_fermees or sc.voir_en_tant_que or sc.a_traiter):
+        if sc.espace == "stagiaire" and sc.modules == "depart":
+            verifier_qcm_ferme(page, res, sc)
+        elif sc.espace == "stagiaire" and not sc.modules and sc.largeur in (375, 1280):
+            jouer_qcm_du_stagiaire(page, res, sc)
+        elif sc.espace == "equipe" and not sc.modules and sc.largeur in (375, 1280):
+            jouer_propositions_ia(page, res, sc)
 
 
 def focus_garde(page, res, vue, geste):

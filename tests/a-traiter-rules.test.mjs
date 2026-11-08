@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   ENTREE_A_TRAITER, resumeATraiter, nomAvecATraiter, phraseATraiter, pointSurPlus, lireLesComptes,
-  lecteursDeLaPastille, nomDePlus,
+  lecteursDeLaPastille, nomDePlus, COMPTER_LES_PROPOSITIONS_IA,
 } from "../js/a-traiter-rules.js";
 import { entreesNavigation, barreTelephone } from "../js/nav-rules.js";
 import { pastilleSignalement } from "../js/signalement-rules.js";
@@ -150,30 +150,32 @@ test("la lecture : les deux lectures partent ensemble, la lente ne retarde pas l
   assert.deepEqual(await lecture, { signalements: 4, propositionsIA: 1 });
 });
 
-test("la pastille ne compte que les signalements de QCM : le comptage des propositions de l'IA n'est même pas lancé (ruling R56)", async () => {
+test("la pastille compte les signalements ET les propositions de l'IA : leur liste existe (lot 2B)", async () => {
+  assert.equal(COMPTER_LES_PROPOSITIONS_IA, true, "le sous-onglet « Propositions IA » de Cours et QCM est la liste derrière le compte");
   let appelsIA = 0;
   const comptes = await lireLesComptes(lecteursDeLaPastille({
-    signalements: rend(5),
-    propositionsIA: async () => { appelsIA++; return 3; },
+    signalements: rend(3),
+    propositionsIA: async () => { appelsIA++; return 2; },
   }));
-  assert.deepEqual(comptes, { signalements: 5, propositionsIA: null });
-  assert.equal(appelsIA, 0, "la table des brouillons n'est pas lue : elle est commune à toutes les promos, sans auteur, et sans liste où les retrouver avant le lot 2B");
+  assert.deepEqual(comptes, { signalements: 3, propositionsIA: 2 });
+  assert.equal(appelsIA, 1, "la table des brouillons est lue");
   const resume = resumeATraiter(comptes);
-  assert.deepEqual(resume, { total: 5, texte: "5 signalements" });
-  assert.equal(phraseATraiter(resume), "5 à traiter : 5 signalements", "la phrase du tiroir ne parle que des signalements");
+  assert.deepEqual(resume, { total: 5, texte: "3 signalements, 2 propositions de l'IA" });
+  assert.equal(phraseATraiter(resume), "5 à traiter : 3 signalements, 2 propositions de l'IA");
   assert.equal(nomAvecATraiter("Cours et QCM", resume), "Cours et QCM, 5 à traiter");
 });
 
-test("le lot 2B rouvre le comptage des propositions de l'IA par un seul paramètre, sans toucher aux règles du résumé", async () => {
+test("le paramètre explicite garde la main : sans lui, les propositions de l'IA ne sont pas lues (ruling R56 gardé en réserve)", async () => {
   const lecteurs = { signalements: rend(5), propositionsIA: rend(3) };
   assert.deepEqual(await lireLesComptes(lecteursDeLaPastille(lecteurs, true)), { signalements: 5, propositionsIA: 3 });
-  assert.deepEqual(resumeATraiter({ signalements: 5, propositionsIA: 3 }), { total: 8, texte: "5 signalements, 3 propositions de l'IA" });
   assert.deepEqual(await lireLesComptes(lecteursDeLaPastille(lecteurs, false)), { signalements: 5, propositionsIA: null });
+  assert.deepEqual(await lireLesComptes(lecteursDeLaPastille(lecteurs)), { signalements: 5, propositionsIA: 3 }, "par défaut : lues");
 });
 
-test("les lecteurs de la pastille : un compte de signalements illisible reste null, la lecture des propositions n'y change rien", async () => {
+test("les lecteurs de la pastille : un compte illisible reste null, l'autre compte est gardé", async () => {
   const echoue = async () => { throw new Error("réseau"); };
-  assert.deepEqual(await lireLesComptes(lecteursDeLaPastille({ signalements: echoue, propositionsIA: rend(3) })), { signalements: null, propositionsIA: null });
+  assert.deepEqual(await lireLesComptes(lecteursDeLaPastille({ signalements: echoue, propositionsIA: rend(3) })), { signalements: null, propositionsIA: 3 });
+  assert.deepEqual(await lireLesComptes(lecteursDeLaPastille({ signalements: rend(2), propositionsIA: echoue })), { signalements: 2, propositionsIA: null });
   assert.deepEqual(await lireLesComptes(lecteursDeLaPastille({})), { signalements: null, propositionsIA: null }, "lecteurs absents");
   assert.deepEqual(await lireLesComptes(lecteursDeLaPastille()), { signalements: null, propositionsIA: null }, "sans argument");
 });

@@ -14,6 +14,8 @@ import { moduleVisible, moduleMasque, repereMasque } from "../modules-etat.js?v=
 import { navigationV2Active } from "../nav-etat.js?v=20261106a";
 import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261106a";
 import { renderRessources } from "./ressources.js?v=20261106a";
+import { renderQcmStagiaire } from "./qcm-stagiaire.js?v=20261106a";
+import { renderPropositionsIa } from "./propositions-ia.js?v=20261106a";
 import { articlesCites, articlesHorsCours, titresDuCours, libelleTraceIa, brouillonVersQuestion, resumeProposition } from "../qcm-ia-rules.js?v=20261106a";
 
 let themes = [];
@@ -780,6 +782,7 @@ async function openQcmEditor(theme, qcmId, questionIdCible = null, onFerme = nul
     bouton.disabled = true;
     try {
       await rejeterBrouillonIa(b.id);
+      dirty = true;  // la liste « Propositions IA » et la pastille « à traiter » comptent un brouillon de moins
       toast("Brouillon rejeté.", "success");
       await reloadEditor();
     } catch (e) {
@@ -1867,8 +1870,11 @@ export async function renderThemes(container) {
   // données ne sont pas lues. Avec l'ancienne navigation, la page reste celle des cours.
   const v2 = navigationV2Active();
   const coursOuverts = !v2 || moduleVisible("themes");
+  // Le sous-onglet QCM du stagiaire vit de la même lecture (la liste des thèmes, l'index des QCM, le module « qcm ») : un
+  // module des cours fermé et celui des QCM ouvert doivent donc la faire aussi, avec l'en-tête qui présente la page.
+  const donnees = coursOuverts || moduleVisible("qcm");
   container.appendChild(el("div", { class: "loading" }, "Chargement"));
-  if (coursOuverts) {
+  if (donnees) {
     themes = await listThemes();
     await loadQcmIndex();
   }
@@ -1878,7 +1884,7 @@ export async function renderThemes(container) {
   // jour par refreshStatsInPlace (statut basculé, date corrigée).
   // Nouvelle navigation : la page porte le nom de son entrée, « Cours et QCM », avec la promo en surtitre ; la ligne de
   // progression, qui avait le surtitre, termine alors le sous-titre.
-  if (coursOuverts) {
+  if (donnees) {
     const surtitre = v2 ? getPromoCourante()?.nom : null;
     const sousTitre = "Les thèmes et les compétences de la formation, avec leurs cours et leurs QCM.";
     ligneProgression = el(v2 ? "span" : "p", v2 ? {} : { class: "eyebrow" }, texteProgression());
@@ -1909,9 +1915,22 @@ export async function renderThemes(container) {
     { key: "themes", label: "Thèmes", module: moduleCours, render: liste("themes") },
     { key: "competences", label: "Compétences", module: moduleCours, render: liste("competences") },
   ];
+  // Nouvelle navigation, stagiaire : ses QCM sur une liste, avec sa dernière note et « S'entraîner » (le module « qcm » les
+  // ferme pour la promo). L'équipe garde la colonne QCM de la liste des thèmes, pas de sous-onglet.
+  if (v2 && !canManageExam()) {
+    onglets.push({ key: "qcm", label: "QCM", module: "qcm",
+      render: (p, ctx) => { renderQcmStagiaire(p, { themes, onOuvrir: openQcmSheet, isActive: ctx?.isActive }); } });
+  }
   if (canManageExam()) {
-    onglets.push({ key: "signalements", label: "⚑ Signalements",
+    onglets.push({ key: "signalements", label: v2 ? "Signalements" : "⚑ Signalements",
       render: (p, ctx) => { renderConsoleSignalements(p, { themes, onOuvrirEditeur: ouvrirDepuisConsole, isActive: ctx?.isActive }); } });
+  }
+  // Nouvelle navigation, administrateurs : les questions que l'IA a proposées et que personne n'a relues. La table des
+  // brouillons n'est lisible que par eux (RLS) : un formateur qui n'est pas administrateur n'a pas ce sous-onglet, et la
+  // pastille « à traiter » ne les compte pas non plus (elle lit la même table).
+  if (v2 && isAdmin()) {
+    onglets.push({ key: "ia", label: "Propositions IA",
+      render: (p, ctx) => { renderPropositionsIa(p, { themes, onOuvrirEditeur: ouvrirDepuisIa, isActive: ctx?.isActive }); } });
   }
   // Nouvelle navigation : les Ressources rejoignent les Cours, en dernier sous-onglet. La page
   // se rend dans son propre conteneur : un rendu tardif (sous-onglet quitté pendant le
@@ -1933,6 +1952,18 @@ export async function renderThemes(container) {
   container.appendChild(renderSubTabs(onglets, { storageKey: CLES_SOUS_ONGLETS.themes }));
 }
 
+// La liste des propositions de l'IA ne connaît pas l'éditeur non plus : elle rend la main ici avec le QCM à relire. À la
+// fermeture de l'éditeur (questions acceptées ou écartées), la liste, la colonne QCM des thèmes et la pastille « à traiter »
+// de la barre disent ce qui reste.
+function ouvrirDepuisIa(groupe, rechargerListe) {
+  if (!groupe.theme) { toast("Thème introuvable pour ce QCM.", "error"); return; }
+  openQcmEditor(groupe.theme, groupe.qcmId, null, async () => {
+    await loadQcmIndex();
+    if (rechargerListe) await rechargerListe();
+    window.dispatchEvent(new Event("a-traiter-change"));
+  });
+}
+
 // La console ne connaît pas l'éditeur : elle rend la main ici avec le signalement,
 // et c'est Thèmes qui retrouve le thème et ouvre l'éditeur sur la bonne question.
 function ouvrirDepuisConsole(s, rechargerConsole) {
@@ -1944,5 +1975,6 @@ function ouvrirDepuisConsole(s, rechargerConsole) {
   openQcmEditor(theme, qcm.id, s.question_id, async () => {
     await loadQcmIndex();
     if (rechargerConsole) await rechargerConsole();
+    window.dispatchEvent(new Event("a-traiter-change"));
   });
 }

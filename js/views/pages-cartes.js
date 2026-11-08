@@ -4,7 +4,7 @@
  * de la semaine partagée entre cartes, et la relecture tant que la carte est à l'écran. Les classes sont celles de
  * css/pages.css.
  */
-import { el, isoDate } from "../utils.js?v=20261106a";
+import { el, clear, isoDate } from "../utils.js?v=20261106a";
 import { icon } from "../icons.js?v=20261106a";
 import { STORAGE_SOUS_ONGLET } from "../nouveautes.js?v=20261106a";
 import { hrefLien } from "../route-rules.js?v=20261106a";
@@ -54,6 +54,29 @@ export function ligneLien({ route, sousOnglet = null, adresse = null, ico, titre
     el("span", { class: "acc-ligne-ico", "aria-hidden": "true" }, icon[ico]()),
     el("span", { class: "acc-ligne-texte" }, el("b", {}, titre), detail ? el("span", {}, detail) : null),
     fin || el("span", { class: "acc-ligne-fin", "aria-hidden": "true" }, icon.chevronRight()),
+  );
+}
+
+// Le message d'une lecture qui a échoué, avec « Réessayer » : dans le corps de la carte, annoncé aux lecteurs d'écran.
+export function erreurAvecReessai(corps, texte, relire) {
+  clear(corps);
+  corps.appendChild(el("p", { class: "acc-erreur", role: "alert" }, texte + " ",
+    el("button", { type: "button", class: "acc-reessayer", onClick: relire }, "Réessayer")));
+}
+
+// Une ligne d'une liste de carte dont l'action est un bouton, pas la ligne entière (une liste où chaque ligne porte son
+// verbe : « S'entraîner », « Relire »). Même pastille d'icône, même titre et même détail que ligneLien. `puces` : des
+// repères courts posés avant le bouton (« Examen ouvert »). `bouton` : { texte, primaire, nom, onClick } ; `nom` est le nom
+// complet du bouton pour un lecteur d'écran (« S'entraîner : Thème 22 · Feux du véhicule »), parce que dix boutons
+// « S'entraîner » à la suite ne disent pas lequel est lequel.
+export function ligneAction({ ico, titre, detail = "", puces = [], bouton }) {
+  return el("div", { class: "acc-ligne acc-ligne-action" },
+    el("span", { class: "acc-ligne-ico", "aria-hidden": "true" }, icon[ico]()),
+    el("span", { class: "acc-ligne-texte" }, el("b", {}, titre), detail ? el("span", {}, detail) : null),
+    el("span", { class: "acc-ligne-actions" },
+      ...puces.filter(Boolean).map((p) => el("span", { class: "acc-ligne-puce" }, p)),
+      el("button", { type: "button", class: "btn" + (bouton.primaire ? " primary" : ""), "aria-label": bouton.nom || null, onClick: bouton.onClick }, bouton.texte),
+    ),
   );
 }
 

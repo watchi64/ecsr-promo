@@ -188,6 +188,7 @@ export async function renderConsoleSignalements(panel, { themes = [], onOuvrirEd
         await setQcmSignalementStatut(s.id, st, getAdminEmail());
         toast(st === "traite" ? "Signalement classé comme corrigé." : "Signalement écarté.", "success");
         await charger();
+        window.dispatchEvent(new Event("a-traiter-change"));   // la pastille « à traiter » de la barre se relit
       } catch (e) {
         bouton.disabled = false;
         toast("Échec : " + (e?.message || e), "error");

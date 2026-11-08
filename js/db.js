@@ -821,6 +821,18 @@ export async function listBrouillonsIa(qcmId) {
   return data || [];
 }
 
+// Tous les brouillons à relire, du plus ancien au plus récent, avec le QCM qui les porte (id, thème, titre) : la liste
+// « Propositions IA » de Cours et QCM les range par QCM. Lecture réservée aux administrateurs (RLS de la table).
+export async function listBrouillonsIaARelire() {
+  const { data, error } = await supabase
+    .from("qcm_ia_brouillons")
+    .select("id, qcm_id, created_at, qcm:qcm_id(id, theme_id, titre)")
+    .eq("statut", "a_relire")
+    .order("created_at", { ascending: true });
+  if (error) throw error;
+  return data || [];
+}
+
 // Nombre de brouillons à relire, tous QCM confondus : la pastille « à traiter » de la barre de l'équipe
 // (js/a-traiter.js). Les brouillons sont communs à toutes les promos (leur table n'a pas de colonne de promo). Les
 // identifiants seulement, comptés ici : l'IA en propose peu à la fois (son quota est de 10 par jour et par formateur).

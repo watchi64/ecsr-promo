@@ -48,3 +48,55 @@ test("resumeProposition : singulier, pluriel, écartés", () => {
   assert.equal(client.resumeProposition(3, 1), "3 brouillons à relire, 1 écarté par le contrôle.");
   assert.equal(client.resumeProposition(0, 2), "Aucun brouillon à relire, 2 écartés par le contrôle.");
 });
+
+// Lot 2B, tâche 6 : la liste « Propositions IA » range les brouillons à relire par QCM.
+const THEMES_IA = [
+  { id: 1, type: "theme", numero: 22, titre: "Feux du véhicule" },
+  { id: 2, type: "theme", numero: 12, titre: "Intersections" },
+  { id: 101, type: "notion", categorie: "QCM transversal", titre: "QCM des sanctions" },
+];
+const brouillon = (id, qcm_id, theme_id, created_at, titre = "QCM " + qcm_id) =>
+  ({ id, qcm_id, created_at, statut: "a_relire", qcm: { id: qcm_id, theme_id, titre } });
+
+test("groupesDeBrouillons : un groupe par QCM, avec le nombre et le plus ancien", () => {
+  const g = client.groupesDeBrouillons([
+    brouillon(1, 50, 1, "2026-10-20T10:00:00Z"),
+    brouillon(2, 50, 1, "2026-10-12T10:00:00Z"),
+    brouillon(3, 51, 2, "2026-10-25T10:00:00Z"),
+  ], THEMES_IA);
+  assert.equal(g.length, 2);
+  assert.deepEqual(g[0], { theme: THEMES_IA[0], qcmId: 50, titre: "Thème 22 · Feux du véhicule", nombre: 2, plusAncien: "2026-10-12T10:00:00Z" });
+  assert.equal(g[1].nombre, 1);
+});
+
+test("groupesDeBrouillons : trié par ancienneté, le QCM qui attend depuis le plus longtemps d'abord", () => {
+  const g = client.groupesDeBrouillons([
+    brouillon(1, 51, 2, "2026-10-25T10:00:00Z"),
+    brouillon(2, 50, 1, "2026-10-12T10:00:00Z"),
+    brouillon(3, 52, 101, "2026-10-18T10:00:00Z"),
+  ], THEMES_IA);
+  assert.deepEqual(g.map((x) => x.qcmId), [50, 52, 51]);
+  assert.equal(g[1].titre, "QCM des sanctions", "un transversal n'a pas de numéro");
+});
+
+test("groupesDeBrouillons : un thème introuvable reste listé sous le titre du QCM", () => {
+  const g = client.groupesDeBrouillons([brouillon(1, 60, 999, "2026-10-12T10:00:00Z", "Ronds-points")], THEMES_IA);
+  assert.equal(g.length, 1);
+  assert.equal(g[0].theme, null);
+  assert.equal(g[0].titre, "Ronds-points");
+});
+
+test("groupesDeBrouillons : un brouillon sans QCM joint garde un titre lisible ; une liste vide donne une liste vide", () => {
+  const g = client.groupesDeBrouillons([{ id: 1, qcm_id: 70, created_at: "2026-10-12T10:00:00Z", qcm: null }], THEMES_IA);
+  assert.equal(g[0].titre, "QCM n° 70");
+  assert.deepEqual(client.groupesDeBrouillons([], THEMES_IA), []);
+  assert.deepEqual(client.groupesDeBrouillons(null, null), []);
+});
+
+test("groupesDeBrouillons : une date manquante ne fait pas le plus ancien", () => {
+  const g = client.groupesDeBrouillons([
+    brouillon(1, 50, 1, null), brouillon(2, 50, 1, "2026-10-12T10:00:00Z"), brouillon(3, 51, 2, "2026-10-14T10:00:00Z"),
+  ], THEMES_IA);
+  assert.equal(g[0].plusAncien, "2026-10-12T10:00:00Z");
+  assert.deepEqual(g.map((x) => x.qcmId), [50, 51]);
+});

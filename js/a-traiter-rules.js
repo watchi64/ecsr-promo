@@ -1,9 +1,9 @@
 // Pastilles « à traiter » de l'équipe (refonte, lot 2A) : ce qui attend un formateur dans Cours et QCM, les signalements
-// de QCM non traités et, une fois le lot 2B posé, les propositions de l'IA à relire (voir COMPTER_LES_PROPOSITIONS_IA). Les
+// de QCM non traités et, depuis le lot 2B, les propositions de l'IA à relire (voir COMPTER_LES_PROPOSITIONS_IA). Les
 // règles seulement : combien, comment le dire, où le montrer, et une lecture qui ne lève jamais. Module pur, sans DOM ni
 // base : testé en node. La coquille (js/nav-shell.js) pose les pastilles, js/a-traiter.js lit les comptes en base.
 
-// L'entrée qui porte la pastille chiffrée : Cours et QCM, où vivent les signalements de QCM (et, au lot 2B, les propositions de l'IA).
+// L'entrée qui porte la pastille chiffrée : Cours et QCM, où vivent les signalements de QCM (et les propositions de l'IA).
 // Chez l'équipe, le téléphone la range dans le tiroir « Plus » (js/nav-rules.js) : « Plus » porte alors un point.
 export const ENTREE_A_TRAITER = "themes";
 
@@ -76,13 +76,13 @@ export async function lireLesComptes(lecteurs) {
   return { signalements: s, propositionsIA: p };
 }
 
-// Ruling R56 (relecture finale du 29/10) : tant que l'équipe n'a pas de liste où retrouver les propositions de l'IA (le sous-onglet
-// « Propositions IA » de Cours et QCM, lot 2B), la pastille ne compte que les signalements de QCM. Les brouillons de l'IA sont communs à
-// toutes les promos et sans auteur : un compte sans liste derrière lui promettrait du travail qu'on ne retrouve pas. Le lot 2B passe
-// cette constante à true ; le comptage (countBrouillonsIaARelire, js/db.js) et le texte du résumé n'ont pas bougé.
-export const COMPTER_LES_PROPOSITIONS_IA = false;
+// Ruling R56 (relecture finale du 29/10) : la pastille ne compte les propositions de l'IA qu'avec une liste où les retrouver. Les
+// brouillons sont communs à toutes les promos et sans auteur : un compte sans liste derrière lui promettrait du travail
+// introuvable. Le lot 2B a posé cette liste (le sous-onglet « Propositions IA » de Cours et QCM, réservé aux administrateurs,
+// qui seuls lisent la table) : le compte est lu. La constante reste le seul interrupteur de ce comptage.
+export const COMPTER_LES_PROPOSITIONS_IA = true;
 
-// Les lecteurs que lireLesComptes lit : `lecteurs` = { signalements, propositionsIA } ; sans `avecPropositionsIA`, le lecteur des
+// Les lecteurs que lireLesComptes lit : `lecteurs` = { signalements, propositionsIA } ; avec `avecPropositionsIA` à false, le lecteur des
 // propositions de l'IA est remplacé par un lecteur qui rend null : la table des brouillons n'est pas lue, et le résumé (qui omet un compte
 // nul) ne les dit pas.
 export function lecteursDeLaPastille(lecteurs, avecPropositionsIA = COMPTER_LES_PROPOSITIONS_IA) {

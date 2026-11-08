@@ -23,7 +23,7 @@ import {
   titreSelonDemis, auTableauDuJour, enVoitureDuJour, feuilleDuJour, lignesATraiter, ligneDeLEnTete,
 } from "../aujourdhui-rules.js?v=20261106a";
 import {
-  carte, plusLien, ligneLien, pastilleDuJour, reperesDuJour, semaineDeLaVisite, surveiller,
+  carte, plusLien, ligneLien, erreurAvecReessai, pastilleDuJour, reperesDuJour, semaineDeLaVisite, surveiller,
 } from "./pages-cartes.js?v=20261106a";
 
 const RELECTURE_SEANCES_MS = 60000;
@@ -40,12 +40,6 @@ const pluriel = (n, mot) => `${n} ${mot}${n > 1 ? "s" : ""}`;
 function dire(corps, texte, classe = "muted") {
   clear(corps);
   corps.appendChild(el("p", { class: classe, role: classe === "acc-erreur" ? "alert" : null }, texte));
-}
-
-function erreurAvecReessai(corps, texte, relire) {
-  clear(corps);
-  corps.appendChild(el("p", { class: "acc-erreur", role: "alert" }, texte + " ",
-    el("button", { type: "button", class: "acc-reessayer", onClick: relire }, "Réessayer")));
 }
 
 // === Émargement ===
@@ -141,15 +135,21 @@ async function chargerATraiterCarte(corps) {
   const comptes = await chargerATraiter();   // ne rejette jamais ; un compte illisible vaut null
   if (!corps.isConnected) return;
   const lignes = lignesATraiter(comptes);
+  const illisibles = [
+    comptes.signalements == null ? "Le décompte des signalements n'a pas pu être lu." : null,
+    comptes.propositionsIA == null ? "Le décompte des questions proposées par l'IA n'a pas pu être lu." : null,
+  ].filter(Boolean);
   clear(corps);
   if (lignes.length) {
     corps.appendChild(el("div", { class: "acc-lignes" },
       ...lignes.map((l) => ligneLien({ route: "themes", sousOnglet: l.sousOnglet, ico: ICONE_A_TRAITER[l.cle], titre: l.titre }))));
+    // Un compte lu n'efface pas la panne de l'autre : sans cette ligne, « 2 questions proposées par l'IA » laisserait croire
+    // qu'aucun signalement n'attend, alors que sa lecture a échoué.
+    illisibles.forEach((t) => corps.appendChild(el("p", { class: "acc-erreur", role: "alert" }, t)));
     return;
   }
-  // « Rien à traiter » seulement si le compte des signalements a bien été lu. Celui des propositions de l'IA n'est pas
-  // lu avant sa liste (tâche 6) : son absence n'est pas une panne.
-  if (comptes.signalements == null) dire(corps, "Le décompte n'a pas pu être lu.", "acc-erreur");
+  // « Rien à traiter » seulement si les deux comptes ont bien été lus.
+  if (illisibles.length) dire(corps, "Le décompte n'a pas pu être lu.", "acc-erreur");
   else dire(corps, "Rien à traiter.");
 }
 
