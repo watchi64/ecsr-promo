@@ -1,11 +1,11 @@
-import { createClient } from "../vendor/supabase-js-2.117.2.js?v=20261106a";
-import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261106a";
-import { compteDansEquite } from "./passage-rules.js?v=20261106a";
-import { messageErreurEnvoi } from "./signalement-rules.js?v=20261106a";
+import { createClient } from "../vendor/supabase-js-2.117.2.js?v=20261108a";
+import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261108a";
+import { compteDansEquite } from "./passage-rules.js?v=20261108a";
+import { messageErreurEnvoi } from "./signalement-rules.js?v=20261108a";
 import {
   ENTETE_PROMO, ENTETE_LECTURE_PROMO, promoDeLaRequete, doitPorterEntetePromo, choisirPromoInitiale, profilEffectif,
   separerChamps, CHAMPS_PROGRESSION, CHAMPS_EXAMEN, fusionnerProgression, fusionnerExamen,
-} from "./promo-rules.js?v=20261106a";
+} from "./promo-rules.js?v=20261108a";
 
 // Contexte de promo (spec multi-promo, C.1). La promo courante voyage dans l'en-tête
 // x-promo-id de chaque requête de données ; la base vérifie le droit et filtre.
@@ -1620,12 +1620,19 @@ async function toutesLesLignes(fabrique) {
   }
 }
 
-// promoId nul (liste des promos non chargée) : promo courante, sans en-tête de lecture.
-export async function lireDonneesCentre(promoId) {
-  const lire = (table, colonnes, ordre) => toutesLesLignes(() => {
+// Toutes les lignes d'une table, lues par pages et triées sur une colonne à valeurs distinctes (sinon deux pages
+// pourraient se chevaucher). promoId : la promo à lire, portée par l'en-tête interne de lecture ; nul : pas
+// d'en-tête, donc la promo courante pour une table par promo, et aucun effet pour une table commune à toutes les promos.
+function lireTable(table, colonnes, ordre, promoId) {
+  return toutesLesLignes(() => {
     const q = supabase.from(table).select(colonnes).order(ordre);
     return promoId == null ? q : q.setHeader(ENTETE_LECTURE_PROMO, String(promoId));
   });
+}
+
+// promoId nul (liste des promos non chargée) : promo courante, sans en-tête de lecture.
+export async function lireDonneesCentre(promoId) {
+  const lire = (table, colonnes, ordre) => lireTable(table, colonnes, ordre, promoId);
   const [stagiaires, passages, evaluations, tentatives, epcf] = await Promise.all([
     lire("stagiaires", "id, prenom, nom, actif, ordre, anonymise_le", "id"),
     lire("passages", "id, stagiaire_id, type, resultat, date", "id"),
@@ -1645,6 +1652,49 @@ export async function lireReferentielCentre() {
     ]);
     return { qcm, themes };
   });
+}
+
+// Dossier Qualiopi : tout ce que l'inventaire des preuves d'une promo lit (forme de `donnees` en tête de
+// js/qualiopi-preuves.js) : les lectures du tableau de bord du centre, plus le planning et ses jours désactivés, le
+// calendrier, les livrets, les dossiers, les signalements de QCM, les cours et leurs versions, les auto-écoles, les
+// formateurs et l'en-tête des feuilles d'émargement. Lecture seule.
+// Les tables par promo (planning, jours désactivés, calendrier, livrets, dossiers, auto-écoles, réglages) se lisent AVEC
+// l'en-tête de lecture de la promo demandée : sans lui, la base rendrait celles de la promo courante, et pour les
+// auto-écoles celles du lieu de la promo courante, donc d'un autre centre. Les tables communes à toutes les promos
+// (signalements, cours, versions de cours, formateurs) se lisent SANS. Les signalements n'ont pas de promo : ils sont
+// gardés quand leur auteur est un stagiaire de la promo lue. Les cours et leurs versions sont lus en entier, sans filtre :
+// l'inventaire retire la plus ancienne date de chaque cours (sa création), qu'une lecture bornée ferait confondre avec
+// une modification. Ni `email`, ni `corps_md`, ni `saved_by` ne sont lus.
+// promoId nul : erreur, jamais de repli sur la promo courante (ses chiffres s'afficheraient sous le nom d'une autre).
+export async function lireDonneesQualiopi(promoId) {
+  if (promoId == null) throw new Error("Dossier Qualiopi : aucune promo choisie, lecture impossible.");
+  const parPromo = (table, colonnes, ordre) => lireTable(table, colonnes, ordre, promoId);
+  const communes = (table, colonnes, ordre) => lireTable(table, colonnes, ordre, null);
+  // Le réglage n'a qu'une ligne au plus (clé unique par promo) : il se lit en maybeSingle, une ligne ne se tronque pas.
+  // Une erreur de lecture lève : des valeurs par défaut afficheraient sur le dossier l'organisme d'une autre promo.
+  const lireEntete = async () => {
+    const { data, error } = await supabase.from("settings").select("value").eq("key", "emargement_entete")
+      .setHeader(ENTETE_LECTURE_PROMO, String(promoId)).maybeSingle();
+    if (error) throw error;
+    return enteteEmargementDuReglage(data?.value ?? null);
+  };
+  const [centre, planning, agenda, livrets, dossiers, signalementsLus, cours, autoEcoles, profs, entete, joursOff, versions] = await Promise.all([
+    lireDonneesCentre(promoId),
+    parPromo("planning_entries", "id, semaine_lundi, day_index, half_day, activite, sujet, sujet_2, salle_double, prof_ids, prof_autre, autonomie, benevoles_ids, promo_id", "id"),
+    parPromo("agenda_events", "id, type, date_start, date_end", "id"),
+    parPromo("epcf_livrets", "stagiaire_id, updated_at", "id"),
+    parPromo("dp_dossiers", "stagiaire_id, updated_at", "id"),
+    communes("qcm_signalements", "id, stagiaire_id, statut, created_at, traite_at", "id"),
+    communes("cours", "id, published, updated_at", "id"),
+    parPromo("auto_ecoles", "id, actif, lieu_id", "id"),
+    communes("profs", "id, nom", "id"),
+    lireEntete(),
+    parPromo("planning_jours_off", "semaine_lundi, day_index", "id"),
+    communes("cours_versions", "cours_id, saved_at", "id"),
+  ]);
+  const stagiairesDeLaPromo = new Set(centre.stagiaires.map((s) => s.id));
+  const signalements = signalementsLus.filter((s) => stagiairesDeLaPromo.has(s.stagiaire_id));
+  return { ...centre, planning, agenda, livrets, dossiers, signalements, cours, autoEcoles, profs, entete, joursOff, versions };
 }
 
 // --- Signalements sur les questions de QCM ---
@@ -1893,13 +1943,22 @@ export const ENTETE_EMARGEMENT_DEFAUT = {
   intitule: "Titre professionnel Enseignant de la conduite et de la sécurité routière (ECSR)",
 };
 
-export async function getEnteteEmargement() {
+// La règle, écrite une seule fois : la valeur brute du réglage `emargement_entete` (JSON, ou nulle) donne l'organisme et
+// l'intitulé, chacun remplacé par sa valeur par défaut quand il manque, n'est pas un texte ou est vide. Partagée par
+// getEnteteEmargement (promo courante) et lireDonneesQualiopi (promo lue).
+function enteteEmargementDuReglage(valeur) {
   let lu = null;
-  try { lu = JSON.parse(await getSetting("emargement_entete") || "null"); } catch (e) { lu = null; }
+  try { lu = JSON.parse(valeur || "null"); } catch (e) { lu = null; }
   return {
     organisme: (lu && typeof lu.organisme === "string" && lu.organisme.trim()) || ENTETE_EMARGEMENT_DEFAUT.organisme,
     intitule: (lu && typeof lu.intitule === "string" && lu.intitule.trim()) || ENTETE_EMARGEMENT_DEFAUT.intitule,
   };
+}
+
+export async function getEnteteEmargement() {
+  let valeur = null;
+  try { valeur = await getSetting("emargement_entete"); } catch (e) { valeur = null; }
+  return enteteEmargementDuReglage(valeur);
 }
 
 export async function setEnteteEmargement({ organisme, intitule }) {

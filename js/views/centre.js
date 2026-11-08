@@ -4,12 +4,13 @@
 // (impression du navigateur) et CSV de la matrice des notes. Les calculs vivent dans
 // js/centre-stats.js et js/centre-csv.js (purs, testés) : ici, seulement l'affichage.
 
-import { lireDonneesCentre, lireReferentielCentre, getMesPromos, getPromoCourante } from "../db.js?v=20261106a";
-import { el, clear, isoDate, formatDate, displayStagiaire, toast, tableauEnListe } from "../utils.js?v=20261106a";
-import { icon } from "../icons.js?v=20261106a";
-import { indicateursPromo, ligneComparaison, METHODES } from "../centre-stats.js?v=20261106a";
-import { matriceNotesCsv, nomFichierCsv } from "../centre-csv.js?v=20261106a";
-import { navigationV2Active } from "../nav-etat.js?v=20261106a";
+import { lireDonneesCentre, lireReferentielCentre, getMesPromos, getPromoCourante } from "../db.js?v=20261108a";
+import { el, clear, isoDate, formatDate, displayStagiaire, toast, tableauEnListe } from "../utils.js?v=20261108a";
+import { icon } from "../icons.js?v=20261108a";
+import { fondateurHorsApercu } from "../auth-admin.js?v=20261108a";
+import { indicateursPromo, ligneComparaison, METHODES } from "../centre-stats.js?v=20261108a";
+import { matriceNotesCsv, nomFichierCsv } from "../centre-csv.js?v=20261108a";
+import { navigationV2Active } from "../nav-etat.js?v=20261108a";
 
 let rendu = 0;   // un rendu plus récent rend caduc celui qui attend encore ses données
 
@@ -226,7 +227,8 @@ function imprimer(racine) {
 }
 
 // --- Export CSV ---
-function telecharger(nomFichier, texte) {
+// Exportée : la page Qualiopi (js/views/qualiopi.js) télécharge ses fichiers de la même façon.
+export function telecharger(nomFichier, texte) {
   const url = URL.createObjectURL(new Blob([texte], { type: "text/csv;charset=utf-8" }));
   const a = el("a", { href: url, download: nomFichier, style: "display:none" });
   document.body.appendChild(a);
@@ -302,7 +304,9 @@ export async function renderCentre(container) {
     el("div", { class: "centre-actions" },
       el("button", { class: "btn small", type: "button", onClick: () => imprimer(racine) }, "Exporter en PDF"),
       el("button", { class: "btn small", type: "button", onClick: () => ouvrirExportCsv(promo, donnees) },
-        "Matrice des notes (CSV)"))));
+        "Matrice des notes (CSV)"),
+      // Page du seul fondateur (porte dans main.js) : le bouton n'est pas montré aux autres.
+      fondateurHorsApercu() ? el("a", { class: "btn small centre-lien-qualiopi", href: "#/qualiopi" }, "Qualiopi") : null)));
 
   racine.appendChild(el("p", { class: "centre-legende" },
     etiquette("mesuré"), " compté dans l'app · ", etiquette("estimé"), " hypothèse ou signal · Chaque chiffre a sa méthode."));
