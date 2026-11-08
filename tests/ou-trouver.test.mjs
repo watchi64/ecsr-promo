@@ -53,12 +53,15 @@ eq(dit({ label: "Cours, sous-onglet Compétences", route: "themes", sousOnglet: 
 eq(dit({ label: "Cours et QCM", route: "themes" }, NOUVELLE), "Cours et QCM", "themes : un libellé déjà à jour reste tel quel");
 eq(dit({ label: "Mon espace personnel, partie Dossier pro", route: "mon-suivi", sousOnglet: "dp" }, NOUVELLE), "Mon suivi, partie Dossier pro",
   "mon-suivi : Mon suivi, partie X à la place de Mon espace personnel, partie X");
-eq(dit({ label: "Mon espace personnel, partie Livret", route: "mon-suivi", sousOnglet: "livret" }, NOUVELLE), "Mon suivi, partie Livret", "mon-suivi : partie Livret");
+eq(dit({ label: "Mon espace personnel, partie Livret", route: "mon-suivi", sousOnglet: "livret" }, NOUVELLE), "Mon suivi, partie Livret EPCF",
+  "mon-suivi : partie Livret EPCF (décision de Timy du 08/11)");
 eq(dit({ label: "Mon espace personnel, partie EPCF", route: "mon-suivi", sousOnglet: "epcf" }, NOUVELLE), "Mon suivi, partie EPCF", "mon-suivi : partie EPCF");
-eq(dit({ label: "Mon espace, partie Livret", route: "mon-suivi", sousOnglet: "livret" }, NOUVELLE), "Mon suivi, partie Livret", "mon-suivi : « Mon espace » seul aussi");
+eq(dit({ label: "Mon espace, partie Livret", route: "mon-suivi", sousOnglet: "livret" }, NOUVELLE), "Mon suivi, partie Livret EPCF", "mon-suivi : « Mon espace » seul aussi");
 eq(dit({ label: "Mon espace personnel", route: "mon-suivi" }, NOUVELLE), "Mon suivi", "mon-suivi sans partie : Mon suivi");
 eq(dit({ label: "Le logo en haut à gauche", route: "mon-suivi" }, NOUVELLE), "Mon suivi", "mon-suivi : un geste de l'ancienne barre devient le nom de la page");
-eq(dit({ label: "Mon suivi, partie Livret", route: "mon-suivi", sousOnglet: "livret" }, NOUVELLE), "Mon suivi, partie Livret", "mon-suivi : libellé déjà à jour");
+eq(dit({ label: "Mon suivi, partie Livret EPCF", route: "mon-suivi", sousOnglet: "livret" }, NOUVELLE), "Mon suivi, partie Livret EPCF", "mon-suivi : libellé déjà à jour");
+eq(dit({ label: "Mon espace personnel, partie Livret", route: "mon-suivi", sousOnglet: "livret" }, ANCIENNE), "Mon espace personnel, partie Livret",
+  "ancienne navigation : « Livret » reste tel quel");
 // Lot 2B, tâche 7 : Évolution et La classe sont réunies dans la partie Résultats de Mon suivi.
 eq(dit({ label: "Notes", route: "notes" }, NOUVELLE), "Mon suivi, partie Résultats", "notes chez un stagiaire : Mon suivi, partie Résultats");
 eq(dit({ label: "Notes, Synthèse classe", route: "notes" }, NOUVELLE), "Mon suivi, partie Résultats", "notes chez un stagiaire, avec un détail");

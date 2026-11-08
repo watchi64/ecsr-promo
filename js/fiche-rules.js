@@ -82,7 +82,7 @@ export function etatsSommaire({ aVenir, evals, livret, dossier, soi }) {
 const pluriel = (n, mot) => `${n} ${mot}${n > 1 ? "s" : ""}`;
 
 // États de Mon suivi, nouvelle navigation (lot 2B, tâche 7) : la ligne entière, nom de la
-// partie compris, pour qu'elle se lise seule (« EPCF : 0 sur 2 », jamais « 0/2 » ; « Dossier
+// partie compris, pour qu'elle se lise seule (« EPCF : 0 épreuve sur 2 », jamais « 0/2 » ; « Dossier
 // pro : 2 exemples sur 6 », jamais « 02/10 », qui se lisait comme une date, ruling R65).
 // `exemplesDossier` : exemples remplis (exemplesRemplis de js/dp-rules.js), null sans dossier.
 // Le texte de Résultats ne dépend d'aucune donnée : il dit ce que la partie contient. Comme
@@ -94,8 +94,8 @@ export function etatsClairs({ aVenir = 0, evals, livret, exemplesDossier = null 
   return {
     resultats: { texte: "Résultats : moi et la classe", afaire: false },
     passages: { texte: "Passages : " + (aVenir > 0 ? `${aVenir} à venir` : "aucun à venir"), afaire: false },
-    epcf: { texte: `EPCF : ${n} sur 2`, afaire: false },
-    livret: { texte: "Livret : " + (livret ? "commencé" : "pas encore commencé"), afaire: false },
+    epcf: { texte: `EPCF : ${pluriel(n, "épreuve")} sur 2`, afaire: false },
+    livret: { texte: "Livret EPCF : " + (livret ? "commencé" : "pas encore commencé"), afaire: false },
     dp: exemples === null
       ? { texte: "Dossier pro : pas encore commencé", afaire: true }
       : { texte: `Dossier pro : ${pluriel(exemples, "exemple")} sur 6`, afaire: exemples < 6 },

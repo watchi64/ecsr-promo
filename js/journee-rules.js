@@ -161,11 +161,17 @@ function carteJour(e, noms, moi) {
     .filter((id, i, a) => a.indexOf(id) === i);
   const titres = noms.titres || [];
   const voiture = e.activite === "Voiture (conduite)";
+  // Salle double de pédagogie : le sujet de chaque groupe (`sujet` pour le groupe 1, `sujet_2` pour le groupe 2), pour
+  // qu'« Au tableau » dise à chaque pédagogue son propre sujet ; null ailleurs, où `sujets` suffit.
+  const parGroupe = e.activite === "Pédagogie salle" && e.salle_double && effSujets(e).length
+    ? { 1: sujetsDe(e.sujet, titres), 2: sujetsDe(e.sujet_2, titres) }
+    : null;
   return {
     id: e.id ?? `${e.day_index}-${e.half_day}-${e.slot ?? 0}-${e.lane ?? 0}`,
     genre,
     titre: TITRES[genre],
     sujets: effSujets(e).flatMap((v) => sujetsDe(v, titres)),
+    sujetsParGroupe: parGroupe,
     formateurs: profsDe(e, noms),
     tableau,
     eleves: voiture ? [] : ids.map(nomStagiaire),

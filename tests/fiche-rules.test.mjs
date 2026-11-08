@@ -70,26 +70,29 @@ const c = etatsClairs({ aVenir: 2, evals: [], livret: null, exemplesDossier: nul
 eq(Object.keys(c), ["resultats", "passages", "epcf", "livret", "dp"], "cinq parties, dans l'ordre de Mon suivi");
 eq(c.resultats, { texte: "Résultats : moi et la classe", afaire: false }, "résultats");
 eq(c.passages, { texte: "Passages : 2 à venir", afaire: false }, "passages au pluriel");
-eq(c.epcf, { texte: "EPCF : 0 sur 2", afaire: false }, "EPCF : aucune épreuve, en gris (elle ne dépend pas du stagiaire)");
-eq(c.livret, { texte: "Livret : pas encore commencé", afaire: false }, "livret pas commencé, en gris");
+eq(c.epcf, { texte: "EPCF : 0 épreuve sur 2", afaire: false }, "EPCF : aucune épreuve, au singulier, en gris (elle ne dépend pas du stagiaire)");
+eq(c.livret, { texte: "Livret EPCF : pas encore commencé", afaire: false }, "livret EPCF pas commencé, en gris");
 eq(c.dp, { texte: "Dossier pro : pas encore commencé", afaire: true }, "pas de dossier : pas encore commencé, en orange");
 const un = etatsClairs({ aVenir: 1, evals: [{ trame: "salle" }], livret: { updated_at: "x" }, exemplesDossier: 1 });
 eq(un.passages.texte, "Passages : 1 à venir", "passages au singulier");
-eq(un.epcf.texte, "EPCF : 1 sur 2", "une épreuve évaluée");
-eq(un.livret, { texte: "Livret : commencé", afaire: false }, "livret commencé");
+eq(un.epcf.texte, "EPCF : 1 épreuve sur 2", "une épreuve évaluée, au singulier");
+eq(un.livret, { texte: "Livret EPCF : commencé", afaire: false }, "livret EPCF commencé");
 eq(un.dp, { texte: "Dossier pro : 1 exemple sur 6", afaire: true }, "un exemple, au singulier");
 const zero = etatsClairs({ aVenir: 0, evals: [{ trame: "salle" }, { trame: "vehicule" }], livret: null, exemplesDossier: 0 });
 eq(zero.passages.texte, "Passages : aucun à venir", "aucun passage à venir");
-eq(zero.epcf.texte, "EPCF : 2 sur 2", "les deux épreuves");
+eq(zero.epcf.texte, "EPCF : 2 épreuves sur 2", "les deux épreuves, au pluriel");
 eq(zero.dp, { texte: "Dossier pro : 0 exemple sur 6", afaire: true }, "dossier ouvert sans exemple rempli : le compte, comme sur l'Accueil");
 eq(etatsClairs({ aVenir: 0, evals: [], livret: null, exemplesDossier: 2 }).dp.texte, "Dossier pro : 2 exemples sur 6", "deux exemples");
 eq(etatsClairs({ aVenir: 0, evals: [], livret: null, exemplesDossier: 6 }).dp, { texte: "Dossier pro : 6 exemples sur 6", afaire: false }, "dossier complet : plus rien à faire");
 eq(etatsClairs({}).passages.texte, "Passages : aucun à venir", "rien de lu : aucun à venir");
 // Contrat du sommaire (rendreSommaire retire le libellé de la partie du texte pour en faire le nom en gras) :
 // chaque texte d'états clairs commence par le libellé de sa partie, lu dans la table de la vue.
-const tableVue = readFileSync(new URL("../js/views/mon-suivi.js", import.meta.url), "utf8").match(/const LIBELLE_PARTIE = \{([^}]*)\}/)[1];
+// Sous la nouvelle navigation, la seule où ces états s'affichent, le livret s'appelle « Livret EPCF » (libellePartie de la vue).
+const sourceVue = readFileSync(new URL("../js/views/mon-suivi.js", import.meta.url), "utf8");
+const tableVue = sourceVue.match(/const LIBELLE_PARTIE = \{([^}]*)\}/)[1];
+eq(/p === "livret" && opts\?\.soi && navigationV2Active\(\) \? "Livret EPCF"/.test(sourceVue), true, "Mon suivi nomme le livret « Livret EPCF » sous la nouvelle navigation");
 for (const [p, e] of Object.entries(c)) {
-  const libelle = (tableVue.match(new RegExp(p + ': "([^"]+)"')) || [])[1];
+  const libelle = p === "livret" ? "Livret EPCF" : (tableVue.match(new RegExp(p + ': "([^"]+)"')) || [])[1];
   eq(typeof libelle, "string", `${p} : libellé trouvé dans la vue`);
   eq(e.texte.startsWith(libelle), true, `${p} : le texte commence par son libellé « ${libelle} »`);
 }

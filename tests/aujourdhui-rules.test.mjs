@@ -45,11 +45,28 @@ test("titreSelonDemis : sans demi-journée, ou en double, le titre dit aujourd'h
 
 // === auTableauDuJour ===
 
-test("auTableauDuJour : deux groupes sur une salle double, avec les sujets", () => {
+test("auTableauDuJour : deux groupes sur une salle double, chacun avec le sujet de son groupe", () => {
   const j = journee([carte({ salle_double: true, pedagogue_id: 2, pedagogue_id_2: 3, sujet: "Feux", sujet_2: "Pneus" })]);
   assert.deepEqual(auTableauDuJour(j), [
-    { id: 2, nom: "Anissa", demi: "matin", sujet: "Feux · Pneus" },
-    { id: 3, nom: "Lorie", demi: "matin", sujet: "Feux · Pneus" },
+    { id: 2, nom: "Anissa", demi: "matin", sujet: "Feux" },
+    { id: 3, nom: "Lorie", demi: "matin", sujet: "Pneus" },
+  ]);
+});
+
+test("auTableauDuJour : salle double dont un seul groupe a un sujet écrit, l'autre reprend les sujets de la carte", () => {
+  const j = journee([carte({ salle_double: true, pedagogue_id: 2, pedagogue_id_2: 3, sujet: "Feux", sujet_2: null })]);
+  assert.deepEqual(auTableauDuJour(j), [
+    { id: 2, nom: "Anissa", demi: "matin", sujet: "Feux" },
+    { id: 3, nom: "Lorie", demi: "matin", sujet: "Feux" },
+  ]);
+});
+
+test("auTableauDuJour : le remplaçant d'un pédagogue de salle double garde le sujet de son groupe", () => {
+  const j = journee([carte({ salle_double: true, pedagogue_id: 2, pedagogue_id_2: 3, sujet: "Feux", sujet_2: "Pneus",
+    absences: [{ sid: 3, rid: 5 }] })]);
+  assert.deepEqual(auTableauDuJour(j), [
+    { id: 2, nom: "Anissa", demi: "matin", sujet: "Feux" },
+    { id: 5, nom: "Cassandre", demi: "matin", sujet: "Pneus" },
   ]);
 });
 

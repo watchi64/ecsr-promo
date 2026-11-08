@@ -180,7 +180,7 @@ export function aFaireStagiaire({ qcm, themes, tentatives, sujetsDeLaSemaine, ex
     });
   }
   if (ouvert("livret") && livretCommence === false) {
-    lignes.push({ cle: "livret", titre: "Livret", detail: "Pas encore commencé", route: "mon-suivi", sousOnglet: "livret" });
+    lignes.push({ cle: "livret", titre: "Livret EPCF", detail: "Pas encore commencé", route: "mon-suivi", sousOnglet: "livret" });
   }
   return lignes.slice(0, 4);
 }

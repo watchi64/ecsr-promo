@@ -22,13 +22,16 @@ function cartesDuJour(journee) {
 }
 
 // Qui passe au tableau : un pédagogue par groupe de chaque carte, son remplaçant s'il est absent, personne s'il est
-// absent sans remplaçant. `sujet` : les sujets de la carte (la base ne dit pas lequel va avec quel groupe d'une salle double).
+// absent sans remplaçant. `sujet` : celui de son groupe sur une salle double (sujetsParGroupe de la carte), à défaut, ou
+// quand son groupe n'a pas de sujet écrit, les sujets de la carte joints.
 export function auTableauDuJour(journee) {
   const sortie = [];
   for (const { demi, carte } of cartesDuJour(journee)) {
     for (const t of carte.tableau || []) {
       if (sortie.some((x) => x.id === t.id && x.demi === demi)) continue;
-      sortie.push({ id: t.id, nom: t.nom, demi, sujet: (carte.sujets || []).join(" · ") });
+      const duGroupe = carte.sujetsParGroupe?.[t.groupe] || [];
+      const sujets = duGroupe.length ? duGroupe : (carte.sujets || []);
+      sortie.push({ id: t.id, nom: t.nom, demi, sujet: sujets.join(" · ") });
     }
   }
   return sortie;

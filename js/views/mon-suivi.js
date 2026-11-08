@@ -511,6 +511,10 @@ function renderEffectuesSection(rows, soi = true) {
 
 const LIBELLE_PARTIE = { resultats: "Résultats", passages: "Passages", epcf: "EPCF", evolution: "Évolution", livret: "Livret",
   dp: "Dossier pro" };
+// Nom affiché d'une partie : dans Mon suivi (sa propre fiche, `soi`) sous la nouvelle navigation, le livret s'appelle « Livret
+// EPCF » (décision de Timy du 08/11, « Livret » seul ne disait pas lequel). La fiche d'un stagiaire chez l'équipe garde les
+// parties de main, et l'ancienne navigation « Livret ».
+const libellePartie = (p, opts) => (p === "livret" && opts?.soi && navigationV2Active() ? "Livret EPCF" : LIBELLE_PARTIE[p]);
 // Module de chaque partie (js/modules-data.js) : fermé pour la promo, la partie
 // disparaît chez un stagiaire et porte le repère chez un formateur. Résultats réunit
 // Évolution et l'ancienne page Notes (La classe) : elle suit le module des notes, comme elles.
@@ -597,6 +601,20 @@ function lienRetour(label, href) {
   return el("a", { class: "fiche-retour", href }, icon.chevronLeft(), el("span", {}, label));
 }
 
+// Sous-titre de Mon suivi, nouvelle navigation : ce que la page contient, au tutoiement comme le reste de la page, en ne
+// nommant que les parties ouvertes à la promo (un module fermé retire sa partie, il ne doit pas rester annoncé).
+function sousTitreDeMonSuivi() {
+  const morceaux = [
+    moduleVisible("notes") ? "tes résultats" : null,
+    "tes passages",
+    moduleVisible("epcf") ? "l'EPCF" : null,
+    moduleVisible("livret") ? "ton livret" : null,
+    moduleVisible("dp") ? "ton dossier pro" : null,
+  ].filter(Boolean);
+  const texte = morceaux.length > 1 ? morceaux.slice(0, -1).join(", ") + " et " + morceaux[morceaux.length - 1] : morceaux[0];
+  return texte.charAt(0).toUpperCase() + texte.slice(1) + ".";
+}
+
 // Nom de la page de la personne connectée : « Mon suivi » sous la nouvelle navigation, le nom de son
 // entrée (ruling R30 : une page, un nom), « Mon espace » avec l'ancienne.
 const nomDeMonSuivi = () => (navigationV2Active() ? "Mon suivi" : "Mon espace");
@@ -620,7 +638,7 @@ export function renderFiche(container, d, opts) {
   if (opts.disposition === "onglets") {
     if (opts.titre) container.appendChild(el("h2", { class: "fiche-titre" }, opts.titre));
     container.appendChild(renderSubTabs(parties.map((p) => ({
-      key: p, label: LIBELLE_PARTIE[p], module: MODULE_DE_PARTIE[p] || undefined,
+      key: p, label: libellePartie(p, opts), module: MODULE_DE_PARTIE[p] || undefined,
       render: (panel, ctx) => rendrePartie(panel, p, d, opts, ctx),
     })), {
       activeKey: partie || undefined,
@@ -634,7 +652,7 @@ export function renderFiche(container, d, opts) {
   if (partie) {
     // iPhone, une partie en plein écran : le retour mène au sommaire.
     container.appendChild(lienRetour(opts.titre || nomDeMonSuivi(), opts.adresse(null)));
-    container.appendChild(el("h2", { class: "fiche-titre" }, LIBELLE_PARTIE[partie]));
+    container.appendChild(el("h2", { class: "fiche-titre" }, libellePartie(partie, opts)));
     const panel = el("div", { class: "fiche-partie" });
     container.appendChild(panel);
     rendrePartie(panel, partie, d, opts, { isActive: () => panel.isConnected });
@@ -650,7 +668,7 @@ export function renderFiche(container, d, opts) {
 function rendreSommaire(d, parties, opts) {
   const aVenir = passagesAVenir(d.items, isoDate(new Date()));
   // Mon suivi, nouvelle navigation : chaque ligne dit sa partie et son état en une phrase entière
-  // (« EPCF : 0 sur 2 »), qui passe à la ligne plutôt que d'être coupée. Ailleurs, le sommaire de main.
+  // (« EPCF : 0 épreuve sur 2 »), qui passe à la ligne plutôt que d'être coupée. Ailleurs, le sommaire de main.
   const clairs = !!opts.soi && navigationV2Active();
   const etats = clairs
     ? etatsClairs({ aVenir, evals: d.epcfEvals, livret: d.livret, exemplesDossier: d.exemplesDossier })
@@ -658,13 +676,13 @@ function rendreSommaire(d, parties, opts) {
   const liste = el("nav", { class: "fiche-sommaire" + (clairs ? " fiche-sommaire-clair" : ""), "aria-label": "Parties de la fiche" });
   parties.forEach((p) => {
     const etat = etats[p];
-    const nom = el("span", { class: "fiche-ligne-nom" }, LIBELLE_PARTIE[p]);
+    const nom = el("span", { class: "fiche-ligne-nom" }, libellePartie(p, opts));
     let ligne;
     if (clairs && etat) {
       // Le nom de la partie en tête, son état à sa suite, dans un seul texte : « Dossier pro : 2 exemples sur 6 ».
       ligne = el("a", { class: "fiche-ligne", href: opts.adresse(p) },
         el("span", { class: "fiche-ligne-texte" },
-          nom, el("span", { class: "fiche-ligne-etat" + (etat.afaire ? " afaire" : "") }, etat.texte.slice(LIBELLE_PARTIE[p].length))),
+          nom, el("span", { class: "fiche-ligne-etat" + (etat.afaire ? " afaire" : "") }, etat.texte.slice(libellePartie(p, opts).length))),
         icon.chevronRight());
     } else {
       ligne = el("a", { class: "fiche-ligne", href: opts.adresse(p) },
@@ -804,8 +822,8 @@ export async function renderMonSuivi(container) {
     el("div", { class: "view-header-text" },
       surtitre ? el("p", { class: "eyebrow" }, surtitre) : null,
       el("h2", {}, nomDeMonSuivi()),
-      el("p", { class: "subtitle" }, moduleVisible("notes")
-        ? "Mon planning à venir et l'évolution de mes résultats."
+      el("p", { class: "subtitle" }, navigationV2Active() ? sousTitreDeMonSuivi()
+        : moduleVisible("notes") ? "Mon planning à venir et l'évolution de mes résultats."
         : "Mon planning à venir."),
     ),
   );

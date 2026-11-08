@@ -12,7 +12,7 @@ import {
 import { el, clear, isoDate, getMonday, addDays, formatDayShort, formatDate, debounce, toast, displayStagiaire, compareByNom } from "../utils.js?v=20261108c";
 import { icon, deco } from "../icons.js?v=20261108c";
 import { ACTIVITES, ACTIVITY_SHAPES, JOURS, HALF_DAYS, RESULTATS } from "../config.js?v=20261108c";
-import { isAdmin, isProf, getAdminEmail, monStagiaireId } from "../auth-admin.js?v=20261108c";
+import { isAdmin, getAdminEmail, monStagiaireId } from "../auth-admin.js?v=20261108c";
 import { recordUndo } from "../undo.js?v=20261108c";
 import { getCurrentWho } from "../identity.js?v=20261108c";
 import { openBenevolesPanel, telLink } from "./benevoles.js?v=20261108c";
@@ -3047,7 +3047,8 @@ function renderInto(container) {
 
   container.appendChild(buildRulesNote());
 
-  container.appendChild(el("div", { class: "planning-helper" },
+  // L'aide sur « À la suite » et « Parallèle » parle des cartes de la liste (et de leur éditeur) : la grille n'en a pas.
+  if (!enGrille) container.appendChild(el("div", { class: "planning-helper" },
     el("strong", {}, "À la suite "), "↓ = nouveau créneau dans le temps (après celui qui précède). ",
     el("strong", {}, "Parallèle "), "→ = autre activité au même horaire (ex: voiture qui tourne pendant un cours). ",
     "Au moins 1 créneau par demi-journée. Min. 1 lane (rangée) → bouton « Parallèle » l'étoffe."

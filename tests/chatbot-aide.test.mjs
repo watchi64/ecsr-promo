@@ -107,7 +107,7 @@ test("l'ancien guide ne bouge pas d'un octet (empreinte du 08/11, lot 2B)", () =
 test("lot 2B : le nouveau guide décrit Aujourd'hui, l'Accueil, la grille, les sous-onglets et Mon suivi", () => {
   for (const nom of ["Aujourd'hui", "À traiter", "À suivre de près", "Propositions IA", "Résultats", "Grille", "Liste",
     "le bouton « Ouvrir »", "Signer pour ce matin", "Signer pour cet après-midi", "À faire", "Prochain rendez-vous",
-    "L'épreuve en bref", "EPCF : 0 sur 2", "Dossier pro : 2 exemples sur 6", "Moi"]) {
+    "L'épreuve en bref", "EPCF : 0 épreuve sur 2", "Livret EPCF (son livret officiel", "Dossier pro : 2 exemples sur 6", "Moi"]) {
     assert.ok(avantAnciensNoms.includes(nom), nom);
   }
   assert.match(avantAnciensNoms, /bandeau en haut de l'app propose aussi « Signer » tant que la feuille du jour est ouverte/);

@@ -48,6 +48,7 @@ test("un mardi : salle double le matin, voiture l'après-midi", () => {
   assert.deepEqual(s.tableau, [{ id: 2, nom: "Anissa", groupe: 1 }, { id: 3, nom: "Lorie", groupe: 2 }]);
   assert.deepEqual(s.eleves, [{ id: 4, nom: "Valentin" }, { id: 5, nom: "Cassandre" }, { id: 6, nom: "Céline" }]);
   assert.deepEqual(s.sujets, ["Feux", "Pneus"]);
+  assert.deepEqual(s.sujetsParGroupe, { 1: ["Feux"], 2: ["Pneus"] }, "salle double : le sujet de chaque groupe");
   assert.deepEqual(s.formateurs, ["Romain"]);
   assert.deepEqual(s.conducteurs, []);
 

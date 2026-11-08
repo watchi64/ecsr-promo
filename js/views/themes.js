@@ -10,7 +10,7 @@ import { carteSignalement, renderConsoleSignalements, chargerAuteurs } from "./s
 import { renderSubTabs } from "../subtabs.js?v=20261108c";
 import { hasCours, openCoursSheet, chargerCoursIndex, coursDejaOuvert } from "./cours-reader.js?v=20261108c";
 import { cleCours } from "../cours-rules.js?v=20261108c";
-import { moduleVisible, moduleMasque, repereMasque } from "../modules-etat.js?v=20261108c";
+import { moduleVisible, moduleMasque, repereMasque, formateurConnecte } from "../modules-etat.js?v=20261108c";
 import { navigationV2Active } from "../nav-etat.js?v=20261108c";
 import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261108c";
 import { renderRessources } from "./ressources.js?v=20261108c";
@@ -1922,8 +1922,10 @@ export async function renderThemes(container) {
     { key: "competences", label: "Compétences", module: moduleCours, render: liste("competences") },
   ];
   // Nouvelle navigation, stagiaire : ses QCM sur une liste, avec sa dernière note et « S'entraîner » (le module « qcm » les
-  // ferme pour la promo). L'équipe garde la colonne QCM de la liste des thèmes, pas de sous-onglet.
-  if (v2 && !canManageExam()) {
+  // ferme pour la promo). L'équipe garde la colonne QCM de la liste des thèmes, pas de sous-onglet. Toute l'équipe : la
+  // direction et le siège lisent sans écrire (canManageExam faux) mais n'ont pas de fiche de stagiaire, la même règle que
+  // l'espace de la coquille.
+  if (v2 && !formateurConnecte()) {
     onglets.push({ key: "qcm", label: "QCM", module: "qcm",
       render: (p, ctx) => { renderQcmStagiaire(p, { themes, onOuvrir: openQcmSheet, isActive: ctx?.isActive }); } });
   }
@@ -1931,9 +1933,9 @@ export async function renderThemes(container) {
     onglets.push({ key: "signalements", label: v2 ? "Signalements" : "⚑ Signalements",
       render: (p, ctx) => { renderConsoleSignalements(p, { themes, onOuvrirEditeur: ouvrirDepuisConsole, isActive: ctx?.isActive }); } });
   }
-  // Nouvelle navigation, administrateurs : les questions que l'IA a proposées et que personne n'a relues. La table des
-  // brouillons n'est lisible que par eux (RLS) : un formateur qui n'est pas administrateur n'a pas ce sous-onglet, et la
-  // pastille « à traiter » ne les compte pas non plus (elle lit la même table).
+  // Nouvelle navigation, formateurs de la promo (isAdmin, formateur_courant en base) : les questions que l'IA a proposées
+  // et que personne n'a relues. La table des brouillons n'est lisible que par eux (RLS) : la direction et le siège n'ont
+  // pas ce sous-onglet, et la pastille « à traiter » ne les compte pas pour eux (elle lit la même table).
   if (v2 && isAdmin()) {
     onglets.push({ key: "ia", label: "Propositions IA",
       render: (p, ctx) => { renderPropositionsIa(p, { themes, onOuvrirEditeur: ouvrirDepuisIa, isActive: ctx?.isActive }); } });
@@ -1958,15 +1960,19 @@ export async function renderThemes(container) {
   container.appendChild(renderSubTabs(onglets, { storageKey: CLES_SOUS_ONGLETS.themes }));
 }
 
-// La liste des propositions de l'IA ne connaît pas l'éditeur non plus : elle rend la main ici avec le QCM à relire. À la
-// fermeture de l'éditeur (questions acceptées ou écartées), la liste, la colonne QCM des thèmes et la pastille « à traiter »
-// de la barre disent ce qui reste.
+// La liste des propositions de l'IA ne connaît pas l'éditeur : elle rend la main ici avec le QCM à relire, comme la console
+// des signalements plus bas. L'éditeur ne rappelle ici qu'à sa fermeture, et seulement si quelque chose a changé (une
+// question acceptée, rejetée ou modifiée) : la liste, la colonne QCM des thèmes et la pastille « à traiter » de la barre
+// disent alors ce qui reste. La pastille se relit même si une relecture échoue (finally) : pas de compte périmé.
 function ouvrirDepuisIa(groupe, rechargerListe) {
   if (!groupe.theme) { toast("Thème introuvable pour ce QCM.", "error"); return; }
   openQcmEditor(groupe.theme, groupe.qcmId, null, async () => {
-    await loadQcmIndex();
-    if (rechargerListe) await rechargerListe();
-    window.dispatchEvent(new Event("a-traiter-change"));
+    try {
+      await loadQcmIndex();
+      if (rechargerListe) await rechargerListe();
+    } finally {
+      window.dispatchEvent(new Event("a-traiter-change"));
+    }
   });
 }
 
@@ -1979,8 +1985,11 @@ function ouvrirDepuisConsole(s, rechargerConsole) {
   // Au retour de l'éditeur, la console doit refléter ce qui vient d'être fait, et les
   // badges ⚑ de la liste des thèmes avec elle, sinon ils annoncent un compte périmé.
   openQcmEditor(theme, qcm.id, s.question_id, async () => {
-    await loadQcmIndex();
-    if (rechargerConsole) await rechargerConsole();
-    window.dispatchEvent(new Event("a-traiter-change"));
+    try {
+      await loadQcmIndex();
+      if (rechargerConsole) await rechargerConsole();
+    } finally {
+      window.dispatchEvent(new Event("a-traiter-change"));
+    }
   });
 }

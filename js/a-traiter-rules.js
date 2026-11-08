@@ -78,8 +78,8 @@ export async function lireLesComptes(lecteurs) {
 
 // Ruling R56 (relecture finale du 29/10) : la pastille ne compte les propositions de l'IA qu'avec une liste où les retrouver. Les
 // brouillons sont communs à toutes les promos et sans auteur : un compte sans liste derrière lui promettrait du travail
-// introuvable. Le lot 2B a posé cette liste (le sous-onglet « Propositions IA » de Cours et QCM, réservé aux administrateurs,
-// qui seuls lisent la table) : le compte est lu. La constante reste le seul interrupteur de ce comptage.
+// introuvable. Le lot 2B a posé cette liste (le sous-onglet « Propositions IA » de Cours et QCM, réservé aux formateurs de
+// la promo, isAdmin et formateur_courant en base, qui seuls lisent la table) : le compte est lu. La constante reste le seul interrupteur de ce comptage.
 export const COMPTER_LES_PROPOSITIONS_IA = true;
 
 // Les lecteurs que lireLesComptes lit : `lecteurs` = { signalements, propositionsIA } ; avec `avecPropositionsIA` à false, le lecteur des

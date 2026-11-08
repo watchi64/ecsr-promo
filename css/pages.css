@@ -217,8 +217,8 @@
 
 /* Téléphone : l'ordre du DOM (émargement, à traiter, au tableau, en voiture, à suivre). Tablette : deux colonnes, la
    dernière carte sur toute la largeur. Ordinateur : émargement, au tableau, en voiture sur trois colonnes, puis à
-   traiter et à suivre sur deux ; sans feuille d'émargement (promo où il est éteint), au tableau et en voiture se
-   partagent la première ligne. */
+   traiter et à suivre sur deux ; sans feuille d'émargement (promo où il est éteint, ou direction), au tableau et en
+   voiture se partagent la première ligne ; sans À traiter (direction, siège), à suivre prend toute la dernière. */
 @media (min-width: 700px) {
   .auj-grille > [data-zone="a-suivre"] { grid-column: 1 / -1; }
 }
@@ -231,6 +231,7 @@
   .auj-grille > [data-zone="a-traiter"] { order: 4; grid-column: span 3; }
   .auj-grille > [data-zone="a-suivre"] { order: 5; grid-column: span 3; }
   .auj-sans-feuille > [data-zone="tableau"], .auj-sans-feuille > [data-zone="voiture"] { grid-column: span 3; }
+  .auj-sans-traiter > [data-zone="a-suivre"] { grid-column: 1 / -1; }
 }
 
 /* Émargement : « 2 sur 6 », son repère, la jauge, ceux qui attendent, les boutons. */
@@ -378,6 +379,18 @@
   .wtel { display: block; }
   .vue-long { display: none; }
   .vue-court { display: inline; }
+}
+
+/* Téléphone, nouvelle navigation : la barre de la semaine (barre de main et du lot 2A) prend les cibles de 44 px de la page,
+   comme la bascule et la bande des jours juste en dessous. Les flèches deviennent carrées ; la date cède la place qu'elles
+   prennent (flex, sans largeur minimale) pour que date, flèches et « Cette semaine » tiennent encore sur une ligne à 375 px. */
+@media (max-width: 699.98px) {
+  body[data-nav="v2"] .week-bar-nav { gap: 6px; }
+  body[data-nav="v2"] .week-bar button { min-height: 44px; }
+  body[data-nav="v2"] .week-bar .btn.icon-only { min-width: 44px; justify-content: center; }
+  body[data-nav="v2"] .week-bar input[type="date"] { flex: 1 1 0; min-width: 0; min-height: 44px; }
+  /* Mon suivi, parties Livret EPCF et Dossier pro (et la fiche d'un stagiaire, même barre) : « Imprimer / PDF » et « Retour ». */
+  body[data-nav="v2"] .lv-toolbar .btn { min-height: 44px; }
 }
 
 /* Téléphone : la bande de cinq jours (cibles de 44 px et plus), puis le jour en carte. */

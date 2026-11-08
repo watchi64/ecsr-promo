@@ -1,6 +1,6 @@
 /**
- * Cours et QCM, sous-onglet « Propositions IA » (équipe, administrateurs seulement : la table des brouillons n'est lisible
- * que par eux) : les questions que l'IA a proposées et que personne n'a encore relues, rangées par QCM, le plus ancien
+ * Cours et QCM, sous-onglet « Propositions IA » (formateurs de la promo seulement, isAdmin et formateur_courant en base :
+ * la table des brouillons n'est lisible que par eux) : les questions que l'IA a proposées et que personne n'a encore relues, rangées par QCM, le plus ancien
  * d'abord. « Relire » ouvre l'éditeur du QCM ; l'acceptation et l'écart restent dans l'éditeur. Modèle de
  * js/views/signalements.js : garde `isActive`, compteur de génération, boîte d'erreur avec « Réessayer ».
  */

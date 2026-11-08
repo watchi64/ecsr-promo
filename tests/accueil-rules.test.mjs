@@ -219,7 +219,7 @@ eq(tout, [
   { cle: "examen-13", titre: "Examen ouvert : Vitesse", detail: "Sans limite de temps", route: "themes", sousOnglet: "themes" },
   { cle: "qcm-11", titre: "QCM du thème : Intersections et priorités", detail: "Pas encore fait · 20 questions", route: "themes", sousOnglet: "themes" },
   { cle: "dossier", titre: "Dossier professionnel", detail: "2 exemples sur 6", route: "mon-suivi", sousOnglet: "dp" },
-  { cle: "livret", titre: "Livret", detail: "Pas encore commencé", route: "mon-suivi", sousOnglet: "livret" },
+  { cle: "livret", titre: "Livret EPCF", detail: "Pas encore commencé", route: "mon-suivi", sousOnglet: "livret" },
 ], "examen, QCM du thème, dossier, livret, dans cet ordre");
 
 // Examen

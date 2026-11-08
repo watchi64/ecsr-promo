@@ -237,7 +237,9 @@ for (const id of ANCIENNES) {
 
 // Consignes « Comment faire » : les gestes de l'ancienne barre (tuile de l'Accueil, logo, Paramètres, espace personnel...) ne se lisent pas sous
 // la nouvelle. Les entrées qui les décrivent portent un guideNouvelle (ou sont cachées sous la nouvelle navigation).
-const GESTE_D_AVANT = /Mon espace|espace personnel|Paramètres|tuile|logo|Ressources|Calendrier|bouton Priorités|Tableau de bord|pastille de la promo|onglet Notes|Modules de la promo|Aujourd'hui au planning|Livret EPCF/;
+// « Livret EPCF » est redevenu un nom de la nouvelle barre (partie de Mon suivi, décision de Timy du 08/11) : seul le geste d'avant,
+// le sous-onglet « Livret EPCF » de l'onglet Notes, est refusé.
+const GESTE_D_AVANT = /Mon espace|espace personnel|Paramètres|tuile|logo|Ressources|Calendrier|bouton Priorités|Tableau de bord|pastille de la promo|onglet Notes|Modules de la promo|Aujourd'hui au planning|sous-onglet « Livret EPCF »/;
 // (Les deux autres entrées dont le guide décrit l'ancienne barre, « Une barre d'onglets plus simple » et « L'app s'ouvre sur ton espace personnel »,
 // sont cachées sous la nouvelle navigation : elles n'ont pas besoin d'un second guide.)
 const AVEC_GUIDE_NOUVEAU = ["2026-10-23-tableau-de-bord-centre", "2026-10-05-effacement-donnees", "2026-10-03-page-stagiaires", "2026-10-03-deux-promos",
@@ -258,7 +260,7 @@ eq(par("2026-10-23-tableau-de-bord-centre").guideNouvelle[0], "Ouvre Indicateurs
 eq(par("2026-10-05-effacement-donnees").guideNouvelle[0], "Réglages, partie Promo : « Abandon » sur le stagiaire concerné.", "effacement : Réglages, partie Promo");
 eq(par("2026-10-03-page-stagiaires").guideNouvelle[0], "Ouvre Stagiaires, dans la barre de gauche (sur téléphone, en bas de l'écran).", "page Stagiaires : la barre de gauche");
 eq(par("2026-07-31-dossier-professionnel").guideNouvelle[0], "Ouvre Mon suivi, dans la barre.", "dossier professionnel : Mon suivi");
-eq(par("2026-07-19-livret-epcf").guideNouvelle[0], "Ouvre Mon suivi, partie Livret.", "livret : Mon suivi, partie Livret");
+eq(par("2026-07-19-livret-epcf").guideNouvelle[0], "Ouvre Mon suivi, partie Livret EPCF.", "livret : Mon suivi, partie Livret EPCF");
 ok(par("2026-07-19-livret-epcf").guideNouvelle.some((s) => /date de naissance/.test(s)), "livret : la date de naissance se renseigne toujours");
 // « Signaler un problème » : la consigne d'avant (« Touche ton nom en haut de l'écran ») est fausse sous la nouvelle barre, pour les deux espaces. Le
 // stagiaire a la ligne dans le menu de son compte (ses initiales, en haut à droite), l'équipe un bouton en bas de la barre de gauche sur ordinateur,

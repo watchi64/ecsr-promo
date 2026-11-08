@@ -42,7 +42,7 @@ export const NOUVEAUTES = [
         + "ouverte, touche « Signer pour ce matin » (ou « Signer pour cet après-midi ») : la carte affiche ensuite l'heure "
         + "de ta signature.",
       "« À faire » liste au plus quatre choses : un examen ouvert, le QCM d'un thème vu cette semaine et pas "
-        + "encore fait, ton dossier professionnel, ton livret. Touche une ligne pour y aller.",
+        + "encore fait, ton dossier professionnel, ton livret EPCF. Touche une ligne pour y aller.",
       "Dans Planning, Semaine, la grille montre les cinq jours, aujourd'hui repéré. Sur téléphone, touche un jour dans "
         + "la bande du haut. « Liste » remet l'affichage d'avant, et l'app retient ton choix.",
       "Dans Cours et QCM, sous-onglet QCM : chaque QCM avec la note de ton dernier entraînement. « Ouvrir » affiche sa "
@@ -69,7 +69,7 @@ export const NOUVEAUTES = [
         + "bénévoles), le matin et l'après-midi. Au tableau, touche un nom pour ouvrir la fiche du stagiaire.",
       "« À traiter » : les signalements sur des QCM et les questions proposées par l'IA. Chaque ligne ouvre le bon "
         + "sous-onglet de Cours et QCM.",
-      "Si tu administres l'app, Cours et QCM a aussi un sous-onglet Propositions IA : « Relire » ouvre l'éditeur du "
+      "Cours et QCM a aussi un sous-onglet Propositions IA (formateurs de la promo) : « Relire » ouvre l'éditeur du "
         + "QCM, où tu acceptes ou rejettes chaque question.",
       "« À suivre de près » : les stagiaires qui cumulent au moins deux signaux. « Tout voir » ouvre Indicateurs.",
     ],
@@ -430,7 +430,7 @@ export const NOUVEAUTES = [
     guideNouvelle: [
       "Ouvre Stagiaires, dans la barre de gauche (sur téléphone, en bas de l'écran).",
       "Choisis un stagiaire : sa fiche s'ouvre à côté de la liste, ou en plein écran sur téléphone.",
-      "Partie EPCF : Évaluer ou Modifier chaque épreuve. Parties Livret et Dossier pro : remplis-les ou relis-les.",
+      "Partie EPCF : Évaluer ou Modifier chaque épreuve. Parties Livret EPCF et Dossier pro : remplis-les ou relis-les.",
     ],
   },
   {
@@ -816,7 +816,7 @@ export const NOUVEAUTES = [
       "Remplis le livret, puis imprime ou enregistre en PDF.",
     ],
     guideNouvelle: [
-      "Ouvre Mon suivi, partie Livret.",
+      "Ouvre Mon suivi, partie Livret EPCF.",
       "Renseigne ta date de naissance si ce n'est pas déjà fait.",
       "Remplis le livret, puis imprime ou enregistre en PDF.",
     ],

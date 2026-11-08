@@ -3,7 +3,7 @@
 //
 // Les liens des Nouveautés (js/nouveautes-data.js) et des annonces d'ouverture de module (js/modules-data.js) sont écrits avec les
 // noms de l'ancienne barre : « Calendrier », « Ressources », « Mon espace personnel, partie Livret », « Paramètres »... Avec la
-// nouvelle, le libellé suit la barre. Le lien, lui, ne change pas : la route, le sous-onglet et l'adresse restent ceux de l'entrée
+// nouvelle, le libellé suit la barre (« Mon suivi, partie Livret EPCF »). Le lien, lui, ne change pas : la route, le sous-onglet et l'adresse restent ceux de l'entrée
 // (les redirections du lot 1, js/nav-rules.js, mènent chaque ancienne adresse à sa nouvelle page, le bon sous-onglet ouvert) ; seul
 // le nom écrit à l'écran est celui que la personne lit dans sa barre, à deux destinations près, qui ont vraiment changé de place et que
 // le lien suit (destinationChangee) : les réglages de la personne (Mes préférences, route `preferences`, ruling R55) et la banque des
@@ -35,6 +35,8 @@ function libelleNouvelle(ou, espace) {
     case "mon-suivi": {
       // Évolution et La classe sont réunies dans la partie Résultats (lot 2B, tâche 7) ; le lien garde son adresse, qui ouvre la bonne vue.
       if (PARTIES_DE_RESULTATS.includes(ou.sousOnglet)) return "Mon suivi, partie Résultats";
+      // La partie Livret s'appelle « Livret EPCF » sous la nouvelle navigation (décision de Timy du 08/11).
+      if (ou.sousOnglet === "livret") return "Mon suivi, partie Livret EPCF";
       // « Mon espace personnel, partie X » devient « Mon suivi, partie X » ; un geste de l'ancienne barre (« Le logo en haut à
       // gauche ») devient le nom de la page.
       const suite = reste(label, "Mon espace personnel") ?? reste(label, "Mon espace");

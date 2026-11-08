@@ -11,7 +11,7 @@ import {
 } from "../db.js?v=20261108c";
 import { el, clear, displayStagiaire } from "../utils.js?v=20261108c";
 import { icon } from "../icons.js?v=20261108c";
-import { monStagiaireId } from "../auth-admin.js?v=20261108c";
+import { monStagiaireId, isAdmin } from "../auth-admin.js?v=20261108c";
 import { emargementActif } from "../emargement-etat.js?v=20261108c";
 import { lignePromo } from "../accueil-rules.js?v=20261108c";
 import { journeeDuJour } from "../journee-rules.js?v=20261108c";
@@ -252,23 +252,30 @@ export function renderAujourdhui(container) {
   const promo = getPromoCourante();
   const lignePromoDuJour = lignePromo(promo, jour);
 
-  const ligne = el("p", { class: "home-lead-v2" }, ligneDeLEnTete(lignePromoDuJour, null));
-  container.appendChild(el("section", { class: "home-hero-v2" },
+  // La ligne sous le titre n'est posée que si elle dit quelque chose : sans promo ni compte lu, pas de paragraphe vide.
+  const texteEnTete = ligneDeLEnTete(lignePromoDuJour, null);
+  const ligne = el("p", { class: "home-lead-v2" }, texteEnTete);
+  const entete = el("section", { class: "home-hero-v2" },
     pastilleDuJour(maintenant),
     el("h1", { class: "home-title-v2" }, "Aujourd'hui"),
-    ligne,
-  ));
+    texteEnTete ? ligne : null,
+  );
+  container.appendChild(entete);
 
-  const avecFeuille = emargementActif();
+  // Émargement et À traiter : les formateurs de la promo seulement (isAdmin, « écrit comme un formateur »), les mêmes
+  // conditions que l'entrée Émargement de la barre et que les sous-onglets Signalements et Propositions IA. La direction
+  // et le siège lisent la page sans ces deux cartes : elles mèneraient à des pages qui ne sont pas pour eux.
+  const avecFeuille = emargementActif() && isAdmin();
+  const avecATraiter = isAdmin();
   const emargement = avecFeuille ? carte({ titre: "Émargement", ico: "clipboard", zone: "emargement" }) : null;
-  const atraiter = carte({ titre: "À traiter", ico: "check", zone: "a-traiter" });
+  const atraiter = avecATraiter ? carte({ titre: "À traiter", ico: "check", zone: "a-traiter" }) : null;
   const tableau = carte({ titre: "Au tableau aujourd'hui", ico: "presentation", zone: "tableau" });
   const voiture = carte({ titre: "En voiture aujourd'hui", ico: "car", zone: "voiture" });
   const asuivre = carte({ titre: "À suivre de près", ico: "info", zone: "a-suivre", plus: plusLien("centre", "Tout voir") });
 
   // L'ordre du DOM est celui du téléphone (ce qui demande une action avant ce qui informe) ; la grille de
   // css/pages.css replace les cartes sur tablette et ordinateur.
-  container.appendChild(el("div", { class: "acc-grille auj-grille" + (avecFeuille ? "" : " auj-sans-feuille") },
+  container.appendChild(el("div", { class: "acc-grille auj-grille" + (avecFeuille ? "" : " auj-sans-feuille") + (avecATraiter ? "" : " auj-sans-traiter") },
     ...[emargement, atraiter, tableau, voiture, asuivre].filter(Boolean).map((c) => c.noeud)));
 
   // Pied de page : celui de l'Accueil d'avant, pour l'équipe.
@@ -283,13 +290,16 @@ export function renderAujourdhui(container) {
 
   // « N stagiaires en formation » rejoint la ligne dès qu'il est lu ; une lecture qui échoue la laisse sans lui.
   const enFormation = listStagiaires().then((liste) => {
-    if (ligne.isConnected) ligne.textContent = ligneDeLEnTete(lignePromoDuJour, liste.length);
+    const texte = ligneDeLEnTete(lignePromoDuJour, liste.length);
+    if (!entete.isConnected || !texte) return;
+    ligne.textContent = texte;
+    if (!ligne.isConnected) entete.appendChild(ligne);
   }).catch((e) => console.error("Aujourd'hui : stagiaires illisibles", e));
 
   // Chaque carte se charge seule ; la page rend la main quand toutes ont fini (réussi ou non).
   return Promise.allSettled([
     emargement ? chargerEmargement(emargement, jour, indexJour, semaine, moi) : null,
-    chargerATraiterCarte(atraiter.corps),
+    atraiter ? chargerATraiterCarte(atraiter.corps) : null,
     chargerPlanning(tableau, voiture, indexJour, jour, semaine, moi),
     chargerASuivre(asuivre.corps, jour, promo?.id ?? null),
     enFormation,
