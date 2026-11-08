@@ -25,12 +25,13 @@
 
 export const NOUVEAUTES = [
   {
-    id: "2026-11-06-roles-par-promo",
-    date: "2026-11-06",
+    id: "2026-11-08-roles-par-promo",
+    date: "2026-11-08",
     pour: "formateurs",
     titre: "Chacun ne voit que les promos où il intervient",
     resume: "Chacun ne voit désormais que les promos où il intervient, et c'est vérifié à chaque "
-          + "action, pas seulement à l'affichage. Rien ne change pour toi. Un nouveau formateur s'ajoute désormais par la direction du "
+          + "action, pas seulement à l'affichage. Pour toi, une seule différence : les signalements de QCM et les "
+          + "acceptations des conditions s'affichent promo par promo, comme les notes. Un nouveau formateur s'ajoute désormais par la direction du "
           + "centre (en attendant, par Timy) ; tu invites toujours les stagiaires de tes promos. Nouveau : "
           + "« Voir comme un stagiaire », dans le menu de ton compte et dans le choix de la promo, montre l'app "
           + "telle que la voit un stagiaire, sans que tu puisses rien y modifier.",
