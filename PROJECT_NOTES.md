@@ -545,6 +545,13 @@ Spec : `docs/superpowers/specs/2026-10-24-attestations-design.md` · plan :
   chaque note avec sa date.
 - **En-tête** : le réglage `emargement_entete` gagne adresse (deux lignes), signataire, qualité, lieu
   « Fait à » (défaut : lieu de la promo). Aucune migration.
+- **Impression** : marge `@page` de 12 mm en haut et en bas (option `marge` de `bindDocPrint`, 0 par
+  défaut), pour que les pages 2 et suivantes d'une attestation ne s'impriment pas au ras du papier. Le
+  certificat le plus chargé (adresse, nom composé, signataire) mesure 260 mm pour 273 utiles.
+- **Robustesse** (relecture du 26/10) : la saisie d'une date au clavier ne redessine jamais les champs
+  (seule la partie sous les dates) et ignore les années hors 2000-2099 ; une lecture plus ancienne
+  arrivée après une plus récente est ignorée ; rien n'est peint si l'on a quitté la page. Bouton
+  « En-tête et signataire » réservé aux administrateurs (seuls à pouvoir écrire un réglage en base).
 - **Nouveautés** : aucune entrée (même règle que l'émargement) ; texte prêt dans la spec (§ 8).
 - **Banc** : `?role=prof&centre=1&demo=1&emargement=7` charge les 20 feuilles de la promo 7, relevées en
   lecture seule (`_banc_emargement_demo.js`, non versionné). Contrôle du 26/10 : MERCIER Kevin 59 h 30 sur

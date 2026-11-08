@@ -315,15 +315,15 @@ body.sig-ouverte { overflow: hidden; }
 .at-certificat { display: flex; flex-direction: column; min-height: 272mm; }
 .at-doc + .at-doc { break-before: page; page-break-before: always; }
 .at-doc p { margin: 0 0 2mm; }
-.at-entete { margin-bottom: 12mm; padding-bottom: 3mm; border-bottom: 0.4mm solid #556641; }
+.at-entete { margin-bottom: 7mm; padding-bottom: 2.5mm; border-bottom: 0.4mm solid #556641; }
 .at-entete p { margin: 0; }
 .at-organisme { font-weight: 700; font-size: 12pt; color: #33402a; }
 .at-adresse { font-size: 9.5pt; color: #333; }
 .at-titre {
-  margin: 0 0 10mm; text-align: center; font-family: var(--font); font-size: 17pt; font-weight: 700;
+  margin: 0 0 7mm; text-align: center; font-family: var(--font); font-size: 17pt; font-weight: 700;
   letter-spacing: 0.04em; color: #33402a;
 }
-.at-espace { margin-top: 5mm !important; }
+.at-espace { margin-top: 4mm !important; }
 .at-justifie { text-align: justify; }
 .at-val { font-weight: 600; }
 .at-vide { display: inline; }
@@ -332,9 +332,9 @@ body.sig-ouverte { overflow: hidden; }
 .at-cases { list-style: none; margin: 1mm 0 0 4mm; padding: 0; }
 .at-cases li { margin: 0.6mm 0; }
 .at-case { font-size: 12pt; }
-.at-signature { display: flex; justify-content: space-between; gap: 8mm; margin-top: 10mm; break-inside: avoid; }
+.at-signature { display: flex; justify-content: space-between; gap: 8mm; margin-top: 7mm; break-inside: avoid; }
 .at-fait p { margin-bottom: 3mm; }
-.at-cadre { width: 85mm; min-height: 40mm; border: 0.3mm solid #33402a; padding: 3mm; text-align: center; font-size: 9.5pt; }
+.at-cadre { width: 85mm; min-height: 36mm; border: 0.3mm solid #33402a; padding: 3mm; text-align: center; font-size: 9.5pt; }
 .at-cadre p { margin: 0; }
 .at-cadre-nom { margin-top: 3mm !important; font-weight: 600; }
 .at-notes { margin-top: auto; padding-top: 3mm; border-top: 0.3mm solid #777; font-size: 8.5pt; color: #333; }
