@@ -1916,6 +1916,13 @@ begin
     v_acc integer[]; v_def integer; v_pc integer; v_f2d boolean; v_d2d boolean; v_f_ligne record; v_avant text; v_apres text;
     v_fi integer; v_lx integer; v_somme text; v_rc integer; v_n1 bigint; v_n2 bigint;
     v_vivant text := 'select count(*)::text from public.planning_entries where promo_id = ';
+    v_ecr text; v_nx bigint; v_hd integer;
+    c_hors_off constant text := 'insert into public.planning_jours_off (semaine_lundi, day_index, label, promo_id) values (''2031-01-06'', 3, ''PreuveHors'', %s)';
+    c_hors_off_n constant text := 'select count(*)::text from public.planning_jours_off where label = ''PreuveHors'' and promo_id = %s';
+    c_hors_set constant text := 'insert into public.settings (promo_id, key, value, updated_at) values (%s, ''modules'', ''PreuveHors'', now()) on conflict (promo_id, key) do update set value = excluded.value, updated_at = excluded.updated_at';
+    c_hors_set_n constant text := 'select count(*)::text from public.settings where key = ''modules'' and value = ''PreuveHors'' and promo_id = %s';
+    c_hors_maj constant text := 'update public.planning_entries set notes = ''PreuveHors''';
+    c_hors_maj_n constant text := 'select count(*)::text from public.planning_entries where notes = ''PreuveHors'' and promo_id = %s';
   begin
     v_l1 := (select pr.lieu_id from public.promos pr where pr.id = 1);
     v_l2 := (select pr.lieu_id from public.promos pr where pr.id = 2);
@@ -1962,8 +1969,12 @@ begin
     -- 3. Cumul de rôles. cumul : stagiaire de la promo 1 et formateur de la promo 2 ; dir_form : direction du lieu de la
     --    promo 1 et formateur de la promo 2. Attendu : l'union des droits de chaque rôle sur sa propre portée, jamais plus.
     select p.fiche into v_fi from personnages p where p.nom = 'cumul';
+    v_acc := array(select pr.id from public.promos pr where pr.id = any(array[1, 2]) order by pr.id);
+    v_def := coalesce((select pr.id from public.promos pr where pr.id = any(v_acc) and (pr.date_fin is null or pr.date_fin >= current_date) order by pr.date_debut, pr.id limit 1),
+                      (select pr.id from public.promos pr where pr.id = any(v_acc) order by pr.date_debut desc, pr.id desc limit 1));
+    v_def := coalesce((select s.promo_id from public.stagiaires s where s.id = v_fi), v_def);
     foreach v_ctx in array c_contextes loop
-      v_pc := case v_ctx when '1' then 1 when '2' then 2 when '7' then null else 1 end;
+      v_pc := case when v_ctx is null then v_def when v_ctx::integer = any(v_acc) then v_ctx::integer end;
       perform pg_temp.sondes('cumul', 'cumul', c_cumul, v_ctx, v_pc, coalesce(v_pc = 2, false), false, case when v_pc = 1 then v_fi end);
     end loop;
     perform pg_temp.attendre('cumul', 'cumul : mes_promos() dit stagiaire en promo 1 et formateur en promo 2',
@@ -1997,13 +2008,15 @@ begin
       'select count(*)::text from public.mes_promos() where id = 1 or ''formateur'' = any(roles)', array['0']);
     perform pg_temp.cas('rôle retiré', 'form_n sans affectation : le planning de la promo 1 n''est plus modifiable', c_form_n, '1', null, null,
       'update public.planning_entries set notes = ''PreuveRetire''', 'select count(*)::text from public.planning_entries where notes = ''PreuveRetire''', array['OK 0 0', 'REFUS 42501']);
-    insert into public.affectations (id, email, role, promo_id, lieu_id, cree_le, cree_par) overriding system value
-      values (v_f_ligne.id, v_f_ligne.email, v_f_ligne.role, v_f_ligne.promo_id, v_f_ligne.lieu_id, v_f_ligne.cree_le, v_f_ligne.cree_par);
-    perform pg_temp.attendre('rôle retiré', 'l''affectation est rétablie à l''identique (identifiant, dates, auteur)',
-      (select row_to_json(a)::text from public.affectations a where a.id = v_f_ligne.id), row_to_json(v_f_ligne)::text);
-    perform pg_temp.cas('rôle retiré', 'après rétablissement : form_n modifie de nouveau le planning de la promo 1 (le retrait était bien la cause)', c_form_n, '1', null, null,
-      'update public.planning_entries set notes = ''PreuveRetire''', 'select count(*)::text from public.planning_entries where notes = ''PreuveRetire''',
-      array[format('OK %s %s', v_n1, v_n1)]);
+    if v_f_ligne.id is not null then
+      insert into public.affectations (id, email, role, promo_id, lieu_id, cree_le, cree_par) overriding system value
+        values (v_f_ligne.id, v_f_ligne.email, v_f_ligne.role, v_f_ligne.promo_id, v_f_ligne.lieu_id, v_f_ligne.cree_le, v_f_ligne.cree_par);
+      perform pg_temp.attendre('rôle retiré', 'l''affectation est rétablie à l''identique (identifiant, dates, auteur)',
+        (select row_to_json(a)::text from public.affectations a where a.id = v_f_ligne.id), row_to_json(v_f_ligne)::text);
+      perform pg_temp.cas('rôle retiré', 'après rétablissement : form_n modifie de nouveau le planning de la promo 1 (le retrait était bien la cause)', c_form_n, '1', null, null,
+        'update public.planning_entries set notes = ''PreuveRetire''', 'select count(*)::text from public.planning_entries where notes = ''PreuveRetire''',
+        array[format('OK %s %s', v_n1, v_n1)]);
+    end if;
 
     -- 5. Fiche déplacée : la fiche de stag_n passe de la promo 1 à la promo 2 (propriétaire). Il voit la promo 2 comme
     --    stagiaire et rien des données privées de la promo 1. Puis la fiche revient, et les comptes par promo sont ceux d'avant.
@@ -2042,7 +2055,36 @@ begin
         perform pg_temp.verifier('autre promo', v_p.nom || ' envoie la promo ' || v_pc || ' (hors de sa portée) : aucune ligne de cette promo, promo affichée différente',
           v_somme = '0' and pg_temp.valeur(v_p.email, v_pc::text, null, format('select (public.promo_courante() is distinct from %s)::text || ''/'' || (select count(*) from public.promos where id = %s)', v_pc, v_pc)) = 'true/0',
           'lignes vues ' || coalesce(v_somme, 'nul'));
+        -- Écritures vers cette promo : ajout d'un jour férié, ajout du réglage « modules » (forme de l'app), modification de
+        -- tout le planning. Refus 42501 attendu (ou un ajout qui n'atterrit nulle part) ; aucune ligne de la promo étrangère touchée.
+        v_ecr := (pg_temp.tenter(v_p.email, v_pc::text, null, null, null, format(c_hors_off, v_pc), format(c_hors_off_n, v_pc)))[2]
+          || ' | ' || (pg_temp.tenter(v_p.email, v_pc::text, null, null, null, format(c_hors_set, v_pc), format(c_hors_set_n, v_pc)))[2]
+          || ' | ' || (pg_temp.tenter(v_p.email, v_pc::text, null, null, null, c_hors_maj, format(c_hors_maj_n, v_pc)))[2];
+        perform pg_temp.verifier('autre promo', v_p.nom || ' écrit vers la promo ' || v_pc || ' (hors de sa portée) : jour férié et réglage refusés, planning : aucune ligne de cette promo modifiée',
+          v_ecr ~ '^(REFUS 42501|OK 0 0) \| (REFUS 42501|OK 0 0) \| (REFUS 42501|OK [0-9]+ 0)$', 'obtenu ' || v_ecr);
+        -- Même tentative depuis une promo où le compte écrit vraiment (en-tête de sa promo de formateur), la ligne visant la promo
+        -- étrangère : la règle d'ajout doit tenir la promo de la ligne, pas seulement l'en-tête. Son jumeau permis vise sa propre promo.
+        if cardinality(v_p.formateur_de) > 0 then
+          v_hd := v_p.formateur_de[1];
+          v_ecr := (pg_temp.tenter(v_p.email, v_hd::text, null, null, null, format(c_hors_off, v_pc), format(c_hors_off_n, v_pc)))[2]
+            || ' | ' || (pg_temp.tenter(v_p.email, v_hd::text, null, null, null, format(c_hors_set, v_pc), format(c_hors_set_n, v_pc)))[2];
+          perform pg_temp.verifier('autre promo', v_p.nom || ' écrit depuis sa promo ' || v_hd || ' une ligne de la promo ' || v_pc || ' (hors de sa portée) : jour férié et réglage refusés',
+            v_ecr ~ '^(REFUS 42501|OK 0 0) \| (REFUS 42501|OK 0 0)$', 'obtenu ' || v_ecr);
+          v_ecr := (pg_temp.tenter(v_p.email, v_hd::text, null, null, null, format(c_hors_off, v_hd), format(c_hors_off_n, v_hd)))[2];
+          perform pg_temp.verifier('autre promo', 'jumeau : ' || v_p.nom || ' ajoute un jour férié à sa propre promo ' || v_hd || ' depuis sa promo',
+            v_ecr = 'OK 1 1', 'obtenu ' || v_ecr);
+        end if;
       end loop;
+    end loop;
+    -- Jumeau permis des écritures : le fondateur écrit vers chaque promo avec son en-tête (ajouts qui atterrissent, modification
+    -- qui touche exactement les lignes de cette promo) ; sans lui, les refus ci-dessus pourraient venir d'une requête mal formée.
+    foreach v_pc in array c_promos loop
+      v_ecr := (pg_temp.tenter(c_fond, v_pc::text, null, null, null, format(c_hors_off, v_pc), format(c_hors_off_n, v_pc)))[2]
+        || ' | ' || (pg_temp.tenter(c_fond, v_pc::text, null, null, null, format(c_hors_set, v_pc), format(c_hors_set_n, v_pc)))[2]
+        || ' | ' || (pg_temp.tenter(c_fond, v_pc::text, null, null, null, c_hors_maj, format(c_hors_maj_n, v_pc)))[2];
+      v_nx := (select count(*) from public.planning_entries where promo_id = v_pc);
+      perform pg_temp.verifier('autre promo', 'jumeau : le fondateur écrit vers la promo ' || v_pc || ' (jour férié et réglage ajoutés, planning de cette promo seule modifié)',
+        v_nx > 0 and v_ecr = format('OK 1 1 | OK 1 1 | OK %s %s', v_nx, v_nx), 'obtenu ' || v_ecr || ' ; lignes de planning ' || v_nx);
     end loop;
     -- Témoin : le fondateur, lui, voit les lignes de chaque promo (les zéros ci-dessus ne viennent pas de tables vides).
     foreach v_pc in array c_promos loop
