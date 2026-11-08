@@ -27,6 +27,19 @@
 -- Attendu : une seule ligne de réponses (4 réponses, xmin de S4, le dernier servi). Sans verrou, la réponse de S4
 -- resterait seule avec le xmin de sa participation.
 --
+-- Résultats du 09/11/2026, correction 1 de la relecture de la tâche 3b (fondateur à fiche stagiaire en aperçu ; aperçu
+-- stagiaire limité à la promo affichée, comme my_stagiaire_id ; rôles cumulés, affectation retirée, fiche déplacée) :
+--   - nouveaux cas sur la migration d'avant cette correction : ROUGE 205/4, sur l'aperçu stagiaire du fondateur (promo
+--     affichée qui n'est pas la sienne, et la suite) ;
+--   - après : VERT 209/0 (trois passages) ; base où la migration est déjà appliquée : VERT 207/0, aucune ligne laissée ;
+--   - contre-épreuves 1 à 9 : ROUGE 206/3, 204/5, 207/2, 203/6, 208/1, 208/1, 196/13, 197/12, 206/3 ;
+--   - contre-épreuve 10 (garde d'aperçu de l'ayant droit stagiaire retirée) : ROUGE 201/8, sur les huit seuls cas du
+--     fondateur T en aperçu formateur, direction, siège et stagiaire sur une autre promo (rien proposé, envoi refusé) ;
+--   - contre-épreuve 11 (aperçu stagiaire sans la promo affichée, version d'avant cette correction) : ROUGE 207/2, sur les
+--     deux cas de T en aperçu stagiaire sur P1 ;
+--   - retour joué hors preuve : empreinte 9a291831… avant, 1f65b819… migration appliquée, 9a291831… après ; 0 table et
+--     0 fonction des questionnaires ; affectations et profils intacts.
+--
 -- Résultats du 09/11/2026, migration réalignée sur les rôles du lot 4 (Postgres 18.4 local, port 55461, base recréée à
 -- chaque passage, schéma minimal avec le lot 4) :
 --   - avant le réalignement (migration du 08/11, ancien modèle de droits) : ROUGE 176/10, sur les seuls cas nouveaux
@@ -146,6 +159,20 @@ begin
       select pg_temp.tente(format('select public.repondre_questionnaire(%L, %L::jsonb, %L::integer, %L::jsonb, %L)',
                                   p_cle, p_portee, p_version, p_rep, p_com));
     $f$;
+    -- Comme essai(), mais l'envoi est annulé aussitôt (sous-transaction) : un envoi accepté à tort ne laisse pas de
+    -- participation qui ferait échouer les cas suivants par « déjà répondu » (contre-épreuves lisibles).
+    create function pg_temp.essai_blanc(p_cle text, p_portee jsonb, p_version integer, p_rep jsonb)
+    returns text language plpgsql as $f$
+    declare r text;
+    begin
+      begin
+        r := pg_temp.essai(p_cle, p_portee, p_version, p_rep);
+        raise exception 'preuve: annulé';
+      exception when others then
+        if sqlerrm <> 'preuve: annulé' then raise; end if;
+      end;
+      return r;
+    end $f$;
     -- Noter un cas.
     create function pg_temp.cas(p_cas text, p_bon boolean, p_detail text default null) returns void language sql as $f$
       insert into pg_temp.preuve_cas (n, cas, bon, detail)
@@ -192,22 +219,25 @@ begin
   -- colonnes role et is_admin sont celles qu'écrit inviter_compte et ne décident plus de rien) : F1, F2, F3 formateurs
   -- de P1 (lieu 1) ; F4 formateur de P2 (lieu 1), ancien rôle admin ; F5 formateur de P3 (lieu 2) seulement ; F6 ancien
   -- formateur (prof, is_admin) sans aucune affectation ; DIR direction du lieu 1 seulement ; SIE siège seulement ; TF
-  -- fondateur sans fiche ni affectation (ancien rôle admin).
+  -- fondateur sans fiche ni affectation (ancien rôle admin). Rôles cumulés : CUM direction du lieu 2 et formateur de P1 ;
+  -- SF fiche stagiaire dans P2 et affectation formateur sur P1 ; FR formateur de P2 (affectation retirée le temps d'un
+  -- cas) ; MV stagiaire de P2 dont la fiche passe dans P1 le temps de quelques cas.
   insert into pg_temp.preuve_comptes (nom, email, uid)
   select k, 'preuve.qn.' || lower(k) || '@example.invalid', gen_random_uuid()
     from unnest(array['A1','A2','A3','A4','A5','A6','X','B','C','D','N','Z','F1','F2','F3','F4','F5','F6','DIR','SIE',
-                      'TF','T']) k;
+                      'TF','T','CUM','SF','FR','MV']) k;
   insert into auth.users (id, email) select uid, email from pg_temp.preuve_comptes;
   for c in select * from pg_temp.preuve_comptes loop
-    if c.nom in ('A1','A2','A3','A4','A5','A6','X','B','C','D','T') then
+    if c.nom in ('A1','A2','A3','A4','A5','A6','X','B','C','D','T','SF','MV') then
       insert into stagiaires (prenom, nom, promo_id, anonymise_le)
       values (c.nom, 'Preuve',
-              case c.nom when 'B' then P2 when 'C' then P3 when 'D' then P5 when 'T' then P4 else P1 end,
+              case c.nom when 'B' then P2 when 'C' then P3 when 'D' then P5 when 'T' then P4 when 'SF' then P2
+                         when 'MV' then P2 else P1 end,
               case when c.nom = 'X' then now() end)
       returning id into v_ok;
       insert into user_profiles (email, role, is_admin, is_founder, stagiaire_id)
       values (c.email, 'stagiaire', c.nom = 'T', c.nom = 'T', v_ok);
-    elsif c.nom like 'F%' then
+    elsif c.nom like 'F%' or c.nom = 'CUM' then
       insert into user_profiles (email, role, is_admin, is_founder)
       values (c.email, case when c.nom = 'F4' then 'admin' else 'prof' end, true, false);
     elsif c.nom in ('DIR', 'SIE') then
@@ -222,7 +252,8 @@ begin
   select k.email, v.role, v.promo, v.lieu
     from (values ('F1', 'formateur', P1, null::integer), ('F2', 'formateur', P1, null), ('F3', 'formateur', P1, null),
                  ('F4', 'formateur', P2, null), ('F5', 'formateur', P3, null), ('DIR', 'direction', null, L1),
-                 ('SIE', 'siege', null, null)) v(nom, role, promo, lieu)
+                 ('SIE', 'siege', null, null), ('CUM', 'direction', null, L2), ('CUM', 'formateur', P1, null),
+                 ('SF', 'formateur', P1, null), ('FR', 'formateur', P2, null)) v(nom, role, promo, lieu)
     join pg_temp.preuve_comptes k on k.nom = v.nom;
 
   -- 2. Migration jouée entre deux empreintes --------------------------------------------------------------------
@@ -726,11 +757,101 @@ begin
   perform pg_temp.qui('F1');
   r := pg_temp.essai('fin_formateur', pL2, 1, pg_temp.rep_form('3'));
   perform pg_temp.cas('F1 (lieu 1) refusé au lieu 2 ouvert à la main', r like '%ne te concerne pas%', r);
+
+  -- Rôles cumulés (lot 4) : direction d'un lieu et formateur d'une promo d'un autre lieu, ayant droit par sa seule
+  -- affectation formateur ; fiche stagiaire et affectation formateur : refusé au questionnaire formateurs.
+  perform pg_temp.qui('CUM');
+  select string_agg(q.cle || ' ' || q.portee::text, ' ; ') into r from questionnaires_a_remplir() q;
+  perform pg_temp.cas('CUM (direction du lieu 2, formateur de P1) a le questionnaire formateurs du lieu 1, et lui seul',
+    r = 'fin_formateur ' || pL1::text, r);
+  r := pg_temp.essai('fin_formateur', pL2, 1, pg_temp.rep_form('3'));
+  perform pg_temp.cas('CUM refusé au lieu 2, dont il n''est que la direction', r like '%ne te concerne pas%', r);
+  r := pg_temp.essai('fin_formateur', pL1, 1, pg_temp.rep_form('3'));
+  perform pg_temp.cas('CUM répond pour le lieu 1', r = 'ok', r);
+  perform pg_temp.qui('SF');
+  r := pg_temp.essai('fin_formateur', pL1, 1, pg_temp.rep_form('3'));
+  perform pg_temp.cas('SF (fiche stagiaire et affectation formateur) refusé au questionnaire formateurs',
+    r like '%ne te concerne pas%', r);
+  select string_agg(q.cle || ' ' || q.portee::text, ' ; ') into r from questionnaires_a_remplir() q;
+  perform pg_temp.cas('SF n''a à remplir que la fin de formation de sa promo (P2, ouverte à la main)',
+    r = 'fin_stagiaire ' || pP2::text, r);
+
+  -- Affectation retirée (le lot 4 n'a pas de date de fin : on retire la ligne) : le formateur n'est plus ayant droit.
+  -- Le retrait est joué dans une sous-transaction annulée (l'empreinte finale des affectations le vérifie).
+  perform pg_temp.qui('FR');
+  select string_agg(q.cle || ' ' || q.portee::text, ' ; ') into r from questionnaires_a_remplir() q;
+  perform pg_temp.cas('FR (formateur de P2) a le questionnaire formateurs du lieu 1', r = 'fin_formateur ' || pL1::text, r);
+  begin
+    reset role;
+    delete from affectations where email = (select k.email from pg_temp.preuve_comptes k where k.nom = 'FR');
+    set local role authenticated;
+    perform pg_temp.qui('FR');
+    select string_agg(q.cle || ' ' || q.portee::text, ' ; ') into t from questionnaires_a_remplir() q;
+    r := pg_temp.essai('fin_formateur', pL1, 1, pg_temp.rep_form('3'));
+    raise exception 'preuve: annulé';
+  exception when others then
+    if sqlerrm <> 'preuve: annulé' then raise; end if;
+  end;
+  perform pg_temp.cas('FR, affectation retirée : rien à remplir', t is null, t);
+  perform pg_temp.cas('FR, affectation retirée : refusé', r like '%ne te concerne pas%', r);
+
+  -- Fiche déplacée d'une promo à l'autre (dans une sous-transaction annulée) : la nouvelle promo seulement.
+  perform pg_temp.qui('MV');
+  select string_agg(q.cle || ' ' || q.portee::text, ' ; ') into r from questionnaires_a_remplir() q;
+  perform pg_temp.cas('MV (fiche dans P2) a la fin de formation de P2', r = 'fin_stagiaire ' || pP2::text, r);
+  begin
+    reset role;
+    update stagiaires set promo_id = P1 where id = (select up.stagiaire_id from user_profiles up
+      join pg_temp.preuve_comptes k on k.email = up.email where k.nom = 'MV');
+    set local role authenticated;
+    perform pg_temp.qui('MV');
+    select string_agg(q.cle || ' ' || q.portee::text, ' ; ') into t from questionnaires_a_remplir() q;
+    r := pg_temp.essai('fin_stagiaire', pP2, 1, pg_temp.rep_fin('3'));
+    j := to_jsonb(pg_temp.essai('fin_stagiaire', pP1, 1, pg_temp.rep_fin('3')));
+    raise exception 'preuve: annulé';
+  exception when others then
+    if sqlerrm <> 'preuve: annulé' then raise; end if;
+  end;
+  perform pg_temp.cas('MV, fiche passée dans P1 : seule la fin de formation de P1 est proposée',
+    t = 'fin_stagiaire ' || pP1::text, t);
+  perform pg_temp.cas('MV, fiche passée dans P1 : refusé à son ancienne promo P2', r like '%ne te concerne pas%', r);
+  perform pg_temp.cas('MV, fiche passée dans P1 : répond pour P1', j #>> '{}' = 'ok', j::text);
+
+  -- Fondateur qui a une fiche stagiaire (T, dans P4, sans date de fin) : P4 ouverte à la main. Hors aperçu et en aperçu
+  -- stagiaire sur P4, il a sa fin de formation ; en aperçu formateur, direction ou siège, rien (un aperçu ne fait que
+  -- retirer des droits) ; en aperçu stagiaire sur une autre promo affichée (P1), rien non plus (comme my_stagiaire_id).
+  perform pg_temp.qui('T');
+  perform ouvrir_questionnaire('fin_stagiaire', jsonb_build_object('promo_id', P4), true);
+  select string_agg(q.cle || ' ' || q.portee::text, ' ; ') into r from questionnaires_a_remplir() q;
+  perform pg_temp.cas('T hors aperçu a la fin de formation de sa promo P4',
+    r = 'fin_stagiaire ' || jsonb_build_object('promo_id', P4)::text, r);
+  foreach t in array array['formateur', 'direction', 'siege'] loop
+    perform pg_temp.qui('T');
+    perform pg_temp.apercu(t, P4);
+    select string_agg(q.cle || ' ' || q.portee::text, ' ; ') into r from questionnaires_a_remplir() q;
+    perform pg_temp.cas('T en aperçu ' || t || ' n''a rien à remplir', r is null, r);
+    r := pg_temp.essai_blanc('fin_stagiaire', jsonb_build_object('promo_id', P4), 1, pg_temp.rep_fin('3'));
+    perform pg_temp.cas('T en aperçu ' || t || ' refusé à la fin de formation de P4', r like '%ne te concerne pas%', r);
+  end loop;
+  perform pg_temp.qui('T');
+  perform pg_temp.apercu('stagiaire', P1);
+  select string_agg(q.cle || ' ' || q.portee::text, ' ; ') into r from questionnaires_a_remplir() q;
+  perform pg_temp.cas('T en aperçu stagiaire sur P1 (promo affichée qui n''est pas la sienne) n''a rien à remplir',
+    r is null, r);
+  r := pg_temp.essai_blanc('fin_stagiaire', jsonb_build_object('promo_id', P4), 1, pg_temp.rep_fin('3'));
+  perform pg_temp.cas('T en aperçu stagiaire sur P1 refusé à P4', r like '%ne te concerne pas%', r);
+  perform pg_temp.qui('T');
+  perform pg_temp.apercu('stagiaire', P4);
+  select string_agg(q.cle || ' ' || q.portee::text, ' ; ') into r from questionnaires_a_remplir() q;
+  perform pg_temp.cas('T en aperçu stagiaire sur P4 a la fin de formation de P4',
+    r = 'fin_stagiaire ' || jsonb_build_object('promo_id', P4)::text, r);
+  r := pg_temp.essai('fin_stagiaire', jsonb_build_object('promo_id', P4), 1, pg_temp.rep_fin('3'));
+  perform pg_temp.cas('T en aperçu stagiaire sur P4 répond pour P4', r = 'ok', r);
   reset role;
   select string_agg(k.nom, ',' order by k.nom) into t
     from questionnaire_participations p join pg_temp.preuve_comptes k on k.uid = p.user_id
    where p.cle = 'fin_formateur' and p.lieu_id = L1;
-  perform pg_temp.cas('lieu 1 : participations des seuls F1, F2, F3, F4', t = 'F1,F2,F3,F4', t);
+  perform pg_temp.cas('lieu 1 : participations des seuls CUM, F1, F2, F3, F4', t = 'CUM,F1,F2,F3,F4', t);
   select string_agg(k.nom, ',' order by k.nom) into t
     from questionnaire_participations p join pg_temp.preuve_comptes k on k.uid = p.user_id
    where p.cle = 'fin_formateur' and p.lieu_id = L2;

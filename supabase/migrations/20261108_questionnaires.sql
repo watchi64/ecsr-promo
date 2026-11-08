@@ -51,11 +51,17 @@
 --    roles_reels() (rôles réels, sans aperçu ni statut de fondateur), et pas de fiche stagiaire. R1 s'applique donc
 --    pour de bon : un formateur d'un autre lieu, un ancien formateur sans affectation, la direction ou le siège seuls,
 --    le fondateur sans affectation sont refusés. Les colonnes role et is_admin ne décident plus de rien (lot 4).
---  - Stagiaire ayant droit : inchangé (sa fiche, liée au compte et non anonymisée, est dans la promo).
+--  - Stagiaire ayant droit : inchangé hors aperçu (sa fiche, liée au compte et non anonymisée, est dans la promo).
+--  - Formateur encore ayant droit (limite, à valider par Timy) : une affectation du lot 4 n'a pas de date de fin. Un
+--    formateur affecté à une promo du lieu, même finie depuis des années, reste ayant droit chaque année tant que la
+--    ligne d'affectation existe ; la retirer (direction du lieu ou fondateur) suffit à l'exclure.
 --  - Aperçu (en-tête x-apercu-role, « Voir en tant que ») : comme au lot 4, il ne fait que retirer des droits, et une
 --    réponse est une écriture réelle et définitive. En aperçu, personne ne répond comme formateur (le fondateur en
 --    aperçu formateur ne répond pas à la place d'un formateur ; un formateur qui se voit « comme un stagiaire » ne se
---    voit rien proposer) ; seul l'aperçu stagiaire garde le questionnaire de sa propre fiche, comme my_stagiaire_id().
+--    voit rien proposer). L'aperçu stagiaire suit my_stagiaire_id() : il garde le questionnaire de la fiche de
+--    l'appelant, et seulement quand cette fiche est dans la promo affichée (promo_courante(), en-tête x-promo-id ; sans
+--    en-tête, la promo de la fiche). Le fondateur qui a une fiche stagiaire n'a rien en aperçu formateur, direction ou
+--    siège.
 --  - Gestion : une seule fonction, peut_gerer_qualite(), qui vaut est_fondateur() : le fondateur réel, hors aperçu
 --    (en aperçu, il n'a que les droits du rôle simulé : ni ouvertures, ni résultats, ni commentaires). Ni l'ancien
 --    rôle admin, ni la direction, ni le siège (la direction et le siège sont hors du lot Q3 : lot 5 de la refonte, qui
@@ -226,12 +232,13 @@ end;
 $function$;
 
 -- La personne connectée a-t-elle le droit de répondre ? Stagiaire : sa fiche (liée au compte, non anonymisée) est dans
--- la promo, hors aperçu ou en aperçu stagiaire. Formateur (R1, lot 4) : hors aperçu, compte sans fiche stagiaire,
+-- la promo, hors aperçu ou en aperçu stagiaire sur cette promo affichée. Formateur (R1, lot 4) : hors aperçu, sans fiche,
 -- formateur réel (roles_reels) d'au moins une promo du lieu. Voir l'en-tête.
 create function public._questionnaire_ayant_droit(p_cle text, p_promo integer, p_lieu integer)
 returns boolean language sql stable set search_path to 'public', 'pg_temp' as $function$
   select case _questionnaire_public(p_cle)
-    when 'stagiaire' then coalesce(apercu_role(), 'stagiaire') = 'stagiaire' and exists (
+    when 'stagiaire' then (apercu_role() is null
+                           or (apercu_role() = 'stagiaire' and coalesce(p_promo = promo_courante(), false))) and exists (
       select 1 from user_profiles up join stagiaires s on s.id = up.stagiaire_id
        where lower(up.email) = lower((select auth.jwt() ->> 'email'))
          and s.promo_id = p_promo and s.anonymise_le is null)
