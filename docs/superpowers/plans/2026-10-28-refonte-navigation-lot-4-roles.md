@@ -426,8 +426,15 @@ membre de l'équipe de la promo affichée : `["stagiaire"]` ; sinon `[]`) ; `dro
 ### Task 10 : compte rendu, puis application avec l'accord de Timy
 
 - [ ] **Step 1 :** compte rendu à Timy (bilan, tableau d'état, schéma, étapes suivantes) ; attendre son accord.
-- [ ] **Step 2 (après accord) :** appliquer les étapes 1, 2, 3 (MCP, une à une), empreinte en ligne = celle de la
-  répétition, preuve en mode `en-ligne` : VERT.
+- [ ] **Step 2 (après accord) :** juste avant, rejouer la répétition complète sur la vraie base (VERT, empreinte de
+  référence). Puis appliquer les étapes 1, 2, 3 par psql dans **une seule transaction**, avec leurs trois lignes dans
+  `supabase_migrations.schema_migrations` (forme d'`apply_migration` : `statements` = le texte), pour que
+  `list_migrations` et les contrôles des sessions suivantes restent justes (R33, R35 ; relecture finale, M9). Preuve en
+  mode `en-ligne` : VERT. Répétition générale faite sur le clone local le 08/11 : application en 0,2 s, `en-ligne`
+  VERT 11 411/0. Retour arrière : retours 3, 2, 1 dans cet ordre ; si l'app nouvelle est déjà en ligne, elle ne sait
+  plus inviter (pas de repli sur `invite-user`) : le dire avant de revenir en arrière.
+- [ ] **Step 2 bis (après accord) :** déployer la fonction Edge `qcm-ia` qui relaie `x-promo-id` (R44), après les
+  migrations (compatible avec l'ancienne base).
 - [ ] **Step 3 :** fusion dans `main` (`merge --no-ff --no-commit` puis `commit -F`), aucun écart hors jeton `?v=`,
   Timy pousse ; ordre : base d'abord, app ensuite.
 - [ ] **Step 4 (si Timy l'accepte) :** retirer l'ancienne fonction Edge `invite-user` (déploiement d'une version
