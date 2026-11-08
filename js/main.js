@@ -2,44 +2,54 @@
  * Promo ECSR : application propriétaire.
  * © 2026 watchi64. Tous droits réservés. Voir LICENSE.
  */
-import { getCurrentUser, invalidateCache, verifyRecoveryToken } from "./db.js?v=20261024d";
-import { toast } from "./utils.js?v=20261024d";
-import { icon } from "./icons.js?v=20261024d";
-import { initAuth, onAdminChange, isAuth, isAdmin, isProf, monStagiaireId, getAdminEmail, getProfile } from "./auth-admin.js?v=20261024d";
-import { showGate, hideGate } from "./gate.js?v=20261024d";
-import { exigerAcceptation } from "./legal.js?v=20261024d";
-import { lireJetonRecuperation } from "./gate-rules.js?v=20261024d";
-import { loadAccent } from "./accent-switcher.js?v=20261024d";
-import { loadTheme } from "./theme-switcher.js?v=20261024d";
-import { renderHome } from "./views/home.js?v=20261024d";
-import { renderDashboard } from "./views/dashboard.js?v=20261024d";
-import { renderMonSuivi } from "./views/mon-suivi.js?v=20261024d";
-import { renderPlanning, teardownPrintTarget, resetPlanningEditMode, requestPlanningToday } from "./views/planning.js?v=20261024d";
-import { teardownDocPrint } from "./doc-officiel.js?v=20261024d";
-import { renderNotes } from "./views/notes.js?v=20261024d";
-import { renderRessources } from "./views/ressources.js?v=20261024d";
-import { renderThemes } from "./views/themes.js?v=20261024d";
-import { renderConfig } from "./views/config.js?v=20261024d";
-import { renderCalendrier } from "./views/calendrier.js?v=20261024d";
-import { initUndoKeyboard } from "./undo.js?v=20261024d";
-import { renderNouveautes } from "./views/nouveautes.js?v=20261024d";
-import { libellePastille } from "./nouveautes.js?v=20261024d";
-import { renderCcp2 } from "./views/ccp2.js?v=20261024d";
-import { renderStagiaires } from "./views/stagiaires.js?v=20261024d";
-import { renderCentre, teardownCentrePrint } from "./views/centre.js?v=20261024d";
-import { renderEmargement } from "./views/emargement.js?v=20261024d";
-import { initBandeauEmargement, rafraichirBandeauEmargement } from "./emargement-bandeau.js?v=20261024d";
-import { chargerEmargementActif, emargementActif } from "./emargement-etat.js?v=20261024d";
-import { lireAdresse, pagePersonnelle } from "./route-rules.js?v=20261024d";
+// En premier : le journal des erreurs (signalement de problème) capte celles des modules qui suivent.
+import "./journal-erreurs.js?v=20261108a";
+import { getCurrentUser, invalidateCache, verifyRecoveryToken, rechargerApresEnregistrements } from "./db.js?v=20261108a";
+import { toast, el } from "./utils.js?v=20261108a";
+import { icon } from "./icons.js?v=20261108a";
+import { initAuth, onAdminChange, isAuth, monStagiaireId, getAdminEmail, getProfile, getProfileWho, fondateurHorsApercu } from "./auth-admin.js?v=20261108a";
+import { chargerEtatSignalements } from "./signalement-etat.js?v=20261108a";
+import { messageDemarrage } from "./signalement-rules.js?v=20261108a";
+import { showGate, hideGate } from "./gate.js?v=20261108a";
+import { exigerAcceptation } from "./legal.js?v=20261108a";
+import { lireJetonRecuperation } from "./gate-rules.js?v=20261108a";
+import { loadAccent } from "./accent-switcher.js?v=20261108a";
+import { loadTheme } from "./theme-switcher.js?v=20261108a";
+import { renderHome } from "./views/home.js?v=20261108a";
+import { renderDashboard } from "./views/dashboard.js?v=20261108a";
+import { renderMonSuivi } from "./views/mon-suivi.js?v=20261108a";
+import { renderPlanning, teardownPrintTarget, resetPlanningEditMode, requestPlanningToday } from "./views/planning.js?v=20261108a";
+import { renderPlanningEspace } from "./views/planning-espace.js?v=20261108a";
+import { teardownDocPrint } from "./doc-officiel.js?v=20261108a";
+import { renderNotes } from "./views/notes.js?v=20261108a";
+import { renderRessources } from "./views/ressources.js?v=20261108a";
+import { renderThemes } from "./views/themes.js?v=20261108a";
+import { renderConfig, renderPreferences } from "./views/config.js?v=20261108a";
+import { renderCalendrier } from "./views/calendrier.js?v=20261108a";
+import { initUndoKeyboard } from "./undo.js?v=20261108a";
+import { renderNouveautes } from "./views/nouveautes.js?v=20261108a";
+import { libellePastille } from "./nouveautes.js?v=20261108a";
+import { renderCcp2 } from "./views/ccp2.js?v=20261108a";
+import { renderStagiaires } from "./views/stagiaires.js?v=20261108a";
+import { renderCentre, teardownCentrePrint } from "./views/centre.js?v=20261108a";
+import { teardownQualiopiPrint } from "./qualiopi-impression.js?v=20261108a";
+import { renderEmargement } from "./views/emargement.js?v=20261108a";
+import { renderProblemes } from "./views/problemes.js?v=20261108a";
+import { initBandeauEmargement, rafraichirBandeauEmargement } from "./emargement-bandeau.js?v=20261108a";
+import { chargerEmargementActif, emargementActif } from "./emargement-etat.js?v=20261108a";
+import { chargerNavigationV2, navigationV2Active, navigationV2Attendue, renoncerNavigationV2 } from "./nav-etat.js?v=20261108a";
+import { routeVisibleV2, espaceDe, entreesNavigation, initialesDe, redirectionV2, redirectionAncienne } from "./nav-rules.js?v=20261108a";
+import { monterCoquille, majEntreeActive, coquilleMontee, retirerCoquille, majNouveautesCompte } from "./nav-shell.js?v=20261108a";
+import { lireAdresse, pagePersonnelle } from "./route-rules.js?v=20261108a";
 import {
   peutQuitter, leverGardeSortie, majSurPlacePour, oublierMajSurPlace,
   noterAdresse, adresseCourante, remplacerAdresse, installerGardeNavigateur,
-} from "./navigation.js?v=20261024d";
-import { initChatbot, appliquerModuleAssistant } from "./chatbot.js?v=20261024d";
+} from "./navigation.js?v=20261108a";
+import { initChatbot, appliquerModuleAssistant } from "./chatbot.js?v=20261108a";
 import {
   chargerModules, chargerModulesAuDemarrage, onModulesChange, surveillerPremierPlan,
-  routeVisible, routeMasquee, repereMasque, nouveautesAffichables,
-} from "./modules-etat.js?v=20261024d";
+  routeVisible, routeMasquee, repereMasque, nouveautesAffichables, formateurConnecte,
+} from "./modules-etat.js?v=20261108a";
 
 // ===== Tabs =====
 
@@ -61,7 +71,48 @@ const TABS = [
   { route: "config",     label: "Paramètres",      icon: "settings"  },
 ];
 
+// Espace de la personne connectée : « equipe » (formateur, admin) ou « stagiaire ». La coquille et la
+// redirection des anciennes adresses le lisent ici ; il vient du prédicat formateurConnecte()
+// (js/modules-etat.js), que lisent aussi les pages réservées de navigate() et le menu du compte :
+// aucun ne peut s'écarter des autres.
+function espaceCourant() {
+  return espaceDe({ formateur: formateurConnecte() });
+}
+
+// Barre de navigation. Nouvelle navigation : la coquille de l'espace (js/nav-shell.js), remontée à
+// chaque appel (rôle changé par « Voir en tant que », modules ouverts ou fermés) ; l'ancienne barre,
+// masquée, est vidée pour ne garder aucun onglet d'un rôle précédent. Interrupteur éteint : la barre
+// actuelle.
+// Repli (relecture finale, mineur 8) : si la coquille lève une exception, elle est retirée, la session
+// repasse à l'ancienne navigation (barre et pages) et l'erreur part en console ; rien ne remonte à
+// l'appelant, donc le démarrage continue (assistant, écouteurs, premier navigate(), qui rend l'ancienne
+// page). En cours de session, la page affichée garde sa forme jusqu'au rendu suivant.
 function renderTabs() {
+  if (navigationV2Active()) {
+    try {
+      document.getElementById("tabs").replaceChildren();
+      const espace = espaceCourant();
+      const nom = getProfileWho();
+      monterCoquille({
+        espace,
+        entrees: entreesNavigation(espace, { routeVisible, emargementActif: emargementActif() }),
+        nom,
+        initiales: initialesDe(nom),
+        actualiser,
+      });
+      marquerOngletActif();
+      return;
+    } catch (e) {
+      console.error("Navigation : la nouvelle barre n'a pas pu se monter, retour à la barre actuelle pour la session.", e);
+      retirerCoquille();
+      renoncerNavigationV2();
+    }
+  }
+  renderBarreActuelle();
+}
+
+// Barre actuelle (interrupteur éteint).
+function renderBarreActuelle() {
   const nav = document.getElementById("tabs");
   nav.innerHTML = "";
   TABS.filter((t) => (!t.visible || t.visible()) && routeVisible(t.route)).forEach((t) => {
@@ -82,8 +133,18 @@ function renderTabs() {
   marquerOngletActif();
 }
 
-// Allume l'onglet de la route affichée (ou celui qui l'héberge, voir ONGLET_POUR_ROUTE).
+// Allume l'entrée de la page affichée : dans la coquille quand elle est montée, sinon dans la
+// barre actuelle.
 function marquerOngletActif() {
+  if (coquilleMontee()) {
+    majEntreeActive(lastRoute);
+    return;
+  }
+  marquerOngletActuel();
+}
+
+// Allume l'onglet de la route affichée (ou celui qui l'héberge, voir ONGLET_POUR_ROUTE).
+function marquerOngletActuel() {
   const ongletActif = ONGLET_POUR_ROUTE[lastRoute] || lastRoute;
   document.querySelectorAll(".tab").forEach((t) => {
     const active = t.dataset.route === ongletActif;
@@ -96,7 +157,13 @@ function marquerOngletActif() {
 // Pastille de nouveautés sur l'onglet Accueil. Elle se modifie sur place, sur
 // l'onglet existant : renderTabs() reconstruit la barre sans elle, donc cette
 // fonction se rappelle après chaque renderTabs().
+// Nouvelle navigation : un point sans chiffre, sur les boutons du compte de la coquille (js/nav-shell.js) ;
+// le nombre est sur la ligne « Nouveautés » du menu du compte (js/menu-compte.js).
 function majBadgeNouveautes() {
+  if (coquilleMontee()) {
+    majNouveautesCompte(libellePastille(nouveautesAffichables().neuves.size));
+    return;
+  }
   const tab = document.querySelector('.tab[data-route="home"]');
   if (!tab) return;
   // Nouveautés écrites et annonces d'ouverture de module, pas encore lues.
@@ -117,30 +184,73 @@ function majBadgeNouveautes() {
 
 // ===== Router =====
 
+// Page Qualiopi, chargée à la demande. Le fondateur seul l'ouvre (garde de navigate) : ni la page ni ses modules de calcul (plus
+// de 100 Ko) ne partent avec l'app, et une erreur dans l'un d'eux ne peut pas casser le démarrage de tous les comptes. Seul
+// js/qualiopi-impression.js, tout petit, est chargé d'avance : navigate() en appelle le nettoyage à chaque page.
+// Un import() qui échoue reste en échec pour la même adresse tant que la page n'est pas rechargée (js/cours-blocs.js), et c'est
+// vrai de chacun des modules de la page, qu'une reprise sous une autre adresse ne redemande pas : « Réessayer » n'y changerait
+// rien. La boîte d'erreur propose donc de recharger, ce qui suffit pour une page du fondateur.
+function boiteErreurQualiopi() {
+  return el("div", { class: "centre-erreur qualiopi-erreur", role: "alert" },
+    el("p", {}, "La page Qualiopi n'a pas pu se charger. Vérifie ta connexion, puis recharge la page."),
+    el("button", { class: "btn small", type: "button", onClick: () => rechargerApresEnregistrements() }, "Recharger la page"));
+}
+
+async function rendreQualiopi(view) {
+  afficherChargement();
+  let page;
+  try {
+    page = await import("./views/qualiopi.js?v=20261108a");
+  } catch (e) {
+    console.error(e);
+    if (lastRoute === "qualiopi") view.replaceChildren(boiteErreurQualiopi());
+    return;
+  }
+  // La page a pu être quittée pendant le chargement du module : elle n'écrit pas par-dessus celle qui est affichée.
+  if (lastRoute === "qualiopi") await page.renderQualiopi(view);
+}
+
 const routes = {
   home:       renderHome,
   dashboard:  renderDashboard,
   "mon-suivi": renderMonSuivi,
-  planning:   renderPlanning,
+  // Nouvelle navigation : Planning regroupe Semaine, Dates clés et Priorités en sous-onglets, et
+  // la Semaine porte le bouton « Aujourd'hui » de l'ancienne barre (ruling R29), au même geste.
+  // Décidé au rendu (la décision est connue au démarrage, après la construction de la table).
+  planning:   (view) => (navigationV2Active()
+    ? renderPlanningEspace(view, { aujourdhui: allerAujourdhui })
+    : renderPlanning(view)),
   calendrier: renderCalendrier,
   themes:     renderThemes,
   notes:      renderNotes,
   ccp2:       renderCcp2,
   stagiaires: renderStagiaires,
   centre:     renderCentre,
+  qualiopi:   rendreQualiopi,   // chargée à la demande, voir plus haut
   emargement: renderEmargement,
   ressources: renderRessources,
   config:     renderConfig,
+  // Nouvelle navigation seulement : « Mes préférences », ouverte par le menu du compte. Avec l'ancienne,
+  // l'adresse mène à Paramètres avant d'arriver ici (suivreRedirection).
+  preferences: renderPreferences,
   nouveautes: renderNouveautes,
+  problemes:  renderProblemes,
 };
 
 // Routes sans onglet propre qui doivent quand même allumer un onglet. On arrive
 // sur #/nouveautes depuis Accueil, et sur #/dashboard (Priorités) depuis le
 // Planning : laisser la barre sans onglet actif donnerait l'impression d'être
-// sorti de l'app.
-const ONGLET_POUR_ROUTE = { nouveautes: "home", dashboard: "planning", centre: "home", emargement: "planning" };
+// sorti de l'app. Qualiopi (page du fondateur, sans entrée de barre) s'appuie sur Accueil comme le tableau de bord du centre.
+const ONGLET_POUR_ROUTE = { nouveautes: "home", dashboard: "planning", centre: "home", qualiopi: "home", emargement: "planning", problemes: "config" };
 
 let lastRoute = null;
+
+// Une page est-elle une destination pour la personne connectée ? Sous la nouvelle navigation,
+// une page à sous-onglets l'est dès que l'un d'eux l'est (Cours avec ses seuls Documents tant
+// que les cours sont fermés, voir routeVisibleV2) ; avec l'ancienne, la règle de toujours.
+function routeOuverte(route) {
+  return navigationV2Active() ? routeVisibleV2(route, routeVisible) : routeVisible(route);
+}
 
 // Derniere page visitee, pour y revenir au prochain demarrage. Le sous-onglet,
 // lui, se souvient deja tout seul (voir storageKey dans js/subtabs.js) : rendre
@@ -158,10 +268,37 @@ function derniereRoute() {
     const r = localStorage.getItem(CLE_DERNIERE_ROUTE);
     // Une page dont le module est fermé pour la promo n'est pas une destination :
     // repli silencieux, la dernière page n'est qu'une commodité.
-    return r && routes[r] && routeVisible(r) ? r : null;
+    return r && routes[r] && routeOuverte(r) ? r : null;
   } catch (e) {
     return null;
   }
+}
+
+// Nouvelle navigation : une ancienne adresse cède la place à sa nouvelle adresse avant que
+// navigate() n'en lise la route. Y arrive toute adresse que navigate() lit : la navigation dans
+// l'app (liens, lien d'une nouveauté) ; une adresse saisie, ou un favori ouvert, dans l'onglet où
+// l'app est déjà ouverte (`hashchange`) ; un rechargement et « Précédent » ou « Suivant », qui
+// gardent l'adresse (voir isColdStart) ; à l'ouverture à froid, la dernière page mémorisée
+// (`derniere-route`), car l'app ignore alors l'adresse demandée (favori, raccourci d'écran
+// d'accueil : voir bootApp). Appelée APRÈS la garde de saisie : un refus n'écrit rien. Le
+// sous-onglet visé s'écrit d'abord dans la mémoire de renderSubTabs, que la page lit à son rendu ;
+// un sous-onglet fermé pour la promo n'y change rien, renderSubTabs ouvre alors le premier
+// sous-onglet visible de la page.
+// replaceState ne déclenche aucun `hashchange` et n'ajoute aucune étape d'historique : un seul
+// rendu, et « Précédent » quitte la page redirigée. Une seule redirection par appel : aucune cible
+// n'est elle-même une ancienne adresse (tests/nav-rules.test.mjs).
+// Deux adresses ont leur redirection dans chaque navigation (lot 2A) : sous la nouvelle, un stagiaire
+// qui ouvre Réglages (#/config) arrive sur Mes préférences (#/preferences) ; sous l'ancienne, qui n'a
+// pas Mes préférences, #/preferences mène à Paramètres (#/config). Rien d'autre ne bouge sous
+// l'ancienne : l'interrupteur éteint garde les adresses de main.
+function suivreRedirection() {
+  const adresse = lireAdresse(location.hash);
+  const cible = navigationV2Active() ? redirectionV2(adresse, espaceCourant()) : redirectionAncienne(adresse);
+  if (!cible) return;
+  if (cible.sousOnglet) {
+    try { localStorage.setItem(cible.sousOnglet.cle, cible.sousOnglet.valeur); } catch (e) { /* mode privé */ }
+  }
+  try { history.replaceState(null, "", cible.hash); } catch (e) { /* ignore */ }
 }
 
 async function navigate({ force = false } = {}) {
@@ -169,6 +306,10 @@ async function navigate({ force = false } = {}) {
   // abandonnée sans accord. Refus : l'adresse affichée est remise, sans rendu.
   if (!peutQuitter()) { remplacerAdresse(adresseCourante()); return; }
   leverGardeSortie();
+  // Nouvelle navigation : les quatre anciennes adresses mènent à leur nouvel emplacement, et Réglages
+  // du stagiaire à Mes préférences. Après la garde, donc suivre une redirection demande la même
+  // confirmation que n'importe quel départ.
+  suivreRedirection();
   // Adresses à segments (#/stagiaires/12/epcf) : le premier choisit la page, la
   // page lit le reste. Page de repli : « Mon suivi », où chacun retrouve ce qui
   // l'attend, son planning à venir et ses résultats.
@@ -176,14 +317,20 @@ async function navigate({ force = false } = {}) {
   if (!routes[route]) route = "mon-suivi";
   // Module fermé pour la promo (lien, adresse saisie, nouveauté ancienne) : un
   // stagiaire est ramené sur Mon suivi, avec un mot d'explication.
-  if (!routeVisible(route)) {
+  if (!routeOuverte(route)) {
     toast("Cette partie n'est pas encore ouverte pour ta promo.", "info", 3500);
+    try { history.replaceState(null, "", "#/mon-suivi"); } catch (e) { /* ignore */ }
+    route = "mon-suivi";
+  }
+  // Problèmes signalés (spec 2026-10-28) : le fondateur seulement, hors aperçu « Voir en tant que ».
+  // Les autres retombent sur leur page habituelle (la garde de la page à soi suit).
+  if (route === "problemes" && !fondateurHorsApercu()) {
     try { history.replaceState(null, "", "#/mon-suivi"); } catch (e) { /* ignore */ }
     route = "mon-suivi";
   }
   // Page « à soi » (chantier D, lot 2) : un formateur sans profil stagiaire n'a pas
   // de Mon espace, il a la page Stagiaires ; un stagiaire n'a pas la page Stagiaires.
-  const formateur = isAdmin() || isProf();
+  const formateur = formateurConnecte();
   if (route === "mon-suivi" && pagePersonnelle({ formateur, stagiaireId: monStagiaireId() }) === "stagiaires") {
     try { history.replaceState(null, "", "#/stagiaires"); } catch (e) { /* ignore */ }
     route = "stagiaires";
@@ -195,6 +342,11 @@ async function navigate({ force = false } = {}) {
   } else if (route === "emargement" && !emargementActif()) {
     // Interrupteur éteint pour la promo (réglage du fondateur dans Paramètres).
     toast("L'émargement n'est pas activé pour cette promo.", "info", 3500);
+    try { history.replaceState(null, "", "#/home"); } catch (e) { /* ignore */ }
+    route = "home";
+  } else if (route === "qualiopi" && !fondateurHorsApercu()) {
+    // Page Qualiopi (spec 2026-10-28, § 6.3) : le fondateur seul, avant la refonte du lot 5. Aucune entrée de barre ne la
+    // montre aux autres ; une adresse saisie ou un favori les ramène à l'accueil, sans un mot.
     try { history.replaceState(null, "", "#/home"); } catch (e) { /* ignore */ }
     route = "home";
   }
@@ -228,6 +380,8 @@ async function navigate({ force = false } = {}) {
   teardownDocPrint();
   // Et pour le tableau de bord du centre (format A4 portrait injecté le temps d'imprimer).
   teardownCentrePrint();
+  // Et pour la page Qualiopi (dossier imprimable, format de page et titre du document, le temps d'imprimer).
+  teardownQualiopiPrint();
   try {
     await routes[route](view);
   } catch (e) {
@@ -268,35 +422,45 @@ function afficherChargement() {
   document.getElementById("view").replaceChildren(chargement);
 }
 
+// « Actualiser » : relit les données et rejoue la page. Bouton de l'ancienne barre, et ligne du menu
+// du compte sous la nouvelle navigation (le seul moyen de relire les données dans l'app installée
+// sur iPhone, qui n'a pas de bouton de rechargement).
+async function actualiser() {
+  // Saisie en cours : pas de rechargement sans accord.
+  if (!peutQuitter()) return;
+  // Force le rechargement réel : vide le cache des données de référence
+  invalidateCache();
+  afficherChargement();
+  // Un formateur a pu ouvrir un module depuis le dernier chargement.
+  await chargerModules();
+  chargerEtatSignalements();
+  navigate({ force: true });
+}
+
 function setupRefreshBtn() {
   const btn = document.getElementById("refresh-btn");
   btn.innerHTML = "";
   btn.appendChild(icon.refresh());
-  btn.addEventListener("click", async () => {
-    // Saisie en cours : pas de rechargement sans accord.
-    if (!peutQuitter()) return;
-    // Force le rechargement réel : vide le cache des données de référence
-    invalidateCache();
-    afficherChargement();
-    // Un formateur a pu ouvrir un module depuis le dernier chargement.
-    await chargerModules();
-    navigate({ force: true });
-  });
+  btn.addEventListener("click", actualiser);
 }
 
 // Raccourci « Aujourd'hui » : ouvre le planning sur la journée du jour, depuis n'importe
 // quelle vue. Déjà sur le planning, le hash ne change pas → aucun `hashchange` : on
 // re-rend à la main, sinon le bouton serait inerte pile là où on s'en sert le plus.
+// Bouton de l'ancienne barre ; sous la nouvelle navigation, bouton du haut de Planning > Semaine
+// (ruling R29, js/views/planning.js), toujours ce geste-ci.
+async function allerAujourdhui() {
+  if (!peutQuitter()) return;
+  requestPlanningToday();
+  if (location.hash === "#/planning") await navigate({ force: true });
+  else location.hash = "#/planning";
+}
+
 function setupTodayBtn() {
   const btn = document.getElementById("today-btn");
   btn.innerHTML = "";
   btn.appendChild(icon.today());
-  btn.addEventListener("click", async () => {
-    if (!peutQuitter()) return;
-    requestPlanningToday();
-    if (location.hash === "#/planning") await navigate({ force: true });
-    else location.hash = "#/planning";
-  });
+  btn.addEventListener("click", allerAujourdhui);
 }
 
 // Le raccourci « Aujourd'hui » mène au planning : il suit donc le module Planning.
@@ -310,6 +474,23 @@ function majBoutonAujourdhui() {
 function majPresenceModules() {
   majBoutonAujourdhui();
   appliquerModuleAssistant();
+}
+
+// Hauteur réelle de l'ancienne barre (52 px d'ordinaire, 57 avec la pastille de promo, 95,5 sur
+// téléphone), publiée dans --haut-entete sur <html> : la barre des jours du planning se colle juste
+// dessous au lieu de passer en partie sous elle, et le saut vers un jour s'arrête sous les deux barres.
+// Suivie : pastille qui apparaît, texte qui passe à la ligne, largeur qui change. Sous la nouvelle
+// navigation, la coquille pose sa propre valeur sur body (css/navigation.css) : rien n'est publié ici.
+function suivreHauteurBarre() {
+  const barre = document.querySelector("header.topbar");
+  if (!barre || typeof ResizeObserver !== "function") return;
+  const publier = () => {
+    const haut = barre.getBoundingClientRect().height;
+    if (!navigationV2Active() && haut > 0) document.documentElement.style.setProperty("--haut-entete", haut + "px");
+    else document.documentElement.style.removeProperty("--haut-entete");
+  };
+  new ResizeObserver(publier).observe(barre);
+  publier();
 }
 
 // « Ouvrir l'app » = démarrage à froid. Un raccourci d'écran d'accueil, un favori ou un
@@ -327,27 +508,50 @@ function isColdStart() {
 }
 
 async function bootApp() {
-  hideGate();
-  // L'état des modules décide des onglets visibles : il est lu avant de dessiner la barre.
-  // La lecture est bornée (chargerModulesAuDemarrage : copie de l'appareil au-delà de
-  // 3,5 s, la vraie réponse redessine la barre à son arrivée) et la vue dit « Chargement ».
-  afficherChargement();
-  // Conditions d'utilisation : rien ne s'ouvre tant que la version en vigueur n'est pas
-  // acceptée (fenêtre bloquante ; laisse passer si la lecture échoue). Pas pour les
-  // formateurs (décision du 13/10) : le texte s'adresse aux stagiaires, et un formateur
-  // salarié du centre n'a pas à accepter en son nom les conditions de l'éditeur ; ce sera
-  // couvert par le contrat avec le centre. Vrai rôle, pas l'aperçu « Voir en tant que ».
-  if (getProfile()?.role !== "prof") await exigerAcceptation(getAdminEmail());
-  // Interrupteur de l'émargement (propre à la promo) lu en même temps que les modules.
-  await Promise.all([chargerModulesAuDemarrage(), chargerEmargementActif()]);
-  renderTabs();
+  // Ruling R17 : quand la coquille est attendue (la promo l'avait la dernière fois sur cet appareil, ou
+  // l'aperçu du fondateur), l'ancienne barre attend la décision sans se peindre (css/navigation.css) ;
+  // posé avant que l'app ne s'affiche, levé dès la première barre dessinée, quelle qu'elle soit.
+  if (navigationV2Attendue()) document.body.dataset.navAttente = "";
+  try {
+    hideGate();
+    // L'état des modules décide des onglets visibles : il est lu avant de dessiner la barre.
+    // La lecture est bornée (chargerModulesAuDemarrage : copie de l'appareil au-delà de
+    // 3,5 s, la vraie réponse redessine la barre à son arrivée) et la vue dit « Chargement ».
+    afficherChargement();
+    // Conditions d'utilisation : rien ne s'ouvre tant que la version en vigueur n'est pas
+    // acceptée (fenêtre bloquante ; laisse passer si la lecture échoue). Pas pour les
+    // formateurs (décision du 13/10) : le texte s'adresse aux stagiaires, et un formateur
+    // salarié du centre n'a pas à accepter en son nom les conditions de l'éditeur ; ce sera
+    // couvert par le contrat avec le centre. Vrai rôle, pas l'aperçu « Voir en tant que ».
+    if (getProfile()?.role !== "prof") await exigerAcceptation(getAdminEmail());
+    // Interrupteurs de l'émargement et de la nouvelle navigation (propres à la promo) lus en même
+    // temps que les modules. La navigation est décidée ici, une fois pour la session, avant le
+    // premier rendu (aperçu du fondateur compris).
+    await Promise.all([chargerModulesAuDemarrage(), chargerEmargementActif(), chargerNavigationV2()]);
+    renderTabs();
+  } finally {
+    // La barre de la session est posée (coquille, ou ancienne barre si la décision est « éteint ») : plus
+    // rien n'attend. Si quoi que ce soit échoue en chemin, l'ancienne barre revient aussi : jamais une
+    // page sans barre.
+    delete document.body.dataset.navAttente;
+  }
   majBadgeNouveautes();
   setupRefreshBtn();
   setupTodayBtn();
+  suivreHauteurBarre();
   initChatbot();
   majPresenceModules();
+  // Signaler un problème : compteurs des pastilles, et un mot à l'ouverture quand un signalement a avancé
+  // (ou, chez le fondateur, quand il y en a de nouveaux).
+  chargerEtatSignalements().then((etat) => {
+    const phrase = messageDemarrage({ fondateur: fondateurHorsApercu(), ...etat });
+    if (phrase) setTimeout(() => toast(phrase, "info", 6000), 1500);
+  });
   // Le changement de rôle change l'audience, donc le compte, et ce qu'on voit des modules.
-  onAdminChange(() => { renderTabs(); majBadgeNouveautes(); majPresenceModules(); navigate({ force: true }); rafraichirBandeauEmargement(); });
+  onAdminChange(() => {
+    renderTabs(); majBadgeNouveautes(); majPresenceModules(); navigate({ force: true }); rafraichirBandeauEmargement();
+    chargerEtatSignalements();
+  });
   // Un module ouvert ou fermé (réglage d'un formateur, relecture au premier plan) :
   // barre, pastille et raccourcis suivent. La vue n'est rejouée que si elle vient
   // d'être fermée, pour ne pas détruire une saisie en cours.
@@ -355,7 +559,7 @@ async function bootApp() {
     renderTabs();
     majBadgeNouveautes();
     majPresenceModules();
-    if (lastRoute && !routeVisible(lastRoute)) navigate({ force: true });
+    if (lastRoute && !routeOuverte(lastRoute)) navigate({ force: true });
   });
   surveillerPremierPlan();
   // Émis par la page et par la section d'Accueil après marquage.

@@ -41,21 +41,23 @@
 
   --text:       #1F2924;
   --text-soft:  #46554A;
-  --text-muted: #6E7A6F;
+  --text-muted: #5D695E;   /* 4,8:1 sur --bg-soft ; était #6E7A6F (4,05:1, sous le seuil AA) */
   --text-faint: #9DA89A;
 
   /* --- Accent (vert mint) --- */
-  --accent:        #6B7F4E;
-  --accent-strong: #556641;
+  --accent:        #5B6C42;   /* même vert assombri : 5,2:1 en texte, 5,1:1 sous du texte crème ; était #6B7F4E */
+  --accent-strong: #495838;
   --accent-soft:   #EAEFD9;
   --accent-soft-2: #D8E1C0;
+  /* Vert clair pour les repères posés sur le fond sombre (barre du haut, pastille de date). */
+  --accent-on-dark: #A9BC86;
 
   /* --- Statuts traffic-light --- */
-  --c-stop:      #A05A3D;
+  --c-stop:      #964F33;
   --c-stop-soft: #F6E4D7;
-  --c-wait:      #B45309;
+  --c-wait:      #A54C08;
   --c-wait-soft: #FBEACB;
-  --c-go:        #4D7C0F;
+  --c-go:        #47730E;
   --c-go-soft:   #ECF6D5;
 
   /* --- Tints d'activités (chaudes) --- */
@@ -84,6 +86,14 @@
   --font-display: "Canela", "Cormorant Garamond", "Playfair Display", Georgia, serif;
   --font:         "Outfit", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, sans-serif;
   --font-mono:    "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  /* --- Barre collante du haut --- */
+  /* Sa hauteur : la barre de jours du Planning se colle juste dessous. 52 px pour la barre actuelle
+     (95,5 px sous 760 px, voir « Barre du haut sur deux lignes »), valeurs de départ que js/main.js
+     remplace par la hauteur mesurée de la barre (57 px avec la pastille de promo) ; la nouvelle
+     navigation pose celle de son en-tête (css/navigation.css). En px seulement : js/views/planning.js
+     la lit par parseFloat. */
+  --haut-entete: 52px;
 }
 
 
@@ -127,7 +137,7 @@ a { color: inherit; text-decoration: none; }
 .hidden { display: none !important; }
 
 .muted { color: var(--text-muted); }
-.faint { color: var(--text-faint); }
+.faint { color: var(--text-muted); }
 .eyebrow {
   display: inline-flex;
   align-items: center;
@@ -407,7 +417,7 @@ a { color: inherit; text-decoration: none; }
   color: #F5E8D0;
   background: rgba(245, 232, 208, 0.12);
 }
-.tab.active .icon { color: var(--accent); }
+.tab.active .icon { color: var(--accent-on-dark); }
 
 /* ============================================================
    Main view
@@ -1173,7 +1183,7 @@ h3 {
 }
 .p-prof-display:hover { background: rgba(255,255,255,0.5); border-color: var(--line); }
 .p-prof-display.open { background: var(--bg-elev); border-color: var(--accent); }
-.p-prof-placeholder { color: var(--text-faint); font-size: 0.82rem; }
+.p-prof-placeholder { color: var(--text-muted); font-size: 0.82rem; }
 .p-prof-chip {
   display: inline-flex;
   align-items: center;
@@ -1227,7 +1237,7 @@ h3 {
 .p-prof-autre-tag-x {
   cursor: pointer; width: 15px; height: 15px; line-height: 1;
   display: inline-flex; align-items: center; justify-content: center;
-  border-radius: 50%; color: var(--text-faint); font-size: 0.9em;
+  border-radius: 50%; color: var(--text-muted); font-size: 0.9em;
 }
 .p-prof-autre-tag-x:hover { background: var(--c-wait, #b45309); color: #fff; }
 .p-prof-dropdown {
@@ -1335,7 +1345,7 @@ h3 {
   font-size: 0.68rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--text-faint);
+  color: var(--text-muted);
   font-weight: 600;
   min-width: 72px;
 }
@@ -1426,7 +1436,7 @@ h3 {
 .home-today-num {
   font-size: 1.4rem;
   font-weight: 800;
-  color: var(--accent);
+  color: var(--accent-on-dark);
   letter-spacing: -0.02em;
 }
 .home-today-month {
@@ -1477,6 +1487,12 @@ h3 {
   font-size: 0.78rem;
   font-family: var(--font-mono);
 }
+/* Un événement déjà commencé : « En cours, fin dans 9 jours » sous ses dates. */
+.home-countdown-statut {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--accent-strong);
+}
 .home-countdown-pill {
   display: flex;
   flex-direction: column;
@@ -1508,6 +1524,9 @@ h3 {
 .home-countdown-pill.soon   .home-countdown-num { color: var(--c-wait); }
 .home-countdown-pill.later  { background: var(--c-go-soft); }
 .home-countdown-pill.later  .home-countdown-num { color: var(--c-go); }
+/* Un événement déjà commencé : « En cours », sans nombre ni habillage de compte à rebours. */
+.home-countdown-pill.en-cours { background: var(--accent-soft); }
+.home-countdown-pill.en-cours .home-countdown-unit { margin-top: 0; font-size: 0.85rem; font-weight: 700; letter-spacing: 0; color: var(--accent-strong); }
 
 /* Compteur J-N à côté de chaque event */
 .home-event-countdown {
@@ -2028,7 +2047,7 @@ h3 {
   border-radius: var(--r-sm);
 }
 .p-lane-notes-input::placeholder {
-  color: var(--text-faint);
+  color: var(--text-muted);
   font-style: italic;
 }
 .p-lane-notes-input:hover {
@@ -2085,7 +2104,7 @@ h3 {
 .p-lane-delete {
   border: none;
   background: transparent;
-  color: var(--text-faint);
+  color: var(--text-muted);
   cursor: pointer;
   padding: 0 0.4rem;
   display: flex;
@@ -2107,7 +2126,7 @@ h3 {
   padding: 0 0.3rem;
   border: none;
   background: transparent;
-  color: var(--text-faint);
+  color: var(--text-muted);
   cursor: grab;
   touch-action: none;        /* glisser depuis la poignée ne déclenche pas le scroll */
   transition: color 0.15s;
@@ -2175,7 +2194,7 @@ body.p-dragging-active {
   background: transparent;
   border: 1.5px dashed var(--line);
   border-radius: var(--r-sm);
-  color: var(--text-faint);
+  color: var(--text-muted);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -2302,7 +2321,7 @@ body.p-dragging-active {
   padding: 0.15rem 0 !important;
   box-shadow: none !important;
 }
-.sujet-chip-input::placeholder { color: var(--text-faint); }
+.sujet-chip-input::placeholder { color: var(--text-muted); }
 
 .sujet-ac-dropdown {
   position: absolute;
@@ -2638,7 +2657,7 @@ body.p-dragging-active {
   font-size: 0.72rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: var(--text-faint);
+  color: var(--text-muted);
   font-weight: 600;
 }
 .invite-row select,
@@ -2715,7 +2734,7 @@ body.p-dragging-active {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: var(--text-faint);
+  color: var(--text-muted);
   padding: 2px 6px;
   background: var(--bg-subtle);
   border-radius: 999px;
@@ -2816,7 +2835,7 @@ body.p-dragging-active {
   font-size: 0.72rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: var(--text-faint);
+  color: var(--text-muted);
   font-weight: 600;
 }
 .dash-sort,
@@ -2882,7 +2901,7 @@ button.theme-date.editable {
   transition: background 0.12s, border-color 0.12s;
 }
 button.theme-date.editable:hover { background: var(--bg-subtle); border-color: var(--line); }
-button.theme-date.editable.muted { color: var(--text-faint); }
+button.theme-date.editable.muted { color: var(--text-muted); }
 
 /* === Mobile : restructure des lignes thème === */
 @media (max-width: 720px) {
@@ -3025,7 +3044,7 @@ button.theme-date.editable.muted { color: var(--text-faint); }
 .chip .x:hover { background: var(--text); color: white; }
 
 .chips-placeholder {
-  color: var(--text-faint);
+  color: var(--text-muted);
   padding: 2px 4px;
   font-size: 0.85rem;
 }
@@ -3091,7 +3110,7 @@ button.theme-date.editable.muted { color: var(--text-faint); }
   font-weight: 700;
   letter-spacing: 0.03em;
   text-transform: uppercase;
-  color: var(--text-faint);
+  color: var(--text-muted);
   padding: 0.25rem 0.5rem 0.35rem;
   border-bottom: 1px solid var(--line);
   margin-bottom: 0.2rem;
@@ -3105,7 +3124,7 @@ button.theme-date.editable.muted { color: var(--text-faint); }
   flex-shrink: 0;
   font-family: var(--font-mono);
   font-size: 0.72rem;
-  color: var(--text-faint);
+  color: var(--text-muted);
   background: var(--bg-subtle);
   border-radius: 999px;
   min-width: 20px;
@@ -3136,7 +3155,7 @@ button.theme-date.editable.muted { color: var(--text-faint); }
 }
 .person-display.open { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(4, 120, 87, 0.12); }
 .person-value { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.person-placeholder { color: var(--text-faint); font-weight: 500; }
+.person-placeholder { color: var(--text-muted); font-weight: 500; }
 .person-item {
   padding: 0.5rem 0.7rem;
   cursor: pointer;
@@ -3150,7 +3169,7 @@ button.theme-date.editable.muted { color: var(--text-faint); }
 .person-item:hover { background: var(--bg-subtle); }
 .person-item.selected { background: var(--accent-soft); color: var(--accent-strong); font-weight: 500; }
 .person-item-name { flex: 1; min-width: 0; }
-.person-none { color: var(--text-faint); }
+.person-none { color: var(--text-muted); }
 .read-only .person-display { background: transparent; cursor: default; background-image: none; }
 .read-only .person-display { pointer-events: none; }
 
@@ -4345,8 +4364,8 @@ button.theme-date.editable.muted { color: var(--text-faint); }
   font-family: var(--font);
 }
 .notes-chart-sub { margin: 0 0 1rem; font-size: 0.82rem; }
-.notes-chart-svg-wrap { overflow-x: auto; padding-top: 0.5rem; }
-.notes-chart-svg { width: 100%; min-width: 540px; height: auto; display: block; }
+.notes-chart-svg-wrap { padding-top: 0.5rem; }
+.notes-chart-svg { width: 100%; height: auto; display: block; }   /* à la largeur de son conteneur (viewBox) : jamais de défilement de côté */
 
 /* Tabs de graphiques */
 .chart-tabs {
@@ -4447,6 +4466,10 @@ button.theme-date.editable.muted { color: var(--text-faint); }
 .theme-stat-card.warn  { background: #FBE5C1; }
 .theme-stat-card.ok    { background: #DBE9C4; }
 .theme-stat-card.great { background: #BFE0A6; }
+.theme-stat-card.bad   strong { color: #7A4F30; }
+.theme-stat-card.warn  strong { color: #92400E; }
+.theme-stat-card.ok    strong { color: #3F6212; }
+.theme-stat-card.great strong { color: #2C5212; }
 
 .theme-stat-num {
   font-family: var(--font-mono);
@@ -4573,7 +4596,7 @@ button.theme-date.editable.muted { color: var(--text-faint); }
   font-size: 0.9rem;
   transition: transform 0.12s;
 }
-.sd-note.empty { background: var(--bg-subtle); color: var(--text-faint); font-weight: 400; }
+.sd-note.empty { background: var(--bg-subtle); color: var(--text-muted); font-weight: 400; }
 .sd-note.bad    { background: var(--c-stop-soft); color: var(--c-stop); }
 .sd-note.warn   { background: var(--c-wait-soft); color: var(--c-wait); }
 .sd-note.ok     { background: var(--act-cours); color: #1E40AF; }
@@ -4768,7 +4791,7 @@ button.theme-date.editable.muted { color: var(--text-faint); }
   font-family: var(--font-mono);
   font-size: 0.72rem;
   margin-top: 0.3rem;
-  color: var(--text-faint);
+  color: var(--text-muted);
 }
 
 .ressource-actions {
@@ -5235,6 +5258,9 @@ button.theme-date.editable.muted { color: var(--text-faint); }
    ============================================================ */
 
 .toast {
+  /* Rien de cliquable dans le message : il laisse passer les touchers. Sinon, sur téléphone, le message du
+     démarrage recouvrait pendant 6 s la ligne « Signaler un problème » qu'il désigne. */
+  pointer-events: none;
   position: fixed;
   bottom: 1.5rem;
   left: 50%;
@@ -5633,16 +5659,15 @@ button.theme-date.editable.muted { color: var(--text-faint); }
 
   .passages-table { font-size: 0.82rem; }
   .passages-table th, .passages-table td { padding: 0.5rem 0.6rem; }
-  .passages-table-wrap { overflow-x: auto; }
 
   .view-header { flex-direction: column; align-items: flex-start; }
   h2 { font-size: 1.4rem; }
 
   .dashboard-meta {
-    overflow-x: auto;
+    flex-wrap: wrap;
+    gap: 0.9rem 1.5rem;
     padding-bottom: 1rem;
   }
-  .dashboard-meta .stat-block { flex-shrink: 0; }
 }
 
 /* ============================================================
@@ -6062,8 +6087,10 @@ body.qcm-open { overflow: hidden; }
 .ms-passage-badge.today, .ms-passage-badge.next { color: var(--accent-strong); font-weight: 600; }
 
 .ms-chart-outer { position: relative; }
-.ms-chart-wrap { width: 100%; overflow-x: auto; }
-.ms-chart { display: block; height: auto; max-width: none; }   /* largeur en px via attribut → scroll si large */
+/* La sonde : un bloc sans hauteur de la largeur du graphe, que le ResizeObserver de js/views/mon-suivi.js observe pour dessiner le graphe à la largeur de son conteneur. */
+.ms-chart-sonde { height: 0; }
+.ms-chart-wrap { width: 100%; }
+.ms-chart { display: block; width: 100%; max-width: 760px; height: auto; }   /* à la largeur de son conteneur (viewBox) : jamais de défilement de côté */
 .ms-month-band { fill: var(--bg-subtle); opacity: 0.55; }
 .ms-grid { stroke: var(--line); stroke-width: 1; }
 .ms-axis-label { fill: var(--text-muted); font-size: 12px; }
@@ -6073,10 +6100,12 @@ body.qcm-open { overflow: hidden; }
    reçoit survol et tap, indispensable pour viser au doigt sur mobile. */
 .ms-pt { stroke: var(--bg-elev); stroke-width: 1.5; pointer-events: none; }
 .ms-pt-hit { fill: transparent; stroke: none; cursor: pointer; }
-.ms-pt.bad   { fill: var(--c-stop); }
-.ms-pt.warn  { fill: #C98A2B; }
-.ms-pt.ok    { fill: #7BA23C; }
-.ms-pt.great { fill: var(--c-go); }
+/* L'échelle douce des notes (pêche, abricot, verts), partagée par les points de Mon évolution et les barres des
+   graphes de Notes : jamais un rouge. */
+.ms-pt.bad,   .notes-bar.bad   { fill: var(--c-stop); }
+.ms-pt.warn,  .notes-bar.warn  { fill: #C98A2B; }
+.ms-pt.ok,    .notes-bar.ok    { fill: #7BA23C; }
+.ms-pt.great, .notes-bar.great { fill: var(--c-go); }
 .ms-pt.hover { stroke: var(--text); stroke-width: 2.5; }
 .ms-chart-legend { margin: 0.5rem 0 0; font-size: 0.85rem; }
 
@@ -6199,7 +6228,7 @@ body.qcm-open { overflow: hidden; }
 .epcf-eval-select { padding: 0.4rem 0.6rem; border: 1px solid var(--line); border-radius: var(--r-sm); font: inherit; background: var(--bg-elev); color: var(--text); }
 .epcf-eval-meta { font-size: 0.82rem; }
 .epcf-classe-trame { margin-bottom: 2rem; }
-.epcf-classe-lib { font-size: 0.85rem; }
+.epcf-classe-lib { font-size: 0.85rem; overflow-wrap: anywhere; }
 .epcf-classe-phase td { background: var(--bg-subtle); }
 .epcf-name-cell { display: flex; align-items: center; gap: 0.6rem; justify-content: space-between; }
 .epcf-name { font-weight: 500; }
@@ -6209,7 +6238,6 @@ body.qcm-open { overflow: hidden; }
    Toute règle mobile EPCF doit venir ICI, jamais dans le @media principal (sinon la
    règle d'ici l'écraserait silencieusement). Même seuil maison : 760px. ===== */
 @media (max-width: 760px) {
-  .epcf-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
   .epcf-cell { white-space: normal; }
   .epcf-cell .btn { margin: 0.2rem 0.3rem 0 0; }
   .epcf-form-row { flex-direction: column; align-items: flex-start; gap: 0.35rem; }
@@ -6432,7 +6460,7 @@ body.qcm-open { overflow: hidden; }
 }
 .p-daynav {
   position: sticky;
-  top: 52px;                 /* sous la topbar (sticky, ~52px de haut) */
+  top: var(--haut-entete);   /* sous la barre collante du haut */
   z-index: 9;
   display: flex;
   gap: 0.3rem;
@@ -6462,7 +6490,7 @@ body.qcm-open { overflow: hidden; }
 .p-daynav-btn.current { background: var(--accent); color: #fff; }
 .p-daynav-btn.current span { opacity: 0.9; }
 .p-daynav-btn.off { color: var(--text-faint); }
-.p-day-card { scroll-margin-top: 104px; }   /* topbar + barre de jours */
+.p-day-card { scroll-margin-top: calc(var(--haut-entete) + 52px); }   /* barre du haut + barre de jours */
 @media print { .p-daynav { display: none !important; } }
 
 /* ============================================================
@@ -6855,6 +6883,7 @@ body.qcm-open { overflow: hidden; }
 }
 .qcm-signal-instr-ligne {
   margin: 0 0 0.25rem; font-size: 0.82rem; line-height: 1.45; color: var(--text-muted);
+  overflow-wrap: anywhere;   /* l'adresse d'un lien Légifrance est longue et sans espace */
 }
 .qcm-signal-instr-ligne a { color: var(--text-muted); text-decoration: underline; }
 .qcm-signal-instr-vide {
@@ -7177,7 +7206,7 @@ body.cours-open { overflow: hidden; }
   border: 1px solid var(--line);
   border-radius: 999px;
   background: transparent;
-  color: var(--text-faint);
+  color: var(--text-muted);
   font-size: 0.62rem;
   font-weight: 700;
   letter-spacing: 0.07em;
@@ -7630,6 +7659,27 @@ body.cours-open { overflow: hidden; }
 @media (max-width: 600px) {
   .chatbot-panel { right: 8px; left: 8px; width: auto; height: min(70dvh, 560px); }
 }
+/* Bandeaux du bas affichés (aperçu « Voir en tant que », promos non chargées) : js/auth-admin.js pose
+   data-bandeaux-bas et --haut-bandeaux-bas, la hauteur de leur pile. La bulle et le panneau montent
+   d'autant, sinon le bandeau couvre la bulle sur iPhone, et le champ du panneau quand les deux bandeaux
+   sont là ; le panneau raccourcit pour s'arrêter sous la barre du haut. La nouvelle navigation a ses
+   propres règles (css/navigation.css). */
+body:not([data-nav="v2"])[data-bandeaux-bas] { --levee-bandeaux: calc(var(--haut-bandeaux-bas, 0px) + 8px); }
+body:not([data-nav="v2"])[data-bandeaux-bas] .chatbot-fab {
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px) + var(--levee-bandeaux));
+}
+body:not([data-nav="v2"])[data-bandeaux-bas] .chatbot-panel {
+  bottom: calc(78px + env(safe-area-inset-bottom, 0px) + var(--levee-bandeaux));
+  max-height: calc(100dvh - var(--haut-entete) - 8px - 78px - env(safe-area-inset-bottom, 0px) - var(--levee-bandeaux));
+}
+/* La croix reprenait le blanc des boutons de la barre sombre (.ghost-btn), illisible sur le panneau clair.
+   Sur téléphone, la croix et « Envoyer » font 44 px au moins, comme toute zone à toucher. */
+.chatbot-panel .chatbot-close { color: var(--text-soft); }
+.chatbot-panel .chatbot-close:hover { background: var(--bg-subtle); color: var(--text); }
+@media (max-width: 699.98px) {
+  .chatbot-panel .chatbot-close,
+  .chatbot-panel .chatbot-form .btn { min-width: 44px; min-height: 44px; }
+}
 @media print {
   .chatbot-fab, .chatbot-panel { display: none !important; }
 }
@@ -7989,7 +8039,7 @@ body.cours-open { overflow: hidden; }
 .ccp2-date:last-child { border-bottom: none; }
 .ccp2-date-periode { font-family: var(--font-mono); font-size: 0.85rem; color: var(--text-soft); }
 .ccp2-date.passe { color: var(--text-muted); }
-.ccp2-date.passe .ccp2-date-periode { color: var(--text-faint); }
+.ccp2-date.passe .ccp2-date-periode { color: var(--text-muted); }
 .ccp2-etapes-titre { margin: 1.4rem 0 0.7rem; font-size: 1.15rem; }
 .ccp2-etapes { display: grid; gap: 0.6rem; }
 .ccp2-etape {
@@ -8158,18 +8208,20 @@ body.cours-open { overflow: hidden; }
   }
   .topbar .topbar-actions { grid-column: 1 / -1; grid-row: 2; }
   /* Barre de jours du Planning : visible sous la barre du haut quand on fait défiler. Elle se colle
-     à la hauteur exacte de cette barre, 95,5 px à toutes les largeurs de téléphone et pour tous les
-     rôles (1rem = 15px ici) : remplissage haut 9 (0,6rem) + première ligne 36 (hauteur mini d'un
-     onglet) + écart entre les lignes 6 (0,4rem) + seconde ligne 34,5 (bouton rond : icône de 18 +
-     2 x 8,25 de remplissage) + remplissage bas 9 + filet du bas 1. Un top: 96px laisserait une bande
-     de 0,5 px entre les deux barres, où le contenu qui défile pourrait apparaître. À recalculer si la
-     barre du haut change. Empilement : .topbar (z-index 10) reste au-dessus de .p-daynav (9). Avant :
-     52px (réglage du bureau, barre d'une ligne) puis 0, soit une barre de jours cachée sur téléphone. */
-  .p-daynav { top: 95.5px; }
+     à la hauteur exacte de cette barre (--haut-entete, lue par son top), 95,5 px à toutes les largeurs
+     de téléphone et pour tous les rôles (1rem = 15px ici) : remplissage haut 9 (0,6rem) + première
+     ligne 36 (hauteur mini d'un onglet) + écart entre les lignes 6 (0,4rem) + seconde ligne 34,5
+     (bouton rond : icône de 18 + 2 x 8,25 de remplissage) + remplissage bas 9 + filet du bas 1. Un
+     top: 96px laisserait une bande de 0,5 px entre les deux barres, où le contenu qui défile pourrait
+     apparaître. À recalculer si la barre du haut change. Empilement : .topbar (z-index 10) reste
+     au-dessus de .p-daynav (9). Avant : 52px (réglage du bureau, barre d'une ligne) puis 0, soit une
+     barre de jours cachée sur téléphone. */
+  :root { --haut-entete: 95.5px; }
   /* Les sauts vers un jour (boutons de la barre de jours, bouton « Aujourd'hui ») posent la carte du
      jour à scroll-margin-top du haut de l'écran. Les 104 px du bureau laisseraient 39 px du haut de la
-     carte sous les deux barres : ici 95,5 (barre du haut) + 47,7 (barre de jours) + 4,8 d'air = 148 px. */
-  .p-day-card { scroll-margin-top: 148px; }
+     carte sous les deux barres : ici 95,5 (barre du haut) + 47,7 (barre de jours) + 4,8 d'air = 148 px,
+     écrits à partir de la hauteur de la barre du haut pour la suivre si elle change. */
+  .p-day-card { scroll-margin-top: calc(var(--haut-entete) + 52.5px); }
 }
 
 /* ===== Planning : le numéro d'un élève bénévole, au toucher (formateurs, 2026-10) =====
@@ -8412,7 +8464,7 @@ span.bnv-nom-num { font-size: 0.8rem; font-style: italic; color: var(--text-mute
 .centre-carte-tete { display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem; }
 .centre-carte h4 { margin: 0; font-size: 0.85rem; font-weight: 600; color: var(--text-soft); }
 .centre-valeur { margin: 0.15rem 0 0; font-family: var(--font-mono); font-size: 1.45rem; font-weight: 600; letter-spacing: -0.02em; color: var(--text); }
-.centre-valeur.vide { font-family: var(--font); font-size: 1rem; font-weight: 500; color: var(--text-faint); }
+.centre-valeur.vide { font-family: var(--font); font-size: 1rem; font-weight: 500; color: var(--text-muted); }
 .centre-detail { margin: 0; font-size: 0.85rem; color: var(--text-muted); line-height: 1.4; }
 
 .centre-nature {
@@ -8509,4 +8561,44 @@ span.bnv-nom-num { font-size: 0.8rem; font-style: italic; color: var(--text-mute
   body.centre-printable .centre-themes-tout summary,
   body.centre-printable .centre-methodes summary { color: var(--text); }
   body.centre-printable .centre-themes { grid-template-columns: 1fr 1fr; }
+}
+
+/* ===== Tableaux en listes hors ordinateur (lot 2A, tâche 5 ; spec § 4.1 : aucun défilement de côté) =====
+   Sous 1 080 px, un tableau marqué par tableauEnListe (js/utils.js) devient une liste : chaque ligne est une carte, son
+   titre (.liste-titre, ou l'en-tête de ligne) en tête, puis ses valeurs, chacune précédée du titre de sa colonne
+   (data-label). L'en-tête du tableau reste à la disposition des lecteurs d'écran. À l'écran seulement : l'export PDF
+   du tableau de bord du centre (impression A4) garde ses tableaux. */
+@media screen and (max-width: 1079.98px) {
+  .centre-defile { overflow: visible; }
+  .tableau-liste, .tableau-liste tbody, .tableau-liste tr, .tableau-liste th, .tableau-liste td { display: block; }
+  .tableau-liste thead {
+    position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden;
+    clip-path: inset(50%); white-space: nowrap;
+  }
+  .tableau-liste tr {
+    display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.2rem 0.9rem;
+    padding: 0.7rem 0.95rem; border-bottom: 1px solid var(--line);
+  }
+  .tableau-liste tbody tr:last-child { border-bottom: 0; }
+  .tableau-liste th, .tableau-liste td { min-width: 0; padding: 0; border: 0; text-align: left; overflow-wrap: anywhere; }
+  .tableau-liste td:empty { display: none; }   /* une valeur absente n'écrit pas son titre pour rien */
+  .tableau-liste td[data-label]::before {
+    content: attr(data-label); margin-right: 0.4rem;
+    font-family: var(--font); font-size: 0.68rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted);
+  }
+  .tableau-liste .liste-titre, .tableau-liste tbody th { order: -2; flex: 1 1 12rem; font-weight: 600; color: var(--text); }
+  .tableau-liste .liste-actions { order: -1; margin-left: auto; }
+  .centre-table td.liste-titre { flex-basis: 100%; }   /* le thème seul sur sa ligne, ses chiffres dessous */
+  .passages-table tbody tr:hover td { background: transparent; }   /* le survol colore la carte, pas chaque valeur */
+  .passages-table tbody tr:hover { background: var(--bg-subtle); }
+
+  /* Comparer les promos : l'indicateur en titre, puis une ligne par promo (nom à gauche, valeur à droite). */
+  .centre-comparaison tbody tr { flex-direction: column; align-items: stretch; gap: 0.2rem; }
+  .centre-comparaison tbody th { flex: 0 0 auto; }   /* en colonne, la base de 12 rem du titre serait une hauteur */
+  .centre-comparaison td { display: flex; justify-content: space-between; gap: 0.75rem; padding: 0.2rem 0.4rem; border-radius: var(--r-sm); }
+  .centre-comparaison td[data-label]::before { margin-right: 0; font-size: 0.8rem; font-weight: 500; letter-spacing: 0; text-transform: none; }
+}
+
+@media screen and (max-width: 699.98px) {
+  .passages-table .btn { min-width: 44px; min-height: 44px; }   /* zones à toucher du téléphone */
 }

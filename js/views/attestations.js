@@ -3,16 +3,17 @@
 // pour une période, les heures de chaque stagiaire d'après les feuilles closes, puis son
 // certificat de réalisation et son attestation d'assiduité, ou ceux de toute la promo.
 
-import { listStagiaires, listEmargementPresences, getEnteteEmargement, getPromoCourante } from "../db.js?v=20261024d";
-import { el, clear, toast, isoDate } from "../utils.js?v=20261024d";
-import { isAdmin } from "../auth-admin.js?v=20261024d";
-import { libelleDuree, jourDe } from "../emargement-rules.js?v=20261024d";
-import { imprimer, nomComplet } from "../emargement-feuilles.js?v=20261024d";
+import { listStagiaires, listEmargementPresences, getEnteteEmargement, getPromoCourante } from "../db.js?v=20261108a";
+import { el, clear, toast, isoDate } from "../utils.js?v=20261108a";
+import { isAdmin } from "../auth-admin.js?v=20261108a";
+import { navigationV2Active } from "../nav-etat.js?v=20261108a";
+import { libelleDuree, jourDe } from "../emargement-rules.js?v=20261108a";
+import { imprimer, nomComplet } from "../emargement-feuilles.js?v=20261108a";
 import {
   bilanStagiaire, stagiairesDeLaPeriode, feuillesOuvertes, demiJourneesSansFeuille, periodeParDefaut,
   moisDeLaPeriode, seancesDeLaPromo, dateFr, datePeriodeValide, estAdresseAttestations,
-} from "../attestations-rules.js?v=20261024d";
-import { certificatRealisation, attestationAssiduite, liasse } from "../attestations-documents.js?v=20261024d";
+} from "../attestations-rules.js?v=20261108a";
+import { certificatRealisation, attestationAssiduite, liasse } from "../attestations-documents.js?v=20261108a";
 
 // Période choisie, gardée par promo le temps de la visite (retour depuis la semaine).
 const periodes = new Map();
@@ -88,9 +89,11 @@ function dessiner(ctx) {
   ctx.page = page;
   container.appendChild(page);
 
+  // Nouvelle navigation : la promo seule en surtitre, comme la page Émargement.
+  const surtitre = navigationV2Active() ? (promo?.nom || "") : "Émargement" + (promo ? " · " + promo.nom : "");
   page.appendChild(el("div", { class: "view-header" },
     el("div", { class: "view-header-text" },
-      el("p", { class: "eyebrow" }, "Émargement" + (promo ? " · " + promo.nom : "")),
+      surtitre ? el("p", { class: "eyebrow" }, surtitre) : null,
       el("h2", {}, "Certificats et attestations"),
       el("p", { class: "subtitle" },
         "Heures comptées sur les feuilles d'émargement closes : une demi-journée signée compte pour sa durée "

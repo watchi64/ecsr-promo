@@ -7,9 +7,9 @@
 // Population : les inscrits sont toutes les fiches de la promo, les « en formation » les
 // fiches actives. Tout sauf l'effectif et les abandons porte sur les stagiaires en formation.
 
-import { estNotee, score20, mediane } from "./notes-stats.js?v=20261024d";
-import { NOTE_VALUES } from "./epcf-trames.js?v=20261024d";
-import { compareByNom } from "./utils.js?v=20261024d";
+import { estNotee, score20, mediane } from "./notes-stats.js?v=20261108a";
+import { NOTE_VALUES } from "./epcf-trames.js?v=20261108a";
+import { compareByNom } from "./utils.js?v=20261108a";
 
 // Hypothèse du réseau : un parcours de formation représente 3 500 à 5 000 €.
 export const COUT_ABANDON_ESTIME = [3500, 5000];
@@ -36,14 +36,28 @@ export const METHODES = {
   notes: "Toutes les notes des stagiaires en formation ramenées sur 20 (une note sans barème est ignorée) : moyenne, médiane, nombre de notes sous 10. Même règle que la synthèse de la page Notes.",
   epcf: "Par grille (salle, véhicule) : la dernière évaluation EPCF de chaque stagiaire en formation, hors auto-évaluation. Critères acquis divisés par les critères renseignés ; score : acquis 2, à renforcer 1, non acquis 0, ramené à 100 %.",
   titre: "Les résultats de jury du titre professionnel ne sont pas saisis dans l'app.",
+  presence: "Heures réalisées divisées par heures prévues, sur les feuilles d'émargement closes de la promo, toutes lignes comprises : un stagiaire parti figure sur les feuilles jusqu'à son départ.",
+  satisfaction: "Réponses favorables divisées par les réponses reçues aux questionnaires de satisfaction, anonymes ; résultat affiché à partir de 5 réponses.",
   themes: "D'après les QCM : bonnes réponses divisées par les questions répondues, thèmes d'au moins 20 réponses. D'après les notes : moyenne sur 20, thèmes d'au moins 3 notes. Stagiaires en formation.",
   aSuivre: "Au moins deux signaux parmi quatre : deux absences de dernière minute ou plus ; moyenne des notes sous 10 (au moins 3 notes) ; aucun QCM d'entraînement depuis 14 jours alors que la promo en a fait ; au moins 2 tours de retard sur la moyenne en salle ou en voiture (compteur de la page Priorités). Un repère pour le formateur, pas une prédiction.",
+};
+
+// Les mêmes méthodes, écrites pour le public : la fiche « résultats » que le centre publie (js/qualiopi-resultats.js, spec
+// 2026-10-28, § 6.6 et 6.8). Mêmes clés que METHODES (un seul endroit à tenir à jour : toute clé d'ici existe là-bas), mais
+// impersonnelles et sans mot d'équipe : ni « fiche », ni « app », ni « promo », ni jargon.
+export const METHODES_PUBLIQUES = {
+  effectif: "Nombre de stagiaires inscrits à la formation, y compris ceux qui l'ont quittée avant la fin.",
+  abandon: "Nombre de stagiaires qui ont quitté la formation avant la fin, divisé par le nombre de stagiaires inscrits. Le taux porte sur toute la durée de la formation : la date du départ n'est pas retenue.",
+  presence: "Heures réalisées divisées par les heures prévues, d'après les feuilles d'émargement clôturées de la formation. Un stagiaire qui a quitté la formation compte jusqu'à son départ.",
+  titre: "Nombre de stagiaires déclarés admis par le jury du titre professionnel, divisé par le nombre de stagiaires présentés à l'examen.",
+  satisfaction: "Avis des stagiaires recueillis par le questionnaire de fin de formation, anonyme : part des réponses favorables, calculée sur le nombre de réponses reçues.",
 };
 
 const somme = (l) => l.reduce((a, b) => a + b, 0);
 const ratio = (num, den) => (den ? num / den : null);
 const fr1 = (x) => x.toFixed(1).replace(".", ",");
-const pct = (x) => Math.round(x * 100) + " %";
+// Exporté : la fiche des résultats (js/qualiopi-resultats.js) écrit ses taux de la même façon (arrondi, espace insécable).
+export const pct = (x) => Math.round(x * 100) + " %";
 const jourDe = (horodatage) => String(horodatage || "").slice(0, 10);
 
 function decalerJour(iso, jours) {

@@ -1,10 +1,11 @@
-import { createClient } from "../vendor/supabase-js-2.117.2.js?v=20261024d";
-import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261024d";
-import { compteDansEquite } from "./passage-rules.js?v=20261024d";
+import { createClient } from "../vendor/supabase-js-2.117.2.js?v=20261108a";
+import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261108a";
+import { compteDansEquite } from "./passage-rules.js?v=20261108a";
+import { messageErreurEnvoi } from "./signalement-rules.js?v=20261108a";
 import {
   ENTETE_PROMO, ENTETE_LECTURE_PROMO, promoDeLaRequete, doitPorterEntetePromo, choisirPromoInitiale, profilEffectif,
   separerChamps, CHAMPS_PROGRESSION, CHAMPS_EXAMEN, fusionnerProgression, fusionnerExamen,
-} from "./promo-rules.js?v=20261024d";
+} from "./promo-rules.js?v=20261108a";
 
 // Contexte de promo (spec multi-promo, C.1). La promo courante voyage dans l'en-tête
 // x-promo-id de chaque requête de données ; la base vérifie le droit et filtre.
@@ -820,6 +821,18 @@ export async function listBrouillonsIa(qcmId) {
   return data || [];
 }
 
+// Nombre de brouillons à relire, tous QCM confondus : la pastille « à traiter » de la barre de l'équipe
+// (js/a-traiter.js). Les brouillons sont communs à toutes les promos (leur table n'a pas de colonne de promo). Les
+// identifiants seulement, comptés ici : l'IA en propose peu à la fois (son quota est de 10 par jour et par formateur).
+export async function countBrouillonsIaARelire() {
+  const { data, error } = await supabase
+    .from("qcm_ia_brouillons")
+    .select("id")
+    .eq("statut", "a_relire");
+  if (error) throw error;
+  return (data || []).length;
+}
+
 // Accepte un brouillon tel que le formateur l'a relu : la base crée la question, ses
 // options et la trace (nom du formateur, date). Renvoie l'id de la question.
 export async function accepterBrouillonIa(brouillonId, q) {
@@ -1607,12 +1620,19 @@ async function toutesLesLignes(fabrique) {
   }
 }
 
-// promoId nul (liste des promos non chargée) : promo courante, sans en-tête de lecture.
-export async function lireDonneesCentre(promoId) {
-  const lire = (table, colonnes, ordre) => toutesLesLignes(() => {
+// Toutes les lignes d'une table, lues par pages et triées sur une colonne à valeurs distinctes (sinon deux pages
+// pourraient se chevaucher). promoId : la promo à lire, portée par l'en-tête interne de lecture ; nul : pas
+// d'en-tête, donc la promo courante pour une table par promo, et aucun effet pour une table commune à toutes les promos.
+function lireTable(table, colonnes, ordre, promoId) {
+  return toutesLesLignes(() => {
     const q = supabase.from(table).select(colonnes).order(ordre);
     return promoId == null ? q : q.setHeader(ENTETE_LECTURE_PROMO, String(promoId));
   });
+}
+
+// promoId nul (liste des promos non chargée) : promo courante, sans en-tête de lecture.
+export async function lireDonneesCentre(promoId) {
+  const lire = (table, colonnes, ordre) => lireTable(table, colonnes, ordre, promoId);
   const [stagiaires, passages, evaluations, tentatives, epcf] = await Promise.all([
     lire("stagiaires", "id, prenom, nom, actif, ordre, anonymise_le", "id"),
     lire("passages", "id, stagiaire_id, type, resultat, date", "id"),
@@ -1632,6 +1652,49 @@ export async function lireReferentielCentre() {
     ]);
     return { qcm, themes };
   });
+}
+
+// Dossier Qualiopi : tout ce que l'inventaire des preuves d'une promo lit (forme de `donnees` en tête de
+// js/qualiopi-preuves.js) : les lectures du tableau de bord du centre, plus le planning et ses jours désactivés, le
+// calendrier, les livrets, les dossiers, les signalements de QCM, les cours et leurs versions, les auto-écoles, les
+// formateurs et l'en-tête des feuilles d'émargement. Lecture seule.
+// Les tables par promo (planning, jours désactivés, calendrier, livrets, dossiers, auto-écoles, réglages) se lisent AVEC
+// l'en-tête de lecture de la promo demandée : sans lui, la base rendrait celles de la promo courante, et pour les
+// auto-écoles celles du lieu de la promo courante, donc d'un autre centre. Les tables communes à toutes les promos
+// (signalements, cours, versions de cours, formateurs) se lisent SANS. Les signalements n'ont pas de promo : ils sont
+// gardés quand leur auteur est un stagiaire de la promo lue. Les cours et leurs versions sont lus en entier, sans filtre :
+// l'inventaire retire la plus ancienne date de chaque cours (sa création), qu'une lecture bornée ferait confondre avec
+// une modification. Ni `email`, ni `corps_md`, ni `saved_by` ne sont lus.
+// promoId nul : erreur, jamais de repli sur la promo courante (ses chiffres s'afficheraient sous le nom d'une autre).
+export async function lireDonneesQualiopi(promoId) {
+  if (promoId == null) throw new Error("Dossier Qualiopi : aucune promo choisie, lecture impossible.");
+  const parPromo = (table, colonnes, ordre) => lireTable(table, colonnes, ordre, promoId);
+  const communes = (table, colonnes, ordre) => lireTable(table, colonnes, ordre, null);
+  // Le réglage n'a qu'une ligne au plus (clé unique par promo) : il se lit en maybeSingle, une ligne ne se tronque pas.
+  // Une erreur de lecture lève : des valeurs par défaut afficheraient sur le dossier l'organisme d'une autre promo.
+  const lireEntete = async () => {
+    const { data, error } = await supabase.from("settings").select("value").eq("key", "emargement_entete")
+      .setHeader(ENTETE_LECTURE_PROMO, String(promoId)).maybeSingle();
+    if (error) throw error;
+    return enteteEmargementDuReglage(data?.value ?? null);
+  };
+  const [centre, planning, agenda, livrets, dossiers, signalementsLus, cours, autoEcoles, profs, entete, joursOff, versions] = await Promise.all([
+    lireDonneesCentre(promoId),
+    parPromo("planning_entries", "id, semaine_lundi, day_index, half_day, activite, sujet, sujet_2, salle_double, prof_ids, prof_autre, autonomie, benevoles_ids, promo_id", "id"),
+    parPromo("agenda_events", "id, type, date_start, date_end", "id"),
+    parPromo("epcf_livrets", "stagiaire_id, updated_at", "id"),
+    parPromo("dp_dossiers", "stagiaire_id, updated_at", "id"),
+    communes("qcm_signalements", "id, stagiaire_id, statut, created_at, traite_at", "id"),
+    communes("cours", "id, published, updated_at", "id"),
+    parPromo("auto_ecoles", "id, actif, lieu_id", "id"),
+    communes("profs", "id, nom", "id"),
+    lireEntete(),
+    parPromo("planning_jours_off", "semaine_lundi, day_index", "id"),
+    communes("cours_versions", "cours_id, saved_at", "id"),
+  ]);
+  const stagiairesDeLaPromo = new Set(centre.stagiaires.map((s) => s.id));
+  const signalements = signalementsLus.filter((s) => stagiairesDeLaPromo.has(s.stagiaire_id));
+  return { ...centre, planning, agenda, livrets, dossiers, signalements, cours, autoEcoles, profs, entete, joursOff, versions };
 }
 
 // --- Signalements sur les questions de QCM ---
@@ -1739,6 +1802,72 @@ export async function setQcmSignalementStatut(id, statut, email) {
   if (error) throw error;
 }
 
+// === Signalements de problème (spec 2026-10-28) ===
+// Écritures par les fonctions serveur seulement : signaler_probleme pose l'auteur, son nom, son rôle et la
+// promo affichée ; traiter_signalement_app est réservée au fondateur. Leurs refus commencent par
+// « signalement: », la phrase qui suit est montrée telle quelle (phraseErreur).
+
+function erreurSignalement(error) {
+  return new Error(messageErreurEnvoi(error));
+}
+
+async function rpcSignalement(nom, params) {
+  const { data, error } = await supabase.rpc(nom, params);
+  if (error) throw erreurSignalement(error);
+  return data;
+}
+
+// Envoie un signalement ; rend son identifiant.
+export async function signalerProbleme({ message, contexte, capture = null }) {
+  return rpcSignalement("signaler_probleme", { p_message: message, p_contexte: contexte || {}, p_capture: capture || null });
+}
+
+// Les dix plus récents de la personne connectée (fondateur compris : les siens seulement).
+export async function mesSignalementsApp() {
+  return (await rpcSignalement("mes_signalements_app")) || [];
+}
+
+// Compteurs des pastilles : { nouveaux } (0 hors fondateur), { suivis } (les siens, avancés, non vus).
+export async function compterSignalementsApp() {
+  const d = (await rpcSignalement("compter_signalements_app")) || {};
+  return { nouveaux: Number(d.nouveaux) || 0, suivis: Number(d.suivis) || 0 };
+}
+
+export async function marquerSuivisVus() {
+  return Number(await rpcSignalement("marquer_suivis_vus")) || 0;
+}
+
+// Colonnes nommées, jamais l'image : elle vit dans signalements_app_captures et se lit à la demande.
+const COLONNES_SIGNALEMENT = "id, created_at, email, nom, role, promo_id, message, contexte, avec_capture, statut, "
+  + "reponse, repondu_le, suivi_le, suivi_lu_le, traite_le, traite_par_email, promo:promos(nom)";
+
+// Tous les signalements, le plus récent d'abord (fondateur : la règle de lecture le permet).
+export async function listSignalementsApp() {
+  const { data, error } = await supabase.from("signalements_app").select(COLONNES_SIGNALEMENT)
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return data || [];
+}
+
+export async function captureSignalementApp(id) {
+  const { data, error } = await supabase.from("signalements_app_captures").select("image")
+    .eq("signalement_id", id).maybeSingle();
+  if (error) throw error;
+  return data?.image || null;
+}
+
+export async function traiterSignalementApp(id, { statut, reponse }) {
+  await rpcSignalement("traiter_signalement_app", { p_id: id, p_statut: statut, p_reponse: reponse ?? null });
+}
+
+// La base ne dit rien quand sa règle empêche la suppression (aucune ligne partie, sans erreur) : on demande
+// les lignes parties et on vérifie qu'il y en a une.
+export async function supprimerSignalementApp(id) {
+  const { data, error } = await supabase.from("signalements_app").delete().eq("id", id).select("id");
+  if (error) throw erreurSignalement(error);
+  if (!data || !data.length) throw new Error("Ce signalement n'a pas pu être supprimé. Actualise la page et réessaie.");
+}
+
 // === Émargement (spec 2026-10-23) ===
 // Écritures uniquement par les fonctions serveur emargement_* : la base vérifie le rôle,
 // la promo, l'état de la feuille et le jour, et horodate elle-même. Leurs refus commencent
@@ -1832,9 +1961,13 @@ export const ENTETE_EMARGEMENT_DEFAUT = {
 };
 const ENTETE_FACULTATIF = { adresse1: 120, adresse2: 120, signataire: 80, qualite: 80, lieu: 60 };
 
-export async function getEnteteEmargement() {
+// La règle, écrite une seule fois : la valeur brute du réglage `emargement_entete` (JSON, ou nulle) donne l'organisme,
+// l'intitulé (valeur par défaut quand il manque, n'est pas un texte ou est vide) et les champs facultatifs des
+// attestations (vides par défaut). Partagée par
+// getEnteteEmargement (promo courante) et lireDonneesQualiopi (promo lue).
+function enteteEmargementDuReglage(valeur) {
   let lu = null;
-  try { lu = JSON.parse(await getSetting("emargement_entete") || "null"); } catch (e) { lu = null; }
+  try { lu = JSON.parse(valeur || "null"); } catch (e) { lu = null; }
   const texte = (k) => (lu && typeof lu[k] === "string" ? lu[k].trim() : "");
   const entete = {
     organisme: texte("organisme") || ENTETE_EMARGEMENT_DEFAUT.organisme,
@@ -1842,6 +1975,12 @@ export async function getEnteteEmargement() {
   };
   for (const k of Object.keys(ENTETE_FACULTATIF)) entete[k] = texte(k);
   return entete;
+}
+
+export async function getEnteteEmargement() {
+  let valeur = null;
+  try { valeur = await getSetting("emargement_entete"); } catch (e) { valeur = null; }
+  return enteteEmargementDuReglage(valeur);
 }
 
 export async function setEnteteEmargement(entete) {

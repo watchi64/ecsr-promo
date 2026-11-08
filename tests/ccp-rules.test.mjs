@@ -66,6 +66,8 @@ function verifierLien(l, ou) {
   }
   ok(l.route in MODULE_DE_ROUTE || ROUTES_SOCLE.includes(l.route), ou + " : route connue");
   if (l.sousOnglet) ok(l.route in STORAGE_SOUS_ONGLET, ou + " : sous-onglet joignable");
+  // Un libellé juste dans les deux navigations (le même texte sert l'ancienne et la nouvelle barre) ne nomme aucune page de l'ancienne.
+  ok(!/Mon espace|espace personnel|Paramètres|Calendrier|Ressources|onglet/.test(l.label), ou + " : libellé sans les mots de l'ancienne barre (« " + l.label + " »)");
   if (l.module) ok(MODULES.some((m) => m.cle === l.module), ou + " : module connu");
 }
 const liste = (v, min) => Array.isArray(v) && v.length >= min && v.every((t) => typeof t === "string" && t.length > 0);

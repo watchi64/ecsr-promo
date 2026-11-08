@@ -310,7 +310,7 @@ export const ETAPES = [
       "Apporte ton support sur une clé USB, avec une copie en ligne.",
     ],
     liens: [
-      { label: "Ton dossier professionnel (Mon espace, sous-onglet Dossier pro)",
+      { label: "Ton dossier professionnel, à remplir dans l'app",
         route: "mon-suivi", sousOnglet: "dp", module: "dp" },
       { label: "Référentiel d'évaluation (PDF)", href: RE },
     ],

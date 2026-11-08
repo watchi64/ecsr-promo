@@ -2,16 +2,69 @@
  * Bulle assistant : disponible partout une fois connecte.
  * Aucune cle ici : tout passe par l'Edge Function `chatbot` (JWT verifie).
  * Historique ephemere (sessionStorage), fenetre des 8 derniers messages envoyee.
+ * Nouvelle navigation : plus de bulle (masquee par css/navigation.css), le panneau s'ouvre par les
+ * boutons « Assistant » de la coquille (js/nav-shell.js), qui appellent basculerAssistant().
  */
-import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261024d";
-import { supabase } from "./db.js?v=20261024d";
-import { icon } from "./icons.js?v=20261024d";
-import { fenetreMessages, pageDepuisHash, extraireEvenements } from "./chatbot-rules.js?v=20261024d";
-import { moduleVisible, moduleMasque, repereMasque } from "./modules-etat.js?v=20261024d";
+import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261108a";
+import { supabase } from "./db.js?v=20261108a";
+import { icon } from "./icons.js?v=20261108a";
+import { corpsRequete, extraireEvenements } from "./chatbot-rules.js?v=20261108a";
+import { moduleVisible, moduleMasque, repereMasque } from "./modules-etat.js?v=20261108a";
+import { navigationV2Active } from "./nav-etat.js?v=20261108a";
 
 const CLE_HISTO = "chatbot_histo";
 let histo = [];
 let enCours = false;
+// Panneau ouvert depuis la coquille : la fonction qu'elle a donnée pour rendre le focus à la fermeture.
+// null avec la bulle de l'ancienne navigation, qui ne déplace pas le focus.
+let retourDuFocus = null;
+// Abonnés à l'ouverture et à la fermeture du panneau (la coquille, pour l'aria-expanded de ses boutons).
+const abonnes = new Set();
+
+const panneauAssistant = () => document.getElementById("chatbot-panel");
+
+// cb(ouvert) à l'ouverture par basculerAssistant et à chaque fermeture ; renvoie de quoi se désabonner.
+export function onAssistantChange(cb) {
+  abonnes.add(cb);
+  return () => abonnes.delete(cb);
+}
+
+// Le panneau est-il ouvert ? Lu par la coquille pour dessiner ses boutons (remontage panneau ouvert).
+export function assistantOuvert() {
+  const panneau = panneauAssistant();
+  return !!panneau && !panneau.classList.contains("hidden");
+}
+
+// Ferme le panneau (croix, Échap, bouton de la coquille, module fermé). Ouvert depuis la coquille, le
+// focus lui est rendu s'il était dans le panneau ou nulle part (un toucher ne le pose pas) ; posé
+// ailleurs dans la page, il y reste.
+function fermerPanneau() {
+  const panneau = panneauAssistant();
+  if (!panneau || panneau.classList.contains("hidden")) return;
+  const actif = document.activeElement;
+  const focusARendre = !actif || actif === document.body || panneau.contains(actif);
+  panneau.classList.add("hidden");
+  const rendre = retourDuFocus;
+  retourDuFocus = null;
+  abonnes.forEach((cb) => cb(false));
+  if (rendre && focusARendre) rendre();
+}
+
+// Boutons « Assistant » de la coquille : ouvre le panneau, ou le ferme s'il est ouvert. `rendreFocus` :
+// ce que la coquille fera du focus à la fermeture. Comme la bulle, le champ prend le focus au pointeur
+// précis seulement (voir initChatbot).
+export function basculerAssistant(rendreFocus = null) {
+  const panneau = panneauAssistant();
+  if (!panneau) return;
+  if (!panneau.classList.contains("hidden")) {
+    fermerPanneau();
+    return;
+  }
+  retourDuFocus = rendreFocus;
+  panneau.classList.remove("hidden");
+  abonnes.forEach((cb) => cb(true));
+  if (window.matchMedia("(pointer: fine)").matches) panneau.querySelector("textarea")?.focus();
+}
 
 function chargerHisto() {
   try { histo = JSON.parse(sessionStorage.getItem(CLE_HISTO)) ?? []; }
@@ -25,7 +78,7 @@ function sauverHisto() {
 
 async function rendreEnMarkdown(noeud, texte) {
   try {
-    const { rendreMarkdown } = await import("./views/cours-reader.js?v=20261024d");
+    const { rendreMarkdown } = await import("./views/cours-reader.js?v=20261108a");
     // blocs: false : une réponse qui recopie un bloc de cours (schéma, quiz, cartes) le laisse en texte brut,
     // elle ne monte ni schéma animé ni quiz dans la bulle.
     const { noeuds } = rendreMarkdown(texte, { blocs: false });
@@ -71,10 +124,7 @@ async function envoyerQuestion(question, msgs) {
         apikey: SUPABASE_KEY,
         Authorization: `Bearer ${session.access_token}`,
       },
-      body: JSON.stringify({
-        messages: fenetreMessages(histo),
-        page: pageDepuisHash(location.hash),
-      }),
+      body: JSON.stringify(corpsRequete(histo, location.hash, navigationV2Active())),
     });
 
     if (resp.status === 429) {
@@ -152,6 +202,7 @@ export function initChatbot() {
       <button type="button" class="ghost-btn chatbot-close" aria-label="Fermer l'assistant">&times;</button>
     </div>
     <p class="chatbot-disclaimer">Version bêta : l'assistant peut se tromper, vérifie les points importants dans les cours. La qualité des réponses va s'améliorer.</p>
+    <p class="chatbot-signaler">Un souci avec l'app ? <button type="button" class="chatbot-signaler-btn" data-sg-entree="assistant" aria-haspopup="dialog">Signaler un problème</button></p>
     <div class="chatbot-msgs"></div>
     <form class="chatbot-form">
       <textarea rows="1" placeholder="Pose ta question…" maxlength="2000"
@@ -184,9 +235,14 @@ export function initChatbot() {
       input.focus();
     }
   });
-  panneau.querySelector(".chatbot-close").addEventListener("click", () => panneau.classList.add("hidden"));
+  panneau.querySelector(".chatbot-close").addEventListener("click", fermerPanneau);
+  // Signaler un problème (spec 2026-10-28) : la fenêtre s'ouvre par-dessus le panneau, qui reste ouvert.
+  const signaler = panneau.querySelector(".chatbot-signaler-btn");
+  signaler.addEventListener("click", () => {
+    import("./signalement.js?v=20261108a").then((m) => m.ouvrirSignalement({ ancre: signaler }));
+  });
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && !panneau.classList.contains("hidden")) panneau.classList.add("hidden");
+    if (e.key === "Escape") fermerPanneau();
   });
 
   form.addEventListener("submit", (e) => {
@@ -207,6 +263,7 @@ export function initChatbot() {
 // La bulle suit le module « assistant » (js/modules-data.js) : absente pour un
 // stagiaire quand il est fermé pour la promo, repérée chez un formateur. Appelée
 // par main.js au démarrage et à chaque changement de rôle ou d'état des modules.
+// Les boutons « Assistant » de la coquille suivent la même règle (js/nav-shell.js).
 export function appliquerModuleAssistant() {
   const fab = document.getElementById("chatbot-fab");
   if (!fab) return;
@@ -214,6 +271,6 @@ export function appliquerModuleAssistant() {
   // style.display plutôt que l'attribut hidden, que la règle .chatbot-fab
   // (display: flex) écraserait.
   fab.style.display = visible ? "" : "none";
-  if (!visible) document.getElementById("chatbot-panel")?.classList.add("hidden");
+  if (!visible) fermerPanneau();
   repereMasque(fab, visible && moduleMasque("assistant"));
 }

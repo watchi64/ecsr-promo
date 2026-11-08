@@ -44,7 +44,7 @@
       imports["./js/db.js?v=" + jeton] = "./_preview_stubs/db-modules.js?v=" + neuf;
       imports["./js/auth-admin.js?v=" + jeton] = "./_preview_stubs/auth-admin.js?v=" + neuf;
       ["utils.js", "icons.js", "modules-data.js", "modules.js", "modules-etat.js",
-       "nouveautes-data.js", "nouveautes.js", "views/modules-reglage.js"].forEach(function (f) {
+       "nouveautes-data.js", "nouveautes.js", "nav-rules.js", "views/modules-reglage.js"].forEach(function (f) {
         imports["./js/" + f + "?v=" + jeton] = "./js/" + f + "?v=" + neuf;
       });
       var carte = document.createElement("script");

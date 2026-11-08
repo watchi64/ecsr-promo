@@ -17,6 +17,7 @@ eq(lireAdresse("#/stagiaires/12/"), { route: "stagiaires", id: 12, partie: null 
 eq(lireAdresse("#/mon-suivi/dp"), { route: "mon-suivi", id: null, partie: "dp" }, "Mon espace, partie");
 eq(lireAdresse("#/mon-suivi"), { route: "mon-suivi", id: null, partie: null }, "Mon espace");
 eq(lireAdresse("#/mon-suivi/12"), { route: "mon-suivi", id: null, partie: null }, "Mon espace n'a pas d'id");
+eq(lireAdresse("#/mon-suivi/classe"), { route: "mon-suivi", id: null, partie: "classe" }, "Mon espace, la classe (nouvelle navigation)");
 eq(lireAdresse("#/notes"), { route: "notes", id: null, partie: null }, "autre page");
 eq(lireAdresse("#/notes/livret"), { route: "notes", id: null, partie: null }, "autre page : la suite est ignorée");
 eq(lireAdresse(""), { route: "", id: null, partie: null }, "adresse vide");
@@ -28,6 +29,7 @@ eq(adresseFiche("stagiaires", 12, null), "#/stagiaires/12", "fiche");
 eq(adresseFiche("stagiaires", null, "epcf"), "#/stagiaires", "pas de partie sans fiche");
 eq(adresseFiche("mon-suivi", null, "livret"), "#/mon-suivi/livret", "Mon espace, partie");
 eq(adresseFiche("mon-suivi", null, null), "#/mon-suivi", "Mon espace");
+eq(adresseFiche("mon-suivi", null, "classe"), "#/mon-suivi/classe", "Mon espace, la classe : l'adresse des redirections de #/notes");
 for (const p of PARTIES) eq(lireAdresse(adresseFiche("stagiaires", 7, p)).partie, p, "aller-retour : " + p);
 
 // 3. Liens « Où le trouver »
@@ -43,6 +45,7 @@ eq(pagePersonnelle({ formateur: true, stagiaireId: 3 }), "mon-suivi", "stagiaire
 eq(pagePersonnelle({ formateur: false, stagiaireId: 3 }), "mon-suivi", "stagiaire");
 eq(pagePersonnelle({ formateur: false, stagiaireId: null }), "mon-suivi", "compte sans profil : Mon espace l'explique");
 
-eq(PARTIES, ["passages", "epcf", "evolution", "livret", "dp"], "parties dans l'ordre de la fiche");
+eq(PARTIES, ["passages", "epcf", "evolution", "livret", "dp", "classe"], "parties dans l'ordre de la fiche");
+eq(PARTIES[PARTIES.length - 1], "classe", "la classe ferme la fiche (Mon espace, nouvelle navigation)");
 
 console.log(`route-rules : ${n} assertions OK`);
